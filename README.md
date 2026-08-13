@@ -6,7 +6,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 È il telaio di una config personale usata quotidianamente in produzione, estratto e igienizzato: **zero dati, zero credenziali, zero riferimenti a infrastrutture private**. Quello che resta è il metodo.
 
-In due righe: **21 guardie e automazioni**, **19 slash command**, **11 subagent**, **6 skill**. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
+In due righe: **21 guardie e automazioni**, **20 slash command**, **11 subagent**, **6 skill**. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
 
 ---
 
@@ -77,6 +77,8 @@ Oppure, per innestare Arturo su una config esistente: clona altrove e copia `set
 
 ## Prima accensione — checklist
 
+> **La via rapida: `/setup`.** Apri Claude Code dentro `~/.claude` e lancia **`/setup`**: ti guida passo-passo in tutta la configurazione qui sotto (prerequisiti, permessi, `PROJECTS_BASE`, lingua, `CLAUDE.md`, sync, verifica finale), una cosa alla volta e in linguaggio semplice. È il modo consigliato, soprattutto se non sei un programmatore. La checklist qui sotto è la versione manuale, per chi preferisce farla a mano.
+
 1. **`settings.json` → `env.PROJECTS_BASE`** — la cartella dove vivono i tuoi progetti (default `~/Documents/ClaudeCode`). Vale per `/progetto`, `/inizio` e `/ui`.
 2. **`hooks/exfil-guard.py` → regex `INTERNAL`** — aggiungi i tuoi host fidati (hostname del tuo server, tailnet, LAN) se ne hai. Di default passa solo `localhost`/LAN/CGNAT.
 3. **Scrivi il tuo `~/.claude/CLAUDE.md`** — le istruzioni personali (chi sei, come lavori, regole tue). Non è incluso: è personale per definizione.
@@ -123,7 +125,7 @@ Gli hook su `Edit`/`Write` (protezione config, emoji, quality-check) e i **PostT
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
 hooks/               21 guardie e automazioni
-commands/            19 slash command di workflow
+commands/            20 slash command di workflow (incl. /setup guidato)
 agents/              11 subagent specializzati
 skills/              6 skill (+ regole condivise in shared/)
 docs/onboarding/     Guide di setup guidato (/inizio gws)
@@ -158,6 +160,8 @@ Fuori dal dispatcher:
 - `statusline.js` — statusline con modello, branch e stato sessione.
 
 ### La rotta (`commands/`)
+
+Setup: **`/setup`** — configurazione guidata dell'intero harness per un nuovo utente (prerequisiti, permessi, `PROJECTS_BASE`, `CLAUDE.md`, sync, verifica); pensato anche per chi non programma.
 
 Il ciclo di lavoro quotidiano:
 
