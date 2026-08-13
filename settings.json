@@ -1,0 +1,295 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "cleanupPeriodDays": 90,
+  "env": {
+    "DISABLE_TELEMETRY": "1",
+    "DISABLE_ERROR_REPORTING": "1",
+    "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
+    "PROJECTS_BASE": "~/Documents/ClaudeCode"
+  },
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": [
+      "Read",
+      "Write",
+      "Edit",
+      "MultiEdit",
+      "WebSearch",
+      "WebFetch",
+      "Bash",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(cp:*)",
+      "Bash(cd:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(node:*)",
+      "Bash(pip:*)",
+      "Bash(pip3:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(docker:*)",
+      "Bash(docker compose:*)",
+      "Bash(gh:*)",
+      "Bash(jq:*)",
+      "Bash(claude:*)",
+      "Skill(progetto)",
+      "Skill(discovery)",
+      "Read(//tmp/**)",
+      "mcp__playwright__*",
+      "mcp__github__*",
+      "mcp__plugin_context7_context7__*",
+      "Bash(bw status)",
+      "Bash(bw list:*)",
+      "Bash(bw get:*)",
+      "Bash(bw unlock:*)",
+      "Read(.env)",
+      "Read(.env.*)",
+      "Bash(export:*)",
+      "Bash(brew:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(rm -rf ~)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~/*)",
+      "Bash(sudo rm *)",
+      "Bash(chmod 777 *)",
+      "Bash(> /dev/*)",
+      "Bash(dd *)",
+      "Bash(mkfs *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(git checkout .)",
+      "Bash(git clean -fd*)",
+      "Bash(git clean -f *)",
+      "Bash(git branch -D*)",
+      "Bash(git stash drop*)",
+      "Bash(git push* +*)",
+      "Bash(git -c *push*)",
+      "Bash(git reflog expire*)",
+      "Bash(git filter-branch*)",
+      "Bash(git filter-repo*)",
+      "Bash(git update-ref -d*)",
+      "Bash(npm publish*)",
+      "Bash(bw export:*)",
+      "Bash(bw export)",
+      "Bash(ln -sf /*)",
+      "Bash(find * -exec *rm*)",
+      "Bash(install -m 777 *)",
+      "Bash(git config --global*)",
+      "Read(~/.ssh/*)",
+      "Read(~/.gnupg/*)",
+      "Read(~/.aws/*)",
+      "Read(~/.kube/*)",
+      "Read(~/.docker/config.json)",
+      "Read(~/.npmrc)",
+      "Read(~/.git-credentials)",
+      "Read(~/.config/gh/*)",
+      "Read(**/*.pem)",
+      "Read(**/id_rsa)",
+      "Read(**/id_ed25519)",
+      "Read(**/id_ecdsa)",
+      "Read(**/id_dsa)",
+      "Read(**/service-account*.json)",
+      "Read(**/credentials.json)",
+      "Read(**/.aws/credentials)",
+      "Read(**/.pypirc)",
+      "Read(**/secrets.env)",
+      "Read(**/.secrets/**)",
+      "Edit(~/.zshrc)",
+      "Edit(~/.bashrc)",
+      "Edit(~/.zprofile)",
+      "Edit(~/.bash_profile)",
+      "Write(~/.zshrc)",
+      "Write(~/.bashrc)",
+      "Write(~/.zprofile)",
+      "Write(~/.bash_profile)"
+    ],
+    "ask": [
+      "mcp__*__*delete*",
+      "mcp__*__*remove*",
+      "mcp__*__drop_table*",
+      "mcp__*__drop_database*",
+      "mcp__*__*destroy*",
+      "mcp__*__*purge*",
+      "mcp__*__*reset*",
+      "mcp__*__*rebase*",
+      "mcp__*__*merge*",
+      "mcp__*__*pause*",
+      "mcp__*__*restore*",
+      "mcp__*__*deploy*",
+      "mcp__*__*publish*",
+      "mcp__*__*send*",
+      "mcp__*__*push*",
+      "mcp__*__*sql*",
+      "mcp__*__*migrat*",
+      "mcp__*__*schedule*",
+      "Write(.env)",
+      "Write(.env.*)",
+      "Edit(.env)",
+      "Edit(.env.*)",
+      "Bash(aws:*)",
+      "Bash(gcloud:*)",
+      "Bash(az:*)",
+      "Bash(kubectl:*)",
+      "Bash(sudo *)"
+    ],
+    "defaultMode": "acceptEdits"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/session-start.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/session-end.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/input-notifier-start.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/protect_claude_md.py",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/bash-dispatcher.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__github__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/github_issue_guard.py",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "WebFetch|mcp__jina__.*|mcp__playwright__browser_navigate",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/web-egress-guard.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/emoji_remover.py",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/quality-check.sh 2>/dev/null",
+            "timeout": 180,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/session-reminder.sh 2>/dev/null || true",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|MultiEdit|Write|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ~/.claude/hooks/context-monitor.js",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|WebFetch|WebSearch|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/prompt-injection-scanner.py",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/credential-leak-scanner.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/inject-now.sh",
+            "timeout": 3
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "node ~/.claude/hooks/statusline.js"
+  },
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true
+  },
+  "language": "italian",
+  "alwaysThinkingEnabled": true,
+  "fileCheckpointingEnabled": true,
+  "showTurnDuration": true
+}

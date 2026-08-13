@@ -1,0 +1,47 @@
+# Cache e temporanei
+*.pyc
+__pycache__/
+*.swp
+.DS_Store
+*.bak
+*.log
+
+# File sensibili — MAI committare
+*.env
+*.key
+*.pem
+credentials.json
+settings.local.json
+secrets/
+data/credentials/
+.credentials.json
+
+# Runtime Claude Code (generato localmente)
+ide/
+local/
+logs/
+downloads/
+backups/
+cache/
+plugins/
+stats-cache.json
+history.jsonl
+telemetry/
+statsig/
+session-env/
+debug/
+projects/
+file-history/
+shell-snapshots/
+plans/
+sessions/
+todos/
+teams/
+.last-update-result.json
+
+# Handoff locali dei progetti (i mirror vivono in data/handoffs/)
+HANDOFF_*.md
+!data/handoffs/**/HANDOFF_*.md
+
+# Client secret OAuth (onboarding gws) — MAI committare
+client_secret*.json
