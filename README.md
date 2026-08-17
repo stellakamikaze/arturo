@@ -6,7 +6,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 È il telaio di una config personale usata quotidianamente in produzione, estratto e igienizzato: **zero dati, zero credenziali, zero riferimenti a infrastrutture private**. Quello che resta è il metodo.
 
-In due righe: **21 guardie e automazioni**, **20 slash command**, **11 subagent**, **6 skill**. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
+In due righe: **21 guardie e automazioni**, **22 slash command**, **11 subagent**, **6 skill** — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
 
 ---
 
@@ -23,11 +23,13 @@ In due righe: **21 guardie e automazioni**, **20 slash command**, **11 subagent*
   - [L'equipaggio (`agents/`)](#lequipaggio-agents)
   - [Le skill (`skills/`)](#le-skill-skills)
 - [Cosa NON c'è (di proposito)](#cosa-non-cè-di-proposito)
+- [Imparare con Arturo](#imparare-con-arturo)
 - [Personalizzazione](#personalizzazione)
 - [Sicurezza](#sicurezza)
 - [Multi-macchina](#multi-macchina)
 - [Onboarding gws (opzionale)](#onboarding-gws-google-workspace-cli-opzionale)
 - [Troubleshooting](#troubleshooting)
+- [Autore e manutenzione](#autore-e-manutenzione)
 - [Licenza](#licenza)
 
 ---
@@ -125,10 +127,12 @@ Gli hook su `Edit`/`Write` (protezione config, emoji, quality-check) e i **PostT
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
 hooks/               21 guardie e automazioni
-commands/            20 slash command di workflow (incl. /setup guidato)
+commands/            22 slash command di workflow (incl. /setup, /novita, /sparring)
 agents/              11 subagent specializzati
 skills/              6 skill (+ regole condivise in shared/)
+docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/onboarding/     Guide di setup guidato (/inizio gws)
+NOVITA.md            Canale di aggiornamento (lo racconta /novita)
 ```
 
 ### I guardiani (`hooks/`)
@@ -162,6 +166,8 @@ Fuori dal dispatcher:
 ### La rotta (`commands/`)
 
 Setup: **`/setup`** — configurazione guidata dell'intero harness per un nuovo utente (prerequisiti, permessi, `PROJECTS_BASE`, `CLAUDE.md`, sync, verifica); pensato anche per chi non programma.
+
+Pedagogia: **`/novita`** — racconta gli aggiornamenti dell'harness non ancora visti (cosa cambia, il principio dietro); **`/sparring`** — prende un principio del curriculum e lo prova sul lavoro reale dell'utente, con esperimenti piccoli e reversibili. Vedi [Imparare con Arturo](#imparare-con-arturo).
 
 Il ciclo di lavoro quotidiano:
 
@@ -199,6 +205,27 @@ Arturo è stato estratto da una config che include anche memoria persistente, ta
 | Sync su server privato | il repo git stesso: `data/handoffs/` viaggia con la config |
 
 Nessun componente richiede un server, un dominio o un account specifico.
+
+---
+
+## Imparare con Arturo
+
+Arturo non è solo una configurazione: è pensato anche come **percorso pedagogico** per chi
+è incuriosito dall'AI, ne intuisce l'impatto, vorrebbe usare Claude Code ma non sa da dove
+partire — incluse le persone che non fanno un mestiere tecnico. Il percorso:
+
+1. **`/setup`** — l'installazione guidata, una cosa per volta, in linguaggio semplice.
+2. **`docs/principi/`** — il curriculum: i principi dell'usare bene un'AI, spiegati in
+   parole semplici. Si parte da [Chi possiede lo strumento](docs/principi/00-chi-possiede-lo-strumento.md):
+   il potere prima dei comandi.
+3. **`/sparring`** — una sessione guidata che prende un principio e lo prova sul TUO
+   lavoro reale, con esperimenti piccoli e reversibili. Anche «questo per ora non ti
+   serve» è un risultato.
+4. **`/novita`** — quando l'harness si aggiorna (`git pull`), all'avvio della sessione
+   Arturo ti avvisa; `/novita` racconta cosa è cambiato, il principio dietro, e ti
+   propone lo sparring. Così l'harness — e chi lo usa — restano aggiornati insieme.
+
+Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 
 ---
 
@@ -249,6 +276,20 @@ Claude ti guida passo-passo seguendo [`docs/onboarding/gws.md`](docs/onboarding/
 | Commit bloccato con un messaggio che *parla* di comandi pericolosi | il messaggio contiene un pattern come `curl\|bash` | usa `git commit -F file` (il guard scansiona il comando, non il file) |
 | Nessun titolo nel terminale su macOS | `session-env/` mancante (creata al primo avvio) | innocuo; si risolve da solo |
 | `/system-audit`: WARN su `MEMORY.md` | stai usando un sistema di memoria esterno non installato | ignora; senza `data/memory/` il check è N/A |
+
+---
+
+## Autore e manutenzione
+
+Arturo è un progetto di **Federico Nejrotti** — autore, non programmatore: questo harness
+è anche la dimostrazione della sua stessa tesi, che il metodo conta più del codice. La
+history del repo è volutamente neutra; la firma sta qui.
+
+Patto di manutenzione, detto onestamente: Arturo è mantenuto **quando serve e come
+serve** — è l'estratto di una configurazione usata ogni giorno in produzione, quindi
+evolve davvero, ma senza calendario e senza SLA. Le issue sono benvenute e vengono lette;
+non c'è promessa di risposta né di fix. Tutto è fatto per essere forkato e adattato: se
+il progetto si fermasse domani, quello che hai in mano continua a funzionare.
 
 ---
 

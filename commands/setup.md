@@ -149,10 +149,23 @@ bash "$HOME/.claude/skills/system-audit/audit.sh"
 
 ---
 
+## FASE 10 — Sparring: l'harness sul TUO lavoro (opzionale, consigliata)
+
+L'installazione è finita, ma l'harness non sa ancora niente della persona che lo userà.
+Proponi: «vuoi che facciamo dieci minuti di sparring? Ti faccio tre domande sul tuo lavoro
+e vediamo insieme dove Arturo ti serve davvero — con un piccolo esperimento, se ti va.»
+
+Se accetta, prosegui con le istruzioni di **`/sparring`** (parti dal capitolo
+`docs/principi/00-chi-possiede-lo-strumento.md`, che è il punto d'ingresso del curriculum).
+Se preferisce esplorare da solo, indicagli `docs/principi/README.md` e chiudi.
+
+---
+
 ## Riepilogo finale
 
 Chiudi con un riepilogo in linguaggio semplice:
 - Cosa è stato configurato (prerequisiti, permessi, PROJECTS_BASE, lingua, eventuale CLAUDE.md).
 - Cosa è rimasto opzionale/saltato.
 - **Come iniziare a lavorare**: «Per avviare un progetto usa `/progetto <nome>`; per riprendere una sessione `/inizio <nome>`; per chiudere `/fine`.»
+- **Come restare aggiornato**: dopo ogni `git pull` dell'harness, all'avvio della sessione Arturo segnala se ci sono novità; `/novita` le racconta e propone lo sparring.
 - Ricorda che `/system-audit` si può rilanciare in qualsiasi momento per ricontrollare l'harness.

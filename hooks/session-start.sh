@@ -33,3 +33,13 @@ if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
   fi
   (git -C "$HOME/.claude" fetch --quiet origin main >/dev/null 2>&1 &)
 fi
+
+# Canale novità: se NOVITA.md ha una entry più recente dell'ultima vista, segnala.
+# Solo un avviso — il racconto lo fa /novita, mai in automatico.
+if [ -f "$HOME/.claude/NOVITA.md" ]; then
+  ULTIMA_NOVITA=$(grep -m1 '^## ' "$HOME/.claude/NOVITA.md" 2>/dev/null | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
+  NOVITA_VISTA=$(cat "$HOME/.claude/session-env/novita-vista" 2>/dev/null || echo "")
+  if [ -n "$ULTIMA_NOVITA" ] && [ "$ULTIMA_NOVITA" != "$NOVITA_VISTA" ]; then
+    echo "NOVITA': aggiornamenti dell'harness non ancora letti (ultimo: $ULTIMA_NOVITA) — digita /novita per fartelo raccontare"
+  fi
+fi
