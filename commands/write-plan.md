@@ -19,6 +19,7 @@ Questo comando va eseguito DOPO `/scope`. Se non esiste scope nella conversazion
 2. **Test early**: Setup infrastruttura test prima
 3. **Foundation first**: Auth, DB, API base prima delle feature
 4. **Valore incrementale**: Ogni step produce qualcosa di testabile
+5. **Effetto dichiarato**: ogni fase apre con una riga che dice cosa si ha in mano quando è finita, in termini verificabili. È il modo di sapere se i task elencati bastano: un gruppo di azioni si giudica completo solo rispetto all'effetto che dichiara. Se l'effetto è vago («migliorare l'affidabilità»), i task sotto non sono verificabili e la fase non è pianificata — è solo elencata.
 
 ## Struttura Piano
 
@@ -57,10 +58,12 @@ Esempio per una web-app full-stack — adatta i tagli di ogni feature allo stack
 # Piano: [Nome Progetto]
 
 ## Fase 0: Setup
+*Quando è finita:* [cosa si ha in mano — es. "il progetto si avvia in locale con un comando"]
 - [ ] Task 1
 - [ ] Task 2
 
 ## Fase 1: Foundation
+*Quando è finita:* [effetto verificabile]
 - [ ] Task 1 (dipende da: Fase 0)
 - [ ] Task 2
 

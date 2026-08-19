@@ -33,6 +33,11 @@ Esponi l'ipotesi in **2-3 bullet** (causa sospetta + come la testeresti) e atten
 prima di toccare il codice. Ragiona sui 4 path del data flow coinvolto: happy / nil / empty /
 error — il bug vive quasi sempre in uno shadow path non gestito.
 
+**L'ipotesi vale quanto la prova che la esclude.** Formulala così: *se la causa fosse X,
+allora dovrebbe succedere Y* — e progetta la verifica che risponde sì o no, non quella che
+«fa vedere cosa succede». Un check che non può smentirti non è una diagnosi: è un fix
+travestito, ed è da lì che nascono i loop di tentativi.
+
 Poi lascia lavorare il debugging nativo: ispezione, test dell'ipotesi, `git bisect` se è una
 regressione, fix minimo con test che riproduce.
 

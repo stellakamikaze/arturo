@@ -216,8 +216,9 @@ partire — incluse le persone che non fanno un mestiere tecnico. Il percorso:
 
 1. **`/setup`** — l'installazione guidata, una cosa per volta, in linguaggio semplice.
 2. **`docs/principi/`** — il curriculum: i principi dell'usare bene un'AI, spiegati in
-   parole semplici. Si parte da [Chi possiede lo strumento](docs/principi/00-chi-possiede-lo-strumento.md):
-   il potere prima dei comandi.
+   parole semplici. Si parte da [Chi possiede lo strumento](docs/principi/00-chi-possiede-lo-strumento.md)
+   (il potere prima dei comandi), poi [Chiedere bene](docs/principi/01-chiedere-bene.md):
+   il modello risponde alla domanda che gli hai fatto, non a quella che avevi in testa.
 3. **`/sparring`** — una sessione guidata che prende un principio e lo prova sul TUO
    lavoro reale, con esperimenti piccoli e reversibili. Anche «questo per ora non ti
    serve» è un risultato.

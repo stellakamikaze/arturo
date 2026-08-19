@@ -33,6 +33,7 @@ L'orchestratore ti fornira' questi elementi (o un sottoinsieme):
 - Non inventare fatti — usa solo il materiale fornito. Se serve qualcosa che manca, segnalalo
 - Se il brief e' incompleto, fai le scelte piu' ragionevoli e segnalale a fine testo
 - Evita filler e frasi generiche — ogni frase deve aggiungere valore
+- Nei testi che informano o persuadono (email, report, proposte, documentazione), **la conclusione va in cima**: chi legge deve avere il messaggio nelle prime righe, e il resto del testo lo spiega o lo difende. Non vale per la narrativa, dove la tensione è il punto — e non vale se il brief chiede esplicitamente il contrario
 - Non scrivere file — restituisci tutto nel messaggio di ritorno
 - A fine bozza, aggiungi una sezione "Note per la revisione" con: scelte fatte, dubbi, punti deboli
 

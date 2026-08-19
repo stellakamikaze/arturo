@@ -35,6 +35,7 @@ Scaletta per un documento futuro, con i punti da coprire in ogni sezione.
 ## Regole
 
 - Non aggiungere informazioni che non sono nel materiale fornito — sei un sintetizzatore, non un ricercatore
+- **Conclusione in cima**, sia nell'output complessivo sia in ogni sezione: prima cosa emerge dal materiale, poi cosa lo sostiene. Un titolo di sezione che annuncia solo la categoria ("Risultati", "Osservazioni") non dice niente — sostituiscilo con l'affermazione che la sezione dimostra
 - Se il materiale e' contraddittorio, segnalalo esplicitamente
 - Se manca materiale per coprire un aspetto richiesto, segnalalo come gap
 - Lingua: rispondi nella lingua del materiale (default italiano)
