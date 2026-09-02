@@ -1,24 +1,35 @@
 ---
 name: validate
-description: Validazione pre-commit language-aware (type-check, test, lint, build) - Node/TS, Python o prosa
+description: >-
+  Esegue la sequenza di verifica prima di un commit — type-check, test, lint, build — riconoscendo da
+  sola se il progetto è Node/TypeScript, Python o prosa, e blocca il commit se uno step fallisce.
+when_to_use: >-
+  Usa prima di ogni commit e quando /fine, /ship o /commit la richiamano; anche quando l'utente dice
+  «controlla che sia tutto verde», «valida», «posso committare?». NON per correggere ciò che trova
+  (quella è autofix) e non per la review del contenuto (review-checklist). Segui tutti i passi
+  nell'ordine: non prendere scorciatoie basandoti su questa description.
 ---
 
-# Validazione Pre-Commit
+# /validate — Validazione pre-commit
 
-Sequenza di verifica obbligatoria prima di ogni commit. NON committare se un qualsiasi step fallisce.
+## Step 0: Rileva il tipo di progetto
 
-**Prima cosa: rileva il tipo di progetto e usa i comandi giusti.** Non assumere Node.
 Il gate condiviso `shared/validation-gate.md` descrive per ogni linguaggio quali
 comandi contano — usalo come riferimento. In sintesi:
 
 - **`package.json` presente (Node/TS)** → step 1-5 qui sotto con gli script npm che
   ESISTONO davvero (`cat package.json` e guarda `scripts`): tipicamente `npx tsc --noEmit`,
-  `npm test` (o lo script test del progetto), `npm run lint`, `npm run build`. Se uno
-  script non esiste, salta quello step, non inventarlo.
+  `npm test` (o lo script test del progetto), `npm run lint`, `npm run build`.
 - **`pyproject.toml`/`requirements.txt` (Python)** → `ruff check .` (o `flake8`),
   `mypy .` se configurato, `pytest -q`.
 - **Progetto statico / prosa / altro** → niente toolchain: verifica a mano che i file
   cambiati siano coerenti e completi.
+
+## Importante
+
+- NON committare se un qualsiasi step fallisce: correggi e riesegui `/validate` da capo.
+- Non assumere Node: i comandi li decide lo step 0, non l'abitudine.
+- Se uno script non esiste nel progetto, salta quello step e dichiaralo nel risultato; non inventarlo.
 
 ## Step 1: Type-check
 
@@ -70,7 +81,7 @@ Riporta checklist:
 - [ ] Build: PASS/FAIL
 
 Se tutti PASS → procedi con il commit.
-Se qualsiasi FAIL → correggi e riesegui `/validate`.
+Se qualsiasi FAIL → vale la regola in «Importante»: correggi e riesegui `/validate`.
 
 ## Step 6 (opzionale): Mutation Testing
 
@@ -82,4 +93,4 @@ npx stryker run --mutate 'src/lib/services/TARGET.ts'
 
 **Criterio**: mutation score > 60%. Un 100% line coverage con 40% mutation score significa che il 60% dei test non verifica nulla di reale.
 
-Non usare di default — e' lento. Usare per validare che i test di un modulo critico catturino davvero i bug.
+Non usare di default — è lento. Usare per validare che i test di un modulo critico catturino davvero i bug.

@@ -103,6 +103,7 @@ Se non esiste, fai una **breve intervista** (poche domande, semplici), poi gener
 - **Come vuoi le risposte**: lingua, tono (conciso? esteso?), preferenze (es. niente emoji, accenti corretti).
 - **Regole tue**: cose che Claude deve o non deve fare (es. «chiedi prima di installare pacchetti», «non pushare senza chiedere»).
 - **Cosa usi**: sistema operativo, strumenti principali.
+- **Due regole che consigliamo di includere** (l'utente decide): «Prima di ogni richiesta di lavoro mostra un brief di massimo 8 righe — obiettivo, output, vincoli, fatto quando, assunzioni, da chiarire — poi procedi» (lo fa la skill `prompt-master`); e la forma delle risposte: frasi corte (22 parole per un'istruzione, 28 per una descrizione), voce attiva, niente gerundio né condizionale, una parola per concetto (il catalogo completo è nella skill `italiano-semplificato`, da usare per riscrivere un testo dato).
 
 Mostra la bozza e chiedi conferma prima di scriverla in `~/.claude/CLAUDE.md`. Tienila corta e pratica: è meglio poche regole vere che una lista lunga.
 

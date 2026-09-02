@@ -1,15 +1,32 @@
 ---
 name: ui-reference
-description: Si attiva quando il task coinvolge sviluppo frontend, componenti UI, CSS, Tailwind, layout, responsive design, dark mode, accessibilita', animazioni, design system, o quando l'utente chiede di costruire/modificare interfacce. Fornisce checklist concrete, valori precisi e gotchas per evitare errori comuni di UI.
+description: >-
+  Dà i valori concreti e i gotcha del frontend — direzione estetica, layout, tipografia, dark mode,
+  accessibilità, animazioni, responsive — così che un'interfaccia non sembri generata da una macchina.
+when_to_use: >-
+  Usa quando il lavoro tocca componenti UI, CSS, Tailwind, layout, responsive, dark mode,
+  accessibilità o animazioni, e quando l'utente dice «rendilo più bello», «sembra fatto dall'AI»,
+  «sistemare il design». NON per il backend, le API o la logica di stato senza interfaccia. Segui
+  tutti i passi nell'ordine: non prendere scorciatoie basandoti su questa description.
 ---
 
 # UI Reference — Checklist e Gotchas
 
+## Importante
+
+Regole che non si saltano, qualunque sia la direzione estetica scelta:
+
+- Il test critico, prima di consegnare: «Se mostrassi questo a qualcuno dicendo "lo ha fatto l'AI", ci crederebbe subito?». Se sì, è un problema: torna alla direzione estetica.
+- Verifica lo stack prima di scrivere CSS: i gotcha Tailwind valgono SOLO se il progetto monta davvero Tailwind. Su Vue 3 + SCSS (stack primario) si usano variabili/mixin SCSS, `:deep()` e scoped styles.
+- Nero e bianco puro (`#000`, `#fff`) sono il tell #1 dell'amateur: usa neutri tinteggiati (sezione Colori).
+- Mai `px` per il body text — solo `rem`/`em`, minimo 16px.
+- Ogni elemento interattivo ha tutti gli 8 stati della tabella in Interaction: nessuno si omette.
+- Mai `outline: none` senza un `:focus-visible` che lo sostituisca.
+- `prefers-reduced-motion` non è opzionale: ogni animazione passa dal blocco in Motion Design.
+
 ## Design Direction
 
 Prima di scrivere codice, scegli una direzione estetica precisa e impegnati: minimalist, maximalist, retro-futuristic, luxury, editorial, brutalist, ecc. Differenziazione intenzionale tra progetti diversi.
-
-**Il test critico**: "Se mostrassi questo a qualcuno dicendo 'lo ha fatto l'AI', ci crederebbe subito? Se si', e' un problema."
 
 ## AI Slop Detection — Segnali di Design Templato
 
@@ -39,7 +56,7 @@ grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
 
 **Squint test**: sfuoca la vista — gli elementi importanti devono restare identificabili.
 
-**Card**: appropriate solo quando il contenuto e' distinto e azionabile. Mai annidare card dentro card.
+**Card**: appropriate solo quando il contenuto è distinto e azionabile. Mai annidare card dentro card.
 
 **Container queries**: `container-type: inline-size` per componenti che si adattano alla propria larghezza, non al viewport.
 
@@ -69,21 +86,21 @@ I font a sinistra sono quelli diventati il default riconoscibile del "look da AI
 | Open Sans | Source Sans 3, Nunito Sans, DM Sans |
 | Editorial/premium | Fraunces, Newsreader, Lora |
 
-Spesso un solo font con pesi multipli crea gerarchia piu' pulita di due font in competizione.
+Spesso un solo font con pesi multipli crea gerarchia più pulita di due font in competizione.
 
 ### Regole
 
-- Mai `px` per body text — solo `rem`/`em`. Minimo 16px body.
+- Body text in `rem`/`em`, minimo 16px (regola in Importante).
 - `clamp()` solo per heading su pagine marketing. Per app UI/dashboard: scale fisse con rem.
 - 45-75 caratteri per riga ottimale.
 - `font-variant-numeric: tabular-nums` per tabelle dati.
-- Vertical rhythm: line-height come unita' base per spacing verticale.
+- Vertical rhythm: line-height come unità base per spacing verticale.
 
 ## Colori
 
 ### OKLCH invece di HSL
 
-HSL non e' percettivamente uniforme (50% lightness in yellow ≠ 50% in blue). OKLCH si'.
+HSL non è percettivamente uniforme (50% lightness in yellow ≠ 50% in blue). OKLCH sì.
 
 ```css
 /* Sintassi: oklch(lightness% chroma hue) */
@@ -119,8 +136,6 @@ Non invertire i colori. Usare superfici a elevazione crescente:
 }
 ```
 
-**Nero e bianco puro (`#000`, `#fff`) sono il tell #1 dell'amateur.**
-
 ### Contrasto WCAG
 
 - Body text AA: 4.5:1, AAA: 7:1
@@ -133,16 +148,16 @@ Non invertire i colori. Usare superfici a elevazione crescente:
 2. **Secondary**: outline o tinted background, azioni secondarie
 3. **Ghost**: solo testo, azioni terziarie, navigazione
 
-## Interaction: 8 Stati Obbligatori
+## Interaction: gli 8 Stati
 
-Ogni elemento interattivo richiede tutti e 8:
+Gli 8 stati di ogni elemento interattivo (la regola è in Importante):
 
 | Stato | Quando | Trattamento |
 |-------|--------|-------------|
 | Default | A riposo | Stile base |
 | Hover | Pointer sopra (non touch) | Lift sottile, shift colore |
 | Focus | Keyboard/programmatico | Ring visibile 2-3px, offset 2px |
-| Active | Mentre premuto | `scale(0.98)`, piu' scuro |
+| Active | Mentre premuto | `scale(0.98)`, più scuro |
 | Disabled | Non interattivo | Opacity ridotta, `pointer-events: none` |
 | Loading | Processing | Spinner o skeleton |
 | Error | Stato invalido | Red border + icon + messaggio |
@@ -156,16 +171,16 @@ button:focus-visible {
   outline-offset: 2px;
 }
 ```
-Contrasto minimo 3:1, spessore 2-3px. Mai `outline: none` senza `focus-visible`.
+Contrasto minimo 3:1, spessore 2-3px.
 
 ### Dialog e Popover Nativi
 
 - `<dialog>` con `.showModal()`: auto focus-trap, chiude su Escape, `inert` sul contenuto dietro.
-- Popover API per tooltip/dropdown: light-dismiss, stacking automatico, accessibilita' built-in.
+- Popover API per tooltip/dropdown: light-dismiss, stacking automatico, accessibilità built-in.
 
 ### Undo > Confirm
 
-Undo e' migliore dei dialog di conferma (gli utenti ignorano i prompt). Rimuovere subito dall'interfaccia, mostrare toast undo, eseguire dopo scadenza. Riservare conferme solo per azioni irreversibili (pagamenti, cancellazioni permanenti).
+Undo è migliore dei dialog di conferma (gli utenti ignorano i prompt). Rimuovere subito dall'interfaccia, mostrare toast undo, eseguire dopo scadenza. Riservare conferme solo per azioni irreversibili (pagamenti, cancellazioni permanenti).
 
 ## Motion Design
 
@@ -197,7 +212,9 @@ Bounce e elastic curves: amateurish. Evitare.
 - Stagger: `animation-delay: calc(var(--i) * 50ms)`. Cappare il totale.
 - Soglia 80ms: sotto sembra istantaneo (brain buffer).
 
-### Reduced Motion — Non Opzionale
+### Reduced Motion
+
+Il blocco richiesto dalla regola in Importante:
 
 ```css
 @media (prefers-reduced-motion: reduce) {
@@ -213,7 +230,7 @@ Bounce e elastic curves: amateurish. Evitare.
 ### Mobile-First
 
 Stili base per mobile, poi `min-width` media queries. 3 breakpoint bastano: 640, 768, 1024px.
-Breakpoint content-driven: espandi finche' non si rompe, inserisci li' il breakpoint.
+Breakpoint content-driven: espandi finché non si rompe, inserisci lì il breakpoint.
 
 ### Rilevare Input, Non Screen Size
 
@@ -245,14 +262,14 @@ body { padding-top: env(safe-area-inset-top); }
 ## UX Writing
 
 - **Verb + Object**: "Save changes", "Delete message" — mai "Submit", "OK", "Yes/No"
-- **Formula errori**: cosa e' successo + perche' + come risolvere. Non incolpare l'utente.
+- **Formula errori**: cosa è successo + perché + come risolvere. Non incolpare l'utente.
 - **Azioni distruttive**: specificare cosa viene rimosso e conteggi. "Delete 3 messages" non "Delete".
 - **Empty states**: trattarli come onboarding con value proposition chiara.
 - **i18n**: pianificare espansione testo (tedesco +30%, francese +20%).
 
 ## Touch Target
 
-Minimo **44x44px** per mobile (WCAG 2.5.5). Se il visual e' piu' piccolo, estendi l'area cliccabile con padding o pseudo-elementi.
+Minimo **44x44px** per mobile (WCAG 2.5.5). Se il visual è più piccolo, estendi l'area cliccabile con padding o pseudo-elementi.
 
 ## Feedback: Toast System
 
@@ -273,19 +290,17 @@ Max 3 toast visibili. Stack dal basso. `role="alert"` per screen reader.
 
 ## Gotchas
 
-> **Stack primario = Vue 3 + SCSS (no Tailwind)**. Preferire variabili/mixin SCSS, `:deep()`, scoped styles. I due gotcha Tailwind sotto valgono SOLO se il progetto monta effettivamente Tailwind.
-
 - **Mobile Safari 100vh**: usare `min-height: 100dvh` con fallback `-webkit-fill-available`
 - **Focus ring + transform**: `scale()` clippa `box-shadow`. Usare `outline` con `outline-offset`
 - **CSS custom properties e teleport**: variabili `:root` non raggiungono nodi montati fuori dal DOM tree (Vue `<Teleport>`, portali React)
-- **Tailwind + CSS vars** (solo progetti Tailwind): `bg-[--color-name]` (con `--`). Senza `--`, fallisce silenziosamente
-- **Tailwind purge** (solo progetti Tailwind): classi dinamiche (`bg-${color}-500`) rimosse. Usare classi complete o safelist
+- **Tailwind + CSS vars** (solo progetti Tailwind, vedi Importante): `bg-[--color-name]` (con `--`). Senza `--`, fallisce silenziosamente
+- **Tailwind purge** (solo progetti Tailwind, vedi Importante): classi dinamiche (`bg-${color}-500`) rimosse. Usare classi complete o safelist
 - **Optical alignment**: centramento matematico ≠ visivo. Testo nei bottoni: +1-2px padding-top
 - **CLS**: sempre `width`/`height` o `aspect-ratio` su immagini
 - **Lazy loading above the fold**: mai su hero/LCP. Usare `fetchpriority="high"` + `loading="eager"`
 - **z-index**: scala ordinata (`--z-dropdown: 100`, `--z-modal: 200`, `--z-toast: 300`)
 
-## Accessibilita' Minima
+## Accessibilità Minima
 
 - Contrasto: vedi sezione Colori sopra
 - `aria-label` su icon button senza testo visibile

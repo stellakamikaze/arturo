@@ -1,17 +1,26 @@
 ---
 name: review-checklist
-description: Checklist strutturata per pre-landing review - usata da /review e /ship
+description: >-
+  Aggiunge alla review nativa del diff la checklist pre-landing che il codice da solo non copre:
+  completezza strutturale, coerenza con il piano, documentazione, rischi di deploy.
+when_to_use: >-
+  Usa quando /deep-review o /ship la richiamano, o quando l'utente chiede «è pronto per andare?»,
+  «facciamo la review prima del merge». NON per la caccia ai bug di correttezza sul diff: quella è il
+  /code-review nativo, da lanciare prima. Segui tutti i passi nell'ordine: non prendere scorciatoie
+  basandoti su questa description.
 ---
 
 # Pre-Landing Review
 
-## Come usarla
+## Passi
 
-Per la caccia ai bug di correttezza sul diff, **delega al `/code-review` nativo** — non re-implementare l'enumerazione qui. Questa skill aggiunge valore sopra il nativo: i principi di review, il giudizio su cosa fixare da soli vs cosa chiedere, e le soppressioni per ridurre il rumore.
+1. Determina il base branch: `gh pr view --json baseRefName -q .baseRefName 2>/dev/null || git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||' || echo main`.
+2. Lancia il `/code-review` nativo sul diff: bug di correttezza e semplificazioni sono suoi. Sopra il nativo questa checklist aggiunge i principi di review, il giudizio su cosa fixare da soli e le soppressioni.
+3. Revisiona `git diff origin/<base-branch>` con i «Principi di review» qui sotto. Per ogni issue cita `file:linea` e suggerisci il fix.
+4. Decidi ogni issue con «Cosa fixo da solo vs cosa chiedo», poi filtra il rumore con «Soppressioni».
+5. Riporta nel formato qui sotto. Sii conciso: una riga problema, una riga fix, niente preamboli.
 
-Determina il base branch: usa `gh pr view --json baseRefName -q .baseRefName 2>/dev/null || git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||' || echo main`. Revisiona il `git diff origin/<base-branch>`. Sii specifico — cita `file:linea` e suggerisci fix. Salta ciò che va bene. Segnala solo problemi reali.
-
-**Formato output:**
+### Formato output
 
 ```
 Pre-Landing Review: N issue (X critici, Y informazionali)
@@ -26,7 +35,14 @@ Pre-Landing Review: N issue (X critici, Y informazionali)
 
 Se nessun issue: `Pre-Landing Review: Nessun issue trovato.`
 
-Sii conciso. Per ogni issue: una riga problema, una riga fix. Niente preamboli.
+---
+
+## Importante
+
+- La caccia ai bug di correttezza sul diff è del `/code-review` nativo: non re-implementare l'enumerazione qui.
+- Segnala solo problemi reali, ciascuno con `file:linea`. Salta ciò che va bene.
+- Fix in autonomia solo su ciò che è sicuro, meccanico e reversibile; sicurezza, race condition, architettura e comportamento visibile all'utente si chiedono. La linea di confine sta in «Cosa fixo da solo vs cosa chiedo».
+- Ciò che è elencato in «Soppressioni» non si segnala, mai.
 
 ---
 

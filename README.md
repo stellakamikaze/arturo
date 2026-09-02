@@ -6,7 +6,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 È il telaio di una config personale usata quotidianamente in produzione, estratto e igienizzato: **zero dati, zero credenziali, zero riferimenti a infrastrutture private**. Quello che resta è il metodo.
 
-In due righe: **21 guardie e automazioni**, **22 slash command**, **11 subagent**, **6 skill** — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
+In due righe: **21 guardie e automazioni**, **22 slash command**, **11 subagent**, **8 skill** — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
 
 ---
 
@@ -129,7 +129,7 @@ settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
 hooks/               21 guardie e automazioni
 commands/            22 slash command di workflow (incl. /setup, /novita, /sparring)
 agents/              11 subagent specializzati
-skills/              6 skill (+ regole condivise in shared/)
+skills/              8 skill (+ regole condivise in shared/)
 docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/onboarding/     Guide di setup guidato (/inizio gws)
 NOVITA.md            Canale di aggiornamento (lo racconta /novita)
@@ -191,6 +191,8 @@ Subagent con un mestiere solo, richiamati dai comandi o a mano: `architecture-re
 - **`system-audit`** — audit dell'harness stesso: hook wirati vs presenti su disco, smoke test degli hook, frontmatter, JSON validi. Da lanciare dopo ogni modifica alla config.
 - **`ui-reference`** — valori concreti e gotcha per frontend (layout, dark mode, accessibilità, animazioni).
 - **`keyword-research`** — framework tri-superficie per content/SEO (organico, AEO, GEO).
+- **`prompt-master`** — due modalità: un prompt pronto da incollare in un altro tool AI, oppure il **brief interno**: prima di ogni richiesta di lavoro ricostruisce il contesto che manca e mostra obiettivo, output, vincoli, criterio di fatto, assunzioni e ambiguità (upstream `nidhinjs/prompt-master`, MIT).
+- **`italiano-semplificato`** — riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI.
 
 ---
 

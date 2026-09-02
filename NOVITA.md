@@ -11,6 +11,32 @@ modo di lavorare.
 
 ---
 
+## 2026-09-02 — La porta e la procedura: description, when_to_use e le sezioni «Freni»
+
+**Cosa cambia**: ogni skill ha ora due campi in testa. `description` dice in una frase che cosa
+la skill produce; `when_to_use` dice quando si accende — le frasi che dici davvero, i casi in cui
+NON si accende e a chi passa la palla — e chiude sempre con «Segui tutti i passi nell'ordine: non
+prendere scorciatoie basandoti su questa description». Nel corpo, la prima cosa dopo il titolo è
+un passo o un prerequisito, non una spiegazione; le regole che non si possono saltare stanno sotto
+un'intestazione propria, `## Freni` o `## Importante`. Due skill nuove: `prompt-master` (mostra un
+brief di otto righe prima di ogni lavoro: obiettivo, output, vincoli, quando è fatto, assunzioni,
+cosa chiarire) e `italiano-semplificato` (riscrive un testo con frasi corte e senza burocratese).
+`/setup` propone entrambe le regole nel tuo `CLAUDE.md`; `/inizio` fa il pull con `--autostash`,
+così un file sporco non blocca più l'aggiornamento.
+
+**Il principio dietro**: il modello legge la `description` per decidere se una skill si applica —
+e se lì trova i passi, li esegue senza aprire il corpo, saltando le regole. Quindi la porta dice
+solo *se entrare*; la procedura sta dentro. E due domande valgono più di dieci regole: «se un
+agente leggesse solo la description, cosa farebbe?» (deve rispondere: decide se serve) e «cosa
+farebbe un agente pigro se questa skill non esistesse?» (il corpo deve impedire proprio quello).
+Idee prese da `gsarig/skills`, applicate qui alla lettera.
+
+**A chi serve**: a chi scrive o modifica una skill, e a chi si chiede perché una skill non è
+partita quando doveva — il primo sospetto è la frase in `when_to_use`. Prova: `/sparring` sul
+principio «la porta e la procedura» con una skill che usi spesso.
+
+---
+
 ## 2026-08-19 — Chiedere bene: il capitolo 01 e i punti dove l'harness lo pretende
 
 **Cosa cambia**: il curriculum ha un secondo capitolo disponibile,

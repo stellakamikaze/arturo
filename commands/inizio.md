@@ -22,7 +22,7 @@ fine esegui la checklist del documento. Poi FERMATI: le fasi sotto non si applic
 ## FASE 0: Sync Config
 
 ```bash
-git -C ~/.claude pull origin main --rebase 2>/dev/null || echo "Config sync: nessun update"
+git -C ~/.claude pull origin main --rebase --autostash 2>&1 | tail -1 || echo "Config sync: pull fallito — controlla il repo a mano prima di lavorare"
 ```
 
 ---
