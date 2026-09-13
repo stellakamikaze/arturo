@@ -28,6 +28,8 @@ SEND_BINARIES = [
     (r"\bmail\s+-s\b", "mail -s"),
     (r"\bmutt\s+.*-s\b", "mutt"),
     (r"\bmailx\b", "mailx"),
+    (r"\bmsmtp\b", "msmtp"),
+    (r"\bgws\b[^\n|;&]*\bmessages\s+send\b", "gws Gmail send"),
     (r"\bswaks\b", "swaks"),
     (r"\bosascript\b.*\b(Mail|Messages)\b", "AppleScript Mail/Messages"),
     (r"\bwhatsapp[_/-]?send\b", "helper WhatsApp"),
