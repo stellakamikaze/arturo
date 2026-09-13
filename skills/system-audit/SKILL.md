@@ -19,7 +19,12 @@ when_to_use: >-
 bash ~/.claude/skills/system-audit/audit.sh
 ```
 
-Lo script legge `~/.claude/` (path fisso) e richiede `python3`; `node` serve solo se ci sono hook JS. Esce sempre con codice 0: gli errori stanno nel report, non nell'exit code.
+Lo script legge `~/.claude/` e richiede `python3` con **PyYAML**; `node` serve per controllare sintassi degli hook JS. Con `--strict`, un `FAIL` o un controllo obbligatorio non eseguito termina con codice nonzero. Installa PyYAML prima dell'audit, mai durante l'audit.
+
+```bash
+python3 -m pip install PyYAML
+bash ~/.claude/skills/system-audit/audit.sh --strict
+```
 
 ## Cosa controlla
 
