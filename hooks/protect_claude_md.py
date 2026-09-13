@@ -19,6 +19,11 @@ senza alcun prompt, neutralizzando ogni altra guardia. Il vettore shell
 L'unlock (deny + istruzioni, non hard-deny in settings.json) preserva le
 modifiche legittime: chiedi conferma all'utente, crea il touch file, riprova.
 
+I file di unlock stessi (qualsiasi nome con "unlock" sotto ~/.claude) chiedono
+sempre conferma anche via Edit/Write: un marker scritto dall'assistente senza una
+decisione dell'utente sbloccherebbe da solo le due categorie. Il vettore shell
+(touch) chiede conferma in block-dangerous.py.
+
 Fail-closed: errore di parsing = blocca per sicurezza.
 """
 import json
@@ -59,6 +64,16 @@ def main():
         def unlocked(token):
             return os.path.exists(os.path.join(home_claude, f'{token}-{safe_id}'))
 
+        under_claude = (rp == claude_dir or rp.startswith(claude_dir + os.sep))
+
+        # Categoria 0: file di unlock -> sempre una decisione dell'utente
+        if under_claude and 'UNLOCK' in base:
+            _emit("ask", (
+                f"File di unlock ({os.path.basename(rp)}): sbloccherebbe la protezione "
+                "di CLAUDE.md o di config/hook. Conferma solo se l'hai chiesto tu."
+            ))
+            sys.exit(0)
+
         # Categoria 1: CLAUDE.md (ovunque)
         if base == 'CLAUDE.MD':
             if unlocked('claude-md-unlock'):
@@ -73,7 +88,6 @@ def main():
             sys.exit(0)
 
         # Categoria 2: config/hook di Claude Code
-        under_claude = (rp == claude_dir or rp.startswith(claude_dir + os.sep))
         is_config = under_claude and (
             re.match(r'SETTINGS.*\.JSON$', base) is not None
             or base == '.CLAUDE.JSON'
