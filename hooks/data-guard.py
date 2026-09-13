@@ -13,8 +13,10 @@ per rm su tree protetti).
 
 Casi coperti:
 - SQL distruttivo: DROP TABLE/DATABASE/SCHEMA, TRUNCATE, DELETE FROM senza WHERE
-  (solo se c'e' un client DB nel comando: mysql/psql/sqlite3/mariadb/mongo...)
-- docker compose down -v / --volumes  (cancella i volumi = i dati dei container)
+  (solo se c'e' un client DB nel comando: mysql/psql/sqlite3/mariadb/mongo...).
+  Un WHERE dentro una stringa SQL tra apici ('WHERE') non conta come clausola.
+- docker compose down -v / --volumes, anche con opzioni prima di down (-f, -p)
+  e nella forma docker-compose (cancella i volumi = i dati dei container)
 - rsync --delete verso una destinazione REMOTA (host:path) = puo' cancellare
   dati sul server se la direzione e' sbagliata
 - redirezione/overwrite di un file DB (> *.db / *.sqlite / *.sql.gz)
@@ -48,12 +50,25 @@ SQL_DESTRUCTIVE = [
     (r"\bTRUNCATE\s+(TABLE\s+)?\w", "TRUNCATE (svuota la tabella)"),
 ]
 # DELETE FROM ... senza WHERE (cancella tutte le righe)
-DELETE_NO_WHERE_RE = re.compile(
-    r"\bDELETE\s+FROM\s+[`\"']?\w[\w.`\"']*(?![^;]*\bWHERE\b)", re.IGNORECASE
-)
+DELETE_FROM_RE = re.compile(r"\bDELETE\s+FROM\s+[`\"']?\w[\w.`\"']*", re.IGNORECASE)
+
+
+def _delete_without_where(cmd: str) -> bool:
+    """True se uno statement DELETE FROM non ha una clausola WHERE vera.
+
+    Lo statement arriva fino al primo ';'. Le stringhe SQL tra apici singoli
+    si tolgono prima di cercare WHERE: `RETURNING 'WHERE'` non e' una clausola.
+    """
+    for match in DELETE_FROM_RE.finditer(cmd):
+        statement = cmd[match.end():].split(";", 1)[0]
+        statement = re.sub(r"'[^']*'", "", statement)
+        if not re.search(r"\bWHERE\b", statement, re.IGNORECASE):
+            return True
+    return False
+
 
 DOCKER_DOWN_VOL_RE = re.compile(
-    r"\bdocker\s+compose\s+down\b[^|&;]*(?:\s-v\b|\s--volumes\b)", re.IGNORECASE
+    r"\bdocker(?:\s+compose|-compose)\b[^|&;]*\sdown\b[^|&;]*(?:\s-v\b|\s--volumes\b)", re.IGNORECASE
 )
 
 # rsync --delete verso destinazione remota (host:path). Il ':' con un host prima
@@ -104,7 +119,7 @@ def main() -> int:
                     "conferma solo se hai un dump/backup verificato e stai agendo "
                     "sul database giusto."
                 )
-        if DELETE_NO_WHERE_RE.search(cmd):
+        if _delete_without_where(cmd):
             return _ask(
                 "DELETE FROM senza clausola WHERE: cancella TUTTE le righe. "
                 "Conferma solo se e' voluto (e c'e' un backup)."
