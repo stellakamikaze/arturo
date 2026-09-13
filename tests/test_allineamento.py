@@ -24,7 +24,6 @@ VIETATI = (
     ("browser-", "creds"), ("delega", ".sh"), ("qw", "en"),
     ("g", "lm"), ("mel", "chior"), ("ava", "lon"),
 )
-ESCLUSI_DAL_CANDIDATO = frozenset(("PIANO-allineamento-arturo.md", "docs/REVISIONE-arturo-2026-09-13.md"))
 
 
 def assert_igiene(repo: Path) -> None:
@@ -34,7 +33,7 @@ def assert_igiene(repo: Path) -> None:
     ).stdout.decode().split("\0")
     failures = []
     for raw in paths:
-        if not raw or raw in ESCLUSI_DAL_CANDIDATO:
+        if not raw:
             continue
         path = repo / raw
         if not path.is_file():
