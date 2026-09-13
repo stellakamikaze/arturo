@@ -64,4 +64,4 @@ I limiti di questo passaggio stanno in Importante.
 ## Quando NON usarla
 
 - Test funzionali di una feature → la skill ha solo check strutturali.
-- Validazione pre-commit di codice progetto → `/validate`.
+- Validazione pre-commit di codice progetto → applica `shared/validation-gate.md`.

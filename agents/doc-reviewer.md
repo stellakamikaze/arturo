@@ -1,7 +1,6 @@
 ---
 name: doc-reviewer
 description: Use this agent to analyze documentation state, identify gaps and outdated content, and optionally implement fixes. Reviews first, then implements if asked.
-model: sonnet
 tools: Read, Write, Edit, MultiEdit, Grep, Glob, Bash
 ---
 

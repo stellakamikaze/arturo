@@ -203,27 +203,27 @@ Do not assume one universal Claude default. When unsure, start with **Claude Opu
 
 ---
 
-**Qwen 2.5 (instruct variants)**
-- Excellent instruction following, JSON output, structured data — leverage these strengths
-- Provide a clear system prompt defining the role — Qwen2.5 responds well to role context
-- Works well with explicit output format specs including JSON schemas
-- Shorter focused prompts outperform long complex ones — scope tightly
+**Modelli open-weight instruct**
+- Eccellono in instruction following, JSON e output strutturati
+- Usa un system prompt chiaro che definisce il ruolo
+- Specifica un formato esplicito, incluso JSON Schema se necessario
+- Prompt brevi e focalizzati superano strutture troppo annidate
 
 ---
 
-**Qwen3 (thinking mode)**
-- Two modes: thinking mode (/think or enable_thinking=True) and non-thinking mode
-- Thinking mode: treat exactly like o3 — short clean instructions, no CoT, no scaffolding
-- Non-thinking mode: treat like Qwen2.5 instruct — full structure, explicit format, role assignment
+**Modelli open-weight con thinking mode**
+- Distingui thinking mode e non-thinking mode
+- Thinking mode: istruzioni brevi, senza CoT o scaffolding
+- Non-thinking mode: ruolo e formato esplicito
 
 ---
 
-**Ollama (local model deployment)**
-- ALWAYS ask which model is running before writing — Llama3, Mistral, Qwen2.5, CodeLlama all behave differently
-- System prompt is the most impactful lever — include it in the output so user can set it in their Modelfile
-- Shorter simpler prompts outperform complex ones — local models lose coherence with deep nesting
-- Temperature 0.1 for coding/deterministic tasks, 0.7-0.8 for creative tasks
-- For coding: CodeLlama or Qwen2.5-Coder, not general Llama
+**Ollama (deploy locale)**
+- Chiedi quale modello gira prima di scrivere: le famiglie hanno comportamenti diversi
+- System prompt è la leva principale: includilo nell'output per il Modelfile
+- Prompt brevi e semplici superano annidamenti profondi
+- Temperatura 0.1 per codice/determinismo, 0.7-0.8 per creatività
+- Per codice scegli una variante Coder, non un modello generalista
 
 ---
 

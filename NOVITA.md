@@ -11,6 +11,16 @@ modo di lavorare.
 
 ---
 
+## 2026-09-13 — Guardie aggiornate, errori visibili
+
+**Cosa cambia**: Arturo distingue il vero hostname da userinfo, porta e sottostringhe. Un URL che sembra interno può quindi essere esterno. Il dispatcher trasforma crash e output spurio delle guardie in una richiesta di conferma. Il gate di validazione conserva il codice del comando che produce l'output: un test fallito ferma il lavoro.
+
+**Potature**: spariscono i wrapper di comandi, skill e agenti approvati come duplicati, oltre al content guard GitHub e ai controlli PostToolUse non vincolanti. Restano le guardie distruttive e gli strumenti pedagogici.
+
+**Il principio dietro**: una guardia deve identificare il destinatario reale. Un controllo deve riportare l'esito reale. Se non può provarlo, deve fermarsi.
+
+---
+
 ## 2026-09-02 — La porta e la procedura: description, when_to_use e le sezioni «Freni»
 
 **Cosa cambia**: ogni skill ha ora due campi in testa. `description` dice in una frase che cosa

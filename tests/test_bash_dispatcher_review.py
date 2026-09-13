@@ -110,7 +110,9 @@ def main() -> int:
     parser.add_argument("--baseline-ref")
     args = parser.parse_args()
     if args.baseline_ref:
-        print("BASELINE_CARATTERIZZATA=S01,S02,S05,S06")
+        probe = subprocess.run([sys.executable, "-B", __file__, "--repo", str(args.repo)], capture_output=True, text=True, timeout=60, check=False)
+        assert probe.returncode != 0, "baseline non discriminante su dispatcher"
+        print("BASELINE_DISCRIMINANTE=S01,S02,S05,S06")
         return 0
     repo = args.repo.resolve()
     test_s01(repo)

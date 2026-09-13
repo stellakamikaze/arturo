@@ -25,7 +25,9 @@ def main() -> int:
     parser.add_argument("--baseline-ref")
     args = parser.parse_args()
     if args.baseline_ref:
-        print("BASELINE_CARATTERIZZATA=I01,I02")
+        probe = subprocess.run([sys.executable, "-B", __file__, "--repo", str(args.repo)], capture_output=True, text=True, timeout=30, check=False)
+        assert probe.returncode == 0, "invarianti non preservati sulla baseline"
+        print("BASELINE_INVARIANTE=I01,I02")
         return 0
     with tempfile.TemporaryDirectory(prefix="arturo-invarianti-") as raw:
         home = Path(raw) / "home"; config = home / ".claude"; hooks = config / "hooks"

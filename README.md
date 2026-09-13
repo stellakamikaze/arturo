@@ -81,8 +81,8 @@ Oppure, per innestare Arturo su una config esistente: clona altrove e copia `set
 
 > **La via rapida: `/setup`.** Apri Claude Code dentro `~/.claude` e lancia **`/setup`**: ti guida passo-passo in tutta la configurazione qui sotto (prerequisiti, permessi, `PROJECTS_BASE`, lingua, `CLAUDE.md`, sync, verifica finale), una cosa alla volta e in linguaggio semplice. È il modo consigliato, soprattutto se non sei un programmatore. La checklist qui sotto è la versione manuale, per chi preferisce farla a mano.
 
-1. **`settings.json` → `env.PROJECTS_BASE`** — la cartella dove vivono i tuoi progetti (default `~/Documents/ClaudeCode`). Vale per `/progetto`, `/inizio` e `/ui`.
-2. **`hooks/exfil-guard.py` → regex `INTERNAL`** — aggiungi i tuoi host fidati (hostname del tuo server, tailnet, LAN) se ne hai. Di default passa solo `localhost`/LAN/CGNAT.
+1. **`settings.json` → `env.PROJECTS_BASE`** — la cartella dove vivono i tuoi progetti (default `~/Documents/ClaudeCode`). Vale per `/progetto` e `/inizio`.
+2. **`hooks/exfil-guard.py`** — gli host interni sono regole pubbliche: `localhost`, reti locali esplicite e suffisso `.ts.net`. Non aggiungere host personali alla distribuzione.
 3. **Scrivi il tuo `~/.claude/CLAUDE.md`** — le istruzioni personali (chi sei, come lavori, regole tue). Non è incluso: è personale per definizione.
 4. **`language` in `settings.json`** — è `italian`; cambialo se serve.
 5. Apri Claude Code e lancia **`/system-audit`**: verifica che hook, skill e agent siano wirati correttamente sulla tua macchina. L'obiettivo è "tutto verde".
@@ -98,27 +98,26 @@ Ogni comando `Bash` passa da un unico router, `hooks/bash-dispatcher.sh`, che lo
               │
               ▼
    ┌──────────────────────┐
-   │   bash-dispatcher.sh  │  estrae il comando (jq, o python3 di fallback)
+   │ bash-dispatcher.sh    │  prosa heredoc inerte ridotta; ambiguità → originale
    └──────────┬───────────┘
-              │  match dei pattern pre-filtro
+              │
               ▼
-   ┌─────────────────────────────────────────────────────┐
-   │  git commit / gh pr create → commit-secret-gate.py  │  scansiona il diff
-   │  è "git puro" senza $(...) ? → esce, nessun guard    │
-   │  invio email/messaggi       → comms-guard.py         │  blocco (draft-first)
-   │  rm -r / config / segreti…  → block-dangerous.py     │  blocco o conferma
-   │  POST/upload o GET-exfil…   → exfil-guard.py         │  conferma
-   │  SQL/volumi/rsync --delete  → data-guard.py          │  conferma
-   │  gh (anche FOO=… gh …)      → gh-*-guard.py          │  conferma
-   └──────────┬──────────────────────────────────────────┘
-              │  ogni guard può:
+   ┌──────────────────────────────────────────────────────┐
+   │ git commit / gh pr create → commit-secret-gate.py     │
+   │ git puro non esecutivo → esce                         │
+   │ invio email/messaggi → comms-guard.py                 │ blocco
+   │ rm, config, segreti → block-dangerous.py              │ blocco o ask
+   │ POST/upload → exfil-guard.py                          │ ask
+   │ GET-exfil → disattivato per scelta di attrito          │
+   │ SQL, volumi, rsync → data-guard.py                    │ ask
+   │ gh → gh-destructive-guard.py                          │ ask
+   └──────────┬───────────────────────────────────────────┘
+              │
               ▼
-   exit≠0 → BLOCCO (motivo allo stdout del modello)
-   JSON "ask" → CONFERMA all'utente
-   niente → prosegue silenzioso
+   rc 2 → blocco · JSON valido → decisione · crash/spurio → ask · vuoto → prosegue
 ```
 
-Gli hook su `Edit`/`Write` (protezione config, emoji, quality-check) e i **PostToolUse** detective (scanner segreti, prompt-injection) girano in parallelo a questo flusso. Nessun guard blocca il lavoro se il payload è strano: sono **fail-open** sugli errori di parsing, **fail-closed** sui pattern che riconoscono.
+Gli hook su `Edit`/`Write` proteggono config e forma. Gli scanner PostToolUse rilevano segreti e prompt injection. Un input non interpretabile produce una conferma, non un allow implicito.
 
 ---
 
@@ -126,10 +125,10 @@ Gli hook su `Edit`/`Write` (protezione config, emoji, quality-check) e i **PostT
 
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
-hooks/               21 guardie e automazioni
-commands/            22 slash command di workflow (incl. /setup, /novita, /sparring)
-agents/              11 subagent specializzati
-skills/              8 skill (+ regole condivise in shared/)
+hooks/               18 guardie e automazioni
+commands/            9 slash command di workflow (incl. /setup, /novita, /sparring)
+agents/              9 subagent specializzati
+skills/              3 skill (+ regole condivise in shared/)
 docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/onboarding/     Guide di setup guidato (/inizio gws)
 NOVITA.md            Canale di aggiornamento (lo racconta /novita)
@@ -144,21 +143,19 @@ Instradati dal dispatcher:
 | `block-dangerous.py` | `rm` ricorsivi su tree protetti, export vault, scrittura su config/hook (anche via `cd`), creazione di file di unlock, lettura segreti via shell (incl. `perl`/`ruby`/`nc`/redirezioni e comandi dentro `$(...)`), `curl\|bash` e sue varianti (process-sub, `eval`, pipe verso interpreti), fork bomb, `docker volume rm` | blocco/conferma |
 | `commit-secret-gate.py` | segreti nel diff staged (e nel working tree su `git commit -a`), prima di ogni `git commit` / `gh pr create` | conferma |
 | `data-guard.py` | SQL distruttivo (DROP/TRUNCATE/DELETE senza WHERE), `docker compose down -v`, `rsync --delete` verso host remoti, overwrite di file `.db` | conferma |
-| `exfil-guard.py` | esfiltrazione verso host esterni: POST/upload (curl/wget/python) **e** GET mascherato, DNS-exfil, `/dev/tcp`, `nc`/`socat` | conferma |
-| `comms-guard.py` | invio email/messaggi da CLI (sendmail, smtplib, AppleScript Mail...) — policy draft-first | blocco |
+| `exfil-guard.py` | esfiltrazione verso host esterni: POST e upload (curl/wget/python); il ramo GET è disattivato per scelta di attrito | conferma |
+| `comms-guard.py` | invio email/messaggi da CLI (sendmail, msmtp, gws, smtplib, AppleScript Mail...) — policy draft-first | blocco |
 | `gh-destructive-guard.py` | operazioni GitHub distruttive (repo delete, secret, api mutanti), anche con prefisso `env`/`command` | conferma |
-| `github_issue_guard.py` | contenuti da rivedere nei testi di issue/PR | conferma |
 
 Fuori dal dispatcher:
 
 - `protect_claude_md.py` — PreToolUse: protegge `CLAUDE.md` e i settings da modifiche via `Edit`/`Write` non richieste esplicitamente.
-- `web-egress-guard.py` — PreToolUse su `WebFetch`/jina/`browser_navigate`: esfiltrazione via URL (dati interpolati nella query-string verso host esterni).
-- `credential-leak-scanner.py` — PostToolUse: rileva token e chiavi negli output di Bash/WebFetch/MCP.
+- `web-egress-guard.py` — PreToolUse su `WebFetch`/jina/`browser_navigate`, inclusa la navigazione Firefox: esfiltrazione via URL verso host esterni.
+- `credential-leak-scanner.py`` — PostToolUse: rileva token e chiavi negli output di Bash/WebFetch/MCP.
 - `prompt-injection-scanner.py` — PostToolUse: segnala tentativi di prompt injection nei contenuti esterni (pattern EN + IT).
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
-- `quality-check.sh` — PostToolUse asincrono: type-check/lint leggero dopo le modifiche.
 - `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
-- `session-start.sh` / `session-end.sh` / `session-reminder.sh` — titolo finestra, guardia anti-divergenza del repo config tra macchine, promemoria di chiusura.
+- `session-start.sh` / `session-end.sh` — titolo finestra, avvisi Git locali e cleanup degli unlock di sessione.
 - `inject-now.sh` — inietta data/ora corrente a ogni prompt.
 - `input-notifier-start.sh` — notifica quando Claude aspetta input.
 - `statusline.js` — statusline con modello, branch e stato sessione.
@@ -172,26 +169,21 @@ Pedagogia: **`/novita`** — racconta gli aggiornamenti dell'harness non ancora 
 Il ciclo di lavoro quotidiano:
 
 - **`/inizio <progetto>`** — sync della config, localizza il progetto, riprende l'ultimo handoff, ricrea i task pendenti cross-referenziandoli con `git log` (quelli già completati non risorgono). `/inizio gws` avvia invece l'onboarding gws.
-- **`/fine`** — review di completezza (agente dedicato), validate, commit selettivo, **handoff** con tabella task, mirror in `data/handoffs/` e push: la sessione successiva riparte da lì, su qualsiasi macchina.
-- **`/commit`** — commit intelligente dal contesto della conversazione.
+- **`/fine`** — review di completezza per le modifiche di codice, validate, commit selettivo e handoff.
 
-Sviluppo: `/progetto` (da idea a primo commit), `/discovery`, `/scope`, `/write-plan`, `/feature`, `/ui`, `/debug` (disciplina diagnostica: fatti prima delle ipotesi), `/rebase`, `/worktree`, `/ship`.
+Sviluppo: `/progetto` (da idea a primo commit), `/discovery`, `/write-plan`, `/debug` (disciplina diagnostica: fatti prima delle ipotesi).
 
-Qualità: `/deep-review` (review pre-landing multi-prospettiva), `/plan-review` (review di piani: EXPANSION/HOLD/REDUCTION), `/arewedone` (completezza strutturale), `/retro`, `/doc-update`, `/creative` (scrittura non-code).
+Qualità: usa le capacità native di review e verifica dell'harness.
 
 ### L'equipaggio (`agents/`)
 
-Subagent con un mestiere solo, richiamati dai comandi o a mano: `architecture-reviewer`, `bug-finder`, `structural-completeness-reviewer`, `doc-reviewer`, `performance-profiler`, `ui-ux-consultant`, `test-runner`, `researcher`, `fact-checker`, `synthesizer`, `drafter`.
+Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-finder`, `structural-completeness-reviewer`, `doc-reviewer`, `performance-profiler`, `ui-ux-consultant`, `test-runner`, `researcher`, `fact-checker`.
 
 ### Le skill (`skills/`)
 
-- **`validate`** + **`shared/validation-gate.md`** — il gate: type-check, test, lint, print di debug; language-aware (Node/TS, Python, prosa); mai exit-0 muto.
-- **`autofix`** — loop autonomo test-fix-retest (max 3 giri, poi si ferma e documenta).
-- **`review-checklist`** — checklist strutturata pre-landing, usata da `/deep-review` e `/ship`.
-- **`system-audit`** — audit dell'harness stesso: hook wirati vs presenti su disco, smoke test degli hook, frontmatter, JSON validi. Da lanciare dopo ogni modifica alla config.
-- **`ui-reference`** — valori concreti e gotcha per frontend (layout, dark mode, accessibilità, animazioni).
-- **`keyword-research`** — framework tri-superficie per content/SEO (organico, AEO, GEO).
-- **`prompt-master`** — due modalità: un prompt pronto da incollare in un altro tool AI, oppure il **brief interno**: prima di ogni richiesta di lavoro ricostruisce il contesto che manca e mostra obiettivo, output, vincoli, criterio di fatto, assunzioni e ambiguità (upstream `nidhinjs/prompt-master`, MIT).
+- **`shared/validation-gate.md`** — il gate: type-check, test, lint e print di debug. Il produttore della pipeline decide l'esito; una cache non sostituisce il controllo.
+- **`system-audit`** — audit dell'harness: hook diretti e transitivi, smoke test, frontmatter YAML e permessi. `--strict` fallisce se manca un requisito.
+- **`prompt-master`**** — due modalità: un prompt pronto da incollare in un altro tool AI, oppure il **brief interno**: prima di ogni richiesta di lavoro ricostruisce il contesto che manca e mostra obiettivo, output, vincoli, criterio di fatto, assunzioni e ambiguità (upstream `nidhinjs/prompt-master`, MIT).
 - **`italiano-semplificato`** — riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI.
 
 ---
@@ -244,9 +236,9 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 
 ## Sicurezza
 
-- L'allow-list Bash è ampia per design; la protezione vera sono **deny + guard**. I guard sono **fail-open** sugli errori di parsing (non ti bloccano se il payload è strano) ma **fail-closed** sui pattern che riconoscono.
-- `commit-secret-gate.py` è l'ultima linea: se un segreto arriva al commit, il commit non parte. Ma la prima linea sei tu — `client_secret.json`, `.env` e simili non vanno mai in un repo (il `.gitignore` incluso li esclude, insieme ai file di runtime di Claude Code).
-- I permessi `mcp__github__*` e il guard `github_issue_guard` sul matcher MCP si attivano solo se configuri un server MCP GitHub (`claude mcp add`); senza, sono inerti. Le operazioni via `gh` CLI sono comunque coperte dal dispatcher.
+- Il dispatcher converte un errore o output spurio di una guardia in `ask`. I singoli guard restano conservativi sui pattern riconosciuti.
+- `commit-secret-gate.py` chiede conferma se trova un segreto nel diff del repository destinatario. Non confermare credenziali reali.
+- Le operazioni GitHub distruttive via `gh` CLI restano coperte dal dispatcher.
 - Questo repo è periodicamente auditato (segreti, dati personali, bypass dei guard) prima di ogni pubblicazione. Se ci trovi qualcosa che non dovrebbe esserci, aprine una issue.
 
 ---

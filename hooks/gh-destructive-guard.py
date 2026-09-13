@@ -2,7 +2,7 @@
 """PreToolUse(Bash) hook: gate operazioni gh CLI distruttive/sensibili.
 
 Invocato dal dispatcher quando il comando contiene `gh ` (anche in catena).
-github_issue_guard.py resta separato (blocca claude/anthropic nei testi issue/PR).
+Blocca operazioni distruttive GitHub prima dell'esecuzione.
 
 - exit 2 (blocco duro): repo delete, secret/variable set|delete, release delete,
   gh api con -X/--method DELETE|PUT|PATCH, gh auth token|logout.

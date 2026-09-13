@@ -1,7 +1,6 @@
 ---
 name: architecture-reviewer
 description: A senior architect that reviews code for structural integrity, scalability, and long-term maintainability. Use for a deep-dive analysis of a project or module's design.
-model: sonnet
 tools: Read, Glob, Grep, Bash
 ---
 

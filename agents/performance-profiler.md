@@ -1,7 +1,6 @@
 ---
 name: performance-profiler
 description: Specialista performance per web app. Stack primario Vue 3 + Vite + SCSS; supporta anche Next.js/React. Usa quando l'app e' lenta, il bundle e' grande, o il rendering non e' fluido.
-model: sonnet
 tools: Read, Glob, Grep, Bash
 ---
 

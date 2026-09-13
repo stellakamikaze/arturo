@@ -47,7 +47,7 @@ si deve poter dire "c'è" o "non c'è" senza discutere]
 - Feature Y
 
 ## Prossimi Passi
-- /scope per documento tecnico dettagliato
+- /write-plan per il piano tecnico dettagliato
 - /write-plan per piano implementazione
 ```
 
