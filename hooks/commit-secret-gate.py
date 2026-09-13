@@ -12,11 +12,12 @@ layer PREVENTIVO (gli scanner PostToolUse avvisano a cose fatte).
 Fail-open su qualsiasi errore. Legge cwd dal payload per lanciare git nel repo giusto.
 """
 import json
-import re
-import sys
 import os
-import subprocess
+import re
+import shlex
 import signal
+import subprocess
+import sys
 
 
 def _stdin_timeout(signum, frame):
@@ -37,10 +38,53 @@ HIGH_CONF = [
     (r"\bxox[baprs]-[A-Za-z0-9-]{10,}", "Slack token"),
     (r"\bAIza[A-Za-z0-9_-]{35}\b", "Google API key"),
     (r"\bGOCSPX-[A-Za-z0-9_-]{20,}\b", "Google OAuth client secret"),
+    (r"\b1//[A-Za-z0-9_-]{20,}\b", "Google refresh token"),
+    (r"\b\d{6,12}:[A-Za-z0-9_-]{30,}\b", "Telegram bot token"),
     (r"\beyJ[A-Za-z0-9_-]{15,}\.eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{10,}", "JWT"),
     (r"postgres(?:ql)?://[^:@\s]+:[^@\s]+@[^/\s]+", "connection string con password"),
 ]
 COMPILED = [(re.compile(p), name) for p, name in HIGH_CONF]
+
+
+def _repo_for_command(command: str, cwd: str) -> str | None:
+    location = os.path.abspath(cwd)
+    for segment in re.split(r"&&|\|\||;|\||\n", command):
+        try:
+            tokens = shlex.split(segment)
+        except ValueError:
+            return None
+        if not tokens:
+            continue
+        if tokens[0] == "cd" and len(tokens) > 1:
+            location = os.path.abspath(os.path.join(location, os.path.expanduser(tokens[1])))
+            continue
+        if os.path.basename(tokens[0]) != "git":
+            continue
+        index = 1
+        while index + 1 < len(tokens) and tokens[index] == "-C":
+            location = os.path.abspath(os.path.join(location, os.path.expanduser(tokens[index + 1])))
+            index += 2
+        if index < len(tokens) and tokens[index] == "commit":
+            return location
+    return location if "gh pr create" in command else None
+
+
+def _diff(repo: str, commit_all: bool) -> str | None:
+    commands = [["git", "-C", repo, "diff", "--cached", "--no-color", "--no-ext-diff", "--no-textconv", "--unified=0"]]
+    if commit_all:
+        commands.append(["git", "-C", repo, "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--unified=0"])
+    output = []
+    for command in commands:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=4, check=False)
+        if result.returncode:
+            return None
+        output.append(result.stdout)
+    return "\n".join(part for part in output if part)
+
+
+def _ask(reason: str) -> int:
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": reason}}))
+    return 0
 
 
 def main() -> int:
@@ -57,29 +101,23 @@ def main() -> int:
     if not isinstance(command, str) or not command:
         return 0
     cwd = data.get("cwd") or os.path.expanduser("~")
+    repo = _repo_for_command(command, cwd)
+    if not repo:
+        return _ask("Repository destinatario del commit non risolvibile: conferma prima di proseguire.")
 
     # `git commit -a/--all` mette in stage i file tracciati modificati DURANTE il
     # commit: al momento di questo check (PreToolUse) l'index non li contiene ancora,
     # quindi il solo `diff --cached` mancherebbe un secret in un file gia' tracciato.
-    # In quel caso si scansiona anche il working tree (diff sui tracciati).
-    commit_all = bool(re.search(r"\bcommit\b[^|;&]*\s-{1,2}(a\b|all\b|[a-zA-Z]*a[a-zA-Z]*\b)", command)) \
-        and bool(re.search(r"\bgit\b", command))
+    commit_all = bool(re.search(r"\bcommit\b[^|;&]*\s-{1,2}(a\b|all\b|[a-zA-Z]*a[a-zA-Z]*\b)", command))
     try:
-        diffs = [subprocess.run(
-            ["git", "-C", cwd, "diff", "--cached", "--no-color", "--unified=0"],
-            capture_output=True, text=True, timeout=4,
-        ).stdout]
-        if commit_all:
-            diffs.append(subprocess.run(
-                ["git", "-C", cwd, "diff", "--no-color", "--unified=0"],
-                capture_output=True, text=True, timeout=4,
-            ).stdout)
-        out = "\n".join(d for d in diffs if d)
+        out = _diff(repo, commit_all)
     except Exception:
-        return 0
+        out = None
     finally:
         if hasattr(signal, "SIGALRM"):
             signal.alarm(0)
+    if out is None:
+        return _ask("Scansione Git del repository destinatario fallita: conferma prima di proseguire.")
 
     if not out:
         return 0
