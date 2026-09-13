@@ -28,17 +28,20 @@ bash ~/.claude/skills/system-audit/audit.sh --strict
 
 ## Cosa controlla
 
-1. **settings.json valid** — JSON parseabile, schema corretto.
-2. **Hooks-on-disk** — ogni `command:` referenziato in `settings.json` esiste su disco ed è eseguibile.
-3. **Hook smoke test** — ogni hook Python/JS non esplode su input JSON vuoto (timeout 3s). Gli hook `.sh` di lifecycle sono esclusi (vedi Importante).
-4. **Agent frontmatter** — ogni `.md` in `~/.claude/agents/` ha frontmatter YAML valido con `name` e `description`.
-5. **Skill frontmatter** — ogni dir in `~/.claude/skills/` ha `SKILL.md` con `name` e `description`.
-6. **MEMORY.md** — solo se la memoria esterna (`~/.claude/data/memory/`) è installata: verifica che esista e che i link `[[slug]]` risolvano. Senza, il check è N/A (Arturo di base usa CLAUDE.md + handoff).
-7. **Permessi** — `defaultMode` esiste, no permessi contraddittori (stesso pattern in `allow` e `deny`).
+Solo questi controlli, niente di più:
+
+1. **settings.json** — JSON valido con radice a mappa. Lo schema dei campi non si verifica.
+2. **Hook diretti** — ogni script `.py`/`.sh`/`.js` citato da un `command` degli hook o da `statusLine` esiste su disco (path con virgolette e spazi compresi).
+3. **Guardie transitive** — ogni guardia richiamata da `bash-dispatcher.sh` con `run_guard` esiste su disco.
+4. **Smoke test** — ogni hook Python riceve `{}` su stdin ed esce 0 (timeout 5 s se c'è `timeout`); ogni hook JS passa `node --check`. Gli hook `.sh` non si eseguono (vedi Importante).
+5. **Agent** — ogni `.md` in `~/.claude/agents/` ha frontmatter YAML con `name` e `description`.
+6. **Skill** — ogni cartella in `~/.claude/skills/` ha `SKILL.md` con frontmatter YAML, `name` e `description`.
+7. **README** — `~/.claude/README.md` esiste.
+8. **Permessi** — `defaultMode` presente e nessun pattern uguale in `allow` e `deny`.
 
 ## Output atteso
 
-Verdetto in cima (`OK` o `N issues`), poi checklist `PASS/WARN/FAIL` per ogni voce, con il fix concreto per ogni `FAIL`. In fondo: la cosa più importante da fixare, se c'è. Riporta il verdetto dello script così com'è: è la prova che l'audit è stato eseguito.
+Una riga `PASS`/`WARN`/`FAIL` per controllo, poi `Totali: PASS=… WARN=… FAIL=…` in fondo. Con `--strict` lo script esce 1 se c'è almeno un `FAIL`. Riporta le righe dello script così come sono, con il fix concreto per ogni `FAIL`: sono la prova che l'audit è stato eseguito.
 
 ## Bitter Lesson pass (a richiesta, giudizio non checker)
 
