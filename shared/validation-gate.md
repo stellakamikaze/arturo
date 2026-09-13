@@ -10,26 +10,9 @@ Usato da: `/commit`, `/ship`, `/fine`, `/validate`
 | `full` | x | x | x | x | x | `/validate` |
 | `shipping` | x | x | x | | | `/ship` (in parallelo) |
 
-## Logica Cache (Bridge File)
+## Nessuna cache
 
-Prima di eseguire, controlla il bridge file del quality-check async:
-
-```bash
-PROJECT_HASH=$(echo "$PWD" | md5 -q 2>/dev/null || echo "$PWD" | md5sum 2>/dev/null | cut -d' ' -f1)
-BRIDGE="/tmp/claude-quality-check/${PROJECT_HASH}-result.json"
-NOW=$(date +%s)
-
-if [ -f "$BRIDGE" ]; then
-  BRIDGE_TS=$(python3 -c "import json; print(json.load(open('$BRIDGE'))['timestamp'])" 2>/dev/null || echo "0")
-  BRIDGE_STATUS=$(python3 -c "import json; print(json.load(open('$BRIDGE'))['status'])" 2>/dev/null || echo "unknown")
-  if [ $((NOW - BRIDGE_TS)) -lt 30 ] && [ "$BRIDGE_STATUS" = "pass" ]; then
-    echo "Quality gate: SKIP (async check passato di recente)"
-    # Skip solo per mode=quick. Full e shipping eseguono sempre.
-  fi
-fi
-```
-
-**Regola**: la cache si applica solo in mode `quick`. I mode `full` e `shipping` eseguono sempre tutto.
+Ogni gate esegue i controlli nel working tree corrente. Un esito recente non prova una sorgente cambiata.
 
 ## Esecuzione
 
@@ -43,19 +26,20 @@ else PROJ_LANG="prose"; fi
 if [ "$PROJ_LANG" = "node" ]; then
   # Step 1: TypeScript (tutti i mode)
   echo "--- TypeScript ---"
+  set -o pipefail
   npx tsc --noEmit 2>&1 | tail -20
-  TSC_EXIT=$?
+  TSC_EXIT=${PIPESTATUS[0]}
 
   # Step 2: Test (tutti i mode)
   echo "--- Test ---"
   npm test 2>&1 | tail -30
-  TEST_EXIT=$?
+  TEST_EXIT=${PIPESTATUS[0]}
 
   # Step 3: Lint (solo full e shipping)
   if [ "$MODE" = "full" ] || [ "$MODE" = "shipping" ]; then
     echo "--- Lint ---"
     npm run lint 2>&1 | tail -20
-    LINT_EXIT=$?
+    LINT_EXIT=${PIPESTATUS[0]}
   fi
 
   # Step 4: Console.log (solo quick e full)
@@ -68,7 +52,7 @@ if [ "$PROJ_LANG" = "node" ]; then
   if [ "$MODE" = "full" ]; then
     echo "--- Build ---"
     npm run build 2>&1 | tail -20
-    BUILD_EXIT=$?
+    BUILD_EXIT=${PIPESTATUS[0]}
   fi
 
 elif [ "$PROJ_LANG" = "python" ]; then

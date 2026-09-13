@@ -1,242 +1,191 @@
 #!/usr/bin/env bash
-# system-audit: integrity check di ~/.claude/.
-# Report-only, exit 0 sempre (anche con FAIL: gli errori vanno nel report).
-# Usage: bash ~/.claude/skills/system-audit/audit.sh
+# system-audit: verifica isolata della superficie distribuita ~/.claude.
+set -uo pipefail
 
-set -u
+STRICT=false
+if [[ "${1:-}" == "--strict" ]]; then
+  STRICT=true
+elif [[ $# -gt 0 ]]; then
+  echo "Uso: $0 [--strict]" >&2
+  exit 2
+fi
+
 CLAUDE_DIR="${HOME}/.claude"
-SETTINGS="${CLAUDE_DIR}/settings.json"
-
+SETTINGS="$CLAUDE_DIR/settings.json"
 pass=0
 warn=0
 fail=0
 report=()
 
-ok()   { report+=("PASS  $*"); pass=$((pass+1)); }
-warning() { report+=("WARN  $*"); warn=$((warn+1)); }
-ko()   { report+=("FAIL  $*"); fail=$((fail+1)); }
+ok() { report+=("PASS  $*"); pass=$((pass + 1)); }
+warning() { report+=("WARN  $*"); warn=$((warn + 1)); }
+ko() { report+=("FAIL  $*"); fail=$((fail + 1)); }
 
-# 1. settings.json valid
-if [ -f "$SETTINGS" ]; then
-  if python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$SETTINGS" 2>/dev/null; then
-    ok "settings.json: JSON valido"
-  else
-    ko "settings.json: JSON malformato → \`python3 -c \"import json; json.load(open('$SETTINGS'))\"\` per diagnosi"
-  fi
+if ! command -v python3 >/dev/null 2>&1; then
+  ko "python3 mancante"
+elif ! python3 -c 'import yaml' >/dev/null 2>&1; then
+  ko "PyYAML mancante: installa la dipendenza documentata in README"
 else
-  ko "settings.json: file mancante in $SETTINGS"
+  ok "parser YAML disponibile"
 fi
 
-# 2. Hooks-on-disk
-if [ -f "$SETTINGS" ]; then
-  while IFS= read -r cmd; do
-    [ -z "$cmd" ] && continue
-    # Estrai il path script dal command (es. "bash ~/.claude/hooks/foo.sh", "python3 ~/.claude/hooks/bar.py", "node ...")
-    script=$(echo "$cmd" | awk '{
-      for (i=1; i<=NF; i++) {
-        if ($i ~ /\.(sh|py|js)$/ || $i ~ /\.(sh|py|js)[[:space:]]/) { print $i; exit }
-      }
-    }')
-    [ -z "$script" ] && continue
-    # Espandi tilde
-    script_expanded="${script/#\~/$HOME}"
-    if [ ! -f "$script_expanded" ]; then
-      ko "hook mancante: $script (referenziato in settings.json)"
-    elif [ ! -x "$script_expanded" ] && [[ "$script_expanded" != *.js ]]; then
-      warning "hook non eseguibile: $script (chmod +x $script_expanded)"
-    else
-      ok "hook OK: $(basename "$script_expanded")"
-    fi
-  done < <(python3 -c "
-import json, sys
-try:
-    cfg = json.load(open('$SETTINGS'))
-except Exception:
-    sys.exit(0)
-for evt, blocks in cfg.get('hooks', {}).items():
-    for blk in blocks:
-        for h in blk.get('hooks', []):
-            cmd = h.get('command', '')
-            if cmd: print(cmd)
-")
-fi
-
-# 2b. Hook smoke test — ogni hook non deve crashare su input JSON vuoto (timeout 3s).
-# Un hook che va in traceback fallisce aperto (rc!=0 non gestito) e potrebbe non
-# proteggere nulla: qui si verifica che regga `{}` senza esplodere.
-if [ -f "$SETTINGS" ]; then
-  smoke_fail=0
-  smoke_run=0
-  # `timeout` non esiste su macOS di default (è `gtimeout` da coreutils). Se manca
-  # nessuno dei due, si esegue senza timeout: gli hook hanno già un alarm interno.
-  if command -v timeout >/dev/null 2>&1; then TO="timeout 3"
-  elif command -v gtimeout >/dev/null 2>&1; then TO="gtimeout 3"
-  else TO=""; fi
-  while IFS= read -r cmd; do
-    [ -z "$cmd" ] && continue
-    script=$(echo "$cmd" | awk '{for(i=1;i<=NF;i++){if($i ~ /\.(sh|py|js)$/){print $i; exit}}}')
-    [ -z "$script" ] && continue
-    script_expanded="${script/#\~/$HOME}"
-    [ -f "$script_expanded" ] || continue
-    # Solo guard/scanner .py e .js: sono puri su input vuoto. Gli hook .sh di
-    # lifecycle (session-start/end, notifier) hanno side-effect e NON vanno
-    # eseguiti in un audit report-only.
-    case "$script_expanded" in
-      *.py) runner="python3" ;;
-      *.js) runner="node" ;;
-      *) continue ;;
-    esac
-    smoke_run=$((smoke_run+1))
-    err=$(echo '{}' | $TO "$runner" "$script_expanded" 2>&1 >/dev/null)
-    rc=$?
-    if [ "$rc" -eq 124 ]; then
-      ko "hook smoke: $(basename "$script_expanded") va in timeout su input vuoto"
-      smoke_fail=$((smoke_fail+1))
-    elif echo "$err" | grep -qiE 'Traceback|SyntaxError|command not found|Cannot find module'; then
-      ko "hook smoke: $(basename "$script_expanded") crasha su input vuoto → $(echo "$err" | tail -1)"
-      smoke_fail=$((smoke_fail+1))
-    fi
-  done < <(python3 -c "
-import json, sys
-try:
-    cfg = json.load(open('$SETTINGS'))
-except Exception:
-    sys.exit(0)
-for evt, blocks in cfg.get('hooks', {}).items():
-    for blk in blocks:
-        for h in blk.get('hooks', []):
-            cmd = h.get('command', '')
-            if cmd: print(cmd)
-")
-  if [ "$smoke_fail" -eq 0 ] && [ "$smoke_run" -gt 0 ]; then
-    ok "hook smoke test: $smoke_run hook reggono input vuoto senza crash"
-  fi
-fi
-
-# 3. Agent frontmatter
-agent_count=0
-agent_issues=0
-if [ -d "$CLAUDE_DIR/agents" ]; then
-  for f in "$CLAUDE_DIR/agents"/*.md; do
-    [ -f "$f" ] || continue
-    [[ "$(basename "$f")" == _* ]] && continue
-    agent_count=$((agent_count+1))
-    if ! head -10 "$f" | grep -q "^name:"; then
-      ko "agent $(basename "$f"): manca 'name:' nel frontmatter"
-      agent_issues=$((agent_issues+1))
-    fi
-    if ! head -10 "$f" | grep -q "^description:"; then
-      ko "agent $(basename "$f"): manca 'description:' nel frontmatter"
-      agent_issues=$((agent_issues+1))
-    fi
-  done
-  if [ "$agent_issues" -eq 0 ] && [ "$agent_count" -gt 0 ]; then
-    ok "agents: $agent_count file, frontmatter OK"
-  fi
-fi
-
-# 4. Skill frontmatter
-skill_count=0
-skill_issues=0
-if [ -d "$CLAUDE_DIR/skills" ]; then
-  for d in "$CLAUDE_DIR/skills"/*/; do
-    [ -d "$d" ] || continue
-    name=$(basename "$d")
-    [[ "$name" == shared ]] && continue
-    skill_count=$((skill_count+1))
-    sk="$d/SKILL.md"
-    if [ ! -f "$sk" ]; then
-      ko "skill $name: manca SKILL.md"
-      skill_issues=$((skill_issues+1))
-      continue
-    fi
-    if ! head -10 "$sk" | grep -q "^name:"; then
-      warning "skill $name: manca 'name:' nel frontmatter"
-      skill_issues=$((skill_issues+1))
-    fi
-    if ! head -10 "$sk" | grep -q "^description:"; then
-      ko "skill $name: manca 'description:' nel frontmatter"
-      skill_issues=$((skill_issues+1))
-    fi
-  done
-  if [ "$skill_issues" -eq 0 ] && [ "$skill_count" -gt 0 ]; then
-    ok "skills: $skill_count dir, frontmatter OK"
-  fi
-fi
-
-# 5. MEMORY.md presente (SOLO se il sistema di memoria esterno e' installato).
-# Arturo di base non lo include: la memoria e' CLAUDE.md + handoff. Senza data/memory/
-# questo check e' N/A, non un warning (evita un WARN perenne su installazione fresca).
-MEMORY_INDEX="$CLAUDE_DIR/data/memory/MEMORY.md"
-if [ ! -d "$CLAUDE_DIR/data/memory" ]; then
-  ok "Memoria esterna non installata (usa CLAUDE.md + handoff): check MEMORY.md N/A"
-elif [ -f "$MEMORY_INDEX" ]; then
-  line_count=$(wc -l < "$MEMORY_INDEX" | tr -d ' ')
-  if [ "$line_count" -gt 200 ]; then
-    warning "MEMORY.md: $line_count righe (limite raccomandato 200, righe oltre vengono troncate)"
-  else
-    ok "MEMORY.md: $line_count righe (sotto limite 200)"
-  fi
-  # Link broken: estrai [[slug]] e verifica file esistenti (glob ricorsivo)
-  broken=0
-  while IFS= read -r slug; do
-    [ -z "$slug" ] && continue
-    found=$(find "$CLAUDE_DIR/data/memory" -name "${slug}.md" -type f 2>/dev/null | head -1)
-    if [ -z "$found" ]; then
-      broken=$((broken+1))
-      [ "$broken" -le 5 ] && report+=("WARN  link MEMORY.md non risolto: [[$slug]]")
-    fi
-  done < <(grep -oE '\[\[[a-z0-9_-]+\]\]' "$MEMORY_INDEX" 2>/dev/null | tr -d '[]' | sort -u)
-  if [ "$broken" -eq 0 ]; then
-    ok "MEMORY.md: tutti i link [[slug]] risolvono"
-  else
-    warn=$((warn+broken))
-    [ "$broken" -gt 5 ] && report+=("WARN  (+ $((broken-5)) link broken non mostrati)")
-  fi
-else
-  warning "MEMORY.md non trovato in $MEMORY_INDEX"
-fi
-
-# 6. Permessi contraddittori (stesso pattern in allow e deny)
-if [ -f "$SETTINGS" ]; then
-  conflicts=$(python3 -c "
+if [[ ! -f "$SETTINGS" ]]; then
+  ko "settings.json mancante"
+elif python3 - "$SETTINGS" <<'PY' >/dev/null 2>&1
 import json
-cfg = json.load(open('$SETTINGS'))
-perms = cfg.get('permissions', {})
-allow = set(perms.get('allow', []))
-deny = set(perms.get('deny', []))
-overlap = allow & deny
-if overlap:
-    print('\n'.join(sorted(overlap)))
-" 2>/dev/null)
-  if [ -z "$conflicts" ]; then
-    ok "permessi: nessun pattern duplicato tra allow e deny"
-  else
-    while IFS= read -r p; do
-      ko "permesso ambiguo (sia allow che deny): $p"
-    done <<< "$conflicts"
-  fi
-fi
-
-# Output finale
-echo ""
-echo "=== System Audit: $(date '+%Y-%m-%d %H:%M') ==="
-echo ""
-if [ "$fail" -eq 0 ] && [ "$warn" -eq 0 ]; then
-  echo "Verdetto: tutto verde ($pass PASS)"
-elif [ "$fail" -eq 0 ]; then
-  echo "Verdetto: $pass PASS, $warn WARN, 0 FAIL"
+import sys
+with open(sys.argv[1], encoding="utf-8") as source:
+    value = json.load(source)
+if not isinstance(value, dict):
+    raise TypeError("settings root non mapping")
+PY
+then
+  ok "settings.json: JSON valido"
 else
-  echo "Verdetto: $fail problemi, $warn warning, $pass PASS"
-fi
-echo ""
-for line in "${report[@]}"; do
-  echo "  $line"
-done
-echo ""
-if [ "$fail" -gt 0 ]; then
-  first_fail=$(printf '%s\n' "${report[@]}" | grep -m1 '^FAIL' | sed 's/^FAIL  //')
-  echo "Prima cosa da fixare: $first_fail"
+  ko "settings.json: JSON malformato o root non mapping"
 fi
 
-exit 0
+hook_commands=()
+if [[ -f "$SETTINGS" ]] && command -v python3 >/dev/null 2>&1; then
+  mapfile -t hook_commands < <(python3 - "$SETTINGS" <<'PY' 2>/dev/null
+import json
+import sys
+with open(sys.argv[1], encoding="utf-8") as source:
+    settings = json.load(source)
+for blocks in settings.get("hooks", {}).values():
+    for block in blocks:
+        for hook in block.get("hooks", []):
+            command = hook.get("command")
+            if isinstance(command, str):
+                print(command)
+PY
+)
+fi
+
+hook_files=()
+for command in "${hook_commands[@]}"; do
+  while IFS= read -r script; do
+    [[ -z "$script" ]] && continue
+    script="${script%$'\r'}"
+    if [[ "$script" == *".claude/"* ]]; then
+      script="$CLAUDE_DIR/${script#*.claude/}"
+    fi
+    hook_files+=("$script")
+    if [[ -f "$script" ]]; then
+      ok "hook diretto: $(basename "$script")"
+    else
+      ko "hook diretto mancante: $script"
+    fi
+  done < <(python3 - "$command" <<'PY'
+import re
+import sys
+print("\n".join(re.findall(r'(?<!\S)(?:~?/[^\s]+|~[^\s]+|[^\s]+\.(?:py|sh|js))', sys.argv[1])))
+PY
+)
+done
+
+# Il dispatcher richiama guardie transitive: il settings da solo non le mostra.
+dispatcher="$CLAUDE_DIR/hooks/bash-dispatcher.sh"
+if [[ -f "$dispatcher" ]]; then
+  while IFS= read -r guard; do
+    [[ -z "$guard" ]] && continue
+    if [[ -f "$CLAUDE_DIR/hooks/$guard" ]]; then
+      ok "guardia transitiva: $guard"
+    else
+      ko "guardia transitiva mancante: $guard"
+    fi
+  done < <(grep -E '^[[:space:]]*\[\[.*run_guard[[:space:]]+[A-Za-z0-9_.-]+' "$dispatcher" | grep -oE 'run_guard[[:space:]]+[A-Za-z0-9_.-]+' | awk '{print $2}' | sort -u)
+fi
+
+smoke=0
+for script in "${hook_files[@]}"; do
+  [[ -f "$script" ]] || continue
+  case "$script" in
+    *.py) runner=(python3 -B "$script") ;;
+    *.js) runner=(node --check "$script") ;;
+    *) continue ;;
+  esac
+  if [[ "$script" == *.py ]]; then
+    if command -v timeout >/dev/null 2>&1; then
+      printf '{}' | timeout 5 "${runner[@]}" >/dev/null 2>&1
+    else
+      printf '{}' | "${runner[@]}" >/dev/null 2>&1
+    fi
+    rc=$?
+  else
+    "${runner[@]}" >/dev/null 2>&1
+    rc=$?
+  fi
+  smoke=$((smoke + 1))
+  if [[ $rc -eq 0 ]]; then
+    ok "smoke: $(basename "$script")"
+  else
+    ko "smoke fallito: $(basename "$script") (rc=$rc)"
+  fi
+done
+[[ $smoke -gt 0 ]] || ko "nessun hook safe per smoke"
+
+if [[ -d "$CLAUDE_DIR/agents" ]] && python3 - "$CLAUDE_DIR/agents" <<'PY' >/dev/null 2>&1
+import sys
+from pathlib import Path
+import yaml
+for path in Path(sys.argv[1]).glob("*.md"):
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---\n"):
+        raise ValueError(path)
+    frontmatter = text.split("---\n", 2)[1]
+    value = yaml.safe_load(frontmatter)
+    if not isinstance(value, dict) or not all(isinstance(value.get(key), str) and value[key] for key in ("name", "description")):
+        raise ValueError(path)
+PY
+then
+  ok "frontmatter agenti: YAML valido"
+else
+  ko "frontmatter agenti: YAML non valido o campi mancanti"
+fi
+
+if [[ -d "$CLAUDE_DIR/skills" ]] && python3 - "$CLAUDE_DIR/skills" <<'PY' >/dev/null 2>&1
+import sys
+from pathlib import Path
+import yaml
+for directory in Path(sys.argv[1]).iterdir():
+    if not directory.is_dir() or directory.name == "shared":
+        continue
+    skill = directory / "SKILL.md"
+    if not skill.is_file():
+        raise FileNotFoundError(skill)
+    text = skill.read_text(encoding="utf-8")
+    if not text.startswith("---\n"):
+        raise ValueError(skill)
+    frontmatter = yaml.safe_load(text.split("---\n", 2)[1])
+    if not isinstance(frontmatter, dict) or not all(isinstance(frontmatter.get(key), str) and frontmatter[key] for key in ("name", "description")):
+        raise ValueError(skill)
+PY
+then
+  ok "skill: directory e frontmatter YAML validi"
+else
+  ko "skill: SKILL.md mancante oppure frontmatter non valido"
+fi
+
+[[ -f "$CLAUDE_DIR/README.md" ]] && ok "README pubblico presente" || ko "README pubblico mancante"
+
+if [[ -f "$SETTINGS" ]] && python3 - "$SETTINGS" <<'PY' >/dev/null 2>&1
+import json
+import sys
+with open(sys.argv[1], encoding="utf-8") as source:
+    permissions = json.load(source).get("permissions", {})
+if set(permissions.get("allow", ())) & set(permissions.get("deny", ())):
+    raise ValueError("permessi sovrapposti")
+PY
+then
+  ok "permessi senza sovrapposizioni"
+else
+  ko "permessi sovrapposti o non leggibili"
+fi
+
+echo "=== System Audit ==="
+printf '%s\n' "${report[@]}"
+printf 'Totali: PASS=%s WARN=%s FAIL=%s\n' "$pass" "$warn" "$fail"
+if $STRICT && [[ $fail -gt 0 ]]; then
+  exit 1
+fi
