@@ -28,17 +28,23 @@ Se il pull fallisce per modifiche locali, non forzare nulla: mostra `git -C ~/.c
 
 ## Passo 1 — Cosa non ha ancora visto
 
-Le novità vivono in `~/.claude/NOVITA.md` (entry in ordine inverso, la più recente in cima, intestazione `## AAAA-MM-GG — Titolo`). Il segnalibro di cosa è già stato visto è la data salvata in `~/.claude/session-env/novita-vista`.
+Le novità vivono in `~/.claude/NOVITA.md` (entry in ordine inverso, la più recente in cima, intestazione `## AAAA-MM-GG — Titolo`). Il segnalibro è l'elenco delle date delle entry già raccontate, una per riga, in `~/.claude/session-env/novita-viste`. Un vecchio `~/.claude/session-env/novita-vista` con una sola data vale ancora: le entry fino a quella data contano come viste.
 
 ```bash
-ULTIMA=$(grep -m1 '^## ' "$HOME/.claude/NOVITA.md" 2>/dev/null | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
-VISTA=$(cat "$HOME/.claude/session-env/novita-vista" 2>/dev/null || echo "mai")
-echo "Ultima novità: ${ULTIMA:-nessuna} — Vista fino a: $VISTA"
+VISTE="$HOME/.claude/session-env/novita-viste"
+VECCHIA=$(cat "$HOME/.claude/session-env/novita-vista" 2>/dev/null || echo "")
+grep '^## ' "$HOME/.claude/NOVITA.md" 2>/dev/null | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | while IFS= read -r DATA; do
+  if { [ -n "$VECCHIA" ] && [[ ! "$DATA" > "$VECCHIA" ]]; } || grep -qxF "$DATA" "$VISTE" 2>/dev/null; then
+    echo "vista:     $DATA"
+  else
+    echo "non vista: $DATA"
+  fi
+done
 ```
 
-- Marker assente o «mai» → è la prima volta: racconta tutte le entry (o le ultime 3 se sono tante, offrendo le altre).
-- Marker presente → racconta solo le entry con data successiva.
-- Niente di nuovo → dillo in una riga («sei aggiornato, ultima novità del ...») e fermati. Con argomento `tutte`, racconta tutto lo storico a prescindere dal marker.
+- Nessuna entry vista → è la prima volta: racconta tutte le entry (o le ultime 3 se sono tante, offrendo le altre).
+- Altrimenti → racconta solo le entry `non vista`, dalla più vecchia alla più recente.
+- Nessuna `non vista` → dillo in una riga («sei aggiornato, ultima novità del ...») e fermati. Con argomento `tutte`, racconta tutto lo storico a prescindere dal segnalibro.
 
 ## Passo 2 — Il racconto
 
@@ -47,18 +53,20 @@ Per ogni entry non vista, **una per volta**:
 1. **Cosa cambia**, in due frasi tue — non incollare l'entry, raccontala.
 2. **Il principio dietro** — perché questa novità esiste, cosa insegna. Se l'entry rimanda a un capitolo di `docs/principi/`, offri di leggerlo insieme.
 3. **Ti riguarda se...** — aiuta l'utente a capire se la novità tocca il suo modo di usare l'harness.
-4. Proponi: «vuoi fare un po' di sparring per vedere se ti serve?» → se sì, passa a `/sparring novità`.
+4. Proponi: «vuoi fare un po' di sparring per vedere se ti serve?» → se sì, passa a `/sparring novità AAAA-MM-GG` con la data di questa entry.
+5. Segna questa entry come vista (Passo 3) prima di passare alla successiva.
 
 Linguaggio semplice, zero gergo non spiegato. Se le entry nuove sono più di una, chiedi dopo ciascuna se proseguire.
 
-## Passo 3 — Aggiorna il segnalibro
+## Passo 3 — Segna l'entry appena raccontata
 
-Solo DOPO aver raccontato (non prima):
+Dopo ogni singola entry raccontata, subito, mai in blocco alla fine. Se la lettura si interrompe, le entry non raccontate restano `non vista`.
 
 ```bash
 mkdir -p "$HOME/.claude/session-env"
-echo "$ULTIMA" > "$HOME/.claude/session-env/novita-vista"
-echo "Segnalibro aggiornato: $ULTIMA"
+DATA="AAAA-MM-GG"   # la data dell'entry appena raccontata
+grep -qxF "$DATA" "$HOME/.claude/session-env/novita-viste" 2>/dev/null || echo "$DATA" >> "$HOME/.claude/session-env/novita-viste"
+echo "Segnata come vista: $DATA"
 ```
 
 ## Regole
