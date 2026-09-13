@@ -23,7 +23,9 @@ def main() -> int:
     parser.add_argument("--baseline-ref")
     args = parser.parse_args()
     if args.baseline_ref:
-        print("BASELINE_CARATTERIZZATA=falsi-positivi")
+        probe = subprocess.run([sys.executable, "-B", __file__, "--repo", str(args.repo)], capture_output=True, text=True, timeout=20, check=False)
+        assert probe.returncode != 0, "baseline non discriminante sui falsi positivi"
+        print("BASELINE_DISCRIMINANTE=falsi-positivi")
         return 0
     cases = {
         "help": ("bw export --help", 0),

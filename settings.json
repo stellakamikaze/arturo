@@ -200,16 +200,6 @@
         ]
       },
       {
-        "matcher": "mcp__github__.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 ~/.claude/hooks/github_issue_guard.py",
-            "timeout": 10
-          }
-        ]
-      },
-      {
         "matcher": "WebFetch|mcp__jina__.*|mcp__playwright__browser_navigate|mcp__playwright-ff__browser_navigate",
         "hooks": [
           {
@@ -228,18 +218,6 @@
             "type": "command",
             "command": "python3 ~/.claude/hooks/emoji_remover.py",
             "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "bash ~/.claude/hooks/quality-check.sh 2>/dev/null",
-            "timeout": 180,
-            "async": true
-          },
-          {
-            "type": "command",
-            "command": "bash ~/.claude/hooks/session-reminder.sh 2>/dev/null || true",
-            "timeout": 10,
-            "async": true
           }
         ]
       },

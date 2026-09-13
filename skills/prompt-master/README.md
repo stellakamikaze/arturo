@@ -208,7 +208,7 @@ Prompt Master includes specific profiles for 20+ tools. For anything not on the 
 | **Gemini 2.x** | Reasoning LLM | Grounding anchors, citation rules, format locks |
 | **o3 / o4-mini** | Thinking LLM | Short clean instructions only — never adds CoT (they think internally) |
 | **Ollama** | Local LLM | Asks which model is loaded, includes system prompt for Modelfile |
-| **Qwen 2.5 / Qwen3** | Open-weight LLM | Chat template format, thinking vs non-thinking mode detection |
+| **Open-weight instruct / reasoning** | Open-weight LLM | Chat template format, thinking vs non-thinking mode detection |
 | **Local models (Llama, Mistral)** | Open-weight LLM | Shorter prompts, simpler structure, no complex nesting |
 | **DeepSeek-R1** | Reasoning LLM | Short clean instructions, strips CoT, suppresses thinking output if needed |
 | **MiniMax (M3 / M2.7)** | Reasoning LLM | Temperature clamping, thinking tag control, structured output optimization |

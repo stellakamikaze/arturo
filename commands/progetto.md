@@ -6,7 +6,7 @@ argument-hint: <nome-progetto>
 # Nuovo Progetto
 
 **Workflow orchestratore** per avviare un nuovo progetto: dalla directory vuota al primo commit.
-Il valore aggiunto di `/progetto` è il bootstrap (directory + git + commit) e l'orchestrazione delle fasi. Le fasi di analisi NON sono duplicate qui: `/progetto` invoca i comandi standalone `/discovery`, `/scope`, `/write-plan` e passa loro il contesto raccolto.
+Il valore aggiunto di `/progetto` è il bootstrap (directory + git + commit) e l'orchestrazione delle fasi. Le fasi di analisi NON sono duplicate qui: `/progetto` invoca `/discovery` e `/write-plan` con il contesto raccolto.
 
 ## Nome Progetto
 
@@ -61,13 +61,10 @@ Esegui in sequenza i tre comandi standalone, passando il contesto di fase in fas
 ### 3B.1 Discovery
 Esegui `/discovery`. Raccoglie requisiti business, contesto tecnico, scala, prioritizzazione e produce il documento di sintesi (Problema, Criteri di successo, Decisioni tecniche, Scope MVP, Fuori scope).
 
-### 3B.2 Scope
-Esegui `/scope` usando come input il documento di discovery appena prodotto. Produce architettura, struttura progetto, schema DB, endpoint API, componenti.
+### 3B.2 Piano
+Esegui `/write-plan` usando il documento di discovery. Produce architettura, task ordinati e strategia test.
 
-### 3B.3 Piano
-Esegui `/write-plan` usando come input lo scope appena prodotto. Produce il piano implementazione a fasi (Setup → Foundation → Core Features → Integration) con task ordinati e strategia test.
-
-### 3B.4 Crea Task
+### 3B.3 Crea Task
 Dal piano prodotto da `/write-plan`, crea un task con `TaskCreate` per ogni fase:
 - "MVP $ARGUMENTS - Setup"
 - "MVP $ARGUMENTS - Foundation"
@@ -117,7 +114,7 @@ Inizia implementazione (`/inizio $ARGUMENTS` per riprendere in sessioni future).
 `/progetto` fa da collante:
 - Bootstrap repo (FASE 1: mkdir + git init) e primo commit (FASE 4) — **valore esclusivo di questo comando**
 - Selezione modalità Light/Standard (FASE 2)
-- Delega l'analisi ai comandi standalone: `/discovery` → `/scope` → `/write-plan` (Standard) con passaggio di contesto tra fasi
+- Delega l'analisi ai comandi standalone: `/discovery` → `/write-plan` (Standard) con passaggio di contesto tra fasi
 - Logica task (TaskCreate dal piano)
 
 **L'utente chiama solo /progetto, il resto è orchestrato.**

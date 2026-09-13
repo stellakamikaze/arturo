@@ -3,7 +3,6 @@ name: test-runner
 description: |
   Esegue test suite e riporta risultati. Usa dopo modifiche significative o su richiesta.
   Rileva automaticamente il test runner del progetto (Vitest, Jest, npm test).
-model: haiku
 tools: Read, Bash, Glob
 ---
 

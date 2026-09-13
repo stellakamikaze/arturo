@@ -43,7 +43,6 @@ unset COMMS_REDUCED
 # il comando eseguito: assegnazioni env (FOO=bar), `env`, `command`, `\gh`. Senza
 # questo, `FOO=1 gh repo delete` o `command gh ...` eludono i guard gh.
 _GH_PREFIX='(env[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*(command[[:space:]]+)?\\?'
-PATTERN_GH_ISSUE="(^|[;&|][[:space:]]*)${_GH_PREFIX}gh[[:space:]]+(issue|pr)[[:space:]]"
 PATTERN_GH_ANY="(^|[;&|][[:space:]]*)${_GH_PREFIX}gh[[:space:]]"
 PATTERN_GIT_TEXT='(^|[;&|][[:space:]]*)git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(commit|log|show|tag|stash[[:space:]]+(push|save))'
 PATTERN_COMMS='(^|[[:space:];|&])(sendmail|mailx|mutt|msmtp|swaks)([[:space:]]|$)|mail[[:space:]]+-s|gws[[:space:]].*(messages[[:space:]]+send|send[[:space:]]+message)|osascript.*(Mail|Messages)|api\.telegram\.org|hooks\.slack\.com|slack\.com/api/chat|api\.sendgrid|api\.mailgun|api\.postmarkapp|api\.resend|api\.mailjet|api\.brevo|smtp2go|api\.sparkpost|api\.elasticemail|zeptomail|mailchannels|email[.-][a-z0-9-]*\.amazonaws|hooks\.zapier|hook\.[a-z0-9.]*make\.com|integromat|graph\.microsoft\.com.*sendmail|gmail\.googleapis\.com.*messages/send|discord(app)?\.com/api/webhooks|api\.twilio\.com|graph\.facebook\.com.*messages|whatsapp[_/-]?send|telegram[_/-]?send|smtplib|SMTP_SSL'
@@ -147,9 +146,6 @@ fi
 
 # Data guard: operazioni distruttive sui DATI (SQL drop, volumi, rsync --delete) -> ask.
 [[ "$GUARD_COMMAND" =~ $PATTERN_DATA ]] && run_guard data-guard.py
-
-# GitHub CLI: content guard (claude/anthropic nei testi issue/PR).
-[[ "$COMMAND" =~ $PATTERN_GH_ISSUE ]] && run_guard github_issue_guard.py
 
 # GitHub CLI: operazioni distruttive/sensibili (repo delete, secret, api mutante...).
 [[ "$COMMAND" =~ $PATTERN_GH_ANY ]] && run_guard gh-destructive-guard.py

@@ -1,7 +1,6 @@
 ---
 name: bug-finder
 description: A software detective that proactively hunts for logical errors, race conditions, and unhandled edge cases in code. Use to find hidden bugs in a specific function or module.
-model: sonnet
 tools: Read, Grep, Glob, Bash
 ---
 

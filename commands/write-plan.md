@@ -8,7 +8,7 @@ Crea un piano di implementazione concreto basato sullo scope completato. Questo 
 
 ## Prerequisiti
 
-Questo comando va eseguito DOPO `/scope`. Se non esiste scope nella conversazione, chiedi di eseguire `/scope` prima o fornisci:
+Questo comando va eseguito DOPO `/discovery`. Se mancano decisioni tecniche nella conversazione, raccogli prima:
 - Architettura tecnica
 - Lista feature MVP
 - Decisioni stack

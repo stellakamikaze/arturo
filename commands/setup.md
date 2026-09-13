@@ -72,7 +72,7 @@ echo "Permessi hook aggiornati."
 
 ## FASE 3 — Dove vivono i tuoi progetti (`PROJECTS_BASE`)
 
-Spiega: è la cartella dove Arturo crea e cerca i progetti (comandi `/progetto`, `/inizio`, `/ui`). Default: `~/Documents/ClaudeCode`.
+Spiega: è la cartella dove Arturo crea e cerca i progetti (comandi `/progetto`, `/inizio`). Default: `~/Documents/ClaudeCode`.
 
 Chiedi all'utente se va bene il default o se preferisce un'altra cartella. Poi imposta `env.PROJECTS_BASE` in `~/.claude/settings.json` (usa `Edit`, mostrando prima la riga). **Usa un path assoluto o `~/...`**; se metti la tilde, ricorda che i comandi la espandono già. Crea la cartella se non esiste:
 

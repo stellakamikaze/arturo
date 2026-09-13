@@ -1,6 +1,5 @@
 ---
 name: structural-completeness-reviewer
-model: sonnet
 tools: Read, Glob, Grep, Bash
 description: |
   Use this agent any time you make a code change that is sufficiently complex to warrant a review, particularly after implementing features, refactoring code, or making significant modifications. This agent focuses exclusively on ensuring changes are fully integrated, old code is properly removed, and no technical debt is introduced. It does NOT review functional correctness, test quality, or documentation - only structural integrity and codebase hygiene.

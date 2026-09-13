@@ -154,7 +154,7 @@ fi
 | Task pendenti   | [N] (nell'handoff)                               |
 | Validate        | [passed / N errori documentati]                  |
 | Config sync     | [pushato / nessuna modifica]                     |
-| Extra (--full)  | [claude-md/doc/retro o "skip"]                   |
+| Extra (--full)  | [claude-md/doc o "skip"]                        |
 +--------------------------------------------------------------------+
 | Riprendi: /inizio [progetto]  ·  sessione esatta: claude -r        |
 +====================================================================+
@@ -172,10 +172,11 @@ ripetuti, proponi update). Le modifiche entrano nel commit config della FASE 6.
 
 ### B. Doc staleness — `--full`, o se la sessione ha toccato doc/.md
 Cross-reference le modifiche con i `.md` del repo. Se un doc descrive codice modificato ma non
-aggiornato: segnalalo nell'handoff e suggerisci `/doc-update` alla prossima sessione.
+aggiornato: segnalalo nell'handoff.
 
-### C. Retro — `--full`, o se la sessione ha 5+ commit / lavoro significativo
-Suggerisci: "Hai fatto parecchio lavoro. Considera `/retro`."
+### C. Riepilogo — `--full`, o se la sessione ha lavoro significativo
+
+Registra nell'handoff i punti emersi e i prossimi passi.
 
 ---
 

@@ -1,14 +1,14 @@
 # Validation Gate — Modulo Condiviso
 
-Usato da: `/commit`, `/ship`, `/fine`, `/validate`
+Usato da: `/fine`
 
 ## Modalità
 
 | Mode | tsc | test | lint | console.log | build | Quando |
 |------|-----|------|------|-------------|-------|--------|
-| `quick` | x | x | | x | | `/commit`, `/fine` |
-| `full` | x | x | x | x | x | `/validate` |
-| `shipping` | x | x | x | | | `/ship` (in parallelo) |
+| `quick` | x | x | | x | | `/fine` |
+| `full` | x | x | x | x | x | verifica manuale |
+| `shipping` | x | x | x | | | consegna manuale |
 
 ## Nessuna cache
 
@@ -81,12 +81,12 @@ fi
 Se qualsiasi step critico fallisce (tsc, test):
 - **STOP** — non procedere
 - Mostra errori
-- In `/commit` e `/fine`: chiedi se fixare ora o procedere comunque
-- In `/ship`: STOP assoluto, non shippare codice rotto
+- In `/fine`: chiedi se fixare ora o documentare l'errore.
+- Prima di una consegna: STOP assoluto, non consegnare codice rotto
 
 ## Referenziare da altri comandi
 
-Nei comandi `/commit`, `/ship`, `/fine`:
+Nei workflow che chiudono una sessione:
 ```
 Leggi e applica `~/.claude/shared/validation-gate.md` con mode=[quick|full|shipping].
 ```
