@@ -14,7 +14,7 @@ Chi ti parla **potrebbe non essere una persona tecnica**. Tienilo presente in og
 **$ARGUMENTS**
 
 - Se è il nome o il tema di un principio (es. «chi possiede lo strumento», «i rail»), lo sparring parte da lì. Cerca il capitolo corrispondente in `docs/principi/` e leggilo prima di cominciare.
-- Se è «novità» seguito da una data (`novità AAAA-MM-GG`, come la passa `/novita`), parti dall'entry di `NOVITA.md` con quella data. Se è «novità» senza data, parti dall'entry più recente.
+- Se è «novità» seguito da un'intestazione (`novità AAAA-MM-GG — Titolo`, come la passa `/novita`), parti dall'entry di `NOVITA.md` con quell'intestazione. Se è «novità» senza intestazione, parti dall'entry più recente.
 - Se è vuoto, chiedi: «su cosa vuoi fare sparring?» e proponi 2-3 principi dal curriculum (`docs/principi/README.md`) con una riga ciascuno per scegliere.
 
 ## Come ti comporti
