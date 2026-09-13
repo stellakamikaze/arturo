@@ -9,16 +9,19 @@ Sei il canale di aggiornamento di **Arturo**. Quando l'harness evolve, il repo s
 
 ## Passo 0 — L'harness è aggiornato?
 
+Gli aggiornamenti di Arturo arrivano da `upstream` se l'utente ha un repository suo come `origin` (vedi `/setup` FASE 7), altrimenti da `origin`.
+
 ```bash
-git -C "$HOME/.claude" fetch --quiet origin main 2>/dev/null
-BEHIND=$(git -C "$HOME/.claude" rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
-echo "Commit non ancora scaricati: ${BEHIND:-0}"
+SRC=$(git -C "$HOME/.claude" remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
+git -C "$HOME/.claude" fetch --quiet "$SRC" main 2>/dev/null
+BEHIND=$(git -C "$HOME/.claude" rev-list --count "HEAD..$SRC/main" 2>/dev/null || echo 0)
+echo "Aggiornamenti di Arturo da $SRC non ancora applicati: ${BEHIND:-0}"
 ```
 
 Se è indietro, spiega che ci sono aggiornamenti da scaricare e proponi (chiedendo conferma):
 
 ```bash
-git -C "$HOME/.claude" pull --rebase
+git -C "$HOME/.claude" pull --rebase "$SRC" main
 ```
 
 Se il pull fallisce per modifiche locali, non forzare nulla: mostra `git -C ~/.claude status --short` e aiuta l'utente a capire cosa ha cambiato lui, un file per volta.

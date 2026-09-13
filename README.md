@@ -67,12 +67,13 @@ mv ~/.claude ~/.claude-backup-$(date +%Y%m%d) 2>/dev/null
 git clone https://github.com/stellakamikaze/arturo.git ~/.claude
 ```
 
-Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/` dentro `~/.claude/`.
+Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `docs/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono a `/sparring`, `/novita` e `/inizio gws`).
 
 > **Il tuo remote.** Il clone qui sopra punta al repo originale, su cui non hai accesso in scrittura: `/fine` tenta un push di sincronizzazione che fallirà — te lo dice con un messaggio chiaro, **non è un errore di rete**, e va benissimo usarlo così. Se invece vuoi **sincronizzare le tue modifiche tra più macchine**, crea un tuo repo privato e puntaci `origin`:
 > ```bash
+> git -C ~/.claude remote rename origin upstream   # Arturo resta raggiungibile: /novita scarica da qui
 > gh repo create mio-claude --private --source ~/.claude --remote origin --push
-> # oppure, se il repo esiste già:  git -C ~/.claude remote set-url origin <URL-del-tuo-repo>
+> # oppure, se il repo esiste già:  git -C ~/.claude remote add origin <URL-del-tuo-repo>
 > ```
 
 ---

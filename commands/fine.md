@@ -38,12 +38,12 @@ Se tutto coperto: procedi in silenzio.
 Applica `~/.claude/shared/validation-gate.md` con **mode=quick** (tsc + test + console.log).
 
 - Passa → commit.
-- Errori chiari e ripetibili → annota il tentativo e rilancia il controllo dopo il fix.
-- Errori ambigui o persistenti → documentali nell'handoff come punti pendenti.
+- Errori chiari e ripetibili → correggi e rilancia il validate dopo l'ultima modifica.
+- Errori ambigui o persistenti → documentali nell'handoff come punti pendenti e **NON committare** il codice rosso.
 
 ### 4. Commit Progetto
 
-Se ci sono modifiche non committate:
+Solo con un validate verde eseguito dopo l'ultima modifica, oppure se la sessione non ha toccato codice. Se ci sono modifiche non committate:
 1. `git diff --stat` per review
 2. Staging **selettivo** (`git add` dei file pertinenti — MAI `git add .` / `-A`)
 3. Escludi file sensibili (.env, credentials, temporanei)
@@ -125,25 +125,41 @@ Config Sync della FASE 6, e solo verso un remote privato.
 
 ### 6. Config Sync (condizionale)
 
-**Solo se `~/.claude` ha modifiche non committate.** Altrimenti salta.
+**Si attiva se `~/.claude` ha modifiche non committate o commit non ancora pushati.** Un push fallito la volta prima si ritenta qui.
 
 ```bash
-if [ -n "$(git -C ~/.claude status --porcelain 2>/dev/null)" ]; then
-  PREV_DIR="$PWD" && cd ~/.claude
-  git add settings.json commands/ agents/ hooks/ skills/ shared/ package.json README.md 2>/dev/null
-  # Gli handoff entrano nel commit solo se il remote della config risulta privato.
+PREV_DIR="$PWD" && cd ~/.claude
+if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+  for p in settings.json commands agents hooks skills shared docs NOVITA.md README.md package.json; do
+    [ -e "$p" ] || continue
+    git add -- "$p" || echo "git add fallito su $p: resta fuori dal commit"
+  done
+  # CLAUDE.md personale e handoff viaggiano solo verso un remote privato verificato.
   VIS=$(gh repo view "$(git remote get-url origin 2>/dev/null)" --json visibility -q .visibility 2>/dev/null)
   if [ "$VIS" = "PRIVATE" ]; then
-    git add data/handoffs/ 2>/dev/null
+    for p in CLAUDE.md data/handoffs; do
+      [ -e "$p" ] || continue
+      git add -- "$p" || echo "git add fallito su $p: resta fuori dal commit"
+    done
   else
-    echo "Handoff non sincronizzati: il remote della config non risulta privato (visibilità: ${VIS:-sconosciuta}). Restano su questa macchina."
+    echo "CLAUDE.md e handoff non sincronizzati: il remote della config non risulta privato (visibilità: ${VIS:-sconosciuta}). Restano su questa macchina."
   fi
-  git commit -m "chore: session sync $(date +%Y-%m-%d)" 2>/dev/null || true
-  if git remote get-url origin >/dev/null 2>&1; then git push origin main 2>&1 || echo "Config push non riuscito (vedi errore: serve un remote tuo con accesso in scrittura)"; else echo "Config senza remote 'origin': i commit restano locali (ok). Per sincronizzare tra le tue macchine, configura un tuo repo privato come origin."; fi
-  cd "$PREV_DIR"
-else
-  echo "Config Claude: nessuna modifica, skip sync"
+  git diff --cached --quiet || git commit -m "chore: session sync $(date +%Y-%m-%d)" || echo "Commit di sync non riuscito: vedi errore sopra"
 fi
+if git remote get-url origin >/dev/null 2>&1; then
+  git fetch --quiet origin main 2>/dev/null
+  AHEAD=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo "?")
+  if [ "$AHEAD" = "0" ]; then
+    echo "Config: niente da pushare"
+  elif git push origin main 2>&1; then
+    echo "Config: push riuscito"
+  else
+    echo "Config push non riuscito: $AHEAD commit restano locali e il prossimo /fine li ritenta (serve un remote tuo con accesso in scrittura)"
+  fi
+else
+  echo "Config senza remote 'origin': i commit restano locali (ok). Per sincronizzare tra le tue macchine, configura un tuo repo privato come origin."
+fi
+cd "$PREV_DIR"
 ```
 
 ### 7. Conferma
