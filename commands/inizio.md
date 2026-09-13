@@ -73,9 +73,9 @@ Se ci sono merge conflict, risolvili PRIMA di procedere.
 
 ## FASE 2: Localizza Handoff
 
-Due fonti, si usa la **più recente**: la copia locale nel progetto e il mirror
-cross-machine in `~/.claude/data/handoffs/` (scritto da `/fine` su qualsiasi macchina,
-arrivato qui col sync di FASE 0).
+Due fonti, si usa la **più recente**: lo store in `~/.claude/data/handoffs/` (scritto da
+`/fine`, arrivato qui col sync di FASE 0 se il remote della config è privato) e un'eventuale
+copia locale nel progetto lasciata da versioni precedenti di `/fine`.
 
 ```bash
 HANDOFF_LOCAL=$(ls -t HANDOFF_*.md 2>/dev/null | head -1)

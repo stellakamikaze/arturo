@@ -15,13 +15,16 @@ mkdir -p "$HOME" "$TMPDIR"
 cp -R "$ROOT/." "$HOME/.claude"
 REPO="$HOME/.claude"
 
-for test in \
-  test-block-dangerous-falsi-positivi.py \
-  test-web-egress-guard.py \
-  test_bash_dispatcher_review.py \
-  test_bash_dispatcher_secrets.py \
-  test_permissivita_2026_09_08.py \
-  test_allineamento.py; do
+BANCHI=(
+  test-block-dangerous-falsi-positivi.py
+  test-web-egress-guard.py
+  test_bash_dispatcher_review.py
+  test_bash_dispatcher_secrets.py
+  test_permissivita_2026_09_08.py
+  test_allineamento.py
+  test_revisione_high.py
+)
+for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
 done
 
@@ -34,7 +37,8 @@ for test in \
   test_bash_dispatcher_review.py \
   test_bash_dispatcher_secrets.py \
   test_permissivita_2026_09_08.py \
-  test_allineamento.py; do
+  test_allineamento.py \
+  test_revisione_high.py; do
   python3 -B "$REPO/tests/$test" --repo "$BASELINE" --baseline-ref ee10fc6
 done
 
@@ -67,4 +71,4 @@ done < <(git -C "$REPO" ls-files -z -- '*.js')
 [[ $js -gt 0 ]] || { echo "FAIL: nessun file JavaScript" >&2; exit 1; }
 
 bash "$REPO/skills/system-audit/audit.sh" --strict
-printf 'PASS: banchi=6 shell=%s js=%s\n' "$shells" "$js"
+printf 'PASS: banchi=%s shell=%s js=%s\n' "${#BANCHI[@]}" "$shells" "$js"
