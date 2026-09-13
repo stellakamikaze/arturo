@@ -28,6 +28,11 @@ if ! SYNC_OUTPUT=$(git -C ~/.claude pull origin main --rebase --autostash 2>&1);
   exit 1
 fi
 printf '%s\n' "$SYNC_OUTPUT" | tail -1
+# Con un repository personale come origin, Arturo vive su upstream: scaricarlo qui,
+# senza applicarlo, tiene aggiornati l'avviso di session-start e /novita.
+if git -C ~/.claude remote get-url upstream >/dev/null 2>&1; then
+  git -C ~/.claude fetch --quiet upstream main 2>&1 || echo "Config sync: fetch di upstream non riuscito (rete?) — gli aggiornamenti di Arturo si vedranno al prossimo /inizio"
+fi
 CONFLICTS=$(git -C ~/.claude diff --name-only --diff-filter=U)
 if [ -n "$CONFLICTS" ]; then
   echo "Config sync: conflitti dopo autostash"

@@ -54,7 +54,7 @@ Tre idee tengono insieme tutto:
 | **node** ≥ 18 | `statusline.js`, `context-monitor.js` | |
 | **jq** | parsing veloce nel dispatcher | c'è un fallback in `python3` se manca |
 
-Facoltativi: **`gitleaks`** (audit segreti), **`bw`** (Bitwarden CLI, per le credenziali), **`gws`** (Google Workspace CLI — vedi [onboarding](#onboarding-gws-google-workspace-cli-opzionale)). Su macOS, per il timeout dello smoke test in `/system-audit` serve `gtimeout` (da `brew install coreutils`); se manca, il check gira comunque senza timeout.
+Facoltativi: **`gitleaks`** (audit segreti), **`bw`** (Bitwarden CLI, per le credenziali), **`gws`** (Google Workspace CLI — vedi [onboarding](#onboarding-gws-google-workspace-cli-opzionale)). Lo smoke test di `/system-audit` usa `timeout` se c'è (su Linux e Git Bash sì, su macOS di norma no); senza, gira comunque, solo senza tetto di tempo.
 
 ---
 
@@ -228,7 +228,7 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 ## Personalizzazione
 
 - **Più/meno attrito.** L'allow-list Bash è ampia per design; la protezione vera sono deny + guard. Vuoi che Claude chieda conferma più spesso? Metti `defaultMode: "default"` in `settings.json` e sfoltisci l'`allow`. Vuoi meno interruzioni? Aggiungi pattern specifici all'`allow`.
-- **Host interni.** Se lavori con un tuo server, aggiungi il suo hostname alla regex `INTERNAL` in `exfil-guard.py` e `web-egress-guard.py`: le chiamate verso quegli host non chiederanno conferma.
+- **Host interni.** Se lavori con un tuo server, aggiungi il suo hostname a `INTERNAL_HOSTS` (o la sua rete a `INTERNAL_NETS`) in `exfil-guard.py` e in `web-egress-guard.py`: le chiamate verso quegli host non chiederanno conferma.
 - **Lingua.** `language` in `settings.json` (default `italian`) e i messaggi dei guard sono in italiano — cambiali se preferisci un'altra lingua.
 - **Disattivare un guard.** Commenta la riga corrispondente in `bash-dispatcher.sh` (per i guard instradati) o rimuovi il blocco da `settings.json` (per quelli PostToolUse). Poi rilancia `/system-audit`.
 - **Aggiungere un comando o una skill.** Un file `.md` in `commands/` diventa uno slash command; una cartella con `SKILL.md` in `skills/` diventa una skill. Il frontmatter `name` + `description` è obbligatorio (`/system-audit` lo verifica).
@@ -267,11 +267,10 @@ Claude ti guida passo-passo seguendo [`docs/onboarding/gws.md`](docs/onboarding/
 | Sintomo | Causa probabile | Rimedio |
 |---|---|---|
 | `/fine` dice "Config push non riuscito" | hai clonato il repo originale, non un tuo fork (nessun accesso in scrittura) | normale; per sincronizzare imposta un tuo `origin` (vedi [Installazione](#installazione)) |
-| `/system-audit` segnala hook "non eseguibile" | permessi persi dopo il clone | `chmod +x ~/.claude/hooks/*.sh ~/.claude/hooks/*.py` |
+| `/system-audit` segnala `hook diretto mancante` | un file citato in `settings.json` non c'è (copia manuale incompleta) | ricopia il file da Arturo e rilancia `/system-audit` |
 | Un guard chiede conferma su un comando legittimo | falso positivo del pattern | conferma ed esegui; se ricorre, apri una issue col comando esatto |
 | Commit bloccato con un messaggio che *parla* di comandi pericolosi | il messaggio contiene un pattern come `curl\|bash` | usa `git commit -F file` (il guard scansiona il comando, non il file) |
 | Nessun titolo nel terminale su macOS | `session-env/` mancante (creata al primo avvio) | innocuo; si risolve da solo |
-| `/system-audit`: WARN su `MEMORY.md` | stai usando un sistema di memoria esterno non installato | ignora; senza `data/memory/` il check è N/A |
 
 ---
 
