@@ -22,16 +22,28 @@ echo "DIRECTORY: $PROJECT_ROOT"
 # Reminder context management
 echo "CONTEXT: al ~65% di utilizzo completa il task, chiudi con /fine e riparti con /inizio in una sessione nuova"
 
-# Guardia anti-divergenza config (~/.claude vs origin/main).
-# Confronta con l'ultimo fetch (zero latenza) e lancia un fetch async per la
-# prossima sessione. Evita che una macchina resti indietro
-# rispetto alle altre senza accorgersene.
-if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
-  BEHIND=$(git -C "$HOME/.claude" rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
-  if [ "${BEHIND:-0}" -gt 0 ]; then
-    echo "CONFIG: ~/.claude e' INDIETRO di $BEHIND commit rispetto a origin/main — eseguire 'git -C ~/.claude pull --rebase' prima di lavorare (rischio divergenza tra macchine)"
+# Avvisi Git locali: nessuna rete, nessun comando in background.
+if git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+  CHANGES=$(git -C "$PROJECT_ROOT" status --porcelain 2>/dev/null || true)
+  [[ -n "$CHANGES" ]] && echo "GIT: working tree con modifiche non committate"
+  REBASE_MERGE=$(git -C "$PROJECT_ROOT" rev-parse --git-path rebase-merge 2>/dev/null)
+  REBASE_APPLY=$(git -C "$PROJECT_ROOT" rev-parse --git-path rebase-apply 2>/dev/null)
+  if [[ -d "$REBASE_MERGE" || -d "$REBASE_APPLY" ]]; then
+    echo "GIT: rebase in corso — risolvilo prima di lavorare"
   fi
-  (git -C "$HOME/.claude" fetch --quiet origin main >/dev/null 2>&1 &)
+fi
+
+# Guardia anti-divergenza config (~/.claude vs origin/main).
+# Legge solo gli oggetti Git gia' presenti in locale.
+if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
+  AHEAD=$(git -C "$HOME/.claude" rev-list --count origin/main..HEAD 2>/dev/null || echo 0)
+  BEHIND=$(git -C "$HOME/.claude" rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
+  if [ "${AHEAD:-0}" -gt 0 ]; then
+    echo "CONFIG: ~/.claude e' AVANTI di $AHEAD commit non pushati"
+  fi
+  if [ "${BEHIND:-0}" -gt 0 ]; then
+    echo "CONFIG: ~/.claude e' INDIETRO di $BEHIND commit rispetto a origin/main"
+  fi
 fi
 
 # Canale novità: se NOVITA.md ha una entry più recente dell'ultima vista, segnala.
