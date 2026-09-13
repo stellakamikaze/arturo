@@ -80,7 +80,7 @@ def test_h10(repo: Path) -> None:
     fine = (repo / "commands" / "fine.md").read_text(encoding="utf-8")
     assert 'git add "$HANDOFF_FILE"' not in fine, "H10 /fine committa l'handoff nel repository del progetto"
     assert 'HANDOFF_FILE="$HDIR/' in fine, "H10 l'handoff non nasce nello store privato"
-    staging = fine.find("git add data/handoffs/")
+    staging = fine.find("for p in CLAUDE.md data/handoffs")
     check = fine.find('"$VIS" = "PRIVATE"')
     assert check != -1 and staging > check, "H10 gli handoff si sincronizzano senza verificare che il remote sia privato"
 

@@ -77,7 +77,9 @@ Spiega: è la cartella dove Arturo crea e cerca i progetti (comandi `/progetto`,
 Chiedi all'utente se va bene il default o se preferisce un'altra cartella. Poi imposta `env.PROJECTS_BASE` in `~/.claude/settings.json` (usa `Edit`, mostrando prima la riga). **Usa un path assoluto o `~/...`**; se metti la tilde, ricorda che i comandi la espandono già. Crea la cartella se non esiste:
 
 ```bash
-mkdir -p "<cartella-scelta>" && echo "Cartella progetti pronta: <cartella-scelta>"
+BASE="<cartella-scelta>"
+BASE="${BASE/#\~/$HOME}"   # fra virgolette la tilde non si espande: la sostituisce questa riga
+mkdir -p "$BASE" && echo "Cartella progetti pronta: $BASE"
 ```
 
 ---
@@ -113,18 +115,20 @@ Mostra la bozza e chiedi conferma prima di scriverla in `~/.claude/CLAUDE.md`. T
 
 Solo se l'utente ha **un proprio server** a cui si connette spesso. Spiega: aggiungendo l'hostname alla lista degli host "interni", Arturo non chiederà conferma per le connessioni verso di esso (le guardie anti-esfiltrazione lo considerano fidato).
 
-Se serve, apri `hooks/exfil-guard.py` e `hooks/web-egress-guard.py` e aggiungi l'hostname alla regex `INTERNAL` (mostra la modifica e chiedi conferma). Se l'utente non ha un server, salta.
+Se serve, apri `hooks/exfil-guard.py` e `hooks/web-egress-guard.py` e aggiungi in entrambi l'hostname a `INTERNAL_HOSTS`, oppure la sua rete a `INTERNAL_NETS` (mostra la modifica e chiedi conferma). Se l'utente non ha un server, salta.
 
 ---
 
 ## FASE 7 — Sincronizzazione tra più macchine (opzionale)
 
-Spiega: se userà Arturo su **più computer**, può tenerli allineati con un proprio repository privato. `/fine` committa e pusha (handoff inclusi), `/inizio` sincronizza.
+Spiega: se userà Arturo su **più computer**, può tenerli allineati con un proprio repository privato. `/fine` committa e pusha (handoff e `CLAUDE.md` solo se il repository risulta privato), `/inizio` sincronizza. Arturo resta collegato come `upstream`: da lì `/novita` scarica gli aggiornamenti dell'harness, mentre `origin` diventa il repository dell'utente.
 
 Se l'utente lo vuole e ha `gh`:
 
 ```bash
+git -C "$HOME/.claude" remote rename origin upstream
 gh repo create <nome-repo> --private --source "$HOME/.claude" --remote origin --push
+git -C "$HOME/.claude" remote -v
 ```
 
 Altrimenti spiega che, senza un remote proprio, tutto funziona lo stesso: i dati restano in locale e il push di `/fine` semplicemente non avviene (te lo segnala con un messaggio, non è un errore). Se non gli serve, salta.

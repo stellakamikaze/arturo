@@ -44,6 +44,13 @@ if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
   if [ "${BEHIND:-0}" -gt 0 ]; then
     echo "CONFIG: ~/.claude e' INDIETRO di $BEHIND commit rispetto a origin/main"
   fi
+  # Con un repository personale come origin, Arturo vive su upstream.
+  if git -C "$HOME/.claude" rev-parse --verify --quiet upstream/main >/dev/null 2>&1; then
+    UPSTREAM_BEHIND=$(git -C "$HOME/.claude" rev-list --count HEAD..upstream/main 2>/dev/null || echo 0)
+    if [ "${UPSTREAM_BEHIND:-0}" -gt 0 ]; then
+      echo "ARTURO: $UPSTREAM_BEHIND aggiornamenti dell'harness su upstream/main non ancora applicati — /novita te li racconta"
+    fi
+  fi
 fi
 
 # Canale novità: se NOVITA.md ha una entry più recente dell'ultima vista, segnala.
