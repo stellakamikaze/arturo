@@ -10,6 +10,10 @@ if [ ! -d "$PROJECT_ROOT/.git" ] && [ ! -f "$PROJECT_ROOT/CLAUDE.md" ]; then
     exit 0
 fi
 
+# Cleanup file temporanei sessione: deve avvenire anche su tree pulito.
+rm -f ~/.claude/claude-md-unlock-* ~/.claude/config-unlock-* 2>/dev/null
+rm -f /tmp/claude_session_reminder_* 2>/dev/null
+
 # Skip reminder se non ci sono modifiche non committate (sessione read-only)
 if [ -d "$PROJECT_ROOT/.git" ]; then
     CHANGES=$(git -C "$PROJECT_ROOT" status --porcelain 2>/dev/null)
@@ -27,10 +31,6 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     rm -f "$WID_FILE"
   fi
 fi
-
-# Cleanup file temporanei sessione
-rm -f ~/.claude/claude-md-unlock-* ~/.claude/config-unlock-* 2>/dev/null
-rm -f /tmp/claude_session_reminder_* 2>/dev/null
 
 cat << 'EOF'
 ---

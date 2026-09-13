@@ -24,13 +24,11 @@ git status --short
 git branch --show-current 2>/dev/null
 ```
 
-Usa `TaskList` per i task pendenti.
+Raccogli i punti pendenti emersi nella sessione prima di scrivere l'handoff.
 
 ### 2. Completezza
 
-Lancia **internamente** l'agente `structural-completeness-reviewer` (cambiamenti integrati?
-dead code rimosso? niente a metà?). Poi mini-verify: ricostruisci l'obiettivo della sessione
-dalla conversazione e confrontalo con i deliverable prodotti.
+Se la sessione modifica codice, lancia internamente `structural-completeness-reviewer`. Ricostruisci poi l'obiettivo e confrontalo con i deliverable. Se la sessione non modifica codice, salta il reviewer e registra l'esito.
 
 Se emergono gap: elencali e chiedi se fixare ora o documentarli nell'handoff come task pendente.
 Se tutto coperto: procedi in silenzio.
@@ -40,8 +38,8 @@ Se tutto coperto: procedi in silenzio.
 Applica `~/.claude/shared/validation-gate.md` con **mode=quick** (tsc + test + console.log).
 
 - Passa → commit.
-- Errori chiari e ripetitivi → skill `~/.claude/skills/autofix/SKILL.md`, loop test-fix-retest (max 3).
-- Autofix fallisce o errori ambigui → documenta nell'handoff come task pendente.
+- Errori chiari e ripetibili → annota il tentativo e rilancia il controllo dopo il fix.
+- Errori ambigui o persistenti → documentali nell'handoff come punti pendenti.
 
 ### 4. Commit Progetto
 

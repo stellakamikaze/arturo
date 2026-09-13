@@ -22,7 +22,18 @@ fine esegui la checklist del documento. Poi FERMATI: le fasi sotto non si applic
 ## FASE 0: Sync Config
 
 ```bash
-git -C ~/.claude pull origin main --rebase --autostash 2>&1 | tail -1 || echo "Config sync: pull fallito — controlla il repo a mano prima di lavorare"
+if ! SYNC_OUTPUT=$(git -C ~/.claude pull origin main --rebase --autostash 2>&1); then
+  printf '%s\n' "$SYNC_OUTPUT"
+  echo "Config sync: pull fallito — fermati e risolvi prima di lavorare"
+  exit 1
+fi
+printf '%s\n' "$SYNC_OUTPUT" | tail -1
+CONFLICTS=$(git -C ~/.claude diff --name-only --diff-filter=U)
+if [ -n "$CONFLICTS" ]; then
+  echo "Config sync: conflitti dopo autostash"
+  printf '%s\n' "$CONFLICTS"
+  exit 1
+fi
 ```
 
 ---
