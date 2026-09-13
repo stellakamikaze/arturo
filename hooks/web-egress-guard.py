@@ -19,6 +19,8 @@ due segnali ad alta precisione.
 
 Fail-open su qualsiasi errore. Zero dipendenze.
 """
+from __future__ import annotations
+
 import ipaddress
 import json
 import re

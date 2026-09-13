@@ -100,6 +100,15 @@ def test_reduction(repo: Path) -> None:
         assert permission(run(home, inert)) == "silent", "S06 heredoc cat deve restare inerte"
         assert permission(run(home, executable)) == "block", "S06 heredoc shell deve restare analizzato"
         assert permission(run(home, followed)) == "block", "S06 comando successivo deve restare analizzato"
+        # Casi avvelenati: quello che segue il delimitatore SULLA STESSA RIGA viene eseguito.
+        same_line = {
+            "pipe verso shell": "cat <<'EOF' | sh\nmailx -s testo\nEOF",
+            "redirect su settings": "cat <<'EOF' > ~/.claude/settings.json\n{}\nEOF",
+            "comando concatenato": "cat <<'EOF' && mailx -s testo\ntesto\nEOF",
+        }
+        for label, command in same_line.items():
+            got = permission(run(home, command))
+            assert got != "silent", f"S06 {label}: la riga del delimitatore deve restare analizzata, ricevuto {got}"
     finally:
         temp.cleanup()
 
