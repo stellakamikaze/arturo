@@ -58,6 +58,9 @@ for blocks in settings.get("hooks", {}).values():
             command = hook.get("command")
             if isinstance(command, str):
                 print(command)
+status = settings.get("statusLine")
+if isinstance(status, dict) and isinstance(status.get("command"), str):
+    print(status["command"])
 PY
 )
 fi
@@ -67,9 +70,14 @@ for command in "${hook_commands[@]}"; do
   while IFS= read -r script; do
     [[ -z "$script" ]] && continue
     script="${script%$'\r'}"
+    if [[ "$script" == "::parse-error::" ]]; then
+      ko "comando hook non interpretabile: $command"
+      continue
+    fi
     if [[ "$script" == *".claude/"* ]]; then
       script="$CLAUDE_DIR/${script#*.claude/}"
     fi
+    script="${script/#\~/$HOME}"
     hook_files+=("$script")
     if [[ -f "$script" ]]; then
       ok "hook diretto: $(basename "$script")"
@@ -78,8 +86,15 @@ for command in "${hook_commands[@]}"; do
     fi
   done < <(python3 - "$command" <<'PY'
 import re
+import shlex
 import sys
-print("\n".join(re.findall(r'(?<!\S)(?:~?/[^\s]+|~[^\s]+|[^\s]+\.(?:py|sh|js))', sys.argv[1])))
+# shlex toglie le virgolette e tiene insieme i path con spazi.
+try:
+    tokens = shlex.split(sys.argv[1])
+except ValueError:
+    print("::parse-error::")
+    raise SystemExit(0)
+print("\n".join(token for token in tokens if re.search(r"\.(?:py|sh|js)$", token)))
 PY
 )
 done
@@ -174,13 +189,15 @@ import json
 import sys
 with open(sys.argv[1], encoding="utf-8") as source:
     permissions = json.load(source).get("permissions", {})
+if not permissions.get("defaultMode"):
+    raise ValueError("defaultMode mancante")
 if set(permissions.get("allow", ())) & set(permissions.get("deny", ())):
     raise ValueError("permessi sovrapposti")
 PY
 then
-  ok "permessi senza sovrapposizioni"
+  ok "permessi: defaultMode presente, nessuna sovrapposizione allow/deny"
 else
-  ko "permessi sovrapposti o non leggibili"
+  ko "permessi: defaultMode mancante, pattern sovrapposti o settings non leggibile"
 fi
 
 echo "=== System Audit ==="
