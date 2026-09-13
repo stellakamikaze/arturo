@@ -20,6 +20,8 @@ comms-guard.py (messaggistica/email nota) gira PRIMA e BLOCCA quei casi. Gli sca
 PostToolUse (credential-leak) restano come secondo layer detective.
 Fail-open su parsing. Zero dipendenze.
 """
+from __future__ import annotations
+
 import ipaddress
 import json
 import re

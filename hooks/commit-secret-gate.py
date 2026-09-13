@@ -11,6 +11,8 @@ layer PREVENTIVO (gli scanner PostToolUse avvisano a cose fatte).
 
 Fail-open su qualsiasi errore. Legge cwd dal payload per lanciare git nel repo giusto.
 """
+from __future__ import annotations
+
 import json
 import os
 import re

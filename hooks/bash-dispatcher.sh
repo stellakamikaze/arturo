@@ -20,11 +20,13 @@ except Exception: pass')
 fi
 
 # Riduce solo heredoc quotati passati direttamente a cat: il corpo e' dato, non shell.
+# Dopo il delimitatore la riga deve essere vuota: `cat <<'EOF' | bash`,
+# `cat <<'EOF' > file` e `cat <<'EOF' && cmd` restano interi e passano dalle guardie.
 # Errori o sintassi ambigua mantengono sempre il comando originale.
 reduce_inert_heredocs() {
     python3 -c 'import re, sys
 source = sys.stdin.read().replace("\r\n", "\n")
-pattern = re.compile(r"(?ms)(^|[;&]\s*|\n)\s*cat\s+<<\x27([A-Za-z_][A-Za-z0-9_]*)\x27[^\n]*\n.*?^\2\s*$")
+pattern = re.compile(r"(?ms)(^|[;&]\s*|\n)\s*cat\s+<<\x27([A-Za-z_][A-Za-z0-9_]*)\x27[ \t]*\n.*?^\2\s*$")
 print(pattern.sub(lambda match: match.group(1) + "cat", source), end="")' <<< "$1" || printf '%s' "$1"
 }
 

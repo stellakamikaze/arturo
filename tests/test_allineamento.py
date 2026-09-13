@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -68,6 +69,12 @@ def main() -> int:
     assert end.index("rm -f ~/.claude/claude-md-unlock-") < end.index("git -C"), "C02 cleanup dopo uscita anticipata"
     for item in REMOVED:
         assert not (repo / item).exists(), f"I03 file rimosso ancora presente: {item}"
+    # README dichiara python3 >= 3.8: le annotazioni `X | None` senza import differito
+    # vanno in TypeError al caricamento su 3.8/3.9 e spengono la guardia.
+    for hook in sorted((repo / "hooks").glob("*.py")):
+        source = hook.read_text(encoding="utf-8")
+        if re.search(r"(->|:)\s*[\w\[\], ]+\|\s*None", source):
+            assert "from __future__ import annotations" in source, f"C07 {hook.name}: annotazione X | None senza import differito"
     assert_igiene(repo)
     print(f"PASS C01-C06,I03 rimossi={len(REMOVED)}")
     return 0
