@@ -51,7 +51,9 @@ Se ci sono modifiche non committate:
 
 ### 5. Handoff + Push
 
-Nome file: `HANDOFF_$(date +%Y-%m-%d_%H-%M).md`.
+Nome file: `HANDOFF_$(date +%Y-%m-%d_%H-%M).md`, scritto **solo** nello store
+`~/.claude/data/handoffs/<slug>/` (vedi sotto). Mai nel repository del progetto: in un
+progetto pubblico decisioni, note e task entrerebbero nella storia Git.
 
 **Prima di scrivere, rispondi internamente alle 5 domande:**
 1. Cosa c'è da fare? (anche cose dette di sfuggita)
@@ -101,35 +103,25 @@ rileggere il codice; includi anche task da sessioni precedenti se ancora validi.
 - [Link a issue/PR/doc] · [Note utente]
 ```
 
-Push (l'handoff NON deve restare solo locale):
-
-```bash
-git add "$HANDOFF_FILE"
-git commit -m "docs: session handoff $(date +%Y-%m-%d)"
-if git remote get-url origin >/dev/null 2>&1; then
-  git push 2>&1 || echo "Push handoff non riuscito (vedi errore sopra: permessi o rete)"
-else
-  echo "Nessun remote 'origin' configurato: l'handoff resta locale (ok)."
-fi
-```
-
-**Mirror cross-machine (se usi la config su più macchine).** Lo store
-`~/.claude/data/handoffs/` viaggia col repo config: ogni macchina vede gli handoff
-di tutte le altre. Slug = nome progetto in kebab-case (stesso nome usato con `/inizio`).
+**Dove va l'handoff.** Scrivilo nello store `~/.claude/data/handoffs/<slug>/`. Slug = nome
+progetto in kebab-case (lo stesso usato con `/inizio`). Non creare l'handoff nel repository
+del progetto e non committarlo lì. Se l'utente chiede una copia nel progetto, prima mostragli
+la visibilità del remote (`gh repo view --json visibility`) e aspetta una conferma esplicita.
 
 ```bash
 SLUG="<slug-progetto>"
 HDIR=~/.claude/data/handoffs/"$SLUG"
 mkdir -p "$HDIR"
-cp "$HANDOFF_FILE" "$HDIR/"
-# retention: ultimi 5 (i vecchi restano nella history git)
+HANDOFF_FILE="$HDIR/HANDOFF_$(date +%Y-%m-%d_%H-%M).md"
+# scrivi in "$HANDOFF_FILE" il contenuto del template
+# retention: ultimi 5
 ls -t "$HDIR"/HANDOFF_*.md 2>/dev/null | tail -n +6 | xargs rm -f 2>/dev/null
 ```
 
 Poi aggiorna la riga del progetto in `~/.claude/data/handoffs/INDEX.md`
 (colonne: Progetto | Ultimo handoff | Data | Stato | Prossimo passo — il "Prossimo passo"
-deve essere leggibile senza aprire l'handoff). Il push avviene con il Config Sync della
-FASE 6.
+deve essere leggibile senza aprire l'handoff). La copia sulle altre macchine avviene nel
+Config Sync della FASE 6, e solo verso un remote privato.
 
 ### 6. Config Sync (condizionale)
 
@@ -137,7 +129,18 @@ FASE 6.
 
 ```bash
 if [ -n "$(git -C ~/.claude status --porcelain 2>/dev/null)" ]; then
-  PREV_DIR="$PWD" && cd ~/.claude && git add settings.json commands/ agents/ hooks/ skills/ shared/ data/handoffs/ package.json README.md 2>/dev/null; git commit -m "chore: session sync $(date +%Y-%m-%d)" 2>/dev/null || true; if git remote get-url origin >/dev/null 2>&1; then git push origin main 2>&1 || echo "Config push non riuscito (vedi errore: serve un remote tuo con accesso in scrittura)"; else echo "Config senza remote 'origin': i commit restano locali (ok). Per sincronizzare tra le tue macchine, configura un tuo repo privato come origin."; fi; cd "$PREV_DIR"
+  PREV_DIR="$PWD" && cd ~/.claude
+  git add settings.json commands/ agents/ hooks/ skills/ shared/ package.json README.md 2>/dev/null
+  # Gli handoff entrano nel commit solo se il remote della config risulta privato.
+  VIS=$(gh repo view "$(git remote get-url origin 2>/dev/null)" --json visibility -q .visibility 2>/dev/null)
+  if [ "$VIS" = "PRIVATE" ]; then
+    git add data/handoffs/ 2>/dev/null
+  else
+    echo "Handoff non sincronizzati: il remote della config non risulta privato (visibilità: ${VIS:-sconosciuta}). Restano su questa macchina."
+  fi
+  git commit -m "chore: session sync $(date +%Y-%m-%d)" 2>/dev/null || true
+  if git remote get-url origin >/dev/null 2>&1; then git push origin main 2>&1 || echo "Config push non riuscito (vedi errore: serve un remote tuo con accesso in scrittura)"; else echo "Config senza remote 'origin': i commit restano locali (ok). Per sincronizzare tra le tue macchine, configura un tuo repo privato come origin."; fi
+  cd "$PREV_DIR"
 else
   echo "Config Claude: nessuna modifica, skip sync"
 fi

@@ -145,7 +145,7 @@ Instradati dal dispatcher:
 | `data-guard.py` | SQL distruttivo (DROP/TRUNCATE/DELETE senza WHERE), `docker compose down -v`, `rsync --delete` verso host remoti, overwrite di file `.db` | conferma |
 | `exfil-guard.py` | esfiltrazione verso host esterni: POST e upload (curl/wget/python); il ramo GET è disattivato per scelta di attrito | conferma |
 | `comms-guard.py` | invio email/messaggi da CLI (sendmail, msmtp, gws, smtplib, AppleScript Mail...) — policy draft-first | blocco |
-| `gh-destructive-guard.py` | operazioni GitHub distruttive (repo delete, secret, api mutanti), anche con prefisso `env`/`command` | conferma |
+| `gh-destructive-guard.py` | operazioni GitHub distruttive (repo delete anche via GraphQL, secret, api DELETE/PUT/PATCH) → blocco; mutazioni GraphQL, query lette da file e POST anche impliciti (`-f`/`-F`/`--input`) → conferma; anche con prefisso `env`/`command` | blocco / conferma |
 
 Fuori dal dispatcher:
 
@@ -196,7 +196,7 @@ Arturo è stato estratto da una config che include anche memoria persistente, ta
 |---|---|
 | Task manager su server | `TaskList`/`TaskCreate` nativi + tabella task nell'handoff |
 | Memoria su database/server | il tuo `CLAUDE.md` + gli handoff in `data/handoffs/` |
-| Sync su server privato | il repo git stesso: `data/handoffs/` viaggia con la config |
+| Sync su server privato | il repo git stesso: `data/handoffs/` viaggia con la config, solo se il suo remote è privato |
 
 Nessun componente richiede un server, un dominio o un account specifico.
 
@@ -245,7 +245,7 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 
 ## Multi-macchina
 
-Il repo config **È** il canale di sync: `/fine` committa e pusha (handoff inclusi), `/inizio` pulla. `session-start.sh` avvisa se la macchina è rimasta indietro rispetto a `origin/main`. Per usarlo su più macchine: clona il **tuo** fork/repo privato (vedi [Installazione](#installazione)) come `~/.claude` su ognuna.
+Il repo config **È** il canale di sync: `/fine` committa e pusha, `/inizio` pulla. Gli handoff stanno solo in `~/.claude/data/handoffs/`, mai nel repository del progetto, ed entrano nel push solo se `gh repo view` dice che il remote della config è privato. `session-start.sh` avvisa se la macchina è rimasta indietro rispetto a `origin/main`. Per usarlo su più macchine: clona il **tuo** fork/repo privato (vedi [Installazione](#installazione)) come `~/.claude` su ognuna.
 
 ---
 
