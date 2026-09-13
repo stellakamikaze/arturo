@@ -273,7 +273,7 @@ Stesse regole, adattamenti diversi, in `references/casi-uso.md`: messaggi di err
 
 Il benchmark del 20/8/2026 (54 generazioni, 3 modelli Claude) dice dove sta il lavoro. Condizionale, nominalizzazioni, «qualora», «si consiglia» e accenti sbagliati non compaiono quasi mai nel testo generato. Le violazioni vere sono quattro: frasi oltre il limite, gerundio, rotazione di sinonimi, lineetta lunga. Controlla prima quelle quattro. Poi ogni «se» e ogni «quando» di un comando: deve stare all'inizio della sua frase.
 
-Per un testo scritto da persone, e per la modalità controllo, usa `references/checklist.md`. Su questo Mac c'è anche il linter: `python3 ~/Documents/ClaudeCode/italiano-semplificato/evals/its_lint.py --tipo procedurale FILE` (oppure `--tipo descrittivo`, `-` per stdin). Conta per difetto e non dà un verdetto di conformità.
+Per un testo scritto da persone, e per la modalità controllo, usa `references/checklist.md`.
 
 ## Esempio completo
 

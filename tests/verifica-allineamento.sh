@@ -23,6 +23,7 @@ BANCHI=(
   test_permissivita_2026_09_08.py
   test_allineamento.py
   test_revisione_high.py
+  test_revisione_medium.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -38,7 +39,8 @@ for test in \
   test_bash_dispatcher_secrets.py \
   test_permissivita_2026_09_08.py \
   test_allineamento.py \
-  test_revisione_high.py; do
+  test_revisione_high.py \
+  test_revisione_medium.py; do
   python3 -B "$REPO/tests/$test" --repo "$BASELINE" --baseline-ref ee10fc6
 done
 
