@@ -36,7 +36,12 @@ def test_l01(repo: Path) -> None:
         assert "branch" not in statusline, "L01 il README promette il branch nella statusline, che non lo legge"
 
 
+# Due entry con la stessa data: il segnalibro deve distinguerle dal titolo.
 NOVITA_FIXTURE = """# Novita
+
+## 2026-09-13 — Quarta
+
+testo
 
 ## 2026-09-13 — Terza
 
@@ -71,16 +76,16 @@ def avviso_novita(repo: Path, viste: str | None, vecchia: str | None) -> str:
 
 
 def test_l03(repo: Path) -> None:
-    got = avviso_novita(repo, "2026-09-13\n", None)
-    assert "2 aggiornamenti" in got, f"L03 vista solo l'ultima: le due precedenti restano da leggere, avviso={got!r}"
-    got = avviso_novita(repo, "2026-09-13\n2026-09-02\n2026-08-17\n", None)
+    got = avviso_novita(repo, "2026-09-13 — Terza\n", None)
+    assert "3 aggiornamenti" in got, f"L03 vista solo «Terza»: «Quarta» (stessa data), «Seconda» e «Prima» restano da leggere, avviso={got!r}"
+    got = avviso_novita(repo, "2026-09-13 — Quarta\n2026-09-13 — Terza\n2026-09-02 — Seconda\n2026-08-17 — Prima\n", None)
     assert got == "", f"L03 controllo: tutte viste, nessun avviso atteso, avviso={got!r}"
     got = avviso_novita(repo, None, "2026-09-02")
-    assert "1 aggiornamenti" in got, f"L03 il vecchio segnalibro deve valere come viste fino a quella data, avviso={got!r}"
+    assert "2 aggiornamenti" in got, f"L03 il vecchio segnalibro deve valere come viste fino a quella data, avviso={got!r}"
     novita = read(repo / "commands" / "novita.md")
     assert '>> "$HOME/.claude/session-env/novita-viste"' in novita, "L03 /novita non segna le entry una per una"
-    assert "novità AAAA-MM-GG" in novita, "L03 /novita non passa allo sparring la data dell'entry"
-    assert "novità AAAA-MM-GG" in read(repo / "commands" / "sparring.md"), "L03 /sparring non sa partire da un'entry precisa"
+    assert "novità AAAA-MM-GG — Titolo" in novita, "L03 /novita non passa allo sparring l'intestazione dell'entry"
+    assert "novità AAAA-MM-GG — Titolo" in read(repo / "commands" / "sparring.md"), "L03 /sparring non sa partire da un'entry precisa"
 
 
 def test_l04(repo: Path) -> None:

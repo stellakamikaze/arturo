@@ -57,16 +57,18 @@ fi
 # Solo un avviso — il racconto lo fa /novita, mai in automatico.
 if [ -f "$HOME/.claude/NOVITA.md" ]; then
   ULTIMA_NOVITA=$(grep -m1 '^## ' "$HOME/.claude/NOVITA.md" 2>/dev/null | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
-  # Segnalibro per entry (novita-viste); un vecchio novita-vista vale come "viste fino a".
+  # Segnalibro per intestazione (novita-viste: data e titolo); un vecchio novita-vista
+  # con una sola data vale come "viste fino a".
   NOVITA_VISTE="$HOME/.claude/session-env/novita-viste"
   NOVITA_VECCHIA=$(cat "$HOME/.claude/session-env/novita-vista" 2>/dev/null || echo "")
   NON_VISTE=0
-  while IFS= read -r DATA; do
-    [ -z "$DATA" ] && continue
-    [ -n "$NOVITA_VECCHIA" ] && [[ ! "$DATA" > "$NOVITA_VECCHIA" ]] && continue
-    grep -qxF "$DATA" "$NOVITA_VISTE" 2>/dev/null && continue
+  while IFS= read -r ENTRY; do
+    [ -z "$ENTRY" ] && continue
+    DATA=$(printf '%s' "$ENTRY" | grep -oE '^[0-9]{4}-[0-9]{2}-[0-9]{2}')
+    [ -n "$NOVITA_VECCHIA" ] && [ -n "$DATA" ] && [[ ! "$DATA" > "$NOVITA_VECCHIA" ]] && continue
+    grep -qxF "$ENTRY" "$NOVITA_VISTE" 2>/dev/null && continue
     NON_VISTE=$((NON_VISTE + 1))
-  done < <(grep '^## ' "$HOME/.claude/NOVITA.md" 2>/dev/null | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
+  done < <(grep '^## ' "$HOME/.claude/NOVITA.md" 2>/dev/null | sed 's/^## //')
   if [ "$NON_VISTE" -gt 0 ]; then
     echo "NOVITA': $NON_VISTE aggiornamenti dell'harness non ancora letti (ultimo: $ULTIMA_NOVITA) — digita /novita per fartelo raccontare"
   fi
