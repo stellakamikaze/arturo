@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """PostToolUse hook: scansiona output MCP e tool per pattern di prompt injection.
 Lightweight — no dipendenze esterne, regex-based."""
+from __future__ import annotations
 
 import sys
 import json
