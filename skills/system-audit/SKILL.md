@@ -2,8 +2,9 @@
 name: system-audit
 description: >-
   Verifica che la configurazione Claude Code in ~/.claude/ sia coerente e collegata: settings JSON
-  valido, hook presenti su disco e nel settings, frontmatter di agent e skill, link e riferimenti a
-  comandi inesistenti. Report-only, non modifica file.
+  valido, hook e statusline presenti su disco, guardie richiamate dal dispatcher, smoke test degli
+  hook, frontmatter di agent e skill, defaultMode e permessi senza sovrapposizioni. Report-only, non
+  modifica file.
 when_to_use: >-
   Usa con /system-audit dopo ogni git pull dell'harness, dopo aver aggiunto o tolto hook, skill o
   comandi, o quando «qualcosa sembra rotto» (una guardia che non scatta, un comando che non compare).

@@ -25,6 +25,7 @@ BANCHI=(
   test_revisione_high.py
   test_revisione_medium.py
   test_revisione_low.py
+  test_completezza.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -42,7 +43,8 @@ for test in \
   test_allineamento.py \
   test_revisione_high.py \
   test_revisione_medium.py \
-  test_revisione_low.py; do
+  test_revisione_low.py \
+  test_completezza.py; do
   python3 -B "$REPO/tests/$test" --repo "$BASELINE" --baseline-ref ee10fc6
 done
 

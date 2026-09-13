@@ -172,7 +172,7 @@ cd "$PREV_DIR"
 | Handoff         | [HANDOFF_*.md]                                   |
 | Task pendenti   | [N] (nell'handoff)                               |
 | Validate        | [passed / N errori documentati]                  |
-| Config sync     | [pushato / nessuna modifica]                     |
+| Config sync     | [push riuscito / niente da pushare / push non riuscito: N commit da ritentare]                     |
 | Extra (--full)  | [claude-md/doc o "skip"]                        |
 +--------------------------------------------------------------------+
 | Riprendi: /inizio [progetto]  ·  sessione esatta: claude -r        |
