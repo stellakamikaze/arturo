@@ -20,10 +20,12 @@ comms-guard.py (messaggistica/email nota) gira PRIMA e BLOCCA quei casi. Gli sca
 PostToolUse (credential-leak) restano come secondo layer detective.
 Fail-open su parsing. Zero dipendenze.
 """
+import ipaddress
 import json
 import re
-import sys
 import signal
+import sys
+from urllib.parse import urlsplit
 
 
 def _t(s, f):
@@ -33,14 +35,33 @@ def _t(s, f):
 if hasattr(signal, "SIGALRM"):
     signal.signal(signal.SIGALRM, _t)
 
-# Host considerati interni/fidati (nessun prompt). Aggiungi qui i tuoi host interni.
-INTERNAL = re.compile(
-    r'(\.ts\.net|localhost|127\.0\.0\.1|0\.0\.0\.0|'
-    r'host\.docker\.internal|192\.168\.|(^|[^0-9])10\.|'
-    r'100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.)',
-    re.IGNORECASE,
-)
-HOST = re.compile(r'https?://([A-Za-z0-9_.\-]+)', re.IGNORECASE)
+INTERNAL_HOSTS = frozenset(("localhost", "host.docker.internal", "0.0.0.0"))
+INTERNAL_NETS = tuple(map(ipaddress.ip_network, (
+    "127.0.0.0/8", "10.0.0.0/8", "192.168.0.0/16", "100.64.0.0/10",
+)))
+URL = re.compile(r'https?://[^\s"\']+', re.IGNORECASE)
+
+
+def _internal_host(host: str | None) -> bool:
+    if not host:
+        return False
+    normalized = host.lower().rstrip(".")
+    if normalized in INTERNAL_HOSTS or normalized.endswith(".ts.net"):
+        return True
+    try:
+        return any(ipaddress.ip_address(normalized) in network for network in INTERNAL_NETS)
+    except ValueError:
+        return False
+
+
+def _hosts(text: str):
+    for value in URL.findall(text):
+        try:
+            host = urlsplit(value).hostname
+        except ValueError:
+            continue
+        if host:
+            yield host
 EXT_HINT = re.compile(
     r'(smtp[.-][A-Za-z0-9.\-]+|api\.[A-Za-z0-9\-]+\.(com|net|io|org|co)|'
     r'hooks\.[A-Za-z0-9\-]+\.[A-Za-z]{2,})',
@@ -97,8 +118,8 @@ def _ask(reason=None):
     return 0
 
 
-def _external_host(h):
-    return bool(h) and not INTERNAL.search(h)
+def _external_host(host: str | None) -> bool:
+    return bool(host) and not _internal_host(host)
 
 
 def main() -> int:
@@ -123,14 +144,14 @@ def main() -> int:
         dest = DATA_FLAG_VAL.sub(" ", cmd)
         ext = False
         internal_seen = False
-        for h in HOST.findall(dest):
-            if INTERNAL.search(h):
+        for host in _hosts(dest):
+            if _internal_host(host):
                 internal_seen = True
             else:
                 ext = True
         if not ext:
             for m in EXT_HINT.finditer(dest):
-                if not INTERNAL.search(m.group(0)):
+                if not _internal_host(m.group(0)):
                     ext = True
                     break
         if ext:

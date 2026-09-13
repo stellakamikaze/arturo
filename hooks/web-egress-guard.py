@@ -19,10 +19,11 @@ due segnali ad alta precisione.
 
 Fail-open su qualsiasi errore. Zero dipendenze.
 """
+import ipaddress
 import json
 import re
-import sys
 import signal
+import sys
 from urllib.parse import urlsplit
 
 
@@ -33,13 +34,23 @@ def _t(*_):
 if hasattr(signal, "SIGALRM"):
     signal.signal(signal.SIGALRM, _t)
 
-INTERNAL = re.compile(
-    r'(\.ts\.net|localhost|127\.0\.0\.1|0\.0\.0\.0|'
-    r'host\.docker\.internal|192\.168\.|(^|[^0-9])10\.|'
-    r'100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.)',
-    re.IGNORECASE,
-)
+INTERNAL_HOSTS = frozenset(("localhost", "host.docker.internal", "0.0.0.0"))
+INTERNAL_NETS = tuple(map(ipaddress.ip_network, (
+    "127.0.0.0/8", "10.0.0.0/8", "192.168.0.0/16", "100.64.0.0/10",
+)))
 CMD_SUB = re.compile(r'\$\(|`')
+
+
+def _internal_host(host: str | None) -> bool:
+    if not host:
+        return False
+    normalized = host.lower().rstrip(".")
+    if normalized in INTERNAL_HOSTS or normalized.endswith(".ts.net"):
+        return True
+    try:
+        return any(ipaddress.ip_address(normalized) in network for network in INTERNAL_NETS)
+    except ValueError:
+        return False
 
 
 def _iter_urls(tool_input):
@@ -63,8 +74,8 @@ def _suspicious(url):
         parts = urlsplit(url)
     except Exception:
         return False
-    host = parts.netloc or ""
-    if not host or INTERNAL.search(host):
+    host = parts.hostname
+    if not host or _internal_host(host):
         return False  # interno o non parsabile -> non gated qui
     if CMD_SUB.search(url):
         return True

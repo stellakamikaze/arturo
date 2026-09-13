@@ -56,7 +56,7 @@ DANGEROUS = [
     (r"\b(bash|sh|zsh|fish|python3?|perl|ruby|node)\b\s+-c\s+[\"']?\$\(\s*(curl|wget|fetch)\b",
      "interprete -c su output di download remoto"),
     (r"\bsudo\s+rm\s+-rf?\s+(/|~|\$HOME|\*)", "rm ricorsivo con sudo su root/home/wildcard"),
-    (r"\bbw\s+export\b", "export dell'intera vault Bitwarden in chiaro"),
+    (r"\bbw(?:\s+--[^\s]+)*\s+export\b", "export dell'intera vault Bitwarden in chiaro"),
 ]
 
 # --- Scrittura su config/hook di Claude Code -> ask ---
@@ -85,7 +85,8 @@ UNLOCK_RE = re.compile(r"\.claude/[^\s'\";|&]*unlock[^\s'\";|&]*", re.IGNORECASE
 SECRET_PATH_RE = re.compile(
     r"(\.ssh/|(^|/)id_(rsa|ed25519|ecdsa|dsa)\b|\.aws/credentials|\.gnupg/|"
     r"\.git-credentials|\.pem\b|service-account[^\s'\"]*\.json|credentials\.json|"
-    r"\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts\.yml|\.npmrc|"
+    r"client_secret[^\s'\"]*\.json|token_cache\.json|\.pypirc|secrets\.env|\.secrets/|"
+    r"\.config/gh/hosts\.yml|\.npmrc|"
     r"\.docker/config\.json|\.kube/config)",
     re.IGNORECASE,
 )
@@ -192,11 +193,21 @@ def _ask(reason):
     return 0
 
 
+_VAR_DEFAULT_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*):-([^}]*)\}")
+
+
 def _resolve(target, cwd):
     t = (target or "").strip().strip('"').strip("'")
     if not t:
         return None
+
+    def default(match):
+        return os.environ.get(match.group(1)) or match.group(2)
+
+    t = _VAR_DEFAULT_RE.sub(default, t)
     t = t.replace("${HOME}", _home()).replace("$HOME", _home())
+    if "$" in t:
+        return None
     t = os.path.expanduser(t)
     if not os.path.isabs(t):
         t = os.path.join(cwd or _home(), t)
@@ -254,6 +265,16 @@ def _writes_config(command, cwd):
             cwd_decl = _resolve(toks[1], cwd_decl or cwd)
             continue
         base_cwd = cwd_decl or cwd
+        # `git log --output=...` scrive quanto una redirezione: non puo' saltare
+        # il controllo soltanto perche' il binario si chiama git.
+        for index, token in enumerate(toks):
+            output = None
+            if token.startswith("--output="):
+                output = token.partition("=")[2]
+            elif token == "--output" and index + 1 < len(toks):
+                output = toks[index + 1]
+            if output and _under_claude_config(_resolve(output, base_cwd)):
+                return True
         # redirect > / >> verso un target
         m = re.search(r">>?\s*([^\s'\";|&]+)", seg)
         if m and _under_claude_config(_resolve(m.group(1), base_cwd)):
@@ -308,6 +329,12 @@ def _rm_segments(command):
     return out
 
 
+def _inert_reference(command: str) -> bool:
+    if re.search(r"[;&|]|\$\(|`|<\(|>\(", command):
+        return False
+    return bool(re.match(r"\s*(?:echo|printf|cat)\b", command))
+
+
 def main() -> int:
     try:
         if hasattr(signal, "SIGALRM"):
@@ -326,14 +353,17 @@ def main() -> int:
     cwd = data.get("cwd") or _home()
 
     # 1) Blocco duro
-    for pattern, why in DANGEROUS:
-        if re.search(pattern, command, re.IGNORECASE):
-            sys.stderr.write(
-                f"Bloccato: questo comando sembra {why}. "
-                "Se e' intenzionale, eseguilo manualmente in un terminale. "
-                "L'assistente non esegue operazioni distruttive irreversibili.\n"
-            )
-            return 2
+    if not _inert_reference(command):
+        for pattern, why in DANGEROUS:
+            if why.startswith("export dell'intera vault") and re.fullmatch(r"\s*bw(?:\s+--[^\s]+)*\s+export\s+(?:--help|-h)\s*", command):
+                continue
+            if re.search(pattern, command, re.IGNORECASE):
+                sys.stderr.write(
+                    f"Bloccato: questo comando sembra {why}. "
+                    "Se e' intenzionale, eseguilo manualmente in un terminale. "
+                    "L'assistente non esegue operazioni distruttive irreversibili.\n"
+                )
+                return 2
 
     # 2) Scrittura shell su config/hook di Claude Code -> ask (auto-modifica guardie)
     if CONFIG_WRITE_RE.search(command) or _writes_config(command, cwd):
