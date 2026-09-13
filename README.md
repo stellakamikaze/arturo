@@ -104,14 +104,14 @@ Ogni comando `Bash` passa da un unico router, `hooks/bash-dispatcher.sh`, che lo
               │
               ▼
    ┌──────────────────────────────────────────────────────┐
-   │ git commit / gh pr create → commit-secret-gate.py     │
+   │ git commit / gh pr create → commit-secret-gate.py     │ ask
    │ git puro non esecutivo → esce                         │
    │ invio email/messaggi → comms-guard.py                 │ blocco
    │ rm, config, segreti → block-dangerous.py              │ blocco o ask
    │ POST/upload → exfil-guard.py                          │ ask
    │ GET-exfil → disattivato per scelta di attrito          │
    │ SQL, volumi, rsync → data-guard.py                    │ ask
-   │ gh → gh-destructive-guard.py                          │ ask
+   │ gh → gh-destructive-guard.py                          │ blocco o ask
    └──────────┬───────────────────────────────────────────┘
               │
               ▼
@@ -150,7 +150,7 @@ Instradati dal dispatcher:
 
 Fuori dal dispatcher:
 
-- `protect_claude_md.py` — PreToolUse: protegge `CLAUDE.md` e i settings da modifiche via `Edit`/`Write` non richieste esplicitamente.
+- `protect_claude_md.py` — PreToolUse: protegge `CLAUDE.md`, settings e hook da modifiche via `Edit`/`Write` senza file di unlock; scrivere un file di unlock chiede sempre conferma.
 - `web-egress-guard.py` — PreToolUse su `WebFetch`/jina/`browser_navigate`, inclusa la navigazione Firefox: esfiltrazione via URL verso host esterni.
 - `credential-leak-scanner.py`` — PostToolUse: rileva token e chiavi negli output di Bash/WebFetch/MCP.
 - `prompt-injection-scanner.py` — PostToolUse: segnala tentativi di prompt injection nei contenuti esterni (pattern EN + IT).
@@ -159,7 +159,7 @@ Fuori dal dispatcher:
 - `session-start.sh` / `session-end.sh` — titolo finestra, avvisi Git locali e cleanup degli unlock di sessione.
 - `inject-now.sh` — inietta data/ora corrente a ogni prompt.
 - `input-notifier-start.sh` — notifica quando Claude aspetta input.
-- `statusline.js` — statusline con modello, branch e stato sessione.
+- `statusline.js` — statusline con modello, task in corso, cartella e uso del contesto.
 
 ### La rotta (`commands/`)
 
@@ -291,4 +291,4 @@ il progetto si fermasse domani, quello che hai in mano continua a funzionare.
 
 ## Licenza
 
-Usalo, forkalo, adattalo. Se ci trovi dentro qualcosa che non dovrebbe esserci, apri una issue.
+Arturo è distribuito con licenza **MIT** (vedi [`LICENSE`](LICENSE)): usalo, forkalo, adattalo, anche per lavoro, mantenendo l'avviso di copyright. `skills/prompt-master/` resta sotto la sua licenza MIT originale (`skills/prompt-master/LICENSE`). Se ci trovi dentro qualcosa che non dovrebbe esserci, apri una issue.
