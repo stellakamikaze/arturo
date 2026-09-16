@@ -11,6 +11,23 @@ modo di lavorare.
 
 ---
 
+## 2026-09-16 — Il prompt prima del brief, e il promemoria a ogni richiesta
+
+**Cosa cambia**: `prompt-master` non mostra più solo il brief. Prima mostra il **prompt**: la tua
+richiesta riscritta come Arturo la eseguirà, in una o due frasi. Poi il brief, come prima. E l'hook
+`inject-now.sh` aggiunge a ogni messaggio una riga che ricorda la regola, così non vive solo nel
+`CLAUDE.md`.
+
+**Il principio dietro**: un brief dice cosa l'assistente farebbe, non da quale lettura della tua
+richiesta nasce. Se ha capito un'altra cosa, il brief ti sembra comunque sensato e te ne accorgi a
+lavoro finito. Il prompt mostrato sposta il controllo all'inizio, dove costa una riga.
+
+**Per spegnerlo**: cancella il blocco `cat` finale di `hooks/inject-now.sh`. Se l'aderenza alla
+regola non migliora, il promemoria va tolto, non irrobustito: sarebbe uno scaffold che non
+compensa niente.
+
+---
+
 ## 2026-09-13 — Seconda passata: dati, sincronizzazione, audit e licenza
 
 **Cosa cambia**: la guardia sui dati riconosce `docker compose -f … down -v` e non si fa ingannare da un `WHERE` dentro una stringa SQL. Se crei un tuo repository privato, `/setup` tiene Arturo come `upstream` e `/inizio` ne scarica gli aggiornamenti, così `/novita` continua a raccontarli. `/fine` non committa con il validate rosso, segnala gli errori di staging e ritenta i push rimasti indietro. L'audit legge i path fra virgolette e controlla anche statusline e `defaultMode`. I tool GitHub via MCP passano da soli solo quando leggono. `/novita` segna ogni entry appena raccontata, per data e titolo, così una lettura interrotta non ne salta nessuna. Arturo ha ora una licenza MIT (`LICENSE`).

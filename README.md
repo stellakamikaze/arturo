@@ -157,7 +157,9 @@ Fuori dal dispatcher:
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
 - `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
 - `session-start.sh` / `session-end.sh` — titolo finestra, avvisi Git locali e cleanup degli unlock di sessione.
-- `inject-now.sh` — inietta data/ora corrente a ogni prompt.
+- `inject-now.sh` — inietta data/ora corrente a ogni prompt, e ricorda che una richiesta di lavoro
+  comincia con `Skill(prompt-master)` e con PROMPT + BRIEF. Per spegnere il promemoria, cancella il
+  blocco `cat` finale dello script.
 - `input-notifier-start.sh` — notifica quando Claude aspetta input.
 - `statusline.js` — statusline con modello, task in corso, cartella e uso del contesto.
 
@@ -184,7 +186,7 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 
 - **`shared/validation-gate.md`** — il gate: type-check, test, lint e print di debug. Il produttore della pipeline decide l'esito; una cache non sostituisce il controllo.
 - **`system-audit`** — audit dell'harness: hook diretti e transitivi, smoke test, frontmatter YAML e permessi. `--strict` fallisce se manca un requisito.
-- **`prompt-master`**** — due modalità: un prompt pronto da incollare in un altro tool AI, oppure il **brief interno**: prima di ogni richiesta di lavoro ricostruisce il contesto che manca e mostra obiettivo, output, vincoli, criterio di fatto, assunzioni e ambiguità (upstream `nidhinjs/prompt-master`, MIT).
+- **`prompt-master`** — due modalità: un prompt pronto da incollare in un altro tool AI, oppure il **brief interno**: prima di ogni richiesta di lavoro ricostruisce il contesto che manca, riscrive la richiesta come la eseguirà (il **prompt**) e mostra obiettivo, output, vincoli, criterio di fatto, assunzioni e ambiguità (il **brief**). L'hook `inject-now.sh` lo ricorda a ogni prompt (upstream `nidhinjs/prompt-master`, MIT).
 - **`italiano-semplificato`** — riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI.
 
 ---

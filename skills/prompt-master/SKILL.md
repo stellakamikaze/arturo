@@ -29,9 +29,24 @@ Le richieste dell'utente sono spesso sintetiche: il lavoro non è riformularle, 
 
 Le letture necessarie si fanno prima del brief. Un brief costruito su assunzioni non nutre, aggiunge rumore. Le 9 dimensioni di Intent Extraction (MIDDLE ZONE) si applicano in silenzio.
 
-### 2. Brief (mostrato)
+### 2. Prompt e brief (mostrati insieme)
 
-La sintesi verificabile dell'arricchimento, in un blocco di massimo 8 righe. La profondità si adatta alla richiesta: per un comando singolo o una correzione puntuale bastano tre righe (obiettivo, output, fatto quando); per un lavoro che tocca più file, sistemi o side-effect servono tutte e sei. Scrivi solo le righe che portano informazione: una riga ovvia si omette, non si riempie di parole.
+Non si mostra solo il brief: si mostra **prima il prompt**, cioè la richiesta dell'utente
+riscritta come la eseguirai. È il pezzo che gli permette di fermarti quando hai capito
+un'altra cosa, e costa una riga. Il brief da solo dice cosa faresti, non da quale lettura
+della richiesta nasce.
+
+```
+PROMPT
+[la richiesta riscritta in una o due frasi: cosa l'utente sta chiedendo, come lo eseguirai,
+ su quali file o sistemi. Non la parafrasi delle sue parole: la loro traduzione operativa.]
+```
+
+Se la richiesta era già completa, il prompt è quasi identico all'originale: si mostra lo stesso,
+una riga, e si va avanti. Se l'hai dovuta interpretare, il prompt è il punto in cui
+l'interpretazione diventa visibile.
+
+Sotto il prompt, la sintesi verificabile dell'arricchimento, in un blocco di massimo 8 righe. La profondità si adatta alla richiesta: per un comando singolo o una correzione puntuale bastano tre righe (obiettivo, output, fatto quando); per un lavoro che tocca più file, sistemi o side-effect servono tutte e sei. Scrivi solo le righe che portano informazione: una riga ovvia si omette, non si riempie di parole.
 
 ```
 BRIEF
@@ -52,9 +67,15 @@ Da chiarire: [max 3 punti]
 ## Importante
 
 - Questa sezione ha precedenza sulla PRIMACY ZONE quando il destinatario del lavoro sei tu: niente blocco di prompt copiabile, niente tool target da identificare — l'esecutore è Claude Code.
-- Il brief va sempre mostrato prima di qualunque altro lavoro, anche per una richiesta breve (prima valeva solo per i task non banali).
+- **Prompt e brief vanno sempre mostrati** prima di qualunque altro lavoro, anche per una richiesta
+  breve. L'obiezione a cui risponde il passo del prompt: un brief che l'utente non può ricondurre
+  alla sua richiesta lo fa reagire a una ricostruzione invece che alla cosa. Il prompt mostrato è
+  il rimedio, perché si vede subito se la richiesta è stata capita.
 - Se l'arricchimento fa emergere un fatto che cambia le carte (lavoro già fatto, decisione già chiusa in senso opposto, freno CLAUDE.md che scatta), dillo nel brief prima di procedere — è il motivo principale per cui questa modalità esiste.
-- Il brief non è un gate e non richiede conferma: se non hai nulla da chiarire lo mostri e procedi.
+- Il brief non è un gate e non richiede conferma: se il prompt è corretto e non hai nulla da
+  chiarire, mostri e procedi.
+- **Questa skill si carica col tool `Skill`**, a ogni richiesta di lavoro: il corpo si legge, non si
+  ricostruisce a memoria da una riga del `CLAUDE.md`. L'hook `inject-now.sh` lo ricorda a ogni prompt.
 
 ---
 
