@@ -52,7 +52,18 @@ if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
   fi
   AHEAD=$(git -C "$HOME/.claude" rev-list --count origin/main..HEAD 2>/dev/null || echo 0)
   BEHIND=$(git -C "$HOME/.claude" rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
-  if [ "${AHEAD:-0}" -gt 0 ]; then
+  # Se origin e' il repo originale di Arturo, chi usa non puo' pusharci: commit locali
+  # "avanti" sono normali e l'avviso sarebbe solo rumore. Tace solo in quel caso.
+  ORIGIN_URL=$(git -C "$HOME/.claude" remote get-url origin 2>/dev/null || echo "")
+  case "$ORIGIN_URL" in
+    https://github.com/stellakamikaze/arturo | https://github.com/stellakamikaze/arturo.git | \
+    git@github.com:stellakamikaze/arturo | git@github.com:stellakamikaze/arturo.git | \
+    ssh://git@github.com/stellakamikaze/arturo | ssh://git@github.com/stellakamikaze/arturo.git)
+      ORIGIN_ARTURO=1 ;;
+    *)
+      ORIGIN_ARTURO=0 ;;
+  esac
+  if [ "${AHEAD:-0}" -gt 0 ] && [ "$ORIGIN_ARTURO" -eq 0 ]; then
     echo "CONFIG: ~/.claude e' AVANTI di $AHEAD commit non pushati"
   fi
   if [ "${BEHIND:-0}" -gt 0 ]; then

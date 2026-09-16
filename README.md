@@ -141,6 +141,9 @@ guarda `git -C ~/.claude status --short` e sistema un file per volta.
 Dopo il primo aggiornamento non serve più ricordarselo: all'avvio della sessione Arturo ti avvisa
 quando ci sono novità, e **`/novita`** te le racconta e propone il pull.
 
+Se un aggiornamento non ti convince, **`/aggiorna indietro`** riporta alla versione di prima: ti
+mostra cosa torna indietro, lo fa solo dopo il tuo sì e conserva le modifiche ai tuoi file.
+
 > Se `/aggiorna` o `/novita` rispondono «comando sconosciuto», la tua copia è precedente a quei
 > comandi: fai il `git pull` qui sopra a mano e riapri Claude Code. Da lì in poi bastano gli slash.
 
@@ -355,7 +358,9 @@ history del repo è volutamente neutra; la firma sta qui.
 Arturo si sviluppa ogni giorno: è l'estratto di una configurazione usata in produzione, e
 le novità arrivano a chi lo usa con `/aggiorna`. Gli impegni verso chi lo usa stanno in
 [Impegni](#impegni). Le issue sono benvenute e vengono lette, ma non c'è promessa di
-risposta né di fix. Tutto è fatto per essere forkato e adattato.
+risposta né di fix. Tutto è fatto per essere forkato e adattato. Come si rilascia una
+versione — branch, gate, novità, cosa succede se lo sviluppo si ferma — sta in
+[`docs/manutenzione.md`](docs/manutenzione.md).
 
 ---
 

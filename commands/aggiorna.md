@@ -1,6 +1,6 @@
 ---
-description: Scarica e applica l'ultima versione di Arturo, poi racconta cosa è cambiato
-argument-hint: "(nessuno)"
+description: Scarica e applica l'ultima versione di Arturo, poi racconta cosa è cambiato. Con `indietro`, riporta alla versione prima dell'ultimo aggiornamento
+argument-hint: "(nessuno) | indietro"
 ---
 
 # Aggiorna
@@ -35,10 +35,11 @@ e un aggiornamento non deve mangiarseli.
 
 ## Passo 3 — Applica
 
-Solo dopo il suo sì:
+Solo dopo il suo sì. Prima salva il punto di partenza, così `/aggiorna indietro` sa dove tornare:
 
 ```bash
-git -C "$HOME/.claude" pull --rebase "$SRC" main
+mkdir -p "$HOME/.claude/session-env" && git -C "$HOME/.claude" rev-parse HEAD > "$HOME/.claude/session-env/ultimo-aggiornamento"
+git -C "$HOME/.claude" pull --rebase --autostash "$SRC" main
 ```
 
 Se il comando si ferma per un conflitto, **non forzare nulla**: nessun `--force`, nessun `reset
@@ -55,9 +56,42 @@ Due cose, in quest'ordine:
 2. Dopo il riavvio, **`/novita`** gli racconta cosa è cambiato e perché gli conviene saperlo. Se
    `NOVITA.md` è arrivato solo ora, è normale: prima quella copia non aveva il canale.
 
+## Tornare indietro
+
+Se chi ti parla scrive `/aggiorna indietro`, vuole annullare l'ultimo aggiornamento e tornare alla
+versione di prima. Fai solo questo, in quest'ordine. I passi 1-4 qui sopra non c'entrano.
+
+1. **Leggi il punto di partenza.** Lo SHA sta in `session-env/ultimo-aggiornamento`:
+
+   ```bash
+   cat "$HOME/.claude/session-env/ultimo-aggiornamento"
+   ```
+
+   Se il file non c'è, digli che non hai un aggiornamento da annullare: la sua copia non ha
+   ancora fatto un `/aggiorna` con questo meccanismo. Fermati lì.
+
+2. **Mostra cosa torna indietro**, in parole semplici: i commit arrivati con l'ultimo
+   aggiornamento (`git -C "$HOME/.claude" log --oneline <sha>..HEAD`) e le intestazioni `## ` di
+   `NOVITA.md` che spariranno. Se in quella lista ci sono commit suoi (per esempio il «session
+   sync» di `/fine`), fermati: tornare indietro li toglierebbe dal branch. Spiegaglielo e non
+   procedere. Altrimenti chiedi il suo sì.
+
+3. **Solo dopo il suo sì**, torna indietro:
+
+   ```bash
+   git -C "$HOME/.claude" reset --keep <sha>
+   ```
+
+   Se `--keep` si rifiuta, un file che lui ha cambiato è toccato anche dall'aggiornamento:
+   mostragli quale file blocca tutto, spiega che le sue modifiche hanno la precedenza, e **non
+   forzare**. Mai `reset --hard`.
+
+4. Digli di **chiudere e riaprire Claude Code**, come dopo ogni aggiornamento.
+
 ## Freni
 
 - Il `pull` si fa dopo un sì, mai in automatico.
+- Per tornare indietro mai `reset --hard`: solo `reset --keep`, e solo dopo il suo sì.
 - Mai scartare modifiche sue per far passare l'aggiornamento.
 - Se il fetch fallisce, è quasi sempre la rete o un repository non raggiungibile: dillo senza
   drammatizzare e non ritentare a oltranza.

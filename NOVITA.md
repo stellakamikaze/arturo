@@ -11,6 +11,27 @@ modo di lavorare.
 
 ---
 
+## 2026-09-16 — Tornare indietro dopo un aggiornamento
+
+**Cosa cambia**: `/aggiorna indietro` riporta la tua copia alla versione di prima dell'ultimo
+aggiornamento. Prima di toccare qualunque cosa ti mostra in parole semplici cosa torna indietro — i
+commit arrivati e le novità che spariranno — e lo fa solo dopo il tuo sì. In più, l'avviso di
+avvio «la config è AVANTI di N commit» non compare più se il tuo `origin` è il repo originale di
+Arturo: su quel repo non puoi scrivere, quindi i commit locali sono normali e l'avviso era solo
+rumore. Se `origin` è un repo tuo, l'avviso resta.
+
+**Il principio dietro**: un aggiornamento è codice di altri che gira sul tuo computer (vedi
+«Cosa non è neutro»): la scelta è tua solo se puoi anche tornare indietro. E un avviso che non
+puoi risolvere — come «non hai pushato» su un repo dove non puoi pushare — insegna a ignorare
+gli avvisi.
+
+**Da sapere**: il punto di ritorno si salva quando fai `/aggiorna`. Se non hai ancora fatto un
+aggiornamento con questa versione, `/aggiorna indietro` ti dice che non c'è nulla da annullare.
+Le modifiche ai tuoi file non si perdono: se un tuo file è toccato anche dall'aggiornamento,
+il ritorno si ferma e te lo dice, invece di forzare. Dopo il ritorno, chiudi e riapri Claude
+Code. Come si rilascia una versione — per chi mantiene Arturo o ne fa un fork — ora è scritto
+in `docs/manutenzione.md`.
+
 ## 2026-09-16 — Cosa non è neutro, e cosa Arturo promette
 
 **Cosa cambia**: il README si apre con tre sezioni nuove. **In breve** dice per chi è Arturo e come
