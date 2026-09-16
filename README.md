@@ -10,8 +10,47 @@ In due righe: **18 guardie e automazioni**, **11 slash command**, **9 subagent**
 
 ---
 
+## In breve
+
+**Per chi è.** Arturo è per chi vuole cominciare a usare Claude Code e non sa da dove partire, anche senza un mestiere tecnico. Ti dà regole di sicurezza già pronte, un modo ordinato di aprire e chiudere il lavoro, e un percorso per imparare i principi.
+
+**Cominciare in tre passi.**
+
+1. Installa Claude Code, `git`, `python3` e `node` (vedi [Requisiti](#requisiti)).
+2. Scarica Arturo con `git clone https://github.com/stellakamikaze/arturo.git ~/.claude`. Se hai già una cartella `~/.claude`, leggi prima [Installazione](#installazione).
+3. Apri Claude Code dentro `~/.claude` e scrivi `/setup`. Il comando ti guida una cosa per volta.
+
+Quando esce una versione nuova, Arturo te lo dice all'avvio. `/aggiorna` ti mostra cosa arriva e la applica dopo il tuo sì.
+
+Il resto della pagina spiega come funziona Arturo dentro. Per cominciare non serve leggerlo.
+
+## Cosa non è neutro
+
+Arturo è gratuito e open source. Lo strumento su cui gira non lo è. Prima di cominciare devi sapere tre cose:
+
+- **Claude Code è un servizio a pagamento di Anthropic, un'azienda privata.** Anthropic decide prezzi, limiti e funzioni, e li può cambiare. Arturo non cambia questa condizione.
+- **Quello che scrivi passa dai server di Anthropic.** Le guardie di Arturo fermano segreti e credenziali, ma la conversazione esce comunque dal tuo computer.
+- **Un aggiornamento di Arturo è codice scritto da altri, e gira sul tuo computer.** Per questo `/aggiorna` ti mostra cosa arriva prima di applicarlo. Se un aggiornamento non ti convince, non applicarlo.
+
+Il primo capitolo del curriculum, [Chi possiede lo strumento](docs/principi/00-chi-possiede-lo-strumento.md), spiega perché conviene usare Claude Code lo stesso e come tenere bassa la dipendenza.
+
+## Impegni
+
+Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
+
+1. **Il repository resta pubblico e con licenza MIT.** Non diventa privato e non viene cancellato.
+2. **L'avvio della sessione non applica aggiornamenti.** Controlla soltanto se ci sono novità. Gli aggiornamenti li applicano `/aggiorna`, dopo il tuo sì, e `/inizio`, che sincronizza la configurazione quando apri un progetto.
+3. **Niente telemetria.** Arturo non raccoglie dati su di te né su come lo usi. L'unico contatto automatico con l'esterno è il controllo degli aggiornamenti: un `git fetch` verso i repository della tua configurazione, al massimo ogni sei ore.
+4. **Arturo resta in italiano.**
+5. **Se lo sviluppo si ferma, lo scrivo.** Lo dichiarano l'ultima entry di [`NOVITA.md`](NOVITA.md) e la cima di questa pagina. La copia che hai continua a funzionare, e puoi farne un fork.
+
+---
+
 ## Indice
 
+- [In breve](#in-breve)
+- [Cosa non è neutro](#cosa-non-è-neutro)
+- [Impegni](#impegni)
 - [Filosofia](#filosofia)
 - [Requisiti](#requisiti)
 - [Installazione](#installazione)
@@ -313,11 +352,10 @@ Arturo è un progetto di **Federico Nejrotti** — autore, non programmatore: qu
 è anche la dimostrazione della sua stessa tesi, che il metodo conta più del codice. La
 history del repo è volutamente neutra; la firma sta qui.
 
-Patto di manutenzione, detto onestamente: Arturo è mantenuto **quando serve e come
-serve** — è l'estratto di una configurazione usata ogni giorno in produzione, quindi
-evolve davvero, ma senza calendario e senza SLA. Le issue sono benvenute e vengono lette;
-non c'è promessa di risposta né di fix. Tutto è fatto per essere forkato e adattato: se
-il progetto si fermasse domani, quello che hai in mano continua a funzionare.
+Arturo si sviluppa ogni giorno: è l'estratto di una configurazione usata in produzione, e
+le novità arrivano a chi lo usa con `/aggiorna`. Gli impegni verso chi lo usa stanno in
+[Impegni](#impegni). Le issue sono benvenute e vengono lette, ma non c'è promessa di
+risposta né di fix. Tutto è fatto per essere forkato e adattato.
 
 ---
 

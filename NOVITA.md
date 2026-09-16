@@ -11,6 +11,21 @@ modo di lavorare.
 
 ---
 
+## 2026-09-16 — Cosa non è neutro, e cosa Arturo promette
+
+**Cosa cambia**: il README si apre con tre sezioni nuove. **In breve** dice per chi è Arturo e come
+cominciare in tre passi. **Cosa non è neutro** dice che Claude Code è un servizio a pagamento di
+un'azienda privata, che quello che scrivi passa dai suoi server, e che un aggiornamento di Arturo è
+codice di altri che gira sul tuo computer. **Impegni** dice cosa puoi aspettarti: repository
+pubblico e MIT, niente telemetria, Arturo in italiano, e un avviso scritto se lo sviluppo si ferma.
+
+**Il principio dietro**: chi usa uno strumento ha diritto di sapere chi lo controlla e cosa gli
+viene promesso, prima di dipenderne. È lo stesso principio del capitolo 00 del curriculum, portato
+sulla prima pagina.
+
+**Da sapere**: `/inizio` scarica e applica gli aggiornamenti quando apri un progetto. Se preferisci
+decidere tu ogni volta, usa `/aggiorna`, che ti chiede conferma prima di applicare.
+
 ## 2026-09-16 — L'avviso di aggiornamento, `/aggiorna` e `/guidami`
 
 **Cosa cambia**: all'avvio della sessione Arturo ti dice quando c'è una versione nuova, come fa
