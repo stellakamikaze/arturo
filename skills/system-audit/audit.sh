@@ -47,7 +47,11 @@ fi
 
 hook_commands=()
 if [[ -f "$SETTINGS" ]] && command -v python3 >/dev/null 2>&1; then
-  mapfile -t hook_commands < <(python3 - "$SETTINGS" <<'PY' 2>/dev/null
+  # while read al posto di mapfile: bash 3.2 (il bash di sistema su macOS) non ha mapfile,
+  # e senza questo l'array resta vuoto e l'audit non controlla piu' nessun hook.
+  while IFS= read -r hook_command; do
+    [[ -n "$hook_command" ]] && hook_commands+=("$hook_command")
+  done < <(python3 - "$SETTINGS" <<'PY' 2>/dev/null
 import json
 import sys
 with open(sys.argv[1], encoding="utf-8") as source:
