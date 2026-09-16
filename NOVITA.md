@@ -11,6 +11,26 @@ modo di lavorare.
 
 ---
 
+## 2026-09-16 — I tuoi file restano tuoi
+
+**Cosa cambia**: ora c'è un confine chiaro tra i file di Arturo e i file tuoi. Il tuo
+`CLAUDE.md` e i tuoi host fidati non vivono più dentro i file che gli aggiornamenti
+sostituiscono. Gli host personali si scrivono in `hooks/hosts-interni.local`, una voce per
+riga (hostname o rete): le due guardie anti-esfiltrazione lo leggono e non chiedono più
+conferma verso quei server. `/setup` (FASE 6) guida su quel file invece di modificare i
+`.py`, e il README ha una tabella che dice cosa arriva con gli aggiornamenti e cosa resta
+tuo.
+
+**Il principio dietro**: una personalizzazione scritta dentro un file di Arturo è una
+modifica che il prossimo aggiornamento può travolgere o mandare in conflitto. Spostandola
+in un file tuo, ignorato da git, l'aggiornamento non la tocca più. Il file sta dentro
+`hooks/` di proposito: le guardie esistenti proteggono ogni scrittura lì sotto, quindi un
+prompt malevolo non può aggiungere un host fidato senza la tua conferma.
+
+**Da sapere**: se in passato hai aggiunto un host dentro `exfil-guard.py` o
+`web-egress-guard.py`, al prossimo `/aggiorna` quella modifica può entrare in conflitto:
+sposta la riga in `hooks/hosts-interni.local` e accetta la versione nuova dei due file.
+
 ## 2026-09-16 — Tornare indietro dopo un aggiornamento
 
 **Cosa cambia**: `/aggiorna indietro` riporta la tua copia alla versione di prima dell'ultimo

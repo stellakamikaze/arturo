@@ -26,6 +26,7 @@ import json
 import re
 import signal
 import sys
+from pathlib import Path
 from urllib.parse import urlsplit
 
 
@@ -43,16 +44,55 @@ INTERNAL_NETS = tuple(map(ipaddress.ip_network, (
 CMD_SUB = re.compile(r'\$\(|`')
 
 
+def _leggi_host_locali(path: Path):
+    """Legge hosts-interni.local: una voce per riga, # commento, righe vuote ignorate.
+
+    Una voce accettata da ip_network(strict=False) e' una rete, altrimenti e' un
+    hostname (minuscolo, senza punto finale). Voci non plausibili (spazi interni,
+    '/' in un non-CIDR) si ignorano. File assente o illeggibile: nessuna voce.
+    Lettura una volta per esecuzione.
+    """
+    host = set()
+    reti = []
+    try:
+        for riga in path.read_text(encoding="utf-8").splitlines():
+            voce = riga.strip()
+            if not voce or voce.startswith("#"):
+                continue
+            try:
+                rete = ipaddress.ip_network(voce, strict=False)
+            except ValueError:
+                rete = None
+            if rete is not None:
+                # Una rete piu' larga di /8 renderebbe fidata mezza internet: si ignora.
+                if rete.prefixlen >= 8:
+                    reti.append(rete)
+                continue
+            if " " in voce or "/" in voce:
+                continue
+            host.add(voce.lower().rstrip("."))
+    except (OSError, ValueError):
+        # File illeggibile o non UTF-8: nessuna voce locale, la guardia resta chiusa.
+        return frozenset(), ()
+    return frozenset(host), tuple(reti)
+
+
+LOCAL_HOSTS, LOCAL_NETS = _leggi_host_locali(
+    Path(__file__).resolve().parent / "hosts-interni.local"
+)
+
+
 def _internal_host(host: str | None) -> bool:
     if not host:
         return False
     normalized = host.lower().rstrip(".")
-    if normalized in INTERNAL_HOSTS or normalized.endswith(".ts.net"):
+    if normalized in INTERNAL_HOSTS or normalized in LOCAL_HOSTS or normalized.endswith(".ts.net"):
         return True
     try:
-        return any(ipaddress.ip_address(normalized) in network for network in INTERNAL_NETS)
+        addr = ipaddress.ip_address(normalized)
     except ValueError:
         return False
+    return any(addr in network for network in INTERNAL_NETS + LOCAL_NETS)
 
 
 def _iter_urls(tool_input):

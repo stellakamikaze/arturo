@@ -115,7 +115,9 @@ Mostra la bozza e chiedi conferma prima di scriverla in `~/.claude/CLAUDE.md`. T
 
 Solo se l'utente ha **un proprio server** a cui si connette spesso. Spiega: aggiungendo l'hostname alla lista degli host "interni", Arturo non chiederà conferma per le connessioni verso di esso (le guardie anti-esfiltrazione lo considerano fidato).
 
-Se serve, apri `hooks/exfil-guard.py` e `hooks/web-egress-guard.py` e aggiungi in entrambi l'hostname a `INTERNAL_HOSTS`, oppure la sua rete a `INTERNAL_NETS` (mostra la modifica e chiedi conferma). Se l'utente non ha un server, salta.
+Se serve, aggiungi l'hostname o la rete del server in `~/.claude/hooks/hosts-interni.local`, una voce per riga (esempio: `mioserver.example.net` oppure `172.20.0.0/16`). Le reti locali comuni (`10.x`, `192.168.x`) sono già fidate: non serve aggiungerle, e una rete più larga di `/8` viene ignorata). Crea il file se non c'è. Non modificare i file `.py` delle guardie: questo file esiste proprio per tenere i tuoi host fuori dal codice di Arturo, così nessun aggiornamento lo tocca.
+
+Prima di scrivere, mostra all'utente il contenuto del file e chiedi conferma. Se una guardia chiede conferma sulla scrittura, spiega che è normale: il file allenta una guardia di sicurezza (aggiunge host fidati), quindi Arturo vuole sempre il sì dell'utente prima di cambiarlo. Se l'utente non ha un server, salta.
 
 ---
 

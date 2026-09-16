@@ -144,6 +144,14 @@ quando ci sono novità, e **`/novita`** te le racconta e propone il pull.
 Se un aggiornamento non ti convince, **`/aggiorna indietro`** riporta alla versione di prima: ti
 mostra cosa torna indietro, lo fa solo dopo il tuo sì e conserva le modifiche ai tuoi file.
 
+Quali file arrivano con gli aggiornamenti e quali restano tuoi:
+
+| Di Arturo (arriva con gli aggiornamenti) | Tuo (nessun aggiornamento lo tocca) |
+|---|---|
+| `hooks/`, `commands/`, `agents/`, `skills/`, `docs/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `hooks/hosts-interni.local`, `data/`, `projects/` e le altre cartelle di lavoro |
+
+`settings.json` è di Arturo, ma le tue modifiche restano come commit locali e `/aggiorna` te le mostra se un aggiornamento cambia la stessa riga.
+
 > Se `/aggiorna` o `/novita` rispondono «comando sconosciuto», la tua copia è precedente a quei
 > comandi: fai il `git pull` qui sopra a mano e riapri Claude Code. Da lì in poi bastano gli slash.
 
@@ -152,7 +160,7 @@ mostra cosa torna indietro, lo fa solo dopo il tuo sì e conserva le modifiche a
 > **La via rapida: `/setup`.** Apri Claude Code dentro `~/.claude` e lancia **`/setup`**: ti guida passo-passo in tutta la configurazione qui sotto (prerequisiti, permessi, `PROJECTS_BASE`, lingua, `CLAUDE.md`, sync, verifica finale), una cosa alla volta e in linguaggio semplice. È il modo consigliato, soprattutto se non sei un programmatore. La checklist qui sotto è la versione manuale, per chi preferisce farla a mano.
 
 1. **`settings.json` → `env.PROJECTS_BASE`** — la cartella dove vivono i tuoi progetti (default `~/Documents/ClaudeCode`). Vale per `/progetto` e `/inizio`.
-2. **`hooks/exfil-guard.py`** — gli host interni sono regole pubbliche: `localhost`, reti locali esplicite e suffisso `.ts.net`. Non aggiungere host personali alla distribuzione.
+2. **Host interni** — le guardie conoscono solo regole pubbliche: `localhost`, reti locali esplicite e suffisso `.ts.net`. I tuoi host personali vanno in `hooks/hosts-interni.local` (una voce per riga, hostname o rete), non nei file `.py`.
 3. **Scrivi il tuo `~/.claude/CLAUDE.md`** — le istruzioni personali (chi sei, come lavori, regole tue). Non è incluso: è personale per definizione.
 4. **`language` in `settings.json`** — è `italian`; cambialo se serve.
 5. Apri Claude Code e lancia **`/system-audit`**: verifica che hook, skill e agent siano wirati correttamente sulla tua macchina. L'obiettivo è "tutto verde".
@@ -303,7 +311,7 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 ## Personalizzazione
 
 - **Più/meno attrito.** L'allow-list Bash è ampia per design; la protezione vera sono deny + guard. Vuoi che Claude chieda conferma più spesso? Metti `defaultMode: "default"` in `settings.json` e sfoltisci l'`allow`. Vuoi meno interruzioni? Aggiungi pattern specifici all'`allow`.
-- **Host interni.** Se lavori con un tuo server, aggiungi il suo hostname a `INTERNAL_HOSTS` (o la sua rete a `INTERNAL_NETS`) in `exfil-guard.py` e in `web-egress-guard.py`: le chiamate verso quegli host non chiederanno conferma.
+- **Host interni.** `INTERNAL_HOSTS` e `INTERNAL_NETS` in `exfil-guard.py` e `web-egress-guard.py` sono i default pubblici: non modificarli. Se lavori con un tuo server, aggiungi il suo hostname o la sua rete in `hooks/hosts-interni.local`, una voce per riga: le chiamate verso quegli host non chiederanno conferma. Una rete più larga di `/8` viene ignorata. Quel file è tuo, nessun aggiornamento lo tocca.
 - **Lingua.** `language` in `settings.json` (default `italian`) e i messaggi dei guard sono in italiano — cambiali se preferisci un'altra lingua.
 - **Disattivare un guard.** Commenta la riga corrispondente in `bash-dispatcher.sh` (per i guard instradati) o rimuovi il blocco da `settings.json` (per quelli PostToolUse). Poi rilancia `/system-audit`.
 - **Aggiungere un comando o una skill.** Un file `.md` in `commands/` diventa uno slash command; una cartella con `SKILL.md` in `skills/` diventa una skill. Il frontmatter `name` + `description` è obbligatorio (`/system-audit` lo verifica).

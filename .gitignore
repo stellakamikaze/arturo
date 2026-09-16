@@ -45,3 +45,7 @@ HANDOFF_*.md
 
 # Client secret OAuth (onboarding gws) — MAI committare
 client_secret*.json
+
+# File personali dell'utente — non arrivano mai con un aggiornamento
+CLAUDE.md
+hooks/hosts-interni.local

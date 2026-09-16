@@ -139,7 +139,7 @@ if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
   if [ "$VIS" = "PRIVATE" ]; then
     for p in CLAUDE.md data/handoffs; do
       [ -e "$p" ] || continue
-      git add -- "$p" || echo "git add fallito su $p: resta fuori dal commit"
+      git add -f -- "$p" || echo "git add fallito su $p: resta fuori dal commit"
     done
   else
     echo "CLAUDE.md e handoff non sincronizzati: il remote della config non risulta privato (visibilità: ${VIS:-sconosciuta}). Restano su questa macchina."

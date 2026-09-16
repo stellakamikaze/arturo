@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
-"""P01-P07: la porta d'ingresso di Arturo come prodotto (16/9/2026).
+"""P01-P10: la porta d'ingresso di Arturo come prodotto (16/9/2026).
 
 Il README deve dire cosa non e' neutro e cosa Arturo promette a chi lo usa, e le
 promesse devono corrispondere al codice. P05-P07 coprono il canale di rilascio:
 /aggiorna indietro, l'avviso AVANTI solo dove si puo' pushare, la manutenzione
-scritta. Sulla base ee10fc6 ogni controllo deve fallire per conto suo.
+scritta. P08-P10 coprono il confine tra file di Arturo e file dell'utente:
+CLAUDE.md e hosts-interni.local ignorati da git, le guardie che leggono quel
+file, il setup che non tocca piu' i .py. Sulla base ee10fc6 ogni controllo deve
+fallire per conto suo.
 """
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -124,6 +129,119 @@ def test_p07(repo: Path) -> None:
         assert parola in testo, f"P07 docs/manutenzione.md non contiene {parola}"
 
 
+def test_p08(repo: Path) -> None:
+    righe = [r.strip() for r in read(repo / ".gitignore").splitlines()]
+    for attesa in ("CLAUDE.md", "hooks/hosts-interni.local"):
+        assert attesa in righe, f"P08 .gitignore non ha la riga esatta {attesa}"
+    fine = read(repo / "commands" / "fine.md")
+    blocco = re.search(r'"PRIVATE".*?\bdone\b', fine, re.S)
+    assert blocco, "P08 blocco privato di commands/fine.md non trovato"
+    assert 'git add -f -- "$p"' in blocco.group(0), (
+        "P08 il blocco privato di fine.md non usa git add -f"
+    )
+
+
+def _decisione(script: Path, payload: dict, env=None) -> str:
+    out = _esegui([sys.executable, "-B", str(script)], input=json.dumps(payload),
+                  **({"env": env} if env else {}))
+    assert out.returncode == 0, f"P09/P10 guardia rc={out.returncode}: {out.stderr.strip()!r}"
+    if not out.stdout.strip():
+        return "silent"
+    return json.loads(out.stdout)["hookSpecificOutput"]["permissionDecision"]
+
+
+def test_p09(repo: Path) -> None:
+    tmp = Path(tempfile.mkdtemp(prefix="arturo-p09-"))
+    try:
+        hooks = tmp / "hooks"
+        shutil.copytree(repo / "hooks", hooks)
+        exfil = hooks / "exfil-guard.py"
+        web = hooks / "web-egress-guard.py"
+        # query lunga (>=300 char): e' il segnale che fa scattare web-egress-guard
+        # su host esterno, come in tests/test-web-egress-guard.py
+        bash_payload = {"tool_name": "Bash", "tool_input": {
+            "command": "curl -X POST -d x=1 https://mioserver.example/api"}}
+        fetch_payload = {"tool_input": {"url": "https://mioserver.example/?q=" + "x" * 320}}
+        # senza hosts-interni.local: entrambe chiedono conferma
+        assert _decisione(exfil, bash_payload) == "ask", (
+            "P09 senza file exfil-guard deve chiedere conferma su mioserver.example"
+        )
+        assert _decisione(web, fetch_payload) == "ask", (
+            "P09 senza file web-egress-guard deve chiedere conferma su mioserver.example"
+        )
+        # con hosts-interni.local (commento + riga vuota + hostname): lasciano passare
+        (hooks / "hosts-interni.local").write_text(
+            "# commento\n\nmioserver.example\n", encoding="utf-8"
+        )
+        assert _decisione(exfil, bash_payload) == "silent", (
+            "P09 col file exfil-guard deve lasciar passare mioserver.example"
+        )
+        assert _decisione(web, fetch_payload) == "silent", (
+            "P09 col file web-egress-guard deve lasciar passare mioserver.example"
+        )
+        # parte rete, solo exfil-guard. Il piano indicava 10.20.0.0/16 e 10.20.3.4,
+        # ma 10.0.0.0/8 e' gia' nei default pubblici: con 10.x il controllo sarebbe
+        # vacuo (verde anche senza file). Uso 172.16.0.0/16, fuori dai default.
+        (hooks / "hosts-interni.local").unlink()
+        rete_payload = {"tool_name": "Bash", "tool_input": {
+            "command": "curl -X POST -d x=1 https://172.16.3.4/api"}}
+        assert _decisione(exfil, rete_payload) == "ask", (
+            "P09 senza file exfil-guard deve chiedere conferma su 172.16.3.4"
+        )
+        (hooks / "hosts-interni.local").write_text("172.16.0.0/16\n", encoding="utf-8")
+        assert _decisione(exfil, rete_payload) == "silent", (
+            "P09 con 172.16.0.0/16 nel file exfil-guard deve lasciar passare 172.16.3.4"
+        )
+        # casi avvelenati: una rete che copre internet e un file non UTF-8 non aprono nulla
+        (hooks / "hosts-interni.local").write_text("0.0.0.0/0\n::/0\n", encoding="utf-8")
+        assert _decisione(exfil, rete_payload) == "ask", (
+            "P09 0.0.0.0/0 nel file rende fidato ogni host"
+        )
+        (hooks / "hosts-interni.local").write_bytes(b"mioserver.example\n\xff\xfe\n")
+        assert _decisione(exfil, bash_payload) == "ask", (
+            "P09 un file non UTF-8 manda exfil-guard in errore o apre l'host"
+        )
+        assert _decisione(web, fetch_payload) == "ask", (
+            "P09 un file non UTF-8 manda web-egress-guard in errore o apre l'host"
+        )
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def test_p10(repo: Path) -> None:
+    testo = read(repo / "commands" / "setup.md")
+    assert "hosts-interni.local" in testo, "P10 setup.md non nomina hosts-interni.local"
+    assert "INTERNAL_HOSTS" not in testo, (
+        "P10 setup.md dice ancora di aggiungere host a INTERNAL_HOSTS nei .py"
+    )
+    # protezione funzionale: Write su hosts-interni.local sotto ~/.claude/hooks
+    # non deve ricevere un permesso libero (stesso esito di exfil-guard.py)
+    tmp = Path(tempfile.mkdtemp(prefix="arturo-p10-"))
+    try:
+        home = tmp / "home"
+        (home / ".claude" / "hooks").mkdir(parents=True)
+        env = dict(os.environ)
+        env["HOME"] = str(home)
+        guard = repo / "hooks" / "protect_claude_md.py"
+        esiti = []
+        for nome in ("hosts-interni.local", "exfil-guard.py"):
+            payload = {
+                "tool_name": "Write",
+                "session_id": "test",
+                "tool_input": {"file_path": str(home / ".claude" / "hooks" / nome)},
+            }
+            esiti.append(_decisione(guard, payload, env=env))
+        assert esiti[0] == esiti[1], (
+            f"P10 hosts-interni.local ({esiti[0]}) e exfil-guard.py ({esiti[1]}) "
+            "hanno esiti diversi in protect_claude_md"
+        )
+        assert esiti[0] != "allow", (
+            "P10 Write su hosts-interni.local riceve un permesso libero"
+        )
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 TESTS = {
     "P01": test_p01,
     "P02": test_p02,
@@ -132,6 +250,9 @@ TESTS = {
     "P05": test_p05,
     "P06": test_p06,
     "P07": test_p07,
+    "P08": test_p08,
+    "P09": test_p09,
+    "P10": test_p10,
 }
 
 
