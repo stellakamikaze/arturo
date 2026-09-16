@@ -323,7 +323,7 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 - Il dispatcher converte un errore o output spurio di una guardia in `ask`. I singoli guard restano conservativi sui pattern riconosciuti.
 - `commit-secret-gate.py` chiede conferma se trova un segreto nel diff del repository destinatario. Non confermare credenziali reali.
 - Le operazioni GitHub distruttive via `gh` CLI restano coperte dal dispatcher.
-- Questo repo è periodicamente auditato (segreti, dati personali, bypass dei guard) prima di ogni pubblicazione. Se ci trovi qualcosa che non dovrebbe esserci, aprine una issue.
+- Questo repo è periodicamente auditato (segreti, dati personali, bypass dei guard) prima di ogni pubblicazione. Se trovi qualcosa che non dovrebbe esserci — un segreto, un dato personale, un modo per aggirare una guardia — segnalalo in privato secondo [`SECURITY.md`](SECURITY.md), non con una issue pubblica.
 
 ---
 
@@ -374,4 +374,4 @@ versione — branch, gate, novità, cosa succede se lo sviluppo si ferma — sta
 
 ## Licenza
 
-Arturo è distribuito con licenza **MIT** (vedi [`LICENSE`](LICENSE)): usalo, forkalo, adattalo, anche per lavoro, mantenendo l'avviso di copyright. `skills/prompt-master/` resta sotto la sua licenza MIT originale (`skills/prompt-master/LICENSE`). Se ci trovi dentro qualcosa che non dovrebbe esserci, apri una issue.
+Arturo è distribuito con licenza **MIT** (vedi [`LICENSE`](LICENSE)): usalo, forkalo, adattalo, anche per lavoro, mantenendo l'avviso di copyright. `skills/prompt-master/` resta sotto la sua licenza MIT originale (`skills/prompt-master/LICENSE`). Se ci trovi dentro qualcosa che non dovrebbe esserci, segnalalo in privato secondo [`SECURITY.md`](SECURITY.md).

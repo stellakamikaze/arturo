@@ -1,0 +1,19 @@
+name: Una proposta
+description: Un'idea per migliorare Arturo. Non serve sapere come si programma.
+title: "[proposta] "
+labels: ["proposta"]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Quale problema vuoi risolvere, nel tuo lavoro?
+      description: Racconta la situazione concreta in cui ti serve.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Come immagini la soluzione?
+      description: Facoltativo. Anche solo un desiderio va bene.
+    validations:
+      required: false

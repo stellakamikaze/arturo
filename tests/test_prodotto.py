@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""P01-P10: la porta d'ingresso di Arturo come prodotto (16/9/2026).
+"""P01-P12: la porta d'ingresso di Arturo come prodotto (16/9/2026).
 
 Il README deve dire cosa non e' neutro e cosa Arturo promette a chi lo usa, e le
 promesse devono corrispondere al codice. P05-P07 coprono il canale di rilascio:
 /aggiorna indietro, l'avviso AVANTI solo dove si puo' pushare, la manutenzione
 scritta. P08-P10 coprono il confine tra file di Arturo e file dell'utente:
 CLAUDE.md e hosts-interni.local ignorati da git, le guardie che leggono quel
-file, il setup che non tocca piu' i .py. Sulla base ee10fc6 ogni controllo deve
-fallire per conto suo.
+file, il setup che non tocca piu' i .py. P11-P12 coprono la cura degli utenti
+senza telemetria: i template delle issue, SECURITY.md e il canale privato per le
+segnalazioni di sicurezza. Sulla base ee10fc6 ogni controllo deve fallire per
+conto suo.
 """
 from __future__ import annotations
 
@@ -21,6 +23,8 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+
+import yaml
 
 
 def read(path: Path) -> str:
@@ -242,6 +246,47 @@ def test_p10(repo: Path) -> None:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def test_p11(repo: Path) -> None:
+    dir_tpl = repo / ".github" / "ISSUE_TEMPLATE"
+    for nome in ("problema.yml", "proposta.yml", "config.yml"):
+        assert (dir_tpl / nome).is_file(), f"P11 manca .github/ISSUE_TEMPLATE/{nome}"
+    problema = yaml.safe_load(read(dir_tpl / "problema.yml"))
+    proposta = yaml.safe_load(read(dir_tpl / "proposta.yml"))
+    config = yaml.safe_load(read(dir_tpl / "config.yml"))
+    for doc, nome in ((problema, "problema.yml"), (proposta, "proposta.yml")):
+        assert isinstance(doc, dict) and doc.get("name"), f"P11 {nome} senza name"
+        body = doc.get("body")
+        assert isinstance(body, list) and body, f"P11 {nome}: body non e' una lista non vuota"
+    assert "SECURITY.md" in read(dir_tpl / "problema.yml"), (
+        "P11 problema.yml non rimanda a SECURITY.md per le segnalazioni di sicurezza"
+    )
+    assert config.get("blank_issues_enabled") is True, (
+        "P11 config.yml deve tenere blank_issues_enabled vero"
+    )
+    link = config.get("contact_links") or []
+    assert any("security/advisories/new" in str(l.get("url", "")) for l in link), (
+        "P11 config.yml senza link alle security advisories"
+    )
+
+
+def test_p12(repo: Path) -> None:
+    sec = read(repo / "SECURITY.md")
+    assert "security/advisories/new" in sec, (
+        "P12 SECURITY.md non contiene il link alle security advisories"
+    )
+    readme = read(repo / "README.md")
+    for titolo in ("Sicurezza", "Licenza"):
+        testo = sezione(readme, titolo)
+        assert testo, f"P12 nessuna sezione {titolo} nel README"
+        assert "SECURITY.md" in testo, f"P12 la sezione {titolo} non rimanda a SECURITY.md"
+        assert "apri una issue" not in testo and "aprine una issue" not in testo, (
+            f"P12 la sezione {titolo} manda ancora le segnalazioni di sicurezza in pubblico"
+        )
+    assert "traffic/clones" in read(repo / "docs" / "manutenzione.md"), (
+        "P12 docs/manutenzione.md non dice come misurare i clone senza telemetria"
+    )
+
+
 TESTS = {
     "P01": test_p01,
     "P02": test_p02,
@@ -253,6 +298,8 @@ TESTS = {
     "P08": test_p08,
     "P09": test_p09,
     "P10": test_p10,
+    "P11": test_p11,
+    "P12": test_p12,
 }
 
 
@@ -267,9 +314,11 @@ def main() -> int:
         for name, test in TESTS.items():
             try:
                 test(repo)
-            except (AssertionError, FileNotFoundError, subprocess.SubprocessError):
+            except (AssertionError, FileNotFoundError, subprocess.SubprocessError,
+                    yaml.YAMLError):
                 # SubprocessError: solo P06 esegue comandi; un hook che non parte
-                # sulla base e' comunque un P06 che fallisce.
+                # sulla base e' comunque un P06 che fallisce. YAMLError: P11-P12
+                # caricano YAML; un file che non si parsa e' un controllo fallito.
                 failed.append(name)
         assert failed == list(TESTS), f"baseline non discriminante: falliscono solo {failed} su {list(TESTS)}"
         print(f"BASELINE_DISCRIMINANTE={','.join(failed)}")

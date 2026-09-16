@@ -33,6 +33,26 @@ Non ci sono tag e non c'è semver. La versione di Arturo è la data dell'entry i
 aggiornamento e gli avvisi all'avvio leggono quella data. Aggiungere un secondo sistema di
 versioni ne creerebbe due da tenere allineati: non farlo.
 
+## Misurare l'uso senza telemetria
+
+Arturo non ha contatori né ping di versione, per l'impegno sulla telemetria del
+README. Chi mantiene può comunque farsi un'idea dell'uso, dal lato GitHub:
+
+```bash
+# clone degli ultimi 14 giorni (li vede solo il proprietario del repo).
+# Nota: non è verificato se i git fetch automatici contino come clone.
+gh api repos/stellakamikaze/arturo/traffic/clones --jq '{count,uniques}'
+
+# stelle e fork
+gh repo view stellakamikaze/arturo --json stargazerCount,forkCount
+
+# issue aperte e chiuse
+gh issue list --repo stellakamikaze/arturo --state all
+```
+
+Sono misure lato manutentore, mai lato utente: niente viene raccolto dentro la
+copia di Arturo installata su una macchina.
+
 ## Se lo sviluppo si ferma
 
 L'impegno verso chi usa Arturo (README, sezione «Impegni») è dirlo esplicitamente. Tre passi:

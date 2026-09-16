@@ -11,6 +11,28 @@ modo di lavorare.
 
 ---
 
+## 2026-09-16 — Dove segnalare un problema
+
+**Cosa cambia**: segnalare un problema ora ha una strada guidata. Quando apri una
+issue su GitHub trovi due moduli pronti: «Qualcosa non funziona» (cosa stavi
+facendo, cosa ti aspettavi, cosa è successo) e «Una proposta» (quale problema
+vuoi risolvere). Nessuna domanda tecnica obbligatoria. Se invece trovi un
+segreto esposto o un modo per aggirare una guardia, il modulo te lo dice subito:
+non aprire una issue pubblica, usa la procedura privata in `SECURITY.md`, col
+pulsante «Report a vulnerability» nella scheda Security del repository.
+
+**Il principio dietro**: una segnalazione di sicurezza pubblica avvisa anche chi
+potrebbe approfittarne. Il canale privato protegge tutti gli utenti mentre il
+problema viene chiuso. Il resto delle segnalazioni resta pubblico e semplice:
+chi apre una issue può non essere tecnico, quindi i moduli chiedono fatti, non
+diagnosi. Tutto questo senza toccare l'impegno sulla telemetria: Arturo non
+aggiunge contatori; chi mantiene misura l'uso solo dai dati pubblici di GitHub,
+come scritto in `docs/manutenzione.md`.
+
+**Da sapere**: se in passato hai aperto una issue per un falso positivo di una
+guardia, quella strada non cambia: resta una issue normale, col comando esatto.
+In privato va solo ciò che non deve diventare pubblico.
+
 ## 2026-09-16 — I tuoi file restano tuoi
 
 **Cosa cambia**: ora c'è un confine chiaro tra i file di Arturo e i file tuoi. Il tuo

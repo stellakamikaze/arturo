@@ -1,0 +1,47 @@
+name: Qualcosa non funziona
+description: Racconta cosa è successo con parole tue. Non serve essere tecnici.
+title: "[problema] "
+labels: ["problema"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Se hai trovato un segreto esposto (una password, un token, una chiave) o un modo
+        per aggirare una guardia, non aprire una issue pubblica.** Una segnalazione pubblica
+        avvisa anche chi potrebbe approfittarne. Segui invece la procedura privata descritta
+        in [SECURITY.md](https://github.com/stellakamikaze/arturo/blob/main/SECURITY.md).
+  - type: textarea
+    id: cosa-facevi
+    attributes:
+      label: Cosa stavi facendo?
+      description: Descrivi i passi che hai fatto, anche in modo approssimativo.
+    validations:
+      required: true
+  - type: textarea
+    id: cosa-aspettavi
+    attributes:
+      label: Cosa ti aspettavi che succedesse?
+    validations:
+      required: true
+  - type: textarea
+    id: cosa-successo
+    attributes:
+      label: Cosa è successo invece?
+      description: Se c'è un messaggio esatto, incollalo qui.
+    validations:
+      required: true
+  - type: textarea
+    id: audit
+    attributes:
+      label: Output di `bash ~/.claude/skills/system-audit/audit.sh`
+      description: Facoltativo ma utile. Prima di incollare, controlla che non ci siano password o dati tuoi.
+      render: text
+    validations:
+      required: false
+  - type: input
+    id: versione
+    attributes:
+      label: Versione di Arturo
+      description: La data dell'ultima novità che vedi in `NOVITA.md`, oppure l'output di `git -C ~/.claude log -1 --format=%cd`.
+    validations:
+      required: false
