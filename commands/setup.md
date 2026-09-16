@@ -172,5 +172,5 @@ Chiudi con un riepilogo in linguaggio semplice:
 - Cosa è stato configurato (prerequisiti, permessi, PROJECTS_BASE, lingua, eventuale CLAUDE.md).
 - Cosa è rimasto opzionale/saltato.
 - **Come iniziare a lavorare**: «Per avviare un progetto usa `/progetto <nome>`; per riprendere una sessione `/inizio <nome>`; per chiudere `/fine`.»
-- **Come restare aggiornato**: dopo ogni `git pull` dell'harness, all'avvio della sessione Arturo segnala se ci sono novità; `/novita` le racconta e propone lo sparring.
+- **Come restare aggiornato**: all'avvio della sessione Arturo controlla da solo se c'è una versione nuova e lo segnala (`ARTURO: c'e' un aggiornamento — scaricalo con /aggiorna`). **`/aggiorna`** la scarica e la applica, **`/novita`** racconta cosa è cambiato e propone lo sparring.
 - Ricorda che `/system-audit` si può rilanciare in qualsiasi momento per ricontrollare l'harness.

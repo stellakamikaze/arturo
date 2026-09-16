@@ -154,7 +154,7 @@ Gli hook su `Edit`/`Write` proteggono config e forma. Gli scanner PostToolUse ri
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
 hooks/               18 guardie e automazioni
-commands/            9 slash command di workflow (incl. /setup, /novita, /sparring)
+commands/            11 slash command di workflow (incl. /setup, /aggiorna, /guidami, /novita)
 agents/              9 subagent specializzati
 skills/              3 skill (+ regole condivise in shared/)
 docs/principi/       Il curriculum: i principi spiegati in semplice
