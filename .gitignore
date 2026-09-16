@@ -49,6 +49,3 @@ client_secret*.json
 # File personali dell'utente — non arrivano mai con un aggiornamento
 CLAUDE.md
 hooks/hosts-interni.local
-
-# Lavoro di design locale (impeccable): catture, contratti, config
-.impeccable/
