@@ -6,7 +6,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 È il telaio di una config personale usata quotidianamente in produzione, estratto e igienizzato: **zero dati, zero credenziali, zero riferimenti a infrastrutture private**. Quello che resta è il metodo.
 
-In due righe: **18 guardie e automazioni**, **9 slash command**, **9 subagent**, **3 skill** — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
+In due righe: **18 guardie e automazioni**, **11 slash command**, **9 subagent**, **3 skill** — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
 
 ---
 
@@ -15,6 +15,7 @@ In due righe: **18 guardie e automazioni**, **9 slash command**, **9 subagent**,
 - [Filosofia](#filosofia)
 - [Requisiti](#requisiti)
 - [Installazione](#installazione)
+- [Aggiornare Arturo](#aggiornare-arturo)
 - [Prima accensione — checklist](#prima-accensione--checklist)
 - [Come funziona: il dispatcher](#come-funziona-il-dispatcher)
 - [Cosa c'è dentro](#cosa-cè-dentro)
@@ -77,6 +78,32 @@ Oppure, per innestare Arturo su una config esistente: clona altrove e copia `set
 > ```
 
 ---
+
+## Aggiornare Arturo
+
+Arturo continua a evolvere. All'avvio della sessione ti avvisa quando c'è una versione nuova:
+
+```
+ARTURO: c'e' un aggiornamento (3 commit) — scaricalo con /aggiorna
+```
+
+**`/aggiorna`** fa il resto: ti mostra cosa arriva, controlla che non travolga le tue modifiche e
+applica. A mano è la stessa cosa:
+
+```bash
+git -C ~/.claude pull
+```
+
+In entrambi i casi, poi **chiudi e riapri Claude Code**: comandi, hook e skill si caricano all'avvio della sessione,
+quindi quelli appena arrivati non compaiono finché non riapri. Se `pull` si ferma perché hai
+modificato file tuoi (tipico: `CLAUDE.md`, i permessi in `settings.json`), non forzare nulla:
+guarda `git -C ~/.claude status --short` e sistema un file per volta.
+
+Dopo il primo aggiornamento non serve più ricordarselo: all'avvio della sessione Arturo ti avvisa
+quando ci sono novità, e **`/novita`** te le racconta e propone il pull.
+
+> Se `/aggiorna` o `/novita` rispondono «comando sconosciuto», la tua copia è precedente a quei
+> comandi: fai il `git pull` qui sopra a mano e riapri Claude Code. Da lì in poi bastano gli slash.
 
 ## Prima accensione — checklist
 
@@ -166,6 +193,10 @@ Fuori dal dispatcher:
 ### La rotta (`commands/`)
 
 Setup: **`/setup`** — configurazione guidata dell'intero harness per un nuovo utente (prerequisiti, permessi, `PROJECTS_BASE`, `CLAUDE.md`, sync, verifica); pensato anche per chi non programma.
+
+Manutenzione: **`/aggiorna`** — scarica e applica l'ultima versione di Arturo, dopo averti mostrato cosa cambia e controllato che non travolga le tue modifiche.
+
+Ripresa: **`/guidami`** — guarda gli ultimi handoff e le conversazioni recenti e ti propone tre o quattro cose che ha senso fare adesso, con il motivo e il primo passo. Per quando riapri e non sai da dove ripartire.
 
 Pedagogia: **`/novita`** — racconta gli aggiornamenti dell'harness non ancora visti (cosa cambia, il principio dietro); **`/sparring`** — prende un principio del curriculum e lo prova sul lavoro reale dell'utente, con esperimenti piccoli e reversibili. Vedi [Imparare con Arturo](#imparare-con-arturo).
 

@@ -34,21 +34,35 @@ if git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
 fi
 
 # Guardia anti-divergenza config (~/.claude vs origin/main).
-# Legge solo gli oggetti Git gia' presenti in locale.
+# Il confronto legge gli oggetti Git gia' presenti in locale: senza un fetch resta fermo a
+# quello che sapeva l'ultima volta, e chi non lancia mai /inizio non vedrebbe mai un
+# aggiornamento. Per questo il fetch parte qui, in background e al massimo ogni 6 ore, cosi'
+# l'avvio non aspetta la rete. L'avviso di questa sessione usa il fetch della volta prima.
 if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
+  MARCATORE="$HOME/.claude/session-env/ultimo-fetch"
+  ADESSO=$(date +%s)
+  SCORSO=$(cat "$MARCATORE" 2>/dev/null || echo 0)
+  case "$SCORSO" in (*[!0-9]*|"") SCORSO=0 ;; esac
+  if [ $((ADESSO - SCORSO)) -gt 21600 ]; then
+    mkdir -p "$HOME/.claude/session-env" 2>/dev/null
+    printf '%s' "$ADESSO" > "$MARCATORE" 2>/dev/null
+    # GIT_TERMINAL_PROMPT=0: un repository che chiede le credenziali non deve mai appendere
+    # l'avvio della sessione.
+    ( GIT_TERMINAL_PROMPT=0 git -C "$HOME/.claude" fetch --quiet --all >/dev/null 2>&1 & ) >/dev/null 2>&1
+  fi
   AHEAD=$(git -C "$HOME/.claude" rev-list --count origin/main..HEAD 2>/dev/null || echo 0)
   BEHIND=$(git -C "$HOME/.claude" rev-list --count HEAD..origin/main 2>/dev/null || echo 0)
   if [ "${AHEAD:-0}" -gt 0 ]; then
     echo "CONFIG: ~/.claude e' AVANTI di $AHEAD commit non pushati"
   fi
   if [ "${BEHIND:-0}" -gt 0 ]; then
-    echo "CONFIG: ~/.claude e' INDIETRO di $BEHIND commit rispetto a origin/main"
+    echo "ARTURO: c'e' un aggiornamento ($BEHIND commit) — scaricalo con /aggiorna"
   fi
   # Con un repository personale come origin, Arturo vive su upstream.
   if git -C "$HOME/.claude" rev-parse --verify --quiet upstream/main >/dev/null 2>&1; then
     UPSTREAM_BEHIND=$(git -C "$HOME/.claude" rev-list --count HEAD..upstream/main 2>/dev/null || echo 0)
     if [ "${UPSTREAM_BEHIND:-0}" -gt 0 ]; then
-      echo "ARTURO: $UPSTREAM_BEHIND aggiornamenti dell'harness su upstream/main non ancora applicati — /novita te li racconta"
+      echo "ARTURO: c'e' un aggiornamento dell'harness ($UPSTREAM_BEHIND commit su upstream) — scaricalo con /aggiorna"
     fi
   fi
 fi

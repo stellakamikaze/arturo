@@ -11,6 +11,25 @@ modo di lavorare.
 
 ---
 
+## 2026-09-16 — L'avviso di aggiornamento, `/aggiorna` e `/guidami`
+
+**Cosa cambia**: all'avvio della sessione Arturo ti dice quando c'è una versione nuova, come fa
+Claude Code: `ARTURO: c'e' un aggiornamento (3 commit) — scaricalo con /aggiorna`. Il comando
+**`/aggiorna`** ti mostra cosa arriva, controlla che non travolga i file che hai modificato tu e
+applica solo dopo il tuo sì. Arriva anche **`/guidami`**: guarda gli ultimi handoff e le
+conversazioni recenti e ti propone tre o quattro cose che ha senso fare adesso, con il motivo e il
+primo passo, scartando quello che nel frattempo hai già fatto.
+
+**Il principio dietro**: il controllo degli aggiornamenti leggeva solo quello che era già sul disco.
+Senza un `git fetch` restava fermo per sempre, e chi non lanciava `/inizio` non vedeva mai una
+novità: il canale c'era, ma non arrivava a nessuno. Ora il fetch parte da solo all'avvio, in
+background e al massimo ogni sei ore, così l'avvio non aspetta la rete.
+
+**Da sapere**: dopo un aggiornamento, chiudi e riapri Claude Code. Comandi, hook e skill si leggono
+all'avvio della sessione: finché non riapri, quello che è appena arrivato non c'è.
+
+---
+
 ## 2026-09-16 — Il prompt prima del brief, e il promemoria a ogni richiesta
 
 **Cosa cambia**: `prompt-master` non mostra più solo il brief. Prima mostra il **prompt**: la tua
