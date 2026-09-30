@@ -28,7 +28,7 @@ dillo.
 **Gli handoff** — le note di chiusura che `/fine` lascia a fine sessione:
 
 ```bash
-ls -t ~/.claude/data/handoffs/*/HANDOFF_*.md 2>/dev/null | head -8
+find ~/.claude/data/handoffs -name 'HANDOFF_*.md' 2>/dev/null | awk -F/ '{print $NF"\t"$0}' | sort -r | cut -f2 | head -8   # per data nel nome
 cat ~/.claude/data/handoffs/INDEX.md 2>/dev/null
 ```
 

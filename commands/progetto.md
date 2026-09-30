@@ -38,6 +38,7 @@ Usa AskUserQuestion:
 **Opzioni**:
 1. **Light** (1-2 giorni) - "Discovery rapida, piano semplice, build diretto"
 2. **Standard** (1-2 settimane) - "Discovery + Scope + Piano strutturato"
+3. **Non software** - "Un libro, una ricerca, un corso, un archivio: niente codice"
 
 ---
 
@@ -51,6 +52,21 @@ Discovery minimale inline (no `/discovery` completo per progetti da 1-2 giorni).
 Poi crea `CLAUDE.md` con: Progetto, Stack, MVP Features, Comandi (`npm run dev`, `npm test`).
 
 Crea un task con `TaskCreate` per il setup e uno per ogni feature MVP. Marca il setup `in_progress` con `TaskUpdate`. Salta alla FASE 4.
+
+---
+
+## FASE 3C: Modalità Non software
+
+Per chi non scrive codice: il progetto è una cartella di lavoro con le sue regole. Niente
+stack, niente `npm`. Chiedi:
+- "Cosa vuoi ottenere, in 1-2 frasi?"
+- "Che cosa consegni alla fine? (un testo, una presentazione, una raccolta, un corso…)"
+- "Ci sono materiali da cui partire, e dove stanno?"
+- "Regole tue per questo lavoro? (tono, lunghezza, fonti, scadenze)"
+
+Poi crea `CLAUDE.md` con: Obiettivo, Cosa si consegna, Materiali (con i percorsi), Regole.
+Crea le cartelle che servono davvero (per esempio `materiali/` e `bozze/`), niente di più.
+Crea un task con `TaskCreate` per ogni passo concreto emerso. Salta alla FASE 4.
 
 ---
 

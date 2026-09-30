@@ -24,8 +24,9 @@ echo "DIRECTORY: $PROJECT_ROOT"
 # Dopo un compact il contesto e' stato riassunto: prima di continuare, un riepilogo che
 # l'utente puo' controllare. SessionStart con source "compact" e' la via documentata;
 # lo stdout di PostCompact non entra nel contesto.
+# read con tetto di 2 secondi: uno stdin lasciato aperto non deve appendere l'avvio.
 HOOK_INPUT=""
-[ -t 0 ] || HOOK_INPUT="$(cat)"
+[ -t 0 ] || IFS= read -r -t 2 -d '' HOOK_INPUT || true
 if printf '%s' "$HOOK_INPUT" | grep -qE '"source"[[:space:]]*:[[:space:]]*"compact"'; then
   echo "COMPACT APPENA AVVENUTO: fermati. Riepiloga all'utente file modificati, comandi di test e build, decisioni, task pendenti e ultimo errore. Poi aspetta la sua conferma prima di continuare."
 fi

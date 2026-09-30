@@ -76,6 +76,13 @@ def main():
 
         # Categoria 1: CLAUDE.md (ovunque)
         if base == 'CLAUDE.MD':
+            if tool == 'Write' and not os.path.exists(rp):
+                _emit("ask", (
+                    f"Stai creando un CLAUDE.md nuovo in {os.path.dirname(rp)}: sono istruzioni "
+                    "che Claude seguira' ogni volta che lavora in questa cartella. "
+                    "Conferma se l'hai chiesto tu."
+                ))
+                sys.exit(0)
             if unlocked('claude-md-unlock'):
                 _emit("allow", "CLAUDE.md sbloccato da conferma utente")
                 sys.exit(0)

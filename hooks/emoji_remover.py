@@ -86,9 +86,19 @@ try:
     if os.path.splitext(file_path)[1].lower() in SKIP_EXT:
         sys.exit(0)
 
+    # Solo codice e config. Un testo dell'utente (nota, articolo, newsletter in .md o
+    # .txt) e' suo: le emoji che ci mette restano. Prima l'hook faceva riscrivere a
+    # Claude anche quelli.
+    CODE_EXT = {'.py', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.sh', '.bash',
+                '.zsh', '.json', '.yml', '.yaml', '.toml', '.ini', '.cfg', '.css',
+                '.scss', '.vue', '.svelte', '.go', '.rs', '.rb', '.java', '.kt',
+                '.swift', '.c', '.h', '.cpp', '.sql', '.php'}
+
     for fp in file_paths:
         # Skip binary and non-text files (per-file check for MultiEdit)
         if os.path.splitext(fp)[1].lower() in SKIP_EXT:
+            continue
+        if os.path.splitext(fp)[1].lower() not in CODE_EXT:
             continue
 
         # Skip file di contenuto social: le emoji sono contenuto, non rumore.
@@ -108,8 +118,8 @@ try:
             # (permissionDecision/deny e' sintassi PreToolUse e non si applica
             # a un'azione gia' avvenuta.)
             print(
-                f"Emojis found in {fp}: {sample}. "
-                "Replace with text equivalents like [X], [OK], [WARNING].",
+                f"Emoji nel file di codice {fp}: {sample}. "
+                "Nel codice sostituiscile con testo come [X], [OK], [ATTENZIONE].",
                 file=sys.stderr
             )
             sys.exit(2)

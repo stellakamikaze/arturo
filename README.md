@@ -264,7 +264,7 @@ Il ciclo di lavoro quotidiano:
 - **`/inizio <progetto>`** — sync della config, localizza il progetto, riprende l'ultimo handoff, ricrea i task pendenti cross-referenziandoli con `git log` (quelli già completati non risorgono). `/inizio gws` avvia invece l'onboarding gws.
 - **`/fine`** — review di completezza per le modifiche di codice, validate, commit selettivo e handoff.
 
-Sviluppo: `/progetto` (da idea a primo commit), `/discovery`, `/write-plan`, `/debug` (disciplina diagnostica: fatti prima delle ipotesi).
+Sviluppo: `/progetto` (da idea a primo commit), `/discovery`, `/write-plan`, `/diagnosi` (disciplina diagnostica: fatti prima delle ipotesi; si chiama così per non nascondere il `/debug` di Claude Code).
 
 Qualità: usa le capacità native di review e verifica dell'harness.
 

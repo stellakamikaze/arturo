@@ -201,6 +201,14 @@ def _reads_secret_flat(cmd: str) -> bool:
                 continue
             args.append(t)
             j += 1
+        # grep: il primo argomento libero e' il testo da cercare, non un file letto.
+        # `grep -rn "credentials.json" .` cerca una parola, non apre un segreto.
+        if os.path.basename(toks[i]) in ("grep", "egrep", "fgrep", "rg") and not any(
+            a in ("-e", "-f", "--regexp", "--file") or a.startswith(("--regexp=", "--file=")) for a in args
+        ):
+            liberi = [k for k, a in enumerate(args) if not a.startswith("-")]
+            if liberi:
+                del args[liberi[0]]
         if any(SECRET_PATH_RE.search(a) for a in args):
             return True
     return False
@@ -470,8 +478,9 @@ def main() -> int:
             if re.search(pattern, command, re.IGNORECASE):
                 sys.stderr.write(
                     f"Bloccato: questo comando sembra {why}. "
-                    "Se e' intenzionale, eseguilo manualmente in un terminale. "
-                    "L'assistente non esegue operazioni distruttive irreversibili.\n"
+                    "Non proporre all'utente di eseguirlo a mano: per installare un programma "
+                    "indica l'installer o il pacchetto ufficiale. L'assistente non esegue "
+                    "operazioni distruttive irreversibili.\n"
                 )
                 return 2
 
@@ -483,6 +492,11 @@ def main() -> int:
         )
 
     # 2b) Creazione di un file di unlock -> ask (sbloccherebbe l'auto-modifica)
+    if UNLOCK_RE.search(command) and "claude-md-unlock" in command and "config-unlock" not in command:
+        return _ask(
+            "Sblocco della modifica di CLAUDE.md per questa sessione: Claude potra' "
+            "cambiare le istruzioni che segue. Conferma se sei tu ad aver chiesto la modifica."
+        )
     if UNLOCK_RE.search(command):
         return _ask(
             "Creazione di un file di unlock che disattiverebbe la protezione "

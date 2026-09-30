@@ -106,7 +106,7 @@ qualunque assistente userai fra tre anni, e funziona anche con le persone — il
 buon segno sulla qualità dell'idea.
 
 Arturo, dalla sua parte, è costruito per assecondarlo: `/discovery` ti fa le domande che
-servono a mettere a fuoco un progetto, `/debug` pretende i fatti prima delle ipotesi,
+servono a mettere a fuoco un progetto, `/diagnosi` pretende i fatti prima delle ipotesi,
 `/write-plan` chiede che ogni passo dichiari cosa produce. Sono lo stesso principio, messo
 nei punti dove serve di più.
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""R01-R12: revisione di prodotto del 30/9/2026.
+"""R01-R15: revisione di prodotto del 30/9/2026.
 
 R01 rm ricorsivo e find che cancella chiedono conferma fuori dalle cartelle
 rigenerabili. R02-R04 il canale di aggiornamento: /aggiorna annulla da solo
@@ -9,7 +9,9 @@ R05 il controllo di integrita' della config. R06 i tool di task tracking
 riaccesi per i modelli attuali. R07 lo stesso slug di handoff in /inizio e
 /fine. R08 l'audit senza PyYAML. R09-R12 le guardie portate dalla config personale:
 invii via gws e mailto:, lettura indiretta di segreti, sed che scrive,
-curl | python3 per leggere un JSON, glob in un'opzione sotto zsh. I blocchi bash di /aggiorna si eseguono cosi'
+curl | python3 per leggere un JSON, glob in un'opzione sotto zsh. R13-R15
+l'attrito per chi parte da zero: emoji nei testi dell'utente, CLAUDE.md nuovo,
+grep che cerca un nome, /debug rinominato, /progetto non software. I blocchi bash di /aggiorna si eseguono cosi'
 come sono scritti nel comando. Sulla base 86ba137 ogni controllo deve fallire.
 """
 from __future__ import annotations
@@ -118,6 +120,56 @@ def test_r12(repo: Path) -> None:
         "grep -rn parola --include='*.md' .": "nessuna",
         "grep -rn parola --include=\\*.md .": "nessuna",
     }, shell="/bin/zsh")
+
+
+def hook_diretto(repo: Path, home: Path, hook: str, dati: dict) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, str(repo / "hooks" / hook)], input=json.dumps(dati),
+                          env=dict(os.environ, HOME=str(home)), capture_output=True, text=True, timeout=30)
+
+
+def test_r13(repo: Path) -> None:
+    """emoji_remover lascia stare i testi dell'utente e interviene solo sul codice."""
+    with tempfile.TemporaryDirectory() as tmp:
+        home = Path(tmp)
+        testo = home / "newsletter-ottobre.md"
+        testo.write_text("Ciao a tutti \U0001F389 ci vediamo presto \u2764\n", encoding="utf-8")
+        codice = home / "script.py"
+        codice.write_text('print("fatto \U0001F389")\n', encoding="utf-8")
+        r = hook_diretto(repo, home, "emoji_remover.py", {"tool_name": "Edit", "tool_input": {"file_path": str(testo)}})
+        assert r.returncode == 0, f"R13 emoji tolte da un testo dell'utente: {r.stderr.strip()}"
+        r = hook_diretto(repo, home, "emoji_remover.py", {"tool_name": "Edit", "tool_input": {"file_path": str(codice)}})
+        assert r.returncode == 2, "R13 emoji nel codice non segnalate"
+
+
+def test_r14(repo: Path) -> None:
+    """Un CLAUDE.md nuovo chiede conferma con parole chiare; modificarne uno esistente resta protetto."""
+    with tempfile.TemporaryDirectory() as tmp:
+        home = Path(tmp)
+        (home / ".claude").mkdir()
+        nuovo = home / "mio-libro" / "CLAUDE.md"
+        nuovo.parent.mkdir()
+        r = hook_diretto(repo, home, "protect_claude_md.py",
+                         {"tool_name": "Write", "tool_input": {"file_path": str(nuovo)}, "session_id": "s1"})
+        uscita = json.loads(r.stdout or "{}").get("hookSpecificOutput", {})
+        assert uscita.get("permissionDecision") == "ask", f"R14 CLAUDE.md nuovo: {uscita}"
+        nuovo.write_text("# regole\n")
+        r = hook_diretto(repo, home, "protect_claude_md.py",
+                         {"tool_name": "Edit", "tool_input": {"file_path": str(nuovo)}, "session_id": "s1"})
+        uscita = json.loads(r.stdout or "{}").get("hookSpecificOutput", {})
+        assert uscita.get("permissionDecision") == "deny", "R14 CLAUDE.md esistente non piu' protetto"
+
+
+def test_r15(repo: Path) -> None:
+    """grep che cerca il nome di un file segreto non e' una lettura; /debug non nasconde quello di Claude Code;
+    /progetto ha un ramo per chi non scrive codice."""
+    casi_guardie(repo, "R15", {
+        'grep -rn "credentials.json" .': "nessuna",
+        "grep -n token ~/.config/progetto/credentials.json": "ask",
+        "cat ~/.config/progetto/credentials.json": "ask",
+    })
+    assert not (repo / "commands" / "debug.md").exists(), "R15 commands/debug.md nasconde il /debug di Claude Code"
+    assert (repo / "commands" / "diagnosi.md").exists(), "R15 /diagnosi assente"
+    assert "Non software" in read(repo / "commands" / "progetto.md"), "R15 /progetto solo per il software"
 
 
 def test_r01(repo: Path) -> None:
@@ -287,6 +339,7 @@ TESTS = {
     "R01": test_r01, "R02": test_r02, "R03": test_r03, "R04": test_r04,
     "R05": test_r05, "R06": test_r06, "R07": test_r07, "R08": test_r08,
     "R09": test_r09, "R10": test_r10, "R11": test_r11, "R12": test_r12,
+    "R13": test_r13, "R14": test_r14, "R15": test_r15,
 }
 
 

@@ -70,6 +70,13 @@ done
   - **macOS**: `git` e `python3` arrivano con gli strumenti di sviluppo di Apple (`xcode-select --install`, una finestra chiede conferma). `node` si scarica da nodejs.org (installer .pkg). Se l'utente ha già Homebrew, `brew install <nome>` va bene.
   - **Windows**: Git for Windows da git-scm.com (include Git Bash, obbligatorio: senza, Claude Code usa PowerShell e le guardie di Arturo non vedono i comandi). Python da python.org con la casella «Add python.exe to PATH», poi in Impostazioni → App → Alias di esecuzione disattiva i due alias «python» del Microsoft Store. Node da nodejs.org.
   - **Debian/Ubuntu**: `sudo apt install <nome>`.
+- **Identità di Git.** `/fine` salva il lavoro con un commit, e Git vuole un nome e un'email:
+
+  ```bash
+  git -C "$HOME/.claude" config user.email >/dev/null || echo "MANCA l'identità di Git"
+  ```
+
+  Se manca, chiedi all'utente nome ed email (anche un'email finta va bene, resta sul suo computer) e impostali **per il solo repository di Arturo**: `git -C "$HOME/.claude" config user.name "<nome>"` e `git -C "$HOME/.claude" config user.email "<email>"`. Non usare `--global`: Arturo lo nega, perché cambierebbe l'identità di ogni repository dell'utente.
 - Gli opzionali servono solo per funzioni specifiche (`gh` per GitHub, `gitleaks` per l'audit segreti, `bw` per le password, `gws` per Google): non bloccare per questi.
 
 ---
@@ -96,6 +103,8 @@ BASE="<cartella-scelta>"
 BASE="${BASE/#\~/$HOME}"   # fra virgolette la tilde non si espande: la sostituisce questa riga
 mkdir -p "$BASE" && echo "Cartella progetti pronta: $BASE"
 ```
+
+Mostra all'utente il percorso completo e aprigli la cartella, così sa dove trovarla: `open "$BASE"` su macOS, `explorer.exe "$(cygpath -w "$BASE")"` in Git Bash su Windows. Su Windows con OneDrive la cartella «Documenti» di Esplora file può essere un'altra: il percorso completo evita l'equivoco.
 
 ---
 

@@ -11,6 +11,37 @@ modo di lavorare.
 
 ---
 
+## 2026-09-30 — Aggiornamenti che non rompono niente, cartelle protette
+
+**Cosa cambia**: tre cose che senti subito.
+
+1. **Cancellare una cartella chiede sempre conferma.** Prima Arturo proteggeva solo la
+   sua configurazione e la cartella dei progetti: una cartella di capitoli, la Scrivania
+   o i Documenti si potevano cancellare senza domande. Ora ogni cancellazione di una
+   cartella intera ti chiede il sì, tranne le cartelle che un programma ricrea da solo
+   (per esempio `node_modules` o `dist`) e i file temporanei.
+2. **Solo `/aggiorna` applica gli aggiornamenti.** `/inizio` e l'avvio li controllano e
+   basta. `/aggiorna` ti dice quale versione hai e quale arriva, ti racconta cosa cambia
+   nelle guardie, e se qualcosa va storto annulla da solo: la tua copia non resta mai a
+   metà. `/aggiorna indietro` funziona anche dopo un `/fine`, e un secondo
+   `/aggiorna indietro` torna ancora più indietro.
+3. **Auto mode.** Claude Code ora giudica ogni comando con il suo classificatore, e le
+   guardie di Arturo restano sopra di lui. Meno domande su lavoro normale, le stesse
+   domande sulle azioni che non si annullano.
+
+Anche: `/debug` ora si chiama `/diagnosi`, per non nascondere il `/debug` di Claude
+Code. `/progetto` ha un ramo per chi non scrive codice (un libro, una ricerca, un
+corso). Le emoji nei tuoi testi restano: il controllo vale solo per il codice.
+
+**Il principio dietro**: un aggiornamento è codice di altri che gira sul tuo computer.
+Per questo passa da una porta sola, dopo il tuo sì, e deve poter tornare indietro
+sempre. Un `settings.json` rotto spegne tutte le guardie senza dire niente: Arturo ora
+lo controlla all'avvio, prima e dopo ogni aggiornamento, e prima di ogni `/fine`.
+
+**Da sapere**: dopo questo aggiornamento chiudi e riapri Claude Code. Se all'avvio vedi
+una riga `CONFIG ROTTA`, fermati e chiedi a Claude di sistemarla prima di lavorare. Su
+Windows Arturo funziona solo dentro Git Bash: `/setup` ora lo controlla.
+
 ## 2026-09-16 — Dove segnalare un problema
 
 **Cosa cambia**: segnalare un problema ora ha una strada guidata. Quando apri una
