@@ -30,9 +30,9 @@ Terminale e Claude Code. Installazione: `git clone https://github.com/stellakami
 
 ## Capabilities and Constraints
 
-- 18 hook, 11 comandi, 9 agenti, 3 skill (conteggi del README al 16/9/2026: vanno riletti dal README prima di citarli).
+- 18 guardie e automazioni, 12 comandi, 9 agenti, 3 skill (conteggi del README al 30/9/2026: vanno riletti dal README prima di citarli).
 - Impegni del README: repository pubblico e MIT, niente telemetria, Arturo in italiano, stop dichiarato. L'avvio non applica aggiornamenti; `/inizio` sì.
-- Nessun link a Ufficio Furore, nessuna cifra, nessun prezzo (decisione di Federico, 16/9/2026).
+- Ufficio Furore firma il progetto: «progetto di Federico Nejrotti, pubblicato da Ufficio Furore» (direzione del 30/9/2026, supera il «nessun link» del 16/9). Nessuna cifra, nessun prezzo. L'affiancamento a pagamento non compare finché la sua forma non è decisa.
 - La pagina non usa analytics, tracker, cookie né risorse che profilano il visitatore.
 
 ## Brand Commitments
