@@ -1,4 +1,5 @@
-Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo) Archivo-Italic[wdth,wght].ttf: Copyright 2020 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)
+Big Shoulders: Copyright 2019 The Big Shoulders Project Authors (https://github.com/xotypeco/big_shoulders)
+Atkinson Hyperlegible Next e Atkinson Hyperlegible Mono: Copyright 2020-2024 Braille Institute of America, Inc.
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
