@@ -23,7 +23,8 @@ logs/
 downloads/
 backups/
 cache/
-plugins/
+# Solo la cartella dei plugin installati da Claude Code: templates/strato/plugins/ e' di Arturo.
+/plugins/
 stats-cache.json
 history.jsonl
 telemetry/

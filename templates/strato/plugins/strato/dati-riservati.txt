@@ -1,0 +1,10 @@
+# Dati che non devono uscire dal computer senza una conferma.
+# Una voce per riga. Il resto della riga dopo # è un commento.
+# Può essere una parola (nome di un progetto riservato), un dominio o un pezzo di percorso.
+# Lo strato chiede conferma quando una di queste voci sta per uscire: un invio in rete,
+# una pagina web, uno strumento che manda o condivide. Non controlla i file che scrivi.
+#
+# esempi (togli il # davanti per attivarli):
+# progetto-riservato
+# archivio/contratti/
+# intranet.example.org

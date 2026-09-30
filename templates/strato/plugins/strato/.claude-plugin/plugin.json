@@ -1,0 +1,7 @@
+{
+  "name": "{{SLUG}}",
+  "description": "Lo strato di {{ORGANIZZAZIONE}} sopra Arturo: voce, lavori ricorrenti, regole sui dati.",
+  "author": {
+    "name": "{{ORGANIZZAZIONE}}"
+  }
+}

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""S01-S04: lo strato dell'organizzazione (30/9/2026).
+"""S01-S05: lo strato dell'organizzazione (30/9/2026).
 
 S01 il modello in templates/strato/ e' un marketplace con un plugin valido.
 S02 dati-in-uscita.py chiede conferma solo quando un dato riservato esce, e lascia
 passare se il file delle regole non si legge. S03 contesto.py resta sotto i 10.000
 caratteri, avvisa di uno strato vecchio o illeggibile, ed esce con 0 anche se
 qualcosa si rompe. S04 /strato e la guida del referente esistono e i comandi che
-li devono nominare lo fanno. Sulla base e70da3d ogni controllo deve fallire.
+li devono nominare lo fanno. S05 ogni file del modello e' tracciato da git. Sulla base e70da3d ogni controllo deve fallire.
 """
 from __future__ import annotations
 
@@ -115,6 +115,21 @@ def test_s03(repo: Path) -> None:
         assert r.returncode == 0, "S03 con file rotti la sessione non si apre"
 
 
+def test_s05(repo: Path) -> None:
+    """Ogni file del modello e' tracciato da git: un .gitignore troppo largo lo toglierebbe dai
+    clone degli utenti, e il gate (che copia la cartella di lavoro) non se ne accorgerebbe."""
+    base = modello(repo)
+    assert base.is_dir(), "S05 modello assente"
+    if not (repo / ".git").exists():
+        return
+    su_disco = sorted(str(f.relative_to(repo)) for f in base.rglob("*")
+                      if f.is_file() and "__pycache__" not in f.parts)
+    r = subprocess.run(["git", "-C", str(repo), "check-ignore", "--no-index", *su_disco],
+                       capture_output=True, text=True, timeout=30)
+    ignorati = [riga for riga in r.stdout.splitlines() if riga.strip()]
+    assert not ignorati, f"S05 file del modello esclusi da .gitignore: {ignorati}"
+
+
 def test_s04(repo: Path) -> None:
     strato = repo / "commands" / "strato.md"
     assert strato.is_file(), "S04 /strato assente"
@@ -127,7 +142,7 @@ def test_s04(repo: Path) -> None:
     assert "/strato" in read(repo / "README.md"), "S04 il README non nomina /strato"
 
 
-TESTS = {"S01": test_s01, "S02": test_s02, "S03": test_s03, "S04": test_s04}
+TESTS = {"S01": test_s01, "S02": test_s02, "S03": test_s03, "S04": test_s04, "S05": test_s05}
 
 
 def main() -> int:
