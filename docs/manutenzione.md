@@ -20,7 +20,10 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
 4. **Pubblicazione**, solo a questo punto:
 
    ```bash
-   git checkout main && git merge --ff-only dev && git push origin main
+   git checkout main && git merge --ff-only dev
+   V="v$(grep -m1 '^## ' NOVITA.md | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')"
+   git rev-parse -q --verify "refs/tags/$V" >/dev/null && V="$V.2"   # seconda uscita nello stesso giorno
+   git tag -a "$V" -m "Arturo $V" && git push origin main "$V"
    ```
 
    `--ff-only` è un freno: se `main` non può avanzare in modo lineare, il merge si ferma e
@@ -28,10 +31,16 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
 
 ## La versione è la data
 
-Non ci sono tag e non c'è semver. La versione di Arturo è la data dell'entry in cima a
-`NOVITA.md`: `## 2026-09-16 — …` vuol dire «versione del 16 settembre 2026». Il canale di
-aggiornamento e gli avvisi all'avvio leggono quella data. Aggiungere un secondo sistema di
-versioni ne creerebbe due da tenere allineati: non farlo.
+Non c'è semver. La versione di Arturo è la data dell'entry in cima a `NOVITA.md`:
+`## 2026-09-16 — …` vuol dire «versione del 16 settembre 2026». Il tag `v2026-09-16` che
+accompagna ogni pubblicazione è la stessa data scritta in un punto che Git sa leggere: non è un
+secondo sistema di versioni. Serve perché la data del commit locale cambia con ogni `/fine`,
+e perché due uscite nello stesso giorno si distinguono solo con `.2`. `/aggiorna` e il modulo
+delle segnalazioni leggono il tag con `git describe --tags --always`.
+
+**Mai riscrivere `main` dopo un tag.** `/aggiorna` confronta la versione pubblicata con quella
+che la copia dell'utente conosceva, e se la nuova non discende dalla vecchia si ferma con
+`STORIA RISCRITTA`: è lo stesso segnale che darebbe un repository compromesso.
 
 ## Misurare l'uso senza telemetria
 

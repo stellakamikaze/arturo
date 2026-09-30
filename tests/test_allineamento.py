@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -58,7 +59,9 @@ def main() -> int:
         print("BASELINE_DISCRIMINANTE=C01-C06,I03")
         return 0
     settings = (repo / "settings.json").read_text(encoding="utf-8")
-    assert '"defaultMode": "acceptEdits"' in settings, "I01 defaultMode cambiato"
+    # I01: auto mode dal 30/9/2026 (il classificatore giudica ogni comando; prima acceptEdits + allow Bash).
+    permessi = json.loads(settings)["permissions"]
+    assert permessi.get("defaultMode") == "auto" and "Bash" not in permessi["allow"], "I01 defaultMode o allow Bash ampio cambiati"
     assert "github_issue_guard.py" not in settings and "quality-check.sh" not in settings and "session-reminder.sh" not in settings, "C05 wiring rimosso residuo"
     gate = (repo / "shared" / "validation-gate.md").read_text(encoding="utf-8")
     assert "PIPESTATUS[0]" in gate and "Quality gate: SKIP" not in gate, "C06 gate maschera errori"

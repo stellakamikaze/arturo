@@ -18,13 +18,9 @@ BEHIND=$(git -C "$HOME/.claude" rev-list --count "HEAD..$SRC/main" 2>/dev/null |
 echo "Aggiornamenti di Arturo da $SRC non ancora applicati: ${BEHIND:-0}"
 ```
 
-Se è indietro, spiega che ci sono aggiornamenti da scaricare e proponi (chiedendo conferma):
-
-```bash
-git -C "$HOME/.claude" pull --rebase "$SRC" main
-```
-
-Se il pull fallisce per modifiche locali, non forzare nulla: mostra `git -C ~/.claude status --short` e aiuta l'utente a capire cosa ha cambiato lui, un file per volta.
+Se è indietro, spiega che ci sono aggiornamenti non ancora applicati e proponi **`/aggiorna`**:
+è l'unico comando che li applica, dopo avergli mostrato cosa cambia. `/novita` non scarica
+niente da solo.
 
 ## Passo 1 — Cosa non ha ancora visto
 
@@ -72,6 +68,6 @@ echo "Segnata come vista: $ENTRY"
 
 ## Regole
 
-- Mai auto-eseguire pull o esperimenti senza conferma.
-- Se `NOVITA.md` non esiste, dillo senza drammatizzare: questa copia dell'harness è precedente al canale novità — proponi il pull.
+- Mai applicare aggiornamenti: li applica `/aggiorna`. Mai esperimenti senza conferma.
+- Se `NOVITA.md` non esiste, dillo senza drammatizzare: questa copia dell'harness è precedente al canale novità: proponi `/aggiorna`.
 - Il comando informa e propone: le decisioni restano dell'utente.

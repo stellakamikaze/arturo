@@ -109,13 +109,17 @@ del progetto e non committarlo lì. Se l'utente chiede una copia nel progetto, p
 la visibilità del remote (`gh repo view --json visibility`) e aspetta una conferma esplicita.
 
 ```bash
-SLUG="<slug-progetto>"
+# Slug: nome del progetto in minuscolo, spazi e simboli diventano trattini.
+# /inizio calcola lo stesso slug, cosi' «Il mio libro» ritrova il suo handoff.
+PROGETTO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")   # la cartella del progetto
+SLUG=$(printf '%s' "$PROGETTO" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
 HDIR=~/.claude/data/handoffs/"$SLUG"
 mkdir -p "$HDIR"
 HANDOFF_FILE="$HDIR/HANDOFF_$(date +%Y-%m-%d_%H-%M).md"
 # scrivi in "$HANDOFF_FILE" il contenuto del template
-# retention: ultimi 5
-ls -t "$HDIR"/HANDOFF_*.md 2>/dev/null | tail -n +6 | xargs rm -f 2>/dev/null
+# retention: ultimi 5, per nome (la data sta nel nome). Dopo un pull o un ripristino
+# le date dei file sono tutte fresche: ordinare per data cancellerebbe quello sbagliato.
+find "$HDIR" -maxdepth 1 -name "HANDOFF_*.md" | sort -r | tail -n +6 | while IFS= read -r vecchio; do rm -f -- "$vecchio"; done
 ```
 
 Poi aggiorna la riga del progetto in `~/.claude/data/handoffs/INDEX.md`
@@ -129,7 +133,17 @@ Config Sync della FASE 6, e solo verso un remote privato.
 
 ```bash
 PREV_DIR="$PWD" && cd ~/.claude
-if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+# Una config rotta (JSON non valido, conflitto, rebase a meta') non si committa: il commit
+# la porterebbe su tutte le macchine dell'utente.
+CONFIG_INTEGRA=1
+python3 hooks/controlla-config.py --quiet || CONFIG_INTEGRA=0
+[ "$CONFIG_INTEGRA" = 1 ] || echo "Config sync saltato: la config non è integra (vedi sopra). Sistemala prima con /aggiorna o con il comando indicato."
+ORIGIN_URL=$(git remote get-url origin 2>/dev/null || echo "")
+case "$ORIGIN_URL" in
+  *github.com[:/]stellakamikaze/arturo|*github.com[:/]stellakamikaze/arturo.git) ORIGIN_ARTURO=1 ;;
+  *) ORIGIN_ARTURO=0 ;;
+esac
+if [ "$CONFIG_INTEGRA" = 1 ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; then
   for p in settings.json commands agents hooks skills shared docs NOVITA.md README.md package.json; do
     [ -e "$p" ] || continue
     git add -- "$p" || echo "git add fallito su $p: resta fuori dal commit"
@@ -146,8 +160,10 @@ if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
   fi
   git diff --cached --quiet || git commit -m "chore: session sync $(date +%Y-%m-%d)" || echo "Commit di sync non riuscito: vedi errore sopra"
 fi
-if git remote get-url origin >/dev/null 2>&1; then
-  git fetch --quiet origin main 2>/dev/null
+if [ "$ORIGIN_ARTURO" = 1 ]; then
+  echo "Config: commit salvati su questa macchina. origin è il repository pubblico di Arturo, dove non puoi pushare: per sincronizzare tra più computer vedi /setup FASE 7."
+elif [ "$CONFIG_INTEGRA" = 1 ] && git remote get-url origin >/dev/null 2>&1; then
+  GIT_TERMINAL_PROMPT=0 git fetch --quiet origin main 2>/dev/null
   AHEAD=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo "?")
   if [ "$AHEAD" = "0" ]; then
     echo "Config: niente da pushare"
@@ -156,7 +172,7 @@ if git remote get-url origin >/dev/null 2>&1; then
   else
     echo "Config push non riuscito: $AHEAD commit restano locali e il prossimo /fine li ritenta (serve un remote tuo con accesso in scrittura)"
   fi
-else
+elif [ "$CONFIG_INTEGRA" = 1 ]; then
   echo "Config senza remote 'origin': i commit restano locali (ok). Per sincronizzare tra le tue macchine, configura un tuo repo privato come origin."
 fi
 cd "$PREV_DIR"

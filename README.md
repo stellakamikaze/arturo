@@ -17,7 +17,7 @@ In due righe: **18 guardie e automazioni**, **11 slash command**, **9 subagent**
 **Cominciare in tre passi.**
 
 1. Installa Claude Code, `git`, `python3` e `node` (vedi [Requisiti](#requisiti)).
-2. Scarica Arturo con `git clone https://github.com/stellakamikaze/arturo.git ~/.claude`. Se hai già una cartella `~/.claude`, leggi prima [Installazione](#installazione).
+2. Scarica Arturo in `~/.claude` con i comandi di [Installazione](#installazione). Quasi sempre quella cartella esiste già, perché Claude Code la crea al primo avvio: i comandi la mettono da parte prima del download. Su Windows usa Git Bash.
 3. Apri Claude Code dentro `~/.claude` e scrivi `/setup`. Il comando ti guida una cosa per volta.
 
 Quando esce una versione nuova, Arturo te lo dice all'avvio. `/aggiorna` ti mostra cosa arriva e la applica dopo il tuo sì.
@@ -39,7 +39,7 @@ Il primo capitolo del curriculum, [Chi possiede lo strumento](docs/principi/00-c
 Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
 
 1. **Il repository resta pubblico e con licenza MIT.** Non diventa privato e non viene cancellato.
-2. **L'avvio della sessione non applica aggiornamenti.** Controlla soltanto se ci sono novità. Gli aggiornamenti li applicano `/aggiorna`, dopo il tuo sì, e `/inizio`, che sincronizza la configurazione quando apri un progetto.
+2. **Solo `/aggiorna` applica gli aggiornamenti, e solo dopo il tuo sì.** L'avvio della sessione e `/inizio` controllano soltanto se ci sono novità. Se hai collegato un tuo repository privato, `/inizio` sincronizza quello: sono le tue macchine, non codice di altri.
 3. **Niente telemetria.** Arturo non raccoglie dati su di te né su come lo usi. L'unico contatto automatico con l'esterno è il controllo degli aggiornamenti: un `git fetch` verso i repository della tua configurazione, al massimo ogni sei ore.
 4. **Arturo resta in italiano.**
 5. **Se lo sviluppo si ferma, lo scrivo.** Lo dichiarano l'ultima entry di [`NOVITA.md`](NOVITA.md) e la cima di questa pagina. La copia che hai continua a funzionare, e puoi farne un fork.
@@ -78,7 +78,7 @@ Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
 
 Tre idee tengono insieme tutto:
 
-1. **La sicurezza sta nei rail, non nell'attrito.** `defaultMode: acceptEdits` e un allow ampio su Bash: Claude lavora veloce. In cambio, i deny espliciti e i hook guard formano una rete che intercetta le operazioni davvero pericolose. Meglio pochi blocchi affidabili che cento popup ignorati per abitudine.
+1. **La sicurezza sta nei rail, non nell'attrito.** `defaultMode: auto`: il classificatore di Claude Code giudica ogni comando, senza un popup per ogni passo. Sopra di lui i deny espliciti e i hook guard formano una seconda rete, deterministica, che intercetta le operazioni davvero pericolose: una cancellazione ricorsiva fuori dalle cartelle rigenerabili, un invio, un segreto in un commit. Meglio pochi blocchi affidabili che cento popup ignorati per abitudine.
 2. **Mai exit-0 muto.** Un check che non gira non è un check passato. Il validation gate distingue "verde" da "assente" — l'assenza di test non è un successo.
 3. **Ogni regola è un passivo.** L'harness compensa solo ciò che il modello non può garantirsi da solo: guardie deterministiche, integrazioni, preferenze genuine. Tutto il resto va potato, non accresciuto (la skill `system-audit` include un "Bitter Lesson pass" proprio per questo).
 
@@ -90,9 +90,11 @@ Tre idee tengono insieme tutto:
 |---|---|---|
 | **Claude Code** | tutto | [guida ufficiale](https://docs.anthropic.com/en/docs/claude-code) |
 | **git** | sessioni, sync, guardie commit | qualsiasi versione recente |
-| **python3** ≥ 3.8 | la maggior parte dei guard | solo standard library, nessun pip |
+| **python3** ≥ 3.8 | la maggior parte dei guard | solo standard library, nessun pip. PyYAML, se c'è, rende più preciso l'audit |
 | **node** ≥ 18 | `statusline.js`, `context-monitor.js` | |
 | **jq** | parsing veloce nel dispatcher | c'è un fallback in `python3` se manca |
+
+**Sistemi.** macOS e Linux. Su Windows Arturo funziona solo dentro **Git Bash** (Git for Windows): senza, Claude Code esegue i comandi con PowerShell e le guardie di Arturo non li vedono. Il `python3` deve essere quello di python.org, non il rimando del Microsoft Store: `/setup` controlla entrambe le cose.
 
 Facoltativi: **`gitleaks`** (audit segreti), **`bw`** (Bitwarden CLI, per le credenziali), **`gws`** (Google Workspace CLI — vedi [onboarding](#onboarding-gws-google-workspace-cli-opzionale)). Lo smoke test di `/system-audit` usa `timeout` se c'è (su Linux e Git Bash sì, su macOS di norma no); senza, gira comunque, solo senza tetto di tempo.
 
@@ -100,18 +102,22 @@ Facoltativi: **`gitleaks`** (audit segreti), **`bw`** (Bitwarden CLI, per le cre
 
 ## Installazione
 
-```bash
-# Se hai già una config, falle un backup:
-mv ~/.claude ~/.claude-backup-$(date +%Y%m%d) 2>/dev/null
+Claude Code crea `~/.claude` al primo avvio, quindi la cartella di solito esiste già. Il primo comando la mette da parte con la data nel nome: le tue impostazioni restano lì, niente si perde.
 
-git clone https://github.com/stellakamikaze/arturo.git ~/.claude
+**macOS e Linux** (Terminale), **Windows** (Git Bash, non PowerShell né il Prompt dei comandi):
+
+```bash
+[ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 ```
+
+Poi apri Claude Code dentro la cartella: `cd ~/.claude && claude`, e scrivi `/setup`.
 
 Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `docs/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono a `/sparring`, `/novita` e `/inizio gws`).
 
-> **Il tuo remote.** Il clone qui sopra punta al repo originale, su cui non hai accesso in scrittura: `/fine` tenta un push di sincronizzazione che fallirà — te lo dice con un messaggio chiaro, **non è un errore di rete**, e va benissimo usarlo così. Se invece vuoi **sincronizzare le tue modifiche tra più macchine**, crea un tuo repo privato e puntaci `origin`:
+> **Il tuo remote.** Il clone qui sopra punta al repo originale, su cui non hai accesso in scrittura. `/fine` salva i commit sulla tua macchina e non prova a pusharli. Se vuoi **sincronizzare le tue modifiche tra più macchine**, crea un tuo repo privato e puntaci `origin`:
 > ```bash
-> git -C ~/.claude remote rename origin upstream   # Arturo resta raggiungibile: /novita scarica da qui
+> git -C ~/.claude remote rename origin upstream   # Arturo resta raggiungibile: /aggiorna scarica da qui
 > gh repo create mio-claude --private --source ~/.claude --remote origin --push
 > # oppure, se il repo esiste già:  git -C ~/.claude remote add origin <URL-del-tuo-repo>
 > ```
@@ -126,20 +132,23 @@ Arturo continua a evolvere. All'avvio della sessione ti avvisa quando c'è una v
 ARTURO: c'e' un aggiornamento (3 commit) — scaricalo con /aggiorna
 ```
 
-**`/aggiorna`** fa il resto: ti mostra cosa arriva, controlla che non travolga le tue modifiche e
-applica. A mano è la stessa cosa:
+**`/aggiorna`** fa il resto: ti dice quale versione hai e quale arriva, ti racconta cosa cambia
+nelle guardie, controlla che non travolga le tue modifiche e applica dopo il tuo sì. Se
+l'applicazione non riesce, la annulla da sola: la tua copia non resta mai a metà. A mano:
 
 ```bash
-git -C ~/.claude pull
+git -C ~/.claude fetch origin main          # upstream invece di origin, se hai un tuo repository
+git -C ~/.claude rebase --autostash origin/main || git -C ~/.claude rebase --abort
+python3 ~/.claude/hooks/controlla-config.py  # deve dire CONFIG OK
 ```
 
 In entrambi i casi, poi **chiudi e riapri Claude Code**: comandi, hook e skill si caricano all'avvio della sessione,
-quindi quelli appena arrivati non compaiono finché non riapri. Se `pull` si ferma perché hai
-modificato file tuoi (tipico: `CLAUDE.md`, i permessi in `settings.json`), non forzare nulla:
-guarda `git -C ~/.claude status --short` e sistema un file per volta.
+quindi quelli appena arrivati non compaiono finché non riapri. Se il `rebase` a mano si ferma
+perché hai modificato file tuoi (tipico: i permessi in `settings.json`), il `rebase --abort` lo
+annulla: poi lancia `/aggiorna` e risolvi con Claude un file per volta.
 
 Dopo il primo aggiornamento non serve più ricordarselo: all'avvio della sessione Arturo ti avvisa
-quando ci sono novità, e **`/novita`** te le racconta e propone il pull.
+quando ci sono novità, **`/aggiorna`** le applica e **`/novita`** te le racconta.
 
 Se un aggiornamento non ti convince, **`/aggiorna indietro`** riporta alla versione di prima: ti
 mostra cosa torna indietro, lo fa solo dopo il tuo sì e conserva le modifiche ai tuoi file.
@@ -150,10 +159,10 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 |---|---|
 | `hooks/`, `commands/`, `agents/`, `skills/`, `docs/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `hooks/hosts-interni.local`, `data/`, `projects/` e le altre cartelle di lavoro |
 
-`settings.json` è di Arturo, ma le tue modifiche restano come commit locali e `/aggiorna` te le mostra se un aggiornamento cambia la stessa riga.
+`settings.json` è di Arturo, ma le tue modifiche restano come commit locali. `/aggiorna` ti mostra i file cambiati sia da te sia dall'aggiornamento prima di applicare. Se dopo l'aggiornamento `settings.json` non è JSON valido, `/aggiorna` torna alla versione di prima: un `settings.json` rotto spegnerebbe tutte le guardie. L'avvio della sessione te lo segnala con una riga `CONFIG ROTTA`.
 
 > Se `/aggiorna` o `/novita` rispondono «comando sconosciuto», la tua copia è precedente a quei
-> comandi: fai il `git pull` qui sopra a mano e riapri Claude Code. Da lì in poi bastano gli slash.
+> comandi: fai l'aggiornamento a mano con i comandi qui sopra e riapri Claude Code. Da lì in poi bastano gli slash.
 
 ## Prima accensione — checklist
 
@@ -300,7 +309,7 @@ partire — incluse le persone che non fanno un mestiere tecnico. Il percorso:
 3. **`/sparring`** — una sessione guidata che prende un principio e lo prova sul TUO
    lavoro reale, con esperimenti piccoli e reversibili. Anche «questo per ora non ti
    serve» è un risultato.
-4. **`/novita`** — quando l'harness si aggiorna (`git pull`), all'avvio della sessione
+4. **`/novita`** — quando l'harness si aggiorna (`/aggiorna`), all'avvio della sessione
    Arturo ti avvisa; `/novita` racconta cosa è cambiato, il principio dietro, e ti
    propone lo sparring. Così l'harness — e chi lo usa — restano aggiornati insieme.
 

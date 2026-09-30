@@ -28,14 +28,14 @@ ls -d "$HOME/.claude" >/dev/null 2>&1 && echo "~/.claude esiste" || echo "~/.cla
 git -C "$HOME/.claude" rev-parse --is-inside-work-tree 2>/dev/null && echo "è un repo git" || echo "NON è un repo git"
 ```
 
-Verifica che l'harness sia installato in `~/.claude`. Se NON lo è (la cartella non esiste o non è il repo Arturo), fermati e guida l'utente a installarlo prima:
+Verifica che l'harness sia installato in `~/.claude`. Se NON lo è, fermati e guida l'utente a installarlo prima. Il caso normale è che `~/.claude` esista già: Claude Code la crea al primo avvio, con dentro le sue impostazioni. Va spostata da parte, non cancellata:
 
 ```bash
-mv ~/.claude ~/.claude-backup-$(date +%Y%m%d) 2>/dev/null   # backup se esiste già altro
-git clone https://github.com/stellakamikaze/arturo.git ~/.claude
+[ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 ```
 
-Poi digli di riaprire Claude Code dentro l'harness e rilanciare `/setup`.
+Su Windows questi comandi vanno dati in **Git Bash**, non nel Prompt dei comandi o in PowerShell: lì la tilde `~` non si espande e il clone finisce in una cartella sbagliata senza errori. Poi digli di riaprire Claude Code dentro l'harness e rilanciare `/setup`.
 
 ---
 
@@ -44,9 +44,21 @@ Poi digli di riaprire Claude Code dentro l'harness e rilanciare `/setup`.
 Verifica gli strumenti necessari e riporta una tabella chiara (presente / MANCANTE):
 
 ```bash
-for t in git python3 node jq; do
+for t in git node jq; do
   if command -v "$t" >/dev/null 2>&1; then echo "OK   $t → $($t --version 2>&1 | head -1)"; else echo "MANCA $t"; fi
 done
+# python3 va eseguito davvero: su Windows `python3` puo' essere un rimando al Microsoft Store
+# che esiste nel PATH ma non esegue niente, e con lui le guardie non girano.
+if python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/null 2>&1; then
+  echo "OK   python3 → $(python3 --version 2>&1)"
+else
+  echo "MANCA python3 (assente, troppo vecchio, o rimando al Microsoft Store)"
+fi
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*) echo "OK   Git Bash (Windows)" ;;
+  Darwin|Linux) ;;
+  *) echo "MANCA Git Bash: su Windows Arturo funziona solo dentro Git Bash" ;;
+esac
 echo "--- opzionali ---"
 for t in gh gitleaks bw gws; do
   command -v "$t" >/dev/null 2>&1 && echo "OK   $t (opzionale)" || echo "--   $t (opzionale, non installato)"
@@ -54,7 +66,10 @@ done
 ```
 
 - **Obbligatori**: `git`, `python3` (≥3.8), `node` (≥18). `jq` è consigliato (c'è un fallback, ma installarlo è meglio).
-- Se ne manca uno obbligatorio, spiega **come installarlo** sul sistema dell'utente (macOS: `brew install <nome>`; Debian/Ubuntu: `sudo apt install <nome>`) e fermati finché non è a posto.
+- Se ne manca uno obbligatorio, spiega **come installarlo** sul sistema dell'utente e fermati finché non è a posto. Non dare per scontato Homebrew: su un Mac nuovo non c'è.
+  - **macOS**: `git` e `python3` arrivano con gli strumenti di sviluppo di Apple (`xcode-select --install`, una finestra chiede conferma). `node` si scarica da nodejs.org (installer .pkg). Se l'utente ha già Homebrew, `brew install <nome>` va bene.
+  - **Windows**: Git for Windows da git-scm.com (include Git Bash, obbligatorio: senza, Claude Code usa PowerShell e le guardie di Arturo non vedono i comandi). Python da python.org con la casella «Add python.exe to PATH», poi in Impostazioni → App → Alias di esecuzione disattiva i due alias «python» del Microsoft Store. Node da nodejs.org.
+  - **Debian/Ubuntu**: `sudo apt install <nome>`.
 - Gli opzionali servono solo per funzioni specifiche (`gh` per GitHub, `gitleaks` per l'audit segreti, `bw` per le password, `gws` per Google): non bloccare per questi.
 
 ---
@@ -123,7 +138,7 @@ Prima di scrivere, mostra all'utente il contenuto del file e chiedi conferma. Se
 
 ## FASE 7 — Sincronizzazione tra più macchine (opzionale)
 
-Spiega: se userà Arturo su **più computer**, può tenerli allineati con un proprio repository privato. `/fine` committa e pusha (handoff e `CLAUDE.md` solo se il repository risulta privato), `/inizio` sincronizza. Arturo resta collegato come `upstream`: da lì `/novita` scarica gli aggiornamenti dell'harness, mentre `origin` diventa il repository dell'utente.
+Spiega: se userà Arturo su **più computer**, può tenerli allineati con un proprio repository privato. `/fine` committa e pusha (handoff e `CLAUDE.md` solo se il repository risulta privato), `/inizio` sincronizza. Arturo resta collegato come `upstream`: da lì `/aggiorna` scarica gli aggiornamenti dell'harness, mentre `origin` diventa il repository dell'utente.
 
 Se l'utente lo vuole e ha `gh`:
 

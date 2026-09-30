@@ -27,6 +27,7 @@ BANCHI=(
   test_revisione_low.py
   test_completezza.py
   test_prodotto.py
+  test_revisione_2026_09_30.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -49,6 +50,12 @@ for test in \
   test_prodotto.py; do
   python3 -B "$REPO/tests/$test" --repo "$BASELINE" --baseline-ref ee10fc6
 done
+
+# Revisione del 30/9/2026: la sua base e' 86ba137, l'ultimo dev prima delle correzioni.
+BASELINE_30="$FIXTURE/baseline-86ba137"
+mkdir -p "$BASELINE_30"
+git -C "$ROOT" archive 86ba137 | tar -x -C "$BASELINE_30"
+python3 -B "$REPO/tests/test_revisione_2026_09_30.py" --repo "$BASELINE_30" --baseline-ref 86ba137
 
 shells=0
 while IFS= read -r -d '' file; do

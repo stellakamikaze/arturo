@@ -24,7 +24,7 @@ ko() { report+=("FAIL  $*"); fail=$((fail + 1)); }
 if ! command -v python3 >/dev/null 2>&1; then
   ko "python3 mancante"
 elif ! python3 -c 'import yaml' >/dev/null 2>&1; then
-  ko "PyYAML mancante: installa la dipendenza documentata in README"
+  warning "PyYAML assente: il frontmatter si controlla con un parser ridotto (bastano name e description)"
 else
   ok "parser YAML disponibile"
 fi
@@ -147,13 +147,29 @@ done
 if [[ -d "$CLAUDE_DIR/agents" ]] && python3 - "$CLAUDE_DIR/agents" <<'PY' >/dev/null 2>&1
 import sys
 from pathlib import Path
-import yaml
+try:
+    import yaml
+    carica = yaml.safe_load
+except ImportError:
+    def carica(testo):
+        # Parser ridotto senza PyYAML: chiavi di primo livello, blocchi > e | inclusi.
+        valori, chiave = {}, None
+        for riga in testo.splitlines():
+            if riga[:1] in (" ", "\t"):
+                if chiave and riga.strip():
+                    valori[chiave] = (valori[chiave] + " " + riga.strip()).strip()
+                continue
+            if ":" in riga:
+                chiave, _, valore = riga.partition(":")
+                chiave, valore = chiave.strip(), valore.strip()
+                valori[chiave] = "" if valore in (">", "|", ">-", "|-") else valore.strip("\"'")
+        return valori
 for path in Path(sys.argv[1]).glob("*.md"):
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---\n"):
         raise ValueError(path)
     frontmatter = text.split("---\n", 2)[1]
-    value = yaml.safe_load(frontmatter)
+    value = carica(frontmatter)
     if not isinstance(value, dict) or not all(isinstance(value.get(key), str) and value[key] for key in ("name", "description")):
         raise ValueError(path)
 PY
@@ -166,7 +182,23 @@ fi
 if [[ -d "$CLAUDE_DIR/skills" ]] && python3 - "$CLAUDE_DIR/skills" <<'PY' >/dev/null 2>&1
 import sys
 from pathlib import Path
-import yaml
+try:
+    import yaml
+    carica = yaml.safe_load
+except ImportError:
+    def carica(testo):
+        # Parser ridotto senza PyYAML: chiavi di primo livello, blocchi > e | inclusi.
+        valori, chiave = {}, None
+        for riga in testo.splitlines():
+            if riga[:1] in (" ", "\t"):
+                if chiave and riga.strip():
+                    valori[chiave] = (valori[chiave] + " " + riga.strip()).strip()
+                continue
+            if ":" in riga:
+                chiave, _, valore = riga.partition(":")
+                chiave, valore = chiave.strip(), valore.strip()
+                valori[chiave] = "" if valore in (">", "|", ">-", "|-") else valore.strip("\"'")
+        return valori
 for directory in Path(sys.argv[1]).iterdir():
     if not directory.is_dir() or directory.name == "shared":
         continue
@@ -176,7 +208,7 @@ for directory in Path(sys.argv[1]).iterdir():
     text = skill.read_text(encoding="utf-8")
     if not text.startswith("---\n"):
         raise ValueError(skill)
-    frontmatter = yaml.safe_load(text.split("---\n", 2)[1])
+    frontmatter = carica(text.split("---\n", 2)[1])
     if not isinstance(frontmatter, dict) or not all(isinstance(frontmatter.get(key), str) and frontmatter[key] for key in ("name", "description")):
         raise ValueError(skill)
 PY

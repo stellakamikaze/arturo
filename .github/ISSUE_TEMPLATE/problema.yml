@@ -42,6 +42,6 @@ body:
     id: versione
     attributes:
       label: Versione di Arturo
-      description: La data dell'ultima novità che vedi in `NOVITA.md`, oppure l'output di `git -C ~/.claude log -1 --format=%cd`.
+      description: L'output di `git -C ~/.claude describe --tags --always` (per esempio `v2026-09-30-3-g1a2b3c4`), oppure la data dell'ultima novità in `NOVITA.md`.
     validations:
       required: false

@@ -169,6 +169,17 @@ DOCKER_DESTRUCTIVE_RE = re.compile(
 
 BARE_TARGETS = {".", "./", "*", ".*", "*.*", "./*", ".//"}
 
+# Cartelle che uno strumento ricrea da solo: cancellarle non perde lavoro.
+RIGENERABILI = {
+    "node_modules", "dist", "build", "out", ".next", ".nuxt", ".svelte-kit",
+    ".turbo", ".parcel-cache", ".cache", "coverage", "__pycache__",
+    ".pytest_cache", ".mypy_cache", ".ruff_cache", ".venv", "venv", "target",
+}
+
+# Prefissi che non cambiano il programma eseguito: `sudo rm`, `command rm`, `FOO=1 rm`.
+_PREFISSI = {"sudo", "command", "env", "nohup", "time", "nice", "builtin", "exec"}
+_ASSEGNAZIONE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+
 
 def _home():
     return os.path.expanduser("~")
@@ -295,6 +306,52 @@ def _writes_config(command, cwd):
     return False
 
 
+def _temporaneo(p):
+    """True per i path di file temporanei del sistema: /tmp, /private/tmp, /var/folders, $TMPDIR."""
+    h = _home()
+    if p == h or p.startswith(h.rstrip("/") + "/"):
+        return False  # la home non e' mai un'area temporanea, ovunque stia
+    radici = ["/tmp", "/private/tmp", "/var/folders", "/private/var/folders"]
+    tmpdir = os.environ.get("TMPDIR", "").rstrip("/")
+    if tmpdir:
+        radici.append(os.path.normpath(tmpdir))
+    return any(p == r or p.startswith(r.rstrip("/") + "/") for r in radici)
+
+
+def _rigenerabile(p):
+    """True se il path e' una cartella che si ricrea da sola, o sta dentro una di esse."""
+    parti = p.replace("\\", "/").split("/")
+    return any(parte in RIGENERABILI for parte in parti)
+
+
+def _programma(toks):
+    """Toglie i prefissi che non cambiano il comando e restituisce (nome, argomenti)."""
+    i = 0
+    while i < len(toks) and (toks[i] in _PREFISSI or _ASSEGNAZIONE_RE.match(toks[i])):
+        i += 1
+    if i >= len(toks):
+        return "", []
+    return os.path.basename(toks[i].lstrip("\\")), toks[i + 1:]
+
+
+def _find_delete(command):
+    """`find … -delete` e `find … -exec rm` cancellano quanto un rm ricorsivo."""
+    for seg in re.split(r"&&|\|\||;|\||\n", command):
+        try:
+            toks = shlex.split(seg.strip())
+        except Exception:
+            toks = seg.split()
+        nome, args = _programma(toks)
+        if nome != "find":
+            continue
+        if "-delete" in args:
+            return True
+        for i, t in enumerate(args[:-1]):
+            if t in ("-exec", "-execdir", "-ok", "-okdir") and os.path.basename(args[i + 1]) == "rm":
+                return True
+    return False
+
+
 def _rm_segments(command):
     out = []
     cwd_decl = None
@@ -313,10 +370,11 @@ def _rm_segments(command):
         if toks[0] == "cd" and len(toks) >= 2:
             cwd_decl = toks[1]
             continue
-        if toks[0] == "rm":
+        nome, args = _programma(toks)
+        if nome == "rm":
             recursive = False
             targets = []
-            for tk in toks[1:]:
+            for tk in args:
                 if tk == "--recursive":
                     recursive = True
                 elif tk.startswith("-") and tk != "--":
@@ -394,23 +452,43 @@ def main() -> int:
             "conferma solo se vuoi davvero cancellare i dati dei container."
         )
 
-    # 5) rm ricorsivo su tree protetti -> ask
+    # 5) rm ricorsivo -> ask, tranne cartelle rigenerabili e file temporanei.
+    # Chi usa Arturo spesso non programma: una cartella di capitoli o i Documenti
+    # valgono quanto la config, e sul terminale non c'e' cestino.
     try:
         for targets, cwd_decl in _rm_segments(command):
             base_cwd = _resolve(cwd_decl, cwd) if cwd_decl else os.path.normpath(cwd)
             for t in (targets or ["."]):
                 if t in BARE_TARGETS:
-                    p = os.path.normpath(base_cwd)
+                    p = os.path.normpath(base_cwd) if base_cwd else None
                 else:
                     p = _resolve(t, base_cwd)
                 if _is_protected_tree(p):
                     return _ask(
                         f"rm ricorsivo su un percorso protetto ({p}): memoria, "
-                        "progetti o config di Claude Code. Irreversibile (niente "
-                        "cestino su macOS). Conferma solo se vuoi davvero cancellarlo."
+                        "progetti o config di Claude Code. Irreversibile: dal terminale "
+                        "non passa dal cestino. Conferma solo se vuoi davvero cancellarlo."
+                    )
+                if p is None:
+                    return _ask(
+                        f"rm ricorsivo su un percorso che non so risolvere ({t}). "
+                        "Irreversibile: controlla la cartella prima di confermare."
+                    )
+                if not (_rigenerabile(p) or _temporaneo(p)):
+                    return _ask(
+                        f"rm ricorsivo su una cartella ({p}). Dal terminale non passa "
+                        "dal cestino: se dentro c'e' lavoro tuo, lo perdi. Conferma solo "
+                        "se vuoi davvero cancellarla."
                     )
     except Exception:
-        pass
+        return _ask("rm ricorsivo che la guardia non riesce a leggere: controlla prima di confermare.")
+
+    # 6) find che cancella -> ask
+    if _find_delete(command):
+        return _ask(
+            "find con -delete o -exec rm cancella file in blocco, senza cestino. "
+            "Conferma solo se hai controllato cosa trova."
+        )
 
     return 0
 

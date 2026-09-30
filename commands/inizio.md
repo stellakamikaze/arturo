@@ -21,25 +21,42 @@ fine esegui la checklist del documento. Poi FERMATI: le fasi sotto non si applic
 
 ## FASE 0: Sync Config
 
+`/inizio` non applica mai gli aggiornamenti di Arturo: li controlla e li segnala. Li applica
+solo `/aggiorna`, dopo il sì dell'utente (Impegno 2 del README). Se `origin` è un repository
+suo (vedi `/setup` FASE 7), `/inizio` sincronizza quello: sono le sue macchine, non codice di
+altri.
+
 ```bash
-if ! SYNC_OUTPUT=$(git -C ~/.claude pull origin main --rebase --autostash 2>&1); then
-  printf '%s\n' "$SYNC_OUTPUT"
-  echo "Config sync: pull fallito — fermati e risolvi prima di lavorare"
-  exit 1
+ORIGIN_URL=$(git -C ~/.claude remote get-url origin 2>/dev/null || echo "")
+case "$ORIGIN_URL" in
+  *github.com[:/]stellakamikaze/arturo|*github.com[:/]stellakamikaze/arturo.git) ORIGIN_ARTURO=1 ;;
+  *) ORIGIN_ARTURO=0 ;;
+esac
+export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes"
+if [ "$ORIGIN_ARTURO" = 1 ] || [ -z "$ORIGIN_URL" ]; then
+  git -C ~/.claude fetch --quiet origin main 2>&1 || echo "Config sync: controllo aggiornamenti non riuscito (rete?)"
+else
+  PRIMA=$(git -C ~/.claude rev-parse HEAD)
+  if ! SYNC_OUTPUT=$(git -C ~/.claude pull --rebase --autostash origin main 2>&1); then
+    printf '%s\n' "$SYNC_OUTPUT"
+    git -C ~/.claude rebase --abort 2>/dev/null
+    echo "Config sync: il pull dal tuo repository non è riuscito. Ho annullato il tentativo: la config è com'era prima."
+  fi
+  if ! python3 ~/.claude/hooks/controlla-config.py --quiet; then
+    git -C ~/.claude rebase --abort 2>/dev/null || git -C ~/.claude reset --keep "$PRIMA"
+    echo "Config sync: dopo il pull la config non era integra. Ho riportato la copia a prima del pull."
+  fi
 fi
-printf '%s\n' "$SYNC_OUTPUT" | tail -1
-# Con un repository personale come origin, Arturo vive su upstream: scaricarlo qui,
-# senza applicarlo, tiene aggiornati l'avviso di session-start e /novita.
-if git -C ~/.claude remote get-url upstream >/dev/null 2>&1; then
-  git -C ~/.claude fetch --quiet upstream main 2>&1 || echo "Config sync: fetch di upstream non riuscito (rete?) — gli aggiornamenti di Arturo si vedranno al prossimo /inizio"
-fi
-CONFLICTS=$(git -C ~/.claude diff --name-only --diff-filter=U)
-if [ -n "$CONFLICTS" ]; then
-  echo "Config sync: conflitti dopo autostash"
-  printf '%s\n' "$CONFLICTS"
-  exit 1
-fi
+git -C ~/.claude remote get-url upstream >/dev/null 2>&1 && git -C ~/.claude fetch --quiet upstream main 2>&1
+SRC=$(git -C ~/.claude remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
+BEHIND=$(git -C ~/.claude rev-list --count "HEAD..$SRC/main" 2>/dev/null || echo 0)
+[ "${BEHIND:-0}" -gt 0 ] && echo "ARTURO: $BEHIND aggiornamenti disponibili — li applica /aggiorna, dopo il tuo sì"
+python3 ~/.claude/hooks/controlla-config.py --quiet || exit 1
 ```
+
+Se l'ultima riga stampa `CONFIG ROTTA`, fermati: spiega all'utente il problema in parole
+semplici e proponi il comando che la riga suggerisce. Non lavorare su una config rotta: le
+guardie potrebbero essere spente.
 
 ---
 
@@ -83,8 +100,9 @@ Due fonti, si usa la **più recente**: lo store in `~/.claude/data/handoffs/` (s
 copia locale nel progetto lasciata da versioni precedenti di `/fine`.
 
 ```bash
-HANDOFF_LOCAL=$(ls -t HANDOFF_*.md 2>/dev/null | head -1)
-HANDOFF_SYNC=$(ls -t ~/.claude/data/handoffs/"$ARGUMENTS"/HANDOFF_*.md 2>/dev/null | head -1)
+SLUG=$(printf '%s' "$ARGUMENTS" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')   # stesso slug di /fine
+HANDOFF_LOCAL=$(find . -maxdepth 1 -name "HANDOFF_*.md" 2>/dev/null | sort -r | head -1)
+HANDOFF_SYNC=$(find ~/.claude/data/handoffs/"$SLUG" -maxdepth 1 -name "HANDOFF_*.md" 2>/dev/null | sort -r | head -1)
 # Confronta i timestamp nel nome file (YYYY-MM-DD_HH-MM): vince il più recente
 echo "Handoff locale: ${HANDOFF_LOCAL:-nessuno}"
 echo "Handoff sync:   ${HANDOFF_SYNC:-nessuno}"
