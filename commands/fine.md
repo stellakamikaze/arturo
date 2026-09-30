@@ -149,7 +149,7 @@ case "$ORIGIN_URL" in
   *) ORIGIN_ARTURO=0 ;;
 esac
 if [ "$CONFIG_INTEGRA" = 1 ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; then
-  for p in settings.json commands agents hooks skills shared docs NOVITA.md README.md package.json; do
+  for p in settings.json commands agents hooks skills shared docs templates NOVITA.md README.md package.json; do
     [ -e "$p" ] || continue
     git add -- "$p" || echo "git add fallito su $p: resta fuori dal commit"
   done

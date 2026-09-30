@@ -113,7 +113,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 
 Poi apri Claude Code dentro la cartella: `cd ~/.claude && claude`, e scrivi `/setup`.
 
-Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `docs/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono a `/sparring`, `/novita` e `/inizio gws`).
+Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `docs/`, `templates/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono a `/sparring`, `/novita` e `/inizio gws`; `templates/` serve a `/strato`).
 
 > **Il tuo remote.** Il clone qui sopra punta al repo originale, su cui non hai accesso in scrittura. `/fine` salva i commit sulla tua macchina e non prova a pusharli. Se vuoi **sincronizzare le tue modifiche tra più macchine**, crea un tuo repo privato e puntaci `origin`:
 > ```bash
@@ -157,7 +157,7 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 
 | Di Arturo (arriva con gli aggiornamenti) | Tuo (nessun aggiornamento lo tocca) |
 |---|---|
-| `hooks/`, `commands/`, `agents/`, `skills/`, `docs/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `hooks/hosts-interni.local`, `data/`, `projects/` e le altre cartelle di lavoro |
+| `hooks/`, `commands/`, `agents/`, `skills/`, `docs/`, `templates/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `hooks/hosts-interni.local`, `data/`, `projects/` e le altre cartelle di lavoro |
 
 `settings.json` è di Arturo, ma le tue modifiche restano come commit locali. `/aggiorna` ti mostra i file cambiati sia da te sia dall'aggiornamento prima di applicare. Se dopo l'aggiornamento `settings.json` non è JSON valido, `/aggiorna` torna alla versione di prima: un `settings.json` rotto spegnerebbe tutte le guardie. L'avvio della sessione te lo segnala con una riga `CONFIG ROTTA`.
 
@@ -218,6 +218,8 @@ agents/              9 subagent specializzati
 skills/              3 skill (+ regole condivise in shared/)
 docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/onboarding/     Guide di setup guidato (/inizio gws)
+docs/referente.md    Guida del referente di un'organizzazione (/strato)
+templates/strato/    Modello di plugin per lo strato di un'organizzazione (/strato crea)
 NOVITA.md            Canale di aggiornamento (lo racconta /novita)
 ```
 
@@ -243,6 +245,7 @@ Fuori dal dispatcher:
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
 - `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
 - `session-start.sh` / `session-end.sh` — titolo finestra, avvisi Git locali e cleanup degli unlock di sessione.
+- `controlla-config.py` — strumento, non un hook: controlla che la config sia integra (`settings.json` valido, nessun rebase o conflitto a metà) e stampa `CONFIG OK` o `CONFIG ROTTA`. Lo usano l'avvio, `/inizio`, `/aggiorna` e `/fine`.
 - `inject-now.sh` — inietta data/ora corrente a ogni prompt, e ricorda che una richiesta di lavoro
   comincia con `Skill(prompt-master)` e con PROMPT + BRIEF. Per spegnere il promemoria, cancella il
   blocco `cat` finale dello script.
@@ -321,7 +324,7 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 
 ## Personalizzazione
 
-- **Più/meno attrito.** L'allow-list Bash è ampia per design; la protezione vera sono deny + guard. Vuoi che Claude chieda conferma più spesso? Metti `defaultMode: "default"` in `settings.json` e sfoltisci l'`allow`. Vuoi meno interruzioni? Aggiungi pattern specifici all'`allow`.
+- **Più/meno attrito.** In modalità `auto` decide il classificatore di Claude Code; la protezione deterministica sono deny + guard. Vuoi che Claude chieda conferma più spesso? Metti `defaultMode: "default"` in `settings.json`. Vuoi meno interruzioni? Aggiungi pattern specifici all'`allow`.
 - **Host interni.** `INTERNAL_HOSTS` e `INTERNAL_NETS` in `exfil-guard.py` e `web-egress-guard.py` sono i default pubblici: non modificarli. Se lavori con un tuo server, aggiungi il suo hostname o la sua rete in `hooks/hosts-interni.local`, una voce per riga: le chiamate verso quegli host non chiederanno conferma. Una rete più larga di `/8` viene ignorata. Quel file è tuo, nessun aggiornamento lo tocca.
 - **Lingua.** `language` in `settings.json` (default `italian`) e i messaggi dei guard sono in italiano — cambiali se preferisci un'altra lingua.
 - **Disattivare un guard.** Commenta la riga corrispondente in `bash-dispatcher.sh` (per i guard instradati) o rimuovi il blocco da `settings.json` (per quelli PostToolUse). Poi rilancia `/system-audit`.

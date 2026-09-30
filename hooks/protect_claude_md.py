@@ -11,7 +11,7 @@ Due categorie, ognuna con un unlock per-sessione distinto:
     ~/.claude/hooks/**
     -> unlock: touch ~/.claude/config-unlock-{session_id}
 
-Motivo della categoria config/hook: senza questo, sotto defaultMode:acceptEdits
+Motivo della categoria config/hook: senza questo, sotto defaultMode auto o acceptEdits
 un'iniezione puo' riscrivere settings.json o disattivare un hook via tool Edit/Write
 senza alcun prompt, neutralizzando ogni altra guardia. Il vettore shell
 (sed -i, >, cp...) e' coperto separatamente da block-dangerous.py.
