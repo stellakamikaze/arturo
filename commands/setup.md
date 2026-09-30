@@ -161,6 +161,20 @@ Altrimenti spiega che, senza un remote proprio, tutto funziona lo stesso: i dati
 
 ---
 
+## FASE 7b — Lo strato della tua organizzazione (opzionale)
+
+Chiedi: «Lavori in un'organizzazione che ha già preparato uno strato per Arturo?». Lo strato porta
+chi siete, la voce e le regole di scrittura, i lavori ricorrenti e le regole sui dati. Lo cura un
+referente interno.
+
+- Se sì, chiedi l'indirizzo del repository al referente e prosegui con **`/strato installa
+  <indirizzo>`**.
+- Se è lui il referente e vuole prepararlo, indicagli **`/strato crea`** e la guida
+  `~/.claude/docs/referente.md`. È un lavoro a parte: non farlo dentro il setup.
+- Altrimenti salta.
+
+---
+
 ## FASE 8 — Google Workspace CLI (opzionale)
 
 Solo se l'utente vuole collegare account Google (Gmail/Drive/Calendar) via la CLI `gws`. In tal caso NON farlo qui: indirizzalo al comando dedicato **`/inizio gws`**, che ha la procedura completa. Altrimenti salta.

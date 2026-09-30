@@ -11,6 +11,21 @@ modo di lavorare.
 
 ---
 
+## 2026-09-30 — Lo strato della tua organizzazione
+
+**Cosa cambia**: se lavori in un'organizzazione, Arturo ora può diventare «vostro». Il
+**referente**, una persona del team, prepara con `/strato crea` uno strato con chi siete, come
+scrivete, i lavori che si ripetono e i dati che non devono uscire. I colleghi lo ricevono con
+`/strato installa` e lo tengono aggiornato con `/aggiorna`. All'avvio Claude sa per chi lavora, la
+voce dell'organizzazione è una skill, e prima di mandare fuori un dato riservato chiede conferma.
+
+**Il principio dietro**: uno strumento entra in un'organizzazione quando qualcuno del team lo
+adatta al lavoro vero, non quando ognuno lo configura da solo. Lo strato vive nel repository
+privato dell'organizzazione, separato da Arturo: gli aggiornamenti dei due non si pestano i piedi.
+
+**Da sapere**: la guida del ruolo è in `docs/referente.md`. Lo strato è un plugin di Claude
+Code: dopo l'installazione va riaperto Claude Code.
+
 ## 2026-09-30 — Aggiornamenti che non rompono niente, cartelle protette
 
 **Cosa cambia**: tre cose che senti subito.

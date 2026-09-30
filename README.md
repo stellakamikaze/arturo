@@ -6,7 +6,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 È il telaio di una config personale usata quotidianamente in produzione, estratto e igienizzato: **zero dati, zero credenziali, zero riferimenti a infrastrutture private**. Quello che resta è il metodo.
 
-In due righe: **18 guardie e automazioni**, **11 slash command**, **9 subagent**, **3 skill** — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
+In due righe: **18 guardie e automazioni**, **12 slash command**, **9 subagent**, **3 skill** — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
 
 ---
 
@@ -213,7 +213,7 @@ Gli hook su `Edit`/`Write` proteggono config e forma. Gli scanner PostToolUse ri
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
 hooks/               18 guardie e automazioni
-commands/            11 slash command di workflow (incl. /setup, /aggiorna, /guidami, /novita)
+commands/            12 slash command di workflow (incl. /setup, /aggiorna, /guidami, /novita, /strato)
 agents/              9 subagent specializzati
 skills/              3 skill (+ regole condivise in shared/)
 docs/principi/       Il curriculum: i principi spiegati in semplice
@@ -265,6 +265,8 @@ Il ciclo di lavoro quotidiano:
 - **`/fine`** — review di completezza per le modifiche di codice, validate, commit selettivo e handoff.
 
 Sviluppo: `/progetto` (da idea a primo commit), `/discovery`, `/write-plan`, `/diagnosi` (disciplina diagnostica: fatti prima delle ipotesi; si chiama così per non nascondere il `/debug` di Claude Code).
+
+Organizzazioni: **`/strato`** — lo strato di un'organizzazione sopra Arturo (chi siete, voce, lavori ricorrenti, dati riservati), come plugin nel vostro repository privato. Il referente lo prepara con `/strato crea` e lo pubblica con `/strato pubblica`; i colleghi lo ricevono con `/strato installa`. Guida del ruolo: [`docs/referente.md`](docs/referente.md).
 
 Qualità: usa le capacità native di review e verifica dell'harness.
 

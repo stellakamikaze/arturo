@@ -98,6 +98,22 @@ Se compare `APPLICAZIONE ANNULLATA`, la sua copia è **esattamente com'era prima
 rilancia il Passo 3. Mai `--force`, mai `reset --hard`, mai un `checkout` che butti via il
 suo lavoro.
 
+## Passo 3b — Lo strato dell'organizzazione
+
+Se ha installato lo strato della sua organizzazione (`/strato installa`), aggiornalo nello stesso
+giro, così la porta resta una sola:
+
+```bash
+claude plugin marketplace list 2>/dev/null | grep -i -- "-strato" \
+  && { claude plugin marketplace update && echo "Strato: marketplace aggiornato"; } \
+  || echo "Nessuno strato installato"
+```
+
+Se il marketplace dello strato risponde, aggiorna anche il plugin con `claude plugin update
+<plugin>@<marketplace>` (i nomi li leggi da `claude plugin list`). Se fallisce per accesso negato,
+spiega che serve l'invito del referente o il collegamento dell'account (`gh auth login`), come in
+`/strato installa`.
+
 ## Passo 4 — Riavvio e racconto
 
 Due cose, in quest'ordine:

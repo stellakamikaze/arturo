@@ -28,6 +28,7 @@ BANCHI=(
   test_completezza.py
   test_prodotto.py
   test_revisione_2026_09_30.py
+  test_strato.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -56,6 +57,12 @@ BASELINE_30="$FIXTURE/baseline-86ba137"
 mkdir -p "$BASELINE_30"
 git -C "$ROOT" archive 86ba137 | tar -x -C "$BASELINE_30"
 python3 -B "$REPO/tests/test_revisione_2026_09_30.py" --repo "$BASELINE_30" --baseline-ref 86ba137
+
+# Strato dell'organizzazione (30/9/2026): la base e' e70da3d, l'ultimo dev prima dello strato.
+BASELINE_STRATO="$FIXTURE/baseline-e70da3d"
+mkdir -p "$BASELINE_STRATO"
+git -C "$ROOT" archive e70da3d | tar -x -C "$BASELINE_STRATO"
+python3 -B "$REPO/tests/test_strato.py" --repo "$BASELINE_STRATO" --baseline-ref e70da3d
 
 shells=0
 while IFS= read -r -d '' file; do

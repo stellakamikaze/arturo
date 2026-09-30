@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "{{SLUG}}-strato",
+  "owner": {
+    "name": "{{ORGANIZZAZIONE}}"
+  },
+  "metadata": {
+    "description": "Lo strato di {{ORGANIZZAZIONE}} sopra Arturo: voce, lavori ricorrenti, regole sui dati."
+  },
+  "plugins": [
+    {
+      "name": "{{SLUG}}",
+      "source": "./plugins/strato",
+      "description": "Voce, lavori ricorrenti e regole sui dati di {{ORGANIZZAZIONE}}."
+    }
+  ]
+}
