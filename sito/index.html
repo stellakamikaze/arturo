@@ -103,7 +103,7 @@ code, .cmd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; f
   font-size: clamp(4.2rem, 2rem + 9vw, 6rem);
   font-stretch: 125%; font-weight: 900; letter-spacing: -0.035em; line-height: 0.86;
 }
-.campo-rosso h1 span { display: block; font-size: 0.42em; font-stretch: 100%; font-weight: 700; letter-spacing: -0.015em; line-height: 1.02; margin-top: 0.35em; max-width: 15ch; }
+.campo-rosso h1 span { display: block; font-size: clamp(1.764rem, 0.84rem + 3.78vw, 2.52rem); font-stretch: 100%; font-weight: 700; letter-spacing: -0.015em; line-height: 1.02; margin-top: 0.35em; max-width: 15ch; }
 .campo-rosso .tesi { font-size: clamp(1.1rem, 1rem + 0.4vw, 1.3rem); max-width: 44ch; color: #fff; }
 .azioni { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
 .bottone {
@@ -125,9 +125,9 @@ code, .cmd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; f
 }
 .tavola .disegno { display: grid; place-items: center; padding: clamp(24px, 4vw, 56px); overflow: hidden; }
 .tavola svg { width: 100%; max-width: 420px; height: auto; }
-.tavola figcaption, .caso figcaption { border-top: 2px solid var(--inchiostro); padding: 12px clamp(16px, 3vw, 32px); font-size: 0.9rem; display: flex; justify-content: flex-start; gap: 16px; text-align: left; }
+.tavola figcaption, .caso figcaption, .tavola-schema figcaption { border-top: 2px solid var(--inchiostro); padding: 12px clamp(16px, 3vw, 32px); font-size: 0.9rem; display: flex; justify-content: flex-start; gap: 16px; text-align: left; }
 .caso figcaption { padding-inline: 16px; background: var(--carta); color: var(--inchiostro); }
-.tavola figcaption b, .caso figcaption b { font-stretch: 125%; flex: none; }
+.tavola figcaption b, .caso figcaption b, .tavola-schema figcaption b { font-stretch: 125%; flex: none; }
 
 @media (max-width: 900px) {
   .apertura .griglia { grid-template-columns: minmax(0, 1fr); min-height: 0; }
@@ -207,7 +207,11 @@ code, .cmd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; f
 /* ---------- Schema delle guardie ---------- */
 .schema { background: var(--carta-scura); color: var(--inchiostro); border-block: var(--filetto) solid var(--inchiostro); }
 .schema .testa-sezione p { color: var(--inchiostro-2); }
-.flusso { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 1fr) minmax(0, 7fr); align-items: center; gap: 0; }
+.tavola-schema { margin: 0; background: var(--ottanio-chiaro); border: var(--filetto) solid var(--inchiostro); }
+.flusso { display: grid; grid-template-columns: minmax(0, 3fr) minmax(24px, 0.7fr) minmax(0, 2fr) minmax(24px, 0.7fr) minmax(0, 5.6fr); align-items: center; gap: 0; padding: clamp(24px, 4vw, 56px); }
+.smistatore { display: grid; justify-items: center; gap: 10px; }
+.smistatore svg { width: 100%; max-width: 132px; height: auto; }
+.smistatore .nome { font-weight: 800; font-stretch: 112%; font-size: 0.85rem; background: var(--inchiostro); color: var(--carta); padding: 3px 10px; }
 .blocco { border: var(--filetto) solid var(--inchiostro); background: var(--carta); padding: 20px 22px; }
 .blocco .etichetta { display: block; font-size: 0.9rem; color: var(--inchiostro-2); margin-bottom: 6px; }
 .blocco code { color: var(--rosso-scuro); font-size: 1rem; font-weight: 700; }
@@ -222,6 +226,8 @@ code, .cmd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; f
 .esito.passa { border: 2px solid var(--inchiostro); }
 @media (max-width: 900px) {
   .flusso { grid-template-columns: minmax(0, 1fr); }
+  .smistatore { justify-items: start; }
+  .smistatore svg { max-width: 104px; }
   .freccia { width: 2px; height: 36px; margin: 8px 0 8px 24px; }
   .freccia::after { right: auto; left: -6px; top: auto; bottom: -2px; border: 7px solid transparent; border-top: 10px solid var(--inchiostro); border-bottom: 0; }
 }
@@ -254,7 +260,7 @@ code, .cmd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; f
 .chiusura .griglia { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 40px clamp(24px, 5vw, 72px); align-items: end; }
 .chiusura h2 { font-stretch: 125%; }
 .chiusura .comando { border-color: var(--inchiostro); margin-top: 24px; }
-.piede { background: var(--inchiostro); color: #d9d6ce; font-size: 0.95rem; }
+.piede { background: var(--inchiostro); color: var(--carta); font-size: 0.95rem; }
 .piede .colonna { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px 40px; padding-block: 32px; }
 .piede ul { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0; padding: 0; }
 @media (max-width: 900px) { .chiusura .griglia { grid-template-columns: minmax(0, 1fr); } }
@@ -374,7 +380,7 @@ code, .cmd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; f
     <div class="casi">
       <article class="caso grande">
         <figure class="figura">
-          <svg viewBox="0 0 260 190" role="img" aria-label="Il custode tiene d'occhio il terminale al posto tuo."><use href="#custode" x="18" y="34" width="112" height="152"/><rect x="140" y="58" width="104" height="76" fill="#e4e1da" stroke="#141414" stroke-width="4"/><rect x="140" y="58" width="104" height="14" fill="#141414"/><path d="M152 90l12 9-12 9" fill="none" stroke="#d5301f" stroke-width="5"/><rect x="172" y="104" width="36" height="6" fill="#141414"/><circle cx="232" cy="134" r="18" fill="#f3c21b" stroke="#141414" stroke-width="4"/><path d="M224 134l6 6 10-12" fill="none" stroke="#141414" stroke-width="4"/></svg>
+          <svg viewBox="0 0 260 190" role="img" aria-label="Il custode tiene d'occhio il terminale al posto tuo."><use href="#custode" x="18" y="34" width="112" height="152"/><rect x="140" y="58" width="104" height="76" fill="#e4e1da" stroke="#141414" stroke-width="4"/><rect x="140" y="58" width="104" height="14" fill="#141414"/><path d="M152 90l12 9-12 9" fill="none" stroke="#d5301f" stroke-width="5"/><rect x="172" y="104" width="36" height="6" fill="#141414"/><circle cx="232" cy="134" r="18" fill="#f3c21b" stroke="#141414" stroke-width="4"/><path d="M224 134l6 6 10-12" fill="none" stroke="#141414" stroke-width="4"/><path d="M104 106l20 16 12-22" fill="none" stroke="#141414" stroke-width="9" stroke-linejoin="miter"/><circle cx="137" cy="97" r="7" fill="#e4e1da" stroke="#141414" stroke-width="3"/></svg>
           <figcaption><b>Tav. 2</b><span>Il custode tiene d'occhio il terminale al posto tuo.</span></figcaption>
         </figure>
         <h3>Chi non programma e parte da zero</h3>
@@ -396,14 +402,14 @@ code, .cmd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; f
           <li><code>italiano-semplificato</code><span>toglie il burocratese da un testo</span></li>
         </ul>
         <figure class="figura">
-          <svg viewBox="0 0 260 190" role="img" aria-label="Il custode ordina le carte a fine giornata."><use href="#custode" x="18" y="34" width="112" height="152"/><rect x="150" y="66" width="56" height="72" fill="#e4e1da" stroke="#141414" stroke-width="4"/><rect x="166" y="56" width="56" height="72" fill="#e4e1da" stroke="#141414" stroke-width="4"/><path d="M176 76h36M176 90h36M176 104h22" stroke="#141414" stroke-width="4"/><path d="M186 176l44-44 11 11-44 44h-11z" fill="#d5301f" stroke="#141414" stroke-width="4"/></svg>
+          <svg viewBox="0 0 260 190" role="img" aria-label="Il custode ordina le carte a fine giornata."><use href="#custode" x="18" y="34" width="112" height="152"/><rect x="150" y="66" width="56" height="72" fill="#e4e1da" stroke="#141414" stroke-width="4"/><rect x="166" y="56" width="56" height="72" fill="#e4e1da" stroke="#141414" stroke-width="4"/><path d="M176 76h36M176 90h36M176 104h22" stroke="#141414" stroke-width="4"/><path d="M186 176l44-44 11 11-44 44h-11z" fill="#d5301f" stroke="#141414" stroke-width="4"/><path d="M104 106l22 22 20-10" fill="none" stroke="#141414" stroke-width="9" stroke-linejoin="miter"/><circle cx="149" cy="117" r="7" fill="#e4e1da" stroke="#141414" stroke-width="3"/></svg>
           <figcaption><b>Tav. 3</b><span>Il custode ordina le carte a fine giornata.</span></figcaption>
         </figure>
       </article>
 
       <article class="caso medio zinco">
         <figure class="figura">
-          <svg viewBox="0 0 260 190" role="img" aria-label="Una sola configurazione, clonata su ogni computer."><use href="#custode" x="18" y="34" width="112" height="152"/><rect x="140" y="56" width="50" height="40" fill="#e4e1da" stroke="#141414" stroke-width="4"/><rect x="200" y="56" width="50" height="40" fill="#e4e1da" stroke="#141414" stroke-width="4"/><rect x="170" y="116" width="50" height="40" fill="#e4e1da" stroke="#141414" stroke-width="4"/><path d="M165 96v10h30M225 96v10h-30v10" fill="none" stroke="#141414" stroke-width="4"/><circle cx="195" cy="40" r="10" fill="#d5301f"/></svg>
+          <svg viewBox="0 0 260 190" role="img" aria-label="Una sola configurazione, clonata su ogni computer."><use href="#custode" x="18" y="34" width="112" height="152"/><rect x="140" y="56" width="50" height="40" fill="#e4e1da" stroke="#141414" stroke-width="4"/><rect x="200" y="56" width="50" height="40" fill="#e4e1da" stroke="#141414" stroke-width="4"/><rect x="170" y="116" width="50" height="40" fill="#e4e1da" stroke="#141414" stroke-width="4"/><path d="M165 96v10h30M225 96v10h-30v10" fill="none" stroke="#141414" stroke-width="4"/><circle cx="195" cy="40" r="10" fill="#d5301f"/><path d="M104 106l20-22 10-24" fill="none" stroke="#141414" stroke-width="9" stroke-linejoin="miter"/><circle cx="135" cy="57" r="7" fill="#e4e1da" stroke="#141414" stroke-width="3"/></svg>
           <figcaption><b>Tav. 4</b><span>Una sola configurazione, clonata su ogni computer.</span></figcaption>
         </figure>
         <h3>Un piccolo studio o un team</h3>
@@ -425,7 +431,7 @@ code, .cmd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; f
           </ul>
         </div>
         <figure class="figura">
-          <svg viewBox="0 0 260 190" role="img" aria-label="Il custode spiega un principio alla lavagna."><use href="#custode" x="18" y="34" width="112" height="152"/><rect x="140" y="44" width="110" height="80" fill="#0a3f49" stroke="#e4e1da" stroke-width="4"/><path d="M156 70h60M156 86h44M156 102h70" stroke="#f3c21b" stroke-width="4"/><path d="M160 124l-8 50M230 124l8 50" stroke="#e4e1da" stroke-width="4"/></svg>
+          <svg viewBox="0 0 260 190" role="img" aria-label="Il custode spiega un principio alla lavagna."><use href="#custode" x="18" y="34" width="112" height="152"/><rect x="140" y="44" width="110" height="80" fill="#0a3f49" stroke="#e4e1da" stroke-width="4"/><path d="M156 70h60M156 86h44M156 102h70" stroke="#f3c21b" stroke-width="4"/><path d="M160 124l-8 50M230 124l8 50" stroke="#e4e1da" stroke-width="4"/><path d="M104 106l20 6 10-16" fill="none" stroke="#141414" stroke-width="9" stroke-linejoin="miter"/><path d="M138 92l32-24" stroke="#d5301f" stroke-width="4"/><circle cx="135" cy="94" r="7" fill="#e4e1da" stroke="#141414" stroke-width="3"/></svg>
           <figcaption><b>Tav. 5</b><span>Il custode spiega un principio alla lavagna.</span></figcaption>
         </figure>
       </article>
@@ -439,10 +445,16 @@ code, .cmd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; f
       <h2 id="guardie-t">Come protegge la casa</h2>
       <p>Ogni comando che Claude vuole eseguire passa da un solo smistatore. I comandi innocui passano subito. Quelli rischiosi vanno alla guardia giusta, che blocca o ti chiede conferma.</p>
     </div>
+    <figure class="tavola-schema">
     <div class="flusso">
       <div class="blocco">
         <span class="etichetta">Claude vuole eseguire</span>
         <code>un comando nel terminale</code>
+      </div>
+      <div class="freccia" aria-hidden="true"></div>
+      <div class="smistatore">
+        <svg viewBox="-8 0 136 166" role="img" aria-label="Il custode fa da smistatore: un braccio ferma, l'altro indica la strada."><use href="#custode" x="10" y="26" width="100" height="136"/><path d="M34 84H4" fill="none" stroke="#141414" stroke-width="9"/><circle cx="2" cy="84" r="6" fill="#e4e1da" stroke="#141414" stroke-width="3"/><path d="M86 84l26-26" fill="none" stroke="#141414" stroke-width="9"/><circle cx="114" cy="56" r="6" fill="#e4e1da" stroke="#141414" stroke-width="3"/><path d="M60 2l4 10h11l-9 6 3 11-9-7-9 7 3-11-9-6h11z" fill="#d5301f" stroke="#141414" stroke-width="2" stroke-linejoin="round"/></svg>
+        <span class="nome">Smistatore</span>
       </div>
       <div class="freccia" aria-hidden="true"></div>
       <ul class="esiti" aria-label="Esempi di esito delle guardie">
@@ -453,6 +465,8 @@ code, .cmd { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; f
         <li><span>Leggere un file, elencare una cartella</span><span class="esito passa">Passa</span></li>
       </ul>
     </div>
+    <figcaption><b>Tav. 6</b><span>Il custode smista: ogni comando passa da lui prima di arrivare al terminale.</span></figcaption>
+    </figure>
   </div>
 </section>
 

@@ -154,7 +154,7 @@ components:
 
 Arturo si presenta come le industrie italiane presentavano la macchina da scrivere a chi non l'aveva mai toccata. La pagina è un libretto di istruzioni: tavole numerate, campiture piene, filetti neri spessi, figure geometriche. Il lettore non programma, quindi il sistema mostra un oggetto da montare e non un prodotto software.
 
-La densità è media e ordinata. Ogni sezione è una campitura a tutta larghezza: rosso segnale, giallo zinco, carta, carta scura, blu ottanio, di nuovo rosso, e il piede in inchiostro. Una griglia a 12 colonne divide lo spazio in proporzioni asimmetriche (7/5, 5/7, 4/1/7). Un solo grottesco, Archivo, porta tutta la voce: la larghezza variabile distingue il titolo dal testo, non un secondo carattere.
+La densità è media e ordinata. Ogni sezione è una campitura a tutta larghezza: rosso segnale, giallo zinco, carta, carta scura, blu ottanio, di nuovo rosso, e il piede in inchiostro. Una griglia a 12 colonne divide lo spazio in proporzioni asimmetriche (7/5, 5/7, 3/1/2/1/5). Un solo grottesco, Archivo, porta tutta la voce: la larghezza variabile distingue il titolo dal testo, non un secondo carattere.
 
 Il contratto di direzione rifiuta due cose, e la build le rispetta: l'hero scuro con il terminale al neon e le card a gradiente.
 
@@ -202,7 +202,7 @@ Tre colori segnale a piena saturazione su una carta grigio-calda, con l'inchiost
 **Character:** Un grottesco industriale che cambia voce allargandosi. Il titolo è largo e pesante come una targa, il testo resta a larghezza normale e leggibile. Il font sta nel repository in `sito/font/`, con licenza OFL.
 
 ### Hierarchy
-- **Display**: il nome «Arturo» nella campitura rossa, larghissimo e compresso in altezza. Il sottotitolo nello stesso `h1` scende a 0,42em, peso 700, larghezza 100%.
+- **Display**: il nome «Arturo» nella campitura rossa, larghissimo e compresso in altezza. Il sottotitolo nello stesso `h1` misura 0,42 volte il display, scritto in misura assoluta (`clamp(1.764rem, 0.84rem + 3.78vw, 2.52rem)`), peso 700, larghezza 100%. In `em` il detector lo leggeva come testo da 6,72px.
 - **Headline**: i titoli di sezione («Istruzioni di montaggio», «Impegni»), larghezza 112%, 125% nella chiusura.
 - **Title**: i titoli dei passi, dei casi e delle avvertenze, massimo 18 caratteri di misura nei casi.
 - **Cifra**: i numeri dei passi di montaggio, peso 900 a larghezza piena. I numeri degli Impegni usano la stessa voce a 2,6rem.
@@ -224,7 +224,7 @@ Dentro la colonna vale una griglia modernista a 12 colonne, espressa con proporz
 - Testata di sezione: 6/6, titolo a sinistra e testo a destra.
 - Casi d'uso: griglia a 12 colonne con filetti su ogni cella. Un caso pieno (12, diviso 5/7), una coppia 7+5, un caso pieno (12, diviso 7/5).
 - Istruzioni di montaggio e avvertenze: tre colonne uguali divise da filetti verticali da 2px.
-- Impegni: 5/7. Schema delle guardie: 4/1/7, con la freccia nella colonna stretta.
+- Impegni: 5/7. Schema delle guardie: 3/1/2/1/5 dentro la Tav. 6. Il comando, una freccia, lo smistatore, una freccia e gli esiti.
 
 La testata resta fissa in alto (altezza minima 64px). Sotto 900px ogni griglia diventa una colonna sola e i filetti verticali diventano orizzontali. Sotto 860px l'indice mostra solo il link GitHub. Sotto 520px le liste di comandi mettono la descrizione sotto il comando.
 
@@ -280,7 +280,8 @@ Il comando da copiare, come una targhetta avvitata.
 Il componente che definisce il sistema.
 - Una figura su carta scura (ottanio chiaro nei casi su ottanio), con bordo inchiostro e la didascalia sotto un filetto da 2px.
 - La didascalia comincia con «Tav. N» in grassetto largo, poi una frase a bandiera che descrive la scena.
-- Il custode è un unico simbolo SVG riusato: testa a cerchio, marsina a trapezio, sparato triangolare in carta, papillon rosso. Ogni scena cambia gli oggetti intorno a lui (il tasto `/setup`, il terminale, i fogli, i computer, la lavagna).
+- Il custode è un unico simbolo SVG riusato: testa a cerchio, marsina a trapezio, sparato triangolare in carta, papillon rosso. Ogni scena cambia gli oggetti intorno a lui (il tasto `/setup`, il terminale, i fogli, i computer, la lavagna) e la sua posa. Il braccio è una spezzata in inchiostro da 9px che parte dalla spalla, la mano è un guanto bianco: un cerchio carta con bordo inchiostro da 3px. Nella Tav. 5 il braccio regge una bacchetta rossa.
+- La Tav. 6 è lo schema delle guardie. Sta su una tavola in ottanio chiaro con bordo da 3px. Al centro c'è il custode smistatore, con le braccia aperte, la stella sopra la testa e l'etichetta «Smistatore» in inchiostro.
 - Nella tavola d'apertura i pezzi del custode si montano in sequenza (900ms, 90ms di scarto tra un pezzo e l'altro) e la stella si accende ruotando. È l'unica animazione della pagina e si spegne con `prefers-reduced-motion`.
 
 ### Passi di montaggio
