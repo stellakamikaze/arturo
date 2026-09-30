@@ -59,12 +59,12 @@ elif [ "$PROJ_LANG" = "python" ]; then
   # Progetto Python. Tool assenti =
   # SKIP ESPLICITO (mai exit-0 muto): l'assenza di check non e' un "verde".
   echo "--- Python: ruff ---"
-  command -v ruff >/dev/null 2>&1 && { ruff check . 2>&1 | tail -20; RUFF_EXIT=$?; } || echo "ruff assente: SKIP esplicito (installa per il lint)"
+  command -v ruff >/dev/null 2>&1 && { ruff check . 2>&1 | tail -20; RUFF_EXIT=${PIPESTATUS[0]}; } || echo "ruff assente: SKIP esplicito (installa per il lint)"
   echo "--- Python: pytest ---"
-  command -v pytest >/dev/null 2>&1 && { pytest -q 2>&1 | tail -30; TEST_EXIT=$?; } || echo "pytest assente: SKIP esplicito (nessun test eseguito)"
+  command -v pytest >/dev/null 2>&1 && { pytest -q 2>&1 | tail -30; TEST_EXIT=${PIPESTATUS[0]}; } || echo "pytest assente: SKIP esplicito (nessun test eseguito)"
   if [ "$MODE" = "full" ] && command -v mypy >/dev/null 2>&1 && [ -f pyproject.toml ]; then
     echo "--- Python: mypy ---"
-    mypy . 2>&1 | tail -20; MYPY_EXIT=$?
+    mypy . 2>&1 | tail -20; MYPY_EXIT=${PIPESTATUS[0]}
   fi
 
 else

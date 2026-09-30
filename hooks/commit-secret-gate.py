@@ -106,6 +106,14 @@ def main() -> int:
     repo = _repo_for_command(command, cwd)
     if not repo:
         return _ask("Repository destinatario del commit non risolvibile: conferma prima di proseguire.")
+    # Fuori da un repository Git il commit fallisce da solo: niente da scansionare.
+    try:
+        dentro = subprocess.run(["git", "-C", repo, "rev-parse", "--git-dir"], capture_output=True,
+                                text=True, timeout=4, check=False).returncode == 0
+    except Exception:
+        dentro = True
+    if not dentro:
+        return 0
 
     # `git commit -a/--all` mette in stage i file tracciati modificati DURANTE il
     # commit: al momento di questo check (PreToolUse) l'index non li contiene ancora,
