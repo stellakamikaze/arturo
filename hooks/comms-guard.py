@@ -30,6 +30,16 @@ SEND_BINARIES = [
     (r"\bmailx\b", "mailx"),
     (r"\bmsmtp\b", "msmtp"),
     (r"\bgws\b[^\n|;&]*\bmessages\s+send\b", "gws Gmail send"),
+    # gws: l'invio si ferma, la bozza no. `gws gmail +send` e' la forma piu' comune.
+    (r"\bgws\b.*\bgmail\b.*(?:\+send\b|\bdrafts\s+send\b)", "gws gmail (invio)"),
+    # Inoltro automatico, deleghe e filtri della casella: spediscono la posta altrove
+    # in silenzio, per sempre. Stesso rango di un invio.
+    (r"\bgws\b.*\bgmail\b.*\b(forwardingAddresses|updateAutoForwarding|delegates|filters)\b.*\b(create|update|patch)\b",
+     "gws gmail (inoltro, delega o filtro)"),
+    (r"\bmail\s+\S+@\S+", "mail <indirizzo>"),
+    (r"\bmutt\s+\S+@\S+", "mutt <indirizzo>"),
+    (r"mailto:", "mailto: (apre un invio)"),
+    (r"\bsmtps?://", "smtp:// (invio diretto)"),
     (r"\bswaks\b", "swaks"),
     (r"\bosascript\b.*\b(Mail|Messages)\b", "AppleScript Mail/Messages"),
     (r"\bwhatsapp[_/-]?send\b", "helper WhatsApp"),

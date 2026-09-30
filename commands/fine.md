@@ -61,6 +61,8 @@ progetto pubblico decisioni, note e task entrerebbero nella storia Git.
 3. Cosa si potrebbe fare che non è stato discusso? (migliorie, edge case, tech debt)
 4. Ogni item emerso è in `TaskList`? Se manca, crealo con `TaskCreate` ora.
 5. I task da sessioni precedenti vanno aggiornati/chiusi?
+6. Cosa hai provato che non ha funzionato, e perché? (finisce in «Vicoli ciechi»: la
+   sessione dopo non deve rifare gli stessi tentativi)
 
 Template:
 
@@ -75,6 +77,9 @@ Template:
 
 ## Decisioni prese
 1. [Decisione e motivazione]
+
+## Vicoli ciechi (tentativi falliti)
+- NON [cosa] — [perché non funziona, con l'errore esatto se c'è]
 
 ## File modificati
 [git diff --stat o lista]

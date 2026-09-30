@@ -18,6 +18,13 @@ upstream: nidhinjs/prompt-master@2bd9251
 
 Si attiva su ogni richiesta di lavoro rivolta a Claude Code, anche breve. Non si attiva sulla conversazione pura: domande, commenti, risposte a un menu, spiegazioni senza nulla da fare. In caso di dubbio il brief si mostra: costa tre righe.
 
+Casi di confine:
+
+- **Una domanda che chiede un'azione è lavoro.** «Puoi fermare X e farlo partire su Y?», «fai una review di…», «verifica se…»: il brief si mostra. Resta conversazione la domanda che chiede un parere o un fatto («ci serve?», «c'è spazio?»).
+- **Il via libera a proposte già elencate è una risposta a un menu.** «vai», «procedi su tutto», «1+2+3», «tutti», «il resto sì»: il brief l'hanno già avuto le proposte, non se ne scrive un altro.
+- **Stop e comandi di controllo non passano mai dal brief.** «ferma», «interrompi», «stato», «un update al minuto»: si esegue subito. Un brief prima di fermare un'operazione ritarda un'azione di sicurezza.
+- **Una correzione a lavoro iniziato è una riga**, «Brief corretto: …», senza ricaricare la skill. La skill si ricarica solo se l'obiettivo è nuovo.
+
 ### 1. Arricchimento (silenzioso)
 
 Le richieste dell'utente sono spesso sintetiche: il lavoro non è riformularle, è ricostruire il contesto operativo che non contengono. Il destinatario del contesto sei tu, non lui. Prima di scrivere il brief recupera davvero:
@@ -154,7 +161,7 @@ Model names, defaults, controls, and availability change quickly. When the user 
 
 **Claude (claude.ai, Claude API, Claude 5 / current Claude models)**
 
-Do not assume one universal Claude default. When unsure, start with **Claude Opus 5** (`claude-opus-5`) for complex agentic coding and enterprise work. Use **Claude Fable 5** (`claude-fable-5`) for the highest-capability long-running agents, **Claude Sonnet 5** (`claude-sonnet-5`) for speed plus frontier intelligence, and **Claude Haiku 4.5** for fast, economical workloads. Ask which model only when the distinction changes the prompt.
+Do not assume one universal Claude default. When unsure, start with **Claude Opus 5.5** (`claude-opus-5-5`) for complex agentic coding and enterprise work. Use **Claude Fable 5.1** (`claude-fable-5-1`) for the highest-capability long-running agents, **Claude Sonnet 5.5** (`claude-sonnet-5-5`) for speed plus frontier intelligence, and **Claude Haiku 4.5** for fast, economical workloads. Ask which model only when the distinction changes the prompt.
 
 *Durable across current Claude models:*
 - Be clear and direct. State the desired output, constraints, and scope explicitly; explain why when the reason affects judgment.

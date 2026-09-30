@@ -47,7 +47,14 @@ DANGEROUS = [
     (r"\bchmod\s+-R\s+0*777\s+/(\s|$)", "permessi world-writable su root"),
     (r"\bchown\s+-R\s+\S+\s+/(\s|$)", "cambio ownership ricorsivo su root"),
     # curl|bash e le sue varianti che eseguono uno script remoto scaricato al volo:
-    (r"\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)\b",
+    (r"\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(bash|sh|zsh|fish|perl|ruby|node|php)\b",
+     "pipe di script remoto in un interprete"),
+    # `curl ... | python3 -c "import json..."` e' parsing, non esecuzione dello stdin.
+    # Passa solo il codice inline fra virgolette senza command-substitution ne'
+    # primitive che eseguono testo. Le coppie di escape si consumano intere.
+    (r"\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?python3?\b"
+     r"(?!\s+-c\s+([\"'])(?:\\[\s\S]|(?!\3|\\|\$\(|`|\b(?:exec|eval|compile|__import__|__builtins__|builtins|"
+     r"getattr|globals|importlib|system|popen|subprocess|runpy|pickle|marshal|spawn)\b)[\s\S])*\3)",
      "pipe di script remoto in un interprete"),
     (r"\b(bash|sh|zsh|fish|python3?|perl|ruby|node|php)\b\s+<\(\s*(curl|wget|fetch)\b",
      "esecuzione via process-substitution di script remoto"),
@@ -132,8 +139,45 @@ def _reads_secret(command: str) -> bool:
     return False
 
 
+_SHELLS = frozenset(("sh", "bash", "zsh", "dash", "ksh"))
+# La cartella nominata senza slash finale (`find ~/.aws | xargs cat`): SECRET_PATH_RE
+# vuole lo slash, perche' per un cat diretto il nome della cartella non e' una lettura.
+# Per xargs e -exec invece la cartella e' la sorgente dei file letti.
+_SECRET_DIR_RE = re.compile(r"(\.ssh|\.gnupg|\.secrets|\.aws)(?=[\s'\"/*]|$)")
+
+
+def _lettura_indiretta(cmd):
+    """Il path segreto e il lettore stanno in comandi diversi, e il controllo per
+    segmento non li vede insieme: `find <segreto> | xargs cat`,
+    `echo <segreto> | while read f; do cat "$f"`, `find <segreto> -exec cat {} \\;`.
+    `ls <segreto> | xargs basename` resta muto."""
+    def segreto(s):
+        return SECRET_PATH_RE.search(s) or _SECRET_DIR_RE.search(s)
+
+    testo = re.sub(r"\d*>&\d+|&>", " ", cmd)
+    for stmt in re.split(r"\|\||&&|[;&\n]", testo):
+        stadi = stmt.split("|")
+        for k, stadio in enumerate(stadi):
+            if not segreto(stadio):
+                continue
+            for dopo in stadi[k + 1:]:
+                toks = [os.path.basename(t) for t in dopo.split()]
+                if not toks:
+                    continue
+                if toks[0] in ("xargs", "parallel") and any(t in _READ_BINS or t in _SHELLS for t in toks[1:]):
+                    return True
+                if toks[0] == "while" and "read" in toks[1:3]:
+                    return True
+        m = re.search(r"\bfind\b(.*?)\s-(?:exec|execdir|ok|okdir)\s+(\S+)", stmt)
+        if m and segreto(m.group(1)) and os.path.basename(m.group(2)) in (_READ_BINS | _SHELLS):
+            return True
+    return False
+
+
 def _reads_secret_flat(cmd: str) -> bool:
     if _SECRET_REDIR_RE.search(cmd):
+        return True
+    if _lettura_indiretta(cmd):
         return True
     for seg in re.split(r"[|;&\n]+", cmd):
         toks = seg.split()
@@ -168,6 +212,14 @@ DOCKER_DESTRUCTIVE_RE = re.compile(
 )
 
 BARE_TARGETS = {".", "./", "*", ".*", "*.*", "./*", ".//"}
+
+# --- sed che SCRIVE col comando `w` -> ask ---
+# Il comando `w` di sed scrive su file anche sotto `-n`, e anche come flag di `s///`:
+# `sed -n 'w ~/.zshrc' x` sovrascrive .zshrc aggirando il deny Edit(~/.zshrc).
+# Il carattere prima di `w` e' "non alfanumerico" per coprire l'apice di 'w file',
+# lo spazio di `; w file` e lo slash di `s/a/b/w file`. `[^|&]*` non attraversa una
+# pipe, cosi' `sed -n p x | grep w foo` non matcha.
+SED_WRITE_RE = re.compile(r"(^|[\s;&|])sed\s[^|&]*[^A-Za-z0-9]w\s+[^\s|;&]")
 
 # Cartelle che uno strumento ricrea da solo: cancellarle non perde lavoro.
 RIGENERABILI = {
@@ -443,6 +495,14 @@ def main() -> int:
             "Lettura di un file segreto via shell (chiave privata, credenziali, "
             "~/.ssh, ~/.aws...). Conferma solo se serve davvero: il contenuto "
             "finirebbe nel contesto e potrebbe essere esfiltrato."
+        )
+
+    # 3-bis) sed che scrive col comando `w` -> ask
+    if SED_WRITE_RE.search(command):
+        return _ask(
+            "sed scrive su file col comando `w` (vale anche sotto -n e come flag "
+            "di s///): il file indicato viene sovrascritto. Conferma solo se la "
+            "scrittura e' voluta."
         )
 
     # 4) Docker distruttivo su volumi -> ask

@@ -64,7 +64,7 @@ process.stdin.on('end', () => {
       } else if (used < 80) {
         ctx = ` \x1b[38;5;208m${bar} ${used}%\x1b[0m`;
       } else {
-        ctx = ` \x1b[5;31m💀 ${bar} ${used}%\x1b[0m`;
+        ctx = ` \x1b[5;31m[CRITICO] ${bar} ${used}%\x1b[0m`;
       }
     }
 

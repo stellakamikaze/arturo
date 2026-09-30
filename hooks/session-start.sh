@@ -21,6 +21,15 @@ fi
 # Info directory di lavoro
 echo "DIRECTORY: $PROJECT_ROOT"
 
+# Dopo un compact il contesto e' stato riassunto: prima di continuare, un riepilogo che
+# l'utente puo' controllare. SessionStart con source "compact" e' la via documentata;
+# lo stdout di PostCompact non entra nel contesto.
+HOOK_INPUT=""
+[ -t 0 ] || HOOK_INPUT="$(cat)"
+if printf '%s' "$HOOK_INPUT" | grep -qE '"source"[[:space:]]*:[[:space:]]*"compact"'; then
+  echo "COMPACT APPENA AVVENUTO: fermati. Riepiloga all'utente file modificati, comandi di test e build, decisioni, task pendenti e ultimo errore. Poi aspetta la sua conferma prima di continuare."
+fi
+
 # Reminder context management
 echo "CONTEXT: al ~65% di utilizzo completa il task, chiudi con /fine e riparti con /inizio in una sessione nuova"
 
