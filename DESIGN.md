@@ -37,7 +37,7 @@ typography:
     fontSize: "clamp(17px, 1.02rem + 0.2vw, 19.5px)"
     lineHeight: 1.56
   mono:
-    fontFamily: "Atkinson Hyperlegible Mono, ui-monospace, monospace"
+    fontFamily: "Courier Prime, Courier New, ui-monospace, monospace"
     use: "solo comandi, percorsi e messaggi reali delle guardie"
 spacing:
   gutter: "clamp(16px, 4vw, 56px)"
@@ -68,11 +68,13 @@ Strategia: **full palette su fondo di lamiera**. Il fondo è il grigio-verde min
 
 - **Big Shoulders** (display, maiuscolo, 900): titoli, dorsi dei faldoni, linguette, timbri, nastro Dymo. Condensato come le scritte a normografo sui dorsi.
 - **Atkinson Hyperlegible Next** (testo): scelto per la leggibilità di chi non è tecnico.
-- **Atkinson Hyperlegible Mono**: solo per comandi, percorsi e messaggi veri delle guardie.
+- **Courier Prime** (mono, 400 e 700): solo per comandi, percorsi e messaggi veri delle guardie. È la macchina da scrivere d'ufficio: il registro sembra battuto a macchina. Sostituisce Atkinson Hyperlegible Mono dal 1/10/2026, che si leggeva come un terminale. I comandi restano sempre in minuscolo, anche dentro un titolo o un pulsante.
+- **Due strumenti, due ruoli.** Il normografo (Big Shoulders) per ciò che è stampato sul cartone. La macchina da scrivere (Courier Prime) per ciò che è battuto sul foglio. Il sottotitolo della copertina è Big Shoulders 500 con tracking largo, per distinguersi dai titoli a 900.
+- **Big Shoulders con l'asse ottico** (`opsz` 10–72, `font-optical-sizing:auto`): le etichette piccole prendono il disegno aperto, i titoli quello stretto.
 - I font stanno in `sito/font/` con licenza OFL. Nessun font da server esterni.
-- Nel CSS le famiglie si chiamano «Big Shoulders», «Atkinson Next» e «Atkinson Mono».
+- Nel CSS le famiglie si chiamano «Big Shoulders», «Atkinson Next» e «Courier Prime».
 - **Interlinea dei titoli display mai sotto 1,02.** In Big Shoulders 900 gli accenti maiuscoli (É, Ì, À) arrivano a 0,979 em: sotto 1,0 entrano nella riga sopra, e in italiano capita in quasi ogni titolo («FINCHÉ», «SÌ»).
-- **Cifre tabulari solo nelle tabelle** (registro, foglio di trasmissione, datario). In Atkinson Next lo zero tabulare è barrato: nel testo corrente «30» diventava «3Ø».
+- **Cifre tabulari solo nelle tabelle** (registro, foglio di trasmissione, datario). Nel testo corrente le cifre proporzionali spaziano meglio. Lo zero barrato di Atkinson Next è voluto dal font (distingue 0 da O) e resta.
 
 ## Components
 
