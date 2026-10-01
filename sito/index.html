@@ -5,667 +5,539 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Arturo · il custode di Claude Code</title>
 <meta name="description" content="Arturo è un harness gratuito e open source per Claude Code: guardie di sicurezza, sessioni ordinate e, dal 30 settembre 2026, lo strato della tua organizzazione.">
-<meta name="theme-color" content="#56615b">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='7' width='26' height='20' rx='2' fill='%23c63a28'/%3E%3Cpath d='M3 9h9l2-4h-8a3 3 0 0 0-3 3z' fill='%23c63a28'/%3E%3Crect x='7' y='14' width='18' height='6' rx='1' fill='%23141414'/%3E%3C/svg%3E">
-<link rel="preload" href="font/big-shoulders.woff2" as="font" type="font/woff2" crossorigin>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#282834">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23282834'/%3E%3Cpath d='M4 25c5-5 9-6 12-4s7 1 12-4' fill='none' stroke='%23fefffc' stroke-width='1.6' stroke-linecap='round'/%3E%3Ccircle cx='22' cy='9' r='3' fill='%23f2a24a'/%3E%3C/svg%3E">
+<link rel="preload" href="font/sorts-mill-goudy.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="font/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="img/scena-1.webp" as="image" type="image/webp" fetchpriority="high">
 <style>
-@font-face{font-family:"Big Shoulders";src:url(font/big-shoulders.woff2) format("woff2");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Sorts Mill Goudy";src:url(font/sorts-mill-goudy.woff2) format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Sorts Mill Goudy";src:url(font/sorts-mill-goudy-italic.woff2) format("woff2");font-weight:400;font-style:italic;font-display:swap}
 @font-face{font-family:"Atkinson Next";src:url(font/atkinson-next.woff2) format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
 @font-face{font-family:"Atkinson Next";src:url(font/atkinson-next-italic.woff2) format("woff2");font-weight:200 800;font-style:italic;font-display:swap}
-@font-face{font-family:"Courier Prime";src:url(font/courier-prime.woff2) format("woff2");font-weight:400;font-display:swap}
-@font-face{font-family:"Courier Prime";src:url(font/courier-prime-bold.woff2) format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"Atkinson Mono";src:url(font/atkinson-mono.woff2) format("woff2");font-weight:200 800;font-display:swap}
+
 :root{
-  --armadio:#56615b;
-  --armadio-scuro:#3b433f;
-  --armadio-chiaro:#8b958f;
-  --rosso:#c63a28;
-  --rosso-scuro:#8f2616;
-  --blu:#1d4c9c;
-  --blu-scuro:#133670;
-  --verde:#1d7449;
-  --verde-scuro:#12512f;
-  --giallo:#f3b50b;
-  --giallo-scuro:#c98f00;
-  --manila:#e6c486;
-  --manila-scuro:#bf9a58;
-  --foglio:#fbfaf6;
-  --foglio-2:#efece3;
-  --inchiostro:#171816;
-  --inchiostro-2:#484a45;
-  --viola:#56389a;
-  --timbro-rosso:#c0232b;
-  --timbro-verde:#1b6a40;
-  --nastro:#161616;
+  --tela:#fefffc;
+  --carta:#ffffff;
+  --lino:#f9faf7;
+  --inchiostro:#171717;
+  --grafite:#2c2c2c;
+  --carbone:#444141;
+  --cenere:#646464;
+  --nebbia:#b4b8b4;
+  --foschia:#dee2de;
+  --crepuscolo:#282834;
+  --notte:#1f1f29;
+  --sera:#2b6f9e;
+  --sera-chiaro:#8cc4e6;
+  --mare:#0d5e8f;
+  --passa:#2f7a4f;
+  --blocca:#b2392b;
+  --arturo:#f2a24a;
 
-  --display:"Big Shoulders", "Arial Narrow", sans-serif;
-  --testo:"Atkinson Next", system-ui, sans-serif;
-  --mono:"Courier Prime", "Courier New", ui-monospace, monospace;
+  --serif:"Sorts Mill Goudy", "Iowan Old Style", Georgia, serif;
+  --sans:"Atkinson Next", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"Atkinson Mono", ui-monospace, Menlo, monospace;
 
-  --gutter:clamp(16px, 4vw, 56px);
-  --colonna:1280px;
-  --ritmo:clamp(80px, 11vw, 168px);
-  --ombra-cartone:0 1px 0 rgba(255,255,255,.22) inset, 0 -1px 0 rgba(0,0,0,.18) inset, 0 28px 40px -22px rgba(0,0,0,.6), 0 3px 6px rgba(0,0,0,.18);
-  --ombra-foglio:0 1px 2px rgba(0,0,0,.12), 0 18px 34px -20px rgba(0,0,0,.45);
-  --fibra:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
-  --lamiera:repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 2px, transparent 2px 7px);
+  --t-display:clamp(2.1rem, 1.5rem + 1.8vw, 3.1rem);
+  --t-h2:clamp(2rem, 1.35rem + 1.9vw, 3rem);
+  --t-h3:clamp(1.45rem, 1.25rem + .6vw, 1.7rem);
+  --t-lead:clamp(1.06rem, 1rem + .25vw, 1.18rem);
+
+  --gutter:clamp(16px, 4vw, 48px);
+  --colonna:1200px;
+  --ritmo:clamp(72px, 9vw, 128px);
+  --ombra-card:0 1px 1px rgba(0,0,0,.08), 0 4px 5px rgba(0,0,0,.08);
+  --ombra-schema:0 1px 8px rgba(0,0,0,.05);
   --esce:cubic-bezier(.16,1,.3,1);
+  --cielo:linear-gradient(180deg,#2a2f5c 0%,#5b4b86 42%,#c47c7a 74%,#f0b27c 100%);
 }
 
 *,*::before,*::after{box-sizing:border-box}
-html{scroll-behavior:smooth;scrollbar-color:var(--armadio-chiaro) var(--armadio-scuro);-webkit-text-size-adjust:100%}
+html{scroll-behavior:smooth;scroll-padding-top:96px;-webkit-text-size-adjust:100%;scrollbar-color:var(--nebbia) var(--tela)}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-body{margin:0;background:var(--armadio);background-image:var(--lamiera);color:#fff;font:400 clamp(17px, 1.02rem + .2vw, 19.5px)/1.56 var(--testo);font-optical-sizing:auto;overflow-x:clip;caret-color:var(--giallo)}
-::selection{background:var(--giallo);color:var(--inchiostro)}
+body{margin:0;background:var(--tela);color:var(--carbone);font:400 clamp(16.5px, .98rem + .15vw, 18px)/1.55 var(--sans);letter-spacing:-.005em;overflow-x:clip}
+::selection{background:#cfe6f4;color:var(--inchiostro)}
 img,svg{display:block;max-width:100%}
-a{color:inherit;text-decoration-thickness:2px;text-underline-offset:.22em}
-a:hover{text-decoration-thickness:3px}
-:focus-visible{outline:3px solid var(--giallo);outline-offset:3px;border-radius:2px}
-code,kbd,.mono{font-family:var(--mono);font-size:1em;font-weight:400;letter-spacing:0;text-transform:none}
-h1,h2,h3{margin:0;font-weight:inherit;text-wrap:balance}
+a{color:var(--grafite);text-decoration-thickness:1px;text-underline-offset:.24em;text-decoration-color:var(--nebbia);transition:text-decoration-color .2s}
+a:hover{text-decoration-color:currentColor}
+:focus-visible{outline:2px solid var(--sera);outline-offset:3px;border-radius:4px}
+h1,h2,h3{margin:0;font-weight:400;text-wrap:balance;color:var(--grafite)}
 p{margin:0 0 1em;text-wrap:pretty}
 p:last-child{margin-bottom:0}
 ul,ol{margin:0;padding:0;list-style:none}
+code,kbd,.mono{font-family:var(--mono);font-size:.88em;letter-spacing:0}
 button{font:inherit;color:inherit;cursor:pointer}
 .vis-sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.salta{position:absolute;left:12px;top:-60px;z-index:50;background:var(--giallo);color:var(--inchiostro);padding:10px 16px;font-weight:700;text-decoration:none}
+.salta{position:absolute;left:12px;top:-60px;z-index:60;background:var(--carta);color:var(--grafite);padding:10px 16px;border-radius:8px;box-shadow:var(--ombra-card)}
 .salta:focus{top:12px}
-.colonna{max-width:var(--colonna);margin:0 auto;padding:0 var(--gutter)}
+.colonna{max-width:calc(var(--colonna) + var(--gutter) * 2);margin:0 auto;padding:0 var(--gutter)}
 
-/* ---------- materiali ---------- */
-.cartone{position:relative;isolation:isolate}
-.cartone::after{content:"";position:absolute;inset:0;background-image:var(--fibra);mix-blend-mode:multiply;opacity:.16;pointer-events:none;border-radius:inherit;z-index:-1}
-.dymo{display:inline-block;background:var(--nastro);color:#efefea;font-family:var(--display);font-weight:800;text-transform:uppercase;letter-spacing:.16em;padding:.12em .42em .1em .58em;border-radius:.14em;text-shadow:0 .045em 0 rgba(255,255,255,.28),0 -.04em 0 rgba(0,0,0,.9);box-shadow:inset 0 .06em 0 rgba(255,255,255,.14),inset 0 -.06em 0 rgba(0,0,0,.5),0 .05em .12em rgba(0,0,0,.45);line-height:1.1}
-.foglio{background:var(--foglio);color:var(--inchiostro);box-shadow:var(--ombra-foglio);position:relative}
-.timbro{--c:var(--viola);display:inline-block;color:var(--c);border:.2em double var(--c);padding:.08em .5em 0;font:900 1.12rem/1.25 var(--display);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;transform:rotate(var(--r,-5deg));mix-blend-mode:multiply;filter:url(#inchiostro);opacity:.92;border-radius:.18em}
-.timbro--rosso{--c:var(--timbro-rosso)}
-.timbro--verde{--c:var(--timbro-verde)}
-.js .timbro[data-batti]{opacity:0;transform:rotate(var(--r,-5deg)) scale(1.9)}
-.js .timbro[data-batti].battuto{opacity:.92;transform:rotate(var(--r,-5deg)) scale(1);transition:transform .34s cubic-bezier(.3,1.5,.5,1),opacity .12s linear}
-@media (prefers-reduced-motion:reduce){.js .timbro[data-batti]{opacity:.92;transform:rotate(var(--r,-5deg))}}
+/* ---------- titoli ---------- */
+.titolo{font:400 var(--t-h2)/1.1 var(--serif);letter-spacing:-.02em}
+.titolo-3{font:400 var(--t-h3)/1.25 var(--serif);letter-spacing:-.015em}
+.attacco{font-size:var(--t-lead);color:var(--cenere);max-width:52ch}
+.testa{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:clamp(20px,4vw,64px);align-items:end;margin-bottom:clamp(36px,5vw,64px)}
+.testa .titolo{max-width:16ch}
+@media (max-width:820px){.testa{grid-template-columns:minmax(0,1fr);align-items:start}}
 
-/* ---------- bottoni ---------- */
-.bottone{display:inline-flex;align-items:center;gap:.6em;min-height:54px;padding:0 24px;border:0;border-radius:4px;font:750 1.25rem/1 var(--display);letter-spacing:.05em;text-transform:uppercase;text-decoration:none;transition:transform .25s var(--esce),box-shadow .25s var(--esce),background-color .2s}
-.bottone--pieno{background:var(--giallo);color:var(--inchiostro);box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 10px 18px -10px rgba(0,0,0,.7)}
-.bottone--pieno:hover{transform:translateY(-2px);box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 16px 22px -12px rgba(0,0,0,.75)}
-.bottone--vuoto{background:transparent;color:#fff;box-shadow:inset 0 0 0 2px rgba(255,255,255,.85)}
-.bottone--vuoto:hover{background:rgba(255,255,255,.12)}
-.bottone:active{transform:translateY(1px)}
-.bottone svg{width:20px;height:20px;flex:none}
+/* ---------- azioni ---------- */
+.azione{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 16px;border-radius:8px;font:500 .95rem/1 var(--sans);letter-spacing:-.01em;text-decoration:none;border:1px solid transparent;transition:background-color .2s,border-color .2s,color .2s}
+.azione--piena{background:var(--notte);color:#fff;border-color:var(--crepuscolo)}
+.azione--piena:hover{background:#34344a}
+.azione--chiara{background:rgba(255,255,255,.94);color:var(--notte)}
+.azione--chiara:hover{background:#fff}
+.azione--bordo{color:var(--sera);border-color:var(--sera);background:transparent}
+.azione--bordo:hover{background:rgba(43,111,158,.07)}
+.freccia{display:inline-grid;place-items:center;width:18px;height:18px;border:1px solid currentColor;border-radius:50%;flex:none}
+.freccia svg{width:10px;height:10px}
+.link-freccia{display:inline-flex;align-items:center;gap:8px;font-weight:500;text-decoration:underline;text-decoration-color:currentColor;text-decoration-thickness:1px;text-underline-offset:.3em}
 
-/* ---------- testata ---------- */
-.testata{position:fixed;inset:0 0 auto;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px var(--gutter);background:rgba(59,67,63,.92);backdrop-filter:saturate(1.2) blur(8px);-webkit-backdrop-filter:saturate(1.2) blur(8px);box-shadow:0 1px 0 rgba(255,255,255,.08),0 8px 20px -14px rgba(0,0,0,.8);transform:translateY(-110%);transition:transform .45s var(--esce)}
-.testata.vista{transform:none}
-.testata .dymo{font-size:1.05rem;text-decoration:none}
-.divisori{display:flex;gap:4px;align-items:flex-end}
-.divisori a{display:block;padding:7px 14px 5px;border-radius:6px 6px 0 0;font:700 1rem/1 var(--display);letter-spacing:.06em;text-transform:uppercase;text-decoration:none;color:var(--inchiostro);background:var(--tab);transform:translateY(4px);transition:transform .2s var(--esce)}
-.divisori a:hover,.divisori a[aria-current="true"]{transform:none}
-.divisori a.chiaro{color:#fff}
-@media (max-width:1020px){.divisori{display:none}}
+/* ---------- navigazione a pillola ---------- */
+.pillola{position:fixed;top:14px;left:50%;z-index:40;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:5px;border-radius:50px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.42);backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2);box-shadow:0 2px 6px rgba(0,0,0,.15);transition:background-color .35s,border-color .35s,color .35s;color:#fff;max-width:calc(100vw - 24px)}
+.pillola a{color:inherit;text-decoration:none}
+.pillola__marchio{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.14);flex:none}
+.pillola__marchio svg{width:22px;height:22px}
+.pillola__voci{display:flex;gap:2px;margin:0 6px}
+.pillola__voci a{padding:9px 11px;border-radius:30px;font:500 .93rem/1 var(--sans);letter-spacing:-.01em;white-space:nowrap;transition:background-color .2s}
+.pillola__voci a:hover,.pillola__voci a[aria-current="true"]{background:rgba(255,255,255,.16)}
+.pillola .azione{min-height:38px;border-radius:30px;padding:0 14px 0 16px}
+.pillola.chiara{background:rgba(254,255,252,.8);border-color:var(--foschia);color:var(--grafite)}
+.pillola.chiara .pillola__marchio{background:var(--lino)}
+.pillola.chiara .pillola__voci a:hover,.pillola.chiara .pillola__voci a[aria-current="true"]{background:var(--lino)}
+@media (max-width:760px){.pillola__voci{display:none}}
 
 /* ---------- apertura ---------- */
-.apertura{position:relative;min-height:min(100svh,980px);padding:clamp(28px,5vw,64px) 0 0;display:grid;align-content:center;overflow-x:clip}
-.apertura .colonna{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:clamp(28px,5vw,80px);align-items:end;width:100%}
-.firma-alto{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:clamp(24px,4vw,48px);font-size:.9rem;color:#e3e8e5}
-.firma-alto a{font-weight:700}
-
-.pratica{position:relative;perspective:2200px;min-height:560px;display:grid}
-.pratica__dorso{position:absolute;inset:0;background:var(--rosso-scuro);border-radius:6px 10px 10px 6px;box-shadow:var(--ombra-cartone)}
-.pratica__dentro{position:absolute;inset:18px 22px 18px 34px;display:grid;padding:clamp(18px,3vw,34px);overflow:auto}
-.pratica__dentro .foglio{padding:clamp(20px,3vw,36px);border-radius:2px}
-.pratica__dentro .foglio::before{content:"";position:absolute;inset:8px -8px -8px 8px;background:var(--foglio-2);z-index:-1;box-shadow:var(--ombra-foglio)}
-.indice-pratica{display:grid;gap:2px;margin-top:14px}
-.indice-pratica a{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:baseline;padding:10px 0;border-top:1px solid #d9d5ca;text-decoration:none}
-.indice-pratica a:hover strong{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:.2em}
-.indice-pratica strong{font:800 1.35rem/1.02 var(--display);letter-spacing:.03em;text-transform:uppercase}
-.indice-pratica span{color:var(--inchiostro-2);font-size:.9rem}
-.titolo-foglio{font:800 clamp(1.6rem,1.15rem + 1.4vw,2.2rem)/1.02 var(--display);text-transform:uppercase;letter-spacing:.015em;margin:0}
-
-.pratica__copertina{position:relative;gap:28px;background:var(--rosso);border-radius:6px 10px 10px 6px;box-shadow:var(--ombra-cartone);transform-origin:0 50%;transform-style:preserve-3d;transition:transform 1.25s var(--esce);display:flex;flex-direction:column;justify-content:space-between;padding:clamp(22px,3.4vw,44px) clamp(22px,3.4vw,44px) clamp(22px,3.4vw,44px) clamp(40px,5vw,64px);z-index:2}
-.pratica__copertina::before{content:"";position:absolute;inset:0 auto 0 14px;width:12px;border-left:2px solid rgba(0,0,0,.2);border-right:2px solid rgba(0,0,0,.14);border-radius:0;pointer-events:none}
-.pratica.aperta .pratica__copertina{transform:rotateY(-84deg)}
-@media (prefers-reduced-motion:reduce){.pratica__copertina{transition-duration:.01s}}
-.pratica__copertina h1{display:grid;gap:clamp(16px,2vw,26px);justify-items:start}
-.pratica__copertina .dymo{font-size:clamp(3rem,.6rem + 6.6vw,7.4rem);letter-spacing:.14em;padding:.06em .28em .02em .42em;transform:rotate(-1.4deg);line-height:1}
-.sottotitolo{font:500 clamp(1.45rem,1rem + 1.8vw,2.4rem)/1.12 var(--display);text-transform:uppercase;letter-spacing:.05em;max-width:19ch}
-.etichetta{background:var(--foglio);color:var(--inchiostro);padding:14px 18px 14px;max-width:44ch;font-size:1rem;line-height:1.5;box-shadow:0 1px 2px rgba(0,0,0,.25);transform:rotate(.6deg);border-radius:1px;position:relative}
-.etichetta::before{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:var(--blu);opacity:.85}
-.azioni{display:flex;flex-wrap:wrap;gap:12px;margin-top:clamp(18px,2.4vw,28px)}
-.timbro-copertina{--c:#fff;--r:-9deg;position:absolute;right:clamp(26px,4vw,52px);top:44%;mix-blend-mode:normal;font-size:1.2rem;opacity:.9}
-
-.elastico{position:absolute;inset:0;pointer-events:none;z-index:3;transition:transform .5s cubic-bezier(.5,-0.4,.7,1),opacity .35s .15s}
-.elastico path{fill:none;stroke:#1b1b1b;stroke-width:15;stroke-linecap:butt}
-.elastico path.lucido{stroke:rgba(255,255,255,.2);stroke-width:2.5}
-.pratica.aperta .elastico{transform:translate(18%,-14%) rotate(8deg);opacity:0}
-
-/* scaffale */
-.scaffale{display:flex;align-items:flex-end;gap:6px;padding:0 6px;min-height:520px;position:relative}
-.scaffale::after{content:"";position:absolute;left:-18px;right:-18px;bottom:-14px;height:14px;background:linear-gradient(#9aa39e,#6c7671 40%,#3f4743);border-radius:2px;box-shadow:0 12px 20px -10px rgba(0,0,0,.7)}
-.faldone{--h:92%;flex:1 1 0;min-width:0;height:var(--h);max-height:560px;min-height:340px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:20px 0 26px;border-radius:5px 5px 2px 2px;background:var(--c);color:var(--inchiostro);text-decoration:none;box-shadow:var(--ombra-cartone);transition:transform .35s var(--esce),box-shadow .35s var(--esce);transform-origin:50% 100%}
-.faldone:hover,.faldone:focus-visible{transform:translateY(-16px);box-shadow:0 1px 0 rgba(255,255,255,.22) inset,0 40px 44px -24px rgba(0,0,0,.7)}
-.faldone__finestra{background:var(--foglio);width:68%;flex:1;max-height:62%;border-radius:2px;box-shadow:inset 0 0 0 3px rgba(0,0,0,.14),inset 0 3px 5px rgba(0,0,0,.2);display:grid;place-items:center;padding:10px 0;overflow:hidden}
-.faldone__finestra span{writing-mode:vertical-rl;transform:rotate(180deg);font:900 clamp(1.1rem,.6rem + 1.1vw,1.7rem)/1 var(--display);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
-.faldone__foro{width:52%;aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 50% 42%,#1a1d1b 0 46%,#c8cdca 49% 55%,#6e7773 60% 66%,transparent 68%);box-shadow:0 1px 0 rgba(255,255,255,.2)}
-.faldone--chino{transform:rotate(4.5deg);margin-left:10px}
-.faldone--chino:hover,.faldone--chino:focus-visible{transform:rotate(1deg) translateY(-12px)}
-
-@media (max-width:900px){
-  .apertura{min-height:auto;padding-top:24px}
-  .apertura .colonna{grid-template-columns:1fr;align-items:start}
-  .pratica{min-height:0}
-  .pratica.aperta .pratica__copertina{transform:rotateY(-80deg)}
-  .scaffale{min-height:0;height:230px;margin:10px 0 40px}
-  .faldone{min-height:0;padding:12px 0 14px}
-  .faldone__finestra{width:74%}
-  .faldone__finestra span{font-size:clamp(.78rem,2.6vw,1rem)}
-  .timbro-copertina{position:static;align-self:flex-end;margin:-6px 0 -10px;font-size:1rem}
-}
+.apertura{position:relative;min-height:min(100svh,1000px);min-height:max(620px,min(100svh,1000px));display:grid;align-items:end;overflow:hidden;background:var(--cielo);color:#fff;isolation:isolate}
+.apertura__scena{position:absolute;inset:0;z-index:-1}
+.apertura__scena img{width:100%;height:100%;object-fit:cover;object-position:60% 40%}
+.js .apertura__scena img{transform:scale(1.05);transition:transform 2.6s var(--esce)}
+.js .apertura.pronta .apertura__scena img{transform:none}
+.apertura::after{content:"";position:absolute;inset:auto 0 0;height:45%;background:linear-gradient(transparent,rgba(20,18,40,.35));z-index:-1;pointer-events:none}
+.apertura__data{position:absolute;top:26px;right:var(--gutter);font:500 .86rem/1 var(--sans);color:rgba(255,255,255,.92);display:flex;align-items:center;gap:8px;text-shadow:0 1px 6px rgba(0,0,0,.3)}
+.apertura__data i{width:7px;height:7px;border-radius:50%;background:var(--arturo);box-shadow:0 0 0 3px rgba(242,162,74,.25),0 0 14px 2px rgba(242,162,74,.7)}
+.apertura .colonna{width:100%;padding-bottom:clamp(20px,5vw,64px)}
+@media (max-width:760px){.apertura{display:block;min-height:0;background:var(--notte)}.apertura::after{display:none}.apertura__scena{position:relative;inset:auto;height:clamp(440px,64svh,620px)}.apertura__scena img{object-position:78% 50%}.apertura__data{top:72px;right:auto;left:var(--gutter)}.apertura .colonna{position:relative;margin-top:-96px;padding-bottom:28px}}
+.vetro{position:relative;max-width:600px;padding:clamp(24px,3vw,32px);border-radius:24px;background:rgba(48,38,72,.26);border:1px solid rgba(255,255,255,.34);backdrop-filter:blur(22px) saturate(1.25);-webkit-backdrop-filter:blur(22px) saturate(1.25);box-shadow:0 2px 2px rgba(0,0,0,.06),0 0 0 5px rgba(255,255,255,.04)}
+.js .apertura .vetro{opacity:0;transform:translateY(14px);filter:blur(6px);transition:opacity 1s var(--esce) .35s,transform 1.2s var(--esce) .35s,filter 1s var(--esce) .35s}
+.js .apertura.pronta .vetro{opacity:1;transform:none;filter:none}
+@media (prefers-reduced-motion:reduce){.js .apertura__scena img,.js .apertura .vetro{transition:none;transform:none;opacity:1;filter:none}}
+.vetro h1{font:400 var(--t-display)/1.08 var(--serif);letter-spacing:-.025em;color:#fff;margin-bottom:16px}
+.vetro p{font-size:1.02rem;line-height:1.5;color:rgba(255,255,255,.94);max-width:44ch}
+.vetro .righe-azioni{display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;margin-top:22px}
+.vetro .link-freccia{color:#fff}
 
 /* ---------- sezioni ---------- */
-.sezione{padding:var(--ritmo) 0;position:relative}
-.sezione--scura{background:var(--armadio-scuro);background-image:var(--lamiera)}
-.sezione--gialla{background:var(--giallo);color:var(--inchiostro)}
-.sezione--rossa{background:var(--rosso);color:#fff}
-.sezione--manila{background:var(--manila);color:var(--inchiostro)}
-.sezione--gialla.cartone::after,.sezione--rossa.cartone::after,.sezione--manila.cartone::after{opacity:.2}
-.testa{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:clamp(20px,4vw,64px);align-items:end;margin-bottom:clamp(40px,6vw,80px)}
-.testa h2{font:900 clamp(2.6rem,1.3rem + 5vw,5.8rem)/1.02 var(--display);text-transform:uppercase;letter-spacing:.012em}
-.testa p{font-size:1.125em;line-height:1.5;max-width:44ch}
-.sezione--scura .testa p,.apertura .testa p{color:#e7ece9}
-@media (max-width:900px){.testa{grid-template-columns:1fr}}
+.sezione{padding:var(--ritmo) 0}
+.sezione--carta{background:var(--carta);border-block:1px solid var(--foschia)}
 
-/* ---------- strati ---------- */
-.pila{position:relative}
-.linguette{display:flex;gap:6px;padding-left:18px;position:relative;z-index:2}
-.linguetta{--c:var(--armadio-chiaro);position:relative;border:0;padding:14px 22px 10px;min-width:0;background:var(--c);border-radius:10px 10px 0 0;font:800 clamp(1rem,.75rem + .9vw,1.4rem)/1 var(--display);letter-spacing:.05em;text-transform:uppercase;color:var(--testo-tab,#fff);transform:translateY(8px);filter:brightness(.82) saturate(.9);transition:transform .3s var(--esce),filter .3s}
-.linguetta:hover{transform:translateY(3px);filter:none}
-.linguetta[aria-selected="true"]{transform:none;filter:none;z-index:3}
-.linguetta .nuovo{display:inline-block;margin-left:10px;font-size:.62em;vertical-align:.25em;padding:.2em .45em .1em .6em}
-.cartelle{position:relative}
-.cartelle::before,.cartelle::after{content:"";position:absolute;left:14px;right:-14px;top:14px;bottom:-14px;border-radius:6px;background:var(--dietro1,var(--blu-scuro));box-shadow:var(--ombra-cartone);z-index:0}
-.cartelle::after{left:28px;right:-28px;top:28px;bottom:-28px;background:var(--dietro2,var(--rosso-scuro));z-index:-1}
-.cartella{position:relative;z-index:1;background:var(--c);color:var(--ct,#fff);border-radius:0 8px 8px 8px;box-shadow:var(--ombra-cartone);padding:clamp(24px,4vw,56px);display:grid;grid-template-columns:minmax(0,6fr) minmax(0,5fr);gap:clamp(24px,4vw,56px);align-items:start;min-height:420px}
-.cartella[hidden]{display:none}
-.cartella h3{font:900 clamp(2rem,1.3rem + 2.6vw,3.6rem)/1.02 var(--display);text-transform:uppercase;letter-spacing:.012em;margin-bottom:20px}
-.cartella dl{display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:8px 18px;margin:26px 0 0;padding-top:18px;border-top:2px solid currentColor}
-.cartella dt{font:600 .9rem/1.5 var(--display);letter-spacing:.09em;text-transform:uppercase}
-.cartella dd{margin:0}
-.prova{padding:22px 24px 24px;border-radius:2px;transform:rotate(.8deg)}
-.prova--sx{transform:rotate(-.9deg)}
-.prova__didascalia{font:600 .9rem/1.25 var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--inchiostro-2);margin-bottom:12px;padding-right:44px}
-.prova pre{margin:0;font:400 .95rem/1.55 var(--mono);white-space:pre-wrap;word-break:break-word;color:var(--inchiostro)}
-.prova pre b{font-weight:700;background:linear-gradient(transparent 55%,rgba(243,181,11,.55) 55%)}
-.albero{display:grid;gap:0}
-.albero li{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:2px 16px;padding:6px 0 6px calc(var(--l,0) * 18px);border-bottom:1px solid #e6e2d8;align-items:baseline}
+/* ---------- strati: lo schema e le linguette ---------- */
+.strati{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(24px,4vw,56px);align-items:start}
+@media (max-width:900px){.strati{grid-template-columns:minmax(0,1fr)}}
+.schema{padding:0}
+@media (min-width:901px){.schema{position:sticky;top:96px}}
+.schema__didascalia{font:500 .82rem/1.3 var(--sans);color:var(--cenere);padding:0 0 12px}
+.nido{display:block;width:100%;text-align:left;border:1px solid var(--nebbia);border-radius:12px;background:transparent;padding:12px 12px 12px 14px;transition:border-color .25s,background-color .25s,box-shadow .25s}
+.nido + .nido{margin-top:0}
+.nido .nido{margin-top:12px}
+.strato{position:relative;border:1px solid var(--nebbia);border-radius:12px;padding:12px;transition:border-color .25s,background-color .25s,box-shadow .25s}
+.strato .strato{margin-top:12px}
+.strato__tab{display:flex;align-items:baseline;justify-content:space-between;gap:12px;width:100%;padding:4px 4px 2px;border:0;background:none;text-align:left;border-radius:6px}
+.strato__nome{font:400 1.32rem/1.2 var(--serif);letter-spacing:-.01em;color:var(--grafite)}
+.strato__chi{font:500 .8rem/1.3 var(--sans);color:var(--cenere);white-space:nowrap}
+.strato__nuovo{display:inline-block;margin-left:8px;padding:2px 7px;border:1px solid var(--sera);border-radius:20px;font:600 .75rem/1.3 var(--sans);letter-spacing:.02em;color:var(--sera);vertical-align:3px}
+.strato.attivo{border-color:var(--sera);background:rgba(140,196,230,.12);box-shadow:0 0 0 3px rgba(43,111,158,.08)}
+.strato.attivo > .strato__tab .strato__nome{color:var(--sera)}
+.strato__tab:hover .strato__nome{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.2em}
+.strato--tu{border-style:dashed}
+
+.pannello{border-radius:12px;background:var(--carta);border:1px solid var(--foschia);box-shadow:var(--ombra-card);padding:clamp(22px,3vw,32px)}
+.pannello[hidden]{display:none}
+.pannello h3{margin-bottom:14px}
+.pannello dl{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;margin:22px 0 0;padding-top:16px;border-top:1px solid var(--foschia)}
+.pannello dt{font:600 .82rem/1.6 var(--sans);color:var(--cenere)}
+.pannello dd{margin:0;color:var(--grafite)}
+.prova{margin-top:22px;padding:16px 18px;border-radius:8px;background:var(--lino)}
+.prova__didascalia{font:500 .82rem/1.3 var(--sans);color:var(--cenere);margin-bottom:10px}
+.prova pre{margin:0;font:400 .86rem/1.6 var(--mono);white-space:pre-wrap;word-break:break-word;color:var(--grafite)}
+.prova pre b,.albero b{font-weight:700;color:var(--inchiostro)}
+.albero li{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:2px 16px;padding:6px 0 6px calc(var(--l,0) * 18px);border-bottom:1px solid var(--foschia);align-items:baseline}
 .albero li:last-child{border-bottom:0}
-.albero code{font:400 .95rem/1.4 var(--mono);word-break:break-all}
-.albero code b{font-weight:700;background:linear-gradient(transparent 55%,rgba(243,181,11,.55) 55%)}
-.albero span{font-size:.9rem;color:var(--inchiostro-2);line-height:1.35}
-@media (max-width:520px){.albero li{grid-template-columns:1fr}}
-.graffetta{position:absolute;top:-16px;right:34px;width:22px;height:54px;border:3px solid #9aa2a6;border-radius:12px;border-bottom-color:#7f878b;box-shadow:inset 0 0 0 2px transparent}
-.graffetta::after{content:"";position:absolute;inset:6px 3px 14px;border:3px solid #b9c0c3;border-radius:10px;border-top-color:transparent}
-@media (max-width:900px){
-  .cartella{grid-template-columns:1fr;min-height:0}
-  .linguette{padding-left:0;gap:4px}
-  .linguetta{padding:11px 9px 8px;flex:0 1 auto;font-size:.9rem;letter-spacing:.04em;white-space:nowrap}
-  .linguetta .nuovo{display:none}
-  .cartelle::before{right:-8px;left:8px;top:8px;bottom:-8px}
-  .cartelle::after{right:-16px;left:16px;top:16px;bottom:-16px}
-}
+.albero code{font-size:.84rem;color:var(--grafite);word-break:break-all}
+.albero span{font-size:.88rem;color:var(--cenere);line-height:1.35}
+@media (max-width:520px){.albero li{grid-template-columns:minmax(0,1fr)}}
 
 /* ---------- referente ---------- */
-.trasmissione{padding:clamp(24px,4vw,52px);border-radius:2px;transform:rotate(-.4deg)}
-.trasmissione__testa{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;align-items:flex-end;padding-bottom:16px;border-bottom:3px solid var(--inchiostro);margin-bottom:6px}
-.trasmissione table{width:100%;border-collapse:collapse}
-.trasmissione th{text-align:left;font:600 .9rem/1.2 var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--inchiostro-2);padding:14px 12px 10px 0;border-bottom:1px solid #b9b4a8}
-.trasmissione td{vertical-align:top;padding:18px 12px 18px 0;border-bottom:1px solid #d9d5ca}
-.trasmissione td:first-child{font:700 1.15rem/1.5 var(--display);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
-.trasmissione td code{font-weight:700;font-size:.9rem;-webkit-box-decoration-break:clone;box-decoration-break:clone;background:var(--foglio-2);padding:2px 6px;border-radius:2px}
-.trasmissione td.visto{text-align:center;width:130px}
-.citazione{font-style:italic;font-size:1.15em;max-width:42ch;border-left:0;margin:0}
-.citazione footer{font-style:normal;font-size:.9rem;margin-top:10px;color:var(--inchiostro-2)}
-@media (max-width:760px){
-  .trasmissione thead{display:none}
-  .trasmissione tr{display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:16px 0;border-bottom:1px solid #d9d5ca}
-  .trasmissione td{border:0;padding:0}
-  .trasmissione td:nth-child(2),.trasmissione td:nth-child(3){grid-column:1/-1}
-  .trasmissione td.visto{grid-column:2;grid-row:1;width:auto}
+.citazione{margin:0;max-width:30ch}
+.citazione p{font:italic 400 var(--t-h3)/1.35 var(--serif);color:var(--grafite);letter-spacing:-.01em}
+.citazione footer{margin-top:12px;font-size:.88rem;color:var(--cenere)}
+.passaggi{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.passaggi caption{text-align:left;font:400 var(--t-h3)/1.25 var(--serif);color:var(--grafite);letter-spacing:-.015em;padding-bottom:18px}
+.passaggi th{text-align:left;font:600 .8rem/1.3 var(--sans);color:var(--cenere);padding:0 16px 12px 0;border-bottom:1px solid var(--grafite)}
+.passaggi td{padding:18px 16px 18px 0;border-bottom:1px solid var(--foschia);vertical-align:top}
+.passaggi td:first-child{font:400 1.18rem/1.3 var(--serif);color:var(--grafite);white-space:nowrap}
+.passaggi td:nth-child(2){white-space:nowrap}
+.passaggi code{display:inline-block;padding:3px 8px;border-radius:6px;background:var(--lino);border:1px solid var(--foschia);color:var(--grafite);font-size:.84rem}
+.tabella-card{border-radius:16px;background:var(--carta);border:1px solid var(--foschia);box-shadow:var(--ombra-card);padding:clamp(20px,3vw,36px);margin-top:clamp(40px,5vw,64px);overflow-x:auto}
+@media (max-width:720px){
+  .passaggi thead{display:none}
+  .passaggi tr{display:grid;gap:6px;padding:16px 0;border-bottom:1px solid var(--foschia)}
+  .passaggi td{padding:0;border:0;white-space:normal}
 }
 
-/* ---------- registro ---------- */
-.registro,.trasmissione,.datario{font-variant-numeric:tabular-nums}
-.registro__piede{font-variant-numeric:normal}
-.registro{padding:clamp(18px,3vw,40px) clamp(14px,3vw,40px) clamp(24px,3vw,40px);border-radius:2px}
-.registro__intestazione .mono,.modulo__testa .mono{font-size:.95rem}
-.registro__intestazione{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between;align-items:baseline;border-bottom:3px solid var(--inchiostro);padding-bottom:14px}
-.registro table{width:100%;border-collapse:collapse}
-.registro th{text-align:left;font:600 .9rem/1.2 var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--inchiostro-2);padding:12px 14px 10px 0;border-bottom:2px solid var(--inchiostro)}
-.registro td{vertical-align:top;padding:18px 14px 20px 0;border-bottom:1px solid #cfcabd}
-.registro td.n{font:800 1.5rem/1 var(--display);color:var(--inchiostro-2);width:3.2ch}
-.registro .cmd{font:700 1.05rem/1.4 var(--mono);display:block;word-break:break-word}
-.registro .nota{display:block;color:var(--inchiostro-2);font-size:.9rem;margin-top:4px}
-.registro .motivo{display:block;margin-top:12px;padding:10px 12px;background:var(--foglio-2);font:400 .95rem/1.5 var(--mono);color:#2c2d2a;border-radius:2px;word-break:break-word}
-.registro .motivo--vuoto{background:transparent;border:1.5px dashed #b6b1a4;color:var(--inchiostro-2);font-style:italic;font-family:var(--testo)}
-.registro td.guardia{font:400 .95rem/1.4 var(--mono);color:var(--inchiostro-2);width:16ch;word-break:normal;overflow-wrap:break-word}
-.registro td.esito{width:170px;text-align:center;padding-top:22px}
-.registro__piede{margin-top:18px;font-size:.9rem;color:var(--inchiostro-2)}
+/* ---------- scene dipinte ---------- */
+.scena{position:relative;border-radius:24px;overflow:hidden;background:var(--cielo);min-height:clamp(420px,52vw,640px);display:grid;align-items:start;isolation:isolate;box-shadow:0 2px 2px rgba(0,0,0,.06),0 0 0 5px rgba(0,0,0,.03)}
+.scena img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-1}
+.scena .vetro{margin:clamp(16px,4vw,48px);color:#fff;max-width:520px}
+.scena .vetro h2{font:400 var(--t-h2)/1.1 var(--serif);letter-spacing:-.02em;color:#fff;margin-bottom:14px}
+.scena--basso{align-items:end}
+
+/* ---------- guardie: il registro ---------- */
+.registro{margin-top:clamp(40px,5vw,64px);border-radius:16px;background:var(--carta);border:1px solid var(--foschia);box-shadow:var(--ombra-card)}
+.registro__testa{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px 24px;padding:clamp(20px,3vw,32px) clamp(20px,3vw,32px) 0}
+.registro__testa .mono{color:var(--cenere);font-size:.82rem}
+.voci{counter-reset:voce;padding:8px clamp(20px,3vw,32px) 0}
+.voce{display:grid;grid-template-columns:2.2rem minmax(0,1fr) 11.5rem 8rem;gap:6px 20px;padding:22px 0;border-bottom:1px solid var(--foschia);align-items:start;font-variant-numeric:tabular-nums}
+.voce__n{font:400 1.5rem/1 var(--serif);font-variant-numeric:lining-nums;color:var(--cenere);padding-top:2px}
+.voce__cmd{display:block;font:700 .95rem/1.45 var(--mono);color:var(--inchiostro);word-break:break-word}
+.voce__nota{display:block;color:var(--cenere);font-size:.92rem;margin-top:3px}
+.voce__msg{display:block;margin-top:12px;padding:12px 14px;border-radius:8px;background:var(--lino);border:1px solid var(--foschia);font:400 .82rem/1.6 var(--mono);color:var(--carbone);word-break:break-word}
+.voce__msg--vuoto{background:transparent;border-style:dashed;font-family:var(--sans);font-style:italic;font-size:.88rem}
+.voce__guardia{font:500 .82rem/1.45 var(--mono);color:var(--cenere);padding-top:3px}
+.voce__guardia small{display:block;font:500 .76rem/1.3 var(--sans);color:var(--cenere);margin-bottom:2px}
+.esito{justify-self:end;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border:1px solid currentColor;border-radius:30px;font:600 .8rem/1.2 var(--sans);white-space:nowrap;color:var(--sera)}
+.esito::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.esito--passa{color:var(--passa)}
+.esito--blocca{color:var(--blocca)}
+.registro__piede{padding:18px clamp(20px,3vw,32px) clamp(20px,3vw,28px);font-size:.88rem;color:var(--cenere)}
 @media (max-width:820px){
-  .registro thead{display:none}
-  .registro tr{display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;padding:18px 0;border-bottom:1px solid #cfcabd}
-  .registro td{border:0;padding:0}
-  .registro td.n{grid-row:1/3}
-  .registro td.guardia{grid-column:2;grid-row:1;width:auto}
-  .registro td.richiesta{grid-column:2/-1;grid-row:2}
-  .registro td.esito{grid-column:3;grid-row:1;width:auto;padding:0}
-  .registro .timbro{font-size:.85rem}
+  .voce{grid-template-columns:2rem minmax(0,1fr);gap:10px 14px}
+  .voce__corpo{grid-column:2;grid-row:1}
+  .voce__guardia{grid-column:2;grid-row:2;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;padding-top:0}
+  .voce__guardia small{display:inline;margin:0}
+  .esito{grid-column:2;grid-row:3;justify-self:start}
 }
 
-/* ---------- porta ---------- */
-.porta{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:clamp(28px,5vw,80px);align-items:start}
-.passi{counter-reset:p;display:grid;gap:0;margin-top:8px}
-.passi li{counter-increment:p;display:grid;grid-template-columns:3.2rem 1fr;gap:14px;padding:16px 0;border-top:2px solid rgba(23,24,22,.85)}
-.passi li::before{content:counter(p);font:900 2.3rem/.9 var(--display)}
-.passi li:last-child{border-bottom:2px solid rgba(23,24,22,.85)}
-.passi code{font-weight:700}
-.vassoio{position:relative;padding:40px 28px 34px;border-radius:6px;background:linear-gradient(#2c322f,#1d2220);box-shadow:inset 0 2px 0 rgba(255,255,255,.12),inset 0 -8px 16px rgba(0,0,0,.5),0 30px 44px -26px rgba(0,0,0,.75)}
-.vassoio::before{content:"In arrivo";position:absolute;left:28px;top:12px;font:700 .85rem/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:#aeb7b2}
-.vassoio__fogli{position:relative;min-height:320px}
-.vassoio .foglio{padding:26px 26px 24px;border-radius:2px}
-.aggiornamento{transition:transform .8s var(--esce),opacity .6s var(--esce)}
-.aggiornamento::after{content:"";position:absolute;inset:-4px;border:3px solid var(--timbro-rosso);border-radius:4px;pointer-events:none;transition:opacity .3s}
-.vassoio.applicato .aggiornamento{transform:translate(0,-26px) rotate(-2deg) scale(.96);opacity:.6}
-.vassoio.applicato .aggiornamento::after{opacity:0}
-.sotto-foglio{position:absolute;inset:10px -8px -10px 10px;background:var(--foglio-2);box-shadow:var(--ombra-foglio);z-index:-1;border-radius:2px}
-.linea-avvio{display:block;padding:12px 14px;background:#171a18;color:#f1f3f0;font:400 .95rem/1.5 var(--mono);border-radius:3px;margin:14px 0 18px;word-break:break-word}
-.linea-avvio--ok{color:#bfe8cd}
-.linea-avvio--ko{color:#ffc2b8}
-.bandierina{position:absolute;z-index:1;right:-12px;top:-16px;background:var(--timbro-rosso);color:#fff;font:700 .85rem/1.2 var(--display);letter-spacing:.1em;text-transform:uppercase;padding:8px 12px 6px;border-radius:2px;box-shadow:0 6px 12px -6px rgba(0,0,0,.6);transform:rotate(3deg);transition:background-color .3s}
-.vassoio.applicato .bandierina{background:var(--timbro-verde)}
-.demo-comandi{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
-.demo-comandi button{min-height:46px;padding:0 16px;border-radius:4px;border:2px solid var(--inchiostro);background:transparent;font:750 1.05rem/1 var(--display);letter-spacing:.05em;text-transform:uppercase;transition:background-color .2s,color .2s}
-#indietro{font:700 1rem/1 var(--mono);letter-spacing:0;text-transform:none}
-.demo-comandi button:hover{background:var(--inchiostro);color:var(--foglio)}
-.demo-comandi button[disabled]{opacity:.35;cursor:not-allowed;background:transparent;color:var(--inchiostro)}
-.demo-stato{font-size:.9rem;color:var(--inchiostro-2);margin-top:12px;min-height:1.5em}
-.config{margin-top:clamp(28px,4vw,48px);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px 32px;align-items:start}
-@media (max-width:900px){.porta,.config{grid-template-columns:1fr}.bandierina{right:6px}}
+/* ---------- la porta ---------- */
+.porta{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:clamp(28px,5vw,72px);align-items:start}
+@media (max-width:900px){.porta{grid-template-columns:minmax(0,1fr)}}
+.passi{counter-reset:p}
+.passi li{counter-increment:p;display:grid;grid-template-columns:2.4rem 1fr;gap:12px;padding:16px 0;border-top:1px solid var(--foschia)}
+.passi li:last-child{border-bottom:1px solid var(--foschia)}
+.passi li::before{content:counter(p);font:400 1.6rem/1 var(--serif);font-variant-numeric:lining-nums;color:var(--sera)}
+.avviso-avvio{border-radius:16px;background:var(--carta);border:1px solid var(--foschia);box-shadow:var(--ombra-card);overflow:hidden}
+.avviso-avvio__barra{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid var(--foschia);background:var(--lino);font:500 .84rem/1.2 var(--sans);color:var(--cenere)}
+.stato{display:inline-flex;align-items:center;gap:7px;padding:4px 10px;border-radius:30px;border:1px solid var(--sera);color:var(--sera);font:600 .78rem/1.2 var(--sans);transition:color .3s,border-color .3s}
+.stato::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.applicato .stato{color:var(--passa);border-color:var(--passa)}
+.avviso-avvio__corpo{padding:22px clamp(18px,3vw,26px) 24px}
+.riga-avvio{display:block;padding:12px 14px;border-radius:8px;background:var(--notte);color:#eef0ec;font:400 .84rem/1.55 var(--mono);word-break:break-word;margin:12px 0 16px;transition:opacity .4s}
+.applicato .riga-avvio{opacity:.45}
+.riga-avvio--ok{color:#bfe8cd;margin:0}
+.riga-avvio--ko{color:#ffc9bf;margin:10px 0 0}
+.comandi-demo{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
+.comandi-demo button[disabled]{color:var(--cenere);border-color:var(--foschia);border-style:dashed;cursor:not-allowed}
+.comandi-demo #indietro{font-family:var(--mono);font-size:.86rem}
+.demo-stato{font-size:.88rem;color:var(--cenere);margin-top:12px;min-height:1.5em}
+.config{margin-top:clamp(40px,5vw,64px);display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:18px clamp(28px,5vw,72px);align-items:start}
+@media (max-width:900px){.config{grid-template-columns:minmax(0,1fr)}}
 
-/* ---------- schedario ---------- */
-.ciclo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin-bottom:clamp(40px,6vw,72px)}
-.ciclo > div{padding:0 clamp(16px,2.4vw,32px) 0 0;border-right:2px solid rgba(255,255,255,.25);margin-right:clamp(16px,2.4vw,32px)}
-.ciclo > div:last-child{border:0;margin:0;padding:0}
-.ciclo h3{font:900 clamp(1.9rem,1.3rem + 1.8vw,3rem)/1.02 var(--display);text-transform:uppercase;margin-bottom:12px}
-.ciclo h3 code{font:700 .8em/1.02 var(--mono);letter-spacing:-.02em;text-transform:none}
-.ciclo p{color:#e3e8e5}
-@media (max-width:820px){.ciclo{grid-template-columns:1fr;gap:28px}.ciclo > div{border:0;margin:0;padding:0 0 24px;border-bottom:2px solid rgba(255,255,255,.25)}}
-.cassetto{position:relative;padding:34px clamp(14px,3vw,40px) 0;background:linear-gradient(#6f7a74,#56615b);border-radius:8px 8px 0 0;box-shadow:inset 0 2px 0 rgba(255,255,255,.18),0 30px 40px -28px rgba(0,0,0,.8)}
-.cassetto__maniglia{position:absolute;left:50%;top:-18px;translate:-50% 0;width:120px;height:26px;border-radius:6px;background:linear-gradient(#c3c9c6,#7f8985);box-shadow:0 4px 8px rgba(0,0,0,.45)}
-.rubrica{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:58px 20px;padding:44px 0 34px;align-items:start}
-.divisorio{position:relative;background:var(--foglio);color:var(--inchiostro);border-radius:0 3px 3px 3px;padding:18px 20px 12px;box-shadow:var(--ombra-foglio);border-top:6px solid var(--cat)}
-.divisorio:nth-child(3n+2){transform:rotate(.5deg)}
-.divisorio:nth-child(3n){transform:rotate(-.4deg)}
-.divisorio__tab{position:absolute;top:-38px;left:var(--pos,0);background:var(--cat);color:var(--ct,#fff);padding:10px 16px 7px;border-radius:7px 7px 0 0;font:800 1.05rem/1 var(--display);letter-spacing:.08em;text-transform:uppercase}
-.righe li{display:grid;gap:2px;padding:10px 0;border-bottom:1px solid #d7dfe9}
-.righe li:last-child{border-bottom:0}
-.righe code{font-weight:700;font-size:1rem}
-.righe span{font-size:.9rem;color:var(--inchiostro-2);line-height:1.42}
-@media (max-width:980px){.rubrica{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:600px){.rubrica{grid-template-columns:1fr}.divisorio{transform:none!important}}
+/* ---------- inizio e fine ---------- */
+.ciclo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--grafite)}
+.ciclo > div{padding:24px clamp(16px,2.4vw,32px) 0 0}
+.ciclo > div + div{padding-left:clamp(16px,2.4vw,32px);border-left:1px solid var(--foschia)}
+.ciclo h3{margin-bottom:10px}
+.ciclo h3 code{font:500 1.15rem/1.3 var(--mono);color:var(--sera)}
+@media (max-width:760px){.ciclo{grid-template-columns:minmax(0,1fr)}.ciclo > div + div{padding-left:0;border-left:0;border-top:1px solid var(--foschia);margin-top:24px}}
+.indice{margin-top:clamp(56px,7vw,96px)}
+.indice__titolo{margin-bottom:24px}
+.gruppi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px clamp(24px,3vw,48px)}
+@media (max-width:900px){.gruppi{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.gruppi{grid-template-columns:minmax(0,1fr)}}
+.gruppo h4{margin:0 0 4px;font:600 .82rem/1.3 var(--sans);color:var(--cenere);padding-bottom:10px;border-bottom:1px solid var(--grafite)}
+.gruppo li{padding:12px 0;border-bottom:1px solid var(--foschia)}
+.gruppo code{display:block;font-weight:700;color:var(--inchiostro);font-size:.92rem;margin-bottom:2px}
+.gruppo span{font-size:.9rem;color:var(--cenere);line-height:1.45;display:block}
 
-/* ---------- avvertenze ---------- */
-.avvertenze{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:clamp(28px,5vw,72px);align-items:start}
-.avviso{padding:clamp(26px,4vw,52px);border-radius:2px;transform:rotate(.5deg)}
-.avviso ol{counter-reset:a;display:grid;gap:22px;margin-top:22px}
-.avviso li{counter-increment:a;display:grid;grid-template-columns:2.6rem 1fr;gap:12px}
-.avviso li::before{content:counter(a);font:900 2.2rem/.9 var(--display);color:var(--timbro-rosso)}
-.avviso strong{display:block;font-size:1.06em;margin-bottom:4px}
-.avviso .timbro{position:absolute;right:clamp(14px,3vw,34px);top:clamp(14px,3vw,30px);font-size:1.2rem}
-.assenze h3{font:900 clamp(1.8rem,1.2rem + 2vw,3rem)/1.02 var(--display);text-transform:uppercase;margin-bottom:12px}
-.assenze > p{color:#e3e8e5}
-.dorsi-vuoti{display:flex;gap:10px;align-items:flex-end;height:250px;margin:26px 0 30px;padding:0 4px;position:relative}
-.dorsi-vuoti::after{content:"";position:absolute;left:-12px;right:-12px;bottom:-12px;height:12px;background:linear-gradient(#9aa39e,#6c7671 40%,#3f4743);border-radius:2px}
-.dorso-vuoto{flex:1;height:100%;border:2px dashed rgba(255,255,255,.55);border-radius:5px 5px 2px 2px;display:grid;place-items:center;position:relative}
-.dorso-vuoto span{writing-mode:vertical-rl;transform:rotate(180deg);font:900 clamp(1.1rem,.8rem + 1vw,1.6rem)/1 var(--display);letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.7);text-decoration:line-through;text-decoration-thickness:3px;text-decoration-color:var(--rosso)}
-.assenze dl{display:grid;gap:14px;margin:0}
-.assenze dt{font-weight:700}
-.assenze dd{margin:2px 0 0;color:#e3e8e5}
-@media (max-width:900px){.avvertenze{grid-template-columns:1fr}}
-@media (max-width:600px){.avviso .timbro{position:static;margin-bottom:16px}}
+/* ---------- cosa non è neutro ---------- */
+.mare{border-radius:24px;background:var(--mare);color:#fff;padding:clamp(32px,7vw,96px) clamp(24px,6vw,96px);box-shadow:0 2px 2px rgba(0,0,0,.06),0 0 0 5px rgba(0,0,0,.04)}
+.mare h2{color:#fff;max-width:14ch}
+.mare .attacco{color:rgba(255,255,255,.9);margin:16px 0 clamp(28px,4vw,48px)}
+.mare ol{counter-reset:a;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px clamp(20px,3vw,40px)}
+@media (max-width:900px){.mare ol{grid-template-columns:minmax(0,1fr)}}
+.mare li{counter-increment:a;border-top:1px solid rgba(255,255,255,.4);padding-top:16px;color:rgba(255,255,255,.9)}
+.mare strong{display:block;font:400 1.22rem/1.3 var(--serif);color:#fff;margin-bottom:8px;letter-spacing:-.01em}
+.mare code{color:#fff}
+.assenze{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(24px,4vw,64px);margin-top:clamp(56px,7vw,96px);align-items:start}
+@media (max-width:820px){.assenze{grid-template-columns:minmax(0,1fr)}}
+.vuoti{display:flex;flex-wrap:wrap;gap:6px 26px;margin:14px 0 0}
+.vuoti s{font:400 clamp(1.8rem,1.3rem + 1.5vw,2.6rem)/1.15 var(--serif);color:#858a85;text-decoration-thickness:1px;text-decoration-color:var(--grafite)}
+.assenze dl div{padding:16px 0;border-top:1px solid var(--foschia)}
+.assenze dl div:last-child{border-bottom:1px solid var(--foschia)}
+.assenze dt{font:400 1.18rem/1.35 var(--serif);color:var(--grafite);margin-bottom:4px}
+.assenze dd{margin:0;color:var(--cenere)}
 
 /* ---------- impegni ---------- */
-.impegni{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(28px,5vw,80px);align-items:start}
-.impegni .testa{display:block;margin:0}
-.impegni .testa p{color:#ffe6e1;margin-top:24px}
-.dichiarazione{padding:clamp(30px,4.4vw,60px) clamp(24px,4vw,56px) clamp(34px,4vw,56px) clamp(52px,6vw,84px);border-radius:2px;transform:rotate(-.8deg);background-image:linear-gradient(90deg,transparent calc(clamp(52px,6vw,84px) - 18px),rgba(198,58,40,.45) calc(clamp(52px,6vw,84px) - 18px),rgba(198,58,40,.45) calc(clamp(52px,6vw,84px) - 16px),transparent calc(clamp(52px,6vw,84px) - 16px))}
-.dichiarazione ol{counter-reset:i;display:grid;gap:20px}
-.dichiarazione li{counter-increment:i;position:relative}
-.dichiarazione li::before{content:counter(i) ".";position:absolute;left:-2.1em;top:.05em;font:900 1.35rem/1 var(--display);color:var(--rosso-scuro)}
-.dichiarazione strong{font-weight:700}
-.punto{position:absolute;top:-12px;left:46%;width:44px;height:10px;background:linear-gradient(#e5e8ea,#8d9498);border-radius:2px;box-shadow:0 2px 3px rgba(0,0,0,.35);transform:rotate(-3deg)}
-.firma{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:18px;margin-top:34px;padding-top:20px;border-top:1px solid #d3cec2}
-.firma__nome{font:italic 400 1.5rem/1.1 var(--testo)}
-.firma__nome small{display:block;font:400 .9rem/1.4 var(--testo);font-style:normal;color:var(--inchiostro-2);margin-top:4px}
-.datario{--r:-8deg;font-size:1.05rem;text-align:center;line-height:1.1;padding:.3em .7em .2em}
-.datario b{display:block;font-size:1.7em;letter-spacing:.04em}
-@media (max-width:900px){.impegni{grid-template-columns:1fr}}
+.impegni{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,7fr);gap:clamp(28px,5vw,80px);align-items:start}
+@media (max-width:900px){.impegni{grid-template-columns:minmax(0,1fr)}}
+.promesse{counter-reset:i}
+.promesse li{padding:18px 0;border-top:1px solid var(--foschia)}
+.promesse strong{font-weight:700;color:var(--grafite)}
+.firma{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:12px;padding-top:22px;border-top:1px solid var(--grafite)}
+.firma__nome{font:italic 400 1.5rem/1.2 var(--serif);color:var(--grafite);margin:0}
+.firma__nome small{display:block;font:400 .86rem/1.4 var(--sans);font-style:normal;color:var(--cenere);margin-top:4px}
+.firma__data{font-size:.88rem;color:var(--cenere)}
 
 /* ---------- installa ---------- */
-.modulo{padding:clamp(24px,4vw,56px);border-radius:2px}
-.modulo__testa{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 24px;align-items:baseline;border-bottom:3px solid var(--inchiostro);padding-bottom:14px;margin-bottom:10px}
-.campi{display:grid;gap:0}
-.campo{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:14px 36px;padding:26px 0;border-bottom:1px solid #d3cec2}
-.campo:last-child{border-bottom:0}
-.campo h3{font:900 clamp(1.6rem,1.2rem + 1.3vw,2.3rem)/1.02 var(--display);text-transform:uppercase}
-.campo h3 small{display:block;font:400 .9rem/1.5 var(--testo);text-transform:none;color:var(--inchiostro-2);margin-top:10px;max-width:34ch}
+.passi-installa{margin-top:clamp(40px,5vw,64px);border-radius:16px;background:var(--carta);border:1px solid var(--foschia);box-shadow:var(--ombra-card);padding:0 clamp(20px,3vw,32px);counter-reset:passo}
+.passo{counter-increment:passo;display:grid;grid-template-columns:minmax(0,4fr) minmax(0,7fr);gap:16px clamp(24px,4vw,56px);padding:clamp(24px,3vw,36px) 0}
+.passo + .passo{border-top:1px solid var(--foschia)}
+.passo h3::before{content:counter(passo);display:block;font:400 1.6rem/1 var(--serif);font-variant-numeric:lining-nums;color:var(--sera);margin-bottom:12px}
+@media (max-width:820px){.passo{grid-template-columns:minmax(0,1fr)}}
+.passo > div{min-width:0}
+.passo h3 small{display:block;font:400 .95rem/1.5 var(--sans);color:var(--cenere);margin-top:10px;max-width:36ch;letter-spacing:0}
 .requisiti{display:flex;flex-wrap:wrap;gap:8px}
-.requisiti li{background:var(--foglio-2);padding:6px 12px;border-radius:3px;font:700 .95rem/1.4 var(--mono)}
-.requisiti li span{font-family:var(--testo);font-weight:400;color:var(--inchiostro-2)}
-.comando{display:flex;align-items:stretch;background:#191b19;color:#f2f3ef;border-radius:4px;overflow:hidden;margin-bottom:12px}
-.comando pre{flex:1;margin:0;padding:14px 16px;font:400 .95rem/1.55 var(--mono);white-space:pre-wrap;word-break:break-all;min-width:0}
-.comando button{flex:none;width:96px;border:0;background:#2f3431;color:#f2f3ef;font:700 1rem/1 var(--display);letter-spacing:.08em;text-transform:uppercase;transition:background-color .2s}
-.comando button:hover{background:var(--rosso)}
-.comando button.fatto{background:var(--verde)}
-.comando button.errore{background:var(--rosso-scuro)}
-.campo p{max-width:62ch}
-.campo .piccolo{font-size:.9rem;color:var(--inchiostro-2)}
-@media (max-width:820px){.campo{grid-template-columns:1fr}.comando{flex-direction:column}.comando button{width:100%;min-height:44px}}
+.requisiti li{padding:6px 12px;border-radius:30px;border:1px solid var(--foschia);background:var(--lino);font:500 .86rem/1.3 var(--mono);color:var(--grafite)}
+.requisiti li span{font-family:var(--sans);font-weight:400;color:var(--cenere)}
+.comando{display:flex;align-items:stretch;border-radius:8px;overflow:hidden;background:var(--notte);color:#eef0ec}
+.comando pre{flex:1;margin:0;padding:14px 16px;font:400 .86rem/1.6 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
+.comando button{flex:none;width:92px;border:0;border-left:1px solid #3a3a4e;background:transparent;color:#fff;font:500 .88rem/1 var(--sans);transition:background-color .2s}
+.comando button:hover{background:#2c2c3c}
+.comando button.fatto{color:#bfe8cd}
+.comando button.errore{color:#ffc9bf}
+.passo p{margin-top:14px}
+.etichetta-comando{font:600 .82rem/1.3 var(--sans);color:var(--cenere);margin:0 0 8px}
+.passo .etichetta-comando:not(:first-child){margin-top:18px}
+.piccolo{font-size:.9rem;color:var(--cenere)}
 
 /* ---------- piede ---------- */
-.piede{background:var(--armadio-scuro);background-image:var(--lamiera);padding:clamp(56px,8vw,112px) 0 48px}
-.piede .colonna{display:grid;grid-template-columns:minmax(0,6fr) minmax(0,5fr);gap:32px 64px;align-items:end}
-.piede .dymo{font-size:clamp(2.6rem,1.6rem + 4vw,5rem)}
-.piede p{color:#e3e8e5;max-width:52ch}
-.piede__righe{display:grid;gap:10px;font-size:.9rem}
-.piede__righe a{font-weight:700}
-@media (max-width:820px){.piede .colonna{grid-template-columns:1fr}}
+.piede{background:var(--carta);border-top:1px solid var(--foschia);padding:clamp(64px,8vw,112px) 0 48px}
+.piede__alto{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:clamp(24px,4vw,56px);align-items:center;margin-bottom:clamp(40px,5vw,72px)}
+@media (max-width:820px){.piede__alto{grid-template-columns:minmax(0,1fr)}}
+.piede__frase{font:400 var(--t-h2)/1.12 var(--serif);letter-spacing:-.02em;color:var(--grafite);max-width:24ch;margin:0 0 28px}
+.piede__cielo{aspect-ratio:4/3;border-radius:24px;background:#2a2f5c url(img/scena-1-1200.webp) 78% 8% / 300% auto no-repeat;box-shadow:0 2px 2px rgba(0,0,0,.06),0 0 0 5px rgba(0,0,0,.03)}
+.piede__righe{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 40px;padding-top:22px;border-top:1px solid var(--foschia);font-size:.9rem;color:var(--cenere)}
+@media (max-width:820px){.piede__righe{grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
-  <filter id="inchiostro" x="-10%" y="-20%" width="120%" height="140%">
-    <feTurbulence type="fractalNoise" baseFrequency=".75" numOctaves="2" seed="11" result="rumore"/>
-    <feDisplacementMap in="SourceGraphic" in2="rumore" scale="2.6" xChannelSelector="R" yChannelSelector="G" result="mosso"/>
-    <feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="1" seed="4" result="grana"/>
-    <feColorMatrix in="grana" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.5 1.72" result="buchi"/>
-    <feComposite in="mosso" in2="buchi" operator="in"/>
-  </filter>
-</svg>
-
 <a class="salta" href="#strati">Vai al contenuto</a>
 
-<header class="testata" id="testata">
-  <a class="dymo" href="#cima" aria-label="Arturo, torna all'inizio">Arturo</a>
-  <nav class="divisori" aria-label="Sezioni">
-    <a href="#strati" style="--tab:var(--verde)" class="chiaro">Strati</a>
-    <a href="#referente" style="--tab:var(--blu)" class="chiaro">Referente</a>
-    <a href="#guardie" style="--tab:var(--foglio)">Guardie</a>
-    <a href="#aggiornamenti" style="--tab:var(--giallo)">Aggiornamenti</a>
-    <a href="#pratica" style="--tab:var(--armadio-chiaro)">Comandi</a>
-    <a href="#impegni" style="--tab:var(--rosso)" class="chiaro">Impegni</a>
-    <a href="#installa" style="--tab:var(--manila)">Installa</a>
+<header>
+  <nav class="pillola" id="pillola" aria-label="Sezioni">
+    <a class="pillola__marchio" href="#cima" aria-label="Arturo, torna all'inizio">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 18.5c4-3.6 7-4.4 9.5-3s5.6 1 9.5-2.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="16.5" cy="6.5" r="2.2" fill="#f2a24a"/></svg>
+    </a>
+    <div class="pillola__voci">
+      <a href="#strati">Strati</a>
+      <a href="#guardie">Guardie</a>
+      <a href="#aggiornamenti">Aggiornamenti</a>
+      <a href="#impegni">Impegni</a>
+    </div>
+    <a class="azione azione--piena" href="#installa">Installa <span class="freccia" aria-hidden="true"><svg viewBox="0 0 10 10" fill="none"><path d="M3.5 2 6.5 5 3.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
   </nav>
 </header>
 
 <main id="cima">
 
-<section class="apertura" aria-labelledby="titolo">
+<section class="apertura" id="apertura" aria-labelledby="titolo">
+  <div class="apertura__scena">
+    <img src="img/scena-1.webp" srcset="img/scena-1-1200.webp 1200w, img/scena-1.webp 2400w" sizes="100vw" alt="Un paese delle Langhe all'ora blu, con l'Orsa Maggiore e la stella Arturo che segue la curva del suo timone." width="2400" height="1611" fetchpriority="high">
+  </div>
+  <p class="apertura__data"><i aria-hidden="true"></i>Aggiornato il 30 settembre 2026</p>
   <div class="colonna">
-    <div>
-      <div class="firma-alto">
-        <span>Harness gratuito e open source per Claude Code, in italiano</span>
-        <a href="https://github.com/stellakamikaze/arturo">GitHub</a>
-      </div>
-      <div class="pratica" id="pratica-copertina">
-        <div class="pratica__dorso cartone" aria-hidden="true"></div>
-        <div class="pratica__dentro" id="dentro-pratica">
-          <div class="foglio">
-            <p class="titolo-foglio">Dentro la pratica</p>
-            <nav class="indice-pratica" aria-label="Contenuto della pratica">
-              <a href="#strati"><strong>Strati</strong><span>Quattro cartelle e chi le possiede</span></a>
-              <a href="#referente"><strong>Referente</strong><span>Chi porta Arturo ai colleghi</span></a>
-              <a href="#guardie"><strong>Guardie</strong><span>Sette richieste, sette timbri veri</span></a>
-              <a href="#aggiornamenti"><strong>Aggiornamenti</strong><span>Una porta sola, dopo il tuo sì</span></a>
-              <a href="#impegni"><strong>Impegni</strong><span>Cinque promesse scritte</span></a>
-              <a href="#installa"><strong>Installa</strong><span>Tre passi, da zero</span></a>
-            </nav>
-          </div>
-        </div>
-        <div class="pratica__copertina cartone">
-          <span class="timbro datario timbro-copertina" data-batti>Aggiornato<b>30 SET 2026</b></span>
-          <h1 id="titolo">
-            <span class="dymo">Arturo</span>
-            <span class="sottotitolo">Il custode di Claude Code. Adesso anche della tua organizzazione.</span>
-          </h1>
-          <div>
-            <p class="etichetta">Regole di sicurezza già pronte. Sessioni che si aprono e si chiudono in ordine. E adesso lo strato che rende Arturo vostro: chi siete, come scrivete, cosa non deve uscire.</p>
-            <div class="azioni">
-              <a class="bottone bottone--pieno" href="#installa">Installa Arturo</a>
-              <button class="bottone bottone--vuoto" type="button" id="apri" aria-controls="dentro-pratica" aria-expanded="false">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M3 6.5h6l2 2h10v10a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/><path d="M3 11h18"/></svg>
-                <span>Apri la pratica</span>
-              </button>
-            </div>
-          </div>
-        </div>
-        <svg class="elastico" viewBox="0 0 100 85" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M84 -2 L102 13"/><path class="lucido" d="M84.5 -1.6 L101.6 12.6"/>
-          <path d="M86 88 L102 74"/><path class="lucido" d="M86.4 87.6 L101.6 73.6"/>
-        </svg>
+    <div class="vetro">
+      <h1 id="titolo">Il custode di Claude Code. Adesso anche della tua organizzazione.</h1>
+      <p>Regole di sicurezza già pronte. Sessioni che si aprono e si chiudono in ordine. E adesso lo strato che rende Arturo vostro: chi siete, come scrivete, cosa non deve uscire.</p>
+      <div class="righe-azioni">
+        <a class="azione azione--chiara" href="#installa">Installa Arturo</a>
+        <a class="link-freccia" href="#strati">Come funziona <span class="freccia" aria-hidden="true"><svg viewBox="0 0 10 10" fill="none"><path d="M3.5 2 6.5 5 3.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
       </div>
     </div>
-
-    <nav class="scaffale" aria-label="Scaffale delle sezioni">
-      <a class="faldone cartone" href="#strati" style="--c:var(--verde);--h:88%"><span class="faldone__finestra"><span>Strati</span></span><span class="faldone__foro" aria-hidden="true"></span></a>
-      <a class="faldone cartone" href="#referente" style="--c:var(--blu);--h:96%"><span class="faldone__finestra"><span>Referente</span></span><span class="faldone__foro" aria-hidden="true"></span></a>
-      <a class="faldone cartone" href="#guardie" style="--c:var(--foglio-2);--h:92%"><span class="faldone__finestra"><span>Guardie</span></span><span class="faldone__foro" aria-hidden="true"></span></a>
-      <a class="faldone cartone" href="#aggiornamenti" style="--c:var(--giallo);--h:100%"><span class="faldone__finestra"><span>Aggiorna</span></span><span class="faldone__foro" aria-hidden="true"></span></a>
-      <a class="faldone cartone" href="#impegni" style="--c:var(--rosso);--h:90%"><span class="faldone__finestra"><span>Impegni</span></span><span class="faldone__foro" aria-hidden="true"></span></a>
-      <a class="faldone faldone--chino cartone" href="#installa" style="--c:var(--manila);--h:86%"><span class="faldone__finestra"><span>Installa</span></span><span class="faldone__foro" aria-hidden="true"></span></a>
-    </nav>
   </div>
 </section>
 
-<section class="sezione sezione--scura" id="strati" aria-labelledby="t-strati">
+<section class="sezione" id="strati" aria-labelledby="t-strati">
   <div class="colonna">
     <div class="testa">
-      <h2 id="t-strati">Quattro cartelle, una dentro l'altra</h2>
-      <p>Ogni cartella ha un padrone diverso. Chi aggiorna la sua non tocca le altre. Lo strato è la novità del 30 settembre: la cartella della tua organizzazione.</p>
+      <h2 class="titolo" id="t-strati">Quattro strati, uno dentro l'altro</h2>
+      <p class="attacco">Ogni strato ha un padrone diverso. Chi aggiorna il suo non tocca gli altri. Lo strato è la novità del 30 settembre: quello della tua organizzazione.</p>
     </div>
 
-    <div class="pila">
-      <div class="linguette" role="tablist" aria-label="Gli strati">
-        <button class="linguetta" role="tab" id="tab-claude" aria-controls="pan-claude" aria-selected="false" tabindex="-1" style="--c:var(--blu)" data-dietro="var(--blu-scuro)">Claude Code</button>
-        <button class="linguetta" role="tab" id="tab-arturo" aria-controls="pan-arturo" aria-selected="false" tabindex="-1" style="--c:var(--rosso)" data-dietro="var(--rosso-scuro)">Arturo</button>
-        <button class="linguetta" role="tab" id="tab-strato" aria-controls="pan-strato" aria-selected="true" tabindex="0" style="--c:var(--verde)" data-dietro="var(--verde-scuro)">Lo strato <span class="dymo nuovo">nuovo</span></button>
-        <button class="linguetta" role="tab" id="tab-tu" aria-controls="pan-tu" aria-selected="false" tabindex="-1" style="--c:var(--manila);--testo-tab:var(--inchiostro)" data-dietro="var(--manila-scuro)">Tu</button>
-      </div>
-      <div class="cartelle" id="cartelle">
-
-        <div class="cartella cartone" role="tabpanel" id="pan-claude" aria-labelledby="tab-claude" style="--c:var(--blu)" hidden>
-          <div>
-            <h3>Il motore</h3>
-            <p>Claude Code è un servizio a pagamento di Anthropic, un'azienda privata. Anthropic decide prezzi, limiti e funzioni, e li può cambiare. Quello che scrivi passa dai suoi server.</p>
-            <p>Arturo non cambia questa condizione. Ci lavora sopra.</p>
-            <dl><dt>Padrone</dt><dd>Anthropic</dd><dt>Aggiorna</dt><dd>Anthropic, con le sue versioni</dd></dl>
+    <div class="strati">
+      <div class="schema">
+        <p class="schema__didascalia" id="schema-nome">Scegli uno strato per vedere chi lo possiede</p>
+        <div role="tablist" aria-labelledby="schema-nome" aria-orientation="vertical" id="schema">
+          <div class="strato" data-strato="claude">
+            <button class="strato__tab" role="tab" id="tab-claude" aria-controls="pan-claude" aria-selected="false" tabindex="-1"><span class="strato__nome">Claude Code</span><span class="strato__chi">Anthropic</span></button>
+            <div class="strato" data-strato="arturo">
+              <button class="strato__tab" role="tab" id="tab-arturo" aria-controls="pan-arturo" aria-selected="false" tabindex="-1"><span class="strato__nome">Arturo</span><span class="strato__chi">progetto pubblico</span></button>
+              <div class="strato attivo" data-strato="strato">
+                <button class="strato__tab" role="tab" id="tab-strato" aria-controls="pan-strato" aria-selected="true" tabindex="0"><span class="strato__nome">Lo strato<span class="strato__nuovo">nuovo</span></span><span class="strato__chi">la tua organizzazione</span></button>
+                <div class="strato strato--tu" data-strato="tu">
+                  <button class="strato__tab" role="tab" id="tab-tu" aria-controls="pan-tu" aria-selected="false" tabindex="-1"><span class="strato__nome">Tu</span><span class="strato__chi">i tuoi file</span></button>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="prova foglio">
+        </div>
+      </div>
+
+      <div>
+        <div class="pannello" role="tabpanel" id="pan-claude" aria-labelledby="tab-claude" hidden>
+          <h3 class="titolo-3">Il motore</h3>
+          <p>Claude Code è un servizio a pagamento di Anthropic, un'azienda privata. Anthropic decide prezzi, limiti e funzioni, e li può cambiare. Quello che scrivi passa dai suoi server.</p>
+          <p>Arturo non cambia questa condizione. Ci lavora sopra.</p>
+          <dl><dt>Padrone</dt><dd>Anthropic</dd><dt>Aggiorna</dt><dd>Anthropic, con le sue versioni</dd></dl>
+          <div class="prova">
             <p class="prova__didascalia">Dal settings.json di Arturo</p>
 <pre>"permissions": {
   …
   <b>"defaultMode": "auto"</b>
 }</pre>
-            <p style="margin-top:14px;font-size:.95rem">Il classificatore di Claude Code giudica ogni comando. Le guardie di Arturo stanno sopra di lui, sulle azioni che non si annullano.</p>
+            <p style="margin-top:12px;font-size:.9rem">Il classificatore di Claude Code giudica ogni comando. Le guardie di Arturo stanno sopra di lui, sulle azioni che non si annullano.</p>
           </div>
         </div>
 
-        <div class="cartella cartone" role="tabpanel" id="pan-arturo" aria-labelledby="tab-arturo" style="--c:var(--rosso)" hidden>
-          <div>
-            <h3>Il custode</h3>
-            <p>Arturo è pubblico, gratuito, con licenza MIT. Porta le guardie di sicurezza, il ciclo di lavoro da <code>/inizio</code> a <code>/fine</code> e un curriculum dei principi per chi parte da zero.</p>
-            <p><strong>18</strong> guardie e automazioni, <strong>12</strong> comandi, <strong>9</strong> agenti, <strong>3</strong> skill.</p>
-            <dl><dt>Padrone</dt><dd>Progetto pubblico di Federico Nejrotti</dd><dt>Aggiorna</dt><dd>Tu, con <code>/aggiorna</code>, dopo il tuo sì</dd></dl>
-          </div>
-          <div class="prova prova--sx foglio">
+        <div class="pannello" role="tabpanel" id="pan-arturo" aria-labelledby="tab-arturo" hidden>
+          <h3 class="titolo-3">Il custode</h3>
+          <p>Arturo è pubblico, gratuito, con licenza MIT. Porta le guardie di sicurezza, il ciclo di lavoro da <code>/inizio</code> a <code>/fine</code> e un curriculum dei principi per chi parte da zero.</p>
+          <p><strong>18</strong> guardie e automazioni, <strong>12</strong> comandi, <strong>9</strong> agenti, <strong>3</strong> skill.</p>
+          <dl><dt>Padrone</dt><dd>Progetto pubblico di Federico Nejrotti</dd><dt>Aggiorna</dt><dd>Tu, con <code>/aggiorna</code>, dopo il tuo sì</dd></dl>
+          <div class="prova">
             <p class="prova__didascalia">Cosa arriva con gli aggiornamenti</p>
-<ul class="albero"><li style="--l:0"><code>~/.claude/</code><span></span></li><li style="--l:1"><code><b>hooks/</b></code><span>le guardie</span></li><li style="--l:1"><code><b>commands/</b></code><span>i comandi</span></li><li style="--l:1"><code>agents/</code><span>gli agenti</span></li><li style="--l:1"><code>skills/</code><span>le skill</span></li><li style="--l:1"><code>docs/</code><span>il curriculum</span></li><li style="--l:1"><code>templates/</code><span>il modello di strato</span></li><li style="--l:1"><code>NOVITA.md</code><span>il racconto delle novità</span></li></ul>
+            <ul class="albero"><li style="--l:0"><code>~/.claude/</code><span></span></li><li style="--l:1"><code><b>hooks/</b></code><span>le guardie</span></li><li style="--l:1"><code><b>commands/</b></code><span>i comandi</span></li><li style="--l:1"><code>agents/</code><span>gli agenti</span></li><li style="--l:1"><code>skills/</code><span>le skill</span></li><li style="--l:1"><code>docs/</code><span>il curriculum</span></li><li style="--l:1"><code>templates/</code><span>il modello di strato</span></li><li style="--l:1"><code>NOVITA.md</code><span>il racconto delle novità</span></li></ul>
           </div>
         </div>
 
-        <div class="cartella cartone" role="tabpanel" id="pan-strato" aria-labelledby="tab-strato" style="--c:var(--verde)">
-          <div>
-            <h3>La vostra organizzazione</h3>
-            <p>Lo strato vive nel repository privato della vostra organizzazione. Dentro ci sono chi siete, come scrivete, i lavori che si ripetono e i dati che non devono uscire.</p>
-            <p>All'avvio Claude sa per chi lavora. La voce dell'organizzazione diventa una skill. Prima di mandare fuori un dato riservato, chiede conferma.</p>
-            <dl><dt>Padrone</dt><dd>La vostra organizzazione</dd><dt>Aggiorna</dt><dd>Il referente pubblica, i colleghi ricevono con <code>/aggiorna</code></dd></dl>
-          </div>
-          <div class="prova foglio">
-            <span class="graffetta" aria-hidden="true"></span>
+        <div class="pannello" role="tabpanel" id="pan-strato" aria-labelledby="tab-strato">
+          <h3 class="titolo-3">La vostra organizzazione</h3>
+          <p>Lo strato vive nel repository privato della vostra organizzazione. Dentro ci sono chi siete, come scrivete, i lavori che si ripetono e i dati che non devono uscire.</p>
+          <p>All'avvio Claude sa per chi lavora. La voce dell'organizzazione diventa una skill. Prima di mandare fuori un dato riservato, chiede conferma.</p>
+          <dl><dt>Padrone</dt><dd>La vostra organizzazione</dd><dt>Aggiorna</dt><dd>Il referente pubblica, i colleghi ricevono con <code>/aggiorna</code></dd></dl>
+          <div class="prova">
             <p class="prova__didascalia">Il modello che prepara /strato crea</p>
-<ul class="albero"><li style="--l:0"><code>plugins/strato/</code><span></span></li><li style="--l:1"><code><b>ORGANIZZAZIONE.md</b></code><span>chi siete, per chi lavorate</span></li><li style="--l:1"><code>skills/voce/regole.md</code><span>come scrivete</span></li><li style="--l:1"><code>skills/modello-lavoro/</code><span>un lavoro che si ripete</span></li><li style="--l:1"><code><b>dati-riservati.txt</b></code><span>cosa non esce senza un sì</span></li><li style="--l:1"><code>hooks/contesto.py</code><span>all'avvio: per chi lavora</span></li><li style="--l:1"><code>hooks/dati-in-uscita.py</code><span>la conferma prima di un invio</span></li></ul>
+            <ul class="albero"><li style="--l:0"><code>plugins/strato/</code><span></span></li><li style="--l:1"><code><b>ORGANIZZAZIONE.md</b></code><span>chi siete, per chi lavorate</span></li><li style="--l:1"><code>skills/voce/regole.md</code><span>come scrivete</span></li><li style="--l:1"><code>skills/modello-lavoro/</code><span>un lavoro che si ripete</span></li><li style="--l:1"><code><b>dati-riservati.txt</b></code><span>cosa non esce senza un sì</span></li><li style="--l:1"><code>hooks/contesto.py</code><span>all'avvio: per chi lavora</span></li><li style="--l:1"><code>hooks/dati-in-uscita.py</code><span>la conferma prima di un invio</span></li></ul>
           </div>
         </div>
 
-        <div class="cartella cartone" role="tabpanel" id="pan-tu" aria-labelledby="tab-tu" style="--c:var(--manila);--ct:var(--inchiostro)" hidden>
-          <div>
-            <h3>I tuoi file</h3>
-            <p>Il tuo <code>CLAUDE.md</code>, i server di cui ti fidi, i tuoi dati e i tuoi progetti. Nessun aggiornamento li tocca: né quelli di Arturo né quelli dello strato.</p>
-            <dl><dt>Padrone</dt><dd>Tu</dd><dt>Aggiorna</dt><dd>Solo tu</dd></dl>
-          </div>
-          <div class="prova prova--sx foglio">
+        <div class="pannello" role="tabpanel" id="pan-tu" aria-labelledby="tab-tu" hidden>
+          <h3 class="titolo-3">I tuoi file</h3>
+          <p>Il tuo <code>CLAUDE.md</code>, i server di cui ti fidi, i tuoi dati e i tuoi progetti. Nessun aggiornamento li tocca: né quelli di Arturo né quelli dello strato.</p>
+          <dl><dt>Padrone</dt><dd>Tu</dd><dt>Aggiorna</dt><dd>Solo tu</dd></dl>
+          <div class="prova">
             <p class="prova__didascalia">Tuo, nessun aggiornamento lo tocca</p>
-<ul class="albero"><li style="--l:0"><code><b>CLAUDE.md</b></code><span>le tue istruzioni</span></li><li style="--l:0"><code>hooks/hosts-interni.local</code><span>i server di cui ti fidi</span></li><li style="--l:0"><code>data/</code><span>i tuoi dati</span></li><li style="--l:0"><code>projects/</code><span>le tue cartelle di lavoro</span></li></ul>
+            <ul class="albero"><li style="--l:0"><code><b>CLAUDE.md</b></code><span>le tue istruzioni</span></li><li style="--l:0"><code>hooks/hosts-interni.local</code><span>i server di cui ti fidi</span></li><li style="--l:0"><code>data/</code><span>i tuoi dati</span></li><li style="--l:0"><code>projects/</code><span>le tue cartelle di lavoro</span></li></ul>
           </div>
         </div>
-
       </div>
     </div>
   </div>
 </section>
 
-<section class="sezione sezione--manila cartone" id="referente" aria-labelledby="t-referente">
+<section class="sezione sezione--carta" id="referente" aria-labelledby="t-referente">
   <div class="colonna">
     <div class="testa">
-      <h2 id="t-referente">Il referente non deve saper programmare</h2>
+      <h2 class="titolo" id="t-referente">Il referente non deve saper programmare</h2>
       <blockquote class="citazione">
         <p>Serve che conosca il lavoro dei colleghi, che abbia voglia di provare, e che dedichi allo strumento un po' di tempo ogni settimana.</p>
         <footer>Dalla guida del referente, <code>docs/referente.md</code></footer>
       </blockquote>
     </div>
 
-    <div class="trasmissione foglio">
-      <div class="trasmissione__testa">
-        <p class="titolo-foglio">Foglio di trasmissione</p>
-        <span class="dymo" style="font-size:1rem">Strato dell'organizzazione</span>
-      </div>
-      <table>
-        <thead><tr><th scope="col">Chi</th><th scope="col">Comando</th><th scope="col">Cosa succede</th><th scope="col"><span class="vis-sr">Esito</span></th></tr></thead>
+    <div class="tabella-card">
+      <table class="passaggi">
+        <caption>Lo strato dell'organizzazione, passo per passo</caption>
+        <thead><tr><th scope="col">Chi</th><th scope="col">Comando</th><th scope="col">Cosa succede</th></tr></thead>
         <tbody>
-          <tr>
-            <td>Referente</td>
-            <td><code>/strato crea</code></td>
-            <td>Una breve intervista, una domanda per volta: chi siete, come suonano i vostri testi, due lavori che si ripetono, cosa non deve uscire. Claude mostra cosa scrive prima di scriverlo.</td>
-            <td class="visto"><span class="timbro" data-batti style="--r:-7deg">Visto</span></td>
-          </tr>
-          <tr>
-            <td>Referente</td>
-            <td><code>/strato pubblica</code></td>
-            <td>Controlla che i file siano validi, poi pubblica nel repository privato. Il commit passa dal controllo segreti di Arturo.</td>
-            <td class="visto"><span class="timbro" data-batti style="--r:4deg">Visto</span></td>
-          </tr>
-          <tr>
-            <td>Colleghi</td>
-            <td><code>/strato installa &lt;indirizzo&gt;</code></td>
-            <td>Prova l'accesso al repository, installa lo strato e dice cosa ha installato. Serve l'invito del referente. Poi si riapre Claude Code.</td>
-            <td class="visto"><span class="timbro" data-batti style="--r:-3deg">Visto</span></td>
-          </tr>
-          <tr>
-            <td>Tutti</td>
-            <td><code>/aggiorna</code></td>
-            <td>Scarica Arturo e anche lo strato. Una porta sola per tutti e due.</td>
-            <td class="visto"><span class="timbro" data-batti style="--r:6deg">Visto</span></td>
-          </tr>
+          <tr><td>Referente</td><td><code>/strato crea</code></td><td>Una breve intervista, una domanda per volta: chi siete, come suonano i vostri testi, due lavori che si ripetono, cosa non deve uscire. Claude mostra cosa scrive prima di scriverlo.</td></tr>
+          <tr><td>Referente</td><td><code>/strato pubblica</code></td><td>Controlla che i file siano validi, poi pubblica nel repository privato. Il commit passa dal controllo segreti di Arturo.</td></tr>
+          <tr><td>Colleghi</td><td><code>/strato installa &lt;indirizzo&gt;</code></td><td>Prova l'accesso al repository, installa lo strato e dice cosa ha installato. Serve l'invito del referente. Poi si riapre Claude Code.</td></tr>
+          <tr><td>Tutti</td><td><code>/aggiorna</code></td><td>Scarica Arturo e anche lo strato. Una porta sola per tutti e due.</td></tr>
         </tbody>
       </table>
     </div>
   </div>
 </section>
 
-<section class="sezione sezione--scura" id="guardie" aria-labelledby="t-guardie">
+<section class="sezione" id="guardie" aria-labelledby="t-guardie">
   <div class="colonna">
-    <div class="testa">
-      <h2 id="t-guardie">Le guardie timbrano</h2>
-      <p>Claude Code giudica ogni comando con il suo classificatore. Sopra di lui Arturo mette poche guardie deterministiche, sulle azioni che non si annullano. Qui sotto trovi sette richieste e il timbro che ricevono. I messaggi sono quelli che le guardie scrivono davvero.</p>
+    <div class="scena">
+      <img src="img/scena-2.webp" srcset="img/scena-2-1200.webp 1200w, img/scena-2.webp 2400w" sizes="(max-width:1296px) 100vw, 1200px" alt="Una costa ligure di notte: il faro illumina il mare e una barca rientra in porto sotto la stella Arturo." width="2400" height="1611" loading="lazy">
+      <div class="vetro">
+        <h2 id="t-guardie">Le guardie, al lavoro</h2>
+        <p>Claude Code giudica ogni comando con il suo classificatore. Sopra di lui Arturo mette poche guardie deterministiche, sulle azioni che non si annullano. Qui sotto trovi sette richieste e la risposta che ricevono. I messaggi sono quelli che le guardie scrivono davvero.</p>
+      </div>
     </div>
 
-    <div class="registro foglio">
-      <div class="registro__intestazione">
-        <p class="titolo-foglio">Registro di protocollo</p>
-        <span class="mono" style="color:var(--inchiostro-2)">guardie di Arturo · versione del 30/9/2026</span>
+    <div class="registro">
+      <div class="registro__testa">
+        <h3 class="titolo-3">Sette richieste, sette risposte vere</h3>
+        <span class="mono">guardie di Arturo · versione del 30/9/2026</span>
       </div>
-      <table>
-        <thead><tr><th scope="col">N.</th><th scope="col">Richiesta di Claude</th><th scope="col">Guardia</th><th scope="col">Esito</th></tr></thead>
-        <tbody>
-          <tr>
-            <td class="n">1</td>
-            <td class="richiesta"><span class="cmd">rm -rf ~/Documents/capitoli</span><span class="nota">Cancellare una cartella intera.</span>
-              <span class="motivo">rm ricorsivo su una cartella (/Users/…/Documents/capitoli). Dal terminale non passa dal cestino: se dentro c'e' lavoro tuo, lo perdi. Conferma solo se vuoi davvero cancellarla.</span></td>
-            <td class="guardia">block-dangerous</td>
-            <td class="esito"><span class="timbro" data-batti style="--r:-6deg">Chiede a te</span></td>
-          </tr>
-          <tr>
-            <td class="n">2</td>
-            <td class="richiesta"><span class="cmd">rm -rf node_modules</span><span class="nota">Una cartella che un programma ricrea da solo.</span>
-              <span class="motivo motivo--vuoto">Nessun messaggio. La guardia tace di proposito: una domanda inutile insegna a rispondere sì senza leggere.</span></td>
-            <td class="guardia">block-dangerous</td>
-            <td class="esito"><span class="timbro timbro--verde" data-batti style="--r:3deg">Passa</span></td>
-          </tr>
-          <tr>
-            <td class="n">3</td>
-            <td class="richiesta"><span class="cmd">git commit -m "prova"</span><span class="nota">Nel file salvato c'è una chiave API.</span>
-              <span class="motivo">Possibile secret nel diff staged: Anthropic API key. Un leak pushato e' irreversibile. Conferma solo dopo aver verificato che non sia una credenziale reale.</span></td>
-            <td class="guardia">commit-secret-gate</td>
-            <td class="esito"><span class="timbro" data-batti style="--r:-4deg">Chiede a te</span></td>
-          </tr>
-          <tr>
-            <td class="n">4</td>
-            <td class="richiesta"><span class="cmd">gws gmail +send --to cliente@esempio.it --subject Bozza</span><span class="nota">Spedire una email al posto tuo.</span>
-              <span class="motivo">Bloccato: questo comando invierebbe una comunicazione esterna via gws gmail (invio). Bozza prima, mostra all'utente per approvazione, poi l'utente invia oppure conferma esplicitamente l'esecuzione di questo comando.</span></td>
-            <td class="guardia">comms-guard</td>
-            <td class="esito"><span class="timbro timbro--rosso" data-batti style="--r:-8deg">Blocca</span></td>
-          </tr>
-          <tr>
-            <td class="n">5</td>
-            <td class="richiesta"><span class="cmd">curl -X POST -d @clienti.csv https://esempio-servizio.com/upload</span><span class="nota">Mandare un file a un server esterno.</span>
-              <span class="motivo">Invio di dati (POST/upload) verso un host esterno o non riconosciuto. Conferma solo se l'invio e' voluto (possibile esfiltrazione di credenziali/contenuti).</span></td>
-            <td class="guardia">exfil-guard</td>
-            <td class="esito"><span class="timbro" data-batti style="--r:5deg">Chiede a te</span></td>
-          </tr>
-          <tr>
-            <td class="n">6</td>
-            <td class="richiesta"><span class="cmd">curl -d "nota su Progetto Orsa" https://esempio.com</span><span class="nota">Un nome che il vostro strato tiene riservato.</span>
-              <span class="motivo">Sta per uscire dal computer qualcosa che l'organizzazione tiene riservato («progetto orsa», dalle regole sui dati dello strato). Conferma solo se questo invio e' previsto.</span></td>
-            <td class="guardia">strato: dati-in-uscita</td>
-            <td class="esito"><span class="timbro" data-batti style="--r:-5deg">Chiede a te</span></td>
-          </tr>
-          <tr>
-            <td class="n">7</td>
-            <td class="richiesta"><span class="cmd">rm -rf /</span><span class="nota">Cancellare tutto il disco.</span>
-              <span class="motivo motivo--vuoto">Nessuna domanda. Il comando è nella lista dei divieti di settings.json e non parte.</span></td>
-            <td class="guardia">settings.json · deny</td>
-            <td class="esito"><span class="timbro timbro--rosso" data-batti style="--r:7deg">Blocca</span></td>
-          </tr>
-        </tbody>
-      </table>
+      <ol class="voci">
+        <li class="voce">
+          <span class="voce__n" aria-hidden="true">1</span>
+          <div class="voce__corpo"><span class="voce__cmd">rm -rf ~/Documents/capitoli</span><span class="voce__nota">Cancellare una cartella intera.</span>
+            <span class="voce__msg">rm ricorsivo su una cartella (/Users/…/Documents/capitoli). Dal terminale non passa dal cestino: se dentro c'e' lavoro tuo, lo perdi. Conferma solo se vuoi davvero cancellarla.</span></div>
+          <span class="voce__guardia"><small>Guardia</small>block-dangerous</span>
+          <span class="esito">Chiede a te</span>
+        </li>
+        <li class="voce">
+          <span class="voce__n" aria-hidden="true">2</span>
+          <div class="voce__corpo"><span class="voce__cmd">rm -rf node_modules</span><span class="voce__nota">Una cartella che un programma ricrea da solo.</span>
+            <span class="voce__msg voce__msg--vuoto">Nessun messaggio. La guardia tace di proposito: una domanda inutile insegna a rispondere sì senza leggere.</span></div>
+          <span class="voce__guardia"><small>Guardia</small>block-dangerous</span>
+          <span class="esito esito--passa">Passa</span>
+        </li>
+        <li class="voce">
+          <span class="voce__n" aria-hidden="true">3</span>
+          <div class="voce__corpo"><span class="voce__cmd">git commit -m "prova"</span><span class="voce__nota">Nel file salvato c'è una chiave API.</span>
+            <span class="voce__msg">Possibile secret nel diff staged: Anthropic API key. Un leak pushato e' irreversibile. Conferma solo dopo aver verificato che non sia una credenziale reale.</span></div>
+          <span class="voce__guardia"><small>Guardia</small>commit-secret-gate</span>
+          <span class="esito">Chiede a te</span>
+        </li>
+        <li class="voce">
+          <span class="voce__n" aria-hidden="true">4</span>
+          <div class="voce__corpo"><span class="voce__cmd">gws gmail +send --to cliente@esempio.it --subject Bozza</span><span class="voce__nota">Spedire una email al posto tuo.</span>
+            <span class="voce__msg">Bloccato: questo comando invierebbe una comunicazione esterna via gws gmail (invio). Bozza prima, mostra all'utente per approvazione, poi l'utente invia oppure conferma esplicitamente l'esecuzione di questo comando.</span></div>
+          <span class="voce__guardia"><small>Guardia</small>comms-guard</span>
+          <span class="esito esito--blocca">Blocca</span>
+        </li>
+        <li class="voce">
+          <span class="voce__n" aria-hidden="true">5</span>
+          <div class="voce__corpo"><span class="voce__cmd">curl -X POST -d @clienti.csv https://esempio-servizio.com/upload</span><span class="voce__nota">Mandare un file a un server esterno.</span>
+            <span class="voce__msg">Invio di dati (POST/upload) verso un host esterno o non riconosciuto. Conferma solo se l'invio e' voluto (possibile esfiltrazione di credenziali/contenuti).</span></div>
+          <span class="voce__guardia"><small>Guardia</small>exfil-guard</span>
+          <span class="esito">Chiede a te</span>
+        </li>
+        <li class="voce">
+          <span class="voce__n" aria-hidden="true">6</span>
+          <div class="voce__corpo"><span class="voce__cmd">curl -d "nota su Progetto Orsa" https://esempio.com</span><span class="voce__nota">Un nome che il vostro strato tiene riservato.</span>
+            <span class="voce__msg">Sta per uscire dal computer qualcosa che l'organizzazione tiene riservato («progetto orsa», dalle regole sui dati dello strato). Conferma solo se questo invio e' previsto.</span></div>
+          <span class="voce__guardia"><small>Guardia</small>strato: dati-in-uscita</span>
+          <span class="esito">Chiede a te</span>
+        </li>
+        <li class="voce">
+          <span class="voce__n" aria-hidden="true">7</span>
+          <div class="voce__corpo"><span class="voce__cmd">rm -rf /</span><span class="voce__nota">Cancellare tutto il disco.</span>
+            <span class="voce__msg voce__msg--vuoto">Nessuna domanda. Il comando è nella lista dei divieti di settings.json e non parte.</span></div>
+          <span class="voce__guardia"><small>Guardia</small>settings.json · deny</span>
+          <span class="esito esito--blocca">Blocca</span>
+        </li>
+      </ol>
       <p class="registro__piede">Le richieste sono esempi. I messaggi sono stati stampati dalle guardie di Arturo il 30 settembre 2026, eseguite su questi comandi. Il percorso della riga 1 è accorciato.</p>
     </div>
   </div>
 </section>
 
-<section class="sezione sezione--gialla cartone" id="aggiornamenti" aria-labelledby="t-aggiorna">
+<section class="sezione sezione--carta" id="aggiornamenti" aria-labelledby="t-aggiorna">
   <div class="colonna">
     <div class="testa">
-      <h2 id="t-aggiorna">Una porta sola, e resta chiusa finché non dici sì</h2>
-      <p>Un aggiornamento è codice scritto da altri che gira sul tuo computer. Per questo passa da <code>/aggiorna</code> e da nessun'altra parte, e può sempre tornare indietro.</p>
+      <h2 class="titolo" id="t-aggiorna">Una porta sola, e resta chiusa finché non dici sì</h2>
+      <p class="attacco">Un aggiornamento è codice scritto da altri che gira sul tuo computer. Per questo passa da <code>/aggiorna</code> e da nessun'altra parte, e può sempre tornare indietro.</p>
     </div>
 
     <div class="porta">
@@ -677,22 +549,16 @@ button{font:inherit;color:inherit;cursor:pointer}
         <li><p><code>/aggiorna indietro</code> riporta alla versione di prima. Un secondo <code>indietro</code> torna ancora più indietro.</p></li>
       </ol>
 
-      <div>
-        <div class="vassoio" id="vassoio">
-          <div class="vassoio__fogli">
-            <div class="foglio aggiornamento">
-              <span class="sotto-foglio" aria-hidden="true"></span>
-              <span class="bandierina" id="bandierina">In attesa del tuo sì</span>
-              <p class="titolo-foglio" style="font-size:1.6rem">All'avvio della sessione</p>
-              <code class="linea-avvio">ARTURO: c'e' un aggiornamento (3 commit) — scaricalo con /aggiorna</code>
-              <p style="font-size:.95rem">Questa riga resta finché non decidi. Nessun aggiornamento entra da solo.</p>
-              <div class="demo-comandi">
-                <button type="button" id="dai-si">Dai il tuo sì</button>
-                <button type="button" id="indietro" disabled>/aggiorna indietro</button>
-              </div>
-              <p class="demo-stato" id="demo-stato" aria-live="polite">Simulazione: prova i due pulsanti.</p>
-            </div>
+      <div class="avviso-avvio" id="avviso">
+        <div class="avviso-avvio__barra"><span>All'avvio della sessione</span><span class="stato" id="stato">In attesa del tuo sì</span></div>
+        <div class="avviso-avvio__corpo">
+          <code class="riga-avvio">ARTURO: c'e' un aggiornamento (3 commit) — scaricalo con /aggiorna</code>
+          <p style="font-size:.95rem">Questa riga resta finché non decidi. Nessun aggiornamento entra da solo.</p>
+          <div class="comandi-demo">
+            <button class="azione azione--piena" type="button" id="dai-si">Dai il tuo sì</button>
+            <button class="azione azione--bordo" type="button" id="indietro" disabled>/aggiorna indietro</button>
           </div>
+          <p class="demo-stato" id="demo-stato" aria-live="polite">Simulazione: prova i due pulsanti.</p>
         </div>
       </div>
     </div>
@@ -700,137 +566,138 @@ button{font:inherit;color:inherit;cursor:pointer}
     <div class="config">
       <p>Un <code>settings.json</code> rotto spegne tutte le guardie senza dire niente. Arturo lo controlla all'avvio, prima e dopo ogni aggiornamento, e prima di ogni <code>/fine</code>.</p>
       <div>
-        <code class="linea-avvio linea-avvio--ok" style="margin-top:0">CONFIG OK: settings.json valido, nessun conflitto</code>
-        <code class="linea-avvio linea-avvio--ko" style="margin-bottom:0">CONFIG ROTTA: … fermati e chiedi a Claude di sistemarla</code>
+        <code class="riga-avvio riga-avvio--ok">CONFIG OK: settings.json valido, nessun conflitto</code>
+        <code class="riga-avvio riga-avvio--ko">CONFIG ROTTA: … fermati e chiedi a Claude di sistemarla</code>
       </div>
     </div>
   </div>
 </section>
 
-<section class="sezione" id="pratica" aria-labelledby="t-pratica">
+<section class="sezione" id="comandi" aria-labelledby="t-comandi">
   <div class="colonna">
     <div class="testa">
-      <h2 id="t-pratica">Aprire e chiudere la pratica</h2>
-      <p>Il lavoro con Claude Code si perde tra una sessione e l'altra. Arturo gli dà un inizio e una fine, anche su più macchine.</p>
+      <h2 class="titolo" id="t-comandi">Un inizio e una fine</h2>
+      <p class="attacco">Il lavoro con Claude Code si perde tra una sessione e l'altra. Arturo gli dà un inizio e una fine, anche su più macchine.</p>
     </div>
 
     <div class="ciclo">
       <div>
-        <h3><code>/inizio</code></h3>
+        <h3 class="titolo-3"><code>/inizio</code></h3>
         <p>Riprende l'ultimo appunto del progetto e i compiti rimasti aperti. Quelli già fatti non tornano.</p>
       </div>
       <div>
-        <h3>Il lavoro</h3>
+        <h3 class="titolo-3">Il lavoro</h3>
         <p>Tu chiedi, Claude fa. Le guardie stanno sopra, le domande arrivano solo sulle azioni che non si annullano.</p>
       </div>
       <div>
-        <h3><code>/fine</code></h3>
+        <h3 class="titolo-3"><code>/fine</code></h3>
         <p>Controlla che il lavoro sia completo, salva e lascia un appunto per la prossima volta.</p>
       </div>
     </div>
 
-    <div class="cassetto" role="region" aria-label="Schedario dei 12 comandi">
-<span class="cassetto__maniglia" aria-hidden="true"></span>
-<div class="rubrica">
-<section class="divisorio" style="--cat:var(--rosso);--pos:0"><h3 class="divisorio__tab">Ciclo</h3><ul class="righe"><li><code>/inizio</code><span>Apre la sessione sul progetto e riprende dall'ultimo appunto.</span></li><li><code>/fine</code><span>Chiude la sessione: completezza, salvataggio, appunto.</span></li><li><code>/guidami</code><span>Quando riapri e non sai da dove ripartire: tre o quattro proposte, con il motivo e il primo passo.</span></li></ul></section>
-<section class="divisorio" style="--cat:var(--verde);--pos:22%"><h3 class="divisorio__tab">Organizzazioni</h3><ul class="righe"><li><code>/strato</code><span>Crea, pubblica e installa lo strato della vostra organizzazione.</span></li></ul></section>
-<section class="divisorio" style="--cat:var(--giallo);--pos:44%;--ct:var(--inchiostro)"><h3 class="divisorio__tab">Manutenzione</h3><ul class="righe"><li><code>/aggiorna</code><span>Mostra cosa arriva e lo applica dopo il tuo sì. Con indietro, torna alla versione di prima.</span></li><li><code>/setup</code><span>Configurazione guidata, una cosa per volta. Pensata anche per chi non programma.</span></li></ul></section>
-<section class="divisorio" style="--cat:var(--blu);--pos:0"><h3 class="divisorio__tab">Imparare</h3><ul class="righe"><li><code>/novita</code><span>Racconta le novità non ancora viste: cosa cambia e il principio dietro.</span></li><li><code>/sparring</code><span>Prova un principio sul tuo lavoro vero, con esperimenti piccoli e reversibili.</span></li></ul></section>
-<section class="divisorio" style="--cat:var(--manila-scuro);--pos:22%;--ct:var(--inchiostro)"><h3 class="divisorio__tab">Progetti</h3><ul class="righe"><li><code>/progetto</code><span>Dall'idea al primo passo. Ha un ramo per chi non scrive codice: un libro, una ricerca, un corso.</span></li><li><code>/discovery</code><span>Un'intervista per capire cosa costruire.</span></li><li><code>/write-plan</code><span>Un piano passo per passo, con l'ordine dei compiti e le prove.</span></li></ul></section>
-<section class="divisorio" style="--cat:var(--inchiostro-2);--pos:44%"><h3 class="divisorio__tab">Imprevisti</h3><ul class="righe"><li><code>/diagnosi</code><span>Prima i fatti, poi le ipotesi. Si chiama così per non nascondere il /debug di Claude Code.</span></li></ul></section>
-</div>
-</div>
+    <div class="indice">
+      <h3 class="titolo-3 indice__titolo">I dodici comandi</h3>
+      <div class="gruppi">
+        <section class="gruppo"><h4>Ciclo</h4><ul><li><code>/inizio</code><span>Apre la sessione sul progetto e riprende dall'ultimo appunto.</span></li><li><code>/fine</code><span>Chiude la sessione: completezza, salvataggio, appunto.</span></li><li><code>/guidami</code><span>Quando riapri e non sai da dove ripartire: tre o quattro proposte, con il motivo e il primo passo.</span></li></ul></section>
+        <section class="gruppo"><h4>Organizzazioni</h4><ul><li><code>/strato</code><span>Crea, pubblica e installa lo strato della vostra organizzazione.</span></li></ul></section>
+        <section class="gruppo"><h4>Manutenzione</h4><ul><li><code>/aggiorna</code><span>Mostra cosa arriva e lo applica dopo il tuo sì. Con indietro, torna alla versione di prima.</span></li><li><code>/setup</code><span>Configurazione guidata, una cosa per volta. Pensata anche per chi non programma.</span></li></ul></section>
+        <section class="gruppo"><h4>Imparare</h4><ul><li><code>/novita</code><span>Racconta le novità non ancora viste: cosa cambia e il principio dietro.</span></li><li><code>/sparring</code><span>Prova un principio sul tuo lavoro vero, con esperimenti piccoli e reversibili.</span></li></ul></section>
+        <section class="gruppo"><h4>Progetti</h4><ul><li><code>/progetto</code><span>Dall'idea al primo passo. Ha un ramo per chi non scrive codice: un libro, una ricerca, un corso.</span></li><li><code>/discovery</code><span>Un'intervista per capire cosa costruire.</span></li><li><code>/write-plan</code><span>Un piano passo per passo, con l'ordine dei compiti e le prove.</span></li></ul></section>
+        <section class="gruppo"><h4>Imprevisti</h4><ul><li><code>/diagnosi</code><span>Prima i fatti, poi le ipotesi. Si chiama così per non nascondere il /debug di Claude Code.</span></li></ul></section>
+      </div>
+    </div>
   </div>
 </section>
 
-<section class="sezione sezione--scura" id="avvertenze" aria-labelledby="t-avvertenze">
+<section class="sezione" id="avvertenze" aria-labelledby="t-avvertenze" style="padding-top:0">
   <div class="colonna">
-    <div class="avvertenze">
-      <div class="avviso foglio">
-        <span class="timbro timbro--rosso" data-batti style="--r:6deg">Leggere prima</span>
-        <h2 id="t-avvertenze" class="titolo-foglio">Cosa non è neutro</h2>
-        <p style="margin-top:12px;max-width:44ch">Arturo è gratuito e open source. Lo strumento su cui gira non lo è. Prima di cominciare devi sapere tre cose.</p>
-        <ol>
-          <li><div><strong>Claude Code è un servizio a pagamento di Anthropic, un'azienda privata.</strong>Anthropic decide prezzi, limiti e funzioni, e li può cambiare. Arturo non cambia questa condizione.</div></li>
-          <li><div><strong>Quello che scrivi passa dai server di Anthropic.</strong>Le guardie di Arturo fermano segreti e credenziali, ma la conversazione esce comunque dal tuo computer.</div></li>
-          <li><div><strong>Un aggiornamento di Arturo è codice scritto da altri, e gira sul tuo computer.</strong>Per questo <code>/aggiorna</code> ti mostra cosa arriva prima di applicarlo. Se un aggiornamento non ti convince, non applicarlo.</div></li>
-        </ol>
-      </div>
+    <div class="mare">
+      <h2 class="titolo" id="t-avvertenze">Cosa non è neutro</h2>
+      <p class="attacco">Arturo è gratuito e open source. Lo strumento su cui gira non lo è. Prima di cominciare devi sapere tre cose.</p>
+      <ol>
+        <li><strong>Claude Code è un servizio a pagamento di Anthropic, un'azienda privata.</strong>Anthropic decide prezzi, limiti e funzioni, e li può cambiare. Arturo non cambia questa condizione.</li>
+        <li><strong>Quello che scrivi passa dai server di Anthropic.</strong>Le guardie di Arturo fermano segreti e credenziali, ma la conversazione esce comunque dal tuo computer.</li>
+        <li><strong>Un aggiornamento di Arturo è codice scritto da altri, e gira sul tuo computer.</strong>Per questo <code>/aggiorna</code> ti mostra cosa arriva prima di applicarlo. Se un aggiornamento non ti convince, non applicarlo.</li>
+      </ol>
+    </div>
 
-      <div class="assenze">
-        <h3>Cosa manca, di proposito</h3>
-        <p>Tre faldoni che Arturo non ha e non avrà.</p>
-        <div class="dorsi-vuoti" aria-hidden="true">
-          <div class="dorso-vuoto"><span>Server</span></div>
-          <div class="dorso-vuoto"><span>Account</span></div>
-          <div class="dorso-vuoto"><span>Telemetria</span></div>
-        </div>
-        <dl>
-          <div><dt>Nessun server, nessun account, nessun dominio.</dt><dd>Servono solo <code>git</code> e le CLI standard.</dd></div>
-          <div><dt>Niente telemetria.</dt><dd>L'unico contatto automatico con l'esterno è il controllo degli aggiornamenti: un <code>git fetch</code> verso i repository della tua configurazione, al massimo ogni sei ore.</dd></div>
-        </dl>
+    <div class="assenze">
+      <div>
+        <h3 class="titolo">Cosa manca, di proposito</h3>
+        <p class="attacco" style="margin-top:12px">Tre cose che Arturo non ha e non avrà.</p>
+        <p class="vuoti" aria-hidden="true"><s>Server</s><s>Account</s><s>Telemetria</s></p>
       </div>
+      <dl>
+        <div><dt>Nessun server, nessun account, nessun dominio.</dt><dd>Servono solo <code>git</code> e le CLI standard.</dd></div>
+        <div><dt>Niente telemetria.</dt><dd>L'unico contatto automatico con l'esterno è il controllo degli aggiornamenti: un <code>git fetch</code> verso i repository della tua configurazione, al massimo ogni sei ore.</dd></div>
+      </dl>
     </div>
   </div>
 </section>
 
-<section class="sezione sezione--rossa cartone" id="impegni" aria-labelledby="t-impegni">
+<section class="sezione sezione--carta" id="impegni" aria-labelledby="t-impegni">
   <div class="colonna impegni">
-    <div class="testa">
-      <h2 id="t-impegni">Impegni</h2>
-      <p>Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi.</p>
+    <div>
+      <h2 class="titolo" id="t-impegni">Impegni</h2>
+      <p class="attacco" style="margin-top:16px">Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi.</p>
     </div>
-    <div class="dichiarazione foglio">
-      <span class="punto" aria-hidden="true"></span>
-      <ol>
-        <li><strong>Il repository resta pubblico e con licenza MIT.</strong> Non diventa privato e non viene cancellato.</li>
-        <li><strong>Solo <code>/aggiorna</code> applica gli aggiornamenti, e solo dopo il tuo sì.</strong> L'avvio della sessione e <code>/inizio</code> controllano soltanto se ci sono novità.</li>
-        <li><strong>Niente telemetria.</strong> Arturo non raccoglie dati su di te né su come lo usi.</li>
-        <li><strong>Arturo resta in italiano.</strong></li>
-        <li><strong>Se lo sviluppo si ferma, lo scrivo.</strong> Lo dichiarano l'ultima voce di <code>NOVITA.md</code> e la cima del README. La copia che hai continua a funzionare, e puoi farne un fork.</li>
+    <div>
+      <ol class="promesse">
+        <li><p><strong>Il repository resta pubblico e con licenza MIT.</strong> Non diventa privato e non viene cancellato.</p></li>
+        <li><p><strong>Solo <code>/aggiorna</code> applica gli aggiornamenti, e solo dopo il tuo sì.</strong> L'avvio della sessione e <code>/inizio</code> controllano soltanto se ci sono novità.</p></li>
+        <li><p><strong>Niente telemetria.</strong> Arturo non raccoglie dati su di te né su come lo usi.</p></li>
+        <li><p><strong>Arturo resta in italiano.</strong></p></li>
+        <li><p><strong>Se lo sviluppo si ferma, lo scrivo.</strong> Lo dichiarano l'ultima voce di <code>NOVITA.md</code> e la cima del README. La copia che hai continua a funzionare, e puoi farne un fork.</p></li>
       </ol>
       <div class="firma">
         <p class="firma__nome">Federico Nejrotti<small>Autore di Arturo</small></p>
-        <span class="timbro datario" data-batti>Aggiornato<b>30 SET 2026</b></span>
+        <span class="firma__data">Aggiornato il 30 settembre 2026</span>
       </div>
     </div>
   </div>
 </section>
 
-<section class="sezione sezione--manila cartone" id="installa" aria-labelledby="t-installa">
+<section class="sezione" id="installa" aria-labelledby="t-installa">
   <div class="colonna">
-    <div class="testa">
-      <h2 id="t-installa">Installa Arturo</h2>
-      <p>Tre passi. Il terzo lo fai dentro Claude Code, e da lì ti guida lui una cosa per volta.</p>
-    </div>
-    <div class="modulo foglio">
-      <div class="modulo__testa">
-        <p class="titolo-foglio">Modulo di installazione</p>
-        <span class="mono" style="color:var(--inchiostro-2)">macOS · Linux · Windows con Git Bash</span>
+    <div class="scena scena--basso">
+      <img src="img/scena-3.webp" srcset="img/scena-3-1200.webp 1200w, img/scena-3.webp 2400w" sizes="(max-width:1296px) 100vw, 1200px" alt="Un casale di campagna di notte, con una finestra accesa su una scrivania, un prato di papaveri e la stella Arturo sopra il tetto." width="2400" height="1611" loading="lazy">
+      <div class="vetro">
+        <h2 id="t-installa">Installa Arturo</h2>
+        <p>Quattro passi. L'ultimo lo fai dentro Claude Code, e da lì ti guida lui una cosa per volta.</p>
       </div>
-      <div class="campi">
-        <div class="campo">
-          <h3>Prima di tutto<small>Gli strumenti che servono. Su Windows usa Git Bash, non PowerShell.</small></h3>
-          <div>
-            <ul class="requisiti">
-              <li>Claude Code</li><li>git</li><li>python3 <span>3.8 o più</span></li><li>node <span>18 o più</span></li><li>jq <span>facoltativo</span></li>
-            </ul>
-            <p class="piccolo" style="margin-top:14px">Claude Code richiede un abbonamento o un account a pagamento di Anthropic.</p>
-          </div>
+    </div>
+
+    <div class="passi-installa">
+      <div class="passo">
+        <h3 class="titolo-3">Installa Claude Code<small>Serve un piano Pro, Max, Team, Enterprise o Console di Anthropic. Il piano gratuito di claude.ai non include Claude Code.</small></h3>
+        <div>
+          <p class="etichetta-comando">macOS e Linux, nel Terminale</p>
+          <div class="comando"><pre id="cmd-cc-unix">curl -fsSL https://claude.ai/install.sh | bash</pre><button type="button" data-copia="cmd-cc-unix">Copia</button></div>
+          <p class="etichetta-comando">Windows, in PowerShell</p>
+          <div class="comando"><pre id="cmd-cc-win">irm https://claude.ai/install.ps1 | iex</pre><button type="button" data-copia="cmd-cc-win">Copia</button></div>
+          <p>Usi un gestore di pacchetti? Su macOS <code>brew install --cask claude-code</code>, su Windows <code>winget install Anthropic.ClaudeCode</code>.</p>
+          <p>Poi apri un nuovo terminale e scrivi <code>claude --version</code>: se esce un numero di versione, è installato. Al primo <code>claude</code> si apre il browser per accedere al tuo account.</p>
+          <p class="piccolo">Non hai mai usato un terminale? La <a href="https://code.claude.com/docs/en/terminal-guide">guida al terminale</a> di Anthropic spiega come aprirlo. Tutte le opzioni sono nella <a href="https://code.claude.com/docs/en/setup">guida di installazione</a>.</p>
         </div>
-        <div class="campo">
-          <h3>Scarica<small>Se <code>~/.claude</code> esiste già, il primo comando la mette da parte con la data nel nome. Non si perde niente.</small></h3>
-          <div>
-            <div class="comando"><pre id="cmd-scarica">[ -d "$HOME/.claude" ] &amp;&amp; mv "$HOME/.claude" "$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+      </div>
+      <div class="passo">
+        <h3 class="titolo-3">Gli altri strumenti<small>Servono ad Arturo, su macOS, Linux o Windows. Su Windows i comandi di Arturo vanno in Git Bash, non in PowerShell.</small></h3>
+        <div>
+          <ul class="requisiti"><li>git</li><li>python3 <span>3.8 o più</span></li><li>node <span>18 o più</span></li><li>jq <span>facoltativo</span></li></ul>
+        </div>
+      </div>
+      <div class="passo">
+        <h3 class="titolo-3">Scarica<small>Se <code>~/.claude</code> esiste già, il primo comando la mette da parte con la data nel nome. Non si perde niente.</small></h3>
+        <div>
+          <div class="comando"><pre id="cmd-scarica">[ -d "$HOME/.claude" ] &amp;&amp; mv "$HOME/.claude" "$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
 git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><button type="button" data-copia="cmd-scarica">Copia</button></div>
-          </div>
         </div>
-        <div class="campo">
-          <h3>Accendi<small>Apri Claude Code dentro la cartella e scrivi <code>/setup</code>.</small></h3>
-          <div>
-            <div class="comando"><pre id="cmd-accendi">cd ~/.claude &amp;&amp; claude</pre><button type="button" data-copia="cmd-accendi">Copia</button></div>
-            <p>Usi già Arturo? Scrivi <code>/aggiorna</code>. Lavori in un'organizzazione? Dopo <code>/setup</code> il referente scrive <code>/strato crea</code>, e i colleghi <code>/strato installa</code>.</p>
-          </div>
+      </div>
+      <div class="passo">
+        <h3 class="titolo-3">Accendi<small>Apri Claude Code dentro la cartella e scrivi <code>/setup</code>.</small></h3>
+        <div>
+          <div class="comando"><pre id="cmd-accendi">cd ~/.claude &amp;&amp; claude</pre><button type="button" data-copia="cmd-accendi">Copia</button></div>
+          <p>Usi già Arturo? Scrivi <code>/aggiorna</code>. Lavori in un'organizzazione? Dopo <code>/setup</code> il referente scrive <code>/strato crea</code>, e i colleghi <code>/strato installa</code>.</p>
         </div>
       </div>
     </div>
@@ -841,14 +708,17 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
 
 <footer class="piede">
   <div class="colonna">
-    <div>
-      <p style="margin-bottom:22px"><span class="dymo">Arturo</span></p>
-      <p>Da Arktouros, il guardiano dell'orsa: la stella più luminosa del cielo boreale, quella che i naviganti usavano per non perdere la rotta.</p>
+    <div class="piede__alto">
+      <div>
+        <p class="piede__frase">Da Arktouros, il guardiano dell'orsa: la stella più luminosa del cielo boreale, quella che i naviganti usavano per non perdere la rotta.</p>
+        <a class="azione azione--bordo" href="#cima">Torna all'inizio</a>
+      </div>
+      <div class="piede__cielo" role="img" aria-label="Particolare del cielo all'ora blu, con la stella Arturo."></div>
     </div>
     <div class="piede__righe">
       <p>Progetto di Federico Nejrotti, pubblicato da Ufficio Furore. Licenza MIT.</p>
       <p>Codice, novità e segnalazioni: <a href="https://github.com/stellakamikaze/arturo">github.com/stellakamikaze/arturo</a>. Per un problema di sicurezza usa la procedura privata in <code>SECURITY.md</code>.</p>
-      <p>Questa pagina non usa cookie, tracker né font da server esterni.</p>
+      <p>Questa pagina non usa cookie di tracciamento, tracker né font da server esterni.</p>
     </div>
   </div>
 </footer>
@@ -857,85 +727,57 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
 (function(){
   var d=document, root=d.documentElement;
   root.classList.add('js');
-  var ridotto=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* la pratica si apre */
-  var pratica=d.getElementById('pratica-copertina'), apri=d.getElementById('apri');
-  if(pratica&&apri){
-    apri.addEventListener('click',function(){
-      var aperta=pratica.classList.toggle('aperta');
-      apri.setAttribute('aria-expanded',aperta?'true':'false');
-      apri.querySelector('span').textContent=aperta?'Chiudi la pratica':'Apri la pratica';
-    });
+  /* apertura: la scena si posa, poi entra la card */
+  var apertura=d.getElementById('apertura'), img=apertura&&apertura.querySelector('img');
+  function pronta(){apertura.classList.add('pronta')}
+  if(img&&!img.complete){img.addEventListener('load',pronta);img.addEventListener('error',pronta);setTimeout(pronta,1200)}else if(apertura){requestAnimationFrame(pronta)}
+
+  /* la pillola: trasparente sopra la scena, chiara sul bianco */
+  var pillola=d.getElementById('pillola');
+  if('IntersectionObserver' in window&&pillola&&apertura){
+    new IntersectionObserver(function(e){pillola.classList.toggle('chiara',!e[0].isIntersecting)},{rootMargin:'-70px 0px 0px 0px',threshold:0}).observe(apertura);
+    var voci=[].slice.call(pillola.querySelectorAll('.pillola__voci a'));
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){voci.forEach(function(a){a.setAttribute('aria-current',a.getAttribute('href')==='#'+e.target.id?'true':'false')})}})},{rootMargin:'-45% 0px -50% 0px'});
+    voci.forEach(function(a){var s=d.querySelector(a.getAttribute('href'));if(s)io.observe(s)});
   }
 
-  /* testata dopo l'apertura */
-  var testata=d.getElementById('testata'), apertura=d.querySelector('.apertura');
-  if('IntersectionObserver' in window&&testata&&apertura){
-    new IntersectionObserver(function(e){testata.classList.toggle('vista',!e[0].isIntersecting)},{threshold:0.02}).observe(apertura);
-    var voci=[].slice.call(d.querySelectorAll('.divisori a'));
-    var sezioni=voci.map(function(a){return d.querySelector(a.getAttribute('href'))}).filter(Boolean);
-    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){voci.forEach(function(a){a.setAttribute('aria-current',a.getAttribute('href')==='#'+e.target.id?'true':'false')})}})},{rootMargin:'-45% 0px -50% 0px'});
-    sezioni.forEach(function(s){io.observe(s)});
-  } else if(testata){testata.classList.add('vista')}
-
-  /* le linguette degli strati */
-  var tabs=[].slice.call(d.querySelectorAll('.linguetta')), cartelle=d.getElementById('cartelle');
+  /* gli strati */
+  var tabs=[].slice.call(d.querySelectorAll('#schema [role="tab"]'));
   function scegli(t,fuoco){
     tabs.forEach(function(x){
       var on=x===t;
       x.setAttribute('aria-selected',on?'true':'false');
       x.tabIndex=on?0:-1;
+      x.parentNode.classList.toggle('attivo',on);
       d.getElementById(x.getAttribute('aria-controls')).hidden=!on;
     });
-    var i=tabs.indexOf(t), a=tabs[(i+1)%tabs.length], b=tabs[(i+2)%tabs.length];
-    cartelle.style.setProperty('--dietro1',a.dataset.dietro);
-    cartelle.style.setProperty('--dietro2',b.dataset.dietro);
     if(fuoco)t.focus();
   }
   tabs.forEach(function(t,i){
     t.addEventListener('click',function(){scegli(t)});
     t.addEventListener('keydown',function(e){
       var n=null;
-      if(e.key==='ArrowRight')n=tabs[(i+1)%tabs.length];
-      if(e.key==='ArrowLeft')n=tabs[(i-1+tabs.length)%tabs.length];
+      if(e.key==='ArrowDown'||e.key==='ArrowRight')n=tabs[(i+1)%tabs.length];
+      if(e.key==='ArrowUp'||e.key==='ArrowLeft')n=tabs[(i-1+tabs.length)%tabs.length];
       if(e.key==='Home')n=tabs[0];
       if(e.key==='End')n=tabs[tabs.length-1];
       if(n){e.preventDefault();scegli(n,true)}
     });
   });
-  var attiva=tabs.filter(function(t){return t.getAttribute('aria-selected')==='true'})[0];
-  if(attiva)scegli(attiva);
-
-  /* i timbri */
-  var timbri=[].slice.call(d.querySelectorAll('[data-batti]'));
-  if(ridotto||!('IntersectionObserver' in window)){
-    timbri.forEach(function(t){t.classList.add('battuto')});
-  } else {
-    var obs=new IntersectionObserver(function(es){
-      es.forEach(function(e){
-        if(!e.isIntersecting)return;
-        var t=e.target, riga=t.closest('tr');
-        var pausa=riga?[].indexOf.call(riga.parentNode.children,riga)*110:0;
-        setTimeout(function(){t.classList.add('battuto')},160+Math.min(pausa,500));
-        obs.unobserve(t);
-      });
-    },{threshold:.6,rootMargin:'0px 0px -8% 0px'});
-    timbri.forEach(function(t){obs.observe(t)});
-  }
 
   /* la porta sola */
-  var vassoio=d.getElementById('vassoio'), si=d.getElementById('dai-si'), ind=d.getElementById('indietro'), stato=d.getElementById('demo-stato'), band=d.getElementById('bandierina');
-  if(vassoio&&si&&ind){
+  var avviso=d.getElementById('avviso'), si=d.getElementById('dai-si'), ind=d.getElementById('indietro'), stato=d.getElementById('demo-stato'), chip=d.getElementById('stato');
+  if(avviso&&si&&ind){
     si.addEventListener('click',function(){
-      vassoio.classList.add('applicato'); si.disabled=true; ind.disabled=false;
-      band.textContent='Applicato';
+      avviso.classList.add('applicato'); si.disabled=true; ind.disabled=false;
+      chip.textContent='Applicato';
       stato.textContent='Aggiornamento applicato. Chiudi e riapri Claude Code per caricarlo.';
       ind.focus();
     });
     ind.addEventListener('click',function(){
-      vassoio.classList.remove('applicato'); si.disabled=false; ind.disabled=true;
-      band.textContent='In attesa del tuo sì';
+      avviso.classList.remove('applicato'); si.disabled=false; ind.disabled=true;
+      chip.textContent='In attesa del tuo sì';
       stato.textContent='Tornato alla versione di prima. Le modifiche ai tuoi file restano.';
       si.focus();
     });

@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-HTML e CSS statici, nessun framework, nessuna dipendenza di build. Sorgente in `sito/`. Pubblicazione per ora su un server privato, raggiungibile solo dalla rete privata (decisione di Federico, 16/9/2026).
+HTML e CSS statici, nessun framework, nessuna dipendenza di build. Sorgente in `sito/`, configurazione del server in `server/`. Online dietro una parola d'ordine condivisa (decisione di Federico, 1/10/2026).
 
 ## Users
 
@@ -38,7 +38,7 @@ Terminale e Claude Code. Installazione: `git clone https://github.com/stellakami
 ## Brand Commitments
 
 - Nome: **Arturo**. Da Arktouros, «il guardiano dell'orsa», la stella dei naviganti.
-- Figura: il **maggiordomo custode**, ispirato a Winston di Croft Manor. Nessun nome, marchio o riferimento esplicito a quel franchise sulla pagina.
+- Figura: **la stella Arturo** che segue l'Orsa e veglia sui naviganti (dal 1/10/2026; il maggiordomo custode è uscito il 30/9).
 - Firma: «progetto di Federico Nejrotti». Voce: italiano semplice, diretto, onesto sui limiti.
 - Identità visiva propria di Arturo, separata dal canone SK di Federico.
 

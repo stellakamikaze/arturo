@@ -3,103 +3,73 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Arturo · pratica riservata</title>
+<title>Arturo · accesso riservato</title>
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#56615b">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='7' width='26' height='20' rx='2' fill='%23c63a28'/%3E%3Cpath d='M3 9h9l2-4h-8a3 3 0 0 0-3 3z' fill='%23c63a28'/%3E%3Crect x='7' y='14' width='18' height='6' rx='1' fill='%23141414'/%3E%3C/svg%3E">
-<link rel="preload" href="font/big-shoulders.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="font/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
+<meta name="theme-color" content="#282834">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23282834'/%3E%3Cpath d='M4 25c5-5 9-6 12-4s7 1 12-4' fill='none' stroke='%23fefffc' stroke-width='1.6' stroke-linecap='round'/%3E%3Ccircle cx='22' cy='9' r='3' fill='%23f2a24a'/%3E%3C/svg%3E">
+<link rel="preload" href="font/sorts-mill-goudy.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="img/scena-4.webp" as="image" type="image/webp">
 <style>
-@font-face{font-family:"Big Shoulders";src:url(font/big-shoulders.woff2) format("woff2");font-weight:500 900;font-display:swap}
+@font-face{font-family:"Sorts Mill Goudy";src:url(font/sorts-mill-goudy.woff2) format("woff2");font-weight:400;font-display:swap}
 @font-face{font-family:"Atkinson Next";src:url(font/atkinson-next.woff2) format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
 :root{
-  --armadio:#56615b;
-  --armadio-scuro:#3b433f;
-  --rosso:#c63a28;
-  --rosso-scuro:#8f2616;
-  --giallo:#f3b50b;
-  --foglio:#fbfaf6;
-  --foglio-2:#efece3;
-  --inchiostro:#171816;
-  --inchiostro-2:#484a45;
-  --viola:#56389a;
-  --timbro-rosso:#c0232b;
-  --nastro:#161616;
-  --display:"Big Shoulders", "Arial Narrow", sans-serif;
-  --testo:"Atkinson Next", system-ui, sans-serif;
-  --ombra-cartone:0 1px 0 rgba(255,255,255,.22) inset, 0 -1px 0 rgba(0,0,0,.18) inset, 0 28px 40px -22px rgba(0,0,0,.6), 0 3px 6px rgba(0,0,0,.18);
-  --ombra-foglio:0 1px 2px rgba(0,0,0,.12), 0 18px 34px -20px rgba(0,0,0,.45);
-  --fibra:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
-  --lamiera:repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 2px, transparent 2px 7px);
-  --esce:cubic-bezier(.16,1,.3,1);
+  --lino:#f9faf7;
+  --grafite:#2c2c2c;
+  --carbone:#444141;
+  --cenere:#646464;
+  --foschia:#dee2de;
+  --crepuscolo:#282834;
+  --notte:#1f1f29;
+  --blocca:#b2392b;
+  --serif:"Sorts Mill Goudy", "Iowan Old Style", Georgia, serif;
+  --sans:"Atkinson Next", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --cielo:linear-gradient(180deg,#2a2f5c 0%,#5b4b86 42%,#c47c7a 74%,#f0b27c 100%);
 }
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;min-height:100svh;display:grid;place-items:center;padding:32px 16px 48px;background:var(--armadio);background-image:var(--lamiera);color:#fff;font:400 clamp(17px, 1.02rem + .2vw, 19.5px)/1.56 var(--testo);caret-color:var(--rosso)}
-::selection{background:var(--giallo);color:var(--inchiostro)}
-:focus-visible{outline:3px solid var(--giallo);outline-offset:3px;border-radius:2px}
+body{margin:0;min-height:100svh;display:grid;place-items:center;padding:32px 16px;background:var(--cielo);color:#fff;font:400 clamp(16.5px, .98rem + .15vw, 18px)/1.55 var(--sans);letter-spacing:-.005em;isolation:isolate}
+::selection{background:#cfe6f4;color:#171717}
+:focus-visible{outline:2px solid #fff;outline-offset:3px;border-radius:4px}
+.scena{position:fixed;inset:0;z-index:-1}
+.scena img{width:100%;height:100%;object-fit:cover}
+.scena::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(20,18,40,.28),rgba(20,18,40,.05) 70%)}
 p{margin:0 0 1em;text-wrap:pretty}
-p:last-child{margin-bottom:0}
-
-.pratica{position:relative;isolation:isolate;width:min(100%,560px);background:var(--rosso);border-radius:6px 10px 10px 6px;box-shadow:var(--ombra-cartone);padding:clamp(28px,6vw,48px) clamp(20px,5vw,44px) clamp(28px,6vw,44px) clamp(40px,8vw,64px)}
-.pratica::after{content:"";position:absolute;inset:0;background-image:var(--fibra);mix-blend-mode:multiply;opacity:.16;pointer-events:none;border-radius:inherit;z-index:-1}
-.pratica::before{content:"";position:absolute;inset:0 auto 0 14px;width:12px;border-left:2px solid rgba(0,0,0,.2);border-right:2px solid rgba(0,0,0,.14);pointer-events:none}
-
-h1{margin:0 0 clamp(26px,5vw,36px);display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px}
-.dymo{display:inline-block;background:var(--nastro);color:#efefea;font:800 clamp(2.6rem,1.6rem + 5vw,4.4rem)/1 var(--display);text-transform:uppercase;letter-spacing:.14em;padding:.06em .28em .02em .42em;border-radius:.14em;transform:rotate(-1.4deg);text-shadow:0 .045em 0 rgba(255,255,255,.28),0 -.04em 0 rgba(0,0,0,.9);box-shadow:inset 0 .06em 0 rgba(255,255,255,.14),inset 0 -.06em 0 rgba(0,0,0,.5),0 .05em .12em rgba(0,0,0,.45)}
-.timbro{--c:#fff;display:inline-block;color:var(--c);border:.2em double var(--c);padding:.08em .5em 0;font:900 1.15rem/1.25 var(--display);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;transform:rotate(var(--r,-7deg));filter:url(#inchiostro);opacity:.9;border-radius:.18em}
-
-.modulo{background:var(--foglio);color:var(--inchiostro);box-shadow:var(--ombra-foglio);border-radius:2px;padding:clamp(22px,5vw,34px);transform:rotate(.5deg);position:relative}
-.modulo h2{margin:0 0 10px;font:900 clamp(1.7rem,1.3rem + 1.6vw,2.3rem)/1.02 var(--display);text-transform:uppercase;letter-spacing:.01em}
-.modulo p{color:var(--inchiostro-2);font-size:.98rem;max-width:40ch}
-form{margin-top:22px;display:grid;gap:10px}
-label{font:800 .95rem/1.2 var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--inchiostro-2)}
+.vetro{width:min(100%,460px);padding:clamp(24px,5vw,36px);border-radius:24px;background:rgba(48,38,72,.3);border:1px solid rgba(255,255,255,.36);backdrop-filter:blur(22px) saturate(1.25);-webkit-backdrop-filter:blur(22px) saturate(1.25);box-shadow:0 2px 2px rgba(0,0,0,.06),0 0 0 5px rgba(255,255,255,.04)}
+.marchio{display:flex;align-items:center;gap:10px;font:500 .95rem/1 var(--sans);margin-bottom:28px}
+.marchio svg{width:34px;height:34px;padding:6px;border-radius:50%;background:rgba(255,255,255,.14)}
+h1{margin:0 0 12px;font:400 clamp(2rem,1.6rem + 1.4vw,2.6rem)/1.1 var(--serif);letter-spacing:-.02em}
+.vetro > p{color:rgba(255,255,255,.92);font-size:.98rem;max-width:36ch}
+form{margin-top:24px;padding:18px;border-radius:16px;background:rgba(254,255,252,.96);color:var(--carbone);display:grid;gap:10px}
+label{font:600 .82rem/1.3 var(--sans);color:var(--cenere)}
 .riga{display:flex;gap:10px;flex-wrap:wrap}
-input{flex:1 1 200px;min-width:0;min-height:54px;padding:0 14px;border:0;border-bottom:2px solid var(--inchiostro);border-radius:0;background:var(--foglio-2);color:var(--inchiostro);font:400 1.1rem/1 var(--testo);letter-spacing:.06em}
-input:focus-visible{outline:3px solid var(--giallo);outline-offset:0;border-bottom-color:var(--inchiostro)}
-input[aria-invalid="true"]{border-bottom-color:var(--timbro-rosso)}
-button{flex:0 0 auto;min-height:54px;padding:0 26px;border:0;border-radius:4px;background:var(--giallo);color:var(--inchiostro);font:800 1.2rem/1 var(--display);letter-spacing:.08em;text-transform:uppercase;cursor:pointer;box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 10px 18px -10px rgba(0,0,0,.7);transition:transform .25s var(--esce),box-shadow .25s var(--esce)}
-button:hover{transform:translateY(-2px);box-shadow:0 1px 0 rgba(255,255,255,.4) inset,0 16px 22px -12px rgba(0,0,0,.75)}
-button:active{transform:translateY(1px)}
-.modulo .errore{display:none;margin:4px 0 0;color:var(--timbro-rosso);font-weight:700;font-size:.95rem;max-width:none}
+input{flex:1 1 180px;min-width:0;min-height:46px;padding:0 12px;border:0;border-bottom:1px solid var(--carbone);border-radius:0;background:var(--lino);color:var(--grafite);font:400 1.05rem/1 var(--sans)}
+input:focus-visible{outline:2px solid #2b6f9e;outline-offset:0}
+input[aria-invalid="true"]{border-bottom-color:var(--blocca)}
+button{flex:0 0 auto;min-height:46px;padding:0 20px;border-radius:8px;border:1px solid var(--crepuscolo);background:var(--notte);color:#fff;font:500 .95rem/1 var(--sans);cursor:pointer;transition:background-color .2s}
+button:hover{background:#34344a}
+button:focus-visible{outline:2px solid #2b6f9e;outline-offset:3px}
+.errore{display:none;margin:2px 0 0;color:var(--blocca);font-weight:600;font-size:.92rem}
 .respinto #errore,.troppi #troppi{display:block}
-.etichetta-riga{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;min-height:2.4rem}
-.respinto-timbro{--c:var(--timbro-rosso);--r:-8deg;mix-blend-mode:multiply;font-size:1.15rem;margin-right:4px;display:none}
-.respinto .respinto-timbro{display:inline-block;animation:batti .34s cubic-bezier(.3,1.5,.5,1) both}
-@keyframes batti{from{opacity:0;transform:rotate(var(--r)) scale(1.9)}to{opacity:.92;transform:rotate(var(--r)) scale(1)}}
-@media (prefers-reduced-motion:reduce){.respinto .respinto-timbro{animation:none}button{transition:none}}
-
-.piede{margin-top:22px;font-size:.9rem;color:rgba(255,255,255,.86)}
-.vis-sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.piede{margin:22px 0 0;font-size:.86rem;color:rgba(255,255,255,.86)}
 </style>
 </head>
 <body>
-<main class="pratica">
-  <h1><span class="dymo">Arturo</span><span class="timbro" aria-hidden="true">Riservato</span><span class="vis-sr">: pratica riservata</span></h1>
-  <div class="modulo" id="modulo">
-    <h2>Richiesta di accesso</h2>
-    <p>Questa pagina è un'anteprima. Per aprirla serve la parola d'ordine che ti è stata data insieme al link.</p>
-    <form method="post" action="/entra/verifica">
-      <div class="etichetta-riga"><label for="parola">Parola d'ordine</label><span class="timbro respinto-timbro" aria-hidden="true">Respinto</span></div>
-      <div class="riga">
-        <input id="parola" name="parola" type="password" autocomplete="current-password" required autofocus aria-describedby="errore">
-        <button type="submit">Entra</button>
-      </div>
-      <p class="errore" id="errore" role="alert">Parola d'ordine sbagliata. Controlla maiuscole e spazi, poi riprova.</p>
-      <p class="errore" id="troppi" role="alert">Troppi tentativi di fila. Aspetta un minuto, poi riprova.</p>
-    </form>
-  </div>
+<div class="scena" aria-hidden="true"><img src="img/scena-4.webp" srcset="img/scena-4-1200.webp 1200w, img/scena-4.webp 2400w" sizes="100vw" alt="" width="2400" height="1611"></div>
+<main class="vetro" id="modulo">
+  <p class="marchio"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 18.5c4-3.6 7-4.4 9.5-3s5.6 1 9.5-2.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="16.5" cy="6.5" r="2.2" fill="#f2a24a"/></svg>Arturo</p>
+  <h1>Richiesta di accesso</h1>
+  <p>Questa pagina è un'anteprima. Per aprirla serve la parola d'ordine che ti è stata data insieme al link.</p>
+  <form method="post" action="/entra/verifica">
+    <label for="parola">Parola d'ordine</label>
+    <div class="riga">
+      <input id="parola" name="parola" type="password" autocomplete="current-password" required autofocus aria-describedby="errore">
+      <button type="submit">Entra</button>
+    </div>
+    <p class="errore" id="errore" role="alert">Parola d'ordine sbagliata. Controlla maiuscole e spazi, poi riprova.</p>
+    <p class="errore" id="troppi" role="alert">Troppi tentativi di fila. Aspetta un minuto, poi riprova.</p>
+  </form>
   <p class="piede">Arturo, harness gratuito e open source per Claude Code.</p>
 </main>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
-  <filter id="inchiostro" x="-10%" y="-20%" width="120%" height="140%">
-    <feTurbulence type="fractalNoise" baseFrequency=".75" numOctaves="2" seed="11" result="rumore"/>
-    <feDisplacementMap in="SourceGraphic" in2="rumore" scale="2.6" xChannelSelector="R" yChannelSelector="G" result="mosso"/>
-    <feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="1" seed="4" result="grana"/>
-    <feColorMatrix in="grana" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.5 1.72" result="buchi"/>
-    <feComposite in="mosso" in2="buchi" operator="in"/>
-  </filter>
-</svg>
 <script>
 var stato = new URLSearchParams(location.search);
 if (stato.has('respinto')) {
