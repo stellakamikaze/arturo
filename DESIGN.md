@@ -27,7 +27,7 @@ typography:
     fontFamily: "Big Shoulders, Arial Narrow, sans-serif"
     fontWeight: 900
     textTransform: uppercase
-    lineHeight: 0.88
+    lineHeight: 1.02
   dymo:
     fontFamily: "Big Shoulders"
     fontWeight: 800
@@ -36,7 +36,6 @@ typography:
     fontFamily: "Atkinson Hyperlegible Next, system-ui, sans-serif"
     fontSize: "clamp(17px, 1.02rem + 0.2vw, 19.5px)"
     lineHeight: 1.56
-    fontFeature: "'tnum'"
   mono:
     fontFamily: "Atkinson Hyperlegible Mono, ui-monospace, monospace"
     use: "solo comandi, percorsi e messaggi reali delle guardie"
@@ -71,6 +70,9 @@ Strategia: **full palette su fondo di lamiera**. Il fondo è il grigio-verde min
 - **Atkinson Hyperlegible Next** (testo): scelto per la leggibilità di chi non è tecnico.
 - **Atkinson Hyperlegible Mono**: solo per comandi, percorsi e messaggi veri delle guardie.
 - I font stanno in `sito/font/` con licenza OFL. Nessun font da server esterni.
+- Nel CSS le famiglie si chiamano «Big Shoulders», «Atkinson Next» e «Atkinson Mono».
+- **Interlinea dei titoli display mai sotto 1,02.** In Big Shoulders 900 gli accenti maiuscoli (É, Ì, À) arrivano a 0,979 em: sotto 1,0 entrano nella riga sopra, e in italiano capita in quasi ogni titolo («FINCHÉ», «SÌ»).
+- **Cifre tabulari solo nelle tabelle** (registro, foglio di trasmissione, datario). In Atkinson Next lo zero tabulare è barrato: nel testo corrente «30» diventava «3Ø».
 
 ## Components
 
