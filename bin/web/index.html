@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="referrer" content="no-referrer">
+<meta name="arturo-token" content="{{TOKEN}}">
+<title>Le tue cose da fare · Arturo</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/stile.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<div class="pagina">
+  <header class="testata">
+    <div class="testata-riga">
+      <span class="marchio"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M2.5 18.5c4-3.6 7-4.4 9.5-3s5.6 1 9.5-2.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="16.5" cy="6.5" r="2.2" fill="#f2a24a"/></svg>Arturo</span>
+      <span class="pillola">Solo sul tuo computer</span>
+    </div>
+    <p class="data"><span class="stella" aria-hidden="true"></span><span id="oggi">Oggi</span></p>
+    <h1>Le tue cose da fare</h1>
+    <p class="sintesi" id="sintesi">Leggo l'archivio dei todo…</p>
+  </header>
+
+  <main id="principale">
+    <form class="aggiunta" id="aggiunta" autocomplete="off" novalidate>
+      <label class="aggiunta-etichetta" for="nuovo-titolo">Cosa c'è da fare?</label>
+      <div class="aggiunta-riga">
+        <input id="nuovo-titolo" name="titolo" type="text" maxlength="300" enterkeyhint="done" aria-describedby="aggiunta-aiuto">
+        <button type="submit" class="azione azione--piena" id="aggiungi">Aggiungi</button>
+      </div>
+      <p class="aiuto" id="aggiunta-aiuto">Scrivi un verbo e una cosa: «Mandare il preventivo a Rossi».</p>
+      <details class="dettagli" id="dettagli">
+        <summary>Più dettagli</summary>
+        <div class="campi">
+          <div class="campo">
+            <label for="nuovo-progetto">Progetto</label>
+            <input id="nuovo-progetto" name="progetto" type="text" list="elenco-progetti" maxlength="80">
+            <datalist id="elenco-progetti"></datalist>
+          </div>
+          <div class="campo">
+            <label for="nuova-scadenza">Scadenza</label>
+            <input id="nuova-scadenza" name="scadenza" type="text" maxlength="40" placeholder="venerdì, 10/10, domani">
+          </div>
+          <fieldset class="campo campo--largo scelta-chi">
+            <legend>Chi agisce</legend>
+            <label class="opzione"><input type="radio" name="chi" value="tu" checked> <span data-chi="tu">Tocca a te</span></label>
+            <label class="opzione"><input type="radio" name="chi" value="decidi"> <span data-chi="decidi">Decidi tu, poi faccio io</span></label>
+            <label class="opzione"><input type="radio" name="chi" value="io"> <span data-chi="io">Faccio io</span></label>
+          </fieldset>
+          <div class="campo">
+            <label for="nuova-priorita">Priorità</label>
+            <select id="nuova-priorita" name="priorita">
+              <option value="alta">Alta</option>
+              <option value="media" selected>Media</option>
+              <option value="bassa">Bassa</option>
+            </select>
+          </div>
+        </div>
+      </details>
+    </form>
+
+    <div class="barra">
+      <div class="schede" role="tablist" aria-label="Punto di vista">
+        <button type="button" role="tab" id="scheda-chi" aria-selected="true" aria-controls="pannello-chi">Chi agisce</button>
+        <button type="button" role="tab" id="scheda-progetti" aria-selected="false" aria-controls="pannello-progetti" tabindex="-1">Progetti</button>
+        <button type="button" role="tab" id="scheda-scadenze" aria-selected="false" aria-controls="pannello-scadenze" tabindex="-1">Scadenze</button>
+      </div>
+      <div class="filtri">
+        <div class="filtro">
+          <label for="filtro-progetto">Progetto</label>
+          <select id="filtro-progetto"><option value="">Tutti</option></select>
+        </div>
+        <label class="spunta"><input type="checkbox" id="mostra-chiusi"> Mostra i chiusi</label>
+      </div>
+    </div>
+
+    <div class="allarme" id="allarme" role="alert"></div>
+    <div class="avvisi" id="avvisi" hidden></div>
+
+    <section class="pannello" id="pannello-chi" role="tabpanel" aria-labelledby="scheda-chi" tabindex="-1"></section>
+    <section class="pannello" id="pannello-progetti" role="tabpanel" aria-labelledby="scheda-progetti" tabindex="-1" hidden></section>
+    <section class="pannello" id="pannello-scadenze" role="tabpanel" aria-labelledby="scheda-scadenze" tabindex="-1" hidden></section>
+  </main>
+
+  <footer class="piede">
+    <p>Questa pagina legge lo stesso archivio di Claude e di <code>arturo todo</code>. Si spegne dopo 30 minuti senza la pagina aperta.</p>
+    <button type="button" class="azione azione--bordo" id="spegni">Spegni la pagina</button>
+  </footer>
+</div>
+
+<div class="ultima" id="ultima">
+  <p class="ultima-testo" id="esito" role="status" aria-live="polite"></p>
+  <button type="button" class="azione azione--chiara" id="annulla" hidden>Annulla</button>
+</div>
+</body>
+</html>

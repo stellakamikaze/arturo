@@ -6,7 +6,7 @@ description: >-
 when_to_use: >-
   Usa quando la persona dice «ricordami di…», «segnati che…», «mettilo tra le cose da fare»,
   «cosa c'è da fare?», «cosa scade questa settimana?», o chiede di chiudere, spostare o fermare
-  un todo. NON per i passi interni di questa sola sessione (quelli sono TaskCreate e spariscono
+  un todo. Usa anche quando la persona chiede di vedere i todo in una pagina del browser. NON per i passi interni di questa sola sessione (quelli sono TaskCreate e spariscono
   alla chiusura). Segui tutti i passi nell'ordine: non prendere scorciatoie basandoti su questa
   description.
 version: 1.0.0
@@ -123,3 +123,23 @@ con la stessa CLI che usi tu, quindi quello che vedi con `arturo todo` è sempre
   `/dafare` per agire con i tasti.
 - La riga sopra il prompt («3 cose da fare») si spegne con `/dafare nascondi` e si riaccende con
   `/dafare mostra`.
+
+## La pagina nel browser
+
+Quando la persona dice «fammi vedere le mie cose da fare in una pagina», «aprimi i todo in
+una pagina» o vuole guardare i todo nel browser, avvia la pagina con il tool Bash e
+`run_in_background`:
+
+```bash
+python3 ~/.claude/bin/arturo web
+```
+
+Il comando stampa un link `http://127.0.0.1:PORTA/?t=CHIAVE` e prova ad aprire il browser. Leggi
+il link dall'output e daglielo in una riga: «La pagina è aperta: <link>». Senza un browser (per
+esempio via SSH) la pagina non si apre da sola, e il link basta.
+
+La pagina usa lo stesso archivio della CLI e le stesse regole: quello che la persona fa lì lo
+vedi con `arturo todo`, e quello che scrivi tu compare nella pagina entro 20 secondi. Ascolta
+solo su questo computer, e la chiave cambia a ogni avvio. Si spegne da sola dopo 30 minuti senza
+la pagina aperta, con il bottone «Spegni la pagina» o con Ctrl+C. Non proporre la pagina se la
+persona non la chiede.

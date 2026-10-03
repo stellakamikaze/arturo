@@ -494,8 +494,9 @@ def test_u11(repo: Path) -> None:
     controllo_del_mod(sezione(inizio, "## FASE 4: Carica i Todo con Cross-Reference"), "commands/inizio.md FASE 4")
     assert "/dafare" in read(repo / "README.md"), "U11 il README non nomina /dafare"
     novita = read(repo / "NOVITA.md")
-    prima = re.search(r"^## .*$", novita, re.M)
-    assert prima and prima.group(0) == "## 2026-10-03 — Il pannello delle cose da fare", f"U11 la entry in cima a NOVITA: {prima}"
+    # Piu' entry dello stesso giorno: conta che la entry ci sia, non che stia in cima.
+    prima = re.search(r"^## 2026-10-03 — Il pannello delle cose da fare$", novita, re.M)
+    assert prima, "U11 NOVITA non ha la entry del pannello"
     entry = sezione(novita, prima.group(0))
     assert "/dafare" in entry and "<!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->" in entry, \
         "U11 la entry di NOVITA non nomina /dafare o non ha il segnaposto della nota dell'autore"

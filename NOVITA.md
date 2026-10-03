@@ -31,6 +31,26 @@ Code.
 
 <!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->
 
+## 2026-10-03 — La pagina delle cose da fare
+
+**Cosa cambia**: ora vedi i tuoi todo anche in una pagina del browser. Chiedi a Claude «fammi
+vedere le mie cose da fare in una pagina», oppure scrivi `arturo web` nel terminale. La pagina
+divide i todo in tre modi: per chi agisce, per progetto e per scadenza, con un'agenda che parte
+dagli scaduti e arriva a «più avanti». Da lì aggiungi un todo, lo segni fatto, lo modifichi o lo
+fermi. Su un todo di «Decidi tu, poi faccio io» premi «Ho deciso», scrivi la scelta e il lavoro
+passa a Claude. Dopo ogni azione compare «Annulla», salvo dopo una nota. Niente si
+cancella dall'archivio.
+
+**Il principio dietro**: lo stesso archivio, più modi di guardarlo. La pagina non tiene dati suoi
+e segue le stesse regole di `arturo todo`: quello che fai nella pagina lo vede Claude, e quello
+che scrive Claude compare nella pagina entro 20 secondi.
+
+**Da sapere**: la pagina è facoltativa e gira solo sul tuo computer. Il link contiene una chiave
+che cambia a ogni avvio, e la pagina non si collega a internet. Si spegne da sola dopo 30 minuti
+senza la pagina aperta, oppure con il bottone «Spegni la pagina».
+
+<!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->
+
 ## 2026-10-03 — Le tue cose da fare, in un posto solo
 
 **Cosa cambia**: quando dici a Claude «ricordami di mandare il preventivo venerdì», il todo
