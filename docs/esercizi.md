@@ -6,7 +6,10 @@ tua tappa, e la skill percorso lo adatta al tuo mestiere. Lo chiudi quando vuoi.
 
 Alla fine di ogni esercizio Claude ti chiede: «cosa hai tenuto per te?». La risposta diventa una
 nota «Tenuto: …» nel todo dell'esercizio, e la ritrovi nella lista «Cose che tieni per te».
-«Niente» è una risposta valida.
+«Niente» è una risposta valida: allora Claude chiude il todo senza nota.
+
+I todo degli esercizi stanno nel progetto `_percorso` e non contano per le tappe. Le tappe
+contano solo i todo del tuo lavoro.
 
 ## E01 · Osserva · Fatti raccontare una cartella
 
@@ -18,7 +21,7 @@ abbandonato».
 archiviare e cosa ignorare.
 
 **Come sai che è fatto**: hai un todo nell'archivio con una cosa che hai scelto tu, dopo il
-racconto.
+racconto. Il todo dell'esercizio non basta: serve un todo sul tuo lavoro.
 
 **Federico lo fa così**: a ogni progetto nuovo chiede prima una mappa dei materiali, non un
 lavoro. Legge la mappa e scrive lui la prima riga di cosa conta. Claude non apre e non sposta

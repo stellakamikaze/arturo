@@ -8,6 +8,9 @@ Il modulo legge l'archivio dei todo e non ci scrive mai. Il suo stato (la tappa 
 i suggerimenti di /fine, la pausa) sta in ~/.claude/session-env/percorso.json, sul computer
 della persona. Il modulo non usa la rete e non invia niente.
 
+Un todo spostato da tu a decidi e subito a io (due tasti «c» di fila nel pannello) non conta
+come decisione: la persona lo ha affidato a Claude, non ha deciso niente.
+
 Gli annulli non contano. Un evento con il segno `annullo` (un clic annullato nel pannello o
 nella pagina, un `ripristina`) toglie dalla storia anche il passo che annulla: un clic
 sbagliato non sblocca nessuna tappa.
@@ -41,6 +44,7 @@ SEGNI = (
     ("Una tua decisione ha aperto il lavoro di Claude",),
 )
 TENUTO = "Tenuto: "
+NIENTE = ("niente", "nulla", "nessuna", "nessuno")
 CHIAVI = ("versione", "oggi", "tappa", "nome", "nuova_tappa", "tappe", "tieni_tu", "domanda", "esercizio",
           "suggerimenti", "avvisi")
 INTESTAZIONE = re.compile(r"^## (E\d{2}) · (Osserva|Prova|Delega|Orchestra) · (.+)$")
@@ -49,6 +53,8 @@ CODICE = re.compile(r"\bE\d{2}\b")
 SILENZIO_UN_NO = 3
 SILENZIO_DUE_NO = 14
 ULTIMI_SUGGERIMENTI = 10
+# Un passaggio tu -> decidi -> io piu' rapido di cosi', senza altri eventi in mezzo, e' un gesto solo.
+DI_FILA = 10
 PAUSA = "in pausa finché non dici riprendi"
 GIA_OGGI = "già uno oggi"
 
@@ -92,8 +98,11 @@ def storia_pulita(t: dict) -> tuple:
             via.add(j)
             trovato = True
             prima = storia[j - 1] if j > 0 else None
+            # La nota va via solo se e' nata nella stessa scrittura di `deciso`: stesso ts.
+            # Una nota «Deciso:» scritta a mano prima del clic resta una decisione.
             if (e["tipo"] == "modifica" and p["dati"].get("chi") == "io" and prima is not None
-                    and prima["tipo"] == "nota" and str(prima["dati"].get("testo", "")).startswith(ts.DECISO)):
+                    and prima["tipo"] == "nota" and prima["ts"] == p["ts"]
+                    and str(prima["dati"].get("testo", "")).startswith(ts.DECISO)):
                 via.add(j - 1)
             break
         if not trovato and e["tipo"] == "stato" and dati.get("stato") == "scartato":
@@ -102,22 +111,54 @@ def storia_pulita(t: dict) -> tuple:
     return [e for i, e in enumerate(storia) if i not in via], tolto
 
 
+def _istante(valore: str):
+    try:
+        return dt.datetime.fromisoformat(valore)
+    except (TypeError, ValueError):
+        return None
+
+
+def tenuto_decidi(ingresso, posizione: int, quando: str) -> bool:
+    """Il todo era davvero DECIDI TU prima del passaggio a io?
+
+    Si': se e' nato decidi, se tra l'ingresso in decidi e il passaggio c'e' un altro evento, o se
+    sono passati almeno DI_FILA minuti. No: se il passaggio segue subito l'ingresso, come i due
+    tasti «c» di fila nel pannello (tu, decidi, io). Quello e' un affidamento, non una decisione.
+    """
+    if ingresso is None:
+        return True
+    dove, entrato = ingresso
+    if posizione - dove > 1:
+        return True
+    prima, dopo = _istante(entrato), _istante(quando)
+    if prima is None or dopo is None:
+        return False
+    try:
+        return dopo - prima >= dt.timedelta(minutes=DI_FILA)
+    except TypeError:  # un ts con il fuso e uno senza
+        return False
+
+
 def leggi(t: dict) -> dict:
     """Quello che il percorso sa di un todo. Stato, chiusura e decisione vengono dalla storia pulita.
 
-    `deciso` e' l'istante della prima decisione: la nota «Deciso:» o il passaggio da decidi a io.
+    `deciso` e' l'istante della prima decisione: la nota «Deciso:» su un todo decidi, o il
+    passaggio da decidi a io quando il todo era gia' decidi (vedi tenuto_decidi).
     """
     pulita, tolto = storia_pulita(t)
     chi, stato, motivo, chiuso = "tu", "da fare", "", ""
     decisione, riaperto, deciso = False, False, ""
-    for e in pulita:
+    ingresso = None  # (posizione, ts) della modifica che ha portato il todo a decidi; None se e' nato decidi
+    for i, e in enumerate(pulita):
         tipo, dati = e["tipo"], e["dati"]
         if tipo == "crea":
             chi = dati.get("chi") or "tu"
         elif tipo == "modifica" and "chi" in dati:
-            if chi == "decidi" and dati["chi"] == "io":
+            if chi == "decidi" and dati["chi"] == "io" and tenuto_decidi(ingresso, i, e["ts"]):
                 decisione = True
                 deciso = deciso or e["ts"]
+            if dati["chi"] == "decidi" and chi != "decidi":
+                ingresso = (i, e["ts"])
             chi = dati["chi"]
         elif tipo == "nota" and chi == "decidi" and str(dati.get("testo", "")).startswith(ts.DECISO):
             decisione = True
@@ -222,8 +263,10 @@ def tieni_tu(todo: dict) -> list:
             voci.append((t["creato"], t["id"], t["perche"].strip()))
         for nota in t["note"]:
             testo = nota["testo"]
-            if testo.startswith(TENUTO) and testo[len(TENUTO):].strip():
-                voci.append((nota["ts"], t["id"], testo[len(TENUTO):].strip()))
+            tenuto = testo[len(TENUTO):].strip() if testo.startswith(TENUTO) else ""
+            # «Tenuto: niente» e' una risposta valida, ma non e' una regola da mettere in lista.
+            if tenuto and tenuto.rstrip(".!").strip().casefold() not in NIENTE:
+                voci.append((nota["ts"], t["id"], tenuto))
     fuori, visti = [], set()
     for _, _, testo in sorted(voci, key=lambda v: (v[0], v[1])):
         chiave = testo.casefold()
@@ -333,9 +376,14 @@ def cambia_stato(cambia, file: Path | None = None) -> dict:
     return pulito
 
 
-def _giorno(data: str) -> str:
-    d = dt.date.fromisoformat(data)
-    return f"{d.day:02d}/{d.month:02d}"
+GIORNI = ("lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica")
+MESI = ("gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre",
+        "ottobre", "novembre", "dicembre")
+
+
+def _giorno(d: dt.date) -> str:
+    """Una data in parole, senza articolo: «giovedì 8 ottobre»."""
+    return f"{GIORNI[d.weekday()]} {d.day} {MESI[d.month - 1]}"
 
 
 def suggeribile(stato: dict, oggi: dt.date) -> tuple:
@@ -347,7 +395,7 @@ def suggeribile(stato: dict, oggi: dt.date) -> tuple:
         return False, GIA_OGGI
     fine, perche = silenzio(stato)
     if fine is not None and oggi < fine:
-        return False, f"silenzio fino al {_giorno(fine.isoformat())}, {perche}"
+        return False, f"{perche}, Claude torna a proporre da {_giorno(fine)}"
     return True, None
 
 
@@ -493,7 +541,7 @@ def main(argv: list) -> int:
             else:
                 elenco.append({"data": oggi.isoformat(), "esito": "no"})
         fine, _ = silenzio(cambia_stato(segna))
-        print(f"Va bene. Claude non propone deleghe fino al {_giorno(fine.isoformat())}.")
+        print(f"Va bene. Claude torna a proporre deleghe da {_giorno(fine)}.")
         return 0
 
     if comando == "basta":

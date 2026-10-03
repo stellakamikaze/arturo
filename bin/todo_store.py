@@ -446,8 +446,10 @@ def deciso(numero, testo: str, file: Path | None = None) -> dict:
                          "registrare la decisione")
     if t["chi"] != "decidi":
         raise ErroreTodo(f"il todo #{t['id']} non aspetta una tua decisione: chi è «{t['chi']}», non «decidi»")
-    _scrivi_molti([_evento("nota", t["uid"], {"testo": DECISO + testo}),
-                   _evento("modifica", t["uid"], {"chi": "io"})], file)
+    nota = _evento("nota", t["uid"], {"testo": DECISO + testo})
+    # Lo stesso ts sui due eventi: chi legge la storia riconosce la nota scritta da deciso
+    # (l'ordine resta quello delle righe). Una nota scritta a mano ha sempre un ts suo.
+    _scrivi_molti([nota, dict(_evento("modifica", t["uid"], {"chi": "io"}), ts=nota["ts"])], file)
     return carica(file)[0][t["uid"]]
 
 

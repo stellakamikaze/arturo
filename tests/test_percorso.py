@@ -5,16 +5,21 @@ G01 una HOME vuota: il contratto JSON, tappa 0, nessun file creato. G02 Osserva 
 il todo che le prova. G03 il volume non conta: trenta todo delegati restano alla tappa 2, e
 nessun conteggio entra nel contratto o nel testo. G04 Delega: una decisione della persona più
 un limite o un no motivato (perché, scarto con motivo, riapertura). G05 Orchestra: una
-decisione presa prima che Claude chiuda il lavoro che la aspettava. G06 la domanda: un todo tuo
+decisione presa prima che Claude chiuda il lavoro che la aspettava, oppure un todo decidi chiuso
+prima di quel lavoro (e non dopo). G06 la domanda: un todo tuo
 aperto senza perché, uno per volta. G07 gli esercizi: la rotazione per settimana, gli esercizi
 fatti escono, uno aperto resta, il file reale ha la forma giusta, un file rotto dà un avviso.
 G08 le letture non scrivono niente. G09 il segnalibro della tappa vista e un file di stato
 rotto. G10 i suggerimenti: uno al giorno, tre giorni di silenzio dopo un no (due no nello stesso
-giorno sono uno), quattordici dopo due no di fila, basta e riprendi. G11 tutto resta in locale e il referente non lo legge.
+giorno sono uno), quattordici dopo due no di fila, basta e riprendi, e il messaggio dice il
+giorno in cui Claude torna a proporre. G11 tutto resta in locale e il referente non lo legge.
 G12 gli accenti restano accenti. G13 niente colpa nei testi. G14 i raccordi nei testi
 (skill, /inizio, /fine, /guidami, /setup, README, NOVITA, capitolo 05). G15 gli annulli del
 pannello e della pagina non sbloccano nessuna tappa, la decisione si legge dalla storia (solo da
-un todo stato decidi), e un todo ripreso dopo un annullo torna nel percorso.
+un todo stato decidi), e un todo ripreso dopo un annullo torna nel percorso. Due tasti «c» di
+fila (tu, decidi, io) non sono una decisione, e un annullo non toglie una nota «Deciso:» scritta
+a mano. Gli esercizi non contano per le tappe, un todo annullato non entra in «Cose che tieni per
+te», e nemmeno «Tenuto: niente».
 Sulla base 3001fcc ogni controllo deve fallire.
 """
 from __future__ import annotations
@@ -248,7 +253,28 @@ def test_g05(repo: Path) -> None:
         c.todo("fatto", "5")
         assert c.json()["tappa"] == 3, "G05 un collegamento fra due lavori di Claude apre Orchestra"
 
-    for caso in (in_ordine, decisione_aperta, come_e07, al_contrario, senza_decisione):
+    def decidi_chiuso(c: Casa, prima_il_lavoro: bool = False) -> None:
+        """Il caso del progetto: #1 decidi chiuso con fatto, senza deciso. Delega viene da #4."""
+        preparazione(c, decidi=False)
+        c.todo("aggiungi", "Scegliere il piano", "--chi", "decidi", "--progetto", "p")
+        c.todo("deciso", "4", "piano B")
+        for numero in (("2", "1") if prima_il_lavoro else ("1", "2")):
+            c.todo("fatto", numero)
+
+    def decidi_chiuso_prima(c: Casa) -> None:
+        decidi_chiuso(c)
+        v = c.json()
+        assert v["tappa"] == 4 and c.prova("Orchestra") == [2], \
+            f"G05 un todo decidi chiuso prima del lavoro che lo aspetta non apre Orchestra: {v['tappe'][3]}"
+
+    def decidi_chiuso_dopo(c: Casa) -> None:
+        decidi_chiuso(c, prima_il_lavoro=True)
+        v = c.json()
+        assert v["tappa"] == 3 and c.prova("Orchestra") == [None], \
+            f"G05 Orchestra con il todo decidi chiuso dopo il lavoro che lo aspettava: {v['tappe'][3]}"
+
+    for caso in (in_ordine, decisione_aperta, come_e07, al_contrario, senza_decisione, decidi_chiuso_prima,
+                 decidi_chiuso_dopo):
         con_casa(repo, caso)
 
 
@@ -357,10 +383,14 @@ def test_g10(repo: Path) -> None:
         assert rc(c, OGGI) == 0, "G10 il primo suggerimento del giorno"
         r = c.percorso("suggerisci", ok=False)
         assert r.returncode == 3 and "già uno oggi" in r.stdout, f"G10 il secondo suggerimento dello stesso giorno: {r.stdout}"
-        c.percorso("no")
+        r = c.percorso("no")
+        assert "Claude torna a proporre deleghe da giovedì 8 ottobre." in r.stdout, f"G10 il giorno del ritorno: {r.stdout}"
+        r = c.percorso("suggerisci", ok=False, oggi=piu(2))
+        assert "torna a proporre da giovedì 8 ottobre" in r.stdout, f"G10 il motivo del silenzio: {r.stdout}"
         assert [rc(c, piu(1)), rc(c, piu(2))] == [3, 3], "G10 dopo un no Claude non tace tre giorni"
         assert rc(c, piu(3)) == 0, "G10 dopo tre giorni il silenzio non finisce"
-        c.percorso("no", oggi=piu(3))
+        r = c.percorso("no", oggi=piu(3))
+        assert "Claude torna a proporre deleghe da giovedì 22 ottobre." in r.stdout, f"G10 il giorno del ritorno: {r.stdout}"
         assert rc(c, piu(3 + 13)) == 3, "G10 dopo due no di fila il silenzio dura meno di quattordici giorni"
         assert rc(c, piu(3 + 14)) == 0, "G10 dopo quattordici giorni il silenzio non finisce"
         c.percorso("basta", oggi=piu(3 + 14))
@@ -557,8 +587,55 @@ def test_g15(repo: Path) -> None:
         assert v["tappa"] == 1 and v["domanda"] == {"id": 1, "titolo": "Chiamare la tipografia"}, \
             f"G15 un todo ripreso dopo l'annullo resta fuori dal percorso: {v['tappa']} {v['domanda']}"
 
+    def chi_di_fila(c: Casa) -> None:
+        c.todo("aggiungi", "Ricerca delle fonti", "--chi", "tu", "--progetto", "p")
+        c.todo("aggiungi", "Sintesi", "--chi", "io", "--progetto", "p")
+        c.todo("dopo", "2", "1")
+        c.todo("modifica", "1", "--chi", "decidi")  # «c» del pannello
+        c.todo("modifica", "1", "--chi", "io")  # «c» di nuovo: tu, decidi, io
+        c.todo("fatto", "2")
+        c.todo("aggiungi", "Firmare", "--chi", "tu", "--perche", "firma", "--progetto", "p")
+        v = c.json()
+        assert c.prova("Delega")[0] is None and v["tappa"] == 2, \
+            f"G15 tu→decidi→io di fila vale come decisione: tappa {v['tappa']} {v['tappe'][2]}"
+        c.todo("aggiungi", "Scegliere il titolo", "--chi", "tu", "--progetto", "p")
+        c.todo("modifica", "4", "--chi", "decidi")
+        c.todo("nota", "4", "aspetto la copertina")
+        c.todo("modifica", "4", "--chi", "io")
+        assert c.prova("Delega")[0] == 4, "G15 un todo rimasto decidi e poi passato a io non è una decisione"
+
+    def nota_a_mano_poi_annullo(c: Casa) -> None:
+        c.todo("aggiungi", "Decidere se partecipare", "--chi", "decidi", "--progetto", "p")
+        c.todo("nota", "1", "Deciso: partecipo")
+        assert c.prova("Delega")[0] == 1, "G15 la nota «Deciso:» scritta a mano non è una decisione"
+        c.todo("modifica", "1", "--chi", "io")  # «c» del pannello
+        c.todo("modifica", "1", "--chi", "decidi", "--annullo")  # «u»
+        assert c.prova("Delega")[0] == 1, "G15 un clic annullato cancella la nota «Deciso:» scritta a mano"
+
+    def esercizio_non_conta(c: Casa) -> None:
+        c.todo("aggiungi", "Esercizio E03: Una sintesi che puoi controllare", "--chi", "io", "--progetto", "_percorso")
+        c.todo("fatto", "1")
+        v = c.json()
+        assert v["tappa"] == 0 and c.prova("Osserva") == [None] and c.prova("Prova") == [None], \
+            f"G15 un esercizio conta per le tappe: {v['tappa']} {v['tappe'][:2]}"
+
+    def tieni_tu_annullato(c: Casa) -> None:
+        c.todo("aggiungi", "Per sbaglio", "--chi", "tu", "--perche", "segreto", "--progetto", "p")
+        c.todo("ripristina", "1", "scartato", "annullato dalla pagina")  # Annulla della pagina
+        v = c.json()
+        assert v["tieni_tu"] == [] and v["tappa"] == 0, f"G15 un todo annullato in «Cose che tieni per te»: {v['tieni_tu']}"
+
+    def tenuto_niente(c: Casa) -> None:
+        c.todo("aggiungi", "Esercizio E05: Scrivi le tue regole d'invio", "--chi", "tu", "--progetto", "_percorso")
+        c.todo("nota", "1", "Tenuto: niente")
+        c.todo("fatto", "1")
+        v = c.json()
+        assert v["tieni_tu"] == [], f"G15 «Tenuto: niente» in «Cose che tieni per te»: {v['tieni_tu']}"
+        assert "- niente" not in c.percorso().stdout, "G15 «niente» stampato come una regola"
+
     for caso in (fatto_annullato, aggiungi_annullato, deciso_annullato, tasto_chi, da_tu_a_io, nota_senza_decidi,
-                 storia_discorde, aggiungi_annullato_ripreso):
+                 storia_discorde, aggiungi_annullato_ripreso, chi_di_fila, nota_a_mano_poi_annullo,
+                 esercizio_non_conta, tieni_tu_annullato, tenuto_niente):
         con_casa(repo, caso)
 
 

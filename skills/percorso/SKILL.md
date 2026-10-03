@@ -42,7 +42,8 @@ delegate non conta mai. La tappa può anche scendere, se un todo si riapre: dill
 2. **Racconta la tappa** in parole tue, in due o tre frasi. Cita il #id che prova ogni segno
    raggiunto. Poi di' quale segno apre la tappa dopo, come una possibilità: «La tappa Delega si
    apre quando decidi qualcosa prima che io lavori, per esempio con `deciso` su un todo
-   DECIDI TU». Con `tappa` 0, di' che la prima tappa è Osserva e che basta un todo.
+   DECIDI TU». Con `tappa` 0, di' che la prima tappa è Osserva e che basta un todo sul tuo
+   lavoro: i todo degli esercizi non contano.
 
 3. **Mostra «Cose che tieni per te»**: ogni voce di `tieni_tu` come una regola della persona
    («la firma resta tua»). Se la lista è vuota, dillo in una riga.
@@ -76,8 +77,8 @@ delegate non conta mai. La tappa può anche scendere, se un todo si riapre: dill
    python3 ~/.claude/bin/arturo todo fatto 9
    ```
 
-   «Niente» è una risposta valida: allora la nota è «Tenuto: niente», oppure nessuna nota se la
-   persona preferisce.
+   «Niente» è una risposta valida: allora non scrivere la nota e chiudi solo il todo. La lista
+   «Cose che tieni per te» raccoglie solo le cose tenute.
 
 7. **Se `nuova_tappa` è vero**, proponi il capitolo della tappa (`capitolo`) oppure
    `/sparring` su quel capitolo. Per Orchestra, che non ha un capitolo suo, proponi
