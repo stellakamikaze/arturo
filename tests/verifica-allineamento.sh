@@ -30,6 +30,7 @@ BANCHI=(
   test_revisione_2026_09_30.py
   test_strato.py
   test_todo.py
+  test_web.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -57,6 +58,8 @@ BASELINE=(
   "test_strato.py e70da3d"
   # Archivio dei todo (3/10/2026): b8eff39, l'ultimo dev prima della CLI.
   "test_todo.py b8eff39"
+  # La pagina web dei todo (3/10/2026): 6ef1c0c, l'ultimo commit prima del ciclo 3.
+  "test_web.py 6ef1c0c"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

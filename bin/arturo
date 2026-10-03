@@ -368,10 +368,20 @@ def todo(argv: list) -> int:
     return 2
 
 
+def web(argv: list) -> int:
+    """La pagina dei todo nel browser. Il modulo si carica solo qui: «arturo todo» non lo legge mai.
+
+    Il progetto di partenza viene dalla cartella in cui parte il comando, come per aggiungi.
+    """
+    import arturo_web
+    return arturo_web.main(argv, progetto=progetto_corrente())
+
+
 # Un comando = una riga: nome -> (funzione con argv, oppure nome di un modulo in bin/ con main(argv);
 # riga di aiuto). Aiuto, smistamento e messaggio per un comando sconosciuto nascono da qui.
 COMANDI = {
     "todo": (todo, "i tuoi todo: «arturo todo aiuto» mostra tutti i comandi"),
+    "web": (web, "la pagina dei todo nel browser, solo su questo computer"),
 }
 
 

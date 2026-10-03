@@ -8,6 +8,8 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 In due righe: **18 guardie e automazioni**, **12 slash command**, **9 subagent**, **4 skill**, una **CLI per i todo** (`arturo todo`) — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
 
+I todo si vedono anche in una pagina del browser, con `arturo web`. La pagina è facoltativa e locale: risponde solo sul tuo computer (127.0.0.1), non si collega a internet e si spegne da sola dopo 30 minuti senza la pagina aperta.
+
 ---
 
 ## In breve
@@ -283,7 +285,7 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 - **`shared/validation-gate.md`** — il gate: type-check, test, lint e print di debug. Il produttore della pipeline decide l'esito; una cache non sostituisce il controllo.
 - **`system-audit`** — audit dell'harness: hook diretti e transitivi, smoke test, frontmatter YAML e permessi. `--strict` fallisce se manca un requisito.
 - **`prompt-master`** — due modalità: un prompt pronto da incollare in un altro tool AI, oppure il **brief interno**: prima di ogni richiesta di lavoro ricostruisce il contesto che manca, riscrive la richiesta come la eseguirà (il **prompt**) e mostra obiettivo, output, vincoli, criterio di fatto, assunzioni e ambiguità (il **brief**). L'hook `inject-now.sh` lo ricorda a ogni prompt (upstream `nidhinjs/prompt-master`, MIT).
-- **`todo`** — quando dici «ricordami di…» o chiedi cosa c'è da fare, Claude usa la CLI `arturo todo`. I todo stanno in un archivio sul tuo computer (`data/todo/eventi.jsonl`), divisi per progetto, scadenza e chi agisce: tu, tu che decidi e poi Claude, oppure Claude. `/fine` ci scrive quello che resta, `/inizio` lo rilegge. Da terminale: `python3 ~/.claude/bin/arturo todo aiuto`.
+- **`todo`** — quando dici «ricordami di…» o chiedi cosa c'è da fare, Claude usa la CLI `arturo todo`. I todo stanno in un archivio sul tuo computer (`data/todo/eventi.jsonl`), divisi per progetto, scadenza e chi agisce: tu, tu che decidi e poi Claude, oppure Claude. `/fine` ci scrive quello che resta, `/inizio` lo rilegge. Da terminale: `python3 ~/.claude/bin/arturo todo aiuto`. Se chiedi di vederli in una pagina, Claude avvia `arturo web`: una pagina nel browser che risponde solo sul tuo computer.
 - **`italiano-semplificato`** — riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI.
 
 ---

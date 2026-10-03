@@ -98,3 +98,23 @@ quando annullano un clic.
   riga è illeggibile, riferiscilo alla persona: la riga resta e il resto funziona.
 - Il file è `~/.claude/data/todo/eventi.jsonl`. Contiene dati della persona: non va mai in un
   repository pubblico.
+
+## La pagina nel browser
+
+Quando la persona dice «fammi vedere le mie cose da fare», «aprimi i todo in una pagina» o
+vuole guardare i todo fuori dal terminale, avvia la pagina con il tool Bash e
+`run_in_background`:
+
+```bash
+python3 ~/.claude/bin/arturo web
+```
+
+Il comando stampa un link `http://127.0.0.1:PORTA/?t=CHIAVE` e prova ad aprire il browser. Leggi
+il link dall'output e daglielo in una riga: «La pagina è aperta: <link>». Senza un browser (per
+esempio via SSH) la pagina non si apre da sola, e il link basta.
+
+La pagina usa lo stesso archivio della CLI e le stesse regole: quello che la persona fa lì lo
+vedi con `arturo todo`, e quello che scrivi tu compare nella pagina entro 20 secondi. Ascolta
+solo su questo computer, e la chiave cambia a ogni avvio. Si spegne da sola dopo 30 minuti senza
+la pagina aperta, con il bottone «Spegni la pagina» o con Ctrl+C. Non proporre la pagina se la
+persona non la chiede.

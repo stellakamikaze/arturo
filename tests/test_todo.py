@@ -644,7 +644,7 @@ def test_t20(repo: Path) -> None:
 
 def test_t21(repo: Path) -> None:
     cli = modulo(repo, "arturo")
-    assert isinstance(cli.COMANDI, dict) and list(cli.COMANDI) == ["todo"], f"T21 COMANDI: {cli.COMANDI}"
+    assert isinstance(cli.COMANDI, dict) and list(cli.COMANDI)[:1] == ["todo"], f"T21 COMANDI: {cli.COMANDI}"
     funzione, aiuto = cli.COMANDI["todo"]
     assert callable(funzione) and isinstance(aiuto, str) and aiuto, "T21 la voce todo di COMANDI"
     with tempfile.TemporaryDirectory() as tmp:
