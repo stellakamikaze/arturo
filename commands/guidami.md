@@ -90,6 +90,11 @@ Da tre a cinque voci, non di più. Per ognuna, tre righe:
 
 Ordina per quello che sbloccherebbe di più, non per data.
 
+L'esercizio della settimana del percorso (`python3 "$HOME/.claude/bin/arturo" percorso --json`,
+campo `esercizio`) entra solo dentro una voce vera. Se l'esercizio combacia con una voce che hai
+già trovato, dillo dentro quella voce («è anche l'esercizio E03 del tuo percorso»). Non farne
+mai una voce a sé.
+
 Chiudi con un menu che gli fa scegliere da dove partire, e **se sceglie, parti davvero**: apri il
 progetto e fai il primo passo.
 

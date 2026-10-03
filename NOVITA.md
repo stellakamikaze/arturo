@@ -11,6 +11,26 @@ modo di lavorare.
 
 ---
 
+## 2026-10-03 — Il percorso a tappe
+
+**Cosa cambia**: chiedi a Claude «a che punto sono?» oppure scrivi `/percorso`. Vedi la tua
+tappa fra quattro: Osserva, Prova, Delega, Orchestra. Accanto a ogni tappa c'è il numero del todo
+che la prova, così puoi controllare. Vedi anche la lista «Cose che tieni per te» e un esercizio
+della settimana sul tuo lavoro vero. `/inizio` ti mostra la tappa in una riga. A fine sessione
+`/fine` può proporti una sola delega, e dopo un tuo no tace per qualche giorno.
+
+**Il principio dietro**: automatizza la forma, frena l'impegno. Il percorso conta le decisioni
+che tieni, non il lavoro che deleghi. Le tappe si aprono con una decisione presa prima che Claude
+lavori, un limite che dichiari o un no motivato. Il nuovo capitolo «Tieni la decisione» lo
+racconta (`docs/principi/05-tieni-la-decisione.md`), e `docs/esercizi.md` ha otto esercizi.
+
+**Da sapere**: il percorso si calcola solo sul tuo computer, dai tuoi todo. Non esce niente, e il
+referente della tua organizzazione non lo vede. Dopo un no alla proposta di `/fine`, Claude tace
+tre giorni. Dopo due no di fila, due settimane. «Basta suggerimenti» le spegne finché non dici
+«riprendi i suggerimenti».
+
+<!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->
+
 ## 2026-10-03 — Il pannello delle cose da fare
 
 **Cosa cambia**: scrivi `/dafare` e dentro Claude Code si apre un pannello con le tue cose da

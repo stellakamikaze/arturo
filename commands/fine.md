@@ -129,6 +129,26 @@ $TODO --progetto "$SLUG"              # cosa c'è già: non creare doppioni
 
 Il titolo dice l'azione a una persona («Mandare a Gigi la parola d'ordine»), non uno slug.
 Se la persona ha chiesto un todo durante la sessione («ricordami di…»), c'è già: aggiornalo.
+Un todo `tu` porta un perché quando lo sai dalla sessione. Se non lo sai, lascialo vuoto: lo
+chiede il percorso, una domanda per volta (skill percorso). Non spostare mai un todo da tu a io
+o decidi senza un sì.
+
+**Una proposta, al massimo.** Se nella sessione la persona ha fatto a mano un passo che Claude
+può fare, chiedi al percorso se puoi proporlo:
+
+```bash
+python3 "$HOME/.claude/bin/arturo" percorso suggerisci
+```
+
+Con exit 0 proponi una sola delega, in una riga, e di' cosa resta suo: «La prossima volta il
+riassunto lo preparo io. Resta tuo: la scelta di cosa mandare.» Con exit 3 taci: la persona ha
+detto no da poco, oppure ha chiesto basta. Se la persona dice no, lancia
+`python3 "$HOME/.claude/bin/arturo" percorso no` e non insistere. Il numero di cose delegate non
+conta: non proporre una delega su un todo che ha un perché.
+
+Se nella sessione la persona ha fatto un esercizio del percorso (un todo del progetto
+`_percorso`), chiedi «cosa hai tenuto per te?» prima di chiuderlo. Scrivi la risposta con
+`$TODO nota ID "Tenuto: …"`, poi `$TODO fatto ID`.
 
 **Dove va l'handoff.** Scrivilo nello store `~/.claude/data/handoffs/<slug>/`. Slug = nome
 progetto in kebab-case (lo stesso usato con `/inizio`). Non creare l'handoff nel repository

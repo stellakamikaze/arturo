@@ -12,7 +12,10 @@ guadagni, cosa dai in cambio.
    fa tre domande sul tuo lavoro reale, ti dice se e dove il principio ti serve, e ti
    propone un esperimento piccolo e reversibile per provarlo. Anche «questo per ora non
    ti serve» è un risultato valido.
-3. **Torna quando l'harness si aggiorna.** Le novità (`/novita`) rimandano qui quando un
+3. **Segui il percorso.** Chiedi a Claude «a che punto sono?» oppure scrivi `/percorso`: vedi la
+   tua tappa, il capitolo che la racconta e un esercizio sul tuo lavoro vero
+   ([gli esercizi](../esercizi.md)).
+4. **Torna quando l'harness si aggiorna.** Le novità (`/novita`) rimandano qui quando un
    principio nuovo entra nel curriculum.
 
 L'ordine dei capitoli non è casuale: si parte dal potere, non dai comandi.
@@ -26,6 +29,7 @@ L'ordine dei capitoli non è casuale: si parte dal potere, non dai comandi.
 | 02 | I rail, non l'attrito — perché la sicurezza fatta di mille conferme non funziona, e cosa sono le guardie di Arturo | in scrittura |
 | 03 | Orchestrare in proprietario, lavorare in locale — quando ha senso far pianificare un modello di punta e far eseguire un modello che gira sul tuo computer | in scrittura |
 | 04 | La memoria è tua — perché il contesto e la configurazione devono vivere in file tuoi, portabili, e non nella chat di qualcun altro | in scrittura |
+| 05 | [Tieni la decisione](05-tieni-la-decisione.md) — automatizza la forma, frena l'impegno: Claude esegue, la decisione e l'invio restano tuoi | disponibile (bozza) |
 
 I capitoli «in scrittura» sono una promessa, non un segnaposto: arrivano con le prossime
 novità dell'harness.

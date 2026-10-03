@@ -132,6 +132,8 @@ dell'handoff è solo la fotografia dell'ultima sessione.
 # Todo aperti del progetto, divisi per chi agisce, e commit recenti per il cross-reference
 python3 "$HOME/.claude/bin/arturo" todo --progetto "$SLUG" 2>/dev/null
 git log --oneline -20 2>/dev/null
+# Il percorso a tappe: la tappa e l'esercizio della settimana, calcolati sul computer della persona
+python3 "$HOME/.claude/bin/arturo" percorso --json 2>/dev/null
 # Il pannello /dafare c'è? I comandi di un mod non compaiono fra quelli che vedi.
 claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "dafare@skills-dir"]; print("mod caricato" if v and v[0].get("enabled") else "mod assente")' 2>/dev/null || echo "mod assente"
 ```
@@ -163,6 +165,13 @@ claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p 
  Ogni todo con l'ID a destra e una riga su a cosa serve. Le scadenze passate in cima.]
 [solo se il controllo del pannello della FASE 4 stampa «mod caricato»:]
 Per chiuderli o spostarli con un tasto: /dafare
+
+## Percorso
+[una riga da `arturo percorso --json`: la tappa (`nome`, oppure «all'inizio» con tappa 0) e
+ l'esercizio della settimana (codice e titolo). Niente conteggi.
+ Se `nuova_tappa` è vero, una seconda riga con il capitolo della tappa; poi lancia
+ `python3 "$HOME/.claude/bin/arturo" percorso visto`.
+ Ometti la sezione se `suggerimenti.pausa` è "sempre" o se il comando non risponde.]
 
 ## Skill Progetto
 [suggerisci le poche skill davvero utili a QUESTO progetto ora, in base a stack,

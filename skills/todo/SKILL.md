@@ -95,6 +95,11 @@ quando annullano un clic.
 - Prima di aggiungere, guarda se il todo c'è già (`arturo todo --progetto P`). Un doppione
   costa alla persona più di un todo mancante.
 - Un todo che hai fatto tu in questa sessione lo chiudi con `fatto` e lo dici.
+- `tu` porta un perché quando lo sai dalla frase. Se non lo sai, lascialo vuoto: lo chiede il
+  percorso (skill percorso), una domanda per volta. Non spostare mai un todo da tu a io o decidi
+  senza un sì.
+- Il progetto `_percorso` contiene gli esercizi del percorso: li crea e li chiude la skill
+  percorso.
 - Non cancelli mai il file dell'archivio e non lo modifichi a mano. Se un comando dice che una
   riga è illeggibile, riferiscilo alla persona: la riga resta e il resto funziona.
 - Il file è `~/.claude/data/todo/eventi.jsonl`. Contiene dati della persona: non va mai in un

@@ -6,7 +6,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 È il telaio di una config personale usata quotidianamente in produzione, estratto e igienizzato: **zero dati, zero credenziali, zero riferimenti a infrastrutture private**. Quello che resta è il metodo.
 
-In due righe: **18 guardie e automazioni**, **12 slash command**, **9 subagent**, **4 skill**, una **CLI per i todo** (`arturo todo`) — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
+In due righe: **18 guardie e automazioni**, **12 slash command**, **9 subagent**, **5 skill**, una **CLI per i todo** (`arturo todo`) — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
 
 I todo si vedono anche in una pagina del browser, con `arturo web`. La pagina è facoltativa e locale: risponde solo sul tuo computer (127.0.0.1), non si collega a internet e si spegne da sola dopo 30 minuti senza la pagina aperta.
 
@@ -218,8 +218,9 @@ bin/                 La CLI arturo e i suoi moduli
 hooks/               18 guardie e automazioni
 commands/            12 slash command di workflow (incl. /setup, /aggiorna, /guidami, /novita, /strato)
 agents/              9 subagent specializzati
-skills/              4 skill (+ regole condivise in shared/)
+skills/              5 skill (+ regole condivise in shared/)
 docs/principi/       Il curriculum: i principi spiegati in semplice
+docs/esercizi.md     Gli esercizi del percorso a tappe (/percorso)
 docs/onboarding/     Guide di setup guidato (/inizio gws)
 docs/referente.md    Guida del referente di un'organizzazione (/strato)
 templates/strato/    Modello di plugin per lo strato di un'organizzazione (/strato crea)
@@ -286,6 +287,7 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 - **`system-audit`** — audit dell'harness: hook diretti e transitivi, smoke test, frontmatter YAML e permessi. `--strict` fallisce se manca un requisito.
 - **`prompt-master`** — due modalità: un prompt pronto da incollare in un altro tool AI, oppure il **brief interno**: prima di ogni richiesta di lavoro ricostruisce il contesto che manca, riscrive la richiesta come la eseguirà (il **prompt**) e mostra obiettivo, output, vincoli, criterio di fatto, assunzioni e ambiguità (il **brief**). L'hook `inject-now.sh` lo ricorda a ogni prompt (upstream `nidhinjs/prompt-master`, MIT).
 - **`todo`** — quando dici «ricordami di…» o chiedi cosa c'è da fare, Claude usa la CLI `arturo todo`. I todo stanno in un archivio sul tuo computer (`data/todo/eventi.jsonl`), divisi per progetto, scadenza e chi agisce: tu, tu che decidi e poi Claude, oppure Claude. `/fine` ci scrive quello che resta, `/inizio` lo rilegge. Da terminale: `python3 ~/.claude/bin/arturo todo aiuto`. Se chiedi di vederli in una pagina, Claude avvia `arturo web`: una pagina nel browser che risponde solo sul tuo computer.
+- **`percorso`** — quando chiedi «a che punto sono?» o scrivi `/percorso`, Claude lancia `arturo percorso` e ti mostra la tappa (Osserva, Prova, Delega, Orchestra) con il todo che la prova, le cose che tieni per te e un esercizio della settimana sul tuo lavoro. Conta le decisioni che tieni, non il lavoro che deleghi. Si calcola solo sul tuo computer: nessun dato esce.
 - **`italiano-semplificato`** — riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI.
 
 **Il pannello dei todo (`/dafare`).** Scrivi `/dafare` e si apre un pannello con le tue cose da fare, divise come in `arturo todo`. Scegli una riga con il numero (o con `j` e `k`) e premi una lettera: `f` fatto, `s` ferma, `r` riprendi, `c` chi lo fa, `a` avvicina, `l` allontana, `u` annulla, `p` cambia progetto, Esc chiude. `/dafare libro` apre solo il progetto `libro`. Quando hai cose aperte, sopra il prompt compare una riga («3 cose da fare · /dafare per vederle»): `/dafare nascondi` la spegne, `/dafare mostra` la riaccende. Il pannello scrive solo con la CLI `arturo todo`, chiede Claude Code 2.1.287 o successivo e si spegne con `claude plugin disable dafare@skills-dir`. La cartella `skills/dafare/` ha `.claude-plugin/plugin.json` al posto di `SKILL.md`: è un mod di Claude Code, non una skill, e non entra nel conteggio delle skill.
@@ -323,6 +325,12 @@ partire — incluse le persone che non fanno un mestiere tecnico. Il percorso:
 4. **`/novita`** — quando l'harness si aggiorna (`/aggiorna`), all'avvio della sessione
    Arturo ti avvisa; `/novita` racconta cosa è cambiato, il principio dietro, e ti
    propone lo sparring. Così l'harness — e chi lo usa — restano aggiornati insieme.
+5. **Il percorso** — chiedi «a che punto sono?» o scrivi `/percorso`. Quattro tappe (Osserva,
+   Prova, Delega, Orchestra) che si aprono con segni di giudizio: una decisione presa prima del
+   lavoro di Claude, un limite dichiarato, un no motivato. Ogni settimana un esercizio dal tuo
+   lavoro vero ([`docs/esercizi.md`](docs/esercizi.md)) e il capitolo
+   [Tieni la decisione](docs/principi/05-tieni-la-decisione.md). Il percorso resta sul tuo
+   computer.
 
 Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 
