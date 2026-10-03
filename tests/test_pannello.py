@@ -14,8 +14,8 @@ Code adotta il mod e `claude -p /dafare` legge l'archivio. U06 il percorso della
 cartella del mod, e nel mod non ci sono percorsi assoluti né dati personali. U07 i testi del
 pannello: niente emoji, niente apostrofo al posto dell'accento, niente «dovresti» o «qualora».
 U08 /system-audit riconosce un mod e lo distingue da una skill rotta. U09 .gitignore tiene fuori
-i file che Claude Code genera accanto al mod, e dentro il mod vero. U10 /aggiorna mostra il
-codice del mod. U11 la persona scopre il pannello da skill, /inizio, README, NOVITA, /setup e
+i file che Claude Code genera accanto al mod, e dentro il mod vero. U10 il diff di /aggiorna,
+lanciato con bash e zsh in un clone fermo alla base, mostra il codice del mod. U11 la persona scopre il pannello da skill, /inizio, README, NOVITA, /setup e
 /diagnosi; il referente sa come spegnerlo. U12 il README conta le skill giuste e spiega il mod.
 U13 validate e test non eseguono gli hook di sessione e non chiedono rete né accesso: un
 controllo positivo prova che la sentinella funziona e che la HOME di prova non ha accesso.
@@ -239,6 +239,13 @@ def test_u04(repo: Path) -> None:
         cli(repo, home, "ferma", "1", "aspetto la firma")
         prova("riprendi", {"stato": "da fare", "gruppo": "tu"})  # l'inverso rimette FERMO con il motivo
         assert mostra()["motivo"] == "aspetto la firma", "U04 l'inverso di riprendi perde il motivo"
+        # Un motivo di una parola che comincia con un trattino: l'inverso lo passa dopo «--», e la CLI
+        # non lo legge come un'opzione.
+        cli(repo, home, "ferma", "1", "--", "-firma")
+        prova("riprendi", {"stato": "da fare", "gruppo": "tu"})
+        assert mostra()["motivo"] == "-firma", "U04 l'inverso di riprendi perde il motivo «-firma»"
+        prova("fatto", {"stato": "fatto"})
+        assert mostra()["motivo"] == "-firma", "U04 l'inverso di fatto perde il motivo «-firma»"
 
 
 def test_u05(repo: Path) -> None:
@@ -322,14 +329,20 @@ def test_u08(repo: Path) -> None:
         r = audit(home)
         assert r.returncode == 0 and "skill: directory e frontmatter YAML validi" in r.stdout, \
             f"U08 /system-audit non riconosce un mod: {r.stdout[-800:]}"
+        mod_rotto = "mod: .claude-plugin/plugin.json non valido"
         (finto / ".claude-plugin" / "plugin.json").write_text('{"name": "altro"}', encoding="utf-8")
         r = audit(home)
-        assert r.returncode != 0 and "skill: SKILL.md mancante" in r.stdout, \
-            f"U08 un mod col nome sbagliato passa l'audit: {r.stdout[-800:]}"
+        assert r.returncode != 0 and mod_rotto in r.stdout, f"U08 un mod col nome sbagliato passa l'audit: {r.stdout[-800:]}"
+        assert "SKILL.md mancante" not in r.stdout, f"U08 un mod rotto chiede una SKILL.md: {r.stdout[-800:]}"
+        (finto / ".claude-plugin" / "plugin.json").write_text('{"name": "finto"}', encoding="utf-8")
+        (finto / "hooks" / "hooks.json").unlink()
+        r = audit(home)
+        assert r.returncode != 0 and mod_rotto in r.stdout and "SKILL.md mancante" not in r.stdout, \
+            f"U08 un mod senza hooks/hooks.json: {r.stdout[-800:]}"
         shutil.rmtree(str(finto))
         (home / ".claude" / "skills" / "vuota").mkdir()
         r = audit(home)
-        assert r.returncode != 0 and "skill: SKILL.md mancante" in r.stdout, \
+        assert r.returncode != 0 and "skill: SKILL.md mancante" in r.stdout and mod_rotto not in r.stdout, \
             f"U08 una cartella senza SKILL.md e senza plugin.json passa l'audit: {r.stdout[-800:]}"
 
 
@@ -350,12 +363,60 @@ def test_u09(repo: Path) -> None:
             assert not ignorato(path), f"U09 .gitignore esclude {path}, che è del mod"
 
 
+# Quello che il diff di /aggiorna deve mostrare: ogni file del codice che gira da solo, anche in
+# cartelle che la copia locale non ha ancora (un mod nuovo, gli script di una skill nuova).
+DIFF_ATTESI = ("hooks/guardia.py", "settings.json", "skills/todo/scripts/vecchio.py", "skills/nuova/scripts/nuovo.sh",
+               "bin/arturo", "skills/dafare/hooks/register.tsx", "skills/dafare/hooks/hooks.json",
+               "skills/dafare/.claude-plugin/plugin.json")
+
+
+def diff_di_aggiorna(repo: Path) -> dict:
+    """Lancia la riga del diff di commands/aggiorna.md in un clone fermo alla base, con bash e
+    (se c'è) con zsh, la shell di default su macOS. Ritorna, per shell, i file che il diff mostra."""
+    righe = [r for r in read(repo / "commands" / "aggiorna.md").splitlines() if r.startswith('git diff "HEAD...$SRC/main"')]
+    assert len(righe) == 1, f"il diff del Passo 1 di /aggiorna: {righe}"
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        env = dict(os.environ, HOME=str(base), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1",
+                   GIT_AUTHOR_NAME="Prova", GIT_AUTHOR_EMAIL="prova@example.invalid",
+                   GIT_COMMITTER_NAME="Prova", GIT_COMMITTER_EMAIL="prova@example.invalid")
+
+        def git(cwd: Path, *argomenti: str) -> None:
+            subprocess.run(["git", *argomenti], cwd=str(cwd), env=env, check=True, capture_output=True, timeout=60)
+
+        def scrivi(radice: Path, nomi: tuple) -> None:
+            for nome in nomi:
+                (radice / nome).parent.mkdir(parents=True, exist_ok=True)
+                (radice / nome).write_text(f"{nome} {len(nomi)}\n", encoding="utf-8")
+
+        remoto, locale = base / "remoto", base / "locale"
+        remoto.mkdir()
+        git(remoto, "init", "-q", "-b", "main")
+        scrivi(remoto, ("hooks/guardia.py", "settings.json", "skills/todo/scripts/vecchio.py", "bin/arturo",
+                        "skills/todo/SKILL.md"))
+        git(remoto, "add", "-A")
+        git(remoto, "commit", "-q", "-m", "base")
+        git(base, "clone", "-q", str(remoto), str(locale))
+        scrivi(remoto, DIFF_ATTESI)
+        git(remoto, "add", "-A")
+        git(remoto, "commit", "-q", "-m", "aggiornamento")
+        git(locale, "fetch", "-q", "origin")
+        visti = {}
+        for shell in [x for x in ("bash", "zsh") if shutil.which(x)]:
+            r = subprocess.run([shell, "-c", "SRC=origin\n" + righe[0]], cwd=str(locale), env=env,
+                               capture_output=True, timeout=60)
+            uscita = r.stdout.decode("utf-8", "replace")
+            visti[shell] = set(re.findall(r"^diff --git a/(\S+) ", uscita, re.M))
+        return visti
+
+
 def test_u10(repo: Path) -> None:
     aggiorna = read(repo / "commands" / "aggiorna.md")
-    riga = [r for r in aggiorna.splitlines() if r.startswith('git diff "HEAD...$SRC/main" -- hooks')]
-    assert len(riga) == 1, f"U10 il diff del Passo 1: {riga}"
-    for parte in ("bin", "skills/*/hooks", "skills/*/.claude-plugin"):
-        assert f" {parte} " in riga[0] + " ", f"U10 /aggiorna non mostra {parte}: {riga[0]}"
+    visti = diff_di_aggiorna(repo)
+    assert "bash" in visti, "U10 bash mancante: il diff di /aggiorna non si prova"
+    for shell, file in visti.items():
+        mancano = [f for f in DIFF_ATTESI if f not in file]
+        assert not mancano, f"U10 con {shell} il diff di /aggiorna non mostra {mancano} (mostra {sorted(file)})"
     assert "`/dafare`" in aggiorna, "U10 /aggiorna non dice che il pannello è codice che gira da solo"
 
 
@@ -390,8 +451,6 @@ def test_u12(repo: Path) -> None:
     vere = len([d for d in (repo / "skills").iterdir() if (d / "SKILL.md").is_file()])
     scritti = re.findall(r"\*\*(\d+) skill\*\*", readme) + re.findall(r"^skills/\s+(\d+) skill", readme, re.M)
     assert scritti and all(int(n) == vere for n in scritti), f"U12 il README dice {scritti} skill, ce ne sono {vere}"
-    albero = re.search(r"## Cosa c'è dentro\n+```\n(.*?)```", readme, re.S)
-    assert albero and re.search(r"^skills/dafare/\s", albero.group(1), re.M), "U12 «Cosa c'è dentro» non nomina skills/dafare"
     paragrafi = [p for p in readme.split("\n\n") if ".claude-plugin/plugin.json" in p and "skills/dafare/" in p]
     assert paragrafi and "mod" in paragrafi[0] and "non una skill" in paragrafi[0], \
         "U12 il README non spiega che una cartella con .claude-plugin/plugin.json è un mod"

@@ -44,11 +44,13 @@ controllare le novità del progetto su GitHub prima di aggiornare.
 **Leggi cosa cambia nel codice che gira da solo**, prima di chiedere il sì:
 
 ```bash
-git diff "HEAD...$SRC/main" -- hooks settings.json skills/*/scripts bin skills/*/hooks skills/*/.claude-plugin 2>/dev/null | head -400
+git diff "HEAD...$SRC/main" -- hooks settings.json 'skills/*/scripts/**' bin 'skills/*/hooks/**' 'skills/*/.claude-plugin/**' 2>/dev/null | head -400
 ```
 
 Il diff copre le guardie (`hooks`), i permessi (`settings.json`), gli script delle skill, la
 CLI `arturo` (`bin`) e i mod di Claude Code (`skills/*/hooks`, `skills/*/.claude-plugin`).
+Lascia i percorsi tra virgolette: così la shell non li espande, e git mostra anche i file delle
+cartelle che questa copia non ha ancora, come un mod nuovo.
 Il pannello `/dafare` è codice che gira da solo dentro Claude Code e lancia la CLI `arturo`.
 Raccontagli in parole semplici cosa cambia nelle guardie, nei permessi e nel codice che lancia. Segnala in modo
 esplicito ogni modifica che manda dati fuori dal computer, che cancella file, o che rende una

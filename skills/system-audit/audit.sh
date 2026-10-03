@@ -179,7 +179,12 @@ else
   ko "frontmatter agenti: YAML non valido o campi mancanti"
 fi
 
-if [[ -d "$CLAUDE_DIR/skills" ]] && python3 - "$CLAUDE_DIR/skills" <<'PY' >/dev/null 2>&1
+# Esito del blocco Python: 0 tutto valido, 1 una skill rotta, 3 un mod rotto, 4 tutti e due.
+# Un mod rotto ha il suo messaggio: «SKILL.md mancante» porterebbe ad aggiungere una SKILL.md al mod.
+skills_rc=1
+if [[ -d "$CLAUDE_DIR/skills" ]]; then
+  skills_rc=0
+  python3 - "$CLAUDE_DIR/skills" <<'PY' >/dev/null 2>&1 || skills_rc=$?
 import sys
 from pathlib import Path
 try:
@@ -200,34 +205,47 @@ except ImportError:
                 valori[chiave] = "" if valore in (">", "|", ">-", "|-") else valore.strip("\"'")
         return valori
 import json
+
+
+def mod_valido(directory):
+    # Una cartella con .claude-plugin/plugin.json e' un mod di Claude Code (il pannello /dafare),
+    # non una skill: niente SKILL.md, ma un manifest valido col nome della cartella e i suoi hook.
+    try:
+        dati = json.loads((directory / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(dati, dict) and dati.get("name") == directory.name and (directory / "hooks" / "hooks.json").is_file()
+
+
+def skill_valida(directory):
+    skill = directory / "SKILL.md"
+    if not skill.is_file():
+        return False
+    text = skill.read_text(encoding="utf-8")
+    if not text.startswith("---\n"):
+        return False
+    frontmatter = carica(text.split("---\n", 2)[1])
+    return isinstance(frontmatter, dict) and all(isinstance(frontmatter.get(key), str) and frontmatter[key] for key in ("name", "description"))
+
+
+skill_rotta = mod_rotto = False
 for directory in Path(sys.argv[1]).iterdir():
     if not directory.is_dir() or directory.name == "shared":
         continue
-    # Una cartella con .claude-plugin/plugin.json e' un mod di Claude Code (il pannello /dafare),
-    # non una skill: niente SKILL.md, ma un manifest valido col nome della cartella e i suoi hook.
-    manifest = directory / ".claude-plugin" / "plugin.json"
-    if manifest.is_file():
-        dati = json.loads(manifest.read_text(encoding="utf-8"))
-        if not isinstance(dati, dict) or dati.get("name") != directory.name:
-            raise ValueError(manifest)
-        if not (directory / "hooks" / "hooks.json").is_file():
-            raise ValueError(directory / "hooks" / "hooks.json")
-        continue
-    skill = directory / "SKILL.md"
-    if not skill.is_file():
-        raise FileNotFoundError(skill)
-    text = skill.read_text(encoding="utf-8")
-    if not text.startswith("---\n"):
-        raise ValueError(skill)
-    frontmatter = carica(text.split("---\n", 2)[1])
-    if not isinstance(frontmatter, dict) or not all(isinstance(frontmatter.get(key), str) and frontmatter[key] for key in ("name", "description")):
-        raise ValueError(skill)
+    if (directory / ".claude-plugin" / "plugin.json").is_file():
+        mod_rotto = mod_rotto or not mod_valido(directory)
+    else:
+        skill_rotta = skill_rotta or not skill_valida(directory)
+sys.exit((1 if skill_rotta else 0) + (3 if mod_rotto else 0))
 PY
-then
-  ok "skill: directory e frontmatter YAML validi"
-else
-  ko "skill: SKILL.md mancante oppure frontmatter non valido"
 fi
+case "$skills_rc" in
+  0) ok "skill: directory e frontmatter YAML validi" ;;
+  3) ko "mod: .claude-plugin/plugin.json non valido (name diverso dalla cartella oppure hooks/hooks.json mancante)" ;;
+  4) ko "skill: SKILL.md mancante oppure frontmatter non valido"
+     ko "mod: .claude-plugin/plugin.json non valido (name diverso dalla cartella oppure hooks/hooks.json mancante)" ;;
+  *) ko "skill: SKILL.md mancante oppure frontmatter non valido" ;;
+esac
 
 [[ -f "$CLAUDE_DIR/README.md" ]] && ok "README pubblico presente" || ko "README pubblico mancante"
 

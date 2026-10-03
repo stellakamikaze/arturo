@@ -5,7 +5,7 @@
 // Sotto il pannello c'è una CLI finta: tiene un piccolo archivio in memoria, risponde a
 // `todo --json` e ai verbi del pannello, e registra ogni argv.
 
-import { expect, mock, test } from 'claude-code/testing'
+import { expect, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
 
@@ -16,6 +16,8 @@ type Opzioni = {
   python?: Record<string, 'ok' | 'rifiuta' | 'alias'>
   json?: () => string
   rompi?: (argomenti: string[]) => Uscita | null
+  // Lo store del plugin fra le sessioni ($.store), già pieno all'avvio.
+  store?: Record<string, unknown>
 }
 
 const PANE = { title: 'Le tue cose da fare', isFocused: true, bodyColumns: 80, placement: 'inline' } as never
@@ -43,7 +45,10 @@ function gruppoDi(t: TodoVoce): TodoVoce['gruppo'] {
   return t.stato === 'fermo' ? 'fermo' : t.chi
 }
 
-// La CLI finta: un archivio in memoria che cambia con i verbi, come quella vera.
+const AVVIO = { cwd: '/progetto', surface: 'terminal', isInteractive: true } as const
+
+// La CLI finta: un archivio in memoria che cambia con i verbi, come quella vera. Sotto il plugin
+// ci sono anche lo store fra le sessioni e la registrazione del comando, per session.start.
 function motore(on: On, iniziali: TodoVoce[], opzioni: Opzioni = {}) {
   const archivio = iniziali.map(t => ({ ...t }))
   const python = opzioni.python ?? { python3: 'ok' }
@@ -52,14 +57,17 @@ function motore(on: On, iniziali: TodoVoce[], opzioni: Opzioni = {}) {
   const aperture: unknown[] = []
   let versione = 1
   let avvisi: string[] = []
+  const store = new Map<string, unknown>(Object.entries(opzioni.store ?? {}))
 
   const vista = (): Vista => ({
     versione, oggi: '2026-10-03', progetto: null, chiusi: 0, avvisi,
     gruppi: GRUPPI.map(g => ({ ...g, todo: archivio.filter(t => gruppoDi(t) === g.tipo).map(t => ({ ...t, gruppo: gruppoDi(t) })) })),
   })
 
-  const esegui = (a: string[]): Uscita => {
-    const rotto = opzioni.rompi?.(a)
+  const esegui = (argomenti: string[]): Uscita => {
+    // «--» chiude le opzioni, come nella CLI vera: dopo restano solo argomenti.
+    const a = argomenti.filter(x => x !== '--')
+    const rotto = opzioni.rompi?.(argomenti)
     if (rotto) return rotto
     if (a[0] === '--json') return { exitCode: 0, stdout: opzioni.json ? opzioni.json() : JSON.stringify(vista()), stderr: '' }
     const t = archivio.find(x => String(x.id) === a[1])
@@ -103,11 +111,18 @@ function motore(on: On, iniziali: TodoVoce[], opzioni: Opzioni = {}) {
     return <Box />
   })
   on('turn.complete', async (_$, e) => ({ text: e.answer }))
+  on('session.start', async (_$, e) => ({ cwd: e.cwd }))
+  on('command.register', async (_$, e) => ({ value: { command: e.name } }) as never)
+  on('store.get', async (_$, e) => ({ value: store.get(e.key) }) as never)
+  on('store.set', async (_$, e) => {
+    store.set(e.key, e.value)
+    return { value: undefined } as never
+  })
 
   // Gli argomenti della CLI dopo il percorso di bin/arturo: ['todo', ...].
   const cli = () => chiamate.filter(a => a.some(x => x.endsWith('/bin/arturo'))).map(a => a.slice(a.findIndex(x => x.endsWith('/bin/arturo')) + 1))
   return {
-    archivio, chiamate, toast, aperture, cli,
+    archivio, chiamate, toast, aperture, cli, store,
     scritture: () => cli().filter(a => a[1] !== '--json'),
     versione: (n: number) => { versione = n },
     avvisi: (a: string[]) => { avvisi = a },
@@ -143,6 +158,9 @@ for (const surface of ['terminal', 'desktop'] as const) {
     m.avvisi(['riga 7 del registro illeggibile, saltata'])
     const { r, pane } = await apri($)
     expect((r as { text: string }).text).toContain('4 cose da fare')
+    // Una sola scaduta (#4): la testata usa il singolare, come la barra.
+    expect(await pane.find({ type: 'Text', text: '4 cose da fare · 1 scaduta · tutti i progetti' })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: 'scadute' })).toBeFalsy()
     const titoli = (await pane.findAll({ type: 'Text', text: /^(TOCCA A TE|DECIDI TU|FACCIO IO|FERMO)/ })).map(x => x.text)
     expect(titoli).toEqual(['TOCCA A TE (1)', 'DECIDI TU, POI FACCIO IO (1)', 'FACCIO IO (1)', 'FERMO (1)'])
     expect(await pane.find({ type: 'Text', text: 'scaduto da 2 g' })).toBeTruthy()
@@ -169,7 +187,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     await pane.press({ key: 'riga-3' })
     await pane.press({ key: 'fatto' })
     await pane.press({ key: 'annulla' })
-    expect(m.scritture().slice(-1)).toEqual([['todo', 'ripristina', '3', 'da fare']])
+    expect(m.scritture().slice(-1)).toEqual([['todo', 'ripristina', '3', '--', 'da fare']])
     expect(await pane.find({ type: 'Text', text: 'CHIUSI ORA' })).toBeFalsy()
     const prima = m.chiamate.length
     await pane.press({ key: 'annulla' })
@@ -188,9 +206,9 @@ for (const surface of ['terminal', 'desktop'] as const) {
     await pane.press({ key: 'annulla' })
     expect(m.scritture()).toEqual([
       ['todo', 'ferma', '3'],
-      ['todo', 'ripristina', '3', 'da fare'],
+      ['todo', 'ripristina', '3', '--', 'da fare'],
       ['todo', 'riprendi', '4'],
-      ['todo', 'ripristina', '4', 'fermo', 'aspetto la firma'],
+      ['todo', 'ripristina', '4', '--', 'fermo', 'aspetto la firma'],
     ])
   })
 
@@ -237,6 +255,27 @@ for (const surface of ['terminal', 'desktop'] as const) {
     await pane.press({ key: 'annulla' })
     expect(m.toast[m.toast.length - 1]).toContain('Niente da annullare')
     expect(m.scritture()).toEqual([['todo', 'fatto', '3']])
+  })
+
+  test(`${surface}: U27 un annullo che fallisce esce dalla pila e lo dice`, async ($, on) => {
+    const m = motore(on, [voce(2), voce(3)], {
+      rompi: a => (a[0] === 'ripristina' && a[1] === '3' ? { exitCode: 2, stdout: '', stderr: 'Errore: archivio occupato\n' } : null),
+    })
+    const { pane } = await apri($)
+    await pane.press({ key: 'riga-2' })
+    await pane.press({ key: 'ferma' })
+    await pane.press({ key: 'riga-3' })
+    await pane.press({ key: 'fatto' })
+    await pane.press({ key: 'annulla' })
+    const detto = m.toast[m.toast.length - 1] ?? ''
+    expect(detto).toContain('Non riesco ad annullare fatto su #3 e lo salto')
+    expect(detto).toContain('Errore: archivio occupato')
+    // Il secondo u arriva al passo prima (ferma su #2): il passo fallito non blocca la pila.
+    await pane.press({ key: 'annulla' })
+    expect(m.scritture().slice(-2)).toEqual([['todo', 'ripristina', '3', '--', 'da fare'], ['todo', 'ripristina', '2', '--', 'da fare']])
+    expect(m.toast[m.toast.length - 1]).toContain('Annullato: ferma su #2')
+    await pane.press({ key: 'annulla' })
+    expect(m.toast[m.toast.length - 1]).toContain('Niente da annullare')
   })
 
   test(`${surface}: U28 la ricerca di Python e il percorso della CLI`, async ($, on) => {
@@ -297,7 +336,6 @@ for (const surface of ['terminal', 'desktop'] as const) {
   })
 
   test(`${surface}: U31 la barra sopra il prompt, il sondaggio e /dafare nascondi`, async ($, on) => {
-    mock.store(on)
     const m = motore(on, [voce(1), voce(2, { giorni: -1, scadenza_testo: 'scaduto ieri' }), voce(3, { chi: 'io' })])
     await $.command.run({ command: 'dafare', args: '', ...COMANDO } as never)
     const barra = await $.ui.mount({ plugin: 'dafare', surface, component: 'AbovePrompt', props: BAND })
@@ -310,10 +348,12 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(await sondaggio.find({ type: 'Text', text: 'cose da fare' })).toBeFalsy()
     await sondaggio.unmount()
     await $.command.run({ command: 'dafare', args: 'nascondi', ...COMANDO } as never)
+    expect(m.store.get('barraNascosta')).toBe(true)
     const spenta = await $.ui.mount({ plugin: 'dafare', surface, component: 'AbovePrompt', props: BAND })
     expect(await spenta.find({ type: 'Text', text: 'cose da fare' })).toBeFalsy()
     await spenta.unmount()
     await $.command.run({ command: 'dafare', args: 'mostra', ...COMANDO } as never)
+    expect(m.store.get('barraNascosta')).toBe(false)
     const accesa = await $.ui.mount({ plugin: 'dafare', surface, component: 'AbovePrompt', props: BAND })
     expect(await accesa.find({ type: 'Text', text: 'cose da fare' })).toBeTruthy()
     await accesa.unmount()
@@ -322,6 +362,19 @@ for (const surface of ['terminal', 'desktop'] as const) {
     const vuota = await $.ui.mount({ plugin: 'dafare', surface, component: 'AbovePrompt', props: BAND })
     expect(await vuota.find({ type: 'Text', text: 'cose da fare' })).toBeFalsy()
   })
+
+  // Una sessione nuova legge la scelta dallo store: ogni test è un motore nuovo, con lo store già
+  // scritto da una sessione di prima.
+  for (const nascosta of [true, false]) {
+    test(`${surface}: U31 fra le sessioni la barra resta ${nascosta ? 'spenta' : 'accesa'}`, async ($, on) => {
+      const m = motore(on, [voce(1), voce(2)], { store: { barraNascosta: nascosta } })
+      await $.session.start({ ...AVVIO, surface })
+      expect(m.cli()).toEqual([['todo', '--json']])
+      const barra = await $.ui.mount({ plugin: 'dafare', surface, component: 'AbovePrompt', props: BAND })
+      expect(Boolean(await barra.find({ type: 'Text', text: '2 cose da fare' }))).toBe(!nascosta)
+      expect(m.store.get('barraNascosta')).toBe(nascosta)
+    })
+  }
 
   test(`${surface}: U32 a fine turno il pannello rilegge e la barra si aggiorna`, async ($, on) => {
     const m = motore(on, [voce(1)])

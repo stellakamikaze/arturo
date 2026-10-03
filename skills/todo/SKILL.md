@@ -106,9 +106,12 @@ pannello dentro Claude Code. Sceglie una riga con il numero e preme una lettera:
 ferma, `r` riprendi, `c` chi lo fa, `a` avvicina, `l` allontana, `u` annulla. Il pannello scrive
 con la stessa CLI che usi tu, quindi quello che vedi con `arturo todo` è sempre aggiornato.
 
-- La prima volta nella sessione che confermi un `aggiungi`, nomina il pannello: «Segnato come
-  #1. Lo vedi con /dafare.» Dopo, non ripeterlo.
-- Quando la persona chiede «cosa c'è da fare?», mostra i gruppi e proponi `/dafare` per agire
-  con i tasti.
+- Il pannello c'è solo se `/dafare` compare fra i comandi di questa sessione. Con Claude Code più
+  vecchio della 2.1.287, o con il mod spento, manca: allora non nominarlo e mostra i gruppi di
+  `arturo todo`, come sempre.
+- Se il pannello c'è, la prima volta nella sessione che confermi un `aggiungi` nominalo: «Segnato
+  come #1. Lo vedi con /dafare.» Dopo, non ripeterlo.
+- Quando la persona chiede «cosa c'è da fare?», mostra i gruppi. Se il pannello c'è, proponi
+  `/dafare` per agire con i tasti.
 - La riga sopra il prompt («3 cose da fare») si spegne con `/dafare nascondi` e si riaccende con
   `/dafare mostra`.

@@ -696,11 +696,18 @@ def test_t23(repo: Path) -> None:
 
 
 def test_t24(repo: Path) -> None:
-    aggiorna = read(repo / "commands" / "aggiorna.md")
-    riga = [r for r in aggiorna.splitlines() if r.startswith('git diff "HEAD...$SRC/main" -- hooks')]
-    assert len(riga) == 1, f"T24 /aggiorna: il diff del codice che gira da solo: {riga}"
-    for parte in ("hooks", "settings.json", "skills/*/scripts", "bin", "skills/*/hooks", "skills/*/.claude-plugin"):
-        assert f" {parte} " in riga[0] + " ", f"T24 /aggiorna non mostra {parte}: {riga[0]}"
+    # Il diff di /aggiorna si prova lanciandolo (test_pannello.py, U10): qui conta che mostri la CLI
+    # e gli script delle skill, anche di una skill che la copia locale non ha ancora.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    try:
+        from test_pannello import diff_di_aggiorna
+    finally:
+        sys.path.pop(0)
+    visti = diff_di_aggiorna(repo)
+    assert "bash" in visti, "T24 bash mancante: il diff di /aggiorna non si prova"
+    for shell, file in visti.items():
+        for parte in ("bin/arturo", "skills/todo/scripts/vecchio.py", "skills/nuova/scripts/nuovo.sh"):
+            assert parte in file, f"T24 con {shell} il diff di /aggiorna non mostra {parte}: {sorted(file)}"
     diagnosi = read(repo / "commands" / "diagnosi.md")
     assert "arturo todo --json" in diagnosi and "avvisi" in diagnosi, "T24 /diagnosi non legge l'archivio dei todo"
     skill = read(repo / "skills" / "todo" / "SKILL.md")

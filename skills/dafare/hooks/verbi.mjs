@@ -20,9 +20,14 @@ export function prossimoChi(chi) {
   return GIRO_CHI[(i + 1) % GIRO_CHI.length] ?? 'tu'
 }
 
-/** Rimette stato e motivo della riga com'erano. @param {Riga} t @returns {string[]} */
+/**
+ * Rimette stato e motivo della riga com'erano. «--» chiude le opzioni: un motivo che comincia con
+ * un trattino («-firma») resta un argomento e non diventa un'opzione sconosciuta.
+ * @param {Riga} t @returns {string[]}
+ */
 function ripristina(t) {
-  return t.motivo ? ['ripristina', String(t.id), t.stato, t.motivo] : ['ripristina', String(t.id), t.stato]
+  const prima = ['ripristina', String(t.id), '--', t.stato]
+  return t.motivo ? [...prima, t.motivo] : prima
 }
 
 /** @type {Record<string, Voce>} */

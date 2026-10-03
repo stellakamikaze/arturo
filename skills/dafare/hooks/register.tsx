@@ -154,11 +154,13 @@ async function annulla($: EngineInterface): Promise<void> {
     return
   }
   const r = await cli($, ultimo.argv)
+  // Il passo esce dalla pila anche se l'inverso fallisce: un passo che non si annulla non deve
+  // bloccare «u» sugli annulli più vecchi.
+  await update($, annullabili, p => p.slice(0, -1))
   if (!r.ok) {
-    await dici($, r.testo, false)
+    await dici($, `Non riesco ad annullare ${ultimo.descrizione} e lo salto: il prossimo u annulla il passo prima. La CLI dice: ${r.testo}`, false)
     return
   }
-  await update($, annullabili, p => p.slice(0, -1))
   await update($, chiusiQui, lista => lista.filter(x => x.id !== ultimo.id))
   await update($, scelto, () => ultimo.id)
   await carica($)
@@ -218,6 +220,12 @@ function quante(n: number): string {
 
 function scadute(lista: TodoVoce[]): number {
   return lista.filter(t => t.giorni !== null && t.giorni < 0).length
+}
+
+// Testata e barra dicono le scadute con la stessa forma: niente, «1 scaduta», «N scadute».
+function quanteScadute(lista: TodoVoce[]): string {
+  const k = scadute(lista)
+  return k === 0 ? '' : k === 1 ? '1 scaduta' : `${k} scadute`
 }
 
 function dettagli(t: TodoVoce, conProgetto: boolean): string[] {
@@ -287,7 +295,7 @@ export const register: Register = on => {
     const stretto = e.props.bodyColumns < 60
 
     const testa = v
-      ? [quante(tutte.length), scadute(tutte.map(r => r.t)) > 0 ? `${scadute(tutte.map(r => r.t))} scadute` : '',
+      ? [quante(tutte.length), quanteScadute(tutte.map(r => r.t)),
         f === 'tutti' ? 'tutti i progetti' : `progetto ${f}`].filter(x => x !== '').join(' · ')
       : ''
 
@@ -395,11 +403,10 @@ export const register: Register = on => {
     const lista = aperti(v)
     if (e.props.hasSurvey || (await read($, barraNascosta)) || lista.length === 0) return next(e)
     const { Box, Text, Button } = $.ui.resolve(e)
-    const k = scadute(lista)
     const corto = e.props.bodyColumns < 60
     const testo = corto
       ? `${quante(lista.length)} · /dafare`
-      : [quante(lista.length), k === 1 ? '1 scaduta' : k > 1 ? `${k} scadute` : '', '/dafare per vederle']
+      : [quante(lista.length), quanteScadute(lista), '/dafare per vederle']
           .filter(x => x !== '').join(' · ')
     return (
       <Box gap={1} backgroundColor={C.tela} paddingX={1}>

@@ -217,7 +217,6 @@ hooks/               18 guardie e automazioni
 commands/            12 slash command di workflow (incl. /setup, /aggiorna, /guidami, /novita, /strato)
 agents/              9 subagent specializzati
 skills/              4 skill (+ regole condivise in shared/)
-skills/dafare/       Il pannello dei todo dentro Claude Code (/dafare): un mod, non una skill
 docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/onboarding/     Guide di setup guidato (/inizio gws)
 docs/referente.md    Guida del referente di un'organizzazione (/strato)
@@ -287,7 +286,7 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 - **`todo`** — quando dici «ricordami di…» o chiedi cosa c'è da fare, Claude usa la CLI `arturo todo`. I todo stanno in un archivio sul tuo computer (`data/todo/eventi.jsonl`), divisi per progetto, scadenza e chi agisce: tu, tu che decidi e poi Claude, oppure Claude. `/fine` ci scrive quello che resta, `/inizio` lo rilegge. Da terminale: `python3 ~/.claude/bin/arturo todo aiuto`.
 - **`italiano-semplificato`** — riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI.
 
-**Il pannello dei todo (`/dafare`).** Scrivi `/dafare` e si apre un pannello con le tue cose da fare, divise come in `arturo todo`. Scegli una riga con il numero (o con `j` e `k`) e premi una lettera: `f` fatto, `s` ferma, `r` riprendi, `c` chi lo fa, `a` avvicina, `l` allontana, `u` annulla, `p` cambia progetto, Esc chiude. `/dafare libro` apre solo il progetto `libro`. Il pannello scrive solo con la CLI `arturo todo`, e ogni tasto si annulla con `u`. Quando hai cose aperte, sopra il prompt compare una riga («3 cose da fare · /dafare per vederle»): `/dafare nascondi` la spegne, `/dafare mostra` la riaccende. Il pannello chiede Claude Code 2.1.287 o successivo e si spegne con `claude plugin disable dafare@skills-dir`. La cartella `skills/dafare/` ha `.claude-plugin/plugin.json` al posto di `SKILL.md`: è un mod di Claude Code, non una skill, e non entra nel conteggio delle skill.
+**Il pannello dei todo (`/dafare`).** Scrivi `/dafare` e si apre un pannello con le tue cose da fare, divise come in `arturo todo`. Scegli una riga con il numero (o con `j` e `k`) e premi una lettera: `f` fatto, `s` ferma, `r` riprendi, `c` chi lo fa, `a` avvicina, `l` allontana, `u` annulla, `p` cambia progetto, Esc chiude. `/dafare libro` apre solo il progetto `libro`. Quando hai cose aperte, sopra il prompt compare una riga («3 cose da fare · /dafare per vederle»): `/dafare nascondi` la spegne, `/dafare mostra` la riaccende. Il pannello scrive solo con la CLI `arturo todo`, chiede Claude Code 2.1.287 o successivo e si spegne con `claude plugin disable dafare@skills-dir`. La cartella `skills/dafare/` ha `.claude-plugin/plugin.json` al posto di `SKILL.md`: è un mod di Claude Code, non una skill, e non entra nel conteggio delle skill.
 
 ---
 
