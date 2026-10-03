@@ -57,3 +57,8 @@ hooks/hosts-interni.local
 
 # Artefatti di lavoro dello strumento di design (screenshot, config locale)
 .impeccable/
+
+# I tipi e il tsconfig che Claude Code scrive accanto a un mod caricato da una cartella
+# della persona (skills/dafare): li rigenera a ogni caricamento, non sono di Arturo.
+skills/*/.claude-plugin/types/
+skills/*/tsconfig.json

@@ -36,6 +36,18 @@ che non esiste, un numero cambiato dopo un merge. Non correggere il file a mano:
 resta, e il resto dell'archivio funziona. Se il comando esce con un errore, riporta l'errore
 esatto: è il primo fatto della diagnosi.
 
+Se il problema riguarda il pannello `/dafare` o la riga sopra il prompt, controlla anche che il
+mod sia caricato e che Claude Code sia abbastanza nuovo:
+
+```bash
+claude plugin list --json | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "dafare@skills-dir"]; print("mod caricato: dafare@skills-dir" if v and v[0].get("enabled") else "mod spento: dafare@skills-dir" if v else "mod NON caricato: dafare@skills-dir manca")'
+echo "versione di Claude Code: $(claude --version) (il pannello chiede la 2.1.287 o successiva)"
+```
+
+Se il mod manca, guarda se esiste `~/.claude/skills/dafare/.claude-plugin/plugin.json` e se il
+plugin è spento (`claude plugin enable dafare@skills-dir` lo riaccende). In un'organizzazione, le
+managed settings possono spegnere i mod: lo spiega `docs/referente.md`.
+
 ---
 
 ## Diagnosi prima del fix

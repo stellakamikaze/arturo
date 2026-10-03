@@ -78,6 +78,25 @@ colloquio di mezz'ora. Lo strato funziona se:
 Se nessuno lo usa più, chiedi perché prima di aggiungere altro: di solito manca una skill su un
 lavoro che conta, oppure una regola chiede troppe conferme.
 
+## Il pannello delle cose da fare: un mod
+
+Arturo porta un pannello dentro Claude Code: `/dafare`. È un **mod**, cioè un plugin che Claude
+Code carica da solo dalla cartella `~/.claude/skills/dafare/`. Nell'elenco dei plugin si chiama
+`dafare@skills-dir`. Il mod legge e scrive i todo solo con la CLI `arturo`, sul computer della
+persona, e non manda niente in rete.
+
+Le managed settings dell'organizzazione decidono se Claude Code carica i mod:
+
+- Se usate un elenco chiuso di marketplace (`strictKnownMarketplaces`), Claude Code non carica i
+  mod da `~/.claude/skills`. Per tenere il pannello, aggiungete all'elenco `{"source": "skills-dir"}`.
+- Per spegnere i mod senza altre restrizioni, mettete `{"source": "skills-dir"}` in
+  `blockedMarketplaces`.
+- Una persona sola lo spegne con `claude plugin disable dafare@skills-dir`. Per la sola riga sopra
+  il prompt basta `/dafare nascondi`.
+
+Se spegnete i mod, la persona perde solo il pannello e la riga sopra il prompt. La CLI
+`arturo todo` e la skill todo restano.
+
 ## Se vi serve un affiancamento
 
 Arturo è gratuito e resta libero. Chi vuole essere affiancato nella costruzione dello strato e

@@ -54,6 +54,15 @@ if python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/d
 else
   echo "MANCA python3 (assente, troppo vecchio, o rimando al Microsoft Store)"
 fi
+# Il pannello /dafare è un mod: Claude Code lo carica dalla versione 2.1.287 in poi.
+cc=$(claude --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+if [ -z "$cc" ]; then
+  echo "MANCA la versione di Claude Code (claude --version non risponde)"
+elif [ "$(printf '%s\n' 2.1.287 "$cc" | sort -t. -k1,1n -k2,2n -k3,3n | head -1)" = 2.1.287 ]; then
+  echo "OK   Claude Code → $cc"
+else
+  echo "VECCHIO Claude Code → $cc (il pannello /dafare chiede la 2.1.287 o successiva)"
+fi
 case "$(uname -s 2>/dev/null)" in
   MINGW*|MSYS*|CYGWIN*) echo "OK   Git Bash (Windows)" ;;
   Darwin|Linux) ;;
@@ -66,6 +75,9 @@ done
 ```
 
 - **Obbligatori**: `git`, `python3` (≥3.8), `node` (≥18). `jq` è consigliato (c'è un fallback, ma installarlo è meglio).
+- **Versione di Claude Code.** Se la riga dice `VECCHIO`, spiega all'utente: «La tua versione di Claude Code non ha il pannello
+  delle cose da fare (`/dafare`). Il resto di Arturo funziona. Per avere il pannello, aggiorna Claude Code: scrivi `claude update`
+  in un terminale, poi chiudi e riapri Claude Code.» Non bloccare il setup per questo.
 - Se ne manca uno obbligatorio, spiega **come installarlo** sul sistema dell'utente e fermati finché non è a posto. Non dare per scontato Homebrew: su un Mac nuovo non c'è.
   - **macOS**: `git` e `python3` arrivano con gli strumenti di sviluppo di Apple (`xcode-select --install`, una finestra chiede conferma). `node` si scarica da nodejs.org (installer .pkg). Se l'utente ha già Homebrew, `brew install <nome>` va bene.
   - **Windows**: Git for Windows da git-scm.com (include Git Bash, obbligatorio: senza, Claude Code usa PowerShell e le guardie di Arturo non vedono i comandi). Python da python.org con la casella «Add python.exe to PATH», poi in Impostazioni → App → Alias di esecuzione disattiva i due alias «python» del Microsoft Store. Node da nodejs.org.

@@ -1,0 +1,7 @@
+{
+  "name": "dafare",
+  "version": "0.1.0",
+  "description": "Le tue cose da fare in un pannello: le chiudi, le fermi e le sposti con un tasto",
+  "author": { "name": "Federico Nejrotti" },
+  "types": "./types/index.d.ts"
+}

@@ -199,8 +199,19 @@ except ImportError:
                 chiave, valore = chiave.strip(), valore.strip()
                 valori[chiave] = "" if valore in (">", "|", ">-", "|-") else valore.strip("\"'")
         return valori
+import json
 for directory in Path(sys.argv[1]).iterdir():
     if not directory.is_dir() or directory.name == "shared":
+        continue
+    # Una cartella con .claude-plugin/plugin.json e' un mod di Claude Code (il pannello /dafare),
+    # non una skill: niente SKILL.md, ma un manifest valido col nome della cartella e i suoi hook.
+    manifest = directory / ".claude-plugin" / "plugin.json"
+    if manifest.is_file():
+        dati = json.loads(manifest.read_text(encoding="utf-8"))
+        if not isinstance(dati, dict) or dati.get("name") != directory.name:
+            raise ValueError(manifest)
+        if not (directory / "hooks" / "hooks.json").is_file():
+            raise ValueError(directory / "hooks" / "hooks.json")
         continue
     skill = directory / "SKILL.md"
     if not skill.is_file():

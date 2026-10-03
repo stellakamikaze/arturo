@@ -159,6 +159,7 @@ git log --oneline -20 2>/dev/null
 ## Todo
 [i gruppi di `arturo todo`: TOCCA A TE, DECIDI TU POI FACCIO IO, FACCIO IO, FERMO.
  Ogni todo con l'ID a destra e una riga su a cosa serve. Le scadenze passate in cima.]
+Per chiuderli o spostarli con un tasto: /dafare
 
 ## Skill Progetto
 [suggerisci le poche skill davvero utili a QUESTO progetto ora, in base a stack,

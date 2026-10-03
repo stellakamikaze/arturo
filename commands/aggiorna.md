@@ -49,6 +49,7 @@ git diff "HEAD...$SRC/main" -- hooks settings.json skills/*/scripts bin skills/*
 
 Il diff copre le guardie (`hooks`), i permessi (`settings.json`), gli script delle skill, la
 CLI `arturo` (`bin`) e i mod di Claude Code (`skills/*/hooks`, `skills/*/.claude-plugin`).
+Il pannello `/dafare` è codice che gira da solo dentro Claude Code e lancia la CLI `arturo`.
 Raccontagli in parole semplici cosa cambia nelle guardie, nei permessi e nel codice che lancia. Segnala in modo
 esplicito ogni modifica che manda dati fuori dal computer, che cancella file, o che rende una
 guardia meno severa. Un aggiornamento è codice di altri che gira sul suo computer: è il motivo
@@ -122,7 +123,8 @@ Due cose, in quest'ordine:
 
 1. Digli di **chiudere e riaprire Claude Code**. Comandi, hook e skill si leggono all'avvio della
    sessione: finché non riapre, quello che è appena arrivato non esiste per lui. È il passo che si
-   dimentica più spesso, quindi dillo esplicitamente.
+   dimentica più spesso, quindi dillo esplicitamente. Anche il pannello `/dafare` nuovo c'è solo
+   dopo la riapertura.
 2. Dopo il riavvio, **`/novita`** gli racconta cosa è cambiato e perché gli conviene saperlo.
 
 ## Tornare indietro

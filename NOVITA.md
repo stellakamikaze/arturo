@@ -11,6 +11,26 @@ modo di lavorare.
 
 ---
 
+## 2026-10-03 — Il pannello delle cose da fare
+
+**Cosa cambia**: scrivi `/dafare` e dentro Claude Code si apre un pannello con le tue cose da
+fare, divise in TOCCA A TE, DECIDI TU, FACCIO IO e FERMO. Ogni riga dice il progetto e la
+scadenza. Scegli una riga con il numero e premi una lettera: `f` fatto, `s` ferma, `r` riprendi,
+`c` chi lo fa, `a` avvicina, `l` allontana. `p` mostra un progetto alla volta. Quando hai cose
+aperte, sopra il prompt compare una riga sottile: «3 cose da fare · /dafare per vederle».
+
+**Il principio dietro**: vedere in ogni momento cosa è in mano tua e cosa in mano a Claude, e
+agire senza scrivere comandi. Il pannello non ha un archivio suo: scrive con la stessa CLI
+`arturo todo` che usa Claude, quindi le due viste dicono sempre la stessa cosa.
+
+**Da sapere**: Esc chiude il pannello, `u` annulla l'ultimo tasto. Se i tasti non rispondono
+più, premi ctrl+x tab oppure riscrivi `/dafare`. `/dafare nascondi` spegne la riga sopra il
+prompt, `/dafare mostra` la riaccende. Il pannello chiede Claude Code 2.1.287 o successivo:
+`/setup` controlla la versione. Arriva con l'aggiornamento e c'è dopo la riapertura di Claude
+Code.
+
+<!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->
+
 ## 2026-10-03 — Le tue cose da fare, in un posto solo
 
 **Cosa cambia**: quando dici a Claude «ricordami di mandare il preventivo venerdì», il todo

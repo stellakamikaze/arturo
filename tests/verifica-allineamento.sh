@@ -6,6 +6,11 @@ for tool in bash python3 git node; do
   command -v "$tool" >/dev/null 2>&1 || { echo "FAIL: $tool mancante" >&2; exit 1; }
 done
 python3 -c 'import yaml' >/dev/null 2>&1 || { echo "FAIL: PyYAML mancante" >&2; exit 1; }
+# Il pannello /dafare si prova con Claude Code vero (validate, test, claude -p): senza, il gate fallisce.
+command -v claude >/dev/null 2>&1 || {
+  echo "FAIL: claude mancante: il gate prova il pannello /dafare con claude plugin validate, claude plugin test e claude -p" >&2
+  exit 1
+}
 
 FIXTURE=$(mktemp -d "${TMPDIR:-/tmp}/arturo-allineamento.XXXXXX")
 trap 'rm -rf "$FIXTURE"' EXIT
@@ -30,6 +35,7 @@ BANCHI=(
   test_revisione_2026_09_30.py
   test_strato.py
   test_todo.py
+  test_pannello.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -57,6 +63,8 @@ BASELINE=(
   "test_strato.py e70da3d"
   # Archivio dei todo (3/10/2026): b8eff39, l'ultimo dev prima della CLI.
   "test_todo.py b8eff39"
+  # Pannello dei todo (3/10/2026): fc6459f, l'ultimo dev prima del ciclo 1.5 e del pannello.
+  "test_pannello.py fc6459f"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"
@@ -97,7 +105,7 @@ js=0
 while IFS= read -r -d '' file; do
   node --check "$file"
   js=$((js + 1))
-done < <(git -C "$REPO" ls-files -z -- '*.js')
+done < <(git -C "$REPO" ls-files -z -- '*.js' '*.mjs')
 [[ $js -gt 0 ]] || { echo "FAIL: nessun file JavaScript" >&2; exit 1; }
 
 bash "$REPO/skills/system-audit/audit.sh" --strict

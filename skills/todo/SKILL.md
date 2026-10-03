@@ -98,3 +98,17 @@ quando annullano un clic.
   riga è illeggibile, riferiscilo alla persona: la riga resta e il resto funziona.
 - Il file è `~/.claude/data/todo/eventi.jsonl`. Contiene dati della persona: non va mai in un
   repository pubblico.
+
+## Il pannello /dafare
+
+La persona può vedere e muovere i suoi todo anche senza di te: scrive `/dafare` e si apre un
+pannello dentro Claude Code. Sceglie una riga con il numero e preme una lettera: `f` fatto, `s`
+ferma, `r` riprendi, `c` chi lo fa, `a` avvicina, `l` allontana, `u` annulla. Il pannello scrive
+con la stessa CLI che usi tu, quindi quello che vedi con `arturo todo` è sempre aggiornato.
+
+- La prima volta nella sessione che confermi un `aggiungi`, nomina il pannello: «Segnato come
+  #1. Lo vedi con /dafare.» Dopo, non ripeterlo.
+- Quando la persona chiede «cosa c'è da fare?», mostra i gruppi e proponi `/dafare` per agire
+  con i tasti.
+- La riga sopra il prompt («3 cose da fare») si spegne con `/dafare nascondi` e si riaccende con
+  `/dafare mostra`.
