@@ -25,6 +25,17 @@ Non partire dalla prima ipotesi. Chiedi all'utente, se non già chiaro:
 Se il bug sembra di ambiente (install/auth/config Claude Code, non codice del progetto):
 `claude doctor` e fermati lì.
 
+Se il problema riguarda i todo (`arturo todo`, `/inizio`, `/fine`), leggi prima l'archivio:
+
+```bash
+python3 ~/.claude/bin/arturo todo --json | python3 -c 'import json,sys; v=json.load(sys.stdin); print("archivio leggibile, avvisi:", len(v["avvisi"])); [print("avviso:", a) for a in v["avvisi"]]'
+```
+
+Riporta all'utente ogni avviso con le sue parole: una riga illeggibile, un evento per un todo
+che non esiste, un numero cambiato dopo un merge. Non correggere il file a mano: ogni riga
+resta, e il resto dell'archivio funziona. Se il comando esce con un errore, riporta l'errore
+esatto: è il primo fatto della diagnosi.
+
 ---
 
 ## Diagnosi prima del fix

@@ -43,7 +43,8 @@ Tu rispondi: «Segnato come #7, scade venerdì.» Il todo è `tu` perché l'invi
 | `--quando` | `oggi` · `settimana` · `più avanti` | `settimana` se non emerge altro |
 
 Un todo bloccato da qualcosa di esterno va in FERMO con `ferma ID "motivo"`. Non si segna con
-`--chi`. Un todo che aspetta un altro todo si collega con `dopo ID ALTRO`.
+`--chi`. Un todo che aspetta un altro todo si collega con `dopo ID ALTRO`. Un todo su cui stai
+lavorando adesso va «in corso» con `inizia ID`.
 
 ## I comandi
 
@@ -58,14 +59,31 @@ Scrivi sempre `python3 ~/.claude/bin/arturo todo` davanti. La persona può avere
 | `mostra ID` | un todo con note e storia |
 | `aggiungi "titolo" [campi] [--note "testo"]` | un todo nuovo |
 | `modifica ID [campi] [--titolo "nuovo"]` | cambia i campi indicati (`--scadenza ""` la toglie) |
+| `inizia ID` | lo segna «in corso» |
 | `fatto ID` · `scarta ID "motivo"` | lo chiude, fatto o senza farlo |
-| `ferma ID "motivo"` · `riprendi ID` | lo mette in FERMO, lo riapre |
+| `ferma ID "motivo"` · `riprendi ID` | lo mette in FERMO, lo riapre come «da fare» |
+| `deciso ID "testo"` | per un todo `decidi`: scrive la nota «Deciso: testo» e passa il todo a `io` |
+| `ripristina ID STATO [motivo]` | rimette stato e motivo esatti di prima, con il segno di annullo |
 | `nota ID "testo"` | aggiunge una nota |
 | `dopo ID ALTRO [--togli]` | ID aspetta che ALTRO sia chiuso |
 | `su ID` · `giu ID` | lo avvicina o lo allontana: più avanti, settimana, oggi |
 
 Le letture accettano `--json`: è il formato che leggono il pannello e la pagina web, e quello
 che leggi tu quando devi ragionare sui todo invece di mostrarli.
+
+## Decisioni e annulli
+
+Quando la persona sceglie su un todo `decidi` («va bene il piano B»), usa `deciso ID "piano B"`.
+Il comando scrive la scelta e passa il lavoro a te in un colpo solo. Non usare `nota` più
+`modifica --chi io`: sono due scritture, e la storia perde il segno che la decisione è stata
+sua. Su un todo che non è `decidi` il comando si rifiuta.
+
+Se la persona dice che un passo era uno sbaglio («no, non era fatto»), riporta il todo com'era
+con `ripristina ID STATO "motivo di prima"`: lo stato e il motivo li leggi in
+`mostra ID --json`, nella storia. Non usare `riprendi`: riapre sempre come «da fare» e perde il
+motivo di un FERMO. `ripristina` mette nell'evento il segno `annullo`, e chi legge la storia sa
+che non è una scelta della persona. Gli altri verbi accettano `--annullo` per lo stesso scopo:
+lo usano pannello e pagina web quando annullano un clic.
 
 ## Regole
 

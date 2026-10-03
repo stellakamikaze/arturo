@@ -35,41 +35,42 @@ for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
 done
 
-BASELINE="$FIXTURE/baseline"
-mkdir -p "$BASELINE"
-git -C "$ROOT" archive ee10fc6 | tar -x -C "$BASELINE"
-python3 -B "$REPO/tests/test-web-egress-guard.py" --repo "$ROOT" --baseline-ref ee10fc6
-for test in \
-  test-block-dangerous-falsi-positivi.py \
-  test_bash_dispatcher_review.py \
-  test_bash_dispatcher_secrets.py \
-  test_permissivita_2026_09_08.py \
-  test_allineamento.py \
-  test_revisione_high.py \
-  test_revisione_medium.py \
-  test_revisione_low.py \
-  test_completezza.py \
-  test_prodotto.py; do
-  python3 -B "$REPO/tests/$test" --repo "$BASELINE" --baseline-ref ee10fc6
+# Controprove: ogni riga e' «banco ref [radice]». Il banco gira sulla base `ref` estratta con
+# git archive e deve dichiararla discriminante. Con «radice» il banco riceve il repository vero
+# e la base se la estrae da solo. Ogni ciclo aggiunge le sue righe in coda.
+BASELINE=(
+  # Revisioni fino al 29/9/2026: la base e' ee10fc6.
+  "test-web-egress-guard.py ee10fc6 radice"
+  "test-block-dangerous-falsi-positivi.py ee10fc6"
+  "test_bash_dispatcher_review.py ee10fc6"
+  "test_bash_dispatcher_secrets.py ee10fc6"
+  "test_permissivita_2026_09_08.py ee10fc6"
+  "test_allineamento.py ee10fc6"
+  "test_revisione_high.py ee10fc6"
+  "test_revisione_medium.py ee10fc6"
+  "test_revisione_low.py ee10fc6"
+  "test_completezza.py ee10fc6"
+  "test_prodotto.py ee10fc6"
+  # Revisione del 30/9/2026: 86ba137, l'ultimo dev prima delle correzioni.
+  "test_revisione_2026_09_30.py 86ba137"
+  # Strato dell'organizzazione (30/9/2026): e70da3d, l'ultimo dev prima dello strato.
+  "test_strato.py e70da3d"
+  # Archivio dei todo (3/10/2026): b8eff39, l'ultimo dev prima della CLI.
+  "test_todo.py b8eff39"
+)
+for riga in "${BASELINE[@]}"; do
+  read -r test ref modo <<<"$riga"
+  base="$FIXTURE/baseline-$ref"
+  if [[ ! -d "$base" ]]; then
+    mkdir -p "$base"
+    git -C "$ROOT" archive "$ref" | tar -x -C "$base"
+  fi
+  if [[ "${modo:-}" == radice ]]; then
+    python3 -B "$REPO/tests/$test" --repo "$ROOT" --baseline-ref "$ref"
+  else
+    python3 -B "$REPO/tests/$test" --repo "$base" --baseline-ref "$ref"
+  fi
 done
-
-# Revisione del 30/9/2026: la sua base e' 86ba137, l'ultimo dev prima delle correzioni.
-BASELINE_30="$FIXTURE/baseline-86ba137"
-mkdir -p "$BASELINE_30"
-git -C "$ROOT" archive 86ba137 | tar -x -C "$BASELINE_30"
-python3 -B "$REPO/tests/test_revisione_2026_09_30.py" --repo "$BASELINE_30" --baseline-ref 86ba137
-
-# Strato dell'organizzazione (30/9/2026): la base e' e70da3d, l'ultimo dev prima dello strato.
-BASELINE_STRATO="$FIXTURE/baseline-e70da3d"
-mkdir -p "$BASELINE_STRATO"
-git -C "$ROOT" archive e70da3d | tar -x -C "$BASELINE_STRATO"
-python3 -B "$REPO/tests/test_strato.py" --repo "$BASELINE_STRATO" --baseline-ref e70da3d
-
-# Archivio dei todo (3/10/2026): la base e' b8eff39, l'ultimo dev prima della CLI.
-BASELINE_TODO="$FIXTURE/baseline-b8eff39"
-mkdir -p "$BASELINE_TODO"
-git -C "$ROOT" archive b8eff39 | tar -x -C "$BASELINE_TODO"
-python3 -B "$REPO/tests/test_todo.py" --repo "$BASELINE_TODO" --baseline-ref b8eff39
 
 shells=0
 while IFS= read -r -d '' file; do

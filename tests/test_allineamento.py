@@ -72,11 +72,15 @@ def main() -> int:
     for item in REMOVED:
         assert not (repo / item).exists(), f"I03 file rimosso ancora presente: {item}"
     # README dichiara python3 >= 3.8: annotazioni `X | None` e `list[str]` senza import
-    # differito vanno in TypeError al caricamento su 3.8 e spengono la guardia.
-    for hook in sorted((repo / "hooks").glob("*.py")):
+    # differito vanno in TypeError al caricamento su 3.8 e spengono la guardia o la CLI.
+    sorgenti = sorted((repo / "hooks").glob("*.py")) + sorted((repo / "bin").glob("*.py"))
+    if (repo / "bin" / "arturo").is_file():
+        sorgenti.append(repo / "bin" / "arturo")
+    for hook in sorgenti:
         source = hook.read_text(encoding="utf-8")
         if re.search(r"(->|:)\s*[\w\[\], .]*(\|\s*None|\b(list|dict|tuple|set|type)\[)", source):
-            assert "from __future__ import annotations" in source, f"C07 {hook.name}: annotazione moderna senza import differito"
+            nome = hook.relative_to(repo).as_posix()
+            assert "from __future__ import annotations" in source, f"C07 {nome}: annotazione moderna senza import differito"
     assert_igiene(repo)
     print(f"PASS C01-C06,I03 rimossi={len(REMOVED)}")
     return 0

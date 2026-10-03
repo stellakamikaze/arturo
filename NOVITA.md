@@ -18,7 +18,9 @@ finisce in un archivio sul tuo computer e ci resta. Prima i task sparivano a fin
 sopravviveva solo la tabella dell'handoff. Ogni todo sa di quale progetto è, quando scade e chi
 agisce: tu, tu che decidi e poi Claude, oppure Claude. `/fine` ci scrive quello che resta da
 fare, `/inizio` te lo mostra diviso in TOCCA A TE, DECIDI TU, FACCIO IO e FERMO. Dal terminale
-lo leggi con `arturo todo` (con `/setup` puoi aggiungere il comando breve).
+lo leggi con `arturo todo` (con `/setup` puoi aggiungere il comando breve). Quando hai deciso
+su un todo di DECIDI TU, scrivi `arturo todo deciso 4 "piano B"`: la scelta resta nel todo e il
+lavoro passa a Claude.
 
 **Il principio dietro**: delegare vuol dire anche sapere sempre cosa è in mano tua e cosa in
 mano a Claude. Un elenco unico, con chi agisce scritto accanto a ogni cosa, rende visibile

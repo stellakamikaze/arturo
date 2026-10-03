@@ -212,7 +212,7 @@ Gli hook su `Edit`/`Write` proteggono config e forma. Gli scanner PostToolUse ri
 
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
-bin/arturo           La CLI: i tuoi todo da terminale (arturo todo)
+bin/                 La CLI arturo e i suoi moduli
 hooks/               18 guardie e automazioni
 commands/            12 slash command di workflow (incl. /setup, /aggiorna, /guidami, /novita, /strato)
 agents/              9 subagent specializzati

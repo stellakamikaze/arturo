@@ -178,9 +178,10 @@ if [ "$CONFIG_INTEGRA" = 1 ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; 
   # CLAUDE.md personale, handoff e todo viaggiano solo verso un remote privato verificato.
   VIS=$(gh repo view "$(git remote get-url origin 2>/dev/null)" --json visibility -q .visibility 2>/dev/null)
   if [ "$VIS" = "PRIVATE" ]; then
+    # -f scavalca .gitignore: l'esclusione tiene fuori il lucchetto (*.lock) di arturo todo.
     for p in CLAUDE.md data/handoffs data/todo; do
       [ -e "$p" ] || continue
-      git add -f -- "$p" || echo "git add fallito su $p: resta fuori dal commit"
+      git add -f -- "$p" ':(exclude,glob)**/*.lock' || echo "git add fallito su $p: resta fuori dal commit"
     done
   else
     echo "CLAUDE.md, handoff e todo non sincronizzati: il remote della config non risulta privato (visibilità: ${VIS:-sconosciuta}). Restano su questa macchina."

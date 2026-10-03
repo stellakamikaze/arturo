@@ -16,6 +16,8 @@ secrets/
 data/credentials/
 # I todo sono della persona: /fine li aggiunge con -f solo verso un remote privato.
 data/todo/
+# Il lucchetto dell'archivio non viaggia mai, neanche con git add -f (vedi /fine).
+data/todo/*.lock
 .credentials.json
 
 # Runtime Claude Code (generato localmente)

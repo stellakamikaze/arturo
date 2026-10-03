@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""T01-T13: l'archivio dei todo e la CLI `arturo todo` (3/10/2026).
+"""T01-T24: l'archivio dei todo e la CLI `arturo todo` (3/10/2026).
 
 T01 aggiungi, lista, fatto. T02 la ricostruzione dal registro non cambia se una
 riga arriva due volte da un merge. T03 una riga rotta si salta e il resto si
@@ -10,11 +10,24 @@ T09 FERMO viene dallo stato, non da chi agisce. T10 i todo partono con /fine sol
 verso un remote privato. T11 /inizio, /fine e la skill usano l'archivio. T12 due
 macchine con lo stesso id: il piu' recente cambia numero e gli eventi seguono.
 T13 un valore fuori lista si rifiuta e non scrive niente.
+
+Ciclo 1.5, i prerequisiti comuni di pannello, pagina web e percorso:
+T14 ripristina rimette stato e motivo esatti, inizia porta in corso. T15 il segno
+annullo resta negli eventi di stato e modifica e si vede nella storia. T16 deciso
+scrive nota e passaggio a io in una sola write, solo da decidi. T17 la versione
+degli eventi e quella delle viste sono separate. T18 il contratto: CHIAVI_TODO,
+scadenza_testo e la descrizione dei gruppi. T19 Lucchetto pubblico e
+scrivi_json_atomico. T20 il progetto riservato del percorso. T21 COMANDI fa aiuto,
+smistamento e messaggio di errore. T22 un .lock non parte mai con /fine.
+T23 tabella degli stati e conteggi per progetto stanno nel store. T24 /aggiorna
+mostra il codice di bin/ e dei mod, /diagnosi legge l'archivio.
 Sulla base b8eff39 ogni controllo deve fallire.
 """
 from __future__ import annotations
 
 import argparse
+import importlib.machinery
+import importlib.util
 import json
 import os
 import re
@@ -22,6 +35,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -32,8 +47,38 @@ GIT_ENV = {
     "GIT_COMMITTER_NAME": "prova", "GIT_COMMITTER_EMAIL": "prova@example.invalid",
     "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1",
 }
-CHIAVI = {"id", "titolo", "progetto", "scadenza", "giorni", "priorita", "stato", "quando", "chi", "perche",
-          "motivo", "gruppo", "dopo", "attende", "note"}
+_CARICATI = []
+
+
+def modulo(repo: Path, nome: str):
+    """Carica bin/<nome> del repo da provare come modulo nuovo (niente cache tra repo diversi)."""
+    file = repo / "bin" / nome
+    if not file.is_file():
+        raise FileNotFoundError(file)
+    bin_dir = str(repo / "bin")
+    sys.path.insert(0, bin_dir)
+    vecchio_store = sys.modules.pop("todo_store", None)
+    try:
+        caricatore = importlib.machinery.SourceFileLoader(f"prova_{len(_CARICATI)}_{file.stem}", str(file))
+        spec = importlib.util.spec_from_loader(caricatore.name, caricatore)
+        m = importlib.util.module_from_spec(spec)
+        caricatore.exec_module(m)
+    finally:
+        sys.path.remove(bin_dir)
+        sys.modules.pop("todo_store", None)
+        if vecchio_store is not None:
+            sys.modules["todo_store"] = vecchio_store
+    _CARICATI.append(m)
+    return m
+
+
+def store(repo: Path):
+    return modulo(repo, "todo_store.py")
+
+
+def chiavi_todo(repo: Path) -> set:
+    """Le chiavi del contratto si leggono dal store: e' l'unico punto in cui stanno (P6)."""
+    return set(store(repo).CHIAVI_TODO)
 
 
 def read(path: Path) -> str:
@@ -160,7 +205,8 @@ def test_t07(repo: Path) -> None:
         assert {"versione", "oggi", "progetto", "gruppi", "chiusi", "avvisi"} <= set(v), f"T07 chiavi: {set(v)}"
         assert [g["tipo"] for g in v["gruppi"]] == ["tu", "decidi", "io", "fermo"], "T07 ordine dei gruppi"
         t = v["gruppi"][0]["todo"][0]
-        assert set(t) == CHIAVI, f"T07 chiavi del todo: {sorted(set(t) ^ CHIAVI)}"
+        chiavi = chiavi_todo(repo)
+        assert set(t) == chiavi, f"T07 chiavi del todo: {sorted(set(t) ^ chiavi)}"
         assert "uid" not in json.dumps(v), "T07 l'uid interno esce nel contratto"
     con_casa(repo, prova)
 
@@ -203,7 +249,7 @@ def test_t09(repo: Path) -> None:
     con_casa(repo, prova)
 
 
-def _sync(repo: Path, base: Path, visibilita: str) -> str:
+def _sync(repo: Path, base: Path, visibilita: str, lucchetto: bool = False) -> str:
     """Esegue il Config Sync di /fine con un `gh` finto. Torna i file nel commit di sync."""
     home = base / visibilita / "home"
     cfg = home / ".claude"
@@ -228,6 +274,8 @@ def _sync(repo: Path, base: Path, visibilita: str) -> str:
     git("push", "-q", "origin", "main")
     (cfg / "data" / "todo").mkdir(parents=True)
     (cfg / "data" / "todo" / "eventi.jsonl").write_text('{"tipo":"crea"}\n', encoding="utf-8")
+    if lucchetto:  # un processo di arturo todo in corso, o interrotto, mentre gira /fine
+        (cfg / "data" / "todo" / "eventi.jsonl.lock").write_text("", encoding="utf-8")
     (cfg / "commands" / "nota-locale.md").write_text("modifica\n", encoding="utf-8")
     testo = read(repo / "commands" / "fine.md")
     inizio = testo.index("### 6. Config Sync")
@@ -259,7 +307,14 @@ def test_t11(repo: Path) -> None:
     skill = read(repo / "skills" / "todo" / "SKILL.md")
     assert "ricordami" in skill and "python3 ~/.claude/bin/arturo todo" in skill, "T11 skill todo"
     readme = read(repo / "README.md")
-    assert "bin/arturo" in readme and "4 skill" in readme, "T11 il README non racconta la CLI"
+    assert "bin/arturo" in readme, "T11 il README non racconta la CLI"
+    vere = len([d for d in (repo / "skills").iterdir() if (d / "SKILL.md").is_file()])
+    scritti = re.findall(r"\*\*(\d+) skill\*\*", readme) + re.findall(r"^skills/\s+(\d+) skill", readme, re.M)
+    assert len(scritti) == 2 and set(scritti) == {str(vere)}, \
+        f"T11 il README dice {scritti} skill, nel repository ce ne sono {vere}"
+    albero = [r for r in readme.splitlines() if re.match(r"bin/\S*\s{2,}", r)]
+    assert len(albero) == 1 and re.fullmatch(r"bin/\s+La CLI arturo e i suoi moduli", albero[0]), \
+        f"T11 nell'albero del README bin/ va descritto una volta, come cartella: {albero}"
 
 
 def test_t12(repo: Path) -> None:
@@ -291,10 +346,274 @@ def test_t13(repo: Path) -> None:
     con_casa(repo, prova)
 
 
+def test_t14(repo: Path) -> None:
+    def prova(c: Casa) -> None:
+        c.cli("aggiungi", "Uno", "--progetto", "p", "--chi", "io")
+        c.cli("inizia", "1")
+        assert c.aperti()[1]["stato"] == "in corso", f"T14 inizia non porta in corso: {c.aperti()[1]}"
+        c.cli("ferma", "1", "aspetta la firma")
+        c.cli("fatto", "1")
+        assert not c.aperti(), "T14 fatto non chiude"
+        c.cli("ripristina", "1", "fermo", "aspetta la firma")
+        t = c.aperti()[1]
+        assert (t["stato"], t["motivo"], t["gruppo"]) == ("fermo", "aspetta la firma", "fermo"), \
+            f"T14 ripristina perde stato o motivo: {t}"
+        c.cli("ripristina", "1", "in corso")
+        t = c.aperti()[1]
+        assert (t["stato"], t["motivo"], t["gruppo"]) == ("in corso", None, "io"), f"T14 ripristina in corso: {t}"
+        prima = c.registro.read_bytes()
+        r = c.cli("ripristina", "1", "boh", ok=False)
+        assert r.returncode == 2 and "Valori ammessi" in r.stderr, f"T14 stato non valido: {r.stderr!r}"
+        assert c.registro.read_bytes() == prima, "T14 un ripristina rifiutato ha scritto"
+    con_casa(repo, prova)
+
+
+def test_t15(repo: Path) -> None:
+    def prova(c: Casa) -> None:
+        c.cli("aggiungi", "Uno", "--progetto", "p", "--chi", "io")
+        c.cli("fatto", "1")
+        c.cli("ripristina", "1", "da fare")
+        c.cli("modifica", "1", "--chi", "tu", "--annullo")
+        c.cli("scarta", "1", "annullato dalla pagina", "--annullo")
+        c.cli("riprendi", "1")
+        eventi = [json.loads(r) for r in read(c.registro).splitlines() if r.strip()]
+        segni = [(e["tipo"], e["dati"].get("annullo")) for e in eventi]
+        assert segni == [("crea", None), ("stato", None), ("stato", True), ("modifica", True),
+                         ("stato", True), ("stato", None)], f"T15 il segno annullo nel registro: {segni}"
+        storia = c.json("mostra", "1")["storia"]
+        assert [s["dati"].get("annullo", False) for s in storia] == [False, False, True, True, True, False], \
+            f"T15 la storia di --json perde il segno: {storia}"
+        testo = c.cli("mostra", "1").stdout
+        assert testo.count("(annullo)") == 3, f"T15 mostra non segna gli annulli: {testo!r}"
+        r = c.cli("nota", "1", "x", ok=False)
+        assert r.returncode == 0, "T15 una nota normale si rompe"
+    con_casa(repo, prova)
+
+
+def test_t16(repo: Path) -> None:
+    def prova(c: Casa) -> None:
+        c.cli("aggiungi", "Scegliere il piano", "--progetto", "p", "--chi", "decidi")
+        c.cli("aggiungi", "Tocca a me", "--progetto", "p", "--chi", "tu")
+        prima = c.registro.read_bytes()
+        r = c.cli("deciso", "2", "piano B", ok=False)
+        assert r.returncode == 2 and r.stderr.startswith("Errore:") and "decidi" in r.stderr, \
+            f"T16 deciso su un todo che non aspetta una scelta: rc={r.returncode} {r.stderr!r}"
+        assert c.registro.read_bytes() == prima, "T16 un deciso rifiutato ha scritto"
+        c.cli("deciso", "1", "piano B")
+        t = c.aperti()[1]
+        assert (t["chi"], t["gruppo"], t["note"]) == ("io", "io", ["Deciso: piano B"]), f"T16 deciso: {t}"
+        nuove = c.registro.read_bytes()[len(prima):].decode("utf-8").splitlines()
+        assert [json.loads(x)["tipo"] for x in nuove] == ["nota", "modifica"], f"T16 eventi: {nuove}"
+    con_casa(repo, prova)
+    # Una sola write: chi legge a meta' non vede la nota senza il passaggio a io.
+    ts = store(repo)
+    with tempfile.TemporaryDirectory() as tmp:
+        file = Path(tmp) / "eventi.jsonl"
+        ts.aggiungi({"titolo": "Scegliere", "chi": "decidi"}, file)
+        scritture = []
+        vera = os.write
+
+        def conta(fd, dati):
+            scritture.append(dati)
+            return vera(fd, dati)
+        os.write = conta
+        try:
+            ts.deciso(1, "piano B", file)
+        finally:
+            os.write = vera
+        assert len(scritture) == 1 and scritture[0].count(b"\n") == 2, \
+            f"T16 deciso non scrive in una sola write: {len(scritture)} write"
+
+
+def test_t17(repo: Path) -> None:
+    ts = store(repo)
+    assert (ts.VERSIONE_EVENTI, ts.VERSIONE_VISTA) == (1, 1), "T17 le due versioni devono valere 1"
+    assert not hasattr(ts, "VERSIONE"), "T17 resta una VERSIONE unica per eventi e viste"
+    with tempfile.TemporaryDirectory() as tmp:
+        file = Path(tmp) / "eventi.jsonl"
+        # Eventi a una versione nuova: la vista resta alla sua, e viceversa.
+        ts.VERSIONE_EVENTI = 7
+        try:
+            ts.aggiungi({"titolo": "Uno"}, file)
+            todo, avvisi = ts.carica(file)
+            vista_eventi_nuovi = ts.vista(todo, avvisi)["versione"]
+        finally:
+            ts.VERSIONE_EVENTI = 1
+        assert json.loads(read(file).splitlines()[0])["v"] == 7, "T17 gli eventi non usano VERSIONE_EVENTI"
+        assert vista_eventi_nuovi == 1, "T17 la vista segue la versione degli eventi"
+        ts.VERSIONE_VISTA = 5
+        try:
+            ts.registra(1, "nota", {"testo": "x"}, file)
+            vista_nuova = ts.vista(*ts.carica(file))["versione"]
+        finally:
+            ts.VERSIONE_VISTA = 1
+        assert json.loads(read(file).splitlines()[1])["v"] == 1, "T17 gli eventi seguono la versione della vista"
+        assert vista_nuova == 5, "T17 la vista non usa VERSIONE_VISTA"
+
+    def prova(c: Casa) -> None:
+        c.cli("aggiungi", "Uno", "--progetto", "p", "--scadenza", "oggi")
+        for argomenti in ((), ("oggi",), ("progetti",)):
+            assert c.json(*argomenti)["versione"] == 1, f"T17 versione di {argomenti or 'lista'}"
+    con_casa(repo, prova)
+
+
+def test_t18(repo: Path) -> None:
+    ts = store(repo)
+    assert isinstance(ts.CHIAVI_TODO, tuple) and "scadenza_testo" in ts.CHIAVI_TODO, "T18 CHIAVI_TODO"
+    src = read(Path(__file__))
+    assert not re.search(r"^CHIAVI\w*\s*=", src, re.M), "T18 il banco tiene una sua copia delle chiavi"
+
+    def prova(c: Casa) -> None:
+        for titolo, scadenza in (("Oggi", "oggi"), ("Domani", "domani"), ("Tra cinque", "2026-10-08"),
+                                 ("Ieri", "2026-10-02"), ("Due giorni fa", "2026-10-01"), ("Mai", "")):
+            c.cli("aggiungi", titolo, "--progetto", "p", "--scadenza", scadenza)
+        v = c.json()
+        testi = {t["titolo"]: t["scadenza_testo"] for g in v["gruppi"] for t in g["todo"]}
+        atteso = {"Oggi": "scade oggi", "Domani": "scade domani", "Tra cinque": "scade tra 5 g",
+                  "Ieri": "scaduto ieri", "Due giorni fa": "scaduto da 2 g", "Mai": None}
+        assert testi == atteso, f"T18 scadenza_testo: {testi}"
+        for t in (t for g in v["gruppi"] for t in g["todo"]):
+            assert set(t) == set(ts.CHIAVI_TODO), f"T18 chiavi: {sorted(set(t) ^ set(ts.CHIAVI_TODO))}"
+        descrizioni = {g["tipo"]: g["descrizione"] for g in v["gruppi"]}
+        assert descrizioni == {"tu": "Lo fai tu.", "decidi": "Serve una tua scelta, poi lavora Claude.",
+                               "io": "Lo fa Claude.", "fermo": "Aspetta qualcosa o qualcuno."}, \
+            f"T18 descrizione dei gruppi: {descrizioni}"
+        lista = c.cli().stdout
+        for testo in atteso.values():
+            assert testo is None or testo in lista, f"T18 la lista non usa scadenza_testo: manca {testo!r}"
+    con_casa(repo, prova)
+    cli = read(repo / "bin" / "arturo")
+    assert "def quando_scade" not in cli and "scadenza_testo" in cli, "T18 la CLI ha un suo testo della scadenza"
+
+
+def test_t19(repo: Path) -> None:
+    ts = store(repo)
+    assert ts._Lucchetto is ts.Lucchetto, "T19 _Lucchetto non è più l'alias di Lucchetto"
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        file = base / "percorso.json"
+        entrato = threading.Event()
+
+        def secondo() -> None:
+            with ts.Lucchetto(file):
+                entrato.set()
+        with ts.Lucchetto(file):
+            assert (base / "percorso.json.lock").exists(), "T19 il lucchetto non crea il suo .lock"
+            altro = threading.Thread(target=secondo)
+            altro.start()
+            time.sleep(0.3)
+            assert not entrato.is_set(), "T19 il lucchetto lascia entrare un secondo processo"
+        altro.join(5)
+        assert entrato.is_set() and not (base / "percorso.json.lock").exists(), "T19 il lucchetto non si libera"
+
+        ts.scrivi_json_atomico(file, {"tappa": "Delega", "città": "è"})
+        assert json.loads(read(file)) == {"tappa": "Delega", "città": "è"}, "T19 scrivi_json_atomico"
+        prima = read(file)
+        try:
+            ts.scrivi_json_atomico(file, {"rotto": object()})
+        except TypeError:
+            pass
+        else:
+            raise AssertionError("T19 un dato non serializzabile non dà errore")
+        assert read(file) == prima, "T19 una scrittura fallita rovina il file di prima"
+        assert sorted(x.name for x in base.iterdir()) == ["percorso.json"], \
+            f"T19 restano file temporanei: {sorted(x.name for x in base.iterdir())}"
+
+
+def test_t20(repo: Path) -> None:
+    ts = store(repo)
+    assert ts.PROGETTO_PERCORSO == "_percorso", f"T20 PROGETTO_PERCORSO: {ts.PROGETTO_PERCORSO!r}"
+
+    def prova(c: Casa) -> None:
+        cartella = c.home / "lavoro" / "_percorso"
+        cartella.mkdir(parents=True)
+        subprocess.run(["git", "init", "-q"], cwd=str(cartella), check=True, timeout=30,
+                       env=dict(os.environ, **GIT_ENV))
+        env = dict(os.environ, HOME=str(c.home), USERPROFILE=str(c.home), ARTURO_OGGI=OGGI, PYTHONIOENCODING="utf-8")
+        env.pop("ARTURO_TODO", None)
+        r = subprocess.run([sys.executable, str(repo / "bin" / "arturo"), "todo", "aggiungi", "Dal repo"],
+                           cwd=str(cartella), env=env, capture_output=True, text=True, timeout=60)
+        assert r.returncode == 0, f"T20 aggiungi: {r.stderr}"
+        c.cli("aggiungi", "Esercizio", "--progetto", ts.PROGETTO_PERCORSO)
+        a = c.aperti()
+        assert a[1]["progetto"] != ts.PROGETTO_PERCORSO, f"T20 lo slug di una cartella produce il progetto riservato: {a[1]}"
+        assert a[2]["progetto"] == ts.PROGETTO_PERCORSO and a[2]["gruppo"] == "tu", f"T20 il todo del percorso: {a[2]}"
+        assert "Esercizio" in c.cli().stdout, "T20 i todo del percorso non compaiono nella lista"
+    con_casa(repo, prova)
+
+
+def test_t21(repo: Path) -> None:
+    cli = modulo(repo, "arturo")
+    assert isinstance(cli.COMANDI, dict) and list(cli.COMANDI) == ["todo"], f"T21 COMANDI: {cli.COMANDI}"
+    funzione, aiuto = cli.COMANDI["todo"]
+    assert callable(funzione) and isinstance(aiuto, str) and aiuto, "T21 la voce todo di COMANDI"
+    with tempfile.TemporaryDirectory() as tmp:
+        env = dict(os.environ, HOME=tmp, USERPROFILE=tmp, PYTHONIOENCODING="utf-8")
+        r = subprocess.run([sys.executable, str(repo / "bin" / "arturo")], env=env, capture_output=True,
+                           text=True, timeout=60)
+        assert r.returncode == 0 and aiuto in r.stdout, f"T21 l'aiuto non nasce da COMANDI: {r.stdout!r}"
+        r = subprocess.run([sys.executable, str(repo / "bin" / "arturo"), "boh"], env=env, capture_output=True,
+                           text=True, timeout=60)
+        assert r.returncode == 2 and "«arturo todo»" in r.stderr, f"T21 comando sconosciuto: {r.stderr!r}"
+    # Una riga in piu' in COMANDI basta: aiuto, smistamento ed errore la vedono da soli.
+    cli.COMANDI["prova"] = (lambda argv: 7 if argv == ["x"] else 1, "una riga di prova")
+    assert cli.main(["prova", "x"]) == 7, "T21 lo smistamento non legge COMANDI"
+    assert "una riga di prova" in cli.uso() and "arturo prova" in cli.uso(), "T21 l'aiuto non legge COMANDI"
+    assert "«arturo prova»" in cli.sconosciuto("boh"), "T21 il messaggio di errore non legge COMANDI"
+
+
+def test_t22(repo: Path) -> None:
+    assert "data/todo/*.lock" in read(repo / ".gitignore").splitlines(), "T22 il .lock non è in .gitignore"
+    with tempfile.TemporaryDirectory() as tmp:
+        privato = _sync(repo, Path(tmp), "PRIVATE", lucchetto=True)
+    assert "data/todo/eventi.jsonl" in privato.splitlines(), f"T22 i todo non viaggiano: {privato!r}"
+    assert not [r for r in privato.splitlines() if r.endswith(".lock")], f"T22 /fine committa un .lock: {privato!r}"
+
+
+def test_t23(repo: Path) -> None:
+    ts = store(repo)
+    assert ts.AZIONI_STATO["inizia"][0] == "in corso" and ts.AZIONI_STATO["riprendi"][0] == "da fare", \
+        f"T23 AZIONI_STATO: {getattr(ts, 'AZIONI_STATO', None)}"
+    cli = read(repo / "bin" / "arturo")
+    assert "ts.AZIONI_STATO" in cli and "ts.progetti(" in cli and "conti.setdefault" not in cli, \
+        "T23 la CLI tiene una sua tabella degli stati o un suo conteggio"
+
+    def prova(c: Casa) -> None:
+        c.cli("aggiungi", "Scaduto", "--progetto", "a", "--scadenza", "1/10")
+        c.cli("aggiungi", "Fermo", "--progetto", "a")
+        c.cli("ferma", "2", "attesa")
+        c.cli("aggiungi", "Chiuso", "--progetto", "b")
+        c.cli("fatto", "3")
+        conti = c.json("progetti")["progetti"]
+        assert conti == {"a": {"aperti": 2, "scaduti": 1, "fermi": 1, "chiusi": 0},
+                         "b": {"aperti": 0, "scaduti": 0, "fermi": 0, "chiusi": 1}}, f"T23 progetti: {conti}"
+        os.environ["ARTURO_OGGI"] = OGGI
+        try:
+            assert ts.progetti(ts.carica(c.registro)[0]) == conti, "T23 ts.progetti e la CLI non coincidono"
+        finally:
+            os.environ.pop("ARTURO_OGGI", None)
+    con_casa(repo, prova)
+
+
+def test_t24(repo: Path) -> None:
+    aggiorna = read(repo / "commands" / "aggiorna.md")
+    riga = [r for r in aggiorna.splitlines() if r.startswith('git diff "HEAD...$SRC/main" -- hooks')]
+    assert len(riga) == 1, f"T24 /aggiorna: il diff del codice che gira da solo: {riga}"
+    for parte in ("hooks", "settings.json", "skills/*/scripts", "bin", "skills/*/hooks", "skills/*/.claude-plugin"):
+        assert f" {parte} " in riga[0] + " ", f"T24 /aggiorna non mostra {parte}: {riga[0]}"
+    diagnosi = read(repo / "commands" / "diagnosi.md")
+    assert "arturo todo --json" in diagnosi and "avvisi" in diagnosi, "T24 /diagnosi non legge l'archivio dei todo"
+    skill = read(repo / "skills" / "todo" / "SKILL.md")
+    for verbo in ("ripristina ID STATO", "inizia ID", "deciso ID"):
+        assert verbo in skill, f"T24 la skill todo non documenta {verbo}"
+
+
 TESTS = {
     "T01": test_t01, "T02": test_t02, "T03": test_t03, "T04": test_t04, "T05": test_t05,
     "T06": test_t06, "T07": test_t07, "T08": test_t08, "T09": test_t09, "T10": test_t10,
-    "T11": test_t11, "T12": test_t12, "T13": test_t13,
+    "T11": test_t11, "T12": test_t12, "T13": test_t13, "T14": test_t14, "T15": test_t15,
+    "T16": test_t16, "T17": test_t17, "T18": test_t18, "T19": test_t19, "T20": test_t20,
+    "T21": test_t21, "T22": test_t22, "T23": test_t23, "T24": test_t24,
 }
 
 
@@ -309,7 +628,7 @@ def main() -> int:
         for name, test in TESTS.items():
             try:
                 test(repo)
-            except (AssertionError, FileNotFoundError, ValueError, IndexError, KeyError,
+            except (AssertionError, OSError, ValueError, IndexError, KeyError, ImportError, AttributeError,
                     json.JSONDecodeError, subprocess.SubprocessError):
                 failed.append(name)
         assert failed == list(TESTS), f"baseline non discriminante: falliscono solo {failed} su {list(TESTS)}"

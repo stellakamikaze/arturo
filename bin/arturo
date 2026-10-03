@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """arturo: i comandi di Arturo fuori da Claude Code.
 
-    arturo todo                     i todo aperti, divisi per chi agisce
-    arturo todo aggiungi "titolo"   un todo nuovo (--progetto --scadenza --chi ...)
-    arturo todo aiuto               tutti i comandi
+L'elenco dei comandi nasce dal dizionario COMANDI, in fondo al file: da li' vengono
+questo aiuto, lo smistamento e il messaggio per un comando sconosciuto.
 
 Solo libreria standard, Python 3.8 o successivo. I dati stanno in
-~/.claude/data/todo/eventi.jsonl e non arrivano mai con un aggiornamento.
+~/.claude/data/ e non arrivano mai con un aggiornamento.
 """
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import importlib
 import json
 import os
 import re
@@ -28,21 +28,27 @@ for flusso in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):
         pass
 
-AIUTO = """Comandi dei todo (scrivi «arturo todo» davanti a ognuno):
+VERBI = (
+    ("(niente)", "i todo aperti, divisi per chi agisce"),
+    ("oggi [--giorni N]", "per oggi, scaduti e in scadenza nei prossimi N giorni (3)"),
+    ("progetti", "quanti todo ha ogni progetto"),
+    ("mostra ID", "un todo con note e storia"),
+    ('aggiungi "titolo"', "un todo nuovo"),
+    ("modifica ID", "cambia uno o più campi"),
+    ("inizia ID", "lo segna in corso"),
+    ("fatto ID", "lo chiude"),
+    ('ferma ID "motivo"', "lo mette in FERMO"),
+    ("riprendi ID", "lo riapre (da FERMO, fatto o scartato)"),
+    ('scarta ID "motivo"', "lo chiude senza farlo"),
+    ('deciso ID "testo"', "registra la tua scelta: il todo passa a Claude"),
+    ('nota ID "testo"', "aggiunge una nota"),
+    ("dopo ID ALTRO [--togli]", "ID aspetta che ALTRO sia chiuso"),
+    ("su ID / giu ID", "lo avvicina o lo allontana: più avanti, settimana, oggi"),
+    ("ripristina ID STATO [motivo]", "rimette stato e motivo di prima (annulla un passo)"),
+)
 
-  (niente)                 i todo aperti, divisi per chi agisce
-  oggi [--giorni N]        per oggi, scaduti e in scadenza nei prossimi N giorni (3)
-  progetti                 quanti todo ha ogni progetto
-  mostra ID                un todo con note e storia
-  aggiungi "titolo"        un todo nuovo
-  modifica ID              cambia uno o più campi
-  fatto ID                 lo chiude
-  ferma ID "motivo"        lo mette in FERMO
-  riprendi ID              lo riapre (da FERMO, fatto o scartato)
-  scarta ID "motivo"       lo chiude senza farlo
-  nota ID "testo"          aggiunge una nota
-  dopo ID ALTRO [--togli]  ID aspetta che ALTRO sia chiuso
-  su ID / giu ID           lo avvicina o lo allontana: più avanti, settimana, oggi
+AIUTO = "Comandi dei todo (scrivi «arturo todo» davanti a ognuno):\n\n" + "\n".join(
+    f"  {sintassi:<29} {cosa}" for sintassi, cosa in VERBI) + """
 
 Campi di aggiungi e modifica:
   --progetto NOME     di default la cartella in cui sei
@@ -54,6 +60,8 @@ Campi di aggiungi e modifica:
   --note TESTO        (solo aggiungi) una prima nota
 
 Letture con --json: il formato che leggono il pannello e la pagina web.
+--annullo (su modifica, su, giu e sui cambi di stato) segna il passo come annullo di uno
+precedente: lo usano pannello e pagina web, ripristina lo mette da solo.
 """
 
 
@@ -69,18 +77,10 @@ def progetto_corrente() -> str:
     return re.sub(r"^-+|-+$", "", re.sub(r"[^a-z0-9]+", "-", nome.lower())) or "generale"
 
 
-def quando_scade(g) -> str:
-    if g is None:
-        return ""
-    if g < 0:
-        return f"scaduto da {-g} g" if g < -1 else "scaduto ieri"
-    return {0: "scade oggi", 1: "scade domani"}.get(g, f"scade tra {g} g")
-
-
 def riga(t: dict, con_progetto: bool = True) -> list:
     pezzi = [f"#{t['id']}", t["titolo"]]
     dettagli = [x for x in (t["progetto"] if con_progetto else "", t["priorita"] if t["priorita"] != "media" else "",
-                            quando_scade(t["giorni"]), t["quando"] if t["quando"] == "oggi" and t["giorni"] != 0 else "")
+                            t["scadenza_testo"] or "", t["quando"] if t["quando"] == "oggi" and t["giorni"] != 0 else "")
                 if x]
     sotto = []
     if t["perche"]:
@@ -160,12 +160,24 @@ def parser() -> argparse.ArgumentParser:
         for campo in ("progetto", "scadenza", "chi", "perche", "priorita", "quando"):
             c.add_argument(f"--{campo}")
         c.add_argument("--json", action="store_true")
-    for nome in ("fatto", "riprendi", "su", "giu"):
-        comando(nome).add_argument("id")
+        if nome == "modifica":
+            c.add_argument("--annullo", action="store_true")
+    for nome in ("fatto", "riprendi", "inizia", "su", "giu"):
+        c = comando(nome)
+        c.add_argument("id")
+        c.add_argument("--annullo", action="store_true")
     for nome in ("ferma", "scarta"):
         c = comando(nome)
         c.add_argument("id")
         c.add_argument("motivo", nargs="?", default="")
+        c.add_argument("--annullo", action="store_true")
+    c = comando("ripristina")
+    c.add_argument("id")
+    c.add_argument("stato")
+    c.add_argument("motivo", nargs="?", default="")
+    c = comando("deciso")
+    c.add_argument("id")
+    c.add_argument("testo")
     c = comando("nota")
     c.add_argument("id")
     c.add_argument("testo")
@@ -212,7 +224,7 @@ def todo(argv: list) -> int:
         scelti.sort(key=lambda t: (t["giorni"] if t["giorni"] is not None else 10 ** 6,
                                    ts.PRIORITA.index(t["priorita"]), t["id"]))
         if args.json:
-            print(json.dumps({"versione": ts.VERSIONE, "oggi": v["oggi"], "giorni": args.giorni, "todo": scelti,
+            print(json.dumps({"versione": ts.VERSIONE_VISTA, "oggi": v["oggi"], "giorni": args.giorni, "todo": scelti,
                               "avvisi": avvisi}, ensure_ascii=False, indent=2))
             return 0
         avvisa(avvisi)
@@ -223,18 +235,9 @@ def todo(argv: list) -> int:
         return 0
 
     if cmd == "progetti":
-        conti = {}
-        for t in todo_map.values():
-            c = conti.setdefault(t["progetto"], {"aperti": 0, "scaduti": 0, "fermi": 0, "chiusi": 0})
-            if ts.gruppo(t) is None:
-                c["chiusi"] += 1
-                continue
-            c["aperti"] += 1
-            c["fermi"] += t["stato"] == "fermo"
-            g = ts.giorni(t)
-            c["scaduti"] += g is not None and g < 0
+        conti = ts.progetti(todo_map)
         if args.json:
-            print(json.dumps({"versione": ts.VERSIONE, "progetti": conti, "avvisi": avvisi}, ensure_ascii=False, indent=2))
+            print(json.dumps({"versione": ts.VERSIONE_VISTA, "progetti": conti, "avvisi": avvisi}, ensure_ascii=False, indent=2))
             return 0
         avvisa(avvisi)
         if not conti:
@@ -256,7 +259,7 @@ def todo(argv: list) -> int:
         for chiave, valore in (("progetto", e["progetto"]), ("stato", e["stato"]), ("chi", e["chi"]),
                                ("perché", e["perche"]), ("motivo", e["motivo"]), ("priorità", e["priorita"]),
                                ("quando", e["quando"]),
-                               ("scadenza", f"{e['scadenza']} ({quando_scade(e['giorni'])})" if e["scadenza"] else None),
+                               ("scadenza", f"{e['scadenza']} ({e['scadenza_testo']})" if e["scadenza"] else None),
                                ("aspetta", ", ".join(f"#{n}" for n in e["attende"]) or None)):
             if valore:
                 print(f"  {chiave:<9} {valore}")
@@ -266,8 +269,10 @@ def todo(argv: list) -> int:
                 print(f"    {locale(n['ts'])}  {n['testo']}")
         print("  storia")
         for s in t["storia"]:
-            dettaglio = ", ".join(f"{k}={v}" for k, v in s["dati"].items() if k != "titolo" or s["tipo"] != "crea")
-            print(f"    {locale(s['ts'])}  {s['tipo']}" + (f"  {dettaglio}" if dettaglio else ""))
+            dettaglio = ", ".join(f"{k}={v}" for k, v in s["dati"].items()
+                                  if k != "annullo" and (k != "titolo" or s["tipo"] != "crea"))
+            segno = "  (annullo)" if s["dati"].get("annullo") else ""
+            print(f"    {locale(s['ts'])}  {s['tipo']}" + (f"  {dettaglio}" if dettaglio else "") + segno)
         return 0
 
     if cmd == "aggiungi":
@@ -281,17 +286,26 @@ def todo(argv: list) -> int:
         return 0
 
     if cmd == "modifica":
-        t = ts.registra(args.id, "modifica", campi_da(args))
+        t = ts.registra(args.id, "modifica", dict(campi_da(args), annullo=args.annullo))
         print(json.dumps(ts.esporta(t, ts.carica()[0]), ensure_ascii=False) if args.json
               else f"Modificato #{t['id']}: {t['titolo']}")
         return 0
 
-    stati = {"fatto": ("fatto", "Chiuso"), "riprendi": ("da fare", "Riaperto"),
-             "ferma": ("fermo", "Fermato"), "scarta": ("scartato", "Scartato")}
-    if cmd in stati:
-        stato, verbo = stati[cmd]
-        t = ts.registra(args.id, "stato", {"stato": stato, "motivo": getattr(args, "motivo", "")})
+    if cmd in ts.AZIONI_STATO:
+        stato, verbo = ts.AZIONI_STATO[cmd]
+        t = ts.registra(args.id, "stato", {"stato": stato, "motivo": getattr(args, "motivo", ""),
+                                           "annullo": args.annullo})
         print(f"{verbo} #{t['id']}: {t['titolo']}")
+        return 0
+
+    if cmd == "ripristina":
+        t = ts.ripristina(args.id, args.stato, args.motivo)
+        print(f"Ripristinato #{t['id']}: {t['stato']}" + (f" ({t['motivo']})" if t["motivo"] else ""))
+        return 0
+
+    if cmd == "deciso":
+        t = ts.deciso(args.id, args.testo)
+        print(f"Decisione registrata su #{t['id']}: ora lo fa Claude")
         return 0
 
     if cmd == "nota":
@@ -309,7 +323,7 @@ def todo(argv: list) -> int:
         passo = 1 if cmd == "su" else -1
         scala = ("più avanti", "settimana", "oggi")
         nuovo = scala[max(0, min(2, scala.index(t["quando"]) + passo))]
-        t = ts.registra(args.id, "modifica", {"quando": nuovo})
+        t = ts.registra(args.id, "modifica", {"quando": nuovo, "annullo": args.annullo})
         print(f"#{t['id']} ora è: {nuovo}")
         return 0
 
@@ -317,18 +331,46 @@ def todo(argv: list) -> int:
     return 2
 
 
+# Un comando = una riga: nome -> (funzione con argv, oppure nome di un modulo in bin/ con main(argv);
+# riga di aiuto). Aiuto, smistamento e messaggio per un comando sconosciuto nascono da qui.
+COMANDI = {
+    "todo": (todo, "i tuoi todo: «arturo todo aiuto» mostra tutti i comandi"),
+}
+
+
+def uso() -> str:
+    righe = [f"    arturo {nome:<10} {aiuto}" for nome, (_, aiuto) in COMANDI.items()]
+    return "arturo: i comandi di Arturo fuori da Claude Code.\n\n" + "\n".join(righe) + (
+        "\n\nSolo libreria standard, Python 3.8 o successivo. I dati stanno in ~/.claude/data/\n"
+        "e non arrivano mai con un aggiornamento.")
+
+
+def sconosciuto(nome: str) -> str:
+    nomi = [f"«arturo {n}»" for n in COMANDI]
+    elenco = nomi[0] if len(nomi) == 1 else ", ".join(nomi[:-1]) + " e " + nomi[-1]
+    return f"Comando sconosciuto: {nome}. " + (f"Per ora c'è solo {elenco}." if len(nomi) == 1
+                                               else f"I comandi sono {elenco}.")
+
+
 def main(argv: list) -> int:
     if not argv or argv[0] in ("-h", "--help", "aiuto", "help"):
-        print(__doc__.strip())
+        print(uso())
         return 0
-    if argv[0] == "todo":
-        try:
-            return todo(argv[1:])
-        except ts.ErroreTodo as errore:
-            print(f"Errore: {errore}", file=sys.stderr)
-            return 2
-    print(f"Comando sconosciuto: {argv[0]}. Per ora c'è solo «arturo todo».", file=sys.stderr)
-    return 2
+    voce = COMANDI.get(argv[0])
+    if voce is None:
+        print(sconosciuto(argv[0]), file=sys.stderr)
+        return 2
+    esegui = voce[0]
+    if isinstance(esegui, str):
+        esegui = importlib.import_module(esegui).main
+    try:
+        return esegui(argv[1:])
+    except ts.ErroreTodo as errore:
+        print(f"Errore: {errore}", file=sys.stderr)
+        return 2
+
+
+__doc__ = uso()
 
 
 if __name__ == "__main__":

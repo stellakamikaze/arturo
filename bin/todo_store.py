@@ -10,6 +10,12 @@ macchine creano lo stesso id, il todo piu' recente ne prende uno nuovo e la
 lettura lo segnala. Gli eventi successivi puntano all'uid, quindi restano giusti.
 
 CLI, pannello e vista web leggono da qui: `carica()` e `vista()` sono il contratto.
+Le chiavi di un todo esportato stanno in CHIAVI_TODO, e da qui le leggono i banchi.
+
+Due versioni, separate di proposito. VERSIONE_EVENTI e' il campo `v` di ogni riga del
+registro. VERSIONE_VISTA e' il campo `versione` del JSON delle viste. Un evento nuovo
+(per esempio il segno `annullo`) non cambia il contratto delle viste, e il pannello
+che controlla `versione` non si spegne.
 """
 from __future__ import annotations
 
@@ -17,23 +23,41 @@ import datetime as dt
 import json
 import os
 import re
+import tempfile
 import time
 import uuid
 from pathlib import Path
 
-VERSIONE = 1
+VERSIONE_EVENTI = 1
+VERSIONE_VISTA = 1
 STATI = ("da fare", "in corso", "fermo", "fatto", "scartato")
 APERTI = ("da fare", "in corso", "fermo")
 CHI = ("tu", "decidi", "io")
 PRIORITA = ("alta", "media", "bassa")
 QUANDO = ("oggi", "settimana", "più avanti")
 GRUPPI = (
-    ("tu", "TOCCA A TE"),
-    ("decidi", "DECIDI TU, POI FACCIO IO"),
-    ("io", "FACCIO IO"),
-    ("fermo", "FERMO"),
+    ("tu", "TOCCA A TE", "Lo fai tu."),
+    ("decidi", "DECIDI TU, POI FACCIO IO", "Serve una tua scelta, poi lavora Claude."),
+    ("io", "FACCIO IO", "Lo fa Claude."),
+    ("fermo", "FERMO", "Aspetta qualcosa o qualcuno."),
 )
 CAMPI = ("titolo", "progetto", "scadenza", "chi", "perche", "priorita", "quando")
+# Il contratto di un todo esportato (vista, --json). Congelato: una chiave nuova e' un cambio
+# di VERSIONE_VISTA, e pannello e pagina web la leggono da qui.
+CHIAVI_TODO = ("id", "titolo", "progetto", "scadenza", "scadenza_testo", "giorni", "priorita", "stato",
+               "quando", "chi", "perche", "motivo", "gruppo", "dopo", "attende", "note")
+# I verbi che cambiano lo stato: verbo -> (stato nuovo, parola per la conferma).
+AZIONI_STATO = {
+    "fatto": ("fatto", "Chiuso"),
+    "riprendi": ("da fare", "Riaperto"),
+    "inizia": ("in corso", "Iniziato"),
+    "ferma": ("fermo", "Fermato"),
+    "scarta": ("scartato", "Scartato"),
+}
+# Il progetto degli esercizi del percorso. Lo slug di una cartella ammette solo [a-z0-9-]
+# e non comincia con un trattino, quindi nessun repository finisce qui per caso.
+PROGETTO_PERCORSO = "_percorso"
+DECISO = "Deciso: "
 GIORNI = ("lunedi", "martedi", "mercoledi", "giovedi", "venerdi", "sabato", "domenica")
 
 
@@ -63,6 +87,8 @@ def scelta(valore: str, ammessi: tuple, nome: str) -> str:
     v = valore.strip().lower()
     if v == "piu avanti":
         v = "più avanti"
+    if v in ("in-corso", "in_corso"):
+        v = "in corso"
     if v not in ammessi:
         raise ErroreTodo(f"{nome} «{valore}» non valido. Valori ammessi: {', '.join(ammessi)}")
     return v
@@ -202,18 +228,52 @@ def per_id(todo: dict, numero) -> dict:
 
 # --- scrittura ----------------------------------------------------------------
 
-def _scrivi(evento: dict, file: Path) -> None:
+def _scrivi_molti(eventi: list, file: Path) -> None:
+    """Piu' eventi in una sola write(): chi legge li trova tutti o nessuno."""
     file.parent.mkdir(parents=True, exist_ok=True)
-    riga = (json.dumps(evento, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
+    righe = "".join(json.dumps(e, ensure_ascii=False, separators=(",", ":")) + "\n" for e in eventi).encode("utf-8")
     fd = os.open(str(file), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
     try:
-        os.write(fd, riga)
+        os.write(fd, righe)
     finally:
         os.close(fd)
 
 
-class _Lucchetto:
-    """Serve solo a dare id diversi a due todo creati nello stesso istante."""
+def _scrivi(evento: dict, file: Path) -> None:
+    _scrivi_molti([evento], file)
+
+
+def scrivi_json_atomico(path, dati) -> None:
+    """Scrive `dati` come JSON in `path`: chi legge trova il file vecchio o quello nuovo, mai mezzo.
+
+    Il testo va in un file temporaneo nella stessa cartella, poi os.replace() lo mette al posto
+    giusto. Se la scrittura fallisce, il file di prima resta com'era.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    testo = json.dumps(dati, ensure_ascii=False, indent=2) + "\n"
+    fd, temporaneo = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+            f.write(testo)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temporaneo, str(path))
+    except BaseException:
+        try:
+            os.unlink(temporaneo)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+class Lucchetto:
+    """Un file .lock accanto a `file`: un solo processo alla volta dentro il blocco `with`.
+
+    L'archivio lo usa per dare id diversi a due todo creati nello stesso istante. Altri moduli
+    lo usano per i loro file. Un lucchetto piu' vecchio di 10 secondi e' di un processo interrotto
+    e si toglie da solo.
+    """
 
     def __init__(self, file: Path):
         self.file = file.with_name(file.name + ".lock")
@@ -243,8 +303,11 @@ class _Lucchetto:
             pass
 
 
+_Lucchetto = Lucchetto  # il nome di prima, per chi lo usa gia'
+
+
 def _evento(tipo: str, uid: str, dati: dict, **altro) -> dict:
-    return {"v": VERSIONE, "ts": _adesso(), "ev": uuid.uuid4().hex, "todo": uid, "tipo": tipo, "dati": dati, **altro}
+    return {"v": VERSIONE_EVENTI, "ts": _adesso(), "ev": uuid.uuid4().hex, "todo": uid, "tipo": tipo, "dati": dati, **altro}
 
 
 def aggiungi(campi: dict, file: Path | None = None) -> dict:
@@ -253,7 +316,7 @@ def aggiungi(campi: dict, file: Path | None = None) -> dict:
     if not dati.get("titolo"):
         raise ErroreTodo("il titolo non può essere vuoto")
     uid = uuid.uuid4().hex
-    with _Lucchetto(file):
+    with Lucchetto(file):
         todo, _ = carica(file)
         numero = max((t["id"] for t in todo.values()), default=0) + 1
         _scrivi(_evento("crea", uid, dati, id=numero), file)
@@ -261,16 +324,25 @@ def aggiungi(campi: dict, file: Path | None = None) -> dict:
 
 
 def registra(numero, tipo: str, dati: dict, file: Path | None = None) -> dict:
-    """Modifica, stato, nota o dopo su un todo esistente, indicato col suo numero."""
+    """Modifica, stato, nota o dopo su un todo esistente, indicato col suo numero.
+
+    Su stato e modifica, `"annullo": True` nei dati segna l'evento come annullo di un passo
+    precedente (un clic sbagliato nel pannello o nella pagina). Il segno resta nella storia:
+    chi legge i comportamenti della persona salta questi eventi.
+    """
     file = file or percorso()
     todo, _ = carica(file)
     t = per_id(todo, numero)
+    dati = dict(dati)
+    annullo = bool(dati.pop("annullo", False))
+    if annullo and tipo not in ("stato", "modifica"):
+        raise ErroreTodo("il segno di annullo vale solo per stato e modifica")
     if tipo == "modifica":
         dati = normalizza(dati)
         if not dati:
             raise ErroreTodo("niente da modificare: indica almeno un campo")
     elif tipo == "stato":
-        dati = {"stato": scelta(dati["stato"], STATI, "stato"), "motivo": dati.get("motivo", "")}
+        dati = {"stato": scelta(dati["stato"], STATI, "stato"), "motivo": dati.get("motivo", "") or ""}
     elif tipo == "nota":
         if not str(dati.get("testo", "")).strip():
             raise ErroreTodo("la nota è vuota")
@@ -281,7 +353,29 @@ def registra(numero, tipo: str, dati: dict, file: Path | None = None) -> dict:
         dati = {("togli" if dati.get("togli") else "aggiungi"): altro["uid"]}
     else:
         raise ErroreTodo(f"tipo di evento sconosciuto: {tipo}")
+    if annullo:
+        dati["annullo"] = True
     _scrivi(_evento(tipo, t["uid"], dati), file)
+    return carica(file)[0][t["uid"]]
+
+
+def ripristina(numero, stato: str, motivo: str = "", file: Path | None = None) -> dict:
+    """Rimette stato e motivo esatti di prima. E' l'inverso che usano pannello e pagina web."""
+    return registra(numero, "stato", {"stato": stato, "motivo": motivo, "annullo": True}, file)
+
+
+def deciso(numero, testo: str, file: Path | None = None) -> dict:
+    """La persona ha deciso: nota «Deciso: testo» e chi passa a io, in una sola scrittura."""
+    file = file or percorso()
+    testo = str(testo).strip()
+    if not testo:
+        raise ErroreTodo("scrivi cosa hai deciso, per esempio: arturo todo deciso 4 \"va bene il piano B\"")
+    todo, _ = carica(file)
+    t = per_id(todo, numero)
+    if t["chi"] != "decidi":
+        raise ErroreTodo(f"il todo #{t['id']} non aspetta una tua decisione: chi è «{t['chi']}», non «decidi»")
+    _scrivi_molti([_evento("nota", t["uid"], {"testo": DECISO + testo}),
+                   _evento("modifica", t["uid"], {"chi": "io"})], file)
     return carica(file)[0][t["uid"]]
 
 
@@ -302,6 +396,30 @@ def giorni(t: dict):
     return (dt.date.fromisoformat(t["scadenza"]) - oggi()).days
 
 
+def scadenza_testo(g):
+    """Il testo unico della scadenza per tutte le viste. g = giorni da oggi, None = nessuna."""
+    if g is None:
+        return None
+    if g < 0:
+        return "scaduto ieri" if g == -1 else f"scaduto da {-g} g"
+    return {0: "scade oggi", 1: "scade domani"}.get(g, f"scade tra {g} g")
+
+
+def progetti(todo: dict) -> dict:
+    """Per ogni progetto: quanti todo aperti, scaduti, fermi e chiusi."""
+    conti = {}
+    for t in todo.values():
+        c = conti.setdefault(t["progetto"], {"aperti": 0, "scaduti": 0, "fermi": 0, "chiusi": 0})
+        if gruppo(t) is None:
+            c["chiusi"] += 1
+            continue
+        c["aperti"] += 1
+        c["fermi"] += t["stato"] == "fermo"
+        g = giorni(t)
+        c["scaduti"] += g is not None and g < 0
+    return conti
+
+
 def _ordine(t: dict) -> tuple:
     g = giorni(t)
     return (0 if g is not None and g < 0 else 1, PRIORITA.index(t["priorita"]) if t["priorita"] in PRIORITA else 1,
@@ -312,9 +430,10 @@ def esporta(t: dict, todo: dict) -> dict:
     """Un todo nella forma del contratto JSON: niente uid, id numerici per le dipendenze."""
     per_uid = {x["uid"]: x for x in todo.values()}
     dopo = [per_uid[u] for u in t["dopo"] if u in per_uid]
+    g = giorni(t)
     return {
         "id": t["id"], "titolo": t["titolo"], "progetto": t["progetto"], "scadenza": t["scadenza"] or None,
-        "giorni": giorni(t), "priorita": t["priorita"], "stato": t["stato"], "quando": t["quando"],
+        "scadenza_testo": scadenza_testo(g), "giorni": g, "priorita": t["priorita"], "stato": t["stato"], "quando": t["quando"],
         "chi": t["chi"], "perche": t["perche"] or None, "motivo": t["motivo"] or None,
         "gruppo": gruppo(t), "dopo": [x["id"] for x in dopo],
         "attende": [x["id"] for x in dopo if x["stato"] in APERTI],
@@ -325,11 +444,12 @@ def esporta(t: dict, todo: dict) -> dict:
 def vista(todo: dict, avvisi: list, progetto: str | None = None, tutti: bool = False) -> dict:
     scelti = [t for t in todo.values() if not progetto or t["progetto"] == progetto]
     gruppi = []
-    for tipo, titolo in GRUPPI:
+    for tipo, titolo, descrizione in GRUPPI:
         dentro = sorted((t for t in scelti if gruppo(t) == tipo), key=_ordine)
-        gruppi.append({"tipo": tipo, "titolo": titolo, "todo": [esporta(t, todo) for t in dentro]})
+        gruppi.append({"tipo": tipo, "titolo": titolo, "descrizione": descrizione,
+                       "todo": [esporta(t, todo) for t in dentro]})
     chiusi = sorted((t for t in scelti if gruppo(t) is None), key=lambda t: t["chiuso"], reverse=True)
-    risultato = {"versione": VERSIONE, "oggi": oggi().isoformat(), "progetto": progetto, "gruppi": gruppi,
+    risultato = {"versione": VERSIONE_VISTA, "oggi": oggi().isoformat(), "progetto": progetto, "gruppi": gruppi,
                  "chiusi": len(chiusi), "avvisi": avvisi}
     if tutti:
         risultato["chiusi_todo"] = [esporta(t, todo) for t in chiusi]
