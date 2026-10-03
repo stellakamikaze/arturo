@@ -82,8 +82,9 @@ Se la persona dice che un passo era uno sbaglio («no, non era fatto»), riporta
 con `ripristina ID STATO "motivo di prima"`: lo stato e il motivo li leggi in
 `mostra ID --json`, nella storia. Non usare `riprendi`: riapre sempre come «da fare» e perde il
 motivo di un FERMO. `ripristina` mette nell'evento il segno `annullo`, e chi legge la storia sa
-che non è una scelta della persona. Gli altri verbi accettano `--annullo` per lo stesso scopo:
-lo usano pannello e pagina web quando annullano un clic.
+che non è una scelta della persona. `modifica`, `su`, `giu`, `inizia`, `fatto`, `riprendi`,
+`ferma` e `scarta` accettano `--annullo` per lo stesso scopo: lo usano pannello e pagina web
+quando annullano un clic.
 
 ## Regole
 

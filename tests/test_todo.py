@@ -39,6 +39,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from unittest import mock
 
 BASH = shutil.which("bash") or "bash"
 OGGI = "2026-10-03"  # un sabato
@@ -141,6 +142,14 @@ def test_t02(repo: Path) -> None:
         dopo = c.json("mostra", "1")
         assert prima == dopo, f"T02 la ricostruzione cambia con righe doppie:\n{prima}\n{dopo}"
         assert c.json()["avvisi"] == [], "T02 righe doppie trattate come errori"
+        # Righe senza ev: due righe diverse restano due, la stessa riga ripetuta conta una volta.
+        tre = '{"v":1,"ts":"2026-10-03T11:00:00+00:00","todo":"A3","tipo":"crea","id":3,"dati":{"titolo":"Tre senza ev"}}\n'
+        quattro = '{"v":1,"ts":"2026-10-03T11:00:01+00:00","todo":"A4","tipo":"crea","id":4,"dati":{"titolo":"Quattro senza ev"}}\n'
+        with open(c.registro, "a", encoding="utf-8") as f:
+            f.write(tre + quattro + tre)
+        titoli = sorted(t["titolo"] for t in c.aperti().values())
+        assert titoli == ["Quattro senza ev", "Tre senza ev", "Uno"], f"T02 una riga senza ev sparisce: {titoli}"
+        assert c.json()["avvisi"] == [], f"T02 avvisi con righe senza ev: {c.json()['avvisi']}"
     con_casa(repo, prova)
 
 
@@ -153,6 +162,19 @@ def test_t03(repo: Path) -> None:
         r = c.cli()
         assert "Prima" in r.stdout and "Dopo la riga rotta" in r.stdout, f"T03 lista: {r.stdout!r}"
         assert "illeggibile" in r.stderr, f"T03 la riga rotta non viene segnalata: {r.stderr!r}"
+        # JSON valido con la forma sbagliata: dati non dizionario, todo non stringa.
+        with open(c.registro, "a", encoding="utf-8") as f:
+            f.write('{"v":1,"ts":"2026-10-03T11:00:00+00:00","ev":"z1","todo":"Y","tipo":"crea","id":5,"dati":"rotto"}\n')
+            f.write('{"v":1,"ts":"2026-10-03T11:00:01+00:00","ev":"z2","todo":["a"],"tipo":"crea","id":6,"dati":{}}\n')
+            # Un campo con un valore che la lettura non sa usare: data non valida, chi fuori lista.
+            f.write('{"v":1,"ts":"2026-10-03T11:00:02+00:00","ev":"z3","todo":"W","tipo":"crea","id":7,"dati":{"titolo":"x","scadenza":"boh"}}\n')
+            f.write('{"v":1,"ts":"2026-10-03T11:00:03+00:00","ev":"z4","todo":"K","tipo":"crea","id":8,"dati":{"titolo":"x","chi":"boh"}}\n')
+        r = c.cli("--json", ok=False)
+        assert r.returncode == 0, f"T03 una riga con la forma sbagliata ferma l'archivio: {r.stderr.strip()}"
+        v = json.loads(r.stdout)
+        titoli = sorted(t["titolo"] for g in v["gruppi"] for t in g["todo"])
+        assert titoli == ["Dopo la riga rotta", "Prima"], f"T03 una riga con la forma sbagliata rompe l'archivio: {titoli}"
+        assert len([a for a in v["avvisi"] if "illeggibile" in a]) == 5, f"T03 avvisi delle righe rotte: {v['avvisi']}"
     con_casa(repo, prova)
 
 
@@ -509,15 +531,29 @@ def test_t19(repo: Path) -> None:
         ts.scrivi_json_atomico(file, {"tappa": "Delega", "città": "è"})
         assert json.loads(read(file)) == {"tappa": "Delega", "città": "è"}, "T19 scrivi_json_atomico"
         prima = read(file)
+        # La scrittura fallisce dopo la serializzazione, nel passo che mette il file al suo posto:
+        # una versione che scrive direttamente su percorso.json qui lo ha gia' rovinato.
+        for passo in ("fsync", "replace"):
+            def guasto(*_a, **_k):
+                raise OSError(f"guasto di prova in os.{passo}")
+            with mock.patch.object(ts.os, passo, guasto):
+                try:
+                    ts.scrivi_json_atomico(file, {"tappa": "nuova"})
+                except OSError:
+                    pass
+                else:
+                    raise AssertionError(f"T19 un guasto in os.{passo} non dà errore: la scrittura non passa da lì")
+            assert read(file) == prima, f"T19 un guasto in os.{passo} rovina il file di prima"
+            assert sorted(x.name for x in base.iterdir()) == ["percorso.json"], \
+                f"T19 restano file temporanei dopo un guasto in os.{passo}: {sorted(x.name for x in base.iterdir())}"
+        # Il lucchetto accetta anche un percorso scritto come stringa, come scrivi_json_atomico.
         try:
-            ts.scrivi_json_atomico(file, {"rotto": object()})
-        except TypeError:
-            pass
-        else:
-            raise AssertionError("T19 un dato non serializzabile non dà errore")
-        assert read(file) == prima, "T19 una scrittura fallita rovina il file di prima"
-        assert sorted(x.name for x in base.iterdir()) == ["percorso.json"], \
-            f"T19 restano file temporanei: {sorted(x.name for x in base.iterdir())}"
+            lucchetto = ts.Lucchetto(str(file))
+        except (AttributeError, TypeError) as errore:
+            raise AssertionError(f"T19 il lucchetto non accetta un percorso stringa: {errore}")
+        with lucchetto:
+            assert (base / "percorso.json.lock").exists(), "T19 il lucchetto con una stringa non crea il .lock"
+        assert not (base / "percorso.json.lock").exists(), "T19 il lucchetto con una stringa non si libera"
 
 
 def test_t20(repo: Path) -> None:
@@ -532,7 +568,7 @@ def test_t20(repo: Path) -> None:
         env = dict(os.environ, HOME=str(c.home), USERPROFILE=str(c.home), ARTURO_OGGI=OGGI, PYTHONIOENCODING="utf-8")
         env.pop("ARTURO_TODO", None)
         r = subprocess.run([sys.executable, str(repo / "bin" / "arturo"), "todo", "aggiungi", "Dal repo"],
-                           cwd=str(cartella), env=env, capture_output=True, text=True, timeout=60)
+                           cwd=str(cartella), env=env, capture_output=True, encoding="utf-8", timeout=60)
         assert r.returncode == 0, f"T20 aggiungi: {r.stderr}"
         c.cli("aggiungi", "Esercizio", "--progetto", ts.PROGETTO_PERCORSO)
         a = c.aperti()
@@ -550,10 +586,10 @@ def test_t21(repo: Path) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         env = dict(os.environ, HOME=tmp, USERPROFILE=tmp, PYTHONIOENCODING="utf-8")
         r = subprocess.run([sys.executable, str(repo / "bin" / "arturo")], env=env, capture_output=True,
-                           text=True, timeout=60)
+                           encoding="utf-8", timeout=60)
         assert r.returncode == 0 and aiuto in r.stdout, f"T21 l'aiuto non nasce da COMANDI: {r.stdout!r}"
         r = subprocess.run([sys.executable, str(repo / "bin" / "arturo"), "boh"], env=env, capture_output=True,
-                           text=True, timeout=60)
+                           encoding="utf-8", timeout=60)
         assert r.returncode == 2 and "«arturo todo»" in r.stderr, f"T21 comando sconosciuto: {r.stderr!r}"
     # Una riga in piu' in COMANDI basta: aiuto, smistamento ed errore la vedono da soli.
     cli.COMANDI["prova"] = (lambda argv: 7 if argv == ["x"] else 1, "una riga di prova")

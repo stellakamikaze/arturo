@@ -154,6 +154,39 @@ def _righe(file: Path) -> list:
         return f.read().decode("utf-8", errors="replace").splitlines()
 
 
+def _riga_valida(e) -> bool:
+    """La forma di un evento letto dal registro. Una riga con la forma sbagliata si salta tutta.
+
+    Il registro passa tra le macchine e si unisce con un merge: un valore di tipo sbagliato
+    non deve fermare la lettura di tutto l'archivio.
+    """
+    if not isinstance(e, dict) or not isinstance(e.get("tipo"), str) or not isinstance(e.get("todo"), str):
+        return False
+    if not isinstance(e.get("ts", ""), str):
+        return False
+    dati = e.get("dati") or {}
+    if not isinstance(dati, dict):
+        return False
+    for chiave in CAMPI:
+        if chiave in dati and not isinstance(dati[chiave], str):
+            return False
+    for chiave, ammessi in (("chi", CHI), ("priorita", PRIORITA), ("quando", QUANDO)):
+        if chiave in dati and dati[chiave] not in ammessi:
+            return False
+    scadenza = dati.get("scadenza", "")
+    if scadenza:
+        try:
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", scadenza):
+                return False
+            dt.date.fromisoformat(scadenza)
+        except ValueError:
+            return False
+    for chiave in ("stato", "motivo", "testo", "aggiungi", "togli"):
+        if chiave in dati and not isinstance(dati[chiave], str):
+            return False
+    return isinstance(dati.get("annullo", False), bool)
+
+
 def carica(file: Path | None = None) -> tuple:
     """Rilegge il registro. Torna (todo per uid, avvisi). Una riga rotta si salta."""
     file = file or percorso()
@@ -163,14 +196,18 @@ def carica(file: Path | None = None) -> tuple:
             continue
         try:
             e = json.loads(riga)
-            if not isinstance(e, dict) or "tipo" not in e or "todo" not in e:
+            if not _riga_valida(e):
                 raise ValueError
         except ValueError:
             avvisi.append(f"riga {numero} del registro illeggibile, saltata")
             continue
-        if e.get("ev") in visti:
+        ev = e.get("ev")
+        if not isinstance(ev, str) or not ev:
+            # Senza ev la riga non ha un nome: si riconosce dal suo testo intero.
+            ev = "riga:" + riga.strip()
+        if ev in visti:
             continue  # la stessa riga arrivata due volte da un merge
-        visti.add(e.get("ev"))
+        visti.add(ev)
         eventi.append((str(e.get("ts", "")), numero, e))
     eventi.sort(key=lambda x: (x[0], x[1]))
 
@@ -268,14 +305,15 @@ def scrivi_json_atomico(path, dati) -> None:
 
 
 class Lucchetto:
-    """Un file .lock accanto a `file`: un solo processo alla volta dentro il blocco `with`.
+    """Un file .lock accanto a `file` (Path o stringa): un solo processo alla volta nel blocco `with`.
 
     L'archivio lo usa per dare id diversi a due todo creati nello stesso istante. Altri moduli
     lo usano per i loro file. Un lucchetto piu' vecchio di 10 secondi e' di un processo interrotto
     e si toglie da solo.
     """
 
-    def __init__(self, file: Path):
+    def __init__(self, file):
+        file = Path(file)
         self.file = file.with_name(file.name + ".lock")
 
     def __enter__(self):

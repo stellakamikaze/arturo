@@ -28,7 +28,7 @@ Se il bug sembra di ambiente (install/auth/config Claude Code, non codice del pr
 Se il problema riguarda i todo (`arturo todo`, `/inizio`, `/fine`), leggi prima l'archivio:
 
 ```bash
-python3 ~/.claude/bin/arturo todo --json | python3 -c 'import json,sys; v=json.load(sys.stdin); print("archivio leggibile, avvisi:", len(v["avvisi"])); [print("avviso:", a) for a in v["avvisi"]]'
+python3 ~/.claude/bin/arturo todo --json | PYTHONIOENCODING=utf-8 python3 -c 'import json,sys; v=json.load(sys.stdin); print("archivio leggibile, avvisi:", len(v["avvisi"])); [print("avviso:", a) for a in v["avvisi"]]'
 ```
 
 Riporta all'utente ogni avviso con le sue parole: una riga illeggibile, un evento per un todo
