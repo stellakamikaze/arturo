@@ -59,8 +59,9 @@ progetto pubblico decisioni, note e task entrerebbero nella storia Git.
 1. Cosa c'è da fare? (anche cose dette di sfuggita)
 2. Cosa è rimasto in sospeso? (decisioni rimandate, dubbi)
 3. Cosa si potrebbe fare che non è stato discusso? (migliorie, edge case, tech debt)
-4. Ogni item emerso è in `TaskList`? Se manca, crealo con `TaskCreate` ora.
-5. I task da sessioni precedenti vanno aggiornati/chiusi?
+4. Ogni item emerso è un todo nell'archivio (`arturo todo`)? Se manca, crealo ora (vedi
+   «Todo» sotto). `TaskList` vale solo per i passi di questa sessione: sparisce alla chiusura.
+5. I todo da sessioni precedenti vanno aggiornati o chiusi?
 6. Cosa hai provato che non ha funzionato, e perché? (finisce in «Vicoli ciechi»: la
    sessione dopo non deve rifare gli stessi tentativi)
 
@@ -85,15 +86,16 @@ Template:
 [git diff --stat o lista]
 
 ## Task Pendenti
-Da `TaskList`, tutti i task con status != completed:
+Da `arturo todo --progetto <slug>`, tutti i todo aperti del progetto:
 
-| # | Progetto | Priorità | Task | Status | Descrizione |
-|---|----------|----------|------|--------|-------------|
-| 1 | [nome] | alta | nome-task | in_progress | cosa resta |
+| ID | Progetto | Priorità | Task | Status | Descrizione | Chi |
+|----|----------|----------|------|--------|-------------|-----|
+| #4 | [nome] | alta | nome-task | in_progress | cosa resta | io |
 
-Regole: ogni task DEVE avere il Progetto; status `pending|in_progress|blocked`;
-priorità `alta|media|bassa`; Descrizione con contesto sufficiente a riprendere senza
-rileggere il codice; includi anche task da sessioni precedenti se ancora validi.
+Regole: ogni task DEVE avere il Progetto e l'ID del todo; status `pending|in_progress|blocked`;
+priorità `alta|media|bassa`; Chi `tu|decidi|io`; Descrizione con contesto sufficiente a
+riprendere senza rileggere il codice; includi anche task da sessioni precedenti se ancora validi.
+La tabella è la fotografia della sessione: la fonte di verità è l'archivio dei todo.
 
 ## In sospeso (non ancora task)
 - [Decisioni rimandate, dubbi]
@@ -107,6 +109,26 @@ rileggere il codice; includi anche task da sessioni precedenti se ancora validi.
 ## Riferimenti / Note
 - [Link a issue/PR/doc] · [Note utente]
 ```
+
+**Todo.** Prima di scrivere l'handoff porta nell'archivio ogni item della tabella. L'archivio è
+il file `~/.claude/data/todo/eventi.jsonl`: sopravvive alla sessione e lo leggono `/inizio`,
+la CLI e le altre viste. Chi agisce: `tu` se tocca alla persona (un invio, una password, un
+gesto), `decidi` se serve una sua scelta prima che lavori tu, `io` se lo fai tu. Un todo
+bloccato va in FERMO con `ferma`, non con `--chi`.
+
+```bash
+PROGETTO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
+SLUG=$(printf '%s' "$PROGETTO" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
+TODO="python3 $HOME/.claude/bin/arturo todo"
+$TODO --progetto "$SLUG"              # cosa c'è già: non creare doppioni
+# per ogni item nuovo:
+#   $TODO aggiungi "verbo e oggetto" --progetto "$SLUG" --chi io|tu|decidi --priorita alta|media|bassa [--scadenza 10/10] [--perche "invio a terzi"] [--note "cosa resta"]
+# per ogni todo che cambia:
+#   $TODO fatto ID · $TODO ferma ID "motivo" · $TODO riprendi ID · $TODO nota ID "testo" · $TODO modifica ID --chi tu
+```
+
+Il titolo dice l'azione a una persona («Mandare a Gigi la parola d'ordine»), non uno slug.
+Se la persona ha chiesto un todo durante la sessione («ricordami di…»), c'è già: aggiornalo.
 
 **Dove va l'handoff.** Scrivilo nello store `~/.claude/data/handoffs/<slug>/`. Slug = nome
 progetto in kebab-case (lo stesso usato con `/inizio`). Non creare l'handoff nel repository
@@ -149,19 +171,19 @@ case "$ORIGIN_URL" in
   *) ORIGIN_ARTURO=0 ;;
 esac
 if [ "$CONFIG_INTEGRA" = 1 ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; then
-  for p in settings.json commands agents hooks skills shared docs templates NOVITA.md README.md package.json; do
+  for p in settings.json .gitattributes bin commands agents hooks skills shared docs templates NOVITA.md README.md package.json; do
     [ -e "$p" ] || continue
     git add -- "$p" || echo "git add fallito su $p: resta fuori dal commit"
   done
-  # CLAUDE.md personale e handoff viaggiano solo verso un remote privato verificato.
+  # CLAUDE.md personale, handoff e todo viaggiano solo verso un remote privato verificato.
   VIS=$(gh repo view "$(git remote get-url origin 2>/dev/null)" --json visibility -q .visibility 2>/dev/null)
   if [ "$VIS" = "PRIVATE" ]; then
-    for p in CLAUDE.md data/handoffs; do
+    for p in CLAUDE.md data/handoffs data/todo; do
       [ -e "$p" ] || continue
       git add -f -- "$p" || echo "git add fallito su $p: resta fuori dal commit"
     done
   else
-    echo "CLAUDE.md e handoff non sincronizzati: il remote della config non risulta privato (visibilità: ${VIS:-sconosciuta}). Restano su questa macchina."
+    echo "CLAUDE.md, handoff e todo non sincronizzati: il remote della config non risulta privato (visibilità: ${VIS:-sconosciuta}). Restano su questa macchina."
   fi
   git diff --cached --quiet || git commit -m "chore: session sync $(date +%Y-%m-%d)" || echo "Commit di sync non riuscito: vedi errore sopra"
 fi

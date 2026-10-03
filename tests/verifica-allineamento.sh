@@ -29,6 +29,7 @@ BANCHI=(
   test_prodotto.py
   test_revisione_2026_09_30.py
   test_strato.py
+  test_todo.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -63,6 +64,12 @@ BASELINE_STRATO="$FIXTURE/baseline-e70da3d"
 mkdir -p "$BASELINE_STRATO"
 git -C "$ROOT" archive e70da3d | tar -x -C "$BASELINE_STRATO"
 python3 -B "$REPO/tests/test_strato.py" --repo "$BASELINE_STRATO" --baseline-ref e70da3d
+
+# Archivio dei todo (3/10/2026): la base e' b8eff39, l'ultimo dev prima della CLI.
+BASELINE_TODO="$FIXTURE/baseline-b8eff39"
+mkdir -p "$BASELINE_TODO"
+git -C "$ROOT" archive b8eff39 | tar -x -C "$BASELINE_TODO"
+python3 -B "$REPO/tests/test_todo.py" --repo "$BASELINE_TODO" --baseline-ref b8eff39
 
 shells=0
 while IFS= read -r -d '' file; do

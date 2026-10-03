@@ -6,7 +6,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 È il telaio di una config personale usata quotidianamente in produzione, estratto e igienizzato: **zero dati, zero credenziali, zero riferimenti a infrastrutture private**. Quello che resta è il metodo.
 
-In due righe: **18 guardie e automazioni**, **12 slash command**, **9 subagent**, **3 skill** — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
+In due righe: **18 guardie e automazioni**, **12 slash command**, **9 subagent**, **4 skill**, una **CLI per i todo** (`arturo todo`) — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
 
 ---
 
@@ -113,7 +113,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 
 Poi apri Claude Code dentro la cartella: `cd ~/.claude && claude`, e scrivi `/setup`.
 
-Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `docs/`, `templates/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono a `/sparring`, `/novita` e `/inizio gws`; `templates/` serve a `/strato`).
+Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `docs/`, `templates/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono a `/sparring`, `/novita` e `/inizio gws`; `templates/` serve a `/strato`).
 
 > **Il tuo remote.** Il clone qui sopra punta al repo originale, su cui non hai accesso in scrittura. `/fine` salva i commit sulla tua macchina e non prova a pusharli. Se vuoi **sincronizzare le tue modifiche tra più macchine**, crea un tuo repo privato e puntaci `origin`:
 > ```bash
@@ -157,7 +157,7 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 
 | Di Arturo (arriva con gli aggiornamenti) | Tuo (nessun aggiornamento lo tocca) |
 |---|---|
-| `hooks/`, `commands/`, `agents/`, `skills/`, `docs/`, `templates/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `hooks/hosts-interni.local`, `data/`, `projects/` e le altre cartelle di lavoro |
+| `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `docs/`, `templates/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `hooks/hosts-interni.local`, `data/` (compresi i tuoi todo in `data/todo/`), `projects/` e le altre cartelle di lavoro |
 
 `settings.json` è di Arturo, ma le tue modifiche restano come commit locali. `/aggiorna` ti mostra i file cambiati sia da te sia dall'aggiornamento prima di applicare. Se dopo l'aggiornamento `settings.json` non è JSON valido, `/aggiorna` torna alla versione di prima: un `settings.json` rotto spegnerebbe tutte le guardie. L'avvio della sessione te lo segnala con una riga `CONFIG ROTTA`.
 
@@ -212,10 +212,11 @@ Gli hook su `Edit`/`Write` proteggono config e forma. Gli scanner PostToolUse ri
 
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
+bin/arturo           La CLI: i tuoi todo da terminale (arturo todo)
 hooks/               18 guardie e automazioni
 commands/            12 slash command di workflow (incl. /setup, /aggiorna, /guidami, /novita, /strato)
 agents/              9 subagent specializzati
-skills/              3 skill (+ regole condivise in shared/)
+skills/              4 skill (+ regole condivise in shared/)
 docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/onboarding/     Guide di setup guidato (/inizio gws)
 docs/referente.md    Guida del referente di un'organizzazione (/strato)
@@ -282,6 +283,7 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 - **`shared/validation-gate.md`** — il gate: type-check, test, lint e print di debug. Il produttore della pipeline decide l'esito; una cache non sostituisce il controllo.
 - **`system-audit`** — audit dell'harness: hook diretti e transitivi, smoke test, frontmatter YAML e permessi. `--strict` fallisce se manca un requisito.
 - **`prompt-master`** — due modalità: un prompt pronto da incollare in un altro tool AI, oppure il **brief interno**: prima di ogni richiesta di lavoro ricostruisce il contesto che manca, riscrive la richiesta come la eseguirà (il **prompt**) e mostra obiettivo, output, vincoli, criterio di fatto, assunzioni e ambiguità (il **brief**). L'hook `inject-now.sh` lo ricorda a ogni prompt (upstream `nidhinjs/prompt-master`, MIT).
+- **`todo`** — quando dici «ricordami di…» o chiedi cosa c'è da fare, Claude usa la CLI `arturo todo`. I todo stanno in un archivio sul tuo computer (`data/todo/eventi.jsonl`), divisi per progetto, scadenza e chi agisce: tu, tu che decidi e poi Claude, oppure Claude. `/fine` ci scrive quello che resta, `/inizio` lo rilegge. Da terminale: `python3 ~/.claude/bin/arturo todo aiuto`.
 - **`italiano-semplificato`** — riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI.
 
 ---
@@ -292,9 +294,9 @@ Arturo è stato estratto da una config che include anche memoria persistente, ta
 
 | Al posto di... | Arturo usa |
 |---|---|
-| Task manager su server | `TaskList`/`TaskCreate` nativi + tabella task nell'handoff |
+| Task manager su server | l'archivio locale dei todo (`arturo todo`, in `data/todo/`) + `TaskList`/`TaskCreate` nativi per i passi della sessione |
 | Memoria su database/server | il tuo `CLAUDE.md` + gli handoff in `data/handoffs/` |
-| Sync su server privato | il repo git stesso: `data/handoffs/` viaggia con la config, solo se il suo remote è privato |
+| Sync su server privato | il repo git stesso: `data/handoffs/` e `data/todo/` viaggiano con la config, solo se il suo remote è privato |
 
 Nessun componente richiede un server, un dominio o un account specifico.
 
@@ -343,7 +345,7 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 
 ## Multi-macchina
 
-Il repo config **È** il canale di sync: `/fine` committa e pusha, `/inizio` pulla. Gli handoff stanno solo in `~/.claude/data/handoffs/`, mai nel repository del progetto, ed entrano nel push solo se `gh repo view` dice che il remote della config è privato. `session-start.sh` avvisa se la macchina è rimasta indietro rispetto a `origin/main`. Per usarlo su più macchine: clona il **tuo** fork/repo privato (vedi [Installazione](#installazione)) come `~/.claude` su ognuna.
+Il repo config **È** il canale di sync: `/fine` committa e pusha, `/inizio` pulla. Gli handoff stanno solo in `~/.claude/data/handoffs/`, mai nel repository del progetto, ed entrano nel push solo se `gh repo view` dice che il remote della config è privato. Lo stesso vale per i todo in `~/.claude/data/todo/`: il file è un registro in cui ogni modifica è una riga in più, e `.gitattributes` lo unisce senza conflitti. Se due macchine creano offline un todo con lo stesso numero, il più recente prende un numero nuovo e `arturo todo` te lo dice. `session-start.sh` avvisa se la macchina è rimasta indietro rispetto a `origin/main`. Per usarlo su più macchine: clona il **tuo** fork/repo privato (vedi [Installazione](#installazione)) come `~/.claude` su ognuna.
 
 ---
 

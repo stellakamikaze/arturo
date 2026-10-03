@@ -175,6 +175,21 @@ referente interno.
 
 ---
 
+## FASE 7c — Il comando `arturo` nel terminale (opzionale)
+
+I todo si leggono anche fuori da Claude Code, con `python3 ~/.claude/bin/arturo todo`. Chiedi:
+«Vuoi poter scrivere solo `arturo todo` nel terminale, per vedere le tue cose da fare?».
+
+- Se sì, mostra la riga che aggiungerai e il file in cui va (`~/.zshrc` su macOS, `~/.bashrc`
+  su Linux e Git Bash), poi aggiungila dopo il suo sì. Non toccare il file senza il sì.
+  ```bash
+  alias arturo='python3 "$HOME/.claude/bin/arturo"'
+  ```
+  Dille che vale dalla prossima finestra del terminale, e che `arturo todo aiuto` elenca i comandi.
+- Altrimenti salta: dentro Claude Code basta dire «cosa c'è da fare?».
+
+---
+
 ## FASE 8 — Google Workspace CLI (opzionale)
 
 Solo se l'utente vuole collegare account Google (Gmail/Drive/Calendar) via la CLI `gws`. In tal caso NON farlo qui: indirizzalo al comando dedicato **`/inizio gws`**, che ha la procedura completa. Altrimenti salta.
@@ -211,6 +226,6 @@ Se preferisce esplorare da solo, indicagli `docs/principi/README.md` e chiudi.
 Chiudi con un riepilogo in linguaggio semplice:
 - Cosa è stato configurato (prerequisiti, permessi, PROJECTS_BASE, lingua, eventuale CLAUDE.md).
 - Cosa è rimasto opzionale/saltato.
-- **Come iniziare a lavorare**: «Per avviare un progetto usa `/progetto <nome>`; per riprendere una sessione `/inizio <nome>`; per chiudere `/fine`.»
+- **Come iniziare a lavorare**: «Per avviare un progetto usa `/progetto <nome>`; per riprendere una sessione `/inizio <nome>`; per chiudere `/fine`. Quando ti viene in mente qualcosa da fare, dimmi «ricordami di…»: lo ritrovi a ogni `/inizio`.»
 - **Come restare aggiornato**: all'avvio della sessione Arturo controlla da solo se c'è una versione nuova e lo segnala (`ARTURO: c'e' un aggiornamento — scaricalo con /aggiorna`). **`/aggiorna`** la scarica e la applica, **`/novita`** racconta cosa è cambiato e propone lo sparring.
 - Ricorda che `/system-audit` si può rilanciare in qualsiasi momento per ricontrollare l'harness.

@@ -122,19 +122,24 @@ Leggi in ordine (se esistono):
 
 ---
 
-## FASE 4: Carica Task con Cross-Reference
+## FASE 4: Carica i Todo con Cross-Reference
 
-Se l'handoff contiene "## Task Pendenti":
-
-1. Esegui `git log --oneline -20` per vedere i commit recenti
-2. Per ogni task nell'handoff, verifica se un commit recente lo ha già completato
-3. Crea con `TaskCreate` solo i task NON ancora completati
-4. Segnala all'utente eventuali task skippati perché già completati
+I todo stanno nell'archivio `~/.claude/data/todo/eventi.jsonl`, scritto da `/fine` e dalle
+richieste della persona («ricordami di…»). È la fonte di verità: la tabella `## Task Pendenti`
+dell'handoff è solo la fotografia dell'ultima sessione.
 
 ```bash
-# Commit recenti per cross-reference
+# Todo aperti del progetto, divisi per chi agisce, e commit recenti per il cross-reference
+python3 "$HOME/.claude/bin/arturo" todo --progetto "$SLUG" 2>/dev/null
 git log --oneline -20 2>/dev/null
 ```
+
+1. Per ogni todo aperto, verifica se un commit recente lo ha già completato. Se sì, chiudilo
+   con `python3 ~/.claude/bin/arturo todo fatto ID` e dillo alla persona.
+2. Un item della tabella `## Task Pendenti` senza ID e senza todo (handoff di una versione
+   precedente) diventa un todo con `arturo todo aggiungi`. Un todo già chiuso non si ricrea.
+3. Non creare task di sessione (`TaskCreate`) all'apertura: si crea solo quello che la persona
+   sceglie di riprendere.
 
 ---
 
@@ -151,8 +156,9 @@ git log --oneline -20 2>/dev/null
 - Config sync: [ok / failed]
 - Merge conflicts: [nessuno / LISTA]
 
-## Task Pendenti
-[lista da TaskList — indica quali nuovi e quali ripresi da handoff]
+## Todo
+[i gruppi di `arturo todo`: TOCCA A TE, DECIDI TU POI FACCIO IO, FACCIO IO, FERMO.
+ Ogni todo con l'ID a destra e una riga su a cosa serve. Le scadenze passate in cima.]
 
 ## Skill Progetto
 [suggerisci le poche skill davvero utili a QUESTO progetto ora, in base a stack,
@@ -192,7 +198,7 @@ Questo workflow chiama automaticamente:
 - Sync GitHub config (`git -C`)
 - Check merge conflicts
 - Cross-reference task vs `git log` (skip task già completati)
-- `TaskCreate` — Per task pendenti da handoff (solo quelli non completati)
+- `arturo todo` — I todo aperti del progetto (chiude quelli già fatti da un commit)
 
 **L'utente chiama solo /inizio, il resto è automatico.**
 

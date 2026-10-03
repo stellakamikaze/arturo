@@ -11,6 +11,24 @@ modo di lavorare.
 
 ---
 
+## 2026-10-03 — Le tue cose da fare, in un posto solo
+
+**Cosa cambia**: quando dici a Claude «ricordami di mandare il preventivo venerdì», il todo
+finisce in un archivio sul tuo computer e ci resta. Prima i task sparivano a fine sessione, e
+sopravviveva solo la tabella dell'handoff. Ogni todo sa di quale progetto è, quando scade e chi
+agisce: tu, tu che decidi e poi Claude, oppure Claude. `/fine` ci scrive quello che resta da
+fare, `/inizio` te lo mostra diviso in TOCCA A TE, DECIDI TU, FACCIO IO e FERMO. Dal terminale
+lo leggi con `arturo todo` (con `/setup` puoi aggiungere il comando breve).
+
+**Il principio dietro**: delegare vuol dire anche sapere sempre cosa è in mano tua e cosa in
+mano a Claude. Un elenco unico, con chi agisce scritto accanto a ogni cosa, rende visibile
+questa divisione. È la base delle prossime viste: un pannello dentro Claude Code e una pagina web.
+
+**Da sapere**: i todo stanno in `~/.claude/data/todo/` e nessun aggiornamento li tocca. Viaggiano
+tra i tuoi computer solo se il repository della tua config è privato.
+
+<!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->
+
 ## 2026-09-30 — Lo strato della tua organizzazione
 
 **Cosa cambia**: se lavori in un'organizzazione, Arturo ora può diventare «vostro». Il

@@ -1,0 +1,2 @@
+# Il registro dei todo: ogni modifica è una riga in più, due macchine si uniscono senza conflitti.
+data/todo/*.jsonl merge=union
