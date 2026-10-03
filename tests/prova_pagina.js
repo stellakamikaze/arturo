@@ -10,7 +10,8 @@
      di «Fatto» su un'altra riga, e la nota salvata esce dal suo campo;
    - «Fatto» sulla riga del pannello aperto («Modifica» o «Ho deciso») chiude il pannello, e un
      todo scritto dalla CLI compare alla lettura successiva.
-   Nessuna dipendenza: node 18 o successivo, script classico, nessuna rete esterna. */
+   Nessuna dipendenza: node 22 o successivo (il WebSocket globale c'è da node 22), script classico,
+   nessuna rete esterna. */
 "use strict";
 
 const { spawn, execFileSync } = require("child_process");

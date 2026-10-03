@@ -21,14 +21,17 @@ della settimana sul tuo lavoro vero. `/inizio` ti mostra la tappa in una riga. A
 
 **Il principio dietro**: automatizza la forma, frena l'impegno. Il percorso conta le decisioni
 che tieni, non il lavoro che deleghi. Le tappe si aprono con una decisione presa prima che Claude
-lavori, un limite che dichiari o un no motivato. Il nuovo capitolo «Tieni la decisione» lo
+lavori, un limite che dichiari o un no motivato. Delega chiede due segni insieme: una decisione
+presa prima che Claude lavori (con `deciso`, o chiudendo tu un todo DECIDI TU) e un limite (un
+perché detto da te su un todo tuo, oppure un no motivato). Il nuovo capitolo «Tieni la decisione» lo
 racconta (`docs/principi/05-tieni-la-decisione.md`), e `docs/esercizi.md` ha otto esercizi.
 
 **Da sapere**: il percorso si calcola solo sul tuo computer, dai tuoi todo, e il suo stato resta lì.
 I todo da cui nasce (i perché e le note «Tenuto:») viaggiano come gli altri todo: solo verso il
 tuo repository privato, con `/fine`. Il referente della tua organizzazione non vede il percorso. Dopo un no alla proposta di `/fine`, Claude tace
 tre giorni. Dopo due no di fila, due settimane. «Basta suggerimenti» le spegne finché non dici
-«riprendi i suggerimenti».
+«riprendi i suggerimenti». Pausa e silenzi valgono solo sul computer dove li dici: lo stato del
+percorso non viaggia con `/fine`.
 
 <!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->
 
@@ -55,7 +58,8 @@ Code.
 ## 2026-10-03 — La pagina delle cose da fare
 
 **Cosa cambia**: ora vedi i tuoi todo anche in una pagina del browser. Chiedi a Claude «fammi
-vedere le mie cose da fare in una pagina», oppure scrivi `arturo web` nel terminale. La pagina
+vedere le mie cose da fare in una pagina», oppure scrivi nel terminale
+`python3 ~/.claude/bin/arturo web` (solo `arturo web` se con `/setup` hai aggiunto il comando breve). La pagina
 divide i todo in tre modi: per chi agisce, per progetto e per scadenza, con un'agenda che parte
 dagli scaduti e arriva a «più avanti». Da lì aggiungi un todo, lo segni fatto, lo modifichi o lo
 fermi. Su un todo di «Decidi tu, poi faccio io» premi «Ho deciso», scrivi la scelta e il lavoro
@@ -79,9 +83,10 @@ finisce in un archivio sul tuo computer e ci resta. Prima i task sparivano a fin
 sopravviveva solo la tabella dell'handoff. Ogni todo sa di quale progetto è, quando scade e chi
 agisce: tu, tu che decidi e poi Claude, oppure Claude. `/fine` ci scrive quello che resta da
 fare, `/inizio` te lo mostra diviso in TOCCA A TE, DECIDI TU, FACCIO IO e FERMO. Dal terminale
-lo leggi con `arturo todo` (con `/setup` puoi aggiungere il comando breve). Quando hai deciso
-su un todo di DECIDI TU, scrivi `arturo todo deciso 4 "piano B"`: la scelta resta nel todo e il
-lavoro passa a Claude.
+lo leggi con `python3 ~/.claude/bin/arturo todo` (con `/setup` puoi aggiungere il comando breve
+`arturo todo`). Quando hai deciso su un todo di DECIDI TU, dillo a Claude, oppure scrivi
+`python3 ~/.claude/bin/arturo todo deciso 4 "piano B"`: la scelta resta nel todo e il lavoro passa
+a Claude.
 
 **Il principio dietro**: delegare vuol dire anche sapere sempre cosa è in mano tua e cosa in
 mano a Claude. Un elenco unico, con chi agisce scritto accanto a ogni cosa, rende visibile

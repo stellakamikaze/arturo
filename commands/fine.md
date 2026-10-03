@@ -117,20 +117,35 @@ gesto), `decidi` se serve una sua scelta prima che lavori tu, `io` se lo fai tu.
 bloccato va in FERMO con `ferma`, non con `--chi`.
 
 ```bash
-PROGETTO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
-SLUG=$(printf '%s' "$PROGETTO" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
-TODO="python3 $HOME/.claude/bin/arturo todo"
-$TODO --progetto "$SLUG"              # cosa c'è già: non creare doppioni
-# per ogni item nuovo:
-#   $TODO aggiungi "verbo e oggetto" --progetto "$SLUG" --chi io|tu|decidi --priorita alta|media|bassa [--scadenza 10/10] [--perche "invio a terzi"] [--note "cosa resta"]
-# per ogni todo che cambia:
-#   $TODO fatto ID · $TODO ferma ID "motivo" · $TODO riprendi ID · $TODO nota ID "testo" · $TODO modifica ID --chi tu
+# Il progetto dei todo è quello della cartella, calcolato dalla CLI: lo stesso di «ricordami di…».
+# Fuori da git e nella HOME è «generale». Ogni riga scrive il comando intero, tra virgolette:
+# una HOME con uno spazio («Mario Rossi») resta un percorso solo, e nessuna variabile deve
+# sopravvivere da una chiamata all'altra.
+python3 "$HOME/.claude/bin/arturo" todo progetto
+python3 "$HOME/.claude/bin/arturo" todo --progetto .     # cosa c'è già: non creare doppioni
 ```
+
+Poi, per ogni item, una riga intera come queste. `arturo todo aggiungi` mette il todo nel
+progetto della cartella, come «ricordami di…»:
+
+```bash
+python3 "$HOME/.claude/bin/arturo" todo aggiungi "verbo e oggetto" --chi io --priorita media --note "cosa resta"
+python3 "$HOME/.claude/bin/arturo" todo fatto ID
+python3 "$HOME/.claude/bin/arturo" todo ferma ID "motivo"
+python3 "$HOME/.claude/bin/arturo" todo nota ID "testo"
+python3 "$HOME/.claude/bin/arturo" todo modifica ID --chi tu
+```
+
+Se la lettura stampa righe «Attenzione:», riportale alla persona: un todo può aver cambiato
+numero dopo un merge. Per un numero letto da un handoff aggiungi `--titolo-atteso="titolo"`:
+se il todo con quel numero ha un altro titolo, la CLI non scrive niente.
 
 Il titolo dice l'azione a una persona («Mandare a Gigi la parola d'ordine»), non uno slug.
 Se la persona ha chiesto un todo durante la sessione («ricordami di…»), c'è già: aggiornalo.
-Un todo `tu` porta un perché quando lo sai dalla sessione. Se non lo sai, lascialo vuoto: lo
-chiede il percorso, una domanda per volta (skill percorso). Non spostare mai un todo da tu a io
+Un todo `tu` porta un perché solo se la persona lo ha detto con parole sue nella sessione
+(«la firma la metto io»). Non dedurlo tu dalla frase: il percorso conta il perché come un limite
+che la persona ha dichiarato. Se lei non l'ha detto, lascialo vuoto: lo chiede il percorso, una
+domanda per volta (skill percorso). Non spostare mai un todo da tu a io
 o decidi senza un sì.
 
 **Una proposta, al massimo.** Se nella sessione la persona ha fatto a mano un passo che Claude
@@ -148,7 +163,8 @@ conta: non proporre una delega su un todo che ha un perché.
 
 Se nella sessione la persona ha fatto un esercizio del percorso (un todo del progetto
 `_percorso`), chiedi «cosa hai tenuto per te?» prima di chiuderlo. Scrivi la risposta con
-`$TODO nota ID "Tenuto: …"`, poi `$TODO fatto ID`.
+`python3 "$HOME/.claude/bin/arturo" todo nota ID "Tenuto: …"`, poi
+`python3 "$HOME/.claude/bin/arturo" todo fatto ID`.
 
 **Dove va l'handoff.** Scrivilo nello store `~/.claude/data/handoffs/<slug>/`. Slug = nome
 progetto in kebab-case (lo stesso usato con `/inizio`). Non creare l'handoff nel repository

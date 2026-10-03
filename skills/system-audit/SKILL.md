@@ -36,7 +36,7 @@ Solo questi controlli, niente di più:
 3. **Guardie transitive** — ogni guardia richiamata da `bash-dispatcher.sh` con `run_guard` esiste su disco.
 4. **Smoke test** — ogni hook Python riceve `{}` su stdin ed esce 0 (timeout 5 s se c'è `timeout`); ogni hook JS passa `node --check`. Gli hook `.sh` non si eseguono (vedi Importante).
 5. **Agent** — ogni `.md` in `~/.claude/agents/` ha frontmatter YAML con `name` e `description`.
-6. **Skill** — ogni cartella in `~/.claude/skills/` ha `SKILL.md` con frontmatter YAML, `name` e `description`.
+6. **Skill e mod** — ogni cartella in `~/.claude/skills/` ha `SKILL.md` con frontmatter YAML, `name` e `description`. Una cartella con `.claude-plugin/plugin.json` è un mod di Claude Code (come il pannello `/dafare`), non una skill: non ha `SKILL.md` e non va aggiunta. Per un mod l'audit controlla che `name` del manifest coincida con il nome della cartella e che esista `hooks/hooks.json`.
 7. **README** — `~/.claude/README.md` esiste.
 8. **Permessi** — `defaultMode` presente e nessun pattern uguale in `allow` e `deny`.
 

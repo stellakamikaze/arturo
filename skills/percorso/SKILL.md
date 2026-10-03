@@ -40,9 +40,12 @@ delegate non conta mai. La tappa può anche scendere, se un todo si riapre: dill
    `avvisi`. Se ci sono avvisi, riferiscili in una riga.
 
 2. **Racconta la tappa** in parole tue, in due o tre frasi. Cita il #id che prova ogni segno
-   raggiunto. Poi di' quale segno apre la tappa dopo, come una possibilità: «La tappa Delega si
-   apre quando decidi qualcosa prima che io lavori, per esempio con `deciso` su un todo
-   DECIDI TU». Con `tappa` 0, di' che la prima tappa è Osserva e che basta un todo sul tuo
+   raggiunto. Poi di' quali segni mancano per aprire la tappa dopo, come una possibilità. Una
+   tappa si apre solo con **tutti** i suoi segni: leggili in `tappe[].segni`, quelli con `prova`
+   null mancano. Delega ne chiede due: una decisione presa prima che Claude lavori (con `deciso`
+   su un todo DECIDI TU, o chiudendo tu quel todo) e un limite (un perché detto dalla persona su
+   un todo tuo, oppure un no motivato). Per esempio: «Per Delega manca il limite: un todo che
+   tieni tu, con il tuo perché». Con `tappa` 0, di' che la prima tappa è Osserva e che basta un todo sul tuo
    lavoro: i todo degli esercizi non contano.
 
 3. **Mostra «Cose che tieni per te»**: ogni voce di `tieni_tu` come una regola della persona
@@ -90,7 +93,9 @@ delegate non conta mai. La tappa può anche scendere, se un todo si riapre: dill
 
 8. **Basta e riprendi.** Se la persona dice «basta suggerimenti», lancia
    `python3 ~/.claude/bin/arturo percorso basta`. Se dice «riprendi i suggerimenti», lancia
-   `python3 ~/.claude/bin/arturo percorso riprendi`. Conferma in una riga.
+   `python3 ~/.claude/bin/arturo percorso riprendi`: toglie la pausa e anche il silenzio dopo un
+   no. Conferma in una riga con le parole del comando. Pausa e silenzi valgono solo su questo
+   computer: dillo se la persona lavora su più computer.
 
 ## Freni
 

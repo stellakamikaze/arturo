@@ -19,7 +19,9 @@ pannello e della pagina non sbloccano nessuna tappa, la decisione si legge dalla
 un todo stato decidi), e un todo ripreso dopo un annullo torna nel percorso. Due tasti «c» di
 fila (tu, decidi, io) non sono una decisione, e un annullo non toglie una nota «Deciso:» scritta
 a mano. Gli esercizi non contano per le tappe, un todo annullato non entra in «Cose che tieni per
-te», e nemmeno «Tenuto: niente».
+te», e nemmeno «Tenuto: niente». Il ramo dei dieci minuti si prova con ts scritti a mano: quindici
+minuti senza eventi in mezzo sono una decisione, cinque no, e un ts senza fuso accanto a uno con
+il fuso non lo è.
 Sulla base 3001fcc ogni controllo deve fallire.
 """
 from __future__ import annotations
@@ -633,9 +635,35 @@ def test_g15(repo: Path) -> None:
         assert v["tieni_tu"] == [], f"G15 «Tenuto: niente» in «Cose che tieni per te»: {v['tieni_tu']}"
         assert "- niente" not in c.percorso().stdout, "G15 «niente» stampato come una regola"
 
+    def a_mano(c: Casa, decidi: str, io: str) -> list:
+        """Un todo tu passato a decidi e poi a io, senza eventi in mezzo, con i ts scritti a mano:
+        il banco non aspetta dieci minuti veri. Torna le prove di Delega."""
+        uid = "d" * 32
+        righe = [{"v": 1, "ts": "2026-10-05T09:00:00.000000+00:00", "ev": "1" * 32, "todo": uid, "tipo": "crea",
+                  "id": 1, "dati": {"titolo": "Scegliere la copertina", "progetto": "p", "chi": "tu"}},
+                 {"v": 1, "ts": decidi, "ev": "2" * 32, "todo": uid, "tipo": "modifica", "dati": {"chi": "decidi"}},
+                 {"v": 1, "ts": io, "ev": "3" * 32, "todo": uid, "tipo": "modifica", "dati": {"chi": "io"}}]
+        c.registro.parent.mkdir(parents=True, exist_ok=True)
+        c.registro.write_text("".join(json.dumps(r) + "\n" for r in righe), encoding="utf-8")
+        return c.prova("Delega")
+
+    def dieci_minuti(c: Casa) -> None:
+        assert a_mano(c, "2026-10-05T10:00:00.000000+00:00", "2026-10-05T10:15:00.000000+00:00")[0] == 1, \
+            "G15 decidi alle 10:00 e io alle 10:15, senza eventi in mezzo, non è una decisione"
+
+    def cinque_minuti(c: Casa) -> None:
+        assert a_mano(c, "2026-10-05T10:00:00.000000+00:00", "2026-10-05T10:05:00.000000+00:00")[0] is None, \
+            "G15 decidi alle 10:00 e io alle 10:05, senza eventi in mezzo, è una decisione"
+
+    def senza_fuso(c: Casa) -> None:
+        assert a_mano(c, "2026-10-05T10:00:00.000000", "2026-10-05T10:15:00.000000")[0] == 1, \
+            "G15 due ts senza fuso a quindici minuti non sono una decisione"
+        assert a_mano(c, "2026-10-05T10:00:00.000000+00:00", "2026-10-05T10:15:00.000000")[0] is None, \
+            "G15 un ts con il fuso e uno senza (TypeError) valgono come decisione"
+
     for caso in (fatto_annullato, aggiungi_annullato, deciso_annullato, tasto_chi, da_tu_a_io, nota_senza_decidi,
                  storia_discorde, aggiungi_annullato_ripreso, chi_di_fila, nota_a_mano_poi_annullo,
-                 esercizio_non_conta, tieni_tu_annullato, tenuto_niente):
+                 esercizio_non_conta, tieni_tu_annullato, tenuto_niente, dieci_minuti, cinque_minuti, senza_fuso):
         con_casa(repo, caso)
 
 

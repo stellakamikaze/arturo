@@ -129,8 +129,13 @@ richieste della persona («ricordami di…»). È la fonte di verità: la tabell
 dell'handoff è solo la fotografia dell'ultima sessione.
 
 ```bash
-# Todo aperti del progetto, divisi per chi agisce, e commit recenti per il cross-reference
-python3 "$HOME/.claude/bin/arturo" todo --progetto "$SLUG" 2>/dev/null
+# Il progetto dei todo è quello della cartella (FASE 1 ci è entrata), calcolato dalla CLI come per
+# «ricordami di…»: nessuna variabile di un blocco precedente. Gli avvisi («Attenzione: …») restano
+# visibili: dopo il pull un todo può aver cambiato numero.
+python3 "$HOME/.claude/bin/arturo" todo progetto
+python3 "$HOME/.claude/bin/arturo" todo --progetto .
+# I todo di «generale»: quelli presi fuori da un progetto (nella HOME, in /setup, fuori da git).
+[ "$(python3 "$HOME/.claude/bin/arturo" todo progetto)" = generale ] || python3 "$HOME/.claude/bin/arturo" todo --progetto generale
 git log --oneline -20 2>/dev/null
 # Il percorso a tappe: la tappa e l'esercizio della settimana, calcolati sul computer della persona
 python3 "$HOME/.claude/bin/arturo" percorso --json 2>/dev/null
@@ -138,8 +143,9 @@ python3 "$HOME/.claude/bin/arturo" percorso --json 2>/dev/null
 claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "dafare@skills-dir"]; print("mod caricato" if v and v[0].get("enabled") else "mod assente")' 2>/dev/null || echo "mod assente"
 ```
 
-1. Per ogni todo aperto, verifica se un commit recente lo ha già completato. Se sì, chiudilo
-   con `python3 ~/.claude/bin/arturo todo fatto ID` e dillo alla persona.
+1. Per ogni todo aperto del progetto, verifica se un commit recente lo ha già completato. Se sì,
+   chiudilo con `python3 ~/.claude/bin/arturo todo fatto ID --titolo-atteso="titolo"` e dillo
+   alla persona. I todo di «generale» non si confrontano con il git log del progetto.
 2. Un item della tabella `## Task Pendenti` senza ID e senza todo (handoff di una versione
    precedente) diventa un todo con `arturo todo aggiungi`. Un todo già chiuso non si ricrea.
 3. Non creare task di sessione (`TaskCreate`) all'apertura: si crea solo quello che la persona
@@ -161,8 +167,11 @@ claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p 
 - Merge conflicts: [nessuno / LISTA]
 
 ## Todo
+[se la lettura della FASE 4 stampa righe «Attenzione:», riportale qui per prime, una riga
+ ciascuna, con parole tue: «#1 adesso è #2, dopo il merge con l'altro computer».]
 [i gruppi di `arturo todo`: TOCCA A TE, DECIDI TU POI FACCIO IO, FACCIO IO, FERMO.
  Ogni todo con l'ID a destra e una riga su a cosa serve. Le scadenze passate in cima.]
+[poi, se ci sono, i todo aperti di «generale», in un gruppo «Fuori dai progetti».]
 [solo se il controllo del pannello della FASE 4 stampa «mod caricato»:]
 Per chiuderli o spostarli con un tasto: /dafare
 

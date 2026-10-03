@@ -13,7 +13,9 @@ come decisione: la persona lo ha affidato a Claude, non ha deciso niente.
 
 Gli annulli non contano. Un evento con il segno `annullo` (un clic annullato nel pannello o
 nella pagina, un `ripristina`) toglie dalla storia anche il passo che annulla: un clic
-sbagliato non sblocca nessuna tappa.
+sbagliato non sblocca nessuna tappa. Il passo annullato e' quello che l'annullo rimette com'era:
+l'ultimo passo dello stesso tipo partito dal valore che l'annullo riscrive. Un passo vero fatto
+nel frattempo resta.
 
 Solo libreria standard, Python 3.8 o successivo.
 """
@@ -56,6 +58,8 @@ ULTIMI_SUGGERIMENTI = 10
 # Un passaggio tu -> decidi -> io piu' rapido di cosi', senza altri eventi in mezzo, e' un gesto solo.
 DI_FILA = 10
 PAUSA = "in pausa finché non dici riprendi"
+# L'esito di un no a cui e' seguito «riprendi»: il silenzio finisce, il no resta nella lista.
+RIPRESO = "ripreso"
 GIA_OGGI = "già uno oggi"
 
 
@@ -70,30 +74,59 @@ def file_stato() -> Path:
 
 # --- la storia di un todo, senza gli annulli -----------------------------------
 
+# I valori di un todo appena creato, come in todo_store.carica().
+_INIZIALI = {"chi": "tu", "perche": "", "priorita": "media", "quando": "settimana", "scadenza": "",
+             "progetto": "generale", "titolo": "", "stato": "da fare", "motivo": ""}
+
+
+def _prima_di_ogni_passo(storia: list) -> list:
+    """Per ogni evento della storia, i valori del todo subito prima. Contano anche gli annulli."""
+    valori, prima = dict(_INIZIALI), []
+    for e in storia:
+        prima.append(dict(valori))
+        dati = e["dati"]
+        if e["tipo"] in ("crea", "modifica"):
+            valori.update({k: v for k, v in dati.items() if k in _INIZIALI and k not in ("stato", "motivo")})
+        elif e["tipo"] == "stato" and dati.get("stato") in ts.STATI:
+            valori["stato"], valori["motivo"] = dati["stato"], dati.get("motivo", "") or ""
+    return prima
+
+
+def _annullato_da(e: dict, p: dict, valori_prima: dict) -> bool:
+    """Il passo `p` e' quello che l'annullo `e` rimette com'era? Si', se `p` era partito proprio
+    dai valori che l'annullo riscrive."""
+    if p["tipo"] != e["tipo"] or p["dati"].get("annullo"):
+        return False
+    if e["tipo"] == "stato":
+        return (valori_prima["stato"] == e["dati"].get("stato")
+                and valori_prima["motivo"] == (e["dati"].get("motivo", "") or ""))
+    campi = (set(e["dati"]) - {"annullo"}) & set(p["dati"]) & set(_INIZIALI)
+    return bool(campi) and all(valori_prima[k] == e["dati"][k] for k in campi)
+
+
 def storia_pulita(t: dict) -> tuple:
     """Torna (storia senza annulli, tolto).
 
-    Un evento con `annullo` toglie anche il passo che annulla: l'ultimo evento dello stesso tipo
-    che non e' un annullo (per una modifica, uno che tocca almeno un campo uguale). Se il passo
-    tolto e' il passaggio a io di `deciso`, va via anche la nota «Deciso:» scritta insieme.
+    Un evento con `annullo` toglie anche il passo che annulla: l'ultimo evento dello stesso tipo,
+    non annullo, partito dai valori che l'annullo riscrive (per uno stato: stato e motivo; per una
+    modifica: i campi che tutti e due toccano). Un passo vero scritto fra il clic e l'annullo resta.
+    Se il passo tolto e' il passaggio a io di `deciso`, va via anche la nota «Deciso:» scritta insieme.
     Un annullo che chiude il todo senza un passo da togliere annulla la creazione (l'Annulla
     di un aggiungi nella pagina): allora il todo e' «tolto» e il percorso non lo legge. Un passo
     vero dopo quell'annullo (un Riprendi, una modifica, una nota) lo rimette nel percorso.
     """
     storia = t["storia"]
+    prima_di = _prima_di_ogni_passo(storia)
     via, tolto_da = set(), None
     for i, e in enumerate(storia):
         dati = e["dati"]
         if not dati.get("annullo"):
             continue
         via.add(i)
-        campi = set(dati) - {"annullo"}
         trovato = False
         for j in range(i - 1, -1, -1):
             p = storia[j]
-            if j in via or p["tipo"] != e["tipo"] or p["dati"].get("annullo"):
-                continue
-            if e["tipo"] == "modifica" and not (set(p["dati"]) & campi):
+            if j in via or not _annullato_da(e, p, prima_di[j]):
                 continue
             via.add(j)
             trovato = True
@@ -142,8 +175,10 @@ def tenuto_decidi(ingresso, posizione: int, quando: str) -> bool:
 def leggi(t: dict) -> dict:
     """Quello che il percorso sa di un todo. Stato, chiusura e decisione vengono dalla storia pulita.
 
-    `deciso` e' l'istante della prima decisione: la nota «Deciso:» su un todo decidi, o il
-    passaggio da decidi a io quando il todo era gia' decidi (vedi tenuto_decidi).
+    `deciso` e' l'istante della prima decisione: la nota «Deciso:» su un todo decidi, il
+    passaggio da decidi a io quando il todo era gia' decidi (vedi tenuto_decidi), oppure la
+    chiusura con «fatto» di un todo che era ancora decidi: la persona ha scelto e lo ha chiuso lei.
+    Uno scarto con motivo di un todo decidi resta un no motivato: conta per il limite, non qui.
     """
     pulita, tolto = storia_pulita(t)
     chi, stato, motivo, chiuso = "tu", "da fare", "", ""
@@ -166,6 +201,9 @@ def leggi(t: dict) -> dict:
         elif tipo == "stato" and dati.get("stato") in ts.STATI:
             if stato == "fatto" and dati["stato"] in ts.APERTI:
                 riaperto = True
+            if dati["stato"] == "fatto" and chi == "decidi" and stato != "fatto":
+                decisione = True
+                deciso = deciso or e["ts"]
             stato, motivo = dati["stato"], dati.get("motivo", "") or ""
             chiuso = e["ts"] if stato in ("fatto", "scartato") else ""
     # Lo stato conta solo se la storia pulita e l'archivio dicono la stessa cosa.
@@ -206,7 +244,8 @@ def tappe(todo: dict) -> list:
     per_uid = {t["uid"]: (t, info) for t, info in letti}
 
     osserva = _prima(t["id"] for t, _ in letti)
-    prova = _prima(t["id"] for t, info in letti if t["chi"] in ("io", "decidi") and info["fatto"])
+    # Un lavoro di Claude: un todo io chiuso. Un todo decidi chiuso lo ha chiuso la persona.
+    prova = _prima(t["id"] for t, info in letti if t["chi"] == "io" and info["fatto"])
     decisione = _prima(t["id"] for t, info in letti if info["decisione"])
     limite = _prima(
         t["id"] for t, info in letti
@@ -215,13 +254,24 @@ def tappe(todo: dict) -> list:
         or (t["chi"] == "io" and info["riaperto"])
     )
 
+    def collegato_prima(x, uid: str, chiuso: str) -> bool:
+        """Il collegamento «X aspetta uid» esisteva gia' quando X si e' chiuso."""
+        quando = ""
+        for e in storia_pulita(x)[0]:
+            if e["tipo"] == "dopo" and e["dati"].get("aggiungi") == uid:
+                quando = e["ts"]
+        return bool(quando) and quando <= chiuso
+
     def apre(x, info_x) -> bool:
         """X e' un lavoro di Claude chiuso che aspettava Y. Conta il momento della decisione su Y:
         con `deciso` il todo passa a io e resta aperto, quindi la chiusura di Y non serve. Un Y tu o
-        decidi senza decisione conta se e' fatto e chiuso prima di X."""
+        decidi senza decisione conta se e' fatto e chiuso prima di X. Il collegamento deve esserci
+        gia' alla chiusura di X: un `dopo` scritto a cose fatte non apre niente."""
         if x["chi"] != "io" or not info_x["fatto"]:
             return False
         for uid in x["dopo"]:
+            if not collegato_prima(x, uid, info_x["chiuso"]):
+                continue
             y, info_y = per_uid.get(uid, (None, None))
             if y is None:
                 continue
@@ -357,7 +407,8 @@ def leggi_stato(file: Path | None = None) -> tuple:
     suggerimenti = grezzo.get("suggerimenti")
     if isinstance(suggerimenti, list):
         stato["suggerimenti"] = [{"data": s["data"], "esito": s.get("esito")} for s in suggerimenti
-                                 if isinstance(s, dict) and _data_valida(s.get("data")) and s.get("esito") in (None, "no")]
+                                 if isinstance(s, dict) and _data_valida(s.get("data"))
+                                 and s.get("esito") in (None, "no", RIPRESO)]
     if grezzo.get("pausa") == "sempre":
         stato["pausa"] = "sempre"
     return stato, []
@@ -473,11 +524,12 @@ AIUTO = """Il percorso a tappe (scrivi «arturo percorso» davanti a ognuno):
   suggerisci          /fine chiede se può proporre una delega: esce con 0 (sì) o 3 (taci)
   no                  la persona ha detto no alla proposta: Claude tace per qualche giorno
   basta               nessuna proposta finché non dici riprendi
-  riprendi            le proposte ripartono
+  riprendi            le proposte ripartono, anche dopo un no
   aiuto               questo testo
 
 Codici di uscita: 0 fatto, 2 errore, 3 (solo suggerisci) oggi Claude non propone niente.
 Il calcolo e lo stato restano su questo computer: lo stato sta in ~/.claude/session-env/percorso.json.
+Pausa e silenzi valgono solo sul computer dove li dici: lo stato non viaggia con /fine.
 """
 
 
@@ -549,6 +601,15 @@ def main(argv: list) -> int:
         print("Va bene. Niente proposte di delega finché non dici: arturo percorso riprendi")
         return 0
 
-    cambia_stato(lambda s: s.__setitem__("pausa", None))
-    print("Le proposte di delega ripartono, al massimo una al giorno.")
+    def riprendi(s: dict) -> None:
+        s["pausa"] = None
+        # «riprendi» toglie anche il silenzio dopo un no: i no in coda diventano «ripreso».
+        for voce in reversed(s.get("suggerimenti", [])):
+            if voce["esito"] != "no":
+                break
+            voce["esito"] = RIPRESO
+    stato = cambia_stato(riprendi)
+    oggi_si, _ = suggeribile(stato, oggi)
+    print("Le proposte di delega ripartono, al massimo una al giorno"
+          + ("." if oggi_si else ": per oggi ce n'è già stata una, la prossima da domani."))
     return 0

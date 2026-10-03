@@ -6,6 +6,15 @@ for tool in bash python3 git node; do
   command -v "$tool" >/dev/null 2>&1 || { echo "FAIL: $tool mancante" >&2; exit 1; }
 done
 python3 -c 'import yaml' >/dev/null 2>&1 || { echo "FAIL: PyYAML mancante" >&2; exit 1; }
+# Un Python fino alla 3.11: lì argparse toglie «--» da `--motivo=--`, e U04 lo prova sulla CLI vera.
+PYTHON_VECCHIO=""
+for py in python3.8 python3.9 python3.10 python3.11 /usr/bin/python3; do
+  if command -v "$py" >/dev/null 2>&1 && "$py" -c 'import sys; sys.exit(0 if (3, 8) <= sys.version_info[:2] <= (3, 11) else 1)' 2>/dev/null; then
+    PYTHON_VECCHIO=$(command -v "$py"); break
+  fi
+done
+[[ -n "$PYTHON_VECCHIO" ]] || { echo "FAIL: serve un Python dalla 3.8 alla 3.11 per U04 (il motivo «--» sui Python vecchi)" >&2; exit 1; }
+echo "PYTHON_VECCHIO=$PYTHON_VECCHIO"
 # Il pannello /dafare si prova con Claude Code vero (validate, test, claude -p): senza, il gate fallisce.
 command -v claude >/dev/null 2>&1 || {
   echo "FAIL: claude mancante: il gate prova il pannello /dafare con claude plugin validate, claude plugin test e claude -p" >&2
@@ -16,6 +25,8 @@ FIXTURE=$(mktemp -d "${TMPDIR:-/tmp}/arturo-allineamento.XXXXXX")
 trap 'rm -rf "$FIXTURE"' EXIT
 HOME="$FIXTURE/home"
 export HOME USERPROFILE="$HOME" XDG_CACHE_HOME="$FIXTURE/cache" TMPDIR="$FIXTURE/tmp" PYTHONDONTWRITEBYTECODE=1
+# W13: nel gate la prova nel browser non salta. Senza Chrome o node 22 il gate è rosso.
+export ARTURO_PROVA_BROWSER=obbligatoria
 mkdir -p "$HOME" "$TMPDIR"
 cp -R "$ROOT/." "$HOME/.claude"
 REPO="$HOME/.claude"
@@ -38,10 +49,23 @@ BANCHI=(
   test_pannello.py
   test_web.py
   test_percorso.py
+  test_revisione_ciclo5.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
 done
+
+# Il minimo dichiarato è Python 3.8: la CLI, la pagina e il percorso girano anche con quello. I banchi
+# lanciano la CLI con l'interprete che li esegue (sys.executable).
+PY38_BANCHI=(test_todo.py test_web.py test_percorso.py)
+PY38=$(command -v python3.8 || true)
+if [[ -n "$PY38" ]]; then
+  for test in "${PY38_BANCHI[@]}"; do
+    "$PY38" -B "$REPO/tests/$test" --repo "$REPO"
+  done
+else
+  echo "NOTA: python3.8 assente, todo, pagina e percorso provati solo con $(python3 --version 2>&1)"
+fi
 
 # Controprove: ogni riga e' «banco ref [radice]». Il banco gira sulla base `ref` estratta con
 # git archive e deve dichiararla discriminante. Con «radice» il banco riceve il repository vero
@@ -71,6 +95,11 @@ BASELINE=(
   "test_web.py 6ef1c0c"
   # Il percorso a tappe (3/10/2026): 3001fcc, l'ultimo dev prima del ciclo 5.
   "test_percorso.py 3001fcc"
+  # La revisione del ciclo 5 (3/10/2026): 81431a2, il commit subito prima delle correzioni. Il banco
+  # conta un rosso solo se l'AssertionError comincia con il codice del controllo: un file o un
+  # comando assente sulla base non prova niente. Le controprove dei cicli di correzione usano
+  # questa regola e il commit subito prima della correzione.
+  "test_revisione_ciclo5.py 81431a2"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

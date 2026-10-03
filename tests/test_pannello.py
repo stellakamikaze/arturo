@@ -9,7 +9,8 @@ validate` passa, il mod aggancia gli eventi giusti e chiama solo process.run (ni
 niente modello, niente prompt). U03 `claude plugin test` passa con 0 fail e su ogni superficie passano tutti
 i test del kit, contati per id con la tabella KIT. U04 la tabella dei tasti (hooks/verbi.mjs) sulla CLI vera:
 ogni verbo fa quello che dice e ogni inverso rimette stato, motivo, chi e quando di prima, con
-il segno di annullo, anche con un motivo «--» e su ogni Python dalla 3.8 alla 3.11 che c'è; le
+il segno di annullo, anche con un motivo «--» e su ogni Python dalla 3.8 alla 3.11 che c'è (stampa
+quali), e motivo_esatto() si prova come funzione su ogni macchina; le
 chiavi di TodoVoce sono quelle della CLI. U05 in una HOME pulita Claude
 Code adotta il mod e `claude -p /dafare` legge l'archivio. U06 il percorso della CLI viene dalla
 cartella del mod, e nel mod non ci sono percorsi assoluti né dati personali. U07 i testi del
@@ -201,8 +202,38 @@ def test_u04(repo: Path) -> None:
     dichiarate = set(re.findall(r"^\s+(\w+)\??:", blocco.group(1), re.M))
     assert dichiarate == chiavi, f"U04 TodoVoce e CHIAVI_TODO non coincidono: {sorted(dichiarate ^ chiavi)}"
 
-    for python in pythons():
+    # motivo_esatto() come funzione, sull'argv grezzo: il veleno va in rosso su ogni macchina, anche
+    # senza un Python fino alla 3.11 (dove argparse toglie «--» da `--motivo=--`).
+    cli_mod = carica_cli(repo)
+    for argv, atteso in ((["ripristina", "4", "--motivo=--", "--", "fermo"], (["ripristina", "4", "--", "fermo"], "--")),
+                         (["ripristina", "4", "--motivo=-firma", "fermo"], (["ripristina", "4", "fermo"], "-firma")),
+                         (["ripristina", "4", "--", "--motivo=x"], (["ripristina", "4", "--", "--motivo=x"], None))):
+        uscita = cli_mod.motivo_esatto(list(argv))
+        assert tuple(uscita) == atteso, f"U04 motivo_esatto({argv}) = {uscita}, atteso {atteso}"
+    provati = pythons()
+    print(f"U04 Python provati: {', '.join(provati)}")
+    for python in provati:
         verbi_sulla_cli(repo, chiavi, python)
+
+
+def carica_cli(repo: Path):
+    """bin/arturo come modulo: le sue funzioni si provano senza passare da argparse."""
+    import importlib.machinery
+    import importlib.util
+    file = repo / "bin" / "arturo"
+    sys.path.insert(0, str(repo / "bin"))
+    vecchio = sys.modules.pop("todo_store", None)
+    try:
+        caricatore = importlib.machinery.SourceFileLoader("arturo_cli_u04", str(file))
+        spec = importlib.util.spec_from_loader(caricatore.name, caricatore)
+        modulo = importlib.util.module_from_spec(spec)
+        caricatore.exec_module(modulo)
+    finally:
+        sys.path.remove(str(repo / "bin"))
+        sys.modules.pop("todo_store", None)
+        if vecchio is not None:
+            sys.modules["todo_store"] = vecchio
+    return modulo
 
 
 def pythons() -> list:
@@ -405,11 +436,26 @@ DIFF_ATTESI = ("hooks/guardia.py", "settings.json", "skills/todo/scripts/vecchio
                "skills/dafare/.claude-plugin/plugin.json")
 
 
+def blocco_di_aggiorna(repo: Path) -> str:
+    """Il blocco bash del Passo 1 di /aggiorna che mostra il codice che gira da solo."""
+    testo = read(repo / "commands" / "aggiorna.md")
+    dopo = testo.split("**Leggi cosa cambia nel codice che gira da solo**", 1)
+    assert len(dopo) == 2, "il passo «Leggi cosa cambia» di /aggiorna manca"
+    m = re.search(r"```bash\n(.*?)```", dopo[1], re.S)
+    assert m, "il blocco del diff di /aggiorna manca"
+    # Il blocco entra in ~/.claude: qui gira nel clone di prova, che è già la cartella corrente.
+    return m.group(1).replace('cd "$HOME/.claude"\n', "")
+
+
+def file_mostrati(uscita: str) -> set:
+    """I file che l'uscita del blocco mostra: un diff intero o una riga di --numstat."""
+    return set(re.findall(r"^diff --git a/(\S+) ", uscita, re.M)) | set(re.findall(r"^(?:\d+|-)\t(?:\d+|-)\t(\S+)$", uscita, re.M))
+
+
 def diff_di_aggiorna(repo: Path) -> dict:
-    """Lancia la riga del diff di commands/aggiorna.md in un clone fermo alla base, con bash e
+    """Lancia il blocco del diff di commands/aggiorna.md in un clone fermo alla base, con bash e
     (se c'è) con zsh, la shell di default su macOS. Ritorna, per shell, i file che il diff mostra."""
-    righe = [r for r in read(repo / "commands" / "aggiorna.md").splitlines() if r.startswith('git diff "HEAD...$SRC/main"')]
-    assert len(righe) == 1, f"il diff del Passo 1 di /aggiorna: {righe}"
+    blocco = blocco_di_aggiorna(repo)
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp)
         env = dict(os.environ, HOME=str(base), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1",
@@ -438,10 +484,9 @@ def diff_di_aggiorna(repo: Path) -> dict:
         git(locale, "fetch", "-q", "origin")
         visti = {}
         for shell in [x for x in ("bash", "zsh") if shutil.which(x)]:
-            r = subprocess.run([shell, "-c", "SRC=origin\n" + righe[0]], cwd=str(locale), env=env,
+            r = subprocess.run([shell, "-c", "SRC=origin\n" + blocco], cwd=str(locale), env=env,
                                capture_output=True, timeout=60)
-            uscita = r.stdout.decode("utf-8", "replace")
-            visti[shell] = set(re.findall(r"^diff --git a/(\S+) ", uscita, re.M))
+            visti[shell] = file_mostrati(r.stdout.decode("utf-8", "replace"))
         return visti
 
 

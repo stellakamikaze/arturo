@@ -9,8 +9,12 @@ chiave e Content-Type lo ferma prima.
 Ogni lettura e ogni scrittura passano da todo_store, con le stesse regole della CLI. La pagina
 non tiene dati suoi e il processo non scrive niente su disco, salvo l'archivio dei todo.
 
-Il processo si ferma da solo dopo 30 minuti senza richieste (ARTURO_WEB_INATTIVO, in secondi,
-cambia il tempo), con il bottone «Spegni la pagina» o con Ctrl+C.
+Il processo si ferma da solo dopo 30 minuti senza richieste della pagina (ARTURO_WEB_INATTIVO,
+in secondi, cambia il tempo), con il bottone «Spegni la pagina» o con Ctrl+C. Conta solo una
+richiesta con la chiave giusta: una richiesta respinta non tiene acceso il server.
+
+L'Annulla porta con sé lo stato atteso del todo (`atteso`): se nel frattempo la CLI, il pannello
+o un'altra scheda lo hanno cambiato, il server risponde 409 e non scrive niente.
 
 Solo libreria standard, Python 3.8 o successivo.
 """
@@ -148,9 +152,14 @@ def controlla_corpo(corpo) -> dict:
     annullo = corpo.get("annullo", False)
     if not isinstance(annullo, bool):
         raise ErroreRichiesta(400, "il campo annullo deve essere vero o falso")
+    atteso = corpo.get("atteso")
+    if atteso is None:
+        atteso = {}
+    if not isinstance(atteso, dict) or not all(isinstance(v, str) for v in atteso.values()):
+        raise ErroreRichiesta(400, "il campo atteso deve essere un oggetto di testi")
     return {"azione": azione, "id": numero, "campi": campi, "annullo": annullo,
             "motivo": _testo(corpo, "motivo") or "", "testo": _testo(corpo, "testo"),
-            "stato": _testo(corpo, "stato"), "titolo_atteso": _testo(corpo, "titolo_atteso")}
+            "stato": _testo(corpo, "stato"), "titolo_atteso": _testo(corpo, "titolo_atteso"), "atteso": atteso}
 
 
 def esegui(stato: Stato, richiesta: dict) -> dict:
@@ -168,6 +177,13 @@ def esegui(stato: Stato, richiesta: dict) -> dict:
                 # Un merge può aver rinumerato i todo: il numero non indica più lo stesso todo.
                 raise ErroreRichiesta(409, f"Il todo #{prima['id']} è cambiato da quando hai aperto la pagina: "
                                            "ricarico la lista.", **lettura())
+            try:
+                ts.controlla_atteso(prima, richiesta["atteso"])
+            except ts.ErroreCambiato:
+                # L'Annulla di un passo vecchio: nel frattempo il todo è cambiato da un'altra parte.
+                raise ErroreRichiesta(409, f"Il todo #{prima['id']} è cambiato dopo il tuo ultimo passo, "
+                                           "da Claude o da un'altra vista: non annullo niente e ricarico la lista.",
+                                      **lettura())
         annulla = None
 
         if azione == "aggiungi":
@@ -177,7 +193,8 @@ def esegui(stato: Stato, richiesta: dict) -> dict:
             t = ts.aggiungi(campi)
             messaggio = "Aggiunto"
             annulla = {"azione": "ripristina", "id": t["id"], "titolo_atteso": t["titolo"],
-                       "stato": "scartato", "motivo": MOTIVO_TOLTO}
+                       "stato": "scartato", "motivo": MOTIVO_TOLTO,
+                       "atteso": {"stato": t["stato"], "motivo": t["motivo"]}}
 
         elif azione == "modifica":
             t = ts.registra(numero, "modifica", dict(richiesta["campi"], annullo=richiesta["annullo"]))
@@ -185,7 +202,7 @@ def esegui(stato: Stato, richiesta: dict) -> dict:
             messaggio = "Modificato"
             if cambiati and not richiesta["annullo"]:
                 annulla = {"azione": "modifica", "id": t["id"], "titolo_atteso": t["titolo"],
-                           "campi": cambiati, "annullo": True}
+                           "campi": cambiati, "annullo": True, "atteso": {k: t[k] for k in cambiati}}
 
         elif azione in ts.AZIONI_STATO:
             nuovo, messaggio = ts.AZIONI_STATO[azione]
@@ -193,7 +210,8 @@ def esegui(stato: Stato, richiesta: dict) -> dict:
                                                "annullo": richiesta["annullo"]})
             if not richiesta["annullo"]:
                 annulla = {"azione": "ripristina", "id": t["id"], "titolo_atteso": t["titolo"],
-                           "stato": prima["stato"], "motivo": prima["motivo"]}
+                           "stato": prima["stato"], "motivo": prima["motivo"],
+                           "atteso": {"stato": t["stato"], "motivo": t["motivo"]}}
 
         elif azione == "ripristina":
             if not richiesta["stato"]:
@@ -212,7 +230,7 @@ def esegui(stato: Stato, richiesta: dict) -> dict:
             t = ts.deciso(numero, richiesta["testo"] or "")
             messaggio = "Deciso"
             annulla = {"azione": "modifica", "id": t["id"], "titolo_atteso": t["titolo"],
-                       "campi": {"chi": prima["chi"]}, "annullo": True}
+                       "campi": {"chi": prima["chi"]}, "annullo": True, "atteso": {"chi": t["chi"]}}
 
         risposta = {"messaggio": f"{messaggio} #{t['id']}: {t['titolo']}", "id": t["id"], "annulla": annulla}
         risposta.update(lettura())
@@ -269,6 +287,7 @@ def crea_gestore(stato: Stato):
         def _controlla_chiave(self, chiave) -> None:
             if not chiave or not hmac.compare_digest(chiave.encode("utf-8"), stato.token.encode("utf-8")):
                 raise ErroreRichiesta(403, TESTI_ERRORE[403])
+            stato.ultima = time.monotonic()  # una richiesta della pagina: Host, Origin e chiave giusti
 
         def _corpo(self) -> dict:
             if not self.headers.get("Content-Type", "").lower().startswith("application/json"):
@@ -302,7 +321,8 @@ def crea_gestore(stato: Stato):
         # --- metodi ---------------------------------------------------------
 
         def _gestisci(self, funzione) -> None:
-            stato.ultima = time.monotonic()
+            # stato.ultima si aggiorna solo in _controlla_chiave, dopo Host e Origin: una richiesta
+            # respinta, di un'altra scheda o di un programma che scandisce le porte, non tiene acceso.
             try:
                 self._controlla_origine()
                 funzione(urlsplit(self.path))
@@ -329,7 +349,6 @@ def crea_gestore(stato: Stato):
             self._gestisci(self._post)
 
         def _non_ammesso(self):
-            stato.ultima = time.monotonic()
             self.send_error(405)
 
         do_HEAD = do_PUT = do_DELETE = do_PATCH = do_OPTIONS = do_TRACE = do_CONNECT = _non_ammesso

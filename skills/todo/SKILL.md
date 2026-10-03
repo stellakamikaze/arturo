@@ -25,20 +25,22 @@ frase e dal contesto, e chiedi solo se manca qualcosa che cambia il lavoro.
 Esempio. La persona scrive «ricordami di mandare a Gigi la parola d'ordine entro venerdì».
 
 ```bash
-python3 ~/.claude/bin/arturo todo aggiungi "Mandare a Gigi la parola d'ordine" --scadenza venerdì --chi tu --perche "invio a terzi"
+python3 ~/.claude/bin/arturo todo aggiungi "Mandare a Gigi la parola d'ordine" --scadenza venerdì --chi tu
 ```
 
 Tu rispondi: «Segnato come #7, scade venerdì.» Il todo è `tu` perché l'invio lo fa la persona.
+Il perché resta vuoto: la persona non l'ha detto. Se avesse scritto «ricordami di mandare a Gigi
+la parola d'ordine, la mando io perché è una password», allora `--perche "è una password"`.
 
 ## I campi
 
 | Campo | Valori | Come lo scegli |
 |---|---|---|
 | titolo | verbo e oggetto | «Mandare il preventivo a Rossi», non «preventivo-rossi» |
-| `--progetto` | slug del progetto | di default la cartella git in cui sei, altrimenti `generale` |
+| `--progetto` | slug del progetto | di default la cartella git in cui sei; `generale` fuori da git, nella HOME e dentro `~/.claude`. `todo progetto` lo stampa, `--progetto .` lo usa |
 | `--scadenza` | `2026-10-10`, `10/10`, `oggi`, `domani`, `venerdì` | solo se la persona ne dice una |
 | `--chi` | `tu` · `decidi` · `io` | `tu`: lo fa la persona. `decidi`: serve una sua scelta, poi lavori tu. `io`: lo fai tu |
-| `--perche` | testo breve | perché tocca alla persona: «invio a terzi», «password», «firma» |
+| `--perche` | testo breve | perché tocca alla persona, solo con le sue parole: «la firma è mia», «è una password» |
 | `--priorita` | `alta` · `media` · `bassa` | `media` se non emerge altro |
 | `--quando` | `oggi` · `settimana` · `più avanti` | `settimana` se non emerge altro |
 
@@ -56,6 +58,7 @@ Scrivi sempre `python3 ~/.claude/bin/arturo todo` davanti. La persona può avere
 | *(niente)* `[--progetto P] [--tutti] [--json]` | i todo aperti divisi in TOCCA A TE, DECIDI TU, FACCIO IO, FERMO |
 | `oggi [--giorni N]` | per oggi, scaduti e in scadenza nei prossimi N giorni |
 | `progetti` | quanti todo aperti, scaduti, fermi e chiusi ha ogni progetto |
+| `progetto` | il progetto della cartella in cui sei: quello che usa `aggiungi` |
 | `mostra ID` | un todo con note e storia |
 | `aggiungi "titolo" [campi] [--note "testo"]` | un todo nuovo |
 | `modifica ID [campi] [--titolo "nuovo"]` | cambia i campi indicati (`--scadenza ""` la toglie) |
@@ -92,11 +95,17 @@ quando annullano un clic.
 
 ## Regole
 
-- Prima di aggiungere, guarda se il todo c'è già (`arturo todo --progetto P`). Un doppione
-  costa alla persona più di un todo mancante.
+- Prima di aggiungere, guarda se il todo c'è già (`arturo todo --progetto .` per il progetto
+  della cartella). Un doppione costa alla persona più di un todo mancante.
+- Se una lettura stampa «Attenzione: #N esisteva già…», un merge ha cambiato il numero di un
+  todo: dillo alla persona. Quando agisci su un numero letto prima (un handoff, una lista
+  vecchia), aggiungi `--titolo-atteso="titolo"`: se quel numero ora è un altro todo, la CLI non
+  scrive niente.
 - Un todo che hai fatto tu in questa sessione lo chiudi con `fatto` e lo dici.
-- `tu` porta un perché quando lo sai dalla frase. Se non lo sai, lascialo vuoto: lo chiede il
-  percorso (skill percorso), una domanda per volta. Non spostare mai un todo da tu a io o decidi
+- `tu` porta un perché solo se la persona lo dice con parole sue. Non dedurlo dalla frase: il
+  percorso conta il perché come un limite che la persona ha dichiarato, e lo mette fra le «Cose
+  che tieni per te». Se non l'ha detto, lascialo vuoto: lo chiede il percorso (skill percorso),
+  una domanda per volta. Non spostare mai un todo da tu a io o decidi
   senza un sì.
 - Il progetto `_percorso` contiene gli esercizi del percorso: li crea e li chiude la skill
   percorso.

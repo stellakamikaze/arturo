@@ -70,12 +70,28 @@ function motore(on: On, iniziali: TodoVoce[], opzioni: Opzioni = {}) {
     // prima di «--» è il motivo esatto di ripristina.
     const fine = argomenti.indexOf('--') < 0 ? argomenti.length : argomenti.indexOf('--')
     const motivo = argomenti.slice(0, fine).find(x => x.startsWith('--motivo='))?.slice('--motivo='.length) ?? null
-    const a = argomenti.filter((x, i) => x !== '--' && !(i < fine && x.startsWith('--motivo=')))
+    // `--titolo-atteso=T` e `--atteso=CAMPO=VALORE`: come la CLI vera, un todo cambiato non si tocca.
+    const atteso: Record<string, string> = {}
+    for (const x of argomenti.slice(0, fine)) {
+      if (x.startsWith('--titolo-atteso=')) atteso.titolo = x.slice('--titolo-atteso='.length)
+      else if (x.startsWith('--atteso=')) {
+        const [campo, ...resto] = x.slice('--atteso='.length).split('=')
+        atteso[campo!] = resto.join('=')
+      }
+    }
+    const opzione = (x: string) => ['--motivo=', '--titolo-atteso=', '--atteso='].some(o => x.startsWith(o))
+    const a = argomenti.filter((x, i) => x !== '--' && !(i < fine && opzione(x)))
     const rotto = opzioni.rompi?.(argomenti)
     if (rotto) return rotto
     if (a[0] === '--json') return { exitCode: 0, stdout: opzioni.json ? opzioni.json() : JSON.stringify(vista()), stderr: '' }
     const t = archivio.find(x => String(x.id) === a[1])
     if (!t) return { exitCode: 2, stdout: '', stderr: `Errore: il todo #${a[1]} non esiste. Vedi la lista con: arturo todo\n` }
+    for (const [campo, valore] of Object.entries(atteso)) {
+      const attuale = String((t as Record<string, unknown>)[campo] ?? '')
+      if (attuale !== valore) {
+        return { exitCode: 2, stdout: '', stderr: `Errore: il todo #${t.id} non è più come lo aspettavi: ${campo} è «${attuale}», non «${valore}»\n` }
+      }
+    }
     const scala = ['più avanti', 'settimana', 'oggi']
     if (a[0] === 'fatto') Object.assign(t, { stato: 'fatto', motivo: null })
     else if (a[0] === 'ferma') Object.assign(t, { stato: 'fermo', motivo: a[2] ?? null })
@@ -127,7 +143,9 @@ function motore(on: On, iniziali: TodoVoce[], opzioni: Opzioni = {}) {
   const cli = () => chiamate.filter(a => a.some(x => x.endsWith('/bin/arturo'))).map(a => a.slice(a.findIndex(x => x.endsWith('/bin/arturo')) + 1))
   return {
     archivio, chiamate, toast, aperture, cli, store,
-    scritture: () => cli().filter(a => a[1] !== '--json'),
+    // Le scritture senza i token `--titolo-atteso=` e `--atteso=`: i test che li guardano usano grezze.
+    scritture: () => cli().filter(a => a[1] !== '--json').map(a => a.filter(x => !x.startsWith('--titolo-atteso=') && !x.startsWith('--atteso='))),
+    grezze: () => cli().filter(a => a[1] !== '--json'),
     versione: (n: number) => { versione = n },
     avvisi: (a: string[]) => { avvisi = a },
   }
@@ -191,7 +209,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     await pane.press({ key: 'riga-3' })
     await pane.press({ key: 'fatto' })
     const dopo = m.cli().slice(-2)
-    expect(dopo).toEqual([['todo', 'fatto', '3'], ['todo', '--json']])
+    expect(dopo).toEqual([['todo', 'fatto', '3', '--titolo-atteso=Chiamare la tipografia'], ['todo', '--json']])
     expect(await pane.find({ type: 'Text', text: 'CHIUSI ORA (1)' })).toBeTruthy()
     expect(await pane.find({ type: 'Text', text: '#3 Chiamare la tipografia' })).toBeTruthy()
     expect(m.toast.some(x => x.includes('u per annullare'))).toBe(true)
@@ -209,6 +227,18 @@ for (const surface of ['terminal', 'desktop'] as const) {
     await pane.press({ key: 'annulla' })
     expect(m.chiamate.length).toBe(prima)
     expect(m.toast[m.toast.length - 1]).toContain('Niente da annullare')
+    // Il tasto e il suo inverso dicono il titolo e lo stato attesi.
+    expect(m.grezze().slice(-2)).toEqual([
+      ['todo', 'fatto', '3', '--titolo-atteso=Cosa numero 3'],
+      ['todo', 'ripristina', '3', '--titolo-atteso=Cosa numero 3', '--atteso=stato=fatto', '--atteso=motivo=', '--', 'da fare'],
+    ])
+    // Fra il tasto e «u» Claude riapre il todo e lo ferma: «u» non lo tocca e lo dice.
+    await pane.press({ key: 'riga-2' })
+    await pane.press({ key: 'fatto' })
+    Object.assign(m.archivio.find(x => x.id === 2)!, { stato: 'fermo', motivo: 'aspetto Rossi' })
+    await pane.press({ key: 'annulla' })
+    expect(m.toast[m.toast.length - 1]).toContain('non è più come lo aspettavi')
+    expect(m.archivio.find(x => x.id === 2)).toMatchObject({ stato: 'fermo', motivo: 'aspetto Rossi' })
   })
 
   test(`${surface}: U24 ferma e riprendi con i loro inversi`, async ($, on) => {

@@ -8,7 +8,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 In due righe: **18 guardie e automazioni**, **12 slash command**, **9 subagent**, **5 skill**, una **CLI per i todo** (`arturo todo`) — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
 
-I todo si vedono anche in una pagina del browser, con `arturo web`. La pagina è facoltativa e locale: risponde solo sul tuo computer (127.0.0.1), non si collega a internet e si spegne da sola dopo 30 minuti senza la pagina aperta.
+I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure scrivi `python3 ~/.claude/bin/arturo web` nel terminale. La pagina è facoltativa e locale: risponde solo sul tuo computer (127.0.0.1), non si collega a internet e si spegne da sola dopo 30 minuti senza la pagina aperta.
 
 ---
 
@@ -327,7 +327,8 @@ partire — incluse le persone che non fanno un mestiere tecnico. Il percorso:
    propone lo sparring. Così l'harness — e chi lo usa — restano aggiornati insieme.
 5. **Il percorso** — chiedi «a che punto sono?» o scrivi `/percorso`. Quattro tappe (Osserva,
    Prova, Delega, Orchestra) che si aprono con segni di giudizio: una decisione presa prima del
-   lavoro di Claude, un limite dichiarato, un no motivato. Ogni settimana un esercizio dal tuo
+   lavoro di Claude, un limite dichiarato, un no motivato. Delega chiede due segni insieme: una
+   decisione e un limite (o un no motivato). Ogni settimana un esercizio dal tuo
    lavoro vero ([`docs/esercizi.md`](docs/esercizi.md)) e il capitolo
    [Tieni la decisione](docs/principi/05-tieni-la-decisione.md). Il percorso resta sul tuo
    computer.

@@ -114,12 +114,15 @@ scrittura.
 ## E07 · Orchestra · Un bando in tre passi con una porta
 
 **Cosa fai**: prendi un bando o una call che ti interessa. Crea tre todo: Claude legge i requisiti
-(`io`), tu decidi se partecipare (`decidi`), Claude scrive la scaletta (`io`). La scaletta aspetta
-la tua decisione: `arturo todo dopo 3 2`.
+(`io`), tu decidi se partecipare (`decidi`), Claude scrive la scaletta (`io`). I numeri li leggi
+dalla conferma di ogni `aggiungi` («Aggiunto #12: …»): qui sotto DECISIONE è il numero del todo
+della decisione, SCALETTA quello della scaletta. La scaletta aspetta la tua decisione:
+`arturo todo dopo SCALETTA DECISIONE`.
 
-**Cosa resta a te**: la porta in mezzo. Quando hai deciso, scrivi `arturo todo deciso 2 "partecipo"`.
-La scaletta parte solo dopo. Se scegli di non partecipare, scarta il todo 2 con il motivo: quel no
-motivato conta per la tappa Delega, e la scaletta non parte.
+**Cosa resta a te**: la porta in mezzo. Quando hai deciso, scrivi
+`arturo todo deciso DECISIONE "partecipo"`. La scaletta parte solo dopo. Se scegli di non
+partecipare, scarta il todo della decisione con il motivo: quel no motivato conta per la tappa
+Delega, e la scaletta non parte.
 
 **Come sai che è fatto**: hai registrato la decisione prima che Claude chiudesse la scaletta, e
 `arturo percorso` mostra il todo della scaletta come prova.

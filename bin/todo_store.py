@@ -1,13 +1,14 @@
 """Archivio dei todo di Arturo: un registro di eventi, una riga JSON per evento.
 
 Il file e' ~/.claude/data/todo/eventi.jsonl (ARTURO_TODO lo sposta, per i test).
-Ogni scrittura aggiunge una riga in coda con una sola write(): due viste che
-scrivono insieme non si sovrascrivono, e il registro passa tra le macchine con
-un merge per unione. Lo stato si ricostruisce rileggendo il registro.
+Ogni scrittura aggiunge righe in coda (O_APPEND): due viste che scrivono insieme
+non si sovrascrivono, e il registro passa tra le macchine con un merge per unione.
+Lo stato si ricostruisce rileggendo il registro, e ogni scrittura si conferma solo
+dopo averla riletta.
 
 Un todo si riconosce dal suo uid. L'id numerico serve alle persone: se due
 macchine creano lo stesso id, il todo piu' recente ne prende uno nuovo e la
-lettura lo segnala. Gli eventi successivi puntano all'uid, quindi restano giusti.
+lettura lo segnala (vedi _numeri: gli altri todo non cambiano numero). Gli eventi successivi puntano all'uid, quindi restano giusti.
 
 CLI, pannello e vista web leggono da qui: `carica()` e `vista()` sono il contratto.
 Le chiavi di un todo esportato stanno in CHIAVI_TODO, e da qui le leggono i banchi.
@@ -63,6 +64,10 @@ GIORNI = ("lunedi", "martedi", "mercoledi", "giovedi", "venerdi", "sabato", "dom
 
 class ErroreTodo(ValueError):
     """Un valore che la persona puo' correggere: il messaggio le dice come."""
+
+
+class ErroreCambiato(ErroreTodo):
+    """Il todo non e' piu' come lo aspettava chi scrive (un merge, un'altra vista): niente si scrive."""
 
 
 def percorso() -> Path:
@@ -124,6 +129,19 @@ def data(valore: str) -> str:
     raise ErroreTodo(f"data «{valore}» non valida. Scrivi 2026-10-10, 10/10, oggi, domani o un giorno (venerdì)")
 
 
+# I caratteri di controllo: ESC e gli altri C0, DEL e i C1. Un titolo con «ESC ] 52» scrive negli
+# appunti di un terminale, «ESC [ 2J» cancella lo schermo. Tab e a capo diventano uno spazio: un
+# titolo è una riga. U+0085 resta: è un separatore di riga che un PDF incollato porta con sé, non
+# apre sequenze, e il registro lo scrive come escape JSON (_SEPARATORI).
+_SPAZI = re.compile(r"[\t\n\r\x0b\x0c]")
+_CONTROLLO = re.compile(r"[\x00-\x1f\x7f-\x84\x86-\x9f]")
+
+
+def pulisci(testo) -> str:
+    """Un testo senza caratteri di controllo: va bene per il registro e per il terminale."""
+    return _CONTROLLO.sub("", _SPAZI.sub(" ", str(testo)))
+
+
 def normalizza(campi: dict) -> dict:
     """Controlla i campi di un todo. Una stringa vuota svuota il campo."""
     fuori = {}
@@ -132,7 +150,7 @@ def normalizza(campi: dict) -> dict:
             continue
         if chiave not in CAMPI:
             raise ErroreTodo(f"campo sconosciuto: {chiave}")
-        valore = str(valore).strip()
+        valore = pulisci(valore).strip()
         if chiave == "titolo" and not valore:
             raise ErroreTodo("il titolo non può essere vuoto")
         if chiave == "progetto" and not valore:
@@ -222,25 +240,28 @@ def carica(file: Path | None = None) -> tuple:
         if ev in visti:
             continue  # la stessa riga arrivata due volte da un merge
         visti.add(ev)
-        eventi.append((str(e.get("ts", "")), numero, e))
-    eventi.sort(key=lambda x: (x[0], x[1]))
+        eventi.append((str(e.get("ts", "")), numero, e, ev))
+    # Prima tutti i crea, poi gli altri eventi, ognuno in ordine di ts. Un evento scritto su una
+    # macchina con l'orologio indietro può avere un ts più vecchio del crea del suo todo: resta
+    # suo, non si perde.
+    eventi.sort(key=lambda x: (x[2]["tipo"] != "crea", x[0], x[1]))
+    numeri = _numeri(eventi)
 
-    todo, usati = {}, {}
-    for ts, numero, e in eventi:
+    todo = {}
+    for ts, numero, e, ev in eventi:
         uid, tipo, dati = e["todo"], e["tipo"], e.get("dati") or {}
         if tipo == "crea":
             if uid in todo:
                 continue
-            numero_todo = e["id"]  # _riga_valida: un int positivo
-            if numero_todo in usati:
-                nuovo = max(usati) + 1
-                avvisi.append(f"#{numero_todo} esisteva già su un'altra macchina: il todo «{dati['titolo']}» ora è #{nuovo}")
-                numero_todo = nuovo
-            usati[numero_todo] = uid
-            t = {"id": numero_todo, "uid": uid, "titolo": "", "progetto": "generale", "scadenza": "",
-                 "chi": "tu", "perche": "", "priorita": "media", "quando": "settimana", "stato": "da fare",
-                 "motivo": "", "dopo": [], "note": [], "creato": ts, "aggiornato": ts, "chiuso": "", "storia": []}
-            t.update({k: v for k, v in dati.items() if k in CAMPI})
+            numero_todo = numeri[uid]
+            if numero_todo != e["id"]:
+                avvisi.append(f"#{e['id']} esisteva già su un'altra macchina: il todo «{pulisci(dati['titolo'])}» "
+                              f"ora è #{numero_todo}")
+            t = {"id": numero_todo, "id_originale": e["id"], "uid": uid, "titolo": "", "progetto": "generale",
+                 "scadenza": "", "chi": "tu", "perche": "", "priorita": "media", "quando": "settimana",
+                 "stato": "da fare", "motivo": "", "dopo": [], "note": [], "creato": ts, "aggiornato": ts,
+                 "chiuso": "", "storia": [], "ev": []}
+            t.update({k: pulisci(v) for k, v in dati.items() if k in CAMPI})
             t["progetto"] = t["progetto"] or "generale"  # righe scritte prima che il vuoto fosse rifiutato
             todo[uid] = t
         else:
@@ -249,14 +270,14 @@ def carica(file: Path | None = None) -> tuple:
                 avvisi.append(f"riga {numero}: evento per un todo che non esiste, saltato")
                 continue
             if tipo == "modifica":
-                t.update({k: v for k, v in dati.items() if k in CAMPI})
+                t.update({k: pulisci(v) for k, v in dati.items() if k in CAMPI})
                 t["progetto"] = t["progetto"] or "generale"
             elif tipo == "stato" and dati.get("stato") in STATI:
                 t["stato"] = dati["stato"]
-                t["motivo"] = dati.get("motivo", "")
+                t["motivo"] = pulisci(dati.get("motivo", ""))
                 t["chiuso"] = ts if t["stato"] in ("fatto", "scartato") else ""
             elif tipo == "nota" and dati.get("testo"):
-                t["note"].append({"ts": ts, "testo": dati["testo"]})
+                t["note"].append({"ts": ts, "testo": pulisci(dati["testo"])})
             elif tipo == "dopo":
                 if dati.get("aggiungi") and dati["aggiungi"] not in t["dopo"]:
                     t["dopo"].append(dati["aggiungi"])
@@ -264,7 +285,57 @@ def carica(file: Path | None = None) -> tuple:
                     t["dopo"].remove(dati["togli"])
             t["aggiornato"] = ts
         todo[uid]["storia"].append({"ts": ts, "tipo": tipo, "dati": dati})
+        todo[uid]["ev"].append(ev)
     return todo, avvisi
+
+
+def _numeri(eventi: list) -> dict:
+    """Il numero di ogni todo, per uid. `eventi` sono gia' in ordine, crea per primi.
+
+    Ogni todo tiene il numero con cui e' nato. Se due crea hanno lo stesso numero (due macchine
+    offline), lo tiene il piu' vecchio. L'altro prende il primo numero libero dopo quelli gia'
+    dati che nessun crea usa come numero suo: cosi' nessun todo senza collisione cambia numero,
+    e un todo nuovo non sposta i numeri gia' dati.
+    """
+    originali = {e["id"] for _, _, e, _ in eventi if e["tipo"] == "crea"}
+    numeri, usati = {}, set()
+    for _, _, e, _ in eventi:
+        if e["tipo"] != "crea" or e["todo"] in numeri:
+            continue
+        n = e["id"]
+        if n in usati:
+            n = max(usati) + 1
+            while n in usati or n in originali:
+                n += 1
+        usati.add(n)
+        numeri[e["todo"]] = n
+    return numeri
+
+
+def rinumerati(todo: dict, numero) -> list:
+    """Gli avvisi di rinumerazione che toccano il numero `numero`: chi lo aveva e chi lo ha ora."""
+    try:
+        n = int(str(numero).lstrip("#"))
+    except ValueError:
+        return []
+    return [f"#{t['id_originale']} esisteva già su un'altra macchina: il todo «{t['titolo']}» ora è #{t['id']}"
+            for t in sorted(todo.values(), key=lambda x: x["id"])
+            if t["id_originale"] != t["id"] and n in (t["id_originale"], t["id"])]
+
+
+def controlla_atteso(t: dict, atteso) -> None:
+    """Ferma una scrittura se il todo non e' come lo aspetta chi scrive.
+
+    `atteso` va da campo a valore: titolo, stato, motivo o un campo di CAMPI. Lo usano l'Annulla di
+    pannello e pagina e chi indica un todo con un numero letto prima di un merge.
+    """
+    for campo, valore in (atteso or {}).items():
+        if campo not in CAMPI + ("stato", "motivo"):
+            raise ErroreTodo(f"campo atteso sconosciuto: {campo}")
+        attuale = t.get(campo) or ""
+        if attuale != (valore or ""):
+            raise ErroreCambiato(f"il todo #{t['id']} non è più come lo aspettavi: {campo} è «{attuale}», "
+                                 f"non «{valore}». Non ho cambiato niente: rileggi la lista con arturo todo")
 
 
 def per_id(todo: dict, numero) -> dict:
@@ -292,15 +363,48 @@ def _riga_json(evento: dict) -> str:
     return riga
 
 
+def _finisce_senza_a_capo(file: Path) -> bool:
+    """L'ultimo byte del registro non e' un a capo: una scrittura interrotta, o un merge."""
+    try:
+        with open(file, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            if f.tell() == 0:
+                return False
+            f.seek(-1, os.SEEK_END)
+            return f.read(1) != b"\n"
+    except FileNotFoundError:
+        return False
+
+
 def _scrivi_molti(eventi: list, file: Path) -> None:
-    """Piu' eventi in una sola write(): chi legge li trova tutti o nessuno."""
+    """Piu' eventi in coda, con una write() finche' tutti i byte sono scritti.
+
+    Se l'ultima riga del registro non finisce con un a capo, le righe nuove partono da una riga
+    nuova: altrimenti il primo evento si incollerebbe alla riga rotta e andrebbe perso con lei.
+    """
     file.parent.mkdir(parents=True, exist_ok=True)
-    righe = "".join(_riga_json(e) + "\n" for e in eventi).encode("utf-8")
+    righe = "".join(_riga_json(e) + "\n" for e in eventi)
+    if _finisce_senza_a_capo(file):
+        righe = "\n" + righe
+    dati = righe.encode("utf-8")
     fd = os.open(str(file), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
     try:
-        os.write(fd, righe)
+        while dati:
+            scritti = os.write(fd, dati)
+            if scritti <= 0:
+                raise ErroreTodo(f"non riesco a scrivere nel registro {file}: il disco è pieno?")
+            dati = dati[scritti:]
     finally:
         os.close(fd)
+
+
+def _riletto(file: Path, uid: str, evento: dict) -> dict:
+    """Il todo riletto dal registro, solo se l'evento appena scritto c'e'. Mai una conferma falsa."""
+    t = carica(file)[0].get(uid)
+    if t is None or evento["ev"] not in t["ev"]:
+        raise ErroreTodo(f"ho scritto nel registro {file}, ma rileggendolo il passo non c'è. "
+                         "Non è registrato: controlla il file con arturo todo e riprova")
+    return t
 
 
 def _scrivi(evento: dict, file: Path) -> None:
@@ -384,20 +488,24 @@ def aggiungi(campi: dict, file: Path | None = None) -> dict:
     with Lucchetto(file):
         todo, _ = carica(file)
         numero = max((t["id"] for t in todo.values()), default=0) + 1
-        _scrivi(_evento("crea", uid, dati, id=numero), file)
-    return carica(file)[0][uid]
+        evento = _evento("crea", uid, dati, id=numero)
+        _scrivi(evento, file)
+    return _riletto(file, uid, evento)
 
 
-def registra(numero, tipo: str, dati: dict, file: Path | None = None) -> dict:
+def registra(numero, tipo: str, dati: dict, file: Path | None = None, atteso: dict | None = None) -> dict:
     """Modifica, stato, nota o dopo su un todo esistente, indicato col suo numero.
 
     Su stato e modifica, `"annullo": True` nei dati segna l'evento come annullo di un passo
     precedente (un clic sbagliato nel pannello o nella pagina). Il segno resta nella storia:
     chi legge i comportamenti della persona salta questi eventi.
+
+    `atteso` (campo -> valore) ferma la scrittura se il todo non e' piu' come lo aspetta chi scrive.
     """
     file = file or percorso()
     todo, _ = carica(file)
     t = per_id(todo, numero)
+    controlla_atteso(t, atteso)
     dati = dict(dati)
     annullo = bool(dati.pop("annullo", False))
     if annullo and tipo not in ("stato", "modifica"):
@@ -407,9 +515,10 @@ def registra(numero, tipo: str, dati: dict, file: Path | None = None) -> dict:
         if not dati:
             raise ErroreTodo("niente da modificare: indica almeno un campo")
     elif tipo == "stato":
-        dati = {"stato": scelta(dati["stato"], STATI, "stato"), "motivo": dati.get("motivo", "") or ""}
+        dati = {"stato": scelta(dati["stato"], STATI, "stato"), "motivo": pulisci(dati.get("motivo", "") or "")}
     elif tipo == "nota":
-        if not str(dati.get("testo", "")).strip():
+        dati = {"testo": pulisci(dati.get("testo", "")).strip()}
+        if not dati["testo"]:
             raise ErroreTodo("la nota è vuota")
     elif tipo == "dopo":
         altro = per_id(todo, dati.pop("id"))
@@ -420,27 +529,29 @@ def registra(numero, tipo: str, dati: dict, file: Path | None = None) -> dict:
         raise ErroreTodo(f"tipo di evento sconosciuto: {tipo}")
     if annullo:
         dati["annullo"] = True
-    _scrivi(_evento(tipo, t["uid"], dati), file)
-    return carica(file)[0][t["uid"]]
+    evento = _evento(tipo, t["uid"], dati)
+    _scrivi(evento, file)
+    return _riletto(file, t["uid"], evento)
 
 
-def ripristina(numero, stato: str, motivo: str = "", file: Path | None = None) -> dict:
+def ripristina(numero, stato: str, motivo: str = "", file: Path | None = None, atteso: dict | None = None) -> dict:
     """Rimette stato e motivo esatti di prima. E' l'inverso che usano pannello e pagina web."""
-    return registra(numero, "stato", {"stato": stato, "motivo": motivo, "annullo": True}, file)
+    return registra(numero, "stato", {"stato": stato, "motivo": motivo, "annullo": True}, file, atteso)
 
 
-def deciso(numero, testo: str, file: Path | None = None) -> dict:
+def deciso(numero, testo: str, file: Path | None = None, atteso: dict | None = None) -> dict:
     """La persona ha deciso: nota «Deciso: testo» e chi passa a io, in una sola scrittura.
 
     Un todo chiuso si rifiuta: nessuno ci lavora piu', e il suo chi=decidi resta come segnale.
     Un todo FERMO accetta la decisione e resta FERMO: quando riparte, lo fa Claude.
     """
     file = file or percorso()
-    testo = str(testo).strip()
+    testo = pulisci(testo).strip()
     if not testo:
         raise ErroreTodo("scrivi cosa hai deciso, per esempio: arturo todo deciso 4 \"va bene il piano B\"")
     todo, _ = carica(file)
     t = per_id(todo, numero)
+    controlla_atteso(t, atteso)
     if t["stato"] in ("fatto", "scartato"):
         raise ErroreTodo(f"il todo #{t['id']} è chiuso ({t['stato']}): riaprilo con riprendi prima di "
                          "registrare la decisione")
@@ -449,8 +560,9 @@ def deciso(numero, testo: str, file: Path | None = None) -> dict:
     nota = _evento("nota", t["uid"], {"testo": DECISO + testo})
     # Lo stesso ts sui due eventi: chi legge la storia riconosce la nota scritta da deciso
     # (l'ordine resta quello delle righe). Una nota scritta a mano ha sempre un ts suo.
-    _scrivi_molti([nota, dict(_evento("modifica", t["uid"], {"chi": "io"}), ts=nota["ts"])], file)
-    return carica(file)[0][t["uid"]]
+    passaggio = dict(_evento("modifica", t["uid"], {"chi": "io"}), ts=nota["ts"])
+    _scrivi_molti([nota, passaggio], file)
+    return _riletto(file, t["uid"], passaggio)
 
 
 # --- viste --------------------------------------------------------------------

@@ -4,8 +4,9 @@
 L'elenco dei comandi nasce dal dizionario COMANDI, in fondo al file: da li' vengono
 questo aiuto, lo smistamento e il messaggio per un comando sconosciuto.
 
-Solo libreria standard, Python 3.8 o successivo. I dati stanno in
-~/.claude/data/ e non arrivano mai con un aggiornamento.
+Solo libreria standard, Python 3.8 o successivo. I todo stanno in
+~/.claude/data/, lo stato del percorso in ~/.claude/session-env/percorso.json:
+nessun aggiornamento li tocca.
 """
 from __future__ import annotations
 
@@ -32,6 +33,7 @@ VERBI = (
     ("(niente)", "i todo aperti, divisi per chi agisce"),
     ("oggi [--giorni N]", "per oggi, scaduti e in scadenza nei prossimi N giorni (3)"),
     ("progetti", "quanti todo ha ogni progetto"),
+    ("progetto", "il progetto della cartella in cui sei: quello che usa aggiungi"),
     ("mostra ID", "un todo con note e storia"),
     ('aggiungi "titolo"', "un todo nuovo"),
     ("modifica ID", "cambia uno o più campi"),
@@ -51,7 +53,7 @@ AIUTO = "Comandi dei todo (scrivi «arturo todo» davanti a ognuno):\n\n" + "\n"
     f"  {sintassi:<29} {cosa}" for sintassi, cosa in VERBI) + """
 
 Campi di aggiungi e modifica:
-  --progetto NOME     di default la cartella in cui sei
+  --progetto NOME     di default il progetto della cartella in cui sei («.» vale lo stesso)
   --scadenza DATA     2026-10-10, 10/10, oggi, domani, venerdì ("" la toglie)
   --chi               tu | decidi | io   (tu: lo fai tu · decidi: decidi tu, poi fa Claude · io: lo fa Claude)
   --perche TESTO      perché tocca a te (es. «invio a terzi», «password»)
@@ -62,19 +64,32 @@ Campi di aggiungi e modifica:
 Uno stato di due parole va anche senza virgolette: ripristina 4 da fare, ripristina 4 in corso.
 Il motivo esatto, anche se comincia con un trattino: ripristina 4 --motivo=TESTO fermo.
 
-Letture con --json: il formato che leggono il pannello e la pagina web.
+Letture con --json: il formato che leggono il pannello e la pagina web. --progetto . legge il
+progetto della cartella in cui sei.
+
+Chi indica un todo con un numero letto prima (un handoff, il pannello) può dire cosa si aspetta:
+--titolo-atteso=TESTO e --atteso=CAMPO=VALORE (stato, motivo, chi, quando…). Se il todo è cambiato,
+per esempio dopo un merge che lo ha rinumerato, il comando non scrive niente ed esce con 2.
 --annullo vale per modifica, su, giu, inizia, fatto, riprendi, ferma e scarta: segna il passo
 come annullo di uno precedente. Lo usano pannello e pagina web. ripristina lo mette da solo.
 """
 
 
 def progetto_corrente() -> str:
+    """Il progetto della cartella: la cartella git in cui sei. «generale» fuori da git, nella HOME e
+    dentro ~/.claude, dove /setup e le sessioni di config non sono il lavoro di un progetto."""
     try:
         cima = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=5)
-        nome = Path(cima.stdout.strip()).name if cima.returncode == 0 and cima.stdout.strip() else ""
+        radice = cima.stdout.strip() if cima.returncode == 0 else ""
     except (OSError, subprocess.SubprocessError):
-        nome = ""
-    if not nome or Path.cwd() == Path.home():
+        radice = ""
+    nome = Path(radice).name if radice else ""
+    config = Path.home() / ".claude"
+    try:
+        dentro_config = bool(radice) and Path(radice).resolve() == config.resolve()
+    except OSError:
+        dentro_config = False
+    if not nome or Path.cwd() == Path.home() or dentro_config:
         return "generale"
     # Lo stesso slug di /inizio e /fine.
     return re.sub(r"^-+|-+$", "", re.sub(r"[^a-z0-9]+", "-", nome.lower())) or "generale"
@@ -128,7 +143,7 @@ def locale(istante: str) -> str:
 
 def avvisa(avvisi: list) -> None:
     for a in avvisi:
-        print(f"Attenzione: {a}", file=sys.stderr)
+        print(f"Attenzione: {ts.pulisci(a)}", file=sys.stderr)
 
 
 def campi_da(args) -> dict:
@@ -202,7 +217,7 @@ def parser() -> argparse.ArgumentParser:
     c = comando("ripristina")
     c.add_argument("id")
     c.add_argument("--motivo", default=None)
-    c.add_argument("resto", nargs="+")  # STATO [motivo]: lo divide stato_e_motivo()
+    c.add_argument("resto", nargs="+", metavar="STATO")  # STATO [motivo]: lo divide stato_e_motivo()
     c = comando("deciso")
     c.add_argument("id")
     c.add_argument("testo")
@@ -213,9 +228,18 @@ def parser() -> argparse.ArgumentParser:
     c.add_argument("id")
     c.add_argument("altro")
     c.add_argument("--togli", action="store_true")
-    for nome in ("aiuto", "help"):
+    for nome in ("aiuto", "help", "progetto"):
         comando(nome)
+    for nome, c in sub.choices.items():
+        if nome in SCRIVONO:
+            c.add_argument("--titolo-atteso", default=None)
+            c.add_argument("--atteso", action="append", default=[])
     return p
+
+
+# I verbi che scrivono su un todo indicato col numero.
+SCRIVONO = ("modifica", "fatto", "riprendi", "inizia", "su", "giu", "ferma", "scarta", "ripristina", "deciso",
+            "nota", "dopo")
 
 
 def motivo_esatto(argv: list) -> tuple:
@@ -232,6 +256,38 @@ def motivo_esatto(argv: list) -> tuple:
         if x.startswith("--motivo="):
             return argv[:i] + argv[i + 1:], x[len("--motivo="):]
     return argv, None
+
+
+def atteso_esatto(argv: list) -> tuple:
+    """Toglie `--titolo-atteso=TESTO` e `--atteso=CAMPO=VALORE` da argv prima di argparse.
+
+    Come per `--motivo=`: il valore torna identico anche se comincia con un trattino o è «--».
+    Vale solo prima di un «--» separato. Ritorna (argv, {campo: valore})."""
+    fine = argv.index("--") if "--" in argv else len(argv)
+    atteso, resto = {}, []
+    for x in argv[:fine]:
+        if x.startswith("--titolo-atteso="):
+            atteso["titolo"] = x[len("--titolo-atteso="):]
+        elif x.startswith("--atteso=") and "=" in x[len("--atteso="):]:
+            campo, valore = x[len("--atteso="):].split("=", 1)
+            atteso[campo] = valore
+        else:
+            resto.append(x)
+    return resto + argv[fine:], atteso
+
+
+def atteso_da(args, esatti: dict) -> dict:
+    """L'atteso di argparse (forma con lo spazio) più quello esatto, che vince."""
+    atteso = {}
+    if getattr(args, "titolo_atteso", None) is not None:
+        atteso["titolo"] = args.titolo_atteso
+    for voce in getattr(args, "atteso", None) or []:
+        if "=" not in voce:
+            raise ts.ErroreTodo(f"--atteso vuole CAMPO=VALORE, non «{voce}»")
+        campo, valore = voce.split("=", 1)
+        atteso[campo] = valore
+    atteso.update(esatti)
+    return atteso
 
 
 def stato_e_motivo(resto: list, motivo=None) -> tuple:
@@ -254,10 +310,15 @@ def todo(argv: list) -> int:
     if argv[0] in ("-h", "--help"):
         argv = ["aiuto"]
     argv, motivo = motivo_esatto(argv)
+    argv, esatti = atteso_esatto(argv)
     try:
         args = parser().parse_args(argv)
     except ErroreUso as errore:
-        print(f"Errore: {errore}\n\n{AIUTO}", file=sys.stderr)
+        testo = str(errore)
+        if testo.startswith("manca un argomento") and any(a.startswith("-") and not a.startswith("--") for a in argv[1:]):
+            testo += (". Se il testo comincia con un trattino, metti -- prima del testo: "
+                      'arturo todo aggiungi -- "-20% sul preventivo"')
+        print(f"Errore: {testo}\n\n{AIUTO}", file=sys.stderr)
         return 2
     cmd = args.cmd
 
@@ -265,7 +326,18 @@ def todo(argv: list) -> int:
         print(AIUTO)
         return 0
 
+    if cmd == "progetto":
+        print(progetto_corrente())
+        return 0
+
+    if getattr(args, "progetto", None) == ".":
+        args.progetto = progetto_corrente()
+
     todo_map, avvisi = ts.carica()
+    atteso = atteso_da(args, esatti) if cmd in SCRIVONO else {}
+    if cmd in SCRIVONO:
+        # Un numero letto prima di un merge può indicare un altro todo: chi scrive lo deve vedere.
+        avvisa(ts.rinumerati(todo_map, args.id) + ([] if cmd != "dopo" else ts.rinumerati(todo_map, args.altro)))
 
     if cmd == "lista":
         v = ts.vista(todo_map, avvisi, progetto=args.progetto, tutti=args.tutti)
@@ -328,7 +400,7 @@ def todo(argv: list) -> int:
                 print(f"    {locale(n['ts'])}  {n['testo']}")
         print("  storia")
         for s in t["storia"]:
-            dettaglio = ", ".join(f"{k}={v}" for k, v in s["dati"].items()
+            dettaglio = ", ".join(f"{k}={ts.pulisci(v)}" for k, v in s["dati"].items()
                                   if k != "annullo" and (k != "titolo" or s["tipo"] != "crea"))
             segno = "  (annullo)" if s["dati"].get("annullo") else ""
             print(f"    {locale(s['ts'])}  {s['tipo']}" + (f"  {dettaglio}" if dettaglio else "") + segno)
@@ -345,7 +417,7 @@ def todo(argv: list) -> int:
         return 0
 
     if cmd == "modifica":
-        t = ts.registra(args.id, "modifica", dict(campi_da(args), annullo=args.annullo))
+        t = ts.registra(args.id, "modifica", dict(campi_da(args), annullo=args.annullo), atteso=atteso)
         print(json.dumps(ts.esporta(t, ts.carica()[0]), ensure_ascii=False) if args.json
               else f"Modificato #{t['id']}: {t['titolo']}")
         return 0
@@ -353,37 +425,38 @@ def todo(argv: list) -> int:
     if cmd in ts.AZIONI_STATO:
         stato, verbo = ts.AZIONI_STATO[cmd]
         t = ts.registra(args.id, "stato", {"stato": stato, "motivo": getattr(args, "motivo", ""),
-                                           "annullo": args.annullo})
+                                           "annullo": args.annullo}, atteso=atteso)
         print(f"{verbo} #{t['id']}: {t['titolo']}")
         return 0
 
     if cmd == "ripristina":
-        t = ts.ripristina(args.id, *stato_e_motivo(args.resto, args.motivo if motivo is None else motivo))
+        t = ts.ripristina(args.id, *stato_e_motivo(args.resto, args.motivo if motivo is None else motivo), atteso=atteso)
         print(f"Ripristinato #{t['id']}: {t['stato']}" + (f" ({t['motivo']})" if t["motivo"] else ""))
         return 0
 
     if cmd == "deciso":
-        t = ts.deciso(args.id, args.testo)
+        t = ts.deciso(args.id, args.testo, atteso=atteso)
         print(f"Decisione registrata su #{t['id']}: " + ("resta in FERMO, quando riparte lo fa Claude"
                                                          if t["stato"] == "fermo" else "ora lo fa Claude"))
         return 0
 
     if cmd == "nota":
-        t = ts.registra(args.id, "nota", {"testo": args.testo})
+        t = ts.registra(args.id, "nota", {"testo": args.testo}, atteso=atteso)
         print(f"Nota aggiunta a #{t['id']}")
         return 0
 
     if cmd == "dopo":
-        t = ts.registra(args.id, "dopo", {"id": args.altro, "togli": args.togli})
+        t = ts.registra(args.id, "dopo", {"id": args.altro, "togli": args.togli}, atteso=atteso)
         print(f"#{t['id']} " + ("non aspetta più" if args.togli else "aspetta") + f" #{args.altro.lstrip('#')}")
         return 0
 
     if cmd in ("su", "giu"):
         t = ts.per_id(todo_map, args.id)
+        ts.controlla_atteso(t, atteso)
         passo = 1 if cmd == "su" else -1
         scala = ("più avanti", "settimana", "oggi")
         nuovo = scala[max(0, min(2, scala.index(t["quando"]) + passo))]
-        t = ts.registra(args.id, "modifica", {"quando": nuovo, "annullo": args.annullo})
+        t = ts.registra(args.id, "modifica", {"quando": nuovo, "annullo": args.annullo}, atteso=atteso)
         print(f"#{t['id']} ora è: {nuovo}")
         return 0
 
@@ -412,8 +485,9 @@ COMANDI = {
 def uso() -> str:
     righe = [f"    arturo {nome:<10} {aiuto}" for nome, (_, aiuto) in COMANDI.items()]
     return "arturo: i comandi di Arturo fuori da Claude Code.\n\n" + "\n".join(righe) + (
-        "\n\nSolo libreria standard, Python 3.8 o successivo. I dati stanno in ~/.claude/data/\n"
-        "e non arrivano mai con un aggiornamento.")
+        "\n\nSolo libreria standard, Python 3.8 o successivo. I todo stanno in ~/.claude/data/, lo stato\n"
+        "del percorso in ~/.claude/session-env/percorso.json: nessun aggiornamento li tocca. Lo stato del\n"
+        "percorso (pausa, silenzi) resta su questo computer e non viaggia con /fine.")
 
 
 def sconosciuto(nome: str) -> str:

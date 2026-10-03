@@ -228,6 +228,8 @@
     return chiama("POST", "/api/azione", corpo).then(function (r) {
       if (r.codice === 409 && r.dati && r.dati.vista) {
         stato.aperto = null;
+        // Un Annulla rifiutato perché il todo è cambiato non si ripete: il bottone sparisce.
+        if (opzioni.annullo) { stato.annulla = null; $("annulla").hidden = true; }
         errore(r.dati.errore);
         ricevi(r.dati, true);
         return false;

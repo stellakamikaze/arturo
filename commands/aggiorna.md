@@ -41,17 +41,35 @@ pubblicata di Arturo è cambiata rispetto a quella che la sua copia conosceva. P
 correzione dell'autore, ma è anche il segno di un repository compromesso. Suggerisci di
 controllare le novità del progetto su GitHub prima di aggiornare.
 
-**Leggi cosa cambia nel codice che gira da solo**, prima di chiedere il sì:
+**Leggi cosa cambia nel codice che gira da solo**, prima di chiedere il sì. Prima le guardie
+(`hooks`) e i permessi (`settings.json`), interi e senza taglio: sono i file che decidono cosa
+Claude può fare sul suo computer. Poi l'elenco completo dell'altro codice che gira da solo: la
+CLI `arturo` (`bin`), gli script delle skill (`skills/*/scripts`) e ogni file dei mod di Claude
+Code (una cartella di `skills/` con `.claude-plugin/plugin.json`, come il pannello `/dafare`).
 
 ```bash
-git diff "HEAD...$SRC/main" -- hooks settings.json 'skills/*/scripts/**' bin 'skills/*/hooks/**' 'skills/*/.claude-plugin/**' 2>/dev/null | head -400
+cd "$HOME/.claude"
+echo "=== guardie e permessi, interi"
+git diff "HEAD...$SRC/main" -- hooks settings.json 2>/dev/null
+echo "=== codice che gira da solo: righe aggiunte e tolte, file per file"
+git diff --name-only "HEAD...$SRC/main" -- bin skills 2>/dev/null | while IFS= read -r f; do
+  case "$f" in
+    bin/*|skills/*/scripts/*) echo "$f" ;;
+    skills/*/*)
+      m=${f#skills/}; m="skills/${m%%/*}"
+      { git cat-file -e "$SRC/main:$m/.claude-plugin/plugin.json" || git cat-file -e "HEAD:$m/.claude-plugin/plugin.json"; } 2>/dev/null && echo "$f" ;;
+  esac
+done | while IFS= read -r f; do
+  git diff --numstat "HEAD...$SRC/main" -- "$f" 2>/dev/null   # righe aggiunte, tolte, file
+done
 ```
 
-Il diff copre le guardie (`hooks`), i permessi (`settings.json`), gli script delle skill, la
-CLI `arturo` (`bin`) e i mod di Claude Code (`skills/*/hooks`, `skills/*/.claude-plugin`).
-Lascia i percorsi tra virgolette: così la shell non li espande, e git mostra anche i file delle
-cartelle che questa copia non ha ancora, come un mod nuovo.
-Il pannello `/dafare` è codice che gira da solo dentro Claude Code e lancia la CLI `arturo`.
+Poi leggi il diff di **ogni** file dell'elenco, uno per volta e intero:
+`git diff "HEAD...$SRC/main" -- "FILE"`. Un font o un'immagine basta nominarli. Se un output
+arriva tagliato, dillo e leggi il resto a pezzi (`| sed -n '1,400p'`, poi `'401,800p'`):
+niente sì su un diff letto a metà. Lascia i percorsi tra virgolette: così la shell non li
+espande, e git mostra anche i file delle cartelle che questa copia non ha ancora, come un mod
+nuovo. Il pannello `/dafare` è codice che gira da solo dentro Claude Code e lancia la CLI `arturo`.
 Raccontagli in parole semplici cosa cambia nelle guardie, nei permessi e nel codice che lancia. Segnala in modo
 esplicito ogni modifica che manda dati fuori dal computer, che cancella file, o che rende una
 guardia meno severa. Un aggiornamento è codice di altri che gira sul suo computer: è il motivo
@@ -128,6 +146,9 @@ Due cose, in quest'ordine:
    dimentica più spesso, quindi dillo esplicitamente. Anche il pannello `/dafare` nuovo c'è solo
    dopo la riapertura.
 2. Dopo il riavvio, **`/novita`** gli racconta cosa è cambiato e perché gli conviene saperlo.
+3. Se le novità nominano un comando da scrivere nel terminale (`arturo todo`, `arturo web`),
+   controlla se ha il comando breve: `type arturo`. Se non c'è, digli la forma che funziona
+   sempre (`python3 ~/.claude/bin/arturo …`) e proponigli la FASE 7c di `/setup`, che lo aggiunge.
 
 ## Tornare indietro
 

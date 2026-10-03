@@ -665,15 +665,42 @@ def test_w13(repo: Path) -> None:
     assert re.search(r'el\("textarea", \{[^}]*"data-iniziale"', app), "W13 la nota non segna data-iniziale"
     assert "stato.aperto = null" in corpo("disegna"), "W13 disegna non chiude il pannello di un todo sparito"
 
-    # La prova nel browser, se Chrome c'è: senza Chrome resta il controllo sul sorgente.
+    # La prova nel browser, se Chrome e node 22 ci sono: senza, resta il controllo sul sorgente, che
+    # non vede un rimettiCampi svuotato. Nel gate (ARTURO_PROVA_BROWSER=obbligatoria) il salto è
+    # un fallimento: il gate non resta verde senza la prova vera.
+    prova_nel_browser(repo)
+
+
+def salta_browser(motivo: str) -> None:
+    obbligatoria = os.environ.get("ARTURO_PROVA_BROWSER") == "obbligatoria"
+    assert not obbligatoria, f"W13 la prova nel browser è obbligatoria (ARTURO_PROVA_BROWSER) e non parte: {motivo}"
+    print(f"W13 nota: salto la prova nel browser: {motivo}")
+
+
+def versione_node(node: str) -> int:
+    r = subprocess.run([node, "-e", "process.stdout.write(process.versions.node)"], capture_output=True,
+                       encoding="utf-8", timeout=30)
+    try:
+        return int(r.stdout.split(".")[0]) if r.returncode == 0 else 0
+    except ValueError:
+        return 0
+
+
+def prova_nel_browser(repo: Path) -> None:
     node, chrome = shutil.which("node"), cerca_chrome()
     if not node or not chrome:
-        print("W13 nota: Chrome o node assenti, salto la prova nel browser")
+        salta_browser("Chrome o node assenti")
         return
-    r = subprocess.run([node, str(repo / "tests" / "prova_pagina.js"), str(repo), sys.executable, chrome],
-                       capture_output=True, encoding="utf-8", timeout=180)
+    if versione_node(node) < 22:
+        salta_browser(f"node {versione_node(node)} senza WebSocket: serve node 22 o successivo")
+        return
+    for tentativo in (1, 2):  # Chrome a volte non apre la porta di debug al primo avvio
+        r = subprocess.run([node, str(repo / "tests" / "prova_pagina.js"), str(repo), sys.executable, chrome],
+                           capture_output=True, encoding="utf-8", timeout=180)
+        if r.returncode != 77:
+            break
     if r.returncode == 77:
-        print(f"W13 nota: salto la prova nel browser: {r.stdout.strip()}")
+        salta_browser(r.stdout.strip())
         return
     assert r.returncode == 0 and "PROVA_PAGINA_OK" in r.stdout, \
         f"W13 la prova nel browser: rc={r.returncode} {r.stdout.strip()[-800:]} {r.stderr.strip()[-300:]}"
