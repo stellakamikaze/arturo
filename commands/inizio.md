@@ -132,6 +132,8 @@ dell'handoff è solo la fotografia dell'ultima sessione.
 # Todo aperti del progetto, divisi per chi agisce, e commit recenti per il cross-reference
 python3 "$HOME/.claude/bin/arturo" todo --progetto "$SLUG" 2>/dev/null
 git log --oneline -20 2>/dev/null
+# Il pannello /dafare c'è? I comandi di un mod non compaiono fra quelli che vedi.
+claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "dafare@skills-dir"]; print("mod caricato" if v and v[0].get("enabled") else "mod assente")' 2>/dev/null || echo "mod assente"
 ```
 
 1. Per ogni todo aperto, verifica se un commit recente lo ha già completato. Se sì, chiudilo
@@ -159,6 +161,7 @@ git log --oneline -20 2>/dev/null
 ## Todo
 [i gruppi di `arturo todo`: TOCCA A TE, DECIDI TU POI FACCIO IO, FACCIO IO, FERMO.
  Ogni todo con l'ID a destra e una riga su a cosa serve. Le scadenze passate in cima.]
+[solo se il controllo del pannello della FASE 4 stampa «mod caricato»:]
 Per chiuderli o spostarli con un tasto: /dafare
 
 ## Skill Progetto

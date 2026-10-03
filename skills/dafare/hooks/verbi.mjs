@@ -21,13 +21,13 @@ export function prossimoChi(chi) {
 }
 
 /**
- * Rimette stato e motivo della riga com'erano. «--» chiude le opzioni: un motivo che comincia con
- * un trattino («-firma») resta un argomento e non diventa un'opzione sconosciuta.
+ * Rimette stato e motivo della riga com'erano. Il motivo va in un token solo, `--motivo=TESTO`: la
+ * CLI lo legge prima di argparse, così torna identico anche se è «-firma» o «--», su ogni Python.
  * @param {Riga} t @returns {string[]}
  */
 function ripristina(t) {
-  const prima = ['ripristina', String(t.id), '--', t.stato]
-  return t.motivo ? [...prima, t.motivo] : prima
+  const motivo = t.motivo ? [`--motivo=${t.motivo}`] : []
+  return ['ripristina', String(t.id), ...motivo, '--', t.stato]
 }
 
 /** @type {Record<string, Voce>} */

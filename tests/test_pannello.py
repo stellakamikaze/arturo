@@ -6,17 +6,19 @@ dafare@skills-dir. Legge e scrive i todo solo con la CLI `arturo todo`.
 
 U01 il manifest, gli hook e niente SKILL.md: è un mod, non una skill. U02 `claude plugin
 validate` passa, il mod aggancia gli eventi giusti e chiama solo process.run (niente rete,
-niente modello, niente prompt). U03 `claude plugin test` passa con 0 fail e i test U20-U33 ci
-sono tutti, sulle due superfici. U04 la tabella dei tasti (hooks/verbi.mjs) sulla CLI vera:
+niente modello, niente prompt). U03 `claude plugin test` passa con 0 fail e su ogni superficie passano tutti
+i test del kit, contati per id con la tabella KIT. U04 la tabella dei tasti (hooks/verbi.mjs) sulla CLI vera:
 ogni verbo fa quello che dice e ogni inverso rimette stato, motivo, chi e quando di prima, con
-il segno di annullo; le chiavi di TodoVoce sono quelle della CLI. U05 in una HOME pulita Claude
+il segno di annullo, anche con un motivo «--» e su ogni Python dalla 3.8 alla 3.11 che c'è; le
+chiavi di TodoVoce sono quelle della CLI. U05 in una HOME pulita Claude
 Code adotta il mod e `claude -p /dafare` legge l'archivio. U06 il percorso della CLI viene dalla
 cartella del mod, e nel mod non ci sono percorsi assoluti né dati personali. U07 i testi del
 pannello: niente emoji, niente apostrofo al posto dell'accento, niente «dovresti» o «qualora».
 U08 /system-audit riconosce un mod e lo distingue da una skill rotta. U09 .gitignore tiene fuori
 i file che Claude Code genera accanto al mod, e dentro il mod vero. U10 il diff di /aggiorna,
 lanciato con bash e zsh in un clone fermo alla base, mostra il codice del mod. U11 la persona scopre il pannello da skill, /inizio, README, NOVITA, /setup e
-/diagnosi; il referente sa come spegnerlo. U12 il README conta le skill giuste e spiega il mod.
+/diagnosi; skill e /inizio lo nominano solo se `claude plugin list --json` mostra il mod acceso;
+il referente sa come spegnerlo. U12 il README conta le skill giuste e spiega il mod.
 U13 validate e test non eseguono gli hook di sessione e non chiedono rete né accesso: un
 controllo positivo prova che la sentinella funziona e che la HOME di prova non ha accesso.
 
@@ -37,7 +39,11 @@ from pathlib import Path
 
 OGGI = "2026-10-03"
 VERBI_ATTESI = {"fatto", "ferma", "riprendi", "chi", "avvicina", "allontana"}
-TEST_KIT = [f"U{n}" for n in range(20, 34)]
+# Quanti test del kit porta ogni id, su ogni superficie. Si conta, non si confronta un insieme:
+# un test tolto da un id che ne ha due deve far fallire U03.
+KIT = {f"U{n}": 1 for n in range(20, 34)}
+KIT.update(U21=2, U27=2, U28=3, U30=2, U31=3)
+TEST_KIT = sum(KIT.values())
 PROXY_MORTO = "http://127.0.0.1:9"
 GENERATI = (".claude-plugin/types", "tsconfig.json")
 # I nomi della config dell'autore, spezzati come in test_allineamento.py perché l'igiene I03 non
@@ -95,8 +101,8 @@ def lancia(argv: list, home: Path, cwd: Path, timeout: int = 180) -> subprocess.
     return r
 
 
-def cli(repo: Path, home: Path, *argomenti: str, ok: bool = True) -> subprocess.CompletedProcess:
-    r = lancia([sys.executable, str(repo / "bin" / "arturo"), "todo", *argomenti], home, home, timeout=60)
+def cli(repo: Path, home: Path, *argomenti: str, ok: bool = True, python: str = sys.executable) -> subprocess.CompletedProcess:
+    r = lancia([python, str(repo / "bin" / "arturo"), "todo", *argomenti], home, home, timeout=60)
     if ok:
         assert r.returncode == 0, f"arturo todo {' '.join(argomenti)}: rc={r.returncode} {r.stderr.strip()}"
     return r
@@ -157,12 +163,11 @@ def test_u03(repo: Path) -> None:
     falliti = re.findall(r"^\(fail\) (\w+: U\d+)\b", testo, re.M)
     assert not falliti, f"U03 test del kit falliti: {falliti}"
     assert r.returncode == 0 and re.search(r"^\s*0 fail\s*$", testo, re.M), f"U03 claude plugin test: {testo[-1500:]}"
-    superfici = {}
     for superficie in ("terminal", "desktop"):
-        superfici[superficie] = set(re.findall(rf"^\(pass\) {superficie}: (U\d+)\b", testo, re.M))
-    assert superfici["terminal"] == superfici["desktop"] == set(TEST_KIT), \
-        f"U03 id dei test del kit: terminal={sorted(superfici['terminal'])} desktop={sorted(superfici['desktop'])}, " \
-        f"attesi {TEST_KIT} (len {len(TEST_KIT)})"
+        passati = re.findall(rf"^\(pass\) {superficie}: (U\d+)\b", testo, re.M)
+        contati = {i: passati.count(i) for i in sorted(set(passati))}
+        assert contati == KIT and len(passati) == TEST_KIT, \
+            f"U03 test del kit passati su {superficie}: {contati} (len {len(passati)}), attesi {KIT} (len {TEST_KIT})"
 
 
 def calcola_verbi(repo: Path, riga: dict) -> dict:
@@ -196,56 +201,86 @@ def test_u04(repo: Path) -> None:
     dichiarate = set(re.findall(r"^\s+(\w+)\??:", blocco.group(1), re.M))
     assert dichiarate == chiavi, f"U04 TodoVoce e CHIAVI_TODO non coincidono: {sorted(dichiarate ^ chiavi)}"
 
+    for python in pythons():
+        verbi_sulla_cli(repo, chiavi, python)
+
+
+def pythons() -> list:
+    """L'interprete del banco più ogni Python dalla 3.8 alla 3.11 che c'è: fino alla 3.11 argparse
+    tratta «--» in un altro modo, e il pannello usa il primo python3 che trova (su macOS il 3.9)."""
+    trovati, visti = [], set()
+    for nome in [sys.executable, "/usr/bin/python3"] + [shutil.which(f"python3.{n}") or "" for n in range(8, 12)]:
+        if not nome or not os.path.isfile(nome):
+            continue
+        r = subprocess.run([nome, "-c", "import sys; print(sys.version_info >= (3, 8))"], capture_output=True, timeout=30)
+        vero = os.path.realpath(nome)
+        if r.returncode == 0 and r.stdout.strip() == b"True" and vero not in visti:
+            visti.add(vero)
+            trovati.append(nome)
+    return trovati
+
+
+def verbi_sulla_cli(repo: Path, chiavi: set, python: str) -> None:
+    def cli_(*argomenti: str) -> subprocess.CompletedProcess:
+        return cli(repo, home, *argomenti, python=python)
+
     with tempfile.TemporaryDirectory() as tmp:
         home = Path(tmp) / "home"
         home.mkdir()
 
         def todo() -> dict:
-            v = json.loads(cli(repo, home, "--json").stdout)
+            v = json.loads(cli_("--json").stdout)
             tutti = [t for g in v["gruppi"] for t in g["todo"]]
             if not tutti:
-                return json.loads(cli(repo, home, "mostra", "1", "--json").stdout)
+                return json.loads(cli_("mostra", "1", "--json").stdout)
             assert set(tutti[0]) == chiavi, f"U04 le chiavi del JSON vero: {sorted(set(tutti[0]) ^ chiavi)}"
             return tutti[0]
 
         def mostra() -> dict:
-            return json.loads(cli(repo, home, "mostra", "1", "--json").stdout)
+            return json.loads(cli_("mostra", "1", "--json").stdout)
 
         def prova(verbo: str, atteso: dict) -> None:
             prima = todo()
             calcolati = calcola_verbi(repo, prima)
             assert set(calcolati) == VERBI_ATTESI, f"U04 i verbi del pannello: {sorted(calcolati)} (len {len(calcolati)})"
             v = calcolati[verbo]
-            cli(repo, home, *v["argv"])
+            cli_(*v["argv"])
             dopo = mostra()
             for campo, valore in atteso.items():
-                assert dopo[campo] == valore, f"U04 {verbo} {v['argv']}: {campo}={dopo[campo]!r}, atteso {valore!r}"
-            cli(repo, home, *v["inverso"])
+                assert dopo[campo] == valore, f"U04 {verbo} {v['argv']} con {python}: {campo}={dopo[campo]!r}, atteso {valore!r}"
+            cli_(*v["inverso"])
             tornato = mostra()
             for campo in ("stato", "motivo", "chi", "quando", "gruppo"):
                 assert tornato[campo] == prima[campo], \
-                    f"U04 l'inverso di {verbo} {v['inverso']}: {campo}={tornato[campo]!r}, prima era {prima[campo]!r}"
+                    f"U04 l'inverso di {verbo} {v['inverso']} con {python}: {campo}={tornato[campo]!r}, prima era {prima[campo]!r}"
             ultimo = tornato["storia"][-1]["dati"]
             assert ultimo.get("annullo") is True, f"U04 l'inverso di {verbo} non porta il segno di annullo: {ultimo}"
 
-        cli(repo, home, "aggiungi", "Provare il pannello", "--progetto", "prova", "--chi", "tu", "--quando", "settimana")
+        cli_("aggiungi", "Provare il pannello", "--progetto", "prova", "--chi", "tu", "--quando", "settimana")
         prova("fatto", {"stato": "fatto"})
         prova("ferma", {"stato": "fermo", "gruppo": "fermo"})
         prova("chi", {"chi": "decidi", "gruppo": "decidi"})
         prova("avvicina", {"quando": "oggi"})
         prova("allontana", {"quando": "più avanti"})
-        cli(repo, home, "inizia", "1")
+        cli_("inizia", "1")
         prova("fatto", {"stato": "fatto"})  # l'inverso rimette «in corso», non «da fare»
-        cli(repo, home, "ferma", "1", "aspetto la firma")
+        cli_("ferma", "1", "aspetto la firma")
         prova("riprendi", {"stato": "da fare", "gruppo": "tu"})  # l'inverso rimette FERMO con il motivo
         assert mostra()["motivo"] == "aspetto la firma", "U04 l'inverso di riprendi perde il motivo"
-        # Un motivo di una parola che comincia con un trattino: l'inverso lo passa dopo «--», e la CLI
-        # non lo legge come un'opzione.
-        cli(repo, home, "ferma", "1", "--", "-firma")
+        # Un motivo di una parola che comincia con un trattino: l'inverso lo passa in --motivo=, e la
+        # CLI non lo legge come un'opzione.
+        cli_("ferma", "1", "--", "-firma")
         prova("riprendi", {"stato": "da fare", "gruppo": "tu"})
         assert mostra()["motivo"] == "-firma", "U04 l'inverso di riprendi perde il motivo «-firma»"
         prova("fatto", {"stato": "fatto"})
         assert mostra()["motivo"] == "-firma", "U04 l'inverso di fatto perde il motivo «-firma»"
+        # Un motivo «--»: fino a Python 3.11 argparse lo toglie da un argomento normale.
+        cli_("ripristina", "1", "--motivo=--", "fermo")
+        assert mostra()["motivo"] == "--", f"U04 ripristina --motivo=-- con {python}: {mostra()['motivo']!r}"
+        prova("riprendi", {"stato": "da fare", "gruppo": "tu"})
+        assert mostra()["motivo"] == "--", f"U04 l'inverso di riprendi perde il motivo «--» con {python}"
+        prova("fatto", {"stato": "fatto"})
+        assert mostra()["motivo"] == "--", f"U04 l'inverso di fatto perde il motivo «--» con {python}"
 
 
 def test_u05(repo: Path) -> None:
@@ -426,9 +461,37 @@ def sezione(testo: str, titolo: str) -> str:
     return m.group(1)
 
 
+def controllo_del_mod(testo: str, dove: str) -> None:
+    """Il modello non vede i comandi di un mod: la skill todo e /inizio sanno se il pannello c'è da
+    `claude plugin list --json`. La riga si lancia davvero su tre liste finte."""
+    righe = [r.strip() for r in testo.splitlines() if r.strip().startswith("claude plugin list --json")]
+    assert len(righe) == 1, f"U11 {dove}: il controllo del pannello con claude plugin list --json: {righe}"
+    attesi = (('[{"id": "dafare@skills-dir", "enabled": true}]', "mod caricato"),
+              ('[{"id": "dafare@skills-dir", "enabled": false}]', "mod assente"),
+              ('[{"id": "altro@skills-dir", "enabled": true}]', "mod assente"))
+    with tempfile.TemporaryDirectory() as tmp:
+        for lista, atteso in attesi:
+            finta = Path(tmp) / "lista.json"
+            finta.write_text(lista, encoding="utf-8")
+            riga = righe[0].replace("claude plugin list --json", f'cat "{finta}"', 1)
+            r = subprocess.run(["bash", "-c", riga], capture_output=True, timeout=30)
+            uscita = r.stdout.decode("utf-8", "replace").strip()
+            assert uscita == atteso, f"U11 {dove}: con {lista} il controllo stampa {uscita!r}, atteso {atteso!r}"
+
+
 def test_u11(repo: Path) -> None:
-    assert "/dafare" in read(repo / "skills" / "todo" / "SKILL.md"), "U11 la skill todo non nomina /dafare"
-    assert "/dafare" in sezione(read(repo / "commands" / "inizio.md"), "## Todo"), "U11 /inizio non nomina /dafare"
+    skill = read(repo / "skills" / "todo" / "SKILL.md")
+    assert "/dafare" in skill, "U11 la skill todo non nomina /dafare"
+    assert "compare fra i comandi" not in skill, \
+        "U11 la skill todo cerca /dafare fra i comandi che vede: il modello non vede i comandi di un mod"
+    controllo_del_mod(skill, "skills/todo/SKILL.md")
+    inizio = read(repo / "commands" / "inizio.md")
+    todo = sezione(inizio, "## Todo")
+    assert "/dafare" in todo, "U11 /inizio non nomina /dafare"
+    for riga in [r for r in todo.splitlines() if "/dafare" in r]:
+        prima = todo.splitlines()[todo.splitlines().index(riga) - 1]
+        assert "[solo se" in riga or "[solo se" in prima, f"U11 /inizio propone /dafare senza condizione: {riga!r}"
+    controllo_del_mod(sezione(inizio, "## FASE 4: Carica i Todo con Cross-Reference"), "commands/inizio.md FASE 4")
     assert "/dafare" in read(repo / "README.md"), "U11 il README non nomina /dafare"
     novita = read(repo / "NOVITA.md")
     prima = re.search(r"^## .*$", novita, re.M)

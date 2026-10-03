@@ -1,6 +1,6 @@
 // I test del pannello /dafare con il kit di Claude Code (`claude plugin test`).
-// Ogni test comincia con il suo id (U20-U33): il banco tests/test_pannello.py (U03) confronta
-// l'insieme degli id passati con il suo elenco, sulle due superfici.
+// Ogni test comincia con il suo id (U20-U33): il banco tests/test_pannello.py (U03) conta i test
+// passati per id, sulle due superfici, e li confronta con la sua tabella KIT.
 //
 // Sotto il pannello c'è una CLI finta: tiene un piccolo archivio in memoria, risponde a
 // `todo --json` e ai verbi del pannello, e registra ogni argv.
@@ -21,6 +21,7 @@ type Opzioni = {
 }
 
 const PANE = { title: 'Le tue cose da fare', isFocused: true, bodyColumns: 80, placement: 'inline' } as never
+const PANE_STRETTO = { title: 'Le tue cose da fare', isFocused: true, bodyColumns: 50, placement: 'inline' } as never
 const BAND = { hasSurvey: false, isWorking: false, maxRows: 4, bodyColumns: 120 } as never
 const BAND_SONDAGGIO = { hasSurvey: true, isWorking: false, maxRows: 4, bodyColumns: 120 } as never
 const COMANDO = { presentation: { isFullscreen: false, columns: 120 }, origin: { kind: 'composer' } }
@@ -65,8 +66,11 @@ function motore(on: On, iniziali: TodoVoce[], opzioni: Opzioni = {}) {
   })
 
   const esegui = (argomenti: string[]): Uscita => {
-    // «--» chiude le opzioni, come nella CLI vera: dopo restano solo argomenti.
-    const a = argomenti.filter(x => x !== '--')
+    // «--» chiude le opzioni, come nella CLI vera: dopo restano solo argomenti. `--motivo=TESTO`
+    // prima di «--» è il motivo esatto di ripristina.
+    const fine = argomenti.indexOf('--') < 0 ? argomenti.length : argomenti.indexOf('--')
+    const motivo = argomenti.slice(0, fine).find(x => x.startsWith('--motivo='))?.slice('--motivo='.length) ?? null
+    const a = argomenti.filter((x, i) => x !== '--' && !(i < fine && x.startsWith('--motivo=')))
     const rotto = opzioni.rompi?.(argomenti)
     if (rotto) return rotto
     if (a[0] === '--json') return { exitCode: 0, stdout: opzioni.json ? opzioni.json() : JSON.stringify(vista()), stderr: '' }
@@ -76,7 +80,7 @@ function motore(on: On, iniziali: TodoVoce[], opzioni: Opzioni = {}) {
     if (a[0] === 'fatto') Object.assign(t, { stato: 'fatto', motivo: null })
     else if (a[0] === 'ferma') Object.assign(t, { stato: 'fermo', motivo: a[2] ?? null })
     else if (a[0] === 'riprendi') Object.assign(t, { stato: 'da fare', motivo: null })
-    else if (a[0] === 'ripristina') Object.assign(t, { stato: a[2], motivo: a[3] ?? null })
+    else if (a[0] === 'ripristina') Object.assign(t, { stato: a[2], motivo })
     else if (a[0] === 'su') t.quando = scala[Math.min(2, scala.indexOf(t.quando) + 1)]!
     else if (a[0] === 'giu') t.quando = scala[Math.max(0, scala.indexOf(t.quando) - 1)]!
     else if (a[0] === 'modifica' && a[2] === '--chi') t.chi = a[3] as TodoVoce['chi']
@@ -130,9 +134,9 @@ function motore(on: On, iniziali: TodoVoce[], opzioni: Opzioni = {}) {
 }
 
 for (const surface of ['terminal', 'desktop'] as const) {
-  const apri = async ($: Engine, args = '') => {
+  const apri = async ($: Engine, args = '', props = PANE) => {
     const r = await $.command.run({ command: 'dafare', args, ...COMANDO } as never)
-    const pane = await $.ui.mount({ plugin: 'dafare', surface, component: 'Pane', requestId: 'dafare', props: PANE })
+    const pane = await $.ui.mount({ plugin: 'dafare', surface, component: 'Pane', requestId: 'dafare', props })
     return { r, pane }
   }
 
@@ -167,6 +171,18 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(await pane.find({ type: 'Text', text: 'scade oggi' })).toBeTruthy()
     expect(await pane.find({ type: 'Text', text: 'fermo: aspetto la firma' })).toBeTruthy()
     expect(await pane.find({ type: 'Text', text: 'riga 7 del registro illeggibile' })).toBeTruthy()
+    // La riga sotto il titolo del gruppo viene dal JSON della CLI, non dal pannello.
+    expect(await pane.find({ type: 'Text', text: 'Lo fai tu.' })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: 'Aspetta qualcosa o qualcuno.' })).toBeTruthy()
+  })
+
+  test(`${surface}: U21 un pannello stretto tiene i gruppi e toglie la descrizione`, async ($, on) => {
+    motore(on, [voce(1), voce(2, { stato: 'fermo', motivo: 'aspetto la firma' })])
+    const { pane } = await apri($, '', PANE_STRETTO)
+    expect(await pane.find({ type: 'Text', text: 'TOCCA A TE (1)' })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: 'FERMO (1)' })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: 'Lo fai tu.' })).toBeFalsy()
+    expect(await pane.find({ type: 'Text', text: 'Aspetta qualcosa o qualcuno.' })).toBeFalsy()
   })
 
   test(`${surface}: U22 scelgo la riga 3 e premo f: fatto, rilettura, CHIUSI ORA`, async ($, on) => {
@@ -208,7 +224,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
       ['todo', 'ferma', '3'],
       ['todo', 'ripristina', '3', '--', 'da fare'],
       ['todo', 'riprendi', '4'],
-      ['todo', 'ripristina', '4', '--', 'fermo', 'aspetto la firma'],
+      ['todo', 'ripristina', '4', '--motivo=aspetto la firma', '--', 'fermo'],
     ])
   })
 
@@ -333,6 +349,21 @@ for (const surface of ['terminal', 'desktop'] as const) {
     const { pane } = await apri($)
     expect(await pane.find({ type: 'Text', text: '/aggiorna' })).toBeTruthy()
     expect(await pane.find({ key: 'fatto' })).toBeFalsy()
+  })
+
+  test(`${surface}: U30 dopo una vista buona arriva una v2 senza gruppi: via i tasti, chiede /aggiorna`, async ($, on) => {
+    let nuova = false
+    motore(on, [voce(1), voce(2), voce(3)], {
+      rompi: a => (nuova && a[0] === '--json' ? { exitCode: 0, stdout: '{"versione":2,"voci":[]}', stderr: '' } : null),
+    })
+    const { pane } = await apri($)
+    expect(await pane.find({ key: 'riga-3' })).toBeTruthy()
+    nuova = true
+    await $.turn.complete({ answer: 'fatto', durationMs: 10, isAborted: false, turnId: 't1', reason: 'end_turn' } as never)
+    expect(await pane.find({ type: 'Text', text: '/aggiorna' })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: 'formato che il pannello non legge' })).toBeFalsy()
+    expect(await pane.find({ key: 'fatto' })).toBeFalsy()
+    expect(await pane.find({ key: 'riga-3' })).toBeFalsy()
   })
 
   test(`${surface}: U31 la barra sopra il prompt, il sondaggio e /dafare nascondi`, async ($, on) => {

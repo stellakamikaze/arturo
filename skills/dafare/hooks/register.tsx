@@ -96,13 +96,19 @@ async function carica($: EngineInterface): Promise<void> {
     return
   }
   const v = dato as Vista
-  if (!v || typeof v !== 'object' || !Array.isArray(v.gruppi)) {
+  if (!v || typeof v !== 'object') {
     await update($, errore, () => 'La CLI dei todo ha risposto in un formato che il pannello non legge.')
     return
   }
+  // La versione prima della forma: una CLI nuova può cambiare la forma, e il pannello vecchio non
+  // deve scrivere partendo dalla vista di prima.
   if (v.versione !== VERSIONE_VISTA) {
     await update($, vista, () => null)
     await update($, errore, () => 'Il pannello e la CLI non vanno d\'accordo: scrivi /aggiorna.')
+    return
+  }
+  if (!Array.isArray(v.gruppi)) {
+    await update($, errore, () => 'La CLI dei todo ha risposto in un formato che il pannello non legge.')
     return
   }
   await update($, vista, () => v)

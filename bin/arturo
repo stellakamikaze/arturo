@@ -60,6 +60,7 @@ Campi di aggiungi e modifica:
   --note TESTO        (solo aggiungi) una prima nota
 
 Uno stato di due parole va anche senza virgolette: ripristina 4 da fare, ripristina 4 in corso.
+Il motivo esatto, anche se comincia con un trattino: ripristina 4 --motivo=TESTO fermo.
 
 Letture con --json: il formato che leggono il pannello e la pagina web.
 --annullo vale per modifica, su, giu, inizia, fatto, riprendi, ferma e scarta: segna il passo
@@ -200,6 +201,7 @@ def parser() -> argparse.ArgumentParser:
         c.add_argument("--annullo", action="store_true")
     c = comando("ripristina")
     c.add_argument("id")
+    c.add_argument("--motivo", default=None)
     c.add_argument("resto", nargs="+")  # STATO [motivo]: lo divide stato_e_motivo()
     c = comando("deciso")
     c.add_argument("id")
@@ -216,8 +218,28 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
-def stato_e_motivo(resto: list) -> tuple:
-    """`ripristina 4 da fare` senza virgolette: le prime due parole, se formano uno stato, sono lo stato."""
+def motivo_esatto(argv: list) -> tuple:
+    """Toglie `--motivo=TESTO` da argv prima di argparse e ritorna (argv, TESTO o None).
+
+    Fino a Python 3.11 argparse toglie un «--» anche dal valore di `--motivo=--`: il pannello
+    annulla con questa forma, e il motivo deve tornare identico su ogni Python. Vale solo prima di
+    un «--» separato, perché dopo ci sono solo argomenti.
+    """
+    if not argv or argv[0] != "ripristina":
+        return argv, None
+    fine = argv.index("--") if "--" in argv else len(argv)
+    for i, x in enumerate(argv[:fine]):
+        if x.startswith("--motivo="):
+            return argv[:i] + argv[i + 1:], x[len("--motivo="):]
+    return argv, None
+
+
+def stato_e_motivo(resto: list, motivo=None) -> tuple:
+    """`ripristina 4 da fare` senza virgolette: le prime due parole, se formano uno stato, sono lo stato.
+
+    Con `--motivo` il motivo è già deciso e tutte le parole di resto sono lo stato."""
+    if motivo is not None:
+        return " ".join(resto), motivo
     if len(resto) >= 2:
         try:
             return ts.scelta(f"{resto[0]} {resto[1]}", ts.STATI, "stato"), " ".join(resto[2:])
@@ -231,6 +253,7 @@ def todo(argv: list) -> int:
         argv = ["lista", *argv]
     if argv[0] in ("-h", "--help"):
         argv = ["aiuto"]
+    argv, motivo = motivo_esatto(argv)
     try:
         args = parser().parse_args(argv)
     except ErroreUso as errore:
@@ -335,7 +358,7 @@ def todo(argv: list) -> int:
         return 0
 
     if cmd == "ripristina":
-        t = ts.ripristina(args.id, *stato_e_motivo(args.resto))
+        t = ts.ripristina(args.id, *stato_e_motivo(args.resto, args.motivo if motivo is None else motivo))
         print(f"Ripristinato #{t['id']}: {t['stato']}" + (f" ({t['motivo']})" if t["motivo"] else ""))
         return 0
 

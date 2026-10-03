@@ -83,7 +83,8 @@ te. E `deciso` scrive sempre il prefisso «Deciso: », che il percorso legge. Su
 Se la persona dice che un passo era uno sbaglio («no, non era fatto»), riporta il todo com'era
 con `ripristina ID STATO "motivo di prima"`: lo stato e il motivo li leggi in
 `mostra ID --json`, nella storia. Uno stato di due parole va anche senza virgolette:
-`ripristina 4 da fare`. Non usare `riprendi`: riapre sempre come «da fare» e perde il
+`ripristina 4 da fare`. Un motivo che comincia con un trattino va in un token solo:
+`ripristina 4 --motivo=-firma fermo`. Non usare `riprendi`: riapre sempre come «da fare» e perde il
 motivo di un FERMO. `ripristina` mette nell'evento il segno `annullo`, e chi legge la storia sa
 che non è una scelta della persona. `modifica`, `su`, `giu`, `inizia`, `fatto`, `riprendi`,
 `ferma` e `scarta` accettano `--annullo` per lo stesso scopo: lo usano pannello e pagina web
@@ -106,9 +107,16 @@ pannello dentro Claude Code. Sceglie una riga con il numero e preme una lettera:
 ferma, `r` riprendi, `c` chi lo fa, `a` avvicina, `l` allontana, `u` annulla. Il pannello scrive
 con la stessa CLI che usi tu, quindi quello che vedi con `arturo todo` è sempre aggiornato.
 
-- Il pannello c'è solo se `/dafare` compare fra i comandi di questa sessione. Con Claude Code più
-  vecchio della 2.1.287, o con il mod spento, manca: allora non nominarlo e mostra i gruppi di
-  `arturo todo`, come sempre.
+- I comandi di un mod non compaiono fra quelli che vedi: per sapere se il pannello c'è, lancia
+  una volta per sessione, prima di nominarlo, la stessa riga di `/diagnosi`:
+
+  ```bash
+  claude plugin list --json | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "dafare@skills-dir"]; print("mod caricato" if v and v[0].get("enabled") else "mod assente")'
+  ```
+
+  Il pannello c'è solo se la riga stampa «mod caricato». Con Claude Code più vecchio della
+  2.1.287, con il mod spento o se il comando non risponde, manca: allora non nominarlo e mostra
+  i gruppi di `arturo todo`, come sempre.
 - Se il pannello c'è, la prima volta nella sessione che confermi un `aggiungi` nominalo: «Segnato
   come #1. Lo vedi con /dafare.» Dopo, non ripeterlo.
 - Quando la persona chiede «cosa c'è da fare?», mostra i gruppi. Se il pannello c'è, proponi
