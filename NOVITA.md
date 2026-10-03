@@ -11,6 +11,26 @@ modo di lavorare.
 
 ---
 
+## 2026-10-04 — Claude ti dice quale skill usa
+
+**Cosa cambia**: nel brief che Claude mostra prima di ogni lavoro c'è una riga nuova, «Skill:».
+Dice quale skill userà e perché, oppure «nessuna». Se una skill che non hai nominato fa meglio il
+lavoro, te lo dice lì. Il brief si carica anche più leggero: la parte per scrivere prompt destinati
+ad altri strumenti (ChatGPT, Midjourney e simili) ora si legge solo quando la chiedi. In `/setup`
+ci sono due regole consigliate in più per il tuo `CLAUDE.md`: l'ultima riga di ogni lavoro dice il
+prossimo passo, e un risultato visivo è «fatto» solo quando Claude l'ha aperto come lo vedrai tu.
+
+**Il principio dietro**: l'harness si misura su come lo usi. Le due regole e la riga Skill vengono
+dall'analisi di due mesi d'uso reale di chi sviluppa Arturo: «e adesso?» chiesto 59 volte, il
+«fatto» non verificato come correzione più frequente sui lavori visivi.
+
+**A chi serve**: a chi non sa ancora quali skill ha, e a chi vuole capire dal brief se Claude ha
+preso la strada giusta prima che cominci.
+
+<!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->
+
+---
+
 ## 2026-10-03 — Il percorso a tappe
 
 **Cosa cambia**: chiedi a Claude «a che punto sono?» oppure scrivi `/percorso`. Vedi la tua

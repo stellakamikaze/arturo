@@ -512,8 +512,11 @@ def test_g14(repo: Path) -> None:
     assert "docs/esercizi.md" in readme and "`percorso`" in readme, "G14 il README non racconta il percorso"
     novita = read(repo / "NOVITA.md")
     intestazioni = [r for r in novita.splitlines() if r.startswith("## ")]
-    assert intestazioni[0] == "## 2026-10-03 — Il percorso a tappe", f"G14 NOVITA in cima: {intestazioni[:1]}"
-    entry = novita.split(intestazioni[0], 1)[1].split("\n## ", 1)[0]
+    # la voce del percorso deve esserci, non stare in cima per sempre: ogni novità dopo la scende
+    PERCORSO = "## 2026-10-03 — Il percorso a tappe"
+    assert PERCORSO in intestazioni, f"G14 NOVITA senza la voce del percorso: {intestazioni[:3]}"
+    assert intestazioni[0].startswith("## ") and intestazioni[0][3:13] >= "2026-10-03", f"G14 NOVITA: in cima una voce più vecchia del percorso: {intestazioni[:1]}"
+    entry = novita.split(PERCORSO, 1)[1].split("\n## ", 1)[0]
     assert entry.rstrip().endswith(NOTA_AUTORE) and "/percorso" in entry, "G14 la entry di NOVITA"
     capitolo = repo / "docs" / "principi" / "05-tieni-la-decisione.md"
     testo = read(capitolo)

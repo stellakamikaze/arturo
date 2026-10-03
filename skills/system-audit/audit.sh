@@ -265,6 +265,16 @@ else
   ko "permessi: defaultMode mancante, pattern sovrapposti o settings non leggibile"
 fi
 
+# Peso dei corpi: il corpo di una skill o di un comando entra intero nel contesto a ogni uso.
+# Sopra soglia, le parti lette solo in un caso vanno in un file a parte nella stessa skill.
+for f in "$CLAUDE_DIR"/skills/*/SKILL.md "$CLAUDE_DIR"/commands/*.md; do
+  [[ -f "$f" ]] || continue
+  sz=$(wc -c < "$f" | tr -d ' ')
+  if [[ "$sz" -gt 30000 ]]; then
+    warning "${f#$CLAUDE_DIR/} pesa $((sz / 1024)) KB (tetto 30 KB): sposta in references/ le parti lette solo in un caso"
+  fi
+done
+
 echo "=== System Audit ==="
 printf '%s\n' "${report[@]}"
 printf 'Totali: PASS=%s WARN=%s FAIL=%s\n' "$pass" "$warn" "$fail"

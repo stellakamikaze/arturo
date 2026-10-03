@@ -19,9 +19,11 @@ fi
 # Per spegnerlo: cancella il blocco cat qui sotto, oppure togli la skill prompt-master.
 cat <<'PROMEMORIA'
 REGOLA FISSA: se questo messaggio e' una richiesta di lavoro, il primo tool e'
-Skill(prompt-master) e le prime righe che scrivi sono PROMPT e BRIEF, prima di
-qualunque altro lavoro. Esente solo la conversazione pura: domande, commenti,
-risposte a un menu. Il brief non e' un gate: mostrato il prompt, se e' giusto si procede.
+Skill(prompt-master) e le prime righe che scrivi sono PROMPT e BRIEF, con la riga
+«Skill:» (quale skill usi e perche', o «nessuna»), prima di qualunque altro lavoro.
+Esente solo la conversazione pura: domande, commenti, risposte a un menu; li' consiglia
+una skill solo se c'entra davvero. Il brief non e' un gate: mostrato il prompt, se e'
+giusto si procede.
 PROMEMORIA
 
 exit 0
