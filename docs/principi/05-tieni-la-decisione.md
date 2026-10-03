@@ -27,11 +27,11 @@ messaggio, la storia di quel cliente, il motivo per cui quest'anno dici no.
 fermarlo a ogni passo. Una bozza, un riassunto, un elenco, un file riordinato. Se a ogni riga
 chiedi una conferma, perdi il tempo che volevi guadagnare.
 
-**Frena l'impegno.** Prima di un'azione che non si torna indietro, fermati. Rileggi tu, decidi
+**Frena l'impegno.** Prima di un'azione da cui non torni indietro, fermati. Rileggi tu, decidi
 tu, premi tu. Un invio, una cifra verso fuori, una cancellazione, una promessa a una persona.
 
-Il freno non è sfiducia. È lo stesso gesto che fai con un collaboratore bravo e nuovo: gli lasci
-preparare tutto, e la lettera la firmi tu.
+Il freno è lo stesso gesto che fai con un collaboratore bravo e nuovo: gli lasci preparare tutto,
+e la lettera la firmi tu.
 
 ## Perché più delega non vuol dire meglio
 

@@ -64,8 +64,8 @@ bozza, non un risultato.
 il lavoro nuovo con la stessa struttura e gli stessi termini.
 
 **Cosa resta a te**: le cifre e l'invio. Claude scrive le voci e lascia le cifre da riempire. Tu le
-metti, tu rileggi, tu mandi. Anche se Claude provasse a mandare un'email, la guardia delle
-comunicazioni di Arturo la ferma e ti chiede conferma.
+metti, tu rileggi, tu mandi. Se Claude prova a mandare un'email, la guardia delle comunicazioni di
+Arturo la ferma e ti chiede conferma.
 
 **Come sai che è fatto**: hai una bozza con la struttura giusta, le cifre scritte da te, e
 nessun invio fatto da Claude.
@@ -114,11 +114,12 @@ scrittura.
 (`io`), tu decidi se partecipare (`decidi`), Claude scrive la scaletta (`io`). La scaletta aspetta
 la tua decisione: `arturo todo dopo 3 2`.
 
-**Cosa resta a te**: la porta in mezzo. Quando hai deciso, scrivi `arturo todo deciso 2 "partecipo"`
-oppure scarti il todo con il motivo. La scaletta parte solo dopo.
+**Cosa resta a te**: la porta in mezzo. Quando hai deciso, scrivi `arturo todo deciso 2 "partecipo"`.
+La scaletta parte solo dopo. Se scegli di non partecipare, scarta il todo 2 con il motivo: quel no
+motivato conta per la tappa Delega, e la scaletta non parte.
 
-**Come sai che è fatto**: la tua decisione è chiusa prima della scaletta, e `arturo percorso`
-mostra il todo che lo prova.
+**Come sai che è fatto**: hai registrato la decisione prima che Claude chiudesse la scaletta, e
+`arturo percorso` mostra il todo della scaletta come prova.
 
 **Federico lo fa così**: nei progetti culturali divide sempre la lettura dalla scelta. Claude legge
 il bando e riassume requisiti e scadenze. La decisione di partecipare è un todo suo, e niente

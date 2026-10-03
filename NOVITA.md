@@ -24,8 +24,9 @@ che tieni, non il lavoro che deleghi. Le tappe si aprono con una decisione presa
 lavori, un limite che dichiari o un no motivato. Il nuovo capitolo «Tieni la decisione» lo
 racconta (`docs/principi/05-tieni-la-decisione.md`), e `docs/esercizi.md` ha otto esercizi.
 
-**Da sapere**: il percorso si calcola solo sul tuo computer, dai tuoi todo. Non esce niente, e il
-referente della tua organizzazione non lo vede. Dopo un no alla proposta di `/fine`, Claude tace
+**Da sapere**: il percorso si calcola solo sul tuo computer, dai tuoi todo, e il suo stato resta lì.
+I todo da cui nasce (i perché e le note «Tenuto:») viaggiano come gli altri todo: solo verso il
+tuo repository privato, con `/fine`. Il referente della tua organizzazione non vede il percorso. Dopo un no alla proposta di `/fine`, Claude tace
 tre giorni. Dopo due no di fila, due settimane. «Basta suggerimenti» le spegne finché non dici
 «riprendi i suggerimenti».
 

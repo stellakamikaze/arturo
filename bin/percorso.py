@@ -6,7 +6,7 @@ dichiarato, un no motivato. Il numero di cose delegate non conta mai.
 
 Il modulo legge l'archivio dei todo e non ci scrive mai. Il suo stato (la tappa gia' vista,
 i suggerimenti di /fine, la pausa) sta in ~/.claude/session-env/percorso.json, sul computer
-della persona. Niente esce dalla macchina: nessuna rete, nessun invio.
+della persona. Il modulo non usa la rete e non invia niente.
 
 Gli annulli non contano. Un evento con il segno `annullo` (un clic annullato nel pannello o
 nella pagina, un `ripristina`) toglie dalla storia anche il passo che annulla: un clic
@@ -71,10 +71,11 @@ def storia_pulita(t: dict) -> tuple:
     che non e' un annullo (per una modifica, uno che tocca almeno un campo uguale). Se il passo
     tolto e' il passaggio a io di `deciso`, va via anche la nota «Deciso:» scritta insieme.
     Un annullo che chiude il todo senza un passo da togliere annulla la creazione (l'Annulla
-    di un aggiungi nella pagina): allora il todo e' «tolto» e il percorso non lo legge.
+    di un aggiungi nella pagina): allora il todo e' «tolto» e il percorso non lo legge. Un passo
+    vero dopo quell'annullo (un Riprendi, una modifica, una nota) lo rimette nel percorso.
     """
     storia = t["storia"]
-    via, tolto = set(), False
+    via, tolto_da = set(), None
     for i, e in enumerate(storia):
         dati = e["dati"]
         if not dati.get("annullo"):
@@ -96,15 +97,19 @@ def storia_pulita(t: dict) -> tuple:
                 via.add(j - 1)
             break
         if not trovato and e["tipo"] == "stato" and dati.get("stato") == "scartato":
-            tolto = True
+            tolto_da = i
+    tolto = tolto_da is not None and all(j in via for j in range(tolto_da + 1, len(storia)))
     return [e for i, e in enumerate(storia) if i not in via], tolto
 
 
 def leggi(t: dict) -> dict:
-    """Quello che il percorso sa di un todo. Stato, chiusura e decisione vengono dalla storia pulita."""
+    """Quello che il percorso sa di un todo. Stato, chiusura e decisione vengono dalla storia pulita.
+
+    `deciso` e' l'istante della prima decisione: la nota «Deciso:» o il passaggio da decidi a io.
+    """
     pulita, tolto = storia_pulita(t)
     chi, stato, motivo, chiuso = "tu", "da fare", "", ""
-    decisione, riaperto = False, False
+    decisione, riaperto, deciso = False, False, ""
     for e in pulita:
         tipo, dati = e["tipo"], e["dati"]
         if tipo == "crea":
@@ -112,9 +117,11 @@ def leggi(t: dict) -> dict:
         elif tipo == "modifica" and "chi" in dati:
             if chi == "decidi" and dati["chi"] == "io":
                 decisione = True
+                deciso = deciso or e["ts"]
             chi = dati["chi"]
         elif tipo == "nota" and chi == "decidi" and str(dati.get("testo", "")).startswith(ts.DECISO):
             decisione = True
+            deciso = deciso or e["ts"]
         elif tipo == "stato" and dati.get("stato") in ts.STATI:
             if stato == "fatto" and dati["stato"] in ts.APERTI:
                 riaperto = True
@@ -129,6 +136,7 @@ def leggi(t: dict) -> dict:
         "motivo": motivo if concorde else "",
         "chiuso": chiuso if concorde else "",
         "decisione": decisione,
+        "deciso": deciso,
         "riaperto": riaperto,
     }
 
@@ -167,14 +175,19 @@ def tappe(todo: dict) -> list:
     )
 
     def apre(x, info_x) -> bool:
+        """X e' un lavoro di Claude chiuso che aspettava Y. Conta il momento della decisione su Y:
+        con `deciso` il todo passa a io e resta aperto, quindi la chiusura di Y non serve. Un Y tu o
+        decidi senza decisione conta se e' fatto e chiuso prima di X."""
         if x["chi"] != "io" or not info_x["fatto"]:
             return False
         for uid in x["dopo"]:
             y, info_y = per_uid.get(uid, (None, None))
-            if y is None or not info_y["fatto"]:
+            if y is None:
                 continue
-            della_persona = info_y["decisione"] or y["chi"] in ("tu", "decidi")
-            if della_persona and info_y["chiuso"] <= info_x["chiuso"]:
+            if info_y["decisione"]:
+                if info_y["deciso"] <= info_x["chiuso"]:
+                    return True
+            elif info_y["fatto"] and y["chi"] in ("tu", "decidi") and info_y["chiuso"] <= info_x["chiuso"]:
                 return True
         return False
 
@@ -416,7 +429,7 @@ AIUTO = """Il percorso a tappe (scrivi «arturo percorso» davanti a ognuno):
   aiuto               questo testo
 
 Codici di uscita: 0 fatto, 2 errore, 3 (solo suggerisci) oggi Claude non propone niente.
-Tutto resta su questo computer: lo stato sta in ~/.claude/session-env/percorso.json.
+Il calcolo e lo stato restano su questo computer: lo stato sta in ~/.claude/session-env/percorso.json.
 """
 
 
@@ -426,9 +439,12 @@ def avvisa(avvisi: list) -> None:
 
 
 def main(argv: list) -> int:
-    comando = argv[0] if argv and not argv[0].startswith("--") else ""
+    if argv[:1] in (["-h"], ["--help"], ["aiuto"], ["help"]):
+        print(AIUTO)
+        return 0
+    comando = argv[0] if argv and not argv[0].startswith("-") else ""
     resto = argv[1:] if comando else argv
-    if comando in ("aiuto", "help") or resto in (["-h"], ["--help"]):
+    if resto in (["-h"], ["--help"]):
         print(AIUTO)
         return 0
     ammessi = {"": ["--json"], "visto": [], "suggerisci": [], "no": [], "basta": [], "riprendi": []}
@@ -470,8 +486,9 @@ def main(argv: list) -> int:
 
     if comando == "no":
         def segna(s: dict) -> None:
+            # Una proposta al giorno: un secondo no nello stesso giorno risponde alla stessa proposta.
             elenco = s.setdefault("suggerimenti", [])
-            if elenco and elenco[-1]["esito"] is None and elenco[-1]["data"] == oggi.isoformat():
+            if elenco and elenco[-1]["data"] == oggi.isoformat():
                 elenco[-1]["esito"] = "no"
             else:
                 elenco.append({"data": oggi.isoformat(), "esito": "no"})

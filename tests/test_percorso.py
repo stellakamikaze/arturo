@@ -5,15 +5,16 @@ G01 una HOME vuota: il contratto JSON, tappa 0, nessun file creato. G02 Osserva 
 il todo che le prova. G03 il volume non conta: trenta todo delegati restano alla tappa 2, e
 nessun conteggio entra nel contratto o nel testo. G04 Delega: una decisione della persona più
 un limite o un no motivato (perché, scarto con motivo, riapertura). G05 Orchestra: una
-decisione chiusa prima del lavoro di Claude che la aspettava. G06 la domanda: un todo tuo
+decisione presa prima che Claude chiuda il lavoro che la aspettava. G06 la domanda: un todo tuo
 aperto senza perché, uno per volta. G07 gli esercizi: la rotazione per settimana, gli esercizi
 fatti escono, uno aperto resta, il file reale ha la forma giusta, un file rotto dà un avviso.
 G08 le letture non scrivono niente. G09 il segnalibro della tappa vista e un file di stato
-rotto. G10 i suggerimenti: uno al giorno, tre giorni di silenzio dopo un no, quattordici dopo
-due no di fila, basta e riprendi. G11 tutto resta in locale e il referente non lo legge.
+rotto. G10 i suggerimenti: uno al giorno, tre giorni di silenzio dopo un no (due no nello stesso
+giorno sono uno), quattordici dopo due no di fila, basta e riprendi. G11 tutto resta in locale e il referente non lo legge.
 G12 gli accenti restano accenti. G13 niente colpa nei testi. G14 i raccordi nei testi
 (skill, /inizio, /fine, /guidami, /setup, README, NOVITA, capitolo 05). G15 gli annulli del
-pannello e della pagina non sbloccano nessuna tappa, e la decisione si legge dalla storia.
+pannello e della pagina non sbloccano nessuna tappa, la decisione si legge dalla storia (solo da
+un todo stato decidi), e un todo ripreso dopo un annullo torna nel percorso.
 Sulla base 3001fcc ogni controllo deve fallire.
 """
 from __future__ import annotations
@@ -130,6 +131,9 @@ def test_g01(repo: Path) -> None:
         assert v["esercizio"] and v["esercizio"]["tappa"] == "Osserva", f"G01 esercizio: {v['esercizio']}"
         assert "uid" not in chiavi(v), "G01 un uid nel contratto"
         assert not c.registro.exists() and not c.stato.exists(), "G01 la lettura ha creato un file"
+        for aiuto in ("-h", "--help", "aiuto"):
+            r = c.percorso(aiuto, ok=False)
+            assert r.returncode == 0 and "suggerisci" in r.stdout, f"G01 percorso {aiuto}: rc={r.returncode} {r.stderr}"
     con_casa(repo, prova)
 
 
@@ -194,12 +198,13 @@ def test_g04(repo: Path) -> None:
 
 
 def test_g05(repo: Path) -> None:
-    def preparazione(c: Casa) -> None:
+    def preparazione(c: Casa, decidi: bool = True) -> None:
         c.todo("aggiungi", "Decidere se partecipare", "--chi", "decidi", "--progetto", "p")
         c.todo("aggiungi", "Scrivere la scaletta", "--chi", "io", "--progetto", "p")
         c.todo("dopo", "2", "1")
         c.todo("aggiungi", "Firmare la domanda", "--chi", "tu", "--perche", "firma", "--progetto", "p")
-        c.todo("deciso", "1", "partecipo")
+        if decidi:
+            c.todo("deciso", "1", "partecipo")
 
     def in_ordine(c: Casa) -> None:
         preparazione(c)
@@ -208,11 +213,30 @@ def test_g05(repo: Path) -> None:
         v = c.json()
         assert v["tappa"] == 4 and c.prova("Orchestra") == [2], f"G05 decisione prima del lavoro: {v['tappe'][3]}"
 
-    def al_contrario(c: Casa) -> None:
-        preparazione(c)
+    def decisione_aperta(c: Casa) -> None:
+        preparazione(c)  # dopo «deciso» il todo 1 passa a io e resta aperto
         c.todo("fatto", "2")
+        v = c.json()
+        assert v["tappa"] == 4 and c.prova("Orchestra") == [2], \
+            f"G05 la decisione con deciso non apre Orchestra senza chiudere il todo: {v['tappe'][3]}"
+
+    def come_e07(c: Casa) -> None:
+        c.todo("aggiungi", "Leggere i requisiti", "--chi", "io", "--progetto", "p")
+        c.todo("aggiungi", "Decidere se partecipare", "--chi", "decidi", "--progetto", "p")
+        c.todo("aggiungi", "Scrivere la scaletta", "--chi", "io", "--progetto", "p")
+        c.todo("dopo", "3", "2")
+        c.todo("aggiungi", "Firmare la domanda", "--chi", "tu", "--perche", "firma", "--progetto", "p")
         c.todo("fatto", "1")
-        assert c.json()["tappa"] == 3, "G05 Orchestra con la decisione chiusa dopo il lavoro che la aspettava"
+        c.todo("deciso", "2", "partecipo")
+        c.todo("fatto", "3")
+        v = c.json()
+        assert v["tappa"] == 4 and c.prova("Orchestra") == [3], f"G05 l'esercizio E07 non apre Orchestra: {v['tappe'][3]}"
+
+    def al_contrario(c: Casa) -> None:
+        preparazione(c, decidi=False)
+        c.todo("fatto", "2")
+        c.todo("deciso", "1", "partecipo")
+        assert c.json()["tappa"] == 3, "G05 Orchestra con la decisione presa dopo il lavoro che la aspettava"
 
     def senza_decisione(c: Casa) -> None:
         decisione(c)  # #1 deciso e fatto, #2 scartato con annullo
@@ -224,7 +248,7 @@ def test_g05(repo: Path) -> None:
         c.todo("fatto", "5")
         assert c.json()["tappa"] == 3, "G05 un collegamento fra due lavori di Claude apre Orchestra"
 
-    for caso in (in_ordine, al_contrario, senza_decisione):
+    for caso in (in_ordine, decisione_aperta, come_e07, al_contrario, senza_decisione):
         con_casa(repo, caso)
 
 
@@ -351,6 +375,13 @@ def test_g10(repo: Path) -> None:
             assert c.json()["suggerimenti"]["disponibile"] is True, "G10 --json consuma il suggerimento del giorno"
         assert rc(c, OGGI) == 0, "G10 --json ha consumato il suggerimento del giorno"
     con_casa(repo, senza_consumo)
+
+    def due_no_stesso_giorno(c: Casa) -> None:
+        assert rc(c, OGGI) == 0, "G10 il primo suggerimento del giorno"
+        c.percorso("no")
+        c.percorso("no")
+        assert rc(c, piu(3)) == 0, "G10 due no nello stesso giorno valgono come due no di fila"
+    con_casa(repo, due_no_stesso_giorno)
 
 
 def test_g11(repo: Path) -> None:
@@ -497,7 +528,37 @@ def test_g15(repo: Path) -> None:
         c.todo("modifica", "2", "--chi", "decidi", "--annullo")  # «u» dopo «c»
         assert c.prova("Delega")[0] == 1, "G15 un passaggio annullato conta come decisione"
 
-    for caso in (fatto_annullato, aggiungi_annullato, deciso_annullato, tasto_chi):
+    def da_tu_a_io(c: Casa) -> None:
+        c.todo("aggiungi", "Chiamare la tipografia", "--chi", "tu", "--progetto", "p")
+        c.todo("modifica", "1", "--chi", "io")
+        c.todo("fatto", "1")
+        assert c.prova("Delega")[0] is None, "G15 un passaggio da tu a io conta come decisione"
+
+    def nota_senza_decidi(c: Casa) -> None:
+        c.todo("aggiungi", "Rivedere la lettera", "--chi", "io", "--progetto", "p")
+        c.todo("nota", "1", "Deciso: va bene")
+        c.todo("fatto", "1")
+        assert c.prova("Delega")[0] is None, "G15 una nota «Deciso:» su un todo mai stato decidi conta come decisione"
+
+    def storia_discorde(c: Casa) -> None:
+        c.todo("aggiungi", "Spedire la bozza", "--chi", "io", "--progetto", "p")
+        c.todo("fatto", "1")
+        c.todo("riprendi", "1")
+        c.todo("ripristina", "1", "da", "fare")  # l'annullo toglie il riprendi: la storia pulita dice fatto
+        v = c.json()
+        assert v["tappa"] == 1 and c.prova("Prova") == [None], \
+            f"G15 un todo aperto apre Prova perché la storia pulita dice fatto: {v['tappe'][1]}"
+
+    def aggiungi_annullato_ripreso(c: Casa) -> None:
+        c.todo("aggiungi", "Chiamare la tipografia", "--progetto", "p")
+        c.todo("ripristina", "1", "scartato", "annullato dalla pagina")  # Annulla della pagina
+        c.todo("riprendi", "1")  # Riprendi della pagina, dai Chiusi
+        v = c.json()
+        assert v["tappa"] == 1 and v["domanda"] == {"id": 1, "titolo": "Chiamare la tipografia"}, \
+            f"G15 un todo ripreso dopo l'annullo resta fuori dal percorso: {v['tappa']} {v['domanda']}"
+
+    for caso in (fatto_annullato, aggiungi_annullato, deciso_annullato, tasto_chi, da_tu_a_io, nota_senza_decidi,
+                 storia_discorde, aggiungi_annullato_ripreso):
         con_casa(repo, caso)
 
 

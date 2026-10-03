@@ -97,13 +97,18 @@ Le managed settings dell'organizzazione decidono se Claude Code carica i mod:
 Se spegnete i mod, la persona perde solo il pannello e la riga sopra il prompt. La CLI
 `arturo todo` e la skill todo restano.
 
-## Il percorso a tappe: resta sul computer della persona
+## Il percorso a tappe: si calcola sul computer della persona
 
 Arturo propone a ogni persona un percorso a tappe (`arturo percorso`, `/percorso`). Il percorso
 conta le decisioni che la persona tiene per sé, non quanto lavoro delega. Si calcola sul suo
 computer, dall'archivio dei suoi todo, e lo stato sta in `~/.claude/session-env/percorso.json`.
 Il referente non vede il percorso dei colleghi: né lo strato né altri strumenti di Arturo lo
 leggono o lo inviano. Se volete parlarne, chiedetelo alla persona nel colloquio dei 60 giorni.
+
+I todo da cui nasce il percorso (i perché e le note «Tenuto:») viaggiano come gli altri todo:
+`/fine` li manda solo al repository privato della config della persona. Se quel repository sta in
+un'organizzazione, chi ha accesso al repository può leggere quelle note. Tenete la config di ogni
+persona in un repository suo.
 
 ## Se vi serve un affiancamento
 
