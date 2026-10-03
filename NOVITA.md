@@ -18,7 +18,8 @@ vedere le mie cose da fare in una pagina», oppure scrivi `arturo web` nel termi
 divide i todo in tre modi: per chi agisce, per progetto e per scadenza, con un'agenda che parte
 dagli scaduti e arriva a «più avanti». Da lì aggiungi un todo, lo segni fatto, lo modifichi o lo
 fermi. Su un todo di «Decidi tu, poi faccio io» premi «Ho deciso», scrivi la scelta e il lavoro
-passa a Claude. Dopo ogni azione compare «Annulla», e niente si cancella dall'archivio.
+passa a Claude. Dopo ogni azione compare «Annulla», salvo dopo una nota. Niente si
+cancella dall'archivio.
 
 **Il principio dietro**: lo stesso archivio, più modi di guardarlo. La pagina non tiene dati suoi
 e segue le stesse regole di `arturo todo`: quello che fai nella pagina lo vede Claude, e quello

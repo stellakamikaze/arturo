@@ -11,8 +11,10 @@ terminale resta zitto. W08 un numero che indica un altro todo dà 409 e non scri
 Annulla rimette lo stato di prima, anche dopo «Ho deciso», e non cancella niente. W10 un
 titolo ostile resta testo, e la pagina non usa la rete esterna. W11 solo i file statici
 previsti. W12 si spegne da sola dopo il tempo di inattività e dal bottone, mai senza chiave.
-W13 accessibilità statica e Regola della Stella. W14 pagina e CLI scrivono insieme senza id
-doppi. W15 aiuto, skill, README e NOVITA raccontano la pagina.
+W13 accessibilità statica, Regola della Stella, nomi di «chi» uguali allo store, pannello che
+tiene i campi e si chiude con il suo todo (nel browser se Chrome c'è, sul sorgente sempre).
+W14 pagina e CLI scrivono insieme senza id doppi. W15 aiuto, skill, README e NOVITA raccontano
+la pagina.
 
 Ogni server parte davvero (--non-aprire --porta 0) in una HOME isolata e si chiude sempre.
 Sulla base 6ef1c0c (l'ultimo commit prima del ciclo 3) ogni controllo deve fallire.
@@ -24,6 +26,7 @@ import http.client
 import json
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -217,10 +220,11 @@ def test_w01(repo: Path) -> None:
         r = c.cli("web", "--host", "0.0.0.0", ok=False)
         assert r.returncode == 2 and "127.0.0.1" in r.stderr and "usage" not in r.stderr.lower(), \
             f"W01 --host: rc={r.returncode} {r.stderr!r}"
-        for aiuto in ("aiuto", "-h", "--help"):
-            r = c.cli("web", aiuto, ok=False)
+        for aiuto in (("aiuto",), ("-h",), ("--help",), ("--non-aprire", "--help"), ("--non-aprire", "aiuto"),
+                      ("--porta", "0", "-h")):
+            r = c.cli("web", *aiuto, ok=False)
             assert r.returncode == 0 and "--porta" in r.stdout and "--non-aprire" in r.stdout, \
-                f"W01 arturo web {aiuto}: rc={r.returncode} {r.stdout!r} {r.stderr!r}"
+                f"W01 arturo web {' '.join(aiuto)}: rc={r.returncode} {r.stdout!r} {r.stderr!r}"
         for sbagliati in (("--porta", "abc"), ("--porta", "-1"), ("--porta", "70000"), ("--boh",)):
             r = c.cli("web", *sbagliati, "--non-aprire", ok=False)
             inglese = [x for x in ("Traceback", "Error", "argument", "invalid", "unrecognized", "usage") if x in r.stderr]
@@ -466,7 +470,9 @@ def test_w09(repo: Path) -> None:
             r = s.azione(azione="modifica", id=1, titolo_atteso="Uno", campi={"scadenza": ""})
             assert c.json("mostra", "1")["scadenza"] is None, "W09 la scadenza non si toglie"
             s.azione(**r["annulla"])
-            assert c.json("mostra", "1")["scadenza"] == "2026-10-10", "W09 Annulla non rimette la scadenza"
+            uno = c.json("mostra", "1")
+            assert uno["scadenza"] == "2026-10-10", "W09 Annulla non rimette la scadenza"
+            assert uno["storia"][-1]["dati"].get("annullo") is True, "W09 l'Annulla di una modifica non porta il segno"
 
             righe = len(c.byte().splitlines())
             r = s.azione(azione="aggiungi", campi={"titolo": "Sbagliato", "progetto": "p"})
@@ -475,10 +481,13 @@ def test_w09(repo: Path) -> None:
             assert due["stato"] == "scartato", f"W09 l'aggiungi annullato è {due['stato']}"
             assert tolto["messaggio"] == f"Tolto #{r['id']}: Sbagliato", f"W09 esito dell'Annulla di aggiungi: {tolto['messaggio']!r}"
             assert len(c.byte().splitlines()) == righe + 2, "W09 Annulla cancella o salta righe del registro"
+            nota = s.azione(azione="nota", id=1, titolo_atteso="Uno", testo="una nota")
+            assert nota["annulla"] is None, f"W09 una nota offre Annulla, ma le note non si annullano: {nota['annulla']}"
 
             r = s.azione(azione="aggiungi", campi={"titolo": "Scegliere la sala", "progetto": "p", "chi": "decidi"})
             n = str(r["id"])
             r = s.azione(azione="deciso", id=r["id"], titolo_atteso="Scegliere la sala", testo="la sala grande")
+            assert r["messaggio"] == f"Deciso #{n}: Scegliere la sala", f"W09 esito di «Ho deciso»: {r['messaggio']!r}"
             assert c.json("mostra", n)["chi"] == "io", "W09 deciso non passa il todo a Claude"
             s.azione(**r["annulla"])
             sala = c.json("mostra", n)
@@ -626,6 +635,61 @@ def test_w13(repo: Path) -> None:
             assert "stella" in selettore or "marchio" in selettore, f"W13 l'arancio nella regola {selettore.strip()!r}"
     assert trovate, "W13 la stella non ha la sua regola in stile.css"
 
+    # Una parola per concetto: i nomi di «chi» (gruppi, chip, select, radio) sono i titoli dei
+    # gruppi dello store in tondo. La pagina non ha un secondo elenco di nomi.
+    r = subprocess.run([sys.executable, "-c", "import json, sys; sys.path.insert(0, sys.argv[1]); import todo_store as t; "
+                        "print(json.dumps([[g[0], g[1]] for g in t.GRUPPI]))", str(repo / "bin")],
+                       capture_output=True, encoding="utf-8", timeout=30)
+    assert r.returncode == 0, f"W13 GRUPPI dello store: {r.stderr[-300:]}"
+    nomi = {tipo: titolo[0] + titolo[1:].lower() for tipo, titolo in json.loads(r.stdout)}
+    radio = dict(re.findall(r'<span data-chi="(\w+)">([^<]*)</span>', html))
+    assert radio == {k: nomi[k] for k in ("tu", "decidi", "io")}, f"W13 i radio di «Chi agisce» non usano i nomi dei gruppi: {radio} {nomi}"
+    app = read(web / "app.js")
+    for altro in ("poi Claude", "Lo fa Claude", "NOMI_CHI"):
+        assert altro not in app, f"W13 app.js ha un secondo nome per «chi»: {altro!r}"
+    assert app.count("nomiChi()") >= 3, "W13 chip e select non prendono i nomi dei gruppi"
+    # Gli avvisi dell'archivio non sono solo righe illeggibili: anche una rinumerazione è un avviso.
+    assert "non si legg" not in app, "W13 il riquadro degli avvisi dice «non si legge» per ogni avviso"
+
+    # Il pannello aperto tiene i campi non salvati: ogni campo ricorda il valore disegnato, e il
+    # ridisegno li legge prima e li rimette dopo. La prova vera è nel browser, qui sotto.
+    def corpo(nome: str) -> str:
+        m = re.search(r"\n  function " + nome + r"\(.*?\n  }\n", app, re.S)
+        assert m, f"W13 app.js senza la funzione {nome}"
+        return m.group(0)
+    applica = corpo("applica")
+    posti = [applica.find(x) for x in ("ricordaCampi()", "disegna()", "rimettiCampi(")]
+    assert -1 not in posti and posti == sorted(posti), f"W13 applica non tiene i campi intorno a disegna(): {posti}"
+    for nome in ("campoTesto", "scelta"):
+        assert '"data-iniziale"' in corpo(nome), f"W13 {nome} non segna data-iniziale"
+    assert re.search(r'el\("textarea", \{[^}]*"data-iniziale"', app), "W13 la nota non segna data-iniziale"
+    assert "stato.aperto = null" in corpo("disegna"), "W13 disegna non chiude il pannello di un todo sparito"
+
+    # La prova nel browser, se Chrome c'è: senza Chrome resta il controllo sul sorgente.
+    node, chrome = shutil.which("node"), cerca_chrome()
+    if not node or not chrome:
+        print("W13 nota: Chrome o node assenti, salto la prova nel browser")
+        return
+    r = subprocess.run([node, str(repo / "tests" / "prova_pagina.js"), str(repo), sys.executable, chrome],
+                       capture_output=True, encoding="utf-8", timeout=180)
+    if r.returncode == 77:
+        print(f"W13 nota: salto la prova nel browser: {r.stdout.strip()}")
+        return
+    assert r.returncode == 0 and "PROVA_PAGINA_OK" in r.stdout, \
+        f"W13 la prova nel browser: rc={r.returncode} {r.stdout.strip()[-800:]} {r.stderr.strip()[-300:]}"
+
+
+def cerca_chrome():
+    """Chrome o Chromium per la prova nel browser. ARTURO_CHROME sceglie un percorso. None se non c'è."""
+    candidati = [os.environ.get("ARTURO_CHROME", ""),
+                 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+                 "/Applications/Chromium.app/Contents/MacOS/Chromium"]
+    candidati += [shutil.which(n) or "" for n in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")]
+    for cartella in (os.environ.get("PROGRAMFILES", ""), os.environ.get("PROGRAMFILES(X86)", ""), os.environ.get("LOCALAPPDATA", "")):
+        if cartella:
+            candidati.append(os.path.join(cartella, "Google", "Chrome", "Application", "chrome.exe"))
+    return next((c for c in candidati if c and os.path.isfile(c)), None)
+
 
 def test_w14(repo: Path) -> None:
     def prova(c: Casa) -> None:
@@ -668,6 +732,7 @@ def test_w15(repo: Path) -> None:
     assert len(intestazioni) == len(set(intestazioni)), "W15 intestazioni doppie in NOVITA"
     prima = novita.split(intestazioni[0], 1)[1].split("\n## ", 1)[0]
     assert "`arturo web`" in prima, "W15 la entry non cita `arturo web`"
+    assert "salvo dopo una nota" in prima, "W15 la entry promette «Annulla» anche dopo una nota"
     assert prima.rstrip().endswith("<!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->"), \
         "W15 la entry non chiude con la nota dell'autore"
     r = subprocess.run([sys.executable, "-B", str(repo / "tests" / "test_allineamento.py"), "--repo", str(repo)],

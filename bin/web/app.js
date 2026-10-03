@@ -15,7 +15,6 @@
   var MESI_BREVI = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"];
   var SCHEDE = ["chi", "progetti", "scadenze"];
   var ESEMPI = ["Mandare il preventivo per la rassegna", "Rileggere il capitolo 3", "Cercare tre fonti per il bando"];
-  var NOMI_CHI = { tu: "Tocca a te", decidi: "Decidi tu, poi Claude", io: "Lo fa Claude" };
   var NOMI_QUANDO = { "oggi": "Oggi", "settimana": "Questa settimana", "più avanti": "Più avanti" };
   var NOMI_PRIORITA = { alta: "Alta", media: "Media", bassa: "Bassa" };
   var COMANDO = "python3 ~/.claude/bin/arturo web";
@@ -93,6 +92,13 @@
   }
   function tondo(titolo) {
     return titolo.charAt(0) + titolo.slice(1).toLowerCase();
+  }
+  // I nomi di «chi» vengono dai titoli dei gruppi dello store: gruppi, chip, select e radio
+  // dicono la stessa cosa con le stesse parole.
+  function nomiChi() {
+    var nomi = {};
+    stato.dati.vista.gruppi.forEach(function (g) { nomi[g.tipo] = tondo(g.titolo); });
+    return nomi;
   }
 
   // --- rete -----------------------------------------------------------------------
@@ -327,6 +333,7 @@
     disegnaProgetti();
     disegnaSintesi();
     disegnaAvvisi(v.avvisi || []);
+    disegnaSceltaChi();
     SCHEDE.forEach(function (nome) {
       var pannello = $("pannello-" + nome);
       svuota(pannello);
@@ -340,6 +347,17 @@
       if (nome === "chi") { disegnaChi(pannello, chiusi); }
       else if (nome === "progetti") { disegnaPerProgetto(pannello, aperti, chiusi); }
       else { disegnaAgenda(pannello, aperti, chiusi); }
+    });
+    // Il todo del pannello aperto non è più nella lista (chiuso con «Fatto», tolto dal filtro):
+    // il pannello non c'è più, e le letture successive arrivano di nuovo nella pagina.
+    if (stato.aperto && !$("pannello-todo-" + stato.aperto.id)) { stato.aperto = null; }
+  }
+
+  function disegnaSceltaChi() {
+    var nomi = nomiChi();
+    Array.prototype.forEach.call(document.querySelectorAll("[data-chi]"), function (n) {
+      var nome = nomi[n.getAttribute("data-chi")];
+      if (nome) { n.textContent = nome; }
     });
   }
 
@@ -388,9 +406,10 @@
     svuota(box);
     box.hidden = !avvisi.length;
     if (!avvisi.length) { return; }
+    // Gli avvisi non sono tutti righe illeggibili: anche una rinumerazione dopo un merge è un avviso.
     box.appendChild(el("p", { testo: avvisi.length === 1
-      ? "Una riga dell'archivio non si legge: il resto funziona."
-      : avvisi.length + " righe dell'archivio non si leggono: il resto funziona." }));
+      ? "L'archivio dei todo segnala una cosa. Il resto funziona."
+      : "L'archivio dei todo segnala " + avvisi.length + " cose. Il resto funziona." }));
     box.appendChild(el("ul", {}, avvisi.map(function (a) { return el("li", { testo: a }); })));
   }
 
@@ -523,7 +542,8 @@
     var chiuso = t.stato === "fatto" || t.stato === "scartato";
     if (contesto.progetto) { pezzi.push(el("span", { classe: "chip", testo: t.progetto })); }
     if (contesto.chi && !chiuso) {
-      pezzi.push(el("span", { classe: "chip", testo: t.gruppo === "fermo" ? "Fermo" : NOMI_CHI[t.chi] }));
+      var nomi = nomiChi();
+      pezzi.push(el("span", { classe: "chip", testo: t.gruppo === "fermo" ? nomi.fermo : nomi[t.chi] }));
     }
     if (chiuso) {
       pezzi.push(el("span", { classe: "esito esito--" + t.stato, testo: t.stato }));
@@ -642,7 +662,7 @@
         el("div", { classe: "campo" }, campoTesto(p + "progetto", "Progetto", t.progetto, { list: "elenco-progetti", maxlength: "80" })),
         el("div", { classe: "campo" }, campoTesto(p + "scadenza", "Scadenza (vuota la toglie)", gma(t.scadenza),
           { placeholder: "venerdì, 10/10, domani", maxlength: "40" })),
-        el("div", { classe: "campo" }, scelta(p + "chi", "Chi agisce", ["tu", "decidi", "io"], NOMI_CHI, t.chi)),
+        el("div", { classe: "campo" }, scelta(p + "chi", "Chi agisce", ["tu", "decidi", "io"], nomiChi(), t.chi)),
         el("div", { classe: "campo" }, scelta(p + "priorita", "Priorità", ["alta", "media", "bassa"], NOMI_PRIORITA, t.priorita)),
         el("div", { classe: "campo" }, scelta(p + "quando", "Quando", ["oggi", "settimana", "più avanti"], NOMI_QUANDO, t.quando)),
         el("div", { classe: "campo campo--largo" }, campoTesto(p + "perche", "Perché tocca a te", t.perche || "", { maxlength: "200" }))

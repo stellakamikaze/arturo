@@ -210,7 +210,7 @@ def esegui(stato: Stato, richiesta: dict) -> dict:
 
         else:  # deciso
             t = ts.deciso(numero, richiesta["testo"] or "")
-            messaggio = "Deciso, ora lo fa Claude:"
+            messaggio = "Deciso"
             annulla = {"azione": "modifica", "id": t["id"], "titolo_atteso": t["titolo"],
                        "campi": {"chi": prima["chi"]}, "annullo": True}
 
@@ -446,7 +446,8 @@ def main(argv: list, progetto: str = "generale") -> int:
             flusso.reconfigure(encoding="utf-8")
         except (AttributeError, ValueError):
             pass
-    if argv and argv[0] in ("aiuto", "-h", "--help"):
+    # L'aiuto vale in ogni posizione: «arturo web --non-aprire --help» stampa l'aiuto, non un errore.
+    if any(a in ("aiuto", "-h", "--help") for a in argv):
         print(AIUTO)
         return 0
     args = parser().parse_args(argv)
