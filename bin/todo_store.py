@@ -89,6 +89,8 @@ def scelta(valore: str, ammessi: tuple, nome: str) -> str:
         v = "più avanti"
     if v in ("in-corso", "in_corso"):
         v = "in corso"
+    if v in ("da-fare", "da_fare"):
+        v = "da fare"
     if v not in ammessi:
         raise ErroreTodo(f"{nome} «{valore}» non valido. Valori ammessi: {', '.join(ammessi)}")
     return v
@@ -133,6 +135,8 @@ def normalizza(campi: dict) -> dict:
         valore = str(valore).strip()
         if chiave == "titolo" and not valore:
             raise ErroreTodo("il titolo non può essere vuoto")
+        if chiave == "progetto" and not valore:
+            raise ErroreTodo("il progetto non può essere vuoto: usa generale")
         if chiave == "chi":
             valore = scelta(valore, CHI, "chi")
         elif chiave == "priorita":
@@ -184,6 +188,13 @@ def _riga_valida(e) -> bool:
     for chiave in ("stato", "motivo", "testo", "aggiungi", "togli"):
         if chiave in dati and not isinstance(dati[chiave], str):
             return False
+    if "titolo" in dati and not dati["titolo"].strip():
+        return False  # un todo senza nome non si mostra
+    if e["tipo"] == "crea":
+        numero = e.get("id")
+        # type() e non isinstance(): true e' un int per Python, e prenderebbe il posto di #1.
+        if not dati.get("titolo") or type(numero) is not int or numero < 1:
+            return False
     return isinstance(dati.get("annullo", False), bool)
 
 
@@ -217,17 +228,17 @@ def carica(file: Path | None = None) -> tuple:
         if tipo == "crea":
             if uid in todo:
                 continue
-            numero_todo = e.get("id")
-            if not isinstance(numero_todo, int) or numero_todo in usati:
-                nuovo = max(usati, default=0) + 1
-                if isinstance(numero_todo, int):
-                    avvisi.append(f"#{numero_todo} esisteva già su un'altra macchina: il todo «{dati.get('titolo', '')}» ora è #{nuovo}")
+            numero_todo = e["id"]  # _riga_valida: un int positivo
+            if numero_todo in usati:
+                nuovo = max(usati) + 1
+                avvisi.append(f"#{numero_todo} esisteva già su un'altra macchina: il todo «{dati['titolo']}» ora è #{nuovo}")
                 numero_todo = nuovo
             usati[numero_todo] = uid
             t = {"id": numero_todo, "uid": uid, "titolo": "", "progetto": "generale", "scadenza": "",
                  "chi": "tu", "perche": "", "priorita": "media", "quando": "settimana", "stato": "da fare",
                  "motivo": "", "dopo": [], "note": [], "creato": ts, "aggiornato": ts, "chiuso": "", "storia": []}
             t.update({k: v for k, v in dati.items() if k in CAMPI})
+            t["progetto"] = t["progetto"] or "generale"  # righe scritte prima che il vuoto fosse rifiutato
             todo[uid] = t
         else:
             t = todo.get(uid)
@@ -236,6 +247,7 @@ def carica(file: Path | None = None) -> tuple:
                 continue
             if tipo == "modifica":
                 t.update({k: v for k, v in dati.items() if k in CAMPI})
+                t["progetto"] = t["progetto"] or "generale"
             elif tipo == "stato" and dati.get("stato") in STATI:
                 t["stato"] = dati["stato"]
                 t["motivo"] = dati.get("motivo", "")
@@ -403,13 +415,20 @@ def ripristina(numero, stato: str, motivo: str = "", file: Path | None = None) -
 
 
 def deciso(numero, testo: str, file: Path | None = None) -> dict:
-    """La persona ha deciso: nota «Deciso: testo» e chi passa a io, in una sola scrittura."""
+    """La persona ha deciso: nota «Deciso: testo» e chi passa a io, in una sola scrittura.
+
+    Un todo chiuso si rifiuta: nessuno ci lavora piu', e il suo chi=decidi resta come segnale.
+    Un todo FERMO accetta la decisione e resta FERMO: quando riparte, lo fa Claude.
+    """
     file = file or percorso()
     testo = str(testo).strip()
     if not testo:
         raise ErroreTodo("scrivi cosa hai deciso, per esempio: arturo todo deciso 4 \"va bene il piano B\"")
     todo, _ = carica(file)
     t = per_id(todo, numero)
+    if t["stato"] in ("fatto", "scartato"):
+        raise ErroreTodo(f"il todo #{t['id']} è chiuso ({t['stato']}): riaprilo con riprendi prima di "
+                         "registrare la decisione")
     if t["chi"] != "decidi":
         raise ErroreTodo(f"il todo #{t['id']} non aspetta una tua decisione: chi è «{t['chi']}», non «decidi»")
     _scrivi_molti([_evento("nota", t["uid"], {"testo": DECISO + testo}),

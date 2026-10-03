@@ -59,9 +59,11 @@ Campi di aggiungi e modifica:
   --quando            oggi | settimana | più avanti
   --note TESTO        (solo aggiungi) una prima nota
 
+Uno stato di due parole va anche senza virgolette: ripristina 4 da fare, ripristina 4 in corso.
+
 Letture con --json: il formato che leggono il pannello e la pagina web.
---annullo (su modifica, su, giu e sui cambi di stato) segna il passo come annullo di uno
-precedente: lo usano pannello e pagina web, ripristina lo mette da solo.
+--annullo vale per modifica, su, giu, inizia, fatto, riprendi, ferma e scarta: segna il passo
+come annullo di uno precedente. Lo usano pannello e pagina web. ripristina lo mette da solo.
 """
 
 
@@ -132,8 +134,33 @@ def campi_da(args) -> dict:
     return {k: getattr(args, k) for k in ts.CAMPI if getattr(args, k, None) is not None}
 
 
+class ErroreUso(Exception):
+    """Un comando o un'opzione che la CLI non conosce: il messaggio è già in italiano."""
+
+
+# I messaggi di argparse sono in inglese: qui diventano italiani. L'ordine conta.
+TRADUZIONI = (
+    (r"argument cmd: invalid choice: '([^']*)'.*", r"comando sconosciuto: «\1»"),
+    (r"argument (\S+): invalid choice: '([^']*)'.*", r"valore «\2» non valido per \1"),
+    (r"unrecognized arguments: (.*)", r"opzione o argomento in più: \1"),
+    (r"the following arguments are required: (.*)", r"manca un argomento: \1"),
+    (r"argument (\S+): expected one argument", r"\1 vuole un valore"),
+    (r"argument (\S+): invalid int value: '([^']*)'", r"\1 vuole un numero, non «\2»"),
+)
+
+
+class Parser(argparse.ArgumentParser):
+    """argparse con i messaggi di errore in italiano. I sotto-comandi ereditano questa classe."""
+
+    def error(self, message):
+        for schema, testo in TRADUZIONI:
+            if re.fullmatch(schema, message, re.S):
+                raise ErroreUso(re.sub(schema, testo, message, flags=re.S))
+        raise ErroreUso(f"comando o opzione non valida ({message})")
+
+
 def parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="arturo todo", add_help=False)
+    p = Parser(prog="arturo todo", add_help=False)
     sub = p.add_subparsers(dest="cmd")
 
     def comando(nome, *alias):
@@ -173,8 +200,7 @@ def parser() -> argparse.ArgumentParser:
         c.add_argument("--annullo", action="store_true")
     c = comando("ripristina")
     c.add_argument("id")
-    c.add_argument("stato")
-    c.add_argument("motivo", nargs="?", default="")
+    c.add_argument("resto", nargs="+")  # STATO [motivo]: lo divide stato_e_motivo()
     c = comando("deciso")
     c.add_argument("id")
     c.add_argument("testo")
@@ -190,6 +216,16 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
+def stato_e_motivo(resto: list) -> tuple:
+    """`ripristina 4 da fare` senza virgolette: le prime due parole, se formano uno stato, sono lo stato."""
+    if len(resto) >= 2:
+        try:
+            return ts.scelta(f"{resto[0]} {resto[1]}", ts.STATI, "stato"), " ".join(resto[2:])
+        except ts.ErroreTodo:
+            pass
+    return resto[0], " ".join(resto[1:])
+
+
 def todo(argv: list) -> int:
     if not argv or argv[0].startswith("--"):
         argv = ["lista", *argv]
@@ -197,8 +233,8 @@ def todo(argv: list) -> int:
         argv = ["aiuto"]
     try:
         args = parser().parse_args(argv)
-    except SystemExit:
-        print("\n" + AIUTO, file=sys.stderr)
+    except ErroreUso as errore:
+        print(f"Errore: {errore}\n\n{AIUTO}", file=sys.stderr)
         return 2
     cmd = args.cmd
 
@@ -299,13 +335,14 @@ def todo(argv: list) -> int:
         return 0
 
     if cmd == "ripristina":
-        t = ts.ripristina(args.id, args.stato, args.motivo)
+        t = ts.ripristina(args.id, *stato_e_motivo(args.resto))
         print(f"Ripristinato #{t['id']}: {t['stato']}" + (f" ({t['motivo']})" if t["motivo"] else ""))
         return 0
 
     if cmd == "deciso":
         t = ts.deciso(args.id, args.testo)
-        print(f"Decisione registrata su #{t['id']}: ora lo fa Claude")
+        print(f"Decisione registrata su #{t['id']}: " + ("resta in FERMO, quando riparte lo fa Claude"
+                                                         if t["stato"] == "fermo" else "ora lo fa Claude"))
         return 0
 
     if cmd == "nota":

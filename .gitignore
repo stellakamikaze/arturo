@@ -16,7 +16,7 @@ secrets/
 data/credentials/
 # I todo sono della persona: /fine li aggiunge con -f solo verso un remote privato.
 data/todo/
-# Il lucchetto dell'archivio non viaggia mai, neanche con git add -f (vedi /fine).
+# Il lucchetto dell'archivio. git add -f scavalca questa riga: lo tiene fuori l'esclusione in /fine.
 data/todo/*.lock
 .credentials.json
 

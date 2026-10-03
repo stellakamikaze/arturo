@@ -3,22 +3,25 @@
 
 T01 aggiungi, lista, fatto. T02 la ricostruzione dal registro non cambia se una
 riga arriva due volte da un merge. T03 una riga rotta si salta e il resto si
-legge. T04 gli accenti restano accenti. T05 scadenze, date in italiano e `oggi`.
-T06 un todo che aspetta un altro. T07 lo schema di --json, che leggono pannello
-e web. T08 otto processi che scrivono insieme non perdono eventi ne' doppiano id.
-T09 FERMO viene dallo stato, non da chi agisce. T10 i todo partono con /fine solo
+legge, anche un crea senza titolo o con un id che non è un numero di todo. T04
+gli accenti restano accenti. T05 scadenze, date in italiano e `oggi`. T06 un
+todo che aspetta un altro. T07 lo schema di --json, che leggono pannello e web.
+T08 otto processi che scrivono insieme non perdono eventi ne' doppiano id. T09
+FERMO viene dallo stato, non da chi agisce. T10 i todo partono con /fine solo
 verso un remote privato. T11 /inizio, /fine e la skill usano l'archivio. T12 due
 macchine con lo stesso id: il piu' recente cambia numero e gli eventi seguono.
-T13 un valore fuori lista si rifiuta e non scrive niente.
+T13 un valore fuori lista o un progetto vuoto si rifiuta e non scrive niente, e
+ogni errore di comando è in italiano.
 
 Ciclo 1.5, i prerequisiti comuni di pannello, pagina web e percorso:
-T14 ripristina rimette stato e motivo esatti, inizia porta in corso. T15 il segno
-annullo resta negli eventi di stato e modifica e si vede nella storia. T16 deciso
-scrive nota e passaggio a io in una sola write, solo da decidi. T17 la versione
-degli eventi e quella delle viste sono separate. T18 il contratto: CHIAVI_TODO,
-scadenza_testo e la descrizione dei gruppi. T19 Lucchetto pubblico e
-scrivi_json_atomico. T20 il progetto riservato del percorso. T21 COMANDI fa aiuto,
-smistamento e messaggio di errore. T22 un .lock non parte mai con /fine.
+T14 ripristina rimette stato e motivo esatti, anche senza virgolette, inizia
+porta in corso. T15 il segno annullo resta negli eventi di stato e modifica e si
+vede nella storia. T16 deciso scrive nota e passaggio a io in una sola write,
+solo da decidi e mai su un todo chiuso. T17 la versione degli eventi e quella
+delle viste sono separate, anche nel JSON della CLI. T18 il contratto:
+CHIAVI_TODO, scadenza_testo e la descrizione dei gruppi. T19 Lucchetto pubblico
+e scrivi_json_atomico. T20 il progetto riservato del percorso. T21 COMANDI fa
+aiuto, smistamento e messaggio di errore. T22 un .lock non parte mai con /fine.
 T23 tabella degli stati e conteggi per progetto stanno nel store. T24 /aggiorna
 mostra il codice di bin/ e dei mod, /diagnosi legge l'archivio.
 Sulla base b8eff39 ogni controllo deve fallire.
@@ -28,6 +31,7 @@ from __future__ import annotations
 import argparse
 import importlib.machinery
 import importlib.util
+import io
 import json
 import os
 import re
@@ -38,6 +42,7 @@ import tempfile
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -169,12 +174,22 @@ def test_t03(repo: Path) -> None:
             # Un campo con un valore che la lettura non sa usare: data non valida, chi fuori lista.
             f.write('{"v":1,"ts":"2026-10-03T11:00:02+00:00","ev":"z3","todo":"W","tipo":"crea","id":7,"dati":{"titolo":"x","scadenza":"boh"}}\n')
             f.write('{"v":1,"ts":"2026-10-03T11:00:03+00:00","ev":"z4","todo":"K","tipo":"crea","id":8,"dati":{"titolo":"x","chi":"boh"}}\n')
+            # Un crea senza nome o con un id che non e' un numero di todo: nella lista sarebbe una riga vuota,
+            # e true prenderebbe il posto di #1 (per Python true == 1).
+            f.write('{"v":1,"ts":"2000-01-01T00:00:00+00:00","ev":"z5","todo":"B","tipo":"crea","id":true,"dati":{"titolo":"booleano"}}\n')
+            f.write('{"v":1,"ts":"2026-10-03T11:00:05+00:00","ev":"z6","todo":"N","tipo":"crea","id":9,"dati":null}\n')
+            f.write('{"v":1,"ts":"2026-10-03T11:00:06+00:00","ev":"z7","todo":"E","tipo":"crea","id":10,"dati":{"titolo":""}}\n')
+            f.write('{"v":1,"ts":"2026-10-03T11:00:07+00:00","ev":"z8","todo":"S","tipo":"crea","id":11,"dati":{"titolo":"  "}}\n')
+            f.write('{"v":1,"ts":"2026-10-03T11:00:08+00:00","ev":"z9","todo":"M","tipo":"crea","id":-4,"dati":{"titolo":"meno"}}\n')
         r = c.cli("--json", ok=False)
         assert r.returncode == 0, f"T03 una riga con la forma sbagliata ferma l'archivio: {r.stderr.strip()}"
         v = json.loads(r.stdout)
         titoli = sorted(t["titolo"] for g in v["gruppi"] for t in g["todo"])
         assert titoli == ["Dopo la riga rotta", "Prima"], f"T03 una riga con la forma sbagliata rompe l'archivio: {titoli}"
-        assert len([a for a in v["avvisi"] if "illeggibile" in a]) == 5, f"T03 avvisi delle righe rotte: {v['avvisi']}"
+        assert len([a for a in v["avvisi"] if "illeggibile" in a]) == 10, f"T03 avvisi delle righe rotte: {v['avvisi']}"
+        numeri = {t["titolo"]: t["id"] for g in v["gruppi"] for t in g["todo"]}
+        assert numeri == {"Prima": 1, "Dopo la riga rotta": 2}, f"T03 un id non valido cambia i numeri: {numeri}"
+        assert not [a for a in v["avvisi"] if "esisteva già" in a], f"T03 un id booleano conta come #1: {v['avvisi']}"
     con_casa(repo, prova)
 
 
@@ -360,9 +375,17 @@ def test_t13(repo: Path) -> None:
         c.cli("aggiungi", "Uno", "--progetto", "p")
         prima = c.registro.read_bytes()
         for argomenti in (("modifica", "1", "--chi", "boh"), ("aggiungi", "Due", "--priorita", "urgente"),
-                          ("aggiungi", "Tre", "--scadenza", "31/02"), ("fatto", "9")):
+                          ("aggiungi", "Tre", "--scadenza", "31/02"), ("fatto", "9"),
+                          ("aggiungi", "Quattro", "--progetto", ""), ("modifica", "1", "--progetto", " "),
+                          ("xyz",), ("ripristina", "1", "fatto", "--annullo"), ("mostra",)):
             r = c.cli(*argomenti, ok=False)
             assert r.returncode == 2 and r.stderr.startswith("Errore:"), f"T13 {argomenti}: rc={r.returncode} {r.stderr!r}"
+            # Un comando sbagliato si spiega in italiano: niente «usage:» o «error:» di argparse.
+            assert not re.search(r"usage:|error:|invalid choice|unrecognized|required", r.stderr), \
+                f"T13 {argomenti}: messaggio in inglese: {r.stderr!r}"
+        assert "progetto non può essere vuoto" in c.cli("aggiungi", "Cinque", "--progetto", "", ok=False).stderr, \
+            "T13 un progetto vuoto"
+        assert "«xyz»" in c.cli("xyz", ok=False).stderr, "T13 il comando sconosciuto non viene nominato"
         assert "tu, decidi, io" in c.cli("modifica", "1", "--chi", "boh", ok=False).stderr, "T13 i valori ammessi"
         assert c.registro.read_bytes() == prima, "T13 un comando rifiutato ha scritto nel registro"
     con_casa(repo, prova)
@@ -383,6 +406,12 @@ def test_t14(repo: Path) -> None:
         c.cli("ripristina", "1", "in corso")
         t = c.aperti()[1]
         assert (t["stato"], t["motivo"], t["gruppo"]) == ("in corso", None, "io"), f"T14 ripristina in corso: {t}"
+        # Uno stato di due parole senza virgolette, e da-fare come in-corso.
+        for argomenti, atteso in ((("da", "fare"), ("da fare", None)), (("in", "corso", "di", "nuovo"), ("in corso", "di nuovo")),
+                                  (("da-fare",), ("da fare", None)), (("fermo", "aspetta", "Rossi"), ("fermo", "aspetta Rossi"))):
+            c.cli("ripristina", "1", *argomenti)
+            t = c.aperti()[1]
+            assert (t["stato"], t["motivo"]) == atteso, f"T14 ripristina 1 {' '.join(argomenti)}: {t}"
         prima = c.registro.read_bytes()
         r = c.cli("ripristina", "1", "boh", ok=False)
         assert r.returncode == 2 and "Valori ammessi" in r.stderr, f"T14 stato non valido: {r.stderr!r}"
@@ -426,6 +455,20 @@ def test_t16(repo: Path) -> None:
         assert (t["chi"], t["gruppo"], t["note"]) == ("io", "io", ["Deciso: piano B"]), f"T16 deciso: {t}"
         nuove = c.registro.read_bytes()[len(prima):].decode("utf-8").splitlines()
         assert [json.loads(x)["tipo"] for x in nuove] == ["nota", "modifica"], f"T16 eventi: {nuove}"
+        # Un todo chiuso non riceve decisioni: il suo chi=decidi resta, e nessuno ci lavora.
+        c.cli("aggiungi", "Chiuso", "--progetto", "p", "--chi", "decidi")
+        c.cli("fatto", "3")
+        prima = c.registro.read_bytes()
+        r = c.cli("deciso", "3", "piano C", ok=False)
+        assert r.returncode == 2 and "chiuso" in r.stderr, f"T16 deciso su un todo chiuso: rc={r.returncode} {r.stderr!r}"
+        assert c.registro.read_bytes() == prima, "T16 un deciso su un todo chiuso ha scritto"
+        # Un todo FERMO accetta la decisione e resta FERMO.
+        c.cli("aggiungi", "Fermo", "--progetto", "p", "--chi", "decidi")
+        c.cli("ferma", "4", "aspetta il cliente")
+        r = c.cli("deciso", "4", "piano D")
+        t = c.aperti()[4]
+        assert (t["stato"], t["chi"], t["gruppo"]) == ("fermo", "io", "fermo"), f"T16 deciso su un todo FERMO: {t}"
+        assert "FERMO" in r.stdout and "ora lo fa Claude" not in r.stdout, f"T16 la conferma su FERMO: {r.stdout!r}"
     con_casa(repo, prova)
     # Una sola write: chi legge a meta' non vede la nota senza il passaggio a io.
     ts = store(repo)
@@ -477,6 +520,27 @@ def test_t17(repo: Path) -> None:
         for argomenti in ((), ("oggi",), ("progetti",)):
             assert c.json(*argomenti)["versione"] == 1, f"T17 versione di {argomenti or 'lista'}"
     con_casa(repo, prova)
+
+    # Le due costanti valgono 1: solo cambiandole si vede quale legge la CLI.
+    cli = modulo(repo, "arturo")
+    with tempfile.TemporaryDirectory() as tmp:
+        file = Path(tmp) / "eventi.jsonl"
+        cli.ts.aggiungi({"titolo": "Uno", "scadenza": "oggi"}, file)
+
+        def versioni() -> dict:
+            fuori = {}
+            for argomenti in (("lista",), ("oggi",), ("progetti",)):
+                testo = io.StringIO()
+                with redirect_stdout(testo):
+                    assert cli.main(["todo", *argomenti, "--json"]) == 0, f"T17 {argomenti} non riesce"
+                fuori[argomenti[0]] = json.loads(testo.getvalue())["versione"]
+            return fuori
+        with mock.patch.dict(os.environ, {"ARTURO_TODO": str(file), "ARTURO_OGGI": OGGI}):
+            for eventi, vista in ((7, 1), (1, 5)):
+                with mock.patch.object(cli.ts, "VERSIONE_EVENTI", eventi), mock.patch.object(cli.ts, "VERSIONE_VISTA", vista):
+                    lette = versioni()
+                assert lette == {"lista": vista, "oggi": vista, "progetti": vista}, \
+                    f"T17 con VERSIONE_EVENTI={eventi} e VERSIONE_VISTA={vista} la CLI scrive {lette}"
 
 
 def test_t18(repo: Path) -> None:

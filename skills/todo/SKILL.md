@@ -75,12 +75,15 @@ che leggi tu quando devi ragionare sui todo invece di mostrarli.
 
 Quando la persona sceglie su un todo `decidi` («va bene il piano B»), usa `deciso ID "piano B"`.
 Il comando scrive la scelta e passa il lavoro a te in un colpo solo. Non usare `nota` più
-`modifica --chi io`: sono due scritture, e la storia perde il segno che la decisione è stata
-sua. Su un todo che non è `decidi` il comando si rifiuta.
+`modifica --chi io`: sono due scritture, e chi legge in mezzo vede la nota senza il passaggio a
+te. E `deciso` scrive sempre il prefisso «Deciso: », che il percorso legge. Su un todo che non è
+`decidi` il comando si rifiuta. Su un todo chiuso si rifiuta anche: prima lo riapri con
+`riprendi`. Un todo FERMO resta FERMO, e quando riparte lo fai tu.
 
 Se la persona dice che un passo era uno sbaglio («no, non era fatto»), riporta il todo com'era
 con `ripristina ID STATO "motivo di prima"`: lo stato e il motivo li leggi in
-`mostra ID --json`, nella storia. Non usare `riprendi`: riapre sempre come «da fare» e perde il
+`mostra ID --json`, nella storia. Uno stato di due parole va anche senza virgolette:
+`ripristina 4 da fare`. Non usare `riprendi`: riapre sempre come «da fare» e perde il
 motivo di un FERMO. `ripristina` mette nell'evento il segno `annullo`, e chi legge la storia sa
 che non è una scelta della persona. `modifica`, `su`, `giu`, `inizia`, `fatto`, `riprendi`,
 `ferma` e `scarta` accettano `--annullo` per lo stesso scopo: lo usano pannello e pagina web
