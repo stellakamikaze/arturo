@@ -17,8 +17,10 @@ Solo libreria standard, Python 3.8 o successivo.
 from __future__ import annotations
 
 import argparse
+import errno
 import hmac
 import json
+import math
 import os
 import secrets
 import sys
@@ -74,6 +76,10 @@ PAGINA_NEGATA = """<!doctype html>
 """
 
 AZIONI = ("aggiungi", "modifica", "nota", "deciso", "ripristina") + tuple(ts.AZIONI_STATO)
+# La parola dell'esito di un ripristino viene dallo stato di arrivo, come per le azioni di stato.
+PAROLA_STATO = {nuovo: parola for nuovo, parola in ts.AZIONI_STATO.values()}
+# Il motivo con cui l'Annulla di un aggiungi scarta il todo appena scritto.
+MOTIVO_TOLTO = "annullato dalla pagina"
 
 
 class ErroreRichiesta(Exception):
@@ -171,7 +177,7 @@ def esegui(stato: Stato, richiesta: dict) -> dict:
             t = ts.aggiungi(campi)
             messaggio = "Aggiunto"
             annulla = {"azione": "ripristina", "id": t["id"], "titolo_atteso": t["titolo"],
-                       "stato": "scartato", "motivo": "annullato dalla pagina"}
+                       "stato": "scartato", "motivo": MOTIVO_TOLTO}
 
         elif azione == "modifica":
             t = ts.registra(numero, "modifica", dict(richiesta["campi"], annullo=richiesta["annullo"]))
@@ -193,7 +199,10 @@ def esegui(stato: Stato, richiesta: dict) -> dict:
             if not richiesta["stato"]:
                 raise ErroreRichiesta(400, "manca lo stato da ripristinare")
             t = ts.ripristina(numero, richiesta["stato"], richiesta["motivo"])
-            messaggio = "Ripristinato"
+            if t["stato"] == "scartato" and t["motivo"] == MOTIVO_TOLTO:
+                messaggio = "Tolto"
+            else:
+                messaggio = PAROLA_STATO.get(t["stato"], "Ripristinato")
 
         elif azione == "nota":
             t = ts.registra(numero, "nota", {"testo": richiesta["testo"] or ""})
@@ -355,28 +364,70 @@ def crea_gestore(stato: Stato):
     return Gestore
 
 
+AIUTO = """arturo web apre la pagina dei todo nel browser, solo su questo computer.
+Opzioni: --porta N sceglie la porta (da 0 a 65535, 0 la sceglie il sistema), --non-aprire stampa il link senza aprire il browser."""
+
+OPZIONI = "Le opzioni sono --porta N e --non-aprire. Vedi: arturo web aiuto"
+
+
+def porta(valore: str) -> int:
+    """Il numero di --porta. Un valore sbagliato arriva a Parser.error con una frase già italiana."""
+    try:
+        n = int(valore)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"--porta vuole un numero da 0 a 65535, non «{valore}».")
+    if not 0 <= n <= 65535:
+        raise argparse.ArgumentTypeError(f"--porta vuole un numero da 0 a 65535, non {n}.")
+    return n
+
+
 class Parser(argparse.ArgumentParser):
+    """Gli errori delle opzioni in italiano: il testo inglese di argparse non arriva alla persona."""
+
     def error(self, message):
         if "--host" in message:
             testo = "l'opzione --host non esiste: la pagina ascolta solo su 127.0.0.1, cioè solo su questo computer."
+        elif "--porta vuole" in message:
+            testo = message.split(": ", 1)[-1] if message.startswith("argument") else message
+        elif "--porta" in message:
+            testo = f"--porta vuole un numero da 0 a 65535. {OPZIONI}"
         else:
-            testo = f"opzione non valida ({message}). Le opzioni sono --porta N e --non-aprire."
+            sconosciute = message.split(":", 1)[-1].strip() if "unrecognized" in message else ""
+            testo = (f"opzione sconosciuta «{sconosciute}». " if sconosciute else "opzione non valida. ") + OPZIONI
         print(f"arturo web: {testo}", file=sys.stderr)
         raise SystemExit(2)
 
 
 def parser() -> argparse.ArgumentParser:
     p = Parser(prog="arturo web", add_help=False)
-    p.add_argument("--porta", type=int, default=0)
+    p.add_argument("--porta", type=porta, default=0)
     p.add_argument("--non-aprire", action="store_true")
     return p
+
+
+def inattivo_da(valore) -> float:
+    """ARTURO_WEB_INATTIVO in secondi, almeno 1. Un valore vuoto, non numerico o non finito vale 30 minuti."""
+    try:
+        secondi = float(valore or INATTIVO)
+    except ValueError:
+        return float(INATTIVO)
+    return max(secondi, 1.0) if math.isfinite(secondi) else float(INATTIVO)
+
+
+def perche_porta(e: OSError) -> str:
+    """Il motivo di un bind fallito, in italiano. strerror arriva dal sistema, spesso in inglese."""
+    if e.errno in (errno.EADDRINUSE, getattr(errno, "WSAEADDRINUSE", -1)):
+        return "la porta è già usata da un altro programma"
+    if e.errno in (errno.EACCES, getattr(errno, "WSAEACCES", -1)):
+        return "il sistema non permette di usare questa porta"
+    return "il sistema rifiuta la porta"
 
 
 def durata(secondi: float) -> str:
     if secondi >= 60:
         minuti = int(round(secondi / 60))
         return "un minuto" if minuti == 1 else f"{minuti} minuti"
-    return f"{int(secondi)} secondi"
+    return "un secondo" if int(secondi) == 1 else f"{int(secondi)} secondi"
 
 
 def sorveglia(stato: Stato) -> None:
@@ -395,16 +446,16 @@ def main(argv: list, progetto: str = "generale") -> int:
             flusso.reconfigure(encoding="utf-8")
         except (AttributeError, ValueError):
             pass
+    if argv and argv[0] in ("aiuto", "-h", "--help"):
+        print(AIUTO)
+        return 0
     args = parser().parse_args(argv)
-    try:
-        inattivo = float(os.environ.get("ARTURO_WEB_INATTIVO") or INATTIVO)
-    except ValueError:
-        inattivo = INATTIVO
-    stato = Stato(secrets.token_urlsafe(32), progetto, max(inattivo, 1.0))
+    stato = Stato(secrets.token_urlsafe(32), progetto, inattivo_da(os.environ.get("ARTURO_WEB_INATTIVO")))
     try:
         server = ThreadingHTTPServer((HOST, args.porta), crea_gestore(stato))
-    except OSError as e:
-        print(f"arturo web: non riesco ad aprire la porta {args.porta} su {HOST} ({e.strerror or e}). "
+    except (OSError, OverflowError) as e:
+        motivo = perche_porta(e) if isinstance(e, OSError) else "il numero di porta non è valido"
+        print(f"arturo web: non riesco ad aprire la porta {args.porta} su {HOST}: {motivo}. "
               "Riprova senza --porta: il sistema ne sceglie una libera.", file=sys.stderr)
         return 1
     server.daemon_threads = True

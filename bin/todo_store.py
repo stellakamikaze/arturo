@@ -155,7 +155,10 @@ def _righe(file: Path) -> list:
     if not file.exists():
         return []
     with open(file, "rb") as f:
-        return f.read().decode("utf-8", errors="replace").splitlines()
+        testo = f.read().decode("utf-8", errors="replace")
+    # Solo "\n" separa le righe. splitlines() spezza anche su U+0085, U+2028 e U+2029, che un
+    # titolo incollato da un PDF può contenere: la riga si romperebbe in due pezzi illeggibili.
+    return [riga[:-1] if riga.endswith("\r") else riga for riga in testo.split("\n")]
 
 
 def _riga_valida(e) -> bool:
@@ -277,10 +280,22 @@ def per_id(todo: dict, numero) -> dict:
 
 # --- scrittura ----------------------------------------------------------------
 
+# Separatori di riga per Unicode che json.dumps lascia crudi con ensure_ascii=False. Nel registro
+# vanno come escape JSON: così ogni lettore che spezza le righe come splitlines() le trova intere.
+_SEPARATORI = {"\u0085": "\\u0085", "\u2028": "\\u2028", "\u2029": "\\u2029"}
+
+
+def _riga_json(evento: dict) -> str:
+    riga = json.dumps(evento, ensure_ascii=False, separators=(",", ":"))
+    for crudo, escape in _SEPARATORI.items():
+        riga = riga.replace(crudo, escape)
+    return riga
+
+
 def _scrivi_molti(eventi: list, file: Path) -> None:
     """Piu' eventi in una sola write(): chi legge li trova tutti o nessuno."""
     file.parent.mkdir(parents=True, exist_ok=True)
-    righe = "".join(json.dumps(e, ensure_ascii=False, separators=(",", ":")) + "\n" for e in eventi).encode("utf-8")
+    righe = "".join(_riga_json(e) + "\n" for e in eventi).encode("utf-8")
     fd = os.open(str(file), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
     try:
         os.write(fd, righe)

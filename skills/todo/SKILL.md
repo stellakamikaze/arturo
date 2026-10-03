@@ -6,7 +6,7 @@ description: >-
 when_to_use: >-
   Usa quando la persona dice «ricordami di…», «segnati che…», «mettilo tra le cose da fare»,
   «cosa c'è da fare?», «cosa scade questa settimana?», o chiede di chiudere, spostare o fermare
-  un todo. NON per i passi interni di questa sola sessione (quelli sono TaskCreate e spariscono
+  un todo. Usa anche quando la persona chiede di vedere i todo in una pagina del browser. NON per i passi interni di questa sola sessione (quelli sono TaskCreate e spariscono
   alla chiusura). Segui tutti i passi nell'ordine: non prendere scorciatoie basandoti su questa
   description.
 version: 1.0.0
@@ -101,8 +101,8 @@ quando annullano un clic.
 
 ## La pagina nel browser
 
-Quando la persona dice «fammi vedere le mie cose da fare», «aprimi i todo in una pagina» o
-vuole guardare i todo fuori dal terminale, avvia la pagina con il tool Bash e
+Quando la persona dice «fammi vedere le mie cose da fare in una pagina», «aprimi i todo in
+una pagina» o vuole guardare i todo nel browser, avvia la pagina con il tool Bash e
 `run_in_background`:
 
 ```bash

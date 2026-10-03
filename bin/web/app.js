@@ -158,8 +158,27 @@
     stato.testo = testo;
     stato.inAttesa = null;
     var fuoco = ricordaFuoco();
+    var scritti = ricordaCampi();
     disegna();
+    rimettiCampi(scritti);
     if (fuoco) { rimettiFuoco(fuoco.id, fuoco.ruolo); }
+  }
+
+  // Un pannello aperto resta aperto quando arriva l'esito di un'altra azione (una nota, «Fatto»
+  // su un'altra riga). Il ridisegno lo ricostruisce: i campi che la persona ha cambiato e non ha
+  // ancora salvato tornano al loro posto. Ogni campo ricorda in data-iniziale il valore disegnato.
+  function ricordaCampi() {
+    var scritti = {};
+    Array.prototype.forEach.call(document.querySelectorAll(".todo-pannello [data-iniziale]"), function (n) {
+      if (n.id && n.value !== n.getAttribute("data-iniziale")) { scritti[n.id] = n.value; }
+    });
+    return scritti;
+  }
+  function rimettiCampi(scritti) {
+    Object.keys(scritti).forEach(function (id) {
+      var n = $(id);
+      if (n) { n.value = scritti[id]; }
+    });
   }
 
   // --- avvisi e barra dell'ultima azione ------------------------------------------
@@ -582,14 +601,14 @@
   }
 
   function campoTesto(id, etichetta, valore, altro) {
-    var o = { id: id, type: "text", valore: valore || "", autocomplete: "off" };
+    var o = { id: id, type: "text", valore: valore || "", autocomplete: "off", "data-iniziale": valore || "" };
     Object.keys(altro || {}).forEach(function (k) { o[k] = altro[k]; });
     return [el("label", { "for": id, testo: etichetta }), el("input", o)];
   }
 
   function scelta(id, etichetta, valori, nomi, attuale) {
     return [el("label", { "for": id, testo: etichetta }),
-      el("select", { id: id }, valori.map(function (v) {
+      el("select", { id: id, "data-iniziale": attuale }, valori.map(function (v) {
         return el("option", { valore: v, testo: nomi[v], selected: v === attuale });
       }))];
   }
@@ -686,7 +705,7 @@
       t.note.length ? el("ul", { classe: "note" }, t.note.map(function (n) { return el("li", { testo: n }); })) : null,
       el("div", { classe: "riga-campo campo" }, [
         el("label", { "for": idNota, testo: "Aggiungi una nota" }),
-        el("textarea", { id: idNota, rows: "2", maxlength: "1000" })
+        el("textarea", { id: idNota, rows: "2", maxlength: "1000", "data-iniziale": "" })
       ]),
       el("p", { classe: "nota-aiuto", testo: "Le note restano nella storia del todo: non si annullano." }),
       el("div", { classe: "pannello-azioni" }, [el("button", { type: "submit", classe: "azione azione--bordo", testo: "Aggiungi la nota" })])
@@ -695,7 +714,11 @@
       e.preventDefault();
       var testo = $(idNota).value.trim();
       if (!testo) { errore("La nota è vuota: scrivi qualcosa prima di aggiungerla."); $(idNota).focus(); return; }
-      azione({ azione: "nota", id: t.id, titolo_atteso: t.titolo, testo: testo }, { fuoco: false }).then(function (ok) {
+      // La nota salvata esce dal campo prima del ridisegno, che rimette solo i campi non salvati.
+      azione({ azione: "nota", id: t.id, titolo_atteso: t.titolo, testo: testo }, {
+        fuoco: false,
+        prima: function () { var campo = $(idNota); if (campo) { campo.value = ""; } }
+      }).then(function (ok) {
         var campo = $(idNota);
         if (ok && campo) { campo.focus(); }
       });

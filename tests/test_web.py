@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 """W01-W15: la pagina dei todo nel browser, `arturo web` (ciclo 3, 3/10/2026).
 
-W01 parte e ascolta solo su 127.0.0.1; --host non esiste. W02 la chiave: senza, niente
-pagina e niente API. W03 un altro sito (Host, Origin, Content-Type, OPTIONS) non passa e
-nessuna risposta apre CORS. W04 la pagina legge quello che legge la CLI. W05 un todo
-aggiunto dalla pagina arriva alla CLI con gli accenti veri. W06 la stessa sequenza dalla
-CLI e dalla pagina scrive gli stessi eventi. W07 gli errori sono del store, in italiano,
-e il terminale resta zitto. W08 un numero che indica un altro todo dà 409 e non scrive.
-W09 Annulla rimette lo stato di prima e non cancella niente. W10 un titolo ostile resta
-testo, e la pagina non usa la rete esterna. W11 solo i file statici previsti. W12 si
-spegne da sola dopo il tempo di inattività e dal bottone, mai senza chiave. W13
-accessibilità statica e Regola della Stella. W14 pagina e CLI scrivono insieme senza id
+W01 parte e ascolta solo su 127.0.0.1, si ferma dopo 30 minuti, --host non esiste e le
+opzioni sbagliate rispondono in italiano. W02 la chiave: senza, niente pagina e niente API.
+W03 un altro sito (Host, Origin, Content-Type, OPTIONS) non passa e nessuna risposta apre
+CORS. W04 la pagina legge quello che legge la CLI. W05 un todo aggiunto dalla pagina arriva
+alla CLI con gli accenti veri e con i separatori Unicode. W06 la stessa sequenza dalla CLI e
+dalla pagina scrive gli stessi eventi. W07 gli errori sono del store, in italiano, e il
+terminale resta zitto. W08 un numero che indica un altro todo dà 409 e non scrive. W09
+Annulla rimette lo stato di prima, anche dopo «Ho deciso», e non cancella niente. W10 un
+titolo ostile resta testo, e la pagina non usa la rete esterna. W11 solo i file statici
+previsti. W12 si spegne da sola dopo il tempo di inattività e dal bottone, mai senza chiave.
+W13 accessibilità statica e Regola della Stella. W14 pagina e CLI scrivono insieme senza id
 doppi. W15 aiuto, skill, README e NOVITA raccontano la pagina.
 
 Ogni server parte davvero (--non-aprire --porta 0) in una HOME isolata e si chiude sempre.
@@ -190,6 +191,7 @@ def test_w01(repo: Path) -> None:
         with Server(c) as s:
             seconda = next((r for r in s.uscita if "In ascolto su" in r), "")
             assert f"In ascolto su 127.0.0.1:{s.porta}" in seconda, f"W01 seconda riga: {s.uscita}"
+            assert "Si ferma dopo 30 minuti" in seconda, f"W01 il tempo di spegnimento non è 30 minuti: {seconda!r}"
             codice, h, corpo = s.chiedi("GET", f"/?t={s.token}", chiave=False)
             testo = corpo.decode("utf-8")
             assert codice == 200 and h["content-type"].startswith("text/html"), f"W01 pagina: {codice} {h}"
@@ -200,7 +202,7 @@ def test_w01(repo: Path) -> None:
                 f"W01 CSP: {csp!r}"
             ip = ip_esterno()
             if ip is None:
-                print("W01 nota: nessun indirizzo di rete, il controllo dall'esterno si salta")
+                print("W01 nota: nessun indirizzo di rete, resta solo il controllo sul sorgente")
             else:
                 prova_tcp = socket.socket()
                 prova_tcp.settimeout(3)
@@ -215,7 +217,25 @@ def test_w01(repo: Path) -> None:
         r = c.cli("web", "--host", "0.0.0.0", ok=False)
         assert r.returncode == 2 and "127.0.0.1" in r.stderr and "usage" not in r.stderr.lower(), \
             f"W01 --host: rc={r.returncode} {r.stderr!r}"
+        for aiuto in ("aiuto", "-h", "--help"):
+            r = c.cli("web", aiuto, ok=False)
+            assert r.returncode == 0 and "--porta" in r.stdout and "--non-aprire" in r.stdout, \
+                f"W01 arturo web {aiuto}: rc={r.returncode} {r.stdout!r} {r.stderr!r}"
+        for sbagliati in (("--porta", "abc"), ("--porta", "-1"), ("--porta", "70000"), ("--boh",)):
+            r = c.cli("web", *sbagliati, "--non-aprire", ok=False)
+            inglese = [x for x in ("Traceback", "Error", "argument", "invalid", "unrecognized", "usage") if x in r.stderr]
+            assert r.returncode == 2 and r.stderr.startswith("arturo web:") and not inglese, \
+                f"W01 arturo web {' '.join(sbagliati)}: rc={r.returncode} {r.stderr!r}"
+        with Server(c, ARTURO_WEB_INATTIVO="nan") as s:
+            seconda = next((r for r in s.uscita if "In ascolto su" in r), "")
+            assert "Si ferma dopo 30 minuti" in seconda, f"W01 ARTURO_WEB_INATTIVO=nan: {seconda!r}"
     con_casa(repo, prova)
+
+    # Senza rete il controllo dall'esterno non c'è: il sorgente deve legare il server a 127.0.0.1.
+    sorgente = read(repo / "bin" / "arturo_web.py")
+    assert re.search(r'^HOST = "127\.0\.0\.1"$', sorgente, re.M), "W01 HOST non è 127.0.0.1"
+    legami = re.findall(r"ThreadingHTTPServer\(\(([^,]+),", sorgente)
+    assert legami == ["HOST"], f"W01 il server non si lega a HOST: {legami}"
 
 
 def test_w02(repo: Path) -> None:
@@ -300,6 +320,32 @@ def test_w05(repo: Path) -> None:
         grezzo = c.byte()
         assert titolo.encode("utf-8") in grezzo and b"\\u00" not in grezzo, "W05 il registro non è in UTF-8 diretto"
     con_casa(repo, prova)
+
+    # Un titolo incollato da un PDF può contenere U+0085, U+2028 e U+2029: il registro resta una
+    # riga per evento, e un registro vecchio che li ha crudi si legge lo stesso.
+    incollato = "Rileggere\u2028il capitolo\u2029tre\x85fine"
+
+    def separatori(c: Casa) -> None:
+        with Server(c) as s:
+            r = s.azione(azione="aggiungi", campi={"titolo": incollato, "progetto": "p"})
+            assert r["vista"]["avvisi"] == [], f"W05 avvisi dopo un titolo incollato: {r['vista']['avvisi']}"
+        v = c.json()
+        assert [t["titolo"] for g in v["gruppi"] for t in g["todo"]] == [incollato] and v["avvisi"] == [], \
+            f"W05 il titolo incollato non torna uguale: {v}"
+        testo = c.byte().decode("utf-8")
+        assert not any(x in testo for x in "\u0085\u2028\u2029"), "W05 il registro scrive crudi i separatori Unicode"
+        evento = json.loads(testo.split("\n")[0])
+        evento["dati"]["titolo"] = "Vecchio\u2028registro"
+        evento["ev"] = "0" * 32
+        evento["todo"] = "1" * 32
+        evento["id"] = 2
+        with open(c.registro, "ab") as f:
+            f.write((json.dumps(evento, ensure_ascii=False) + "\n").encode("utf-8"))
+        v = c.json()
+        titoli = sorted(t["titolo"] for g in v["gruppi"] for t in g["todo"])
+        assert titoli == sorted([incollato, "Vecchio\u2028registro"]) and v["avvisi"] == [], \
+            f"W05 un registro con i separatori crudi non si legge: {titoli} {v['avvisi']}"
+    con_casa(repo, separatori)
 
 
 def _passi_cli(c: Casa) -> None:
@@ -411,7 +457,8 @@ def test_w09(repo: Path) -> None:
             r = s.azione(azione="fatto", id=1, titolo_atteso="Uno")
             annulla = r["annulla"]
             assert annulla and annulla["azione"] == "ripristina", f"W09 annulla di fatto: {annulla}"
-            s.azione(**annulla)
+            r = s.azione(**annulla)
+            assert r["messaggio"] == "Fermato #1: Uno", f"W09 esito dell'Annulla di fatto: {r['messaggio']!r}"
             uno = c.json("mostra", "1")
             assert (uno["stato"], uno["motivo"]) == ("fermo", "aspetto Rossi"), f"W09 dopo Annulla: {uno['stato']} {uno['motivo']}"
             assert uno["storia"][-1]["dati"].get("annullo") is True, "W09 l'annullo non porta il segno"
@@ -423,10 +470,20 @@ def test_w09(repo: Path) -> None:
 
             righe = len(c.byte().splitlines())
             r = s.azione(azione="aggiungi", campi={"titolo": "Sbagliato", "progetto": "p"})
-            s.azione(**r["annulla"])
+            tolto = s.azione(**r["annulla"])
             due = c.json("mostra", str(r["id"]))
             assert due["stato"] == "scartato", f"W09 l'aggiungi annullato è {due['stato']}"
+            assert tolto["messaggio"] == f"Tolto #{r['id']}: Sbagliato", f"W09 esito dell'Annulla di aggiungi: {tolto['messaggio']!r}"
             assert len(c.byte().splitlines()) == righe + 2, "W09 Annulla cancella o salta righe del registro"
+
+            r = s.azione(azione="aggiungi", campi={"titolo": "Scegliere la sala", "progetto": "p", "chi": "decidi"})
+            n = str(r["id"])
+            r = s.azione(azione="deciso", id=r["id"], titolo_atteso="Scegliere la sala", testo="la sala grande")
+            assert c.json("mostra", n)["chi"] == "io", "W09 deciso non passa il todo a Claude"
+            s.azione(**r["annulla"])
+            sala = c.json("mostra", n)
+            assert sala["chi"] == "decidi", f"W09 Annulla di «Ho deciso» non rimette chi=decidi: {sala['chi']}"
+            assert sala["storia"][-1]["dati"].get("annullo") is True, "W09 l'Annulla di «Ho deciso» non porta il segno"
     con_casa(repo, prova)
 
 
@@ -479,7 +536,11 @@ def test_w12(repo: Path) -> None:
         with Server(c, ARTURO_WEB_INATTIVO="2") as s:
             fine = time.time() + 4
             while time.time() < fine:
-                s.vista()
+                assert s.p.poll() is None, "W12 il server si spegne mentre la pagina chiede"
+                try:
+                    s.vista()
+                except OSError:
+                    assert False, "W12 il server si spegne mentre la pagina chiede"
                 time.sleep(0.5)
             assert s.p.poll() is None, "W12 il server si spegne mentre la pagina chiede"
             rc = s.attendi_uscita(10)
