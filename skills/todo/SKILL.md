@@ -152,6 +152,10 @@ Il comando stampa un link `http://127.0.0.1:PORTA/?t=CHIAVE` e prova ad aprire i
 il link dall'output e daglielo in una riga: «La pagina è aperta: <link>». Senza un browser (per
 esempio via SSH) la pagina non si apre da sola, e il link basta.
 
+La pagina parte dal tavolo dei progetti: «Da dove partirei» in cima (la stessa regola di
+`todo_store.da_dove`), poi un foglio per progetto. Per aprire direttamente un progetto, aggiungi al link
+`#/progetto/NOME`, e `#/progetto/NOME/ID` per il dettaglio di un todo.
+
 La pagina usa lo stesso archivio della CLI e le stesse regole: quello che la persona fa lì lo
 vedi con `arturo todo`, e quello che scrivi tu compare nella pagina entro 20 secondi. Ascolta
 solo su questo computer, e la chiave cambia a ogni avvio. Si spegne da sola dopo 30 minuti senza

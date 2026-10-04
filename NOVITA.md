@@ -11,6 +11,26 @@ modo di lavorare.
 
 ---
 
+## 2026-10-04 — Il tavolo dei progetti
+
+**Cosa cambia**: la pagina delle cose da fare (`arturo web`) ora parte dai progetti. In cima trovi
+«Da dove partirei»: un todo solo, scelto con una regola fissa, e il motivo in parole («Sblocca #7»,
+«Scade domani»). Sotto, un foglio per ogni progetto, con il prossimo passo, gli altri todo in vista,
+chi agisce e la scadenza più vicina. Davanti stanno i progetti dove qualcosa chiede te, dietro quelli
+tutti in mano a Claude. Un foglio si apre e diventa la pagina del progetto. Lì un todo si apre nel
+dettaglio, con le note datate, la storia di ogni passaggio e quello che aspetta o sblocca. In testa
+c'è anche una riga con la tappa del tuo percorso.
+
+**Il principio dietro**: il modo in cui chi sviluppa Arturo riparte ogni mattina. Prima la cosa da
+cui partire, poi i progetti uno per uno, ogni todo con il segno di chi agisce. La regola di «Da dove
+partirei» è la stessa per ogni vista: prima quello che chiede una persona, poi quello che sblocca
+altri todo, poi scadenze e priorità.
+
+**A chi serve**: a chi ha più di un progetto aperto e vuole vedere da dove ripartire senza leggere
+l'elenco intero.
+
+<!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->
+
 ## 2026-10-04 — Claude ti dice quale skill usa
 
 **Cosa cambia**: nel brief che Claude mostra prima di ogni lavoro c'è una riga nuova, «Skill:».
@@ -79,9 +99,7 @@ Code.
 
 **Cosa cambia**: ora vedi i tuoi todo anche in una pagina del browser. Chiedi a Claude «fammi
 vedere le mie cose da fare in una pagina», oppure scrivi nel terminale
-`python3 ~/.claude/bin/arturo web` (solo `arturo web` se con `/setup` hai aggiunto il comando breve). La pagina
-divide i todo in tre modi: per chi agisce, per progetto e per scadenza, con un'agenda che parte
-dagli scaduti e arriva a «più avanti». Da lì aggiungi un todo, lo segni fatto, lo modifichi o lo
+`python3 ~/.claude/bin/arturo web` (solo `arturo web` se con `/setup` hai aggiunto il comando breve). Da lì aggiungi un todo, lo segni fatto, lo modifichi o lo
 fermi. Su un todo di «Decidi tu, poi faccio io» premi «Ho deciso», scrivi la scelta e il lavoro
 passa a Claude. Dopo ogni azione compare «Annulla», salvo dopo una nota. Niente si
 cancella dall'archivio.

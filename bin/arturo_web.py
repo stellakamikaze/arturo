@@ -38,6 +38,7 @@ from urllib.parse import parse_qs, urlsplit
 
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 import todo_store as ts  # noqa: E402
+import percorso as pc  # noqa: E402
 
 HOST = "127.0.0.1"
 CARTELLA = Path(os.path.realpath(__file__)).parent / "web"
@@ -117,9 +118,34 @@ class Stato:
         threading.Thread(target=self.server.shutdown, daemon=True).start()
 
 
+def tappa(todo: dict):
+    """La tappa del percorso per la riga in testata. Se il percorso non si legge, la riga sparisce."""
+    try:
+        elenco = pc.tappe(todo)
+        k = pc.tappa_attuale(elenco)
+    except Exception:  # noqa: BLE001 - la pagina dei todo funziona anche senza percorso
+        return None
+    return {"tappa": k, "nome": pc.TAPPE[k - 1] if k else None, "totale": len(pc.TAPPE)}
+
+
 def lettura() -> dict:
     todo, avvisi = ts.carica()
-    return {"vista": ts.vista(todo, avvisi, tutti=True), "progetti": ts.progetti(todo)}
+    return {"vista": ts.vista(todo, avvisi, tutti=True), "progetti": ts.progetti(todo),
+            "da_dove": ts.da_dove(todo), "percorso": tappa(todo)}
+
+
+def scheda(numero) -> dict:
+    """Un todo con note datate e storia: la forma di `arturo todo mostra --json`."""
+    todo, _ = ts.carica()
+    t = ts.per_id(todo, numero)
+    e = ts.esporta(t, todo)
+    e["note_datate"] = [{"ts": n["ts"], "testo": n["testo"]} for n in t["note"]]
+    # Gli eventi «dopo» puntano a un uid: la pagina mostra il numero che la persona conosce.
+    numeri = {x["uid"]: x["id"] for x in todo.values()}
+    e["storia"] = [dict(s, dati={k: (numeri.get(v, v) if k in ("aggiungi", "togli") else v)
+                                 for k, v in s["dati"].items()}) for s in t["storia"]]
+    e["sblocca"] = sorted(x["id"] for x in todo.values() if t["uid"] in x["dopo"] and x["stato"] in ts.APERTI)
+    return {"todo": e}
 
 
 def _testo(corpo: dict, chiave: str):
@@ -366,6 +392,12 @@ def crea_gestore(stato: Stato):
             elif url.path == "/api/vista":
                 self._controlla_chiave(self.headers.get("X-Arturo-Token"))
                 self._json(200, dict(lettura(), partenza=stato.progetto))
+            elif url.path == "/api/todo":
+                self._controlla_chiave(self.headers.get("X-Arturo-Token"))
+                numero = (parse_qs(url.query).get("id") or [""])[0]
+                if not numero:
+                    raise ErroreRichiesta(400, "manca il numero del todo")
+                self._json(200, scheda(numero))
             else:
                 raise ErroreRichiesta(404, TESTI_ERRORE[404])
 

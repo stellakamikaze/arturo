@@ -14,7 +14,8 @@ previsti. W12 si spegne da sola dopo il tempo di inattività e dal bottone, mai 
 W13 accessibilità statica, Regola della Stella, nomi di «chi» uguali allo store, pannello che
 tiene i campi e si chiude con il suo todo (nel browser se Chrome c'è, sul sorgente sempre).
 W14 pagina e CLI scrivono insieme senza id doppi. W15 aiuto, skill, README e NOVITA raccontano
-la pagina.
+la pagina. W16 il tavolo dei progetti: da_dove e percorso nella vista, /api/todo
+con chiave, Host e Origin, storia con i numeri e non con gli uid.
 
 Ogni server parte davvero (--non-aprire --porta 0) in una HOME isolata e si chiude sempre.
 Sulla base 6ef1c0c (l'ultimo commit prima del ciclo 3) ogni controllo deve fallire.
@@ -518,7 +519,8 @@ def test_w10(repo: Path) -> None:
         for vietato in ("http://", "https://", "//cdn", "@import", "xmlns"):
             assert vietato not in testo, f"W10 {nome} contiene {vietato}"
     collegamenti = re.findall(r'\b(?:src|href)="([^"]*)"', read(web / "index.html"))
-    fuori = [x for x in collegamenti if x not in ("/static/stile.css", "/static/app.js") and not x.startswith("data:")]
+    fuori = [x for x in collegamenti if x not in ("/static/stile.css", "/static/app.js")
+             and not x.startswith("data:") and not x.startswith("#")]
     assert not fuori and collegamenti, f"W10 index.html collega altro: {fuori}"
 
 
@@ -600,10 +602,14 @@ def test_w13(repo: Path) -> None:
     assert re.search(r'<html[^>]*\blang="it"', html), "W13 lang"
     assert tag.count("h1") == 1 and tag.count("main") == 1, "W13 un h1 e un main"
     ids = {a["id"] for _, a in p.tag if a.get("id")}
-    schede = [a for _, a in p.tag if a.get("role") == "tab"]
-    assert any(a.get("role") == "tablist" for _, a in p.tag) and len(schede) == 3, "W13 tablist con tre schede"
-    for a in schede:
-        assert a.get("aria-selected") in ("true", "false") and a.get("aria-controls") in ids, f"W13 scheda {a}"
+    # Il tavolo dei progetti (4/10): un titolo che cambia con la vista e riceve il fuoco, le briciole
+    # per tornare al tavolo, una sola regione della vista.
+    titolo = [a for t, a in p.tag if t == "h1"]
+    assert titolo and titolo[0].get("id") == "titolo" and titolo[0].get("tabindex") == "-1", f"W13 h1 della vista: {titolo}"
+    assert any(t == "nav" and a.get("aria-label") and a.get("id") == "briciole" for t, a in p.tag), "W13 nav delle briciole"
+    vista = [a for _, a in p.tag if a.get("id") == "vista"]
+    assert vista and "pannello" in vista[0].get("class", "") and vista[0].get("aria-labelledby") == "titolo", f"W13 regione della vista: {vista}"
+    assert "role=\"tab\"" not in html, "W13 restano schede della pagina di prima"
     assert any(a.get("role") == "status" and a.get("aria-live") == "polite" for _, a in p.tag), "W13 regione status"
     assert any(a.get("role") == "alert" for _, a in p.tag), "W13 regione alert"
     for t, a, dentro in p.campi:
@@ -768,10 +774,43 @@ def test_w15(repo: Path) -> None:
     assert r.returncode == 0, f"W15 test_allineamento con i file nuovi: {r.stdout[-300:]} {r.stderr[-300:]}"
 
 
+def test_w16(repo: Path) -> None:
+    """Il tavolo dei progetti: da_dove e percorso nella vista, /api/todo con la sua chiave."""
+    def prova(c: Casa) -> None:
+        c.todo("aggiungi", "Mandare il preventivo", "--chi", "tu", "--progetto", "libro", "--scadenza", "2026-10-04")
+        c.todo("aggiungi", "<img src=x onerror=alert(1)>", "--chi", "io", "--progetto", "libro")
+        c.todo("dopo", "2", "1")
+        c.todo("nota", "1", "Rossi vuole il PDF")
+        with Server(c) as s:
+            v = s.vista()
+            assert v["da_dove"] == {"id": 1, "motivo": "Sblocca #2"}, f"W16 da_dove nella vista: {v.get('da_dove')}"
+            assert v["percorso"] and v["percorso"]["totale"] == 4, f"W16 percorso nella vista: {v.get('percorso')}"
+            codice, _, corpo = s.chiedi("GET", "/api/todo?id=1", chiave=False)
+            assert codice == 403, f"W16 /api/todo senza chiave: {codice}"
+            italiano(corpo, "W16 /api/todo senza chiave")
+            codice, _, corpo = s.chiedi("GET", "/api/todo?id=1", intestazioni={"Origin": "http://altro.example"})
+            assert codice == 403, f"W16 /api/todo da un altro sito: {codice}"
+            codice, _, corpo = s.chiedi("GET", "/api/todo")
+            assert codice == 400, f"W16 /api/todo senza numero: {codice}"
+            italiano(corpo, "W16 /api/todo senza numero")
+            codice, _, corpo = s.chiedi("GET", "/api/todo?id=99")
+            assert codice == 400 and "99" in corpo.decode("utf-8"), f"W16 /api/todo numero assente: {codice} {corpo!r}"
+            codice, h, corpo = s.chiedi("GET", "/api/todo?id=1")
+            assert codice == 200 and h["content-type"].startswith("application/json"), f"W16 /api/todo: {codice}"
+            t = json.loads(corpo)["todo"]
+            assert t["sblocca"] == [2] and [n["testo"] for n in t["note_datate"]] == ["Rossi vuole il PDF"], f"W16 scheda: {t}"
+            assert {e["tipo"] for e in t["storia"]} >= {"crea", "nota"}, f"W16 storia: {t['storia']}"
+            due = json.loads(s.chiedi("GET", "/api/todo?id=2")[2])["todo"]
+            dopo = [e for e in due["storia"] if e["tipo"] == "dopo"]
+            assert dopo and dopo[0]["dati"]["aggiungi"] == 1, f"W16 la storia mostra un uid invece del numero: {dopo}"
+            assert due["titolo"] == "<img src=x onerror=alert(1)>", "W16 il titolo ostile non resta testo nel JSON"
+    con_casa(repo, prova)
+
+
 TESTS = {
     "W01": test_w01, "W02": test_w02, "W03": test_w03, "W04": test_w04, "W05": test_w05,
     "W06": test_w06, "W07": test_w07, "W08": test_w08, "W09": test_w09, "W10": test_w10,
-    "W11": test_w11, "W12": test_w12, "W13": test_w13, "W14": test_w14, "W15": test_w15,
+    "W11": test_w11, "W12": test_w12, "W13": test_w13, "W14": test_w14, "W15": test_w15, "W16": test_w16,
 }
 
 

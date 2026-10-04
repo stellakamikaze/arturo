@@ -114,7 +114,18 @@ async function main() {
 
     await cdp("Page.enable");
     await cdp("Page.navigate", { url });
-    controlla(await finche(`!!document.querySelector('.todo[data-id="4"]')`, 10000), "la pagina non mostra i todo");
+    // 0. Il tavolo: «Da dove partirei», un foglio per il progetto, il foglio apre il progetto.
+    controlla(await finche(`!!document.querySelector('.foglio .foglio-nome a')`, 10000), "il tavolo non mostra il foglio del progetto");
+    const daDove = await valuta(`(document.getElementById("da-dove-titolo") || {}).textContent || ""`);
+    controlla(daDove.indexOf("Uno") !== -1, `«Da dove partirei» non sceglie il primo todo della persona: ${JSON.stringify(daDove)}`);
+    await valuta(`document.querySelector('.foglio .foglio-nome a').click(); true`);
+    controlla(await finche(`document.getElementById("titolo").textContent === "p" && !!document.querySelector('.todo[data-id="4"]')`, 10000),
+      "il foglio non apre la pagina del progetto");
+    // Il dettaglio: storia e note lette da /api/todo, Indietro torna al progetto.
+    await valuta(`location.hash = "#/progetto/p/4"; true`);
+    controlla(await finche(`!!document.querySelector('#dettaglio .storia li')`), "il dettaglio di #4 non mostra la storia");
+    await valuta(`history.back(); true`);
+    controlla(await finche(`!document.getElementById("dettaglio") && !!document.querySelector('.todo[data-id="4"]')`), "Indietro non chiude il dettaglio");
 
     // 1. Il pannello tiene i campi non salvati.
     controlla(await premi(1, "Modifica"), "manca «Modifica» su #1");
@@ -147,7 +158,7 @@ async function main() {
       `con il pannello «Ho deciso» chiuso da «Fatto», un todo della CLI non compare: ${await titoli()}`);
 
     if (errori.length) { errori.forEach((e) => console.log("FAIL " + e)); return 1; }
-    console.log("PROVA_PAGINA_OK controlli=2");
+    console.log("PROVA_PAGINA_OK controlli=3");
     return 0;
   } finally {
     if (ws) { try { ws.close(); } catch (e) { /* già chiuso */ } }

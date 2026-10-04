@@ -606,6 +606,53 @@ def progetti(todo: dict) -> dict:
     return conti
 
 
+def da_dove(todo: dict):
+    """Il todo da cui ripartire, con il motivo in parole. None se non c'è niente da fare.
+
+    Una regola fissa, la stessa per ogni vista: prima chi chiede una persona (tu, decidi), poi
+    chi sblocca altri todo, poi scaduti, scadenza vicina, priorità alta, segnato per oggi.
+    Restano fuori i fermi, chi aspetta un altro todo aperto e gli esercizi del percorso.
+    """
+    per_uid = {t["uid"]: t for t in todo.values()}
+    aspettano = {}
+    for t in todo.values():
+        if t["stato"] in APERTI:
+            for u in t["dopo"]:
+                aspettano.setdefault(u, []).append(t["id"])
+    candidati = []
+    for t in todo.values():
+        if t["stato"] not in ("da fare", "in corso") or t["progetto"] == PROGETTO_PERCORSO:
+            continue
+        if any(per_uid[u]["stato"] in APERTI for u in t["dopo"] if u in per_uid):
+            continue
+        g = giorni(t)
+        sblocca = sorted(aspettano.get(t["uid"], []))
+        chiave = (0 if gruppo(t) in ("tu", "decidi") else 1, 0 if sblocca else 1,
+                  0 if g is not None and g < 0 else 1, g if g is not None else 10 ** 6,
+                  PRIORITA.index(t["priorita"]) if t["priorita"] in PRIORITA else 1,
+                  0 if t["quando"] == "oggi" else 1, t["id"])
+        candidati.append((chiave, t, g, sblocca))
+    if not candidati:
+        return None
+    _, t, g, sblocca = min(candidati, key=lambda x: x[0])
+    if sblocca:
+        motivo = "Sblocca " + " e ".join(f"#{n}" for n in sblocca[:3])
+    elif g is not None and g <= 2:
+        testo = scadenza_testo(g)
+        motivo = testo[0].upper() + testo[1:]
+    elif t["priorita"] == "alta":
+        motivo = "Priorità alta"
+    elif t["quando"] == "oggi":
+        motivo = "Segnato per oggi"
+    elif gruppo(t) == "decidi":
+        motivo = "Serve una tua scelta, poi lavora Claude"
+    elif gruppo(t) == "tu":
+        motivo = "Tocca a te"
+    else:
+        motivo = "È il primo della lista di Claude"
+    return {"id": t["id"], "motivo": motivo}
+
+
 def _ordine(t: dict) -> tuple:
     g = giorni(t)
     return (0 if g is not None and g < 0 else 1, PRIORITA.index(t["priorita"]) if t["priorita"] in PRIORITA else 1,

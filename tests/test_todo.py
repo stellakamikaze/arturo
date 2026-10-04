@@ -23,7 +23,9 @@ CHIAVI_TODO, scadenza_testo e la descrizione dei gruppi. T19 Lucchetto pubblico
 e scrivi_json_atomico. T20 il progetto riservato del percorso. T21 COMANDI fa
 aiuto, smistamento e messaggio di errore. T22 un .lock non parte mai con /fine.
 T23 tabella degli stati e conteggi per progetto stanno nel store. T24 /aggiorna
-mostra il codice di bin/ e dei mod, /diagnosi legge l'archivio.
+mostra il codice di bin/ e dei mod, /diagnosi legge l'archivio. T25 da_dove sceglie il todo
+da cui ripartire con una regola fissa e il motivo in parole: persona prima, poi chi sblocca,
+scaduti, scadenza vicina. Fermi, attese ed esercizi restano fuori.
 Sulla base b8eff39 ogni controllo deve fallire.
 """
 from __future__ import annotations
@@ -715,12 +717,49 @@ def test_t24(repo: Path) -> None:
         assert verbo in skill, f"T24 la skill todo non documenta {verbo}"
 
 
+def test_t25(repo: Path) -> None:
+    def prova(c: Casa) -> None:
+        st = store(repo)
+        vecchio = os.environ.get("ARTURO_OGGI")
+        os.environ["ARTURO_OGGI"] = OGGI
+        try:
+            def scelta():
+                todo, _ = st.carica(c.registro)
+                return st.da_dove(todo)
+            c.home.joinpath(".claude", "data", "todo").mkdir(parents=True)
+            c.registro.touch()
+            assert scelta() is None, "T25 senza todo da_dove non torna None"
+            c.cli("aggiungi", "Impaginare l'indice", "--chi", "io", "--priorita", "alta")       # 1
+            assert scelta() == {"id": 1, "motivo": "Priorità alta"}, f"T25 solo Claude: {scelta()}"
+            c.cli("aggiungi", "Rinnovare il dominio", "--chi", "tu", "--priorita", "bassa")    # 2
+            assert scelta()["id"] == 2, f"T25 la persona non viene prima di Claude: {scelta()}"
+            c.cli("aggiungi", "Mandare il preventivo", "--chi", "tu", "--scadenza", "2026-10-01")  # 3
+            assert scelta() == {"id": 3, "motivo": "Scaduto da 2 g"}, f"T25 lo scaduto: {scelta()}"
+            c.cli("aggiungi", "Scegliere il titolo", "--chi", "decidi")                       # 4
+            c.cli("aggiungi", "Montare la puntata", "--chi", "io")                            # 5
+            c.cli("dopo", "5", "4")
+            assert scelta() == {"id": 4, "motivo": "Sblocca #5"}, f"T25 chi sblocca: {scelta()}"
+            c.cli("ferma", "4", "aspetta il cliente")
+            c.cli("ferma", "3", "aspetta il comune")
+            c.cli("fatto", "2")
+            # 4 fermo, 3 fermo, 2 chiuso, 5 aspetta 4: resta Claude con l'1
+            assert scelta()["id"] == 1, f"T25 fermi, chiusi o attese scelti: {scelta()}"
+            c.cli("aggiungi", "Esercizio della settimana", "--chi", "tu", "--progetto", st.PROGETTO_PERCORSO)
+            assert scelta()["id"] == 1, f"T25 un esercizio del percorso scelto: {scelta()}"
+        finally:
+            if vecchio is None:
+                os.environ.pop("ARTURO_OGGI", None)
+            else:
+                os.environ["ARTURO_OGGI"] = vecchio
+    con_casa(repo, prova)
+
+
 TESTS = {
     "T01": test_t01, "T02": test_t02, "T03": test_t03, "T04": test_t04, "T05": test_t05,
     "T06": test_t06, "T07": test_t07, "T08": test_t08, "T09": test_t09, "T10": test_t10,
     "T11": test_t11, "T12": test_t12, "T13": test_t13, "T14": test_t14, "T15": test_t15,
     "T16": test_t16, "T17": test_t17, "T18": test_t18, "T19": test_t19, "T20": test_t20,
-    "T21": test_t21, "T22": test_t22, "T23": test_t23, "T24": test_t24,
+    "T21": test_t21, "T22": test_t22, "T23": test_t23, "T24": test_t24, "T25": test_t25,
 }
 
 
