@@ -182,3 +182,20 @@ Piena notte per l'azione principale, bordo sera per la secondaria, chiara sopra 
 - Non mettere un titolo display sopra le tre righe nell'apertura: la voce deve restare bassa.
 - Non annidare card dentro card: le prove sono fondi di lino senza bordo.
 - Non ritagliare un dipinto a caso: ogni riquadro mostra un soggetto intero o solo cielo.
+
+## Superficie: arturo web (la pagina dei progetti)
+
+La pagina locale di `arturo web` (ramo `dev`, `bin/web/`) estende questo mondo. I token sono una copia dei colori qui sopra, nello stesso `:root` di `bin/web/stile.css`: se cambia un colore qui, va cambiato anche lì.
+
+### Scala e tema
+- Scala tipografica fissa in rem, rapporto 1,2 (`--t-meta` .8125rem, `--t-piccolo` .875rem, `--t-testo` 1rem, `--t-lead` 1.2rem, `--t-h2` 1.44rem, `--t-h1` 2.074rem): una pagina di lavoro non cambia misura con la finestra.
+- Tema scuro con `prefers-color-scheme: dark`. Tela `#1f1f29` (notte), carta `#282834` (crepuscolo), lino `#2c2d3a`, testo `#eef0ec` e `#dcdfd9`, cenere `#a9ada8`, foschia `#3b3c4a`, sera chiaro `#8cc4e6` come accento, passa `#7dcca0`, blocca `#f0968a`. L'azione piena si rovescia: fondo `#eef0ec`, testo notte.
+
+### Segni di chi agisce
+Quattro forme disegnate in CSS, mai glifi: pieno grafite = «Tocca a te», metà grafite = «Decidi tu, poi faccio io», cerchio vuoto sera = «Faccio io», lineetta cenere = «Fermo». Un chiuso è una lineetta verde. I nomi vengono sempre dai gruppi dello store, e la sintesi in testata li mette davanti a ogni frase: la sintesi fa da legenda.
+
+### Fogli
+- `.foglio`: un progetto dove qualcosa chiede una persona. Carta, filetto foschia, raggio 12 px, ombra card.
+- `.foglio--dietro`: un progetto tutto in mano a Claude. Lino, nessuna ombra.
+- I fogli stanno in colonne di altezza libera (`columns`), mai in una griglia di riquadri uguali. «Da dove partirei» è largo quanto la colonna, sopra il campo per aggiungere.
+- Il nome del foglio passa nel titolo della pagina del progetto con una transizione di vista. Con reduced-motion, cambio secco.
