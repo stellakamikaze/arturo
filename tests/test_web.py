@@ -519,9 +519,11 @@ def test_w10(repo: Path) -> None:
         for vietato in ("http://", "https://", "//cdn", "@import", "xmlns"):
             assert vietato not in testo, f"W10 {nome} contiene {vietato}"
     collegamenti = re.findall(r'\b(?:src|href)="([^"]*)"', read(web / "index.html"))
-    fuori = [x for x in collegamenti if x not in ("/static/stile.css", "/static/app.js")
+    fuori = [x for x in collegamenti if x not in ("static/stile.css", "static/app.js")
              and not x.startswith("data:") and not x.startswith("#")]
     assert not fuori and collegamenti, f"W10 index.html collega altro: {fuori}"
+    # Percorsi relativi: la pagina funziona anche sotto un prefisso, dietro un proxy.
+    assert not re.search(r'chiama\("(GET|POST)", "/', app), "W10 app.js chiama le API con un percorso assoluto"
 
 
 def test_w11(repo: Path) -> None:

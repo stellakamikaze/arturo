@@ -3,6 +3,8 @@
    del codice HTML resta testo. Ogni scrittura passa da /api/azione, cioè da todo_store.
    Tre viste, scelte dall'indirizzo: il tavolo (#/), un progetto (#/progetto/NOME) e il
    dettaglio di un todo dentro il suo progetto (#/progetto/NOME/ID). */
+// I percorsi delle API sono relativi alla pagina: in locale la pagina sta a «/», ma può stare
+// anche sotto un prefisso (per esempio «/admin/») dietro un proxy, senza cambiare questo file.
 (function () {
   "use strict";
 
@@ -136,7 +138,7 @@
   }
 
   function leggi() {
-    return chiama("GET", "/api/vista").then(function (r) {
+    return chiama("GET", "api/vista").then(function (r) {
       if (!r.ok || !r.dati || !r.dati.vista) { disconnesso(); return; }
       if (stato.allarme === "rete") { pulisciAllarme(); }
       ricevi(r.dati, false);
@@ -238,7 +240,7 @@
     if (stato.occupato || stato.spento) { return Promise.resolve(false); }
     stato.occupato = true;
     var prossimo = corpo.id ? prossimaRiga(corpo.id) : null;
-    return chiama("POST", "/api/azione", corpo).then(function (r) {
+    return chiama("POST", "api/azione", corpo).then(function (r) {
       if (r.codice === 409 && r.dati && r.dati.vista) {
         stato.aperto = null;
         // Un Annulla rifiutato perché il todo è cambiato non si ripete: il bottone sparisce.
@@ -313,7 +315,7 @@
   }
 
   function spegni() {
-    chiama("POST", "/api/spegni", {}).then(function (r) {
+    chiama("POST", "api/spegni", {}).then(function (r) {
       if (!r.ok) { errore(r.dati && r.dati.errore ? r.dati.errore : "La pagina non si è spenta. Riprova."); return; }
       stato.spento = true;
       clearTimeout(stato.timer);
@@ -926,7 +928,7 @@
   // --- il dettaglio di un todo ------------------------------------------------------
 
   function leggiScheda(id, fuoco) {
-    return chiama("GET", "/api/todo?id=" + encodeURIComponent(id)).then(function (r) {
+    return chiama("GET", "api/todo?id=" + encodeURIComponent(id)).then(function (r) {
       if (stato.rotta.todo !== id) { return; }
       stato.scheda = r.ok && r.dati && r.dati.todo ? { id: id, todo: r.dati.todo }
         : { id: id, errore: r.dati && r.dati.errore ? r.dati.errore : "Questo todo non si apre: forse è stato rinumerato. Torna al progetto." };
