@@ -1,0 +1,909 @@
+<!doctype html>
+<html lang="it" data-os="mac">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Installa Arturo · una tappa alla volta</title>
+<meta name="description" content="Il setup di Arturo nel browser: dieci tappe in ordine, dal computer vuoto alla prima sessione con Claude Code.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#fefffc">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23282834'/%3E%3Cpath d='M4 25c5-5 9-6 12-4s7 1 12-4' fill='none' stroke='%23fefffc' stroke-width='1.6' stroke-linecap='round'/%3E%3Ccircle cx='22' cy='9' r='3' fill='%23f2a24a'/%3E%3C/svg%3E">
+<link rel="preload" href="../font/sorts-mill-goudy.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../font/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:"Sorts Mill Goudy";src:url(../font/sorts-mill-goudy.woff2) format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Sorts Mill Goudy";src:url(../font/sorts-mill-goudy-italic.woff2) format("woff2");font-weight:400;font-style:italic;font-display:swap}
+@font-face{font-family:"Atkinson Next";src:url(../font/atkinson-next.woff2) format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
+@font-face{font-family:"Atkinson Mono";src:url(../font/atkinson-mono.woff2) format("woff2");font-weight:200 800;font-display:swap}
+
+:root{
+  --tela:#fefffc;
+  --carta:#ffffff;
+  --lino:#f9faf7;
+  --inchiostro:#171717;
+  --grafite:#2c2c2c;
+  --carbone:#444141;
+  --cenere:#646464;
+  --nebbia:#b4b8b4;
+  --foschia:#dee2de;
+  --crepuscolo:#282834;
+  --notte:#1f1f29;
+  --sera:#2b6f9e;
+  --passa:#2f7a4f;
+  --blocca:#b2392b;
+  --arturo:#f2a24a;
+
+  --serif:"Sorts Mill Goudy", "Iowan Old Style", Georgia, serif;
+  --sans:"Atkinson Next", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"Atkinson Mono", ui-monospace, Menlo, monospace;
+
+  --t-display:clamp(2.1rem, 1.5rem + 1.8vw, 3.1rem);
+  --t-h2:clamp(2rem, 1.35rem + 1.9vw, 3rem);
+  --t-h3:clamp(1.3rem, 1.15rem + .55vw, 1.6rem);
+  --t-lead:clamp(1.06rem, 1rem + .25vw, 1.18rem);
+
+  --gutter:clamp(16px, 4vw, 48px);
+  --colonna:1040px;
+  --ombra-card:0 1px 1px rgba(0,0,0,.08), 0 4px 5px rgba(0,0,0,.08);
+  --esce:cubic-bezier(.16,1,.3,1);
+  --cielo:linear-gradient(180deg,#2a2f5c 0%,#5b4b86 42%,#c47c7a 74%,#f0b27c 100%);
+  --segno:40px;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:24px;-webkit-text-size-adjust:100%;scrollbar-color:var(--nebbia) var(--tela)}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--tela);color:var(--carbone);font:400 clamp(16.5px, .98rem + .15vw, 18px)/1.55 var(--sans);letter-spacing:-.005em;overflow-x:clip}
+::selection{background:#cfe6f4;color:var(--inchiostro)}
+img,svg{display:block;max-width:100%}
+a{color:var(--grafite);text-decoration-thickness:1px;text-underline-offset:.24em;text-decoration-color:var(--nebbia);transition:text-decoration-color .2s}
+a:hover{text-decoration-color:currentColor}
+:focus-visible{outline:2px solid var(--sera);outline-offset:3px;border-radius:4px}
+h1,h2,h3{margin:0;font-weight:400;text-wrap:balance;color:var(--grafite)}
+p{margin:0 0 1em;text-wrap:pretty}
+p:last-child{margin-bottom:0}
+ul,ol{margin:0;padding:0;list-style:none}
+code,kbd{font-family:var(--mono);font-size:.88em;letter-spacing:0}
+kbd{padding:1px 6px;border-radius:5px;background:var(--lino);border:1px solid var(--foschia);border-bottom-width:2px;white-space:nowrap}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+.vis-sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.salta{position:absolute;left:12px;top:-60px;z-index:60;background:var(--carta);color:var(--grafite);padding:10px 16px;border-radius:8px;box-shadow:var(--ombra-card)}
+.salta:focus{top:12px}
+.colonna{max-width:calc(var(--colonna) + var(--gutter) * 2);margin:0 auto;padding:0 var(--gutter)}
+
+/* solo il sistema scelto */
+html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{display:none!important}
+
+/* ---------- testata ---------- */
+.testa{border-bottom:1px solid var(--foschia)}
+.testa .colonna{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:68px}
+.marchio{display:inline-flex;align-items:center;gap:10px;color:var(--grafite);text-decoration:none;font:400 1.25rem/1 var(--serif)}
+.marchio svg{width:26px;height:26px}
+.testa__torna{font-size:.93rem;color:var(--cenere)}
+
+/* ---------- apertura ---------- */
+.intro{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:28px clamp(32px,5vw,72px);align-items:end;padding:clamp(48px,7vw,88px) 0 clamp(36px,5vw,56px)}
+.intro h1{font:400 var(--t-display)/1.08 var(--serif);letter-spacing:-.025em;margin-bottom:18px}
+.intro__attacco{font-size:var(--t-lead);line-height:1.5;color:var(--carbone);max-width:44ch}
+.intro__lato{display:grid;gap:18px}
+@media (max-width:820px){.intro{grid-template-columns:minmax(0,1fr);align-items:start;padding:36px 0 28px;gap:20px}.intro h1{margin-bottom:12px}.intro__lato{gap:14px}.legami{gap:8px}.legami__testo{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.punto{padding-top:10px}}
+#ricomincia[hidden]{display:none}
+
+.sistema{border:0;margin:0;padding:0;min-width:0}
+.sistema legend{font:600 .82rem/1.3 var(--sans);color:var(--cenere);padding:0;margin-bottom:8px}
+.sistema__scelte{display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:12px;background:var(--lino);border:1px solid var(--foschia)}
+.sistema input{position:absolute;opacity:0;pointer-events:none}
+.sistema label{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border-radius:8px;font:500 .95rem/1 var(--sans);color:var(--carbone);cursor:pointer;border:1px solid transparent;transition:background-color .2s,border-color .2s,color .2s}
+.sistema label svg{width:18px;height:18px;flex:none}
+.sistema input:checked + label{background:var(--carta);border-color:var(--sera);color:var(--grafite);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.sistema input:focus-visible + label{outline:2px solid var(--sera);outline-offset:2px}
+.sistema__nota{font-size:.88rem;color:var(--cenere);margin:8px 0 0}
+
+.punto{display:grid;justify-items:start;gap:2px;padding-top:14px;border-top:1px solid var(--foschia)}
+.punto__dove{font:400 1.15rem/1.3 var(--serif);color:var(--grafite);font-variant-numeric:lining-nums}
+.punto__dove span{font:400 .92rem/1.4 var(--sans);color:var(--cenere);margin-left:6px}
+.legami{display:flex;flex-wrap:wrap;gap:10px 14px;font-size:.88rem;color:var(--cenere)}
+.legami li{display:flex;align-items:center;gap:8px}
+
+/* ---------- il segno di dove si incolla ---------- */
+.dove{display:inline-flex;align-items:center;gap:6px;flex:none;height:26px;padding:0 9px;border-radius:8px;font:600 .76rem/1 var(--sans);letter-spacing:0;white-space:nowrap}
+.dove svg{width:14px;height:14px;flex:none}
+.dove--terminale{background:var(--notte);color:#fff}
+.dove--claude{background:var(--lino);color:var(--sera);box-shadow:inset 0 0 0 1px var(--sera)}
+.dove--pagina{background:var(--lino);color:var(--cenere);box-shadow:inset 0 0 0 1px var(--foschia)}
+.tappa:not(.aperta) .tappa__apri .dove--terminale{background:var(--lino);color:var(--notte);box-shadow:inset 0 0 0 1px var(--foschia)}
+.tappa:not(.aperta) .tappa__apri .dove--claude{box-shadow:inset 0 0 0 1px var(--foschia)}
+
+/* ---------- la rotta ---------- */
+.rotta{counter-reset:tappa;padding-bottom:12px}
+.tappa{position:relative;display:grid;grid-template-columns:var(--segno) minmax(0,1fr);gap:0 clamp(14px,2.4vw,28px)}
+.tappa__segno{position:relative}
+.tappa__segno::before,.tappa__segno::after{content:"";position:absolute;left:calc(var(--segno) / 2 - 1px);top:44px;bottom:-6px;width:2px;border-radius:2px}
+.tappa__segno::before{background:var(--foschia)}
+.tappa__segno::after{background:var(--sera);transform:scaleY(0);transform-origin:top;transition:transform .7s var(--esce)}
+.tappa.fatta .tappa__segno::after{transform:scaleY(1)}
+.boa{position:relative;display:grid;place-items:center;width:var(--segno);height:var(--segno);margin-top:4px;border-radius:50%;background:var(--tela);box-shadow:inset 0 0 0 1.5px var(--nebbia);font:400 1.15rem/1 var(--serif);font-variant-numeric:lining-nums;color:var(--cenere);transition:background-color .35s,box-shadow .35s,color .35s}
+.boa svg{position:absolute;width:18px;height:18px;opacity:0;transform:scale(.4);transition:opacity .3s,transform .5s var(--esce)}
+.tappa.fatta .boa{background:var(--sera);box-shadow:none;color:transparent}
+.tappa.fatta .boa svg{opacity:1;transform:none;color:#fff}
+.tappa.corrente .boa{box-shadow:inset 0 0 0 1.5px var(--sera);color:var(--sera)}
+.tappa.corrente .boa::after{content:"";position:absolute;top:-3px;right:-3px;width:11px;height:11px;border-radius:50%;background:var(--arturo);box-shadow:0 0 0 3px var(--tela)}
+
+.tappa__testa{margin:0}
+.tappa__apri{display:flex;align-items:center;gap:12px 16px;width:100%;min-height:48px;padding:0;border:0;background:none;text-align:left;margin-top:0}
+.tappa__nome{flex:1;min-width:0;font:400 var(--t-h3)/1.25 var(--serif);letter-spacing:-.015em;color:var(--grafite)}
+.tappa__apri:hover .tappa__nome{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.2em;text-decoration-color:var(--nebbia)}
+.tappa.fatta:not(.aperta) .tappa__nome{color:var(--cenere)}
+.tappa__stato{font:400 .86rem/1 var(--sans);color:var(--passa);white-space:nowrap}
+.tappa:not(.fatta) .tappa__stato{display:none}
+
+.tappa__corpo{min-width:0;padding-bottom:clamp(18px,2.4vw,26px)}
+.tappa__piega{display:grid;grid-template-rows:0fr;transition:grid-template-rows .55s var(--esce),visibility 0s .55s;visibility:hidden}
+.tappa__piega > div{overflow:hidden;min-height:0}
+.tappa.aperta .tappa__piega{grid-template-rows:1fr;visibility:visible;transition:grid-template-rows .55s var(--esce),visibility 0s 0s}
+html:not(.js) .tappa__piega{grid-template-rows:1fr;visibility:visible}
+@media (prefers-reduced-motion:reduce){.tappa__piega,.tappa.aperta .tappa__piega,.tappa__segno::after,.boa,.boa svg{transition:none}}
+
+.foglio{margin-top:14px;padding:clamp(20px,3vw,32px);border-radius:12px;background:var(--carta);border:1px solid var(--foschia);box-shadow:var(--ombra-card)}
+.foglio > * + *{margin-top:22px}
+.perche{font-size:var(--t-lead);line-height:1.5;color:var(--carbone);max-width:62ch}
+.passi{counter-reset:passo;display:grid;gap:12px;max-width:66ch}
+.passi > li{counter-increment:passo;display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px}
+.passi > li::before{content:counter(passo);font:400 1.1rem/1.45 var(--serif);font-variant-numeric:lining-nums;color:var(--sera)}
+.passi a{font-weight:500}
+
+/* consegna: dove va il blocco */
+.consegna{display:grid;gap:10px;min-width:0}
+.consegna__testa{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;font:600 .88rem/1.3 var(--sans);color:var(--grafite)}
+.consegna__testa small{font:400 .86rem/1.3 var(--sans);color:var(--cenere)}
+.comando{display:flex;align-items:stretch;border-radius:8px;overflow:hidden;background:var(--notte);color:#eef0ec}
+.comando pre{flex:1;margin:0;padding:14px 16px;font:400 .86rem/1.6 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;min-width:0;tab-size:4}
+.comando pre::selection{background:#3d5f7a;color:#fff}
+.comando button{flex:none;width:92px;border:0;border-left:1px solid #3a3a4e;background:transparent;color:#fff;font:500 .88rem/1 var(--sans);transition:background-color .2s}
+.comando button:hover{background:#2c2c3c}
+.comando button.copiato{color:#bfe8cd}
+.comando button.errore{color:#ffc9bf}
+.comando button:disabled{cursor:not-allowed;color:#9a9aab;background:transparent;border-left-style:dashed}
+.comando--claude{background:var(--lino);color:var(--grafite);box-shadow:inset 0 0 0 1px var(--sera)}
+.comando--claude pre::selection{background:#cfe6f4;color:var(--inchiostro)}
+.comando--claude button{color:var(--sera);border-left-color:#c9d9e4}
+.comando--claude button:hover{background:rgba(43,111,158,.07)}
+.comando--claude button.copiato{color:var(--passa)}
+.comando--claude button.errore{color:var(--blocca)}
+.comando--claude button:disabled{color:var(--cenere)}
+.comando.vuoto pre{color:#a9a9b8}
+.comando--claude.vuoto pre{color:var(--cenere)}
+@media (max-width:520px){.comando{flex-direction:column}.comando button{width:auto;min-height:44px;border-left:0;border-top:1px solid #3a3a4e}.comando--claude button{border-top-color:#c9d9e4}}
+.manca{font-size:.88rem;color:var(--cenere);margin-bottom:0}
+.manca:empty{display:none}
+@media (max-width:520px){:root{--segno:32px}.tappa{column-gap:12px}.boa{font-size:1rem}.tappa__segno::before,.tappa__segno::after{top:38px}.foglio{padding:18px 14px}.comando pre{padding:12px}}
+
+/* esito atteso */
+.esito{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px 28px;padding-top:18px;border-top:1px solid var(--foschia)}
+@media (max-width:720px){.esito{grid-template-columns:minmax(0,1fr)}}
+.esito h3{display:flex;align-items:center;gap:8px;font:600 .88rem/1.3 var(--sans);margin-bottom:6px}
+.esito h3 svg{width:16px;height:16px;flex:none}
+.esito__vedi h3{color:var(--passa)}
+.esito__non h3{color:var(--blocca)}
+.esito p,.esito li{font-size:.95rem;line-height:1.5}
+.esito ul{display:grid;gap:6px}
+.esito code{overflow-wrap:anywhere}
+
+/* moduli */
+.campi{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 24px}
+.campi .largo{grid-column:1 / -1}
+@media (max-width:640px){.campi{grid-template-columns:minmax(0,1fr)}}
+.campo{display:grid;gap:6px;min-width:0;align-content:start}
+.campo > label,.campo > .campo__nome{font:600 .86rem/1.3 var(--sans);color:var(--grafite)}
+.campo small{font-size:.84rem;line-height:1.45;color:var(--cenere)}
+.campo input[type="text"],.campo input[type="email"],.campo input[type="url"],.campo textarea,.campo select{width:100%;min-height:46px;padding:10px 12px;border:0;border-bottom:1px solid var(--nebbia);border-radius:0;background:var(--lino);color:var(--grafite);caret-color:var(--sera);transition:border-color .2s,box-shadow .2s}
+.campo input[type="text"],.campo input[type="email"],.campo input[type="url"],.campo select{height:46px;line-height:1.3}
+.campo textarea{min-height:96px;resize:vertical;line-height:1.5}
+.campo select{appearance:none;-webkit-appearance:none;height:46px;padding-right:36px;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='m3 4.5 3 3 3-3' stroke='%23646464' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:12px}
+.campo input::placeholder,.campo textarea::placeholder{color:var(--cenere)}
+.campo input:focus,.campo textarea:focus,.campo select:focus{outline:none;border-bottom-color:var(--sera);box-shadow:inset 0 -1px 0 var(--sera)}
+.scelte-riga{display:flex;flex-wrap:wrap;gap:8px 18px}
+.spunta{display:flex;align-items:flex-start;gap:10px;font-size:.95rem;line-height:1.45;cursor:pointer;min-height:28px}
+.spunta input{flex:none;width:18px;height:18px;margin:2px 0 0;accent-color:var(--sera)}
+.spunte{display:grid;gap:10px}
+
+/* facoltative */
+.facoltativa{border-top:1px solid var(--foschia)}
+.facoltativa:last-of-type{border-bottom:1px solid var(--foschia)}
+.facoltativa summary{display:flex;align-items:center;gap:12px;min-height:56px;cursor:pointer;list-style:none;font:500 1rem/1.35 var(--sans);color:var(--grafite)}
+.facoltativa summary::-webkit-details-marker{display:none}
+.facoltativa summary::after{content:"";margin-left:auto;flex:none;width:9px;height:9px;border-right:1.5px solid var(--cenere);border-bottom:1.5px solid var(--cenere);transform:rotate(45deg) translate(-2px,-2px);transition:transform .25s var(--esce)}
+.facoltativa[open] summary::after{transform:rotate(-135deg) translate(-2px,-2px)}
+.facoltativa__dentro{display:grid;gap:16px;padding:0 0 22px}
+
+/* azioni */
+.azioni{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding-top:4px}
+.azione{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 18px;border-radius:8px;font:500 .95rem/1 var(--sans);letter-spacing:-.01em;text-decoration:none;border:1px solid transparent;transition:background-color .2s,border-color .2s,color .2s}
+.azione--piena{background:var(--notte);color:#fff;border-color:var(--crepuscolo)}
+.azione--piena:hover{background:#34344a}
+.azione--bordo{color:var(--sera);border-color:var(--sera);background:transparent}
+.azione--bordo:hover{background:rgba(43,111,158,.07)}
+.azione svg{width:12px;height:12px}
+.link-quieto{border:0;background:none;padding:6px 0;color:var(--cenere);font-size:.92rem;text-decoration:underline;text-decoration-color:var(--nebbia);text-underline-offset:.24em}
+.link-quieto:hover{color:var(--grafite);text-decoration-color:currentColor}
+.cambio{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:8px;background:var(--lino);font-size:.95rem;color:var(--carbone)}
+.cambio svg{width:20px;height:20px;flex:none;color:var(--sera)}
+.lista-comandi{display:grid;gap:10px;max-width:66ch}
+.lista-comandi li{display:grid;grid-template-columns:minmax(150px,auto) minmax(0,1fr);gap:4px 16px;font-size:.95rem}
+.lista-comandi code{color:var(--grafite);font-weight:600}
+@media (max-width:520px){.lista-comandi li{grid-template-columns:minmax(0,1fr)}}
+
+/* ---------- traguardo ---------- */
+.traguardo{position:relative;margin:clamp(24px,4vw,48px) 0 clamp(64px,8vw,104px);border-radius:24px;overflow:hidden;background:var(--cielo);min-height:clamp(340px,42vw,500px);display:grid;align-items:end;isolation:isolate;box-shadow:0 2px 2px rgba(0,0,0,.06),0 0 0 5px rgba(0,0,0,.03)}
+.traguardo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-1}
+.vetro{position:relative;margin:clamp(16px,4vw,40px);max-width:520px;padding:clamp(22px,3vw,30px);border-radius:24px;background:rgba(48,38,72,.26);border:1px solid rgba(255,255,255,.34);backdrop-filter:blur(22px) saturate(1.25);-webkit-backdrop-filter:blur(22px) saturate(1.25);color:#fff}
+.vetro h2{font:400 var(--t-h2)/1.1 var(--serif);letter-spacing:-.02em;color:#fff;margin-bottom:12px}
+.vetro p{color:rgba(255,255,255,.94);max-width:44ch}
+.vetro a{color:#fff;text-decoration-color:rgba(255,255,255,.5)}
+@media (max-width:760px){.traguardo{display:block;min-height:0;background:var(--notte)}.traguardo img{position:relative;inset:auto;z-index:auto;height:clamp(320px,56svh,480px);object-position:72% 40%}.traguardo .vetro{margin:-96px 12px 12px;max-width:none}}
+
+.piede{border-top:1px solid var(--foschia);padding:32px 0 48px;font-size:.9rem;color:var(--cenere)}
+.piede p{margin:0 0 6px}
+</style>
+</head>
+<body>
+<a class="salta" href="#rotta">Vai alle tappe</a>
+
+<header class="testa">
+  <div class="colonna">
+    <a class="marchio" href="../">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 18.5c4-3.6 7-4.4 9.5-3s5.6 1 9.5-2.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="16.5" cy="6.5" r="2.2" fill="#f2a24a"/></svg>
+      Arturo
+    </a>
+    <a class="testa__torna" href="../#installa">Torna alla presentazione</a>
+  </div>
+</header>
+
+<main class="colonna">
+  <section class="intro" aria-labelledby="titolo">
+    <div>
+      <h1 id="titolo">Installa Arturo, una tappa alla volta</h1>
+      <p class="intro__attacco">Dieci tappe, dal computer vuoto alla prima sessione. Questa pagina non tocca il tuo computer: prepara i comandi, e tu li incolli dove dice il segno accanto a ogni tappa.</p>
+    </div>
+    <div class="intro__lato">
+      <fieldset class="sistema">
+        <legend>Il tuo computer</legend>
+        <div class="sistema__scelte">
+          <input type="radio" name="os" id="os-mac" value="mac" checked>
+          <label for="os-mac"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2.5" y="4" width="15" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M1 16.5h18" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>macOS</label>
+          <input type="radio" name="os" id="os-win" value="win">
+          <label for="os-win"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="3" width="6.25" height="6.25" rx=".8" stroke="currentColor" stroke-width="1.3"/><rect x="10.75" y="3" width="6.25" height="6.25" rx=".8" stroke="currentColor" stroke-width="1.3"/><rect x="3" y="10.75" width="6.25" height="6.25" rx=".8" stroke="currentColor" stroke-width="1.3"/><rect x="10.75" y="10.75" width="6.25" height="6.25" rx=".8" stroke="currentColor" stroke-width="1.3"/></svg>Windows</label>
+        </div>
+        <p class="sistema__nota" id="os-nota">Riconosciuto dal browser. Cambialo se non è giusto.</p>
+      </fieldset>
+      <div class="punto">
+        <p class="punto__dove" id="punto">Tappa 1 di 10<span>circa venti minuti in tutto</span></p>
+        <button class="link-quieto" type="button" id="ricomincia">Ricomincia da capo</button>
+      </div>
+      <ul class="legami" aria-label="Dove si incolla">
+        <li><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span><span class="legami__testo">i comandi del computer</span></li>
+        <li><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span><span class="legami__testo">le richieste ad Arturo</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <p class="vis-sr" aria-live="polite" id="annuncio"></p>
+
+  <ol class="rotta" id="rotta">
+
+    <!-- 1 -->
+    <li class="tappa" id="tappa-1" data-tappa="1">
+      <div class="tappa__segno" aria-hidden="true"><span class="boa">1<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div class="tappa__corpo">
+        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-1"><span class="tappa__nome">Apri il terminale</span><span class="tappa__stato">fatta</span><span class="dove dove--pagina">Sul computer</span></button></h2>
+        <div class="tappa__piega" id="corpo-1"><div><div class="foglio">
+          <p class="perche">Il terminale è la finestra dove si scrivono i comandi. Ti serve per le prime sei tappe. Poi lavori dentro Claude Code.</p>
+          <ol class="passi" data-solo="mac">
+            <li><span>Premi <kbd>Cmd</kbd> + <kbd>Spazio</kbd>, scrivi <strong>Terminale</strong> e premi <kbd>Invio</kbd>.</span></li>
+            <li><span>Si apre una finestra con una riga che finisce con <code>%</code>. Lì incolli i comandi con <kbd>Cmd</kbd> + <kbd>V</kbd> e li fai partire con <kbd>Invio</kbd>.</span></li>
+          </ol>
+          <ol class="passi" data-solo="win">
+            <li><span>Premi il tasto <kbd>Windows</kbd>, scrivi <strong>PowerShell</strong> e premi <kbd>Invio</kbd>. Ti serve per la tappa 3.</span></li>
+            <li><span>Dalla tappa 4 usi <strong>Git Bash</strong>, che installi alla tappa 2. In Git Bash incolli con il tasto destro del mouse e scegli <strong>Paste</strong>, oppure con <kbd>Maiusc</kbd> + <kbd>Ins</kbd>.</span></li>
+            <li><span>Ogni comando parte con <kbd>Invio</kbd>.</span></li>
+          </ol>
+          <p class="manca">Non hai mai aperto un terminale? La <a href="https://code.claude.com/docs/en/terminal-guide">guida al terminale</a> di Anthropic lo spiega con le immagini.</p>
+          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="1">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        </div></div></div>
+      </div>
+    </li>
+
+    <!-- 2 -->
+    <li class="tappa" id="tappa-2" data-tappa="2">
+      <div class="tappa__segno" aria-hidden="true"><span class="boa">2<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div class="tappa__corpo">
+        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-2"><span class="tappa__nome">Gli strumenti di base</span><span class="tappa__stato">fatta</span><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span></button></h2>
+        <div class="tappa__piega" id="corpo-2"><div><div class="foglio">
+          <p class="perche">Arturo usa tre programmi: <strong>git</strong> scarica Arturo e salva il tuo lavoro, <strong>python3</strong> fa girare le guardie, <strong>node</strong> serve ad alcuni strumenti. Si installano una volta sola.</p>
+
+          <ol class="passi" data-solo="mac">
+            <li><span>Incolla questo comando. Si apre una finestra di Apple: scegli <strong>Installa</strong> e aspetta qualche minuto. Porta git e python3. Se il terminale risponde che sono già installati, va bene così.</span></li>
+          </ol>
+          <div class="consegna" data-solo="mac">
+            <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Incolla e premi Invio</p>
+            <div class="comando"><pre id="cmd-xcode">xcode-select --install</pre><button type="button" data-copia="cmd-xcode">Copia</button></div>
+          </div>
+          <ol class="passi" data-solo="mac" start="2" style="counter-reset:passo 1">
+            <li><span>Scarica node da <a href="https://nodejs.org/it/download">nodejs.org</a>: la versione <strong>LTS</strong> per macOS, il file <code>.pkg</code>. Aprilo e segui l'installazione. Se usi già Homebrew, basta <code>brew install node jq</code>.</span></li>
+            <li><span>Chiudi il terminale e aprine uno nuovo: vede i programmi nuovi solo da una finestra nuova.</span></li>
+          </ol>
+
+          <ol class="passi" data-solo="win">
+            <li><span>Scarica <a href="https://git-scm.com/download/win">Git for Windows</a> e installalo lasciando le opzioni come sono. Porta anche <strong>Git Bash</strong>: senza, le guardie di Arturo non vedono i comandi.</span></li>
+            <li><span>Scarica Python da <a href="https://www.python.org/downloads/">python.org</a>. Nella prima finestra spunta <strong>Add python.exe to PATH</strong>, poi installa.</span></li>
+            <li><span>Apri <strong>Impostazioni</strong> › <strong>App</strong> › <strong>Impostazioni app avanzate</strong> › <strong>Alias di esecuzione app</strong> e spegni i due alias di Python: rimandano al Microsoft Store e non fanno partire niente.</span></li>
+            <li><span>Scarica node da <a href="https://nodejs.org/it/download">nodejs.org</a>: la versione <strong>LTS</strong> per Windows, il file <code>.msi</code>.</span></li>
+            <li><span>Apri <strong>Git Bash</strong> dal menu Start e incolla il controllo qui sotto.</span></li>
+          </ol>
+
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Il controllo <small data-solo="win">in Git Bash</small><small data-solo="mac">in un terminale nuovo</small></p>
+            <div class="comando"><pre id="cmd-controllo">for t in git node; do command -v "$t" >/dev/null 2>&1 &amp;&amp; echo "OK     $t" || echo "MANCA  $t"; done
+python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/null 2>&1 &amp;&amp; echo "OK     python3" || echo "MANCA  python3"</pre><button type="button" data-copia="cmd-controllo">Copia</button></div>
+          </div>
+          <div class="esito">
+            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Tre righe che iniziano con <code>OK</code>: git, node e python3.</p></div>
+            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3>
+              <ul>
+                <li>Una riga dice <code>MANCA</code>: rifai l'installazione di quel programma, poi apri un terminale nuovo e rilancia il controllo.</li>
+                <li data-solo="win"><code>MANCA python3</code> anche dopo l'installazione: spegni gli alias dello Store del passo 3.</li>
+                <li data-solo="mac">Su macOS il controllo può riaprire la finestra di Apple: vuol dire che git o python3 non sono ancora installati.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="2">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        </div></div></div>
+      </div>
+    </li>
+
+    <!-- 3 -->
+    <li class="tappa" id="tappa-3" data-tappa="3">
+      <div class="tappa__segno" aria-hidden="true"><span class="boa">3<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div class="tappa__corpo">
+        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-3"><span class="tappa__nome">Installa Claude Code</span><span class="tappa__stato">fatta</span><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span></button></h2>
+        <div class="tappa__piega" id="corpo-3"><div><div class="foglio">
+          <p class="perche">Claude Code è l'assistente che lavora sui file del tuo computer, e Arturo si appoggia sopra. Serve un piano Pro, Max, Team, Enterprise o Console di Anthropic: il piano gratuito di claude.ai non include Claude Code.</p>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>L'installazione <small data-solo="win">in PowerShell, non in Git Bash</small></p>
+            <div class="comando" data-solo="mac"><pre id="cmd-cc-mac">curl -fsSL https://claude.ai/install.sh | bash</pre><button type="button" data-copia="cmd-cc-mac">Copia</button></div>
+            <div class="comando" data-solo="win"><pre id="cmd-cc-win">irm https://claude.ai/install.ps1 | iex</pre><button type="button" data-copia="cmd-cc-win">Copia</button></div>
+          </div>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Il controllo <small>in un terminale nuovo</small></p>
+            <div class="comando"><pre id="cmd-cc-versione">claude --version</pre><button type="button" data-copia="cmd-cc-versione">Copia</button></div>
+          </div>
+          <div class="esito">
+            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Un numero di versione seguito da <code>(Claude Code)</code>. L'accesso al tuo account arriva alla tappa 6.</p></div>
+            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3>
+              <ul>
+                <li><code>command not found</code>: chiudi il terminale e aprine uno nuovo, poi rilancia il controllo.</li>
+                <li>L'errore resta: segui la <a href="https://code.claude.com/docs/en/setup">guida di installazione</a> di Anthropic, che ha anche le altre vie.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="3">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        </div></div></div>
+      </div>
+    </li>
+
+    <!-- 4 -->
+    <li class="tappa" id="tappa-4" data-tappa="4">
+      <div class="tappa__segno" aria-hidden="true"><span class="boa">4<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div class="tappa__corpo">
+        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-4"><span class="tappa__nome">Scarica Arturo</span><span class="tappa__stato">fatta</span><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span></button></h2>
+        <div class="tappa__piega" id="corpo-4"><div><div class="foglio">
+          <p class="perche">Arturo vive nella cartella delle impostazioni di Claude Code, <code>~/.claude</code>. Se la cartella esiste già, il primo comando la mette da parte con la data nel nome: non si perde niente.</p>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Incolla le due righe insieme <small data-solo="win">in Git Bash</small></p>
+            <div class="comando"><pre id="cmd-scarica">[ -d "$HOME/.claude" ] &amp;&amp; mv "$HOME/.claude" "$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><button type="button" data-copia="cmd-scarica">Copia</button></div>
+          </div>
+          <div class="esito">
+            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Qualche riga sullo scaricamento, che arriva al 100%. Poi il terminale torna pronto per un altro comando.</p></div>
+            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3>
+              <ul>
+                <li><code>git: command not found</code>: torna alla tappa 2.</li>
+                <li><code>already exists and is not an empty directory</code>: la prima riga non è partita. Copia di nuovo il blocco intero.</li>
+                <li data-solo="win">Hai incollato in PowerShell o nel Prompt dei comandi: lì la tilde <code>~</code> non funziona e Arturo finisce in un'altra cartella senza errori. Rifallo in Git Bash.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="4">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        </div></div></div>
+      </div>
+    </li>
+
+    <!-- 5 -->
+    <li class="tappa" id="tappa-5" data-tappa="5">
+      <div class="tappa__segno" aria-hidden="true"><span class="boa">5<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div class="tappa__corpo">
+        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-5"><span class="tappa__nome">Le tue scelte</span><span class="tappa__stato">fatta</span><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span></button></h2>
+        <div class="tappa__piega" id="corpo-5"><div><div class="foglio">
+          <p class="perche">Quattro scelte, e la pagina prepara un blocco solo. Nome ed email servono a Git per firmare il lavoro che salvi con <code>/fine</code>: restano sul tuo computer, e anche un'email finta va bene.</p>
+          <div class="campi">
+            <div class="campo"><label for="f-nome">Nome</label><input type="text" id="f-nome" name="nome" autocomplete="name" placeholder="Maria Rossi"></div>
+            <div class="campo"><label for="f-email">Email</label><input type="email" id="f-email" name="email" autocomplete="email" placeholder="maria@esempio.it"></div>
+            <div class="campo"><label for="f-cartella">Cartella dei progetti</label><input type="text" id="f-cartella" name="cartella" spellcheck="false" autocapitalize="off" placeholder="~/Documents/ClaudeCode"><small>Arturo crea qui i tuoi progetti. Lascia vuoto per usare <code>~/Documents/ClaudeCode</code>. Scrivi il percorso con la barra <code>/</code>.</small></div>
+            <div class="campo"><label for="f-lingua">Lingua delle risposte</label>
+              <select id="f-lingua" name="lingua">
+                <option value="italian">Italiano</option>
+                <option value="english">English</option>
+                <option value="spanish">Español</option>
+                <option value="french">Français</option>
+                <option value="german">Deutsch</option>
+              </select>
+              <small>I messaggi delle guardie restano in italiano.</small>
+            </div>
+            <div class="campo largo"><label class="spunta"><input type="checkbox" name="alias" id="f-alias" checked><span>Voglio il comando <code>arturo</code> nel terminale, per vedere le cose da fare anche fuori da Claude Code.</span></label></div>
+          </div>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Le tue scelte in un blocco <small data-solo="win">in Git Bash</small></p>
+            <div class="comando" id="blocco-scelte"><pre id="cmd-scelte">Scrivi nome ed email qui sopra: il blocco si compone da solo.</pre><button type="button" data-copia="cmd-scelte">Copia</button></div>
+            <p class="manca" id="scelte-manca" aria-live="polite"></p>
+          </div>
+          <div class="esito">
+            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Una riga per ogni scelta che inizia con <code>Fatto</code>, e alla fine <code>Scelte salvate.</code> Puoi rilanciare il blocco: non ripete niente.</p></div>
+            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3>
+              <ul>
+                <li><code>not a git repository</code> o <code>No such file</code>: Arturo non è in <code>~/.claude</code>. Torna alla tappa 4.</li>
+                <li>Una riga dice <code>Non trovo</code>: le impostazioni hanno già un valore diverso. Vai avanti: alla tappa 6 scrivi <code>/setup</code> e Claude sistema quella riga con te.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="5">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        </div></div></div>
+      </div>
+    </li>
+
+    <!-- 6 -->
+    <li class="tappa" id="tappa-6" data-tappa="6">
+      <div class="tappa__segno" aria-hidden="true"><span class="boa">6<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div class="tappa__corpo">
+        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-6"><span class="tappa__nome">Accendi Arturo</span><span class="tappa__stato">fatta</span><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span></button></h2>
+        <div class="tappa__piega" id="corpo-6"><div><div class="foglio">
+          <p class="perche">Questo comando apre Claude Code dentro Arturo. La prima volta si apre il browser per entrare nel tuo account Anthropic.</p>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Incolla e premi Invio <small data-solo="win">in Git Bash</small></p>
+            <div class="comando"><pre id="cmd-accendi">cd ~/.claude &amp;&amp; claude</pre><button type="button" data-copia="cmd-accendi">Copia</button></div>
+          </div>
+          <div class="esito">
+            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Claude Code chiede se ti fidi di questa cartella: rispondi di sì. Poi compare la casella dove scrivere le richieste.</p></div>
+            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3>
+              <ul>
+                <li>Il browser non si apre: copia il link che compare nel terminale e aprilo a mano.</li>
+                <li>L'accesso rifiuta il piano gratuito: Claude Code chiede un piano a pagamento, come dice la tappa 3.</li>
+              </ul>
+            </div>
+          </div>
+          <p class="cambio"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 6.5h11.5m0 0L11 3m3.5 3.5L11 10M17 13.5H5.5m0 0L9 10m-3.5 3.5L9 17" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Da qui in poi incolli in <strong>Claude Code</strong>, non più nel terminale. Lascialo aperto.</span></p>
+          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="6">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        </div></div></div>
+      </div>
+    </li>
+
+    <!-- 7 -->
+    <li class="tappa" id="tappa-7" data-tappa="7">
+      <div class="tappa__segno" aria-hidden="true"><span class="boa">7<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div class="tappa__corpo">
+        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-7"><span class="tappa__nome">Racconta chi sei</span><span class="tappa__stato">fatta</span><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span></button></h2>
+        <div class="tappa__piega" id="corpo-7"><div><div class="foglio">
+          <p class="perche">Claude impara chi sei e come vuoi lavorare da un file tuo, il <code>CLAUDE.md</code>. Rispondi qui, e la pagina prepara la richiesta: Claude scrive la bozza e te la mostra prima di salvarla.</p>
+          <div class="campi">
+            <div class="campo"><label for="f-chi">Come ti chiami</label><input type="text" id="f-chi" name="chi" autocomplete="name" placeholder="Maria Rossi"></div>
+            <div class="campo"><label for="f-mestiere">Che lavoro fai</label><input type="text" id="f-mestiere" name="mestiere" placeholder="editor in una casa editrice"></div>
+            <div class="campo"><span class="campo__nome" id="n-programmi">Programmi?</span>
+              <div class="scelte-riga" role="radiogroup" aria-labelledby="n-programmi">
+                <label class="spunta"><input type="radio" name="programmi" value="no" checked><span>No</span></label>
+                <label class="spunta"><input type="radio" name="programmi" value="poco"><span>Un po'</span></label>
+                <label class="spunta"><input type="radio" name="programmi" value="si"><span>Sì</span></label>
+              </div>
+            </div>
+            <div class="campo"><span class="campo__nome" id="n-tono">Come vuoi le risposte</span>
+              <div class="scelte-riga" role="radiogroup" aria-labelledby="n-tono">
+                <label class="spunta"><input type="radio" name="tono" value="corte" checked><span>Corte e dirette</span></label>
+                <label class="spunta"><input type="radio" name="tono" value="spiegate"><span>Spiegate passo per passo</span></label>
+              </div>
+            </div>
+            <div class="campo largo"><label for="f-regole">Regole tue</label><textarea id="f-regole" name="regole" placeholder="Una per riga. Per esempio: chiedimi prima di installare programmi."></textarea></div>
+            <div class="campo largo"><span class="campo__nome" id="n-consigli">Regole che consigliamo</span><small>Vengono dall'uso di ogni giorno. Togli quelle che non vuoi.</small>
+              <div class="spunte" role="group" aria-labelledby="n-consigli">
+                <label class="spunta"><input type="checkbox" name="r-azioni" checked><span>Le azioni tecniche le fa Claude. A me chiede solo ciò che solo una persona può fare.</span></label>
+                <label class="spunta"><input type="checkbox" name="r-brief" checked><span>Prima di ogni lavoro riscrive la mia richiesta e mostra un breve brief.</span></label>
+                <label class="spunta"><input type="checkbox" name="r-forma" checked><span>Frasi corte, voce attiva, una parola per ogni concetto.</span></label>
+                <label class="spunta"><input type="checkbox" name="r-passo" checked><span>A lavoro finito, l'ultima riga dice il prossimo passo e chi lo fa.</span></label>
+                <label class="spunta"><input type="checkbox" name="r-visivo" checked><span>Un risultato visivo è fatto solo quando Claude l'ha guardato come lo vedrò io.</span></label>
+              </div>
+            </div>
+          </div>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Incolla la richiesta e premi Invio</p>
+            <div class="comando comando--claude"><pre id="cmd-claudemd">Scrivi qui sopra almeno il tuo nome: la richiesta si compone da sola.</pre><button type="button" data-copia="cmd-claudemd">Copia</button></div>
+          </div>
+          <div class="esito">
+            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Claude mostra la bozza e aspetta il tuo sì. Una guardia di Arturo può chiedere il permesso di scrivere il file: è normale, approva.</p></div>
+            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3><p>La bozza non ti somiglia: diglielo con parole tue, per esempio «più corto» o «togli la regola sui brief». Il file si cambia quando vuoi.</p></div>
+          </div>
+          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="7">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        </div></div></div>
+      </div>
+    </li>
+
+    <!-- 8 -->
+    <li class="tappa" id="tappa-8" data-tappa="8">
+      <div class="tappa__segno" aria-hidden="true"><span class="boa">8<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div class="tappa__corpo">
+        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-8"><span class="tappa__nome">Quello che ti serve in più</span><span class="tappa__stato">fatta</span><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span></button></h2>
+        <div class="tappa__piega" id="corpo-8"><div><div class="foglio">
+          <p class="perche">Quattro aggiunte, nessuna obbligatoria. Apri solo quelle che ti riguardano, oppure vai avanti.</p>
+          <div>
+            <details class="facoltativa">
+              <summary>Lavoro in un'organizzazione che ha uno strato per Arturo</summary>
+              <div class="facoltativa__dentro">
+                <p>Lo strato porta chi siete, la vostra voce e le regole sui dati. Lo cura un referente interno: chiedigli l'indirizzo del repository.</p>
+                <div class="campo"><label for="f-strato">Indirizzo dello strato</label><input type="url" id="f-strato" name="strato" spellcheck="false" autocapitalize="off" placeholder="https://github.com/organizzazione/strato-arturo"></div>
+                <div class="consegna">
+                  <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Incolla e premi Invio</p>
+                  <div class="comando comando--claude"><pre id="cmd-strato">/strato installa</pre><button type="button" data-copia="cmd-strato">Copia</button></div>
+                </div>
+                <p class="manca">Sei tu il referente? Scrivi <code>/strato crea</code> in un momento a parte: è un lavoro più lungo, e la guida è in <code>~/.claude/docs/referente.md</code>.</p>
+              </div>
+            </details>
+            <details class="facoltativa">
+              <summary>Mi collego spesso a un mio server</summary>
+              <div class="facoltativa__dentro">
+                <p>Le guardie di Arturo chiedono conferma per le connessioni verso l'esterno. Un server tuo si può segnare come fidato. Le reti di casa, come <code>192.168.x</code>, lo sono già.</p>
+                <div class="campo"><label for="f-host">Nome o indirizzo del server</label><input type="text" id="f-host" name="host" spellcheck="false" autocapitalize="off" placeholder="mioserver.esempio.it"></div>
+                <div class="consegna">
+                  <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Incolla e premi Invio</p>
+                  <div class="comando comando--claude"><pre id="cmd-host">Scrivi il nome del server qui sopra.</pre><button type="button" data-copia="cmd-host">Copia</button></div>
+                </div>
+              </div>
+            </details>
+            <details class="facoltativa">
+              <summary>Uso Arturo su più computer</summary>
+              <div class="facoltativa__dentro">
+                <p>Un repository privato tuo tiene allineati i computer: <code>/fine</code> salva lì, <code>/inizio</code> riprende da lì. Serve un account GitHub. Senza, tutto funziona lo stesso e resta su questo computer.</p>
+                <div class="consegna">
+                  <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Incolla e premi Invio</p>
+                  <div class="comando comando--claude"><pre id="cmd-sync">Collega Arturo a un mio repository privato su GitHub, come dice la fase 7 di /setup: Arturo resta come upstream per gli aggiornamenti. Mostrami i comandi prima di lanciarli.</pre><button type="button" data-copia="cmd-sync">Copia</button></div>
+                </div>
+              </div>
+            </details>
+            <details class="facoltativa">
+              <summary>Voglio collegare Gmail, Drive e Calendar</summary>
+              <div class="facoltativa__dentro">
+                <p>Il collegamento ai servizi Google ha una procedura a sé, con l'accesso al tuo account.</p>
+                <div class="consegna">
+                  <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Incolla e premi Invio</p>
+                  <div class="comando comando--claude"><pre id="cmd-gws">/inizio gws</pre><button type="button" data-copia="cmd-gws">Copia</button></div>
+                </div>
+              </div>
+            </details>
+          </div>
+          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="8">Avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        </div></div></div>
+      </div>
+    </li>
+
+    <!-- 9 -->
+    <li class="tappa" id="tappa-9" data-tappa="9">
+      <div class="tappa__segno" aria-hidden="true"><span class="boa">9<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div class="tappa__corpo">
+        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-9"><span class="tappa__nome">Il controllo finale</span><span class="tappa__stato">fatta</span><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span></button></h2>
+        <div class="tappa__piega" id="corpo-9"><div><div class="foglio">
+          <p class="perche">Arturo controlla da solo che tutto sia al suo posto: impostazioni, guardie, permessi.</p>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Incolla e premi Invio</p>
+            <div class="comando comando--claude"><pre id="cmd-audit">/system-audit</pre><button type="button" data-copia="cmd-audit">Copia</button></div>
+          </div>
+          <div class="esito">
+            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Un elenco di controlli e in fondo il totale, con <code>FAIL=0</code>. Le righe <code>WARN</code> sono avvisi: Claude ti dice se contano.</p></div>
+            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3><p>Una riga <code>FAIL</code>: scrivi a Claude «sistemalo con me». Di solito sono i permessi delle guardie, che la tappa 5 rimette a posto.</p></div>
+          </div>
+          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="9">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        </div></div></div>
+      </div>
+    </li>
+
+    <!-- 10 -->
+    <li class="tappa" id="tappa-10" data-tappa="10">
+      <div class="tappa__segno" aria-hidden="true"><span class="boa">10<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div class="tappa__corpo">
+        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-10"><span class="tappa__nome">Il primo lavoro</span><span class="tappa__stato">fatta</span><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span></button></h2>
+        <div class="tappa__piega" id="corpo-10"><div><div class="foglio">
+          <p class="perche">Arturo adesso conosce il tuo computer, ma non ancora il tuo lavoro. Dieci minuti di sparring: tre domande su cosa fai e un piccolo esperimento.</p>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Incolla e premi Invio</p>
+            <div class="comando comando--claude"><pre id="cmd-sparring">/sparring</pre><button type="button" data-copia="cmd-sparring">Copia</button></div>
+          </div>
+          <div>
+            <ul class="lista-comandi" aria-label="Come si lavora da domani">
+              <li><code>/progetto nome</code><span>Apre un progetto nuovo, anche un libro o una ricerca.</span></li>
+              <li><code>/inizio nome</code><span>Riprende un progetto da dove l'hai lasciato.</span></li>
+              <li><code>/fine</code><span>Chiude la sessione e salva un appunto per la prossima volta.</span></li>
+              <li><code>ricordami di…</code><span>Mette una cosa da fare nell'elenco, che ritrovi a ogni <code>/inizio</code>.</span></li>
+              <li><code>/aggiorna</code><span>Scarica la versione nuova di Arturo dopo il tuo sì. All'avvio Arturo ti dice quando c'è.</span></li>
+            </ul>
+          </div>
+          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="10">Fatto <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        </div></div></div>
+      </div>
+    </li>
+  </ol>
+
+  <section class="traguardo" id="traguardo" aria-labelledby="t-traguardo" tabindex="-1">
+    <img src="../img/scena-3-1200.webp" srcset="../img/scena-3-1200.webp 1200w, ../img/scena-3.webp 2400w" sizes="(max-width:1136px) 100vw, 1040px" alt="Un casale di campagna di notte, con una finestra accesa su una scrivania, un prato di papaveri e la stella Arturo sopra il tetto." width="2400" height="1611" loading="lazy">
+    <div class="vetro">
+      <h2 id="t-traguardo">Arturo è acceso</h2>
+      <p>Da qui la strada la fai con lui. Quando non sai da dove ripartire, scrivi <code>/guidami</code>. Per imparare un passo alla volta, chiedigli «a che punto sono?».</p>
+    </div>
+  </section>
+</main>
+
+<footer class="piede">
+  <div class="colonna">
+    <p>Progetto di Federico Nejrotti, pubblicato da Ufficio Furore. Licenza MIT.</p>
+    <p>Le tue risposte restano in questo browser e non vanno a nessun server. Questa pagina non usa cookie di tracciamento, tracker né font da server esterni.</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var d=document, root=d.documentElement;
+  root.classList.add('js');
+  var CHIAVE='arturo-setup-1', TOTALE=10;
+  var attesa=null;
+  var BASE='~/Documents/ClaudeCode';
+  var riduci=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- stato, solo in questo browser ---------- */
+  var stato={os:null,fatte:[],aperta:1,ultima:0,campi:{}};
+  try{
+    var letto=JSON.parse(localStorage.getItem(CHIAVE)||'null');
+    if(letto&&typeof letto==='object'){
+      if(letto.os==='mac'||letto.os==='win')stato.os=letto.os;
+      if(Array.isArray(letto.fatte))stato.fatte=letto.fatte.filter(function(n){return n>=1&&n<=TOTALE});
+      if(letto.aperta>=0&&letto.aperta<=TOTALE)stato.aperta=letto.aperta;
+      if(letto.ultima>=0&&letto.ultima<=TOTALE)stato.ultima=letto.ultima;
+      if(letto.campi&&typeof letto.campi==='object')stato.campi=letto.campi;
+    }
+  }catch(e){}
+  function salva(){try{localStorage.setItem(CHIAVE,JSON.stringify(stato))}catch(e){}}
+  var riconosciuto=!stato.os;
+  if(!stato.os)stato.os=/Windows|Win64|Win32/i.test(navigator.userAgent||'')?'win':'mac';
+
+  /* ---------- sistema ---------- */
+  var nota=d.getElementById('os-nota');
+  function sistema(os,annuncia){
+    stato.os=os; root.setAttribute('data-os',os);
+    d.getElementById(os==='win'?'os-win':'os-mac').checked=true;
+    componi();
+    if(annuncia)annunci('Comandi per '+(os==='win'?'Windows':'macOS'));
+  }
+  if(!riconosciuto&&nota)nota.textContent='Scelto da te. Cambialo quando vuoi.';
+  [].forEach.call(d.querySelectorAll('input[name="os"]'),function(r){
+    r.addEventListener('change',function(){sistema(r.value,true);if(nota)nota.textContent='Scelto da te. Cambialo quando vuoi.';salva()});
+  });
+
+  /* ---------- annunci per chi usa un lettore di schermo ---------- */
+  var annuncio=d.getElementById('annuncio');
+  function annunci(t){annuncio.textContent='';setTimeout(function(){annuncio.textContent=t},60)}
+
+  /* ---------- la rotta ---------- */
+  var tappe=[].slice.call(d.querySelectorAll('.tappa'));
+  function tappa(n){return tappe[n-1]}
+  function nome(n){return tappa(n).querySelector('.tappa__nome').textContent}
+  // la prima tappa da fare dopo k; se dopo non ce ne sono, la prima rimasta indietro
+  function prossimaDopo(k){
+    for(var i=k+1;i<=TOTALE;i++){if(stato.fatte.indexOf(i)<0)return i}
+    for(var j=1;j<=k;j++){if(stato.fatte.indexOf(j)<0)return j}
+    return 0;
+  }
+  function prossima(){return prossimaDopo(stato.ultima||0)}
+  function disegna(){
+    var cur=prossima();
+    tappe.forEach(function(li,i){
+      var n=i+1, aperta=n===stato.aperta;
+      li.classList.toggle('fatta',stato.fatte.indexOf(n)>=0);
+      li.classList.toggle('corrente',n===cur);
+      li.classList.toggle('aperta',aperta);
+      li.querySelector('.tappa__apri').setAttribute('aria-expanded',aperta?'true':'false');
+    });
+    var punto=d.getElementById('punto');
+    var fatte=stato.fatte.length;
+    punto.firstChild.nodeValue=cur?('Tappa '+cur+' di '+TOTALE):'Tutte le tappe fatte';
+    punto.lastChild.textContent=fatte===0?'circa venti minuti in tutto':(fatte===1?'una fatta':fatte+' fatte');
+    var qualcosa=fatte>0||Object.keys(stato.campi).some(function(k){var v=stato.campi[k];return typeof v==='string'&&v.trim()!==''});
+    if(!attesa)d.getElementById('ricomincia').hidden=!qualcosa;
+  }
+  function apri(n,fuoco){
+    stato.aperta=n; disegna(); salva();
+    var li=tappa(n);
+    if(fuoco){
+      var bt=li.querySelector('.tappa__apri');
+      setTimeout(function(){
+        bt.focus({preventScroll:true});
+        li.scrollIntoView({behavior:riduci?'auto':'smooth',block:'start'});
+      },riduci?0:320);
+    }
+  }
+  tappe.forEach(function(li,i){
+    var n=i+1;
+    li.querySelector('.tappa__apri').addEventListener('click',function(){
+      if(stato.aperta===n){stato.aperta=0;disegna();salva()}else{apri(n,false)}
+    });
+  });
+  [].forEach.call(d.querySelectorAll('[data-fatta]'),function(b){
+    b.addEventListener('click',function(){
+      var n=+b.getAttribute('data-fatta');
+      if(stato.fatte.indexOf(n)<0)stato.fatte.push(n);
+      stato.ultima=n;
+      var dopo=prossima();
+      if(dopo){apri(dopo,true);annunci('Tappa '+n+' fatta. Tappa '+dopo+': '+nome(dopo))}
+      else{
+        stato.aperta=0;disegna();salva();annunci('Tutte le tappe fatte. Arturo è acceso.');
+        var t=d.getElementById('traguardo');
+        setTimeout(function(){t.focus({preventScroll:true});t.scrollIntoView({behavior:riduci?'auto':'smooth',block:'center'})},riduci?0:320);
+      }
+    });
+  });
+
+  var ric=d.getElementById('ricomincia');
+  ric.addEventListener('click',function(){
+    if(!attesa){
+      ric.textContent='Sicuro? Clicca di nuovo per cancellare tutto';
+      attesa=setTimeout(function(){ric.textContent='Ricomincia da capo';attesa=null},4000);
+      return;
+    }
+    clearTimeout(attesa);attesa=null;ric.textContent='Ricomincia da capo';
+    var os=stato.os; stato={os:os,fatte:[],aperta:1,ultima:0,campi:{}};
+    [].forEach.call(d.querySelectorAll('[data-campo]'),function(el){
+      if(el.type==='checkbox')el.checked=el.defaultChecked;
+      else if(el.type==='radio')el.checked=el.defaultChecked;
+      else el.value='';
+    });
+    d.getElementById('f-lingua').value='italian';
+    salva();componi();apri(1,true);annunci('Ricominciato dalla tappa 1');
+  });
+
+  /* ---------- i campi ---------- */
+  var campi=[].slice.call(d.querySelectorAll('.foglio input:not([name="os"]), .foglio textarea, .foglio select'));
+  campi.forEach(function(el){
+    el.setAttribute('data-campo','');
+    var v=stato.campi[el.name];
+    if(el.type==='checkbox'){if(typeof v==='boolean')el.checked=v}
+    else if(el.type==='radio'){if(typeof v==='string')el.checked=el.value===v}
+    else if(typeof v==='string')el.value=v;
+    el.addEventListener(el.tagName==='SELECT'||el.type==='checkbox'||el.type==='radio'?'change':'input',function(){
+      if(el.type==='checkbox')stato.campi[el.name]=el.checked;
+      else if(el.type==='radio'){if(el.checked)stato.campi[el.name]=el.value}
+      else stato.campi[el.name]=el.value;
+      if(el.name==='nome'){var chi=d.getElementById('f-chi');if(!stato.campi.chiToccato){chi.value=el.value;stato.campi.chi=el.value}}
+      if(el.name==='chi')stato.campi.chiToccato=true;
+      salva();componi();disegna();
+    });
+  });
+  function val(nome){
+    var el=d.querySelector('.foglio [name="'+nome+'"]'+(d.querySelector('.foglio input[type="radio"][name="'+nome+'"]')?':checked':''));
+    if(!el)return '';
+    if(el.type==='checkbox')return el.checked;
+    return (el.value||'').trim();
+  }
+
+  /* ---------- comporre i comandi ---------- */
+  // Tra apici singoli la shell non interpreta niente: un apice nel testo diventa '\''
+  function q(s){return "'"+String(s).replace(/'/g,"'\\''")+"'"}
+  function cartellaShell(p){
+    if(p==='~')return '"$HOME"';
+    if(p.indexOf('~/')===0)return '"$HOME"'+q(p.slice(1));
+    return q(p);
+  }
+  function blocco(id,testo,pronto,motivo){
+    var pre=d.getElementById(id), box=pre.parentNode, bt=box.querySelector('button');
+    pre.textContent=testo;
+    box.classList.toggle('vuoto',!pronto);
+    bt.disabled=!pronto;
+    bt.setAttribute('aria-label',pronto?'Copia':'Da completare: '+motivo);
+  }
+
+  function scelte(){
+    var nome=val('nome'), email=val('email'), cartella=val('cartella')||BASE, lingua=val('lingua')||'italian', alias=val('alias');
+    var manca=[];
+    if(!nome)manca.push('il nome');
+    if(!email)manca.push("l'email");
+    var r=[];
+    r.push('git -C "$HOME/.claude" config user.name '+q(nome||'Il tuo nome')+' && git -C "$HOME/.claude" config user.email '+q(email||'la-tua@email')+' && echo "Fatto: la firma di Git per Arturo"');
+    r.push('chmod +x "$HOME/.claude/hooks/"*.sh "$HOME/.claude/hooks/"*.py 2>/dev/null; echo "Fatto: i permessi delle guardie"');
+    r.push('mkdir -p '+cartellaShell(cartella)+' && echo "Fatto: la cartella dei progetti"');
+    var cambi=[];
+    if(cartella!==BASE)cambi.push('("\\"PROJECTS_BASE\\": \\"~/Documents/ClaudeCode\\"", "\\"PROJECTS_BASE\\": " + json.dumps('+JSON.stringify(cartella)+', ensure_ascii=False))');
+    if(lingua!=='italian')cambi.push('("\\"language\\": \\"italian\\"", "\\"language\\": " + json.dumps('+JSON.stringify(lingua)+', ensure_ascii=False))');
+    if(cambi.length){
+      r.push(
+        "python3 - <<'ARTURO'\n"+
+        'import json, pathlib\n'+
+        'p = pathlib.Path.home() / ".claude" / "settings.json"\n'+
+        'testo = p.read_bytes().decode("utf-8")\n'+
+        'for vecchio, nuovo in ['+cambi.join(', ')+']:\n'+
+        '    if vecchio in testo:\n'+
+        '        testo = testo.replace(vecchio, nuovo, 1)\n'+
+        '    elif nuovo not in testo:\n'+
+        '        print("Non trovo " + vecchio + " in settings.json: alla tappa 6 scrivi /setup in Claude Code e la sistemate insieme.")\n'+
+        'json.loads(testo)\n'+
+        'p.write_bytes(testo.encode("utf-8"))\n'+
+        'print("Fatto: le impostazioni")\n'+
+        'ARTURO'
+      );
+    }
+    if(alias){
+      var rc=stato.os==='win'?'.bashrc':'.zshrc';
+      r.push('if [ -f "$HOME/.claude/bin/arturo" ]; then grep -qs "alias arturo=" "$HOME/'+rc+'" || printf \'%s\\n\' "alias arturo=\'python3 \\"\\$HOME/.claude/bin/arturo\\"\'" >> "$HOME/'+rc+'"; echo "Fatto: il comando arturo, da una finestra nuova del terminale"; else echo "Questa versione di Arturo non ha ancora il comando arturo"; fi');
+    }
+    r.push('echo "Scelte salvate."');
+    blocco('cmd-scelte',r.join('\n'),manca.length===0,'manca '+manca.join(' e '));
+    d.getElementById('scelte-manca').textContent=manca.length?('Per copiare il blocco manca '+manca.join(' e ')+'.'):'';
+  }
+
+  var CONSIGLI={
+    'r-azioni':"Le azioni tecniche le esegui tu: comandi, script, riavvii, verifiche. Chiedimi solo ciò che solo una persona può fare: password che conosco solo io, codici 2FA, pagamenti, invii a terzi, decisioni. Se un permesso ti blocca, non passarmi il comando: cerca un'altra via o chiedimi di allargare il permesso.",
+    'r-brief':"Prima di ogni richiesta di lavoro riscrivi la mia richiesta come la eseguirai (il prompt), poi mostra un brief di massimo 8 righe: obiettivo, output, vincoli, fatto quando, assunzioni, da chiarire. Poi procedi.",
+    'r-forma':"Frasi corte: 22 parole per un'istruzione, 28 per una descrizione. Voce attiva, niente gerundio né condizionale, una parola per concetto.",
+    'r-passo':"A lavoro finito l'ultima riga è «Prossimo passo:» con una sola azione e chi la fa, oppure «Niente da fare per te».",
+    'r-visivo':"Un risultato visivo o in un'app esterna (documento, slide, grafica, pagina) è fatto solo quando l'hai aperto come lo vedrò io: dammi il link e lo screenshot che hai guardato."
+  };
+  function claudemd(){
+    var chi=val('chi'), mestiere=val('mestiere'), programmi=val('programmi'), tono=val('tono'), regole=val('regole');
+    var lingua={italian:'italiano',english:'inglese',spanish:'spagnolo',french:'francese',german:'tedesco'}[val('lingua')||'italian'];
+    var p=[];
+    p.push('Scrivi il mio CLAUDE.md personale in ~/.claude/CLAUDE.md con le informazioni qui sotto. Tienilo corto e pratico. Prima mostrami la bozza e aspetta il mio sì. Se il file esiste già, mostrami cosa cambieresti e non sovrascriverlo.');
+    p.push('');
+    p.push('Chi sono: '+(chi||'il mio nome')+(mestiere?', '+mestiere:'')+'. '+({no:'Non programmo.',poco:'Programmo un po\'.',si:'Programmo.'}[programmi]||''));
+    p.push('Risposte: '+(tono==='spiegate'?'spiegate passo per passo':'corte e dirette')+', in '+lingua+', con gli accenti giusti.');
+    p.push('Computer: '+(stato.os==='win'?'Windows, con Git Bash':'macOS')+'.');
+    var mie=regole.split('\n').map(function(s){return s.trim()}).filter(Boolean);
+    if(mie.length){p.push('');p.push('Regole mie:');mie.forEach(function(s){p.push('- '+s)})}
+    var sc=Object.keys(CONSIGLI).filter(function(k){return val(k)});
+    if(sc.length){p.push('');p.push('Regole consigliate da includere:');sc.forEach(function(k){p.push('- '+CONSIGLI[k])})}
+    blocco('cmd-claudemd',p.join('\n'),!!chi,'manca il nome');
+  }
+
+  function facoltative(){
+    var strato=val('strato'), host=val('host');
+    blocco('cmd-strato','/strato installa '+(strato||'indirizzo-che-ti-dà-il-referente'),!!strato,"manca l'indirizzo");
+    blocco('cmd-host',host?('Aggiungi '+host+' agli host interni fidati di Arturo, nel file ~/.claude/hooks/hosts-interni.local, una voce per riga. Mostrami il file prima di scriverlo.'):'Scrivi il nome del server qui sopra.',!!host,'manca il nome del server');
+  }
+
+  function componi(){scelte();claudemd();facoltative()}
+
+  /* ---------- copia ---------- */
+  [].forEach.call(d.querySelectorAll('[data-copia]'),function(b){
+    b.addEventListener('click',function(){
+      if(b.disabled)return;
+      var pre=d.getElementById(b.getAttribute('data-copia')), testo=pre.textContent;
+      function esito(ok){
+        b.classList.remove('copiato','errore'); b.classList.add(ok?'copiato':'errore');
+        b.textContent=ok?'Copiato':'Seleziona';
+        annunci(ok?'Copiato':'Copia non riuscita: seleziona il testo a mano');
+        setTimeout(function(){b.classList.remove('copiato','errore');b.textContent='Copia'},2200);
+      }
+      if(navigator.clipboard&&window.isSecureContext){navigator.clipboard.writeText(testo).then(function(){esito(true)},function(){esito(false)})}
+      else{try{var r=d.createRange();r.selectNodeContents(pre);var s=getSelection();s.removeAllRanges();s.addRange(r);esito(d.execCommand('copy'))}catch(err){esito(false)}}
+    });
+  });
+
+  /* ---------- avvio ---------- */
+  sistema(stato.os,false);
+  var dal=/^#tappa-(\d+)$/.exec(location.hash);
+  if(dal&&+dal[1]>=1&&+dal[1]<=TOTALE)stato.aperta=+dal[1];
+  else if(stato.aperta&&stato.fatte.indexOf(stato.aperta)>=0&&prossima())stato.aperta=prossima();
+  disegna();
+})();
+</script>
+</body>
+</html>
