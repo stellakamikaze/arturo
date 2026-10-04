@@ -72,9 +72,10 @@ TESTI_ERRORE = {
     501: "Metodo non ammesso: la pagina usa solo GET e POST.",
 }
 
+# Servita solo sulla radice: il foglio di stile relativo regge anche sotto un prefisso, dietro un proxy.
 PAGINA_NEGATA = """<!doctype html>
 <html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Arturo · link da aprire</title><link rel="stylesheet" href="/static/stile.css"></head>
+<title>Arturo · link da aprire</title><link rel="stylesheet" href="static/stile.css"></head>
 <body class="negata"><main><h1>Questo link non apre la pagina</h1>
 <p>Apri il link che ha stampato arturo web, oppure chiedi a Claude di aprire la pagina dei todo.</p>
 </main></body></html>

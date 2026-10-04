@@ -251,6 +251,7 @@ def test_w02(repo: Path) -> None:
                 assert codice == 403, f"W02 {percorso}: {codice}"
                 italiano(corpo, f"W02 {percorso}")
                 assert "link" in corpo.decode("utf-8"), "W02 la pagina negata non dice cosa aprire"
+                assert 'href="static/stile.css"' in corpo.decode("utf-8"), "W02 la pagina negata collega lo stile con un percorso assoluto"
             assert s.chiedi("GET", "/api/vista", chiave=False)[0] == 403, "W02 /api/vista senza chiave"
             assert s.chiedi("GET", "/api/vista", chiave=False, intestazioni={"X-Arturo-Token": "x" * 43})[0] == 403, \
                 "W02 /api/vista con la chiave sbagliata"
