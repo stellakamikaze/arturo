@@ -23,6 +23,9 @@ import sys
 
 
 def _stdin_timeout(signum, frame):
+    # 9/10/2026: un gate che scade e tace e' un gate spento (git lento, disco freddo).
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask",
+                      "permissionDecisionReason": "Scansione dei segreti nel commit scaduta: conferma prima di proseguire."}}))
     sys.exit(0)
 
 
@@ -71,9 +74,9 @@ def _repo_for_command(command: str, cwd: str) -> str | None:
     return location if "gh pr create" in command else None
 
 
-def _diff(repo: str, commit_all: bool) -> str | None:
+def _diff(repo: str, commit_all: bool, add_prima: bool = False) -> str | None:
     commands = [["git", "-C", repo, "diff", "--cached", "--no-color", "--no-ext-diff", "--no-textconv", "--unified=0"]]
-    if commit_all:
+    if commit_all or add_prima:
         commands.append(["git", "-C", repo, "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--unified=0"])
     output = []
     for command in commands:
@@ -81,6 +84,19 @@ def _diff(repo: str, commit_all: bool) -> str | None:
         if result.returncode:
             return None
         output.append(result.stdout)
+    if add_prima:
+        # 9/10/2026: `git add X && git commit` mette X in stage dopo questo controllo.
+        # Si leggono anche i file non tracciati che git add potrebbe aggiungere.
+        result = subprocess.run(["git", "-C", repo, "ls-files", "--others", "--exclude-standard", "-z"],
+                                capture_output=True, text=True, timeout=4, check=False)
+        if result.returncode:
+            return None
+        for nome in [n for n in result.stdout.split("\0") if n][:200]:
+            try:
+                with open(os.path.join(repo, nome), encoding="utf-8", errors="ignore") as f:
+                    output.append("\n".join("+" + riga for riga in f.read(200_000).splitlines()))
+            except OSError:
+                continue
     return "\n".join(part for part in output if part)
 
 
@@ -119,8 +135,9 @@ def main() -> int:
     # commit: al momento di questo check (PreToolUse) l'index non li contiene ancora,
     # quindi il solo `diff --cached` mancherebbe un secret in un file gia' tracciato.
     commit_all = bool(re.search(r"\bcommit\b[^|;&]*\s-{1,2}(a\b|all\b|[a-zA-Z]*a[a-zA-Z]*\b)", command))
+    add_prima = bool(re.search(r"\bgit\b[^;&|\n]*\sadd\b", command))
     try:
-        out = _diff(repo, commit_all)
+        out = _diff(repo, commit_all, add_prima)
     except Exception:
         out = None
     finally:

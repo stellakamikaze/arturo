@@ -82,12 +82,14 @@ fi
 # il comando eseguito: assegnazioni env (FOO=bar), `env`, `command`, `\gh`. Senza
 # questo, `FOO=1 gh repo delete` o `command gh ...` eludono i guard gh.
 _GH_PREFIX='(env[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*(command[[:space:]]+)?\\?'
-PATTERN_GH_ANY="(^|[;&|][[:space:]]*)${_GH_PREFIX}gh[[:space:]]"
+# 9/10/2026: la parola gh in qualunque posizione (dopo un a capo, in una subshell,
+# col path completo). gh-destructive-guard legge gia' tutto il comando.
+PATTERN_GH_ANY='(^|[^[:alnum:]_.-])gh[[:space:]]'
 PATTERN_GIT_TEXT='(^|[;&|][[:space:]]*)git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(commit|log|show|tag|stash[[:space:]]+(push|save))'
 PATTERN_COMMS='(^|[[:space:];|&])(sendmail|mailx|mutt|msmtp|swaks)([[:space:]]|$)|mail[[:space:]]+-s|(^|[[:space:];&|(])(mail|mutt)[[:space:]]+[^[:space:]]+@|mailto:|smtps?://|gws[[:space:]].*(messages[[:space:]]+send|send[[:space:]]+message|gmail[[:space:]].*(\+send|drafts[[:space:]]+send|forwardingAddresses|updateAutoForwarding|delegates|filters))|osascript.*(Mail|Messages)|api\.telegram\.org|hooks\.slack\.com|slack\.com/api/chat|api\.sendgrid|api\.mailgun|api\.postmarkapp|api\.resend|api\.mailjet|api\.brevo|smtp2go|api\.sparkpost|api\.elasticemail|zeptomail|mailchannels|email[.-][a-z0-9-]*\.amazonaws|hooks\.zapier|hook\.[a-z0-9.]*make\.com|integromat|graph\.microsoft\.com.*sendmail|gmail\.googleapis\.com.*messages/send|discord(app)?\.com/api/webhooks|api\.twilio\.com|graph\.facebook\.com.*messages|whatsapp[_/-]?send|telegram[_/-]?send|smtplib|SMTP_SSL'
 # block-dangerous: rm ricorsivo (tree protetti), bw export, scrittura config/hook,
 # lettura segreti via shell (.ssh/id_*/credentials/.pem...), docker volume rm.
-PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([[:space:]]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|rm[[:space:]]+(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-exec(dir)?[[:space:]]+[^[:space:]]*rm)|bw[[:space:]].*export|\.claude/(settings|hooks|\.claude\.json)|\.claude/[^[:space:]]*unlock|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|sed[[:space:]][^|&]*[^[:alnum:]]w[[:space:]]+[^[:space:]|;&]'
+PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([[:space:]]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-exec(dir)?[[:space:]]+[^[:space:]]*rm)|bw[[:space:]].*export|\.claude/(settings|hooks|\.claude\.json)|\.claude/[^[:space:]]*unlock|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|sed[[:space:]][^|&]*[^[:alnum:]]w[[:space:]]+[^[:space:]|;&]'
 # Commit secret gate: scansiona il diff staged prima di git commit / gh pr create.
 PATTERN_COMMIT='(^|[;&|][[:space:]]*)(git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?commit|gh[[:space:]]+pr[[:space:]]+create)'
 # exfil: POST/upload di dati (curl/wget con metodo o payload; python post/smtplib).
@@ -146,24 +148,28 @@ except Exception:
 PATTERN_SUBST='\$\(|`|<\(|>\('
 PATTERN_GIT_UNSAFE='(^|[[:space:]])(--output|--exec-path|--config-env|-c[[:space:]])|(^|[^>])>>?[^&|;]'
 if [[ "$COMMAND" =~ $PATTERN_GIT_TEXT && ! "$COMMAND" =~ $PATTERN_SUBST && "$COMMAND" != *"--output"* && "$COMMAND" != *"--exec-path"* && "$COMMAND" != *"--config-env"* && ! "$COMMAND" =~ $PATTERN_GIT_UNSAFE ]]; then
-    SENT=$'\001'
-    # 1) newline -> sentinello, cosi' lo strip delle stringhe quotate (sed, che
-    #    lavora riga per riga) copre anche i messaggi -m multi-riga.
-    # 2) strip stringhe quotate (il messaggio col suo sentinello sparisce).
-    # 3) sentinello superstite (= newline FUORI dai quote) -> newline reale:
-    #    resta un separatore di comando come ; && || |.
-    STRIPPED=$(printf '%s' "$COMMAND" | tr '\n' "$SENT" \
-        | sed -E "s/'[^']*'//g; s/\"[^\"]*\"//g" \
-        | tr "$SENT" '\n')
-    GIT_PURE=1
-    while IFS= read -r seg; do
-        seg="${seg#"${seg%%[![:space:]]*}"}"
-        [[ -z "$seg" ]] && continue
-        if [[ ! "$seg" =~ ^(git|cd)([[:space:]]|$) ]]; then
-            GIT_PURE=0
-            break
-        fi
-    done < <(printf '%s\n' "$STRIPPED" | sed -E 's/\|\||&&|;|\|/\n/g')
+    # 9/10/2026: le virgolette si leggono come le legge bash (shlex). Lo strip con sed
+    # accoppiava un apostrofo dentro le doppie con uno piu' avanti e cancellava i
+    # comandi in mezzo (review delle guardie). Virgolette che non tornano o errore di
+    # python: non e' git puro, e il comando passa dalle guardie.
+    GIT_PURE=0
+    python3 -c 'import re, shlex, sys
+lexer = shlex.shlex(sys.argv[1], posix=True, punctuation_chars=";&|()\n")
+lexer.whitespace = " \t\r"
+lexer.whitespace_split = True
+seg, ok = [], True
+try:
+    for tok in list(lexer) + [";"]:
+        if tok and set(tok) <= set(";&|()\n"):
+            parole = [t for t in seg if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", t)]
+            if parole and parole[0] not in ("git", "cd"):
+                ok = False
+            seg = []
+        else:
+            seg.append(tok)
+except ValueError:
+    ok = False
+sys.exit(0 if ok else 1)' "$COMMAND" 2>/dev/null && GIT_PURE=1
     [[ $GIT_PURE -eq 1 ]] && exit 0
 fi
 

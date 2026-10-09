@@ -139,15 +139,18 @@ nelle guardie, controlla che non travolga le tue modifiche e applica dopo il tuo
 l'applicazione non riesce, la annulla da sola: la tua copia non resta mai a metà. A mano:
 
 ```bash
+git -C ~/.claude status --short --untracked-files=no   # deve restare vuoto: vedi sotto
 git -C ~/.claude fetch origin main          # upstream invece di origin, se hai un tuo repository
-git -C ~/.claude rebase --autostash origin/main || git -C ~/.claude rebase --abort
+git -C ~/.claude rebase origin/main || git -C ~/.claude rebase --abort
 python3 ~/.claude/hooks/controlla-config.py  # deve dire CONFIG OK
 ```
 
 In entrambi i casi, poi **chiudi e riapri Claude Code**: comandi, hook e skill si caricano all'avvio della sessione,
-quindi quelli appena arrivati non compaiono finché non riapri. Se il `rebase` a mano si ferma
-perché hai modificato file tuoi (tipico: i permessi in `settings.json`), il `rebase --abort` lo
-annulla: poi lancia `/aggiorna` e risolvi con Claude un file per volta.
+quindi quelli appena arrivati non compaiono finché non riapri. Se la prima riga elenca dei file,
+sono modifiche tue non ancora salvate con un commit (tipico: `/setup` scrive in `settings.json`).
+Il `rebase` allora si rifiuta di partire e non tocca niente: salvale con `/fine`, poi lancia
+`/aggiorna`. Se il `rebase` si ferma perché un commit tuo tocca gli stessi punti, il
+`rebase --abort` lo annulla: poi lancia `/aggiorna` e risolvi con Claude un file per volta.
 
 Dopo il primo aggiornamento non serve più ricordarselo: all'avvio della sessione Arturo ti avvisa
 quando ci sono novità, **`/aggiorna`** le applica e **`/novita`** te le racconta.

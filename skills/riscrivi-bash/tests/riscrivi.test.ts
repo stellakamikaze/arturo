@@ -19,6 +19,11 @@ describe('glob in un\'opzione', () => {
     const c = 'grep --include=*"a b".md x'
     expect(riscrivi(c, MAC).command).toBe(c)
   })
+  test('lascia stare un valore con una variabile o una tilde: fra apici resterebbero letterali', () => {
+    for (const c of ['rsync -a --exclude=$HOME/.cache/* src/ dst/', 'grep -r x --include=~/*.md .']) {
+      expect(riscrivi(c, MAC).command).toBe(c)
+    }
+  })
   test('lascia stare un heredoc', () => {
     const c = "cat <<'X'\n--include=*.md\nX"
     expect(riscrivi(c, MAC).command).toBe(c)

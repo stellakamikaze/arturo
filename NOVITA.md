@@ -11,6 +11,18 @@ modo di lavorare.
 
 ---
 
+## 2026-10-09 — Aggiornare con modifiche non salvate: si ferma e te lo dice
+
+**Cosa cambia**: se hai cambiato un file della config senza salvarlo con un commit (lo fa anche
+`/setup` in `settings.json`), `/aggiorna` non applica niente e `/inizio` non scarica dal tuo
+repository. Ti dicono quali file sono e cosa fare: li salva `/fine`, poi riprovi. Prima
+l'aggiornamento poteva lasciare `settings.json` con i segni di un conflitto e le guardie spente,
+dicendo che era tutto a posto. Ora il messaggio «ho riportato la copia a prima» compare solo se è
+vero. In più `/aggiorna` mostra le guardie e prende gli aggiornamenti da `upstream` anche quando
+hai un tuo repository.
+
+**Il principio dietro**: un comando che fallisce lo dice, e non dice mai «fatto» senza controllare.
+
 ## 2026-10-09 — Cinque mod nuovi: segreti, Bash, menu, cache, agenti
 
 **Cosa cambia**: in `skills/` arrivano cinque mod che Claude Code carica da solo.

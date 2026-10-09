@@ -42,6 +42,9 @@ export function quotaGlob(c: string): { command: string; fatti: string[] } {
     const val = x[3] as string
     // Un valore che tocca una parte quotata o un escape resta al dispatcher.
     if (val.includes(Q)) continue
+    // Un valore con una variabile o una tilde non si quota: fra apici `$HOME` e `~`
+    // restano letterali e il comando cambierebbe senso (review del 9/10/2026).
+    if (val.includes('$') || val.startsWith('~')) continue
     const start = (x.index ?? 0) + (x[1] as string).length
     const end = start + opt.length + 1 + val.length
     pezzi.push(c.slice(ultimo, start), `${opt}='${c.slice(start + opt.length + 1, end)}'`)

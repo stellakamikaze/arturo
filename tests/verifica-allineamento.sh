@@ -51,6 +51,8 @@ BANCHI=(
   test_percorso.py
   test_revisione_ciclo5.py
   test_mod_portati.py
+  test_guardie_involucri.py
+  test_aggiorna_sicuro.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -103,6 +105,11 @@ BASELINE=(
   "test_revisione_ciclo5.py 81431a2"
   # I mod portati dalla config dell'autore (9/10/2026): cddcb10, l'ultimo dev prima del porting.
   "test_mod_portati.py cddcb10"
+  # Guardie e forme travestite (9/10/2026): bb19ef9, il main della review.
+  "test_guardie_involucri.py bb19ef9"
+  # /aggiorna e /inizio che falliscono in modo sicuro (9/10/2026): bb19ef9, l'ultimo dev prima della
+  # correzione. Regola del ciclo 5: un rosso conta solo col codice del controllo.
+  "test_aggiorna_sicuro.py bb19ef9"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

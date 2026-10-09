@@ -237,7 +237,9 @@ RIGENERABILI = {
 }
 
 # Prefissi che non cambiano il programma eseguito: `sudo rm`, `command rm`, `FOO=1 rm`.
-_PREFISSI = {"sudo", "command", "env", "nohup", "time", "nice", "builtin", "exec"}
+_PREFISSI = {"sudo", "command", "env", "nohup", "time", "nice", "builtin", "exec",
+             # 9/10/2026: parole chiave e blocchi davanti al programma (review delle guardie)
+             "!", "{", "}", "then", "do", "else", "elif", "if", "while", "until"}
 _ASSEGNAZIONE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
 
@@ -412,12 +414,17 @@ def _find_delete(command):
     return False
 
 
-def _rm_segments(command):
+def _rm_segments(command, profondita=0):
+    """(bersagli, cd dichiarato) per ogni `rm` ricorsivo; bersagli None per `xargs rm -r`.
+
+    Dal 9/10/2026 conta anche un `rm` in una subshell `( )`, dopo una parola chiave,
+    dentro `sh -c` o `eval`, e dietro `xargs`, i cui bersagli arrivano da stdin.
+    """
     out = []
     cwd_decl = None
     # Newline separa comandi come ; : senza, `git commit\nrm -rf x` nasconderebbe
     # l'rm in un segmento che inizia con "git" e sfuggirebbe al rilevamento.
-    for seg in re.split(r"&&|\|\||;|\||\n", command):
+    for seg in re.split(r"&&|\|\||;|\||\n|\(|\)", command):
         seg = seg.strip()
         if not seg:
             continue
@@ -431,6 +438,17 @@ def _rm_segments(command):
             cwd_decl = toks[1]
             continue
         nome, args = _programma(toks)
+        if profondita < 3 and nome in _SHELLS and "-c" in args and args.index("-c") + 1 < len(args):
+            out += _rm_segments(args[args.index("-c") + 1], profondita + 1)
+            continue
+        if profondita < 3 and nome == "eval" and args:
+            out += _rm_segments(" ".join(args), profondita + 1)
+            continue
+        if nome == "xargs" and "rm" in [os.path.basename(a) for a in args]:
+            dopo = args[[os.path.basename(a) for a in args].index("rm") + 1:]
+            if any(a == "--recursive" or (a.startswith("-") and not a.startswith("--") and "r" in a.lower()) for a in dopo):
+                out.append((None, cwd_decl))
+            continue
         if nome == "rm":
             recursive = False
             targets = []
@@ -531,6 +549,11 @@ def main() -> int:
     # valgono quanto la config, e sul terminale non c'e' cestino.
     try:
         for targets, cwd_decl in _rm_segments(command):
+            if targets is None:
+                return _ask(
+                    "rm ricorsivo dietro xargs: i percorsi arrivano da un altro comando e "
+                    "non si possono controllare prima. Conferma solo se sai cosa cancella."
+                )
             base_cwd = _resolve(cwd_decl, cwd) if cwd_decl else os.path.normpath(cwd)
             for t in (targets or ["."]):
                 if t in BARE_TARGETS:

@@ -105,7 +105,10 @@ def main():
         for f in findings[:5]:  # Max 5 finding
             warning += f"  - {f}\n"
         warning += "Verifica il contenuto prima di procedere."
-        print(warning)
+        # In PostToolUse lo stdout con exit 0 va solo nel transcript: il modello
+        # riceve l'avviso solo come additionalContext (portato il 9/10/2026).
+        print(json.dumps({"hookSpecificOutput": {
+            "hookEventName": "PostToolUse", "additionalContext": warning}}))
 
     sys.exit(0)
 

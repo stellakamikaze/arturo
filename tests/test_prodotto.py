@@ -65,7 +65,8 @@ def test_p04(repo: Path) -> None:
 
 def test_p05(repo: Path) -> None:
     testo = read(repo / "commands" / "aggiorna.md")
-    for parola in ("--autostash", "ultimo-aggiornamento", "reset --keep"):
+    # Dal 9/10/2026 niente --autostash: con modifiche non salvate /aggiorna non parte (A04).
+    for parola in ("--untracked-files=no", "ultimo-aggiornamento", "reset --keep"):
         assert parola in testo, f"P05 /aggiorna non contiene {parola}"
     for riga in testo.splitlines():
         if "reset --hard" in riga:

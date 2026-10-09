@@ -36,15 +36,31 @@ export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes"
 if [ "$ORIGIN_ARTURO" = 1 ] || [ -z "$ORIGIN_URL" ]; then
   git -C ~/.claude fetch --quiet origin main 2>&1 || echo "Config sync: controllo aggiornamenti non riuscito (rete?)"
 else
-  PRIMA=$(git -C ~/.claude rev-parse HEAD)
-  if ! SYNC_OUTPUT=$(git -C ~/.claude pull --rebase --autostash origin main 2>&1); then
-    printf '%s\n' "$SYNC_OUTPUT"
-    git -C ~/.claude rebase --abort 2>/dev/null
-    echo "Config sync: il pull dal tuo repository non è riuscito. Ho annullato il tentativo: la config è com'era prima."
-  fi
-  if ! python3 ~/.claude/hooks/controlla-config.py --quiet; then
-    git -C ~/.claude rebase --abort 2>/dev/null || git -C ~/.claude reset --keep "$PRIMA"
-    echo "Config sync: dopo il pull la config non era integra. Ho riportato la copia a prima del pull."
+  MODIFICATI=$(git -C ~/.claude status --porcelain --untracked-files=no | cut -c4-)
+  if [ -n "$MODIFICATI" ]; then
+    echo "Config sync: non ho scaricato dal tuo repository. Questi file della config hanno modifiche non ancora salvate con un commit:"
+    printf '%s\n' "$MODIFICATI" | sed 's/^/  /'
+    echo "Config sync: non ho toccato niente. Le salva /fine, poi il prossimo /inizio scarica."
+  else
+    PRIMA=$(git -C ~/.claude rev-parse HEAD)
+    SYNC_OK=1
+    SYNC_OUTPUT=$(git -C ~/.claude pull --rebase origin main 2>&1) || SYNC_OK=0
+    # Un pull che esce con 0 può lasciare file in conflitto: conta lo stato, non il codice d'uscita.
+    [ -z "$(git -C ~/.claude diff --name-only --diff-filter=U)" ] || SYNC_OK=0
+    python3 ~/.claude/hooks/controlla-config.py --quiet >/dev/null || SYNC_OK=0
+    if [ "$SYNC_OK" = 0 ]; then
+      printf '%s\n' "$SYNC_OUTPUT"
+      git -C ~/.claude rebase --abort 2>/dev/null
+      { [ "$(git -C ~/.claude rev-parse HEAD)" = "$PRIMA" ] && [ -z "$(git -C ~/.claude status --porcelain --untracked-files=no)" ]; } \
+        || git -C ~/.claude reset --merge "$PRIMA"
+      if [ "$(git -C ~/.claude rev-parse HEAD)" = "$PRIMA" ] && [ -z "$(git -C ~/.claude status --porcelain --untracked-files=no)" ] \
+        && python3 ~/.claude/hooks/controlla-config.py --quiet >/dev/null; then
+        echo "Config sync: il pull dal tuo repository non è riuscito. Ho riportato la config a prima del pull, e ora è integra."
+      else
+        echo "Config sync: il pull dal tuo repository non è riuscito, e NON sono riuscito a riportare la config a prima."
+        git -C ~/.claude status --short
+      fi
+    fi
   fi
 fi
 git -C ~/.claude remote get-url upstream >/dev/null 2>&1 && git -C ~/.claude fetch --quiet upstream main 2>&1
@@ -57,6 +73,10 @@ python3 ~/.claude/hooks/controlla-config.py --quiet || exit 1
 Se l'ultima riga stampa `CONFIG ROTTA`, fermati: spiega all'utente il problema in parole
 semplici e proponi il comando che la riga suggerisce. Non lavorare su una config rotta: le
 guardie potrebbero essere spente.
+
+Se compare «non ho scaricato dal tuo repository», la config è com'era: diglielo in una riga e
+nomina i file. Sono modifiche sue (anche `/setup` ne scrive in `settings.json`) che `/fine`
+salverà con un commit. Il sync riparte al prossimo `/inizio`.
 
 ---
 

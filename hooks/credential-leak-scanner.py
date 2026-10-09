@@ -32,14 +32,14 @@ CREDENTIAL_PATTERNS = [
     # JWT (non tutti sono leak, ma in output tool sono sospetti)
     (r'eyJ[A-Za-z0-9\-_]{20,}\.eyJ[A-Za-z0-9\-_]{20,}\.[A-Za-z0-9\-_]{20,}', "JWT Token"),
     # Private keys
-    (r'-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----', "Private Key"),
+    (r'-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----', "Private Key"),
     # Anthropic
     (r'sk-ant-[A-Za-z0-9\-]{20,}', "Anthropic API Key"),
     # OpenAI (project keys: sk-proj-, org keys: sk-org-, legacy: sk- + 48 chars)
     (r'sk-(?:proj|org)-[A-Za-z0-9\-_]{20,}', "OpenAI Project/Org Key"),
     (r'sk-[A-Za-z0-9]{48,}', "OpenAI Legacy API Key"),
     # Neon
-    (r'(?i)postgres(?:ql)?://[^:]+:[^@]+@[^/]+', "Database Connection String"),
+    (r'(?i)(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis)://[^:\s]+:[^@\s]+@[^/\s]+', "Database Connection String"),
     # Telegram
     (r'\d{8,10}:[A-Za-z0-9_-]{35}', "Telegram Bot Token"),
     # Brave Search
@@ -88,7 +88,11 @@ def main():
         for f in unique[:5]:
             warning += f"  - {f}\n"
         warning += "NON includere questi valori in commit, log, o output visibili."
-        print(warning)
+        # In PostToolUse lo stdout con exit 0 va solo nel transcript: il modello
+        # lo vede solo come additionalContext (corretto il 3/10/2026, prima
+        # l'avviso non arrivava mai al modello).
+        print(json.dumps({"hookSpecificOutput": {
+            "hookEventName": "PostToolUse", "additionalContext": warning}}))
 
     sys.exit(0)
 
