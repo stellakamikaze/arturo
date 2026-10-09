@@ -1,0 +1,9 @@
+{
+  "name": "menu-contesto",
+  "version": "0.1.0",
+  "description": "Quando Claude apre un menu AskUserQuestion, mostra in un pannello su fondo chiaro il testo del turno, che il terminale altrimenti riassume",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "Federico Nejrotti"
+  }
+}

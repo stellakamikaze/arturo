@@ -50,6 +50,7 @@ BANCHI=(
   test_web.py
   test_percorso.py
   test_revisione_ciclo5.py
+  test_mod_portati.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -100,6 +101,8 @@ BASELINE=(
   # comando assente sulla base non prova niente. Le controprove dei cicli di correzione usano
   # questa regola e il commit subito prima della correzione.
   "test_revisione_ciclo5.py 81431a2"
+  # I mod portati dalla config dell'autore (9/10/2026): cddcb10, l'ultimo dev prima del porting.
+  "test_mod_portati.py cddcb10"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

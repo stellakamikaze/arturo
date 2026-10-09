@@ -1,0 +1,8 @@
+{
+  "name": "redazione-segreti",
+  "version": "0.1.0",
+  "description": "Sostituisce i segreti nei risultati dei tool con la loro forma (tipo, lunghezza, hash) prima che Claude li legga",
+  "author": {
+    "name": "Federico Nejrotti"
+  }
+}

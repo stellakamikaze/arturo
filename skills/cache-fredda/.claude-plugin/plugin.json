@@ -1,0 +1,7 @@
+{
+  "name": "cache-fredda",
+  "version": "0.1.0",
+  "description": "Avvisa sotto il prompt quando la cache del prompt è scaduta e il prossimo messaggio riscrive tutto il contesto",
+  "author": { "name": "Federico Nejrotti" },
+  "types": "./types/index.d.ts"
+}

@@ -290,6 +290,14 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 - **`percorso`** — quando chiedi «a che punto sono?» o scrivi `/percorso`, Claude lancia `arturo percorso` e ti mostra la tappa (Osserva, Prova, Delega, Orchestra) con il todo che la prova, le cose che tieni per te e un esercizio della settimana sul tuo lavoro. Conta le decisioni che tieni, non il lavoro che deleghi. Il calcolo e lo stato restano sul tuo computer. I todo da cui nasce viaggiano come gli altri todo: solo verso il tuo repository privato.
 - **`italiano-semplificato`** — riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI.
 
+**Gli altri mod.** Claude Code li carica da soli dalle loro cartelle in `skills/`, come `/dafare`. Per spegnerne uno: `/plugin`, poi il mod, poi disattiva.
+
+- `skills/redazione-segreti/` sostituisce i segreti negli output dei tool con la loro forma (`[REDATTO:tipo len=N sha256=…]`) prima che Claude li legga, e blocca la scrittura di una sigla su disco. `credential-leak-scanner.py` resta come rete.
+- `skills/riscrivi-bash/` corregge prima del dispatcher due errori Bash ricorrenti sul Mac: un glob non quotato in un'opzione in zsh (`--include=*.md`) e `timeout`, che sul Mac non esiste. I blocchi di `bash-dispatcher.sh` restano come rete.
+- `skills/menu-contesto/` apre un pannello con il testo del turno quando Claude ti propone un menu: il terminale altrimenti lo riduce a una riga.
+- `skills/cache-fredda/` scrive sotto il prompt quando la cache è scaduta (dopo un'ora con l'abbonamento, dopo 5 minuti a quota piena) e il prossimo messaggio riscriverebbe tutto il contesto.
+- `skills/agent-flow/` (`/agent-flow`) apre un pannello con l'albero degli agenti della sessione: cosa riceve ognuno, cosa fa, cosa restituisce. È codice di terzi in copia fissata, letto riga per riga: provenienza e licenza nella sua cartella.
+
 **Il pannello dei todo (`/dafare`).** Scrivi `/dafare` e si apre un pannello con le tue cose da fare, divise come in `arturo todo`. Scegli una riga con il numero (o con `j` e `k`) e premi una lettera: `f` fatto, `s` ferma, `r` riprendi, `c` chi lo fa, `a` avvicina, `l` allontana, `u` annulla, `p` cambia progetto, Esc chiude. `/dafare libro` apre solo il progetto `libro`. Quando hai cose aperte, sopra il prompt compare una riga («3 cose da fare · /dafare per vederle»): `/dafare nascondi` la spegne, `/dafare mostra` la riaccende. Il pannello scrive solo con la CLI `arturo todo`, chiede Claude Code 2.1.287 o successivo e si spegne con `claude plugin disable dafare@skills-dir`. La cartella `skills/dafare/` ha `.claude-plugin/plugin.json` al posto di `SKILL.md`: è un mod di Claude Code, non una skill, e non entra nel conteggio delle skill.
 
 ---

@@ -11,6 +11,28 @@ modo di lavorare.
 
 ---
 
+## 2026-10-09 — Cinque mod nuovi: segreti, Bash, menu, cache, agenti
+
+**Cosa cambia**: in `skills/` arrivano cinque mod che Claude Code carica da solo.
+- `redazione-segreti`: se nell'output di un tool c'è una chiave, un token o la password di un database,
+  Claude vede solo la sua forma (tipo, lunghezza, prime cifre dell'hash). Il valore resta sul tuo computer.
+- `riscrivi-bash`: due comandi che sul Mac fallivano sempre ora vengono corretti prima di partire.
+- `menu-contesto`: quando Claude ti propone un menu, il testo che lo precede si legge in un pannello.
+- `cache-fredda`: sotto il prompt compare un avviso quando la cache è scaduta e il prossimo messaggio
+  costerebbe come rileggere tutta la conversazione. È il momento giusto per chiedersi se serve una
+  sessione nuova.
+- `agent-flow` (`/agent-flow`): un pannello con l'albero degli agenti al lavoro, per capire come
+  Claude divide un compito, cosa passa a ognuno e cosa torna indietro. Viene da un altro autore: è una
+  copia fissata, letta riga per riga, che non si aggiorna da sola.
+
+**Il principio dietro**: sono i mod che chi sviluppa Arturo usa ogni giorno, tolti i riferimenti
+personali. I segreti non entrano più nella conversazione invece di essere segnalati dopo. Gli avvisi
+arrivano solo quando c'è qualcosa da fare.
+
+**A chi serve**: a tutti, senza fare niente. Per spegnerne uno: `/plugin`.
+
+---
+
 ## 2026-10-04 — Il tavolo dei progetti
 
 **Cosa cambia**: la pagina delle cose da fare (`arturo web`) ora parte dai progetti. In cima trovi
