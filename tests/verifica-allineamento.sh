@@ -53,6 +53,7 @@ BANCHI=(
   test_mod_portati.py
   test_guardie_involucri.py
   test_aggiorna_sicuro.py
+  test_aggiorna_copia.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -110,6 +111,8 @@ BASELINE=(
   # /aggiorna e /inizio che falliscono in modo sicuro (9/10/2026): bb19ef9, l'ultimo dev prima della
   # correzione. Regola del ciclo 5: un rosso conta solo col codice del controllo.
   "test_aggiorna_sicuro.py bb19ef9"
+  # /aggiorna nella copia di prova (12/10/2026): 0aee68c, il main su cui si sono rotti i file in uso.
+  "test_aggiorna_copia.py 0aee68c"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

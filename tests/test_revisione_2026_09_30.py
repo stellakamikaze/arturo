@@ -208,6 +208,10 @@ def laboratorio(repo: Path, base: Path):
     controllo = repo / "hooks" / "controlla-config.py"
     if controllo.exists():
         shutil.copy(controllo, seme / "hooks" / "controlla-config.py")
+    applica = repo / "bin" / "aggiorna-applica.sh"
+    if applica.exists():  # dal 12/10/2026 il Passo 3 di /aggiorna lancia questa procedura
+        (seme / "bin").mkdir()
+        shutil.copy(applica, seme / "bin" / "aggiorna-applica.sh")
     git(seme, "init", "-q", "-b", "main", home=home)
     git(seme, "add", "-A", home=home)
     git(seme, "commit", "-q", "-m", "v0", home=home)

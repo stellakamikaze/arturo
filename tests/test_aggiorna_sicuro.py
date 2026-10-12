@@ -17,8 +17,12 @@ settings.json. A11 nessun blocco di /aggiorna, /inizio e /novita usa una variabi
 altro blocco.
 
 Il conflitto «a codice 0» di A06-A09 si fabbrica con un git finto in testa al PATH: dopo il pull,
-il rebase o il merge veri lascia settings.json con tre versioni nell'indice e i marcatori nel
-file, come un autostash che non si riapplica. Con FALLISCE_RESET=1 anche il reset fallisce.
+il rebase, il merge o il reset veri lascia settings.json con tre versioni nell'indice e i marcatori
+nel file, come un autostash che non si riapplica, nel repository dove il comando e' girato (`-C` o la
+cartella corrente). Con FALLISCE_RESET=1 il reset fallisce dopo i primi RESET_BUONI (0 se manca).
+
+Dal 12/10/2026 il Passo 3 fa il merge in una copia di prova: il conflitto di A08 nasce li', e A09
+lo fabbrica dopo il reset che porta il risultato in ~/.claude, quando il ripristino fallisce.
 
 Sulla base bb19ef9 ogni controllo deve fallire con un AssertionError che comincia con il suo
 codice: un rosso per un file assente non conta.
@@ -49,17 +53,25 @@ FINTO_GIT = r'''#!/bin/bash
 # Il git vero, piu' un guasto a richiesta: vedi la docstring del banco.
 VERO="@VERO@"
 SUB=""
+DOVE=$PWD
+PROSSIMA=""
 for a in "$@"; do
+  if [ "$PROSSIMA" = C ]; then DOVE=$a; PROSSIMA=""; continue; fi
+  [ "$a" = -C ] && { PROSSIMA=C; continue; }
   case "$a" in pull|rebase|merge|reset) SUB=$a; break ;; esac
 done
 if [ "$SUB" = reset ] && [ "${FALLISCE_RESET:-}" = 1 ]; then
-  echo "fatal: reset finto che fallisce" >&2; exit 1
+  fatti=$(cat "$CONFLITTO_FATTO.reset" 2>/dev/null || echo 0)
+  echo $((fatti + 1)) > "$CONFLITTO_FATTO.reset"
+  if [ "$fatti" -ge "${RESET_BUONI:-0}" ]; then
+    echo "fatal: reset finto che fallisce" >&2; exit 1
+  fi
 fi
 "$VERO" "$@"; rc=$?
 case " $* " in *" --abort "*) exit $rc ;; esac
 if [ $rc = 0 ] && [ -n "${CONFLITTO_DOPO:-}" ] && [ "$SUB" = "$CONFLITTO_DOPO" ] && [ ! -e "$CONFLITTO_FATTO" ]; then
   : > "$CONFLITTO_FATTO"
-  cd "$CONFLITTO_REPO" || exit 1
+  cd "$DOVE" && cd "$("$VERO" rev-parse --show-toplevel)" || exit 1
   b1=$(printf '{"B": "base"}\n' | "$VERO" hash-object -w --stdin)
   b2=$(printf '{"B": "tuo"}\n' | "$VERO" hash-object -w --stdin)
   b3=$(printf '{"B": "loro"}\n' | "$VERO" hash-object -w --stdin)
@@ -97,7 +109,7 @@ class Lab:
         self.utente = self.home / ".claude"
         self.cwd = self.home / "progetto"
         self.env = dict(os.environ, HOME=str(self.home), GIT_CEILING_DIRECTORIES=str(base), **GIT_ENV)
-        for via in ("CONFLITTO_DOPO", "FALLISCE_RESET"):
+        for via in ("CONFLITTO_DOPO", "FALLISCE_RESET", "RESET_BUONI"):
             self.env.pop(via, None)
         seme = base / "seme"
         (seme / "hooks").mkdir(parents=True)
@@ -106,6 +118,10 @@ class Lab:
         (seme / "NOVITA.md").write_text("# Novita\n\n## 2026-09-01 — Prima\n")
         (seme / "hooks" / "guardia.py").write_text("blocca = True\n")
         shutil.copy(str(repo / "hooks" / "controlla-config.py"), str(seme / "hooks" / "controlla-config.py"))
+        applica = repo / "bin" / "aggiorna-applica.sh"
+        if applica.exists():  # dal 12/10/2026 il Passo 3 legge la procedura dalla versione in arrivo
+            (seme / "bin").mkdir()
+            shutil.copy(str(applica), str(seme / "bin" / "aggiorna-applica.sh"))
         self.git(base, "init", "-q", "-b", "main", str(seme))
         self.git(seme, "add", "-A")
         self.git(seme, "commit", "-q", "-m", "v0")
@@ -143,7 +159,7 @@ class Lab:
         self.git(cartella, "commit", "-q", "-am", messaggio)
         self.git(cartella, "push", "-q", "origin", "main")
 
-    def guasto(self, dopo: str, reset_fallisce: bool = False) -> None:
+    def guasto(self, dopo: str, reset_fallisce: bool = False, reset_buoni: int = 0) -> None:
         finti = self.base / "finti"
         finti.mkdir()
         vero = shutil.which("git", path=os.environ.get("PATH"))
@@ -153,7 +169,7 @@ class Lab:
         self.env.update(PATH=f"{finti}{os.pathsep}{os.environ.get('PATH', '')}", CONFLITTO_DOPO=dopo,
                         CONFLITTO_REPO=str(self.utente), CONFLITTO_FATTO=str(self.base / "conflitto-fatto"))
         if reset_fallisce:
-            self.env["FALLISCE_RESET"] = "1"
+            self.env.update(FALLISCE_RESET="1", RESET_BUONI=str(reset_buoni))
 
     def lancia(self, script: str) -> str:
         """Un blocco in una shell nuova, come una chiamata Bash di Claude: la cartella resta, le variabili no."""
@@ -357,7 +373,8 @@ def test_a09(repo: Path) -> None:
         aggiornamento_da_applicare(lab)
         testo = aggiorna(repo)
         lab.lancia(blocco(testo, "## Passo 1", "A09"))
-        lab.guasto("rebase", reset_fallisce=True)
+        # Il reset che porta dentro il risultato riesce e lascia un conflitto, quello che torna a prima no.
+        lab.guasto("reset", reset_fallisce=True, reset_buoni=1)
         uscita = lab.lancia(blocco(testo, "## Passo 3", "A09"))
         assert not lab.config_integra(), "A09 prova: il guasto finto non ha lasciato la config rotta"
         assert "APPLICAZIONE ANNULLATA" not in uscita and "RIPRISTINO NON RIUSCITO" in uscita, \

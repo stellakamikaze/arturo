@@ -11,6 +11,23 @@ modo di lavorare.
 
 ---
 
+## 2026-10-12 — Aggiornare senza mai rompere i file in uso
+
+**Cosa cambia**: `/aggiorna` non unisce più l'aggiornamento dentro `~/.claude`. Lo prova in una copia
+a parte, controlla lì la config, e porta dentro solo un risultato integro. Se le tue modifiche e
+quelle di Arturo vanno in conflitto, i tuoi file restano com'erano, senza segni di conflitto:
+Claude ti mostra il conflitto nella copia di prova, lo risolvete insieme lì e poi lo porta dentro.
+In più la procedura che applica l'aggiornamento arriva con l'aggiornamento stesso: una correzione
+alla procedura vale già dal primo giro. Prima, un conflitto poteva lasciare i segni dentro
+`settings.json` e negli hook, e Claude Code spegneva le guardie senza dirlo.
+
+**Il principio dietro**: i file che Claude Code sta usando cambiano solo quando il risultato è già
+controllato.
+
+**Da sapere**: questo aggiornamento lo applica ancora la procedura che hai installato. La copia di
+prova vale dal giro successivo. Se `/aggiorna` ti dice che la config è già rotta, c'è un merge o un
+pull rimasto a metà da prima: sistemalo con Claude prima di aggiornare.
+
 ## 2026-10-09 — Aggiornare con modifiche non salvate: si ferma e te lo dice
 
 **Cosa cambia**: se hai cambiato un file della config senza salvarlo con un commit (lo fa anche

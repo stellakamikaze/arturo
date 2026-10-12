@@ -106,60 +106,73 @@ adesso i file toccati da tutti e due compaiono nell'elenco qui sopra.
 Solo dopo il suo sì. Ogni blocco gira in una shell nuova: questo ricava da sé da dove arrivano gli
 aggiornamenti.
 
+L'aggiornamento non si fa dentro `~/.claude`: lo fa `bin/aggiorna-applica.sh` in una copia di prova a
+parte, controlla lì la config, e porta dentro solo un risultato integro. Così un conflitto non scrive
+mai marcatori in `settings.json` o negli hook che Claude Code sta usando. La procedura si legge dalla
+**versione in arrivo**, non da quella installata: una correzione alla procedura protegge già
+l'aggiornamento che la porta. È codice che gira da solo, e il Passo 1 te ne ha mostrato il diff.
+
 ```bash
 cd "$HOME/.claude"
 SRC=$(git remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
-MODIFICATI=$(git status --porcelain --untracked-files=no | cut -c4-)
-if [ -n "$MODIFICATI" ]; then
-  echo "APPLICAZIONE NON PARTITA: questi file hanno modifiche tue non ancora salvate con un commit:"
-  printf '%s\n' "$MODIFICATI" | sed 's/^/  /'
-  echo "Non ho toccato niente."
+MODO=$([ "$SRC" = upstream ] && echo merge || echo rebase)
+# Con un repository suo, i suoi commit sono gia' pubblicati: il merge non li riscrive.
+APPLICA=$(mktemp)
+git show "$SRC/main:bin/aggiorna-applica.sh" > "$APPLICA" 2>/dev/null || cp bin/aggiorna-applica.sh "$APPLICA" 2>/dev/null
+if [ -s "$APPLICA" ]; then
+  bash "$APPLICA" "$HOME/.claude" "$MODO" "$SRC/main"
 else
-  mkdir -p session-env
-  PRIMA=$(git rev-parse HEAD)
-  MOTIVO=""
-  if [ "$SRC" = upstream ]; then
-    # Con un repository suo, i suoi commit sono gia' pubblicati: un merge non li riscrive.
-    git merge --no-edit upstream/main || { git merge --abort; MOTIVO="conflitto"; }
-  else
-    git rebase origin/main || { git rebase --abort; MOTIVO="conflitto"; }
-  fi
-  # Un comando che esce con 0 puo' lasciare file in conflitto: conta lo stato, non il codice d'uscita.
-  [ -n "$MOTIVO" ] || [ -z "$(git diff --name-only --diff-filter=U)" ] || MOTIVO="file in conflitto"
-  [ -n "$MOTIVO" ] || python3 hooks/controlla-config.py || MOTIVO="la config risultava rotta"
-  if [ -n "$MOTIVO" ]; then
-    git rebase --abort 2>/dev/null; git merge --abort 2>/dev/null
-    { [ "$(git rev-parse HEAD)" = "$PRIMA" ] && [ -z "$(git status --porcelain --untracked-files=no)" ]; } \
-      || git reset --merge "$PRIMA"
-    if [ "$(git rev-parse HEAD)" = "$PRIMA" ] && [ -z "$(git status --porcelain --untracked-files=no)" ] \
-      && python3 hooks/controlla-config.py --quiet; then
-      echo "APPLICAZIONE ANNULLATA: $MOTIVO. La copia è tornata esattamente a prima"
-    else
-      echo "RIPRISTINO NON RIUSCITO: $MOTIVO, e la copia NON è tornata a prima. Ecco com'è adesso:"
-      git status --short
-    fi
-  elif [ "$(git rev-parse HEAD)" != "$PRIMA" ]; then
-    printf '%s %s %s\n' "$PRIMA" "$(git rev-parse HEAD)" "$(date +%Y-%m-%d_%H-%M)" >> session-env/aggiornamenti
-    printf '%s\n' "$PRIMA" > session-env/ultimo-aggiornamento
-  fi
+  echo "APPLICAZIONE NON PARTITA: non trovo la procedura di applicazione. Non ho toccato niente."
 fi
+rm -f "$APPLICA"
 ```
 
-Se compare `APPLICAZIONE NON PARTITA`, la sua copia non è cambiata. Digli in parole semplici quali
-file ha modificato senza salvarli e perché l'aggiornamento aspetta (Passo 2). Col suo sì salvali
-con un commit, poi rilancia il Passo 2 e il Passo 3. Non scartare mai le sue modifiche per far
-passare l'aggiornamento.
+La prima parola dell'esito dice cosa è successo:
 
-Se compare `APPLICAZIONE ANNULLATA`, la sua copia è **esattamente com'era prima**: il blocco lo
-ha controllato prima di dirlo. Mostragli quali file sono cambiati sia da lui sia
-dall'aggiornamento (Passo 2) e risolvi con lui, uno per volta, spiegando cosa c'era prima e cosa
-arriva. Poi rilancia il Passo 3. Mai `--force`, mai `reset --hard`, mai un `checkout` che butti
-via il suo lavoro.
+- `APPLICATO`: l'aggiornamento è dentro e la config è integra. La procedura lo ha registrato in
+  `session-env/aggiornamenti` (per `/aggiorna indietro`) e in `session-env/ultimo-aggiornamento`.
+  Vai al Passo 3b.
+- `GIÀ AGGIORNATO`: niente da fare.
+- `APPLICAZIONE NON PARTITA`: la sua copia non è cambiata. Se il motivo sono file modificati e non
+  salvati, diglielo in parole semplici e spiega perché l'aggiornamento aspetta (Passo 2). Col suo sì
+  salvali con un commit, poi rilancia il Passo 2 e il Passo 3. Se il motivo è una config già rotta
+  (un merge o un pull rimasto a metà da prima), fermati: mostragli le righe `CONFIG ROTTA` e
+  sistemale con lui prima di aggiornare. Non scartare mai le sue modifiche per far passare
+  l'aggiornamento.
+- `APPLICAZIONE ANNULLATA`: la sua copia è **esattamente com'era prima**. Se la riga dice
+  `CONFLITTO`, vai a «Risolvere un conflitto» qui sotto.
+- `RIPRISTINO NON RIUSCITO`: **fermati**, la config può avere le guardie spente. Digli che la copia è
+  rimasta a metà, mostragli i file elencati e lancia `python3 ~/.claude/hooks/controlla-config.py`,
+  che dice cosa non va e come tornare a prima. Non lavorare su altro finché non dice `CONFIG OK`.
 
-Se compare `RIPRISTINO NON RIUSCITO`, **fermati**: la config può avere le guardie spente. Digli
-che la copia è rimasta a metà, mostragli i file elencati e lancia
-`python3 ~/.claude/hooks/controlla-config.py`, che dice cosa non va e come tornare a prima. Non
-lavorare su altro finché non dice `CONFIG OK`.
+### Risolvere un conflitto
+
+Con `CONFLITTO` la sua `~/.claude` non è stata toccata. I conflitti stanno nella **copia di prova**,
+nella cartella che l'esito ha stampato, con i file elencati. Si risolvono lì, mai in `~/.claude`.
+
+1. Per ogni file in conflitto della copia di prova, mostragli in parole semplici cosa c'era da lui e
+   cosa arriva da Arturo, e chiedi cosa tenere. Di solito si tengono tutti e due: per esempio tutte le
+   righe di una lista `deny`. Scrivi il file risolto nella copia di prova, senza marcatori.
+2. Chiudi l'aggiornamento nella copia di prova. Con un merge: `git -C <copia> add <file>` per ogni
+   file, poi `git -C <copia> commit --no-edit`. Con un rebase: `git -C <copia> add <file>`, poi
+   `GIT_EDITOR=true git -C <copia> rebase --continue`, finché il rebase non finisce.
+3. Solo dopo il suo sì, porta il risultato dentro:
+
+```bash
+cd "$HOME/.claude"
+COPIA=$(cut -d' ' -f1 "$(git rev-parse --git-path arturo-aggiorna-copia)" 2>/dev/null)
+APPLICA=$(mktemp)
+cp "$COPIA/bin/aggiorna-applica.sh" "$APPLICA" 2>/dev/null || cp bin/aggiorna-applica.sh "$APPLICA" 2>/dev/null
+if [ -s "$APPLICA" ]; then
+  bash "$APPLICA" "$HOME/.claude" concludi
+else
+  echo "APPLICAZIONE NON PARTITA: non trovo la procedura di applicazione. Non ho toccato niente."
+fi
+rm -f "$APPLICA"
+```
+
+Gli esiti sono gli stessi del Passo 3. Se dice che nella copia di prova restano conflitti, torna al
+punto 1. Mai `--force`, mai `reset --hard`, mai un `checkout` che butti via il suo lavoro.
 
 ## Passo 3b — Lo strato dell'organizzazione
 
@@ -238,8 +251,10 @@ precedente. I passi 1-4 qui sopra non c'entrano.
 
 - Si applica dopo un sì, mai in automatico. `/inizio` e l'avvio non applicano niente.
 - Con `STORIA RISCRITTA` non si applica niente.
-- Con modifiche non salvate l'applicazione non parte. Un'applicazione che fallisce si annulla da
-  sola, e il blocco controlla il ripristino prima di dirlo.
+- Con modifiche non salvate l'applicazione non parte. Il merge gira in una copia di prova:
+  `~/.claude` cambia solo con un risultato integro, e i conflitti si risolvono nella copia di prova.
+- La procedura di applicazione si legge dalla versione in arrivo, dopo che il Passo 1 ne ha
+  mostrato il diff.
 - Per tornare indietro mai `reset --hard`: solo `reset --keep`, e solo dopo il suo sì.
 - Mai scartare modifiche sue per far passare l'aggiornamento.
 - Se il fetch fallisce, è quasi sempre la rete o un repository non raggiungibile: dillo senza
