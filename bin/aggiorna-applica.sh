@@ -14,6 +14,8 @@
 # Uso:
 #   aggiorna-applica.sh <radice> merge  <ref>   con un repository suo come origin, Arturo è upstream
 #   aggiorna-applica.sh <radice> rebase <ref>   con Arturo come origin
+#   aggiorna-applica.sh <radice> sync   <ref>   /inizio dal suo repository: un rebase che non si
+#                                               registra, perché non è un aggiornamento di Arturo
 #   aggiorna-applica.sh <radice> concludi       dopo aver risolto i conflitti nella copia di prova
 #
 # Righe d'esito, la prima parola è quella che conta:
@@ -26,7 +28,7 @@
 set -u
 
 RADICE=${1:?radice mancante}
-MODO=${2:?modo mancante: merge, rebase o concludi}
+MODO=${2:?modo mancante: merge, rebase, sync o concludi}
 REF=${3:-}
 cd "$RADICE" || { echo "APPLICAZIONE NON PARTITA: non trovo $RADICE"; exit 1; }
 export GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true
@@ -52,8 +54,8 @@ pulita() {  # ~/.claude senza modifiche non salvate
   [ -z "$(git status --porcelain --untracked-files=no)" ]
 }
 
-porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando la copia è nata
-  local nuovo=$1 prima=$2
+porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando è nata, $3 = il modo
+  local nuovo=$1 prima=$2 modo=$3
   if [ "$(git rev-parse HEAD)" != "$prima" ]; then
     echo "APPLICAZIONE ANNULLATA: la tua copia è cambiata dopo la prova (un commit nuovo). Rilancia il Passo 3."
     return 1
@@ -69,9 +71,11 @@ porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando la
     fi
   fi
   if [ "$(git rev-parse HEAD)" = "$nuovo" ] && pulita && controlla "$RADICE"; then
-    mkdir -p session-env
-    printf '%s %s %s\n' "$prima" "$nuovo" "$(date +%Y-%m-%d_%H-%M)" >> session-env/aggiornamenti
-    printf '%s\n' "$prima" > session-env/ultimo-aggiornamento
+    if [ "$modo" != sync ]; then  # /aggiorna indietro torna solo sugli aggiornamenti di Arturo
+      mkdir -p session-env
+      printf '%s %s %s\n' "$prima" "$nuovo" "$(date +%Y-%m-%d_%H-%M)" >> session-env/aggiornamenti
+      printf '%s\n' "$prima" > session-env/ultimo-aggiornamento
+    fi
     echo "APPLICATO: config integra"
     return 0
   fi
@@ -87,7 +91,7 @@ porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando la
 }
 
 if [ "$MODO" = concludi ]; then
-  { [ -f "$STATO" ] && read -r COPIA PRIMA _ < "$STATO"; } || { echo "APPLICAZIONE NON PARTITA: nessuna copia di prova in attesa"; exit 1; }
+  { [ -f "$STATO" ] && read -r COPIA PRIMA DA_DOVE _ < "$STATO"; } || { echo "APPLICAZIONE NON PARTITA: nessuna copia di prova in attesa"; exit 1; }
   if [ ! -d "$COPIA" ]; then
     rm -f "$STATO"
     echo "APPLICAZIONE NON PARTITA: la copia di prova non c'è più. Rilancia il Passo 3."
@@ -99,13 +103,13 @@ if [ "$MODO" = concludi ]; then
     exit 1
   fi
   pulita || { echo "APPLICAZIONE NON PARTITA: ~/.claude ha modifiche non salvate. Non ho toccato niente."; exit 1; }
-  porta_dentro "$(git -C "$COPIA" rev-parse HEAD)" "$PRIMA"; esito=$?
+  porta_dentro "$(git -C "$COPIA" rev-parse HEAD)" "$PRIMA" "${DA_DOVE:-merge}"; esito=$?
   [ $esito = 1 ] && [ "$(git rev-parse HEAD)" != "$PRIMA" ] && exit 1  # copia cambiata: la prova resta
   togli_copia "$COPIA"; rm -f "$STATO"
   exit $esito
 fi
 
-case "$MODO" in merge|rebase) ;; *) echo "APPLICAZIONE NON PARTITA: modo sconosciuto «$MODO»"; exit 1 ;; esac
+case "$MODO" in merge|rebase|sync) ;; *) echo "APPLICAZIONE NON PARTITA: modo sconosciuto «$MODO»"; exit 1 ;; esac
 [ -n "$REF" ] || { echo "APPLICAZIONE NON PARTITA: manca la versione da applicare"; exit 1; }
 
 MODIFICATI=$(git status --porcelain --untracked-files=no | cut -c4-)
@@ -121,7 +125,11 @@ if ! controlla "$RADICE"; then
   exit 1
 fi
 
-# Una copia di prova rimasta da un giro interrotto non serve più: questa ne fa una nuova.
+# Una copia di prova con un conflitto aspetta: il sync non la tocca. /aggiorna ne fa una nuova.
+if [ "$MODO" = sync ] && [ -f "$STATO" ]; then
+  echo "APPLICAZIONE NON PARTITA: una copia di prova con un conflitto aspetta di essere conclusa ($(cut -d' ' -f1 "$STATO"))."
+  exit 1
+fi
 if [ -f "$STATO" ] && read -r VECCHIA _ < "$STATO"; then
   togli_copia "$VECCHIA"; rm -f "$STATO"
 fi
@@ -164,6 +172,6 @@ if ! controlla "$COPIA"; then
   echo "APPLICAZIONE ANNULLATA: la versione in arrivo avrebbe lasciato la config rotta. La tua copia è com'era prima"
   exit 1
 fi
-porta_dentro "$(git -C "$COPIA" rev-parse HEAD)" "$PRIMA"; esito=$?
+porta_dentro "$(git -C "$COPIA" rev-parse HEAD)" "$PRIMA" "$MODO"; esito=$?
 togli_copia "$COPIA"
 exit $esito

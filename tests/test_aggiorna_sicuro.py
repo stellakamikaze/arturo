@@ -11,7 +11,8 @@ ricava da se' da dove arrivano gli aggiornamenti: il diff di guardie e permessi 
 merge (A03). A04 con un file della config modificato e non salvato il Passo 3 non parte, lo dice e
 non tocca niente. A05 lo stesso per il sync di /inizio. A06 se il pull di /inizio esce con 0 e
 lascia un file in conflitto, la config torna a prima, e A07 il messaggio di ripristino compare
-solo se il ripristino riesce davvero. A08 e A09 lo stesso per il Passo 3 di /aggiorna, che senza
+solo se il ripristino riesce davvero. Dal 12/10/2026 il sync fa il rebase nella copia di prova:
+A06 lo fa andare in conflitto li', A07 rompe la config dopo il reset che porta dentro il sync. A08 e A09 lo stesso per il Passo 3 di /aggiorna, che senza
 ripristino non registra l'aggiornamento. A10 i comandi a mano del README non lasciano conflitti in
 settings.json. A11 nessun blocco di /aggiorna, /inizio e /novita usa una variabile nata in un
 altro blocco.
@@ -325,12 +326,12 @@ def test_a06(repo: Path) -> None:
     def prova(lab: Lab) -> None:
         sync_da_altro_computer(lab)
         prima = lab.head()
-        lab.guasto("pull")
+        lab.guasto("rebase")  # dal 12/10/2026 il rebase del sync gira nella copia di prova
         uscita = lab.lancia(fase0(repo))
         assert lab.head() == prima and not lab.git(lab.utente, "diff", "--name-only", "--diff-filter=U") \
             and lab.config_integra(), \
             f"A06 con {lab.shell} un pull che lascia settings.json in conflitto non torna a prima: {uscita[-400:]!r}"
-        assert "riportato" in uscita and "NON sono riuscito" not in uscita, \
+        assert "com'era prima" in uscita and "NON sono riuscito" not in uscita, \
             f"A06 con {lab.shell} il ripristino riuscito non e' detto: {uscita[-300:]!r}"
     per_shell(prova, repo)
 
@@ -338,10 +339,11 @@ def test_a06(repo: Path) -> None:
 def test_a07(repo: Path) -> None:
     def prova(lab: Lab) -> None:
         sync_da_altro_computer(lab)
-        lab.guasto("pull", reset_fallisce=True)
+        # Il reset che porta dentro il sync riesce e lascia un conflitto, quello che torna a prima no.
+        lab.guasto("reset", reset_fallisce=True, reset_buoni=1)
         uscita = lab.lancia(fase0(repo))
         assert not lab.config_integra(), "A07 prova: il guasto finto non ha lasciato la config rotta"
-        assert "Ho riportato la copia" not in uscita and "Ho riportato la config" not in uscita, \
+        assert "com'era prima" not in uscita and "Ho riportato" not in uscita, \
             f"A07 con {lab.shell} /inizio dice di aver riportato la copia a prima, ma la config e' rotta: {uscita[-400:]!r}"
         assert "NON sono riuscito" in uscita, f"A07 con {lab.shell} /inizio non dice che il ripristino e' fallito: {uscita[-300:]!r}"
     per_shell(prova, repo)

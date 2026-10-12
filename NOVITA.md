@@ -11,6 +11,19 @@ modo di lavorare.
 
 ---
 
+## 2026-10-12 — Anche il sync fra le tue macchine passa dalla copia di prova
+
+**Cosa cambia**: se hai un tuo repository, `/inizio` scarica le modifiche delle tue altre macchine
+come fa ora `/aggiorna`: le prova in una copia a parte e le porta dentro solo se la config resta
+integra. Se due macchine hanno cambiato le stesse righe, i tuoi file restano com'erano e il
+conflitto aspetta nella copia di prova. Claude te lo mostra e lo risolvete insieme.
+
+**Il principio dietro**: lo stesso di `/aggiorna`. I file che Claude Code sta usando cambiano solo
+quando il risultato è già controllato.
+
+**Da sapere**: il sync fra le tue macchine non finisce nel registro di `/aggiorna indietro`, che
+torna indietro solo sugli aggiornamenti di Arturo.
+
 ## 2026-10-12 — Aggiornare senza mai rompere i file in uso
 
 **Cosa cambia**: `/aggiorna` non unisce più l'aggiornamento dentro `~/.claude`. Lo prova in una copia

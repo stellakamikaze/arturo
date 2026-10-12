@@ -10,7 +10,9 @@ C01 durante un conflitto vero settings.json di ~/.claude non contiene mai un mar
 momento, e l'esito nomina il conflitto e il file. C02 risolto il conflitto nella copia di prova, il
 blocco di «Risolvere un conflitto» porta dentro il risultato: la config e' integra, l'aggiornamento
 registrato, la copia di prova tolta. C03 il Passo 3 lancia la procedura della versione in arrivo, non
-quella installata.
+quella installata. C04 il sync di /inizio fra due macchine dello stesso utente in conflitto: nessun
+marcatore nei file in uso, la copia di prova aspetta, e una volta conclusa il sync non finisce nel
+registro di /aggiorna indietro.
 
 Il «in nessun momento» di C01 lo guarda un git finto in testa al PATH: dopo ogni comando git vero
 controlla settings.json di ~/.claude e annota ogni marcatore che trova.
@@ -158,7 +160,42 @@ def test_c03(repo: Path) -> None:
     per_shell(prova, repo)
 
 
-TESTS: Dict[str, Callable[[Path], None]] = {"C01": test_c01, "C02": test_c02, "C03": test_c03}
+def test_c04(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        lab.pubblica(lab.autore, {"settings.json": lambda t: json.dumps(
+            {**json.loads(t), "permissions": {"deny": ["Edit(~/.bash_profile)"]}}, indent=2) + "\n"}, "deny")
+        lab.git(lab.utente, "pull", "-q", "origin", "main")
+        personale = lab.personale()
+        altro = lab.base / "altro-computer"
+        lab.git(lab.base, "clone", "-q", str(personale), str(altro))
+        lab.pubblica(altro, {"settings.json": con_deny(LORO)}, "chore: session sync")
+        (lab.utente / "settings.json").write_text(con_deny(TUO)(read(lab.utente / "settings.json")))
+        lab.git(lab.utente, "commit", "-q", "-am", "chore: session sync")
+        prima = lab.head()
+        log = spia(lab)
+        uscita = lab.lancia(blocco(read(repo / "commands" / "inizio.md"), "## FASE 0", "C04"))
+        visti = read(log) if log.exists() else ""
+        assert not visti, f"C04 con {lab.shell} il sync ha messo i marcatori in settings.json in uso dopo: {visti.strip()!r}"
+        assert lab.head() == prima and lab.config_integra(), f"C04 con {lab.shell} la copia e' cambiata: {uscita[-300:]!r}"
+        stato = lab.utente / ".git" / "arturo-aggiorna-copia"
+        assert "CONFLITTO" in uscita and stato.exists(), f"C04 con {lab.shell} il conflitto non aspetta nella copia di prova: {uscita[-400:]!r}"
+        copia = Path(read(stato).split()[0])
+        risolto = json.loads(read(lab.utente / "settings.json"))
+        risolto["permissions"]["deny"] = ["Edit(~/.bash_profile)", "Edit(~/.profile)", "Edit(~/.zshenv)"]
+        (copia / "settings.json").write_text(json.dumps(risolto, indent=2) + "\n")
+        lab.git(copia, "add", "settings.json")
+        r = subprocess.run(["git", "-C", str(copia), "rebase", "--continue"], env=dict(lab.env, GIT_EDITOR="true"),
+                           capture_output=True, text=True)
+        assert r.returncode == 0, f"C04 prova: rebase --continue nella copia di prova: {r.stderr[-300:]!r}"
+        fine = lab.lancia(blocco(aggiorna(repo), "### Risolvere un conflitto", "C04"))
+        deny = json.loads(read(lab.utente / "settings.json"))["permissions"]["deny"]
+        assert "APPLICATO" in fine and deny == risolto["permissions"]["deny"] and lab.config_integra(), \
+            f"C04 con {lab.shell} il sync risolto non arriva in ~/.claude: {fine[-400:]!r}"
+        assert not lab.registro(), f"C04 con {lab.shell} il sync fra le sue macchine e' registrato come aggiornamento di Arturo"
+    per_shell(prova, repo)
+
+
+TESTS: Dict[str, Callable[[Path], None]] = {"C01": test_c01, "C02": test_c02, "C03": test_c03, "C04": test_c04}
 
 
 def main() -> int:
