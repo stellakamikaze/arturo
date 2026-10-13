@@ -1,7 +1,7 @@
 // Il Worker di Arturo: collega logica.js a D1 (env.DB) e all'invio email (env.POSTA).
 // Deploy e query utili: server/README.md.
 import { EmailMessage } from "cloudflare:email";
-import { gestisci, settimanale, mime } from "./logica.js";
+import { gestisci, programmato, mime } from "./logica.js";
 
 function archivio(db) {
   return {
@@ -77,6 +77,6 @@ export default {
     return gestisci(request, { archivio: archivio(env.DB), posta: posta(env) });
   },
   async scheduled(evento, env, ctx) {
-    ctx.waitUntil(settimanale({ archivio: archivio(env.DB), posta: posta(env) }));
+    ctx.waitUntil(programmato({ archivio: archivio(env.DB), posta: posta(env) }));
   },
 };

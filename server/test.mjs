@@ -1,10 +1,10 @@
 // Banco del server di Arturo (W-casi con la sigla V): logica.js con un archivio e una posta finti.
 // Uso: node server/test.mjs   (esce con 0 se tutto passa)
 import assert from "node:assert/strict";
-import { gestisci, settimanale, mime, LIMITI, EVENTI } from "./logica.js";
+import { gestisci, settimanale, giornaliero, programmato, mime, LIMITI, EVENTI } from "./logica.js";
 
 function finti() {
-  const stato = { eventi: [], segnalazioni: [], email: [], contatori: {}, pulito: null };
+  const stato = { eventi: [], segnalazioni: [], email: [], contatori: {}, pulito: null, finestre: [] };
   const archivio = {
     async contaEventi(inst, giorno) {
       return stato.eventi.filter((e) => e.ricevuto === giorno && (!inst || e.installazione === inst)).length;
@@ -19,7 +19,8 @@ function finti() {
       return stato.contatori[giorno] <= massimo;
     },
     async segnaEmail() {},
-    async riepilogo() {
+    async riepilogo(dal, al) {
+      stato.finestre.push([dal, al]);
       return { installazioni: 2, sessioni: 5, versioni: [{ valore: "v2026-10-13", n: 2 }], sistemi: [], comandi: [{ valore: "fine", n: 3 }],
         guardie: [], aggiorna: [], segnalazioni: 1 };
     },
@@ -105,6 +106,24 @@ const casi = {
     const corpo = m.split("\r\n\r\n")[1].replace(/\r\n/g, "");
     assert.equal(Buffer.from(corpo, "base64").toString("utf8"), "àèì", "V08 il corpo non torna uguale");
     assert.deepEqual(Object.keys(EVENTI), ["sessione", "comando", "guardia", "aggiorna", "segnalazione"]);
+  },
+  async V10() {
+    const f = finti();
+    await giornaliero({ ...f, adesso });
+    assert.deepEqual(f.stato.finestre, [["2026-10-11", "2026-10-12"]], "V10 il recap non copre il solo giorno prima");
+    assert.equal(f.stato.email[0].oggetto, "[Arturo] Recap del 2026-10-12", "V10 oggetto del recap sbagliato");
+    assert.match(f.stato.email[0].testo, /^Arturo, il giorno 2026-10-12\n[\s\S]*Installazioni attive: 2/, "V10 testo del recap");
+    assert.equal(f.stato.pulito, null, "V10 il recap giornaliero non deve pulire");
+  },
+  async V11() {
+    const lunedi = new Date("2026-10-12T06:00:00Z"), martedi = new Date("2026-10-13T06:00:00Z");
+    const f = finti();
+    await programmato({ ...f, adesso: martedi });
+    assert.deepEqual(f.stato.email.map((m) => m.oggetto.split(" ")[1]), ["Recap"], "V11 il martedì parte solo il recap");
+    const g = finti();
+    await programmato({ ...g, adesso: lunedi });
+    assert.deepEqual(g.stato.email.map((m) => m.oggetto.split(" ")[1]), ["Recap", "Riepilogo"], "V11 il lunedì mancano recap o riepilogo");
+    assert.equal(g.stato.pulito, "2025-10-12", "V11 il lunedì la pulizia non parte");
   },
   async V09() {
     const f = finti();

@@ -47,9 +47,11 @@ che la copia dell'utente conosceva, e se la nuova non discende dalla vecchia si 
 Arturo manda una telemetria minima, accesa di default (README, Impegni). Il server è in
 `server/`: un Worker Cloudflare su `arturo-dati.stellakamikaze.org` con un database D1 `arturo`.
 
-- **Il riepilogo del lunedì.** Ogni lunedì alle 8 il Worker manda a chi mantiene il riepilogo dei
-  7 giorni: installazioni attive, versioni, sistemi, comandi usati, guardie che hanno bloccato,
-  esiti di `/aggiorna`, segnalazioni. Poi cancella gli eventi più vecchi di 12 mesi.
+- **Il recap di ogni mattina.** Ogni mattina alle 8 il Worker manda a chi mantiene il recap del
+  giorno prima: installazioni attive, versioni, sistemi, comandi usati, guardie che hanno bloccato,
+  esiti di `/aggiorna`, segnalazioni. Parte anche nei giorni vuoti: se un recap manca, il server è fermo.
+- **Il riepilogo del lunedì.** Il lunedì, dopo il recap, arriva lo stesso riepilogo sui 7 giorni.
+  Poi il Worker cancella gli eventi più vecchi di 12 mesi.
 - **Le segnalazioni.** Ogni segnalazione di `/segnala` col canale `arturo` arriva per email,
   con l'oggetto `[Arturo] [tipo] …`, e resta in D1. Quelle aperte da GitHub sono issue con il titolo
   `[problema]`, `[proposta]` o `[integrazione]`.
