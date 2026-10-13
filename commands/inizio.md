@@ -76,7 +76,9 @@ guardie potrebbero essere spente.
 Se il sync dice `CONFLITTO`, due tue macchine hanno cambiato le stesse righe della config. La
 sua `~/.claude` è com'era: il conflitto aspetta nella copia di prova stampata. Proponigli di
 risolverlo subito come in `/aggiorna`, sezione «Risolvere un conflitto» (con un rebase). Finché
-la copia di prova aspetta, il sync non riparte.
+la copia di prova aspetta, il sync non riparte, e l'avvio della sessione lo ricorda. Se il sync
+risponde che una copia di prova aspetta da prima, vale lo stesso: si conclude, oppure col suo sì si
+scarta come in `/aggiorna`.
 
 Se compare «non ho scaricato dal tuo repository», la config è com'era: diglielo in una riga e
 nomina i file. Sono modifiche sue (anche `/setup` ne scrive in `settings.json`) che `/fine`

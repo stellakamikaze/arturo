@@ -111,6 +111,14 @@ fi
 
 # Canale novità: se NOVITA.md ha una entry più recente dell'ultima vista, segnala.
 # Solo un avviso — il racconto lo fa /novita, mai in automatico.
+# Una copia di prova di /aggiorna o del sync rimasta in attesa con un conflitto (bin/aggiorna-applica.sh):
+# finché aspetta, il sync fra le macchine e gli aggiornamenti non ripartono.
+ATTESA=$(git -C "$HOME/.claude" rev-parse --git-path arturo-aggiorna-copia 2>/dev/null)
+case "$ATTESA" in /*) ;; ?*) ATTESA="$HOME/.claude/$ATTESA" ;; esac
+if [ -n "$ATTESA" ] && [ -f "$ATTESA" ] && read -r A_COPIA _ A_MODO A_NATA _ < "$ATTESA" && [ -d "$A_COPIA" ]; then
+  echo "ARTURO: una copia di prova con un conflitto aspetta${A_NATA:+ dal ${A_NATA/_/ alle }} ($([ "$A_MODO" = sync ] && echo "sync fra le tue macchine" || echo "aggiornamento")): finché aspetta, sync e aggiornamenti sono fermi. /aggiorna la conclude o la scarta."
+fi
+
 if [ -f "$HOME/.claude/NOVITA.md" ]; then
   ULTIMA_NOVITA=$(grep -m1 '^## ' "$HOME/.claude/NOVITA.md" 2>/dev/null | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
   # Segnalibro per intestazione (novita-viste: data e titolo); un vecchio novita-vista

@@ -138,7 +138,16 @@ La prima parola dell'esito dice cosa è successo:
   salvali con un commit, poi rilancia il Passo 2 e il Passo 3. Se il motivo è una config già rotta
   (un merge o un pull rimasto a metà da prima), fermati: mostragli le righe `CONFIG ROTTA` e
   sistemale con lui prima di aggiornare. Non scartare mai le sue modifiche per far passare
-  l'aggiornamento.
+  l'aggiornamento. Se il motivo è **una copia di prova che aspetta**, l'esito dice da quando e da
+  cosa (il sync fra le sue macchine o un aggiornamento). Dentro può esserci il lavoro di chi stava
+  risolvendo un conflitto. Proponi di concluderla con «Risolvere un conflitto» qui sotto. Solo se
+  lui dice che non serve, col suo sì, scartala:
+
+  ```bash
+  cd "$HOME/.claude" && bash bin/aggiorna-applica.sh "$HOME/.claude" scarta
+  ```
+
+  Poi rilancia il Passo 3.
 - `APPLICAZIONE ANNULLATA`: la sua copia è **esattamente com'era prima**. Se la riga dice
   `CONFLITTO`, vai a «Risolvere un conflitto» qui sotto.
 - `RIPRISTINO NON RIUSCITO`: **fermati**, la config può avere le guardie spente. Digli che la copia è

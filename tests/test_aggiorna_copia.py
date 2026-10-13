@@ -12,7 +12,9 @@ blocco di «Risolvere un conflitto» porta dentro il risultato: la config e' int
 registrato, la copia di prova tolta. C03 il Passo 3 lancia la procedura della versione in arrivo, non
 quella installata. C04 il sync di /inizio fra due macchine dello stesso utente in conflitto: nessun
 marcatore nei file in uso, la copia di prova aspetta, e una volta conclusa il sync non finisce nel
-registro di /aggiorna indietro.
+registro di /aggiorna indietro. C05 una copia di prova in attesa dal sync non sparisce con /aggiorna:
+l'esito la nomina, la copia resta, l'avvio della sessione la ricorda, e solo «scarta» la toglie.
+C06 una copia di prova sparita (cartella temporanea svuotata) non ferma il sync per sempre.
 
 Il «in nessun momento» di C01 lo guarda un git finto in testa al PATH: dopo ogni comando git vero
 controlla settings.json di ~/.claude e annota ogni marcatore che trova.
@@ -195,7 +197,58 @@ def test_c04(repo: Path) -> None:
     per_shell(prova, repo)
 
 
-TESTS: Dict[str, Callable[[Path], None]] = {"C01": test_c01, "C02": test_c02, "C03": test_c03, "C04": test_c04}
+def sync_in_conflitto(lab: Lab, repo: Path, codice: str) -> Path:
+    """Due macchine della stessa persona cambiano la stessa riga: il sync di /inizio lascia una copia in attesa."""
+    lab.pubblica(lab.autore, {"settings.json": lambda t: json.dumps(
+        {**json.loads(t), "permissions": {"deny": ["Edit(~/.bash_profile)"]}}, indent=2) + "\n"}, "deny")
+    lab.git(lab.utente, "pull", "-q", "origin", "main")
+    personale = lab.personale()
+    altro = lab.base / "altro-computer"
+    lab.git(lab.base, "clone", "-q", str(personale), str(altro))
+    lab.pubblica(altro, {"settings.json": con_deny(LORO)}, "chore: session sync")
+    (lab.utente / "settings.json").write_text(con_deny(TUO)(read(lab.utente / "settings.json")))
+    lab.git(lab.utente, "commit", "-q", "-am", "chore: session sync")
+    uscita = lab.lancia(blocco(read(repo / "commands" / "inizio.md"), "## FASE 0", codice))
+    stato = lab.utente / ".git" / "arturo-aggiorna-copia"
+    assert "CONFLITTO" in uscita and stato.exists(), f"{codice} prova: il sync non lascia una copia in attesa: {uscita[-300:]!r}"
+    return stato
+
+
+def test_c05(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        stato = sync_in_conflitto(lab, repo, "C05")
+        copia = Path(read(stato).split()[0])
+        (copia / "LAVORO-IN-CORSO").write_text("mezza risoluzione\n")
+        uscita = passo3_in_conflitto(lab, repo, "C05")
+        assert copia.exists() and stato.exists() and (copia / "LAVORO-IN-CORSO").exists(), \
+            f"C05 con {lab.shell} /aggiorna ha tolto in silenzio la copia di prova del sync: {uscita[-300:]!r}"
+        assert "APPLICAZIONE NON PARTITA" in uscita and "sync" in uscita and copia.parent.name in uscita, \
+            f"C05 con {lab.shell} l'esito non dice che una copia di prova aspetta: {uscita[-400:]!r}"
+        avvio = subprocess.run(["bash", str(repo / "hooks" / "session-start.sh")], input="{}", env=lab.env,
+                               cwd=str(lab.base), capture_output=True, text=True, timeout=60).stdout
+        assert "copia di prova con un conflitto aspetta" in avvio, f"C05 con {lab.shell} l'avvio non ricorda la copia in attesa"
+        scarta = blocco(aggiorna(repo), "## Passo 3", "C05", indice=1)
+        fine = lab.lancia(scarta)
+        assert "SCARTATA" in fine and not copia.exists() and not stato.exists(), \
+            f"C05 con {lab.shell} «scarta» non toglie la copia di prova: {fine[-300:]!r}"
+        assert len(lab.git(lab.utente, "worktree", "list").splitlines()) == 1, f"C05 con {lab.shell} resta un worktree"
+    per_shell(prova, repo)
+
+
+def test_c06(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        stato = sync_in_conflitto(lab, repo, "C06")
+        copia = Path(read(stato).split()[0])
+        shutil.rmtree(copia.parent)
+        uscita = lab.lancia(blocco(read(repo / "commands" / "inizio.md"), "## FASE 0", "C06"))
+        assert "copia di prova" in uscita and "aspetta di essere conclusa" not in uscita, \
+            f"C06 con {lab.shell} una copia sparita ferma ancora il sync: {uscita[-400:]!r}"
+        assert "CONFLITTO" in uscita, f"C06 con {lab.shell} il sync non riparte: {uscita[-400:]!r}"
+    per_shell(prova, repo)
+
+
+TESTS: Dict[str, Callable[[Path], None]] = {"C01": test_c01, "C02": test_c02, "C03": test_c03, "C04": test_c04,
+                                            "C05": test_c05, "C06": test_c06}
 
 
 def main() -> int:

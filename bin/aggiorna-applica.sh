@@ -17,12 +17,14 @@
 #   aggiorna-applica.sh <radice> sync   <ref>   /inizio dal suo repository: un rebase che non si
 #                                               registra, perché non è un aggiornamento di Arturo
 #   aggiorna-applica.sh <radice> concludi       dopo aver risolto i conflitti nella copia di prova
+#   aggiorna-applica.sh <radice> scarta         toglie la copia di prova in attesa, solo col sì della persona
 #
 # Righe d'esito, la prima parola è quella che conta:
 #   APPLICATO                   l'aggiornamento è in ~/.claude e la config è integra
 #   GIÀ AGGIORNATO              niente da applicare
 #   APPLICAZIONE NON PARTITA    ~/.claude non è stata toccata (modifiche non salvate, config già rotta)
 #   APPLICAZIONE ANNULLATA      ~/.claude è com'era prima; con CONFLITTO la copia di prova aspetta
+#   SCARTATA / NIENTE DA SCARTARE  esiti di scarta
 #   RIPRISTINO NON RIUSCITO     ~/.claude è rimasta a metà: fermarsi
 # Uscita: 0 applicato o niente da fare, 1 non applicato, 2 ripristino non riuscito.
 set -u
@@ -100,6 +102,13 @@ porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando è
   return 2
 }
 
+if [ "$MODO" = scarta ]; then
+  { [ -f "$STATO" ] && read -r COPIA _ < "$STATO"; } || { echo "NIENTE DA SCARTARE: nessuna copia di prova in attesa"; exit 0; }
+  togli_copia "$COPIA"; rm -f "$STATO"
+  echo "SCARTATA: la copia di prova $COPIA non c'è più. ~/.claude non è stata toccata."
+  exit 0
+fi
+
 if [ "$MODO" = concludi ]; then
   { [ -f "$STATO" ] && read -r COPIA PRIMA DA_DOVE _ < "$STATO"; } || { echo "APPLICAZIONE NON PARTITA: nessuna copia di prova in attesa"; exit 1; }
   if [ ! -d "$COPIA" ]; then
@@ -135,13 +144,19 @@ if ! controlla "$RADICE"; then
   exit 1
 fi
 
-# Una copia di prova con un conflitto aspetta: il sync non la tocca. /aggiorna ne fa una nuova.
-if [ "$MODO" = sync ] && [ -f "$STATO" ]; then
-  echo "APPLICAZIONE NON PARTITA: una copia di prova con un conflitto aspetta di essere conclusa ($(cut -d' ' -f1 "$STATO"))."
-  exit 1
-fi
-if [ -f "$STATO" ] && read -r VECCHIA _ < "$STATO"; then
-  togli_copia "$VECCHIA"; rm -f "$STATO"
+# Una copia di prova con un conflitto aspetta: può contenere il lavoro di chi la stava risolvendo.
+# Nessun modo la sostituisce in silenzio: si conclude, o si scarta col sì della persona. Una copia
+# sparita (la cartella temporanea si svuota al riavvio) non ha niente da perdere: si toglie il registro.
+if [ -f "$STATO" ] && read -r VECCHIA _ VECCHIO_MODO NATA _ < "$STATO"; then
+  if [ ! -d "$VECCHIA" ]; then
+    togli_copia "$VECCHIA"; rm -f "$STATO"
+    echo "Una copia di prova in attesa non c'era più (cartella temporanea svuotata): tolta dal registro."
+  else
+    case "$VECCHIO_MODO" in sync) DA="dal sync fra le tue macchine" ;; *) DA="da un aggiornamento di Arturo" ;; esac
+    echo "APPLICAZIONE NON PARTITA: una copia di prova con un conflitto aspetta${NATA:+ dal ${NATA/_/ alle }}, $DA: $VECCHIA"
+    echo "Concludila (/aggiorna, «Risolvere un conflitto») oppure scartala con: aggiorna-applica.sh <radice> scarta. ~/.claude non è stata toccata."
+    exit 1
+  fi
 fi
 
 PRIMA=$(git rev-parse HEAD)
@@ -164,7 +179,7 @@ rc=$?
 CONFLITTI=$(git -C "$COPIA" diff --name-only --diff-filter=U)
 if [ $rc != 0 ] || [ -n "$CONFLITTI" ]; then
   if [ -n "$CONFLITTI" ]; then
-    printf '%s %s %s\n' "$COPIA" "$PRIMA" "$MODO" > "$STATO"
+    printf '%s %s %s %s\n' "$COPIA" "$PRIMA" "$MODO" "$(date +%Y-%m-%d_%H:%M)" > "$STATO"
     segna_esito conflitto "$MODO"
     echo "APPLICAZIONE ANNULLATA: CONFLITTO. La tua copia è com'era prima, e nei suoi file non c'è nessun marcatore."
     echo "Copia di prova con i conflitti: $COPIA"
