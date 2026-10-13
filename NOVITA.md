@@ -11,6 +11,23 @@ modo di lavorare.
 
 ---
 
+## 2026-10-13 — Dire ad Arturo cosa non va, con /segnala
+
+**Cosa cambia**: c'è un comando nuovo, `/segnala`. Lo usi quando qualcosa di Arturo non funziona,
+quando hai un'idea o quando vorresti collegare uno strumento che usi nel lavoro. Claude scrive il
+testo con te, toglie nomi, clienti e segreti, e te lo fa leggere. Parte solo con il tuo sì: come
+issue su GitHub se hai un account, altrimenti come email a chi mantiene Arturo. Arturo poi te lo
+propone da solo: subito dopo un intoppo, con il testo già pronto, e a fine sessione con una
+domanda breve, al massimo una volta a settimana.
+
+**Il principio dietro**: Arturo migliora con quello che gli dicono le persone che lo usano.
+Una cosa che ti ha fatto perdere tempo, raccontata in tre righe, diventa una correzione per tutti.
+
+**Da sapere**: non è telemetria. Niente parte senza che tu abbia visto il testo e detto sì. La
+issue su GitHub è pubblica, la email arriva solo a chi mantiene Arturo. Una copia di ogni
+segnalazione resta sul tuo computer, in `~/.claude/data/segnalazioni/`. Se non vuoi gli inviti:
+`python3 ~/.claude/bin/arturo segnala basta`. `/segnala` resta lì quando ti serve.
+
 ## 2026-10-12 — Anche il sync fra le tue macchine passa dalla copia di prova
 
 **Cosa cambia**: se hai un tuo repository, `/inizio` scarica le modifiche delle tue altre macchine

@@ -1,0 +1,26 @@
+name: Uno strumento da collegare
+description: Un programma, un servizio o un archivio con cui vorresti che Arturo lavorasse.
+title: "[integrazione] "
+labels: ["integrazione"]
+body:
+  - type: textarea
+    id: strumento
+    attributes:
+      label: Quale strumento?
+      description: Il nome del programma o del servizio, e se lo usi da solo o con la tua organizzazione.
+    validations:
+      required: true
+  - type: textarea
+    id: per-fare-cosa
+    attributes:
+      label: Per fare cosa, nel tuo lavoro?
+      description: Racconta la situazione concreta. Non scrivere nomi di clienti o dati riservati.
+    validations:
+      required: true
+  - type: textarea
+    id: oggi
+    attributes:
+      label: Come fai oggi, senza?
+      description: Facoltativo.
+    validations:
+      required: false

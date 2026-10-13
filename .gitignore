@@ -18,6 +18,8 @@ data/credentials/
 data/todo/
 # Il lucchetto dell'archivio. git add -f scavalca questa riga: lo tiene fuori l'esclusione in /fine.
 data/todo/*.lock
+# Le copie di /segnala restano su questo computer.
+data/segnalazioni/
 .credentials.json
 
 # Runtime Claude Code (generato localmente)

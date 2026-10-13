@@ -242,7 +242,31 @@ fi
 cd "$PREV_DIR"
 ```
 
-### 7. Conferma
+### 7. Migliorare Arturo
+
+Arturo migliora con quello che le persone gli dicono: questo passo glielo chiede ogni volta
+che ha senso. Una sola proposta per sessione, mai un elenco.
+
+- **Se nella sessione Arturo o Claude Code si sono inceppati** (un comando fallito, una guardia
+  che ha fermato un lavoro legittimo, la persona che ti ha corretto, una cosa chiesta che Arturo
+  non sa fare), proponi la segnalazione con il fatto già scritto: «Ho visto che X non ha
+  funzionato. Lo segnalo a chi mantiene Arturo? Il testo lo preparo io.» Con un sì segui
+  `/segnala` dal Passo 1, con la bozza già pronta: il Passo 1 tiene fuori
+  dalla issue pubblica un segreto esposto o una guardia aggirabile. Se l'hai già proposta durante la sessione,
+  non riproporla.
+- **Altrimenti** chiedi allo script se è il momento della domanda della settimana:
+
+  ```bash
+  python3 "$HOME/.claude/bin/arturo" segnala chiedi
+  ```
+
+  Con exit 0 fai una domanda, una riga: «In questi giorni Arturo ti ha fatto perdere tempo, o
+  c'è una cosa che vorresti facesse?» Se la persona racconta qualcosa, segui `/segnala`. Con
+  exit 3 taci.
+- Se la persona dice di non volere più queste domande, lancia
+  `python3 "$HOME/.claude/bin/arturo" segnala basta` e non insistere. `/segnala` resta lì.
+
+### 8. Conferma
 
 ```
 +====================================================================+
@@ -253,6 +277,7 @@ cd "$PREV_DIR"
 | Task pendenti   | [N] (nell'handoff)                               |
 | Validate        | [passed / N errori documentati]                  |
 | Config sync     | [push riuscito / niente da pushare / push non riuscito: N commit da ritentare]                     |
+| Segnalazione    | [inviata / proposta, non inviata / domanda fatta / nessuna]       |
 | Extra (--full)  | [claude-md/doc o "skip"]                        |
 +--------------------------------------------------------------------+
 | Riprendi: /inizio [progetto]  ·  sessione esatta: claude -r        |

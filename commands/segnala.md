@@ -1,0 +1,116 @@
+---
+description: Manda a chi mantiene Arturo un problema, un'idea o una richiesta di integrazione - la bozza la scrive Claude, parte solo dopo il tuo sì
+argument-hint: "[cosa vuoi segnalare] (opzionale)"
+---
+
+# Segnala
+
+Arturo migliora con quello che le persone gli dicono. Questo comando porta a chi lo mantiene
+tre cose:
+
+- **un problema**: qualcosa di Arturo o di Claude Code che non funziona, si blocca o fa altro;
+- **un'idea**: un comportamento da cambiare, una cosa che manca, un commento;
+- **un'integrazione**: uno strumento da collegare (un programma, un servizio, un archivio).
+
+Chi ti parla **potrebbe non essere una persona tecnica**. Parla semplice, una domanda per volta.
+La segnalazione riguarda Arturo e Claude Code, non i bug del codice del progetto della persona:
+quelli si sistemano con `/diagnosi`. E non riguarda lo strato dell'organizzazione (le skill del
+mestiere, la voce, i collegamenti interni che ha installato il referente con `/strato`): quei
+problemi vanno al referente, non fuori.
+
+**Cosa dice la persona**: $ARGUMENTS
+
+## Passo 1 — Il tipo
+
+Capisci il tipo dalle sue parole o dalla sessione: `problema`, `proposta` (idea o commento),
+`integrazione`. Chiedi solo se non è chiaro.
+
+Se riguarda la sicurezza (un segreto esposto, un modo per aggirare una guardia), fermati: non va
+in una segnalazione pubblica. Indica la procedura privata:
+https://github.com/stellakamikaze/arturo/blob/main/SECURITY.md
+
+## Passo 2 — La bozza
+
+Se la sessione contiene già il fatto (un errore appena visto, una correzione della persona, una
+richiesta che Arturo non sa fare), scrivi tu la bozza e chiedi solo cosa manca. Altrimenti fai
+queste domande, una per volta:
+
+- **problema**: cosa stavi facendo? cosa ti aspettavi? cosa è successo invece? c'è un messaggio
+  esatto? (il messaggio lo copi tu dalla sessione, se c'è)
+- **proposta**: in quale situazione del tuo lavoro ti serve? come la immagini? (facoltativo)
+- **integrazione**: quale strumento? per fare cosa, nel tuo lavoro? oggi come fai senza?
+
+Prendi le informazioni sull'ambiente con:
+
+```bash
+python3 "$HOME/.claude/bin/arturo" segnala info
+```
+
+Scrivi la bozza in un file temporaneo, in markdown, con le stesse intestazioni dei modelli di
+GitHub e un blocco finale «Ambiente» con l'output di `info`:
+
+```markdown
+### Cosa stavi facendo?
+…
+### Cosa ti aspettavi che succedesse?
+…
+### Cosa è successo invece?
+…
+### Ambiente
+Arturo: … · Claude Code: … · Sistema: …
+```
+
+Per una proposta: «Quale problema vuoi risolvere, nel tuo lavoro?» e «Come immagini la
+soluzione?». Per un'integrazione: «Quale strumento?», «Per fare cosa, nel tuo lavoro?», «Come
+fai oggi, senza?».
+
+**Togli tu quello che non deve uscire**: nomi di persone, clienti e organizzazioni, contenuti
+di documenti ed email, indirizzi interni, nomi di file che dicono troppo. Lascia il fatto:
+«un cliente» al posto del nome basta. Lo script toglie da solo le cartelle personali e ferma i
+segreti, ma non riconosce un nome o un contenuto riservato: quello è il tuo lavoro.
+
+Il titolo dice il fatto in poche parole: «/fine si ferma al commit», non «Bug».
+
+## Passo 3 — Anteprima
+
+```bash
+python3 "$HOME/.claude/bin/arturo" segnala prepara --tipo TIPO --titolo "TITOLO" --file BOZZA
+```
+
+- Con exit 3 la bozza contiene qualcosa che sembra un segreto: toglilo e rilancia.
+- Con exit 0 mostra alla persona l'anteprima per intero, così come la stampa lo script.
+
+Poi scegli il canale. Leggi quello ricordato:
+
+```bash
+python3 "$HOME/.claude/bin/arturo" segnala canale
+```
+
+Se non c'è, chiedi una volta: «Hai un account GitHub?». Con un sì e `gh: collegato` in `info`
+il canale è `gh`. Con un sì e gh non collegato è `web`. Con un no è `email`. Ricordalo con
+`python3 "$HOME/.claude/bin/arturo" segnala canale CANALE`.
+
+Di' dove va, prima del sì:
+
+- `gh` e `web`: «Diventa una issue pubblica su GitHub: la vede chiunque.»
+- `email`: «Arriva solo a chi mantiene Arturo, all'indirizzo federico@stellakamikaze.org.»
+
+Chiedi: «La mando?». La persona può cambiare il testo o il canale. Un cambio del testo passa di
+nuovo da `prepara`.
+
+## Passo 4 — Invio, solo dopo il sì
+
+```bash
+python3 "$HOME/.claude/bin/arturo" segnala invia --canale CANALE --file PRONTA
+```
+
+`PRONTA` è il percorso stampato da `prepara` nella riga `PRONTA:`.
+
+- `gh`: la issue si apre subito. Dai il link.
+- `web`: si apre la pagina della issue già compilata. La persona controlla e preme Invia.
+- `email`: il testo è negli appunti. La persona apre il suo programma di posta, incolla e invia.
+  Tu non apri il programma di posta e non usi `mailto:`.
+
+Se `invia` esce con 1, riporta l'errore e proponi un altro canale.
+
+Chiudi con una riga: grazie, dove è andata, e che le risposte arrivano su GitHub o per email.

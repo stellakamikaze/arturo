@@ -6,7 +6,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 È il telaio di una config personale usata quotidianamente in produzione, estratto e igienizzato: **zero dati, zero credenziali, zero riferimenti a infrastrutture private**. Quello che resta è il metodo.
 
-In due righe: **18 guardie e automazioni**, **12 slash command**, **9 subagent**, **5 skill**, una **CLI per i todo** (`arturo todo`) — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
+In due righe: **18 guardie e automazioni**, **13 slash command**, **9 subagent**, **5 skill**, una **CLI per i todo** (`arturo todo`) — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
 
 I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure scrivi `python3 ~/.claude/bin/arturo web` nel terminale. La pagina è facoltativa e locale: risponde solo sul tuo computer (127.0.0.1), non si collega a internet e si spegne da sola dopo 30 minuti senza la pagina aperta.
 
@@ -42,7 +42,7 @@ Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
 
 1. **Il repository resta pubblico e con licenza MIT.** Non diventa privato e non viene cancellato.
 2. **Solo `/aggiorna` applica gli aggiornamenti, e solo dopo il tuo sì.** L'avvio della sessione e `/inizio` controllano soltanto se ci sono novità. Se hai collegato un tuo repository privato, `/inizio` sincronizza quello: sono le tue macchine, non codice di altri.
-3. **Niente telemetria.** Arturo non raccoglie dati su di te né su come lo usi. L'unico contatto automatico con l'esterno è il controllo degli aggiornamenti: un `git fetch` verso i repository della tua configurazione, al massimo ogni sei ore.
+3. **Niente telemetria.** Arturo non raccoglie dati su di te né su come lo usi. L'unico contatto automatico con l'esterno è il controllo degli aggiornamenti: un `git fetch` verso i repository della tua configurazione, al massimo ogni sei ore. Le segnalazioni di `/segnala` non sono telemetria: partono solo dopo che hai letto il testo e detto sì. La email arriva solo a chi mantiene Arturo, la issue su GitHub è pubblica.
 4. **Arturo resta in italiano.**
 5. **Se lo sviluppo si ferma, lo scrivo.** Lo dichiarano l'ultima entry di [`NOVITA.md`](NOVITA.md) e la cima di questa pagina. La copia che hai continua a funzionare, e puoi farne un fork.
 
@@ -219,7 +219,7 @@ Gli hook su `Edit`/`Write` proteggono config e forma. Gli scanner PostToolUse ri
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
 bin/                 La CLI arturo e i suoi moduli
 hooks/               18 guardie e automazioni
-commands/            12 slash command di workflow (incl. /setup, /aggiorna, /guidami, /novita, /strato)
+commands/            13 slash command di workflow (incl. /setup, /aggiorna, /guidami, /novita, /strato, /segnala)
 agents/              9 subagent specializzati
 skills/              5 skill (+ regole condivise in shared/)
 docs/principi/       Il curriculum: i principi spiegati in semplice
@@ -251,7 +251,7 @@ Fuori dal dispatcher:
 - `prompt-injection-scanner.py` — PostToolUse: segnala tentativi di prompt injection nei contenuti esterni (pattern EN + IT).
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
 - `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
-- `session-start.sh` / `session-end.sh` — titolo finestra, avvisi Git locali e cleanup degli unlock di sessione.
+- `session-start.sh` / `session-end.sh` — titolo finestra, avvisi Git locali, invito a `/segnala` (si spegne con `arturo segnala basta`) e cleanup degli unlock di sessione.
 - `controlla-config.py` — strumento, non un hook: controlla che la config sia integra (`settings.json` valido, nessun rebase o conflitto a metà) e stampa `CONFIG OK` o `CONFIG ROTTA`. Lo usano l'avvio, `/inizio`, `/aggiorna` e `/fine`.
 - `inject-now.sh` — inietta data/ora corrente a ogni prompt, e ricorda che una richiesta di lavoro
   comincia con `Skill(prompt-master)` e con PROMPT + BRIEF. Per spegnere il promemoria, cancella il
@@ -272,7 +272,8 @@ Pedagogia: **`/novita`** — racconta gli aggiornamenti dell'harness non ancora 
 Il ciclo di lavoro quotidiano:
 
 - **`/inizio <progetto>`** — sync della config, localizza il progetto, riprende l'ultimo handoff, ricrea i task pendenti cross-referenziandoli con `git log` (quelli già completati non risorgono). `/inizio gws` avvia invece l'onboarding gws.
-- **`/fine`** — review di completezza per le modifiche di codice, validate, commit selettivo e handoff.
+- **`/fine`** — review di completezza per le modifiche di codice, validate, commit selettivo e handoff. Alla fine chiede se Arturo si è inceppato o se ti manca qualcosa (al massimo una domanda a settimana, oppure subito dopo un intoppo).
+- **`/segnala`** — manda a chi mantiene Arturo un problema, un'idea o uno strumento da collegare. La bozza la scrive Claude, senza nomi né segreti. Tu la leggi e dici sì: parte come issue su GitHub, oppure come email a federico@stellakamikaze.org se GitHub non lo usi. Se non vuoi più gli inviti a segnalare: `python3 ~/.claude/bin/arturo segnala basta`.
 
 Sviluppo: `/progetto` (da idea a primo commit), `/discovery`, `/write-plan`, `/diagnosi` (disciplina diagnostica: fatti prima delle ipotesi; si chiama così per non nascondere il `/debug` di Claude Code).
 
@@ -391,7 +392,7 @@ Claude ti guida passo-passo seguendo [`docs/onboarding/gws.md`](docs/onboarding/
 |---|---|---|
 | `/fine` dice "Config push non riuscito" | hai clonato il repo originale, non un tuo fork (nessun accesso in scrittura) | normale; per sincronizzare imposta un tuo `origin` (vedi [Installazione](#installazione)) |
 | `/system-audit` segnala `hook diretto mancante` | un file citato in `settings.json` non c'è (copia manuale incompleta) | ricopia il file da Arturo e rilancia `/system-audit` |
-| Un guard chiede conferma su un comando legittimo | falso positivo del pattern | conferma ed esegui; se ricorre, apri una issue col comando esatto |
+| Un guard chiede conferma su un comando legittimo | falso positivo del pattern | conferma ed esegui; se ricorre, scrivi `/segnala` (o apri una issue col comando esatto) |
 | Commit bloccato con un messaggio che *parla* di comandi pericolosi | il messaggio contiene un pattern come `curl\|bash` | usa `git commit -F file` (il guard scansiona il comando, non il file) |
 | Nessun titolo nel terminale su macOS | `session-env/` mancante (creata al primo avvio) | innocuo; si risolve da solo |
 
@@ -405,8 +406,8 @@ history del repo è volutamente neutra; la firma sta qui.
 
 Arturo si sviluppa ogni giorno: è l'estratto di una configurazione usata in produzione, e
 le novità arrivano a chi lo usa con `/aggiorna`. Gli impegni verso chi lo usa stanno in
-[Impegni](#impegni). Le issue sono benvenute e vengono lette, ma non c'è promessa di
-risposta né di fix. Tutto è fatto per essere forkato e adattato. Come si rilascia una
+[Impegni](#impegni). Le segnalazioni sono benvenute e vengono lette: il modo più semplice è
+`/segnala`, che scrive la issue o la email con te. Non c'è promessa di risposta né di fix. Tutto è fatto per essere forkato e adattato. Come si rilascia una
 versione — branch, gate, novità, cosa succede se lo sviluppo si ferma — sta in
 [`docs/manutenzione.md`](docs/manutenzione.md).
 

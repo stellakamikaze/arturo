@@ -59,6 +59,10 @@ gh repo view stellakamikaze/arturo --json stargazerCount,forkCount
 gh issue list --repo stellakamikaze/arturo --state all
 ```
 
+Le segnalazioni di `/segnala` arrivano in due posti. Con un account GitHub diventano issue
+con il titolo `[problema]`, `[proposta]` o `[integrazione]`. Senza account arrivano per email a
+federico@stellakamikaze.org, con l'oggetto `[Arturo] [tipo] …`.
+
 Sono misure lato manutentore, mai lato utente: niente viene raccolto dentro la
 copia di Arturo installata su una macchina.
 

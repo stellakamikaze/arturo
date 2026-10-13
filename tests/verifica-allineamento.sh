@@ -54,6 +54,7 @@ BANCHI=(
   test_guardie_involucri.py
   test_aggiorna_sicuro.py
   test_aggiorna_copia.py
+  test_segnala.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"

@@ -105,6 +105,13 @@ computer, dall'archivio dei suoi todo, e lo stato sta in `~/.claude/session-env/
 Il referente non vede il percorso dei colleghi: né lo strato né altri strumenti di Arturo lo
 leggono o lo inviano. Se volete parlarne, chiedetelo alla persona nel colloquio dei 60 giorni.
 
+## Le segnalazioni: Arturo a chi lo mantiene, lo strato a te
+
+`/segnala` manda a chi mantiene Arturo un problema, un'idea o un'integrazione, e solo dopo il sì
+della persona. Non passa dal referente e può finire in una issue pubblica. Un problema dello
+strato dell'organizzazione (una skill del mestiere, la voce, un collegamento interno) arriva a te:
+`/segnala` lo riconosce e manda la persona da te, senza scrivere niente fuori.
+
 I todo da cui nasce il percorso (i perché e le note «Tenuto:») viaggiano come gli altri todo:
 `/fine` li manda solo al repository privato della config della persona. Se quel repository sta in
 un'organizzazione, chi ha accesso al repository può leggere quelle note. Tenete la config di ogni

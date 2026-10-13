@@ -249,12 +249,13 @@ def test_p10(repo: Path) -> None:
 
 def test_p11(repo: Path) -> None:
     dir_tpl = repo / ".github" / "ISSUE_TEMPLATE"
-    for nome in ("problema.yml", "proposta.yml", "config.yml"):
+    for nome in ("problema.yml", "proposta.yml", "integrazione.yml", "config.yml"):
         assert (dir_tpl / nome).is_file(), f"P11 manca .github/ISSUE_TEMPLATE/{nome}"
     problema = yaml.safe_load(read(dir_tpl / "problema.yml"))
     proposta = yaml.safe_load(read(dir_tpl / "proposta.yml"))
     config = yaml.safe_load(read(dir_tpl / "config.yml"))
-    for doc, nome in ((problema, "problema.yml"), (proposta, "proposta.yml")):
+    integrazione = yaml.safe_load(read(dir_tpl / "integrazione.yml"))
+    for doc, nome in ((problema, "problema.yml"), (proposta, "proposta.yml"), (integrazione, "integrazione.yml")):
         assert isinstance(doc, dict) and doc.get("name"), f"P11 {nome} senza name"
         body = doc.get("body")
         assert isinstance(body, list) and body, f"P11 {nome}: body non e' una lista non vuota"

@@ -479,6 +479,7 @@ COMANDI = {
     "todo": (todo, "i tuoi todo: «arturo todo aiuto» mostra tutti i comandi"),
     "web": (web, "la pagina dei todo nel browser, solo su questo computer"),
     "percorso": ("percorso", "il percorso a tappe: le decisioni che tieni, calcolate su questo computer"),
+    "segnala": ("segnala", "un problema, un'idea o un'integrazione per chi mantiene Arturo"),
 }
 
 
