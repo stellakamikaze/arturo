@@ -48,6 +48,11 @@ EVENTI = {
     "aggiorna": re.compile(r"^(applicato|conflitto|fallito)$"),
     "segnalazione": re.compile(r"^(problema|proposta|integrazione)$"),
 }
+# I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
+# ~/.claude/commands/ o portato dallo strato dell'organizzazione ha un nome suo, e non esce.
+# Il banco M10 controlla che l'elenco coincida con commands/ del repository.
+COMANDI = frozenset({"aggiorna", "diagnosi", "discovery", "fine", "guidami", "inizio", "novita", "progetto",
+                     "segnala", "setup", "sparring", "strato", "write-plan"})
 OGNI = 6 * 3600          # secondi fra due invii automatici
 CODA_MASSIMA = 2000      # righe: oltre, gli eventi nuovi si perdono finché la coda non parte
 LOTTO = 500
@@ -133,6 +138,8 @@ def sistema() -> str:
 
 def valido(evento: str, valore: str) -> bool:
     regola = EVENTI.get(evento)
+    if evento == "comando" and valore not in COMANDI:
+        return False
     return bool(regola) and isinstance(valore, str) and bool(regola.match(valore))
 
 

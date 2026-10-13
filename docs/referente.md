@@ -68,8 +68,8 @@ prossimo aggiornamento li sovrascrive. Il ciclo:
 
 ## La verifica dei 60 giorni
 
-Arturo non raccoglie dati su come lo usate. Dopo 60 giorni la verifica la fate voi, con un
-colloquio di mezz'ora. Lo strato funziona se:
+La telemetria di Arturo va a chi mantiene Arturo, non a te, e non dice chi usa cosa (sezione
+più sotto). Dopo 60 giorni la verifica la fate voi, con un colloquio di mezz'ora. Lo strato funziona se:
 
 - tu e almeno un collega lo usate ancora **ogni settimana** per un lavoro vero;
 - almeno una skill dello strato è entrata nell'abitudine di qualcuno che non sei tu;
@@ -78,7 +78,7 @@ colloquio di mezz'ora. Lo strato funziona se:
 Se nessuno lo usa più, chiedi perché prima di aggiungere altro: di solito manca una skill su un
 lavoro che conta, oppure una regola chiede troppe conferme.
 
-## Il pannello delle cose da fare: un mod
+## I mod: il pannello e la redazione dei segreti
 
 Arturo porta un pannello dentro Claude Code: `/dafare`. È un **mod**, cioè un plugin che Claude
 Code carica da solo dalla cartella `~/.claude/skills/dafare/`. Nell'elenco dei plugin si chiama
@@ -94,8 +94,16 @@ Le managed settings dell'organizzazione decidono se Claude Code carica i mod:
 - Una persona sola lo spegne con `claude plugin disable dafare@skills-dir`. Per la sola riga sopra
   il prompt basta `/dafare nascondi`.
 
-Se spegnete i mod, la persona perde solo il pannello e la riga sopra il prompt. La CLI
-`arturo todo` e la skill todo restano.
+Con la stessa regola Claude Code carica gli altri mod di Arturo, ognuno dalla sua cartella in
+`~/.claude/skills/`. Uno di loro protegge: `redazione-segreti` sostituisce i segreti negli output
+dei tool con la loro forma (tipo, lunghezza, hash) prima che Claude li legga. Gli altri sono comodità:
+`menu-contesto`, `cache-fredda`, `riscrivi-bash` e `agent-flow`.
+
+Se spegnete i mod, la persona perde il pannello, la riga sopra il prompt **e la redazione dei
+segreti**: Claude torna a leggere in chiaro un token stampato da un comando. Resta lo scanner
+`credential-leak-scanner.py`, che avvisa dopo, quando Claude l'ha già letto. Se dovete spegnere i
+mod, spegnete il solo pannello con `claude plugin disable dafare@skills-dir` e lasciate
+`redazione-segreti@skills-dir` acceso. La CLI `arturo todo` e la skill todo restano in ogni caso.
 
 ## Il percorso a tappe: si calcola sul computer della persona
 
@@ -105,10 +113,27 @@ computer, dall'archivio dei suoi todo, e lo stato sta in `~/.claude/session-env/
 Il referente non vede il percorso dei colleghi: né lo strato né altri strumenti di Arturo lo
 leggono o lo inviano. Se volete parlarne, chiedetelo alla persona nel colloquio dei 60 giorni.
 
+## La telemetria: a chi mantiene Arturo, non a te
+
+Arturo manda a chi lo mantiene una telemetria minima, accesa di default. Parte un elenco chiuso di
+eventi: l'avvio di una sessione, il nome dei comandi di Arturo usati, il nome della guardia che ha
+fermato un comando, l'esito di `/aggiorna` e il tipo delle segnalazioni. Con gli eventi partono un id
+casuale creato da Arturo, la versione e il sistema operativo, con il solo giorno. Non partono mai
+prompt, file, percorsi, nomi, risposte o il percorso a tappe. Lo strato dell'organizzazione e i suoi
+comandi non entrano negli eventi: il nome di un comando si registra solo se il comando è di Arturo.
+
+Il referente non riceve questi dati, e chi mantiene Arturo non sa a quale organizzazione appartiene
+un'installazione. Oggi la telemetria si spegne persona per persona, con
+`python3 ~/.claude/bin/arturo telemetria spegni` oppure con `DO_NOT_TRACK=1`. Se la vostra
+organizzazione chiede di spegnerla, dillo ai colleghi al momento dell'installazione.
+`python3 ~/.claude/bin/arturo telemetria mostra` fa vedere l'id e cosa parte. Le regole intere
+stanno nell'Impegno 3 del README.
+
 ## Le segnalazioni: Arturo a chi lo mantiene, lo strato a te
 
 `/segnala` manda a chi mantiene Arturo un problema, un'idea o un'integrazione, e solo dopo il sì
-della persona. Non passa dal referente e può finire in una issue pubblica. Un problema dello
+della persona. Non passa dal referente. Di default arriva direttamente a chi mantiene Arturo, per
+email; diventa una issue pubblica su GitHub solo se la persona lo sceglie. Un problema dello
 strato dell'organizzazione (una skill del mestiere, la voce, un collegamento interno) arriva a te:
 `/segnala` lo riconosce e manda la persona da te, senza scrivere niente fuori.
 

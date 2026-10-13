@@ -6,7 +6,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 È il telaio di una config personale usata quotidianamente in produzione, estratto e igienizzato: **zero dati, zero credenziali, zero riferimenti a infrastrutture private**. Quello che resta è il metodo.
 
-In due righe: **18 guardie e automazioni**, **13 slash command**, **9 subagent**, **5 skill**, una **CLI per i todo** (`arturo todo`), un **server open source** per la telemetria minima e le segnalazioni (`server/`) — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
+In due righe: **18 guardie e automazioni**, **13 slash command**, **9 subagent**, **5 skill**, una **CLI per i todo** (`arturo todo`), un **server open source** per la telemetria minima e le segnalazioni (`server/`) — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Il server lo tiene chi mantiene Arturo: a te non serve niente. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
 
 I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure scrivi `python3 ~/.claude/bin/arturo web` nel terminale. La pagina è facoltativa e locale: risponde solo sul tuo computer (127.0.0.1), non si collega a internet e si spegne da sola dopo 30 minuti senza la pagina aperta.
 
@@ -136,21 +136,29 @@ ARTURO: c'e' un aggiornamento (3 commit) — scaricalo con /aggiorna
 
 **`/aggiorna`** fa il resto: ti dice quale versione hai e quale arriva, ti racconta cosa cambia
 nelle guardie, controlla che non travolga le tue modifiche e applica dopo il tuo sì. Se
-l'applicazione non riesce, la annulla da sola: la tua copia non resta mai a metà. A mano:
+l'applicazione non riesce, la annulla da sola: la tua copia non resta mai a metà. L'aggiornamento
+gira prima in una **copia di prova** a parte, fuori da `~/.claude`. Claude Code legge `settings.json`
+e gli hook mentre lavora: un aggiornamento fatto lì dentro, anche se annullato subito, potrebbe
+lasciare per un attimo un file rotto. Solo se la copia di prova è integra il risultato arriva in
+`~/.claude`. A mano, con lo stesso script della versione in arrivo:
 
 ```bash
 git -C ~/.claude status --short --untracked-files=no   # deve restare vuoto: vedi sotto
 git -C ~/.claude fetch origin main          # upstream invece di origin, se hai un tuo repository
-git -C ~/.claude rebase origin/main || git -C ~/.claude rebase --abort
-python3 ~/.claude/hooks/controlla-config.py  # deve dire CONFIG OK
+git -C ~/.claude show origin/main:bin/aggiorna-applica.sh > /tmp/aggiorna-applica.sh
+bash /tmp/aggiorna-applica.sh ~/.claude rebase origin/main   # con un tuo repository: merge upstream/main
 ```
+
+La prima parola dell'ultima riga dice com'è andata: `APPLICATO`, `GIÀ AGGIORNATO`,
+`APPLICAZIONE NON PARTITA` o `APPLICAZIONE ANNULLATA` (in questi due casi `~/.claude` è com'era).
 
 In entrambi i casi, poi **chiudi e riapri Claude Code**: comandi, hook e skill si caricano all'avvio della sessione,
 quindi quelli appena arrivati non compaiono finché non riapri. Se la prima riga elenca dei file,
 sono modifiche tue non ancora salvate con un commit (tipico: `/setup` scrive in `settings.json`).
-Il `rebase` allora si rifiuta di partire e non tocca niente: salvale con `/fine`, poi lancia
-`/aggiorna`. Se il `rebase` si ferma perché un commit tuo tocca gli stessi punti, il
-`rebase --abort` lo annulla: poi lancia `/aggiorna` e risolvi con Claude un file per volta.
+Lo script allora risponde `APPLICAZIONE NON PARTITA` e non tocca niente: salvale con `/fine`, poi
+lancia `/aggiorna`. Se un commit tuo tocca gli stessi punti dell'aggiornamento, lo script risponde
+`APPLICAZIONE ANNULLATA` con un `CONFLITTO`: `~/.claude` resta com'era e la copia di prova aspetta.
+Lancia `/aggiorna` e risolvi con Claude un file per volta, nella copia di prova.
 
 Dopo il primo aggiornamento non serve più ricordarselo: all'avvio della sessione Arturo ti avvisa
 quando ci sono novità, **`/aggiorna`** le applica e **`/novita`** te le racconta.
@@ -164,7 +172,7 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 |---|---|
 | `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `docs/`, `templates/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `hooks/hosts-interni.local`, `data/` (compresi i tuoi todo in `data/todo/`), `projects/` e le altre cartelle di lavoro |
 
-`settings.json` è di Arturo, ma le tue modifiche restano come commit locali. `/aggiorna` ti mostra i file cambiati sia da te sia dall'aggiornamento prima di applicare. Se dopo l'aggiornamento `settings.json` non è JSON valido, `/aggiorna` torna alla versione di prima: un `settings.json` rotto spegnerebbe tutte le guardie. L'avvio della sessione te lo segnala con una riga `CONFIG ROTTA`.
+`settings.json` è di Arturo, ma le tue modifiche restano come commit locali. `/aggiorna` ti mostra i file cambiati sia da te sia dall'aggiornamento prima di applicare. Se nella copia di prova `settings.json` non è JSON valido o resta un conflitto, l'aggiornamento non arriva in `~/.claude`: un `settings.json` rotto spegnerebbe tutte le guardie. L'avvio della sessione te lo segnala con una riga `CONFIG ROTTA`.
 
 > Se `/aggiorna` o `/novita` rispondono «comando sconosciuto», la tua copia è precedente a quei
 > comandi: fai l'aggiornamento a mano con i comandi qui sopra e riapri Claude Code. Da lì in poi bastano gli slash.
@@ -237,8 +245,8 @@ Instradati dal dispatcher:
 
 | Guard | Cosa intercetta | Esito |
 |---|---|---|
-| `block-dangerous.py` | `rm` ricorsivi su tree protetti, export vault, scrittura su config/hook (anche via `cd`), creazione di file di unlock, lettura segreti via shell (incl. `perl`/`ruby`/`nc`/redirezioni e comandi dentro `$(...)`), `curl\|bash` e sue varianti (process-sub, `eval`, pipe verso interpreti), fork bomb, `docker volume rm` | blocco/conferma |
-| `commit-secret-gate.py` | segreti nel diff staged (e nel working tree su `git commit -a`), prima di ogni `git commit` / `gh pr create` | conferma |
+| `block-dangerous.py` | `rm` ricorsivi su tree protetti, export vault, scrittura su config/hook (anche via `cd`), creazione di file di unlock, lettura segreti via shell (incl. `perl`/`ruby`/`nc`/redirezioni e comandi dentro `$(...)`), `curl\|bash` e sue varianti (process-sub, `eval`, pipe verso interpreti), fork bomb, `docker volume rm`. Un `rm` ricorsivo si riconosce anche con le opzioni separate, in una subshell, dentro `sh -c` o `eval`, e dietro `xargs`, dove chiede sempre | blocco/conferma |
+| `commit-secret-gate.py` | segreti nel diff staged (e nel working tree su `git commit -a`), anche nei file aggiunti nello stesso comando, prima di ogni `git commit` / `gh pr create`; se il controllo va oltre il tempo, chiede | conferma |
 | `data-guard.py` | SQL distruttivo (DROP/TRUNCATE/DELETE senza WHERE), `docker compose down -v`, `rsync --delete` verso host remoti, overwrite di file `.db` | conferma |
 | `exfil-guard.py` | esfiltrazione verso host esterni: POST e upload (curl/wget/python); il ramo GET è disattivato per scelta di attrito | conferma |
 | `comms-guard.py` | invio email/messaggi da CLI (sendmail, msmtp, gws, smtplib, AppleScript Mail...) — policy draft-first | blocco |
@@ -248,8 +256,8 @@ Fuori dal dispatcher:
 
 - `protect_claude_md.py` — PreToolUse: protegge `CLAUDE.md`, settings e hook da modifiche via `Edit`/`Write` senza file di unlock; scrivere un file di unlock chiede sempre conferma.
 - `web-egress-guard.py` — PreToolUse su `WebFetch`/jina/`browser_navigate`, inclusa la navigazione Firefox: esfiltrazione via URL verso host esterni.
-- `credential-leak-scanner.py`` — PostToolUse: rileva token e chiavi negli output di Bash/WebFetch/MCP.
-- `prompt-injection-scanner.py` — PostToolUse: segnala tentativi di prompt injection nei contenuti esterni (pattern EN + IT).
+- `credential-leak-scanner.py` — PostToolUse: rileva token e chiavi negli output di Bash/WebFetch/MCP. L'avviso arriva a Claude, non solo a te (`additionalContext`).
+- `prompt-injection-scanner.py` — PostToolUse: segnala tentativi di prompt injection nei contenuti esterni (pattern EN + IT). Anche questo avviso arriva a Claude.
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
 - `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
 - `session-start.sh` / `session-end.sh` — titolo finestra, avvisi Git locali, avvio della telemetria (`arturo telemetria`), invito a `/segnala` (si spegne con `arturo segnala basta`) e cleanup degli unlock di sessione.
@@ -259,6 +267,15 @@ Fuori dal dispatcher:
   blocco `cat` finale dello script.
 - `input-notifier-start.sh` — notifica quando Claude aspetta input.
 - `statusline.js` — statusline con modello, task in corso, cartella e uso del contesto.
+
+**Cosa registrano gli hook per la telemetria.** Ogni hook scrive al massimo una riga nella coda
+`~/.claude/data/telemetria/coda.jsonl`, senza rete; la coda parte in un lotto al massimo ogni sei ore.
+`session-start.sh` registra l'evento `sessione` e manda la coda in background. `inject-now.sh`
+registra `comando` con il nome di un comando di Arturo, mai il testo del prompt: un comando tuo o
+dello strato della tua organizzazione non si registra. `bash-dispatcher.sh` registra `guardia` con il
+nome della guardia che ha bloccato, mai il comando. `bin/aggiorna-applica.sh` registra `aggiorna` con
+l'esito. Con la telemetria spenta nessuno di loro scrive. `python3 ~/.claude/bin/arturo telemetria mostra`
+fa vedere la coda così come parte.
 
 ### La rotta (`commands/`)
 
@@ -295,7 +312,7 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 - **`percorso`** — quando chiedi «a che punto sono?» o scrivi `/percorso`, Claude lancia `arturo percorso` e ti mostra la tappa (Osserva, Prova, Delega, Orchestra) con il todo che la prova, le cose che tieni per te e un esercizio della settimana sul tuo lavoro. Conta le decisioni che tieni, non il lavoro che deleghi. Il calcolo e lo stato restano sul tuo computer. I todo da cui nasce viaggiano come gli altri todo: solo verso il tuo repository privato.
 - **`italiano-semplificato`** — riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI.
 
-**Gli altri mod.** Claude Code li carica da soli dalle loro cartelle in `skills/`, come `/dafare`. Per spegnerne uno: `/plugin`, poi il mod, poi disattiva.
+**Gli altri mod.** Claude Code li carica da soli dalle loro cartelle in `skills/`, come `/dafare`. Per spegnerne uno: `/plugin`, poi il mod, poi disattiva. Attenzione a `redazione-segreti`: è l'unico mod che protegge, e spento lascia leggere a Claude i segreti in chiaro.
 
 - `skills/redazione-segreti/` sostituisce i segreti negli output dei tool con la loro forma (`[REDATTO:tipo len=N sha256=…]`) prima che Claude li legga, e blocca la scrittura di una sigla su disco. `credential-leak-scanner.py` resta come rete.
 - `skills/riscrivi-bash/` corregge prima del dispatcher due errori Bash ricorrenti sul Mac: un glob non quotato in un'opzione in zsh (`--include=*.md`) e `timeout`, che sul Mac non esiste. I blocchi di `bash-dispatcher.sh` restano come rete.
@@ -371,7 +388,7 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 
 ## Multi-macchina
 
-Il repo config **È** il canale di sync: `/fine` committa e pusha, `/inizio` pulla. Gli handoff stanno solo in `~/.claude/data/handoffs/`, mai nel repository del progetto, ed entrano nel push solo se `gh repo view` dice che il remote della config è privato. Lo stesso vale per i todo in `~/.claude/data/todo/`: il file è un registro in cui ogni modifica è una riga in più, e `.gitattributes` lo unisce senza conflitti. Se due macchine creano offline un todo con lo stesso numero, il più recente prende un numero nuovo e `arturo todo` te lo dice. `session-start.sh` avvisa se la macchina è rimasta indietro rispetto a `origin/main`. Per usarlo su più macchine: clona il **tuo** fork/repo privato (vedi [Installazione](#installazione)) come `~/.claude` su ognuna.
+Il repo config **È** il canale di sync: `/fine` committa e pusha, `/inizio` scarica le modifiche delle tue altre macchine. Anche il sync passa dalla copia di prova di `/aggiorna`: se il risultato non è integro, la config resta com'era e `/inizio` te lo dice. Gli handoff stanno solo in `~/.claude/data/handoffs/`, mai nel repository del progetto, ed entrano nel push solo se `gh repo view` dice che il remote della config è privato. Lo stesso vale per i todo in `~/.claude/data/todo/`: il file è un registro in cui ogni modifica è una riga in più, e `.gitattributes` lo unisce senza conflitti. Se due macchine creano offline un todo con lo stesso numero, il più recente prende un numero nuovo e `arturo todo` te lo dice. `session-start.sh` avvisa se la macchina è rimasta indietro rispetto a `origin/main`. Per usarlo su più macchine: clona il **tuo** fork/repo privato (vedi [Installazione](#installazione)) come `~/.claude` su ognuna.
 
 ---
 

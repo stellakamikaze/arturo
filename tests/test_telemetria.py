@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M01-M09: la telemetria minima di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
+"""M01-M10: la telemetria minima di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
 
 Ogni caso gira con una HOME finta e un server HTTP finto su 127.0.0.1 (ARTURO_TELEMETRIA_URL):
 niente parte mai verso il server vero. Sulla base db96709, prima della telemetria, ogni controllo
@@ -228,8 +228,27 @@ def test_m09(repo: Path) -> None:
     assert "Niente telemetria" not in read(repo / "README.md").split("## Indice")[0], "M09 il README promette ancora niente telemetria"
 
 
+def test_m10(repo: Path) -> None:
+    # Un comando della persona (qui nel suo ~/.claude/commands, non un link al repo) ha un nome suo.
+    lab = Lab(repo)
+    mie = lab.home / ".claude" / "commands"
+    mie.unlink()
+    mie.mkdir()
+    (mie / "cliente-rossi.md").write_text("Un comando mio.\n", encoding="utf-8")
+    (mie / "fine.md").write_text("La /fine di Arturo.\n", encoding="utf-8")
+    lab.hook("inject-now.sh", json.dumps({"prompt": "/cliente-rossi"}))
+    lab.arturo("telemetria", "registra", "comando", "cliente-rossi")
+    lab.hook("inject-now.sh", json.dumps({"prompt": "/fine"}))
+    assert [(e["evento"], e["valore"]) for e in lab.coda()] == [("comando", "fine")], \
+        f"M10 parte il nome di un comando che non è di Arturo: {lab.coda()}"
+    elenco = re.search(r"COMANDI = frozenset\(\{(.*?)\}\)", read(repo / "bin" / "telemetria.py"), re.S)
+    assert elenco, "M10 manca l'elenco dei comandi di Arturo"
+    assert sorted(re.findall(r'"([a-z0-9-]+)"', elenco.group(1))) == sorted(f.stem for f in (repo / "commands").glob("*.md")), \
+        "M10 l'elenco dei comandi non coincide con commands/"
+
+
 TESTS = {"M01": test_m01, "M02": test_m02, "M03": test_m03, "M04": test_m04, "M05": test_m05,
-         "M06": test_m06, "M07": test_m07, "M08": test_m08, "M09": test_m09}
+         "M06": test_m06, "M07": test_m07, "M08": test_m08, "M09": test_m09, "M10": test_m10}
 
 
 def main() -> int:
