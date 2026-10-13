@@ -245,7 +245,7 @@ Instradati dal dispatcher:
 
 | Guard | Cosa intercetta | Esito |
 |---|---|---|
-| `block-dangerous.py` | `rm` ricorsivi su tree protetti, export vault, scrittura su config/hook (anche via `cd`), creazione di file di unlock, lettura segreti via shell (incl. `perl`/`ruby`/`nc`/redirezioni e comandi dentro `$(...)`), `curl\|bash` e sue varianti (process-sub, `eval`, pipe verso interpreti), fork bomb, `docker volume rm`. Un `rm` ricorsivo si riconosce anche con le opzioni separate, in una subshell, dentro `sh -c` o `eval`, e dietro `xargs`, dove chiede sempre | blocco/conferma |
+| `block-dangerous.py` | `rm` ricorsivi su tree protetti, export vault, scrittura su config/hook (anche via `cd`), creazione di file di unlock, lettura segreti via shell (incl. `perl`/`ruby`/`nc`/redirezioni e comandi dentro `$(...)`), `curl\|bash` e sue varianti (process-sub, `eval`, pipe verso interpreti), fork bomb, `docker volume rm`. Un `rm` ricorsivo si riconosce anche con le opzioni separate, in una subshell, dentro `sh -c` o `eval`, e dietro `xargs`, dove chiede sempre. Una scrittura shell su un `CLAUDE.md` chiede conferma | blocco/conferma |
 | `commit-secret-gate.py` | segreti nel diff staged (e nel working tree su `git commit -a`), anche nei file aggiunti nello stesso comando, prima di ogni `git commit` / `gh pr create`; se il controllo va oltre il tempo, chiede | conferma |
 | `data-guard.py` | SQL distruttivo (DROP/TRUNCATE/DELETE senza WHERE), `docker compose down -v`, `rsync --delete` verso host remoti, overwrite di file `.db` | conferma |
 | `exfil-guard.py` | esfiltrazione verso host esterni: POST e upload (curl/wget/python); il ramo GET è disattivato per scelta di attrito | conferma |

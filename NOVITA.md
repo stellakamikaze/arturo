@@ -11,6 +11,25 @@ modo di lavorare.
 
 ---
 
+## 2026-10-13 — Meno dati in uscita, copie di prova che non si perdono, guardie più precise
+
+**Cosa cambia**: quattro correzioni. La telemetria manda il nome di un comando solo se il comando è
+di Arturo: un comando che hai scritto tu in `~/.claude/commands/` ha un nome tuo, e da oggi non parte.
+Se un aggiornamento o il sync fra le tue macchine si è fermato su un conflitto, la copia di prova
+con il conflitto resta finché non la concludi o dici di scartarla: prima un `/aggiorna` successivo la
+toglieva in silenzio, con il lavoro che c'era dentro. All'avvio della sessione Arturo te la ricorda.
+`/segnala` torna al canale diretto anche se con la prima versione avevi usato la email o il web.
+`/strato` funziona dal secondo passo in poi, e `pubblica` non manda niente se un controllo fallisce.
+
+**Il principio dietro**: una promessa vale per quello che il codice fa, non per quello che il README
+dice. La telemetria prometteva «il nome di un comando di Arturo», e mandava il nome di qualunque
+comando. Lo stesso vale per le guardie: un invio verso fuori non deve passare solo perché nello
+stesso comando compare anche un indirizzo interno.
+
+**Da sapere**: scrivere un `CLAUDE.md` da terminale (`>`, `sed -i`, `cp`) ora chiede conferma, come
+già succedeva modificandolo con Claude. Leggerlo o copiarlo altrove no. Il controllo delle emoji
+guarda solo il testo che Claude ha appena scritto: le emoji che avevi già messo in un file restano.
+
 ## 2026-10-13 — Telemetria minima, e /segnala arriva da sola
 
 **Cosa cambia**: Arturo comincia a mandare a chi lo mantiene pochi dati d'uso anonimi. Sono
