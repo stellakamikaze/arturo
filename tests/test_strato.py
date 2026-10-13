@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""S01-S05: lo strato dell'organizzazione (30/9/2026).
+"""S01-S06: lo strato dell'organizzazione (30/9/2026).
 
 S01 il modello in templates/strato/ e' un marketplace con un plugin valido.
 S02 dati-in-uscita.py chiede conferma solo quando un dato riservato esce, e lascia
@@ -142,7 +142,24 @@ def test_s04(repo: Path) -> None:
     assert "/strato" in read(repo / "README.md"), "S04 il README non nomina /strato"
 
 
-TESTS = {"S01": test_s01, "S02": test_s02, "S03": test_s03, "S04": test_s04, "S05": test_s05}
+def test_s06(repo: Path) -> None:
+    # Ogni blocco di /strato gira in una shell nuova: una variabile letta deve nascere nello stesso blocco.
+    import re
+    testo = (repo / "commands" / "strato.md").read_text(encoding="utf-8")
+    ambiente = {"HOME", "PROJECTS_BASE", "ARGUMENTS"}
+    for n, blocco in enumerate(re.findall(r"```bash\n(.*?)```", testo, re.S), 1):
+        python = re.sub(r"<<'PY'\n.*?\n\s*PY\n", "\n", blocco, flags=re.S)
+        definite = set(re.findall(r"\b([A-Z_][A-Z0-9_]*)=", python)) | set(re.findall(r"read -r ((?:[A-Z_]+ ?)+)", python) and
+                                                                         " ".join(re.findall(r"read -r ((?:[A-Z_]+ ?)+)", python)).split())
+        lette = set(re.findall(r"\$\{?([A-Z_][A-Z0-9_]*)", python))
+        mancanti = sorted(lette - definite - ambiente)
+        assert not mancanti, f"S06 il blocco {n} di /strato legge variabili nate in un altro blocco: {mancanti}"
+    pubblica = testo[testo.index("## pubblica"):testo.index("## installa")]
+    assert "$(pwd)" not in pubblica and "|| echo \"NON PUBBLICATO" in pubblica, \
+        "S06 pubblica cerca lo strato nella cartella corrente o pubblica anche con un controllo fallito"
+
+
+TESTS = {"S01": test_s01, "S02": test_s02, "S03": test_s03, "S04": test_s04, "S05": test_s05, "S06": test_s06}
 
 
 def main() -> int:

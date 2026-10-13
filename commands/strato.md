@@ -17,6 +17,10 @@ nessun output grezzo senza spiegazione.
 Leggi `$ARGUMENTS` e segui solo la fase che corrisponde. Senza argomento, spiega in tre righe le
 tre fasi e chiedi quale serve.
 
+Ogni blocco gira in una shell nuova: le variabili di un blocco non arrivano al successivo. Per
+questo ogni blocco comincia ricavando da sé quello che gli serve. In `crea` metti lo stesso nome
+dell'organizzazione nella prima riga di ogni blocco.
+
 ---
 
 ## crea — il referente prepara lo strato
@@ -36,6 +40,10 @@ tre fasi e chiedi quale serve.
 2. **Copia il modello e riempi il nome.**
 
    ```bash
+   ORG="<nome dell'organizzazione>"
+   SLUG=$(printf '%s' "$ORG" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
+   PB="${PROJECTS_BASE:-$HOME/Documents/ClaudeCode}"; PB="${PB/#\~/$HOME}"
+   DEST="$PB/$SLUG-strato"
    cp -R "$HOME/.claude/templates/strato" "$DEST"
    python3 - "$DEST" "$SLUG" "$ORG" <<'PY'
    import sys
@@ -64,6 +72,10 @@ tre fasi e chiedi quale serve.
    dalla cartella, senza installarlo:
 
    ```bash
+   ORG="<nome dell'organizzazione>"
+   SLUG=$(printf '%s' "$ORG" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
+   PB="${PROJECTS_BASE:-$HOME/Documents/ClaudeCode}"; PB="${PB/#\~/$HOME}"
+   DEST="$PB/$SLUG-strato"
    claude plugin validate "$DEST" && claude plugin validate "$DEST/plugins/strato"
    echo "Per provarlo: cd \"$DEST\" && claude --plugin-dir plugins/strato"
    ```
@@ -74,6 +86,10 @@ tre fasi e chiedi quale serve.
 5. **Il repository dell'organizzazione.** Deve essere **privato**. Se c'è `gh` ed è collegato:
 
    ```bash
+   ORG="<nome dell'organizzazione>"
+   SLUG=$(printf '%s' "$ORG" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
+   PB="${PROJECTS_BASE:-$HOME/Documents/ClaudeCode}"; PB="${PB/#\~/$HOME}"
+   DEST="$PB/$SLUG-strato"
    gh repo create "$SLUG-strato" --private --source "$DEST" --remote origin
    ```
 
@@ -85,14 +101,28 @@ tre fasi e chiedi quale serve.
 
 ## pubblica — il referente manda le modifiche ai colleghi
 
+Lo strato si cerca nella cartella corrente, poi fra le cartelle `*-strato` dei progetti. Mai
+nella config: un `git add -A` lì pubblicherebbe la config della persona.
+
 ```bash
-DEST="${DEST:-$(pwd)}"
-cd "$DEST" || exit 1
-python3 -c 'import json,sys; [json.load(open(f)) for f in sys.argv[1:]]' .claude-plugin/marketplace.json plugins/strato/.claude-plugin/plugin.json plugins/strato/hooks/hooks.json && echo "JSON validi"
-python3 -c 'open("plugins/strato/dati-riservati.txt", encoding="utf-8").read()' && echo "dati-riservati.txt leggibile"
-claude plugin validate . >/dev/null && echo "marketplace valido"
-date +%Y-%m-%d > plugins/strato/.ultima-pubblicazione
-git add -A && git commit -m "strato: pubblicazione $(date +%Y-%m-%d)" && git push -u origin main
+PB="${PROJECTS_BASE:-$HOME/Documents/ClaudeCode}"; PB="${PB/#\~/$HOME}"
+DEST=$(git rev-parse --show-toplevel 2>/dev/null)
+if [ ! -f "$DEST/plugins/strato/.claude-plugin/plugin.json" ]; then
+  CANDIDATI=$(find "$PB" -mindepth 1 -maxdepth 1 -type d -name '*-strato' 2>/dev/null)
+  [ "$(printf '%s\n' "$CANDIDATI" | grep -c .)" = 1 ] && DEST=$CANDIDATI || DEST=""
+fi
+if [ -z "$DEST" ] || [ ! -f "$DEST/plugins/strato/.claude-plugin/plugin.json" ]; then
+  echo "NON TROVO LO STRATO: chiedi al referente in quale cartella sta, poi lancia il blocco da lì."
+else
+  # Un controllo che fallisce ferma la catena: niente commit e niente push.
+  cd "$DEST" \
+    && python3 -c 'import json,sys; [json.load(open(f)) for f in sys.argv[1:]]' .claude-plugin/marketplace.json plugins/strato/.claude-plugin/plugin.json plugins/strato/hooks/hooks.json && echo "JSON validi" \
+    && python3 -c 'open("plugins/strato/dati-riservati.txt", encoding="utf-8").read()' && echo "dati-riservati.txt leggibile" \
+    && claude plugin validate . >/dev/null && echo "marketplace valido" \
+    && date +%Y-%m-%d > plugins/strato/.ultima-pubblicazione \
+    && git add -A && git commit -m "strato: pubblicazione $(date +%Y-%m-%d)" && git push -u origin main \
+    || echo "NON PUBBLICATO: un passo sopra non è riuscito."
+fi
 ```
 
 Il commit passa dal controllo segreti di Arturo: se trova un segreto, fermati e spiega come
@@ -125,6 +155,7 @@ repository. Chi non usa Arturo può installare lo strato dal comando `/plugin` d
 2. **Installa.**
 
    ```bash
+   URL="<indirizzo del repository>"
    # Nomi di marketplace e plugin letti dal repository stesso, non indovinati dall'indirizzo.
    COPIA=$(mktemp -d)
    git clone -q --depth 1 "$URL" "$COPIA/strato"
