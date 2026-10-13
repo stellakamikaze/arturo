@@ -43,6 +43,7 @@ REPO = "stellakamikaze/arturo"
 EMAIL = "federico@stellakamikaze.org"
 TIPI = ("problema", "proposta", "integrazione")
 CANALI = ("arturo", "gh", "web", "email")
+VERSIONE_STATO = 2
 GIORNI_TRA_DOMANDE = 7
 # GitHub rifiuta URL troppo lunghi: oltre questa soglia la pagina si apre col solo titolo.
 URL_MASSIMO = 6000
@@ -98,7 +99,9 @@ def leggi_stato() -> dict:
     for chiave in ("domanda", "inviata"):
         if _data(grezzo.get(chiave)):
             stato[chiave] = grezzo[chiave]
-    if grezzo.get("canale") in CANALI:
+    # Lo stato senza versione viene dalla prima /segnala del 13/10, che non aveva il canale arturo:
+    # un canale manuale ricordato allora non era una scelta contro il canale diretto, e decade.
+    if grezzo.get("canale") in CANALI and (grezzo.get("versione") == VERSIONE_STATO or grezzo["canale"] == "arturo"):
         stato["canale"] = grezzo["canale"]
     if grezzo.get("pausa") == "sempre":
         stato["pausa"] = "sempre"
@@ -110,7 +113,7 @@ def cambia_stato(cambia) -> dict:
         stato = leggi_stato()
         cambia(stato)
         # La chiave «pausa» resta scritta anche quando è spenta: session-start la cerca col grep.
-        pulito = {"domanda": stato.get("domanda"), "inviata": stato.get("inviata"),
+        pulito = {"versione": VERSIONE_STATO, "domanda": stato.get("domanda"), "inviata": stato.get("inviata"),
                   "canale": stato.get("canale"), "pausa": stato.get("pausa")}
         ts.scrivi_json_atomico(file_stato(), pulito)
     return pulito

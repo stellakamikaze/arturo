@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""S01-S08: /segnala, il canale con cui chi usa Arturo manda problemi, idee e integrazioni.
+"""S01-S09: /segnala, il canale con cui chi usa Arturo manda problemi, idee e integrazioni.
 
 Ogni caso gira con una HOME finta e con comandi finti nel PATH (open, xdg-open, pbcopy, xclip,
 wl-copy, gh) che scrivono su file cosa hanno ricevuto. Niente parte davvero.
@@ -184,8 +184,24 @@ def test_s08(repo: Path) -> None:
     assert "data/segnalazioni/" in read(repo / ".gitignore"), "S08 le copie delle segnalazioni entrano in git"
 
 
+def test_s09(repo: Path) -> None:
+    # Lo stato scritto dalla prima versione del 13/10 non ha «versione»: il canale manuale decade.
+    lab = Lab(repo)
+    f = lab.home / ".claude" / "session-env" / "segnala.json"
+    f.parent.mkdir(parents=True)
+    f.write_text(json.dumps({"domanda": "2026-10-13", "inviata": "2026-10-13", "canale": "web", "pausa": None}),
+                 encoding="utf-8")
+    r = lab.arturo("canale")
+    assert (r.returncode, r.stdout.strip()) == (3, "nessuno"), f"S09 resta il canale manuale della prima versione: {r.stdout!r}"
+    assert lab.arturo("canale", "email").returncode == 0
+    assert lab.arturo("canale").stdout.strip() == "email", "S09 un canale scelto dopo l'aggiornamento non resta"
+    assert lab.stato()["versione"] == 2 and lab.stato()["inviata"] == "2026-10-13", "S09 lo stato perde dati"
+    f.write_text(json.dumps({"canale": "arturo"}), encoding="utf-8")
+    assert lab.arturo("canale").stdout.strip() == "arturo", "S09 il canale diretto non resta"
+
+
 TESTS = {"S01": test_s01, "S02": test_s02, "S03": test_s03, "S04": test_s04,
-         "S05": test_s05, "S06": test_s06, "S07": test_s07, "S08": test_s08}
+         "S05": test_s05, "S06": test_s06, "S07": test_s07, "S08": test_s08, "S09": test_s09}
 
 
 def main() -> int:
