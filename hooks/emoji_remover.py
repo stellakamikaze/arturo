@@ -2,6 +2,10 @@
 """
 Emoji checker hook for Claude Code.
 Detects emojis in edited files and asks Claude to remove them.
+
+Guarda solo il testo appena scritto dal tool (new_string di Edit e MultiEdit, content di Write,
+new_source di NotebookEdit), non il file intero: un'emoji che c'era gia', messa da una persona,
+non fa riscrivere a Claude righe che non ha toccato.
 """
 import json
 import sys
@@ -62,17 +66,20 @@ try:
     tool_name = input_data.get('tool_name', '')
     tool_input = input_data.get('tool_input', {})
 
-    # MultiEdit has edits[] array, not a single file_path
-    file_paths = []
+    # Coppie (file, testo scritto dal tool). MultiEdit ha file_path in cima e edits[] con
+    # new_string; una forma vecchia aveva file_path dentro ogni edit.
+    scritti = []
     if tool_name == 'MultiEdit':
-        for edit in tool_input.get('edits', []):
-            fp = edit.get('file_path', '')
-            if fp and os.path.exists(fp):
-                file_paths.append(fp)
+        for edit in tool_input.get('edits', []) or []:
+            fp = edit.get('file_path') or tool_input.get('file_path', '')
+            scritti.append((fp, edit.get('new_string', '')))
     else:
-        fp = tool_input.get('file_path', '')
-        if fp and os.path.exists(fp):
-            file_paths.append(fp)
+        testo = (tool_input.get('new_string') if tool_name == 'Edit'
+                 else tool_input.get('new_source') if tool_name == 'NotebookEdit'
+                 else tool_input.get('content'))
+        scritti.append((tool_input.get('file_path') or tool_input.get('notebook_path', ''), testo))
+    scritti = [(fp, t) for fp, t in scritti if fp and isinstance(t, str) and os.path.exists(fp)]
+    file_paths = [fp for fp, _ in scritti]
 
     if not file_paths:
         sys.exit(0)
@@ -94,7 +101,7 @@ try:
                 '.scss', '.vue', '.svelte', '.go', '.rs', '.rb', '.java', '.kt',
                 '.swift', '.c', '.h', '.cpp', '.sql', '.php'}
 
-    for fp in file_paths:
+    for fp, content in scritti:
         # Skip binary and non-text files (per-file check for MultiEdit)
         if os.path.splitext(fp)[1].lower() in SKIP_EXT:
             continue
@@ -104,9 +111,6 @@ try:
         # Skip file di contenuto social: le emoji sono contenuto, non rumore.
         if is_social_content_file(fp):
             continue
-
-        with open(fp, 'r', encoding='utf-8') as f:
-            content = f.read()
 
         emojis_found = [
             ch for seq in EMOJI_PATTERN.findall(content)
@@ -118,7 +122,7 @@ try:
             # (permissionDecision/deny e' sintassi PreToolUse e non si applica
             # a un'azione gia' avvenuta.)
             print(
-                f"Emoji nel file di codice {fp}: {sample}. "
+                f"Emoji nel testo appena scritto in {fp}: {sample}. "
                 "Nel codice sostituiscile con testo come [X], [OK], [ATTENZIONE].",
                 file=sys.stderr
             )

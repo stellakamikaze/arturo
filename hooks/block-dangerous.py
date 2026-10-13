@@ -82,6 +82,13 @@ CONFIG_WRITE_RE = re.compile(
     r"|open\(\s*['\"][^'\"]*\.claude/(?:settings|hooks/|\.claude\.json)[^'\"]*['\"]\s*,\s*['\"][wa])",
     re.IGNORECASE,
 )
+# CLAUDE.md, in qualunque cartella: via Edit/Write lo protegge protect_claude_md.py con un
+# unlock, qui si copre il vettore shell (>, sed -i, cp, tee...), che altrimenti lo riscrive senza prompt.
+CLAUDE_MD_WRITE_RE = re.compile(
+    r"(?:>>?\s*[^\s'\";|&]*CLAUDE(?:\.local)?\.md\b"
+    r"|\bsed\b[^|;&]*-i[^|;&]*CLAUDE(?:\.local)?\.md\b"
+    r"|open\(\s*['\"][^'\"]*CLAUDE(?:\.local)?\.md['\"]\s*,\s*['\"][wa])"
+)
 # Binari che scrivono un file passato come argomento.
 _WRITE_BINS = frozenset("tee cp mv install rsync ln dd truncate touch".split())
 
@@ -319,10 +326,16 @@ def _under_claude_config(p):
     return False
 
 
-def _writes_config(command, cwd):
+def _is_claude_md(p):
+    return bool(p) and os.path.basename(p) in ("CLAUDE.md", "CLAUDE.local.md")
+
+
+def _writes_config(command, cwd, protetto=None):
     """Copre `cd ~/.claude/hooks && > file` (target relativo dopo un cd): il match
     testuale di CONFIG_WRITE_RE vede solo i path assoluti che contengono `.claude/`.
-    Qui si traccia il cd per segmento e si risolve il target reale del redirect/binario."""
+    Qui si traccia il cd per segmento e si risolve il target reale del redirect/binario.
+    `protetto` sceglie cosa si cerca: di default config e hook, oppure _is_claude_md."""
+    protetto = protetto or _under_claude_config
     cwd_decl = None
     for seg in re.split(r"&&|\|\||;|\||\n", command):
         seg = seg.strip()
@@ -346,24 +359,28 @@ def _writes_config(command, cwd):
                 output = token.partition("=")[2]
             elif token == "--output" and index + 1 < len(toks):
                 output = toks[index + 1]
-            if output and _under_claude_config(_resolve(output, base_cwd)):
+            if output and protetto(_resolve(output, base_cwd)):
                 return True
         # redirect > / >> verso un target
         m = re.search(r">>?\s*([^\s'\";|&]+)", seg)
-        if m and _under_claude_config(_resolve(m.group(1), base_cwd)):
+        if m and protetto(_resolve(m.group(1), base_cwd)):
             return True
         # binario di scrittura con un target come argomento
         cmd0 = os.path.basename(toks[0])
         if cmd0 in _WRITE_BINS:
-            for t in toks[1:]:
-                if t.startswith("-"):
-                    continue
-                if _under_claude_config(_resolve(t, base_cwd)):
+            argomenti = [t for t in toks[1:] if not t.startswith("-")]
+            # cp, install, rsync e ln scrivono solo l'ultimo argomento (la sorgente si legge),
+            # salvo -t/--target-directory, che sposta la destinazione: allora contano tutti.
+            if cmd0 in ("cp", "install", "rsync", "ln") and argomenti and not any(
+                    t == "-t" or t.startswith("--target-directory") for t in toks[1:]):
+                argomenti = argomenti[-1:]
+            for t in argomenti:
+                if protetto(_resolve(t, base_cwd)):
                     return True
         # sed -i sul file
         if cmd0 == "sed" and "-i" in seg:
             for t in toks[1:]:
-                if not t.startswith("-") and _under_claude_config(_resolve(t, base_cwd)):
+                if not t.startswith("-") and protetto(_resolve(t, base_cwd)):
                     return True
     return False
 
@@ -507,6 +524,13 @@ def main() -> int:
         return _ask(
             "Scrittura via shell su settings/hook di Claude Code: modificherebbe "
             "le guardie stesse. Conferma solo se stai aggiornando la config di proposito."
+        )
+
+    # 2a) Scrittura shell su un CLAUDE.md -> ask (le istruzioni di ogni sessione futura)
+    if CLAUDE_MD_WRITE_RE.search(command) or _writes_config(command, cwd, _is_claude_md):
+        return _ask(
+            "Scrittura via shell su un CLAUDE.md: cambierebbe le istruzioni di ogni sessione "
+            "futura in quella cartella. Conferma solo se sei tu a volerlo."
         )
 
     # 2b) Creazione di un file di unlock -> ask (sbloccherebbe l'auto-modifica)

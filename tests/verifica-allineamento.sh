@@ -59,6 +59,7 @@ BANCHI=(
   test_aggiorna_copia.py
   test_segnala.py
   test_telemetria.py
+  test_guardie_minori.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -122,6 +123,8 @@ BASELINE=(
   "test_segnala.py 75c8e23"
   # Telemetria minima e segnalazioni dirette (13/10/2026): db96709, il main di /segnala.
   "test_telemetria.py db96709"
+  # I finding minori della review delle guardie (13/10/2026): 69d7365, l'ultimo dev prima delle correzioni.
+  "test_guardie_minori.py 69d7365"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

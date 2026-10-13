@@ -135,9 +135,12 @@ def test_r13(repo: Path) -> None:
         testo.write_text("Ciao a tutti \U0001F389 ci vediamo presto \u2764\n", encoding="utf-8")
         codice = home / "script.py"
         codice.write_text('print("fatto \U0001F389")\n', encoding="utf-8")
-        r = hook_diretto(repo, home, "emoji_remover.py", {"tool_name": "Edit", "tool_input": {"file_path": str(testo)}})
+        # La forma vera di un Write: il testo scritto arriva in content (dal 13/10 l'hook guarda solo quello).
+        r = hook_diretto(repo, home, "emoji_remover.py", {"tool_name": "Write", "tool_input": {
+            "file_path": str(testo), "content": testo.read_text(encoding="utf-8")}})
         assert r.returncode == 0, f"R13 emoji tolte da un testo dell'utente: {r.stderr.strip()}"
-        r = hook_diretto(repo, home, "emoji_remover.py", {"tool_name": "Edit", "tool_input": {"file_path": str(codice)}})
+        r = hook_diretto(repo, home, "emoji_remover.py", {"tool_name": "Write", "tool_input": {
+            "file_path": str(codice), "content": codice.read_text(encoding="utf-8")}})
         assert r.returncode == 2, "R13 emoji nel codice non segnalate"
 
 
