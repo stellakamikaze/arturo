@@ -245,5 +245,6 @@ Chiudi con un riepilogo in linguaggio semplice:
 - **Come iniziare a lavorare**: «Per avviare un progetto usa `/progetto <nome>`; per riprendere una sessione `/inizio <nome>`; per chiudere `/fine`. Quando ti viene in mente qualcosa da fare, dimmi «ricordami di…»: lo ritrovi a ogni `/inizio`.»
 - **Come imparare un passo alla volta**: «Per imparare un passo alla volta: dimmi «a che punto sono?» o usa `/percorso`.»
 - **Come restare aggiornato**: all'avvio della sessione Arturo controlla da solo se c'è una versione nuova e lo segnala (`ARTURO: c'e' un aggiornamento — scaricalo con /aggiorna`). **`/aggiorna`** la scarica e la applica, **`/novita`** racconta cosa è cambiato e propone lo sparring.
+- **Telemetria**: «Arturo manda a chi lo mantiene pochi dati d'uso anonimi (quali comandi usi, quali guardie ti fermano, se gli aggiornamenti vanno a buon fine), mai i tuoi testi o file. Servono a vedere dove le persone si bloccano. Se non vuoi: `python3 ~/.claude/bin/arturo telemetria spegni`.»
 - **Come far migliorare Arturo**: «Se qualcosa non funziona, o ti manca uno strumento, dimmelo o scrivi `/segnala`: preparo io il testo per chi mantiene Arturo, e parte solo con il tuo sì.»
 - Ricorda che `/system-audit` si può rilanciare in qualsiasi momento per ricontrollare l'harness.

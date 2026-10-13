@@ -5,11 +5,12 @@ persona e toglie a giudizio nomi, clienti e contenuti di lavoro. Questo modulo f
 deve essere sempre uguale:
 
 - prepara: toglie i percorsi della home, ferma la bozza se contiene un segreto, mostra l'anteprima;
-- invia: l'unico passo verso fuori, lanciato solo dopo il sì della persona. Tre canali:
+- invia: l'unico passo verso fuori, lanciato solo dopo il sì della persona. Quattro canali:
+  arturo (il default: la segnalazione va al server di Arturo, che la manda per email a chi lo
+  mantiene; se la rete non risponde resta in attesa e parte con il prossimo invio della telemetria),
   gh (issue pubblica con la CLI di GitHub), web (la pagina della issue già compilata, la persona
   preme Invia), email (il testo negli appunti, la persona lo incolla e lo invia dal suo programma
-  di posta). Nessun canale invia una email da solo: un mailto: aperto da qui aggirerebbe
-  comms-guard, che lo nega di proposito;
+  di posta). Nessun canale apre un mailto:, che comms-guard nega di proposito;
 - chiedi, basta, riprendi: la cadenza della domanda di /fine e il modo di spegnerla.
 
 Lo stato (ultima domanda, ultima segnalazione, canale scelto, pausa) sta in
@@ -36,11 +37,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 import todo_store as ts  # noqa: E402
+import telemetria  # noqa: E402
 
 REPO = "stellakamikaze/arturo"
 EMAIL = "federico@stellakamikaze.org"
 TIPI = ("problema", "proposta", "integrazione")
-CANALI = ("gh", "web", "email")
+CANALI = ("arturo", "gh", "web", "email")
 GIORNI_TRA_DOMANDE = 7
 # GitHub rifiuta URL troppo lunghi: oltre questa soglia la pagina si apre col solo titolo.
 URL_MASSIMO = 6000
@@ -55,9 +57,10 @@ Di solito lo usa /segnala dentro Claude Code. Comandi:
   info                                   versione di Arturo e di Claude Code, sistema, gh collegato
   prepara --tipo T --titolo "…" --file BOZZA
                                          pulisce la bozza e mostra l'anteprima (T: {", ".join(TIPI)})
-  invia --canale C --file PRONTA         la manda (C: gh = issue pubblica, web = pagina della issue
-                                         compilata, email = testo negli appunti per {EMAIL})
-  canale [gh|web|email]                  il canale ricordato, o lo ricorda
+  invia --canale C --file PRONTA         la manda (C: arturo = diretta a chi mantiene Arturo, il default;
+                                         gh = issue pubblica; web = pagina della issue compilata;
+                                         email = testo negli appunti per {EMAIL})
+  canale [arturo|gh|web|email]           il canale ricordato, o lo ricorda
   chiedi                                 /fine può fare la domanda della settimana? (0 sì, 3 no)
   basta                                  niente inviti a segnalare finché non dici riprendi
   riprendi                               gli inviti ripartono
@@ -268,8 +271,9 @@ def prepara(opz: dict) -> int:
     print(f"PRONTA: {pronta}\n")
     print(f"Titolo: {titolo}\n")
     print(testo + FIRMA)
-    print(f"Dove può andare:\n  gh o web: issue pubblica su github.com/{REPO}, la vede chiunque\n"
-          f"  email: arriva solo a {EMAIL}")
+    print(f"Dove può andare:\n  arturo (di solito): arriva solo a chi mantiene Arturo, senza altri passi\n"
+          f"  gh o web: issue pubblica su github.com/{REPO}, la vede chiunque\n"
+          f"  email: testo negli appunti da mandare a {EMAIL}")
     return 0
 
 
@@ -292,7 +296,25 @@ def invia(opz: dict) -> int:
         return 3
 
     esito = ""
-    if canale == "gh":
+    if canale == "arturo":
+        dati_server = {"tipo": tipo, "titolo": titolo, "testo": testo, "versione": telemetria.versione(),
+                       "sistema": telemetria.sistema()}
+        # L'id lega la segnalazione agli eventi d'uso solo se la telemetria è accesa.
+        if not telemetria.perche_spenta():
+            dati_server["installazione"] = telemetria.installazione()
+        status = telemetria.posta("/v1/segnalazioni", dati_server, timeout=10)
+        if 200 <= status < 300:
+            esito = "arrivata a chi mantiene Arturo"
+        elif status in (400, 413):
+            print(f"Non inviata: il server l'ha rifiutata ({status}). Prova il canale web o email.", file=sys.stderr)
+            return 1
+        else:
+            attesa = telemetria.cartella_attesa()
+            attesa.mkdir(parents=True, exist_ok=True)
+            ts.scrivi_json_atomico(attesa / f"{dt.datetime.now():%Y-%m-%d_%H%M%S}_{tipo}.attesa.json", dati_server)
+            print("Il server ora non risponde: la segnalazione è salvata e parte da sola alla prossima sessione.")
+            esito = "in attesa: parte da sola appena il server risponde"
+    elif canale == "gh":
         link, errore = invia_gh(titolo, testo)
         if errore:
             print(f"Non inviata: {errore}", file=sys.stderr)
@@ -325,6 +347,7 @@ def invia(opz: dict) -> int:
                      encoding="utf-8")
     oggi = ts.oggi().isoformat()
     cambia_stato(lambda s: s.update({"inviata": oggi, "canale": canale}))
+    telemetria.registra("segnalazione", tipo)
     print(f"\nFatto: {esito}.\nCopia: {copia}")
     return 0
 
@@ -366,7 +389,7 @@ def main(argv: list) -> int:
                 print(canale or "nessuno")
                 return 0 if canale else 3
             if resto[0] not in CANALI:
-                raise ValueError(f"canale sconosciuto: «{resto[0]}» (gh, web, email)")
+                raise ValueError(f"canale sconosciuto: «{resto[0]}» ({', '.join(CANALI)})")
             cambia_stato(lambda s: s.__setitem__("canale", resto[0]))
             print(f"Canale ricordato: {resto[0]}")
             return 0

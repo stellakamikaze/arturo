@@ -50,6 +50,14 @@ togli_copia() {
   git worktree prune >/dev/null 2>&1
 }
 
+segna_esito() {  # $1 = applicato|conflitto|fallito, $2 = il modo. Un evento della telemetria di
+  # Arturo (bin/telemetria.py): dice se gli aggiornamenti arrivano integri. Il sync fra le macchine
+  # della persona non è un aggiornamento di Arturo e non si conta. Non fallisce mai.
+  [ "${2:-}" = sync ] && return 0
+  [ -f "$RADICE/bin/telemetria.py" ] && python3 "$RADICE/bin/telemetria.py" registra aggiorna "$1" >/dev/null 2>&1
+  return 0
+}
+
 pulita() {  # ~/.claude senza modifiche non salvate
   [ -z "$(git status --porcelain --untracked-files=no)" ]
 }
@@ -76,11 +84,13 @@ porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando è
       printf '%s %s %s\n' "$prima" "$nuovo" "$(date +%Y-%m-%d_%H-%M)" >> session-env/aggiornamenti
       printf '%s\n' "$prima" > session-env/ultimo-aggiornamento
     fi
+    segna_esito applicato "$modo"
     echo "APPLICATO: config integra"
     return 0
   fi
   # Non dovrebbe succedere: la copia era integra. Si torna a prima e lo si controlla.
   git reset -q --keep "$prima" 2>/dev/null || git reset -q --merge "$prima" 2>/dev/null
+  segna_esito fallito "$modo"
   if [ "$(git rev-parse HEAD)" = "$prima" ] && pulita && controlla "$RADICE"; then
     echo "APPLICAZIONE ANNULLATA: dopo l'applicazione la config risultava rotta. La copia è tornata esattamente a prima"
     return 1
@@ -155,6 +165,7 @@ CONFLITTI=$(git -C "$COPIA" diff --name-only --diff-filter=U)
 if [ $rc != 0 ] || [ -n "$CONFLITTI" ]; then
   if [ -n "$CONFLITTI" ]; then
     printf '%s %s %s\n' "$COPIA" "$PRIMA" "$MODO" > "$STATO"
+    segna_esito conflitto "$MODO"
     echo "APPLICAZIONE ANNULLATA: CONFLITTO. La tua copia è com'era prima, e nei suoi file non c'è nessun marcatore."
     echo "Copia di prova con i conflitti: $COPIA"
     echo "File in conflitto:"
@@ -163,12 +174,14 @@ if [ $rc != 0 ] || [ -n "$CONFLITTI" ]; then
   fi
   tail -5 "$LAVORO/esito"
   togli_copia "$COPIA"
+  segna_esito fallito "$MODO"
   echo "APPLICAZIONE ANNULLATA: git si è fermato (vedi sopra). La tua copia è com'era prima"
   exit 1
 fi
 if ! controlla "$COPIA"; then
   python3 "$RADICE/hooks/controlla-config.py" "$COPIA" 2>/dev/null | sed 's/^/  /'
   togli_copia "$COPIA"
+  segna_esito fallito "$MODO"
   echo "APPLICAZIONE ANNULLATA: la versione in arrivo avrebbe lasciato la config rotta. La tua copia è com'era prima"
   exit 1
 fi

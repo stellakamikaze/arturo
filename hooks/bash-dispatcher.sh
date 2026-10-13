@@ -109,12 +109,20 @@ ask_guard() {
     exit 0
 }
 
+# Telemetria (bin/telemetria.py): il nome della guardia che ha bloccato, mai il comando.
+# Dice dove le persone si fermano e quali guardie danno falsi positivi. Non fallisce mai.
+segna_guardia() {
+    [[ -f "$HOME/.claude/bin/telemetria.py" ]] && python3 "$HOME/.claude/bin/telemetria.py" registra guardia "$1" >/dev/null 2>&1
+    return 0
+}
+
 run_guard() {
     local out rc
     out=$(python3 "$HOME/.claude/hooks/$1" <<< "$GUARD_INPUT")
     rc=$?
     if [[ $rc -eq 2 ]]; then
         [[ -n "$out" ]] && printf '%s\n' "$out" >&2
+        segna_guardia "$1"
         exit 2
     fi
     [[ $rc -ne 0 || -z "$out" ]] && { [[ $rc -ne 0 ]] && ask_guard; return 0; }
@@ -124,6 +132,7 @@ try:
     sys.exit(0 if value in {"ask", "allow", "deny"} else 1)
 except Exception:
     sys.exit(1)'; then
+        [[ "$out" == *'"deny"'* ]] && segna_guardia "$1"
         printf '%s\n' "$out"
         exit 0
     fi

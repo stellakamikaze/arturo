@@ -1,0 +1,27 @@
+# Il server di Arturo. Per chi fa un fork: sostituisci i segnaposto, poi
+#   npx wrangler d1 create arturo         (copia il database_id qui sotto)
+#   npx wrangler d1 execute arturo --remote --file schema.sql
+#   npx wrangler deploy
+# Il destinatario deve essere un indirizzo verificato in Email Routing del tuo dominio.
+name = "arturo-telemetria"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = false
+
+routes = [{ pattern = "DOMINIO_DEL_SERVER", custom_domain = true }]
+
+[triggers]
+crons = ["0 6 * * 1"]   # lunedì alle 8 (ora italiana estiva): riepilogo e pulizia
+
+[[d1_databases]]
+binding = "DB"
+database_name = "arturo"
+database_id = "ID_DEL_DATABASE"
+
+[[send_email]]
+name = "POSTA"
+destination_address = "DESTINATARIO_VERIFICATO"
+
+[vars]
+MITTENTE = "MITTENTE_SUL_TUO_DOMINIO"
+DESTINATARIO = "DESTINATARIO_VERIFICATO"

@@ -130,6 +130,12 @@ if [ -f "$HOME/.claude/NOVITA.md" ]; then
   fi
 fi
 
+# Telemetria minima (bin/telemetria.py): registra la sessione senza rete, avvisa la persona una
+# volta sola e lancia l'invio in background al massimo ogni 6 ore. Non ferma mai l'avvio.
+if [ -f "$HOME/.claude/bin/telemetria.py" ]; then
+  python3 "$HOME/.claude/bin/telemetria.py" avvio 2>/dev/null || true
+fi
+
 # Invito a segnalare: Arturo migliora con quello che le persone gli dicono. Una riga di contesto,
 # spenta da «arturo segnala basta» (stato in session-env/segnala.json).
 if ! grep -q '"pausa": "sempre"' "$HOME/.claude/session-env/segnala.json" 2>/dev/null; then

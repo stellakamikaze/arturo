@@ -27,6 +27,9 @@ HOME="$FIXTURE/home"
 export HOME USERPROFILE="$HOME" XDG_CACHE_HOME="$FIXTURE/cache" TMPDIR="$FIXTURE/tmp" PYTHONDONTWRITEBYTECODE=1
 # W13: nel gate la prova nel browser non salta. Senza Chrome o node 22 il gate è rosso.
 export ARTURO_PROVA_BROWSER=obbligatoria
+# Il gate non manda mai niente al server vero della telemetria. I banchi M la riaccendono verso un
+# server finto su 127.0.0.1.
+export ARTURO_TELEMETRIA=0
 mkdir -p "$HOME" "$TMPDIR"
 cp -R "$ROOT/." "$HOME/.claude"
 REPO="$HOME/.claude"
@@ -55,6 +58,7 @@ BANCHI=(
   test_aggiorna_sicuro.py
   test_aggiorna_copia.py
   test_segnala.py
+  test_telemetria.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -62,7 +66,7 @@ done
 
 # Il minimo dichiarato è Python 3.8: la CLI, la pagina e il percorso girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_todo.py test_web.py test_percorso.py)
+PY38_BANCHI=(test_todo.py test_web.py test_percorso.py test_segnala.py test_telemetria.py)
 PY38=$(command -v python3.8 || true)
 if [[ -n "$PY38" ]]; then
   for test in "${PY38_BANCHI[@]}"; do
@@ -114,6 +118,10 @@ BASELINE=(
   "test_aggiorna_sicuro.py bb19ef9"
   # /aggiorna nella copia di prova (12/10/2026): 0aee68c, il main su cui si sono rotti i file in uso.
   "test_aggiorna_copia.py 0aee68c"
+  # /segnala (13/10/2026): 75c8e23, l'ultimo main prima del comando.
+  "test_segnala.py 75c8e23"
+  # Telemetria minima e segnalazioni dirette (13/10/2026): db96709, il main di /segnala.
+  "test_telemetria.py db96709"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"
@@ -128,6 +136,9 @@ for riga in "${BASELINE[@]}"; do
     python3 -B "$REPO/tests/$test" --repo "$base" --baseline-ref "$ref"
   fi
 done
+
+# Il server della telemetria (server/logica.js) con un archivio e una posta finti.
+node "$REPO/server/test.mjs"
 
 shells=0
 while IFS= read -r -d '' file; do

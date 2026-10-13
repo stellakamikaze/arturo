@@ -11,6 +11,28 @@ modo di lavorare.
 
 ---
 
+## 2026-10-13 — Telemetria minima, e /segnala arriva da sola
+
+**Cosa cambia**: Arturo comincia a mandare a chi lo mantiene pochi dati d'uso anonimi. Sono
+sempre gli stessi: l'avvio di una sessione, il nome dei comandi di Arturo che usi, il nome della
+guardia che ti ha fermato, l'esito di `/aggiorna` e il tipo delle segnalazioni. Partono con un id
+casuale, la versione e il sistema operativo, con il giorno e mai l'ora. È accesa di default.
+In più `/segnala` non ti chiede più di mandare una email a mano. Dopo il tuo sì, la segnalazione
+arriva direttamente a chi mantiene Arturo. Se la rete non risponde, parte da sola alla sessione dopo.
+
+**Il principio dietro**: questo cambia una promessa. Fino a oggi l'Impegno 3 del README diceva
+«Niente telemetria», e la novità di stamattina diceva che `/segnala` non era telemetria. Chi
+mantiene Arturo ha deciso di cambiarla, perché senza dati d'uso non vede dove le persone si
+bloccano. Le persone per cui Arturo è fatto spesso non lo sanno dire, e di sicuro non aprono una
+issue. Il nuovo Impegno 3 dice cosa parte, cosa non parte mai e come spegnerla.
+
+**Da sapere**: non partono mai prompt, file, percorsi, nomi, risposte o il tuo percorso a tappe.
+Il server è open source (`server/`) e non salva il tuo indirizzo IP. Vedi cosa parte con
+`python3 ~/.claude/bin/arturo telemetria mostra` e la spegni con
+`python3 ~/.claude/bin/arturo telemetria spegni` oppure con `DO_NOT_TRACK=1`. Alla prima
+sessione dopo l'aggiornamento Claude te lo dice una volta. Per far cancellare i tuoi dati scrivi
+a federico@stellakamikaze.org con il tuo id.
+
 ## 2026-10-13 — Dire ad Arturo cosa non va, con /segnala
 
 **Cosa cambia**: c'è un comando nuovo, `/segnala`. Lo usi quando qualcosa di Arturo non funziona,

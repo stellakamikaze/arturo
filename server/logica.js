@@ -1,0 +1,211 @@
+// La logica del server di Arturo, senza Cloudflare dentro: validazione, tetti, email, riepilogo.
+// worker.js la collega a D1 e all'invio email; test.mjs la prova con node e un archivio finto.
+//
+// Cosa riceve il server, e solo questo:
+//   POST /v1/eventi        un lotto di eventi d'uso, con un id di installazione casuale
+//   POST /v1/segnalazioni  una segnalazione che la persona ha letto e approvato con /segnala
+// L'IP non viene mai salvato. Gli eventi hanno il solo giorno, mai l'ora.
+
+// L'elenco chiuso degli eventi. Lo stesso elenco sta in bin/telemetria.py e nel README:
+// il banco M09 controlla che coincidano.
+export const EVENTI = {
+  sessione: /^$/,
+  comando: /^[a-z0-9-]{1,40}$/,
+  guardia: /^[a-z0-9_.-]{1,60}$/,
+  aggiorna: /^(applicato|conflitto|fallito)$/,
+  segnalazione: /^(problema|proposta|integrazione)$/,
+};
+export const TIPI = ["problema", "proposta", "integrazione"];
+export const SISTEMI = ["Darwin", "Linux", "Windows", "altro"];
+export const LIMITI = {
+  corpoEventi: 64 * 1024,
+  corpoSegnalazione: 20 * 1024,
+  eventiPerLotto: 500,
+  eventiPerGiorno: 500,
+  eventiTotaliPerGiorno: 100000,
+  segnalazioniPerGiorno: 200,
+  emailPerGiorno: 40,
+  conservazioneGiorni: 365,
+};
+
+const ID = /^[A-Za-z0-9-]{8,64}$/;
+const GIORNO = /^\d{4}-\d{2}-\d{2}$/;
+
+export function oggi(adesso = new Date()) {
+  return adesso.toISOString().slice(0, 10);
+}
+
+function risposta(status, dati) {
+  return new Response(JSON.stringify(dati), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
+async function leggiJson(request, limite) {
+  const testo = await request.text();
+  if (new TextEncoder().encode(testo).length > limite) return { errore: risposta(413, { errore: "troppo grande" }) };
+  try {
+    return { dati: JSON.parse(testo) };
+  } catch {
+    return { errore: risposta(400, { errore: "JSON non valido" }) };
+  }
+}
+
+function testoCorto(valore, massimo) {
+  return typeof valore === "string" && valore.length <= massimo ? valore : null;
+}
+
+// Un lotto valido, oppure il motivo per cui non lo e'.
+export function validaLotto(dati, giornoServer) {
+  if (!dati || typeof dati !== "object") return { motivo: "corpo mancante" };
+  const { installazione, versione, sistema, eventi } = dati;
+  if (typeof installazione !== "string" || !ID.test(installazione)) return { motivo: "installazione non valida" };
+  if (testoCorto(versione, 60) === null) return { motivo: "versione non valida" };
+  if (!SISTEMI.includes(sistema)) return { motivo: "sistema non valido" };
+  if (!Array.isArray(eventi) || eventi.length === 0 || eventi.length > LIMITI.eventiPerLotto) return { motivo: "eventi mancanti o troppi" };
+  const righe = [];
+  for (const e of eventi) {
+    if (!e || typeof e !== "object") return { motivo: "evento non valido" };
+    const regola = EVENTI[e.evento];
+    const valore = e.valore ?? "";
+    if (!regola || typeof valore !== "string" || !regola.test(valore)) return { motivo: `evento fuori elenco: ${String(e.evento).slice(0, 30)}` };
+    // Un giorno nel futuro o malformato diventa il giorno del server.
+    const giorno = typeof e.giorno === "string" && GIORNO.test(e.giorno) && e.giorno <= giornoServer ? e.giorno : giornoServer;
+    righe.push({ giorno, installazione, versione, sistema, evento: e.evento, valore });
+  }
+  return { righe };
+}
+
+export function validaSegnalazione(dati) {
+  if (!dati || typeof dati !== "object") return { motivo: "corpo mancante" };
+  const tipo = TIPI.includes(dati.tipo) ? dati.tipo : null;
+  const titolo = testoCorto(dati.titolo, 200);
+  const testo = testoCorto(dati.testo, 16000);
+  if (!tipo || !titolo || !titolo.trim() || !testo || !testo.trim()) return { motivo: "tipo, titolo o testo non validi" };
+  const installazione = typeof dati.installazione === "string" && ID.test(dati.installazione) ? dati.installazione : "";
+  return {
+    segnalazione: {
+      tipo,
+      titolo: titolo.trim(),
+      testo,
+      versione: testoCorto(dati.versione, 60) || "",
+      sistema: SISTEMI.includes(dati.sistema) ? dati.sistema : "altro",
+      installazione,
+    },
+  };
+}
+
+// --- email -------------------------------------------------------------------
+
+function base64(testo) {
+  const byte = new TextEncoder().encode(testo);
+  let binario = "";
+  for (const b of byte) binario += String.fromCharCode(b);
+  return btoa(binario).replace(/.{76}/g, "$&\r\n");
+}
+
+function intestazione(testo) {
+  // RFC 2047: un oggetto con accenti passa intatto.
+  return /^[\x20-\x7e]*$/.test(testo) ? testo : `=?UTF-8?B?${btoa(String.fromCharCode(...new TextEncoder().encode(testo)))}?=`;
+}
+
+export function mime({ da, a, oggetto, testo, adesso = new Date(), id = crypto.randomUUID() }) {
+  const dominio = da.split("@")[1];
+  return [
+    `From: Arturo <${da}>`,
+    `To: ${a}`,
+    `Subject: ${intestazione(oggetto.replace(/[\r\n]+/g, " "))}`,
+    `Date: ${adesso.toUTCString()}`,
+    `Message-ID: <${id}@${dominio}>`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=utf-8",
+    "Content-Transfer-Encoding: base64",
+    "",
+    base64(testo),
+  ].join("\r\n");
+}
+
+export function emailSegnalazione(s, numero) {
+  const oggetto = `[Arturo] [${s.tipo}] ${s.titolo.replace(/^\[(problema|proposta|integrazione)\]\s*/i, "")}`;
+  const testo = `${s.testo}\n\n---\nSegnalazione n. ${numero} · Arturo ${s.versione || "?"} · ${s.sistema}` +
+    (s.installazione ? ` · installazione ${s.installazione}` : "") + "\n";
+  return { oggetto, testo };
+}
+
+export function testoRiepilogo(r, dal, al) {
+  const elenco = (righe) => righe.length ? righe.map((x) => `  ${x.n}  ${x.valore || "(vuoto)"}`).join("\n") : "  nessuno";
+  return [
+    `Arturo, settimana dal ${dal} al ${al}`,
+    "",
+    `Installazioni attive: ${r.installazioni}`,
+    `Sessioni: ${r.sessioni}`,
+    "",
+    "Versioni in uso:", elenco(r.versioni),
+    "", "Sistemi:", elenco(r.sistemi),
+    "", "Comandi usati:", elenco(r.comandi),
+    "", "Guardie che hanno bloccato:", elenco(r.guardie),
+    "", "Esiti di /aggiorna:", elenco(r.aggiorna),
+    "", `Segnalazioni ricevute: ${r.segnalazioni}`,
+    "",
+  ].join("\n");
+}
+
+// --- i gestori -----------------------------------------------------------------
+// `archivio` e `posta` arrivano da worker.js (D1 e send_email) o da test.mjs (finti).
+
+export async function gestisci(request, { archivio, posta, adesso = new Date() }) {
+  const url = new URL(request.url);
+  if (request.method === "GET" && url.pathname === "/") {
+    return new Response("Arturo: qui arrivano eventi d'uso anonimi e segnalazioni. Codice: https://github.com/stellakamikaze/arturo/tree/main/server\n",
+      { headers: { "content-type": "text/plain; charset=utf-8" } });
+  }
+  if (request.method !== "POST") return risposta(405, { errore: "solo POST" });
+  const giorno = oggi(adesso);
+
+  if (url.pathname === "/v1/eventi") {
+    const { dati, errore } = await leggiJson(request, LIMITI.corpoEventi);
+    if (errore) return errore;
+    const { righe, motivo } = validaLotto(dati, giorno);
+    if (motivo) return risposta(400, { errore: motivo });
+    const gia = await archivio.contaEventi(righe[0].installazione, giorno);
+    if (gia + righe.length > LIMITI.eventiPerGiorno) return risposta(429, { errore: "troppi eventi oggi" });
+    if (await archivio.contaEventi(null, giorno) + righe.length > LIMITI.eventiTotaliPerGiorno) {
+      return risposta(429, { errore: "server pieno per oggi" });
+    }
+    await archivio.scriviEventi(righe, adesso.toISOString());
+    return risposta(202, { ricevuti: righe.length });
+  }
+
+  if (url.pathname === "/v1/segnalazioni") {
+    const { dati, errore } = await leggiJson(request, LIMITI.corpoSegnalazione);
+    if (errore) return errore;
+    const { segnalazione, motivo } = validaSegnalazione(dati);
+    if (motivo) return risposta(400, { errore: motivo });
+    if (await archivio.contaSegnalazioni(giorno) >= LIMITI.segnalazioniPerGiorno) {
+      return risposta(429, { errore: "troppe segnalazioni oggi" });
+    }
+    const numero = await archivio.salvaSegnalazione(segnalazione, adesso.toISOString());
+    let email = false;
+    if (await archivio.prendiEmail(giorno, LIMITI.emailPerGiorno)) {
+      try {
+        await posta(emailSegnalazione(segnalazione, numero));
+        email = true;
+        await archivio.segnaEmail(numero);
+      } catch (e) {
+        console.log("email non partita", e && e.message);
+      }
+    }
+    return risposta(201, { numero, email });
+  }
+
+  return risposta(404, { errore: "percorso sconosciuto" });
+}
+
+export async function settimanale({ archivio, posta, adesso = new Date() }) {
+  const al = oggi(adesso);
+  const dal = oggi(new Date(adesso.getTime() - 7 * 86400000));
+  const r = await archivio.riepilogo(dal, al);
+  await posta({ oggetto: `[Arturo] Riepilogo della settimana ${dal} - ${al}`, testo: testoRiepilogo(r, dal, al) });
+  await archivio.pulisci(oggi(new Date(adesso.getTime() - LIMITI.conservazioneGiorni * 86400000)));
+}

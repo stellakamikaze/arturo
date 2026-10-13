@@ -80,20 +80,18 @@ python3 "$HOME/.claude/bin/arturo" segnala prepara --tipo TIPO --titolo "TITOLO"
 - Con exit 3 la bozza contiene qualcosa che sembra un segreto: toglilo e rilancia.
 - Con exit 0 mostra alla persona l'anteprima per intero, così come la stampa lo script.
 
-Poi scegli il canale. Leggi quello ricordato:
+Il canale è `arturo`: la segnalazione arriva direttamente a chi mantiene Arturo, senza account e
+senza altri passi. Usa un altro canale solo se la persona lo chiede o se l'ha scelto prima
+(`python3 "$HOME/.claude/bin/arturo" segnala canale` lo dice):
 
-```bash
-python3 "$HOME/.claude/bin/arturo" segnala canale
-```
-
-Se non c'è, chiedi una volta: «Hai un account GitHub?». Con un sì e `gh: collegato` in `info`
-il canale è `gh`. Con un sì e gh non collegato è `web`. Con un no è `email`. Ricordalo con
-`python3 "$HOME/.claude/bin/arturo" segnala canale CANALE`.
+- `gh` o `web` se vuole una issue pubblica su GitHub;
+- `email` se vuole mandarla lei, dal suo programma di posta.
 
 Di' dove va, prima del sì:
 
+- `arturo`: «Arriva solo a chi mantiene Arturo.»
 - `gh` e `web`: «Diventa una issue pubblica su GitHub: la vede chiunque.»
-- `email`: «Arriva solo a chi mantiene Arturo, all'indirizzo federico@stellakamikaze.org.»
+- `email`: «Te la preparo negli appunti per federico@stellakamikaze.org: la mandi tu.»
 
 Chiedi: «La mando?». La persona può cambiare il testo o il canale. Un cambio del testo passa di
 nuovo da `prepara`.
@@ -106,6 +104,8 @@ python3 "$HOME/.claude/bin/arturo" segnala invia --canale CANALE --file PRONTA
 
 `PRONTA` è il percorso stampato da `prepara` nella riga `PRONTA:`.
 
+- `arturo`: è arrivata. Se il server non risponde, la segnalazione resta salvata e parte da sola
+  alla prossima sessione: la persona non deve fare altro.
 - `gh`: la issue si apre subito. Dai il link.
 - `web`: si apre la pagina della issue già compilata. La persona controlla e preme Invia.
 - `email`: il testo è negli appunti. La persona apre il suo programma di posta, incolla e invia.
@@ -113,4 +113,4 @@ python3 "$HOME/.claude/bin/arturo" segnala invia --canale CANALE --file PRONTA
 
 Se `invia` esce con 1, riporta l'errore e proponi un altro canale.
 
-Chiudi con una riga: grazie, dove è andata, e che le risposte arrivano su GitHub o per email.
+Chiudi con una riga: grazie, e dove è andata.

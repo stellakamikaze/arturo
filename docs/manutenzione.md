@@ -42,29 +42,37 @@ delle segnalazioni leggono il tag con `git describe --tags --always`.
 che la copia dell'utente conosceva, e se la nuova non discende dalla vecchia si ferma con
 `STORIA RISCRITTA`: è lo stesso segnale che darebbe un repository compromesso.
 
-## Misurare l'uso senza telemetria
+## Misurare l'uso
 
-Arturo non ha contatori né ping di versione, per l'impegno sulla telemetria del
-README. Chi mantiene può comunque farsi un'idea dell'uso, dal lato GitHub:
+Arturo manda una telemetria minima, accesa di default (README, Impegni). Il server è in
+`server/`: un Worker Cloudflare su `arturo-dati.stellakamikaze.org` con un database D1 `arturo`.
+
+- **Il riepilogo del lunedì.** Ogni lunedì alle 8 il Worker manda a chi mantiene il riepilogo dei
+  7 giorni: installazioni attive, versioni, sistemi, comandi usati, guardie che hanno bloccato,
+  esiti di `/aggiorna`, segnalazioni. Poi cancella gli eventi più vecchi di 12 mesi.
+- **Le segnalazioni.** Ogni segnalazione di `/segnala` col canale `arturo` arriva per email,
+  con l'oggetto `[Arturo] [tipo] …`, e resta in D1. Quelle aperte da GitHub sono issue con il titolo
+  `[problema]`, `[proposta]` o `[integrazione]`.
+- **Le query.** Da `server/`, con wrangler autenticato:
+
+  ```bash
+  npx wrangler d1 execute arturo --remote --command "SELECT evento, valore, COUNT(*) n FROM eventi WHERE giorno >= date('now','-30 day') GROUP BY 1,2 ORDER BY n DESC"
+  npx wrangler d1 execute arturo --remote --command "SELECT id, ricevuta, tipo, titolo FROM segnalazioni ORDER BY id DESC LIMIT 20"
+  ```
+
+- **Una richiesta di cancellazione** arriva con un id: `DELETE FROM eventi WHERE installazione = '…'`
+  e `DELETE FROM segnalazioni WHERE installazione = '…'`.
+
+Dal lato GitHub restano le misure di prima:
 
 ```bash
-# clone degli ultimi 14 giorni (li vede solo il proprietario del repo).
-# Nota: non è verificato se i git fetch automatici contino come clone.
 gh api repos/stellakamikaze/arturo/traffic/clones --jq '{count,uniques}'
-
-# stelle e fork
 gh repo view stellakamikaze/arturo --json stargazerCount,forkCount
-
-# issue aperte e chiuse
 gh issue list --repo stellakamikaze/arturo --state all
 ```
 
-Le segnalazioni di `/segnala` arrivano in due posti. Con un account GitHub diventano issue
-con il titolo `[problema]`, `[proposta]` o `[integrazione]`. Senza account arrivano per email a
-federico@stellakamikaze.org, con l'oggetto `[Arturo] [tipo] …`.
-
-Sono misure lato manutentore, mai lato utente: niente viene raccolto dentro la
-copia di Arturo installata su una macchina.
+Un cambio dell'elenco degli eventi tocca tre posti insieme: `bin/telemetria.py`, `server/logica.js`
+e l'Impegno 3 del README. Il banco M09 li confronta.
 
 ## Se lo sviluppo si ferma
 

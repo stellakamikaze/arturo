@@ -20,6 +20,8 @@ data/todo/
 data/todo/*.lock
 # Le copie di /segnala restano su questo computer.
 data/segnalazioni/
+# La coda della telemetria (bin/telemetria.py).
+data/telemetria/
 .credentials.json
 
 # Runtime Claude Code (generato localmente)
