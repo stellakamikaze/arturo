@@ -60,6 +60,8 @@ BANCHI=(
   test_segnala.py
   test_telemetria.py
   test_guardie_minori.py
+  test_deriva.py
+  test_personale.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -67,7 +69,7 @@ done
 
 # Il minimo dichiarato è Python 3.8: la CLI, la pagina e il percorso girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_todo.py test_web.py test_percorso.py test_segnala.py test_telemetria.py)
+PY38_BANCHI=(test_todo.py test_web.py test_percorso.py test_segnala.py test_telemetria.py test_deriva.py test_personale.py)
 PY38=$(command -v python3.8 || true)
 if [[ -n "$PY38" ]]; then
   for test in "${PY38_BANCHI[@]}"; do
@@ -125,6 +127,9 @@ BASELINE=(
   "test_telemetria.py db96709"
   # I finding minori della review delle guardie (13/10/2026): 69d7365, l'ultimo dev prima delle correzioni.
   "test_guardie_minori.py 69d7365"
+  # Arturo convive con la config personale (14/10/2026): f750408, l'ultimo dev prima di deriva e personale/.
+  "test_deriva.py f750408"
+  "test_personale.py f750408"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

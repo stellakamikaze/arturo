@@ -6,7 +6,8 @@ aggiornamenti che si rompono, i comandi che nessuno usa.
 
 Cosa esce, e solo questo: un id di installazione casuale (non legato alla persona), la versione di
 Arturo, il sistema operativo (Darwin, Linux, Windows) e gli eventi di EVENTI con il solo giorno.
-Mai prompt, file, percorsi, nomi, risposte o il percorso a tappe. Il server non salva l'IP e tiene
+Dei file di Arturo modificati esce il percorso dentro Arturo, che è pubblico (hooks/deriva.py).
+Mai prompt, file della persona, percorsi del suo computer, nomi, risposte o il percorso a tappe. Il server non salva l'IP e tiene
 gli eventi 12 mesi. Il suo codice è in server/.
 
 Accesa di default. Si spegne con `arturo telemetria spegni`, con ARTURO_TELEMETRIA=0 o con lo
@@ -47,6 +48,11 @@ EVENTI = {
     "guardia": re.compile(r"^[a-z0-9_.-]{1,60}$"),
     "aggiorna": re.compile(r"^(applicato|conflitto|fallito)$"),
     "segnalazione": re.compile(r"^(problema|proposta|integrazione)$"),
+    # Da hooks/deriva.py: un `insieme:<n>` apre l'elenco corrente. Dei file solo la posizione
+    # nel repository di Arturo, relativa e senza "..": è pubblica, non dice niente dei file della persona.
+    "deriva": re.compile(r"^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|hooks|server|shared"
+                         r"|skills|templates|tests|\.github)/[A-Za-z0-9_./-]{1,70}|[A-Za-z0-9_.-]{1,40}))$"),
+    "config": re.compile(r"^rotta-(settings|conflitto|rebase)$"),
 }
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
 # ~/.claude/commands/ o portato dallo strato dell'organizzazione ha un nome suo, e non esce.
@@ -67,7 +73,8 @@ AIUTO = f"""arturo telemetria: i dati d'uso minimi che Arturo manda a chi lo man
   invia          manda adesso la coda e le segnalazioni in attesa
 
 Escono solo questi eventi, con il giorno e mai l'ora: {", ".join(EVENTI)}.
-Mai prompt, file, percorsi, nomi o risposte. Server: {URL} (codice in server/).
+Dei file di Arturo modificati solo la posizione nel repository di Arturo, che è pubblica.
+Mai prompt, file tuoi, percorsi del tuo computer, nomi o risposte. Server: {URL} (codice in server/).
 Si spegne anche con ARTURO_TELEMETRIA=0 o DO_NOT_TRACK=1."""
 
 
@@ -250,7 +257,8 @@ def avvio() -> int:
         registra("sessione")
         if not stato.get("avviso"):
             print("TELEMETRIA: Arturo manda a chi lo mantiene dati d'uso anonimi (versione, sistema, comandi di Arturo "
-                  "usati, guardie scattate, esiti di /aggiorna), con un id casuale e mai prompt, file o nomi. "
+                  "usati, guardie scattate, esiti di /aggiorna, file e hook di Arturo cambiati o spenti), con un id casuale "
+                  "e mai prompt, file tuoi o nomi. "
                   "Dillo alla persona una volta, in due righe, con il perché: senza questi dati chi mantiene Arturo "
                   "non vede dove si blocca chi lo usa. Si spegne con: python3 ~/.claude/bin/arturo telemetria spegni")
             cambia_stato(lambda s: s.__setitem__("avviso", ts.oggi().isoformat()))

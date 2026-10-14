@@ -3,7 +3,8 @@
 Un Worker Cloudflare con un database D1. Riceve due cose e solo quelle:
 
 - `POST /v1/eventi`: un lotto di eventi d'uso anonimi, dall'elenco chiuso in `logica.js`
-  (`sessione`, `comando`, `guardia`, `aggiorna`, `segnalazione`). Ogni evento ha il giorno e mai l'ora.
+  (`sessione`, `comando`, `guardia`, `aggiorna`, `segnalazione`, `deriva`, `config`). Ogni evento ha
+  il giorno e mai l'ora. `config` (config rotta) manda subito un'email, una al giorno per installazione.
 - `POST /v1/segnalazioni`: una segnalazione che la persona ha letto e approvato con `/segnala`.
 
 L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi più vecchi di
@@ -24,8 +25,9 @@ L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi p
 - **Ogni segnalazione** arriva come email, con l'oggetto `[Arturo] [tipo] titolo`. Il tetto è
   di 40 email al giorno: oltre, la segnalazione resta in D1 senza email.
 - **Ogni mattina alle 8** (06:00 UTC) arriva il recap del giorno prima, solo se quel giorno ci
-  sono stati eventi o segnalazioni.
-- **Il lunedì** arriva sempre il riepilogo dei 7 giorni, anche vuoto. Poi parte la pulizia. Se il
+  sono stati eventi o segnalazioni. Ha anche le config rotte e la deriva cambiata.
+- **Il lunedì** arriva sempre il riepilogo dei 7 giorni, anche vuoto, con tutta la deriva aperta e le
+  guardie frequenti (almeno 5 blocchi nella settimana sulla stessa installazione). Poi parte la pulizia. Se il
   riepilogo del lunedì manca, il Worker è fermo.
 
 ## Mettere su il tuo server

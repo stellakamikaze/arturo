@@ -49,9 +49,16 @@ Arturo manda una telemetria minima, accesa di default (README, Impegni). Il serv
 
 - **Il recap di ogni mattina.** Ogni mattina alle 8 il Worker manda a chi mantiene il recap del
   giorno prima: installazioni attive, versioni, sistemi, comandi usati, guardie che hanno bloccato,
-  esiti di `/aggiorna`, segnalazioni. Nei giorni senza eventi né segnalazioni non parte.
+  esiti di `/aggiorna`, config rotte, deriva (per ogni installazione il cui elenco è cambiato:
+  OSTACOLO se un hook di Arturo è spento, una guardia è modificata o un comando modificato va in
+  conflitto con un aggiornamento), segnalazioni. Nei giorni senza eventi né segnalazioni non parte.
+- **La config rotta arriva subito.** Un'email `[Arturo] Config rotta su un'installazione`, una sola
+  al giorno per installazione, dentro il tetto di 40.
 - **Il riepilogo del lunedì.** Il lunedì arriva sempre lo stesso riepilogo sui 7 giorni, anche
-  vuoto: se manca, il server è fermo. Poi il Worker cancella gli eventi più vecchi di 12 mesi.
+  vuoto: se manca, il server è fermo. In più ha la deriva di tutte le installazioni che ne hanno una,
+  anche ferma, e le guardie frequenti: almeno 5 blocchi della stessa guardia nella settimana sulla
+  stessa installazione, il segno che Arturo intralcia. Poi il Worker cancella gli eventi più vecchi
+  di 12 mesi.
 - **Le segnalazioni.** Ogni segnalazione di `/segnala` col canale `arturo` arriva per email,
   con l'oggetto `[Arturo] [tipo] …`, e resta in D1. Quelle aperte da GitHub sono issue con il titolo
   `[problema]`, `[proposta]` o `[integrazione]`.

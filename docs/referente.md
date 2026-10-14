@@ -118,9 +118,11 @@ leggono o lo inviano. Se volete parlarne, chiedetelo alla persona nel colloquio 
 
 Arturo manda a chi lo mantiene una telemetria minima, accesa di default. Parte un elenco chiuso di
 eventi: l'avvio di una sessione, il nome dei comandi di Arturo usati, il nome della guardia che ha
-fermato un comando, l'esito di `/aggiorna` e il tipo delle segnalazioni. Con gli eventi partono un id
-casuale creato da Arturo, la versione e il sistema operativo, con il solo giorno. Non partono mai
-prompt, file, percorsi, nomi, risposte o il percorso a tappe. Lo strato dell'organizzazione e i suoi
+fermato un comando, l'esito di `/aggiorna`, il tipo delle segnalazioni, i file e gli hook di Arturo che la persona ha
+cambiato o spento (dei file solo la posizione dentro Arturo, che è pubblica) e una config rotta. Con
+gli eventi partono un id casuale creato da Arturo, la versione e il sistema operativo, con il solo
+giorno. Non partono mai prompt, file della persona, percorsi del suo computer, nomi, risposte o il
+percorso a tappe. Lo strato dell'organizzazione e i suoi
 comandi non entrano negli eventi: il nome di un comando si registra solo se il comando è di Arturo.
 
 Il referente non riceve questi dati, e chi mantiene Arturo non sa a quale organizzazione appartiene

@@ -11,6 +11,26 @@ modo di lavorare.
 
 ---
 
+## 2026-10-14 — Arturo convive con la tua config
+
+**Cosa cambia**: le tue aggiunte a un comando di Arturo hanno un posto loro,
+`~/.claude/personale/<comando>.md`. Quando lanci il comando Claude le legge, e nessun aggiornamento
+le tocca. Se hai già modificato un comando di Arturo, `/aggiorna personale` sposta le tue modifiche
+lì e riporta il comando com'era: l'aggiornamento successivo non va più in conflitto. All'avvio una
+riga `DERIVA` ti avvisa quando la distanza da Arturo rischia di rompere qualcosa: un comando
+modificato, un hook di Arturo tolto o spento. Il promemoria del brief non scatta più sui comandi e
+sulle richieste chiare e piccole: solo su un lavoro che tocca più file, ha effetti fuori dal
+computer o si può capire in due modi.
+
+**Il principio dietro**: Arturo accompagna la tua config, non la sostituisce, e non deve intralciare
+l'uso naturale dell'LLM. Dove le due config si toccano serve un confine chiaro: il tuo da una parte,
+quello di Arturo dall'altra.
+
+**Da sapere**: la telemetria ha due eventi nuovi, `deriva` e `config`. Dei file esce solo la
+posizione dentro Arturo, che è pubblica: mai i tuoi file né i percorsi del tuo computer. Una config
+rotta parte subito, perché spegne le guardie. La spegni come sempre con
+`python3 ~/.claude/bin/arturo telemetria spegni`.
+
 ## 2026-10-14 — Prima di cancellare vedi cosa sparisce, e zsh si comporta come bash
 
 **Cosa cambia**: un mod nuovo, `blast-radius`. Quando Claude sta per lanciare `rm -rf`, `git reset
@@ -24,6 +44,7 @@ mod che nessuno usava: `menu-contesto` e `agent-flow`.
 un comando. E una comodità che nessuno apre è solo codice da mantenere.
 
 **Da sapere**: niente da fare. Se `blast-radius` ti ferma troppo spesso, spegnilo con `/plugin`.
+
 
 ## 2026-10-14 — Una striscia per i conti, e il controllo degli invii guarda cosa gira davvero
 

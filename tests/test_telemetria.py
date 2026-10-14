@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M01-M10: la telemetria minima di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
+"""M01-M11: la telemetria minima di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
 
 Ogni caso gira con una HOME finta e un server HTTP finto su 127.0.0.1 (ARTURO_TELEMETRIA_URL):
 niente parte mai verso il server vero. Sulla base db96709, prima della telemetria, ogni controllo
@@ -247,8 +247,26 @@ def test_m10(repo: Path) -> None:
         "M10 l'elenco dei comandi non coincide con commands/"
 
 
+def test_m11(repo: Path) -> None:
+    # Una config rotta spegne le guardie: parte all'avvio, senza aspettare le 6 ore dell'ultimo invio.
+    srv = Server()
+    lab = Lab(repo, srv)
+    (lab.home / ".claude" / "session-env").mkdir(parents=True)
+    (lab.home / ".claude" / "session-env" / "telemetria.json").write_text(
+        json.dumps({"avviso": "2026-10-14", "ultimo_tentativo": int(time.time())}), encoding="utf-8")
+    (lab.home / ".claude" / "settings.json").write_text("{ rotto", encoding="utf-8")
+    lab.hook("session-start.sh")
+    for _ in range(50):
+        if srv.richieste:
+            break
+        time.sleep(0.1)
+    eventi = [(e["evento"], e["valore"]) for p, l in srv.richieste if p == "/v1/eventi" for e in l["eventi"]]
+    assert ("config", "rotta-settings") in eventi, f"M11 la config rotta aspetta le 6 ore: {eventi}"
+
+
 TESTS = {"M01": test_m01, "M02": test_m02, "M03": test_m03, "M04": test_m04, "M05": test_m05,
-         "M06": test_m06, "M07": test_m07, "M08": test_m08, "M09": test_m09, "M10": test_m10}
+         "M06": test_m06, "M07": test_m07, "M08": test_m08, "M09": test_m09, "M10": test_m10,
+         "M11": test_m11}
 
 
 def main() -> int:

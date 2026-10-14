@@ -138,6 +138,13 @@ if [ -f "$HOME/.claude/NOVITA.md" ]; then
   fi
 fi
 
+# Deriva (hooks/deriva.py): file e hook di Arturo cambiati o spenti, config rotta. Una riga solo se
+# c'è da fare; registra per la telemetria l'elenco quando cambia. Prima dell'avvio della telemetria,
+# così una config rotta parte con l'invio di questa sessione.
+if [ -f "$HOME/.claude/hooks/deriva.py" ]; then
+  python3 "$HOME/.claude/hooks/deriva.py" "$HOME/.claude" 2>/dev/null || true
+fi
+
 # Telemetria minima (bin/telemetria.py): registra la sessione senza rete, avvisa la persona una
 # volta sola e lancia l'invio in background al massimo ogni 6 ore. Non ferma mai l'avvio.
 if [ -f "$HOME/.claude/bin/telemetria.py" ]; then

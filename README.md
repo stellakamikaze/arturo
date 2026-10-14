@@ -42,7 +42,7 @@ Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
 
 1. **Il repository resta pubblico e con licenza MIT.** Non diventa privato e non viene cancellato.
 2. **Solo `/aggiorna` applica gli aggiornamenti, e solo dopo il tuo sì.** L'avvio della sessione e `/inizio` controllano soltanto se ci sono novità. Se hai collegato un tuo repository privato, `/inizio` sincronizza quello: sono le tue macchine, non codice di altri.
-3. **Telemetria minima, accesa di default, e il perché.** Arturo si sviluppa ogni giorno per persone che spesso non sanno dire dove si bloccano. Senza dati d'uso chi lo mantiene non vede le guardie che fermano un lavoro legittimo, gli aggiornamenti che si rompono, i comandi che nessuno usa. Per questo Arturo manda a chi lo mantiene pochi eventi, con un elenco chiuso: `sessione`, `comando` (il nome di un comando di Arturo, mai il testo), `guardia` (il nome della guardia che ha bloccato), `aggiorna` (l'esito di `/aggiorna`), `segnalazione` (il tipo). Con gli eventi partono un id casuale creato da Arturo, la versione e il sistema operativo, con il solo giorno e mai l'ora. Mai prompt, file, percorsi, nomi, risposte o il tuo percorso a tappe. Il server (`server/`, open source) non salva l'indirizzo IP e tiene gli eventi 12 mesi. Vedi cosa parte con `python3 ~/.claude/bin/arturo telemetria mostra`, la spegni con `python3 ~/.claude/bin/arturo telemetria spegni` o con `DO_NOT_TRACK=1`. Per far cancellare i tuoi dati scrivi a federico@stellakamikaze.org con l'id che ti mostra `mostra`. Gli altri contatti automatici con l'esterno: il controllo degli aggiornamenti (un `git fetch` al massimo ogni sei ore) e l'invio degli eventi (al massimo ogni sei ore). Le segnalazioni di `/segnala` partono solo dopo che hai letto il testo e detto sì, e arrivano solo a chi mantiene Arturo, salvo che tu scelga una issue pubblica su GitHub.
+3. **Telemetria minima, accesa di default, e il perché.** Arturo si sviluppa ogni giorno per persone che spesso non sanno dire dove si bloccano. Senza dati d'uso chi lo mantiene non vede le guardie che fermano un lavoro legittimo, gli aggiornamenti che si rompono, i comandi che nessuno usa. Per questo Arturo manda a chi lo mantiene pochi eventi, con un elenco chiuso: `sessione`, `comando` (il nome di un comando di Arturo, mai il testo), `guardia` (il nome della guardia che ha bloccato), `aggiorna` (l'esito di `/aggiorna`), `segnalazione` (il tipo), `deriva` (i file e gli hook di Arturo che hai cambiato o spento: dei file solo la posizione dentro Arturo, che è pubblica), `config` (la config rotta, che parte subito perché spegne le guardie). Con gli eventi partono un id casuale creato da Arturo, la versione e il sistema operativo, con il solo giorno e mai l'ora. Mai prompt, file tuoi, percorsi del tuo computer, nomi, risposte o il tuo percorso a tappe. Il server (`server/`, open source) non salva l'indirizzo IP e tiene gli eventi 12 mesi. Vedi cosa parte con `python3 ~/.claude/bin/arturo telemetria mostra`, la spegni con `python3 ~/.claude/bin/arturo telemetria spegni` o con `DO_NOT_TRACK=1`. Per far cancellare i tuoi dati scrivi a federico@stellakamikaze.org con l'id che ti mostra `mostra`. Gli altri contatti automatici con l'esterno: il controllo degli aggiornamenti (un `git fetch` al massimo ogni sei ore) e l'invio degli eventi (al massimo ogni sei ore, salvo una config rotta, che parte all'avvio). Le segnalazioni di `/segnala` partono solo dopo che hai letto il testo e detto sì, e arrivano solo a chi mantiene Arturo, salvo che tu scelga una issue pubblica su GitHub.
 4. **Arturo resta in italiano.**
 5. **Se lo sviluppo si ferma, lo scrivo.** Lo dichiarano l'ultima entry di [`NOVITA.md`](NOVITA.md) e la cima di questa pagina. La copia che hai continua a funzionare, e puoi farne un fork.
 
@@ -170,9 +170,11 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 
 | Di Arturo (arriva con gli aggiornamenti) | Tuo (nessun aggiornamento lo tocca) |
 |---|---|
-| `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `docs/`, `templates/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `hooks/hosts-interni.local`, `data/` (compresi i tuoi todo in `data/todo/`), `projects/` e le altre cartelle di lavoro |
+| `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `docs/`, `templates/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `personale/` (le tue aggiunte ai comandi di Arturo), `hooks/hosts-interni.local`, `data/` (compresi i tuoi todo in `data/todo/`), `projects/` e le altre cartelle di lavoro |
 
 `settings.json` è di Arturo, ma le tue modifiche restano come commit locali. `/aggiorna` ti mostra i file cambiati sia da te sia dall'aggiornamento prima di applicare. Se nella copia di prova `settings.json` non è JSON valido o resta un conflitto, l'aggiornamento non arriva in `~/.claude`: un `settings.json` rotto spegnerebbe tutte le guardie. L'avvio della sessione te lo segnala con una riga `CONFIG ROTTA`.
+
+**Arturo convive con la tua config.** Le tue regole, i tuoi comandi e i tuoi permessi restano tuoi. Se vuoi cambiare un comando di Arturo, scrivi le tue aggiunte in `~/.claude/personale/<comando>.md`: quando lanci il comando Claude le legge, e nessun aggiornamento le tocca. Se hai già modificato un comando di Arturo, `/aggiorna personale` sposta le tue modifiche lì. L'avvio ti avvisa con una riga `DERIVA` quando la distanza dalla config di Arturo rischia di rompere qualcosa: un comando di Arturo modificato che andrà in conflitto, un hook di Arturo tolto o spento.
 
 > Se `/aggiorna` o `/novita` rispondono «comando sconosciuto», la tua copia è precedente a quei
 > comandi: fai l'aggiornamento a mano con i comandi qui sopra e riapri Claude Code. Da lì in poi bastano gli slash.
@@ -260,11 +262,14 @@ Fuori dal dispatcher:
 - `prompt-injection-scanner.py` — PostToolUse: segnala tentativi di prompt injection nei contenuti esterni (pattern EN + IT). Anche questo avviso arriva a Claude.
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
 - `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
-- `session-start.sh` / `session-end.sh` — titolo finestra, avvisi Git locali, avvio della telemetria (`arturo telemetria`), invito a `/segnala` (si spegne con `arturo segnala basta`) e cleanup degli unlock di sessione.
+- `session-start.sh` / `session-end.sh` — titolo finestra, avvisi Git locali, controllo della deriva (`deriva.py`), avvio della telemetria (`arturo telemetria`), invito a `/segnala` (si spegne con `arturo segnala basta`) e cleanup degli unlock di sessione.
 - `controlla-config.py` — strumento, non un hook: controlla che la config sia integra (`settings.json` valido, nessun rebase o conflitto a metà) e stampa `CONFIG OK` o `CONFIG ROTTA`. Lo usano l'avvio, `/inizio`, `/aggiorna` e `/fine`.
-- `inject-now.sh` — inietta data/ora corrente a ogni prompt, e ricorda che una richiesta di lavoro
-  comincia con `Skill(prompt-master)` e con PROMPT + BRIEF. Per spegnere il promemoria, cancella il
-  blocco `cat` finale dello script.
+- `deriva.py` — strumento, non un hook: all'avvio misura quanto la tua config si è allontanata da quella di Arturo (comandi e file di Arturo modificati, hook di Arturo tolti o spenti, config rotta) e stampa una riga `DERIVA` solo se c'è da fare.
+- `inject-now.sh` — inietta data/ora corrente a ogni prompt. Quando lanci un comando con aggiunte tue in
+  `personale/`, dice a Claude di leggerle. Sui messaggi che non sono comandi ricorda che un lavoro su più
+  file, con effetti fuori dal computer o ambiguo comincia con PROMPT + BRIEF; domande e richieste
+  chiare e piccole hanno risposta diretta. Per spegnere il promemoria, cancella il blocco `cat` finale
+  dello script.
 - `input-notifier-start.sh` — notifica quando Claude aspetta input.
 - `statusline.js` — statusline con modello, task in corso, cartella e uso del contesto.
 
@@ -274,14 +279,15 @@ Fuori dal dispatcher:
 registra `comando` con il nome di un comando di Arturo, mai il testo del prompt: un comando tuo o
 dello strato della tua organizzazione non si registra. `bash-dispatcher.sh` registra `guardia` con il
 nome della guardia che ha bloccato, mai il comando. `bin/aggiorna-applica.sh` registra `aggiorna` con
-l'esito. Con la telemetria spenta nessuno di loro scrive. `python3 ~/.claude/bin/arturo telemetria mostra`
+l'esito. `deriva.py` registra `deriva` solo quando cambia l'elenco dei file e degli hook di Arturo
+cambiati o spenti, e `config` una volta al giorno se la config è rotta. Con la telemetria spenta nessuno di loro scrive. `python3 ~/.claude/bin/arturo telemetria mostra`
 fa vedere la coda così come parte.
 
 ### La rotta (`commands/`)
 
 Setup: **`/setup`** — configurazione guidata dell'intero harness per un nuovo utente (prerequisiti, permessi, `PROJECTS_BASE`, `CLAUDE.md`, sync, verifica); pensato anche per chi non programma.
 
-Manutenzione: **`/aggiorna`** — scarica e applica l'ultima versione di Arturo, dopo averti mostrato cosa cambia e controllato che non travolga le tue modifiche.
+Manutenzione: **`/aggiorna`** — scarica e applica l'ultima versione di Arturo, dopo averti mostrato cosa cambia e controllato che non travolga le tue modifiche. **`/aggiorna personale`** sposta le tue modifiche ai comandi di Arturo in `personale/`, dove gli aggiornamenti non vanno in conflitto.
 
 Ripresa: **`/guidami`** — guarda gli ultimi handoff e le conversazioni recenti e ti propone tre o quattro cose che ha senso fare adesso, con il motivo e il primo passo. Per quando riapri e non sai da dove ripartire.
 
@@ -372,6 +378,7 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 - **Host interni.** `INTERNAL_HOSTS` e `INTERNAL_NETS` in `exfil-guard.py` e `web-egress-guard.py` sono i default pubblici: non modificarli. Se lavori con un tuo server, aggiungi il suo hostname o la sua rete in `hooks/hosts-interni.local`, una voce per riga: le chiamate verso quegli host non chiederanno conferma. Una rete più larga di `/8` viene ignorata. Quel file è tuo, nessun aggiornamento lo tocca.
 - **Lingua.** `language` in `settings.json` (default `italian`) e i messaggi dei guard sono in italiano — cambiali se preferisci un'altra lingua.
 - **Disattivare un guard.** Commenta la riga corrispondente in `bash-dispatcher.sh` (per i guard instradati) o rimuovi il blocco da `settings.json` (per quelli PostToolUse). Poi rilancia `/system-audit`.
+- **Cambiare un comando di Arturo.** Non modificare `commands/<comando>.md`: scrivi le tue aggiunte in `~/.claude/personale/<comando>.md` (oppure lascia che `/aggiorna personale` le sposti lì). Claude le legge quando lanci il comando, `/fine` le sincronizza solo verso un tuo repository privato, e nessun aggiornamento le tocca.
 - **Aggiungere un comando o una skill.** Un file `.md` in `commands/` diventa uno slash command; una cartella con `SKILL.md` in `skills/` diventa una skill. Il frontmatter `name` + `description` è obbligatorio (`/system-audit` lo verifica).
 
 ---

@@ -14,6 +14,11 @@ export const EVENTI = {
   guardia: /^[a-z0-9_.-]{1,60}$/,
   aggiorna: /^(applicato|conflitto|fallito)$/,
   segnalazione: /^(problema|proposta|integrazione)$/,
+  // La distanza fra la config della persona e quella di Arturo: un `insieme:<n>` apre l'elenco
+  // corrente, seguito da n righe. Dei file esce solo il percorso dentro Arturo, che è pubblico.
+  // Il percorso è relativo, senza "..", e comincia da una radice di Arturo o è un file della radice.
+  deriva: /^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|hooks|server|shared|skills|templates|tests|\.github)\/[A-Za-z0-9_.\/-]{1,70}|[A-Za-z0-9_.-]{1,40}))$/,
+  config: /^rotta-(settings|conflitto|rebase)$/,
 };
 export const TIPI = ["problema", "proposta", "integrazione"];
 export const SISTEMI = ["Darwin", "Linux", "Windows", "altro"];
@@ -25,6 +30,7 @@ export const LIMITI = {
   eventiTotaliPerGiorno: 100000,
   segnalazioniPerGiorno: 200,
   emailPerGiorno: 40,
+  guardieFrequenti: 5,
   conservazioneGiorni: 365,
 };
 
@@ -133,19 +139,58 @@ export function emailSegnalazione(s, numero) {
   return { oggetto, testo };
 }
 
+export function emailConfigRotta(installazione, valore, versione) {
+  return {
+    oggetto: "[Arturo] Config rotta su un'installazione",
+    testo: `Un'installazione di Arturo ha la config rotta (${valore.replace("rotta-", "")}): le guardie possono non girare.\n\n` +
+      `Installazione ${installazione.slice(0, 8)} · Arturo ${versione}\n`,
+  };
+}
+
+const corto = (id) => id.slice(0, 8);
+
+// Per ogni installazione l'elenco corrente della deriva. È un ostacolo se un hook di Arturo è
+// spento, se una guardia (hooks/) è modificata, o se un file di Arturo modificato sta insieme a un
+// aggiornamento finito in conflitto.
+export function testoDeriva(deriva) {
+  if (!deriva || !deriva.length) return ["  nessuna"];
+  const righe = [];
+  for (const d of deriva) {
+    const hook = d.valori.filter((v) => v.startsWith("hook:")).map((v) => v.slice(5));
+    const file = d.valori.filter((v) => v.startsWith("file:")).map((v) => v.slice(5));
+    if (!hook.length && !file.length) { righe.push(`  ${corto(d.installazione)}  rientrata: nessuna differenza che conti`); continue; }
+    if (hook.length) righe.push(`  ${corto(d.installazione)}  OSTACOLO, hook di Arturo spenti: ${hook.join(", ")}`);
+    const guardie = file.filter((f) => f.startsWith("hooks/"));
+    const altri = file.filter((f) => !f.startsWith("hooks/"));
+    if (guardie.length) righe.push(`  ${corto(d.installazione)}  OSTACOLO, guardie di Arturo modificate: ${guardie.join(", ")}`);
+    if (altri.length) {
+      righe.push(`  ${corto(d.installazione)}  ${d.conflitto ? "OSTACOLO, aggiornamento in conflitto, " : ""}file di Arturo modificati: ${altri.join(", ")}`);
+    }
+  }
+  return righe.sort((a, b) => Number(b.includes("OSTACOLO")) - Number(a.includes("OSTACOLO")));
+}
+
 export function testoRiepilogo(r, titolo) {
   const elenco = (righe, vuoto = "nessuno") => righe.length ? righe.map((x) => `  ${x.n}  ${x.valore || "(vuoto)"}`).join("\n") : `  ${vuoto}`;
+  const frequenti = r.guardieFrequenti
+    ? ["", `Guardie frequenti (almeno ${LIMITI.guardieFrequenti} blocchi nella settimana sulla stessa installazione):`,
+      r.guardieFrequenti.length ? r.guardieFrequenti.map((x) => `  ${x.n}  ${x.valore} su ${corto(x.installazione)}`).join("\n") : "  nessuna"]
+    : [];
   return [
     titolo,
     "",
     `Installazioni attive: ${r.installazioni}`,
     `Sessioni: ${r.sessioni}`,
     "",
+    "Config rotte:", elenco(r.config || [], "nessuna"),
+    "", "Deriva dalla config di Arturo:", ...testoDeriva(r.deriva),
+    "",
     "Versioni in uso:", elenco(r.versioni, "nessuna"),
     "", "Sistemi:", elenco(r.sistemi),
     "", "Comandi usati:", elenco(r.comandi),
     "", "Guardie che hanno bloccato:", elenco(r.guardie, "nessuna"),
     "", "Esiti di /aggiorna:", elenco(r.aggiorna),
+    ...frequenti,
     "", `Segnalazioni ricevute: ${r.segnalazioni}`,
     "",
   ].join("\n");
@@ -174,6 +219,15 @@ export async function gestisci(request, { archivio, posta, adesso = new Date() }
       return risposta(429, { errore: "server pieno per oggi" });
     }
     await archivio.scriviEventi(righe, adesso.toISOString());
+    // Una config rotta arriva subito per email: una sola al giorno per installazione.
+    const rotta = righe.find((x) => x.evento === "config");
+    if (rotta && await archivio.primaVolta(giorno, `rotta:${rotta.installazione}`) && await archivio.prendiEmail(giorno, LIMITI.emailPerGiorno)) {
+      try {
+        await posta(emailConfigRotta(rotta.installazione, rotta.valore, rotta.versione));
+      } catch (e) {
+        console.log("email non partita", e && e.message);
+      }
+    }
     return risposta(202, { ricevuti: righe.length });
   }
 
@@ -217,7 +271,7 @@ export async function giornaliero({ archivio, posta, adesso = new Date() }) {
 export async function settimanale({ archivio, posta, adesso = new Date() }) {
   const al = oggi(adesso);
   const dal = giorniFa(adesso, 7);
-  const r = await archivio.riepilogo(dal, al);
+  const r = await archivio.riepilogo(dal, al, { settimana: true });
   await posta({ oggetto: `[Arturo] Riepilogo della settimana ${dal} - ${al}`, testo: testoRiepilogo(r, `Arturo, settimana dal ${dal} al ${al}`) });
   await archivio.pulisci(giorniFa(adesso, LIMITI.conservazioneGiorni));
 }

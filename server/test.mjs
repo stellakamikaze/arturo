@@ -1,12 +1,13 @@
 // Banco del server di Arturo (W-casi con la sigla V): logica.js con un archivio e una posta finti.
 // Uso: node server/test.mjs   (esce con 0 se tutto passa)
 import assert from "node:assert/strict";
-import { gestisci, settimanale, giornaliero, programmato, mime, LIMITI, EVENTI } from "./logica.js";
+import { gestisci, settimanale, giornaliero, programmato, mime, testoDeriva, LIMITI, EVENTI } from "./logica.js";
 
-const VUOTO = { installazioni: 0, sessioni: 0, versioni: [], sistemi: [], comandi: [], guardie: [], aggiorna: [], segnalazioni: 0 };
+const VUOTO = { installazioni: 0, sessioni: 0, versioni: [], sistemi: [], comandi: [], guardie: [], aggiorna: [], config: [], deriva: [],
+  guardieFrequenti: null, segnalazioni: 0 };
 
 function finti(riepilogo = null) {
-  const stato = { eventi: [], segnalazioni: [], email: [], contatori: {}, pulito: null, finestre: [] };
+  const stato = { eventi: [], segnalazioni: [], email: [], contatori: {}, chiavi: {}, pulito: null, finestre: [], opzioni: [] };
   const archivio = {
     async contaEventi(inst, giorno) {
       return stato.eventi.filter((e) => e.ricevuto === giorno && (!inst || e.installazione === inst)).length;
@@ -20,9 +21,15 @@ function finti(riepilogo = null) {
       stato.contatori[giorno] = (stato.contatori[giorno] || 0) + 1;
       return stato.contatori[giorno] <= massimo;
     },
+    async primaVolta(giorno, chiave) {
+      const k = `${giorno} ${chiave}`;
+      stato.chiavi[k] = (stato.chiavi[k] || 0) + 1;
+      return stato.chiavi[k] === 1;
+    },
     async segnaEmail() {},
-    async riepilogo(dal, al) {
+    async riepilogo(dal, al, opzioni = {}) {
       stato.finestre.push([dal, al]);
+      stato.opzioni.push(opzioni);
       if (riepilogo) return riepilogo;
       return { installazioni: 2, sessioni: 5, versioni: [{ valore: "v2026-10-13", n: 2 }], sistemi: [], comandi: [{ valore: "fine", n: 3 }],
         guardie: [], aggiorna: [], segnalazioni: 1 };
@@ -108,7 +115,7 @@ const casi = {
     assert.match(m, /^Subject: =\?UTF-8\?B\?/m, "V08 l'oggetto con accenti non è codificato");
     const corpo = m.split("\r\n\r\n")[1].replace(/\r\n/g, "");
     assert.equal(Buffer.from(corpo, "base64").toString("utf8"), "àèì", "V08 il corpo non torna uguale");
-    assert.deepEqual(Object.keys(EVENTI), ["sessione", "comando", "guardia", "aggiorna", "segnalazione"]);
+    assert.deepEqual(Object.keys(EVENTI), ["sessione", "comando", "guardia", "aggiorna", "segnalazione", "deriva", "config"]);
   },
   async V10() {
     const f = finti();
@@ -140,6 +147,67 @@ const casi = {
     assert.deepEqual(h.stato.email.map((m) => m.oggetto.split(" ")[1]), ["Riepilogo"], "V12 il lunedì vuoto deve mandare il solo riepilogo");
     assert.match(h.stato.email[0].testo, /Versioni in uso:\n  nessuna\n[\s\S]*Comandi usati:\n  nessuno\n[\s\S]*Guardie che hanno bloccato:\n  nessuna\n/,
       "V12 il genere di nessuno/nessuna è sbagliato");
+  },
+  async V13() {
+    // La config rotta arriva subito per email, una sola al giorno per installazione, dentro il tetto.
+    const f = finti();
+    const rotta = lotto([{ evento: "config", valore: "rotta-settings" }]);
+    assert.equal((await gestisci(post("/v1/eventi", rotta), { ...f, adesso })).status, 202, "V13 config rotta rifiutata");
+    assert.equal(f.stato.email.length, 1, "V13 la config rotta non manda l'email subito");
+    assert.match(f.stato.email[0].oggetto, /Config rotta/);
+    assert.match(f.stato.email[0].testo, /Installazione 1b2c3d4e /, "V13 l'id non è accorciato");
+    await gestisci(post("/v1/eventi", rotta), { ...f, adesso });
+    assert.equal(f.stato.email.length, 1, "V13 seconda email per la stessa installazione nello stesso giorno");
+    await gestisci(post("/v1/eventi", lotto([{ evento: "config", valore: "rotta-rebase" }], { installazione: "99999999-zzzz" })), { ...f, adesso });
+    assert.equal(f.stato.email.length, 2, "V13 un'altra installazione non riceve il suo avviso");
+    const g = finti();
+    g.stato.contatori["2026-10-13"] = LIMITI.emailPerGiorno;
+    await gestisci(post("/v1/eventi", rotta), { ...g, adesso });
+    assert.equal(g.stato.email.length, 0, "V13 il tetto delle email non vale per la config rotta");
+    for (const v of ["rotta-altro", "rotta-settings ", "../x"]) {
+      assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "config", valore: v }])), { ...f, adesso })).status, 400, `V13 config accetta ${v}`);
+    }
+  },
+  async V14() {
+    // Deriva: valori chiusi, ostacoli in cima, id accorciato, rientro detto.
+    const f = finti();
+    for (const v of ["insieme:2", "file:commands/inizio.md", "hook:bash-dispatcher.sh", "file:skills/x/SKILL.md"]) {
+      assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "deriva", valore: v }])), { ...f, adesso })).status, 202, `V14 deriva rifiuta ${v}`);
+    }
+    for (const v of ["file:/Users/gigi/segreto.md", "file:commands/con spazio.md", "insieme:1000", "progetto:x", "hook:", "file:../x", "file:commands/../../etc/passwd"]) {
+      assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "deriva", valore: v }])), { ...f, adesso })).status, 400, `V14 deriva accetta ${v}`);
+    }
+    const righe = testoDeriva([
+      { installazione: "aaaaaaaa-1111", valori: ["file:commands/inizio.md"], conflitto: false },
+      { installazione: "bbbbbbbb-2222", valori: ["hook:bash-dispatcher.sh"], conflitto: false },
+      { installazione: "cccccccc-3333", valori: ["file:commands/fine.md"], conflitto: true },
+      { installazione: "dddddddd-4444", valori: [], conflitto: false },
+      { installazione: "eeeeeeee-5555", valori: ["file:hooks/comms-guard.py"], conflitto: false },
+    ]);
+    assert.ok(righe[0].includes("OSTACOLO") && righe[1].includes("OSTACOLO"), "V14 gli ostacoli non stanno in cima");
+    assert.ok(righe.some((r) => r === "  bbbbbbbb  OSTACOLO, hook di Arturo spenti: bash-dispatcher.sh"), "V14 riga dell'hook");
+    assert.ok(righe.some((r) => /cccccccc  OSTACOLO, aggiornamento in conflitto, file di Arturo modificati: commands\/fine\.md/.test(r)), "V14 conflitto non segnato");
+    assert.ok(righe.some((r) => r === "  aaaaaaaa  file di Arturo modificati: commands/inizio.md"), "V14 file senza conflitto");
+    assert.ok(righe.some((r) => r.startsWith("  dddddddd  rientrata")), "V14 il rientro non è detto");
+    assert.ok(righe.some((r) => r === "  eeeeeeee  OSTACOLO, guardie di Arturo modificate: hooks/comms-guard.py"), "V14 guardia modificata non è un ostacolo");
+    assert.deepEqual(testoDeriva([]), ["  nessuna"]);
+    const g = finti({ ...VUOTO, installazioni: 1, deriva: [{ installazione: "bbbbbbbb-2222", valori: ["hook:tutti"], conflitto: false }] });
+    await giornaliero({ ...g, adesso });
+    assert.match(g.stato.email[0].testo, /Deriva dalla config di Arturo:\n  bbbbbbbb  OSTACOLO, hook di Arturo spenti: tutti\n/, "V14 il recap non mostra la deriva");
+  },
+  async V15() {
+    // Guardie frequenti: solo il lunedì, con la soglia scritta nel testo.
+    const f = finti();
+    await giornaliero({ ...f, adesso });
+    assert.deepEqual(f.stato.opzioni, [{}], "V15 il recap del giorno chiede la settimana");
+    assert.doesNotMatch(f.stato.email[0].testo, /Guardie frequenti/, "V15 guardie frequenti nel recap del giorno");
+    const g = finti({ ...VUOTO, guardieFrequenti: [{ installazione: "aaaaaaaa-1111", valore: "comms-guard.py", n: 7 }] });
+    await settimanale({ ...g, adesso });
+    assert.deepEqual(g.stato.opzioni, [{ settimana: true }], "V15 il riepilogo non chiede la settimana");
+    assert.match(g.stato.email[0].testo, /Guardie frequenti \(almeno 5 blocchi[^\n]*\n  7  comms-guard\.py su aaaaaaaa\n/, "V15 guardie frequenti mancanti");
+    const h = finti({ ...VUOTO, guardieFrequenti: [] });
+    await settimanale({ ...h, adesso });
+    assert.match(h.stato.email[0].testo, /Guardie frequenti[^\n]*\n  nessuna\n/, "V15 settimana senza guardie frequenti");
   },
   async V09() {
     const f = finti();

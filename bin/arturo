@@ -480,7 +480,8 @@ COMANDI = {
     "web": (web, "la pagina dei todo nel browser, solo su questo computer"),
     "percorso": ("percorso", "il percorso a tappe: le decisioni che tieni, calcolate su questo computer"),
     "segnala": ("segnala", "un problema, un'idea o un'integrazione per chi mantiene Arturo"),
-    "telemetria": ("telemetria", "i dati d'uso anonimi che Arturo manda: stato, mostra, spegni, accendi"),
+    "telemetria": ("telemetria", "i dati d'uso anonimi che Arturo manda: stato, mostra, spegni, accendi, invia"),
+    "personale": ("personale", "le tue aggiunte ai comandi di Arturo, in file che gli aggiornamenti non toccano"),
 }
 
 

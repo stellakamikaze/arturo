@@ -1,6 +1,6 @@
 ---
-description: Scarica e applica l'ultima versione di Arturo, poi racconta cosa è cambiato. Con `indietro`, riporta alla versione prima dell'ultimo aggiornamento
-argument-hint: "(nessuno) | indietro"
+description: Scarica e applica l'ultima versione di Arturo, poi racconta cosa è cambiato. Con `indietro`, riporta alla versione prima dell'ultimo aggiornamento. Con `personale`, sposta le modifiche ai comandi di Arturo in file suoi
+argument-hint: "(nessuno) | indietro | personale"
 ---
 
 # Aggiorna
@@ -94,6 +94,25 @@ comm -12 <(git diff --name-only "$SRC/main...HEAD" 2>/dev/null | sort) <(git dif
 Se ci sono file cambiati da tutti e due, **mostraglieli e chiedi conferma prima di procedere**:
 sono i punti dove può nascere un conflitto. Sono suoi, e un aggiornamento non deve mangiarseli.
 
+### Passo 2b — Le sue aggiunte ai comandi
+
+Se fra i file cambiati da tutti e due c'è un comando di Arturo (`commands/<nome>.md`), quel file
+andrà in conflitto adesso e a ogni aggiornamento futuro. Le sue aggiunte hanno un posto che gli
+aggiornamenti non toccano: `~/.claude/personale/<nome>.md`. Quando lancia `/<nome>`, l'avvio del
+prompt dice a Claude di leggerle.
+
+Per ogni comando di quell'elenco mostragli in parole semplici cosa ha aggiunto o tolto
+(`git diff "$SRC/main...HEAD" -- commands/<nome>.md`) e proponi di spostarlo. Solo dopo il suo sì:
+
+```bash
+python3 "$HOME/.claude/bin/arturo" personale sposta commands/<nome>.md
+```
+
+Il comando copia le sue parti in `personale/<nome>.md` così come sono, riporta il comando alla
+versione di Arturo e salva con un commit. Poi leggete insieme il file personale e sistematelo come
+istruzioni chiare. Se dice di no, il file resta suo e l'aggiornamento prova lo stesso: un conflitto
+si risolve come sotto.
+
 Se `git status` elenca dei file, sono modifiche sue non ancora salvate con un commit (le scrive
 anche `/setup`, per esempio `PROJECTS_BASE` o la lingua in `settings.json`). Il Passo 3 non parte
 finché ci sono: un aggiornamento sopra modifiche non salvate può lasciare un file mezzo suo e mezzo
@@ -159,7 +178,10 @@ La prima parola dell'esito dice cosa è successo:
 Con `CONFLITTO` la sua `~/.claude` non è stata toccata. I conflitti stanno nella **copia di prova**,
 nella cartella che l'esito ha stampato, con i file elencati. Si risolvono lì, mai in `~/.claude`.
 
-1. Per ogni file in conflitto della copia di prova, mostragli in parole semplici cosa c'era da lui e
+1. Se il file in conflitto è un comando di Arturo (`commands/<nome>.md`), proponi prima la strada
+   che non si ripete: col suo sì scarta la copia di prova (il blocco `scarta` qui sopra: le sue
+   modifiche restano in `~/.claude`), sposta le sue aggiunte col Passo 2b e rilancia il Passo 3. Altrimenti, o se preferisce così,
+   per ogni file in conflitto della copia di prova, mostragli in parole semplici cosa c'era da lui e
    cosa arriva da Arturo, e chiedi cosa tenere. Di solito si tengono tutti e due: per esempio tutte le
    righe di una lista `deny`. Scrivi il file risolto nella copia di prova, senza marcatori.
 2. Chiudi l'aggiornamento nella copia di prova. Con un merge: `git -C <copia> add <file>` per ogni
@@ -211,6 +233,18 @@ Due cose, in quest'ordine:
 3. Se le novità nominano un comando da scrivere nel terminale (`arturo todo`, `arturo web`),
    controlla se ha il comando breve: `type arturo`. Se non c'è, digli la forma che funziona
    sempre (`python3 ~/.claude/bin/arturo …`) e proponigli la FASE 7c di `/setup`, che lo aggiunge.
+
+## Le sue aggiunte, senza aggiornare
+
+Se chi ti parla scrive `/aggiorna personale` (oppure l'avvio ha mostrato una riga `DERIVA:` sui
+comandi), non scarichi niente: sposti solo le sue modifiche ai comandi di Arturo.
+
+```bash
+python3 "$HOME/.claude/bin/arturo" personale elenco
+```
+
+Per ogni comando elencato segui il Passo 2b: mostra le modifiche, chiedi il sì, sposta, rileggete
+insieme il file personale. Se non ce n'è nessuno, diglielo in una riga.
 
 ## Tornare indietro
 

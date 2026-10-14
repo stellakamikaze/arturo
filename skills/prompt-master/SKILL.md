@@ -6,9 +6,10 @@ description: >-
   come brief verificabile prima di lavorare.
 when_to_use: >-
   Usa il PROMPT ESTERNO quando l'utente chiede esplicitamente un prompt per ChatGPT, Gemini, Cursor,
-  Midjourney, Sora, ElevenLabs, Codex o agenti di coding. Usa il BRIEF INTERNO PRIMA di ogni richiesta
-  di lavoro rivolta a Claude Code stesso, anche breve: il brief va sempre mostrato. NON per la
-  conversazione pura: domande, commenti, risposte a un menu. Segui tutti i passi nell'ordine: non
+  Midjourney, Sora, ElevenLabs, Codex o agenti di coding. Usa il BRIEF INTERNO PRIMA di una richiesta
+  di lavoro rivolta a Claude Code che tocca più file, ha effetti fuori dal computer o si può capire in
+  due modi. NON per la conversazione pura (domande, commenti, risposte a un menu) né per le richieste
+  chiare e piccole: lì si risponde e si fa. Segui tutti i passi nell'ordine: non
   prendere scorciatoie basandoti su questa description.
 version: 1.8.0
 upstream: nidhinjs/prompt-master@2bd9251
@@ -16,7 +17,7 @@ upstream: nidhinjs/prompt-master@2bd9251
 
 ## MODALITÀ BRIEF INTERNO — richieste rivolte a Claude Code
 
-Si attiva su ogni richiesta di lavoro rivolta a Claude Code, anche breve. Non si attiva sulla conversazione pura: domande, commenti, risposte a un menu, spiegazioni senza nulla da fare. In caso di dubbio il brief si mostra: costa tre righe.
+Si attiva su una richiesta di lavoro che tocca più file, ha effetti fuori dal computer o si può capire in due modi. Non si attiva sulla conversazione pura (domande, commenti, risposte a un menu, spiegazioni senza nulla da fare) né su una richiesta chiara e piccola: «rinomina questo file», «correggi il refuso», «che ore sono a Tokyo». Arturo non deve intralciare l'uso naturale dell'LLM: un brief dove non serve è attrito. In caso di dubbio basta la riga del PROMPT, senza brief.
 
 Casi di confine:
 

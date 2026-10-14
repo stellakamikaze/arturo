@@ -58,6 +58,8 @@ client_secret*.json
 # File personali dell'utente — non arrivano mai con un aggiornamento
 CLAUDE.md
 hooks/hosts-interni.local
+# Le aggiunte ai comandi di Arturo (arturo personale): /fine le porta solo verso un remote privato.
+/personale/
 
 # Artefatti di lavoro dello strumento di design (screenshot, config locale)
 .impeccable/
