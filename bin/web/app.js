@@ -23,6 +23,8 @@
   var NOMI_CAMPI = { titolo: "titolo", progetto: "progetto", scadenza: "scadenza", chi: "chi agisce",
     perche: "perché", priorita: "priorità", quando: "quando" };
   var ORDINE_GRUPPI = ["tu", "decidi", "io", "fermo"];
+  // I pezzi della striscia, nell'ordine in cui compaiono: «senza» sono i «tu» ancora senza chi.
+  var PEZZI_STRISCIA = [["tu", "a te"], ["senza", "senza chi"], ["decidi", "da decidere"], ["io", "a Claude"], ["fermo", "fermi"]];
   var IN_VISTA = 3;            // i task che un foglio mostra dopo il prossimo passo
   // Un todo senza chi agisce. In locale non succede: ogni todo nasce con un chi. Lo usa una
   // pagina che legge i task da un altro archivio, dove il campo può mancare.
@@ -511,16 +513,16 @@
   function sintesi(lista, dove) {
     var nodo = $("sintesi");
     svuota(nodo);
-    var tu = lista.filter(function (t) { return t.gruppo === "tu" && t.perche !== DA_CLASSIFICARE; });
-    var senza = lista.filter(function (t) { return t.gruppo === "tu" && t.perche === DA_CLASSIFICARE; }).length;
-    var scaduti = lista.filter(function (t) { return t.giorni !== null && t.giorni < 0; }).length;
-    var decidi = lista.filter(function (t) { return t.gruppo === "decidi"; }).length;
-    var io = lista.filter(function (t) { return t.gruppo === "io"; }).length;
+    var tu = conta(lista, "tu");
+    var senza = conta(lista, "senza");
+    var scaduti = scadutiIn(lista);
+    var decidi = conta(lista, "decidi");
+    var io = conta(lista, "io");
     var frasi = [];
     if (!lista.length) {
       frasi.push([null, dove ? "Niente di aperto in «" + dove + "»." : "Niente di aperto. Il cielo è sgombro."]);
     } else {
-      frasi.push(["tu", tu.length ? "Tocca a te: " + quante(tu.length, "una cosa.", "cose.") : "Niente tocca a te adesso."]);
+      frasi.push(["tu", tu ? "Tocca a te: " + quante(tu, "una cosa.", "cose.") : "Niente tocca a te adesso."]);
       if (senza) { frasi.push(["senza", senza === 1 ? "Una non ha ancora chi la fa." : senza + " non hanno ancora chi le fa."]); }
       if (decidi) { frasi.push(["decidi", decidi === 1 ? "Una aspetta una tua scelta." : decidi + " aspettano una tua scelta."]); }
       if (io) { frasi.push(["io", io === 1 ? "Claude ne ha in mano una." : "Claude ne ha in mano " + io + "."]); }
@@ -531,20 +533,15 @@
     });
     var vecchia = $("striscia");
     if (vecchia) { vecchia.parentNode.removeChild(vecchia); }
-    if (lista.length > 1) { nodo.parentNode.insertBefore(striscia(lista, tu.length, senza), nodo.nextSibling); }
+    if (lista.length > 1) { nodo.parentNode.insertBefore(striscia(lista), nodo.nextSibling); }
   }
 
   // I conti della sintesi come una striscia di carta tagliata in pezzi: la larghezza di ogni
   // pezzo è la sua parte dei todo aperti. Il segno di ogni pezzo è lo stesso di chi agisce;
   // quelli senza chi sono tratteggiati, perché non sono ancora di nessuno.
-  function striscia(lista, tu, senza) {
-    var pezzi = [
-      ["tu", tu, "a te"],
-      ["senza", senza, "senza chi"],
-      ["decidi", lista.filter(function (t) { return t.gruppo === "decidi"; }).length, "da decidere"],
-      ["io", lista.filter(function (t) { return t.gruppo === "io"; }).length, "a Claude"],
-      ["fermo", lista.filter(function (t) { return t.gruppo === "fermo"; }).length, "fermi"]
-    ].filter(function (p) { return p[1] > 0; });
+  function striscia(lista) {
+    var pezzi = PEZZI_STRISCIA.map(function (p) { return [p[0], conta(lista, p[0]), p[1]]; })
+      .filter(function (p) { return p[1] > 0; });
     var detto = pezzi.map(function (p) { return p[1] + " " + p[2]; }).join(", ");
     return el("figure", { id: "striscia", classe: "striscia" }, [
       el("div", { classe: "striscia-barra", role: "img", "aria-label": "Todo aperti: " + detto }, pezzi.map(function (p) {
