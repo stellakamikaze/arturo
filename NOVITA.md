@@ -11,6 +11,21 @@ modo di lavorare.
 
 ---
 
+## 2026-10-14 — Una striscia per i conti, e il controllo degli invii guarda cosa gira davvero
+
+**Cosa cambia**: sotto la frase che riassume i tuoi todo, la pagina di `arturo web` ha una
+striscia. Ogni pezzo è largo quanto la sua parte: quelli che toccano a te, quelli da decidere,
+quelli in mano a Claude, quelli fermi. A colpo d'occhio vedi dove pesa il lavoro. Il controllo
+degli invii email ora giudica il comando che gira, non le parole che contiene: cercare «smtplib»
+in una cartella o scriverlo in una nota non si ferma più. Si fermano invece forme che prima
+passavano: `find -exec sendmail`, `awk` con `system()`, `git send-email`, un testo mandato a `sh`.
+
+**Il principio dietro**: una guardia che blocca la prosa insegna ad aggirarla. Una guardia che
+lascia passare un invio travestito non protegge. Si giudica il codice eseguito.
+
+**Da sapere**: niente da fare. Se hai uno script tuo che usa `git send-email`, ora Claude ti chiede
+conferma prima di lanciarlo.
+
 ## 2026-10-13 — Meno dati in uscita, copie di prova che non si perdono, guardie più precise
 
 **Cosa cambia**: quattro correzioni. La telemetria manda il nome di un comando solo se il comando è

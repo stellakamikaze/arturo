@@ -24,6 +24,10 @@
     perche: "perché", priorita: "priorità", quando: "quando" };
   var ORDINE_GRUPPI = ["tu", "decidi", "io", "fermo"];
   var IN_VISTA = 3;            // i task che un foglio mostra dopo il prossimo passo
+  var SOTTO_IN_VISTA = 5;      // i progetti che un ripiano chiuso mostra
+  // Un todo senza chi agisce. In locale non succede: ogni todo nasce con un chi. Lo usa una
+  // pagina che legge i task da un altro archivio, dove il campo può mancare.
+  var DA_CLASSIFICARE = "da classificare";
   var COMANDO = "python3 ~/.claude/bin/arturo web";
 
   var stato = {
@@ -35,6 +39,7 @@
     aperto: null,      // il pannello in linea aperto: {id, tipo: "modifica" | "decidi"}
     apriDopo: null,    // il pannello da aprire appena cambia la vista («Ho deciso» dal tavolo)
     daFoglio: null,    // il nome del foglio appena cliccato: passa nel titolo della pagina del progetto
+    ripianiAperti: {}, // le categorie aperte per intero, per nome: restano aperte fra due letture
     annulla: null,
     occupato: false,   // una richiesta di scrittura in corso
     spento: false,
@@ -147,7 +152,9 @@
 
   function lettura(dati) {
     return { vista: dati.vista, progetti: dati.progetti, da_dove: dati.da_dove || null, percorso: dati.percorso || null,
-      partenza: dati.partenza || (stato.dati ? stato.dati.partenza : "generale") };
+      partenza: dati.partenza || (stato.dati ? stato.dati.partenza : "generale"),
+      // Facoltativi, da un server che li conosce: ripiani per categoria e nomi completi.
+      categorie: dati.categorie || null, nomi: dati.nomi || null };
   }
 
   function ricevi(dati, forza) {
@@ -389,6 +396,12 @@
 
   // --- disegno ----------------------------------------------------------------------
 
+  // Il nome da mostrare: il server può mandare nomi completi ({chiave: nome}), altrimenti la chiave.
+  function nomeDi(chiave) {
+    var nomi = stato.dati && stato.dati.nomi;
+    return (nomi && nomi[chiave]) || chiave;
+  }
+
   function aperti() {
     var fuori = [];
     stato.dati.vista.gruppi.forEach(function (g) { g.todo.forEach(function (t) { fuori.push(t); }); });
@@ -489,7 +502,8 @@
   function sintesi(lista, dove) {
     var nodo = $("sintesi");
     svuota(nodo);
-    var tu = lista.filter(function (t) { return t.gruppo === "tu"; });
+    var tu = lista.filter(function (t) { return t.gruppo === "tu" && t.perche !== DA_CLASSIFICARE; });
+    var senza = lista.filter(function (t) { return t.gruppo === "tu" && t.perche === DA_CLASSIFICARE; }).length;
     var scaduti = lista.filter(function (t) { return t.giorni !== null && t.giorni < 0; }).length;
     var decidi = lista.filter(function (t) { return t.gruppo === "decidi"; }).length;
     var io = lista.filter(function (t) { return t.gruppo === "io"; }).length;
@@ -498,6 +512,7 @@
       frasi.push([null, dove ? "Niente di aperto in «" + dove + "»." : "Niente di aperto. Il cielo è sgombro."]);
     } else {
       frasi.push(["tu", tu.length ? "Tocca a te: " + quante(tu.length, "una cosa.", "cose.") : "Niente tocca a te adesso."]);
+      if (senza) { frasi.push(["senza", senza === 1 ? "Una non ha ancora chi la fa." : senza + " non hanno ancora chi le fa."]); }
       if (decidi) { frasi.push(["decidi", decidi === 1 ? "Una aspetta una tua scelta." : decidi + " aspettano una tua scelta."]); }
       if (io) { frasi.push(["io", io === 1 ? "Claude ne ha in mano una." : "Claude ne ha in mano " + io + "."]); }
       if (scaduti) { frasi.push([null, scaduti === 1 ? "Una è scaduta." : scaduti + " sono scadute."]); }
@@ -505,6 +520,38 @@
     frasi.forEach(function (f) {
       nodo.appendChild(el("span", { classe: "frase" }, [f[0] ? segnoSolo(f[0]) : null, f[1]]));
     });
+    var vecchia = $("striscia");
+    if (vecchia) { vecchia.parentNode.removeChild(vecchia); }
+    if (lista.length > 1) { nodo.parentNode.insertBefore(striscia(lista, tu.length, senza), nodo.nextSibling); }
+  }
+
+  // I conti della sintesi come una striscia di carta tagliata in pezzi: la larghezza di ogni
+  // pezzo è la sua parte dei todo aperti. Il segno di ogni pezzo è lo stesso di chi agisce;
+  // quelli senza chi sono tratteggiati, perché non sono ancora di nessuno.
+  function striscia(lista, tu, senza) {
+    var pezzi = [
+      ["tu", tu, "a te"],
+      ["senza", senza, "senza chi"],
+      ["decidi", lista.filter(function (t) { return t.gruppo === "decidi"; }).length, "da decidere"],
+      ["io", lista.filter(function (t) { return t.gruppo === "io"; }).length, "a Claude"],
+      ["fermo", lista.filter(function (t) { return t.gruppo === "fermo"; }).length, "fermi"]
+    ].filter(function (p) { return p[1] > 0; });
+    var detto = pezzi.map(function (p) { return p[1] + " " + p[2]; }).join(", ");
+    return el("figure", { id: "striscia", classe: "striscia" }, [
+      el("div", { classe: "striscia-barra", role: "img", "aria-label": "Todo aperti: " + detto }, pezzi.map(function (p) {
+        return largo(el("span", { classe: "striscia-pezzo striscia-pezzo--" + p[0], title: p[1] + " " + p[2] }), p[1]);
+      })),
+      el("figcaption", { classe: "striscia-legenda", "aria-hidden": "true" }, pezzi.map(function (p) {
+        return largo(el("span", { classe: "striscia-voce" }, [
+          segnoSolo(p[0]), el("strong", { testo: String(p[1]) }), el("span", { testo: p[2] })]), p[1]);
+      }))
+    ]);
+  }
+
+  // La larghezza passa dal CSSOM: la CSP della pagina (style-src 'self') blocca l'attributo style.
+  function largo(nodo, quanto) {
+    nodo.style.flexGrow = String(quanto);
+    return nodo;
   }
 
   function vuoto(dove) {
@@ -546,9 +593,13 @@
     sintesi(tutti, "");
     if (!tutti.length && !chiusi().length) { vista.appendChild(vuoto("")); return; }
     $("davanti").appendChild(daDove());
-    var tavolo = el("ul", { classe: "tavolo", "aria-label": "I progetti" });
-    ordinaProgetti().forEach(function (nome) { tavolo.appendChild(foglio(nome)); });
-    vista.appendChild(tavolo);
+    if (stato.dati.categorie && stato.dati.categorie.length) {
+      vista.appendChild(ripiani(stato.dati.categorie));
+    } else {
+      var tavolo = el("ul", { classe: "tavolo", "aria-label": "I progetti" });
+      ordinaProgetti().forEach(function (nome) { tavolo.appendChild(foglio(nome)); });
+      vista.appendChild(tavolo);
+    }
     var finiti = chiusi();
     if (finiti.length) {
       vista.appendChild(el("details", { classe: "chiusi" }, [
@@ -600,7 +651,7 @@
         el("p", { classe: "da-dove-motivo" }, [
           segno(t, true),
           el("span", { testo: d.motivo }),
-          el("a", { href: indirizzo(t.progetto, null), testo: t.progetto })
+          el("a", { href: indirizzo(t.progetto, null), testo: nomeDi(t.progetto) })
         ])
       ]),
       el("div", { classe: "da-dove-azioni" }, azioni)
@@ -635,7 +686,7 @@
     });
 
     var corpo = [
-      el("h2", { classe: "foglio-nome" }, [el("a", { href: indirizzo(nome, null), testo: nome, "data-progetto": nome,
+      el("h2", { classe: "foglio-nome" }, [el("a", { href: indirizzo(nome, null), testo: nomeDi(nome), "data-progetto": nome,
         su: function (e) { stato.daFoglio = e.currentTarget; } })]),
       primo ? el("p", { classe: "foglio-prossimo" }, [
         segno(primo, false),
@@ -654,11 +705,84 @@
     return el("li", { classe: "foglio" + (persona ? "" : " foglio--dietro") }, corpo);
   }
 
+  // --- il tavolo per categorie ------------------------------------------------------------
+  // Quando il server manda le categorie ([{nome, progetti: [chiave, ...]}]) il tavolo ha un
+  // ripiano per categoria, tutti della stessa altezza, coi progetti in fila dentro. Un ripiano
+  // si apre per intero e prende tutta la larghezza. Un progetto senza categoria va in «Altro».
+
+  function ripiani(categorie) {
+    var ordine = ordinaProgetti();
+    var messi = {};
+    var gruppi = categorie.map(function (c) {
+      var nomi = ordine.filter(function (n) { return c.progetti.indexOf(n) !== -1; });
+      nomi.forEach(function (n) { messi[n] = true; });
+      return { nome: c.nome, progetti: nomi };
+    });
+    var resto = ordine.filter(function (n) { return !messi[n]; });
+    if (resto.length) { gruppi.push({ nome: "Altro", progetti: resto }); }
+    return el("div", { classe: "ripiani" }, gruppi.filter(function (g) { return g.progetti.length; }).map(ripiano));
+  }
+
+  function ripiano(g, indice) {
+    var suoi = aperti().filter(function (t) { return g.progetti.indexOf(t.progetto) !== -1; });
+    var aperto = !!stato.ripianiAperti[g.nome];
+    var lungo = g.progetti.length > SOTTO_IN_VISTA;
+    var visti = aperto || !lungo ? g.progetti : g.progetti.slice(0, SOTTO_IN_VISTA);
+    var id = "ripiano-" + indice;
+    var conti = [];
+    ORDINE_GRUPPI.forEach(function (gr) {
+      var n = suoi.filter(function (t) { return t.gruppo === gr; }).length;
+      if (n) { conti.push(el("li", { classe: "conto-chi" }, [segno({ gruppo: gr }, false), el("span", { testo: String(n) })])); }
+    });
+    var scaduti = suoi.filter(function (t) { return t.giorni !== null && t.giorni < 0; }).length;
+    return el("section", { classe: "ripiano" + (aperto ? " ripiano--aperto" : "") + (lungo && !aperto ? " ripiano--taglia" : ""),
+      "aria-labelledby": id + "-nome" }, [
+      el("header", { classe: "ripiano-testa" }, [
+        el("h2", { id: id + "-nome", classe: "ripiano-nome", testo: g.nome }),
+        el("p", { classe: "ripiano-meta" }, [
+          quante(g.progetti.length, "un progetto", "progetti") + (scaduti ? " · " : ""),
+          scaduti ? el("span", { classe: "ripiano-scaduti", testo: quante(scaduti, "uno scaduto", "scaduti") }) : null
+        ]),
+        conti.length ? el("ul", { classe: "foglio-conti", "aria-label": "Chi agisce in " + g.nome }, conti) : null
+      ]),
+      el("ul", { id: id + "-elenco", classe: "ripiano-progetti" }, visti.map(sottoprogetto)),
+      lungo ? bottone(aperto ? "Mostra solo i primi " + SOTTO_IN_VISTA : "Mostra tutti i " + g.progetti.length + " progetti",
+        "azione--testo ripiano-tutto", function () {
+          stato.ripianiAperti[g.nome] = !aperto;
+          disegna();
+        }, { "aria-expanded": aperto ? "true" : "false", "aria-controls": id + "-elenco" }) : null
+    ]);
+  }
+
+  function sottoprogetto(nome) {
+    var suoi = aperti().filter(function (t) { return t.progetto === nome; });
+    suoi.sort(function (a, b) { return ORDINE_GRUPPI.indexOf(a.gruppo) - ORDINE_GRUPPI.indexOf(b.gruppo); });
+    var liberi = suoi.filter(function (t) { return t.gruppo !== "fermo" && !(t.attende || []).length; });
+    var primo = liberi[0] || suoi.filter(function (t) { return t.gruppo !== "fermo"; })[0] || null;
+    var persona = suoi.some(function (t) { return t.gruppo === "tu" || t.gruppo === "decidi"; });
+    var conti = [];
+    ORDINE_GRUPPI.forEach(function (gr) {
+      var n = suoi.filter(function (t) { return t.gruppo === gr; }).length;
+      if (n) { conti.push(el("li", { classe: "conto-chi" }, [segno({ gruppo: gr }, false), el("span", { testo: String(n) })])); }
+    });
+    return el("li", { classe: "sotto" + (persona ? "" : " sotto--dietro") }, [
+      el("div", { classe: "sotto-testa" }, [
+        el("h3", { classe: "sotto-nome" }, [el("a", { href: indirizzo(nome, null), testo: nomeDi(nome), "data-progetto": nome,
+          su: function (e) { stato.daFoglio = e.currentTarget; } })]),
+        conti.length ? el("ul", { classe: "foglio-conti", "aria-label": "Chi agisce" }, conti) : null
+      ]),
+      primo ? el("p", { classe: "sotto-prossimo" }, [
+        segno(primo, false),
+        el("span", {}, [el("a", { href: indirizzo(nome, primo.id), testo: primo.titolo })].concat(segnali(primo)))
+      ]) : el("p", { classe: "foglio-quieto", testo: suoi.length ? "Tutto fermo: aspetta qualcosa." : "Niente di aperto." })
+    ]);
+  }
+
   // --- un progetto ----------------------------------------------------------------------
 
   function disegnaProgetto(vista, nome) {
-    $("titolo").textContent = nome;
-    document.title = nome + " · Arturo";
+    $("titolo").textContent = nomeDi(nome);
+    document.title = nomeDi(nome) + " · Arturo";
     var suoi = aperti().filter(function (t) { return t.progetto === nome; });
     sintesi(suoi, nome);
     var r = stato.rotta;
