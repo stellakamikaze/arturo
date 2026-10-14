@@ -86,9 +86,10 @@ Da chiarire: [max 3 punti]
 - Se l'arricchimento fa emergere un fatto che cambia le carte (lavoro già fatto, decisione già chiusa in senso opposto, freno CLAUDE.md che scatta), dillo nel brief prima di procedere — è il motivo principale per cui questa modalità esiste.
 - Il brief non è un gate e non richiede conferma: se il prompt è corretto e non hai nulla da
   chiarire, mostri e procedi.
-- **Questa skill si carica col tool `Skill`**, a ogni richiesta di lavoro: il corpo si legge, non si
-  ricostruisce a memoria da una riga del `CLAUDE.md`. L'hook `inject-now.sh` lo ricorda a ogni prompt.
+- **Questa skill si carica col tool `Skill`**, quando la richiesta di lavoro chiede il brief: il corpo si
+  legge, non si ricostruisce a memoria da una riga del `CLAUDE.md`. L'hook `inject-now.sh` lo ricorda sui
+  messaggi che non sono comandi.
 
 ## MODALITÀ PROMPT ESTERNO — un prompt per un altro tool AI
 
-Si attiva solo quando l'utente chiede esplicitamente un prompt da incollare in un altro tool (ChatGPT, Gemini, Cursor, Midjourney, Sora, ElevenLabs, Codex, agenti di coding). Prima di scrivere il prompt leggi per intero `references/prompt-esterno.md` in questa skill: identità, regole, instradamento per tool, diagnostica e formato d'uscita stanno lì. Sta fuori da questo file perché questo file si carica a ogni richiesta di lavoro, e la modalità esterna serve di rado.
+Si attiva solo quando l'utente chiede esplicitamente un prompt da incollare in un altro tool (ChatGPT, Gemini, Cursor, Midjourney, Sora, ElevenLabs, Codex, agenti di coding). Prima di scrivere il prompt leggi per intero `references/prompt-esterno.md` in questa skill: identità, regole, instradamento per tool, diagnostica e formato d'uscita stanno lì. Sta fuori da questo file perché questo file si carica a ogni brief interno, e la modalità esterna serve di rado.
