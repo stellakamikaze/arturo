@@ -233,31 +233,36 @@ fieldset legend{padding:0;margin-bottom:6px}
 .foglio-scadenza{font-size:var(--t-meta);font-weight:600;color:var(--cenere)}
 .foglio-scadenza--passata{color:var(--blocca)}
 
-/* --- il tavolo per categorie: ripiani della stessa altezza, i progetti in fila dentro --- */
-.ripiani{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,440px),1fr));gap:20px;margin-top:28px}
-.ripiano{display:flex;flex-direction:column;height:36rem;padding:22px 24px 14px;background:var(--carta);border:1px solid var(--foschia);border-radius:12px;box-shadow:var(--ombra-card)}
-.ripiano--aperto{height:auto;grid-column:1/-1}
-.ripiano-testa{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:4px 16px;padding-bottom:14px;border-bottom:1px solid var(--foschia)}
-.ripiano-nome{font-size:var(--t-h1);line-height:1.1;letter-spacing:-.02em;text-wrap:balance}
-.ripiano-meta{grid-column:1;margin:0;font-size:var(--t-meta);font-weight:600;color:var(--cenere);font-variant-numeric:tabular-nums}
-.ripiano-scaduti{color:var(--blocca)}
-.ripiano-testa .foglio-conti{grid-column:2;grid-row:1 / span 2;align-self:center}
-.ripiano-progetti{flex:1;min-height:0;list-style:none;margin:0;padding:0;overflow:hidden}
-.ripiano--taglia .ripiano-progetti{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 56px),transparent);mask-image:linear-gradient(to bottom,#000 calc(100% - 56px),transparent)}
-.ripiano--aperto .ripiano-progetti{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));column-gap:32px;overflow:visible}
-.sotto{padding:14px 0 13px;border-bottom:1px solid var(--foschia)}
-.sotto:last-child{border-bottom:0}
-.sotto-testa{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
-.sotto-nome{font-size:var(--t-lead);line-height:1.25;letter-spacing:-.01em;overflow-wrap:anywhere}
-.sotto-nome a{color:inherit;text-decoration:none}
-.sotto-nome a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}
-.sotto--dietro .sotto-nome{color:var(--carbone)}
-.sotto-prossimo{display:flex;align-items:baseline;gap:10px;margin-top:6px;font-size:var(--t-piccolo);line-height:1.4;color:var(--carbone)}
-.sotto-prossimo .segno{transform:translateY(-1px)}
-.sotto-prossimo a{color:inherit;text-decoration:none;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.sotto-prossimo a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
-.sotto .foglio-quieto{margin-top:6px}
-.ripiano-tutto{align-self:flex-start;margin-top:8px}
+/* --- il registro per categorie: una tabella per categoria, i conti con il nome scritto --- */
+.registro{margin-top:36px;display:flex;flex-direction:column;gap:40px}
+.registro-aggiungi{margin-top:16px}
+.categoria-testa{margin:0;font:inherit}
+.categoria-apri{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 18px;width:100%;padding:0 0 12px;border:0;border-bottom:2px solid var(--inchiostro);background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.categoria-apri::before{content:"";align-self:center;width:8px;height:8px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translateY(-3px);transition:transform .2s var(--esce)}
+.categoria--chiusa .categoria-apri::before{transform:rotate(-45deg)}
+.categoria-apri:focus-visible{outline:2px solid var(--sera);outline-offset:4px;border-radius:2px}
+.categoria-nome{font-family:var(--serif);font-size:var(--t-h1);line-height:1.1;letter-spacing:-.02em}
+.categoria-riassunto{font-size:var(--t-piccolo);font-weight:600;color:var(--cenere);font-variant-numeric:tabular-nums}
+.categoria-scaduti{color:var(--blocca)}
+.registro-tabella{width:100%;border-collapse:collapse;table-layout:fixed;font-size:var(--t-piccolo)}
+.registro-tabella th,.registro-tabella td{padding:11px 12px;border-bottom:1px solid var(--foschia);text-align:left;vertical-align:baseline}
+.registro-tabella thead th{padding-top:12px;padding-bottom:8px;font-size:var(--t-meta);font-weight:600;color:var(--cenere);white-space:nowrap}
+.registro-tabella tbody tr:hover{background:var(--sera-velo)}
+.col-progetto{width:22%;padding-left:0 !important}
+.col-prossimo{width:auto}
+.col-numero{width:8%;text-align:right !important;font-variant-numeric:tabular-nums;font-weight:600;color:var(--grafite)}
+.registro-tabella thead .col-numero{white-space:normal;line-height:1.25}
+.col-numero:last-child{padding-right:0 !important}
+.col-numero--zero{color:var(--nebbia);font-weight:400}
+.col-numero--scaduti{color:var(--blocca)}
+tbody .col-progetto a{font-family:var(--serif);font-size:var(--t-lead);font-weight:400;line-height:1.25;color:var(--inchiostro);text-decoration:none}
+tbody .col-progetto a:hover,.col-prossimo a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}
+.col-prossimo a{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--carbone);text-decoration:none}
+.prossimo-scaduto{display:block;margin-top:2px;font-size:var(--t-meta);font-weight:600;color:var(--blocca)}
+.prossimo-quieto{color:var(--cenere)}
+.riga--quieta .col-progetto a{color:var(--carbone)}
+.striscia-scaduti{margin:10px 0 0;font-size:var(--t-meta);color:var(--blocca)}
+.striscia-scaduti strong{font-weight:700}
 
 /* --- la striscia dei conti sotto la sintesi --- */
 .striscia{margin:18px 0 0;max-width:48rem}
@@ -393,9 +398,15 @@ fieldset legend{padding:0;margin-bottom:6px}
 
 /* --- telefono --------------------------------------------------------------- */
 @media (max-width: 640px){
-  .ripiano{height:auto;max-height:34rem}
-  .ripiano--aperto{max-height:none}
-  .ripiano-nome{font-size:var(--t-h2)}
+  .categoria-nome{font-size:var(--t-h2)}
+  .registro-tabella,.registro-tabella tbody,.registro-tabella tr,.registro-tabella td,.registro-tabella th{display:block;width:auto}
+  .registro-tabella thead{display:none}
+  .registro-tabella tr{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px 12px;padding:12px 0;border-bottom:1px solid var(--foschia)}
+  .registro-tabella th,.registro-tabella td{padding:0 !important;border:0}
+  .registro-tabella .col-progetto,.registro-tabella .col-prossimo{grid-column:1/-1}
+  .col-prossimo a{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .registro-tabella .col-numero{margin-top:6px;text-align:left !important}
+  .registro-tabella .col-numero::before{content:attr(data-etichetta);display:block;font-size:var(--t-meta);font-weight:600;color:var(--cenere)}
   .striscia-legenda{flex-direction:column;gap:4px}
   .striscia-voce{flex-grow:0 !important}
   .testata{padding-top:20px}
