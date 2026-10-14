@@ -10,6 +10,7 @@ Lettura JSON da stdin (Claude Code PreToolUse payload).
 - fail-open su qualsiasi errore di parsing
 """
 import json
+import os
 import re
 import sys
 import signal
@@ -29,6 +30,7 @@ SEND_BINARIES = [
     (r"\bmutt\s+.*-s\b", "mutt"),
     (r"\bmailx\b", "mailx"),
     (r"\bmsmtp\b", "msmtp"),
+    (r"\bgit\b[^|;&\n]*\b(send-email|imap-send)\b", "git send-email / imap-send"),
     (r"\bgws\b[^\n|;&]*\bmessages\s+send\b", "gws Gmail send"),
     # gws: l'invio si ferma, la bozza no. `gws gmail +send` e' la forma piu' comune.
     (r"\bgws\b.*\bgmail\b.*(?:\+send\b|\bdrafts\s+send\b)", "gws gmail (invio)"),
@@ -83,6 +85,11 @@ def main() -> int:
     if data.get("tool_name") != "Bash":
         return 0
     command = (data.get("tool_input") or {}).get("command", "")
+    # Il dispatcher passa la versione RIDOTTA (senza heredoc scritti su file, vedi
+    # comms-prefilter.py): si giudica il codice eseguito, non la prosa.
+    reduced = os.environ.get("COMMS_REDUCED")
+    if reduced is not None and reduced.strip():
+        command = reduced
     if not isinstance(command, str) or not command:
         return 0
 

@@ -249,7 +249,7 @@ Instradati dal dispatcher:
 | `commit-secret-gate.py` | segreti nel diff staged (e nel working tree su `git commit -a`), anche nei file aggiunti nello stesso comando, prima di ogni `git commit` / `gh pr create`; se il controllo va oltre il tempo, chiede | conferma |
 | `data-guard.py` | SQL distruttivo (DROP/TRUNCATE/DELETE senza WHERE), `docker compose down -v`, `rsync --delete` verso host remoti, overwrite di file `.db` | conferma |
 | `exfil-guard.py` | esfiltrazione verso host esterni: POST e upload (curl/wget/python); il ramo GET è disattivato per scelta di attrito | conferma |
-| `comms-guard.py` | invio email/messaggi da CLI (sendmail, msmtp, gws, smtplib, AppleScript Mail...) — policy draft-first | blocco |
+| `comms-guard.py` | invio email/messaggi da CLI (sendmail, msmtp, gws, smtplib, `git send-email`, AppleScript Mail...) — policy draft-first. Giudica il codice eseguito: `comms-prefilter.py` toglie gli heredoc scritti su file e tace sulle letture (`grep -ril smtplib`), mentre `find -exec`, `awk system()` e `sed` contano come esecuzione | blocco |
 | `gh-destructive-guard.py` | operazioni GitHub distruttive (repo delete anche via GraphQL, secret, api DELETE/PUT/PATCH) → blocco; mutazioni GraphQL, query lette da file e POST anche impliciti (`-f`/`-F`/`--input`) → conferma; anche con prefisso `env`/`command` | blocco / conferma |
 
 Fuori dal dispatcher:

@@ -86,7 +86,7 @@ _GH_PREFIX='(env[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)
 # col path completo). gh-destructive-guard legge gia' tutto il comando.
 PATTERN_GH_ANY='(^|[^[:alnum:]_.-])gh[[:space:]]'
 PATTERN_GIT_TEXT='(^|[;&|][[:space:]]*)git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(commit|log|show|tag|stash[[:space:]]+(push|save))'
-PATTERN_COMMS='(^|[[:space:];|&])(sendmail|mailx|mutt|msmtp|swaks)([[:space:]]|$)|mail[[:space:]]+-s|(^|[[:space:];&|(])(mail|mutt)[[:space:]]+[^[:space:]]+@|mailto:|smtps?://|gws[[:space:]].*(messages[[:space:]]+send|send[[:space:]]+message|gmail[[:space:]].*(\+send|drafts[[:space:]]+send|forwardingAddresses|updateAutoForwarding|delegates|filters))|osascript.*(Mail|Messages)|api\.telegram\.org|hooks\.slack\.com|slack\.com/api/chat|api\.sendgrid|api\.mailgun|api\.postmarkapp|api\.resend|api\.mailjet|api\.brevo|smtp2go|api\.sparkpost|api\.elasticemail|zeptomail|mailchannels|email[.-][a-z0-9-]*\.amazonaws|hooks\.zapier|hook\.[a-z0-9.]*make\.com|integromat|graph\.microsoft\.com.*sendmail|gmail\.googleapis\.com.*messages/send|discord(app)?\.com/api/webhooks|api\.twilio\.com|graph\.facebook\.com.*messages|whatsapp[_/-]?send|telegram[_/-]?send|smtplib|SMTP_SSL'
+PATTERN_COMMS='(^|[[:space:];|&("'"'"'`])(sendmail|mailx|mutt|msmtp|swaks)([[:space:]]|$)|mail[[:space:]]+-s|(^|[[:space:];&|(])(mail|mutt)[[:space:]]+[^[:space:]]+@|mailto:|smtps?://|gws[[:space:]].*(messages[[:space:]]+send|send[[:space:]]+message|gmail[[:space:]].*(\+send|drafts[[:space:]]+send|forwardingAddresses|updateAutoForwarding|delegates|filters))|osascript.*(Mail|Messages)|api\.telegram\.org|hooks\.slack\.com|slack\.com/api/chat|api\.sendgrid|api\.mailgun|api\.postmarkapp|api\.resend|api\.mailjet|api\.brevo|smtp2go|api\.sparkpost|api\.elasticemail|zeptomail|mailchannels|email[.-][a-z0-9-]*\.amazonaws|hooks\.zapier|hook\.[a-z0-9.]*make\.com|integromat|graph\.microsoft\.com.*sendmail|gmail\.googleapis\.com.*messages/send|discord(app)?\.com/api/webhooks|api\.twilio\.com|graph\.facebook\.com.*messages|whatsapp[_/-]?send|telegram[_/-]?send|smtplib|SMTP_SSL|git[[:space:]]+(send-email|imap-send)'
 # block-dangerous: rm ricorsivo (tree protetti), bw export, scrittura config/hook,
 # lettura segreti via shell (.ssh/id_*/credentials/.pem...), docker volume rm.
 PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([[:space:]]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-exec(dir)?[[:space:]]+[^[:space:]]*rm)|bw[[:space:]].*export|\.claude/(settings|hooks|\.claude\.json)|\.claude/[^[:space:]]*unlock|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|sed[[:space:]][^|&]*[^[:alnum:]]w[[:space:]]+[^[:space:]|;&]'
@@ -155,7 +155,7 @@ except Exception:
 # dichiarato git-puro, e ogni guard saltato mentre la sostituzione gira. Se il comando
 # contiene una sostituzione, NON e' git-puro: si prosegue coi guard.
 PATTERN_SUBST='\$\(|`|<\(|>\('
-PATTERN_GIT_UNSAFE='(^|[[:space:]])(--output|--exec-path|--config-env|-c[[:space:]])|(^|[^>])>>?[^&|;]'
+PATTERN_GIT_UNSAFE='(^|[[:space:]])(--output|--exec-path|--config-env|-c[[:space:]])|(^|[^>])>>?[^&|;]|send-email|imap-send'
 if [[ "$COMMAND" =~ $PATTERN_GIT_TEXT && ! "$COMMAND" =~ $PATTERN_SUBST && "$COMMAND" != *"--output"* && "$COMMAND" != *"--exec-path"* && "$COMMAND" != *"--config-env"* && ! "$COMMAND" =~ $PATTERN_GIT_UNSAFE ]]; then
     # 9/10/2026: le virgolette si leggono come le legge bash (shlex). Lo strip con sed
     # accoppiava un apostrofo dentro le doppie con uno piu' avanti e cancellava i
@@ -185,9 +185,18 @@ fi
 # Opzioni Git che possono cambiare scritture o comportamento non sono testo inerte.
 [[ "$COMMAND" =~ $PATTERN_GIT_TEXT && "$COMMAND" =~ $PATTERN_GIT_UNSAFE ]] && run_guard block-dangerous.py
 
-# Comms guard: invii email/messaggi esterni (draft-first).
-[[ "$GUARD_COMMAND" =~ $PATTERN_COMMS ]] && run_guard comms-guard.py
-[[ "$GUARD_COMMAND" == *"gws "* && "$GUARD_COMMAND" == *"messages send"* ]] && run_guard comms-guard.py
+# Comms guard: invii email/messaggi esterni (draft-first). Il match si rifa' sul CODICE eseguito:
+# comms-prefilter.py toglie gli heredoc scritti su file e tace sui comandi di sola lettura
+# (`grep -ril smtplib .`), che nominano un invio senza farlo. Se il pre-filtro non gira, si
+# giudica il comando intero.
+invio_in_vista() { [[ "$1" =~ $PATTERN_COMMS || ( "$1" == *"gws "* && "$1" == *"messages send"* ) ]]; }
+if invio_in_vista "$GUARD_COMMAND"; then
+    COMMS_REDUCED=$(python3 "$HOME/.claude/hooks/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND
+    if invio_in_vista "$COMMS_REDUCED"; then
+        export COMMS_REDUCED
+        run_guard comms-guard.py
+    fi
+fi
 
 # Block dangerous: rm su tree protetti, bw export, scrittura config/hook, fork bomb...
 [[ "$GUARD_COMMAND" =~ $PATTERN_DANGER ]] && run_guard block-dangerous.py

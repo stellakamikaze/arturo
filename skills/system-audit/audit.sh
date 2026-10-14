@@ -113,7 +113,11 @@ if [[ -f "$dispatcher" ]]; then
     else
       ko "guardia transitiva mancante: $guard"
     fi
-  done < <(grep -E '^[[:space:]]*\[\[.*run_guard[[:space:]]+[A-Za-z0-9_.-]+' "$dispatcher" | grep -oE 'run_guard[[:space:]]+[A-Za-z0-9_.-]+' | awk '{print $2}' | sort -u)
+  # Ogni chiamata `run_guard X` (anche dentro un blocco if) e ogni script chiamato per percorso
+  # (`python3 "$HOME/.claude/hooks/X"`). Le righe di commento non contano.
+  done < <(grep -vE '^[[:space:]]*#' "$dispatcher" \
+    | grep -oE 'run_guard[[:space:]]+[A-Za-z0-9_.-]+\.(py|sh|js)|\.claude/hooks/[A-Za-z0-9_.-]+\.(py|sh|js)' \
+    | sed -E 's#^run_guard[[:space:]]+##; s#^\.claude/hooks/##' | sort -u)
 fi
 
 smoke=0
