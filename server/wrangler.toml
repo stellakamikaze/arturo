@@ -11,7 +11,7 @@ workers_dev = false
 routes = [{ pattern = "DOMINIO_DEL_SERVER", custom_domain = true }]
 
 [triggers]
-crons = ["0 6 * * *"]   # ogni mattina alle 8 (ora italiana estiva): recap del giorno prima; il lunedì anche riepilogo e pulizia
+crons = ["0 6 * * *"]   # ogni mattina alle 8 (ora italiana estiva): recap del giorno prima se non è vuoto; il lunedì sempre riepilogo e pulizia
 
 [[d1_databases]]
 binding = "DB"

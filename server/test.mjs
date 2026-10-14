@@ -3,7 +3,9 @@
 import assert from "node:assert/strict";
 import { gestisci, settimanale, giornaliero, programmato, mime, LIMITI, EVENTI } from "./logica.js";
 
-function finti() {
+const VUOTO = { installazioni: 0, sessioni: 0, versioni: [], sistemi: [], comandi: [], guardie: [], aggiorna: [], segnalazioni: 0 };
+
+function finti(riepilogo = null) {
   const stato = { eventi: [], segnalazioni: [], email: [], contatori: {}, pulito: null, finestre: [] };
   const archivio = {
     async contaEventi(inst, giorno) {
@@ -21,6 +23,7 @@ function finti() {
     async segnaEmail() {},
     async riepilogo(dal, al) {
       stato.finestre.push([dal, al]);
+      if (riepilogo) return riepilogo;
       return { installazioni: 2, sessioni: 5, versioni: [{ valore: "v2026-10-13", n: 2 }], sistemi: [], comandi: [{ valore: "fine", n: 3 }],
         guardie: [], aggiorna: [], segnalazioni: 1 };
     },
@@ -124,6 +127,19 @@ const casi = {
     await programmato({ ...g, adesso: lunedi });
     assert.deepEqual(g.stato.email.map((m) => m.oggetto.split(" ")[1]), ["Recap", "Riepilogo"], "V11 il lunedì mancano recap o riepilogo");
     assert.equal(g.stato.pulito, "2025-10-12", "V11 il lunedì la pulizia non parte");
+  },
+  async V12() {
+    const f = finti(VUOTO);
+    await giornaliero({ ...f, adesso });
+    assert.equal(f.stato.email.length, 0, "V12 il recap di un giorno vuoto parte lo stesso");
+    const g = finti({ ...VUOTO, segnalazioni: 1 });
+    await giornaliero({ ...g, adesso });
+    assert.equal(g.stato.email.length, 1, "V12 una segnalazione sola non basta a far partire il recap");
+    const h = finti(VUOTO);
+    await programmato({ ...h, adesso: new Date("2026-10-12T06:00:00Z") });
+    assert.deepEqual(h.stato.email.map((m) => m.oggetto.split(" ")[1]), ["Riepilogo"], "V12 il lunedì vuoto deve mandare il solo riepilogo");
+    assert.match(h.stato.email[0].testo, /Versioni in uso:\n  nessuna\n[\s\S]*Comandi usati:\n  nessuno\n[\s\S]*Guardie che hanno bloccato:\n  nessuna\n/,
+      "V12 il genere di nessuno/nessuna è sbagliato");
   },
   async V09() {
     const f = finti();

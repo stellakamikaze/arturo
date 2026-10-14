@@ -23,9 +23,10 @@ L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi p
 
 - **Ogni segnalazione** arriva come email, con l'oggetto `[Arturo] [tipo] titolo`. Il tetto è
   di 40 email al giorno: oltre, la segnalazione resta in D1 senza email.
-- **Ogni mattina alle 8** (06:00 UTC) arriva il recap del giorno prima, anche nei giorni vuoti.
-  Se un recap manca, il Worker è fermo.
-- **Il lunedì**, dopo il recap, arriva il riepilogo dei 7 giorni. Poi parte la pulizia.
+- **Ogni mattina alle 8** (06:00 UTC) arriva il recap del giorno prima, solo se quel giorno ci
+  sono stati eventi o segnalazioni.
+- **Il lunedì** arriva sempre il riepilogo dei 7 giorni, anche vuoto. Poi parte la pulizia. Se il
+  riepilogo del lunedì manca, il Worker è fermo.
 
 ## Mettere su il tuo server
 

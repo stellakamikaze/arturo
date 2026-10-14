@@ -134,17 +134,17 @@ export function emailSegnalazione(s, numero) {
 }
 
 export function testoRiepilogo(r, titolo) {
-  const elenco = (righe) => righe.length ? righe.map((x) => `  ${x.n}  ${x.valore || "(vuoto)"}`).join("\n") : "  nessuno";
+  const elenco = (righe, vuoto = "nessuno") => righe.length ? righe.map((x) => `  ${x.n}  ${x.valore || "(vuoto)"}`).join("\n") : `  ${vuoto}`;
   return [
     titolo,
     "",
     `Installazioni attive: ${r.installazioni}`,
     `Sessioni: ${r.sessioni}`,
     "",
-    "Versioni in uso:", elenco(r.versioni),
+    "Versioni in uso:", elenco(r.versioni, "nessuna"),
     "", "Sistemi:", elenco(r.sistemi),
     "", "Comandi usati:", elenco(r.comandi),
-    "", "Guardie che hanno bloccato:", elenco(r.guardie),
+    "", "Guardie che hanno bloccato:", elenco(r.guardie, "nessuna"),
     "", "Esiti di /aggiorna:", elenco(r.aggiorna),
     "", `Segnalazioni ricevute: ${r.segnalazioni}`,
     "",
@@ -204,10 +204,13 @@ export async function gestisci(request, { archivio, posta, adesso = new Date() }
 
 const giorniFa = (adesso, n) => oggi(new Date(adesso.getTime() - n * 86400000));
 
-// Il recap del giorno prima. Parte anche nei giorni vuoti: un recap che manca vuol dire server fermo.
+// Il recap del giorno prima. Nei giorni senza eventi né segnalazioni non parte (14/10/2026,
+// Federico): un'email di zeri ogni mattina insegna a non leggerla. Il segno di vita del server
+// è il riepilogo del lunedì, che parte sempre: se manca quello, il Worker è fermo.
 export async function giornaliero({ archivio, posta, adesso = new Date() }) {
   const ieri = giorniFa(adesso, 1);
   const r = await archivio.riepilogo(giorniFa(adesso, 2), ieri);
+  if (!r.installazioni && !r.segnalazioni) return;
   await posta({ oggetto: `[Arturo] Recap del ${ieri}`, testo: testoRiepilogo(r, `Arturo, il giorno ${ieri}`) });
 }
 
@@ -219,7 +222,7 @@ export async function settimanale({ archivio, posta, adesso = new Date() }) {
   await archivio.pulisci(giorniFa(adesso, LIMITI.conservazioneGiorni));
 }
 
-// Il cron gira ogni mattina alle 6 UTC: sempre il recap del giorno prima, il lunedì anche la settimana.
+// Il cron gira ogni mattina alle 6 UTC: il recap del giorno prima se c'è qualcosa, il lunedì sempre la settimana.
 export async function programmato({ archivio, posta, adesso = new Date() }) {
   await giornaliero({ archivio, posta, adesso });
   if (adesso.getUTCDay() === 1) await settimanale({ archivio, posta, adesso });
