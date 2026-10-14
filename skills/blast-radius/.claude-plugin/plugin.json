@@ -1,0 +1,8 @@
+{
+  "name": "blast-radius",
+  "version": "0.1.0-arturo1",
+  "description": "Ferma rm -rf, git reset --hard, git clean, push --force e migrazioni, e mostra cosa cambierebbero, con Procedi e Annulla. Copia fissata di anthropics/claude-code-playground (Apache-2.0) con due modifiche di Arturo",
+  "author": {
+    "name": "Claude Code DevRel (Anthropic)"
+  }
+}

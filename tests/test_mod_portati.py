@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""P01-P08: i mod portati dalla config dell'autore (9/10/2026).
+"""P01-P08: i mod portati dalla config dell'autore (9/10/2026, rivisti il 14/10/2026).
 
-P01-P05 ognuno dei cinque mod in skills/ passa claude plugin validate e claude plugin test:
-redazione-segreti, riscrivi-bash, menu-contesto, cache-fredda, agent-flow. P06 nei mod non ci sono
-nomi, host o percorsi personali. P07 agent-flow, codice di terzi, porta la sua licenza MIT e la
-provenienza con il commit di origine. P08 il README nomina ogni mod.
+P01, P02, P04 redazione-segreti, riscrivi-bash e cache-fredda passano claude plugin validate e
+claude plugin test. P05 blast-radius, codice di terzi senza test propri, passa claude plugin validate.
+P03 menu-contesto e agent-flow non ci sono più (tolti il 14/10/2026) e NOVITA.md lo annuncia. P06 nei mod non ci sono nomi,
+host o percorsi personali. P07 blast-radius porta la sua licenza Apache-2.0 e la provenienza con il
+commit di origine. P08 il README nomina ogni mod.
 
 Il gate richiede il binario `claude`: se manca, il banco fallisce con un messaggio esplicito.
 Sulla base cddcb10 ogni controllo deve fallire.
@@ -18,7 +19,8 @@ import subprocess
 from pathlib import Path
 from typing import Callable, Dict, List
 
-MOD = ("redazione-segreti", "riscrivi-bash", "menu-contesto", "cache-fredda", "agent-flow")
+MOD = ("redazione-segreti", "riscrivi-bash", "cache-fredda", "blast-radius")
+TOLTI = ("menu-contesto", "agent-flow")
 # Le parole sono spezzate: il controllo di igiene I03 legge anche i test.
 PERSONALI = re.compile("|".join(re.escape(a + b) for a, b in (("fede", "rico"), ("gani", "mede"), ("fur", "ore"), ("/Us", "ers/")))
                        + r"|\buf-[a-z]", re.IGNORECASE)
@@ -30,11 +32,13 @@ def claude() -> str:
     return exe
 
 
-def prova_mod(repo: Path, nome: str, codice: str) -> None:
+def prova_mod(repo: Path, nome: str, codice: str, con_test: bool = True) -> None:
     cartella = repo / "skills" / nome
     assert (cartella / ".claude-plugin" / "plugin.json").is_file(), f"{codice} manca skills/{nome}"
     v = subprocess.run([claude(), "plugin", "validate", str(cartella)], capture_output=True, text=True, timeout=120)
     assert v.returncode == 0, f"{codice} validate di {nome}: rc={v.returncode} {v.stdout[-300:]}{v.stderr[-200:]}"
+    if not con_test:
+        return
     t = subprocess.run([claude(), "plugin", "test", str(cartella)], capture_output=True, text=True, timeout=180)
     esito = t.stdout + t.stderr
     assert t.returncode == 0 and re.search(r"\b0 fail\b", esito), f"{codice} plugin test di {nome}: rc={t.returncode} {esito[-300:]}"
@@ -56,11 +60,20 @@ def test_p06(repo: Path) -> None:
     assert not trovati, "P06 dati personali nei mod: " + "; ".join(trovati[:5])
 
 
+def test_p03(repo: Path) -> None:
+    rimasti = [m for m in TOLTI if (repo / "skills" / m).exists()]
+    assert not rimasti, f"P03 mod tolti ancora presenti: {rimasti}"
+    # Chi li aveva li perde con /aggiorna: NOVITA.md deve dirglielo.
+    novita = (repo / "NOVITA.md").read_text(encoding="utf-8")
+    annunciati = [m for m in TOLTI if re.search(rf"[Ee]scono[^\n]*\n?[^\n]*`{m}`", novita)]
+    assert annunciati == list(TOLTI), f"P03 NOVITA.md non annuncia l'uscita di {[m for m in TOLTI if m not in annunciati]}"
+
+
 def test_p07(repo: Path) -> None:
-    cartella = repo / "skills" / "agent-flow"
+    cartella = repo / "skills" / "blast-radius"
     licenza = (cartella / "LICENSE").read_text(encoding="utf-8")
     provenienza = (cartella / "PROVENIENZA.md").read_text(encoding="utf-8")
-    assert "MIT License" in licenza, "P07 agent-flow senza la licenza MIT dell'autore"
+    assert "Apache License" in licenza, "P07 blast-radius senza la licenza Apache-2.0 dell'autore"
     assert re.search(r"\b[0-9a-f]{12}\b", provenienza), "P07 PROVENIENZA.md senza il commit di origine"
 
 
@@ -73,9 +86,9 @@ def test_p08(repo: Path) -> None:
 TESTS: Dict[str, Callable[[Path], None]] = {
     "P01": lambda r: prova_mod(r, "redazione-segreti", "P01"),
     "P02": lambda r: prova_mod(r, "riscrivi-bash", "P02"),
-    "P03": lambda r: prova_mod(r, "menu-contesto", "P03"),
+    "P03": test_p03,
     "P04": lambda r: prova_mod(r, "cache-fredda", "P04"),
-    "P05": lambda r: prova_mod(r, "agent-flow", "P05"),
+    "P05": lambda r: prova_mod(r, "blast-radius", "P05", con_test=False),
     "P06": test_p06,
     "P07": test_p07,
     "P08": test_p08,

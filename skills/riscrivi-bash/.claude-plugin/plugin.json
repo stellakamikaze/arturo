@@ -1,7 +1,7 @@
 {
   "name": "riscrivi-bash",
-  "version": "0.1.1",
-  "description": "Corregge prima del dispatcher due errori Bash ricorrenti sul Mac: glob non quotato in un'opzione in zsh e timeout inesistente",
+  "version": "0.1.2",
+  "description": "Fa comportare zsh come bash sul Mac (glob senza file, parole che iniziano con =, variabili da spezzare), quota il glob in un'opzione e toglie il timeout inesistente",
   "author": {
     "name": "Federico Nejrotti"
   }

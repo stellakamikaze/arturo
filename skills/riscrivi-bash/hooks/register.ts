@@ -21,7 +21,9 @@ export const register: Register = on => {
   on('tool.call', { tool: 'Bash' }, ($, e, next) => {
     const r = riscrivi(e.command, { zsh, haTimeout, timeoutMs: e.timeout, background: e.run_in_background })
     if (r.fatti.length === 0) return next(e)
-    $.ui.toast(`riscritto: ${r.fatti.join(', ')}`)
+    // setopt non cambia cosa fa il comando: niente toast, compare solo nel comando eseguito.
+    const visibili = r.fatti.filter(f => !f.startsWith('setopt'))
+    if (visibili.length > 0) $.ui.toast(`riscritto: ${visibili.join(', ')}`)
     return next({ ...e, command: r.command, ...(r.timeoutMs === undefined ? {} : { timeout: r.timeoutMs }) })
   })
 }

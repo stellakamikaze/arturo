@@ -85,6 +85,22 @@ export function togliTimeout(c: string): { command: string; secondi: number; fat
   return { command: pezzi.join(''), secondi, fatti }
 }
 
+// zsh ferma il comando quando un glob non trova file («no matches found»: 121 errori in 20 sessioni
+// dal 5 al 14/10/2026) e legge una parola che inizia con «=» come un percorso («= not found»).
+// Con nonomatch, noequals e shwordsplit zsh fa come bash e il comando resta quello scritto.
+// `$?` non è un glob e `[ ` o `[[ ` sono il comando test, non una classe di caratteri.
+const GLOB = /\*|(?<!\$)\?|\[(?![\s[])/
+const EQUALS = /(^|[\s;&|(])=/
+// Una variabile non quotata: in zsh `$T` resta una parola sola, in bash si spezza (3 «command not found»).
+const VARIABILE = /\$(?:[A-Za-z_]|\{)/
+
+export function opzioniZsh(c: string): { command: string; fatti: string[] } {
+  const m = maschera(c)
+  const opzioni = [GLOB.test(m) ? 'nonomatch' : '', EQUALS.test(m) ? 'noequals' : '', VARIABILE.test(m) ? 'shwordsplit' : ''].filter(Boolean)
+  if (opzioni.length === 0) return { command: c, fatti: [] }
+  return { command: `setopt ${opzioni.join(' ')}; ${c}`, fatti: [`setopt ${opzioni.join(' ')}`] }
+}
+
 export type Contesto = { zsh: boolean; haTimeout: boolean; timeoutMs?: number; background?: boolean }
 
 export function riscrivi(c: string, ctx: Contesto): { command: string; timeoutMs?: number; fatti: string[] } {
@@ -93,6 +109,11 @@ export function riscrivi(c: string, ctx: Contesto): { command: string; timeoutMs
   let timeoutMs = ctx.timeoutMs
   if (ctx.zsh && command.includes('*')) {
     const r = quotaGlob(command)
+    command = r.command
+    fatti.push(...r.fatti)
+  }
+  if (ctx.zsh) {
+    const r = opzioniZsh(command)
     command = r.command
     fatti.push(...r.fatti)
   }

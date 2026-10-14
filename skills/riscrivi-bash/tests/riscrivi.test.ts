@@ -17,20 +17,56 @@ describe('glob in un\'opzione', () => {
   })
   test('lascia stare un valore misto con virgolette: decide il dispatcher', () => {
     const c = 'grep --include=*"a b".md x'
-    expect(riscrivi(c, MAC).command).toBe(c)
+    // Non quota: resta solo nonomatch, che in zsh fa passare il glob come in bash.
+    expect(riscrivi(c, MAC).command).toBe(`setopt nonomatch; ${c}`)
   })
   test('lascia stare un valore con una variabile o una tilde: fra apici resterebbero letterali', () => {
-    for (const c of ['rsync -a --exclude=$HOME/.cache/* src/ dst/', 'grep -r x --include=~/*.md .']) {
-      expect(riscrivi(c, MAC).command).toBe(c)
-    }
+    const c1 = 'rsync -a --exclude=$HOME/.cache/* src/ dst/'
+    expect(riscrivi(c1, MAC).command).toBe(`setopt nonomatch shwordsplit; ${c1}`)
+    const c2 = 'grep -r x --include=~/*.md .'
+    expect(riscrivi(c2, MAC).command).toBe(`setopt nonomatch; ${c2}`)
   })
   test('lascia stare un heredoc', () => {
     const c = "cat <<'X'\n--include=*.md\nX"
-    expect(riscrivi(c, MAC).command).toBe(c)
+    expect(riscrivi(c, MAC).command).toBe(`setopt nonomatch; ${c}`)
   })
   test('in bash non tocca niente', () => {
     const c = 'grep --include=*.md x'
     expect(riscrivi(c, { zsh: false, haTimeout: false }).command).toBe(c)
+  })
+})
+
+describe('opzioni zsh: glob senza file e parola che inizia con =', () => {
+  test('glob non quotato: nonomatch, come in bash', () => {
+    for (const c of ['ls q-*.png', 'for f in *.txt; do wc -l "$f"; done', 'curl -s https://x.it/a?b=1']) {
+      expect(riscrivi(c, MAC).command).toBe(`setopt nonomatch; ${c}`)
+    }
+  })
+  test('parola che inizia con =: noequals', () => {
+    expect(riscrivi('echo ===', MAC).command).toBe('setopt noequals; echo ===')
+  })
+  test('variabile non quotata: shwordsplit, così $T si spezza in parole come in bash', () => {
+    expect(riscrivi('T="python3 tasks.py"; $T today', MAC).command).toBe('setopt shwordsplit; T="python3 tasks.py"; $T today')
+  })
+  test('variabile quotata o $? non chiedono shwordsplit', () => {
+    for (const c of ['echo "$HOME"', 'echo $?']) expect(riscrivi(c, MAC).command).toBe(c)
+  })
+  test('tutte e due insieme', () => {
+    expect(riscrivi('ls *.md; echo ==', MAC).command).toBe('setopt nonomatch noequals; ls *.md; echo ==')
+  })
+  test('glob quotati, $?, test con [ e assegnazioni restano identici', () => {
+    for (const c of ["grep -r 'a*b' .", 'find . -name "*.md"', 'echo $?', '[ -f x ] && echo ok', '[[ -n "$a" ]]', 'A=b make', 'ls a\\*b']) {
+      const r = riscrivi(c, MAC)
+      expect(r.command).toBe(c)
+      expect(r.fatti.length).toBe(0)
+    }
+  })
+  test("l'opzione già quotata non chiede nonomatch", () => {
+    expect(riscrivi('grep -rl foo --include=*.md .', MAC).command).toBe("grep -rl foo --include='*.md' .")
+  })
+  test('in bash non aggiunge niente', () => {
+    const c = 'ls *.png; echo =='
+    expect(riscrivi(c, { zsh: false, haTimeout: true }).command).toBe(c)
   })
 })
 
