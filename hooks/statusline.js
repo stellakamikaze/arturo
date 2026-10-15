@@ -68,24 +68,20 @@ process.stdin.on('end', () => {
       }
     }
 
-    // Current task from todos
+    // Task in corso: i task nativi stanno in tasks/session-<primi 8 caratteri>/<n>.json
+    // (misurato il 3/10/2026). Fino al 15/10/2026 il ramo leggeva todos/, che non esiste piu',
+    // e il segmento non compariva mai.
     let task = '';
     const homeDir = os.homedir();
     // Respect CLAUDE_CONFIG_DIR for custom config directory setups
     const claudeDir = process.env.CLAUDE_CONFIG_DIR || path.join(homeDir, '.claude');
-    const todosDir = path.join(claudeDir, 'todos');
-    if (session && fs.existsSync(todosDir)) {
+    const tasksDir = path.join(claudeDir, 'tasks', `session-${session.slice(0, 8)}`);
+    if (session && /^[\w-]+$/.test(session) && fs.existsSync(tasksDir)) {
       try {
-        const files = fs.readdirSync(todosDir)
-          .filter(f => f.startsWith(session) && f.includes('-agent-') && f.endsWith('.json'))
-          .map(f => ({ name: f, mtime: fs.statSync(path.join(todosDir, f)).mtime }))
-          .sort((a, b) => b.mtime - a.mtime);
-
-        if (files.length > 0) {
+        for (const f of fs.readdirSync(tasksDir).filter(f => f.endsWith('.json'))) {
           try {
-            const todos = JSON.parse(fs.readFileSync(path.join(todosDir, files[0].name), 'utf8'));
-            const inProgress = todos.find(t => t.status === 'in_progress');
-            if (inProgress) task = inProgress.activeForm || '';
+            const t = JSON.parse(fs.readFileSync(path.join(tasksDir, f), 'utf8'));
+            if (t.status === 'in_progress') { task = t.activeForm || t.subject || ''; break; }
           } catch (e) {}
         }
       } catch (e) {

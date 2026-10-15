@@ -184,7 +184,7 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 > **La via rapida: `/setup`.** Apri Claude Code dentro `~/.claude` e lancia **`/setup`**: ti guida passo-passo in tutta la configurazione qui sotto (prerequisiti, permessi, `PROJECTS_BASE`, lingua, `CLAUDE.md`, sync, verifica finale), una cosa alla volta e in linguaggio semplice. È il modo consigliato, soprattutto se non sei un programmatore. La checklist qui sotto è la versione manuale, per chi preferisce farla a mano.
 
 1. **`settings.json` → `env.PROJECTS_BASE`** — la cartella dove vivono i tuoi progetti (default `~/Documents/ClaudeCode`). Vale per `/progetto` e `/inizio`.
-2. **Host interni** — le guardie conoscono solo regole pubbliche: `localhost`, reti locali esplicite e suffisso `.ts.net`. I tuoi host personali vanno in `hooks/hosts-interni.local` (una voce per riga, hostname o rete), non nei file `.py`.
+2. **Host interni** — le guardie conoscono solo regole pubbliche: `localhost` e reti locali esplicite. Un nome `.ts.net` non conta come interno, perché con Tailscale Funnel può essere pubblico. I tuoi host personali, compresi quelli della tua tailnet, vanno in `hooks/hosts-interni.local` (una voce per riga, hostname o rete), non nei file `.py`.
 3. **Scrivi il tuo `~/.claude/CLAUDE.md`** — le istruzioni personali (chi sei, come lavori, regole tue). Non è incluso: è personale per definizione.
 4. **`language` in `settings.json`** — è `italian`; cambialo se serve.
 5. Apri Claude Code e lancia **`/system-audit`**: verifica che hook, skill e agent siano wirati correttamente sulla tua macchina. L'obiettivo è "tutto verde".
@@ -257,7 +257,7 @@ Instradati dal dispatcher:
 Fuori dal dispatcher:
 
 - `protect_claude_md.py` — PreToolUse: protegge `CLAUDE.md`, settings e hook da modifiche via `Edit`/`Write` senza file di unlock; scrivere un file di unlock chiede sempre conferma.
-- `web-egress-guard.py` — PreToolUse su `WebFetch`/jina/`browser_navigate`, inclusa la navigazione Firefox: esfiltrazione via URL verso host esterni.
+- `web-egress-guard.py` — PreToolUse su `WebFetch`, jina, tavily, `browser_navigate` (anche Firefox) e Claude in Chrome (`navigate` e `browser_batch`): esfiltrazione via URL verso host esterni.
 - `credential-leak-scanner.py` — PostToolUse: rileva token e chiavi negli output di Bash/WebFetch/MCP. L'avviso arriva a Claude, non solo a te (`additionalContext`).
 - `prompt-injection-scanner.py` — PostToolUse: segnala tentativi di prompt injection nei contenuti esterni (pattern EN + IT). Anche questo avviso arriva a Claude.
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).

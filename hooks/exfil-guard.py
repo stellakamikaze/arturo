@@ -87,7 +87,7 @@ def _internal_host(host: str | None) -> bool:
     if not host:
         return False
     normalized = host.lower().rstrip(".")
-    if normalized in INTERNAL_HOSTS or normalized in LOCAL_HOSTS or normalized.endswith(".ts.net"):
+    if normalized in INTERNAL_HOSTS or normalized in LOCAL_HOSTS:
         return True
     try:
         addr = ipaddress.ip_address(normalized)

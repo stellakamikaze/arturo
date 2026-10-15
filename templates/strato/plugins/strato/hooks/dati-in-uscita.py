@@ -24,7 +24,7 @@ RADICE = Path(os.environ.get("CLAUDE_PLUGIN_ROOT") or Path(__file__).resolve().p
 # Comandi che mandano dati fuori: invio HTTP con un corpo, upload, copie verso un
 # altro computer, canali grezzi, push.
 USCITA_BASH = re.compile(
-    r"\b(curl|wget)\b[^|;&]*(\s-d\b|\s--data|\s-F\b|\s--form|\s-T\b|\s--upload-file|\s-X\s*(POST|PUT|PATCH)|\s--request\s*(POST|PUT|PATCH))"
+    r"\b(curl|wget)\b[^|;&]*(\s-d\b|\s--data|\s-F\b|\s--form|\s-T\b|\s--upload-file|\s--(post|body)-(file|data)|\s--method[=\s]*(POST|PUT|PATCH)|\s-X\s*(POST|PUT|PATCH)|\s--request\s*(POST|PUT|PATCH))"
     r"|requests\.(post|put|patch)|urllib\.request|httpx\.(post|put|patch)|smtplib"
     r"|\bscp\b|\brsync\b[^|;&]*\S+:|\b(nc|ncat|socat)\b|\bgit\b[^|;&]*\bpush\b"
     r"|\bgws\b[^|;&]*(\bsend\b|\+send|\bcreate\b|\bupload\b|\bshare\b)",

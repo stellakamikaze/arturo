@@ -63,6 +63,7 @@ BANCHI=(
   test_deriva.py
   test_deriva_allineata.py
   test_personale.py
+  test_config_2026_10_15.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -131,6 +132,8 @@ BASELINE=(
   # Arturo convive con la config personale (14/10/2026): f750408, l'ultimo dev prima di deriva e personale/.
   "test_deriva.py f750408"
   "test_personale.py f750408"
+  # Revisione della config del 15/10/2026: 842b06f, l'ultimo dev prima delle correzioni.
+  "test_config_2026_10_15.py 842b06f"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

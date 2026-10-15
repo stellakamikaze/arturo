@@ -235,6 +235,53 @@ BARE_TARGETS = {".", "./", "*", ".*", "*.*", "./*", ".//"}
 # lo spazio di `; w file` e lo slash di `s/a/b/w file`. `[^|&]*` non attraversa una
 # pipe, cosi' `sed -n p x | grep w foo` non matcha.
 SED_WRITE_RE = re.compile(r"(^|[\s;&|])sed\s[^|&]*[^A-Za-z0-9]w\s+[^\s|;&]")
+_SED_SCRIPT_W = re.compile(r"(^|[^A-Za-z0-9])w\s+[^\s|;&]")
+
+
+def _segmenti_parole(cmd: str):
+    """Segmenti come liste di parole, rispettando le virgolette.
+
+    Un pattern di grep o uno script sed che contiene `|` o spazi non spezza il
+    comando. Se le virgolette non tornano, ricade su uno split semplice.
+    """
+    try:
+        lexer = shlex.shlex(cmd, posix=True, punctuation_chars=";&|()\n")
+        lexer.whitespace = " \t\r"
+        lexer.whitespace_split = True
+        segmenti, corrente = [], []
+        for tok in lexer:
+            if tok and set(tok) <= set(";&|()\n"):
+                if corrente:
+                    segmenti.append(corrente)
+                corrente = []
+            else:
+                corrente.append(tok)
+        if corrente:
+            segmenti.append(corrente)
+        return segmenti
+    except ValueError:
+        return [seg.split() for seg in re.split(r"[|;&\n]+", cmd)]
+
+
+def _sed_scrive(command: str) -> bool:
+    """`sed` che scrive col comando `w`, cercato nel solo segmento di sed (15/10/2026).
+
+    La regex sull'intero comando attraversava `;` e a capo:
+    `sed -n 25,50p f; for w in a b` sembrava una scrittura. Dentro una shell
+    annidata o un ssh il segmento resta intero e vale la regex di prima.
+    """
+    for toks in _segmenti_parole(command):
+        i = 0
+        while i < len(toks) and (_ENV_ASSIGN_RE.match(toks[i]) or toks[i] in _SKIP_WRAPPERS):
+            i += 1
+        if i >= len(toks):
+            continue
+        binario = os.path.basename(toks[i])
+        if binario == "sed" and _SED_SCRIPT_W.search(" ".join(toks[i + 1:])):
+            return True
+        if binario in _SHELLS | {"ssh", "eval", "xargs"} and SED_WRITE_RE.search(" ".join(toks)):
+            return True
+    return False
 
 # Cartelle che uno strumento ricrea da solo: cancellarle non perde lavoro.
 RIGENERABILI = {
@@ -554,7 +601,7 @@ def main() -> int:
         )
 
     # 3-bis) sed che scrive col comando `w` -> ask
-    if SED_WRITE_RE.search(command):
+    if _sed_scrive(command):
         return _ask(
             "sed scrive su file col comando `w` (vale anche sotto -n e come flag "
             "di s///): il file indicato viene sovrascritto. Conferma solo se la "

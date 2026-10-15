@@ -34,7 +34,10 @@
       "Bash(docker compose:*)",
       "Bash(gh:*)",
       "Bash(jq:*)",
-      "Bash(claude:*)",
+      "Bash(claude --version)",
+      "Bash(claude plugin list:*)",
+      "Bash(claude plugin marketplace list:*)",
+      "Bash(claude plugin validate:*)",
       "Skill(progetto)",
       "Skill(discovery)",
       "Read(//tmp/**)",
@@ -44,10 +47,6 @@
       "mcp__github__search_*",
       "Bash(bw status)",
       "Bash(bw list:*)",
-      "Bash(bw get:*)",
-      "Bash(bw unlock:*)",
-      "Read(.env)",
-      "Read(.env.*)",
       "Bash(export:*)",
       "Bash(brew:*)"
     ],
@@ -109,7 +108,15 @@
       "Edit(~/.zprofile)",
       "Edit(~/.bash_profile)",
       "Edit(~/.zshenv)",
-      "Edit(~/.profile)"
+      "Edit(~/.profile)",
+      "Bash(git * push* +*)",
+      "Bash(claude --dangerously-skip-permissions*)",
+      "Bash(claude *--dangerously-skip-permissions*)",
+      "mcp__playwright__browser_run_code_unsafe",
+      "mcp__playwright-ff__browser_run_code_unsafe",
+      "mcp__claude-in-chrome__javascript_tool",
+      "Read(~/.claude/.credentials.json)",
+      "Read(~/.claude/data/credentials/**)"
     ],
     "ask": [
       "mcp__*__*delete*",
@@ -136,7 +143,26 @@
       "Bash(gcloud:*)",
       "Bash(az:*)",
       "Bash(kubectl:*)",
-      "Bash(sudo *)"
+      "Bash(sudo *)",
+      "mcp__*__*reply*",
+      "mcp__*__*forward*",
+      "mcp__*__*share*",
+      "mcp__*__create_event",
+      "mcp__*__update_event",
+      "mcp__*__respond_to_event",
+      "mcp__*__add_*comment*",
+      "mcp__*__create_*comment*",
+      "mcp__*__create_pull_request*",
+      "mcp__*__issue_write",
+      "mcp__*__post_*",
+      "Read(.env)",
+      "Read(.env.*)",
+      "Bash(bw get:*)",
+      "Bash(bw unlock:*)",
+      "Bash(git commit --amend*)",
+      "Bash(find * -execdir *)",
+      "Bash(sort -o *)",
+      "Bash(sort --output*)"
     ],
     "defaultMode": "auto"
   },
@@ -167,7 +193,7 @@
     ],
     "Notification": [
       {
-        "matcher": "",
+        "matcher": "permission_prompt|idle_prompt|elicitation_dialog|agent_needs_input",
         "hooks": [
           {
             "type": "command",
@@ -199,7 +225,7 @@
         ]
       },
       {
-        "matcher": "WebFetch|mcp__jina__.*|mcp__playwright__browser_navigate|mcp__playwright-ff__browser_navigate",
+        "matcher": "WebFetch|mcp__jina__.*|mcp__tavily__.*|mcp__playwright__browser_navigate|mcp__playwright-ff__browser_navigate|mcp__claude-in-chrome__navigate|mcp__claude-in-chrome__browser_batch",
         "hooks": [
           {
             "type": "command",

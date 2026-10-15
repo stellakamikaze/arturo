@@ -51,27 +51,144 @@ HIGH_CONF = [
 COMPILED = [(re.compile(p), name) for p, name in HIGH_CONF]
 
 
-def _repo_for_command(command: str, cwd: str) -> str | None:
+# Corpo di un heredoc: la shell non lo esegue (salvo heredoc verso una shell).
+_HEREDOC_OPEN = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+_SHELL_FEED = re.compile(r"(^|[\s;&|(])(bash|sh|zsh|dash|ksh|eval|source)\b")
+_ASSIGN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", re.S)
+_VAR = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))")
+_WRAPPERS = {"bash", "sh", "zsh", "dash", "ksh", "eval", "xargs", "env", "command", "exec", "nohup", "time"}
+_UNRESOLVED = object()
+
+
+def _senza_heredoc(command: str) -> str:
+    righe, fuori, fine = command.split("\n"), [], None
+    for riga in righe:
+        if fine is not None:
+            if riga.strip() == fine:
+                fine = None
+            continue
+        apertura = _HEREDOC_OPEN.search(riga)
+        if apertura and not _SHELL_FEED.search(riga.split("<<")[0]):
+            fine = apertura.group(2)
+        fuori.append(riga)
+    return "\n".join(fuori)
+
+
+def _expand(word: str, variables: dict):
+    if "`" in word or "$(" in word:
+        return _UNRESOLVED
+
+    def sub(m):
+        name = m.group(1) or m.group(2)
+        if name in variables:
+            return variables[name]
+        if name == "HOME":
+            return os.path.expanduser("~")
+        raise KeyError(name)
+
+    try:
+        expanded = os.path.expanduser(_VAR.sub(sub, word))
+    except KeyError:
+        return _UNRESOLVED
+    return _UNRESOLVED if "$" in expanded else expanded
+
+
+def _segments(command: str):
+    lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|()\n")
+    lexer.whitespace = " \t\r"
+    lexer.whitespace_split = True
+    segment = []
+    for token in lexer:
+        if token and set(token) <= set(";&|()\n"):
+            if segment:
+                yield segment
+            segment = []
+        else:
+            segment.append(token)
+    if segment:
+        yield segment
+
+
+def _repo_for_command(command: str, cwd: str):
+    """Il repository su cui girera' `git commit`.
+
+    Restituisce il percorso, None se non risolvibile (-> ask), oppure False se
+    nessun `git commit` viene eseguito davvero (il pattern ha visto la parola
+    in un messaggio o in un heredoc). Il parsing rispetta le virgolette: un
+    messaggio di commit su piu' righe non spezza il comando.
+    """
     location = os.path.abspath(cwd)
-    for segment in re.split(r"&&|\|\||;|\||\n", command):
-        try:
-            tokens = shlex.split(segment)
-        except ValueError:
+    variables: dict = {}
+    try:
+        segments = list(_segments(_senza_heredoc(command)))
+    except ValueError:
+        return None
+    for tokens in segments:
+        index = 0
+        assigned = {}
+        while index < len(tokens) and _ASSIGN.match(tokens[index]):
+            name, value = _ASSIGN.match(tokens[index]).groups()
+            assigned[name] = value
+            index += 1
+        if tokens[index:index + 1] == ["export"]:
+            for token in tokens[index + 1:]:
+                if _ASSIGN.match(token):
+                    name, value = _ASSIGN.match(token).groups()
+                    assigned[name] = value
+            index = len(tokens)
+        if index >= len(tokens):
+            for name, value in assigned.items():
+                expanded = _expand(value, variables)
+                if expanded is _UNRESOLVED:
+                    variables.pop(name, None)
+                else:
+                    variables[name] = expanded
+            continue
+        tokens = tokens[index:]
+        head = os.path.basename(tokens[0])
+        if head in ("cd", "pushd"):
+            if len(tokens) > 1:
+                target = _expand(tokens[1], variables)
+                if target is _UNRESOLVED:
+                    location = None
+                elif location is not None:
+                    location = os.path.abspath(os.path.join(location, target))
+            continue
+        # `env VAR=… git …` e `command git …` (4/10/2026, #2832): si tolgono il wrapper e le
+        # assegnazioni e si guarda il git che resta. Gli altri wrapper restano «non risolvibile».
+        if head in ("env", "command"):
+            resto = tokens[1:]
+            while resto and _ASSIGN.match(resto[0]):
+                resto = resto[1:]
+            if resto and os.path.basename(resto[0]) == "git":
+                tokens, head = resto, "git"
+        if head in _WRAPPERS and "commit" in " ".join(tokens[1:]):
             return None
-        if not tokens:
-            continue
-        if tokens[0] == "cd" and len(tokens) > 1:
-            location = os.path.abspath(os.path.join(location, os.path.expanduser(tokens[1])))
-            continue
-        if os.path.basename(tokens[0]) != "git":
+        if head != "git":
             continue
         index = 1
-        while index + 1 < len(tokens) and tokens[index] == "-C":
-            location = os.path.abspath(os.path.join(location, os.path.expanduser(tokens[index + 1])))
-            index += 2
+        # Opzioni globali prima del sottocomando (15/10/2026): `--no-pager`, `-p` e simili
+        # si saltano; prima `git --no-pager -C repo commit` usciva come «nessun commit».
+        while index < len(tokens) and tokens[index].startswith("-"):
+            opzione = tokens[index]
+            if opzione in ("-C", "-c"):
+                if index + 1 >= len(tokens):
+                    return None
+                if opzione == "-C":
+                    target = _expand(tokens[index + 1], variables)
+                    if target is _UNRESOLVED or location is None:
+                        return None
+                    location = os.path.abspath(os.path.join(location, target))
+                index += 2
+                continue
+            if opzione.startswith(("--git-dir", "--work-tree", "--namespace", "--config-env", "--exec-path")):
+                return None
+            index += 1
         if index < len(tokens) and tokens[index] == "commit":
             return location
-    return location if "gh pr create" in command else None
+    if re.search(r"\bgh\s+pr\s+create\b", command):
+        return location
+    return False
 
 
 def _diff(repo: str, commit_all: bool, add_prima: bool = False) -> str | None:
@@ -120,6 +237,8 @@ def main() -> int:
         return 0
     cwd = data.get("cwd") or os.path.expanduser("~")
     repo = _repo_for_command(command, cwd)
+    if repo is False:
+        return 0
     if not repo:
         return _ask("Repository destinatario del commit non risolvibile: conferma prima di proseguire.")
     # Fuori da un repository Git il commit fallisce da solo: niente da scansionare.

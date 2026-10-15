@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""PreToolUse hook: gate egress GET mascherato da ingest su WebFetch/jina/playwright.
+"""PreToolUse hook: gate egress GET mascherato da ingest su WebFetch/jina/tavily/browser.
 
 Buco strutturale coperto: exfil-guard.py vede solo Bash curl/wget POST. I canali
-WebFetch(GET), jina.read_url/parallel_read_url/capture_screenshot_url e
-playwright.browser_navigate possono portare dati fuori mettendoli nella
+WebFetch(GET), jina e tavily, playwright.browser_navigate e Claude in Chrome
+(navigate, e browser_batch con gli URL annidati nelle azioni) possono portare dati fuori mettendoli nella
 query-string/path di una URL verso un host esterno (es. attacker/?d=<segreto>).
 
 Decisione:
-- host interno (Tailscale/localhost/LAN)         -> allow (silenzioso)
+- host interno (localhost/LAN/IP Tailscale, hosts-interni.local) -> allow (silenzioso).
+  Un nome `.ts.net` non e' interno: con Tailscale Funnel puo' essere pubblico.
 - host esterno + URL "pulita"                             -> allow (non rompe la ricerca web normale)
 - host esterno + payload sospetto nell'URL                -> ask
     (command-substitution $()/backtick, o query mostruosa >=300 char)
@@ -86,7 +87,7 @@ def _internal_host(host: str | None) -> bool:
     if not host:
         return False
     normalized = host.lower().rstrip(".")
-    if normalized in INTERNAL_HOSTS or normalized in LOCAL_HOSTS or normalized.endswith(".ts.net"):
+    if normalized in INTERNAL_HOSTS or normalized in LOCAL_HOSTS:
         return True
     try:
         addr = ipaddress.ip_address(normalized)
@@ -95,19 +96,30 @@ def _internal_host(host: str | None) -> bool:
     return any(addr in network for network in INTERNAL_NETS + LOCAL_NETS)
 
 
-def _iter_urls(tool_input):
-    """Estrae stringhe URL da campi comuni (url, urls, href, uri)."""
+def _iter_urls(tool_input, profondita=0):
+    """Estrae stringhe URL da campi comuni (url, urls, href, uri), anche annidati.
+
+    Dal 15/10/2026 scende in dict e liste fino a 4 livelli: browser_batch di Claude in
+    Chrome porta gli URL dentro actions[].input, e prima la guardia non li vedeva.
+    """
+    if profondita > 4:
+        return
+    if isinstance(tool_input, list):
+        for item in tool_input:
+            yield from _iter_urls(item, profondita + 1)
+        return
     if not isinstance(tool_input, dict):
         return
     for k, v in tool_input.items():
-        if not re.search(r'url|uri|href|link', k, re.IGNORECASE):
-            continue
-        if isinstance(v, str):
-            yield v
-        elif isinstance(v, list):
-            for item in v:
-                if isinstance(item, str):
-                    yield item
+        if re.search(r'url|uri|href|link', k, re.IGNORECASE):
+            if isinstance(v, str):
+                yield v
+                continue
+            if isinstance(v, list) and all(isinstance(x, str) for x in v):
+                yield from v
+                continue
+        if isinstance(v, (dict, list)):
+            yield from _iter_urls(v, profondita + 1)
 
 
 def _suspicious(url):

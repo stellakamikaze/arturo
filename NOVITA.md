@@ -11,6 +11,24 @@ modo di lavorare.
 
 ---
 
+## 2026-10-15 — Guardie più strette dove servono, meno allarmi dove non servono
+
+**Cosa cambia**: Claude chiede conferma prima di leggere una password con `bw get`, di aprire un
+file `.env`, di rispondere, inoltrare o condividere via un collegamento (Gmail, Calendar, Drive,
+GitHub) e di correggere un commit con `--amend`. Non può più eseguire codice arbitrario nel browser
+né lanciare un altro Claude senza permessi. Il controllo dei segreti nei commit parte anche con le
+forme che prima lo saltavano (`env … git commit`, un commit a capo, `git --no-pager commit`). Un
+indirizzo `.ts.net` non conta più come interno: se lavori con la tua tailnet, scrivi i tuoi host in
+`hooks/hosts-interni.local`. Due falsi allarmi spariscono: `sed` in lettura seguito da un ciclo
+`for w`, e `rsync --delete` in prova (`-n`) o citato in un testo. La statusline torna a mostrare il
+task in corso, e il suono parte solo quando Claude aspetta te.
+
+**Il principio dietro**: una guardia vale se ferma il danno vero e tace sul lavoro normale. Queste
+correzioni arrivano dalla config dell'autore, dove giravano da settimane.
+
+**Da sapere**: se usavi `bw get` senza conferma, ora Claude te la chiede ogni volta. È voluto: la
+password finirebbe nella conversazione.
+
 ## 2026-10-14 — Arturo convive con la tua config
 
 **Cosa cambia**: le tue aggiunte a un comando di Arturo hanno un posto loro,

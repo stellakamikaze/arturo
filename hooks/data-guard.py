@@ -74,8 +74,46 @@ DOCKER_DOWN_VOL_RE = re.compile(
 # rsync --delete verso destinazione remota (host:path). Il ':' con un host prima
 # indica una dest remota; --delete puo' cancellare file sul lato remoto.
 RSYNC_DELETE_REMOTE_RE = re.compile(
-    r"\brsync\b[^|&;]*--delete\b[^|&;]*\s[\w.-]+@?[\w.-]+:", re.IGNORECASE
+    r"\brsync\b[^|&;\n]*--delete\b[^|&;\n]*\s[\w.-]+@?[\w.-]+:", re.IGNORECASE
 )
+# 15/10/2026: rsync --delete citato in un heredoc che nessuno esegue, o in un dry-run,
+# non chiede. Il flag si cerca fuori dalle virgolette, cosi' `-e "ssh -n"` non vale.
+RSYNC_DRY_RUN_RE = re.compile(
+    r"\s(?:-(?!-)[A-Za-z]*n[A-Za-z]*|--dry-run)(?=\s|$)"
+)
+_HD_OPEN = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+_HD_SHELL = re.compile(r"\b(bash|sh|zsh|fish|ksh|dash|eval|source|ssh)\b")
+_HD_EXEC = re.compile(r"subprocess|os\.system|os\.exec|os\.spawn|pty\.spawn|popen", re.IGNORECASE)
+
+
+def _senza_testo(cmd: str) -> str:
+    """Il comando senza i corpi di heredoc che nessuno esegue come shell. Resta il
+    corpo diretto a bash/ssh/eval e quello che chiama subprocess o os.system."""
+    out, stop, corpo, shell = [], None, [], False
+    for riga in cmd.replace("\\\n", " ").split("\n"):
+        if stop is not None:
+            corpo.append(riga)
+            if riga.strip() == stop:
+                if shell or _HD_EXEC.search("\n".join(corpo)):
+                    out.extend(corpo)
+                stop, corpo = None, []
+            continue
+        out.append(riga)
+        m = _HD_OPEN.search(riga)
+        if m:
+            stop, corpo, shell = m.group(2), [], bool(_HD_SHELL.search(riga.split("<<")[0]))
+    out.extend(corpo)
+    return "\n".join(out)
+
+
+def _rsync_delete_reale(cmd: str) -> bool:
+    testo = _senza_testo(cmd)
+    for m in RSYNC_DELETE_REMOTE_RE.finditer(testo):
+        fine = re.search(r"[|&;\n]", testo[m.start():])
+        segmento = testo[m.start(): m.start() + fine.start()] if fine else testo[m.start():]
+        if not RSYNC_DRY_RUN_RE.search(re.sub(r"\"[^\"]*\"|'[^']*'", " ", segmento)):
+            return True
+    return False
 
 # Overwrite di un file DB via redirezione (> master.db). Non >> (append).
 DB_FILE_OVERWRITE_RE = re.compile(
@@ -132,7 +170,7 @@ def main() -> int:
             "dump/export. Conferma solo se i dati sono gia' salvati."
         )
 
-    if RSYNC_DELETE_REMOTE_RE.search(cmd):
+    if _rsync_delete_reale(cmd):
         return _ask(
             "rsync --delete verso una destinazione REMOTA: se la direzione e' "
             "sbagliata (local->master) puo' cancellare dati sul server. "
