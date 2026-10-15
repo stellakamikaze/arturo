@@ -44,6 +44,6 @@ Include file:line references. Prioritize: Critical > Warning > Suggestion.
 
 **Obiettivo**: copri le aree rilevanti per l'interfaccia in esame, non tutte in modo meccanico; porta evidenza dal codice. Priorità alle violazioni WCAG AA nei flussi critici.
 
-Se in `~/.claude/skills/` c'è la skill `impeccable`, chiudi il report suggerendo `/impeccable audit <pagina>` per i controlli fissi sulla pagina vera, che questa revisione del codice non vede. Se non c'è, e il lavoro è di design più che di revisione, rimanda a `~/.claude/docs/impeccable.md`.
+Se in `~/.claude/skills/` c'è la skill `impeccable`, chiudi il report suggerendo il suo audit sulla pagina (comando della skill: `impeccable audit <pagina>`) per i controlli fissi sulla pagina vera, che questa revisione del codice non vede. Se non c'è, e il lavoro è di design più che di revisione, rimanda a `~/.claude/docs/impeccable.md`.
 
 Se emergono pattern UI ricorrenti (stati di caricamento mancanti, gap di accessibilità, problemi di struttura dei componenti), segnalali all'utente come candidati per il CLAUDE.md del progetto — non scriverli tu in autonomia.
