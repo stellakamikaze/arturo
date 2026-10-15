@@ -1,4 +1,4 @@
-Sorts Mill Goudy: Copyright (c) 2010, Barry Schwartz (chemoelectric@chemoelectric.org)
+Archivo: Copyright 2017 The Archivo Project Authors (https://github.com/Omnibus-Type/Archivo)
 Atkinson Hyperlegible Next e Atkinson Hyperlegible Mono: Copyright 2020-2024 Braille Institute of America, Inc.
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
