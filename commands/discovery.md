@@ -1,5 +1,6 @@
 ---
 description: Raccolta requisiti strutturata - intervista per capire cosa costruire
+disable-model-invocation: true
 ---
 
 # Discovery Progetto

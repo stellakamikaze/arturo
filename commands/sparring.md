@@ -1,6 +1,7 @@
 ---
 description: Sparring algoritmo-utente - mappa un principio dell'harness sui casi d'uso reali di chi lo usa, con piccoli esperimenti try-and-learn
 argument-hint: "[principio o «novità»] (opzionale)"
+disable-model-invocation: true
 ---
 
 # Sparring

@@ -1,12 +1,13 @@
 ---
 description: Avvia nuovo progetto - orchestratore completo dall'idea al primo commit
 argument-hint: <nome-progetto>
+disable-model-invocation: true
 ---
 
 # Nuovo Progetto
 
 **Workflow orchestratore** per avviare un nuovo progetto: dalla directory vuota al primo commit.
-Il valore aggiunto di `/progetto` è il bootstrap (directory + git + commit) e l'orchestrazione delle fasi. Le fasi di analisi NON sono duplicate qui: `/progetto` invoca `/discovery` e `/write-plan` con il contesto raccolto.
+Il valore aggiunto di `/progetto` è il bootstrap (directory + git + commit) e l'orchestrazione delle fasi. Le fasi di analisi NON sono duplicate qui: `/progetto` segue le istruzioni di `~/.claude/commands/discovery.md` e `~/.claude/commands/write-plan.md` con il contesto raccolto: li apri con Read, perché i due comandi hanno `disable-model-invocation` e lo strumento Skill non li lancia.
 
 ## Nome Progetto
 
@@ -75,10 +76,10 @@ Crea un task con `TaskCreate` per ogni passo concreto emerso. Salta alla FASE 4.
 Esegui in sequenza i tre comandi standalone, passando il contesto di fase in fase. NON duplicare i loro template qui.
 
 ### 3B.1 Discovery
-Esegui `/discovery`. Raccoglie requisiti business, contesto tecnico, scala, prioritizzazione e produce il documento di sintesi (Problema, Criteri di successo, Decisioni tecniche, Scope MVP, Fuori scope).
+Segui le istruzioni di `~/.claude/commands/discovery.md` (aprilo con Read). Raccolgono requisiti business, contesto tecnico, scala, prioritizzazione e producono il documento di sintesi (Problema, Criteri di successo, Decisioni tecniche, Scope MVP, Fuori scope).
 
 ### 3B.2 Piano
-Esegui `/write-plan` usando il documento di discovery. Produce architettura, task ordinati e strategia test.
+Segui le istruzioni di `~/.claude/commands/write-plan.md` (aprilo con Read) usando il documento di discovery. Producono architettura, task ordinati e strategia test.
 
 ### 3B.3 Crea Task
 Dal piano prodotto da `/write-plan`, crea un task con `TaskCreate` per ogni fase:

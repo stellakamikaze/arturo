@@ -1,6 +1,7 @@
 ---
 description: Protocollo debug - disciplina diagnostica, poi delega la meccanica al debugging nativo
 argument-hint: "[file/descrizione bug] (opzionale)"
+disable-model-invocation: true
 ---
 
 # Debug

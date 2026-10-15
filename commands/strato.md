@@ -1,6 +1,7 @@
 ---
 description: Lo strato dell'organizzazione sopra Arturo. `crea` e `pubblica` per il referente, `installa <indirizzo>` per i colleghi
 argument-hint: "crea | pubblica | installa <indirizzo-del-repository>"
+disable-model-invocation: true
 ---
 
 # Strato dell'organizzazione

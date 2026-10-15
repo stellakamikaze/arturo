@@ -16,6 +16,7 @@ compatibility: claude-code cursor codex gemini-cli opencode
 metadata:
   derivato-da: ASD-STE100 Issue 9 (2025-01-15) via github.com/AminBlg/SimpleEnglish (MIT)
   standard: ITS 1.1
+disable-model-invocation: true
 ---
 
 # Italiano Semplificato: scrivi come un manuale di manutenzione

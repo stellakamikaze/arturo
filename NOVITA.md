@@ -11,6 +11,23 @@ modo di lavorare.
 
 ---
 
+## 2026-10-16 — In vista solo i comandi di ogni giorno, e una skill per le interfacce
+
+**Cosa cambia**: Claude ti propone da solo solo i comandi che servono ogni giorno o quando serve:
+`/inizio`, `/fine`, `/aggiorna`, `/novita`, `/segnala`, `/setup`. Gli altri (`/guidami`, `/sparring`,
+`/progetto`, `/discovery`, `/write-plan`, `/diagnosi`, `/strato`, `/percorso`, `/italiano-semplificato`)
+restano tutti: li lanci tu scrivendo il nome. Il README li divide in «Ogni giorno», «Quando serve» e
+«Gli altri comandi». In più arriva `impeccable`: quando chiedi di progettare o rifinire un sito, una
+pagina o una dashboard, Claude lavora come un direttore di design.
+
+**Il principio dietro**: chi comincia ha bisogno di due comandi, non di quindici. Un elenco lungo
+fa sembrare difficile anche quello che è semplice.
+
+**Da sapere**: niente da fare. «A che punto sono?» non apre più da solo il percorso: scrivi `/percorso`.
+`impeccable` gira senza il programma che la versione originale scarica al primo uso.
+
+---
+
 ## 2026-10-15 — Gmail, Calendar e Drive senza Google Cloud, e guardie con gli accenti
 
 **Cosa cambia**: per collegare la posta, il calendario e i documenti non serve più creare un

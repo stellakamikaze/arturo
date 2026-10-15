@@ -12,6 +12,7 @@ when_to_use: >-
   nell'ordine: non prendere scorciatoie basandoti su questa description.
 version: 1.0.0
 license: MIT
+disable-model-invocation: true
 ---
 
 # Percorso: le decisioni che la persona tiene

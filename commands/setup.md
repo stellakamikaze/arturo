@@ -322,7 +322,7 @@ L'installazione è finita, ma l'harness non sa ancora niente della persona che l
 Proponi: «vuoi che facciamo dieci minuti di sparring? Ti faccio tre domande sul tuo lavoro
 e vediamo insieme dove Arturo ti serve davvero — con un piccolo esperimento, se ti va.»
 
-Se accetta, prosegui con le istruzioni di **`/sparring`** (parti dal capitolo
+Se accetta, apri con Read `~/.claude/commands/sparring.md` e seguine le istruzioni (parti dal capitolo
 `docs/principi/00-chi-possiede-lo-strumento.md`, che è il punto d'ingresso del curriculum).
 Se preferisce esplorare da solo, indicagli `docs/principi/README.md` e chiudi.
 
@@ -333,8 +333,8 @@ Se preferisce esplorare da solo, indicagli `docs/principi/README.md` e chiudi.
 Chiudi con un riepilogo in linguaggio semplice:
 - Cosa è stato configurato: prerequisiti, permessi, `PROJECTS_BASE`, lingua, verifica finale.
 - Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), strato dell'organizzazione (7b), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), `gws` (8), `scrape` (8b), sparring (10). Una fase saltata si recupera rilanciando `/setup`.
-- **Come iniziare a lavorare**: «Per avviare un progetto usa `/progetto <nome>`; per riprendere una sessione `/inizio <nome>`; per chiudere `/fine`. Quando ti viene in mente qualcosa da fare, dimmi «ricordami di…»: lo ritrovi a ogni `/inizio`.»
-- **Come imparare un passo alla volta**: «Per imparare un passo alla volta: dimmi «a che punto sono?» o usa `/percorso`.»
+- **Come iniziare a lavorare**: «Ogni giorno ti bastano due comandi: `/inizio <nome>` per riprendere un progetto e `/fine` per chiuderlo. Quando ti viene in mente qualcosa da fare, dimmi «ricordami di…»: lo ritrovi a ogni `/inizio`.» Gli altri comandi non elencarli qui: c'è il README.
+- **Come imparare un passo alla volta**: «Quando vuoi vedere a che punto sei, scrivi `/percorso`.»
 - **Come restare aggiornato**: all'avvio della sessione Arturo controlla da solo se c'è una versione nuova e lo segnala (`ARTURO: c'e' un aggiornamento — scaricalo con /aggiorna`). **`/aggiorna`** la scarica e la applica, **`/novita`** racconta cosa è cambiato e propone lo sparring.
 - **Telemetria**: ricorda in una riga se è accesa o spenta (`python3 ~/.claude/bin/arturo telemetria stato`), e che `python3 ~/.claude/bin/arturo telemetria mostra` fa vedere esattamente cosa parte.
 - **Come far migliorare Arturo**: «Se qualcosa non funziona, o ti manca uno strumento, dimmelo o scrivi `/segnala`: preparo io il testo per chi mantiene Arturo, e parte solo con il tuo sì.»

@@ -6,7 +6,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 È il telaio di una config personale usata quotidianamente in produzione, estratto e igienizzato: **zero dati, zero credenziali, zero riferimenti a infrastrutture private**. Quello che resta è il metodo.
 
-In due righe: **23 guardie e automazioni**, **13 slash command**, **9 subagent**, **5 skill**, una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), un **server open source** per la telemetria e le segnalazioni (`server/`), che dice a chi mantiene Arturo dove correggerlo — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi usa già l'IA in chat ma non ha mai aperto un terminale. A te non serve un server né un account: il server della telemetria lo tiene chi mantiene Arturo. Ti bastano `git` e le CLI standard.
+In due righe: **23 guardie e automazioni**, **13 slash command**, **9 subagent**, **6 skill**, una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), un **server open source** per la telemetria e le segnalazioni (`server/`), che dice a chi mantiene Arturo dove correggerlo — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi usa già l'IA in chat ma non ha mai aperto un terminale. A te non serve un server né un account: il server della telemetria lo tiene chi mantiene Arturo. Ti bastano `git` e le CLI standard.
 
 I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure scrivi `python3 ~/.claude/bin/arturo web` nel terminale. La pagina è facoltativa e locale: risponde solo sul tuo computer (127.0.0.1), non si collega a internet e si spegne da sola dopo 30 minuti senza la pagina aperta.
 
@@ -237,7 +237,7 @@ tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativ
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
 commands/            13 slash command di workflow (incl. /setup, /aggiorna, /guidami, /novita, /strato, /segnala)
 agents/              9 subagent specializzati
-skills/              5 skill (+ regole condivise in shared/)
+skills/              6 skill (+ regole condivise in shared/)
 output-styles/       Due stili di scrittura: Guida (di partenza) e Conciso (si sceglie in /setup)
 docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/esercizi.md     Gli esercizi del percorso a tappe (/percorso)
@@ -303,23 +303,24 @@ fa vedere la coda così come parte.
 
 ### La rotta (`commands/`)
 
-Setup: **`/setup`** — configurazione guidata dell'intero harness per un nuovo utente (prerequisiti, permessi, `PROJECTS_BASE`, `CLAUDE.md`, sync, verifica); pensato per chi non ha mai usato un terminale.
+**Ogni giorno.** Due comandi bastano: apri la giornata con `/inizio` e la chiudi con `/fine`.
 
-Manutenzione: **`/aggiorna`** — scarica e applica l'ultima versione di Arturo, dopo averti mostrato cosa cambia e controllato che non travolga le tue modifiche. Le tue modifiche ai comandi di Arturo le sposta da solo in `personale/`, dove gli aggiornamenti non vanno in conflitto (con un tuo repository della config, solo se è privato); **`/aggiorna personale`** lo fa subito, senza aggiornare.
+- **`/inizio <progetto>`** — sync della config, poi il contesto del progetto in una chiamata (`arturo contesto`: git, ripartenza degli handoff recenti, todo aperti divisi per chi agisce, scadenze), il confronto dei todo con `git log` (quelli già fatti non risorgono) e la scelta del lavoro. Con `--tutti` aggiorna anche ogni progetto della cartella dei progetti; con `-- <compito>` parte subito sul compito. `/inizio gws` avvia invece l'onboarding gws.
+- **`/fine`** — inventario dei file della sessione e dove va ognuno, review di completezza per le modifiche di codice, validate, commit selettivo e handoff con la tabella dei todo pendenti e di chi agisce. Un controllo (`bin/handoff-gate.sh`) ferma un handoff senza tabella, con un todo inesistente o con un segnaposto mai compilato; tiene gli ultimi 5 handoff per progetto e rigenera l'indice `data/handoffs/INDEX.md`. Alla fine chiede se Arturo si è inceppato o se ti manca qualcosa (al massimo una domanda a settimana, oppure subito dopo un intoppo).
 
-Ripresa: **`/guidami`** — guarda gli ultimi handoff e le conversazioni recenti e ti propone tre o quattro cose che ha senso fare adesso, con il motivo e il primo passo. Per quando riapri e non sai da dove ripartire.
+**Quando serve.**
 
-Pedagogia: **`/novita`** — racconta gli aggiornamenti dell'harness non ancora visti (cosa cambia, il principio dietro); **`/sparring`** — prende un principio del curriculum e lo prova sul lavoro reale dell'utente, con esperimenti piccoli e reversibili. Vedi [Imparare con Arturo](#imparare-con-arturo).
-
-Il ciclo di lavoro quotidiano:
-
-`- **`/inizio <progetto>`** — sync della config, poi il contesto del progetto in una chiamata (`arturo contesto`: git, ripartenza degli handoff recenti, todo aperti divisi per chi agisce, scadenze), il confronto dei todo con `git log` (quelli già fatti non risorgono) e la scelta del lavoro. Con `--tutti` aggiorna anche ogni progetto della cartella dei progetti; con `-- <compito>` parte subito sul compito. `/inizio gws` avvia invece l'onboarding gws.`
-`- **`/fine`** — inventario dei file della sessione e dove va ognuno, review di completezza per le modifiche di codice, validate, commit selettivo e handoff con la tabella dei todo pendenti e di chi agisce. Un controllo (`bin/handoff-gate.sh`) ferma un handoff senza tabella, con un todo inesistente o con un segnaposto mai compilato; tiene gli ultimi 5 handoff per progetto e rigenera l'indice `data/handoffs/INDEX.md`. Alla fine chiede se Arturo si è inceppato o se ti manca qualcosa (al massimo una domanda a settimana, oppure subito dopo un intoppo).`
+- **`/aggiorna`** — scarica e applica l'ultima versione di Arturo, dopo averti mostrato cosa cambia e controllato che non travolga le tue modifiche. Le tue modifiche ai comandi di Arturo le sposta da solo in `personale/`, dove gli aggiornamenti non vanno in conflitto (con un tuo repository della config, solo se è privato); **`/aggiorna personale`** lo fa subito, senza aggiornare.
+- **`/novita`** — racconta gli aggiornamenti dell'harness non ancora visti (cosa cambia, il principio dietro). Vedi [Imparare con Arturo](#imparare-con-arturo).
 - **`/segnala`** — manda a chi mantiene Arturo un problema, un'idea o uno strumento da collegare. La bozza la scrive Claude, senza nomi né segreti. Tu la leggi e dici sì: arriva direttamente a chi mantiene Arturo, senza account né email da mandare. Se preferisci, diventa una issue pubblica su GitHub. Se non vuoi più gli inviti a segnalare: `python3 ~/.claude/bin/arturo segnala basta`.
+- **`/setup`** — configurazione guidata dell'intero harness per un nuovo utente (prerequisiti, permessi, `PROJECTS_BASE`, `CLAUDE.md`, sync, verifica); pensato per chi non ha mai usato un terminale.
 
-Sviluppo: `/progetto` (da idea a primo commit), `/discovery`, `/write-plan`, `/diagnosi` (disciplina diagnostica: fatti prima delle ipotesi; si chiama così per non nascondere il `/debug` di Claude Code).
+**Gli altri comandi.** Claude non li propone da solo: li lanci tu scrivendo il nome.
 
-<a id="organizzazioni-strato"></a>Organizzazioni: **`/strato`** — lo strato di un'organizzazione sopra Arturo (chi siete, voce, lavori ricorrenti, dati riservati), come plugin nel vostro repository privato. Il referente lo prepara con `/strato crea` e lo pubblica con `/strato pubblica`; i colleghi lo ricevono con `/strato installa`. Guida del ruolo: [`docs/referente.md`](docs/referente.md).
+- **`/guidami`** — guarda gli ultimi handoff e le conversazioni recenti e ti propone tre o quattro cose che ha senso fare adesso, con il motivo e il primo passo. Per quando riapri e non sai da dove ripartire.
+- **`/sparring`** — prende un principio del curriculum e lo prova sul lavoro reale dell'utente, con esperimenti piccoli e reversibili.
+- `/progetto` (da idea a primo commit), `/discovery`, `/write-plan`, `/diagnosi` (disciplina diagnostica: fatti prima delle ipotesi; si chiama così per non nascondere il `/debug` di Claude Code).
+- <a id="organizzazioni-strato"></a>**`/strato`** — lo strato di un'organizzazione sopra Arturo (chi siete, voce, lavori ricorrenti, dati riservati), come plugin nel vostro repository privato. Il referente lo prepara con `/strato crea` e lo pubblica con `/strato pubblica`; i colleghi lo ricevono con `/strato installa`. Guida del ruolo: [`docs/referente.md`](docs/referente.md).
 
 Qualità: usa le capacità native di review e verifica dell'harness.
 
@@ -334,8 +335,12 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 - **`system-audit`** — audit dell'harness: hook diretti e transitivi, smoke test, frontmatter YAML, permessi, slash-comandi citati nei documenti senza una skill o un comando dietro, peso dei corpi, plugin installati e non attivi. `--strict` fallisce se manca un requisito. Il banco avvelenato `skills/system-audit/tests/banco-gate.sh` lavora su una copia e non tocca la tua `~/.claude`.
 - **`prompt-master`** — due modalità: un prompt pronto da incollare in un altro tool AI, oppure il **brief interno**: prima di ogni richiesta di lavoro, anche breve, ricostruisce il contesto che manca, riscrive la richiesta come la eseguirà (il **prompt**) e mostra obiettivo, output, vincoli, criterio di fatto, assunzioni e ambiguità (il **brief**). Domande e conversazione hanno risposta diretta. L'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi (upstream `nidhinjs/prompt-master`, MIT).
 - **`todo`** — quando dici «ricordami di…» o chiedi cosa c'è da fare, Claude usa la CLI `arturo todo`. I todo stanno in un archivio sul tuo computer (`data/todo/eventi.jsonl`), divisi per progetto, scadenza e chi agisce: tu, tu che decidi e poi Claude, oppure Claude. `/fine` ci scrive quello che resta, `/inizio` lo rilegge. Da terminale: `python3 ~/.claude/bin/arturo todo aiuto`. Se chiedi di vederli in una pagina, Claude avvia `arturo web`: una pagina nel browser che risponde solo sul tuo computer.
-- **`percorso`** — quando chiedi «a che punto sono?» o scrivi `/percorso`, Claude lancia `arturo percorso` e ti mostra la tappa (Osserva, Prova, Delega, Orchestra) con il todo che la prova, le cose che tieni per te e un esercizio della settimana sul tuo lavoro. Conta le decisioni che tieni, non il lavoro che deleghi. Il calcolo e lo stato restano sul tuo computer. I todo da cui nasce viaggiano come gli altri todo: solo verso il tuo repository privato.
-- **`italiano-semplificato`** — riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI. Una seconda passata cerca i tic di ritmo e struttura del testo generato (contrasti inventati, terne automatiche, chiuse a sentenza): il catalogo è in italiano e scritto da zero.
+- **`impeccable`** — quando chiedi di progettare, rifinire o criticare un'interfaccia (un sito, una pagina, una dashboard), Claude lavora come un direttore di design: prima la direzione e il contesto del progetto, poi la soglia di qualità e una verifica a passate limitate. È la skill di Paul Bakaus (Apache-2.0) in copia fissata, senza il programma che upstream scarica al primo uso: provenienza e licenza nella sua cartella.
+
+Queste due Claude non le propone da solo: le lanci tu con `/percorso` e `/italiano-semplificato`.
+
+- **`percorso`** — quando scrivi `/percorso`, Claude lancia `arturo percorso` e ti mostra la tappa (Osserva, Prova, Delega, Orchestra) con il todo che la prova, le cose che tieni per te e un esercizio della settimana sul tuo lavoro. Conta le decisioni che tieni, non il lavoro che deleghi. Il calcolo e lo stato restano sul tuo computer. I todo da cui nasce viaggiano come gli altri todo: solo verso il tuo repository privato.
+- **`italiano-semplificato`** — con `/italiano-semplificato` riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI. Una seconda passata cerca i tic di ritmo e struttura del testo generato (contrasti inventati, terne automatiche, chiuse a sentenza): il catalogo è in italiano e scritto da zero.
 
 **Gli altri mod.** Claude Code li carica da soli dalle loro cartelle in `skills/`, come `/dafare`. Per spegnerne uno: `/plugin`, poi il mod, poi disattiva. Attenzione a `redazione-segreti`: è il mod che protegge. Spento, Claude legge i segreti in chiaro.
 
