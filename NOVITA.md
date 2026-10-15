@@ -11,6 +11,24 @@ modo di lavorare.
 
 ---
 
+## 2026-10-15 — Gate che non mentono, lavori lunghi, lettura del web senza browser
+
+**Cosa cambia**: il gate di `/fine` è uno script (`bin/validation-gate-lang.sh`). Riconosce se il
+progetto è Node, Python o testo, e lancia i controlli giusti. Prima il gate leggeva l'esito dei test
+in un modo che, nella shell di Claude Code, poteva restare vuoto e sembrare un verde. Un comando lungo
+ha una strada sua, `bin/bgjob.sh`: gira staccato dalla sessione e scrive l'esito su un file.
+`/system-audit` segnala anche i comandi citati nei documenti che non esistono più, e i plugin
+installati ma spenti. In `/setup` c'è una fase facoltativa per `scrape`, che legge una pagina web e
+tiene solo il testo utile.
+
+**Il principio dietro**: un controllo vale solo se sa dire «rosso». Ogni gate nuovo ha un caso
+avvelenato, una versione rotta apposta che deve bocciare. Il «non so» è un esito onesto: il testo e
+gli strumenti mancanti danno «inconclusivo», mai verde.
+
+**Da sapere**: `scrape` occupa circa 300 MB e si installa solo se dici sì in `/setup`. Non finge di
+essere un browser: se un sito blocca i programmi, te lo dice e ti consiglia di aprire la pagina nel
+browser. La pulizia mensile (`bin/monthly-cleanup.sh`) è facoltativa: prova prima con `--prova`.
+
 ## 2026-10-15 — /inizio e /fine: il contesto in una chiamata, un handoff che regge
 
 **Cosa cambia**: `/inizio` raccoglie il contesto del progetto in una chiamata sola
