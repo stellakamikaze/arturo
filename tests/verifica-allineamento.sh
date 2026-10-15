@@ -22,7 +22,10 @@ command -v claude >/dev/null 2>&1 || {
 }
 
 FIXTURE=$(mktemp -d "${TMPDIR:-/tmp}/arturo-allineamento.XXXXXX")
-trap 'rm -rf "$FIXTURE"' EXIT
+# L'esito del gate per l'avviso «banchi rossi» del mod cache-fredda. Con set -e il gate si ferma
+# al primo rosso: il conto è sempre 1 FAIL. cache/ è fuori da git.
+ESITO_GATE="$ROOT/cache/banchi-ultimo-esito.txt"
+trap 'rc=$?; mkdir -p "$ROOT/cache" 2>/dev/null && if [[ $rc -eq 0 ]]; then printf "VERDE\n=== gate: tutto verde ===\n"; else printf "ROSSO\n=== gate: 1 FAIL (rc %s) ===\n" "$rc"; fi >"$ESITO_GATE" 2>/dev/null; rm -rf "$FIXTURE"' EXIT
 HOME="$FIXTURE/home"
 export HOME USERPROFILE="$HOME" XDG_CACHE_HOME="$FIXTURE/cache" TMPDIR="$FIXTURE/tmp" PYTHONDONTWRITEBYTECODE=1
 # W13: nel gate la prova nel browser non salta. Senza Chrome o node 22 il gate è rosso.
@@ -58,6 +61,7 @@ BANCHI=(
   test_aggiorna_sicuro.py
   test_aggiorna_copia.py
   test_segnala.py
+  test_mod_skill.py
   test_telemetria.py
   test_guardie_minori.py
   test_deriva.py
@@ -137,6 +141,8 @@ BASELINE=(
   "test_config_2026_10_15.py 842b06f"
   # La memoria facoltativa (15/10/2026): cbd8305, l'ultimo dev prima del lotto memoria.
   "test_memoria.py cbd8305"
+  # Mod e skill portati dalla config dell'autore (15/10/2026): cbd8305, la base dei lotti.
+  "test_mod_skill.py cbd8305"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

@@ -11,6 +11,25 @@ modo di lavorare.
 
 ---
 
+## 2026-10-15 — /apri, avvisi sotto il prompt, esempi per lo strato
+
+**Cosa cambia**: scrivi `/apri` e si apre l'ultimo link o file che Claude ha citato, con il
+programma predefinito del tuo computer. Sotto il prompt, oltre alla cache fredda, compaiono due
+avvisi nuovi: l'ultimo controllo di Arturo è rosso, oppure un account Google della CLI `gws` va
+ricollegato. Se usi `gws`, un errore di credenziali ora si dichiara al primo colpo, con il comando
+per rifare il login. La skill dell'italiano semplificato ha un catalogo dei tic della scrittura
+generata. Chi cura lo strato di un'organizzazione trova in `esempi/` tre modelli da adattare: le
+email che imparano dalle correzioni, il recap delle riunioni dalla trascrizione intera, l'anteprima
+prima dell'invio. Per il design delle interfacce, `docs/impeccable.md` spiega come installare
+Impeccable dall'autore.
+
+**Il principio dietro**: un avviso compare solo quando c'è qualcosa da fare. Una cosa che esiste già
+fatta bene altrove si installa da lì, non si copia.
+
+**Da sapere**: gli esempi dello strato non sono attivi finché il referente non li copia nello
+strato. Gli avvisi tacciono se non usi `gws` e se non lanci i controlli di Arturo. Per spegnere un
+mod: `/plugin`, poi il mod, poi disattiva.
+
 ## 2026-10-15 — Una memoria che puoi accendere
 
 **Cosa cambia**: Claude Code salva da solo alcune note sulle sessioni passate: cosa preferisci,
