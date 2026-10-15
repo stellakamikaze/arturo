@@ -292,6 +292,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/memoria-scrittura.py",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -301,6 +311,23 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/inject-now.sh",
             "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/memoria-richiamo.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/memoria-subagente.py",
+            "timeout": 5
           }
         ]
       }

@@ -261,6 +261,7 @@ Fuori dal dispatcher:
 - `web-egress-guard.py` — PreToolUse su `WebFetch`, jina, tavily, `browser_navigate` (anche Firefox) e Claude in Chrome (`navigate` e `browser_batch`): esfiltrazione via URL verso host esterni.
 - `credential-leak-scanner.py` — PostToolUse: rileva token e chiavi negli output di Bash/WebFetch/MCP. L'avviso arriva a Claude, non solo a te (`additionalContext`).
 - `prompt-injection-scanner.py` — PostToolUse: segnala tentativi di prompt injection nei contenuti esterni (pattern EN + IT). Anche questo avviso arriva a Claude.
+- `memoria-scrittura.py` — PostToolUse, sempre acceso: controlla le note di memoria e gli handoff che Claude scrive (password, chiavi, istruzioni nascoste). `memoria-richiamo.py` e `memoria-subagente.py` sono la memoria facoltativa, spenta di default: vedi «La memoria (facoltativa)».
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
 - `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
 - `session-start.sh` / `session-end.sh` — titolo finestra, avvisi Git locali, controllo della deriva (`deriva.py`), avvio della telemetria (`arturo telemetria`), invito a `/segnala` (si spegne con `arturo segnala basta`) e cleanup degli unlock di sessione.
@@ -330,14 +331,35 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 
 ---
 
+**La memoria (facoltativa).** Claude Code salva da solo alcune note sulle sessioni passate, in
+`~/.claude/projects/*/memory/`: cosa preferisci, cosa hai deciso, dove stanno le cose. Di solito le
+rilegge solo nel progetto in cui le ha scritte. La memoria di Arturo le rende utili ovunque, ed è
+spenta finché non la accendi (`/setup` te lo chiede, oppure `python3 ~/.claude/bin/arturo memoria accendi`).
+Quando è accesa:
+
+- a ogni tuo messaggio `memoria-richiamo.py` cerca le note che parlano della stessa cosa e ne dà a
+  Claude il percorso. Claude apre una nota solo se gli serve. Sotto una soglia di pertinenza tace;
+- `memoria-subagente.py` dice ai subagenti che la memoria esiste e come cercarla.
+
+`arturo memoria cerca "parole"` cerca a mano, anche a memoria spenta. `arturo memoria controlla`
+trova note senza descrizione, frontmatter illeggibili e link rotti. `arturo memoria cartella aggiungi
+<cartella>` aggiunge una tua cartella di note markdown (con `name` e `description` in testa).
+`arturo memoria spegni` la spegne: le note restano dove sono. Tutto resta su questo computer:
+nessun server, nessun archivio nuovo, e niente della memoria entra nella telemetria.
+L'interruttore sta in `~/.claude/data/memoria/`, fuori da git; `ARTURO_MEMORIA=0` lo scavalca.
+
+Una parte resta sempre accesa, anche a memoria spenta: `memoria-scrittura.py` controlla ogni nota e
+ogni handoff che Claude scrive. Se dentro c'è una password, una chiave o un'istruzione nascosta,
+Claude riceve un avviso. Il valore trovato non viene mai stampato.
+
 ## Cosa NON c'è (di proposito)
 
-Arturo è stato estratto da una config che include anche memoria persistente, task manager centralizzato e integrazioni con server privati. Quei pezzi **non ci sono** e le loro funzioni sono coperte in modo autosufficiente:
+Arturo è stato estratto da una config che include anche una memoria su server, un task manager centralizzato e integrazioni con server privati. Quei pezzi **non ci sono** e le loro funzioni sono coperte in modo autosufficiente:
 
 | Al posto di... | Arturo usa |
 |---|---|
 | Task manager su server | l'archivio locale dei todo (`arturo todo`, in `data/todo/`) + `TaskList`/`TaskCreate` nativi per i passi della sessione |
-| Memoria su database/server | il tuo `CLAUDE.md` + gli handoff in `data/handoffs/` |
+| Memoria su database/server | il tuo `CLAUDE.md`, gli handoff in `data/handoffs/` e, se la accendi, la memoria facoltativa: le note di Claude Code su questo computer (`arturo memoria`) |
 | Sync su server privato | il repo git stesso: `data/handoffs/` e `data/todo/` viaggiano con la config, solo se il suo remote è privato |
 
 Nessun componente richiede un server, un dominio o un account specifico.

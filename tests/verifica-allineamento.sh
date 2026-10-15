@@ -64,6 +64,7 @@ BANCHI=(
   test_deriva_allineata.py
   test_personale.py
   test_config_2026_10_15.py
+  test_memoria.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -71,7 +72,7 @@ done
 
 # Il minimo dichiarato è Python 3.8: la CLI, la pagina e il percorso girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_todo.py test_web.py test_percorso.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py)
+PY38_BANCHI=(test_todo.py test_web.py test_percorso.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py)
 PY38=$(command -v python3.8 || true)
 if [[ -n "$PY38" ]]; then
   for test in "${PY38_BANCHI[@]}"; do
@@ -134,6 +135,8 @@ BASELINE=(
   "test_personale.py f750408"
   # Revisione della config del 15/10/2026: 842b06f, l'ultimo dev prima delle correzioni.
   "test_config_2026_10_15.py 842b06f"
+  # La memoria facoltativa (15/10/2026): cbd8305, l'ultimo dev prima del lotto memoria.
+  "test_memoria.py cbd8305"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

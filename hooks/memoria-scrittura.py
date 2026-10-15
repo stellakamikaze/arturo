@@ -89,8 +89,8 @@ def main() -> int:
         import memoria as mem
     except Exception:
         return 0
-    if not mem.accesa():
-        return 0
+    # Guardia sempre accesa (15/10/2026): handoff e note di Claude Code esistono anche a memoria
+    # spenta, e una nota avvelenata fa danno lo stesso.
     try:
         dati = json.loads(sys.stdin.read() or "{}")
     except ValueError:

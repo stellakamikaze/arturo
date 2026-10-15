@@ -11,6 +11,25 @@ modo di lavorare.
 
 ---
 
+## 2026-10-15 — Una memoria che puoi accendere
+
+**Cosa cambia**: Claude Code salva da solo alcune note sulle sessioni passate: cosa preferisci,
+cosa hai deciso, dove stanno le cose. Ora Arturo può usarle in ogni progetto. Se accendi la
+memoria, a ogni messaggio Arturo cerca le note che parlano della stessa cosa e dice a Claude dove
+sono. Claude le apre solo se servono. Ogni nota e ogni handoff che Claude scrive passa da un
+controllo, anche a memoria spenta: se dentro c'è una password o un'istruzione nascosta, Claude riceve un avviso. Con
+`arturo memoria cerca "parole"` cerchi a mano, con `arturo memoria controlla` trovi le note senza
+descrizione e i link rotti. Puoi aggiungere una tua cartella di note con
+`arturo memoria cartella aggiungi <cartella>`.
+
+**Il principio dietro**: una memoria serve se la trovi quando ti serve, e se non porta dentro
+niente che non hai scritto tu. Le note restano tue e restano qui: nessun server, nessun archivio
+nuovo, niente nella telemetria.
+
+**Da sapere**: la memoria è spenta. Si accende in `/setup` oppure con
+`python3 ~/.claude/bin/arturo memoria accendi`, e si spegne con `arturo memoria spegni`. Spegnerla
+non cancella nessuna nota. `arturo memoria` da solo ti dice se è accesa e quante note vede.
+
 ## 2026-10-15 — Scegli come ti scrive Claude
 
 **Cosa cambia**: Arturo porta due stili di scrittura. **Guida**, lo stile di partenza, scrive frasi
