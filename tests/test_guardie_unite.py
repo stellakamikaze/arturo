@@ -353,8 +353,84 @@ def test_g208(repo: Path) -> None:
             "G208 un upload vero verso un host esterno passa"
 
 
+def _git(cartella: Path, *argomenti: str) -> None:
+    env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@esempio.org", GIT_COMMITTER_NAME="t",
+               GIT_COMMITTER_EMAIL="t@esempio.org", GIT_CONFIG_GLOBAL="/dev/null")
+    subprocess.run(["git", "-C", str(cartella), *argomenti], env=env, capture_output=True, text=True,
+                   timeout=60, check=True)
+
+
+def test_g209(repo: Path) -> None:
+    import time
+    with tempfile.TemporaryDirectory() as d:
+        radice = Path(d)
+        home = casa(repo, radice)
+        claude = home / ".claude"
+        _git(claude, "init", "-q")
+        _git(claude, "add", "-A")
+        _git(claude, "commit", "-q", "-m", "base")
+        segno = radice / "banchi-partiti"
+        (claude / "tests" / "banchi-avvio.sh").write_text(
+            f"#!/bin/bash\nsleep 5\nprintf 'VERDE\\nok\\n' > \"$HOME/.claude/cache/banchi-ultimo-esito.txt\"\n"
+            f"echo x >> '{segno}'\n", encoding="utf-8")
+        progetto = radice / "progetto"
+        progetto.mkdir()
+
+        def avvio(**extra: str):
+            inizio = time.time()
+            p = subprocess.run([BASH, str(claude / "hooks" / "session-start.sh")], input="{}", text=True,
+                               capture_output=True, cwd=str(progetto), env=env_di(home, **extra), timeout=60)
+            return p, time.time() - inizio
+
+        def aspetta(cond, secondi: float = 20) -> bool:
+            fine = time.time() + secondi
+            while time.time() < fine:
+                if cond():
+                    return True
+                time.sleep(0.3)
+            return cond()
+
+        p, durata = avvio(ARTURO_BANCHI_AVVIO="0")
+        assert "MACCHINA:" in p.stdout, f"G209 manca la riga MACCHINA: {p.stdout[:300]!r}"
+        time.sleep(1)
+        assert not segno.exists(), "G209 ARTURO_BANCHI_AVVIO=0 non spegne i banchi in background"
+        (claude / "hooks" / "statusline.js").write_text("// cambiato a mano\n", encoding="utf-8")
+        p, durata = avvio()
+        assert "file di ~/.claude modificati e non salvati" in p.stdout, \
+            f"G209 nessun avviso sui file della config non salvati: {p.stdout[:400]!r}"
+        assert durata < 4.5, f"G209 l'avvio aspetta i banchi: {durata:.1f} s"
+        assert aspetta(segno.exists), "G209 i banchi non partono in background"
+        assert aspetta(lambda: not (claude / "cache" / "banchi.lock").exists()), "G209 il lock resta dopo i banchi"
+        avvio()
+        time.sleep(1)
+        assert segno.read_text().count("x") == 1, "G209 i banchi ripartono con un esito fresco"
+        esito = claude / "cache" / "banchi-ultimo-esito.txt"
+        os.utime(esito, (time.time() - 13 * 3600, time.time() - 13 * 3600))
+        lock = claude / "cache" / "banchi.lock"
+        lock.mkdir()
+        (lock / "pid").write_text(str(os.getpid()), encoding="utf-8")  # tenuto da un processo vivo
+        avvio()
+        time.sleep(1.5)
+        assert segno.read_text().count("x") == 1, "G209 i banchi partono anche col lock tenuto da un processo vivo"
+        finito = subprocess.Popen(["true"])
+        finito.wait()
+        (lock / "pid").write_text(str(finito.pid), encoding="utf-8")  # il PID di un processo gia' uscito
+        avvio()
+        assert aspetta(lambda: segno.read_text().count("x") == 2), "G209 un lock orfano ferma i banchi per sempre"
+        aspetta(lambda: not lock.exists())
+        esito.write_text("ROSSO\n1 banchi delle guardie rossi su 5\ntest_x.py: AssertionError\n", encoding="utf-8")
+        p, _ = avvio(ARTURO_BANCHI_AVVIO="0")
+        assert "GUARDIE: banchi rossi" in p.stdout and "test_x.py" in p.stdout, \
+            f"G209 un esito rosso non si dice all'avvio: {p.stdout[:400]!r}"
+        _git(progetto, "init", "-q")
+        fine = subprocess.run([BASH, str(claude / "hooks" / "session-end.sh")], input="{}", text=True,
+                              capture_output=True, cwd=str(progetto), env=env_di(home), timeout=60)
+        assert "PROMEMORIA FINE SESSIONE" in fine.stdout, "G209 nessun promemoria di chiusura a tree pulito"
+
+
 TESTS = {"G201": test_g201, "G202": test_g202, "G203": test_g203, "G204": test_g204, "G205": test_g205,
-         "G206": test_g206, "G207": test_g207, "G208": test_g208}
+         "G206": test_g206, "G207": test_g207, "G208": test_g208,
+         "G209": test_g209}
 
 
 def main() -> int:
