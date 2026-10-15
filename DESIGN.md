@@ -27,6 +27,9 @@ colors:
   term-testo: "#e6e9ee"
   term-cenere: "#8c96a3"
   term-tu: "#8cc2ff"
+  term-filetto: "#1d232c"
+  term-guardia: "#2f6fe0"
+  term-guardia-testo: "#d8e6ff"
 typography:
   display:
     fontFamily: "Archivo, Helvetica Neue, Arial, sans-serif"
@@ -237,8 +240,11 @@ Una palette fredda e chiara: cielo azzurro, carta grigio caldo, inchiostro quasi
 - **Inchiostro** (`inchiostro`): titoli, il filetto che apre ogni elenco, il pulsante scuro del menu.
 - **Grafite** (`grafite`): il testo corrente. **Cenere** (`cenere`): seconde righe dei titoli, didascalie, etichette quiete. **Filetto** (`filetto`): le linee tra le voci.
 - **Vuoto** (`vuoto`, `vuoto-2`, `vuoto-testo`, `vuoto-cenere`, `vuoto-filetto`): la fascia scura con la grana, i suoi comandi e i suoi filetti.
-- **Terminale** (`term`, `term-testo`, `term-cenere`, `term-tu`): la finestra di Claude Code. `term-tu` colora quello che scrive la persona.
-- **Esiti** (`passa`, `blocca`): il verde dei passi fatti e il rosso degli errori nella guida e nell'accesso. Nei terminali gli esiti usano tinte chiare letterali (`#8cc2ff` su bordo `#2f6fe0` per «Chiede a te», `#ff9a8a` su bordo `#a8382a` per «Blocca»).
+- **Terminale** (`term`, `term-testo`, `term-cenere`, `term-tu`, `term-filetto`): la finestra di Claude Code. `term-tu` colora quello che scrive la persona. `term-filetto` separa barra e righe dentro la finestra.
+- **Esiti** (`passa`, `blocca`): il verde dei passi fatti e il rosso degli errori nella guida e nell'accesso. Nei terminali «Chiede a te» è `term-tu` su bordo `term-guardia`, col testo del messaggio in `term-guardia-testo`. «Blocca» usa ancora tinte letterali (`#ff9a8a` su bordo `#a8382a`).
+
+### Dove stanno
+Tutti i token di colore, carattere e misura stanno in `sito/stile/colori.css`, caricato da ogni pagina prima del suo `<style>`. Una pagina tiene nel suo `:root` solo i token che usa lei sola (`--esce`, `--segno` nella guida). `/stile/` è pubblico come `/font/`, perché serve anche a `/entra`.
 
 ### Named Rules
 **The Una Stella Rule.** L'arancio `stella` compare solo nella stella Arturo (reticolo, alone, marchio, favicon) e nella barra in cima. Mai su pulsanti, titoli, etichette o lastre.
