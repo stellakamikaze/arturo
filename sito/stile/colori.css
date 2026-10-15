@@ -1,0 +1,38 @@
+/* Colori, caratteri e misure comuni a tutte le pagine della landing.
+   Ogni pagina lo carica prima del suo <style>: qui si cambia una volta sola. */
+:root{
+  --cielo:#d7ebff;
+  --carta:#f5f5f3;
+  --carta-2:#ebebe8;
+  --inchiostro:#0b0d10;
+  --grafite:#2a2e35;
+  --cenere:#59606a;
+  --filetto:#d6d8d4;
+  --azione:#0b5fff;
+  --azione-giu:#0047d6;
+  --azione-velo:#e3efff;
+  --vuoto:#05080c;
+  --vuoto-2:#10151c;
+  --vuoto-testo:#e8ecf1;
+  --vuoto-cenere:#9ba5b1;
+  --vuoto-filetto:#232b35;
+  --stella:#f2a24a;
+  --blocca:#b8301d;
+  --passa:#1f7a45;
+  --azzurro:#cfe6ff;
+  --verde:#bfe8b5;
+  --giallo:#f6eeb0;
+  --term:#0b0d10;
+  --term-testo:#e6e9ee;
+  --term-cenere:#8c96a3;
+  --term-tu:#8cc2ff;
+  --term-filetto:#1d232c;
+  --term-guardia:#2f6fe0;
+  --term-guardia-testo:#d8e6ff;
+  --titolo:"Archivo", "Helvetica Neue", Arial, sans-serif;
+  --testo:"Atkinson Next", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"Atkinson Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --colonna:1280px;
+  --gutter:clamp(16px, 4vw, 48px);
+  --ritmo:clamp(80px, 10vw, 152px);
+}

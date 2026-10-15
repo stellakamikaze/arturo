@@ -10,36 +10,12 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0d10'/%3E%3Cpath d='M5 25 13 11l6 8 8-11' fill='none' stroke='%23d7ebff' stroke-width='1.6'/%3E%3Ccircle cx='13' cy='11' r='3.2' fill='%23f2a24a'/%3E%3C/svg%3E">
 <link rel="preload" href="../font/archivo.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../font/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../stile/colori.css">
 <style>
 @font-face{font-family:"Archivo";src:url(../font/archivo.woff2) format("woff2");font-weight:100 900;font-stretch:62% 125%;font-display:swap}
 @font-face{font-family:"Atkinson Next";src:url(../font/atkinson-next.woff2) format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
 @font-face{font-family:"Atkinson Mono";src:url(../font/atkinson-mono.woff2) format("woff2");font-weight:200 800;font-display:swap}
 
-:root{
-  --cielo:#d7ebff;
-  --carta:#f5f5f3;
-  --carta-2:#ebebe8;
-  --inchiostro:#0b0d10;
-  --grafite:#2a2e35;
-  --cenere:#59606a;
-  --filetto:#d6d8d4;
-  --azione:#0b5fff;
-  --azione-giu:#0047d6;
-  --azione-velo:#e3efff;
-  --vuoto:#05080c;
-  --vuoto-2:#10151c;
-  --vuoto-testo:#e8ecf1;
-  --vuoto-cenere:#9ba5b1;
-  --term:#0b0d10;
-  --term-testo:#e6e9ee;
-  --term-cenere:#8c96a3;
-  --titolo:"Archivo", "Helvetica Neue", Arial, sans-serif;
-  --testo:"Atkinson Next", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono:"Atkinson Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --colonna:1280px;
-  --gutter:clamp(16px, 4vw, 48px);
-  --ritmo:clamp(80px, 10vw, 140px);
-}
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scrollbar-color:#a3abb5 var(--carta)}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
@@ -103,17 +79,17 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .pannello dt{padding-right:24px;font:600 .74rem/2 var(--titolo);font-stretch:75%;letter-spacing:.07em;text-transform:uppercase;color:var(--cenere)}
 .pannello dd{color:var(--inchiostro)}
 .finestra{background:var(--term);color:var(--term-testo);border-radius:4px;box-shadow:0 1px 2px rgba(5,8,12,.18),0 18px 40px -12px rgba(5,8,12,.38);overflow:hidden}
-.finestra__barra{display:flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-bottom:1px solid #1d232c;font:.74rem/1 var(--mono);color:var(--term-cenere)}
+.finestra__barra{display:flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-bottom:1px solid var(--term-filetto);font:.74rem/1 var(--mono);color:var(--term-cenere)}
 .finestra__barra i{width:10px;height:10px;border-radius:50%;background:#2c333d}
 .finestra__barra span{margin:0 auto;padding-right:51px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .finestra pre{margin:0;padding:14px 18px 16px;font-size:.8rem;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
-.finestra pre b{color:#8cc2ff;font-weight:600}
+.finestra pre b{color:var(--term-tu);font-weight:600}
 .finestra p.nota{margin:0;padding:0 18px 16px;font-size:.84rem;color:var(--term-cenere)}
 .albero{padding:12px 18px 16px;font:.8rem/1.5 var(--mono)}
 .albero li{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:14px;padding:5px 0 5px calc(var(--l) * 2ch);border-top:1px solid #1a2028}
 .albero li:first-child{border-top:0}
 .albero code{background:none;padding:0;color:var(--term-testo)}
-.albero code b{color:#8cc2ff}
+.albero code b{color:var(--term-tu)}
 .albero span{color:var(--term-cenere);font-family:var(--testo);font-size:.82rem}
 
 /* referente */
@@ -133,10 +109,10 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .pannello-colore .finestra{width:100%;max-width:760px}
 .registro{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;padding:16px 18px 18px;font:.8rem/1.55 var(--mono)}
 .registro code{background:none;padding:0;color:var(--term-testo);font-weight:600}
-.registro .esito{align-self:start;padding:1px 7px;border:1px solid #2f6fe0;color:#8cc2ff;font:600 .72rem/1.6 var(--titolo);font-stretch:75%;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+.registro .esito{align-self:start;padding:1px 7px;border:1px solid var(--term-guardia);color:var(--term-tu);font:600 .72rem/1.6 var(--titolo);font-stretch:75%;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
 .registro small{grid-column:1/-1;color:var(--term-cenere);font-size:.76rem}
-.registro .msg{grid-column:1/-1;padding:10px 12px;border:1px solid #2f6fe0;color:#d8e6ff}
-.registro .msg b{display:block;color:#8cc2ff;font-weight:600;margin-bottom:2px}
+.registro .msg{grid-column:1/-1;padding:10px 12px;border:1px solid var(--term-guardia);color:var(--term-guardia-testo)}
+.registro .msg b{display:block;color:var(--term-tu);font-weight:600;margin-bottom:2px}
 .sotto{margin:14px 0 0;font-size:.84rem;color:var(--cenere);max-width:70ch}
 
 /* cosa vede il referente */
@@ -149,7 +125,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .vuoto{position:relative;background:var(--vuoto);color:var(--vuoto-testo);isolation:isolate}
 .vuoto::before{content:"";position:absolute;inset:0;z-index:-1;opacity:.13;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E")}
 .vuoto ::selection{background:#fff;color:var(--vuoto)}
-.vuoto :focus-visible{outline-color:#8cc2ff}
+.vuoto :focus-visible{outline-color:var(--term-tu)}
 .chiusura .dentro{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:32px;align-items:end}
 .chiusura h2{color:#fff;font-weight:300;font-size:clamp(2.2rem, 1.4rem + 2.6vw, 3.8rem);line-height:1;letter-spacing:-.02em;font-stretch:112%}
 .chiusura p{margin:18px 0 0;color:var(--vuoto-cenere);max-width:52ch}

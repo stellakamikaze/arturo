@@ -10,43 +10,12 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0d10'/%3E%3Cpath d='M5 25 13 11l6 8 8-11' fill='none' stroke='%23d7ebff' stroke-width='1.6'/%3E%3Ccircle cx='13' cy='11' r='3.2' fill='%23f2a24a'/%3E%3C/svg%3E">
 <link rel="preload" href="font/archivo.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="font/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="stile/colori.css">
 <style>
 @font-face{font-family:"Archivo";src:url(font/archivo.woff2) format("woff2");font-weight:100 900;font-stretch:62% 125%;font-display:swap}
 @font-face{font-family:"Atkinson Next";src:url(font/atkinson-next.woff2) format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
 @font-face{font-family:"Atkinson Mono";src:url(font/atkinson-mono.woff2) format("woff2");font-weight:200 800;font-display:swap}
 
-:root{
-  --cielo:#d7ebff;
-  --carta:#f5f5f3;
-  --carta-2:#ebebe8;
-  --inchiostro:#0b0d10;
-  --grafite:#2a2e35;
-  --cenere:#59606a;
-  --filetto:#d6d8d4;
-  --azione:#0b5fff;
-  --azione-giu:#0047d6;
-  --vuoto:#05080c;
-  --vuoto-2:#10151c;
-  --vuoto-testo:#e8ecf1;
-  --vuoto-cenere:#9ba5b1;
-  --vuoto-filetto:#232b35;
-  --stella:#f2a24a;
-  --blocca:#b8301d;
-  --passa:#1f7a45;
-  --azzurro:#cfe6ff;
-  --verde:#bfe8b5;
-  --giallo:#f6eeb0;
-  --term:#0b0d10;
-  --term-testo:#e6e9ee;
-  --term-cenere:#8c96a3;
-  --term-tu:#8cc2ff;
-  --titolo:"Archivo", "Helvetica Neue", Arial, sans-serif;
-  --testo:"Atkinson Next", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono:"Atkinson Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --colonna:1280px;
-  --gutter:clamp(16px, 4vw, 48px);
-  --ritmo:clamp(80px, 10vw, 152px);
-}
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scrollbar-color:#a3abb5 var(--carta)}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
@@ -123,7 +92,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 
 /* ---------- finestre del prodotto ---------- */
 .finestra{background:var(--term);color:var(--term-testo);border-radius:4px;box-shadow:0 1px 2px rgba(5,8,12,.18),0 18px 40px -12px rgba(5,8,12,.38);overflow:hidden;text-align:left}
-.finestra__barra{display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-bottom:1px solid #1d232c;font:.74rem/1 var(--mono);color:var(--term-cenere)}
+.finestra__barra{display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-bottom:1px solid var(--term-filetto);font:.74rem/1 var(--mono);color:var(--term-cenere)}
 .finestra__barra i{width:10px;height:10px;border-radius:50%;background:#2c333d}
 .finestra__barra span{margin:0 auto;padding-right:51px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .finestra pre{margin:0;padding:16px 18px 18px;font-size:.8rem;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -139,10 +108,10 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .t-strumento{color:var(--term-testo)}
 .t-strumento::before{content:"● ";color:#7fd39b}
 .t-quieto{color:var(--term-cenere)}
-.t-guardia{display:block;margin:6px 0 6px 2ch;padding:8px 12px;border:1px solid #2f6fe0;color:#d8e6ff}
-.t-guardia b{display:block;font-weight:600;color:#8cc2ff;margin-bottom:2px}
+.t-guardia{display:block;margin:6px 0 6px 2ch;padding:8px 12px;border:1px solid var(--term-guardia);color:var(--term-guardia-testo)}
+.t-guardia b{display:block;font-weight:600;color:var(--term-tu);margin-bottom:2px}
 .t-scelta{display:block;color:var(--term-testo);margin-top:4px}
-.t-scelta em{font-style:normal;background:#2f6fe0;color:#fff;padding:0 4px}
+.t-scelta em{font-style:normal;background:var(--term-guardia);color:#fff;padding:0 4px}
 .cursore{display:inline-block;width:.6em;height:1.1em;vertical-align:-.2em;background:var(--term-tu)}
 .scrive .t{visibility:hidden}
 .scrive .t.vista{visibility:visible}
@@ -193,16 +162,16 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .pannello .finestra{width:100%;max-width:560px}
 
 .registro{margin:0;padding:6px 0;list-style:none;font:.78rem/1.5 var(--mono)}
-.registro li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;padding:12px 16px;border-top:1px solid #1d232c}
+.registro li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;padding:12px 16px;border-top:1px solid var(--term-filetto)}
 .registro li:first-child{border-top:0}
 .registro code{background:none;padding:0;color:var(--term-testo);font-weight:600}
 .registro small{grid-column:1/-1;color:var(--term-cenere);font-size:.78rem;line-height:1.5}
 .esito{align-self:start;padding:1px 7px;border:1px solid;font:600 .72rem/1.6 var(--titolo);font-stretch:75%;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
-.esito--chiede{color:#8cc2ff;border-color:#2f6fe0}
+.esito--chiede{color:var(--term-tu);border-color:var(--term-guardia)}
 .esito--blocca{color:#ff9a8a;border-color:#a8382a}
 
 .richieste{margin:0;padding:12px 0;list-style:none}
-.richieste li{padding:10px 18px;font:.82rem/1.5 var(--mono);color:var(--term-tu);border-top:1px solid #1d232c}
+.richieste li{padding:10px 18px;font:.82rem/1.5 var(--mono);color:var(--term-tu);border-top:1px solid var(--term-filetto)}
 .richieste li:first-child{border-top:0}
 .richieste li > span::before{content:"> ";color:var(--term-cenere)}
 .richieste small{display:block;font-family:var(--testo);color:var(--term-cenere);font-size:.76rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
@@ -216,7 +185,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .vuoto ::selection{background:#fff;color:var(--vuoto)}
 .vuoto a{color:#fff}
 .vuoto code{background:var(--vuoto-2);color:#fff}
-.vuoto :focus-visible{outline-color:#8cc2ff}
+.vuoto :focus-visible{outline-color:var(--term-tu)}
 .dati{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(32px,5vw,72px)}
 .dati__lati{display:grid;gap:32px;align-content:start}
 .dati__lati h3{font-size:1.25rem;font-weight:400;letter-spacing:-.02em;margin-bottom:8px}
