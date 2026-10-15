@@ -1,10 +1,168 @@
 #!/usr/bin/env node
 // Claude Code Statusline
-// Shows: model | current task | directory | context usage
+// Shows: model | current task | project@branch* | context usage | quota
 
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const child_process = require('child_process');
+
+// --- Nome del modello -------------------------------------------------------
+// "Opus 5 (1M context)" -> "Opus5·1M": meno caratteri, stessa famiglia e stessa
+// finestra di contesto. Un nome non riconosciuto torna intatto.
+function abbreviaModello(nome) {
+  try {
+    return String(nome)
+      .replace(/\s*\((\d+(?:\.\d+)?[MK])\s+context\)/i, '·$1')
+      .replace(/^([A-Za-z]+)\s+(\d)/, '$1$2')
+      .trim() || String(nome);
+  } catch (e) {
+    return nome;
+  }
+}
+
+// --- Segmento git -----------------------------------------------------------
+// Il ramo si legge da .git/HEAD: nessun processo, nessuna attesa.
+// Il flag di modifiche (*) NON si deduce dalle mtime: la mtime di .git/index si
+// muove solo con `git add`, quindi un tree modificato e non staged risulterebbe
+// pulito. Serve `git status`, che qui gira in un figlio staccato al massimo ogni
+// 15 s e scrive una cache; la statusline legge solo la cache. Qualunque errore:
+// niente flag, il ramo resta. La cache sta in cache/, che git ignora.
+const CLAUDE_DIR = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+const GIT_CACHE_DIR = path.join(CLAUDE_DIR, 'cache', 'statusline');
+const GIT_REFRESH_MIN_S = 15;        // frequenza minima dei tentativi
+const GIT_CACHE_MAX_S = 120;         // oltre: flag nascosto, cache troppo vecchia
+const GIT_SCRITTURA_MIN_S = 3;       // età minima del .tmp prima di promuoverlo
+
+function gitRamo(gitDir) {
+  try {
+    const head = fs.readFileSync(path.join(gitDir, 'HEAD'), 'utf8').trim();
+    const m = head.match(/^ref:\s*(.+)$/);
+    return m ? m[1].replace(/^refs\/heads\//, '') : head.slice(0, 7); // staccata: sha corto
+  } catch (e) {
+    return '';
+  }
+}
+
+function gitChiave(root) {
+  return require('crypto').createHash('sha1').update(root).digest('hex').slice(0, 12);
+}
+
+function gitMtime(p) {
+  try { return fs.statSync(p).mtimeMs; } catch (e) { return 0; }
+}
+
+// Promuove l'uscita di un `git status` finito e legge lo stato corrente.
+// { sporco, fresca } — non solleva mai.
+function gitStatoCache(root) {
+  try {
+    const base = path.join(GIT_CACHE_DIR, `git-${gitChiave(root)}`);
+    const tmp = `${base}.tmp`;
+    const mTmp = gitMtime(tmp);
+    // Il .tmp diventa lo stato solo quando git ha finito di scriverci: prima si
+    // leggerebbe un file troncato e ogni refresh spegnerebbe il flag per un attimo.
+    if (mTmp && (Date.now() - mTmp) > GIT_SCRITTURA_MIN_S * 1000) {
+      try { fs.renameSync(tmp, base); } catch (e) {}
+    }
+    const st = fs.statSync(base);
+    const eta = Math.max(0, (Date.now() - st.mtimeMs) / 1000);
+    if (eta > GIT_CACHE_MAX_S) return { sporco: false, fresca: false };
+    return { sporco: st.size > 0, fresca: true };
+  } catch (e) {
+    return { sporco: false, fresca: false };
+  }
+}
+
+// Un `git status` staccato che scrive direttamente nel .tmp. --no-optional-locks
+// impedisce a git di riscrivere l'index sotto le altre sessioni.
+function gitRichiediRefresh(root) {
+  try {
+    const base = path.join(GIT_CACHE_DIR, `git-${gitChiave(root)}`);
+    const tmp = `${base}.tmp`;
+    const ultimo = Math.max(gitMtime(base), gitMtime(tmp));
+    if (ultimo && (Date.now() - ultimo) < GIT_REFRESH_MIN_S * 1000) return;
+    fs.mkdirSync(GIT_CACHE_DIR, { recursive: true });
+    const fd = fs.openSync(tmp, 'w');
+    try {
+      const p = child_process.spawn(
+        'git',
+        ['-C', root, '--no-optional-locks', 'status', '--porcelain'],
+        { detached: true, windowsHide: true, stdio: ['ignore', fd, 'ignore'], shell: false }
+      );
+      p.on('error', () => {});
+      p.unref();
+    } finally {
+      try { fs.closeSync(fd); } catch (e) {}
+    }
+  } catch (e) {}
+}
+
+function gitInfo(dir) {
+  try {
+    let cur = path.resolve(dir);
+    for (let i = 0; i < 40; i += 1) {
+      const candidato = path.join(cur, '.git');
+      let st = null;
+      try { st = fs.statSync(candidato); } catch (e) { st = null; }
+      if (st) {
+        let gitDir = candidato;
+        if (st.isFile()) { // worktree o submodule: .git è un file "gitdir: ..."
+          const m = fs.readFileSync(candidato, 'utf8').match(/^gitdir:\s*(.+)$/m);
+          if (!m) return null;
+          gitDir = path.resolve(cur, m[1].trim());
+        }
+        const stato = gitStatoCache(cur);
+        gitRichiediRefresh(cur);
+        return { root: cur, ramo: gitRamo(gitDir), sporco: stato.fresca && stato.sporco };
+      }
+      const su = path.dirname(cur);
+      if (su === cur) return null;
+      cur = su;
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// --- Quota dell'abbonamento ------------------------------------------------
+// Arriva già su stdin (`rate_limits`): nessuna lettura, nessun processo.
+// Chiavi assenti (prima della prima risposta, o piano senza limiti dichiarati,
+// o uso via API) -> segmento vuoto. 5h e 7g sono le due finestre della quota.
+function quotaSegmento(rate) {
+  try {
+    if (!rate || typeof rate !== 'object') return '';
+    const leggi = f => {
+      const v = rate[f];
+      if (!v || typeof v !== 'object') return null;
+      const p = v.used_percentage;
+      if (typeof p !== 'number' || !Number.isFinite(p)) return null;
+      return { pct: Math.max(0, Math.min(100, Math.round(p))), resets: v.resets_at };
+    };
+    const corta = leggi('five_hour');
+    const lunga = leggi('seven_day');
+    if (!corta && !lunga) return '';
+
+    const picco = Math.max(corta ? corta.pct : 0, lunga ? lunga.pct : 0);
+    const colore = picco >= 90 ? '\x1b[5;31m' : picco >= 75 ? '\x1b[38;5;208m'
+      : picco >= 50 ? '\x1b[33m' : '\x1b[32m';
+    // L'orario di riazzeramento compare solo quando la finestra stringe davvero:
+    // sotto il 75% è un dato che non cambia nessuna decisione.
+    const orario = v => {
+      if (!v || v.pct < 75 || typeof v.resets !== 'number' || !Number.isFinite(v.resets)) return '';
+      const d = new Date(v.resets * 1000);
+      if (Number.isNaN(d.getTime())) return '';
+      return `⟳${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    };
+    const pezzi = [];
+    if (corta) pezzi.push(`5h ${corta.pct}%${orario(corta)}`);
+    if (lunga) pezzi.push(`7g ${lunga.pct}%${orario(lunga)}`);
+    return ` │ ${colore}quota ${pezzi.join(' · ')}\x1b[0m`;
+  } catch (e) {
+    return '';
+  }
+}
+
 
 // Read JSON from stdin
 let input = '';
@@ -89,12 +247,21 @@ process.stdin.on('end', () => {
       }
     }
 
+    // Luogo: nome del repository e ramo (con * se ci sono modifiche), oppure il
+    // nome della cartella fuori da un repository.
+    const git = gitInfo(dir);
+    const progetto = git ? path.basename(git.root) : path.basename(dir);
+    const luogo = git && git.ramo
+      ? `${progetto}\x1b[0m\x1b[2m@${git.ramo}${git.sporco ? '*' : ''}`
+      : progetto;
+
     // Output
-    const dirname = path.basename(dir);
+    const quota = quotaSegmento(data.rate_limits);
+    const sigla = abbreviaModello(model);
     if (task) {
-      process.stdout.write(`\x1b[2m${model}\x1b[0m │ \x1b[1m${task}\x1b[0m │ \x1b[2m${dirname}\x1b[0m${ctx}`);
+      process.stdout.write(`\x1b[2m${sigla}\x1b[0m │ \x1b[1m${task}\x1b[0m │ \x1b[2m${luogo}\x1b[0m${ctx}${quota}`);
     } else {
-      process.stdout.write(`\x1b[2m${model}\x1b[0m │ \x1b[2m${dirname}\x1b[0m${ctx}`);
+      process.stdout.write(`\x1b[2m${sigla}\x1b[0m │ \x1b[2m${luogo}\x1b[0m${ctx}${quota}`);
     }
   } catch (e) {
     // Silent fail - don't break statusline on parse errors

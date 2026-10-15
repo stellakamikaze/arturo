@@ -31,6 +31,7 @@ import tempfile
 from pathlib import Path
 
 BASH = shutil.which("bash") or "bash"
+NODE = shutil.which("node") or "node"
 
 
 def casa(repo: Path, radice: Path) -> Path:
@@ -428,9 +429,51 @@ def test_g209(repo: Path) -> None:
         assert "PROMEMORIA FINE SESSIONE" in fine.stdout, "G209 nessun promemoria di chiusura a tree pulito"
 
 
+def test_g210(repo: Path) -> None:
+    import time
+    with tempfile.TemporaryDirectory() as d:
+        home = Path(d) / "home"
+        (home / ".claude").mkdir(parents=True)
+        cartella = home / ".claude" / "tasks" / "session-abcd1234"
+        cartella.mkdir(parents=True)
+        (cartella / "1.json").write_text(json.dumps({"status": "in_progress", "activeForm": "Rileggo il capitolo"}),
+                                         encoding="utf-8")
+        progetto = Path(d) / "romanzo"
+        progetto.mkdir()
+        _git(progetto, "init", "-q", "-b", "bozza")
+        (progetto / "a.md").write_text("x\n", encoding="utf-8")
+        _git(progetto, "add", "a.md")
+        _git(progetto, "commit", "-q", "-m", "a")
+        dati = {"session_id": "abcd1234-0000", "model": {"display_name": "Opus 5 (1M context)"},
+                "workspace": {"current_dir": str(progetto)}, "context_window": {"remaining_percentage": 90},
+                "rate_limits": {"five_hour": {"used_percentage": 81.6, "resets_at": 1760000000},
+                                "seven_day": {"used_percentage": 12}}}
+
+        def riga() -> str:
+            proc = subprocess.run([NODE, str(repo / "hooks" / "statusline.js")], input=json.dumps(dati), text=True,
+                                  capture_output=True, env={"HOME": str(home), "PATH": os.environ.get("PATH", "")},
+                                  timeout=30, check=False)
+            return proc.stdout
+
+        r = riga()
+        assert "Opus5·1M" in r, f"G210 il modello non è abbreviato: {r!r}"
+        assert "Rileggo il capitolo" in r, f"G210 il task in corso sparisce: {r!r}"
+        assert "romanzo" in r and "@bozza" in r, f"G210 manca progetto@ramo: {r!r}"
+        assert "5h 82%" in r and "7g 12%" in r, f"G210 manca la quota: {r!r}"
+        assert "@bozza*" not in r, f"G210 tree pulito segnato come modificato: {r!r}"
+        (progetto / "a.md").write_text("y\n", encoding="utf-8")
+        time.sleep(16)  # la statusline rilancia git status al massimo ogni 15 s
+        riga()
+        time.sleep(3.5)  # e promuove il risultato quando git ha finito di scriverlo
+        r = riga()
+        assert "@bozza*" in r, f"G210 il flag di modifiche non compare: {r!r}"
+        assert (home / ".claude" / "cache" / "statusline").is_dir(), "G210 la cache non sta in cache/statusline"
+        assert not (home / ".claude" / "data").exists(), "G210 la statusline scrive in data/"
+
+
 TESTS = {"G201": test_g201, "G202": test_g202, "G203": test_g203, "G204": test_g204, "G205": test_g205,
          "G206": test_g206, "G207": test_g207, "G208": test_g208,
-         "G209": test_g209}
+         "G209": test_g209, "G210": test_g210}
 
 
 def main() -> int:
