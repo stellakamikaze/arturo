@@ -353,6 +353,15 @@ Un elenco di quattro righe sotto un filetto `inchiostro`: data in voce stretta, 
 ### La scena «Dalla chat al terminale» (momento animato)
 L'unico momento d'autore della pagina. A sinistra la chat, che chiede di incollarle quattro cose. A destra Claude Code con un pannello «I tuoi file». Quando la finestra entra nello schermo la sessione parte una volta: la richiesta si scrive, ogni passo appare da sfocato, la voce corrispondente della chat si barra con «l'ha letto Claude Code» in `azione`, e i file si accendono (letto su `#132036`, scritto su `#123622`). Finisce sulla guardia vera e su un «no». «Salta alla fine» e «Guarda di nuovo» stanno sotto. Il codice parte dallo stato finito: senza script, o con movimento ridotto, la scena è già completa.
 
+### La sera e la mattina
+Tre pezzi in fila: la finestra di `/fine`, l'appunto su carta bianca legato da due filetti `inchiostro`, la finestra di `/inizio` il giorno dopo. Sopra ciascuno, quando, in voce stretta.
+
+### Cosa ti restituisce
+Tre lastre (cielo con la volta, giallo, verde) con dentro un risultato finito disegnato in HTML: il dossier impaginato, una pagina su misura con la settimana e gli stati, una tabella di ricerca. Il rosso chiaro `#fdecea` su `#8a2316` segna solo ciò che non torna o manca.
+
+### Come lo uso io
+Sei voci su tre colonne su fondo `carta-2`: titolo, frequenza in voce stretta `azione`, poi «Prima» e «Ora». Una nota chiude dicendo che quelle abilità non sono dentro Arturo.
+
 ### Casi d'uso e «In breve»
 I casi d'uso sono una vetrina: a sinistra l'elenco dei sei casi (nome in Archivio 1,3 rem, una riga sotto), il caso scelto su fondo bianco con un filo `azione` di 2 px a sinistra; a destra una finestra grande che resta ferma mentre scorri. Sotto i 860 px l'elenco diventa una fila di pulsanti che scorre in orizzontale.
 

@@ -366,6 +366,76 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
   .albero li[data-modo="nuovo"]:not(.nuovo){display:none}
   .scena__comandi{flex-wrap:wrap}
 }
+/* ---------- confronto delle fonti ---------- */
+.confronto-fonti{white-space:pre;overflow-x:auto;padding:8px 0 10px}
+.confronto-fonti b{font-weight:600}
+.confronto-fonti .ok{color:#7fd39b}
+.confronto-fonti .ko{color:#ff9a8a}
+.confronto-fonti .forse{color:#f2c46b}
+.albero ul{margin-bottom:10px}
+/* ---------- la sera e la mattina ---------- */
+.giorni{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,3.4fr) minmax(0,5fr);gap:20px;align-items:start;margin:0;padding:0;list-style:none}
+.giorni__quando{margin:0 0 10px;font:600 .78rem/1 var(--titolo);font-stretch:75%;letter-spacing:.07em;text-transform:uppercase;color:var(--cenere)}
+.giorni .finestra pre{font-size:.84rem}
+.appunto{position:relative;padding:20px 20px 18px;background:#fff;border:1px solid var(--filetto);box-shadow:0 1px 2px rgba(5,8,12,.08),0 12px 28px -14px rgba(5,8,12,.28)}
+.appunto::before,.appunto::after{content:"";position:absolute;top:50%;width:20px;height:1px;background:var(--inchiostro)}
+.appunto::before{left:-21px}.appunto::after{right:-21px}
+.appunto__testa{margin:0 0 12px;font:600 .72rem/1.3 var(--titolo);font-stretch:75%;letter-spacing:.07em;text-transform:uppercase;color:var(--azione)}
+.appunto h3{margin:0 0 4px;font:600 .95rem/1.3 var(--testo);color:var(--inchiostro)}
+.appunto p{margin:0 0 14px;font-size:.9rem;line-height:1.5;color:var(--grafite)}
+.appunto .appunto__piede{margin:0;padding-top:10px;border-top:1px solid var(--filetto);font-size:.78rem;color:var(--cenere)}
+/* ---------- cosa ti restituisce ---------- */
+.risultati{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.risultato{margin:0}
+.risultato figcaption{margin-top:12px;font-size:.9rem;color:var(--grafite)}
+.risultato figcaption strong{color:var(--inchiostro)}
+.risultato__lastra{display:grid;place-items:center;min-height:400px;padding:28px 22px}
+.risultato__lastra--cielo{background:var(--cielo) url(img/volta.svg) 20% 10%/240% auto no-repeat}
+.risultato__lastra--giallo{background:var(--giallo)}
+.risultato__lastra--verde{background:var(--verde)}
+.foglio,.tabella-mock{width:100%;max-width:330px;padding:22px 22px 18px;background:#fff;box-shadow:0 1px 2px rgba(5,8,12,.1),0 18px 36px -16px rgba(5,8,12,.35);font-size:.8rem;line-height:1.45;color:var(--grafite)}
+.foglio__tipo{margin:0 0 10px;font:.68rem/1 var(--mono);color:var(--cenere)}
+.foglio h3{margin:0 0 4px;font:400 1.25rem/1.15 var(--titolo);letter-spacing:-.015em;color:var(--inchiostro)}
+.foglio__data{margin:0 0 12px;font-size:.72rem;color:var(--cenere)}
+.foglio h4{margin:12px 0 4px;font:600 .66rem/1.3 var(--titolo);font-stretch:75%;letter-spacing:.08em;text-transform:uppercase;color:var(--inchiostro)}
+.foglio ul,.foglio ol{margin:0;padding-left:1.2em}
+.foglio li{margin:2px 0}
+.foglio__allarme{margin:0;padding:6px 8px;background:#fdecea;color:#8a2316}
+.pagina{width:100%;max-width:340px;background:#fff;box-shadow:0 1px 2px rgba(5,8,12,.1),0 18px 36px -16px rgba(5,8,12,.35);border-radius:4px;overflow:hidden}
+.pagina__barra{display:flex;align-items:center;gap:6px;height:28px;padding:0 10px;background:#f1f1ef;border-bottom:1px solid var(--filetto);font:.66rem/1 var(--mono);color:var(--cenere)}
+.pagina__barra i{width:8px;height:8px;border-radius:50%;background:#d6d8d4}
+.pagina__barra span{margin-left:8px}
+.pagina__corpo{padding:16px 16px 14px}
+.pagina__titolo{margin:0 0 12px;font:400 1.05rem/1.2 var(--titolo);color:var(--inchiostro)}
+.settimana{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:0 0 14px;padding:0;list-style:none}
+.settimana li{display:grid;place-items:center;height:42px;background:var(--carta);font:600 .6rem/1 var(--titolo);font-stretch:75%;letter-spacing:.06em;text-transform:uppercase;color:var(--cenere)}
+.settimana li.pieno{background:var(--azione-velo);color:var(--azione)}
+.settimana li.oggi{background:var(--azione);color:#fff}
+.progetti{margin:0;padding:0;list-style:none}
+.progetti li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--filetto);font-size:.78rem;color:var(--inchiostro)}
+.stato{flex:none;padding:2px 6px;font:600 .6rem/1.4 var(--titolo);font-stretch:75%;letter-spacing:.06em;text-transform:uppercase}
+.stato--scade{background:var(--azione);color:#fff}
+.stato--corso{background:var(--verde);color:#1f4d2b}
+.stato--fermo{background:#fdecea;color:#8a2316}
+.tabella-mock table{width:100%;border-collapse:collapse;font-size:.74rem}
+.tabella-mock th{text-align:left;padding:0 6px 6px 0;font-weight:600;color:var(--inchiostro);border-bottom:1px solid var(--inchiostro)}
+.tabella-mock td{padding:6px 6px 6px 0;border-bottom:1px solid var(--filetto);vertical-align:top}
+.tabella-mock td:nth-child(2){font-variant-numeric:tabular-nums;color:var(--cenere)}
+.tabella-mock tr.manca td{color:#8a2316}
+.tabella-mock__piede{margin:8px 0 0;font-size:.7rem;color:var(--cenere)}
+/* ---------- come lo uso io ---------- */
+.uso{background:var(--carta-2)}
+.uso__elenco{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:36px 32px;margin:0;padding:0;list-style:none}
+.uso__voce{padding-top:16px;border-top:1px solid var(--inchiostro)}
+.uso__voce h3{margin:0 0 4px;font-size:1.3rem;font-weight:400;letter-spacing:-.02em;line-height:1.2}
+.uso__quando{margin:0 0 14px;font:600 .72rem/1.3 var(--titolo);font-stretch:75%;letter-spacing:.07em;text-transform:uppercase;color:var(--azione)}
+.uso dl{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px}
+.uso dt{padding-top:2px;font:600 .66rem/1.3 var(--titolo);font-stretch:75%;letter-spacing:.08em;text-transform:uppercase;color:var(--cenere)}
+.uso dd{margin:0;font-size:.9rem;line-height:1.5;color:var(--grafite)}
+.uso dt:nth-of-type(2),.uso dd:nth-of-type(2){color:var(--inchiostro)}
+.uso__nota{margin:clamp(32px,4vw,48px) 0 0;max-width:72ch;padding-top:18px;border-top:1px solid var(--filetto);color:var(--grafite)}
+@media (max-width:1020px){.giorni{grid-template-columns:minmax(0,1fr)}.appunto::before,.appunto::after{display:none}.risultati,.uso__elenco{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:760px){.risultati,.uso__elenco{grid-template-columns:minmax(0,1fr)}.risultato__lastra{min-height:0}}
 /* ---------- semplice ---------- */
 .vetrina{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:clamp(20px,3vw,40px);align-items:stretch}
 .vetrina__elenco{margin:0;padding:0;list-style:none;border-top:1px solid var(--inchiostro)}
@@ -457,6 +527,7 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
       </a>
       <ul class="menu__voci stretta">
         <li><a href="#casi">Casi d'uso</a></li>
+        <li><a href="#uso">Come lo uso</a></li>
         <li><a href="#tecnica">In breve</a></li>
         <li><a href="organizzazioni/">Organizzazioni</a></li>
         <li><a href="https://github.com/stellakamikaze/arturo">GitHub</a></li>
@@ -604,7 +675,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
     <div class="dentro">
       <div class="testa">
         <h2 id="t-chat">Dalla chat al terminale.</h2>
-        <p>La stessa richiesta, in due posti. In chat l'IA ti chiede il materiale. In Claude Code va a prenderselo, lavora sui tuoi file e si ferma solo prima di mandare.</p>
+        <p>La stessa richiesta, in due posti. In chat l'IA ti chiede il materiale. In Claude Code va a prenderselo da solo, nei canali che colleghi: calendario, posta, Drive, le tue cartelle, il web. Poi lo mette a confronto, ti riporta cosa ha trovato e si ferma solo prima di mandare.</p>
       </div>
 
       <div class="scena" id="scena">
@@ -616,12 +687,13 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
               <div class="lei">
                 <p>Volentieri. Incollami qui:</p>
                 <ol class="da-incollare" aria-label="Cosa ti chiede la chat">
-                  <li data-passo="1"><span>le email con Giulia</span><em>l'ha letto Claude Code</em></li>
-                  <li data-passo="2"><span>le trascrizioni delle ultime call</span><em>l'ha letto Claude Code</em></li>
+                  <li data-passo="1"><span>l'orario della riunione</span><em>l'ha letto Claude Code</em></li>
+                  <li data-passo="2"><span>le email con Giulia</span><em>l'ha letto Claude Code</em></li>
                   <li data-passo="3"><span>il preventivo</span><em>l'ha letto Claude Code</em></li>
-                  <li data-passo="4"><span>le informazioni sulla sala</span><em>l'ha cercato Claude Code</em></li>
+                  <li data-passo="4"><span>le trascrizioni delle ultime call</span><em>l'ha letto Claude Code</em></li>
+                  <li data-passo="5"><span>le informazioni sulla sala</span><em>l'ha cercato Claude Code</em></li>
                 </ol>
-                <p class="da-incollare__poi" data-passo="6">Poi il dossier copialo tu in un file.</p>
+                <p class="da-incollare__poi" data-passo="8">Poi il confronto fallo tu, e il dossier copialo in un file.</p>
               </div>
             </div>
           </div>
@@ -632,25 +704,27 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
           <div class="finestra">
             <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Claude Code con Arturo · ~/Lavoro/Festival</span></div>
             <div class="scena__corpo">
-              <div class="albero" aria-label="I file che Claude tocca">
-                <p class="albero__testa">I tuoi file</p>
+              <div class="albero" aria-label="I canali e i file che Claude tocca">
+                <p class="albero__testa">Calendario</p>
+                <ul><li class="albero__file" data-tocca="1" data-modo="letto">domani, 10:00</li></ul>
+                <p class="albero__testa">Posta</p>
+                <ul><li class="albero__file" data-tocca="2" data-modo="letto">6 email con Giulia</li></ul>
+                <p class="albero__testa">Drive</p>
+                <ul><li class="albero__file" data-tocca="3" data-modo="letto">preventivo.pdf</li></ul>
+                <p class="albero__testa">Le tue cartelle</p>
                 <ul>
-                  <li class="albero__cartella">Festival/</li>
-                  <li class="albero__cartella albero__dentro">appunti/</li>
-                  <li class="albero__file albero__dentro2" data-tocca="2" data-modo="letto">call-02-10.txt</li>
-                  <li class="albero__file albero__dentro2" data-tocca="2" data-modo="letto">call-08-10.txt</li>
-                  <li class="albero__file albero__dentro2" data-tocca="2" data-modo="letto">call-14-10.txt</li>
-                  <li class="albero__file albero__dentro" data-tocca="3" data-modo="letto">preventivo.pdf</li>
-                  <li class="albero__file albero__dentro" data-tocca="6" data-modo="nuovo">dossier-giulia.md</li>
+                  <li class="albero__file" data-tocca="4" data-modo="letto">call-02-10.txt</li>
+                  <li class="albero__file" data-tocca="4" data-modo="letto">call-08-10.txt</li>
+                  <li class="albero__file" data-tocca="4" data-modo="letto">call-14-10.txt</li>
+                  <li class="albero__file" data-tocca="8" data-modo="nuovo">dossier-giulia.md</li>
                 </ul>
-                <p class="albero__testa">Fuori dalle cartelle</p>
-                <ul>
-                  <li class="albero__file" data-tocca="1" data-modo="letto">Gmail · 6 email</li>
-                  <li class="albero__file" data-tocca="4" data-modo="letto">il sito della sala</li>
-                </ul>
+                <p class="albero__testa">Web</p>
+                <ul><li class="albero__file" data-tocca="5" data-modo="letto">il sito della sala</li></ul>
                 <p class="albero__legenda"><span class="segno segno--letto"></span>letto <span class="segno segno--nuovo"></span>scritto</p>
               </div>
-<pre class="scena__pre" aria-label="La sessione in Claude Code"><span class="t t-tu" data-passo="0">Prepara il dossier per la riunione di domani con Giulia: cosa sappiamo, cosa manca, cosa chiederle</span><span class="t t-strumento" data-passo="1">Gmail  legge 6 email con Giulia, da settembre</span><span class="t t-strumento" data-passo="2">Read  le trascrizioni delle ultime 3 call</span><span class="t t-strumento" data-passo="3">Read  preventivo.pdf</span><span class="t t-strumento" data-passo="4">Web  il sito della sala: capienza e orari</span><span class="t t-cc" data-passo="5">Una cosa non torna: il preventivo è per una sala da 120 persone, ma nella call del 14 ne avete stimate 180.</span><span class="t t-strumento" data-passo="6">Write  dossier-giulia.md</span><span class="t t-cc" data-passo="7">Il dossier è pronto e aperto: 4 cose decise, 3 aperte, 5 domande per Giulia. La sala è la prima.</span><span class="t t-tu" data-passo="8">Mandaglielo</span><span class="t t-guardia" data-passo="9"><b>Arturo · la guardia chiede a te</b>Bozza prima: conferma solo se hai gia' letto il testo e vuoi inviarlo cosi' com'e'.<span class="t-scelta">Procedere?  1. Sì  <em>2. No</em></span></span><span class="t t-cc" data-passo="10">Va bene. La bozza resta nel thread finché non l'hai letta.</span></pre>
+<pre class="scena__pre" aria-label="La sessione in Claude Code"><span class="t t-tu" data-passo="0">Prepara il dossier per la riunione di domani con Giulia: cosa sappiamo, cosa manca, cosa chiederle</span><span class="t t-strumento" data-passo="1">Calendar  domani 10:00 · «Festival, punto con Giulia»</span><span class="t t-strumento" data-passo="2">Gmail  6 email con Giulia, da settembre</span><span class="t t-strumento" data-passo="3">Drive  preventivo.pdf, versione del 9 ottobre</span><span class="t t-strumento" data-passo="4">Read  le trascrizioni delle ultime 3 call</span><span class="t t-strumento" data-passo="5">Web  il sito della sala: capienza e orari</span><span class="t t-cc" data-passo="6">Ho messo a confronto le cinque fonti:</span><span class="t t-quieto confronto-fonti" data-passo="6">  Data       calendario e email           <b class="ok">tornano</b>
+  Sala       120 · 180 · 150 persone      <b class="ko">non torna</b>
+  Catering   nelle call, non a preventivo <b class="forse">manca</b></span><span class="t t-cc" data-passo="7">La sala è il punto: il preventivo è per 120, nella call del 14 ne avete stimate 180, il sito dice che ne tiene 150.</span><span class="t t-strumento" data-passo="8">Write  dossier-giulia.md</span><span class="t t-cc" data-passo="9">Il dossier è pronto e aperto: 4 cose decise, 3 aperte, 5 domande per Giulia. La sala è la prima.</span><span class="t t-tu" data-passo="10">Mandaglielo</span><span class="t t-guardia" data-passo="11"><b>Arturo · la guardia chiede a te</b>Bozza prima: conferma solo se hai gia' letto il testo e vuoi inviarlo cosi' com'e'.<span class="t-scelta">Procedere?  1. Sì  <em>2. No</em></span></span><span class="t t-cc" data-passo="12">Va bene. La bozza resta nel thread finché non l'hai letta.</span></pre>
             </div>
             <div class="scena__comandi">
               <p class="scena__stato" id="scena-stato" aria-live="polite">Sessione completa</p>
@@ -658,10 +732,116 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
               <button class="scena__bottone" type="button" id="scena-ancora">Guarda di nuovo</button>
             </div>
           </div>
-          <figcaption>Sette passi da solo, uno dopo l'altro, senza copia e incolla. E un dubbio che in chat non sarebbe emerso, perché il materiale non stava tutto insieme.</figcaption>
+          <figcaption>Cinque canali letti, un confronto e un documento, senza copia e incolla. E un dubbio che in chat non sarebbe emerso, perché il materiale non stava mai tutto insieme.</figcaption>
         </figure>
       </div>
-      <p class="scena__nota">Esempio scritto sul lavoro vero di chi mantiene Arturo. Per la posta serve il collegamento a Gmail, che la guida propone al passo 8. Il messaggio della guardia è quello che Arturo stampa davvero.</p>
+      <p class="scena__nota">Esempio scritto sul lavoro vero di chi mantiene Arturo. Calendario, posta e Drive passano dal collegamento a Google, che la guida propone al passo 8. Il messaggio della guardia è quello che Arturo stampa davvero.</p>
+    </div>
+  </section>
+
+  <section class="sezione" id="ritmo" aria-labelledby="t-ritmo" style="padding-top:0">
+    <div class="dentro">
+      <div class="testa">
+        <h2 id="t-ritmo">La sera chiudi, la mattina riparti.</h2>
+        <p><code>/fine</code> controlla il lavoro, lo salva e scrive un appunto. <code>/inizio</code> lo rilegge il giorno dopo e ti dice da dove partire. Nessun lavoro si perde fra una sessione e l'altra.</p>
+      </div>
+      <ol class="giorni">
+        <li class="giorni__passo">
+          <p class="giorni__quando">La sera</p>
+          <div class="finestra">
+            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Claude Code · 15 ottobre, 19:12</span></div>
+<pre><span class="t t-tu">/fine</span><span class="t t-strumento">Controlla  2 file nuovi, 1 bozza nel thread di Giulia</span><span class="t t-strumento">Git  salva il lavoro: «dossier per la riunione con Giulia»</span><span class="t t-cc">Cose da fare: 1 chiusa, 2 nuove.</span><span class="t t-cc">Appunto scritto. Prossimo passo: rileggi la bozza a Giulia e mandala tu.</span></pre>
+          </div>
+        </li>
+        <li class="giorni__passo giorni__passo--appunto">
+          <p class="giorni__quando">L'appunto</p>
+          <article class="appunto" aria-label="L'appunto lasciato da /fine">
+            <p class="appunto__testa">Festival · 15 ottobre, 19:12</p>
+            <h3>Ripartenza</h3>
+            <p>Dossier pronto in <code>dossier-giulia.md</code>. La sala non torna: 120 posti a preventivo, 180 persone stimate, 150 di capienza. Bozza a Giulia nel thread, non mandata.</p>
+            <h3>Prossimo passo</h3>
+            <p>Rileggi la bozza e mandala tu.</p>
+            <p class="appunto__piede">Resta sul tuo computer, in un file di testo.</p>
+          </article>
+        </li>
+        <li class="giorni__passo">
+          <p class="giorni__quando">La mattina dopo</p>
+          <div class="finestra">
+            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Claude Code · 16 ottobre, 9:02</span></div>
+<pre><span class="t t-tu">/inizio festival</span><span class="t t-cc">Da allora: ieri hai preparato il dossier per Giulia. La bozza è nel thread, non ancora mandata.</span><span class="t t-quieto">  TOCCA A TE
+  1. Rileggere e mandare la bozza a Giulia
+  FACCIO IO
+  2. Cercare tre sale da 180 persone</span><span class="t t-cc">Partirei dalla 1: dieci minuti, e la riunione è oggi.</span></pre>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="sezione" id="risultati" aria-labelledby="t-risultati" style="padding-top:0">
+    <div class="dentro">
+      <div class="testa">
+        <h2 id="t-risultati">Cosa ti restituisce.</h2>
+        <p>Non risposte da copiare, ma cose finite nelle tue cartelle: documenti, pagine, tabelle. Si aprono con i programmi di sempre.</p>
+      </div>
+      <div class="risultati">
+        <figure class="risultato">
+          <div class="risultato__lastra risultato__lastra--cielo">
+            <article class="foglio" aria-label="Esempio di dossier">
+              <p class="foglio__tipo">dossier-giulia.md</p>
+              <h3>Riunione con Giulia</h3>
+              <p class="foglio__data">16 ottobre, ore 10 · da 6 email, 3 call, il preventivo e il sito della sala</p>
+              <h4>Deciso</h4>
+              <ul><li>Data e orario del festival</li><li>Programma dei relatori entro venerdì</li></ul>
+              <h4>Non torna</h4>
+              <p class="foglio__allarme">Sala: 120 posti a preventivo, 180 persone stimate, 150 di capienza.</p>
+              <h4>Da chiedere</h4>
+              <ol><li>Possiamo cambiare sala?</li><li>Il catering è nel preventivo?</li></ol>
+            </article>
+          </div>
+          <figcaption><strong>Un documento.</strong> Messo insieme da fonti diverse, scritto con le tue regole.</figcaption>
+        </figure>
+
+        <figure class="risultato">
+          <div class="risultato__lastra risultato__lastra--giallo">
+            <div class="pagina" aria-label="Esempio di pagina su misura">
+              <div class="pagina__barra" aria-hidden="true"><i></i><i></i><i></i><span>progetti.html</span></div>
+              <div class="pagina__corpo">
+                <p class="pagina__titolo">Progetti · settimana 42</p>
+                <ol class="settimana" aria-label="Scadenze della settimana">
+                  <li><span>lun</span></li><li class="pieno"><span>mar</span></li><li><span>mer</span></li><li class="pieno"><span>gio</span></li><li class="pieno oggi"><span>ven</span></li><li><span>sab</span></li><li><span>dom</span></li>
+                </ol>
+                <ul class="progetti">
+                  <li><span>Festival</span><b class="stato stato--scade">scade ven</b></li>
+                  <li><span>Libro, capitolo 3</span><b class="stato stato--corso">in corso</b></li>
+                  <li><span>Mostra d'autunno</span><b class="stato stato--fermo">fermo da 9 giorni</b></li>
+                  <li><span>Newsletter n. 42</span><b class="stato stato--corso">in corso</b></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <figcaption><strong>Una pagina su misura.</strong> Si apre nel browser e legge i tuoi file.</figcaption>
+        </figure>
+
+        <figure class="risultato">
+          <div class="risultato__lastra risultato__lastra--verde">
+            <div class="tabella-mock" aria-label="Esempio di tabella di ricerca">
+              <p class="foglio__tipo">letture.md</p>
+              <table>
+                <thead><tr><th scope="col">Autore</th><th scope="col">Anno</th><th scope="col">Tesi</th></tr></thead>
+                <tbody>
+                  <tr><td>Bianchi</td><td>2019</td><td>Il lavoro cognitivo si misura male</td></tr>
+                  <tr><td>Ferri</td><td>2021</td><td>Gli strumenti cambiano chi decide</td></tr>
+                  <tr><td>Lodi</td><td>2023</td><td>L'archivio come infrastruttura</td></tr>
+                  <tr class="manca"><td>Neri</td><td>2016</td><td>scansione senza testo</td></tr>
+                </tbody>
+              </table>
+              <p class="tabella-mock__piede">altre 6 righe</p>
+            </div>
+          </div>
+          <figcaption><strong>Una tabella.</strong> Dieci PDF letti, e segnato quello che non si legge.</figcaption>
+        </figure>
+      </div>
     </div>
   </section>
 
@@ -709,6 +889,66 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
         </div>
       </div>
       <p class="vetrina__nota">Esempi scritti sul lavoro vero di chi mantiene Arturo. Per la posta serve il collegamento a Gmail, che la guida propone al passo 8.</p>
+    </div>
+  </section>
+
+  <section class="sezione uso" id="uso" aria-labelledby="t-uso">
+    <div class="dentro">
+      <div class="testa">
+        <h2 id="t-uso">Come lo uso io, ogni settimana.</h2>
+        <p>Il lavoro che delego più spesso, misurato sulle mie sessioni degli ultimi mesi. Per ognuno: cosa facevo a mano, cosa faccio adesso.</p>
+      </div>
+      <ul class="uso__elenco">
+        <li class="uso__voce">
+          <h3>Riconciliare fatture e movimenti</h3>
+          <p class="uso__quando">a ogni scheda del commercialista</p>
+          <dl>
+            <dt>Prima</dt><dd>Per ogni movimento senza giustificativo cercavo la fattura fra email, portali dei fornitori e gestionale. La scaricavo, la rinominavo, la caricavo. Trecento movimenti, uno alla volta.</dd>
+            <dt>Ora</dt><dd>Claude legge la scheda, cerca nei tre posti, carica i PDF su Drive e segna movimento per movimento cosa ha trovato. Io guardo solo quelli rimasti aperti.</dd>
+          </dl>
+        </li>
+        <li class="uso__voce">
+          <h3>Impaginare i deck in Keynote</h3>
+          <p class="uso__quando">ogni proposta</p>
+          <dl>
+            <dt>Prima</dt><dd>Slide costruite a mano una per una, rimettendo ogni volta colori, caratteri e griglia dello studio.</dd>
+            <dt>Ora</dt><dd>Scrivo il contenuto. Claude sceglie i layout dal catalogo dello studio, costruisce il Keynote e me lo restituisce da rifinire.</dd>
+          </dl>
+        </li>
+        <li class="uso__voce">
+          <h3>Rispondere alle email</h3>
+          <p class="uso__quando">ogni giorno</p>
+          <dl>
+            <dt>Prima</dt><dd>Ritrovare il thread, rileggere la storia, scrivere da zero.</dd>
+            <dt>Ora</dt><dd>La bozza arriva nel thread giusto, con la mia voce. La mando io, e dalle mie correzioni impara come scrivo.</dd>
+          </dl>
+        </li>
+        <li class="uso__voce">
+          <h3>Dalle riunioni alle cose da fare</h3>
+          <p class="uso__quando">dopo ogni call</p>
+          <dl>
+            <dt>Prima</dt><dd>Riascoltare, prendere appunti, ricordarsi chi doveva fare cosa.</dd>
+            <dt>Ora</dt><dd>Dalla trascrizione escono decisioni, cifre e cose da fare con un responsabile e una data, già nel gestionale.</dd>
+          </dl>
+        </li>
+        <li class="uso__voce">
+          <h3>Archiviare i documenti</h3>
+          <p class="uso__quando">ogni settimana</p>
+          <dl>
+            <dt>Prima</dt><dd>Allegati sparsi fra email, chat e Download, ritrovati quando servivano. Se si trovavano.</dd>
+            <dt>Ora</dt><dd>Ogni documento di lavoro finisce nella cartella del progetto su Drive, e un registro dice dove sta.</dd>
+          </dl>
+        </li>
+        <li class="uso__voce">
+          <h3>Siti e pagine come questa</h3>
+          <p class="uso__quando">ogni progetto</p>
+          <dl>
+            <dt>Prima</dt><dd>Un brief a uno sviluppatore, e settimane di andata e ritorno.</dd>
+            <dt>Ora</dt><dd>Descrivo cosa voglio e lo guardo nascere. Questa pagina l'ho fatta così, una nota alla volta.</dd>
+          </dl>
+        </li>
+      </ul>
+      <p class="uso__nota">Queste abilità non sono dentro Arturo: le ho scritte sul mio lavoro, una alla volta, chiedendole a Claude. Arturo ti dà il metodo per fare le tue. Dentro ci sono i pezzi che uso più di tutti: il brief prima di ogni richiesta, <code>/inizio</code> e <code>/fine</code>.</p>
     </div>
   </section>
 
