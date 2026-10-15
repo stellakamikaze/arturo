@@ -116,9 +116,6 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .t-scelta{display:block;color:var(--term-testo);margin-top:4px}
 .t-scelta em{font-style:normal;background:var(--term-guardia);color:#fff;padding:0 4px}
 .cursore{display:inline-block;width:.6em;height:1.1em;vertical-align:-.2em;background:var(--term-tu)}
-.scrive .t{visibility:hidden}
-.scrive .t.vista{visibility:visible}
-.scrive .cursore{animation:lampo 1s steps(1) infinite}
 @keyframes lampo{50%{opacity:0}}
 
 /* ---------- sezioni ---------- */
@@ -316,6 +313,59 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
   .carte-testa{flex-wrap:wrap}
 }
 
+/* ---------- la scena: dalla chat al terminale ---------- */
+.scena{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:clamp(20px,3vw,36px);align-items:start}
+.scena figure{margin:0}
+.scena figcaption{margin-top:12px;font-size:.88rem;color:var(--cenere);max-width:60ch}
+.scena__chat .chat{font-size:.9rem}
+.scena__chat .lei{max-width:none;background:#fff;border:1px solid var(--filetto);border-radius:4px;padding:12px 14px}
+.scena__chat .lei p{margin:0;padding:0;border:0;background:none;max-width:none}
+.da-incollare{margin:8px 0 10px;padding:0;list-style:none;counter-reset:n}
+.da-incollare li{counter-increment:n;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;padding:7px 0;border-top:1px solid var(--filetto)}
+.da-incollare li::before{content:counter(n) ".";color:var(--cenere);font-variant-numeric:tabular-nums}
+.da-incollare span{transition:color .4s;text-decoration-thickness:1px;text-decoration-color:var(--cenere)}
+.da-incollare em{flex-basis:100%;padding-left:1.4em;font-style:normal;font:600 .7rem/1.4 var(--titolo);font-stretch:75%;letter-spacing:.06em;text-transform:uppercase;color:var(--azione);opacity:0;transform:translateX(-6px);transition:opacity .45s,transform .45s cubic-bezier(.16,1,.3,1)}
+.da-incollare li.fatto span{color:var(--cenere);text-decoration-line:line-through}
+.da-incollare li.fatto em{opacity:1;transform:none}
+.da-incollare__poi{color:var(--grafite);transition:color .4s}
+.da-incollare__poi.fatto{color:var(--cenere);text-decoration:line-through;text-decoration-thickness:1px}
+.scena__corpo{display:grid;grid-template-columns:minmax(150px,200px) minmax(0,1fr);min-height:420px}
+.albero{padding:16px 14px;border-right:1px solid var(--term-filetto);font:.76rem/1.5 var(--mono);color:var(--term-cenere)}
+.albero ul{margin:0 0 14px;padding:0;list-style:none}
+.albero li{padding:3px 6px;border-radius:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background-color .5s,color .5s}
+.albero__testa{margin:0 0 6px;font:600 .68rem/1.3 var(--titolo);font-stretch:75%;letter-spacing:.08em;text-transform:uppercase;color:#6f7a87}
+.albero__cartella{color:#c4ccd6}
+.albero__dentro{padding-left:18px!important}
+.albero__dentro2{padding-left:30px!important}
+.albero li.letto{background:#132036;color:#cfe4ff}
+.albero li.nuovo{background:#123622;color:#c9f2d6}
+.albero li[data-modo="nuovo"]:not(.nuovo){opacity:.0}
+.albero__legenda{margin:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.7rem}
+.segno{display:inline-block;width:10px;height:10px;border-radius:2px}
+.segno--letto{background:#132036;border:1px solid #2f6fe0}
+.segno--nuovo{background:#123622;border:1px solid #3aa866;margin-left:8px}
+.scena__pre{align-self:start}
+.scena__pre .t{transition:opacity .35s,filter .35s}
+.scena.gira .scena__pre .t:not(.detta){opacity:0;filter:blur(2px)}
+.scena.gira .scena__pre .t.detta{opacity:1;filter:none}
+.scena__comandi{display:flex;align-items:center;gap:8px;padding:8px 10px 8px 16px;border-top:1px solid var(--term-filetto)}
+.scena__stato{margin:0 auto 0 0;font:.74rem/1 var(--mono);color:var(--term-cenere)}
+.scena__bottone{min-height:40px;padding:0 14px;border:1px solid #2a3340;background:none;color:var(--term-testo);font:560 .74rem/1 var(--titolo);font-stretch:75%;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background-color .2s}
+.scena__bottone:hover{background:#151b23}
+.scena__bottone:focus-visible{outline:2px solid var(--term-tu);outline-offset:2px}
+.scena__bottone[hidden]{display:none}
+.scena__nota{margin:18px 0 0;font-size:.84rem;color:var(--cenere)}
+@media (prefers-reduced-motion:reduce){.scena__pre .t,.albero li,.da-incollare em{transition:none}}
+@media (max-width:1020px){.scena{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:760px){
+  .scena__corpo{grid-template-columns:minmax(0,1fr);min-height:0}
+  .albero{order:2;border-right:0;border-top:1px solid var(--term-filetto)}
+  .albero ul{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px}
+  .albero__cartella{display:none}
+  .albero__dentro,.albero__dentro2{padding-left:6px!important}
+  .albero li[data-modo="nuovo"]:not(.nuovo){display:none}
+  .scena__comandi{flex-wrap:wrap}
+}
 /* ---------- semplice ---------- */
 .vetrina{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:clamp(20px,3vw,40px);align-items:stretch}
 .vetrina__elenco{margin:0;padding:0;list-style:none;border-top:1px solid var(--inchiostro)}
@@ -553,30 +603,65 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
   <section class="sezione" id="come-funziona" aria-labelledby="t-chat">
     <div class="dentro">
       <div class="testa">
-        <h2 id="t-chat">Dalla chat ai tuoi file.</h2>
-        <p>In chat copi e incolli. In <strong>Claude Code</strong> l'IA apre le cartelle, scrive i file e domani riparte da lì. Ci scrivi in italiano, come in chat.</p>
+        <h2 id="t-chat">Dalla chat al terminale.</h2>
+        <p>La stessa richiesta, in due posti. In chat l'IA ti chiede il materiale. In Claude Code va a prenderselo, lavora sui tuoi file e si ferma solo prima di mandare.</p>
       </div>
-      <div class="confronto">
-        <figure>
+
+      <div class="scena" id="scena">
+        <figure class="scena__chat">
           <div class="finestra finestra--chiara">
             <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>In chat</span></div>
             <div class="chat">
-              <p class="io">Mi segni le frasi del capitolo 3 che ripetono il capitolo 2?</p>
-              <p class="lei">Certo. Incollami qui il testo dei due capitoli.</p>
-              <p class="incollo">[ 41.000 caratteri incollati ]</p>
-              <p class="lei">Ecco le frasi. Ricorda di riportare le correzioni nel tuo file.</p>
+              <p class="io">Prepara il dossier per la riunione di domani con Giulia: cosa sappiamo, cosa manca, cosa chiederle.</p>
+              <div class="lei">
+                <p>Volentieri. Incollami qui:</p>
+                <ol class="da-incollare" aria-label="Cosa ti chiede la chat">
+                  <li data-passo="1"><span>le email con Giulia</span><em>l'ha letto Claude Code</em></li>
+                  <li data-passo="2"><span>le trascrizioni delle ultime call</span><em>l'ha letto Claude Code</em></li>
+                  <li data-passo="3"><span>il preventivo</span><em>l'ha letto Claude Code</em></li>
+                  <li data-passo="4"><span>le informazioni sulla sala</span><em>l'ha cercato Claude Code</em></li>
+                </ol>
+                <p class="da-incollare__poi" data-passo="6">Poi il dossier copialo tu in un file.</p>
+              </div>
             </div>
           </div>
-          <figcaption>Il lavoro di copia lo fai tu, ogni volta.</figcaption>
+          <figcaption>In chat il lavoro di raccolta resta a te.</figcaption>
         </figure>
-        <figure>
+
+        <figure class="scena__term">
           <div class="finestra">
-            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Claude Code con Arturo</span></div>
-<pre><span class="t t-tu">Segnami le frasi del capitolo 3 che ripetono il capitolo 2</span><span class="t t-strumento">Read  capitolo-2.md, capitolo-3.md</span><span class="t t-cc">4 frasi si ripetono. Le ho segnate in capitolo-3-note.md, il capitolo non l'ho toccato.</span><span class="t t-tu">/fine</span><span class="t t-cc">Salvato. Appunto per la prossima volta: rivedere le 4 frasi.</span></pre>
+            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Claude Code con Arturo · ~/Lavoro/Festival</span></div>
+            <div class="scena__corpo">
+              <div class="albero" aria-label="I file che Claude tocca">
+                <p class="albero__testa">I tuoi file</p>
+                <ul>
+                  <li class="albero__cartella">Festival/</li>
+                  <li class="albero__cartella albero__dentro">appunti/</li>
+                  <li class="albero__file albero__dentro2" data-tocca="2" data-modo="letto">call-02-10.txt</li>
+                  <li class="albero__file albero__dentro2" data-tocca="2" data-modo="letto">call-08-10.txt</li>
+                  <li class="albero__file albero__dentro2" data-tocca="2" data-modo="letto">call-14-10.txt</li>
+                  <li class="albero__file albero__dentro" data-tocca="3" data-modo="letto">preventivo.pdf</li>
+                  <li class="albero__file albero__dentro" data-tocca="6" data-modo="nuovo">dossier-giulia.md</li>
+                </ul>
+                <p class="albero__testa">Fuori dalle cartelle</p>
+                <ul>
+                  <li class="albero__file" data-tocca="1" data-modo="letto">Gmail · 6 email</li>
+                  <li class="albero__file" data-tocca="4" data-modo="letto">il sito della sala</li>
+                </ul>
+                <p class="albero__legenda"><span class="segno segno--letto"></span>letto <span class="segno segno--nuovo"></span>scritto</p>
+              </div>
+<pre class="scena__pre" aria-label="La sessione in Claude Code"><span class="t t-tu" data-passo="0">Prepara il dossier per la riunione di domani con Giulia: cosa sappiamo, cosa manca, cosa chiederle</span><span class="t t-strumento" data-passo="1">Gmail  legge 6 email con Giulia, da settembre</span><span class="t t-strumento" data-passo="2">Read  le trascrizioni delle ultime 3 call</span><span class="t t-strumento" data-passo="3">Read  preventivo.pdf</span><span class="t t-strumento" data-passo="4">Web  il sito della sala: capienza e orari</span><span class="t t-cc" data-passo="5">Una cosa non torna: il preventivo è per una sala da 120 persone, ma nella call del 14 ne avete stimate 180.</span><span class="t t-strumento" data-passo="6">Write  dossier-giulia.md</span><span class="t t-cc" data-passo="7">Il dossier è pronto e aperto: 4 cose decise, 3 aperte, 5 domande per Giulia. La sala è la prima.</span><span class="t t-tu" data-passo="8">Mandaglielo</span><span class="t t-guardia" data-passo="9"><b>Arturo · la guardia chiede a te</b>Bozza prima: conferma solo se hai gia' letto il testo e vuoi inviarlo cosi' com'e'.<span class="t-scelta">Procedere?  1. Sì  <em>2. No</em></span></span><span class="t t-cc" data-passo="10">Va bene. La bozza resta nel thread finché non l'hai letta.</span></pre>
+            </div>
+            <div class="scena__comandi">
+              <p class="scena__stato" id="scena-stato" aria-live="polite">Sessione completa</p>
+              <button class="scena__bottone" type="button" id="scena-salta">Salta alla fine</button>
+              <button class="scena__bottone" type="button" id="scena-ancora">Guarda di nuovo</button>
+            </div>
           </div>
-          <figcaption>L'IA lavora sul file e si ricorda dove eri.</figcaption>
+          <figcaption>Sette passi da solo, uno dopo l'altro, senza copia e incolla. E un dubbio che in chat non sarebbe emerso, perché il materiale non stava tutto insieme.</figcaption>
         </figure>
       </div>
+      <p class="scena__nota">Esempio scritto sul lavoro vero di chi mantiene Arturo. Per la posta serve il collegamento a Gmail, che la guida propone al passo 8. Il messaggio della guardia è quello che Arturo stampa davvero.</p>
     </div>
   </section>
 
@@ -916,6 +1001,53 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
   });
   carta(0);
 
+
+
+  /* la scena: la stessa richiesta in chat e in Claude Code */
+  var scena=d.getElementById('scena');
+  if(scena){
+    var righe=[].slice.call(scena.querySelectorAll('.scena__pre .t'));
+    var MAX=righe.reduce(function(m,r){return Math.max(m,+r.getAttribute('data-passo'))},0);
+    var stato=d.getElementById('scena-stato'), salta=d.getElementById('scena-salta'), ancora=d.getElementById('scena-ancora');
+    var testi=righe.map(function(r){return r.classList.contains('t-tu')?r.textContent:null});
+    var giro=0;
+    function effetti(n){
+      [].forEach.call(scena.querySelectorAll('[data-tocca]'),function(f){var su=+f.getAttribute('data-tocca')<=n;f.classList.toggle(f.getAttribute('data-modo'),su)});
+      [].forEach.call(scena.querySelectorAll('.da-incollare [data-passo],.da-incollare__poi'),function(li){li.classList.toggle('fatto',+li.getAttribute('data-passo')<=n)});
+    }
+    function fine(){
+      giro++; scena.classList.remove('gira');
+      righe.forEach(function(r,k){r.classList.add('detta');if(testi[k]!==null)r.textContent=testi[k]});
+      effetti(MAX); stato.textContent='Sessione completa'; salta.hidden=true; ancora.hidden=false;
+    }
+    function parti(){
+      var mio=++giro;
+      scena.classList.add('gira'); salta.hidden=false; ancora.hidden=true;
+      righe.forEach(function(r){r.classList.remove('detta')}); effetti(-1);
+      var k=0;
+      function passo(){
+        if(mio!==giro)return;
+        if(k>=righe.length){fine();return}
+        var r=righe[k], n=+r.getAttribute('data-passo'), tu=testi[k]!==null;
+        stato.textContent='Passo '+(n+1)+' di '+(MAX+1);
+        r.classList.add('detta'); effetti(n);
+        if(tu){
+          var t=testi[k], c=0; r.textContent='';
+          (function batti(){if(mio!==giro)return;r.textContent=t.slice(0,++c);if(c<t.length)setTimeout(batti,16);else{k++;setTimeout(passo,450)}})();
+        }else{
+          k++; setTimeout(passo,r.classList.contains('t-cc')||r.classList.contains('t-guardia')?1500:850);
+        }
+      }
+      setTimeout(passo,300);
+    }
+    salta.addEventListener('click',function(){fine();ancora.focus()});
+    ancora.addEventListener('click',function(){parti()});
+    effetti(MAX); salta.hidden=true;
+    if(!riduci&&'IntersectionObserver' in window){
+      var visto=new IntersectionObserver(function(e){if(e[0].isIntersecting){visto.disconnect();parti()}},{threshold:.35});
+      visto.observe(scena.querySelector('.scena__term'));
+    }
+  }
 
   /* la vetrina dei casi d'uso */
   var schedeV=[].slice.call(d.querySelectorAll('.vetrina__elenco [role="tab"]'));

@@ -350,6 +350,9 @@ Tre cerchi concentrici: fuori `cielo` con bordo `azione` (Arturo), in mezzo bian
 ### Articoli e iscrizione
 Un elenco di quattro righe sotto un filetto `inchiostro`: data in voce stretta, titolo in Archivo 1,15 rem. Accanto, l'iscrizione. L'elenco nella pagina è di riserva e lo rinfresca `strumenti/articoli.py`; nel browser lo sostituisce la Content API di Ghost. L'iscrizione è il modulo di Ghost (`sito/vendor/`), con il pulsante `azione`.
 
+### La scena «Dalla chat al terminale» (momento animato)
+L'unico momento d'autore della pagina. A sinistra la chat, che chiede di incollarle quattro cose. A destra Claude Code con un pannello «I tuoi file». Quando la finestra entra nello schermo la sessione parte una volta: la richiesta si scrive, ogni passo appare da sfocato, la voce corrispondente della chat si barra con «l'ha letto Claude Code» in `azione`, e i file si accendono (letto su `#132036`, scritto su `#123622`). Finisce sulla guardia vera e su un «no». «Salta alla fine» e «Guarda di nuovo» stanno sotto. Il codice parte dallo stato finito: senza script, o con movimento ridotto, la scena è già completa.
+
 ### Casi d'uso e «In breve»
 I casi d'uso sono una vetrina: a sinistra l'elenco dei sei casi (nome in Archivio 1,3 rem, una riga sotto), il caso scelto su fondo bianco con un filo `azione` di 2 px a sinistra; a destra una finestra grande che resta ferma mentre scorri. Sotto i 860 px l'elenco diventa una fila di pulsanti che scorre in orizzontale.
 
