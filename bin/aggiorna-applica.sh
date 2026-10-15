@@ -160,6 +160,26 @@ if [ -f "$STATO" ] && read -r VECCHIA _ VECCHIO_MODO NATA _ < "$STATO"; then
   fi
 fi
 
+# Le modifiche della persona ai comandi di Arturo vanno in personale/ prima del merge (15/10/2026):
+# il comando torna quello di Arturo e non va in conflitto, le sue righe restano sue e Claude le legge
+# quando lancia il comando. Lo fa personale.py della versione in arrivo, come questo script. Lo
+# spostamento è un commit: niente si perde. Il sync fra le sue macchine non sposta niente.
+if [ "$MODO" != sync ]; then
+  SEPARA=$(mktemp "${TMPDIR:-/tmp}/arturo-separa.XXXXXX") || SEPARA=""
+  if [ -n "$SEPARA" ]; then
+    git show "$REF:bin/personale.py" > "$SEPARA" 2>/dev/null || cp bin/personale.py "$SEPARA" 2>/dev/null || : > "$SEPARA"
+    if [ -s "$SEPARA" ]; then
+      ARTURO_RADICE="$RADICE" python3 "$SEPARA" separa 2>&1 | sed 's/^/  /'
+    fi
+    rm -f "$SEPARA"
+  fi
+  if ! pulita; then
+    echo "APPLICAZIONE NON PARTITA: spostando le tue modifiche ai comandi in personale/ qualcosa non è andato. Non ho applicato l'aggiornamento:"
+    git status --short --untracked-files=no | sed 's/^/  /'
+    exit 1
+  fi
+fi
+
 PRIMA=$(git rev-parse HEAD)
 TEMP=${TMPDIR:-/tmp}
 LAVORO=$(mktemp -d "${TEMP%/}/arturo-aggiorna.XXXXXX") || { echo "APPLICAZIONE NON PARTITA: niente cartella temporanea"; exit 1; }

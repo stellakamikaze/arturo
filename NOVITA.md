@@ -11,6 +11,21 @@ modo di lavorare.
 
 ---
 
+## 2026-10-15 — Le tue modifiche ai comandi si mettono da parte da sole
+
+**Cosa cambia**: se hai modificato un comando di Arturo (per esempio hai aggiunto a `/inizio` la
+tabella dei tuoi progetti), `/aggiorna` sposta da solo le tue righe in un file tuo,
+`~/.claude/personale/inizio.md`, prima di applicare l'aggiornamento. Il comando torna quello di
+Arturo e non va più in conflitto. Quando lanci `/inizio`, Claude legge anche le tue righe, quindi
+il comando fa tutto quello che faceva prima. Non devi fare niente: Claude te lo dice in una frase.
+
+**Il principio dietro**: la tua config e quella di Arturo convivono senza che tu debba pensarci.
+Le tue modifiche restano tue, gli aggiornamenti cambiano solo i file di Arturo.
+
+**A chi serve**: a chi ha già cambiato un comando di Arturo. Gli altri non vedono differenze.
+
+---
+
 ## 2026-10-15 — Un solo modo di leggere gli heredoc per tutte le guardie
 
 **Cosa cambia**: quattro guardie leggevano gli heredoc ognuna a modo suo, e sbagliavano in punti

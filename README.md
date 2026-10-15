@@ -177,7 +177,7 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 
 `settings.json` è di Arturo, ma le tue modifiche restano come commit locali. `/aggiorna` ti mostra i file cambiati sia da te sia dall'aggiornamento prima di applicare. Se nella copia di prova `settings.json` non è JSON valido o resta un conflitto, l'aggiornamento non arriva in `~/.claude`: un `settings.json` rotto spegnerebbe tutte le guardie. L'avvio della sessione te lo segnala con una riga `CONFIG ROTTA`.
 
-**Arturo convive con la tua config.** Le tue regole, i tuoi comandi e i tuoi permessi restano tuoi. Se vuoi cambiare un comando di Arturo, scrivi le tue aggiunte in `~/.claude/personale/<comando>.md`: quando lanci il comando Claude le legge, e nessun aggiornamento le tocca. Se hai già modificato un comando di Arturo, `/aggiorna personale` sposta le tue modifiche lì. L'avvio ti avvisa con una riga `DERIVA` quando la distanza dalla config di Arturo rischia di rompere qualcosa: un comando di Arturo modificato che andrà in conflitto, un hook di Arturo tolto o spento.
+**Arturo convive con la tua config.** Le tue regole, i tuoi comandi e i tuoi permessi restano tuoi. Se vuoi cambiare un comando di Arturo, scrivi le tue aggiunte in `~/.claude/personale/<comando>.md`: quando lanci il comando Claude le legge, e nessun aggiornamento le tocca. Se hai già modificato un comando di Arturo, il prossimo `/aggiorna` sposta da solo le tue modifiche lì, prima di applicare l'aggiornamento: non devi fare niente. L'avvio ti avvisa con una riga `DERIVA` quando la distanza dalla config di Arturo rischia di rompere qualcosa: un comando di Arturo modificato che andrà in conflitto, un hook di Arturo tolto o spento.
 
 > Se `/aggiorna` o `/novita` rispondono «comando sconosciuto», la tua copia è precedente a quei
 > comandi: fai l'aggiornamento a mano con i comandi qui sopra e riapri Claude Code. Da lì in poi bastano gli slash.
@@ -307,7 +307,7 @@ fa vedere la coda così come parte.
 
 Setup: **`/setup`** — configurazione guidata dell'intero harness per un nuovo utente (prerequisiti, permessi, `PROJECTS_BASE`, `CLAUDE.md`, sync, verifica); pensato per chi non ha mai usato un terminale.
 
-Manutenzione: **`/aggiorna`** — scarica e applica l'ultima versione di Arturo, dopo averti mostrato cosa cambia e controllato che non travolga le tue modifiche. **`/aggiorna personale`** sposta le tue modifiche ai comandi di Arturo in `personale/`, dove gli aggiornamenti non vanno in conflitto.
+Manutenzione: **`/aggiorna`** — scarica e applica l'ultima versione di Arturo, dopo averti mostrato cosa cambia e controllato che non travolga le tue modifiche. Le tue modifiche ai comandi di Arturo le sposta da solo in `personale/`, dove gli aggiornamenti non vanno in conflitto; **`/aggiorna personale`** lo fa subito, senza aggiornare.
 
 Ripresa: **`/guidami`** — guarda gli ultimi handoff e le conversazioni recenti e ti propone tre o quattro cose che ha senso fare adesso, con il motivo e il primo passo. Per quando riapri e non sai da dove ripartire.
 
@@ -422,7 +422,7 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 - **Host interni e API fidate.** `INTERNAL_HOSTS` e `INTERNAL_NETS` in `exfil-guard.py` e `web-egress-guard.py` sono i default pubblici: non modificarli. Se lavori con un tuo server, aggiungi il suo hostname o la sua rete in `hooks/hosts-interni.local`, una voce per riga: le chiamate verso quegli host non chiederanno conferma. Una rete più larga di `/8` viene ignorata. Un servizio esterno che usi con la tua chiave va in `hooks/api-fidate.local`, un nome host esatto per riga (niente reti, niente `*`). I due file sono tuoi, nessun aggiornamento li tocca.
 - **Lingua.** `language` in `settings.json` (default `italian`) e i messaggi dei guard sono in italiano — cambiali se preferisci un'altra lingua.
 - **Disattivare un guard.** Commenta la riga corrispondente in `bash-dispatcher.sh` (per i guard instradati) o rimuovi il blocco da `settings.json` (per quelli PostToolUse). Poi rilancia `/system-audit`.
-- **Cambiare un comando di Arturo.** Non modificare `commands/<comando>.md`: scrivi le tue aggiunte in `~/.claude/personale/<comando>.md` (oppure lascia che `/aggiorna personale` le sposti lì). Claude le legge quando lanci il comando, `/fine` le sincronizza solo verso un tuo repository privato, e nessun aggiornamento le tocca.
+- **Cambiare un comando di Arturo.** Non modificare `commands/<comando>.md`: scrivi le tue aggiunte in `~/.claude/personale/<comando>.md` (se modifichi il comando, il prossimo `/aggiorna` le sposta lì da solo). Claude le legge quando lanci il comando, `/fine` le sincronizza solo verso un tuo repository privato, e nessun aggiornamento le tocca.
 - **Aggiungere un comando o una skill.** Un file `.md` in `commands/` diventa uno slash command; una cartella con `SKILL.md` in `skills/` diventa una skill. Il frontmatter `name` + `description` è obbligatorio (`/system-audit` lo verifica).
 
 ---

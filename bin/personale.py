@@ -8,6 +8,7 @@ persona lancia /<comando> l'hook inject-now.sh dice a Claude di leggerle.
 
   elenco                  i file personali e i comandi di Arturo modificati in ~/.claude
   sposta commands/X.md    sposta le modifiche a /X in personale/X.md e riporta X.md com'era in Arturo
+  separa                  sposta tutti i comandi di Arturo modificati; lo lancia da solo ogni /aggiorna
 
 `sposta` è meccanico: copia le parti aggiunte così come sono, con la riga di Arturo dopo cui stavano,
 e le parti tolte sotto «Parti di Arturo che non seguo». Il riordino lo fa Claude con la persona.
@@ -116,7 +117,7 @@ def testo_personale(comando: str, originale: list, attuale: list, gia: str) -> s
     return "".join(parti).rstrip("\n") + "\n"
 
 
-def sposta(file: str) -> int:
+def sposta(file: str, parla: bool = True) -> int:
     r = radice()
     m = NOME.match(file)
     if not m:
@@ -148,8 +149,26 @@ def sposta(file: str) -> int:
         if git(r, "diff", "--cached", "--quiet", "--", file).returncode != 0:
             git(r, "commit", "-q", "-m", f"personale: aggiunte a /{comando} spostate in personale/{comando}.md", "--", file,
                 controlla=True)
-    print(f"Fatto: le modifiche a /{comando} stanno in ~/.claude/personale/{comando}.md e {file} e' tornato com'e' in Arturo.\n"
-          "Rileggi il file personale con la persona: le parti sono copiate cosi' come erano.")
+    if parla:
+        print(f"Fatto: le modifiche a /{comando} stanno in ~/.claude/personale/{comando}.md e {file} e' tornato com'e' in Arturo.\n"
+              "Rileggi il file personale con la persona: le parti sono copiate cosi' come erano.")
+    else:
+        print(f"SEPARATO: /{comando} -> personale/{comando}.md")
+    return 0
+
+
+def separa() -> int:
+    """Ogni comando di Arturo modificato va in personale/: /aggiorna lo lancia prima di applicare.
+
+    Cosi' la persona non deve pensarci: le sue modifiche restano sue, il comando torna quello di
+    Arturo e l'aggiornamento non va in conflitto. Senza comandi modificati non stampa niente.
+    """
+    r = radice()
+    b = base(r)
+    for file in (modificati(r, b) if b else []):
+        esito = sposta(file, parla=False)
+        if esito != 0:
+            return esito
     return 0
 
 
@@ -171,6 +190,12 @@ def main(argv: list) -> int:
         return 0
     if argv == ["elenco"]:
         return elenco()
+    if argv == ["separa"]:
+        try:
+            return separa()
+        except (OSError, subprocess.SubprocessError) as errore:
+            print(f"Errore: {errore}", file=sys.stderr)
+            return 2
     if len(argv) == 2 and argv[0] == "sposta":
         try:
             return sposta(argv[1])

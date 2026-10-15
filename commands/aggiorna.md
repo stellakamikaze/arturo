@@ -94,25 +94,19 @@ comm -12 <(git diff --name-only "$SRC/main...HEAD" 2>/dev/null | sort) <(git dif
 
 Se ci sono file cambiati da tutti e due, **mostraglieli e chiedi conferma prima di procedere**:
 sono i punti dove può nascere un conflitto. Sono suoi, e un aggiornamento non deve mangiarseli.
+I comandi di Arturo (`commands/<nome>.md`) non contano: li sistema da solo il Passo 3 (Passo 2b).
 
 ### Passo 2b — Le sue aggiunte ai comandi
 
-Se fra i file cambiati da tutti e due c'è un comando di Arturo (`commands/<nome>.md`), quel file
-andrà in conflitto adesso e a ogni aggiornamento futuro. Le sue aggiunte hanno un posto che gli
-aggiornamenti non toccano: `~/.claude/personale/<nome>.md`. Quando lancia `/<nome>`, l'avvio del
-prompt dice a Claude di leggerle.
+Non deve fare niente. Se ha modificato un comando di Arturo (`commands/<nome>.md`), il Passo 3
+sposta le sue modifiche in `~/.claude/personale/<nome>.md` prima di applicare l'aggiornamento. Il
+comando torna quello di Arturo, le sue righe restano sue, e quando lancia `/<nome>` l'avvio del
+prompt dice a Claude di leggerle. Così il comando non va in conflitto, né adesso né dopo.
 
-Per ogni comando di quell'elenco mostragli in parole semplici cosa ha aggiunto o tolto
-(`git diff "$SRC/main...HEAD" -- commands/<nome>.md`) e proponi di spostarlo. Solo dopo il suo sì:
-
-```bash
-python3 "$HOME/.claude/bin/arturo" personale sposta commands/<nome>.md
-```
-
-Il comando copia le sue parti in `personale/<nome>.md` così come sono, riporta il comando alla
-versione di Arturo e salva con un commit. Poi leggete insieme il file personale e sistematelo come
-istruzioni chiare. Se dice di no, il file resta suo e l'aggiornamento prova lo stesso: un conflitto
-si risolve come sotto.
+Lo spostamento è un commit, e il Passo 3 stampa una riga `SEPARATO: /<nome> -> personale/<nome>.md`
+per ogni comando. Diglielo in una frase: «le tue aggiunte a /inizio ora stanno in un file tuo, e
+/inizio fa tutto come prima». Non chiedere conferma e non spiegare il meccanismo, se non lo chiede.
+Se vuole, rileggete insieme il file personale: le parti sono copiate così come erano.
 
 Se `git status` elenca dei file, sono modifiche sue non ancora salvate con un commit (le scrive
 anche `/setup`, per esempio `PROJECTS_BASE` o la lingua in `settings.json`). Il Passo 3 non parte
@@ -250,11 +244,12 @@ Se chi ti parla scrive `/aggiorna personale` (oppure l'avvio ha mostrato una rig
 comandi), non scarichi niente: sposti solo le sue modifiche ai comandi di Arturo.
 
 ```bash
-python3 "$HOME/.claude/bin/arturo" personale elenco
+python3 "$HOME/.claude/bin/arturo" personale separa
 ```
 
-Per ogni comando elencato segui il Passo 2b: mostra le modifiche, chiedi il sì, sposta, rileggete
-insieme il file personale. Se non ce n'è nessuno, diglielo in una riga.
+È lo stesso spostamento che fa ogni aggiornamento (Passo 2b). Ogni riga `SEPARATO:` è un comando
+spostato: diglielo in una frase, come nel Passo 2b. Se non stampa niente, non c'era niente da
+spostare: diglielo in una riga.
 
 ## Tornare indietro
 

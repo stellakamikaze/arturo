@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -40,6 +41,8 @@ def prepara(repo: Path, tmp: Path) -> Lab:
     (lab.autore / "commands").mkdir()
     (lab.autore / "commands" / "inizio.md").write_text(INIZIO)
     (lab.autore / ".gitignore").write_text(read(repo / ".gitignore"))  # come nell'Arturo vero
+    if (repo / "bin" / "personale.py").exists():  # /aggiorna lo legge dalla versione in arrivo, come aggiorna-applica.sh
+        shutil.copy(str(repo / "bin" / "personale.py"), str(lab.autore / "bin" / "personale.py"))
     lab.git(lab.autore, "add", "-A")
     lab.git(lab.autore, "commit", "-q", "-m", "v1: /inizio")
     lab.git(lab.autore, "push", "-q", "origin", "main")
@@ -156,14 +159,65 @@ def test_p05(repo: Path) -> None:
 
 def test_p06(repo: Path) -> None:
     testo = read(repo / "commands" / "aggiorna.md")
-    assert "### Passo 2b" in testo and "personale sposta commands/<nome>.md" in testo, "P06 /aggiorna non propone lo spostamento"
-    assert "## Le sue aggiunte, senza aggiornare" in testo and "personale elenco" in testo, "P06 manca /aggiorna personale"
+    passo = testo[testo.index("### Passo 2b"):testo.index("## Passo 3")] if "### Passo 2b" in testo else ""
+    assert "Non deve fare niente" in passo and "SEPARATO:" in passo, "P06 il Passo 2b non dice che lo spostamento è automatico"
+    assert "chiedi il sì" not in passo and "Solo dopo il suo sì" not in passo, "P06 il Passo 2b chiede ancora il sì"
+    assert "## Le sue aggiunte, senza aggiornare" in testo and "personale separa" in testo, "P06 manca /aggiorna personale"
     assert "indietro | personale" in testo.split("---")[1], "P06 l'argomento personale non è dichiarato"
+
+
+def _aggiorna_senza_passi(lab: Lab, repo: Path, codice: str) -> str:
+    """Solo /aggiorna: Passo 1 e Passo 3, nessuno spostamento a mano."""
+    testo = read(repo / "commands" / "aggiorna.md")
+    lab.lancia(blocco(testo, "## Passo 1", codice))
+    uscita = lab.lancia(blocco(testo, "## Passo 3", codice))
+    assert "APPLICATO" in uscita and "CONFLITTO" not in uscita, \
+        f"{codice} con un comando modificato /aggiorna non applica da solo: {uscita[-400:]!r}"
+    assert "SEPARATO: /inizio" in uscita, f"{codice} /aggiorna non dice che ha spostato /inizio: {uscita[-400:]!r}"
+    assert "handoff piu' recente" in read(lab.utente / "commands" / "inizio.md"), f"{codice} l'aggiornamento di /inizio non è arrivato"
+    personale = lab.utente / "personale" / "inizio.md"
+    assert personale.exists() and "Poi la tabella dei miei progetti e i dischi." in read(personale), \
+        f"{codice} le aggiunte della persona non sono in personale/inizio.md"
+    assert lab.config_integra(), f"{codice} la config non è integra"
+    return uscita
+
+
+def test_p08(repo: Path) -> None:
+    # Arturo come origin: /aggiorna fa un rebase, e lo spostamento riscrive il commit locale sul comando.
+    con_lab(lambda lab: _aggiorna_senza_passi(lab, repo, "P08"), repo)
+
+
+def test_p09(repo: Path) -> None:
+    # Il caso di chi ha un suo repository: Arturo è upstream, /aggiorna fa un merge, i commit pubblicati restano.
+    def prova(lab: Lab) -> None:
+        pubblicato = lab.head()
+        lab.personale()
+        _aggiorna_senza_passi(lab, repo, "P09")
+        assert lab.git(lab.utente, "merge-base", "--is-ancestor", pubblicato, "HEAD") == "", "P09 riscritto un commit pubblicato"
+    con_lab(prova, repo)
+
+
+def test_p10(repo: Path) -> None:
+    # Il sync fra le macchine della persona non è un aggiornamento di Arturo: non sposta niente.
+    def prova(lab: Lab) -> None:
+        lab.git(lab.utente, "fetch", "-q", "origin")
+        applica = repo / "bin" / "aggiorna-applica.sh"
+        r = subprocess.run(["bash", str(applica), str(lab.utente), "sync", "origin/main"], cwd=str(lab.utente), env=lab.env,
+                           capture_output=True, text=True, timeout=120)
+        assert "SEPARATO" not in r.stdout and not (lab.utente / "personale" / "inizio.md").exists(), \
+            f"P10 il sync sposta i comandi: {r.stdout[-300:]!r}"
+        assert "Poi la tabella dei miei progetti" in read(lab.utente / "commands" / "inizio.md"), "P10 il sync ha toccato /inizio"
+        # Il sync va in conflitto su /inizio e lascia la copia di prova: si scarta, come farebbe la persona.
+        subprocess.run(["bash", str(applica), str(lab.utente), "scarta"], cwd=str(lab.utente), env=lab.env,
+                       capture_output=True, timeout=120)
+        # Lo stesso comando con un aggiornamento vero sposta: il controllo sopra non è verde per caso.
+        _aggiorna_senza_passi(lab, repo, "P10")
+    con_lab(prova, repo)
 
 
 TESTS: Dict[str, Callable[[Path], None]] = {
     "P01": test_p01, "P02": test_p02, "P03": test_p03, "P04": test_p04, "P05": test_p05, "P06": test_p06,
-    "P07": test_p07,
+    "P07": test_p07, "P08": test_p08, "P09": test_p09, "P10": test_p10,
 }
 
 
