@@ -70,7 +70,10 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   stessa installazione, il segno che Arturo intralcia. Poi il Worker cancella gli eventi più vecchi
   di 12 mesi.
 - **Le segnalazioni.** Ogni segnalazione di `/segnala` col canale `arturo` arriva per email,
-  con l'oggetto `[Arturo] [tipo] …`, e resta in D1. Quelle aperte da GitHub sono issue con il titolo
+  con l'oggetto `[Arturo] [tipo] …`, e resta in D1. Arriva anche come messaggio Telegram.
+- **Le installazioni nuove.** Il primo lotto di eventi da un id mai visto manda un messaggio
+  Telegram: id abbreviato, versione e sistema. Telegram parte solo se il Worker ha i secret
+  `TELEGRAM_TOKEN` e `TELEGRAM_CHAT`. Quelle aperte da GitHub sono issue con il titolo
   `[problema]`, `[proposta]` o `[integrazione]`.
 - **Le query.** Da `server/`, con wrangler autenticato:
 

@@ -10,6 +10,10 @@ export function archivio(db) {
         : await db.prepare("SELECT COUNT(*) AS n FROM eventi WHERE ricevuto_giorno = ?").bind(giorno).first();
       return r ? r.n : 0;
     },
+    // Vero se dall'installazione non è mai arrivato niente: è la prima volta che Arturo gira lì.
+    async installazioneNuova(installazione) {
+      return !(await db.prepare("SELECT 1 AS x FROM eventi WHERE installazione = ? LIMIT 1").bind(installazione).first());
+    },
     async scriviEventi(righe, ricevuto) {
       const giorno = ricevuto.slice(0, 10);
       const insert = db.prepare(

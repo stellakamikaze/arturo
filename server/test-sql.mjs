@@ -92,6 +92,12 @@ const casi = {
     const giorno = await a.riepilogo("2026-10-11", "2026-10-12");
     assert.equal(giorno.migliorare, null, "Q05 «Dove migliorare» nel recap del giorno");
   },
+  // Installazione nuova: vera solo finché dall'id non è arrivato niente (l'avviso Telegram parte una volta).
+  async Q06() {
+    const a = await con([["2026-10-12", "aaaaaaaa", "sessione"]]);
+    assert.equal(await a.installazioneNuova("aaaaaaaa"), false, "Q06 un'installazione già vista risulta nuova");
+    assert.equal(await a.installazioneNuova("bbbbbbbb"), true, "Q06 un'installazione mai vista non risulta nuova");
+  },
 };
 
 for (const caso of Object.values(casi)) await caso();

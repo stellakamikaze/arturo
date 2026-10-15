@@ -7,8 +7,9 @@ const VUOTO = { installazioni: 0, sessioni: 0, versioni: [], sistemi: [], comand
   guardieFrequenti: null, segnalazioni: 0 };
 
 function finti(riepilogo = null) {
-  const stato = { eventi: [], segnalazioni: [], email: [], contatori: {}, chiavi: {}, pulito: null, finestre: [], opzioni: [] };
+  const stato = { eventi: [], segnalazioni: [], email: [], avvisi: [], contatori: {}, chiavi: {}, pulito: null, finestre: [], opzioni: [] };
   const archivio = {
+    async installazioneNuova(inst) { return !stato.eventi.some((e) => e.installazione === inst); },
     async contaEventi(inst, giorno) {
       return stato.eventi.filter((e) => e.ricevuto === giorno && (!inst || e.installazione === inst)).length;
     },
@@ -37,7 +38,8 @@ function finti(riepilogo = null) {
     async pulisci(prima) { stato.pulito = prima; },
   };
   const posta = async (m) => { stato.email.push(m); };
-  return { stato, archivio, posta };
+  const avviso = async (t) => { stato.avvisi.push(t); };
+  return { stato, archivio, posta, avviso };
 }
 
 const adesso = new Date("2026-10-13T10:00:00Z");
@@ -280,6 +282,25 @@ const casi = {
     const g = finti();
     await giornaliero({ ...g, adesso });
     assert.doesNotMatch(g.stato.email[0].testo, /DOVE MIGLIORARE/, "V19 la sezione nel recap del giorno");
+  },
+  async V20() {
+    // Un avviso Telegram per ogni installazione nuova e per ogni segnalazione, mai per i lotti successivi.
+    const f = finti();
+    await gestisci(post("/v1/eventi", lotto([{ evento: "sessione", valore: "" }])), { ...f, adesso });
+    await gestisci(post("/v1/eventi", lotto([{ evento: "comando", valore: "fine" }])), { ...f, adesso });
+    assert.equal(f.stato.avvisi.length, 1, "V20 l'installazione nuova va avvisata una volta sola");
+    assert.match(f.stato.avvisi[0], /^Arturo: installazione nuova \(1b2c3d4e\) · v2026-10-13 · Darwin$/, "V20 testo dell'avviso di installazione");
+    await gestisci(post("/v1/eventi", lotto([{ evento: "sessione", valore: "" }], { installazione: "99999999-zzzz" })), { ...f, adesso });
+    assert.equal(f.stato.avvisi.length, 2, "V20 una seconda installazione non viene avvisata");
+    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "Il setup si ferma", testo: "Alla fase 2 esce un errore.", versione: "v2026-10-13", sistema: "Darwin" }), { ...f, adesso });
+    assert.equal(f.stato.avvisi.length, 3, "V20 la segnalazione non viene avvisata");
+    assert.match(f.stato.avvisi[2], /segnalazione n\. 1 \(problema\)[\s\S]*Il setup si ferma[\s\S]*Alla fase 2/, "V20 testo dell'avviso di segnalazione");
+    // Un avviso che non parte non deve far perdere eventi o segnalazioni.
+    const g = finti();
+    const rotto = async () => { throw new Error("Telegram giù"); };
+    const r = await gestisci(post("/v1/eventi", lotto([{ evento: "sessione", valore: "" }])), { ...g, avviso: rotto, adesso });
+    assert.equal(r.status, 202, "V20 un avviso fallito fa fallire la richiesta");
+    assert.equal(g.stato.eventi.length, 1, "V20 un avviso fallito fa perdere l'evento");
   },
 };
 

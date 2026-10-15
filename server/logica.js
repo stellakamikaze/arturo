@@ -271,7 +271,27 @@ function stessoToken(dato, atteso) {
   return diverso === 0;
 }
 
-export async function gestisci(request, { archivio, posta, adesso = new Date(), token }) {
+// Gli avvisi su Telegram a chi mantiene Arturo: un'installazione nuova, una segnalazione. Il testo non porta
+// niente più di quello che il server già salva (installazione abbreviata, versione, sistema, titolo).
+export function avvisoInstallazione(riga) {
+  return `Arturo: installazione nuova (${riga.installazione.slice(0, 8)}) · ${riga.versione} · ${riga.sistema}`;
+}
+
+export function avvisoSegnalazione(s, numero) {
+  const titolo = s.titolo.replace(/^\[(problema|proposta|integrazione)\]\s*/i, "");
+  const testo = s.testo.length > 600 ? s.testo.slice(0, 600) + "…" : s.testo;
+  return `Arturo: segnalazione n. ${numero} (${s.tipo}) · ${s.versione || "?"} · ${s.sistema}\n${titolo}\n\n${testo}`;
+}
+
+async function avvisa(avviso, testo) {
+  try {
+    await avviso(testo);
+  } catch (e) {
+    console.log("avviso non partito", e && e.message);
+  }
+}
+
+export async function gestisci(request, { archivio, posta, avviso = async () => {}, adesso = new Date(), token }) {
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/") {
     return new Response("Arturo: qui arrivano eventi d'uso, con un id casuale e senza contenuti, e segnalazioni. Codice: https://github.com/stellakamikaze/arturo/tree/main/server\n",
@@ -298,7 +318,9 @@ export async function gestisci(request, { archivio, posta, adesso = new Date(), 
     if (await archivio.contaEventi(null, giorno) + righe.length > LIMITI.eventiTotaliPerGiorno) {
       return risposta(429, { errore: "server pieno per oggi" });
     }
+    const nuova = await archivio.installazioneNuova(righe[0].installazione);
     await archivio.scriviEventi(righe, adesso.toISOString());
+    if (nuova) await avvisa(avviso, avvisoInstallazione(righe[0]));
     // Una config rotta arriva subito per email: una sola al giorno per installazione.
     const rotta = righe.find((x) => x.evento === "config");
     if (rotta && await archivio.primaVolta(giorno, `rotta:${rotta.installazione}`) && await archivio.prendiEmail(giorno, LIMITI.emailPerGiorno)) {
@@ -320,6 +342,7 @@ export async function gestisci(request, { archivio, posta, adesso = new Date(), 
       return risposta(429, { errore: "troppe segnalazioni oggi" });
     }
     const numero = await archivio.salvaSegnalazione(segnalazione, adesso.toISOString());
+    await avvisa(avviso, avvisoSegnalazione(segnalazione, numero));
     let email = false;
     if (await archivio.prendiEmail(giorno, LIMITI.emailPerGiorno)) {
       try {

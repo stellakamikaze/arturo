@@ -20,7 +20,7 @@ L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi p
 |------|---------|
 | `logica.js` | Validazione, tetti, testo delle email, recap e riepilogo, ritenzione. Niente Cloudflare dentro. |
 | `archivio.js` | Le query su D1, compresa «Dove migliorare Arturo». |
-| `worker.js` | Collega `logica.js` e `archivio.js` a D1 (`env.DB`) e all'invio email (`env.POSTA`). |
+| `worker.js` | Collega `logica.js` e `archivio.js` a D1 (`env.DB`), all'invio email (`env.POSTA`) e a Telegram. |
 | `schema.sql` | Le tre tabelle: `eventi`, `segnalazioni`, `contatori`. |
 | `wrangler.toml` | La config del Worker, con segnaposto al posto dei valori veri. |
 | `test.mjs` | Il banco: `node server/test.mjs` prova `logica.js` con un archivio e una posta finti. |
@@ -28,6 +28,9 @@ L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi p
 
 ## Le email
 
+- **Su Telegram**, se il Worker ha i secret `TELEGRAM_TOKEN` e `TELEGRAM_CHAT`: un messaggio per ogni
+  installazione nuova (il primo lotto da un id mai visto) e per ogni segnalazione. Il testo porta solo
+  quello che il server già salva. Senza i secret non parte niente.
 - **Ogni segnalazione** arriva come email, con l'oggetto `[Arturo] [tipo] titolo`. Il tetto è
   di 40 email al giorno: oltre, la segnalazione resta in D1 senza email.
 - **Ogni mattina alle 8** (06:00 UTC) arriva il recap del giorno prima, solo se quel giorno ci
