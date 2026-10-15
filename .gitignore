@@ -103,3 +103,7 @@ plugins/cache/
 plugins/marketplaces/
 skills/.trash/
 skills/synced/
+
+# Worktree delle sessioni Claude Code (anche node_modules in symlink, senza barra)
+.claude/worktrees/
+node_modules
