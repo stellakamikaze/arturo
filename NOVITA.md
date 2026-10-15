@@ -41,7 +41,10 @@ task in corso, e il suono parte solo quando Claude aspetta te.
 correzioni arrivano dalla config dell'autore, dove giravano da settimane.
 
 **Da sapere**: se usavi `bw get` senza conferma, ora Claude te la chiede ogni volta. È voluto: la
-password finirebbe nella conversazione.
+password finirebbe nella conversazione. Gli allow larghi (`python3`, `curl`, `docker`, `brew`)
+escono: nella modalità auto decide il controllo di sicurezza di Claude Code, che ora riceve
+istruzioni chiare su cosa è lavoro normale (script di prova, pulizia dei rami già uniti, commit nei
+tuoi repository). I comandi di sola lettura (`ls`, `cat`, `git status`…) restano liberi.
 
 ## 2026-10-14 — Arturo convive con la tua config
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""K01-K10: revisione della config del 15/10/2026, buchi chiusi rispetto alla config dell'autore.
+"""K01-K11: revisione della config del 15/10/2026, buchi chiusi rispetto alla config dell'autore.
 
 K01 il gate dei commit parte dal dispatcher anche con un commit a capo, `git -c`, `env`, una
     subshell, `--no-pager` e una cartella in variabile.
@@ -15,6 +15,8 @@ K08 `rsync --delete` in dry-run o dentro un heredoc non eseguito non chiede più
 K09 il suono delle notifiche parte solo quando Claude aspetta la persona.
 K10 due stili di scrittura (Guida, Conciso) con le istruzioni da programmatore, Guida di partenza,
     e /setup fa scegliere fra questi e i tre di Claude Code.
+K11 niente allow larghi che saltano il classificatore, autoMode generale senza dati personali,
+    divieti per Windows e file di lavoro di Claude Code fuori da git.
 
 Sulla base 842b06f ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -219,8 +221,27 @@ def test_k10(repo: Path) -> None:
         "K10 /setup non fa scegliere lo stile"
 
 
+def test_k11(repo: Path) -> None:
+    d = impostazioni(repo)
+    p = d["permissions"]
+    for voce in ("Bash(python3:*)", "Bash(curl:*)", "Bash(docker:*)", "Bash(export:*)"):
+        assert voce not in p["allow"], f"K11 {voce} salta ancora il classificatore della modalità auto"
+    for voce in ("Bash(git status:*)", "Bash(cat:*)", "Bash(grep:*)"):
+        assert voce in p["allow"], f"K11 manca il comando di sola lettura {voce}"
+    assert "Bash(format C:\\*)" in p["deny"], "K11 mancano i divieti per Windows"
+    am = d.get("autoMode") or {}
+    assert any("scratchpad" in x for x in am.get("allow", [])), "K11 nessuna istruzione al classificatore sullo scratchpad"
+    assert "$defaults" in am.get("soft_deny", []), "K11 soft_deny senza i default di Claude Code"
+    testo = json.dumps(am)
+    for parola in ("ts.net", "/Users/", "C:\\\\Users"):
+        assert parola not in testo, f"K11 autoMode con un riferimento personale: {parola}"
+    ignorati = (repo / ".gitignore").read_text(encoding="utf-8")
+    for voce in ("*-unlock-*", "paste-cache/", "data/browser-profile*/"):
+        assert voce in ignorati, f"K11 .gitignore senza {voce}"
+
+
 TESTS = {"K01": test_k01, "K02": test_k02, "K03": test_k03, "K04": test_k04, "K05": test_k05,
-         "K06": test_k06, "K07": test_k07, "K08": test_k08, "K09": test_k09, "K10": test_k10}
+         "K06": test_k06, "K07": test_k07, "K08": test_k08, "K09": test_k09, "K10": test_k10, "K11": test_k11}
 
 
 def main() -> int:

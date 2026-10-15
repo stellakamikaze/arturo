@@ -68,3 +68,34 @@ hooks/hosts-interni.local
 # della persona (skills/dafare): li rigenera a ogni caricamento, non sono di Arturo.
 skills/*/.claude-plugin/types/
 skills/*/tsconfig.json
+
+# File di lavoro che Claude Code crea in ~/.claude (15/10/2026): non sono config
+*-unlock-*
+*.bak-*
+*.swo
+Thumbs.db
+.cc-writes/
+.last-cleanup
+.playwright-cli/
+/tasks/
+bridge-spawn/
+channels/
+chrome/
+daemon/
+daemon.*
+image-cache/
+paste-cache/
+jobs/
+uploads/
+usage-data/
+state/
+worktrees/
+mcp-needs-auth-cache.json
+data/browser-profile*/
+data/logs/
+data/statusline/
+plugins/cache/
+plugins/marketplaces/
+skills/.trash/
+skills/synced/
+tools/scrapling/.venv/
