@@ -126,4 +126,4 @@ mod: `/plugin`, poi il mod, poi disattiva.
 - Il controllo dei token gws del vecchio hook di avvio: in Arturo lo fa `cache-fredda` dopo
   l'avvio e ogni 6 ore, sugli account trovati in `~/.config/gws*` che hanno fatto il login.
 - Posta, recap e anteprima come skill operative: in Arturo sono solo esempi dello strato, senza
-  account, copie, NocoDB o nomi.
+  account, copie, database dei task o nomi.
