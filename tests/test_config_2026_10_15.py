@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""K01-K09: revisione della config del 15/10/2026, buchi chiusi rispetto alla config dell'autore.
+"""K01-K10: revisione della config del 15/10/2026, buchi chiusi rispetto alla config dell'autore.
 
 K01 il gate dei commit parte dal dispatcher anche con un commit a capo, `git -c`, `env`, una
     subshell, `--no-pager` e una cartella in variabile.
@@ -13,6 +13,8 @@ K06 la statusline legge i task nativi in tasks/session-<id>/.
 K07 `sed … ; for w in …` non chiede più conferma, `sed 'w file'` sì.
 K08 `rsync --delete` in dry-run o dentro un heredoc non eseguito non chiede più conferma.
 K09 il suono delle notifiche parte solo quando Claude aspetta la persona.
+K10 due stili di scrittura (Guida, Conciso) con le istruzioni da programmatore, Guida di partenza,
+    e /setup fa scegliere fra questi e i tre di Claude Code.
 
 Sulla base 842b06f ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -198,8 +200,27 @@ def test_k09(repo: Path) -> None:
         f"K09 il suono parte su ogni notifica (matcher {matcher!r})"
 
 
+def test_k10(repo: Path) -> None:
+    cartella = repo / "output-styles"
+    nomi = {}
+    for file in sorted(cartella.glob("*.md")) if cartella.is_dir() else []:
+        testo = file.read_text(encoding="utf-8")
+        assert testo.startswith("---\n"), f"K10 {file.name} senza frontmatter"
+        testa = testo.split("---\n", 2)[1]
+        campi = dict(r.split(":", 1) for r in testa.strip().splitlines() if ":" in r)
+        assert campi.get("keep-coding-instructions", "").strip() == "true", \
+            f"K10 {file.name} toglie le istruzioni da programmatore"
+        nomi[campi.get("name", "").strip()] = file.name
+    assert {"Guida", "Conciso"} <= set(nomi), f"K10 mancano gli stili di Arturo: trovati {sorted(nomi)}"
+    scelto = impostazioni(repo).get("outputStyle")
+    assert scelto in nomi, f"K10 outputStyle {scelto!r} non è uno stile di Arturo"
+    setup = (repo / "commands" / "setup.md").read_text(encoding="utf-8")
+    assert "Stile di scrittura" in setup and all(n in setup for n in ("Guida", "Conciso", "Explanatory", "Learning")), \
+        "K10 /setup non fa scegliere lo stile"
+
+
 TESTS = {"K01": test_k01, "K02": test_k02, "K03": test_k03, "K04": test_k04, "K05": test_k05,
-         "K06": test_k06, "K07": test_k07, "K08": test_k08, "K09": test_k09}
+         "K06": test_k06, "K07": test_k07, "K08": test_k08, "K09": test_k09, "K10": test_k10}
 
 
 def main() -> int:

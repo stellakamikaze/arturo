@@ -11,6 +11,20 @@ modo di lavorare.
 
 ---
 
+## 2026-10-15 — Scegli come ti scrive Claude
+
+**Cosa cambia**: Arturo porta due stili di scrittura. **Guida**, lo stile di partenza, scrive frasi
+semplici, senza gergo, e dice prima l'esito e poi cosa devi fare tu. **Conciso** è per chi usa Claude
+ogni giorno e vuole leggere poco. `/setup` ha una fase nuova per scegliere fra questi due e i tre
+di Claude Code (Default, Explanatory, Learning). Lo cambi quando vuoi con `/output-style`.
+
+**Il principio dietro**: lo stile standard di Claude Code è scritto per chi sviluppa software. Chi
+usa Claude per scrivere, cercare e ordinare il lavoro merita risposte pensate per lui.
+
+**Da sapere**: dopo questo aggiornamento le risposte arrivano nello stile Guida, dalla sessione
+successiva. Lo stile cambia solo la scrittura: permessi e guardie restano gli stessi. Se vuoi uno
+stile tuo, crealo in `~/.claude/output-styles/` con un nome nuovo: nessun aggiornamento lo tocca.
+
 ## 2026-10-15 — Guardie più strette dove servono, meno allarmi dove non servono
 
 **Cosa cambia**: Claude chiede conferma prima di leggere una password con `bw get`, di aprire un

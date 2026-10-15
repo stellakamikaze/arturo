@@ -115,7 +115,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 
 Poi apri Claude Code dentro la cartella: `cd ~/.claude && claude`, e scrivi `/setup`.
 
-Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `docs/`, `templates/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono a `/sparring`, `/novita` e `/inizio gws`; `templates/` serve a `/strato`).
+Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/`, `docs/`, `templates/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono a `/sparring`, `/novita` e `/inizio gws`; `templates/` serve a `/strato`).
 
 > **Il tuo remote.** Il clone qui sopra punta al repo originale, su cui non hai accesso in scrittura. `/fine` salva i commit sulla tua macchina e non prova a pusharli. Se vuoi **sincronizzare le tue modifiche tra più macchine**, crea un tuo repo privato e puntaci `origin`:
 > ```bash
@@ -170,7 +170,7 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 
 | Di Arturo (arriva con gli aggiornamenti) | Tuo (nessun aggiornamento lo tocca) |
 |---|---|
-| `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `docs/`, `templates/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `personale/` (le tue aggiunte ai comandi di Arturo), `hooks/hosts-interni.local`, `data/` (compresi i tuoi todo in `data/todo/`), `projects/` e le altre cartelle di lavoro |
+| `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `output-styles/` (gli stili di Arturo; uno tuo con un nome nuovo resta tuo), `docs/`, `templates/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `personale/` (le tue aggiunte ai comandi di Arturo), `hooks/hosts-interni.local`, `data/` (compresi i tuoi todo in `data/todo/`), `projects/` e le altre cartelle di lavoro |
 
 `settings.json` è di Arturo, ma le tue modifiche restano come commit locali. `/aggiorna` ti mostra i file cambiati sia da te sia dall'aggiornamento prima di applicare. Se nella copia di prova `settings.json` non è JSON valido o resta un conflitto, l'aggiornamento non arriva in `~/.claude`: un `settings.json` rotto spegnerebbe tutte le guardie. L'avvio della sessione te lo segnala con una riga `CONFIG ROTTA`.
 
@@ -233,6 +233,7 @@ server/              Il server della telemetria e delle segnalazioni (Cloudflare
 commands/            13 slash command di workflow (incl. /setup, /aggiorna, /guidami, /novita, /strato, /segnala)
 agents/              9 subagent specializzati
 skills/              5 skill (+ regole condivise in shared/)
+output-styles/       Due stili di scrittura: Guida (di partenza) e Conciso (si sceglie in /setup)
 docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/esercizi.md     Gli esercizi del percorso a tappe (/percorso)
 docs/onboarding/     Guide di setup guidato (/inizio gws)
