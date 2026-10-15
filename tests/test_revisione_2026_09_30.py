@@ -78,13 +78,14 @@ def casi_guardie(repo: Path, nome: str, casi: dict, shell: str = "/bin/bash") ->
 
 
 def test_r09(repo: Path) -> None:
-    """Invii che la guardia non vedeva: gws gmail +send, drafts send, filtri, mail <indirizzo>, mailto:."""
+    """Invii che la guardia non vedeva: gws gmail +send, drafts send, filtri, mail <indirizzo>, mailto:.
+    Dal 15/10/2026 comms-guard chiede conferma (ask) invece di bloccare."""
     casi_guardie(repo, "R09", {
-        "gws gmail +send --to a@example.com --subject ciao --body testo": "deny",
-        "gws gmail users drafts send --params '{\"userId\":\"me\"}'": "deny",
-        "gws gmail users settings filters create --json '{}'": "deny",
-        "mail pippo@example.com < lettera.txt": "deny",
-        "open 'mailto:pippo@example.com?subject=ciao'": "deny",
+        "gws gmail +send --to a@example.com --subject ciao --body testo": "ask",
+        "gws gmail users drafts send --params '{\"userId\":\"me\"}'": "ask",
+        "gws gmail users settings filters create --json '{}'": "ask",
+        "mail pippo@example.com < lettera.txt": "ask",
+        "open 'mailto:pippo@example.com?subject=ciao'": "ask",
         "gws gmail users drafts create --json '{}'": "nessuna",
         "gws gmail users messages list --params '{}'": "nessuna",
     })
