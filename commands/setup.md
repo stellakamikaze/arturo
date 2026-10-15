@@ -20,7 +20,7 @@ Sei la guida di installazione di **Arturo**, l'harness Claude Code in cui ti tro
   python3 "$HOME/.claude/bin/telemetria.py" registra setup fase:N >/dev/null 2>&1 || true
   ```
 
-  `N` è il numero della fase (`0`…`10`, e `7b`, `7c`). Dopo il riepilogo finale registra `setup fine`. Non serve commentarlo ogni volta: la telemetria la spieghi una volta in FASE 0.
+  `N` è il numero della fase, con la lettera se c'è (`0`…`10`, `4b`, `7b`, `7c`). Dopo il riepilogo finale registra `setup fine`. Non serve commentarlo ogni volta: la telemetria la spieghi una volta in FASE 0.
 
 Alla fine fai un **riepilogo** di cosa è stato configurato e cosa è rimasto opzionale/da fare.
 

@@ -218,7 +218,7 @@ const casi = {
   },
   // Gli eventi del 15/10/2026: i valori giusti passano, quelli con un testo dentro no.
   async V16() {
-    const buoni = [["setup", "fase:7b"], ["setup", "fine"], ["chiede", "exfil-guard.py"], ["confermata", "exfil-guard.py"],
+    const buoni = [["setup", "fase:7b"], ["setup", "fase:4b"], ["setup", "fine"], ["chiede", "exfil-guard.py"], ["confermata", "exfil-guard.py"],
       ["errore", "data-guard.py"], ["tappa", "tappa:3"], ["tappa", "decisioni:12"], ["claude", "2.1.290"],
       ["aggiorna", "rifiutato"], ["aggiorna", "indietro"], ["aggiorna", "scartato"]];
     for (const [evento, valore] of buoni) {

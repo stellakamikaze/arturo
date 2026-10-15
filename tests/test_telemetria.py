@@ -296,8 +296,13 @@ def test_m12(repo: Path) -> None:
     for evento, valore in cattivi:
         lab.arturo("telemetria", "registra", evento, valore)
     assert len(lab.coda()) == prima, f"M12 entra un valore fuori regola: {lab.coda()[prima:]}"
-    lab.arturo("telemetria", "registra", "setup", "fase:7b")
-    assert lab.coda()[-1]["valore"] == "fase:7b", "M12 una fase valida di /setup non entra"
+    # Ogni fase vera di /setup (con la lettera, come 4b) deve passare: una fase nuova non va persa.
+    fasi = re.findall(r"^## FASE (\w+) ", read(repo / "commands" / "setup.md"), re.M)
+    assert len(fasi) >= 11, f"M12 fasi di /setup non trovate: {fasi}"
+    for fase in fasi:
+        lab.arturo("telemetria", "registra", "setup", f"fase:{fase}")
+    entrate = [e["valore"] for e in lab.coda() if e["evento"] == "setup"]
+    assert entrate == [f"fase:{f}" for f in fasi], f"M12 una fase di /setup non entra: {set(fasi) - {e[5:] for e in entrate}}"
     spenta = Lab(repo, ARTURO_TELEMETRIA="0")
     spenta.hook("session-start.sh")
     assert spenta.coda() == [], f"M12 a telemetria spenta le tappe si registrano: {spenta.coda()}"

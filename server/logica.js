@@ -22,7 +22,7 @@ export const EVENTI = {
   deriva: /^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|hooks|server|shared|skills|templates|tests|\.github)\/[A-Za-z0-9_.\/-]{1,70}|[A-Za-z0-9_.-]{1,40}))$/,
   config: /^rotta-(settings|conflitto|rebase)$/,
   // Dal 15/10/2026, per il miglioramento di Arturo. In coda, nello stesso ordine di bin/telemetria.py.
-  setup: /^(fase:(10|[0-9]|7b|7c)|fine)$/,
+  setup: /^(fase:(10|[0-9][a-c]?)|fine)$/,
   chiede: /^[a-z0-9_.-]{1,60}$/,
   confermata: /^[a-z0-9_.-]{1,60}$/,
   errore: /^[a-z0-9_.-]{1,60}$/,

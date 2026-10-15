@@ -65,7 +65,7 @@ EVENTI = {
                          r"|skills|templates|tests|\.github)/[A-Za-z0-9_./-]{1,70}|[A-Za-z0-9_.-]{1,40}))$"),
     "config": re.compile(r"^rotta-(settings|conflitto|rebase)$"),
     # Dal 15/10/2026, per il miglioramento di Arturo. In coda: l'ordine è lo stesso del server (M09).
-    "setup": re.compile(r"^(fase:(10|[0-9]|7b|7c)|fine)$"),
+    "setup": re.compile(r"^(fase:(10|[0-9][a-c]?)|fine)$"),
     "chiede": re.compile(r"^[a-z0-9_.-]{1,60}$"),
     "confermata": re.compile(r"^[a-z0-9_.-]{1,60}$"),
     "errore": re.compile(r"^[a-z0-9_.-]{1,60}$"),
