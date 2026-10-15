@@ -22,6 +22,8 @@ data/todo/*.lock
 data/segnalazioni/
 # La coda della telemetria (bin/telemetria.py).
 data/telemetria/
+# L'interruttore e le cartelle della memoria facoltativa (bin/memoria.py): restano su questo computer.
+data/memoria/
 .credentials.json
 
 # Runtime Claude Code (generato localmente)
