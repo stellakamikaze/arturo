@@ -529,10 +529,65 @@ def test_g211(repo: Path) -> None:
             "G211 il ramo memoria segue un link simbolico verso gli hook"
 
 
+def test_g212(repo: Path) -> None:
+    hook_path = repo / "hooks" / "typecheck-after-edit.py"
+    assert hook_path.exists(), "G212 hooks/typecheck-after-edit.py assente"
+    with tempfile.TemporaryDirectory() as d:
+        progetto = Path(d) / "sito"
+        (progetto / "src").mkdir(parents=True)
+        (progetto / "node_modules" / ".bin").mkdir(parents=True)
+        (progetto / "package.json").write_text(json.dumps({"scripts": {"build": "vue-tsc -b && vite build"}}),
+                                               encoding="utf-8")
+        (progetto / "tsconfig.json").write_text("{}", encoding="utf-8")
+        finto = progetto / "node_modules" / ".bin" / "vue-tsc"
+        finto.write_text("#!/bin/sh\nif grep -q ROTTO src/*.ts; then echo 'src/a.ts(1,7): error TS2322: tipo'; "
+                         "exit 2; fi\nexit 0\n", encoding="utf-8")
+        finto.chmod(0o755)
+        sorgente = progetto / "src" / "a.ts"
+
+        def dopo(path: Path) -> subprocess.CompletedProcess:
+            return subprocess.run([sys.executable, "-B", str(hook_path)], text=True, capture_output=True, timeout=60,
+                                  input=json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(path)}}),
+                                  env=env_di(Path(d)))
+
+        sorgente.write_text("const x: number = 'ROTTO'\n", encoding="utf-8")
+        p = dopo(sorgente)
+        assert p.returncode == 2 and "TS2322" in p.stderr and "TYPECHECK ROSSO" in p.stderr, \
+            f"G212 l'errore di tipo non torna a Claude: rc={p.returncode} {p.stderr[:200]!r}"
+        sorgente.write_text("const x: number = 1\n", encoding="utf-8")
+        p = dopo(sorgente)
+        assert p.returncode == 0 and not p.stderr.strip(), f"G212 type-check verde che parla: {p.stderr!r}"
+        nota = progetto / "README.md"
+        nota.write_text("ROTTO\n", encoding="utf-8")
+        sorgente.write_text("ROTTO\n", encoding="utf-8")
+        assert dopo(nota).returncode == 0, "G212 un file non TS fa partire il type-check"
+        assert dopo(progetto / "node_modules" / "x" / "b.ts").returncode == 0, "G212 un file in node_modules lo fa partire"
+        finto.unlink()
+        p = dopo(sorgente)
+        assert p.returncode == 0 and "npm install" in p.stderr, "G212 senza vue-tsc installato non tace o non spiega"
+
+
+def test_g213(repo: Path) -> None:
+    hook_path = repo / "hooks" / "bozze-mcp-auto-approve.py"
+    assert hook_path.exists(), "G213 hooks/bozze-mcp-auto-approve.py assente"
+
+    def esito(nome: str) -> str:
+        return decisione(subprocess.run([sys.executable, "-B", str(hook_path)], text=True, capture_output=True,
+                                        input=json.dumps({"tool_name": nome, "tool_input": {}}), timeout=30))
+
+    for nome in ("mcp__claude_ai_Slack__slack_send_message_draft", "mcp__claude_ai_Gmail__create_draft",
+                 "mcp__posta__update_draft"):
+        assert esito(nome) == "allow", f"G213 la bozza chiede conferma: {nome}"
+    for nome in ("mcp__posta__send_draft", "mcp__posta__drafts_send", "mcp__claude_ai_Gmail__delete_draft",
+                 "mcp__blog__publish_draft", "mcp__posta__send_message", "mcp__posta__create_draft_and_send",
+                 "mcp__posta__schedule_draft", "mcp__posta__send_all_drafts", "Bash"):
+        assert esito(nome) == "silent", f"G213 un'azione su una bozza riceve l'allow: {nome}"
+
+
 TESTS = {"G201": test_g201, "G202": test_g202, "G203": test_g203, "G204": test_g204, "G205": test_g205,
          "G206": test_g206, "G207": test_g207, "G208": test_g208,
          "G209": test_g209, "G210": test_g210,
-         "G211": test_g211}
+         "G211": test_g211, "G212": test_g212, "G213": test_g213}
 
 
 def main() -> int:
