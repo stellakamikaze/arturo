@@ -65,7 +65,10 @@ DANGEROUS = [
     (r"\b(bash|sh|zsh|fish|python3?|perl|ruby|node)\b\s+-c\s+[\"']?\$\(\s*(curl|wget|fetch)\b",
      "interprete -c su output di download remoto"),
     (r"\bsudo\s+rm\s+-rf?\s+(/|~|\$HOME|\*)", "rm ricorsivo con sudo su root/home/wildcard"),
-    (r"\bbw(?:\s+--[^\s]+)*\s+export\b", "export dell'intera vault Bitwarden in chiaro"),
+    # `bw export` anche con opzioni e valori davanti (`bw --session X export`).
+    # `--help` non esporta niente: resta libero.
+    (r"\bbw\b(\s+-[-\w]+(\s+[^\s-][^\s]*)?)*\s+export\b(?!\s+(--help|-h)\b)",
+     "export dell'intera vault Bitwarden in chiaro"),
 ]
 
 # --- Scrittura su config/hook di Claude Code -> ask ---
@@ -128,7 +131,7 @@ SECRET_PATH_RE = re.compile(
 _READ_BINS = frozenset(
     "cat head tail less more bat xxd od strings base64 nl cut awk sed "
     "cp scp rsync dd open grep perl ruby python python3 tac rev mapfile "
-    "nc ncat socat gpg tar zip".split()
+    "nc ncat socat gpg tar zip curl wget".split()
 )
 _ENV_ASSIGN_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _SKIP_WRAPPERS = frozenset(("sudo", "command", "nohup", "caffeinate", "timeout", "env"))
@@ -152,11 +155,92 @@ def _cmd_subst_bodies(command: str):
 
 
 def _reads_secret(command: str) -> bool:
-    cmd = command.replace("\\\n", " ")
+    cmd = _testo_shell(command.replace("\\\n", " "))
     for src in [cmd] + _cmd_subst_bodies(cmd):
         if _reads_secret_flat(src):
             return True
     return False
+
+
+# Interpreti che ESEGUONO il corpo di un heredoc come shell: per questi il corpo
+# resta soggetto ai controlli. Per gli altri (python3, cat, jq...) e' un dato.
+_SHELL_HEREDOC = re.compile(r"\b(bash|sh|zsh|fish|ksh|dash|eval|source|ssh)\b")
+# Lo stesso corpo passato in pipe a una shell dopo il delimitatore: `cat <<'EOF' | bash`.
+_PIPE_SHELL = re.compile(r"\|\s*(?:sudo\s+)?(?:bash|sh|zsh|fish|ksh|dash|eval|source|ssh|xargs)\b")
+_APERTURA_HEREDOC = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+# Valore di -m / --message: git non lo esegue, e un messaggio di commit che CITA
+# un comando non e' quel comando. Restano i messaggi con command-substitution.
+_MESSAGGIO = re.compile(r"(?:^|\s)(?:-m|--message)[= ]\s*(['\"])((?:(?!\1).)*)\1", re.DOTALL)
+
+
+def _testo_shell(command: str) -> str:
+    """Il comando senza il testo che la shell non legge come comandi.
+
+    Toglie il corpo degli heredoc col delimitatore TRA VIRGOLETTE diretti a un
+    comando che non e' una shell (python, cat, tee): la shell non lo espande e non
+    lo esegue, quindi un `cat <segreto>` scritto li' dentro e' testo, non una
+    lettura. Un heredoc senza virgolette resta, perche' la shell ne espande le
+    `$(...)`. Toglie anche i messaggi -m/--message privi di command-substitution.
+    """
+    fuori, fine = [], None
+    for riga in command.split("\n"):
+        if fine is not None:
+            if riga.strip() == fine:
+                fine = None
+            continue
+        apertura = _APERTURA_HEREDOC.search(riga)
+        if apertura and apertura.group(1):
+            prima, dopo = riga.split("<<", 1)
+            if not _SHELL_HEREDOC.search(prima) and not _PIPE_SHELL.search(dopo):
+                fine = apertura.group(2)
+        fuori.append(riga)
+
+    def _svuota(m):
+        corpo = m.group(2)
+        if "$(" in corpo or "`" in corpo:
+            return m.group(0)
+        return m.group(0).replace(corpo, "")
+
+    return _MESSAGGIO.sub(_svuota, "\n".join(fuori))
+
+
+# grep che stampa solo conteggi o nomi di file: nessun contenuto esce.
+_GREP_SOLO_METADATI = re.compile(r"^-[A-Za-z]*[clLq][A-Za-z]*$|^--(count|files-with(out)?-matches?|quiet|silent)$")
+_GREP_OPT_CON_ARG = frozenset(("-A", "-B", "-C", "-m", "-d", "-D", "--context", "--max-count"))
+
+
+def _senza_pattern(binario: str, args: list) -> list:
+    """Toglie il pattern di grep o lo script di sed: e' testo, non un file letto.
+
+    `grep -e P` e `sed -e S` hanno il pattern esplicito, e allora nessun
+    argomento posizionale e' pattern. `grep -f F` e `sed -f F` LEGGONO F: resta.
+    """
+    if binario not in ("grep", "egrep", "fgrep", "rg", "sed"):
+        return args
+    esplicito = ("-e", "--regexp", "--expression")
+    fuori, i, tolto = [], 0, False
+    if any(a in esplicito or a in ("-f", "--file") or a.startswith(("--regexp=", "--expression=", "--file=")) for a in args):
+        tolto = True
+    while i < len(args):
+        a = args[i]
+        if a in esplicito:
+            i += 2
+            continue
+        if binario == "sed" and a == "-i" and i + 1 < len(args) and (args[i + 1] == "" or args[i + 1].startswith(".")):
+            fuori.extend(args[i:i + 2])
+            i += 2
+            continue
+        if a in ("-f", "--file") or (a in _GREP_OPT_CON_ARG and binario != "sed"):
+            fuori.extend(args[i:i + 2])
+            i += 2
+            continue
+        if not tolto and not a.startswith("-"):
+            tolto = True
+            i += 1
+            continue
+        fuori.append(a)
+        i += 1
+    return fuori
 
 
 _SHELLS = frozenset(("sh", "bash", "zsh", "dash", "ksh"))
@@ -199,8 +283,7 @@ def _reads_secret_flat(cmd: str) -> bool:
         return True
     if _lettura_indiretta(cmd):
         return True
-    for seg in re.split(r"[|;&\n]+", cmd):
-        toks = seg.split()
+    for toks in _segmenti_parole(cmd):
         i = 0
         while i < len(toks) and (
             _ENV_ASSIGN_RE.match(toks[i]) or toks[i] in _SKIP_WRAPPERS
@@ -208,12 +291,21 @@ def _reads_secret_flat(cmd: str) -> bool:
             i += 1
         if i >= len(toks):
             continue
-        if os.path.basename(toks[i]) not in _READ_BINS:
+        binario = os.path.basename(toks[i])
+        if binario not in _READ_BINS:
             continue
-        args, j = [], i + 1
-        while j < len(toks):
-            t = toks[j]
-            if t == "-i" and j + 1 < len(toks):
+        # grep -c, -l, -q: stampa conteggi o nomi di file, non il contenuto.
+        if binario in ("grep", "egrep", "fgrep") and any(_GREP_SOLO_METADATI.match(t) for t in toks[i + 1:]):
+            continue
+        parole = _senza_pattern(binario, toks[i + 1:])
+        grep = binario in ("grep", "egrep", "fgrep")
+        args, j = [], 0
+        while j < len(parole):
+            t = parole[j]
+            if t == "-i" and grep:
+                j += 1  # per grep -i e' "ignora maiuscole", senza argomento
+                continue
+            if t == "-i" and j + 1 < len(parole):
                 j += 2  # identita' ssh/scp/rsync (o suffix sed -i: mai un segreto)
                 continue
             if t.startswith("-oIdentityFile=") or t.startswith("IdentityFile="):
@@ -221,14 +313,6 @@ def _reads_secret_flat(cmd: str) -> bool:
                 continue
             args.append(t)
             j += 1
-        # grep: il primo argomento libero e' il testo da cercare, non un file letto.
-        # `grep -rn "credentials.json" .` cerca una parola, non apre un segreto.
-        if os.path.basename(toks[i]) in ("grep", "egrep", "fgrep", "rg") and not any(
-            a in ("-e", "-f", "--regexp", "--file") or a.startswith(("--regexp=", "--file=")) for a in args
-        ):
-            liberi = [k for k, a in enumerate(args) if not a.startswith("-")]
-            if liberi:
-                del args[liberi[0]]
         if any(SECRET_PATH_RE.search(a) for a in args):
             return True
     return False
@@ -273,7 +357,12 @@ def _segmenti_parole(cmd: str):
             segmenti.append(corrente)
         return segmenti
     except ValueError:
-        return [seg.split() for seg in re.split(r"[|;&\n]+", cmd)]
+        def parole(seg):
+            try:
+                return shlex.split(seg)
+            except ValueError:
+                return seg.split()
+        return [parole(seg) for seg in re.split(r"[|;&\n]+", cmd)]
 
 
 def _sed_scrive(command: str) -> bool:
@@ -283,7 +372,7 @@ def _sed_scrive(command: str) -> bool:
     `sed -n 25,50p f; for w in a b` sembrava una scrittura. Dentro una shell
     annidata o un ssh il segmento resta intero e vale la regex di prima.
     """
-    for toks in _segmenti_parole(command):
+    for toks in _segmenti_parole(_testo_shell(command)):
         i = 0
         while i < len(toks) and (_ENV_ASSIGN_RE.match(toks[i]) or toks[i] in _SKIP_WRAPPERS):
             i += 1
@@ -302,13 +391,6 @@ RIGENERABILI = {
     ".turbo", ".parcel-cache", ".cache", "coverage", "__pycache__",
     ".pytest_cache", ".mypy_cache", ".ruff_cache", ".venv", "venv", "target",
 }
-
-# Prefissi che non cambiano il programma eseguito: `sudo rm`, `command rm`, `FOO=1 rm`.
-_PREFISSI = {"sudo", "command", "env", "nohup", "time", "nice", "builtin", "exec",
-             # 9/10/2026: parole chiave e blocchi davanti al programma (review delle guardie)
-             "!", "{", "}", "then", "do", "else", "elif", "if", "while", "until"}
-_ASSEGNAZIONE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
-
 
 def _home():
     return os.path.expanduser("~")
@@ -333,20 +415,55 @@ def _ask(reason):
     return 0
 
 
-_VAR_DEFAULT_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*):-([^}]*)\}")
+# Variabili shell nel target: `${VAR:-default}`, `${VAR}`, `$VAR`.
+_VAR_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(:?[-=])([^}]*)\}|\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)")
+# Assegnazioni nel comando: `X=...`, `export X=... Y=...`. Il valore vale per il
+# comando: `export D=$TMPDIR/prova; rm -rf $D` cancella una cartella temporanea.
+_ASSEGNAZIONE_CMD_RE = re.compile(r"""(?:^|(?<=[\s;&|(]))([A-Za-z_][A-Za-z0-9_]*)=("([^"]*)"|'([^']*)'|[^\s;&|()]*)""")
+_ASSEGNATE = {}
+
+
+def _assegnazioni(command):
+    """Le variabili assegnate nel comando, in ordine (vince l'ultima), col valore grezzo."""
+    out = {}
+    for m in _ASSEGNAZIONE_CMD_RE.finditer(command):
+        grezzo = m.group(3) if m.group(3) is not None else (m.group(4) if m.group(4) is not None else m.group(2))
+        out[m.group(1)] = grezzo
+    return out
+
+
+def _expand_vars(t):
+    """Espande le variabili: prima quelle assegnate nel comando, poi l'ambiente
+    dell'hook (quello della sessione: TMPDIR, HOME...). Restituisce None se resta
+    qualcosa che non si risolve (`$(...)`, backtick, variabile non definita): un
+    path che non si conosce non si giudica come sicuro."""
+    def rep(m):
+        name = m.group(1) or m.group(4) or m.group(5)
+        if name in _ASSEGNATE:
+            val = os.path.expanduser(_ASSEGNATE[name]) if _ASSEGNATE[name].startswith("~") else _ASSEGNATE[name]
+        else:
+            val = _home() if name == "HOME" else os.environ.get(name)
+        if m.group(1):
+            if val is None or (val == "" and m.group(2).startswith(":")):
+                return m.group(3)
+            return val
+        return val if val is not None else m.group(0)
+    for _ in range(3):  # il default puo' contenere a sua volta una variabile (${X:-$HOME/..})
+        t2 = _VAR_RE.sub(rep, t)
+        if t2 == t:
+            break
+        t = t2
+    if "$" in t or "`" in t:
+        return None
+    return t
 
 
 def _resolve(target, cwd):
     t = (target or "").strip().strip('"').strip("'")
     if not t:
         return None
-
-    def default(match):
-        return os.environ.get(match.group(1)) or match.group(2)
-
-    t = _VAR_DEFAULT_RE.sub(default, t)
-    t = t.replace("${HOME}", _home()).replace("$HOME", _home())
-    if "$" in t:
+    t = _expand_vars(t)
+    if t is None:
         return None
     t = os.path.expanduser(t)
     if not os.path.isabs(t):
@@ -477,24 +594,26 @@ def _rigenerabile(p):
     return any(parte in RIGENERABILI for parte in parti)
 
 
-def _programma(toks):
-    """Toglie i prefissi che non cambiano il comando e restituisce (nome, argomenti)."""
-    i = 0
-    while i < len(toks) and (toks[i] in _PREFISSI or _ASSEGNAZIONE_RE.match(toks[i])):
-        i += 1
-    if i >= len(toks):
-        return "", []
-    return os.path.basename(toks[i].lstrip("\\")), toks[i + 1:]
+_FORMA = []
+
+
+def _forma():
+    """forma_comando.py della stessa cartella, caricato per path: funziona anche
+    quando questo file e' importato da un banco."""
+    if _FORMA:
+        return _FORMA[0]
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "forma_comando", os.path.join(os.path.dirname(os.path.abspath(__file__)), "forma_comando.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    _FORMA.append(mod)
+    return mod
 
 
 def _find_delete(command):
     """`find … -delete` e `find … -exec rm` cancellano quanto un rm ricorsivo."""
-    for seg in re.split(r"&&|\|\||;|\||\n", command):
-        try:
-            toks = shlex.split(seg.strip())
-        except Exception:
-            toks = seg.split()
-        nome, args = _programma(toks)
+    for nome, args in _forma().programmi(command):
         if nome != "find":
             continue
         if "-delete" in args:
@@ -505,39 +624,24 @@ def _find_delete(command):
     return False
 
 
-def _rm_segments(command, profondita=0):
+def _rm_segments(command):
     """(bersagli, cd dichiarato) per ogni `rm` ricorsivo; bersagli None per `xargs rm -r`.
 
-    Dal 9/10/2026 conta anche un `rm` in una subshell `( )`, dopo una parola chiave,
-    dentro `sh -c` o `eval`, e dietro `xargs`, i cui bersagli arrivano da stdin.
+    I comandi si leggono con forma_comando.programmi: `rm` col path completo, in
+    una subshell o in un blocco `{ }`, dopo `then`/`do`, dietro un wrapper o dentro
+    `sh -c` ed `eval` e' lo stesso `rm`. Il testo di un heredoc quotato verso python
+    o cat non e' un comando. `xargs rm -r` ha bersagli che arrivano da stdin.
     """
+    forma = _forma()
     out = []
     cwd_decl = None
-    # Newline separa comandi come ; : senza, `git commit\nrm -rf x` nasconderebbe
-    # l'rm in un segmento che inizia con "git" e sfuggirebbe al rilevamento.
-    for seg in re.split(r"&&|\|\||;|\||\n|\(|\)", command):
-        seg = seg.strip()
-        if not seg:
-            continue
-        try:
-            toks = shlex.split(seg)
-        except Exception:
-            toks = seg.split()
-        if not toks:
-            continue
-        if toks[0] == "cd" and len(toks) >= 2:
-            cwd_decl = toks[1]
-            continue
-        nome, args = _programma(toks)
-        if profondita < 3 and nome in _SHELLS and "-c" in args and args.index("-c") + 1 < len(args):
-            out += _rm_segments(args[args.index("-c") + 1], profondita + 1)
-            continue
-        if profondita < 3 and nome == "eval" and args:
-            out += _rm_segments(" ".join(args), profondita + 1)
+    for nome, args in forma.programmi(command):
+        if nome == "cd" and args:
+            cwd_decl = args[0]
             continue
         if nome == "xargs" and "rm" in [os.path.basename(a) for a in args]:
             dopo = args[[os.path.basename(a) for a in args].index("rm") + 1:]
-            if any(a == "--recursive" or (a.startswith("-") and not a.startswith("--") and "r" in a.lower()) for a in dopo):
+            if forma._ricorsivo(dopo):
                 out.append((None, cwd_decl))
             continue
         if nome == "rm":
@@ -579,12 +683,16 @@ def main() -> int:
         return 0
     cwd = data.get("cwd") or _home()
 
+    # Il testo che la shell esegue davvero: senza i corpi degli heredoc quotati
+    # verso python o cat e senza i messaggi -m che citano un comando.
+    testo = _testo_shell(command)
+    _ASSEGNATE.clear()
+    _ASSEGNATE.update(_assegnazioni(command))
+
     # 1) Blocco duro
     if not _inert_reference(command):
         for pattern, why in DANGEROUS:
-            if why.startswith("export dell'intera vault") and re.fullmatch(r"\s*bw(?:\s+--[^\s]+)*\s+export\s+(?:--help|-h)\s*", command):
-                continue
-            if re.search(pattern, command, re.IGNORECASE):
+            if re.search(pattern, testo, re.IGNORECASE):
                 sys.stderr.write(
                     f"Bloccato: questo comando sembra {why}. "
                     "Non proporre all'utente di eseguirlo a mano: per installare un programma "
@@ -594,21 +702,21 @@ def main() -> int:
                 return 2
 
     # 2) Scrittura shell su config/hook di Claude Code -> ask (auto-modifica guardie)
-    if CONFIG_WRITE_RE.search(command) or _writes_config(command, cwd):
+    if CONFIG_WRITE_RE.search(testo) or _writes_config(testo, cwd):
         return _ask(
             "Scrittura via shell su settings/hook di Claude Code: modificherebbe "
             "le guardie stesse. Conferma solo se stai aggiornando la config di proposito."
         )
 
     # 2a) Scrittura shell su un CLAUDE.md -> ask (le istruzioni di ogni sessione futura)
-    if CLAUDE_MD_WRITE_RE.search(command) or _writes_config(command, cwd, _is_claude_md):
+    if CLAUDE_MD_WRITE_RE.search(testo) or _writes_config(testo, cwd, _is_claude_md):
         return _ask(
             "Scrittura via shell su un CLAUDE.md: cambierebbe le istruzioni di ogni sessione "
             "futura in quella cartella. Conferma solo se sei tu a volerlo."
         )
 
     # 2a-bis) Scrittura shell su un percorso di avvio automatico -> ask (persistenza)
-    if PERSIST_WRITE_RE.search(command) or _writes_config(command, cwd, _is_persistenza):
+    if PERSIST_WRITE_RE.search(testo) or _writes_config(testo, cwd, _is_persistenza):
         return _ask(
             "Scrittura via shell su un git hook o su un servizio di avvio automatico "
             "(LaunchAgents, systemd, autostart): il codice partirebbe da solo a ogni "
@@ -616,12 +724,12 @@ def main() -> int:
         )
 
     # 2b) Creazione di un file di unlock -> ask (sbloccherebbe l'auto-modifica)
-    if UNLOCK_RE.search(command) and "claude-md-unlock" in command and "config-unlock" not in command:
+    if UNLOCK_RE.search(testo) and "claude-md-unlock" in testo and "config-unlock" not in testo:
         return _ask(
             "Sblocco della modifica di CLAUDE.md per questa sessione: Claude potra' "
             "cambiare le istruzioni che segue. Conferma se sei tu ad aver chiesto la modifica."
         )
-    if UNLOCK_RE.search(command):
+    if UNLOCK_RE.search(testo):
         return _ask(
             "Creazione di un file di unlock che disattiverebbe la protezione "
             "sull'auto-modifica di config/hook. Conferma solo se sei tu a volerlo."
