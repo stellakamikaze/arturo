@@ -158,7 +158,13 @@ Fissa in alto al centro. Trasparente e smerigliata sopra la scena d'apertura, di
 Card smerigliata con titolo serif bianco sopra un dipinto. Nell'apertura entra una volta sola (dissolvenza, salita di 14 px, sfocatura che si toglie) mentre la scena si posa. Su mobile la scena sta sopra e il vetro sotto, sovrapposto di 96 px, così il soggetto del dipinto resta visibile.
 
 ### Strati annidati (componente firma)
-Quattro cornici una dentro l'altra (Claude Code › Arturo › Lo strato › Tu) che sono anche un `tablist` verticale con frecce, Home e End. Lo strato scelto prende il bordo sera e un velo azzurro. Sopra i 900 px lo schema resta fisso mentre il pannello scorre.
+Quattro cornici una dentro l'altra (Claude Code › Arturo › Lo strato › Tu) che sono anche un `tablist` verticale con frecce, Home e End. Lo strato scelto prende il bordo sera e un velo azzurro. Sopra i 900 px lo schema resta fisso mentre il pannello scorre. Dal 15/10/2026 vive nella pagina «Arturo per organizzazioni» (`sito/organizzazioni/`), insieme al referente, alla tabella dello strato e alla guardia dello strato. La home tiene solo un rimando sobrio: titolo di card, due righe, azione a bordo sera, sopra un filetto grafite.
+
+### Casi d'uso
+Due gruppi asimmetrici, 7/12 il lavoro della conoscenza e 5/12 gli strumenti su misura. Ogni voce è un'etichetta, la richiesta come la scriveresti a Claude in serif corsivo (una citazione, non un titolo) e l'esito in sans. Filetti tra le voci, niente card.
+
+### Dati d'uso («Arturo impara da come lo usi»)
+La sezione centrale della home. A sinistra il registro degli eventi: card carta con l'elenco chiuso, nome dell'evento in mono grassetto e significato accanto, poi su lino cosa parte con ogni evento. A destra «Cosa non esce mai» con le parole barrate in serif grigio, i comandi `mostra` e `spegni` come blocchi notte da copiare, e una riga vera della coda come prova su lino. Sotto, il giro dal segnale alla correzione in quattro tempi numerati in sera (una sequenza vera), sopra un filetto grafite. Niente grafici, niente numeri d'uso: i numeri restano privati.
 
 ### Registro delle guardie
 Lista numerata: comando in mono grassetto, nota, messaggio vero della guardia su lino, nome della guardia, pillola d'esito. Su mobile la guardia e l'esito scendono sotto il messaggio.

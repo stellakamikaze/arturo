@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Arturo · il custode di Claude Code</title>
-<meta name="description" content="Arturo è un harness gratuito e open source per Claude Code: guardie di sicurezza, sessioni ordinate e, dal 30 settembre 2026, lo strato della tua organizzazione.">
+<title>Arturo · dalla chat a Claude Code</title>
+<meta name="description" content="Usi già ChatGPT o Claude in chat? Arturo ti porta in Claude Code, dove l'IA lavora sui tuoi file, con guardie di sicurezza e una guida in italiano. Gratuito e open source.">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#282834">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23282834'/%3E%3Cpath d='M4 25c5-5 9-6 12-4s7 1 12-4' fill='none' stroke='%23fefffc' stroke-width='1.6' stroke-linecap='round'/%3E%3Ccircle cx='22' cy='9' r='3' fill='%23f2a24a'/%3E%3C/svg%3E">
@@ -50,7 +50,6 @@
   --colonna:1200px;
   --ritmo:clamp(72px, 9vw, 128px);
   --ombra-card:0 1px 1px rgba(0,0,0,.08), 0 4px 5px rgba(0,0,0,.08);
-  --ombra-schema:0 1px 8px rgba(0,0,0,.05);
   --esce:cubic-bezier(.16,1,.3,1);
   --cielo:linear-gradient(180deg,#2a2f5c 0%,#5b4b86 42%,#c47c7a 74%,#f0b27c 100%);
 }
@@ -125,69 +124,36 @@ button{font:inherit;color:inherit;cursor:pointer}
 .js .apertura.pronta .vetro{opacity:1;transform:none;filter:none}
 @media (prefers-reduced-motion:reduce){.js .apertura__scena img,.js .apertura .vetro{transition:none;transform:none;opacity:1;filter:none}}
 .vetro h1{font:400 var(--t-display)/1.08 var(--serif);letter-spacing:-.025em;color:#fff;margin-bottom:16px}
-.vetro p{font-size:1.02rem;line-height:1.5;color:rgba(255,255,255,.94);max-width:44ch}
+.vetro p{font-size:1.02rem;line-height:1.5;color:rgba(255,255,255,.94);max-width:46ch}
 .vetro .righe-azioni{display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;margin-top:22px}
 .vetro .link-freccia{color:#fff}
 
 /* ---------- sezioni ---------- */
 .sezione{padding:var(--ritmo) 0}
 .sezione--carta{background:var(--carta);border-block:1px solid var(--foschia)}
-
-/* ---------- strati: lo schema e le linguette ---------- */
-.strati{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(24px,4vw,56px);align-items:start}
-@media (max-width:900px){.strati{grid-template-columns:minmax(0,1fr)}}
-.schema{padding:0}
-@media (min-width:901px){.schema{position:sticky;top:96px}}
-.schema__didascalia{font:500 .82rem/1.3 var(--sans);color:var(--cenere);padding:0 0 12px}
-.nido{display:block;width:100%;text-align:left;border:1px solid var(--nebbia);border-radius:12px;background:transparent;padding:12px 12px 12px 14px;transition:border-color .25s,background-color .25s,box-shadow .25s}
-.nido + .nido{margin-top:0}
-.nido .nido{margin-top:12px}
-.strato{position:relative;border:1px solid var(--nebbia);border-radius:12px;padding:12px;transition:border-color .25s,background-color .25s,box-shadow .25s}
-.strato .strato{margin-top:12px}
-.strato__tab{display:flex;align-items:baseline;justify-content:space-between;gap:12px;width:100%;padding:4px 4px 2px;border:0;background:none;text-align:left;border-radius:6px}
-.strato__nome{font:400 1.32rem/1.2 var(--serif);letter-spacing:-.01em;color:var(--grafite)}
-.strato__chi{font:500 .8rem/1.3 var(--sans);color:var(--cenere);white-space:nowrap}
-.strato__nuovo{display:inline-block;margin-left:8px;padding:2px 7px;border:1px solid var(--sera);border-radius:20px;font:600 .75rem/1.3 var(--sans);letter-spacing:.02em;color:var(--sera);vertical-align:3px}
-.strato.attivo{border-color:var(--sera);background:rgba(140,196,230,.12);box-shadow:0 0 0 3px rgba(43,111,158,.08)}
-.strato.attivo > .strato__tab .strato__nome{color:var(--sera)}
-.strato__tab:hover .strato__nome{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.2em}
-.strato--tu{border-style:dashed}
-
-.pannello{border-radius:12px;background:var(--carta);border:1px solid var(--foschia);box-shadow:var(--ombra-card);padding:clamp(22px,3vw,32px)}
-.pannello[hidden]{display:none}
-.pannello h3{margin-bottom:14px}
-.pannello dl{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;margin:22px 0 0;padding-top:16px;border-top:1px solid var(--foschia)}
-.pannello dt{font:600 .82rem/1.6 var(--sans);color:var(--cenere)}
-.pannello dd{margin:0;color:var(--grafite)}
 .prova{margin-top:22px;padding:16px 18px;border-radius:8px;background:var(--lino)}
 .prova__didascalia{font:500 .82rem/1.3 var(--sans);color:var(--cenere);margin-bottom:10px}
 .prova pre{margin:0;font:400 .86rem/1.6 var(--mono);white-space:pre-wrap;word-break:break-word;color:var(--grafite)}
-.prova pre b,.albero b{font-weight:700;color:var(--inchiostro)}
-.albero li{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:2px 16px;padding:6px 0 6px calc(var(--l,0) * 18px);border-bottom:1px solid var(--foschia);align-items:baseline}
-.albero li:last-child{border-bottom:0}
-.albero code{font-size:.84rem;color:var(--grafite);word-break:break-all}
-.albero span{font-size:.88rem;color:var(--cenere);line-height:1.35}
-@media (max-width:520px){.albero li{grid-template-columns:minmax(0,1fr)}}
 
-/* ---------- referente ---------- */
-.citazione{margin:0;max-width:30ch}
-.citazione p{font:italic 400 var(--t-h3)/1.35 var(--serif);color:var(--grafite);letter-spacing:-.01em}
-.citazione footer{margin-top:12px;font-size:.88rem;color:var(--cenere)}
-.passaggi{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-.passaggi caption{text-align:left;font:400 var(--t-h3)/1.25 var(--serif);color:var(--grafite);letter-spacing:-.015em;padding-bottom:18px}
-.passaggi th{text-align:left;font:600 .8rem/1.3 var(--sans);color:var(--cenere);padding:0 16px 12px 0;border-bottom:1px solid var(--grafite)}
-.passaggi td{padding:18px 16px 18px 0;border-bottom:1px solid var(--foschia);vertical-align:top}
-.passaggi td:first-child{font:400 1.18rem/1.3 var(--serif);color:var(--grafite);white-space:nowrap}
-.passaggi td:nth-child(2){white-space:nowrap}
-.passaggi code{display:inline-block;padding:3px 8px;border-radius:6px;background:var(--lino);border:1px solid var(--foschia);color:var(--grafite);font-size:.84rem}
-.tabella-card{border-radius:16px;background:var(--carta);border:1px solid var(--foschia);box-shadow:var(--ombra-card);padding:clamp(20px,3vw,36px);margin-top:clamp(40px,5vw,64px);overflow-x:auto}
-@media (max-width:720px){
-  .passaggi thead{display:none}
-  .passaggi tr{display:grid;gap:6px;padding:16px 0;border-bottom:1px solid var(--foschia)}
-  .passaggi td{padding:0;border:0;white-space:normal}
-}
+/* ---------- dalla chat all'agente ---------- */
+.ciclo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--grafite)}
+.ciclo > div{padding:24px clamp(16px,2.4vw,32px) 0 0}
+.ciclo > div + div{padding-left:clamp(16px,2.4vw,32px);border-left:1px solid var(--foschia)}
+.ciclo h3{margin-bottom:10px}
+@media (max-width:760px){.ciclo{grid-template-columns:minmax(0,1fr)}.ciclo > div + div{padding-left:0;border-left:0;border-top:1px solid var(--foschia);margin-top:24px}}
 
-/* ---------- scene dipinte ---------- */
+/* ---------- casi d'uso ---------- */
+.usi{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:clamp(40px,6vw,96px);align-items:start}
+@media (max-width:900px){.usi{grid-template-columns:minmax(0,1fr)}}
+.usi__gruppo > h3{padding-bottom:14px;border-bottom:1px solid var(--grafite)}
+.usi__gruppo > p{margin-top:20px;color:var(--cenere);font-size:.95rem}
+.uso{padding:22px 0;border-bottom:1px solid var(--foschia)}
+.uso__tema{display:block;font:600 .82rem/1.3 var(--sans);color:var(--cenere);margin-bottom:8px}
+.uso__richiesta{margin:0 0 8px;font:italic 400 clamp(1.18rem, 1.08rem + .4vw, 1.38rem)/1.35 var(--serif);color:var(--grafite);letter-spacing:-.01em;max-width:40ch}
+.uso__esito{margin:0;color:var(--carbone);max-width:56ch}
+.usi__nota{margin-top:clamp(40px,5vw,56px);font-size:.92rem;color:var(--cenere);max-width:70ch}
+
+/* ---------- guardie: il registro ---------- */
 .scena{position:relative;border-radius:24px;overflow:hidden;background:var(--cielo);min-height:clamp(420px,52vw,640px);display:grid;align-items:start;isolation:isolate;box-shadow:0 2px 2px rgba(0,0,0,.06),0 0 0 5px rgba(0,0,0,.03)}
 .scena img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-1}
 .scena .vetro{margin:clamp(16px,4vw,48px);color:#fff;max-width:520px}
@@ -195,8 +161,6 @@ button{font:inherit;color:inherit;cursor:pointer}
 .scena--basso{align-items:end}
 .scena .vetro .vetro__guida{margin-top:14px}
 .scena .vetro .vetro__guida a{color:#fff;text-decoration-color:rgba(255,255,255,.55);font-weight:500}
-
-/* ---------- guardie: il registro ---------- */
 .registro{margin-top:clamp(40px,5vw,64px);border-radius:16px;background:var(--carta);border:1px solid var(--foschia);box-shadow:var(--ombra-card)}
 .registro__testa{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px 24px;padding:clamp(20px,3vw,32px) clamp(20px,3vw,32px) 0}
 .registro__testa .mono{color:var(--cenere);font-size:.82rem}
@@ -246,19 +210,48 @@ button{font:inherit;color:inherit;cursor:pointer}
 .config{margin-top:clamp(40px,5vw,64px);display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:18px clamp(28px,5vw,72px);align-items:start}
 @media (max-width:900px){.config{grid-template-columns:minmax(0,1fr)}}
 
-/* ---------- inizio e fine ---------- */
-.ciclo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--grafite)}
-.ciclo > div{padding:24px clamp(16px,2.4vw,32px) 0 0}
-.ciclo > div + div{padding-left:clamp(16px,2.4vw,32px);border-left:1px solid var(--foschia)}
-.ciclo h3{margin-bottom:10px}
-.ciclo h3 code{font:500 1.15rem/1.3 var(--mono);color:var(--sera)}
-@media (max-width:760px){.ciclo{grid-template-columns:minmax(0,1fr)}.ciclo > div + div{padding-left:0;border-left:0;border-top:1px solid var(--foschia);margin-top:24px}}
-.indice{margin-top:clamp(56px,7vw,96px)}
-.indice__titolo{margin-bottom:24px}
+/* ---------- arturo impara ---------- */
+.impara{display:grid;grid-template-columns:minmax(0,6fr) minmax(0,5fr);gap:clamp(32px,5vw,72px);align-items:start}
+@media (max-width:900px){.impara{grid-template-columns:minmax(0,1fr)}}
+.impara h3{margin-bottom:14px}
+.eventi{border-radius:16px;background:var(--carta);border:1px solid var(--foschia);box-shadow:var(--ombra-card);padding:clamp(20px,3vw,32px)}
+.eventi > p{color:var(--cenere);font-size:.95rem}
+.eventi dl{margin:18px 0 0}
+.eventi dl div{display:grid;grid-template-columns:8.5rem minmax(0,1fr);gap:2px 16px;padding:11px 0;border-top:1px solid var(--foschia);align-items:baseline}
+.eventi dt{font:700 .86rem/1.45 var(--mono);color:var(--inchiostro)}
+.eventi dd{margin:0;font-size:.95rem;line-height:1.45;color:var(--carbone)}
+@media (max-width:520px){.eventi dl div{grid-template-columns:minmax(0,1fr)}}
+.eventi__con{margin-top:18px;padding:14px 16px;border-radius:8px;background:var(--lino);font-size:.92rem;color:var(--carbone)}
+.lato > * + *{margin-top:clamp(36px,4vw,48px)}
+.vuoti{display:flex;flex-wrap:wrap;gap:4px 22px;margin:4px 0 14px}
+.vuoti s{font:400 clamp(1.6rem, 1.25rem + 1.2vw, 2.3rem)/1.15 var(--serif);color:#6b706b;text-decoration-thickness:1px;text-decoration-color:var(--grafite)}
+.comando{display:flex;align-items:stretch;border-radius:8px;overflow:hidden;background:var(--notte);color:#eef0ec}
+.comando pre{flex:1;margin:0;padding:14px 16px;font:400 .86rem/1.6 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
+.comando button{flex:none;width:92px;border:0;border-left:1px solid #3a3a4e;background:transparent;color:#fff;font:500 .88rem/1 var(--sans);transition:background-color .2s}
+.comando button:hover{background:#2c2c3c}
+.comando button.fatto{color:#bfe8cd}
+.comando button.errore{color:#ffc9bf}
+.comando + .etichetta-comando{margin-top:16px}
+.etichetta-comando{font:600 .82rem/1.3 var(--sans);color:var(--cenere);margin:0 0 8px}
+.correzione{margin-top:clamp(56px,7vw,96px)}
+.correzione > h3{margin-bottom:22px}
+.giro{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border-top:1px solid var(--grafite);counter-reset:g}
+.giro li{counter-increment:g;padding:22px clamp(14px,2vw,28px) 0 0}
+.giro li + li{padding-left:clamp(14px,2vw,28px);border-left:1px solid var(--foschia)}
+.giro li::before{content:counter(g);display:block;font:400 1.6rem/1 var(--serif);font-variant-numeric:lining-nums;color:var(--sera);margin-bottom:12px}
+.giro strong{display:block;font:400 1.22rem/1.3 var(--serif);color:var(--grafite);letter-spacing:-.01em;margin-bottom:6px}
+.giro p{font-size:.95rem}
+@media (max-width:900px){.giro{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:28px}.giro li:nth-child(3){padding-left:0;border-left:0}}
+@media (max-width:560px){.giro{grid-template-columns:minmax(0,1fr)}.giro li + li{padding-left:0;border-left:0;border-top:1px solid var(--foschia);padding-top:22px}}
+.correzione__piede{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px clamp(28px,5vw,72px);margin-top:clamp(36px,4vw,48px);padding-top:22px;border-top:1px solid var(--foschia);font-size:.95rem}
+@media (max-width:820px){.correzione__piede{grid-template-columns:minmax(0,1fr)}}
+
+/* ---------- i comandi ---------- */
+.conteggio{font-size:.95rem;color:var(--cenere);margin:0 0 28px}
 .gruppi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px clamp(24px,3vw,48px)}
 @media (max-width:900px){.gruppi{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.gruppi{grid-template-columns:minmax(0,1fr)}}
-.gruppo h4{margin:0 0 4px;font:600 .82rem/1.3 var(--sans);color:var(--cenere);padding-bottom:10px;border-bottom:1px solid var(--grafite)}
+.gruppo h3{margin:0 0 4px;font:600 .82rem/1.3 var(--sans);color:var(--cenere);padding-bottom:10px;border-bottom:1px solid var(--grafite)}
 .gruppo li{padding:12px 0;border-bottom:1px solid var(--foschia)}
 .gruppo code{display:block;font-weight:700;color:var(--inchiostro);font-size:.92rem;margin-bottom:2px}
 .gruppo span{font-size:.9rem;color:var(--cenere);line-height:1.45;display:block}
@@ -267,24 +260,17 @@ button{font:inherit;color:inherit;cursor:pointer}
 .mare{border-radius:24px;background:var(--mare);color:#fff;padding:clamp(32px,7vw,96px) clamp(24px,6vw,96px);box-shadow:0 2px 2px rgba(0,0,0,.06),0 0 0 5px rgba(0,0,0,.04)}
 .mare h2{color:#fff;max-width:14ch}
 .mare .attacco{color:rgba(255,255,255,.9);margin:16px 0 clamp(28px,4vw,48px)}
-.mare ol{counter-reset:a;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px clamp(20px,3vw,40px)}
-@media (max-width:900px){.mare ol{grid-template-columns:minmax(0,1fr)}}
-.mare li{counter-increment:a;border-top:1px solid rgba(255,255,255,.4);padding-top:16px;color:rgba(255,255,255,.9)}
+.mare ol{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px clamp(24px,4vw,64px)}
+@media (max-width:820px){.mare ol{grid-template-columns:minmax(0,1fr)}}
+.mare li{border-top:1px solid rgba(255,255,255,.4);padding-top:16px;color:rgba(255,255,255,.9);max-width:52ch}
 .mare strong{display:block;font:400 1.22rem/1.3 var(--serif);color:#fff;margin-bottom:8px;letter-spacing:-.01em}
 .mare code{color:#fff}
-.assenze{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(24px,4vw,64px);margin-top:clamp(56px,7vw,96px);align-items:start}
-@media (max-width:820px){.assenze{grid-template-columns:minmax(0,1fr)}}
-.vuoti{display:flex;flex-wrap:wrap;gap:6px 26px;margin:14px 0 0}
-.vuoti s{font:400 clamp(1.8rem,1.3rem + 1.5vw,2.6rem)/1.15 var(--serif);color:#858a85;text-decoration-thickness:1px;text-decoration-color:var(--grafite)}
-.assenze dl div{padding:16px 0;border-top:1px solid var(--foschia)}
-.assenze dl div:last-child{border-bottom:1px solid var(--foschia)}
-.assenze dt{font:400 1.18rem/1.35 var(--serif);color:var(--grafite);margin-bottom:4px}
-.assenze dd{margin:0;color:var(--cenere)}
+.mare a{color:#fff;text-decoration-color:rgba(255,255,255,.6)}
+.mare ::selection{background:#cfe6f4;color:var(--inchiostro)}
 
 /* ---------- impegni ---------- */
 .impegni{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,7fr);gap:clamp(28px,5vw,80px);align-items:start}
 @media (max-width:900px){.impegni{grid-template-columns:minmax(0,1fr)}}
-.promesse{counter-reset:i}
 .promesse li{padding:18px 0;border-top:1px solid var(--foschia)}
 .promesse strong{font-weight:700;color:var(--grafite)}
 .firma{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:12px;padding-top:22px;border-top:1px solid var(--grafite)}
@@ -303,16 +289,14 @@ button{font:inherit;color:inherit;cursor:pointer}
 .requisiti{display:flex;flex-wrap:wrap;gap:8px}
 .requisiti li{padding:6px 12px;border-radius:30px;border:1px solid var(--foschia);background:var(--lino);font:500 .86rem/1.3 var(--mono);color:var(--grafite)}
 .requisiti li span{font-family:var(--sans);font-weight:400;color:var(--cenere)}
-.comando{display:flex;align-items:stretch;border-radius:8px;overflow:hidden;background:var(--notte);color:#eef0ec}
-.comando pre{flex:1;margin:0;padding:14px 16px;font:400 .86rem/1.6 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
-.comando button{flex:none;width:92px;border:0;border-left:1px solid #3a3a4e;background:transparent;color:#fff;font:500 .88rem/1 var(--sans);transition:background-color .2s}
-.comando button:hover{background:#2c2c3c}
-.comando button.fatto{color:#bfe8cd}
-.comando button.errore{color:#ffc9bf}
 .passo p{margin-top:14px}
-.etichetta-comando{font:600 .82rem/1.3 var(--sans);color:var(--cenere);margin:0 0 8px}
 .passo .etichetta-comando:not(:first-child){margin-top:18px}
 .piccolo{font-size:.9rem;color:var(--cenere)}
+.rimando{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:20px clamp(24px,4vw,64px);align-items:end;margin-top:clamp(48px,6vw,80px);padding-top:28px;border-top:1px solid var(--grafite)}
+.rimando h2{margin-bottom:10px}
+.rimando p{color:var(--cenere);max-width:56ch}
+.rimando .azione{justify-self:end}
+@media (max-width:820px){.rimando{grid-template-columns:minmax(0,1fr);align-items:start}.rimando .azione{justify-self:start}}
 
 /* ---------- piede ---------- */
 .piede{background:var(--carta);border-top:1px solid var(--foschia);padding:clamp(64px,8vw,112px) 0 48px}
@@ -325,7 +309,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 </style>
 </head>
 <body>
-<a class="salta" href="#strati">Vai al contenuto</a>
+<a class="salta" href="#agente">Vai al contenuto</a>
 
 <header>
   <nav class="pillola" id="pillola" aria-label="Sezioni">
@@ -333,10 +317,10 @@ button{font:inherit;color:inherit;cursor:pointer}
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2.5 18.5c4-3.6 7-4.4 9.5-3s5.6 1 9.5-2.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="16.5" cy="6.5" r="2.2" fill="#f2a24a"/></svg>
     </a>
     <div class="pillola__voci">
-      <a href="#strati">Strati</a>
+      <a href="#agente">Dalla chat</a>
+      <a href="#usi">Esempi</a>
       <a href="#guardie">Guardie</a>
-      <a href="#aggiornamenti">Aggiornamenti</a>
-      <a href="#impegni">Impegni</a>
+      <a href="#impara">Dati d'uso</a>
     </div>
     <a class="azione azione--piena" href="#installa">Installa <span class="freccia" aria-hidden="true"><svg viewBox="0 0 10 10" fill="none"><path d="M3.5 2 6.5 5 3.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
   </nav>
@@ -348,119 +332,72 @@ button{font:inherit;color:inherit;cursor:pointer}
   <div class="apertura__scena">
     <img src="img/scena-1.webp" srcset="img/scena-1-1200.webp 1200w, img/scena-1.webp 2400w" sizes="100vw" alt="Un paese delle Langhe all'ora blu, con l'Orsa Maggiore e la stella Arturo che segue la curva del suo timone." width="2400" height="1611" fetchpriority="high">
   </div>
-  <p class="apertura__data"><i aria-hidden="true"></i>Aggiornato il 30 settembre 2026</p>
+  <p class="apertura__data"><i aria-hidden="true"></i>Aggiornato il 15 ottobre 2026</p>
   <div class="colonna">
     <div class="vetro">
-      <h1 id="titolo">Il custode di Claude Code. Adesso anche della tua organizzazione.</h1>
-      <p>Regole di sicurezza già pronte. Sessioni che si aprono e si chiudono in ordine. E adesso lo strato che rende Arturo vostro: chi siete, come scrivete, cosa non deve uscire.</p>
+      <h1 id="titolo">Usi già l'IA in chat. Adesso falla lavorare sui tuoi file.</h1>
+      <p>Arturo ti porta in Claude Code: lì l'IA apre, scrive e riordina i documenti del tuo computer. Il terminale non lo devi imparare. Incolli pochi comandi, poi parli in italiano. Prima di un'azione che non si annulla, Arturo chiede a te.</p>
       <div class="righe-azioni">
         <a class="azione azione--chiara" href="#installa">Installa Arturo</a>
-        <a class="link-freccia" href="#strati">Come funziona <span class="freccia" aria-hidden="true"><svg viewBox="0 0 10 10" fill="none"><path d="M3.5 2 6.5 5 3.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+        <a class="link-freccia" href="#agente">Cosa cambia dalla chat <span class="freccia" aria-hidden="true"><svg viewBox="0 0 10 10" fill="none"><path d="M3.5 2 6.5 5 3.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
       </div>
     </div>
   </div>
 </section>
 
-<section class="sezione" id="strati" aria-labelledby="t-strati">
+<section class="sezione" id="agente" aria-labelledby="t-agente">
   <div class="colonna">
     <div class="testa">
-      <h2 class="titolo" id="t-strati">Quattro strati, uno dentro l'altro</h2>
-      <p class="attacco">Ogni strato ha un padrone diverso. Chi aggiorna il suo non tocca gli altri. Lo strato è la novità del 30 settembre: quello della tua organizzazione.</p>
+      <h2 class="titolo" id="t-agente">Dalla chat all'agente</h2>
+      <p class="attacco">In chat l'IA risponde. In Claude Code lavora: dentro la cartella che le apri, con regole che decidi tu. Cambiano tre cose.</p>
     </div>
 
-    <div class="strati">
-      <div class="schema">
-        <p class="schema__didascalia" id="schema-nome">Scegli uno strato per vedere chi lo possiede</p>
-        <div role="tablist" aria-labelledby="schema-nome" aria-orientation="vertical" id="schema">
-          <div class="strato" data-strato="claude">
-            <button class="strato__tab" role="tab" id="tab-claude" aria-controls="pan-claude" aria-selected="false" tabindex="-1"><span class="strato__nome">Claude Code</span><span class="strato__chi">Anthropic</span></button>
-            <div class="strato" data-strato="arturo">
-              <button class="strato__tab" role="tab" id="tab-arturo" aria-controls="pan-arturo" aria-selected="false" tabindex="-1"><span class="strato__nome">Arturo</span><span class="strato__chi">progetto pubblico</span></button>
-              <div class="strato attivo" data-strato="strato">
-                <button class="strato__tab" role="tab" id="tab-strato" aria-controls="pan-strato" aria-selected="true" tabindex="0"><span class="strato__nome">Lo strato<span class="strato__nuovo">nuovo</span></span><span class="strato__chi">la tua organizzazione</span></button>
-                <div class="strato strato--tu" data-strato="tu">
-                  <button class="strato__tab" role="tab" id="tab-tu" aria-controls="pan-tu" aria-selected="false" tabindex="-1"><span class="strato__nome">Tu</span><span class="strato__chi">i tuoi file</span></button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div class="ciclo">
       <div>
-        <div class="pannello" role="tabpanel" id="pan-claude" aria-labelledby="tab-claude" hidden>
-          <h3 class="titolo-3">Il motore</h3>
-          <p>Claude Code è un servizio a pagamento di Anthropic, un'azienda privata. Anthropic decide prezzi, limiti e funzioni, e li può cambiare. Quello che scrivi passa dai suoi server.</p>
-          <p>Arturo non cambia questa condizione. Ci lavora sopra.</p>
-          <dl><dt>Padrone</dt><dd>Anthropic</dd><dt>Aggiorna</dt><dd>Anthropic, con le sue versioni</dd></dl>
-          <div class="prova">
-            <p class="prova__didascalia">Dal settings.json di Arturo</p>
-<pre>"permissions": {
-  …
-  <b>"defaultMode": "auto"</b>
-}</pre>
-            <p style="margin-top:12px;font-size:.9rem">Il classificatore di Claude Code giudica ogni comando. Le guardie di Arturo stanno sopra di lui, sulle azioni che non si annullano.</p>
-          </div>
-        </div>
-
-        <div class="pannello" role="tabpanel" id="pan-arturo" aria-labelledby="tab-arturo" hidden>
-          <h3 class="titolo-3">Il custode</h3>
-          <p>Arturo è pubblico, gratuito, con licenza MIT. Porta le guardie di sicurezza, il ciclo di lavoro da <code>/inizio</code> a <code>/fine</code> e un curriculum dei principi per chi parte da zero.</p>
-          <p><strong>18</strong> guardie e automazioni, <strong>12</strong> comandi, <strong>9</strong> agenti, <strong>3</strong> skill.</p>
-          <dl><dt>Padrone</dt><dd>Progetto pubblico di Federico Nejrotti</dd><dt>Aggiorna</dt><dd>Tu, con <code>/aggiorna</code>, dopo il tuo sì</dd></dl>
-          <div class="prova">
-            <p class="prova__didascalia">Cosa arriva con gli aggiornamenti</p>
-            <ul class="albero"><li style="--l:0"><code>~/.claude/</code><span></span></li><li style="--l:1"><code><b>hooks/</b></code><span>le guardie</span></li><li style="--l:1"><code><b>commands/</b></code><span>i comandi</span></li><li style="--l:1"><code>agents/</code><span>gli agenti</span></li><li style="--l:1"><code>skills/</code><span>le skill</span></li><li style="--l:1"><code>docs/</code><span>il curriculum</span></li><li style="--l:1"><code>templates/</code><span>il modello di strato</span></li><li style="--l:1"><code>NOVITA.md</code><span>il racconto delle novità</span></li></ul>
-          </div>
-        </div>
-
-        <div class="pannello" role="tabpanel" id="pan-strato" aria-labelledby="tab-strato">
-          <h3 class="titolo-3">La vostra organizzazione</h3>
-          <p>Lo strato vive nel repository privato della vostra organizzazione. Dentro ci sono chi siete, come scrivete, i lavori che si ripetono e i dati che non devono uscire.</p>
-          <p>All'avvio Claude sa per chi lavora. La voce dell'organizzazione diventa una skill. Prima di mandare fuori un dato riservato, chiede conferma.</p>
-          <dl><dt>Padrone</dt><dd>La vostra organizzazione</dd><dt>Aggiorna</dt><dd>Il referente pubblica, i colleghi ricevono con <code>/aggiorna</code></dd></dl>
-          <div class="prova">
-            <p class="prova__didascalia">Il modello che prepara /strato crea</p>
-            <ul class="albero"><li style="--l:0"><code>plugins/strato/</code><span></span></li><li style="--l:1"><code><b>ORGANIZZAZIONE.md</b></code><span>chi siete, per chi lavorate</span></li><li style="--l:1"><code>skills/voce/regole.md</code><span>come scrivete</span></li><li style="--l:1"><code>skills/modello-lavoro/</code><span>un lavoro che si ripete</span></li><li style="--l:1"><code><b>dati-riservati.txt</b></code><span>cosa non esce senza un sì</span></li><li style="--l:1"><code>hooks/contesto.py</code><span>all'avvio: per chi lavora</span></li><li style="--l:1"><code>hooks/dati-in-uscita.py</code><span>la conferma prima di un invio</span></li></ul>
-          </div>
-        </div>
-
-        <div class="pannello" role="tabpanel" id="pan-tu" aria-labelledby="tab-tu" hidden>
-          <h3 class="titolo-3">I tuoi file</h3>
-          <p>Il tuo <code>CLAUDE.md</code>, i server di cui ti fidi, i tuoi dati e i tuoi progetti. Nessun aggiornamento li tocca: né quelli di Arturo né quelli dello strato.</p>
-          <dl><dt>Padrone</dt><dd>Tu</dd><dt>Aggiorna</dt><dd>Solo tu</dd></dl>
-          <div class="prova">
-            <p class="prova__didascalia">Tuo, nessun aggiornamento lo tocca</p>
-            <ul class="albero"><li style="--l:0"><code><b>CLAUDE.md</b></code><span>le tue istruzioni</span></li><li style="--l:0"><code>hooks/hosts-interni.local</code><span>i server di cui ti fidi</span></li><li style="--l:0"><code>data/</code><span>i tuoi dati</span></li><li style="--l:0"><code>projects/</code><span>le tue cartelle di lavoro</span></li></ul>
-          </div>
-        </div>
+        <h3 class="titolo-3">Lavora sui tuoi file</h3>
+        <p>In chat incolli un testo e ricopi la risposta. In Claude Code l'IA apre i documenti della cartella, li corregge e ne crea di nuovi. Il risultato è già al suo posto.</p>
+      </div>
+      <div>
+        <h3 class="titolo-3">Riprende da dove eri</h3>
+        <p><code>/inizio</code> riprende l'ultimo appunto del progetto e le cose rimaste aperte. <code>/fine</code> controlla il lavoro, lo salva e lascia l'appunto per la volta dopo.</p>
+      </div>
+      <div>
+        <h3 class="titolo-3">Chiede prima di ciò che non si annulla</h3>
+        <p>Cancellare una cartella, spedire un'email, mandare un file fuori dal computer: qui Arturo si ferma e chiede a te. Sul resto lavora senza interromperti.</p>
       </div>
     </div>
   </div>
 </section>
 
-<section class="sezione sezione--carta" id="referente" aria-labelledby="t-referente">
+<section class="sezione sezione--carta" id="usi" aria-labelledby="t-usi">
   <div class="colonna">
     <div class="testa">
-      <h2 class="titolo" id="t-referente">Il referente non deve saper programmare</h2>
-      <blockquote class="citazione">
-        <p>Serve che conosca il lavoro dei colleghi, che abbia voglia di provare, e che dedichi allo strumento un po' di tempo ogni settimana.</p>
-        <footer>Dalla guida del referente, <code>docs/referente.md</code></footer>
-      </blockquote>
+      <h2 class="titolo" id="t-usi">Cosa ci fai</h2>
+      <p class="attacco">Due modi di usarlo. Il primo è il lavoro della conoscenza: testi, ricerche, posta, archivi. Il secondo è costruire piccoli strumenti su misura, anche se non programmi.</p>
     </div>
 
-    <div class="tabella-card">
-      <table class="passaggi">
-        <caption>Lo strato dell'organizzazione, passo per passo</caption>
-        <thead><tr><th scope="col">Chi</th><th scope="col">Comando</th><th scope="col">Cosa succede</th></tr></thead>
-        <tbody>
-          <tr><td>Referente</td><td><code>/strato crea</code></td><td>Una breve intervista, una domanda per volta: chi siete, come suonano i vostri testi, due lavori che si ripetono, cosa non deve uscire. Claude mostra cosa scrive prima di scriverlo.</td></tr>
-          <tr><td>Referente</td><td><code>/strato pubblica</code></td><td>Controlla che i file siano validi, poi pubblica nel repository privato. Il commit passa dal controllo segreti di Arturo.</td></tr>
-          <tr><td>Colleghi</td><td><code>/strato installa &lt;indirizzo&gt;</code></td><td>Prova l'accesso al repository, installa lo strato e dice cosa ha installato. Serve l'invito del referente. Poi si riapre Claude Code.</td></tr>
-          <tr><td>Tutti</td><td><code>/aggiorna</code></td><td>Scarica Arturo e anche lo strato. Una porta sola per tutti e due.</td></tr>
-        </tbody>
-      </table>
+    <div class="usi">
+      <section class="usi__gruppo" aria-labelledby="t-conoscenza">
+        <h3 class="titolo-3" id="t-conoscenza">Il lavoro della conoscenza</h3>
+        <ul>
+          <li class="uso"><span class="uso__tema">Scrivere e revisionare</span><p class="uso__richiesta">«Rileggi il capitolo 3 e segnami le frasi che ripetono il capitolo 1.»</p><p class="uso__esito">Claude apre i due file, li confronta e ti dà l'elenco con il punto esatto di ogni frase.</p></li>
+          <li class="uso"><span class="uso__tema">Ricerca e sintesi</span><p class="uso__richiesta">«In questa cartella ci sono dodici bandi in PDF. Fammi una tabella con scadenza, importo e requisiti.»</p><p class="uso__esito">Claude legge i PDF e scrive la tabella in un file che apri con il tuo foglio di calcolo.</p></li>
+          <li class="uso"><span class="uso__tema">Posta e progetti</span><p class="uso__richiesta">«Prepara la risposta a Giulia con le date del piano di lavoro.»</p><p class="uso__esito">Se colleghi Gmail con <code>/inizio gws</code>, Claude scrive la bozza. L'invio resta a te: una guardia ferma ogni spedizione.</p></li>
+          <li class="uso"><span class="uso__tema">Archivio e documenti</span><p class="uso__richiesta">«Rinomina le scansioni con data e mittente, e dimmi quali non riesci a leggere.»</p><p class="uso__esito">Claude apre ogni file, lo rinomina e ti lascia l'elenco dei dubbi.</p></li>
+        </ul>
+      </section>
+
+      <section class="usi__gruppo" aria-labelledby="t-strumenti">
+        <h3 class="titolo-3" id="t-strumenti">Strumenti su misura</h3>
+        <ul>
+          <li class="uso"><span class="uso__tema">Una pagina tua</span><p class="uso__richiesta">«Fammi una pagina che legge il file delle spese e mostra il totale di ogni mese.»</p><p class="uso__esito">Claude scrive un piccolo programma che gira solo sul tuo computer, e ti dice come aprirlo.</p></li>
+          <li class="uso"><span class="uso__tema">Un lavoro che si ripete</span><p class="uso__richiesta">«Trasforma l'elenco degli iscritti in etichette da stampare.»</p><p class="uso__esito">Un foglio pronto per la stampante. Lo strumento resta, e la volta dopo basta chiederlo.</p></li>
+        </ul>
+        <p>Uno strumento nuovo comincia con <code>/progetto</code>: un'intervista per capire cosa serve, un piano, poi il primo passo.</p>
+      </section>
     </div>
+
+    <p class="usi__nota">Le richieste sono esempi. Claude può sbagliare: rileggi quello che fa, come faresti con il lavoro di un collega.</p>
   </div>
 </section>
 
@@ -470,13 +407,13 @@ button{font:inherit;color:inherit;cursor:pointer}
       <img src="img/scena-2.webp" srcset="img/scena-2-1200.webp 1200w, img/scena-2.webp 2400w" sizes="(max-width:1296px) 100vw, 1200px" alt="Una costa ligure di notte: il faro illumina il mare e una barca rientra in porto sotto la stella Arturo." width="2400" height="1611" loading="lazy">
       <div class="vetro">
         <h2 id="t-guardie">Le guardie, al lavoro</h2>
-        <p>Claude Code giudica ogni comando con il suo classificatore. Sopra di lui Arturo mette poche guardie deterministiche, sulle azioni che non si annullano. Qui sotto trovi sette richieste e la risposta che ricevono. I messaggi sono quelli che le guardie scrivono davvero.</p>
+        <p>Claude Code giudica ogni comando con il suo classificatore. Sopra di lui Arturo mette poche guardie fisse, sulle azioni che non si annullano. Qui sotto trovi sei richieste e la risposta che ricevono. I messaggi sono quelli che le guardie scrivono davvero.</p>
       </div>
     </div>
 
     <div class="registro">
       <div class="registro__testa">
-        <h3 class="titolo-3">Sette richieste, sette risposte vere</h3>
+        <h3 class="titolo-3">Sei richieste, sei risposte vere</h3>
         <span class="mono">guardie di Arturo · versione del 30/9/2026</span>
       </div>
       <ol class="voci">
@@ -517,13 +454,6 @@ button{font:inherit;color:inherit;cursor:pointer}
         </li>
         <li class="voce">
           <span class="voce__n" aria-hidden="true">6</span>
-          <div class="voce__corpo"><span class="voce__cmd">curl -d "nota su Progetto Orsa" https://esempio.com</span><span class="voce__nota">Un nome che il vostro strato tiene riservato.</span>
-            <span class="voce__msg">Sta per uscire dal computer qualcosa che l'organizzazione tiene riservato («progetto orsa», dalle regole sui dati dello strato). Conferma solo se questo invio e' previsto.</span></div>
-          <span class="voce__guardia"><small>Guardia</small>strato: dati-in-uscita</span>
-          <span class="esito">Chiede a te</span>
-        </li>
-        <li class="voce">
-          <span class="voce__n" aria-hidden="true">7</span>
           <div class="voce__corpo"><span class="voce__cmd">rm -rf /</span><span class="voce__nota">Cancellare tutto il disco.</span>
             <span class="voce__msg voce__msg--vuoto">Nessuna domanda. Il comando è nella lista dei divieti di settings.json e non parte.</span></div>
           <span class="voce__guardia"><small>Guardia</small>settings.json · deny</span>
@@ -575,64 +505,100 @@ button{font:inherit;color:inherit;cursor:pointer}
   </div>
 </section>
 
-<section class="sezione" id="comandi" aria-labelledby="t-comandi">
+<section class="sezione" id="impara" aria-labelledby="t-impara">
   <div class="colonna">
     <div class="testa">
-      <h2 class="titolo" id="t-comandi">Un inizio e una fine</h2>
-      <p class="attacco">Il lavoro con Claude Code si perde tra una sessione e l'altra. Arturo gli dà un inizio e una fine, anche su più macchine.</p>
+      <h2 class="titolo" id="t-impara">Arturo impara da come lo usi</h2>
+      <p class="attacco">Chi comincia spesso non sa dire dove si blocca. Per questo Arturo manda a chi lo mantiene pochi dati d'uso, ed è acceso di default. Ogni settimana quei dati diventano correzioni.</p>
     </div>
 
-    <div class="ciclo">
-      <div>
-        <h3 class="titolo-3"><code>/inizio</code></h3>
-        <p>Riprende l'ultimo appunto del progetto e i compiti rimasti aperti. Quelli già fatti non tornano.</p>
+    <div class="impara">
+      <div class="eventi">
+        <h3 class="titolo-3">Cosa esce</h3>
+        <p>Solo eventi da un elenco chiuso. Ogni evento dice che cosa è successo, mai che cosa hai scritto.</p>
+        <dl>
+          <div><dt>sessione</dt><dd>Hai aperto una sessione.</dd></div>
+          <div><dt>comando</dt><dd>Il nome di un comando di Arturo, mai il testo che scrivi.</dd></div>
+          <div><dt>guardia</dt><dd>La guardia che ha bloccato.</dd></div>
+          <div><dt>chiede</dt><dd>Una guardia che chiede conferma.</dd></div>
+          <div><dt>confermata</dt><dd>Se a quella domanda hai detto sì. Serve a trovare i falsi allarmi.</dd></div>
+          <div><dt>errore</dt><dd>Una guardia che si rompe.</dd></div>
+          <div><dt>aggiorna</dt><dd>L'esito di <code>/aggiorna</code>: applicato, conflitto, fallito, rifiutato, indietro, scartato.</dd></div>
+          <div><dt>setup</dt><dd>Fin dove è arrivato <code>/setup</code>, fase per fase.</dd></div>
+          <div><dt>tappa</dt><dd>I numeri del percorso a tappe: la tappa, quante decisioni e quanti limiti tieni. Mai cosa hai scritto.</dd></div>
+          <div><dt>segnalazione</dt><dd>Il tipo di una segnalazione mandata con <code>/segnala</code>.</dd></div>
+          <div><dt>deriva</dt><dd>I file e gli hook di Arturo che hai cambiato o spento.</dd></div>
+          <div><dt>config</dt><dd>Una config rotta, che spegne le guardie.</dd></div>
+          <div><dt>claude</dt><dd>La versione di Claude Code.</dd></div>
+        </dl>
+        <p class="eventi__con">Con ogni evento partono un id di installazione casuale, la versione di Arturo, il sistema operativo e il giorno, mai l'ora. L'id non contiene il tuo nome, ma resta lo stesso nel tempo.</p>
       </div>
-      <div>
-        <h3 class="titolo-3">Il lavoro</h3>
-        <p>Tu chiedi, Claude fa. Le guardie stanno sopra, le domande arrivano solo sulle azioni che non si annullano.</p>
-      </div>
-      <div>
-        <h3 class="titolo-3"><code>/fine</code></h3>
-        <p>Controlla che il lavoro sia completo, salva e lascia un appunto per la prossima volta.</p>
+
+      <div class="lato">
+        <div>
+          <h3 class="titolo-3">Cosa non esce mai</h3>
+          <p class="vuoti" aria-hidden="true"><s>Richieste</s><s>File</s><s>Nomi</s><s>Risposte</s><s>Cartelle</s></p>
+          <p>Mai le tue richieste, i tuoi file, i nomi, le risposte di Claude, i percorsi del tuo computer o il testo del percorso a tappe.</p>
+        </div>
+        <div>
+          <h3 class="titolo-3">Come la guardi e come la spegni</h3>
+          <p class="etichetta-comando">Nel terminale: cosa parte, così come parte</p>
+          <div class="comando"><pre id="cmd-mostra">python3 ~/.claude/bin/arturo telemetria mostra</pre><button type="button" data-copia="cmd-mostra">Copia</button></div>
+          <p class="etichetta-comando">Nel terminale: la spegne e svuota la coda</p>
+          <div class="comando"><pre id="cmd-spegni">python3 ~/.claude/bin/arturo telemetria spegni</pre><button type="button" data-copia="cmd-spegni">Copia</button></div>
+          <p style="margin-top:14px">Si spegne anche con <code>ARTURO_TELEMETRIA=0</code> o con lo standard <code>DO_NOT_TRACK=1</code>. Per riaccenderla scrivi <code>accendi</code> al posto di <code>spegni</code>.</p>
+          <div class="prova">
+            <p class="prova__didascalia">Una riga della coda, in <code>~/.claude/data/telemetria/coda.jsonl</code></p>
+<pre>{"giorno": "2026-10-15", "evento": "comando", "valore": "inizio"}</pre>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="indice">
-      <h3 class="titolo-3 indice__titolo">I dodici comandi</h3>
-      <div class="gruppi">
-        <section class="gruppo"><h4>Ciclo</h4><ul><li><code>/inizio</code><span>Apre la sessione sul progetto e riprende dall'ultimo appunto.</span></li><li><code>/fine</code><span>Chiude la sessione: completezza, salvataggio, appunto.</span></li><li><code>/guidami</code><span>Quando riapri e non sai da dove ripartire: tre o quattro proposte, con il motivo e il primo passo.</span></li></ul></section>
-        <section class="gruppo"><h4>Organizzazioni</h4><ul><li><code>/strato</code><span>Crea, pubblica e installa lo strato della vostra organizzazione.</span></li></ul></section>
-        <section class="gruppo"><h4>Manutenzione</h4><ul><li><code>/aggiorna</code><span>Mostra cosa arriva e lo applica dopo il tuo sì. Con indietro, torna alla versione di prima.</span></li><li><code>/setup</code><span>Configurazione guidata, una cosa per volta. Pensata anche per chi non programma.</span></li></ul></section>
-        <section class="gruppo"><h4>Imparare</h4><ul><li><code>/novita</code><span>Racconta le novità non ancora viste: cosa cambia e il principio dietro.</span></li><li><code>/sparring</code><span>Prova un principio sul tuo lavoro vero, con esperimenti piccoli e reversibili.</span></li></ul></section>
-        <section class="gruppo"><h4>Progetti</h4><ul><li><code>/progetto</code><span>Dall'idea al primo passo. Ha un ramo per chi non scrive codice: un libro, una ricerca, un corso.</span></li><li><code>/discovery</code><span>Un'intervista per capire cosa costruire.</span></li><li><code>/write-plan</code><span>Un piano passo per passo, con l'ordine dei compiti e le prove.</span></li></ul></section>
-        <section class="gruppo"><h4>Imprevisti</h4><ul><li><code>/diagnosi</code><span>Prima i fatti, poi le ipotesi. Si chiama così per non nascondere il /debug di Claude Code.</span></li></ul></section>
+    <div class="correzione">
+      <h3 class="titolo-3">Dal segnale alla correzione</h3>
+      <ol class="giro">
+        <li><strong>Sul tuo computer</strong><p>Ogni evento diventa una riga in una coda. La coda parte in un lotto, al massimo ogni sei ore. Solo una config rotta parte subito, perché spegne le guardie.</p></li>
+        <li><strong>Sul server</strong><p>Il server tiene gli eventi 12 mesi e non salva l'indirizzo IP. Il suo codice è pubblico, nella cartella <code>server/</code> del repository.</p></li>
+        <li><strong>Ogni lunedì</strong><p>Chi mantiene Arturo legge dove le persone si fermano: una fase di <code>/setup</code> abbandonata, una guardia che chiede a vuoto, un aggiornamento rifiutato, una tappa ferma.</p></li>
+        <li><strong>Nella versione dopo</strong><p>Arriva la correzione. La sua voce in <code>NOVITA.md</code> dice quale segnale l'ha fatta nascere, e <code>/novita</code> te la racconta.</p></li>
+      </ol>
+      <div class="correzione__piede">
+        <p>I dati dicono dove. Per dire perché c'è <code>/segnala</code>: Claude scrive il testo con te, tu lo leggi, e parte solo dopo il tuo sì. Le correzioni sono tutte in <a href="https://github.com/stellakamikaze/arturo/blob/main/NOVITA.md">NOVITA.md su GitHub</a>.</p>
+        <p>Vuoi far cancellare i tuoi dati? Scrivi a <a href="mailto:federico@stellakamikaze.org">federico@stellakamikaze.org</a> con l'id che ti mostra <code>telemetria mostra</code>.</p>
       </div>
     </div>
   </div>
 </section>
 
-<section class="sezione" id="avvertenze" aria-labelledby="t-avvertenze" style="padding-top:0">
+<section class="sezione sezione--carta" id="comandi" aria-labelledby="t-comandi">
+  <div class="colonna">
+    <div class="testa">
+      <h2 class="titolo" id="t-comandi">I tredici comandi</h2>
+      <p class="attacco">Li scrivi in Claude Code, con la barra davanti. Qui trovi i dodici del lavoro di ogni giorno. Il tredicesimo, <code>/strato</code>, serve alle <a href="organizzazioni/">organizzazioni</a>.</p>
+    </div>
+    <p class="conteggio">Con i comandi arrivano 18 guardie e automazioni, 9 agenti e 5 skill.</p>
+    <div class="gruppi">
+      <section class="gruppo"><h3>Ciclo</h3><ul><li><code>/inizio</code><span>Apre la sessione sul progetto e riprende dall'ultimo appunto.</span></li><li><code>/fine</code><span>Chiude la sessione: controlla il lavoro, lo salva, lascia un appunto.</span></li><li><code>/guidami</code><span>Quando riapri e non sai da dove ripartire: tre o quattro proposte, con il motivo e il primo passo.</span></li></ul></section>
+      <section class="gruppo"><h3>Progetti</h3><ul><li><code>/progetto</code><span>Dall'idea al primo passo. Ha un ramo per chi non scrive codice: un libro, una ricerca, un corso.</span></li><li><code>/discovery</code><span>Un'intervista per capire cosa costruire.</span></li><li><code>/write-plan</code><span>Un piano passo per passo, con l'ordine dei compiti e le prove.</span></li></ul></section>
+      <section class="gruppo"><h3>Imparare</h3><ul><li><code>/novita</code><span>Racconta le novità non ancora viste: cosa cambia e il principio dietro.</span></li><li><code>/sparring</code><span>Prova un principio sul tuo lavoro vero, con esperimenti piccoli e reversibili.</span></li></ul></section>
+      <section class="gruppo"><h3>Manutenzione</h3><ul><li><code>/aggiorna</code><span>Mostra cosa arriva e lo applica dopo il tuo sì. Con indietro, torna alla versione di prima.</span></li><li><code>/setup</code><span>Configurazione guidata, una cosa per volta. Pensata anche per chi non programma.</span></li></ul></section>
+      <section class="gruppo"><h3>Quando qualcosa non va</h3><ul><li><code>/diagnosi</code><span>Prima i fatti, poi le ipotesi. Si chiama così per non nascondere il /debug di Claude Code.</span></li><li><code>/segnala</code><span>Manda a chi mantiene Arturo un problema o una proposta, dopo che hai letto il testo.</span></li></ul></section>
+    </div>
+  </div>
+</section>
+
+<section class="sezione" id="avvertenze" aria-labelledby="t-avvertenze">
   <div class="colonna">
     <div class="mare">
       <h2 class="titolo" id="t-avvertenze">Cosa non è neutro</h2>
-      <p class="attacco">Arturo è gratuito e open source. Lo strumento su cui gira non lo è. Prima di cominciare devi sapere tre cose.</p>
+      <p class="attacco">Arturo è gratuito e open source. Lo strumento su cui gira non lo è. Prima di cominciare devi sapere quattro cose.</p>
       <ol>
         <li><strong>Claude Code è un servizio a pagamento di Anthropic, un'azienda privata.</strong>Anthropic decide prezzi, limiti e funzioni, e li può cambiare. Arturo non cambia questa condizione.</li>
         <li><strong>Quello che scrivi passa dai server di Anthropic.</strong>Le guardie di Arturo fermano segreti e credenziali, ma la conversazione esce comunque dal tuo computer.</li>
         <li><strong>Un aggiornamento di Arturo è codice scritto da altri, e gira sul tuo computer.</strong>Per questo <code>/aggiorna</code> ti mostra cosa arriva prima di applicarlo. Se un aggiornamento non ti convince, non applicarlo.</li>
+        <li><strong>Arturo manda dati d'uso a chi lo mantiene, ed è acceso di default.</strong>Escono pochi eventi da un elenco chiuso, mai i tuoi testi o i tuoi file. Lo spegni con un comando. L'elenco e il perché sono in <a href="#impara">Arturo impara da come lo usi</a>.</li>
       </ol>
-    </div>
-
-    <div class="assenze">
-      <div>
-        <h3 class="titolo">Cosa manca, di proposito</h3>
-        <p class="attacco" style="margin-top:12px">Tre cose che Arturo non ha e non avrà.</p>
-        <p class="vuoti" aria-hidden="true"><s>Server</s><s>Account</s><s>Telemetria</s></p>
-      </div>
-      <dl>
-        <div><dt>Nessun server, nessun account, nessun dominio.</dt><dd>Servono solo <code>git</code> e le CLI standard.</dd></div>
-        <div><dt>Niente telemetria.</dt><dd>L'unico contatto automatico con l'esterno è il controllo degli aggiornamenti: un <code>git fetch</code> verso i repository della tua configurazione, al massimo ogni sei ore.</dd></div>
-      </dl>
     </div>
   </div>
 </section>
@@ -646,14 +612,14 @@ button{font:inherit;color:inherit;cursor:pointer}
     <div>
       <ol class="promesse">
         <li><p><strong>Il repository resta pubblico e con licenza MIT.</strong> Non diventa privato e non viene cancellato.</p></li>
-        <li><p><strong>Solo <code>/aggiorna</code> applica gli aggiornamenti, e solo dopo il tuo sì.</strong> L'avvio della sessione e <code>/inizio</code> controllano soltanto se ci sono novità.</p></li>
-        <li><p><strong>Niente telemetria.</strong> Arturo non raccoglie dati su di te né su come lo usi.</p></li>
+        <li><p><strong>Solo <code>/aggiorna</code> applica gli aggiornamenti, e solo dopo il tuo sì.</strong> L'avvio della sessione e <code>/inizio</code> controllano soltanto se ci sono novità. Se hai collegato un tuo repository privato, <code>/inizio</code> sincronizza quello: sono le tue macchine, non codice di altri.</p></li>
+        <li><p><strong>Telemetria minima, accesa di default, e il perché.</strong> Arturo si sviluppa ogni giorno per persone che spesso non sanno dire dove si bloccano. Senza dati d'uso chi lo mantiene non vede le guardie che fermano un lavoro legittimo, gli aggiornamenti che si rompono, i comandi che nessuno usa. Cosa esce e come si spegne sta in <a href="#impara">Arturo impara da come lo usi</a>.</p></li>
         <li><p><strong>Arturo resta in italiano.</strong></p></li>
         <li><p><strong>Se lo sviluppo si ferma, lo scrivo.</strong> Lo dichiarano l'ultima voce di <code>NOVITA.md</code> e la cima del README. La copia che hai continua a funzionare, e puoi farne un fork.</p></li>
       </ol>
       <div class="firma">
         <p class="firma__nome">Federico Nejrotti<small>Autore di Arturo</small></p>
-        <span class="firma__data">Aggiornato il 30 settembre 2026</span>
+        <span class="firma__data">Aggiornato il 15 ottobre 2026</span>
       </div>
     </div>
   </div>
@@ -694,16 +660,25 @@ button{font:inherit;color:inherit;cursor:pointer}
         <div>
           <div class="comando"><pre id="cmd-scarica">[ -d "$HOME/.claude" ] &amp;&amp; mv "$HOME/.claude" "$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
 git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><button type="button" data-copia="cmd-scarica">Copia</button></div>
+          <p class="piccolo">Dalla prima sessione Arturo manda i dati d'uso descritti <a href="#impara">qui sopra</a>. Se non li vuoi, spegnili adesso, prima di aprire Claude Code: <code>python3 ~/.claude/bin/arturo telemetria spegni</code>.</p>
         </div>
       </div>
       <div class="passo">
         <h3 class="titolo-3">Accendi<small>Apri Claude Code dentro la cartella e scrivi <code>/setup</code>.</small></h3>
         <div>
           <div class="comando"><pre id="cmd-accendi">cd ~/.claude &amp;&amp; claude</pre><button type="button" data-copia="cmd-accendi">Copia</button></div>
-          <p>Usi già Arturo? Scrivi <code>/aggiorna</code>. Lavori in un'organizzazione? Dopo <code>/setup</code> il referente scrive <code>/strato crea</code>, e i colleghi <code>/strato installa</code>.</p>
+          <p>Usi già Arturo? Scrivi <code>/aggiorna</code>.</p>
         </div>
       </div>
     </div>
+
+    <aside class="rimando" aria-labelledby="t-organizzazioni">
+      <div>
+        <h2 class="titolo-3" id="t-organizzazioni">Arturo per organizzazioni</h2>
+        <p>Uno studio, una redazione, un'associazione. Un referente prepara lo strato del gruppo: chi siete, come scrivete, cosa non deve uscire. I colleghi lo ricevono con un comando.</p>
+      </div>
+      <a class="azione azione--bordo" href="organizzazioni/">Come funziona lo strato <span class="freccia" aria-hidden="true"><svg viewBox="0 0 10 10" fill="none"><path d="M3.5 2 6.5 5 3.5 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span></a>
+    </aside>
   </div>
 </section>
 
@@ -719,9 +694,9 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
       <div class="piede__cielo" role="img" aria-label="Particolare del cielo all'ora blu, con la stella Arturo."></div>
     </div>
     <div class="piede__righe">
-      <p>Progetto di Federico Nejrotti, pubblicato da Ufficio Furore. Licenza MIT.</p>
+      <p>Progetto di Federico Nejrotti. Licenza MIT.</p>
       <p>Codice, novità e segnalazioni: <a href="https://github.com/stellakamikaze/arturo">github.com/stellakamikaze/arturo</a>. Per un problema di sicurezza usa la procedura privata in <code>SECURITY.md</code>.</p>
-      <p>Questa pagina non usa cookie di tracciamento, tracker né font da server esterni.</p>
+      <p>Questa pagina non usa cookie di tracciamento, tracker né font da server esterni. I dati d'uso riguardano Arturo sul tuo computer, non questo sito.</p>
     </div>
   </div>
 </footer>
@@ -744,30 +719,6 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
     var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){voci.forEach(function(a){a.setAttribute('aria-current',a.getAttribute('href')==='#'+e.target.id?'true':'false')})}})},{rootMargin:'-45% 0px -50% 0px'});
     voci.forEach(function(a){var s=d.querySelector(a.getAttribute('href'));if(s)io.observe(s)});
   }
-
-  /* gli strati */
-  var tabs=[].slice.call(d.querySelectorAll('#schema [role="tab"]'));
-  function scegli(t,fuoco){
-    tabs.forEach(function(x){
-      var on=x===t;
-      x.setAttribute('aria-selected',on?'true':'false');
-      x.tabIndex=on?0:-1;
-      x.parentNode.classList.toggle('attivo',on);
-      d.getElementById(x.getAttribute('aria-controls')).hidden=!on;
-    });
-    if(fuoco)t.focus();
-  }
-  tabs.forEach(function(t,i){
-    t.addEventListener('click',function(){scegli(t)});
-    t.addEventListener('keydown',function(e){
-      var n=null;
-      if(e.key==='ArrowDown'||e.key==='ArrowRight')n=tabs[(i+1)%tabs.length];
-      if(e.key==='ArrowUp'||e.key==='ArrowLeft')n=tabs[(i-1+tabs.length)%tabs.length];
-      if(e.key==='Home')n=tabs[0];
-      if(e.key==='End')n=tabs[tabs.length-1];
-      if(n){e.preventDefault();scegli(n,true)}
-    });
-  });
 
   /* la porta sola */
   var avviso=d.getElementById('avviso'), si=d.getElementById('dai-si'), ind=d.getElementById('indietro'), stato=d.getElementById('demo-stato'), chip=d.getElementById('stato');

@@ -12,9 +12,9 @@ HTML e CSS statici, nessun framework, nessuna dipendenza di build. Sorgente in `
 
 ## Users
 
-Visitatore principale: **chi non programma** e vuole cominciare a usare Claude Code senza sapere da dove partire. Professionista curioso dell'AI, anche senza un mestiere tecnico (primo utente reale: una persona non tecnica, dal 16/9/2026).
+Visitatore principale: **chi conosce già l'IA e la usa in chat** (ChatGPT, Claude) ma non ha mai usato un terminale (decisione di Federico, 15/10/2026). Primo utente reale: una persona non tecnica, dal 16/9/2026.
 
-Altri casi d'uso confermati: chi scrive o fa un lavoro creativo; un piccolo studio o team; chi insegna o impara.
+Casi d'uso, in quest'ordine: il lavoro cognitivo e della conoscenza (scrivere e revisionare, ricerca e sintesi, posta e progetti, archivio e documenti), poi i piccoli strumenti su misura per un caso d'uso specifico. Le organizzazioni (studio, redazione, associazione) hanno una pagina a sé, `sito/organizzazioni/`: nella home resta solo un rimando.
 
 ## Product Purpose
 
@@ -22,7 +22,7 @@ Arturo è un harness per Claude Code: guardie di sicurezza, sessioni che si apro
 
 ## Positioning
 
-Estratto da una configurazione usata ogni giorno in produzione, igienizzato. Bene comune prima, contatti come effetto (decisione del 16/9/2026). Dice apertamente cosa non è neutro: Claude Code è un servizio a pagamento di un'azienda privata, e ogni aggiornamento è codice di altri che gira sul tuo computer.
+Estratto da una configurazione usata ogni giorno in produzione, igienizzato. Bene comune prima, contatti come effetto (decisione del 16/9/2026). Dice apertamente cosa non è neutro: Claude Code è un servizio a pagamento di un'azienda privata, ogni aggiornamento è codice di altri che gira sul tuo computer, e Arturo manda dati d'uso a chi lo mantiene, accesi di default.
 
 ## Operating Context
 
@@ -30,10 +30,11 @@ Terminale e Claude Code. Installazione: `git clone https://github.com/stellakami
 
 ## Capabilities and Constraints
 
-- 18 guardie e automazioni, 12 comandi, 9 agenti, 3 skill (conteggi del README al 30/9/2026: vanno riletti dal README prima di citarli).
-- Impegni del README: repository pubblico e MIT, niente telemetria, Arturo in italiano, stop dichiarato. L'avvio non applica aggiornamenti; `/inizio` sì.
-- Ufficio Furore firma il progetto: «progetto di Federico Nejrotti, pubblicato da Ufficio Furore» (direzione del 30/9/2026, supera il «nessun link» del 16/9). Nessuna cifra, nessun prezzo. L'affiancamento a pagamento non compare finché la sua forma non è decisa.
-- La pagina non usa analytics, tracker, cookie né risorse che profilano il visitatore.
+- 18 guardie e automazioni, 13 comandi, 9 agenti, 5 skill (conteggi del README di dev al 15/10/2026: vanno riletti dal README prima di citarli).
+- Impegni del README: repository pubblico e MIT, solo `/aggiorna` applica gli aggiornamenti, telemetria minima accesa di default con il perché, Arturo in italiano, stop dichiarato. L'avvio e `/inizio` controllano soltanto se ci sono novità e non applicano niente.
+- La telemetria è centrale nel racconto: Arturo impara da come lo usi. Accesa di default, si spegne con `arturo telemetria spegni`, `ARTURO_TELEMETRIA=0` o `DO_NOT_TRACK=1`. Escono solo eventi da un elenco chiuso con un id di installazione casuale e stabile (sulla pagina non si scrive che i dati sono senza nome: l'id resta lo stesso nel tempo), mai testi, file o nomi. La pagina dice cosa esce, cosa no, come si spegne e come i dati diventano correzioni.
+- Firma solo «Progetto di Federico Nejrotti» (decisione del 15/10/2026). Nessuna cifra, nessun prezzo. L'affiancamento a pagamento non compare finché la sua forma non è decisa.
+- La pagina non usa analytics, tracker, cookie né risorse che profilano il visitatore. La telemetria riguarda Arturo sul computer di chi lo usa, non il sito.
 
 ## Brand Commitments
 
@@ -44,7 +45,7 @@ Terminale e Claude Code. Installazione: `git clone https://github.com/stellakami
 
 ## Evidence on Hand
 
-README.md, NOVITA.md, docs/principi/00 e 01, commands/*.md. Nessuna testimonianza, nessun numero d'uso pubblicabile, nessun cliente: non inventarne.
+README.md, NOVITA.md, docs/principi/00 e 01, commands/*.md. Nessuna testimonianza, nessun cliente: non inventarne. I numeri d'uso esistono, ma restano privati a chi mantiene Arturo: la pagina non ne cita.
 
 ## Product Principles
 
