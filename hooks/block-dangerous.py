@@ -55,8 +55,10 @@ DANGEROUS = [
     # `curl ... | python3 -c "import json..."` è parsing, non esecuzione dello stdin.
     # Passa solo il codice inline fra virgolette senza command-substitution ne'
     # primitive che eseguono testo. Le coppie di escape si consumano intere.
-    (r"\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?python3?\b"
-     r"(?!\s+-c\s+([\"'])(?:\\[\s\S]|(?!\3|\\|\$\(|`|\b(?:exec|eval|compile|__import__|__builtins__|builtins|"
+    # Vale anche con i flag dell'interprete prima di -c (`python3 -I -c`, la forma
+    # isolata) e con la versione (`python3.13`).
+    (r"\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?python3?(?:\.\d+)?(?![\w.])"
+     r"(?!(?:\s+-[IEsSBuOqP]+)*\s+-c\s+([\"'])(?:\\[\s\S]|(?!\3|\\|\$\(|`|\b(?:exec|eval|compile|__import__|__builtins__|builtins|"
      r"getattr|globals|importlib|system|popen|subprocess|runpy|pickle|marshal|spawn)\b)[\s\S])*\3)",
      "pipe di script remoto in un interprete"),
     (r"\b(bash|sh|zsh|fish|python3?|perl|ruby|node|php)\b\s+<\(\s*(curl|wget|fetch)\b",
