@@ -1,0 +1,3 @@
+# Fixture Python per l'eval FALSE-GREEN del validation-gate.
+# La sola presenza di questo file marca la dir come progetto Python:
+# il gate language-aware deve NON emettere verde-muto qui.

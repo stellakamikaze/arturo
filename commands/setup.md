@@ -166,7 +166,7 @@ Se non esiste, fai una **breve intervista** (poche domande, semplici), poi gener
 - **Come vuoi le risposte**: lingua, tono (conciso? esteso?), preferenze (es. niente emoji, accenti corretti).
 - **Regole tue**: cose che Claude deve o non deve fare (es. «chiedi prima di installare pacchetti», «non pushare senza chiedere»).
 - **Cosa usi**: sistema operativo, strumenti principali.
-- **Le regole che consigliamo di includere** (l'utente decide): «Le azioni tecniche le esegui tu — comandi, script, riavvii, verifiche. Chiedimi solo ciò che solo una persona può fare: password che conosco solo io, codici 2FA, pagamenti, invii a terzi, decisioni. Se un permesso ti blocca, non passarmi il comando: cerca un'altra via o chiedimi di allargare il permesso» (senza questa regola l'assistente tende a chiudere ogni passo con una richiesta di azione manuale); «Prima di un lavoro che tocca più file, ha effetti fuori dal computer o si può capire in due modi, riscrivi la mia richiesta come la eseguirai (il prompt), poi mostra un brief di massimo 8 righe — obiettivo, output, vincoli, fatto quando, assunzioni, da chiarire — e procedi. Domande e richieste chiare e piccole: rispondi e fai» (lo fa la skill `prompt-master`, e l'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi); e la forma delle risposte: frasi corte (22 parole per un'istruzione, 28 per una descrizione), voce attiva, niente gerundio né condizionale, una parola per concetto (il catalogo completo è nella skill `italiano-semplificato`, da usare per riscrivere un testo dato); «A lavoro finito l'ultima riga è «Prossimo passo:» con una sola azione e chi la fa, oppure «Niente da fare per te»» (senza, l'utente finisce per chiedere «e adesso?»); «Un risultato visivo o in un'app esterna (documento, slide, grafica, pagina) è fatto solo quando l'hai aperto come lo vedrò io: dammi il link e lo screenshot che hai guardato» (il «fatto» non verificato è la correzione più frequente su questi lavori).
+- **Le regole che consigliamo di includere** (l'utente decide): «Le azioni tecniche le esegui tu — comandi, script, riavvii, verifiche. Chiedimi solo ciò che solo una persona può fare: password che conosco solo io, codici 2FA, pagamenti, invii a terzi, decisioni. Se un permesso ti blocca, non passarmi il comando: cerca un'altra via o chiedimi di allargare il permesso» (senza questa regola l'assistente tende a chiudere ogni passo con una richiesta di azione manuale); «Prima di un lavoro che tocca più file, ha effetti fuori dal computer o si può capire in due modi, riscrivi la mia richiesta come la eseguirai (il prompt), poi mostra un brief di massimo 8 righe — obiettivo, output, vincoli, fatto quando, assunzioni, da chiarire — e procedi. Domande e richieste chiare e piccole: rispondi e fai» (lo fa la skill `prompt-master`, e l'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi); e la forma delle risposte: frasi corte (22 parole per un'istruzione, 28 per una descrizione), voce attiva, niente gerundio né condizionale, una parola per concetto (il catalogo completo è nella skill `italiano-semplificato`, da usare per riscrivere un testo dato); «A lavoro finito l'ultima riga è «Prossimo passo:» con una sola azione e chi la fa, oppure «Niente da fare per te»» (senza, l'utente finisce per chiedere «e adesso?»); «Un risultato visivo o in un'app esterna (documento, slide, grafica, pagina) è fatto solo quando l'hai aperto come lo vedrò io: dammi il link e lo screenshot che hai guardato» (il «fatto» non verificato è la correzione più frequente su questi lavori); «Un comando che dura più di due minuti va in background, come dice `~/.claude/shared/lavori-lunghi.md`: un lavoro avviato non è un lavoro fatto» (senza, la sessione resta bloccata o l'esito si perde).
 
 Mostra la bozza e chiedi conferma prima di scriverla in `~/.claude/CLAUDE.md`. Tienila corta e pratica: è meglio poche regole vere che una lista lunga.
 
@@ -262,6 +262,35 @@ python3 "$HOME/.claude/bin/arturo" memoria stato
 ## FASE 8 — Google Workspace CLI (opzionale)
 
 Solo se l'utente vuole collegare account Google (Gmail/Drive/Calendar) via la CLI `gws`. In tal caso NON farlo qui: indirizzalo al comando dedicato **`/inizio gws`**, che ha la procedura completa. Altrimenti salta.
+
+---
+
+## FASE 8b — Leggere pagine web senza browser (opzionale)
+
+Spiega: «`scrape` legge una pagina web e tiene solo il testo che serve. È più rapido del browser e
+riempie meno la conversazione. Non supera i siti che bloccano i programmi: per quelli resta il
+browser. Occupa circa 300 MB sul disco. Lo installo?»
+
+Controlla prima se c'è già:
+
+```bash
+[ -x "$HOME/.claude/tools/scrapling/.venv/bin/python" ] || [ -x "$HOME/.claude/tools/scrapling/.venv/Scripts/python.exe" ] && echo "scrape già installato" || echo "scrape non installato"
+```
+
+- Se è già installato, dillo e vai avanti.
+- Solo dopo il sì dell'utente, installalo e prova il banco. Il primo comando dura qualche minuto:
+
+  ```bash
+  bash "$HOME/.claude/tools/scrapling/setup.sh"
+  ```
+
+  ```bash
+  bash "$HOME/.claude/tools/scrapling/banco.sh"
+  ```
+
+  Se `setup.sh` dice che serve Python 3.10, spiega che il resto di Arturo funziona e che `scrape`
+  si installa dopo un aggiornamento di Python. Istruzioni d'uso: `~/.claude/tools/scrapling/README.md`.
+- Se l'utente dice no, salta: si installa anche più tardi con lo stesso comando.
 
 ---
 

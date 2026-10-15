@@ -3,8 +3,9 @@ name: system-audit
 description: >-
   Verifica che la configurazione Claude Code in ~/.claude/ sia coerente e collegata: settings JSON
   valido, hook e statusline presenti su disco, guardie richiamate dal dispatcher, smoke test degli
-  hook, frontmatter di agent e skill, defaultMode e permessi senza sovrapposizioni. Report-only, non
-  modifica file.
+  hook, frontmatter di agent e skill, defaultMode e permessi senza sovrapposizioni, slash-comandi
+  citati nei documenti senza una skill o un comando dietro, peso dei corpi, plugin installati e non
+  attivi. Report-only, non modifica file.
 when_to_use: >-
   Usa con /system-audit dopo ogni git pull dell'harness, dopo aver aggiunto o tolto hook, skill o
   comandi, o quando «qualcosa sembra rotto» (una guardia che non scatta, un comando che non compare).
@@ -39,6 +40,19 @@ Solo questi controlli, niente di più:
 6. **Skill e mod** — ogni cartella in `~/.claude/skills/` ha `SKILL.md` con frontmatter YAML, `name` e `description`. Una cartella con `.claude-plugin/plugin.json` è un mod di Claude Code (come il pannello `/dafare`), non una skill: non ha `SKILL.md` e non va aggiunta. Per un mod l'audit controlla che `name` del manifest coincida con il nome della cartella e che esista `hooks/hooks.json`.
 7. **README** — `~/.claude/README.md` esiste.
 8. **Permessi** — `defaultMode` presente e nessun pattern uguale in `allow` e `deny`.
+9. **Comandi fantasma** — `CLAUDE.md`, `README.md`, `commands/`, `skills/*/SKILL.md`, `agents/` e `shared/` non citano come vivo uno slash-comando che nessuna skill, nessun comando e nessun mod registra (i comandi di Claude Code contano come vivi). Le righe di storia («rimosso», «archiviata», «ha assorbito») non contano. Un comando di Claude Code nuovo che l'audit non conosce va aggiunto a `NATIVE` in `audit.sh`.
+10. **Peso dei corpi** — WARN se un `SKILL.md` o un comando supera 30 KB: il corpo entra intero nel contesto a ogni uso, e le parti lette solo in un caso vanno in un file a parte.
+11. **Plugin** — WARN se un plugin è installato ma non attivo in `settings.json`, con il comando per toglierlo (`bash ~/.claude/bin/cleanup-stale-plugins.sh --yes`). Succede dopo una sincronizzazione fra macchine.
+
+## Banco
+
+I gate hanno casi avvelenati, costruiti sbagliati apposta: il gate li deve bocciare. Accanto ci sono i casi sani, che non devono dare falsi positivi.
+
+```bash
+bash ~/.claude/skills/system-audit/tests/banco-gate.sh
+```
+
+Il banco copia Arturo in una cartella temporanea e avvelena solo la copia: la tua `~/.claude` non cambia. Se tocchi un criterio di un gate, rilancia **prima** il banco. Un caso nuovo si prova anche sul codice vecchio, che lo deve sbagliare: `BANCO_AUDIT=<audit.sh vecchio> bash tests/banco-gate.sh`.
 
 ## Output atteso
 

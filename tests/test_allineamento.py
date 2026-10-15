@@ -64,7 +64,9 @@ def main() -> int:
     assert permessi.get("defaultMode") == "auto" and "Bash" not in permessi["allow"], "I01 defaultMode o allow Bash ampio cambiati"
     assert "github_issue_guard.py" not in settings and "quality-check.sh" not in settings and "session-reminder.sh" not in settings, "C05 wiring rimosso residuo"
     gate = (repo / "shared" / "validation-gate.md").read_text(encoding="utf-8")
-    assert "PIPESTATUS[0]" in gate and "Quality gate: SKIP" not in gate, "C06 gate maschera errori"
+    # C06: il gate legge l'exit da file (in zsh PIPESTATUS non esiste e l'exit letto resta vuoto).
+    assert "PIPESTATUS[0]" not in gate and "validation-gate-lang.sh" in gate and '.rc"' in gate \
+        and "Quality gate: SKIP" not in gate, "C06 gate maschera errori"
     start = (repo / "hooks" / "session-start.sh").read_text(encoding="utf-8")
     end = (repo / "hooks" / "session-end.sh").read_text(encoding="utf-8")
     assert "rev-parse --git-path rebase-merge" in start, "C01 rebase non rilevato"
