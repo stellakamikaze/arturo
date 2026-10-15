@@ -11,6 +11,11 @@ persona lancia /<comando> l'hook inject-now.sh dice a Claude di leggerle.
   separa [--verso REF]    sposta i comandi di Arturo modificati (con --verso solo quelli che REF cambia);
                           /aggiorna lo lancia da solo nella copia di prova
 
+Con un repository della persona come origin (Arturo come upstream), /aggiorna e /aggiorna personale
+lanciano separa solo se quel repository è privato: altrimenti personale/ non viaggerebbe fra le sue
+macchine. Il controllo sta in chi lancia separa: `sposta` a mano lo salta, e per questo `elenco`
+indica /aggiorna personale.
+
 `sposta` è meccanico: copia le parti aggiunte così come sono, con la riga di Arturo dopo cui stavano,
 e le parti tolte sotto «Parti di Arturo che non seguo». Il riordino lo fa Claude con la persona.
 Il confronto è con il punto in cui la config si è staccata da Arturo: merge-base con upstream/main
@@ -195,7 +200,8 @@ def sposta(file: str, parla: bool = True) -> int:
 
 
 def separa(verso: str = "") -> int:
-    """Ogni comando di Arturo modificato va in personale/: /aggiorna lo lancia prima di applicare.
+    """Ogni comando di Arturo modificato va in personale/: /aggiorna lo lancia prima di applicare,
+    solo se il repository della config è di Arturo o è privato (lo controlla chi lo lancia).
 
     Cosi' la persona non deve pensarci: le sue modifiche restano sue, il comando torna quello di
     Arturo e l'aggiornamento non va in conflitto. Senza comandi modificati non stampa niente.
@@ -217,7 +223,7 @@ def elenco() -> int:
     cambiati = modificati(r, b) if b else []
     print("Comandi di Arturo modificati in ~/.claude: " + (", ".join(cambiati) if cambiati else "nessuno"))
     if cambiati:
-        print("Per spostarli: arturo personale sposta " + cambiati[0])
+        print("Per spostarli: /aggiorna personale (sposta solo se il tuo repository della config è privato)")
     return 0
 
 

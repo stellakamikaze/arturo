@@ -77,6 +77,7 @@ verificato in Email Routing. Il Worker può scrivere solo a indirizzi verificati
    npx wrangler@4 secret put RIEPILOGO_TOKEN
    ```
 
+   L'output di `deploy` elenca i binding (`env.POSTA`, `env.DB`), il dominio e il cron `0 6 * * *`.
    Senza il token `GET /v1/riepilogo` risponde sempre 401: è il comportamento sicuro.
 
    Facoltativi, gli avvisi su Telegram (installazioni nuove e segnalazioni). Crea un bot con
@@ -91,8 +92,6 @@ verificato in Email Routing. Il Worker può scrivere solo a indirizzi verificati
 
    Senza i due secret non parte niente verso Telegram. Il token del bot è un segreto: chi lo ha
    può scrivere a nome del bot, quindi non va in nessun file né in un commit.
-
-   L'output elenca i binding (`env.POSTA`, `env.DB`), il dominio e il cron `0 6 * * *`.
 
 5. Prova che risponde. Un `GET /` restituisce una riga di testo:
 

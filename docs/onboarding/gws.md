@@ -20,6 +20,13 @@ Cosa sapere:
 
 Fonte: la pagina MCP della documentazione di Claude Code, sezione «Use MCP servers from claude.ai».
 
+Checklist di questa strada:
+
+- [ ] Claude Code è aperto con l'abbonamento di claude.ai, non con una chiave API
+- [ ] `/mcp` mostra `claude.ai Gmail`, `claude.ai Google Calendar` e `claude.ai Google Drive`
+- [ ] La prova del punto 4 restituisce le email giuste
+- [ ] Una bozza di prova compare tra le bozze di Gmail, senza che Claude la mandi
+
 ## La strada avanzata: Google Workspace CLI multi-account
 
 Serve a chi lavora con **più account Google** (lavoro + personale) o vuole i comandi `gws` nel terminale. Ogni account ha la sua directory di configurazione, e serve un progetto su Google Cloud: è la parte lunga.
@@ -87,7 +94,7 @@ La env var per-comando è il modo affidabile di scegliere l'account in uno scrip
 - Login che fallisce su @gmail.com con client aziendale → è il blocco org sugli scope restricted: usa il progetto GCP personale (punto 2).
 - Aggiungere scope dopo il primo login richiede un nuovo `gws auth login` con la lista completa.
 
-## Checklist finale
+## Checklist della strada avanzata
 
 - [ ] `gws --version` risponde
 - [ ] Una config dir per account, ciascuna col suo `client_secret.json`

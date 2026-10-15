@@ -102,7 +102,7 @@ done
   ```
 
   Se manca, chiedi all'utente nome ed email (anche un'email finta va bene, resta sul suo computer) e impostali **per il solo repository di Arturo**: `git -C "$HOME/.claude" config user.name "<nome>"` e `git -C "$HOME/.claude" config user.email "<email>"`. Non usare `--global`: Arturo lo nega, perché cambierebbe l'identità di ogni repository dell'utente.
-- Gli opzionali servono solo per funzioni specifiche (`gh` per GitHub, `gitleaks` per l'audit segreti, `bw` per le password, `gws` per Google): non bloccare per questi.
+- Gli opzionali servono solo per funzioni specifiche (`gh` per GitHub, `gitleaks` per l'audit segreti, `bw` per le password, `gws` per più account Google: per uno solo bastano i connettori di claude.ai): non bloccare per questi.
 
 ---
 
@@ -268,9 +268,9 @@ python3 "$HOME/.claude/bin/arturo" memoria stato
 
 ---
 
-## FASE 8 — Google Workspace CLI (opzionale)
+## FASE 8 — Gmail, Calendar e Drive (opzionale)
 
-Solo se l'utente vuole collegare account Google (Gmail/Drive/Calendar) via la CLI `gws`. In tal caso NON farlo qui: indirizzalo al comando dedicato **`/inizio gws`**, che ha la procedura completa. Altrimenti salta.
+Solo se l'utente vuole collegare Gmail, Calendar o Drive. NON farlo qui: indirizzalo a **`/inizio gws`**. Quel comando propone prima i connettori di claude.ai, che non chiedono Google Cloud, e passa alla CLI `gws` solo per più account o per i comandi nel terminale. Altrimenti salta.
 
 ---
 
@@ -332,7 +332,7 @@ Se preferisce esplorare da solo, indicagli `docs/principi/README.md` e chiudi.
 
 Chiudi con un riepilogo in linguaggio semplice:
 - Cosa è stato configurato: prerequisiti, permessi, `PROJECTS_BASE`, lingua, verifica finale.
-- Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), strato dell'organizzazione (7b), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), `gws` (8), `scrape` (8b), sparring (10). Una fase saltata si recupera rilanciando `/setup`.
+- Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), strato dell'organizzazione (7b), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), Google (8), `scrape` (8b), sparring (10). Una fase saltata si recupera rilanciando `/setup`.
 - **Come iniziare a lavorare**: «Per avviare un progetto usa `/progetto <nome>`; per riprendere una sessione `/inizio <nome>`; per chiudere `/fine`. Quando ti viene in mente qualcosa da fare, dimmi «ricordami di…»: lo ritrovi a ogni `/inizio`.»
 - **Come imparare un passo alla volta**: «Per imparare un passo alla volta: dimmi «a che punto sono?» o usa `/percorso`.»
 - **Come restare aggiornato**: all'avvio della sessione Arturo controlla da solo se c'è una versione nuova e lo segnala (`ARTURO: c'e' un aggiornamento — scaricalo con /aggiorna`). **`/aggiorna`** la scarica e la applica, **`/novita`** racconta cosa è cambiato e propone lo sparring.

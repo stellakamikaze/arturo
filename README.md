@@ -72,7 +72,7 @@ Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
 - [Personalizzazione](#personalizzazione)
 - [Sicurezza](#sicurezza)
 - [Multi-macchina](#multi-macchina)
-- [Onboarding gws (opzionale)](#onboarding-gws-google-workspace-cli-opzionale)
+- [Collegare Gmail, Calendar e Drive (opzionale)](#collegare-gmail-calendar-e-drive-opzionale)
 - [Troubleshooting](#troubleshooting)
 - [Autore e manutenzione](#autore-e-manutenzione)
 - [Licenza](#licenza)
@@ -101,7 +101,7 @@ Tre idee tengono insieme tutto:
 
 **Sistemi.** macOS e Linux. Su Windows Arturo funziona solo dentro **Git Bash** (Git for Windows): senza, Claude Code esegue i comandi con PowerShell e le guardie di Arturo non li vedono. Il `python3` deve essere quello di python.org, non il rimando del Microsoft Store: `/setup` controlla entrambe le cose.
 
-Facoltativi: **`gitleaks`** (audit segreti), **`bw`** (Bitwarden CLI, per le credenziali), **`gws`** (Google Workspace CLI — vedi [onboarding](#onboarding-gws-google-workspace-cli-opzionale)). Lo smoke test di `/system-audit` usa `timeout` se c'è (su Linux e Git Bash sì, su macOS di norma no); senza, gira comunque, solo senza tetto di tempo.
+Facoltativi: **`gitleaks`** (audit segreti), **`bw`** (Bitwarden CLI, per le credenziali), **`gws`** (Google Workspace CLI, solo per più account Google: per un account solo bastano i connettori di claude.ai, vedi [Collegare Gmail, Calendar e Drive](#collegare-gmail-calendar-e-drive-opzionale)). Lo smoke test di `/system-audit` usa `timeout` se c'è (su Linux e Git Bash sì, su macOS di norma no); senza, gira comunque, solo senza tetto di tempo.
 
 ---
 
@@ -313,7 +313,7 @@ Pedagogia: **`/novita`** — racconta gli aggiornamenti dell'harness non ancora 
 
 Il ciclo di lavoro quotidiano:
 
-`- **`/inizio <progetto>`** — sync della config, poi il contesto del progetto in una chiamata (`arturo contesto`: git, ripartenza degli handoff recenti, todo aperti divisi per chi agisce, scadenze), il confronto dei todo con `git log` (quelli già fatti non risorgono) e la scelta del lavoro. Con `--tutti` aggiorna anche ogni progetto della cartella dei progetti; con `-- <compito>` parte subito sul compito. `/inizio gws` avvia invece l'onboarding gws.`
+`- **`/inizio <progetto>`** — sync della config, poi il contesto del progetto in una chiamata (`arturo contesto`: git, ripartenza degli handoff recenti, todo aperti divisi per chi agisce, scadenze), il confronto dei todo con `git log` (quelli già fatti non risorgono) e la scelta del lavoro. Con `--tutti` aggiorna anche ogni progetto della cartella dei progetti; con `-- <compito>` parte subito sul compito. `/inizio gws` collega invece Gmail, Calendar e Drive.`
 `- **`/fine`** — inventario dei file della sessione e dove va ognuno, review di completezza per le modifiche di codice, validate, commit selettivo e handoff con la tabella dei todo pendenti e di chi agisce. Un controllo (`bin/handoff-gate.sh`) ferma un handoff senza tabella, con un todo inesistente o con un segnaposto mai compilato; tiene gli ultimi 5 handoff per progetto e rigenera l'indice `data/handoffs/INDEX.md`. Alla fine chiede se Arturo si è inceppato o se ti manca qualcosa (al massimo una domanda a settimana, oppure subito dopo un intoppo).`
 - **`/segnala`** — manda a chi mantiene Arturo un problema, un'idea o uno strumento da collegare. La bozza la scrive Claude, senza nomi né segreti. Tu la leggi e dici sì: arriva direttamente a chi mantiene Arturo, senza account né email da mandare. Se preferisci, diventa una issue pubblica su GitHub. Se non vuoi più gli inviti a segnalare: `python3 ~/.claude/bin/arturo segnala basta`.
 
@@ -420,7 +420,7 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 - **Host interni e API fidate.** `INTERNAL_HOSTS` e `INTERNAL_NETS` in `exfil-guard.py` e `web-egress-guard.py` sono i default pubblici: non modificarli. Se lavori con un tuo server, aggiungi il suo hostname o la sua rete in `hooks/hosts-interni.local`, una voce per riga: le chiamate verso quegli host non chiederanno conferma. Una rete più larga di `/8` viene ignorata. Un servizio esterno che usi con la tua chiave va in `hooks/api-fidate.local`, un nome host esatto per riga (niente reti, niente `*`). I due file sono tuoi, nessun aggiornamento li tocca.
 - **Lingua.** `language` in `settings.json` (default `italian`) e i messaggi dei guard sono in italiano — cambiali se preferisci un'altra lingua.
 - **Disattivare un guard.** Commenta la riga corrispondente in `bash-dispatcher.sh` (per i guard instradati) o rimuovi il blocco da `settings.json` (per quelli PostToolUse). Poi rilancia `/system-audit`.
-- **Cambiare un comando di Arturo.** Non modificare `commands/<comando>.md`: scrivi le tue aggiunte in `~/.claude/personale/<comando>.md` (se modifichi il comando, il prossimo `/aggiorna` le sposta lì da solo). Claude le legge quando lanci il comando, `/fine` le sincronizza solo verso un tuo repository privato, e nessun aggiornamento le tocca.
+- **Cambiare un comando di Arturo.** Non modificare `commands/<comando>.md`: scrivi le tue aggiunte in `~/.claude/personale/<comando>.md` (se modifichi il comando, il prossimo `/aggiorna` le sposta lì da solo, oppure lo fai subito con `/aggiorna personale`; con un tuo repository della config succede solo se è privato, altrimenti le modifiche restano dove sono). Claude le legge quando lanci il comando, `/fine` le sincronizza solo verso un tuo repository privato, e nessun aggiornamento le tocca.
 - **Aggiungere un comando o una skill.** Un file `.md` in `commands/` diventa uno slash command; una cartella con `SKILL.md` in `skills/` diventa una skill. Il frontmatter `name` + `description` è obbligatorio (`/system-audit` lo verifica).
 
 ---
@@ -441,15 +441,17 @@ Il repo config **È** il canale di sync: `/fine` committa e pusha, `/inizio` sca
 
 ---
 
-## Onboarding gws (Google Workspace CLI, opzionale)
+## Collegare Gmail, Calendar e Drive (opzionale)
 
-Se vuoi collegare più account Google (lavoro + personale) alla CLI `gws`, lancia:
+Lancia:
 
 ```
 /inizio gws
 ```
 
-Claude ti guida passo-passo seguendo [`docs/onboarding/gws.md`](docs/onboarding/gws.md): installazione, progetti GCP (uno per gli account Workspace, uno separato per i `@gmail.com`), una config dir per account via `GOOGLE_WORKSPACE_CLI_CONFIG_DIR`, login, alias e checklist finale.
+Claude segue [`docs/onboarding/gws.md`](docs/onboarding/gws.md) e ti propone prima la strada semplice: i connettori di claude.ai. Li attivi da claude.ai in Impostazioni › Connettori, riapri Claude Code e Claude controlla con `/mcp` che ci siano. Non serve un progetto su Google Cloud. I connettori arrivano in Claude Code solo se entri con l'abbonamento di claude.ai, non con una chiave API.
+
+La strada avanzata è la CLI `gws`: serve se vuoi più account Google (lavoro + personale) o i comandi `gws` nel terminale. Chiede un progetto su Google Cloud, una config dir per account via `GOOGLE_WORKSPACE_CLI_CONFIG_DIR`, il login e gli alias. Ogni strada chiude con la sua checklist.
 
 ---
 

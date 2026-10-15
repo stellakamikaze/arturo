@@ -114,7 +114,7 @@ def main() -> int:
         reason = (
             f"Questo comando invia una comunicazione esterna via {matched}. "
             "Bozza prima: conferma solo se hai già letto il testo e vuoi inviarlo "
-            "così com'e'."
+            "così com'è."
         )
         sys.stdout.write(json.dumps({"hookSpecificOutput": {
             "hookEventName": "PreToolUse",
