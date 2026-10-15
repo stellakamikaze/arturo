@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -35,11 +36,13 @@ Lab, blocco, read, baseline = _sicuro.Lab, _sicuro.blocco, _sicuro.read, _sicuro
 INIZIO = "# /inizio\n\nApri la sessione.\n\n## FASE 1\nLeggi l'handoff.\n\n## FASE 2\nMostra i todo.\n"
 
 
-def prepara(repo: Path, tmp: Path) -> Lab:
+def prepara(repo: Path, tmp: Path, altri: Dict[str, str] = None) -> Lab:
     """Arturo pubblica /inizio; la persona ci aggiunge la sua tabella e toglie una riga; Arturo cambia la FASE 1."""
     lab = Lab(repo, tmp, "bash")
     (lab.autore / "commands").mkdir()
     (lab.autore / "commands" / "inizio.md").write_text(INIZIO)
+    for nome, testo in (altri or {}).items():
+        (lab.autore / "commands" / nome).write_text(testo)
     (lab.autore / ".gitignore").write_text(read(repo / ".gitignore"))  # come nell'Arturo vero
     if (repo / "bin" / "personale.py").exists():  # /aggiorna lo legge dalla versione in arrivo, come aggiorna-applica.sh
         shutil.copy(str(repo / "bin" / "personale.py"), str(lab.autore / "bin" / "personale.py"))
@@ -61,9 +64,9 @@ def arturo(lab: Lab, *argomenti: str) -> subprocess.CompletedProcess:
                           capture_output=True, text=True, timeout=60)
 
 
-def con_lab(prova: Callable[[Lab], None], repo: Path) -> None:
+def con_lab(prova: Callable[[Lab], None], repo: Path, altri: Dict[str, str] = None) -> None:
     with tempfile.TemporaryDirectory() as tmp:
-        prova(prepara(repo, Path(tmp)))
+        prova(prepara(repo, Path(tmp), altri))
 
 
 def test_p01(repo: Path) -> None:
@@ -187,11 +190,21 @@ def test_p08(repo: Path) -> None:
     con_lab(lambda lab: _aggiorna_senza_passi(lab, repo, "P08"), repo)
 
 
+def gh_finto(lab: Lab, visibilita: str) -> None:
+    """`gh repo view` che risponde con la visibilità data: personale/ viaggia solo verso un repository privato."""
+    finti = lab.base / "gh-finto"
+    finti.mkdir(exist_ok=True)
+    (finti / "gh").write_text(f"#!/bin/sh\necho {visibilita}\n")
+    (finti / "gh").chmod(0o755)
+    lab.env["PATH"] = f"{finti}{os.pathsep}{lab.env.get('PATH', '')}"
+
+
 def test_p09(repo: Path) -> None:
-    # Il caso di chi ha un suo repository: Arturo è upstream, /aggiorna fa un merge, i commit pubblicati restano.
+    # Il caso di chi ha un suo repository privato: Arturo è upstream, /aggiorna fa un merge, i commit pubblicati restano.
     def prova(lab: Lab) -> None:
         pubblicato = lab.head()
         lab.personale()
+        gh_finto(lab, "PRIVATE")
         _aggiorna_senza_passi(lab, repo, "P09")
         assert lab.git(lab.utente, "merge-base", "--is-ancestor", pubblicato, "HEAD") == "", "P09 riscritto un commit pubblicato"
     con_lab(prova, repo)
@@ -215,9 +228,77 @@ def test_p10(repo: Path) -> None:
     con_lab(prova, repo)
 
 
+def test_p11(repo: Path) -> None:
+    # Repository suo non privato: personale/ non viaggerebbe fra le sue macchine, quindi non si sposta niente.
+    def prova(lab: Lab) -> None:
+        lab.personale()
+        gh_finto(lab, "PUBLIC")
+        testo = read(repo / "commands" / "aggiorna.md")
+        lab.lancia(blocco(testo, "## Passo 1", "P11"))
+        prima = lab.head()
+        uscita = lab.lancia(blocco(testo, "## Passo 3", "P11"))
+        assert "NON SEPARATO" in uscita and "SEPARATO: /inizio" not in uscita, f"P11 separa verso un repository pubblico: {uscita[-300:]!r}"
+        assert lab.head() == prima and not (lab.utente / "personale" / "inizio.md").exists(), "P11 ~/.claude è cambiata"
+    con_lab(prova, repo)
+
+
+def test_p12(repo: Path) -> None:
+    # Separazione fatta, ma l'aggiornamento va in conflitto su un altro file: ~/.claude non cambia per niente.
+    def prova(lab: Lab) -> None:
+        lab.git(lab.utente, "commit", "-q", "--allow-empty", "-m", "vuoto")
+        (lab.utente / "NOVITA.md").write_text("# mia\n")
+        lab.git(lab.utente, "commit", "-q", "-am", "mia NOVITA")
+        lab.pubblica(lab.autore, {"NOVITA.md": lambda t: t + "\n## 2026-10-16 — Altra\n"}, "v3: NOVITA")
+        testo = read(repo / "commands" / "aggiorna.md")
+        lab.lancia(blocco(testo, "## Passo 1", "P12"))
+        prima, inizio = lab.head(), read(lab.utente / "commands" / "inizio.md")
+        uscita = lab.lancia(blocco(testo, "## Passo 3", "P12"))
+        assert "SEPARATO: /inizio" in uscita and "CONFLITTO" in uscita, \
+            f"P12 serve una separazione seguita da un conflitto su NOVITA: {uscita[-300:]!r}"
+        assert lab.head() == prima and read(lab.utente / "commands" / "inizio.md") == inizio, \
+            "P12 con l'aggiornamento annullato la separazione ha cambiato ~/.claude"
+        assert not (lab.utente / "personale" / "inizio.md").exists(), "P12 personale/ scritto senza un'applicazione riuscita"
+    con_lab(prova, repo)
+
+
+def test_p13(repo: Path) -> None:
+    # Un comando cancellato dalla persona resta cancellato; uno che l'aggiornamento non tocca resta com'è.
+    def prova(lab: Lab) -> None:
+        lab.git(lab.utente, "rm", "-q", "commands/fine.md")
+        (lab.utente / "commands" / "setup.md").write_text("# /setup\n\nPrepara.\nMia riga.\n")
+        lab.git(lab.utente, "commit", "-q", "-am", "via /fine, mia riga in /setup")
+        lab.pubblica(lab.autore, {"commands/fine.md": lambda t: t + "Poi salva.\n"}, "v3: /fine")
+        testo = read(repo / "commands" / "aggiorna.md")
+        lab.lancia(blocco(testo, "## Passo 1", "P13"))
+        uscita = lab.lancia(blocco(testo, "## Passo 3", "P13"))
+        assert "SEPARATO: /inizio" in uscita, f"P13 /inizio, che l'aggiornamento cambia, non è separato: {uscita[-300:]!r}"
+        assert "SEPARATO: /fine" not in uscita and "Errore" not in uscita, f"P13 sposta un comando cancellato: {uscita[-300:]!r}"
+        assert "Mia riga." in read(lab.utente / "commands" / "setup.md") and not (lab.utente / "personale" / "setup.md").exists(), \
+            "P13 sposta un comando che l'aggiornamento non cambia"
+        assert not (lab.utente / "commands" / "fine.md").exists(), "P13 il comando cancellato è tornato"
+    con_lab(prova, repo, {"fine.md": "# /fine\n\nChiudi.\n", "setup.md": "# /setup\n\nPrepara.\n"})
+
+
+def test_p14(repo: Path) -> None:
+    # personale/ già tracciato (remote privato, /fine fa git add -f): un secondo spostamento non sporca la config.
+    def prova(lab: Lab) -> None:
+        lab.personale()
+        gh_finto(lab, "PRIVATE")
+        (lab.utente / "personale").mkdir()
+        (lab.utente / "personale" / "inizio.md").write_text("# Aggiunte mie a /inizio\n\nGia' mia.\n")
+        lab.git(lab.utente, "add", "-f", "personale")
+        lab.git(lab.utente, "commit", "-q", "-m", "session sync con personale")
+        uscita = _aggiorna_senza_passi(lab, repo, "P14")
+        assert lab.git(lab.utente, "status", "--porcelain", "--untracked-files=no") == "", \
+            f"P14 dopo l'aggiornamento la config ha modifiche non salvate: {uscita[-200:]!r}"
+        assert "Gia' mia." in read(lab.utente / "personale" / "inizio.md"), "P14 il file personale ha perso le righe di prima"
+    con_lab(prova, repo)
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {
     "P01": test_p01, "P02": test_p02, "P03": test_p03, "P04": test_p04, "P05": test_p05, "P06": test_p06,
     "P07": test_p07, "P08": test_p08, "P09": test_p09, "P10": test_p10,
+    "P11": test_p11, "P12": test_p12, "P13": test_p13, "P14": test_p14,
 }
 
 

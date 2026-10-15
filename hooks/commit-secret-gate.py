@@ -63,8 +63,6 @@ try:
 except Exception:
     def _togli_heredoc(cmd, via, segnaposto=None):
         return cmd
-# Qui ssh non conta: il corpo gira sul server, e un `git commit` remoto non tocca questo repository.
-_SHELL_LOCALI = frozenset("bash sh zsh fish ksh dash eval source".split())
 _ASSIGN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", re.S)
 _VAR = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))")
 _WRAPPERS = {"bash", "sh", "zsh", "dash", "ksh", "eval", "xargs", "env", "command", "exec", "nohup", "time"}
@@ -72,9 +70,9 @@ _UNRESOLVED = object()
 
 
 def _senza_heredoc(command: str) -> str:
-    """Il comando senza i corpi di heredoc che la shell non esegue: resta quello verso una
-    shell locale (anche in pipe) e quello che la shell espande con $( )."""
-    return _togli_heredoc(command, lambda h: not (h.verso_shell(_SHELL_LOCALI) or h.espande()))
+    """Il comando senza i corpi di heredoc che vanno a un lettore (cat, tee) o a codice di un
+    interprete che non lancia programmi. Nel dubbio il corpo resta (vedi heredoc.py)."""
+    return _togli_heredoc(command, lambda h: h.inerte() or h.codice_inerte())
 
 
 def _expand(word: str, variables: dict):

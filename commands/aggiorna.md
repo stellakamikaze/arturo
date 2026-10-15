@@ -98,15 +98,21 @@ I comandi di Arturo (`commands/<nome>.md`) non contano: li sistema da solo il Pa
 
 ### Passo 2b — Le sue aggiunte ai comandi
 
-Non deve fare niente. Se ha modificato un comando di Arturo (`commands/<nome>.md`), il Passo 3
-sposta le sue modifiche in `~/.claude/personale/<nome>.md` prima di applicare l'aggiornamento. Il
+Non deve fare niente. Se ha modificato un comando di Arturo (`commands/<nome>.md`) che anche
+l'aggiornamento cambia, il Passo 3 sposta le sue modifiche in `~/.claude/personale/<nome>.md`. Il
 comando torna quello di Arturo, le sue righe restano sue, e quando lancia `/<nome>` l'avvio del
-prompt dice a Claude di leggerle. Così il comando non va in conflitto, né adesso né dopo.
+prompt dice a Claude di leggerle. Così il comando non va in conflitto, né adesso né dopo. Lo
+spostamento avviene nella copia di prova: se l'aggiornamento si annulla, non cambia niente.
 
-Lo spostamento è un commit, e il Passo 3 stampa una riga `SEPARATO: /<nome> -> personale/<nome>.md`
-per ogni comando. Diglielo in una frase: «le tue aggiunte a /inizio ora stanno in un file tuo, e
-/inizio fa tutto come prima». Non chiedere conferma e non spiegare il meccanismo, se non lo chiede.
-Se vuole, rileggete insieme il file personale: le parti sono copiate così come erano.
+Il Passo 3 stampa una riga `SEPARATO: /<nome> -> personale/<nome>.md` per ogni comando spostato.
+Diglielo in una frase: «le tue aggiunte a /inizio ora stanno in un file tuo, e /inizio fa tutto come
+prima». Non chiedere conferma e non spiegare il meccanismo, se non lo chiede. Se vuole, rileggete
+insieme il file personale: le parti sono copiate così come erano.
+
+Se stampa `NON SEPARATO`, il suo repository della config non risulta privato: `personale/` non
+viaggerebbe fra le sue macchine, quindi le modifiche restano nel comando e un conflitto si risolve
+come sotto. Diglielo in una frase, e digli che con un repository privato la prossima volta succede
+da solo.
 
 Se `git status` elenca dei file, sono modifiche sue non ancora salvate con un commit (le scrive
 anche `/setup`, per esempio `PROJECTS_BASE` o la lingua in `settings.json`). Il Passo 3 non parte

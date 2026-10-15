@@ -94,15 +94,12 @@ try:
 except Exception:
     def _togli_heredoc(cmd, via, segnaposto=None):
         return cmd
-_HD_EXEC = re.compile(r"subprocess|os\.system|os\.exec|os\.spawn|pty\.spawn|popen", re.IGNORECASE)
 
 
 def _senza_testo(cmd: str) -> str:
-    """Il comando senza i corpi di heredoc che nessuno esegue come shell. Resta il corpo
-    diretto a bash/ssh/eval (anche in pipe), quello che la shell espande con $( ) e quello
-    che chiama subprocess o os.system."""
-    return _togli_heredoc(cmd.replace("\\\n", " "), lambda h: not (
-        h.verso_shell() or h.espande() or _HD_EXEC.search("\n".join(h.corpo))))
+    """Il comando senza i corpi di heredoc che vanno a un lettore (cat, tee) o a codice di un
+    interprete che non lancia programmi. Nel dubbio il corpo resta (vedi heredoc.py)."""
+    return _togli_heredoc(cmd, lambda h: h.inerte() or h.codice_inerte()).replace("\\\n", " ")
 
 
 def _rsync_delete_reale(cmd: str) -> bool:

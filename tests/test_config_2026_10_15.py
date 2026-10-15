@@ -232,7 +232,9 @@ def test_k11(repo: Path) -> None:
     assert "Bash(format C:\\*)" in p["deny"], "K11 mancano i divieti per Windows"
     am = d.get("autoMode") or {}
     assert any("scratchpad" in x for x in am.get("allow", [])), "K11 nessuna istruzione al classificatore sullo scratchpad"
-    assert "$defaults" in am.get("soft_deny", []), "K11 soft_deny senza i default di Claude Code"
+    for lista in ("allow", "soft_deny", "environment"):
+        # Senza $defaults una lista di autoMode sostituisce le regole di serie invece di aggiungersi (15/10/2026).
+        assert "$defaults" in am.get(lista, []), f"K11 autoMode.{lista} senza i default di Claude Code"
     testo = json.dumps(am)
     for parola in ("ts.net", "/Users/", "C:\\\\Users"):
         assert parola not in testo, f"K11 autoMode con un riferimento personale: {parola}"
@@ -252,8 +254,21 @@ def test_k12(repo: Path) -> None:
 
 
 
+def test_k13(repo: Path) -> None:
+    # Review del 15/10/2026: `gh` intero in allow faceva saltare il classificatore anche a
+    # `gh gist create --public`; le credenziali della config non contavano come segreto.
+    p = impostazioni(repo)["permissions"]
+    assert "Bash(gh:*)" not in p["allow"], "K13 gh intero in allow: un gist pubblico passa senza giudizio"
+    assert "Bash(gh pr view:*)" in p["allow"], "K13 manca la lettura di gh"
+    with tempfile.TemporaryDirectory() as d:
+        esito = guardia(repo, "block-dangerous.py",
+                        {"tool_name": "Bash", "tool_input": {"command": "cat ~/.claude/data/credentials/token"}}, Path(d))
+    assert esito in ("ask", "block"), f"K13 la lettura di ~/.claude/data/credentials non chiede: {esito}"
+
+
 TESTS = {"K01": test_k01, "K02": test_k02, "K03": test_k03, "K04": test_k04, "K05": test_k05,
-         "K06": test_k06, "K07": test_k07, "K08": test_k08, "K09": test_k09, "K10": test_k10, "K11": test_k11, "K12": test_k12}
+         "K06": test_k06, "K07": test_k07, "K08": test_k08, "K09": test_k09, "K10": test_k10, "K11": test_k11, "K12": test_k12,
+         "K13": test_k13}
 
 
 def main() -> int:

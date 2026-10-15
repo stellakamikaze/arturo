@@ -29,17 +29,15 @@ if [[ "$INPUT" =~ \"prompt\"[[:space:]]*:[[:space:]]*\"/([a-z0-9-]+) ]]; then
 fi
 
 # --- Promemoria prompt-master ------------------------------------------------
-# Il brief serve dove una richiesta può essere capita male, non a ogni messaggio: Arturo non deve
-# intralciare l'uso naturale dell'LLM (Federico, 14/10/2026). Un comando /nome ha già il suo flusso
-# e non riceve il promemoria. Questo hook non blocca e non chiede niente: aggiunge una riga al
-# contesto. Se l'aderenza non sale, la riga va tolta invece che irrobustita.
+# Il brief c'è su ogni richiesta di lavoro, anche breve (Federico, 15/10/2026: supera la scelta del
+# 14/10 di limitarlo ai lavori grandi). Un comando /nome ha già il suo flusso e non riceve il
+# promemoria. Questo hook non blocca e non chiede niente: aggiunge una riga al contesto.
 # Per spegnerlo: cancella il blocco cat qui sotto, oppure togli la skill prompt-master.
 if [ -z "$COMANDO" ]; then
 cat <<'PROMEMORIA'
-BRIEF: se questo messaggio chiede un lavoro che tocca piu' file, ha effetti fuori da questo
-computer o si puo' capire in due modi, carica Skill(prompt-master) e mostra PROMPT e BRIEF in
-poche righe prima di lavorare. Domande, conversazione e richieste chiare e piccole: rispondi e fai,
-senza brief.
+BRIEF: se questo messaggio chiede un lavoro, anche piccolo, carica Skill(prompt-master) e mostra
+PROMPT e BRIEF prima di lavorare (per una richiesta piccola bastano tre righe). Esente solo la
+conversazione pura: domande, commenti, risposte a un menu.
 PROMEMORIA
 fi
 

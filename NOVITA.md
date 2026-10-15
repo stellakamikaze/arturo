@@ -11,13 +11,34 @@ modo di lavorare.
 
 ---
 
+## 2026-10-15 — Guardie che non perdono il filo, e il brief su ogni richiesta
+
+**Cosa cambia**: una review di Arturo ha trovato comandi che la shell esegue e che le guardie non
+vedevano: un `<<` scritto dentro virgolette, un delimitatore come `'E'OF`, un testo mandato a
+`/bin/bash` o scritto in un file e poi eseguito. Ora una guardia toglie il testo di un heredoc solo
+quando i confini sono certi e il testo va a un lettore come `cat`: nel dubbio lo controlla. In
+modalità auto il controllo di sicurezza di Claude Code tiene anche le sue regole di serie, `gh` è
+libero solo in lettura (un `gh gist create --public` passa dal giudizio) e una lettura di
+`~/.claude/data/credentials/` chiede conferma. Il brief torna su ogni richiesta di lavoro, anche
+breve: per una richiesta piccola bastano tre righe.
+
+**Il principio dietro**: il testo che una guardia toglie è testo che non controlla. Meglio una
+domanda in più che un comando che passa senza essere visto.
+
+**A chi serve**: a tutti, senza fare niente: arriva col prossimo `/aggiorna`.
+
+---
+
 ## 2026-10-15 — Le tue modifiche ai comandi si mettono da parte da sole
 
 **Cosa cambia**: se hai modificato un comando di Arturo (per esempio hai aggiunto a `/inizio` la
-tabella dei tuoi progetti), `/aggiorna` sposta da solo le tue righe in un file tuo,
-`~/.claude/personale/inizio.md`, prima di applicare l'aggiornamento. Il comando torna quello di
-Arturo e non va più in conflitto. Quando lanci `/inizio`, Claude legge anche le tue righe, quindi
-il comando fa tutto quello che faceva prima. Non devi fare niente: Claude te lo dice in una frase.
+tabella dei tuoi progetti) e l'aggiornamento cambia lo stesso comando, `/aggiorna` sposta da solo le
+tue righe in un file tuo, `~/.claude/personale/inizio.md`. Il comando torna quello di Arturo e non
+va più in conflitto. Quando lanci `/inizio`, Claude legge anche le tue righe, quindi il comando fa
+tutto quello che faceva prima. Non devi fare niente: Claude te lo dice in una frase. Lo spostamento
+avviene nella copia di prova: se l'aggiornamento non va in porto, la tua config non cambia. Se hai un
+tuo repository della config, deve essere privato: solo così `personale/` viaggia fra le tue macchine.
+Se non lo è, le tue modifiche restano dove sono, come prima.
 
 **Il principio dietro**: la tua config e quella di Arturo convivono senza che tu debba pensarci.
 Le tue modifiche restano tue, gli aggiornamenti cambiano solo i file di Arturo.

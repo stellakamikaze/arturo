@@ -8,7 +8,8 @@ persona lancia /<comando> l'hook inject-now.sh dice a Claude di leggerle.
 
   elenco                  i file personali e i comandi di Arturo modificati in ~/.claude
   sposta commands/X.md    sposta le modifiche a /X in personale/X.md e riporta X.md com'era in Arturo
-  separa                  sposta tutti i comandi di Arturo modificati; lo lancia da solo ogni /aggiorna
+  separa [--verso REF]    sposta i comandi di Arturo modificati (con --verso solo quelli che REF cambia);
+                          /aggiorna lo lancia da solo nella copia di prova
 
 `sposta` è meccanico: copia le parti aggiunte così come sono, con la riga di Arturo dopo cui stavano,
 e le parti tolte sotto «Parti di Arturo che non seguo». Il riordino lo fa Claude con la persona.
@@ -35,7 +36,14 @@ def radice() -> Path:
 
 
 def git(r: Path, *argomenti, controlla: bool = False) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", "-C", str(r), *argomenti], capture_output=True, text=True, timeout=30, check=controlla)
+    # utf-8 esplicito: con un locale cp1252 (Python di python.org su Windows) un comando con accenti
+    # tornerebbe corrotto nel commit.
+    return subprocess.run(["git", "-C", str(r), *argomenti], capture_output=True, text=True, encoding="utf-8",
+                          errors="surrogateescape", timeout=30, check=controlla)
+
+
+def byte(r: Path, *argomenti) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-C", str(r), *argomenti], capture_output=True, timeout=30)
 
 
 def riferimento(r: Path):
@@ -65,14 +73,16 @@ def togli_dai_commit(r: Path, b: str, file: str) -> bool:
         return False
     blob = git(r, "rev-parse", f"{b}:{file}", controlla=True).stdout.strip()
     modo = git(r, "ls-tree", b, "--", file, controlla=True).stdout.split()[0]
-    indice = r / ".git" / "arturo-personale-indice"
+    # --git-path: nella copia di prova di /aggiorna .git è un file, non una cartella.
+    percorso_git = git(r, "rev-parse", "--git-path", "arturo-personale-indice").stdout.strip()
+    indice = r / percorso_git if percorso_git else r / ".git" / "arturo-personale-indice"  # relativo a r, o assoluto
     env = dict(os.environ, GIT_INDEX_FILE=str(indice))
     genitore = b
     try:
         for c, _ in commit:
             subprocess.run(["git", "-C", str(r), "read-tree", c], env=env, check=True, capture_output=True)
-            subprocess.run(["git", "-C", str(r), "update-index", "--cacheinfo", f"{modo},{blob},{file}"], env=env, check=True,
-                           capture_output=True)
+            subprocess.run(["git", "-C", str(r), "update-index", "--add", "--cacheinfo", f"{modo},{blob},{file}"], env=env,
+                           check=True, capture_output=True)
             albero = subprocess.run(["git", "-C", str(r), "write-tree"], env=env, check=True, capture_output=True,
                                     text=True).stdout.strip()
             if albero == git(r, "rev-parse", f"{genitore}^{{tree}}").stdout.strip():
@@ -93,9 +103,17 @@ def togli_dai_commit(r: Path, b: str, file: str) -> bool:
     return True
 
 
-def modificati(r: Path, b: str) -> list:
+def modificati(r: Path, b: str, verso: str = "") -> list:
+    """I comandi di Arturo che la persona ha cambiato. Un comando cancellato è una sua scelta: resta
+    fuori. Con `verso`, solo quelli che anche l'aggiornamento cambia: gli altri non vanno in conflitto
+    e restano come lei li ha scritti."""
     albero = set(git(r, "ls-tree", "-r", "--name-only", b).stdout.splitlines())
-    return sorted(f for f in git(r, "diff", "--name-only", b).stdout.splitlines() if f in albero and NOME.match(f))
+    cambiati = [f for f in git(r, "diff", "--name-only", b).stdout.splitlines()
+                if f in albero and NOME.match(f) and (r / f).exists()]
+    if verso:
+        arrivo = set(git(r, "diff", "--name-only", b, verso).stdout.splitlines())
+        cambiati = [f for f in cambiati if f in arrivo]
+    return sorted(cambiati)
 
 
 def testo_personale(comando: str, originale: list, attuale: list, gia: str) -> str:
@@ -104,9 +122,13 @@ def testo_personale(comando: str, originale: list, attuale: list, gia: str) -> s
         if op in ("insert", "replace"):
             dopo = next((x.strip() for x in reversed(originale[:i1]) if x.strip()), "")
             dove = f"(dopo la riga di Arturo «{dopo}»)" if dopo else "(in cima al comando)"
-            aggiunte.append(f"{dove}\n\n" + "".join(attuale[j1:j2]).rstrip("\n"))
+            blocco = f"{dove}\n\n" + "".join(attuale[j1:j2]).rstrip("\n")
+            if blocco not in gia:  # un secondo spostamento non ripete le stesse righe
+                aggiunte.append(blocco)
         if op in ("delete", "replace"):
-            tolte.append("\n".join("> " + x.rstrip("\n") for x in originale[i1:i2]))
+            blocco = "\n".join("> " + x.rstrip("\n") for x in originale[i1:i2])
+            if blocco not in gia:
+                tolte.append(blocco)
     parti = [gia.rstrip("\n") + "\n\n" if gia.strip() else
              f"# Aggiunte mie a /{comando}\n\nClaude legge questo file quando lanci /{comando}. Gli aggiornamenti di "
              "Arturo non lo toccano: e' tuo.\n\n"]
@@ -128,27 +150,42 @@ def sposta(file: str, parla: bool = True) -> int:
     if not b:
         print("Errore: non trovo Arturo (upstream/main o origin/main) in ~/.claude.", file=sys.stderr)
         return 2
-    vecchio = git(r, "show", f"{b}:{file}")
+    vecchio = byte(r, "show", f"{b}:{file}")
     if vecchio.returncode != 0:
         print(f"Errore: {file} non e' un comando di Arturo.", file=sys.stderr)
         return 2
     percorso = r / file
-    attuale = percorso.read_text(encoding="utf-8") if percorso.exists() else ""
-    if attuale == vecchio.stdout:
-        print(f"/{comando} e' gia' com'e' in Arturo: niente da spostare.")
+    attuale = percorso.read_bytes() if percorso.exists() else b""
+    if attuale == vecchio.stdout:  # in byte: un file salvato con CRLF non e' «uguale»
+        if parla:
+            print(f"/{comando} e' gia' com'e' in Arturo: niente da spostare.")
         return 0
     destinazione = r / "personale" / f"{comando}.md"
     gia = destinazione.read_text(encoding="utf-8") if destinazione.exists() else ""
+    testo = testo_personale(comando, vecchio.stdout.decode("utf-8", "replace").splitlines(True),
+                            attuale.decode("utf-8", "replace").splitlines(True), gia)
+    # Prima il comando e il commit, poi il file personale: se il commit non riesce (un hook, un errore)
+    # il comando torna com'era e niente resta a meta'.
+    percorso.write_bytes(vecchio.stdout)
+    try:
+        riscritti = riferimento(r) == "origin/main" and togli_dai_commit(r, b, file)
+        if not riscritti:
+            git(r, "add", "--", file, controlla=True)
+            if git(r, "diff", "--cached", "--quiet", "--", file).returncode != 0:
+                # --no-verify: il commit riporta un file di Arturo, gli hook della persona non c'entrano.
+                git(r, "commit", "-q", "--no-verify", "-m", f"personale: aggiunte a /{comando} spostate in personale/{comando}.md",
+                    "--", file, controlla=True)
+    except (OSError, subprocess.SubprocessError):
+        git(r, "reset", "-q", "--", file)
+        percorso.write_bytes(attuale)
+        raise
     destinazione.parent.mkdir(parents=True, exist_ok=True)
-    destinazione.write_text(testo_personale(comando, vecchio.stdout.splitlines(True), attuale.splitlines(True), gia),
-                            encoding="utf-8")
-    percorso.write_text(vecchio.stdout, encoding="utf-8")
-    riscritti = riferimento(r) == "origin/main" and togli_dai_commit(r, b, file)
-    if not riscritti:
-        git(r, "add", "--", file, controlla=True)
-        if git(r, "diff", "--cached", "--quiet", "--", file).returncode != 0:
-            git(r, "commit", "-q", "-m", f"personale: aggiunte a /{comando} spostate in personale/{comando}.md", "--", file,
-                controlla=True)
+    destinazione.write_text(testo, encoding="utf-8")
+    if git(r, "ls-files", "--error-unmatch", "--", str(destinazione.relative_to(r))).returncode == 0:
+        # personale/ tracciato (remote privato, /fine fa git add -f): il file va nello stesso giro.
+        git(r, "add", "-f", "--", str(destinazione.relative_to(r)), controlla=True)
+        git(r, "commit", "-q", "--no-verify", "-m", f"personale: /{comando}", "--", str(destinazione.relative_to(r)),
+            controlla=True)
     if parla:
         print(f"Fatto: le modifiche a /{comando} stanno in ~/.claude/personale/{comando}.md e {file} e' tornato com'e' in Arturo.\n"
               "Rileggi il file personale con la persona: le parti sono copiate cosi' come erano.")
@@ -157,7 +194,7 @@ def sposta(file: str, parla: bool = True) -> int:
     return 0
 
 
-def separa() -> int:
+def separa(verso: str = "") -> int:
     """Ogni comando di Arturo modificato va in personale/: /aggiorna lo lancia prima di applicare.
 
     Cosi' la persona non deve pensarci: le sue modifiche restano sue, il comando torna quello di
@@ -165,7 +202,7 @@ def separa() -> int:
     """
     r = radice()
     b = base(r)
-    for file in (modificati(r, b) if b else []):
+    for file in (modificati(r, b, verso) if b else []):
         esito = sposta(file, parla=False)
         if esito != 0:
             return esito
@@ -190,9 +227,9 @@ def main(argv: list) -> int:
         return 0
     if argv == ["elenco"]:
         return elenco()
-    if argv == ["separa"]:
+    if argv[:1] == ["separa"] and (len(argv) == 1 or (len(argv) == 3 and argv[1] == "--verso")):
         try:
-            return separa()
+            return separa(argv[2] if len(argv) == 3 else "")
         except (OSError, subprocess.SubprocessError) as errore:
             print(f"Errore: {errore}", file=sys.stderr)
             return 2

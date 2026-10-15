@@ -117,7 +117,7 @@ SECRET_PATH_RE = re.compile(
     r"(\.ssh/|(^|/)id_(rsa|ed25519|ecdsa|dsa)\b|\.aws/credentials|\.gnupg/|"
     r"\.git-credentials|\.pem\b|service-account[^\s'\"]*\.json|credentials\.json|"
     r"client_secret[^\s'\"]*\.json|token_cache\.json|\.pypirc|secrets\.env|\.secrets/|"
-    r"\.config/gh/hosts\.yml|\.npmrc|"
+    r"\.config/gh/hosts\.yml|\.npmrc|\.claude/data/credentials/|"
     r"\.docker/config\.json|\.kube/config)",
     re.IGNORECASE,
 )
@@ -141,7 +141,7 @@ _SKIP_WRAPPERS = frozenset(("sudo", "command", "nohup", "caffeinate", "timeout",
 _SECRET_REDIR_RE = re.compile(
     r"(?:<\s*|\$\(\s*<\s*)[^\s'\";|&)]*"
     r"(\.ssh/|id_(rsa|ed25519|ecdsa|dsa)|\.aws/credentials|\.gnupg/|"
-    r"\.git-credentials|\.pem|credentials\.json|\.pypirc|secrets\.env|\.secrets/)",
+    r"\.git-credentials|\.pem|credentials\.json|\.pypirc|secrets\.env|\.secrets/|\.claude/data/credentials/)",
     re.IGNORECASE,
 )
 
@@ -156,7 +156,7 @@ def _cmd_subst_bodies(command: str):
 
 
 def _reads_secret(command: str) -> bool:
-    cmd = _testo_shell(command.replace("\\\n", " "))
+    cmd = _testo_shell(command).replace("\\\n", " ")  # prima gli heredoc: una \ nel corpo è testo
     for src in [cmd] + _cmd_subst_bodies(cmd):
         if _reads_secret_flat(src):
             return True
@@ -175,6 +175,11 @@ except Exception:
     def _togli_heredoc(cmd, via, segnaposto=None):
         return cmd
 
+    class _hd:  # noqa: N801 - senza heredoc.py nessun messaggio si svuota
+        @staticmethod
+        def fuori_virgolette(testo, pos):
+            return False
+
 # Valore di -m / --message: git non lo esegue, e un messaggio di commit che CITA
 # un comando non e' quel comando. Restano i messaggi con command-substitution.
 _MESSAGGIO = re.compile(r"(?:^|\s)(?:-m|--message)[= ]\s*(['\"])((?:(?!\1).)*)\1", re.DOTALL)
@@ -190,11 +195,15 @@ def _testo_shell(command: str) -> str:
     `$(...)`. Toglie anche i messaggi -m/--message privi di command-substitution.
     """
     # Un corpo verso bash, sh, ssh (anche `cat <<'EOF' | bash`) resta: la shell lo esegue.
-    testo = _togli_heredoc(command, lambda h: h.quotato and not h.verso_shell())
+    testo = _togli_heredoc(command, lambda h: h.quotato and (h.inerte() or h.codice_inerte()))
 
     def _svuota(m):
         corpo = m.group(2)
         if "$(" in corpo or "`" in corpo:
+            return m.group(0)
+        # Solo il messaggio vero di git commit/tag, fuori da altre virgolette: `echo ' -m "'` non lo è.
+        inizio = m.start(1)
+        if not _hd.fuori_virgolette(testo, inizio) or not re.search(r"\bgit\b[^;&|\n]*$", testo[:inizio]):
             return m.group(0)
         return m.group(0).replace(corpo, "")
 

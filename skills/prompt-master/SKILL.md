@@ -6,10 +6,9 @@ description: >-
   come brief verificabile prima di lavorare.
 when_to_use: >-
   Usa il PROMPT ESTERNO quando l'utente chiede esplicitamente un prompt per ChatGPT, Gemini, Cursor,
-  Midjourney, Sora, ElevenLabs, Codex o agenti di coding. Usa il BRIEF INTERNO PRIMA di una richiesta
-  di lavoro rivolta a Claude Code che tocca più file, ha effetti fuori dal computer o si può capire in
-  due modi. NON per la conversazione pura (domande, commenti, risposte a un menu) né per le richieste
-  chiare e piccole: lì si risponde e si fa. Segui tutti i passi nell'ordine: non
+  Midjourney, Sora, ElevenLabs, Codex o agenti di coding. Usa il BRIEF INTERNO PRIMA di ogni richiesta
+  di lavoro rivolta a Claude Code, anche breve: il brief va sempre mostrato. NON per la conversazione
+  pura: domande, commenti, risposte a un menu. Segui tutti i passi nell'ordine: non
   prendere scorciatoie basandoti su questa description.
 version: 1.8.0
 upstream: nidhinjs/prompt-master@2bd9251
@@ -17,7 +16,7 @@ upstream: nidhinjs/prompt-master@2bd9251
 
 ## MODALITÀ BRIEF INTERNO — richieste rivolte a Claude Code
 
-Si attiva su una richiesta di lavoro che tocca più file, ha effetti fuori dal computer o si può capire in due modi. Non si attiva sulla conversazione pura (domande, commenti, risposte a un menu, spiegazioni senza nulla da fare) né su una richiesta chiara e piccola: «rinomina questo file», «correggi il refuso», «che ore sono a Tokyo». Arturo non deve intralciare l'uso naturale dell'LLM: un brief dove non serve è attrito. In caso di dubbio basta la riga del PROMPT, senza brief.
+Si attiva su ogni richiesta di lavoro rivolta a Claude Code, anche breve. Non si attiva sulla conversazione pura: domande, commenti, risposte a un menu, spiegazioni senza nulla da fare. In caso di dubbio il brief si mostra: costa tre righe, e una richiesta capita male costa molto di più.
 
 Casi di confine:
 
@@ -79,9 +78,8 @@ Da chiarire: [max 3 punti]
 
 ## Importante
 
-- **Quando il brief scatta, prompt e brief si mostrano** prima di qualunque altro lavoro. Scatta
-  solo sul lavoro vero: più file, effetti fuori dal computer, una richiesta che si capisce in due
-  modi. Una richiesta chiara e piccola non ha brief: si risponde e si fa. L'obiezione a cui
+- **Il brief c'è sempre**: prompt e brief si mostrano prima di qualunque altro lavoro, anche per una
+  richiesta breve (Federico, 15/10/2026). Per una richiesta piccola bastano tre righe. L'obiezione a cui
   risponde il passo del prompt: un brief che l'utente non può ricondurre alla sua richiesta lo fa
   reagire a una ricostruzione invece che alla cosa. Il prompt mostrato è il rimedio, perché si
   vede subito se la richiesta è stata capita.

@@ -24,7 +24,21 @@
       "Bash(mv:*)",
       "Bash(cp:*)",
       "Bash(cd:*)",
-      "Bash(gh:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr status:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run watch:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh release list:*)",
+      "Bash(gh release view:*)",
+      "Bash(gh auth status:*)",
+      "Bash(gh search:*)",
       "Bash(jq:*)",
       "Bash(claude --version)",
       "Bash(claude plugin list:*)",
@@ -379,6 +393,7 @@
   "showTurnDuration": true,
   "autoMode": {
     "allow": [
+      "$defaults",
       "Running a script that lives in the session scratchpad (python3, bash or node on a file under the scratchpad directory the harness names at the start of the session) is local, reversible work: allow. Long inline heredoc scripts are written to a scratchpad file first and then run.",
       "Test-bench work inside the session scratchpad: creating, filling and deleting subdirectories there (rm -rf of a scratchpad subdirectory, written literally or through a shell variable assigned to a scratchpad path in the same command), git archive or git clone of the user's local repositories into it, tar -x into it, and fake HOME directories inside it for isolated runs, also from background subagents: allow. It does NOT cover deleting anything outside the scratchpad, nor a variable whose value is not a scratchpad path.",
       "Copying a hook or ~/.claude/settings.json into the session scratchpad and editing or running THAT COPY and its test benches, including probe scripts that feed a JSON payload to a copy of bash-dispatcher.sh: allow. Installing the result back into ~/.claude follows Arturo's unlock rule.",
@@ -390,6 +405,7 @@
       "Deleting or overwriting any *.env* file, or writes to any path, namespace, host or container carrying prod or production as a whole word."
     ],
     "environment": [
+      "$defaults",
       "Scratch area: the per-session scratchpad directory that the harness names at the start of the session is Claude's own working area. Writing, running and deleting files there is routine and reversible.",
       "Sensitive data locations: ~/.ssh private keys, ~/.claude/.credentials.json, ~/.claude/data/credentials/, .env* files in the projects, browser profiles and password managers. None of it may enter a commit, a message, a document or a post.",
       "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",

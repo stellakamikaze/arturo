@@ -181,11 +181,15 @@ def test_q07(repo: Path) -> None:
 
 
 def test_q08(repo: Path) -> None:
+    # Federico, 15/10/2026: il brief c'è su ogni richiesta di lavoro, anche breve (supera il 14/10).
     testo = read(repo / "skills" / "prompt-master" / "SKILL.md")
-    assert "anche per una richiesta\n  breve" not in testo and "anche per una richiesta breve" not in testo, \
-        "Q08 prompt-master chiede ancora il brief per ogni richiesta breve"
     importante = testo.split("## Importante", 1)[-1].split("## MODALITÀ PROMPT ESTERNO", 1)[0]
-    assert "chiara e piccola" in importante, "Q08 la sezione Importante non esclude le richieste chiare e piccole"
+    assert "Il brief c'è sempre" in importante, "Q08 la sezione Importante non dice che il brief c'è sempre"
+    assert "chiare e piccole" not in testo and "chiara e piccola non ha brief" not in testo, \
+        "Q08 prompt-master esclude ancora le richieste piccole"
+    promemoria = read(repo / "hooks" / "inject-now.sh")
+    assert "anche piccolo" in promemoria and "chiare e piccole" not in promemoria, \
+        "Q08 il promemoria di inject-now esclude ancora le richieste piccole"
 
 
 TESTS: Dict[str, Callable[[Path], None]] = {

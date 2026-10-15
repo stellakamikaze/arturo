@@ -19,15 +19,18 @@ try: print(json.load(sys.stdin).get("tool_input",{}).get("command",""))
 except Exception: pass')
 fi
 
-# Riduce solo heredoc quotati passati direttamente a cat: il corpo e' dato, non shell.
-# Dopo il delimitatore la riga deve essere vuota: `cat <<'EOF' | bash`,
-# `cat <<'EOF' > file` e `cat <<'EOF' && cmd` restano interi e passano dalle guardie.
-# Errori o sintassi ambigua mantengono sempre il comando originale.
+# Riduce solo heredoc quotati che vanno a un lettore (cat, tee, grep...) e che nessuno esegue:
+# il corpo e' dato, non shell. Lo decide hooks/heredoc.py, lo stesso modulo delle guardie
+# (15/10/2026): `cat <<'EOF' | bash`, un file scritto e poi eseguito, `<<` dentro virgolette o
+# confini incerti restano interi e passano dalle guardie. Un errore tiene il comando originale.
 reduce_inert_heredocs() {
-    python3 -c 'import re, sys
+    python3 -c 'import importlib.util, sys
+spec = importlib.util.spec_from_file_location("arturo_heredoc", sys.argv[1])
+hd = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(hd)
 source = sys.stdin.read().replace("\r\n", "\n")
-pattern = re.compile(r"(?ms)(^|[;&]\s*|\n)\s*cat\s+<<\x27([A-Za-z_][A-Za-z0-9_]*)\x27[ \t]*\n.*?^\2\s*$")
-print(pattern.sub(lambda match: match.group(1) + "cat", source), end="")' <<< "$1" || printf '%s' "$1"
+print(hd.togli(source, lambda h: h.quotato and h.inerte()), end="")' "$HOME/.claude/hooks/heredoc.py" <<< "$1" 2>/dev/null \
+        || printf '%s' "$1"
 }
 
 GUARD_COMMAND=$(reduce_inert_heredocs "$COMMAND")
@@ -105,7 +108,7 @@ PATTERN_COMMS='(^|[[:space:];|&("'"'"'`])(sendmail|mailx|mutt|msmtp|swaks|mail)(
 # block-dangerous: rm ricorsivo (tree protetti), bw export, scrittura config/hook,
 # scrittura su git hook e servizi di avvio automatico,
 # lettura segreti via shell (.ssh/id_*/credentials/.pem...), docker volume rm.
-PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([[:space:]]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-exec(dir)?[[:space:]]+[^[:space:]]*rm)|bw[[:space:]].*export|\.claude/(settings|hooks|\.claude\.json)|\.claude/[^[:space:]]*unlock|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|sed[[:space:]][^|&]*[^[:alnum:]]w[[:space:]]+[^[:space:]|;&]'
+PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([[:space:]]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-exec(dir)?[[:space:]]+[^[:space:]]*rm)|bw[[:space:]].*export|\.claude/(settings|hooks|\.claude\.json)|\.claude/[^[:space:]]*unlock|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.claude/data/credentials/|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|sed[[:space:]][^|&]*[^[:alnum:]]w[[:space:]]+[^[:space:]|;&]'
 # Commit secret gate: scansiona il diff staged prima di git commit / gh pr create.
 # Dal 15/10/2026 parte anche su un commit a capo, in una subshell o in $( ), dopo `env VAR=… `
 # o assegnazioni, e con opzioni di git prima di commit (-c k=v, -C dir, --no-pager).

@@ -64,6 +64,35 @@ pulita() {  # ~/.claude senza modifiche non salvate
   [ -z "$(git status --porcelain --untracked-files=no)" ]
 }
 
+# Le modifiche della persona ai comandi di Arturo che l'aggiornamento cambia vanno in personale/
+# (15/10/2026): il comando torna quello di Arturo e non va in conflitto, le sue righe restano sue e
+# Claude le legge quando lancia il comando. Tutto succede nella copia di prova, con personale.py della
+# versione in arrivo: in ~/.claude i file personali arrivano solo con un risultato integro (porta_dentro).
+# Con un repository suo come origin, personale/ viaggia fra le sue macchine solo se quel repository è
+# privato (/fine): se non lo è, o non si sa, non si sposta niente e resta il conflitto di sempre.
+separa_nella_copia() {
+  if [ "$MODO" = merge ]; then
+    local vis
+    vis=$(gh repo view "$(git remote get-url origin 2>/dev/null)" --json visibility -q .visibility 2>/dev/null)
+    if [ "$vis" != PRIVATE ]; then
+      echo "  NON SEPARATO: il tuo repository della config non risulta privato (${vis:-visibilità sconosciuta}), e personale/ non viaggerebbe fra le tue macchine. Le tue modifiche ai comandi restano dove sono."
+      return 0
+    fi
+  fi
+  git show "$REF:bin/personale.py" > "$LAVORO/personale.py" 2>/dev/null || cp bin/personale.py "$LAVORO/personale.py" 2>/dev/null || return 0
+  mkdir -p "$COPIA/personale" && cp "$RADICE"/personale/*.md "$COPIA/personale/" 2>/dev/null
+  ARTURO_RADICE="$COPIA" python3 -I "$LAVORO/personale.py" separa --verso "$REF" > "$LAVORO/separa" 2>&1
+  local rc=$?
+  sed 's/^/  /' "$LAVORO/separa"
+  [ $rc = 0 ] && [ -z "$(git -C "$COPIA" status --porcelain --untracked-files=no)" ]
+}
+
+riporta_personale() {  # i file personali della copia di prova, solo dopo un'applicazione riuscita
+  [ -n "${COPIA:-}" ] && [ -d "$COPIA/personale" ] || return 0
+  ls "$COPIA"/personale/*.md >/dev/null 2>&1 || return 0
+  mkdir -p "$RADICE/personale" && cp "$COPIA"/personale/*.md "$RADICE/personale/"
+}
+
 porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando è nata, $3 = il modo
   local nuovo=$1 prima=$2 modo=$3
   if [ "$(git rev-parse HEAD)" != "$prima" ]; then
@@ -87,6 +116,7 @@ porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando è
       printf '%s\n' "$prima" > session-env/ultimo-aggiornamento
     fi
     segna_esito applicato "$modo"
+    riporta_personale || echo "ATTENZIONE: non riesco a copiare personale/ dalla copia di prova ($COPIA): copiali a mano prima di scartarla."
     echo "APPLICATO: config integra"
     return 0
   fi
@@ -160,26 +190,6 @@ if [ -f "$STATO" ] && read -r VECCHIA _ VECCHIO_MODO NATA _ < "$STATO"; then
   fi
 fi
 
-# Le modifiche della persona ai comandi di Arturo vanno in personale/ prima del merge (15/10/2026):
-# il comando torna quello di Arturo e non va in conflitto, le sue righe restano sue e Claude le legge
-# quando lancia il comando. Lo fa personale.py della versione in arrivo, come questo script. Lo
-# spostamento è un commit: niente si perde. Il sync fra le sue macchine non sposta niente.
-if [ "$MODO" != sync ]; then
-  SEPARA=$(mktemp "${TMPDIR:-/tmp}/arturo-separa.XXXXXX") || SEPARA=""
-  if [ -n "$SEPARA" ]; then
-    git show "$REF:bin/personale.py" > "$SEPARA" 2>/dev/null || cp bin/personale.py "$SEPARA" 2>/dev/null || : > "$SEPARA"
-    if [ -s "$SEPARA" ]; then
-      ARTURO_RADICE="$RADICE" python3 "$SEPARA" separa 2>&1 | sed 's/^/  /'
-    fi
-    rm -f "$SEPARA"
-  fi
-  if ! pulita; then
-    echo "APPLICAZIONE NON PARTITA: spostando le tue modifiche ai comandi in personale/ qualcosa non è andato. Non ho applicato l'aggiornamento:"
-    git status --short --untracked-files=no | sed 's/^/  /'
-    exit 1
-  fi
-fi
-
 PRIMA=$(git rev-parse HEAD)
 TEMP=${TMPDIR:-/tmp}
 LAVORO=$(mktemp -d "${TEMP%/}/arturo-aggiorna.XXXXXX") || { echo "APPLICAZIONE NON PARTITA: niente cartella temporanea"; exit 1; }
@@ -187,6 +197,12 @@ COPIA="$LAVORO/copia"
 if ! git worktree add -q --detach "$COPIA" "$PRIMA" >/dev/null 2>&1; then
   rm -rf "$LAVORO"
   echo "APPLICAZIONE NON PARTITA: non riesco a preparare la copia di prova. Non ho toccato niente."
+  exit 1
+fi
+
+if [ "$MODO" != sync ] && ! separa_nella_copia; then
+  togli_copia "$COPIA"
+  echo "APPLICAZIONE NON PARTITA: spostando le tue modifiche ai comandi in personale/ qualcosa non è andato. ~/.claude non è stata toccata."
   exit 1
 fi
 

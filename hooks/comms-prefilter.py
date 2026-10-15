@@ -25,10 +25,8 @@ import sys
 
 # Sonda del 13/10/2026: `find -exec sendmail`, `awk 'BEGIN{system("sendmail ...")}'` e
 # `git send-email` si riducevano a vuoto e passavano senza comms-guard. find, awk e sed
-# eseguono comandi (-exec, system(), il comando e di sed): non sono ne' sola lettura ne'
-# consumatori inerti di un heredoc. git resta sola lettura salvo i sottocomandi che inviano.
-NON_EXEC = {"cat", "tee", "grep", "rg", "jq", "sort", "head", "tail",
-            "wc", "patch", "diff", "git", "cut", "tr", "uniq", "less", "more"}
+# eseguono comandi (-exec, system(), il comando e di sed): non sono sola lettura. git resta
+# sola lettura salvo i sottocomandi che inviano. I lettori di un heredoc stanno in heredoc.py.
 READ_ONLY = {"grep", "rg", "cat", "head", "tail", "less", "more", "wc", "ls",
              "jq", "diff", "sort", "uniq", "file", "stat", "git", "cd", "echo",
              "printf", "which", "type", "true", "cut", "tr", "column"}
@@ -60,22 +58,10 @@ def _first_bin(segment: str) -> str:
 
 
 def reduce(cmd: str) -> str:
-    # 1) heredoc consumati da binari non-esecutori: via il corpo
-    def _inerte(h) -> bool:
-        consumer = _first_bin(h.prima.split("|")[-1])
-        # 13/10/2026: `cat <<'EOF' | sh` passa il corpo a sh, che lo esegue. Conta anche ogni
-        # programma dopo il delimitatore sulla stessa riga: pipe, &&, ;.
-        for seg in re.split(r"\|\||&&|;|\|", h.dopo)[1:]:
-            dopo = _first_bin(seg)
-            if dopo and dopo not in NON_EXEC:
-                return False
-        # `python3 - <<EOF` o `bash <<EOF`: il corpo gira, si tiene
-        if consumer and consumer not in NON_EXEC:
-            return False
-        # Delimitatore senza virgolette: la shell esegue le $( ) e i backtick del corpo
-        # anche verso cat. Quel corpo resta.
-        return not h.espande()
-    reduced = _togli_heredoc(cmd, _inerte, segnaposto="[heredoc]")
+    # 1) heredoc che vanno a un lettore (cat, tee, grep...) senza che nessuno li esegua: via il
+    # corpo. Pipe verso una shell, `$( )`, file scritto e poi eseguito, confini incerti: resta.
+    # Il codice di python o node resta sempre: qui si cerca codice che invia, in ogni linguaggio.
+    reduced = _togli_heredoc(cmd, lambda h: h.inerte(), segnaposto="[heredoc]")
 
     # 2) ogni segmento e' sola lettura? -> vuoto
     stripped = re.sub(r"'[^']*'|\"[^\"]*\"", "", reduced)
