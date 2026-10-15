@@ -204,8 +204,16 @@ fi
 # Block dangerous: rm su tree protetti, bw export, scrittura config/hook, fork bomb...
 [[ "$GUARD_COMMAND" =~ $PATTERN_DANGER ]] && run_guard block-dangerous.py
 
-# Exfil guard: POST/upload di dati verso host esterni -> ask.
-[[ "$GUARD_COMMAND" =~ $PATTERN_EXFIL ]] && run_guard exfil-guard.py
+# Exfil guard: POST/upload di dati verso host esterni -> ask. Come per comms, si giudica il
+# codice eseguito: COMMS_REDUCED e' il comando senza gli heredoc scritti su file (vuoto se
+# il comando solo legge). Se il pre-filtro non gira, si giudica il comando intero.
+if [[ "$GUARD_COMMAND" =~ $PATTERN_EXFIL ]]; then
+    [[ -z "${COMMS_REDUCED+x}" ]] && { COMMS_REDUCED=$(python3 "$HOME/.claude/hooks/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND; }
+    if [[ "$COMMS_REDUCED" =~ $PATTERN_EXFIL ]]; then
+        export COMMS_REDUCED
+        run_guard exfil-guard.py
+    fi
+fi
 
 # Scelta di attrito approvata: GET disattivato; POST e upload restano protetti.
 # [[ "$GUARD_COMMAND" =~ $PATTERN_EGRESS_GET ]] && run_guard exfil-guard.py

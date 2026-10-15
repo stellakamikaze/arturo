@@ -39,8 +39,14 @@ if hasattr(signal, "SIGALRM"):
     signal.signal(signal.SIGALRM, _t)
 
 INTERNAL_HOSTS = frozenset(("localhost", "host.docker.internal", "0.0.0.0"))
+# Reti che non escono dalla macchina o dalla rete locale: le private RFC 1918
+# (10/8, 172.16/12, 192.168/16), loopback, link-local, le IPv6 private (fc00::/7)
+# e il 100.64/10 su cui vivono gli indirizzi Tailscale. Elenco esplicito e non
+# ip.is_private: quello cambia fra le versioni di Python e conta come privati
+# anche gli IPv6 che incapsulano un IPv4 pubblico.
 INTERNAL_NETS = tuple(map(ipaddress.ip_network, (
-    "127.0.0.0/8", "10.0.0.0/8", "192.168.0.0/16", "100.64.0.0/10",
+    "127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10",
+    "169.254.0.0/16", "::1/128", "fc00::/7", "fe80::/10",
 )))
 CMD_SUB = re.compile(r'\$\(|`')
 
@@ -89,11 +95,16 @@ def _internal_host(host: str | None) -> bool:
     normalized = host.lower().rstrip(".")
     if normalized in INTERNAL_HOSTS or normalized in LOCAL_HOSTS:
         return True
+    if normalized.startswith("[") and normalized.endswith("]"):
+        normalized = normalized[1:-1]
     try:
-        addr = ipaddress.ip_address(normalized)
+        addr = ipaddress.ip_address(normalized.split("%", 1)[0])
     except ValueError:
         return False
-    return any(addr in network for network in INTERNAL_NETS + LOCAL_NETS)
+    # ::ffff:8.8.8.8 e' l'IPv4 8.8.8.8: si giudica quello.
+    if addr.version == 6 and addr.ipv4_mapped is not None:
+        addr = addr.ipv4_mapped
+    return any(addr.version == network.version and addr in network for network in INTERNAL_NETS + LOCAL_NETS)
 
 
 def _iter_urls(tool_input, profondita=0):

