@@ -33,6 +33,9 @@ export ARTURO_PROVA_BROWSER=obbligatoria
 # Il gate non manda mai niente al server vero della telemetria. I banchi M la riaccendono verso un
 # server finto su 127.0.0.1.
 export ARTURO_TELEMETRIA=0
+# I banchi delle guardie in background (session-start.sh) non partono dentro le prove: ogni
+# session-start di un banco li lancerebbe in una HOME finta.
+export ARTURO_BANCHI_AVVIO=0
 mkdir -p "$HOME" "$TMPDIR"
 cp -R "$ROOT/." "$HOME/.claude"
 REPO="$HOME/.claude"
@@ -68,6 +71,8 @@ BANCHI=(
   test_deriva_allineata.py
   test_personale.py
   test_config_2026_10_15.py
+  test_guardie_unite.py
+  test_gate_commit.py
   test_memoria.py
   test_fine_inizio.py
   test_script.py
@@ -78,7 +83,7 @@ done
 
 # Il minimo dichiarato è Python 3.8: la CLI, la pagina e il percorso girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_todo.py test_web.py test_percorso.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py)
+PY38_BANCHI=(test_todo.py test_web.py test_percorso.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py)
 PY38=$(command -v python3.8 || true)
 if [[ -n "$PY38" ]]; then
   for test in "${PY38_BANCHI[@]}"; do
@@ -149,6 +154,11 @@ BASELINE=(
   "test_fine_inizio.py cbd8305"
   # Gli script portati dalla config dell'autore (15/10/2026): cbd8305, l'ultimo dev prima del porting.
   "test_script.py cbd8305"
+  # Guardie unite alla config dell'autore (15/10/2026): cbd8305, l'ultimo dev prima del lotto.
+  "test_guardie_unite.py cbd8305"
+  # Gate dei commit (banchi dell'autore): il gate di Arturo era gia' allineato in f2c433e,
+  # quindi la controprova e' 842b06f, l'ultimo dev prima di quell'allineamento.
+  "test_gate_commit.py 842b06f"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

@@ -11,6 +11,30 @@ modo di lavorare.
 
 ---
 
+## 2026-10-15 — Guardie che leggono il comando come lo esegue la shell
+
+**Cosa cambia**: un invio di email o messaggi da terminale ora chiede conferma invece di essere
+bloccato: vedi il comando vero e decidi tu. Le guardie leggono il comando come lo esegue la shell:
+il testo di un heredoc scritto su file, un messaggio di commit e il pattern di `grep` non fanno più
+scattare allarmi, mentre un `rm` col percorso completo o dentro `sh -c` si vede. Un git hook o un
+servizio che parte all'accesso (`~/Library/LaunchAgents` su Mac, `~/.config/systemd/user` e
+`~/.config/autostart` su Linux) si scrive solo con la tua conferma. Le reti locali contano tutte
+come interne (anche `172.16.x`-`172.31.x` e le IPv6 locali); un servizio esterno che usi con la tua
+chiave lo scrivi in `hooks/api-fidate.local`. Salvare un handoff o una memoria non chiede più
+conferma; settings, hook e file di sblocco la chiedono sempre. La statusline mostra il ramo git, un
+`*` se ci sono modifiche e la quota dell'abbonamento. Dopo ogni modifica a un file TypeScript o Vue
+Claude vede subito gli errori di tipo. Creare una bozza via un collegamento non chiede conferma,
+inviarla sì.
+
+**Il principio dietro**: un blocco che sbaglia insegna a Claude ad aggirare la guardia, una
+conferma mostra a te il comando vero. Queste correzioni girano da settimane nella config
+dell'autore.
+
+**Da sapere**: all'avvio Arturo prova le sue guardie in background, al massimo ogni 12 ore, senza
+rallentare la sessione. Se una guardia non funziona su questo computer, la sessione dopo una riga
+`GUARDIE` te lo dice. Li spegni con `ARTURO_BANCHI_AVVIO=0`. Se il tuo `CLAUDE.md` supera le 200
+righe, Claude ti avvisa quando lo modifica (il limite si cambia con `ARTURO_CLAUDE_MD_RIGHE`).
+
 ## 2026-10-15 — Gate che non mentono, lavori lunghi, lettura del web senza browser
 
 **Cosa cambia**: il gate di `/fine` è uno script (`bin/validation-gate-lang.sh`). Riconosce se il

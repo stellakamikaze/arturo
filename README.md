@@ -184,7 +184,7 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 > **La via rapida: `/setup`.** Apri Claude Code dentro `~/.claude` e lancia **`/setup`**: ti guida passo-passo in tutta la configurazione qui sotto (prerequisiti, permessi, `PROJECTS_BASE`, lingua, `CLAUDE.md`, sync, verifica finale), una cosa alla volta e in linguaggio semplice. È il modo consigliato, soprattutto se non sei un programmatore. La checklist qui sotto è la versione manuale, per chi preferisce farla a mano.
 
 1. **`settings.json` → `env.PROJECTS_BASE`** — la cartella dove vivono i tuoi progetti (default `~/Documents/ClaudeCode`). Vale per `/progetto` e `/inizio`.
-2. **Host interni** — le guardie conoscono solo regole pubbliche: `localhost` e reti locali esplicite. Un nome `.ts.net` non conta come interno, perché con Tailscale Funnel può essere pubblico. I tuoi host personali, compresi quelli della tua tailnet, vanno in `hooks/hosts-interni.local` (una voce per riga, hostname o rete), non nei file `.py`.
+2. **Host interni** — le guardie conoscono solo regole pubbliche: `localhost` e le reti locali (`10.x`, `172.16.x`-`172.31.x`, `192.168.x`, gli indirizzi Tailscale `100.64.x`, link-local e IPv6 locali). Un nome `.ts.net` non conta come interno, perché con Tailscale Funnel può essere pubblico. I tuoi host personali, compresi quelli della tua tailnet, vanno in `hooks/hosts-interni.local` (una voce per riga, hostname o rete), non nei file `.py`. Le API esterne che usi con la tua chiave (fatturazione, CRM) vanno in `hooks/api-fidate.local`, un nome host esatto per riga: un POST verso di loro non chiede conferma.
 3. **Scrivi il tuo `~/.claude/CLAUDE.md`** — le istruzioni personali (chi sei, come lavori, regole tue). Non è incluso: è personale per definizione.
 4. **`language` in `settings.json`** — è `italian`; cambialo se serve.
 5. Apri Claude Code e lancia **`/system-audit`**: verifica che hook, skill e agent siano wirati correttamente sulla tua macchina. L'obiettivo è "tutto verde".
@@ -207,12 +207,13 @@ Ogni comando `Bash` passa da un unico router, `hooks/bash-dispatcher.sh`, che lo
    ┌──────────────────────────────────────────────────────┐
    │ git commit / gh pr create → commit-secret-gate.py     │ ask
    │ git puro non esecutivo → esce                         │
-   │ invio email/messaggi → comms-guard.py                 │ blocco
-   │ rm, config, segreti → block-dangerous.py              │ blocco o ask
+   │ invio email/messaggi → comms-guard.py                 │ ask
+   │ rm, config, segreti, avvio auto → block-dangerous.py  │ blocco o ask
    │ POST/upload → exfil-guard.py                          │ ask
    │ GET-exfil → disattivato per scelta di attrito          │
    │ SQL, volumi, rsync → data-guard.py                    │ ask
    │ gh → gh-destructive-guard.py                          │ blocco o ask
+   │ memoria e handoff (nessuna guardia ha deciso) → allow │ allow
    └──────────┬───────────────────────────────────────────┘
               │
               ▼
@@ -250,23 +251,23 @@ Instradati dal dispatcher:
 
 | Guard | Cosa intercetta | Esito |
 |---|---|---|
-| `block-dangerous.py` | `rm` ricorsivi su tree protetti, export vault, scrittura su config/hook (anche via `cd`), creazione di file di unlock, lettura segreti via shell (incl. `perl`/`ruby`/`nc`/redirezioni e comandi dentro `$(...)`), `curl\|bash` e sue varianti (process-sub, `eval`, pipe verso interpreti), fork bomb, `docker volume rm`. Un `rm` ricorsivo si riconosce anche con le opzioni separate, in una subshell, dentro `sh -c` o `eval`, e dietro `xargs`, dove chiede sempre. Una scrittura shell su un `CLAUDE.md` chiede conferma | blocco/conferma |
+| `block-dangerous.py` | `rm` ricorsivi su tree protetti, export vault, scrittura su config/hook (anche via `cd`), creazione di file di unlock, lettura segreti via shell (incl. `perl`/`ruby`/`nc`/redirezioni e comandi dentro `$(...)`), `curl\|bash` e sue varianti (process-sub, `eval`, pipe verso interpreti), fork bomb, `docker volume rm`. Un `rm` ricorsivo si riconosce anche con le opzioni separate, in una subshell, dentro `sh -c` o `eval`, e dietro `xargs`, dove chiede sempre. Una scrittura shell su un `CLAUDE.md` chiede conferma. Una scrittura shell su un git hook o su un servizio di avvio (`~/Library/LaunchAgents`, `~/.config/systemd/user`, `~/.config/autostart`) chiede conferma. Il testo di un heredoc verso python o `cat`, un messaggio `-m` e il pattern di `grep` non contano come comandi o file letti | blocco/conferma |
 | `commit-secret-gate.py` | segreti nel diff staged (e nel working tree su `git commit -a`), anche nei file aggiunti nello stesso comando, prima di ogni `git commit` / `gh pr create`; se il controllo va oltre il tempo, chiede | conferma |
 | `data-guard.py` | SQL distruttivo (DROP/TRUNCATE/DELETE senza WHERE), `docker compose down -v`, `rsync --delete` verso host remoti, overwrite di file `.db` | conferma |
-| `exfil-guard.py` | esfiltrazione verso host esterni: POST e upload (curl/wget/python); il ramo GET è disattivato per scelta di attrito | conferma |
-| `comms-guard.py` | invio email/messaggi da CLI (sendmail, msmtp, gws, smtplib, `git send-email`, AppleScript Mail...) — policy draft-first. Giudica il codice eseguito: `comms-prefilter.py` toglie gli heredoc scritti su file e tace sulle letture (`grep -ril smtplib`), mentre `find -exec`, `awk system()` e `sed` contano come esecuzione | blocco |
+| `exfil-guard.py` | esfiltrazione verso host esterni: POST e upload (curl/wget/python); il ramo GET è disattivato per scelta di attrito. Giudica il codice eseguito (senza gli heredoc scritti su file). Le API in `hooks/api-fidate.local` passano | conferma |
+| `comms-guard.py` | invio email/messaggi da CLI (sendmail, msmtp, `mail`, gws, smtplib, `http.client`, `git send-email`, AppleScript Mail...) — policy draft-first. Chiede conferma invece di bloccare: il blocco insegnava a Claude ad aggirare la regex. Giudica il codice eseguito: `comms-prefilter.py` toglie gli heredoc scritti su file e tace sulle letture (`grep -ril smtplib`), mentre `find -exec`, `awk system()` e `sed` contano come esecuzione | conferma |
 | `gh-destructive-guard.py` | operazioni GitHub distruttive (repo delete anche via GraphQL, secret, api DELETE/PUT/PATCH) → blocco; mutazioni GraphQL, query lette da file e POST anche impliciti (`-f`/`-F`/`--input`) → conferma; anche con prefisso `env`/`command` | blocco / conferma |
 
 Fuori dal dispatcher:
 
-- `protect_claude_md.py` — PreToolUse: protegge `CLAUDE.md`, settings e hook da modifiche via `Edit`/`Write` senza file di unlock; scrivere un file di unlock chiede sempre conferma.
+- `protect_claude_md.py` — PreToolUse: protegge `CLAUDE.md`, settings e hook da modifiche via `Edit`/`Write` senza file di unlock, e i percorsi di avvio automatico (`.git/hooks`, `~/Library/LaunchAgents`, `~/.config/systemd/user`, `~/.config/autostart`) con un unlock di sistema; scrivere un file di unlock chiede sempre conferma. Avvisa quando il `CLAUDE.md` globale supera il budget di righe (`ARTURO_CLAUDE_MD_RIGHE`, default 200).
 - `web-egress-guard.py` — PreToolUse su `WebFetch`, jina, tavily, `browser_navigate` (anche Firefox) e Claude in Chrome (`navigate` e `browser_batch`): esfiltrazione via URL verso host esterni.
 - `credential-leak-scanner.py` — PostToolUse: rileva token e chiavi negli output di Bash/WebFetch/MCP. L'avviso arriva a Claude, non solo a te (`additionalContext`).
 - `prompt-injection-scanner.py` — PostToolUse: segnala tentativi di prompt injection nei contenuti esterni (pattern EN + IT). Anche questo avviso arriva a Claude.
 - `memoria-scrittura.py` — PostToolUse, sempre acceso: controlla le note di memoria e gli handoff che Claude scrive (password, chiavi, istruzioni nascoste). `memoria-richiamo.py` e `memoria-subagente.py` sono la memoria facoltativa, spenta di default: vedi «La memoria (facoltativa)».
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
 - `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
-- `session-start.sh` / `session-end.sh` — titolo finestra, avvisi Git locali, controllo della deriva (`deriva.py`), avvio della telemetria (`arturo telemetria`), invito a `/segnala` (si spegne con `arturo segnala basta`) e cleanup degli unlock di sessione.
+- `session-start.sh` / `session-end.sh` — titolo finestra, riga `MACCHINA`, avvisi Git locali, file della config modificati e non salvati, controllo della deriva (`deriva.py`), banchi delle guardie in background ogni 12 ore (`tests/banchi-avvio.sh`, un rosso si dice all'avvio; `ARTURO_BANCHI_AVVIO=0` li spegne), avvio della telemetria (`arturo telemetria`), invito a `/segnala` (si spegne con `arturo segnala basta`), promemoria di chiusura anche senza file cambiati e cleanup degli unlock di sessione.
 - `controlla-config.py` — strumento, non un hook: controlla che la config sia integra (`settings.json` valido, nessun rebase o conflitto a metà) e stampa `CONFIG OK` o `CONFIG ROTTA`. Lo usano l'avvio, `/inizio`, `/aggiorna` e `/fine`.
 - `deriva.py` — strumento, non un hook: all'avvio misura quanto la tua config si è allontanata da quella di Arturo (comandi e file di Arturo modificati, hook di Arturo tolti o spenti, config rotta) e stampa una riga `DERIVA` solo se c'è da fare.
 - `inject-now.sh` — inietta data/ora corrente a ogni prompt. Quando lanci un comando con aggiunte tue in
@@ -275,7 +276,10 @@ Fuori dal dispatcher:
   chiare e piccole hanno risposta diretta. Per spegnere il promemoria, cancella il blocco `cat` finale
   dello script.
 - `input-notifier-start.sh` — notifica quando Claude aspetta input.
-- `statusline.js` — statusline con modello, task in corso, cartella e uso del contesto.
+- `statusline.js` — statusline con modello abbreviato, task in corso, progetto@ramo (`*` se ci sono modifiche), uso del contesto e quota delle finestre di 5 ore e 7 giorni.
+- `typecheck-after-edit.py` — PostToolUse: dopo una modifica a un file `.ts`, `.tsx` o `.vue` lancia il type-check del progetto (lo script `typecheck` o il `tsc`/`vue-tsc` del `build`) e manda gli errori a Claude. Fuori da un progetto TypeScript tace.
+- `bozze-mcp-auto-approve.py` — PreToolUse: la creazione di una bozza via un collegamento (`create_draft`, `slack_send_message_draft`) non chiede conferma; l'invio, la pubblicazione e la cancellazione di una bozza sì.
+- `forma_comando.py` — modulo, non un hook: ricava i programmi che un comando esegue davvero (path completo, blocchi, `sh -c`, `eval`). Lo usano `block-dangerous.py` e il dispatcher (git puro, ramo memoria).
 
 **Cosa registrano gli hook per la telemetria.** Ogni hook scrive al massimo una riga nella coda
 `~/.claude/data/telemetria/coda.jsonl`, senza rete; la coda parte in un lotto al massimo ogni sei ore.
@@ -403,7 +407,7 @@ Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 ## Personalizzazione
 
 - **Più/meno attrito.** In modalità `auto` decide il classificatore di Claude Code; la protezione deterministica sono deny + guard. Vuoi che Claude chieda conferma più spesso? Metti `defaultMode: "default"` in `settings.json`. Vuoi meno interruzioni? Aggiungi pattern specifici all'`allow`.
-- **Host interni.** `INTERNAL_HOSTS` e `INTERNAL_NETS` in `exfil-guard.py` e `web-egress-guard.py` sono i default pubblici: non modificarli. Se lavori con un tuo server, aggiungi il suo hostname o la sua rete in `hooks/hosts-interni.local`, una voce per riga: le chiamate verso quegli host non chiederanno conferma. Una rete più larga di `/8` viene ignorata. Quel file è tuo, nessun aggiornamento lo tocca.
+- **Host interni e API fidate.** `INTERNAL_HOSTS` e `INTERNAL_NETS` in `exfil-guard.py` e `web-egress-guard.py` sono i default pubblici: non modificarli. Se lavori con un tuo server, aggiungi il suo hostname o la sua rete in `hooks/hosts-interni.local`, una voce per riga: le chiamate verso quegli host non chiederanno conferma. Una rete più larga di `/8` viene ignorata. Un servizio esterno che usi con la tua chiave va in `hooks/api-fidate.local`, un nome host esatto per riga (niente reti, niente `*`). I due file sono tuoi, nessun aggiornamento li tocca.
 - **Lingua.** `language` in `settings.json` (default `italian`) e i messaggi dei guard sono in italiano — cambiali se preferisci un'altra lingua.
 - **Disattivare un guard.** Commenta la riga corrispondente in `bash-dispatcher.sh` (per i guard instradati) o rimuovi il blocco da `settings.json` (per quelli PostToolUse). Poi rilancia `/system-audit`.
 - **Cambiare un comando di Arturo.** Non modificare `commands/<comando>.md`: scrivi le tue aggiunte in `~/.claude/personale/<comando>.md` (oppure lascia che `/aggiorna personale` le sposti lì). Claude le legge quando lanci il comando, `/fine` le sincronizza solo verso un tuo repository privato, e nessun aggiornamento le tocca.

@@ -36,7 +36,8 @@ NODE = shutil.which("node") or "node"
 
 def casa(repo: Path, radice: Path) -> Path:
     home = radice / "home"
-    shutil.copytree(repo, home / ".claude", ignore=shutil.ignore_patterns(".git", "__pycache__"))
+    # cache/ no: dentro c'e' l'esito dell'ultimo gate, e un esito fresco spegne i banchi di G209.
+    shutil.copytree(repo, home / ".claude", ignore=shutil.ignore_patterns(".git", "__pycache__", "cache"))
     return home
 
 
