@@ -4,6 +4,8 @@
 // Cosa riceve il server, e solo questo:
 //   POST /v1/eventi        un lotto di eventi d'uso, con un id di installazione casuale
 //   POST /v1/segnalazioni  una segnalazione che la persona ha letto e approvato con /segnala
+// Cosa dà, solo a chi ha il token (secret RIEPILOGO_TOKEN):
+//   GET  /v1/riepilogo     il riepilogo della settimana in JSON, con «Dove migliorare Arturo»
 // L'IP non viene mai salvato. Gli eventi hanno il solo giorno, mai l'ora.
 
 // L'elenco chiuso degli eventi. Lo stesso elenco sta in bin/telemetria.py e nel README:
@@ -12,14 +14,24 @@ export const EVENTI = {
   sessione: /^$/,
   comando: /^[a-z0-9-]{1,40}$/,
   guardia: /^[a-z0-9_.-]{1,60}$/,
-  aggiorna: /^(applicato|conflitto|fallito)$/,
+  aggiorna: /^(applicato|conflitto|fallito|rifiutato|indietro|scartato)$/,
   segnalazione: /^(problema|proposta|integrazione)$/,
   // La distanza fra la config della persona e quella di Arturo: un `insieme:<n>` apre l'elenco
   // corrente, seguito da n righe. Dei file esce solo il percorso dentro Arturo, che è pubblico.
   // Il percorso è relativo, senza "..", e comincia da una radice di Arturo o è un file della radice.
   deriva: /^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|hooks|server|shared|skills|templates|tests|\.github)\/[A-Za-z0-9_.\/-]{1,70}|[A-Za-z0-9_.-]{1,40}))$/,
   config: /^rotta-(settings|conflitto|rebase)$/,
+  // Dal 15/10/2026, per il miglioramento di Arturo. In coda, nello stesso ordine di bin/telemetria.py.
+  setup: /^(fase:(10|[0-9]|7b|7c)|fine)$/,
+  chiede: /^[a-z0-9_.-]{1,60}$/,
+  confermata: /^[a-z0-9_.-]{1,60}$/,
+  errore: /^[a-z0-9_.-]{1,60}$/,
+  tappa: /^(tappa:[0-4]|(decisioni|limiti|tenuti|proposte|rifiutate):\d{1,4})$/,
+  claude: /^\d{1,3}\.\d{1,3}\.\d{1,4}$/,
 };
+// Le soglie della ritenzione: installazioni ancora vive dopo 7, 30 e 60 giorni dalla prima volta.
+// Sessanta giorni è il criterio di successo di Arturo (uso vivo dopo due mesi).
+export const RITENZIONE = [7, 30, 60];
 export const TIPI = ["problema", "proposta", "integrazione"];
 export const SISTEMI = ["Darwin", "Linux", "Windows", "altro"];
 export const LIMITI = {
@@ -148,6 +160,53 @@ export function emailConfigRotta(installazione, valore, versione) {
 }
 
 const corto = (id) => id.slice(0, 8);
+const giorni = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+
+// Da {installazione, prima, ultima} ai numeri della ritenzione. Per ogni soglia contano solo le
+// installazioni nate da almeno quei giorni: una nata ieri non può essere viva a 30 giorni.
+export function ritenzione(righe, al) {
+  const fuori = { nuove: righe.filter((x) => giorni(x.prima, al) < 7).length, soglie: [] };
+  for (const n of RITENZIONE) {
+    const idonee = righe.filter((x) => giorni(x.prima, al) >= n);
+    fuori.soglie.push({ giorni: n, idonee: idonee.length, vive: idonee.filter((x) => giorni(x.prima, x.ultima) >= n).length });
+  }
+  return fuori;
+}
+
+// «Dove migliorare Arturo»: la prima cosa del riepilogo del lunedì. Numeri, non verdetti.
+export function testoMigliorare(m) {
+  if (!m) return [];
+  const righe = (elenco, riga, vuoto = "  niente") => elenco && elenco.length ? elenco.map(riga) : [vuoto];
+  const per = (a, b) => (b ? `${Math.round((100 * a) / b)}%` : "-");
+  const r = m.ritenzione || { nuove: 0, soglie: [] };
+  return [
+    "DOVE MIGLIORARE ARTURO (ultimi 30 giorni, numeri e non verdetti)",
+    "",
+    `Setup: ${m.setupIniziati || 0} iniziati, ${m.setupFiniti || 0} arrivati in fondo. Fermi da più di 3 giorni, per ultima fase vista:`,
+    ...righe(m.setupFermi, (x) => `  ${x.n}  ${x.valore}`, "  nessuno"),
+    "",
+    "Guardie che chiedono conferma (chiede / confermata / quota di sì):",
+    ...righe(m.conferme, (x) => `  ${x.valore}  ${x.chiede} / ${x.confermata} / ${per(x.confermata, x.chiede)}`, "  nessuna"),
+    "",
+    "Guardie che si rompono (volte, installazioni):",
+    ...righe(m.errori, (x) => `  ${x.valore}  ${x.n}, ${x.installazioni}`, "  nessuna"),
+    "",
+    "Aggiornamenti non applicati (versione, esito, volte):",
+    ...righe(m.aggiornaStorti, (x) => `  ${x.versione}  ${x.valore}  ${x.n}`, "  nessuno"),
+    "",
+    "Tappe (installazioni per tappa, e quante ferme lì da 30 giorni pur lavorando):",
+    ...righe(m.tappe, (x) => `  ${x.valore}  ${x.n}, ferme ${x.ferme || 0}`, "  nessun dato"),
+    "",
+    `Ritenzione: ${r.nuove} installazioni nuove negli ultimi 7 giorni.`,
+    ...r.soglie.map((s) => `  vive dopo ${s.giorni} giorni: ${s.vive} su ${s.idonee} (${per(s.vive, s.idonee)})`),
+    "",
+    "Versioni di Claude Code (installazioni):",
+    ...righe(m.claude, (x) => `  ${x.n}  ${x.valore}`, "  nessun dato"),
+    "",
+    "---",
+    "",
+  ];
+}
 
 // Per ogni installazione l'elenco corrente della deriva. È un ostacolo se un hook di Arturo è
 // spento, se una guardia (hooks/) è modificata, o se un file di Arturo modificato sta insieme a un
@@ -179,6 +238,7 @@ export function testoRiepilogo(r, titolo) {
   return [
     titolo,
     "",
+    ...testoMigliorare(r.migliorare),
     `Installazioni attive: ${r.installazioni}`,
     `Sessioni: ${r.sessioni}`,
     "",
@@ -199,11 +259,31 @@ export function testoRiepilogo(r, titolo) {
 // --- i gestori -----------------------------------------------------------------
 // `archivio` e `posta` arrivano da worker.js (D1 e send_email) o da test.mjs (finti).
 
-export async function gestisci(request, { archivio, posta, adesso = new Date() }) {
+const giorniFa = (adesso, n) => oggi(new Date(adesso.getTime() - n * 86400000));
+
+// Confronto a tempo costante: il token non si indovina un carattere alla volta.
+function stessoToken(dato, atteso) {
+  if (typeof dato !== "string" || typeof atteso !== "string" || atteso.length < 32) return false;
+  const a = new TextEncoder().encode(dato);
+  const b = new TextEncoder().encode(atteso);
+  let diverso = a.length ^ b.length;
+  for (let i = 0; i < b.length; i++) diverso |= (a[i] ?? 0) ^ b[i];
+  return diverso === 0;
+}
+
+export async function gestisci(request, { archivio, posta, adesso = new Date(), token }) {
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/") {
-    return new Response("Arturo: qui arrivano eventi d'uso anonimi e segnalazioni. Codice: https://github.com/stellakamikaze/arturo/tree/main/server\n",
+    return new Response("Arturo: qui arrivano eventi d'uso, con un id casuale e senza contenuti, e segnalazioni. Codice: https://github.com/stellakamikaze/arturo/tree/main/server\n",
       { headers: { "content-type": "text/plain; charset=utf-8" } });
+  }
+  // Il riepilogo in JSON, per chi mantiene Arturo: lo legge la routine del lunedì che propone le correzioni.
+  if (request.method === "GET" && url.pathname === "/v1/riepilogo") {
+    const dato = (request.headers.get("authorization") || "").replace(/^Bearer /, "");
+    if (!stessoToken(dato, token)) return risposta(401, { errore: "token mancante o sbagliato" });
+    const al = GIORNO.test(url.searchParams.get("al") || "") ? url.searchParams.get("al") : oggi(adesso);
+    const dal = GIORNO.test(url.searchParams.get("dal") || "") ? url.searchParams.get("dal") : giorniFa(new Date(`${al}T12:00:00Z`), 7);
+    return risposta(200, { dal, al, ...(await archivio.riepilogo(dal, al, { settimana: true })) });
   }
   if (request.method !== "POST") return risposta(405, { errore: "solo POST" });
   const giorno = oggi(adesso);
@@ -255,8 +335,6 @@ export async function gestisci(request, { archivio, posta, adesso = new Date() }
 
   return risposta(404, { errore: "percorso sconosciuto" });
 }
-
-const giorniFa = (adesso, n) => oggi(new Date(adesso.getTime() - n * 86400000));
 
 // Il recap del giorno prima. Nei giorni senza eventi né segnalazioni non parte (14/10/2026,
 // Federico): un'email di zeri ogni mattina insegna a non leggerla. Il segno di vita del server

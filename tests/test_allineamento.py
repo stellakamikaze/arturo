@@ -44,6 +44,10 @@ def assert_igiene(repo: Path) -> None:
             term = "".join(parts)
             if term in text:
                 failures.append(f"{raw}: {term}")
+            # 15/10/2026: anche con le due parti staccate da uno spazio, un trattino o un _, dove sono parole
+            # intere: con una parte di due lettere lo spazio darebbe falsi allarmi.
+            elif min(map(len, parts)) >= 3 and re.search(re.escape(parts[0]) + r"[\s_-]" + re.escape(parts[1]), text):
+                failures.append(f"{raw}: {parts[0]} {parts[1]}")
     assert not failures, "I03 igiene: " + "; ".join(failures)
 
 

@@ -49,7 +49,18 @@ def test_k6(repo: Path) -> None:
     assert "fetch --quiet upstream" in read(repo / "commands" / "inizio.md"), "K6 nessuno aggiorna upstream/main: l'avviso di session-start resta muto"
 
 
-TESTS = {"K1": test_k1, "K2": test_k2, "K3": test_k3, "K4": test_k4, "K5": test_k5, "K6": test_k6}
+def test_k7(repo: Path) -> None:
+    # 15/10/2026: su Windows Python trova la home da USERPROFILE, non da HOME. Un banco che sposta solo
+    # HOME scrive nella config vera di chi lo lancia: test_personale ha fatto un commit in ~/.claude.
+    import re
+    for f in sorted((repo / "tests").glob("*.py")):
+        testo = read(f)
+        home = len(re.findall(r'HOME=|env\["HOME"\]|"HOME": ', testo))
+        profilo = len(re.findall(r'USERPROFILE=|env\["USERPROFILE"\]|"USERPROFILE": ', testo))
+        assert profilo >= home or f.name == "test_completezza.py",             f"K7 {f.name} sposta HOME senza USERPROFILE: su Windows scrive nella config vera ({home} contro {profilo})"
+
+
+TESTS = {"K1": test_k1, "K2": test_k2, "K3": test_k3, "K4": test_k4, "K5": test_k5, "K6": test_k6, "K7": test_k7}
 
 
 def main() -> int:

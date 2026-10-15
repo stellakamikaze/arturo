@@ -325,7 +325,7 @@ def test_x06(repo: Path) -> None:
     assert not re.search(r"\|\s*head\b", codice), "X06 il diff di /aggiorna è tagliato con head"
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp)
-        env = dict(os.environ, HOME=str(base), **GIT_ENV)
+        env = dict(os.environ, HOME=str(base), USERPROFILE=str(base), **GIT_ENV)
 
         def git(cwd: Path, *argomenti: str) -> None:
             subprocess.run(["git", *argomenti], cwd=str(cwd), env=env, check=True, capture_output=True, timeout=60)

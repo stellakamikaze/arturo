@@ -151,6 +151,8 @@ done
 
 # Il server della telemetria (server/logica.js) con un archivio e una posta finti.
 node "$REPO/server/test.mjs"
+# Le query vere (server/archivio.js) su SQLite in memoria: node:sqlite, Node 22 o successivo.
+node --no-warnings "$REPO/server/test-sql.mjs"
 
 shells=0
 while IFS= read -r -d '' file; do

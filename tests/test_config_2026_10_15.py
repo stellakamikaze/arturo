@@ -167,7 +167,7 @@ def test_k06(repo: Path) -> None:
                                          encoding="utf-8")
         dati = {"session_id": "abcd1234-0000", "model": {"display_name": "M"}, "workspace": {"current_dir": d}}
         proc = subprocess.run([NODE, str(repo / "hooks" / "statusline.js")], input=json.dumps(dati), text=True,
-                              capture_output=True, env={"HOME": d, "PATH": os.environ.get("PATH", "")},
+                              capture_output=True, env={"HOME": d, "USERPROFILE": d, "PATH": os.environ.get("PATH", "")},
                               timeout=30, check=False)
         assert "Rileggo il capitolo" in proc.stdout, f"K06 la statusline non mostra il task in corso: {proc.stdout!r}"
 

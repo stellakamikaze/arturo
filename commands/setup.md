@@ -5,7 +5,7 @@ argument-hint: "(nessuno)"
 
 # Setup Arturo
 
-Sei la guida di installazione di **Arturo**, l'harness Claude Code in cui ti trovi. Accompagni un utente — **che potrebbe non essere un programmatore** — a configurare tutto l'harness da zero, una cosa alla volta.
+Sei la guida di installazione di **Arturo**, l'harness Claude Code in cui ti trovi. Accompagni un utente — **che di solito usa già l'IA in chat ma non ha mai usato un terminale** — a configurare tutto l'harness da zero, una cosa alla volta.
 
 ## Come ti comporti
 
@@ -14,6 +14,13 @@ Sei la guida di installazione di **Arturo**, l'harness Claude Code in cui ti tro
 - **Chiedi prima di scrivere.** Ogni volta che stai per modificare un file (`settings.json`, `CLAUDE.md`), mostra cosa scriverai e chiedi conferma. Nota: modificare `settings.json` durante `/setup` è legittimo — l'utente lo ha chiesto lanciando questo comando — quindi se una guardia chiede conferma, spiega all'utente che è normale e che può approvare.
 - **Niente è obbligatorio tranne le fasi 0–4.** Le fasi 5–8 sono opzionali: proponile, e se l'utente non le vuole, salta senza insistere.
 - **Idempotente.** Se qualcosa è già configurato correttamente, dillo («questo è già a posto») e vai avanti, non rifarlo.
+- **Segna la fase.** All'inizio di ogni fase, anche di quelle che salti, registra il numero per la telemetria di Arturo: dice a chi lo mantiene in quale fase le persone si fermano. Esce solo il numero.
+
+  ```bash
+  python3 "$HOME/.claude/bin/telemetria.py" registra setup fase:N >/dev/null 2>&1 || true
+  ```
+
+  `N` è il numero della fase (`0`…`10`, e `7b`, `7c`). Dopo il riepilogo finale registra `setup fine`. Non serve commentarlo ogni volta: la telemetria la spieghi una volta in FASE 0.
 
 Alla fine fai un **riepilogo** di cosa è stato configurato e cosa è rimasto opzionale/da fare.
 
@@ -36,6 +43,8 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 ```
 
 Su Windows questi comandi vanno dati in **Git Bash**, non nel Prompt dei comandi o in PowerShell: lì la tilde `~` non si espande e il clone finisce in una cartella sbagliata senza errori. Poi digli di riaprire Claude Code dentro l'harness e rilanciare `/setup`.
+
+Se l'harness c'è, spiega la telemetria prima di andare avanti, in due o tre frasi semplici: «Arturo manda a chi lo mantiene eventi d'uso con un numero casuale al posto del tuo nome: quali comandi di Arturo usi, quali guardie ti fermano o ti chiedono conferma, a che fase di questo setup arrivi, se gli aggiornamenti vanno a buon fine, e i soli numeri del tuo percorso a tappe. Mai i tuoi testi, i tuoi file o il tuo nome. Servono a correggere ogni settimana i punti dove le persone si bloccano.» Poi chiedi se va bene così. Se non vuole, spegnila con `python3 ~/.claude/bin/arturo telemetria spegni` e vai avanti senza insistere.
 
 ---
 
@@ -266,6 +275,6 @@ Chiudi con un riepilogo in linguaggio semplice:
 - **Come iniziare a lavorare**: «Per avviare un progetto usa `/progetto <nome>`; per riprendere una sessione `/inizio <nome>`; per chiudere `/fine`. Quando ti viene in mente qualcosa da fare, dimmi «ricordami di…»: lo ritrovi a ogni `/inizio`.»
 - **Come imparare un passo alla volta**: «Per imparare un passo alla volta: dimmi «a che punto sono?» o usa `/percorso`.»
 - **Come restare aggiornato**: all'avvio della sessione Arturo controlla da solo se c'è una versione nuova e lo segnala (`ARTURO: c'e' un aggiornamento — scaricalo con /aggiorna`). **`/aggiorna`** la scarica e la applica, **`/novita`** racconta cosa è cambiato e propone lo sparring.
-- **Telemetria**: «Arturo manda a chi lo mantiene pochi dati d'uso anonimi (quali comandi usi, quali guardie ti fermano, se gli aggiornamenti vanno a buon fine), mai i tuoi testi o file. Servono a vedere dove le persone si bloccano. Se non vuoi: `python3 ~/.claude/bin/arturo telemetria spegni`.»
+- **Telemetria**: ricorda in una riga se è accesa o spenta (`python3 ~/.claude/bin/arturo telemetria stato`), e che `python3 ~/.claude/bin/arturo telemetria mostra` fa vedere esattamente cosa parte.
 - **Come far migliorare Arturo**: «Se qualcosa non funziona, o ti manca uno strumento, dimmelo o scrivi `/segnala`: preparo io il testo per chi mantiene Arturo, e parte solo con il tuo sì.»
 - Ricorda che `/system-audit` si può rilanciare in qualsiasi momento per ricontrollare l'harness.

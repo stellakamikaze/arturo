@@ -11,6 +11,27 @@ modo di lavorare.
 
 ---
 
+## 2026-10-15 — La telemetria si allarga, e serve a correggere Arturo ogni settimana
+
+**Cosa cambia**: la telemetria di Arturo manda qualche evento in più, sempre senza contenuti. Partono
+la fase di `/setup` a cui arrivi, il nome di una guardia che ti chiede conferma e se poi hai detto sì,
+una guardia che si rompe, un `/aggiorna` rifiutato, annullato o scartato, la versione di Claude Code,
+e del percorso a tappe i soli numeri: la tappa, quante decisioni e limiti hai tenuto, quante proposte
+di delega e quanti no. Mai cosa hai scritto. Alla prima sessione dopo l'aggiornamento Claude ti dice
+di nuovo cosa esce, perché la promessa è cambiata. L'elenco intero è nell'Impegno 3 del README.
+
+**Il principio dietro**: chi comincia spesso non sa dire dove si blocca. Ogni lunedì chi mantiene
+Arturo legge dove le persone si fermano: una fase di `/setup` abbandonata, una guardia che chiede e
+riceve sempre sì (una domanda inutile insegna a rispondere sì senza leggere), un aggiornamento che
+nessuno vuole, una tappa dove si resta fermi. Da lì nascono le correzioni, e ognuna lo dirà nella sua
+voce di questo file. Sono numeri, non verdetti: il giudizio resta a una persona.
+
+**Da sapere**: la spegni quando vuoi con `python3 ~/.claude/bin/arturo telemetria spegni`, e
+`python3 ~/.claude/bin/arturo telemetria mostra` ti fa vedere esattamente cosa parte. L'id che parte
+con gli eventi è casuale ma resta lo stesso: per questo non li chiamiamo anonimi.
+
+<!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->
+
 ## 2026-10-15 — Scegli come ti scrive Claude
 
 **Cosa cambia**: Arturo porta due stili di scrittura. **Guida**, lo stile di partenza, scrive frasi

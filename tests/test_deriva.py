@@ -54,7 +54,7 @@ class Lab:
         subprocess.run(["git", "clone", "-q", str(self.arturo), str(self.claude)], check=True)
         for chiave, valore in (("user.name", "p"), ("user.email", "p@example.org"), ("commit.gpgsign", "false")):
             git(self.claude, "config", chiave, valore)
-        self.env = dict(os.environ, HOME=str(self.home), ARTURO_TELEMETRIA_URL="http://127.0.0.1:9")
+        self.env = dict(os.environ, HOME=str(self.home), USERPROFILE=str(self.home), ARTURO_TELEMETRIA_URL="http://127.0.0.1:9")
         for chiave in ("ARTURO_TELEMETRIA", "DO_NOT_TRACK", "ARTURO_OGGI"):
             self.env.pop(chiave, None)
         self.env.update(env)

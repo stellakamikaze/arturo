@@ -39,7 +39,7 @@ def decide(repo: Path, cmd: str, cwd: str = "") -> str:
         payload = {"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": cwd or home}
         r = subprocess.run(["bash", os.path.join(home, ".claude", "hooks", "bash-dispatcher.sh")],
                            input=json.dumps(payload), capture_output=True, text=True, timeout=60,
-                           env=dict(os.environ, HOME=home))
+                           env=dict(os.environ, HOME=home, USERPROFILE=home))
     finally:
         shutil.rmtree(home, ignore_errors=True)
     if r.returncode == 2:

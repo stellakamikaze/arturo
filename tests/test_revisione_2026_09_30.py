@@ -46,13 +46,13 @@ def blocco(testo: str, titolo: str, indice: int = 0) -> str:
 
 
 def esegui(script: str, home: Path, cwd: Path | None = None) -> subprocess.CompletedProcess:
-    env = dict(os.environ, HOME=str(home), **GIT_ENV)
+    env = dict(os.environ, HOME=str(home), USERPROFILE=str(home), **GIT_ENV)
     return subprocess.run([BASH, "-c", script], cwd=str(cwd or home), env=env,
                           capture_output=True, text=True, timeout=60)
 
 
 def git(cartella: Path, *argomenti: str, home: Path) -> str:
-    r = subprocess.run(["git", "-C", str(cartella), *argomenti], env=dict(os.environ, HOME=str(home), **GIT_ENV),
+    r = subprocess.run(["git", "-C", str(cartella), *argomenti], env=dict(os.environ, HOME=str(home), USERPROFILE=str(home), **GIT_ENV),
                        capture_output=True, text=True, timeout=30)
     assert r.returncode == 0, f"git {' '.join(argomenti)}: {r.stderr.strip()}"
     return r.stdout.strip()
@@ -61,7 +61,7 @@ def git(cartella: Path, *argomenti: str, home: Path) -> str:
 def decisione(repo: Path, home: Path, comando: str, shell: str = "/bin/bash") -> str:
     dati = json.dumps({"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": str(home / "progetto")})
     r = subprocess.run([BASH, str(home / ".claude" / "hooks" / "bash-dispatcher.sh")], input=dati,
-                       env=dict(os.environ, HOME=str(home), SHELL=shell), capture_output=True, text=True, timeout=30)
+                       env=dict(os.environ, HOME=str(home), USERPROFILE=str(home), SHELL=shell), capture_output=True, text=True, timeout=30)
     if r.returncode == 2:
         return "deny"
     return "ask" if '"ask"' in r.stdout else "nessuna"
@@ -124,7 +124,7 @@ def test_r12(repo: Path) -> None:
 
 def hook_diretto(repo: Path, home: Path, hook: str, dati: dict) -> subprocess.CompletedProcess:
     return subprocess.run([sys.executable, str(repo / "hooks" / hook)], input=json.dumps(dati),
-                          env=dict(os.environ, HOME=str(home)), capture_output=True, text=True, timeout=30)
+                          env=dict(os.environ, HOME=str(home), USERPROFILE=str(home)), capture_output=True, text=True, timeout=30)
 
 
 def test_r13(repo: Path) -> None:
@@ -336,7 +336,7 @@ def test_r08(repo: Path) -> None:
         finto.mkdir()
         (finto / "yaml.py").write_text('raise ImportError("PyYAML assente")\n')
         r = subprocess.run([BASH, str(home / ".claude" / "skills" / "system-audit" / "audit.sh")],
-                           env=dict(os.environ, HOME=str(home), PYTHONPATH=str(finto)),
+                           env=dict(os.environ, HOME=str(home), USERPROFILE=str(home), PYTHONPATH=str(finto)),
                            capture_output=True, text=True, timeout=120)
         testo = r.stdout + r.stderr
         assert "FAIL" not in testo.replace("FAIL=0", ""), f"R08 audit rosso senza PyYAML: {[l for l in testo.splitlines() if 'FAIL' in l]}"

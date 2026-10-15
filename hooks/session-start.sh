@@ -145,7 +145,13 @@ if [ -f "$HOME/.claude/hooks/deriva.py" ]; then
   python3 "$HOME/.claude/hooks/deriva.py" "$HOME/.claude" 2>/dev/null || true
 fi
 
-# Telemetria minima (bin/telemetria.py): registra la sessione senza rete, avvisa la persona una
+# Le tappe per la telemetria: bin/percorso.py calcola solo conteggi, senza rete, e telemetria.py
+# registra quelli cambiati. Mai testi o id. A telemetria spenta non si registra niente.
+if [ -f "$HOME/.claude/bin/telemetria.py" ] && [ -f "$HOME/.claude/bin/percorso.py" ]; then
+  python3 "$HOME/.claude/bin/arturo" percorso numeri 2>/dev/null | python3 "$HOME/.claude/bin/telemetria.py" tappa 2>/dev/null || true
+fi
+
+# Telemetria (bin/telemetria.py): registra la sessione senza rete, avvisa la persona una
 # volta sola e lancia l'invio in background al massimo ogni 6 ore. Non ferma mai l'avvio.
 if [ -f "$HOME/.claude/bin/telemetria.py" ]; then
   python3 "$HOME/.claude/bin/telemetria.py" avvio 2>/dev/null || true

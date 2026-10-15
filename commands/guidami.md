@@ -9,7 +9,7 @@ Chi ti parla riapre Claude Code e non sa da dove ripartire. Il tuo compito è **
 vero**: non un riassunto di quello che ha fatto, ma tre o quattro cose che ha senso fare adesso,
 ciascuna con il motivo e un primo passo piccolo.
 
-Chi ti parla **potrebbe non essere una persona tecnica**. Niente gergo, niente elenchi di file.
+Chi ti parla **di solito usa già l'IA in chat ma non ha mai usato un terminale**. Niente gergo, niente elenchi di file.
 
 ## Argomento
 

@@ -138,7 +138,24 @@ def _suspicious(url):
     return False
 
 
-def _ask(reason):
+def _segna_chiede(data):
+    """Telemetria di Arturo: questa guardia ha chiesto conferma. Solo il nome e l'id della chiamata."""
+    try:
+        import importlib.util
+        from pathlib import Path
+        f = Path(__file__).resolve().parent.parent / "bin" / "telemetria.py"
+        uso = data.get("tool_use_id") if isinstance(data, dict) else None
+        if f.exists() and isinstance(uso, str):
+            spec = importlib.util.spec_from_file_location("telemetria", f)
+            t = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(t)
+            t.chiede("web-egress-guard.py", uso)
+    except Exception:  # noqa: BLE001 - la telemetria non ferma mai una guardia
+        pass
+
+
+def _ask(reason, data=None):
+    _segna_chiede(data)
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -165,7 +182,8 @@ def main():
             return _ask(
                 "L'URL verso un host esterno contiene un payload opaco/lungo nella "
                 "query o nel path (possibile esfiltrazione di dati via GET). Conferma "
-                "solo se il link e' legittimo e voluto."
+                "solo se il link e' legittimo e voluto.",
+                data,
             )
     return 0
 

@@ -1,7 +1,7 @@
 // Banco del server di Arturo (W-casi con la sigla V): logica.js con un archivio e una posta finti.
 // Uso: node server/test.mjs   (esce con 0 se tutto passa)
 import assert from "node:assert/strict";
-import { gestisci, settimanale, giornaliero, programmato, mime, testoDeriva, LIMITI, EVENTI } from "./logica.js";
+import { gestisci, settimanale, giornaliero, programmato, mime, testoDeriva, ritenzione, LIMITI, EVENTI } from "./logica.js";
 
 const VUOTO = { installazioni: 0, sessioni: 0, versioni: [], sistemi: [], comandi: [], guardie: [], aggiorna: [], config: [], deriva: [],
   guardieFrequenti: null, segnalazioni: 0 };
@@ -115,7 +115,8 @@ const casi = {
     assert.match(m, /^Subject: =\?UTF-8\?B\?/m, "V08 l'oggetto con accenti non è codificato");
     const corpo = m.split("\r\n\r\n")[1].replace(/\r\n/g, "");
     assert.equal(Buffer.from(corpo, "base64").toString("utf8"), "àèì", "V08 il corpo non torna uguale");
-    assert.deepEqual(Object.keys(EVENTI), ["sessione", "comando", "guardia", "aggiorna", "segnalazione", "deriva", "config"]);
+    assert.deepEqual(Object.keys(EVENTI), ["sessione", "comando", "guardia", "aggiorna", "segnalazione", "deriva", "config",
+      "setup", "chiede", "confermata", "errore", "tappa", "claude"]);
   },
   async V10() {
     const f = finti();
@@ -214,6 +215,71 @@ const casi = {
     assert.equal((await gestisci(new Request("https://arturo.example/v1/eventi"), { ...f, adesso })).status, 405);
     assert.equal((await gestisci(post("/altro", {}), { ...f, adesso })).status, 404);
     assert.equal((await gestisci(post("/v1/eventi", "{non json"), { ...f, adesso })).status, 400);
+  },
+  // Gli eventi del 15/10/2026: i valori giusti passano, quelli con un testo dentro no.
+  async V16() {
+    const buoni = [["setup", "fase:7b"], ["setup", "fine"], ["chiede", "exfil-guard.py"], ["confermata", "exfil-guard.py"],
+      ["errore", "data-guard.py"], ["tappa", "tappa:3"], ["tappa", "decisioni:12"], ["claude", "2.1.290"],
+      ["aggiorna", "rifiutato"], ["aggiorna", "indietro"], ["aggiorna", "scartato"]];
+    for (const [evento, valore] of buoni) {
+      const f = finti();
+      const r = await gestisci(post("/v1/eventi", lotto([{ giorno: "2026-10-13", evento, valore }])), { ...f, adesso });
+      assert.equal(r.status, 202, `V16 ${evento} ${valore} rifiutato`);
+    }
+    const cattivi = [["setup", "fase:11"], ["setup", "fase:3 nota"], ["tappa", "tappa:5"], ["tappa", "tappa:testo"],
+      ["tappa", "note:3"], ["claude", "2.1.x-beta"], ["chiede", "una guardia con spazi"], ["aggiorna", "forse"],
+      ["tappa", "tappa:3\n"]];
+    for (const [evento, valore] of cattivi) {
+      const f = finti();
+      const r = await gestisci(post("/v1/eventi", lotto([{ giorno: "2026-10-13", evento, valore }])), { ...f, adesso });
+      assert.equal(r.status, 400, `V16 ${evento} ${JSON.stringify(valore)} accettato`);
+    }
+  },
+  // Il riepilogo in JSON esce solo con il token giusto, e un token corto non apre niente.
+  async V17() {
+    const token = "t".repeat(40);
+    const get = (intestazione) => new Request("https://arturo.example/v1/riepilogo?dal=2026-10-06&al=2026-10-13",
+      { headers: intestazione ? { authorization: intestazione } : {} });
+    const f = finti({ ...VUOTO, migliorare: { setupIniziati: 1 } });
+    assert.equal((await gestisci(get(null), { ...f, adesso, token })).status, 401, "V17 senza token risponde");
+    assert.equal((await gestisci(get("Bearer " + "x".repeat(40)), { ...f, adesso, token })).status, 401, "V17 token sbagliato accettato");
+    assert.equal((await gestisci(get("Bearer " + token.slice(0, 39)), { ...f, adesso, token })).status, 401, "V17 token corto accettato");
+    assert.equal((await gestisci(get("Bearer "), { ...f, adesso, token: "" })).status, 401, "V17 senza token configurato risponde");
+    const r = await gestisci(get("Bearer " + token), { ...f, adesso, token });
+    assert.equal(r.status, 200, "V17 il token giusto non apre");
+    const dati = await r.json();
+    assert.equal(dati.dal, "2026-10-06");
+    assert.deepEqual(f.stato.opzioni, [{ settimana: true }], "V17 il JSON non chiede la settimana");
+    assert.equal(dati.migliorare.setupIniziati, 1, "V17 manca «Dove migliorare»");
+  },
+  // Ritenzione: per ogni soglia contano solo le installazioni nate da almeno quei giorni.
+  async V18() {
+    const r = ritenzione([
+      { installazione: "a", prima: "2026-08-01", ultima: "2026-10-12" },  // 72 giorni: viva a 7, 30, 60
+      { installazione: "b", prima: "2026-08-01", ultima: "2026-08-05" },  // morta dopo 4 giorni
+      { installazione: "c", prima: "2026-09-20", ultima: "2026-10-13" },  // 23 giorni: idonea solo a 7
+      { installazione: "d", prima: "2026-10-10", ultima: "2026-10-13" },  // nuova
+    ], "2026-10-13");
+    assert.equal(r.nuove, 1, "V18 installazioni nuove");
+    assert.deepEqual(r.soglie, [{ giorni: 7, idonee: 3, vive: 2 }, { giorni: 30, idonee: 2, vive: 1 }, { giorni: 60, idonee: 2, vive: 1 }],
+      "V18 soglie della ritenzione");
+  },
+  // Il lunedì apre con «Dove migliorare Arturo»; il recap del giorno no.
+  async V19() {
+    const migliorare = { setupIniziati: 3, setupFiniti: 1, setupFermi: [{ valore: "fase:2", n: 2 }],
+      conferme: [{ valore: "exfil-guard.py", chiede: 10, confermata: 9 }], errori: [], aggiornaStorti: [],
+      tappe: [{ valore: "tappa:1", n: 2, ferme: 1 }], ritenzione: { nuove: 1, soglie: [{ giorni: 60, idonee: 4, vive: 1 }] }, claude: [] };
+    const f = finti({ ...VUOTO, migliorare });
+    await settimanale({ ...f, adesso });
+    const testo = f.stato.email[0].testo;
+    assert.ok(testo.indexOf("DOVE MIGLIORARE ARTURO") < testo.indexOf("Installazioni attive"), "V19 la sezione non viene prima");
+    assert.match(testo, /Setup: 3 iniziati, 1 arrivati in fondo[^\n]*\n  2  fase:2\n/, "V19 setup fermi");
+    assert.match(testo, /exfil-guard\.py  10 \/ 9 \/ 90%/, "V19 quota di sì delle guardie");
+    assert.match(testo, /tappa:1  2, ferme 1/, "V19 tappe ferme");
+    assert.match(testo, /vive dopo 60 giorni: 1 su 4 \(25%\)/, "V19 ritenzione");
+    const g = finti();
+    await giornaliero({ ...g, adesso });
+    assert.doesNotMatch(g.stato.email[0].testo, /DOVE MIGLIORARE/, "V19 la sezione nel recap del giorno");
   },
 };
 

@@ -78,7 +78,7 @@ def test_r04(repo: Path) -> None:
         def rc(comando: str) -> int:
             dati = json.dumps({"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": d, "session_id": "r04"})
             return subprocess.run(["bash", str(repo / "hooks" / "bash-dispatcher.sh")], input=dati, capture_output=True,
-                                  text=True, cwd=d, timeout=60, env=dict(os.environ, HOME=str(casa))).returncode
+                                  text=True, cwd=d, timeout=60, env=dict(os.environ, HOME=str(casa), USERPROFILE=str(casa))).returncode
 
         for comando in ("find . -name x -exec sendmail a@esempio.org {} \\;", "awk 'BEGIN{system(\"sendmail a@esempio.org\")}'",
                         "git send-email --to a@esempio.org 0001.patch", "echo ciao | sendmail a@esempio.org"):

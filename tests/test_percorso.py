@@ -440,9 +440,11 @@ def test_g11(repo: Path) -> None:
         if path.is_file():
             testo = path.read_text(encoding="utf-8", errors="replace")
             assert "percorso.json" not in testo and "arturo percorso" not in testo, f"G11 lo strato legge il percorso: {path}"
-    # Dal 13/10/2026 l'Impegno 3 è la telemetria minima: il percorso resta fra le cose che non partono mai.
-    impegno = next((r for r in read(repo / "README.md").splitlines() if r.startswith("3. **Telemetria minima")), "")
-    assert "percorso a tappe" in impegno, "G11 l'Impegno 3 non dice che il percorso a tappe non parte mai"
+    # Dal 15/10/2026 del percorso partono solo i numeri di `arturo percorso numeri`, passati da session-start:
+    # bin/percorso.py resta senza rete e bin/telemetria.py non lo legge.
+    impegno = next((r for r in read(repo / "README.md").splitlines() if r.startswith("3. **Telemetria accesa di default")), "")
+    assert "percorso a tappe" in impegno and "solo numeri" in impegno and "mai cosa hai scritto" in impegno, \
+        "G11 l'Impegno 3 non dice che del percorso a tappe partono solo numeri"
     telemetria = read(repo / "bin" / "telemetria.py")
     assert "percorso" not in telemetria.split('"""', 2)[2], "G11 bin/telemetria.py legge o manda il percorso"
 

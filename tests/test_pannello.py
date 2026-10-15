@@ -458,7 +458,7 @@ def diff_di_aggiorna(repo: Path) -> dict:
     blocco = blocco_di_aggiorna(repo)
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp)
-        env = dict(os.environ, HOME=str(base), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1",
+        env = dict(os.environ, HOME=str(base), USERPROFILE=str(base), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1",
                    GIT_AUTHOR_NAME="Prova", GIT_AUTHOR_EMAIL="prova@example.invalid",
                    GIT_COMMITTER_NAME="Prova", GIT_COMMITTER_EMAIL="prova@example.invalid")
 

@@ -122,7 +122,14 @@ adesso i file toccati da tutti e due compaiono nell'elenco qui sopra.
 
 ## Passo 3 — Applica
 
-Solo dopo il suo sì. Ogni blocco gira in una shell nuova: questo ricava da sé da dove arrivano gli
+Solo dopo il suo sì. Se dice no, rispetta il no e fermati, dopo aver registrato l'esito per la
+telemetria di Arturo (dice quali aggiornamenti le persone non vogliono, mai il perché):
+
+```bash
+python3 "$HOME/.claude/bin/telemetria.py" registra aggiorna rifiutato >/dev/null 2>&1 || true
+```
+
+Se dice sì, procedi. Ogni blocco gira in una shell nuova: questo ricava da sé da dove arrivano gli
 aggiornamenti.
 
 L'aggiornamento non si fa dentro `~/.claude`: lo fa `bin/aggiorna-applica.sh` in una copia di prova a
@@ -279,6 +286,7 @@ precedente. I passi 1-4 qui sopra non c'entrano.
        echo "RITORNO ANNULLATO: i tuoi commit successivi non si applicano sulla versione vecchia"
      else
        sed -i.bak '$d' session-env/aggiornamenti && rm -f session-env/aggiornamenti.bak
+       python3 bin/telemetria.py registra aggiorna indietro >/dev/null 2>&1 || true
        python3 hooks/controlla-config.py
      fi
    fi
