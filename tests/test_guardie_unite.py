@@ -300,8 +300,24 @@ def test_g206(repo: Path) -> None:
         assert progs == ["rm", "cat", "bash", "ls"], f"G206 programmi letti male: {progs}"
 
 
+def test_g207(repo: Path) -> None:
+    with tempfile.TemporaryDirectory() as d:
+        radice = Path(d)
+        home = casa(repo, radice)
+        for comando in ("echo ciao | sendmail a@esempio.org", "open 'mailto:a@esempio.org?subject=x'",
+                        "mail a@esempio.org < testo.txt", "git send-email --to a@esempio.org 0001.patch"):
+            assert dispatcher(home, comando, radice) == "ask", f"G207 invio che non chiede conferma: {comando}"
+        codice = ("python3 -c \"import http.client; c=http.client.HTTPSConnection('api.telegram.org'); "
+                  "c.request('POST','/botX/sendMessage')\"")
+        p = _bash_hook(home, "comms-guard.py", codice, radice)
+        assert decisione(p) == "ask", f"G207 http.client verso un servizio di messaggistica: {decisione(p)}"
+        assert dispatcher(home, codice, radice) == "ask", "G207 il dispatcher non instrada http.client"
+        for comando in ("grep -ril smtplib .", "python3 -c \"import http.client; print(http.client.OK)\""):
+            assert dispatcher(home, comando, radice) == "silent", f"G207 lettura fermata: {comando}"
+
+
 TESTS = {"G201": test_g201, "G202": test_g202, "G203": test_g203, "G204": test_g204, "G205": test_g205,
-         "G206": test_g206}
+         "G206": test_g206, "G207": test_g207}
 
 
 def main() -> int:
