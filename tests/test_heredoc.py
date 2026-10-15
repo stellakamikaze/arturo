@@ -64,7 +64,9 @@ def test_h01(repo: Path) -> None:
     assert hasattr(_carica(modulo), "togli"), "H01 heredoc.py senza togli()"
     for guardia, (file, _) in GUARDIE.items():
         testo = (repo / "hooks" / file).read_text(encoding="utf-8")
-        assert "heredoc.py" in testo, f"H01 {guardia} non usa hooks/heredoc.py"
+        # block-dangerous lo usa attraverso forma_comando.py, dove sta il tokenizer dal 15/10/2026.
+        via_forma = "forma_comando.py" in testo and "heredoc.py" in (repo / "hooks" / "forma_comando.py").read_text(encoding="utf-8")
+        assert "heredoc.py" in testo or via_forma, f"H01 {guardia} non usa hooks/heredoc.py"
         assert not re.search(r"<<-\?\\s\*", testo), f"H01 {guardia} ha ancora una regex sua per gli heredoc"
 
 

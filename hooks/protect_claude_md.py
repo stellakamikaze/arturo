@@ -216,30 +216,9 @@ def main():
 
         sys.exit(0)
 
-    except Exception as e:  # noqa: BLE001 - una guardia rotta chiede, come nel dispatcher
-        guardia_rotta('protect_claude_md.py', e)
-        sys.exit(0)
-
-
-def guardia_rotta(nome, errore):
-    """Una guardia che si rompe chiede conferma: non blocca per sempre e non lascia passare
-    in silenzio. Stessa regola di ask_guard in bash-dispatcher.sh. L'errore va in telemetria."""
-    try:
-        import importlib.util
-        f = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'bin', 'telemetria.py')
-        if os.path.exists(f):
-            spec = importlib.util.spec_from_file_location('telemetria', f)
-            t = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(t)
-            t.registra('errore', nome)
-    except Exception:  # noqa: BLE001 - la telemetria non ferma mai una guardia
-        pass
-    print(json.dumps({"hookSpecificOutput": {
-        "hookEventName": "PreToolUse",
-        "permissionDecision": "ask",
-        "permissionDecisionReason": f"La guardia {nome} si e' rotta ({type(errore).__name__}): "
-                                    "controlla la modifica prima di confermare.",
-    }}))
+    except Exception as e:
+        print(f"protect_claude_md: errore interno ({e}), modifica bloccata per sicurezza", file=sys.stderr)
+        sys.exit(2)
 
 
 if __name__ == '__main__':

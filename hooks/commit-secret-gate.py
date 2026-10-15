@@ -65,7 +65,16 @@ except Exception:
         return cmd
 _ASSIGN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", re.S)
 _VAR = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))")
-_WRAPPERS = {"bash", "sh", "zsh", "dash", "ksh", "eval", "xargs", "env", "command", "exec", "nohup", "time"}
+# Le shell sono quelle di forma_comando.py, un solo elenco per tutte le guardie (15/10/2026).
+try:
+    _spec_fc = importlib.util.spec_from_file_location(
+        "forma_comando", os.path.join(os.path.dirname(os.path.abspath(__file__)), "forma_comando.py"))
+    _fc = importlib.util.module_from_spec(_spec_fc)
+    _spec_fc.loader.exec_module(_fc)
+    _SHELL = _fc.SHELL
+except Exception:
+    _SHELL = frozenset("sh bash zsh dash ksh fish".split())
+_WRAPPERS = _SHELL | {"eval", "xargs", "env", "command", "exec", "nohup", "time", "sudo"}
 _UNRESOLVED = object()
 
 

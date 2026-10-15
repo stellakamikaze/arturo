@@ -76,6 +76,8 @@ BANCHI=(
   test_fine_inizio.py
   test_script.py
   test_guardie_rotte.py
+  test_review_struttura.py
+  test_aggiorna_indietro.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -83,7 +85,7 @@ done
 
 # Il minimo dichiarato è Python 3.8: la CLI, la pagina e il percorso girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_todo.py test_web.py test_percorso.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py)
+PY38_BANCHI=(test_review_struttura.py test_todo.py test_web.py test_percorso.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py)
 PY38=$(command -v python3.8 || true)
 if [[ -n "$PY38" ]]; then
   for test in "${PY38_BANCHI[@]}"; do
@@ -163,6 +165,10 @@ BASELINE=(
   # Gate dei commit (banchi dell'autore): il gate di Arturo era gia' allineato in f2c433e,
   # quindi la controprova e' 842b06f, l'ultimo dev prima di quell'allineamento.
   "test_gate_commit.py 842b06f"
+  # Finding di struttura della review del 15/10/2026 (#3377): 4515e63, l'ultimo dev prima delle correzioni.
+  "test_guardie_rotte.py 4515e63"
+  "test_review_struttura.py 4515e63"
+  "test_aggiorna_indietro.py 4515e63"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

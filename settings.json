@@ -312,13 +312,18 @@
         ]
       },
       {
-        "matcher": "Bash|WebFetch|WebSearch|mcp__.*",
+        "matcher": "WebFetch|WebSearch|mcp__.*",
         "hooks": [
           {
             "type": "command",
             "command": "python3 ~/.claude/hooks/prompt-injection-scanner.py",
             "timeout": 10
-          },
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|WebFetch|WebSearch|mcp__.*",
+        "hooks": [
           {
             "type": "command",
             "command": "python3 ~/.claude/hooks/credential-leak-scanner.py",

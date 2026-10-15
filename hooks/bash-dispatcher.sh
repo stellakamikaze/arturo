@@ -112,7 +112,9 @@ PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*77
 # Commit secret gate: scansiona il diff staged prima di git commit / gh pr create.
 # Dal 15/10/2026 parte anche su un commit a capo, in una subshell o in $( ), dopo `env VAR=… `
 # o assegnazioni, e con opzioni di git prima di commit (-c k=v, -C dir, --no-pager).
-PATTERN_COMMIT="(^|[;&|(\`${_NL}])[[:space:]]*((env|command|exec)[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*(git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+commit|gh[[:space:]]+pr[[:space:]]+create)"
+# Dal 15/10/2026 anche dentro virgolette (`bash -c 'git commit'`, `eval "git commit"`) e dopo
+# nohup, time, xargs e sudo: commit-secret-gate.py sa già leggerli, il pre-filtro non lo chiamava.
+PATTERN_COMMIT="(^|[;&|(\`'\"${_NL}])[[:space:]]*((env|command|exec|nohup|time|xargs|sudo)[[:space:]]+)*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*(git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+commit|gh[[:space:]]+pr[[:space:]]+create)"
 # exfil: POST/upload di dati (curl/wget con metodo o payload; python post/smtplib).
 PATTERN_EXFIL='(curl|wget)[[:space:]].*(-X[[:space:]]*(POST|PUT|PATCH|DELETE)|--request[[:space:]]*(POST|PUT|PATCH|DELETE)|-d[[:space:]]|--data|-F[[:space:]]|--form|-T[[:space:]]|--upload-file|--(post|body)-(file|data)|--method[=[:space:]]*(POST|PUT|PATCH|DELETE))|requests\.(post|put|patch|delete)|urllib\.request|httpx\.(post|put|patch)|import[[:space:]]+smtplib|smtplib\.'
 # exfil ramo egress-GET/transport: canali che portano dati fuori SENZA POST e che

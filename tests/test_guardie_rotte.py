@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""GR01-GR02: una guardia che si rompe chiede conferma, come ask_guard in bash-dispatcher.sh.
+"""GR01: una guardia che si rompe non lascia passare in silenzio.
 
-Le guardie Bash passano dal dispatcher, che trasforma un crash in «ask». web-egress-guard e
-protect_claude_md sono registrate da sole in settings.json: fino al 15/10/2026 la prima, rotta,
-usciva con 1 (errore non bloccante: l'URL passava) e la seconda con 2 (ogni modifica bloccata).
+Le guardie Bash passano dal dispatcher, che trasforma un crash in «ask». web-egress-guard è
+registrata da sola in settings.json: fino al 15/10/2026, rotta, usciva con 1, un errore non
+bloccante, e l'URL passava. Ora chiede, come ask_guard. protect_claude_md resta com'è: rotta esce
+con 2 e blocca, per scelta (invariante I02 di test_permissivita_2026_09_08.py).
 
 Il banco rompe una copia della guardia con un'eccezione dentro l'analisi e guarda l'uscita.
-Sulla base 4515e63 GR01 e GR02 sono rossi.
+Sulla base 4515e63 GR01 è rosso.
 """
 from __future__ import annotations
 
@@ -17,7 +18,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["GR01", "GR02"]
+CASI = ["GR01"]
 
 
 def rotta(repo: Path, nome: str, dove: str, dati: dict, cartella: Path) -> subprocess.CompletedProcess:
@@ -47,7 +48,9 @@ def chiede(esito: subprocess.CompletedProcess) -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", default=str(Path(__file__).resolve().parents[1]))
-    repo = Path(parser.parse_args().repo)
+    parser.add_argument("--baseline-ref")
+    argomenti = parser.parse_args()
+    repo = Path(argomenti.repo)
     rossi = []
     with tempfile.TemporaryDirectory() as tmp:
         esito = rotta(repo, "web-egress-guard.py", "for url in _iter_urls(tool_input):",
@@ -55,12 +58,11 @@ def main() -> int:
         if not chiede(esito):
             rossi.append(f"GR01 web-egress-guard rotta non chiede: rc={esito.returncode} out={esito.stdout[:120]!r}")
 
-        esito = rotta(repo, "protect_claude_md.py", "rp = os.path.realpath(",
-                      {"tool_name": "Write", "tool_input": {"file_path": str(Path(tmp, "nota.md")), "content": "x"}},
-                      Path(tmp, "b"))
-        if not chiede(esito):
-            rossi.append(f"GR02 protect_claude_md rotta non chiede: rc={esito.returncode} out={esito.stdout[:120]!r}")
-
+    if argomenti.baseline_ref:
+        codici = [r.split()[0] for r in rossi]
+        assert codici == CASI, f"baseline non discriminante: rossi {codici}, attesi {CASI}"
+        print(f"BASELINE_DISCRIMINANTE={','.join(codici)}")
+        return 0
     for r in rossi:
         print("ROSSO", r)
     print(f"guardie rotte: {len(CASI) - len(rossi)}/{len(CASI)} casi verdi")

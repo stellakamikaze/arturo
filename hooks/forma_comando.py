@@ -6,8 +6,9 @@ dopo `then`/`do` o passato a `bash -c`. Qui si ricava, segmento per segmento, il
 programma vero: senza assegnazioni, parole chiave e wrapper davanti, col solo
 nome del binario, e rientrando nel testo di `sh -c` ed `eval`.
 
-Riusa il tokenizer di block-dangerous.py (`_testo_shell`, `_segmenti_parole`),
-che rispetta le virgolette e toglie i corpi degli heredoc quotati verso non-shell.
+Qui sta anche il tokenizer comune (`testo_shell`, `segmenti_parole`), che rispetta le
+virgolette e toglie i corpi degli heredoc quotati verso non-shell: block-dangerous.py lo
+carica da qui (fino al 15/10/2026 i due file si caricavano a vicenda).
 
 Usato da block-dangerous.py (rm e find che cancellano) e dal dispatcher
 (git puro, ramo memoria e handoff).
@@ -17,10 +18,83 @@ import os
 import re
 import shlex
 
-_spec = importlib.util.spec_from_file_location(
-    "block_dangerous_forma", os.path.join(os.path.dirname(os.path.abspath(__file__)), "block-dangerous.py"))
-_bd = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_bd)
+# Gli heredoc li riconosce heredoc.py, lo stesso modulo delle altre guardie (15/10/2026).
+# Se manca, nessun corpo sparisce: la guardia controlla tutto il testo.
+try:
+    _spec_hd = importlib.util.spec_from_file_location(
+        "arturo_heredoc", os.path.join(os.path.dirname(os.path.abspath(__file__)), "heredoc.py"))
+    _hd = importlib.util.module_from_spec(_spec_hd)
+    _spec_hd.loader.exec_module(_hd)
+    _togli_heredoc = _hd.togli
+except Exception:
+    def _togli_heredoc(cmd, via, segnaposto=None):
+        return cmd
+
+    class _hd:  # noqa: N801 - senza heredoc.py nessun messaggio si svuota
+        @staticmethod
+        def fuori_virgolette(testo, pos):
+            return False
+
+# Valore di -m / --message: git non lo esegue, e un messaggio di commit che CITA
+# un comando non e' quel comando. Restano i messaggi con command-substitution.
+_MESSAGGIO = re.compile(r"(?:^|\s)(?:-m|--message)[= ]\s*(['\"])((?:(?!\1).)*)\1", re.DOTALL)
+
+
+def testo_shell(command: str) -> str:
+    """Il comando senza il testo che la shell non legge come comandi.
+
+    Toglie il corpo degli heredoc col delimitatore TRA VIRGOLETTE diretti a un
+    comando che non e' una shell (python, cat, tee): la shell non lo espande e non
+    lo esegue, quindi un `cat <segreto>` scritto li' dentro e' testo, non una
+    lettura. Un heredoc senza virgolette resta, perche' la shell ne espande le
+    `$(...)`. Toglie anche i messaggi -m/--message privi di command-substitution.
+    """
+    # Un corpo verso bash, sh, ssh (anche `cat <<'EOF' | bash`) resta: la shell lo esegue.
+    testo = _togli_heredoc(command, lambda h: h.quotato and (h.inerte() or h.codice_inerte()))
+
+    def _svuota(m):
+        corpo = m.group(2)
+        if "$(" in corpo or "`" in corpo:
+            return m.group(0)
+        # Solo il messaggio vero di git commit/tag, fuori da altre virgolette: `echo ' -m "'` non lo è.
+        inizio = m.start(1)
+        if not _hd.fuori_virgolette(testo, inizio) or not re.search(r"\bgit\b[^;&|\n]*$", testo[:inizio]):
+            return m.group(0)
+        return m.group(0).replace(corpo, "")
+
+    return _MESSAGGIO.sub(_svuota, testo)
+
+
+def segmenti_parole(cmd: str):
+    """Segmenti come liste di parole, rispettando le virgolette.
+
+    Un pattern di grep o uno script sed che contiene `|` o spazi non spezza il
+    comando. Se le virgolette non tornano, ricade su uno split semplice.
+    """
+    try:
+        lexer = shlex.shlex(cmd, posix=True, punctuation_chars=";&|()\n")
+        lexer.whitespace = " \t\r"
+        lexer.whitespace_split = True
+        segmenti, corrente = [], []
+        for tok in lexer:
+            if tok and set(tok) <= set(";&|()\n"):
+                if corrente:
+                    segmenti.append(corrente)
+                corrente = []
+            else:
+                corrente.append(tok)
+        if corrente:
+            segmenti.append(corrente)
+        return segmenti
+    except ValueError:
+        def parole(seg):
+            try:
+                return shlex.split(seg)
+            except ValueError:
+                return seg.split()
+        return [parole(seg) for seg in re.split(r"[|;&\n]+", cmd)]
+
+
 
 _ASSEGNAZIONE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 # Parole che stanno davanti al programma senza esserlo.
@@ -39,7 +113,7 @@ def _nome(parola: str) -> str:
 def programmi(cmd: str, profondita: int = 0):
     """Lista di (programma, argomenti) per ogni comando semplice di `cmd`."""
     out = []
-    for toks in _bd._segmenti_parole(_bd._testo_shell(cmd)):
+    for toks in segmenti_parole(testo_shell(cmd)):
         i = 0
         while i < len(toks):
             t = toks[i]
@@ -143,7 +217,7 @@ def _senza_redirezioni(toks):
 
 
 def ammesso_ramo_memoria(cmd: str, cwd: str = "") -> bool:
-    testo = _bd._testo_shell(cmd)
+    testo = testo_shell(cmd)
     if any(x in testo for x in ("$(", "`", "<(", ">(", "..")):
         return False
     piatto = re.sub(r"[\"'\\]", "", testo)
@@ -160,7 +234,7 @@ def ammesso_ramo_memoria(cmd: str, cwd: str = "") -> bool:
         if not _zona(os.path.join(os.path.expanduser("~"), ".claude") + (m.group(2) or "")):
             return False
     corrente = cwd
-    for toks in _bd._segmenti_parole(testo):
+    for toks in segmenti_parole(testo):
         parole, bersagli = _senza_redirezioni(toks)
         # Le redirezioni scrivono: ogni bersaglio sta nella zona (o e' /dev/null).
         for bersaglio in bersagli:

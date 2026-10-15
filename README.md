@@ -281,7 +281,7 @@ Fuori dal dispatcher:
 - `statusline.js` — statusline con modello abbreviato, task in corso, progetto@ramo (`*` se ci sono modifiche), uso del contesto e quota delle finestre di 5 ore e 7 giorni.
 - `typecheck-after-edit.py` — PostToolUse: dopo una modifica a un file `.ts`, `.tsx` o `.vue` lancia il type-check del progetto (lo script `typecheck` o il `tsc`/`vue-tsc` del `build`) e manda gli errori a Claude. Fuori da un progetto TypeScript tace.
 - `bozze-mcp-auto-approve.py` — PreToolUse: la creazione di una bozza via un collegamento (`create_draft`, `slack_send_message_draft`) non chiede conferma; l'invio, la pubblicazione e la cancellazione di una bozza sì.
-- `forma_comando.py` — modulo, non un hook: ricava i programmi che un comando esegue davvero (path completo, blocchi, `sh -c`, `eval`). Lo usano `block-dangerous.py` e il dispatcher (git puro, ramo memoria).
+- `forma_comando.py` — modulo, non un hook: ricava i programmi che un comando esegue davvero (path completo, blocchi, `sh -c`, `eval`). Tiene anche il tokenizer comune e l'unico elenco delle shell. Lo usano `block-dangerous.py`, `commit-secret-gate.py` e il dispatcher (git puro, ramo memoria).
 - `heredoc.py` — modulo, non un hook: riconosce gli heredoc di un comando (dove comincia il corpo, se va a una shell, se la shell lo espande). Lo usano `block-dangerous.py`, `data-guard.py`, `commit-secret-gate.py` e `comms-prefilter.py`, ognuna con la sua regola su quale corpo togliere.
 - `bin/telemetria-esito.sh` — PostToolUse: se una guardia aveva chiesto conferma per quella chiamata, registra `confermata`. Senza attese esce subito. Per toglierlo, togli solo il suo oggetto da `settings.json`, non il blocco intero.
 

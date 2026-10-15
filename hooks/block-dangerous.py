@@ -163,51 +163,15 @@ def _reads_secret(command: str) -> bool:
     return False
 
 
-# Gli heredoc li riconosce heredoc.py, lo stesso modulo delle altre guardie (15/10/2026).
-# Se manca, nessun corpo sparisce: la guardia controlla tutto il testo.
-try:
-    _spec_hd = importlib.util.spec_from_file_location(
-        "arturo_heredoc", os.path.join(os.path.dirname(os.path.abspath(__file__)), "heredoc.py"))
-    _hd = importlib.util.module_from_spec(_spec_hd)
-    _spec_hd.loader.exec_module(_hd)
-    _togli_heredoc = _hd.togli
-except Exception:
-    def _togli_heredoc(cmd, via, segnaposto=None):
-        return cmd
-
-    class _hd:  # noqa: N801 - senza heredoc.py nessun messaggio si svuota
-        @staticmethod
-        def fuori_virgolette(testo, pos):
-            return False
-
-# Valore di -m / --message: git non lo esegue, e un messaggio di commit che CITA
-# un comando non e' quel comando. Restano i messaggi con command-substitution.
-_MESSAGGIO = re.compile(r"(?:^|\s)(?:-m|--message)[= ]\s*(['\"])((?:(?!\1).)*)\1", re.DOTALL)
-
-
-def _testo_shell(command: str) -> str:
-    """Il comando senza il testo che la shell non legge come comandi.
-
-    Toglie il corpo degli heredoc col delimitatore TRA VIRGOLETTE diretti a un
-    comando che non e' una shell (python, cat, tee): la shell non lo espande e non
-    lo esegue, quindi un `cat <segreto>` scritto li' dentro e' testo, non una
-    lettura. Un heredoc senza virgolette resta, perche' la shell ne espande le
-    `$(...)`. Toglie anche i messaggi -m/--message privi di command-substitution.
-    """
-    # Un corpo verso bash, sh, ssh (anche `cat <<'EOF' | bash`) resta: la shell lo esegue.
-    testo = _togli_heredoc(command, lambda h: h.quotato and (h.inerte() or h.codice_inerte()))
-
-    def _svuota(m):
-        corpo = m.group(2)
-        if "$(" in corpo or "`" in corpo:
-            return m.group(0)
-        # Solo il messaggio vero di git commit/tag, fuori da altre virgolette: `echo ' -m "'` non lo è.
-        inizio = m.start(1)
-        if not _hd.fuori_virgolette(testo, inizio) or not re.search(r"\bgit\b[^;&|\n]*$", testo[:inizio]):
-            return m.group(0)
-        return m.group(0).replace(corpo, "")
-
-    return _MESSAGGIO.sub(_svuota, testo)
+# Il tokenizer (heredoc, messaggi di commit, segmenti) sta in forma_comando.py dal 15/10/2026:
+# prima forma_comando caricava questo file e questo file caricava forma_comando.
+_spec_fc = importlib.util.spec_from_file_location(
+    "forma_comando", os.path.join(os.path.dirname(os.path.abspath(__file__)), "forma_comando.py"))
+_fc = importlib.util.module_from_spec(_spec_fc)
+_spec_fc.loader.exec_module(_fc)
+_testo_shell = _fc.testo_shell
+_segmenti_parole = _fc.segmenti_parole
+_hd = _fc._hd
 
 
 # grep che stampa solo conteggi o nomi di file: nessun contenuto esce.
@@ -249,7 +213,7 @@ def _senza_pattern(binario: str, args: list) -> list:
     return fuori
 
 
-_SHELLS = frozenset(("sh", "bash", "zsh", "dash", "ksh"))
+_SHELLS = _fc.SHELL
 # La cartella nominata senza slash finale (`find ~/.aws | xargs cat`): SECRET_PATH_RE
 # vuole lo slash, perche' per un cat diretto il nome della cartella non e' una lettura.
 # Per xargs e -exec invece la cartella e' la sorgente dei file letti.
@@ -339,36 +303,6 @@ BARE_TARGETS = {".", "./", "*", ".*", "*.*", "./*", ".//"}
 # pipe, cosi' `sed -n p x | grep w foo` non matcha.
 SED_WRITE_RE = re.compile(r"(^|[\s;&|])sed\s[^|&]*[^A-Za-z0-9]w\s+[^\s|;&]")
 _SED_SCRIPT_W = re.compile(r"(^|[^A-Za-z0-9])w\s+[^\s|;&]")
-
-
-def _segmenti_parole(cmd: str):
-    """Segmenti come liste di parole, rispettando le virgolette.
-
-    Un pattern di grep o uno script sed che contiene `|` o spazi non spezza il
-    comando. Se le virgolette non tornano, ricade su uno split semplice.
-    """
-    try:
-        lexer = shlex.shlex(cmd, posix=True, punctuation_chars=";&|()\n")
-        lexer.whitespace = " \t\r"
-        lexer.whitespace_split = True
-        segmenti, corrente = [], []
-        for tok in lexer:
-            if tok and set(tok) <= set(";&|()\n"):
-                if corrente:
-                    segmenti.append(corrente)
-                corrente = []
-            else:
-                corrente.append(tok)
-        if corrente:
-            segmenti.append(corrente)
-        return segmenti
-    except ValueError:
-        def parole(seg):
-            try:
-                return shlex.split(seg)
-            except ValueError:
-                return seg.split()
-        return [parole(seg) for seg in re.split(r"[|;&\n]+", cmd)]
 
 
 def _sed_scrive(command: str) -> bool:
@@ -600,21 +534,9 @@ def _rigenerabile(p):
     return any(parte in RIGENERABILI for parte in parti)
 
 
-_FORMA = []
-
-
 def _forma():
-    """forma_comando.py della stessa cartella, caricato per path: funziona anche
-    quando questo file e' importato da un banco."""
-    if _FORMA:
-        return _FORMA[0]
-    import importlib.util
-    spec = importlib.util.spec_from_file_location(
-        "forma_comando", os.path.join(os.path.dirname(os.path.abspath(__file__)), "forma_comando.py"))
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    _FORMA.append(mod)
-    return mod
+    """forma_comando.py della stessa cartella, già caricato in testa al file."""
+    return _fc
 
 
 def _find_delete(command):

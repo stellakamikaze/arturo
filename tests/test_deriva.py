@@ -44,6 +44,8 @@ class Lab:
         (self.arturo / "settings.json").write_text(json.dumps(IMPOSTAZIONI, indent=2), encoding="utf-8")
         (self.arturo / "commands" / "inizio.md").write_text("# /inizio\n\nApri la sessione.\n", encoding="utf-8")
         (self.arturo / "hooks" / "bash-dispatcher.sh").write_text("#!/bin/bash\nexit 0\n", encoding="utf-8")
+        # Ogni script citato da IMPOSTAZIONI esiste: dal 15/10/2026 uno mancante è config rotta (rotta-hook).
+        (self.arturo / "hooks" / "session-start.sh").write_text("#!/bin/bash\nexit 0\n", encoding="utf-8")
         (self.arturo / "README.md").write_text("Arturo\n", encoding="utf-8")
         subprocess.run(["git", "init", "-q", "-b", "main", str(self.arturo)], check=True)
         for chiave, valore in (("user.name", "t"), ("user.email", "t@example.org"), ("commit.gpgsign", "false")):

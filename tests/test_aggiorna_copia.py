@@ -15,16 +15,12 @@ marcatore nei file in uso, la copia di prova aspetta, e una volta conclusa il sy
 registro di /aggiorna indietro. C05 una copia di prova in attesa dal sync non sparisce con /aggiorna:
 l'esito la nomina, la copia resta, l'avvio della sessione la ricorda, e solo «scarta» la toglie.
 C06 una copia di prova sparita (cartella temporanea svuotata) non ferma il sync per sempre.
-C07 la copia di prova in attesa sta dentro la cartella .git, non nella cartella temporanea che il
-sistema svuota da solo (15/10/2026). C08 /aggiorna indietro con un commit suo successivo che tocca
-la stessa riga dell'aggiornamento: nessun marcatore nei file in uso, ~/.claude com'era, l'esito lo
-dice. C09 /aggiorna indietro con un commit suo su un altro file: si torna alla versione di prima,
-il suo commit resta, la riga del registro sparisce, la copia di prova non resta.
+C07-C09 (copia dentro .git, /aggiorna indietro) stanno in test_aggiorna_indietro.py.
 
 Il «in nessun momento» di C01 lo guarda un git finto in testa al PATH: dopo ogni comando git vero
 controlla settings.json di ~/.claude e annota ogni marcatore che trova.
 
-Sulla base 0aee68c ogni controllo C01-C06 deve fallire, sulla base 4515e63 C07-C09 con un AssertionError che comincia con il suo codice.
+Sulla base 0aee68c ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
 from __future__ import annotations
 
@@ -252,70 +248,8 @@ def test_c06(repo: Path) -> None:
     per_shell(prova, repo)
 
 
-def test_c07(repo: Path) -> None:
-    def prova(lab: Lab) -> None:
-        conflitto_sulla_deny(lab)
-        passo3_in_conflitto(lab, repo, "C07")
-        copia = Path(read(lab.utente / ".git" / "arturo-aggiorna-copia").split()[0]).resolve()
-        dentro = (lab.utente / ".git").resolve()
-        assert dentro in copia.parents, f"C07 con {lab.shell} la copia di prova sta fuori da .git: {copia}"
-        assert not lab.git(lab.utente, "status", "--porcelain"), f"C07 con {lab.shell} git status vede la copia di prova"
-    per_shell(prova, repo)
-
-
-def applicato_poi_commit(lab: Lab, repo: Path, codice: str, file: str, fare: Callable[[str], str]) -> str:
-    """Un aggiornamento applicato dal Passo 3, poi un commit suo: torna l'HEAD prima dell'aggiornamento."""
-    prima = lab.head()
-    lab.pubblica(lab.autore, {"settings.json": lambda t: t.replace('"B": "2"', '"B": "autore"'),
-                              "NOVITA.md": lambda t: SECONDA}, "v1")
-    testo = aggiorna(repo)
-    lab.lancia(blocco(testo, "## Passo 1", codice))
-    uscita = lab.lancia(blocco(testo, "## Passo 3", codice))
-    assert "APPLICATO" in uscita and lab.registro(), f"{codice} prova: l'aggiornamento non e' applicato: {uscita[-300:]!r}"
-    (lab.utente / file).write_text(fare(read(lab.utente / file)) if (lab.utente / file).exists() else fare(""))
-    lab.git(lab.utente, "add", file)
-    lab.git(lab.utente, "commit", "-q", "-m", "suo")
-    return prima
-
-
-def indietro(lab: Lab, repo: Path, codice: str) -> str:
-    testo = aggiorna(repo)
-    blocchi = _sicuro.blocchi(testo, "## Tornare indietro", codice)
-    return lab.lancia(blocchi[1])
-
-
-def test_c08(repo: Path) -> None:
-    def prova(lab: Lab) -> None:
-        applicato_poi_commit(lab, repo, "C08", "settings.json", lambda t: t.replace('"B": "autore"', '"B": "suo"'))
-        adesso, registro = lab.head(), lab.registro()
-        log = spia(lab)
-        uscita = indietro(lab, repo, "C08")
-        visti = read(log) if log.exists() else ""
-        assert not visti, f"C08 con {lab.shell} settings.json in uso ha avuto i marcatori di conflitto dopo: {visti.strip()!r}"
-        assert lab.head() == adesso and lab.config_integra() and lab.registro() == registro, \
-            f"C08 con {lab.shell} un ritorno in conflitto ha cambiato ~/.claude: {uscita[-300:]!r}"
-        assert "RITORNO ANNULLATO" in uscita, f"C08 con {lab.shell} l'esito non dice che il ritorno e' annullato: {uscita[-300:]!r}"
-        assert len(lab.git(lab.utente, "worktree", "list").splitlines()) == 1, f"C08 con {lab.shell} resta un worktree"
-    per_shell(prova, repo)
-
-
-def test_c09(repo: Path) -> None:
-    def prova(lab: Lab) -> None:
-        prima = applicato_poi_commit(lab, repo, "C09", "mio.md", lambda t: "mio\n")
-        uscita = indietro(lab, repo, "C09")
-        assert "TORNATO INDIETRO" in uscita, f"C09 con {lab.shell} l'esito non dice TORNATO INDIETRO: {uscita[-300:]!r}"
-        assert "Seconda" not in read(lab.utente / "NOVITA.md") and (lab.utente / "mio.md").exists(), \
-            f"C09 con {lab.shell} non torna alla versione di prima o perde il suo commit: {uscita[-300:]!r}"
-        assert lab.git(lab.utente, "rev-parse", "HEAD~1") == prima and not lab.registro().strip(), \
-            f"C09 con {lab.shell} storia o registro sbagliati dopo il ritorno: {uscita[-300:]!r}"
-        assert lab.config_integra() and len(lab.git(lab.utente, "worktree", "list").splitlines()) == 1, \
-            f"C09 con {lab.shell} config rotta o worktree rimasto"
-    per_shell(prova, repo)
-
-
 TESTS: Dict[str, Callable[[Path], None]] = {"C01": test_c01, "C02": test_c02, "C03": test_c03, "C04": test_c04,
-                                            "C05": test_c05, "C06": test_c06, "C07": test_c07, "C08": test_c08,
-                                            "C09": test_c09}
+                                            "C05": test_c05, "C06": test_c06}
 
 
 def main() -> int:
