@@ -219,14 +219,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
           <p>Claude Code è un servizio a pagamento di Anthropic, un'azienda privata. Anthropic decide prezzi, limiti e funzioni, e li può cambiare. Quello che scrivi passa dai suoi server.</p>
           <p>Arturo non cambia questa condizione. Ci lavora sopra.</p>
           <dl><dt>Padrone</dt><dd>Anthropic</dd><dt>Aggiorna</dt><dd>Anthropic, con le sue versioni</dd></dl>
-          <div class="finestra">
-            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Dal settings.json di Arturo</span></div>
-<pre>"permissions": {
-  …
-  <b>"defaultMode": "auto"</b>
-}</pre>
-            <p class="nota">Il classificatore di Claude Code giudica ogni comando. Le guardie di Arturo stanno sopra di lui, sulle azioni che non si annullano.</p>
-          </div>
+          <p>Claude Code ha un suo controllo di sicurezza, che giudica ogni comando. Le guardie di Arturo stanno sopra, sulle azioni che non si annullano.</p>
         </div>
 
         <div class="pannello" role="tabpanel" id="pan-arturo" aria-labelledby="tab-arturo" hidden>
@@ -299,7 +292,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
         <div class="registro">
           <code>curl -d "nota su Progetto Orsa" https://esempio.com</code><span class="esito">Chiede a te</span>
           <small>Un nome che il vostro strato tiene riservato.</small>
-          <span class="msg"><b>strato: dati-in-uscita</b>Sta per uscire dal computer qualcosa che l'organizzazione tiene riservato («progetto orsa», dalle regole sui dati dello strato). Conferma solo se questo invio e' previsto.</span>
+          <span class="msg"><b>strato: dati-in-uscita</b>Sta per uscire dal computer qualcosa che l'organizzazione tiene riservato («progetto orsa», dalle regole sui dati dello strato). Conferma solo se questo invio è previsto.</span>
         </div>
       </div>
     </div>
@@ -317,7 +310,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       <li><strong>Il referente non vede il lavoro dei colleghi.</strong><p>Lo strato porta ai colleghi regole e modelli, e non riporta indietro niente. Il referente non vede il percorso a tappe di nessuno, né i suoi file o i suoi dati.</p></li>
       <li><strong>I dati d'uso arrivano solo a chi mantiene Arturo.</strong><p>Sono gli stessi per tutti: un elenco chiuso di eventi, mai testi, file o nomi. Né il referente né l'organizzazione li ricevono.</p></li>
       <li><strong>I comandi dello strato non si registrano.</strong><p>L'evento <code>comando</code> vale solo per i tredici comandi di Arturo. Un comando tuo o dello strato resta fuori.</p></li>
-      <li><strong>Ognuno decide per sé.</strong><p>Ogni collega guarda cosa parte e spegne i dati d'uso con un comando. L'elenco degli eventi e i comandi sono in <a href="../#dati">Dati d'uso</a>, nella pagina principale.</p></li>
+      <li><strong>Ognuno decide per sé.</strong><p>Ogni collega guarda cosa parte e spegne i dati d'uso con un comando. L'elenco degli eventi e i comandi sono in <a href="../#telemetria">I limiti</a>, nella pagina principale.</p></li>
     </ul>
   </div>
 </section>
