@@ -199,5 +199,30 @@ def main():
     return 0
 
 
+def _guardia_rotta(errore):
+    """Una guardia che si rompe chiede conferma, non lascia passare in silenzio: stessa
+    regola di ask_guard in bash-dispatcher.sh. L'errore va in telemetria."""
+    try:
+        import importlib.util
+        f = Path(__file__).resolve().parent.parent / "bin" / "telemetria.py"
+        if f.exists():
+            spec = importlib.util.spec_from_file_location("telemetria", f)
+            t = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(t)
+            t.registra("errore", "web-egress-guard.py")
+    except Exception:  # noqa: BLE001 - la telemetria non ferma mai una guardia
+        pass
+    print(json.dumps({"hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "ask",
+        "permissionDecisionReason": f"La guardia web-egress-guard.py si e' rotta ({type(errore).__name__}): "
+                                    "controlla l'indirizzo prima di confermare.",
+    }}))
+    return 0
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except Exception as errore:  # noqa: BLE001 - una guardia rotta chiede, non tace
+        sys.exit(_guardia_rotta(errore))

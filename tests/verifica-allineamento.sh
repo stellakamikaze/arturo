@@ -75,6 +75,7 @@ BANCHI=(
   test_memoria.py
   test_fine_inizio.py
   test_script.py
+  test_guardie_rotte.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
