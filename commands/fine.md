@@ -1,5 +1,5 @@
 ---
-description: Chiudi sessione lavoro correttamente
+description: Chiudi la sessione - inventario dei file e destino di ognuno, commit, handoff con i todo e chi agisce, gate dell'handoff, retention e indice, sync della config
 argument-hint: "[--full] [note opzionali]"
 ---
 
@@ -13,18 +13,48 @@ opzionali (flag `--full`) o condizionali (si attivano solo se rilevanti).
 - `--full` → esegue anche: plugin claude-md, doc-staleness, retro.
 - Senza flag → esegue solo il core + le fasi condizionali che risultano rilevanti.
 
+Tre regole per tutte le fasi:
+- **Dentro /fine non si sviluppa.** Un gap, un fix o un test rosso diventa un todo con un numero.
+- **/fine si può rilanciare senza danni.** L'handoff di questa sessione si riscrive (non ne nasce
+  un secondo), un todo che esiste non si ricrea, un commit vuoto non parte.
+- **Un destino incerto non ferma la chiusura.** Il file resta dov'è e l'handoff dice dove sta.
+
 ---
 
 ## CORE (sempre)
 
-### 1. Stato
+### 1. Stato e inventario
 
 ```bash
 git status --short
 git branch --show-current 2>/dev/null
 ```
 
-Raccogli i punti pendenti emersi nella sessione prima di scrivere l'handoff.
+Poi l'inventario dei file che questa sessione ha scritto, anche fuori dal progetto:
+
+```bash
+python3 "$HOME/.claude/bin/inventario-sessione.py"; echo "rc=$?"
+```
+
+Lo script legge la trascrizione della sessione (file scritti, uscite dei comandi, file nuovi in
+Download e Scrivania, oggetti creati online con i connettori), salta `~/.claude` e propone per
+ogni voce un `destino` con il motivo. Con `rc=2` manca l'id della sessione o la trascrizione:
+ricostruisci l'elenco dalla conversazione e dillo nella chiusura. Aggiungi i file che ricordi e
+che lo script non ha visto (per esempio quelli scritti da un programma Python).
+
+Il destino proposto è un punto di partenza, il giudizio è tuo. Ogni file finisce dove sopravvive
+a un riavvio del computer:
+- **repo**: codice, testi e note del progetto. Un file scritto fuori (scratchpad, Download) si
+  copia nel progetto ed entra nel commit della fase 4.
+- **archivia**: un documento fuori da un repository. Chiedi alla persona dove lo tiene (la cartella
+  del progetto, i suoi Documenti) e spostalo lì solo dopo il suo sì.
+- **resta**: un file pesante (video, immagini grandi) o creato online. L'handoff scrive dove sta.
+- **scarto**: un file temporaneo. La chiusura lo nomina, non lo cancella.
+
+Nessun handoff indica lo scratchpad o `/tmp` come posizione di un file: si perdono al riavvio.
+Una bozza di email creata nella sessione riceve un esito nell'handoff (mandata, da mandare, scartata).
+
+Raccogli anche i punti pendenti emersi nella sessione prima di scrivere l'handoff.
 
 ### 2. Completezza
 
@@ -44,10 +74,15 @@ Applica `~/.claude/shared/validation-gate.md` con **mode=quick** (tsc + test + c
 ### 4. Commit Progetto
 
 Solo con un validate verde eseguito dopo l'ultima modifica, oppure se la sessione non ha toccato codice. Se ci sono modifiche non committate:
-1. `git diff --stat` per review
-2. Staging **selettivo** (`git add` dei file pertinenti — MAI `git add .` / `-A`)
-3. Escludi file sensibili (.env, credentials, temporanei)
+1. Staging **selettivo**, file per file (`git add -- <file>` — MAI `git add .` / `-A`)
+2. Escludi file sensibili (.env, credentials, temporanei)
+3. Controlla lo staging: niente marcatori di conflitto, e l'elenco coincide con quello che volevi
 4. Commit con messaggio appropriato. **NON usare Co-Authored-By.**
+
+```bash
+git diff --cached | grep -qE '^\+(<<<<<<< |=======$|>>>>>>> )' && echo "MARCATORE DI CONFLITTO: fermati e risolvi prima del commit"
+git diff --cached --stat
+```
 
 ### 5. Handoff + Push
 
@@ -55,7 +90,7 @@ Nome file: `HANDOFF_$(date +%Y-%m-%d_%H-%M).md`, scritto **solo** nello store
 `~/.claude/data/handoffs/<slug>/` (vedi sotto). Mai nel repository del progetto: in un
 progetto pubblico decisioni, note e task entrerebbero nella storia Git.
 
-**Prima di scrivere, rispondi internamente alle 5 domande:**
+**Prima di scrivere, rispondi internamente alle 6 domande:**
 1. Cosa c'è da fare? (anche cose dette di sfuggita)
 2. Cosa è rimasto in sospeso? (decisioni rimandate, dubbi)
 3. Cosa si potrebbe fare che non è stato discusso? (migliorie, edge case, tech debt)
@@ -71,10 +106,15 @@ Template:
 # Session Handoff - [YYYY-MM-DD] [HH:MM]
 
 ## Progetto
-- Nome / Branch / Status [in progress|completato|bloccato] / Ultimo commit [hash - msg]
+- Nome: [slug] / Branch: [branch] / Status: in progress|completato|bloccato
+- Filone: [solo se il progetto ha più filoni di lavoro separati: un nome breve e sempre lo stesso]
+- Sessione: [valore di $CLAUDE_CODE_SESSION_ID]
+- Ultimo commit: [hash - messaggio]
 
-## Cosa stavamo facendo
-[Task/feature principale, conciso]
+## Ripartenza
+[Per la persona fra una settimana, tre o quattro frasi senza gergo, hash e nomi di file: cosa
+esiste adesso, cosa è cambiato per lei, dove vi siete fermati e perché.]
+Prossimo passo: [una azione, con il gesto che serve: «mi dici quale account uso»]
 
 ## Decisioni prese
 1. [Decisione e motivazione]
@@ -82,33 +122,37 @@ Template:
 ## Vicoli ciechi (tentativi falliti)
 - NON [cosa] — [perché non funziona, con l'errore esatto se c'è]
 
-## File modificati
-[git diff --stat o lista]
+## File e materiali
+- [file o oggetto] → [posizione finale: percorso nel progetto, link, percorso dove resta, scarto]
 
 ## Task Pendenti
-Da `arturo todo --progetto <slug>`, tutti i todo aperti del progetto:
+Da `arturo todo --progetto .`, tutti i todo aperti del progetto:
 
 | ID | Progetto | Priorità | Task | Status | Descrizione | Chi |
 |----|----------|----------|------|--------|-------------|-----|
-| #4 | [nome] | alta | nome-task | in_progress | cosa resta | io |
-
-Regole: ogni task DEVE avere il Progetto e l'ID del todo; status `pending|in_progress|blocked`;
-priorità `alta|media|bassa`; Chi `tu|decidi|io`; Descrizione con contesto sufficiente a
-riprendere senza rileggere il codice; includi anche task da sessioni precedenti se ancora validi.
-La tabella è la fotografia della sessione: la fonte di verità è l'archivio dei todo.
+| #4 | libro | alta | Rileggere il capitolo tre | da fare | Mancano le note dell'editor: senza, la revisione resta a metà | io |
 
 ## In sospeso (non ancora task)
 - [Decisioni rimandate, dubbi]
 
 ## Idee emerse (non discusse)
-- [Migliorie, edge case, tech debt]
-
-## Prossimi passi
-1. [ ] [Azione immediata più importante]
+- [idea] → #ID se è diventata un todo | → scartata: [motivo]
 
 ## Riferimenti / Note
 - [Link a issue/PR/doc] · [Note utente]
 ```
+
+Regole della tabella `## Task Pendenti` (le controlla il gate più sotto):
+- La sezione c'è sempre, con questo titolo esatto. Senza task contiene la frase «Nessun task pendente».
+- Ogni riga ha nella colonna ID il numero del todo nell'archivio (`#4`): prima crei il todo, poi
+  scrivi la riga. Un todo chiuso non sta nella tabella.
+- **Chi** è l'ultima colonna e vale `tu`, `decidi` o `io`, come nell'archivio dei todo.
+- Status `da fare|in corso|fermo`, priorità `alta|media|bassa`.
+- Task e Descrizione si leggono senza contesto: il verbo all'infinito e cosa serve per riprendere.
+  Il gergo, i percorsi e gli hash vanno in Decisioni.
+- Includi anche i todo delle sessioni precedenti se ancora validi. La tabella è la fotografia
+  della sessione: la fonte di verità è l'archivio dei todo.
+- Ogni idea ha un destino: un'idea già vista prima non resta idea una terza volta.
 
 **Todo.** Prima di scrivere l'handoff porta nell'archivio ogni item della tabella. L'archivio è
 il file `~/.claude/data/todo/eventi.jsonl`: sopravvive alla sessione e lo leggono `/inizio`,
@@ -129,7 +173,7 @@ Poi, per ogni item, una riga intera come queste. `arturo todo aggiungi` mette il
 progetto della cartella, come «ricordami di…»:
 
 ```bash
-python3 "$HOME/.claude/bin/arturo" todo aggiungi "verbo e oggetto" --chi io --priorita media --note "cosa resta"
+python3 "$HOME/.claude/bin/arturo" todo aggiungi "verbo e oggetto" --chi io --priorita media --note "cosa serve per riprendere"
 python3 "$HOME/.claude/bin/arturo" todo fatto ID
 python3 "$HOME/.claude/bin/arturo" todo ferma ID "motivo"
 python3 "$HOME/.claude/bin/arturo" todo nota ID "testo"
@@ -179,16 +223,54 @@ SLUG=$(printf '%s' "$PROGETTO" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9
 HDIR=~/.claude/data/handoffs/"$SLUG"
 mkdir -p "$HDIR"
 HANDOFF_FILE="$HDIR/HANDOFF_$(date +%Y-%m-%d_%H-%M).md"
-# scrivi in "$HANDOFF_FILE" il contenuto del template
-# retention: ultimi 5, per nome (la data sta nel nome). Dopo un pull o un ripristino
-# le date dei file sono tutte fresche: ordinare per data cancellerebbe quello sbagliato.
-find "$HDIR" -maxdepth 1 -name "HANDOFF_*.md" | sort -r | tail -n +6 | while IFS= read -r vecchio; do rm -f -- "$vecchio"; done
+# /fine rilanciato nella stessa sessione riscrive il suo handoff invece di crearne un secondo.
+if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then
+  GIA=$(grep -l -- "^- Sessione: $CLAUDE_CODE_SESSION_ID\$" "$HDIR"/HANDOFF_*.md 2>/dev/null | sort -r | head -1)
+  [ -n "$GIA" ] && HANDOFF_FILE="$GIA"
+fi
+echo "Handoff: $HANDOFF_FILE"
 ```
 
-Poi aggiorna la riga del progetto in `~/.claude/data/handoffs/INDEX.md`
-(colonne: Progetto | Ultimo handoff | Data | Stato | Prossimo passo — il "Prossimo passo"
-deve essere leggibile senza aprire l'handoff). La copia sulle altre macchine avviene nel
-Config Sync della FASE 6, e solo verso un remote privato.
+Scrivi il contenuto del template nel file stampato dopo «Handoff:». La variabile non arriva
+ai blocchi dopo: ognuno gira in una shell nuova, quindi lì scrivi il percorso per intero.
+
+**Gate dell'handoff.** Lancialo sul file appena scritto, al posto di `<handoff>`:
+
+```bash
+bash "$HOME/.claude/bin/handoff-gate.sh" "<handoff>"; echo "rc=$?"
+```
+
+Il gate è bloccante. Il rosso (`rc=1`) stampa una riga per difetto: la sezione `## Task Pendenti`
+assente o vuota senza «Nessun task pendente», un ID che non è un todo aperto dell'archivio, un Chi
+fuori da `tu|decidi|io` o non in ultima colonna, un segnaposto del modello mai compilato.
+Correggi l'handoff (e l'archivio, se manca un todo) e rilancia finché è verde.
+
+**Retention e indice.** Lo store tiene gli ultimi 5 handoff per progetto, o per filone se
+l'handoff ha la riga «- Filone:». Prima guarda cosa uscirebbe, senza cancellare niente:
+
+```bash
+SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
+python3 "$HOME/.claude/bin/handoff-retention.py" "$SLUG"; echo "rc=$?"
+```
+
+Per ogni handoff in uscita lo script stampa i Vicoli ciechi e le righe dei task senza ID.
+Nessun handoff esce senza essere letto. Per ogni voce scegli: un vicolo cieco che può tornare
+entra nel `CLAUDE.md` del progetto in due righe («NON fare X: causa Y»), un task ancora valido
+diventa un todo adesso, il resto muore e lo dici. Poi cancella i vecchi e rigenera l'indice:
+
+```bash
+SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
+python3 "$HOME/.claude/bin/handoff-retention.py" "$SLUG" --applica; echo "rc=$?"
+python3 "$HOME/.claude/bin/index-rigenera.py" --scrivi; echo "rc=$?"
+```
+
+`rc=3` della retention: una cancellazione non è riuscita, il file resta e la chiusura lo dice.
+L'indice `~/.claude/data/handoffs/INDEX.md` nasce dagli handoff e non si corregge a mano: una
+riga per progetto o filone, con stato e prossimo passo (dalla riga «Prossimo passo:» della
+Ripartenza). Con `rc=1` l'indice non è stato scritto: la riga stampata dice perché.
+
+La copia degli handoff sulle altre macchine è facoltativa: avviene nel Config Sync della
+FASE 6, e solo verso un remote privato.
 
 ### 6. Config Sync (condizionale)
 
@@ -268,13 +350,19 @@ che ha senso. Una sola proposta per sessione, mai un elenco.
 
 ### 8. Conferma
 
+Prima della tabella, una riga per file o materiale della fase 1 con la sua posizione finale
+(anche gli scarti), poi la Ripartenza dell'handoff in tre righe con il prossimo passo.
+
 ```
 +====================================================================+
 |                      SESSIONE CHIUSA                                |
 +--------------------------------------------------------------------+
 | Commit progetto | [hash o "nessuno"]                               |
+| Materiali       | [N file: repo / archivia / resta / scarto]       |
 | Handoff         | [HANDOFF_*.md]                                   |
+| Gate handoff    | [verde / rosso: motivo]                          |
 | Task pendenti   | [N] (nell'handoff)                               |
+| Retention       | [N handoff vecchi tolti / niente da togliere]    |
 | Validate        | [passed / N errori documentati]                  |
 | Config sync     | [push riuscito / niente da pushare / push non riuscito: N commit da ritentare]                     |
 | Segnalazione    | [inviata / proposta, non inviata / domanda fatta / nessuna]       |
@@ -290,13 +378,16 @@ che ha senso. Una sola proposta per sessione, mai un elenco.
 
 Esegui queste fasi **solo** se è passato `--full`, oppure quando la condizione indicata è vera.
 
-### A. CLAUDE.md — `--full`, o se la sessione ha prodotto insight duraturi
+### A. CLAUDE.md — `--full`, o se la sessione ha prodotto una regola che vale in ogni sessione
 Plugin `claude-md-management:revise-claude-md` (fallback: leggi, identifica pattern
-ripetuti, proponi update). Le modifiche entrano nel commit config della FASE 6.
+ripetuti, proponi update). Sale nel `CLAUDE.md` solo ciò che deve valere in OGNI sessione:
+una preferenza della persona, un freno prima di un'azione con effetti, o una correzione che si
+è ripetuta. Una riga per regola. Le modifiche al `CLAUDE.md` personale le scrivi dopo il sì
+della persona, ed entrano nel commit config della FASE 6.
 
 ### B. Doc staleness — `--full`, o se la sessione ha toccato doc/.md
 Cross-reference le modifiche con i `.md` del repo. Se un doc descrive codice modificato ma non
-aggiornato: segnalalo nell'handoff.
+aggiornato: diventa un todo e una riga della tabella dell'handoff.
 
 ### C. Riepilogo — `--full`, o se la sessione ha lavoro significativo
 

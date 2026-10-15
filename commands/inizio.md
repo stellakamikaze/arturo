@@ -1,11 +1,15 @@
 ---
-description: Avvia sessione lavoro su progetto
-argument-hint: <nome-progetto>
+description: Avvia la sessione su un progetto - sync della config (con --tutti anche dei progetti), contesto in una chiamata (git, handoff, todo con chi agisce, scadenze), cruscotto e scelta del lavoro
+argument-hint: "<nome-progetto> [--tutti] [-- <compito>]"
 ---
 
 # Inizio Sessione
 
 Avvia sessione di lavoro su **$ARGUMENTS**.
+
+`--tutti` è un flag: aggiorna anche tutti i progetti (FASE 0) e non entra nel nome. Il testo dopo
+« -- » è il compito della sessione (vedi «Con un compito» in fondo). Con `--tutti` e senza nome
+ti fermi dopo la FASE 0.
 
 ---
 
@@ -84,59 +88,60 @@ Se compare «non ho scaricato dal tuo repository», la config è com'era: diglie
 nomina i file. Sono modifiche sue (anche `/setup` ne scrive in `settings.json`) che `/fine`
 salverà con un commit. Il sync riparte al prossimo `/inizio`.
 
----
-
-## FASE 1: Localizza Progetto
+**Con `--tutti`** aggiorna anche ogni progetto della cartella dei progetti (`PROJECTS_BASE`):
+per ognuno mette da parte le modifiche non salvate, scarica, e le rimette al loro posto.
 
 ```bash
-# PB = PROJECTS_BASE espansa (la tilde da settings.json non si espande da sola),
-# cercata per prima cosi' /inizio trova i progetti creati da /progetto.
-PB="${PROJECTS_BASE:-$HOME/Documents/ClaudeCode}"; PB="${PB/#\~/$HOME}"
-PROJECT_PATH=""
-for dir in "./$ARGUMENTS" "$PB/$ARGUMENTS" "$HOME/Documents/ClaudeCode/$ARGUMENTS" "$HOME/Documents/$ARGUMENTS" "$HOME/Projects/$ARGUMENTS" "$HOME/$ARGUMENTS"; do
-  [ -d "$dir" ] && PROJECT_PATH="$dir" && break
-done
-
-if [ -z "$PROJECT_PATH" ]; then
-  echo "Progetto non trovato: $ARGUMENTS"
-  echo "Cercato in: ./  $PB/  ~/Documents/  ~/Projects/  ~/"
-else
-  echo "Progetto: $PROJECT_PATH"
-  cd "$PROJECT_PATH"
-  git status --short 2>/dev/null
-  git branch --show-current 2>/dev/null
-
-  # Check merge conflicts
-  CONFLICTS=$(git diff --name-only --diff-filter=U 2>/dev/null)
-  if [ -n "$CONFLICTS" ]; then
-    echo "MERGE CONFLICTS:"
-    echo "$CONFLICTS"
-  fi
-fi
+bash "$HOME/.claude/bin/sync-progetti.sh"; echo "rc=$?"
 ```
 
-Se ci sono merge conflict, risolvili PRIMA di procedere.
+Con `rc=1` almeno un progetto ha un pull fallito, uno stash in conflitto o file in conflitto:
+riporta quale e cosa dice la riga `ERRORE`, e non toccarlo. Lo sistemi con `/inizio <quel progetto>`.
+Un progetto senza remote è solo locale: non è un errore.
 
 ---
 
-## FASE 2: Localizza Handoff
+## FASE 1: Contesto in una chiamata
 
-Due fonti, si usa la **più recente**: lo store in `~/.claude/data/handoffs/` (scritto da
-`/fine`, arrivato qui col sync di FASE 0 se il remote della config è privato) e un'eventuale
-copia locale nel progetto lasciata da versioni precedenti di `/fine`.
+`$ARGUMENTS` può contenere `--tutti` e, dopo « -- », il compito della sessione: lo script li
+riconosce e il nome del progetto resta pulito. Senza nome usa la cartella in cui sei.
 
 ```bash
-SLUG=$(printf '%s' "$ARGUMENTS" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')   # stesso slug di /fine
-HANDOFF_LOCAL=$(find . -maxdepth 1 -name "HANDOFF_*.md" 2>/dev/null | sort -r | head -1)
-HANDOFF_SYNC=$(find ~/.claude/data/handoffs/"$SLUG" -maxdepth 1 -name "HANDOFF_*.md" 2>/dev/null | sort -r | head -1)
-# Confronta i timestamp nel nome file (YYYY-MM-DD_HH-MM): vince il più recente
-echo "Handoff locale: ${HANDOFF_LOCAL:-nessuno}"
-echo "Handoff sync:   ${HANDOFF_SYNC:-nessuno}"
+# Tutto il contesto in un processo solo: tra due blocchi bash le variabili si perdono.
+python3 "$HOME/.claude/bin/arturo" contesto "$ARGUMENTS"; echo "rc=$?"
 ```
 
-Se il progetto non viene trovato in FASE 1, o per una vista cross-progetto di cosa
-c'è da fare ovunque, leggi `~/.claude/data/handoffs/INDEX.md` (una riga per progetto
-con stato e prossimo passo) e proponi da lì.
+Lo script legge e non scrive niente. Calcola lo slug del progetto come `/fine`
+(`basename | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g'`), così
+ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
+- `PROGETTO` e la riga `cartella:` (il percorso, oppure `nessuna`);
+- `GIT`: branch, modifiche non salvate, CONFLITTI DI MERGE, i commit arrivati dopo l'ultimo handoff;
+- `RIPARTENZA`: la Ripartenza e il prossimo passo degli handoff degli ultimi 14 giorni, e il
+  percorso dell'ultimo handoff da leggere per intero;
+- i todo aperti del progetto divisi per chi agisce (TOCCA A TE, DECIDI TU POI FACCIO IO, FACCIO
+  IO, FERMO), i todo chiusi dopo l'ultimo handoff, le SCADENZE dei prossimi 7 giorni anche fuori
+  dal progetto, il todo DA DOVE PARTIRE e gli avvisi.
+
+Con `rc=0` entra nella cartella della riga `cartella:` con `cd "<cartella>"`: la sessione e
+`/fine` lavorano lì. Con `cartella: nessuna` il progetto vive solo negli handoff o nei todo:
+resta dove sei. Se il progetto ha un remote, aggiornalo senza riscrivere la storia:
+
+```bash
+git remote 2>/dev/null | grep -q . && { GIT_TERMINAL_PROMPT=0 git pull --ff-only 2>&1 || echo "Pull non riuscito: il progetto e il remote hanno storie diverse. Non ho toccato niente."; }
+```
+
+Se il pull non riesce, dillo alla persona: niente rebase in automatico. Se `GIT` mostra
+CONFLITTI DI MERGE, risolvili PRIMA di procedere.
+
+---
+
+## FASE 2: Progetto non trovato
+
+Con `rc=2` lo script stampa `NON TROVATO` e i progetti con un nome simile: spesso è un refuso.
+Proponi i candidati e aspetta la scelta. Per una vista di cosa c'è da fare ovunque leggi
+`~/.claude/data/handoffs/INDEX.md` (una riga per progetto con stato e prossimo passo) e proponi
+da lì. Non creare cartelle e non lanciare `git init` senza un sì: per un progetto nuovo c'è
+`/progetto`. Con `rc=3` il nome non è valido: chiedi quello giusto.
 
 ---
 
@@ -144,7 +149,9 @@ con stato e prossimo passo) e proponi da lì.
 
 Leggi in ordine (se esistono):
 1. `CLAUDE.md` — Istruzioni progetto
-2. `HANDOFF_*.md` — Il più recente (per timestamp nel nome file)
+2. L'ultimo handoff per intero: il percorso è nella riga «da leggere per intero» della FASE 1.
+   Se la FASE 1 segnala un handoff nella cartella del progetto più recente dello store (lasciato
+   da una versione vecchia di `/fine`), leggi quello.
 
 ---
 
@@ -152,7 +159,9 @@ Leggi in ordine (se esistono):
 
 I todo stanno nell'archivio `~/.claude/data/todo/eventi.jsonl`, scritto da `/fine` e dalle
 richieste della persona («ricordami di…»). È la fonte di verità: la tabella `## Task Pendenti`
-dell'handoff è solo la fotografia dell'ultima sessione.
+dell'handoff è solo la fotografia dell'ultima sessione. La lista del progetto l'hai già dalla
+FASE 1: questo blocco aggiunge gli avvisi di rinumerazione, i todo di «generale», il git log per
+il confronto, il percorso e il pannello.
 
 ```bash
 # Il progetto dei todo è quello della cartella (FASE 1 ci è entrata), calcolato dalla CLI come per
@@ -189,14 +198,21 @@ claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p 
 ## Contesto
 - Branch: [nome]
 - Ultimo stato: [HANDOFF / nessuno]
-- Config sync: [ok / failed]
+- Config sync: [ok / failed]  (con --tutti: progetti aggiornati / con errori)
 - Merge conflicts: [nessuno / LISTA]
+
+## Da allora
+[2-4 frasi: la Ripartenza dell'ultimo handoff e cosa è cambiato dopo: i commit arrivati, i todo
+ chiusi, le scadenze arrivate, un handoff di un'altra macchina. Chiudi con quello che ne segue.]
 
 ## Todo
 [se la lettura della FASE 4 stampa righe «Attenzione:», riportale qui per prime, una riga
  ciascuna, con parole tue: «#1 adesso è #2, dopo il merge con l'altro computer».]
 [i gruppi di `arturo todo`: TOCCA A TE, DECIDI TU POI FACCIO IO, FACCIO IO, FERMO.
- Ogni todo con l'ID a destra e una riga su a cosa serve. Le scadenze passate in cima.]
+ Ogni todo con l'ID a destra e una riga su a cosa serve. Le scadenze passate in cima.
+ Un FERMO dice cosa aspetta. Un todo di Claude che prepara una parte prima del gesto della
+ persona (una pagina aperta, una bozza) si legge «Preparo io, poi tu».]
+[Da dove partirei: UN todo, quello di DA DOVE PARTIRE della FASE 1 o uno migliore, col motivo.]
 [poi, se ci sono, i todo aperti di «generale», in un gruppo «Fuori dai progetti».]
 [solo se il controllo del pannello della FASE 4 stampa «mod caricato»:]
 Per chiuderli o spostarli con un tasto: /dafare
@@ -238,12 +254,25 @@ Usa AskUserQuestion:
 3. **Review** — "Analizza stato codebase"
 4. **Debug** — "C'è un bug da fixare"
 
+Se la persona corregge un todo dal cruscotto («il 4 lo faccio io», «il 5 scartalo»), scrivilo
+subito nell'archivio con `arturo todo modifica ID --chi …` o `arturo todo scarta ID "motivo"`
+e riporta la riga di conferma. Non spostare un todo da tu a io o decidi senza un suo sì.
+
+---
+
+## Con un compito
+
+Con « -- <compito>» negli argomenti il cruscotto esce breve: il titolo, «Da allora» in una o due
+frasi, una riga per gruppo di todo con il loro numero. Al posto di «Da dove partirei» scrivi
+«Oggi: <compito>», con l'ID del todo che lo copre se esiste. Salta la FASE 6 e parti sul compito.
+
 ---
 
 ## Orchestrazione
 
 Questo workflow chiama automaticamente:
-- Sync GitHub config (`git -C`)
+- Sync GitHub config (`git -C`), e con `--tutti` di ogni progetto (`bin/sync-progetti.sh`)
+- `arturo contesto` — git, handoff recenti, todo con chi agisce, scadenze, in una chiamata
 - Check merge conflicts
 - Cross-reference task vs `git log` (skip task già completati)
 - `arturo todo` — I todo aperti del progetto (chiude quelli già fatti da un commit)
@@ -254,4 +283,4 @@ Questo workflow chiama automaticamente:
 
 ## Avvia
 
-Esegui FASE 0: sync config, poi FASE 1: localizza progetto $ARGUMENTS.
+Esegui FASE 0: sync config, poi FASE 1: contesto del progetto $ARGUMENTS.
