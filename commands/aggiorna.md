@@ -281,24 +281,18 @@ precedente. I passi 1-4 qui sopra non c'entrano.
 3. **Solo dopo il suo sì**, torna indietro portando con te i suoi commit successivi:
 
    ```bash
-   cd "$HOME/.claude"
-   read -r PRIMA DOPO _ < <(tail -1 session-env/aggiornamenti)
-   ADESSO=$(git rev-parse HEAD)
-   if git reset --keep "$PRIMA"; then
-     if [ "$DOPO" != "$ADESSO" ] && ! git cherry-pick "$DOPO..$ADESSO"; then
-       git cherry-pick --abort; git reset --keep "$ADESSO"
-       echo "RITORNO ANNULLATO: i tuoi commit successivi non si applicano sulla versione vecchia"
-     else
-       sed -i.bak '$d' session-env/aggiornamenti && rm -f session-env/aggiornamenti.bak
-       python3 bin/telemetria.py registra aggiorna indietro >/dev/null 2>&1 || true
-       python3 hooks/controlla-config.py
-     fi
-   fi
+   cd "$HOME/.claude" && bash bin/aggiorna-applica.sh "$HOME/.claude" indietro
    ```
 
-   Se `reset --keep` si rifiuta, un file che lui ha cambiato e non salvato è toccato anche
-   dall'aggiornamento: mostragli quale, spiega che le sue modifiche hanno la precedenza, e **non
-   forzare**. Mai `reset --hard`.
+   I suoi commit successivi si rifanno sulla versione vecchia in una copia di prova, come il
+   merge del Passo 3: `~/.claude` cambia solo con un risultato integro, con `reset --keep`.
+   Leggi la prima parola dell'esito:
+
+   - `TORNATO INDIETRO`: fatto, la config è integra e la riga dell'aggiornamento è tolta.
+   - `RITORNO ANNULLATO`: `~/.claude` è com'era prima. La riga dice perché: modifiche non salvate,
+     una copia di prova che aspetta, o commit suoi che non si applicano sulla versione vecchia.
+     Spiegaglielo in parole semplici e **non forzare**. Le sue modifiche hanno la precedenza.
+   - `RIPRISTINO NON RIUSCITO`: **fermati**, come nel Passo 3.
 
 4. Digli di **chiudere e riaprire Claude Code**, come dopo ogni aggiornamento.
 
@@ -310,7 +304,7 @@ precedente. I passi 1-4 qui sopra non c'entrano.
   `~/.claude` cambia solo con un risultato integro, e i conflitti si risolvono nella copia di prova.
 - La procedura di applicazione si legge dalla versione in arrivo, dopo che il Passo 1 ne ha
   mostrato il diff.
-- Per tornare indietro mai `reset --hard`: solo `reset --keep`, e solo dopo il suo sì.
+- Per tornare indietro mai `reset --hard`: solo `aggiorna-applica.sh indietro`, e solo dopo il suo sì.
 - Mai scartare modifiche sue per far passare l'aggiornamento.
 - Se il fetch fallisce, è quasi sempre la rete o un repository non raggiungibile: dillo senza
   drammatizzare e non ritentare a oltranza.

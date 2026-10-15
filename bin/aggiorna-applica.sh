@@ -4,7 +4,8 @@
 # Claude Code legge settings.json e gli hook mentre lavora: un merge fatto dentro ~/.claude, anche
 # se annullato subito dopo, ci lascia i marcatori di conflitto per un attimo, o per sempre se il
 # comando si interrompe. Qui il merge (o il rebase) gira in una copia di prova a parte, una
-# `git worktree` in una cartella temporanea. Si controlla la config sulla copia, e solo un risultato
+# `git worktree` dentro la cartella .git (git status non la vede, e un riavvio non la svuota come
+# la cartella temporanea). Si controlla la config sulla copia, e solo un risultato
 # integro arriva in ~/.claude con `git reset --keep`, che non sovrascrive mai un file suo.
 #
 # /aggiorna non lancia questo file dalla copia installata: lo legge dalla versione in arrivo
@@ -18,6 +19,8 @@
 #                                               registra, perché non è un aggiornamento di Arturo
 #   aggiorna-applica.sh <radice> concludi       dopo aver risolto i conflitti nella copia di prova
 #   aggiorna-applica.sh <radice> scarta         toglie la copia di prova in attesa, solo col sì della persona
+#   aggiorna-applica.sh <radice> indietro       /aggiorna indietro: annulla l'ultimo aggiornamento registrato,
+#                                               coi commit successivi della persona rifatti nella copia di prova
 #
 # Righe d'esito, la prima parola è quella che conta:
 #   APPLICATO                   l'aggiornamento è in ~/.claude e la config è integra
@@ -25,16 +28,30 @@
 #   APPLICAZIONE NON PARTITA    ~/.claude non è stata toccata (modifiche non salvate, config già rotta)
 #   APPLICAZIONE ANNULLATA      ~/.claude è com'era prima; con CONFLITTO la copia di prova aspetta
 #   SCARTATA / NIENTE DA SCARTARE  esiti di scarta
+#   TORNATO INDIETRO / NIENTE DA ANNULLARE / RITORNO ANNULLATO  esiti di indietro (~/.claude com'era
+#                               prima con RITORNO ANNULLATO)
 #   RIPRISTINO NON RIUSCITO     ~/.claude è rimasta a metà: fermarsi
 # Uscita: 0 applicato o niente da fare, 1 non applicato, 2 ripristino non riuscito.
 set -u
 
 RADICE=${1:?radice mancante}
-MODO=${2:?modo mancante: merge, rebase, sync o concludi}
+MODO=${2:?modo mancante: merge, rebase, sync, concludi, scarta o indietro}
 REF=${3:-}
 cd "$RADICE" || { echo "APPLICAZIONE NON PARTITA: non trovo $RADICE"; exit 1; }
 export GIT_TERMINAL_PROMPT=0 GIT_EDITOR=true
 STATO=$(git rev-parse --git-path arturo-aggiorna-copia)  # dentro .git: git status non lo vede mai
+# Le copie di prova stanno anche loro dentro .git: una copia con un conflitto può aspettare giorni
+# il lavoro di chi lo risolve, e la cartella temporanea si svuota da sola (15/10/2026).
+CASA_COPIE="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)/arturo-aggiorna"
+
+nuova_copia() {  # $1 = il commit di partenza. Imposta LAVORO e COPIA, esce 1 se non riesce
+  mkdir -p "$CASA_COPIE" 2>/dev/null
+  LAVORO=$(mktemp -d "$CASA_COPIE/copia.XXXXXX" 2>/dev/null) || return 1
+  COPIA="$LAVORO/copia"
+  git worktree add -q --detach "$COPIA" "$1" >/dev/null 2>&1 && return 0
+  rm -rf "$LAVORO"
+  return 1
+}
 
 controlla() {  # la config della cartella $1, col controllo della versione in arrivo se c'è
   local c="$1/hooks/controlla-config.py"
@@ -140,6 +157,51 @@ if [ "$MODO" = scarta ]; then
   exit 0
 fi
 
+# /aggiorna indietro (15/10/2026): torna alla versione prima dell'ultimo aggiornamento registrato e
+# rifà sopra i commit della persona arrivati dopo. Il cherry-pick gira nella copia di prova, come il
+# merge: un conflitto non lascia mai marcatori nei file che Claude Code sta leggendo.
+if [ "$MODO" = indietro ]; then
+  RIGA=$(tail -1 session-env/aggiornamenti 2>/dev/null)
+  [ -n "$RIGA" ] || { echo "NIENTE DA ANNULLARE: nessun aggiornamento registrato"; exit 0; }
+  read -r VPRIMA VDOPO _ <<< "$RIGA"
+  pulita || { echo "RITORNO ANNULLATO: ~/.claude ha modifiche non salvate. Non ho toccato niente."; exit 1; }
+  [ -f "$STATO" ] && { echo "RITORNO ANNULLATO: una copia di prova con un conflitto aspetta. Concludila o scartala prima. Non ho toccato niente."; exit 1; }
+  ADESSO=$(git rev-parse HEAD)
+  git merge-base --is-ancestor "$VDOPO" "$ADESSO" 2>/dev/null || {
+    echo "RITORNO ANNULLATO: la versione installata non discende più dall'aggiornamento registrato. Non ho toccato niente."; exit 1; }
+  nuova_copia "$VPRIMA" || { echo "RITORNO ANNULLATO: non riesco a preparare la copia di prova. Non ho toccato niente."; exit 1; }
+  if [ "$VDOPO" != "$ADESSO" ] && ! git -C "$COPIA" cherry-pick "$VDOPO..$ADESSO" > "$LAVORO/esito" 2>&1; then
+    togli_copia "$COPIA"
+    echo "RITORNO ANNULLATO: i tuoi commit successivi non si applicano sulla versione vecchia. ~/.claude non è stata toccata."
+    exit 1
+  fi
+  if ! controlla "$COPIA"; then
+    togli_copia "$COPIA"
+    echo "RITORNO ANNULLATO: la versione di prima avrebbe lasciato la config rotta. ~/.claude non è stata toccata."
+    exit 1
+  fi
+  NUOVO=$(git -C "$COPIA" rev-parse HEAD)
+  togli_copia "$COPIA"
+  if [ "$(git rev-parse HEAD)" = "$ADESSO" ] && git reset -q --keep "$NUOVO" && pulita && controlla "$RADICE"; then
+    sed -i.bak '$d' session-env/aggiornamenti && rm -f session-env/aggiornamenti.bak
+    segna_esito indietro
+    echo "TORNATO INDIETRO: config integra"
+    exit 0
+  fi
+  if [ "$(git rev-parse HEAD)" = "$ADESSO" ] && pulita && controlla "$RADICE"; then
+    echo "RITORNO ANNULLATO: git non ha potuto sostituire i file (vedi sopra). ~/.claude è com'era prima"
+    exit 1
+  fi
+  git reset -q --keep "$ADESSO" 2>/dev/null || git reset -q --merge "$ADESSO" 2>/dev/null
+  if [ "$(git rev-parse HEAD)" = "$ADESSO" ] && pulita && controlla "$RADICE"; then
+    echo "RITORNO ANNULLATO: dopo il ritorno la config risultava rotta. ~/.claude è tornata com'era prima"
+    exit 1
+  fi
+  echo "RIPRISTINO NON RIUSCITO: ~/.claude NON è tornata a prima. Ecco com'è adesso:"
+  git status --short
+  exit 2
+fi
+
 if [ "$MODO" = concludi ]; then
   { [ -f "$STATO" ] && read -r COPIA PRIMA DA_DOVE _ < "$STATO"; } || { echo "APPLICAZIONE NON PARTITA: nessuna copia di prova in attesa"; exit 1; }
   if [ ! -d "$COPIA" ]; then
@@ -177,11 +239,12 @@ fi
 
 # Una copia di prova con un conflitto aspetta: può contenere il lavoro di chi la stava risolvendo.
 # Nessun modo la sostituisce in silenzio: si conclude, o si scarta col sì della persona. Una copia
-# sparita (la cartella temporanea si svuota al riavvio) non ha niente da perdere: si toglie il registro.
+# sparita (cancellata a mano, o nella cartella temporanea delle versioni prima del 15/10) non ha
+# niente da perdere: si toglie il registro.
 if [ -f "$STATO" ] && read -r VECCHIA _ VECCHIO_MODO NATA _ < "$STATO"; then
   if [ ! -d "$VECCHIA" ]; then
     togli_copia "$VECCHIA"; rm -f "$STATO"
-    echo "Una copia di prova in attesa non c'era più (cartella temporanea svuotata): tolta dal registro."
+    echo "Una copia di prova in attesa non c'era più: tolta dal registro."
   else
     case "$VECCHIO_MODO" in sync) DA="dal sync fra le tue macchine" ;; *) DA="da un aggiornamento di Arturo" ;; esac
     echo "APPLICAZIONE NON PARTITA: una copia di prova con un conflitto aspetta${NATA:+ dal ${NATA/_/ alle }}, $DA: $VECCHIA"
@@ -191,11 +254,7 @@ if [ -f "$STATO" ] && read -r VECCHIA _ VECCHIO_MODO NATA _ < "$STATO"; then
 fi
 
 PRIMA=$(git rev-parse HEAD)
-TEMP=${TMPDIR:-/tmp}
-LAVORO=$(mktemp -d "${TEMP%/}/arturo-aggiorna.XXXXXX") || { echo "APPLICAZIONE NON PARTITA: niente cartella temporanea"; exit 1; }
-COPIA="$LAVORO/copia"
-if ! git worktree add -q --detach "$COPIA" "$PRIMA" >/dev/null 2>&1; then
-  rm -rf "$LAVORO"
+if ! nuova_copia "$PRIMA"; then
   echo "APPLICAZIONE NON PARTITA: non riesco a preparare la copia di prova. Non ho toccato niente."
   exit 1
 fi
