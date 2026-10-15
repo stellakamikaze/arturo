@@ -10,7 +10,7 @@ const segnali = atom({ plugin: 'cache-fredda', key: 'segnali' } as const, SEGNAL
 const UN_MINUTO = 60_000
 const DIECI_MINUTI = 600_000
 const SEI_ORE = 6 * 3_600_000
-// L'esito del gate sta nella copia di Arturo che porta questo mod: <radice>/skills/cache-fredda/../../cache.
+// L'esito dei banchi delle guardie sta nella copia di Arturo che porta questo mod: <radice>/skills/cache-fredda/../../cache.
 const ESITO_REL = '/../../cache/banchi-ultimo-esito.txt'
 
 async function mostra($: EngineInterface): Promise<void> {

@@ -44,7 +44,8 @@ controllare le novità del progetto su GitHub prima di aggiornare.
 **Leggi cosa cambia nel codice che gira da solo**, prima di chiedere il sì. Prima le guardie
 (`hooks`) e i permessi (`settings.json`), interi e senza taglio: sono i file che decidono cosa
 Claude può fare sul suo computer. Poi l'elenco completo dell'altro codice che gira da solo: la
-CLI `arturo` (`bin`), gli script delle skill (`skills/*/scripts`) e ogni file dei mod di Claude
+CLI `arturo` (`bin`), gli script delle skill (`skills/*/scripts`), i banchi che l'avvio lancia da
+solo ogni 12 ore (`tests`), gli strumenti come `scrape` (`tools`) e ogni file dei mod di Claude
 Code (una cartella di `skills/` con `.claude-plugin/plugin.json`, come il pannello `/dafare`).
 
 ```bash
@@ -53,9 +54,9 @@ SRC=$(git remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origi
 echo "=== guardie e permessi, interi"
 git diff "HEAD...$SRC/main" -- hooks settings.json 2>/dev/null
 echo "=== codice che gira da solo: righe aggiunte e tolte, file per file"
-git diff --name-only "HEAD...$SRC/main" -- bin skills 2>/dev/null | while IFS= read -r f; do
+git diff --name-only "HEAD...$SRC/main" -- bin tests tools skills 2>/dev/null | while IFS= read -r f; do
   case "$f" in
-    bin/*|skills/*/scripts/*) echo "$f" ;;
+    bin/*|tests/*|tools/*|skills/*/scripts/*) echo "$f" ;;
     skills/*/*)
       m=${f#skills/}; m="skills/${m%%/*}"
       { git cat-file -e "$SRC/main:$m/.claude-plugin/plugin.json" || git cat-file -e "HEAD:$m/.claude-plugin/plugin.json"; } 2>/dev/null && echo "$f" ;;

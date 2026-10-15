@@ -1,7 +1,7 @@
 {
   "name": "cache-fredda",
   "version": "0.2.0",
-  "description": "Avvisa sotto il prompt, solo quando serve: la cache del prompt è scaduta e il prossimo messaggio riscrive tutto il contesto, l'ultimo gate di Arturo è rosso, un account gws ha il token in errore",
+  "description": "Avvisa sotto il prompt, solo quando serve: la cache del prompt è scaduta e il prossimo messaggio riscrive tutto il contesto, i banchi delle guardie di Arturo sono rossi, un account gws ha il token in errore",
   "author": {
     "name": "Federico Nejrotti"
   },

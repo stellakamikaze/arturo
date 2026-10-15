@@ -12,7 +12,7 @@ Sei la guida di installazione di **Arturo**, l'harness Claude Code in cui ti tro
 - **Una fase per volta.** Fai UNA fase, mostri l'esito, e solo dopo passi alla successiva. Non scaricare tutto insieme.
 - **Linguaggio semplice.** Niente gergo non spiegato. Se usi un termine tecnico, spiegalo in mezza riga.
 - **Chiedi prima di scrivere.** Ogni volta che stai per modificare un file (`settings.json`, `CLAUDE.md`), mostra cosa scriverai e chiedi conferma. Nota: modificare `settings.json` durante `/setup` è legittimo — l'utente lo ha chiesto lanciando questo comando — quindi se una guardia chiede conferma, spiega all'utente che è normale e che può approvare.
-- **Niente è obbligatorio tranne le fasi 0–4.** Le fasi 5–8 sono opzionali: proponile, e se l'utente non le vuole, salta senza insistere.
+- **Sono obbligatorie solo le fasi 0–4 e la verifica finale (FASE 9).** Tutte le altre sono opzionali: la 4b (stile), dalla 5 alla 8b (`CLAUDE.md`, host e API fidate, sync, strato, comando `arturo`, memoria, `gws`, `scrape`) e la 10 (sparring). Proponile, e se l'utente non le vuole, salta senza insistere.
 - **Idempotente.** Se qualcosa è già configurato correttamente, dillo («questo è già a posto») e vai avanti, non rifarlo.
 
 Alla fine fai un **riepilogo** di cosa è stato configurato e cosa è rimasto opzionale/da fare.
@@ -130,7 +130,7 @@ In `settings.json` il campo `language` è `italian`. Chiedi se va bene o se l'ut
 
 ---
 
-## FASE 4b — Stile di scrittura
+## FASE 4b — Stile di scrittura (opzionale)
 
 Lo stile decide come Claude scrive le risposte: lunghezza, tono, quanto spiega. Non cambia cosa
 Claude può fare: permessi e guardie restano gli stessi. Mostra all'utente questa scelta, con la
@@ -322,8 +322,8 @@ Se preferisce esplorare da solo, indicagli `docs/principi/README.md` e chiudi.
 ## Riepilogo finale
 
 Chiudi con un riepilogo in linguaggio semplice:
-- Cosa è stato configurato (prerequisiti, permessi, PROJECTS_BASE, lingua, eventuale CLAUDE.md, memoria accesa o spenta).
-- Cosa è rimasto opzionale/saltato.
+- Cosa è stato configurato: prerequisiti, permessi, `PROJECTS_BASE`, lingua, verifica finale.
+- Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), strato dell'organizzazione (7b), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), `gws` (8), `scrape` (8b), sparring (10). Una fase saltata si recupera rilanciando `/setup`.
 - **Come iniziare a lavorare**: «Per avviare un progetto usa `/progetto <nome>`; per riprendere una sessione `/inizio <nome>`; per chiudere `/fine`. Quando ti viene in mente qualcosa da fare, dimmi «ricordami di…»: lo ritrovi a ogni `/inizio`.»
 - **Come imparare un passo alla volta**: «Per imparare un passo alla volta: dimmi «a che punto sono?» o usa `/percorso`.»
 - **Come restare aggiornato**: all'avvio della sessione Arturo controlla da solo se c'è una versione nuova e lo segnala (`ARTURO: c'e' un aggiornamento — scaricalo con /aggiorna`). **`/aggiorna`** la scarica e la applica, **`/novita`** racconta cosa è cambiato e propone lo sparring.

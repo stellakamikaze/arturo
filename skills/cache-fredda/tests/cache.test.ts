@@ -34,12 +34,14 @@ describe('cache fredda', () => {
 })
 
 describe('banchi rossi', () => {
-  test('esito rosso col numero di FAIL', () => {
-    expect(leggiBanchi('ROSSO\n=== gate: 1 FAIL (rc 1) ===\n')).toEqual({ rosso: true, riassunto: '1 FAIL' })
+  // Il formato di tests/banchi-avvio.sh, l'unico che scrive il file.
+  test('esito rosso col numero di banchi rossi', () => {
+    const esito = 'ROSSO\n2 banchi delle guardie rossi su 5 (2026-10-15 09:12)\ntest_guardie_unite.py: AssertionError\n'
+    expect(leggiBanchi(esito)).toEqual({ rosso: true, riassunto: '2 banchi rossi su 5' })
   })
   test('esito rosso senza conteggio, esito verde, file illeggibile', () => {
-    expect(leggiBanchi('ROSSO\n')).toEqual({ rosso: true, riassunto: 'rossi' })
-    expect(leggiBanchi('VERDE\n=== gate: tutto verde ===')).toEqual({ rosso: false, riassunto: 'verdi' })
+    expect(leggiBanchi('ROSSO\n')).toEqual({ rosso: true, riassunto: 'banchi rossi' })
+    expect(leggiBanchi('VERDE\n5 banchi delle guardie verdi (2026-10-15 09:12)\n')).toEqual({ rosso: false, riassunto: 'verdi' })
     expect(leggiBanchi('')).toBeNull()
   })
 })
@@ -64,8 +66,9 @@ describe('avvisi sotto il prompt: solo eccezioni', () => {
     expect(avvisi(calda, { banchi: { rosso: false, riassunto: 'verdi' }, gwsKo: [] })).toBeUndefined()
   })
   test('banchi rossi e gws in errore nella stessa riga', () => {
-    const r = avvisi(calda, { banchi: { rosso: true, riassunto: '1 FAIL' }, gwsKo: ['gws-lavoro'] })
-    expect(r).toContain('banchi 1 FAIL')
+    const r = avvisi(calda, { banchi: { rosso: true, riassunto: '2 banchi rossi su 5' }, gwsKo: ['gws-lavoro'] })
+    expect(r).toContain('guardie: 2 banchi rossi su 5')
+    expect(r).toContain('bash ~/.claude/tests/banchi-avvio.sh')
     expect(r).toContain('gws: login da rifare per gws-lavoro')
   })
   test('la cache fredda resta il primo avviso', () => {

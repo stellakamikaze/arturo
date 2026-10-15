@@ -17,7 +17,7 @@ export const EVENTI = {
   // La distanza fra la config della persona e quella di Arturo: un `insieme:<n>` apre l'elenco
   // corrente, seguito da n righe. Dei file esce solo il percorso dentro Arturo, che è pubblico.
   // Il percorso è relativo, senza "..", e comincia da una radice di Arturo o è un file della radice.
-  deriva: /^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|hooks|server|shared|skills|templates|tests|\.github)\/[A-Za-z0-9_.\/-]{1,70}|[A-Za-z0-9_.-]{1,40}))$/,
+  deriva: /^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|hooks|output-styles|server|shared|skills|templates|tests|tools|\.github)\/[A-Za-z0-9_.\/-]{1,70}|[A-Za-z0-9_.-]{1,40}))$/,
   config: /^rotta-(settings|conflitto|rebase)$/,
 };
 export const TIPI = ["problema", "proposta", "integrazione"];

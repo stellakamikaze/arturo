@@ -78,7 +78,7 @@ non si spostano da soli: Claude ti chiede dove li tieni. Da terminale il contest
 
 **Cosa cambia**: scrivi `/apri` e si apre l'ultimo link o file che Claude ha citato, con il
 programma predefinito del tuo computer. Sotto il prompt, oltre alla cache fredda, compaiono due
-avvisi nuovi: l'ultimo controllo di Arturo è rosso, oppure un account Google della CLI `gws` va
+avvisi nuovi: i banchi delle guardie sono rossi, oppure un account Google della CLI `gws` va
 ricollegato. Se usi `gws`, un errore di credenziali ora si dichiara al primo colpo, con il comando
 per rifare il login. La skill dell'italiano semplificato ha un catalogo dei tic della scrittura
 generata. Chi cura lo strato di un'organizzazione trova in `esempi/` tre modelli da adattare: le
@@ -90,8 +90,9 @@ Impeccable dall'autore.
 fatta bene altrove si installa da lì, non si copia.
 
 **Da sapere**: gli esempi dello strato non sono attivi finché il referente non li copia nello
-strato. Gli avvisi tacciono se non usi `gws` e se non lanci i controlli di Arturo. Per spegnere un
-mod: `/plugin`, poi il mod, poi disattiva.
+strato. L'avviso dei banchi compare solo se un banco è rosso: i banchi partono da soli
+all'avvio, al massimo ogni 12 ore, e il rimedio è lo stesso della riga `GUARDIE`. L'avviso di `gws`
+tace se non usi `gws`. Per spegnere un mod: `/plugin`, poi il mod, poi disattiva.
 
 ## 2026-10-15 — Una memoria che puoi accendere
 

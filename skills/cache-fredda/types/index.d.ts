@@ -6,7 +6,7 @@ export type Cache = {
   fredda: boolean
 }
 
-// L'ultimo esito del gate di Arturo, letto da cache/banchi-ultimo-esito.txt.
+// L'ultimo esito dei banchi delle guardie (tests/banchi-avvio.sh), letto da cache/banchi-ultimo-esito.txt.
 export type Banchi = { rosso: boolean; riassunto: string }
 
 // Gli altri avvisi sotto il prompt: banchi rossi e account gws con il token in errore.

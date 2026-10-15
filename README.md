@@ -6,7 +6,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 È il telaio di una config personale usata quotidianamente in produzione, estratto e igienizzato: **zero dati, zero credenziali, zero riferimenti a infrastrutture private**. Quello che resta è il metodo.
 
-In due righe: **18 guardie e automazioni**, **13 slash command**, **9 subagent**, **5 skill**, una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), un **server open source** per la telemetria minima e le segnalazioni (`server/`) — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Il server lo tiene chi mantiene Arturo: a te non serve niente. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
+In due righe: **23 guardie e automazioni**, **13 slash command**, **9 subagent**, **5 skill**, una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), un **server open source** per la telemetria minima e le segnalazioni (`server/`) — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Il server lo tiene chi mantiene Arturo: a te non serve niente. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
 
 I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure scrivi `python3 ~/.claude/bin/arturo web` nel terminale. La pagina è facoltativa e locale: risponde solo sul tuo computer (127.0.0.1), non si collega a internet e si spegne da sola dopo 30 minuti senza la pagina aperta.
 
@@ -115,7 +115,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 
 Poi apri Claude Code dentro la cartella: `cd ~/.claude && claude`, e scrivi `/setup`.
 
-Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/`, `docs/`, `templates/`, `tools/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono a `/sparring`, `/novita` e `/inizio gws`; `templates/` serve a `/strato`).
+Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/`, `docs/`, `templates/`, `tools/`, `tests/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono a `/sparring`, `/novita` e `/inizio gws`; `templates/` serve a `/strato`; `tests/` ai banchi delle guardie che l'avvio lancia da solo).
 
 > **Il tuo remote.** Il clone qui sopra punta al repo originale, su cui non hai accesso in scrittura. `/fine` salva i commit sulla tua macchina e non prova a pusharli. Se vuoi **sincronizzare le tue modifiche tra più macchine**, crea un tuo repo privato e puntaci `origin`:
 > ```bash
@@ -170,7 +170,7 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 
 | Di Arturo (arriva con gli aggiornamenti) | Tuo (nessun aggiornamento lo tocca) |
 |---|---|
-| `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `output-styles/` (gli stili di Arturo; uno tuo con un nome nuovo resta tuo), `docs/`, `templates/`, `tools/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `tools/scrapling/.venv/` (il venv di `scrape`), `personale/` (le tue aggiunte ai comandi di Arturo), `hooks/hosts-interni.local`, `data/` (compresi i tuoi todo in `data/todo/`), `projects/` e le altre cartelle di lavoro |
+| `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/` (gli stili di Arturo; uno tuo con un nome nuovo resta tuo), `docs/`, `templates/`, `tools/`, `tests/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `tools/scrapling/.venv/` (il venv di `scrape`), `personale/` (le tue aggiunte ai comandi di Arturo), `hooks/hosts-interni.local`, `hooks/api-fidate.local`, `data/` (compresi i tuoi todo in `data/todo/`), `projects/` e le altre cartelle di lavoro |
 
 `settings.json` è di Arturo, ma le tue modifiche restano come commit locali. `/aggiorna` ti mostra i file cambiati sia da te sia dall'aggiornamento prima di applicare. Se nella copia di prova `settings.json` non è JSON valido o resta un conflitto, l'aggiornamento non arriva in `~/.claude`: un `settings.json` rotto spegnerebbe tutte le guardie. L'avvio della sessione te lo segnala con una riga `CONFIG ROTTA`.
 
@@ -228,7 +228,7 @@ Gli hook su `Edit`/`Write` proteggono config e forma. Gli scanner PostToolUse ri
 
 ```
 settings.json        Permessi (allow/deny/ask), wiring hook, preferenze
-hooks/               18 guardie e automazioni
+hooks/               23 guardie e automazioni, più 4 strumenti che usano
 bin/                 La CLI arturo e i suoi moduli
 tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativo, si installa da /setup)
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
@@ -242,6 +242,7 @@ docs/onboarding/     Guide di setup guidato (/inizio gws)
 docs/impeccable.md   Come installare Impeccable (design delle interfacce) dall'upstream
 docs/referente.md    Guida del referente di un'organizzazione (/strato)
 templates/strato/    Modello di plugin per lo strato di un'organizzazione (/strato crea), con esempi da adattare
+tests/               I banchi di prova: il gate completo e i banchi delle guardie che l'avvio lancia da solo
 NOVITA.md            Canale di aggiornamento (lo racconta /novita)
 ```
 
@@ -332,7 +333,7 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 - `skills/redazione-segreti/` sostituisce i segreti negli output dei tool con la loro forma (`[REDATTO:tipo len=N sha256=…]`) prima che Claude li legga, e blocca la scrittura di una sigla su disco. `credential-leak-scanner.py` resta come rete.
 - `skills/riscrivi-bash/` fa comportare zsh, la shell del Mac, come bash, che è la shell che Claude scrive: un glob che non trova file non ferma il comando, una parola che inizia con `=` resta una parola, una variabile si spezza in parole. Corregge anche un glob non quotato in un'opzione (`--include=*.md`) e toglie `timeout`, che sul Mac non esiste. I blocchi di `bash-dispatcher.sh` restano come rete.
 - `skills/blast-radius/` ferma `rm -rf`, `git reset --hard`, `git clean`, un push forzato e le migrazioni, e ti mostra cosa cambierebbero: quanti file spariscono, quali modifiche si perdono, quali commit. Scegli Procedi o Annulla. Non ferma la pulizia dei file temporanei e non scatta quando nessuno può rispondere (`claude -p`). È codice di Anthropic in copia fissata, tradotto e letto riga per riga: provenienza e licenza nella sua cartella.
-- `skills/cache-fredda/` scrive sotto il prompt, solo quando serve, tre avvisi: la cache è scaduta (dopo un'ora con l'abbonamento, dopo 5 minuti a quota piena) e il prossimo messaggio riscriverebbe tutto il contesto; l'ultimo gate di Arturo (`tests/verifica-allineamento.sh`) è rosso; un account di `gws` ha il token in errore e va rifatto il login. Se tutto è in regola, non scrive niente.
+- `skills/cache-fredda/` scrive sotto il prompt, solo quando serve, tre avvisi: la cache è scaduta (dopo un'ora con l'abbonamento, dopo 5 minuti a quota piena) e il prossimo messaggio riscriverebbe tutto il contesto; i banchi delle guardie, che l'avvio lancia da solo ogni 12 ore, sono rossi (lo dice anche la riga `GUARDIE` dell'avvio, con lo stesso rimedio: `bash ~/.claude/tests/banchi-avvio.sh`); un account di `gws` ha il token in errore e va rifatto il login. Se tutto è in regola, non scrive niente.
 - `skills/apri/` aggiunge `/apri`: apre l'ultimo link o file citato nelle risposte con il programma predefinito del sistema (il browser per i link, l'app di solito per i file). `/apri 2` apre il secondo della lista, `/apri <parola>` il primo che la contiene, `/apri lista` mostra gli ultimi dieci. Non usa un turno del modello.
 - `skills/gws/` aiuta con la CLI `gws`: se un comando fallisce per credenziali mancanti o scadute, Claude lo dice subito e ti chiede di rifare il login invece di riprovare con altri account. Corregge anche `gws gmail messages` in `gws gmail users messages`. Il setup degli account resta in [`docs/onboarding/gws.md`](docs/onboarding/gws.md).
 

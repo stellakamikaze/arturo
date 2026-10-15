@@ -50,8 +50,8 @@ EVENTI = {
     "segnalazione": re.compile(r"^(problema|proposta|integrazione)$"),
     # Da hooks/deriva.py: un `insieme:<n>` apre l'elenco corrente. Dei file solo la posizione
     # nel repository di Arturo, relativa e senza "..": è pubblica, non dice niente dei file della persona.
-    "deriva": re.compile(r"^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|hooks|server|shared"
-                         r"|skills|templates|tests|\.github)/[A-Za-z0-9_./-]{1,70}|[A-Za-z0-9_.-]{1,40}))$"),
+    "deriva": re.compile(r"^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|hooks|output-styles|server|shared"
+                         r"|skills|templates|tests|tools|\.github)/[A-Za-z0-9_./-]{1,70}|[A-Za-z0-9_.-]{1,40}))$"),
     "config": re.compile(r"^rotta-(settings|conflitto|rebase)$"),
 }
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in

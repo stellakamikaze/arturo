@@ -43,7 +43,7 @@ def js(evento: str) -> str:
 
 
 def radici_in(sorgente: str) -> set:
-    m = re.search(r"\(\(([a-z|\\.]+)\)/", sorgente)
+    m = re.search(r"\(\(([a-z|\\.-]+)\)/", sorgente)
     return {r.replace("\\.", ".") for r in m.group(1).split("|")} if m else set()
 
 

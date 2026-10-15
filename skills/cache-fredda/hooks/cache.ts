@@ -28,14 +28,17 @@ export function avviso(c: Cache): string | undefined {
 // --- Gli altri avvisi sotto il prompt: banchi rossi e token gws in errore -----------------------
 // Solo eccezioni: un segnale in regola, o che non si può leggere, non scrive niente.
 
-// cache/banchi-ultimo-esito.txt, scritto dal gate (tests/verifica-allineamento.sh) a ogni corsa:
-// riga 1 ROSSO o VERDE, riga 2 il riassunto («=== … 1 FAIL … ===»).
+// cache/banchi-ultimo-esito.txt, scritto solo dai banchi delle guardie (tests/banchi-avvio.sh), che
+// session-start.sh lancia in background al massimo ogni 12 ore. Riga 1 ROSSO o VERDE, riga 2 il
+// riassunto («2 banchi delle guardie rossi su 5 (data)»). Lo stesso file lo legge la riga GUARDIE
+// dell'avvio: i due avvisi danno lo stesso rimedio.
 export function leggiBanchi(testo: string): Banchi | null {
   const righe = testo.split('\n')
   const stato = (righe[0] ?? '').trim()
   if (stato !== 'ROSSO' && stato !== 'VERDE') return null
-  const fail = /(\d+) FAIL/.exec(righe[1] ?? '')
-  return { rosso: stato === 'ROSSO', riassunto: stato === 'ROSSO' ? (fail ? `${fail[1]} FAIL` : 'rossi') : 'verdi' }
+  const conto = /(\d+) banchi delle guardie rossi su (\d+)/.exec(righe[1] ?? '')
+  const riassunto = conto ? `${conto[1]} banchi rossi su ${conto[2]}` : 'banchi rossi'
+  return { rosso: stato === 'ROSSO', riassunto: stato === 'ROSSO' ? riassunto : 'verdi' }
 }
 
 // Le cartelle di config di gws in ~/.config: gws (quella di default) e gws-<nome>, una per account.
@@ -62,7 +65,7 @@ export function avvisi(c: Cache, s: Segnali): string | undefined {
   const pezzi: string[] = []
   const fredda = avviso(c)
   if (fredda !== undefined) pezzi.push(fredda)
-  if (s.banchi?.rosso) pezzi.push(`banchi ${s.banchi.riassunto}: rilancia bash tests/verifica-allineamento.sh`)
+  if (s.banchi?.rosso) pezzi.push(`guardie: ${s.banchi.riassunto}, una guardia potrebbe non proteggere: rilancia bash ~/.claude/tests/banchi-avvio.sh e proponi /segnala`)
   if (s.gwsKo.length > 0) pezzi.push(`gws: login da rifare per ${s.gwsKo.join(', ')} (docs/onboarding/gws.md)`)
   return pezzi.length === 0 ? undefined : pezzi.join(' · ')
 }

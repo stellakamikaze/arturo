@@ -28,8 +28,11 @@ import sys
 from pathlib import Path
 
 MASSIMO = 50
-RADICI = ("agents", "bin", "commands", "docs", "hooks", "server", "shared", "skills", "templates", "tests", ".github")
-FILE = re.compile(r"^(?!.*\.\.)((" + "|".join(re.escape(r) for r in RADICI) + r")/[A-Za-z0-9_./-]{1,70}|[A-Za-z0-9_.-]{1,40})$")
+RADICI = ("agents", "bin", "commands", "docs", "hooks", "output-styles", "server", "shared", "skills", "templates",
+          "tests", "tools", ".github")
+# Solo il punto va protetto: il trattino fuori da [] non ha un senso speciale, e così la regex resta
+# uguale, lettera per lettera, a quelle di bin/telemetria.py e server/logica.js.
+FILE = re.compile(r"^(?!.*\.\.)((" + "|".join(r.replace(".", r"\.") for r in RADICI) + r")/[A-Za-z0-9_./-]{1,70}|[A-Za-z0-9_.-]{1,40})$")
 HOOK = re.compile(r"hooks/([a-z0-9_.-]{1,60})")
 
 

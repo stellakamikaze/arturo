@@ -289,7 +289,8 @@ case "$ORIGIN_URL" in
   *) ORIGIN_ARTURO=0 ;;
 esac
 if [ "$CONFIG_INTEGRA" = 1 ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; then
-  for p in settings.json .gitattributes bin commands agents hooks skills shared docs templates NOVITA.md README.md package.json; do
+  # Senza -f: git add salta i file ignorati, come il venv di scrape (tools/scrapling/.venv/).
+  for p in settings.json .gitattributes .gitignore bin commands agents hooks skills shared docs templates tools tests output-styles NOVITA.md README.md package.json; do
     [ -e "$p" ] || continue
     git add -- "$p" || echo "git add fallito su $p: resta fuori dal commit"
   done

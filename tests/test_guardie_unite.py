@@ -12,7 +12,8 @@ G204 block-dangerous e dispatcher, segreti: il testo di un heredoc quotato verso
      (anche indirette, in $( ), in un heredoc verso bash) chiedono. sed `w` e rm come prima.
 G205 i quattro parser di heredoc (commit-secret-gate, block-dangerous, data-guard,
      comms-prefilter) seguono le stesse regole: il corpo verso bash, sh, zsh resta visibile,
-     verso ssh pure (tranne il gate dei commit), verso cat o tee quotato sparisce.
+     verso ssh pure (tranne il gate dei commit), verso cat o tee quotato sparisce. Verso python
+     quotato le due guardie divergono per scelta: block-dangerous lo toglie, comms-prefilter no.
 G206 forma_comando: rm e find si riconoscono col path completo, in un blocco, dopo `then`, in
      `sh -c`; un rm citato in un heredoc verso python non conta; le variabili assegnate nel
      comando si risolvono.
@@ -268,6 +269,12 @@ def test_g205(repo: Path) -> None:
         ("ssh quotato", "ssh server <<'EOF'\nSEGNO\nEOF", tutti - {"commit-secret-gate"}, set()),
         ("cat quotato su file", "cat > f.txt <<'EOF'\nSEGNO\nEOF", set(), tutti),
         ("tee quotato su file", "tee f.txt <<'EOF'\nSEGNO\nEOF", set(), tutti),
+        # Heredoc quotato verso python: le due guardie fanno domande diverse, e la differenza è voluta.
+        # block-dangerous cerca comandi di shell (rm, una lettura di segreti con cat): il corpo è codice
+        # Python, che la shell non espande né esegue, quindi lo toglie. comms-prefilter cerca codice che
+        # invia (smtplib, http.client) in qualunque linguaggio: il corpo gira davvero, quindi lo tiene.
+        ("python quotato", "python3 <<'EOF'\nSEGNO\nEOF", {"comms-prefilter"}, {"block-dangerous"}),
+        ("python3 - quotato", "python3 - <<'PY'\nSEGNO\nPY", {"comms-prefilter"}, {"block-dangerous"}),
     ]
     controlli = 0
     for nome, comando, resta, sparisce in casi:
@@ -279,7 +286,7 @@ def test_g205(repo: Path) -> None:
             atteso = guardia in resta
             assert visibile == atteso, \
                 f"G205 {nome} · {guardia}: corpo {'visibile' if visibile else 'tolto'}, atteso {'visibile' if atteso else 'tolto'}"
-    assert controlli == 27, f"G205 controlli eseguiti {controlli}, attesi 27"
+    assert controlli == 31, f"G205 controlli eseguiti {controlli}, attesi 31"
 
 
 def test_g206(repo: Path) -> None:

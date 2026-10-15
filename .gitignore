@@ -77,23 +77,25 @@ skills/*/tsconfig.json
 *.bak-*
 *.swo
 Thumbs.db
-.cc-writes/
-.last-cleanup
 .playwright-cli/
+# Questi Claude Code li crea solo alla radice di ~/.claude: la / davanti non tocca una cartella
+# con lo stesso nome dentro una skill o un mod.
+/.cc-writes/
+/.last-cleanup
 /tasks/
-bridge-spawn/
-channels/
-chrome/
-daemon/
-daemon.*
-image-cache/
-paste-cache/
-jobs/
-uploads/
-usage-data/
-state/
-worktrees/
-mcp-needs-auth-cache.json
+/bridge-spawn/
+/channels/
+/chrome/
+/daemon/
+/daemon.*
+/image-cache/
+/paste-cache/
+/jobs/
+/uploads/
+/usage-data/
+/state/
+/worktrees/
+/mcp-needs-auth-cache.json
 data/browser-profile*/
 data/logs/
 data/statusline/
@@ -101,4 +103,3 @@ plugins/cache/
 plugins/marketplaces/
 skills/.trash/
 skills/synced/
-tools/scrapling/.venv/
