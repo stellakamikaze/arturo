@@ -351,7 +351,9 @@ Tre cerchi concentrici: fuori `cielo` con bordo `azione` (Arturo), in mezzo bian
 Un elenco di quattro righe sotto un filetto `inchiostro`: data in voce stretta, titolo in Archivo 1,15 rem. Accanto, l'iscrizione. L'elenco nella pagina è di riserva e lo rinfresca `strumenti/articoli.py`; nel browser lo sostituisce la Content API di Ghost. L'iscrizione è il modulo di Ghost (`sito/vendor/`), con il pulsante `azione`.
 
 ### Casi d'uso e «In breve»
-I casi d'uso sono sei finestre piccole su tre colonne, una richiesta e una risposta ciascuna, con una didascalia di una riga. La parte tecnica è una riga di quattro voci come «Cosa fa Arturo» (cosa serve, comandi, memoria, telemetria), una frase ciascuna: il dettaglio sta su GitHub.
+I casi d'uso sono una vetrina: a sinistra l'elenco dei sei casi (nome in Archivio 1,3 rem, una riga sotto), il caso scelto su fondo bianco con un filo `azione` di 2 px a sinistra; a destra una finestra grande che resta ferma mentre scorri. Sotto i 860 px l'elenco diventa una fila di pulsanti che scorre in orizzontale.
+
+Il terminale è scritto per essere letto: 0,9 rem (1 rem nella vetrina), interlinea 1,65, la richiesta della persona su una fascia `#161c25` a tutta larghezza, le azioni di Claude più piccole e grigie, le risposte quasi bianche. La parte tecnica è una riga di quattro voci come «Cosa fa Arturo» (cosa serve, comandi, memoria, telemetria), una frase ciascuna: il dettaglio sta su GitHub.
 
 ### Guida a tappe
 Ogni tappa ha una boa quadrata di 40 px. La tappa corrente ha la boa piena `azione` e un velo `azione-velo` che sfuma verso destra. La tappa fatta ha la boa con bordo `passa` e una spunta. Il passo si apre con una piega di 0,5 s sulla curva `--esce`.

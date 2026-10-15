@@ -96,19 +96,21 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .finestra__barra{display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-bottom:1px solid var(--term-filetto);font:.74rem/1 var(--mono);color:var(--term-cenere)}
 .finestra__barra i{width:10px;height:10px;border-radius:50%;background:#2c333d}
 .finestra__barra span{margin:0 auto;padding-right:51px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.finestra pre{margin:0;padding:16px 18px 18px;font-size:.8rem;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.finestra pre{margin:0;padding:20px 22px 22px;font-size:.9rem;line-height:1.65;white-space:pre-wrap;overflow-wrap:break-word;-webkit-font-smoothing:auto}
 .finestra--chiara{background:#fff;color:var(--grafite)}
 .finestra--chiara .finestra__barra{border-bottom-color:var(--filetto);background:#fbfbfa}
 .finestra--chiara .finestra__barra i{background:#dcdedb}
 
-.t{display:block}
-.t-tu{color:var(--term-tu)}
+.t{display:block;margin-bottom:8px}
+.t:last-child{margin-bottom:0}
+.t-tu{margin:0 -22px 12px;padding:9px 22px;background:#161c25;color:#d6e8ff}
 
 .t-tu::before{content:"> ";color:var(--term-cenere)}
+.t-cc{color:#f3f5f8}
 .t-cc::before{content:"● ";color:#e6e9ee}
-.t-strumento{color:var(--term-testo)}
+.t-strumento{margin-bottom:4px;color:#a9b3bf;font-size:.92em}
 .t-strumento::before{content:"● ";color:#7fd39b}
-.t-quieto{color:var(--term-cenere)}
+.t-quieto{color:#aab4c0}
 .t-guardia{display:block;margin:6px 0 6px 2ch;padding:8px 12px;border:1px solid var(--term-guardia);color:var(--term-guardia-testo)}
 .t-guardia b{display:block;font-weight:600;color:var(--term-tu);margin-bottom:2px}
 .t-scelta{display:block;color:var(--term-testo);margin-top:4px}
@@ -224,7 +226,7 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
 .casi{position:relative;flex:1}
 .caso{animation:entra .5s cubic-bezier(.16,1,.3,1)}
 .caso[hidden]{display:none}
-.caso__dove{margin:0;padding:12px 18px 0;font:.72rem/1 var(--mono);color:var(--term-cenere)}
+.caso__dove{margin:0;padding:14px 22px 0;font:.72rem/1 var(--mono);color:var(--term-cenere)}
 @keyframes entra{from{opacity:0;filter:blur(3px)}to{opacity:1;filter:none}}
 @media (prefers-reduced-motion:reduce){.caso{animation:none}}
 .comandi-galleria{display:flex;align-items:center;gap:6px;padding:8px 10px;border-top:1px solid var(--term-filetto)}
@@ -315,14 +317,35 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
 }
 
 /* ---------- semplice ---------- */
-.schermate{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px 20px}
-.schermate figure{margin:0;display:flex;flex-direction:column}
-.schermate .finestra{flex:1}
-.schermate .finestra pre{font-size:.76rem;padding:14px 14px 16px}
-.schermate figcaption{margin-top:10px;font-size:.9rem;color:var(--grafite)}
-.schermate figcaption strong{color:var(--inchiostro)}
-@media (max-width:1020px){.schermate{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:760px){.schermate{grid-template-columns:minmax(0,1fr)}}
+.vetrina{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:clamp(20px,3vw,40px);align-items:stretch}
+.vetrina__elenco{margin:0;padding:0;list-style:none;border-top:1px solid var(--inchiostro)}
+.vetrina__elenco button{display:block;width:100%;padding:16px 16px 16px 0;border:0;border-bottom:1px solid var(--filetto);background:none;text-align:left;cursor:pointer;color:var(--grafite);font:inherit;transition:padding-left .3s cubic-bezier(.16,1,.3,1),color .2s}
+.vetrina__elenco strong{display:block;margin-bottom:3px;font:400 1.3rem/1.2 var(--titolo);letter-spacing:-.015em;color:var(--inchiostro);transition:color .2s}
+.vetrina__elenco span{display:block;font-size:.92rem;line-height:1.4}
+.vetrina__elenco button:hover strong{color:var(--azione)}
+.vetrina__elenco button[aria-selected="true"]{padding-left:16px;background:#fff;box-shadow:inset 2px 0 0 var(--azione)}
+.vetrina__elenco button[aria-selected="true"] strong{color:var(--azione)}
+.vetrina__elenco button:focus-visible{outline:2px solid var(--azione);outline-offset:-2px}
+.vetrina__finestra{align-self:start;position:sticky;top:24px}
+.vetrina__vista{flex:1;animation:entra .45s cubic-bezier(.16,1,.3,1)}
+.vetrina__vista[hidden]{display:none}
+.vetrina__vista pre{font-size:1rem;padding-bottom:28px}
+.vetrina__vista pre > .t-tu:first-child,.confronto pre > .t-tu:first-child{margin-top:-20px}
+.vetrina__nota{margin:16px 0 0;font-size:.84rem;color:var(--cenere)}
+@media (prefers-reduced-motion:reduce){.vetrina__vista{animation:none}}
+@media (max-width:860px){
+  .vetrina{grid-template-columns:minmax(0,1fr)}
+  .vetrina__elenco{display:flex;gap:6px;overflow-x:auto;border:0;padding-bottom:4px;scrollbar-width:none}
+  .vetrina__elenco::-webkit-scrollbar{display:none}
+  .vetrina__elenco li{flex:none}
+  .vetrina__elenco button{padding:10px 14px;border:1px solid var(--filetto);background:#fff}
+  .vetrina__elenco button[aria-selected="true"]{padding-left:14px;border-color:var(--azione);box-shadow:none}
+  .vetrina__elenco strong{margin:0;font-size:1rem}
+  .vetrina__elenco span{display:none}
+  .vetrina__finestra{position:static}
+  .vetrina__vista pre{font-size:.88rem}
+}
+@media (max-width:760px){.finestra pre{font-size:.84rem;padding:16px 16px 18px}.t-tu{margin:0 -16px 10px;padding:8px 16px}.vetrina__vista pre > .t-tu:first-child,.confronto pre > .t-tu:first-child{margin-top:-16px}}
 .quattro{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:32px;margin:0;padding:0;list-style:none}
 .quattro li{padding-top:18px;border-top:1px solid var(--inchiostro)}
 .quattro h3{margin-bottom:8px;font-size:1.3rem;font-weight:400;letter-spacing:-.02em}
@@ -561,52 +584,46 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
     <div class="dentro">
       <div class="testa">
         <h2 id="t-casi">Per cosa si usa.</h2>
-        <p>Le richieste si scrivono come in chat. Il risultato resta nelle tue cartelle.</p>
+        <p>Chiedi come in chat. Claude lavora sui tuoi file e il risultato resta nella cartella.</p>
       </div>
-      <div class="schermate">
-        <figure>
-          <div class="finestra">
-            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>~/Ricerca</span></div>
-<pre><span class="t t-tu">Leggi i dieci PDF in questa cartella e fammi una tabella con autore, anno e tesi</span><span class="t t-cc">La tabella è in letture.md. Due PDF sono scansioni senza testo: li ho segnati.</span></pre>
+      <div class="vetrina">
+        <ul class="vetrina__elenco" role="tablist" aria-label="Casi d'uso" aria-orientation="vertical">
+          <li><button type="button" role="tab" id="vetrina-ricerca" aria-controls="vetrina-p-ricerca" aria-selected="true"><strong>Ricerca</strong><span>Dieci documenti diventano una tabella.</span></button></li>
+          <li><button type="button" role="tab" id="vetrina-riunioni" aria-controls="vetrina-p-riunioni" aria-selected="false" tabindex="-1"><strong>Riunioni</strong><span>Un'ora di parole diventa una lista con chi fa cosa.</span></button></li>
+          <li><button type="button" role="tab" id="vetrina-scrittura" aria-controls="vetrina-p-scrittura" aria-selected="false" tabindex="-1"><strong>Scrittura</strong><span>Dagli appunti a una prima bozza, col tuo tono.</span></button></li>
+          <li><button type="button" role="tab" id="vetrina-archivio" aria-controls="vetrina-p-archivio" aria-selected="false" tabindex="-1"><strong>Archivio</strong><span>Un pomeriggio di riordino in un minuto, senza cancellare niente.</span></button></li>
+          <li><button type="button" role="tab" id="vetrina-posta" aria-controls="vetrina-p-posta" aria-selected="false" tabindex="-1"><strong>Posta</strong><span>La risposta pronta nel thread giusto. La mandi tu.</span></button></li>
+          <li><button type="button" role="tab" id="vetrina-su-misura" aria-controls="vetrina-p-su-misura" aria-selected="false" tabindex="-1"><strong>Su misura</strong><span>Un piccolo strumento che prima non c'era.</span></button></li>
+        </ul>
+        <div class="finestra vetrina__finestra">
+          <div class="vetrina__vista" role="tabpanel" id="vetrina-p-ricerca" aria-labelledby="vetrina-ricerca">
+            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Claude Code · ~/Ricerca/Tesi</span></div>
+<pre><span class="t t-tu">Leggi i dieci PDF in questa cartella e fammi una tabella con autore, anno e tesi</span><span class="t t-strumento">Read  10 PDF, 214 pagine</span><span class="t t-strumento">Write  letture.md</span><span class="t t-cc">Fatto: la tabella è in letture.md. Due PDF sono scansioni senza testo, li ho segnati in fondo.</span></pre>
           </div>
-          <figcaption><strong>Ricerca.</strong> Dieci documenti, una tabella.</figcaption>
-        </figure>
-        <figure>
-          <div class="finestra">
-            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>~/Riunioni</span></div>
-<pre><span class="t t-tu">Dalla trascrizione di ieri tirami fuori decisioni e cose da fare</span><span class="t t-cc">3 decisioni e 6 cose da fare. Due non hanno un responsabile: le ho segnate.</span></pre>
+          <div class="vetrina__vista" role="tabpanel" id="vetrina-p-riunioni" aria-labelledby="vetrina-riunioni" hidden>
+            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Claude Code · ~/Lavoro/Riunioni</span></div>
+<pre><span class="t t-tu">Dalla trascrizione di ieri tirami fuori decisioni e cose da fare, con chi e per quando</span><span class="t t-strumento">Read  riunione-14-ottobre.txt</span><span class="t t-cc">3 decisioni e 6 cose da fare. Due non hanno un responsabile: le ho segnate con «chi?».</span><span class="t t-quieto">  1. Mandare il programma ai relatori · Marta · venerdì
+  2. Chiedere i preventivi per la sala · chi? · entro il 25</span></pre>
           </div>
-          <figcaption><strong>Riunioni.</strong> Da un'ora di parole a una lista.</figcaption>
-        </figure>
-        <figure>
-          <div class="finestra">
-            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>~/Proposte</span></div>
-<pre><span class="t t-tu">Dagli appunti della call fammi la proposta: due pagine, il nostro tono</span><span class="t t-cc">La bozza è in proposta.md. Le cifre non le ho messe: negli appunti non ci sono.</span></pre>
+          <div class="vetrina__vista" role="tabpanel" id="vetrina-p-scrittura" aria-labelledby="vetrina-scrittura" hidden>
+            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Claude Code · ~/Lavoro/Proposte</span></div>
+<pre><span class="t t-tu">Dagli appunti della call fammi la proposta per il festival: due pagine, il nostro tono</span><span class="t t-strumento">Read  appunti-call.md, regole-di-scrittura.md</span><span class="t t-strumento">Write  proposta-festival.md</span><span class="t t-cc">La bozza è in proposta-festival.md. Le cifre non le ho messe: negli appunti non ci sono.</span></pre>
           </div>
-          <figcaption><strong>Scrittura.</strong> Una prima bozza, col tuo tono.</figcaption>
-        </figure>
-        <figure>
-          <div class="finestra">
-            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>~/Download</span></div>
-<pre><span class="t t-tu">Metti in ordine i Download: contratti, fatture e materiali in cartelle loro</span><span class="t t-cc">47 file in 4 cartelle. 3 non li ho capiti: sono in da-vedere. Non ho cancellato niente.</span></pre>
+          <div class="vetrina__vista" role="tabpanel" id="vetrina-p-archivio" aria-labelledby="vetrina-archivio" hidden>
+            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Claude Code · ~/Download</span></div>
+<pre><span class="t t-tu">Metti in ordine i Download: contratti, fatture e materiali della mostra in cartelle loro</span><span class="t t-strumento">Bash  sposta 47 file in 4 cartelle</span><span class="t t-cc">Fatto. 3 file non li ho capiti: sono in da-vedere. Non ho cancellato niente.</span><span class="t t-quieto">  contratti 9 · fatture 21 · mostra 14 · da-vedere 3</span></pre>
           </div>
-          <figcaption><strong>Archivio.</strong> Un pomeriggio di riordino, in un minuto.</figcaption>
-        </figure>
-        <figure>
-          <div class="finestra">
-            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>~/Lavoro</span></div>
-<pre><span class="t t-tu">Rispondi a Giulia nel thread: la data va bene, il resto lo vediamo lunedì</span><span class="t t-cc">Bozza scritta nel thread, col tuo tono. Non l'ho mandata.</span></pre>
+          <div class="vetrina__vista" role="tabpanel" id="vetrina-p-posta" aria-labelledby="vetrina-posta" hidden>
+            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Claude Code · ~/Lavoro/Festival</span></div>
+<pre><span class="t t-tu">Rispondi a Giulia nel thread del preventivo: la data va bene, il resto lo vediamo lunedì</span><span class="t t-strumento">Gmail  legge il thread «Preventivo autunno»</span><span class="t t-cc">Ho scritto la bozza nel thread, col tuo tono. Non l'ho mandata: la trovi tra le bozze.</span></pre>
           </div>
-          <figcaption><strong>Posta.</strong> La bozza nel thread giusto, mai inviata da sola.</figcaption>
-        </figure>
-        <figure>
-          <div class="finestra">
-            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>~/Lavoro</span></div>
-<pre><span class="t t-tu">Fammi una pagina dove vedo i progetti e cosa scade questa settimana</span><span class="t t-cc">Aperta nel browser: 7 progetti, 3 scadenze entro domenica.</span></pre>
+          <div class="vetrina__vista" role="tabpanel" id="vetrina-p-su-misura" aria-labelledby="vetrina-su-misura" hidden>
+            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Claude Code · ~/Lavoro</span></div>
+<pre><span class="t t-tu">Fammi una pagina dove vedo i progetti, cosa è fermo e cosa scade questa settimana</span><span class="t t-strumento">Write  progetti.html</span><span class="t t-cc">È aperta nel browser: 7 progetti, 2 fermi, 3 scadenze entro domenica.</span></pre>
           </div>
-          <figcaption><strong>Su misura.</strong> Un piccolo strumento solo tuo.</figcaption>
-        </figure>
+        </div>
       </div>
+      <p class="vetrina__nota">Esempi scritti sul lavoro vero di chi mantiene Arturo. Per la posta serve il collegamento a Gmail, che la guida propone al passo 8.</p>
     </div>
   </section>
 
@@ -898,6 +915,22 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
     });
   });
   carta(0);
+
+
+  /* la vetrina dei casi d'uso */
+  var schedeV=[].slice.call(d.querySelectorAll('.vetrina__elenco [role="tab"]'));
+  function vetrina(b,fuoco){
+    schedeV.forEach(function(x){var su=x===b;x.setAttribute('aria-selected',su?'true':'false');x.tabIndex=su?0:-1;d.getElementById(x.getAttribute('aria-controls')).hidden=!su});
+    if(fuoco)b.focus();
+    if(b.scrollIntoView&&b.parentNode.parentNode.scrollWidth>b.parentNode.parentNode.clientWidth){var l=b.parentNode.parentNode;l.scrollLeft=b.parentNode.offsetLeft-l.offsetLeft-12}
+  }
+  schedeV.forEach(function(b,i){
+    b.addEventListener('click',function(){vetrina(b,false)});
+    b.addEventListener('keydown',function(e){
+      var j=(e.key==='ArrowDown'||e.key==='ArrowRight')?i+1:(e.key==='ArrowUp'||e.key==='ArrowLeft')?i-1:null;
+      if(j===null)return; e.preventDefault(); vetrina(schedeV[(j+schedeV.length)%schedeV.length],true);
+    });
+  });
 
   /* copia dei comandi */
   [].forEach.call(d.querySelectorAll('[data-copia]'),function(b){
