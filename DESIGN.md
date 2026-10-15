@@ -336,7 +336,7 @@ Il marchio (colline, stella arancio, «Arturo» in Archivo 500 a larghezza 108%)
 ### Finestra del prodotto (componente firma)
 Il terminale di Claude Code: fondo `term`, raggio 4 px, ombra Finestra. Una barra di 34 px con tre puntini e il titolo in mono centrato. Dentro, la sessione: le righe della persona in `term-tu` dopo «> », le azioni con un punto verde, la guardia in un riquadro con bordo blu e il titolo in grassetto chiaro, la scelta evidenziata in blu pieno. La variante chiara (fondo bianco, barra `#fbfbfa`) mostra la chat d'esempio.
 
-I messaggi delle guardie sono quelli che Arturo stampa davvero, con i loro apostrofi dritti. Le sessioni intorno sono esempi, e la didascalia lo dichiara («Sessione di esempio», «Esempio scritto per questa pagina»). Nell'apertura la finestra ha due schede, «Cosa ci fai» e «Installalo», sottolineate in `term-tu` quando sono scelte. «Cosa ci fai» è una galleria di sessioni: una per volta, cambia ogni 7 s con una dissolvenza da sfocato, si ferma al passaggio del mouse, al fuoco e al primo clic; sotto, frecce e nomi delle sessioni. «Installalo» sono carte in sequenza con i primi quattro passi della guida, Mac o Windows, il comando da copiare e «Fatto, avanti»; scrivono lo stesso stato della guida (`arturo-setup-1`), che riparte dal passo 5. Con movimento ridotto niente scorre e niente sfuma.
+I messaggi delle guardie sono quelli che Arturo stampa davvero, parola per parola: se cambia la guardia, cambia anche la pagina. Le sessioni intorno sono esempi, e la didascalia lo dichiara («Sessione di esempio», «Esempio scritto per questa pagina»). Nell'apertura la finestra ha due schede, «Cosa ci fai» e «Installalo», sottolineate in `term-tu` quando sono scelte. «Cosa ci fai» è una galleria di sessioni: una per volta, cambia ogni 7 s con una dissolvenza da sfocato, si ferma al passaggio del mouse, al fuoco e al primo clic; sotto, frecce e nomi delle sessioni. «Installalo» sono carte in sequenza con i primi quattro passi della guida, Mac o Windows, il comando da copiare e «Fatto, avanti»; scrivono lo stesso stato della guida (`arturo-setup-1`), che riparte dal passo 5. Con movimento ridotto niente scorre e niente sfuma.
 
 ### La volta (componente firma)
 Il reticolo è generato da uno script, in proiezione gnomonica centrata su Boote, e non è disegnato a mano. Meridiani e paralleli sono linee blu `#2b8cff` a opacità 0,5, larghe 1 px a ogni scala. Boote e l'Orsa sono spezzate `azione` da 1,6 px con stelle a punti. Un arco tratteggiato in `inchiostro` porta dal timone dell'Orsa ad Arturo. Arturo è un punto `stella` con un alone che si allarga in 4,8 s. Con movimento ridotto l'alone resta fermo. Una maschera a gradiente lo schiarisce a sinistra, dove sta il testo.
@@ -362,10 +362,8 @@ Tre lastre (cielo con la volta, giallo, verde) con dentro un risultato finito di
 ### Come lo uso io
 Sei voci su tre colonne su fondo `carta-2`: titolo, frequenza in voce stretta `azione`, poi «Prima» e «Ora». Una nota chiude dicendo che quelle abilità non sono dentro Arturo.
 
-### Casi d'uso e «In breve»
-I casi d'uso sono una vetrina: a sinistra l'elenco dei sei casi (nome in Archivio 1,3 rem, una riga sotto), il caso scelto su fondo bianco con un filo `azione` di 2 px a sinistra; a destra una finestra grande che resta ferma mentre scorri. Sotto i 860 px l'elenco diventa una fila di pulsanti che scorre in orizzontale.
-
-Il terminale è scritto per essere letto: 0,9 rem (1 rem nella vetrina), interlinea 1,65, la richiesta della persona su una fascia `#161c25` a tutta larghezza, le azioni di Claude più piccole e grigie, le risposte quasi bianche. La parte tecnica è una riga di quattro voci come «Cosa fa Arturo» (cosa serve, comandi, memoria, telemetria), una frase ciascuna: il dettaglio sta su GitHub.
+### Il terminale
+Il terminale è scritto per essere letto: 0,9 rem, interlinea 1,65, la richiesta della persona su una fascia `#161c25` a tutta larghezza, le azioni di Claude più piccole e grigie, le risposte quasi bianche.
 
 ### Guida a tappe
 Ogni tappa ha una boa quadrata di 40 px. La tappa corrente ha la boa piena `azione` e un velo `azione-velo` che sfuma verso destra. La tappa fatta ha la boa con bordo `passa` e una spunta. Il passo si apre con una piega di 0,5 s sulla curva `--esce`.

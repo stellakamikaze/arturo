@@ -126,9 +126,6 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .testa p{margin:0;max-width:48ch;color:var(--grafite)}
 
 /* chat e lavoro */
-.confronto{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
-.confronto figure{margin:0}
-.confronto figcaption{margin-top:12px;font-size:.88rem;color:var(--cenere)}
 .chat{padding:22px 20px 26px;display:grid;gap:12px;font-size:.92rem}
 .chat p{margin:0;max-width:30ch;padding:10px 14px;border-radius:4px;line-height:1.45}
 .chat .io{justify-self:end;background:var(--carta-2);color:var(--inchiostro)}
@@ -157,8 +154,6 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .vuoto :focus-visible{outline-color:var(--term-tu)}
 
 /* ---------- comandi ---------- */
-
-/* ---------- non neutro e impegni ---------- */
 
 /* ---------- domande ---------- */
 .domande{border-top:1px solid var(--inchiostro)}
@@ -198,7 +193,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 @media (max-width:760px){
   .apertura > .dentro{display:flex;flex-direction:column}
   .apertura .nome{order:0}.apertura .promessa{order:1;padding-top:20px;padding-bottom:28px}.apertura .palco{order:2;margin:0 0 40px}
-  .promessa,.testa,.confronto,.chiusura .dentro{grid-template-columns:minmax(0,1fr)}
+  .promessa,.testa,.chiusura .dentro{grid-template-columns:minmax(0,1fr)}
   .promessa__via,.chiusura__via{justify-self:stretch;justify-items:stretch;text-align:left}
   .piede__righe{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
   .piede__firma{grid-column:1/-1}
@@ -437,8 +432,7 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
 @media (max-width:1020px){.giorni{grid-template-columns:minmax(0,1fr)}.appunto::before,.appunto::after{display:none}.risultati,.uso__elenco{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:760px){.risultati,.uso__elenco{grid-template-columns:minmax(0,1fr)}.risultato__lastra{min-height:0}}
 /* ---------- semplice ---------- */
-.confronto pre > .t-tu:first-child{margin-top:-20px}
-@media (max-width:760px){.finestra pre{font-size:.84rem;padding:16px 16px 18px}.t-tu{margin:0 -16px 10px;padding:8px 16px}.vetrina__vista pre > .t-tu:first-child,.confronto pre > .t-tu:first-child{margin-top:-16px}}
+@media (max-width:760px){.finestra pre{font-size:.84rem;padding:16px 16px 18px}.t-tu{margin:0 -16px 10px;padding:8px 16px}}
 .quattro{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:32px;margin:0;padding:0;list-style:none}
 .quattro li{padding-top:18px;border-top:1px solid var(--inchiostro)}
 .quattro h3{margin-bottom:8px;font-size:1.3rem;font-weight:400;letter-spacing:-.02em}
@@ -517,7 +511,7 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
       <div>
         <h2>L'IA che usi in chat, al lavoro nelle tue cartelle. Prima di fare danni, chiede a te.</h2>
         <p class="promessa__testo">Claude Code è l'IA di Anthropic che lavora sui file del tuo computer. Arturo te lo consegna già configurato, in italiano, con regole che chiedono prima di ogni gesto che non si annulla. Arturo è gratuito, Claude Code richiede un abbonamento a pagamento.</p>
-        <ul class="etichette stretta" aria-label="In breve">
+        <ul class="etichette stretta" aria-label="Arturo in quattro parole">
           <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M5.5 8h5" stroke="currentColor" stroke-width="1.3"/></svg>Gratuito</li>
           <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>In italiano</li>
           <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="3" width="12" height="8" stroke="currentColor" stroke-width="1.3"/><path d="M1 13.5h14" stroke="currentColor" stroke-width="1.3"/></svg>Mac e Windows</li>
@@ -696,7 +690,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
               </div>
 <pre class="scena__pre" aria-label="La sessione in Claude Code"><span class="t t-tu" data-passo="0">Prepara il dossier per la riunione di domani con Giulia: cosa sappiamo, cosa manca, cosa chiederle</span><span class="t t-strumento" data-passo="1">Calendar  domani 10:00 · «Festival, punto con Giulia»</span><span class="t t-strumento" data-passo="2">Gmail  6 email con Giulia, da settembre</span><span class="t t-strumento" data-passo="3">Drive  preventivo.pdf, versione del 9 ottobre</span><span class="t t-strumento" data-passo="4">Read  le trascrizioni delle ultime 3 call</span><span class="t t-strumento" data-passo="5">Web  il sito della sala: capienza e orari</span><span class="t t-cc" data-passo="6">Ho messo a confronto le cinque fonti:</span><span class="t t-quieto confronto-fonti" data-passo="6">  Data       calendario e email           <b class="ok">tornano</b>
   Sala       120 · 180 · 150 persone      <b class="ko">non torna</b>
-  Catering   nelle call, non a preventivo <b class="forse">manca</b></span><span class="t t-cc" data-passo="7">La sala è il punto: il preventivo è per 120, nella call del 14 ne avete stimate 180, il sito dice che ne tiene 150.</span><span class="t t-strumento" data-passo="8">Write  dossier-giulia.md</span><span class="t t-cc" data-passo="9">Il dossier è pronto e aperto: 4 cose decise, 3 aperte, 5 domande per Giulia. La sala è la prima.</span><span class="t t-tu" data-passo="10">Mandaglielo</span><span class="t t-guardia" data-passo="11"><b>Arturo · la guardia chiede a te</b>Bozza prima: conferma solo se hai già letto il testo e vuoi inviarlo così com'e'.<span class="t-scelta">Procedere?  1. Sì  <em>2. No</em></span></span><span class="t t-cc" data-passo="12">Va bene. La bozza resta nel thread finché non l'hai letta.</span></pre>
+  Catering   nelle call, non a preventivo <b class="forse">manca</b></span><span class="t t-cc" data-passo="7">La sala è il punto: il preventivo è per 120, nella call del 14 ne avete stimate 180, il sito dice che ne tiene 150.</span><span class="t t-strumento" data-passo="8">Write  dossier-giulia.md</span><span class="t t-cc" data-passo="9">Il dossier è pronto e aperto: 4 cose decise, 3 aperte, 5 domande per Giulia. La sala è la prima.</span><span class="t t-tu" data-passo="10">Mandaglielo</span><span class="t t-guardia" data-passo="11"><b>Arturo · la guardia chiede a te</b>Bozza prima: conferma solo se hai già letto il testo e vuoi inviarlo così com'è.<span class="t-scelta">Procedere?  1. Sì  <em>2. No</em></span></span><span class="t t-cc" data-passo="12">Va bene. La bozza resta nel thread finché non l'hai letta.</span></pre>
             </div>
             <div class="scena__comandi">
               <p class="scena__stato" id="scena-stato" aria-live="polite">Sessione completa</p>
