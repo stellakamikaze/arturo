@@ -62,6 +62,10 @@ def reduce(cmd: str) -> str:
         # `python3 - <<EOF` o `bash <<EOF`: il corpo gira, si tiene
         if consumer and consumer not in NON_EXEC:
             return m.group(0)
+        # Delimitatore senza virgolette: la shell esegue le $( ) e i backtick del corpo
+        # anche verso cat. Quel corpo resta.
+        if not m.group(1) and ("$(" in m.group(4) or "`" in m.group(4)):
+            return m.group(0)
         return m.group(0)[: m.start(4) - m.start()] + "[heredoc]" + m.group(0)[m.end(4) - m.start():]
     reduced = HEREDOC_RE.sub(_strip, cmd)
 

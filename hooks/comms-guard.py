@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """PreToolUse(Bash) hook: enforce draft-first per comunicazioni esterne.
 
-Blocca shell command che invierebbero email/messaggi senza approvazione esplicita.
-Backstop concreto per la policy draft-first: mai inviare senza conferma esplicita.
+Chiede conferma (ask) sui comandi che invierebbero email o messaggi. Backstop
+concreto per la policy draft-first: nessun invio parte senza un si' della persona.
+
+Fino al 15/10/2026 bloccava (exit 2). Il blocco insegnava al modello ad aggirare
+la regex: riscriveva il comando finche' passava. Con ask la persona vede il
+comando reale e decide con un click; il modello non ha niente da aggirare.
 
 Lettura JSON da stdin (Claude Code PreToolUse payload).
-- exit 0 = consenti
-- exit 2 = blocca (stderr → feedback al modello)
+- exit 0 senza output = consenti
+- stdout JSON permissionDecision=ask = la persona conferma il comando reale
 - fail-open su qualsiasi errore di parsing
 """
 import json
@@ -39,6 +43,8 @@ SEND_BINARIES = [
     (r"\bgws\b.*\bgmail\b.*\b(forwardingAddresses|updateAutoForwarding|delegates|filters)\b.*\b(create|update|patch)\b",
      "gws gmail (inoltro, delega o filtro)"),
     (r"\bmail\s+\S+@\S+", "mail <indirizzo>"),
+    # mail e mutt come programma, anche senza -s e con l'indirizzo in una variabile.
+    (r"(?:^|[;&|(`\n])\s*(?:sudo\s+|command\s+|env\s+)?(?:mail|mutt)\s+\S", "mail/mutt"),
     (r"\bmutt\s+\S+@\S+", "mutt <indirizzo>"),
     (r"mailto:", "mailto: (apre un invio)"),
     (r"\bsmtps?://", "smtp:// (invio diretto)"),
@@ -50,6 +56,9 @@ SEND_BINARIES = [
     (r"\bsmtplib\b", "smtplib (invio email via Python)"),
     (r"\bSMTP_SSL\b", "SMTP_SSL (Python)"),
     (r"\bEmailMessage\b.*\bsend", "EmailMessage/send (Python)"),
+    # http.client verso un servizio di messaggistica: un POST senza curl ne' requests.
+    (r"\bhttp\.client\b.*\b(telegram|slack|sendgrid|mailgun|discord|twilio|postmark|resend)\b",
+     "http.client verso un servizio di messaggistica"),
 ]
 
 SEND_ENDPOINTS = re.compile(
@@ -102,12 +111,17 @@ def main() -> int:
         matched = "endpoint messaggistica/email"
 
     if matched:
-        sys.stderr.write(
-            f"Bloccato: questo comando invierebbe una comunicazione esterna via {matched}. "
-            "Bozza prima, mostra all'utente per approvazione, poi l'utente invia oppure "
-            "conferma esplicitamente l'esecuzione di questo comando.\n"
+        reason = (
+            f"Questo comando invia una comunicazione esterna via {matched}. "
+            "Bozza prima: conferma solo se hai gia' letto il testo e vuoi inviarlo "
+            "cosi' com'e'."
         )
-        return 2
+        sys.stdout.write(json.dumps({"hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "ask",
+            "permissionDecisionReason": reason,
+        }}) + "\n")
+        return 0
     return 0
 
 

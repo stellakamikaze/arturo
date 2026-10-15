@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 """Hook PreToolUse (Edit/MultiEdit/Write/NotebookEdit): protegge file critici.
 
-Due categorie, ognuna con un unlock per-sessione distinto:
+Tre categorie, ognuna con un unlock per-sessione distinto:
+
+  Persistenza (codice che parte da solo, fuori da Claude Code):
+    .git/hooks/** di qualunque repository
+    ~/Library/LaunchAgents/** (macOS)
+    ~/.config/systemd/user/** e ~/.config/autostart/** (Linux)
+    -> unlock: touch ~/.claude/system-unlock-{session_id}
 
   CLAUDE.md (qualsiasi cartella)
     -> unlock: touch ~/.claude/claude-md-unlock-{session_id}
+    Sul CLAUDE.md globale avvisa quando il file, dopo la modifica, supera il
+    budget di righe (ARTURO_CLAUDE_MD_RIGHE, default 200).
 
   Config e hook di Claude Code:
     ~/.claude/settings.json, settings.local.json, .claude.json
@@ -24,6 +32,11 @@ sempre conferma anche via Edit/Write: un marker scritto dall'assistente senza un
 decisione dell'utente sbloccherebbe da solo le due categorie. Il vettore shell
 (touch) chiede conferma in block-dangerous.py.
 
+La categoria persistenza viene prima delle altre: un git hook o un servizio
+di avvio esegue codice a ogni commit o a ogni login, senza che nessuno lo chieda.
+Il vettore shell (echo >, cp, tee...) su questi percorsi chiede conferma in
+block-dangerous.py.
+
 Fail-closed: errore di parsing = blocca per sicurezza.
 """
 import json
@@ -42,6 +55,60 @@ def _emit(kind, reason):
     }, sys.stdout)
 
 
+# Budget di righe del CLAUDE.md globale: oltre, le istruzioni si diluiscono e
+# costano contesto a ogni sessione. Si cambia con la variabile d'ambiente.
+BUDGET_RIGHE_DEFAULT = 200
+
+
+def _budget():
+    try:
+        return max(1, int(os.environ.get('ARTURO_CLAUDE_MD_RIGHE', BUDGET_RIGHE_DEFAULT)))
+    except ValueError:
+        return BUDGET_RIGHE_DEFAULT
+
+
+def _righe_dopo(path, ti):
+    """Numero di righe del file come sara' dopo Write, Edit o MultiEdit."""
+    if isinstance(ti.get('content'), str):
+        testo = ti['content']
+    else:
+        with open(path, encoding='utf-8') as fh:
+            testo = fh.read()
+        modifiche = ti.get('edits') if isinstance(ti.get('edits'), list) else [ti]
+        for m in modifiche:
+            vecchio, nuovo = m.get('old_string'), m.get('new_string')
+            if isinstance(vecchio, str) and isinstance(nuovo, str) and vecchio:
+                testo = testo.replace(vecchio, nuovo) if m.get('replace_all') else testo.replace(vecchio, nuovo, 1)
+    return len(testo.splitlines())
+
+
+def _avviso_budget(rp, claude_dir, ti):
+    """Avviso da aggiungere alla decisione se il CLAUDE.md globale supera il budget."""
+    if rp != os.path.join(claude_dir, 'CLAUDE.md'):
+        return ""
+    try:
+        n = _righe_dopo(rp, ti)
+    except Exception:
+        return ""
+    budget = _budget()
+    if n <= budget:
+        return ""
+    return (f" ATTENZIONE: dopo questa modifica il CLAUDE.md globale avra' {n} righe, "
+            f"oltre il budget di {budget}. Se aggiungi una regola, togline o accorciane "
+            "un'altra nella stessa modifica.")
+
+
+def _persistenza(rp):
+    """True se il path installa codice che parte da solo: git hook o servizio di avvio."""
+    if (os.sep + '.git' + os.sep + 'hooks' + os.sep) in rp or rp.endswith(os.sep + '.git' + os.sep + 'hooks'):
+        return True
+    for radice in ('~/Library/LaunchAgents', '~/.config/systemd/user', '~/.config/autostart'):
+        r = os.path.realpath(os.path.expanduser(radice))
+        if rp == r or rp.startswith(r + os.sep):
+            return True
+    return False
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -49,7 +116,8 @@ def main():
         if tool not in ('Edit', 'MultiEdit', 'Write', 'NotebookEdit'):
             sys.exit(0)
 
-        file_path = (data.get('tool_input') or {}).get('file_path', '') or ''
+        ti = data.get('tool_input') or {}
+        file_path = ti.get('file_path') or ti.get('notebook_path') or ''
         if not file_path:
             sys.exit(0)
 
@@ -70,31 +138,47 @@ def main():
         if under_claude and 'UNLOCK' in base:
             _emit("ask", (
                 f"File di unlock ({os.path.basename(rp)}): sbloccherebbe la protezione "
-                "di CLAUDE.md o di config/hook. Conferma solo se l'hai chiesto tu."
+                "di CLAUDE.md, di config/hook o dei percorsi di avvio automatico. "
+                "Conferma solo se l'hai chiesto tu."
             ))
             sys.exit(0)
 
-        # Categoria 1: CLAUDE.md (ovunque)
+        # Categoria 1: persistenza (git hook, servizi di avvio) -> prima di tutto
+        if _persistenza(rp):
+            if unlocked('system-unlock'):
+                _emit("allow", "percorso di avvio automatico sbloccato da conferma utente")
+                sys.exit(0)
+            _emit("deny", (
+                f"Percorso di avvio automatico protetto ({rp}): un git hook o un servizio "
+                "di avvio esegue codice da solo, a ogni commit o a ogni accesso. "
+                "Per procedere: 1) chiedi conferma esplicita all'utente. "
+                f"2) esegui: touch ~/.claude/system-unlock-{safe_id} "
+                "3) riprova la modifica."
+            ))
+            sys.exit(0)
+
+        # Categoria 2: CLAUDE.md (ovunque)
         if base == 'CLAUDE.MD':
+            avviso = _avviso_budget(rp, claude_dir, ti)
             if tool == 'Write' and not os.path.exists(rp):
                 _emit("ask", (
                     f"Stai creando un CLAUDE.md nuovo in {os.path.dirname(rp)}: sono istruzioni "
                     "che Claude seguira' ogni volta che lavora in questa cartella. "
-                    "Conferma se l'hai chiesto tu."
+                    "Conferma se l'hai chiesto tu." + avviso
                 ))
                 sys.exit(0)
             if unlocked('claude-md-unlock'):
-                _emit("allow", "CLAUDE.md sbloccato da conferma utente")
+                _emit("allow", "CLAUDE.md sbloccato da conferma utente." + avviso)
                 sys.exit(0)
             _emit("deny", (
                 "CLAUDE.md protetto. Per modificarlo: "
                 "1) chiedi conferma esplicita all'utente. "
                 f"2) esegui: touch ~/.claude/claude-md-unlock-{safe_id} "
-                "3) riprova la modifica."
+                "3) riprova la modifica." + avviso
             ))
             sys.exit(0)
 
-        # Categoria 2: config/hook di Claude Code
+        # Categoria 3: config/hook di Claude Code
         is_config = under_claude and (
             re.match(r'SETTINGS.*\.JSON$', base) is not None
             or base == '.CLAUDE.JSON'

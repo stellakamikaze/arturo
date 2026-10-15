@@ -79,9 +79,10 @@ def test_routes(repo: Path) -> None:
         temp.cleanup()
     temp, home = copy_home(repo)
     try:
+        # Dal 15/10/2026 comms-guard chiede conferma (ask) invece di bloccare.
         cases = {
-            "gws-send": ("gws gmail users messages send --json '{}'", "block"),
-            "msmtp": ("printf x | msmtp outside@example.invalid", "block"),
+            "gws-send": ("gws gmail users messages send --json '{}'", "ask"),
+            "msmtp": ("printf x | msmtp outside@example.invalid", "ask"),
             "draft": ("gws gmail users drafts create --json '{}'", "silent"),
         }
         for label, (command, expected) in cases.items():
@@ -98,8 +99,9 @@ def test_reduction(repo: Path) -> None:
         executable = "sh <<'EOF'\nmailx -s testo\nEOF"
         followed = "cat <<'EOF'\ntesto\nEOF\n; mailx -s testo"
         assert permission(run(home, inert)) == "silent", "S06 heredoc cat deve restare inerte"
-        assert permission(run(home, executable)) == "block", "S06 heredoc shell deve restare analizzato"
-        assert permission(run(home, followed)) == "block", "S06 comando successivo deve restare analizzato"
+        # Dal 15/10/2026 un invio chiede conferma (ask) invece di bloccare.
+        assert permission(run(home, executable)) == "ask", "S06 heredoc shell deve restare analizzato"
+        assert permission(run(home, followed)) == "ask", "S06 comando successivo deve restare analizzato"
         # Casi avvelenati: quello che segue il delimitatore SULLA STESSA RIGA viene eseguito.
         same_line = {
             "pipe verso shell": "cat <<'EOF' | sh\nmailx -s testo\nEOF",

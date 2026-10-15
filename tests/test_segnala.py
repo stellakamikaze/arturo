@@ -139,7 +139,7 @@ def test_s05(repo: Path) -> None:
     assert "Il commit non parte." in read(lab.log / "appunti"), "S05 il testo non è negli appunti"
     assert not (lab.log / "apri").exists(), "S05 il canale email apre qualcosa: deve solo copiare"
     assert not re.search(r"[\"']mailto:", read(repo / "bin" / "segnala.py")), \
-        "S05 segnala.py costruisce un mailto:, che comms-guard nega"
+        "S05 segnala.py costruisce un mailto:, su cui comms-guard chiede conferma"
     copie = list((lab.home / ".claude" / "data" / "segnalazioni").glob("*_problema.md"))
     assert len(copie) == 1 and "Canale: email" in read(copie[0]), "S05 la copia locale manca"
     assert lab.stato()["canale"] == "email" and lab.stato()["inviata"], "S05 lo stato non registra l'invio"

@@ -16,14 +16,25 @@ Due rami:
         - nc/ncat verso host esterno
       Tutti -> ask (host interni esclusi).
 
-comms-guard.py (messaggistica/email nota) gira PRIMA e BLOCCA quei casi. Gli scanner
-PostToolUse (credential-leak) restano come secondo layer detective.
+comms-guard.py (messaggistica/email nota) gira PRIMA e chiede conferma su quei casi.
+Gli scanner PostToolUse (credential-leak) restano come secondo layer detective.
+
+Host interni: localhost, le reti locali (INTERNAL_NETS) e le voci di
+hooks/hosts-interni.local. API esterne fidate: le voci di hooks/api-fidate.local,
+un nome host per riga, vuoto di default. Un POST verso un servizio che usi per
+lavoro con la sua chiave (la tua fatturazione, il tuo CRM) e' lavoro, non
+esfiltrazione. Entrambi i file sono ignorati da git: restano tuoi.
+
+Il dispatcher passa in COMMS_REDUCED il comando senza gli heredoc scritti su file
+(comms-prefilter.py): si giudica il codice eseguito, non la prosa. Vuota = il
+comando solo legge.
 Fail-open su parsing. Zero dipendenze.
 """
 from __future__ import annotations
 
 import ipaddress
 import json
+import os
 import re
 import signal
 import sys
@@ -39,8 +50,14 @@ if hasattr(signal, "SIGALRM"):
     signal.signal(signal.SIGALRM, _t)
 
 INTERNAL_HOSTS = frozenset(("localhost", "host.docker.internal", "0.0.0.0"))
+# Reti che non escono dalla macchina o dalla rete locale: le private RFC 1918
+# (10/8, 172.16/12, 192.168/16), loopback, link-local, le IPv6 private (fc00::/7)
+# e il 100.64/10 su cui vivono gli indirizzi Tailscale. Elenco esplicito e non
+# ip.is_private: quello cambia fra le versioni di Python e conta come privati
+# anche gli IPv6 che incapsulano un IPv4 pubblico.
 INTERNAL_NETS = tuple(map(ipaddress.ip_network, (
-    "127.0.0.0/8", "10.0.0.0/8", "192.168.0.0/16", "100.64.0.0/10",
+    "127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10",
+    "169.254.0.0/16", "::1/128", "fc00::/7", "fe80::/10",
 )))
 URL = re.compile(r'https?://[^\s"\']+', re.IGNORECASE)
 
@@ -89,11 +106,45 @@ def _internal_host(host: str | None) -> bool:
     normalized = host.lower().rstrip(".")
     if normalized in INTERNAL_HOSTS or normalized in LOCAL_HOSTS:
         return True
+    if normalized.startswith("[") and normalized.endswith("]"):
+        normalized = normalized[1:-1]
     try:
-        addr = ipaddress.ip_address(normalized)
+        addr = ipaddress.ip_address(normalized.split("%", 1)[0])
     except ValueError:
         return False
-    return any(addr in network for network in INTERNAL_NETS + LOCAL_NETS)
+    # ::ffff:8.8.8.8 e' l'IPv4 8.8.8.8: si giudica quello.
+    if addr.version == 6 and addr.ipv4_mapped is not None:
+        addr = addr.ipv4_mapped
+    return any(addr.version == network.version and addr in network for network in INTERNAL_NETS + LOCAL_NETS)
+
+
+def _leggi_api_fidate(path: Path):
+    """Legge api-fidate.local: un nome host per riga, # commento. Solo nomi esatti:
+    un IP o una rete qui non vale (per quelli c'e' hosts-interni.local)."""
+    host = set()
+    try:
+        for riga in path.read_text(encoding="utf-8").splitlines():
+            voce = riga.strip().lower().rstrip(".")
+            if not voce or voce.startswith("#") or " " in voce or "/" in voce or "*" in voce:
+                continue
+            try:
+                ipaddress.ip_address(voce)
+                continue
+            except ValueError:
+                pass
+            if "." in voce:
+                host.add(voce)
+    except (OSError, ValueError):
+        return frozenset()
+    return frozenset(host)
+
+
+TRUSTED_EXTERNAL = _leggi_api_fidate(Path(__file__).resolve().parent / "api-fidate.local")
+
+
+def _fidato(host: str | None) -> bool:
+    """Host interno oppure API esterna dichiarata fidata in api-fidate.local."""
+    return _internal_host(host) or (bool(host) and host.lower().rstrip(".") in TRUSTED_EXTERNAL)
 
 
 def _hosts(text: str):
@@ -192,6 +243,12 @@ def main() -> int:
     cmd = (data.get("tool_input") or {}).get("command", "")
     if not isinstance(cmd, str) or not cmd:
         return 0
+    # Versione ridotta dal dispatcher (comms-prefilter.py): si giudica il codice eseguito.
+    reduced = os.environ.get("COMMS_REDUCED")
+    if reduced is not None:
+        cmd = reduced
+        if not cmd.strip():
+            return 0
 
     # ---- Ramo A: POST/upload (comportamento storico) ----
     if POST_MARKERS.search(cmd):
@@ -201,20 +258,20 @@ def main() -> int:
         ext = False
         internal_seen = False
         for host in _hosts(dest):
-            if _internal_host(host):
+            if _fidato(host):
                 internal_seen = True
             else:
                 ext = True
         if not ext:
             for m in EXT_HINT.finditer(dest):
-                if not _internal_host(m.group(0)):
+                if not _fidato(m.group(0)):
                     ext = True
                     break
         if not ext and internal_seen:
             senza_url = OTHER_FLAG_VAL.sub(" ", URL.sub(" ", dest))
             for m in BARE_HOST.finditer(senza_url):
                 host = m.group(1)
-                if host.rsplit(".", 1)[-1].lower() in FILE_EXT or _internal_host(host):
+                if host.rsplit(".", 1)[-1].lower() in FILE_EXT or _fidato(host):
                     continue
                 ext = True
                 break

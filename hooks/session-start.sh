@@ -18,8 +18,10 @@ if [[ "$OSTYPE" == "darwin"* && "${TERM_PROGRAM:-}" == "Apple_Terminal" ]]; then
   fi
 fi
 
-# Info directory di lavoro
+# Info directory di lavoro e macchina: con piu' computer, Claude sa su quale lavora.
 echo "DIRECTORY: $PROJECT_ROOT"
+MACCHINA=$(scutil --get ComputerName 2>/dev/null || hostname 2>/dev/null)
+[ -n "$MACCHINA" ] && echo "MACCHINA: $MACCHINA"
 
 # Dopo un compact il contesto e' stato riassunto: prima di continuare, un riepilogo che
 # l'utente puo' controllare. SessionStart con source "compact" e' la via documentata;
@@ -56,6 +58,53 @@ if [ -f "$HOME/.claude/hooks/controlla-config.py" ]; then
 fi
 if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1 && ! git -C "$HOME/.claude" symbolic-ref -q HEAD >/dev/null 2>&1; then
   echo "CONFIG: ~/.claude non sta su un branch (HEAD scollegato): i commit di /fine non finirebbero su main. Chiedi a Claude di riportarla su main."
+fi
+# File della config cambiati e non salvati in git: lavoro di un'altra sessione o rimasto da
+# ieri. I file nuovi non contano: molti sono dati locali che git ignora o non deve vedere.
+if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
+  SPORCHI=$(git -C "$HOME/.claude" status --porcelain 2>/dev/null | grep -v '^??' | wc -l | tr -d ' ')
+  if [ "${SPORCHI:-0}" -gt 0 ]; then
+    echo "CONFIG: $SPORCHI file di ~/.claude modificati e non salvati in git (lavoro di un'altra sessione o rimasto da ieri). Chiedi a Claude cosa sono prima di aggiornare."
+  fi
+fi
+
+# Banchi delle guardie (tests/banchi-avvio.sh): un rosso si dice subito, all'avvio. Se l'esito
+# ha piu' di 12 ore, i banchi ripartono in background e il risultato lo legge la sessione dopo:
+# l'avvio non aspetta. Il lock e' una cartella, perche' mkdir e' atomico anche dove flock non
+# c'e' (macOS, Git Bash): due sessioni che partono insieme non lo prendono entrambe. Dentro c'e'
+# il PID di chi lo tiene; un lock col PID morto (kill -9, riavvio) e' orfano e si riprende,
+# altrimenti un solo processo ucciso male spegnerebbe i banchi per sempre.
+# Solo in un'installazione vera (~/.claude e' un repository git); ARTURO_BANCHI_AVVIO=0 li spegne.
+BANCHI_ESITO="$HOME/.claude/cache/banchi-ultimo-esito.txt"
+if [ -f "$BANCHI_ESITO" ] && [ "$(sed -n '1p' "$BANCHI_ESITO" 2>/dev/null)" = "ROSSO" ]; then
+  echo "GUARDIE: banchi rossi, una guardia potrebbe non proteggere: $(sed -n '2p' "$BANCHI_ESITO")"
+  sed -n '3,6p' "$BANCHI_ESITO" | sed 's/^/        /'
+  echo "        Dillo a Claude: rilancia con bash ~/.claude/tests/banchi-avvio.sh e proponi /segnala."
+fi
+if [ "${ARTURO_BANCHI_AVVIO:-1}" != "0" ] && [ -f "$HOME/.claude/tests/banchi-avvio.sh" ] \
+   && git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
+  if [ ! -f "$BANCHI_ESITO" ] || [ -n "$(find "$BANCHI_ESITO" -mmin +720 2>/dev/null)" ]; then
+    BANCHI_LOCK="$HOME/.claude/cache/banchi.lock"
+    mkdir -p "$HOME/.claude/cache" 2>/dev/null
+    if [ -d "$BANCHI_LOCK" ]; then
+      TENUTO_DA=$(cat "$BANCHI_LOCK/pid" 2>/dev/null)
+      if [ -z "$TENUTO_DA" ] || ! kill -0 "$TENUTO_DA" 2>/dev/null; then
+        rm -rf "$BANCHI_LOCK" 2>/dev/null
+      fi
+    fi
+    if mkdir "$BANCHI_LOCK" 2>/dev/null; then
+      (
+        # Il PID di questa subshell: in bash 3.2 $BASHPID non esiste e $$ e' lo script, che
+        # esce subito. `sh -c 'echo $PPID'` stampa il PID di chi lo chiama, su ogni bash.
+        sh -c 'echo $PPID' > "$BANCHI_LOCK/pid" 2>/dev/null
+        trap 'rm -rf "$BANCHI_LOCK"' EXIT
+        # Di notte macOS sospende i processi in background: caffeinate li tiene svegli.
+        SVEGLIO=""
+        command -v caffeinate >/dev/null 2>&1 && SVEGLIO="caffeinate -i"
+        $SVEGLIO bash "$HOME/.claude/tests/banchi-avvio.sh"
+      ) >/dev/null 2>&1 &
+    fi
+  fi
 fi
 
 if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then

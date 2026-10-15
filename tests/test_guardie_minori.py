@@ -7,7 +7,7 @@ R02 block-dangerous: una scrittura via shell su un CLAUDE.md chiede conferma, co
 leggerlo o copiarlo altrove no.
 R03 emoji_remover: guarda solo il testo appena scritto, non le emoji che il file aveva già.
 R04 comms: il dispatcher giudica il codice eseguito (comms-prefilter.py). Un invio travestito
-(find -exec, awk system(), git send-email) si ferma; una lettura che nomina smtplib passa.
+(find -exec, awk system(), git send-email) chiede conferma; una lettura che nomina smtplib passa.
 
 Sulla base 69d7365 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -75,16 +75,21 @@ def test_r04(repo: Path) -> None:
         casa.mkdir()
         (casa / ".claude").symlink_to(repo)
 
-        def rc(comando: str) -> int:
+        # Dal 15/10/2026 comms-guard chiede conferma invece di bloccare: un invio travestito
+        # deve arrivare alla persona come ask (prima era exit 2), una lettura deve tacere.
+        def esito(comando: str) -> str:
             dati = json.dumps({"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": d, "session_id": "r04"})
-            return subprocess.run(["bash", str(repo / "hooks" / "bash-dispatcher.sh")], input=dati, capture_output=True,
-                                  text=True, cwd=d, timeout=60, env=dict(os.environ, HOME=str(casa))).returncode
+            p = subprocess.run(["bash", str(repo / "hooks" / "bash-dispatcher.sh")], input=dati, capture_output=True,
+                               text=True, cwd=d, timeout=60, env=dict(os.environ, HOME=str(casa)))
+            if p.returncode == 2:
+                return "block"
+            return "ask" if '"permissionDecision": "ask"' in p.stdout or '"permissionDecision":"ask"' in p.stdout else "silent"
 
         for comando in ("find . -name x -exec sendmail a@esempio.org {} \\;", "awk 'BEGIN{system(\"sendmail a@esempio.org\")}'",
                         "git send-email --to a@esempio.org 0001.patch", "echo ciao | sendmail a@esempio.org"):
-            assert rc(comando) == 2, f"R04 invio travestito che passa: {comando}"
+            assert esito(comando) == "ask", f"R04 invio travestito che passa: {comando}"
         for comando in ("grep -ril smtplib .", "cat > nota.md <<'EOF'\nuso smtplib per inviare\nEOF", "git log --oneline -3"):
-            assert rc(comando) == 0, f"R04 lettura che nomina un invio fermata: {comando}"
+            assert esito(comando) == "silent", f"R04 lettura che nomina un invio fermata: {comando}"
 
 
 TESTS = {"R01": test_r01, "R02": test_r02, "R03": test_r03, "R04": test_r04}
