@@ -254,19 +254,16 @@ posizione dentro Arturo, che è pubblica: mai i tuoi file né i percorsi del tuo
 rotta parte subito, perché spegne le guardie. La spegni come sempre con
 `python3 ~/.claude/bin/arturo telemetria spegni`.
 
-## 2026-10-14 — Prima di cancellare vedi cosa sparisce, e zsh si comporta come bash
+## 2026-10-14 — zsh si comporta come bash
 
-**Cosa cambia**: un mod nuovo, `blast-radius`. Quando Claude sta per lanciare `rm -rf`, `git reset
---hard`, `git clean` o un push forzato, il comando si ferma e compare un pannello: quanti file
-spariscono e quali, quali modifiche non salvate si perdono, quali commit. Premi Procedi o Annulla.
-`riscrivi-bash` fa comportare zsh, la shell del Mac, come bash: un glob che non trova file
-(`ls *.png` in una cartella senza png) non ferma più il comando con «no matches found». Escono due
-mod che nessuno usava: `menu-contesto` e `agent-flow`.
+**Cosa cambia**: `riscrivi-bash` fa comportare zsh, la shell del Mac, come bash: un glob che non
+trova file (`ls *.png` in una cartella senza png) non ferma più il comando con «no matches found».
+Escono due mod che nessuno usava: `menu-contesto` e `agent-flow`.
 
-**Il principio dietro**: prima di un gesto che non si annulla, devi vedere cosa fa, non leggere
-un comando. E una comodità che nessuno apre è solo codice da mantenere.
+**Il principio dietro**: Claude scrive i comandi per bash. Se la shell li legge in un altro modo,
+l'errore non è suo. E una comodità che nessuno apre è solo codice da mantenere.
 
-**Da sapere**: niente da fare. Se `blast-radius` ti ferma troppo spesso, spegnilo con `/plugin`.
+**Da sapere**: niente da fare.
 
 
 ## 2026-10-14 — Una striscia per i conti, e il controllo degli invii guarda cosa gira davvero
