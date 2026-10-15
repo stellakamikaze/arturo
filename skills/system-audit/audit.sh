@@ -269,6 +269,75 @@ else
   ko "permessi: defaultMode mancante, pattern sovrapposti o settings non leggibile"
 fi
 
+# Comandi fantasma: un documento vivo cita come vivo uno slash-comando che non esiste più
+# (nessuna skill, nessun comando, nessun mod lo registra). La mappa non deve scollarsi dal territorio.
+# Le righe di storia («rimosso», «archiviata», «ha assorbito»…) e gli indirizzi web non contano.
+# Il blocco Python scrive su file: dentro $(...) bash 3.2 conta gli apici del heredoc e si rompe.
+ghost_file=$(mktemp "${TMPDIR:-/tmp}/audit-fantasmi.XXXXXX")
+python3 - "$CLAUDE_DIR" > "$ghost_file" 2>/dev/null <<'PY'
+import glob
+import os
+import re
+import sys
+
+H = sys.argv[1]
+skills = {os.path.basename(os.path.dirname(p)) for p in glob.glob(H + "/skills/*/SKILL.md")}
+cmds = {os.path.basename(p)[:-3] for p in glob.glob(H + "/commands/*.md")}
+wfs = {os.path.basename(p)[:-3] for p in glob.glob(H + "/workflows/*.js")}
+# I comandi registrati dai mod si leggono dal sorgente: un mod tolto fa tornare fantasma la sua menzione.
+modcmds = set()
+for f in glob.glob(H + "/skills/*/hooks/*.ts*") + glob.glob(H + "/mods/*/hooks/*.ts*"):
+    with open(f, encoding="utf-8", errors="ignore") as src:
+        modcmds |= set(re.findall(r"command\.register\(\{\s*name:\s*'([^']+)'", src.read()))
+# Comandi di Claude Code: non stanno su disco.
+NATIVE = {"add-dir", "agents", "artifacts", "btw", "bug", "clear", "code-review", "compact", "config",
+          "context", "cost", "debug", "doctor", "effort", "exit", "export", "fast", "feedback", "goal", "help",
+          "hooks", "ide", "init", "insights", "install-github-app", "login", "logout", "loop", "mcp",
+          "memory", "model", "output-style", "permissions", "plan", "plugin", "plugins",
+          "privacy-settings", "release-notes", "remember", "resume", "review", "rewind", "schedule",
+          "security-review", "simplify", "status", "statusline", "terminal-setup", "todos", "upgrade",
+          "usage", "verify", "vim", "workflows"}
+# Parole che compaiono come `/parola` senza essere comandi: path e rotte.
+NOTCMD = {"api", "bin", "dev", "etc", "graphql", "home", "opt", "proc", "root", "tmp", "usr", "var",
+          "well-known", "xargs"}
+known = skills | cmds | wfs | modcmds | NATIVE | NOTCMD
+STORICO = re.compile(r"rimoss|deprecat|eliminat|dismess|assorbit|archiviat|sostituisc|precedent|"
+                     r"\bfus[oiae]\b|\bvecchi[oi]\b|\bex\b|non esiste|retrocompatibilit", re.I)
+ENDPOINT = re.compile(r"endpoint|\broute\b|\bAPI\b|\bGET\b|\bPOST\b|https?://|:\d{4}", re.I)
+# Il backtick d'apertura non segue una lettera: in «`nc`/altro» il backtick chiude, non apre.
+PAT = re.compile(r"(?<![A-Za-z0-9_])`/([a-z][a-z0-9:_-]{1,30})(?:\s[^`]*)?`")
+docs = ["CLAUDE.md", "README.md"] + sorted(
+    os.path.relpath(p, H) for p in glob.glob(H + "/commands/*.md") + glob.glob(H + "/skills/*/SKILL.md")
+    + glob.glob(H + "/agents/*.md") + glob.glob(H + "/shared/*.md"))
+tot = 0
+for doc in docs:
+    fp = os.path.join(H, doc)
+    if not os.path.isfile(fp):
+        continue
+    with open(fp, encoding="utf-8", errors="ignore") as src:
+        righe = src.read().split("\n")
+    for i, line in enumerate(righe, 1):
+        if STORICO.search(line) or ENDPOINT.search(line):
+            continue
+        for nome in PAT.findall(line):
+            if nome not in known:
+                print("WARN|%s:%d cita /%s, che non esiste (nessuna skill, comando o mod)" % (doc, i, nome))
+                tot += 1
+print("COUNT|%d" % tot)
+PY
+ghost_report=$(cat "$ghost_file")
+rm -f "$ghost_file"
+ghost_n=$(printf '%s\n' "$ghost_report" | sed -n 's/^COUNT|//p')
+if [[ -z "$ghost_n" ]]; then
+  warning "comandi fantasma: controllo non eseguito (python3 non ha risposto)"
+elif [[ "$ghost_n" -eq 0 ]]; then
+  ok "documentazione: nessuno slash-comando citato senza una skill, un comando o un mod"
+else
+  while IFS='|' read -r livello messaggio; do
+    [[ "$livello" == WARN ]] && warning "$messaggio"
+  done < <(printf '%s\n' "$ghost_report")
+fi
+
 # Peso dei corpi: il corpo di una skill o di un comando entra intero nel contesto a ogni uso.
 # Sopra soglia, le parti lette solo in un caso vanno in un file a parte nella stessa skill.
 for f in "$CLAUDE_DIR"/skills/*/SKILL.md "$CLAUDE_DIR"/commands/*.md; do
@@ -278,6 +347,21 @@ for f in "$CLAUDE_DIR"/skills/*/SKILL.md "$CLAUDE_DIR"/commands/*.md; do
     warning "${f#$CLAUDE_DIR/} pesa $((sz / 1024)) KB (tetto 30 KB): sposta in references/ le parti lette solo in un caso"
   fi
 done
+
+# Plugin installati ma non attivi in settings.json: solo il report, con il comando per toglierli.
+stale_sh="$CLAUDE_DIR/bin/cleanup-stale-plugins.sh"
+if [[ -f "$stale_sh" ]]; then
+  stale_out=$(bash "$stale_sh" --dry-run </dev/null 2>&1)
+  stale_rc=$?
+  stale_lista=$(printf '%s\n' "$stale_out" | sed -n 's/^  - //p' | paste -sd ',' - | sed 's/,/, /g')
+  if [[ $stale_rc -ne 0 ]]; then
+    warning "plugin: cleanup-stale-plugins.sh --dry-run uscito $stale_rc: $(printf '%s\n' "$stale_out" | tail -1)"
+  elif [[ -n "$stale_lista" ]]; then
+    warning "plugin installati ma non attivi: $stale_lista -> bash ~/.claude/bin/cleanup-stale-plugins.sh --yes"
+  else
+    ok "plugin: tutti gli installati sono attivi"
+  fi
+fi
 
 echo "=== System Audit ==="
 printf '%s\n' "${report[@]}"

@@ -1,0 +1,8 @@
+{
+  "name": "gate-fixture-node",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "test": "node -e \"process.exit(0)\""
+  }
+}
