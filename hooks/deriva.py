@@ -133,7 +133,8 @@ def riga(esito: dict) -> str:
     if comandi:
         nomi = ", ".join("/" + Path(f).stem for f in comandi)
         parti.append(f"hai modificato i comandi di Arturo {nomi}: il prossimo /aggiorna sposta da solo le tue aggiunte in un "
-                     "file tuo, che gli aggiornamenti non toccano (per farlo subito: /aggiorna personale)")
+                     "file tuo, che gli aggiornamenti non toccano, se il tuo repository della config è privato o non ne hai "
+                     "uno (per farlo subito: /aggiorna personale)")
     altri = [f for f in esito["file"] if not f.startswith("commands/")]
     if altri:
         parti.append(f"hai modificato {len(altri)} file di Arturo ({', '.join(altri[:3])}{'…' if len(altri) > 3 else ''}): "

@@ -90,15 +90,22 @@ echo "--- file che hai cambiato rispetto ad Arturo"
 git diff --stat "$SRC/main...HEAD" 2>/dev/null | tail -20
 echo "--- file cambiati sia da te sia dall'aggiornamento"
 comm -12 <(git diff --name-only "$SRC/main...HEAD" 2>/dev/null | sort) <(git diff --name-only "HEAD...$SRC/main" 2>/dev/null | sort)
+if [ "$SRC" = upstream ]; then
+  VIS=$(gh repo view "$(git remote get-url origin)" --json visibility -q .visibility 2>/dev/null)
+  echo "--- il suo repository della config: ${VIS:-visibilità sconosciuta}"
+fi
 ```
 
 Se ci sono file cambiati da tutti e due, **mostraglieli e chiedi conferma prima di procedere**:
 sono i punti dove può nascere un conflitto. Sono suoi, e un aggiornamento non deve mangiarseli.
 I comandi di Arturo (`commands/<nome>.md`) non contano: li sistema da solo il Passo 3 (Passo 2b).
+Contano invece se ha un suo repository della config e la riga qui sopra non dice `PRIVATE`: lì il
+Passo 3 non li sposta, e un comando cambiato da tutti e due può andare in conflitto come ogni file.
 
 ### Passo 2b — Le sue aggiunte ai comandi
 
-Non deve fare niente. Se ha modificato un comando di Arturo (`commands/<nome>.md`) che anche
+Non deve fare niente, salvo con un suo repository della config che non è privato (sotto,
+`NON SEPARATO`). Se ha modificato un comando di Arturo (`commands/<nome>.md`) che anche
 l'aggiornamento cambia, il Passo 3 sposta le sue modifiche in `~/.claude/personale/<nome>.md`. Il
 comando torna quello di Arturo, le sue righe restano sue, e quando lancia `/<nome>` l'avvio del
 prompt dice a Claude di leggerle. Così il comando non va in conflitto, né adesso né dopo. Lo
@@ -112,7 +119,8 @@ insieme il file personale: le parti sono copiate così come erano.
 Se stampa `NON SEPARATO`, il suo repository della config non risulta privato: `personale/` non
 viaggerebbe fra le sue macchine, quindi le modifiche restano nel comando e un conflitto si risolve
 come sotto. Diglielo in una frase, e digli che con un repository privato la prossima volta succede
-da solo.
+da solo. `visibilità sconosciuta` vuol dire quasi sempre che `gh` non ha il login: con `gh auth login`
+la prossima volta Arturo lo sa.
 
 Se `git status` elenca dei file, sono modifiche sue non ancora salvate con un commit (le scrive
 anche `/setup`, per esempio `PROJECTS_BASE` o la lingua in `settings.json`). Il Passo 3 non parte
@@ -188,9 +196,13 @@ python3 "$HOME/.claude/bin/telemetria.py" registra aggiorna rifiutato >/dev/null
 Con `CONFLITTO` la sua `~/.claude` non è stata toccata. I conflitti stanno nella **copia di prova**,
 nella cartella che l'esito ha stampato, con i file elencati. Si risolvono lì, mai in `~/.claude`.
 
-1. Se il file in conflitto è un comando di Arturo (`commands/<nome>.md`), proponi prima la strada
-   che non si ripete: col suo sì scarta la copia di prova (il blocco `scarta` qui sopra: le sue
-   modifiche restano in `~/.claude`), sposta le sue aggiunte col Passo 2b e rilancia il Passo 3. Altrimenti, o se preferisce così,
+1. Se il file in conflitto è un comando di Arturo (`commands/<nome>.md`), l'esito ha detto
+   `NON SEPARATO`: il suo repository della config non risulta privato e lo spostamento non si fa.
+   Rilanciare il Passo 3 così com'è riporta allo stesso conflitto. Proponi prima la strada che non si
+   ripete: rendere privato il repository (su GitHub, Settings del repository, o `gh auth login` se
+   la visibilità era sconosciuta), poi col suo sì scartare la copia di prova (il blocco `scarta` qui
+   sopra: le sue modifiche restano in `~/.claude`) e rilanciare il Passo 3, che allora le sposta da solo.
+   Altrimenti, o se preferisce così,
    per ogni file in conflitto della copia di prova, mostragli in parole semplici cosa c'era da lui e
    cosa arriva da Arturo, e chiedi cosa tenere. Di solito si tengono tutti e due: per esempio tutte le
    righe di una lista `deny`. Scrivi il file risolto nella copia di prova, senza marcatori.
@@ -250,12 +262,22 @@ Se chi ti parla scrive `/aggiorna personale` (oppure l'avvio ha mostrato una rig
 comandi), non scarichi niente: sposti solo le sue modifiche ai comandi di Arturo.
 
 ```bash
-python3 "$HOME/.claude/bin/arturo" personale separa
+cd "$HOME/.claude"
+VIS=PRIVATE
+if git remote get-url upstream >/dev/null 2>&1; then
+  VIS=$(gh repo view "$(git remote get-url origin)" --json visibility -q .visibility 2>/dev/null)
+fi
+if [ "$VIS" = PRIVATE ]; then
+  python3 "$HOME/.claude/bin/arturo" personale separa
+else
+  echo "NON SEPARATO: il tuo repository della config non risulta privato (${VIS:-visibilità sconosciuta}), e personale/ non viaggerebbe fra le tue macchine."
+fi
 ```
 
-È lo stesso spostamento che fa ogni aggiornamento (Passo 2b). Ogni riga `SEPARATO:` è un comando
-spostato: diglielo in una frase, come nel Passo 2b. Se non stampa niente, non c'era niente da
-spostare: diglielo in una riga.
+È lo stesso spostamento che fa ogni aggiornamento (Passo 2b), con la stessa regola: con un suo
+repository della config, solo se è privato. Ogni riga `SEPARATO:` è un comando spostato: diglielo
+in una frase, come nel Passo 2b. Con `NON SEPARATO` diglielo come nel Passo 2b. Se non stampa
+niente, non c'era niente da spostare: diglielo in una riga.
 
 ## Tornare indietro
 

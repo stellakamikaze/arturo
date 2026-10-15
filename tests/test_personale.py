@@ -7,7 +7,7 @@ P02 il file personale tiene le parti aggiunte con la riga di Arturo dopo cui sta
 P03 inject-now dice a Claude di leggere il file personale quando parte il comando, e il promemoria
 del brief non scatta sui comandi /nome. P04 personale/ resta fuori da git e viaggia con /fine solo
 verso un remote privato. P05 lo spostamento rifiuta ciò che non è un comando di Arturo e non crea
-commit vuoti. P06 /aggiorna propone lo spostamento (Passo 2b e /aggiorna personale). P07 con Arturo
+commit vuoti. P06 /aggiorna sposta da solo, senza chiedere (Passo 2b), e /aggiorna personale lo fa subito. P07 con Arturo
 come upstream (merge) lo spostamento è un commit nuovo e non riscrive i commit pubblicati; P01 e P02
 coprono Arturo come origin (rebase), dove i commit locali vengono riscritti senza il comando.
 
@@ -295,10 +295,32 @@ def test_p14(repo: Path) -> None:
     con_lab(prova, repo)
 
 
+def test_p15(repo: Path) -> None:
+    # /aggiorna personale segue la regola del Passo 3: con un repository suo non privato non sposta niente.
+    def prova(lab: Lab) -> None:
+        lab.personale()
+        for f in [repo / "bin" / "arturo", *(repo / "bin").glob("*.py")]:  # la CLI vera, fuori da git
+            if not (lab.utente / "bin" / f.name).exists():
+                shutil.copy(str(f), str(lab.utente / "bin" / f.name))
+        codice = blocco(read(repo / "commands" / "aggiorna.md"), "## Le sue aggiunte, senza aggiornare", "P15")
+        gh_finto(lab, "PUBLIC")
+        prima, inizio = lab.head(), read(lab.utente / "commands" / "inizio.md")
+        uscita = lab.lancia(codice)
+        assert "NON SEPARATO" in uscita and "SEPARATO: /inizio" not in uscita, \
+            f"P15 /aggiorna personale sposta verso un repository pubblico: {uscita[-300:]!r}"
+        assert lab.head() == prima and read(lab.utente / "commands" / "inizio.md") == inizio \
+            and not (lab.utente / "personale" / "inizio.md").exists(), "P15 ~/.claude è cambiata"
+        gh_finto(lab, "PRIVATE")
+        uscita = lab.lancia(codice)
+        assert "SEPARATO: /inizio" in uscita and (lab.utente / "personale" / "inizio.md").exists(), \
+            f"P15 con un repository privato /aggiorna personale non sposta: {uscita[-300:]!r}"
+    con_lab(prova, repo)
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {
     "P01": test_p01, "P02": test_p02, "P03": test_p03, "P04": test_p04, "P05": test_p05, "P06": test_p06,
     "P07": test_p07, "P08": test_p08, "P09": test_p09, "P10": test_p10,
-    "P11": test_p11, "P12": test_p12, "P13": test_p13, "P14": test_p14,
+    "P11": test_p11, "P12": test_p12, "P13": test_p13, "P14": test_p14, "P15": test_p15,
 }
 
 
