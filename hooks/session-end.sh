@@ -11,7 +11,7 @@ if [ ! -d "$PROJECT_ROOT/.git" ] && [ ! -f "$PROJECT_ROOT/CLAUDE.md" ]; then
 fi
 
 # Cleanup file temporanei sessione: deve avvenire anche su tree pulito.
-rm -f ~/.claude/claude-md-unlock-* ~/.claude/config-unlock-* 2>/dev/null
+rm -f ~/.claude/claude-md-unlock-* ~/.claude/config-unlock-* ~/.claude/system-unlock-* 2>/dev/null
 rm -f /tmp/claude_session_reminder_* 2>/dev/null
 
 # Skip reminder se non ci sono modifiche non committate (sessione read-only)

@@ -15,6 +15,8 @@ CHIEDE CONFERMA (permissionDecision:"ask", exit 0):
 - `rm -r` che risolve su un tree protetto (~/.claude, memoria, progetti, cwd)
 - scrittura shell su ~/.claude/settings* o hooks/** (auto-modifica delle guardie),
   incluso il caso `cd ~/.claude/hooks && > file` (target relativo dopo un cd)
+- scrittura shell su git hook (.git/hooks/**) e servizi di avvio automatico
+  (~/Library/LaunchAgents, ~/.config/systemd/user, ~/.config/autostart)
 - creazione di un file di unlock (*-unlock-*) che sbloccherebbe l'auto-modifica
 - lettura di file segreti via shell (cat/head/xxd/base64/perl/ruby/nc/redirezione
   `< file`... su chiavi private, ~/.ssh, ~/.aws/credentials, .gnupg, *.pem...)
@@ -88,6 +90,17 @@ CLAUDE_MD_WRITE_RE = re.compile(
     r"(?:>>?\s*[^\s'\";|&]*CLAUDE(?:\.local)?\.md\b"
     r"|\bsed\b[^|;&]*-i[^|;&]*CLAUDE(?:\.local)?\.md\b"
     r"|open\(\s*['\"][^'\"]*CLAUDE(?:\.local)?\.md['\"]\s*,\s*['\"][wa])"
+)
+# Percorsi di avvio automatico (git hook, LaunchAgents, systemd utente, autostart):
+# via Edit/Write li protegge protect_claude_md.py con un unlock, qui il vettore shell.
+_PERSIST_ABS = (r"[^\s'\";|&]*(?:\.git/hooks/[^\s'\";|&]+|Library/LaunchAgents/[^\s'\";|&]+"
+                r"|\.config/(?:systemd/user|autostart)/[^\s'\";|&]+)")
+# Qui solo redirezione e open(): cp, tee, sed -i e gli altri binari li giudica
+# _writes_config, che sa quale argomento e' la destinazione (copiare un hook
+# altrove e' una lettura).
+PERSIST_WRITE_RE = re.compile(
+    r"(?:>>?\s*" + _PERSIST_ABS +
+    r"|open\(\s*['\"][^'\"]*(?:\.git/hooks/|Library/LaunchAgents/|\.config/(?:systemd/user|autostart)/)[^'\"]*['\"]\s*,\s*['\"][wa])"
 )
 # Binari che scrivono un file passato come argomento.
 _WRITE_BINS = frozenset("tee cp mv install rsync ln dd truncate touch".split())
@@ -373,6 +386,20 @@ def _under_claude_config(p):
     return False
 
 
+def _is_persistenza(p):
+    """True se il path reale e' un git hook o un file di avvio automatico."""
+    if not p:
+        return False
+    if (os.sep + ".git" + os.sep + "hooks" + os.sep) in p or p.endswith(os.sep + ".git" + os.sep + "hooks"):
+        return True
+    h = _home()
+    for radice in ("Library/LaunchAgents", ".config/systemd/user", ".config/autostart"):
+        r = os.path.normpath(os.path.join(h, radice))
+        if p == r or p.startswith(r + os.sep):
+            return True
+    return False
+
+
 def _is_claude_md(p):
     return bool(p) and os.path.basename(p) in ("CLAUDE.md", "CLAUDE.local.md")
 
@@ -578,6 +605,14 @@ def main() -> int:
         return _ask(
             "Scrittura via shell su un CLAUDE.md: cambierebbe le istruzioni di ogni sessione "
             "futura in quella cartella. Conferma solo se sei tu a volerlo."
+        )
+
+    # 2a-bis) Scrittura shell su un percorso di avvio automatico -> ask (persistenza)
+    if PERSIST_WRITE_RE.search(command) or _writes_config(command, cwd, _is_persistenza):
+        return _ask(
+            "Scrittura via shell su un git hook o su un servizio di avvio automatico "
+            "(LaunchAgents, systemd, autostart): il codice partirebbe da solo a ogni "
+            "commit o a ogni accesso. Conferma solo se l'hai chiesto tu."
         )
 
     # 2b) Creazione di un file di unlock -> ask (sbloccherebbe l'auto-modifica)
