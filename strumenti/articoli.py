@@ -27,7 +27,7 @@ HOME = Path(__file__).resolve().parent.parent / "sito" / "index.html"
 
 def articoli(tag: str) -> list:
     url = ("https://stellakamikaze.org/ghost/api/content/posts/?key=" + CHIAVE + "&filter=tag:" + tag
-           + "&limit=4&fields=title,url,published_at,custom_excerpt,excerpt")
+           + "&limit=4&fields=title,url,published_at")
     richiesta = urllib.request.Request(url, headers={"User-Agent": "arturo-landing/1"})
     with urllib.request.urlopen(richiesta, timeout=15) as r:
         return json.load(r)["posts"]
@@ -38,9 +38,8 @@ def blocco(tag: str, posts: list) -> str:
     for p in posts:
         anno, mese, giorno = p["published_at"][:10].split("-")
         data = f"{int(giorno)} {MESI[int(mese) - 1]} {anno}"
-        testo = (p.get("custom_excerpt") or p.get("excerpt") or "").strip()
         righe.append(f'        <li><a href="{html.escape(p["url"])}"><time datetime="{p["published_at"][:10]}">{data}</time>'
-                     f'<strong>{html.escape(p["title"], quote=False)}</strong><span>{html.escape(testo, quote=False)}</span></a></li>')
+                     f'<strong>{html.escape(p["title"], quote=False)}</strong></a></li>')
     return (f'<!-- articoli:inizio -->\n      <ol class="articoli" id="articoli" data-tag="{tag}">\n'
             + "\n".join(righe) + "\n      </ol>\n      <!-- articoli:fine -->")
 

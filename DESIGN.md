@@ -320,7 +320,7 @@ Blocchi squadrati, con la voce stretta e maiuscola.
 
 ### Lastre (righe alternate)
 - **Corner Style:** angoli vivi.
-- **Background:** `giallo`, `azzurro`, `cielo` con `img/volta.svg`, `verde`, in quest'ordine nella home (il ritmo, la memoria, le guardie, Arturo è tuo).
+- **Background:** `cielo` con `img/volta.svg`, `giallo`, `verde`, `azzurro`. Dal 15/10 la home non le usa più: «Cosa fa Arturo» è una riga di quattro voci con un filetto `inchiostro` sopra ciascuna. Restano per le altre pagine.
 - **Shadow Strategy:** nessuna. L'ombra sta solo sulla finestra che la lastra contiene.
 - **Border:** nessuno.
 - **Internal Padding:** `clamp(28px, 5vw, 64px)` in verticale, `clamp(18px, 4vw, 56px)` in orizzontale. Larghezza della finestra al massimo 560 px.
@@ -344,14 +344,14 @@ Il reticolo è generato da uno script, in proiezione gnomonica centrata su Boote
 ### Fascia vuoto
 Fondo `vuoto` con una grana a rumore frattale al 13%. Porta i dati d'uso (tabella degli eventi, parole barrate di ciò che non esce mai, comandi da copiare) e la chiusura con il pulsante chiaro. I comandi qui sono piatti, con un bordo e senza raggio.
 
-### Schermate dei casi d'uso
-Quattro finestre piccole in fila sotto il confronto chat e Claude Code, con il testo a 0,74 rem. Sotto ognuna una didascalia di una riga che comincia col nome del caso in grassetto.
-
 ### Schema dell'harness
 Tre cerchi concentrici: fuori `cielo` con bordo `azione` (Arturo), in mezzo bianco con bordo `inchiostro` (Claude Code), dentro `inchiostro` pieno (il modello). I nomi corrono lungo gli archi in voce stretta maiuscola. Un punto `stella` sull'anello esterno è Arturo. È l'unico posto dove il cerchio fa da forma.
 
 ### Articoli e iscrizione
-Quattro colonne separate da filetti `filetto`, sotto un filetto `inchiostro`: data in voce stretta, titolo in Archivo 1,3 rem, sommario. L'elenco nella pagina è di riserva e lo rinfresca `strumenti/articoli.py`; nel browser lo sostituisce la Content API di Ghost. L'iscrizione è il modulo di Ghost (`sito/vendor/`), con il pulsante `azione`.
+Un elenco di quattro righe sotto un filetto `inchiostro`: data in voce stretta, titolo in Archivo 1,15 rem. Accanto, l'iscrizione. L'elenco nella pagina è di riserva e lo rinfresca `strumenti/articoli.py`; nel browser lo sostituisce la Content API di Ghost. L'iscrizione è il modulo di Ghost (`sito/vendor/`), con il pulsante `azione`.
+
+### Sotto il cofano
+Le parti tecniche (comandi, skill, memoria, dipendenze, telemetria, impegni) stanno in voci chiuse con lo stesso stile delle Domande: si aprono una alla volta. La home resta corta, e il dettaglio c'è per chi lo cerca.
 
 ### Guida a tappe
 Ogni tappa ha una boa quadrata di 40 px. La tappa corrente ha la boa piena `azione` e un velo `azione-velo` che sfuma verso destra. La tappa fatta ha la boa con bordo `passa` e una spunta. Il passo si apre con una piega di 0,5 s sulla curva `--esce`.
