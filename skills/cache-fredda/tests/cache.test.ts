@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { avviso, cacheFredda, SOGLIA_TOKEN, TTL_ABBONAMENTO, TTL_CREDITI, ttlDa } from '../hooks/cache'
+import { avvisi, avviso, cacheFredda, cartelleGws, leggiBanchi, SEGNALI_VUOTI, SOGLIA_TOKEN, tokenBuono, TTL_ABBONAMENTO, TTL_CREDITI, ttlDa } from '../hooks/cache'
 import type { Cache } from '../types'
 
 describe('cache fredda', () => {
@@ -30,5 +30,47 @@ describe('cache fredda', () => {
   test("l'avviso dice quanti token riscrive, e tace se la cache è calda", () => {
     expect(avviso({ ...pesante, fredda: true })).toContain('riscrive 120k token')
     expect(avviso(pesante)).toBeUndefined()
+  })
+})
+
+describe('banchi rossi', () => {
+  test('esito rosso col numero di FAIL', () => {
+    expect(leggiBanchi('ROSSO\n=== gate: 1 FAIL (rc 1) ===\n')).toEqual({ rosso: true, riassunto: '1 FAIL' })
+  })
+  test('esito rosso senza conteggio, esito verde, file illeggibile', () => {
+    expect(leggiBanchi('ROSSO\n')).toEqual({ rosso: true, riassunto: 'rossi' })
+    expect(leggiBanchi('VERDE\n=== gate: tutto verde ===')).toEqual({ rosso: false, riassunto: 'verdi' })
+    expect(leggiBanchi('')).toBeNull()
+  })
+})
+
+describe('token gws in errore', () => {
+  test('le cartelle di gws: quella di default e una per account', () => {
+    expect(cartelleGws(['gws-personale', 'git', 'gws', 'gws-lavoro', 'gwsx', 'gh'])).toEqual(['gws', 'gws-lavoro', 'gws-personale'])
+  })
+  test('token buono solo con refresh token e token valido', () => {
+    expect(tokenBuono(0, 'banner\n{"has_refresh_token": true, "token_valid": true}')).toBe(true)
+    expect(tokenBuono(0, '{"has_refresh_token": true, "token_valid": false}')).toBe(false)
+    expect(tokenBuono(0, '{"has_refresh_token": false, "token_valid": true}')).toBe(false)
+    expect(tokenBuono(1, '{"has_refresh_token": true, "token_valid": true}')).toBe(false)
+    expect(tokenBuono(0, 'niente JSON')).toBe(false)
+  })
+})
+
+describe('avvisi sotto il prompt: solo eccezioni', () => {
+  const calda: Cache = { ultimo: 1, tokens: 120_000, ttlMs: TTL_ABBONAMENTO, fredda: false }
+  test('tutto in regola: nessuna riga', () => {
+    expect(avvisi(calda, SEGNALI_VUOTI)).toBeUndefined()
+    expect(avvisi(calda, { banchi: { rosso: false, riassunto: 'verdi' }, gwsKo: [] })).toBeUndefined()
+  })
+  test('banchi rossi e gws in errore nella stessa riga', () => {
+    const r = avvisi(calda, { banchi: { rosso: true, riassunto: '1 FAIL' }, gwsKo: ['gws-lavoro'] })
+    expect(r).toContain('banchi 1 FAIL')
+    expect(r).toContain('gws: login da rifare per gws-lavoro')
+  })
+  test('la cache fredda resta il primo avviso', () => {
+    const r = avvisi({ ...calda, fredda: true }, { banchi: null, gwsKo: ['gws'] }) ?? ''
+    expect(r.startsWith('cache fredda')).toBe(true)
+    expect(r).toContain('gws: login da rifare per gws')
   })
 })

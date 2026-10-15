@@ -64,6 +64,9 @@ dell'organizzazione nella prima riga di ogni blocco.
    - **due** lavori che si ripetono ogni settimana o ogni mese → due skill, copiando
      `plugins/strato/skills/modello-lavoro/` con un nome nuovo e togliendo
      `disable-model-invocation`;
+     se servono spunti, `esempi/` nella cartella dello strato ha tre esempi da adattare: una
+     skill di posta (bozza, inviata, regola di voce), una di recap delle riunioni e un'anteprima
+     prima dell'invio con le regole in un file;
    - cosa non deve mai uscire dal computer senza una conferma (progetti riservati, cartelle,
      domini interni) → `plugins/strato/dati-riservati.txt`. Mai password o token in questo file:
      è letto da tutti i colleghi.

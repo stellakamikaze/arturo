@@ -1,0 +1,8 @@
+{
+  "name": "apri",
+  "version": "0.1.0",
+  "description": "/apri apre l'ultimo link o file citato nelle risposte con il programma predefinito del sistema; /apri 2, /apri <parola>, /apri lista",
+  "author": {
+    "name": "Arturo"
+  }
+}
