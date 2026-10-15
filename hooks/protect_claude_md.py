@@ -20,9 +20,9 @@ Tre categorie, ognuna con un unlock per-sessione distinto:
     -> unlock: touch ~/.claude/config-unlock-{session_id}
 
 Motivo della categoria config/hook: senza questo, sotto defaultMode auto o acceptEdits
-un'iniezione puo' riscrivere settings.json o disattivare un hook via tool Edit/Write
+un'iniezione può riscrivere settings.json o disattivare un hook via tool Edit/Write
 senza alcun prompt, neutralizzando ogni altra guardia. Il vettore shell
-(sed -i, >, cp...) e' coperto separatamente da block-dangerous.py.
+(sed -i, >, cp...) è coperto separatamente da block-dangerous.py.
 
 L'unlock (deny + istruzioni, non hard-deny in settings.json) preserva le
 modifiche legittime: chiedi conferma all'utente, crea il touch file, riprova.
@@ -68,7 +68,7 @@ def _budget():
 
 
 def _righe_dopo(path, ti):
-    """Numero di righe del file come sara' dopo Write, Edit o MultiEdit."""
+    """Numero di righe del file come sarà dopo Write, Edit o MultiEdit."""
     if isinstance(ti.get('content'), str):
         testo = ti['content']
     else:
@@ -207,7 +207,7 @@ def main():
                 sys.exit(0)
             _emit("deny", (
                 f"File di config/hook di Claude Code protetto ({os.path.basename(rp)}). "
-                "Modificarlo puo' disattivare le guardie di sicurezza. Per procedere: "
+                "Modificarlo può disattivare le guardie di sicurezza. Per procedere: "
                 "1) chiedi conferma esplicita all'utente. "
                 f"2) esegui: touch ~/.claude/config-unlock-{safe_id} "
                 "3) riprova la modifica."

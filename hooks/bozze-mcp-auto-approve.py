@@ -2,8 +2,8 @@
 """PreToolUse (mcp__.*draft.*): una BOZZA creata via MCP non chiede conferma, un invio si'.
 
 L'ask di settings.json `mcp__*__*send*` ferma anche `slack_send_message_draft`, che
-crea solo una bozza: il flusso draft-first vuole che la bozza non chieda mai, perche'
-e' il passo in cui la persona legge il testo prima di decidere. Questo hook approva
+crea solo una bozza: il flusso draft-first vuole che la bozza non chieda mai, perché
+è il passo in cui la persona legge il testo prima di decidere. Questo hook approva
 gli strumenti MCP di qualunque collegamento che preparano una bozza (`create_draft`,
 `*_draft`, `update_draft`) e tace su tutto il resto: l'invio di una bozza
 (`send_draft`, `drafts_send`), la pubblicazione, la cancellazione e l'inoltro restano
@@ -15,7 +15,7 @@ import json
 import re
 import sys
 
-# Lo strumento deve FINIRE con draft/drafts: la bozza e' il risultato. La parola
+# Lo strumento deve FINIRE con draft/drafts: la bozza è il risultato. La parola
 # subito prima dice cosa fa: `create_draft`, `update_draft`, `slack_send_message_draft`
 # preparano; `send_draft`, `publish_draft`, `delete_draft` agiscono. Un nome che non
 # finisce con draft (`create_draft_and_send`, `drafts_send`) non riceve l'allow.

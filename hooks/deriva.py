@@ -83,7 +83,7 @@ def categorie_config(radice: Path) -> list:
             fuori.add("rotta-settings")
         elif riga.startswith("hook mancante"):
             fuori.add("rotta-hook")
-        elif "lasciato a meta'" in riga:
+        elif "lasciato a metà" in riga:
             fuori.add("rotta-rebase")
         else:
             fuori.add("rotta-conflitto")

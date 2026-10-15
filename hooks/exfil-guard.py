@@ -22,7 +22,7 @@ Gli scanner PostToolUse (credential-leak) restano come secondo layer detective.
 Host interni: localhost, le reti locali (INTERNAL_NETS) e le voci di
 hooks/hosts-interni.local. API esterne fidate: le voci di hooks/api-fidate.local,
 un nome host per riga, vuoto di default. Un POST verso un servizio che usi per
-lavoro con la sua chiave (la tua fatturazione, il tuo CRM) e' lavoro, non
+lavoro con la sua chiave (la tua fatturazione, il tuo CRM) è lavoro, non
 esfiltrazione. Entrambi i file sono ignorati da git: restano tuoi.
 
 Il dispatcher passa in COMMS_REDUCED il comando senza gli heredoc scritti su file
@@ -65,7 +65,7 @@ URL = re.compile(r'https?://[^\s"\']+', re.IGNORECASE)
 def _leggi_host_locali(path: Path):
     """Legge hosts-interni.local: una voce per riga, # commento, righe vuote ignorate.
 
-    Una voce accettata da ip_network(strict=False) e' una rete, altrimenti e' un
+    Una voce accettata da ip_network(strict=False) è una rete, altrimenti è un
     hostname (minuscolo, senza punto finale). Voci non plausibili (spazi interni,
     '/' in un non-CIDR) si ignorano. File assente o illeggibile: nessuna voce.
     Lettura una volta per esecuzione.
@@ -82,7 +82,7 @@ def _leggi_host_locali(path: Path):
             except ValueError:
                 rete = None
             if rete is not None:
-                # Una rete piu' larga di /8 renderebbe fidata mezza internet: si ignora.
+                # Una rete più larga di /8 renderebbe fidata mezza internet: si ignora.
                 if rete.prefixlen >= 8:
                     reti.append(rete)
                 continue
@@ -112,7 +112,7 @@ def _internal_host(host: str | None) -> bool:
         addr = ipaddress.ip_address(normalized.split("%", 1)[0])
     except ValueError:
         return False
-    # ::ffff:8.8.8.8 e' l'IPv4 8.8.8.8: si giudica quello.
+    # ::ffff:8.8.8.8 è l'IPv4 8.8.8.8: si giudica quello.
     if addr.version == 6 and addr.ipv4_mapped is not None:
         addr = addr.ipv4_mapped
     return any(addr.version == network.version and addr in network for network in INTERNAL_NETS + LOCAL_NETS)
@@ -120,7 +120,7 @@ def _internal_host(host: str | None) -> bool:
 
 def _leggi_api_fidate(path: Path):
     """Legge api-fidate.local: un nome host per riga, # commento. Solo nomi esatti:
-    un IP o una rete qui non vale (per quelli c'e' hosts-interni.local)."""
+    un IP o una rete qui non vale (per quelli c'è hosts-interni.local)."""
     host = set()
     try:
         for riga in path.read_text(encoding="utf-8").splitlines():
@@ -162,7 +162,7 @@ EXT_HINT = re.compile(
 )
 
 # Valori dei flag-dato di curl (payload): gli URL qui dentro sono DATI, non
-# destinazioni. Vanno rimossi prima di determinare l'host di destinazione, cosi'
+# destinazioni. Vanno rimossi prima di determinare l'host di destinazione, così
 # una POST verso host interno con URL esterni nel corpo (es. un DB interno con link
 # esterni come campi) non genera falsi positivi.
 DATA_FLAG_VAL = re.compile(
@@ -217,7 +217,7 @@ def _ask(reason=None):
             "permissionDecision": "ask",
             "permissionDecisionReason": reason or (
                 "Invio di dati (POST/upload) verso un host esterno o non "
-                "riconosciuto. Conferma solo se l'invio e' voluto "
+                "riconosciuto. Conferma solo se l'invio è voluto "
                 "(possibile esfiltrazione di credenziali/contenuti)."
             ),
         }
@@ -253,7 +253,7 @@ def main() -> int:
     # ---- Ramo A: POST/upload (comportamento storico) ----
     if POST_MARKERS.search(cmd):
         # Valuta solo l'host di DESTINAZIONE: rimuovi i valori dei flag-dato
-        # (payload) cosi' gli URL nel corpo non vengono scambiati per destinazioni.
+        # (payload) così gli URL nel corpo non vengono scambiati per destinazioni.
         dest = DATA_FLAG_VAL.sub(" ", cmd)
         ext = False
         internal_seen = False

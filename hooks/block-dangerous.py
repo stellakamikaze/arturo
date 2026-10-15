@@ -52,7 +52,7 @@ DANGEROUS = [
     # curl|bash e le sue varianti che eseguono uno script remoto scaricato al volo:
     (r"\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(bash|sh|zsh|fish|perl|ruby|node|php)\b",
      "pipe di script remoto in un interprete"),
-    # `curl ... | python3 -c "import json..."` e' parsing, non esecuzione dello stdin.
+    # `curl ... | python3 -c "import json..."` è parsing, non esecuzione dello stdin.
     # Passa solo il codice inline fra virgolette senza command-substitution ne'
     # primitive che eseguono testo. Le coppie di escape si consumano intere.
     (r"\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?python3?\b"
@@ -78,7 +78,7 @@ _CFG_SUFFIX_RE = re.compile(
     r"\.claude/(?:settings[^/]*\.json|hooks/|hooks$|\.claude\.json)",
     re.IGNORECASE,
 )
-# Operatori di scrittura shell. Il match testuale del path assoluto e' il caso base;
+# Operatori di scrittura shell. Il match testuale del path assoluto è il caso base;
 # _writes_config() sotto copre anche il target RELATIVO dopo un `cd ~/.claude/...`.
 _CFG_ABS = r"[^\s'\";|&]*\.claude/(?:settings[^/\s'\"]*\.json|hooks/|\.claude\.json)"
 CONFIG_WRITE_RE = re.compile(
@@ -100,8 +100,8 @@ CLAUDE_MD_WRITE_RE = re.compile(
 _PERSIST_ABS = (r"[^\s'\";|&]*(?:\.git/hooks/[^\s'\";|&]+|Library/LaunchAgents/[^\s'\";|&]+"
                 r"|\.config/(?:systemd/user|autostart)/[^\s'\";|&]+)")
 # Qui solo redirezione e open(): cp, tee, sed -i e gli altri binari li giudica
-# _writes_config, che sa quale argomento e' la destinazione (copiare un hook
-# altrove e' una lettura).
+# _writes_config, che sa quale argomento è la destinazione (copiare un hook
+# altrove è una lettura).
 PERSIST_WRITE_RE = re.compile(
     r"(?:>>?\s*" + _PERSIST_ABS +
     r"|open\(\s*['\"][^'\"]*(?:\.git/hooks/|Library/LaunchAgents/|\.config/(?:systemd/user|autostart)/)[^'\"]*['\"]\s*,\s*['\"][wa])"
@@ -123,7 +123,7 @@ SECRET_PATH_RE = re.compile(
 )
 
 # Check segreti PER-SEGMENTO. Chiede se un path segreto compare come ARGOMENTO
-# (non come identita' ssh) in un segmento il cui comando e' un binario di lettura
+# (non come identita' ssh) in un segmento il cui comando è un binario di lettura
 # o di trasporto, oppure se il segmento reindirizza un segreto in ingresso
 # (`< chiave`, `$(< chiave)`). Ampliato per coprire perl/ruby/nc/socat/tac/rev/
 # mapfile e la redirezione, che prima sfuggivano (chiave privata leggibile/inviata
@@ -180,10 +180,10 @@ _GREP_OPT_CON_ARG = frozenset(("-A", "-B", "-C", "-m", "-d", "-D", "--context", 
 
 
 def _senza_pattern(binario: str, args: list) -> list:
-    """Toglie il pattern di grep o lo script di sed: e' testo, non un file letto.
+    """Toglie il pattern di grep o lo script di sed: è testo, non un file letto.
 
     `grep -e P` e `sed -e S` hanno il pattern esplicito, e allora nessun
-    argomento posizionale e' pattern. `grep -f F` e `sed -f F` LEGGONO F: resta.
+    argomento posizionale è pattern. `grep -f F` e `sed -f F` LEGGONO F: resta.
     """
     if binario not in ("grep", "egrep", "fgrep", "rg", "sed"):
         return args
@@ -215,8 +215,8 @@ def _senza_pattern(binario: str, args: list) -> list:
 
 _SHELLS = _fc.SHELL
 # La cartella nominata senza slash finale (`find ~/.aws | xargs cat`): SECRET_PATH_RE
-# vuole lo slash, perche' per un cat diretto il nome della cartella non e' una lettura.
-# Per xargs e -exec invece la cartella e' la sorgente dei file letti.
+# vuole lo slash, perché per un cat diretto il nome della cartella non è una lettura.
+# Per xargs e -exec invece la cartella è la sorgente dei file letti.
 _SECRET_DIR_RE = re.compile(r"(\.ssh|\.gnupg|\.secrets|\.aws)(?=[\s'\"/*]|$)")
 
 
@@ -273,7 +273,7 @@ def _reads_secret_flat(cmd: str) -> bool:
         while j < len(parole):
             t = parole[j]
             if t == "-i" and grep:
-                j += 1  # per grep -i e' "ignora maiuscole", senza argomento
+                j += 1  # per grep -i è "ignora maiuscole", senza argomento
                 continue
             if t == "-i" and j + 1 < len(parole):
                 j += 2  # identita' ssh/scp/rsync (o suffix sed -i: mai un segreto)
@@ -298,9 +298,9 @@ BARE_TARGETS = {".", "./", "*", ".*", "*.*", "./*", ".//"}
 # --- sed che SCRIVE col comando `w` -> ask ---
 # Il comando `w` di sed scrive su file anche sotto `-n`, e anche come flag di `s///`:
 # `sed -n 'w ~/.zshrc' x` sovrascrive .zshrc aggirando il deny Edit(~/.zshrc).
-# Il carattere prima di `w` e' "non alfanumerico" per coprire l'apice di 'w file',
+# Il carattere prima di `w` è "non alfanumerico" per coprire l'apice di 'w file',
 # lo spazio di `; w file` e lo slash di `s/a/b/w file`. `[^|&]*` non attraversa una
-# pipe, cosi' `sed -n p x | grep w foo` non matcha.
+# pipe, così `sed -n p x | grep w foo` non matcha.
 SED_WRITE_RE = re.compile(r"(^|[\s;&|])sed\s[^|&]*[^A-Za-z0-9]w\s+[^\s|;&]")
 _SED_SCRIPT_W = re.compile(r"(^|[^A-Za-z0-9])w\s+[^\s|;&]")
 
@@ -388,7 +388,7 @@ def _expand_vars(t):
                 return m.group(3)
             return val
         return val if val is not None else m.group(0)
-    for _ in range(3):  # il default puo' contenere a sua volta una variabile (${X:-$HOME/..})
+    for _ in range(3):  # il default può contenere a sua volta una variabile (${X:-$HOME/..})
         t2 = _VAR_RE.sub(rep, t)
         if t2 == t:
             break
@@ -444,7 +444,7 @@ def _under_claude_config(p):
 
 
 def _is_persistenza(p):
-    """True se il path reale e' un git hook o un file di avvio automatico."""
+    """True se il path reale è un git hook o un file di avvio automatico."""
     if not p:
         return False
     if (os.sep + ".git" + os.sep + "hooks" + os.sep) in p or p.endswith(os.sep + ".git" + os.sep + "hooks"):
@@ -482,8 +482,8 @@ def _writes_config(command, cwd, protetto=None):
             cwd_decl = _resolve(toks[1], cwd_decl or cwd)
             continue
         base_cwd = cwd_decl or cwd
-        # `git log --output=...` scrive quanto una redirezione: non puo' saltare
-        # il controllo soltanto perche' il binario si chiama git.
+        # `git log --output=...` scrive quanto una redirezione: non può saltare
+        # il controllo soltanto perché il binario si chiama git.
         for index, token in enumerate(toks):
             output = None
             if token.startswith("--output="):
@@ -520,7 +520,7 @@ def _temporaneo(p):
     """True per i path di file temporanei del sistema: /tmp, /private/tmp, /var/folders, $TMPDIR."""
     h = _home()
     if p == h or p.startswith(h.rstrip("/") + "/"):
-        return False  # la home non e' mai un'area temporanea, ovunque stia
+        return False  # la home non è mai un'area temporanea, ovunque stia
     radici = ["/tmp", "/private/tmp", "/var/folders", "/private/var/folders"]
     tmpdir = os.environ.get("TMPDIR", "").rstrip("/")
     if tmpdir:
@@ -529,7 +529,7 @@ def _temporaneo(p):
 
 
 def _rigenerabile(p):
-    """True se il path e' una cartella che si ricrea da sola, o sta dentro una di esse."""
+    """True se il path è una cartella che si ricrea da sola, o sta dentro una di esse."""
     parti = p.replace("\\", "/").split("/")
     return any(parte in RIGENERABILI for parte in parti)
 
@@ -557,8 +557,8 @@ def _rm_segments(command):
 
     I comandi si leggono con forma_comando.programmi: `rm` col path completo, in
     una subshell o in un blocco `{ }`, dopo `then`/`do`, dietro un wrapper o dentro
-    `sh -c` ed `eval` e' lo stesso `rm`. Il testo di un heredoc quotato verso python
-    o cat non e' un comando. `xargs rm -r` ha bersagli che arrivano da stdin.
+    `sh -c` ed `eval` è lo stesso `rm`. Il testo di un heredoc quotato verso python
+    o cat non è un comando. `xargs rm -r` ha bersagli che arrivano da stdin.
     """
     forma = _forma()
     out = []
@@ -654,7 +654,7 @@ def main() -> int:
     # 2b) Creazione di un file di unlock -> ask (sbloccherebbe l'auto-modifica)
     if UNLOCK_RE.search(testo) and "claude-md-unlock" in testo and "config-unlock" not in testo:
         return _ask(
-            "Sblocco della modifica di CLAUDE.md per questa sessione: Claude potra' "
+            "Sblocco della modifica di CLAUDE.md per questa sessione: Claude potrà "
             "cambiare le istruzioni che segue. Conferma se sei tu ad aver chiesto la modifica."
         )
     if UNLOCK_RE.search(testo):
@@ -676,7 +676,7 @@ def main() -> int:
         return _ask(
             "sed scrive su file col comando `w` (vale anche sotto -n e come flag "
             "di s///): il file indicato viene sovrascritto. Conferma solo se la "
-            "scrittura e' voluta."
+            "scrittura è voluta."
         )
 
     # 4) Docker distruttivo su volumi -> ask
@@ -688,7 +688,7 @@ def main() -> int:
 
     # 5) rm ricorsivo -> ask, tranne cartelle rigenerabili e file temporanei.
     # Chi usa Arturo spesso non programma: una cartella di capitoli o i Documenti
-    # valgono quanto la config, e sul terminale non c'e' cestino.
+    # valgono quanto la config, e sul terminale non c'è cestino.
     try:
         for targets, cwd_decl in _rm_segments(command):
             if targets is None:
@@ -716,7 +716,7 @@ def main() -> int:
                 if not (_rigenerabile(p) or _temporaneo(p)):
                     return _ask(
                         f"rm ricorsivo su una cartella ({p}). Dal terminale non passa "
-                        "dal cestino: se dentro c'e' lavoro tuo, lo perdi. Conferma solo "
+                        "dal cestino: se dentro c'è lavoro tuo, lo perdi. Conferma solo "
                         "se vuoi davvero cancellarla."
                     )
     except Exception:

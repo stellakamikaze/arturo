@@ -11,6 +11,21 @@ modo di lavorare.
 
 ---
 
+## 2026-10-15 — Gmail, Calendar e Drive senza Google Cloud, e guardie con gli accenti
+
+**Cosa cambia**: per collegare la posta, il calendario e i documenti non serve più creare un
+progetto su Google Cloud. `/inizio gws` ti propone prima i connettori di claude.ai: li attivi dal
+browser, riapri Claude Code e ci sono. La strada vecchia resta per chi usa più account Google. In
+più i messaggi delle guardie scrivono «c'è» e «già» con gli accenti veri, non con l'apostrofo.
+
+**Il principio dietro**: il primo collegamento deve stare nei cinque minuti. Se costa un'ora di
+pagine in inglese, chi comincia si ferma lì.
+
+**A chi serve**: a chi non ha ancora collegato Google. Scrivi `/inizio gws` dopo il prossimo
+`/aggiorna`.
+
+---
+
 ## 2026-10-15 — Guardie che non perdono il filo, e il brief su ogni richiesta
 
 **Cosa cambia**: una review di Arturo ha trovato comandi che la shell esegue e che le guardie non

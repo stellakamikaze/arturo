@@ -4,7 +4,7 @@ Emoji checker hook for Claude Code.
 Detects emojis in edited files and asks Claude to remove them.
 
 Guarda solo il testo appena scritto dal tool (new_string di Edit e MultiEdit, content di Write,
-new_source di NotebookEdit), non il file intero: un'emoji che c'era gia', messa da una persona,
+new_source di NotebookEdit), non il file intero: un'emoji che c'era già, messa da una persona,
 non fa riscrivere a Claude righe che non ha toccato.
 """
 import json
@@ -94,7 +94,7 @@ try:
         sys.exit(0)
 
     # Solo codice e config. Un testo dell'utente (nota, articolo, newsletter in .md o
-    # .txt) e' suo: le emoji che ci mette restano. Prima l'hook faceva riscrivere a
+    # .txt) è suo: le emoji che ci mette restano. Prima l'hook faceva riscrivere a
     # Claude anche quelli.
     CODE_EXT = {'.py', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.sh', '.bash',
                 '.zsh', '.json', '.yml', '.yaml', '.toml', '.ini', '.cfg', '.css',
@@ -119,8 +119,8 @@ try:
         if emojis_found:
             sample = ', '.join(emojis_found[:3])
             # PostToolUse hook: feedback a Claude via stderr + exit code 2.
-            # (permissionDecision/deny e' sintassi PreToolUse e non si applica
-            # a un'azione gia' avvenuta.)
+            # (permissionDecision/deny è sintassi PreToolUse e non si applica
+            # a un'azione già avvenuta.)
             print(
                 f"Emoji nel testo appena scritto in {fp}: {sample}. "
                 "Nel codice sostituiscile con testo come [X], [OK], [ATTENZIONE].",

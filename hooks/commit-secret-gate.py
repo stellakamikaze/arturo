@@ -6,7 +6,7 @@ confidenza nelle righe aggiunte. Se trovati -> ask (non blocco: evita di rompere
 commit legittimi; l'utente decide). Usa un set curato di pattern per minimizzare
 i falsi positivi (NO "password=..." generico che matcha codice/test).
 
-I leak in un commit sono irreversibili una volta pushati: questo e' l'unico
+I leak in un commit sono irreversibili una volta pushati: questo è l'unico
 layer PREVENTIVO (gli scanner PostToolUse avvisano a cose fatte).
 
 Fail-open su qualsiasi errore. Legge cwd dal payload per lanciare git nel repo giusto.
@@ -24,7 +24,7 @@ import sys
 
 
 def _stdin_timeout(signum, frame):
-    # 9/10/2026: un gate che scade e tace e' un gate spento (git lento, disco freddo).
+    # 9/10/2026: un gate che scade e tace è un gate spento (git lento, disco freddo).
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask",
                       "permissionDecisionReason": "Scansione dei segreti nel commit scaduta: conferma prima di proseguire."}}))
     sys.exit(0)
@@ -125,7 +125,7 @@ def _repo_for_command(command: str, cwd: str):
     Restituisce il percorso, None se non risolvibile (-> ask), oppure False se
     nessun `git commit` viene eseguito davvero (il pattern ha visto la parola
     in un messaggio o in un heredoc). Il parsing rispetta le virgolette: un
-    messaggio di commit su piu' righe non spezza il comando.
+    messaggio di commit su più righe non spezza il comando.
     """
     location = os.path.abspath(cwd)
     variables: dict = {}
@@ -262,7 +262,7 @@ def main() -> int:
 
     # `git commit -a/--all` mette in stage i file tracciati modificati DURANTE il
     # commit: al momento di questo check (PreToolUse) l'index non li contiene ancora,
-    # quindi il solo `diff --cached` mancherebbe un secret in un file gia' tracciato.
+    # quindi il solo `diff --cached` mancherebbe un secret in un file già tracciato.
     commit_all = bool(re.search(r"\bcommit\b[^|;&]*\s-{1,2}(a\b|all\b|[a-zA-Z]*a[a-zA-Z]*\b)", command))
     add_prima = bool(re.search(r"\bgit\b[^;&|\n]*\sadd\b", command))
     try:
@@ -299,7 +299,7 @@ def main() -> int:
             "permissionDecision": "ask",
             "permissionDecisionReason": (
                 "Possibile secret nel diff staged: " + ", ".join(uniq[:5]) + ". "
-                "Un leak pushato e' irreversibile. Conferma solo dopo aver "
+                "Un leak pushato è irreversibile. Conferma solo dopo aver "
                 "verificato che non sia una credenziale reale."
             ),
         }

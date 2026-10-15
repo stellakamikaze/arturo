@@ -36,7 +36,7 @@ except Exception:
             return False
 
 # Valore di -m / --message: git non lo esegue, e un messaggio di commit che CITA
-# un comando non e' quel comando. Restano i messaggi con command-substitution.
+# un comando non è quel comando. Restano i messaggi con command-substitution.
 _MESSAGGIO = re.compile(r"(?:^|\s)(?:-m|--message)[= ]\s*(['\"])((?:(?!\1).)*)\1", re.DOTALL)
 
 
@@ -44,9 +44,9 @@ def testo_shell(command: str) -> str:
     """Il comando senza il testo che la shell non legge come comandi.
 
     Toglie il corpo degli heredoc col delimitatore TRA VIRGOLETTE diretti a un
-    comando che non e' una shell (python, cat, tee): la shell non lo espande e non
-    lo esegue, quindi un `cat <segreto>` scritto li' dentro e' testo, non una
-    lettura. Un heredoc senza virgolette resta, perche' la shell ne espande le
+    comando che non è una shell (python, cat, tee): la shell non lo espande e non
+    lo esegue, quindi un `cat <segreto>` scritto lì dentro è testo, non una
+    lettura. Un heredoc senza virgolette resta, perché la shell ne espande le
     `$(...)`. Toglie anche i messaggi -m/--message privi di command-substitution.
     """
     # Un corpo verso bash, sh, ssh (anche `cat <<'EOF' | bash`) resta: la shell lo esegue.
@@ -120,7 +120,7 @@ def programmi(cmd: str, profondita: int = 0):
             if t in _DAVANTI or _ASSEGNAZIONE.match(t):
                 i += 1
             elif re.match(r"^\d*[<>]", t):
-                # redirezione in testa (`<file`, `2>`, `$(<file)`): non e' un programma
+                # redirezione in testa (`<file`, `2>`, `$(<file)`): non è un programma
                 i += 1 if len(t.lstrip("0123456789<>&")) else 2
             elif _nome(t) in _WRAPPER:
                 i += 1
@@ -128,7 +128,7 @@ def programmi(cmd: str, profondita: int = 0):
                     i += 1
             else:
                 break
-        # `2>&1` si spezza in `2>`, `&`, `1`: un numero da solo non e' un programma.
+        # `2>&1` si spezza in `2>`, `&`, `1`: un numero da solo non è un programma.
         if i >= len(toks) or toks[i] in _INTESTAZIONI or toks[i].isdigit():
             continue
         prog, args = _nome(toks[i]), toks[i + 1:]
@@ -149,7 +149,7 @@ def _ricorsivo(args) -> bool:
 # Claude Code chiede conferma a ogni scrittura via shell sotto ~/.claude, anche per
 # salvare un handoff o una memoria. Il ramo approva da solo SOLO questi comandi:
 #   - ogni percorso ~/.claude nominato sta in data/handoffs/ o in projects/<p>/memory/;
-#   - ogni file scritto (redirezione, tee, touch, mkdir, destinazione di cp e mv) sta li';
+#   - ogni file scritto (redirezione, tee, touch, mkdir, destinazione di cp e mv) sta lì;
 #   - i programmi sono di una lista breve, senza rete, senza cancellazioni, senza shell;
 #   - nel testo eseguito non compaiono settings, hooks, unlock, CLAUDE.md, credenziali,
 #     variabili (tranne HOME), sostituzioni $( ) o percorsi con `..`.
@@ -236,7 +236,7 @@ def ammesso_ramo_memoria(cmd: str, cwd: str = "") -> bool:
     corrente = cwd
     for toks in segmenti_parole(testo):
         parole, bersagli = _senza_redirezioni(toks)
-        # Le redirezioni scrivono: ogni bersaglio sta nella zona (o e' /dev/null).
+        # Le redirezioni scrivono: ogni bersaglio sta nella zona (o è /dev/null).
         for bersaglio in bersagli:
             if bersaglio.startswith("&") or bersaglio == "/dev/null":
                 continue
@@ -274,9 +274,9 @@ def ammesso_ramo_memoria(cmd: str, cwd: str = "") -> bool:
 
 
 def git_puro(cmd: str) -> bool:
-    """Vero se ogni comando eseguito e' git o cd. Le virgolette si leggono come
+    """Vero se ogni comando eseguito è git o cd. Le virgolette si leggono come
     le legge bash: un apostrofo dentro le doppie non apre una stringa. Virgolette
-    che non tornano: non e' git puro."""
+    che non tornano: non è git puro."""
     import shlex
     try:
         lexer = shlex.shlex(cmd, posix=True, punctuation_chars=";&|()\n")

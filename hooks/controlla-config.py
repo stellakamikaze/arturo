@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """Controlla che la config di Arturo sia integra dopo un aggiornamento.
 
-Claude Code scarta un settings.json che non e' JSON valido, e con lui i deny e
+Claude Code scarta un settings.json che non è JSON valido, e con lui i deny e
 gli hook: una config rotta spegne tutte le guardie senza dire niente. Questo
 controllo lo usano /inizio, /aggiorna, /fine e l'avvio della sessione.
 
 Controlla:
-  - settings.json e' JSON valido;
+  - settings.json è JSON valido;
   - ogni script citato da un hook di settings.json e settings.local.json esiste:
     `python3 file-mancante.py` esce con 2, e su PreToolUse il 2 blocca ogni azione;
-  - nessun rebase o merge lasciato a meta';
+  - nessun rebase o merge lasciato a metà;
   - nessun file in conflitto e nessun marcatore di conflitto nei file tracciati.
 
-Uscita: 0 se la config e' integra, 1 se c'e' un problema (una riga per problema
-su stdout). Con --quiet non stampa nulla quando e' tutto a posto.
+Uscita: 0 se la config è integra, 1 se c'è un problema (una riga per problema
+su stdout). Con --quiet non stampa nulla quando è tutto a posto.
 """
 from __future__ import annotations
 
@@ -60,13 +60,13 @@ def problemi(radice):
                 dati = json.load(f)
         except Exception as errore:
             if nome == "settings.json":
-                trovati.append(f"settings.json non e' JSON valido ({errore}): Claude Code lo ignora e le guardie sono spente")
+                trovati.append(f"settings.json non è JSON valido ({errore}): Claude Code lo ignora e le guardie sono spente")
             else:
-                trovati.append(f"settings.local.json non e' JSON valido ({errore}): Claude Code lo ignora")
+                trovati.append(f"settings.local.json non è JSON valido ({errore}): Claude Code lo ignora")
             continue
         if isinstance(dati, dict):
             for evento, relativo in script_mancanti(radice, dati):
-                trovati.append(f"hook mancante: {nome} lancia ~/.claude/{relativo} su {evento}, ma il file non c'e'")
+                trovati.append(f"hook mancante: {nome} lancia ~/.claude/{relativo} su {evento}, ma il file non c'è")
 
     rc, _ = git(radice, "rev-parse", "--git-dir")
     if rc != 0:
@@ -75,7 +75,7 @@ def problemi(radice):
         rc, percorso = git(radice, "rev-parse", "--git-path", nome)
         percorso = percorso.strip()
         if rc == 0 and percorso and os.path.exists(os.path.join(radice, percorso) if not os.path.isabs(percorso) else percorso):
-            trovati.append(f"{cosa} lasciato a meta': per tornare a prima esegui `git -C {radice} {cosa} --abort`")
+            trovati.append(f"{cosa} lasciato a metà: per tornare a prima esegui `git -C {radice} {cosa} --abort`")
             break
     _, conflitti = git(radice, "diff", "--name-only", "--diff-filter=U")
     for file in conflitti.split():

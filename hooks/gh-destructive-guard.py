@@ -81,7 +81,7 @@ def main() -> int:
         if re.search(pat, cmd, re.IGNORECASE):
             sys.stderr.write(
                 f"Bloccato: {why}. Operazione irreversibile/sensibile: "
-                "eseguila manualmente in un terminale se e' intenzionale.\n"
+                "eseguila manualmente in un terminale se è intenzionale.\n"
             )
             return 2
 

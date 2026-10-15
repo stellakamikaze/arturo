@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """PreToolUse(Bash) hook: gate sulle operazioni DATI irreversibili.
 
-Copre i buchi NON gestiti da block-dangerous.py (che gia' fa rm/config/segreti/
+Copre i buchi NON gestiti da block-dangerous.py (che già fa rm/config/segreti/
 docker-volume-rm) ne' da comms/exfil. Bersaglio: gli errori classici sui dati —
 DB sovrascritto, sync nella direzione sbagliata, dismissione stack senza dump
 verificato.
@@ -13,12 +13,12 @@ per rm su tree protetti).
 
 Casi coperti:
 - SQL distruttivo: DROP TABLE/DATABASE/SCHEMA, TRUNCATE, DELETE FROM senza WHERE
-  (solo se c'e' un client DB nel comando: mysql/psql/sqlite3/mariadb/mongo...).
+  (solo se c'è un client DB nel comando: mysql/psql/sqlite3/mariadb/mongo...).
   Un WHERE dentro una stringa SQL tra apici ('WHERE') non conta come clausola.
 - docker compose down -v / --volumes, anche con opzioni prima di down (-f, -p)
   e nella forma docker-compose (cancella i volumi = i dati dei container)
-- rsync --delete verso una destinazione REMOTA (host:path) = puo' cancellare
-  dati sul server se la direzione e' sbagliata
+- rsync --delete verso una destinazione REMOTA (host:path) = può cancellare
+  dati sul server se la direzione è sbagliata
 - redirezione/overwrite di un file DB (> *.db / *.sqlite / *.sql.gz)
 
 Fail-open su parsing. Zero dipendenze.
@@ -59,7 +59,7 @@ def _delete_without_where(cmd: str) -> bool:
     """True se uno statement DELETE FROM non ha una clausola WHERE vera.
 
     Lo statement arriva fino al primo ';'. Le stringhe SQL tra apici singoli
-    si tolgono prima di cercare WHERE: `RETURNING 'WHERE'` non e' una clausola.
+    si tolgono prima di cercare WHERE: `RETURNING 'WHERE'` non è una clausola.
     """
     for match in DELETE_FROM_RE.finditer(cmd):
         statement = cmd[match.end():].split(";", 1)[0]
@@ -74,12 +74,12 @@ DOCKER_DOWN_VOL_RE = re.compile(
 )
 
 # rsync --delete verso destinazione remota (host:path). Il ':' con un host prima
-# indica una dest remota; --delete puo' cancellare file sul lato remoto.
+# indica una dest remota; --delete può cancellare file sul lato remoto.
 RSYNC_DELETE_REMOTE_RE = re.compile(
     r"\brsync\b[^|&;\n]*--delete\b[^|&;\n]*\s[\w.-]+@?[\w.-]+:", re.IGNORECASE
 )
 # 15/10/2026: rsync --delete citato in un heredoc che nessuno esegue, o in un dry-run,
-# non chiede. Il flag si cerca fuori dalle virgolette, cosi' `-e "ssh -n"` non vale.
+# non chiede. Il flag si cerca fuori dalle virgolette, così `-e "ssh -n"` non vale.
 RSYNC_DRY_RUN_RE = re.compile(
     r"\s(?:-(?!-)[A-Za-z]*n[A-Za-z]*|--dry-run)(?=\s|$)"
 )
@@ -144,7 +144,7 @@ def main() -> int:
     if not isinstance(cmd, str) or not cmd:
         return 0
 
-    # SQL distruttivo solo se c'e' un client DB (riduce falsi positivi)
+    # SQL distruttivo solo se c'è un client DB (riduce falsi positivi)
     if DB_CLIENT_RE.search(cmd):
         for pattern, why in SQL_DESTRUCTIVE:
             if re.search(pattern, cmd, re.IGNORECASE):
@@ -156,28 +156,28 @@ def main() -> int:
         if _delete_without_where(cmd):
             return _ask(
                 "DELETE FROM senza clausola WHERE: cancella TUTTE le righe. "
-                "Conferma solo se e' voluto (e c'e' un backup)."
+                "Conferma solo se è voluto (e c'è un backup)."
             )
 
     if DOCKER_DOWN_VOL_RE.search(cmd):
         return _ask(
             "`docker compose down -v` rimuove i VOLUMI = i dati persistenti dei "
             "container. Prima di dismettere uno stack, verifica di avere un "
-            "dump/export. Conferma solo se i dati sono gia' salvati."
+            "dump/export. Conferma solo se i dati sono già salvati."
         )
 
     if _rsync_delete_reale(cmd):
         return _ask(
-            "rsync --delete verso una destinazione REMOTA: se la direzione e' "
-            "sbagliata (local->master) puo' cancellare dati sul server. "
+            "rsync --delete verso una destinazione REMOTA: se la direzione è "
+            "sbagliata (local->master) può cancellare dati sul server. "
             "Verifica sorgente/destinazione e fai un pull/backup prima."
         )
 
     if DB_FILE_OVERWRITE_RE.search(cmd):
         return _ask(
             "Sovrascrittura di un file di database via redirezione (>). "
-            "Se e' un master, i dati precedenti vanno persi. Conferma solo se "
-            "e' voluto; usa >> per appendere o fai una copia prima."
+            "Se è un master, i dati precedenti vanno persi. Conferma solo se "
+            "è voluto; usa >> per appendere o fai una copia prima."
         )
 
     return 0

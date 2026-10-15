@@ -8,7 +8,7 @@ query-string/path di una URL verso un host esterno (es. attacker/?d=<segreto>).
 
 Decisione:
 - host interno (localhost/LAN/IP Tailscale, hosts-interni.local) -> allow (silenzioso).
-  Un nome `.ts.net` non e' interno: con Tailscale Funnel puo' essere pubblico.
+  Un nome `.ts.net` non è interno: con Tailscale Funnel può essere pubblico.
 - host esterno + URL "pulita"                             -> allow (non rompe la ricerca web normale)
 - host esterno + payload sospetto nell'URL                -> ask
     (command-substitution $()/backtick, o query mostruosa >=300 char)
@@ -54,7 +54,7 @@ CMD_SUB = re.compile(r'\$\(|`')
 def _leggi_host_locali(path: Path):
     """Legge hosts-interni.local: una voce per riga, # commento, righe vuote ignorate.
 
-    Una voce accettata da ip_network(strict=False) e' una rete, altrimenti e' un
+    Una voce accettata da ip_network(strict=False) è una rete, altrimenti è un
     hostname (minuscolo, senza punto finale). Voci non plausibili (spazi interni,
     '/' in un non-CIDR) si ignorano. File assente o illeggibile: nessuna voce.
     Lettura una volta per esecuzione.
@@ -71,7 +71,7 @@ def _leggi_host_locali(path: Path):
             except ValueError:
                 rete = None
             if rete is not None:
-                # Una rete piu' larga di /8 renderebbe fidata mezza internet: si ignora.
+                # Una rete più larga di /8 renderebbe fidata mezza internet: si ignora.
                 if rete.prefixlen >= 8:
                     reti.append(rete)
                 continue
@@ -101,7 +101,7 @@ def _internal_host(host: str | None) -> bool:
         addr = ipaddress.ip_address(normalized.split("%", 1)[0])
     except ValueError:
         return False
-    # ::ffff:8.8.8.8 e' l'IPv4 8.8.8.8: si giudica quello.
+    # ::ffff:8.8.8.8 è l'IPv4 8.8.8.8: si giudica quello.
     if addr.version == 6 and addr.ipv4_mapped is not None:
         addr = addr.ipv4_mapped
     return any(addr.version == network.version and addr in network for network in INTERNAL_NETS + LOCAL_NETS)
@@ -193,7 +193,7 @@ def main():
             return _ask(
                 "L'URL verso un host esterno contiene un payload opaco/lungo nella "
                 "query o nel path (possibile esfiltrazione di dati via GET). Conferma "
-                "solo se il link e' legittimo e voluto.",
+                "solo se il link è legittimo e voluto.",
                 data,
             )
     return 0
@@ -215,7 +215,7 @@ def _guardia_rotta(errore):
     print(json.dumps({"hookSpecificOutput": {
         "hookEventName": "PreToolUse",
         "permissionDecision": "ask",
-        "permissionDecisionReason": f"La guardia web-egress-guard.py si e' rotta ({type(errore).__name__}): "
+        "permissionDecisionReason": f"La guardia web-egress-guard.py si è rotta ({type(errore).__name__}): "
                                     "controlla l'indirizzo prima di confermare.",
     }}))
     return 0

@@ -63,12 +63,12 @@ def reduce(cmd: str) -> str:
     # Il codice di python o node resta sempre: qui si cerca codice che invia, in ogni linguaggio.
     reduced = _togli_heredoc(cmd, lambda h: h.inerte(), segnaposto="[heredoc]")
 
-    # 2) ogni segmento e' sola lettura? -> vuoto
+    # 2) ogni segmento è sola lettura? -> vuoto
     stripped = re.sub(r"'[^']*'|\"[^\"]*\"", "", reduced)
     segments = [s for s in re.split(r"\|\||&&|;|\||\n", stripped) if s.strip()]
     if segments and all(_first_bin(s) in READ_ONLY for s in segments) and not GIT_INVIA.search(stripped):
-        # eccezione: `echo ... | mail` non arriva qui (mail non e' read-only);
-        # `git commit -m "..."` era gia' git-puro nel dispatcher
+        # eccezione: `echo ... | mail` non arriva qui (mail non è read-only);
+        # `git commit -m "..."` era già git-puro nel dispatcher
         return ""
     return reduced
 

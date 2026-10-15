@@ -5,7 +5,7 @@ Type-check dopo ogni Edit/Write su un file TypeScript o Vue (PostToolUse).
 «Dopo ogni modifica verifica subito» come garanzia e non come promessa: un errore
 di tipo arriva a Claude al passo in cui lo crea, non al build di fine giornata.
 Il comando non lo inventa: lo prende dal package.json del progetto (script
-`typecheck`, altrimenti il segmento tsc/vue-tsc di `build`), cosi' il check e'
+`typecheck`, altrimenti il segmento tsc/vue-tsc di `build`), così il check è
 lo stesso gate del build. Senza package.json e tsconfig.json, o senza tsc
 installato nel progetto, tace.
 
@@ -105,17 +105,17 @@ def main():
     argv = [exe] + argv[1:]
     cache_condivisa = []
     if in_worktree(progetto) and ("-b" in argv or "--build" in argv):
-        # tsBuildInfoFile sta in node_modules/.tmp, che nel worktree e' un symlink al
+        # tsBuildInfoFile sta in node_modules/.tmp, che nel worktree è un symlink al
         # tree principale. --force ignora la cache del principale; dopo il check la
         # cache scritta dal worktree si cancella, o il principale leggerebbe un buildinfo
-        # piu' recente dei suoi sorgenti e darebbe un falso verde.
+        # più recente dei suoi sorgenti e darebbe un falso verde.
         if "--force" not in argv:
             argv.append("--force")
         cache_condivisa = [os.path.join(progetto, "node_modules", ".tmp")]
 
     ok, lock = prendi_lock(progetto)
     if not ok:
-        print("typecheck saltato: un altro check e' gia' in corso su questo progetto", file=sys.stderr)
+        print("typecheck saltato: un altro check è già in corso su questo progetto", file=sys.stderr)
         return 0
     try:
         r = subprocess.run(argv, cwd=progetto, capture_output=True, text=True, timeout=LIMITE_S)
@@ -142,7 +142,7 @@ def main():
     print(
         f"TYPECHECK ROSSO ({' '.join(os.path.basename(a) if i == 0 else a for i, a in enumerate(argv))}, in {progetto}):\n"
         f"{corpo}\n"
-        "Se sei a meta' di una modifica su piu' file, finisci e poi ricontrolla.",
+        "Se sei a metà di una modifica su più file, finisci e poi ricontrolla.",
         file=sys.stderr,
     )
     return 2

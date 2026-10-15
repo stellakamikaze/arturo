@@ -1,6 +1,28 @@
-# Onboarding gws — Google Workspace CLI multi-account
+# Collegare Gmail, Calendar e Drive
 
-Guida per collegare **più account Google** (lavoro + personale) alla CLI `gws`, ognuno con la propria directory di configurazione. Si invoca con `/inizio gws`.
+Si invoca con `/inizio gws`. Ci sono due strade. Parti sempre dalla prima.
+
+## 0. La strada semplice: i connettori di claude.ai
+
+Per chi usa un solo account Google e non ha mai creato un progetto su Google Cloud.
+
+1. Apri claude.ai nel browser, con lo stesso account con cui entri in Claude Code.
+2. Vai in Impostazioni › Connettori e attiva Gmail, Google Calendar e Google Drive. Google chiede il consenso: leggilo e accetta.
+3. Chiudi Claude Code e riaprilo. Scrivi `/mcp`: i connettori compaiono con il nome `claude.ai Gmail`, `claude.ai Google Calendar` e così via.
+4. Prova: «leggi le ultime tre email e dimmi chi mi ha scritto».
+
+Cosa sapere:
+- I connettori arrivano in Claude Code solo se entri con l'abbonamento di claude.ai. Con una chiave API non compaiono.
+- Gmail e Calendar non si aggiungono con `claude mcp add`: si collegano solo da claude.ai.
+- Se nel tuo piano non trovi i connettori, o sei in un piano Team o Enterprise dove li aggiunge solo l'amministratore, chiedi a lui oppure usa la seconda strada.
+- Le bozze non chiedono conferma. Mandare, rispondere e inoltrare la chiedono sempre: lo dice `permissions.ask` di `settings.json` (`mcp__*__*send*`, `*reply*`, `*forward*`).
+- Per spegnerli tutti: `"disableClaudeAiConnectors": true` in `settings.json`.
+
+Fonte: la pagina MCP della documentazione di Claude Code, sezione «Use MCP servers from claude.ai».
+
+## La strada avanzata: Google Workspace CLI multi-account
+
+Serve a chi lavora con **più account Google** (lavoro + personale) o vuole i comandi `gws` nel terminale. Ogni account ha la sua directory di configurazione, e serve un progetto su Google Cloud: è la parte lunga.
 
 > gws ≥ v0.22: il multi-account si fa SOLO via `GOOGLE_WORKSPACE_CLI_CONFIG_DIR` (il flag `--account` non esiste più).
 

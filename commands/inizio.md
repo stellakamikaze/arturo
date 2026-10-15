@@ -15,11 +15,14 @@ ti fermi dopo la FASE 0.
 
 ## FASE -1: Onboarding speciali
 
-Se `$ARGUMENTS` è `gws`: NON è un progetto. Leggi `~/.claude/docs/onboarding/gws.md`
-e guida l'utente passo-passo nel setup multi-account della Google Workspace CLI
-(installazione → progetti GCP → config dir → login → alias → verifica). Esegui i
-comandi verificabili, chiedi all'utente quelli interattivi (login browser). Alla
-fine esegui la checklist del documento. Poi FERMATI: le fasi sotto non si applicano.
+Se `$ARGUMENTS` è `gws`: NON è un progetto. Leggi `~/.claude/docs/onboarding/gws.md`.
+Proponi prima la strada semplice, i connettori di claude.ai (sezione 0): l'utente li
+attiva su claude.ai, riapre Claude Code e tu controlli con `/mcp` che ci siano. Passa
+alla Google Workspace CLI (installazione → progetti GCP → config dir → login → alias →
+verifica) solo se l'utente vuole più account, i comandi `gws` nel terminale, o se i
+connettori non sono disponibili per lui. Esegui i comandi verificabili, chiedi
+all'utente quelli interattivi (login browser). Alla fine esegui la checklist della
+strada scelta. Poi FERMATI: le fasi sotto non si applicano.
 
 ---
 

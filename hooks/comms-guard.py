@@ -5,7 +5,7 @@ Chiede conferma (ask) sui comandi che invierebbero email o messaggi. Backstop
 concreto per la policy draft-first: nessun invio parte senza un si' della persona.
 
 Fino al 15/10/2026 bloccava (exit 2). Il blocco insegnava al modello ad aggirare
-la regex: riscriveva il comando finche' passava. Con ask la persona vede il
+la regex: riscriveva il comando finché passava. Con ask la persona vede il
 comando reale e decide con un click; il modello non ha niente da aggirare.
 
 Lettura JSON da stdin (Claude Code PreToolUse payload).
@@ -36,7 +36,7 @@ SEND_BINARIES = [
     (r"\bmsmtp\b", "msmtp"),
     (r"\bgit\b[^|;&\n]*\b(send-email|imap-send)\b", "git send-email / imap-send"),
     (r"\bgws\b[^\n|;&]*\bmessages\s+send\b", "gws Gmail send"),
-    # gws: l'invio si ferma, la bozza no. `gws gmail +send` e' la forma piu' comune.
+    # gws: l'invio si ferma, la bozza no. `gws gmail +send` è la forma più comune.
     (r"\bgws\b.*\bgmail\b.*(?:\+send\b|\bdrafts\s+send\b)", "gws gmail (invio)"),
     # Inoltro automatico, deleghe e filtri della casella: spediscono la posta altrove
     # in silenzio, per sempre. Stesso rango di un invio.
@@ -113,8 +113,8 @@ def main() -> int:
     if matched:
         reason = (
             f"Questo comando invia una comunicazione esterna via {matched}. "
-            "Bozza prima: conferma solo se hai gia' letto il testo e vuoi inviarlo "
-            "cosi' com'e'."
+            "Bozza prima: conferma solo se hai già letto il testo e vuoi inviarlo "
+            "così com'e'."
         )
         sys.stdout.write(json.dumps({"hookSpecificOutput": {
             "hookEventName": "PreToolUse",
