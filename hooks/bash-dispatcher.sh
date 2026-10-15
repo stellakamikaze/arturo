@@ -34,7 +34,11 @@ print(hd.togli(source, lambda h: h.quotato and h.inerte()), end="")' "$HOME/.cla
 }
 
 GUARD_COMMAND=$(reduce_inert_heredocs "$COMMAND")
-GUARD_INPUT=$(printf '%s' "$INPUT" | python3 -c 'import json, sys
+# Su Windows la shell converte gli argomenti che sembrano path prima di passarli a un programma
+# nativo: `/bin/rm -rf ~/Documents` arrivava alle guardie come `C:/Program Files/.../rm` e nessuna
+# lo riconosceva. Dove l'argomento è il testo del comando la conversione si spegne. Fuori da
+# Windows MSYS2_ARG_CONV_EXCL non conta.
+GUARD_INPUT=$(printf '%s' "$INPUT" | MSYS2_ARG_CONV_EXCL='*' python3 -c 'import json, sys
 try:
     data = json.load(sys.stdin)
     data.setdefault("tool_input", {})["command"] = sys.argv[1]
@@ -48,7 +52,7 @@ unset COMMS_REDUCED
 # muore con "no matches found" prima di partire. Le parti fra virgolette, i backslash e
 # gli heredoc si mascherano prima del match: li' zsh non espande.
 if [[ "${SHELL##*/}" == zsh && "$COMMAND" == *--*=*\** ]]; then
-    _OPTGLOB=$(python3 -c 'import re,sys
+    _OPTGLOB=$(MSYS2_ARG_CONV_EXCL='*' python3 -c 'import re,sys
 c=sys.argv[1]
 if "<<" in c: sys.exit()
 out=[]; q=None; i=0
@@ -78,7 +82,7 @@ PATTERN_REMOTE='(^|[[:space:];&|(])(ssh|docker[[:space:]]+exec|kubectl[[:space:]
 # Il match si ripete sul comando con le parti fra virgolette mascherate: un
 # `git commit -m "fix; timeout 30"` non e' un timeout. Se python fallisce resta il comando intero.
 if [[ "$COMMAND" =~ $PATTERN_TIMEOUT && ! "$COMMAND" =~ $PATTERN_REMOTE ]] && ! command -v timeout &>/dev/null; then
-    _SENZAQ=$(python3 -c 'import sys
+    _SENZAQ=$(MSYS2_ARG_CONV_EXCL='*' python3 -c 'import sys
 c=sys.argv[1]; out=[]; q=None; i=0
 while i<len(c):
     ch=c[i]

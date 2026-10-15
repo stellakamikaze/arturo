@@ -125,12 +125,12 @@ SECRET_PATH_RE = re.compile(
 )
 
 # Check segreti PER-SEGMENTO. Chiede se un path segreto compare come ARGOMENTO
-# (non come identita' ssh) in un segmento il cui comando è un binario di lettura
+# (non come identità ssh) in un segmento il cui comando è un binario di lettura
 # o di trasporto, oppure se il segmento reindirizza un segreto in ingresso
 # (`< chiave`, `$(< chiave)`). Ampliato per coprire perl/ruby/nc/socat/tac/rev/
 # mapfile e la redirezione, che prima sfuggivano (chiave privata leggibile/inviata
 # senza ask). Lo scarto di `-i <key>` / `IdentityFile=` evita i falsi positivi su
-# ssh/scp -i <chiave> (identita', non lettura).
+# ssh/scp -i <chiave> (identità, non lettura).
 _READ_BINS = frozenset(
     "cat head tail less more bat xxd od strings base64 nl cut awk sed "
     "cp scp rsync dd open grep perl ruby python python3 tac rev mapfile "
@@ -278,7 +278,7 @@ def _reads_secret_flat(cmd: str) -> bool:
                 j += 1  # per grep -i è "ignora maiuscole", senza argomento
                 continue
             if t == "-i" and j + 1 < len(parole):
-                j += 2  # identita' ssh/scp/rsync (o suffix sed -i: mai un segreto)
+                j += 2  # identità ssh/scp/rsync (o suffix sed -i: mai un segreto)
                 continue
             if t.startswith("-oIdentityFile=") or t.startswith("IdentityFile="):
                 j += 1
@@ -520,14 +520,18 @@ def _writes_config(command, cwd, protetto=None):
 
 def _temporaneo(p):
     """True per i path di file temporanei del sistema: /tmp, /private/tmp, /var/folders, $TMPDIR."""
-    h = _home()
-    if p == h or p.startswith(h.rstrip("/") + "/"):
+    # Su Windows normpath scrive `\tmp\prova`: il confronto si fa sempre con le barre dritte.
+    def dritto(q):
+        return q.replace("\\", "/").rstrip("/")
+    p = dritto(p)
+    h = dritto(_home())
+    if p == h or p.startswith(h + "/"):
         return False  # la home non è mai un'area temporanea, ovunque stia
     radici = ["/tmp", "/private/tmp", "/var/folders", "/private/var/folders"]
     tmpdir = os.environ.get("TMPDIR", "").rstrip("/")
     if tmpdir:
-        radici.append(os.path.normpath(tmpdir))
-    return any(p == r or p.startswith(r.rstrip("/") + "/") for r in radici)
+        radici.append(dritto(os.path.normpath(tmpdir)))
+    return any(p == r or p.startswith(r + "/") for r in radici)
 
 
 def _rigenerabile(p):

@@ -296,7 +296,7 @@ def _sync(repo: Path, base: Path, visibilita: str, lucchetto: bool = False) -> s
     env = dict(os.environ, HOME=str(home), USERPROFILE=str(home), **GIT_ENV)
     finto = base / visibilita / "bin"
     finto.mkdir()
-    (finto / "gh").write_text(f"#!/bin/sh\necho {visibilita}\n")
+    (finto / "gh").write_text(f"#!/bin/sh\necho {visibilita}\n", encoding="utf-8")
     (finto / "gh").chmod(0o755)
     env["PATH"] = f"{finto}{os.pathsep}{env['PATH']}"
     remoto = base / visibilita / "remoto.git"

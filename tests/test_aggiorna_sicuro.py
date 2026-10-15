@@ -115,9 +115,9 @@ class Lab:
         seme = base / "seme"
         (seme / "hooks").mkdir(parents=True)
         self.cwd.mkdir(parents=True)
-        (seme / "settings.json").write_text(json.dumps({"env": {"A": "1", "B": "2", "C": "3"}}, indent=2) + "\n")
-        (seme / "NOVITA.md").write_text("# Novita\n\n## 2026-09-01 — Prima\n")
-        (seme / "hooks" / "guardia.py").write_text("blocca = True\n")
+        (seme / "settings.json").write_text(json.dumps({"env": {"A": "1", "B": "2", "C": "3"}}, indent=2) + "\n", encoding="utf-8")
+        (seme / "NOVITA.md").write_text("# Novita\n\n## 2026-09-01 — Prima\n", encoding="utf-8")
+        (seme / "hooks" / "guardia.py").write_text("blocca = True\n", encoding="utf-8")
         shutil.copy(str(repo / "hooks" / "controlla-config.py"), str(seme / "hooks" / "controlla-config.py"))
         applica = repo / "bin" / "aggiorna-applica.sh"
         if applica.exists():  # dal 12/10/2026 il Passo 3 legge la procedura dalla versione in arrivo
@@ -152,11 +152,11 @@ class Lab:
         f = cartella / file
         testo = read(f)
         assert vecchio in testo, f"prova: {vecchio} manca in {file}"
-        f.write_text(testo.replace(vecchio, nuovo))
+        f.write_text(testo.replace(vecchio, nuovo), encoding="utf-8")
 
     def pubblica(self, cartella: Path, modifiche: Dict[str, Callable[[str], str]], messaggio: str) -> None:
         for nome, fare in modifiche.items():
-            (cartella / nome).write_text(fare(read(cartella / nome)))
+            (cartella / nome).write_text(fare(read(cartella / nome)), encoding="utf-8")
         self.git(cartella, "commit", "-q", "-am", messaggio)
         self.git(cartella, "push", "-q", "origin", "main")
 
@@ -165,7 +165,7 @@ class Lab:
         finti.mkdir()
         vero = shutil.which("git", path=os.environ.get("PATH"))
         assert vero, "prova: git mancante"
-        (finti / "git").write_text(FINTO_GIT.replace("@VERO@", vero))
+        (finti / "git").write_text(FINTO_GIT.replace("@VERO@", vero), encoding="utf-8")
         (finti / "git").chmod(0o755)
         self.env.update(PATH=f"{finti}{os.pathsep}{os.environ.get('PATH', '')}", CONFLITTO_DOPO=dopo,
                         CONFLITTO_REPO=str(self.utente), CONFLITTO_FATTO=str(self.base / "conflitto-fatto"))
@@ -175,7 +175,8 @@ class Lab:
     def lancia(self, script: str) -> str:
         """Un blocco in una shell nuova, come una chiamata Bash di Claude: la cartella resta, le variabili no."""
         traccia = self.base / "cwd"
-        r = subprocess.run([self.shell, "-c", f"trap 'pwd > \"{traccia}\"' EXIT\n" + script], cwd=str(self.cwd),
+        # `pwd -W` esiste solo in Git Bash su Windows e dà la cartella in forma Windows: altrove `pwd`.
+        r = subprocess.run([shutil.which(self.shell) or self.shell, "-c", f"trap '{{ pwd -W 2>/dev/null || pwd; }} > \"{traccia}\"' EXIT\n" + script], cwd=str(self.cwd),
                            env=self.env, capture_output=True, timeout=120)
         if traccia.exists():
             self.cwd = Path(read(traccia).strip())

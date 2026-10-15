@@ -47,6 +47,9 @@ import time
 from pathlib import Path
 from unittest import mock
 
+# Su Windows "bash" per nome è quello di WSL: si prende il bash del PATH (Git Bash).
+BASH = shutil.which("bash") or "bash"
+
 OGGI = "2026-10-03"
 GIT_ENV = {
     "GIT_AUTHOR_NAME": "prova", "GIT_AUTHOR_EMAIL": "prova@example.invalid",
@@ -119,7 +122,7 @@ class Casa:
         return json.loads(self.arturo("percorso", "--json", codice=codice).stdout)
 
     def bash(self, script: str, cwd: Path, codice: str) -> subprocess.CompletedProcess:
-        r = subprocess.run(["bash", "-c", script], cwd=str(cwd), env=self.env(), capture_output=True, timeout=120)
+        r = subprocess.run([BASH, "-c", script], cwd=str(cwd), env=self.env(), capture_output=True, timeout=120)
         r.stdout, r.stderr = r.stdout.decode("utf-8", "replace"), r.stderr.decode("utf-8", "replace")
         return r
 
@@ -353,7 +356,7 @@ def test_x06(repo: Path) -> None:
         git(remoto, "add", "-A")
         git(remoto, "commit", "-q", "-m", "aggiornamento")
         git(locale, "fetch", "-q", "origin")
-        r = subprocess.run(["bash", "-c", "SRC=origin\n" + codice], cwd=str(locale), env=env, capture_output=True, timeout=60)
+        r = subprocess.run([BASH, "-c", "SRC=origin\n" + codice], cwd=str(locale), env=env, capture_output=True, timeout=60)
         uscita = r.stdout.decode("utf-8", "replace")
         assert "GUARDIA_ALLENTATA" in uscita and "Bash(*)" in uscita, \
             f"X06 le guardie e i permessi non arrivano interi con un bin/ grande: {uscita[-400:]!r}"
@@ -602,7 +605,8 @@ def test_x21(repo: Path) -> None:
         c.scrivi_righe([crea("b" * 32, 7, "Vecchia \x1b[31mriga\x9b2J", ora(0))])
         for argomenti in ((), ("mostra", "1"), ("mostra", "7"), ("--json",), ("oggi", "--giorni", "30")):
             r = c.todo(*argomenti, codice="X21")
-            assert not re.search(r"[\x00-\x08\x0b-\x1f\x7f-\x84\x86-\x9f]", r.stdout + r.stderr), \
+            # Su Windows il terminale va a capo con \r\n: quel \r non è un carattere iniettato.
+            assert not re.search(r"[\x00-\x08\x0b-\x1f\x7f-\x84\x86-\x9f]", (r.stdout + r.stderr).replace("\r\n", "\n")), \
                 f"X21 caratteri di controllo nel terminale con «todo {' '.join(argomenti)}»: {(r.stdout + r.stderr)!r}"
         assert "Paga ]52;c;ZWNobyBwd25lZA==bolletta [2J" in c.todo(codice="X21").stdout, "X21 il titolo pulito si perde"
     con_casa(repo, prova)

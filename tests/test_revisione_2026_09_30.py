@@ -156,7 +156,7 @@ def test_r14(repo: Path) -> None:
                          {"tool_name": "Write", "tool_input": {"file_path": str(nuovo)}, "session_id": "s1"})
         uscita = json.loads(r.stdout or "{}").get("hookSpecificOutput", {})
         assert uscita.get("permissionDecision") == "ask", f"R14 CLAUDE.md nuovo: {uscita}"
-        nuovo.write_text("# regole\n")
+        nuovo.write_text("# regole\n", encoding="utf-8")
         r = hook_diretto(repo, home, "protect_claude_md.py",
                          {"tool_name": "Edit", "tool_input": {"file_path": str(nuovo)}, "session_id": "s1"})
         uscita = json.loads(r.stdout or "{}").get("hookSpecificOutput", {})
@@ -207,8 +207,8 @@ def laboratorio(repo: Path, base: Path):
     (seme / "hooks").mkdir(parents=True)
     home.mkdir()
     impostazioni = {"env": {"A": "1", "B": "2", "C": "3"}, "permissions": {"defaultMode": "auto"}}
-    (seme / "settings.json").write_text(json.dumps(impostazioni, indent=2) + "\n")
-    (seme / "NOVITA.md").write_text("# Novita\n\n## 2026-09-01 — Prima\n")
+    (seme / "settings.json").write_text(json.dumps(impostazioni, indent=2) + "\n", encoding="utf-8")
+    (seme / "NOVITA.md").write_text("# Novita\n\n## 2026-09-01 — Prima\n", encoding="utf-8")
     controllo = repo / "hooks" / "controlla-config.py"
     if controllo.exists():
         shutil.copy(controllo, seme / "hooks" / "controlla-config.py")
@@ -228,7 +228,7 @@ def laboratorio(repo: Path, base: Path):
 
 
 def pubblica(autore: Path, home: Path, file: str, testo: str, messaggio: str) -> None:
-    (autore / file).write_text(testo)
+    (autore / file).write_text(testo, encoding="utf-8")
     git(autore, "commit", "-q", "-am", messaggio, home=home)
     git(autore, "push", "-q", "origin", "main", home=home)
 
@@ -243,7 +243,7 @@ def test_r02(repo: Path) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         home, _, autore = laboratorio(repo, Path(tmp))
         utente = home / ".claude"
-        (utente / "settings.json").write_text(read(utente / "settings.json").replace('"B": "2"', '"B": "utente"'))
+        (utente / "settings.json").write_text(read(utente / "settings.json").replace('"B": "2"', '"B": "utente"'), encoding="utf-8")
         git(utente, "commit", "-q", "-am", "chore: session sync", home=home)
         prima = git(utente, "rev-parse", "HEAD", home=home)
         pubblica(autore, home, "settings.json", read(autore / "settings.json").replace('"B": "2"', '"B": "autore"'), "v1")
@@ -262,7 +262,7 @@ def test_r03(repo: Path) -> None:
         pubblica(autore, home, "NOVITA.md", "# Novita\n\n## 2026-09-02 — Seconda\n\n## 2026-09-01 — Prima\n", "v1")
         esito = aggiorna(repo, home)
         assert "Seconda" in read(utente / "NOVITA.md"), f"R03 aggiornamento non applicato: {esito.stdout[-300:]} {esito.stderr[-300:]}"
-        (utente / "mio.txt").write_text("mio\n")
+        (utente / "mio.txt").write_text("mio\n", encoding="utf-8")
         git(utente, "add", "mio.txt", home=home)
         git(utente, "commit", "-q", "-m", "chore: session sync", home=home)
         testo = read(repo / "commands" / "aggiorna.md")
@@ -281,7 +281,7 @@ def test_r04(repo: Path) -> None:
         git(base, "init", "-q", "--bare", "-b", "main", str(personale), home=home)
         git(utente, "remote", "rename", "origin", "upstream", home=home)
         git(utente, "remote", "add", "origin", str(personale), home=home)
-        (utente / "mio.txt").write_text("mio\n")
+        (utente / "mio.txt").write_text("mio\n", encoding="utf-8")
         git(utente, "add", "mio.txt", home=home)
         git(utente, "commit", "-q", "-m", "chore: session sync", home=home)
         git(utente, "push", "-q", "origin", "main", home=home)
@@ -298,10 +298,10 @@ def test_r05(repo: Path) -> None:
     assert controllo.exists(), "R05 controllo di integrita' assente"
     with tempfile.TemporaryDirectory() as tmp:
         cartella = Path(tmp)
-        (cartella / "settings.json").write_text('{"env": {')
+        (cartella / "settings.json").write_text('{"env": {', encoding="utf-8")
         r = subprocess.run([sys.executable, str(controllo), str(cartella)], capture_output=True, text=True)
         assert r.returncode == 1 and "CONFIG ROTTA" in r.stdout, "R05 JSON rotto non segnalato"
-        (cartella / "settings.json").write_text("{}")
+        (cartella / "settings.json").write_text("{}", encoding="utf-8")
         r = subprocess.run([sys.executable, str(controllo), "--quiet", str(cartella)], capture_output=True, text=True)
         assert r.returncode == 0 and not r.stdout, "R05 config sana segnalata"
     for comando in ("inizio.md", "fine.md", "aggiorna.md"):
@@ -335,7 +335,7 @@ def test_r08(repo: Path) -> None:
         shutil.copytree(repo, home / ".claude", ignore=shutil.ignore_patterns(".git", "*.ipc"))
         finto = base / "senzayaml"
         finto.mkdir()
-        (finto / "yaml.py").write_text('raise ImportError("PyYAML assente")\n')
+        (finto / "yaml.py").write_text('raise ImportError("PyYAML assente")\n', encoding="utf-8")
         r = subprocess.run([BASH, str(home / ".claude" / "skills" / "system-audit" / "audit.sh")],
                            env=dict(os.environ, HOME=str(home), USERPROFILE=str(home), PYTHONPATH=str(finto)),
                            capture_output=True, text=True, timeout=120)

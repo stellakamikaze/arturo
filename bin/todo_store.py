@@ -25,6 +25,7 @@ import json
 import os
 import re
 import tempfile
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -383,19 +384,23 @@ def _scrivi_molti(eventi: list, file: Path) -> None:
     nuova: altrimenti il primo evento si incollerebbe alla riga rotta e andrebbe perso con lei.
     """
     file.parent.mkdir(parents=True, exist_ok=True)
-    righe = "".join(_riga_json(e) + "\n" for e in eventi)
-    if _finisce_senza_a_capo(file):
-        righe = "\n" + righe
-    dati = righe.encode("utf-8")
-    fd = os.open(str(file), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
-    try:
-        while dati:
-            scritti = os.write(fd, dati)
-            if scritti <= 0:
-                raise ErroreTodo(f"non riesco a scrivere nel registro {file}: il disco è pieno?")
-            dati = dati[scritti:]
-    finally:
-        os.close(fd)
+    # Su Windows O_APPEND non è atomico fra processi: Python va in fondo e poi scrive, in due
+    # passi, e due note scritte insieme si sovrascrivevano (T08). Lì anche la coda passa dal
+    # lucchetto. Altrove O_APPEND basta, e le note non aspettano.
+    with (Lucchetto(file) if os.name == "nt" else _Libero()):
+        righe = "".join(_riga_json(e) + "\n" for e in eventi)
+        if _finisce_senza_a_capo(file):
+            righe = "\n" + righe
+        dati = righe.encode("utf-8")
+        fd = os.open(str(file), os.O_WRONLY | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
+        try:
+            while dati:
+                scritti = os.write(fd, dati)
+                if scritti <= 0:
+                    raise ErroreTodo(f"non riesco a scrivere nel registro {file}: il disco è pieno?")
+                dati = dati[scritti:]
+        finally:
+            os.close(fd)
 
 
 def _riletto(file: Path, uid: str, evento: dict) -> dict:
@@ -443,18 +448,28 @@ class Lucchetto:
     e si toglie da solo.
     """
 
+    # I lucchetti che questo thread tiene gia': chi lo riprende dentro il suo blocco (aggiungi, che
+    # poi scrive in coda) non aspetta se stesso.
+    _tenuti = threading.local()
+
     def __init__(self, file):
         file = Path(file)
         self.file = file.with_name(file.name + ".lock")
+        self.dentro = False
 
     def __enter__(self):
+        tenuti = Lucchetto._tenuti.__dict__.setdefault("file", set())
+        if str(self.file) in tenuti:
+            self.dentro = True
+            return self
         self.file.parent.mkdir(parents=True, exist_ok=True)
         limite = time.time() + 10
         while True:
             try:
                 os.close(os.open(str(self.file), os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+                tenuti.add(str(self.file))
                 return self
-            except FileExistsError:
+            except _OCCUPATO:
                 try:
                     if time.time() - self.file.stat().st_mtime > 10:
                         self.file.unlink()  # lasciato da un processo interrotto
@@ -466,10 +481,28 @@ class Lucchetto:
                 time.sleep(0.02)
 
     def __exit__(self, *_):
+        if self.dentro:
+            return
+        Lucchetto._tenuti.__dict__.get("file", set()).discard(str(self.file))
         try:
             self.file.unlink()
         except FileNotFoundError:
             pass
+
+
+# Su Windows un .lock appena cancellato da un altro processo risponde PermissionError finche' il
+# sistema non lo toglie davvero: li' vale come occupato. Altrove PermissionError e' un errore vero.
+_OCCUPATO = (FileExistsError, PermissionError) if os.name == "nt" else (FileExistsError,)
+
+
+class _Libero:
+    """Il posto del lucchetto dove non serve."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        pass
 
 
 _Lucchetto = Lucchetto  # il nome di prima, per chi lo usa gia'

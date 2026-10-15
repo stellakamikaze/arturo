@@ -24,6 +24,9 @@ import tempfile
 from pathlib import Path
 from typing import Callable, Dict
 
+# Su Windows "bash" per nome è quello di WSL: si prende il bash del PATH (Git Bash).
+BASH = shutil.which("bash") or "bash"
+
 REPO_FINTO = "utente/libro"
 
 
@@ -37,7 +40,7 @@ def decide(repo: Path, cmd: str, cwd: str = "") -> str:
     home = _home(repo)
     try:
         payload = {"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": cwd or home}
-        r = subprocess.run(["bash", os.path.join(home, ".claude", "hooks", "bash-dispatcher.sh")],
+        r = subprocess.run([BASH, os.path.join(home, ".claude", "hooks", "bash-dispatcher.sh")],
                            input=json.dumps(payload), capture_output=True, text=True, timeout=60,
                            env=dict(os.environ, HOME=home, USERPROFILE=home))
     finally:

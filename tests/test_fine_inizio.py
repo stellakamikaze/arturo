@@ -33,6 +33,9 @@ import tempfile
 import time
 from pathlib import Path
 
+# Su Windows "bash" per nome è quello di WSL: si prende il bash del PATH (Git Bash).
+BASH = shutil.which("bash") or "bash"
+
 GIT_ENV = {
     "GIT_AUTHOR_NAME": "prova", "GIT_AUTHOR_EMAIL": "prova@example.invalid",
     "GIT_COMMITTER_NAME": "prova", "GIT_COMMITTER_EMAIL": "prova@example.invalid",
@@ -114,7 +117,7 @@ def gate(lab: Lab, testo: str | None) -> tuple:
         f.write_text(testo, encoding="utf-8")
     elif f.exists():
         f.unlink()
-    r = lab.run(["bash", str(lab.repo / "bin" / "handoff-gate.sh"), str(f)])
+    r = lab.run([BASH, str(lab.repo / "bin" / "handoff-gate.sh"), str(f)])
     rosse = [x for x in r.stdout.splitlines() if x.startswith("GATE HANDOFF: rosso:")]
     return r.returncode, r.stdout + r.stderr, len(rosse)
 
@@ -178,7 +181,7 @@ def test_f01(repo: Path) -> None:
             codice, uscita, n = gate(lab, testo)
             assert codice == rc and marcatore in uscita and n == rosse, \
                 f"F01 caso «{nome}»: exit {codice} (atteso {rc}), righe rosse {n} (attese {rosse}): {uscita[-400:]!r}"
-        r = lab.run(["bash", str(repo / "bin" / "handoff-gate.sh")])
+        r = lab.run([BASH, str(repo / "bin" / "handoff-gate.sh")])
         assert r.returncode == 2 and "uso:" in r.stderr, f"F01 senza argomento: {r.returncode} {r.stderr!r}"
         print(f"  F01 casi={len(CASI_GATE) + 1}")
     con_lab(repo, prova)
@@ -198,8 +201,8 @@ def test_f02(repo: Path) -> None:
         prepara_todo(lab)
         f = lab.tmp / "h.md"
         f.write_text(handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "altro")), encoding="utf-8")
-        vera = lab.run(["bash", str(repo / "bin" / "handoff-gate.sh"), str(f)])
-        nuova = lab.run(["bash", str(copia / "bin" / "handoff-gate.sh"), str(f)])
+        vera = lab.run([BASH, str(repo / "bin" / "handoff-gate.sh"), str(f)])
+        nuova = lab.run([BASH, str(copia / "bin" / "handoff-gate.sh"), str(f)])
         assert vera.returncode == 1, f"F02 il gate vero accetta un Chi che l'archivio non conosce: {vera.stdout!r}"
         assert nuova.returncode == 0, \
             f"F02 il gate tiene una sua copia delle categorie: con CHI cambiato in todo_store resta rosso: {nuova.stdout!r}"
@@ -462,7 +465,7 @@ def test_f07(repo: Path) -> None:
 
         def lancia(radice: Path, copia: Path | None = None) -> subprocess.CompletedProcess:
             conti[0] += 1
-            return lab.run(["bash", str(copia or script), str(radice)])
+            return lab.run([BASH, str(copia or script), str(radice)])
 
         radice, _ = prepara("a")
         r = lancia(radice)
@@ -502,14 +505,14 @@ def test_f07(repo: Path) -> None:
         assert r.returncode == 0 and "nessun remoto" in r.stdout and "ERRORE" not in r.stdout \
             and "in corso" in read(locale / "repo" / "nota.md") and "non-un-repo" not in r.stdout, \
             f"F07 repository locale o cartella senza git: {r.stdout}"
-        r = lab.run(["bash", str(script)], PROJECTS_BASE="~/Documents/ClaudeCode")
+        r = lab.run([BASH, str(script)], PROJECTS_BASE="~/Documents/ClaudeCode")
         assert r.returncode == 0 and str(lab.progetti) in r.stdout, f"F07 PROJECTS_BASE con la tilde: {r.stdout} {r.stderr}"
         classifica = lab.tmp / "classifica.sh"
         corpo = re.search(r'    case "\$PULL_OUT" in.*?\n    esac\n', read(script), re.S)
         assert corpo, "F07 manca la lettura della causa del pull fallito"
         classifica.write_text("name=prova\n" + corpo.group(0), encoding="utf-8")
-        cred = lab.run(["bash", str(classifica)], PULL_OUT="fatal: could not read Username for 'https://example.invalid'")
-        conf = lab.run(["bash", str(classifica)], PULL_OUT="error: could not apply 3f2a1b9... CONFLICT in nota.md")
+        cred = lab.run([BASH, str(classifica)], PULL_OUT="fatal: could not read Username for 'https://example.invalid'")
+        conf = lab.run([BASH, str(classifica)], PULL_OUT="error: could not apply 3f2a1b9... CONFLICT in nota.md")
         assert "gh auth setup-git" in cred.stdout and "conflitto con modifiche locali" in conf.stdout, \
             f"F07 credenziali e conflitto confusi: {cred.stdout!r} {conf.stdout!r}"
         assert "Documents/ClaudeCode}" in read(script), "F07 la cartella dei progetti non viene da PROJECTS_BASE"
@@ -548,7 +551,7 @@ def test_f08(repo: Path) -> None:
             lab.todo("aggiungi", f"Todo numero {n}", "--progetto", "libro")
         f = lab.tmp / "dal-modello.md"
         f.write_text(handoff("## Task Pendenti\n\n" + modello.group(1) + "\n"), encoding="utf-8")
-        r = lab.run(["bash", str(repo / "bin" / "handoff-gate.sh"), str(f)])
+        r = lab.run([BASH, str(repo / "bin" / "handoff-gate.sh"), str(f)])
         assert r.returncode == 0, f"F08 la tabella del modello di /fine non passa il gate: {r.stdout}"
     con_lab(repo, prova)
 
@@ -563,15 +566,15 @@ def test_f09(repo: Path) -> None:
         progetto = lab.progetti / "Il Libro"
         progetto.mkdir()
         lab.git(progetto, "init", "-q")
-        r = lab.run(["bash", "-c", codice], cwd=progetto, CLAUDE_CODE_SESSION_ID="sess-1")
+        r = lab.run([BASH, "-c", codice], cwd=progetto, CLAUDE_CODE_SESSION_ID="sess-1")
         m = re.search(r"Handoff: (.+)", r.stdout)
         assert r.returncode == 0 and m and "/handoffs/il-libro/HANDOFF_" in m.group(1), f"F09 percorso: {r.stdout} {r.stderr}"
         primo = Path(m.group(1).strip())
         nome_vecchio = primo.parent / "HANDOFF_2026-10-14_09-00.md"
         nome_vecchio.write_text("# x\n## Progetto\n- Sessione: sess-1\n", encoding="utf-8")
-        r = lab.run(["bash", "-c", codice], cwd=progetto, CLAUDE_CODE_SESSION_ID="sess-1")
+        r = lab.run([BASH, "-c", codice], cwd=progetto, CLAUDE_CODE_SESSION_ID="sess-1")
         assert f"Handoff: {nome_vecchio}" in r.stdout, f"F09 il secondo /fine non ritrova l'handoff della sessione: {r.stdout}"
-        r = lab.run(["bash", "-c", codice], cwd=progetto, CLAUDE_CODE_SESSION_ID="sess-2")
+        r = lab.run([BASH, "-c", codice], cwd=progetto, CLAUDE_CODE_SESSION_ID="sess-2")
         assert f"Handoff: {nome_vecchio}" not in r.stdout, "F09 una sessione nuova riscrive l'handoff di un'altra"
     con_lab(repo, prova)
 
@@ -591,7 +594,7 @@ def test_f10(repo: Path) -> None:
         progetto.mkdir()
         lab.git(progetto, "init", "-q")
         lab.todo("aggiungi", "Rileggere il capitolo", "--progetto", "libro", "--chi", "io")
-        r = lab.run(["bash", "-c", codice], cwd=lab.home, ARGUMENTS="libro --tutti")
+        r = lab.run([BASH, "-c", codice], cwd=lab.home, ARGUMENTS="libro --tutti")
         assert "PROGETTO libro" in r.stdout and "#1 Rileggere il capitolo" in r.stdout and "rc=0" in r.stdout, \
             f"F10 il blocco della FASE 1 non stampa il contesto: {r.stdout} {r.stderr}"
     con_lab(repo, prova)

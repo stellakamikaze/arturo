@@ -20,6 +20,10 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+import shutil
+
+# Su Windows "bash" per nome è quello di WSL: si prende il bash del PATH (Git Bash).
+BASH = shutil.which("bash") or "bash"
 
 
 def guardia(repo: Path, nome: str, dati: dict, cwd: str) -> subprocess.CompletedProcess:
@@ -79,7 +83,7 @@ def test_r04(repo: Path) -> None:
         # deve arrivare alla persona come ask (prima era exit 2), una lettura deve tacere.
         def esito(comando: str) -> str:
             dati = json.dumps({"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": d, "session_id": "r04"})
-            p = subprocess.run(["bash", str(repo / "hooks" / "bash-dispatcher.sh")], input=dati, capture_output=True,
+            p = subprocess.run([BASH, str(repo / "hooks" / "bash-dispatcher.sh")], input=dati, capture_output=True,
                                text=True, cwd=d, timeout=60, env=dict(os.environ, HOME=str(casa), USERPROFILE=str(casa)))
             if p.returncode == 2:
                 return "block"

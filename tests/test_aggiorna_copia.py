@@ -34,6 +34,9 @@ import tempfile
 from pathlib import Path
 from typing import Callable, Dict
 
+# Su Windows "bash" per nome è quello di WSL: si prende il bash del PATH (Git Bash).
+BASH = shutil.which("bash") or "bash"
+
 _spec = importlib.util.spec_from_file_location("aggiorna_sicuro", Path(__file__).with_name("test_aggiorna_sicuro.py"))
 assert _spec and _spec.loader
 _sicuro = importlib.util.module_from_spec(_spec)
@@ -68,7 +71,7 @@ def conflitto_sulla_deny(lab: Lab) -> None:
         {**json.loads(t), "permissions": {"deny": ["Edit(~/.bash_profile)"]}}, indent=2) + "\n"}, "deny")
     lab.git(lab.utente, "pull", "-q", "origin", "main")
     lab.personale()
-    (lab.utente / "settings.json").write_text(con_deny(TUO)(read(lab.utente / "settings.json")))
+    (lab.utente / "settings.json").write_text(con_deny(TUO)(read(lab.utente / "settings.json")), encoding="utf-8")
     lab.git(lab.utente, "commit", "-q", "-am", "chore: session sync")
     lab.git(lab.utente, "push", "-q", "origin", "main")
     lab.pubblica(lab.autore, {"settings.json": con_deny(LORO), "NOVITA.md": lambda t: SECONDA}, "v1")
@@ -79,7 +82,7 @@ def spia(lab: Lab) -> Path:
     finti.mkdir()
     vero = shutil.which("git", path=os.environ.get("PATH"))
     assert vero, "prova: git mancante"
-    (finti / "git").write_text(SPIA_GIT.replace("@VERO@", vero))
+    (finti / "git").write_text(SPIA_GIT.replace("@VERO@", vero), encoding="utf-8")
     (finti / "git").chmod(0o755)
     log = lab.base / "marcatori-visti"
     lab.env.update(PATH=f"{finti}{os.pathsep}{os.environ.get('PATH', '')}", SPIA_VIVA=str(lab.utente),
@@ -128,7 +131,7 @@ def test_c02(repo: Path) -> None:
         copia = Path(read(stato).split()[0])
         risolto = {"env": {"A": "1", "B": "2", "C": "3"},
                    "permissions": {"deny": ["Edit(~/.bash_profile)", "Edit(~/.zshenv)", "Edit(~/.profile)"]}}
-        (copia / "settings.json").write_text(json.dumps(risolto, indent=2) + "\n")
+        (copia / "settings.json").write_text(json.dumps(risolto, indent=2) + "\n", encoding="utf-8")
         lab.git(copia, "add", "settings.json")
         lab.git(copia, "commit", "-q", "--no-edit")
         fine = lab.lancia(blocco(aggiorna(repo), "### Risolvere un conflitto", "C02"))
@@ -172,7 +175,7 @@ def test_c04(repo: Path) -> None:
         altro = lab.base / "altro-computer"
         lab.git(lab.base, "clone", "-q", str(personale), str(altro))
         lab.pubblica(altro, {"settings.json": con_deny(LORO)}, "chore: session sync")
-        (lab.utente / "settings.json").write_text(con_deny(TUO)(read(lab.utente / "settings.json")))
+        (lab.utente / "settings.json").write_text(con_deny(TUO)(read(lab.utente / "settings.json")), encoding="utf-8")
         lab.git(lab.utente, "commit", "-q", "-am", "chore: session sync")
         prima = lab.head()
         log = spia(lab)
@@ -185,7 +188,7 @@ def test_c04(repo: Path) -> None:
         copia = Path(read(stato).split()[0])
         risolto = json.loads(read(lab.utente / "settings.json"))
         risolto["permissions"]["deny"] = ["Edit(~/.bash_profile)", "Edit(~/.profile)", "Edit(~/.zshenv)"]
-        (copia / "settings.json").write_text(json.dumps(risolto, indent=2) + "\n")
+        (copia / "settings.json").write_text(json.dumps(risolto, indent=2) + "\n", encoding="utf-8")
         lab.git(copia, "add", "settings.json")
         r = subprocess.run(["git", "-C", str(copia), "rebase", "--continue"], env=dict(lab.env, GIT_EDITOR="true"),
                            capture_output=True, text=True)
@@ -207,7 +210,7 @@ def sync_in_conflitto(lab: Lab, repo: Path, codice: str) -> Path:
     altro = lab.base / "altro-computer"
     lab.git(lab.base, "clone", "-q", str(personale), str(altro))
     lab.pubblica(altro, {"settings.json": con_deny(LORO)}, "chore: session sync")
-    (lab.utente / "settings.json").write_text(con_deny(TUO)(read(lab.utente / "settings.json")))
+    (lab.utente / "settings.json").write_text(con_deny(TUO)(read(lab.utente / "settings.json")), encoding="utf-8")
     lab.git(lab.utente, "commit", "-q", "-am", "chore: session sync")
     uscita = lab.lancia(blocco(read(repo / "commands" / "inizio.md"), "## FASE 0", codice))
     stato = lab.utente / ".git" / "arturo-aggiorna-copia"
@@ -219,13 +222,13 @@ def test_c05(repo: Path) -> None:
     def prova(lab: Lab) -> None:
         stato = sync_in_conflitto(lab, repo, "C05")
         copia = Path(read(stato).split()[0])
-        (copia / "LAVORO-IN-CORSO").write_text("mezza risoluzione\n")
+        (copia / "LAVORO-IN-CORSO").write_text("mezza risoluzione\n", encoding="utf-8")
         uscita = passo3_in_conflitto(lab, repo, "C05")
         assert copia.exists() and stato.exists() and (copia / "LAVORO-IN-CORSO").exists(), \
             f"C05 con {lab.shell} /aggiorna ha tolto in silenzio la copia di prova del sync: {uscita[-300:]!r}"
         assert "APPLICAZIONE NON PARTITA" in uscita and "sync" in uscita and copia.parent.name in uscita, \
             f"C05 con {lab.shell} l'esito non dice che una copia di prova aspetta: {uscita[-400:]!r}"
-        avvio = subprocess.run(["bash", str(repo / "hooks" / "session-start.sh")], input="{}", env=lab.env,
+        avvio = subprocess.run([BASH, str(repo / "hooks" / "session-start.sh")], input="{}", env=lab.env,
                                cwd=str(lab.base), capture_output=True, text=True, timeout=60).stdout
         assert "copia di prova con un conflitto aspetta" in avvio, f"C05 con {lab.shell} l'avvio non ricorda la copia in attesa"
         scarta = blocco(aggiorna(repo), "## Passo 3", "C05", indice=1)

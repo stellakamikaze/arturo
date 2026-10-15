@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""P01-P07: le aggiunte della persona ai comandi di Arturo stanno in ~/.claude/personale/ (14/10/2026).
+"""P01-P15: le aggiunte della persona ai comandi di Arturo stanno in ~/.claude/personale/ (14/10/2026).
 
 Il caso vero è quello di chi aggiunge a /inizio la tabella dei suoi progetti: ogni aggiornamento
 che tocca /inizio va in conflitto. P01 con lo spostamento il Passo 3 di /aggiorna applica pulito, e
@@ -9,7 +9,14 @@ del brief non scatta sui comandi /nome. P04 personale/ resta fuori da git e viag
 verso un remote privato. P05 lo spostamento rifiuta ciò che non è un comando di Arturo e non crea
 commit vuoti. P06 /aggiorna sposta da solo, senza chiedere (Passo 2b), e /aggiorna personale lo fa subito. P07 con Arturo
 come upstream (merge) lo spostamento è un commit nuovo e non riscrive i commit pubblicati; P01 e P02
-coprono Arturo come origin (rebase), dove i commit locali vengono riscritti senza il comando.
+coprono Arturo come origin (rebase), dove i commit locali vengono riscritti senza il comando. P08
+con Arturo come origin /aggiorna sposta da solo, senza i passi di Claude. P09 con un repository privato e
+Arturo come upstream /aggiorna sposta e non riscrive i commit pubblicati. P10 il sync fra le macchine
+non sposta niente. P11 con un repository non privato non si sposta niente e ~/.claude non cambia. P12
+se l'aggiornamento va in conflitto anche dopo lo spostamento, personale/ non viene scritto. P13 si
+spostano solo i comandi che l'aggiornamento cambia, mai uno cancellato. P14 un secondo spostamento
+tiene le righe personali di prima. P15 /aggiorna personale rispetta la stessa regola del repository
+privato.
 
 Riusa il Lab di test_aggiorna_sicuro.py: un Arturo pubblicato, chi ne scrive gli aggiornamenti e
 una HOME con ~/.claude clonata. Sulla base f750408 ogni controllo deve fallire col suo codice.
@@ -27,6 +34,9 @@ import tempfile
 from pathlib import Path
 from typing import Callable, Dict
 
+# Su Windows "bash" per nome è quello di WSL: si prende il bash del PATH (Git Bash).
+BASH = shutil.which("bash") or "bash"
+
 _spec = importlib.util.spec_from_file_location("aggiorna_sicuro", Path(__file__).with_name("test_aggiorna_sicuro.py"))
 assert _spec and _spec.loader
 _sicuro = importlib.util.module_from_spec(_spec)
@@ -40,9 +50,9 @@ def prepara(repo: Path, tmp: Path, altri: Dict[str, str] = None) -> Lab:
     """Arturo pubblica /inizio; la persona ci aggiunge la sua tabella e toglie una riga; Arturo cambia la FASE 1."""
     lab = Lab(repo, tmp, "bash")
     (lab.autore / "commands").mkdir()
-    (lab.autore / "commands" / "inizio.md").write_text(INIZIO)
+    (lab.autore / "commands" / "inizio.md").write_text(INIZIO, encoding="utf-8")
     for nome, testo in (altri or {}).items():
-        (lab.autore / "commands" / nome).write_text(testo)
+        (lab.autore / "commands" / nome).write_text(testo, encoding="utf-8")
     (lab.autore / ".gitignore").write_text(read(repo / ".gitignore"))  # come nell'Arturo vero
     if (repo / "bin" / "personale.py").exists():  # /aggiorna lo legge dalla versione in arrivo, come aggiorna-applica.sh
         shutil.copy(str(repo / "bin" / "personale.py"), str(lab.autore / "bin" / "personale.py"))
@@ -52,7 +62,7 @@ def prepara(repo: Path, tmp: Path, altri: Dict[str, str] = None) -> Lab:
     lab.git(lab.utente, "pull", "-q", "--ff-only")
     mio = INIZIO.replace("Leggi l'handoff.\n", "Leggi l'handoff.\nPoi la tabella dei miei progetti e i dischi.\n")
     mio = mio.replace("Apri la sessione.\n\n", "")
-    (lab.utente / "commands" / "inizio.md").write_text(mio)
+    (lab.utente / "commands" / "inizio.md").write_text(mio, encoding="utf-8")
     lab.git(lab.utente, "commit", "-q", "-am", "chore: session sync")
     lab.pubblica(lab.autore, {"commands/inizio.md": lambda t: t.replace("Leggi l'handoff.", "Leggi l'handoff piu' recente.")},
                  "v2: /inizio")
@@ -121,8 +131,8 @@ def test_p07(repo: Path) -> None:
 def test_p03(repo: Path) -> None:
     def prova(lab: Lab) -> None:
         (lab.utente / "personale").mkdir()
-        (lab.utente / "personale" / "inizio.md").write_text("# mie\n")
-        hook = lambda prompt: subprocess.run(["bash", str(repo / "hooks" / "inject-now.sh")], input=json.dumps({"prompt": prompt}),
+        (lab.utente / "personale" / "inizio.md").write_text("# mie\n", encoding="utf-8")
+        hook = lambda prompt: subprocess.run([BASH, str(repo / "hooks" / "inject-now.sh")], input=json.dumps({"prompt": prompt}),
                                              capture_output=True, text=True, env=lab.env, timeout=60).stdout
         assert "PERSONALE:" in hook("/inizio progetto") and "personale/inizio.md" in hook("/inizio"), \
             "P03 /inizio non dice di leggere le aggiunte personali"
@@ -148,7 +158,7 @@ def test_p05(repo: Path) -> None:
             r = arturo(lab, "personale", "sposta", file)
             assert r.returncode == 2, f"P05 sposta accetta {file}: {r.stdout!r}"
         lab.git(lab.utente, "reset", "-q", "--hard", "HEAD~1")  # la persona non ha ancora salvato niente
-        (lab.utente / "commands" / "inizio.md").write_text(INIZIO + "\nMia riga.\n")
+        (lab.utente / "commands" / "inizio.md").write_text(INIZIO + "\nMia riga.\n", encoding="utf-8")
         prima = lab.head()
         r = arturo(lab, "personale", "sposta", "commands/inizio.md")
         assert r.returncode == 0 and lab.head() == prima, "P05 una modifica non salvata crea un commit vuoto"
@@ -194,7 +204,7 @@ def gh_finto(lab: Lab, visibilita: str) -> None:
     """`gh repo view` che risponde con la visibilità data: personale/ viaggia solo verso un repository privato."""
     finti = lab.base / "gh-finto"
     finti.mkdir(exist_ok=True)
-    (finti / "gh").write_text(f"#!/bin/sh\necho {visibilita}\n")
+    (finti / "gh").write_text(f"#!/bin/sh\necho {visibilita}\n", encoding="utf-8")
     (finti / "gh").chmod(0o755)
     lab.env["PATH"] = f"{finti}{os.pathsep}{lab.env.get('PATH', '')}"
 
@@ -215,13 +225,13 @@ def test_p10(repo: Path) -> None:
     def prova(lab: Lab) -> None:
         lab.git(lab.utente, "fetch", "-q", "origin")
         applica = repo / "bin" / "aggiorna-applica.sh"
-        r = subprocess.run(["bash", str(applica), str(lab.utente), "sync", "origin/main"], cwd=str(lab.utente), env=lab.env,
+        r = subprocess.run([BASH, str(applica), str(lab.utente), "sync", "origin/main"], cwd=str(lab.utente), env=lab.env,
                            capture_output=True, text=True, timeout=120)
         assert "SEPARATO" not in r.stdout and not (lab.utente / "personale" / "inizio.md").exists(), \
             f"P10 il sync sposta i comandi: {r.stdout[-300:]!r}"
         assert "Poi la tabella dei miei progetti" in read(lab.utente / "commands" / "inizio.md"), "P10 il sync ha toccato /inizio"
         # Il sync va in conflitto su /inizio e lascia la copia di prova: si scarta, come farebbe la persona.
-        subprocess.run(["bash", str(applica), str(lab.utente), "scarta"], cwd=str(lab.utente), env=lab.env,
+        subprocess.run([BASH, str(applica), str(lab.utente), "scarta"], cwd=str(lab.utente), env=lab.env,
                        capture_output=True, timeout=120)
         # Lo stesso comando con un aggiornamento vero sposta: il controllo sopra non è verde per caso.
         _aggiorna_senza_passi(lab, repo, "P10")
@@ -246,7 +256,7 @@ def test_p12(repo: Path) -> None:
     # Separazione fatta, ma l'aggiornamento va in conflitto su un altro file: ~/.claude non cambia per niente.
     def prova(lab: Lab) -> None:
         lab.git(lab.utente, "commit", "-q", "--allow-empty", "-m", "vuoto")
-        (lab.utente / "NOVITA.md").write_text("# mia\n")
+        (lab.utente / "NOVITA.md").write_text("# mia\n", encoding="utf-8")
         lab.git(lab.utente, "commit", "-q", "-am", "mia NOVITA")
         lab.pubblica(lab.autore, {"NOVITA.md": lambda t: t + "\n## 2026-10-16 — Altra\n"}, "v3: NOVITA")
         testo = read(repo / "commands" / "aggiorna.md")
@@ -265,7 +275,7 @@ def test_p13(repo: Path) -> None:
     # Un comando cancellato dalla persona resta cancellato; uno che l'aggiornamento non tocca resta com'è.
     def prova(lab: Lab) -> None:
         lab.git(lab.utente, "rm", "-q", "commands/fine.md")
-        (lab.utente / "commands" / "setup.md").write_text("# /setup\n\nPrepara.\nMia riga.\n")
+        (lab.utente / "commands" / "setup.md").write_text("# /setup\n\nPrepara.\nMia riga.\n", encoding="utf-8")
         lab.git(lab.utente, "commit", "-q", "-am", "via /fine, mia riga in /setup")
         lab.pubblica(lab.autore, {"commands/fine.md": lambda t: t + "Poi salva.\n"}, "v3: /fine")
         testo = read(repo / "commands" / "aggiorna.md")
@@ -285,7 +295,7 @@ def test_p14(repo: Path) -> None:
         lab.personale()
         gh_finto(lab, "PRIVATE")
         (lab.utente / "personale").mkdir()
-        (lab.utente / "personale" / "inizio.md").write_text("# Aggiunte mie a /inizio\n\nGia' mia.\n")
+        (lab.utente / "personale" / "inizio.md").write_text("# Aggiunte mie a /inizio\n\nGia' mia.\n", encoding="utf-8")
         lab.git(lab.utente, "add", "-f", "personale")
         lab.git(lab.utente, "commit", "-q", "-m", "session sync con personale")
         uscita = _aggiorna_senza_passi(lab, repo, "P14")

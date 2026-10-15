@@ -20,6 +20,9 @@ import tempfile
 import urllib.parse
 from pathlib import Path
 
+# Su Windows "bash" per nome è quello di WSL: si prende il bash del PATH (Git Bash).
+BASH = shutil.which("bash") or "bash"
+
 FINTI = {
     "open": 'printf "%s\\n" "$1" >> "$LOG_FINTI/apri"',
     "xdg-open": 'printf "%s\\n" "$1" >> "$LOG_FINTI/apri"',
@@ -120,7 +123,7 @@ def test_s04(repo: Path) -> None:
     lab = Lab(repo)
 
     def avvio() -> str:
-        return subprocess.run(["bash", str(repo / "hooks" / "session-start.sh")], capture_output=True, text=True,
+        return subprocess.run([BASH, str(repo / "hooks" / "session-start.sh")], capture_output=True, text=True,
                               env=lab.env, cwd=str(lab.dir), stdin=subprocess.DEVNULL, timeout=60).stdout
     assert "SEGNALA:" in avvio(), "S04 l'avvio non invita a segnalare"
     assert lab.arturo("basta").returncode == 0
@@ -221,9 +224,16 @@ def main() -> int:
         assert failed == list(TESTS), f"baseline non discriminante: falliscono solo {failed} su {list(TESTS)}"
         print(f"BASELINE_DISCRIMINANTE={','.join(failed)}")
         return 0
-    for test in TESTS.values():
+    # Su Windows i finti in bash non partono: /segnala troverebbe gh.exe, clip e il browser veri.
+    # Il 16/10/2026 S07 ha aperto una issue vera su stellakamikaze/arturo. Ogni controllo che
+    # lancia «invia» gira solo su macOS e Linux.
+    saltati = ["S02", "S03", "S05", "S06", "S07"] if os.name == "nt" else []
+    scelti = {k: v for k, v in TESTS.items() if k not in saltati}
+    for test in scelti.values():
         test(repo)
-    print(f"PASS {','.join(TESTS)} controlli={len(TESTS)}")
+    if saltati:
+        print(f"SALTA {','.join(saltati)} su Windows: appunti e browser veri, senza finti")
+    print(f"PASS {','.join(scelti)} controlli={len(scelti)}")
     return 0
 
 

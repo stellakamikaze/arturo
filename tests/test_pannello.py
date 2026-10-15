@@ -38,6 +38,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+# Su Windows "bash" per nome è quello di WSL: si prende il bash del PATH (Git Bash).
+BASH = shutil.which("bash") or "bash"
+
 OGGI = "2026-10-03"
 VERBI_ATTESI = {"fatto", "ferma", "riprendi", "chi", "avvicina", "allontana"}
 # Quanti test del kit porta ogni id, su ogni superficie. Si conta, non si confronta un insieme:
@@ -377,7 +380,7 @@ def test_u07(repo: Path) -> None:
 
 def audit(home: Path) -> subprocess.CompletedProcess:
     env = dict(os.environ, HOME=str(home), USERPROFILE=str(home))
-    r = subprocess.run(["bash", str(home / ".claude" / "skills" / "system-audit" / "audit.sh"), "--strict"],
+    r = subprocess.run([BASH, str(home / ".claude" / "skills" / "system-audit" / "audit.sh"), "--strict"],
                        env=env, capture_output=True, timeout=180)
     r.stdout = r.stdout.decode("utf-8", "replace")
     return r
@@ -484,7 +487,7 @@ def diff_di_aggiorna(repo: Path) -> dict:
         git(locale, "fetch", "-q", "origin")
         visti = {}
         for shell in [x for x in ("bash", "zsh") if shutil.which(x)]:
-            r = subprocess.run([shell, "-c", "SRC=origin\n" + blocco], cwd=str(locale), env=env,
+            r = subprocess.run([shutil.which(shell), "-c", "SRC=origin\n" + blocco], cwd=str(locale), env=env,
                                capture_output=True, timeout=60)
             visti[shell] = file_mostrati(r.stdout.decode("utf-8", "replace"))
         return visti
@@ -519,7 +522,7 @@ def controllo_del_mod(testo: str, dove: str) -> None:
             finta = Path(tmp) / "lista.json"
             finta.write_text(lista, encoding="utf-8")
             riga = righe[0].replace("claude plugin list --json", f'cat "{finta}"', 1)
-            r = subprocess.run(["bash", "-c", riga], capture_output=True, timeout=30)
+            r = subprocess.run([BASH, "-c", riga], capture_output=True, timeout=30)
             uscita = r.stdout.decode("utf-8", "replace").strip()
             assert uscita == atteso, f"U11 {dove}: con {lista} il controllo stampa {uscita!r}, atteso {atteso!r}"
 

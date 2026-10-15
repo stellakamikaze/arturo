@@ -60,7 +60,9 @@ async function main() {
     const profilo = path.join(base, "chrome");
     chrome = spawn(CHROME, ["--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
       // Con una HOME di prova Chrome su macOS chiede il portachiavi e si blocca: il finto portachiavi lo evita.
-      "--use-mock-keychain", "--password-store=basic", "--remote-debugging-port=0", "--user-data-dir=" + profilo, "about:blank"], { stdio: "ignore" });
+      "--use-mock-keychain", "--password-store=basic", "--remote-debugging-port=0", "--user-data-dir=" + profilo, "about:blank"],
+      // Su Windows con uno USERPROFILE di prova Chrome non apre la porta di debug: gli si ridà quello vero.
+      { stdio: "ignore", env: { ...process.env, USERPROFILE: process.env.ARTURO_USERPROFILE_VERO || process.env.USERPROFILE } });
     FIGLI.push(chrome);
     let porta = 0;
     for (let i = 0; i < 100 && !porta; i += 1) {

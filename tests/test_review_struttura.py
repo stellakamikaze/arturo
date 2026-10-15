@@ -20,6 +20,10 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+import shutil
+
+# Su Windows "bash" per nome è quello di WSL: si prende il bash del PATH (Git Bash).
+BASH = shutil.which("bash") or "bash"
 
 CASI = ["S01", "S02", "S03"]
 
@@ -42,7 +46,7 @@ def main() -> int:
     devono = ["bash -c 'git commit -m x'", 'eval "git commit -am y"', "xargs git commit",
               "nohup git commit -m z", "sudo git commit -m w", "git commit -m a"]
     non_devono = ["echo commit", "git log --oneline", "ls commit/"]
-    r = subprocess.run(["bash", "-c", PROVA_COMMIT, "_", str(repo / "hooks" / "bash-dispatcher.sh"),
+    r = subprocess.run([BASH, "-c", PROVA_COMMIT, "_", str(repo / "hooks" / "bash-dispatcher.sh"),
                         *devono, *non_devono], capture_output=True, text=True, timeout=30)
     righe = r.stdout.splitlines()
     persi = [c for c in devono if f"PARTE {c}" not in righe]

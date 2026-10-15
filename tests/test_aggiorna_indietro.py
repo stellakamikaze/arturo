@@ -46,7 +46,7 @@ def applicato_poi_commit(lab: Lab, repo: Path, codice: str, file: str, fare: Cal
     lab.lancia(blocco(testo, "## Passo 1", codice))
     uscita = lab.lancia(blocco(testo, "## Passo 3", codice))
     assert "APPLICATO" in uscita and lab.registro(), f"{codice} prova: l'aggiornamento non e' applicato: {uscita[-300:]!r}"
-    (lab.utente / file).write_text(fare(read(lab.utente / file)) if (lab.utente / file).exists() else fare(""))
+    (lab.utente / file).write_text(fare(read(lab.utente / file)) if (lab.utente / file).exists() else fare(""), encoding="utf-8")
     lab.git(lab.utente, "add", file)
     lab.git(lab.utente, "commit", "-q", "-m", "suo")
     return prima

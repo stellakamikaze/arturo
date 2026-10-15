@@ -23,6 +23,9 @@ command -v claude >/dev/null 2>&1 || {
 
 FIXTURE=$(mktemp -d "${TMPDIR:-/tmp}/arturo-allineamento.XXXXXX")
 trap 'rm -rf "$FIXTURE"' EXIT
+# Su Windows Chrome con uno USERPROFILE di prova non apre la porta di debug (W13): prova_pagina.js
+# gli ridà quello vero. Il suo profilo resta comunque nella cartella di prova (--user-data-dir).
+export ARTURO_USERPROFILE_VERO="${USERPROFILE:-}"
 HOME="$FIXTURE/home"
 export HOME USERPROFILE="$HOME" XDG_CACHE_HOME="$FIXTURE/cache" TMPDIR="$FIXTURE/tmp" PYTHONDONTWRITEBYTECODE=1
 # W13: nel gate la prova nel browser non salta. Senza Chrome o node 22 il gate è rosso.
