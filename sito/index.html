@@ -315,6 +315,14 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
 }
 
 /* ---------- semplice ---------- */
+.schermate{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px 20px}
+.schermate figure{margin:0;display:flex;flex-direction:column}
+.schermate .finestra{flex:1}
+.schermate .finestra pre{font-size:.76rem;padding:14px 14px 16px}
+.schermate figcaption{margin-top:10px;font-size:.9rem;color:var(--grafite)}
+.schermate figcaption strong{color:var(--inchiostro)}
+@media (max-width:1020px){.schermate{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:760px){.schermate{grid-template-columns:minmax(0,1fr)}}
 .quattro{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:32px;margin:0;padding:0;list-style:none}
 .quattro li{padding-top:18px;border-top:1px solid var(--inchiostro)}
 .quattro h3{margin-bottom:8px;font-size:1.3rem;font-weight:400;letter-spacing:-.02em}
@@ -375,8 +383,8 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
         Arturo
       </a>
       <ul class="menu__voci stretta">
-        <li><a href="#come-funziona">Come funziona</a></li>
-        <li><a href="#tecnica">Sotto il cofano</a></li>
+        <li><a href="#casi">Casi d'uso</a></li>
+        <li><a href="#tecnica">In breve</a></li>
         <li><a href="organizzazioni/">Organizzazioni</a></li>
         <li><a href="https://github.com/stellakamikaze/arturo">GitHub</a></li>
       </ul>
@@ -549,6 +557,59 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
     </div>
   </section>
 
+  <section class="sezione" id="casi" aria-labelledby="t-casi" style="padding-top:0">
+    <div class="dentro">
+      <div class="testa">
+        <h2 id="t-casi">Per cosa si usa.</h2>
+        <p>Le richieste si scrivono come in chat. Il risultato resta nelle tue cartelle.</p>
+      </div>
+      <div class="schermate">
+        <figure>
+          <div class="finestra">
+            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>~/Ricerca</span></div>
+<pre><span class="t t-tu">Leggi i dieci PDF in questa cartella e fammi una tabella con autore, anno e tesi</span><span class="t t-cc">La tabella è in letture.md. Due PDF sono scansioni senza testo: li ho segnati.</span></pre>
+          </div>
+          <figcaption><strong>Ricerca.</strong> Dieci documenti, una tabella.</figcaption>
+        </figure>
+        <figure>
+          <div class="finestra">
+            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>~/Riunioni</span></div>
+<pre><span class="t t-tu">Dalla trascrizione di ieri tirami fuori decisioni e cose da fare</span><span class="t t-cc">3 decisioni e 6 cose da fare. Due non hanno un responsabile: le ho segnate.</span></pre>
+          </div>
+          <figcaption><strong>Riunioni.</strong> Da un'ora di parole a una lista.</figcaption>
+        </figure>
+        <figure>
+          <div class="finestra">
+            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>~/Proposte</span></div>
+<pre><span class="t t-tu">Dagli appunti della call fammi la proposta: due pagine, il nostro tono</span><span class="t t-cc">La bozza è in proposta.md. Le cifre non le ho messe: negli appunti non ci sono.</span></pre>
+          </div>
+          <figcaption><strong>Scrittura.</strong> Una prima bozza, col tuo tono.</figcaption>
+        </figure>
+        <figure>
+          <div class="finestra">
+            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>~/Download</span></div>
+<pre><span class="t t-tu">Metti in ordine i Download: contratti, fatture e materiali in cartelle loro</span><span class="t t-cc">47 file in 4 cartelle. 3 non li ho capiti: sono in da-vedere. Non ho cancellato niente.</span></pre>
+          </div>
+          <figcaption><strong>Archivio.</strong> Un pomeriggio di riordino, in un minuto.</figcaption>
+        </figure>
+        <figure>
+          <div class="finestra">
+            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>~/Lavoro</span></div>
+<pre><span class="t t-tu">Rispondi a Giulia nel thread: la data va bene, il resto lo vediamo lunedì</span><span class="t t-cc">Bozza scritta nel thread, col tuo tono. Non l'ho mandata.</span></pre>
+          </div>
+          <figcaption><strong>Posta.</strong> La bozza nel thread giusto, mai inviata da sola.</figcaption>
+        </figure>
+        <figure>
+          <div class="finestra">
+            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>~/Lavoro</span></div>
+<pre><span class="t t-tu">Fammi una pagina dove vedo i progetti e cosa scade questa settimana</span><span class="t t-cc">Aperta nel browser: 7 progetti, 3 scadenze entro domenica.</span></pre>
+          </div>
+          <figcaption><strong>Su misura.</strong> Un piccolo strumento solo tuo.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
   <section class="sezione" id="funzioni" aria-labelledby="t-funzioni" style="padding-top:0">
     <div class="dentro">
       <div class="testa">
@@ -620,54 +681,27 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
   <section class="sezione" id="tecnica" aria-labelledby="t-tecnica" style="padding-top:0">
     <div class="dentro">
       <div class="testa">
-        <h2 id="t-tecnica">Sotto il cofano.</h2>
-        <p>Per chi vuole sapere com'è fatto. Tutto il resto è nel <a href="https://github.com/stellakamikaze/arturo">repository</a>.</p>
+        <h2 id="t-tecnica">In breve.</h2>
+        <p>Il resto, per chi vuole, è su <a href="https://github.com/stellakamikaze/arturo">GitHub</a>.</p>
       </div>
-      <div class="domande">
-        <details id="comandi">
-          <summary>I comandi<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
-          <div class="risposta">
-            <p>Si scrivono in Claude Code con la barra davanti. Tre servono ogni giorno: <code>/inizio</code>, <code>/fine</code> e <code>/guidami</code>.</p>
-            <p>Gli altri: <code>/progetto</code> apre un progetto nuovo, <code>/aggiorna</code> porta la versione nuova, <code>/novita</code> racconta cosa è cambiato, <code>/setup</code> configura, <code>/segnala</code> manda un problema a chi mantiene Arturo, <code>/diagnosi</code> cerca un guasto, <code>/sparring</code>, <code>/discovery</code> e <code>/write-plan</code> aiutano a pensare prima di fare, <code>/strato</code> serve alle organizzazioni.</p>
-          </div>
-        </details>
-        <details>
-          <summary>Skill, agenti e guardie<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
-          <div class="risposta">
-            <p><strong>5 skill:</strong> <code>prompt-master</code> riscrive ogni richiesta e mostra il brief prima di lavorare, <code>italiano-semplificato</code> tiene chiare le frasi, <code>todo</code> e <code>percorso</code> tengono le cose da fare e le tappe, <code>system-audit</code> controlla la configurazione.</p>
-            <p><strong>9 agenti</strong> per compiti singoli: ricerca, verifica dei fatti, revisione, caccia ai bug, test. <strong>23 guardie e automazioni</strong> decidono cosa passa e cosa chiede. <a href="https://github.com/stellakamikaze/arturo#i-guardiani-hooks">L'elenco completo</a>.</p>
-          </div>
-        </details>
-        <details>
-          <summary>La memoria<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
-          <div class="risposta">
-            <p>Le note sono file Markdown nelle cartelle di Claude Code (<code>~/.claude/projects/*/memory/</code>) più quelle che aggiungi tu, con in testa <code>name</code>, <code>description</code> e <code>type</code>. Accesa, a ogni messaggio Arturo cerca le note vicine e le indica a Claude. Nessun server: niente esce dal computer.</p>
-            <p>Si accende con <code>arturo memoria accendi</code>. Poi <code>cerca "testo"</code> e <code>controlla</code>, che trova i collegamenti rotti.</p>
-          </div>
-        </details>
-        <details>
-          <summary>Da cosa dipende<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
-          <div class="risposta">
-            <p><strong>Claude Code</strong> (Anthropic, con un piano Pro, Max, Team, Enterprise o Console), <strong>git</strong>, <strong>python3</strong> 3.8 o più e <strong>node</strong> 18 o più. Facoltativi: <strong>gh</strong> per tenere la configurazione su più computer, <strong>gws</strong> per Gmail, Calendar e Drive.</p>
-            <p>Su Windows Arturo lavora dentro Git Bash: senza, le guardie non vedono i comandi.</p>
-          </div>
-        </details>
-        <details id="telemetria">
-          <summary>La telemetria<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
-          <div class="risposta">
-            <p>Arturo manda a chi lo mantiene eventi da un elenco chiuso: quali comandi usi, quali guardie ti fermano, come va un aggiornamento, la versione e il sistema. Con loro un id casuale che resta lo stesso nel tempo, per questo i dati non sono anonimi. Ogni lunedì quei numeri diventano correzioni.</p>
-            <p><strong>Non escono mai</strong> le tue richieste, i tuoi file, nomi, le risposte di Claude, i percorsi del computer. Il server è open source, non salva l'IP e tiene gli eventi 12 mesi.</p>
-            <div class="comando"><pre id="cmd-spegni">python3 ~/.claude/bin/arturo telemetria spegni</pre><button type="button" data-copia="cmd-spegni">Copia</button></div>
-            <p class="risposta__nota">Per vedere cosa parte: <code>arturo telemetria mostra</code>. Per far cancellare i tuoi dati: federico@stellakamikaze.org.</p>
-          </div>
-        </details>
-        <details>
-          <summary>Gli impegni<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
-          <div class="risposta">
-            <p>Il repository resta pubblico e con licenza MIT. Solo <code>/aggiorna</code> applica gli aggiornamenti, dopo il tuo sì. La telemetria resta dichiarata e si spegne con un comando. Arturo resta in italiano. Se lo sviluppo si ferma, lo scrivo in cima al README: la tua copia continua a funzionare.</p>
-          </div>
-        </details>
-      </div>
+      <ul class="quattro">
+        <li id="comandi">
+          <h3>Cosa serve</h3>
+          <p>Claude Code con un abbonamento Anthropic, più git, Python e node. La guida li installa con te.</p>
+        </li>
+        <li>
+          <h3>I comandi</h3>
+          <p>Tre per ogni giorno: <code>/inizio</code>, <code>/fine</code> e <code>/guidami</code>. Gli altri li scopri quando servono.</p>
+        </li>
+        <li>
+          <h3>La memoria</h3>
+          <p>Note di testo nelle tue cartelle. È spenta finché non la accendi, e non esce dal computer.</p>
+        </li>
+        <li id="telemetria">
+          <h3>La telemetria</h3>
+          <p>Eventi d'uso, mai testi o file, per capire dove ci si blocca. Si spegne con <code>arturo telemetria spegni</code>.</p>
+        </li>
+      </ul>
     </div>
   </section>
 
@@ -746,7 +780,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
         <ul>
           <li><a href="installa/">Installa</a></li>
           <li><a href="#come-funziona">Come funziona</a></li>
-          <li><a href="#tecnica">Sotto il cofano</a></li>
+          <li><a href="#casi">Casi d'uso</a></li>
           <li><a href="#scritti">Articoli e newsletter</a></li>
           <li><a href="organizzazioni/">Organizzazioni</a></li>
         </ul>

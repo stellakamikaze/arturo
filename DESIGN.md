@@ -350,8 +350,8 @@ Tre cerchi concentrici: fuori `cielo` con bordo `azione` (Arturo), in mezzo bian
 ### Articoli e iscrizione
 Un elenco di quattro righe sotto un filetto `inchiostro`: data in voce stretta, titolo in Archivo 1,15 rem. Accanto, l'iscrizione. L'elenco nella pagina è di riserva e lo rinfresca `strumenti/articoli.py`; nel browser lo sostituisce la Content API di Ghost. L'iscrizione è il modulo di Ghost (`sito/vendor/`), con il pulsante `azione`.
 
-### Sotto il cofano
-Le parti tecniche (comandi, skill, memoria, dipendenze, telemetria, impegni) stanno in voci chiuse con lo stesso stile delle Domande: si aprono una alla volta. La home resta corta, e il dettaglio c'è per chi lo cerca.
+### Casi d'uso e «In breve»
+I casi d'uso sono sei finestre piccole su tre colonne, una richiesta e una risposta ciascuna, con una didascalia di una riga. La parte tecnica è una riga di quattro voci come «Cosa fa Arturo» (cosa serve, comandi, memoria, telemetria), una frase ciascuna: il dettaglio sta su GitHub.
 
 ### Guida a tappe
 Ogni tappa ha una boa quadrata di 40 px. La tappa corrente ha la boa piena `azione` e un velo `azione-velo` che sfuma verso destra. La tappa fatta ha la boa con bordo `passa` e una spunta. Il passo si apre con una piega di 0,5 s sulla curva `--esce`.
