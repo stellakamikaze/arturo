@@ -6,7 +6,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 È il telaio di una config personale usata quotidianamente in produzione, estratto e igienizzato: **zero dati, zero credenziali, zero riferimenti a infrastrutture private**. Quello che resta è il metodo.
 
-In due righe: **18 guardie e automazioni**, **13 slash command**, **9 subagent**, **5 skill**, una **CLI per i todo** (`arturo todo`), un **server open source** per la telemetria minima e le segnalazioni (`server/`) — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Il server lo tiene chi mantiene Arturo: a te non serve niente. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
+In due righe: **18 guardie e automazioni**, **13 slash command**, **9 subagent**, **5 skill**, una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), un **server open source** per la telemetria minima e le segnalazioni (`server/`) — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi parte da zero, anche senza un mestiere tecnico. Il server lo tiene chi mantiene Arturo: a te non serve niente. Nessun server, nessun account, nessun dominio richiesto — solo `git` e le CLI standard.
 
 I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure scrivi `python3 ~/.claude/bin/arturo web` nel terminale. La pagina è facoltativa e locale: risponde solo sul tuo computer (127.0.0.1), non si collega a internet e si spegne da sola dopo 30 minuti senza la pagina aperta.
 
@@ -298,8 +298,8 @@ Pedagogia: **`/novita`** — racconta gli aggiornamenti dell'harness non ancora 
 
 Il ciclo di lavoro quotidiano:
 
-- **`/inizio <progetto>`** — sync della config, localizza il progetto, riprende l'ultimo handoff, ricrea i task pendenti cross-referenziandoli con `git log` (quelli già completati non risorgono). `/inizio gws` avvia invece l'onboarding gws.
-- **`/fine`** — review di completezza per le modifiche di codice, validate, commit selettivo e handoff. Alla fine chiede se Arturo si è inceppato o se ti manca qualcosa (al massimo una domanda a settimana, oppure subito dopo un intoppo).
+`- **`/inizio <progetto>`** — sync della config, poi il contesto del progetto in una chiamata (`arturo contesto`: git, ripartenza degli handoff recenti, todo aperti divisi per chi agisce, scadenze), il confronto dei todo con `git log` (quelli già fatti non risorgono) e la scelta del lavoro. Con `--tutti` aggiorna anche ogni progetto della cartella dei progetti; con `-- <compito>` parte subito sul compito. `/inizio gws` avvia invece l'onboarding gws.`
+`- **`/fine`** — inventario dei file della sessione e dove va ognuno, review di completezza per le modifiche di codice, validate, commit selettivo e handoff con la tabella dei todo pendenti e di chi agisce. Un controllo (`bin/handoff-gate.sh`) ferma un handoff senza tabella, con un todo inesistente o con un segnaposto mai compilato; tiene gli ultimi 5 handoff per progetto e rigenera l'indice `data/handoffs/INDEX.md`. Alla fine chiede se Arturo si è inceppato o se ti manca qualcosa (al massimo una domanda a settimana, oppure subito dopo un intoppo).`
 - **`/segnala`** — manda a chi mantiene Arturo un problema, un'idea o uno strumento da collegare. La bozza la scrive Claude, senza nomi né segreti. Tu la leggi e dici sì: arriva direttamente a chi mantiene Arturo, senza account né email da mandare. Se preferisci, diventa una issue pubblica su GitHub. Se non vuoi più gli inviti a segnalare: `python3 ~/.claude/bin/arturo segnala basta`.
 
 Sviluppo: `/progetto` (da idea a primo commit), `/discovery`, `/write-plan`, `/diagnosi` (disciplina diagnostica: fatti prima delle ipotesi; si chiama così per non nascondere il `/debug` di Claude Code).

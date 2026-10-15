@@ -483,6 +483,7 @@ COMANDI = {
     "telemetria": ("telemetria", "i dati d'uso anonimi che Arturo manda: stato, mostra, spegni, accendi, invia"),
     "personale": ("personale", "le tue aggiunte ai comandi di Arturo, in file che gli aggiornamenti non toccano"),
     "memoria": ("memoria", "la memoria facoltativa, spenta di default: stato, accendi, spegni, cerca, controlla"),
+    "contesto": ("contesto", "il contesto di un progetto in una chiamata: git, handoff, todo, scadenze (/inizio)"),
 }
 
 

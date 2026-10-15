@@ -11,6 +11,27 @@ modo di lavorare.
 
 ---
 
+## 2026-10-15 — /inizio e /fine: il contesto in una chiamata, un handoff che regge
+
+**Cosa cambia**: `/inizio` raccoglie il contesto del progetto in una chiamata sola
+(`arturo contesto`): cosa è cambiato in git, la ripartenza degli ultimi handoff, i todo aperti
+divisi fra te e Claude, le scadenze dei prossimi giorni e il todo da cui ripartire. Con
+`/inizio --tutti` aggiorna anche tutti i progetti della tua cartella dei progetti. `/fine` parte
+dall'inventario dei file che la sessione ha scritto, anche fuori dal progetto (Download, Scrivania,
+cartelle temporanee), e propone dove deve finire ognuno. Prima di chiudere controlla l'handoff: la
+tabella dei pendenti c'è sempre, ogni riga è un todo vero dell'archivio, e chi agisce è tu, decidi
+o io. Tiene gli ultimi 5 handoff per progetto, ma prima ti mostra cosa conteneva quello che esce, e
+rigenera l'indice dei progetti.
+
+**Il principio dietro**: una sessione nuova vale quanto quello che trova. Un handoff che dice «cosa
+resta» senza dire cosa, o un file lasciato in una cartella che sparisce al riavvio, è lavoro perso.
+Meglio un controllo che ferma la chiusura che una ripartenza al buio.
+
+**Da sapere**: gli handoff restano solo sul tuo computer, come prima, e viaggiano fra le tue
+macchine solo se la config ha un remote privato. I file che l'inventario trova fuori da un progetto
+non si spostano da soli: Claude ti chiede dove li tieni. Da terminale il contesto lo vedi con
+`python3 ~/.claude/bin/arturo contesto <progetto>`.
+
 ## 2026-10-15 — /apri, avvisi sotto il prompt, esempi per lo strato
 
 **Cosa cambia**: scrivi `/apri` e si apre l'ultimo link o file che Claude ha citato, con il

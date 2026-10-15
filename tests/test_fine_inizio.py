@@ -1,0 +1,628 @@
+#!/usr/bin/env python3
+"""F01-F10: il ciclo di sessione di /fine e /inizio sopra l'archivio dei todo (15/10/2026).
+
+F01 bin/handoff-gate.sh: la sezione «## Task Pendenti» c'è sempre, ogni riga ha l'ID di un todo
+aperto dell'archivio, Chi è una categoria dei todo, niente segnaposti del modello mai compilati.
+F02 il gate legge le categorie di Chi da bin/todo_store.py: non ne tiene una copia.
+F03 bin/handoff-retention.py tiene gli ultimi 5 per filone, in ordine di nome e non di data del
+file, stampa vicoli ciechi e task senza ID dei file in uscita e cancella solo con --applica.
+F04 bin/index-rigenera.py: una riga per filone, prossimo passo dalla Ripartenza, archivio oltre
+30 giorni, nessun link morto, scrittura atomica, nessun elenco di cartelle personali.
+F05 bin/inventario-sessione.py: dalla trascrizione i file della sessione con un destino proposto
+(repo, archivia, resta, scarto), le bozze create online, ~/.claude escluso.
+F06 arturo contesto: git, ripartenza, todo per chi agisce, chiusi, scadenze in una chiamata;
+NON TROVATO con i nomi simili; --tutti e il compito dopo « -- » restano fuori dal nome.
+F07 bin/sync-progetti.sh: pull di ogni progetto con stash, conflitti e credenziali riportati.
+F08 /fine usa inventario, gate, retention e indice; il modello della tabella passa il gate;
+niente find|tail|rm; nessun blocco legge una variabile di un altro blocco.
+F09 /fine rilanciato nella stessa sessione riscrive lo stesso handoff.
+F10 /inizio prende il contesto con arturo contesto e con --tutti lancia sync-progetti.
+
+Sulla base cbd8305 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+GIT_ENV = {
+    "GIT_AUTHOR_NAME": "prova", "GIT_AUTHOR_EMAIL": "prova@example.invalid",
+    "GIT_COMMITTER_NAME": "prova", "GIT_COMMITTER_EMAIL": "prova@example.invalid",
+    "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1", "GIT_TERMINAL_PROMPT": "0",
+}
+OGGI = "2026-10-15"
+DA_FUORI = {"HOME", "ARGUMENTS", "PROJECTS_BASE", "PWD", "CLAUDE_CODE_SESSION_ID"}
+
+
+def read(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def serve(repo: Path, relativo: str, codice: str) -> Path:
+    p = repo / relativo
+    assert p.is_file(), f"{codice} manca {relativo}"
+    return p
+
+
+class Lab:
+    """Una HOME finta con il suo archivio dei todo e la cartella dei progetti."""
+
+    def __init__(self, repo: Path, tmp: Path):
+        self.repo, self.tmp = repo, tmp
+        self.home = tmp / "home"
+        self.progetti = self.home / "Documents" / "ClaudeCode"
+        self.handoffs = self.home / ".claude" / "data" / "handoffs"
+        self.progetti.mkdir(parents=True)
+        self.handoffs.mkdir(parents=True)
+        self.todo_file = tmp / "eventi.jsonl"
+
+    def env(self, **altro) -> dict:
+        e = dict(os.environ, HOME=str(self.home), ARTURO_TODO=str(self.todo_file), ARTURO_OGGI=OGGI,
+                 ARTURO_TELEMETRIA="0", PYTHONDONTWRITEBYTECODE="1", **GIT_ENV)
+        e.pop("PROJECTS_BASE", None)
+        e.pop("CLAUDE_CODE_SESSION_ID", None)
+        e.update(altro)
+        return e
+
+    def run(self, argv: list, cwd: Path | None = None, **env) -> subprocess.CompletedProcess:
+        return subprocess.run(argv, cwd=str(cwd or self.home), env=self.env(**env), capture_output=True,
+                              text=True, timeout=120)
+
+    def arturo(self, *argomenti: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
+        return self.run([sys.executable, "-B", str(self.repo / "bin" / "arturo"), *argomenti], cwd=cwd)
+
+    def todo(self, *argomenti: str) -> None:
+        r = self.arturo("todo", *argomenti)
+        assert r.returncode == 0, f"preparazione: arturo todo {argomenti}: {r.stderr}"
+
+    def git(self, cartella: Path, *argomenti: str) -> str:
+        r = self.run(["git", "-C", str(cartella), *argomenti])
+        assert r.returncode == 0, f"preparazione: git {argomenti}: {r.stderr}"
+        return r.stdout
+
+
+def con_lab(repo: Path, prova) -> None:
+    with tempfile.TemporaryDirectory(prefix="arturo-fine-") as tmp:
+        prova(Lab(repo, Path(tmp)))
+
+
+# --- F01 e F02: il gate ---------------------------------------------------------------------------
+
+TESTA = ("| ID | Progetto | Priorità | Task | Status | Descrizione | Chi |\n"
+         "|----|----------|----------|------|--------|-------------|-----|\n")
+
+
+def riga(id_: str, chi: str, task: str = "Rileggere il capitolo", desc: str = "Servono le note dell'editor") -> str:
+    return f"| {id_} | libro | alta | {task} | da fare | {desc} | {chi} |\n"
+
+
+def handoff(sezione: str, extra: str = "") -> str:
+    return f"# Session Handoff\n\n## Progetto\n- Nome: libro\n\n{sezione}\n## In sospeso\n- niente\n{extra}"
+
+
+def gate(lab: Lab, testo: str | None) -> tuple:
+    f = lab.tmp / "handoff.md"
+    if testo is not None:
+        f.write_text(testo, encoding="utf-8")
+    elif f.exists():
+        f.unlink()
+    r = lab.run(["bash", str(lab.repo / "bin" / "handoff-gate.sh"), str(f)])
+    rosse = [x for x in r.stdout.splitlines() if x.startswith("GATE HANDOFF: rosso:")]
+    return r.returncode, r.stdout + r.stderr, len(rosse)
+
+
+def prepara_todo(lab: Lab) -> None:
+    lab.todo("aggiungi", "Rileggere il capitolo", "--progetto", "libro", "--chi", "io")     # 1
+    lab.todo("aggiungi", "Mandare la bozza", "--progetto", "libro", "--chi", "tu")          # 2
+    lab.todo("aggiungi", "Scegliere la copertina", "--progetto", "libro", "--chi", "decidi")  # 3
+    lab.todo("aggiungi", "Vecchia cosa", "--progetto", "libro")                             # 4
+    lab.todo("fatto", "4")
+
+
+CASI_GATE = [
+    # (nome, testo o None per il file assente, exit, marcatore, righe rosse)
+    ("sezione assente", handoff(""), 1, "manca la sezione «## Task Pendenti»", 1),
+    ("sezione con la sola intestazione", handoff("## Task Pendenti\n\n" + TESTA), 1, "non ha righe", 1),
+    ("titolo minuscolo", handoff("## Task pendenti\n\n" + TESTA + riga("#1", "io")), 1,
+     "il titolo deve essere esatto", 1),
+    ("titolo quasi uguale accanto a quello esatto",
+     handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "io") + "\n## Task Pendenti (3)\nNessun task pendente.\n"),
+     1, "«## Task Pendenti (3)»", 1),
+    ("frase senza sezione", handoff("Nessun task pendente: il lavoro è chiuso.\n"), 1, "manca la sezione", 1),
+    ("ID vuoto", handoff("## Task Pendenti\n\n" + TESTA + riga("", "io")), 1, "ID «» non è un #numero", 1),
+    ("ID senza cancelletto", handoff("## Task Pendenti\n\n" + TESTA + riga("1", "io")), 1, "ID «1» non è", 1),
+    ("ID di un todo che non esiste", handoff("## Task Pendenti\n\n" + TESTA + riga("#99", "io")), 1,
+     "#99 non esiste", 1),
+    ("ID di un todo chiuso", handoff("## Task Pendenti\n\n" + TESTA + riga("#4", "io")), 1, "#4 è già chiuso", 1),
+    ("Chi fuori lista", handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "Claude")), 1, "Chi «Claude»", 1),
+    ("Chi vuoto", handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "")), 1, "Chi «»", 1),
+    ("colonna Chi non ultima",
+     handoff("## Task Pendenti\n\n| ID | Chi | Task |\n|---|---|---|\n| #1 | io | Rileggere |\n"), 1,
+     "l'ultima colonna della tabella non è «Chi»", 1),
+    ("colonna ID assente",
+     handoff("## Task Pendenti\n\n| Task | Chi |\n|---|---|\n| Rileggere | io |\n"), 1, "non ha la colonna ID", 1),
+    ("descrizione del modello mai compilata",
+     handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "io", desc="cosa resta")), 1, "segnaposto", 1),
+    ("task del modello mai compilato",
+     handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "io", task="[task]")), 1, "segnaposto", 1),
+    ("due difetti, due righe rosse",
+     handoff("## Task Pendenti\n\n" + TESTA + riga("#99", "io") + riga("#2", "forse")), 1, "GATE HANDOFF: rosso", 2),
+    ("file assente", None, 2, "file assente", 0),
+    ("verde con le tre categorie",
+     handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "io") + riga("#2", "tu") + riga("#3", "decidi")),
+     0, "GATE HANDOFF: verde", 0),
+    ("verde senza task", handoff("## Task Pendenti\nNessun task pendente.\n"), 0, "GATE HANDOFF: verde", 0),
+    ("verde con un task che parla di segnaposti",
+     handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "io", desc="Togliere i TODO rimasti nel capitolo due")),
+     0, "GATE HANDOFF: verde", 0),
+    ("verde con una tabella senza ID fuori dalla sezione",
+     handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "io"), "\n## Riferimenti\n| a | b |\n|---|---|\n| x | y |\n"),
+     0, "GATE HANDOFF: verde", 0),
+]
+
+
+def test_f01(repo: Path) -> None:
+    serve(repo, "bin/handoff-gate.sh", "F01")
+
+    def prova(lab: Lab) -> None:
+        prepara_todo(lab)
+        for nome, testo, rc, marcatore, rosse in CASI_GATE:
+            codice, uscita, n = gate(lab, testo)
+            assert codice == rc and marcatore in uscita and n == rosse, \
+                f"F01 caso «{nome}»: exit {codice} (atteso {rc}), righe rosse {n} (attese {rosse}): {uscita[-400:]!r}"
+        r = lab.run(["bash", str(repo / "bin" / "handoff-gate.sh")])
+        assert r.returncode == 2 and "uso:" in r.stderr, f"F01 senza argomento: {r.returncode} {r.stderr!r}"
+        print(f"  F01 casi={len(CASI_GATE) + 1}")
+    con_lab(repo, prova)
+
+
+def test_f02(repo: Path) -> None:
+    serve(repo, "bin/handoff-gate.sh", "F02")
+
+    def prova(lab: Lab) -> None:
+        copia = lab.tmp / "arturo"
+        shutil.copytree(str(repo / "bin"), str(copia / "bin"))
+        store = copia / "bin" / "todo_store.py"
+        testo = read(store)
+        assert 'CHI = ("tu", "decidi", "io")' in testo, "F02 preparazione: CHI di todo_store è cambiato"
+        store.write_text(testo.replace('CHI = ("tu", "decidi", "io")', 'CHI = ("tu", "decidi", "io", "altro")'),
+                         encoding="utf-8")
+        prepara_todo(lab)
+        f = lab.tmp / "h.md"
+        f.write_text(handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "altro")), encoding="utf-8")
+        vera = lab.run(["bash", str(repo / "bin" / "handoff-gate.sh"), str(f)])
+        nuova = lab.run(["bash", str(copia / "bin" / "handoff-gate.sh"), str(f)])
+        assert vera.returncode == 1, f"F02 il gate vero accetta un Chi che l'archivio non conosce: {vera.stdout!r}"
+        assert nuova.returncode == 0, \
+            f"F02 il gate tiene una sua copia delle categorie: con CHI cambiato in todo_store resta rosso: {nuova.stdout!r}"
+    con_lab(repo, prova)
+
+
+# --- F03 e F04: retention e indice ----------------------------------------------------------------
+
+def documento(nome: str, filone: str = "", ripartenza: str = "", prossimi: str = "", vicolo: str = "",
+              task: str = "", status: str = "in progress") -> str:
+    f = f"- Filone: {filone}\n" if filone else ""
+    r = f"## Ripartenza\nTesto.\nProssimo passo: {ripartenza}\n\n" if ripartenza else ""
+    p = f"## Prossimi passi\n1. [ ] {prossimi}\n\n" if prossimi else ""
+    v = f"## Vicoli ciechi\n- {vicolo}\n\n" if vicolo else ""
+    t = task or "## Task Pendenti\nNessun task pendente.\n"
+    return f"# Session Handoff\n\n## Progetto\n- Nome: {nome} / Branch: main / Status: {status}\n{f}\n{r}{v}{p}{t}"
+
+
+def scrivi(radice: Path, file: dict) -> None:
+    for rel, testo in file.items():
+        (radice / rel).parent.mkdir(parents=True, exist_ok=True)
+        (radice / rel).write_text(testo, encoding="utf-8")
+
+
+def test_f03(repo: Path) -> None:
+    script = serve(repo, "bin/handoff-retention.py", "F03")
+    task = ("## Task Pendenti\n\n" + TESTA + "| #12 | libro | alta | TASK-CON-ID | da fare | d | io |\n"
+            "| — | libro | media | TASK-SENZA-ID | da fare | d | tu |\n")
+    with tempfile.TemporaryDirectory(prefix="arturo-retention-") as tmp:
+        radice = Path(tmp)
+        date = ["2026-09-01_10-00", "2026-09-05_10-00", "2026-09-10_10-00", "2026-09-15_10-00",
+                "2026-09-20_10-00", "2026-09-25_10-00"]
+        file = {f"libro/HANDOFF_{d}.md": documento("libro", vicolo="VICOLO-USCENTE" if i == 0 else "",
+                                                   task=task if i == 0 else "")
+                for i, d in enumerate(date)}
+        file.update({f"libro/HANDOFF_2026-08-0{i}_10-00.md": documento("libro", filone="Copertina") for i in (1, 2)})
+        file["libro/note.txt"] = "non è un handoff"
+        scrivi(radice, file)
+        adesso = time.time()  # date dei file al contrario: l'ordine deve venire dal nome
+        for i, f in enumerate(sorted((radice / "libro").glob("HANDOFF_*.md"))):
+            os.utime(str(f), (adesso - i * 3600, adesso - i * 3600))
+
+        def lancia(*a: str) -> subprocess.CompletedProcess:
+            return subprocess.run([sys.executable, "-B", str(script), *a, "--radice", str(radice)],
+                                  capture_output=True, text=True, timeout=60)
+        assert lancia("nessuno").returncode == 2 and lancia("../libro").returncode == 2, "F03 slug assente non è exit 2"
+        prima = sorted(p.name for p in (radice / "libro").iterdir())
+        r = lancia("libro")
+        assert r.returncode == 0 and sorted(p.name for p in (radice / "libro").iterdir()) == prima, \
+            f"F03 senza --applica ha cancellato qualcosa: {r.stdout}"
+        uscenti = [x.split()[3] for x in r.stdout.splitlines() if x.startswith("=== IN USCITA")]
+        assert uscenti == [f"libro/HANDOFF_{date[0]}.md"], f"F03 in uscita {uscenti}: il filone Copertina conta a parte"
+        assert "VICOLO-USCENTE" in r.stdout and "TASK-SENZA-ID" in r.stdout and "TASK-CON-ID" not in r.stdout, \
+            f"F03 il triage del file in uscita: {r.stdout}"
+        r = lancia("libro", "--applica")
+        assert r.returncode == 0 and not (radice / "libro" / f"HANDOFF_{date[0]}.md").exists(), \
+            f"F03 --applica non cancella: {r.stdout} {r.stderr}"
+        assert len(list((radice / "libro").glob("HANDOFF_*.md"))) == 7 and (radice / "libro" / "note.txt").exists(), \
+            "F03 --applica ha cancellato più del file in uscita"
+
+
+INDEX = """# Indice
+
+| Progetto | Ultimo handoff | Data | Stato | Prossimo passo |
+|---|---|---|---|---|
+| alfa (etichetta tenuta) | [HANDOFF_2026-09-25_10-00.md](alfa/HANDOFF_2026-09-25_10-00.md) | 2026-09-25 | STATO-INDEX-ALFA | DA-INDEX-ALFA |
+| alfa (sessione prima) | [HANDOFF_2026-09-20_10-00.md](alfa/HANDOFF_2026-09-20_10-00.md) | 2026-09-20 | superato | RIGA-SUPERATA |
+| beta | [HANDOFF_2026-09-26_10-00.md](beta/HANDOFF_2026-09-26_10-00.md) | 2026-09-26 | x | VECCHIO-BETA |
+| gamma (dismesso) | [HANDOFF_2026-09-29_10-00.md](gamma/HANDOFF_2026-09-29_10-00.md) | 2026-09-29 | DISMESSO-GAMMA | — |
+"""
+
+
+def test_f04(repo: Path) -> None:
+    script = serve(repo, "bin/index-rigenera.py", "F04")
+    assert "CONTENITORI" not in read(script), "F04 index-rigenera tiene un elenco di cartelle personali"
+    with tempfile.TemporaryDirectory(prefix="arturo-index-") as tmp:
+        radice = Path(tmp)
+        scrivi(radice, {
+            "libro/HANDOFF_2026-10-01_10-00.md": documento("libro", filone="Copertina", ripartenza="PP-COPERTINA"),
+            "libro/HANDOFF_2026-10-02_10-00.md": documento("libro", ripartenza="PP-LIBRO"),
+            "libro/HANDOFF_2026-09-30_10-00.md": documento("libro", ripartenza="PP-LIBRO-VECCHIO"),
+            "alfa/HANDOFF_2026-09-20_10-00.md": documento("alfa"),
+            "alfa/HANDOFF_2026-09-25_10-00.md": documento("alfa", prossimi="DA-PROSSIMI-ALFA"),
+            "beta/HANDOFF_2026-09-26_10-00.md": documento("beta", ripartenza="PP-BETA"),
+            "delta/HANDOFF_2026-09-27_10-00.md": documento("delta", prossimi="DA-PROSSIMI-DELTA"),
+            "lungo/HANDOFF_2026-09-28_10-00.md": documento("lungo", ripartenza="a | b " + "parola " * 80),
+            "soglia30/HANDOFF_2026-09-15_10-00.md": documento("soglia30", ripartenza="PP-30"),
+            "soglia31/HANDOFF_2026-09-14_10-00.md": documento("soglia31", ripartenza="PP-31"),
+            "INDEX.md": INDEX,
+        })
+
+        def lancia(*a: str) -> subprocess.CompletedProcess:
+            return subprocess.run([sys.executable, "-B", str(script), "--radice", str(radice), "--oggi", OGGI, *a],
+                                  capture_output=True, text=True, timeout=60)
+        assert lancia().returncode == 2, "F04 senza --dry-run/--out/--scrivi non è exit 2"
+        prima = read(radice / "INDEX.md")
+        r = lancia("--dry-run")
+        assert r.returncode == 0 and read(radice / "INDEX.md") == prima, f"F04 --dry-run: {r.returncode} {r.stderr}"
+        attive, _, archivio = r.stdout.partition("## Archivio")
+
+        def righe(testo: str, m: str) -> list:
+            return [x for x in testo.splitlines() if x.startswith("|") and m in x]
+        morti = [d for d in re.findall(r"\]\(([^)\s]+)\)", r.stdout) if not (radice / d).exists()]
+        assert not morti, f"F04 link verso file assenti: {morti}"
+        for x in r.stdout.splitlines():
+            if x.startswith("|"):
+                assert len(re.split(r"(?<!\\)\|", x.strip())) - 2 == 5, f"F04 riga senza cinque colonne: {x[:80]}"
+        assert righe(attive, "PP-COPERTINA") and righe(attive, "PP-LIBRO") and not righe(r.stdout, "PP-LIBRO-VECCHIO"), \
+            "F04 il filone Copertina e il progetto libro non hanno una riga ciascuno"
+        assert righe(attive, "PP-BETA") and not righe(attive, "VECCHIO-BETA"), "F04 la Ripartenza non vince sull'INDEX"
+        alfa = righe(attive, "alfa/HANDOFF_2026-09-25")
+        assert alfa and "DA-INDEX-ALFA" in alfa[0] and "STATO-INDEX-ALFA" in alfa[0], f"F04 alfa: {alfa}"
+        assert not righe(r.stdout, "RIGA-SUPERATA") and righe(attive, "DA-PROSSIMI-DELTA"), "F04 superate o Prossimi passi"
+        gamma = righe(r.stdout, "DISMESSO-GAMMA")
+        assert gamma and "](gamma/" not in gamma[0], f"F04 la riga senza file ha perso il testo o tiene il link: {gamma}"
+        assert righe(attive, "PP-30") and righe(archivio, "PP-31") and not righe(attive, "PP-31"), "F04 soglia 30 giorni"
+        lungo = righe(attive, "lungo/HANDOFF")
+        assert lungo and re.split(r"(?<!\\)\|", lungo[0].strip())[-2].strip().endswith("…"), "F04 prossimo passo non tagliato"
+        r = lancia("--scrivi")
+        assert r.returncode == 0 and "PP-BETA" in read(radice / "INDEX.md"), f"F04 --scrivi: {r.stderr}"
+        assert not [p for p in radice.iterdir() if p.name.endswith(".tmp")], "F04 file temporanei rimasti"
+        vuota = radice / "vuota"
+        vuota.mkdir()
+        r = subprocess.run([sys.executable, "-B", str(script), "--radice", str(vuota), "--dry-run"],
+                           capture_output=True, text=True, timeout=60)
+        assert r.returncode == 1, f"F04 senza handoff né INDEX genera lo stesso un indice: {r.returncode}"
+
+
+# --- F05: inventario ----------------------------------------------------------------------------
+
+def test_f05(repo: Path) -> None:
+    script = serve(repo, "bin/inventario-sessione.py", "F05")
+    testo = read(script)
+    for parola in ("gws", "consolida", "drive-personale"):
+        assert parola not in testo, f"F05 inventario con un destino o un account personale: {parola}"
+
+    def prova(lab: Lab) -> None:
+        progetto = lab.progetti / "libro"
+        progetto.mkdir()
+        lab.git(progetto, "init", "-q")
+        (progetto / "capitolo.md").write_text("uno\n", encoding="utf-8")
+        (lab.home / "Desktop").mkdir()
+        sciolto = lab.home / "Desktop" / "note.txt"
+        sciolto.write_text("appunti\n", encoding="utf-8")
+        fuori = lab.home / "codice.py"
+        fuori.write_text("print(1)\n", encoding="utf-8")
+        cfg = lab.home / ".claude" / "settings.json"
+        cfg.write_text("{}\n", encoding="utf-8")
+        sid = "sessione-di-prova"
+        cartella = lab.home / ".claude" / "projects" / "libro"
+        cartella.mkdir(parents=True)
+        ts = "2026-10-15T09:00:00.000Z"
+
+        def uso(i: str, nome: str, inp: dict) -> dict:
+            return {"timestamp": ts, "cwd": str(progetto), "message": {"content": [
+                {"type": "tool_use", "id": i, "name": nome, "input": inp}]}}
+        righe = [
+            uso("t1", "Write", {"file_path": str(progetto / "capitolo.md")}),
+            uso("t2", "Write", {"file_path": str(sciolto)}),
+            uso("t3", "Edit", {"file_path": str(cfg)}),
+            uso("t4", "Bash", {"command": f"echo x > {fuori}"}),
+            uso("t5", "Bash", {"command": "cp capitolo.md /tmp/arturo-prova-sparito.md"}),
+            uso("t6", "mcp__connettore__Gmail__create_draft", {"to": "a@example.invalid"}),
+            {"timestamp": ts, "message": {"content": [{"type": "tool_result", "tool_use_id": "t6",
+                                                       "content": '{"id": "bozza0000prova"}'}]}},
+        ]
+        (cartella / f"{sid}.jsonl").write_text("\n".join(json.dumps(x) for x in righe) + "\n", encoding="utf-8")
+        r = lab.run([sys.executable, "-B", str(script), "--json", "--session", sid,
+                     "--projects", str(lab.home / ".claude" / "projects"), "--home", str(lab.home)])
+        assert r.returncode == 0, f"F05 exit {r.returncode}: {r.stderr}"
+        inv = json.loads(r.stdout)
+        destini = {Path(f["path"]).name: f["destino"] for f in inv["file"]}
+        assert destini.get("capitolo.md") == "repo", f"F05 il file del progetto non va nel repo: {destini}"
+        assert destini.get("note.txt") == "archivia", f"F05 il documento sulla Scrivania non va archiviato: {destini}"
+        assert destini.get("codice.py") == "scarto", f"F05 codice fuori da un repository: {destini}"
+        assert "settings.json" not in destini and inv["esclusi"]["~/.claude"] == 1, f"F05 ~/.claude non escluso: {inv['esclusi']}"
+        assert any(s["path"].endswith("arturo-prova-sparito.md") for s in inv["spariti"]), "F05 un file assente non è fra gli spariti"
+        assert [(o["tipo"], o["id"]) for o in inv["online"]] == [("bozza di email", "bozza0000prova")], \
+            f"F05 la bozza creata online manca: {inv['online']}"
+        r = lab.run([sys.executable, "-B", str(script), "--session", "nessuna",
+                     "--projects", str(lab.home / ".claude" / "projects"), "--home", str(lab.home)])
+        assert r.returncode == 2, f"F05 trascrizione assente non è exit 2: {r.returncode}"
+    con_lab(repo, prova)
+
+
+# --- F06: arturo contesto -----------------------------------------------------------------------
+
+def test_f06(repo: Path) -> None:
+    serve(repo, "bin/contesto.py", "F06")
+
+    def prova(lab: Lab) -> None:
+        progetto = lab.progetti / "Il Libro"
+        progetto.mkdir()
+        lab.git(progetto, "init", "-q")
+        (progetto / "a.md").write_text("a\n", encoding="utf-8")
+        lab.git(progetto, "add", "a.md")
+        lab.git(progetto, "commit", "-qm", "Primo capitolo scritto")
+        scrivi(lab.handoffs, {
+            "il-libro/HANDOFF_2026-10-14_10-00.md": documento("il-libro", ripartenza="RIPARTI-DALLA-BOZZA"),
+            "il-libro/HANDOFF_2026-09-01_10-00.md": documento("il-libro", ripartenza="VECCHIO-PASSO"),
+        })
+        lab.todo("aggiungi", "Rileggere il capitolo", "--progetto", "il-libro", "--chi", "io")
+        lab.todo("aggiungi", "Mandare la bozza", "--progetto", "il-libro", "--chi", "tu", "--scadenza", "2026-10-16")
+        lab.todo("aggiungi", "Firmare il contratto", "--progetto", "generale", "--chi", "tu", "--scadenza", "2026-10-13")
+        lab.todo("aggiungi", "Lavoro di un altro progetto", "--progetto", "altro", "--chi", "io")
+        lab.todo("aggiungi", "Chiuso adesso", "--progetto", "il-libro")
+        lab.todo("fatto", "5")
+        r = lab.arturo("contesto", "Il Libro --tutti -- rileggere il capitolo due", cwd=lab.home)
+        out = r.stdout
+        assert r.returncode == 0, f"F06 exit {r.returncode}: {r.stderr} {out}"
+        assert "PROGETTO il-libro" in out and f"cartella: {progetto.resolve()}" in out, f"F06 progetto o cartella: {out[:300]}"
+        assert "Primo capitolo scritto" in out and "RIPARTI-DALLA-BOZZA" in out and "VECCHIO-PASSO" not in out, \
+            f"F06 git o ripartenza degli ultimi 14 giorni: {out}"
+        assert re.search(r"TOCCA A TE\n\s+#2 Mandare la bozza", out) and re.search(r"FACCIO IO\n\s+#1 Rileggere", out), \
+            f"F06 i todo del progetto non sono divisi per chi agisce: {out}"
+        assert "Lavoro di un altro progetto" not in out, "F06 mostra i todo di un altro progetto"
+        assert re.search(r"CHIUSI.*\n\s+#5 Chiuso adesso", out), f"F06 i todo chiusi dopo l'ultimo handoff: {out}"
+        scadenze = out[out.index("SCADENZE"):] if "SCADENZE" in out else ""
+        assert "Firmare il contratto" in scadenze and "scaduto da 2 g" in scadenze, f"F06 scadenze anche di generale: {out}"
+        assert "DA DOVE PARTIRE" in out, "F06 manca il todo da cui ripartire"
+        r = lab.arturo("contesto", "il librr", cwd=lab.home)
+        assert r.returncode == 2 and "NON TROVATO" in r.stdout and "Il Libro" in r.stdout, \
+            f"F06 un refuso non dà NON TROVATO con i nomi simili: {r.returncode} {r.stdout}"
+        r = lab.arturo("contesto", cwd=lab.progetti)
+        assert r.returncode == 2 and "contiene i progetti" in r.stdout, f"F06 la cartella dei progetti presa per un progetto: {r.stdout}"
+        r = lab.arturo("contesto", cwd=progetto)
+        assert r.returncode == 0 and "PROGETTO il-libro" in r.stdout, f"F06 senza nome non usa la cartella: {r.stdout}"
+        r = lab.arturo("contesto", "libro", "--boh", cwd=lab.home)
+        assert r.returncode == 3, f"F06 un'opzione sconosciuta non è exit 3: {r.returncode}"
+    con_lab(repo, prova)
+
+
+# --- F07: sync-progetti -------------------------------------------------------------------------
+
+def test_f07(repo: Path) -> None:
+    script = serve(repo, "bin/sync-progetti.sh", "F07")
+
+    def prova(lab: Lab) -> None:
+        conti = [0]
+
+        def prepara(nome: str) -> tuple:
+            radice = lab.tmp / nome
+            nudo, monte = lab.tmp / f"nudo-{nome}", lab.tmp / f"monte-{nome}"
+            radice.mkdir()
+            lab.git(lab.tmp, "init", "-q", "--bare", "-b", "main", str(nudo))
+            lab.git(lab.tmp, "clone", "-q", str(nudo), str(monte))
+            lab.git(monte, "checkout", "-q", "-B", "main")
+            (monte / "nota.md").write_text("riga uno\nriga due\n", encoding="utf-8")
+            (monte / "altro.md").write_text("altro file\n", encoding="utf-8")
+            lab.git(monte, "add", "-A")
+            lab.git(monte, "commit", "-qm", "base")
+            lab.git(monte, "push", "-q", "origin", "main")
+            lab.git(lab.tmp, "clone", "-q", str(nudo), str(radice / "repo"))
+            return radice, monte
+
+        def avanza(monte: Path, file: str, testo: str) -> None:
+            (monte / file).write_text(testo + "\n", encoding="utf-8")
+            lab.git(monte, "commit", "-qam", "avanti")
+            lab.git(monte, "push", "-q", "origin", "main")
+
+        def lancia(radice: Path, copia: Path | None = None) -> subprocess.CompletedProcess:
+            conti[0] += 1
+            return lab.run(["bash", str(copia or script), str(radice)])
+
+        radice, _ = prepara("a")
+        r = lancia(radice)
+        assert r.returncode == 0 and "Già aggiornato" in r.stdout, f"F07 allineato: {r.returncode} {r.stdout}"
+        radice, monte = prepara("b")
+        avanza(monte, "nota.md", "cambiata a monte")
+        r = lancia(radice)
+        assert r.returncode == 0 and "Aggiornato: 1 commit" in r.stdout, f"F07 remoto avanti: {r.stdout}"
+        radice, monte = prepara("c")
+        avanza(monte, "nota.md", "cambiata a monte")
+        (radice / "repo" / "altro.md").write_text("modificato in locale\n", encoding="utf-8")
+        r = lancia(radice)
+        assert r.returncode == 0 and "Stash ripristinato" in r.stdout and \
+            "modificato in locale" in read(radice / "repo" / "altro.md"), f"F07 stash pulito: {r.stdout}"
+        radice, monte = prepara("d")
+        avanza(monte, "nota.md", "riscritta a monte")
+        (radice / "repo" / "nota.md").write_text("riscritta in locale\n", encoding="utf-8")
+        r = lancia(radice)
+        assert r.returncode == 1 and "stash pop con conflitti" in r.stdout, f"F07 il conflitto dello stash: {r.stdout}"
+        # controprova: senza l'ultima riga di controllo lo stesso caso esce 0
+        senza = lab.tmp / "senza-controllo.sh"
+        senza.write_text(read(script).replace('[ "$ERRORS" -eq 0 ] || exit 1\n', ""), encoding="utf-8")
+        assert read(senza) != read(script), "F07 la controprova non entra nella copia"
+        radice, monte = prepara("d2")
+        avanza(monte, "nota.md", "riscritta a monte")
+        (radice / "repo" / "nota.md").write_text("riscritta in locale\n", encoding="utf-8")
+        assert lancia(radice, senza).returncode == 0, "F07 l'exit 1 non viene dal controllo finale"
+        locale = lab.tmp / "e"
+        (locale / "repo").mkdir(parents=True)
+        lab.git(locale / "repo", "init", "-q")
+        (locale / "repo" / "nota.md").write_text("solo locale\n", encoding="utf-8")
+        lab.git(locale / "repo", "add", "-A")
+        lab.git(locale / "repo", "commit", "-qm", "base")
+        (locale / "repo" / "nota.md").write_text("in corso\n", encoding="utf-8")
+        (locale / "non-un-repo").mkdir()
+        r = lancia(locale)
+        assert r.returncode == 0 and "nessun remoto" in r.stdout and "ERRORE" not in r.stdout \
+            and "in corso" in read(locale / "repo" / "nota.md") and "non-un-repo" not in r.stdout, \
+            f"F07 repository locale o cartella senza git: {r.stdout}"
+        r = lab.run(["bash", str(script)], PROJECTS_BASE="~/Documents/ClaudeCode")
+        assert r.returncode == 0 and str(lab.progetti) in r.stdout, f"F07 PROJECTS_BASE con la tilde: {r.stdout} {r.stderr}"
+        classifica = lab.tmp / "classifica.sh"
+        corpo = re.search(r'    case "\$PULL_OUT" in.*?\n    esac\n', read(script), re.S)
+        assert corpo, "F07 manca la lettura della causa del pull fallito"
+        classifica.write_text("name=prova\n" + corpo.group(0), encoding="utf-8")
+        cred = lab.run(["bash", str(classifica)], PULL_OUT="fatal: could not read Username for 'https://example.invalid'")
+        conf = lab.run(["bash", str(classifica)], PULL_OUT="error: could not apply 3f2a1b9... CONFLICT in nota.md")
+        assert "gh auth setup-git" in cred.stdout and "conflitto con modifiche locali" in conf.stdout, \
+            f"F07 credenziali e conflitto confusi: {cred.stdout!r} {conf.stdout!r}"
+        assert "Documents/ClaudeCode}" in read(script), "F07 la cartella dei progetti non viene da PROJECTS_BASE"
+    con_lab(repo, prova)
+
+
+# --- F08-F10: i comandi -------------------------------------------------------------------------
+
+def blocchi(testo: str) -> list:
+    return re.findall(r"```bash\n(.*?)```", testo, re.S)
+
+
+def variabili_orfane(script: str) -> list:
+    assegnate = set(re.findall(r"\b([A-Z_][A-Z0-9_]*)=", script))
+    assegnate.update(re.findall(r"\bfor\s+([A-Z_][A-Z0-9_]*)\s+in\b", script))
+    lette = set(re.findall(r"\$\{?([A-Z_][A-Z0-9_]*)", script))
+    return sorted(lette - assegnate - DA_FUORI)
+
+
+def test_f08(repo: Path) -> None:
+    fine = read(repo / "commands" / "fine.md")
+    for pezzo in ("bin/inventario-sessione.py", "bin/handoff-gate.sh", "bin/handoff-retention.py",
+                  "bin/index-rigenera.py\" --scrivi"):
+        assert pezzo in fine, f"F08 /fine non usa {pezzo}"
+    assert "tail -n +6" not in fine, "F08 /fine cancella ancora gli handoff con find | tail | rm"
+    for parola in ("tasks.py", "Noco" + "DB", "consolida", "Mel" + "chior"):
+        assert parola not in fine, f"F08 /fine nomina {parola}"
+    assert "`tu`, `decidi` o `io`" in fine, "F08 /fine non dice i valori di Chi"
+    orfane = [f"blocco {n}: ${v}" for n, b in enumerate(blocchi(fine), 1) for v in variabili_orfane(b)]
+    assert not orfane, "F08 blocchi di /fine che leggono una variabile nata in un altro blocco: " + "; ".join(orfane)
+    modello = re.search(r"## Task Pendenti\n.*?\n(\| ID .*?)\n\n", fine, re.S)
+    assert modello, "F08 il modello dell'handoff non ha la tabella con la colonna ID"
+
+    def prova(lab: Lab) -> None:
+        for n in range(1, 10):
+            lab.todo("aggiungi", f"Todo numero {n}", "--progetto", "libro")
+        f = lab.tmp / "dal-modello.md"
+        f.write_text(handoff("## Task Pendenti\n\n" + modello.group(1) + "\n"), encoding="utf-8")
+        r = lab.run(["bash", str(repo / "bin" / "handoff-gate.sh"), str(f)])
+        assert r.returncode == 0, f"F08 la tabella del modello di /fine non passa il gate: {r.stdout}"
+    con_lab(repo, prova)
+
+
+def test_f09(repo: Path) -> None:
+    fine = read(repo / "commands" / "fine.md")
+    assert "**Dove va l'handoff.**" in fine, "F09 manca la sezione dell'handoff"
+    codice = blocchi(fine.split("**Dove va l'handoff.**", 1)[1])[0]
+    assert "CLAUDE_CODE_SESSION_ID" in codice, "F09 /fine rilanciato crea un secondo handoff della stessa sessione"
+
+    def prova(lab: Lab) -> None:
+        progetto = lab.progetti / "Il Libro"
+        progetto.mkdir()
+        lab.git(progetto, "init", "-q")
+        r = lab.run(["bash", "-c", codice], cwd=progetto, CLAUDE_CODE_SESSION_ID="sess-1")
+        m = re.search(r"Handoff: (.+)", r.stdout)
+        assert r.returncode == 0 and m and "/handoffs/il-libro/HANDOFF_" in m.group(1), f"F09 percorso: {r.stdout} {r.stderr}"
+        primo = Path(m.group(1).strip())
+        nome_vecchio = primo.parent / "HANDOFF_2026-10-14_09-00.md"
+        nome_vecchio.write_text("# x\n## Progetto\n- Sessione: sess-1\n", encoding="utf-8")
+        r = lab.run(["bash", "-c", codice], cwd=progetto, CLAUDE_CODE_SESSION_ID="sess-1")
+        assert f"Handoff: {nome_vecchio}" in r.stdout, f"F09 il secondo /fine non ritrova l'handoff della sessione: {r.stdout}"
+        r = lab.run(["bash", "-c", codice], cwd=progetto, CLAUDE_CODE_SESSION_ID="sess-2")
+        assert f"Handoff: {nome_vecchio}" not in r.stdout, "F09 una sessione nuova riscrive l'handoff di un'altra"
+    con_lab(repo, prova)
+
+
+def test_f10(repo: Path) -> None:
+    inizio = read(repo / "commands" / "inizio.md")
+    fase0 = inizio[inizio.index("## FASE 0"):inizio.index("## FASE 1")]
+    assert "--tutti" in fase0 and "bin/sync-progetti.sh" in fase0, "F10 /inizio --tutti non aggiorna i progetti"
+    fase1 = inizio[inizio.index("## FASE 1"):inizio.index("## FASE 2")]
+    assert 'arturo" contesto "$ARGUMENTS"' in fase1, "F10 /inizio non prende il contesto in una chiamata"
+    assert "[--tutti]" in inizio.split("---", 2)[1], "F10 l'aiuto di /inizio non mostra --tutti"
+    codice = blocchi(fase1)[0]
+
+    def prova(lab: Lab) -> None:
+        shutil.copytree(str(repo / "bin"), str(lab.home / ".claude" / "bin"))
+        progetto = lab.progetti / "libro"
+        progetto.mkdir()
+        lab.git(progetto, "init", "-q")
+        lab.todo("aggiungi", "Rileggere il capitolo", "--progetto", "libro", "--chi", "io")
+        r = lab.run(["bash", "-c", codice], cwd=lab.home, ARGUMENTS="libro --tutti")
+        assert "PROGETTO libro" in r.stdout and "#1 Rileggere il capitolo" in r.stdout and "rc=0" in r.stdout, \
+            f"F10 il blocco della FASE 1 non stampa il contesto: {r.stdout} {r.stderr}"
+    con_lab(repo, prova)
+
+
+TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
+         "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10}
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--repo", type=Path, required=True)
+    parser.add_argument("--baseline-ref")
+    args = parser.parse_args()
+    repo = args.repo.resolve()
+    if args.baseline_ref:
+        rossi, altro = [], []
+        for nome, test in TESTS.items():
+            try:
+                test(repo)
+            except AssertionError as e:
+                (rossi if str(e).startswith(nome) else altro).append(f"{nome}: {e}")
+        assert not altro and len(rossi) == len(TESTS), \
+            "baseline non discriminante: ogni controllo deve fallire col suo codice.\n" + "\n".join(altro + rossi)
+        print(f"BASELINE_DISCRIMINANTE={','.join(r.split(':')[0] for r in rossi)}")
+        return 0
+    for test in TESTS.values():
+        test(repo)
+    print(f"PASS {','.join(TESTS)} controlli={len(TESTS)}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
