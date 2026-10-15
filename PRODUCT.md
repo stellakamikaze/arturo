@@ -34,7 +34,8 @@ Terminale e Claude Code. Installazione: `git clone https://github.com/stellakami
 - Impegni del README: repository pubblico e MIT, solo `/aggiorna` applica gli aggiornamenti, telemetria minima accesa di default con il perché, Arturo in italiano, stop dichiarato. L'avvio e `/inizio` controllano soltanto se ci sono novità e non applicano niente.
 - La telemetria è centrale nel racconto: Arturo impara da come lo usi. Accesa di default, si spegne con `arturo telemetria spegni`, `ARTURO_TELEMETRIA=0` o `DO_NOT_TRACK=1`. Escono solo eventi da un elenco chiuso con un id di installazione casuale e stabile (sulla pagina non si scrive che i dati sono senza nome: l'id resta lo stesso nel tempo), mai testi, file o nomi. La pagina dice cosa esce, cosa no, come si spegne e come i dati diventano correzioni.
 - Firma solo «Progetto di Federico Nejrotti» (decisione del 15/10/2026). Nessuna cifra, nessun prezzo. L'affiancamento a pagamento non compare finché la sua forma non è decisa.
-- La pagina non usa analytics, tracker, cookie né risorse che profilano il visitatore. La telemetria riguarda Arturo sul computer di chi lo usa, non il sito.
+- La pagina conta le visite con Plausible, ospitato da chi mantiene Arturo e servito dal dominio della landing (decisione di Federico, 15/10/2026: «implementa Plausible»). Niente cookie, niente tracker di terzi, nessun font da server esterni, e il piede lo dice. La telemetria riguarda Arturo sul computer di chi lo usa, non il sito.
+- La home porta gli articoli sull'IA di stellakamikaze.org e l'iscrizione alla sua newsletter (decisione di Federico, 15/10/2026). Il modulo di Ghost è copiato in `sito/vendor/`, non caricato da un CDN.
 
 ## Brand Commitments
 

@@ -11,6 +11,7 @@
 <link rel="preload" href="../font/archivo.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../font/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../stile/colori.css">
+<script defer data-domain="arturo.stellakamikaze.org" data-api="/api/e" src="/js/a.js"></script>
 <style>
 @font-face{font-family:"Archivo";src:url(../font/archivo.woff2) format("woff2");font-weight:100 900;font-stretch:62% 125%;font-display:swap}
 @font-face{font-family:"Atkinson Next";src:url(../font/atkinson-next.woff2) format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
@@ -252,6 +253,20 @@ html.finito .traguardo{display:block}
   .tappa.corrente::before{left:-16px}
   .testata__volta{opacity:.35}
 }
+
+/* risorse */
+.risorse{padding:clamp(56px,7vw,96px) 0;border-top:1px solid var(--filetto)}
+.risorse h2{margin:0 0 10px;font-weight:300;font-size:clamp(2rem,1.3rem + 2vw,3rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%;color:var(--inchiostro)}
+.risorse__lead{max-width:60ch;color:var(--grafite);margin:0 0 clamp(28px,4vw,44px)}
+.risorse__griglia{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(28px,4vw,48px)}
+.risorse h3{margin:0 0 6px;padding-bottom:10px;border-bottom:1px solid var(--inchiostro);font:400 1.2rem/1.2 var(--titolo);letter-spacing:-.015em;color:var(--inchiostro)}
+.risorse ul{margin:0;padding:0;list-style:none}
+.risorse li{padding:10px 0;border-bottom:1px solid var(--filetto);font-size:.93rem;line-height:1.45;color:var(--grafite)}
+.risorse li a{color:var(--inchiostro);font-weight:600;text-decoration:none}
+.risorse li a:hover{color:var(--azione);text-decoration:underline}
+.risorse li span{display:block}
+.menu__fine{display:flex;gap:22px}
+@media (max-width:860px){.risorse__griglia{grid-template-columns:minmax(0,1fr)}}
 </style>
 </head>
 <body>
@@ -265,7 +280,7 @@ html.finito .traguardo{display:block}
         <svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M3 24 11.5 9.5 17 17l8-11" stroke="#0b0d10" stroke-width="1.5"/><circle cx="11.5" cy="9.5" r="3.2" fill="#f2a24a"/><circle cx="17" cy="17" r="1.6" fill="#0b0d10"/><circle cx="25" cy="6" r="1.6" fill="#0b0d10"/></svg>
         Arturo
       </a>
-      <div class="menu__fine stretta"><a href="../">Cos'è Arturo</a></div>
+      <div class="menu__fine stretta"><a href="#risorse">Risorse</a><a href="../">Cos'è Arturo</a></div>
     </div>
   </nav>
   <div class="dentro">
@@ -686,10 +701,46 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
   </main>
 </div>
 
+<section class="risorse" id="risorse" aria-labelledby="t-risorse">
+  <div class="dentro">
+    <h2 id="t-risorse">Risorse</h2>
+    <p class="risorse__lead">Quello che serve prima, durante e dopo l'installazione. I link portano a pagine di Anthropic, di GitHub e di chi mantiene Arturo.</p>
+    <div class="risorse__griglia">
+      <div>
+        <h3>Prima di cominciare</h3>
+        <ul>
+          <li><a href="https://claude.com/pricing">I piani di Anthropic</a><span>Claude Code è incluso nei piani Pro, Max, Team ed Enterprise, e nella Console a consumo.</span></li>
+          <li><a href="https://code.claude.com/docs/en/setup">I requisiti di Claude Code</a><span>Sistemi supportati e installazione, dalla documentazione ufficiale.</span></li>
+          <li><a href="https://code.claude.com/docs/en/terminal-guide">La guida al terminale</a><span>Per chi non l'ha mai aperto, con le immagini.</span></li>
+          <li><a href="../#impegni">Cosa non è neutro</a><span>I limiti di Arturo e di Claude Code, detti prima.</span></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Arturo</h3>
+        <ul>
+          <li><a href="https://github.com/stellakamikaze/arturo">Il repository</a><span>Il codice, il README completo e la licenza MIT.</span></li>
+          <li><a href="https://github.com/stellakamikaze/arturo/blob/main/NOVITA.md">Le novità</a><span>Cosa cambia a ogni versione, in parole semplici.</span></li>
+          <li><a href="https://github.com/stellakamikaze/arturo/tree/main/docs/principi">Il curriculum dei principi</a><span>Come lavorare con un'IA che agisce, un capitolo alla volta.</span></li>
+          <li><a href="../organizzazioni/">Arturo per organizzazioni</a><span>Uno studio o una redazione che lo usano insieme.</span></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Se qualcosa non va</h3>
+        <ul>
+          <li><span><strong>In Claude Code scrivi <code>/diagnosi</code>.</strong> Claude cerca il guasto con te prima di correggerlo.</span></li>
+          <li><span><strong>Scrivi <code>/segnala</code>.</strong> Il problema arriva a chi mantiene Arturo, dopo che hai letto il testo.</span></li>
+          <li><a href="https://github.com/stellakamikaze/arturo/issues">Le segnalazioni pubbliche</a><span>Problemi e proposte su GitHub, visibili a tutti.</span></li>
+          <li><a href="https://github.com/stellakamikaze/arturo/blob/main/SECURITY.md">Un problema di sicurezza</a><span>La procedura privata, da non usare in pubblico.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
 <footer class="piede">
   <div class="dentro">
     <p><strong>Progetto di Federico Nejrotti.</strong> Licenza MIT. <a href="https://github.com/stellakamikaze/arturo">github.com/stellakamikaze/arturo</a></p>
-    <p>Le tue risposte restano in questo browser: la pagina non le manda da nessuna parte.</p>
+    <p>Le tue risposte restano in questo browser: la pagina non le manda da nessuna parte. Le visite le conta Plausible, senza cookie e senza dati personali.</p>
   </div>
 </footer>
 

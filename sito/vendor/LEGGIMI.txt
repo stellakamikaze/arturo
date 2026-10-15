@@ -1,0 +1,2 @@
+ghost-signup-form-0.4.3.min.js: @tryghost/signup-form 0.4.3, licenza MIT, da https://github.com/TryGhost/Ghost (apps/signup-form).
+Copiato qui per non caricare script da server esterni. Si aggiorna a mano, con la versione nel nome.

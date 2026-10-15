@@ -320,7 +320,7 @@ Blocchi squadrati, con la voce stretta e maiuscola.
 
 ### Lastre (righe alternate)
 - **Corner Style:** angoli vivi.
-- **Background:** `cielo` con `img/volta.svg`, `giallo`, `verde`, `azzurro`, in quest'ordine nella home.
+- **Background:** `giallo`, `azzurro`, `cielo` con `img/volta.svg`, `verde`, in quest'ordine nella home (il ritmo, la memoria, le guardie, Arturo è tuo).
 - **Shadow Strategy:** nessuna. L'ombra sta solo sulla finestra che la lastra contiene.
 - **Border:** nessuno.
 - **Internal Padding:** `clamp(28px, 5vw, 64px)` in verticale, `clamp(18px, 4vw, 56px)` in orizzontale. Larghezza della finestra al massimo 560 px.
@@ -336,13 +336,22 @@ Il marchio (colline, stella arancio, «Arturo» in Archivo 500 a larghezza 108%)
 ### Finestra del prodotto (componente firma)
 Il terminale di Claude Code: fondo `term`, raggio 4 px, ombra Finestra. Una barra di 34 px con tre puntini e il titolo in mono centrato. Dentro, la sessione: le righe della persona in `term-tu` dopo «> », le azioni con un punto verde, la guardia in un riquadro con bordo blu e il titolo in grassetto chiaro, la scelta evidenziata in blu pieno. La variante chiara (fondo bianco, barra `#fbfbfa`) mostra la chat d'esempio.
 
-I messaggi delle guardie sono quelli che Arturo stampa davvero, con i loro apostrofi dritti. Le sessioni intorno sono esempi, e la didascalia lo dichiara («Sessione di esempio», «Esempio scritto per questa pagina»). Nell'apertura la sessione si scrive da sola una volta, riga per riga, con un cursore che lampeggia. Con movimento ridotto appare completa.
+I messaggi delle guardie sono quelli che Arturo stampa davvero, con i loro apostrofi dritti. Le sessioni intorno sono esempi, e la didascalia lo dichiara («Sessione di esempio», «Esempio scritto per questa pagina»). Nell'apertura la finestra ha due schede, «Cosa ci fai» e «Installalo», sottolineate in `term-tu` quando sono scelte. «Cosa ci fai» è una galleria di sessioni: una per volta, cambia ogni 7 s con una dissolvenza da sfocato, si ferma al passaggio del mouse, al fuoco e al primo clic; sotto, frecce e nomi delle sessioni. «Installalo» sono carte in sequenza con i primi quattro passi della guida, Mac o Windows, il comando da copiare e «Fatto, avanti»; scrivono lo stesso stato della guida (`arturo-setup-1`), che riparte dal passo 5. Con movimento ridotto niente scorre e niente sfuma.
 
 ### La volta (componente firma)
 Il reticolo è generato da uno script, in proiezione gnomonica centrata su Boote, e non è disegnato a mano. Meridiani e paralleli sono linee blu `#2b8cff` a opacità 0,5, larghe 1 px a ogni scala. Boote e l'Orsa sono spezzate `azione` da 1,6 px con stelle a punti. Un arco tratteggiato in `inchiostro` porta dal timone dell'Orsa ad Arturo. Arturo è un punto `stella` con un alone che si allarga in 4,8 s. Con movimento ridotto l'alone resta fermo. Una maschera a gradiente lo schiarisce a sinistra, dove sta il testo.
 
 ### Fascia vuoto
 Fondo `vuoto` con una grana a rumore frattale al 13%. Porta i dati d'uso (tabella degli eventi, parole barrate di ciò che non esce mai, comandi da copiare) e la chiusura con il pulsante chiaro. I comandi qui sono piatti, con un bordo e senza raggio.
+
+### Schermate dei casi d'uso
+Quattro finestre piccole in fila sotto il confronto chat e Claude Code, con il testo a 0,74 rem. Sotto ognuna una didascalia di una riga che comincia col nome del caso in grassetto.
+
+### Schema dell'harness
+Tre cerchi concentrici: fuori `cielo` con bordo `azione` (Arturo), in mezzo bianco con bordo `inchiostro` (Claude Code), dentro `inchiostro` pieno (il modello). I nomi corrono lungo gli archi in voce stretta maiuscola. Un punto `stella` sull'anello esterno è Arturo. È l'unico posto dove il cerchio fa da forma.
+
+### Articoli e iscrizione
+Quattro colonne separate da filetti `filetto`, sotto un filetto `inchiostro`: data in voce stretta, titolo in Archivo 1,3 rem, sommario. L'elenco nella pagina è di riserva e lo rinfresca `strumenti/articoli.py`; nel browser lo sostituisce la Content API di Ghost. L'iscrizione è il modulo di Ghost (`sito/vendor/`), con il pulsante `azione`.
 
 ### Guida a tappe
 Ogni tappa ha una boa quadrata di 40 px. La tappa corrente ha la boa piena `azione` e un velo `azione-velo` che sfuma verso destra. La tappa fatta ha la boa con bordo `passa` e una spunta. Il passo si apre con una piega di 0,5 s sulla curva `--esce`.
@@ -360,7 +369,7 @@ Ogni tappa ha una boa quadrata di 40 px. La tappa corrente ha la boa piena `azio
 ### Don't:
 - **Don't** usare l'arancio `stella` fuori dalla stella Arturo e dalla barra in cima.
 - **Don't** dare ombra a qualcosa che non sia una finestra del prodotto.
-- **Don't** superare i 4 px di raggio, né usare il cerchio fuori dai puntini delle finestre, dalle stelle del reticolo e dal punto del richiamo.
+- **Don't** superare i 4 px di raggio, né usare il cerchio fuori dai puntini delle finestre, dalle stelle del reticolo, dal punto del richiamo e dallo schema dell'harness.
 - **Don't** usare Atkinson Mono fuori dai terminali, dai comandi e dai `code`.
 - **Don't** inventare il messaggio di una guardia: se il testo non è quello che Arturo stampa, non va in un terminale.
 - **Don't** mettere bordi o raggi sulle lastre delle righe alternate.
