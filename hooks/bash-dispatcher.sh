@@ -122,7 +122,10 @@ PATTERN_EGRESS_GET='(^|[;&|[:space:]])(curl|wget|dig|nslookup|host|nc|ncat|socat
 PATTERN_DATA='[Dd][Rr][Oo][Pp][[:space:]]+([Tt][Aa][Bb][Ll][Ee]|[Dd][Aa][Tt][Aa][Bb][Aa][Ss][Ee]|[Ss][Cc][Hh][Ee][Mm][Aa])|[Tt][Rr][Uu][Nn][Cc][Aa][Tt][Ee]|[Dd][Ee][Ll][Ee][Tt][Ee][[:space:]]+[Ff][Rr][Oo][Mm]|docker([[:space:]]+compose|-compose)[^|&;]*[[:space:]]down[^|&;]*(-v|--volumes)|rsync[^|&;]*--delete|>[[:space:]]*[^>[:space:]|&;]*\.(db|sqlite|sqlite3|sql|dump)'
 
 # Esegue un guard: un crash o stdout non decisionale diventa ask, mai allow implicito.
+# $1 = la guardia che si e' rotta: la telemetria la registra come `errore`.
 ask_guard() {
+    [[ -n "${1:-}" && -f "$HOME/.claude/bin/telemetria.py" ]] && \
+        python3 "$HOME/.claude/bin/telemetria.py" registra errore "$1" >/dev/null 2>&1
     printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Una guardia non ha prodotto una decisione valida. Conferma prima di eseguire il comando."}}'
     exit 0
 }
@@ -131,6 +134,19 @@ ask_guard() {
 # Dice dove le persone si fermano e quali guardie danno falsi positivi. Non fallisce mai.
 segna_guardia() {
     [[ -f "$HOME/.claude/bin/telemetria.py" ]] && python3 "$HOME/.claude/bin/telemetria.py" registra guardia "$1" >/dev/null 2>&1
+    return 0
+}
+
+# Una guardia ha chiesto conferma: `chiede`, e la chiamata resta in attesa. Se lo strumento parte,
+# il PostToolUse registra `confermata` (bin/telemetria.py esito). Il rapporto fra i due dice quali
+# guardie chiedono a vuoto. Escono il nome della guardia e l'id della chiamata, mai il comando.
+segna_chiede() {
+    [[ -f "$HOME/.claude/bin/telemetria.py" ]] || return 0
+    local uso
+    uso=$(printf '%s' "$INPUT" | python3 -c 'import json, sys
+try: print(json.load(sys.stdin).get("tool_use_id") or "")
+except Exception: pass' 2>/dev/null)
+    [[ -n "$uso" ]] && python3 "$HOME/.claude/bin/telemetria.py" chiede "$1" "$uso" >/dev/null 2>&1
     return 0
 }
 
@@ -143,7 +159,7 @@ run_guard() {
         segna_guardia "$1"
         exit 2
     fi
-    [[ $rc -ne 0 || -z "$out" ]] && { [[ $rc -ne 0 ]] && ask_guard; return 0; }
+    [[ $rc -ne 0 || -z "$out" ]] && { [[ $rc -ne 0 ]] && ask_guard "$1"; return 0; }
     if printf '%s' "$out" | python3 -c 'import json, sys
 try:
     value = json.load(sys.stdin)["hookSpecificOutput"]["permissionDecision"]
@@ -151,10 +167,11 @@ try:
 except Exception:
     sys.exit(1)'; then
         [[ "$out" == *'"deny"'* ]] && segna_guardia "$1"
+        [[ "$out" == *'"ask"'* ]] && segna_chiede "$1"
         printf '%s\n' "$out"
         exit 0
     fi
-    ask_guard
+    ask_guard "$1"
 }
 
 # Commit secret gate: PRIMA dello skip git-puro (scansiona il diff, non il message).

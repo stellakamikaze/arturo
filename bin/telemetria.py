@@ -1,25 +1,33 @@
-"""arturo telemetria: i dati d'uso minimi che Arturo manda a chi lo mantiene.
+"""arturo telemetria: gli eventi d'uso che Arturo manda a chi lo mantiene, per migliorarsi.
 
 Perché esiste: Arturo si sviluppa ogni giorno per persone che spesso non sanno dire dove si
-bloccano. Senza dati d'uso chi lo mantiene non vede le guardie che fermano un lavoro legittimo, gli
-aggiornamenti che si rompono, i comandi che nessuno usa.
+bloccano. Senza dati d'uso chi lo mantiene non vede la fase di /setup dove ci si ferma, le guardie
+che chiedono a vuoto, gli aggiornamenti rifiutati, chi resta fermo su una tappa. Ogni lunedì il
+server ne fa un riepilogo, e ogni correzione nata da un segnale lo dice nella sua voce di NOVITA.md.
 
-Cosa esce, e solo questo: un id di installazione casuale (non legato alla persona), la versione di
-Arturo, il sistema operativo (Darwin, Linux, Windows) e gli eventi di EVENTI con il solo giorno.
-Dei file di Arturo modificati esce il percorso dentro Arturo, che è pubblico (hooks/deriva.py).
-Mai prompt, file della persona, percorsi del suo computer, nomi, risposte o il percorso a tappe. Il server non salva l'IP e tiene
-gli eventi 12 mesi. Il suo codice è in server/.
+Cosa esce, e solo questo: un id di installazione casuale (non legato alla persona, ma stabile), la
+versione di Arturo, il sistema operativo (Darwin, Linux, Windows) e gli eventi di EVENTI con il solo
+giorno. Dei file di Arturo modificati esce il percorso dentro Arturo, che è pubblico (hooks/deriva.py).
+Del percorso a tappe escono solo numeri (la tappa, quante decisioni e limiti): li calcola
+bin/percorso.py, che non usa la rete, e session-start.sh li passa qui con `tappa`.
+Mai prompt, file della persona, percorsi del suo computer, nomi, risposte o testi del percorso. Il
+server non salva l'IP e tiene gli eventi 12 mesi. Il suo codice è in server/.
 
 Accesa di default. Si spegne con `arturo telemetria spegni`, con ARTURO_TELEMETRIA=0 o con lo
 standard DO_NOT_TRACK=1. `arturo telemetria mostra` fa vedere l'id e la coda, così si vede
 esattamente cosa parte.
 
 Due tempi, perché un hook non deve mai aspettare la rete:
-- `registra` aggiunge una riga alla coda in ~/.claude/data/telemetria/coda.jsonl, senza rete;
+- `registra` aggiunge una riga alla coda in ~/.claude/data/telemetria/coda.jsonl, senza rete. Lo
+  stesso fanno `tappa` (i numeri delle tappe da stdin, solo quelli cambiati), `chiede` (una guardia
+  chiede conferma: l'id della chiamata resta in session-env/telemetria-attese.json) ed `esito` (il
+  PostToolUse, via bin/telemetria-esito.sh: se la chiamata era in attesa, registra `confermata`);
 - `invia` manda la coda in un lotto. L'avvio della sessione lo lancia in background, al massimo
-  ogni 6 ore. Manda anche le segnalazioni di /segnala rimaste in attesa.
+  ogni 6 ore, e lì registra anche la versione di Claude Code quando cambia. Manda anche le
+  segnalazioni di /segnala rimaste in attesa.
 
-Lo stato (id, ultimo tentativo, spenta, avviso dato) sta in ~/.claude/session-env/telemetria.json.
+Lo stato (id, ultimo tentativo, spenta, avviso_promessa, claude, tappa_inviata, deriva e config
+già inviate) sta in ~/.claude/session-env/telemetria.json.
 Solo libreria standard, Python 3.8 o successivo. Nessun comando di questo modulo fallisce in modo
 da fermare un hook: gli errori di registra e avvio tacciono.
 """
@@ -29,6 +37,7 @@ import json
 import os
 import platform
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -46,14 +55,26 @@ EVENTI = {
     "sessione": re.compile(r"^$"),
     "comando": re.compile(r"^[a-z0-9-]{1,40}$"),
     "guardia": re.compile(r"^[a-z0-9_.-]{1,60}$"),
-    "aggiorna": re.compile(r"^(applicato|conflitto|fallito)$"),
+    # applicato, conflitto, fallito e scartato li scrive bin/aggiorna-applica.sh; rifiutato (un no al
+    # Passo 3) e indietro li registra /aggiorna.
+    "aggiorna": re.compile(r"^(applicato|conflitto|fallito|rifiutato|indietro|scartato)$"),
     "segnalazione": re.compile(r"^(problema|proposta|integrazione)$"),
     # Da hooks/deriva.py: un `insieme:<n>` apre l'elenco corrente. Dei file solo la posizione
     # nel repository di Arturo, relativa e senza "..": è pubblica, non dice niente dei file della persona.
     "deriva": re.compile(r"^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|hooks|output-styles|server|shared"
                          r"|skills|templates|tests|tools|\.github)/[A-Za-z0-9_./-]{1,70}|[A-Za-z0-9_.-]{1,40}))$"),
     "config": re.compile(r"^rotta-(settings|conflitto|rebase)$"),
+    # Dal 15/10/2026, per il miglioramento di Arturo. In coda: l'ordine è lo stesso del server (M09).
+    "setup": re.compile(r"^(fase:(10|[0-9][a-z]?)|fine)$"),
+    "chiede": re.compile(r"^[a-z0-9_.-]{1,60}$"),
+    "confermata": re.compile(r"^[a-z0-9_.-]{1,60}$"),
+    "errore": re.compile(r"^[a-z0-9_.-]{1,60}$"),
+    "tappa": re.compile(r"^(tappa:[0-4]|(decisioni|limiti|tenuti|proposte|rifiutate):\d{1,4})$"),
+    "claude": re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,4}$"),
 }
+# La promessa sulla telemetria cambia di versione quando cambia cosa esce. A una versione nuova
+# l'avviso torna una volta, anche a chi aveva già visto la precedente.
+PROMESSA = 2
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
 # ~/.claude/commands/ o portato dallo strato dell'organizzazione ha un nome suo, e non esce.
 # Il banco M10 controlla che l'elenco coincida con commands/ del repository.
@@ -64,7 +85,7 @@ CODA_MASSIMA = 2000      # righe: oltre, gli eventi nuovi si perdono finché la 
 LOTTO = 500
 SPENTI = {"0", "no", "off", "false", "spenta"}
 
-AIUTO = f"""arturo telemetria: i dati d'uso minimi che Arturo manda a chi lo mantiene.
+AIUTO = f"""arturo telemetria: gli eventi d'uso che Arturo manda a chi lo mantiene, per migliorarsi.
 
   stato          accesa o spenta, e perché
   mostra         l'id di questa installazione e gli eventi in coda, così come partono
@@ -74,12 +95,17 @@ AIUTO = f"""arturo telemetria: i dati d'uso minimi che Arturo manda a chi lo man
 
 Escono solo questi eventi, con il giorno e mai l'ora: {", ".join(EVENTI)}.
 Dei file di Arturo modificati solo la posizione nel repository di Arturo, che è pubblica.
-Mai prompt, file tuoi, percorsi del tuo computer, nomi o risposte. Server: {URL} (codice in server/).
-Si spegne anche con ARTURO_TELEMETRIA=0 o DO_NOT_TRACK=1."""
+Delle tappe solo numeri. Mai prompt, file tuoi, percorsi del tuo computer, nomi, risposte o testi.
+Server: {URL} (codice in server/). Si spegne anche con ARTURO_TELEMETRIA=0 o DO_NOT_TRACK=1."""
 
 
 def file_stato() -> Path:
     return Path.home() / ".claude" / "session-env" / "telemetria.json"
+
+
+def file_attese() -> Path:
+    """Le conferme chieste da una guardia e non ancora eseguite: tool_use_id -> guardia."""
+    return Path.home() / ".claude" / "session-env" / "telemetria-attese.json"
 
 
 def file_coda() -> Path:
@@ -147,7 +173,7 @@ def valido(evento: str, valore: str) -> bool:
     regola = EVENTI.get(evento)
     if evento == "comando" and valore not in COMANDI:
         return False
-    return bool(regola) and isinstance(valore, str) and bool(regola.match(valore))
+    return bool(regola) and isinstance(valore, str) and bool(regola.fullmatch(valore))
 
 
 def registra(evento: str, valore: str = "") -> bool:
@@ -218,12 +244,83 @@ def invia_segnalazioni_in_attesa() -> int:
     return partite
 
 
-def invia() -> tuple:
+def versione_claude() -> str:
+    """La versione di Claude Code, o "" se non si legge. Gira solo nell'invio in background."""
+    eseguibile = shutil.which("claude")
+    if not eseguibile:
+        return ""
+    try:
+        r = subprocess.run([eseguibile, "--version"], capture_output=True, text=True, timeout=15,
+                           stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    trovata = re.match(r"\s*(\d{1,3}\.\d{1,3}\.\d{1,4})", r.stdout or "")
+    return trovata.group(1) if trovata else ""
+
+
+def segna_claude() -> None:
+    """Registra la versione di Claude Code quando cambia: dice quale versione accompagna un guasto."""
+    v = versione_claude()
+    if v and v != leggi_stato().get("claude") and registra("claude", v):
+        cambia_stato(lambda s: s.__setitem__("claude", v))
+
+
+def segna_tappa(righe: list) -> int:
+    """Riceve righe «chiave:numero» dal calcolo delle tappe e registra solo quelle cambiate."""
+    valori = [r.strip() for r in righe if valido("tappa", r.strip())]
+    chiavi = {v.split(":")[0]: v for v in valori}
+    prima = leggi_stato().get("tappa_inviata")
+    prima = prima if isinstance(prima, dict) else {}
+    cambiate = [v for k, v in chiavi.items() if prima.get(k) != v]
+    if cambiate and all(registra("tappa", v) for v in cambiate):
+        cambia_stato(lambda s: s.__setitem__("tappa_inviata", dict(prima, **chiavi)))
+    return len(cambiate)
+
+
+def _leggi_attese() -> dict:
+    try:
+        attese = json.loads(file_attese().read_text(encoding="utf-8"))
+        return attese if isinstance(attese, dict) else {}
+    except (OSError, ValueError, UnicodeDecodeError):
+        return {}
+
+
+def chiede(guardia: str, uso: str) -> None:
+    """Una guardia ha chiesto conferma: registra `chiede` e ricorda la chiamata fino all'esito."""
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", uso or "") or not registra("chiede", guardia):
+        return
+    file_attese().parent.mkdir(parents=True, exist_ok=True)
+    with ts.Lucchetto(file_attese()):
+        attese = _leggi_attese()
+        attese[uso] = guardia
+        ts.scrivi_json_atomico(file_attese(), dict(list(attese.items())[-50:]))
+
+
+def esito(dati: dict) -> None:
+    """Dal PostToolUse: lo strumento è partito, quindi la persona ha detto sì alla guardia."""
+    uso = dati.get("tool_use_id") if isinstance(dati, dict) else None
+    if not isinstance(uso, str) or not file_attese().exists():
+        return
+    with ts.Lucchetto(file_attese()):
+        attese = _leggi_attese()
+        guardia = attese.pop(uso, None)
+        if guardia is None:
+            return
+        if attese:
+            ts.scrivi_json_atomico(file_attese(), attese)
+        else:
+            file_attese().unlink()
+    registra("confermata", guardia)
+
+
+def invia(zitto: bool = False) -> tuple:
     """Torna (eventi partiti, segnalazioni partite)."""
     cambia_stato(lambda s: s.__setitem__("ultimo_tentativo", int(time.time())))
     segnalazioni = invia_segnalazioni_in_attesa()
     if perche_spenta():
         return 0, segnalazioni
+    if zitto:
+        segna_claude()
     eventi = leggi_coda()
     if not eventi:
         return 0, segnalazioni
@@ -255,13 +352,16 @@ def avvio() -> int:
                 _invio_in_background()
             return 0
         registra("sessione")
-        if not stato.get("avviso"):
-            print("TELEMETRIA: Arturo manda a chi lo mantiene dati d'uso anonimi (versione, sistema, comandi di Arturo "
-                  "usati, guardie scattate, esiti di /aggiorna, file e hook di Arturo cambiati o spenti), con un id casuale "
-                  "e mai prompt, file tuoi o nomi. "
-                  "Dillo alla persona una volta, in due righe, con il perché: senza questi dati chi mantiene Arturo "
-                  "non vede dove si blocca chi lo usa. Si spegne con: python3 ~/.claude/bin/arturo telemetria spegni")
-            cambia_stato(lambda s: s.__setitem__("avviso", ts.oggi().isoformat()))
+        if stato.get("avviso_promessa") != PROMESSA:
+            nuova = " Cosa esce è cambiato da quando l'ha letto: diglielo." if stato.get("avviso") else ""
+            print("TELEMETRIA: Arturo manda a chi lo mantiene eventi d'uso con un id casuale: versione di Arturo e di "
+                  "Claude Code, sistema, comandi di Arturo usati, guardie che bloccano o chiedono e se la persona "
+                  "conferma, guardie che si rompono, fase di /setup raggiunta, esiti di /aggiorna, file e hook di "
+                  "Arturo cambiati o spenti, e i soli numeri delle tappe. Mai prompt, file, nomi o testi."
+                  + nuova + " Dillo alla persona una volta, in due righe, con il perché: con questi dati Arturo "
+                  "corregge ogni settimana i punti dove le persone si bloccano. "
+                  "Si spegne con: python3 ~/.claude/bin/arturo telemetria spegni")
+            cambia_stato(lambda s: s.update(avviso=ts.oggi().isoformat(), avviso_promessa=PROMESSA))
         ultimo = stato.get("ultimo_tentativo")
         if not isinstance(ultimo, int) or time.time() - ultimo > OGNI:
             _invio_in_background()
@@ -289,8 +389,20 @@ def main(argv: list) -> int:
         return 0
     if comando == "avvio" and not resto:
         return avvio()
+    if comando == "tappa" and not resto:
+        segna_tappa(sys.stdin.read().splitlines()[:20])
+        return 0
+    if comando == "chiede" and len(resto) == 2:
+        chiede(resto[0], resto[1])
+        return 0
+    if comando == "esito" and not resto:
+        try:
+            esito(json.loads(sys.stdin.read() or "{}"))
+        except Exception:  # noqa: BLE001 - un hook non si ferma mai per la telemetria
+            pass
+        return 0
     if comando == "invia" and resto in ([], ["--zitto"]):
-        partiti, segnalazioni = invia()
+        partiti, segnalazioni = invia(zitto=bool(resto))
         if not resto:
             spenta = perche_spenta()
             print(f"Eventi partiti: {partiti}" + (f" (telemetria spenta: {spenta})" if spenta else "")
@@ -311,10 +423,11 @@ def main(argv: list) -> int:
         return 0
     if comando == "spegni" and not resto:
         cambia_stato(lambda s: s.__setitem__("spenta", True))
-        try:
-            file_coda().unlink()
-        except OSError:
-            pass
+        for f in (file_coda(), file_attese()):
+            try:
+                f.unlink()
+            except OSError:
+                pass
         print("Telemetria spenta, coda svuotata. Per riaccenderla: arturo telemetria accendi\n"
               "/segnala continua a funzionare: ogni segnalazione parte solo con il tuo sì.")
         return 0

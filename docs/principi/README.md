@@ -1,7 +1,7 @@
 # I principi
 
 Questa cartella è il curriculum di Arturo: i principi dell'usare bene un assistente AI,
-spiegati in parole semplici, **per chi non fa un mestiere tecnico**. Niente sigle date per
+spiegati in parole semplici, **per chi usa già l'IA in chat e non ha mai aperto un terminale**. Niente sigle date per
 scontate, niente entusiasmo da brochure: come funziona davvero questa cosa, cosa ci
 guadagni, cosa dai in cambio.
 

@@ -293,7 +293,7 @@ def _sync(repo: Path, base: Path, visibilita: str, lucchetto: bool = False) -> s
     home = base / visibilita / "home"
     cfg = home / ".claude"
     shutil.copytree(repo, cfg, ignore=shutil.ignore_patterns(".git", "*.pyc", "__pycache__"))
-    env = dict(os.environ, HOME=str(home), **GIT_ENV)
+    env = dict(os.environ, HOME=str(home), USERPROFILE=str(home), **GIT_ENV)
     finto = base / visibilita / "bin"
     finto.mkdir()
     (finto / "gh").write_text(f"#!/bin/sh\necho {visibilita}\n")

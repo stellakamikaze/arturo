@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""K01-K11: revisione della config del 15/10/2026, buchi chiusi rispetto alla config dell'autore.
+"""K01-K12: revisione della config del 15/10/2026, buchi chiusi rispetto alla config dell'autore.
 
 K01 il gate dei commit parte dal dispatcher anche con un commit a capo, `git -c`, `env`, una
     subshell, `--no-pager` e una cartella in variabile.
@@ -17,6 +17,7 @@ K10 due stili di scrittura (Guida, Conciso) con le istruzioni da programmatore, 
     e /setup fa scegliere fra questi e i tre di Claude Code.
 K11 niente allow larghi che saltano il classificatore, autoMode generale senza dati personali,
     divieti per Windows e file di lavoro di Claude Code fuori da git.
+K12 un banco che sposta HOME sposta anche USERPROFILE: su Windows Python trova la home da lì.
 
 Sulla base 842b06f ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -169,7 +170,7 @@ def test_k06(repo: Path) -> None:
                                          encoding="utf-8")
         dati = {"session_id": "abcd1234-0000", "model": {"display_name": "M"}, "workspace": {"current_dir": d}}
         proc = subprocess.run([NODE, str(repo / "hooks" / "statusline.js")], input=json.dumps(dati), text=True,
-                              capture_output=True, env={"HOME": d, "PATH": os.environ.get("PATH", "")},
+                              capture_output=True, env={"HOME": d, "USERPROFILE": d, "PATH": os.environ.get("PATH", "")},
                               timeout=30, check=False)
         assert "Rileggo il capitolo" in proc.stdout, f"K06 la statusline non mostra il task in corso: {proc.stdout!r}"
 
@@ -239,9 +240,20 @@ def test_k11(repo: Path) -> None:
     for voce in ("*-unlock-*", "paste-cache/", "data/browser-profile*/"):
         assert voce in ignorati, f"K11 .gitignore senza {voce}"
 
+def test_k12(repo: Path) -> None:
+    # 15/10/2026: su Windows Python trova la home da USERPROFILE, non da HOME. Un banco che sposta solo
+    # HOME scrive nella config vera di chi lo lancia: test_personale ha fatto un commit in ~/.claude.
+    import re
+    for f in sorted((repo / "tests").glob("*.py")):
+        testo = f.read_text(encoding="utf-8")
+        home = len(re.findall(r'HOME=|env\["HOME"\]|"HOME": ', testo))
+        profilo = len(re.findall(r'USERPROFILE=|env\["USERPROFILE"\]|"USERPROFILE": ', testo))
+        assert profilo >= home or f.name == "test_config_2026_10_15.py",             f"K12 {f.name} sposta HOME senza USERPROFILE: su Windows scrive nella config vera ({home} contro {profilo})"
+
+
 
 TESTS = {"K01": test_k01, "K02": test_k02, "K03": test_k03, "K04": test_k04, "K05": test_k05,
-         "K06": test_k06, "K07": test_k07, "K08": test_k08, "K09": test_k09, "K10": test_k10, "K11": test_k11}
+         "K06": test_k06, "K07": test_k07, "K08": test_k08, "K09": test_k09, "K10": test_k10, "K11": test_k11, "K12": test_k12}
 
 
 def main() -> int:

@@ -224,7 +224,7 @@ def test_z06(repo: Path) -> None:
         antico = time.time() - 400 * 86400
         os.utime(vecchio, (antico, antico))
         os.utime(sciolto, (antico, antico))
-        env = dict(os.environ, HOME=str(casa), PULIZIA_CACHE="0")
+        env = dict(os.environ, HOME=str(casa), USERPROFILE=str(casa), PULIZIA_CACHE="0")
         env.pop("PULIZIA_CARTELLA_PROGETTI", None)
         r = lancia([BASH, str(mc), "--prova"], "Z06", env=dict(env, PULIZIA_CARTELLA_PROGETTI=str(progetti)))
         assert r.returncode == 0 and vecchio.exists() and sciolto.exists() and "sposterei" in r.stdout, \

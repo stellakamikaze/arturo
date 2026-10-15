@@ -128,7 +128,7 @@ def test_g215(repo: Path) -> None:
                                input=json.dumps({"tool_name": "Bash", "tool_input": {"command": comando},
                                                  "cwd": str(sporco)}),
                                capture_output=True, timeout=60,
-                               env=dict(os.environ, HOME=str(home), ARTURO_TELEMETRIA="0", **GIT_ENV))
+                               env=dict(os.environ, HOME=str(home), USERPROFILE=str(home), ARTURO_TELEMETRIA="0", **GIT_ENV))
             return _esito(p)[0]
 
         assert dispatcher(f"cd {sporco} && git add conf.py && git commit -m prova") == "ask", \

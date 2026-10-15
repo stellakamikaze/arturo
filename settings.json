@@ -279,6 +279,11 @@
             "type": "command",
             "command": "python3 ~/.claude/hooks/emoji_remover.py",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/bin/telemetria-esito.sh",
+            "timeout": 10
           }
         ]
       },
@@ -303,6 +308,11 @@
           {
             "type": "command",
             "command": "python3 ~/.claude/hooks/credential-leak-scanner.py",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/bin/telemetria-esito.sh",
             "timeout": 10
           }
         ]

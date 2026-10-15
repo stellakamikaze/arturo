@@ -758,7 +758,9 @@ def test_w15(repo: Path) -> None:
     # L'albero descrive bin/ una volta, come cartella (T11): la pagina sta nel testo, accanto alla CLI.
     assert "`arturo web`" in readme and "arturo todo aiuto`. Se chiedi di vederli in una pagina" in readme, \
         "W15 il README non racconta la pagina accanto alla CLI dei todo"
-    assert "Nessun server, nessun account, nessun dominio richiesto" in readme, "W15 la frase pubblica è cambiata"
+    assert "A te non serve un server né un account: il server della telemetria lo tiene chi mantiene Arturo" in readme, \
+        "W15 la frase pubblica è cambiata"
+    assert "Nessun server, nessun account" not in readme, "W15 il README promette ancora nessun server"
     paragrafo = next((p for p in readme.split("\n\n") if "arturo web" in p and "facoltativa" in p), "")
     assert "127.0.0.1" in paragrafo or "tuo computer" in paragrafo, "W15 il README non dice che la pagina è locale"
     assert "si spegne da sola" in paragrafo, "W15 il README non dice che la pagina si spegne da sola"

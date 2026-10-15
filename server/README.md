@@ -2,10 +2,14 @@
 
 Un Worker Cloudflare con un database D1. Riceve due cose e solo quelle:
 
-- `POST /v1/eventi`: un lotto di eventi d'uso anonimi, dall'elenco chiuso in `logica.js`
-  (`sessione`, `comando`, `guardia`, `aggiorna`, `segnalazione`, `deriva`, `config`). Ogni evento ha
-  il giorno e mai l'ora. `config` (config rotta) manda subito un'email, una al giorno per installazione.
+- `POST /v1/eventi`: un lotto di eventi d'uso con un id di installazione casuale, dall'elenco chiuso in
+  `logica.js` (`sessione`, `comando`, `guardia`, `aggiorna`, `segnalazione`, `deriva`, `config`, `setup`,
+  `chiede`, `confermata`, `errore`, `tappa`, `claude`). Ogni evento ha il giorno e mai l'ora. `config`
+  (config rotta) manda subito un'email, una al giorno per installazione.
 - `POST /v1/segnalazioni`: una segnalazione che la persona ha letto e approvato con `/segnala`.
+
+E dà una cosa sola, a chi ha il token: `GET /v1/riepilogo`, il riepilogo della settimana in JSON con
+la sezione «Dove migliorare Arturo» (secret `RIEPILOGO_TOKEN`, almeno 32 caratteri).
 
 L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi più vecchi di
 12 mesi si cancellano il lunedì.
@@ -14,11 +18,13 @@ L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi p
 
 | File | Cosa fa |
 |------|---------|
-| `logica.js` | Validazione, tetti, testo delle email, recap e riepilogo. Niente Cloudflare dentro. |
-| `worker.js` | Collega `logica.js` a D1 (`env.DB`) e all'invio email (`env.POSTA`). |
+| `logica.js` | Validazione, tetti, testo delle email, recap e riepilogo, ritenzione. Niente Cloudflare dentro. |
+| `archivio.js` | Le query su D1, compresa «Dove migliorare Arturo». |
+| `worker.js` | Collega `logica.js` e `archivio.js` a D1 (`env.DB`) e all'invio email (`env.POSTA`). |
 | `schema.sql` | Le tre tabelle: `eventi`, `segnalazioni`, `contatori`. |
 | `wrangler.toml` | La config del Worker, con segnaposto al posto dei valori veri. |
 | `test.mjs` | Il banco: `node server/test.mjs` prova `logica.js` con un archivio e una posta finti. |
+| `test-sql.mjs` | Il banco delle query: `node server/test-sql.mjs` prova `archivio.js` su SQLite in memoria (Node 22). |
 
 ## Le email
 
@@ -26,7 +32,9 @@ L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi p
   di 40 email al giorno: oltre, la segnalazione resta in D1 senza email.
 - **Ogni mattina alle 8** (06:00 UTC) arriva il recap del giorno prima, solo se quel giorno ci
   sono stati eventi o segnalazioni. Ha anche le config rotte e la deriva cambiata.
-- **Il lunedì** arriva sempre il riepilogo dei 7 giorni, anche vuoto, con tutta la deriva aperta e le
+- **Il lunedì** arriva sempre il riepilogo dei 7 giorni, anche vuoto. Si apre con «Dove migliorare
+  Arturo» (ultimi 30 giorni: setup fermi, conferme delle guardie, guardie rotte, aggiornamenti non
+  applicati, tappe, ritenzione, versioni di Claude Code), poi tutta la deriva aperta e le
   guardie frequenti (almeno 5 blocchi nella settimana sulla stessa installazione). Poi parte la pulizia. Se il
   riepilogo del lunedì manca, il Worker è fermo.
 
@@ -50,7 +58,7 @@ verificato in Email Routing. Il Worker può scrivere solo a indirizzi verificati
 3. Prepara la config fuori dal repository, così i tuoi indirizzi non finiscono in un commit:
 
    ```bash
-   mkdir -p ~/arturo-deploy && cp logica.js worker.js schema.sql ~/arturo-deploy/
+   mkdir -p ~/arturo-deploy && cp logica.js archivio.js worker.js schema.sql ~/arturo-deploy/
    sed -e 's/DOMINIO_DEL_SERVER/dati.tuodominio.org/' \
        -e 's/ID_DEL_DATABASE/<database_id>/' \
        -e 's/DESTINATARIO_VERIFICATO/tu@esempio.org/g' \
@@ -58,11 +66,15 @@ verificato in Email Routing. Il Worker può scrivere solo a indirizzi verificati
        wrangler.toml > ~/arturo-deploy/wrangler.toml
    ```
 
-4. Pubblica:
+4. Pubblica, poi dai al Worker il token del riepilogo in JSON (almeno 32 caratteri, lo chiede
+   wrangler e non finisce in nessun file):
 
    ```bash
    cd ~/arturo-deploy && npx wrangler@4 deploy
+   npx wrangler@4 secret put RIEPILOGO_TOKEN
    ```
+
+   Senza il token `GET /v1/riepilogo` risponde sempre 401: è il comportamento sicuro.
 
    L'output elenca i binding (`env.POSTA`, `env.DB`), il dominio e il cron `0 6 * * *`.
 

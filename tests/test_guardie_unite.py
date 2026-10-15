@@ -460,7 +460,7 @@ def test_g210(repo: Path) -> None:
 
         def riga() -> str:
             proc = subprocess.run([NODE, str(repo / "hooks" / "statusline.js")], input=json.dumps(dati), text=True,
-                                  capture_output=True, env={"HOME": str(home), "PATH": os.environ.get("PATH", "")},
+                                  capture_output=True, env={"HOME": str(home), "USERPROFILE": str(home), "PATH": os.environ.get("PATH", "")},
                                   timeout=30, check=False)
             return proc.stdout
 

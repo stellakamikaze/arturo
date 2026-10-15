@@ -107,7 +107,8 @@ delegate non conta mai. La tappa può anche scendere, se un todo si riapre: dill
   risposta della persona.
 - **Niente colpa.** Non usare parole come «indietro», «saltato», «ritardo», «streak» o «punti».
   Un esercizio aperto da settimane è solo aperto.
-- **Il percorso resta sul computer.** Il percorso si calcola dall'archivio locale dei todo, e il
+- **Il calcolo resta sul computer.** Il percorso si calcola dall'archivio locale dei todo, e il
   suo stato resta lì. I todo da cui nasce (perché e note «Tenuto:») viaggiano solo verso il
-  repository privato della persona, come gli altri todo. Non mandare il percorso da nessuna parte
-  e non riassumerlo per altre persone.
+  repository privato della persona, come gli altri todo. Alla telemetria di Arturo partono solo
+  numeri (la tappa, quante decisioni e limiti), dall'avvio della sessione e non da te. Non mandare
+  il percorso da nessuna parte e non riassumerlo per altre persone.

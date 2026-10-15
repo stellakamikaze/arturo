@@ -93,6 +93,7 @@ def test_p06(repo: Path) -> None:
         stub.chmod(0o755)
         env = dict(os.environ)
         env["HOME"] = str(home)
+        env["USERPROFILE"] = str(home)
         env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
         git = ["git", "-C", str(claude)]
         _esegui(git + ["init", "--quiet", "-b", "main"])
@@ -227,6 +228,7 @@ def test_p10(repo: Path) -> None:
         (home / ".claude" / "hooks").mkdir(parents=True)
         env = dict(os.environ)
         env["HOME"] = str(home)
+        env["USERPROFILE"] = str(home)
         guard = repo / "hooks" / "protect_claude_md.py"
         esiti = []
         for nome in ("hosts-interni.local", "exfil-guard.py"):

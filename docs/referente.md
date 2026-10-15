@@ -116,18 +116,21 @@ mod, spegnete il solo pannello con `claude plugin disable dafare@skills-dir` e l
 Arturo propone a ogni persona un percorso a tappe (`arturo percorso`, `/percorso`). Il percorso
 conta le decisioni che la persona tiene per sé, non quanto lavoro delega. Si calcola sul suo
 computer, dall'archivio dei suoi todo, e lo stato sta in `~/.claude/session-env/percorso.json`.
-Il referente non vede il percorso dei colleghi: né lo strato né altri strumenti di Arturo lo
-leggono o lo inviano. Se volete parlarne, chiedetelo alla persona nel colloquio dei 60 giorni.
+Il referente non vede il percorso dei colleghi: lo strato non lo legge. Alla telemetria di Arturo
+partono solo numeri (la tappa, quante decisioni e limiti), mai cosa la persona ha scritto, e arrivano
+a chi mantiene Arturo, non a te. Se volete parlarne, chiedetelo alla persona nel colloquio dei 60 giorni.
 
 ## La telemetria: a chi mantiene Arturo, non a te
 
-Arturo manda a chi lo mantiene una telemetria minima, accesa di default. Parte un elenco chiuso di
-eventi: l'avvio di una sessione, il nome dei comandi di Arturo usati, il nome della guardia che ha
-fermato un comando, l'esito di `/aggiorna`, il tipo delle segnalazioni, i file e gli hook di Arturo che la persona ha
-cambiato o spento (dei file solo la posizione dentro Arturo, che è pubblica) e una config rotta. Con
-gli eventi partono un id casuale creato da Arturo, la versione e il sistema operativo, con il solo
-giorno. Non partono mai prompt, file della persona, percorsi del suo computer, nomi, risposte o il
-percorso a tappe. Lo strato dell'organizzazione e i suoi
+Arturo manda a chi lo mantiene una telemetria accesa di default, che serve a correggere ogni
+settimana i punti dove le persone si bloccano. Parte un elenco chiuso di eventi: l'avvio di una
+sessione, il nome dei comandi di Arturo usati, il nome della guardia che ha fermato un comando o ha
+chiesto conferma (e se la persona ha detto sì), una guardia che si è rotta, l'esito di `/aggiorna`,
+la fase di `/setup` raggiunta, il tipo delle segnalazioni, i file e gli hook di Arturo che la persona
+ha cambiato o spento (dei file solo la posizione dentro Arturo, che è pubblica), una config rotta, la
+versione di Claude Code e i soli numeri del percorso a tappe. Con gli eventi partono un id casuale
+creato da Arturo, la versione e il sistema operativo, con il solo giorno. Non partono mai prompt, file
+della persona, percorsi del suo computer, nomi, risposte o testi del percorso. Lo strato dell'organizzazione e i suoi
 comandi non entrano negli eventi: il nome di un comando si registra solo se il comando è di Arturo.
 
 Il referente non riceve questi dati, e chi mantiene Arturo non sa a quale organizzazione appartiene

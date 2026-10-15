@@ -2,6 +2,7 @@
 #   npx wrangler d1 create arturo         (copia il database_id qui sotto)
 #   npx wrangler d1 execute arturo --remote --file schema.sql
 #   npx wrangler deploy
+#   npx wrangler secret put RIEPILOGO_TOKEN   (almeno 32 caratteri: senza, /v1/riepilogo risponde 401)
 # Il destinatario deve essere un indirizzo verificato in Email Routing del tuo dominio.
 name = "arturo-telemetria"
 main = "worker.js"

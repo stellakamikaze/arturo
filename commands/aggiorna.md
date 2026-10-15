@@ -123,8 +123,8 @@ adesso i file toccati da tutti e due compaiono nell'elenco qui sopra.
 
 ## Passo 3 — Applica
 
-Solo dopo il suo sì. Ogni blocco gira in una shell nuova: questo ricava da sé da dove arrivano gli
-aggiornamenti.
+Solo dopo il suo sì. Se dice no, vai a «Se dice no» in fondo a questo passo. Ogni blocco gira in
+una shell nuova: questo ricava da sé da dove arrivano gli aggiornamenti.
 
 L'aggiornamento non si fa dentro `~/.claude`: lo fa `bin/aggiorna-applica.sh` in una copia di prova a
 parte, controlla lì la config, e porta dentro solo un risultato integro. Così un conflitto non scrive
@@ -173,6 +173,15 @@ La prima parola dell'esito dice cosa è successo:
 - `RIPRISTINO NON RIUSCITO`: **fermati**, la config può avere le guardie spente. Digli che la copia è
   rimasta a metà, mostragli i file elencati e lancia `python3 ~/.claude/hooks/controlla-config.py`,
   che dice cosa non va e come tornare a prima. Non lavorare su altro finché non dice `CONFIG OK`.
+
+### Se dice no
+
+Rispetta il no e fermati, dopo aver registrato l'esito per la telemetria di Arturo (dice quali
+aggiornamenti le persone non vogliono, mai il perché):
+
+```bash
+python3 "$HOME/.claude/bin/telemetria.py" registra aggiorna rifiutato >/dev/null 2>&1 || true
+```
 
 ### Risolvere un conflitto
 
@@ -280,6 +289,7 @@ precedente. I passi 1-4 qui sopra non c'entrano.
        echo "RITORNO ANNULLATO: i tuoi commit successivi non si applicano sulla versione vecchia"
      else
        sed -i.bak '$d' session-env/aggiornamenti && rm -f session-env/aggiornamenti.bak
+       python3 bin/telemetria.py registra aggiorna indietro >/dev/null 2>&1 || true
        python3 hooks/controlla-config.py
      fi
    fi

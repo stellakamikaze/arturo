@@ -44,9 +44,19 @@ che la copia dell'utente conosceva, e se la nuova non discende dalla vecchia si 
 
 ## Misurare l'uso
 
-Arturo manda una telemetria minima, accesa di default (README, Impegni). Il server è in
+Arturo manda una telemetria accesa di default (README, Impegni), che serve a migliorarlo. Il server è in
 `server/`: un Worker Cloudflare su `arturo-dati.stellakamikaze.org` con un database D1 `arturo`.
 
+- **Dove migliorare Arturo.** Il riepilogo del lunedì si apre con questa sezione, sugli ultimi 30
+  giorni: fase di `/setup` dove si fermano le installazioni che non arrivano in fondo, guardie che
+  chiedono conferma con la quota di sì (vicina al 100% vuol dire domanda inutile), guardie che si
+  rompono, aggiornamenti rifiutati o annullati per versione, installazioni per tappa e quelle ferme
+  sulla stessa tappa da 30 giorni pur lavorando, ritenzione a 7, 30 e 60 giorni, versioni di Claude
+  Code. Sono numeri, non verdetti: cosa correggere lo decide chi mantiene Arturo. Ogni correzione nata
+  da un segnale lo dice nella sua voce di `NOVITA.md` («Da sapere: lo mostrava la telemetria»).
+- **Il riepilogo in JSON.** `GET /v1/riepilogo?dal=AAAA-MM-GG&al=AAAA-MM-GG` con l'intestazione
+  `authorization: Bearer <token>` dà lo stesso riepilogo, per la routine che propone le correzioni.
+  Il token è il secret `RIEPILOGO_TOKEN` del Worker (almeno 32 caratteri): senza, la rotta risponde 401.
 - **Il recap di ogni mattina.** Ogni mattina alle 8 il Worker manda a chi mantiene il recap del
   giorno prima: installazioni attive, versioni, sistemi, comandi usati, guardie che hanno bloccato,
   esiti di `/aggiorna`, config rotte, deriva (per ogni installazione il cui elenco è cambiato:
@@ -80,8 +90,12 @@ gh repo view stellakamikaze/arturo --json stargazerCount,forkCount
 gh issue list --repo stellakamikaze/arturo --state all
 ```
 
-Un cambio dell'elenco degli eventi tocca tre posti insieme: `bin/telemetria.py`, `server/logica.js`
-e l'Impegno 3 del README. Il banco M09 li confronta.
+Un cambio dell'elenco degli eventi tocca tre posti che il banco M09 confronta: `bin/telemetria.py`,
+`server/logica.js` e l'Impegno 3 del README. Gli eventi però sono raccontati anche in
+`server/README.md`, `docs/referente.md`, nell'avviso di `bin/telemetria.py`, nella FASE 0 di
+`commands/setup.md` e nella landing: prima del rilascio, `git grep -n` sul nome di un evento. Il server va pubblicato **prima** del client: un
+lotto con un evento che il server non conosce viene rifiutato per intero, e il client lo toglie dalla
+coda. Se cambia cosa esce, alza anche `PROMESSA` in `bin/telemetria.py`: l'avviso torna una volta.
 
 ## Se lo sviluppo si ferma
 

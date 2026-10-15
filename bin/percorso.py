@@ -6,7 +6,9 @@ dichiarato, un no motivato. Il numero di cose delegate non conta mai.
 
 Il modulo legge l'archivio dei todo e non ci scrive mai. Il suo stato (la tappa gia' vista,
 i suggerimenti di /fine, la pausa) sta in ~/.claude/session-env/percorso.json, sul computer
-della persona. Il modulo non usa la rete e non invia niente.
+della persona. Il modulo non usa la rete e non invia niente. `numeri` stampa solo conteggi
+(la tappa, quante decisioni, limiti, cose tenute, proposte e no): session-start.sh li passa alla
+telemetria, che ne manda solo i cambiamenti. Mai un testo, un id o una data.
 
 Un todo spostato da tu a decidi e subito a io (due tasti «c» di fila nel pannello) non conta
 come decisione: la persona lo ha affidato a Claude, non ha deciso niente.
@@ -239,6 +241,14 @@ def _prima(prove) -> int | None:
     return min(prove, default=None)
 
 
+def e_limite(t: dict, info: dict) -> bool:
+    """Un limite tenuto: un todo della persona con un perché, uno scarto motivato, un lavoro di
+    Claude riaperto."""
+    return bool((t["chi"] == "tu" and (t["perche"] or "").strip())
+                or (t["chi"] in ("io", "decidi") and info["scartato"] and info["motivo"].strip())
+                or (t["chi"] == "io" and info["riaperto"]))
+
+
 def tappe(todo: dict) -> list:
     letti = segnali(todo)
     per_uid = {t["uid"]: (t, info) for t, info in letti}
@@ -247,12 +257,7 @@ def tappe(todo: dict) -> list:
     # Un lavoro di Claude: un todo io chiuso. Un todo decidi chiuso lo ha chiuso la persona.
     prova = _prima(t["id"] for t, info in letti if t["chi"] == "io" and info["fatto"])
     decisione = _prima(t["id"] for t, info in letti if info["decisione"])
-    limite = _prima(
-        t["id"] for t, info in letti
-        if (t["chi"] == "tu" and (t["perche"] or "").strip())
-        or (t["chi"] in ("io", "decidi") and info["scartato"] and info["motivo"].strip())
-        or (t["chi"] == "io" and info["riaperto"])
-    )
+    limite = _prima(t["id"] for t, info in letti if e_limite(t, info))
 
     def collegato_prima(x, uid: str, chiuso: str) -> bool:
         """Il collegamento «X aspetta uid» esisteva gia' quando X si e' chiuso."""
@@ -290,6 +295,21 @@ def tappe(todo: dict) -> list:
         fuori.append({"numero": numero, "nome": nome, "fatta": all(s["prova"] is not None for s in segni),
                       "segni": segni, "capitolo": capitolo})
     return fuori
+
+
+def numeri(todo: dict, stato: dict) -> list:
+    """Solo conteggi, nell'ordine fisso della telemetria: nessun testo, nessun id, nessuna data."""
+    letti = segnali(todo)
+    proposte = [v for v in stato.get("suggerimenti") or [] if isinstance(v, dict)]
+    conti = (
+        ("tappa", tappa_attuale(tappe(todo))),
+        ("decisioni", sum(1 for _, info in letti if info["decisione"])),
+        ("limiti", sum(1 for t, info in letti if e_limite(t, info))),
+        ("tenuti", len(tieni_tu(todo))),
+        ("proposte", len(proposte)),
+        ("rifiutate", sum(1 for v in proposte if v.get("esito") == "no")),
+    )
+    return [f"{chiave}:{min(n, 9999)}" for chiave, n in conti]
 
 
 def tappa_attuale(elenco: list) -> int:
@@ -525,6 +545,7 @@ AIUTO = """Il percorso a tappe (scrivi «arturo percorso» davanti a ognuno):
   no                  la persona ha detto no alla proposta: Claude tace per qualche giorno
   basta               nessuna proposta finché non dici riprendi
   riprendi            le proposte ripartono, anche dopo un no
+  numeri              solo conteggi (tappa, decisioni, limiti...), per la telemetria
   aiuto               questo testo
 
 Codici di uscita: 0 fatto, 2 errore, 3 (solo suggerisci) oggi Claude non propone niente.
@@ -547,7 +568,7 @@ def main(argv: list) -> int:
     if resto in (["-h"], ["--help"]):
         print(AIUTO)
         return 0
-    ammessi = {"": ["--json"], "visto": [], "suggerisci": [], "no": [], "basta": [], "riprendi": []}
+    ammessi = {"": ["--json"], "visto": [], "suggerisci": [], "no": [], "basta": [], "riprendi": [], "numeri": []}
     if comando not in ammessi or any(x not in ammessi[comando] for x in resto):
         sbagliato = comando if comando not in ammessi else " ".join(resto)
         print(f"Errore: comando o opzione sconosciuta: «{sbagliato}»\n\n{AIUTO}", file=sys.stderr)
@@ -563,6 +584,12 @@ def main(argv: list) -> int:
         else:
             avvisa(v["avvisi"])
             print(testo(v))
+        return 0
+
+    if comando == "numeri":
+        todo, _ = ts.carica()
+        stato, _ = leggi_stato()
+        print("\n".join(numeri(todo, stato)))
         return 0
 
     if comando == "visto":

@@ -52,7 +52,7 @@ class Lab:
             f = finti / nome
             f.write_text("#!/bin/sh\n" + corpo + "\n", encoding="utf-8")
             f.chmod(0o755)
-        self.env = dict(os.environ, HOME=str(self.home), LOG_FINTI=str(self.log),
+        self.env = dict(os.environ, HOME=str(self.home), USERPROFILE=str(self.home), LOG_FINTI=str(self.log),
                         PATH=f"{finti}{os.pathsep}{os.environ.get('PATH', '')}")
         self.env.pop("ARTURO_OGGI", None)
 

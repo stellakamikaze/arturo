@@ -80,7 +80,7 @@ def test_r04(repo: Path) -> None:
         def esito(comando: str) -> str:
             dati = json.dumps({"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": d, "session_id": "r04"})
             p = subprocess.run(["bash", str(repo / "hooks" / "bash-dispatcher.sh")], input=dati, capture_output=True,
-                               text=True, cwd=d, timeout=60, env=dict(os.environ, HOME=str(casa)))
+                               text=True, cwd=d, timeout=60, env=dict(os.environ, HOME=str(casa), USERPROFILE=str(casa)))
             if p.returncode == 2:
                 return "block"
             return "ask" if '"permissionDecision": "ask"' in p.stdout or '"permissionDecision":"ask"' in p.stdout else "silent"

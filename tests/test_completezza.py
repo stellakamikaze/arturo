@@ -49,6 +49,7 @@ def test_k6(repo: Path) -> None:
     assert "fetch --quiet upstream" in read(repo / "commands" / "inizio.md"), "K6 nessuno aggiorna upstream/main: l'avviso di session-start resta muto"
 
 
+
 TESTS = {"K1": test_k1, "K2": test_k2, "K3": test_k3, "K4": test_k4, "K5": test_k5, "K6": test_k6}
 
 

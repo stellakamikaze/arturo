@@ -65,7 +65,7 @@ class Lab:
         self.todo_file = tmp / "eventi.jsonl"
 
     def env(self, **altro) -> dict:
-        e = dict(os.environ, HOME=str(self.home), ARTURO_TODO=str(self.todo_file), ARTURO_OGGI=OGGI,
+        e = dict(os.environ, HOME=str(self.home), USERPROFILE=str(self.home), ARTURO_TODO=str(self.todo_file), ARTURO_OGGI=OGGI,
                  ARTURO_TELEMETRIA="0", PYTHONDONTWRITEBYTECODE="1", **GIT_ENV)
         e.pop("PROJECTS_BASE", None)
         e.pop("CLAUDE_CODE_SESSION_ID", None)

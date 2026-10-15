@@ -12,6 +12,8 @@ fi
 
 # Cleanup file temporanei sessione: deve avvenire anche su tree pulito.
 rm -f ~/.claude/claude-md-unlock-* ~/.claude/config-unlock-* ~/.claude/system-unlock-* 2>/dev/null
+# Le conferme chieste dalle guardie e rimaste senza esito (un no): gli id valgono per una sessione.
+rm -f ~/.claude/session-env/telemetria-attese.json 2>/dev/null
 rm -f /tmp/claude_session_reminder_* 2>/dev/null
 
 # Il promemoria esce anche a tree pulito: una sessione di ricerca, bozze o decisioni non

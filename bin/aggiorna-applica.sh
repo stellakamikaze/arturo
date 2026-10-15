@@ -52,7 +52,7 @@ togli_copia() {
   git worktree prune >/dev/null 2>&1
 }
 
-segna_esito() {  # $1 = applicato|conflitto|fallito, $2 = il modo. Un evento della telemetria di
+segna_esito() {  # $1 = applicato|conflitto|fallito|scartato, $2 = il modo. Un evento della telemetria di
   # Arturo (bin/telemetria.py): dice se gli aggiornamenti arrivano integri. Il sync fra le macchine
   # della persona non è un aggiornamento di Arturo e non si conta. Non fallisce mai.
   [ "${2:-}" = sync ] && return 0
@@ -105,6 +105,7 @@ porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando è
 if [ "$MODO" = scarta ]; then
   { [ -f "$STATO" ] && read -r COPIA _ < "$STATO"; } || { echo "NIENTE DA SCARTARE: nessuna copia di prova in attesa"; exit 0; }
   togli_copia "$COPIA"; rm -f "$STATO"
+  segna_esito scartato
   echo "SCARTATA: la copia di prova $COPIA non c'è più. ~/.claude non è stata toccata."
   exit 0
 fi

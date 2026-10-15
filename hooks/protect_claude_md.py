@@ -121,6 +121,20 @@ def main():
         if not file_path:
             sys.exit(0)
 
+        def chiede():
+            """Telemetria di Arturo: questa guardia chiede conferma. Solo il nome e l'id della chiamata."""
+            try:
+                import importlib.util
+                f = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'bin', 'telemetria.py')
+                uso = data.get('tool_use_id')
+                if os.path.exists(f) and isinstance(uso, str):
+                    spec = importlib.util.spec_from_file_location('telemetria', f)
+                    t = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(t)
+                    t.chiede('protect_claude_md.py', uso)
+            except Exception:  # noqa: BLE001 - la telemetria non ferma mai una guardia
+                pass
+
         rp = os.path.realpath(os.path.expanduser(file_path))
         base = os.path.basename(rp).upper()
         claude_dir = os.path.realpath(os.path.expanduser('~/.claude'))
@@ -136,6 +150,7 @@ def main():
 
         # Categoria 0: file di unlock -> sempre una decisione dell'utente
         if under_claude and 'UNLOCK' in base:
+            chiede()
             _emit("ask", (
                 f"File di unlock ({os.path.basename(rp)}): sbloccherebbe la protezione "
                 "di CLAUDE.md, di config/hook o dei percorsi di avvio automatico. "
@@ -161,6 +176,7 @@ def main():
         if base == 'CLAUDE.MD':
             avviso = _avviso_budget(rp, claude_dir, ti)
             if tool == 'Write' and not os.path.exists(rp):
+                chiede()
                 _emit("ask", (
                     f"Stai creando un CLAUDE.md nuovo in {os.path.dirname(rp)}: sono istruzioni "
                     "che Claude seguira' ogni volta che lavora in questa cartella. "

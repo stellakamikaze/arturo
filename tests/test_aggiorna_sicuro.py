@@ -109,7 +109,7 @@ class Lab:
         self.home = base / "home"
         self.utente = self.home / ".claude"
         self.cwd = self.home / "progetto"
-        self.env = dict(os.environ, HOME=str(self.home), GIT_CEILING_DIRECTORIES=str(base), **GIT_ENV)
+        self.env = dict(os.environ, HOME=str(self.home), USERPROFILE=str(self.home), GIT_CEILING_DIRECTORIES=str(base), **GIT_ENV)
         for via in ("CONFLITTO_DOPO", "FALLISCE_RESET", "RESET_BUONI"):
             self.env.pop(via, None)
         seme = base / "seme"
