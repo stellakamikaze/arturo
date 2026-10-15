@@ -72,7 +72,22 @@ fi
 _NL=$'\n'
 PATTERN_TIMEOUT="(^|[;&|(\`${_NL}])[[:space:]]*((sudo|env|command|exec)[[:space:]]+)?timeout[[:space:]]+(-[^[:space:]]+[[:space:]]+([A-Z]+[[:space:]]+)?)*[0-9]"
 PATTERN_REMOTE='(^|[[:space:];&|(])(ssh|docker[[:space:]]+exec|kubectl[[:space:]]+exec)[[:space:]]|<<'
+# Il match si ripete sul comando con le parti fra virgolette mascherate: un
+# `git commit -m "fix; timeout 30"` non e' un timeout. Se python fallisce resta il comando intero.
 if [[ "$COMMAND" =~ $PATTERN_TIMEOUT && ! "$COMMAND" =~ $PATTERN_REMOTE ]] && ! command -v timeout &>/dev/null; then
+    _SENZAQ=$(python3 -c 'import sys
+c=sys.argv[1]; out=[]; q=None; i=0
+while i<len(c):
+    ch=c[i]
+    if ch=="\\" and q!="'"'"'": out.append("QQ"); i+=2; continue
+    if q is None and ch in "'"'"'\"": q=ch; out.append("Q")
+    elif q is not None: out.append("Q"); q=None if ch==q else q
+    else: out.append(ch)
+    i+=1
+print("".join(out))' "$COMMAND" 2>/dev/null) || _SENZAQ="$COMMAND"
+    [[ -n "$_SENZAQ" ]] || _SENZAQ="$COMMAND"
+fi
+if [[ "$COMMAND" =~ $PATTERN_TIMEOUT && "${_SENZAQ:-$COMMAND}" =~ $PATTERN_TIMEOUT && ! "$COMMAND" =~ $PATTERN_REMOTE ]] && ! command -v timeout &>/dev/null; then
     echo "BLOCCATO: 'timeout' non esiste su questo sistema. Fallirebbe con 'command not found' e stdout vuoto. Usa il parametro timeout del tool Bash, 'curl --max-time N', oppure 'cmd & pid=\$!; sleep N; kill \$pid'." >&2
     exit 2
 fi
@@ -86,7 +101,7 @@ _GH_PREFIX='(env[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)
 # col path completo). gh-destructive-guard legge gia' tutto il comando.
 PATTERN_GH_ANY='(^|[^[:alnum:]_.-])gh[[:space:]]'
 PATTERN_GIT_TEXT='(^|[;&|][[:space:]]*)git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(commit|log|show|tag|stash[[:space:]]+(push|save))'
-PATTERN_COMMS='(^|[[:space:];|&("'"'"'`])(sendmail|mailx|mutt|msmtp|swaks)([[:space:]]|$)|mail[[:space:]]+-s|(^|[[:space:];&|(])(mail|mutt)[[:space:]]+[^[:space:]]+@|mailto:|smtps?://|gws[[:space:]].*(messages[[:space:]]+send|send[[:space:]]+message|gmail[[:space:]].*(\+send|drafts[[:space:]]+send|forwardingAddresses|updateAutoForwarding|delegates|filters))|osascript.*(Mail|Messages)|api\.telegram\.org|hooks\.slack\.com|slack\.com/api/chat|api\.sendgrid|api\.mailgun|api\.postmarkapp|api\.resend|api\.mailjet|api\.brevo|smtp2go|api\.sparkpost|api\.elasticemail|zeptomail|mailchannels|email[.-][a-z0-9-]*\.amazonaws|hooks\.zapier|hook\.[a-z0-9.]*make\.com|integromat|graph\.microsoft\.com.*sendmail|gmail\.googleapis\.com.*messages/send|discord(app)?\.com/api/webhooks|api\.twilio\.com|graph\.facebook\.com.*messages|whatsapp[_/-]?send|telegram[_/-]?send|smtplib|SMTP_SSL|http\.client|git[[:space:]]+(send-email|imap-send)'
+PATTERN_COMMS='(^|[[:space:];|&("'"'"'`])(sendmail|mailx|mutt|msmtp|swaks|mail)([[:space:]]|$)|mailto:|smtps?://|gws[[:space:]].*(messages[[:space:]]+send|send[[:space:]]+message|gmail[[:space:]].*(\+send|drafts[[:space:]]+send|forwardingAddresses|updateAutoForwarding|delegates|filters))|osascript.*(Mail|Messages)|api\.telegram\.org|hooks\.slack\.com|slack\.com/api/chat|api\.sendgrid|api\.mailgun|api\.postmarkapp|api\.resend|api\.mailjet|api\.brevo|smtp2go|api\.sparkpost|api\.elasticemail|zeptomail|mailchannels|email[.-][a-z0-9-]*\.amazonaws|hooks\.zapier|hook\.[a-z0-9.]*make\.com|integromat|graph\.microsoft\.com.*sendmail|gmail\.googleapis\.com.*messages/send|discord(app)?\.com/api/webhooks|api\.twilio\.com|graph\.facebook\.com.*messages|whatsapp[_/-]?send|telegram[_/-]?send|smtplib|SMTP_SSL|http\.client|git[[:space:]]+(send-email|imap-send)'
 # block-dangerous: rm ricorsivo (tree protetti), bw export, scrittura config/hook,
 # scrittura su git hook e servizi di avvio automatico,
 # lettura segreti via shell (.ssh/id_*/credentials/.pem...), docker volume rm.
@@ -160,28 +175,13 @@ except Exception:
 PATTERN_SUBST='\$\(|`|<\(|>\('
 PATTERN_GIT_UNSAFE='(^|[[:space:]])(--output|--exec-path|--config-env|-c[[:space:]])|(^|[^>])>>?[^&|;]|send-email|imap-send'
 if [[ "$COMMAND" =~ $PATTERN_GIT_TEXT && ! "$COMMAND" =~ $PATTERN_SUBST && "$COMMAND" != *"--output"* && "$COMMAND" != *"--exec-path"* && "$COMMAND" != *"--config-env"* && ! "$COMMAND" =~ $PATTERN_GIT_UNSAFE ]]; then
-    # 9/10/2026: le virgolette si leggono come le legge bash (shlex). Lo strip con sed
-    # accoppiava un apostrofo dentro le doppie con uno piu' avanti e cancellava i
-    # comandi in mezzo (review delle guardie). Virgolette che non tornano o errore di
-    # python: non e' git puro, e il comando passa dalle guardie.
+    # Le virgolette si leggono come le legge bash (forma_comando.py, shlex): lo strip con
+    # sed accoppiava un apostrofo dentro le doppie con uno piu' avanti e cancellava i
+    # comandi in mezzo. Ogni programma eseguito deve essere git o cd, anche col path
+    # completo o in un blocco. Virgolette che non tornano o errore di python: non e'
+    # git puro, e il comando passa dalle guardie.
     GIT_PURE=0
-    python3 -c 'import re, shlex, sys
-lexer = shlex.shlex(sys.argv[1], posix=True, punctuation_chars=";&|()\n")
-lexer.whitespace = " \t\r"
-lexer.whitespace_split = True
-seg, ok = [], True
-try:
-    for tok in list(lexer) + [";"]:
-        if tok and set(tok) <= set(";&|()\n"):
-            parole = [t for t in seg if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", t)]
-            if parole and parole[0] not in ("git", "cd"):
-                ok = False
-            seg = []
-        else:
-            seg.append(tok)
-except ValueError:
-    ok = False
-sys.exit(0 if ok else 1)' "$COMMAND" 2>/dev/null && GIT_PURE=1
+    python3 "$HOME/.claude/hooks/forma_comando.py" git-puro "$COMMAND" 2>/dev/null && GIT_PURE=1
     [[ $GIT_PURE -eq 1 ]] && exit 0
 fi
 
@@ -223,5 +223,16 @@ fi
 
 # GitHub CLI: operazioni distruttive/sensibili (repo delete, secret, api mutante...).
 [[ "$COMMAND" =~ $PATTERN_GH_ANY ]] && run_guard gh-destructive-guard.py
+
+# Ramo memoria e handoff: nessuna guardia ha deciso. Claude Code chiederebbe conferma a ogni
+# scrittura via shell sotto ~/.claude, anche per salvare un handoff o una memoria. Qui l'allow
+# arriva solo se forma_comando.py ammette il comando: ogni percorso ~/.claude nominato e ogni
+# file scritto stanno in data/handoffs/ o in projects/<p>/memory/, i programmi sono di una
+# lista breve, e settings, hook e file di unlock non compaiono nel testo eseguito.
+# Altrimenti il ramo tace e decide il flusso normale dei permessi.
+if [[ "$COMMAND" == *".claude/"* ]] && python3 "$HOME/.claude/hooks/forma_comando.py" ramo-memoria <<< "$INPUT" 2>/dev/null; then
+    printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"scrittura di un handoff o di una memoria in ~/.claude: approvata dal ramo memoria del dispatcher"}}'
+    exit 0
+fi
 
 exit 0

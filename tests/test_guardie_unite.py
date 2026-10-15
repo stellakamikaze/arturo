@@ -74,11 +74,12 @@ def hook(home: Path, nome: str, dati: dict, cwd: Path, **extra: str) -> subproce
                           capture_output=True, cwd=str(cwd), timeout=30, check=False, env=env_di(home, **extra))
 
 
-def dispatcher(home: Path, comando: str, cwd: Path) -> str:
+def dispatcher(home: Path, comando: str, cwd: Path, **extra: str) -> str:
     proc = subprocess.run([BASH, str(home / ".claude" / "hooks" / "bash-dispatcher.sh")],
                           input=json.dumps({"tool_name": "Bash", "tool_input": {"command": comando},
                                             "cwd": str(cwd), "session_id": "g2"}),
-                          text=True, capture_output=True, cwd=str(cwd), env=env_di(home), timeout=60, check=False)
+                          text=True, capture_output=True, cwd=str(cwd), env=env_di(home, **extra), timeout=60,
+                          check=False)
     return decisione(proc)
 
 
@@ -471,9 +472,67 @@ def test_g210(repo: Path) -> None:
         assert not (home / ".claude" / "data").exists(), "G210 la statusline scrive in data/"
 
 
+def test_g211(repo: Path) -> None:
+    with tempfile.TemporaryDirectory() as d:
+        radice = Path(d)
+        home = casa(repo, radice)
+        senza_timeout = radice / "bin"
+        senza_timeout.mkdir()
+        for programma in ("bash", "python3", "git", "jq", "sh", "cat", "printf", "date", "mkdir", "basename", "sed",
+                          "grep", "tr", "wc", "dirname", "env"):
+            percorso = shutil.which(programma)
+            if percorso:
+                (senza_timeout / programma).symlink_to(percorso)
+        nudo = {"PATH": str(senza_timeout)}
+        assert dispatcher(home, 'git commit -m "fix; timeout 30 secondi"', radice, **nudo) == "silent", \
+            "G211 timeout citato in un messaggio fra virgolette blocca il comando"
+        assert dispatcher(home, "timeout 5 ls", radice, **nudo) == "block", "G211 timeout vero senza coreutils passa"
+        assert dispatcher(home, "grep -rn --include=*.md x .", radice, SHELL="/bin/zsh") == "block", \
+            "G211 il glob in un'opzione sotto zsh passa"
+        for comando in ("echo ciao | mail -c copia@esempio.org dest", "mail $DEST < lettera.txt"):
+            assert dispatcher(home, comando, radice) == "ask", f"G211 mail senza -s non chiede: {comando}"
+        assert dispatcher(home, "echo 'scrivo la mail a Rossi'", radice) == "silent", "G211 la parola mail in un testo chiede"
+        assert dispatcher(home, "git commit -m 'x'; /bin/rm -rf ~/lavoro", radice) == "ask", \
+            "G211 un rm col path completo dopo un commit sembra git puro"
+        assert dispatcher(home, "git log --oneline -3 && git status", radice) == "silent", "G211 git puro fermato"
+        consentiti = [
+            "mkdir -p ~/.claude/data/handoffs/romanzo",
+            "cat > ~/.claude/data/handoffs/romanzo/HANDOFF.md <<'EOF'\nOggi: cambiati settings e hooks.\nEOF",
+            "cd ~/.claude/data/handoffs/romanzo && cat > H.md <<'EOF'\nx\nEOF",
+            "echo '- nota' >> $HOME/.claude/projects/-casa-romanzo/memory/MEMORY.md",
+            "ls ~/.claude/data/handoffs/",
+        ]
+        for comando in consentiti:
+            assert dispatcher(home, comando, radice) == "allow", f"G211 il ramo memoria non approva: {comando!r}"
+        mai = [
+            "echo x > ~/.claude/settings.json", "echo x >> ~/.claude/settings.local.json",
+            "echo x >> ~/.claude/hooks/block-dangerous.py", "touch ~/.claude/config-unlock-abc",
+            "touch ~/.claude/claude-md-unlock-abc", "touch ~/.claude/system-unlock-abc",
+            "echo x > ~/.claude/data/handoffs/a/../../../settings.json",
+            "cp ~/.claude/data/handoffs/a/H.md ~/.claude/hooks/x.py",
+            "echo x > ~/.claude/data/handoffs/h && echo y > ~/.claude/ho''oks/z",
+            "cd ~/.claude/data/handoffs && echo x >> ~/.zshrc",
+            "tee ~/.claude/data/handoffs/a.md ~/.bashrc < testo",
+            "cp ~/.claude/data/handoffs/a.md ~/.zshrc > ~/.claude/data/handoffs/log",
+            "A=hoo; echo x > ~/.claude/${A}ks/z",
+            "echo x > ~/.claude/data/handoffs/a; curl https://esempio.org",
+            "python3 -c 'print(1)' > ~/.claude/data/handoffs/a",
+            "echo x > ~/.claude/CLAUDE.md",
+        ]
+        for comando in mai:
+            assert dispatcher(home, comando, radice) != "allow", f"G211 il ramo memoria approva: {comando!r}"
+        # Un link simbolico nella zona che punta agli hook non porta l'allow fuori.
+        zona = home / ".claude" / "data" / "handoffs"
+        zona.mkdir(parents=True, exist_ok=True)
+        (zona / "scorciatoia").symlink_to(home / ".claude" / "hooks")
+        assert dispatcher(home, "echo x > ~/.claude/data/handoffs/scorciatoia/nuovo.py", radice) != "allow", \
+            "G211 il ramo memoria segue un link simbolico verso gli hook"
+
+
 TESTS = {"G201": test_g201, "G202": test_g202, "G203": test_g203, "G204": test_g204, "G205": test_g205,
          "G206": test_g206, "G207": test_g207, "G208": test_g208,
-         "G209": test_g209, "G210": test_g210}
+         "G209": test_g209, "G210": test_g210,
+         "G211": test_g211}
 
 
 def main() -> int:

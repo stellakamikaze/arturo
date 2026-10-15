@@ -10,11 +10,12 @@ Riusa il tokenizer di block-dangerous.py (`_testo_shell`, `_segmenti_parole`),
 che rispetta le virgolette e toglie i corpi degli heredoc quotati verso non-shell.
 
 Usato da block-dangerous.py (rm e find che cancellano) e dal dispatcher
-(git puro, ramo ~/.claude).
+(git puro, ramo memoria e handoff).
 """
 import importlib.util
 import os
 import re
+import shlex
 
 _spec = importlib.util.spec_from_file_location(
     "block_dangerous_forma", os.path.join(os.path.dirname(os.path.abspath(__file__)), "block-dangerous.py"))
@@ -66,41 +67,135 @@ def programmi(cmd: str, profondita: int = 0):
     return out
 
 
-# --- Ramo ~/.claude del dispatcher ---
-# Il ramo approva da solo alcuni comandi su memoria e handoff. Non approva un
-# comando che contiene uno di questi programmi in qualunque posizione.
-_RETE = frozenset(
-    "curl wget fetch nc ncat socat telnet ftp sftp ssh scp rsync dig nslookup host gh npm npx "
-    "pnpm yarn pip pip3 brew osascript open mail mailx mutt msmtp sendmail gws".split()
-)
-_INTERPRETI = frozenset("python python3 node perl ruby php".split())
-# Codice inline che esegue programmi o va in rete.
-_INLINE_RISCHIO = re.compile(
-    r"subprocess|os\.(system|popen|exec|spawn)|pty\.|__import__|urllib|requests|http\.client"
-    r"|socket|child_process|execSync|spawnSync|fetch\(")
-
-
 def _ricorsivo(args) -> bool:
     return any(a == "--recursive" or (a.startswith("-") and not a.startswith("--") and "r" in a.lower()) for a in args)
 
 
-def ammesso_ramo_claude(cmd: str) -> bool:
-    progs = programmi(cmd)
-    for prog, args in progs:
-        if prog in _RETE or prog in ("eval", "xargs", "rmdir"):
-            return False
-        if prog == "rm" and _ricorsivo(args):
-            return False
-        if prog in SHELL:
-            liberi = [a for a in args if not a.startswith("-")]
-            if "-c" in args or "-s" in args or not liberi:
-                return False
-        if prog == "find" and any(a in ("-delete", "-exec", "-execdir", "-ok", "-okdir") for a in args):
-            return False
-        if prog in ("awk", "gawk") and any("system(" in a or "getline" in a for a in args):
-            return False
-    if any(p in _INTERPRETI for p, _ in progs) and _INLINE_RISCHIO.search(cmd):
+# --- Ramo memoria e handoff del dispatcher ---
+# Claude Code chiede conferma a ogni scrittura via shell sotto ~/.claude, anche per
+# salvare un handoff o una memoria. Il ramo approva da solo SOLO questi comandi:
+#   - ogni percorso ~/.claude nominato sta in data/handoffs/ o in projects/<p>/memory/;
+#   - ogni file scritto (redirezione, tee, touch, mkdir, destinazione di cp e mv) sta li';
+#   - i programmi sono di una lista breve, senza rete, senza cancellazioni, senza shell;
+#   - nel testo eseguito non compaiono settings, hooks, unlock, CLAUDE.md, credenziali,
+#     variabili (tranne HOME), sostituzioni $( ) o percorsi con `..`.
+# Settings, hook e file di unlock restano fuori per costruzione: un comando che li nomina,
+# anche spezzato dalle virgolette, non riceve mai l'allow e passa dal flusso normale.
+_PROG_MEMORIA = frozenset(
+    "mkdir cat printf echo tee cp mv touch ls head tail wc grep sort diff date test [ true cd stat "
+    "find basename dirname".split())
+_SCRIVONO_TUTTI = frozenset("tee touch mkdir".split())
+_PAROLE_VIETATE = re.compile(
+    r"settings|hooks|unlock|\.claude\.json|claude(\.local)?\.md|credential|secret|token|personale",
+    re.IGNORECASE)
+_MENZIONE = re.compile(r"(~|\$HOME|\$\{HOME\}|/[^\s;&|()<>]*)/\.claude(?![\w.-])(/[^\s;&|()<>]*)?")
+
+
+def _zona(p: str) -> bool:
+    """True se il path (assoluto) sta in data/handoffs/ o in projects/<p>/memory/ di ~/.claude.
+    Vale sia sul path scritto sia su quello reale: un link simbolico non porta fuori."""
+    claude = os.path.normpath(os.path.join(os.path.expanduser("~"), ".claude"))
+
+    def dentro(q: str, radice: str) -> bool:
+        parti = os.path.relpath(q, radice).split(os.sep)
+        if parti[:2] == ["data", "handoffs"]:
+            return True
+        return len(parti) >= 3 and parti[0] == "projects" and parti[1] not in ("", ".", "..") and parti[2] == "memory"
+
+    return dentro(os.path.normpath(p), claude) and dentro(os.path.realpath(p), os.path.realpath(claude))
+
+
+def _assoluto(parola: str, cwd: str):
+    home = os.path.expanduser("~")
+    t = parola.replace("${HOME}", home).replace("$HOME", home)
+    t = os.path.expanduser(t)
+    if not os.path.isabs(t):
+        if not cwd:
+            return None
+        t = os.path.join(cwd, t)
+    return os.path.normpath(t)
+
+
+_REDIREZIONE = re.compile(r"^(\d*|&)>>?(.*)$")
+
+
+def _senza_redirezioni(toks):
+    """(parole senza le redirezioni, bersagli delle redirezioni in scrittura)."""
+    parole, bersagli, i = [], [], 0
+    while i < len(toks):
+        m = _REDIREZIONE.match(toks[i])
+        if m:
+            if m.group(2):
+                bersagli.append(m.group(2))
+                i += 1
+            elif i + 1 < len(toks):
+                bersagli.append(toks[i + 1])
+                i += 2
+            else:
+                i += 1  # `2>&1`: il lexer stacca `&`, qui resta solo `2>`
+            continue
+        if re.match(r"^\d*<", toks[i]):
+            i += 1 if len(toks[i].lstrip("0123456789<")) else 2
+            continue
+        parole.append(toks[i])
+        i += 1
+    return parole, bersagli
+
+
+def ammesso_ramo_memoria(cmd: str, cwd: str = "") -> bool:
+    testo = _bd._testo_shell(cmd)
+    if any(x in testo for x in ("$(", "`", "<(", ">(", "..")):
         return False
+    piatto = re.sub(r"[\"'\\]", "", testo)
+    if _PAROLE_VIETATE.search(piatto):
+        return False
+    if re.search(r"\$(?!HOME\b|\{HOME\})", piatto):
+        return False
+    menzioni = list(_MENZIONE.finditer(piatto))
+    if not menzioni:
+        return False
+    for m in menzioni:
+        if m.group(1).startswith("/") and _assoluto(m.group(1), "/") != os.path.normpath(os.path.expanduser("~")):
+            return False
+        if not _zona(os.path.join(os.path.expanduser("~"), ".claude") + (m.group(2) or "")):
+            return False
+    corrente = cwd
+    for toks in _bd._segmenti_parole(testo):
+        parole, bersagli = _senza_redirezioni(toks)
+        # Le redirezioni scrivono: ogni bersaglio sta nella zona (o e' /dev/null).
+        for bersaglio in bersagli:
+            if bersaglio.startswith("&") or bersaglio == "/dev/null":
+                continue
+            p = _assoluto(bersaglio, corrente)
+            if p is None or not _zona(p):
+                return False
+        trovati = programmi(" ".join(shlex.quote(t) for t in parole)) if parole else []
+        if len(trovati) > 1:
+            return False
+        for prog, args in trovati:
+            if prog not in _PROG_MEMORIA:
+                return False
+            liberi = [a for a in args if not a.startswith("-")]
+            if prog == "cd":
+                if len(liberi) != 1:
+                    return False
+                corrente = _assoluto(liberi[0], corrente)
+                if corrente is None or not _zona(corrente):
+                    return False
+                continue
+            if prog == "find" and any(a.startswith(("-exec", "-ok", "-delete", "-fprint", "-fls")) for a in args):
+                return False
+            if prog == "sort" and any(a.startswith(("-o", "--output")) for a in args):
+                return False
+            if prog == "sed" and any(a.startswith(("-i", "--in-place")) for a in args):
+                return False
+            if prog in ("cp", "mv") and any(a == "-t" or a.startswith("--target-directory") for a in args):
+                return False
+            scritti = liberi if prog in _SCRIVONO_TUTTI else (liberi[-1:] if prog in ("cp", "mv") else [])
+            for parola in scritti:
+                p = _assoluto(parola, corrente)
+                if p is None or not _zona(p):
+                    return False
     return True
 
 
@@ -122,9 +217,15 @@ def git_puro(cmd: str) -> bool:
 
 if __name__ == "__main__":
     import sys
-    # Uso dal dispatcher: python3 forma_comando.py ramo-claude "<comando>" -> rc 0 se ammesso.
-    if len(sys.argv) == 3 and sys.argv[1] == "ramo-claude":
-        sys.exit(0 if ammesso_ramo_claude(sys.argv[2]) else 1)
+    # Uso dal dispatcher: python3 forma_comando.py ramo-memoria < payload -> rc 0 se ammesso.
+    if len(sys.argv) == 2 and sys.argv[1] == "ramo-memoria":
+        import json
+        try:
+            dati = json.load(sys.stdin)
+            comando = (dati.get("tool_input") or {}).get("command") or ""
+            sys.exit(0 if comando and ammesso_ramo_memoria(comando, dati.get("cwd") or "") else 1)
+        except Exception:
+            sys.exit(1)
     if len(sys.argv) == 3 and sys.argv[1] == "git-puro":
         sys.exit(0 if git_puro(sys.argv[2]) else 1)
     sys.exit(2)

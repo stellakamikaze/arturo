@@ -43,6 +43,8 @@ SEND_BINARIES = [
     (r"\bgws\b.*\bgmail\b.*\b(forwardingAddresses|updateAutoForwarding|delegates|filters)\b.*\b(create|update|patch)\b",
      "gws gmail (inoltro, delega o filtro)"),
     (r"\bmail\s+\S+@\S+", "mail <indirizzo>"),
+    # mail e mutt come programma, anche senza -s e con l'indirizzo in una variabile.
+    (r"(?:^|[;&|(`\n])\s*(?:sudo\s+|command\s+|env\s+)?(?:mail|mutt)\s+\S", "mail/mutt"),
     (r"\bmutt\s+\S+@\S+", "mutt <indirizzo>"),
     (r"mailto:", "mailto: (apre un invio)"),
     (r"\bsmtps?://", "smtp:// (invio diretto)"),
