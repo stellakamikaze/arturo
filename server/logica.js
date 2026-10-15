@@ -20,7 +20,7 @@ export const EVENTI = {
   // corrente, seguito da n righe. Dei file esce solo il percorso dentro Arturo, che è pubblico.
   // Il percorso è relativo, senza "..", e comincia da una radice di Arturo o è un file della radice.
   deriva: /^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|hooks|output-styles|server|shared|skills|templates|tests|tools|\.github)\/[A-Za-z0-9_.\/-]{1,70}|[A-Za-z0-9_.-]{1,40}))$/,
-  config: /^rotta-(settings|conflitto|rebase)$/,
+  config: /^rotta-(settings|conflitto|rebase|hook)$/,
   // Dal 15/10/2026, per il miglioramento di Arturo. In coda, nello stesso ordine di bin/telemetria.py.
   setup: /^(fase:(10|[0-9][a-z]?)|fine)$/,
   chiede: /^[a-z0-9_.-]{1,60}$/,

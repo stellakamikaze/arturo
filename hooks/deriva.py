@@ -79,8 +79,10 @@ def categorie_config(radice: Path) -> list:
         return []
     fuori = set()
     for riga in trovati:
-        if riga.startswith("settings.json"):
+        if riga.startswith("settings"):
             fuori.add("rotta-settings")
+        elif riga.startswith("hook mancante"):
+            fuori.add("rotta-hook")
         elif "lasciato a meta'" in riga:
             fuori.add("rotta-rebase")
         else:

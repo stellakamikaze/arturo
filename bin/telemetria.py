@@ -63,7 +63,7 @@ EVENTI = {
     # nel repository di Arturo, relativa e senza "..": è pubblica, non dice niente dei file della persona.
     "deriva": re.compile(r"^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|hooks|output-styles|server|shared"
                          r"|skills|templates|tests|tools|\.github)/[A-Za-z0-9_./-]{1,70}|[A-Za-z0-9_.-]{1,40}))$"),
-    "config": re.compile(r"^rotta-(settings|conflitto|rebase)$"),
+    "config": re.compile(r"^rotta-(settings|conflitto|rebase|hook)$"),
     # Dal 15/10/2026, per il miglioramento di Arturo. In coda: l'ordine è lo stesso del server (M09).
     "setup": re.compile(r"^(fase:(10|[0-9][a-z]?)|fine)$"),
     "chiede": re.compile(r"^[a-z0-9_.-]{1,60}$"),

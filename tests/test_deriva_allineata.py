@@ -11,6 +11,7 @@ Veleno: --avvelena aggiunge una radice a deriva.py e il banco deve diventare ros
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import re
 import subprocess
@@ -107,6 +108,15 @@ with tempfile.TemporaryDirectory() as tmp:
     git(conflitto, "add", "b.md")
     git(conflitto, "commit", "-q", "-m", "b")
     attese[conflitto] = ["rotta-conflitto"]
+
+    # Uno script di hook citato e assente: python3 esce con 2 e su PreToolUse blocca ogni azione.
+    hook = os.path.join(tmp, "hook")
+    os.makedirs(os.path.join(hook, "hooks"))
+    Path(hook, "hooks", "presente.py").write_text("", encoding="utf-8")
+    Path(hook, "settings.json").write_text(json.dumps({"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [
+        {"type": "command", "command": "python3 ~/.claude/hooks/presente.py"},
+        {"type": "command", "command": "python3 $HOME/.claude/hooks/sparito.py"}]}]}}), encoding="utf-8")
+    attese[hook] = ["rotta-hook"]
 
     for cartella, attesa in attese.items():
         trovate = deriva.categorie_config(Path(cartella))

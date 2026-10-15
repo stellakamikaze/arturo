@@ -7,6 +7,8 @@ controllo lo usano /inizio, /aggiorna, /fine e l'avvio della sessione.
 
 Controlla:
   - settings.json e' JSON valido;
+  - ogni script citato da un hook di settings.json e settings.local.json esiste:
+    `python3 file-mancante.py` esce con 2, e su PreToolUse il 2 blocca ogni azione;
   - nessun rebase o merge lasciato a meta';
   - nessun file in conflitto e nessun marcatore di conflitto nei file tracciati.
 
@@ -17,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -29,15 +32,41 @@ def git(radice, *argomenti):
     return r.returncode, r.stdout
 
 
+# Uno script dentro la config: ~/.claude/..., $HOME/.claude/... o ${HOME}/.claude/...
+SCRIPT_IN_CONFIG = re.compile(r"(?:~|\$HOME|\$\{HOME\})/\.claude/([^\s\"';|&<>]+)")
+
+
+def script_mancanti(radice, impostazioni):
+    """Gli script citati dai comandi degli hook che non esistono nella radice."""
+    mancanti = []
+    for evento, gruppi in (impostazioni.get("hooks") or {}).items():
+        for gruppo in gruppi if isinstance(gruppi, list) else []:
+            for hook in (gruppo.get("hooks") or []) if isinstance(gruppo, dict) else []:
+                comando = hook.get("command", "") if isinstance(hook, dict) else ""
+                for relativo in SCRIPT_IN_CONFIG.findall(comando):
+                    if not os.path.exists(os.path.join(radice, relativo)) and (evento, relativo) not in mancanti:
+                        mancanti.append((evento, relativo))
+    return mancanti
+
+
 def problemi(radice):
     trovati = []
-    impostazioni = os.path.join(radice, "settings.json")
-    if os.path.exists(impostazioni):
+    for nome in ("settings.json", "settings.local.json"):
+        impostazioni = os.path.join(radice, nome)
+        if not os.path.exists(impostazioni):
+            continue
         try:
             with open(impostazioni, encoding="utf-8") as f:
-                json.load(f)
+                dati = json.load(f)
         except Exception as errore:
-            trovati.append(f"settings.json non e' JSON valido ({errore}): Claude Code lo ignora e le guardie sono spente")
+            if nome == "settings.json":
+                trovati.append(f"settings.json non e' JSON valido ({errore}): Claude Code lo ignora e le guardie sono spente")
+            else:
+                trovati.append(f"settings.local.json non e' JSON valido ({errore}): Claude Code lo ignora")
+            continue
+        if isinstance(dati, dict):
+            for evento, relativo in script_mancanti(radice, dati):
+                trovati.append(f"hook mancante: {nome} lancia ~/.claude/{relativo} su {evento}, ma il file non c'e'")
 
     rc, _ = git(radice, "rev-parse", "--git-dir")
     if rc != 0:
