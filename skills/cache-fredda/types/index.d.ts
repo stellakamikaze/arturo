@@ -6,8 +6,14 @@ export type Cache = {
   fredda: boolean
 }
 
+// L'ultimo esito del gate di Arturo, letto da cache/banchi-ultimo-esito.txt.
+export type Banchi = { rosso: boolean; riassunto: string }
+
+// Gli altri avvisi sotto il prompt: banchi rossi e account gws con il token in errore.
+export type Segnali = { banchi: Banchi | null; gwsKo: string[] }
+
 declare module 'claude-code' {
   interface PluginState {
-    'cache-fredda': { cache: Cache }
+    'cache-fredda': { cache: Cache; segnali: Segnali }
   }
 }

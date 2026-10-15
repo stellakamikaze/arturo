@@ -275,6 +275,8 @@ Il benchmark del 20/8/2026 (54 generazioni, 3 modelli Claude) dice dove sta il l
 
 Per un testo scritto da persone, e per la modalità controllo, usa `references/checklist.md`.
 
+Poi una seconda passata sul ritmo e sulla struttura con `references/tic-scrittura-ia.md`: contrasti inventati, terne automatiche, chiuse a sentenza, riassunti ripetuti. Conta l'accumulo, non la singola occorrenza.
+
 ## Esempio completo
 
 **Prima (testo reale non modificato, generato da un LLM):**
@@ -305,4 +307,5 @@ ASD-STE100 è la lingua controllata dei manuali di manutenzione aeronautici, una
 
 - `references/checklist.md` — controllo completo con schemi cercabili, per la modalità controllo e per il testo scritto da persone
 - `references/sostituzioni.md` — tabelle slop AI e burocratese, con la parola corta da scrivere al posto
+- `references/tic-scrittura-ia.md` — i tic di ritmo e struttura del testo generato, con la prova di sostanza
 - `references/casi-uso.md` — adattamenti per messaggi di errore, runbook, report di incidente, commit, note di rilascio, agenti, gare, interfaccia, traduzione

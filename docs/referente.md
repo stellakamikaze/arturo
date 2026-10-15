@@ -41,6 +41,11 @@ Per trasformarlo in skill, copia `plugins/strato/skills/modello-lavoro/` con un 
 riempilo con Arturo. Una skill buona descrive **com'è un risultato buono e perché**, non solo una
 lista di passi. Una skill per volta: provala su un caso vero prima di pubblicarla.
 
+Nella cartella `esempi/` dello strato trovi tre esempi da adattare: una skill di posta che impara
+dalle email inviate, una skill di recap che legge la trascrizione intera delle riunioni, e
+un'anteprima prima dell'invio che legge le vostre regole da un file. Claude Code non li carica
+finché non li copi in `plugins/strato/`: il `LEGGIMI` di ogni esempio dice come.
+
 ## Cosa non va mai nello strato
 
 - **Password, token, chiavi.** Il repository lo leggono tutti i colleghi, e resta nella storia
@@ -98,7 +103,7 @@ Con la stessa regola Claude Code carica gli altri mod di Arturo, ognuno dalla su
 `~/.claude/skills/`. Due di loro proteggono. `redazione-segreti` sostituisce i segreti negli output
 dei tool con la loro forma (tipo, lunghezza, hash) prima che Claude li legga. Anche `blast-radius`
 protegge: ferma `rm -rf`, `git reset --hard` e un push forzato e mostra cosa cambierebbero. Gli altri
-sono comodità: `cache-fredda` e `riscrivi-bash`.
+sono comodità: `cache-fredda`, `riscrivi-bash`, `apri` e `gws`.
 
 Se spegnete i mod, la persona perde il pannello, la riga sopra il prompt **e la redazione dei
 segreti**: Claude torna a leggere in chiaro un token stampato da un comando. Resta lo scanner

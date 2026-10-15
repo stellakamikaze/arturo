@@ -79,10 +79,12 @@ Da chiarire: [max 3 punti]
 
 ## Importante
 
-- **Prompt e brief vanno sempre mostrati** prima di qualunque altro lavoro, anche per una richiesta
-  breve. L'obiezione a cui risponde il passo del prompt: un brief che l'utente non può ricondurre
-  alla sua richiesta lo fa reagire a una ricostruzione invece che alla cosa. Il prompt mostrato è
-  il rimedio, perché si vede subito se la richiesta è stata capita.
+- **Quando il brief scatta, prompt e brief si mostrano** prima di qualunque altro lavoro. Scatta
+  solo sul lavoro vero: più file, effetti fuori dal computer, una richiesta che si capisce in due
+  modi. Una richiesta chiara e piccola non ha brief: si risponde e si fa. L'obiezione a cui
+  risponde il passo del prompt: un brief che l'utente non può ricondurre alla sua richiesta lo fa
+  reagire a una ricostruzione invece che alla cosa. Il prompt mostrato è il rimedio, perché si
+  vede subito se la richiesta è stata capita.
 - Se l'arricchimento fa emergere un fatto che cambia le carte (lavoro già fatto, decisione già chiusa in senso opposto, freno CLAUDE.md che scatta), dillo nel brief prima di procedere — è il motivo principale per cui questa modalità esiste.
 - Il brief non è un gate e non richiede conferma: se il prompt è corretto e non hai nulla da
   chiarire, mostri e procedi.
