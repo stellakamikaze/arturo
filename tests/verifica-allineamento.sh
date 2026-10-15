@@ -69,6 +69,7 @@ BANCHI=(
   test_personale.py
   test_config_2026_10_15.py
   test_guardie_unite.py
+  test_heredoc.py
   test_gate_commit.py
   test_memoria.py
   test_fine_inizio.py
@@ -80,7 +81,7 @@ done
 
 # Il minimo dichiarato è Python 3.8: la CLI, la pagina e il percorso girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_todo.py test_web.py test_percorso.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py)
+PY38_BANCHI=(test_todo.py test_web.py test_percorso.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py)
 PY38=$(command -v python3.8 || true)
 if [[ -n "$PY38" ]]; then
   for test in "${PY38_BANCHI[@]}"; do
@@ -153,6 +154,8 @@ BASELINE=(
   "test_script.py cbd8305"
   # Guardie unite alla config dell'autore (15/10/2026): cbd8305, l'ultimo dev prima del lotto.
   "test_guardie_unite.py cbd8305"
+  # Un solo modulo per gli heredoc delle quattro guardie (15/10/2026): 62dfb51, l'ultimo dev prima del modulo.
+  "test_heredoc.py 62dfb51"
   # Gate dei commit (banchi dell'autore): il gate di Arturo era gia' allineato in f2c433e,
   # quindi la controprova e' 842b06f, l'ultimo dev prima di quell'allineamento.
   "test_gate_commit.py 842b06f"

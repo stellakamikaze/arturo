@@ -23,7 +23,9 @@ Casi coperti:
 
 Fail-open su parsing. Zero dipendenze.
 """
+import importlib.util
 import json
+import os
 import re
 import signal
 import sys
@@ -81,29 +83,26 @@ RSYNC_DELETE_REMOTE_RE = re.compile(
 RSYNC_DRY_RUN_RE = re.compile(
     r"\s(?:-(?!-)[A-Za-z]*n[A-Za-z]*|--dry-run)(?=\s|$)"
 )
-_HD_OPEN = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
-_HD_SHELL = re.compile(r"\b(bash|sh|zsh|fish|ksh|dash|eval|source|ssh)\b")
+# Gli heredoc li riconosce heredoc.py, lo stesso modulo delle altre guardie (15/10/2026).
+# Se manca, nessun corpo sparisce: la guardia controlla tutto il testo.
+try:
+    _spec_hd = importlib.util.spec_from_file_location(
+        "arturo_heredoc", os.path.join(os.path.dirname(os.path.abspath(__file__)), "heredoc.py"))
+    _hd = importlib.util.module_from_spec(_spec_hd)
+    _spec_hd.loader.exec_module(_hd)
+    _togli_heredoc = _hd.togli
+except Exception:
+    def _togli_heredoc(cmd, via, segnaposto=None):
+        return cmd
 _HD_EXEC = re.compile(r"subprocess|os\.system|os\.exec|os\.spawn|pty\.spawn|popen", re.IGNORECASE)
 
 
 def _senza_testo(cmd: str) -> str:
-    """Il comando senza i corpi di heredoc che nessuno esegue come shell. Resta il
-    corpo diretto a bash/ssh/eval e quello che chiama subprocess o os.system."""
-    out, stop, corpo, shell = [], None, [], False
-    for riga in cmd.replace("\\\n", " ").split("\n"):
-        if stop is not None:
-            corpo.append(riga)
-            if riga.strip() == stop:
-                if shell or _HD_EXEC.search("\n".join(corpo)):
-                    out.extend(corpo)
-                stop, corpo = None, []
-            continue
-        out.append(riga)
-        m = _HD_OPEN.search(riga)
-        if m:
-            stop, corpo, shell = m.group(2), [], bool(_HD_SHELL.search(riga.split("<<")[0]))
-    out.extend(corpo)
-    return "\n".join(out)
+    """Il comando senza i corpi di heredoc che nessuno esegue come shell. Resta il corpo
+    diretto a bash/ssh/eval (anche in pipe), quello che la shell espande con $( ) e quello
+    che chiama subprocess o os.system."""
+    return _togli_heredoc(cmd.replace("\\\n", " "), lambda h: not (
+        h.verso_shell() or h.espande() or _HD_EXEC.search("\n".join(h.corpo))))
 
 
 def _rsync_delete_reale(cmd: str) -> bool:

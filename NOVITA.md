@@ -11,6 +11,20 @@ modo di lavorare.
 
 ---
 
+## 2026-10-15 — Un solo modo di leggere gli heredoc per tutte le guardie
+
+**Cosa cambia**: quattro guardie leggevano gli heredoc ognuna a modo suo, e sbagliavano in punti
+diversi. Una here-string (`<<<"x"`) faceva sparire il resto del comando: una lettura di
+`~/.ssh` scritta dopo passava senza conferma. Il testo mandato a bash con `cat <<'EOF' | bash`
+sfuggiva a due guardie su quattro. Ora le quattro usano lo stesso modulo, `hooks/heredoc.py`.
+
+**Il principio dietro**: il testo che una guardia toglie è testo che non controlla. Quattro copie
+della stessa regola divergono, e il buco sta sempre nella copia che nessuno ha guardato.
+
+**A chi serve**: a tutti, senza fare niente: arriva col prossimo `/aggiorna`.
+
+---
+
 ## 2026-10-15 — Guardie che leggono il comando come lo esegue la shell
 
 **Cosa cambia**: un invio di email o messaggi da terminale ora chiede conferma invece di essere

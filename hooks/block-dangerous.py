@@ -30,6 +30,7 @@ import sys
 import os
 import signal
 import shlex
+import importlib.util
 
 
 def _stdin_timeout(signum, frame):
@@ -162,12 +163,18 @@ def _reads_secret(command: str) -> bool:
     return False
 
 
-# Interpreti che ESEGUONO il corpo di un heredoc come shell: per questi il corpo
-# resta soggetto ai controlli. Per gli altri (python3, cat, jq...) e' un dato.
-_SHELL_HEREDOC = re.compile(r"\b(bash|sh|zsh|fish|ksh|dash|eval|source|ssh)\b")
-# Lo stesso corpo passato in pipe a una shell dopo il delimitatore: `cat <<'EOF' | bash`.
-_PIPE_SHELL = re.compile(r"\|\s*(?:sudo\s+)?(?:bash|sh|zsh|fish|ksh|dash|eval|source|ssh|xargs)\b")
-_APERTURA_HEREDOC = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+# Gli heredoc li riconosce heredoc.py, lo stesso modulo delle altre guardie (15/10/2026).
+# Se manca, nessun corpo sparisce: la guardia controlla tutto il testo.
+try:
+    _spec_hd = importlib.util.spec_from_file_location(
+        "arturo_heredoc", os.path.join(os.path.dirname(os.path.abspath(__file__)), "heredoc.py"))
+    _hd = importlib.util.module_from_spec(_spec_hd)
+    _spec_hd.loader.exec_module(_hd)
+    _togli_heredoc = _hd.togli
+except Exception:
+    def _togli_heredoc(cmd, via, segnaposto=None):
+        return cmd
+
 # Valore di -m / --message: git non lo esegue, e un messaggio di commit che CITA
 # un comando non e' quel comando. Restano i messaggi con command-substitution.
 _MESSAGGIO = re.compile(r"(?:^|\s)(?:-m|--message)[= ]\s*(['\"])((?:(?!\1).)*)\1", re.DOTALL)
@@ -182,18 +189,8 @@ def _testo_shell(command: str) -> str:
     lettura. Un heredoc senza virgolette resta, perche' la shell ne espande le
     `$(...)`. Toglie anche i messaggi -m/--message privi di command-substitution.
     """
-    fuori, fine = [], None
-    for riga in command.split("\n"):
-        if fine is not None:
-            if riga.strip() == fine:
-                fine = None
-            continue
-        apertura = _APERTURA_HEREDOC.search(riga)
-        if apertura and apertura.group(1):
-            prima, dopo = riga.split("<<", 1)
-            if not _SHELL_HEREDOC.search(prima) and not _PIPE_SHELL.search(dopo):
-                fine = apertura.group(2)
-        fuori.append(riga)
+    # Un corpo verso bash, sh, ssh (anche `cat <<'EOF' | bash`) resta: la shell lo esegue.
+    testo = _togli_heredoc(command, lambda h: h.quotato and not h.verso_shell())
 
     def _svuota(m):
         corpo = m.group(2)
@@ -201,7 +198,7 @@ def _testo_shell(command: str) -> str:
             return m.group(0)
         return m.group(0).replace(corpo, "")
 
-    return _MESSAGGIO.sub(_svuota, "\n".join(fuori))
+    return _MESSAGGIO.sub(_svuota, testo)
 
 
 # grep che stampa solo conteggi o nomi di file: nessun contenuto esce.

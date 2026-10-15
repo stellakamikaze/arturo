@@ -17,7 +17,9 @@ rimatchano i pattern:
     stat, git, cd) stampa vuoto: si sta leggendo, non inviando.
 Se l'analisi fallisce stampa il comando intero (fail-closed: si rimatcha tutto).
 """
+import importlib.util
 import json
+import os
 import re
 import sys
 
@@ -32,7 +34,17 @@ READ_ONLY = {"grep", "rg", "cat", "head", "tail", "less", "more", "wc", "ls",
              "printf", "which", "type", "true", "cut", "tr", "column"}
 GIT_INVIA = re.compile(r"\bgit\b[^|;&]*\b(send-email|imap-send|request-pull)\b")
 
-HEREDOC_RE = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1([^\n]*)\n(.*?)\n\s*\2\s*(?=\n|$)", re.S)
+# Gli heredoc li riconosce heredoc.py, lo stesso modulo delle altre guardie (15/10/2026).
+# Se manca, nessun corpo sparisce: la guardia controlla tutto il testo.
+try:
+    _spec_hd = importlib.util.spec_from_file_location(
+        "arturo_heredoc", os.path.join(os.path.dirname(os.path.abspath(__file__)), "heredoc.py"))
+    _hd = importlib.util.module_from_spec(_spec_hd)
+    _spec_hd.loader.exec_module(_hd)
+    _togli_heredoc = _hd.togli
+except Exception:
+    def _togli_heredoc(cmd, via, segnaposto=None):
+        return cmd
 
 
 def _first_bin(segment: str) -> str:
@@ -49,25 +61,21 @@ def _first_bin(segment: str) -> str:
 
 def reduce(cmd: str) -> str:
     # 1) heredoc consumati da binari non-esecutori: via il corpo
-    def _strip(m):
-        start = cmd.rfind("\n", 0, m.start()) + 1
-        line = cmd[start:m.start()]
-        consumer = _first_bin(line.split("|")[-1] if "|" in line else line)
+    def _inerte(h) -> bool:
+        consumer = _first_bin(h.prima.split("|")[-1])
         # 13/10/2026: `cat <<'EOF' | sh` passa il corpo a sh, che lo esegue. Conta anche ogni
         # programma dopo il delimitatore sulla stessa riga: pipe, &&, ;.
-        for seg in re.split(r"\|\||&&|;|\|", m.group(3))[1:]:
+        for seg in re.split(r"\|\||&&|;|\|", h.dopo)[1:]:
             dopo = _first_bin(seg)
             if dopo and dopo not in NON_EXEC:
-                return m.group(0)
+                return False
         # `python3 - <<EOF` o `bash <<EOF`: il corpo gira, si tiene
         if consumer and consumer not in NON_EXEC:
-            return m.group(0)
+            return False
         # Delimitatore senza virgolette: la shell esegue le $( ) e i backtick del corpo
         # anche verso cat. Quel corpo resta.
-        if not m.group(1) and ("$(" in m.group(4) or "`" in m.group(4)):
-            return m.group(0)
-        return m.group(0)[: m.start(4) - m.start()] + "[heredoc]" + m.group(0)[m.end(4) - m.start():]
-    reduced = HEREDOC_RE.sub(_strip, cmd)
+        return not h.espande()
+    reduced = _togli_heredoc(cmd, _inerte, segnaposto="[heredoc]")
 
     # 2) ogni segmento e' sola lettura? -> vuoto
     stripped = re.sub(r"'[^']*'|\"[^\"]*\"", "", reduced)

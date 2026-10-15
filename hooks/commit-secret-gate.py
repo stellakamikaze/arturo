@@ -13,6 +13,7 @@ Fail-open su qualsiasi errore. Legge cwd dal payload per lanciare git nel repo g
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import re
@@ -51,9 +52,19 @@ HIGH_CONF = [
 COMPILED = [(re.compile(p), name) for p, name in HIGH_CONF]
 
 
-# Corpo di un heredoc: la shell non lo esegue (salvo heredoc verso una shell).
-_HEREDOC_OPEN = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
-_SHELL_FEED = re.compile(r"(^|[\s;&|(])(bash|sh|zsh|dash|ksh|eval|source)\b")
+# Gli heredoc li riconosce heredoc.py, lo stesso modulo delle altre guardie (15/10/2026).
+# Se manca, nessun corpo sparisce: la guardia controlla tutto il testo.
+try:
+    _spec_hd = importlib.util.spec_from_file_location(
+        "arturo_heredoc", os.path.join(os.path.dirname(os.path.abspath(__file__)), "heredoc.py"))
+    _hd = importlib.util.module_from_spec(_spec_hd)
+    _spec_hd.loader.exec_module(_hd)
+    _togli_heredoc = _hd.togli
+except Exception:
+    def _togli_heredoc(cmd, via, segnaposto=None):
+        return cmd
+# Qui ssh non conta: il corpo gira sul server, e un `git commit` remoto non tocca questo repository.
+_SHELL_LOCALI = frozenset("bash sh zsh fish ksh dash eval source".split())
 _ASSIGN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", re.S)
 _VAR = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))")
 _WRAPPERS = {"bash", "sh", "zsh", "dash", "ksh", "eval", "xargs", "env", "command", "exec", "nohup", "time"}
@@ -61,17 +72,9 @@ _UNRESOLVED = object()
 
 
 def _senza_heredoc(command: str) -> str:
-    righe, fuori, fine = command.split("\n"), [], None
-    for riga in righe:
-        if fine is not None:
-            if riga.strip() == fine:
-                fine = None
-            continue
-        apertura = _HEREDOC_OPEN.search(riga)
-        if apertura and not _SHELL_FEED.search(riga.split("<<")[0]):
-            fine = apertura.group(2)
-        fuori.append(riga)
-    return "\n".join(fuori)
+    """Il comando senza i corpi di heredoc che la shell non esegue: resta quello verso una
+    shell locale (anche in pipe) e quello che la shell espande con $( )."""
+    return _togli_heredoc(command, lambda h: not (h.verso_shell(_SHELL_LOCALI) or h.espande()))
 
 
 def _expand(word: str, variables: dict):
