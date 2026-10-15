@@ -227,6 +227,38 @@ I todo si leggono anche fuori da Claude Code, con `python3 ~/.claude/bin/arturo 
 
 ---
 
+## FASE 7d — La memoria (opzionale)
+
+Claude Code salva da solo alcune note sulle sessioni passate: cosa preferisci, cosa hai deciso,
+dove stanno le cose. Di solito le rilegge solo nel progetto in cui le ha scritte. La memoria di
+Arturo le rende utili ovunque. Spiegalo così, in parole semplici:
+
+- quando scrivi un messaggio, Arturo cerca fra le note quelle che parlano della stessa cosa e dice
+  a Claude dove sono. Claude le apre solo se servono;
+- ogni nota e ogni handoff che Claude scrive passa da un controllo: se dentro c'è una password o
+  un'istruzione nascosta, Claude riceve un avviso;
+- tutto resta su questo computer. Le note non vanno a nessun server e non entrano mai nella
+  telemetria;
+- è spenta finché non dici sì, e si spegne con un comando.
+
+Mostra lo stato e chiedi: «Vuoi accendere la memoria?».
+
+```bash
+python3 "$HOME/.claude/bin/arturo" memoria stato
+```
+
+- Se sì, accendila e mostra l'esito:
+  ```bash
+  python3 "$HOME/.claude/bin/arturo" memoria accendi
+  ```
+  Se l'utente tiene già note sue in una cartella (markdown con `name` e `description` in testa),
+  chiedi il percorso e aggiungila con `python3 "$HOME/.claude/bin/arturo" memoria cartella aggiungi <percorso>`.
+  Digli che `arturo memoria cerca "parole"` cerca a mano, `arturo memoria controlla` trova note
+  senza descrizione e link rotti, e `arturo memoria spegni` la spegne.
+- Se no, salta senza insistere: non cambia niente.
+
+---
+
 ## FASE 8 — Google Workspace CLI (opzionale)
 
 Solo se l'utente vuole collegare account Google (Gmail/Drive/Calendar) via la CLI `gws`. In tal caso NON farlo qui: indirizzalo al comando dedicato **`/inizio gws`**, che ha la procedura completa. Altrimenti salta.
@@ -261,7 +293,7 @@ Se preferisce esplorare da solo, indicagli `docs/principi/README.md` e chiudi.
 ## Riepilogo finale
 
 Chiudi con un riepilogo in linguaggio semplice:
-- Cosa è stato configurato (prerequisiti, permessi, PROJECTS_BASE, lingua, eventuale CLAUDE.md).
+- Cosa è stato configurato (prerequisiti, permessi, PROJECTS_BASE, lingua, eventuale CLAUDE.md, memoria accesa o spenta).
 - Cosa è rimasto opzionale/saltato.
 - **Come iniziare a lavorare**: «Per avviare un progetto usa `/progetto <nome>`; per riprendere una sessione `/inizio <nome>`; per chiudere `/fine`. Quando ti viene in mente qualcosa da fare, dimmi «ricordami di…»: lo ritrovi a ogni `/inizio`.»
 - **Come imparare un passo alla volta**: «Per imparare un passo alla volta: dimmi «a che punto sono?» o usa `/percorso`.»
