@@ -4,7 +4,8 @@
 # Il gate completo (tests/verifica-allineamento.sh) chiede Claude Code, Chrome e un Python
 # vecchio: non gira sul computer di chi usa Arturo. Questi banchi invece provano solo le
 # guardie, con python3 e bash: se una guardia si rompe su questo computer (un Python diverso,
-# un file cambiato a mano), la sessione dopo lo dice invece di tacere.
+# un file cambiato a mano, una pipe che su Windows non e' in UTF-8), la sessione dopo lo dice
+# invece di tacere.
 #
 # Lavora su una copia dei soli file tracciati di ~/.claude (modifiche comprese), in una
 # cartella temporanea: i banchi copiano il repo piu' volte, e ~/.claude puo' pesare giga.
@@ -17,7 +18,7 @@
 CLAUDE_DIR="${ARTURO_DIR:-$HOME/.claude}"
 CACHE="$CLAUDE_DIR/cache"
 ESITO="$CACHE/banchi-ultimo-esito.txt"
-BANCHI="test-block-dangerous-falsi-positivi.py test-web-egress-guard.py test_guardie_minori.py test_guardie_involucri.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py"
+BANCHI="test-block-dangerous-falsi-positivi.py test-web-egress-guard.py test_guardie_minori.py test_guardie_involucri.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_hook_utf8.py"
 
 mkdir -p "$CACHE" || exit 1
 LAVORO=$(mktemp -d "${TMPDIR:-/tmp}/arturo-banchi.XXXXXX") || exit 1

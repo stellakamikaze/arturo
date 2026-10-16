@@ -305,6 +305,15 @@ def test_g206(repo: Path) -> None:
         for comando in ("python3 - <<'EOF'\nprint('rm -rf ~')\nEOF", "D=$TMPDIR/prova; rm -rf $D",
                         'rm -rf "$TMPDIR/x"', "rm -rf node_modules dist", "git commit -m 'tolto rm -rf dal README'"):
             assert esito(comando) == "silent", f"G206 falso allarme: {comando!r}"
+        # Su Windows %TEMP% sta dentro la home e resta temporanea, come per /fine (16/10/2026).
+        temp = home / "AppData" / "Local" / "Temp"
+
+        def con_temp(comando: str, valore: Path) -> str:
+            dati = {"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": str(radice)}
+            return decisione(hook(home, "block-dangerous.py", dati, radice, TEMP=str(valore)))
+        assert con_temp(f'rm -rf "{temp / "prova"}"', temp) == "silent", "G206 rm in %TEMP% chiede conferma"
+        assert con_temp(f'rm -rf "{home / "AppData"}"', temp) == "ask", "G206 rm sopra %TEMP% non chiede conferma"
+        assert con_temp(f'rm -rf "{home / "lavoro"}"', home) == "ask", "G206 con TEMP uguale alla home, rm nella home passa"
         forma = _carica(home / ".claude" / "hooks" / "forma_comando.py")
         progs = [p for p, _ in forma.programmi("X=1 sudo /usr/bin/env FOO=2 /bin/rm -f a; { cat b; } && bash -c 'ls c'")]
         assert progs == ["rm", "cat", "bash", "ls"], f"G206 programmi letti male: {progs}"
@@ -421,13 +430,20 @@ def test_g209(repo: Path) -> None:
         os.utime(esito, (time.time() - 13 * 3600, time.time() - 13 * 3600))
         lock = claude / "cache" / "banchi.lock"
         lock.mkdir()
-        (lock / "pid").write_text(str(os.getpid()), encoding="utf-8")  # tenuto da un processo vivo
-        avvio()
-        time.sleep(1.5)
-        assert segno.read_text().count("x") == 1, "G209 i banchi partono anche col lock tenuto da un processo vivo"
-        finito = subprocess.Popen(["true"])
-        finito.wait()
-        (lock / "pid").write_text(str(finito.pid), encoding="utf-8")  # il PID di un processo gia' uscito
+        # I PID li legge `kill -0` di bash: su Windows Git Bash non vede i PID di Python, e un lock
+        # col PID di Python risultava orfano (16/10/2026). Il PID lo dà un processo bash.
+        vivo = subprocess.Popen([BASH, "-c", "echo $$; sleep 20"], stdout=subprocess.PIPE, text=True)
+        try:
+            (lock / "pid").write_text(vivo.stdout.readline().strip(), encoding="utf-8")  # tenuto da un processo vivo
+            avvio()
+            time.sleep(1.5)
+            assert segno.read_text().count("x") == 1, "G209 i banchi partono anche col lock tenuto da un processo vivo"
+        finally:
+            vivo.kill()
+            vivo.wait()
+        finito = subprocess.run([BASH, "-c", "echo $$"], capture_output=True, text=True, timeout=30,
+                                check=True).stdout.strip()
+        (lock / "pid").write_text(finito, encoding="utf-8")  # il PID di un processo gia' uscito
         avvio()
         assert aspetta(lambda: segno.read_text().count("x") == 2), "G209 un lock orfano ferma i banchi per sempre"
         aspetta(lambda: not lock.exists())
