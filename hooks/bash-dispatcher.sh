@@ -211,7 +211,8 @@ if [[ "$COMMAND" =~ $PATTERN_GIT_TEXT && ! "$COMMAND" =~ $PATTERN_SUBST && "$COM
     # completo o in un blocco. Virgolette che non tornano o errore di python: non e'
     # git puro, e il comando passa dalle guardie.
     GIT_PURE=0
-    python3 "$HOME/.claude/hooks/forma_comando.py" git-puro "$COMMAND" 2>/dev/null && GIT_PURE=1
+    # Come per le guardie: su Windows un argomento che sembra un path verrebbe convertito.
+    MSYS2_ARG_CONV_EXCL='*' python3 "$HOME/.claude/hooks/forma_comando.py" git-puro "$COMMAND" 2>/dev/null && GIT_PURE=1
     [[ $GIT_PURE -eq 1 ]] && exit 0
 fi
 

@@ -96,7 +96,9 @@ def breve(p) -> str:
     """Il percorso con ~ al posto della cartella home, a barre dritte: su Windows Claude lo usa in Git Bash."""
     s = str(p)
     casa = str(Path.home())
-    return "~" + s[len(casa):].replace(os.sep, "/") if s == casa or s.startswith(casa + os.sep) else s
+    if s == casa or s.startswith(casa + os.sep):
+        return "~" + s[len(casa):].replace(os.sep, "/")
+    return s.replace(os.sep, "/")
 
 
 def cartelle_native() -> list:
@@ -589,4 +591,9 @@ def main(argv: list) -> int:
 
 
 if __name__ == "__main__":
+    for flusso in (sys.stdout, sys.stderr):  # su Windows la pipe è in cp1252, Claude legge UTF-8
+        try:
+            flusso.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     raise SystemExit(main(sys.argv[1:]))

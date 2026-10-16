@@ -11,6 +11,24 @@ modo di lavorare.
 
 ---
 
+## 2026-10-16 — Su Windows le guardie leggono tutto il comando
+
+**Cosa cambia**: su Windows alcune guardie di Arturo leggevano male i comandi con caratteri
+speciali, e in quei casi lasciavano passare senza chiedere. Un `rm -rf` su una cartella con una
+virgoletta tipografica («”») nel comando passava senza conferma. Un invio di email con una
+freccia («→») partiva senza conferma. Adesso ogni guardia legge il comando intero, con gli
+accenti e i simboli, e ti chiede conferma come sul Mac. Su Windows è corretto anche `/fine`:
+un file già salvato in un repository, in una sottocartella, non risulta più da scartare. Lo
+scratchpad di Claude adesso conta come cartella temporanea. La memoria trova anche le note
+con parole accentate.
+
+**Il principio dietro**: una guardia che si confonde deve chiedere, non tacere. E una correzione
+vale solo se un controllo la prova anche sul sistema dove il guasto è nato.
+
+**Da sapere**: niente da fare. Sul Mac non cambia niente.
+
+---
+
 ## 2026-10-16 — La scheda del terminale dice il progetto e lo stato
 
 **Cosa cambia**: il titolo della scheda in cui gira Claude Code ora dice su quale progetto lavora.
