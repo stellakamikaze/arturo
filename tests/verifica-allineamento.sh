@@ -81,6 +81,7 @@ BANCHI=(
   test_aggiorna_indietro.py
   test_diagnosi.py
   test_scheda.py
+  test_hook_utf8.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -88,7 +89,7 @@ done
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py)
+PY38_BANCHI=(test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py)
 PY38=$(command -v python3.8 || true)
 if [[ -n "$PY38" ]]; then
   for test in "${PY38_BANCHI[@]}"; do
@@ -170,6 +171,8 @@ BASELINE=(
   "test_aggiorna_indietro.py 4515e63"
   # Titolo e colore della scheda del terminale (16/10/2026): b0ec3ac, l'ultimo dev prima dell'hook.
   "test_scheda.py b0ec3ac"
+  # Hook in UTF-8 anche su Windows (16/10/2026, #3423): b0ec3ac, il main v2026-10-16.2.
+  "test_hook_utf8.py b0ec3ac"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

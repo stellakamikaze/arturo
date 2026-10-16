@@ -61,8 +61,15 @@ def is_social_content_file(fp: str) -> bool:
     return any(tok in base for tok in CONTENT_NAME_MARKERS)
 
 
+# Claude Code scrive e legge in UTF-8. Su Windows la pipe è in cp1252 (16/10/2026).
+for _flusso in (sys.stdout, sys.stderr):
+    try:
+        _flusso.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
+
 try:
-    input_data = json.load(sys.stdin)
+    input_data = json.loads(sys.stdin.buffer.read().decode("utf-8"))
     tool_name = input_data.get('tool_name', '')
     tool_input = input_data.get('tool_input', {})
 

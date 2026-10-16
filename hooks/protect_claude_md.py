@@ -111,7 +111,7 @@ def _persistenza(rp):
 
 def main():
     try:
-        data = json.load(sys.stdin)
+        data = json.loads(sys.stdin.buffer.read().decode("utf-8"))
         tool = data.get('tool_name', '')
         if tool not in ('Edit', 'MultiEdit', 'Write', 'NotebookEdit'):
             sys.exit(0)
@@ -222,4 +222,10 @@ def main():
 
 
 if __name__ == '__main__':
+    # Claude Code scrive e legge in UTF-8. Su Windows la pipe è in cp1252 (16/10/2026).
+    for _flusso in (sys.stdout, sys.stderr):
+        try:
+            _flusso.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     main()

@@ -181,7 +181,7 @@ def main():
     try:
         if hasattr(signal, "SIGALRM"):
             signal.alarm(6)
-        data = json.load(sys.stdin)
+        data = json.loads(sys.stdin.buffer.read().decode("utf-8"))
         if hasattr(signal, "SIGALRM"):
             signal.alarm(0)
     except Exception:
@@ -222,6 +222,12 @@ def _guardia_rotta(errore):
 
 
 if __name__ == "__main__":
+    # Claude Code scrive e legge in UTF-8. Su Windows la pipe è in cp1252 (16/10/2026).
+    for _flusso in (sys.stdout, sys.stderr):
+        try:
+            _flusso.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     try:
         sys.exit(main())
     except Exception as errore:  # noqa: BLE001 - una guardia rotta chiede, non tace

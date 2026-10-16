@@ -290,12 +290,18 @@ def git_puro(cmd: str) -> bool:
 
 
 if __name__ == "__main__":
+    # Claude Code scrive e legge in UTF-8. Su Windows la pipe è in cp1252 (16/10/2026).
+    for _flusso in (sys.stdout, sys.stderr):
+        try:
+            _flusso.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     import sys
     # Uso dal dispatcher: python3 forma_comando.py ramo-memoria < payload -> rc 0 se ammesso.
     if len(sys.argv) == 2 and sys.argv[1] == "ramo-memoria":
         import json
         try:
-            dati = json.load(sys.stdin)
+            dati = json.loads(sys.stdin.buffer.read().decode("utf-8"))
             comando = (dati.get("tool_input") or {}).get("command") or ""
             sys.exit(0 if comando and ammesso_ramo_memoria(comando, dati.get("cwd") or "") else 1)
         except Exception:

@@ -236,7 +236,7 @@ def main() -> int:
     try:
         if hasattr(signal, "SIGALRM"):
             signal.alarm(6)
-        data = json.load(sys.stdin)
+        data = json.loads(sys.stdin.buffer.read().decode("utf-8"))
     except Exception:
         return 0
 
@@ -308,4 +308,10 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # Claude Code scrive e legge in UTF-8. Su Windows la pipe è in cp1252 (16/10/2026).
+    for _flusso in (sys.stdout, sys.stderr):
+        try:
+            _flusso.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     sys.exit(main())

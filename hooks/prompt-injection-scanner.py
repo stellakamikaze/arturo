@@ -74,7 +74,7 @@ def main():
     try:
         if _HAS_SIGALRM:
             signal.alarm(10)
-        data = json.load(sys.stdin)
+        data = json.loads(sys.stdin.buffer.read().decode("utf-8"))
         if _HAS_SIGALRM:
             signal.alarm(0)
     except (json.JSONDecodeError, EOFError):
@@ -113,4 +113,10 @@ def main():
     sys.exit(0)
 
 if __name__ == "__main__":
+    # Claude Code scrive e legge in UTF-8. Su Windows la pipe è in cp1252 (16/10/2026).
+    for _flusso in (sys.stdout, sys.stderr):
+        try:
+            _flusso.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     main()

@@ -35,7 +35,7 @@ def main() -> int:
     if not mem.accesa():
         return 0
     try:
-        dati = json.loads(sys.stdin.read() or "{}")
+        dati = json.loads(sys.stdin.buffer.read().decode("utf-8") or "{}")
     except ValueError:
         return 0
     if str(dati.get("agent_type") or "") in ESCLUSI:
@@ -45,6 +45,12 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # Claude Code scrive e legge in UTF-8. Su Windows la pipe è in cp1252 (16/10/2026).
+    for _flusso in (sys.stdout, sys.stderr):
+        try:
+            _flusso.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     try:
         sys.exit(main())
     except Exception:

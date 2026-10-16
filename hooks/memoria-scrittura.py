@@ -92,7 +92,7 @@ def main() -> int:
     # Guardia sempre accesa (15/10/2026): handoff e note di Claude Code esistono anche a memoria
     # spenta, e una nota avvelenata fa danno lo stesso.
     try:
-        dati = json.loads(sys.stdin.read() or "{}")
+        dati = json.loads(sys.stdin.buffer.read().decode("utf-8") or "{}")
     except ValueError:
         return 0
     if dati.get("tool_name") not in ("Write", "Edit", "MultiEdit"):
@@ -119,6 +119,12 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # Claude Code scrive e legge in UTF-8. Su Windows la pipe è in cp1252 (16/10/2026).
+    for _flusso in (sys.stdout, sys.stderr):
+        try:
+            _flusso.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     try:
         sys.exit(main())
     except Exception:

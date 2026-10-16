@@ -7,6 +7,10 @@
 #   - stampare nulla + rc 0 -> silenzioso (prosegue col guard successivo)
 # run_guard cattura la decisione e cortocircuita: al massimo UNA decisione emessa.
 
+# Il JSON di Claude Code è UTF-8. Su Windows ogni python3 qui sotto leggeva e scriveva in cp1252:
+# un «”» nel comando svuotava l'input delle guardie e un rm ricorsivo passava (16/10/2026).
+export PYTHONIOENCODING=utf-8
+
 INPUT=$(cat)
 if command -v jq &>/dev/null; then
   COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')

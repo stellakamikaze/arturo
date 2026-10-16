@@ -33,7 +33,7 @@ def e_bozza(nome_tool: str) -> bool:
 
 def main() -> int:
     try:
-        dati = json.load(sys.stdin)
+        dati = json.loads(sys.stdin.buffer.read().decode("utf-8"))
     except Exception:
         return 0
     nome = dati.get("tool_name") or ""
@@ -47,4 +47,10 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # Claude Code scrive e legge in UTF-8. Su Windows la pipe è in cp1252 (16/10/2026).
+    for _flusso in (sys.stdout, sys.stderr):
+        try:
+            _flusso.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     sys.exit(main())
