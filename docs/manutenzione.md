@@ -17,6 +17,14 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    altre (Cosa cambia, Il principio dietro, Da sapere). Gli utenti imparano la novità da lì.
 3. **Prova su un clone pulito**: clona il repo in una cartella temporanea e verifica che i
    comandi e gli hook toccati funzionino da zero, senza lo stato locale della tua macchina.
+   Poi la prova di aggiornamento come un utente, dall'ultimo tag pubblicato:
+
+   ```bash
+   bash tests/prova-aggiornamento.sh "$(git describe --tags --abbrev=0 main)"
+   ```
+
+   Un utente a quella versione, con una sua riga in `/inizio`, riceve `dev` con lo stesso
+   `bin/aggiorna-applica.sh` di `/aggiorna`, in una HOME finta. Ogni riga deve dire `PASS`.
 4. **Pubblicazione**, solo a questo punto:
 
    ```bash
