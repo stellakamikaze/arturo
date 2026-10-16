@@ -32,6 +32,9 @@ bash "$HOME/.claude/skills/system-audit/audit.sh" 2>&1 | tail -25
   dire, e la cura è `/setup`, che rifà la fase giusta.
 - Una riga `DERIVA:`: la persona ha cambiato file o hook di Arturo. Non è un errore. Diglielo,
   e ricorda che `/aggiorna personale` mette da parte le sue modifiche ai comandi.
+- Le aggiunte della persona ai comandi: `python3 ~/.claude/bin/arturo personale elenco`. Una riga
+  `Senza comando` nomina i file di `personale/` di un comando uscito da Arturo: nessuno li legge
+  più. Mostrali alla persona: decide lei se tenerli altrove o cancellarli.
 - Se il problema sembra dell'installazione di Claude Code (accesso, account, versione), lancia
   `claude doctor` e riporta cosa dice.
 

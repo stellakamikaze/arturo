@@ -45,15 +45,17 @@ Con `OCCUPATO` scegli un altro nome. Evita anche i nomi generici (`posta`, `scri
 se un giorno Arturo porta una skill con lo stesso nome, il prossimo `/aggiorna` va in conflitto.
 Un nome che dice il lavoro della persona non corre questo rischio.
 
-Poi guarda dove finisce. `/fine` salva la cartella `skills/` nel repository della config della
-persona, se ne ha uno, anche quando è pubblico:
+Poi guarda dove finisce. `/fine` salva la skill nel repository della config della persona, se
+ne ha uno. Se il repository non risulta privato, `/fine` la tiene sulla macchina e chiede prima
+di pubblicarla:
 
 ```bash
 git -C "$HOME/.claude" remote get-url origin 2>/dev/null && gh repo view "$(git -C "$HOME/.claude" remote get-url origin)" --json visibility -q .visibility 2>/dev/null
 ```
 
 Se risponde `PUBLIC`, o se la visibilità non si legge, dillo alla persona prima di scrivere:
-nella skill non vanno nomi di clienti, indirizzi, cifre o altro che non vuole pubblicare.
+`/fine` le chiederà se pubblicarla, e se dice sì nella skill non vanno nomi di clienti,
+indirizzi, cifre o altro che non vuole rendere pubblico.
 
 ## Passo 3 — La skill
 

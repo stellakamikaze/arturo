@@ -8,7 +8,7 @@ guadagni, cosa dai in cambio.
 ## Come si usa
 
 1. **Leggi un capitolo.** Sono corti, si leggono in dieci minuti.
-2. **Fai sparring.** `/sparring <nome del principio>` apre una sessione guidata: Claude ti
+2. **Fai sparring.** Chiedi a Claude uno sparring su «<nome del principio>»: apre una sessione guidata, ti
    fa tre domande sul tuo lavoro reale, ti dice se e dove il principio ti serve, e ti
    propone un esperimento piccolo e reversibile per provarlo. Anche «questo per ora non
    ti serve» è un risultato valido.

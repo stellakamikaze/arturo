@@ -71,7 +71,7 @@ def prepara(repo: Path, tmp: Path, altri: Dict[str, str] = None) -> Lab:
 
 def arturo(lab: Lab, *argomenti: str) -> subprocess.CompletedProcess:
     return subprocess.run([sys.executable, "-B", str(lab.repo / "bin" / "arturo"), *argomenti], env=lab.env,
-                          capture_output=True, text=True, timeout=60)
+                          capture_output=True, text=True, encoding="utf-8", timeout=60)
 
 
 def con_lab(prova: Callable[[Lab], None], repo: Path, altri: Dict[str, str] = None) -> None:
@@ -146,7 +146,7 @@ def test_p04(repo: Path) -> None:
     r = subprocess.run(["git", "-C", str(repo), "check-ignore", "-q", "--no-index", "personale/inizio.md"], capture_output=True)
     assert r.returncode == 0, "P04 personale/ non è in .gitignore"
     fine = read(repo / "commands" / "fine.md")
-    privato = fine[fine.index('if [ "$VIS" = "PRIVATE" ]'):fine.index("else", fine.index('if [ "$VIS" = "PRIVATE" ]'))]
+    privato = fine[fine.index('if [ "$VIS" = "PRIVATE" ]; then'):fine.index("else", fine.index('if [ "$VIS" = "PRIVATE" ]; then'))]
     assert "personale" in privato, "P04 /fine non porta personale/ verso il remote privato"
     pubblico = fine[fine.index("for p in settings.json"):fine.index("done", fine.index("for p in settings.json"))]
     assert "personale" not in pubblico, "P04 /fine porta personale/ anche verso un remote pubblico"
@@ -167,6 +167,12 @@ def test_p05(repo: Path) -> None:
         elenco = arturo(lab, "personale", "elenco").stdout
         assert "personale/inizio.md" in elenco and "Comandi di Arturo modificati in ~/.claude: nessuno" in elenco, \
             f"P05 elenco: {elenco!r}"
+        assert "Senza comando" not in elenco, f"P05 un file personale di un comando che c'è risulta orfano: {elenco!r}"
+        # Un comando uscito da Arturo lascia il suo file personale senza lettore (16/10/2026).
+        (lab.utente / "personale" / "strato.md").write_text("Mia regola.\n", encoding="utf-8")
+        elenco = arturo(lab, "personale", "elenco").stdout
+        assert "Senza comando (Arturo non ha più /strato): personale/strato.md" in elenco, \
+            f"P05 il file personale di un comando uscito non è segnalato: {elenco!r}"
     con_lab(prova, repo)
 
 

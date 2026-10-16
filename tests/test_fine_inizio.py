@@ -21,6 +21,8 @@ F11 l'inventario su Windows (16/10/2026): un file in commit in una sottocartella
 va nel repo e non risulta ignorato; lo scratchpad nella cartella temporanea del sistema (su
 Windows %TEMP%, che sta dentro la HOME) è volatile e riconosciuto come scratchpad; il JSON esce
 in UTF-8 anche se la pipe è in cp1252.
+F12 il Config Sync di /fine non pubblica una skill nuova della persona su un remote pubblico: la
+nomina e Claude chiede. Verso un remote privato la salva (16/10/2026).
 
 Sulla base cbd8305 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -439,6 +441,42 @@ def test_f11(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+def test_f12(repo: Path) -> None:
+    fine = read(serve(repo, "commands/fine.md", "F12"))
+    inizio = fine.index("### 6. Config Sync")
+    blocco = fine[fine.index("```bash\n", inizio) + 8:fine.index("\n```", fine.index("```bash\n", inizio))]
+
+    def sync(visibilita: str) -> tuple:
+        with tempfile.TemporaryDirectory(prefix="arturo-f12-") as tmp:
+            lab = Lab(repo, Path(tmp))
+            config = lab.home / ".claude"
+            shutil.copytree(str(repo), str(config), ignore=shutil.ignore_patterns(".git", "__pycache__", "worktrees"),
+                            dirs_exist_ok=True)
+            remoto = Path(tmp) / "config.git"
+            lab.git(Path(tmp), "init", "-q", "--bare", "-b", "main", str(remoto))
+            lab.git(config, "init", "-q", "-b", "main")
+            lab.git(config, "add", "-A")
+            lab.git(config, "commit", "-q", "-m", "config")
+            lab.git(config, "remote", "add", "origin", str(remoto))
+            lab.git(config, "push", "-q", "origin", "main")
+            (config / "skills" / "lettera-cliente").mkdir()
+            (config / "skills" / "lettera-cliente" / "SKILL.md").write_text("Scrivi alla signora Rossi.\n", encoding="utf-8")
+            finti = Path(tmp) / "finti"
+            finti.mkdir()
+            (finti / "gh").write_text(f"#!/bin/sh\necho {visibilita}\n", encoding="utf-8")
+            (finti / "gh").chmod(0o755)
+            r = lab.run([BASH, "-c", blocco], cwd=lab.home, PATH=f"{finti}{os.pathsep}{os.environ.get('PATH', '')}")
+            nel_remoto = lab.run(["git", "-C", str(remoto), "ls-tree", "-r", "--name-only", "main"]).stdout
+            return r.stdout + r.stderr, "skills/lettera-cliente/SKILL.md" in nel_remoto
+
+    uscita, pubblicata = sync("PUBLIC")
+    assert not pubblicata, f"F12 /fine pubblica una skill della persona su un remote pubblico: {uscita[-400:]}"
+    assert "SKILL TUE NON SALVATE" in uscita and "lettera-cliente" in uscita, \
+        f"F12 /fine non dice quali skill non ha salvato: {uscita[-400:]}"
+    uscita, pubblicata = sync("PRIVATE")
+    assert pubblicata, f"F12 /fine non salva la skill verso un remote privato: {uscita[-400:]}"
+
+
 # --- F06: arturo contesto -----------------------------------------------------------------------
 
 def test_f06(repo: Path) -> None:
@@ -658,7 +696,7 @@ def test_f10(repo: Path) -> None:
 
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
-         "F11": test_f11}
+         "F11": test_f11, "F12": test_f12}
 
 
 def main() -> int:

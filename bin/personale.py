@@ -219,6 +219,13 @@ def elenco() -> int:
     r = radice()
     mie = sorted((r / "personale").glob("*.md"))
     print("File personali: " + (", ".join(f"personale/{f.name}" for f in mie) if mie else "nessuno"))
+    # Un comando uscito da Arturo (16/10/2026: strato, progetto, discovery, write-plan, percorso)
+    # lascia la sua aggiunta senza nessuno che la legga.
+    orfani = [f for f in mie if not (r / "commands" / f.name).exists()]
+    if orfani:
+        print("Senza comando (Arturo non ha più /" + ", /".join(f.stem for f in orfani) + "): "
+              + ", ".join(f"personale/{f.name}" for f in orfani)
+              + ". Nessuno li legge più: rileggili con la persona, e lei decide se tenerli altrove o cancellarli.")
     b = base(r)
     cambiati = modificati(r, b) if b else []
     print("Comandi di Arturo modificati in ~/.claude: " + (", ".join(cambiati) if cambiati else "nessuno"))

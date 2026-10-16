@@ -171,6 +171,8 @@ BASELINE=(
   "test_aggiorna_indietro.py 4515e63"
   # Titolo e colore della scheda del terminale (16/10/2026): b0ec3ac, l'ultimo dev prima dell'hook.
   "test_scheda.py b0ec3ac"
+  # /diagnosi di progetto (16/10/2026): 5fd0443, l'ultimo dev prima di bin/diagnosi.py.
+  "test_diagnosi.py 5fd0443"
   # Hook in UTF-8 anche su Windows (16/10/2026, #3423): b0ec3ac, il main v2026-10-16.2.
   "test_hook_utf8.py b0ec3ac"
 )

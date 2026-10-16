@@ -122,5 +122,4 @@ consulente e autrice di* The Pyramid Principle *(1987), la insegnava a chi dovev
 relazioni che qualcuno leggesse davvero — situazione, complicazione, domanda, e la risposta
 in cima. Qui l'abbiamo presa in prestito e girata verso chi la domanda deve farla.*
 
-*Vuoi provarla sul tuo lavoro? `/sparring chiedere bene` — tre domande e un esperimento
-piccolo.*
+*Vuoi provarlo sul tuo lavoro? Chiedi a Claude uno sparring su «chiedere bene».*

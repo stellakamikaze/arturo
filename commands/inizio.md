@@ -260,7 +260,8 @@ Usa AskUserQuestion:
 **Opzioni**:
 1. **Continua task** — "Riprendi [primo task pending]"
 2. **Nuovo task** — "Inizia nuovo lavoro"
-3. **Review** — "Analizza stato codebase"
+3. **Diagnosi** — "Qualcosa non torna: controllo Arturo e il progetto" → apri con Read
+   `~/.claude/commands/diagnosi.md` e seguilo
 4. **Debug** — "C'è un bug da fixare"
 
 Se la persona corregge un todo dal cruscotto («il 4 lo faccio io», «il 5 scartalo»), scrivilo

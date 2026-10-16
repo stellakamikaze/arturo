@@ -270,13 +270,25 @@ case "$ORIGIN_URL" in
   *) ORIGIN_ARTURO=0 ;;
 esac
 if [ "$CONFIG_INTEGRA" = 1 ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+  VIS=$(gh repo view "$ORIGIN_URL" --json visibility -q .visibility 2>/dev/null)
   # Senza -f: git add salta i file ignorati, come il venv di scrape (tools/scrapling/.venv/).
-  for p in settings.json .gitattributes .gitignore bin commands agents hooks skills shared docs templates tools tests output-styles NOVITA.md README.md package.json; do
+  for p in settings.json .gitattributes .gitignore bin commands agents hooks shared docs tools tests output-styles NOVITA.md README.md package.json; do
     [ -e "$p" ] || continue
     git add -- "$p" || echo "git add fallito su $p: resta fuori dal commit"
   done
+  # Le skill già nel repository (quelle di Arturo, le tue già salvate) seguono le modifiche. Una skill
+  # nuova della persona (/creaskill) può avere dati suoi: verso un remote che non risulta privato
+  # resta fuori, e Claude chiede.
+  [ -d skills ] && git add -u -- skills
+  SKILL_NUOVE=$(git ls-files --others --exclude-standard --directory -- skills 2>/dev/null | tr '\n' ' ')
+  if [ -n "$SKILL_NUOVE" ]; then
+    if [ "$VIS" = "PRIVATE" ] || [ "$ORIGIN_ARTURO" = 1 ] || [ -z "$ORIGIN_URL" ]; then
+      git add -- skills || echo "git add fallito su skills: resta fuori dal commit"
+    else
+      echo "SKILL TUE NON SALVATE: ${SKILL_NUOVE}- il remote della config non risulta privato (visibilità: ${VIS:-sconosciuta}). Restano su questa macchina."
+    fi
+  fi
   # CLAUDE.md personale, aggiunte ai comandi (personale/), handoff e todo viaggiano solo verso un remote privato verificato.
-  VIS=$(gh repo view "$(git remote get-url origin 2>/dev/null)" --json visibility -q .visibility 2>/dev/null)
   if [ "$VIS" = "PRIVATE" ]; then
     # -f scavalca .gitignore: l'esclusione tiene fuori il lucchetto (*.lock) di arturo todo.
     for p in CLAUDE.md data/handoffs data/todo personale; do
@@ -305,6 +317,12 @@ elif [ "$CONFIG_INTEGRA" = 1 ]; then
 fi
 cd "$PREV_DIR"
 ```
+
+Se esce `SKILL TUE NON SALVATE`, dillo alla persona con i nomi delle skill: il repository della
+sua config non risulta privato, e pubblicarle lì le rende visibili a tutti. Chiedi se vuole
+pubblicarle. Col suo sì, per ognuna: `git -C ~/.claude add -- skills/<nome>`, poi
+`git -C ~/.claude commit -m "skill <nome>"` e `git -C ~/.claude push origin main`. Senza sì
+restano su questa macchina, e il prossimo `/fine` lo ricorda.
 
 ### 7. Migliorare Arturo
 

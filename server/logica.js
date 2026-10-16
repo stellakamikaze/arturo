@@ -30,7 +30,8 @@ export const EVENTI = {
   // Eventi vecchi: il client non li manda più, ma un client non aggiornato sì. Restano accettati
   // perché validaLotto rifiuta il lotto intero per un evento fuori elenco. Da togliere dopo qualche
   // settimana, insieme al loro posto in M09 (tests/test_telemetria.py).
-  // tappa: tolta dal client il 16/10/2026 con il percorso a tappe.
+  // tappa: tolta dal client il 16/10/2026 con il percorso a tappe. Per la stessa ragione `deriva`
+  // accetta ancora la radice templates/, tolta dal client il 16/10/2026: esce con tappa (#3435).
   tappa: /^(tappa:[0-4]|(decisioni|limiti|tenuti|proposte|rifiutate):\d{1,4})$/,
 };
 // Le soglie della ritenzione: installazioni ancora vive dopo 7, 30 e 60 giorni dalla prima volta.

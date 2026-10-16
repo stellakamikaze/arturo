@@ -176,7 +176,7 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 
 | Di Arturo (arriva con gli aggiornamenti) | Tuo (nessun aggiornamento lo tocca) |
 |---|---|
-| `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/` (gli stili di Arturo; uno tuo con un nome nuovo resta tuo), `docs/`, `tools/`, `tests/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `tools/scrapling/.venv/` (il venv di `scrape`), `personale/` (le tue aggiunte ai comandi di Arturo), `hooks/hosts-interni.local`, `hooks/api-fidate.local`, `data/` (compresi i tuoi todo in `data/todo/`), `projects/` e le altre cartelle di lavoro |
+| `bin/`, `hooks/`, `commands/`, `agents/`, `skills/` (le skill di Arturo; una tua fatta con `/creaskill`, con un nome nuovo, resta tua), `shared/`, `output-styles/` (gli stili di Arturo; uno tuo con un nome nuovo resta tuo), `docs/`, `tools/`, `tests/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `tools/scrapling/.venv/` (il venv di `scrape`), `personale/` (le tue aggiunte ai comandi di Arturo), `hooks/hosts-interni.local`, `hooks/api-fidate.local`, `data/` (compresi i tuoi todo in `data/todo/`), `projects/` e le altre cartelle di lavoro |
 
 `settings.json` è di Arturo, ma le tue modifiche restano come commit locali. `/aggiorna` ti mostra i file cambiati sia da te sia dall'aggiornamento prima di applicare. Se nella copia di prova `settings.json` non è JSON valido o resta un conflitto, l'aggiornamento non arriva in `~/.claude`: un `settings.json` rotto spegnerebbe tutte le guardie. L'avvio della sessione te lo segnala con una riga `CONFIG ROTTA`.
 

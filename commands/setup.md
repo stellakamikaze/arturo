@@ -14,7 +14,7 @@ Sei la guida di installazione di **Arturo**, l'harness Claude Code in cui ti tro
 - **Chiedi prima di scrivere.** Ogni volta che stai per modificare un file (`settings.json`, `CLAUDE.md`), mostra cosa scriverai e chiedi conferma. Nota: modificare `settings.json` durante `/setup` è legittimo — l'utente lo ha chiesto lanciando questo comando — quindi se una guardia chiede conferma, spiega all'utente che è normale e che può approvare.
 - **Sono obbligatorie solo le fasi 0–4 e la verifica finale (FASE 9).** Tutte le altre sono opzionali: la 4b (stile), dalla 5 alla 8b (`CLAUDE.md`, host e API fidate, sync, comando `arturo`, memoria, `gws`, `scrape`) e la 10 (sparring). Proponile, e se l'utente non le vuole, salta senza insistere.
 - **Idempotente.** Se qualcosa è già configurato correttamente, dillo («questo è già a posto») e vai avanti, non rifarlo.
-- **Prima configurazione o verifica.** Se la FASE 0 trova Arturo già configurato, o la persona scrive `/setup verifica`, chiedi se vuole rifare la configurazione o solo verificarla. Nella verifica non scrivi niente: per ogni fase obbligatoria dici se è a posto, lanci la FASE 9 e poi proponi `/diagnosi` sul progetto su cui lavora. Quello che non è a posto lo sistemi rifacendo la sua fase, col suo sì.
+- **Prima configurazione o verifica.** Se la FASE 0 stampa `SETUP GIÀ FATTO`, o la persona scrive `/setup verifica`, chiedi se vuole rifare la configurazione o solo verificarla. Nella verifica non scrivi niente: per ogni fase obbligatoria dici se è a posto, lanci la FASE 9 e poi proponi `/diagnosi` sul progetto su cui lavora. Quello che non è a posto lo sistemi rifacendo la sua fase, col suo sì.
 - **Segna la fase.** All'inizio di ogni fase, anche di quelle che salti, registra il numero per la telemetria di Arturo: dice a chi lo mantiene in quale fase le persone si fermano. Esce solo il numero.
 
   ```bash
@@ -34,7 +34,10 @@ echo "HOME: $HOME"
 echo "Config attuale: ${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 ls -d "$HOME/.claude" >/dev/null 2>&1 && echo "~/.claude esiste" || echo "~/.claude NON esiste"
 git -C "$HOME/.claude" rev-parse --is-inside-work-tree 2>/dev/null && echo "è un repo git" || echo "NON è un repo git"
+cat "$HOME/.claude/data/setup-fatto" 2>/dev/null && echo "SETUP GIÀ FATTO" || echo "setup mai finito"
 ```
+
+`SETUP GIÀ FATTO` è il segno che una FASE 9 è già andata a buon fine: è il caso della verifica.
 
 Verifica che l'harness sia installato in `~/.claude`. Se NON lo è, fermati e guida l'utente a installarlo prima. Il caso normale è che `~/.claude` esista già: Claude Code la crea al primo avvio, con dentro le sue impostazioni. Va spostata da parte, non cancellata:
 
@@ -329,6 +332,11 @@ bash "$HOME/.claude/skills/system-audit/audit.sh"
 
 - Obiettivo: **tutto verde** (o solo WARN innocui, che spieghi).
 - Se ci sono FAIL, risolvili con l'utente (di solito: permessi hook → torna alla FASE 2; JSON di `settings.json` rotto → mostra e correggi).
+- Quando l'audit non ha FAIL, lascia il segno che il prossimo `/setup` legge nella FASE 0:
+
+```bash
+mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/setup-fatto"
+```
 
 ---
 

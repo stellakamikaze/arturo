@@ -43,7 +43,6 @@
       "Bash(jq:*)",
       "Bash(claude --version)",
       "Bash(claude plugin list:*)",
-      "Bash(claude plugin validate:*)",
       "Read(//tmp/**)",
       "mcp__playwright__*",
       "mcp__github__get_*",

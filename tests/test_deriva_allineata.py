@@ -53,17 +53,24 @@ def alternative(sorgente: str) -> set:
     return set(m.group(1).split("|")) if m else set()
 
 
+# Radici tolte dal client che il server accetta ancora: un client non aggiornato le manda, e il
+# server rifiuterebbe il lotto intero. Escono dal server con l'evento tappa, dopo il 13/11 (#3435).
+RADICI_VECCHIE = {"templates"}
+
 py_deriva = telemetria.EVENTI["deriva"].pattern
 js_deriva = js("deriva")
+js_attuale = js_deriva
+for vecchia in RADICI_VECCHIE:
+    js_attuale = js_attuale.replace("|" + vecchia + "|", "|")
 rossi = []
 CASI = ["A01", "A02", "A03", "A04", "A05"]
 
-# A01: la regex di telemetria.py e quella del server sono la stessa stringa.
-if not js_deriva or py_deriva != js_deriva:
+# A01: la regex di telemetria.py e quella del server sono la stessa stringa, a parte le radici vecchie.
+if not js_deriva or py_deriva != js_attuale:
     rossi.append(f"A01 deriva diversa fra bin/telemetria.py e server/logica.js:\n  py {py_deriva}\n  js {js_deriva}")
 
 # A02: le radici dei file sono le stesse in deriva.py, telemetria.py e server.
-for dove, sorgente in (("bin/telemetria.py", py_deriva), ("server/logica.js", js_deriva)):
+for dove, sorgente in (("bin/telemetria.py", py_deriva), ("server/logica.js", js_attuale)):
     if radici_in(sorgente) != set(radici):
         rossi.append(f"A02 radici di {dove} {sorted(radici_in(sorgente))} diverse da hooks/deriva.py {sorted(radici)}")
 

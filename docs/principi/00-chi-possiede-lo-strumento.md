@@ -75,5 +75,4 @@ prodotto — in file miei».
 
 ---
 
-*Vuoi vedere cosa significa nel tuo caso? `/sparring chi possiede lo strumento` — tre
-domande sul tuo lavoro, e proviamo.*
+*Vuoi provarlo sul tuo lavoro? Chiedi a Claude uno sparring su «chi possiede lo strumento».*

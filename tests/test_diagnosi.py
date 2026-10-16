@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""D01-D12: arturo diagnosi, i due controlli di /diagnosi su un progetto intero (16/10/2026).
+"""D01-D13: arturo diagnosi, i due controlli di /diagnosi su un progetto intero (16/10/2026).
 
 D01 percorsi: un percorso degli handoff che non esiste più stampa «MANCA: … (da HANDOFF_…)» ed esce 1.
 D02 percorsi: tutti presenti, «OK n presenti, 0 mancanti» ed exit 0.
@@ -19,7 +19,8 @@ D12 «arturo» elenca diagnosi nell'aiuto.
 D13 fuori dai backtick il percorso finisce al primo «, », « (», « — », « → » o spazio: la prosa dopo
     non entra nel percorso (falsi MANCA su due handoff veri, 16/10/2026). Tra backtick valgono gli spazi.
 
-Ogni controllo fallisce con un AssertionError che comincia con il suo codice.
+Sulla base 5fd0443, l'ultimo dev prima di /diagnosi di progetto, ogni controllo deve fallire con un
+AssertionError che comincia con il suo codice.
 """
 from __future__ import annotations
 
