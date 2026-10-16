@@ -2,9 +2,8 @@
 """P01-P08: i mod portati dalla config dell'autore (9/10/2026, rivisti il 14/10 e il 15/10/2026).
 
 P01, P02, P04 redazione-segreti, riscrivi-bash e cache-fredda passano claude plugin validate e
-claude plugin test. P03 menu-contesto e agent-flow non ci sono più (tolti il 14/10/2026) e NOVITA.md
-lo annuncia, e blast-radius non c'è più (tolto il 15/10/2026 prima di arrivare su main, quindi senza
-annuncio). P06 nei mod non ci sono nomi, host o percorsi personali. P08 il README nomina ogni mod.
+claude plugin test. P03 menu-contesto e agent-flow (tolti il 14/10/2026) e blast-radius (tolto il
+15/10/2026, era su main dal 14/10) non ci sono più, e NOVITA.md annuncia ogni uscita. P06 nei mod non ci sono nomi, host o percorsi personali. P08 il README nomina ogni mod.
 P05 e P07 (blast-radius) sono usciti col mod.
 
 Il gate richiede il binario `claude`: se manca, il banco fallisce con un messaggio esplicito.
@@ -20,9 +19,7 @@ from pathlib import Path
 from typing import Callable, Dict, List
 
 MOD = ("redazione-segreti", "riscrivi-bash", "cache-fredda")
-TOLTI = ("menu-contesto", "agent-flow")
-# Tolto da dev prima di un rilascio: nessun utente lo ha avuto, NOVITA.md non lo annuncia.
-TOLTI_PRIMA_DI_MAIN = ("blast-radius",)
+TOLTI = ("menu-contesto", "agent-flow", "blast-radius")
 # Le parole sono spezzate: il controllo di igiene I03 legge anche i test.
 PERSONALI = re.compile("|".join(re.escape(a + b) for a, b in (("fede", "rico"), ("gani", "mede"), ("fur", "ore"), ("/Us", "ers/")))
                        + r"|\buf-[a-z]", re.IGNORECASE)
@@ -63,11 +60,11 @@ def test_p06(repo: Path) -> None:
 
 
 def test_p03(repo: Path) -> None:
-    rimasti = [m for m in TOLTI + TOLTI_PRIMA_DI_MAIN if (repo / "skills" / m).exists()]
+    rimasti = [m for m in TOLTI if (repo / "skills" / m).exists()]
     assert not rimasti, f"P03 mod tolti ancora presenti: {rimasti}"
     # Chi li aveva li perde con /aggiorna: NOVITA.md deve dirglielo.
     novita = (repo / "NOVITA.md").read_text(encoding="utf-8")
-    annunciati = [m for m in TOLTI if re.search(rf"[Ee]scono[^\n]*\n?[^\n]*`{m}`", novita)]
+    annunciati = [m for m in TOLTI if re.search(rf"[Ee]sc(?:e|ono)\b[^\n]*\n?[^\n]*`{m}`", novita)]
     assert annunciati == list(TOLTI), f"P03 NOVITA.md non annuncia l'uscita di {[m for m in TOLTI if m not in annunciati]}"
 
 

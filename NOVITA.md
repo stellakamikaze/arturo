@@ -11,19 +11,23 @@ modo di lavorare.
 
 ---
 
-## 2026-10-16 — In vista solo i comandi di ogni giorno, e Impeccable dal setup
+## 2026-10-16 — In vista solo i comandi di ogni giorno, Impeccable dal setup, esce blast-radius
 
-**Cosa cambia**: Claude ti propone da solo solo i comandi che servono ogni giorno o quando serve:
+**Cosa cambia**: Claude ti propone di sua iniziativa solo i comandi che servono ogni giorno o quando serve:
 `/inizio`, `/fine`, `/aggiorna`, `/novita`, `/segnala`, `/setup`. Gli altri (`/guidami`, `/sparring`,
 `/progetto`, `/discovery`, `/write-plan`, `/diagnosi`, `/strato`, `/percorso`, `/italiano-semplificato`)
 restano tutti: li lanci tu scrivendo il nome. Il README li divide in «Ogni giorno», «Quando serve» e
 «Gli altri comandi». In più `/setup` ti propone Impeccable (fase 8c), la skill di design delle
-interfacce di Paul Bakaus: la installa dall'autore, con le sue versioni nuove.
+interfacce di Paul Bakaus: la installa dall'autore, con le sue versioni nuove. Esce il mod
+`blast-radius`: fermava ogni `rm -rf` e aspettava una risposta, e quando la risposta non arrivava
+bloccava anche il lavoro utile scritto nello stesso comando.
 
 **Il principio dietro**: chi comincia ha bisogno di due comandi, non di quindici. Un elenco lungo
-fa sembrare difficile anche quello che è semplice.
+fa sembrare difficile anche quello che è semplice. E una guardia che ferma il lavoro più spesso di
+quanto lo protegga va tolta.
 
-**Da sapere**: niente da fare. «A che punto sono?» non apre più da solo il percorso: scrivi `/percorso`.
+**Da sapere**: niente da fare. Prima di cancellare una cartella Claude ti chiede ancora conferma
+(`block-dangerous`), e il push forzato resta vietato. «A che punto sono?» non apre più da solo il percorso: scrivi `/percorso`.
 Se fai siti o pagine e vuoi Impeccable senza rifare tutto il setup: `/setup` e salta alla fase 8c,
 oppure leggi `docs/impeccable.md`.
 
@@ -272,16 +276,19 @@ posizione dentro Arturo, che è pubblica: mai i tuoi file né i percorsi del tuo
 rotta parte subito, perché spegne le guardie. La spegni come sempre con
 `python3 ~/.claude/bin/arturo telemetria spegni`.
 
-## 2026-10-14 — zsh si comporta come bash
+## 2026-10-14 — Prima di cancellare vedi cosa sparisce, e zsh si comporta come bash
 
-**Cosa cambia**: `riscrivi-bash` fa comportare zsh, la shell del Mac, come bash: un glob che non
-trova file (`ls *.png` in una cartella senza png) non ferma più il comando con «no matches found».
-Escono due mod che nessuno usava: `menu-contesto` e `agent-flow`.
+**Cosa cambia**: un mod nuovo, `blast-radius`. Quando Claude sta per lanciare `rm -rf`, `git reset
+--hard`, `git clean` o un push forzato, il comando si ferma e compare un pannello: quanti file
+spariscono e quali, quali modifiche non salvate si perdono, quali commit. Premi Procedi o Annulla.
+`riscrivi-bash` fa comportare zsh, la shell del Mac, come bash: un glob che non trova file
+(`ls *.png` in una cartella senza png) non ferma più il comando con «no matches found». Escono due
+mod che nessuno usava: `menu-contesto` e `agent-flow`.
 
-**Il principio dietro**: Claude scrive i comandi per bash. Se la shell li legge in un altro modo,
-l'errore non è suo. E una comodità che nessuno apre è solo codice da mantenere.
+**Il principio dietro**: prima di un gesto che non si annulla, devi vedere cosa fa, non leggere
+un comando. E una comodità che nessuno apre è solo codice da mantenere.
 
-**Da sapere**: niente da fare.
+**Da sapere**: niente da fare. Se `blast-radius` ti ferma troppo spesso, spegnilo con `/plugin`.
 
 
 ## 2026-10-14 — Una striscia per i conti, e il controllo degli invii guarda cosa gira davvero
