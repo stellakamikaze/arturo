@@ -27,7 +27,7 @@ DESTINI PROPOSTI
 EXIT
   0 inventario stampato · 2 id di sessione assente o transcript non trovato
 """
-import argparse, glob, json, os, re, shlex, subprocess, sys
+import argparse, glob, json, os, re, shlex, subprocess, sys, tempfile
 from datetime import datetime, timezone
 
 PESANTE = 20 * 1024 * 1024
@@ -355,17 +355,37 @@ def id_online(risultato):
 
 def sotto(path, radice):
     barre = "/\\" if os.sep == "\\" else "/"  # su Windows i path hanno la barra rovescia
+    if os.sep == "\\":  # e maiuscole e minuscole valgono uguale
+        path, radice = os.path.normcase(path), os.path.normcase(radice)
     radice = radice.rstrip(barre)
     return path == radice or any(path.startswith(radice + b) for b in barre)
 
+def radici_temporanee():
+    """/tmp e simili, più la cartella temporanea del sistema: su Windows è %TEMP%, fuori da /tmp."""
+    out = ["/tmp", "/private/tmp", "/var/folders", "/private/var/folders"]
+    for v in (tempfile.gettempdir(), os.environ.get("TEMP"), os.environ.get("TMP"), os.environ.get("TMPDIR")):
+        if v and os.path.normpath(v) not in out:
+            out.append(os.path.normpath(v))
+    return out
+
 def volatile(path, home=None):
-    """Vero per /tmp e simili: si perdono al riavvio. La HOME non lo è mai, anche se sta lì (i banchi)."""
-    if home and sotto(path, home):
-        return False
-    return any(sotto(path, r) for r in ("/tmp", "/private/tmp", "/var/folders", "/private/var/folders"))
+    """Vero per /tmp e simili: si perdono al riavvio. Una HOME che sta lì dentro non lo è (i banchi).
+    Su Windows è il contrario: %TEMP% sta dentro la HOME, e resta volatile."""
+    for r in radici_temporanee():
+        if sotto(path, r):
+            if home and sotto(home, r) and sotto(path, home):
+                continue
+            return True
+    return False
 
 def scratchpad(path):
-    return re.match(r"^(/private)?/tmp/claude-\d+/", path) is not None
+    """Lo scratchpad di Claude Code: /tmp/claude-<uid>/… sul Mac, %TEMP%\\claude\\… su Windows."""
+    for r in radici_temporanee():
+        if sotto(path, r):
+            primo = re.split(r"[/\\]", path[len(r.rstrip("/\\")):].lstrip("/\\"))[0]
+            if re.fullmatch(r"claude(-\d+)?", primo):
+                return True
+    return False
 
 def tipo_file(path, byte):
     if os.path.isdir(path):
@@ -398,7 +418,9 @@ def repo_di(path, cache):
 def stato_git(repo, paths):
     """Ritorna {path: pulito|modificato|non tracciato|ignorato}."""
     env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")
-    rel = [os.path.relpath(p, repo) for p in paths]
+    # git risponde a barre dritte: su Windows relpath le dà rovesce, e un file in commit in una
+    # sottocartella risultava «ignorato» (16/10/2026)
+    rel = [os.path.relpath(p, repo).replace(os.sep, "/") for p in paths]
     def git(*a):
         p = subprocess.run(["git", "-C", repo, *a, "--", *rel], capture_output=True, env=env)
         return p.stdout.decode("utf-8", "replace") if p.returncode == 0 else None

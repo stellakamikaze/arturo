@@ -17,6 +17,10 @@ F08 /fine usa inventario, gate, retention e indice; il modello della tabella pas
 niente find|tail|rm; nessun blocco legge una variabile di un altro blocco.
 F09 /fine rilanciato nella stessa sessione riscrive lo stesso handoff.
 F10 /inizio prende il contesto con arturo contesto e con --tutti lancia sync-progetti.
+F11 l'inventario su Windows (16/10/2026): un file in commit in una sottocartella o in un worktree
+va nel repo e non risulta ignorato; lo scratchpad nella cartella temporanea del sistema (su
+Windows %TEMP%, che sta dentro la HOME) è volatile e riconosciuto come scratchpad; il JSON esce
+in UTF-8 anche se la pipe è in cp1252.
 
 Sulla base cbd8305 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -388,6 +392,53 @@ def test_f05(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+def test_f11(repo: Path) -> None:
+    script = serve(repo, "bin/inventario-sessione.py", "F11")
+
+    def prova(lab: Lab) -> None:
+        progetto = lab.progetti / "città"
+        (progetto / "capitoli").mkdir(parents=True)
+        lab.git(progetto, "init", "-q")
+        (progetto / "capitoli" / "uno.md").write_text("uno\n", encoding="utf-8")
+        lab.git(progetto, "add", "-A")
+        lab.git(progetto, "commit", "-q", "-m", "primo")
+        albero = progetto / ".claude" / "worktrees" / "prova"
+        lab.git(progetto, "worktree", "add", "-q", "-b", "wt-prova", str(albero))
+        (albero / "capitoli" / "uno.md").write_text("uno, rivisto\n", encoding="utf-8")
+        # Lo scratchpad come lo crea Claude Code: <temp>/claude-<uid>/… sul Mac, %TEMP%\claude\… su Windows
+        base = Path(tempfile.gettempdir()) / "claude" / f"arturo-banco-{os.getpid()}"
+        appunto = base / "sessione" / "scratchpad" / "prova.py"
+        appunto.parent.mkdir(parents=True)
+        appunto.write_text("print(1)\n", encoding="utf-8")
+        try:
+            sid = "sessione-windows"
+            cartella = lab.home / ".claude" / "projects" / "citta"
+            cartella.mkdir(parents=True)
+            righe = [{"timestamp": "2026-10-16T09:00:00.000Z", "cwd": str(progetto), "message": {"content": [
+                {"type": "tool_use", "id": f"t{i}", "name": "Write", "input": {"file_path": str(p)}}]}}
+                for i, p in enumerate((progetto / "capitoli" / "uno.md", albero / "capitoli" / "uno.md", appunto))]
+            (cartella / f"{sid}.jsonl").write_text("\n".join(json.dumps(x) for x in righe) + "\n", encoding="utf-8")
+            r = subprocess.run([sys.executable, "-B", str(script), "--json", "--session", sid,
+                                "--projects", str(lab.home / ".claude" / "projects"), "--home", str(lab.home)],
+                               cwd=str(lab.home), env=lab.env(PYTHONIOENCODING="cp1252", PYTHONUTF8="0"),
+                               capture_output=True, timeout=120)
+            assert r.returncode == 0, f"F11 exit {r.returncode}: {r.stderr.decode('utf-8', 'replace')}"
+            try:
+                inv = json.loads(r.stdout.decode("utf-8"))
+            except (UnicodeDecodeError, ValueError) as e:
+                raise AssertionError(f"F11 il JSON non è UTF-8 con la pipe in cp1252: {e}")
+            per_path = {os.path.normcase(f["path"]): f for f in inv["file"]}
+            for p, git in ((progetto / "capitoli" / "uno.md", "pulito"), (albero / "capitoli" / "uno.md", "modificato")):
+                f = per_path.get(os.path.normcase(str(p)))
+                assert f and f["git"] == git and f["destino"] == "repo", \
+                    f"F11 file in commit in una sottocartella non va nel repo ({p.parent.parent.name}): {f}"
+            f = per_path.get(os.path.normcase(str(appunto)))
+            assert f and f["volatile"] and f["scratchpad"], f"F11 lo scratchpad non è riconosciuto: {f}"
+        finally:
+            shutil.rmtree(base, ignore_errors=True)
+    con_lab(repo, prova)
+
+
 # --- F06: arturo contesto -----------------------------------------------------------------------
 
 def test_f06(repo: Path) -> None:
@@ -606,7 +657,8 @@ def test_f10(repo: Path) -> None:
 
 
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
-         "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10}
+         "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
+         "F11": test_f11}
 
 
 def main() -> int:
