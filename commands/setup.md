@@ -204,7 +204,7 @@ Prima di scrivere, mostra all'utente il contenuto del file e chiedi conferma. Se
 
 ## FASE 7 — Sincronizzazione tra più macchine (opzionale)
 
-Spiega: se userà Arturo su **più computer**, può tenerli allineati con un proprio repository privato. `/fine` committa e pusha (handoff e `CLAUDE.md` solo se il repository risulta privato), `/inizio` sincronizza. Arturo resta collegato come `upstream`: da lì `/aggiorna` scarica gli aggiornamenti dell'harness, mentre `origin` diventa il repository dell'utente.
+Spiega: se userà Arturo su **più computer**, può tenerli allineati con un proprio repository privato. `/fine` committa e pusha, `/inizio` sincronizza. `CLAUDE.md`, aggiunte ai comandi (`personale/`), handoff e todo viaggiano solo se il repository risulta privato. Le skill nuove della persona, verso un repository che non risulta privato, restano sulla macchina finché lei non dice di pubblicarle. Arturo resta collegato come `upstream`: da lì `/aggiorna` scarica gli aggiornamenti dell'harness, mentre `origin` diventa il repository dell'utente.
 
 Se l'utente lo vuole e ha `gh`:
 

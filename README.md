@@ -118,7 +118,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 
 Poi apri Claude Code dentro la cartella: `cd ~/.claude && claude`, e scrivi `/setup`.
 
-Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/`, `docs/`, `tools/`, `tests/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono a `/sparring`, `/novita` e `/inizio gws`; `tests/` ai banchi delle guardie che l'avvio lancia da solo).
+Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/`, `docs/`, `tools/`, `tests/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono allo sparring, a `/novita` e a `/inizio gws`; `tests/` ai banchi delle guardie che l'avvio lancia da solo).
 Chi copia a mano ricopia le cartelle a ogni rilascio, `commands/` e `skills/` insieme: i comandi
 si aprono l'uno con l'altro e si aspettano di trovarsi. Copiare non cancella: i file che Arturo
 toglie li elenca la voce di [`NOVITA.md`](NOVITA.md), e vanno cancellati a mano.
@@ -238,7 +238,7 @@ hooks/               23 guardie e automazioni, più 4 strumenti che usano
 bin/                 La CLI arturo e i suoi moduli
 tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativo, si installa da /setup)
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
-commands/            10 slash command (i nove della rotta, più /sparring che Claude apre da solo)
+commands/            10 slash command (i nove della rotta, più lo sparring che Claude apre da solo)
 agents/              9 subagent specializzati
 skills/              4 skill (+ regole condivise in shared/)
 output-styles/       Due stili di scrittura: Guida (di partenza) e Conciso (si sceglie in /setup)
@@ -271,7 +271,7 @@ Fuori dal dispatcher:
 - `memoria-scrittura.py` — PostToolUse, sempre acceso: controlla le note di memoria e gli handoff che Claude scrive (password, chiavi, istruzioni nascoste). `memoria-richiamo.py` e `memoria-subagente.py` sono la memoria facoltativa, spenta di default: vedi «La memoria (facoltativa)».
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
 - `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
-- `session-start.sh` / `session-end.sh` — titolo finestra, riga `MACCHINA`, avvisi Git locali, file della config modificati e non salvati, controllo della deriva (`deriva.py`), banchi delle guardie in background ogni 12 ore (`tests/banchi-avvio.sh`, un rosso si dice all'avvio; `ARTURO_BANCHI_AVVIO=0` li spegne), avvio della telemetria (`arturo telemetria`), invito a `/segnala` (si spegne con `arturo segnala basta`), promemoria di chiusura anche senza file cambiati e cleanup degli unlock di sessione.
+- `session-start.sh` / `session-end.sh` — titolo della finestra nell'app Terminale di macOS (il titolo della scheda lo scrive `scheda-terminale.py`), riga `MACCHINA`, avvisi Git locali, file della config modificati e non salvati, controllo della deriva (`deriva.py`), banchi delle guardie in background ogni 12 ore (`tests/banchi-avvio.sh`, un rosso si dice all'avvio; `ARTURO_BANCHI_AVVIO=0` li spegne), avvio della telemetria (`arturo telemetria`), invito a `/segnala` (si spegne con `arturo segnala basta`), promemoria di chiusura anche senza file cambiati e cleanup degli unlock di sessione.
 - `controlla-config.py` — strumento, non un hook: controlla che la config sia integra (`settings.json` valido, nessun rebase o conflitto a metà) e stampa `CONFIG OK` o `CONFIG ROTTA`. Lo usano l'avvio, `/inizio`, `/aggiorna` e `/fine`.
 - `deriva.py` — strumento, non un hook: all'avvio misura quanto la tua config si è allontanata da quella di Arturo (comandi e file di Arturo modificati, hook di Arturo tolti o spenti, config rotta) e stampa una riga `DERIVA` solo se c'è da fare.
 - `inject-now.sh` — inietta data/ora corrente a ogni prompt. Quando lanci un comando con aggiunte tue in
@@ -323,7 +323,7 @@ Nove comandi, e Arturo te li propone quando servono. Gli altri strumenti li usa 
 - **`/guidami`** — guarda gli ultimi handoff e le conversazioni recenti e ti propone tre o quattro cose che ha senso fare adesso, con il motivo e il primo passo.
 - **`/creaskill`** — fai spesso lo stesso lavoro? Ti fa quattro domande, una per volta, e ne fa una skill tua in `~/.claude/skills/`, che Claude usa da solo quando la richiesta torna.
 
-**Quello che Claude usa da solo.** Non serve ricordarli: Claude li apre quando servono. `/sparring` prova un principio del curriculum sul tuo lavoro vero, e lo propongono `/setup` e `/novita`. Le skill sono qui sotto.
+**Quello che Claude usa da solo.** Non serve ricordarli: Claude li apre quando servono. Lo sparring (`commands/sparring.md`) prova un principio del curriculum sul tuo lavoro vero, e lo propongono `/setup` e `/novita`. Le skill sono qui sotto.
 
 Qualità: usa le capacità native di review e verifica dell'harness.
 
@@ -459,7 +459,7 @@ La strada avanzata è la CLI `gws`: serve se vuoi più account Google (lavoro + 
 | `/system-audit` segnala `hook diretto mancante` | un file citato in `settings.json` non c'è (copia manuale incompleta) | ricopia il file da Arturo e rilancia `/system-audit` |
 | Un guard chiede conferma su un comando legittimo | falso positivo del pattern | conferma ed esegui; se ricorre, scrivi `/segnala` (o apri una issue col comando esatto) |
 | Commit bloccato con un messaggio che *parla* di comandi pericolosi | il messaggio contiene un pattern come `curl\|bash` | usa `git commit -F file` (il guard scansiona il comando, non il file) |
-| Nessun titolo nel terminale su macOS | `session-env/` mancante (creata al primo avvio) | innocuo; si risolve da solo |
+| La scheda del terminale non mostra il progetto, o non cambia colore | il terminale non riceve le sequenze di `scheda-terminale.py`: il colore c'è solo in Windows Terminal e iTerm2, e in Windows Terminal non in una scheda aperta con `--tabColor` | negli altri terminali lo stato è nel titolo; se manca anche quello, controlla che `settings.json` abbia `CLAUDE_CODE_DISABLE_TERMINAL_TITLE` e scrivi `/segnala` |
 | `/system-audit` segnala `cita /qualcosa, che non esiste` | un documento cita un comando tolto o rinominato | correggi la riga; se è un comando nuovo di Claude Code, aggiungilo a `NATIVE` in `skills/system-audit/audit.sh` |
 | `scrape` esce 3 con «bloccato» | il sito rifiuta le richieste automatiche | apri la pagina nel browser: `scrape` non prova a superare le verifiche anti-bot |
 

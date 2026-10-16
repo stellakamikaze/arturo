@@ -10,7 +10,8 @@ StopFailure e SessionEnd. Legge l'evento da stdin e scrive sul terminale:
     rosso se il turno si è fermato per un errore (StopFailure). Windows Terminal con DECAC,
     iTerm2 con OSC 6. Gli altri terminali ricevono solo il titolo.
 Il progetto viene da un «/inizio <nome>» della sessione, poi dalla radice git della cartella,
-poi dal nome della cartella. Stato e progetto stanno in ~/.claude/cache/scheda/<sessione>.json.
+poi dal nome della cartella. Stato e progetto stanno in ~/.claude/cache/scheda/<sessione>.json:
+SessionEnd toglie il suo file, SessionStart quelli fermi da una settimana (sessioni chiuse male).
 Su Windows un hook non vede la console della scheda: si attacca a quella del processo claude.exe.
 Con ARTURO_SCHEDA_USCITA=<file> le sequenze vanno in quel file (banchi). Ogni errore: exit 0.
 Solo libreria standard, Python 3.8+.
@@ -31,6 +32,7 @@ ETICHETTE = {"attende": "attende", "lavoro": "al lavoro", "problema": "problema"
 DECAC = {"attende": 2, "lavoro": 3, "problema": 1}  # indici della tavolozza: verde, giallo, rosso
 RGB = {"attende": (40, 167, 69), "lavoro": (230, 180, 0), "problema": (200, 40, 40)}
 INIZIO = re.compile(r"^\s*/inizio\b(.*)$", re.S)
+VECCHIO = 7 * 24 * 3600  # secondi: una sessione ferma da una settimana non riparte
 
 
 def cache_dir() -> Path:
@@ -150,6 +152,16 @@ def scrivi(testo: str) -> None:
         tty.write(testo)
 
 
+def pulisci(adesso: float) -> None:
+    """Toglie lo stato delle sessioni chiuse male (niente SessionEnd): fermo da più di VECCHIO."""
+    for vecchio in cache_dir().glob("*.json"):
+        try:
+            if adesso - vecchio.stat().st_mtime > VECCHIO:
+                vecchio.unlink()
+        except OSError:
+            pass
+
+
 def main() -> int:
     adesso = time.time()
     dati = json.loads(sys.stdin.buffer.read().decode("utf-8") or "{}")
@@ -158,6 +170,8 @@ def main() -> int:
         return 0
     sessione = re.sub(r"[^\w-]", "", str(dati.get("session_id") or ""))[:64] or "nessuna"
     f = cache_dir() / f"{sessione}.json"
+    if dati.get("hook_event_name") == "SessionStart":
+        pulisci(adesso)
     salvato = leggi(f)
     # Gli hook asincroni possono arrivare fuori ordine: vale l'evento partito per ultimo.
     if adesso < float(salvato.get("quando") or 0):

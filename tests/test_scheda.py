@@ -12,6 +12,7 @@ TS04 se stato e progetto non cambiano l'hook non scrive niente, e il titolo non 
 TS05 un input rotto o un evento sconosciuto non scrive niente ed esce 0.
 TS06 settings.json collega l'hook ai sette eventi in async e spegne il titolo di Claude Code.
 TS07 un evento partito prima dell'ultimo salvato non sovrascrive lo stato.
+TS08 all'avvio di una sessione sparisce lo stato delle sessioni ferme da una settimana, e solo quello.
 
 Nessun caso scrive sul terminale vero: ARTURO_SCHEDA_USCITA manda le sequenze in un file.
 Sulla base b0ec3ac ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
@@ -183,8 +184,27 @@ def test_ts07(repo: Path) -> None:
         c.chiudi()
 
 
+def test_ts08(repo: Path) -> None:
+    c = Casa(repo, "TS08", {"WT_SESSION": "x"})
+    try:
+        cache = c.home / ".claude" / "cache" / "scheda"
+        cache.mkdir(parents=True)
+        vecchia, recente = cache / "chiusa-male.json", cache / "altra-aperta.json"
+        for f in (vecchia, recente):
+            f.write_text(json.dumps({"stato": "lavoro", "progetto": "x", "quando": 0}), encoding="utf-8")
+        otto_giorni_fa = time.time() - 8 * 24 * 3600
+        os.utime(vecchia, (otto_giorni_fa, otto_giorni_fa))
+        c.evento("PostToolUse")
+        assert vecchia.exists(), "TS08 un evento qualsiasi pulisce: la pulizia è solo all'avvio"
+        c.evento("SessionStart", sessione="s2")
+        assert not vecchia.exists(), "TS08 lo stato di una sessione chiusa male resta per sempre"
+        assert recente.exists(), "TS08 l'avvio toglie lo stato di un'altra sessione aperta"
+    finally:
+        c.chiudi()
+
+
 TESTS = {"TS01": test_ts01, "TS02": test_ts02, "TS03": test_ts03, "TS04": test_ts04, "TS05": test_ts05,
-         "TS06": test_ts06, "TS07": test_ts07}
+         "TS06": test_ts06, "TS07": test_ts07, "TS08": test_ts08}
 
 
 def main() -> int:

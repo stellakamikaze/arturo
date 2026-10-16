@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""U01-U06: gli hook leggono in UTF-8 il JSON di Claude Code anche su Windows (16/10/2026).
+"""U01-U07: gli hook leggono in UTF-8 il JSON di Claude Code anche su Windows (16/10/2026).
 
 Su Windows la pipe di un processo Python è in cp1252. Claude Code scrive il JSON in UTF-8: le
 lettere accentate arrivavano storpiate e un byte che cp1252 non conosce (0x9D, dentro «”») faceva

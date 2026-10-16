@@ -6,7 +6,8 @@ il merge va in conflitto e la config si rompe. Le aggiunte stanno invece in
 ~/.claude/personale/<comando>.md, fuori da git. Gli aggiornamenti non le toccano, e quando la
 persona lancia /<comando> l'hook inject-now.sh dice a Claude di leggerle.
 
-  elenco                  i file personali e i comandi di Arturo modificati in ~/.claude
+  elenco                  i file personali e i comandi di Arturo modificati in ~/.claude, e i file
+                          personali di un comando che Arturo non ha più
   sposta commands/X.md    sposta le modifiche a /X in personale/X.md e riporta X.md com'era in Arturo
   separa [--verso REF]    sposta i comandi di Arturo modificati (con --verso solo quelli che REF cambia);
                           /aggiorna lo lancia da solo nella copia di prova

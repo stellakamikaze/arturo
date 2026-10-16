@@ -11,6 +11,25 @@ modo di lavorare.
 
 ---
 
+## 2026-10-16 — Le tue skill restano tue, e /setup ti riconosce
+
+**Cosa cambia**: quando `/fine` salva la config verso il tuo repository, le skill nuove che hai
+creato con `/creaskill` partono solo se il repository è privato. Se non risulta privato, restano
+su questo computer e Claude ti chiede se pubblicarle: una skill tua può contenere dati tuoi.
+`/diagnosi` ti dice anche quando un tuo file in `personale/` appartiene a un comando che Arturo
+non ha più, come `/strato`: nessuno lo legge, e puoi tenerlo da parte o cancellarlo. Se avevi
+finito `/setup` prima di oggi e lo rilanci, Arturo ti riconosce e ti propone la verifica invece
+della prima configurazione. Su Windows la telemetria registra anche le conferme dei comandi con
+caratteri speciali, e un `rm -rf` nella cartella temporanea di Windows non chiede più conferma,
+come `/tmp` sul Mac.
+
+**Il principio dietro**: niente di tuo esce senza un tuo sì, e niente ti fa rifare un lavoro già
+fatto.
+
+**Da sapere**: niente da fare.
+
+---
+
 ## 2026-10-16 — Su Windows le guardie leggono tutto il comando
 
 **Cosa cambia**: su Windows alcune guardie di Arturo leggevano male i comandi con caratteri

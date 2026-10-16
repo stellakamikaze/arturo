@@ -7,7 +7,7 @@ P02 il file personale tiene le parti aggiunte con la riga di Arturo dopo cui sta
 P03 inject-now dice a Claude di leggere il file personale quando parte il comando, e il promemoria
 del brief non scatta sui comandi /nome. P04 personale/ resta fuori da git e viaggia con /fine solo
 verso un remote privato. P05 lo spostamento rifiuta ciò che non è un comando di Arturo e non crea
-commit vuoti. P06 /aggiorna sposta da solo, senza chiedere (Passo 2b), e /aggiorna personale lo fa subito. P07 con Arturo
+commit vuoti, ed elenco segnala il file personale di un comando uscito da Arturo. P06 /aggiorna sposta da solo, senza chiedere (Passo 2b), e /aggiorna personale lo fa subito. P07 con Arturo
 come upstream (merge) lo spostamento è un commit nuovo e non riscrive i commit pubblicati; P01 e P02
 coprono Arturo come origin (rebase), dove i commit locali vengono riscritti senza il comando. P08
 con Arturo come origin /aggiorna sposta da solo, senza i passi di Claude. P09 con un repository privato e

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""F01-F10: il ciclo di sessione di /fine e /inizio sopra l'archivio dei todo (15/10/2026).
+"""F01-F12: il ciclo di sessione di /fine e /inizio sopra l'archivio dei todo (15/10/2026).
 
 F01 bin/handoff-gate.sh: la sezione «## Task Pendenti» c'è sempre, ogni riga ha l'ID di un todo
 aperto dell'archivio, Chi è una categoria dei todo, niente segnaposti del modello mai compilati.
