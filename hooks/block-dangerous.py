@@ -13,7 +13,8 @@ BLOCCO DURO (exit 2, stderr -> modello):
 
 CHIEDE CONFERMA (permissionDecision:"ask", exit 0):
 - `rm -r` che risolve su un tree protetto (~/.claude, memoria, progetti, cwd)
-- scrittura shell su ~/.claude/settings* o hooks/** (auto-modifica delle guardie),
+- scrittura shell su ~/.claude/settings*, hooks/**, firme/** o sugli script dell'aggiornamento
+  automatico (auto-modifica delle guardie, codice non firmato installato da solo),
   incluso il caso `cd ~/.claude/hooks && > file` (target relativo dopo un cd)
 - scrittura shell su git hook (.git/hooks/**) e servizi di avvio automatico
   (~/Library/LaunchAgents, ~/.config/systemd/user, ~/.config/autostart)
@@ -431,12 +432,19 @@ def _is_protected_tree(p):
 
 
 def _under_claude_config(p):
-    """True se il path reale cade su ~/.claude/settings*, ~/.claude/hooks/** o .claude.json."""
+    """True se il path reale cade su ~/.claude/settings*, ~/.claude/hooks/** o .claude.json, oppure
+    sull'aggiornamento automatico: la chiave dei rilasci (firme/**) e i due script che la verificano e
+    installano. Chi li cambia fa installare da solo codice non firmato (16/10/2026, #3482). Solo qui,
+    sul percorso risolto: la regex testuale li vedrebbe anche come sorgente di un cp (/inizio, /aggiorna)."""
     if not p:
         return False
     h = _home()
-    hooks = os.path.normpath(os.path.join(h, ".claude", "hooks"))
-    if p == hooks or p.startswith(hooks + os.sep):
+    radice = os.path.normpath(os.path.join(h, ".claude"))
+    for cartella in ("hooks", "firme"):
+        tutta = os.path.join(radice, cartella)
+        if p == tutta or p.startswith(tutta + os.sep):
+            return True
+    if p in (os.path.join(radice, "bin", "aggiornamenti.py"), os.path.join(radice, "bin", "aggiorna-applica.sh")):
         return True
     base = os.path.basename(p)
     if os.path.dirname(p) == os.path.normpath(os.path.join(h, ".claude")):
@@ -652,8 +660,9 @@ def main() -> int:
     # 2) Scrittura shell su config/hook di Claude Code -> ask (auto-modifica guardie)
     if CONFIG_WRITE_RE.search(testo) or _writes_config(testo, cwd):
         return _ask(
-            "Scrittura via shell su settings/hook di Claude Code: modificherebbe "
-            "le guardie stesse. Conferma solo se stai aggiornando la config di proposito."
+            "Scrittura via shell su settings/hook di Claude Code o sull'aggiornamento automatico "
+            "di Arturo: modificherebbe le guardie stesse, o cosa si installa da solo. Conferma "
+            "solo se stai aggiornando la config di proposito."
         )
 
     # 2a) Scrittura shell su un CLAUDE.md -> ask (le istruzioni di ogni sessione futura)

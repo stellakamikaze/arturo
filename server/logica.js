@@ -4,6 +4,9 @@
 // Cosa riceve il server, e solo questo:
 //   POST /v1/eventi        un lotto di eventi d'uso, con un id di installazione casuale
 //   POST /v1/segnalazioni  una segnalazione che la persona ha letto e approvato con /segnala
+//   POST /v1/feedback      il modulo di feedback del sito (/api/feedback), anche con un vocale:
+//                          il testo resta in D1, il vocale va solo a Telegram
+//   POST /v1/sito          un download dal sito (/api/sito): il comando copiato o il repository aperto
 // Cosa dà, solo a chi ha il token (secret RIEPILOGO_TOKEN):
 //   GET  /v1/riepilogo     il riepilogo della settimana in JSON, con «Dove migliorare Arturo»
 // L'IP non viene mai salvato. Gli eventi hanno il solo giorno, mai l'ora.
@@ -14,12 +17,12 @@ export const EVENTI = {
   sessione: /^$/,
   comando: /^[a-z0-9-]{1,40}$/,
   guardia: /^[a-z0-9_.-]{1,60}$/,
-  aggiorna: /^(applicato|conflitto|fallito|rifiutato|indietro|scartato)$/,
+  aggiorna: /^(applicato|conflitto|fallito|rifiutato|indietro|scartato|automatico)$/,
   segnalazione: /^(problema|proposta|integrazione)$/,
   // La distanza fra la config della persona e quella di Arturo: un `insieme:<n>` apre l'elenco
   // corrente, seguito da n righe. Dei file esce solo il percorso dentro Arturo, che è pubblico.
   // Il percorso è relativo, senza "..", e comincia da una radice di Arturo o è un file della radice.
-  deriva: /^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|hooks|output-styles|server|shared|skills|templates|tests|tools|\.github)\/[A-Za-z0-9_.\/-]{1,70}|[A-Za-z0-9_.-]{1,40}))$/,
+  deriva: /^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|firme|hooks|output-styles|server|shared|skills|templates|tests|tools|\.github)\/[A-Za-z0-9_.\/-]{1,70}|[A-Za-z0-9_.-]{1,40}))$/,
   config: /^rotta-(settings|conflitto|rebase|hook)$/,
   // Dal 15/10/2026, per il miglioramento di Arturo. In coda, nello stesso ordine di bin/telemetria.py.
   setup: /^(fase:(10|[0-9][a-z]?)|fine)$/,

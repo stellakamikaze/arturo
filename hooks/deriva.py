@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 
 MASSIMO = 50
-RADICI = ("agents", "bin", "commands", "docs", "hooks", "output-styles", "server", "shared", "skills",
+RADICI = ("agents", "bin", "commands", "docs", "firme", "hooks", "output-styles", "server", "shared", "skills",
           "tests", "tools", ".github")
 # Solo il punto va protetto: il trattino fuori da [] non ha un senso speciale, e così la regex resta
 # uguale, lettera per lettera, a quelle di bin/telemetria.py e server/logica.js.

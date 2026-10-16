@@ -55,12 +55,13 @@ EVENTI = {
     "comando": re.compile(r"^[a-z0-9-]{1,40}$"),
     "guardia": re.compile(r"^[a-z0-9_.-]{1,60}$"),
     # applicato, conflitto, fallito e scartato li scrive bin/aggiorna-applica.sh; rifiutato (un no al
-    # Passo 3) e indietro li registra /aggiorna.
-    "aggiorna": re.compile(r"^(applicato|conflitto|fallito|rifiutato|indietro|scartato)$"),
+    # Passo 3) e indietro li registra /aggiorna. automatico è un'installazione alla chiusura della
+    # sessione (bin/aggiornamenti.py), dal 16/10/2026.
+    "aggiorna": re.compile(r"^(applicato|conflitto|fallito|rifiutato|indietro|scartato|automatico)$"),
     "segnalazione": re.compile(r"^(problema|proposta|integrazione)$"),
     # Da hooks/deriva.py: un `insieme:<n>` apre l'elenco corrente. Dei file solo la posizione
     # nel repository di Arturo, relativa e senza "..": è pubblica, non dice niente dei file della persona.
-    "deriva": re.compile(r"^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|hooks|output-styles|server|shared"
+    "deriva": re.compile(r"^(insieme:\d{1,3}|hook:[a-z0-9_.-]{1,60}|file:(?!.*\.\.)((agents|bin|commands|docs|firme|hooks|output-styles|server|shared"
                          r"|skills|tests|tools|\.github)/[A-Za-z0-9_./-]{1,70}|[A-Za-z0-9_.-]{1,40}))$"),
     "config": re.compile(r"^rotta-(settings|conflitto|rebase|hook)$"),
     # Dal 15/10/2026, per il miglioramento di Arturo. In coda: l'ordine è lo stesso del server (M09).
@@ -72,7 +73,8 @@ EVENTI = {
 }
 # La promessa sulla telemetria cambia di versione quando cambia cosa esce. A una versione nuova
 # l'avviso torna una volta, anche a chi aveva già visto la precedente. 3: senza le tappe (16/10/2026).
-PROMESSA = 3
+# 4: gli aggiornamenti installati da soli alla chiusura si contano a parte (16/10/2026, #3482).
+PROMESSA = 4
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
 # ~/.claude/commands/ ha un nome suo, e non esce.
 # Il banco M10 controlla che l'elenco coincida con commands/ del repository.
@@ -384,7 +386,7 @@ def avvio() -> int:
             nuova = " Cosa esce è cambiato da quando l'ha letto: diglielo." if stato.get("avviso") else ""
             print("TELEMETRIA: Arturo manda a chi lo mantiene eventi d'uso con un id casuale: versione di Arturo e di "
                   "Claude Code, sistema, comandi di Arturo usati, guardie che bloccano o chiedono e se la persona "
-                  "conferma, guardie che si rompono, fase di /setup raggiunta, esiti di /aggiorna, file e hook di "
+                  "conferma, guardie che si rompono, fase di /setup raggiunta, esiti di /aggiorna e degli aggiornamenti automatici, file e hook di "
                   "Arturo cambiati o spenti. Mai prompt, file, nomi o testi."
                   + nuova + " Dillo alla persona una volta, in due righe, con il perché: con questi dati Arturo "
                   "corregge ogni settimana i punti dove le persone si bloccano. "

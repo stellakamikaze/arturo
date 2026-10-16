@@ -72,8 +72,11 @@ togli_copia() {
 segna_esito() {  # $1 = applicato|conflitto|fallito|scartato, $2 = il modo. Un evento della telemetria di
   # Arturo (bin/telemetria.py): dice se gli aggiornamenti arrivano integri. Il sync fra le macchine
   # della persona non è un aggiornamento di Arturo e non si conta. Non fallisce mai.
+  # Un'installazione dell'aggiornamento automatico (bin/aggiornamenti.py) si conta come automatico.
   [ "${2:-}" = sync ] && return 0
-  [ -f "$RADICE/bin/telemetria.py" ] && python3 "$RADICE/bin/telemetria.py" registra aggiorna "$1" >/dev/null 2>&1
+  local esito="$1"
+  [ "$esito" = applicato ] && [ "${ARTURO_AGGIORNA_AUTOMATICO:-}" = 1 ] && esito=automatico
+  [ -f "$RADICE/bin/telemetria.py" ] && python3 "$RADICE/bin/telemetria.py" registra aggiorna "$esito" >/dev/null 2>&1
   return 0
 }
 

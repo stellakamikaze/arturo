@@ -28,8 +28,9 @@ strada scelta. Poi FERMATI: le fasi sotto non si applicano.
 
 ## FASE 0: Sync Config
 
-`/inizio` non applica mai gli aggiornamenti di Arturo: li controlla e li segnala. Li applica
-solo `/aggiorna`, dopo il sì dell'utente (Impegno 2 del README). Se `origin` è un repository
+`/inizio` non applica mai gli aggiornamenti di Arturo: li controlla e li segnala. I rilasci
+firmati si installano da soli alla chiusura della sessione, gli altri li applica `/aggiorna` dopo
+il sì dell'utente (Impegno 2 del README). Se `origin` è un repository
 suo (vedi `/setup` FASE 7), `/inizio` sincronizza quello: sono le sue macchine, non codice di
 altri.
 
@@ -72,7 +73,7 @@ fi
 git -C ~/.claude remote get-url upstream >/dev/null 2>&1 && git -C ~/.claude fetch --quiet upstream main 2>&1
 SRC=$(git -C ~/.claude remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
 BEHIND=$(git -C ~/.claude rev-list --count "HEAD..$SRC/main" 2>/dev/null || echo 0)
-[ "${BEHIND:-0}" -gt 0 ] && echo "ARTURO: $BEHIND aggiornamenti disponibili — li applica /aggiorna, dopo il tuo sì"
+[ "${BEHIND:-0}" -gt 0 ] && echo "ARTURO: $BEHIND aggiornamenti disponibili — i rilasci firmati si installano da soli alla chiusura, o subito con /aggiorna"
 python3 ~/.claude/hooks/controlla-config.py --quiet || exit 1
 ```
 

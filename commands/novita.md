@@ -68,6 +68,6 @@ echo "Segnata come vista: $ENTRY"
 
 ## Regole
 
-- Mai applicare aggiornamenti: li applica `/aggiorna`. Mai esperimenti senza conferma.
+- Mai applicare aggiornamenti: i rilasci firmati si installano da soli alla chiusura della sessione, il resto lo applica `/aggiorna`. Mai esperimenti senza conferma.
 - Se `NOVITA.md` non esiste, dillo senza drammatizzare: questa copia dell'harness è precedente al canale novità: proponi `/aggiorna`.
 - Il comando informa e propone: le decisioni restano dell'utente.

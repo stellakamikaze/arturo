@@ -1,10 +1,12 @@
-"""arturo personale: le aggiunte della persona ai comandi di Arturo, in file suoi.
+"""arturo personale: le aggiunte della persona ai comandi e agli hook di sessione di Arturo, in file suoi.
 
 Perché esiste: Arturo convive con la config personale. Chi cambia un comando di Arturo (per esempio
 aggiunge a /inizio la tabella dei suoi progetti) modifica un file che ogni aggiornamento riscrive:
 il merge va in conflitto e la config si rompe. Le aggiunte stanno invece in
 ~/.claude/personale/<comando>.md, fuori da git. Gli aggiornamenti non le toccano, e quando la
-persona lancia /<comando> l'hook inject-now.sh dice a Claude di leggerle.
+persona lancia /<comando> l'hook inject-now.sh dice a Claude di leggerle. Le righe aggiunte agli
+hook di sessione stanno in ~/.claude/personale/session-start.sh (o session-end.sh), che l'hook di
+Arturo esegue in fondo.
 
   elenco                  i file personali e i comandi di Arturo modificati in ~/.claude, e i file
                           personali di un comando che Arturo non ha più

@@ -45,7 +45,7 @@ Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
 
 1. **Il repository resta pubblico e con licenza MIT.** Non diventa privato e non viene cancellato.
 2. **Gli aggiornamenti si installano da soli solo se sono firmati, e li puoi tenere a mano.** Dal 16 ottobre 2026 Arturo si aggiorna da solo alla chiusura della sessione, come Claude Code: prima l'impegno era «solo `/aggiorna`, dopo il tuo sì». Si installano solo i rilasci con un tag firmato dalla chiave di chi mantiene Arturo, verificato con la chiave che hai già installata (`firme/rilasci.allowed_signers`). Niente si installa da solo se la firma manca, se la storia pubblicata è stata riscritta, se hai modifiche non salvate o se un'altra sessione è aperta: resta l'avviso, e `/aggiorna` fa il resto con te. Con `python3 ~/.claude/bin/arturo aggiornamenti manuali` (o `ARTURO_AGGIORNAMENTI=manuali`) torni al sì per ogni aggiornamento. Se hai collegato un tuo repository privato, `/inizio` sincronizza quello: sono le tue macchine, non codice di altri.
-3. **Telemetria accesa di default: eventi e numeri, mai contenuti, per migliorare Arturo.** Arturo si sviluppa ogni giorno per persone che spesso non sanno dire dove si bloccano. Per questo manda a chi lo mantiene eventi d'uso da un elenco chiuso, e chi lo mantiene li legge ogni lunedì per decidere cosa correggere: la fase di `/setup` dove ci si ferma, le guardie che chiedono conferma a vuoto, gli aggiornamenti rifiutati. Ogni correzione nata da un segnale lo dice nella sua voce di [`NOVITA.md`](NOVITA.md). Gli eventi: `sessione`, `comando` (il nome di un comando di Arturo, mai il testo), `guardia` (il nome della guardia che ha bloccato), `aggiorna` (l'esito di `/aggiorna`: applicato, conflitto, fallito, rifiutato, indietro, scartato), `segnalazione` (il tipo), `deriva` (i file e gli hook di Arturo che hai cambiato o spento: dei file solo la posizione dentro Arturo, che è pubblica), `config` (la config rotta, che parte subito perché spegne le guardie), `setup` (il numero della fase di `/setup` raggiunta), `chiede` e `confermata` (il nome di una guardia che ti chiede conferma, e se hai detto sì), `errore` (il nome di una guardia che si è rotta) e `claude` (la versione di Claude Code). Con gli eventi partono un id casuale creato da Arturo (non legato a te, ma sempre lo stesso: per questo non sono dati anonimi), la versione e il sistema operativo, con il solo giorno e mai l'ora. Mai prompt, file tuoi, percorsi del tuo computer, nomi o risposte. Il server (`server/`, open source) non salva l'indirizzo IP e tiene gli eventi 12 mesi. Vedi cosa parte con `python3 ~/.claude/bin/arturo telemetria mostra`, la spegni con `python3 ~/.claude/bin/arturo telemetria spegni` o con `DO_NOT_TRACK=1`. Quando cambia cosa esce, Arturo te lo dice di nuovo alla prima sessione. Per far cancellare i tuoi dati scrivi a federico@stellakamikaze.org con l'id che ti mostra `mostra`. Gli altri contatti automatici con l'esterno: il controllo degli aggiornamenti (un `git fetch` di main e dei tag al massimo ogni ora mentre lavori, e uno alla chiusura della sessione) e l'invio degli eventi (al massimo ogni sei ore, salvo una config rotta, che parte all'avvio). Le segnalazioni di `/segnala` partono solo dopo che hai letto il testo e detto sì, e arrivano solo a chi mantiene Arturo, salvo che tu scelga una issue pubblica su GitHub.
+3. **Telemetria accesa di default: eventi e numeri, mai contenuti, per migliorare Arturo.** Arturo si sviluppa ogni giorno per persone che spesso non sanno dire dove si bloccano. Per questo manda a chi lo mantiene eventi d'uso da un elenco chiuso, e chi lo mantiene li legge ogni lunedì per decidere cosa correggere: la fase di `/setup` dove ci si ferma, le guardie che chiedono conferma a vuoto, gli aggiornamenti rifiutati. Ogni correzione nata da un segnale lo dice nella sua voce di [`NOVITA.md`](NOVITA.md). Gli eventi: `sessione`, `comando` (il nome di un comando di Arturo, mai il testo), `guardia` (il nome della guardia che ha bloccato), `aggiorna` (l'esito di `/aggiorna`: applicato, conflitto, fallito, rifiutato, indietro, scartato, oppure automatico per un'installazione alla chiusura della sessione), `segnalazione` (il tipo), `deriva` (i file e gli hook di Arturo che hai cambiato o spento: dei file solo la posizione dentro Arturo, che è pubblica), `config` (la config rotta, che parte subito perché spegne le guardie), `setup` (il numero della fase di `/setup` raggiunta), `chiede` e `confermata` (il nome di una guardia che ti chiede conferma, e se hai detto sì), `errore` (il nome di una guardia che si è rotta) e `claude` (la versione di Claude Code). Con gli eventi partono un id casuale creato da Arturo (non legato a te, ma sempre lo stesso: per questo non sono dati anonimi), la versione e il sistema operativo, con il solo giorno e mai l'ora. Mai prompt, file tuoi, percorsi del tuo computer, nomi o risposte. Il server (`server/`, open source) non salva l'indirizzo IP e tiene gli eventi 12 mesi. Vedi cosa parte con `python3 ~/.claude/bin/arturo telemetria mostra`, la spegni con `python3 ~/.claude/bin/arturo telemetria spegni` o con `DO_NOT_TRACK=1`. Quando cambia cosa esce, Arturo te lo dice di nuovo alla prima sessione. Per far cancellare i tuoi dati scrivi a federico@stellakamikaze.org con l'id che ti mostra `mostra`. Gli altri contatti automatici con l'esterno: il controllo degli aggiornamenti (un `git fetch` di main e dei tag al massimo ogni ora mentre lavori, e uno alla chiusura della sessione) e l'invio degli eventi (al massimo ogni sei ore, salvo una config rotta, che parte all'avvio). Le segnalazioni di `/segnala` partono solo dopo che hai letto il testo e detto sì, e arrivano solo a chi mantiene Arturo, salvo che tu scelga una issue pubblica su GitHub.
 4. **Arturo resta in italiano.**
 5. **Se lo sviluppo si ferma, lo scrivo.** Lo dichiarano l'ultima entry di [`NOVITA.md`](NOVITA.md) e la cima di questa pagina. La copia che hai continua a funzionare, e puoi farne un fork.
 
@@ -118,7 +118,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 
 Poi apri Claude Code dentro la cartella: `cd ~/.claude && claude`, e scrivi `/setup`.
 
-Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/`, `docs/`, `tools/`, `tests/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono allo sparring, a `/novita` e a `/inizio gws`; `tests/` ai banchi delle guardie che l'avvio lancia da solo).
+Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/`, `docs/`, `tools/`, `tests/`, `firme/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono allo sparring, a `/novita` e a `/inizio gws`; `tests/` ai banchi delle guardie che l'avvio lancia da solo; `firme/` alla verifica dei rilasci firmati). Chi copia a mano non riceve l'aggiornamento automatico: serve un clone git.
 Chi copia a mano ricopia le cartelle a ogni rilascio, `commands/` e `skills/` insieme: i comandi
 si aprono l'uno con l'altro e si aspettano di trovarsi. Copiare non cancella: i file che Arturo
 toglie li elenca la voce di [`NOVITA.md`](NOVITA.md), e vanno cancellati a mano.
@@ -134,12 +134,18 @@ toglie li elenca la voce di [`NOVITA.md`](NOVITA.md), e vanno cancellati a mano.
 
 ## Aggiornare Arturo
 
-Arturo continua a evolvere. All'avvio della sessione ti avvisa quando c'è una versione nuova:
+Arturo continua a evolvere, e si aggiorna da solo come Claude Code. Quando esce una versione nuova
+la barra in basso te lo dice, e alla chiusura della sessione si installa, con la stessa procedura
+di `/aggiorna` qui sotto. Si installano da soli solo i rilasci con un tag firmato dalla chiave di chi
+mantiene Arturo, verificato con la chiave che hai già (`firme/rilasci.allowed_signers`). Se un
+aggiornamento non può installarsi da solo (firma mancante, modifiche non salvate, un'altra sessione
+aperta, un conflitto), l'avviso resta col motivo:
 
 ```
-ARTURO: c'e' un aggiornamento (3 commit) — scaricalo con /aggiorna
+ARTURO: c'è un aggiornamento (v2026-10-17): scaricalo con /aggiorna. Non si installa da solo: il rilascio v2026-10-17 non ha la firma di Arturo.
 ```
 
+Con `python3 ~/.claude/bin/arturo aggiornamenti manuali` lo tieni a mano: resta solo l'avviso.
 **`/aggiorna`** fa il resto: ti dice quale versione hai e quale arriva, ti racconta cosa cambia
 nelle guardie, controlla che non travolga le tue modifiche e applica dopo il tuo sì. Se
 l'applicazione non riesce, la annulla da sola: la tua copia non resta mai a metà. L'aggiornamento
@@ -166,8 +172,9 @@ lancia `/aggiorna`. Se un commit tuo tocca gli stessi punti dell'aggiornamento, 
 `APPLICAZIONE ANNULLATA` con un `CONFLITTO`: `~/.claude` resta com'era e la copia di prova aspetta.
 Lancia `/aggiorna` e risolvi con Claude un file per volta, nella copia di prova.
 
-Dopo il primo aggiornamento non serve più ricordarselo: all'avvio della sessione Arturo ti avvisa
-quando ci sono novità, **`/aggiorna`** le applica e **`/novita`** te le racconta.
+Dopo il primo aggiornamento non serve più ricordarselo: i rilasci firmati si installano da soli
+alla chiusura della sessione, **`/aggiorna`** applica quelli che restano in attesa e **`/novita`**
+te li racconta.
 
 Se un aggiornamento non ti convince, **`/aggiorna indietro`** riporta alla versione di prima: ti
 mostra cosa torna indietro, lo fa solo dopo il tuo sì e conserva le modifiche ai tuoi file.
@@ -176,7 +183,7 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 
 | Di Arturo (arriva con gli aggiornamenti) | Tuo (nessun aggiornamento lo tocca) |
 |---|---|
-| `bin/`, `hooks/`, `commands/`, `agents/`, `skills/` (le skill di Arturo; una tua fatta con `/creaskill`, con un nome nuovo, resta tua), `shared/`, `output-styles/` (gli stili di Arturo; uno tuo con un nome nuovo resta tuo), `docs/`, `tools/`, `tests/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `tools/scrapling/.venv/` (il venv di `scrape`), `personale/` (le tue aggiunte ai comandi e agli hook di sessione di Arturo), `hooks/hosts-interni.local`, `hooks/api-fidate.local`, `data/` (compresi i tuoi todo in `data/todo/`), `projects/` e le altre cartelle di lavoro |
+| `bin/`, `hooks/`, `commands/`, `agents/`, `skills/` (le skill di Arturo; una tua fatta con `/creaskill`, con un nome nuovo, resta tua), `shared/`, `output-styles/` (gli stili di Arturo; uno tuo con un nome nuovo resta tuo), `docs/`, `tools/`, `tests/`, `firme/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `tools/scrapling/.venv/` (il venv di `scrape`), `personale/` (le tue aggiunte ai comandi e agli hook di sessione di Arturo), `hooks/hosts-interni.local`, `hooks/api-fidate.local`, `data/` (compresi i tuoi todo in `data/todo/` e la scelta fra aggiornamenti automatici e manuali in `data/aggiornamenti.json`), `projects/` e le altre cartelle di lavoro |
 
 `settings.json` è di Arturo, ma le tue modifiche restano come commit locali. `/aggiorna` ti mostra i file cambiati sia da te sia dall'aggiornamento prima di applicare. Se nella copia di prova `settings.json` non è JSON valido o resta un conflitto, l'aggiornamento non arriva in `~/.claude`: un `settings.json` rotto spegnerebbe tutte le guardie. L'avvio della sessione te lo segnala con una riga `CONFIG ROTTA`.
 
@@ -246,6 +253,7 @@ docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/onboarding/     Guide di setup guidato (/inizio gws)
 docs/impeccable.md   Come installare Impeccable (design delle interfacce) dall'upstream
 tests/               I banchi di prova: il gate completo e i banchi delle guardie che l'avvio lancia da solo
+firme/               La chiave pubblica dei rilasci: l'aggiornamento automatico installa solo i tag firmati con essa
 NOVITA.md            Canale di aggiornamento (lo racconta /novita)
 ```
 
@@ -271,7 +279,7 @@ Fuori dal dispatcher:
 - `memoria-scrittura.py` — PostToolUse, sempre acceso: controlla le note di memoria e gli handoff che Claude scrive (password, chiavi, istruzioni nascoste). `memoria-richiamo.py` e `memoria-subagente.py` sono la memoria facoltativa, spenta di default: vedi «La memoria (facoltativa)».
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
 - `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
-- `session-start.sh` / `session-end.sh` — titolo della finestra nell'app Terminale di macOS (il titolo della scheda lo scrive `scheda-terminale.py`), riga `MACCHINA`, avvisi Git locali, file della config modificati e non salvati, controllo della deriva (`deriva.py`), banchi delle guardie in background ogni 12 ore (`tests/banchi-avvio.sh`, un rosso si dice all'avvio; `ARTURO_BANCHI_AVVIO=0` li spegne), avvio della telemetria (`arturo telemetria`), invito a `/segnala` (si spegne con `arturo segnala basta`), promemoria di chiusura anche senza file cambiati e cleanup degli unlock di sessione.
+- `session-start.sh` / `session-end.sh` — titolo della finestra nell'app Terminale di macOS (il titolo della scheda lo scrive `scheda-terminale.py`), riga `MACCHINA`, avvisi Git locali, file della config modificati e non salvati, controllo della deriva (`deriva.py`), banchi delle guardie in background ogni 12 ore (`tests/banchi-avvio.sh`, un rosso si dice all'avvio; `ARTURO_BANCHI_AVVIO=0` li spegne), avvio della telemetria (`arturo telemetria`), invito a `/segnala` (si spegne con `arturo segnala basta`), promemoria di chiusura anche senza file cambiati e cleanup degli unlock di sessione. L'avvio dice anche lo stato dell'aggiornamento automatico (`bin/aggiornamenti.py stato`, senza rete), e la chiusura lo installa (`aggiornamenti.py applica`, staccato).
 - `controlla-config.py` — strumento, non un hook: controlla che la config sia integra (`settings.json` valido, nessun rebase o conflitto a metà) e stampa `CONFIG OK` o `CONFIG ROTTA`. Lo usano l'avvio, `/inizio`, `/aggiorna` e `/fine`.
 - `deriva.py` — strumento, non un hook: all'avvio misura quanto la tua config si è allontanata da quella di Arturo (comandi e file di Arturo modificati, hook di Arturo tolti o spenti, config rotta) e stampa una riga `DERIVA` solo se c'è da fare.
 - `inject-now.sh` — inietta data/ora corrente a ogni prompt. Quando lanci un comando con aggiunte tue in
@@ -279,7 +287,7 @@ Fuori dal dispatcher:
   dello script.
 - `input-notifier-start.sh` — notifica quando Claude aspetta input.
 - `scheda-terminale.py` — il nome del progetto nel titolo della scheda, e il colore della scheda per lo stato: verde se Claude aspetta te, giallo mentre lavora, rosso se il turno si è fermato per un errore (API giù, limite raggiunto). Il colore c'è in Windows Terminal e in iTerm2, e lì il titolo è il solo progetto. Negli altri terminali lo stato si legge nel titolo («arturo · al lavoro»). Il progetto viene da `/inizio <nome>`, poi dal repository git, poi dalla cartella. Perché il titolo resti, `settings.json` spegne quello automatico di Claude Code (`CLAUDE_CODE_DISABLE_TERMINAL_TITLE`). In Windows Terminal non colora una scheda aperta con `--tabColor`.
-- `statusline.js` — statusline con modello abbreviato, task in corso, progetto@ramo (`*` se ci sono modifiche), uso del contesto e quota delle finestre di 5 ore e 7 giorni.
+- `statusline.js` — statusline con modello abbreviato, task in corso, progetto@ramo (`*` se ci sono modifiche), uso del contesto, quota delle finestre di 5 ore e 7 giorni e la versione di Arturo in arrivo (controlla al massimo ogni ora).
 - `typecheck-after-edit.py` — PostToolUse: dopo una modifica a un file `.ts`, `.tsx` o `.vue` lancia il type-check del progetto (lo script `typecheck` o il `tsc`/`vue-tsc` del `build`) e manda gli errori a Claude. Fuori da un progetto TypeScript tace.
 - `bozze-mcp-auto-approve.py` — PreToolUse: la creazione di una bozza via un collegamento (`create_draft`, `slack_send_message_draft`) non chiede conferma; l'invio, la pubblicazione e la cancellazione di una bozza sì.
 - `forma_comando.py` — modulo, non un hook: ricava i programmi che un comando esegue davvero (path completo, blocchi, `sh -c`, `eval`). Tiene anche il tokenizer comune e l'unico elenco delle shell. Lo usano `block-dangerous.py`, `commit-secret-gate.py` e il dispatcher (git puro, ramo memoria).
@@ -402,8 +410,8 @@ terminale. Il percorso:
 3. **Lo sparring** — una sessione guidata che prende un principio e lo prova sul TUO
    lavoro reale, con esperimenti piccoli e reversibili. Te lo propongono `/setup` e
    `/novita`, oppure lo chiedi tu. Anche «questo per ora non ti serve» è un risultato.
-4. **`/novita`** — quando l'harness si aggiorna (`/aggiorna`), all'avvio della sessione
-   Arturo ti avvisa; `/novita` racconta cosa è cambiato, il principio dietro, e ti
+4. **`/novita`** — quando l'harness si aggiorna (da solo alla chiusura, o con `/aggiorna`),
+   all'avvio della sessione Arturo ti avvisa; `/novita` racconta cosa è cambiato, il principio dietro, e ti
    propone lo sparring. Così l'harness — e chi lo usa — restano aggiornati insieme.
 
 Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.

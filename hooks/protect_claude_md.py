@@ -17,6 +17,8 @@ Tre categorie, ognuna con un unlock per-sessione distinto:
   Config e hook di Claude Code:
     ~/.claude/settings.json, settings.local.json, .claude.json
     ~/.claude/hooks/**
+    ~/.claude/firme/**, bin/aggiornamenti.py, bin/aggiorna-applica.sh (l'aggiornamento automatico:
+    chi li cambia fa installare da solo codice non firmato)
     -> unlock: touch ~/.claude/config-unlock-{session_id}
 
 Motivo della categoria config/hook: senza questo, sotto defaultMode auto o acceptEdits
@@ -195,11 +197,14 @@ def main():
             sys.exit(0)
 
         # Categoria 3: config/hook di Claude Code
+        relativo = os.path.relpath(rp, claude_dir).replace(os.sep, '/') if under_claude else ''
         is_config = under_claude and (
             re.match(r'SETTINGS.*\.JSON$', base) is not None
             or base == '.CLAUDE.JSON'
             or (os.sep + 'hooks' + os.sep) in rp
             or rp.endswith(os.sep + 'hooks')
+            or relativo == 'firme' or relativo.startswith('firme/')
+            or relativo in ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh')
         )
         if is_config:
             if unlocked('config-unlock'):

@@ -17,6 +17,8 @@ G205 i quattro parser di heredoc (commit-secret-gate, block-dangerous, data-guar
 G206 forma_comando: rm e find si riconoscono col path completo, in un blocco, dopo `then`, in
      `sh -c`; un rm citato in un heredoc verso python non conta; le variabili assegnate nel
      comando si risolvono.
+G214 l'aggiornamento automatico (firme/, bin/aggiornamenti.py, bin/aggiorna-applica.sh) è protetto
+     come gli hook: Edit/Write negati senza unlock, scrittura shell con conferma, copia altrove libera.
 
 Sulla base cbd8305 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -634,10 +636,33 @@ def test_g213(repo: Path) -> None:
         assert esito(nome) == "silent", f"G213 un'azione su una bozza riceve l'allow: {nome}"
 
 
+def test_g214(repo: Path) -> None:
+    with tempfile.TemporaryDirectory() as d:
+        radice = Path(d)
+        home = casa(repo, radice)
+        c = home / ".claude"
+        bersagli = [c / "firme" / "rilasci.allowed_signers", c / "bin" / "aggiornamenti.py",
+                    c / "bin" / "aggiorna-applica.sh"]
+
+        def esito(path: Path) -> str:
+            dati = {"tool_name": "Edit", "tool_input": {"file_path": str(path), "old_string": "a", "new_string": "b"},
+                    "session_id": "g214"}
+            return decisione(hook(home, "protect_claude_md.py", dati, radice))
+
+        for path in bersagli:
+            assert esito(path) == "deny", f"G214 Edit sull'aggiornamento automatico senza unlock: {path.relative_to(home)}"
+        assert esito(c / "bin" / "telemetria.py") == "silent", "G214 un altro file di bin/ viene fermato"
+        for comando in ("echo x >> ~/.claude/firme/rilasci.allowed_signers",
+                        "cd ~/.claude && sed -i s/a/b/ bin/aggiornamenti.py",
+                        "cp /tmp/finto.sh ~/.claude/bin/aggiorna-applica.sh"):
+            assert dispatcher(home, comando, radice) == "ask", f"G214 scrittura shell senza conferma: {comando}"
+        assert dispatcher(home, f'cp ~/.claude/bin/aggiorna-applica.sh "{radice}/applica.sh"', radice) != "ask",             "G214 copiare la procedura altrove (come /inizio) chiede conferma"
+
+
 TESTS = {"G201": test_g201, "G202": test_g202, "G203": test_g203, "G204": test_g204, "G205": test_g205,
          "G206": test_g206, "G207": test_g207, "G208": test_g208,
          "G209": test_g209, "G210": test_g210,
-         "G211": test_g211, "G212": test_g212, "G213": test_g213}
+         "G211": test_g211, "G212": test_g212, "G213": test_g213, "G214": test_g214}
 
 
 def main() -> int:

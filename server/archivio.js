@@ -154,6 +154,8 @@ export function archivio(db) {
       await db.batch([
         db.prepare("DELETE FROM eventi WHERE giorno < ?").bind(prima),
         db.prepare("DELETE FROM contatori WHERE giorno < ?").bind(prima),
+        // Il feedback del sito può avere un'email: si cancella con gli eventi, dopo 12 mesi.
+        db.prepare("DELETE FROM feedback WHERE substr(ricevuto, 1, 10) < ?").bind(prima),
       ]);
     },
   };

@@ -102,6 +102,16 @@ const casi = {
     assert.equal(await a.incrementa("2026-10-13", "feedback"), 2, "Q08 il contatore non sale");
     assert.equal(await a.incrementa("2026-10-14", "feedback"), 1, "Q08 il contatore non riparte il giorno dopo");
   },
+  // Il feedback può avere un'email: pulisci() lo cancella dopo 12 mesi, come gli eventi (#3482).
+  async Q09() {
+    const db = d1();
+    const a = archivio(db);
+    await a.salvaFeedback({ tipo: "idea", testo: "vecchio", email: "a@b.it", voce: 0 }, "2025-10-01T10:00:00Z");
+    await a.salvaFeedback({ tipo: "idea", testo: "nuovo", email: "", voce: 0 }, "2026-10-13T10:00:00Z");
+    await a.pulisci("2025-10-16");
+    const resto = await db.prepare("SELECT testo FROM feedback ORDER BY id").all();
+    assert.deepEqual(resto.results.map((r) => r.testo), ["nuovo"], "Q09 pulisci() non tiene solo il feedback degli ultimi 12 mesi");
+  },
   // Installazione nuova: vera solo finché dall'id non è arrivato niente (l'avviso Telegram parte una volta).
   async Q06() {
     const a = await con([["2026-10-12", "aaaaaaaa", "sessione"]]);

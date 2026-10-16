@@ -27,7 +27,9 @@ storia pubblicata è stata riscritta, Arturo non installa niente e te lo dice.
 **Da sapere**: preferisci leggere ogni aggiornamento prima? Scrivi a Claude «tieni gli
 aggiornamenti a mano», oppure lancia `python3 ~/.claude/bin/arturo aggiornamenti manuali`: resta
 l'avviso, e aggiorni con `/aggiorna` come prima. Questa è l'ultima volta che serve `/aggiorna` per
-ricevere una versione: da qui in poi arrivano da sole.
+ricevere una versione: da qui in poi arrivano da sole. La telemetria conta a parte gli
+aggiornamenti installati da soli (l'esito `automatico` dell'evento `aggiorna`): per questo
+all'avvio Claude ti ripete una volta cosa esce.
 
 ---
 

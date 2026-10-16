@@ -1,6 +1,6 @@
 # Il server di Arturo
 
-Un Worker Cloudflare con un database D1. Riceve due cose e solo quelle:
+Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
 
 - `POST /v1/eventi`: un lotto di eventi d'uso con un id di installazione casuale, dall'elenco chiuso in
   `logica.js` (`sessione`, `comando`, `guardia`, `aggiorna`, `segnalazione`, `deriva`, `config`, `setup`,
@@ -9,12 +9,18 @@ Un Worker Cloudflare con un database D1. Riceve due cose e solo quelle:
   `tappa`, che il client non manda più dal 16/10/2026, per non rifiutare i lotti dei client non
   aggiornati: in coda all'elenco, si toglie dopo qualche settimana.
 - `POST /v1/segnalazioni`: una segnalazione che la persona ha letto e approvato con `/segnala`.
+- `POST /v1/feedback`: il modulo di feedback del sito, che la landing serve come `/api/feedback`.
+  Il testo, il tipo e l'email facoltativa restano nella tabella `feedback`. Il vocale non si salva:
+  passa solo a Telegram. Al massimo 100 al giorno, corpo fino a 5 MB, vocale fino a 4 MB.
+- `POST /v1/sito`: un download dal sito, servito come `/api/sito`: il comando di installazione
+  copiato o il repository aperto. Non si salva niente oltre al contatore del giorno, e Telegram
+  avvisa fino a 60 volte al giorno.
 
 E dà una cosa sola, a chi ha il token: `GET /v1/riepilogo`, il riepilogo della settimana in JSON con
 la sezione «Dove migliorare Arturo» (secret `RIEPILOGO_TOKEN`, almeno 32 caratteri).
 
-L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi più vecchi di
-12 mesi si cancellano il lunedì.
+L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi, i contatori e il
+feedback più vecchi di 12 mesi si cancellano il lunedì.
 
 ## I file
 
@@ -23,7 +29,7 @@ L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi p
 | `logica.js` | Validazione, tetti, testo delle email, recap e riepilogo, ritenzione. Niente Cloudflare dentro. |
 | `archivio.js` | Le query su D1, compresa «Dove migliorare Arturo». |
 | `worker.js` | Collega `logica.js` e `archivio.js` a D1 (`env.DB`), all'invio email (`env.POSTA`) e a Telegram. |
-| `schema.sql` | Le tre tabelle: `eventi`, `segnalazioni`, `contatori`. |
+| `schema.sql` | Le quattro tabelle: `eventi`, `segnalazioni`, `contatori`, `feedback`. |
 | `wrangler.toml` | La config del Worker, con segnaposto al posto dei valori veri. |
 | `test.mjs` | Il banco: `node server/test.mjs` prova `logica.js` con un archivio e una posta finti. |
 | `test-sql.mjs` | Il banco delle query: `node server/test-sql.mjs` prova `archivio.js` su SQLite in memoria (Node 22). |
@@ -31,8 +37,10 @@ L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi p
 ## Le email
 
 - **Su Telegram**, se il Worker ha i secret `TELEGRAM_TOKEN` e `TELEGRAM_CHAT`: un messaggio per ogni
-  installazione nuova (il primo lotto da un id mai visto) e per ogni segnalazione. Il testo porta solo
-  quello che il server già salva. Senza i secret non parte niente.
+  installazione nuova (il primo lotto da un id mai visto), per ogni segnalazione, per ogni feedback
+  del sito (col vocale, se c'è), per ogni download dal sito (fino a 60 al giorno) e per il setup
+  finito, una volta per installazione. Il testo porta solo quello che il server già salva, più il
+  vocale, che non si salva. Senza i secret non parte niente.
 - **Ogni segnalazione** arriva come email, con l'oggetto `[Arturo] [tipo] titolo`. Il tetto è
   di 40 email al giorno: oltre, la segnalazione resta in D1 senza email.
 - **Ogni mattina alle 8** (06:00 UTC) arriva il recap del giorno prima, solo se quel giorno ci

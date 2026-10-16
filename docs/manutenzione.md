@@ -35,9 +35,9 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    ```
 
    Dal 16/10/2026 il tag è **firmato**: l'aggiornamento automatico installa solo i tag firmati dalla
-   chiave dei rilasci (`firme/rilasci.allowed_signers`). La privata sta in Vaultwarden, voce
-   «Arturo rilasci — chiave SSH di firma», allegato `arturo-rilasci`. Esce dal vault in un file 600
-   temporaneo solo per firmare, e si cancella subito dopo. Al posto di `git tag -a`:
+   chiave dei rilasci (`firme/rilasci.allowed_signers`). La privata sta nel gestore di password di
+   chi mantiene Arturo, mai nel repository. Esce dal gestore in un file 600 temporaneo solo per
+   firmare, e si cancella subito dopo. Al posto di `git tag -a`:
 
    ```bash
    git -c gpg.format=ssh -c user.signingkey="$CHIAVE" tag -s "$V" -m "Arturo $V"

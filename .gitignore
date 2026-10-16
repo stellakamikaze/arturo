@@ -26,6 +26,8 @@ data/telemetria/
 data/memoria/
 # Il segno della FASE 9 di /setup: dice che questa installazione è configurata.
 data/setup-fatto
+# La scelta fra aggiornamenti automatici e manuali (bin/aggiornamenti.py): è di chi usa Arturo.
+data/aggiornamenti.json
 .credentials.json
 
 # Runtime Claude Code (generato localmente)

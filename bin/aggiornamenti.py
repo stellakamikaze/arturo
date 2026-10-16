@@ -249,7 +249,8 @@ def _applica(r: Path) -> int:
         bash = os.environ.get("ARTURO_BASH") or shutil.which("bash") or "bash"
         modo = "merge" if src == "upstream" else "rebase"
         p = subprocess.run([bash, str(procedura), str(r), modo, tag], capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", timeout=600, cwd=str(r))
+                           encoding="utf-8", errors="replace", timeout=600, cwd=str(r),
+                           env=dict(os.environ, ARTURO_AGGIORNA_AUTOMATICO="1"))
     except (OSError, subprocess.SubprocessError) as errore:
         return _esito(r, tag, "APPLICAZIONE NON PARTITA", str(errore)[:200])
     finally:
