@@ -11,7 +11,7 @@ modo di lavorare.
 
 ---
 
-## 2026-10-17 — Arturo si aggiorna da solo, come Claude Code
+## 2026-10-16 — Arturo si aggiorna da solo, come Claude Code
 
 **Cosa cambia**: non serve più `/aggiorna`. Quando esce una versione nuova, la barra in basso di
 Claude Code te lo dice («↑ Arturo … · si installa alla chiusura»). Quando chiudi la sessione, Arturo
