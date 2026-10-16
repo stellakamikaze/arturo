@@ -143,8 +143,9 @@ CONFLITTI DI MERGE, risolvili PRIMA di procedere.
 Con `rc=2` lo script stampa `NON TROVATO` e i progetti con un nome simile: spesso è un refuso.
 Proponi i candidati e aspetta la scelta. Per una vista di cosa c'è da fare ovunque leggi
 `~/.claude/data/handoffs/INDEX.md` (una riga per progetto con stato e prossimo passo) e proponi
-da lì. Non creare cartelle e non lanciare `git init` senza un sì: per un progetto nuovo c'è
-`/progetto`. Con `rc=3` il nome non è valido: chiedi quello giusto.
+da lì. Non creare cartelle e non lanciare `git init` senza un sì. Per un progetto nuovo, col sì
+apri con Read `~/.claude/commands/progetto.md` e seguilo. Con `rc=3` il nome non è valido: chiedi
+quello giusto.
 
 ---
 

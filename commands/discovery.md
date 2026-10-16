@@ -48,9 +48,11 @@ si deve poter dire "c'è" o "non c'è" senza discutere]
 - Feature Y
 
 ## Prossimi Passi
-- /write-plan per il piano tecnico dettagliato
-- /write-plan per piano implementazione
+- /write-plan per il piano tecnico e di implementazione
 ```
+
+Se a fine discovery la persona vuole il piano, apri con Read `~/.claude/commands/write-plan.md` e
+seguilo con il documento appena scritto.
 
 ## Avvia
 

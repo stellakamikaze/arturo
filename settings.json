@@ -44,8 +44,6 @@
       "Bash(claude plugin list:*)",
       "Bash(claude plugin marketplace list:*)",
       "Bash(claude plugin validate:*)",
-      "Skill(progetto)",
-      "Skill(discovery)",
       "Read(//tmp/**)",
       "mcp__playwright__*",
       "mcp__github__get_*",

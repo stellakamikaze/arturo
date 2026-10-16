@@ -86,7 +86,8 @@ delegate non conta mai. La tappa può anche scendere, se un todo si riapre: dill
 
 7. **Se `nuova_tappa` è vero**, proponi il capitolo della tappa (`capitolo`) oppure
    `/sparring` su quel capitolo. Per Orchestra, che non ha un capitolo suo, proponi
-   `/sparring tieni la decisione`. Poi segna la tappa come vista:
+   `/sparring tieni la decisione`. Se accetta, apri con Read `~/.claude/commands/sparring.md` e
+   seguilo con quell'argomento. Poi segna la tappa come vista:
 
    ```bash
    python3 ~/.claude/bin/arturo percorso visto
