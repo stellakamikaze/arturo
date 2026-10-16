@@ -94,7 +94,7 @@ gh issue list --repo stellakamikaze/arturo --state all
 
 Un cambio dell'elenco degli eventi tocca tre posti che il banco M09 confronta: `bin/telemetria.py`,
 `server/logica.js` e l'Impegno 3 del README. Gli eventi però sono raccontati anche in
-`server/README.md`, `docs/referente.md`, nell'avviso di `bin/telemetria.py`, nella FASE 0 di
+`server/README.md`, nell'avviso di `bin/telemetria.py`, nella FASE 0 di
 `commands/setup.md` e nella landing: prima del rilascio, `git grep -n` sul nome di un evento. Il server va pubblicato **prima** del client: un
 lotto con un evento che il server non conosce viene rifiutato per intero, e il client lo toglie dalla
 coda. Per lo stesso motivo un evento tolto dal client resta accettato dal server ancora qualche
