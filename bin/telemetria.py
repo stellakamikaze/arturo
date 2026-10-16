@@ -422,7 +422,7 @@ def main(argv: list) -> int:
         return 0
     if comando == "esito" and not resto:
         try:
-            esito(json.loads(sys.stdin.read() or "{}"))
+            esito(json.loads(sys.stdin.buffer.read().decode("utf-8") or "{}"))
         except Exception:  # noqa: BLE001 - un hook non si ferma mai per la telemetria
             pass
         return 0

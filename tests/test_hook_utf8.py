@@ -6,6 +6,7 @@ lettere accentate arrivavano storpiate e un byte che cp1252 non conosce (0x9D, d
 fallire la lettura. Il banco simula quella pipe su ogni sistema con PYTHONIOENCODING=cp1252.
 
 U01 nessun hook Python legge stdin come testo: tutti decodificano sys.stdin.buffer in UTF-8.
+    Vale per hooks/*.py e per gli script di bin/ che settings.json lancia come hook.
 U02 block-dangerous chiede conferma per un rm ricorsivo anche se il comando contiene «”».
 U03 emoji_remover vede l'emoji nuova in un file di codice.
 U04 memoria-scrittura vede i caratteri invisibili in una nota di memoria.
@@ -52,10 +53,23 @@ def testo(b: bytes) -> str:
     return b.decode("utf-8", errors="replace")
 
 
+def script_hook_bin(repo: Path) -> list:
+    """Gli script Python di bin/ che settings.json lancia come hook, anche passando da un .sh."""
+    comandi = json.dumps(json.loads((repo / "settings.json").read_text(encoding="utf-8")).get("hooks", {}))
+    nomi = set(re.findall(r"bin/([\w.-]+\.py)", comandi))
+    for sh in re.findall(r"bin/([\w.-]+\.sh)", comandi):
+        if (repo / "bin" / sh).is_file():
+            nomi.update(re.findall(r"bin/([\w.-]+\.py)", (repo / "bin" / sh).read_text(encoding="utf-8")))
+    return [repo / "bin" / n for n in sorted(nomi) if (repo / "bin" / n).is_file()]
+
+
 def test_u01(repo: Path) -> None:
     lettura = re.compile(r"json\.load\(\s*sys\.stdin\s*\)|sys\.stdin\.read\(")
     rotti = []
-    for f in sorted((repo / "hooks").glob("*.py")):
+    hook_bin = script_hook_bin(repo)
+    assert any(f.name == "telemetria.py" for f in hook_bin), \
+        f"U01 il banco non trova più gli hook di bin/ in settings.json: {[f.name for f in hook_bin]}"
+    for f in sorted((repo / "hooks").glob("*.py")) + hook_bin:
         for n, riga in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
             if lettura.search(riga.split("#", 1)[0]):
                 rotti.append(f"{f.name}:{n}")

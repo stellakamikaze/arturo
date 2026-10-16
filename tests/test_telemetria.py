@@ -328,6 +328,16 @@ def test_m13(repo: Path) -> None:
     assert [e["evento"] for e in lab.coda()] == ["chiede", "confermata"], f"M13 la conferma non c'è: {lab.coda()}"
     assert not attese.exists(), "M13 l'attesa resta dopo la conferma"
     assert dopo("toolu_01").returncode == 0 and len(lab.coda()) == 2, "M13 la stessa chiamata conta due volte"
+    # Su Windows la pipe è in cp1252: una conferma con «”» nel comando va registrata lo stesso (16/10).
+    virgolette = comando + "  # lista ”vecchia”"
+    r = lab.hook("bash-dispatcher.sh", json.dumps({"tool_name": "Bash", "tool_input": {"command": virgolette},
+                                                    "tool_use_id": "toolu_03"}))
+    assert '"ask"' in r.stdout, f"M13 il comando con «”» non chiede conferma: {r.stdout[:200]}"
+    cp1252 = dict(lab.env, PYTHONIOENCODING="cp1252", PYTHONUTF8="0")
+    entrata = json.dumps({"tool_use_id": "toolu_03", "tool_input": {"command": virgolette}}, ensure_ascii=False)
+    r = subprocess.run([BASH, "-c", esito], input=entrata.encode("utf-8"), capture_output=True, env=cp1252, timeout=60)
+    assert r.returncode == 0 and [e["evento"] for e in lab.coda()][-2:] == ["chiede", "confermata"], \
+        f"M13 la conferma di un comando con «”» non entra (pipe cp1252): {lab.coda()[-2:]}"
     # Anche la guardia sui file (CLAUDE.md nuovo), con il PostToolUse di Edit/Write.
     entrata = {"tool_name": "Write", "tool_use_id": "toolu_02",
                "tool_input": {"file_path": str(lab.dir / "progetto" / "CLAUDE.md"), "content": "x"}}
