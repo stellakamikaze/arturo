@@ -425,10 +425,11 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
   // Il modulo di feedback del sito, servito dalla landing come /api/feedback. Il testo resta qui,
   // il vocale no: passa a Telegram e basta. Senza JavaScript il modulo arriva come form: la
   // risposta allora è un rimando alla pagina, relativo, perché la richiesta passa dal sito.
+  // L'ancora (#inviato, #errore...) fa vedere l'esito con :target, senza script.
   if (url.pathname === "/v1/feedback") {
     const pagina = (request.headers.get("accept") || "").includes("text/html");
     const fine = (status, dati, esito) => (pagina
-      ? new Response(null, { status: 303, headers: { location: `/feedback/?${esito}` } })
+      ? new Response(null, { status: 303, headers: { location: `/feedback/?${esito}#${esito}` } })
       : risposta(status, dati));
     if (Number(request.headers.get("content-length") || 0) > LIMITI.feedbackCorpo) {
       return fine(413, { errore: "troppo grande" }, "troppo-grande");

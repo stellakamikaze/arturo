@@ -353,7 +353,7 @@ const casi = {
     assert.equal(f.stato.feedback.length + f.stato.avvisi.length, 0, "V22 il messaggio di un bot è salvato o avvisato");
     const senzaJs = await invia({ testo: "dal modulo senza JavaScript" }, null, "text/html,application/xhtml+xml");
     assert.equal(senzaJs.status, 303, "V22 il modulo senza JavaScript non torna alla pagina");
-    assert.equal(senzaJs.headers.get("location"), "/feedback/?inviato", "V22 il rimando non è relativo alla pagina del sito");
+    assert.equal(senzaJs.headers.get("location"), "/feedback/?inviato#inviato", "V22 il rimando non è relativo alla pagina del sito, o non ha l'ancora dell'esito");
     for (let i = 1; i < LIMITI.feedbackPerGiorno; i++) await invia({ testo: `n ${i}` });
     assert.equal((await invia({ testo: "uno di troppo" })).status, 429, "V22 il tetto giornaliero dei feedback non regge");
   },
