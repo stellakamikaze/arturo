@@ -15,7 +15,7 @@ rimatchano i pattern:
   - se ogni segmento del comando inizia con un binario di sola lettura (grep, rg,
     cat, head, tail, less, wc, ls, find, jq, diff, sort, uniq, awk, sed -n, file,
     stat, git, cd) stampa vuoto: si sta leggendo, non inviando.
-Se l'analisi fallisce stampa il comando intero (fail-closed: si rimatcha tutto).
+Se l'analisi fallisce esce 1 e il dispatcher rimatcha il comando intero (fail-closed).
 """
 import importlib.util
 import json
@@ -74,15 +74,15 @@ def reduce(cmd: str) -> str:
 
 
 def main() -> int:
+    # Su Windows stdin e stdout sono in cp1252: un «→» nel comando faceva fallire la stampa,
+    # l'uscita restava vuota con exit 0 e il dispatcher la prendeva per sola lettura.
     try:
-        data = json.load(sys.stdin)
+        sys.stdout.reconfigure(encoding="utf-8")
+        data = json.loads(sys.stdin.buffer.read().decode("utf-8"))
         cmd = (data.get("tool_input") or {}).get("command") or ""
         sys.stdout.write(reduce(cmd))
     except Exception:
-        try:
-            sys.stdout.write(cmd)  # type: ignore[name-defined]
-        except Exception:
-            pass
+        return 1  # il dispatcher rimatcha il comando intero
     return 0
 
 

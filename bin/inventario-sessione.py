@@ -354,8 +354,9 @@ def id_online(risultato):
 # --- classificazione --------------------------------------------------------------------------
 
 def sotto(path, radice):
-    radice = radice.rstrip("/")
-    return path == radice or path.startswith(radice + "/")
+    barre = "/\\" if os.sep == "\\" else "/"  # su Windows i path hanno la barra rovescia
+    radice = radice.rstrip(barre)
+    return path == radice or any(path.startswith(radice + b) for b in barre)
 
 def volatile(path, home=None):
     """Vero per /tmp e simili: si perdono al riavvio. La HOME non lo è mai, anche se sta lì (i banchi)."""
@@ -380,7 +381,8 @@ def tipo_file(path, byte):
 def repo_di(path, cache):
     d = path if os.path.isdir(path) else os.path.dirname(path)
     visti = []
-    while d and d != "/":
+    # Ci si ferma alla radice: «/», oppure «C:\» su Windows, dove dirname rende la stessa cartella.
+    while d and os.path.dirname(d) != d:
         if d in cache:
             r = cache[d]; break
         visti.append(d)
@@ -679,4 +681,9 @@ def main():
     return 0
 
 if __name__ == "__main__":
+    for flusso in (sys.stdout, sys.stderr):  # su Windows la pipe è in cp1252, Claude legge UTF-8
+        try:
+            flusso.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     sys.exit(main())

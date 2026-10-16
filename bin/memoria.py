@@ -93,10 +93,10 @@ def accesa() -> bool:
 
 
 def breve(p) -> str:
-    """Il percorso con ~ al posto della cartella home."""
+    """Il percorso con ~ al posto della cartella home, a barre dritte: su Windows Claude lo usa in Git Bash."""
     s = str(p)
     casa = str(Path.home())
-    return "~" + s[len(casa):] if s == casa or s.startswith(casa + os.sep) else s
+    return "~" + s[len(casa):].replace(os.sep, "/") if s == casa or s.startswith(casa + os.sep) else s
 
 
 def cartelle_native() -> list:

@@ -92,17 +92,19 @@ def test_k01(repo: Path) -> None:
             subprocess.run(["git", "-C", str(r), *args], check=True, env=env, capture_output=True)
         (r / "leak.txt").write_text("k=AKIA" + "X" * 16 + "\n", encoding="utf-8")
         subprocess.run(["git", "-C", str(r), "add", "leak.txt"], check=True, env=env, capture_output=True)
+        # Barre dritte: in bash le barre di Windows non quotate sono escape e «cd» non arriva al progetto.
+        p = r.as_posix()
         for etichetta, comando in (
-            ("a capo", f"cd {r}\ngit commit -m x"),
-            ("git -c", f"git -c user.name=x -C {r} commit -m x"),
-            ("env", f"cd {r} && env GIT_AUTHOR_NAME=x git commit -m x"),
-            ("subshell", f"cd {r} && (git commit -m x)"),
-            ("--no-pager", f"git --no-pager -C {r} commit -m x"),
-            ("cartella in variabile", f"D={r}; cd $D && git commit -m x"),
+            ("a capo", f"cd {p}\ngit commit -m x"),
+            ("git -c", f"git -c user.name=x -C {p} commit -m x"),
+            ("env", f"cd {p} && env GIT_AUTHOR_NAME=x git commit -m x"),
+            ("subshell", f"cd {p} && (git commit -m x)"),
+            ("--no-pager", f"git --no-pager -C {p} commit -m x"),
+            ("cartella in variabile", f"D={p}; cd $D && git commit -m x"),
         ):
             esito = dispatcher(home, comando, radice)
             assert esito == "ask", f"K01 commit con un segreto in stage che passa ({etichetta}): {esito}"
-        assert dispatcher(home, f"cd {r} && git status", radice) == "silent", "K01 git status ferma il lavoro"
+        assert dispatcher(home, f"cd {p} && git status", radice) == "silent", "K01 git status ferma il lavoro"
 
 
 def test_k02(repo: Path) -> None:
@@ -169,9 +171,11 @@ def test_k06(repo: Path) -> None:
         (cartella / "1.json").write_text(json.dumps({"status": "in_progress", "activeForm": "Rileggo il capitolo"}),
                                          encoding="utf-8")
         dati = {"session_id": "abcd1234-0000", "model": {"display_name": "M"}, "workspace": {"current_dir": d}}
+        env = {"HOME": d, "USERPROFILE": d, "PATH": os.environ.get("PATH", "")}
+        if os.name == "nt":
+            env["SYSTEMROOT"] = os.environ.get("SYSTEMROOT", r"C:\Windows")  # senza, node si ferma all'avvio
         proc = subprocess.run([NODE, str(repo / "hooks" / "statusline.js")], input=json.dumps(dati), text=True,
-                              capture_output=True, env={"HOME": d, "USERPROFILE": d, "PATH": os.environ.get("PATH", "")},
-                              timeout=30, check=False)
+                              encoding="utf-8", capture_output=True, env=env, timeout=30, check=False)
         assert "Rileggo il capitolo" in proc.stdout, f"K06 la statusline non mostra il task in corso: {proc.stdout!r}"
 
 

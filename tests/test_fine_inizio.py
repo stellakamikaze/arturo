@@ -77,7 +77,7 @@ class Lab:
 
     def run(self, argv: list, cwd: Path | None = None, **env) -> subprocess.CompletedProcess:
         return subprocess.run(argv, cwd=str(cwd or self.home), env=self.env(**env), capture_output=True,
-                              text=True, timeout=120)
+                              text=True, encoding="utf-8", timeout=120)
 
     def arturo(self, *argomenti: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
         return self.run([sys.executable, "-B", str(self.repo / "bin" / "arturo"), *argomenti], cwd=cwd)
@@ -247,7 +247,7 @@ def test_f03(repo: Path) -> None:
 
         def lancia(*a: str) -> subprocess.CompletedProcess:
             return subprocess.run([sys.executable, "-B", str(script), *a, "--radice", str(radice)],
-                                  capture_output=True, text=True, timeout=60)
+                                  capture_output=True, text=True, encoding="utf-8", timeout=60)
         assert lancia("nessuno").returncode == 2 and lancia("../libro").returncode == 2, "F03 slug assente non è exit 2"
         prima = sorted(p.name for p in (radice / "libro").iterdir())
         r = lancia("libro")
@@ -296,7 +296,7 @@ def test_f04(repo: Path) -> None:
 
         def lancia(*a: str) -> subprocess.CompletedProcess:
             return subprocess.run([sys.executable, "-B", str(script), "--radice", str(radice), "--oggi", OGGI, *a],
-                                  capture_output=True, text=True, timeout=60)
+                                  capture_output=True, text=True, encoding="utf-8", timeout=60)
         assert lancia().returncode == 2, "F04 senza --dry-run/--out/--scrivi non è exit 2"
         prima = read(radice / "INDEX.md")
         r = lancia("--dry-run")
@@ -327,7 +327,7 @@ def test_f04(repo: Path) -> None:
         vuota = radice / "vuota"
         vuota.mkdir()
         r = subprocess.run([sys.executable, "-B", str(script), "--radice", str(vuota), "--dry-run"],
-                           capture_output=True, text=True, timeout=60)
+                           capture_output=True, text=True, encoding="utf-8", timeout=60)
         assert r.returncode == 1, f"F04 senza handoff né INDEX genera lo stesso un indice: {r.returncode}"
 
 
@@ -363,7 +363,7 @@ def test_f05(repo: Path) -> None:
             uso("t1", "Write", {"file_path": str(progetto / "capitolo.md")}),
             uso("t2", "Write", {"file_path": str(sciolto)}),
             uso("t3", "Edit", {"file_path": str(cfg)}),
-            uso("t4", "Bash", {"command": f"echo x > {fuori}"}),
+            uso("t4", "Bash", {"command": f"echo x > {fuori.as_posix()}"}),  # barre dritte, come in Git Bash
             uso("t5", "Bash", {"command": "cp capitolo.md /tmp/arturo-prova-sparito.md"}),
             uso("t6", "mcp__connettore__Gmail__create_draft", {"to": "a@example.invalid"}),
             {"timestamp": ts, "message": {"content": [{"type": "tool_result", "tool_use_id": "t6",
@@ -506,7 +506,9 @@ def test_f07(repo: Path) -> None:
             and "in corso" in read(locale / "repo" / "nota.md") and "non-un-repo" not in r.stdout, \
             f"F07 repository locale o cartella senza git: {r.stdout}"
         r = lab.run([BASH, str(script)], PROJECTS_BASE="~/Documents/ClaudeCode")
-        assert r.returncode == 0 and str(lab.progetti) in r.stdout, f"F07 PROJECTS_BASE con la tilde: {r.stdout} {r.stderr}"
+        # La cartella di prova per nome: su Windows bash la stampa come /tmp/..., non come C:\...
+        assert r.returncode == 0 and f"{lab.tmp.name}/home/Documents/ClaudeCode" in r.stdout, \
+            f"F07 PROJECTS_BASE con la tilde: {r.stdout} {r.stderr}"
         classifica = lab.tmp / "classifica.sh"
         corpo = re.search(r'    case "\$PULL_OUT" in.*?\n    esac\n', read(script), re.S)
         assert corpo, "F07 manca la lettura della causa del pull fallito"
@@ -569,13 +571,16 @@ def test_f09(repo: Path) -> None:
         r = lab.run([BASH, "-c", codice], cwd=progetto, CLAUDE_CODE_SESSION_ID="sess-1")
         m = re.search(r"Handoff: (.+)", r.stdout)
         assert r.returncode == 0 and m and "/handoffs/il-libro/HANDOFF_" in m.group(1), f"F09 percorso: {r.stdout} {r.stderr}"
-        primo = Path(m.group(1).strip())
-        nome_vecchio = primo.parent / "HANDOFF_2026-10-14_09-00.md"
-        nome_vecchio.write_text("# x\n## Progetto\n- Sessione: sess-1\n", encoding="utf-8")
+        # Il percorso come lo stampa bash. Su Windows è in forma msys (/tmp/...): per Python lo traduce cygpath.
+        vecchio = m.group(1).strip().rsplit("/", 1)[0] + "/HANDOFF_2026-10-14_09-00.md"
+        su_disco = vecchio
+        if os.name == "nt" and shutil.which("cygpath"):
+            su_disco = subprocess.run(["cygpath", "-w", vecchio], capture_output=True, text=True, check=True).stdout.strip()
+        Path(su_disco).write_text("# x\n## Progetto\n- Sessione: sess-1\n", encoding="utf-8")
         r = lab.run([BASH, "-c", codice], cwd=progetto, CLAUDE_CODE_SESSION_ID="sess-1")
-        assert f"Handoff: {nome_vecchio}" in r.stdout, f"F09 il secondo /fine non ritrova l'handoff della sessione: {r.stdout}"
+        assert f"Handoff: {vecchio}" in r.stdout, f"F09 il secondo /fine non ritrova l'handoff della sessione: {r.stdout}"
         r = lab.run([BASH, "-c", codice], cwd=progetto, CLAUDE_CODE_SESSION_ID="sess-2")
-        assert f"Handoff: {nome_vecchio}" not in r.stdout, "F09 una sessione nuova riscrive l'handoff di un'altra"
+        assert f"Handoff: {vecchio}" not in r.stdout, "F09 una sessione nuova riscrive l'handoff di un'altra"
     con_lab(repo, prova)
 
 

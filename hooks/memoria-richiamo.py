@@ -16,6 +16,12 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "bin"))
+# Claude Code legge l'output in UTF-8. Su Windows la pipe è in cp1252: un «≥» in una descrizione
+# fermava la stampa a metà, e la nota risultava già indicata.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except (AttributeError, ValueError):
+    pass
 
 MINIMO = 4        # punti minimi. Una nota che non emerge si sistema nel frontmatter, non qui
 DISTINTI = 2      # parole diverse che devono colpire

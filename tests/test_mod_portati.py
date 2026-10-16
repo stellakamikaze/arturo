@@ -35,11 +35,14 @@ def claude() -> str:
 def prova_mod(repo: Path, nome: str, codice: str, con_test: bool = True) -> None:
     cartella = repo / "skills" / nome
     assert (cartella / ".claude-plugin" / "plugin.json").is_file(), f"{codice} manca skills/{nome}"
-    v = subprocess.run([claude(), "plugin", "validate", str(cartella)], capture_output=True, text=True, timeout=120)
+    # Claude Code scrive in UTF-8: letto con la codifica di Windows lo stdout diventa None.
+    v = subprocess.run([claude(), "plugin", "validate", str(cartella)], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", timeout=120)
     assert v.returncode == 0, f"{codice} validate di {nome}: rc={v.returncode} {v.stdout[-300:]}{v.stderr[-200:]}"
     if not con_test:
         return
-    t = subprocess.run([claude(), "plugin", "test", str(cartella)], capture_output=True, text=True, timeout=180)
+    t = subprocess.run([claude(), "plugin", "test", str(cartella)], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", timeout=180)
     esito = t.stdout + t.stderr
     assert t.returncode == 0 and re.search(r"\b0 fail\b", esito), f"{codice} plugin test di {nome}: rc={t.returncode} {esito[-300:]}"
 

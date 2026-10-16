@@ -55,7 +55,10 @@ class Lab:
         self.claude = self.home / ".claude"
         (self.claude).mkdir(parents=True)
         for parte in ("bin", "hooks"):
-            (self.claude / parte).symlink_to(repo / parte)
+            try:
+                (self.claude / parte).symlink_to(repo / parte)
+            except OSError:  # Windows senza il privilegio dei link: una copia vale lo stesso
+                shutil.copytree(repo / parte, self.claude / parte)
         self.mem = self.claude / "projects" / "-progetto-uno" / "memory"
         self.mem.mkdir(parents=True)
         (self.mem / "feedback_pytest.md").write_text(NOTA, encoding="utf-8")
@@ -69,11 +72,13 @@ class Lab:
 
     def arturo(self, *argomenti, env=None) -> subprocess.CompletedProcess:
         return subprocess.run([sys.executable, "-B", str(self.claude / "bin" / "arturo"), "memoria", *argomenti],
-                              capture_output=True, text=True, env=env or self.env, cwd=str(self.dir), timeout=60)
+                              capture_output=True, text=True, encoding="utf-8", env=env or self.env, cwd=str(self.dir),
+                              timeout=60)
 
     def hook(self, nome: str, dati: dict, env=None) -> subprocess.CompletedProcess:
         return subprocess.run([sys.executable, "-B", str(self.claude / "hooks" / nome)], input=json.dumps(dati),
-                              capture_output=True, text=True, env=env or self.env, cwd=str(self.dir), timeout=60)
+                              capture_output=True, text=True, encoding="utf-8", env=env or self.env, cwd=str(self.dir),
+                              timeout=60)
 
     def richiamo(self, prompt: str, sessione: str = "s1", env=None) -> subprocess.CompletedProcess:
         return self.hook("memoria-richiamo.py", {"prompt": prompt, "session_id": sessione}, env)
@@ -127,6 +132,11 @@ def test_y02(repo: Path) -> None:
         assert "feedback_pytest.md" in lab.richiamo(DOMANDA, "altra").stdout, "Y02 una sessione nuova non la rivede"
         assert not lab.richiamo("<task-notification>" + DOMANDA, "y02b").stdout.strip(), "Y02 parla su un messaggio di sistema"
         assert not lab.richiamo("che tempo fa domani a Torino", "y02c").stdout.strip(), "Y02 parla su un messaggio che non c'entra"
+        # Su Windows un carattere fuori da cp1252 fermava la stampa e la nota risultava già indicata (16/10/2026).
+        (lab.mem / "pipx_versione.md").write_text(NOTA.replace("feedback-pytest-pipx", "pytest-versione").replace(
+            "non con brew", "versione ≥ 8, non con brew"), encoding="utf-8")
+        assert "≥ 8" in lab.richiamo(DOMANDA, "y02e").stdout, "Y02 una descrizione con ≥ non arriva a Claude"
+        (lab.mem / "pipx_versione.md").unlink()
         mie = lab.dir / "note-mie"
         (mie / "lavoro").mkdir(parents=True)
         (mie / "lavoro" / "preventivi.md").write_text(NOTA_MIA, encoding="utf-8")

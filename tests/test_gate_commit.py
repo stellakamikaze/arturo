@@ -71,24 +71,26 @@ def test_g214(repo: Path) -> None:
         (r / "leak.txt").write_text(f"k={AWS_FINTO}\n", encoding="utf-8")
         _git(r, "add", "leak.txt")
         segreto, irrisolto, passa = "segreto", "irrisolto", "passa"
+        # Barre dritte: in bash le barre di Windows non quotate sono escape e «cd» non arriva al repository.
+        rp, fp = r.as_posix(), fuori.as_posix()
         casi = [
-            ("messaggio su piu' righe dopo cd", f'cd {r} && git commit -q -m "riga uno\n\nriga tre; con | pipe"', segreto),
-            ("variabile assegnata", f"P={r}; cd $P && git commit -m x", segreto),
-            ("variabile con graffe", f'P={r}\ncd "${{P}}" && git commit -m "a\nb"', segreto),
-            ("export", f"export P={r}; git -C $P commit -m x", segreto),
-            ("git -C letterale", f'git -C {r} commit -q -m "a\nb"', segreto),
-            ("heredoc python prima del commit", f"cd {r} && python3 - <<'X'\nprint('it''s; | && fine')\nX\ngit commit -m 'ok'", segreto),
-            ("commit -a", f'cd {r} && git commit -am "x"', segreto),
-            ("heredoc verso bash", f"bash <<'X'\ncd {r} && git commit -m x\nX", segreto),
+            ("messaggio su piu' righe dopo cd", f'cd {rp} && git commit -q -m "riga uno\n\nriga tre; con | pipe"', segreto),
+            ("variabile assegnata", f"P={rp}; cd $P && git commit -m x", segreto),
+            ("variabile con graffe", f'P={rp}\ncd "${{P}}" && git commit -m "a\nb"', segreto),
+            ("export", f"export P={rp}; git -C $P commit -m x", segreto),
+            ("git -C letterale", f'git -C {rp} commit -q -m "a\nb"', segreto),
+            ("heredoc python prima del commit", f"cd {rp} && python3 - <<'X'\nprint('it''s; | && fine')\nX\ngit commit -m 'ok'", segreto),
+            ("commit -a", f'cd {rp} && git commit -am "x"', segreto),
+            ("heredoc verso bash", f"bash <<'X'\ncd {rp} && git commit -m x\nX", segreto),
             ("variabile ignota", 'cd "$IGNOTA" && git commit -m x', irrisolto),
             ("cd su sostituzione", "cd $(mktemp -d) && git commit -m x", irrisolto),
-            ("bash -c", f"bash -c 'cd {r} && git commit -m x'", irrisolto),
+            ("bash -c", f"bash -c 'cd {rp} && git commit -m x'", irrisolto),
             ("xargs", "echo x | xargs git commit -m", irrisolto),
-            ("git --git-dir", f"git --git-dir={r}/.git commit -m x", irrisolto),
-            ("virgoletta non chiusa", f'cd {r} && git commit -m "aperta', irrisolto),
+            ("git --git-dir", f"git --git-dir={rp}/.git commit -m x", irrisolto),
+            ("virgoletta non chiusa", f'cd {rp} && git commit -m "aperta', irrisolto),
             ("solo testo in heredoc cat", "cat > /dev/null <<'X'\ngit commit -m prova\nX", passa),
             ("commit citato in un echo", 'echo "poi git commit"; ls', passa),
-            ("fuori da un repository", f"cd {fuori} && git commit -m x", passa),
+            ("fuori da un repository", f"cd {fp} && git commit -m x", passa),
         ]
         for nome, comando, atteso in casi:
             decisione, motivo = _esito(_gate(repo, comando, fuori))
@@ -131,9 +133,10 @@ def test_g215(repo: Path) -> None:
                                env=dict(os.environ, HOME=str(home), USERPROFILE=str(home), ARTURO_TELEMETRIA="0", **GIT_ENV))
             return _esito(p)[0]
 
-        assert dispatcher(f"cd {sporco} && git add conf.py && git commit -m prova") == "ask", \
+        sp = sporco.as_posix()  # barre dritte, come nel K01
+        assert dispatcher(f"cd {sp} && git add conf.py && git commit -m prova") == "ask", \
             "G215 dal dispatcher add e commit con un segreto passano"
-        for comando in (f'cd {sporco} && echo "git commit"', f"cd {sporco} && git status",
+        for comando in (f'cd {sp} && echo "git commit"', f"cd {sp} && git status",
                         "cat > nota.md <<'X'\ngit add conf.py && git commit -m x\nX"):
             assert dispatcher(comando) == "silent", f"G215 il dispatcher ferma un comando che non fa commit: {comando!r}"
 

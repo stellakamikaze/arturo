@@ -77,7 +77,10 @@ def test_r04(repo: Path) -> None:
     with tempfile.TemporaryDirectory() as d:
         casa = Path(d) / "casa"
         casa.mkdir()
-        (casa / ".claude").symlink_to(repo)
+        try:
+            (casa / ".claude").symlink_to(repo)
+        except OSError:  # Windows senza il privilegio dei link: una copia vale lo stesso
+            shutil.copytree(repo, casa / ".claude", ignore=shutil.ignore_patterns(".git", "__pycache__"))
 
         # Dal 15/10/2026 comms-guard chiede conferma invece di bloccare: un invio travestito
         # deve arrivare alla persona come ask (prima era exit 2), una lettura deve tacere.
@@ -90,9 +93,12 @@ def test_r04(repo: Path) -> None:
             return "ask" if '"permissionDecision": "ask"' in p.stdout or '"permissionDecision":"ask"' in p.stdout else "silent"
 
         for comando in ("find . -name x -exec sendmail a@esempio.org {} \\;", "awk 'BEGIN{system(\"sendmail a@esempio.org\")}'",
-                        "git send-email --to a@esempio.org 0001.patch", "echo ciao | sendmail a@esempio.org"):
+                        "git send-email --to a@esempio.org 0001.patch", "echo ciao | sendmail a@esempio.org",
+                        # su Windows un carattere fuori da cp1252 svuotava il prefiltro (16/10/2026)
+                        "echo \"nota → fine\" | sendmail a@esempio.org"):
             assert esito(comando) == "ask", f"R04 invio travestito che passa: {comando}"
-        for comando in ("grep -ril smtplib .", "cat > nota.md <<'EOF'\nuso smtplib per inviare\nEOF", "git log --oneline -3"):
+        for comando in ("grep -ril smtplib .", "cat > nota.md <<'EOF'\nuso smtplib per inviare\nEOF", "git log --oneline -3",
+                        "grep -ril \"smtplib →\" ."):
             assert esito(comando) == "silent", f"R04 lettura che nomina un invio fermata: {comando}"
 
 

@@ -213,22 +213,22 @@ def main() -> int:
     parser.add_argument("--baseline-ref")
     args = parser.parse_args()
     repo = args.repo.resolve()
+    # Su Windows i finti in bash non partono: /segnala troverebbe gh.exe, clip e il browser veri.
+    # Il 16/10/2026 S07 ha aperto una issue vera su stellakamikaze/arturo. Ogni controllo che
+    # lancia «invia» gira solo su macOS e Linux, anche sulla base.
+    saltati = ["S02", "S03", "S05", "S06", "S07"] if os.name == "nt" else []
+    scelti = {k: v for k, v in TESTS.items() if k not in saltati}
     if args.baseline_ref:
         failed = []
-        for name, test in TESTS.items():
+        for name, test in scelti.items():
             try:
                 test(repo)
             except (AssertionError, OSError, ValueError, KeyError, StopIteration, json.JSONDecodeError,
                     subprocess.SubprocessError):
                 failed.append(name)
-        assert failed == list(TESTS), f"baseline non discriminante: falliscono solo {failed} su {list(TESTS)}"
+        assert failed == list(scelti), f"baseline non discriminante: falliscono solo {failed} su {list(scelti)}"
         print(f"BASELINE_DISCRIMINANTE={','.join(failed)}")
         return 0
-    # Su Windows i finti in bash non partono: /segnala troverebbe gh.exe, clip e il browser veri.
-    # Il 16/10/2026 S07 ha aperto una issue vera su stellakamikaze/arturo. Ogni controllo che
-    # lancia «invia» gira solo su macOS e Linux.
-    saltati = ["S02", "S03", "S05", "S06", "S07"] if os.name == "nt" else []
-    scelti = {k: v for k, v in TESTS.items() if k not in saltati}
     for test in scelti.values():
         test(repo)
     if saltati:

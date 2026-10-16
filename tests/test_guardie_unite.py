@@ -400,7 +400,7 @@ def test_g209(repo: Path) -> None:
                 time.sleep(0.3)
             return cond()
 
-        p, durata = avvio(ARTURO_BANCHI_AVVIO="0")
+        p, senza_banchi = avvio(ARTURO_BANCHI_AVVIO="0")
         assert "MACCHINA:" in p.stdout, f"G209 manca la riga MACCHINA: {p.stdout[:300]!r}"
         time.sleep(1)
         assert not segno.exists(), "G209 ARTURO_BANCHI_AVVIO=0 non spegne i banchi in background"
@@ -408,7 +408,10 @@ def test_g209(repo: Path) -> None:
         p, durata = avvio()
         assert "file di ~/.claude modificati e non salvati" in p.stdout, \
             f"G209 nessun avviso sui file della config non salvati: {p.stdout[:400]!r}"
-        assert durata < 4.5, f"G209 l'avvio aspetta i banchi: {durata:.1f} s"
+        # Relativo all'avvio senza banchi: su Windows ogni processo parte più lento, e 4,5 s fissi
+        # misuravano la macchina invece dell'attesa.
+        assert durata < max(4.5, senza_banchi + 2.0), \
+            f"G209 l'avvio aspetta i banchi: {durata:.1f} s (senza banchi {senza_banchi:.1f} s)"
         assert aspetta(segno.exists), "G209 i banchi non partono in background"
         assert aspetta(lambda: not (claude / "cache" / "banchi.lock").exists()), "G209 il lock resta dopo i banchi"
         avvio()
@@ -458,10 +461,13 @@ def test_g210(repo: Path) -> None:
                 "rate_limits": {"five_hour": {"used_percentage": 81.6, "resets_at": 1760000000},
                                 "seven_day": {"used_percentage": 12}}}
 
+        env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": os.environ.get("PATH", "")}
+        if os.name == "nt":
+            env["SYSTEMROOT"] = os.environ.get("SYSTEMROOT", r"C:\Windows")  # senza, node si ferma all'avvio
+
         def riga() -> str:
             proc = subprocess.run([NODE, str(repo / "hooks" / "statusline.js")], input=json.dumps(dati), text=True,
-                                  capture_output=True, env={"HOME": str(home), "USERPROFILE": str(home), "PATH": os.environ.get("PATH", "")},
-                                  timeout=30, check=False)
+                                  encoding="utf-8", capture_output=True, env=env, timeout=30, check=False)
             return proc.stdout
 
         r = riga()
@@ -490,8 +496,16 @@ def test_g211(repo: Path) -> None:
                           "grep", "tr", "wc", "dirname", "env"):
             percorso = shutil.which(programma)
             if percorso:
-                (senza_timeout / programma).symlink_to(percorso)
+                try:
+                    (senza_timeout / programma).symlink_to(percorso)
+                except OSError:  # Windows senza il privilegio dei link: uno script che rimanda al programma
+                    (senza_timeout / programma).write_text(f'#!/bin/sh\nexec "{Path(percorso).as_posix()}" "$@"\n',
+                                                          encoding="utf-8")
         nudo = {"PATH": str(senza_timeout)}
+        if os.name == "nt":
+            # Python non lancia gli script senza estensione: per i suoi «git» serve git.exe, che sta
+            # da solo in Git\cmd, senza timeout.
+            nudo["PATH"] += os.pathsep + os.path.dirname(shutil.which("git") or "")
         assert dispatcher(home, 'git commit -m "fix; timeout 30 secondi"', radice, **nudo) == "silent", \
             "G211 timeout citato in un messaggio fra virgolette blocca il comando"
         assert dispatcher(home, "timeout 5 ls", radice, **nudo) == "block", "G211 timeout vero senza coreutils passa"
@@ -532,7 +546,10 @@ def test_g211(repo: Path) -> None:
         # Un link simbolico nella zona che punta agli hook non porta l'allow fuori.
         zona = home / ".claude" / "data" / "handoffs"
         zona.mkdir(parents=True, exist_ok=True)
-        (zona / "scorciatoia").symlink_to(home / ".claude" / "hooks")
+        try:
+            (zona / "scorciatoia").symlink_to(home / ".claude" / "hooks")
+        except OSError:  # Windows senza il privilegio dei link: lì nemmeno Claude può crearne uno
+            return
         assert dispatcher(home, "echo x > ~/.claude/data/handoffs/scorciatoia/nuovo.py", radice) != "allow", \
             "G211 il ramo memoria segue un link simbolico verso gli hook"
 
@@ -547,16 +564,25 @@ def test_g212(repo: Path) -> None:
         (progetto / "package.json").write_text(json.dumps({"scripts": {"build": "vue-tsc -b && vite build"}}),
                                                encoding="utf-8")
         (progetto / "tsconfig.json").write_text("{}", encoding="utf-8")
-        finto = progetto / "node_modules" / ".bin" / "vue-tsc"
-        finto.write_text("#!/bin/sh\nif grep -q ROTTO src/*.ts; then echo 'src/a.ts(1,7): error TS2322: tipo'; "
-                         "exit 2; fi\nexit 0\n", encoding="utf-8")
-        finto.chmod(0o755)
+        if os.name == "nt":  # su Windows npm installa gli shim .cmd, e il hook cerca quelli
+            finto = progetto / "node_modules" / ".bin" / "vue-tsc.cmd"
+            finto.write_text("@echo off\r\nfindstr /m ROTTO src\\*.ts >nul\r\nif errorlevel 1 exit /b 0\r\n"
+                             "echo src/a.ts(1,7): error TS2322: tipo\r\nexit /b 2\r\n", encoding="utf-8")
+        else:
+            finto = progetto / "node_modules" / ".bin" / "vue-tsc"
+            finto.write_text("#!/bin/sh\nif grep -q ROTTO src/*.ts; then echo 'src/a.ts(1,7): error TS2322: tipo'; "
+                             "exit 2; fi\nexit 0\n", encoding="utf-8")
+            finto.chmod(0o755)
         sorgente = progetto / "src" / "a.ts"
 
+        env = env_di(Path(d))
+        if os.name == "nt":  # un .cmd parte solo con cmd.exe, che li cerca
+            env.update(SYSTEMROOT=os.environ.get("SYSTEMROOT", r"C:\Windows"), COMSPEC=os.environ.get("COMSPEC", "cmd.exe"))
+
         def dopo(path: Path) -> subprocess.CompletedProcess:
-            return subprocess.run([sys.executable, "-B", str(hook_path)], text=True, capture_output=True, timeout=60,
-                                  input=json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(path)}}),
-                                  env=env_di(Path(d)))
+            return subprocess.run([sys.executable, "-B", str(hook_path)], text=True, encoding="utf-8", errors="replace",
+                                  capture_output=True, timeout=60, env=env,
+                                  input=json.dumps({"tool_name": "Edit", "tool_input": {"file_path": str(path)}}))
 
         sorgente.write_text("const x: number = 'ROTTO'\n", encoding="utf-8")
         p = dopo(sorgente)

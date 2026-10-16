@@ -307,7 +307,7 @@ ENDPOINT = re.compile(r"endpoint|\broute\b|\bAPI\b|\bGET\b|\bPOST\b|https?://|:\
 # Il backtick d'apertura non segue una lettera: in «`nc`/altro» il backtick chiude, non apre.
 PAT = re.compile(r"(?<![A-Za-z0-9_])`/([a-z][a-z0-9:_-]{1,30})(?:\s[^`]*)?`")
 docs = ["CLAUDE.md", "README.md"] + sorted(
-    os.path.relpath(p, H) for p in glob.glob(H + "/commands/*.md") + glob.glob(H + "/skills/*/SKILL.md")
+    os.path.relpath(p, H).replace(os.sep, "/") for p in glob.glob(H + "/commands/*.md") + glob.glob(H + "/skills/*/SKILL.md")
     + glob.glob(H + "/agents/*.md") + glob.glob(H + "/shared/*.md"))
 tot = 0
 for doc in docs:

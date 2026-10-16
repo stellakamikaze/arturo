@@ -110,4 +110,9 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    for flusso in (sys.stdout, sys.stderr):  # su Windows la pipe è in cp1252, Claude legge UTF-8
+        try:
+            flusso.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     sys.exit(main())

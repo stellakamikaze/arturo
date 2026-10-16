@@ -194,7 +194,7 @@ node --no-warnings "$REPO/server/test-sql.mjs"
 
 shells=0
 while IFS= read -r -d '' file; do
-  bash -n "$file"
+  bash -n "$REPO/$file"  # ls-files dà path relativi al repository, non alla cartella corrente
   shells=$((shells + 1))
 done < <(git -C "$REPO" ls-files -z -- '*.sh')
 [[ $shells -gt 0 ]] || { echo "FAIL: nessun file shell" >&2; exit 1; }
@@ -215,7 +215,7 @@ PY
 
 js=0
 while IFS= read -r -d '' file; do
-  node --check "$file"
+  node --check "$REPO/$file"
   js=$((js + 1))
 done < <(git -C "$REPO" ls-files -z -- '*.js' '*.mjs')
 [[ $js -gt 0 ]] || { echo "FAIL: nessun file JavaScript" >&2; exit 1; }

@@ -118,9 +118,14 @@ def main():
         print("typecheck saltato: un altro check è già in corso su questo progetto", file=sys.stderr)
         return 0
     try:
-        r = subprocess.run(argv, cwd=progetto, capture_output=True, text=True, timeout=LIMITE_S)
+        # node scrive in UTF-8: letto con la codifica di Windows un byte non mappato rende stdout None.
+        r = subprocess.run(argv, cwd=progetto, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           timeout=LIMITE_S)
     except subprocess.TimeoutExpired:
         print(f"typecheck oltre {LIMITE_S}s su {progetto}: lancialo a mano prima del commit", file=sys.stderr)
+        return 0
+    except OSError as e:
+        print(f"typecheck saltato: {exe} non parte ({e})", file=sys.stderr)
         return 0
     finally:
         for d in cache_condivisa:

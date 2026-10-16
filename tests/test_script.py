@@ -21,13 +21,14 @@ import importlib.util
 import json
 import os
 import platform
+import shutil
 import subprocess
 import sys
 import tempfile
 import time
 from pathlib import Path
 
-BASH = "bash"
+BASH = shutil.which("bash") or "bash"
 
 
 def read(path: Path) -> str:
@@ -43,8 +44,8 @@ def esiste(repo: Path, rel: str, codice: str) -> Path:
 def lancia(argv: list, codice: str, env: dict | None = None, cwd: str | None = None,
            timeout: int = 120) -> subprocess.CompletedProcess:
     try:
-        return subprocess.run(argv, capture_output=True, text=True, env=env, cwd=cwd, timeout=timeout,
-                              stdin=subprocess.DEVNULL)
+        return subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace", env=env,
+                              cwd=cwd, timeout=timeout, stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
         raise AssertionError(f"{codice} scaduto il tempo: {argv[:3]}")
 
