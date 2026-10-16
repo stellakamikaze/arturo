@@ -94,7 +94,9 @@ AIUTO = f"""arturo telemetria: gli eventi d'uso che Arturo manda a chi lo mantie
 Escono solo questi eventi, con il giorno e mai l'ora: {", ".join(EVENTI)}.
 Dei file di Arturo modificati solo la posizione nel repository di Arturo, che è pubblica.
 Mai prompt, file tuoi, percorsi del tuo computer, nomi, risposte o testi.
-Server: {URL} (codice in server/). Si spegne anche con ARTURO_TELEMETRIA=0 o DO_NOT_TRACK=1."""
+Server: {URL} (codice in server/). Si spegne anche con ARTURO_TELEMETRIA=0 o DO_NOT_TRACK=1.
+Da una HOME in una cartella temporanea, un banco di prova, non parte niente verso questo server:
+gli eventi vanno solo a un server indicato con ARTURO_TELEMETRIA_URL."""
 
 
 def file_stato() -> Path:

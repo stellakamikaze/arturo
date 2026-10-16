@@ -25,7 +25,9 @@ con parole accentate.
 **Il principio dietro**: una guardia che si confonde deve chiedere, non tacere. E una correzione
 vale solo se un controllo la prova anche sul sistema dove il guasto è nato.
 
-**Da sapere**: niente da fare. Sul Mac non cambia niente.
+**Da sapere**: niente da fare. Sul Mac non cambia niente. Se provi Arturo in una cartella
+temporanea, da lì la telemetria non parte più verso il server di Arturo: parte solo verso un
+server che indichi tu con `ARTURO_TELEMETRIA_URL`.
 
 ---
 

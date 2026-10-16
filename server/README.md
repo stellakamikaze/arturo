@@ -102,7 +102,9 @@ verificato in Email Routing. Il Worker può scrivere solo a indirizzi verificati
    ```
 
 6. Indica il tuo server ai client: cambia la costante `URL` in `bin/telemetria.py`, oppure
-   imposta `ARTURO_TELEMETRIA_URL`. Anche `/segnala` passa da lì.
+   imposta `ARTURO_TELEMETRIA_URL`. Anche `/segnala` passa da lì. Da una HOME in una cartella
+   temporanea (un banco di prova) vale solo la variabile: la costante lì non conta, e senza
+   variabile non parte niente.
 
 Per un aggiornamento ripeti i passi 3 e 4. Il database e i dati restano.
 
