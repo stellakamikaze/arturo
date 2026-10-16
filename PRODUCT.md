@@ -26,11 +26,11 @@ Estratto da una configurazione usata ogni giorno in produzione, igienizzato. Ben
 
 ## Operating Context
 
-Terminale e Claude Code. Installazione: `git clone https://github.com/stellakamikaze/arturo.git ~/.claude`, poi `/setup`. Ciclo: `/inizio`, lavoro, `/fine`. Aggiornamenti: avviso all'avvio, `/aggiorna`, `/aggiorna indietro`. Curriculum in `docs/principi/`, novità in `NOVITA.md` raccontate da `/novita`, `/sparring`, `/guidami`.
+Terminale e Claude Code. Installazione: `git clone https://github.com/stellakamikaze/arturo.git ~/.claude`, poi `/setup`. Ciclo: `/inizio`, lavoro, `/fine`. Aggiornamenti: avviso all'avvio, `/aggiorna`, `/aggiorna indietro`. Curriculum in `docs/principi/`, novità in `NOVITA.md` raccontate da `/novita`. Nove comandi in vetrina: `/inizio`, `/fine`, `/aggiorna`, `/novita`, `/segnala`, `/setup`, `/guidami`, `/diagnosi`, `/creaskill`. Lo sparring lo apre Claude.
 
 ## Capabilities and Constraints
 
-- 23 guardie e automazioni, 13 comandi, 9 agenti, 5 skill (conteggi del README di dev al 15/10/2026, riletti nel pomeriggio: vanno riletti dal README prima di citarli).
+- 23 guardie e automazioni, 10 comandi (nove in vetrina, più lo sparring che Claude apre da solo), 9 agenti, 4 skill (README di main al 16/10/2026, v2026-10-16.4: vanno riletti dal README prima di citarli). Lo strato delle organizzazioni, il percorso a tappe, `/progetto`, `/discovery` e `/write-plan` sono usciti il 16/10/2026: lo strato torna più avanti, rifatto.
 - Impegni del README: repository pubblico e MIT, solo `/aggiorna` applica gli aggiornamenti, telemetria minima accesa di default con il perché, Arturo in italiano, stop dichiarato. L'avvio e `/inizio` controllano soltanto se ci sono novità e non applicano niente.
 - La telemetria è centrale nel racconto: Arturo impara da come lo usi. Accesa di default, si spegne con `arturo telemetria spegni`, `ARTURO_TELEMETRIA=0` o `DO_NOT_TRACK=1`. Escono solo eventi da un elenco chiuso con un id di installazione casuale e stabile (sulla pagina non si scrive che i dati sono senza nome: l'id resta lo stesso nel tempo), mai testi, file o nomi. La pagina dice cosa esce, cosa no, come si spegne e come i dati diventano correzioni.
 - Firma solo «Progetto di Federico Nejrotti» (decisione del 15/10/2026). Nessuna cifra, nessun prezzo. L'affiancamento a pagamento non compare finché la sua forma non è decisa.

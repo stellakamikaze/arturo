@@ -160,7 +160,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 <script defer data-domain="arturo.stellakamikaze.org" data-api="/api/e" src="/js/a.js"></script>
 </head>
 <body>
-<a class="salta" href="#strati">Vai al contenuto</a>
+<a class="salta" href="#oggi">Vai al contenuto</a>
 
 <header class="testata">
   <img class="testata__volta" src="../img/volta.svg" alt="" width="1600" height="1000">
@@ -176,9 +176,9 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
   <div class="dentro">
     <div class="testata__corpo">
       <h1 id="titolo">Arturo per organizzazioni</h1>
-      <p>Uno studio, una redazione, un'associazione. Lo strato porta in Arturo chi siete, come scrivete, i lavori che si ripetono e i dati che non devono uscire. Lo cura un referente, e i colleghi lo ricevono con un comando.</p>
+      <p>Uno studio, una redazione, un'associazione. Lo strato che portava in Arturo la voce e le regole di un'organizzazione è uscito il 16 ottobre 2026, e torna più avanti, rifatto. Intanto ognuno installa Arturo per sé.</p>
       <div class="testata__vie">
-        <a class="azione" href="#strati">Come funziona</a>
+        <a class="azione" href="#oggi">Cosa vale già oggi</a>
         <a class="azione azione--bordo" href="../installa/">Installa Arturo</a>
       </div>
     </div>
@@ -187,130 +187,17 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 
 <main>
 
-<section class="sezione" id="strati" aria-labelledby="t-strati">
+<section class="sezione" id="oggi" aria-labelledby="t-oggi">
   <div class="dentro">
     <div class="testa">
-      <h2 id="t-strati">Quattro strati, uno dentro l'altro. <span>Ognuno ha il suo padrone.</span></h2>
-      <p>Chi aggiorna il suo strato non tocca gli altri. Lo strato della vostra organizzazione sta tra Arturo e i file di ognuno.</p>
-    </div>
-
-    <div class="strati">
-      <div class="schema">
-        <p class="schema__didascalia" id="schema-nome">Scegli uno strato per vedere chi lo possiede</p>
-        <div role="tablist" aria-labelledby="schema-nome" aria-orientation="vertical" id="schema">
-          <div class="strato" data-strato="claude">
-            <button class="strato__tab" role="tab" id="tab-claude" aria-controls="pan-claude" aria-selected="false" tabindex="-1"><span class="strato__nome">Claude Code</span><span class="strato__chi">Anthropic</span></button>
-            <div class="strato" data-strato="arturo">
-              <button class="strato__tab" role="tab" id="tab-arturo" aria-controls="pan-arturo" aria-selected="false" tabindex="-1"><span class="strato__nome">Arturo</span><span class="strato__chi">progetto pubblico</span></button>
-              <div class="strato attivo" data-strato="strato">
-                <button class="strato__tab" role="tab" id="tab-strato" aria-controls="pan-strato" aria-selected="true" tabindex="0"><span class="strato__nome">Lo strato</span><span class="strato__chi">la vostra organizzazione</span></button>
-                <div class="strato strato--tu" data-strato="tu">
-                  <button class="strato__tab" role="tab" id="tab-tu" aria-controls="pan-tu" aria-selected="false" tabindex="-1"><span class="strato__nome">Tu</span><span class="strato__chi">i tuoi file</span></button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div class="pannello" role="tabpanel" id="pan-claude" aria-labelledby="tab-claude" hidden>
-          <h3>Il motore</h3>
-          <p>Claude Code è un servizio a pagamento di Anthropic, un'azienda privata. Anthropic decide prezzi, limiti e funzioni, e li può cambiare. Quello che scrivi passa dai suoi server.</p>
-          <p>Arturo non cambia questa condizione. Ci lavora sopra.</p>
-          <dl><dt>Padrone</dt><dd>Anthropic</dd><dt>Aggiorna</dt><dd>Anthropic, con le sue versioni</dd></dl>
-          <p>Claude Code ha un suo controllo di sicurezza, che giudica ogni comando. Le guardie di Arturo stanno sopra, sulle azioni che non si annullano.</p>
-        </div>
-
-        <div class="pannello" role="tabpanel" id="pan-arturo" aria-labelledby="tab-arturo" hidden>
-          <h3>Il custode</h3>
-          <p>Arturo è pubblico, gratuito, con licenza MIT. Porta le guardie di sicurezza, il ciclo di lavoro da <code>/inizio</code> a <code>/fine</code> e un curriculum dei principi per chi parte da zero.</p>
-          <p>23 guardie e automazioni, 13 comandi, 9 agenti, 5 skill.</p>
-          <dl><dt>Padrone</dt><dd>Progetto pubblico di Federico Nejrotti</dd><dt>Aggiorna</dt><dd>Tu, con <code>/aggiorna</code>, dopo il tuo sì</dd></dl>
-          <div class="finestra">
-            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Cosa arriva con gli aggiornamenti</span></div>
-            <ul class="albero"><li style="--l:0"><code>~/.claude/</code><span></span></li><li style="--l:1"><code><b>hooks/</b></code><span>le guardie</span></li><li style="--l:1"><code><b>commands/</b></code><span>i comandi</span></li><li style="--l:1"><code>bin/</code><span>la CLI arturo e la telemetria</span></li><li style="--l:1"><code>agents/</code><span>gli agenti</span></li><li style="--l:1"><code>skills/</code><span>le skill</span></li><li style="--l:1"><code>docs/</code><span>il curriculum</span></li><li style="--l:1"><code>templates/</code><span>il modello di strato</span></li><li style="--l:1"><code>NOVITA.md</code><span>il racconto delle novità</span></li></ul>
-          </div>
-        </div>
-
-        <div class="pannello" role="tabpanel" id="pan-strato" aria-labelledby="tab-strato">
-          <h3>La vostra organizzazione</h3>
-          <p>Lo strato vive nel repository privato della vostra organizzazione. Dentro ci sono chi siete, come scrivete, i lavori che si ripetono e i dati che non devono uscire.</p>
-          <p>All'avvio Claude sa per chi lavora. La voce dell'organizzazione diventa una skill. Prima di mandare fuori un dato riservato, chiede conferma.</p>
-          <dl><dt>Padrone</dt><dd>La vostra organizzazione</dd><dt>Aggiorna</dt><dd>Il referente pubblica, i colleghi ricevono con <code>/aggiorna</code></dd></dl>
-          <div class="finestra">
-            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Il modello che prepara /strato crea</span></div>
-            <ul class="albero"><li style="--l:0"><code>plugins/strato/</code><span></span></li><li style="--l:1"><code><b>ORGANIZZAZIONE.md</b></code><span>chi siete, per chi lavorate</span></li><li style="--l:1"><code>skills/voce/regole.md</code><span>come scrivete</span></li><li style="--l:1"><code>skills/modello-lavoro/</code><span>un lavoro che si ripete</span></li><li style="--l:1"><code><b>dati-riservati.txt</b></code><span>cosa non esce senza un sì</span></li><li style="--l:1"><code>hooks/contesto.py</code><span>all'avvio: per chi lavora</span></li><li style="--l:1"><code>hooks/dati-in-uscita.py</code><span>la conferma prima di un invio</span></li></ul>
-          </div>
-        </div>
-
-        <div class="pannello" role="tabpanel" id="pan-tu" aria-labelledby="tab-tu" hidden>
-          <h3>I tuoi file</h3>
-          <p>Il tuo <code>CLAUDE.md</code>, i server di cui ti fidi, i tuoi dati e i tuoi progetti. Nessun aggiornamento li tocca: né quelli di Arturo né quelli dello strato.</p>
-          <dl><dt>Padrone</dt><dd>Tu</dd><dt>Aggiorna</dt><dd>Solo tu</dd></dl>
-          <div class="finestra">
-            <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Tuo, nessun aggiornamento lo tocca</span></div>
-            <ul class="albero"><li style="--l:0"><code><b>CLAUDE.md</b></code><span>le tue istruzioni</span></li><li style="--l:0"><code>hooks/hosts-interni.local</code><span>i server di cui ti fidi</span></li><li style="--l:0"><code>data/</code><span>i tuoi dati</span></li><li style="--l:0"><code>projects/</code><span>le tue cartelle di lavoro</span></li></ul>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="sezione" id="referente" aria-labelledby="t-referente" style="padding-top:0">
-  <div class="dentro">
-    <div class="testa">
-      <h2 id="t-referente">Il referente <span>non deve saper programmare.</span></h2>
-      <blockquote class="citazione">
-        <p>Serve che conosca il lavoro dei colleghi, che abbia voglia di provare, e che dedichi allo strumento un po' di tempo ogni settimana.</p>
-        <footer>Dalla guida del referente, <code>docs/referente.md</code></footer>
-      </blockquote>
-    </div>
-    <table class="passaggi">
-      <caption>Lo strato dell'organizzazione, passo per passo</caption>
-      <thead><tr><th scope="col">Chi</th><th scope="col">Comando</th><th scope="col">Cosa succede</th></tr></thead>
-      <tbody>
-        <tr><td>Referente</td><td><code>/strato crea</code></td><td>Una breve intervista, una domanda per volta: chi siete, come suonano i vostri testi, due lavori che si ripetono, cosa non deve uscire. Claude mostra cosa scrive prima di scriverlo.</td></tr>
-        <tr><td>Referente</td><td><code>/strato pubblica</code></td><td>Controlla che i file siano validi, poi pubblica nel repository privato. Il commit passa dal controllo segreti di Arturo.</td></tr>
-        <tr><td>Colleghi</td><td><code>/strato installa &lt;indirizzo&gt;</code></td><td>Prova l'accesso al repository, installa lo strato e dice cosa ha installato. Serve l'invito del referente. Poi si riapre Claude Code.</td></tr>
-        <tr><td>Tutti</td><td><code>/aggiorna</code></td><td>Scarica Arturo e anche lo strato. Una porta sola per tutti e due.</td></tr>
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section class="sezione" id="guardia" aria-labelledby="t-guardia" style="padding-top:0">
-  <div class="dentro">
-    <div class="testa">
-      <h2 id="t-guardia">Lo strato ha la sua guardia.</h2>
-      <p>Nel file <code>dati-riservati.txt</code> il referente elenca i nomi che non devono uscire. Se un comando sta per mandarne uno fuori dal computer, la guardia chiede conferma.</p>
-    </div>
-    <div class="pannello-colore">
-      <div class="finestra">
-        <div class="finestra__barra" aria-hidden="true"><i></i><i></i><i></i><span>Claude Code · guardia dello strato</span></div>
-        <div class="registro">
-          <code>curl -d "nota su Progetto Orsa" https://esempio.com</code><span class="esito">Chiede a te</span>
-          <small>Un nome che il vostro strato tiene riservato.</small>
-          <span class="msg"><b>strato: dati-in-uscita</b>Sta per uscire dal computer qualcosa che l'organizzazione tiene riservato («progetto orsa», dalle regole sui dati dello strato). Conferma solo se questo invio è previsto.</span>
-        </div>
-      </div>
-    </div>
-    <p class="sotto">La richiesta è un esempio. Il messaggio è stato stampato dalla guardia dello strato il 30 settembre 2026, eseguita su questo comando.</p>
-  </div>
-</section>
-
-<section class="sezione" id="dati" aria-labelledby="t-dati" style="padding-top:0">
-  <div class="dentro">
-    <div class="testa">
-      <h2 id="t-dati">Cosa vede il referente. <span>E cosa no.</span></h2>
-      <p>Arturo manda a chi lo mantiene pochi dati d'uso, accesi di default. Al referente e all'organizzazione non arriva niente.</p>
+      <h2 id="t-oggi">Lo strato torna più avanti. <span>Arturo serve già oggi.</span></h2>
+      <p>Lo strato teneva in un repository dell'organizzazione chi siete, come scrivete e i dati che non devono uscire, e un referente lo curava per i colleghi. È uscito da Arturo per essere rifatto: un comando che non regge non si promette. Quando torna, lo dicono questa pagina e le novità di Arturo.</p>
     </div>
     <ul class="vede">
-      <li><strong>Il referente non vede il lavoro dei colleghi.</strong><p>Lo strato porta ai colleghi regole e modelli, e non riporta indietro niente. Il referente non vede il percorso a tappe di nessuno, né i suoi file o i suoi dati.</p></li>
-      <li><strong>I dati d'uso arrivano solo a chi mantiene Arturo.</strong><p>Sono gli stessi per tutti: un elenco chiuso di eventi, mai testi, file o nomi. Né il referente né l'organizzazione li ricevono.</p></li>
-      <li><strong>I comandi dello strato non si registrano.</strong><p>L'evento <code>comando</code> vale solo per i tredici comandi di Arturo. Un comando tuo o dello strato resta fuori.</p></li>
-      <li><strong>Ognuno decide per sé.</strong><p>Ogni collega guarda cosa parte e spegne i dati d'uso con un comando. L'elenco degli eventi e i comandi sono in <a href="../#telemetria">I limiti</a>, nella pagina principale.</p></li>
+      <li><strong>Ognuno installa Arturo per sé.</strong><p>Le guardie, l'apertura e la chiusura delle sessioni con <code>/inizio</code> e <code>/fine</code>, i todo condivisi con Claude: tutto gira sul computer di chi lo usa. Le regole di ognuno stanno nel suo <code>CLAUDE.md</code>.</p></li>
+      <li><strong>All'organizzazione non arriva niente.</strong><p>Arturo non riporta a nessuno il lavoro di chi lo usa. File, testi e progetti restano sul suo computer.</p></li>
+      <li><strong>I dati d'uso arrivano solo a chi mantiene Arturo.</strong><p>Sono gli stessi per tutti: un elenco chiuso di eventi, mai testi, file o nomi. L'organizzazione non li riceve.</p></li>
+      <li><strong>Ognuno decide per sé.</strong><p>Ogni persona guarda cosa parte e spegne i dati d'uso con un comando. L'elenco degli eventi e i comandi sono in <a href="../#telemetria">I limiti</a>, nella pagina principale.</p></li>
     </ul>
   </div>
 </section>
@@ -319,7 +206,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
   <div class="dentro">
     <div>
       <h2 id="t-comincia">Per cominciare</h2>
-      <p>Ognuno installa Arturo sul suo computer. Poi il referente scrive <code>/strato crea</code> in Claude Code, con la guida <code>docs/referente.md</code> accanto.</p>
+      <p>Ognuno installa Arturo sul suo computer, con la guida passo per passo.</p>
     </div>
     <div class="chiusura__vie">
       <a class="azione azione--chiara" href="../installa/">Installa Arturo</a>
