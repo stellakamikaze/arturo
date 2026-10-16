@@ -239,34 +239,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
   </div>
 </footer>
 
-<script>
-(function(){
-  var d=document;
-  /* gli strati */
-  var tabs=[].slice.call(d.querySelectorAll('#schema [role="tab"]'));
-  function scegli(t,fuoco){
-    tabs.forEach(function(x){
-      var on=x===t;
-      x.setAttribute('aria-selected',on?'true':'false');
-      x.tabIndex=on?0:-1;
-      x.parentNode.classList.toggle('attivo',on);
-      d.getElementById(x.getAttribute('aria-controls')).hidden=!on;
-    });
-    if(fuoco)t.focus();
-  }
-  tabs.forEach(function(t,i){
-    t.addEventListener('click',function(){scegli(t)});
-    t.addEventListener('keydown',function(e){
-      var n=null;
-      if(e.key==='ArrowDown'||e.key==='ArrowRight')n=tabs[(i+1)%tabs.length];
-      if(e.key==='ArrowUp'||e.key==='ArrowLeft')n=tabs[(i-1+tabs.length)%tabs.length];
-      if(e.key==='Home')n=tabs[0];
-      if(e.key==='End')n=tabs[tabs.length-1];
-      if(n){e.preventDefault();scegli(n,true)}
-    });
-  });
-})();
-</script>
+<script src="../js/organizzazioni.js"></script>
 <script type="module" src="../note.js"></script>
 </body>
 </html>
