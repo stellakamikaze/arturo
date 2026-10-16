@@ -47,6 +47,17 @@
  "blogPost": [
   {
    "@type": "BlogPosting",
+   "headline": "Arturo si aggiorna da solo, come Claude Code",
+   "datePublished": "2026-10-16",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-10-16-arturo-si-aggiorna-da-solo-come-claude-code",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
    "headline": "L'avvio e la chiusura personali non bloccano più gli aggiornamenti",
    "datePublished": "2026-10-16",
    "author": {
@@ -652,6 +663,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 }
 </style>
 <script defer data-domain="arturo.stellakamikaze.org" data-api="/api/e" src="/js/a.js"></script>
+<script defer src="../traccia.js"></script>
 </head>
 <body>
 <a class="salta" href="#voci">Vai al contenuto</a>
@@ -684,6 +696,16 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 <section class="sezione" aria-labelledby="titolo">
   <div class="dentro">
     <div class="voci" id="voci">
+
+      <article class="voce" id="2026-10-16-arturo-si-aggiorna-da-solo-come-claude-code" aria-labelledby="t-2026-10-16-arturo-si-aggiorna-da-solo-come-claude-code">
+        <p class="voce__data stretta"><time datetime="2026-10-16">16 ottobre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-10-16-arturo-si-aggiorna-da-solo-come-claude-code"><a href="#2026-10-16-arturo-si-aggiorna-da-solo-come-claude-code">Arturo si aggiorna da solo, come Claude Code</a></h2>
+          <p><strong>Cosa cambia</strong>: non serve più <code>/aggiorna</code>. Quando esce una versione nuova, la barra in basso di Claude Code te lo dice («↑ Arturo … · si installa alla chiusura»). Quando chiudi la sessione, Arturo la installa da solo, con la stessa procedura di <code>/aggiorna</code>: le tue aggiunte restano tue, e se qualcosa non torna non cambia niente. Se hai più sessioni aperte, la installa l'ultima che chiudi. Alla sessione dopo Claude ti dice a che versione sei arrivato, e <code>/novita</code> ti racconta cosa cambia.</p>
+          <p><strong>Il principio dietro</strong>: un aggiornamento è codice di altri che gira sul tuo computer. Per questo si installano da soli solo i rilasci firmati con la chiave di chi mantiene Arturo, e la firma si controlla con la chiave che hai già: un repository manomesso non basta. Se la firma manca, o la storia pubblicata è stata riscritta, Arturo non installa niente e te lo dice.</p>
+          <p><strong>Da sapere</strong>: preferisci leggere ogni aggiornamento prima? Scrivi a Claude «tieni gli aggiornamenti a mano», oppure lancia <code>python3 ~/.claude/bin/arturo aggiornamenti manuali</code>: resta l'avviso, e aggiorni con <code>/aggiorna</code> come prima. Questa è l'ultima volta che serve <code>/aggiorna</code> per ricevere una versione: da qui in poi arrivano da sole. La telemetria conta a parte gli aggiornamenti installati da soli (l'esito <code>automatico</code> dell'evento <code>aggiorna</code>): per questo all'avvio Claude ti ripete una volta cosa esce.</p>
+        </div>
+      </article>
 
       <article class="voce" id="2026-10-16-l-avvio-e-la-chiusura-personali-non-bloccano-piu-gli-aggiorn" aria-labelledby="t-2026-10-16-l-avvio-e-la-chiusura-personali-non-bloccano-piu-gli-aggiorn">
         <p class="voce__data stretta"><time datetime="2026-10-16">16 ottobre 2026</time></p>
@@ -1189,7 +1211,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 <footer class="piede">
   <div class="dentro">
     <p><strong>Progetto di Federico Nejrotti.</strong> Licenza MIT. <a href="https://github.com/stellakamikaze/arturo">github.com/stellakamikaze/arturo</a></p>
-    <p>Questa pagina non usa cookie di tracciamento, tracker né font da server esterni.</p>
+    <p>Niente cookie, nessun tracker di terzi, nessun font da server esterni. <a href="../privacy/">Privacy</a> · <a href="../feedback/">Dimmi com'è andata</a></p>
   </div>
 </footer>
 

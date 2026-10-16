@@ -344,6 +344,7 @@ code{{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--in
 }}
 </style>
 <script defer data-domain="arturo.stellakamikaze.org" data-api="/api/e" src="/js/a.js"></script>
+<script defer src="../traccia.js"></script>
 </head>
 <body>
 <a class="salta" href="#voci">Vai al contenuto</a>
@@ -401,7 +402,7 @@ code{{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--in
 <footer class="piede">
   <div class="dentro">
     <p><strong>Progetto di Federico Nejrotti.</strong> Licenza MIT. <a href="https://github.com/stellakamikaze/arturo">github.com/stellakamikaze/arturo</a></p>
-    <p>Questa pagina non usa cookie di tracciamento, tracker né font da server esterni.</p>
+    <p>Niente cookie, nessun tracker di terzi, nessun font da server esterni. <a href="../privacy/">Privacy</a> · <a href="../feedback/">Dimmi com'è andata</a></p>
   </div>
 </footer>
 

@@ -368,6 +368,12 @@ Il terminale è scritto per essere letto: 0,9 rem, interlinea 1,65, la richiesta
 ### Guida a tappe
 Ogni tappa ha una boa quadrata di 40 px. La tappa corrente ha la boa piena `azione` e un velo `azione-velo` che sfuma verso destra. La tappa fatta ha la boa con bordo `passa` e una spunta. Il passo si apre con una piega di 0,5 s sulla curva `--esce`.
 
+### Modulo di feedback (`/feedback/`)
+Testata cielo con la volta, poi 5/12 a sinistra «Dove va il tuo messaggio» (elenco con filetto `inchiostro` e icone `azione`) e 7/12 a destra il modulo. Il tipo è una fila di quattro scelte squadrate con bordo `inchiostro`, la scelta piena `inchiostro`, come la scelta Mac/Windows della guida. Testo ed email sono campi con il solo filetto in basso. Il registratore sta su `carta-2`: pulsante `azione` «Registra un vocale», mentre registra pulsante `inchiostro` «Ferma» con un quadrato `blocca` che pulsa (fermo con movimento ridotto), il livello del microfono in barre `inchiostro` su canvas, il tempo in mono con le cifre tabellari. Gli esiti sono riquadri bianchi con una riga di 3 px in testa, `passa` o `blocca`. Senza script il modulo parte come form e l'esito si accende con `:target` sull'ancora del rimando.
+
+### Privacy (`/privacy/`)
+Pagina da leggere, con la stessa griglia 3/9 della pagina novità. In testa quattro voci brevi con il filetto `inchiostro`. Il «mai» sta su `carta-2`. Le tabelle hanno l'intestazione in voce stretta e diventano righe impilate sotto 520 px.
+
 ## Do's and Don'ts
 
 ### Do:

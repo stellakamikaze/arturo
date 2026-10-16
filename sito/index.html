@@ -110,6 +110,7 @@
 <link rel="preload" href="font/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="stile/colori.css">
 <script defer data-domain="arturo.stellakamikaze.org" data-api="/api/e" src="/js/a.js"></script>
+<script defer src="traccia.js"></script>
 <style>
 @font-face{font-family:"Archivo";src:url(font/archivo.woff2) format("woff2");font-weight:100 900;font-stretch:62% 125%;font-display:swap}
 @font-face{font-family:"Atkinson Next";src:url(font/atkinson-next.woff2) format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
@@ -990,7 +991,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
         </li>
         <li>
           <h3>È tuo</h3>
-          <p>Usalo com'è o cambialo: licenza MIT, e gli aggiornamenti arrivano solo dopo il tuo sì.</p>
+          <p>Usalo com'è o cambialo: licenza MIT, e si aggiorna da solo solo con versioni firmate da chi lo mantiene.</p>
         </li>
       </ul>
     </div>
@@ -1031,7 +1032,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
       <ul class="limiti">
         <li><strong>Claude Code è a pagamento.</strong> Serve un abbonamento Anthropic, che decide prezzi e limiti.</li>
         <li><strong>Quello che scrivi passa da Anthropic.</strong> Come in chat. I file restano nelle tue cartelle.</li>
-        <li><strong>Gli aggiornamenti sono codice di altri.</strong> Per questo arrivano solo dopo il tuo sì.</li>
+        <li><strong>Gli aggiornamenti sono codice di altri.</strong> Per questo si installano da soli solo se sono firmati da chi mantiene Arturo, controllati con la chiave che hai già. Se preferisci dire sì a ognuno, lo spegni con un comando.</li>
         <li id="telemetria"><strong>Arturo manda dati d'uso, accesi di default.</strong> Eventi da un elenco chiuso, per capire dove ci si blocca. Mai testi, file o nomi. Si spengono con <code>arturo telemetria spegni</code>.</li>
       </ul>
     </div>
@@ -1105,7 +1106,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
       <div class="piede__firma">
         <p><strong>Progetto di Federico Nejrotti.</strong> Licenza MIT.</p>
         <p>Arturo prende il nome dalla stella che segue l'Orsa: i naviganti la trovavano proseguendo l'arco del suo timone.</p>
-        <small>Questa pagina conta le visite con Plausible, ospitato da chi mantiene Arturo: niente cookie, niente dati personali, nessun font da server esterni. Aggiornata il 15 ottobre 2026.</small>
+        <small>Questa pagina conta le visite con Plausible, ospitato da chi mantiene Arturo: niente cookie, nessun tracker di terzi, nessun font da server esterni. Cosa raccoglie il sito sta nella <a href="privacy/">pagina della privacy</a>. Aggiornata il 16 ottobre 2026.</small>
       </div>
       <div>
         <h2>Arturo</h2>
@@ -1121,7 +1122,9 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
         <h2>Progetto</h2>
         <ul>
           <li><a href="https://github.com/stellakamikaze/arturo">GitHub</a></li>
-          <li><a href="https://github.com/stellakamikaze/arturo/blob/main/NOVITA.md">Novità</a></li>
+          <li><a href="novita/">Novità</a></li>
+          <li><a href="feedback/">Dimmi com'è andata</a></li>
+          <li><a href="privacy/">Privacy</a></li>
           <li><a href="https://github.com/stellakamikaze/arturo/blob/main/SECURITY.md">Sicurezza</a></li>
         </ul>
       </div>

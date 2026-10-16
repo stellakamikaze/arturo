@@ -118,6 +118,7 @@
 <link rel="preload" href="../font/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../stile/colori.css">
 <script defer data-domain="arturo.stellakamikaze.org" data-api="/api/e" src="/js/a.js"></script>
+<script defer src="../traccia.js"></script>
 <style>
 @font-face{font-family:"Archivo";src:url(../font/archivo.woff2) format("woff2");font-weight:100 900;font-stretch:62% 125%;font-display:swap}
 @font-face{font-family:"Atkinson Next";src:url(../font/atkinson-next.woff2) format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
@@ -779,7 +780,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
               <li><code>/inizio nome</code><span>Riprende un progetto da dove l'hai lasciato. Se non esiste, Claude ti chiede se crearlo: anche un libro o una ricerca.</span></li>
               <li><code>/fine</code><span>Chiude la sessione e salva un appunto per la prossima volta.</span></li>
               <li><code>ricordami di…</code><span>Mette una cosa da fare nell'elenco, che ritrovi a ogni <code>/inizio</code>.</span></li>
-              <li><code>/aggiorna</code><span>Scarica la versione nuova di Arturo dopo il tuo sì. All'avvio Arturo ti dice quando c'è.</span></li>
+              <li><code>/aggiorna</code><span>Di solito non serve: Arturo si aggiorna da solo quando chiudi la sessione, e la barra in basso ti dice quando c'è una versione nuova. Serve se vuoi guardare prima o tornare indietro.</span></li>
               <li><code>/segnala</code><span>Qualcosa di Arturo non va? Lo dici a chi lo mantiene, con una bozza scritta da Claude.</span></li>
             </ul>
           </div>
@@ -791,6 +792,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
     <section class="traguardo" id="traguardo" aria-labelledby="t-traguardo" tabindex="-1">
       <h3 id="t-traguardo">Arturo è acceso</h3>
       <p>Da qui la strada la fai con lui. Quando non sai da dove ripartire, scrivi <code>/guidami</code>. Se qualcosa non torna, <code>/diagnosi</code> controlla Arturo e il progetto su cui lavori.</p>
+      <p>Com'è andata l'installazione? Dove ti sei fermato, cosa non era chiaro: <a href="../feedback/?tipo=installazione">dimmelo in due righe o a voce</a>.</p>
     </section>
   </main>
 </div>
@@ -813,7 +815,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
         <h3>Arturo</h3>
         <ul>
           <li><a href="https://github.com/stellakamikaze/arturo">Il repository</a><span>Il codice, il README completo e la licenza MIT.</span></li>
-          <li><a href="https://github.com/stellakamikaze/arturo/blob/main/NOVITA.md">Le novità</a><span>Cosa cambia a ogni versione, in parole semplici.</span></li>
+          <li><a href="../novita/">Le novità</a><span>Cosa cambia a ogni versione, in parole semplici.</span></li>
           <li><a href="https://github.com/stellakamikaze/arturo/tree/main/docs/principi">Il curriculum dei principi</a><span>Come lavorare con un'IA che agisce, un capitolo alla volta.</span></li>
           <li><a href="../organizzazioni/">Arturo per organizzazioni</a><span>Uno studio o una redazione che lo usano insieme.</span></li>
         </ul>
@@ -823,6 +825,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
         <ul>
           <li><span><strong>In Claude Code scrivi <code>/diagnosi</code>.</strong> Claude cerca il guasto con te prima di correggerlo.</span></li>
           <li><span><strong>Scrivi <code>/segnala</code>.</strong> Il problema arriva a chi mantiene Arturo, dopo che hai letto il testo.</span></li>
+          <li><a href="../feedback/?tipo=installazione">Dimmi dove ti sei fermato</a><span>Due righe o un vocale, senza account. Lo legge chi mantiene Arturo.</span></li>
           <li><a href="https://github.com/stellakamikaze/arturo/issues">Le segnalazioni pubbliche</a><span>Problemi e proposte su GitHub, visibili a tutti.</span></li>
           <li><a href="https://github.com/stellakamikaze/arturo/blob/main/SECURITY.md">Un problema di sicurezza</a><span>La procedura privata, da non usare in pubblico.</span></li>
         </ul>
@@ -834,7 +837,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><but
 <footer class="piede">
   <div class="dentro">
     <p><strong>Progetto di Federico Nejrotti.</strong> Licenza MIT. <a href="https://github.com/stellakamikaze/arturo">github.com/stellakamikaze/arturo</a></p>
-    <p>Le tue risposte restano in questo browser: la pagina non le manda da nessuna parte. Le visite le conta Plausible, senza cookie e senza dati personali.</p>
+    <p>Le tue risposte restano in questo browser: la pagina non le manda da nessuna parte. Le visite le conta Plausible, senza cookie. <a href="../privacy/">Privacy</a> · <a href="../feedback/">Dimmi com'è andata</a></p>
   </div>
 </footer>
 
