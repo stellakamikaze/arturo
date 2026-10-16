@@ -1,0 +1,75 @@
+# Arturo
+
+> Arturo è un harness gratuito e open source (licenza MIT) per Claude Code, in italiano. Porta dentro Claude Code chi usa l'IA in chat e non ha mai aperto un terminale: guardie che chiedono conferma prima delle azioni che non si annullano, sessioni che si aprono e si chiudono in ordine, agenti e skill. Progetto di Federico Nejrotti.
+
+## Cos'è Arturo
+
+Claude Code è l'IA di Anthropic che lavora sui file del tuo computer. Arturo è una configurazione completa di Claude Code: 23 guardie e automazioni, 10 comandi, 9 agenti, 4 skill e un curriculum di principi spiegati in parole semplici (`docs/principi/`). Viene da una configurazione personale usata ogni giorno in produzione. È stato estratto e ripulito: niente dati, niente credenziali, niente riferimenti a infrastrutture private.
+
+Le guardie sorvegliano i comandi pericolosi, tengono i segreti fuori dalla history di git e chiedono conferma prima dei punti di non ritorno: una cancellazione ricorsiva, un invio, un segreto in un commit. Le sessioni si aprono, si chiudono e si riprendono in ordine, anche su più macchine.
+
+## Per chi è
+
+Arturo è per chi usa già l'IA in chat (ChatGPT, Claude) e non ha mai aperto un terminale. In chat l'IA risponde. In Claude Code lavora: legge e scrive i tuoi file, riprende il lavoro da una sessione all'altra, esegue i passi al posto tuo.
+
+Il primo caso d'uso è il lavoro con le parole e le informazioni: scrivere e revisionare, cercare e sintetizzare, tenere in ordine posta, progetti e documenti. Il secondo è costruire piccoli strumenti su misura per un caso preciso, senza saper programmare.
+
+## I nove comandi
+
+- `/inizio <progetto>`: apre la giornata. Riprende il contesto del progetto, i todo aperti e le scadenze, poi sceglie il lavoro.
+- `/fine`: chiude la giornata. Salva il lavoro con un commit e scrive un appunto per la sessione dopo, con i todo che restano e chi agisce.
+- `/aggiorna`: mostra cosa cambia nella versione nuova, controlla che non travolga le tue modifiche e la applica. `/aggiorna indietro` torna alla versione di prima.
+- `/novita`: racconta gli aggiornamenti non ancora visti, con il principio dietro.
+- `/segnala`: manda a chi mantiene Arturo un problema o un'idea. Claude scrive la bozza, tu la leggi e dici sì.
+- `/setup`: la prima configurazione guidata, una cosa per volta. `/setup verifica` controlla una configurazione già fatta.
+- `/guidami`: guarda gli ultimi appunti e propone tre o quattro cose da fare adesso, con il primo passo.
+- `/diagnosi`: controlla che Arturo regga, poi lo stato del progetto e i file fuori posto.
+- `/creaskill`: fa quattro domande e trasforma un lavoro che fai spesso in una skill tua.
+
+## Cosa non è neutro
+
+- Claude Code è un servizio a pagamento di Anthropic, un'azienda privata. Arturo è gratuito, Claude Code no.
+- Quello che scrivi passa dai server di Anthropic. Le guardie fermano segreti e credenziali, ma la conversazione esce dal tuo computer.
+- Un aggiornamento di Arturo è codice scritto da altri, e gira sul tuo computer.
+- Arturo manda eventi d'uso a chi lo mantiene, con la telemetria accesa di default.
+
+## Impegni
+
+1. Il repository resta pubblico e con licenza MIT. Non diventa privato e non viene cancellato.
+2. Arturo si aggiorna da solo alla chiusura della sessione, e installa solo i rilasci firmati con la chiave di chi lo mantiene. Gli aggiornamenti automatici si spengono con `python3 ~/.claude/bin/arturo aggiornamenti manuali`: da lì aggiorni con `/aggiorna`.
+3. La telemetria è accesa di default: escono eventi da un elenco chiuso, mai contenuti. Partono nomi di comandi e di guardie, esiti e numeri, con un id casuale e sempre lo stesso, la versione, il sistema operativo e il solo giorno. Mai prompt, file tuoi, percorsi del tuo computer, nomi o risposte. Il server è open source, non salva l'indirizzo IP e tiene gli eventi 12 mesi. `python3 ~/.claude/bin/arturo telemetria mostra` fa vedere cosa parte. `python3 ~/.claude/bin/arturo telemetria spegni` o `DO_NOT_TRACK=1` la spengono.
+4. Arturo resta in italiano.
+5. Se lo sviluppo si ferma, lo dichiarano l'ultima voce di NOVITA.md e la cima del README. La copia che hai continua a funzionare, e puoi farne un fork.
+
+## Come si installa
+
+Servono Claude Code con un abbonamento Anthropic che lo includa (Pro, Max, Team, Enterprise o Console: il piano gratuito di claude.ai non lo include), `git`, `python3` 3.8 o successivo e `node` 18 o successivo. Sistemi: macOS e Linux. Su Windows Arturo funziona solo dentro Git Bash.
+
+Arturo vive nella cartella di Claude Code, `~/.claude`. Il primo comando mette da parte la cartella che c'è già, con la data nel nome. Il secondo scarica Arturo:
+
+```bash
+[ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
+```
+
+Poi apri Claude Code dentro la cartella con `cd ~/.claude && claude` e scrivi `/setup`. La guida sul sito porta dal computer vuoto al primo lavoro in dieci passi, con ogni comando già scritto.
+
+## Pagine
+
+- [Arturo](https://arturo.stellakamikaze.org/): cos'è, cosa fa, i limiti e le domande frequenti
+- [Installa Arturo](https://arturo.stellakamikaze.org/installa/): la guida d'installazione in dieci passi, per Mac e Windows
+- [Novità di Arturo](https://arturo.stellakamikaze.org/novita/): cosa cambia a ogni aggiornamento, la voce più recente in cima
+- [Arturo per organizzazioni](https://arturo.stellakamikaze.org/organizzazioni/): cosa vale oggi per uno studio, una redazione o un'associazione
+
+## Codice e documenti
+
+- [Repository su GitHub](https://github.com/stellakamikaze/arturo): il codice di Arturo, licenza MIT
+- [README](https://github.com/stellakamikaze/arturo/blob/main/README.md): requisiti, installazione, impegni e tutto quello che c'è dentro
+- [NOVITA.md](https://github.com/stellakamikaze/arturo/blob/main/NOVITA.md): il canale degli aggiornamenti, raccontato da `/novita`
+- [Licenza](https://github.com/stellakamikaze/arturo/blob/main/LICENSE): il testo della licenza MIT
+- [SECURITY.md](https://github.com/stellakamikaze/arturo/blob/main/SECURITY.md): come segnalare in privato un segreto, un dato personale o un modo per aggirare una guardia
+
+## Optional
+
+- [Chi possiede lo strumento](https://github.com/stellakamikaze/arturo/blob/main/docs/principi/00-chi-possiede-lo-strumento.md): il primo capitolo del curriculum, perché usare Claude Code e come tenere bassa la dipendenza
+- [Chiedere bene](https://github.com/stellakamikaze/arturo/blob/main/docs/principi/01-chiedere-bene.md): il secondo capitolo, il modello risponde alla domanda che gli hai fatto

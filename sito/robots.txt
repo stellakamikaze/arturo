@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /entra
+
+Sitemap: https://arturo.stellakamikaze.org/sitemap.xml
