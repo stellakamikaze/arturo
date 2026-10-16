@@ -100,10 +100,9 @@ Le managed settings dell'organizzazione decidono se Claude Code carica i mod:
   il prompt basta `/dafare nascondi`.
 
 Con la stessa regola Claude Code carica gli altri mod di Arturo, ognuno dalla sua cartella in
-`~/.claude/skills/`. Due di loro proteggono. `redazione-segreti` sostituisce i segreti negli output
-dei tool con la loro forma (tipo, lunghezza, hash) prima che Claude li legga. Anche `blast-radius`
-protegge: ferma `rm -rf`, `git reset --hard` e un push forzato e mostra cosa cambierebbero. Gli altri
-sono comodità: `cache-fredda`, `riscrivi-bash`, `apri` e `gws`.
+`~/.claude/skills/`. Uno di loro protegge: `redazione-segreti` sostituisce i segreti negli output
+dei tool con la loro forma (tipo, lunghezza, hash) prima che Claude li legga. Gli altri sono
+comodità: `cache-fredda`, `riscrivi-bash`, `apri` e `gws`.
 
 Se spegnete i mod, la persona perde il pannello, la riga sopra il prompt **e la redazione dei
 segreti**: Claude torna a leggere in chiaro un token stampato da un comando. Resta lo scanner

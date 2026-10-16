@@ -1,5 +1,6 @@
 ---
 description: Crea piano implementazione step-by-step da scope - task ordinati, dipendenze, strategia test
+disable-model-invocation: true
 ---
 
 # Piano Implementazione

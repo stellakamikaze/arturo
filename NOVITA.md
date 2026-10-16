@@ -11,6 +11,28 @@ modo di lavorare.
 
 ---
 
+## 2026-10-16 — In vista solo i comandi di ogni giorno, Impeccable dal setup, esce blast-radius
+
+**Cosa cambia**: Claude ti propone di sua iniziativa solo i comandi che servono ogni giorno o quando serve:
+`/inizio`, `/fine`, `/aggiorna`, `/novita`, `/segnala`, `/setup`. Gli altri (`/guidami`, `/sparring`,
+`/progetto`, `/discovery`, `/write-plan`, `/diagnosi`, `/strato`, `/percorso`, `/italiano-semplificato`)
+restano tutti: li lanci tu scrivendo il nome. Il README li divide in «Ogni giorno», «Quando serve» e
+«Gli altri comandi». In più `/setup` ti propone Impeccable (fase 8c), la skill di design delle
+interfacce di Paul Bakaus: la installa dall'autore, con le sue versioni nuove. Esce il mod
+`blast-radius`: fermava ogni `rm -rf` e aspettava una risposta, e quando la risposta non arrivava
+bloccava anche il lavoro utile scritto nello stesso comando.
+
+**Il principio dietro**: chi comincia ha bisogno di due comandi, non di quindici. Un elenco lungo
+fa sembrare difficile anche quello che è semplice. E una guardia che ferma il lavoro più spesso di
+quanto lo protegga va tolta.
+
+**Da sapere**: niente da fare. Prima di cancellare una cartella Claude ti chiede ancora conferma
+(`block-dangerous`), e il push forzato resta vietato. «A che punto sono?» non apre più da solo il percorso: scrivi `/percorso`.
+Se fai siti o pagine e vuoi Impeccable senza rifare tutto il setup: `/setup` e salta alla fase 8c,
+oppure leggi `docs/impeccable.md`.
+
+---
+
 ## 2026-10-15 — Gmail, Calendar e Drive senza Google Cloud, e guardie con gli accenti
 
 **Cosa cambia**: per collegare la posta, il calendario e i documenti non serve più creare un

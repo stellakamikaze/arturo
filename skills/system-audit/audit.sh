@@ -300,7 +300,9 @@ NATIVE = {"add-dir", "agents", "artifacts", "btw", "bug", "clear", "code-review"
 # Parole che compaiono come `/parola` senza essere comandi: path e rotte.
 NOTCMD = {"api", "bin", "dev", "etc", "graphql", "home", "opt", "proc", "root", "tmp", "usr", "var",
           "well-known", "xargs"}
-known = skills | cmds | wfs | modcmds | NATIVE | NOTCMD
+# Skill che la persona installa dall'autore, fuori dal repo (/setup fase 8c, 16/10/2026).
+UPSTREAM = {"impeccable"}
+known = skills | cmds | wfs | modcmds | NATIVE | NOTCMD | UPSTREAM
 STORICO = re.compile(r"rimoss|deprecat|eliminat|dismess|assorbit|archiviat|sostituisc|precedent|"
                      r"\bfus[oiae]\b|\bvecchi[oi]\b|\bex\b|non esiste|retrocompatibilit", re.I)
 ENDPOINT = re.compile(r"endpoint|\broute\b|\bAPI\b|\bGET\b|\bPOST\b|https?://|:\d{4}", re.I)

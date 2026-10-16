@@ -1,6 +1,7 @@
 ---
 description: Guarda gli ultimi handoff e le conversazioni recenti e propone il lavoro che ha senso fare adesso, con il motivo e il primo passo
 argument-hint: "[progetto o tema] (opzionale)"
+disable-model-invocation: true
 ---
 
 # Guidami

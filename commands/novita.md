@@ -50,7 +50,7 @@ Per ogni entry non vista, **una per volta**:
 1. **Cosa cambia**, in due frasi tue — non incollare l'entry, raccontala.
 2. **Il principio dietro** — perché questa novità esiste, cosa insegna. Se l'entry rimanda a un capitolo di `docs/principi/`, offri di leggerlo insieme.
 3. **Ti riguarda se...** — aiuta l'utente a capire se la novità tocca il suo modo di usare l'harness.
-4. Proponi: «vuoi fare un po' di sparring per vedere se ti serve?» → se sì, passa a `/sparring novità AAAA-MM-GG — Titolo` con l'intestazione di questa entry.
+4. Proponi: «vuoi fare un po' di sparring per vedere se ti serve?» → se sì, apri con Read `~/.claude/commands/sparring.md` e seguilo con l'argomento `novità AAAA-MM-GG — Titolo`, l'intestazione di questa entry.
 5. Segna questa entry come vista (Passo 3) prima di passare alla successiva.
 
 Linguaggio semplice, zero gergo non spiegato. Se le entry nuove sono più di una, chiedi dopo ciascuna se proseguire.

@@ -24,7 +24,8 @@ npx impeccable install
 ```
 
 L'installatore trova `~/.claude` e ti chiede se installare nel solo progetto o per tutti i
-progetti. Poi chiudi e riapri Claude Code. Nel progetto scrivi `/impeccable init`.
+progetti. `/setup` te la propone nella fase 8c e la installa per tutti i progetti, senza domande:
+`npx --yes impeccable install --providers=claude --scope=global`. Poi chiudi e riapri Claude Code. Nel progetto scrivi `/impeccable init`.
 
 Per aggiornarla:
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M01-M15: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
+"""M01-M16: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
 
 Ogni caso gira con una HOME finta e un server HTTP finto su 127.0.0.1 (ARTURO_TELEMETRIA_URL):
 niente parte mai verso il server vero. Sulla base db96709, prima della telemetria, ogni controllo
@@ -384,9 +384,25 @@ def test_m15(repo: Path) -> None:
     assert eventi.count(("claude", "2.1.300")) == 1, f"M15 la stessa versione parte due volte: {eventi}"
 
 
+def test_m16(repo: Path) -> None:
+    # Il 16/10/2026 quattro test lanciati da soli, con la telemetria accesa, hanno mandato al server vero
+    # quattro «installazioni nuove». Una HOME in una cartella temporanea è un banco di prova: senza un
+    # server indicato a mano, l'indirizzo è uno morto. Si legge l'indirizzo, senza rete.
+    lab = Lab(repo)
+    del lab.env["ARTURO_TELEMETRIA_URL"]
+    codice = "import sys; sys.path.insert(0, sys.argv[1]); import telemetria; print(telemetria.url())"
+    leggi = [sys.executable, "-B", "-c", codice, str(repo / "bin")]
+    r = subprocess.run(leggi, capture_output=True, text=True, env=lab.env, timeout=60, check=False)
+    assert r.stdout.strip() == "http://127.0.0.1:9", f"M16 da una HOME temporanea si punta al server vero: {r.stdout!r} {r.stderr[-300:]!r}"
+    lab.env["ARTURO_TELEMETRIA_URL"] = "http://127.0.0.1:1234"
+    r = subprocess.run(leggi, capture_output=True, text=True, env=lab.env, timeout=60, check=False)
+    assert r.stdout.strip() == "http://127.0.0.1:1234", f"M16 un server indicato a mano non vale più: {r.stdout!r}"
+
+
 TESTS = {"M01": test_m01, "M02": test_m02, "M03": test_m03, "M04": test_m04, "M05": test_m05,
          "M06": test_m06, "M07": test_m07, "M08": test_m08, "M09": test_m09, "M10": test_m10,
-         "M11": test_m11, "M12": test_m12, "M13": test_m13, "M14": test_m14, "M15": test_m15}
+         "M11": test_m11, "M12": test_m12, "M13": test_m13, "M14": test_m14, "M15": test_m15,
+         "M16": test_m16}
 
 
 def main() -> int:
