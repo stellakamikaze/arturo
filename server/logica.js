@@ -49,7 +49,17 @@ export const LIMITI = {
   emailPerGiorno: 40,
   guardieFrequenti: 5,
   conservazioneGiorni: 365,
+  // Il sito (16/10/2026): il modulo di feedback, anche con un vocale, e i download.
+  feedbackPerGiorno: 100,
+  feedbackTesto: 4000,
+  feedbackCorpo: 5 * 1024 * 1024,
+  audioMax: 4 * 1024 * 1024,
+  sitoPerGiorno: 60,
 };
+
+const FEEDBACK_TIPI = ["problema", "idea", "installazione", "altro"];
+const SITO_TIPI = ["download", "github"];
+const SITO_SISTEMI = ["mac", "win", ""];
 
 const ID = /^[A-Za-z0-9-]{8,64}$/;
 const GIORNO = /^\d{4}-\d{2}-\d{2}$/;
@@ -285,6 +295,52 @@ export function avvisoSegnalazione(s, numero) {
   return `Arturo: segnalazione n. ${numero} (${s.tipo}) · ${s.versione || "?"} · ${s.sistema}\n${titolo}\n\n${testo}`;
 }
 
+export function avvisoSetupFinito(riga) {
+  return `Arturo: setup finito (${riga.installazione.slice(0, 8)}) · ${riga.versione} · ${riga.sistema}`;
+}
+
+export function avvisoFeedback(f, numero) {
+  const testo = f.testo.length > 1500 ? f.testo.slice(0, 1500) + "…" : f.testo;
+  return `Arturo: feedback n. ${numero} dal sito (${f.tipo})${f.email ? ` · ${f.email}` : ""}${f.voce ? " · con un vocale" : ""}`
+    + (testo ? `\n\n${testo}` : "");
+}
+
+export function avvisoSito(e, n) {
+  const cosa = e.tipo === "download" ? "qualcuno ha copiato il comando di installazione" : "qualcuno ha aperto il repository su GitHub";
+  const dove = [e.pagina, e.sistema === "mac" ? "Mac" : e.sistema === "win" ? "Windows" : ""].filter(Boolean).join(", ");
+  return `Arturo: ${cosa}${dove ? ` (${dove})` : ""} · ${n}° di oggi`;
+}
+
+// Il modulo del sito: testo, tipo, email facoltativa, un vocale facoltativo. Il campo «sito» è una
+// trappola invisibile: una persona lo lascia vuoto, un bot lo riempie.
+export function validaFeedback(modulo) {
+  const campo = (nome) => {
+    const v = modulo.get(nome);
+    return typeof v === "string" ? v.trim() : "";
+  };
+  if (campo("sito")) return { trappola: true };
+  const testo = campo("testo");
+  if (testo.length > LIMITI.feedbackTesto) return { motivo: "testo troppo lungo" };
+  const tipo = FEEDBACK_TIPI.includes(campo("tipo")) ? campo("tipo") : "altro";
+  const email = campo("email");
+  if (email && (email.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return { motivo: "email non valida" };
+  const v = modulo.get("voce");
+  const audio = v && typeof v === "object" && typeof v.arrayBuffer === "function" && v.size > 0 ? v : null;
+  if (audio && audio.size > LIMITI.audioMax) return { motivo: "vocale troppo lungo" };
+  if (audio && !/^(audio|video)\/(webm|ogg|mp4|mpeg|x-m4a|aac|wav)/.test(audio.type || "")) return { motivo: "formato del vocale non riconosciuto" };
+  if (!testo && !audio) return { motivo: "scrivi qualcosa o registra un vocale" };
+  return { feedback: { tipo, testo, email, voce: audio ? 1 : 0 }, audio };
+}
+
+export function validaSito(dati) {
+  if (!dati || typeof dati !== "object") return { motivo: "corpo mancante" };
+  const tipo = SITO_TIPI.includes(dati.tipo) ? dati.tipo : null;
+  const pagina = typeof dati.pagina === "string" && /^\/[a-z0-9/-]{0,40}$/.test(dati.pagina) ? dati.pagina : null;
+  const sistema = SITO_SISTEMI.includes(dati.sistema || "") ? (dati.sistema || "") : null;
+  if (!tipo || pagina === null || sistema === null) return { motivo: "evento del sito non valido" };
+  return { evento: { tipo, pagina, sistema } };
+}
+
 async function avvisa(avviso, testo) {
   try {
     await avviso(testo);
@@ -293,7 +349,7 @@ async function avvisa(avviso, testo) {
   }
 }
 
-export async function gestisci(request, { archivio, posta, avviso = async () => {}, adesso = new Date(), token }) {
+export async function gestisci(request, { archivio, posta, avviso = async () => {}, voce = null, adesso = new Date(), token }) {
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/") {
     return new Response("Arturo: qui arrivano eventi d'uso, con un id casuale e senza contenuti, e segnalazioni. Codice: https://github.com/stellakamikaze/arturo/tree/main/server\n",
@@ -323,6 +379,11 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     const nuova = await archivio.installazioneNuova(righe[0].installazione);
     await archivio.scriviEventi(righe, adesso.toISOString());
     if (nuova) await avvisa(avviso, avvisoInstallazione(righe[0]));
+    // Chi arriva in fondo a /setup, una volta sola per installazione (16/10/2026).
+    const finito = righe.find((x) => x.evento === "setup" && x.valore === "fine");
+    if (finito && await archivio.primaVolta("sempre", `setup-fine:${finito.installazione}`)) {
+      await avvisa(avviso, avvisoSetupFinito(finito));
+    }
     // Una config rotta arriva subito per email: una sola al giorno per installazione.
     const rotta = righe.find((x) => x.evento === "config");
     if (rotta && await archivio.primaVolta(giorno, `rotta:${rotta.installazione}`) && await archivio.prendiEmail(giorno, LIMITI.emailPerGiorno)) {
@@ -356,6 +417,46 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
       }
     }
     return risposta(201, { numero, email });
+  }
+
+  // Il modulo di feedback del sito, servito dalla landing come /api/feedback. Il testo resta qui,
+  // il vocale no: passa a Telegram e basta. Senza JavaScript il modulo arriva come form: la
+  // risposta allora è un rimando alla pagina, relativo, perché la richiesta passa dal sito.
+  if (url.pathname === "/v1/feedback") {
+    const pagina = (request.headers.get("accept") || "").includes("text/html");
+    const fine = (status, dati, esito) => (pagina
+      ? new Response(null, { status: 303, headers: { location: `/feedback/?${esito}` } })
+      : risposta(status, dati));
+    if (Number(request.headers.get("content-length") || 0) > LIMITI.feedbackCorpo) {
+      return fine(413, { errore: "troppo grande" }, "troppo-grande");
+    }
+    let modulo;
+    try {
+      modulo = await request.formData();
+    } catch {
+      return fine(400, { errore: "modulo non valido" }, "errore");
+    }
+    const { feedback, audio, motivo, trappola } = validaFeedback(modulo);
+    if (trappola) return fine(202, { ricevuto: true }, "inviato");
+    if (motivo) return fine(400, { errore: motivo }, "errore");
+    if (await archivio.incrementa(giorno, "feedback") > LIMITI.feedbackPerGiorno) {
+      return fine(429, { errore: "troppi messaggi oggi" }, "troppi");
+    }
+    const numero = await archivio.salvaFeedback(feedback, adesso.toISOString());
+    const testo = avvisoFeedback(feedback, numero);
+    await avvisa(audio && voce ? (t) => voce(audio, t, numero) : avviso, testo);
+    return fine(201, { numero }, "inviato");
+  }
+
+  // I download dal sito: il comando di installazione copiato, o il repository aperto.
+  if (url.pathname === "/v1/sito") {
+    const { dati, errore } = await leggiJson(request, 2048);
+    if (errore) return errore;
+    const { evento, motivo } = validaSito(dati);
+    if (motivo) return risposta(400, { errore: motivo });
+    const n = await archivio.incrementa(giorno, `sito:${evento.tipo}`);
+    if (n <= LIMITI.sitoPerGiorno) await avvisa(avviso, avvisoSito(evento, n));
+    return risposta(202, { ricevuto: true });
   }
 
   return risposta(404, { errore: "percorso sconosciuto" });

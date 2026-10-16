@@ -25,9 +25,27 @@ function avviso(env) {
   };
 }
 
+// Il vocale del modulo di feedback: prima il testo, poi l'audio. Un .ogg (Firefox) va come messaggio
+// vocale; webm e mp4 (Chrome, Safari) come file, che Telegram fa ascoltare lo stesso.
+function voce(env) {
+  const testo = avviso(env);
+  return async (audio, messaggio, numero) => {
+    await testo(messaggio);
+    if (!env.TELEGRAM_TOKEN || !env.TELEGRAM_CHAT) return;
+    const tipo = audio.type || "audio/webm";
+    const vocale = /ogg/.test(tipo);
+    const estensione = /ogg/.test(tipo) ? "ogg" : /mp4|m4a|aac/.test(tipo) ? "m4a" : /mpeg/.test(tipo) ? "mp3" : /wav/.test(tipo) ? "wav" : "webm";
+    const corpo = new FormData();
+    corpo.append("chat_id", env.TELEGRAM_CHAT);
+    corpo.append(vocale ? "voice" : "document", new File([await audio.arrayBuffer()], `feedback-${numero}.${estensione}`, { type: tipo }));
+    const r = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_TOKEN}/${vocale ? "sendVoice" : "sendDocument"}`, { method: "POST", body: corpo });
+    console.log(r.ok ? `Telegram: vocale del feedback ${numero} inviato` : `Telegram ha risposto ${r.status} al vocale`);
+  };
+}
+
 export default {
   async fetch(request, env) {
-    return gestisci(request, { archivio: archivio(env.DB), posta: posta(env), avviso: avviso(env), token: env.RIEPILOGO_TOKEN });
+    return gestisci(request, { archivio: archivio(env.DB), posta: posta(env), avviso: avviso(env), voce: voce(env), token: env.RIEPILOGO_TOKEN });
   },
   async scheduled(evento, env, ctx) {
     ctx.waitUntil(programmato({ archivio: archivio(env.DB), posta: posta(env) }));

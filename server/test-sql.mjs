@@ -93,6 +93,15 @@ const casi = {
     const giorno = await a.riepilogo("2026-10-11", "2026-10-12");
     assert.equal(giorno.migliorare, null, "Q05 «Dove migliorare» nel recap del giorno");
   },
+  // Il feedback del sito e i contatori del giorno (16/10/2026): testo salvato, vocale no, conteggio che sale.
+  async Q08() {
+    const a = await con([]);
+    const n = await a.salvaFeedback({ tipo: "idea", testo: "Un comando per le bozze.", email: "", voce: 1 }, "2026-10-13T10:00:00Z");
+    assert.equal(n, 1, "Q08 il feedback non ha un numero");
+    assert.equal(await a.incrementa("2026-10-13", "feedback"), 1, "Q08 il contatore non parte da 1");
+    assert.equal(await a.incrementa("2026-10-13", "feedback"), 2, "Q08 il contatore non sale");
+    assert.equal(await a.incrementa("2026-10-14", "feedback"), 1, "Q08 il contatore non riparte il giorno dopo");
+  },
   // Installazione nuova: vera solo finché dall'id non è arrivato niente (l'avviso Telegram parte una volta).
   async Q06() {
     const a = await con([["2026-10-12", "aaaaaaaa", "sessione"]]);

@@ -30,3 +30,13 @@ CREATE TABLE IF NOT EXISTS contatori (
   n INTEGER NOT NULL,
   PRIMARY KEY (giorno, chiave)
 );
+
+-- Il modulo di feedback del sito (16/10/2026). Il vocale non si salva: passa a Telegram.
+CREATE TABLE IF NOT EXISTS feedback (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ricevuto TEXT NOT NULL,
+  tipo TEXT NOT NULL,
+  testo TEXT NOT NULL DEFAULT '',
+  email TEXT NOT NULL DEFAULT '',
+  voce INTEGER NOT NULL DEFAULT 0
+);

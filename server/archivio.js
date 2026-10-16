@@ -47,6 +47,19 @@ export function archivio(db) {
         .bind(giorno, chiave).first();
       return r.n === 1;
     },
+    // Un contatore del giorno: torna il valore dopo l'aggiunta (tetti del feedback e dei download).
+    async incrementa(giorno, chiave) {
+      const r = await db.prepare(
+        "INSERT INTO contatori (giorno, chiave, n) VALUES (?, ?, 1) ON CONFLICT (giorno, chiave) DO UPDATE SET n = n + 1 RETURNING n")
+        .bind(giorno, chiave).first();
+      return r.n;
+    },
+    async salvaFeedback(f, ricevuta) {
+      const r = await db.prepare(
+        "INSERT INTO feedback (ricevuto, tipo, testo, email, voce) VALUES (?, ?, ?, ?, ?) RETURNING id")
+        .bind(ricevuta, f.tipo, f.testo, f.email, f.voce).first();
+      return r.id;
+    },
     async segnaEmail(id) {
       await db.prepare("UPDATE segnalazioni SET email_inviata = 1 WHERE id = ?").bind(id).run();
     },

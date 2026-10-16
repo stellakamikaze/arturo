@@ -7,7 +7,8 @@ const VUOTO = { installazioni: 0, sessioni: 0, versioni: [], sistemi: [], comand
   guardieFrequenti: null, segnalazioni: 0 };
 
 function finti(riepilogo = null) {
-  const stato = { eventi: [], segnalazioni: [], email: [], avvisi: [], contatori: {}, chiavi: {}, pulito: null, finestre: [], opzioni: [] };
+  const stato = { eventi: [], segnalazioni: [], email: [], avvisi: [], contatori: {}, chiavi: {}, pulito: null, finestre: [], opzioni: [],
+    feedback: [], vocali: [], conteggi: {} };
   const archivio = {
     async installazioneNuova(inst) { return !stato.eventi.some((e) => e.installazione === inst); },
     async contaEventi(inst, giorno) {
@@ -28,6 +29,12 @@ function finti(riepilogo = null) {
       return stato.chiavi[k] === 1;
     },
     async segnaEmail() {},
+    async incrementa(giorno, chiave) {
+      const k = `${giorno} ${chiave}`;
+      stato.conteggi[k] = (stato.conteggi[k] || 0) + 1;
+      return stato.conteggi[k];
+    },
+    async salvaFeedback(f) { stato.feedback.push(f); return stato.feedback.length; },
     async riepilogo(dal, al, opzioni = {}) {
       stato.finestre.push([dal, al]);
       stato.opzioni.push(opzioni);
@@ -39,7 +46,8 @@ function finti(riepilogo = null) {
   };
   const posta = async (m) => { stato.email.push(m); };
   const avviso = async (t) => { stato.avvisi.push(t); };
-  return { stato, archivio, posta, avviso };
+  const voce = async (audio, t, numero) => { stato.avvisi.push(t); stato.vocali.push({ tipo: audio.type, size: audio.size, numero }); };
+  return { stato, archivio, posta, avviso, voce };
 }
 
 const adesso = new Date("2026-10-13T10:00:00Z");
@@ -302,6 +310,76 @@ const casi = {
     const r = await gestisci(post("/v1/eventi", lotto([{ evento: "sessione", valore: "" }])), { ...g, avviso: rotto, adesso });
     assert.equal(r.status, 202, "V20 un avviso fallito fa fallire la richiesta");
     assert.equal(g.stato.eventi.length, 1, "V20 un avviso fallito fa perdere l'evento");
+  },
+  async V21() {
+    // Il modulo di feedback del sito (16/10/2026): testo, tipo, email, e il vocale che passa a Telegram.
+    const f = finti();
+    const modulo = (campi, voce) => {
+      const m = new FormData();
+      for (const [k, v] of Object.entries(campi)) m.append(k, v);
+      if (voce) m.append("voce", voce, "voce.webm");
+      return new Request("https://arturo.example/v1/feedback", { method: "POST", body: m });
+    };
+    let r = await gestisci(modulo({ tipo: "idea", testo: "Mi piacerebbe un comando per le bozze.", email: "a@esempio.it" }), { ...f, adesso });
+    assert.equal(r.status, 201, "V21 un feedback scritto non è accettato");
+    assert.deepEqual(f.stato.feedback[0], { tipo: "idea", testo: "Mi piacerebbe un comando per le bozze.", email: "a@esempio.it", voce: 0 },
+      "V21 il feedback salvato non è quello mandato");
+    assert.match(f.stato.avvisi[0], /^Arturo: feedback n\. 1 dal sito \(idea\) · a@esempio\.it\n\nMi piacerebbe/, "V21 testo dell'avviso");
+    const audio = new Blob([new Uint8Array(2048)], { type: "audio/webm;codecs=opus" });
+    r = await gestisci(modulo({ tipo: "problema", testo: "" }, audio), { ...f, adesso });
+    assert.equal(r.status, 201, "V21 un feedback solo vocale non è accettato");
+    assert.equal(f.stato.vocali.length, 1, "V21 il vocale non passa a Telegram");
+    assert.equal(f.stato.feedback[1].voce, 1, "V21 il feedback non dice che c'era un vocale");
+    assert.ok(!JSON.stringify(f.stato.feedback).includes("arrayBuffer"), "V21 il vocale finisce nell'archivio");
+  },
+  async V22() {
+    // Rifiuti: niente da dire, email storta, audio troppo grande o di un altro tipo, la trappola dei bot, il tetto.
+    const f = finti();
+    const invia = (campi, voce, accept) => {
+      const m = new FormData();
+      for (const [k, v] of Object.entries(campi)) m.append(k, v);
+      if (voce) m.append("voce", voce, "voce.webm");
+      return gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: m,
+        headers: accept ? { accept } : {} }), { ...f, adesso });
+    };
+    assert.equal((await invia({ testo: "  " })).status, 400, "V22 un feedback vuoto è accettato");
+    assert.equal((await invia({ testo: "x", email: "non-una-email" })).status, 400, "V22 un'email storta è accettata");
+    assert.equal((await invia({ testo: "x" }, new Blob([new Uint8Array(LIMITI.audioMax + 1)], { type: "audio/webm" }))).status, 400,
+      "V22 un vocale troppo grande è accettato");
+    assert.equal((await invia({ testo: "x" }, new Blob([new Uint8Array(10)], { type: "application/zip" }))).status, 400,
+      "V22 un file che non è audio è accettato");
+    const bot = await invia({ testo: "compra ora", sito: "https://spam.example" });
+    assert.equal(bot.status, 202, "V22 la trappola risponde diversamente da un invio vero");
+    assert.equal(f.stato.feedback.length + f.stato.avvisi.length, 0, "V22 il messaggio di un bot è salvato o avvisato");
+    const senzaJs = await invia({ testo: "dal modulo senza JavaScript" }, null, "text/html,application/xhtml+xml");
+    assert.equal(senzaJs.status, 303, "V22 il modulo senza JavaScript non torna alla pagina");
+    assert.equal(senzaJs.headers.get("location"), "/feedback/?inviato", "V22 il rimando non è relativo alla pagina del sito");
+    for (let i = 1; i < LIMITI.feedbackPerGiorno; i++) await invia({ testo: `n ${i}` });
+    assert.equal((await invia({ testo: "uno di troppo" })).status, 429, "V22 il tetto giornaliero dei feedback non regge");
+  },
+  async V23() {
+    // I download dal sito: un avviso per evento, con pagina e sistema, fino al tetto del giorno.
+    const f = finti();
+    let r = await gestisci(post("/v1/sito", { tipo: "download", pagina: "/installa/", sistema: "mac" }), { ...f, adesso });
+    assert.equal(r.status, 202, "V23 un download non è accettato");
+    assert.equal(f.stato.avvisi[0], "Arturo: qualcuno ha copiato il comando di installazione (/installa/, Mac) · 1° di oggi",
+      "V23 testo dell'avviso di download");
+    for (const sbagliato of [{ tipo: "virus", pagina: "/" }, { tipo: "download", pagina: "https://altro.example" },
+      { tipo: "github", pagina: "/", sistema: "amiga" }]) {
+      r = await gestisci(post("/v1/sito", sbagliato), { ...f, adesso });
+      assert.equal(r.status, 400, `V23 un evento del sito fuori elenco è accettato: ${JSON.stringify(sbagliato)}`);
+    }
+    for (let i = 1; i < LIMITI.sitoPerGiorno + 5; i++) await gestisci(post("/v1/sito", { tipo: "github", pagina: "/" }), { ...f, adesso });
+    assert.equal(f.stato.avvisi.length, 1 + LIMITI.sitoPerGiorno, "V23 i download oltre il tetto mandano ancora avvisi");
+  },
+  async V24() {
+    // Chi arriva in fondo a /setup: un avviso solo, la prima volta per installazione.
+    const f = finti();
+    await gestisci(post("/v1/eventi", lotto([{ evento: "setup", valore: "fase:9" }, { evento: "setup", valore: "fine" }])), { ...f, adesso });
+    await gestisci(post("/v1/eventi", lotto([{ evento: "setup", valore: "fine" }])), { ...f, adesso });
+    const finiti = f.stato.avvisi.filter((a) => a.startsWith("Arturo: setup finito"));
+    assert.equal(finiti.length, 1, `V24 il setup finito va avvisato una volta sola: ${JSON.stringify(f.stato.avvisi)}`);
+    assert.equal(finiti[0], "Arturo: setup finito (1b2c3d4e) · v2026-10-13 · Darwin", "V24 testo dell'avviso di setup finito");
   },
 };
 
