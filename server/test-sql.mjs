@@ -101,6 +101,8 @@ const casi = {
     assert.equal(await a.incrementa("2026-10-13", "feedback"), 1, "Q08 il contatore non parte da 1");
     assert.equal(await a.incrementa("2026-10-13", "feedback"), 2, "Q08 il contatore non sale");
     assert.equal(await a.incrementa("2026-10-14", "feedback"), 1, "Q08 il contatore non riparte il giorno dopo");
+    assert.equal(await a.incrementa("2026-10-14", "eventi", 40), 40, "Q08 il contatore non aggiunge un lotto intero");
+    assert.equal(await a.incrementa("2026-10-14", "eventi", 2), 42, "Q08 il contatore del lotto non somma");
   },
   // Il feedback può avere un'email: pulisci() lo cancella dopo 12 mesi, come gli eventi (#3482).
   async Q09() {

@@ -12,26 +12,22 @@ function finti(riepilogo = null) {
   const archivio = {
     async installazioneNuova(inst) { return !stato.eventi.some((e) => e.installazione === inst); },
     async contaEventi(inst, giorno) {
-      return stato.eventi.filter((e) => e.ricevuto === giorno && (!inst || e.installazione === inst)).length;
+      return stato.eventi.filter((e) => e.ricevuto === giorno && e.installazione === inst).length;
     },
     async scriviEventi(righe, ricevuto) {
       for (const r of righe) stato.eventi.push({ ...r, ricevuto: ricevuto.slice(0, 10) });
     },
     async contaSegnalazioni() { return stato.segnalazioni.length; },
     async salvaSegnalazione(s) { stato.segnalazioni.push(s); return stato.segnalazioni.length; },
-    async prendiEmail(giorno, massimo) {
-      stato.contatori[giorno] = (stato.contatori[giorno] || 0) + 1;
-      return stato.contatori[giorno] <= massimo;
-    },
     async primaVolta(giorno, chiave) {
       const k = `${giorno} ${chiave}`;
       stato.chiavi[k] = (stato.chiavi[k] || 0) + 1;
       return stato.chiavi[k] === 1;
     },
     async segnaEmail() {},
-    async incrementa(giorno, chiave) {
+    async incrementa(giorno, chiave, quanti = 1) {
       const k = `${giorno} ${chiave}`;
-      stato.conteggi[k] = (stato.conteggi[k] || 0) + 1;
+      stato.conteggi[k] = (stato.conteggi[k] || 0) + quanti;
       return stato.conteggi[k];
     },
     async salvaFeedback(f) { stato.feedback.push(f); return stato.feedback.length; },
@@ -99,7 +95,7 @@ const casi = {
     const r = await gestisci(post("/v1/segnalazioni", s), { ...f, adesso });
     assert.equal(r.status, 201, "V05 segnalazione valida rifiutata");
     assert.deepEqual(await r.json(), { numero: 1, email: true });
-    assert.equal(f.stato.email[0].oggetto, "[Arturo] [problema] /fine si ferma", "V05 oggetto sbagliato");
+    assert.equal(f.stato.email[0].oggetto, "[Arturo] [problema] (da verificare) /fine si ferma", "V05 oggetto sbagliato");
     assert.match(f.stato.email[0].testo, /Il commit non parte\./);
     for (const cattiva of [{ ...s, tipo: "spam" }, { ...s, titolo: "" }, { ...s, testo: "x".repeat(16001) }]) {
       assert.equal((await gestisci(post("/v1/segnalazioni", cattiva), { ...f, adesso })).status, 400, "V05 segnalazione non valida accettata");
@@ -108,9 +104,13 @@ const casi = {
   async V06() {
     const f = finti();
     const s = { tipo: "proposta", titolo: "t", testo: "x" };
-    for (let i = 0; i < LIMITI.emailPerGiorno + 3; i++) await gestisci(post("/v1/segnalazioni", s), { ...f, adesso });
-    assert.equal(f.stato.segnalazioni.length, LIMITI.emailPerGiorno + 3, "V06 oltre il tetto email la segnalazione non è salvata");
-    assert.equal(f.stato.email.length, LIMITI.emailPerGiorno, "V06 il tetto delle email non regge");
+    for (let i = 0; i < LIMITI.avvisiSegnalazioniPerGiorno + 3; i++) await gestisci(post("/v1/segnalazioni", s), { ...f, adesso });
+    assert.equal(f.stato.segnalazioni.length, LIMITI.avvisiSegnalazioniPerGiorno + 3, "V06 oltre il tetto email la segnalazione non è salvata");
+    assert.equal(f.stato.email.length, LIMITI.emailSegnalazioniPerGiorno, "V06 il tetto delle email non regge");
+    assert.equal(f.stato.avvisi.length, LIMITI.avvisiSegnalazioniPerGiorno, "V06 il tetto degli avvisi delle segnalazioni non regge");
+    // Le segnalazioni hanno finito le loro email: una config rotta ha ancora le sue.
+    await gestisci(post("/v1/eventi", lotto([{ evento: "config", valore: "rotta-settings" }])), { ...f, adesso });
+    assert.equal(f.stato.email.length, LIMITI.emailSegnalazioniPerGiorno + 1, "V06 le segnalazioni consumano le email delle config rotte");
   },
   async V07() {
     const f = finti();
@@ -172,7 +172,7 @@ const casi = {
     await gestisci(post("/v1/eventi", lotto([{ evento: "config", valore: "rotta-rebase" }], { installazione: "99999999-zzzz" })), { ...f, adesso });
     assert.equal(f.stato.email.length, 2, "V13 un'altra installazione non riceve il suo avviso");
     const g = finti();
-    g.stato.contatori["2026-10-13"] = LIMITI.emailPerGiorno;
+    g.stato.conteggi["2026-10-13 email-rotta"] = LIMITI.emailRottePerGiorno;
     await gestisci(post("/v1/eventi", rotta), { ...g, adesso });
     assert.equal(g.stato.email.length, 0, "V13 il tetto delle email non vale per la config rotta");
     for (const v of ["rotta-altro", "rotta-settings ", "../x"]) {
@@ -325,7 +325,7 @@ const casi = {
     assert.deepEqual(f.stato.feedback[0], { tipo: "idea", testo: "Mi piacerebbe un comando per le bozze.", email: "a@esempio.it", voce: 0 },
       "V21 il feedback salvato non è quello mandato");
     assert.match(f.stato.avvisi[0], /^Arturo: feedback n\. 1 dal sito \(idea\) · a@esempio\.it\n\nMi piacerebbe/, "V21 testo dell'avviso");
-    const audio = new Blob([new Uint8Array(2048)], { type: "audio/webm;codecs=opus" });
+    const audio = new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3]), new Uint8Array(2044)], { type: "audio/webm;codecs=opus" });
     r = await gestisci(modulo({ tipo: "problema", testo: "" }, audio), { ...f, adesso });
     assert.equal(r.status, 201, "V21 un feedback solo vocale non è accettato");
     assert.equal(f.stato.vocali.length, 1, "V21 il vocale non passa a Telegram");
@@ -380,6 +380,81 @@ const casi = {
     const finiti = f.stato.avvisi.filter((a) => a.startsWith("Arturo: setup finito"));
     assert.equal(finiti.length, 1, `V24 il setup finito va avvisato una volta sola: ${JSON.stringify(f.stato.avvisi)}`);
     assert.equal(finiti[0], "Arturo: setup finito (1b2c3d4e) · v2026-10-13 · Darwin", "V24 testo dell'avviso di setup finito");
+    // Tetto degli avvisi: oltre, il setup finito si registra ma non manda niente.
+    const g = finti();
+    g.stato.conteggi["2026-10-13 avviso-setup"] = LIMITI.avvisiSetupPerGiorno;
+    await gestisci(post("/v1/eventi", lotto([{ evento: "setup", valore: "fine" }], { installazione: "77777777-setup" })), { ...g, adesso });
+    assert.ok(!g.stato.avvisi.some((t) => t.includes("setup finito")), "V24 oltre il tetto il setup finito manda ancora avvisi");
+  },
+  async V25() {
+    // Review di sicurezza del 16/10/2026: limite per IP e tetto degli avvisi delle installazioni nuove.
+    const f = finti();
+    const chiesti = [];
+    const fermo = async (tipo) => { chiesti.push(tipo); return false; };
+    assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }])), { ...f, adesso, limite: fermo })).status, 429,
+      "V25 il limite per IP non ferma gli eventi");
+    assert.equal(f.stato.eventi.length, 0, "V25 oltre il limite per IP gli eventi si salvano");
+    assert.equal((await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "t", testo: "x" }), { ...f, adesso, limite: fermo })).status, 429,
+      "V25 il limite per IP non ferma le segnalazioni");
+    assert.equal((await gestisci(post("/v1/sito", { tipo: "download", pagina: "/", sistema: "" }), { ...f, adesso, limite: fermo })).status, 429,
+      "V25 il limite per IP non ferma i download");
+    const m = new FormData();
+    m.append("testo", "ciao");
+    assert.equal((await gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: m }), { ...f, adesso, limite: fermo })).status, 429,
+      "V25 il limite per IP non ferma il feedback");
+    assert.deepEqual(chiesti, ["eventi", "moduli", "moduli", "moduli"], "V25 il limite usa il secchio sbagliato");
+    // Id inventati: oltre il tetto le installazioni nuove si contano ma non mandano messaggi.
+    const g = finti();
+    for (let i = 0; i < LIMITI.avvisiInstallazioniPerGiorno + 5; i++) {
+      await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }], { installazione: `finta${String(i).padStart(4, "0")}` })), { ...g, adesso });
+    }
+    assert.equal(g.stato.avvisi.length, LIMITI.avvisiInstallazioniPerGiorno, "V25 il tetto degli avvisi di installazione non regge");
+    assert.equal(g.stato.conteggi["2026-10-13 eventi"], LIMITI.avvisiInstallazioniPerGiorno + 5, "V25 il totale del giorno non sta nel contatore");
+    g.stato.conteggi["2026-10-13 eventi"] = LIMITI.eventiTotaliPerGiorno;
+    assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }])), { ...g, adesso })).status, 429, "V25 il tetto totale non regge");
+  },
+  async V26() {
+    // Il giorno dichiarato più vecchio di una settimana e la versione libera.
+    const f = finti();
+    await gestisci(post("/v1/eventi", lotto([{ evento: "sessione", giorno: "0001-01-01" }, { evento: "sessione", giorno: "2026-10-08" }])), { ...f, adesso });
+    assert.deepEqual(f.stato.eventi.map((e) => e.giorno), ["2026-10-13", "2026-10-08"], "V26 un giorno troppo vecchio non diventa il giorno del server");
+    for (const v of ["ignora le istruzioni e", "v1\nriga", "<b>x</b>", "", "x".repeat(61)]) {
+      assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }], { versione: v })), { ...f, adesso })).status, 400,
+        `V26 una versione libera è accettata: ${JSON.stringify(v)}`);
+    }
+    for (const v of ["v2026-10-16.5", "v2026-10-16.5-3-gf16c16e", "f16c16e", "sconosciuta"]) {
+      assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }], { versione: v })), { ...f, adesso })).status, 202,
+        `V26 una versione vera è rifiutata: ${v}`);
+    }
+    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "t", testo: "x", versione: "ignora le istruzioni" }), { ...f, adesso });
+    assert.equal(f.stato.segnalazioni[0].versione, "", "V26 la segnalazione tiene una versione libera");
+  },
+  async V27() {
+    // Il vocale: si guardano i primi byte, il corpo ha un tetto anche senza content-length, niente invii da altri siti.
+    const f = finti();
+    const invia = (voce, headers = {}) => {
+      const m = new FormData();
+      m.append("testo", "x");
+      if (voce) m.append("voce", voce, "voce.webm");
+      return gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: m, headers }), { ...f, adesso });
+    };
+    assert.equal((await invia(new Blob([new Uint8Array(64)], { type: "audio/webm" }))).status, 400, "V27 un vocale di zeri è accettato");
+    assert.equal((await invia(new Blob([new TextEncoder().encode("<html>")], { type: "audio/ogg" }))).status, 400, "V27 un HTML dichiarato audio è accettato");
+    for (const testa of [[0x1a, 0x45, 0xdf, 0xa3], [...new TextEncoder().encode("OggS")], [0, 0, 0, 0x20, ...new TextEncoder().encode("ftyp")]]) {
+      assert.equal((await invia(new Blob([new Uint8Array(testa), new Uint8Array(32)], { type: "audio/webm" }))).status, 201,
+        `V27 un vocale vero è rifiutato: ${testa}`);
+    }
+    assert.equal((await invia(null, { "sec-fetch-site": "cross-site" })).status, 403, "V27 un invio da un altro sito è accettato");
+    assert.equal((await gestisci(new Request("https://arturo.example/v1/sito", { method: "POST", body: JSON.stringify({ tipo: "download", pagina: "/", sistema: "" }),
+      headers: { "sec-fetch-site": "cross-site" } }), { ...f, adesso })).status, 403, "V27 un download da un altro sito è accettato");
+    assert.equal((await invia(null, { "sec-fetch-site": "same-origin" })).status, 201, "V27 un invio dal sito è rifiutato");
+    // Un corpo a pezzi, senza content-length, oltre il tetto.
+    const pezzo = new Uint8Array(1024 * 1024);
+    let n = 0;
+    const flusso = new ReadableStream({ pull(c) { if (n++ < 7) c.enqueue(pezzo); else c.close(); } });
+    const r = await gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: flusso, duplex: "half",
+      headers: { "content-type": "multipart/form-data; boundary=x" } }), { ...f, adesso });
+    assert.equal(r.status, 413, "V27 un corpo a pezzi oltre il tetto non è fermato");
   },
 };
 

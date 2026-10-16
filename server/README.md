@@ -41,8 +41,14 @@ feedback più vecchi di 12 mesi si cancellano il lunedì.
   del sito (col vocale, se c'è), per ogni download dal sito (fino a 60 al giorno) e per il setup
   finito, una volta per installazione. Il testo porta solo quello che il server già salva, più il
   vocale, che non si salva. Senza i secret non parte niente.
-- **Ogni segnalazione** arriva come email, con l'oggetto `[Arturo] [tipo] titolo`. Il tetto è
-  di 40 email al giorno: oltre, la segnalazione resta in D1 senza email.
+- **Ogni segnalazione** arriva come email, con l'oggetto `[Arturo] [tipo] (da verificare) titolo`:
+  il testo lo scrive chiunque. Il tetto è di 20 email al giorno, separato dalle 20 delle config
+  rotte: oltre, la segnalazione resta in D1 senza email.
+- **Tetti e limiti contro l'abuso (16/10/2026).** Gli avvisi Telegram hanno un tetto al giorno:
+  20 installazioni nuove, 20 setup finiti, 30 segnalazioni. Oltre, il dato si salva e il messaggio
+  no. Il limite per IP sta nei binding `LIMITE_EVENTI` (60 al minuto) e `LIMITE_MODULI` (10 al
+  minuto) di `wrangler.toml`; l'IP non si salva. Il modulo e i download rifiutano un invio da un
+  altro sito (`Sec-Fetch-Site: cross-site`), e del vocale si controllano i primi byte.
 - **Ogni mattina alle 8** (06:00 UTC) arriva il recap del giorno prima, solo se quel giorno ci
   sono stati eventi o segnalazioni. Ha anche le config rotte e la deriva cambiata.
 - **Il lunedì** arriva sempre il riepilogo dei 7 giorni, anche vuoto. Si apre con «Dove migliorare

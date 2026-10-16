@@ -43,9 +43,21 @@ function voce(env) {
   };
 }
 
+// Il limite per IP: binding Rate Limiting LIMITE_EVENTI e LIMITE_MODULI (wrangler.toml). La chiave è
+// l'IP di chi chiama, che il Worker non salva. Senza binding lascia passare.
+function limite(env) {
+  return async (tipo, request) => {
+    const binding = tipo === "eventi" ? env.LIMITE_EVENTI : env.LIMITE_MODULI;
+    if (!binding) return true;
+    const { success } = await binding.limit({ key: request.headers.get("cf-connecting-ip") || "senza-ip" });
+    return success;
+  };
+}
+
 export default {
   async fetch(request, env) {
-    return gestisci(request, { archivio: archivio(env.DB), posta: posta(env), avviso: avviso(env), voce: voce(env), token: env.RIEPILOGO_TOKEN });
+    return gestisci(request, { archivio: archivio(env.DB), posta: posta(env), avviso: avviso(env), voce: voce(env), token: env.RIEPILOGO_TOKEN,
+      limite: limite(env) });
   },
   async scheduled(evento, env, ctx) {
     ctx.waitUntil(programmato({ archivio: archivio(env.DB), posta: posta(env) }));

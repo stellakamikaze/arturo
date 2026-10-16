@@ -7,10 +7,9 @@ const SETUP_DAL = "2026-10-15";
 
 export function archivio(db) {
   return {
+    // Gli eventi del giorno di un'installazione. Il totale di tutte sta nel contatore «eventi».
     async contaEventi(installazione, giorno) {
-      const r = installazione
-        ? await db.prepare("SELECT COUNT(*) AS n FROM eventi WHERE installazione = ? AND ricevuto_giorno = ?").bind(installazione, giorno).first()
-        : await db.prepare("SELECT COUNT(*) AS n FROM eventi WHERE ricevuto_giorno = ?").bind(giorno).first();
+      const r = await db.prepare("SELECT COUNT(*) AS n FROM eventi WHERE installazione = ? AND ricevuto_giorno = ?").bind(installazione, giorno).first();
       return r ? r.n : 0;
     },
     // Vero se dall'installazione non è mai arrivato niente: è la prima volta che Arturo gira lì.
@@ -33,13 +32,6 @@ export function archivio(db) {
         .bind(ricevuta, s.tipo, s.titolo, s.testo, s.versione, s.sistema, s.installazione).first();
       return r.id;
     },
-    // Prende un posto fra le email del giorno: vero se c'era ancora posto.
-    async prendiEmail(giorno, massimo) {
-      const r = await db.prepare(
-        "INSERT INTO contatori (giorno, chiave, n) VALUES (?, 'email', 1) ON CONFLICT (giorno, chiave) DO UPDATE SET n = n + 1 RETURNING n")
-        .bind(giorno).first();
-      return r.n <= massimo;
-    },
     // Vero solo la prima volta che la chiave compare nel giorno: un avviso al giorno, non uno per lotto.
     async primaVolta(giorno, chiave) {
       const r = await db.prepare(
@@ -47,11 +39,11 @@ export function archivio(db) {
         .bind(giorno, chiave).first();
       return r.n === 1;
     },
-    // Un contatore del giorno: torna il valore dopo l'aggiunta (tetti del feedback e dei download).
-    async incrementa(giorno, chiave) {
+    // Un contatore del giorno: torna il valore dopo l'aggiunta. Tiene i tetti di eventi, email, avvisi, feedback e download.
+    async incrementa(giorno, chiave, quanti = 1) {
       const r = await db.prepare(
-        "INSERT INTO contatori (giorno, chiave, n) VALUES (?, ?, 1) ON CONFLICT (giorno, chiave) DO UPDATE SET n = n + 1 RETURNING n")
-        .bind(giorno, chiave).first();
+        "INSERT INTO contatori (giorno, chiave, n) VALUES (?, ?, ?) ON CONFLICT (giorno, chiave) DO UPDATE SET n = n + excluded.n RETURNING n")
+        .bind(giorno, chiave, quanti).first();
       return r.n;
     },
     async salvaFeedback(f, ricevuta) {

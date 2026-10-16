@@ -84,7 +84,7 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   OSTACOLO se un hook di Arturo è spento, una guardia è modificata o un comando modificato va in
   conflitto con un aggiornamento), segnalazioni. Nei giorni senza eventi né segnalazioni non parte.
 - **La config rotta arriva subito.** Un'email `[Arturo] Config rotta su un'installazione`, una sola
-  al giorno per installazione, dentro il tetto di 40.
+  al giorno per installazione, dentro un tetto di 20 tutto suo.
 - **Il riepilogo del lunedì.** Il lunedì arriva sempre lo stesso riepilogo sui 7 giorni, anche
   vuoto: se manca, il server è fermo. In più ha la deriva di tutte le installazioni che ne hanno una,
   anche ferma, e le guardie frequenti: almeno 5 blocchi della stessa guardia nella settimana sulla

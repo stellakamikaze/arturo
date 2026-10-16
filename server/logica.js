@@ -49,7 +49,17 @@ export const LIMITI = {
   eventiPerGiorno: 500,
   eventiTotaliPerGiorno: 100000,
   segnalazioniPerGiorno: 200,
-  emailPerGiorno: 40,
+  // Due tetti separati (16/10/2026): le segnalazioni, che chiunque può mandare, non consumano le
+  // email delle config rotte.
+  emailRottePerGiorno: 20,
+  emailSegnalazioniPerGiorno: 20,
+  // Gli avvisi su Telegram che un POST anonimo può far partire: oltre il tetto il dato si salva, il
+  // messaggio no (review di sicurezza del 16/10/2026).
+  avvisiInstallazioniPerGiorno: 20,
+  avvisiSetupPerGiorno: 20,
+  avvisiSegnalazioniPerGiorno: 30,
+  // Una data dichiarata dal client più vecchia di così diventa il giorno del server.
+  giorniIndietro: 7,
   guardieFrequenti: 5,
   conservazioneGiorni: 365,
   // Il sito (16/10/2026): il modulo di feedback, anche con un vocale, e i download.
@@ -66,6 +76,9 @@ const SITO_SISTEMI = ["mac", "win", ""];
 
 const ID = /^[A-Za-z0-9-]{8,64}$/;
 const GIORNO = /^\d{4}-\d{2}-\d{2}$/;
+// La versione è l'output di `git describe --tags --always` (bin/telemetria.py), oppure «sconosciuta».
+// Niente testo libero: finisce nel riepilogo che legge la routine del lunedì.
+const VERSIONE = /^[A-Za-z0-9._+-]{1,60}$/;
 
 export function oggi(adesso = new Date()) {
   return adesso.toISOString().slice(0, 10);
@@ -97,17 +110,19 @@ export function validaLotto(dati, giornoServer) {
   if (!dati || typeof dati !== "object") return { motivo: "corpo mancante" };
   const { installazione, versione, sistema, eventi } = dati;
   if (typeof installazione !== "string" || !ID.test(installazione)) return { motivo: "installazione non valida" };
-  if (testoCorto(versione, 60) === null) return { motivo: "versione non valida" };
+  if (typeof versione !== "string" || !VERSIONE.test(versione)) return { motivo: "versione non valida" };
   if (!SISTEMI.includes(sistema)) return { motivo: "sistema non valido" };
   if (!Array.isArray(eventi) || eventi.length === 0 || eventi.length > LIMITI.eventiPerLotto) return { motivo: "eventi mancanti o troppi" };
   const righe = [];
+  const minimo = giorniFa(new Date(`${giornoServer}T12:00:00Z`), LIMITI.giorniIndietro);
   for (const e of eventi) {
     if (!e || typeof e !== "object") return { motivo: "evento non valido" };
     const regola = EVENTI[e.evento];
     const valore = e.valore ?? "";
     if (!regola || typeof valore !== "string" || !regola.test(valore)) return { motivo: `evento fuori elenco: ${String(e.evento).slice(0, 30)}` };
-    // Un giorno nel futuro o malformato diventa il giorno del server.
-    const giorno = typeof e.giorno === "string" && GIORNO.test(e.giorno) && e.giorno <= giornoServer ? e.giorno : giornoServer;
+    // Un giorno nel futuro, troppo vecchio o malformato diventa il giorno del server.
+    const giorno = typeof e.giorno === "string" && GIORNO.test(e.giorno) && e.giorno <= giornoServer && e.giorno >= minimo
+      ? e.giorno : giornoServer;
     righe.push({ giorno, installazione, versione, sistema, evento: e.evento, valore });
   }
   return { righe };
@@ -125,7 +140,7 @@ export function validaSegnalazione(dati) {
       tipo,
       titolo: titolo.trim(),
       testo,
-      versione: testoCorto(dati.versione, 60) || "",
+      versione: typeof dati.versione === "string" && VERSIONE.test(dati.versione) ? dati.versione : "",
       sistema: SISTEMI.includes(dati.sistema) ? dati.sistema : "altro",
       installazione,
     },
@@ -163,7 +178,7 @@ export function mime({ da, a, oggetto, testo, adesso = new Date(), id = crypto.r
 }
 
 export function emailSegnalazione(s, numero) {
-  const oggetto = `[Arturo] [${s.tipo}] ${s.titolo.replace(/^\[(problema|proposta|integrazione)\]\s*/i, "")}`;
+  const oggetto = `[Arturo] [${s.tipo}] (da verificare) ${s.titolo.replace(/^\[(problema|proposta|integrazione)\]\s*/i, "")}`;
   const testo = `${s.testo}\n\n---\nSegnalazione n. ${numero} · Arturo ${s.versione || "?"} · ${s.sistema}` +
     (s.installazione ? ` · installazione ${s.installazione}` : "") + "\n";
   return { oggetto, testo };
@@ -335,6 +350,40 @@ export function validaFeedback(modulo) {
   return { feedback: { tipo, testo, email, voce: audio ? 1 : 0 }, audio };
 }
 
+// Il tipo del vocale lo dichiara il browser: si guarda anche l'inizio del file. WebM (EBML), Ogg,
+// MP4 e M4A (ftyp a 4 byte dall'inizio), MP3 (ID3 o sincronia MPEG), WAV (RIFF).
+export async function audioVero(audio) {
+  const b = new Uint8Array(await audio.slice(0, 12).arrayBuffer());
+  const ascii = (da, a) => String.fromCharCode(...b.slice(da, a));
+  return (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3)
+    || ascii(0, 4) === "OggS"
+    || ascii(4, 8) === "ftyp"
+    || ascii(0, 3) === "ID3" || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0)
+    || ascii(0, 4) === "RIFF";
+}
+
+// Legge il corpo con un tetto, anche quando manca content-length (invio a pezzi): null se lo supera.
+async function corpoLimitato(request, limite) {
+  if (!request.body) return new Uint8Array(0);
+  const lettore = request.body.getReader();
+  const pezzi = [];
+  let totale = 0;
+  for (;;) {
+    const { done, value } = await lettore.read();
+    if (done) break;
+    totale += value.length;
+    if (totale > limite) {
+      await lettore.cancel();
+      return null;
+    }
+    pezzi.push(value);
+  }
+  const tutto = new Uint8Array(totale);
+  let i = 0;
+  for (const p of pezzi) { tutto.set(p, i); i += p.length; }
+  return tutto;
+}
+
 export function validaSito(dati) {
   if (!dati || typeof dati !== "object") return { motivo: "corpo mancante" };
   const tipo = SITO_TIPI.includes(dati.tipo) ? dati.tipo : null;
@@ -352,7 +401,10 @@ async function avvisa(avviso, testo) {
   }
 }
 
-export async function gestisci(request, { archivio, posta, avviso = async () => {}, voce = null, adesso = new Date(), token }) {
+// `limite(tipo, request)` è il limite per IP del Worker (binding Rate Limiting): falso quando la
+// richiesta va oltre. Senza binding, come nei test e in un fork che non lo configura, lascia passare.
+export async function gestisci(request, { archivio, posta, avviso = async () => {}, voce = null, adesso = new Date(), token,
+  limite = async () => true }) {
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/") {
     return new Response("Arturo: qui arrivano eventi d'uso, con un id casuale e senza contenuti, e segnalazioni. Codice: https://github.com/stellakamikaze/arturo/tree/main/server\n",
@@ -368,28 +420,36 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
   }
   if (request.method !== "POST") return risposta(405, { errore: "solo POST" });
   const giorno = oggi(adesso);
+  // Il modulo e i download arrivano solo dalla landing: un altro sito non li fa inviare ai suoi visitatori.
+  const daFuori = (request.headers.get("sec-fetch-site") || "") === "cross-site";
 
   if (url.pathname === "/v1/eventi") {
+    if (!await limite("eventi", request)) return risposta(429, { errore: "troppe richieste" });
     const { dati, errore } = await leggiJson(request, LIMITI.corpoEventi);
     if (errore) return errore;
     const { righe, motivo } = validaLotto(dati, giorno);
     if (motivo) return risposta(400, { errore: motivo });
     const gia = await archivio.contaEventi(righe[0].installazione, giorno);
     if (gia + righe.length > LIMITI.eventiPerGiorno) return risposta(429, { errore: "troppi eventi oggi" });
-    if (await archivio.contaEventi(null, giorno) + righe.length > LIMITI.eventiTotaliPerGiorno) {
+    // Il totale del giorno sta in un contatore: un COUNT(*) su tutti gli eventi a ogni richiesta costa letture di D1.
+    if (await archivio.incrementa(giorno, "eventi", righe.length) > LIMITI.eventiTotaliPerGiorno) {
       return risposta(429, { errore: "server pieno per oggi" });
     }
     const nuova = await archivio.installazioneNuova(righe[0].installazione);
     await archivio.scriviEventi(righe, adesso.toISOString());
-    if (nuova) await avvisa(avviso, avvisoInstallazione(righe[0]));
+    if (nuova && await archivio.incrementa(giorno, "avviso-installazione") <= LIMITI.avvisiInstallazioniPerGiorno) {
+      await avvisa(avviso, avvisoInstallazione(righe[0]));
+    }
     // Chi arriva in fondo a /setup, una volta sola per installazione (16/10/2026).
     const finito = righe.find((x) => x.evento === "setup" && x.valore === "fine");
-    if (finito && await archivio.primaVolta("sempre", `setup-fine:${finito.installazione}`)) {
+    if (finito && await archivio.primaVolta("sempre", `setup-fine:${finito.installazione}`)
+      && await archivio.incrementa(giorno, "avviso-setup") <= LIMITI.avvisiSetupPerGiorno) {
       await avvisa(avviso, avvisoSetupFinito(finito));
     }
     // Una config rotta arriva subito per email: una sola al giorno per installazione.
     const rotta = righe.find((x) => x.evento === "config");
-    if (rotta && await archivio.primaVolta(giorno, `rotta:${rotta.installazione}`) && await archivio.prendiEmail(giorno, LIMITI.emailPerGiorno)) {
+    if (rotta && await archivio.primaVolta(giorno, `rotta:${rotta.installazione}`)
+      && await archivio.incrementa(giorno, "email-rotta") <= LIMITI.emailRottePerGiorno) {
       try {
         await posta(emailConfigRotta(rotta.installazione, rotta.valore, rotta.versione));
       } catch (e) {
@@ -400,6 +460,7 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
   }
 
   if (url.pathname === "/v1/segnalazioni") {
+    if (!await limite("moduli", request)) return risposta(429, { errore: "troppe richieste" });
     const { dati, errore } = await leggiJson(request, LIMITI.corpoSegnalazione);
     if (errore) return errore;
     const { segnalazione, motivo } = validaSegnalazione(dati);
@@ -408,9 +469,11 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
       return risposta(429, { errore: "troppe segnalazioni oggi" });
     }
     const numero = await archivio.salvaSegnalazione(segnalazione, adesso.toISOString());
-    await avvisa(avviso, avvisoSegnalazione(segnalazione, numero));
+    if (await archivio.incrementa(giorno, "avviso-segnalazione") <= LIMITI.avvisiSegnalazioniPerGiorno) {
+      await avvisa(avviso, avvisoSegnalazione(segnalazione, numero));
+    }
     let email = false;
-    if (await archivio.prendiEmail(giorno, LIMITI.emailPerGiorno)) {
+    if (await archivio.incrementa(giorno, "email-segnalazione") <= LIMITI.emailSegnalazioniPerGiorno) {
       try {
         await posta(emailSegnalazione(segnalazione, numero));
         email = true;
@@ -431,18 +494,24 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     const fine = (status, dati, esito) => (pagina
       ? new Response(null, { status: 303, headers: { location: `/feedback/?${esito}#${esito}` } })
       : risposta(status, dati));
+    if (daFuori) return fine(403, { errore: "invio da un altro sito" }, "errore");
+    if (!await limite("moduli", request)) return fine(429, { errore: "troppe richieste" }, "troppi");
     if (Number(request.headers.get("content-length") || 0) > LIMITI.feedbackCorpo) {
       return fine(413, { errore: "troppo grande" }, "troppo-grande");
     }
+    // Il corpo si legge con il tetto anche senza content-length: un invio a pezzi non riempie la memoria.
+    const corpo = await corpoLimitato(request, LIMITI.feedbackCorpo);
+    if (corpo === null) return fine(413, { errore: "troppo grande" }, "troppo-grande");
     let modulo;
     try {
-      modulo = await request.formData();
+      modulo = await new Response(corpo, { headers: { "content-type": request.headers.get("content-type") || "" } }).formData();
     } catch {
       return fine(400, { errore: "modulo non valido" }, "errore");
     }
     const { feedback, audio, motivo, trappola } = validaFeedback(modulo);
     if (trappola) return fine(202, { ricevuto: true }, "inviato");
     if (motivo) return fine(400, { errore: motivo }, "errore");
+    if (audio && !await audioVero(audio)) return fine(400, { errore: "formato del vocale non riconosciuto" }, "errore");
     if (await archivio.incrementa(giorno, "feedback") > LIMITI.feedbackPerGiorno) {
       return fine(429, { errore: "troppi messaggi oggi" }, "troppi");
     }
@@ -454,6 +523,8 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
 
   // I download dal sito: il comando di installazione copiato, o il repository aperto.
   if (url.pathname === "/v1/sito") {
+    if (daFuori) return risposta(403, { errore: "invio da un altro sito" });
+    if (!await limite("moduli", request)) return risposta(429, { errore: "troppe richieste" });
     const { dati, errore } = await leggiJson(request, 2048);
     if (errore) return errore;
     const { evento, motivo } = validaSito(dati);

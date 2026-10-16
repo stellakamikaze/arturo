@@ -23,6 +23,18 @@ database_id = "ID_DEL_DATABASE"
 name = "POSTA"
 destination_address = "DESTINATARIO_VERIFICATO"
 
+# Il limite per IP (Rate Limiting dei Workers): gli eventi delle installazioni e i moduli pubblici
+# (feedback, download, segnalazioni). namespace_id è un numero scelto da te, unico nell'account.
+[[ratelimits]]
+name = "LIMITE_EVENTI"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }
+
+[[ratelimits]]
+name = "LIMITE_MODULI"
+namespace_id = "1002"
+simple = { limit = 10, period = 60 }
+
 [vars]
 MITTENTE = "MITTENTE_SUL_TUO_DOMINIO"
 DESTINATARIO = "DESTINATARIO_VERIFICATO"
