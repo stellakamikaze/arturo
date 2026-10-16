@@ -213,8 +213,8 @@ Chiedi: «Lavori in un'organizzazione che ha già preparato uno strato per Artur
 chi siete, la voce e le regole di scrittura, i lavori ricorrenti e le regole sui dati. Lo cura un
 referente interno.
 
-- Se sì, chiedi l'indirizzo del repository al referente e prosegui con **`/strato installa
-  <indirizzo>`**.
+- Se sì, chiedi l'indirizzo del repository al referente. Poi apri con Read
+  `~/.claude/commands/strato.md` e segui la parte `/strato installa` con quell'indirizzo.
 - Se è lui il referente e vuole prepararlo, indicagli **`/strato crea`** e la guida
   `~/.claude/docs/referente.md`. È un lavoro a parte: non farlo dentro il setup.
 - Altrimenti salta.

@@ -119,6 +119,9 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 Poi apri Claude Code dentro la cartella: `cd ~/.claude && claude`, e scrivi `/setup`.
 
 Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/`, `docs/`, `templates/`, `tools/`, `tests/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono a `/sparring`, `/novita` e `/inizio gws`; `templates/` serve a `/strato`; `tests/` ai banchi delle guardie che l'avvio lancia da solo).
+Chi copia a mano ricopia `commands/` e `skills/` a ogni rilascio: dentro c'è anche quali comandi
+Claude propone da solo e quali lanci tu col nome (`disable-model-invocation`). Copia le due
+cartelle insieme: i comandi di ogni giorno aprono gli altri con Read, e si aspettano di trovarli.
 
 > **Il tuo remote.** Il clone qui sopra punta al repo originale, su cui non hai accesso in scrittura. `/fine` salva i commit sulla tua macchina e non prova a pusharli. Se vuoi **sincronizzare le tue modifiche tra più macchine**, crea un tuo repo privato e puntaci `origin`:
 > ```bash

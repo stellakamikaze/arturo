@@ -14,7 +14,7 @@ tre cose:
 
 Chi ti parla **potrebbe non essere una persona tecnica**. Parla semplice, una domanda per volta.
 La segnalazione riguarda Arturo e Claude Code, non i bug del codice del progetto della persona:
-quelli si sistemano con `/diagnosi`. E non riguarda lo strato dell'organizzazione (le skill del
+per quelli proponi alla persona di scrivere `/diagnosi`. E non riguarda lo strato dell'organizzazione (le skill del
 mestiere, la voce, i collegamenti interni che ha installato il referente con `/strato`): quei
 problemi vanno al referente, non fuori.
 

@@ -104,8 +104,8 @@ quando annullano un clic.
 - Un todo che hai fatto tu in questa sessione lo chiudi con `fatto` e lo dici.
 - `tu` porta un perché solo se la persona lo dice con parole sue. Non dedurlo dalla frase: il
   percorso conta il perché come un limite che la persona ha dichiarato, e lo mette fra le «Cose
-  che tieni per te». Se non l'ha detto, lascialo vuoto: lo chiede il percorso (skill percorso),
-  una domanda per volta. Non spostare mai un todo da tu a io o decidi
+  che tieni per te». Se non l'ha detto, lascialo vuoto: glielo chiede il percorso, una domanda
+  per volta, quando scrive `/percorso`. Non spostare mai un todo da tu a io o decidi
   senza un sì.
 - Il progetto `_percorso` contiene gli esercizi del percorso: li crea e li chiude la skill
   percorso.

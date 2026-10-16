@@ -188,8 +188,8 @@ Il titolo dice l'azione a una persona («Mandare a Gigi la parola d'ordine»), n
 Se la persona ha chiesto un todo durante la sessione («ricordami di…»), c'è già: aggiornalo.
 Un todo `tu` porta un perché solo se la persona lo ha detto con parole sue nella sessione
 («la firma la metto io»). Non dedurlo tu dalla frase: il percorso conta il perché come un limite
-che la persona ha dichiarato. Se lei non l'ha detto, lascialo vuoto: lo chiede il percorso, una
-domanda per volta (skill percorso). Non spostare mai un todo da tu a io
+che la persona ha dichiarato. Se lei non l'ha detto, lascialo vuoto: glielo chiede il percorso,
+una domanda per volta, quando scrive `/percorso`. Non spostare mai un todo da tu a io
 o decidi senza un sì.
 
 **Una proposta, al massimo.** Se nella sessione la persona ha fatto a mano un passo che Claude

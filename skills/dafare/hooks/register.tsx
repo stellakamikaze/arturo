@@ -77,7 +77,7 @@ async function cli($: EngineInterface, argomenti: string[]): Promise<Risposta> {
     const prima = (r.stderr || r.stdout).split('\n').map(x => x.trim()).find(x => x !== '')
     return { ok: false, testo: prima ?? `La CLI dei todo si è fermata con il codice ${r.exitCode}.` }
   } catch {
-    return { ok: false, testo: 'La CLI dei todo non parte: scrivi a Claude «lancia /diagnosi».' }
+    return { ok: false, testo: 'La CLI dei todo non parte: scrivi /diagnosi.' }
   }
 }
 
