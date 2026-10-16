@@ -40,6 +40,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -116,8 +117,25 @@ def cartella_attesa() -> Path:
     return Path.home() / ".claude" / "data" / "segnalazioni"
 
 
+def home_di_prova() -> bool:
+    """Una HOME dentro una cartella temporanea è un banco di prova, non una persona."""
+    home = Path.home().resolve()
+    for radice in (tempfile.gettempdir(), "/tmp", "/var/folders"):
+        try:
+            home.relative_to(Path(radice).resolve())
+            return True
+        except (ValueError, OSError):
+            continue
+    return False
+
+
 def url() -> str:
-    return os.environ.get("ARTURO_TELEMETRIA_URL", URL).rstrip("/")
+    # Un test lanciato da solo eredita la telemetria accesa: il 16/10/2026 quattro prove sono arrivate
+    # al server come installazioni nuove. Da una HOME di prova parte solo verso un server indicato a mano.
+    scelto = os.environ.get("ARTURO_TELEMETRIA_URL", "").strip()
+    if scelto:
+        return scelto.rstrip("/")
+    return "http://127.0.0.1:9" if home_di_prova() else URL
 
 
 def leggi_stato() -> dict:
