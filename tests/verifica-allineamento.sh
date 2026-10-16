@@ -80,6 +80,7 @@ BANCHI=(
   test_review_struttura.py
   test_aggiorna_indietro.py
   test_diagnosi.py
+  test_scheda.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -167,6 +168,8 @@ BASELINE=(
   "test_guardie_rotte.py 4515e63"
   "test_review_struttura.py 4515e63"
   "test_aggiorna_indietro.py 4515e63"
+  # Titolo e colore della scheda del terminale (16/10/2026): b0ec3ac, l'ultimo dev prima dell'hook.
+  "test_scheda.py b0ec3ac"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

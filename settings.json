@@ -7,7 +7,8 @@
     "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
     "PROJECTS_BASE": "~/Documents/ClaudeCode",
     "CLAUDE_CODE_ENABLE_TODO_TOOLS": "1",
-    "MCP_TIMEOUT": "60000"
+    "MCP_TIMEOUT": "60000",
+    "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": "1"
   },
   "attribution": {
     "commit": "",
@@ -212,6 +213,12 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/session-start.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/scheda-terminale.py",
+            "timeout": 5,
+            "async": true
           }
         ]
       }
@@ -224,6 +231,12 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/session-end.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/scheda-terminale.py",
+            "timeout": 5,
+            "async": true
           }
         ]
       }
@@ -236,6 +249,12 @@
             "type": "command",
             "command": "bash ~/.claude/hooks/input-notifier-start.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/scheda-terminale.py",
+            "timeout": 5,
+            "async": true
           }
         ]
       }
@@ -352,6 +371,17 @@
             "timeout": 120
           }
         ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/scheda-terminale.py",
+            "timeout": 5,
+            "async": true
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -366,6 +396,12 @@
             "type": "command",
             "command": "python3 ~/.claude/hooks/memoria-richiamo.py",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/scheda-terminale.py",
+            "timeout": 5,
+            "async": true
           }
         ]
       }
@@ -378,6 +414,30 @@
             "type": "command",
             "command": "python3 ~/.claude/hooks/memoria-subagente.py",
             "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/scheda-terminale.py",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/scheda-terminale.py",
+            "timeout": 5,
+            "async": true
           }
         ]
       }

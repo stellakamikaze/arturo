@@ -11,6 +11,23 @@ modo di lavorare.
 
 ---
 
+## 2026-10-16 — La scheda del terminale dice il progetto e lo stato
+
+**Cosa cambia**: il titolo della scheda in cui gira Claude Code ora dice su quale progetto lavora.
+In Windows Terminal e in iTerm2 il colore della scheda dice lo stato: verde quando Claude aspetta
+te, giallo mentre lavora, rosso quando il turno si è fermato per un errore, come un'API giù o un
+limite raggiunto. Negli altri terminali lo stato è scritto nel titolo, per esempio «romanzo · al
+lavoro». Il progetto è quello scelto con `/inizio`, altrimenti il repository o la cartella
+in cui hai aperto Claude Code. Il titolo automatico di Claude Code, quello col riassunto della
+conversazione, non c'è più: al suo posto c'è il progetto.
+
+**Il principio dietro**: con tante schede aperte, guardare deve bastare a sapere dove serve una
+tua risposta.
+
+**A chi serve**: a chi tiene aperte più sessioni insieme.
+
+---
+
 ## 2026-10-16 — Nove comandi, una diagnosi del progetto, e le tue skill con /creaskill
 
 **Cosa cambia**: Arturo ti racconta e ti propone nove comandi: `/inizio`, `/fine`, `/aggiorna`,
