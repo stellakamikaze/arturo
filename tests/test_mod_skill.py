@@ -10,9 +10,6 @@ un cruscotto parallelo.
 Q04 nei file nuovi non ci sono nomi, host, percorsi o email personali.
 Q05 il catalogo dei tic della scrittura generata è scritto da zero, collegato dalla skill ITS, e
 dice perché non copia tropes.fyi.
-Q06 gli esempi dello strato (posta, recap, anteprima prima dell'invio) sono marcati da adattare,
-restano fuori dal plugin, e l'anteprima legge le regole da un file: senza file restano i controlli
-generali, uno strumento che non manda email passa in silenzio, un input rotto non blocca.
 Q07 Impeccable è un rimando all'upstream: la nota in docs/ c'è, la skill non è copiata.
 Q08 prompt-master non dice più che il brief si mostra anche per una richiesta breve.
 
@@ -22,13 +19,10 @@ AssertionError che comincia con il suo codice.
 from __future__ import annotations
 
 import argparse
-import json
-import os
 import re
 import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import Callable, Dict, List
 
@@ -40,8 +34,7 @@ PERSONALI = re.compile("|".join(re.escape(a + b) for a, b in (
 )) + r"|\buf-[a-z]|\bUF\b", re.IGNORECASE)
 EMAIL = re.compile(r"[\w.+-]+@([\w-]+\.)+[a-z]{2,}", re.IGNORECASE)
 NUOVI = ("skills/apri", "skills/gws", "skills/cache-fredda", "skills/italiano-semplificato/references/tic-scrittura-ia.md",
-         "templates/strato/esempi", "docs/impeccable.md")
-ESEMPI = ("posta", "recap")
+         "docs/impeccable.md")
 
 
 def read(path: Path) -> str:
@@ -133,48 +126,6 @@ def test_q05(repo: Path) -> None:
         "Q05 la skill ITS non collega il catalogo"
 
 
-def anteprima(script: Path, radice: Path, dati: object) -> subprocess.CompletedProcess:
-    entrata = dati if isinstance(dati, str) else json.dumps(dati)
-    return subprocess.run([sys.executable, "-B", str(script)], input=entrata, capture_output=True, text=True,
-                          env=dict(os.environ, CLAUDE_PLUGIN_ROOT=str(radice)), timeout=30)
-
-
-def test_q06(repo: Path) -> None:
-    base = repo / "templates" / "strato" / "esempi"
-    assert (base / "README.md").is_file(), "Q06 manca templates/strato/esempi"
-    assert not (repo / "templates" / "strato" / "plugins" / "strato" / "skills" / "posta").exists(), \
-        "Q06 un esempio sta dentro il plugin e si carica da solo"
-    for nome in ESEMPI:
-        skill = read(base / nome / "SKILL.md")
-        assert "ESEMPIO DA ADATTARE" in skill and "disable-model-invocation: true" in skill, f"Q06 {nome} non è marcato come esempio"
-    assert "trascrizione intera" in read(base / "recap" / "SKILL.md"), "Q06 recap senza il metodo della trascrizione intera"
-    posta = read(base / "posta" / "SKILL.md")
-    assert "Bozza" in posta and "Inviata" in posta and "Regola di voce" in posta, "Q06 posta senza il ciclo bozza, inviata, regola"
-    script = base / "anteprima-invio" / "anteprima-invio.py"
-    codice = read(script)
-    assert not EMAIL.search(codice), "Q06 l'anteprima ha indirizzi scritti nel codice"
-    with tempfile.TemporaryDirectory() as d:
-        radice = Path(d)
-        invio = {"tool_name": "mcp__posta__send_message",
-                 "tool_input": {"to": ["a@example.org"], "subject": "Ciao", "body": "Costa 1.200 euro, perche' ABC."}}
-        (radice / "regole-invio.txt").write_text(
-            "copia: capo@example.org\noggetto-nuovo: Studio:\nparola: ABC => per esteso\ncifre-nel-corpo: no\n", encoding="utf-8")
-        r = anteprima(script, radice, invio)
-        uscita = json.loads(r.stdout)["hookSpecificOutput"]
-        motivo = uscita["permissionDecisionReason"]
-        assert uscita["permissionDecision"] == "ask", "Q06 l'anteprima non chiede conferma"
-        for atteso in ("capo@example.org", "Studio:", "ABC", "cifra", "apostrofo"):
-            assert atteso in motivo, f"Q06 l'anteprima non applica la regola «{atteso}»: {motivo}"
-        (radice / "regole-invio.txt").unlink()
-        r = anteprima(script, radice, invio)
-        motivo = json.loads(r.stdout)["hookSpecificOutput"]["permissionDecisionReason"]
-        assert "apostrofo" in motivo and "capo@" not in motivo, "Q06 senza file delle regole l'anteprima sbaglia"
-        for dati in ({"tool_name": "Bash", "tool_input": {"command": "ls"}},
-                     {"tool_name": "mcp__chat__send_message", "tool_input": {"channel_id": "x", "message": "ciao"}}, "rotto"):
-            r = anteprima(script, radice, dati)
-            assert r.returncode == 0 and r.stdout.strip() == "", f"Q06 l'anteprima interviene dove non deve: {dati}"
-
-
 def test_q07(repo: Path) -> None:
     nota = repo / "docs" / "impeccable.md"
     assert nota.is_file(), "Q07 manca docs/impeccable.md"
@@ -197,7 +148,7 @@ def test_q08(repo: Path) -> None:
 
 TESTS: Dict[str, Callable[[Path], None]] = {
     "Q01": test_q01, "Q02": test_q02, "Q03": test_q03, "Q04": test_q04,
-    "Q05": test_q05, "Q06": test_q06, "Q07": test_q07, "Q08": test_q08,
+    "Q05": test_q05, "Q07": test_q07, "Q08": test_q08,
 }
 
 

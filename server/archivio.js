@@ -95,15 +95,6 @@ export function archivio(db) {
         aggiornaStorti: await tutte(
           `SELECT versione, valore, COUNT(*) AS n FROM eventi
            WHERE evento = 'aggiorna' AND valore <> 'applicato' AND ${trenta} GROUP BY versione, valore ORDER BY n DESC LIMIT 20`, al, al),
-        // La tappa più recente di ogni installazione; ferme = stessa tappa da 30 giorni e una sessione negli ultimi 7.
-        tappe: await tutte(
-          `SELECT e.valore AS valore, COUNT(*) AS n,
-             SUM(e.giorno <= date(?, '-30 day') AND e.installazione IN
-               (SELECT installazione FROM eventi WHERE evento = 'sessione' AND giorno > date(?, '-7 day') AND giorno <= ?)) AS ferme
-           FROM eventi e
-           JOIN (SELECT installazione, MAX(rowid) AS r FROM eventi WHERE evento = 'tappa' AND valore LIKE 'tappa:%' GROUP BY installazione) m
-             ON e.rowid = m.r
-           GROUP BY e.valore ORDER BY e.valore`, al, al, al),
         ritenzione: ritenzione(await tutte(
           "SELECT installazione, MIN(giorno) AS prima, MAX(giorno) AS ultima FROM eventi WHERE giorno <= ? GROUP BY installazione", al), al),
         claude: await tutte(

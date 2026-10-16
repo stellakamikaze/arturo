@@ -38,7 +38,6 @@ from urllib.parse import parse_qs, urlsplit
 
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 import todo_store as ts  # noqa: E402
-import percorso as pc  # noqa: E402
 
 HOST = "127.0.0.1"
 CARTELLA = Path(os.path.realpath(__file__)).parent / "web"
@@ -119,20 +118,10 @@ class Stato:
         threading.Thread(target=self.server.shutdown, daemon=True).start()
 
 
-def tappa(todo: dict):
-    """La tappa del percorso per la riga in testata. Se il percorso non si legge, la riga sparisce."""
-    try:
-        elenco = pc.tappe(todo)
-        k = pc.tappa_attuale(elenco)
-    except Exception:  # noqa: BLE001 - la pagina dei todo funziona anche senza percorso
-        return None
-    return {"tappa": k, "nome": pc.TAPPE[k - 1] if k else None, "totale": len(pc.TAPPE)}
-
-
 def lettura() -> dict:
     todo, avvisi = ts.carica()
     return {"vista": ts.vista(todo, avvisi, tutti=True), "progetti": ts.progetti(todo),
-            "da_dove": ts.da_dove(todo), "percorso": tappa(todo)}
+            "da_dove": ts.da_dove(todo)}
 
 
 def scheda(numero) -> dict:

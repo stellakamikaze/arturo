@@ -159,7 +159,7 @@ La prima parola dell'esito dice cosa è successo:
 
 - `APPLICATO`: l'aggiornamento è dentro e la config è integra. La procedura lo ha registrato in
   `session-env/aggiornamenti` (per `/aggiorna indietro`) e in `session-env/ultimo-aggiornamento`.
-  Vai al Passo 3b.
+  Vai al Passo 4.
 - `GIÀ AGGIORNATO`: niente da fare.
 - `APPLICAZIONE NON PARTITA`: la sua copia non è cambiata. Se il motivo sono file modificati e non
   salvati, diglielo in parole semplici e spiega perché l'aggiornamento aspetta (Passo 2). Col suo sì
@@ -206,6 +206,9 @@ nella cartella che l'esito ha stampato, con i file elencati. Si risolvono lì, m
    per ogni file in conflitto della copia di prova, mostragli in parole semplici cosa c'era da lui e
    cosa arriva da Arturo, e chiedi cosa tenere. Di solito si tengono tutti e due: per esempio tutte le
    righe di una lista `deny`. Scrivi il file risolto nella copia di prova, senza marcatori.
+   Se Arturo ha tolto un comando che lei aveva modificato, il conflitto dice che da una parte è
+   cancellato. Se accetta che esca, al punto 2 usa `rm` al posto di `add` per quel file. Se vuole
+   tenerlo, il file resta suo e si usa `add` come per gli altri.
 2. Chiudi l'aggiornamento nella copia di prova. Con un merge: `git -C <copia> add <file>` per ogni
    file, poi `git -C <copia> commit --no-edit`. Con un rebase: `git -C <copia> add <file>`, poi
    `GIT_EDITOR=true git -C <copia> rebase --continue`, finché il rebase non finisce.
@@ -226,22 +229,6 @@ rm -f "$APPLICA"
 
 Gli esiti sono gli stessi del Passo 3. Se dice che nella copia di prova restano conflitti, torna al
 punto 1. Mai `--force`, mai `reset --hard`, mai un `checkout` che butti via il suo lavoro.
-
-## Passo 3b — Lo strato dell'organizzazione
-
-Se ha installato lo strato della sua organizzazione (`/strato installa`), aggiornalo nello stesso
-giro, così la porta resta una sola:
-
-```bash
-claude plugin marketplace list 2>/dev/null | grep -i -- "-strato" \
-  && { claude plugin marketplace update && echo "Strato: marketplace aggiornato"; } \
-  || echo "Nessuno strato installato"
-```
-
-Se il marketplace dello strato risponde, aggiorna anche il plugin con `claude plugin update
-<plugin>@<marketplace>` (i nomi li leggi da `claude plugin list`). Se fallisce per accesso negato,
-spiega che serve l'invito del referente o il collegamento dell'account (`gh auth login`), come in
-`/strato installa`.
 
 ## Passo 4 — Riavvio e racconto
 

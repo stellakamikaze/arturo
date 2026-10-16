@@ -42,7 +42,6 @@
       "Bash(jq:*)",
       "Bash(claude --version)",
       "Bash(claude plugin list:*)",
-      "Bash(claude plugin marketplace list:*)",
       "Bash(claude plugin validate:*)",
       "Read(//tmp/**)",
       "mcp__playwright__*",

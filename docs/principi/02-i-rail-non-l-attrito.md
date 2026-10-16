@@ -82,5 +82,4 @@ la risposta è «qualcosa che non si rimedia», quella è un rail, e va tenuta.
 
 ---
 
-*Vuoi provarlo sul tuo lavoro? `/sparring i rail`, oppure chiedi a Claude «a che punto sono?»: il
-percorso ti propone un esercizio per la tua tappa.*
+*Vuoi provarlo sul tuo lavoro? Chiedi a Claude uno sparring su «i rail».*

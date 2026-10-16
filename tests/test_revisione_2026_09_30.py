@@ -11,7 +11,7 @@ riaccesi per i modelli attuali. R07 lo stesso slug di handoff in /inizio e
 invii via gws e mailto:, lettura indiretta di segreti, sed che scrive,
 curl | python3 per leggere un JSON, glob in un'opzione sotto zsh. R13-R15
 l'attrito per chi parte da zero: emoji nei testi dell'utente, CLAUDE.md nuovo,
-grep che cerca un nome, /debug rinominato, /progetto non software. I blocchi bash di /aggiorna si eseguono cosi'
+grep che cerca un nome, /debug rinominato. I blocchi bash di /aggiorna si eseguono cosi'
 come sono scritti nel comando. Sulla base 86ba137 ogni controllo deve fallire.
 """
 from __future__ import annotations
@@ -164,8 +164,7 @@ def test_r14(repo: Path) -> None:
 
 
 def test_r15(repo: Path) -> None:
-    """grep che cerca il nome di un file segreto non e' una lettura; /debug non nasconde quello di Claude Code;
-    /progetto ha un ramo per chi non scrive codice."""
+    """grep che cerca il nome di un file segreto non e' una lettura; /debug non nasconde quello di Claude Code."""
     casi_guardie(repo, "R15", {
         'grep -rn "credentials.json" .': "nessuna",
         "grep -n token ~/.config/progetto/credentials.json": "ask",
@@ -173,7 +172,6 @@ def test_r15(repo: Path) -> None:
     })
     assert not (repo / "commands" / "debug.md").exists(), "R15 commands/debug.md nasconde il /debug di Claude Code"
     assert (repo / "commands" / "diagnosi.md").exists(), "R15 /diagnosi assente"
-    assert "Non software" in read(repo / "commands" / "progetto.md"), "R15 /progetto solo per il software"
 
 
 def test_r01(repo: Path) -> None:

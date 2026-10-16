@@ -79,7 +79,7 @@ che leggi tu quando devi ragionare sui todo invece di mostrarli.
 Quando la persona sceglie su un todo `decidi` («va bene il piano B»), usa `deciso ID "piano B"`.
 Il comando scrive la scelta e passa il lavoro a te in un colpo solo. Non usare `nota` più
 `modifica --chi io`: sono due scritture, e chi legge in mezzo vede la nota senza il passaggio a
-te. E `deciso` scrive sempre il prefisso «Deciso: », che il percorso legge. Su un todo che non è
+te. E `deciso` scrive sempre il prefisso «Deciso: ». Su un todo che non è
 `decidi` il comando si rifiuta. Su un todo chiuso si rifiuta anche: prima lo riapri con
 `riprendi`. Un todo FERMO resta FERMO, e quando riparte lo fai tu.
 
@@ -102,13 +102,11 @@ quando annullano un clic.
   vecchia), aggiungi `--titolo-atteso="titolo"`: se quel numero ora è un altro todo, la CLI non
   scrive niente.
 - Un todo che hai fatto tu in questa sessione lo chiudi con `fatto` e lo dici.
-- `tu` porta un perché solo se la persona lo dice con parole sue. Non dedurlo dalla frase: il
-  percorso conta il perché come un limite che la persona ha dichiarato, e lo mette fra le «Cose
-  che tieni per te». Se non l'ha detto, lascialo vuoto: glielo chiede il percorso, una domanda
-  per volta, quando scrive `/percorso`. Non spostare mai un todo da tu a io o decidi
-  senza un sì.
-- Il progetto `_percorso` contiene gli esercizi del percorso: li crea e li chiude la skill
-  percorso.
+- `tu` porta un perché solo se la persona lo dice con parole sue. Non dedurlo dalla frase: un
+  perché inventato diventa un limite che la persona non ha mai messo. Se non l'ha detto,
+  lascialo vuoto. Non spostare mai un todo da tu a io o decidi senza un sì.
+- Il progetto `_percorso` contiene gli esercizi di una versione vecchia di Arturo. Non crearne di
+  nuovi. Se la persona li vede, può scartarli.
 - Non cancelli mai il file dell'archivio e non lo modifichi a mano. Se un comando dice che una
   riga è illeggibile, riferiscilo alla persona: la riga resta e il resto funziona.
 - Il file è `~/.claude/data/todo/eventi.jsonl`. Contiene dati della persona: non va mai in un

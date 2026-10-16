@@ -143,9 +143,23 @@ CONFLITTI DI MERGE, risolvili PRIMA di procedere.
 Con `rc=2` lo script stampa `NON TROVATO` e i progetti con un nome simile: spesso è un refuso.
 Proponi i candidati e aspetta la scelta. Per una vista di cosa c'è da fare ovunque leggi
 `~/.claude/data/handoffs/INDEX.md` (una riga per progetto con stato e prossimo passo) e proponi
-da lì. Non creare cartelle e non lanciare `git init` senza un sì. Per un progetto nuovo, col sì
-apri con Read `~/.claude/commands/progetto.md` e seguilo. Con `rc=3` il nome non è valido: chiedi
-quello giusto.
+da lì. Con `rc=3` il nome non è valido: chiedi quello giusto.
+
+Se la persona dice che è un progetto nuovo, chiedi in una frase cosa è. Non creare cartelle e non
+lanciare `git init` senza un sì. Col sì crei il progetto in `PROJECTS_BASE`, poi rilanci la FASE 1
+col nome nuovo:
+
+```bash
+BASE="${PROJECTS_BASE:-$HOME/Documents/ClaudeCode}"
+NOME="nome-del-progetto"   # minuscole e trattini, come lo slug della FASE 1
+mkdir -p "$BASE/$NOME" && cd "$BASE/$NOME" && git init -q -b main
+printf '.DS_Store\nnode_modules/\n*.log\n.env\n' > .gitignore
+```
+
+Scrivi un `CLAUDE.md` breve: cosa è il progetto in due righe, e una sezione «Materiali» con i
+percorsi dei file che stanno fuori dal repo (all'inizio può essere vuota). Poi il primo commit:
+`git add .gitignore CLAUDE.md && git commit -q -m "inizio del progetto"`. Gli handoff non entrano
+mai nel repo del progetto.
 
 ---
 
@@ -165,7 +179,7 @@ I todo stanno nell'archivio `~/.claude/data/todo/eventi.jsonl`, scritto da `/fin
 richieste della persona («ricordami di…»). È la fonte di verità: la tabella `## Task Pendenti`
 dell'handoff è solo la fotografia dell'ultima sessione. La lista del progetto l'hai già dalla
 FASE 1: questo blocco aggiunge gli avvisi di rinumerazione, i todo di «generale», il git log per
-il confronto, il percorso e il pannello.
+il confronto e il pannello.
 
 ```bash
 # Il progetto dei todo è quello della cartella (FASE 1 ci è entrata), calcolato dalla CLI come per
@@ -176,8 +190,6 @@ python3 "$HOME/.claude/bin/arturo" todo --progetto .
 # I todo di «generale»: quelli presi fuori da un progetto (nella HOME, in /setup, fuori da git).
 [ "$(python3 "$HOME/.claude/bin/arturo" todo progetto)" = generale ] || python3 "$HOME/.claude/bin/arturo" todo --progetto generale
 git log --oneline -20 2>/dev/null
-# Il percorso a tappe: la tappa e l'esercizio della settimana, calcolati sul computer della persona
-python3 "$HOME/.claude/bin/arturo" percorso --json 2>/dev/null
 # Il pannello /dafare c'è? I comandi di un mod non compaiono fra quelli che vedi.
 claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "dafare@skills-dir"]; print("mod caricato" if v and v[0].get("enabled") else "mod assente")' 2>/dev/null || echo "mod assente"
 ```
@@ -220,13 +232,6 @@ claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p 
 [poi, se ci sono, i todo aperti di «generale», in un gruppo «Fuori dai progetti».]
 [solo se il controllo del pannello della FASE 4 stampa «mod caricato»:]
 Per chiuderli o spostarli con un tasto: /dafare
-
-## Percorso
-[una riga da `arturo percorso --json`: la tappa (`nome`, oppure «all'inizio» con tappa 0) e
- l'esercizio della settimana (codice e titolo). Niente conteggi.
- Se `nuova_tappa` è vero, una seconda riga con il capitolo della tappa; poi lancia
- `python3 "$HOME/.claude/bin/arturo" percorso visto`.
- Ometti la sezione se `suggerimenti.pausa` è "sempre" o se il comando non risponde.]
 
 ## Skill Progetto
 [suggerisci le poche skill davvero utili a QUESTO progetto ora, in base a stack,

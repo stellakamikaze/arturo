@@ -4,8 +4,10 @@ Un Worker Cloudflare con un database D1. Riceve due cose e solo quelle:
 
 - `POST /v1/eventi`: un lotto di eventi d'uso con un id di installazione casuale, dall'elenco chiuso in
   `logica.js` (`sessione`, `comando`, `guardia`, `aggiorna`, `segnalazione`, `deriva`, `config`, `setup`,
-  `chiede`, `confermata`, `errore`, `tappa`, `claude`). Ogni evento ha il giorno e mai l'ora. `config`
-  (config rotta) manda subito un'email, una al giorno per installazione.
+  `chiede`, `confermata`, `errore`, `claude`). Ogni evento ha il giorno e mai l'ora. `config`
+  (config rotta) manda subito un'email, una al giorno per installazione. Il server accetta ancora
+  `tappa`, che il client non manda più dal 16/10/2026, per non rifiutare i lotti dei client non
+  aggiornati: in coda all'elenco, si toglie dopo qualche settimana.
 - `POST /v1/segnalazioni`: una segnalazione che la persona ha letto e approvato con `/segnala`.
 
 E dà una cosa sola, a chi ha il token: `GET /v1/riepilogo`, il riepilogo della settimana in JSON con
@@ -37,7 +39,7 @@ L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi p
   sono stati eventi o segnalazioni. Ha anche le config rotte e la deriva cambiata.
 - **Il lunedì** arriva sempre il riepilogo dei 7 giorni, anche vuoto. Si apre con «Dove migliorare
   Arturo» (ultimi 30 giorni: setup fermi, conferme delle guardie, guardie rotte, aggiornamenti non
-  applicati, tappe, ritenzione, versioni di Claude Code), poi tutta la deriva aperta e le
+  applicati, ritenzione, versioni di Claude Code), poi tutta la deriva aperta e le
   guardie frequenti (almeno 5 blocchi nella settimana sulla stessa installazione). Poi parte la pulizia. Se il
   riepilogo del lunedì manca, il Worker è fermo.
 

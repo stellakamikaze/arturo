@@ -12,10 +12,7 @@ guadagni, cosa dai in cambio.
    fa tre domande sul tuo lavoro reale, ti dice se e dove il principio ti serve, e ti
    propone un esperimento piccolo e reversibile per provarlo. Anche «questo per ora non
    ti serve» è un risultato valido.
-3. **Segui il percorso.** Chiedi a Claude «a che punto sono?» oppure scrivi `/percorso`: vedi la
-   tua tappa, il capitolo che la racconta e un esercizio sul tuo lavoro vero
-   ([gli esercizi](../esercizi.md)).
-4. **Torna quando l'harness si aggiorna.** Le novità (`/novita`) rimandano qui quando un
+3. **Torna quando l'harness si aggiorna.** Le novità (`/novita`) rimandano qui quando un
    principio nuovo entra nel curriculum.
 
 L'ordine dei capitoli non è casuale: si parte dal potere, non dai comandi.

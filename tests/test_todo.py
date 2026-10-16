@@ -13,19 +13,19 @@ macchine con lo stesso id: il piu' recente cambia numero e gli eventi seguono.
 T13 un valore fuori lista o un progetto vuoto si rifiuta e non scrive niente, e
 ogni errore di comando è in italiano.
 
-Ciclo 1.5, i prerequisiti comuni di pannello, pagina web e percorso:
+Ciclo 1.5, i prerequisiti comuni di pannello e pagina web:
 T14 ripristina rimette stato e motivo esatti, anche senza virgolette, inizia
 porta in corso. T15 il segno annullo resta negli eventi di stato e modifica e si
 vede nella storia. T16 deciso scrive nota e passaggio a io in una sola write,
 solo da decidi e mai su un todo chiuso. T17 la versione degli eventi e quella
 delle viste sono separate, anche nel JSON della CLI. T18 il contratto:
 CHIAVI_TODO, scadenza_testo e la descrizione dei gruppi. T19 Lucchetto pubblico
-e scrivi_json_atomico. T20 il progetto riservato del percorso. T21 COMANDI fa
+e scrivi_json_atomico. T21 COMANDI fa
 aiuto, smistamento e messaggio di errore. T22 un .lock non parte mai con /fine.
 T23 tabella degli stati e conteggi per progetto stanno nel store. T24 /aggiorna
 mostra il codice di bin/ e dei mod, /diagnosi legge l'archivio. T25 da_dove sceglie il todo
 da cui ripartire con una regola fissa e il motivo in parole: persona prima, poi chi sblocca,
-scaduti, scadenza vicina. Fermi, attese ed esercizi restano fuori.
+scaduti, scadenza vicina. Fermi e attese restano fuori.
 Sulla base b8eff39 ogni controllo deve fallire.
 """
 from __future__ import annotations
@@ -226,7 +226,7 @@ def test_t05(repo: Path) -> None:
 
 def test_t06(repo: Path) -> None:
     def prova(c: Casa) -> None:
-        c.cli("aggiungi", "Prova dello strato", "--progetto", "p", "--chi", "decidi")
+        c.cli("aggiungi", "Prova della bozza", "--progetto", "p", "--chi", "decidi")
         c.cli("aggiungi", "Rilascio su main", "--progetto", "p", "--chi", "io")
         c.cli("dopo", "2", "1")
         assert c.aperti()[2]["attende"] == [1], f"T06 #2 non aspetta #1: {c.aperti()[2]}"
@@ -579,38 +579,38 @@ def test_t19(repo: Path) -> None:
     assert ts._Lucchetto is ts.Lucchetto, "T19 _Lucchetto non è più l'alias di Lucchetto"
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp)
-        file = base / "percorso.json"
+        file = base / "stato.json"
         entrato = threading.Event()
 
         def secondo() -> None:
             with ts.Lucchetto(file):
                 entrato.set()
         with ts.Lucchetto(file):
-            assert (base / "percorso.json.lock").exists(), "T19 il lucchetto non crea il suo .lock"
+            assert (base / "stato.json.lock").exists(), "T19 il lucchetto non crea il suo .lock"
             altro = threading.Thread(target=secondo)
             altro.start()
             time.sleep(0.3)
             assert not entrato.is_set(), "T19 il lucchetto lascia entrare un secondo processo"
         altro.join(5)
-        assert entrato.is_set() and not (base / "percorso.json.lock").exists(), "T19 il lucchetto non si libera"
+        assert entrato.is_set() and not (base / "stato.json.lock").exists(), "T19 il lucchetto non si libera"
 
-        ts.scrivi_json_atomico(file, {"tappa": "Delega", "città": "è"})
-        assert json.loads(read(file)) == {"tappa": "Delega", "città": "è"}, "T19 scrivi_json_atomico"
+        ts.scrivi_json_atomico(file, {"voce": "Bozza", "città": "è"})
+        assert json.loads(read(file)) == {"voce": "Bozza", "città": "è"}, "T19 scrivi_json_atomico"
         prima = read(file)
         # La scrittura fallisce dopo la serializzazione, nel passo che mette il file al suo posto:
-        # una versione che scrive direttamente su percorso.json qui lo ha gia' rovinato.
+        # una versione che scrive direttamente su stato.json qui lo ha gia' rovinato.
         for passo in ("fsync", "replace"):
             def guasto(*_a, **_k):
                 raise OSError(f"guasto di prova in os.{passo}")
             with mock.patch.object(ts.os, passo, guasto):
                 try:
-                    ts.scrivi_json_atomico(file, {"tappa": "nuova"})
+                    ts.scrivi_json_atomico(file, {"voce": "nuova"})
                 except OSError:
                     pass
                 else:
                     raise AssertionError(f"T19 un guasto in os.{passo} non dà errore: la scrittura non passa da lì")
             assert read(file) == prima, f"T19 un guasto in os.{passo} rovina il file di prima"
-            assert sorted(x.name for x in base.iterdir()) == ["percorso.json"], \
+            assert sorted(x.name for x in base.iterdir()) == ["stato.json"], \
                 f"T19 restano file temporanei dopo un guasto in os.{passo}: {sorted(x.name for x in base.iterdir())}"
         # Il lucchetto accetta anche un percorso scritto come stringa, come scrivi_json_atomico.
         try:
@@ -618,30 +618,8 @@ def test_t19(repo: Path) -> None:
         except (AttributeError, TypeError) as errore:
             raise AssertionError(f"T19 il lucchetto non accetta un percorso stringa: {errore}")
         with lucchetto:
-            assert (base / "percorso.json.lock").exists(), "T19 il lucchetto con una stringa non crea il .lock"
-        assert not (base / "percorso.json.lock").exists(), "T19 il lucchetto con una stringa non si libera"
-
-
-def test_t20(repo: Path) -> None:
-    ts = store(repo)
-    assert ts.PROGETTO_PERCORSO == "_percorso", f"T20 PROGETTO_PERCORSO: {ts.PROGETTO_PERCORSO!r}"
-
-    def prova(c: Casa) -> None:
-        cartella = c.home / "lavoro" / "_percorso"
-        cartella.mkdir(parents=True)
-        subprocess.run(["git", "init", "-q"], cwd=str(cartella), check=True, timeout=30,
-                       env=dict(os.environ, **GIT_ENV))
-        env = dict(os.environ, HOME=str(c.home), USERPROFILE=str(c.home), ARTURO_OGGI=OGGI, PYTHONIOENCODING="utf-8")
-        env.pop("ARTURO_TODO", None)
-        r = subprocess.run([sys.executable, str(repo / "bin" / "arturo"), "todo", "aggiungi", "Dal repo"],
-                           cwd=str(cartella), env=env, capture_output=True, encoding="utf-8", timeout=60)
-        assert r.returncode == 0, f"T20 aggiungi: {r.stderr}"
-        c.cli("aggiungi", "Esercizio", "--progetto", ts.PROGETTO_PERCORSO)
-        a = c.aperti()
-        assert a[1]["progetto"] != ts.PROGETTO_PERCORSO, f"T20 lo slug di una cartella produce il progetto riservato: {a[1]}"
-        assert a[2]["progetto"] == ts.PROGETTO_PERCORSO and a[2]["gruppo"] == "tu", f"T20 il todo del percorso: {a[2]}"
-        assert "Esercizio" in c.cli().stdout, "T20 i todo del percorso non compaiono nella lista"
-    con_casa(repo, prova)
+            assert (base / "stato.json.lock").exists(), "T19 il lucchetto con una stringa non crea il .lock"
+        assert not (base / "stato.json.lock").exists(), "T19 il lucchetto con una stringa non si libera"
 
 
 def test_t21(repo: Path) -> None:
@@ -744,8 +722,6 @@ def test_t25(repo: Path) -> None:
             c.cli("fatto", "2")
             # 4 fermo, 3 fermo, 2 chiuso, 5 aspetta 4: resta Claude con l'1
             assert scelta()["id"] == 1, f"T25 fermi, chiusi o attese scelti: {scelta()}"
-            c.cli("aggiungi", "Esercizio della settimana", "--chi", "tu", "--progetto", st.PROGETTO_PERCORSO)
-            assert scelta()["id"] == 1, f"T25 un esercizio del percorso scelto: {scelta()}"
         finally:
             if vecchio is None:
                 os.environ.pop("ARTURO_OGGI", None)
@@ -758,7 +734,7 @@ TESTS = {
     "T01": test_t01, "T02": test_t02, "T03": test_t03, "T04": test_t04, "T05": test_t05,
     "T06": test_t06, "T07": test_t07, "T08": test_t08, "T09": test_t09, "T10": test_t10,
     "T11": test_t11, "T12": test_t12, "T13": test_t13, "T14": test_t14, "T15": test_t15,
-    "T16": test_t16, "T17": test_t17, "T18": test_t18, "T19": test_t19, "T20": test_t20,
+    "T16": test_t16, "T17": test_t17, "T18": test_t18, "T19": test_t19,
     "T21": test_t21, "T22": test_t22, "T23": test_t23, "T24": test_t24, "T25": test_t25,
 }
 

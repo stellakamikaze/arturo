@@ -2,16 +2,14 @@
 
 Perché esiste: Arturo si sviluppa ogni giorno per persone che spesso non sanno dire dove si
 bloccano. Senza dati d'uso chi lo mantiene non vede la fase di /setup dove ci si ferma, le guardie
-che chiedono a vuoto, gli aggiornamenti rifiutati, chi resta fermo su una tappa. Ogni lunedì il
-server ne fa un riepilogo, e ogni correzione nata da un segnale lo dice nella sua voce di NOVITA.md.
+che chiedono a vuoto, gli aggiornamenti rifiutati. Ogni lunedì il server ne fa un riepilogo, e ogni
+correzione nata da un segnale lo dice nella sua voce di NOVITA.md.
 
 Cosa esce, e solo questo: un id di installazione casuale (non legato alla persona, ma stabile), la
 versione di Arturo, il sistema operativo (Darwin, Linux, Windows) e gli eventi di EVENTI con il solo
 giorno. Dei file di Arturo modificati esce il percorso dentro Arturo, che è pubblico (hooks/deriva.py).
-Del percorso a tappe escono solo numeri (la tappa, quante decisioni e limiti): li calcola
-bin/percorso.py, che non usa la rete, e session-start.sh li passa qui con `tappa`.
-Mai prompt, file della persona, percorsi del suo computer, nomi, risposte o testi del percorso. Il
-server non salva l'IP e tiene gli eventi 12 mesi. Il suo codice è in server/.
+Mai prompt, file della persona, percorsi del suo computer, nomi, risposte o testi. Il server non
+salva l'IP e tiene gli eventi 12 mesi. Il suo codice è in server/.
 
 Accesa di default. Si spegne con `arturo telemetria spegni`, con ARTURO_TELEMETRIA=0 o con lo
 standard DO_NOT_TRACK=1. `arturo telemetria mostra` fa vedere l'id e la coda, così si vede
@@ -19,14 +17,14 @@ esattamente cosa parte.
 
 Due tempi, perché un hook non deve mai aspettare la rete:
 - `registra` aggiunge una riga alla coda in ~/.claude/data/telemetria/coda.jsonl, senza rete. Lo
-  stesso fanno `tappa` (i numeri delle tappe da stdin, solo quelli cambiati), `chiede` (una guardia
-  chiede conferma: l'id della chiamata resta in session-env/telemetria-attese.json) ed `esito` (il
-  PostToolUse, via bin/telemetria-esito.sh: se la chiamata era in attesa, registra `confermata`);
+  stesso fanno `chiede` (una guardia chiede conferma: l'id della chiamata resta in
+  session-env/telemetria-attese.json) ed `esito` (il PostToolUse, via bin/telemetria-esito.sh: se la
+  chiamata era in attesa, registra `confermata`);
 - `invia` manda la coda in un lotto. L'avvio della sessione lo lancia in background, al massimo
   ogni 6 ore, e lì registra anche la versione di Claude Code quando cambia. Manda anche le
   segnalazioni di /segnala rimaste in attesa.
 
-Lo stato (id, ultimo tentativo, spenta, avviso_promessa, claude, tappa_inviata, deriva e config
+Lo stato (id, ultimo tentativo, spenta, avviso_promessa, claude, deriva e config
 già inviate) sta in ~/.claude/session-env/telemetria.json.
 Solo libreria standard, Python 3.8 o successivo. Nessun comando di questo modulo fallisce in modo
 da fermare un hook: gli errori di registra e avvio tacciono.
@@ -70,17 +68,16 @@ EVENTI = {
     "chiede": re.compile(r"^[a-z0-9_.-]{1,60}$"),
     "confermata": re.compile(r"^[a-z0-9_.-]{1,60}$"),
     "errore": re.compile(r"^[a-z0-9_.-]{1,60}$"),
-    "tappa": re.compile(r"^(tappa:[0-4]|(decisioni|limiti|tenuti|proposte|rifiutate):\d{1,4})$"),
     "claude": re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,4}$"),
 }
 # La promessa sulla telemetria cambia di versione quando cambia cosa esce. A una versione nuova
-# l'avviso torna una volta, anche a chi aveva già visto la precedente.
-PROMESSA = 2
+# l'avviso torna una volta, anche a chi aveva già visto la precedente. 3: senza le tappe (16/10/2026).
+PROMESSA = 3
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
-# ~/.claude/commands/ o portato dallo strato dell'organizzazione ha un nome suo, e non esce.
+# ~/.claude/commands/ ha un nome suo, e non esce.
 # Il banco M10 controlla che l'elenco coincida con commands/ del repository.
-COMANDI = frozenset({"aggiorna", "diagnosi", "discovery", "fine", "guidami", "inizio", "novita", "progetto",
-                     "segnala", "setup", "sparring", "strato", "write-plan"})
+COMANDI = frozenset({"aggiorna", "creaskill", "diagnosi", "fine", "guidami", "inizio", "novita", "segnala",
+                     "setup", "sparring"})
 OGNI = 6 * 3600          # secondi fra due invii automatici
 CODA_MASSIMA = 2000      # righe: oltre, gli eventi nuovi si perdono finché la coda non parte
 LOTTO = 500
@@ -96,7 +93,7 @@ AIUTO = f"""arturo telemetria: gli eventi d'uso che Arturo manda a chi lo mantie
 
 Escono solo questi eventi, con il giorno e mai l'ora: {", ".join(EVENTI)}.
 Dei file di Arturo modificati solo la posizione nel repository di Arturo, che è pubblica.
-Delle tappe solo numeri. Mai prompt, file tuoi, percorsi del tuo computer, nomi, risposte o testi.
+Mai prompt, file tuoi, percorsi del tuo computer, nomi, risposte o testi.
 Server: {URL} (codice in server/). Si spegne anche con ARTURO_TELEMETRIA=0 o DO_NOT_TRACK=1."""
 
 
@@ -213,20 +210,41 @@ def registra(evento: str, valore: str = "") -> bool:
         return False
 
 
+def _evento_valido(riga: str):
+    """L'evento di una riga della coda, o None se la riga non parte (rotta, o di un evento tolto)."""
+    try:
+        e = json.loads(riga)
+    except ValueError:
+        return None
+    if isinstance(e, dict) and valido(e.get("evento", ""), e.get("valore", "")):
+        return {"giorno": str(e.get("giorno", ""))[:10], "evento": e["evento"], "valore": e["valore"]}
+    return None
+
+
 def leggi_coda() -> list:
     try:
         righe = file_coda().read_text(encoding="utf-8").splitlines()
     except (OSError, UnicodeDecodeError):
         return []
-    eventi = []
-    for riga in righe:
+    return [e for e in map(_evento_valido, righe) if e]
+
+
+def _scrivi_coda_atomica(righe: list) -> None:
+    """Come ts.scrivi_json_atomico: chi legge trova la coda vecchia o la nuova, mai mezza."""
+    coda = file_coda()
+    fd, temporaneo = tempfile.mkstemp(prefix=f".{coda.name}.", suffix=".tmp", dir=str(coda.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+            f.write("".join(r + "\n" for r in righe))
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temporaneo, str(coda))
+    except BaseException:
         try:
-            e = json.loads(riga)
-        except ValueError:
-            continue
-        if isinstance(e, dict) and valido(e.get("evento", ""), e.get("valore", "")):
-            eventi.append({"giorno": str(e.get("giorno", ""))[:10], "evento": e["evento"], "valore": e["valore"]})
-    return eventi
+            os.unlink(temporaneo)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def posta(rotta: str, dati: dict, timeout: float = 5) -> int:
@@ -281,18 +299,6 @@ def segna_claude() -> None:
     v = versione_claude()
     if v and v != leggi_stato().get("claude") and registra("claude", v):
         cambia_stato(lambda s: s.__setitem__("claude", v))
-
-
-def segna_tappa(righe: list) -> int:
-    """Riceve righe «chiave:numero» dal calcolo delle tappe e registra solo quelle cambiate."""
-    valori = [r.strip() for r in righe if valido("tappa", r.strip())]
-    chiavi = {v.split(":")[0]: v for v in valori}
-    prima = leggi_stato().get("tappa_inviata")
-    prima = prima if isinstance(prima, dict) else {}
-    cambiate = [v for k, v in chiavi.items() if prima.get(k) != v]
-    if cambiate and all(registra("tappa", v) for v in cambiate):
-        cambia_stato(lambda s: s.__setitem__("tappa_inviata", dict(prima, **chiavi)))
-    return len(cambiate)
 
 
 def _leggi_attese() -> dict:
@@ -354,10 +360,12 @@ def invia(zitto: bool = False) -> tuple:
     if partiti:
         coda = file_coda()
         with ts.Lucchetto(coda):
-            # Le righe registrate nel frattempo restano: si tolgono solo quelle partite.
+            # Partiti conta righe valide, non righe del file: le righe che non partono (rotte, o di un
+            # evento tolto) si scartano, si saltano le prime `partiti` valide e restano quelle
+            # registrate nel frattempo. Tagliare per righe grezze rimandava un evento per ogni scartata.
             righe = coda.read_text(encoding="utf-8").splitlines() if coda.exists() else []
-            resto = righe[partiti:] if len(righe) >= partiti else []
-            coda.write_text("".join(r + "\n" for r in resto), encoding="utf-8")
+            valide = [r for r in righe if _evento_valido(r)]
+            _scrivi_coda_atomica(valide[partiti:])
     return partiti, segnalazioni
 
 
@@ -375,7 +383,7 @@ def avvio() -> int:
             print("TELEMETRIA: Arturo manda a chi lo mantiene eventi d'uso con un id casuale: versione di Arturo e di "
                   "Claude Code, sistema, comandi di Arturo usati, guardie che bloccano o chiedono e se la persona "
                   "conferma, guardie che si rompono, fase di /setup raggiunta, esiti di /aggiorna, file e hook di "
-                  "Arturo cambiati o spenti, e i soli numeri delle tappe. Mai prompt, file, nomi o testi."
+                  "Arturo cambiati o spenti. Mai prompt, file, nomi o testi."
                   + nuova + " Dillo alla persona una volta, in due righe, con il perché: con questi dati Arturo "
                   "corregge ogni settimana i punti dove le persone si bloccano. "
                   "Si spegne con: python3 ~/.claude/bin/arturo telemetria spegni")
@@ -407,9 +415,6 @@ def main(argv: list) -> int:
         return 0
     if comando == "avvio" and not resto:
         return avvio()
-    if comando == "tappa" and not resto:
-        segna_tappa(sys.stdin.read().splitlines()[:20])
-        return 0
     if comando == "chiede" and len(resto) == 2:
         chiede(resto[0], resto[1])
         return 0

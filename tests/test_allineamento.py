@@ -17,6 +17,10 @@ REMOVED = (
     "agents/drafter.md", "agents/synthesizer.md", "hooks/github_issue_guard.py", "hooks/quality-check.sh",
     "hooks/session-reminder.sh", "skills/autofix", "skills/keyword-research", "skills/review-checklist",
     "skills/ui-reference", "skills/validate",
+    # 16/10/2026: escono lo strato, il percorso a tappe e i comandi di progetto.
+    "commands/strato.md", "commands/progetto.md", "commands/discovery.md", "commands/write-plan.md",
+    "templates/strato", "docs/referente.md", "skills/percorso", "bin/percorso.py", "docs/esercizi.md",
+    "tests/test_strato.py", "tests/test_percorso.py",
 )
 VIETATI = (
     ("ufficio", "furore"), ("gani", "mede"), ("tail29", "c508"),

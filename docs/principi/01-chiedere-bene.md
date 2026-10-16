@@ -105,10 +105,9 @@ sintassi da ricordare, non serve un aggiornamento per continuare a funzionare. F
 qualunque assistente userai fra tre anni, e funziona anche con le persone — il che è un
 buon segno sulla qualità dell'idea.
 
-Arturo, dalla sua parte, è costruito per assecondarlo: `/discovery` ti fa le domande che
-servono a mettere a fuoco un progetto, `/diagnosi` pretende i fatti prima delle ipotesi,
-`/write-plan` chiede che ogni passo dichiari cosa produce. Sono lo stesso principio, messo
-nei punti dove serve di più.
+Arturo, dalla sua parte, è costruito per assecondarlo: il brief riscrive la tua richiesta prima
+di lavorare, così vedi subito se Claude ha capito, e `/diagnosi` pretende i fatti prima delle
+ipotesi. Sono lo stesso principio, messo nei punti dove serve di più.
 
 ## La cosa da portarsi via
 

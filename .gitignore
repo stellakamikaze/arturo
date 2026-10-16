@@ -33,7 +33,7 @@ logs/
 downloads/
 backups/
 cache/
-# Solo la cartella dei plugin installati da Claude Code: templates/strato/plugins/ e' di Arturo.
+# Solo la cartella dei plugin installati da Claude Code, alla radice.
 /plugins/
 stats-cache.json
 history.jsonl

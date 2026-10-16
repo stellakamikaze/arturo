@@ -1,7 +1,6 @@
 ---
 description: Guarda gli ultimi handoff e le conversazioni recenti e propone il lavoro che ha senso fare adesso, con il motivo e il primo passo
 argument-hint: "[progetto o tema] (opzionale)"
-disable-model-invocation: true
 ---
 
 # Guidami
@@ -90,11 +89,6 @@ Da tre a cinque voci, non di più. Per ognuna, tre righe:
 - **Primo passo**: una cosa piccola e reversibile, non il progetto intero.
 
 Ordina per quello che sbloccherebbe di più, non per data.
-
-L'esercizio della settimana del percorso (`python3 "$HOME/.claude/bin/arturo" percorso --json`,
-campo `esercizio`) entra solo dentro una voce vera. Se l'esercizio combacia con una voce che hai
-già trovato, dillo dentro quella voce («è anche l'esercizio E03 del tuo percorso»). Non farne
-mai una voce a sé.
 
 Chiudi con un menu che gli fa scegliere da dove partire, e **se sceglie, parti davvero**: apri il
 progetto e fai il primo passo.

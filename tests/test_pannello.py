@@ -19,7 +19,7 @@ U08 /system-audit riconosce un mod e lo distingue da una skill rotta. U09 .gitig
 i file che Claude Code genera accanto al mod, e dentro il mod vero. U10 il diff di /aggiorna,
 lanciato con bash e zsh in un clone fermo alla base, mostra il codice del mod. U11 la persona scopre il pannello da skill, /inizio, README, NOVITA, /setup e
 /diagnosi; skill e /inizio lo nominano solo se `claude plugin list --json` mostra il mod acceso;
-il referente sa come spegnerlo. U12 il README conta le skill giuste e spiega il mod.
+/diagnosi spiega le managed settings che lo spengono. U12 il README conta le skill giuste e spiega il mod.
 U13 validate e test non eseguono gli hook di sessione e non chiedono rete né accesso: un
 controllo positivo prova che la sentinella funziona e che la HOME di prova non ha accesso.
 
@@ -548,12 +548,12 @@ def test_u11(repo: Path) -> None:
     entry = sezione(novita, prima.group(0))
     assert "/dafare" in entry and "<!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->" in entry, \
         "U11 la entry di NOVITA non nomina /dafare o non ha il segnaposto della nota dell'autore"
-    referente = read(repo / "docs" / "referente.md")
-    for parola in ("skills-dir", "strictKnownMarketplaces", "blockedMarketplaces", "dafare@skills-dir"):
-        assert parola in referente, f"U11 docs/referente.md non dice {parola}"
     setup = read(repo / "commands" / "setup.md")
     assert "2.1.287" in setup and "claude --version" in setup, "U11 /setup non controlla la versione di Claude Code"
     diagnosi = read(repo / "commands" / "diagnosi.md")
+    # 16/10/2026: docs/referente.md è uscito, le managed settings che spengono il mod le spiega /diagnosi.
+    for parola in ("skills-dir", "strictKnownMarketplaces", "blockedMarketplaces", "dafare@skills-dir"):
+        assert parola in diagnosi, f"U11 /diagnosi non dice {parola}"
     assert "claude plugin list --json" in diagnosi and "dafare@skills-dir" in diagnosi and "claude --version" in diagnosi, \
         "U11 /diagnosi non controlla il mod caricato e la versione"
 

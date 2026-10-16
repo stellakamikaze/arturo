@@ -58,17 +58,6 @@ const casi = {
     assert.deepEqual(m.conferme, [{ valore: "exfil-guard.py", chiede: 2, confermata: 1 }], "Q02 conferme");
     assert.deepEqual(m.errori, [{ valore: "data-guard.py", n: 2, installazioni: 2 }], "Q02 errori");
   },
-  // Tappe: vale la più recente di ogni installazione; ferma = vecchia di 30 giorni e sessione recente.
-  async Q03() {
-    const a = await con([
-      ["2026-08-01", "aaaaaaaa", "tappa", "tappa:1"], ["2026-10-12", "aaaaaaaa", "sessione"],          // ferma su 1
-      ["2026-08-01", "bbbbbbbb", "tappa", "tappa:1"], ["2026-09-30", "bbbbbbbb", "tappa", "tappa:2"],  // passata a 2
-      ["2026-08-01", "cccccccc", "tappa", "tappa:1"],                                                  // ferma ma assente
-      ["2026-10-01", "bbbbbbbb", "tappa", "decisioni:4"],                                              // non una tappa
-    ]);
-    const m = await a.miglioramento(AL);
-    assert.deepEqual(m.tappe, [{ valore: "tappa:1", n: 2, ferme: 1 }, { valore: "tappa:2", n: 1, ferme: 0 }], "Q03 tappe");
-  },
   // Aggiornamenti non applicati per versione, ritenzione dalla prima e dall'ultima volta, Claude Code.
   async Q04() {
     const a = await con([
@@ -87,7 +76,8 @@ const casi = {
   async Q05() {
     const a = await con([["2026-10-12", "aaaaaaaa", "sessione"], ["2026-10-12", "aaaaaaaa", "comando", "fine"]]);
     const settimana = await a.riepilogo("2026-10-06", AL, { settimana: true });
-    assert.ok(settimana.migliorare && Array.isArray(settimana.migliorare.tappe), "Q05 manca «Dove migliorare»");
+    assert.ok(settimana.migliorare && Array.isArray(settimana.migliorare.conferme), "Q05 manca «Dove migliorare»");
+    assert.equal(settimana.migliorare.tappe, undefined, "Q05 la query delle tappe c'è ancora");
     assert.equal(settimana.sessioni, 1, "Q05 sessioni");
     const giorno = await a.riepilogo("2026-10-11", "2026-10-12");
     assert.equal(giorno.migliorare, null, "Q05 «Dove migliorare» nel recap del giorno");

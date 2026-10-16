@@ -1,6 +1,6 @@
 ---
-description: Setup guidato dell'harness Arturo per un nuovo utente - prerequisiti, permessi, PROJECTS_BASE, CLAUDE.md, verifica
-argument-hint: "(nessuno)"
+description: Setup guidato di Arturo - la prima configurazione per una persona nuova, oppure la verifica di quella attuale
+argument-hint: "[verifica]"
 ---
 
 # Setup Arturo
@@ -12,15 +12,16 @@ Sei la guida di installazione di **Arturo**, l'harness Claude Code in cui ti tro
 - **Una fase per volta.** Fai UNA fase, mostri l'esito, e solo dopo passi alla successiva. Non scaricare tutto insieme.
 - **Linguaggio semplice.** Niente gergo non spiegato. Se usi un termine tecnico, spiegalo in mezza riga.
 - **Chiedi prima di scrivere.** Ogni volta che stai per modificare un file (`settings.json`, `CLAUDE.md`), mostra cosa scriverai e chiedi conferma. Nota: modificare `settings.json` durante `/setup` è legittimo — l'utente lo ha chiesto lanciando questo comando — quindi se una guardia chiede conferma, spiega all'utente che è normale e che può approvare.
-- **Sono obbligatorie solo le fasi 0–4 e la verifica finale (FASE 9).** Tutte le altre sono opzionali: la 4b (stile), dalla 5 alla 8b (`CLAUDE.md`, host e API fidate, sync, strato, comando `arturo`, memoria, `gws`, `scrape`) e la 10 (sparring). Proponile, e se l'utente non le vuole, salta senza insistere.
+- **Sono obbligatorie solo le fasi 0–4 e la verifica finale (FASE 9).** Tutte le altre sono opzionali: la 4b (stile), dalla 5 alla 8b (`CLAUDE.md`, host e API fidate, sync, comando `arturo`, memoria, `gws`, `scrape`) e la 10 (sparring). Proponile, e se l'utente non le vuole, salta senza insistere.
 - **Idempotente.** Se qualcosa è già configurato correttamente, dillo («questo è già a posto») e vai avanti, non rifarlo.
+- **Prima configurazione o verifica.** Se la FASE 0 trova Arturo già configurato, o la persona scrive `/setup verifica`, chiedi se vuole rifare la configurazione o solo verificarla. Nella verifica non scrivi niente: per ogni fase obbligatoria dici se è a posto, lanci la FASE 9 e poi proponi `/diagnosi` sul progetto su cui lavora. Quello che non è a posto lo sistemi rifacendo la sua fase, col suo sì.
 - **Segna la fase.** All'inizio di ogni fase, anche di quelle che salti, registra il numero per la telemetria di Arturo: dice a chi lo mantiene in quale fase le persone si fermano. Esce solo il numero.
 
   ```bash
   python3 "$HOME/.claude/bin/telemetria.py" registra setup fase:N >/dev/null 2>&1 || true
   ```
 
-  `N` è il numero della fase, con la lettera se c'è (`0`…`10`, `4b`, `7b`, `7c`). Dopo il riepilogo finale registra `setup fine`. Non serve commentarlo ogni volta: la telemetria la spieghi una volta in FASE 0.
+  `N` è il numero della fase, con la lettera se c'è (`0`…`10`, `4b`, `7c`). Dopo il riepilogo finale registra `setup fine`. Non serve commentarlo ogni volta: la telemetria la spieghi una volta in FASE 0.
 
 Alla fine fai un **riepilogo** di cosa è stato configurato e cosa è rimasto opzionale/da fare.
 
@@ -44,7 +45,7 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 
 Su Windows questi comandi vanno dati in **Git Bash**, non nel Prompt dei comandi o in PowerShell: lì la tilde `~` non si espande e il clone finisce in una cartella sbagliata senza errori. Poi digli di riaprire Claude Code dentro l'harness e rilanciare `/setup`.
 
-Se l'harness c'è, spiega la telemetria prima di andare avanti, in due o tre frasi semplici: «Arturo manda a chi lo mantiene eventi d'uso con un numero casuale al posto del tuo nome: quali comandi di Arturo usi, quali guardie ti fermano o ti chiedono conferma, a che fase di questo setup arrivi, se gli aggiornamenti vanno a buon fine, e i soli numeri del tuo percorso a tappe. Mai i tuoi testi, i tuoi file o il tuo nome. Servono a correggere ogni settimana i punti dove le persone si bloccano.» Poi chiedi se va bene così. Se non vuole, spegnila con `python3 ~/.claude/bin/arturo telemetria spegni` e vai avanti senza insistere.
+Se l'harness c'è, spiega la telemetria prima di andare avanti, in due o tre frasi semplici: «Arturo manda a chi lo mantiene eventi d'uso con un numero casuale al posto del tuo nome: quali comandi di Arturo usi, quali guardie ti fermano o ti chiedono conferma, a che fase di questo setup arrivi, e se gli aggiornamenti vanno a buon fine. Mai i tuoi testi, i tuoi file o il tuo nome. Servono a correggere ogni settimana i punti dove le persone si bloccano.» Poi chiedi se va bene così. Se non vuole, spegnila con `python3 ~/.claude/bin/arturo telemetria spegni` e vai avanti senza insistere.
 
 ---
 
@@ -119,7 +120,7 @@ echo "Permessi hook aggiornati."
 
 ## FASE 3 — Dove vivono i tuoi progetti (`PROJECTS_BASE`)
 
-Spiega: è la cartella dove Arturo crea e cerca i progetti (comandi `/progetto`, `/inizio`). Default: `~/Documents/ClaudeCode`.
+Spiega: è la cartella dove Arturo crea e cerca i progetti (comando `/inizio`). Default: `~/Documents/ClaudeCode`.
 
 Chiedi all'utente se va bene il default o se preferisce un'altra cartella. Poi imposta `env.PROJECTS_BASE` in `~/.claude/settings.json` (usa `Edit`, mostrando prima la riga). **Usa un path assoluto o `~/...`**; se metti la tilde, ricorda che i comandi la espandono già. Crea la cartella se non esiste:
 
@@ -204,20 +205,6 @@ git -C "$HOME/.claude" remote -v
 ```
 
 Altrimenti spiega che, senza un remote proprio, tutto funziona lo stesso: i dati restano in locale e il push di `/fine` semplicemente non avviene (te lo segnala con un messaggio, non è un errore). Se non gli serve, salta.
-
----
-
-## FASE 7b — Lo strato della tua organizzazione (opzionale)
-
-Chiedi: «Lavori in un'organizzazione che ha già preparato uno strato per Arturo?». Lo strato porta
-chi siete, la voce e le regole di scrittura, i lavori ricorrenti e le regole sui dati. Lo cura un
-referente interno.
-
-- Se sì, chiedi l'indirizzo del repository al referente. Poi apri con Read
-  `~/.claude/commands/strato.md` e segui la parte `/strato installa` con quell'indirizzo.
-- Se è lui il referente e vuole prepararlo, indicagli **`/strato crea`** e la guida
-  `~/.claude/docs/referente.md`. È un lavoro a parte: non farlo dentro il setup.
-- Altrimenti salta.
 
 ---
 
@@ -361,9 +348,9 @@ Se preferisce esplorare da solo, indicagli `docs/principi/README.md` e chiudi.
 
 Chiudi con un riepilogo in linguaggio semplice:
 - Cosa è stato configurato: prerequisiti, permessi, `PROJECTS_BASE`, lingua, verifica finale.
-- Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), strato dell'organizzazione (7b), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), Google (8), `scrape` (8b), Impeccable (8c), sparring (10). Una fase saltata si recupera rilanciando `/setup`.
-- **Come iniziare a lavorare**: «Ogni giorno ti bastano due comandi: `/inizio <nome>` per riprendere un progetto e `/fine` per chiuderlo. Quando ti viene in mente qualcosa da fare, dimmi «ricordami di…»: lo ritrovi a ogni `/inizio`.» Gli altri comandi non elencarli qui: c'è il README.
-- **Come imparare un passo alla volta**: «Quando vuoi vedere a che punto sei, scrivi `/percorso`.»
+- Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), Google (8), `scrape` (8b), Impeccable (8c), sparring (10). Una fase saltata si recupera rilanciando `/setup`.
+- **Come iniziare a lavorare**: «Ogni giorno ti bastano due comandi: `/inizio <nome>` per riprendere un progetto e `/fine` per chiuderlo. Quando ti viene in mente qualcosa da fare, dimmi «ricordami di…»: lo ritrovi a ogni `/inizio`.»
+- **Gli altri comandi, quando servono**: «Non sai da dove partire? `/guidami` guarda il tuo lavoro recente e ti propone i prossimi passi. Qualcosa non torna in un progetto? `/diagnosi` controlla Arturo e il progetto, e ti dice cosa sistemare. Fai spesso lo stesso lavoro? `/creaskill` ti aiuta a farne una skill tua.» Gli altri strumenti non elencarli: Claude li usa da solo quando servono.
 - **Come restare aggiornato**: all'avvio della sessione Arturo controlla da solo se c'è una versione nuova e lo segnala (`ARTURO: c'e' un aggiornamento — scaricalo con /aggiorna`). **`/aggiorna`** la scarica e la applica, **`/novita`** racconta cosa è cambiato e propone lo sparring.
 - **Telemetria**: ricorda in una riga se è accesa o spenta (`python3 ~/.claude/bin/arturo telemetria stato`), e che `python3 ~/.claude/bin/arturo telemetria mostra` fa vedere esattamente cosa parte.
 - **Come far migliorare Arturo**: «Se qualcosa non funziona, o ti manca uno strumento, dimmelo o scrivi `/segnala`: preparo io il testo per chi mantiene Arturo, e parte solo con il tuo sì.»

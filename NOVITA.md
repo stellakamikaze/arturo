@@ -11,6 +11,37 @@ modo di lavorare.
 
 ---
 
+## 2026-10-16 — Nove comandi, una diagnosi del progetto, e le tue skill con /creaskill
+
+**Cosa cambia**: Arturo ti racconta e ti propone nove comandi: `/inizio`, `/fine`, `/aggiorna`,
+`/novita`, `/segnala`, `/setup`, `/guidami`, `/diagnosi` e il nuovo `/creaskill`. Tutto il resto
+lo usa Claude da solo, dentro questi: lo sparring, la scrittura semplificata, il brief, i todo,
+l'audit. `/setup` adesso fa anche la verifica di una configurazione già fatta: scrivi
+`/setup verifica`. `/diagnosi` non guarda più solo il codice ma il progetto intero: controlla
+che Arturo regga, lo stato di git, handoff e todo, i file citati negli handoff che non esistono
+più, e i materiali sparsi in Download o fuori dal repo, con un posto proposto per ognuno.
+`/creaskill` ti fa quattro domande e trasforma un lavoro che fai spesso in una skill tua.
+
+Escono cinque comandi: `/strato` (lo strato delle organizzazioni torna più avanti, rifatto),
+il percorso a tappe con `/percorso` e `arturo percorso`, `/progetto`, `/discovery` e
+`/write-plan`. Un progetto nuovo lo crei con `/inizio <nome>`: se non esiste, Claude ti chiede
+se crearlo.
+
+**Il principio dietro**: pochi comandi che si raccontano bene valgono più di tanti che si
+dimenticano. Un comando che nessuno lancia è un comando che nessuno mantiene.
+
+**Da sapere**: se hai aggiornato con `/aggiorna`, i file tolti spariscono da soli. Se avevi
+modificato uno dei comandi tolti, `/aggiorna` te lo chiede. Se copi le cartelle a mano, cancella
+tu `commands/strato.md`, `commands/progetto.md`, `commands/discovery.md`,
+`commands/write-plan.md`, la cartella `skills/percorso/`, `bin/percorso.py`, `docs/esercizi.md`,
+`docs/referente.md` e la cartella `templates/`. Il file `session-env/percorso.json` non serve
+più e si può cancellare. Se nei tuoi todo c'è il progetto `_percorso`, sono gli esercizi del
+percorso: chiedi a Claude di scartarli. Se avevi installato lo strato di un'organizzazione,
+resta installato ma non si aggiorna più da solo: `claude plugin list` lo mostra, e
+`claude plugin uninstall` lo toglie.
+
+---
+
 ## 2026-10-16 — In vista solo i comandi di ogni giorno, Impeccable dal setup, esce blast-radius
 
 **Cosa cambia**: Claude ti propone di sua iniziativa solo i comandi che servono ogni giorno o quando serve:

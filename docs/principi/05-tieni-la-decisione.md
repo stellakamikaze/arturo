@@ -39,9 +39,9 @@ Gli strumenti di questo tipo misurano spesso quanto lavoro passi alla macchina. 
 più sembri bravo. Arturo non lo misura, di proposito.
 
 Una persona che delega tutto non ha imparato a usare Claude: ha smesso di guardare. Una persona
-che sa cosa tenere per sé ha imparato la cosa difficile. Il percorso di Arturo (`arturo percorso`
-o `/percorso`) conta questo: le decisioni prese prima che Claude lavori, i limiti che dichiari,
-i no che motivi. Non conta quante cose hai delegato.
+che sa cosa tenere per sé ha imparato la cosa difficile. Per questo i todo di Arturo tengono
+scritte le decisioni prese prima che Claude lavori, i limiti che dichiari e i no che motivi.
+Non contano quante cose hai delegato.
 
 ## Come si vede nei todo
 
@@ -72,5 +72,4 @@ e scrivi il perché nel todo.
 
 ---
 
-*Vuoi provarlo sul tuo lavoro? `/sparring tieni la decisione`, oppure chiedi a Claude «a che punto
-sono?»: il percorso ti propone un esercizio per la tua tappa.*
+*Vuoi provarlo sul tuo lavoro? Chiedi a Claude uno sparring su «tieni la decisione».*

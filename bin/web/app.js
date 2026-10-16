@@ -32,7 +32,7 @@
   var COMANDO = "python3 ~/.claude/bin/arturo web";
 
   var stato = {
-    dati: null,        // {vista, progetti, da_dove, percorso, partenza}: l'ultima lettura disegnata
+    dati: null,        // {vista, progetti, da_dove, partenza}: l'ultima lettura disegnata
     testo: "",         // la stessa lettura come JSON, per sapere se è cambiata
     inAttesa: null,    // una lettura arrivata mentre la persona scrive in un pannello
     rotta: { tipo: "tavolo", progetto: "", todo: null },
@@ -153,7 +153,7 @@
   }
 
   function lettura(dati) {
-    return { vista: dati.vista, progetti: dati.progetti, da_dove: dati.da_dove || null, percorso: dati.percorso || null,
+    return { vista: dati.vista, progetti: dati.progetti, da_dove: dati.da_dove || null,
       partenza: dati.partenza || (stato.dati ? stato.dati.partenza : "generale"),
       // Facoltativi, da un server che li conosce: categorie del registro e nomi completi.
       categorie: dati.categorie || null, nomi: dati.nomi || null };
@@ -425,7 +425,6 @@
   function disegna() {
     var v = stato.dati.vista;
     $("oggi").textContent = dataLunga(v.oggi);
-    disegnaPercorso();
     disegnaProgetti();
     disegnaAvvisi(v.avvisi || []);
     disegnaSceltaChi();
@@ -451,22 +450,6 @@
     // Il todo del pannello aperto non è più nella vista (chiuso con «Fatto», spostato di progetto):
     // il pannello non c'è più, e le letture successive arrivano di nuovo nella pagina.
     if (stato.aperto && !$("pannello-todo-" + stato.aperto.id)) { stato.aperto = null; }
-  }
-
-  function disegnaPercorso() {
-    var p = stato.dati.percorso;
-    var riga = $("percorso");
-    svuota(riga);
-    riga.hidden = !p;
-    if (!p) { return; }
-    var punti = el("span", { classe: "percorso-punti", "aria-hidden": "true" });
-    for (var i = 1; i <= p.totale; i += 1) {
-      punti.appendChild(el("span", { classe: i < p.tappa ? "punto punto--fatto" : (i === p.tappa ? "punto stella" : "punto") }));
-    }
-    riga.appendChild(punti);
-    riga.appendChild(el("span", { testo: p.tappa
-      ? "Percorso: tappa " + p.tappa + " di " + p.totale + ", " + p.nome
-      : "Percorso: all'inizio, la prima tappa è Osserva" }));
   }
 
   function disegnaSceltaChi() {

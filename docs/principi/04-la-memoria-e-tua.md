@@ -70,5 +70,4 @@ cartella di file che conosco», la memoria è tua.
 
 ---
 
-*Vuoi provarlo sul tuo lavoro? `/sparring la memoria è tua`, oppure chiedi a Claude «a che punto
-sono?»: il percorso ti propone un esercizio per la tua tappa.*
+*Vuoi provarlo sul tuo lavoro? Chiedi a Claude uno sparring su «la memoria è tua».*

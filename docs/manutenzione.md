@@ -50,9 +50,8 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
 - **Dove migliorare Arturo.** Il riepilogo del lunedì si apre con questa sezione, sugli ultimi 30
   giorni: fase di `/setup` dove si fermano le installazioni che non arrivano in fondo, guardie che
   chiedono conferma con la quota di sì (vicina al 100% vuol dire domanda inutile), guardie che si
-  rompono, aggiornamenti rifiutati o annullati per versione, installazioni per tappa e quelle ferme
-  sulla stessa tappa da 30 giorni pur lavorando, ritenzione a 7, 30 e 60 giorni, versioni di Claude
-  Code. Sono numeri, non verdetti: cosa correggere lo decide chi mantiene Arturo. Ogni correzione nata
+  rompono, aggiornamenti rifiutati o annullati per versione, ritenzione a 7, 30 e 60 giorni,
+  versioni di Claude Code. Sono numeri, non verdetti: cosa correggere lo decide chi mantiene Arturo. Ogni correzione nata
   da un segnale lo dice nella sua voce di `NOVITA.md` («Da sapere: lo mostrava la telemetria»).
 - **Il riepilogo in JSON.** `GET /v1/riepilogo?dal=AAAA-MM-GG&al=AAAA-MM-GG` con l'intestazione
   `authorization: Bearer <token>` dà lo stesso riepilogo, per la routine che propone le correzioni.
@@ -98,7 +97,10 @@ Un cambio dell'elenco degli eventi tocca tre posti che il banco M09 confronta: `
 `server/README.md`, `docs/referente.md`, nell'avviso di `bin/telemetria.py`, nella FASE 0 di
 `commands/setup.md` e nella landing: prima del rilascio, `git grep -n` sul nome di un evento. Il server va pubblicato **prima** del client: un
 lotto con un evento che il server non conosce viene rifiutato per intero, e il client lo toglie dalla
-coda. Se cambia cosa esce, alza anche `PROMESSA` in `bin/telemetria.py`: l'avviso torna una volta.
+coda. Per lo stesso motivo un evento tolto dal client resta accettato dal server ancora qualche
+settimana, per i client non aggiornati: sta in coda all'elenco di `server/logica.js` e in
+`EVENTI_VECCHI` di `tests/test_telemetria.py`, e da lì si toglie insieme (oggi: `tappa`, tolta il
+16/10/2026). Se cambia cosa esce, alza anche `PROMESSA` in `bin/telemetria.py`: l'avviso torna una volta.
 
 ## Se lo sviluppo si ferma
 

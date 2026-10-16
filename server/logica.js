@@ -9,7 +9,7 @@
 // L'IP non viene mai salvato. Gli eventi hanno il solo giorno, mai l'ora.
 
 // L'elenco chiuso degli eventi. Lo stesso elenco sta in bin/telemetria.py e nel README:
-// il banco M09 controlla che coincidano.
+// il banco M09 controlla che coincidano, salvo gli eventi vecchi che il client non manda più.
 export const EVENTI = {
   sessione: /^$/,
   comando: /^[a-z0-9-]{1,40}$/,
@@ -26,8 +26,12 @@ export const EVENTI = {
   chiede: /^[a-z0-9_.-]{1,60}$/,
   confermata: /^[a-z0-9_.-]{1,60}$/,
   errore: /^[a-z0-9_.-]{1,60}$/,
-  tappa: /^(tappa:[0-4]|(decisioni|limiti|tenuti|proposte|rifiutate):\d{1,4})$/,
   claude: /^\d{1,3}\.\d{1,3}\.\d{1,4}$/,
+  // Eventi vecchi: il client non li manda più, ma un client non aggiornato sì. Restano accettati
+  // perché validaLotto rifiuta il lotto intero per un evento fuori elenco. Da togliere dopo qualche
+  // settimana, insieme al loro posto in M09 (tests/test_telemetria.py).
+  // tappa: tolta dal client il 16/10/2026 con il percorso a tappe.
+  tappa: /^(tappa:[0-4]|(decisioni|limiti|tenuti|proposte|rifiutate):\d{1,4})$/,
 };
 // Le soglie della ritenzione: installazioni ancora vive dopo 7, 30 e 60 giorni dalla prima volta.
 // Sessanta giorni è il criterio di successo di Arturo (uso vivo dopo due mesi).
@@ -193,9 +197,6 @@ export function testoMigliorare(m) {
     "",
     "Aggiornamenti non applicati (versione, esito, volte):",
     ...righe(m.aggiornaStorti, (x) => `  ${x.versione}  ${x.valore}  ${x.n}`, "  nessuno"),
-    "",
-    "Tappe (installazioni per tappa, e quante ferme lì da 30 giorni pur lavorando):",
-    ...righe(m.tappe, (x) => `  ${x.valore}  ${x.n}, ferme ${x.ferme || 0}`, "  nessun dato"),
     "",
     `Ritenzione: ${r.nuove} installazioni nuove negli ultimi 7 giorni.`,
     ...r.soglie.map((s) => `  vive dopo ${s.giorni} giorni: ${s.vive} su ${s.idonee} (${per(s.vive, s.idonee)})`),

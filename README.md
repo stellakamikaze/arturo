@@ -6,7 +6,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 È il telaio di una config personale usata quotidianamente in produzione, estratto e igienizzato: **zero dati, zero credenziali, zero riferimenti a infrastrutture private**. Quello che resta è il metodo.
 
-In due righe: **23 guardie e automazioni**, **13 slash command**, **9 subagent**, **5 skill**, una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), un **server open source** per la telemetria e le segnalazioni (`server/`), che dice a chi mantiene Arturo dove correggerlo — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi usa già l'IA in chat ma non ha mai aperto un terminale. A te non serve un server né un account: il server della telemetria lo tiene chi mantiene Arturo. Ti bastano `git` e le CLI standard.
+In due righe: **23 guardie e automazioni**, **10 slash command**, **9 subagent**, **4 skill**, una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), un **server open source** per la telemetria e le segnalazioni (`server/`), che dice a chi mantiene Arturo dove correggerlo — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi usa già l'IA in chat ma non ha mai aperto un terminale. A te non serve un server né un account: il server della telemetria lo tiene chi mantiene Arturo. Ti bastano `git` e le CLI standard.
 
 I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure scrivi `python3 ~/.claude/bin/arturo web` nel terminale. La pagina è facoltativa e locale: risponde solo sul tuo computer (127.0.0.1), non si collega a internet e si spegne da sola dopo 30 minuti senza la pagina aperta.
 
@@ -14,9 +14,9 @@ I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure scri
 
 ## In breve
 
-**Per chi è.** Arturo è per chi usa già l'IA in chat (ChatGPT, Claude) e non ha mai aperto un terminale. In chat l'IA risponde. In Claude Code lavora: legge e scrive i tuoi file, riprende il lavoro da una sessione all'altra, esegue i passi al posto tuo. Arturo ti porta lì senza doverti fare imparare il terminale: regole di sicurezza già pronte che chiedono conferma prima delle azioni che non si annullano, un modo ordinato di aprire e chiudere il lavoro, e un percorso per imparare a delegare.
+**Per chi è.** Arturo è per chi usa già l'IA in chat (ChatGPT, Claude) e non ha mai aperto un terminale. In chat l'IA risponde. In Claude Code lavora: legge e scrive i tuoi file, riprende il lavoro da una sessione all'altra, esegue i passi al posto tuo. Arturo ti porta lì senza doverti fare imparare il terminale: regole di sicurezza già pronte che chiedono conferma prima delle azioni che non si annullano, un modo ordinato di aprire e chiudere il lavoro, e comandi che ti dicono da dove partire quando non lo sai.
 
-**Cosa ci fai.** Il primo caso d'uso è il lavoro con le parole e le informazioni: scrivere e revisionare, cercare e sintetizzare, tenere in ordine posta, progetti e documenti. Il secondo è costruire piccoli strumenti su misura per un tuo caso preciso, senza saper programmare. Se lavori in un'organizzazione, c'è un modo per portare Arturo ai colleghi: vedi [Organizzazioni](#organizzazioni-strato).
+**Cosa ci fai.** Il primo caso d'uso è il lavoro con le parole e le informazioni: scrivere e revisionare, cercare e sintetizzare, tenere in ordine posta, progetti e documenti. Il secondo è costruire piccoli strumenti su misura per un tuo caso preciso, senza saper programmare.
 
 **Cominciare in tre passi.**
 
@@ -45,7 +45,7 @@ Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
 
 1. **Il repository resta pubblico e con licenza MIT.** Non diventa privato e non viene cancellato.
 2. **Solo `/aggiorna` applica gli aggiornamenti, e solo dopo il tuo sì.** L'avvio della sessione e `/inizio` controllano soltanto se ci sono novità. Se hai collegato un tuo repository privato, `/inizio` sincronizza quello: sono le tue macchine, non codice di altri.
-3. **Telemetria accesa di default: eventi e numeri, mai contenuti, per migliorare Arturo.** Arturo si sviluppa ogni giorno per persone che spesso non sanno dire dove si bloccano. Per questo manda a chi lo mantiene eventi d'uso da un elenco chiuso, e chi lo mantiene li legge ogni lunedì per decidere cosa correggere: la fase di `/setup` dove ci si ferma, le guardie che chiedono conferma a vuoto, gli aggiornamenti rifiutati, chi resta fermo su una tappa. Ogni correzione nata da un segnale lo dice nella sua voce di [`NOVITA.md`](NOVITA.md). Gli eventi: `sessione`, `comando` (il nome di un comando di Arturo, mai il testo), `guardia` (il nome della guardia che ha bloccato), `aggiorna` (l'esito di `/aggiorna`: applicato, conflitto, fallito, rifiutato, indietro, scartato), `segnalazione` (il tipo), `deriva` (i file e gli hook di Arturo che hai cambiato o spento: dei file solo la posizione dentro Arturo, che è pubblica), `config` (la config rotta, che parte subito perché spegne le guardie), `setup` (il numero della fase di `/setup` raggiunta), `chiede` e `confermata` (il nome di una guardia che ti chiede conferma, e se hai detto sì), `errore` (il nome di una guardia che si è rotta), `tappa` (del percorso a tappe solo numeri: la tappa, quante decisioni e limiti hai tenuto, quante proposte di delega e quanti no, mai cosa hai scritto) e `claude` (la versione di Claude Code). Con gli eventi partono un id casuale creato da Arturo (non legato a te, ma sempre lo stesso: per questo non sono dati anonimi), la versione e il sistema operativo, con il solo giorno e mai l'ora. Mai prompt, file tuoi, percorsi del tuo computer, nomi, risposte o testi del percorso. Il server (`server/`, open source) non salva l'indirizzo IP e tiene gli eventi 12 mesi. Vedi cosa parte con `python3 ~/.claude/bin/arturo telemetria mostra`, la spegni con `python3 ~/.claude/bin/arturo telemetria spegni` o con `DO_NOT_TRACK=1`. Quando cambia cosa esce, Arturo te lo dice di nuovo alla prima sessione. Per far cancellare i tuoi dati scrivi a federico@stellakamikaze.org con l'id che ti mostra `mostra`. Gli altri contatti automatici con l'esterno: il controllo degli aggiornamenti (un `git fetch` al massimo ogni sei ore) e l'invio degli eventi (al massimo ogni sei ore, salvo una config rotta, che parte all'avvio). Le segnalazioni di `/segnala` partono solo dopo che hai letto il testo e detto sì, e arrivano solo a chi mantiene Arturo, salvo che tu scelga una issue pubblica su GitHub.
+3. **Telemetria accesa di default: eventi e numeri, mai contenuti, per migliorare Arturo.** Arturo si sviluppa ogni giorno per persone che spesso non sanno dire dove si bloccano. Per questo manda a chi lo mantiene eventi d'uso da un elenco chiuso, e chi lo mantiene li legge ogni lunedì per decidere cosa correggere: la fase di `/setup` dove ci si ferma, le guardie che chiedono conferma a vuoto, gli aggiornamenti rifiutati. Ogni correzione nata da un segnale lo dice nella sua voce di [`NOVITA.md`](NOVITA.md). Gli eventi: `sessione`, `comando` (il nome di un comando di Arturo, mai il testo), `guardia` (il nome della guardia che ha bloccato), `aggiorna` (l'esito di `/aggiorna`: applicato, conflitto, fallito, rifiutato, indietro, scartato), `segnalazione` (il tipo), `deriva` (i file e gli hook di Arturo che hai cambiato o spento: dei file solo la posizione dentro Arturo, che è pubblica), `config` (la config rotta, che parte subito perché spegne le guardie), `setup` (il numero della fase di `/setup` raggiunta), `chiede` e `confermata` (il nome di una guardia che ti chiede conferma, e se hai detto sì), `errore` (il nome di una guardia che si è rotta) e `claude` (la versione di Claude Code). Con gli eventi partono un id casuale creato da Arturo (non legato a te, ma sempre lo stesso: per questo non sono dati anonimi), la versione e il sistema operativo, con il solo giorno e mai l'ora. Mai prompt, file tuoi, percorsi del tuo computer, nomi o risposte. Il server (`server/`, open source) non salva l'indirizzo IP e tiene gli eventi 12 mesi. Vedi cosa parte con `python3 ~/.claude/bin/arturo telemetria mostra`, la spegni con `python3 ~/.claude/bin/arturo telemetria spegni` o con `DO_NOT_TRACK=1`. Quando cambia cosa esce, Arturo te lo dice di nuovo alla prima sessione. Per far cancellare i tuoi dati scrivi a federico@stellakamikaze.org con l'id che ti mostra `mostra`. Gli altri contatti automatici con l'esterno: il controllo degli aggiornamenti (un `git fetch` al massimo ogni sei ore) e l'invio degli eventi (al massimo ogni sei ore, salvo una config rotta, che parte all'avvio). Le segnalazioni di `/segnala` partono solo dopo che hai letto il testo e detto sì, e arrivano solo a chi mantiene Arturo, salvo che tu scelga una issue pubblica su GitHub.
 4. **Arturo resta in italiano.**
 5. **Se lo sviluppo si ferma, lo scrivo.** Lo dichiarano l'ultima entry di [`NOVITA.md`](NOVITA.md) e la cima di questa pagina. La copia che hai continua a funzionare, e puoi farne un fork.
 
@@ -118,10 +118,10 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 
 Poi apri Claude Code dentro la cartella: `cd ~/.claude && claude`, e scrivi `/setup`.
 
-Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/`, `docs/`, `templates/`, `tools/`, `tests/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono a `/sparring`, `/novita` e `/inizio gws`; `templates/` serve a `/strato`; `tests/` ai banchi delle guardie che l'avvio lancia da solo).
-Chi copia a mano ricopia `commands/` e `skills/` a ogni rilascio: dentro c'è anche quali comandi
-Claude propone da solo e quali lanci tu col nome (`disable-model-invocation`). Copia le due
-cartelle insieme: i comandi di ogni giorno aprono gli altri con Read, e si aspettano di trovarli.
+Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/`, `docs/`, `tools/`, `tests/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono a `/sparring`, `/novita` e `/inizio gws`; `tests/` ai banchi delle guardie che l'avvio lancia da solo).
+Chi copia a mano ricopia le cartelle a ogni rilascio, `commands/` e `skills/` insieme: i comandi
+si aprono l'uno con l'altro e si aspettano di trovarsi. Copiare non cancella: i file che Arturo
+toglie li elenca la voce di [`NOVITA.md`](NOVITA.md), e vanno cancellati a mano.
 
 > **Il tuo remote.** Il clone qui sopra punta al repo originale, su cui non hai accesso in scrittura. `/fine` salva i commit sulla tua macchina e non prova a pusharli. Se vuoi **sincronizzare le tue modifiche tra più macchine**, crea un tuo repo privato e puntaci `origin`:
 > ```bash
@@ -176,7 +176,7 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 
 | Di Arturo (arriva con gli aggiornamenti) | Tuo (nessun aggiornamento lo tocca) |
 |---|---|
-| `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/` (gli stili di Arturo; uno tuo con un nome nuovo resta tuo), `docs/`, `templates/`, `tools/`, `tests/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `tools/scrapling/.venv/` (il venv di `scrape`), `personale/` (le tue aggiunte ai comandi di Arturo), `hooks/hosts-interni.local`, `hooks/api-fidate.local`, `data/` (compresi i tuoi todo in `data/todo/`), `projects/` e le altre cartelle di lavoro |
+| `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/` (gli stili di Arturo; uno tuo con un nome nuovo resta tuo), `docs/`, `tools/`, `tests/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `tools/scrapling/.venv/` (il venv di `scrape`), `personale/` (le tue aggiunte ai comandi di Arturo), `hooks/hosts-interni.local`, `hooks/api-fidate.local`, `data/` (compresi i tuoi todo in `data/todo/`), `projects/` e le altre cartelle di lavoro |
 
 `settings.json` è di Arturo, ma le tue modifiche restano come commit locali. `/aggiorna` ti mostra i file cambiati sia da te sia dall'aggiornamento prima di applicare. Se nella copia di prova `settings.json` non è JSON valido o resta un conflitto, l'aggiornamento non arriva in `~/.claude`: un `settings.json` rotto spegnerebbe tutte le guardie. L'avvio della sessione te lo segnala con una riga `CONFIG ROTTA`.
 
@@ -189,7 +189,7 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 
 > **La via rapida: `/setup`.** Apri Claude Code dentro `~/.claude` e lancia **`/setup`**: ti guida passo-passo in tutta la configurazione qui sotto (prerequisiti, permessi, `PROJECTS_BASE`, lingua, `CLAUDE.md`, sync, verifica finale), una cosa alla volta e in linguaggio semplice. È il modo consigliato, soprattutto se non hai mai usato un terminale. La checklist qui sotto è la versione manuale, per chi preferisce farla a mano.
 
-1. **`settings.json` → `env.PROJECTS_BASE`** — la cartella dove vivono i tuoi progetti (default `~/Documents/ClaudeCode`). Vale per `/progetto` e `/inizio`.
+1. **`settings.json` → `env.PROJECTS_BASE`** — la cartella dove vivono i tuoi progetti (default `~/Documents/ClaudeCode`). Vale per `/inizio`.
 2. **Host interni** — le guardie conoscono solo regole pubbliche: `localhost` e le reti locali (`10.x`, `172.16.x`-`172.31.x`, `192.168.x`, gli indirizzi Tailscale `100.64.x`, link-local e IPv6 locali). Un nome `.ts.net` non conta come interno, perché con Tailscale Funnel può essere pubblico. I tuoi host personali, compresi quelli della tua tailnet, vanno in `hooks/hosts-interni.local` (una voce per riga, hostname o rete), non nei file `.py`. Le API esterne che usi con la tua chiave (fatturazione, CRM) vanno in `hooks/api-fidate.local`, un nome host esatto per riga: un POST verso di loro non chiede conferma.
 3. **Scrivi il tuo `~/.claude/CLAUDE.md`** — le istruzioni personali (chi sei, come lavori, regole tue). Non è incluso: è personale per definizione.
 4. **`language` in `settings.json`** — è `italian`; cambialo se serve.
@@ -238,16 +238,13 @@ hooks/               23 guardie e automazioni, più 4 strumenti che usano
 bin/                 La CLI arturo e i suoi moduli
 tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativo, si installa da /setup)
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
-commands/            13 slash command di workflow (incl. /setup, /aggiorna, /guidami, /novita, /strato, /segnala)
+commands/            10 slash command (i nove della rotta, più /sparring che Claude apre da solo)
 agents/              9 subagent specializzati
-skills/              5 skill (+ regole condivise in shared/)
+skills/              4 skill (+ regole condivise in shared/)
 output-styles/       Due stili di scrittura: Guida (di partenza) e Conciso (si sceglie in /setup)
 docs/principi/       Il curriculum: i principi spiegati in semplice
-docs/esercizi.md     Gli esercizi del percorso a tappe (/percorso)
 docs/onboarding/     Guide di setup guidato (/inizio gws)
 docs/impeccable.md   Come installare Impeccable (design delle interfacce) dall'upstream
-docs/referente.md    Guida del referente di un'organizzazione (/strato)
-templates/strato/    Modello di plugin per lo strato di un'organizzazione (/strato crea), con esempi da adattare
 tests/               I banchi di prova: il gate completo e i banchi delle guardie che l'avvio lancia da solo
 NOVITA.md            Canale di aggiornamento (lo racconta /novita)
 ```
@@ -291,20 +288,21 @@ Fuori dal dispatcher:
 **Cosa registrano gli hook per la telemetria.** Gli hook scrivono poche righe nella coda
 `~/.claude/data/telemetria/coda.jsonl`, senza rete; la coda parte in un lotto al massimo ogni sei ore.
 `session-start.sh` registra l'evento `sessione` e manda la coda in background. `inject-now.sh`
-registra `comando` con il nome di un comando di Arturo, mai il testo del prompt: un comando tuo o
-dello strato della tua organizzazione non si registra. `bash-dispatcher.sh` registra `guardia` con il
+registra `comando` con il nome di un comando di Arturo, mai il testo del prompt: un comando tuo
+non si registra. `bash-dispatcher.sh` registra `guardia` con il
 nome della guardia che ha bloccato, `chiede` con il nome della guardia che chiede conferma ed
 `errore` con il nome di una guardia che si rompe, mai il comando. `web-egress-guard.py` e `protect_claude_md.py` registrano
 `chiede` allo stesso modo. Un hook PostToolUse (`bin/telemetria-esito.sh`) registra `confermata` quando
 lo strumento parte dopo una domanda di guardia: l'unico legame è l'id della chiamata, che resta in
-`session-env/telemetria-attese.json` fino all'esito. `session-start.sh` passa a `telemetria tappa`
-i soli numeri di `arturo percorso numeri`, e partono solo quelli cambiati. `bin/aggiorna-applica.sh`
+`session-env/telemetria-attese.json` fino all'esito. `bin/aggiorna-applica.sh`
 registra `aggiorna` con l'esito, `/aggiorna` il no e il ritorno indietro, `/setup` la fase raggiunta.
 L'invio in background registra `claude` quando cambia la versione di Claude Code. `deriva.py` registra `deriva` solo quando cambia l'elenco dei file e degli hook di Arturo
 cambiati o spenti, e `config` una volta al giorno se la config è rotta. Con la telemetria spenta nessuno di loro scrive. `python3 ~/.claude/bin/arturo telemetria mostra`
 fa vedere la coda così come parte.
 
 ### La rotta (`commands/`)
+
+Nove comandi, e Arturo te li propone quando servono. Gli altri strumenti li usa Claude da solo, dentro questi.
 
 **Ogni giorno.** Due comandi bastano: apri la giornata con `/inizio` e la chiudi con `/fine`.
 
@@ -316,14 +314,15 @@ fa vedere la coda così come parte.
 - **`/aggiorna`** — scarica e applica l'ultima versione di Arturo, dopo averti mostrato cosa cambia e controllato che non travolga le tue modifiche. Le tue modifiche ai comandi di Arturo le sposta da solo in `personale/`, dove gli aggiornamenti non vanno in conflitto (con un tuo repository della config, solo se è privato); **`/aggiorna personale`** lo fa subito, senza aggiornare.
 - **`/novita`** — racconta gli aggiornamenti dell'harness non ancora visti (cosa cambia, il principio dietro). Vedi [Imparare con Arturo](#imparare-con-arturo).
 - **`/segnala`** — manda a chi mantiene Arturo un problema, un'idea o uno strumento da collegare. La bozza la scrive Claude, senza nomi né segreti. Tu la leggi e dici sì: arriva direttamente a chi mantiene Arturo, senza account né email da mandare. Se preferisci, diventa una issue pubblica su GitHub. Se non vuoi più gli inviti a segnalare: `python3 ~/.claude/bin/arturo segnala basta`.
-- **`/setup`** — configurazione guidata dell'intero harness per un nuovo utente (prerequisiti, permessi, `PROJECTS_BASE`, `CLAUDE.md`, sync, verifica); pensato per chi non ha mai usato un terminale.
+- **`/setup`** — la prima configurazione guidata per chi non ha mai usato un terminale (prerequisiti, permessi, `PROJECTS_BASE`, `CLAUDE.md`, sync, verifica). Su un Arturo già configurato, oppure con `/setup verifica`, controlla che tutto sia a posto senza scrivere niente.
+- **`/diagnosi [progetto]`** — va insieme a `/setup`: controlla che Arturo regga, poi lo stato del progetto (git, handoff, todo), i file citati negli handoff che non esistono più e i materiali sparsi fuori posto, con un destino proposto per ognuno. Se c'è un bug nel codice, pretende i fatti prima delle ipotesi. Si chiama così per non nascondere il `/debug` di Claude Code.
 
-**Gli altri comandi.** Claude non li propone da solo: li lanci tu scrivendo il nome.
+**Quando non sai da dove partire.**
 
-- **`/guidami`** — guarda gli ultimi handoff e le conversazioni recenti e ti propone tre o quattro cose che ha senso fare adesso, con il motivo e il primo passo. Per quando riapri e non sai da dove ripartire.
-- **`/sparring`** — prende un principio del curriculum e lo prova sul lavoro reale dell'utente, con esperimenti piccoli e reversibili.
-- `/progetto` (da idea a primo commit), `/discovery`, `/write-plan`, `/diagnosi` (disciplina diagnostica: fatti prima delle ipotesi; si chiama così per non nascondere il `/debug` di Claude Code).
-- <a id="organizzazioni-strato"></a>**`/strato`** — lo strato di un'organizzazione sopra Arturo (chi siete, voce, lavori ricorrenti, dati riservati), come plugin nel vostro repository privato. Il referente lo prepara con `/strato crea` e lo pubblica con `/strato pubblica`; i colleghi lo ricevono con `/strato installa`. Guida del ruolo: [`docs/referente.md`](docs/referente.md).
+- **`/guidami`** — guarda gli ultimi handoff e le conversazioni recenti e ti propone tre o quattro cose che ha senso fare adesso, con il motivo e il primo passo.
+- **`/creaskill`** — fai spesso lo stesso lavoro? Ti fa quattro domande, una per volta, e ne fa una skill tua in `~/.claude/skills/`, che Claude usa da solo quando la richiesta torna.
+
+**Quello che Claude usa da solo.** Non serve ricordarli: Claude li apre quando servono. `/sparring` prova un principio del curriculum sul tuo lavoro vero, e lo propongono `/setup` e `/novita`. Le skill sono qui sotto.
 
 Qualità: usa le capacità native di review e verifica dell'harness.
 
@@ -339,10 +338,7 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 - **`prompt-master`** — due modalità: un prompt pronto da incollare in un altro tool AI, oppure il **brief interno**: prima di ogni richiesta di lavoro, anche breve, ricostruisce il contesto che manca, riscrive la richiesta come la eseguirà (il **prompt**) e mostra obiettivo, output, vincoli, criterio di fatto, assunzioni e ambiguità (il **brief**). Domande e conversazione hanno risposta diretta. L'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi (upstream `nidhinjs/prompt-master`, MIT).
 - **`todo`** — quando dici «ricordami di…» o chiedi cosa c'è da fare, Claude usa la CLI `arturo todo`. I todo stanno in un archivio sul tuo computer (`data/todo/eventi.jsonl`), divisi per progetto, scadenza e chi agisce: tu, tu che decidi e poi Claude, oppure Claude. `/fine` ci scrive quello che resta, `/inizio` lo rilegge. Da terminale: `python3 ~/.claude/bin/arturo todo aiuto`. Se chiedi di vederli in una pagina, Claude avvia `arturo web`: una pagina nel browser che risponde solo sul tuo computer.
 
-Queste due Claude non le propone da solo: le lanci tu con `/percorso` e `/italiano-semplificato`.
-
-- **`percorso`** — quando scrivi `/percorso`, Claude lancia `arturo percorso` e ti mostra la tappa (Osserva, Prova, Delega, Orchestra) con il todo che la prova, le cose che tieni per te e un esercizio della settimana sul tuo lavoro. Conta le decisioni che tieni, non il lavoro che deleghi. Il calcolo e lo stato restano sul tuo computer. I todo da cui nasce viaggiano come gli altri todo: solo verso il tuo repository privato.
-- **`italiano-semplificato`** — con `/italiano-semplificato` riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI. Una seconda passata cerca i tic di ritmo e struttura del testo generato (contrasti inventati, terne automatiche, chiuse a sentenza): il catalogo è in italiano e scritto da zero.
+- **`italiano-semplificato`** — quando chiedi di semplificare un testo, riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI. Una seconda passata cerca i tic di ritmo e struttura del testo generato (contrasti inventati, terne automatiche, chiuse a sentenza): il catalogo è in italiano e scritto da zero.
 
 **Gli altri mod.** Claude Code li carica da soli dalle loro cartelle in `skills/`, come `/dafare`. Per spegnerne uno: `/plugin`, poi il mod, poi disattiva. Attenzione a `redazione-segreti`: è il mod che protegge. Spento, Claude legge i segreti in chiaro.
 
@@ -402,19 +398,12 @@ terminale. Il percorso:
    parole semplici. Si parte da [Chi possiede lo strumento](docs/principi/00-chi-possiede-lo-strumento.md)
    (il potere prima dei comandi), poi [Chiedere bene](docs/principi/01-chiedere-bene.md):
    il modello risponde alla domanda che gli hai fatto, non a quella che avevi in testa.
-3. **`/sparring`** — una sessione guidata che prende un principio e lo prova sul TUO
-   lavoro reale, con esperimenti piccoli e reversibili. Anche «questo per ora non ti
-   serve» è un risultato.
+3. **Lo sparring** — una sessione guidata che prende un principio e lo prova sul TUO
+   lavoro reale, con esperimenti piccoli e reversibili. Te lo propongono `/setup` e
+   `/novita`, oppure lo chiedi tu. Anche «questo per ora non ti serve» è un risultato.
 4. **`/novita`** — quando l'harness si aggiorna (`/aggiorna`), all'avvio della sessione
    Arturo ti avvisa; `/novita` racconta cosa è cambiato, il principio dietro, e ti
    propone lo sparring. Così l'harness — e chi lo usa — restano aggiornati insieme.
-5. **Il percorso** — chiedi «a che punto sono?» o scrivi `/percorso`. Quattro tappe (Osserva,
-   Prova, Delega, Orchestra) che si aprono con segni di giudizio: una decisione presa prima del
-   lavoro di Claude, un limite dichiarato, un no motivato. Delega chiede due segni insieme: una
-   decisione e un limite (o un no motivato). Ogni settimana un esercizio dal tuo
-   lavoro vero ([`docs/esercizi.md`](docs/esercizi.md)) e il capitolo
-   [Tieni la decisione](docs/principi/05-tieni-la-decisione.md). Il calcolo resta sul tuo
-   computer: alla telemetria partono solo numeri (Impegno 3).
 
 Le novità vivono in [`NOVITA.md`](NOVITA.md), la entry più recente in cima.
 

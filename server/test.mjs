@@ -118,7 +118,7 @@ const casi = {
     const corpo = m.split("\r\n\r\n")[1].replace(/\r\n/g, "");
     assert.equal(Buffer.from(corpo, "base64").toString("utf8"), "àèì", "V08 il corpo non torna uguale");
     assert.deepEqual(Object.keys(EVENTI), ["sessione", "comando", "guardia", "aggiorna", "segnalazione", "deriva", "config",
-      "setup", "chiede", "confermata", "errore", "tappa", "claude"]);
+      "setup", "chiede", "confermata", "errore", "claude", "tappa"], "V08 l'elenco degli eventi, con i vecchi in coda");
   },
   async V10() {
     const f = finti();
@@ -218,7 +218,8 @@ const casi = {
     assert.equal((await gestisci(post("/altro", {}), { ...f, adesso })).status, 404);
     assert.equal((await gestisci(post("/v1/eventi", "{non json"), { ...f, adesso })).status, 400);
   },
-  // Gli eventi del 15/10/2026: i valori giusti passano, quelli con un testo dentro no.
+  // Gli eventi del 15/10/2026: i valori giusti passano, quelli con un testo dentro no. `tappa` è un
+  // evento vecchio (il client non lo manda più dal 16/10/2026): resta accettato, con la stessa regola.
   async V16() {
     const buoni = [["setup", "fase:7b"], ["setup", "fase:4b"], ["setup", "fine"], ["chiede", "exfil-guard.py"], ["confermata", "exfil-guard.py"],
       ["errore", "data-guard.py"], ["tappa", "tappa:3"], ["tappa", "decisioni:12"], ["claude", "2.1.290"],
@@ -270,14 +271,14 @@ const casi = {
   async V19() {
     const migliorare = { setupIniziati: 3, setupFiniti: 1, setupFermi: [{ valore: "fase:2", n: 2 }],
       conferme: [{ valore: "exfil-guard.py", chiede: 10, confermata: 9 }], errori: [], aggiornaStorti: [],
-      tappe: [{ valore: "tappa:1", n: 2, ferme: 1 }], ritenzione: { nuove: 1, soglie: [{ giorni: 60, idonee: 4, vive: 1 }] }, claude: [] };
+      ritenzione: { nuove: 1, soglie: [{ giorni: 60, idonee: 4, vive: 1 }] }, claude: [] };
     const f = finti({ ...VUOTO, migliorare });
     await settimanale({ ...f, adesso });
     const testo = f.stato.email[0].testo;
     assert.ok(testo.indexOf("DOVE MIGLIORARE ARTURO") < testo.indexOf("Installazioni attive"), "V19 la sezione non viene prima");
     assert.match(testo, /Setup: 3 iniziati, 1 arrivati in fondo[^\n]*\n  2  fase:2\n/, "V19 setup fermi");
     assert.match(testo, /exfil-guard\.py  10 \/ 9 \/ 90%/, "V19 quota di sì delle guardie");
-    assert.match(testo, /tappa:1  2, ferme 1/, "V19 tappe ferme");
+    assert.doesNotMatch(testo, /Tappe/, "V19 la sezione delle tappe resta nel riepilogo");
     assert.match(testo, /vive dopo 60 giorni: 1 su 4 \(25%\)/, "V19 ritenzione");
     const g = finti();
     await giornaliero({ ...g, adesso });

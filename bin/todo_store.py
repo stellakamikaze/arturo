@@ -56,8 +56,10 @@ AZIONI_STATO = {
     "ferma": ("fermo", "Fermato"),
     "scarta": ("scartato", "Scartato"),
 }
-# Il progetto degli esercizi del percorso. Lo slug di una cartella ammette solo [a-z0-9-]
-# e non comincia con un trattino, quindi nessun repository finisce qui per caso.
+# Il progetto degli esercizi del percorso a tappe, uscito da Arturo il 16/10/2026. L'archivio è
+# append-only, quindi gli esercizi rimasti aperti restano: «Da dove partire» continua a saltarli.
+# Lo slug di una cartella ammette solo [a-z0-9-] e non comincia con un trattino, quindi nessun
+# repository finisce qui per caso.
 PROGETTO_PERCORSO = "_percorso"
 DECISO = "Deciso: "
 GIORNI = ("lunedi", "martedi", "mercoledi", "giovedi", "venerdi", "sabato", "domenica")

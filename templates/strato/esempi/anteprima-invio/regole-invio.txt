@@ -1,8 +1,0 @@
-# ESEMPIO DA ADATTARE. Le regole che l'anteprima controlla prima di un invio email.
-# Una regola per riga, nella forma «tipo: valore». Il resto della riga dopo # è un commento.
-# Le cura il referente nel repository dello strato. Togli il # davanti per attivarle.
-#
-# copia: indirizzo@example.org          l'indirizzo deve stare tra i destinatari o in copia
-# oggetto-nuovo: Organizzazione:         un'email nuova (fuori thread) ha l'oggetto che comincia così
-# parola: ABC => scrivi il nome per esteso    la parola nel testo fa scattare l'avviso, con il consiglio
-# cifre-nel-corpo: no                    una cifra in euro nel corpo fa scattare l'avviso

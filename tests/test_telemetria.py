@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M01-M16: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
+"""M01-M17: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
 
 Ogni caso gira con una HOME finta e un server HTTP finto su 127.0.0.1 (ARTURO_TELEMETRIA_URL):
 niente parte mai verso il server vero. Sulla base db96709, prima della telemetria, ogni controllo
@@ -228,15 +228,23 @@ def test_m08(repo: Path) -> None:
     assert not attesa[0].exists() and srv.richieste[prima][0] == "/v1/segnalazioni", "M08 la segnalazione in attesa non parte"
 
 
+# Gli eventi che il client non manda più e il server accetta ancora, per non rifiutare i lotti dei
+# client non aggiornati. In coda all'elenco del server; si tolgono da qui e da logica.js insieme.
+EVENTI_VECCHI = ["tappa"]  # tolta dal client il 16/10/2026
+
+
 def test_m09(repo: Path) -> None:
     py = re.search(r"EVENTI = \{(.*?)\n\}", read(repo / "bin" / "telemetria.py"), re.S)
     js = re.search(r"export const EVENTI = \{(.*?)\n\};", read(repo / "server" / "logica.js"), re.S)
     nomi_py = re.findall(r'"([a-z]+)": re\.compile', py.group(1))
     nomi_js = re.findall(r"^\s+([a-z]+):", js.group(1), re.M)
-    assert nomi_py == nomi_js, f"M09 client e server hanno elenchi diversi: {nomi_py} {nomi_js}"
+    assert nomi_js == nomi_py + EVENTI_VECCHI, \
+        f"M09 il server non è il client più gli eventi vecchi dichiarati: {nomi_py} + {EVENTI_VECCHI} != {nomi_js}"
     impegno = next(r for r in read(repo / "README.md").splitlines() if r.startswith("3. **Telemetria accesa di default"))
     for nome in nomi_py:
         assert f"`{nome}`" in impegno, f"M09 l'Impegno 3 del README non nomina {nome}"
+    for nome in EVENTI_VECCHI:
+        assert f"`{nome}`" not in impegno, f"M09 l'Impegno 3 del README promette ancora {nome}, che non esce più"
     assert "Niente telemetria" not in read(repo / "README.md").split("## Indice")[0], "M09 il README promette ancora niente telemetria"
 
 
@@ -277,23 +285,12 @@ def test_m11(repo: Path) -> None:
 
 
 def test_m12(repo: Path) -> None:
-    # Le tappe escono solo come numeri, solo quando cambiano, e mai a telemetria spenta.
+    # I valori fuori regola non entrano; ogni fase vera di /setup sì. `tappa` è tolta dal client il
+    # 16/10/2026: nemmeno un valore che prima era valido entra più.
     lab = Lab(repo)
-    lab.hook("session-start.sh")
-    tappe = [e["valore"] for e in lab.coda() if e["evento"] == "tappa"]
-    assert tappe == ["tappa:0", "decisioni:0", "limiti:0", "tenuti:0", "proposte:0", "rifiutate:0"], \
-        f"M12 i numeri delle tappe non partono alla prima sessione: {lab.coda()}"
-    lab.hook("session-start.sh")
-    assert len([e for e in lab.coda() if e["evento"] == "tappa"]) == 6, "M12 i numeri ripartono senza essere cambiati"
-    lab.arturo("todo", "aggiungi", "Rileggere il capitolo sul cliente Rossi", "--progetto", "libro")
-    lab.hook("session-start.sh")
-    nuove = [e["valore"] for e in lab.coda() if e["evento"] == "tappa"][6:]
-    assert nuove == ["tappa:1"], f"M12 la tappa nuova non parte, o partono numeri fermi: {nuove}"
-    assert "Rossi" not in json.dumps(lab.coda()) and "libro" not in json.dumps(lab.coda()), "M12 un testo del todo esce"
     prima = len(lab.coda())
-    cattivi = [("tappa", v) for v in ("tappa:testo", "tappa:5", "note:3", "tappa:3\n", "decisioni:-1")] + [
-        ("setup", "fase:11"), ("setup", "fase:3 nota"), ("claude", "2.1.x-beta"), ("chiede", "una guardia"),
-        ("aggiorna", "forse")]
+    cattivi = [("tappa", "tappa:1"), ("tappa", "decisioni:3"), ("setup", "fase:11"), ("setup", "fase:3 nota"),
+               ("claude", "2.1.x-beta"), ("chiede", "una guardia"), ("aggiorna", "forse")]
     for evento, valore in cattivi:
         lab.arturo("telemetria", "registra", evento, valore)
     assert len(lab.coda()) == prima, f"M12 entra un valore fuori regola: {lab.coda()[prima:]}"
@@ -306,7 +303,7 @@ def test_m12(repo: Path) -> None:
     assert entrate == [f"fase:{f}" for f in fasi], f"M12 una fase di /setup non entra: {set(fasi) - {e[5:] for e in entrate}}"
     spenta = Lab(repo, ARTURO_TELEMETRIA="0")
     spenta.hook("session-start.sh")
-    assert spenta.coda() == [], f"M12 a telemetria spenta le tappe si registrano: {spenta.coda()}"
+    assert spenta.coda() == [], f"M12 a telemetria spenta l'avvio registra: {spenta.coda()}"
 
 
 def test_m13(repo: Path) -> None:
@@ -352,7 +349,7 @@ def test_m14(repo: Path) -> None:
     (lab.home / ".claude" / "session-env" / "telemetria.json").write_text(
         json.dumps({"avviso": "2026-10-14", "ultimo_tentativo": int(time.time())}), encoding="utf-8")
     primo = lab.hook("session-start.sh").stdout
-    assert "TELEMETRIA:" in primo and "cambiato" in primo and "numeri delle tappe" in primo, \
+    assert "TELEMETRIA:" in primo and "cambiato" in primo and "tappe" not in primo, \
         f"M14 la promessa nuova non arriva a chi ha letto la vecchia: {primo[-400:]}"
     assert "TELEMETRIA:" not in lab.hook("session-start.sh").stdout, "M14 la promessa nuova torna due volte"
     nuovo = Lab(repo)
@@ -399,10 +396,32 @@ def test_m16(repo: Path) -> None:
     assert r.stdout.strip() == "http://127.0.0.1:1234", f"M16 un server indicato a mano non vale più: {r.stdout!r}"
 
 
+def test_m17(repo: Path) -> None:
+    # Una riga che il client non manda più (qui una `tappa`, tolta il 16/10/2026) resta in coda da una
+    # versione vecchia. Fino ad allora invia tagliava la coda per righe grezze: ogni riga scartata
+    # lasciava in coda un evento già partito, che ripartiva all'invio dopo.
+    srv = Server()
+    lab = Lab(repo, srv)
+    coda = lab.home / ".claude" / "data" / "telemetria" / "coda.jsonl"
+    coda.parent.mkdir(parents=True)
+    righe = [{"giorno": "2026-10-15", "evento": "tappa", "valore": "tappa:1"},
+             {"giorno": "2026-10-15", "evento": "sessione", "valore": ""},
+             {"giorno": "2026-10-15", "evento": "comando", "valore": "fine"},
+             {"giorno": "2026-10-15", "evento": "guardia", "valore": "block-dangerous.py"}]
+    coda.write_text("".join(json.dumps(r) + "\n" for r in righe), encoding="utf-8")
+    r = lab.arturo("telemetria", "invia")
+    assert "Eventi partiti: 3" in r.stdout, f"M17 primo invio: {r.stdout!r} {r.stderr!r}"
+    assert lab.coda() == [], f"M17 dopo un invio riuscito resta in coda: {lab.coda()}"
+    lab.arturo("telemetria", "invia")
+    partiti = [(e["evento"], e["valore"]) for p, l in srv.richieste if p == "/v1/eventi" for e in l["eventi"]]
+    assert partiti == [("sessione", ""), ("comando", "fine"), ("guardia", "block-dangerous.py")], \
+        f"M17 un evento parte due volte, o una riga vecchia parte: {partiti}"
+
+
 TESTS = {"M01": test_m01, "M02": test_m02, "M03": test_m03, "M04": test_m04, "M05": test_m05,
          "M06": test_m06, "M07": test_m07, "M08": test_m08, "M09": test_m09, "M10": test_m10,
          "M11": test_m11, "M12": test_m12, "M13": test_m13, "M14": test_m14, "M15": test_m15,
-         "M16": test_m16}
+         "M16": test_m16, "M17": test_m17}
 
 
 def main() -> int:

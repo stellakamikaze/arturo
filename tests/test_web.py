@@ -14,7 +14,7 @@ previsti. W12 si spegne da sola dopo il tempo di inattività e dal bottone, mai 
 W13 accessibilità statica, Regola della Stella, nomi di «chi» uguali allo store, pannello che
 tiene i campi e si chiude con il suo todo (nel browser se Chrome c'è, sul sorgente sempre).
 W14 pagina e CLI scrivono insieme senza id doppi. W15 aiuto, skill, README e NOVITA raccontano
-la pagina. W16 il tavolo dei progetti: da_dove e percorso nella vista, /api/todo
+la pagina. W16 il tavolo dei progetti: da_dove nella vista e niente percorso, /api/todo
 con chiave, Host e Origin, storia con i numeri e non con gli uid.
 
 Ogni server parte davvero (--non-aprire --porta 0) in una HOME isolata e si chiude sempre.
@@ -780,7 +780,7 @@ def test_w15(repo: Path) -> None:
 
 
 def test_w16(repo: Path) -> None:
-    """Il tavolo dei progetti: da_dove e percorso nella vista, /api/todo con la sua chiave."""
+    """Il tavolo dei progetti: da_dove nella vista e niente percorso, /api/todo con la sua chiave."""
     def prova(c: Casa) -> None:
         c.todo("aggiungi", "Mandare il preventivo", "--chi", "tu", "--progetto", "libro", "--scadenza", "2026-10-04")
         c.todo("aggiungi", "<img src=x onerror=alert(1)>", "--chi", "io", "--progetto", "libro")
@@ -789,7 +789,7 @@ def test_w16(repo: Path) -> None:
         with Server(c) as s:
             v = s.vista()
             assert v["da_dove"] == {"id": 1, "motivo": "Sblocca #2"}, f"W16 da_dove nella vista: {v.get('da_dove')}"
-            assert v["percorso"] and v["percorso"]["totale"] == 4, f"W16 percorso nella vista: {v.get('percorso')}"
+            assert "percorso" not in v, f"W16 la vista manda ancora il percorso a tappe: {v.get('percorso')}"
             codice, _, corpo = s.chiedi("GET", "/api/todo?id=1", chiave=False)
             assert codice == 403, f"W16 /api/todo senza chiave: {codice}"
             italiano(corpo, "W16 /api/todo senza chiave")

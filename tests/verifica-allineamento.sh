@@ -53,11 +53,9 @@ BANCHI=(
   test_completezza.py
   test_prodotto.py
   test_revisione_2026_09_30.py
-  test_strato.py
   test_todo.py
   test_pannello.py
   test_web.py
-  test_percorso.py
   test_revisione_ciclo5.py
   test_mod_portati.py
   test_guardie_involucri.py
@@ -81,21 +79,22 @@ BANCHI=(
   test_guardie_rotte.py
   test_review_struttura.py
   test_aggiorna_indietro.py
+  test_diagnosi.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
 done
 
-# Il minimo dichiarato è Python 3.8: la CLI, la pagina e il percorso girano anche con quello. I banchi
+# Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_review_struttura.py test_todo.py test_web.py test_percorso.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py)
+PY38_BANCHI=(test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py)
 PY38=$(command -v python3.8 || true)
 if [[ -n "$PY38" ]]; then
   for test in "${PY38_BANCHI[@]}"; do
     "$PY38" -B "$REPO/tests/$test" --repo "$REPO"
   done
 else
-  echo "NOTA: python3.8 assente, todo, pagina e percorso provati solo con $(python3 --version 2>&1)"
+  echo "NOTA: python3.8 assente, todo e pagina provati solo con $(python3 --version 2>&1)"
 fi
 
 # Controprove: ogni riga e' «banco ref [radice]». Il banco gira sulla base `ref` estratta con
@@ -116,16 +115,12 @@ BASELINE=(
   "test_prodotto.py ee10fc6"
   # Revisione del 30/9/2026: 86ba137, l'ultimo dev prima delle correzioni.
   "test_revisione_2026_09_30.py 86ba137"
-  # Strato dell'organizzazione (30/9/2026): e70da3d, l'ultimo dev prima dello strato.
-  "test_strato.py e70da3d"
   # Archivio dei todo (3/10/2026): b8eff39, l'ultimo dev prima della CLI.
   "test_todo.py b8eff39"
   # Pannello dei todo (3/10/2026): fc6459f, l'ultimo dev prima del ciclo 1.5 e del pannello.
   "test_pannello.py fc6459f"
   # La pagina web dei todo (3/10/2026): 6ef1c0c, l'ultimo commit prima del ciclo 3.
   "test_web.py 6ef1c0c"
-  # Il percorso a tappe (3/10/2026): 3001fcc, l'ultimo dev prima del ciclo 5.
-  "test_percorso.py 3001fcc"
   # La revisione del ciclo 5 (3/10/2026): 81431a2, il commit subito prima delle correzioni. Il banco
   # conta un rosso solo se l'AssertionError comincia con il codice del controllo: un file o un
   # comando assente sulla base non prova niente. Le controprove dei cicli di correzione usano

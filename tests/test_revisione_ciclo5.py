@@ -12,18 +12,16 @@ gira da solo, mod compresi, senza taglio. X07 un todo preso in ~/.claude e' «ge
 FASE 4 di /inizio mostra il progetto e «generale», senza una variabile di un altro blocco. X08
 fuori da git /fine legge lo stesso progetto di «ricordami di…». X09 il blocco todo di /fine regge
 una HOME con uno spazio e non usa variabili fra le chiamate. X10 /inizio non butta gli avvisi.
-X11 il perche' di un todo tu lo dice la persona. X12 Delega chiede due segni, e i testi lo dicono.
-X13 i comandi da terminale delle novita' funzionano senza l'alias. X14 un todo decidi chiuso dalla
-persona e' una decisione, e Prova conta solo i lavori di Claude. X15 un annullo dopo un passo in
-mezzo toglie il passo giusto. X17 la prova nel browser di W13, nel gate, non salta. X18 il veleno
-su motivo_esatto va in rosso anche senza un Python fino alla 3.11, e il gate esige un Python
-vecchio. X19 la controprova di questo banco conta solo un rosso col codice del controllo. X20 il
-gate rilancia todo, pagina e percorso con Python 3.8.
+X11 il perche' di un todo tu lo dice la persona.
+X13 i comandi da terminale delle novita' funzionano senza l'alias. X17 la prova nel browser di
+W13, nel gate, non salta. X18 il veleno su motivo_esatto va in rosso anche senza un Python fino
+alla 3.11, e il gate esige un Python vecchio. X19 la controprova di questo banco conta solo un
+rosso col codice del controllo. X20 il gate rilancia todo e pagina con Python 3.8.
 I difetti bassi: X21 niente caratteri di controllo nel terminale, X22 una richiesta respinta non
-tiene acceso arturo web, X23 E07 senza numeri fissi, X24 «percorso riprendi» toglie il silenzio,
-X25 errori della CLI con nomi per la persona, X27 la skill di /system-audit conosce i mod, X28
-lo stato del percorso dichiarato locale, X29 un `dopo` scritto a cose fatte non apre Orchestra.
-(X16 e X26 sono confluiti in G15 di test_percorso.py e in X07.)
+tiene acceso arturo web, X25 errori della CLI con nomi per la persona, X27 la skill di
+/system-audit conosce i mod.
+(X26 è confluito in X07. X12, X14, X15, X16, X23, X24, X28 e X29 provavano il percorso a tappe,
+uscito da Arturo il 16/10/2026.)
 
 Sulla base 81431a2, l'ultimo dev prima delle correzioni, ogni controllo deve fallire con un
 AssertionError che comincia con il suo codice: un rosso per un file assente non conta.
@@ -117,9 +115,6 @@ class Casa:
 
     def aperti(self, codice: str) -> dict:
         return {t["id"]: t for g in self.vista(codice)["gruppi"] for t in g["todo"]}
-
-    def percorso(self, codice: str) -> dict:
-        return json.loads(self.arturo("percorso", "--json", codice=codice).stdout)
 
     def bash(self, script: str, cwd: Path, codice: str) -> subprocess.CompletedProcess:
         r = subprocess.run([BASH, "-c", script], cwd=str(cwd), env=self.env(), capture_output=True, timeout=120)
@@ -452,18 +447,6 @@ def test_x11(repo: Path) -> None:
         assert "quando lo sai dalla" not in piatto, f"X11 {nome} chiede ancora di dedurre il perché"
 
 
-def test_x12(repo: Path) -> None:
-    skill = " ".join(read(repo / "skills" / "percorso" / "SKILL.md").split())
-    passo = skill[skill.index("2. **Racconta la tappa**"):skill.index("3. **Mostra")]
-    assert "tutti" in passo and "limite" in passo, f"X12 la skill percorso dice che basta un segno per Delega: {passo[:300]}"
-    novita = " ".join(read(repo / "NOVITA.md").split())
-    entry = novita[novita.index("## 2026-10-03 — Il percorso a tappe"):]
-    entry = entry[:entry.index("## 2026-10-03 — Il pannello")]
-    assert "due segni" in entry, "X12 NOVITA dice che una decisione, un limite o un no aprono le tappe"
-    readme = " ".join(read(repo / "README.md").split())
-    assert "Delega chiede due segni" in readme, "X12 il README non dice che Delega chiede due segni"
-
-
 def test_x13(repo: Path) -> None:
     for nome in ("NOVITA.md", "README.md"):
         testo = " ".join(read(repo / nome).split())
@@ -473,43 +456,6 @@ def test_x13(repo: Path) -> None:
     novita = " ".join(read(repo / "NOVITA.md").split())
     assert "scrivi `arturo todo deciso" not in novita, "X13 NOVITA fa scrivere `arturo todo deciso` senza l'alias"
     assert "FASE 7c" in read(repo / "commands" / "aggiorna.md"), "X13 /aggiorna non propone il comando breve"
-
-
-# --- X14 e X15: il percorso ---------------------------------------------------------------------
-
-def prove(v: dict, nome: str) -> list:
-    return [s["prova"] for s in next(t for t in v["tappe"] if t["nome"] == nome)["segni"]]
-
-
-def test_x14(repo: Path) -> None:
-    def prova(c: Casa) -> None:
-        c.todo("aggiungi", "Mandare la parola d'ordine", "--chi", "tu", "--perche", "è una password", "--progetto", "p", codice="X14")
-        c.todo("aggiungi", "Scegliere la tariffa", "--chi", "decidi", "--progetto", "p", codice="X14")
-        c.todo("nota", "2", "Ho scelto 400 al giorno", codice="X14")
-        c.todo("fatto", "2", codice="X14")
-        c.todo("aggiungi", "Partecipare al bando", "--chi", "decidi", "--progetto", "p", codice="X14")
-        c.todo("scarta", "3", "non partecipo: non è il nostro pubblico", codice="X14")
-        v = c.percorso("X14")
-        assert prove(v, "Prova") == [None], f"X14 Prova attribuisce a Claude il todo decidi chiuso dalla persona: {prove(v, 'Prova')}"
-        assert prove(v, "Delega")[0] == 2, f"X14 il todo decidi chiuso dalla persona non è una decisione: {prove(v, 'Delega')}"
-        c.todo("aggiungi", "Riassunto del bando", "--chi", "io", "--progetto", "p", codice="X14")
-        c.todo("fatto", "4", codice="X14")
-        v = c.percorso("X14")
-        assert v["tappa"] == 3 and prove(v, "Prova") == [4], f"X14 tappa {v['tappa']}, Prova {prove(v, 'Prova')}"
-    con_casa(repo, prova)
-
-
-def test_x15(repo: Path) -> None:
-    def prova(c: Casa) -> None:
-        c.todo("aggiungi", "Spedire la bozza", "--chi", "io", "--progetto", "p", codice="X15")
-        c.todo("fatto", "1", codice="X15")
-        c.todo("riprendi", "1", codice="X15")  # «r» nel pannello: l'inverso salvato è «ripristina 1 fatto»
-        c.todo("fatto", "1", codice="X15")  # Claude rifà il lavoro
-        c.todo("ripristina", "1", "fatto", codice="X15")  # «u»: annulla la riapertura
-        v = c.percorso("X15")
-        assert prove(v, "Prova") == [1], f"X15 l'annullo toglie la chiusura vera: Prova {prove(v, 'Prova')}"
-        assert prove(v, "Delega")[1] is None, f"X15 la riapertura annullata conta come limite: {prove(v, 'Delega')}"
-    con_casa(repo, prova)
 
 
 # --- X17-X20: i banchi e il gate ----------------------------------------------------------------
@@ -576,7 +522,7 @@ def test_x19(repo: Path) -> None:
     assert "test_revisione_ciclo5.py 81431a2" in gate(repo), "X19 il gate non controprova la revisione del ciclo 5 su 81431a2"
 
     def assente(_repo):
-        raise FileNotFoundError("bin/percorso.py")
+        raise FileNotFoundError("bin/assente.py")
 
     def giusto(_repo):
         raise AssertionError("X98 il motivo atteso")
@@ -592,7 +538,7 @@ def test_x20(repo: Path) -> None:
     testo = gate(repo)
     m = re.search(r"PY38_BANCHI=\(([^)]*)\)", testo)
     assert m and '"$PY38" -B "$REPO/tests/$test"' in testo, "X20 il gate non rilancia i banchi con Python 3.8"
-    for banco in ("test_todo.py", "test_web.py", "test_percorso.py"):
+    for banco in ("test_todo.py", "test_web.py"):
         assert banco in m.group(1), f"X20 il gate non rilancia {banco} con Python 3.8"
 
 
@@ -641,23 +587,6 @@ def test_x22(repo: Path) -> None:
     con_casa(repo, prova)
 
 
-def test_x23(repo: Path) -> None:
-    testo = read(repo / "docs" / "esercizi.md")
-    e07 = testo[testo.index("## E07"):testo.index("## E08")]
-    assert not re.search(r"arturo todo (?:dopo|deciso) \d", e07), "X23 E07 usa numeri di todo fissi"
-
-
-def test_x24(repo: Path) -> None:
-    def prova(c: Casa) -> None:
-        domani = (dt.date.fromisoformat(OGGI) + dt.timedelta(days=1)).isoformat()
-        assert c.arturo("percorso", "suggerisci", codice="X24", ok=False).returncode == 0, "X24 il primo suggerimento"
-        c.arturo("percorso", "no", codice="X24")
-        c.arturo("percorso", "riprendi", codice="X24", oggi=domani)
-        r = c.arturo("percorso", "suggerisci", codice="X24", ok=False, oggi=domani)
-        assert r.returncode == 0, f"X24 dopo «riprendi» il silenzio del no resta: {r.stdout.strip()}"
-    con_casa(repo, prova)
-
-
 def test_x25(repo: Path) -> None:
     def prova(c: Casa) -> None:
         c.todo("aggiungi", "Uno", "--progetto", "p", codice="X25")
@@ -675,35 +604,11 @@ def test_x27(repo: Path) -> None:
     assert "plugin.json" in punto and "mod" in punto, f"X27 il punto 6 di /system-audit non conosce i mod: {punto}"
 
 
-def test_x28(repo: Path) -> None:
-    def prova(c: Casa) -> None:
-        aiuto = c.arturo("aiuto", codice="X28").stdout
-        assert "session-env/percorso.json" in aiuto, "X28 l'aiuto di arturo non dice dove sta lo stato del percorso"
-    con_casa(repo, prova)
-    for nome in ("NOVITA.md", "skills/percorso/SKILL.md"):
-        assert "solo sul computer" in " ".join(read(repo / nome).split()) or \
-            "solo su questo computer" in " ".join(read(repo / nome).split()), \
-            f"X28 {nome} non dice che pausa e silenzi valgono su un computer solo"
-
-
-def test_x29(repo: Path) -> None:
-    def prova(c: Casa) -> None:
-        c.todo("aggiungi", "Scegliere il titolo", "--chi", "decidi", "--progetto", "p", codice="X29")
-        c.todo("deciso", "1", "titolo B", codice="X29")
-        c.todo("aggiungi", "Impaginare", "--chi", "io", "--progetto", "p", codice="X29")
-        c.todo("fatto", "2", codice="X29")
-        c.todo("dopo", "2", "1", codice="X29")  # il collegamento arriva a cose fatte
-        v = c.percorso("X29")
-        assert prove(v, "Orchestra") == [None], f"X29 un dopo scritto a cose fatte apre Orchestra: {prove(v, 'Orchestra')}"
-    con_casa(repo, prova)
-
-
 TESTS = {
     "X01": test_x01, "X02": test_x02, "X03": test_x03, "X04": test_x04, "X05": test_x05, "X06": test_x06,
-    "X07": test_x07, "X08": test_x08, "X09": test_x09, "X10": test_x10, "X11": test_x11, "X12": test_x12,
-    "X13": test_x13, "X14": test_x14, "X15": test_x15, "X17": test_x17, "X18": test_x18, "X19": test_x19,
-    "X20": test_x20, "X21": test_x21, "X22": test_x22, "X23": test_x23, "X24": test_x24, "X25": test_x25,
-    "X27": test_x27, "X28": test_x28, "X29": test_x29,
+    "X07": test_x07, "X08": test_x08, "X09": test_x09, "X10": test_x10, "X11": test_x11, "X13": test_x13,
+    "X17": test_x17, "X18": test_x18, "X19": test_x19, "X20": test_x20, "X21": test_x21, "X22": test_x22,
+    "X25": test_x25, "X27": test_x27,
 }
 
 

@@ -11,7 +11,7 @@
 # riporta e passa al repository dopo.
 #
 # Uso: bash ~/.claude/bin/sync-progetti.sh [cartella]
-#   Senza cartella usa PROJECTS_BASE (come /inizio e /progetto), di default ~/Documents/ClaudeCode.
+#   Senza cartella usa PROJECTS_BASE (come /inizio), di default ~/Documents/ClaudeCode.
 set -u
 
 ROOT="${1:-${PROJECTS_BASE:-$HOME/Documents/ClaudeCode}}"
