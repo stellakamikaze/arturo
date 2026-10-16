@@ -98,11 +98,12 @@ fi
 
 Se ci sono file cambiati da tutti e due, **mostraglieli e chiedi conferma prima di procedere**:
 sono i punti dove può nascere un conflitto. Sono suoi, e un aggiornamento non deve mangiarseli.
-I comandi di Arturo (`commands/<nome>.md`) non contano: li sistema da solo il Passo 3 (Passo 2b).
+I comandi di Arturo (`commands/<nome>.md`) e i due hook di sessione (`hooks/session-start.sh`,
+`hooks/session-end.sh`) non contano: li sistema da solo il Passo 3 (Passo 2b).
 Contano invece se ha un suo repository della config e la riga qui sopra non dice `PRIVATE`: lì il
 Passo 3 non li sposta, e un comando cambiato da tutti e due può andare in conflitto come ogni file.
 
-### Passo 2b — Le sue aggiunte ai comandi
+### Passo 2b — Le sue aggiunte ai comandi e agli hook di sessione
 
 Non deve fare niente, salvo con un suo repository della config che non è privato (sotto,
 `NON SEPARATO`). Se ha modificato un comando di Arturo (`commands/<nome>.md`) che anche
@@ -115,6 +116,13 @@ Il Passo 3 stampa una riga `SEPARATO: /<nome> -> personale/<nome>.md` per ogni c
 Diglielo in una frase: «le tue aggiunte a /inizio ora stanno in un file tuo, e /inizio fa tutto come
 prima». Non chiedere conferma e non spiegare il meccanismo, se non lo chiede. Se vuole, rileggete
 insieme il file personale: le parti sono copiate così come erano.
+
+Vale lo stesso per `hooks/session-start.sh` e `hooks/session-end.sh`, con una differenza: la riga è
+`SEPARATO: hooks/<hook>.sh -> personale/<hook>.sh (righe commentate, da rileggere)`. L'hook di
+Arturo esegue quel file alla fine, ma le righe spostate arrivano commentate: tolte dal loro posto
+possono non funzionare, o fare altro. Qui la rilettura serve: diglielo in una frase, apri con lei
+`~/.claude/personale/<hook>.sh` e togli il `#` alle righe che devono girare, controllando che
+reggano da sole (una variabile dell'hook c'è, una dentro un `if` tolto no).
 
 Se stampa `NON SEPARATO`, il suo repository della config non risulta privato: `personale/` non
 viaggerebbe fra le sue macchine, quindi le modifiche restano nel comando e un conflitto si risolve
@@ -243,10 +251,28 @@ Due cose, in quest'ordine:
    controlla se ha il comando breve: `type arturo`. Se non c'è, digli la forma che funziona
    sempre (`python3 ~/.claude/bin/arturo …`) e proponigli la FASE 7c di `/setup`, che lo aggiunge.
 
+## Le guardie che ha modificato
+
+Se l'avvio ha mostrato una riga `DERIVA:` che nomina «le guardie di Arturo», una guardia di sicurezza
+(o un modulo che la guida) è diversa da quella di Arturo. Protegge come l'ha scritta lei, e nessun
+aggiornamento la corregge più. Non è un errore: può averla allentata apposta. Mostrale cosa cambia
+col comando `git diff` che la riga indica, spiegando in parole semplici cosa la guardia ferma o
+lascia passare in più. Poi chiedi se rimetterla com'è in Arturo. Col suo sì, una guardia per volta:
+
+```bash
+python3 "$HOME/.claude/bin/arturo" personale ripristina hooks/<guardia>
+```
+
+`RIPRISTINATO` vuol dire che la guardia è tornata quella di Arturo e il prossimo `/aggiorna` la porta
+all'ultima versione. Se dice di no, rispetta la scelta: la riga tornerà a ogni avvio finché la
+guardia resta diversa, e sta a lei. Se una guardia la ferma troppo spesso, proponi `/segnala`: la
+correzione giusta va in Arturo, per tutti.
+
 ## Le sue aggiunte, senza aggiornare
 
 Se chi ti parla scrive `/aggiorna personale` (oppure l'avvio ha mostrato una riga `DERIVA:` sui
-comandi), non scarichi niente: sposti solo le sue modifiche ai comandi di Arturo.
+comandi o sugli hook di sessione), non scarichi niente: sposti solo le sue modifiche ai comandi e
+agli hook di sessione di Arturo.
 
 ```bash
 cd "$HOME/.claude"

@@ -11,6 +11,27 @@ modo di lavorare.
 
 ---
 
+## 2026-10-16 — L'avvio e la chiusura personali non bloccano più gli aggiornamenti
+
+**Cosa cambia**: se hai aggiunto righe all'avvio o alla chiusura della sessione
+(`hooks/session-start.sh`, `hooks/session-end.sh`), ogni aggiornamento di Arturo che toccava quei
+file andava in conflitto e si fermava. Adesso `/aggiorna` sposta le tue righe in un file tuo,
+`~/.claude/personale/session-start.sh` (o `session-end.sh`), che l'hook di Arturo esegue alla fine e
+che nessun aggiornamento tocca. Le righe arrivano commentate: Claude le rilegge con te e toglie il
+`#` a quelle che devono girare. Se invece hai modificato una delle guardie di sicurezza, l'avvio
+adesso te lo dice a parte. Claude ti mostra cosa cambia e, se vuoi, la rimette com'è in Arturo con
+`arturo personale ripristina`. Al server di Arturo il riepilogo del lunedì dice anche quante
+installazioni nuove non hanno mai lanciato `/setup`.
+
+**Il principio dietro**: le tue aggiunte restano tue senza fermare gli aggiornamenti. Una guardia
+allentata è una tua scelta, ma la fai sapendolo. Sono le prime correzioni nate dal ciclo del
+lunedì, che legge la telemetria e propone a chi mantiene Arturo cosa sistemare.
+
+**Da sapere**: niente da fare. Se avevi modificato l'avvio, al prossimo `/aggiorna` Claude ti
+propone di rileggere le righe spostate.
+
+---
+
 ## 2026-10-16 — Le tue skill restano tue, e /setup ti riconosce
 
 **Cosa cambia**: quando `/fine` salva la config verso il tuo repository, le skill nuove che hai

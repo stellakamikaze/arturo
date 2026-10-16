@@ -9,6 +9,10 @@ persona lancia /<comando> l'hook inject-now.sh dice a Claude di leggerle.
   elenco                  i file personali e i comandi di Arturo modificati in ~/.claude, e i file
                           personali di un comando che Arturo non ha più
   sposta commands/X.md    sposta le modifiche a /X in personale/X.md e riporta X.md com'era in Arturo
+  sposta hooks/session-start.sh (o session-end.sh)
+                          sposta le aggiunte all'hook in personale/<hook>.sh, COMMENTATE: l'hook di
+                          Arturo esegue quel file in fondo, e le righe girano solo dopo una rilettura
+  ripristina hooks/X      riporta una guardia (o un altro hook) com'è in Arturo, senza tenere le modifiche
   separa [--verso REF]    sposta i comandi di Arturo modificati (con --verso solo quelli che REF cambia);
                           /aggiorna lo lancia da solo nella copia di prova
 
@@ -35,6 +39,10 @@ from pathlib import Path
 
 AIUTO = __doc__.split("\n\n")[2] if __doc__ else ""
 NOME = re.compile(r"^commands/([a-z0-9-]{1,40})\.md$")
+# Gli hook di sessione dove le persone aggiungono righe: dal 16/10/2026 le aggiunte stanno in
+# personale/<hook>.sh, che l'hook di Arturo esegue in fondo (task #3470, ciclo del lunedì).
+SESSIONE = re.compile(r"^hooks/(session-start|session-end)\.sh$")
+HOOK = re.compile(r"^hooks/[A-Za-z0-9_.-]{1,60}$")
 
 
 def radice() -> Path:
@@ -115,7 +123,7 @@ def modificati(r: Path, b: str, verso: str = "") -> list:
     e restano come lei li ha scritti."""
     albero = set(git(r, "ls-tree", "-r", "--name-only", b).stdout.splitlines())
     cambiati = [f for f in git(r, "diff", "--name-only", b).stdout.splitlines()
-                if f in albero and NOME.match(f) and (r / f).exists()]
+                if f in albero and (NOME.match(f) or SESSIONE.match(f)) and (r / f).exists()]
     if verso:
         arrivo = set(git(r, "diff", "--name-only", b, verso).stdout.splitlines())
         cambiati = [f for f in cambiati if f in arrivo]
@@ -145,13 +153,58 @@ def testo_personale(comando: str, originale: list, attuale: list, gia: str) -> s
     return "".join(parti).rstrip("\n") + "\n"
 
 
+def testo_hook(hook: str, originale: list, attuale: list, gia: str) -> str:
+    """Come testo_personale, ma per uno script: ogni riga spostata arriva commentata. Righe tolte dal
+    loro posto (dentro un if, dopo una variabile) possono non funzionare, o fare altro: girano solo
+    dopo che la persona le ha rilette con Claude e ha tolto il #."""
+    blocchi = []
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(a=originale, b=attuale, autojunk=False).get_opcodes():
+        if op in ("insert", "replace"):
+            dopo = next((x.strip() for x in reversed(originale[:i1]) if x.strip()), "")
+            dove = f"# (dopo la riga di Arturo «{dopo}»)" if dopo else "# (in cima all'hook)"
+            blocco = dove + "\n" + "".join("#   " + x.rstrip("\n") + "\n" for x in attuale[j1:j2]).rstrip("\n")
+            if blocco not in gia:
+                blocchi.append(blocco)
+        if op in ("delete", "replace"):
+            blocco = "# Riga di Arturo che avevi tolto:\n" + "\n".join("#   > " + x.rstrip("\n") for x in originale[i1:i2])
+            if blocco not in gia:
+                blocchi.append(blocco)
+    testa = gia.rstrip("\n") + "\n\n" if gia.strip() else (
+        f"# Aggiunte mie a hooks/{hook}.sh\n"
+        f"# hooks/{hook}.sh di Arturo esegue questo file alla fine. Gli aggiornamenti non lo toccano: e' tuo.\n"
+        "# Le righe qui sotto le ha spostate /aggiorna dal tuo hook, e sono commentate: rileggile con\n"
+        "# Claude e togli il # a quelle che devono girare. Un errore qui non ferma la sessione.\n\n")
+    return (testa + "\n\n".join(blocchi)).rstrip("\n") + "\n"
+
+
+def riporta(r: Path, b: str, file: str, vecchio: bytes, attuale: bytes, messaggio: str) -> None:
+    """Rimette `file` com'era al punto b di Arturo. Con Arturo come origin riscrive i commit locali
+    senza le modifiche, così il rebase di /aggiorna non va in conflitto; altrimenti è un commit nuovo.
+    Se il commit non riesce, il file torna com'era."""
+    percorso = r / file
+    percorso.write_bytes(vecchio)
+    try:
+        riscritti = riferimento(r) == "origin/main" and togli_dai_commit(r, b, file)
+        if not riscritti:
+            git(r, "add", "--", file, controlla=True)
+            if git(r, "diff", "--cached", "--quiet", "--", file).returncode != 0:
+                # --no-verify: il commit riporta un file di Arturo, gli hook della persona non c'entrano.
+                git(r, "commit", "-q", "--no-verify", "-m", messaggio, "--", file, controlla=True)
+    except (OSError, subprocess.SubprocessError):
+        git(r, "reset", "-q", "--", file)
+        percorso.write_bytes(attuale)
+        raise
+
+
 def sposta(file: str, parla: bool = True) -> int:
     r = radice()
-    m = NOME.match(file)
+    m = NOME.match(file) or SESSIONE.match(file)
     if not m:
-        print(f"Errore: si spostano solo i comandi di Arturo, nella forma commands/<nome>.md (non «{file}»).", file=sys.stderr)
+        print(f"Errore: si spostano solo i comandi di Arturo (commands/<nome>.md) e hooks/session-start.sh o "
+              f"hooks/session-end.sh (non «{file}»).", file=sys.stderr)
         return 2
     comando = m.group(1)
+    e_hook = bool(SESSIONE.match(file))
     b = base(r)
     if not b:
         print("Errore: non trovo Arturo (upstream/main o origin/main) in ~/.claude.", file=sys.stderr)
@@ -164,39 +217,57 @@ def sposta(file: str, parla: bool = True) -> int:
     attuale = percorso.read_bytes() if percorso.exists() else b""
     if attuale == vecchio.stdout:  # in byte: un file salvato con CRLF non e' «uguale»
         if parla:
-            print(f"/{comando} e' gia' com'e' in Arturo: niente da spostare.")
+            print(f"{file if e_hook else '/' + comando} e' gia' com'e' in Arturo: niente da spostare.")
         return 0
-    destinazione = r / "personale" / f"{comando}.md"
+    destinazione = r / "personale" / (f"{comando}.sh" if e_hook else f"{comando}.md")
     gia = destinazione.read_text(encoding="utf-8") if destinazione.exists() else ""
-    testo = testo_personale(comando, vecchio.stdout.decode("utf-8", "replace").splitlines(True),
-                            attuale.decode("utf-8", "replace").splitlines(True), gia)
-    # Prima il comando e il commit, poi il file personale: se il commit non riesce (un hook, un errore)
-    # il comando torna com'era e niente resta a meta'.
-    percorso.write_bytes(vecchio.stdout)
-    try:
-        riscritti = riferimento(r) == "origin/main" and togli_dai_commit(r, b, file)
-        if not riscritti:
-            git(r, "add", "--", file, controlla=True)
-            if git(r, "diff", "--cached", "--quiet", "--", file).returncode != 0:
-                # --no-verify: il commit riporta un file di Arturo, gli hook della persona non c'entrano.
-                git(r, "commit", "-q", "--no-verify", "-m", f"personale: aggiunte a /{comando} spostate in personale/{comando}.md",
-                    "--", file, controlla=True)
-    except (OSError, subprocess.SubprocessError):
-        git(r, "reset", "-q", "--", file)
-        percorso.write_bytes(attuale)
-        raise
+    righe = (vecchio.stdout.decode("utf-8", "replace").splitlines(True), attuale.decode("utf-8", "replace").splitlines(True))
+    testo = testo_hook(comando, *righe, gia) if e_hook else testo_personale(comando, *righe, gia)
+    nome = file if e_hook else f"/{comando}"
+    # Prima il file di Arturo e il commit, poi il file personale: se il commit non riesce (un hook, un
+    # errore) il file torna com'era e niente resta a meta'.
+    riporta(r, b, file, vecchio.stdout, attuale, f"personale: aggiunte a {nome} spostate in personale/{destinazione.name}")
     destinazione.parent.mkdir(parents=True, exist_ok=True)
     destinazione.write_text(testo, encoding="utf-8")
     if git(r, "ls-files", "--error-unmatch", "--", str(destinazione.relative_to(r))).returncode == 0:
         # personale/ tracciato (remote privato, /fine fa git add -f): il file va nello stesso giro.
         git(r, "add", "-f", "--", str(destinazione.relative_to(r)), controlla=True)
-        git(r, "commit", "-q", "--no-verify", "-m", f"personale: /{comando}", "--", str(destinazione.relative_to(r)),
+        git(r, "commit", "-q", "--no-verify", "-m", f"personale: {nome}", "--", str(destinazione.relative_to(r)),
             controlla=True)
     if parla:
-        print(f"Fatto: le modifiche a /{comando} stanno in ~/.claude/personale/{comando}.md e {file} e' tornato com'e' in Arturo.\n"
-              "Rileggi il file personale con la persona: le parti sono copiate cosi' come erano.")
+        print(f"Fatto: le modifiche a {nome} stanno in ~/.claude/personale/{destinazione.name} e {file} e' tornato com'e' in Arturo.\n"
+              + ("Le righe sono commentate e non girano: rileggile con la persona e togli il # a quelle da tenere."
+                 if e_hook else "Rileggi il file personale con la persona: le parti sono copiate cosi' come erano."))
     else:
-        print(f"SEPARATO: /{comando} -> personale/{comando}.md")
+        print(f"SEPARATO: {nome} -> personale/{destinazione.name}" + (" (righe commentate, da rileggere)" if e_hook else ""))
+    return 0
+
+
+def ripristina(file: str) -> int:
+    """Riporta un hook di Arturo (di solito una guardia) com'è al punto in cui la config si è staccata
+    da Arturo. Le modifiche della persona si perdono: lo si lancia solo col suo sì, dopo averle mostrate."""
+    r = radice()
+    if not HOOK.match(file) or ".." in file:
+        print(f"Errore: si ripristinano solo gli hook di Arturo, nella forma hooks/<nome> (non «{file}»).", file=sys.stderr)
+        return 2
+    if SESSIONE.match(file):
+        print(f"Errore: per {file} usa «sposta»: tiene le tue aggiunte in personale/.", file=sys.stderr)
+        return 2
+    b = base(r)
+    if not b:
+        print("Errore: non trovo Arturo (upstream/main o origin/main) in ~/.claude.", file=sys.stderr)
+        return 2
+    vecchio = byte(r, "show", f"{b}:{file}")
+    if vecchio.returncode != 0:
+        print(f"Errore: {file} non e' un hook di Arturo.", file=sys.stderr)
+        return 2
+    percorso = r / file
+    attuale = percorso.read_bytes() if percorso.exists() else b""
+    if attuale == vecchio.stdout:
+        print(f"{file} e' gia' com'e' in Arturo.")
+        return 0
+    riporta(r, b, file, vecchio.stdout, attuale, f"guardie: {file} riportato com'e' in Arturo")
+    print(f"RIPRISTINATO: {file} e' di nuovo com'e' in Arturo, e il prossimo /aggiorna lo porta all'ultima versione.")
     return 0
 
 
@@ -218,11 +289,11 @@ def separa(verso: str = "") -> int:
 
 def elenco() -> int:
     r = radice()
-    mie = sorted((r / "personale").glob("*.md"))
+    mie = sorted(list((r / "personale").glob("*.md")) + list((r / "personale").glob("*.sh")))
     print("File personali: " + (", ".join(f"personale/{f.name}" for f in mie) if mie else "nessuno"))
     # Un comando uscito da Arturo (16/10/2026: strato, progetto, discovery, write-plan, percorso)
     # lascia la sua aggiunta senza nessuno che la legga.
-    orfani = [f for f in mie if not (r / "commands" / f.name).exists()]
+    orfani = [f for f in mie if f.suffix == ".md" and not (r / "commands" / f.name).exists()]
     if orfani:
         print("Senza comando (Arturo non ha più /" + ", /".join(f.stem for f in orfani) + "): "
               + ", ".join(f"personale/{f.name}" for f in orfani)
@@ -244,6 +315,12 @@ def main(argv: list) -> int:
     if argv[:1] == ["separa"] and (len(argv) == 1 or (len(argv) == 3 and argv[1] == "--verso")):
         try:
             return separa(argv[2] if len(argv) == 3 else "")
+        except (OSError, subprocess.SubprocessError) as errore:
+            print(f"Errore: {errore}", file=sys.stderr)
+            return 2
+    if len(argv) == 2 and argv[0] == "ripristina":
+        try:
+            return ripristina(argv[1])
         except (OSError, subprocess.SubprocessError) as errore:
             print(f"Errore: {errore}", file=sys.stderr)
             return 2

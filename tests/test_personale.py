@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""P01-P15: le aggiunte della persona ai comandi di Arturo stanno in ~/.claude/personale/ (14/10/2026).
+"""P01-P17: le aggiunte della persona ai comandi di Arturo stanno in ~/.claude/personale/ (14/10/2026).
 
 Il caso vero è quello di chi aggiunge a /inizio la tabella dei suoi progetti: ogni aggiornamento
 che tocca /inizio va in conflitto. P01 con lo spostamento il Passo 3 di /aggiorna applica pulito, e
@@ -16,7 +16,8 @@ non sposta niente. P11 con un repository non privato non si sposta niente e ~/.c
 se l'aggiornamento va in conflitto anche dopo lo spostamento, personale/ non viene scritto. P13 si
 spostano solo i comandi che l'aggiornamento cambia, mai uno cancellato. P14 un secondo spostamento
 tiene le righe personali di prima. P15 /aggiorna personale rispetta la stessa regola del repository
-privato.
+privato. P16 le aggiunte a hooks/session-start.sh vanno in personale/session-start.sh, commentate, e
+l'hook di Arturo esegue quel file in fondo. P17 ripristina rimette una guardia com'è in Arturo.
 
 Riusa il Lab di test_aggiorna_sicuro.py: un Arturo pubblicato, chi ne scrive gli aggiornamenti e
 una HOME con ~/.claude clonata. Sulla base f750408 ogni controllo deve fallire col suo codice.
@@ -333,10 +334,74 @@ def test_p15(repo: Path) -> None:
     con_lab(prova, repo)
 
 
+AVVIO = "#!/bin/bash\necho \"MACCHINA: x\"\necho \"fine avvio\"\n"
+
+
+def test_p16(repo: Path) -> None:
+    # Dal ciclo del lunedì (16/10/2026): una persona aggiunge righe a hooks/session-start.sh e ogni
+    # aggiornamento che tocca l'hook va in conflitto. Le righe vanno in personale/, commentate.
+    def prova(lab: Lab) -> None:
+        (lab.autore / "hooks" / "session-start.sh").write_text(AVVIO, encoding="utf-8")
+        lab.git(lab.autore, "add", "-A")
+        lab.git(lab.autore, "commit", "-q", "-m", "v3: avvio")
+        lab.git(lab.autore, "push", "-q", "origin", "main")
+        testo = read(repo / "commands" / "aggiorna.md")
+        lab.lancia(blocco(testo, "## Passo 1", "P16"))
+        lab.lancia(blocco(testo, "## Passo 3", "P16"))
+        assert read(lab.utente / "hooks" / "session-start.sh") == AVVIO, "P16 l'hook di Arturo non è arrivato"
+        mio = AVVIO.replace('echo "fine avvio"\n', 'echo "fine avvio"\necho "i miei dischi"\n')
+        (lab.utente / "hooks" / "session-start.sh").write_text(mio, encoding="utf-8")
+        lab.git(lab.utente, "commit", "-q", "-am", "mio avvio")
+        lab.pubblica(lab.autore, {"hooks/session-start.sh": lambda t: t.replace("MACCHINA: x", "MACCHINA: y")}, "v4: avvio")
+        r = arturo(lab, "personale", "separa")
+        assert r.returncode == 0 and "SEPARATO: hooks/session-start.sh -> personale/session-start.sh" in r.stdout, \
+            f"P16 separa non sposta l'hook di sessione: {r.stdout!r} {r.stderr!r}"
+        personale = read(lab.utente / "personale" / "session-start.sh")
+        assert '#   echo "i miei dischi"' in personale and "\necho \"i miei dischi\"" not in personale, \
+            f"P16 la riga spostata non è commentata: {personale!r}"
+        assert read(lab.utente / "hooks" / "session-start.sh") == AVVIO, "P16 l'hook non è tornato com'è in Arturo"
+        lab.lancia(blocco(testo, "## Passo 1", "P16"))
+        uscita = lab.lancia(blocco(testo, "## Passo 3", "P16"))
+        assert "APPLICATO" in uscita and "MACCHINA: y" in read(lab.utente / "hooks" / "session-start.sh"), \
+            f"P16 dopo lo spostamento l'aggiornamento dell'hook non applica: {uscita[-300:]!r}"
+        # L'hook vero di Arturo esegue il file personale in fondo, e un suo errore non ferma l'avvio.
+        coda = read(repo / "hooks" / "session-start.sh")
+        coda = coda[coda.index("# Le aggiunte della persona"):]
+        (lab.utente / "personale" / "session-start.sh").write_text('echo "mio: $PROJECT_NAME"\nfalse\n', encoding="utf-8")
+        r = subprocess.run([BASH, "-c", 'PROJECT_NAME=romanzo\n' + coda + '\necho "dopo"'], env=lab.env,
+                           capture_output=True, text=True, timeout=60)
+        assert "mio: romanzo" in r.stdout and "dopo" in r.stdout and r.returncode == 0, \
+            f"P16 l'hook non esegue il file personale, o un suo errore ferma l'avvio: {r.stdout!r} {r.stderr!r}"
+    con_lab(prova, repo)
+
+
+def test_p17(repo: Path) -> None:
+    # Una guardia modificata in locale: col sì della persona torna com'è in Arturo, e l'aggiornamento
+    # dopo non va in conflitto. Gli hook di sessione e i file fuori da hooks/ si rifiutano.
+    def prova(lab: Lab) -> None:
+        guardia = lab.utente / "hooks" / "guardia.py"
+        guardia.write_text("blocca = False  # troppe conferme\n", encoding="utf-8")
+        lab.git(lab.utente, "commit", "-q", "-am", "mia guardia")
+        lab.pubblica(lab.autore, {"hooks/guardia.py": lambda t: t + "chiedi = True\n"}, "v3: guardia")
+        for file in ("settings.json", "hooks/../settings.json", "hooks/session-start.sh"):
+            assert arturo(lab, "personale", "ripristina", file).returncode == 2, f"P17 ripristina accetta {file}"
+        r = arturo(lab, "personale", "ripristina", "hooks/guardia.py")
+        assert r.returncode == 0 and "RIPRISTINATO" in r.stdout and read(guardia) == "blocca = True\n", \
+            f"P17 la guardia non torna com'è in Arturo: {r.stdout!r} {r.stderr!r} {read(guardia)!r}"
+        assert lab.git(lab.utente, "status", "--porcelain") == "", "P17 il ripristino lascia modifiche non salvate"
+        testo = read(repo / "commands" / "aggiorna.md")
+        lab.lancia(blocco(testo, "## Passo 1", "P17"))
+        uscita = lab.lancia(blocco(testo, "## Passo 3", "P17"))
+        assert "APPLICATO" in uscita and read(guardia) == "blocca = True\nchiedi = True\n", \
+            f"P17 dopo il ripristino l'aggiornamento della guardia non applica: {uscita[-300:]!r}"
+    con_lab(prova, repo)
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {
     "P01": test_p01, "P02": test_p02, "P03": test_p03, "P04": test_p04, "P05": test_p05, "P06": test_p06,
     "P07": test_p07, "P08": test_p08, "P09": test_p09, "P10": test_p10,
     "P11": test_p11, "P12": test_p12, "P13": test_p13, "P14": test_p14, "P15": test_p15,
+    "P16": test_p16, "P17": test_p17,
 }
 
 

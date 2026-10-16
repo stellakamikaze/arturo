@@ -205,3 +205,10 @@ fi
 if ! grep -q '"pausa": "sempre"' "$HOME/.claude/session-env/segnala.json" 2>/dev/null; then
   echo "SEGNALA: se in questa sessione qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, proponi una volta /segnala, con la bozza gia' scritta da te. Riguarda Arturo, non i bug del progetto della persona."
 fi
+
+# Le aggiunte della persona (personale/session-start.sh, 16/10/2026): gli aggiornamenti di Arturo non le
+# toccano, e /aggiorna ci sposta da solo le righe aggiunte a questo file. Girano in una subshell
+# alla fine, con le variabili di qui: un loro errore non ferma la sessione.
+if [ -f "$HOME/.claude/personale/session-start.sh" ]; then
+  ( . "$HOME/.claude/personale/session-start.sh" ) || true
+fi

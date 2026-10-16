@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""D01-D10: la deriva fra la config della persona e quella di Arturo (hooks/deriva.py).
+"""D01-D11: la deriva fra la config della persona e quella di Arturo (hooks/deriva.py).
 
 Ogni caso costruisce un Arturo finto (un repository con settings.json, un comando e due hook), lo
 clona come ~/.claude in una HOME finta e cambia la config come farebbe una persona. La telemetria
@@ -189,8 +189,24 @@ def test_d10(repo: Path) -> None:
         "D10 session-start non lancia la deriva prima della telemetria"
 
 
+def test_d11(repo: Path) -> None:
+    # 16/10/2026, dal ciclo del lunedì: una guardia modificata ha un avviso suo, col ripristino;
+    # un hook di sessione modificato va nel file personale, come un comando.
+    lab = Lab(repo)
+    lab.scrivi("hooks/bash-dispatcher.sh", "#!/bin/bash\n# tolta la guardia sugli invii\nexit 0\n")
+    r = lab.deriva()
+    assert "guardie di Arturo hooks/bash-dispatcher.sh" in r.stdout and "personale ripristina" in r.stdout \
+        and "git -C ~/.claude diff " in r.stdout, f"D11 la guardia modificata non ha il suo avviso: {r.stdout!r}"
+    assert "un aggiornamento può andare in conflitto" not in r.stdout, f"D11 la guardia è contata fra gli altri file: {r.stdout!r}"
+    lab = Lab(repo)
+    lab.scrivi("hooks/session-start.sh", "#!/bin/bash\necho mio\nexit 0\n")
+    r = lab.deriva()
+    assert "hooks/session-start.sh: il prossimo /aggiorna sposta" in r.stdout, \
+        f"D11 l'hook di sessione modificato non va nel file personale: {r.stdout!r}"
+
+
 TESTS = {"D01": test_d01, "D02": test_d02, "D03": test_d03, "D04": test_d04, "D05": test_d05,
-         "D06": test_d06, "D07": test_d07, "D08": test_d08, "D09": test_d09, "D10": test_d10}
+         "D06": test_d06, "D07": test_d07, "D08": test_d08, "D09": test_d09, "D10": test_d10, "D11": test_d11}
 
 
 def main() -> int:

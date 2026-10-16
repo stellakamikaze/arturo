@@ -57,3 +57,10 @@ Prima di chiudere, considera:
 ---
 EOF
 fi
+
+# Le aggiunte della persona (personale/session-end.sh, 16/10/2026): gli aggiornamenti di Arturo non le
+# toccano, e /aggiorna ci sposta da solo le righe aggiunte a questo file. Girano in una subshell
+# alla fine, con le variabili di qui: un loro errore non ferma la sessione.
+if [ -f "$HOME/.claude/personale/session-end.sh" ]; then
+  ( . "$HOME/.claude/personale/session-end.sh" ) || true
+fi

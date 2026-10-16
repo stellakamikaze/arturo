@@ -34,6 +34,11 @@ RADICI = ("agents", "bin", "commands", "docs", "hooks", "output-styles", "server
 # uguale, lettera per lettera, a quelle di bin/telemetria.py e server/logica.js.
 FILE = re.compile(r"^(?!.*\.\.)((" + "|".join(r.replace(".", r"\.") for r in RADICI) + r")/[A-Za-z0-9_./-]{1,70}|[A-Za-z0-9_.-]{1,40})$")
 HOOK = re.compile(r"hooks/([a-z0-9_.-]{1,60})")
+# Le guardie e i moduli che le guidano: una modifica locale cambia quanto proteggono, e gli
+# aggiornamenti non la correggono più (16/10/2026, task #3471 dal ciclo del lunedì).
+GUARDIA = re.compile(r"^hooks/([^/]*(guard|gate|scanner|prefilter|protect|block-|dispatcher)[^/]*|forma_comando\.py|heredoc\.py)$")
+# Gli hook di sessione hanno un file personale, come i comandi: /aggiorna ci sposta le aggiunte.
+SESSIONE = re.compile(r"^hooks/session-(start|end)\.sh$")
 
 
 def git(radice: Path, *argomenti) -> tuple:
@@ -92,7 +97,7 @@ def categorie_config(radice: Path) -> list:
 
 def rileva(radice: Path) -> dict:
     """{'file': [...], 'hook': [...], 'config': [...]}: vuoto dove non si può misurare."""
-    esito = {"file": [], "hook": [], "config": categorie_config(radice)}
+    esito = {"file": [], "hook": [], "config": categorie_config(radice), "base": ""}
     ref = riferimento(radice)
     if not ref:
         return esito
@@ -100,6 +105,7 @@ def rileva(radice: Path) -> dict:
     base = base.strip()
     if rc != 0 or not base:
         return esito
+    esito["base"] = base[:12]
     _, albero = git(radice, "ls-tree", "-r", "--name-only", base)
     di_arturo = set(albero.splitlines())
     _, cambiati = git(radice, "diff", "--name-only", base)
@@ -129,13 +135,20 @@ def riga(esito: dict) -> str:
         parti.append("gli hook sono spenti (disableAllHooks): le guardie di Arturo non girano")
     elif esito["hook"]:
         parti.append(f"mancano dal settings.json gli hook di Arturo {', '.join(esito['hook'])}: quelle guardie non girano")
-    comandi = [f for f in esito["file"] if f.startswith("commands/")]
+    guardie = [f for f in esito["file"] if GUARDIA.match(f)]
+    if guardie:
+        base = esito.get("base") or "upstream/main"
+        parti.append(f"hai modificato le guardie di Arturo {', '.join(guardie)}: proteggono come le hai scritte tu, e gli "
+                     f"aggiornamenti non le correggono più. Mostra alla persona cosa cambia (git -C ~/.claude diff {base} -- "
+                     f"{' '.join(guardie)}) e, col suo sì, rimettile come in Arturo: python3 ~/.claude/bin/arturo personale "
+                     f"ripristina <file>, una per volta")
+    comandi = [f for f in esito["file"] if f.startswith("commands/") or SESSIONE.match(f)]
     if comandi:
-        nomi = ", ".join("/" + Path(f).stem for f in comandi)
-        parti.append(f"hai modificato i comandi di Arturo {nomi}: il prossimo /aggiorna sposta da solo le tue aggiunte in un "
+        nomi = ", ".join(f if SESSIONE.match(f) else "/" + Path(f).stem for f in comandi)
+        parti.append(f"hai modificato {nomi}: il prossimo /aggiorna sposta da solo le tue aggiunte in un "
                      "file tuo, che gli aggiornamenti non toccano, se il tuo repository della config è privato o non ne hai "
                      "uno (per farlo subito: /aggiorna personale)")
-    altri = [f for f in esito["file"] if not f.startswith("commands/")]
+    altri = [f for f in esito["file"] if not (f.startswith("commands/") or SESSIONE.match(f) or GUARDIA.match(f))]
     if altri:
         parti.append(f"hai modificato {len(altri)} file di Arturo ({', '.join(altri[:3])}{'…' if len(altri) > 3 else ''}): "
                      "un aggiornamento può andare in conflitto")
