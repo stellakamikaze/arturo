@@ -56,9 +56,6 @@
     }
   }, true);
 
-  // L'iscrizione alla newsletter: il modulo di Ghost in home.
-  d.addEventListener("submit", function (e) {
-    var f = e.target;
-    if (f && f.closest && f.closest("[data-newsletter], .gh-signup-root, [data-members-form]")) evento("Newsletter", { pagina: pagina() });
-  }, true);
+  // L'iscrizione alla newsletter non si conta: il modulo di Ghost sta in un iframe di stellakamikaze.org,
+  // e il suo invio non arriva a questa pagina.
 })();
