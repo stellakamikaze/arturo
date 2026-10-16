@@ -18,6 +18,8 @@ K10 due stili di scrittura (Guida, Conciso) con le istruzioni da programmatore, 
 K11 niente allow larghi che saltano il classificatore, autoMode generale senza dati personali,
     divieti per Windows e file di lavoro di Claude Code fuori da git.
 K12 un banco che sposta HOME sposta anche USERPROFILE: su Windows Python trova la home da lì.
+K13 `gh` intero non sta in allow, e le credenziali della config contano come segreto.
+K14 il segno «setup fatto» è fuori da git, e chi aveva finito il setup prima del segno lo riceve.
 
 Sulla base 842b06f ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -259,9 +261,36 @@ def test_k13(repo: Path) -> None:
     assert esito in ("ask", "block"), f"K13 la lettura di ~/.claude/data/credentials non chiede: {esito}"
 
 
+def test_k14(repo: Path) -> None:
+    # Review del 16/10/2026: il segno di /setup restava come file non tracciato, e chi aveva finito
+    # il setup prima della v2026-10-16.3 ripartiva dalla prima configurazione.
+    assert "data/setup-fatto" in (repo / ".gitignore").read_text(encoding="utf-8").splitlines(), \
+        "K14 .gitignore senza data/setup-fatto: il segno resta come file non tracciato"
+    setup = (repo / "commands" / "setup.md").read_text(encoding="utf-8")
+    fase0 = setup.split("## FASE 0", 1)[1].split("```bash\n", 1)[1].split("```", 1)[0]
+
+    def prova(aggiornato: bool, fail: int) -> tuple:
+        with tempfile.TemporaryDirectory() as d:
+            home = Path(d)
+            audit = home / ".claude" / "skills" / "system-audit" / "audit.sh"
+            audit.parent.mkdir(parents=True)
+            audit.write_text(f"echo 'Totali: PASS=9 WARN=0 FAIL={fail}'\n", encoding="utf-8")
+            if aggiornato:
+                (home / ".claude" / "session-env").mkdir()
+                (home / ".claude" / "session-env" / "aggiornamenti").write_text("a b c\n", encoding="utf-8")
+            env = dict(os.environ, HOME=str(home), USERPROFILE=str(home))
+            r = subprocess.run([BASH, "-c", fase0], capture_output=True, env=env, timeout=60)
+            out = r.stdout.decode("utf-8", errors="replace")
+            return "SETUP GIÀ FATTO" in out, (home / ".claude" / "data" / "setup-fatto").exists()
+
+    assert prova(True, 0) == (True, True), "K14 un'installazione aggiornata con audit verde non riceve il segno"
+    assert prova(False, 0) == (False, False), "K14 un'installazione appena clonata risulta già configurata"
+    assert prova(True, 1) == (False, False), "K14 con un FAIL nell'audit il segno si scrive lo stesso"
+
+
 TESTS = {"K01": test_k01, "K02": test_k02, "K03": test_k03, "K04": test_k04, "K05": test_k05,
          "K06": test_k06, "K07": test_k07, "K08": test_k08, "K09": test_k09, "K10": test_k10, "K11": test_k11, "K12": test_k12,
-         "K13": test_k13}
+         "K13": test_k13, "K14": test_k14}
 
 
 def main() -> int:

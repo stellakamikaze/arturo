@@ -34,10 +34,17 @@ echo "HOME: $HOME"
 echo "Config attuale: ${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 ls -d "$HOME/.claude" >/dev/null 2>&1 && echo "~/.claude esiste" || echo "~/.claude NON esiste"
 git -C "$HOME/.claude" rev-parse --is-inside-work-tree 2>/dev/null && echo "è un repo git" || echo "NON è un repo git"
+# Chi ha finito il setup prima della v2026-10-16.3 non ha il segno. Un aggiornamento già fatto
+# e un audit senza FAIL dicono che la configurazione c'era: il segno si scrive una volta sola.
+if [ ! -f "$HOME/.claude/data/setup-fatto" ] && [ -s "$HOME/.claude/session-env/aggiornamenti" ] \
+  && bash "$HOME/.claude/skills/system-audit/audit.sh" 2>/dev/null | grep -q '^Totali: .*FAIL=0$'; then
+  mkdir -p "$HOME/.claude/data" && echo "$(date +%Y-%m-%d) dedotto da aggiornamenti e audit" > "$HOME/.claude/data/setup-fatto"
+fi
 cat "$HOME/.claude/data/setup-fatto" 2>/dev/null && echo "SETUP GIÀ FATTO" || echo "setup mai finito"
 ```
 
-`SETUP GIÀ FATTO` è il segno che una FASE 9 è già andata a buon fine: è il caso della verifica.
+`SETUP GIÀ FATTO` è il segno che una FASE 9 è già andata a buon fine: è il caso della verifica. Il
+segno «dedotto» vale lo stesso: la persona usava già Arturo prima che il segno esistesse.
 
 Verifica che l'harness sia installato in `~/.claude`. Se NON lo è, fermati e guida l'utente a installarlo prima. Il caso normale è che `~/.claude` esista già: Claude Code la crea al primo avvio, con dentro le sue impostazioni. Va spostata da parte, non cancellata:
 

@@ -24,6 +24,8 @@ data/segnalazioni/
 data/telemetria/
 # L'interruttore e le cartelle della memoria facoltativa (bin/memoria.py): restano su questo computer.
 data/memoria/
+# Il segno della FASE 9 di /setup: dice che questa installazione è configurata.
+data/setup-fatto
 .credentials.json
 
 # Runtime Claude Code (generato localmente)
