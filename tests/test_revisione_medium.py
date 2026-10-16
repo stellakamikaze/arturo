@@ -111,7 +111,11 @@ def test_m05(repo: Path) -> None:
     assert "remote rename origin upstream" in read(repo / "commands" / "setup.md"), "M05 /setup crea origin senza tenere Arturo come upstream"
     assert "remote rename origin upstream" in read(repo / "README.md"), "M05 README sostituisce origin e perde gli aggiornamenti di Arturo"
     assert "upstream" in read(repo / "commands" / "novita.md"), "M05 /novita cerca aggiornamenti solo su origin"
-    assert "upstream/main" in read(repo / "hooks" / "session-start.sh"), "M05 session-start non vede gli aggiornamenti su upstream"
+    # Dal 16/10/2026 l'avviso di session-start lo dà bin/aggiornamenti.py, che sceglie upstream quando
+    # c'è (AA11 lo prova col comportamento).
+    agg = repo / "bin" / "aggiornamenti.py"
+    assert "aggiornamenti.py" in read(repo / "hooks" / "session-start.sh") and agg.exists() \
+        and '"upstream"' in read(agg), "M05 session-start non vede gli aggiornamenti su upstream"
 
 
 def step6(repo: Path) -> str:

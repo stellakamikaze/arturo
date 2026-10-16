@@ -125,6 +125,36 @@ function gitInfo(dir) {
   }
 }
 
+// --- Aggiornamento di Arturo -----------------------------------------------
+// bin/aggiornamenti.py scrive lo stato in session-env/aggiornamento.json. La barra lo legge e, al
+// massimo una volta all'ora, lancia un controllo staccato (fetch dei tag): come Claude Code, un
+// aggiornamento arrivato mentre lavori si vede qui, e si installa da solo alla chiusura.
+const AGG_FILE = path.join(CLAUDE_DIR, 'session-env', 'aggiornamento.json');
+const AGG_TENTATIVO = path.join(CLAUDE_DIR, 'session-env', 'aggiornamento-controllo');
+const AGG_ORA_S = 3600;
+
+function aggiornamentoSegmento() {
+  let stato = {};
+  try { stato = JSON.parse(fs.readFileSync(AGG_FILE, 'utf8')) || {}; } catch (e) { stato = {}; }
+  try {
+    const controllato = Number(stato.controllato || 0) * 1000;
+    const tentato = gitMtime(AGG_TENTATIVO);
+    if (Date.now() - controllato > AGG_ORA_S * 1000 && (!tentato || Date.now() - tentato > AGG_ORA_S * 1000)) {
+      fs.mkdirSync(path.dirname(AGG_TENTATIVO), { recursive: true });
+      fs.writeFileSync(AGG_TENTATIVO, '');
+      const p = child_process.spawn('python3', [path.join(CLAUDE_DIR, 'bin', 'aggiornamenti.py'), 'controlla'],
+        { detached: true, windowsHide: true, stdio: 'ignore', shell: false });
+      p.on('error', () => {});
+      p.unref();
+    }
+  } catch (e) {}
+  const versione = String(stato.versione || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 30);
+  if (!versione) return '';
+  if (stato.stato === 'pronto') return ` │ \x1b[36m↑ Arturo ${versione} · si installa alla chiusura\x1b[0m`;
+  if (stato.stato === 'manuale' || stato.stato === 'bloccato') return ` │ \x1b[33m↑ Arturo ${versione} · serve /aggiorna\x1b[0m`;
+  return '';
+}
+
 // --- Quota dell'abbonamento ------------------------------------------------
 // Arriva già su stdin (`rate_limits`): nessuna lettura, nessun processo.
 // Chiavi assenti (prima della prima risposta, o piano senza limiti dichiarati,
@@ -256,7 +286,7 @@ process.stdin.on('end', () => {
       : progetto;
 
     // Output
-    const quota = quotaSegmento(data.rate_limits);
+    const quota = quotaSegmento(data.rate_limits) + aggiornamentoSegmento();
     const sigla = abbreviaModello(model);
     if (task) {
       process.stdout.write(`\x1b[2m${sigla}\x1b[0m │ \x1b[1m${task}\x1b[0m │ \x1b[2m${luogo}\x1b[0m${ctx}${quota}`);

@@ -1,0 +1,3 @@
+# Chi può firmare i rilasci di Arturo. bin/aggiornamenti.py installa da solo solo i tag firmati
+# da una di queste chiavi, lette dalla versione già installata. Formato: man ssh-keygen, ALLOWED SIGNERS.
+rilasci@arturo namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP0HfWu3Wxkq0+trFJ6S7P7MZmo2OXRlVKkgTKXI74K5

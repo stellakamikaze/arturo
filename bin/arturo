@@ -483,6 +483,7 @@ COMANDI = {
     "memoria": ("memoria", "la memoria facoltativa, spenta di default: stato, accendi, spegni, cerca, controlla"),
     "contesto": ("contesto", "il contesto di un progetto in una chiamata: git, handoff, todo, scadenze (/inizio)"),
     "diagnosi": ("diagnosi", "percorsi spariti e file sparsi di un progetto, in sola lettura (/diagnosi)"),
+    "aggiornamenti": ("aggiornamenti", "Arturo si aggiorna da solo alla chiusura: stato, controlla, manuali, automatici"),
 }
 
 

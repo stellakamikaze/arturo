@@ -11,6 +11,26 @@ modo di lavorare.
 
 ---
 
+## 2026-10-17 — Arturo si aggiorna da solo, come Claude Code
+
+**Cosa cambia**: non serve più `/aggiorna`. Quando esce una versione nuova, la barra in basso di
+Claude Code te lo dice («↑ Arturo … · si installa alla chiusura»). Quando chiudi la sessione, Arturo
+la installa da solo, con la stessa procedura di `/aggiorna`: le tue aggiunte restano tue, e se
+qualcosa non torna non cambia niente. Se hai più sessioni aperte, la installa l'ultima che chiudi.
+Alla sessione dopo Claude ti dice a che versione sei arrivato, e `/novita` ti racconta cosa cambia.
+
+**Il principio dietro**: un aggiornamento è codice di altri che gira sul tuo computer. Per questo
+si installano da soli solo i rilasci firmati con la chiave di chi mantiene Arturo, e la firma si
+controlla con la chiave che hai già: un repository manomesso non basta. Se la firma manca, o la
+storia pubblicata è stata riscritta, Arturo non installa niente e te lo dice.
+
+**Da sapere**: preferisci leggere ogni aggiornamento prima? Scrivi a Claude «tieni gli
+aggiornamenti a mano», oppure lancia `python3 ~/.claude/bin/arturo aggiornamenti manuali`: resta
+l'avviso, e aggiorni con `/aggiorna` come prima. Questa è l'ultima volta che serve `/aggiorna` per
+ricevere una versione: da qui in poi arrivano da sole.
+
+---
+
 ## 2026-10-16 — L'avvio e la chiusura personali non bloccano più gli aggiornamenti
 
 **Cosa cambia**: se hai aggiunto righe all'avvio o alla chiusura della sessione

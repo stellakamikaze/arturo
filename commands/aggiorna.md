@@ -5,8 +5,11 @@ argument-hint: "(nessuno) | indietro | personale"
 
 # Aggiorna
 
-Porti la copia di Arturo di chi ti parla all'ultima versione. È l'unico comando che applica
-gli aggiornamenti: l'avvio e `/inizio` li controllano e basta.
+Porti la copia di Arturo di chi ti parla all'ultima versione. Di solito non serve: dal 16/10/2026
+Arturo si aggiorna da solo alla chiusura della sessione, con i soli rilasci firmati
+(`bin/aggiornamenti.py`). `/aggiorna` serve quando l'avvio o la barra in basso dicono «serve
+/aggiorna» (firma assente, storia riscritta, modifiche non salvate, conflitto, aggiornamenti a
+mano), per tornare indietro, per le aggiunte personali, o quando la persona vuole guardare prima.
 
 Chi ti parla **potrebbe non essere una persona tecnica**: niente gergo di Git, nessun output
 grezzo incollato senza spiegazione.

@@ -34,6 +34,20 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    git tag -a "$V" -m "Arturo $V" && git push origin main "$V"
    ```
 
+   Dal 16/10/2026 il tag è **firmato**: l'aggiornamento automatico installa solo i tag firmati dalla
+   chiave dei rilasci (`firme/rilasci.allowed_signers`). La privata sta in Vaultwarden, voce
+   «Arturo rilasci — chiave SSH di firma», allegato `arturo-rilasci`. Esce dal vault in un file 600
+   temporaneo solo per firmare, e si cancella subito dopo. Al posto di `git tag -a`:
+
+   ```bash
+   git -c gpg.format=ssh -c user.signingkey="$CHIAVE" tag -s "$V" -m "Arturo $V"
+   git -c gpg.format=ssh -c gpg.ssh.allowedSignersFile=firme/rilasci.allowed_signers verify-tag "$V"
+   ```
+
+   Il push parte solo se `verify-tag` dice `Good "git" signature`. Un tag non firmato non si
+   installa da solo: gli utenti vedono l'avviso e aggiornano con `/aggiorna`. Per cambiare chiave,
+   la nuova entra in `allowed_signers` con un rilascio firmato dalla vecchia.
+
    `--ff-only` è un freno: se `main` non può avanzare in modo lineare, il merge si ferma e
    ti costringe a guardare perché `dev` e `main` hanno diverto. Mai forzare.
 

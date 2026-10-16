@@ -122,7 +122,7 @@ if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
     # Il marcatore di successo si scrive solo se il fetch riesce davvero.
     ( export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes"
       REMOTO=$(git -C "$HOME/.claude" remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
-      git -C "$HOME/.claude" fetch --quiet "$REMOTO" main >/dev/null 2>&1 && printf '%s' "$ADESSO" > "$RIUSCITO"
+      git -C "$HOME/.claude" fetch --quiet --tags "$REMOTO" main >/dev/null 2>&1 && printf '%s' "$ADESSO" > "$RIUSCITO"
     ) >/dev/null 2>&1 &
   fi
   RIUSCITO_T=$(cat "$RIUSCITO" 2>/dev/null || echo 0)
@@ -146,15 +146,13 @@ if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
   if [ "${AHEAD:-0}" -gt 0 ] && [ "$ORIGIN_ARTURO" -eq 0 ]; then
     echo "CONFIG: ~/.claude e' AVANTI di $AHEAD commit non pushati"
   fi
-  if [ "${BEHIND:-0}" -gt 0 ]; then
+  # Gli aggiornamenti di Arturo (bin/aggiornamenti.py, 16/10/2026): si installano da soli alla
+  # chiusura, solo i rilasci con tag firmati. Qui, senza rete, l'annuncio una volta, l'esito
+  # dell'ultima installazione e l'avviso se uno non può installarsi da solo.
+  if [ -f "$HOME/.claude/bin/aggiornamenti.py" ]; then
+    python3 "$HOME/.claude/bin/aggiornamenti.py" stato 2>/dev/null || true
+  elif [ "${BEHIND:-0}" -gt 0 ]; then
     echo "ARTURO: c'e' un aggiornamento ($BEHIND commit) — scaricalo con /aggiorna"
-  fi
-  # Con un repository personale come origin, Arturo vive su upstream.
-  if git -C "$HOME/.claude" rev-parse --verify --quiet upstream/main >/dev/null 2>&1; then
-    UPSTREAM_BEHIND=$(git -C "$HOME/.claude" rev-list --count HEAD..upstream/main 2>/dev/null || echo 0)
-    if [ "${UPSTREAM_BEHIND:-0}" -gt 0 ]; then
-      echo "ARTURO: c'e' un aggiornamento dell'harness ($UPSTREAM_BEHIND commit su upstream) — scaricalo con /aggiorna"
-    fi
   fi
 fi
 
