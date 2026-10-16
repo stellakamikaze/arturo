@@ -514,7 +514,7 @@ def test_g14(repo: Path) -> None:
         "G14 il riepilogo di /setup non nomina /percorso"
     readme = read(repo / "README.md")
     vere = len([d for d in (repo / "skills").iterdir() if (d / "SKILL.md").is_file()])
-    assert vere == 6 and "**6 skill**" in readme, f"G14 il README e le skill: {vere}"
+    assert vere == 5 and "**5 skill**" in readme, f"G14 il README e le skill: {vere}"
     assert "docs/esercizi.md" in readme and "`percorso`" in readme, "G14 il README non racconta il percorso"
     novita = read(repo / "NOVITA.md")
     intestazioni = [r for r in novita.splitlines() if r.startswith("## ")]

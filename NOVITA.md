@@ -11,20 +11,21 @@ modo di lavorare.
 
 ---
 
-## 2026-10-16 — In vista solo i comandi di ogni giorno, e una skill per le interfacce
+## 2026-10-16 — In vista solo i comandi di ogni giorno, e Impeccable dal setup
 
 **Cosa cambia**: Claude ti propone da solo solo i comandi che servono ogni giorno o quando serve:
 `/inizio`, `/fine`, `/aggiorna`, `/novita`, `/segnala`, `/setup`. Gli altri (`/guidami`, `/sparring`,
 `/progetto`, `/discovery`, `/write-plan`, `/diagnosi`, `/strato`, `/percorso`, `/italiano-semplificato`)
 restano tutti: li lanci tu scrivendo il nome. Il README li divide in «Ogni giorno», «Quando serve» e
-«Gli altri comandi». In più arriva `impeccable`: quando chiedi di progettare o rifinire un sito, una
-pagina o una dashboard, Claude lavora come un direttore di design.
+«Gli altri comandi». In più `/setup` ti propone Impeccable (fase 8c), la skill di design delle
+interfacce di Paul Bakaus: la installa dall'autore, con le sue versioni nuove.
 
 **Il principio dietro**: chi comincia ha bisogno di due comandi, non di quindici. Un elenco lungo
 fa sembrare difficile anche quello che è semplice.
 
 **Da sapere**: niente da fare. «A che punto sono?» non apre più da solo il percorso: scrivi `/percorso`.
-`impeccable` gira senza il programma che la versione originale scarica al primo uso.
+Se fai siti o pagine e vuoi Impeccable senza rifare tutto il setup: `/setup` e salta alla fase 8c,
+oppure leggi `docs/impeccable.md`.
 
 ---
 

@@ -303,6 +303,35 @@ Controlla prima se c'è già:
 
 ---
 
+## FASE 8c — Impeccable, per chi fa siti e pagine (opzionale)
+
+Chiedi: «Ti capita di fare siti, pagine o piccole app? Esiste una skill di design delle interfacce,
+Impeccable, di Paul Bakaus: con lei Claude lavora come un direttore di design e controlla da solo i
+difetti tipici. Arturo non la copia: la installo dall'autore, così ricevi le sue versioni nuove. Al
+primo uso scarica un suo programma di controllo. La installo?»
+
+Controlla prima se c'è già:
+
+```bash
+[ -f "$HOME/.claude/skills/impeccable/SKILL.md" ] && echo "impeccable già installata" || echo "impeccable non installata"
+```
+
+- Se è già installata, dillo e vai avanti.
+- Solo dopo il sì dell'utente, installala per tutti i progetti. I due flag saltano le domande
+  dell'installatore, che qui resterebbero senza risposta:
+
+  ```bash
+  npx --yes impeccable install --providers=claude --scope=global
+  ```
+
+  Poi spiega: «È installata. Riapri Claude Code, e in un progetto scrivi `/impeccable init`: ti fa
+  qualche domanda sul progetto e la ricorda in `PRODUCT.md`.» Dettagli e aggiornamento:
+  `docs/impeccable.md`.
+- Se l'utente dice no, o non fa interfacce, salta: si installa anche più tardi con lo stesso
+  comando.
+
+---
+
 ## FASE 9 — Verifica finale
 
 Lancia l'audit dell'harness e mostra l'esito:
@@ -332,7 +361,7 @@ Se preferisce esplorare da solo, indicagli `docs/principi/README.md` e chiudi.
 
 Chiudi con un riepilogo in linguaggio semplice:
 - Cosa è stato configurato: prerequisiti, permessi, `PROJECTS_BASE`, lingua, verifica finale.
-- Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), strato dell'organizzazione (7b), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), `gws` (8), `scrape` (8b), sparring (10). Una fase saltata si recupera rilanciando `/setup`.
+- Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), strato dell'organizzazione (7b), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), `gws` (8), `scrape` (8b), Impeccable (8c), sparring (10). Una fase saltata si recupera rilanciando `/setup`.
 - **Come iniziare a lavorare**: «Ogni giorno ti bastano due comandi: `/inizio <nome>` per riprendere un progetto e `/fine` per chiuderlo. Quando ti viene in mente qualcosa da fare, dimmi «ricordami di…»: lo ritrovi a ogni `/inizio`.» Gli altri comandi non elencarli qui: c'è il README.
 - **Come imparare un passo alla volta**: «Quando vuoi vedere a che punto sei, scrivi `/percorso`.»
 - **Come restare aggiornato**: all'avvio della sessione Arturo controlla da solo se c'è una versione nuova e lo segnala (`ARTURO: c'e' un aggiornamento — scaricalo con /aggiorna`). **`/aggiorna`** la scarica e la applica, **`/novita`** racconta cosa è cambiato e propone lo sparring.

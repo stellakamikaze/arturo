@@ -6,7 +6,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 È il telaio di una config personale usata quotidianamente in produzione, estratto e igienizzato: **zero dati, zero credenziali, zero riferimenti a infrastrutture private**. Quello che resta è il metodo.
 
-In due righe: **23 guardie e automazioni**, **13 slash command**, **9 subagent**, **6 skill**, una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), un **server open source** per la telemetria e le segnalazioni (`server/`), che dice a chi mantiene Arturo dove correggerlo — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi usa già l'IA in chat ma non ha mai aperto un terminale. A te non serve un server né un account: il server della telemetria lo tiene chi mantiene Arturo. Ti bastano `git` e le CLI standard.
+In due righe: **23 guardie e automazioni**, **13 slash command**, **9 subagent**, **5 skill**, una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), un **server open source** per la telemetria e le segnalazioni (`server/`), che dice a chi mantiene Arturo dove correggerlo — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi usa già l'IA in chat ma non ha mai aperto un terminale. A te non serve un server né un account: il server della telemetria lo tiene chi mantiene Arturo. Ti bastano `git` e le CLI standard.
 
 I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure scrivi `python3 ~/.claude/bin/arturo web` nel terminale. La pagina è facoltativa e locale: risponde solo sul tuo computer (127.0.0.1), non si collega a internet e si spegne da sola dopo 30 minuti senza la pagina aperta.
 
@@ -237,7 +237,7 @@ tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativ
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
 commands/            13 slash command di workflow (incl. /setup, /aggiorna, /guidami, /novita, /strato, /segnala)
 agents/              9 subagent specializzati
-skills/              6 skill (+ regole condivise in shared/)
+skills/              5 skill (+ regole condivise in shared/)
 output-styles/       Due stili di scrittura: Guida (di partenza) e Conciso (si sceglie in /setup)
 docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/esercizi.md     Gli esercizi del percorso a tappe (/percorso)
@@ -335,7 +335,6 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 - **`system-audit`** — audit dell'harness: hook diretti e transitivi, smoke test, frontmatter YAML, permessi, slash-comandi citati nei documenti senza una skill o un comando dietro, peso dei corpi, plugin installati e non attivi. `--strict` fallisce se manca un requisito. Il banco avvelenato `skills/system-audit/tests/banco-gate.sh` lavora su una copia e non tocca la tua `~/.claude`.
 - **`prompt-master`** — due modalità: un prompt pronto da incollare in un altro tool AI, oppure il **brief interno**: prima di ogni richiesta di lavoro, anche breve, ricostruisce il contesto che manca, riscrive la richiesta come la eseguirà (il **prompt**) e mostra obiettivo, output, vincoli, criterio di fatto, assunzioni e ambiguità (il **brief**). Domande e conversazione hanno risposta diretta. L'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi (upstream `nidhinjs/prompt-master`, MIT).
 - **`todo`** — quando dici «ricordami di…» o chiedi cosa c'è da fare, Claude usa la CLI `arturo todo`. I todo stanno in un archivio sul tuo computer (`data/todo/eventi.jsonl`), divisi per progetto, scadenza e chi agisce: tu, tu che decidi e poi Claude, oppure Claude. `/fine` ci scrive quello che resta, `/inizio` lo rilegge. Da terminale: `python3 ~/.claude/bin/arturo todo aiuto`. Se chiedi di vederli in una pagina, Claude avvia `arturo web`: una pagina nel browser che risponde solo sul tuo computer.
-- **`impeccable`** — quando chiedi di progettare, rifinire o criticare un'interfaccia (un sito, una pagina, una dashboard), Claude lavora come un direttore di design: prima la direzione e il contesto del progetto, poi la soglia di qualità e una verifica a passate limitate. È la skill di Paul Bakaus (Apache-2.0) in copia fissata, senza il programma che upstream scarica al primo uso: provenienza e licenza nella sua cartella.
 
 Queste due Claude non le propone da solo: le lanci tu con `/percorso` e `/italiano-semplificato`.
 
