@@ -348,7 +348,8 @@ def test_p16(repo: Path) -> None:
         testo = read(repo / "commands" / "aggiorna.md")
         lab.lancia(blocco(testo, "## Passo 1", "P16"))
         lab.lancia(blocco(testo, "## Passo 3", "P16"))
-        assert read(lab.utente / "hooks" / "session-start.sh") == AVVIO, "P16 l'hook di Arturo non è arrivato"
+        avvio = lab.utente / "hooks" / "session-start.sh"
+        assert avvio.exists() and read(avvio) == AVVIO, "P16 l'hook di Arturo non è arrivato"
         mio = AVVIO.replace('echo "fine avvio"\n', 'echo "fine avvio"\necho "i miei dischi"\n')
         (lab.utente / "hooks" / "session-start.sh").write_text(mio, encoding="utf-8")
         lab.git(lab.utente, "commit", "-q", "-am", "mio avvio")
