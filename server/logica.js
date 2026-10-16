@@ -187,7 +187,7 @@ export function testoMigliorare(m) {
   return [
     "DOVE MIGLIORARE ARTURO (ultimi 30 giorni, numeri e non verdetti)",
     "",
-    `Setup: ${m.setupIniziati || 0} iniziati, ${m.setupFiniti || 0} arrivati in fondo. Fermi da più di 3 giorni, per ultima fase vista:`,
+    `Setup: ${m.setupIniziati || 0} iniziati, ${m.setupFiniti || 0} arrivati in fondo, ${m.setupMai || 0} installazioni nuove che non l'hanno mai lanciato. Fermi da più di 3 giorni, per ultima fase vista:`,
     ...righe(m.setupFermi, (x) => `  ${x.n}  ${x.valore}`, "  nessuno"),
     "",
     "Guardie che chiedono conferma (chiede / confermata / quota di sì):",

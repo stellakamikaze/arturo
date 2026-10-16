@@ -2,6 +2,9 @@
 // così test-sql.mjs prova le query vere su SQLite con node, senza Cloudflare.
 import { LIMITI, ritenzione } from "./logica.js";
 
+// v2026-10-15: da qui /setup manda i suoi eventi alla telemetria.
+const SETUP_DAL = "2026-10-15";
+
 export function archivio(db) {
   return {
     async contaEventi(installazione, giorno) {
@@ -85,6 +88,13 @@ export function archivio(db) {
           "SELECT COUNT(DISTINCT installazione) AS n FROM eventi WHERE evento = 'setup' AND valore = 'fine'").first()) || { n: 0 }).n,
         setupIniziati: ((await db.prepare(
           "SELECT COUNT(DISTINCT installazione) AS n FROM eventi WHERE evento = 'setup'").first()) || { n: 0 }).n,
+        // Chi non ha mai lanciato /setup: installazioni nate da SETUP_DAL (il primo rilascio che manda
+        // gli eventi di /setup), da almeno un giorno, senza nessun evento setup. Prima di quella data
+        // lo zero non vuol dire niente.
+        setupMai: ((await db.prepare(
+          `SELECT COUNT(*) AS n FROM (SELECT installazione FROM eventi GROUP BY installazione
+             HAVING MIN(giorno) >= ? AND MIN(giorno) <= date(?, '-1 day') AND SUM(evento = 'setup') = 0)`)
+          .bind(SETUP_DAL, al).first()) || { n: 0 }).n,
         // Quante volte una guardia chiede, e quante volte la persona conferma.
         conferme: await tutte(
           `SELECT valore, SUM(evento = 'chiede') AS chiede, SUM(evento = 'confermata') AS confermata FROM eventi

@@ -269,14 +269,14 @@ const casi = {
   },
   // Il lunedì apre con «Dove migliorare Arturo»; il recap del giorno no.
   async V19() {
-    const migliorare = { setupIniziati: 3, setupFiniti: 1, setupFermi: [{ valore: "fase:2", n: 2 }],
+    const migliorare = { setupIniziati: 3, setupFiniti: 1, setupMai: 2, setupFermi: [{ valore: "fase:2", n: 2 }],
       conferme: [{ valore: "exfil-guard.py", chiede: 10, confermata: 9 }], errori: [], aggiornaStorti: [],
       ritenzione: { nuove: 1, soglie: [{ giorni: 60, idonee: 4, vive: 1 }] }, claude: [] };
     const f = finti({ ...VUOTO, migliorare });
     await settimanale({ ...f, adesso });
     const testo = f.stato.email[0].testo;
     assert.ok(testo.indexOf("DOVE MIGLIORARE ARTURO") < testo.indexOf("Installazioni attive"), "V19 la sezione non viene prima");
-    assert.match(testo, /Setup: 3 iniziati, 1 arrivati in fondo[^\n]*\n  2  fase:2\n/, "V19 setup fermi");
+    assert.match(testo, /Setup: 3 iniziati, 1 arrivati in fondo, 2 installazioni nuove che non l'hanno mai lanciato[^\n]*\n  2  fase:2\n/, "V19 setup fermi");
     assert.match(testo, /exfil-guard\.py  10 \/ 9 \/ 90%/, "V19 quota di sì delle guardie");
     assert.doesNotMatch(testo, /Tappe/, "V19 la sezione delle tappe resta nel riepilogo");
     assert.match(testo, /vive dopo 60 giorni: 1 su 4 \(25%\)/, "V19 ritenzione");

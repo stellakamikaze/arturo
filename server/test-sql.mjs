@@ -46,6 +46,17 @@ const casi = {
     assert.equal(m.setupIniziati, 5, "Q01 setup iniziati");
     assert.equal(m.setupFiniti, 2, "Q01 setup finiti");
   },
+  // Chi non lancia mai /setup: nata dal 15/10, da almeno un giorno, senza nessun evento setup.
+  async Q07() {
+    const a = await con([
+      ["2026-10-14", "aaaaaaaa", "sessione"],                                  // nata prima degli eventi di /setup
+      ["2026-10-15", "bbbbbbbb", "sessione"], ["2026-10-16", "bbbbbbbb", "sessione"],  // mai /setup
+      ["2026-10-15", "cccccccc", "sessione"], ["2026-10-15", "cccccccc", "setup", "fase:0"],
+      ["2026-10-17", "dddddddd", "sessione"],                                  // nata oggi: ancora presto
+    ]);
+    const m = await a.miglioramento("2026-10-17");
+    assert.equal(m.setupMai, 1, "Q07 installazioni senza /setup");
+  },
   // Guardie: chiede e confermata contati per guardia, solo negli ultimi 30 giorni.
   async Q02() {
     const a = await con([
