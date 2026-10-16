@@ -12,6 +12,7 @@ U04 memoria-scrittura vede i caratteri invisibili in una nota di memoria.
 U05 memoria-richiamo trova una nota con le parole accentate del messaggio.
 U06 il dispatcher passa alle guardie il comando intero: un rm con «”» e un invio con «→»
 chiedono conferma.
+U07 nessun hook si rompe all'avvio con un input minimo, e forma_comando riconosce «git status» come git puro.
 
 Sulla base b0ec3ac ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -127,7 +128,30 @@ def test_u06(repo: Path) -> None:
         assert esito == "ask", f"U06 invio con «→» e «”» dal dispatcher: {esito!r}"
 
 
-TESTS = {"U01": test_u01, "U02": test_u02, "U03": test_u03, "U04": test_u04, "U05": test_u05, "U06": test_u06}
+def test_u07(repo: Path) -> None:
+    # Il 16/10/2026 il blocco UTF-8 è finito prima di `import sys` in forma_comando.py: NameError a ogni
+    # avvio, e il dispatcher perdeva il ramo memoria e lo skip git-puro. Nessun banco lo vedeva.
+    with tempfile.TemporaryDirectory() as d:
+        casa = Path(d)
+        rotti = []
+        for f in sorted((repo / "hooks").glob("*.py")):
+            argv = [sys.executable, "-B", str(f)] + (["ramo-memoria"] if f.name == "forma_comando.py" else [])
+            if f.name in ("deriva.py", "controlla-config.py", "heredoc.py", "scheda-terminale.py"):
+                continue  # i primi tre non leggono il JSON di un hook; la scheda scrive sul terminale vero (test_scheda)
+            dati = {"tool_name": "Bash", "tool_input": {"command": f"echo {VIRGOLETTA}"}, "prompt": "ciao", "cwd": d}
+            r = subprocess.run(argv, input=json.dumps(dati, ensure_ascii=False).encode("utf-8"), capture_output=True,
+                               cwd=d, env=ambiente(casa), timeout=30)
+            if b"Traceback" in r.stderr:
+                rotti.append(f"{f.name}: {testo(r.stderr).strip().splitlines()[-1]}")
+        r = subprocess.run([sys.executable, "-B", str(repo / "hooks" / "forma_comando.py"), "git-puro", "git status"],
+                           capture_output=True, env=ambiente(casa), timeout=30)
+        if r.returncode != 0:
+            rotti.append(f"forma_comando.py git-puro «git status»: rc={r.returncode} {testo(r.stderr)[-200:]}")
+        assert not rotti, "U07 hook che si rompono all'avvio: " + "; ".join(rotti)
+
+
+TESTS = {"U01": test_u01, "U02": test_u02, "U03": test_u03, "U04": test_u04, "U05": test_u05, "U06": test_u06,
+         "U07": test_u07}
 
 
 def main() -> int:
