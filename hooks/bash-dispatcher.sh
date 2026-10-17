@@ -116,7 +116,9 @@ PATTERN_COMMS='(^|[[:space:];|&("'"'"'`])(sendmail|mailx|mutt|msmtp|swaks|mail)(
 # block-dangerous: rm ricorsivo (tree protetti), bw export, scrittura config/hook,
 # scrittura su git hook e servizi di avvio automatico,
 # lettura segreti via shell (.ssh/id_*/credentials/.pem...), docker volume rm.
-PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([[:space:]]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-exec(dir)?[[:space:]]+[^[:space:]]*rm)|bw[[:space:]].*export|\.claude/(settings|hooks|firme|\.claude\.json)|firme/|rilasci\.allowed_signers|aggiornamenti\.py|aggiorna-applica\.sh|\.claude/[^[:space:]]*unlock|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.claude/data/credentials/|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|sed[[:space:]][^|&]*[^[:alnum:]]w[[:space:]]+[^[:space:]|;&]'
+PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([[:space:]]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-exec(dir)?[[:space:]]+[^[:space:]]*rm)|bw[[:space:]].*export|\.claude/(settings|hooks|firme|\.claude\.json)|firme/|rilasci\.allowed_signers|aggiornamenti\.py|aggiorna-applica\.sh|\.claude/[^[:space:]]*unlock|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.claude/data/credentials/|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|sed[[:space:]][^|&]*[^[:alnum:]]w[[:space:]]+[^[:space:]|;&]|\.env([^[:alnum:]_]|$)|shutil\.rmtree|from[[:space:]]+shutil[[:space:]]+import[^;]*rmtree'
+# 17/10/2026 (#3506): i file .env (anche .env.local), shutil.rmtree. git clean ha un pattern suo,
+# PATTERN_GIT_CLEAN, che parte prima dello skip git-puro.
 # Commit secret gate: scansiona il diff staged prima di git commit / gh pr create.
 # Dal 15/10/2026 parte anche su un commit a capo, in una subshell o in $( ), dopo `env VAR=… `
 # o assegnazioni, e con opzioni di git prima di commit (-c k=v, -C dir, --no-pager).
@@ -130,9 +132,18 @@ PATTERN_EXFIL='(curl|wget)[[:space:]].*(-X[[:space:]]*(POST|PUT|PATCH|DELETE)|--
 # /dev/tcp, netcat/socat. exfil-guard.py decide poi con precisione (ask solo su
 # command-substitution/blob-opaco/host esterno; host interni esclusi).
 PATTERN_EGRESS_GET='(^|[;&|[:space:]])(curl|wget|dig|nslookup|host|nc|ncat|socat)[[:space:]]|/dev/tcp/'
+# 17/10/2026 (#3506): il ramo GET resta spento, ma i canali che portano fuori dati senza POST vanno a
+# exfil-guard: curl o wget con $( o un backtick nel comando, una pipe verso nc/ncat/netcat/socat,
+# /dev/tcp e /dev/udp, fetch( e http(s).request/get dentro node, deno, bun o python. Un curl o un wget
+# senza sostituzioni non arriva qui: il GET innocuo resta senza attrito.
+PATTERN_EGRESS_SOSPETTO='(curl|wget)[[:space:]][^|;&]*(\$\(|`[^`]*`)|\|[[:space:]]*(sudo[[:space:]]+)?(nc|ncat|netcat|socat)([[:space:]]|$)|/dev/(tcp|udp)/|(node|nodejs|deno|bun|python3?)[[:space:]].*(fetch[[:space:]]*\(|https?.{0,3}\.(request|get)[[:space:]]*\()'
+# Una redirezione verso /dev/tcp scrive in rete anche da un comando che sembra sola lettura (`echo x > /dev/tcp/…`).
+PATTERN_DEV_TCP='[<>]&?[[:space:]]*/dev/(tcp|udp)/'
+# git clean -f con opzioni in mezzo (`git -C dir clean -fdx`, `git -c k=v clean --force`).
+PATTERN_GIT_CLEAN='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?clean[[:space:]]([^|;&]*[[:space:]])?(-[[:alpha:]]*f|--force)'
 # data-guard: operazioni DATI irreversibili non coperte da block-dangerous
 # (SQL DROP/TRUNCATE/DELETE FROM, docker compose down -v, rsync --delete remoto, overwrite .db).
-PATTERN_DATA='[Dd][Rr][Oo][Pp][[:space:]]+([Tt][Aa][Bb][Ll][Ee]|[Dd][Aa][Tt][Aa][Bb][Aa][Ss][Ee]|[Ss][Cc][Hh][Ee][Mm][Aa])|[Tt][Rr][Uu][Nn][Cc][Aa][Tt][Ee]|[Dd][Ee][Ll][Ee][Tt][Ee][[:space:]]+[Ff][Rr][Oo][Mm]|docker([[:space:]]+compose|-compose)[^|&;]*[[:space:]]down[^|&;]*(-v|--volumes)|rsync[^|&;]*--delete|>[[:space:]]*[^>[:space:]|&;]*\.(db|sqlite|sqlite3|sql|dump)'
+PATTERN_DATA='[Dd][Rr][Oo][Pp][[:space:]]+([Tt][Aa][Bb][Ll][Ee]|[Dd][Aa][Tt][Aa][Bb][Aa][Ss][Ee]|[Ss][Cc][Hh][Ee][Mm][Aa])|[Tt][Rr][Uu][Nn][Cc][Aa][Tt][Ee]|[Dd][Ee][Ll][Ee][Tt][Ee][[:space:]]+[Ff][Rr][Oo][Mm]|docker([[:space:]]+compose|-compose)[^|&;]*[[:space:]]down[^|&;]*(-v|--volumes)|rsync[^|&;]*--del(ete)?([^[:alnum:]_]|$)|>[[:space:]]*[^>[:space:]|&;]*\.(db|sqlite|sqlite3|sql|dump)'
 
 # Esegue un guard: un crash o stdout non decisionale diventa ask, mai allow implicito.
 # $1 = la guardia che si e' rotta: la telemetria la registra come `errore`.
@@ -189,6 +200,10 @@ except Exception:
 
 # Commit secret gate: PRIMA dello skip git-puro (scansiona il diff, non il message).
 [[ "$COMMAND" =~ $PATTERN_COMMIT ]] && run_guard commit-secret-gate.py
+
+# git clean -f cancella i file non tracciati, che git non sa ridare: PRIMA dello skip git-puro, che
+# altrimenti lascerebbe passare `git log && git clean -fdx` (17/10/2026, #3506).
+[[ "$GUARD_COMMAND" =~ $PATTERN_GIT_CLEAN ]] && run_guard block-dangerous.py
 
 # --- Skip pre-filtro su git puro (commit/log/show...): i message possono
 # contenere "rm -rf"/"smtplib" come testo, NON sono esecuzioni. Skip SOLO se
@@ -248,6 +263,20 @@ fi
 
 # Scelta di attrito approvata: GET disattivato; POST e upload restano protetti.
 # [[ "$GUARD_COMMAND" =~ $PATTERN_EGRESS_GET ]] && run_guard exfil-guard.py
+
+# I canali di PATTERN_EGRESS_SOSPETTO (17/10/2026, #3506) passano da exfil-guard, sul codice eseguito come
+# per il POST. Una redirezione verso /dev/tcp si giudica sul comando intero: il pre-filtro tace su
+# `echo`, che lì scrive in rete.
+if [[ "$GUARD_COMMAND" =~ $PATTERN_EGRESS_SOSPETTO ]]; then
+    [[ -z "${COMMS_REDUCED+x}" ]] && { COMMS_REDUCED=$(python3 "$HOME/.claude/hooks/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND; }
+    if [[ "$COMMS_REDUCED" =~ $PATTERN_EGRESS_SOSPETTO ]]; then
+        export COMMS_REDUCED
+        run_guard exfil-guard.py
+    elif [[ "$GUARD_COMMAND" =~ $PATTERN_DEV_TCP ]]; then
+        export COMMS_REDUCED=$GUARD_COMMAND
+        run_guard exfil-guard.py
+    fi
+fi
 
 # Data guard: operazioni distruttive sui DATI (SQL drop, volumi, rsync --delete) -> ask.
 [[ "$GUARD_COMMAND" =~ $PATTERN_DATA ]] && run_guard data-guard.py

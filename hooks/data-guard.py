@@ -18,7 +18,9 @@ Casi coperti:
 - docker compose down -v / --volumes, anche con opzioni prima di down (-f, -p)
   e nella forma docker-compose (cancella i volumi = i dati dei container)
 - rsync --delete verso una destinazione REMOTA (host:path) = può cancellare
-  dati sul server se la direzione è sbagliata
+  dati sul server se la direzione è sbagliata; dal 17/10/2026 (#3506) anche verso
+  una cartella LOCALE (un disco di backup, i Documenti): cancella lì tutto quello
+  che la sorgente non ha. Un dry-run (-n, --dry-run) non chiede.
 - redirezione/overwrite di un file DB (> *.db / *.sqlite / *.sql.gz)
 
 Fail-open su parsing. Zero dipendenze.
@@ -102,14 +104,19 @@ def _senza_testo(cmd: str) -> str:
     return _togli_heredoc(cmd, lambda h: h.inerte() or h.codice_inerte()).replace("\\\n", " ")
 
 
-def _rsync_delete_reale(cmd: str) -> bool:
+# Ogni rsync con --delete (anche --del, --delete-after, --delete-excluded), verso dove che sia.
+RSYNC_DELETE_RE = re.compile(r"\brsync\b[^|&;\n]*--del(?:ete)?\b", re.IGNORECASE)
+
+
+def _rsync_delete_reale(cmd: str) -> str:
+    """"remota" o "locale" per il primo rsync --delete che non è un dry-run, "" se non ce n'è."""
     testo = _senza_testo(cmd)
-    for m in RSYNC_DELETE_REMOTE_RE.finditer(testo):
+    for m in RSYNC_DELETE_RE.finditer(testo):
         fine = re.search(r"[|&;\n]", testo[m.start():])
         segmento = testo[m.start(): m.start() + fine.start()] if fine else testo[m.start():]
         if not RSYNC_DRY_RUN_RE.search(re.sub(r"\"[^\"]*\"|'[^']*'", " ", segmento)):
-            return True
-    return False
+            return "remota" if RSYNC_DELETE_REMOTE_RE.search(segmento) else "locale"
+    return ""
 
 # Overwrite di un file DB via redirezione (> master.db). Non >> (append).
 DB_FILE_OVERWRITE_RE = re.compile(
@@ -166,11 +173,18 @@ def main() -> int:
             "dump/export. Conferma solo se i dati sono già salvati."
         )
 
-    if _rsync_delete_reale(cmd):
+    dove = _rsync_delete_reale(cmd)
+    if dove == "remota":
         return _ask(
             "rsync --delete verso una destinazione REMOTA: se la direzione è "
             "sbagliata (local->master) può cancellare dati sul server. "
             "Verifica sorgente/destinazione e fai un pull/backup prima."
+        )
+    if dove == "locale":
+        return _ask(
+            "rsync --delete verso una cartella di questo computer: cancella lì ogni file che la "
+            "sorgente non ha, senza cestino. Se la direzione è sbagliata perdi il lavoro. Prova prima "
+            "con -n (dry-run) e controlla sorgente e destinazione."
         )
 
     if DB_FILE_OVERWRITE_RE.search(cmd):

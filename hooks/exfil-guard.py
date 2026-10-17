@@ -15,6 +15,12 @@ Due rami:
         - /dev/tcp/<host> redirection bash
         - nc/ncat verso host esterno
       Tutti -> ask (host interni esclusi).
+      Dal 17/10/2026 (#3506) il dispatcher li manda qui anche col ramo GET spento, e in più:
+        - curl/wget con $() o backtick fuori dai valori di intestazioni e credenziali: chiede
+          anche se l'host non si legge (l'URL intero arriva da una sostituzione);
+        - una pipe verso nc/ncat/netcat/socat, verso un IP, un nome o una variabile;
+        - /dev/tcp e /dev/udp verso un host che non si legge (una variabile);
+        - fetch( e http(s).request/get dentro node, deno, bun o python.
 
 comms-guard.py (messaggistica/email nota) gira PRIMA e chiede conferma su quei casi.
 Gli scanner PostToolUse (credential-leak) restano come secondo layer detective.
@@ -196,7 +202,6 @@ POST_MARKERS = re.compile(
 
 # --- Ramo B: marcatori egress-GET ---
 CMD_SUB = re.compile(r'\$\(|`')
-CURL_CMDSUB = re.compile(r'\b(curl|wget)\b[^\n|;&]*(\$\(|`)', re.IGNORECASE)
 DNS_CMD = re.compile(r'(^|[;&|]\s*)(dig|nslookup|host|drill)\b', re.IGNORECASE)
 CURL_URL = re.compile(r'\b(?:curl|wget)\b[^\n|;&]*?\bhttps?://([A-Za-z0-9_.\-]+)([^\s"\']*)',
                       re.IGNORECASE)
@@ -205,7 +210,13 @@ DNS_EXFIL = re.compile(
     r'\b(dig|nslookup|host)\b[^\n|;&]*?([A-Za-z0-9+/=_-]{20,})\.[A-Za-z0-9.-]+\.[A-Za-z]{2,}',
     re.IGNORECASE,
 )
-DEV_TCP = re.compile(r'/dev/tcp/([A-Za-z0-9_.\-]+)', re.IGNORECASE)
+DEV_TCP = re.compile(r'/dev/(?:tcp|udp)/([^/\s"\']*)', re.IGNORECASE)
+# Una sostituzione vera: $( oppure una coppia di backtick (un backtick solo chiude quella di prima).
+SOSTITUZIONE = re.compile(r'\$\(|`[^`]*`')
+CURL_SEG = re.compile(r'\b(?:curl|wget)\b[^\n|;&]*', re.IGNORECASE)
+NC_PIPE = re.compile(r'\|\s*(?:sudo\s+)?(?:\S*/)?(nc|ncat|netcat|socat)\b([^\n|;&]*)', re.IGNORECASE)
+INTERPRETE = re.compile(r'(?:^|[\s;&|(/])(?:node|nodejs|deno|bun|python3?)(?:\.\d+)?(?=\s|$)')
+CHIAMATA_RETE = re.compile(r'(?<![\w.$])fetch\s*\(|\bhttps?[\'"]?\)?\.(?:request|get)\s*\(')
 NC_HOST = re.compile(r'\b(nc|ncat)\b\s+[^\n|;&]*?\b([A-Za-z0-9][A-Za-z0-9.\-]+\.[A-Za-z]{2,})\b',
                      re.IGNORECASE)
 
@@ -227,6 +238,32 @@ def _ask(reason=None):
 
 def _external_host(host: str | None) -> bool:
     return bool(host) and not _internal_host(host)
+
+
+def _solo_fidati(hosts) -> bool:
+    """Vero se c'è almeno un host e sono tutti interni o fidati: nel dubbio si chiede."""
+    hosts = [h for h in hosts if h]
+    return bool(hosts) and all(_fidato(h) for h in hosts)
+
+
+def _destinazioni_nc(programma: str, argomenti: str):
+    """Gli host di nc/ncat/netcat (le parole che non sono opzioni né porte) e di socat
+    (TCP:host:porta, OPENSSL:host:porta, UDP:host:porta)."""
+    parole = argomenti.split()
+    if programma.lower() == "socat":
+        return [m.group(1) for m in re.finditer(r'(?:TCP|TCP4|TCP6|UDP|UDP4|UDP6|OPENSSL|SSL):([^:,\s]+)', argomenti, re.I)]
+    fuori, salta = [], False
+    for w in parole:
+        if salta:
+            salta = False
+            continue
+        if w.startswith("-"):
+            salta = w in ("-p", "-s", "-w", "-x", "-X", "-i", "-q", "-e", "-c", "--proxy", "--source")
+            continue
+        if w.isdigit() or w.startswith((">", "<", "2>")):
+            continue
+        fuori.append(w.strip("'\""))
+    return fuori
 
 
 def main() -> int:
@@ -282,11 +319,21 @@ def main() -> int:
         return _ask()  # POST ma host non chiaro -> conservativo
 
     # ---- Ramo B: egress-GET mascherato ----
-    # /dev/tcp verso host esterno
+    # /dev/tcp e /dev/udp verso un host esterno, o che non si legge (una variabile)
     for h in DEV_TCP.findall(cmd):
-        if _external_host(h):
-            return _ask("Redirezione bash /dev/tcp verso un host esterno "
+        if not _internal_host(h):
+            return _ask("Redirezione bash /dev/tcp verso un host esterno o che non si legge "
                         "(canale di esfiltrazione). Conferma solo se voluto.")
+    # Una pipe verso nc/ncat/netcat/socat: i dati del comando prima escono dalla macchina.
+    for m in NC_PIPE.finditer(cmd):
+        if not _solo_fidati(_destinazioni_nc(m.group(1), m.group(2))):
+            return _ask(f"Pipe verso {m.group(1)}: i dati del comando prima vanno a un host esterno, o a "
+                        "uno che non si legge. Conferma solo se l'invio è voluto.")
+    # fetch( e http(s).request/get dentro node, deno, bun o python
+    if INTERPRETE.search(cmd) and CHIAMATA_RETE.search(cmd):
+        if not _solo_fidati(_hosts(cmd)):
+            return _ask("Codice node o python che chiama la rete (fetch, http.request) verso un host "
+                        "esterno o che non si legge: può portare fuori dati. Conferma solo se voluto.")
     # DNS-exfil: comando dig/nslookup/host con dati interpolati ($()/backtick) o
     # sottodominio che sembra dati codificati.
     if DNS_CMD.search(cmd) and (CMD_SUB.search(cmd) or DNS_EXFIL.search(cmd)):
@@ -297,13 +344,15 @@ def main() -> int:
     if m and _external_host(m.group(2)):
         return _ask("nc/ncat verso un host esterno (canale di esfiltrazione). "
                     "Conferma solo se voluto.")
-    # curl/wget GET con command-substitution nell'URL verso host esterno
-    if CURL_CMDSUB.search(cmd):
-        for h, _ in CURL_URL.findall(cmd):
-            if _external_host(h):
-                return _ask("curl/wget verso host esterno con dati interpolati "
-                            "nell'URL ($()/backtick): possibile esfiltrazione via GET. "
-                            "Conferma solo se voluto.")
+    # curl/wget GET con command-substitution nell'URL: fuori dai valori di intestazioni, credenziali e
+    # file di uscita (`-H "Authorization: Bearer $(cat t)"` non porta dati nell'URL). Se l'host non si
+    # legge, perché l'URL intero arriva da una sostituzione, si chiede lo stesso.
+    for seg in CURL_SEG.findall(cmd):
+        resto = OTHER_FLAG_VAL.sub(" ", DATA_FLAG_VAL.sub(" ", seg))
+        if SOSTITUZIONE.search(resto) and not _solo_fidati(_hosts(resto)):
+            return _ask("curl/wget con dati interpolati nell'URL ($()/backtick), verso un host "
+                        "esterno o che non si legge: possibile esfiltrazione via GET. "
+                        "Conferma solo se voluto.")
     # curl/wget GET con blob opaco lungo nell'URL verso host esterno
     for h, rest in CURL_URL.findall(cmd):
         if _external_host(h):

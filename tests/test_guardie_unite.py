@@ -457,6 +457,11 @@ def test_g209(repo: Path) -> None:
         fine = subprocess.run([BASH, str(claude / "hooks" / "session-end.sh")], input="{}", text=True,
                               capture_output=True, cwd=str(progetto), env=env_di(home), timeout=60)
         assert "PROMEMORIA FINE SESSIONE" in fine.stdout, "G209 nessun promemoria di chiusura a tree pulito"
+        # session-end.sh lancia in background l'aggiornamento automatico (bin/aggiornamenti.py applica, dal
+        # 16/10/2026), che scrive in session-env: la cartella di prova si cancella dopo che ha finito.
+        aspetta(lambda: not (claude / "session-env" / "aggiornamento.lock").exists() and not any(
+            p.name.endswith(".tmp") for p in (claude / "session-env").glob("*")), 30)
+        time.sleep(1)
 
 
 def test_g210(repo: Path) -> None:

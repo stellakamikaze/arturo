@@ -124,6 +124,10 @@ SECRET_PATH_RE = re.compile(
     r"\.docker/config\.json|\.kube/config)",
     re.IGNORECASE,
 )
+# Un file .env (anche .env.local, config/.env.production): le chiavi dei servizi di un progetto
+# (17/10/2026, #3506). Non .env.example e simili, non process.env. Come destinazione di una copia
+# (`cp .env.example .env`) si scrive, non si legge: vedi _reads_secret_flat.
+ENV_RE = re.compile(r"(?<![\w.])\.env\b(?!\.(?:example|sample|template|dist)\b)", re.IGNORECASE)
 
 # Check segreti PER-SEGMENTO. Chiede se un path segreto compare come ARGOMENTO
 # (non come identità ssh) in un segmento il cui comando è un binario di lettura
@@ -144,7 +148,8 @@ _SKIP_WRAPPERS = frozenset(("sudo", "command", "nohup", "caffeinate", "timeout",
 _SECRET_REDIR_RE = re.compile(
     r"(?:<\s*|\$\(\s*<\s*)[^\s'\";|&)]*"
     r"(\.ssh/|id_(rsa|ed25519|ecdsa|dsa)|\.aws/credentials|\.gnupg/|"
-    r"\.git-credentials|\.pem|credentials\.json|\.pypirc|secrets\.env|\.secrets/|\.claude/data/credentials/)",
+    r"\.git-credentials|\.pem|credentials\.json|\.pypirc|secrets\.env|\.secrets/|\.claude/data/credentials/|"
+    r"(?<![\w.])\.env\b(?!\.(?:example|sample|template|dist)\b))",
     re.IGNORECASE,
 )
 
@@ -287,6 +292,9 @@ def _reads_secret_flat(cmd: str) -> bool:
             args.append(t)
             j += 1
         if any(SECRET_PATH_RE.search(a) for a in args):
+            return True
+        letti = args[:-1] if binario in ("cp", "install", "rsync", "scp") and len(args) >= 2 else args
+        if any(ENV_RE.search(a) for a in letti):
             return True
     return False
 
@@ -580,6 +588,45 @@ def _find_delete(command):
     return False
 
 
+# shutil.rmtree cancella una cartella intera come `rm -r`, ma da dentro python (17/10/2026, #3506).
+_RMTREE_RE = re.compile(r"\b(?:shutil\.)?rmtree\s*\(\s*(?:(['\"])([^'\"]*)\1)?")
+_PYTHON_RE = re.compile(r"(?:^|[\s;&|(/])python3?(?:\.\d+)?(?=\s|$)")
+
+
+def _rmtree_bersagli(command):
+    """I bersagli di shutil.rmtree nel codice python del comando: il percorso scritto, o None se il
+    percorso arriva da una variabile. Il corpo di un heredoc che va a un lettore (cat, tee) non conta."""
+    testo = _hd.togli(command, lambda h: h.quotato and h.inerte())
+    if "rmtree" not in testo or "shutil" not in testo or not _PYTHON_RE.search(testo):
+        return []
+    return [m.group(2) if m.group(1) else None for m in _RMTREE_RE.finditer(testo)]
+
+
+# Le opzioni di git prima del sottocomando che prendono un valore staccato.
+_GIT_OPZIONI_CON_VALORE = frozenset(("-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path",
+                                     "--config-env", "--super-prefix"))
+
+
+def _git_clean_forzato(command):
+    """`git clean` con -f o --force e senza -n/--dry-run, anche con opzioni di git in mezzo
+    (`git -C dir clean -fdx`). Cancella i file non tracciati: git non li sa ridare."""
+    for nome, args in _forma().programmi(command):
+        if nome != "git":
+            continue
+        i = 0
+        while i < len(args) and args[i].startswith("-"):
+            i += 2 if args[i] in _GIT_OPZIONI_CON_VALORE else 1
+        if i >= len(args) or args[i] != "clean":
+            continue
+        opzioni = [a for a in args[i + 1:] if a.startswith("-") and a != "--"]
+        corte = "".join(a[1:] for a in opzioni if not a.startswith("--"))
+        forza = "f" in corte or "--force" in opzioni
+        prova = "n" in corte or "--dry-run" in opzioni
+        if forza and not prova:
+            return True
+    return False
+
+
 def _rm_segments(command):
     """(bersagli, cd dichiarato) per ogni `rm` ricorsivo; bersagli None per `xargs rm -r`.
 
@@ -756,6 +803,30 @@ def main() -> int:
         return _ask(
             "find con -delete o -exec rm cancella file in blocco, senza cestino. "
             "Conferma solo se hai controllato cosa trova."
+        )
+
+    # 7) shutil.rmtree -> ask, come rm ricorsivo: tranne cartelle rigenerabili e file temporanei.
+    try:
+        for t in _rmtree_bersagli(command):
+            p = _resolve(t, os.path.normpath(cwd)) if t else None
+            if p is None:
+                return _ask(
+                    "shutil.rmtree su un percorso che arriva da una variabile: cancella una cartella "
+                    "intera, senza cestino. Controlla quale prima di confermare."
+                )
+            if _is_protected_tree(p) or not (_rigenerabile(p) or _temporaneo(p)):
+                return _ask(
+                    f"shutil.rmtree su una cartella ({p}): la cancella intera, senza cestino. Se dentro "
+                    "c'è lavoro tuo, lo perdi. Conferma solo se vuoi davvero cancellarla."
+                )
+    except Exception:
+        return _ask("shutil.rmtree che la guardia non riesce a leggere: controlla prima di confermare.")
+
+    # 8) git clean -f -> ask: i file non tracciati non stanno in nessun commit.
+    if _git_clean_forzato(command):
+        return _ask(
+            "git clean -f cancella i file che git non traccia: non stanno in nessun commit e non "
+            "tornano indietro. Prova prima con `git clean -n` per vedere cosa toglie."
         )
 
     return 0
