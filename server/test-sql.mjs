@@ -66,7 +66,7 @@ const casi = {
       ["2026-10-12", "aaaaaaaa", "errore", "data-guard.py"], ["2026-10-12", "bbbbbbbb", "errore", "data-guard.py"],
     ]);
     const m = await a.miglioramento(AL);
-    assert.deepEqual(m.conferme, [{ valore: "exfil-guard.py", chiede: 2, confermata: 1 }], "Q02 conferme");
+    assert.deepEqual(m.conferme, [{ valore: "exfil-guard.py", chiede: 2, confermata: 1, installazioni: 2 }], "Q02 conferme");
     assert.deepEqual(m.errori, [{ valore: "data-guard.py", n: 2, installazioni: 2 }], "Q02 errori");
   },
   // Aggiornamenti non applicati per versione, ritenzione dalla prima e dall'ultima volta, Claude Code.
@@ -113,6 +113,46 @@ const casi = {
     await a.pulisci("2025-10-16");
     const resto = await db.prepare("SELECT testo FROM feedback ORDER BY id").all();
     assert.deepEqual(resto.results.map((r) => r.testo), ["nuovo"], "Q09 pulisci() non tiene solo il feedback degli ultimi 12 mesi");
+  },
+  // Le statistiche delle guardie contano solo installazioni che il server ha visto in almeno due giorni
+  // diversi, e dicono quante installazioni producono ogni numero (#3507). Il giorno che il client dichiara
+  // non conta: conta quello in cui il server ha ricevuto il lotto.
+  async Q10() {
+    const a = await con([
+      ["2026-10-10", "aaaaaaaa", "chiede", "data-guard.py"], ["2026-10-11", "aaaaaaaa", "confermata", "data-guard.py"],
+      ["2026-10-10", "aaaaaaaa", "guardia", "block-dangerous.py"], ["2026-10-11", "aaaaaaaa", "errore", "exfil-guard.py"],
+    ]);
+    // Un id nuovo, tutto in un lotto ricevuto lo stesso giorno, anche se dichiara giorni diversi.
+    const finte = [];
+    for (let i = 0; i < 30; i++) {
+      finte.push({ giorno: `2026-10-${String(5 + (i % 7)).padStart(2, "0")}`, installazione: "ffffffff", versione: "v1", sistema: "Darwin",
+        evento: i % 3 === 0 ? "chiede" : i % 3 === 1 ? "confermata" : "guardia", valore: i % 3 === 2 ? "block-dangerous.py" : "data-guard.py" });
+    }
+    finte.push({ giorno: "2026-10-12", installazione: "ffffffff", versione: "v1", sistema: "Darwin", evento: "errore", valore: "exfil-guard.py" });
+    await a.scriviEventi(finte, "2026-10-12T10:00:00Z");
+    const m = await a.miglioramento(AL);
+    assert.deepEqual(m.conferme, [{ valore: "data-guard.py", chiede: 1, confermata: 1, installazioni: 1 }],
+      "Q10 le conferme contano un'installazione vista in un giorno solo");
+    assert.deepEqual(m.errori, [{ valore: "exfil-guard.py", n: 1, installazioni: 1 }], "Q10 gli errori contano un'installazione vista in un giorno solo");
+    const r = await a.riepilogo("2026-10-01", AL, { settimana: true });
+    assert.deepEqual(r.guardie, [{ valore: "block-dangerous.py", n: 1, installazioni: 1 }], "Q10 i blocchi contano un'installazione vista in un giorno solo");
+    assert.deepEqual(r.guardieFrequenti, [], "Q10 le guardie frequenti contano un'installazione vista in un giorno solo");
+  },
+  // Le chiavi «una volta per installazione» (giorno 'sempre') se ne vanno con gli eventi della loro
+  // installazione, dopo 12 mesi: prima restavano per sempre (#3507).
+  async Q11() {
+    const db = d1();
+    const a = archivio(db);
+    await a.scriviEventi([{ giorno: "2025-09-01", installazione: "vecchiaa", versione: "v1", sistema: "Darwin", evento: "setup", valore: "fine" }],
+      "2025-09-01T10:00:00Z");
+    await a.scriviEventi([{ giorno: "2026-10-12", installazione: "viva0000", versione: "v1", sistema: "Darwin", evento: "setup", valore: "fine" }],
+      "2026-10-12T10:00:00Z");
+    assert.equal(await a.primaVolta("sempre", "setup-fine:vecchiaa"), true, "Q11 la prima volta non è vera");
+    assert.equal(await a.primaVolta("sempre", "setup-fine:viva0000"), true, "Q11 la prima volta non è vera");
+    await a.pulisci("2025-10-16");
+    const resto = (await db.prepare("SELECT chiave FROM contatori WHERE giorno = 'sempre' ORDER BY chiave").all()).results.map((r) => r.chiave);
+    assert.deepEqual(resto, ["setup-fine:viva0000"], "Q11 pulisci() non toglie le chiavi «sempre» delle installazioni senza più eventi");
+    assert.equal(await a.primaVolta("sempre", "setup-fine:viva0000"), false, "Q11 la chiave di un'installazione viva è sparita");
   },
   // Installazione nuova: vera solo finché dall'id non è arrivato niente (l'avviso Telegram parte una volta).
   async Q06() {

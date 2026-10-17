@@ -85,6 +85,12 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
 - **Il riepilogo in JSON.** `GET /v1/riepilogo?dal=AAAA-MM-GG&al=AAAA-MM-GG` con l'intestazione
   `authorization: Bearer <token>` dà lo stesso riepilogo, per la routine che propone le correzioni.
   Il token è il secret `RIEPILOGO_TOKEN` del Worker (almeno 32 caratteri): senza, la rotta risponde 401.
+  Le statistiche delle guardie contano solo le installazioni viste dal server in almeno due giorni
+  diversi, e ogni numero porta quante installazioni lo producono (`installazioni`). Regola per la
+  routine e per chi legge: **una guardia non si allenta sulla sola base della telemetria anonima**.
+  Gli eventi arrivano da id casuali che chiunque può creare: una quota di sì vicina al 100% è un
+  indizio da verificare (una segnalazione, una prova su un'installazione pulita), mai la prova
+  (17/10/2026, #3507).
 - **Il recap di ogni mattina.** Ogni mattina alle 8 il Worker manda a chi mantiene il recap del
   giorno prima: installazioni attive, versioni, sistemi, comandi usati, guardie che hanno bloccato,
   esiti di `/aggiorna`, config rotte, deriva (per ogni installazione il cui elenco è cambiato:

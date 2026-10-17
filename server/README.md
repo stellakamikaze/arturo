@@ -17,10 +17,16 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
   avvisa fino a 60 volte al giorno.
 
 E dà una cosa sola, a chi ha il token: `GET /v1/riepilogo`, il riepilogo della settimana in JSON con
-la sezione «Dove migliorare Arturo» (secret `RIEPILOGO_TOKEN`, almeno 32 caratteri).
+la sezione «Dove migliorare Arturo» (secret `RIEPILOGO_TOKEN`, almeno 32 caratteri). Le statistiche
+delle guardie (blocchi, conferme, guardie rotte, guardie frequenti) contano solo le installazioni che
+il server ha ricevuto in almeno due giorni diversi, e ogni numero dice quante installazioni lo
+producono: chiunque può mandare eventi con un id nuovo, e un lotto di un giorno solo non deve
+spostare quei numeri. **Una guardia non si allenta sulla sola base della telemetria anonima**: la
+routine che propone correzioni lo tratta come un indizio da verificare, mai come la prova.
 
 L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi, i contatori e il
-feedback più vecchi di 12 mesi si cancellano il lunedì.
+feedback più vecchi di 12 mesi si cancellano il lunedì. Le chiavi «una volta per installazione»
+(come l'avviso del setup finito) se ne vanno con l'ultimo evento della loro installazione.
 
 ## I file
 

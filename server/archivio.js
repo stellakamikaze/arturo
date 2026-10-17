@@ -5,6 +5,13 @@ import { LIMITI, ritenzione } from "./logica.js";
 // v2026-10-15: da qui /setup manda i suoi eventi alla telemetria.
 const SETUP_DAL = "2026-10-15";
 
+// Le statistiche delle guardie contano solo le installazioni che il server ha visto in almeno
+// LIMITI.giorniGuardie giorni diversi (17/10/2026, #3507). Chiunque può mandare eventi con un id nuovo: un
+// lotto di un giorno solo non deve bastare a far sembrare inutile una guardia. Il giorno è quello in cui il
+// server ha ricevuto il lotto, che il client non sceglie.
+const VISTE = `installazione IN (SELECT installazione FROM eventi GROUP BY installazione
+  HAVING COUNT(DISTINCT ricevuto_giorno) >= ${Number(LIMITI.giorniGuardie)})`;
+
 export function archivio(db) {
   return {
     // Gli eventi del giorno di un'installazione. Il totale di tutte sta nel contatore «eventi».
@@ -101,12 +108,14 @@ export function archivio(db) {
              HAVING MIN(giorno) >= ? AND MIN(giorno) <= date(?, '-1 day') AND SUM(evento = 'setup') = 0)`)
           .bind(SETUP_DAL, al).first()) || { n: 0 }).n,
         // Quante volte una guardia chiede, e quante volte la persona conferma.
+        // Ogni numero dice quante installazioni lo producono.
         conferme: await tutte(
-          `SELECT valore, SUM(evento = 'chiede') AS chiede, SUM(evento = 'confermata') AS confermata FROM eventi
-           WHERE evento IN ('chiede', 'confermata') AND ${trenta} GROUP BY valore ORDER BY chiede DESC LIMIT 20`, al, al),
+          `SELECT valore, SUM(evento = 'chiede') AS chiede, SUM(evento = 'confermata') AS confermata,
+             COUNT(DISTINCT installazione) AS installazioni FROM eventi
+           WHERE evento IN ('chiede', 'confermata') AND ${trenta} AND ${VISTE} GROUP BY valore ORDER BY chiede DESC LIMIT 20`, al, al),
         errori: await tutte(
           `SELECT valore, COUNT(*) AS n, COUNT(DISTINCT installazione) AS installazioni FROM eventi
-           WHERE evento = 'errore' AND ${trenta} GROUP BY valore ORDER BY n DESC LIMIT 20`, al, al),
+           WHERE evento = 'errore' AND ${trenta} AND ${VISTE} GROUP BY valore ORDER BY n DESC LIMIT 20`, al, al),
         aggiornaStorti: await tutte(
           `SELECT versione, valore, COUNT(*) AS n FROM eventi
            WHERE evento = 'aggiorna' AND valore <> 'applicato' AND ${trenta} GROUP BY versione, valore ORDER BY n DESC LIMIT 20`, al, al),
@@ -131,12 +140,16 @@ export function archivio(db) {
         versioni: await colonna("versione"),
         sistemi: await colonna("sistema"),
         comandi: await gruppo("comando"),
-        guardie: await gruppo("guardia"),
+        guardie: (await db.prepare(
+          `SELECT valore, COUNT(*) AS n, COUNT(DISTINCT installazione) AS installazioni FROM eventi
+           WHERE evento = 'guardia' AND giorno > ? AND giorno <= ? AND ${VISTE} GROUP BY valore ORDER BY n DESC LIMIT 20`)
+          .bind(dal, al).all()).results,
         aggiorna: await gruppo("aggiorna"),
         config: await gruppo("config"),
         deriva: await this.deriva(dal, al, settimana),
         guardieFrequenti: settimana ? (await db.prepare(
-          "SELECT installazione, valore, COUNT(*) AS n FROM eventi WHERE evento = 'guardia' AND giorno > ? AND giorno <= ? GROUP BY installazione, valore HAVING n >= ? ORDER BY n DESC LIMIT 20")
+          `SELECT installazione, valore, COUNT(*) AS n FROM eventi WHERE evento = 'guardia' AND giorno > ? AND giorno <= ? AND ${VISTE}
+           GROUP BY installazione, valore HAVING n >= ? ORDER BY n DESC LIMIT 20`)
           .bind(dal, al, LIMITI.guardieFrequenti).all()).results : null,
         migliorare: settimana ? await this.miglioramento(al) : null,
         segnalazioni: await uno("SELECT COUNT(*) AS n FROM segnalazioni WHERE substr(ricevuta, 1, 10) > ? AND substr(ricevuta, 1, 10) <= ?"),
@@ -146,6 +159,10 @@ export function archivio(db) {
       await db.batch([
         db.prepare("DELETE FROM eventi WHERE giorno < ?").bind(prima),
         db.prepare("DELETE FROM contatori WHERE giorno < ?").bind(prima),
+        // Le chiavi «una volta per installazione» (giorno 'sempre', come setup-fine:<id>) non hanno una data:
+        // se ne vanno con l'ultimo evento della loro installazione, cioè dopo gli stessi 12 mesi (#3507).
+        db.prepare(`DELETE FROM contatori WHERE giorno = 'sempre' AND NOT EXISTS
+          (SELECT 1 FROM eventi WHERE eventi.installazione = substr(contatori.chiave, instr(contatori.chiave, ':') + 1))`),
         // Il feedback del sito può avere un'email: si cancella con gli eventi, dopo 12 mesi.
         db.prepare("DELETE FROM feedback WHERE substr(ricevuto, 1, 10) < ?").bind(prima),
       ]);

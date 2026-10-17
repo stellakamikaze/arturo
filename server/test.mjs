@@ -1,7 +1,7 @@
 // Banco del server di Arturo (W-casi con la sigla V): logica.js con un archivio e una posta finti.
 // Uso: node server/test.mjs   (esce con 0 se tutto passa)
 import assert from "node:assert/strict";
-import { gestisci, settimanale, giornaliero, programmato, mime, testoDeriva, ritenzione, LIMITI, EVENTI } from "./logica.js";
+import { gestisci, settimanale, giornaliero, programmato, mime, testoDeriva, testoRiepilogo, ritenzione, LIMITI, EVENTI } from "./logica.js";
 
 const VUOTO = { installazioni: 0, sessioni: 0, versioni: [], sistemi: [], comandi: [], guardie: [], aggiorna: [], config: [], deriva: [],
   guardieFrequenti: null, segnalazioni: 0 };
@@ -156,7 +156,7 @@ const casi = {
     const h = finti(VUOTO);
     await programmato({ ...h, adesso: new Date("2026-10-12T06:00:00Z") });
     assert.deepEqual(h.stato.email.map((m) => m.oggetto.split(" ")[1]), ["Riepilogo"], "V12 il lunedì vuoto deve mandare il solo riepilogo");
-    assert.match(h.stato.email[0].testo, /Versioni in uso:\n  nessuna\n[\s\S]*Comandi usati:\n  nessuno\n[\s\S]*Guardie che hanno bloccato:\n  nessuna\n/,
+    assert.match(h.stato.email[0].testo, /Versioni in uso:\n  nessuna\n[\s\S]*Comandi usati:\n  nessuno\n[\s\S]*Guardie che hanno bloccato \(volte, installazioni viste in almeno 2 giorni\):\n  nessuna\n/,
       "V12 il genere di nessuno/nessuna è sbagliato");
   },
   async V13() {
@@ -455,6 +455,24 @@ const casi = {
     const r = await gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: flusso, duplex: "half",
       headers: { "content-type": "multipart/form-data; boundary=x" } }), { ...f, adesso });
     assert.equal(r.status, 413, "V27 un corpo a pezzi oltre il tetto non è fermato");
+  },
+  // Ogni numero delle guardie dice quante installazioni lo producono, e il riepilogo ricorda che una guardia
+  // non si allenta sulla sola base della telemetria anonima (#3507).
+  async V28() {
+    const r = { ...VUOTO, guardie: [{ valore: "exfil-guard.py", n: 4, installazioni: 2 }],
+      migliorare: { conferme: [{ valore: "data-guard.py", chiede: 10, confermata: 10, installazioni: 1 }],
+        errori: [{ valore: "comms-guard.py", n: 3, installazioni: 3 }], ritenzione: { nuove: 0, soglie: [] } } };
+    const testo = testoRiepilogo(r, "prova");
+    assert.match(testo, /4 {2}exfil-guard\.py, 2 installazioni/, "V28 i blocchi non dicono quante installazioni");
+    assert.match(testo, /data-guard\.py {2}10 \/ 10 \/ 100%, 1 installazione\b/, "V28 le conferme non dicono quante installazioni");
+    assert.match(testo, /comms-guard\.py {2}3, 3 installazioni/, "V28 gli errori non dicono quante installazioni");
+    assert.match(testo, /almeno 2 giorni diversi\. Una guardia non si allenta sulla sola base di questi numeri/,
+      "V28 il riepilogo non dice la regola sulle guardie");
+    const token = "t".repeat(40);
+    const f = finti({ ...VUOTO });
+    const json = await (await gestisci(new Request("https://arturo.example/v1/riepilogo", { headers: { authorization: "Bearer " + token } }),
+      { ...f, adesso, token })).json();
+    assert.match(json.regola || "", /non si allenta sulla sola base della telemetria anonima/, "V28 il JSON per la routine non porta la regola");
   },
 };
 

@@ -61,6 +61,8 @@ export const LIMITI = {
   // Una data dichiarata dal client più vecchia di così diventa il giorno del server.
   giorniIndietro: 7,
   guardieFrequenti: 5,
+  // Le statistiche delle guardie contano solo installazioni viste in almeno tanti giorni diversi (#3507).
+  giorniGuardie: 2,
   conservazioneGiorni: 365,
   // Il sito (16/10/2026): il modulo di feedback, anche con un vocale, e i download.
   feedbackPerGiorno: 100,
@@ -206,6 +208,13 @@ export function ritenzione(righe, al) {
   return fuori;
 }
 
+// Viaggia col riepilogo in JSON: la routine che propone correzioni la legge insieme ai numeri (#3507).
+export const REGOLA_GUARDIE = "Una guardia non si allenta sulla sola base della telemetria anonima: gli id sono casuali e " +
+  "chiunque può crearne. Le statistiche delle guardie contano solo installazioni viste in almeno " +
+  `${LIMITI.giorniGuardie} giorni diversi, e ogni numero dice quante installazioni lo producono.`;
+
+const installazioni = (n) => `${n || 0} ${n === 1 ? "installazione" : "installazioni"}`;
+
 // «Dove migliorare Arturo»: la prima cosa del riepilogo del lunedì. Numeri, non verdetti.
 export function testoMigliorare(m) {
   if (!m) return [];
@@ -218,11 +227,12 @@ export function testoMigliorare(m) {
     `Setup: ${m.setupIniziati || 0} iniziati, ${m.setupFiniti || 0} arrivati in fondo, ${m.setupMai || 0} installazioni nuove che non l'hanno mai lanciato. Fermi da più di 3 giorni, per ultima fase vista:`,
     ...righe(m.setupFermi, (x) => `  ${x.n}  ${x.valore}`, "  nessuno"),
     "",
-    "Guardie che chiedono conferma (chiede / confermata / quota di sì):",
-    ...righe(m.conferme, (x) => `  ${x.valore}  ${x.chiede} / ${x.confermata} / ${per(x.confermata, x.chiede)}`, "  nessuna"),
+    `Guardie: contano solo le installazioni viste in almeno ${LIMITI.giorniGuardie} giorni diversi. Una guardia non si allenta sulla sola base di questi numeri.`,
+    "Guardie che chiedono conferma (chiede / confermata / quota di sì, installazioni):",
+    ...righe(m.conferme, (x) => `  ${x.valore}  ${x.chiede} / ${x.confermata} / ${per(x.confermata, x.chiede)}, ${installazioni(x.installazioni)}`, "  nessuna"),
     "",
     "Guardie che si rompono (volte, installazioni):",
-    ...righe(m.errori, (x) => `  ${x.valore}  ${x.n}, ${x.installazioni}`, "  nessuna"),
+    ...righe(m.errori, (x) => `  ${x.valore}  ${x.n}, ${installazioni(x.installazioni)}`, "  nessuna"),
     "",
     "Aggiornamenti non applicati (versione, esito, volte):",
     ...righe(m.aggiornaStorti, (x) => `  ${x.versione}  ${x.valore}  ${x.n}`, "  nessuno"),
@@ -278,7 +288,8 @@ export function testoRiepilogo(r, titolo) {
     "Versioni in uso:", elenco(r.versioni, "nessuna"),
     "", "Sistemi:", elenco(r.sistemi),
     "", "Comandi usati:", elenco(r.comandi),
-    "", "Guardie che hanno bloccato:", elenco(r.guardie, "nessuna"),
+    "", `Guardie che hanno bloccato (volte, installazioni viste in almeno ${LIMITI.giorniGuardie} giorni):`,
+    r.guardie.length ? r.guardie.map((x) => `  ${x.n}  ${x.valore || "(vuoto)"}, ${installazioni(x.installazioni)}`).join("\n") : "  nessuna",
     "", "Esiti di /aggiorna:", elenco(r.aggiorna),
     ...frequenti,
     "", `Segnalazioni ricevute: ${r.segnalazioni}`,
@@ -416,7 +427,7 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     if (!stessoToken(dato, token)) return risposta(401, { errore: "token mancante o sbagliato" });
     const al = GIORNO.test(url.searchParams.get("al") || "") ? url.searchParams.get("al") : oggi(adesso);
     const dal = GIORNO.test(url.searchParams.get("dal") || "") ? url.searchParams.get("dal") : giorniFa(new Date(`${al}T12:00:00Z`), 7);
-    return risposta(200, { dal, al, ...(await archivio.riepilogo(dal, al, { settimana: true })) });
+    return risposta(200, { dal, al, regola: REGOLA_GUARDIE, ...(await archivio.riepilogo(dal, al, { settimana: true })) });
   }
   if (request.method !== "POST") return risposta(405, { errore: "solo POST" });
   const giorno = oggi(adesso);
