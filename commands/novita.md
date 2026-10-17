@@ -24,7 +24,9 @@ fi
 Se è indietro, spiega che ci sono aggiornamenti non ancora applicati e proponi **`/aggiorna`**:
 è l'unico comando che li applica, dopo avergli mostrato cosa cambia. `/novita` non scarica
 niente da solo. Se compare `POSSIBILE COMPROMISSIONE`, non proporre `/aggiorna`: diglielo con le
-parole «possibile compromissione: non aggiornare, segnala a chi mantiene Arturo».
+parole «possibile compromissione: non aggiornare, segnala a chi mantiene Arturo». Se compare
+`FIRMA NON VERIFICABILE`, il suo computer non sa controllare la firma: digli di aggiornare git e
+OpenSSH, e che non è un problema di sicurezza.
 
 ## Passo 1 — Cosa non ha ancora visto
 

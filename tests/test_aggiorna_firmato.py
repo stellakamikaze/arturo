@@ -22,8 +22,12 @@ AF05 i comandi a mano del README non applicano un tag non firmato.
 AF06 un tag firmato pubblicato con un altro nome (lo stesso oggetto sotto un nome nuovo) non passa:
      git describe lo dice col nome scritto dentro più un suffisso, e verify-tag lo rifiuta.
 AF07 una copia senza bin/aggiornamenti.py (la verifica) non manda a /aggiorna i commit di main.
+AF08 un ssh-keygen senza -Y (OpenSSH prima della 8.2): «FIRMA NON VERIFICABILE», niente si applica, e
+     nessuno parla di compromissione.
+AF09 un rilascio vecchio senza firma, già installato: `firmato` lo stampa e /inizio non dà l'allarme.
 
 Sulla base 93f323e ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
+AF08 e AF09 sulla base 89c7781.
 """
 from __future__ import annotations
 
@@ -270,8 +274,54 @@ def test_af07(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+def firmato(lab: Lab) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, "-B", str(lab.utente / "bin" / "aggiornamenti.py"), "firmato"], env=lab.env,
+                          cwd=str(lab.utente), capture_output=True, text=True, encoding="utf-8", timeout=60)
+
+
+def test_af08(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        prima = lab.head()
+        lab.commit("hooks/nuova.py", "x = 1\n")
+        lab.tagga("v2026-02-01")
+        lab.pubblica()
+        # Dopo la firma: un ssh-keygen prima della 8.2, senza -Y, come il macOS di sistema fino a Big Sur.
+        vecchio = lab.base / "ssh-keygen-vecchio"
+        vecchio.write_text("#!/bin/sh\necho 'unknown option -- Y' >&2\nexit 1\n", encoding="utf-8")
+        vecchio.chmod(0o755)
+        with open(lab.base / "gitconfig", "a", encoding="utf-8") as f:
+            f.write(f"[gpg \"ssh\"]\n\tprogram = {vecchio.as_posix()}\n")
+        lab.git(lab.utente, "fetch", "-q", "--tags", "origin", "main")
+        r = firmato(lab)
+        assert r.returncode == 4 and "FIRMA NON VERIFICABILE" in r.stderr and "COMPROMISSIONE" not in r.stderr, \
+            f"AF08 una verifica che non parte è data per compromissione: rc={r.returncode} {r.stderr!r}"
+        avvio = subprocess.run([sys.executable, "-B", str(lab.utente / "bin" / "aggiornamenti.py"), "stato"], env=lab.env,
+                               capture_output=True, text=True, encoding="utf-8", timeout=60).stdout
+        assert "non sa controllare la firma" in avvio and FRASE not in avvio.lower(), \
+            f"AF08 l'avvio parla di compromissione su un ssh-keygen vecchio: {avvio!r}"
+        uscita = lab.passi("## Passo 1", "## Passo 3")
+        assert lab.head() == prima and FRASE not in uscita.lower(), \
+            f"AF08 /aggiorna applica senza verifica, o parla di compromissione: {uscita[-300:]!r}"
+    con_lab(repo, prova)
+
+
+def test_af09(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        # Un rilascio vecchio, senza firma, già installato: il fetch di oggi non è arrivato (offline).
+        lab.commit("hooks/nuova.py", "x = 1\n")
+        lab.tagga("v2026-02-01", firma=False)
+        lab.pubblica()
+        lab.git(lab.utente, "pull", "-q", "--ff-only", "--tags", "origin", "main")
+        r = firmato(lab)
+        assert r.returncode == 0 and r.stdout.strip() == "v2026-02-01" and "COMPROMISSIONE" not in r.stderr, \
+            f"AF09 un rilascio già installato dà l'allarme: rc={r.returncode} {r.stderr!r}"
+        inizio = lab.lancia(blocchi(read(repo / "commands" / "inizio.md"), "## FASE 0", "AF09")[0])
+        assert FRASE not in inizio.lower(), f"AF09 /inizio dà l'allarme su un rilascio già installato: {inizio[-300:]!r}"
+    con_lab(repo, prova)
+
+
 TESTS = {"AF01": test_af01, "AF02": test_af02, "AF03": test_af03, "AF04": test_af04, "AF05": test_af05, "AF06": test_af06,
-         "AF07": test_af07}
+         "AF07": test_af07, "AF08": test_af08, "AF09": test_af09}
 
 
 def main() -> int:

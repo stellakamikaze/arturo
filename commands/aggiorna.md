@@ -54,6 +54,11 @@ compromissione: non aggiornare, segnala a chi mantiene Arturo». Proponi `/segna
 segnalazione privata descritta in `SECURITY.md`. Non cercare un'altra strada per aggiornare
 (`main`, un tag più vecchio, un `git pull`): la verifica esiste per questo.
 
+Se compare `FIRMA NON VERIFICABILE`, il suo computer non sa controllare la firma: servono git 2.34
+e OpenSSH 8.2, o più recenti. Non applicare niente nemmeno qui, ma non parlare di compromissione:
+aiutalo ad aggiornare git e OpenSSH (su macOS con Homebrew, `brew install git openssh`), poi
+rilancia `/aggiorna`.
+
 Se compare `NESSUN RILASCIO`, la sorgente degli aggiornamenti non ha tag: non c'è niente da
 applicare. Diglielo in una riga e fermati.
 

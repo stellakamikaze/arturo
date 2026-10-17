@@ -94,7 +94,7 @@ Tre idee tengono insieme tutto:
 | Strumento | Serve per | Note |
 |---|---|---|
 | **Claude Code** | tutto | [guida ufficiale](https://docs.anthropic.com/en/docs/claude-code) |
-| **git** | sessioni, sync, guardie commit | qualsiasi versione recente |
+| **git** ≥ 2.34 | sessioni, sync, guardie commit, firma dei rilasci | con **OpenSSH** ≥ 8.2: senza, la firma degli aggiornamenti non si controlla e Arturo non si aggiorna |
 | **python3** ≥ 3.8 | la maggior parte dei guard | solo standard library, nessun pip. PyYAML, se c'è, rende più preciso l'audit |
 | **node** ≥ 18 | `statusline.js`, `context-monitor.js` | |
 | **jq** | parsing veloce nel dispatcher | c'è un fallback in `python3` se manca |

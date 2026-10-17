@@ -175,10 +175,13 @@ def installazione() -> str:
 
 
 def versione() -> str:
+    """Solo i tag di Arturo (v*): un tag della persona come «backup/prima» fa rifiutare dal server ogni lotto
+    (VERSIONE in server/logica.js), e con i lotti si perdono anche gli avvisi delle config rotte (17/10/2026)."""
     try:
-        r = subprocess.run(["git", "-C", str(Path.home() / ".claude"), "describe", "--tags", "--always"],
+        r = subprocess.run(["git", "-C", str(Path.home() / ".claude"), "describe", "--tags", "--always", "--match", "v*"],
                            capture_output=True, text=True, timeout=3)
-        return (r.stdout.strip() if r.returncode == 0 else "")[:60] or "sconosciuta"
+        v = (r.stdout.strip() if r.returncode == 0 else "")[:60]
+        return v if re.fullmatch(r"[A-Za-z0-9._+-]+", v) else "sconosciuta"
     except (OSError, subprocess.SubprocessError):
         return "sconosciuta"
 

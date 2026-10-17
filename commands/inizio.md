@@ -78,6 +78,8 @@ if [ "$FIRMA" = 0 ]; then
   [ "${BEHIND:-0}" -gt 0 ] && echo "ARTURO: c'è la versione $TAG — i rilasci firmati si installano da soli alla chiusura, o subito con /aggiorna"
 elif [ "$FIRMA" = 3 ]; then
   echo "ARTURO: possibile compromissione: non aggiornare, segnala a chi mantiene Arturo (l'ultimo rilascio non ha una firma valida)"
+elif [ "$FIRMA" = 4 ]; then
+  echo "ARTURO: questo computer non sa controllare la firma dei rilasci (servono git 2.34 e OpenSSH 8.2): Arturo non si aggiorna finché non li aggiorni. Non è un problema di sicurezza"
 fi
 python3 ~/.claude/hooks/controlla-config.py --quiet || exit 1
 ```

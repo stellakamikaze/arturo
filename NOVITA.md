@@ -30,7 +30,9 @@ dove un errore non si annulla, e restano zitte sul lavoro normale. Un `curl` qua
 senza `--delete`, `git clean -n` e la cartella `build/` passano senza domande.
 
 **Da sapere**: niente da fare. Se vedi «possibile compromissione», non cercare un'altra strada per
-aggiornare: segnalalo con `/segnala`, o in privato come dice `SECURITY.md`.
+aggiornare: segnalalo con `/segnala`, o in privato come dice `SECURITY.md`. Per controllare la firma
+servono git 2.34 e OpenSSH 8.2, o più recenti: con versioni più vecchie Arturo non si aggiorna e lo
+dice, senza parlare di compromissione.
 
 Corretto anche un guasto segnalato da chi usa Arturo: se avevi aggiunto righe a
 `hooks/session-start.sh` o `session-end.sh`, `/aggiorna` diceva di averle spostate in

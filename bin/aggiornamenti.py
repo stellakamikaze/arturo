@@ -39,6 +39,14 @@ ATTESA_MAX = 90       # secondi: quanto applica aspetta che Claude Code si chiud
 FIRME = "firme/rilasci.allowed_signers"
 # Il messaggio di una firma che manca o non torna, uguale ovunque compare (avvio, barra, /aggiorna).
 COMPROMISSIONE = "possibile compromissione: non aggiornare, segnala a chi mantiene Arturo"
+# Solo questi errori dicono che la firma c'è stata verificata e non torna. Ogni altro errore (git prima
+# della 2.34 che non conosce gpg.format=ssh, OpenSSH prima della 8.2 senza `ssh-keygen -Y`, un timeout)
+# vuol dire che la verifica non è partita: niente si installa lo stesso, ma non è una compromissione
+# (revisione del rilascio del 17/10/2026).
+FIRMA_SBAGLIATA = re.compile(r"no signature found|no principal matched|could not verify signature|bad signature",
+                             re.I)
+NON_VERIFICABILE = ("questo computer non sa controllare la firma dei rilasci: servono git 2.34 e OpenSSH 8.2, "
+                    "o più recenti")
 
 
 def radice() -> Path:
@@ -108,16 +116,19 @@ def ultimo_tag(r: Path, src: str) -> str:
     return git(r, "describe", "--tags", "--abbrev=0", "--match", "v*", f"{src}/main").stdout.strip()
 
 
-def verifica_firma(r: Path, tag: str) -> str:
-    """Vuoto se il tag è firmato da una chiave di firme/rilasci.allowed_signers della copia installata,
-    altrimenti il motivo. È l'unica verifica: la usano l'aggiornamento automatico e /aggiorna."""
+def verifica_firma(r: Path, tag: str) -> tuple:
+    """(motivo, compromesso): motivo vuoto se il tag è firmato da una chiave di firme/rilasci.allowed_signers
+    della copia installata. compromesso solo se la firma manca o non torna, non se la verifica non è partita.
+    È l'unica verifica: la usano l'aggiornamento automatico e /aggiorna."""
     firme = r / FIRME
     if not firme.is_file():
-        return f"manca {FIRME}: la firma non si può verificare"
+        return f"manca {FIRME}: la firma non si può verificare", True
     verifica = git(r, "-c", "gpg.format=ssh", "-c", f"gpg.ssh.allowedSignersFile={firme}", "verify-tag", tag)
-    if verifica.returncode != 0:
-        return f"il rilascio {tag} non ha la firma di Arturo"
-    return ""
+    if verifica.returncode == 0:
+        return "", False
+    if FIRMA_SBAGLIATA.search(verifica.stderr or ""):
+        return f"il rilascio {tag} non ha la firma di Arturo", True
+    return NON_VERIFICABILE, False
 
 
 def calcola(r: Path) -> dict:
@@ -136,9 +147,10 @@ def calcola(r: Path) -> dict:
     base = git(r, "merge-base", "HEAD", f"{src}/main").stdout.strip()
     if not base or git(r, "merge-base", "--is-ancestor", base, commit).returncode != 0:
         return dict(stato, stato="bloccato", motivo="la versione nuova non discende da quella installata")
-    motivo = verifica_firma(r, tag)
+    motivo, compromesso = verifica_firma(r, tag)
     if motivo:
-        return dict(stato, stato="bloccato", motivo=motivo, compromesso=True)
+        return dict(stato, stato="bloccato", motivo=motivo, compromesso=compromesso,
+                    non_verificabile=not compromesso)
     if manuali(r):
         return dict(stato, stato="manuale", motivo="aggiornamenti a mano")
     return dict(stato, stato="pronto", motivo="")
@@ -207,6 +219,10 @@ def cmd_stato(r: Path) -> int:
         righe.append(f"ARTURO: {COMPROMISSIONE}. {stato['motivo'][0].upper()}{stato['motivo'][1:]}: la versione "
                      f"{stato['versione']} non si installa, né da sola né con /aggiorna. Dillo alla persona con queste "
                      "parole, e proponi /segnala o la segnalazione privata di SECURITY.md.")
+    elif stato.get("non_verificabile"):
+        righe.append(f"ARTURO: c'è la versione {stato['versione']}, ma {stato['motivo']}. Non si installa, né da sola "
+                     "né con /aggiorna, finché git e OpenSSH non sono aggiornati. Dillo alla persona in una frase: "
+                     "non è un problema di sicurezza.")
     elif stato["stato"] in ("manuale", "bloccato"):
         righe.append(f"ARTURO: c'è un aggiornamento ({stato['versione']}): scaricalo con /aggiorna. "
                      f"Non si installa da solo: {stato['motivo']}.")
@@ -217,18 +233,28 @@ def cmd_stato(r: Path) -> int:
 
 def cmd_firmato(r: Path) -> int:
     """Per /aggiorna: stampa l'ultimo rilascio della sorgente solo se la firma è valida (uscita 0).
-    Senza rilasci esce con 1, con una firma che manca o non torna esce con 3 e lo dice. Non
-    scarica niente: il fetch lo fa chi chiama. main non si applica mai, solo questo tag."""
+    Senza rilasci esce con 1, con una firma che manca o non torna esce con 3 e lo dice, se la firma
+    non si può verificare su questo computer esce con 4. Un rilascio già installato si stampa senza
+    verifica, come in calcola: un tag vecchio senza firma non è un allarme. Non scarica niente: il
+    fetch lo fa chi chiama. main non si applica mai, solo questo tag."""
     tag = ultimo_tag(r, sorgente(r))
     if not tag:
         print("NESSUN RILASCIO: la sorgente degli aggiornamenti non ha tag di rilascio. Non applico niente.",
               file=sys.stderr)
         return 1
-    motivo = verifica_firma(r, tag)
-    if motivo:
+    commit = git(r, "rev-list", "-n", "1", tag).stdout.strip()
+    if commit and git(r, "merge-base", "--is-ancestor", commit, "HEAD").returncode == 0:
+        print(tag)
+        return 0
+    motivo, compromesso = verifica_firma(r, tag)
+    if motivo and compromesso:
         print(f"POSSIBILE COMPROMISSIONE: {COMPROMISSIONE.split(': ', 1)[1]} ({motivo}). Non applico niente: "
               "si segnala con /segnala, o in privato come dice SECURITY.md.", file=sys.stderr)
         return 3
+    if motivo:
+        print(f"FIRMA NON VERIFICABILE: {motivo}. Non applico niente. Non è un problema di sicurezza: aggiorna "
+              "git e OpenSSH, poi rilancia /aggiorna.", file=sys.stderr)
+        return 4
     print(tag)
     return 0
 
