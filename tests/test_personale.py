@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""P01-P17: le aggiunte della persona ai comandi di Arturo stanno in ~/.claude/personale/ (14/10/2026).
+"""P01-P18: le aggiunte della persona ai comandi di Arturo stanno in ~/.claude/personale/ (14/10/2026).
 
 Il caso vero è quello di chi aggiunge a /inizio la tabella dei suoi progetti: ogni aggiornamento
 che tocca /inizio va in conflitto. P01 con lo spostamento il Passo 3 di /aggiorna applica pulito, e
@@ -17,10 +17,13 @@ se l'aggiornamento va in conflitto anche dopo lo spostamento, personale/ non vie
 spostano solo i comandi che l'aggiornamento cambia, mai uno cancellato. P14 un secondo spostamento
 tiene le righe personali di prima. P15 /aggiorna personale rispetta la stessa regola del repository
 privato. P16 le aggiunte a hooks/session-start.sh vanno in personale/session-start.sh, commentate, e
-l'hook di Arturo esegue quel file in fondo. P17 ripristina rimette una guardia com'è in Arturo.
+l'hook di Arturo esegue quel file in fondo. P17 ripristina rimette una guardia com'è in Arturo. P18
+quando è /aggiorna a spostare le aggiunte all'hook, personale/session-start.sh arriva in ~/.claude e
+tiene quelle spostate prima.
 
 Riusa il Lab di test_aggiorna_sicuro.py: un Arturo pubblicato, chi ne scrive gli aggiornamenti e
-una HOME con ~/.claude clonata. Sulla base f750408 ogni controllo deve fallire col suo codice.
+una HOME con ~/.claude clonata. Sulla base f750408 ogni controllo deve fallire col suo codice, P18
+sulla base bf2207b.
 """
 from __future__ import annotations
 
@@ -398,11 +401,42 @@ def test_p17(repo: Path) -> None:
     con_lab(prova, repo)
 
 
+def test_p18(repo: Path) -> None:
+    # Segnalazione n.3 della v2026-10-16.5 (#3519): /aggiorna diceva di aver spostato le aggiunte all'hook
+    # in personale/session-start.sh, ma la copia di prova portava avanti e indietro solo i .md: il file
+    # non arrivava in ~/.claude e le righe tolte dall'hook si perdevano. Le aggiunte spostate prima restano.
+    def prova(lab: Lab) -> None:
+        (lab.autore / "hooks" / "session-start.sh").write_text(AVVIO, encoding="utf-8")
+        lab.git(lab.autore, "add", "-A")
+        lab.git(lab.autore, "commit", "-q", "-m", "v3: avvio")
+        lab.git(lab.autore, "push", "-q", "origin", "main")
+        testo = read(repo / "commands" / "aggiorna.md")
+        lab.lancia(blocco(testo, "## Passo 1", "P18"))
+        lab.lancia(blocco(testo, "## Passo 3", "P18"))
+        personale = lab.utente / "personale" / "session-start.sh"
+        personale.parent.mkdir(exist_ok=True)
+        personale.write_text("# Aggiunte mie a hooks/session-start.sh\n\n#   echo \"il mio vecchio avvio\"\n", encoding="utf-8")
+        mio = AVVIO.replace('echo "fine avvio"\n', 'echo "fine avvio"\necho "i miei dischi"\n')
+        (lab.utente / "hooks" / "session-start.sh").write_text(mio, encoding="utf-8")
+        lab.git(lab.utente, "commit", "-q", "-am", "mio avvio")
+        lab.pubblica(lab.autore, {"hooks/session-start.sh": lambda t: t.replace("MACCHINA: x", "MACCHINA: y")}, "v4: avvio")
+        lab.lancia(blocco(testo, "## Passo 1", "P18"))
+        uscita = lab.lancia(blocco(testo, "## Passo 3", "P18"))
+        assert "APPLICATO" in uscita and "SEPARATO: hooks/session-start.sh" in uscita, \
+            f"P18 /aggiorna non sposta l'hook di sessione: {uscita[-400:]!r}"
+        assert "MACCHINA: y" in read(lab.utente / "hooks" / "session-start.sh"), "P18 l'aggiornamento dell'hook non è arrivato"
+        testo_mio = read(personale) if personale.exists() else ""
+        assert '#   echo "i miei dischi"' in testo_mio, f"P18 le aggiunte all'hook non sono in personale/session-start.sh: {testo_mio!r}"
+        assert "il mio vecchio avvio" in testo_mio, f"P18 le aggiunte spostate prima si sono perse: {testo_mio!r}"
+        assert lab.config_integra(), "P18 la config non è integra"
+    con_lab(prova, repo)
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {
     "P01": test_p01, "P02": test_p02, "P03": test_p03, "P04": test_p04, "P05": test_p05, "P06": test_p06,
     "P07": test_p07, "P08": test_p08, "P09": test_p09, "P10": test_p10,
     "P11": test_p11, "P12": test_p12, "P13": test_p13, "P14": test_p14, "P15": test_p15,
-    "P16": test_p16, "P17": test_p17,
+    "P16": test_p16, "P17": test_p17, "P18": test_p18,
 }
 
 

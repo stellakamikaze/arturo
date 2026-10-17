@@ -32,6 +32,12 @@ senza `--delete`, `git clean -n` e la cartella `build/` passano senza domande.
 **Da sapere**: niente da fare. Se vedi «possibile compromissione», non cercare un'altra strada per
 aggiornare: segnalalo con `/segnala`, o in privato come dice `SECURITY.md`.
 
+Corretto anche un guasto segnalato da chi usa Arturo: se avevi aggiunto righe a
+`hooks/session-start.sh` o `session-end.sh`, `/aggiorna` diceva di averle spostate in
+`~/.claude/personale/`, ma il file non arrivava e le righe si perdevano. Ora arrivano, commentate come
+sempre. Se dopo un aggiornamento ti manca qualcosa all'avvio, chiedi a Claude di ritrovarlo nella
+versione di prima: `/aggiorna indietro` sa qual è.
+
 <!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->
 
 ---

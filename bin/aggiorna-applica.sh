@@ -100,17 +100,26 @@ separa_nella_copia() {
     fi
   fi
   git show "$REF:bin/personale.py" > "$LAVORO/personale.py" 2>/dev/null || cp bin/personale.py "$LAVORO/personale.py" 2>/dev/null || return 0
-  mkdir -p "$COPIA/personale" && cp "$RADICE"/personale/*.md "$COPIA/personale/" 2>/dev/null
+  mkdir -p "$COPIA/personale" && copia_personale "$RADICE" "$COPIA" 2>/dev/null
   ARTURO_RADICE="$COPIA" python3 -I "$LAVORO/personale.py" separa --verso "$REF" > "$LAVORO/separa" 2>&1
   local rc=$?
   sed 's/^/  /' "$LAVORO/separa"
   [ $rc = 0 ] && [ -z "$(git -C "$COPIA" status --porcelain --untracked-files=no)" ]
 }
 
+# I file personali sono due tipi: <comando>.md per i comandi e <hook>.sh per gli hook di sessione.
+# Fino al 17/10/2026 viaggiavano solo i .md, e le aggiunte agli hook spostate si perdevano (#3519).
+copia_personale() {  # $1 = da, $2 = verso
+  local f
+  for f in "$1"/personale/*.md "$1"/personale/*.sh; do
+    [ -f "$f" ] || continue
+    mkdir -p "$2/personale" && cp "$f" "$2/personale/" || return 1
+  done
+}
+
 riporta_personale() {  # i file personali della copia di prova, solo dopo un'applicazione riuscita
   [ -n "${COPIA:-}" ] && [ -d "$COPIA/personale" ] || return 0
-  ls "$COPIA"/personale/*.md >/dev/null 2>&1 || return 0
-  mkdir -p "$RADICE/personale" && cp "$COPIA"/personale/*.md "$RADICE/personale/"
+  copia_personale "$COPIA" "$RADICE"
 }
 
 porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando è nata, $3 = il modo
