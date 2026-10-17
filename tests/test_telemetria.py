@@ -276,7 +276,9 @@ def test_m11(repo: Path) -> None:
         json.dumps({"avviso": "2026-10-14", "ultimo_tentativo": int(time.time())}), encoding="utf-8")
     (lab.home / ".claude" / "settings.json").write_text("{ rotto", encoding="utf-8")
     lab.hook("session-start.sh")
-    for _ in range(50):
+    # L'invio parte in background: su Windows arriva anche dopo più di 5 secondi (gate del 17/10/2026,
+    # 1 giro rosso su 6). 30 secondi restano lontani dalle 6 ore che il caso esclude.
+    for _ in range(300):
         if srv.richieste:
             break
         time.sleep(0.1)
