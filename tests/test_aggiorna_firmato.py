@@ -21,6 +21,7 @@ AF04 avvio, barra in basso, /inizio e /novita: con un tag non firmato dicono «p
 AF05 i comandi a mano del README non applicano un tag non firmato.
 AF06 un tag firmato pubblicato con un altro nome (lo stesso oggetto sotto un nome nuovo) non passa:
      git describe lo dice col nome scritto dentro più un suffisso, e verify-tag lo rifiuta.
+AF07 una copia senza bin/aggiornamenti.py (la verifica) non manda a /aggiorna i commit di main.
 
 Sulla base 93f323e ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -256,7 +257,21 @@ def test_af06(repo: Path) -> None:
     con_lab(repo, prova)
 
 
-TESTS = {"AF01": test_af01, "AF02": test_af02, "AF03": test_af03, "AF04": test_af04, "AF05": test_af05, "AF06": test_af06}
+def test_af07(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        lab.commit("hooks/nuova.py", "x = 1\n")
+        lab.pubblica()
+        lab.git(lab.utente, "fetch", "-q", "--tags", "origin", "main")
+        (lab.utente / "bin" / "aggiornamenti.py").unlink()  # una copia senza la verifica della firma
+        r = subprocess.run([BASH, str(repo / "hooks" / "session-start.sh")], input="{}", env=lab.env, cwd=str(lab.home),
+                           capture_output=True, text=True, encoding="utf-8", timeout=120)
+        assert "scaricalo con /aggiorna" not in r.stdout and "bin/aggiornamenti.py" in r.stdout, \
+            f"AF07 senza la verifica della firma l'avvio manda a /aggiorna i commit di main: {r.stdout[-400:]!r}"
+    con_lab(repo, prova)
+
+
+TESTS = {"AF01": test_af01, "AF02": test_af02, "AF03": test_af03, "AF04": test_af04, "AF05": test_af05, "AF06": test_af06,
+         "AF07": test_af07}
 
 
 def main() -> int:

@@ -152,7 +152,8 @@ if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
   if [ -f "$HOME/.claude/bin/aggiornamenti.py" ]; then
     python3 "$HOME/.claude/bin/aggiornamenti.py" stato 2>/dev/null || true
   elif [ "${BEHIND:-0}" -gt 0 ]; then
-    echo "ARTURO: c'e' un aggiornamento ($BEHIND commit) — scaricalo con /aggiorna"
+    # Senza la verifica della firma /aggiorna non applica niente (17/10/2026, #3504): main non si applica mai.
+    echo "ARTURO: manca bin/aggiornamenti.py, che verifica la firma dei rilasci: finche' non torna, nessun aggiornamento si installa. Si rimette con: git -C ~/.claude restore bin/aggiornamenti.py"
   fi
 fi
 
