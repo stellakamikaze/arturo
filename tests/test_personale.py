@@ -22,8 +22,8 @@ quando è /aggiorna a spostare le aggiunte all'hook, personale/session-start.sh 
 tiene quelle spostate prima.
 
 Riusa il Lab di test_aggiorna_sicuro.py: un Arturo pubblicato, chi ne scrive gli aggiornamenti e
-una HOME con ~/.claude clonata. Sulla base f750408 ogni controllo deve fallire col suo codice, P18
-sulla base bf2207b.
+una HOME con ~/.claude clonata. Sulla base f750408 ogni controllo deve fallire col suo codice, anche P18
+(che sulla base bf2207b fallisce sul file personale perso).
 """
 from __future__ import annotations
 
@@ -413,6 +413,8 @@ def test_p18(repo: Path) -> None:
         testo = read(repo / "commands" / "aggiorna.md")
         lab.lancia(blocco(testo, "## Passo 1", "P18"))
         lab.lancia(blocco(testo, "## Passo 3", "P18"))
+        avvio = lab.utente / "hooks" / "session-start.sh"
+        assert avvio.exists() and read(avvio) == AVVIO, "P18 l'hook di Arturo non è arrivato"
         personale = lab.utente / "personale" / "session-start.sh"
         personale.parent.mkdir(exist_ok=True)
         personale.write_text("# Aggiunte mie a hooks/session-start.sh\n\n#   echo \"il mio vecchio avvio\"\n", encoding="utf-8")
