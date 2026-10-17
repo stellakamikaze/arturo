@@ -242,7 +242,7 @@ def test_af05(repo: Path) -> None:
         lab.commit("hooks/nuova.py", "x = 1\n")
         lab.tagga("v2026-02-01", firma=False)
         lab.pubblica()
-        manuale = blocchi(read(repo / "README.md"), "## Aggiornare Arturo", "AF05")[0].replace("/tmp/", f"{lab.base}/")
+        manuale = blocchi(read(repo / "README.md"), "## Aggiornare Arturo", "AF05")[0].replace("/tmp/", f"{lab.base.as_posix()}/")
         uscita = lab.lancia(manuale)
         assert lab.head() == prima and not (lab.utente / "hooks" / "nuova.py").exists(), \
             f"AF05 i comandi a mano del README applicano un rilascio senza firma: {uscita[-300:]!r}"
