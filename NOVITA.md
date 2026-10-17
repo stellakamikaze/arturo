@@ -11,6 +11,31 @@ modo di lavorare.
 
 ---
 
+## 2026-10-17 — Solo rilasci firmati, anche con /aggiorna, e guardie che vedono di più
+
+**Cosa cambia**: `/aggiorna` installa solo l'ultimo rilascio firmato da chi mantiene Arturo, come
+l'aggiornamento automatico, e mai le modifiche pubblicate dopo. Se l'ultimo rilascio non ha una firma
+valida, l'avvio, la barra in basso, `/inizio` e `/novita` dicono «possibile compromissione: non
+aggiornare, segnala a chi mantiene Arturo», e `/aggiorna` non installa niente, neanche col tuo sì. In
+più Claude ti chiede conferma prima di: leggere un file `.env` (dove stanno le chiavi dei servizi),
+cancellare una cartella con `shutil.rmtree` o i file non salvati in git con `git clean -f`, allineare
+una cartella con `rsync --delete`, mandare dati fuori con un `curl` che costruisce l'indirizzo con un
+comando, una pipe verso `nc` o il codice di `node` e `python` che chiama la rete.
+
+**Il principio dietro**: un aggiornamento è codice di altri che gira sul tuo computer. Prima la firma
+proteggeva solo l'aggiornamento automatico: proprio quando un rilascio non era firmato, l'avviso ti
+mandava a `/aggiorna`, che lo installava lo stesso. Una firma che manca è il segno che qualcosa non
+va, e la risposta giusta è fermarsi e dirlo. Le guardie nuove seguono la regola di sempre: chiedono
+dove un errore non si annulla, e restano zitte sul lavoro normale. Un `curl` qualsiasi, un `rsync`
+senza `--delete`, `git clean -n` e la cartella `build/` passano senza domande.
+
+**Da sapere**: niente da fare. Se vedi «possibile compromissione», non cercare un'altra strada per
+aggiornare: segnalalo con `/segnala`, o in privato come dice `SECURITY.md`.
+
+<!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->
+
+---
+
 ## 2026-10-16 — Arturo si aggiorna da solo, come Claude Code
 
 **Cosa cambia**: non serve più `/aggiorna`. Quando esce una versione nuova, la barra in basso di
