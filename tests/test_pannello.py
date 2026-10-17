@@ -50,10 +50,9 @@ KIT.update(U21=2, U27=2, U28=3, U30=2, U31=3)
 TEST_KIT = sum(KIT.values())
 PROXY_MORTO = "http://127.0.0.1:9"
 GENERATI = (".claude-plugin/types", "tsconfig.json")
-# I nomi della config dell'autore, spezzati come in test_allineamento.py perché l'igiene I03 non
-# li trovi in questo file.
-PERSONALI = "|".join(re.escape(a + b) for a, b in (("fede", "rico"), ("noco", "db"), ("tasks", ".py"),
-                                                    ("ufficio", "furore"), ("gani", "mede")))
+# I nomi della config dell'autore: solo le impronte, in tests/igiene.py (#3505).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import igiene  # noqa: E402
 
 
 def read(path: Path) -> str:
@@ -356,7 +355,7 @@ def test_u06(repo: Path) -> None:
         nome = p.relative_to(repo).as_posix()
         assert not re.search(r"/Users/|/home/|[A-Za-z]:\\\\|~/\.claude/bin|Documents/ClaudeCode", testo), \
             f"U06 percorso assoluto o della macchina dell'autore in {nome}"
-        assert not re.search(PERSONALI, testo, re.I), f"U06 dati personali in {nome}"
+        assert not igiene.trova(testo, igiene.PANNELLO), f"U06 dati personali in {nome}"
     # Lacuna 5: nessuna istruzione della macchina dell'autore nelle .md sotto skills/.
     for p in (repo / "skills").rglob("*.md"):
         assert "Documents/ClaudeCode" not in read(p), f"U06 «Documents/ClaudeCode» in {p.relative_to(repo)}"

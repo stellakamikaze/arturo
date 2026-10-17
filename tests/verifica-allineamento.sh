@@ -84,6 +84,7 @@ BANCHI=(
   test_hook_utf8.py
   test_autoaggiorna.py
   test_aggiorna_firmato.py
+  test_igiene.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -181,6 +182,7 @@ BASELINE=(
   "test_autoaggiorna.py 5d83592"
   # Revisione di sicurezza del 16/10/2026 (#3504-#3507): 93f323e, l'ultimo dev prima delle correzioni.
   "test_aggiorna_firmato.py 93f323e"
+  "test_igiene.py 93f323e"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

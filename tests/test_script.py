@@ -28,6 +28,9 @@ import tempfile
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import igiene  # noqa: E402  i nomi della config dell'autore, solo come impronte (#3505)
+
 BASH = shutil.which("bash") or "bash"
 
 
@@ -99,8 +102,9 @@ def test_z02(repo: Path) -> None:
     assert "bin/validation-gate-lang.sh" in gate and 'echo $? > "$G.rc"' in gate, \
         "Z02 validation-gate.md non chiama lo script o non scrive l'exit su file"
     testo = read(gl)
-    for parola in ("Bal" + "thasar", "mel" + "chior", "/Users/"):
-        assert parola.lower() not in testo.lower(), f"Z02 validation-gate-lang.sh nomina una macchina personale: {parola}"
+    # I nomi delle macchine e degli strumenti dell'autore: solo le impronte, in tests/igiene.py (#3505).
+    assert not igiene.trova(testo, igiene.AUTORE | igiene.GLOBALE) and "/users/" not in testo.lower(), \
+        "Z02 validation-gate-lang.sh nomina una macchina personale"
     with tempfile.TemporaryDirectory() as d:
         finti = Path(d) / "pytest-minimo"
         finti.mkdir()
@@ -211,8 +215,10 @@ def test_z05(repo: Path) -> None:
 def test_z06(repo: Path) -> None:
     mc = esiste(repo, "bin/monthly-cleanup.sh", "Z06")
     testo = read(mc)
-    for parola in ("Documents/" + "ClaudeCode", "com." + "fede" + "rico", "Spark", "Beep" + "er", "_orphans"):
+    for parola in ("Documents/" + "ClaudeCode", "Spark", "Beep" + "er", "_orphans"):
         assert parola not in testo, f"Z06 monthly-cleanup.sh ha ancora un percorso personale: {parola}"
+    # L'etichetta launchd col nome dell'autore: solo l'impronta, in tests/igiene.py (#3505).
+    assert not igiene.trova(testo, igiene.PANNELLO), "Z06 monthly-cleanup.sh ha ancora un nome della config dell'autore"
     with tempfile.TemporaryDirectory() as d:
         casa = Path(d) / "casa"
         paste = casa / ".claude" / "paste-cache"

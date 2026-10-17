@@ -39,6 +39,9 @@ import tempfile
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import igiene  # noqa: E402  i nomi della config dell'autore, solo come impronte (#3505)
+
 # Su Windows "bash" per nome è quello di WSL: si prende il bash del PATH (Git Bash).
 BASH = shutil.which("bash") or "bash"
 
@@ -342,8 +345,9 @@ def test_f04(repo: Path) -> None:
 def test_f05(repo: Path) -> None:
     script = serve(repo, "bin/inventario-sessione.py", "F05")
     testo = read(script)
-    for parola in ("gws", "consolida", "drive-personale"):
+    for parola in ("gws", "drive-personale"):
         assert parola not in testo, f"F05 inventario con un destino o un account personale: {parola}"
+    assert not igiene.trova(testo, igiene.FINE), "F05 inventario con uno strumento della config dell'autore"
 
     def prova(lab: Lab) -> None:
         progetto = lab.progetti / "libro"
@@ -629,8 +633,8 @@ def test_f08(repo: Path) -> None:
                   "bin/index-rigenera.py\" --scrivi"):
         assert pezzo in fine, f"F08 /fine non usa {pezzo}"
     assert "tail -n +6" not in fine, "F08 /fine cancella ancora gli handoff con find | tail | rm"
-    for parola in ("tasks.py", "Noco" + "DB", "consolida", "Mel" + "chior"):
-        assert parola not in fine, f"F08 /fine nomina {parola}"
+    # Gli strumenti della config dell'autore: solo le impronte, in tests/igiene.py (#3505).
+    assert not igiene.trova(fine, igiene.FINE), "F08 /fine nomina uno strumento della config dell'autore"
     assert "`tu`, `decidi` o `io`" in fine, "F08 /fine non dice i valori di Chi"
     orfane = [f"blocco {n}: ${v}" for n, b in enumerate(blocchi(fine), 1) for v in variabili_orfane(b)]
     assert not orfane, "F08 blocchi di /fine che leggono una variabile nata in un altro blocco: " + "; ".join(orfane)

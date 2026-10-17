@@ -12,7 +12,11 @@ Per chi mantiene Arturo e per chi ne fa un fork. Le regole sono poche e delibera
 
 Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
 
-1. **Gate verde**: `bash tests/verifica-allineamento.sh` esce con `0`.
+1. **Gate verde**: `bash tests/verifica-allineamento.sh` esce con `0`. Dentro c'è l'igiene (I03,
+   `tests/igiene.py`): nessun nome della config privata nei file, nei percorsi e nei messaggi dei
+   commit che non sono ancora su un remoto. Su GitHub lo stesso controllo gira a ogni push, su ogni
+   branch (`.github/workflows/igiene.yml`). I nomi stanno nel controllo solo come impronte sha256:
+   uno nuovo si aggiunge con `python3 tests/igiene.py --impronta < file`, mai in chiaro.
 2. **Entry nuova in `NOVITA.md`**: in cima, con data ISO nell'intestazione, nel formato delle
    altre (Cosa cambia, Il principio dietro, Da sapere). Gli utenti imparano la novità da lì.
 3. **Prova su un clone pulito**: clona il repo in una cartella temporanea e verifica che i

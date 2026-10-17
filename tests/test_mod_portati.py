@@ -15,14 +15,18 @@ import argparse
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Callable, Dict, List
 
 MOD = ("redazione-segreti", "riscrivi-bash", "cache-fredda")
 TOLTI = ("menu-contesto", "agent-flow", "blast-radius")
-# Le parole sono spezzate: il controllo di igiene I03 legge anche i test.
-PERSONALI = re.compile("|".join(re.escape(a + b) for a, b in (("fede", "rico"), ("gani", "mede"), ("fur", "ore"), ("/Us", "ers/")))
-                       + r"|\buf-[a-z]", re.IGNORECASE)
+# I nomi della config dell'autore: solo le impronte, in tests/igiene.py (#3505). Un percorso
+# assoluto della sua macchina non è un nome e resta in chiaro.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import igiene  # noqa: E402
+
+PERCORSO_MACCHINA = re.compile(r"/Users/")
 
 
 def claude() -> str:
@@ -54,11 +58,14 @@ def test_p06(repo: Path) -> None:
         for f in sorted(cartella.rglob("*")):
             if not f.is_file() or ".claude-plugin/types" in f.as_posix() or f.name in ("tsconfig.json", "LICENSE"):
                 continue
-            for riga, linea in enumerate(f.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
-                if f.name == "plugin.json" and "Nejrotti" in linea:
+            testo = f.read_text(encoding="utf-8", errors="replace")
+            linee = testo.splitlines()
+            righe = {n for n, _ in igiene.trova(testo, igiene.AUTORE)}
+            righe |= {n for n, linea in enumerate(linee, 1) if PERCORSO_MACCHINA.search(linea)}
+            for riga in sorted(righe):
+                if f.name == "plugin.json" and "Nejrotti" in linee[riga - 1]:
                     continue
-                if PERSONALI.search(linea):
-                    trovati.append(f"{f.relative_to(repo)}:{riga}: {linea.strip()[:100]}")
+                trovati.append(f"{f.relative_to(repo)}:{riga}")
     assert not trovati, "P06 dati personali nei mod: " + "; ".join(trovati[:5])
 
 

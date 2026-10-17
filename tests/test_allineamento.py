@@ -22,37 +22,15 @@ REMOVED = (
     "templates/strato", "docs/referente.md", "skills/percorso", "bin/percorso.py", "docs/esercizi.md",
     "tests/test_strato.py", "tests/test_percorso.py",
 )
-VIETATI = (
-    ("ufficio", "furore"), ("gani", "mede"), ("tail29", "c508"),
-    ("vault", "warden"), ("noco", "db"), ("si", "bill"),
-    ("mac", "mini"), ("gws-", "uf"), ("gws-", "gmail"),
-    ("browser-", "creds"), ("delega", ".sh"), ("qw", "en"),
-    ("g", "lm"), ("mel", "chior"), ("ava", "lon"),
-)
+# I03 dal 17/10/2026 (#3505): i nomi della config privata stanno solo come impronte sha256 in
+# tests/igiene.py, e il controllo legge anche i percorsi e i messaggi dei commit da pubblicare.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import igiene  # noqa: E402
 
 
 def assert_igiene(repo: Path) -> None:
-    paths = subprocess.run(
-        ["git", "-C", str(repo), "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
-        capture_output=True, check=True, timeout=20,
-    ).stdout.decode().split("\0")
-    failures = []
-    for raw in paths:
-        if not raw:
-            continue
-        path = repo / raw
-        if not path.is_file():
-            continue
-        text = path.read_text(encoding="utf-8", errors="replace").lower()
-        for parts in VIETATI:
-            term = "".join(parts)
-            if term in text:
-                failures.append(f"{raw}: {term}")
-            # 15/10/2026: anche con le due parti staccate da uno spazio, un trattino o un _, dove sono parole
-            # intere: con una parte di due lettere lo spazio darebbe falsi allarmi.
-            elif min(map(len, parts)) >= 3 and re.search(re.escape(parts[0]) + r"[\s_-]" + re.escape(parts[1]), text):
-                failures.append(f"{raw}: {parts[0]} {parts[1]}")
-    assert not failures, "I03 igiene: " + "; ".join(failures)
+    problemi = igiene.controlla(repo)
+    assert not problemi, "I03 igiene: " + "; ".join(problemi)
 
 
 def main() -> int:

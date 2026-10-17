@@ -26,12 +26,20 @@ import sys
 from pathlib import Path
 from typing import Callable, Dict, List
 
-# Le parole sono spezzate: il controllo di igiene I03 legge anche i test.
-PERSONALI = re.compile("|".join(re.escape(a + b) for a, b in (
-    ("fede", "rico"), ("nej", "rotti"), ("gani", "mede"), ("bal", "thasar"), ("fur", "ore"), ("/Us", "ers/"),
-    ("noco", "db"), ("vault", "warden"), ("ts", ".net"), ("gws-", "uf"), ("gws-", "gmail"), ("gws-", "ss"),
-    ("gws-", "ciao"), ("tom", "maso"), ("ele", "na@"), ("fire", "fox"),
-)) + r"|\buf-[a-z]|\bUF\b", re.IGNORECASE)
+# I nomi della config dell'autore: solo le impronte, in tests/igiene.py (#3505). I percorsi assoluti
+# di una macchina non sono nomi e restano in chiaro.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import igiene  # noqa: E402
+
+PERCORSO_MACCHINA = re.compile(r"/Users/")
+
+
+def personali(testo: str) -> List[int]:
+    """Le righe con un nome della config dell'autore o un percorso assoluto della sua macchina."""
+    righe = [n for n, _ in igiene.trova(testo, igiene.AUTORE)]
+    return sorted(set(righe + [n for n, linea in enumerate(testo.splitlines(), 1) if PERCORSO_MACCHINA.search(linea)]))
+
+
 EMAIL = re.compile(r"[\w.+-]+@([\w-]+\.)+[a-z]{2,}", re.IGNORECASE)
 NUOVI = ("skills/apri", "skills/gws", "skills/cache-fredda", "skills/italiano-semplificato/references/tic-scrittura-ia.md",
          "docs/impeccable.md")
@@ -72,7 +80,7 @@ def test_q01(repo: Path) -> None:
     codice = read(repo / "skills" / "apri" / "hooks" / "apri.ts")
     for parola in ("'open'", "'start'", "'xdg-open'"):
         assert parola in codice, f"Q01 apri non usa {parola} per il suo sistema"
-    assert not re.search(r"-a['\"]?\s*,|Chrome|Safari|Edge", codice) and "fire" + "fox" not in codice.lower(), \
+    assert not re.search(r"-a['\"]?\s*,|Chrome|Safari|Edge", codice) and "firefox" not in codice.lower(), \
         "Q01 apri sceglie un browser invece del programma predefinito"
 
 
@@ -91,7 +99,7 @@ def test_q02(repo: Path) -> None:
 
 
 def test_q03(repo: Path) -> None:
-    assert not any((repo / "skills" / n).exists() for n in ("cruscotto", "uf-" + "cruscotto")), "Q03 cruscotto parallelo"
+    assert not any("cruscotto" in p.name for p in (repo / "skills").iterdir()), "Q03 cruscotto parallelo"
     register = read(repo / "skills" / "cache-fredda" / "hooks" / "register.ts")
     assert "banchi-ultimo-esito.txt" in register and "auth', 'status'" in register, "Q03 cache-fredda non legge banchi e gws"
     esito = prova_mod(repo, "cache-fredda", "Q03")
@@ -106,11 +114,11 @@ def test_q04(repo: Path) -> None:
     for n in NUOVI:
         p = repo / n
         for f in (sorgenti(p) if p.is_dir() else [p]):
-            for riga, linea in enumerate(read(f).splitlines(), 1):
-                if f.name == "plugin.json" and "Nejrotti" in linea:
+            linee = read(f).splitlines()
+            for riga in personali(read(f)):
+                if f.name == "plugin.json" and "Nejrotti" in linee[riga - 1]:
                     continue
-                if PERSONALI.search(linea):
-                    trovati.append(f"{f.relative_to(repo)}:{riga}: {linea.strip()[:80]}")
+                trovati.append(f"{f.relative_to(repo)}:{riga}")
     assert not trovati, "Q04 dati personali: " + "; ".join(trovati[:5])
 
 
