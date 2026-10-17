@@ -151,6 +151,8 @@ function aggiornamentoSegmento() {
   const versione = String(stato.versione || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 30);
   if (!versione) return '';
   if (stato.stato === 'pronto') return ` │ \x1b[36m↑ Arturo ${versione} · si installa alla chiusura\x1b[0m`;
+  // Una firma che manca o non torna non si scavalca con /aggiorna (17/10/2026, #3504).
+  if (stato.compromesso === true) return ` │ \x1b[31m! Arturo ${versione} · possibile compromissione: non aggiornare, segnala a chi mantiene Arturo\x1b[0m`;
   if (stato.stato === 'manuale' || stato.stato === 'bloccato') return ` │ \x1b[33m↑ Arturo ${versione} · serve /aggiorna\x1b[0m`;
   return '';
 }

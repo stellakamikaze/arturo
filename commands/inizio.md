@@ -42,7 +42,7 @@ case "$ORIGIN_URL" in
 esac
 export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes"
 if [ "$ORIGIN_ARTURO" = 1 ] || [ -z "$ORIGIN_URL" ]; then
-  git -C ~/.claude fetch --quiet origin main 2>&1 || echo "Config sync: controllo aggiornamenti non riuscito (rete?)"
+  git -C ~/.claude fetch --quiet --tags origin main 2>&1 || echo "Config sync: controllo aggiornamenti non riuscito (rete?)"
 else
   MODIFICATI=$(git -C ~/.claude status --porcelain --untracked-files=no | cut -c4-)
   if [ -n "$MODIFICATI" ]; then
@@ -70,10 +70,15 @@ else
     rm -f "$APPLICA"
   fi
 fi
-git -C ~/.claude remote get-url upstream >/dev/null 2>&1 && git -C ~/.claude fetch --quiet upstream main 2>&1
-SRC=$(git -C ~/.claude remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
-BEHIND=$(git -C ~/.claude rev-list --count "HEAD..$SRC/main" 2>/dev/null || echo 0)
-[ "${BEHIND:-0}" -gt 0 ] && echo "ARTURO: $BEHIND aggiornamenti disponibili — i rilasci firmati si installano da soli alla chiusura, o subito con /aggiorna"
+git -C ~/.claude remote get-url upstream >/dev/null 2>&1 && git -C ~/.claude fetch --quiet --tags upstream main 2>&1
+# Conta solo l'ultimo tag firmato (bin/aggiornamenti.py firmato): i commit di main dopo il tag non si applicano mai.
+TAG=$(python3 ~/.claude/bin/aggiornamenti.py firmato 2>/dev/null); FIRMA=$?
+if [ "$FIRMA" = 0 ]; then
+  BEHIND=$(git -C ~/.claude rev-list --count "HEAD..$TAG" 2>/dev/null || echo 0)
+  [ "${BEHIND:-0}" -gt 0 ] && echo "ARTURO: c'è la versione $TAG — i rilasci firmati si installano da soli alla chiusura, o subito con /aggiorna"
+elif [ "$FIRMA" = 3 ]; then
+  echo "ARTURO: possibile compromissione: non aggiornare, segnala a chi mantiene Arturo (l'ultimo rilascio non ha una firma valida)"
+fi
 python3 ~/.claude/hooks/controlla-config.py --quiet || exit 1
 ```
 
@@ -91,6 +96,10 @@ scarta come in `/aggiorna`.
 Se compare «non ho scaricato dal tuo repository», la config è com'era: diglielo in una riga e
 nomina i file. Sono modifiche sue (anche `/setup` ne scrive in `settings.json`) che `/fine`
 salverà con un commit. Il sync riparte al prossimo `/inizio`.
+
+Se compare «possibile compromissione», l'ultimo rilascio di Arturo non ha una firma valida: diglielo
+con quelle parole e non proporre `/aggiorna`, che non lo applica. Proponi `/segnala`, oppure la
+segnalazione privata di `SECURITY.md`.
 
 **Con `--tutti`** aggiorna anche ogni progetto della cartella dei progetti (`PROJECTS_BASE`):
 per ognuno mette da parte le modifiche non salvate, scarica, e le rimette al loro posto.

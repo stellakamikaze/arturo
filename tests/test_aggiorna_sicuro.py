@@ -40,6 +40,8 @@ import tempfile
 from pathlib import Path
 from typing import Callable, Dict, List
 
+import firme_prova  # dal 17/10/2026 /aggiorna applica solo l'ultimo tag firmato (#3504)
+
 GIT_ENV = {
     "GIT_AUTHOR_NAME": "prova", "GIT_AUTHOR_EMAIL": "prova@example.invalid",
     "GIT_COMMITTER_NAME": "prova", "GIT_COMMITTER_EMAIL": "prova@example.invalid",
@@ -123,11 +125,13 @@ class Lab:
         if applica.exists():  # dal 12/10/2026 il Passo 3 legge la procedura dalla versione in arrivo
             (seme / "bin").mkdir()
             shutil.copy(str(applica), str(seme / "bin" / "aggiorna-applica.sh"))
+        self.chiave = firme_prova.semina(seme, repo, base / "chiavi")
         self.git(base, "init", "-q", "-b", "main", str(seme))
         self.git(seme, "add", "-A")
         self.git(seme, "commit", "-q", "-m", "v0")
         arturo = base / "arturo.git"
         self.git(base, "clone", "-q", "--bare", str(seme), str(arturo))
+        firme_prova.arma(arturo, self.chiave, self.env)  # ogni push su main è un rilascio firmato
         self.git(base, "clone", "-q", str(arturo), str(self.utente))
         self.autore = base / "autore"
         self.git(base, "clone", "-q", str(arturo), str(self.autore))

@@ -45,8 +45,11 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    ```
 
    Il push parte solo se `verify-tag` dice `Good "git" signature`. Un tag non firmato non si
-   installa da solo: gli utenti vedono l'avviso e aggiornano con `/aggiorna`. Per cambiare chiave,
-   la nuova entra in `allowed_signers` con un rilascio firmato dalla vecchia.
+   installa mai, né da solo né con `/aggiorna`: gli utenti vedono «possibile compromissione: non
+   aggiornare, segnala a chi mantiene Arturo». `/aggiorna` applica solo l'ultimo tag firmato, con la
+   procedura letta da quel tag, e mai `main` (17/10/2026, #3504). Un rilascio pubblicato senza firma
+   ferma quindi tutti: si corregge con un tag nuovo, firmato. Per cambiare chiave, la nuova entra in
+   `allowed_signers` con un rilascio firmato dalla vecchia.
 
    `--ff-only` è un freno: se `main` non può avanzare in modo lineare, il merge si ferma e
    ti costringe a guardare perché `dev` e `main` hanno diverto. Mai forzare.

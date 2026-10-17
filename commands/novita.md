@@ -13,14 +13,18 @@ Gli aggiornamenti di Arturo arrivano da `upstream` se l'utente ha un repository 
 
 ```bash
 SRC=$(git -C "$HOME/.claude" remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
-git -C "$HOME/.claude" fetch --quiet "$SRC" main 2>/dev/null
-BEHIND=$(git -C "$HOME/.claude" rev-list --count "HEAD..$SRC/main" 2>/dev/null || echo 0)
-echo "Aggiornamenti di Arturo da $SRC non ancora applicati: ${BEHIND:-0}"
+git -C "$HOME/.claude" fetch --quiet --tags "$SRC" main 2>/dev/null
+# Conta solo fino all'ultimo tag firmato: i commit di main dopo il tag non si applicano (#3504).
+if TAG=$(python3 "$HOME/.claude/bin/aggiornamenti.py" firmato); then
+  BEHIND=$(git -C "$HOME/.claude" rev-list --count "HEAD..$TAG" 2>/dev/null || echo 0)
+  echo "Aggiornamenti di Arturo da $SRC non ancora applicati: ${BEHIND:-0} (fino al rilascio firmato $TAG)"
+fi
 ```
 
 Se è indietro, spiega che ci sono aggiornamenti non ancora applicati e proponi **`/aggiorna`**:
 è l'unico comando che li applica, dopo avergli mostrato cosa cambia. `/novita` non scarica
-niente da solo.
+niente da solo. Se compare `POSSIBILE COMPROMISSIONE`, non proporre `/aggiorna`: diglielo con le
+parole «possibile compromissione: non aggiornare, segnala a chi mantiene Arturo».
 
 ## Passo 1 — Cosa non ha ancora visto
 

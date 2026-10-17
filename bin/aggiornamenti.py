@@ -11,12 +11,15 @@ chi mantiene Arturo, verificati con la chiave che hai già installata (firme/ril
   applica      installa la versione nuova, se tutto torna (la chiusura della sessione)
   manuali      niente si installa da solo: resta l'avviso, e aggiorni tu con /aggiorna
   automatici   torna all'aggiornamento automatico (la scelta di partenza)
+  firmato      l'ultimo rilascio, solo se la sua firma è valida: è l'unico che /aggiorna applica
 
 Non si installa niente da solo se: la firma manca o non è di Arturo; la storia pubblicata è stata
 riscritta; hai modifiche non salvate in ~/.claude; un'altra sessione di Claude Code è aperta (la
 installa l'ultima che chiude); l'aggiornamento va in conflitto con le tue modifiche. In tutti questi
-casi l'avviso resta, col motivo, e /aggiorna fa il resto con te. ARTURO_AGGIORNAMENTI=manuali ha lo
-stesso effetto di «manuali». Solo libreria standard, Python 3.8 o successivo.
+casi l'avviso resta, col motivo, e /aggiorna fa il resto con te. Una firma che manca o non torna non
+si scavalca neanche con /aggiorna: è il segno di un repository manomesso, e l'avviso dice di non
+aggiornare e di segnalarlo a chi mantiene Arturo (17/10/2026, #3504). ARTURO_AGGIORNAMENTI=manuali
+ha lo stesso effetto di «manuali». Solo libreria standard, Python 3.8 o successivo.
 """
 from __future__ import annotations
 
@@ -34,6 +37,8 @@ AIUTO = __doc__.split("\n\n")[2] if __doc__ else ""
 ORA = 3600            # controlla scarica al massimo una volta all'ora
 ATTESA_MAX = 90       # secondi: quanto applica aspetta che Claude Code si chiuda davvero
 FIRME = "firme/rilasci.allowed_signers"
+# Il messaggio di una firma che manca o non torna, uguale ovunque compare (avvio, barra, /aggiorna).
+COMPROMISSIONE = "possibile compromissione: non aggiornare, segnala a chi mantiene Arturo"
 
 
 def radice() -> Path:
@@ -96,10 +101,29 @@ def scarica(r: Path, src: str) -> None:
         scrivi(r / "session-env" / "aggiornamento-storia-riscritta.json", {"prima": prima, "dopo": dopo})
 
 
+def ultimo_tag(r: Path, src: str) -> str:
+    """L'ultimo rilascio pubblicato: il tag più vicino a main della sorgente degli aggiornamenti.
+    Un tag firmato ripubblicato sotto un altro nome esce col nome scritto dentro e un suffisso
+    (`v1-0-g…`): non è un tag, e verify-tag lo rifiuta."""
+    return git(r, "describe", "--tags", "--abbrev=0", "--match", "v*", f"{src}/main").stdout.strip()
+
+
+def verifica_firma(r: Path, tag: str) -> str:
+    """Vuoto se il tag è firmato da una chiave di firme/rilasci.allowed_signers della copia installata,
+    altrimenti il motivo. È l'unica verifica: la usano l'aggiornamento automatico e /aggiorna."""
+    firme = r / FIRME
+    if not firme.is_file():
+        return f"manca {FIRME}: la firma non si può verificare"
+    verifica = git(r, "-c", "gpg.format=ssh", "-c", f"gpg.ssh.allowedSignersFile={firme}", "verify-tag", tag)
+    if verifica.returncode != 0:
+        return f"il rilascio {tag} non ha la firma di Arturo"
+    return ""
+
+
 def calcola(r: Path) -> dict:
     """Lo stato senza rete: la versione nuova, se c'è, e se si può installare da sola."""
     src = sorgente(r)
-    tag = git(r, "describe", "--tags", "--abbrev=0", "--match", "v*", f"{src}/main").stdout.strip()
+    tag = ultimo_tag(r, src)
     stato = {"controllato": int(time.time()), "versione": tag, "sorgente": src}
     if not tag:
         return dict(stato, stato="aggiornato", motivo="nessun rilascio con tag")
@@ -112,12 +136,9 @@ def calcola(r: Path) -> dict:
     base = git(r, "merge-base", "HEAD", f"{src}/main").stdout.strip()
     if not base or git(r, "merge-base", "--is-ancestor", base, commit).returncode != 0:
         return dict(stato, stato="bloccato", motivo="la versione nuova non discende da quella installata")
-    firme = r / FIRME
-    if not firme.is_file():
-        return dict(stato, stato="bloccato", motivo=f"manca {FIRME}: la firma non si può verificare")
-    verifica = git(r, "-c", "gpg.format=ssh", "-c", f"gpg.ssh.allowedSignersFile={firme}", "verify-tag", tag)
-    if verifica.returncode != 0:
-        return dict(stato, stato="bloccato", motivo=f"il rilascio {tag} non ha la firma di Arturo")
+    motivo = verifica_firma(r, tag)
+    if motivo:
+        return dict(stato, stato="bloccato", motivo=motivo, compromesso=True)
     if manuali(r):
         return dict(stato, stato="manuale", motivo="aggiornamenti a mano")
     return dict(stato, stato="pronto", motivo="")
@@ -182,11 +203,33 @@ def cmd_stato(r: Path) -> int:
         pass
     if stato["stato"] == "pronto":
         righe.append(f"ARTURO: c'è la versione {stato['versione']}: si installa da sola alla chiusura della sessione.")
+    elif stato.get("compromesso"):
+        righe.append(f"ARTURO: {COMPROMISSIONE}. {stato['motivo'][0].upper()}{stato['motivo'][1:]}: la versione "
+                     f"{stato['versione']} non si installa, né da sola né con /aggiorna. Dillo alla persona con queste "
+                     "parole, e proponi /segnala o la segnalazione privata di SECURITY.md.")
     elif stato["stato"] in ("manuale", "bloccato"):
         righe.append(f"ARTURO: c'è un aggiornamento ({stato['versione']}): scaricalo con /aggiorna. "
                      f"Non si installa da solo: {stato['motivo']}.")
     if righe:
         print("\n".join(righe))
+    return 0
+
+
+def cmd_firmato(r: Path) -> int:
+    """Per /aggiorna: stampa l'ultimo rilascio della sorgente solo se la firma è valida (uscita 0).
+    Senza rilasci esce con 1, con una firma che manca o non torna esce con 3 e lo dice. Non
+    scarica niente: il fetch lo fa chi chiama. main non si applica mai, solo questo tag."""
+    tag = ultimo_tag(r, sorgente(r))
+    if not tag:
+        print("NESSUN RILASCIO: la sorgente degli aggiornamenti non ha tag di rilascio. Non applico niente.",
+              file=sys.stderr)
+        return 1
+    motivo = verifica_firma(r, tag)
+    if motivo:
+        print(f"POSSIBILE COMPROMISSIONE: {COMPROMISSIONE.split(': ', 1)[1]} ({motivo}). Non applico niente: "
+              "si segnala con /segnala, o in privato come dice SECURITY.md.", file=sys.stderr)
+        return 3
+    print(tag)
     return 0
 
 
@@ -283,6 +326,8 @@ def main(argv: list) -> int:
             return cmd_controlla(r, forza=len(argv) == 2)
         if argv == ["applica"]:
             return cmd_applica(r)
+        if argv == ["firmato"]:
+            return cmd_firmato(r)
         if argv in (["manuali"], ["automatici"]):
             scrivi(file_scelta(r), {"modo": argv[0]})
             print("Aggiornamenti a mano: la barra in basso e l'avvio ti dicono quando ce n'è uno, e lo scarichi con "

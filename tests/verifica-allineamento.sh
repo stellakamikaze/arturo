@@ -83,6 +83,7 @@ BANCHI=(
   test_scheda.py
   test_hook_utf8.py
   test_autoaggiorna.py
+  test_aggiorna_firmato.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -90,7 +91,7 @@ done
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_autoaggiorna.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py)
+PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py)
 PY38=$(command -v python3.8 || true)
 if [[ -n "$PY38" ]]; then
   for test in "${PY38_BANCHI[@]}"; do
@@ -178,6 +179,8 @@ BASELINE=(
   "test_hook_utf8.py b0ec3ac"
   # Arturo si aggiorna da solo, solo con rilasci firmati (16/10/2026, #3477): 5d83592, il main v2026-10-16.4.
   "test_autoaggiorna.py 5d83592"
+  # Revisione di sicurezza del 16/10/2026 (#3504-#3507): 93f323e, l'ultimo dev prima delle correzioni.
+  "test_aggiorna_firmato.py 93f323e"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

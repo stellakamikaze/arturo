@@ -26,6 +26,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import firme_prova  # dal 17/10/2026 /aggiorna applica solo l'ultimo tag firmato (#3504)
+
 BASH = shutil.which("bash") or "bash"
 GIT_ENV = {
     "GIT_AUTHOR_NAME": "prova", "GIT_AUTHOR_EMAIL": "prova@example.invalid",
@@ -214,11 +216,13 @@ def laboratorio(repo: Path, base: Path):
     if applica.exists():  # dal 12/10/2026 il Passo 3 di /aggiorna lancia questa procedura
         (seme / "bin").mkdir()
         shutil.copy(applica, seme / "bin" / "aggiorna-applica.sh")
+    chiave = firme_prova.semina(seme, repo, base / "chiavi")
     git(seme, "init", "-q", "-b", "main", home=home)
     git(seme, "add", "-A", home=home)
     git(seme, "commit", "-q", "-m", "v0", home=home)
     upstream = base / "upstream.git"
     git(base, "clone", "-q", "--bare", str(seme), str(upstream), home=home)
+    firme_prova.arma(upstream, chiave, dict(os.environ, HOME=str(home), USERPROFILE=str(home), **GIT_ENV))
     git(base, "clone", "-q", str(upstream), str(home / ".claude"), home=home)
     autore = base / "autore"
     git(base, "clone", "-q", str(upstream), str(autore), home=home)

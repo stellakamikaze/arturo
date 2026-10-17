@@ -447,7 +447,10 @@ def blocco_di_aggiorna(repo: Path) -> str:
     m = re.search(r"```bash\n(.*?)```", dopo[1], re.S)
     assert m, "il blocco del diff di /aggiorna manca"
     # Il blocco entra in ~/.claude: qui gira nel clone di prova, che è già la cartella corrente.
-    return m.group(1).replace('cd "$HOME/.claude"\n', "")
+    # Dal 17/10/2026 confronta col tag firmato che dà bin/aggiornamenti.py (#3504): qui si prova solo
+    # l'elenco dei file, sul main del remoto finto, e la firma la prova test_aggiorna_firmato.py.
+    return re.sub(r"^TAG=\$\(python3 [^\n]*firmato\)[^\n]*$", "TAG=origin/main", m.group(1).replace('cd "$HOME/.claude"\n', ""),
+                  flags=re.M)
 
 
 def file_mostrati(uscita: str) -> set:

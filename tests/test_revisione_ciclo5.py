@@ -320,6 +320,9 @@ def test_x05(repo: Path) -> None:
 def test_x06(repo: Path) -> None:
     testo = read(repo / "commands" / "aggiorna.md")
     codice = blocco(testo, "**Leggi cosa cambia nel codice che gira da solo**", "X06").replace('cd "$HOME/.claude"\n', "")
+    # Dal 17/10/2026 il blocco confronta col tag firmato di bin/aggiornamenti.py (#3504): qui si prova
+    # l'elenco dei file sul main del remoto finto, la firma la prova test_aggiorna_firmato.py.
+    codice = re.sub(r"^TAG=\$\(python3 [^\n]*firmato\)[^\n]*$", "TAG=origin/main", codice, flags=re.M)
     assert not re.search(r"\|\s*head\b", codice), "X06 il diff di /aggiorna è tagliato con head"
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp)

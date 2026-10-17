@@ -44,7 +44,7 @@ Il primo capitolo del curriculum, [Chi possiede lo strumento](docs/principi/00-c
 Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
 
 1. **Il repository resta pubblico e con licenza MIT.** Non diventa privato e non viene cancellato.
-2. **Gli aggiornamenti si installano da soli solo se sono firmati, e li puoi tenere a mano.** Dal 16 ottobre 2026 Arturo si aggiorna da solo alla chiusura della sessione, come Claude Code: prima l'impegno era «solo `/aggiorna`, dopo il tuo sì». Si installano solo i rilasci con un tag firmato dalla chiave di chi mantiene Arturo, verificato con la chiave che hai già installata (`firme/rilasci.allowed_signers`). Niente si installa da solo se la firma manca, se la storia pubblicata è stata riscritta, se hai modifiche non salvate o se un'altra sessione è aperta: resta l'avviso, e `/aggiorna` fa il resto con te. Con `python3 ~/.claude/bin/arturo aggiornamenti manuali` (o `ARTURO_AGGIORNAMENTI=manuali`) torni al sì per ogni aggiornamento. Se hai collegato un tuo repository privato, `/inizio` sincronizza quello: sono le tue macchine, non codice di altri.
+2. **Gli aggiornamenti si installano da soli solo se sono firmati, e li puoi tenere a mano.** Dal 16 ottobre 2026 Arturo si aggiorna da solo alla chiusura della sessione, come Claude Code: prima l'impegno era «solo `/aggiorna`, dopo il tuo sì». Si installano solo i rilasci con un tag firmato dalla chiave di chi mantiene Arturo, verificato con la chiave che hai già installata (`firme/rilasci.allowed_signers`). Niente si installa da solo se la storia pubblicata è stata riscritta, se hai modifiche non salvate o se un'altra sessione è aperta: resta l'avviso, e `/aggiorna` fa il resto con te. Anche `/aggiorna` applica solo l'ultimo tag firmato, mai `main`: se la firma manca o non torna, l'avviso dice «possibile compromissione: non aggiornare, segnala a chi mantiene Arturo», e niente si installa. Con `python3 ~/.claude/bin/arturo aggiornamenti manuali` (o `ARTURO_AGGIORNAMENTI=manuali`) torni al sì per ogni aggiornamento. Se hai collegato un tuo repository privato, `/inizio` sincronizza quello: sono le tue macchine, non codice di altri.
 3. **Telemetria accesa di default: eventi e numeri, mai contenuti, per migliorare Arturo.** Arturo si sviluppa ogni giorno per persone che spesso non sanno dire dove si bloccano. Per questo manda a chi lo mantiene eventi d'uso da un elenco chiuso, e chi lo mantiene li legge ogni lunedì per decidere cosa correggere: la fase di `/setup` dove ci si ferma, le guardie che chiedono conferma a vuoto, gli aggiornamenti rifiutati. Ogni correzione nata da un segnale lo dice nella sua voce di [`NOVITA.md`](NOVITA.md). Gli eventi: `sessione`, `comando` (il nome di un comando di Arturo, mai il testo), `guardia` (il nome della guardia che ha bloccato), `aggiorna` (l'esito di `/aggiorna`: applicato, conflitto, fallito, rifiutato, indietro, scartato, oppure automatico per un'installazione alla chiusura della sessione), `segnalazione` (il tipo), `deriva` (i file e gli hook di Arturo che hai cambiato o spento: dei file solo la posizione dentro Arturo, che è pubblica), `config` (la config rotta, che parte subito perché spegne le guardie), `setup` (il numero della fase di `/setup` raggiunta), `chiede` e `confermata` (il nome di una guardia che ti chiede conferma, e se hai detto sì), `errore` (il nome di una guardia che si è rotta) e `claude` (la versione di Claude Code). Con gli eventi partono un id casuale creato da Arturo (non legato a te, ma sempre lo stesso: per questo non sono dati anonimi), la versione e il sistema operativo, con il solo giorno e mai l'ora. Mai prompt, file tuoi, percorsi del tuo computer, nomi o risposte. Il server (`server/`, open source) non salva l'indirizzo IP e tiene gli eventi 12 mesi. Vedi cosa parte con `python3 ~/.claude/bin/arturo telemetria mostra`, la spegni con `python3 ~/.claude/bin/arturo telemetria spegni` o con `DO_NOT_TRACK=1`. Quando cambia cosa esce, Arturo te lo dice di nuovo alla prima sessione. Per far cancellare i tuoi dati scrivi a federico@stellakamikaze.org con l'id che ti mostra `mostra`. Gli altri contatti automatici con l'esterno: il controllo degli aggiornamenti (un `git fetch` di main e dei tag al massimo ogni ora mentre lavori, e uno alla chiusura della sessione) e l'invio degli eventi (al massimo ogni sei ore, salvo una config rotta, che parte all'avvio). Le segnalazioni di `/segnala` partono solo dopo che hai letto il testo e detto sì, e arrivano solo a chi mantiene Arturo, salvo che tu scelga una issue pubblica su GitHub.
 4. **Arturo resta in italiano.**
 5. **Se lo sviluppo si ferma, lo scrivo.** Lo dichiarano l'ultima entry di [`NOVITA.md`](NOVITA.md) e la cima di questa pagina. La copia che hai continua a funzionare, e puoi farne un fork.
@@ -138,11 +138,12 @@ Arturo continua a evolvere, e si aggiorna da solo come Claude Code. Quando esce 
 la barra in basso te lo dice, e alla chiusura della sessione si installa, con la stessa procedura
 di `/aggiorna` qui sotto. Si installano da soli solo i rilasci con un tag firmato dalla chiave di chi
 mantiene Arturo, verificato con la chiave che hai già (`firme/rilasci.allowed_signers`). Se un
-aggiornamento non può installarsi da solo (firma mancante, modifiche non salvate, un'altra sessione
-aperta, un conflitto), l'avviso resta col motivo:
+aggiornamento non può installarsi da solo (modifiche non salvate, un'altra sessione aperta, un
+conflitto), l'avviso resta col motivo, e `/aggiorna` lo applica con te. Se invece l'ultimo rilascio non
+ha una firma valida, non si installa in nessun modo, e l'avviso lo dice:
 
 ```
-ARTURO: c'è un aggiornamento (v2026-10-17): scaricalo con /aggiorna. Non si installa da solo: il rilascio v2026-10-17 non ha la firma di Arturo.
+ARTURO: possibile compromissione: non aggiornare, segnala a chi mantiene Arturo. Il rilascio v2026-10-17 non ha la firma di Arturo: ...
 ```
 
 Con `python3 ~/.claude/bin/arturo aggiornamenti manuali` lo tieni a mano: resta solo l'avviso.
@@ -152,14 +153,18 @@ l'applicazione non riesce, la annulla da sola: la tua copia non resta mai a met�
 gira prima in una **copia di prova** a parte, fuori da `~/.claude`. Claude Code legge `settings.json`
 e gli hook mentre lavora: un aggiornamento fatto lì dentro, anche se annullato subito, potrebbe
 lasciare per un attimo un file rotto. Solo se la copia di prova è integra il risultato arriva in
-`~/.claude`. A mano, con lo stesso script della versione in arrivo:
+`~/.claude`. A mano, con lo stesso script del rilascio firmato in arrivo (mai `main`):
 
 ```bash
 git -C ~/.claude status --short --untracked-files=no   # deve restare vuoto: vedi sotto
-git -C ~/.claude fetch origin main          # upstream invece di origin, se hai un tuo repository
-git -C ~/.claude show origin/main:bin/aggiorna-applica.sh > /tmp/aggiorna-applica.sh
-bash /tmp/aggiorna-applica.sh ~/.claude rebase origin/main   # con un tuo repository: merge upstream/main
+git -C ~/.claude fetch --tags origin main   # upstream invece di origin, se hai un tuo repository
+TAG=$(python3 ~/.claude/bin/aggiornamenti.py firmato) &&
+  git -C ~/.claude show "$TAG:bin/aggiorna-applica.sh" > /tmp/aggiorna-applica.sh &&
+  bash /tmp/aggiorna-applica.sh ~/.claude rebase "$TAG"   # con un tuo repository: merge al posto di rebase
 ```
+
+Se la riga di `firmato` dice `POSSIBILE COMPROMISSIONE`, gli altri due comandi non partono: non
+aggiornare, e segnalalo a chi mantiene Arturo (`SECURITY.md`).
 
 La prima parola dell'ultima riga dice com'è andata: `APPLICATO`, `GIÀ AGGIORNATO`,
 `APPLICAZIONE NON PARTITA` o `APPLICAZIONE ANNULLATA` (in questi due casi `~/.claude` è com'era).

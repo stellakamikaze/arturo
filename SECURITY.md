@@ -6,12 +6,14 @@ Segnala in privato se trovi:
 
 - un segreto o un dato personale dentro il repository (una password, un token, una chiave, un nome o un indirizzo che non dovrebbe esserci);
 - un modo per aggirare una guardia di Arturo;
-- un modo per far installare da solo un aggiornamento senza la firma dei rilasci.
+- un modo per far installare un aggiornamento senza la firma dei rilasci, da solo o con `/aggiorna`.
 
 I rilasci di Arturo sono tag firmati con una chiave SSH ed25519, impronta
 `SHA256:IoYVqxkPVwvac2DtQb0dBx7HwUjA7077mDpLDqwKMKY`. La chiave pubblica è in
-`firme/rilasci.allowed_signers`. L'aggiornamento automatico installa solo i tag che questa chiave
-ha firmato, letta dalla copia già installata.
+`firme/rilasci.allowed_signers`. L'aggiornamento automatico e `/aggiorna` installano solo l'ultimo
+tag che questa chiave ha firmato, letta dalla copia già installata, e mai `main`. Se l'ultimo tag non
+ha una firma valida, Arturo dice «possibile compromissione: non aggiornare, segnala a chi mantiene
+Arturo»: è il caso da segnalare qui.
 
 Il motivo è semplice: una segnalazione pubblica avvisa anche chi potrebbe
 approfittarne.

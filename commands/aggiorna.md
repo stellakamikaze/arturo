@@ -8,8 +8,14 @@ argument-hint: "(nessuno) | indietro | personale"
 Porti la copia di Arturo di chi ti parla all'ultima versione. Di solito non serve: dal 16/10/2026
 Arturo si aggiorna da solo alla chiusura della sessione, con i soli rilasci firmati
 (`bin/aggiornamenti.py`). `/aggiorna` serve quando l'avvio o la barra in basso dicono «serve
-/aggiorna» (firma assente, storia riscritta, modifiche non salvate, conflitto, aggiornamenti a
-mano), per tornare indietro, per le aggiunte personali, o quando la persona vuole guardare prima.
+/aggiorna» (modifiche non salvate, conflitto, aggiornamenti a mano), per tornare indietro, per le
+aggiunte personali, o quando la persona vuole guardare prima.
+
+`/aggiorna` applica **solo l'ultimo rilascio con un tag firmato**, con la stessa verifica
+dell'aggiornamento automatico (`bin/aggiornamenti.py firmato`), e legge la procedura da quel tag.
+Non applica mai `main`: i commit pubblicati dopo l'ultimo tag non arrivano. Se l'ultimo tag non è
+firmato, o la firma non torna, compare `POSSIBILE COMPROMISSIONE`: niente si applica, neanche con
+il suo sì (vedi il Passo 1).
 
 Chi ti parla **potrebbe non essere una persona tecnica**: niente gergo di Git, nessun output
 grezzo incollato senza spiegazione.
@@ -29,13 +35,27 @@ if [ -n "$NOTA" ] && ! git merge-base --is-ancestor "$NOTA" "$SRC/main"; then
   echo "STORIA RISCRITTA: la versione pubblicata non discende più da quella che conoscevi"
 fi
 echo "Versione installata: $(git describe --tags --always HEAD 2>/dev/null)"
-echo "Versione disponibile: $(git describe --tags --always "$SRC/main" 2>/dev/null)"
-BEHIND=$(git rev-list --count "HEAD..$SRC/main" 2>/dev/null || echo 0)
-echo "Aggiornamenti da $SRC: ${BEHIND:-0}"
-git log --oneline "HEAD..$SRC/main" 2>/dev/null | head -50
-echo "--- file che cambiano"
-git diff --stat "HEAD...$SRC/main" 2>/dev/null | tail -40
+# Solo l'ultimo tag firmato di $SRC, verificato con la chiave già installata: main non si applica mai.
+TAG=$(python3 "$HOME/.claude/bin/aggiornamenti.py" firmato) || TAG=""
+if [ -n "$TAG" ]; then
+  echo "Versione disponibile (firmata): $TAG"
+  BEHIND=$(git rev-list --count "HEAD..$TAG" 2>/dev/null || echo 0)
+  echo "Aggiornamenti da $SRC: ${BEHIND:-0}"
+  git log --oneline "HEAD..$TAG" 2>/dev/null | head -50
+  echo "--- file che cambiano"
+  git diff --stat "HEAD...$TAG" 2>/dev/null | tail -40
+fi
 ```
+
+Se compare `POSSIBILE COMPROMISSIONE`, **fermati e non applicare niente**, neanche col suo sì.
+L'ultimo rilascio pubblicato non ha la firma di chi mantiene Arturo, o la firma non torna con la
+chiave che ha già: è il segno di un repository manomesso. Diglielo con queste parole: «possibile
+compromissione: non aggiornare, segnala a chi mantiene Arturo». Proponi `/segnala`, oppure la
+segnalazione privata descritta in `SECURITY.md`. Non cercare un'altra strada per aggiornare
+(`main`, un tag più vecchio, un `git pull`): la verifica esiste per questo.
+
+Se compare `NESSUN RILASCIO`, la sorgente degli aggiornamenti non ha tag: non c'è niente da
+applicare. Diglielo in una riga e fermati.
 
 Se `BEHIND` è `0`, diglielo in una riga (è già aggiornato) e fermati.
 
@@ -53,24 +73,24 @@ Code (una cartella di `skills/` con `.claude-plugin/plugin.json`, come il pannel
 
 ```bash
 cd "$HOME/.claude"
-SRC=$(git remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
-echo "=== guardie e permessi, interi"
-git diff "HEAD...$SRC/main" -- hooks settings.json 2>/dev/null
+TAG=$(python3 "$HOME/.claude/bin/aggiornamenti.py" firmato) || exit 1
+echo "=== guardie e permessi di $TAG, interi"
+git diff "HEAD...$TAG" -- hooks settings.json 2>/dev/null
 echo "=== codice che gira da solo: righe aggiunte e tolte, file per file"
-git diff --name-only "HEAD...$SRC/main" -- bin tests tools skills 2>/dev/null | while IFS= read -r f; do
+git diff --name-only "HEAD...$TAG" -- bin tests tools skills 2>/dev/null | while IFS= read -r f; do
   case "$f" in
     bin/*|tests/*|tools/*|skills/*/scripts/*) echo "$f" ;;
     skills/*/*)
       m=${f#skills/}; m="skills/${m%%/*}"
-      { git cat-file -e "$SRC/main:$m/.claude-plugin/plugin.json" || git cat-file -e "HEAD:$m/.claude-plugin/plugin.json"; } 2>/dev/null && echo "$f" ;;
+      { git cat-file -e "$TAG:$m/.claude-plugin/plugin.json" || git cat-file -e "HEAD:$m/.claude-plugin/plugin.json"; } 2>/dev/null && echo "$f" ;;
   esac
 done | while IFS= read -r f; do
-  git diff --numstat "HEAD...$SRC/main" -- "$f" 2>/dev/null   # righe aggiunte, tolte, file
+  git diff --numstat "HEAD...$TAG" -- "$f" 2>/dev/null   # righe aggiunte, tolte, file
 done
 ```
 
 Poi leggi il diff di **ogni** file dell'elenco, uno per volta e intero:
-`git diff "HEAD...$SRC/main" -- "FILE"`. Un font o un'immagine basta nominarli. Se un output
+`git diff "HEAD...<tag>" -- "FILE"`, con il tag firmato che il blocco ha stampato. Un font o un'immagine basta nominarli. Se un output
 arriva tagliato, dillo e leggi il resto a pezzi (`| sed -n '1,400p'`, poi `'401,800p'`):
 niente sì su un diff letto a metà. Lascia i percorsi tra virgolette: così la shell non li
 espande, e git mostra anche i file delle cartelle che questa copia non ha ancora, come un mod
@@ -88,11 +108,12 @@ Le sue modifiche possono stare in due posti: file cambiati e non ancora salvati,
 ```bash
 cd "$HOME/.claude"
 SRC=$(git remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
+TAG=$(python3 "$HOME/.claude/bin/aggiornamenti.py" firmato) || exit 1
 git status --short --untracked-files=no
 echo "--- file che hai cambiato rispetto ad Arturo"
-git diff --stat "$SRC/main...HEAD" 2>/dev/null | tail -20
+git diff --stat "$TAG...HEAD" 2>/dev/null | tail -20
 echo "--- file cambiati sia da te sia dall'aggiornamento"
-comm -12 <(git diff --name-only "$SRC/main...HEAD" 2>/dev/null | sort) <(git diff --name-only "HEAD...$SRC/main" 2>/dev/null | sort)
+comm -12 <(git diff --name-only "$TAG...HEAD" 2>/dev/null | sort) <(git diff --name-only "HEAD...$TAG" 2>/dev/null | sort)
 if [ "$SRC" = upstream ]; then
   VIS=$(gh repo view "$(git remote get-url origin)" --json visibility -q .visibility 2>/dev/null)
   echo "--- il suo repository della config: ${VIS:-visibilità sconosciuta}"
@@ -147,9 +168,10 @@ una shell nuova: questo ricava da sé da dove arrivano gli aggiornamenti.
 
 L'aggiornamento non si fa dentro `~/.claude`: lo fa `bin/aggiorna-applica.sh` in una copia di prova a
 parte, controlla lì la config, e porta dentro solo un risultato integro. Così un conflitto non scrive
-mai marcatori in `settings.json` o negli hook che Claude Code sta usando. La procedura si legge dalla
-**versione in arrivo**, non da quella installata: una correzione alla procedura protegge già
-l'aggiornamento che la porta. È codice che gira da solo, e il Passo 1 te ne ha mostrato il diff.
+mai marcatori in `settings.json` o negli hook che Claude Code sta usando. La procedura si legge dal
+**tag firmato in arrivo**, non dalla versione installata né da `main`: una correzione alla procedura
+protegge già l'aggiornamento che la porta, e un `main` manomesso non la sostituisce. È codice che gira
+da solo, e il Passo 1 te ne ha mostrato il diff. La firma si verifica di nuovo qui, subito prima.
 
 ```bash
 cd "$HOME/.claude"
@@ -157,11 +179,15 @@ SRC=$(git remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origi
 MODO=$([ "$SRC" = upstream ] && echo merge || echo rebase)
 # Con un repository suo, i suoi commit sono gia' pubblicati: il merge non li riscrive.
 APPLICA=$(mktemp)
-git show "$SRC/main:bin/aggiorna-applica.sh" > "$APPLICA" 2>/dev/null || cp bin/aggiorna-applica.sh "$APPLICA" 2>/dev/null
-if [ -s "$APPLICA" ]; then
-  bash "$APPLICA" "$HOME/.claude" "$MODO" "$SRC/main"
+if TAG=$(python3 "$HOME/.claude/bin/aggiornamenti.py" firmato); then
+  git show "$TAG:bin/aggiorna-applica.sh" > "$APPLICA" 2>/dev/null
+  if [ -s "$APPLICA" ]; then
+    bash "$APPLICA" "$HOME/.claude" "$MODO" "$TAG"
+  else
+    echo "APPLICAZIONE NON PARTITA: il rilascio $TAG non ha la procedura di applicazione. Non ho toccato niente."
+  fi
 else
-  echo "APPLICAZIONE NON PARTITA: non trovo la procedura di applicazione. Non ho toccato niente."
+  echo "APPLICAZIONE NON PARTITA: nessun rilascio firmato da applicare. Non ho toccato niente."
 fi
 rm -f "$APPLICA"
 ```
@@ -338,9 +364,11 @@ precedente. I passi 1-4 qui sopra non c'entrano.
 
 - Si applica dopo un sì, mai in automatico. `/inizio` e l'avvio non applicano niente.
 - Con `STORIA RISCRITTA` non si applica niente.
+- Si applica solo l'ultimo tag firmato, mai `main`. Con `POSSIBILE COMPROMISSIONE` non si applica
+  niente, neanche col suo sì: «possibile compromissione: non aggiornare, segnala a chi mantiene Arturo».
 - Con modifiche non salvate l'applicazione non parte. Il merge gira in una copia di prova:
   `~/.claude` cambia solo con un risultato integro, e i conflitti si risolvono nella copia di prova.
-- La procedura di applicazione si legge dalla versione in arrivo, dopo che il Passo 1 ne ha
+- La procedura di applicazione si legge dal tag firmato in arrivo, dopo che il Passo 1 ne ha
   mostrato il diff.
 - Per tornare indietro mai `reset --hard`: solo `aggiorna-applica.sh indietro`, e solo dopo il suo sì.
 - Mai scartare modifiche sue per far passare l'aggiornamento.
