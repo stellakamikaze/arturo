@@ -46,7 +46,10 @@ def test_k5(repo: Path) -> None:
 
 
 def test_k6(repo: Path) -> None:
-    assert "fetch --quiet upstream" in read(repo / "commands" / "inizio.md"), "K6 nessuno aggiorna upstream/main: l'avviso di session-start resta muto"
+    # Dal 17/10/2026 anche coi tag (--tags): /inizio conta fino all'ultimo tag firmato (#3504).
+    inizio = read(repo / "commands" / "inizio.md")
+    assert "fetch --quiet upstream" in inizio or "fetch --quiet --tags upstream" in inizio, \
+        "K6 nessuno aggiorna upstream/main: l'avviso di session-start resta muto"
 
 
 
