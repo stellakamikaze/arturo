@@ -78,7 +78,7 @@ const SITO_SISTEMI = ["mac", "win", ""];
 
 const ID = /^[A-Za-z0-9-]{8,64}$/;
 const GIORNO = /^\d{4}-\d{2}-\d{2}$/;
-// La versione è l'output di `git describe --tags --always` (bin/telemetria.py), oppure «sconosciuta».
+// La versione è l'ultimo tag v* raggiungibile (`git describe --tags --abbrev=0`, bin/telemetria.py), oppure «sconosciuta».
 // Niente testo libero: finisce nel riepilogo che legge la routine del lunedì.
 const VERSIONE = /^[A-Za-z0-9._+-]{1,60}$/;
 

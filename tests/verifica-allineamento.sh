@@ -116,6 +116,7 @@ BANCHI=(
   test_segnalazioni_2026_10_19.py
   test_config_2026_10_19.py
   test_telemetria_monitor_2026_10_19.py
+  test_telemetria_versione_2026_10_19.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -221,6 +222,8 @@ BASELINE=(
   "test_config_2026_10_19.py 439a92b"
   # Telemetria di Claude Code accesa, guardie su Monitor e onFailure (19/10/2026): 40b26c2, l'ultimo dev prima.
   "test_telemetria_monitor_2026_10_19.py 40b26c2"
+  # La telemetria manda il rilascio installato, senza i commit della persona (19/10/2026, #3613): 0c12a5b.
+  "test_telemetria_versione_2026_10_19.py 0c12a5b"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"
