@@ -37,7 +37,34 @@ export ARTURO_TELEMETRIA=0
 # session-start di un banco li lancerebbe in una HOME finta.
 export ARTURO_BANCHI_AVVIO=0
 mkdir -p "$HOME" "$TMPDIR"
-cp -R "$ROOT/." "$HOME/.claude"
+# Nella copia entrano .git e i file che git vede (tracciati e nuovi non ignorati), come in un clone
+# pulito con le modifiche in corso. Con `cp -R` entravano anche cache/ e data/ della macchina: il
+# 19/10/2026 una coda di telemetria vecchia ha fatto rosso GS06 e un .pyc dello strato tolto I03.
+python3 - "$ROOT" "$HOME/.claude" <<'PY'
+import os, shutil, stat, subprocess, sys
+radice, copia = sys.argv[1:3]
+git = os.path.join(radice, ".git")
+
+
+def socket(cartella, nomi):  # fsmonitor--daemon.ipc: un socket non si copia
+    return [n for n in nomi if stat.S_ISSOCK(os.lstat(os.path.join(cartella, n)).st_mode)]
+
+
+if os.path.isdir(git):
+    shutil.copytree(git, os.path.join(copia, ".git"), symlinks=True, ignore=socket)
+else:  # worktree: .git è un file che punta alla cartella vera
+    os.makedirs(copia, exist_ok=True)
+    shutil.copy2(git, os.path.join(copia, ".git"))
+elenco = subprocess.run(["git", "-C", radice, "ls-files", "-z", "-co", "--exclude-standard"],
+                        capture_output=True, check=True).stdout.decode("utf-8")
+for rel in filter(None, elenco.split("\0")):
+    origine = os.path.join(radice, rel)
+    if not os.path.lexists(origine):  # tracciato ma cancellato nel tree
+        continue
+    dest = os.path.join(copia, rel)
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    shutil.copy2(origine, dest, follow_symlinks=False)
+PY
 REPO="$HOME/.claude"
 
 BANCHI=(
@@ -87,6 +114,7 @@ BANCHI=(
   test_igiene.py
   test_guardie_sicurezza.py
   test_segnalazioni_2026_10_19.py
+  test_config_2026_10_19.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -188,6 +216,8 @@ BASELINE=(
   "test_guardie_sicurezza.py 93f323e"
   # Segnalazioni n. 4 e n. 5 del 19/10/2026: 439a92b, l'ultimo dev prima delle correzioni.
   "test_segnalazioni_2026_10_19.py 439a92b"
+  # Revisione della config del 19/10/2026: 439a92b, l'ultimo dev prima delle correzioni.
+  "test_config_2026_10_19.py 439a92b"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

@@ -1,6 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "cleanupPeriodDays": 90,
+  "fallbackModel": ["sonnet"],
   "env": {
     "DISABLE_TELEMETRY": "1",
     "DISABLE_ERROR_REPORTING": "1",
@@ -56,9 +57,6 @@
       "Bash(tail:*)",
       "Bash(wc:*)",
       "Bash(grep:*)",
-      "Bash(rg:*)",
-      "Bash(find:*)",
-      "Bash(sed -n:*)",
       "Bash(sort:*)",
       "Bash(uniq:*)",
       "Bash(cut:*)",

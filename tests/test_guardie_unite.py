@@ -392,7 +392,7 @@ def test_g209(repo: Path) -> None:
         _git(claude, "commit", "-q", "-m", "base")
         segno = radice / "banchi-partiti"
         (claude / "tests" / "banchi-avvio.sh").write_text(
-            f"#!/bin/bash\nsleep 5\nprintf 'VERDE\\nok\\n' > \"$HOME/.claude/cache/banchi-ultimo-esito.txt\"\n"
+            f"#!/bin/bash\nsleep 12\nprintf 'VERDE\\nok\\n' > \"$HOME/.claude/cache/banchi-ultimo-esito.txt\"\n"
             f"echo x >> '{segno}'\n", encoding="utf-8")
         progetto = radice / "progetto"
         progetto.mkdir()
@@ -403,7 +403,7 @@ def test_g209(repo: Path) -> None:
                                capture_output=True, cwd=str(progetto), env=env_di(home, **extra), timeout=60)
             return p, time.time() - inizio
 
-        def aspetta(cond, secondi: float = 20) -> bool:
+        def aspetta(cond, secondi: float = 40) -> bool:
             fine = time.time() + secondi
             while time.time() < fine:
                 if cond():
@@ -419,9 +419,10 @@ def test_g209(repo: Path) -> None:
         p, durata = avvio()
         assert "file di ~/.claude modificati e non salvati" in p.stdout, \
             f"G209 nessun avviso sui file della config non salvati: {p.stdout[:400]!r}"
-        # Relativo all'avvio senza banchi: su Windows ogni processo parte più lento, e 4,5 s fissi
-        # misuravano la macchina invece dell'attesa.
-        assert durata < max(4.5, senza_banchi + 2.0), \
+        # I banchi finti durano 12 s: se all'uscita dell'avvio il segno c'è già, l'avvio li ha
+        # aspettati. Una soglia sulla durata misurava la macchina: col Mac carico l'avvio senza
+        # banchi va da 1 a 6 s, e il margine di 2 s andava rosso (19/10/2026, 1 giro su 10).
+        assert not segno.exists(), \
             f"G209 l'avvio aspetta i banchi: {durata:.1f} s (senza banchi {senza_banchi:.1f} s)"
         assert aspetta(segno.exists), "G209 i banchi non partono in background"
         assert aspetta(lambda: not (claude / "cache" / "banchi.lock").exists()), "G209 il lock resta dopo i banchi"
