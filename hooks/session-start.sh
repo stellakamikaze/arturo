@@ -23,6 +23,11 @@ echo "DIRECTORY: $PROJECT_ROOT"
 MACCHINA=$(scutil --get ComputerName 2>/dev/null || hostname 2>/dev/null)
 [ -n "$MACCHINA" ] && echo "MACCHINA: $MACCHINA"
 
+# La barra in basso (statusline.js) e l'avviso sul contesto (context-monitor.js) girano con node.
+# Claude Code si installa anche senza node, e allora restano spenti in silenzio (19/10/2026).
+command -v node >/dev/null 2>&1 \
+  || echo "NODE: manca node, la barra in basso (contesto e quota) e l'avviso sul contesto sono spenti. Dillo a Claude: installa node da nodejs.org, poi riapri Claude Code."
+
 # Dopo un compact il contesto e' stato riassunto: prima di continuare, un riepilogo che
 # l'utente puo' controllare. SessionStart con source "compact" e' la via documentata;
 # lo stdout di PostCompact non entra nel contesto.

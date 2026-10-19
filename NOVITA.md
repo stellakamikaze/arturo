@@ -11,6 +11,23 @@ modo di lavorare.
 
 ---
 
+## 2026-10-19 — Se manca node, la barra in basso te lo dice
+
+**Cosa cambia**: la barra in basso mostra il modello, quanto contesto hai usato e la quota del tuo
+abbonamento. È uno script che gira con node. Claude Code oggi si installa anche senza node, e su un
+computer appena preparato la barra restava vuota senza dire perché. Ora, se node manca, la barra
+scrive «Arturo: manca node» e l'avvio della sessione lo dice a Claude, che ti aiuta a installarlo.
+Lo stesso vale per l'avviso che ti dice quando il contesto sta per finire.
+
+**Il principio dietro**: uno strumento che si spegne in silenzio sembra funzionare. Se qualcosa
+non può partire, Arturo lo dice nel punto dove lo stai cercando.
+
+**Da sapere**: node si scarica da nodejs.org (l'installer per Mac è un file .pkg). Dopo
+l'installazione chiudi e riapri Claude Code. Se la barra resta vuota anche con node, dillo con
+`/segnala`.
+
+---
+
 ## 2026-10-19 — Claude Code torna con tutte le sue funzioni, e le guardie vedono anche Monitor
 
 **Cosa cambia**: Arturo non spegne più la telemetria di Claude Code. Quando era spenta, Claude Code

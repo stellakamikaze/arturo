@@ -118,6 +118,7 @@ BANCHI=(
   test_telemetria_monitor_2026_10_19.py
   test_telemetria_versione_2026_10_19.py
   test_guardie_uniche_2026_10_19.py
+  test_node_assente_2026_10_19.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -227,6 +228,8 @@ BASELINE=(
   "test_telemetria_versione_2026_10_19.py 0c12a5b"
   # Guardie uniche fra Arturo e la config di chi lo mantiene (19/10/2026, #3612): dbaefa1, l'ultimo dev prima.
   "test_guardie_uniche_2026_10_19.py dbaefa1"
+  # Arturo senza node: la barra e l'avvio lo dicono (19/10/2026): dbaefa1, l'ultimo dev prima.
+  "test_node_assente_2026_10_19.py dbaefa1"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

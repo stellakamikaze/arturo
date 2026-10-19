@@ -445,7 +445,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "node ~/.claude/hooks/statusline.js",
+    "command": "command -v node >/dev/null 2>&1 && exec node ~/.claude/hooks/statusline.js; echo 'Arturo: manca node. Per vedere contesto e quota installalo da nodejs.org e riapri Claude Code'",
     "refreshInterval": 30
   },
   "language": "italian",
