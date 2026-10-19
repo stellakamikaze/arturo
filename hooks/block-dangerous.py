@@ -8,11 +8,15 @@ BLOCCO DURO (exit 2, stderr -> modello):
 - fork bomb, raw write su disco (`> /dev/...`, `dd of=/dev/...`, `mkfs.*`)
 - chmod/chown ricorsivo su root
 - esecuzione di script remoto scaricato al volo: `curl ... | bash`, ma anche
-  `bash <(curl ...)`, `eval "$(curl ...)"`, `curl ... | python`
+  `bash <(curl ...)`, `eval "$(curl ...)"`, `curl ... | python`. Dal 15/9/2026
+  `curl ... | python3 -c "<codice>"` blocca solo se il codice inline esegue testo
+  (exec, eval, subprocess, getattr, `$(`): altrimenti è parsing dello stdin
 - `bw export` (dump dell'intera vault Bitwarden in chiaro)
 
 CHIEDE CONFERMA (permissionDecision:"ask", exit 0):
-- `rm -r` che risolve su un tree protetto (~/.claude, memoria, progetti, cwd)
+- `rm -r`, `find -delete`, `shutil.rmtree` su una cartella che non si rigenera da
+  sola e non è temporanea (~/.claude, memoria, progetti, cwd, cartelle di lavoro)
+- `git clean -f` (i file non tracciati non stanno in nessun commit)
 - scrittura shell su ~/.claude/settings*, hooks/**, firme/** o sugli script dell'aggiornamento
   automatico (auto-modifica delle guardie, codice non firmato installato da solo),
   incluso il caso `cd ~/.claude/hooks && > file` (target relativo dopo un cd)
@@ -20,7 +24,8 @@ CHIEDE CONFERMA (permissionDecision:"ask", exit 0):
   (~/Library/LaunchAgents, ~/.config/systemd/user, ~/.config/autostart)
 - creazione di un file di unlock (*-unlock-*) che sbloccherebbe l'auto-modifica
 - lettura di file segreti via shell (cat/head/xxd/base64/perl/ruby/nc/redirezione
-  `< file`... su chiavi private, ~/.ssh, ~/.aws/credentials, .gnupg, *.pem...)
+  `< file`... su chiavi private, ~/.ssh, ~/.aws/credentials, .gnupg, *.pem, .env...),
+  anche indiretta: `find <segreto> | xargs cat`, `find -exec cat`, `while read`
 - docker distruttivo su volumi (`docker volume rm`, `system prune --volumes`)
 
 Fail-open su parsing (i casi catastrofici su path root restano nei deny).
@@ -53,11 +58,13 @@ DANGEROUS = [
     # curl|bash e le sue varianti che eseguono uno script remoto scaricato al volo:
     (r"\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(bash|sh|zsh|fish|perl|ruby|node|php)\b",
      "pipe di script remoto in un interprete"),
-    # `curl ... | python3 -c "import json..."` è parsing, non esecuzione dello stdin.
-    # Passa solo il codice inline fra virgolette senza command-substitution ne'
-    # primitive che eseguono testo. Le coppie di escape si consumano intere.
-    # Vale anche con i flag dell'interprete prima di -c (`python3 -I -c`, la forma
-    # isolata) e con la versione (`python3.13`).
+    # 15/9/2026: `curl ... | python3 -c "import json..."` è parsing, non esecuzione
+    # dello stdin (14 blocchi in una settimana). Passa solo il codice inline fra
+    # virgolette senza command-substitution né primitive che eseguono testo. Le
+    # coppie di escape (`\\n`, `\\"`) si consumano intere: la ricerca delle parole
+    # vietate continua fino alla virgoletta che chiude davvero.
+    # 15/10/2026: anche con i flag dell'interprete prima di -c (`python3 -I -c`, la
+    # forma isolata) e con la versione (`python3.13`).
     (r"\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?python3?(?:\.\d+)?(?![\w.])"
      r"(?!(?:\s+-[IEsSBuOqP]+)*\s+-c\s+([\"'])(?:\\[\s\S]|(?!\3|\\|\$\(|`|\b(?:exec|eval|compile|__import__|__builtins__|builtins|"
      r"getattr|globals|importlib|system|popen|subprocess|runpy|pickle|marshal|spawn)\b)[\s\S])*\3)",
@@ -69,8 +76,9 @@ DANGEROUS = [
     (r"\b(bash|sh|zsh|fish|python3?|perl|ruby|node)\b\s+-c\s+[\"']?\$\(\s*(curl|wget|fetch)\b",
      "interprete -c su output di download remoto"),
     (r"\bsudo\s+rm\s+-rf?\s+(/|~|\$HOME|\*)", "rm ricorsivo con sudo su root/home/wildcard"),
-    # `bw export` anche con opzioni e valori davanti (`bw --session X export`).
-    # `--help` non esporta niente: resta libero.
+    # `bw export` anche con opzioni e valori davanti (`bw --session X export`):
+    # il deny di settings.json copre solo la forma letterale. `--help` non esporta
+    # niente: resta libero (tre falsi positivi il 12/9/2026).
     (r"\bbw\b(\s+-[-\w]+(\s+[^\s-][^\s]*)?)*\s+export\b(?!\s+(--help|-h)\b)",
      "export dell'intera vault Bitwarden in chiaro"),
 ]
@@ -84,9 +92,14 @@ _CFG_SUFFIX_RE = re.compile(
 # Operatori di scrittura shell. Il match testuale del path assoluto è il caso base;
 # _writes_config() sotto copre anche il target RELATIVO dopo un `cd ~/.claude/...`.
 _CFG_ABS = r"[^\s'\";|&]*\.claude/(?:settings[^/\s'\"]*\.json|hooks/|\.claude\.json)"
+# cp, mv, install, rsync e ln non stanno qui: li giudica _writes_config, che sa quale
+# argomento è la destinazione. Nel testo `cp ~/.claude/settings.json /tmp/x` sembrava una
+# scrittura, e copiare la config altrove è una lettura (9/9/2026, nella config dell'autore).
+# dd scrive solo su `of=`.
 CONFIG_WRITE_RE = re.compile(
     r"(?:>>?\s*" + _CFG_ABS +
-    r"|\b(?:tee|cp|mv|install|rsync|ln|dd|truncate|touch|chmod|chown)\b[^|;&]*" + _CFG_ABS +
+    r"|\b(?:tee|truncate|touch|chmod|chown)\b[^|;&]*" + _CFG_ABS +
+    r"|\bdd\b[^|;&]*\bof=" + _CFG_ABS +
     r"|\bsed\b[^|;&]*-i[^|;&]*" + _CFG_ABS +
     r"|open\(\s*['\"][^'\"]*\.claude/(?:settings|hooks/|\.claude\.json)[^'\"]*['\"]\s*,\s*['\"][wa])",
     re.IGNORECASE,
@@ -113,15 +126,35 @@ PERSIST_WRITE_RE = re.compile(
 _WRITE_BINS = frozenset("tee cp mv install rsync ln dd truncate touch".split())
 
 # --- File di unlock che sbloccherebbero l'auto-modifica di config/hook -> ask ---
-UNLOCK_RE = re.compile(r"\.claude/[^\s'\";|&]*unlock[^\s'\";|&]*", re.IGNORECASE)
+# Solo la CREAZIONE del file (redirezione, touch, tee, open in scrittura) e solo direttamente
+# in ~/.claude, dove protect_claude_md.py lo cerca. Leggere una nota che ha «unlock» nel nome
+# non sblocca niente (8/9/2026, nella config dell'autore). cp, mv e ln: _writes_config(_is_unlock).
+_UNLOCK_ABS = r"[^\s'\";|&]*\.claude/[^\s'\";|&/]*unlock[^\s'\";|&/]*(?=[\s'\";|&)]|$)"
+UNLOCK_RE = re.compile(
+    r"(?:>>?\s*|\b(?:touch|tee)\b[^|;&]*)" + _UNLOCK_ABS +
+    r"|open\(\s*['\"][^'\"]*\.claude/[^'\"/]*unlock[^'\"/]*['\"]\s*,\s*['\"][wax]",
+    re.IGNORECASE,
+)
 
 # --- Lettura di file segreti via shell -> ask (vedi _reads_secret sotto) ---
+# In ~/.ssh/ chiedono le chiavi private e i file sconosciuti. config, known_hosts,
+# authorized_keys e le chiavi pubbliche (.pub) non sono segreti: si leggono liberi
+# (8/9/2026, la config dell'autore chiedeva a ogni `grep Host ~/.ssh/config`).
+_SSH_SEGRETO = (r"\.ssh/(?!(?:config|known_hosts(?:\.old)?|authorized_keys)(?![\w.-])|[^\s'\"/]*\.pub(?![\w.-]))"
+                r"|(?:^|/)id_(?:rsa|ed25519|ecdsa|dsa)\b(?!\.pub\b)")
 SECRET_PATH_RE = re.compile(
-    r"(\.ssh/|(^|/)id_(rsa|ed25519|ecdsa|dsa)\b|\.aws/credentials|\.gnupg/|"
-    r"\.git-credentials|\.pem\b|service-account[^\s'\"]*\.json|credentials\.json|"
-    r"client_secret[^\s'\"]*\.json|token_cache\.json|\.pypirc|secrets\.env|\.secrets/|"
+    r"(" + _SSH_SEGRETO + r"|\.aws/credentials|\.gnupg/|"
+    # I file col solo nome (token_cache.json...) contano come argomento o in un path, non
+    # citati dopo uno spazio: `python3 -c "...write('serve rm token_cache.json')"` scrive una
+    # nota, non legge il token (8/9/2026, nella config dell'autore).
+    r"\.git-credentials|\.pem\b|"
+    r"(?<!\s)(?:service-account[^\s'\"]*\.json|credentials\.json|client_secret[^\s'\"]*\.json|token_cache\.json)|"
+    r"\.pypirc|secrets\.env|\.secrets/|"
     r"\.config/gh/hosts\.yml|\.npmrc|\.claude/data/credentials/|"
-    r"\.docker/config\.json|\.kube/config)",
+    r"\.docker/config\.json|\.kube/config|"
+    # ~/.claude.json tiene le env dei server MCP, chiavi API comprese. Solo in forma di
+    # PATH (`/` o `~` davanti): il nome citato in una frase non è una lettura.
+    r"[/~][^\s'\"]*/\.claude\.json)",
     re.IGNORECASE,
 )
 # Un file .env (anche .env.local, config/.env.production): le chiavi dei servizi di un progetto
@@ -147,8 +180,10 @@ _SKIP_WRAPPERS = frozenset(("sudo", "command", "nohup", "caffeinate", "timeout",
 # `nc host 443 < ~/.ssh/id_ed25519`, `echo "$(<~/.ssh/id_ed25519)"`).
 _SECRET_REDIR_RE = re.compile(
     r"(?:<\s*|\$\(\s*<\s*)[^\s'\";|&)]*"
-    r"(\.ssh/|id_(rsa|ed25519|ecdsa|dsa)|\.aws/credentials|\.gnupg/|"
-    r"\.git-credentials|\.pem|credentials\.json|\.pypirc|secrets\.env|\.secrets/|\.claude/data/credentials/|"
+    r"(\.ssh/(?!(?:config|known_hosts(?:\.old)?|authorized_keys)(?![\w.-])|[^\s'\"/]*\.pub(?![\w.-]))|"
+    r"id_(rsa|ed25519|ecdsa|dsa)\b(?!\.pub\b)|\.aws/credentials|\.gnupg/|"
+    r"\.git-credentials|\.pem|credentials\.json|\.pypirc|secrets\.env|\.secrets/|"
+    r"token_cache\.json|client_secret|\.claude/data/credentials/|"
     r"(?<![\w.])\.env\b(?!\.(?:example|sample|template|dist)\b))",
     re.IGNORECASE,
 )
@@ -225,7 +260,7 @@ _SHELLS = _fc.SHELL
 # La cartella nominata senza slash finale (`find ~/.aws | xargs cat`): SECRET_PATH_RE
 # vuole lo slash, perché per un cat diretto il nome della cartella non è una lettura.
 # Per xargs e -exec invece la cartella è la sorgente dei file letti.
-_SECRET_DIR_RE = re.compile(r"(\.ssh|\.gnupg|\.secrets|\.aws)(?=[\s'\"/*]|$)")
+_SECRET_DIR_RE = re.compile(r"(\.ssh|\.gnupg|\.secrets|\.aws|\.claude/data/credentials)(?=[\s'\"/*]|$)")
 
 
 def _lettura_indiretta(cmd):
@@ -409,17 +444,33 @@ def _expand_vars(t):
     return t
 
 
+# `$(mktemp ...)` crea una cartella o un file nuovo e vuoto: cancellarlo non perde niente
+# (7/9/2026, nella config dell'autore). Vale come un temporaneo.
+_MKTEMP_RE = re.compile(r"^\$\(\s*mktemp\b[^()`$;|&]*\)$")
+
+
 def _resolve(target, cwd):
     t = (target or "").strip().strip('"').strip("'")
     if not t:
         return None
+    if _MKTEMP_RE.match(t):
+        return os.path.normpath("/tmp/mktemp.XXXXXX")
     t = _expand_vars(t)
     if t is None:
         return None
     t = os.path.expanduser(t)
     if not os.path.isabs(t):
-        t = os.path.join(cwd or _home(), t)
+        if cwd is None:
+            return None  # cwd sconosciuto (cd verso un path che non si risolve): niente path inventati
+        t = os.path.join(cwd, t)
     return os.path.normpath(t)
+
+
+def _log_di_job(p):
+    """True per la cartella di un job di bin/bgjob.sh (~/.claude/data/logs/bgjobs/<job>):
+    log rigenerabili e ignorati da git (3/10/2026). La cartella bgjobs stessa no."""
+    bgjobs = os.path.normpath(os.path.join(_home(), ".claude", "data", "logs", "bgjobs"))
+    return bool(p) and p.startswith(bgjobs + os.sep)
 
 
 def _is_protected_tree(p):
@@ -428,6 +479,8 @@ def _is_protected_tree(p):
     h = _home()
     claude = os.path.normpath(os.path.join(h, ".claude"))
     base = _projects_base()
+    if _log_di_job(p):
+        return False
     if p == claude or p.startswith(claude + os.sep):
         return True
     if p == base:
@@ -477,6 +530,12 @@ def _is_persistenza(p):
 
 def _is_claude_md(p):
     return bool(p) and os.path.basename(p) in ("CLAUDE.md", "CLAUDE.local.md")
+
+
+def _is_unlock(p):
+    """True per un file di unlock: «unlock» nel nome, direttamente in ~/.claude."""
+    return (bool(p) and "unlock" in os.path.basename(p).lower()
+            and os.path.dirname(p) == os.path.normpath(os.path.join(_home(), ".claude")))
 
 
 def _writes_config(command, cwd, protetto=None):
@@ -566,6 +625,8 @@ def _temporaneo(p):
 
 def _rigenerabile(p):
     """True se il path è una cartella che si ricrea da sola, o sta dentro una di esse."""
+    if _log_di_job(p):
+        return True
     parti = p.replace("\\", "/").split("/")
     return any(parte in RIGENERABILI for parte in parti)
 
@@ -627,6 +688,10 @@ def _git_clean_forzato(command):
     return False
 
 
+_REDIREZIONE_RE = re.compile(r"^(?:\d*|&)(?:>>?|<)")
+_REDIREZIONE_SOLA_RE = re.compile(r"^(?:\d*|&)(?:>>?|<)$")
+
+
 def _rm_segments(command):
     """(bersagli, cd dichiarato) per ogni `rm` ricorsivo; bersagli None per `xargs rm -r`.
 
@@ -650,7 +715,16 @@ def _rm_segments(command):
         if nome == "rm":
             recursive = False
             targets = []
+            salta = False
             for tk in args:
+                # Una redirezione non è un bersaglio: `rm -rf build 2>/dev/null` non cancella
+                # /dev/null (19/10/2026). `>` da solo porta con sé la parola che segue.
+                if salta:
+                    salta = False
+                    continue
+                if _REDIREZIONE_RE.match(tk):
+                    salta = _REDIREZIONE_SOLA_RE.match(tk) is not None
+                    continue
                 if tk == "--recursive":
                     recursive = True
                 elif tk.startswith("-") and tk != "--":
@@ -728,12 +802,13 @@ def main() -> int:
         )
 
     # 2b) Creazione di un file di unlock -> ask (sbloccherebbe l'auto-modifica)
-    if UNLOCK_RE.search(testo) and "claude-md-unlock" in testo and "config-unlock" not in testo:
+    sblocco = UNLOCK_RE.search(testo) or _writes_config(testo, cwd, _is_unlock)
+    if sblocco and "claude-md-unlock" in testo and "config-unlock" not in testo:
         return _ask(
             "Sblocco della modifica di CLAUDE.md per questa sessione: Claude potrà "
             "cambiare le istruzioni che segue. Conferma se sei tu ad aver chiesto la modifica."
         )
-    if UNLOCK_RE.search(testo):
+    if sblocco:
         return _ask(
             "Creazione di un file di unlock che disattiverebbe la protezione "
             "sull'auto-modifica di config/hook. Conferma solo se sei tu a volerlo."
@@ -799,7 +874,11 @@ def main() -> int:
         return _ask("rm ricorsivo che la guardia non riesce a leggere: controlla prima di confermare.")
 
     # 6) find che cancella -> ask
-    if _find_delete(command):
+    try:
+        cancella = _find_delete(command)
+    except Exception:
+        cancella = "find" in command  # come rm e rmtree: un find che la guardia non legge si controlla
+    if cancella:
         return _ask(
             "find con -delete o -exec rm cancella file in blocco, senza cestino. "
             "Conferma solo se hai controllato cosa trova."

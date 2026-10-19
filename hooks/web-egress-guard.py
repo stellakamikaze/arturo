@@ -7,8 +7,10 @@ WebFetch(GET), jina e tavily, playwright.browser_navigate e Claude in Chrome
 query-string/path di una URL verso un host esterno (es. attacker/?d=<segreto>).
 
 Decisione:
-- host interno (localhost/LAN/IP Tailscale, hosts-interni.local) -> allow (silenzioso).
-  Un nome `.ts.net` non è interno: con Tailscale Funnel può essere pubblico.
+- host interno (localhost/LAN/IP Tailscale, nomi .local e .internal,
+  hosts-interni.local)                                    -> allow (silenzioso).
+  Un nome `.ts.net` non è interno: con Tailscale Funnel può essere pubblico. La tua
+  tailnet va in hosts-interni.local come dominio (.tuatailnet.ts.net).
 - host esterno + URL "pulita"                             -> allow (non rompe la ricerca web normale)
 - host esterno + payload sospetto nell'URL                -> ask
     (command-substitution $()/backtick, o query mostruosa >=300 char)
@@ -18,7 +20,8 @@ Alleggerito 2026-07-15 (troppi prompt): rimosso il check
 Docs/Drive (44 char), hash CDN, URL firmate (S3/googleusercontent). Restano i
 due segnali ad alta precisione.
 
-Fail-open su qualsiasi errore. Zero dipendenze.
+Fail-open sul JSON illeggibile. Un errore dentro la guardia chiede conferma
+(_guardia_rotta), come ask_guard del dispatcher. Zero dipendenze.
 """
 from __future__ import annotations
 
@@ -48,18 +51,25 @@ INTERNAL_NETS = tuple(map(ipaddress.ip_network, (
     "127.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10",
     "169.254.0.0/16", "::1/128", "fc00::/7", "fe80::/10",
 )))
+# Nomi che per standard non escono dalla rete locale: .local è mDNS (RFC 6762),
+# .internal è riservato da ICANN all'uso privato (2024). Il confronto è per
+# etichetta: localhost.example.invalid resta esterno (dalla config dell'autore, 12/9/2026).
+INTERNAL_SUFFIXES = (".local", ".internal")
 CMD_SUB = re.compile(r'\$\(|`')
 
 
 def _leggi_host_locali(path: Path):
     """Legge hosts-interni.local: una voce per riga, # commento, righe vuote ignorate.
 
-    Una voce accettata da ip_network(strict=False) è una rete, altrimenti è un
-    hostname (minuscolo, senza punto finale). Voci non plausibili (spazi interni,
-    '/' in un non-CIDR) si ignorano. File assente o illeggibile: nessuna voce.
-    Lettura una volta per esecuzione.
+    Una voce accettata da ip_network(strict=False) è una rete. Una voce che comincia
+    con un punto (.esempio.org) vale per il dominio e per ogni suo sottodominio, e
+    deve avere almeno due etichette: .com renderebbe fidato mezzo internet. Le altre
+    voci sono hostname esatti (minuscoli, senza punto finale). Voci non plausibili
+    (spazi interni, '/' in un non-CIDR) si ignorano. File assente o illeggibile:
+    nessuna voce. Lettura una volta per esecuzione.
     """
     host = set()
+    domini = set()
     reti = []
     try:
         for riga in path.read_text(encoding="utf-8").splitlines():
@@ -77,14 +87,20 @@ def _leggi_host_locali(path: Path):
                 continue
             if " " in voce or "/" in voce:
                 continue
-            host.add(voce.lower().rstrip("."))
+            voce = voce.lower().rstrip(".")
+            if voce.startswith("."):
+                etichette = voce[1:].split(".")
+                if len(etichette) >= 2 and all(etichette):
+                    domini.add(voce[1:])
+                continue
+            host.add(voce)
     except (OSError, ValueError):
         # File illeggibile o non UTF-8: nessuna voce locale, la guardia resta chiusa.
-        return frozenset(), ()
-    return frozenset(host), tuple(reti)
+        return frozenset(), frozenset(), ()
+    return frozenset(host), frozenset(domini), tuple(reti)
 
 
-LOCAL_HOSTS, LOCAL_NETS = _leggi_host_locali(
+LOCAL_HOSTS, LOCAL_DOMAINS, LOCAL_NETS = _leggi_host_locali(
     Path(__file__).resolve().parent / "hosts-interni.local"
 )
 
@@ -94,6 +110,10 @@ def _internal_host(host: str | None) -> bool:
         return False
     normalized = host.lower().rstrip(".")
     if normalized in INTERNAL_HOSTS or normalized in LOCAL_HOSTS:
+        return True
+    if normalized.endswith(INTERNAL_SUFFIXES):
+        return True
+    if any(normalized == d or normalized.endswith("." + d) for d in LOCAL_DOMAINS):
         return True
     if normalized.startswith("[") and normalized.endswith("]"):
         normalized = normalized[1:-1]
@@ -139,6 +159,8 @@ def _suspicious(url):
         parts = urlsplit(url)
     except Exception:
         return False
+    # hostname, non netloc: netloc porta dentro userinfo e porta, e in
+    # https://localhost@esterno.test/ l'host è esterno.test.
     host = parts.hostname
     if not host or _internal_host(host):
         return False  # interno o non parsabile -> non gated qui

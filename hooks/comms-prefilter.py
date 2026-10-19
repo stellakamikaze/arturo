@@ -11,7 +11,8 @@ Stampa la versione RIDOTTA del comando, su cui il dispatcher e comms-guard.py
 rimatchano i pattern:
   - i corpi degli heredoc consumati da binari che NON eseguono (cat, tee, sed, awk,
     grep, jq, sort, head, tail, wc, patch, diff, git) vengono rimossi. Un heredoc
-    dato a python/bash/perl/node RESTA: quel testo gira davvero;
+    dato a bash/perl/node RESTA: quel testo gira davvero. Dal 19/10/2026 sparisce anche il
+    corpo python che non lancia programmi e non usa la rete (Heredoc.codice_senza_rete);
   - se ogni segmento del comando inizia con un binario di sola lettura (grep, rg,
     cat, head, tail, less, wc, ls, find, jq, diff, sort, uniq, awk, sed -n, file,
     stat, git, cd) stampa vuoto: si sta leggendo, non inviando.
@@ -36,7 +37,7 @@ GIT_INVIA = re.compile(r"\bgit\b[^|;&]*\b(send-email|imap-send|request-pull)\b")
 # Se manca, nessun corpo sparisce: la guardia controlla tutto il testo.
 try:
     _spec_hd = importlib.util.spec_from_file_location(
-        "arturo_heredoc", os.path.join(os.path.dirname(os.path.abspath(__file__)), "heredoc.py"))
+        "heredoc", os.path.join(os.path.dirname(os.path.abspath(__file__)), "heredoc.py"))
     _hd = importlib.util.module_from_spec(_spec_hd)
     _spec_hd.loader.exec_module(_hd)
     _togli_heredoc = _hd.togli
@@ -60,8 +61,11 @@ def _first_bin(segment: str) -> str:
 def reduce(cmd: str) -> str:
     # 1) heredoc che vanno a un lettore (cat, tee, grep...) senza che nessuno li esegua: via il
     # corpo. Pipe verso una shell, `$( )`, file scritto e poi eseguito, confini incerti: resta.
-    # Il codice di python o node resta sempre: qui si cerca codice che invia, in ogni linguaggio.
-    reduced = _togli_heredoc(cmd, lambda h: h.inerte(), segnaposto="[heredoc]")
+    # Il codice python che non lancia programmi e non usa la rete non può inviare: via anche lui
+    # (19/10/2026). Lo legge il tokenizer, quindi un `mailto:` o un `sendmail` dentro le stringhe
+    # che uno script sostituisce in un file non contano: erano 32 conferme in una settimana d'uso.
+    # node, ruby e il resto restano visibili.
+    reduced = _togli_heredoc(cmd, lambda h: h.inerte() or h.codice_senza_rete(), segnaposto="[heredoc]")
 
     # 2) ogni segmento è sola lettura? -> vuoto
     stripped = re.sub(r"'[^']*'|\"[^\"]*\"", "", reduced)

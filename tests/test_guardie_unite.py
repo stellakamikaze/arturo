@@ -271,12 +271,12 @@ def test_g205(repo: Path) -> None:
         ("ssh quotato", "ssh server <<'EOF'\nSEGNO\nEOF", tutti - {"commit-secret-gate"}, set()),
         ("cat quotato su file", "cat > f.txt <<'EOF'\nSEGNO\nEOF", set(), tutti),
         ("tee quotato su file", "tee f.txt <<'EOF'\nSEGNO\nEOF", set(), tutti),
-        # Heredoc quotato verso python: le due guardie fanno domande diverse, e la differenza è voluta.
-        # block-dangerous cerca comandi di shell (rm, una lettura di segreti con cat): il corpo è codice
-        # Python, che la shell non espande né esegue, quindi lo toglie. comms-prefilter cerca codice che
-        # invia (smtplib, http.client) in qualunque linguaggio: il corpo gira davvero, quindi lo tiene.
-        ("python quotato", "python3 <<'EOF'\nSEGNO\nEOF", {"comms-prefilter"}, {"block-dangerous"}),
-        ("python3 - quotato", "python3 - <<'PY'\nSEGNO\nPY", {"comms-prefilter"}, {"block-dangerous"}),
+        # Heredoc quotato verso python. block-dangerous cerca comandi di shell: il corpo è codice Python,
+        # che la shell non espande né esegue, quindi lo toglie. Dal 19/10/2026 lo toglie anche
+        # comms-prefilter quando il codice, letto col tokenizer, non usa la rete e non lancia programmi:
+        # un `mailto:` scritto in una stringa non è un invio. Il codice che invia resta: vedi GU05.
+        ("python quotato", "python3 <<'EOF'\nSEGNO\nEOF", set(), {"comms-prefilter", "block-dangerous"}),
+        ("python3 - quotato", "python3 - <<'PY'\nSEGNO\nPY", set(), {"comms-prefilter", "block-dangerous"}),
     ]
     controlli = 0
     for nome, comando, resta, sparisce in casi:

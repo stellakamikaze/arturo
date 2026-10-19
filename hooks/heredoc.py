@@ -1,8 +1,9 @@
 """Gli heredoc di un comando Bash: dove comincia ognuno, chi ne riceve il corpo, cosa contiene.
 
-Quattro guardie tolgono il corpo degli heredoc che nessuno esegue (block-dangerous, data-guard,
-commit-secret-gate, comms-prefilter). Il testo che una guardia toglie è testo che non controlla:
-un confine letto male nasconde un comando che la shell esegue. Per questo qui la regola è una sola.
+Le guardie tolgono il corpo degli heredoc che nessuno esegue: block-dangerous (attraverso
+forma_comando.py), data-guard, commit-secret-gate, comms-prefilter e il dispatcher. Il testo che
+una guardia toglie è testo che non controlla: un confine letto male nasconde un comando che la
+shell esegue. Per questo qui la regola è una sola.
 Un corpo si può togliere solo se tutto è certo:
 - l'apertura `<<` sta fuori da virgolette e commenti, e il delimitatore si legge intero;
 - la chiusura è la riga identica al delimitatore (con `<<-`, preceduta solo da tab);
@@ -10,14 +11,19 @@ Un corpo si può togliere solo se tutto è certo:
   e il file in cui lo si scrive non viene eseguito dopo nello stesso comando.
 Nel dubbio il corpo resta, e con lui tutto il resto del comando.
 
-La regola su quale programma basta (un lettore come cat, o anche un interprete come python)
-resta nella guardia, scritta come funzione su un `Heredoc`.
+La regola su quale programma basta resta nella guardia, scritta come funzione su un `Heredoc`:
+`inerte()` per un lettore come cat, `codice_inerte()` per un interprete il cui codice non lancia
+programmi, `codice_senza_rete()` per il codice python che in più non usa la rete. Il corpo python
+si legge col tokenizer (`python_senza`, dal 19/10/2026): commenti e stringhe non sono codice, quindi
+un `subprocess` o un `mailto:` scritti nel testo che uno script mette in un file non contano.
 Solo libreria standard, Python 3.8 o successivo.
 """
 from __future__ import annotations
 
+import io
 import os
 import re
+import tokenize
 from typing import Callable, List, NamedTuple, Optional, Tuple
 
 # Programmi che leggono il corpo come dati e non eseguono niente.
@@ -34,6 +40,59 @@ _ESEGUE = re.compile(r"subprocess|os\.system|os\.exec|os\.spawn|os\.popen|pty\.s
 # template literal: contarlo ovunque teneva visibile ogni corpo con un `nome` nei commenti,
 # e il testo dentro faceva scattare le guardie (18/10/2026, una decina di blocchi a settimana).
 _BACKTICK_ESEGUE = frozenset("ruby perl php".split())
+# Codice python che arriva a un programma o a una funzione per vie traverse (19/10/2026).
+_OFFUSCA = re.compile(r"\bgetattr\b|__import__|\bimportlib\b|__builtins__|\bglobals\s*\(|\bvars\s*\(|"
+                      r"\bcompile\s*\(|\bctypes\b|\bcodecs\b|\bpickle\b|\bmarshal\b")
+# Nello scheletro python (senza stringhe né commenti) basta il NOME di una funzione che lancia
+# un programma: `from os import system as s` poi `s(...)` non ha `system(` (19/10/2026, sonda:
+# alias, os.posix_spawn, os.startfile e os.execvp toglievano il corpo e il sendmail passava).
+_ESEGUE_NOMI = re.compile(r"\b(?:system|popen\w*|spawn\w*|posix_spawn\w*|exec[lv]\w*|startfile)\b")
+# Codice che parla con la rete o apre un altro programma: un invio passa da qui.
+_RETE = re.compile(r"\b(smtplib|http|urllib|urllib3|requests|httpx|aiohttp|socket|ssl|webbrowser|ftplib|"
+                   r"imaplib|poplib|telnetlib|xmlrpc|paramiko|asyncssh|websocket|websockets|grpc|"
+                   r"nodemailer|axios|fetch|net|dgram|tls|https?)\b")
+# Una f-string con graffe: nel 3.9 è un token solo, e le espressioni dentro sono codice.
+_F_GRAFFE = re.compile(r"^[rRbBuU]*[fFtT][rRbB]*[\x27\x22].*\{", re.S)
+_SPAZIO = re.compile(r"\s")
+_PYTHON = frozenset(("python", "python3"))
+
+
+def python_senza(testo: str, tieni: Callable[[str], bool]) -> Optional[str]:
+    """Il codice python `testo` senza commenti e senza le stringhe per cui `tieni` dice no.
+
+    Una stringa tolta diventa `''`. Le espressioni di una f-string restano: sono codice
+    che gira. Il codice che il tokenizer non legge torna None, e chi chiama usa il testo
+    intero.
+    """
+    try:
+        token = list(tokenize.generate_tokens(io.StringIO(testo).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return None
+    pezzi = []
+    for t in token:
+        nome = tokenize.tok_name.get(t.type, "")
+        if nome == "COMMENT" or nome in ("FSTRING_MIDDLE", "TSTRING_MIDDLE"):
+            continue
+        if nome == "STRING" and not _F_GRAFFE.match(t.string) and not tieni(t.string):
+            pezzi.append("''")
+            continue
+        pezzi.append(t.string)
+    # Lo spazio va solo fra due parole: `os.system(` deve restare `os.system(` per le regex.
+    fuori, prima = [], ""
+    for pezzo in pezzi:
+        if prima and pezzo and (prima[-1].isalnum() or prima[-1] == "_") and \
+                (pezzo[0].isalnum() or pezzo[0] in "_\x27\x22"):
+            fuori.append(" ")
+        fuori.append(pezzo)
+        prima = pezzo or prima
+    return "".join(fuori)
+
+
+def senza_prosa(stringa: str) -> bool:
+    """Vero per una stringa senza spazi: un percorso, un nome, una modalità come 'w'."""
+    return not _SPAZIO.search(stringa)
+
+
 _ESECUTORI = (r"(?:^|[\s;&|(])(?:sudo\s+)?(?:\S*/)?(?:bash|sh|zsh|dash|ksh|fish|source|\.|python3?|node|perl|ruby|php|"
               r"exec|eval|chmod|xargs)(?=\s)")
 _FINE_PAROLA = set(" \t;&|<>()")
@@ -56,12 +115,28 @@ class Heredoc(NamedTuple):
         """Il corpo va a un lettore (cat, tee, grep...) e nessuno lo esegue."""
         return self.certo and self.consumatore in LETTORI and not self.espande()
 
+    def scheletro(self) -> Optional[str]:
+        """Il corpo python senza commenti e stringhe (19/10/2026): un `subprocess` o un `mailto:`
+        dentro la stringa che uno script sostituisce in un file non lancia niente. None per gli
+        altri interpreti e per il codice che il tokenizer non legge."""
+        if self.consumatore not in _PYTHON:
+            return None
+        return python_senza("\n".join(self.corpo), lambda s: False)
+
     def codice_inerte(self) -> bool:
         """Il corpo è codice di un interprete (python, node...) che non lancia programmi."""
         testo = "\n".join(self.corpo)
+        scheletro = self.scheletro()
         return (self.certo and self.consumatore in INTERPRETI and not self.espande()
-                and not _ESEGUE.search(testo)
+                and not _ESEGUE.search(testo if scheletro is None else scheletro)
+                and not (scheletro is not None and (_OFFUSCA.search(scheletro) or _ESEGUE_NOMI.search(scheletro)))
                 and not (self.consumatore in _BACKTICK_ESEGUE and "`" in testo))
+
+    def codice_senza_rete(self) -> bool:
+        """Codice python inerte che non usa la rete: non può inviare niente (19/10/2026).
+        Solo python, letto col tokenizer: node, perl e ruby restano visibili."""
+        scheletro = self.scheletro()
+        return scheletro is not None and self.codice_inerte() and not _RETE.search(scheletro)
 
 
 class _Apertura(NamedTuple):
@@ -253,6 +328,15 @@ def togli(cmd: str, via: Callable[[Heredoc], bool], segnaposto: Optional[str] = 
                 fuori.extend(corpo)
                 fuori.append(chiusura)
     return "\n".join(fuori)
+
+
+def percorsi_python(h: Heredoc) -> Optional[List[str]]:
+    """Il corpo python con le sole stringhe senza spazi (percorsi, nomi di file, modalità):
+    la prosa che uno script scrive in una nota non è una destinazione (19/10/2026)."""
+    if h.consumatore not in _PYTHON:
+        return None
+    testo = python_senza("\n".join(h.corpo), senza_prosa)
+    return None if testo is None else testo.split("\n")
 
 
 def fuori_virgolette(testo: str, pos: int) -> bool:

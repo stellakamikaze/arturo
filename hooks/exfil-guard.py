@@ -26,7 +26,8 @@ comms-guard.py (messaggistica/email nota) gira PRIMA e chiede conferma su quei c
 Gli scanner PostToolUse (credential-leak) restano come secondo layer detective.
 
 Host interni: localhost, le reti locali (INTERNAL_NETS) e le voci di
-hooks/hosts-interni.local. API esterne fidate: le voci di hooks/api-fidate.local,
+hooks/hosts-interni.local (hostname esatti, reti, o domini scritti col punto davanti:
+.esempio.org vale anche per i sottodomini). API esterne fidate: le voci di hooks/api-fidate.local,
 un nome host per riga, vuoto di default. Un POST verso un servizio che usi per
 lavoro con la sua chiave (la tua fatturazione, il tuo CRM) è lavoro, non
 esfiltrazione. Entrambi i file sono ignorati da git: restano tuoi.
@@ -71,12 +72,15 @@ URL = re.compile(r'https?://[^\s"\']+', re.IGNORECASE)
 def _leggi_host_locali(path: Path):
     """Legge hosts-interni.local: una voce per riga, # commento, righe vuote ignorate.
 
-    Una voce accettata da ip_network(strict=False) è una rete, altrimenti è un
-    hostname (minuscolo, senza punto finale). Voci non plausibili (spazi interni,
-    '/' in un non-CIDR) si ignorano. File assente o illeggibile: nessuna voce.
-    Lettura una volta per esecuzione.
+    Una voce accettata da ip_network(strict=False) è una rete. Una voce che comincia
+    con un punto (.esempio.org) vale per il dominio e per ogni suo sottodominio, e
+    deve avere almeno due etichette: .com renderebbe fidato mezzo internet. Le altre
+    voci sono hostname esatti (minuscoli, senza punto finale). Voci non plausibili
+    (spazi interni, '/' in un non-CIDR) si ignorano. File assente o illeggibile:
+    nessuna voce. Lettura una volta per esecuzione.
     """
     host = set()
+    domini = set()
     reti = []
     try:
         for riga in path.read_text(encoding="utf-8").splitlines():
@@ -94,14 +98,20 @@ def _leggi_host_locali(path: Path):
                 continue
             if " " in voce or "/" in voce:
                 continue
-            host.add(voce.lower().rstrip("."))
+            voce = voce.lower().rstrip(".")
+            if voce.startswith("."):
+                etichette = voce[1:].split(".")
+                if len(etichette) >= 2 and all(etichette):
+                    domini.add(voce[1:])
+                continue
+            host.add(voce)
     except (OSError, ValueError):
         # File illeggibile o non UTF-8: nessuna voce locale, la guardia resta chiusa.
-        return frozenset(), ()
-    return frozenset(host), tuple(reti)
+        return frozenset(), frozenset(), ()
+    return frozenset(host), frozenset(domini), tuple(reti)
 
 
-LOCAL_HOSTS, LOCAL_NETS = _leggi_host_locali(
+LOCAL_HOSTS, LOCAL_DOMAINS, LOCAL_NETS = _leggi_host_locali(
     Path(__file__).resolve().parent / "hosts-interni.local"
 )
 
@@ -111,6 +121,8 @@ def _internal_host(host: str | None) -> bool:
         return False
     normalized = host.lower().rstrip(".")
     if normalized in INTERNAL_HOSTS or normalized in LOCAL_HOSTS:
+        return True
+    if any(normalized == d or normalized.endswith("." + d) for d in LOCAL_DOMAINS):
         return True
     if normalized.startswith("[") and normalized.endswith("]"):
         normalized = normalized[1:-1]

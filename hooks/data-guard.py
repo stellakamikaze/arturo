@@ -120,7 +120,10 @@ def _rsync_delete_reale(cmd: str) -> str:
 
 # Overwrite di un file DB via redirezione (> master.db). Non >> (append).
 DB_FILE_OVERWRITE_RE = re.compile(
-    r"(?<!>)>\s*[^>\s|&;]*\.(?:db|sqlite3?|sql|sql\.gz|dump)\b", re.IGNORECASE
+    # 8/9/2026: `.sql` tolto. Un `.sql` è uno script (`cat > /tmp/query.sql <<SQL`), non un
+    # database: sovrascriverlo non perde dati. `.db`, `.sqlite`, `.sql.gz` (backup compresso)
+    # e `.dump` restano.
+    r"(?<!>)>\s*[^>\s|&;]*\.(?:db|sqlite3?|sql\.gz|dump)\b", re.IGNORECASE
 )
 
 
