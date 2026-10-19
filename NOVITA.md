@@ -11,6 +11,23 @@ modo di lavorare.
 
 ---
 
+## 2026-10-19 — Conferma per le ricerche che eseguono programmi, e Sonnet di riserva
+
+**Cosa cambia**: tre comandi di ricerca e lettura (`rg`, `sed -n` e `find`) non sono più approvati
+in blocco. Quando cercano o leggono, passano senza domanda come prima. Quando eseguono un programma
+o riscrivono un file, Claude ti chiede conferma. Due esempi: `rg --pre`, che passa ogni file a un
+programma, e `sed -n -i`, che modifica il file sul posto. Prima passavano senza domanda. In più, se
+il modello principale è sovraccarico, Claude continua con Sonnet invece di fermarsi con un errore.
+
+**Il principio dietro**: una regola che approva un comando intero approva anche le sue forme
+pericolose. Claude Code riconosce già da solo le forme che leggono e basta, quindi la regola larga
+aggiungeva solo il rischio. Un errore di sovraccarico, per chi inizia, sembra un guasto: con un
+modello di riserva il lavoro va avanti.
+
+**Da sapere**: niente da fare.
+
+---
+
 ## 2026-10-19 — La scheda del terminale anche sul Mac, e niente falsi rossi da igiene e iTerm2
 
 **Cosa cambia**: sul Mac la scheda del terminale ora cambia davvero titolo e colore: prima restava
