@@ -13,6 +13,10 @@ TS05 un input rotto o un evento sconosciuto non scrive niente ed esce 0.
 TS06 settings.json collega l'hook ai sette eventi in async e spegne il titolo di Claude Code.
 TS07 un evento partito prima dell'ultimo salvato non sovrascrive lo stato.
 TS08 all'avvio di una sessione sparisce lo stato delle sessioni ferme da una settimana, e solo quello.
+TS10 in Terminal di Apple chi aspetta la persona ha «● TOCCA A TE» in testa al titolo e la campanella
+     (BEL) quando il turno si ferma; all'avvio, al lavoro e negli altri terminali niente campanella.
+TS09 senza terminale di controllo (il caso normale di un hook su macOS e Linux) le sequenze vanno sul
+     tty del processo claude trovato fra i padri. Senza claude fra i padri non si scrive niente.
 
 Nessun caso scrive sul terminale vero: ARTURO_SCHEDA_USCITA manda le sequenze in un file.
 Sulla base b0ec3ac ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
@@ -86,9 +90,10 @@ def test_ts01(repo: Path) -> None:
     # Senza colore lo stato sta nel titolo.
     c = Casa(repo, "TS01")
     try:
-        for evento, parola in (("UserPromptSubmit", "al lavoro"), ("Stop", "attende"), ("StopFailure", "problema")):
+        for evento, titolo in (("UserPromptSubmit", " · al lavoro\x07"), ("Stop", "]0;● TOCCA A TE · "),
+                               ("StopFailure", "]0;● PROBLEMA · ")):
             uscita = c.evento(evento, prompt="vai")
-            assert f" · {parola}\x07" in uscita, f"TS01 senza colore il titolo non dice «{parola}»: {uscita!r}"
+            assert titolo in uscita, f"TS01 senza colore il titolo non dice {titolo!r}: {uscita!r}"
     finally:
         c.chiudi()
 
@@ -102,19 +107,19 @@ def test_ts02(repo: Path) -> None:
         (libro / "a.md").write_text("x\n", encoding="utf-8")
         git(libro, "add", "a.md")
         git(libro, "commit", "-qm", "a")
-        assert "\x1b]0;libro · " in c.evento("SessionStart", cwd=libro / "capitoli", sessione="g"), \
+        assert "TOCCA A TE · libro\x07" in c.evento("SessionStart", cwd=libro / "capitoli", sessione="g"), \
             "TS02 il progetto non è la radice git"
         ramo = c.dir / "ramo"
         git(libro, "worktree", "add", "-q", str(ramo))
-        assert "\x1b]0;libro · " in c.evento("SessionStart", cwd=ramo, sessione="w"), \
+        assert "TOCCA A TE · libro\x07" in c.evento("SessionStart", cwd=ramo, sessione="w"), \
             "TS02 da un worktree il progetto non è il repo principale"
         sciolta = c.dir / "appunti"
         sciolta.mkdir()
-        assert "\x1b]0;appunti · " in c.evento("SessionStart", cwd=sciolta, sessione="d"), \
+        assert "TOCCA A TE · appunti\x07" in c.evento("SessionStart", cwd=sciolta, sessione="d"), \
             "TS02 fuori da git il progetto non è la cartella"
         uscita = c.evento("UserPromptSubmit", cwd=sciolta, sessione="d", prompt="/inizio --tutti romanzo -- rileggi")
         assert "\x1b]0;romanzo · al lavoro" in uscita, f"TS02 /inizio non dà il progetto: {uscita!r}"
-        assert "\x1b]0;romanzo · attende" in c.evento("Stop", cwd=sciolta, sessione="d"), \
+        assert "TOCCA A TE · romanzo\x07" in c.evento("Stop", cwd=sciolta, sessione="d"), \
             "TS02 il progetto di /inizio non resta per la sessione"
     finally:
         c.chiudi()
@@ -203,8 +208,74 @@ def test_ts08(repo: Path) -> None:
         c.chiudi()
 
 
+PS_FINTO = """#!/bin/sh
+# ps finto: a ogni chiamata il padre successivo della catena in $CATENA (una riga per chiamata).
+n=$(cat "$CONTA" 2>/dev/null || echo 0); n=$((n + 1)); echo $n > "$CONTA"
+sed -n "${n}p" "$CATENA"
+"""
+
+
+def test_ts09(repo: Path) -> None:
+    if os.name == "nt":
+        print("TS09 saltato: su Windows la scheda passa da AttachConsole")
+        return
+    c = Casa(repo, "TS09", {"TERM_PROGRAM": "iTerm.app"})
+    try:
+        bin_, dev = c.dir / "bin", c.dir / "dev"
+        bin_.mkdir()
+        dev.mkdir()
+        (bin_ / "ps").write_text(PS_FINTO, encoding="utf-8")
+        (bin_ / "ps").chmod(0o755)
+        del c.env["ARTURO_SCHEDA_USCITA"]
+        for catena, atteso in ((["900 ?? /bin/sh", "800 ttys042 /opt/homebrew/bin/claude"], True),
+                               (["900 ?? /bin/sh", "1 ?? /sbin/launchd"], False)):
+            (c.dir / "catena").write_text("\n".join(catena) + "\n", encoding="utf-8")
+            (c.dir / "conta").unlink(missing_ok=True)
+            tty = dev / "ttys042"
+            tty.write_text("", encoding="utf-8")
+            env = dict(c.env, PATH=f"{bin_}:{c.env.get('PATH', '')}", ARTURO_SCHEDA_DEV=str(dev),
+                       CATENA=str(c.dir / "catena"), CONTA=str(c.dir / "conta"))
+            dati = {"hook_event_name": "UserPromptSubmit", "session_id": f"s{len(catena)}{atteso}", "cwd": str(c.dir)}
+            # start_new_session: il hook nasce senza terminale di controllo, come sotto Claude Code.
+            r = subprocess.run([sys.executable, "-B", str(c.hook)], input=json.dumps(dati).encode("utf-8"),
+                               capture_output=True, env=env, timeout=30, start_new_session=True)
+            assert r.returncode == 0, f"TS09 exit {r.returncode} {r.stderr[-300:]!r}"
+            scritto = tty.read_text(encoding="utf-8")
+            if atteso:
+                assert "\x1b]6;1;bg;red;brightness;230\x07" in scritto, \
+                    f"TS09 senza /dev/tty il colore non arriva al tty di claude: {scritto!r}"
+            else:
+                assert scritto == "", f"TS09 senza claude fra i padri ha scritto lo stesso: {scritto!r}"
+    finally:
+        c.chiudi()
+
+
+def test_ts10(repo: Path) -> None:
+    c = Casa(repo, "TS10", {"TERM_PROGRAM": "Apple_Terminal"})
+    try:
+        avvio = c.evento("SessionStart")
+        assert avvio.startswith("\x1b]0;● TOCCA A TE · ") and not avvio.endswith("\x07\x07"), \
+            f"TS10 all'avvio il titolo è sbagliato o suona la campanella: {avvio!r}"
+        lavoro = c.evento("UserPromptSubmit", prompt="vai")
+        assert "TOCCA A TE" not in lavoro and not lavoro.endswith("\x07\x07"), f"TS10 al lavoro: {lavoro!r}"
+        for evento in ("Stop", "Notification", "StopFailure"):
+            c.evento("UserPromptSubmit", prompt="vai")
+            fermo = c.evento(evento)
+            assert fermo.endswith("\x07\x07"), f"TS10 {evento} non suona la campanella: {fermo!r}"
+    finally:
+        c.chiudi()
+    c = Casa(repo, "TS10")
+    try:
+        c.evento("UserPromptSubmit", prompt="vai")
+        fermo = c.evento("Stop")
+        assert "TOCCA A TE" in fermo and not fermo.endswith("\x07\x07"), \
+            f"TS10 fuori da Terminal di Apple suona la campanella: {fermo!r}"
+    finally:
+        c.chiudi()
+
+
 TESTS = {"TS01": test_ts01, "TS02": test_ts02, "TS03": test_ts03, "TS04": test_ts04, "TS05": test_ts05,
-         "TS06": test_ts06, "TS07": test_ts07, "TS08": test_ts08}
+         "TS06": test_ts06, "TS07": test_ts07, "TS08": test_ts08, "TS09": test_ts09, "TS10": test_ts10}
 
 
 def main() -> int:

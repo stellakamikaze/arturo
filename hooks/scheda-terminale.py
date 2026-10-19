@@ -13,7 +13,10 @@ Il progetto viene da un «/inizio <nome>» della sessione, poi dalla radice git 
 poi dal nome della cartella. Stato e progetto stanno in ~/.claude/cache/scheda/<sessione>.json:
 SessionEnd toglie il suo file, SessionStart quelli fermi da una settimana (sessioni chiuse male).
 Su Windows un hook non vede la console della scheda: si attacca a quella del processo claude.exe.
-Con ARTURO_SCHEDA_USCITA=<file> le sequenze vanno in quel file (banchi). Ogni errore: exit 0.
+Su macOS e Linux l'hook non ha un terminale di controllo (/dev/tty risponde ENXIO): scrive sul tty del
+processo claude, trovato risalendo i padri con ps (18/10/2026: sul Mac le schede non cambiavano mai).
+Con ARTURO_SCHEDA_USCITA=<file> le sequenze vanno in quel file (banchi), con ARTURO_SCHEDA_DEV=<cartella>
+il tty di claude si cerca lì invece che in /dev (banchi). Ogni errore: exit 0.
 Solo libreria standard, Python 3.8+.
 """
 from __future__ import annotations
@@ -28,7 +31,10 @@ from pathlib import Path
 
 EVENTI = {"SessionStart": "attende", "UserPromptSubmit": "lavoro", "PostToolUse": "lavoro",
           "Notification": "attende", "Stop": "attende", "StopFailure": "problema", "SessionEnd": "fine"}
-ETICHETTE = {"attende": "attende", "lavoro": "al lavoro", "problema": "problema"}
+# Senza colore il titolo deve dire a colpo d'occhio chi aspetta la persona: il segnale sta in testa.
+TITOLO_SENZA_COLORE = {"attende": "● TOCCA A TE · {p}", "lavoro": "{p} · al lavoro", "problema": "● PROBLEMA · {p}"}
+# Gli eventi che fermano il turno e passano la mano: solo questi suonano la campanella.
+FERMANO = {"Notification", "Stop", "StopFailure"}
 DECAC = {"attende": 2, "lavoro": 3, "problema": 1}  # indici della tavolozza: verde, giallo, rosso
 RGB = {"attende": (40, 167, 69), "lavoro": (230, 180, 0), "problema": (200, 40, 40)}
 INIZIO = re.compile(r"^\s*/inizio\b(.*)$", re.S)
@@ -74,7 +80,7 @@ def progetto_da_prompt(prompt: str) -> str:
     return ""
 
 
-def sequenze(stato: str, progetto: str) -> str:
+def sequenze(stato: str, progetto: str, campanella: bool = False) -> str:
     pulito = re.sub(r"[\x00-\x1f\x7f]", "", progetto)[:40]
     if stato == "fine":
         testo = "\x1b]0;\x07"
@@ -88,7 +94,12 @@ def sequenze(stato: str, progetto: str) -> str:
         r, g, b = RGB[stato]
         return (f"\x1b]0;{pulito}\x07\x1b]6;1;bg;red;brightness;{r}\x07"
                 f"\x1b]6;1;bg;green;brightness;{g}\x07\x1b]6;1;bg;blue;brightness;{b}\x07")
-    return f"\x1b]0;{pulito} · {ETICHETTE[stato]}\x07"
+    testo = f"\x1b]0;{TITOLO_SENZA_COLORE[stato].format(p=pulito)}\x07"
+    # Terminal di Apple non colora la scheda, ma segna con una campanella la scheda in secondo
+    # piano che riceve un BEL, finché non ci si entra: è il suo «tocca a te» (18/10/2026).
+    if campanella and os.environ.get("TERM_PROGRAM") == "Apple_Terminal":
+        testo += "\x07"
+    return testo
 
 
 def scrivi_windows(testo: str) -> None:
@@ -139,6 +150,27 @@ def scrivi_windows(testo: str) -> None:
         k.FreeConsole()
 
 
+def tty_di_claude() -> str:
+    """Il tty del processo claude più vicino fra i padri, o "" se non c'è."""
+    pid = os.getppid()
+    for _ in range(40):
+        try:
+            r = subprocess.run(["ps", "-o", "ppid=,tty=,comm=", "-p", str(pid)], capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", timeout=3)
+        except (OSError, subprocess.SubprocessError):
+            return ""
+        parti = r.stdout.split(None, 2)
+        if len(parti) < 3:
+            return ""
+        padre, tty, nome = parti
+        if Path(nome.strip()).name == "claude" and re.fullmatch(r"(ttys?|pts/)\w+", tty):
+            return str(Path(os.environ.get("ARTURO_SCHEDA_DEV") or "/dev") / tty)
+        if not padre.isdigit() or int(padre) <= 1:
+            return ""
+        pid = int(padre)
+    return ""
+
+
 def scrivi(testo: str) -> None:
     uscita = os.environ.get("ARTURO_SCHEDA_USCITA")
     if uscita:
@@ -148,8 +180,16 @@ def scrivi(testo: str) -> None:
     if os.name == "nt":
         scrivi_windows(testo)
         return
-    with open("/dev/tty", "w", encoding="utf-8") as tty:
-        tty.write(testo)
+    try:
+        with open("/dev/tty", "w", encoding="utf-8") as tty:
+            tty.write(testo)
+        return
+    except OSError:
+        pass  # niente terminale di controllo: il caso normale di un hook
+    percorso = tty_di_claude()
+    if percorso:
+        with open(percorso, "w", encoding="utf-8") as tty:
+            tty.write(testo)
 
 
 def pulisci(adesso: float) -> None:
@@ -188,7 +228,7 @@ def main() -> int:
     else:
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(json.dumps({"stato": stato, "progetto": progetto, "quando": adesso}), encoding="utf-8")
-    scrivi(sequenze(stato, progetto))
+    scrivi(sequenze(stato, progetto, campanella=dati.get("hook_event_name") in FERMANO))
     return 0
 
 

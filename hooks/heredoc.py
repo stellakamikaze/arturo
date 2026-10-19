@@ -29,7 +29,11 @@ _DAVANTI = frozenset("! { then do else elif if while until time".split())
 _INVOLUCRI = frozenset("command builtin exec nohup nice env caffeinate".split())
 # Codice di un interprete che lancia programmi: quel corpo resta visibile.
 _ESEGUE = re.compile(r"subprocess|os\.system|os\.exec|os\.spawn|os\.popen|pty\.spawn|popen|child_process|"
-                     r"\bsystem\s*\(|\bexec\s*\(|\beval\s*\(|`", re.IGNORECASE)
+                     r"\bsystem\s*\(|\bexec\s*\(|\beval\s*\(", re.IGNORECASE)
+# Il backtick lancia un comando solo in ruby, perl e php. In python è testo e in node un
+# template literal: contarlo ovunque teneva visibile ogni corpo con un `nome` nei commenti,
+# e il testo dentro faceva scattare le guardie (18/10/2026, una decina di blocchi a settimana).
+_BACKTICK_ESEGUE = frozenset("ruby perl php".split())
 _ESECUTORI = (r"(?:^|[\s;&|(])(?:sudo\s+)?(?:\S*/)?(?:bash|sh|zsh|dash|ksh|fish|source|\.|python3?|node|perl|ruby|php|"
               r"exec|eval|chmod|xargs)(?=\s)")
 _FINE_PAROLA = set(" \t;&|<>()")
@@ -54,8 +58,10 @@ class Heredoc(NamedTuple):
 
     def codice_inerte(self) -> bool:
         """Il corpo è codice di un interprete (python, node...) che non lancia programmi."""
+        testo = "\n".join(self.corpo)
         return (self.certo and self.consumatore in INTERPRETI and not self.espande()
-                and not _ESEGUE.search("\n".join(self.corpo)))
+                and not _ESEGUE.search(testo)
+                and not (self.consumatore in _BACKTICK_ESEGUE and "`" in testo))
 
 
 class _Apertura(NamedTuple):
