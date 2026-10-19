@@ -135,7 +135,7 @@ def test_k03(repo: Path) -> None:
 
 def test_k04(repo: Path) -> None:
     hooks = impostazioni(repo)["hooks"]["PreToolUse"]
-    matcher = next((h["matcher"] for h in hooks
+    matcher = next((h.get("matcher", "") for h in hooks
                     if any("web-egress-guard" in x.get("command", "") for x in h["hooks"])), "")
     for strumento in ("mcp__claude-in-chrome__navigate", "mcp__claude-in-chrome__browser_batch"):
         assert strumento in matcher, f"K04 la guardia web non vede {strumento}"

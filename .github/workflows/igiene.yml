@@ -12,6 +12,9 @@ permissions:
 
 jobs:
   igiene:
+    # Solo sul repository pubblico. /aggiorna porta questo file anche nella copia privata di ~/.claude
+    # di chi usa Arturo, dove i nomi sono i suoi e il controllo dava falsi rossi a ogni push (segnalazione n. 4, 19/10/2026).
+    if: github.repository == 'stellakamikaze/arturo'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

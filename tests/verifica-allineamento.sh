@@ -86,6 +86,7 @@ BANCHI=(
   test_aggiorna_firmato.py
   test_igiene.py
   test_guardie_sicurezza.py
+  test_segnalazioni_2026_10_19.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -185,6 +186,8 @@ BASELINE=(
   "test_aggiorna_firmato.py 93f323e"
   "test_igiene.py 93f323e"
   "test_guardie_sicurezza.py 93f323e"
+  # Segnalazioni n. 4 e n. 5 del 19/10/2026: 439a92b, l'ultimo dev prima delle correzioni.
+  "test_segnalazioni_2026_10_19.py 439a92b"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

@@ -67,7 +67,8 @@ def assert_candidate(repo: Path) -> None:
         got = decision(repo, CASES[name])
         assert got == "silent", f"{name}: atteso silent, ricevuto {got}"
     settings = json.loads((repo / "settings.json").read_text(encoding="utf-8"))
-    matchers = [item["matcher"] for item in settings["hooks"]["PreToolUse"]]
+    # Il matcher è facoltativo: un hook di terzi senza (iTerm2 cc-status) vale per ogni strumento.
+    matchers = [item.get("matcher", "") for item in settings["hooks"]["PreToolUse"]]
     assert any("mcp__playwright-ff__browser_navigate" in matcher for matcher in matchers), "matcher Firefox assente"
 
 
