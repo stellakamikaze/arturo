@@ -3,7 +3,7 @@
   "cleanupPeriodDays": 90,
   "fallbackModel": ["sonnet"],
   "env": {
-    "DISABLE_TELEMETRY": "1",
+    "CLAUDE_CODE_USE_POWERSHELL_TOOL": "0",
     "DISABLE_ERROR_REPORTING": "1",
     "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
     "PROJECTS_BASE": "~/Documents/ClaudeCode",
@@ -263,17 +263,19 @@
           {
             "type": "command",
             "command": "python3 ~/.claude/hooks/protect_claude_md.py",
-            "timeout": 10
+            "timeout": 20,
+            "onFailure": "block"
           }
         ]
       },
       {
-        "matcher": "Bash",
+        "matcher": "Bash|Monitor",
         "hooks": [
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/bash-dispatcher.sh",
-            "timeout": 10
+            "timeout": 30,
+            "onFailure": "block"
           }
         ]
       },
@@ -293,7 +295,8 @@
           {
             "type": "command",
             "command": "python3 ~/.claude/hooks/web-egress-guard.py",
-            "timeout": 10
+            "timeout": 20,
+            "onFailure": "block"
           }
         ]
       }

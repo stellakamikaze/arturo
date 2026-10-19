@@ -145,7 +145,7 @@ def main() -> int:
     except Exception:
         return 0
 
-    if data.get("tool_name") != "Bash":
+    if data.get("tool_name") not in ("Bash", "Monitor"):  # Monitor lancia comandi shell (19/10/2026)
         return 0
     cmd = (data.get("tool_input") or {}).get("command", "")
     if not isinstance(cmd, str) or not cmd:

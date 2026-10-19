@@ -53,7 +53,7 @@ nuovo:
 
 ```bash
 claude plugin list --json | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "dafare@skills-dir"]; print("mod caricato: dafare@skills-dir" if v and v[0].get("enabled") else "mod spento: dafare@skills-dir" if v else "mod NON caricato: dafare@skills-dir manca")'
-echo "versione di Claude Code: $(claude --version) (il pannello chiede la 2.1.287 o successiva)"
+echo "versione di Claude Code: $(claude --version) (il pannello chiede la 2.1.287 o successiva, le guardie la 2.1.300)"
 ```
 
 Se il mod manca, guarda se esiste `~/.claude/skills/dafare/.claude-plugin/plugin.json` e se il

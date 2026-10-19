@@ -11,6 +11,29 @@ modo di lavorare.
 
 ---
 
+## 2026-10-19 — Claude Code torna con tutte le sue funzioni, e le guardie vedono anche Monitor
+
+**Cosa cambia**: Arturo non spegne più la telemetria di Claude Code. Quando era spenta, Claude Code
+smetteva anche di scaricare le impostazioni delle sue funzioni, e ne perdevi alcune senza saperlo.
+Tra queste c'è il segno sui testi incollati, che aiuta Claude a non scambiare per tue le istruzioni
+scritte da altri. Le altre sono l'esclusione dei collegamenti rotti che bloccavano ogni richiesta,
+la compattazione della conversazione mentre sei via e `/skill-doctor`, che dice quali skill non usi.
+Con le funzioni accese arriva anche Monitor, lo strumento con cui Claude segue un comando in
+background: le guardie ora controllano anche i suoi comandi. In più una guardia che non riesce a
+partire ferma l'azione invece di lasciarla passare.
+
+**Il principio dietro**: Arturo non deve togliere a chi lo usa le difese che Claude Code ha già.
+Spegnere la telemetria di Claude Code era una scelta presa all'inizio e mai spiegata, e costava più
+di quanto proteggeva. Secondo Anthropic quegli eventi non contengono codice, percorsi dei file o
+comandi. Una guardia che si rompe in silenzio è peggio di una guardia che ti ferma per sbaglio.
+
+**Da sapere**: se vuoi la telemetria di Claude Code spenta lo stesso, «Cosa non è neutro» nel
+README spiega come e cosa perdi. Su Windows lo strumento PowerShell resta spento, perché le guardie
+di Arturo controllano solo Git Bash. Con Claude Code più vecchio della 2.1.300 `/setup` ti chiede di
+aggiornarlo.
+
+---
+
 ## 2026-10-19 — Conferma per le ricerche che eseguono programmi, e Sonnet di riserva
 
 **Cosa cambia**: tre comandi di ricerca e lettura (`rg`, `sed -n` e `find`) non sono più approvati

@@ -83,6 +83,11 @@ elif [ "$(printf '%s\n' 2.1.287 "$cc" | sort -t. -k1,1n -k2,2n -k3,3n | head -1)
 else
   echo "VECCHIO Claude Code → $cc (il pannello /dafare chiede la 2.1.287 o successiva)"
 fi
+# Le guardie hanno correzioni di Claude Code fino alla 2.1.300: hook PreToolUse saltati, guardie
+# che su Windows lasciavano passare tutto, la chiave onFailure (2.1.295). Avvisa e basta.
+if [ -n "$cc" ] && [ "$(printf '%s\n' 2.1.300 "$cc" | sort -t. -k1,1n -k2,2n -k3,3n | head -1)" != 2.1.300 ]; then
+  echo "VECCHIO per le guardie → $cc: aggiorna con «claude update» (servono la 2.1.300 o successiva)"
+fi
 case "$(uname -s 2>/dev/null)" in
   MINGW*|MSYS*|CYGWIN*) echo "OK   Git Bash (Windows)" ;;
   Darwin|Linux) ;;
