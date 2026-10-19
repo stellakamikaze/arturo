@@ -11,18 +11,21 @@ modo di lavorare.
 
 ---
 
-## 2026-10-19 — Niente falsi rossi dal controllo di igiene e dagli hook di iTerm2
+## 2026-10-19 — La scheda del terminale anche sul Mac, e niente falsi rossi da igiene e iTerm2
 
-**Cosa cambia**: il controllo di igiene su GitHub gira solo sul repository pubblico di Arturo. Se
-salvi la tua `~/.claude` in un repository privato, non ricevi più l'email «Run failed: igiene» a ogni
-`/fine`. E se un programma aggiunge a `settings.json` hook suoi senza `matcher` (lo fa iTerm2 con
+**Cosa cambia**: sul Mac la scheda del terminale ora cambia davvero titolo e colore: prima restava
+ferma. Nel Terminale di Apple, che non colora le schede, il titolo comincia con «● TOCCA A TE» quando
+Claude aspetta te, e la scheda in secondo piano mostra la campanella. Il controllo di igiene su
+GitHub gira solo sul repository pubblico di Arturo. Se salvi la tua `~/.claude` in un repository
+privato, non ricevi più l'email «Run failed: igiene» a ogni `/fine`. E se un programma aggiunge a `settings.json` hook suoi senza `matcher` (lo fa iTerm2 con
 `cc-status`), l'avvio non dice più «una guardia potrebbe non proteggere».
 
-**Il principio dietro**: un avviso falso insegna a ignorare quelli veri. Il controllo di igiene cerca
+**Il principio dietro**: con più sessioni aperte devi vedere da fuori quale ti aspetta, senza
+entrare in ogni scheda. E un avviso falso insegna a ignorare quelli veri. Il controllo di igiene cerca
 i nomi dell'autore di Arturo, e nei tuoi appunti non ha niente da cercare. Un hook senza `matcher` è
 lecito per Claude Code, e le guardie di Arturo restavano al loro posto.
 
-**Da sapere**: niente da fare. Le due correzioni vengono dalle vostre segnalazioni con `/segnala`.
+**Da sapere**: niente da fare. Le correzioni su igiene e iTerm2 vengono dalle vostre segnalazioni con `/segnala`.
 
 ---
 
