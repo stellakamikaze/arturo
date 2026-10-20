@@ -32,7 +32,7 @@ ls -la "$H" > "$OUT/root-ls.txt"
 
 # Indice grep: credenziali lette a mano, percorsi fissi di una sola macchina, exit code letti dopo
 # una pipe, timeout che su un Mac senza coreutils non esiste, segnaposti rimasti nel codice.
-TERMINI='cat ~/.claude/data/credentials|/Users/[A-Za-z0-9._-]+/|/home/[A-Za-z0-9._-]+/|C:\\Users\\|PIPESTATUS|(^|[^-])timeout [0-9]|\bTODO\b|\bFIXME\b'
+TERMINI='cat ~/.claude/data/credentials|/(Users|home)/[A-Za-z0-9._-]+/|C:\\Users\\|PIPESTATUS|(^|[^-])timeout [0-9]|\bTODO\b|\bFIXME\b'
 DOVE=(CLAUDE.md README.md settings.json commands skills agents hooks bin shared tests tools docs output-styles)
 cerca() { (cd "$H" && grep -rnIE "$@" "${DOVE[@]}" 2>/dev/null | grep -v '/node_modules/\|/\.venv/\|/__pycache__/' | cut -c1-240); }
 {
