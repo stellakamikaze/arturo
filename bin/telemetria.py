@@ -56,8 +56,10 @@ EVENTI = {
     "guardia": re.compile(r"^[a-z0-9_.-]{1,60}$"),
     # applicato, conflitto, fallito e scartato li scrive bin/aggiorna-applica.sh; rifiutato (un no al
     # Passo 3) e indietro li registra /aggiorna. automatico è un'installazione alla chiusura della
-    # sessione (bin/aggiornamenti.py), dal 16/10/2026.
-    "aggiorna": re.compile(r"^(applicato|conflitto|fallito|rifiutato|indietro|scartato|automatico)$"),
+    # sessione (bin/aggiornamenti.py), dal 16/10/2026. Dal 20/10/2026 (#3637) anche perché un rilascio
+    # non si installa da solo, una volta per versione: rinviato (un'altra sessione resta aperta),
+    # bloccato-firma, bloccato-verifica, bloccato-storia, bloccato-versione, manuale.
+    "aggiorna": re.compile(r"^(applicato|conflitto|fallito|rifiutato|indietro|scartato|automatico|rinviato|bloccato-firma|bloccato-verifica|bloccato-storia|bloccato-versione|manuale)$"),
     "segnalazione": re.compile(r"^(problema|proposta|integrazione)$"),
     # Da hooks/deriva.py: un `insieme:<n>` apre l'elenco corrente. Dei file solo la posizione
     # nel repository di Arturo, relativa e senza "..": è pubblica, non dice niente dei file della persona.
@@ -74,7 +76,8 @@ EVENTI = {
 # La promessa sulla telemetria cambia di versione quando cambia cosa esce. A una versione nuova
 # l'avviso torna una volta, anche a chi aveva già visto la precedente. 3: senza le tappe (16/10/2026).
 # 4: gli aggiornamenti installati da soli alla chiusura si contano a parte (16/10/2026, #3482).
-PROMESSA = 4
+# 5: gli aggiornamenti che non partono da soli dicono perché, una volta per versione (20/10/2026, #3637).
+PROMESSA = 5
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
 # ~/.claude/commands/ ha un nome suo, e non esce.
 # Il banco M10 controlla che l'elenco coincida con commands/ del repository.

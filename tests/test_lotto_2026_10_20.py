@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LT01-LT09: lotto del 20/10/2026 sui task aperti di Arturo.
+"""LT01-LT10: lotto del 20/10/2026 sui task aperti di Arturo.
 
 LT01 l'audit vede lo script della barra anche dentro `... statusline.js; echo ...` (#3632): se
      manca, lo dice invece di saltare il controllo.
@@ -16,6 +16,8 @@ LT08 chiedono conferma i canali d'uscita che passavano in silenzio: sostituzioni
      di curl, `echo "$(curl ...)"`, requests.get in python (#3524). Il GET semplice resta libero.
 LT09 non chiedono più `--exclude .env` di rsync e tar né rmtree su una cartella di tempfile; chiedono
      rmtree per alias, `py -c`, `git clean --forc`, clean.requireForce=false e `-enode_modules` (#3525).
+LT10 un aggiornamento che non parte da solo lascia un evento `aggiorna` col motivo, una volta per
+     versione e motivo, e il server accetta gli stessi valori del client (#3637).
 
 Sulla base 910ac0b ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -195,8 +197,41 @@ def test_lt09(repo: Path) -> None:
     ])
 
 
+def test_lt10(repo: Path) -> None:
+    import json
+    import re
+    import sys
+    py = (repo / "bin" / "telemetria.py").read_text(encoding="utf-8")
+    js = (repo / "server" / "logica.js").read_text(encoding="utf-8")
+    vp = re.search(r'"aggiorna": re\.compile\(r"\^\(([^)]*)\)\$"\)', py)
+    vj = re.search(r"aggiorna: /\^\(([^)]*)\)\$/", js)
+    assert vp and vj and vp.group(1) == vj.group(1) and "rinviato" in vp.group(1), \
+        "LT10 client e server non hanno gli stessi valori di aggiorna, o manca rinviato"
+    with tempfile.TemporaryDirectory() as d:
+        home = casa(repo, Path(d))
+        prova = (
+            "import importlib.util, sys\n"
+            "spec = importlib.util.spec_from_file_location('ag', sys.argv[1])\n"
+            "m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)\n"
+            "r = m.radice()\n"
+            "s = {'versione': 'v2099-01-01', 'stato': 'bloccato', 'motivo': 'x', 'compromesso': True}\n"
+            "m._segnala_ostacolo(r, s); m._segnala_ostacolo(r, s)\n"
+            "m._segnala_ostacolo(r, dict(s, stato='pronto'), 'rinviato')\n"
+        )
+        env = env_di(home)
+        env.pop("ARTURO_TELEMETRIA")
+        env["ARTURO_TELEMETRIA_URL"] = "http://127.0.0.1:9"
+        subprocess.run([sys.executable, "-c", prova, str(home / ".claude" / "bin" / "aggiornamenti.py")],
+                       capture_output=True, text=True, timeout=60, env=env, check=False)
+        coda = home / ".claude" / "data" / "telemetria" / "coda.jsonl"
+        righe = [json.loads(x) for x in coda.read_text(encoding="utf-8").splitlines()] if coda.exists() else []
+        valori = [x.get("valore") for x in righe if x.get("evento") == "aggiorna"]
+        assert valori == ["bloccato-firma", "rinviato"], \
+            f"LT10 gli eventi degli aggiornamenti fermi non sono uno per motivo: {valori}"
+
+
 TESTS = {"LT01": test_lt01, "LT02": test_lt02, "LT03": test_lt03, "LT04": test_lt04, "LT05": test_lt05,
-         "LT06": test_lt06, "LT07": test_lt07, "LT08": test_lt08, "LT09": test_lt09}
+         "LT06": test_lt06, "LT07": test_lt07, "LT08": test_lt08, "LT09": test_lt09, "LT10": test_lt10}
 
 
 def main() -> int:

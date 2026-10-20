@@ -300,10 +300,13 @@ def _applica(r: Path) -> int:
     stato = calcola(r)
     scrivi(file_stato(r), stato)
     if stato["stato"] != "pronto":
+        if stato["stato"] != "aggiornato":
+            _segnala_ostacolo(r, stato)
         return 0
     limite = time.time() + float(os.environ.get("ARTURO_ATTESA_MAX", ATTESA_MAX))
     while processi_claude() > 0:
         if time.time() >= limite:
+            _segnala_ostacolo(r, stato, "rinviato")
             return 0  # un'altra sessione è aperta: la installa l'ultima che chiude
         time.sleep(2)
     stato = calcola(r)
@@ -335,6 +338,36 @@ def _applica(r: Path) -> int:
     _esito(r, tag, parola, esito[:240])
     scrivi(file_stato(r), calcola(r))
     return 0 if parola == "APPLICATO" else 1
+
+
+def _segnala_ostacolo(r: Path, stato: dict, valore: str = "") -> None:
+    """Un evento `aggiorna` per il motivo che ferma un rilascio, una sola volta per versione e motivo
+    (20/10/2026, #3637): senza, un aggiornamento rinviato o bloccato non lasciava traccia, e non si
+    capiva perché un'installazione restava indietro. Le categorie sono chiuse: mai il testo del motivo."""
+    if not valore:
+        motivo = stato.get("motivo", "")
+        if stato.get("stato") == "manuale":
+            valore = "manuale"
+        elif stato.get("compromesso"):
+            valore = "bloccato-firma"
+        elif stato.get("non_verificabile"):
+            valore = "bloccato-verifica"
+        elif "riscritta" in motivo:
+            valore = "bloccato-storia"
+        elif "non discende" in motivo:
+            valore = "bloccato-versione"
+        else:
+            return
+    versione = stato.get("versione", "")
+    f = r / "session-env" / "aggiornamento-segnalato.json"
+    if leggi(f).get(versione) == valore:
+        return
+    try:
+        scrivi(f, {versione: valore})
+        subprocess.run([sys.executable, str(r / "bin" / "telemetria.py"), "registra", "aggiorna", valore],
+                       capture_output=True, timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        pass
 
 
 def _esito(r: Path, tag: str, parola: str, riga: str) -> int:

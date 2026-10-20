@@ -17,7 +17,7 @@ export const EVENTI = {
   sessione: /^$/,
   comando: /^[a-z0-9-]{1,40}$/,
   guardia: /^[a-z0-9_.-]{1,60}$/,
-  aggiorna: /^(applicato|conflitto|fallito|rifiutato|indietro|scartato|automatico)$/,
+  aggiorna: /^(applicato|conflitto|fallito|rifiutato|indietro|scartato|automatico|rinviato|bloccato-firma|bloccato-verifica|bloccato-storia|bloccato-versione|manuale)$/,
   segnalazione: /^(problema|proposta|integrazione)$/,
   // La distanza fra la config della persona e quella di Arturo: un `insieme:<n>` apre l'elenco
   // corrente, seguito da n righe. Dei file esce solo il percorso dentro Arturo, che è pubblico.
