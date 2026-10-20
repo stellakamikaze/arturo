@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """D01-D13: arturo diagnosi, i due controlli di /diagnosi su un progetto intero (16/10/2026).
 
-D01 percorsi: un percorso degli handoff che non esiste più stampa «MANCA: … (da HANDOFF_…)» ed esce 1.
-D02 percorsi: tutti presenti, «OK n presenti, 0 mancanti» ed exit 0.
-D03 percorsi: URL, link e destini che non sono file («resta», «scarto», «link») non contano.
+D01 percorsi: un percorso degli handoff che non esiste più stampa "MANCA: … (da HANDOFF_…)" ed esce 1.
+D02 percorsi: tutti presenti, "OK n presenti, 0 mancanti" ed exit 0.
+D03 percorsi: URL, link e destini che non sono file ("resta", "scarto", "link") non contano.
 D04 percorsi: ~ si espande nella HOME, anche tra backtick.
-D05 percorsi: legge anche la sezione «Materiali» del CLAUDE.md del progetto, coi percorsi relativi.
+D05 percorsi: legge anche la sezione "Materiali" del CLAUDE.md del progetto, coi percorsi relativi.
 D06 progetto inesistente: exit 2 con NON TROVATO, per entrambi i sottocomandi; senza nome fuori
     dalla cartella dei progetti, exit 2.
 D07 uso sbagliato: sottocomando o opzione sconosciuti, exit 3.
 D08 materiali: un file in Download col nome del progetto e uno in Scrivania citato da un handoff
     compaiono con un destino; un file estraneo no.
 D09 materiali: nella cartella del progetto compare il file non tracciato, non quello ignorato né
-    quello già committato; un file tracciato sopra 20 MB compare con destino «resta».
+    quello già committato; un file tracciato sopra 20 MB compare con destino "resta".
 D10 nessun file viene spostato, cancellato o modificato da percorsi e materiali.
 D11 --json: uscita strutturata coi campi dichiarati; senza nome vale la cartella in cui sei.
-D12 «arturo» elenca diagnosi nell'aiuto.
-D13 fuori dai backtick il percorso finisce al primo «, », « (», « — », « → » o spazio: la prosa dopo
+D12 "arturo" elenca diagnosi nell'aiuto.
+D13 fuori dai backtick il percorso finisce al primo ", ", " (", " — ", " → " o spazio: la prosa dopo
     non entra nel percorso (falsi MANCA su due handoff veri, 16/10/2026). Tra backtick valgono gli spazi.
 
 Sulla base 5fd0443, l'ultimo dev prima di /diagnosi di progetto, ogni controllo deve fallire con un
@@ -324,7 +324,7 @@ def test_d13(lab: Lab) -> None:
     attesi = sorted(f"MANCA: ~/{p} (da HANDOFF_2026-10-15_10-00.md)"
                     for p in ("Archivio/copie", "Archivio/appunti", "Documents/Il"))
     assert r.returncode == 1 and mancanti == attesi and "OK 3 presenti, 3 mancanti" in r.stdout, \
-        f"D13 fuori dai backtick il percorso non finisce a «, », « (», « — », « → » o allo spazio: {esito(r)}"
+        f'D13 fuori dai backtick il percorso non finisce a ", ", " (", " — ", " → " o allo spazio: {esito(r)}'
 
 
 TESTS = {"D01": test_d01, "D02": test_d02, "D03": test_d03, "D04": test_d04, "D05": test_d05, "D06": test_d06,

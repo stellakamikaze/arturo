@@ -20,8 +20,8 @@ casi l'avviso resta, col motivo, e /aggiorna fa il resto con te. Una firma che m
 si scavalca neanche con /aggiorna: è il segno di un repository manomesso, e l'avviso dice di non
 aggiornare e di segnalarlo a chi mantiene Arturo (17/10/2026, #3504). Una firma che questo computer
 non sa verificare (git prima della 2.34, OpenSSH prima della 8.2) blocca allo stesso modo, ma senza
-allarme: «firma non verificabile», uscita 4 di firmato. ARTURO_AGGIORNAMENTI=manuali
-ha lo stesso effetto di «manuali». Solo libreria standard, Python 3.8 o successivo.
+allarme: "firma non verificabile", uscita 4 di firmato. ARTURO_AGGIORNAMENTI=manuali
+ha lo stesso effetto di "manuali". Solo libreria standard, Python 3.8 o successivo.
 """
 from __future__ import annotations
 
@@ -420,7 +420,7 @@ def main(argv: list) -> int:
     except Exception as errore:  # noqa: BLE001 - un hook non si ferma mai per un aggiornamento
         print(f"Errore: {errore}", file=sys.stderr)
         return 1
-    print(f"Errore: comando sconosciuto: «{' '.join(argv)}»\n\n{AIUTO}", file=sys.stderr)
+    print(f"Errore: comando sconosciuto: \"{' '.join(argv)}\"\n\n{AIUTO}", file=sys.stderr)
     return 2
 
 

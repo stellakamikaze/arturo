@@ -32,7 +32,7 @@ concrete, e chi le conosce usa lo strumento meglio di chi non le conosce:
 
 Perché è, semplicemente, lo strumento più capace disponibile oggi per questo tipo di
 lavoro. Rinunciare per principio a un attrezzo potente non è indipendenza: è un altro modo
-di farsi decidere la giornata da qualcun altro. La postura di Arturo non è «non usarlo» —
+di farsi decidere la giornata da qualcun altro. La postura di Arturo non è "non usarlo" —
 è **usarlo da persona adulta**: sapendo cosa dai in cambio, e organizzandoti perché il
 giorno in cui volessi cambiare, cambiare sia possibile.
 
@@ -42,7 +42,7 @@ Accanto ai modelli proprietari esistono i modelli **open weight**: modelli che p
 scaricare e far girare sul tuo computer, gratis, senza che nulla esca dalla tua macchina.
 Sono meno capaci dei modelli di punta — la distanza si accorcia ogni anno, ma c'è.
 
-Il modo maturo di usarli non è «o l'uno o l'altro». È la divisione del lavoro: **il
+Il modo maturo di usarli non è "o l'uno o l'altro". È la divisione del lavoro: **il
 modello di punta pensa, il modello locale esegue**. Fai pianificare, decidere e controllare
 al modello proprietario più capace; e quando c'è del lavoro ripetitivo e meccanico — 
 trasformare cento file allo stesso modo, estrarre dati, riformattare — quello può farlo un
@@ -69,10 +69,10 @@ Riduce però il costo dell'uscita, che è la cosa che conta:
 
 Prima di affidare a uno strumento un pezzo del tuo lavoro, chiediti: **se domani questo
 strumento sparisse o triplicasse di prezzo, cosa mi resterebbe in mano?** Se la risposta è
-«niente», il problema non è lo strumento — è come lo stai usando. Arturo esiste perché la
-risposta possa essere: «mi resta il metodo, la configurazione, e tutto quello che ho
-prodotto — in file miei».
+"niente", il problema non è lo strumento — è come lo stai usando. Arturo esiste perché la
+risposta possa essere: "mi resta il metodo, la configurazione, e tutto quello che ho
+prodotto — in file miei".
 
 ---
 
-*Vuoi provarlo sul tuo lavoro? Chiedi a Claude uno sparring su «chi possiede lo strumento».*
+*Vuoi provarlo sul tuo lavoro? Chiedi a Claude uno sparring su "chi possiede lo strumento".*

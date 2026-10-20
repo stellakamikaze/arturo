@@ -50,8 +50,8 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    ```
 
    Il push parte solo se `verify-tag` dice `Good "git" signature`. Un tag non firmato non si
-   installa mai, né da solo né con `/aggiorna`: gli utenti vedono «possibile compromissione: non
-   aggiornare, segnala a chi mantiene Arturo». `/aggiorna` applica solo l'ultimo tag firmato, con la
+   installa mai, né da solo né con `/aggiorna`: gli utenti vedono "possibile compromissione: non
+   aggiornare, segnala a chi mantiene Arturo". `/aggiorna` applica solo l'ultimo tag firmato, con la
    procedura letta da quel tag, e mai `main` (17/10/2026, #3504). Un rilascio pubblicato senza firma
    ferma quindi tutti: si corregge con un tag nuovo, firmato. Per cambiare chiave, la nuova entra in
    `allowed_signers` con un rilascio firmato dalla vecchia.
@@ -62,7 +62,7 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
 ## La versione è la data
 
 Non c'è semver. La versione di Arturo è la data dell'entry in cima a `NOVITA.md`:
-`## 2026-09-16 — …` vuol dire «versione del 16 settembre 2026». Il tag `v2026-09-16` che
+`## 2026-09-16 — …` vuol dire "versione del 16 settembre 2026". Il tag `v2026-09-16` che
 accompagna ogni pubblicazione è la stessa data scritta in un punto che Git sa leggere: non è un
 secondo sistema di versioni. Serve perché la data del commit locale cambia con ogni `/fine`,
 e perché due uscite nello stesso giorno si distinguono solo con `.2`. La telemetria e il modulo
@@ -83,7 +83,7 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   chiedono conferma con la quota di sì (vicina al 100% vuol dire domanda inutile), guardie che si
   rompono, aggiornamenti rifiutati o annullati per versione, ritenzione a 7, 30 e 60 giorni,
   versioni di Claude Code. Sono numeri, non verdetti: cosa correggere lo decide chi mantiene Arturo. Ogni correzione nata
-  da un segnale lo dice nella sua voce di `NOVITA.md` («Da sapere: lo mostrava la telemetria»).
+  da un segnale lo dice nella sua voce di `NOVITA.md` ("Da sapere: lo mostrava la telemetria").
 - **Il riepilogo in JSON.** `GET /v1/riepilogo?dal=AAAA-MM-GG&al=AAAA-MM-GG` con l'intestazione
   `authorization: Bearer <token>` dà lo stesso riepilogo, per la routine che propone le correzioni.
   Il token è il secret `RIEPILOGO_TOKEN` del Worker (almeno 32 caratteri): senza, la rotta risponde 401.
@@ -141,7 +141,7 @@ settimana, per i client non aggiornati: sta in coda all'elenco di `server/logica
 
 ## Se lo sviluppo si ferma
 
-L'impegno verso chi usa Arturo (README, sezione «Impegni») è dirlo esplicitamente. Tre passi:
+L'impegno verso chi usa Arturo (README, sezione "Impegni") è dirlo esplicitamente. Tre passi:
 
 1. Entry in `NOVITA.md` che dichiara lo stop, in cima, con la data.
 2. Riga in cima al `README.md` che dice che il progetto non è più mantenuto.

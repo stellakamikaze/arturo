@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-run.sh: esegue un gate solo dopo aver provato che il suo veleno è rosso per il motivo giusto.
-# Un gate vale solo se boccia una versione rotta apposta (il «veleno») per il motivo atteso.
+# Un gate vale solo se boccia una versione rotta apposta (il "veleno") per il motivo atteso.
 #
 # USO
 #   gate-run.sh --poison 'CMD' --expect 'MARCATORE' [--pass 'MARCATORE'] [--source FILE]... -- GATE_CMD [ARG...]
@@ -96,7 +96,7 @@ if [[ "$vrc" == 0 ]]; then
   exit 2
 fi
 if ! grep -qF -- "$EXPECT" "$VOUT"; then
-  printf 'GATE_RUN: ROSSO il veleno è rosso (exit %s) ma senza il marcatore «%s»: rosso per il motivo sbagliato\n' "$vrc" "$EXPECT"
+  printf 'GATE_RUN: ROSSO il veleno è rosso (exit %s) ma senza il marcatore "%s": rosso per il motivo sbagliato\n' "$vrc" "$EXPECT"
   printf '  output del veleno: %s\n' "$VOUT"
   exit 2
 fi
@@ -113,16 +113,16 @@ run_to_files "$GOUT" "$GRC" "$@"
 grc="$(read_rc "$GRC" gate)" || exit 3
 
 if [[ "$grc" != 0 ]]; then
-  printf 'GATE_RUN: ROSSO il gate esce %s (veleno ok: exit %s con «%s»)\n' "$grc" "$vrc" "$EXPECT"
+  printf 'GATE_RUN: ROSSO il gate esce %s (veleno ok: exit %s con "%s")\n' "$grc" "$vrc" "$EXPECT"
   printf '  output del gate: %s\n' "$GOUT"
   exit 1
 fi
 if [[ -n "$PASS" ]] && ! grep -qF -- "$PASS" "$GOUT"; then
-  printf 'GATE_RUN: ROSSO il gate esce 0 ma senza il marcatore di verde «%s»\n' "$PASS"
+  printf 'GATE_RUN: ROSSO il gate esce 0 ma senza il marcatore di verde "%s"\n' "$PASS"
   printf '  output del gate: %s\n' "$GOUT"
   exit 1
 fi
 
-printf 'GATE_RUN: VERDE veleno rosso (exit %s, «%s»), gate verde\n' "$vrc" "$EXPECT"
+printf 'GATE_RUN: VERDE veleno rosso (exit %s, "%s"), gate verde\n' "$vrc" "$EXPECT"
 rm -rf "$WORK"
 exit 0

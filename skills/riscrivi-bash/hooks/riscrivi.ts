@@ -1,5 +1,5 @@
 // Logica pura, provata da tests/riscrivi.test.ts. Le regole ricalcano i due blocchi
-// di hooks/bash-dispatcher.sh («Recidiva timeout» e «Recidiva glob in un'opzione»):
+// di hooks/bash-dispatcher.sh ("Recidiva timeout" e "Recidiva glob in un'opzione"):
 // il dispatcher resta come rete, questo mod corregge il comando prima che ci arrivi.
 
 const Q = '\u0000'
@@ -85,13 +85,13 @@ export function togliTimeout(c: string): { command: string; secondi: number; fat
   return { command: pezzi.join(''), secondi, fatti }
 }
 
-// zsh ferma il comando quando un glob non trova file («no matches found»: 121 errori in 20 sessioni
-// dal 5 al 14/10/2026) e legge una parola che inizia con «=» come un percorso («= not found»).
+// zsh ferma il comando quando un glob non trova file ("no matches found": 121 errori in 20 sessioni
+// dal 5 al 14/10/2026) e legge una parola che inizia con "=" come un percorso ("= not found").
 // Con nonomatch, noequals e shwordsplit zsh fa come bash e il comando resta quello scritto.
 // `$?` non è un glob e `[ ` o `[[ ` sono il comando test, non una classe di caratteri.
 const GLOB = /\*|(?<!\$)\?|\[(?![\s[])/
 const EQUALS = /(^|[\s;&|(])=/
-// Una variabile non quotata: in zsh `$T` resta una parola sola, in bash si spezza (3 «command not found»).
+// Una variabile non quotata: in zsh `$T` resta una parola sola, in bash si spezza (3 "command not found").
 const VARIABILE = /\$(?:[A-Za-z_]|\{)/
 
 export function opzioniZsh(c: string): { command: string; fatti: string[] } {

@@ -84,8 +84,8 @@ Da tre a cinque voci, non di più. Per ognuna, tre righe:
 
 - **Cosa**: l'azione, con un verbo concreto.
 - **Perché adesso**: il motivo vero — è fermo da giorni, ne dipende altro, c'è una scadenza, era
-  quasi finito. Cita da dove viene («l'handoff del 12 lo lasciava aperto», «l'hai chiesto due
-  sessioni fa e non è mai partito»).
+  quasi finito. Cita da dove viene ("l'handoff del 12 lo lasciava aperto", "l'hai chiesto due
+  sessioni fa e non è mai partito").
 - **Primo passo**: una cosa piccola e reversibile, non il progetto intero.
 
 Ordina per quello che sbloccherebbe di più, non per data.
@@ -100,7 +100,7 @@ progetto e fai il primo passo.
 - **Proponi, non eseguire.** Finché non sceglie, non tocchi file e non lanci niente che cambi
   qualcosa. Leggere va bene.
 - **Niente proposte inventate.** Ogni voce nasce da un handoff, da una conversazione o dalla storia
-  del progetto. Se i segnali sono pochi, proponi due cose e dillo: «ho trovato poco, è tutto qui».
+  del progetto. Se i segnali sono pochi, proponi due cose e dillo: "ho trovato poco, è tutto qui".
   Riempire la lista per farla sembrare piena è il modo più veloce di rendere inutile questo comando.
 - **Se non trovi niente**, dillo in una riga e chiedi su cosa sta lavorando. Non è un errore: vuol
   dire che è la prima volta, o che ha chiuso tutto.

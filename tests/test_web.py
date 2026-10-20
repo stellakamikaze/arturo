@@ -8,10 +8,10 @@ CORS. W04 la pagina legge quello che legge la CLI. W05 un todo aggiunto dalla pa
 alla CLI con gli accenti veri e con i separatori Unicode. W06 la stessa sequenza dalla CLI e
 dalla pagina scrive gli stessi eventi. W07 gli errori sono del store, in italiano, e il
 terminale resta zitto. W08 un numero che indica un altro todo dà 409 e non scrive. W09
-Annulla rimette lo stato di prima, anche dopo «Ho deciso», e non cancella niente. W10 un
+Annulla rimette lo stato di prima, anche dopo "Ho deciso", e non cancella niente. W10 un
 titolo ostile resta testo, e la pagina non usa la rete esterna. W11 solo i file statici
 previsti. W12 si spegne da sola dopo il tempo di inattività e dal bottone, mai senza chiave.
-W13 accessibilità statica, Regola della Stella, nomi di «chi» uguali allo store, pannello che
+W13 accessibilità statica, Regola della Stella, nomi di "chi" uguali allo store, pannello che
 tiene i campi e si chiude con il suo todo (nel browser se Chrome c'è, sul sorgente sempre).
 W14 pagina e CLI scrivono insieme senza id doppi. W15 aiuto, skill, README e NOVITA raccontano
 la pagina. W16 il tavolo dei progetti: da_dove nella vista e niente percorso, /api/todo
@@ -396,7 +396,7 @@ def test_w06(repo: Path) -> None:
             f"W06 eventi diversi:\n{_coppie(a.registro)}\n{_coppie(b.registro)}"
         tre = b.json("mostra", "3")
         assert tre["chi"] == "io" and tre["note"] == ["Deciso: piano B"], f"W06 deciso: {tre}"
-        assert b.json("mostra", "1")["scadenza"] == "2026-10-09", "W06 la scadenza «venerdì» non è una data"
+        assert b.json("mostra", "1")["scadenza"] == "2026-10-09", 'W06 la scadenza "venerdì" non è una data'
 
 
 def test_w07(repo: Path) -> None:
@@ -489,12 +489,12 @@ def test_w09(repo: Path) -> None:
             r = s.azione(azione="aggiungi", campi={"titolo": "Scegliere la sala", "progetto": "p", "chi": "decidi"})
             n = str(r["id"])
             r = s.azione(azione="deciso", id=r["id"], titolo_atteso="Scegliere la sala", testo="la sala grande")
-            assert r["messaggio"] == f"Deciso #{n}: Scegliere la sala", f"W09 esito di «Ho deciso»: {r['messaggio']!r}"
+            assert r["messaggio"] == f"Deciso #{n}: Scegliere la sala", f"W09 esito di \"Ho deciso\": {r['messaggio']!r}"
             assert c.json("mostra", n)["chi"] == "io", "W09 deciso non passa il todo a Claude"
             s.azione(**r["annulla"])
             sala = c.json("mostra", n)
-            assert sala["chi"] == "decidi", f"W09 Annulla di «Ho deciso» non rimette chi=decidi: {sala['chi']}"
-            assert sala["storia"][-1]["dati"].get("annullo") is True, "W09 l'Annulla di «Ho deciso» non porta il segno"
+            assert sala["chi"] == "decidi", f"W09 Annulla di \"Ho deciso\" non rimette chi=decidi: {sala['chi']}"
+            assert sala["storia"][-1]["dati"].get("annullo") is True, "W09 l'Annulla di \"Ho deciso\" non porta il segno"
     con_casa(repo, prova)
 
 
@@ -569,7 +569,7 @@ def test_w12(repo: Path) -> None:
             codice, _, corpo = s.chiedi("POST", "/api/spegni", {})
             assert codice == 200, f"W12 /api/spegni: {codice} {corpo!r}"
             rc = s.attendi_uscita(5)
-            assert rc == 0, f"W12 dopo «Spegni la pagina» il processo non esce entro 5 s: {rc}"
+            assert rc == 0, f'W12 dopo "Spegni la pagina" il processo non esce entro 5 s: {rc}'
     con_casa(repo, prova)
 
 
@@ -644,7 +644,7 @@ def test_w13(repo: Path) -> None:
             assert "stella" in selettore or "marchio" in selettore, f"W13 l'arancio nella regola {selettore.strip()!r}"
     assert trovate, "W13 la stella non ha la sua regola in stile.css"
 
-    # Una parola per concetto: i nomi di «chi» (gruppi, chip, select, radio) sono i titoli dei
+    # Una parola per concetto: i nomi di "chi" (gruppi, chip, select, radio) sono i titoli dei
     # gruppi dello store in tondo. La pagina non ha un secondo elenco di nomi.
     r = subprocess.run([sys.executable, "-c", "import json, sys; sys.path.insert(0, sys.argv[1]); import todo_store as t; "
                         "print(json.dumps([[g[0], g[1]] for g in t.GRUPPI]))", str(repo / "bin")],
@@ -652,13 +652,13 @@ def test_w13(repo: Path) -> None:
     assert r.returncode == 0, f"W13 GRUPPI dello store: {r.stderr[-300:]}"
     nomi = {tipo: titolo[0] + titolo[1:].lower() for tipo, titolo in json.loads(r.stdout)}
     radio = dict(re.findall(r'<span data-chi="(\w+)">([^<]*)</span>', html))
-    assert radio == {k: nomi[k] for k in ("tu", "decidi", "io")}, f"W13 i radio di «Chi agisce» non usano i nomi dei gruppi: {radio} {nomi}"
+    assert radio == {k: nomi[k] for k in ("tu", "decidi", "io")}, f'W13 i radio di "Chi agisce" non usano i nomi dei gruppi: {radio} {nomi}'
     app = read(web / "app.js")
     for altro in ("poi Claude", "Lo fa Claude", "NOMI_CHI"):
-        assert altro not in app, f"W13 app.js ha un secondo nome per «chi»: {altro!r}"
+        assert altro not in app, f'W13 app.js ha un secondo nome per "chi": {altro!r}'
     assert app.count("nomiChi()") >= 3, "W13 chip e select non prendono i nomi dei gruppi"
     # Gli avvisi dell'archivio non sono solo righe illeggibili: anche una rinumerazione è un avviso.
-    assert "non si legg" not in app, "W13 il riquadro degli avvisi dice «non si legge» per ogni avviso"
+    assert "non si legg" not in app, 'W13 il riquadro degli avvisi dice "non si legge" per ogni avviso'
 
     # Il pannello aperto tiene i campi non salvati: ogni campo ricorda il valore disegnato, e il
     # ridisegno li legge prima e li rimette dopo. La prova vera è nel browser, qui sotto.
@@ -771,7 +771,7 @@ def test_w15(repo: Path) -> None:
     assert len(intestazioni) == len(set(intestazioni)), "W15 intestazioni doppie in NOVITA"
     prima = novita.split(titolo, 1)[1].split("\n## ", 1)[0]
     assert "`arturo web`" in prima, "W15 la entry non cita `arturo web`"
-    assert "salvo dopo una nota" in prima, "W15 la entry promette «Annulla» anche dopo una nota"
+    assert "salvo dopo una nota" in prima, 'W15 la entry promette "Annulla" anche dopo una nota'
     assert prima.rstrip().endswith("<!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->"), \
         "W15 la entry non chiude con la nota dell'autore"
     r = subprocess.run([sys.executable, "-B", str(repo / "tests" / "test_allineamento.py"), "--repo", str(repo)],

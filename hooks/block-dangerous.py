@@ -127,7 +127,7 @@ _WRITE_BINS = frozenset("tee cp mv install rsync ln dd truncate touch".split())
 
 # --- File di unlock che sbloccherebbero l'auto-modifica di config/hook -> ask ---
 # Solo la CREAZIONE del file (redirezione, touch, tee, open in scrittura) e solo direttamente
-# in ~/.claude, dove protect_claude_md.py lo cerca. Leggere una nota che ha «unlock» nel nome
+# in ~/.claude, dove protect_claude_md.py lo cerca. Leggere una nota che ha "unlock" nel nome
 # non sblocca niente (8/9/2026, nella config dell'autore). cp, mv e ln: _writes_config(_is_unlock).
 _UNLOCK_ABS = r"[^\s'\";|&]*\.claude/[^\s'\";|&/]*unlock[^\s'\";|&/]*(?=[\s'\";|&)]|$)"
 UNLOCK_RE = re.compile(
@@ -541,7 +541,7 @@ def _is_claude_md(p):
 
 
 def _is_unlock(p):
-    """True per un file di unlock: «unlock» nel nome, direttamente in ~/.claude."""
+    """True per un file di unlock: "unlock" nel nome, direttamente in ~/.claude."""
     return (bool(p) and "unlock" in os.path.basename(p).lower()
             and os.path.dirname(p) == os.path.normpath(os.path.join(_home(), ".claude")))
 

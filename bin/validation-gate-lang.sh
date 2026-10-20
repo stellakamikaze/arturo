@@ -13,7 +13,7 @@
 #   2  INCONCLUSIVO nessun validatore core disponibile o applicabile (prosa, o toolchain
 #                   assente). NON è verde: serve un controllo di sostanza.
 #
-# ROUTING (meglio «inconclusivo» che un verde falso)
+# ROUTING (meglio "inconclusivo" che un verde falso)
 #   package.json                             -> node
 #   pyproject.toml|requirements.txt|setup.py -> python
 #   *.py nella radice                        -> python (marcatore secondario)
@@ -90,7 +90,7 @@ run_python() {
   local core_ran=0 any_fail=0 c
 
   if c="$(py_tool pytest)"; then
-    # shellcheck disable=SC2086  # $c e' «pytest» o «python3 -m pytest»: lo split e' voluto
+    # shellcheck disable=SC2086  # $c e' "pytest" o "python3 -m pytest": lo split e' voluto
     run_tool ${c%% *} "pytest" "$dir" $c -q -p no:cacheprovider .
     case $? in 0) core_ran=1;; 1) core_ran=1; any_fail=1;; esac
   else

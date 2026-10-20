@@ -5,11 +5,11 @@ Uso: arturo diagnosi percorsi [nome] [--json]
      arturo diagnosi materiali [nome] [--json]
   Senza nome usa la cartella in cui sei, se sta sotto la cartella dei progetti (PROJECTS_BASE).
 
-percorsi   legge i percorsi di file scritti nella sezione «## File e materiali» degli handoff del
-           progetto e nella sezione «Materiali» del suo CLAUDE.md. Le righe hanno forma
-           «- descrizione → percorso», col percorso anche tra backtick e con ~. URL, link e destini
-           che non sono file («resta», «scarto», «link») non contano. Per ogni percorso che non
-           esiste più stampa «MANCA: <percorso> (da <file>)», in fondo «OK <n> presenti, <m> mancanti».
+percorsi   legge i percorsi di file scritti nella sezione "## File e materiali" degli handoff del
+           progetto e nella sezione "Materiali" del suo CLAUDE.md. Le righe hanno forma
+           "- descrizione → percorso", col percorso anche tra backtick e con ~. URL, link e destini
+           che non sono file ("resta", "scarto", "link") non contano. Per ogni percorso che non
+           esiste più stampa "MANCA: <percorso> (da <file>)", in fondo "OK <n> presenti, <m> mancanti".
 materiali  trova i file del progetto sparsi e propone un destino (repo, archivia, resta, scarto):
            in Download e Scrivania i file col nome del progetto o citati per nome dagli handoff,
            nella cartella del progetto i file non tracciati e non ignorati da git, dentro git i
@@ -41,7 +41,7 @@ RE_TOKEN = re.compile(r"(?:(?<=\s)|^)(~[/\\][^\s`]*|/[^\s`]+|[A-Za-z]:[/\\][^\s`
 
 
 def assoluto_scritto(p: str) -> bool:
-    """~/…, C:\\… oppure /a/b: «/fine» da solo è un comando, non un file."""
+    """~/…, C:\\… oppure /a/b: "/fine" da solo è un comando, non un file."""
     return bool(RE_ASSOLUTO.match(p)) and (not p.startswith("/") or p.count("/") >= 2)
 
 
@@ -76,7 +76,7 @@ def progetto(nome: str) -> tuple:
     s = slug(cartella.name) if cartella else slug(nome)
     if cartella or handoff_di(s):
         return s, cartella, ""
-    return s, None, f"nessuna cartella e nessun handoff per «{nome}»"
+    return s, None, f'nessuna cartella e nessun handoff per "{nome}"'
 
 
 # --- percorsi ------------------------------------------------------------------------------------
@@ -136,7 +136,7 @@ def candidati_riga(riga: str) -> list:
         return [x for x in trovati if x and not re.search(r"[*?]", x) and (assoluto_scritto(x) or (
             not x.startswith("/") and " " not in x and ("/" in x or re.search(r"\.\w{1,5}$", x))))]
     if freccia:
-        # fuori dai backtick il percorso finisce al primo «, », « (», « — », « → » o spazio
+        # fuori dai backtick il percorso finisce al primo ", ", " (", " — ", " → " o spazio
         pezzo = re.split(r",\s|\s\(|\s—\s|\s→\s", testo, maxsplit=1)[0]
         pezzo = pulito(pezzo.split()[0]) if pezzo.strip() else ""
         return [pezzo] if assoluto_scritto(pezzo) else []
@@ -293,7 +293,7 @@ def main(argv: list) -> int:
         return 0 if argv else 3
     comando, resto = argv[0], argv[1:]
     if comando not in SOTTOCOMANDI:
-        print(f"diagnosi: sottocomando sconosciuto «{comando}»: usa percorsi o materiali", file=sys.stderr)
+        print(f'diagnosi: sottocomando sconosciuto "{comando}": usa percorsi o materiali', file=sys.stderr)
         return 3
     come_json = "--json" in resto
     parole = [p for p in resto if p != "--json"]
@@ -303,7 +303,7 @@ def main(argv: list) -> int:
         return 3
     nome = " ".join(parole)
     if nome and not slug(nome):
-        print(f"diagnosi: nome non valido: «{nome}»", file=sys.stderr)
+        print(f'diagnosi: nome non valido: "{nome}"', file=sys.stderr)
         return 3
 
     s, cartella, motivo = progetto(nome)

@@ -17,7 +17,7 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
   avvisa fino a 60 volte al giorno.
 
 E dà una cosa sola, a chi ha il token: `GET /v1/riepilogo`, il riepilogo della settimana in JSON con
-la sezione «Dove migliorare Arturo» (secret `RIEPILOGO_TOKEN`, almeno 32 caratteri). Le statistiche
+la sezione "Dove migliorare Arturo" (secret `RIEPILOGO_TOKEN`, almeno 32 caratteri). Le statistiche
 delle guardie (blocchi, conferme, guardie rotte, guardie frequenti) contano solo le installazioni che
 il server ha ricevuto in almeno due giorni diversi, e ogni numero dice quante installazioni lo
 producono: chiunque può mandare eventi con un id nuovo, e un lotto di un giorno solo non deve
@@ -25,7 +25,7 @@ spostare quei numeri. **Una guardia non si allenta sulla sola base della telemet
 routine che propone correzioni lo tratta come un indizio da verificare, mai come la prova.
 
 L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi, i contatori e il
-feedback più vecchi di 12 mesi si cancellano il lunedì. Le chiavi «una volta per installazione»
+feedback più vecchi di 12 mesi si cancellano il lunedì. Le chiavi "una volta per installazione"
 (come l'avviso del setup finito) se ne vanno con l'ultimo evento della loro installazione.
 
 ## I file
@@ -33,7 +33,7 @@ feedback più vecchi di 12 mesi si cancellano il lunedì. Le chiavi «una volta 
 | File | Cosa fa |
 |------|---------|
 | `logica.js` | Validazione, tetti, testo delle email, recap e riepilogo, ritenzione. Niente Cloudflare dentro. |
-| `archivio.js` | Le query su D1, compresa «Dove migliorare Arturo». |
+| `archivio.js` | Le query su D1, compresa "Dove migliorare Arturo". |
 | `worker.js` | Collega `logica.js` e `archivio.js` a D1 (`env.DB`), all'invio email (`env.POSTA`) e a Telegram. |
 | `schema.sql` | Le quattro tabelle: `eventi`, `segnalazioni`, `contatori`, `feedback`. |
 | `wrangler.toml` | La config del Worker, con segnaposto al posto dei valori veri. |
@@ -57,8 +57,8 @@ feedback più vecchi di 12 mesi si cancellano il lunedì. Le chiavi «una volta 
   altro sito (`Sec-Fetch-Site: cross-site`), e del vocale si controllano i primi byte.
 - **Ogni mattina alle 8** (06:00 UTC) arriva il recap del giorno prima, solo se quel giorno ci
   sono stati eventi o segnalazioni. Ha anche le config rotte e la deriva cambiata.
-- **Il lunedì** arriva sempre il riepilogo dei 7 giorni, anche vuoto. Si apre con «Dove migliorare
-  Arturo» (ultimi 30 giorni: setup fermi, conferme delle guardie, guardie rotte, aggiornamenti non
+- **Il lunedì** arriva sempre il riepilogo dei 7 giorni, anche vuoto. Si apre con "Dove migliorare
+  Arturo" (ultimi 30 giorni: setup fermi, conferme delle guardie, guardie rotte, aggiornamenti non
   applicati, ritenzione, versioni di Claude Code), poi tutta la deriva aperta e le
   guardie frequenti (almeno 5 blocchi nella settimana sulla stessa installazione). Poi parte la pulizia. Se il
   riepilogo del lunedì manca, il Worker è fermo.

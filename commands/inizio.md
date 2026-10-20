@@ -10,7 +10,7 @@ argument-hint: "<nome-progetto> [--tutti] [-- <compito>]"
 
 # Inizio sessione
 
-Argomenti: **$ARGUMENTS**. Il testo dopo « -- » è il compito della sessione (vedi «Con un compito» in
+Argomenti: **$ARGUMENTS**. Il testo dopo " -- " è il compito della sessione (vedi "Con un compito" in
 fondo). `--tutti` è un flag: aggiorna anche tutti i progetti (FASE 0) e non entra nel nome. Senza nome
 usa la cartella in cui sei. Con `--tutti` e senza nome ti fermi dopo la FASE 0.
 
@@ -89,16 +89,16 @@ guardie potrebbero essere spente.
 
 Se il sync dice `CONFLITTO`, due tue macchine hanno cambiato le stesse righe della config. La
 sua `~/.claude` è com'era: il conflitto aspetta nella copia di prova stampata. Proponigli di
-risolverlo subito come in `/aggiorna`, sezione «Risolvere un conflitto» (con un rebase). Finché
+risolverlo subito come in `/aggiorna`, sezione "Risolvere un conflitto" (con un rebase). Finché
 la copia di prova aspetta, il sync non riparte, e l'avvio della sessione lo ricorda. Se il sync
 risponde che una copia di prova aspetta da prima, vale lo stesso: si conclude, oppure col suo sì si
 scarta come in `/aggiorna`.
 
-Se compare «non ho scaricato dal tuo repository», la config è com'era: diglielo in una riga e
+Se compare "non ho scaricato dal tuo repository", la config è com'era: diglielo in una riga e
 nomina i file. Sono modifiche sue (anche `/setup` ne scrive in `settings.json`) che `/fine`
 salverà con un commit. Il sync riparte al prossimo `/inizio`.
 
-Se compare «possibile compromissione», l'ultimo rilascio di Arturo non ha una firma valida: diglielo
+Se compare "possibile compromissione", l'ultimo rilascio di Arturo non ha una firma valida: diglielo
 con quelle parole e non proporre `/aggiorna`, che non lo applica. Proponi `/segnala`, oppure la
 segnalazione privata di `SECURITY.md`.
 
@@ -115,7 +115,7 @@ Un progetto senza remote è solo locale: non è un errore.
 
 ## FASE 1: Contesto in una chiamata
 
-`$ARGUMENTS` può contenere `--tutti` e, dopo « -- », il compito della sessione: lo script li
+`$ARGUMENTS` può contenere `--tutti` e, dopo " -- ", il compito della sessione: lo script li
 riconosce e il nome del progetto resta pulito. Senza nome usa la cartella in cui sei.
 
 ```bash
@@ -172,7 +172,7 @@ mkdir -p "$BASE/$NOME" && cd "$BASE/$NOME" && git init -q -b main
 printf '.DS_Store\nnode_modules/\n*.log\n.env\n' > .gitignore
 ```
 
-Scrivi un `CLAUDE.md` breve: cosa è il progetto in due righe, e una sezione «Materiali» con i
+Scrivi un `CLAUDE.md` breve: cosa è il progetto in due righe, e una sezione "Materiali" con i
 percorsi dei file che stanno fuori dal repo (all'inizio può essere vuota). Poi il primo commit:
 `git add .gitignore CLAUDE.md && git commit -q -m "inizio del progetto"`. Gli handoff non entrano
 mai nel repo del progetto.
@@ -181,7 +181,7 @@ mai nel repo del progetto.
 
 Leggi in ordine, se esistono:
 1. il `CLAUDE.md` del progetto;
-2. l'ultimo handoff per intero: il percorso è nella riga «da leggere per intero» della FASE 1.
+2. l'ultimo handoff per intero: il percorso è nella riga "da leggere per intero" della FASE 1.
    Se la FASE 1 segnala un handoff nella cartella del progetto più recente dello store (lasciato
    da una versione vecchia di `/fine`), leggi quello.
 
@@ -197,18 +197,18 @@ ls next.config.* 2>/dev/null && echo "HAS_NEXT=true"
 ## FASE 4: Carica i Todo con Cross-Reference
 
 I todo stanno nell'archivio `~/.claude/data/todo/eventi.jsonl`, scritto da `/fine` e dalle
-richieste della persona («ricordami di…»). È la fonte di verità: la tabella `## Task Pendenti`
+richieste della persona ("ricordami di…"). È la fonte di verità: la tabella `## Task Pendenti`
 dell'handoff è solo la fotografia dell'ultima sessione. La lista del progetto l'hai già dalla
-FASE 1: questo blocco aggiunge gli avvisi di rinumerazione, i todo di «generale», il git log per
+FASE 1: questo blocco aggiunge gli avvisi di rinumerazione, i todo di "generale", il git log per
 il confronto e il pannello.
 
 ```bash
 # Il progetto dei todo è quello della cartella (FASE 1 ci è entrata), calcolato dalla CLI come per
-# «ricordami di…»: nessuna variabile di un blocco precedente. Gli avvisi («Attenzione: …») restano
+# "ricordami di…": nessuna variabile di un blocco precedente. Gli avvisi ("Attenzione: …") restano
 # visibili: dopo il pull un todo può aver cambiato numero.
 python3 "$HOME/.claude/bin/arturo" todo progetto
 python3 "$HOME/.claude/bin/arturo" todo --progetto .
-# I todo di «generale»: quelli presi fuori da un progetto (nella HOME, in /setup, fuori da git).
+# I todo di "generale": quelli presi fuori da un progetto (nella HOME, in /setup, fuori da git).
 [ "$(python3 "$HOME/.claude/bin/arturo" todo progetto)" = generale ] || python3 "$HOME/.claude/bin/arturo" todo --progetto generale
 git log --oneline -20 2>/dev/null
 # Il pannello /dafare c'è? I comandi di un mod non compaiono fra quelli che vedi.
@@ -217,7 +217,7 @@ claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p 
 
 1. Per ogni todo aperto del progetto, verifica se un commit recente lo ha già completato. Se sì,
    chiudilo con `python3 ~/.claude/bin/arturo todo fatto ID --titolo-atteso="titolo"` e dillo
-   alla persona nel «Da allora». I todo di «generale» non si confrontano con il git log del progetto.
+   alla persona nel "Da allora". I todo di "generale" non si confrontano con il git log del progetto.
 2. Un item della tabella `## Task Pendenti` senza ID e senza todo (handoff di una versione
    precedente) diventa un todo con `arturo todo aggiungi`. Un todo già chiuso non si ricrea.
 3. Non creare task di sessione (`TaskCreate`) all'apertura: si crea solo quello che la persona
@@ -247,7 +247,7 @@ fatto da uno di quei commit: l'ho chiuso.
 **Fuori dai progetti**
 5. Rinnovare l'abbonamento al dominio, scade venerdì · #2 · Tocca a te: pagamento
 
-**Da dove partirei:** #5. Sblocca la rilettura, e la rilettura chiude il capitolo. Scrivimi «vai» e
+**Da dove partirei:** #5. Sblocca la rilettura, e la rilettura chiude il capitolo. Scrivimi "vai" e
 preparo la mail.
 
 Rispondi **tutto il delegabile**, il nome di un filone (**copertina**) o i numeri (**3 4**). Per
@@ -287,25 +287,25 @@ Perché è fatta così:
 
 ## FASE 6: La risposta della persona
 
-- **Correzioni.** «8 a te» o «7 scarta» vanno subito nell'archivio, e riporti la riga di conferma:
+- **Correzioni.** "8 a te" o "7 scarta" vanno subito nell'archivio, e riporti la riga di conferma:
   `python3 ~/.claude/bin/arturo todo modifica ID --chi tu|decidi|io` oppure
   `python3 ~/.claude/bin/arturo todo scarta ID "motivo"`, col motivo nelle sue parole. Non spostare un
   todo da tu a io o decidi senza un suo sì.
-- **«tutto il delegabile».** Esegui in sessione, uno dopo l'altro, i todo «Faccio io» reversibili,
+- **"tutto il delegabile".** Esegui in sessione, uno dopo l'altro, i todo "Faccio io" reversibili,
   stime comprese dopo il suo sì. Chiudi ognuno solo dopo aver controllato il risultato vero (il test
-  che passa, il file che c'è, la pagina che si apre): poi `arturo todo fatto ID`. Di un «Preparo io,
-  poi tu» fai la tua parte e il todo resta aperto. Davanti a un'azione con effetti che non si annullano
+  che passa, il file che c'è, la pagina che si apre): poi `arturo todo fatto ID`. Di un "Preparo io,
+  poi tu" fai la tua parte e il todo resta aperto. Davanti a un'azione con effetti che non si annullano
   (un invio, un pagamento, una cancellazione) ti fermi e chiedi.
 - **Un filone o dei numeri.** Parti da quei todo. Il task di sessione (`TaskCreate`) nasce solo per
   i todo scelti: due numerazioni insieme confondono i numeri.
-- **«qualcosa non torna».** Se la persona dice che Arturo o il progetto non funzionano come si
+- **"qualcosa non torna".** Se la persona dice che Arturo o il progetto non funzionano come si
   aspetta, apri con Read `~/.claude/commands/diagnosi.md` e seguilo.
 
 ## Con un compito
 
-Con « -- <compito>» negli argomenti la ripartenza esce breve: il titolo, «Da allora» in una o due
-frasi, una riga per filone col numero di todo e quanti sono «Faccio io». Al posto di «Da dove
-partirei» scrivi «Oggi: <compito>», con l'ID del todo che lo copre se esiste. Poi carica
+Con " -- <compito>" negli argomenti la ripartenza esce breve: il titolo, "Da allora" in una o due
+frasi, una riga per filone col numero di todo e quanti sono "Faccio io". Al posto di "Da dove
+partirei" scrivi "Oggi: <compito>", con l'ID del todo che lo copre se esiste. Poi carica
 `prompt-master` col tool `Skill` sul compito, mostra PROMPT e BRIEF come li prescrive la skill e parti
 senza aspettare una scelta.
 

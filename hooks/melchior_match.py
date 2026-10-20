@@ -26,12 +26,12 @@ cominciano con _ o con un punto (_archive/, _reports/), le cartelle che sono lin
 
 Interruttore (memoria_accesa): ARTURO_MEMORIA=1 o 0 nell'ambiente, poi "accesa" in
 data/memoria/impostazioni.json, poi il default. Il default è accesa se accanto alla cartella degli
-hook non c'è bin/arturo, spenta se c'è: in Arturo la memoria si accende con «arturo memoria accendi».
+hook non c'è bin/arturo, spenta se c'è: in Arturo la memoria si accende con "arturo memoria accendi".
 
 Punteggio del richiamo:
   1. tokenize e path_tokens spezzano su `-`, `_` e spazi: `nome-progetto` diventa {nome, progetto}.
   2. i `triggers` si confrontano parola per parola, non come stringhe intere: un trigger di più
-     parole («deploy notturno») conta per ciascuna.
+     parole ("deploy notturno") conta per ciascuna.
   3. score() guarda anche il CORPO, con peso basso: la conoscenza che vive nel corpo si ritrova.
 
 Il parser del frontmatter legge chiavi di primo livello (anche col trattino), liste a trattini e
@@ -60,7 +60,7 @@ MAX_BYTE = 256 * 1024  # una nota più grande si legge solo fino a qui
 
 # Log degli accessi: un file per macchina dal 19/10/2026. Il file unico
 # .melchior-access.log era scritto da tre macchine e andava in conflitto a ogni
-# sync (674 commit). Il nome della cartella contiene «melchior-access.log» apposta:
+# sync (674 commit). Il nome della cartella contiene "melchior-access.log" apposta:
 # session-start.sh e config-sync-pull.sh escludono dal conteggio dei file sporchi
 # ogni path che lo contiene. Il vecchio file resta in sola lettura (storico).
 # Si registrano solo le note di MEMORY_DIR, per nome: chi legge il log le cerca lì.

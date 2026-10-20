@@ -26,7 +26,7 @@ chiedere di nuovo una cosa che sai. Le domande, una per volta:
 3. **Un esempio vero.** Cosa ti dà all'inizio (un file, un testo, un nome) e cosa vuole alla
    fine. Se ha un risultato già fatto che le piace, fattelo indicare: vale più di dieci regole.
 4. **Cosa NON deve fare?** Un lavoro che le somiglia ma è un altro, un errore che non vuole
-   rivedere, un limite (per esempio «non mandare niente, prepara solo»).
+   rivedere, un limite (per esempio "non mandare niente, prepara solo").
 
 Se un lavoro così lo fa già un comando di Arturo o una skill che c'è, diglielo prima di
 continuare: forse basta quello.
@@ -68,7 +68,7 @@ name: <nome>
 description: >-
   <cosa fa, in una frase>
 when_to_use: >-
-  Usa quando la persona dice «<frase 1>», «<frase 2>», «<frase 3>». NON per <il lavoro simile
+  Usa quando la persona dice "<frase 1>", "<frase 2>", "<frase 3>". NON per <il lavoro simile
   che è un altro>.
 ---
 

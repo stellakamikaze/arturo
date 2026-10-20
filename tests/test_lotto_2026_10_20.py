@@ -4,8 +4,8 @@
 LT01 l'audit vede lo script della barra anche dentro `... statusline.js; echo ...` (#3632): se
      manca, lo dice invece di saltare il controllo.
 LT02 il README dice cosa succede senza node e cita la riga NODE dell'avvio (#3632).
-LT03 README, /aggiorna, SECURITY e la docstring di aggiornamenti.py conoscono il caso «firma non
-     verificabile», che non è una compromissione; /segnala manda il solo tag del rilascio (#3552).
+LT03 README, /aggiorna, SECURITY e la docstring di aggiornamenti.py conoscono il caso "firma non
+     verificabile", che non è una compromissione; /segnala manda il solo tag del rilascio (#3552).
 LT04 un hook di terzi in testa a Notification o senza `command` non fa cadere K09 e i banchi M (#3596).
 LT05 l'avvio non usa più osascript, e il README racconta le schede nel Terminale di macOS (#3587).
 LT06 l'installazione del README, eseguita in una HOME usa e getta con una ~/.claude già usata, riporta
@@ -72,7 +72,7 @@ def test_lt02(repo: Path) -> None:
 def test_lt03(repo: Path) -> None:
     for nome in ("README.md", "commands/aggiorna.md", "bin/aggiornamenti.py", "SECURITY.md"):
         testo = (repo / nome).read_text(encoding="utf-8").lower()
-        assert "non verificabile" in testo, f"LT03 {nome} non conosce il caso «firma non verificabile»"
+        assert "non verificabile" in testo, f"LT03 {nome} non conosce il caso \"firma non verificabile\""
     segnala = (repo / "bin" / "segnala.py").read_text(encoding="utf-8")
     assert '"--abbrev=0", "--match", "v*"' in segnala, "LT03 /segnala manda ancora describe --always"
 

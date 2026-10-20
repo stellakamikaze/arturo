@@ -14,7 +14,7 @@ Y03 `arturo memoria cerca` (scripts/melchior_recall.py): BM25 su frontmatter e c
 Y04 lo scanner delle scritture avvisa su injection e segreti nelle note e negli handoff, senza mai
     stampare il segreto, e tace sui file di progetto, sulle note pulite e sugli URL locali.
 Y05 `arturo memoria controlla`: frontmatter mancante, description mancante, YAML rotto, indice
-    che punta a un file assente. Un [[link]] senza nota è «da scrivere», non un errore.
+    che punta a un file assente. Un [[link]] senza nota è "da scrivere", non un errore.
 Y06 la memoria resta locale: niente telemetria, data/memoria/ e data/memory/ fuori da git, nessun
     host fidato scritto nel codice oltre localhost, nessun percorso di una persona.
 Y07 /setup ha la fase della memoria e chiede prima di accenderla; `arturo` elenca il comando.
@@ -271,9 +271,9 @@ def test_y05(repo: Path) -> None:
         esito = json.loads(r.stdout)
         motivi = " | ".join(f"{e['file']}: {e['motivo']}" for e in esito["errori"])
         assert r.returncode == 1, f"Y05 con errori esce 0: {motivi}"
-        for atteso in ("senza.md: senza frontmatter", "corta.md: manca «description»", "rotta.md: il valore di «description»",
+        for atteso in ("senza.md: senza frontmatter", "corta.md: manca \"description\"", "rotta.md: il valore di \"description\"",
                        "persa.md, che non esiste"):
-            assert atteso in motivi, f"Y05 manca l'errore «{atteso}»: {motivi}"
+            assert atteso in motivi, f"Y05 manca l'errore \"{atteso}\": {motivi}"
         assert any("corta.md" in a["file"] and "MEMORY.md" in a["motivo"] for a in esito["avvisi"]), \
             "Y05 una nota fuori dall'indice non è segnalata"
         assert not any("nota-futura" in e["motivo"] for e in esito["errori"]), "Y05 un [[link]] senza nota è un errore"
@@ -323,9 +323,9 @@ def test_y07(repo: Path) -> None:
     domanda = fase.find("Vuoi accendere la memoria?")
     assert domanda != -1 and domanda < fase.find("memoria accendi"), "Y07 /setup accende la memoria prima di chiedere"
     for parola in ("memoria spegni", "telemetria", "questo computer", "data/memory"):
-        assert parola in fase, f"Y07 la fase della memoria non dice «{parola}»"
+        assert parola in fase, f"Y07 la fase della memoria non dice \"{parola}\""
     aiuto = subprocess.run([sys.executable, "-B", str(repo / "bin" / "arturo")], capture_output=True, text=True, timeout=30)
-    assert "arturo memoria" in aiuto.stdout, "Y07 «arturo» non elenca il comando memoria"
+    assert "arturo memoria" in aiuto.stdout, "Y07 \"arturo\" non elenca il comando memoria"
 
 
 def test_y08(repo: Path) -> None:

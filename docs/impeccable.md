@@ -34,7 +34,7 @@ npx impeccable update
 ```
 
 Le altre vie (copia manuale, sottomodulo git) sono nel README dell'upstream, sezione
-«Installation».
+"Installation".
 
 ## Da sapere
 

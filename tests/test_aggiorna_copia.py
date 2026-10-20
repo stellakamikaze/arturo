@@ -8,16 +8,16 @@ girava era quella installata, vecchia: la correzione del 9/10 arrivava con lo st
 
 C01 durante un conflitto vero settings.json di ~/.claude non contiene mai un marcatore, in nessun
 momento, e l'esito nomina il conflitto e il file. C02 risolto il conflitto nella copia di prova, il
-blocco di «Risolvere un conflitto» porta dentro il risultato: la config e' integra, l'aggiornamento
+blocco di "Risolvere un conflitto" porta dentro il risultato: la config e' integra, l'aggiornamento
 registrato, la copia di prova tolta. C03 il Passo 3 lancia la procedura della versione in arrivo, non
 quella installata. C04 il sync di /inizio fra due macchine dello stesso utente in conflitto: nessun
 marcatore nei file in uso, la copia di prova aspetta, e una volta conclusa il sync non finisce nel
 registro di /aggiorna indietro. C05 una copia di prova in attesa dal sync non sparisce con /aggiorna:
-l'esito la nomina, la copia resta, l'avvio della sessione la ricorda, e solo «scarta» la toglie.
+l'esito la nomina, la copia resta, l'avvio della sessione la ricorda, e solo "scarta" la toglie.
 C06 una copia di prova sparita (cartella temporanea svuotata) non ferma il sync per sempre.
 C07-C09 (copia dentro .git, /aggiorna indietro) stanno in test_aggiorna_indietro.py.
 
-Il «in nessun momento» di C01 lo guarda un git finto in testa al PATH: dopo ogni comando git vero
+Il "in nessun momento" di C01 lo guarda un git finto in testa al PATH: dopo ogni comando git vero
 controlla settings.json di ~/.claude e annota ogni marcatore che trova.
 
 Sulla base 0aee68c ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
@@ -234,7 +234,7 @@ def test_c05(repo: Path) -> None:
         scarta = blocco(aggiorna(repo), "## Passo 3", "C05", indice=1)
         fine = lab.lancia(scarta)
         assert "SCARTATA" in fine and not copia.exists() and not stato.exists(), \
-            f"C05 con {lab.shell} «scarta» non toglie la copia di prova: {fine[-300:]!r}"
+            f'C05 con {lab.shell} "scarta" non toglie la copia di prova: {fine[-300:]!r}'
         assert len(lab.git(lab.utente, "worktree", "list").splitlines()) == 1, f"C05 con {lab.shell} resta un worktree"
     per_shell(prova, repo)
 

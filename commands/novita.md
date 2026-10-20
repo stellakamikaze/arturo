@@ -24,7 +24,7 @@ fi
 Se è indietro, spiega che ci sono aggiornamenti non ancora applicati e proponi **`/aggiorna`**:
 è l'unico comando che li applica, dopo avergli mostrato cosa cambia. `/novita` non scarica
 niente da solo. Se compare `POSSIBILE COMPROMISSIONE`, non proporre `/aggiorna`: diglielo con le
-parole «possibile compromissione: non aggiornare, segnala a chi mantiene Arturo». Se compare
+parole "possibile compromissione: non aggiornare, segnala a chi mantiene Arturo". Se compare
 `FIRMA NON VERIFICABILE`, il suo computer non sa controllare la firma: digli di aggiornare git e
 OpenSSH, e che non è un problema di sicurezza.
 
@@ -47,7 +47,7 @@ done
 
 - Nessuna entry vista → è la prima volta: racconta tutte le entry (o le ultime 3 se sono tante, offrendo le altre).
 - Altrimenti → racconta solo le entry `non vista`, dalla più vecchia alla più recente.
-- Nessuna `non vista` → dillo in una riga («sei aggiornato, ultima novità del ...») e fermati. Con argomento `tutte`, racconta tutto lo storico a prescindere dal segnalibro.
+- Nessuna `non vista` → dillo in una riga ("sei aggiornato, ultima novità del ...") e fermati. Con argomento `tutte`, racconta tutto lo storico a prescindere dal segnalibro.
 
 ## Passo 2 — Il racconto
 
@@ -56,7 +56,7 @@ Per ogni entry non vista, **una per volta**:
 1. **Cosa cambia**, in due frasi tue — non incollare l'entry, raccontala.
 2. **Il principio dietro** — perché questa novità esiste, cosa insegna. Se l'entry rimanda a un capitolo di `docs/principi/`, offri di leggerlo insieme.
 3. **Ti riguarda se...** — aiuta l'utente a capire se la novità tocca il suo modo di usare l'harness.
-4. Proponi: «vuoi fare un po' di sparring per vedere se ti serve?» → se sì, apri con Read `~/.claude/commands/sparring.md` e seguilo con l'argomento `novità AAAA-MM-GG — Titolo`, l'intestazione di questa entry.
+4. Proponi: "vuoi fare un po' di sparring per vedere se ti serve?" → se sì, apri con Read `~/.claude/commands/sparring.md` e seguilo con l'argomento `novità AAAA-MM-GG — Titolo`, l'intestazione di questa entry.
 5. Segna questa entry come vista (Passo 3) prima di passare alla successiva.
 
 Linguaggio semplice, zero gergo non spiegato. Se le entry nuove sono più di una, chiedi dopo ciascuna se proseguire.
@@ -67,7 +67,7 @@ Dopo ogni singola entry raccontata, subito, mai in blocco alla fine. Se la lettu
 
 ```bash
 mkdir -p "$HOME/.claude/session-env"
-ENTRY="AAAA-MM-GG — Titolo"   # l'intestazione dell'entry appena raccontata, senza «## »
+ENTRY="AAAA-MM-GG — Titolo"   # l'intestazione dell'entry appena raccontata, senza "## "
 grep -qxF "$ENTRY" "$HOME/.claude/session-env/novita-viste" 2>/dev/null || echo "$ENTRY" >> "$HOME/.claude/session-env/novita-viste"
 echo "Segnata come vista: $ENTRY"
 ```

@@ -2,7 +2,7 @@
 """
 Type-check dopo ogni Edit/Write su un file TypeScript o Vue (PostToolUse).
 
-«Dopo ogni modifica verifica subito» come garanzia e non come promessa: un errore
+"Dopo ogni modifica verifica subito" come garanzia e non come promessa: un errore
 di tipo arriva a Claude al passo in cui lo crea, non al build di fine giornata.
 Il comando non lo inventa: lo prende dal package.json del progetto (script
 `typecheck`, altrimenti il segmento tsc/vue-tsc di `build`), così il check è

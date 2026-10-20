@@ -13,7 +13,7 @@ Sei la guida di installazione di **Arturo**, l'harness Claude Code in cui ti tro
 - **Linguaggio semplice.** Niente gergo non spiegato. Se usi un termine tecnico, spiegalo in mezza riga.
 - **Chiedi prima di scrivere.** Ogni volta che stai per modificare un file (`settings.json`, `CLAUDE.md`), mostra cosa scriverai e chiedi conferma. Nota: modificare `settings.json` durante `/setup` è legittimo — l'utente lo ha chiesto lanciando questo comando — quindi se una guardia chiede conferma, spiega all'utente che è normale e che può approvare.
 - **Sono obbligatorie solo le fasi 0–4 e la verifica finale (FASE 9).** Tutte le altre sono opzionali: la 4b (stile), dalla 5 alla 8b (`CLAUDE.md`, host e API fidate, sync, comando `arturo`, memoria, `gws`, `scrape`) e la 10 (sparring). Proponile, e se l'utente non le vuole, salta senza insistere.
-- **Idempotente.** Se qualcosa è già configurato correttamente, dillo («questo è già a posto») e vai avanti, non rifarlo.
+- **Idempotente.** Se qualcosa è già configurato correttamente, dillo ("questo è già a posto") e vai avanti, non rifarlo.
 - **Prima configurazione o verifica.** Se la FASE 0 stampa `SETUP GIÀ FATTO`, o la persona scrive `/setup verifica`, chiedi se vuole rifare la configurazione o solo verificarla. Nella verifica non scrivi niente: per ogni fase obbligatoria dici se è a posto, lanci la FASE 9 e poi proponi `/diagnosi` sul progetto su cui lavora. Quello che non è a posto lo sistemi rifacendo la sua fase, col suo sì.
 - **Segna la fase.** All'inizio di ogni fase, anche di quelle che salti, registra il numero per la telemetria di Arturo: dice a chi lo mantiene in quale fase le persone si fermano. Esce solo il numero.
 
@@ -44,7 +44,7 @@ cat "$HOME/.claude/data/setup-fatto" 2>/dev/null && echo "SETUP GIÀ FATTO" || e
 ```
 
 `SETUP GIÀ FATTO` è il segno che una FASE 9 è già andata a buon fine: è il caso della verifica. Il
-segno «dedotto» vale lo stesso: la persona usava già Arturo prima che il segno esistesse.
+segno "dedotto" vale lo stesso: la persona usava già Arturo prima che il segno esistesse.
 
 Verifica che l'harness sia installato in `~/.claude`. Se NON lo è, fermati e guida l'utente a installarlo prima. Il caso normale è che `~/.claude` esista già: Claude Code la crea al primo avvio, con dentro le sue impostazioni. Va spostata da parte, non cancellata:
 
@@ -64,7 +64,7 @@ done
 
 Su Windows questi comandi vanno dati in **Git Bash**, non nel Prompt dei comandi o in PowerShell: lì la tilde `~` non si espande e il clone finisce in una cartella sbagliata senza errori. Poi digli di riaprire Claude Code dentro l'harness e rilanciare `/setup`.
 
-Se l'harness c'è, spiega la telemetria prima di andare avanti, in due o tre frasi semplici: «Arturo manda a chi lo mantiene eventi d'uso con un numero casuale al posto del tuo nome: quali comandi di Arturo usi, quali guardie ti fermano o ti chiedono conferma, a che fase di questo setup arrivi, e se gli aggiornamenti vanno a buon fine. Mai i tuoi testi, i tuoi file o il tuo nome. Servono a correggere ogni settimana i punti dove le persone si bloccano.» Poi chiedi se va bene così. Se non vuole, spegnila con `python3 ~/.claude/bin/arturo telemetria spegni` e vai avanti senza insistere. Nello stesso modo, in una frase, l'aggiornamento: «Arturo si aggiorna da solo quando chiudi la sessione, come Claude Code, e installa solo le versioni firmate da chi lo mantiene. Se preferisci decidere tu ogni volta, lo spengo.» Se vuole decidere lui: `python3 ~/.claude/bin/arturo aggiornamenti manuali`.
+Se l'harness c'è, spiega la telemetria prima di andare avanti, in due o tre frasi semplici: "Arturo manda a chi lo mantiene eventi d'uso con un numero casuale al posto del tuo nome: quali comandi di Arturo usi, quali guardie ti fermano o ti chiedono conferma, a che fase di questo setup arrivi, e se gli aggiornamenti vanno a buon fine. Mai i tuoi testi, i tuoi file o il tuo nome. Servono a correggere ogni settimana i punti dove le persone si bloccano." Poi chiedi se va bene così. Se non vuole, spegnila con `python3 ~/.claude/bin/arturo telemetria spegni` e vai avanti senza insistere. Nello stesso modo, in una frase, l'aggiornamento: "Arturo si aggiorna da solo quando chiudi la sessione, come Claude Code, e installa solo le versioni firmate da chi lo mantiene. Se preferisci decidere tu ogni volta, lo spengo." Se vuole decidere lui: `python3 ~/.claude/bin/arturo aggiornamenti manuali`.
 
 ---
 
@@ -95,7 +95,7 @@ fi
 # Le guardie hanno correzioni di Claude Code fino alla 2.1.300: hook PreToolUse saltati, guardie
 # che su Windows lasciavano passare tutto, la chiave onFailure (2.1.295). Avvisa e basta.
 if [ -n "$cc" ] && [ "$(printf '%s\n' 2.1.300 "$cc" | sort -t. -k1,1n -k2,2n -k3,3n | head -1)" != 2.1.300 ]; then
-  echo "VECCHIO per le guardie → $cc: aggiorna con «claude update» (servono la 2.1.300 o successiva)"
+  echo "VECCHIO per le guardie → $cc: aggiorna con \"claude update\" (servono la 2.1.300 o successiva)"
 fi
 case "$(uname -s 2>/dev/null)" in
   MINGW*|MSYS*|CYGWIN*) echo "OK   Git Bash (Windows)" ;;
@@ -110,15 +110,15 @@ done
 
 - **Obbligatori**: `git`, `python3` (≥3.8), `node` (≥18). `jq` è consigliato (c'è un fallback, ma installarlo è meglio).
 - **Versione di Claude Code.** Non è un requisito obbligatorio: non bloccare il setup per questo.
-  - Se la riga dice `VECCHIO`, spiega all'utente: «La tua versione di Claude Code non ha il pannello delle cose da fare
+  - Se la riga dice `VECCHIO`, spiega all'utente: "La tua versione di Claude Code non ha il pannello delle cose da fare
     (`/dafare`). Il resto di Arturo funziona. Per avere il pannello, aggiorna Claude Code: scrivi `claude update` in un
-    terminale, poi chiudi e riapri Claude Code.»
+    terminale, poi chiudi e riapri Claude Code."
   - Se la riga dice `versione di Claude Code non letta`, il comando `claude` non è nel PATH di questa shell. Spiega
-    all'utente: «Non leggo la versione di Claude Code. Il resto di Arturo funziona. Se `/dafare` non apre il pannello,
-    scrivi `claude --version` in un terminale: il pannello chiede la 2.1.287 o successiva.»
+    all'utente: "Non leggo la versione di Claude Code. Il resto di Arturo funziona. Se `/dafare` non apre il pannello,
+    scrivi `claude --version` in un terminale: il pannello chiede la 2.1.287 o successiva."
 - Se ne manca uno obbligatorio, spiega **come installarlo** sul sistema dell'utente e fermati finché non è a posto. Non dare per scontato Homebrew: su un Mac nuovo non c'è.
   - **macOS**: `git` e `python3` arrivano con gli strumenti di sviluppo di Apple (`xcode-select --install`, una finestra chiede conferma). `node` si scarica da nodejs.org (installer .pkg). Se l'utente ha già Homebrew, `brew install <nome>` va bene.
-  - **Windows**: Git for Windows da git-scm.com (include Git Bash, obbligatorio: senza, Claude Code usa PowerShell e le guardie di Arturo non vedono i comandi). Python da python.org con la casella «Add python.exe to PATH», poi in Impostazioni → App → Alias di esecuzione disattiva i due alias «python» del Microsoft Store. Node da nodejs.org.
+  - **Windows**: Git for Windows da git-scm.com (include Git Bash, obbligatorio: senza, Claude Code usa PowerShell e le guardie di Arturo non vedono i comandi). Python da python.org con la casella "Add python.exe to PATH", poi in Impostazioni → App → Alias di esecuzione disattiva i due alias "python" del Microsoft Store. Node da nodejs.org.
   - **Debian/Ubuntu**: `sudo apt install <nome>`.
 - **Identità di Git.** `/fine` salva il lavoro con un commit, e Git vuole un nome e un'email:
 
@@ -154,7 +154,7 @@ BASE="${BASE/#\~/$HOME}"   # fra virgolette la tilde non si espande: la sostitui
 mkdir -p "$BASE" && echo "Cartella progetti pronta: $BASE"
 ```
 
-Mostra all'utente il percorso completo e aprigli la cartella, così sa dove trovarla: `open "$BASE"` su macOS, `explorer.exe "$(cygpath -w "$BASE")"` in Git Bash su Windows. Su Windows con OneDrive la cartella «Documenti» di Esplora file può essere un'altra: il percorso completo evita l'equivoco.
+Mostra all'utente il percorso completo e aprigli la cartella, così sa dove trovarla: `open "$BASE"` su macOS, `explorer.exe "$(cygpath -w "$BASE")"` in Git Bash su Windows. Su Windows con OneDrive la cartella "Documenti" di Esplora file può essere un'altra: il percorso completo evita l'equivoco.
 
 ---
 
@@ -197,9 +197,9 @@ ls -la "$HOME/.claude/CLAUDE.md" 2>/dev/null && echo "ESISTE già" || echo "non 
 Se non esiste, fai una **breve intervista** (poche domande, semplici), poi genera un `CLAUDE.md` conciso. Copri:
 - **Chi sei**: nome, mestiere/ruolo, se programmi o no.
 - **Come vuoi le risposte**: lingua, tono (conciso? esteso?), preferenze (es. niente emoji, accenti corretti).
-- **Regole tue**: cose che Claude deve o non deve fare (es. «chiedi prima di installare pacchetti», «non pushare senza chiedere»).
+- **Regole tue**: cose che Claude deve o non deve fare (es. "chiedi prima di installare pacchetti", "non pushare senza chiedere").
 - **Cosa usi**: sistema operativo, strumenti principali.
-- **Le regole che consigliamo di includere** (l'utente decide): «Le azioni tecniche le esegui tu — comandi, script, riavvii, verifiche. Chiedimi solo ciò che solo una persona può fare: password che conosco solo io, codici 2FA, pagamenti, invii a terzi, decisioni. Se un permesso ti blocca, non passarmi il comando: cerca un'altra via o chiedimi di allargare il permesso» (senza questa regola l'assistente tende a chiudere ogni passo con una richiesta di azione manuale); «Prima di ogni richiesta di lavoro, anche breve, riscrivi la mia richiesta come la eseguirai (il prompt), poi mostra un brief di massimo 8 righe — obiettivo, output, vincoli, fatto quando, assunzioni, da chiarire — e procedi. Domande e conversazione: rispondi e basta» (lo fa la skill `prompt-master`, e l'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi); e la forma delle risposte: frasi corte (22 parole per un'istruzione, 28 per una descrizione), voce attiva, niente gerundio né condizionale, una parola per concetto (il catalogo completo è nella skill `italiano-semplificato`, da usare per riscrivere un testo dato); «A lavoro finito l'ultima riga è «Prossimo passo:» con una sola azione e chi la fa, oppure «Niente da fare per te»» (senza, l'utente finisce per chiedere «e adesso?»); «Un risultato visivo o in un'app esterna (documento, slide, grafica, pagina) è fatto solo quando l'hai aperto come lo vedrò io: dammi il link e lo screenshot che hai guardato» (il «fatto» non verificato è la correzione più frequente su questi lavori); «Un comando che dura più di due minuti va in background, come dice `~/.claude/shared/lavori-lunghi.md`: un lavoro avviato non è un lavoro fatto» (senza, la sessione resta bloccata o l'esito si perde).
+- **Le regole che consigliamo di includere** (l'utente decide): "Le azioni tecniche le esegui tu — comandi, script, riavvii, verifiche. Chiedimi solo ciò che solo una persona può fare: password che conosco solo io, codici 2FA, pagamenti, invii a terzi, decisioni. Se un permesso ti blocca, non passarmi il comando: cerca un'altra via o chiedimi di allargare il permesso" (senza questa regola l'assistente tende a chiudere ogni passo con una richiesta di azione manuale); "Prima di ogni richiesta di lavoro, anche breve, riscrivi la mia richiesta come la eseguirai (il prompt), poi mostra un brief di massimo 8 righe — obiettivo, output, vincoli, fatto quando, assunzioni, da chiarire — e procedi. Domande e conversazione: rispondi e basta" (lo fa la skill `prompt-master`, e l'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi); e la forma delle risposte: frasi corte (22 parole per un'istruzione, 28 per una descrizione), voce attiva, niente gerundio né condizionale, una parola per concetto (il catalogo completo è nella skill `italiano-semplificato`, da usare per riscrivere un testo dato); "A lavoro finito l'ultima riga è "Prossimo passo:" con una sola azione e chi la fa, oppure "Niente da fare per te"" (senza, l'utente finisce per chiedere "e adesso?"); "Un risultato visivo o in un'app esterna (documento, slide, grafica, pagina) è fatto solo quando l'hai aperto come lo vedrò io: dammi il link e lo screenshot che hai guardato" (il "fatto" non verificato è la correzione più frequente su questi lavori); "Un comando che dura più di due minuti va in background, come dice `~/.claude/shared/lavori-lunghi.md`: un lavoro avviato non è un lavoro fatto" (senza, la sessione resta bloccata o l'esito si perde).
 
 Mostra la bozza e chiedi conferma prima di scriverla in `~/.claude/CLAUDE.md`. Tienila corta e pratica: è meglio poche regole vere che una lista lunga.
 
@@ -234,7 +234,7 @@ Altrimenti spiega che, senza un remote proprio, tutto funziona lo stesso: i dati
 ## FASE 7c — Il comando `arturo` nel terminale (opzionale)
 
 I todo si leggono anche fuori da Claude Code, con `python3 ~/.claude/bin/arturo todo`. Chiedi:
-«Vuoi poter scrivere solo `arturo todo` nel terminale, per vedere le tue cose da fare?».
+"Vuoi poter scrivere solo `arturo todo` nel terminale, per vedere le tue cose da fare?".
 
 - Se sì, mostra la riga che aggiungerai e il file in cui va (`~/.zshrc` su macOS, `~/.bashrc`
   su Linux e Git Bash), poi aggiungila dopo il suo sì. Non toccare il file senza il sì.
@@ -242,7 +242,7 @@ I todo si leggono anche fuori da Claude Code, con `python3 ~/.claude/bin/arturo 
   alias arturo='python3 "$HOME/.claude/bin/arturo"'
   ```
   Dille che vale dalla prossima finestra del terminale, e che `arturo todo aiuto` elenca i comandi.
-- Altrimenti salta: dentro Claude Code basta dire «cosa c'è da fare?».
+- Altrimenti salta: dentro Claude Code basta dire "cosa c'è da fare?".
 
 ---
 
@@ -262,7 +262,7 @@ e non sposta niente. Spiegalo così, in parole semplici:
   telemetria;
 - è spenta finché non dici sì, e si spegne con un comando.
 
-Mostra lo stato e chiedi: «Vuoi accendere la memoria?».
+Mostra lo stato e chiedi: "Vuoi accendere la memoria?".
 
 ```bash
 python3 "$HOME/.claude/bin/arturo" memoria stato
@@ -288,9 +288,9 @@ Solo se l'utente vuole collegare Gmail, Calendar o Drive. NON farlo qui: indiriz
 
 ## FASE 8b — Leggere pagine web senza browser (opzionale)
 
-Spiega: «`scrape` legge una pagina web e tiene solo il testo che serve. È più rapido del browser e
+Spiega: "`scrape` legge una pagina web e tiene solo il testo che serve. È più rapido del browser e
 riempie meno la conversazione. Non supera i siti che bloccano i programmi: per quelli resta il
-browser. Occupa circa 300 MB sul disco. Lo installo?»
+browser. Occupa circa 300 MB sul disco. Lo installo?"
 
 Controlla prima se c'è già:
 
@@ -317,10 +317,10 @@ Controlla prima se c'è già:
 
 ## FASE 8c — Impeccable, per chi fa siti e pagine (opzionale)
 
-Chiedi: «Ti capita di fare siti, pagine o piccole app? Esiste una skill di design delle interfacce,
+Chiedi: "Ti capita di fare siti, pagine o piccole app? Esiste una skill di design delle interfacce,
 Impeccable, di Paul Bakaus: con lei Claude lavora come un direttore di design e controlla da solo i
 difetti tipici. Arturo non la copia: la installo dall'autore, così ricevi le sue versioni nuove. Al
-primo uso scarica un suo programma di controllo. La installo?»
+primo uso scarica un suo programma di controllo. La installo?"
 
 Controlla prima se c'è già:
 
@@ -336,8 +336,8 @@ Controlla prima se c'è già:
   npx --yes impeccable install --providers=claude --scope=global
   ```
 
-  Poi spiega: «È installata. Riapri Claude Code, e in un progetto scrivi `/impeccable init`: ti fa
-  qualche domanda sul progetto e la ricorda in `PRODUCT.md`.» Dettagli e aggiornamento:
+  Poi spiega: "È installata. Riapri Claude Code, e in un progetto scrivi `/impeccable init`: ti fa
+  qualche domanda sul progetto e la ricorda in `PRODUCT.md`." Dettagli e aggiornamento:
   `docs/impeccable.md`.
 - Se l'utente dice no, o non fa interfacce, salta: si installa anche più tardi con lo stesso
   comando.
@@ -365,8 +365,8 @@ mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/setup-fatt
 ## FASE 10 — Sparring: l'harness sul TUO lavoro (opzionale, consigliata)
 
 L'installazione è finita, ma l'harness non sa ancora niente della persona che lo userà.
-Proponi: «vuoi che facciamo dieci minuti di sparring? Ti faccio tre domande sul tuo lavoro
-e vediamo insieme dove Arturo ti serve davvero — con un piccolo esperimento, se ti va.»
+Proponi: "vuoi che facciamo dieci minuti di sparring? Ti faccio tre domande sul tuo lavoro
+e vediamo insieme dove Arturo ti serve davvero — con un piccolo esperimento, se ti va."
 
 Se accetta, apri con Read `~/.claude/commands/sparring.md` e seguine le istruzioni (parti dal capitolo
 `docs/principi/00-chi-possiede-lo-strumento.md`, che è il punto d'ingresso del curriculum).
@@ -379,9 +379,9 @@ Se preferisce esplorare da solo, indicagli `docs/principi/README.md` e chiudi.
 Chiudi con un riepilogo in linguaggio semplice:
 - Cosa è stato configurato: prerequisiti, permessi, `PROJECTS_BASE`, lingua, verifica finale.
 - Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), Google (8), `scrape` (8b), Impeccable (8c), sparring (10). Una fase saltata si recupera rilanciando `/setup`.
-- **Come iniziare a lavorare**: «Ogni giorno ti bastano due comandi: `/inizio <nome>` per riprendere un progetto e `/fine` per chiuderlo. Quando ti viene in mente qualcosa da fare, dimmi «ricordami di…»: lo ritrovi a ogni `/inizio`.»
-- **Gli altri comandi, quando servono**: «Non sai da dove partire? `/guidami` guarda il tuo lavoro recente e ti propone i prossimi passi. Qualcosa non torna in un progetto? `/diagnosi` controlla Arturo e il progetto, e ti dice cosa sistemare. Fai spesso lo stesso lavoro? `/creaskill` ti aiuta a farne una skill tua.» Gli altri strumenti non elencarli: Claude li usa da solo quando servono.
+- **Come iniziare a lavorare**: "Ogni giorno ti bastano due comandi: `/inizio <nome>` per riprendere un progetto e `/fine` per chiuderlo. Quando ti viene in mente qualcosa da fare, dimmi "ricordami di…": lo ritrovi a ogni `/inizio`."
+- **Gli altri comandi, quando servono**: "Non sai da dove partire? `/guidami` guarda il tuo lavoro recente e ti propone i prossimi passi. Qualcosa non torna in un progetto? `/diagnosi` controlla Arturo e il progetto, e ti dice cosa sistemare. Fai spesso lo stesso lavoro? `/creaskill` ti aiuta a farne una skill tua." Gli altri strumenti non elencarli: Claude li usa da solo quando servono.
 - **Come restare aggiornato**: Arturo si aggiorna da solo, come Claude Code. Quando esce una versione nuova la barra in basso lo dice, e alla chiusura della sessione si installa, solo se è firmata da chi mantiene Arturo. **`/novita`** racconta cosa è cambiato e propone lo sparring. Per guardare prima ogni aggiornamento: `python3 ~/.claude/bin/arturo aggiornamenti manuali`, poi **`/aggiorna`** quando vuoi.
 - **Telemetria**: ricorda in una riga se è accesa o spenta (`python3 ~/.claude/bin/arturo telemetria stato`), e che `python3 ~/.claude/bin/arturo telemetria mostra` fa vedere esattamente cosa parte.
-- **Come far migliorare Arturo**: «Se qualcosa non funziona, o ti manca uno strumento, dimmelo o scrivi `/segnala`: preparo io il testo per chi mantiene Arturo, e parte solo con il tuo sì.»
+- **Come far migliorare Arturo**: "Se qualcosa non funziona, o ti manca uno strumento, dimmelo o scrivi `/segnala`: preparo io il testo per chi mantiene Arturo, e parte solo con il tuo sì."
 - Ricorda che `/system-audit` si può rilanciare in qualsiasi momento per ricontrollare l'harness.

@@ -113,7 +113,7 @@ un indice che punta a un handoff sparito. Si sistemano entrambi col prossimo `/f
 
 ## Parte 3 — I file citati esistono ancora?
 
-Gli handoff (sezione «File e materiali») e il `CLAUDE.md` del progetto (sezione «Materiali»)
+Gli handoff (sezione "File e materiali") e il `CLAUDE.md` del progetto (sezione "Materiali")
 dicono dove stanno i file del lavoro. Controlla che ci siano ancora:
 
 ```bash
@@ -141,11 +141,11 @@ Per ogni file lo script propone un destino, con le stesse regole di `/fine`:
 - **archivia**: un documento di lavoro che sta fuori da ogni repo. Chiedi alla persona dove
   tiene i documenti, e sposta solo dopo il sì;
 - **resta**: un file pesante, sopra i 20 MB, o un oggetto online. Non si sposta, ma il suo
-  percorso va scritto nella sezione «Materiali» del `CLAUDE.md`, così la Parte 3 lo ritrova;
+  percorso va scritto nella sezione "Materiali" del `CLAUDE.md`, così la Parte 3 lo ritrova;
 - **scarto**: un file temporaneo. Lo nomini e basta: non si cancella.
 
 Mostra la tabella, poi chiedi: **tutto come proposto**, i numeri da cambiare, oppure **niente**.
-Sposta con `mv` solo dopo il sì, e aggiorna la sezione «Materiali» del `CLAUDE.md` per ogni
+Sposta con `mv` solo dopo il sì, e aggiorna la sezione "Materiali" del `CLAUDE.md` per ogni
 file che non entra nel repo.
 
 ---
@@ -158,7 +158,7 @@ Solo se la persona descrive un errore, o se le parti 1-4 ne hanno trovato uno.
 
 1. **L'errore esatto**: il messaggio così com'è, non riassunto.
 2. **Cosa si aspettava** e cosa succede invece.
-3. **Cosa ha già escluso**: se dice «NON è X», rispettalo e cerca altrove.
+3. **Cosa ha già escluso**: se dice "NON è X", rispettalo e cerca altrove.
 4. **Come si riproduce**: passi, input, condizioni.
 
 **Poi un'ipotesi che si possa smentire.** Esponila in 2-3 righe: la causa sospetta e la prova.
@@ -176,7 +176,7 @@ test che riproduce il bug.
 - **Correzione minima**: solo quella, niente miglioramenti a lato.
 - **Commit selettivo**: `git add` dei soli file toccati, messaggio `fix:` con la causa in una riga.
 - Per un errore che può tornare, proponi una riga in `## Errori Comuni` del `CLAUDE.md` del
-  progetto («NON fare X — causa Y»).
+  progetto ("NON fare X — causa Y").
 
 ---
 

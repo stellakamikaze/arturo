@@ -233,7 +233,7 @@ if [ "$MODO" = concludi ]; then
   exit $esito
 fi
 
-case "$MODO" in merge|rebase|sync) ;; *) echo "APPLICAZIONE NON PARTITA: modo sconosciuto «$MODO»"; exit 1 ;; esac
+case "$MODO" in merge|rebase|sync) ;; *) echo "APPLICAZIONE NON PARTITA: modo sconosciuto \"$MODO\""; exit 1 ;; esac
 [ -n "$REF" ] || { echo "APPLICAZIONE NON PARTITA: manca la versione da applicare"; exit 1; }
 
 MODIFICATI=$(git status --porcelain --untracked-files=no | cut -c4-)
@@ -260,7 +260,7 @@ if [ -f "$STATO" ] && read -r VECCHIA _ VECCHIO_MODO NATA _ < "$STATO"; then
   else
     case "$VECCHIO_MODO" in sync) DA="dal sync fra le tue macchine" ;; *) DA="da un aggiornamento di Arturo" ;; esac
     echo "APPLICAZIONE NON PARTITA: una copia di prova con un conflitto aspetta${NATA:+ dal ${NATA/_/ alle }}, $DA: $VECCHIA"
-    echo "Concludila (/aggiorna, «Risolvere un conflitto») oppure scartala con: aggiorna-applica.sh <radice> scarta. ~/.claude non è stata toccata."
+    echo "Concludila (/aggiorna, \"Risolvere un conflitto\") oppure scartala con: aggiorna-applica.sh <radice> scarta. ~/.claude non è stata toccata."
     exit 1
   fi
 fi

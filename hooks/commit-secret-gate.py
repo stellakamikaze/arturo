@@ -165,7 +165,7 @@ def _repo_for_command(command: str, cwd: str):
                     location = os.path.abspath(os.path.join(location, target))
             continue
         # `env VAR=… git …` e `command git …` (4/10/2026, #2832): si tolgono il wrapper e le
-        # assegnazioni e si guarda il git che resta. Gli altri wrapper restano «non risolvibile».
+        # assegnazioni e si guarda il git che resta. Gli altri wrapper restano "non risolvibile".
         if head in ("env", "command"):
             resto = tokens[1:]
             while resto and _ASSIGN.match(resto[0]):
@@ -178,7 +178,7 @@ def _repo_for_command(command: str, cwd: str):
             continue
         index = 1
         # Opzioni globali prima del sottocomando (15/10/2026): `--no-pager`, `-p` e simili
-        # si saltano; prima `git --no-pager -C repo commit` usciva come «nessun commit».
+        # si saltano; prima `git --no-pager -C repo commit` usciva come "nessun commit".
         while index < len(tokens) and tokens[index].startswith("-"):
             opzione = tokens[index]
             if opzione in ("-C", "-c"):

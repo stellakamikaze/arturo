@@ -261,7 +261,7 @@ const casi = {
     const dati = await r.json();
     assert.equal(dati.dal, "2026-10-06");
     assert.deepEqual(f.stato.opzioni, [{ settimana: true }], "V17 il JSON non chiede la settimana");
-    assert.equal(dati.migliorare.setupIniziati, 1, "V17 manca «Dove migliorare»");
+    assert.equal(dati.migliorare.setupIniziati, 1, "V17 manca \"Dove migliorare\"");
   },
   // Ritenzione: per ogni soglia contano solo le installazioni nate da almeno quei giorni.
   async V18() {
@@ -275,7 +275,7 @@ const casi = {
     assert.deepEqual(r.soglie, [{ giorni: 7, idonee: 3, vive: 2 }, { giorni: 30, idonee: 2, vive: 1 }, { giorni: 60, idonee: 2, vive: 1 }],
       "V18 soglie della ritenzione");
   },
-  // Il lunedì apre con «Dove migliorare Arturo»; il recap del giorno no.
+  // Il lunedì apre con "Dove migliorare Arturo"; il recap del giorno no.
   async V19() {
     const migliorare = { setupIniziati: 3, setupFiniti: 1, setupMai: 2, setupFermi: [{ valore: "fase:2", n: 2 }],
       conferme: [{ valore: "exfil-guard.py", chiede: 10, confermata: 9 }], errori: [], aggiornaStorti: [],

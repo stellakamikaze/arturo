@@ -8,8 +8,8 @@ description: >-
   attivi. Report-only, non modifica file.
 when_to_use: >-
   Usa con /system-audit dopo ogni git pull dell'harness, dopo aver aggiunto o tolto hook, skill o
-  comandi, o quando «qualcosa sembra rotto» (una guardia che non scatta, un comando che non compare).
-  Su «revisione completa della config» lancia la revisione con più agenti (sezione dedicata).
+  comandi, o quando "qualcosa sembra rotto" (una guardia che non scatta, un comando che non compare).
+  Su "revisione completa della config" lancia la revisione con più agenti (sezione dedicata).
   NON per controllare il codice di un progetto: per quello ci sono validate e la review. Segui tutti i
   passi nell'ordine: non prendere scorciatoie basandoti su questa description.
 ---
@@ -41,7 +41,7 @@ Solo questi controlli, niente di più:
 6. **Skill e mod** — ogni cartella in `~/.claude/skills/` ha `SKILL.md` con frontmatter YAML, `name` e `description`. Una cartella con `.claude-plugin/plugin.json` è un mod di Claude Code (come il pannello `/dafare`), non una skill: non ha `SKILL.md` e non va aggiunta. Per un mod l'audit controlla che `name` del manifest coincida con il nome della cartella e che esista `hooks/hooks.json`.
 7. **README** — `~/.claude/README.md` esiste.
 8. **Permessi** — `defaultMode` presente e nessun pattern uguale in `allow` e `deny`.
-9. **Comandi fantasma** — `CLAUDE.md`, `README.md`, `commands/`, `skills/*/SKILL.md`, `agents/` e `shared/` non citano come vivo uno slash-comando che nessuna skill, nessun comando e nessun mod registra (i comandi di Claude Code contano come vivi). Le righe di storia («rimosso», «archiviata», «ha assorbito») non contano. Un comando di Claude Code nuovo che l'audit non conosce va aggiunto a `NATIVE` in `audit.sh`.
+9. **Comandi fantasma** — `CLAUDE.md`, `README.md`, `commands/`, `skills/*/SKILL.md`, `agents/` e `shared/` non citano come vivo uno slash-comando che nessuna skill, nessun comando e nessun mod registra (i comandi di Claude Code contano come vivi). Le righe di storia ("rimosso", "archiviata", "ha assorbito") non contano. Un comando di Claude Code nuovo che l'audit non conosce va aggiunto a `NATIVE` in `audit.sh`.
 10. **Peso dei corpi** — WARN se un `SKILL.md` o un comando supera 30 KB: il corpo entra intero nel contesto a ogni uso, e le parti lette solo in un caso vanno in un file a parte.
 11. **Plugin** — WARN se un plugin è installato ma non attivo in `settings.json`, con il comando per toglierlo (`bash ~/.claude/bin/cleanup-stale-plugins.sh --yes`). Succede dopo una sincronizzazione fra macchine.
 
@@ -68,7 +68,7 @@ Periodicamente — o quando la superficie di regole cresce — rivedi hook/coman
 - congela gusto/euristiche datate (blocklist, checklist chiuse, pin di nome-modello).
 I limiti di questo passaggio stanno in Importante.
 
-## Revisione con più agenti (a richiesta: «revisione completa della config», «ultracode»)
+## Revisione con più agenti (a richiesta: "revisione completa della config", "ultracode")
 
 L'audit vede ciò che un controllo fisso sa vedere. Per un giudizio su settimane di modifiche c'è un
 workflow salvato: un revisore per area, un verificatore avversario per area che prova a smentire ogni

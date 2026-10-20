@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """GR01: una guardia che si rompe non lascia passare in silenzio.
 
-Le guardie Bash passano dal dispatcher, che trasforma un crash in «ask». web-egress-guard è
+Le guardie Bash passano dal dispatcher, che trasforma un crash in "ask". web-egress-guard è
 registrata da sola in settings.json: fino al 15/10/2026, rotta, usciva con 1, un errore non
 bloccante, e l'URL passava. Ora chiede, come ask_guard. protect_claude_md resta com'è: rotta esce
 con 2 e blocca, per scelta (invariante I02 di test_permissivita_2026_09_08.py).
@@ -26,7 +26,7 @@ def rotta(repo: Path, nome: str, dove: str, dati: dict, cartella: Path) -> subpr
     sorgente = (repo / "hooks" / nome).read_text(encoding="utf-8")
     righe = sorgente.split("\n")
     trovate = [i for i, r in enumerate(righe) if r.strip().startswith(dove)]
-    assert len(trovate) == 1, f"{nome}: la riga «{dove}» va trovata una volta, trovata {len(trovate)}"
+    assert len(trovate) == 1, f'{nome}: la riga "{dove}" va trovata una volta, trovata {len(trovate)}'
     i = trovate[0]
     rientro = righe[i][: len(righe[i]) - len(righe[i].lstrip())]
     righe.insert(i, f"{rientro}raise RuntimeError('veleno del banco')")

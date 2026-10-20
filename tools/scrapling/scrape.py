@@ -5,7 +5,7 @@ Uso:
   scrape <url> [--md|--text|--html|--json] [--full] [--sel CSS] [-o FILE] [-q]
 
 Una sola richiesta HTTP, con un user agent che dichiara cosa è. Niente browser, niente
-travestimenti: se il sito blocca (401, 403, 429, pagina di verifica «sei umano?»), lo script lo
+travestimenti: se il sito blocca (401, 403, 429, pagina di verifica "sei umano?"), lo script lo
 dice, esce 3 e consiglia di aprire la pagina nel browser.
 
 Exit: 0 letto · 2 la pagina non c'è o il server è guasto (404, 5xx) · 3 il sito blocca le

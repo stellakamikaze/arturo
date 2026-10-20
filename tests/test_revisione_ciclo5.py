@@ -8,9 +8,9 @@ gli avvisi di rinumerazione del numero indicato, `--titolo-atteso` e `--atteso` 
 scrittura, e il pannello li passa negli argv e negli inversi. X04 un evento con il ts prima del
 crea (orologio indietro) resta suo. X05 l'Annulla della pagina risponde 409 se il todo e' cambiato
 nel frattempo. X06 /aggiorna mostra guardie e permessi interi e l'elenco completo del codice che
-gira da solo, mod compresi, senza taglio. X07 un todo preso in ~/.claude e' «generale», e la
-FASE 4 di /inizio mostra il progetto e «generale», senza una variabile di un altro blocco. X08
-fuori da git /fine legge lo stesso progetto di «ricordami di…». X09 il blocco todo di /fine regge
+gira da solo, mod compresi, senza taglio. X07 un todo preso in ~/.claude e' "generale", e la
+FASE 4 di /inizio mostra il progetto e "generale", senza una variabile di un altro blocco. X08
+fuori da git /fine legge lo stesso progetto di "ricordami di…". X09 il blocco todo di /fine regge
 una HOME con uno spazio e non usa variabili fra le chiamate. X10 /inizio non butta gli avvisi.
 X11 il perche' di un todo tu lo dice la persona.
 X13 i comandi da terminale delle novita' funzionano senza l'alias. X17 la prova nel browser di
@@ -154,9 +154,9 @@ def ora(minuti: float) -> str:
 
 def blocco(testo: str, dopo: str, codice: str) -> str:
     """Il primo blocco bash dopo il testo `dopo`."""
-    assert dopo in testo, f"{codice} non trovo «{dopo}»"
+    assert dopo in testo, f'{codice} non trovo "{dopo}"'
     m = re.search(r"```bash\n(.*?)```", testo.split(dopo, 1)[1], re.S)
-    assert m, f"{codice} nessun blocco bash dopo «{dopo}»"
+    assert m, f'{codice} nessun blocco bash dopo "{dopo}"'
     return m.group(1)
 
 
@@ -175,7 +175,7 @@ def test_x01(repo: Path) -> None:
         c.registro.write_bytes(dati[:-40])  # una scrittura interrotta: l'ultima riga senza a capo
         r = c.todo("fatto", "1", codice="X01", ok=False)
         aperti = c.aperti("X01")
-        assert 1 not in aperti, f"X01 «{r.stdout.strip()}» rc={r.returncode}, ma #1 resta aperto: l'evento si è incollato alla riga rotta"
+        assert 1 not in aperti, f"X01 \"{r.stdout.strip()}\" rc={r.returncode}, ma #1 resta aperto: l'evento si è incollato alla riga rotta"
         assert r.returncode == 0, f"X01 la chiusura di #1 è scritta, ma la CLI esce {r.returncode}: {r.stderr}"
     con_casa(repo, tronca)
 
@@ -257,11 +257,11 @@ def test_x03(repo: Path) -> None:
         assert "--atteso=chi=decidi" in verbi["chi"]["inverso"], f"X03 l'inverso di chi: {verbi['chi']['inverso']}"
         c.todo(*verbi["fatto"]["argv"], codice="X03")
         c.todo("riprendi", "2", codice="X03")
-        c.todo("ferma", "2", "aspetto la firma", codice="X03")  # Claude, fra il tasto e «u»
+        c.todo("ferma", "2", "aspetto la firma", codice="X03")  # Claude, fra il tasto e "u"
         r = c.todo(*verbi["fatto"]["inverso"], codice="X03", ok=False)
         t = c.aperti("X03").get(2) or {}
         assert r.returncode == 2 and t.get("stato") == "fermo" and t.get("motivo") == "aspetto la firma", \
-            f"X03 «u» del pannello cancella il FERMO scritto nel frattempo: rc={r.returncode} {t}"
+            f'X03 "u" del pannello cancella il FERMO scritto nel frattempo: rc={r.returncode} {t}'
     con_casa(repo, prova)
 
 
@@ -374,7 +374,7 @@ def test_x07(repo: Path) -> None:
             cartella.mkdir(exist_ok=True)
             subprocess.run(["git", "init", "-q"], cwd=str(cartella), env=c.env(), check=True, capture_output=True)
         r = c.todo("aggiungi", "Chiamare il commercialista", "--chi", "tu", cwd=config, codice="X07")
-        assert "(generale)" in r.stdout, f"X07 un todo preso dentro ~/.claude non è «generale»: {r.stdout.strip()}"
+        assert "(generale)" in r.stdout, f'X07 un todo preso dentro ~/.claude non è "generale": {r.stdout.strip()}'
         c.todo("aggiungi", "Scrivere il capitolo tre", cwd=libro, codice="X07")
         c.todo("aggiungi", "Lavoro di un altro progetto", cwd=altro, codice="X07")
         inizio = read(repo / "commands" / "inizio.md")
@@ -383,7 +383,7 @@ def test_x07(repo: Path) -> None:
         assert "$SLUG" not in codice, "X07 la FASE 4 usa $SLUG, che nasce in un altro blocco"
         r = c.bash(righe_todo(codice), libro, "X07")
         assert "Scrivere il capitolo tre" in r.stdout, f"X07 /inizio non mostra i todo del progetto: {r.stdout}"
-        assert "Chiamare il commercialista" in r.stdout, f"X07 /inizio libro non mostra i todo di «generale»: {r.stdout}"
+        assert "Chiamare il commercialista" in r.stdout, f'X07 /inizio libro non mostra i todo di "generale": {r.stdout}'
         assert "Lavoro di un altro progetto" not in r.stdout, f"X07 /inizio mostra i todo di ogni progetto: {r.stdout}"
     con_casa(repo, prova)
 
@@ -402,7 +402,7 @@ def fuori_da_git(repo: Path, codice: str, nome: str) -> None:
         c.todo("aggiungi", "Chiamare la tipografia", "--chi", "tu", cwd=lavoro, codice=codice)
         r = c.bash(righe_todo(blocco_fine(repo, codice)), lavoro, codice)
         assert "Chiamare la tipografia" in r.stdout, \
-            f"{codice} /fine non vede il todo di «ricordami di…» nella stessa cartella: {r.stdout!r} {r.stderr[-300:]!r}"
+            f'{codice} /fine non vede il todo di "ricordami di…" nella stessa cartella: {r.stdout!r} {r.stderr[-300:]!r}'
         assert "can't open file" not in r.stderr and "command not found" not in r.stderr, f"{codice} {r.stderr[-300:]}"
     con_casa(repo, prova, nome)
 
@@ -425,7 +425,7 @@ def test_x10(repo: Path) -> None:
     righe = righe_todo(blocco(fase4, "## FASE 4", "X10"))
     assert "2>/dev/null" not in righe, "X10 /inizio butta gli avvisi dei todo con 2>/dev/null"
     fase5 = inizio[inizio.index("## FASE 5"):inizio.index("## FASE 6")]
-    assert "Attenzione" in fase5, "X10 la FASE 5 non dice di riportare gli avvisi «Attenzione»"
+    assert "Attenzione" in fase5, 'X10 la FASE 5 non dice di riportare gli avvisi "Attenzione"'
 
     def prova(c: Casa) -> None:
         c.installa()
@@ -556,7 +556,7 @@ def test_x21(repo: Path) -> None:
             r = c.todo(*argomenti, codice="X21")
             # Su Windows il terminale va a capo con \r\n: quel \r non è un carattere iniettato.
             assert not re.search(r"[\x00-\x08\x0b-\x1f\x7f-\x84\x86-\x9f]", (r.stdout + r.stderr).replace("\r\n", "\n")), \
-                f"X21 caratteri di controllo nel terminale con «todo {' '.join(argomenti)}»: {(r.stdout + r.stderr)!r}"
+                f"X21 caratteri di controllo nel terminale con \"todo {' '.join(argomenti)}\": {(r.stdout + r.stderr)!r}"
         assert "Paga ]52;c;ZWNobyBwd25lZA==bolletta [2J" in c.todo(codice="X21").stdout, "X21 il titolo pulito si perde"
     con_casa(repo, prova)
 

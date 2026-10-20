@@ -10,7 +10,7 @@ Bozza: la rilegge e la corregge Federico prima del rilascio su main.
 Il modo più semplice di rendere sicuro un assistente è fargli chiedere il permesso a ogni passo.
 Vuoi leggere un file? Chiedi. Vuoi creare una cartella? Chiedi. Sembra prudente.
 
-Dopo un'ora succede una cosa che conosci già dai cookie dei siti: clicchi «sì» senza leggere.
+Dopo un'ora succede una cosa che conosci già dai cookie dei siti: clicchi "sì" senza leggere.
 La finestra arriva, la mano risponde. A quel punto la conferma importante, quella prima di
 cancellare una cartella di lavoro, passa con lo stesso gesto delle cento inutili.
 
@@ -60,7 +60,7 @@ Una conferma fa il contrario. Ti mette davanti il comando com'è, e decidi tu.
 
 ## Perché un falso allarme conta
 
-Ogni conferma inutile consuma la tua attenzione e ti riporta all'abitudine del «sì» automatico.
+Ogni conferma inutile consuma la tua attenzione e ti riporta all'abitudine del "sì" automatico.
 Per questo le guardie di Arturo leggono il comando come lo legge il computer. Un testo che
 Claude scrive in un file e che nessuno esegue non conta come un comando. Un messaggio che
 descrive un'operazione non è l'operazione. Così la domanda arriva poco, e quando arriva vale
@@ -77,9 +77,9 @@ la pena leggerla.
 ## La cosa da portarsi via
 
 Davanti a una conferma che lo strumento ti chiede, chiediti: **se dico sì senza leggere, cosa
-può succedere?** Se la risposta è «niente», quella conferma è attrito, e conviene toglierla. Se
-la risposta è «qualcosa che non si rimedia», quella è un rail, e va tenuta.
+può succedere?** Se la risposta è "niente", quella conferma è attrito, e conviene toglierla. Se
+la risposta è "qualcosa che non si rimedia", quella è un rail, e va tenuta.
 
 ---
 
-*Vuoi provarlo sul tuo lavoro? Chiedi a Claude uno sparring su «i rail».*
+*Vuoi provarlo sul tuo lavoro? Chiedi a Claude uno sparring su "i rail".*

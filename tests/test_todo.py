@@ -197,7 +197,7 @@ def test_t03(repo: Path) -> None:
 
 def test_t04(repo: Path) -> None:
     def prova(c: Casa) -> None:
-        titolo = "Perché è già lì: città, più avanti — «Ciò»"
+        titolo = "Perché è già lì: città, più avanti — «Ciò»"  # dato di prova UTF-8: le virgolette basse restano
         c.cli("aggiungi", titolo, "--progetto", "p", "--quando", "più avanti")
         assert c.aperti()[1]["titolo"] == titolo, "T04 il titolo con gli accenti cambia"
         assert c.aperti()[1]["quando"] == "più avanti", "T04 il quando con l'accento cambia"
@@ -384,12 +384,12 @@ def test_t13(repo: Path) -> None:
                           ("xyz",), ("ripristina", "1", "fatto", "--annullo"), ("mostra",)):
             r = c.cli(*argomenti, ok=False)
             assert r.returncode == 2 and r.stderr.startswith("Errore:"), f"T13 {argomenti}: rc={r.returncode} {r.stderr!r}"
-            # Un comando sbagliato si spiega in italiano: niente «usage:» o «error:» di argparse.
+            # Un comando sbagliato si spiega in italiano: niente "usage:" o "error:" di argparse.
             assert not re.search(r"usage:|error:|invalid choice|unrecognized|required", r.stderr), \
                 f"T13 {argomenti}: messaggio in inglese: {r.stderr!r}"
         assert "progetto non può essere vuoto" in c.cli("aggiungi", "Cinque", "--progetto", "", ok=False).stderr, \
             "T13 un progetto vuoto"
-        assert "«xyz»" in c.cli("xyz", ok=False).stderr, "T13 il comando sconosciuto non viene nominato"
+        assert '"xyz"' in c.cli("xyz", ok=False).stderr, "T13 il comando sconosciuto non viene nominato"
         assert "tu, decidi, io" in c.cli("modifica", "1", "--chi", "boh", ok=False).stderr, "T13 i valori ammessi"
         assert c.registro.read_bytes() == prima, "T13 un comando rifiutato ha scritto nel registro"
     con_casa(repo, prova)
@@ -636,12 +636,12 @@ def test_t21(repo: Path) -> None:
         assert r.returncode == 0 and aiuto in r.stdout, f"T21 l'aiuto non nasce da COMANDI: {r.stdout!r}"
         r = subprocess.run([sys.executable, str(repo / "bin" / "arturo"), "boh"], env=env, capture_output=True,
                            encoding="utf-8", timeout=60)
-        assert r.returncode == 2 and "«arturo todo»" in r.stderr, f"T21 comando sconosciuto: {r.stderr!r}"
+        assert r.returncode == 2 and '"arturo todo"' in r.stderr, f"T21 comando sconosciuto: {r.stderr!r}"
     # Una riga in piu' in COMANDI basta: aiuto, smistamento ed errore la vedono da soli.
     cli.COMANDI["prova"] = (lambda argv: 7 if argv == ["x"] else 1, "una riga di prova")
     assert cli.main(["prova", "x"]) == 7, "T21 lo smistamento non legge COMANDI"
     assert "una riga di prova" in cli.uso() and "arturo prova" in cli.uso(), "T21 l'aiuto non legge COMANDI"
-    assert "«arturo prova»" in cli.sconosciuto("boh"), "T21 il messaggio di errore non legge COMANDI"
+    assert '"arturo prova"' in cli.sconosciuto("boh"), "T21 il messaggio di errore non legge COMANDI"
 
 
 def test_t22(repo: Path) -> None:

@@ -8,7 +8,7 @@
 //                          il testo resta in D1, il vocale va solo a Telegram
 //   POST /v1/sito          un download dal sito (/api/sito): il comando copiato o il repository aperto
 // Cosa dà, solo a chi ha il token (secret RIEPILOGO_TOKEN):
-//   GET  /v1/riepilogo     il riepilogo della settimana in JSON, con «Dove migliorare Arturo»
+//   GET  /v1/riepilogo     il riepilogo della settimana in JSON, con "Dove migliorare Arturo"
 // L'IP non viene mai salvato. Gli eventi hanno il solo giorno, mai l'ora.
 
 // L'elenco chiuso degli eventi. Lo stesso elenco sta in bin/telemetria.py e nel README:
@@ -78,7 +78,7 @@ const SITO_SISTEMI = ["mac", "win", ""];
 
 const ID = /^[A-Za-z0-9-]{8,64}$/;
 const GIORNO = /^\d{4}-\d{2}-\d{2}$/;
-// La versione è l'ultimo tag v* raggiungibile (`git describe --tags --abbrev=0`, bin/telemetria.py), oppure «sconosciuta».
+// La versione è l'ultimo tag v* raggiungibile (`git describe --tags --abbrev=0`, bin/telemetria.py), oppure "sconosciuta".
 // Niente testo libero: finisce nel riepilogo che legge la routine del lunedì.
 const VERSIONE = /^[A-Za-z0-9._+-]{1,60}$/;
 
@@ -215,7 +215,7 @@ export const REGOLA_GUARDIE = "Una guardia non si allenta sulla sola base della 
 
 const installazioni = (n) => `${n || 0} ${n === 1 ? "installazione" : "installazioni"}`;
 
-// «Dove migliorare Arturo»: la prima cosa del riepilogo del lunedì. Numeri, non verdetti.
+// "Dove migliorare Arturo": la prima cosa del riepilogo del lunedì. Numeri, non verdetti.
 export function testoMigliorare(m) {
   if (!m) return [];
   const righe = (elenco, riga, vuoto = "  niente") => elenco && elenco.length ? elenco.map(riga) : [vuoto];
@@ -340,7 +340,7 @@ export function avvisoSito(e, n) {
   return `Arturo: ${cosa}${dove ? ` (${dove})` : ""} · ${n}° di oggi`;
 }
 
-// Il modulo del sito: testo, tipo, email facoltativa, un vocale facoltativo. Il campo «sito» è una
+// Il modulo del sito: testo, tipo, email facoltativa, un vocale facoltativo. Il campo "sito" è una
 // trappola invisibile: una persona lo lascia vuoto, un bot lo riempie.
 export function validaFeedback(modulo) {
   const campo = (nome) => {

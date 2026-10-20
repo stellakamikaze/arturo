@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
-# handoff-gate.sh: controlla la sezione «## Task Pendenti» di un handoff prima che /fine chiuda.
+# handoff-gate.sh: controlla la sezione "## Task Pendenti" di un handoff prima che /fine chiuda.
 #
 # USO
 #   handoff-gate.sh <file-handoff>
 #
-# ROSSO (una riga per difetto, ognuna comincia con «GATE HANDOFF: rosso:»)
-#   - manca la sezione esatta «## Task Pendenti»: c'è sempre, anche senza task;
-#   - un titolo quasi uguale («## Task pendenti», «## Task Pendenti (3)»);
-#   - la sezione non ha righe e non contiene la frase «nessun task pendente»;
-#   - la tabella non ha la colonna ID, o l'ultima colonna non è «Chi»;
+# ROSSO (una riga per difetto, ognuna comincia con "GATE HANDOFF: rosso:")
+#   - manca la sezione esatta "## Task Pendenti": c'è sempre, anche senza task;
+#   - un titolo quasi uguale ("## Task pendenti", "## Task Pendenti (3)");
+#   - la sezione non ha righe e non contiene la frase "nessun task pendente";
+#   - la tabella non ha la colonna ID, o l'ultima colonna non è "Chi";
 #   - una riga ha nella colonna ID un valore diverso da #numero;
 #   - il #numero non esiste nell'archivio dei todo, oppure il todo è già chiuso;
 #   - Chi non è una delle categorie di bin/todo_store.py (tu, decidi, io) né una delle sue forme
-#     scritte per la persona: «Claude» (io), «Decidi tu» (decidi), «Tu: <cosa serve>» (tu);
-#   - Task o Descrizione è un segnaposto del modello mai compilato («cosa resta», «[task]», TODO).
-#   La frase «nessun task pendente» conta solo dentro la sezione, con maiuscole libere.
+#     scritte per la persona: "Claude" (io), "Decidi tu" (decidi), "Tu: <cosa serve>" (tu);
+#   - Task o Descrizione è un segnaposto del modello mai compilato ("cosa resta", "[task]", TODO).
+#   La frase "nessun task pendente" conta solo dentro la sezione, con maiuscole libere.
 #
 # L'archivio dei todo è quello di bin/todo_store.py (ARTURO_TODO lo sposta, per i banchi).
 #
 # EXIT
-#   0 verde (stampa «GATE HANDOFF: verde») · 1 rosso · 2 argomento mancante, file assente
+#   0 verde (stampa "GATE HANDOFF: verde") · 1 rosso · 2 argomento mancante, file assente
 #   o archivio dei todo illeggibile
 
 set -u
@@ -93,7 +93,7 @@ function intestazione(riga,    n, i, c) {
   }
   chiok = (n > 0 && c[n] == "Chi")
   if (!colid) rosso("riga " NR ": la tabella non ha la colonna ID")
-  if (!chiok) rosso("riga " NR ": l\047ultima colonna della tabella non è «Chi»")
+  if (!chiok) rosso("riga " NR ": l\047ultima colonna della tabella non è \"Chi\"")
 }
 function controlla(riga,    n, c, id, num, chi) {
   n = celle(riga, c)
@@ -101,7 +101,7 @@ function controlla(riga,    n, c, id, num, chi) {
   if (colid) {
     id = (colid <= n) ? c[colid] : ""
     if (id !~ /^#[0-9]+$/)
-      rosso("riga " NR ": ID «" id "» non è un #numero di todo: crea il todo con arturo todo aggiungi")
+      rosso("riga " NR ": ID \"" id "\" non è un #numero di todo: crea il todo con arturo todo aggiungi")
     else {
       num = substr(id, 2) + 0
       if (index(" " chiusi " ", " " num " "))
@@ -118,12 +118,12 @@ function controlla(riga,    n, c, id, num, chi) {
     else if (chi == "Decidi tu") cat = "decidi"
     else if (chi ~ /^Tu:[ \t]*[^ \t]/) cat = "tu"
     if (!index(" " chi_ammessi " ", " " cat " ") || cat == "")
-      rosso("riga " NR ": Chi «" chi "» non è una delle categorie ammesse (Claude, Decidi tu, Tu: <cosa serve>, oppure " chi_ammessi ")")
+      rosso("riga " NR ": Chi \"" chi "\" non è una delle categorie ammesse (Claude, Decidi tu, Tu: <cosa serve>, oppure " chi_ammessi ")")
   }
   if (coltask && coltask <= n && guscio(c[coltask]))
-    rosso("riga " NR ": Task «" c[coltask] "» è un segnaposto: scrivi l\047azione")
+    rosso("riga " NR ": Task \"" c[coltask] "\" è un segnaposto: scrivi l\047azione")
   if (coldesc && coldesc <= n && guscio(c[coldesc]))
-    rosso("riga " NR ": Descrizione «" c[coldesc] "» è un segnaposto: scrivi cosa serve per riprendere")
+    rosso("riga " NR ": Descrizione \"" c[coldesc] "\" è un segnaposto: scrivi cosa serve per riprendere")
 }
 
 # la frase fuori dalla sezione serve solo al messaggio, non rende verde
@@ -152,15 +152,15 @@ dentro { tab = 0 }
 
 END {
   if (!sez) {
-    m = "manca la sezione «## Task Pendenti», obbligatoria anche senza task"
-    if (nq) m = m " (trovato «" quasi[1] "» alla riga " quasinr[1] ": il titolo deve essere esatto)"
-    else if (dich) m = m " (la frase «nessun task pendente» va dentro la sezione)"
+    m = "manca la sezione \"## Task Pendenti\", obbligatoria anche senza task"
+    if (nq) m = m " (trovato \"" quasi[1] "\" alla riga " quasinr[1] ": il titolo deve essere esatto)"
+    else if (dich) m = m " (la frase \"nessun task pendente\" va dentro la sezione)"
     rosso(m)
   }
   if (sez) for (i = 1; i <= nq; i++)
-    rosso("riga " quasinr[i] ": titolo «" quasi[i] "»: il titolo deve essere esatto, «## Task Pendenti»")
+    rosso("riga " quasinr[i] ": titolo \"" quasi[i] "\": il titolo deve essere esatto, \"## Task Pendenti\"")
   if (sez && !righe && !dichsez)
-    rosso("la sezione «## Task Pendenti» non ha righe e non contiene la frase «nessun task pendente»")
+    rosso("la sezione \"## Task Pendenti\" non ha righe e non contiene la frase \"nessun task pendente\"")
   if (bad) exit 1
   print "GATE HANDOFF: verde"
 }

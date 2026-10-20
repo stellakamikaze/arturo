@@ -83,15 +83,15 @@ const casi = {
     assert.deepEqual(m.ritenzione.soglie.find((s) => s.giorni === 60), { giorni: 60, idonee: 2, vive: 1 }, "Q04 ritenzione a 60");
     assert.deepEqual(m.claude, [{ valore: "2.1.290", n: 2 }], "Q04 versioni di Claude Code");
   },
-  // Il riepilogo della settimana porta «Dove migliorare»; quello del giorno no. Le query vecchie girano ancora.
+  // Il riepilogo della settimana porta "Dove migliorare"; quello del giorno no. Le query vecchie girano ancora.
   async Q05() {
     const a = await con([["2026-10-12", "aaaaaaaa", "sessione"], ["2026-10-12", "aaaaaaaa", "comando", "fine"]]);
     const settimana = await a.riepilogo("2026-10-06", AL, { settimana: true });
-    assert.ok(settimana.migliorare && Array.isArray(settimana.migliorare.conferme), "Q05 manca «Dove migliorare»");
+    assert.ok(settimana.migliorare && Array.isArray(settimana.migliorare.conferme), "Q05 manca \"Dove migliorare\"");
     assert.equal(settimana.migliorare.tappe, undefined, "Q05 la query delle tappe c'è ancora");
     assert.equal(settimana.sessioni, 1, "Q05 sessioni");
     const giorno = await a.riepilogo("2026-10-11", "2026-10-12");
-    assert.equal(giorno.migliorare, null, "Q05 «Dove migliorare» nel recap del giorno");
+    assert.equal(giorno.migliorare, null, "Q05 \"Dove migliorare\" nel recap del giorno");
   },
   // Il feedback del sito e i contatori del giorno (16/10/2026): testo salvato, vocale no, conteggio che sale.
   async Q08() {
@@ -138,7 +138,7 @@ const casi = {
     assert.deepEqual(r.guardie, [{ valore: "block-dangerous.py", n: 1, installazioni: 1 }], "Q10 i blocchi contano un'installazione vista in un giorno solo");
     assert.deepEqual(r.guardieFrequenti, [], "Q10 le guardie frequenti contano un'installazione vista in un giorno solo");
   },
-  // Le chiavi «una volta per installazione» (giorno 'sempre') se ne vanno con gli eventi della loro
+  // Le chiavi "una volta per installazione" (giorno 'sempre') se ne vanno con gli eventi della loro
   // installazione, dopo 12 mesi: prima restavano per sempre (#3507).
   async Q11() {
     const db = d1();
@@ -151,7 +151,7 @@ const casi = {
     assert.equal(await a.primaVolta("sempre", "setup-fine:viva0000"), true, "Q11 la prima volta non è vera");
     await a.pulisci("2025-10-16");
     const resto = (await db.prepare("SELECT chiave FROM contatori WHERE giorno = 'sempre' ORDER BY chiave").all()).results.map((r) => r.chiave);
-    assert.deepEqual(resto, ["setup-fine:viva0000"], "Q11 pulisci() non toglie le chiavi «sempre» delle installazioni senza più eventi");
+    assert.deepEqual(resto, ["setup-fine:viva0000"], "Q11 pulisci() non toglie le chiavi \"sempre\" delle installazioni senza più eventi");
     assert.equal(await a.primaVolta("sempre", "setup-fine:viva0000"), false, "Q11 la chiave di un'installazione viva è sparita");
   },
   // Installazione nuova: vera solo finché dall'id non è arrivato niente (l'avviso Telegram parte una volta).

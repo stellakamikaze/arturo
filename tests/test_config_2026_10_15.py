@@ -19,7 +19,7 @@ K11 niente allow larghi che saltano il classificatore, autoMode generale senza d
     divieti per Windows e file di lavoro di Claude Code fuori da git.
 K12 un banco che sposta HOME sposta anche USERPROFILE: su Windows Python trova la home da lì.
 K13 `gh` intero non sta in allow, e le credenziali della config contano come segreto.
-K14 il segno «setup fatto» è fuori da git, e chi aveva finito il setup prima del segno lo riceve.
+K14 il segno "setup fatto" è fuori da git, e chi aveva finito il setup prima del segno lo riceve.
 
 Sulla base 842b06f ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -94,7 +94,7 @@ def test_k01(repo: Path) -> None:
             subprocess.run(["git", "-C", str(r), *args], check=True, env=env, capture_output=True)
         (r / "leak.txt").write_text("k=AKIA" + "X" * 16 + "\n", encoding="utf-8")
         subprocess.run(["git", "-C", str(r), "add", "leak.txt"], check=True, env=env, capture_output=True)
-        # Barre dritte: in bash le barre di Windows non quotate sono escape e «cd» non arriva al progetto.
+        # Barre dritte: in bash le barre di Windows non quotate sono escape e "cd" non arriva al progetto.
         p = r.as_posix()
         for etichetta, comando in (
             ("a capo", f"cd {p}\ngit commit -m x"),

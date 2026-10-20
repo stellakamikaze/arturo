@@ -45,7 +45,7 @@ if [[ "$INPUT" =~ \"prompt\"[[:space:]]*:[[:space:]]*\"/([a-z0-9-]+) ]]; then
 fi
 
 # --- Promemoria prompt-master (dal 9/9/2026) ----------------------------------
-# La regola «PROMPT + BRIEF prima, su ogni richiesta di lavoro» scritta e basta non reggeva:
+# La regola "PROMPT + BRIEF prima, su ogni richiesta di lavoro" scritta e basta non reggeva:
 # la misura del 9/9/2026 dava un brief in 16 sessioni su 54. Questo hook non blocca e non
 # chiede niente: aggiunge una riga al contesto, dove la regola serve. Un comando /nome ha già
 # il suo flusso e non riceve il promemoria. Per spegnerlo: cancella il blocco cat qui sotto,
@@ -53,8 +53,8 @@ fi
 if [ -z "$COMANDO" ]; then
 cat <<'PROMEMORIA'
 REGOLA FISSA: se questo messaggio chiede un lavoro, anche piccolo, il primo tool è
-Skill(prompt-master) e le prime righe che scrivi sono PROMPT e BRIEF, con la riga «Skill:»
-(quale skill usi e perché, o «nessuna»), prima di qualunque altro lavoro. Esente solo la
+Skill(prompt-master) e le prime righe che scrivi sono PROMPT e BRIEF, con la riga "Skill:"
+(quale skill usi e perché, o "nessuna"), prima di qualunque altro lavoro. Esente solo la
 conversazione pura: domande, commenti, risposte a un menu; lì consiglia una skill solo se
 c'entra davvero. Il brief non è un gate: mostrato il prompt, se è giusto si procede.
 PROMEMORIA

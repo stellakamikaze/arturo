@@ -11,18 +11,18 @@ generata qui, e una HOME con ~/.claude clonata che si fida solo di quella chiave
 /aggiorna, /inizio e del README girano in una shell nuova ciascuno, come le chiamate Bash di Claude.
 Niente rete.
 
-AF01 un tag non firmato più nuovo: il Passo 1 dice «possibile compromissione», il Passo 3 non applica.
+AF01 un tag non firmato più nuovo: il Passo 1 dice "possibile compromissione", il Passo 3 non applica.
 AF02 un tag firmato e un main avanti con la procedura avvelenata: si applica il tag, con la procedura
      del tag, e i commit di main dopo il tag non arrivano.
 AF03 con un repository personale come origin, Arturo arriva solo da tag firmati di upstream: un tag
      firmato si applica con un merge, uno firmato da un'altra chiave no.
-AF04 avvio, barra in basso, /inizio e /novita: con un tag non firmato dicono «possibile
-     compromissione: non aggiornare, segnala a chi mantiene Arturo», e non mandano a /aggiorna.
+AF04 avvio, barra in basso, /inizio e /novita: con un tag non firmato dicono "possibile
+     compromissione: non aggiornare, segnala a chi mantiene Arturo", e non mandano a /aggiorna.
 AF05 i comandi a mano del README non applicano un tag non firmato.
 AF06 un tag firmato pubblicato con un altro nome (lo stesso oggetto sotto un nome nuovo) non passa:
      git describe lo dice col nome scritto dentro più un suffisso, e verify-tag lo rifiuta.
 AF07 una copia senza bin/aggiornamenti.py (la verifica) non manda a /aggiorna i commit di main.
-AF08 un ssh-keygen senza -Y (OpenSSH prima della 8.2): «FIRMA NON VERIFICABILE», niente si applica, e
+AF08 un ssh-keygen senza -Y (OpenSSH prima della 8.2): "FIRMA NON VERIFICABILE", niente si applica, e
      nessuno parla di compromissione.
 AF09 un rilascio vecchio senza firma, già installato: `firmato` lo stampa e /inizio non dà l'allarme.
 
@@ -56,9 +56,9 @@ def read(p: Path) -> str:
 
 def blocchi(testo: str, titolo: str, codice: str) -> List[str]:
     """I blocchi ```bash dopo l'intestazione `titolo`, senza il rientro degli elenchi numerati."""
-    assert titolo in testo, f"{codice} non trovo «{titolo}»"
+    assert titolo in testo, f'{codice} non trovo "{titolo}"'
     trovati = re.findall(r"```bash\n(.*?)```", testo[testo.index(titolo):], re.S)
-    assert trovati, f"{codice} nessun blocco bash dopo «{titolo}»"
+    assert trovati, f'{codice} nessun blocco bash dopo "{titolo}"'
     return ["\n".join(r[3:] if r.startswith("   ") else r for r in b.splitlines()) for b in trovati]
 
 

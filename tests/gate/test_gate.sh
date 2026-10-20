@@ -2,7 +2,7 @@
 # test_gate.sh: banco del verde falso per bin/validation-gate-lang.sh.
 #
 # COSA PROVA
-#   1. VELENO: un test Python che fallisce dà ROSSO (exit 1, «pytest FALLITO»).
+#   1. VELENO: un test Python che fallisce dà ROSSO (exit 1, "pytest FALLITO").
 #   2. ROUTING: le fixture node, py e prose finiscono nel ramo giusto.
 #   3. La fixture Python non esce 0 in silenzio: l'output mostra la validazione.
 #   4. ruff e mypy assenti danno uno SKIP esplicito, non un fallimento.

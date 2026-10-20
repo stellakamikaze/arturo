@@ -9,12 +9,12 @@ Opzioni di prova: --radice DIR (default ~/.claude/data/handoffs),
   --index FILE (INDEX attuale da leggere, default <radice>/INDEX.md), --oggi AAAA-MM-GG.
 
 Una riga per filone. La chiave del filone (la usa anche handoff-retention.py):
-  - la riga «- Filone: <nome>» nella sezione ## Progetto dà <slug>/<nome normalizzato>;
+  - la riga "- Filone: <nome>" nella sezione ## Progetto dà <slug>/<nome normalizzato>;
   - senza quella riga la chiave è lo slug: un progetto, una riga.
 La data viene dal nome del file (HANDOFF_AAAA-MM-GG_HH-MM.md), mai dalla data del file.
-Prossimo passo: la riga «Prossimo passo:» di ## Ripartenza, poi l'ultima colonna dell'INDEX
+Prossimo passo: la riga "Prossimo passo:" di ## Ripartenza, poi l'ultima colonna dell'INDEX
 attuale (se la riga punta allo stesso file), poi la prima voce di ## Prossimi passi.
-Stato: quello dell'INDEX attuale se la riga punta allo stesso file, altrimenti «Status:».
+Stato: quello dell'INDEX attuale se la riga punta allo stesso file, altrimenti "Status:".
 Le righe con l'ultimo handoff più vecchio di 30 giorni vanno in ## Archivio. Le righe
 dell'INDEX senza file restano senza link, tranne quelle di un progetto che ha già una riga
 generata (superate). Nessun link verso un file assente: se ne esce uno, exit 1.
@@ -106,7 +106,7 @@ def per_chiave(handoff):
 # --- celle -------------------------------------------------------------------------
 
 def celle(riga):
-    """Celle di una riga di tabella markdown (rispetta «\\|»)."""
+    """Celle di una riga di tabella markdown (rispetta "\\|")."""
     parti = re.split(r"(?<!\\)\|", riga.strip())
     if parti and parti[0] == "":
         parti = parti[1:]
@@ -271,7 +271,7 @@ def genera(radice, index_path, oggi):
     testo = (
         "# Indice degli handoff\n\n"
         "Generato da `bin/index-rigenera.py` a ogni `/fine`, letto da `/inizio`: non correggerlo a mano.\n"
-        "Una riga per progetto, o per filone se l'handoff ha la riga «- Filone:».\n"
+        "Una riga per progetto, o per filone se l'handoff ha la riga \"- Filone:\".\n"
         "Retention: ultimi 5 handoff per filone (`bin/handoff-retention.py`).\n\n"
         f"{INTESTAZIONE}\n{tabella(attive)}\n\n"
         "## Archivio\n\n"

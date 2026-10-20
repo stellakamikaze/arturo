@@ -6,7 +6,7 @@ generata qui, e una HOME con ~/.claude clonata, che si fida solo di quella chiav
 
 AA01 un rilascio firmato e più nuovo si installa alla chiusura, e la config resta integra.
 AA02 un tag non firmato, o firmato da un'altra chiave, non si installa: lo stato dice il motivo.
-AA03 con «manuali» niente si installa, e l'avvio dice di usare /aggiorna.
+AA03 con "manuali" niente si installa, e l'avvio dice di usare /aggiorna.
 AA04 con un'altra sessione di Claude Code aperta si rimanda: ~/.claude non cambia.
 AA05 con modifiche non salvate niente cambia, e l'avvio dopo dice che non è partito e perché.
 AA06 una storia pubblicata riscritta non si installa mai da sola.
@@ -147,9 +147,9 @@ def test_aa03(repo: Path) -> None:
     def prova(lab: Lab) -> None:
         prima = lab.head()
         lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
-        assert lab.arturo_cli("manuali").returncode == 0, "AA03 «manuali» non esiste"
+        assert lab.arturo_cli("manuali").returncode == 0, 'AA03 "manuali" non esiste'
         lab.arturo_cli("applica")
-        assert lab.head() == prima, "AA03 con «manuali» il rilascio si installa"
+        assert lab.head() == prima, 'AA03 con "manuali" il rilascio si installa'
         lab.git(lab.utente, "fetch", "-q", "--tags", "origin", "main")
         uscita = lab.arturo_cli("stato").stdout
         assert "/aggiorna" in uscita and "a mano" in uscita, f"AA03 l'avvio non dice di usare /aggiorna: {uscita!r}"

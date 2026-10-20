@@ -9,7 +9,7 @@ Per chi usa un solo account Google e non ha mai creato un progetto su Google Clo
 1. Apri claude.ai nel browser, con lo stesso account con cui entri in Claude Code.
 2. Vai in Impostazioni › Connettori e attiva Gmail, Google Calendar e Google Drive. Google chiede il consenso: leggilo e accetta.
 3. Chiudi Claude Code e riaprilo. Scrivi `/mcp`: i connettori compaiono con il nome `claude.ai Gmail`, `claude.ai Google Calendar` e così via.
-4. Prova: «leggi le ultime tre email e dimmi chi mi ha scritto».
+4. Prova: "leggi le ultime tre email e dimmi chi mi ha scritto".
 
 Cosa sapere:
 - I connettori arrivano in Claude Code solo se entri con l'abbonamento di claude.ai. Con una chiave API non compaiono.
@@ -18,7 +18,7 @@ Cosa sapere:
 - Le bozze non chiedono conferma. Mandare, rispondere e inoltrare la chiedono sempre: lo dice `permissions.ask` di `settings.json` (`mcp__*__*send*`, `*reply*`, `*forward*`).
 - Per spegnerli tutti: `"disableClaudeAiConnectors": true` in `settings.json`.
 
-Fonte: la pagina MCP della documentazione di Claude Code, sezione «Use MCP servers from claude.ai».
+Fonte: la pagina MCP della documentazione di Claude Code, sezione "Use MCP servers from claude.ai".
 
 Checklist di questa strada:
 

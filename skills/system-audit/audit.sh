@@ -93,7 +93,7 @@ import re
 import shlex
 import sys
 # shlex toglie le virgolette e tiene insieme i path con spazi. punctuation_chars stacca ; && | dal
-# path: con `... statusline.js; echo ...` (barra senza node, 19/10/2026) il token era «statusline.js;»
+# path: con `... statusline.js; echo ...` (barra senza node, 19/10/2026) il token era "statusline.js;"
 # e il controllo saltava in silenzio.
 try:
     lex = shlex.shlex(sys.argv[1], posix=True, punctuation_chars=True)
@@ -188,7 +188,7 @@ else
 fi
 
 # Esito del blocco Python: 0 tutto valido, 1 una skill rotta, 3 un mod rotto, 4 tutti e due.
-# Un mod rotto ha il suo messaggio: «SKILL.md mancante» porterebbe ad aggiungere una SKILL.md al mod.
+# Un mod rotto ha il suo messaggio: "SKILL.md mancante" porterebbe ad aggiungere una SKILL.md al mod.
 skills_rc=1
 if [[ -d "$CLAUDE_DIR/skills" ]]; then
   skills_rc=0
@@ -275,7 +275,7 @@ fi
 
 # Comandi fantasma: un documento vivo cita come vivo uno slash-comando che non esiste più
 # (nessuna skill, nessun comando, nessun mod lo registra). La mappa non deve scollarsi dal territorio.
-# Le righe di storia («rimosso», «archiviata», «ha assorbito»…) e gli indirizzi web non contano.
+# Le righe di storia ("rimosso", "archiviata", "ha assorbito"…) e gli indirizzi web non contano.
 # Il blocco Python scrive su file: dentro $(...) bash 3.2 conta gli apici del heredoc e si rompe.
 ghost_file=$(mktemp "${TMPDIR:-/tmp}/audit-fantasmi.XXXXXX")
 python3 - "$CLAUDE_DIR" > "$ghost_file" 2>/dev/null <<'PY'
@@ -310,7 +310,7 @@ known = skills | cmds | wfs | modcmds | NATIVE | NOTCMD | UPSTREAM
 STORICO = re.compile(r"rimoss|deprecat|eliminat|dismess|assorbit|archiviat|sostituisc|precedent|"
                      r"\bfus[oiae]\b|\bvecchi[oi]\b|\bex\b|non esiste|retrocompatibilit", re.I)
 ENDPOINT = re.compile(r"endpoint|\broute\b|\bAPI\b|\bGET\b|\bPOST\b|https?://|:\d{4}", re.I)
-# Il backtick d'apertura non segue una lettera: in «`nc`/altro» il backtick chiude, non apre.
+# Il backtick d'apertura non segue una lettera: in "`nc`/altro" il backtick chiude, non apre.
 PAT = re.compile(r"(?<![A-Za-z0-9_])`/([a-z][a-z0-9:_-]{1,30})(?:\s[^`]*)?`")
 docs = ["CLAUDE.md", "README.md"] + sorted(
     os.path.relpath(p, H).replace(os.sep, "/") for p in glob.glob(H + "/commands/*.md") + glob.glob(H + "/skills/*/SKILL.md")

@@ -45,7 +45,7 @@ python3 "$HOME/.claude/bin/arturo" segnala info
 ```
 
 Scrivi la bozza in un file temporaneo, in markdown, con le stesse intestazioni dei modelli di
-GitHub e un blocco finale «Ambiente» con l'output di `info`:
+GitHub e un blocco finale "Ambiente" con l'output di `info`:
 
 ```markdown
 ### Cosa stavi facendo?
@@ -58,16 +58,16 @@ GitHub e un blocco finale «Ambiente» con l'output di `info`:
 Arturo: … · Claude Code: … · Sistema: …
 ```
 
-Per una proposta: «Quale problema vuoi risolvere, nel tuo lavoro?» e «Come immagini la
-soluzione?». Per un'integrazione: «Quale strumento?», «Per fare cosa, nel tuo lavoro?», «Come
-fai oggi, senza?».
+Per una proposta: "Quale problema vuoi risolvere, nel tuo lavoro?" e "Come immagini la
+soluzione?". Per un'integrazione: "Quale strumento?", "Per fare cosa, nel tuo lavoro?", "Come
+fai oggi, senza?".
 
 **Togli tu quello che non deve uscire**: nomi di persone, clienti e organizzazioni, contenuti
 di documenti ed email, indirizzi interni, nomi di file che dicono troppo. Lascia il fatto:
-«un cliente» al posto del nome basta. Lo script toglie da solo le cartelle personali e ferma i
+"un cliente" al posto del nome basta. Lo script toglie da solo le cartelle personali e ferma i
 segreti, ma non riconosce un nome o un contenuto riservato: quello è il tuo lavoro.
 
-Il titolo dice il fatto in poche parole: «/fine si ferma al commit», non «Bug».
+Il titolo dice il fatto in poche parole: "/fine si ferma al commit", non "Bug".
 
 ## Passo 3 — Anteprima
 
@@ -87,11 +87,11 @@ senza altri passi. Usa un altro canale solo se la persona lo chiede o se l'ha sc
 
 Di' dove va, prima del sì:
 
-- `arturo`: «Arriva solo a chi mantiene Arturo.»
-- `gh` e `web`: «Diventa una issue pubblica su GitHub: la vede chiunque.»
-- `email`: «Te la preparo negli appunti per federico@stellakamikaze.org: la mandi tu.»
+- `arturo`: "Arriva solo a chi mantiene Arturo."
+- `gh` e `web`: "Diventa una issue pubblica su GitHub: la vede chiunque."
+- `email`: "Te la preparo negli appunti per federico@stellakamikaze.org: la mandi tu."
 
-Chiedi: «La mando?». La persona può cambiare il testo o il canale. Un cambio del testo passa di
+Chiedi: "La mando?". La persona può cambiare il testo o il canale. Un cambio del testo passa di
 nuovo da `prepara`.
 
 ## Passo 4 — Invio, solo dopo il sì

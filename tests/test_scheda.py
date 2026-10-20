@@ -3,7 +3,7 @@
 
 TS01 lo stato segue l'evento: al lavoro giallo, attende verde, problema rosso (StopFailure). Senza
      colore lo stato è scritto nel titolo.
-TS02 il progetto viene da «/inizio <nome>», poi dalla radice git (il repo principale anche da un
+TS02 il progetto viene da "/inizio <nome>", poi dalla radice git (il repo principale anche da un
      worktree), poi dalla cartella.
 TS03 il colore va solo dove il terminale lo sa fare: DECAC in Windows Terminal, OSC 6 in iTerm2,
      altrove solo il titolo. Dove c'è il colore il titolo è il solo progetto, che si legge intero.
@@ -13,7 +13,7 @@ TS05 un input rotto o un evento sconosciuto non scrive niente ed esce 0.
 TS06 settings.json collega l'hook ai sette eventi in async e spegne il titolo di Claude Code.
 TS07 un evento partito prima dell'ultimo salvato non sovrascrive lo stato.
 TS08 all'avvio di una sessione sparisce lo stato delle sessioni ferme da una settimana, e solo quello.
-TS10 in Terminal di Apple chi aspetta la persona ha «● TOCCA A TE» in testa al titolo e la campanella
+TS10 in Terminal di Apple chi aspetta la persona ha "● TOCCA A TE" in testa al titolo e la campanella
      (BEL) quando il turno si ferma; all'avvio, al lavoro e negli altri terminali niente campanella.
 TS09 senza terminale di controllo (il caso normale di un hook su macOS e Linux) le sequenze vanno sul
      tty del processo claude trovato fra i padri. Senza claude fra i padri non si scrive niente.

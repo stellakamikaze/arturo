@@ -40,7 +40,7 @@ def _account():
     try:
         for riga in ATTESI_FILE.read_text(encoding="utf-8").splitlines():
             nome = riga.split("#", 1)[0].strip()
-            # «gws-ss|gws-sansecondo»: vale la prima che esiste (nomi diversi fra le macchine).
+            # "gws-ss|gws-sansecondo": vale la prima che esiste (nomi diversi fra le macchine).
             scelte = [n.strip() for n in nome.split("|") if re.fullmatch(r"gws(-[a-z0-9]+)?", n.strip())]
             if scelte and not any(n in trovati for n in scelte):
                 trovati[scelte[0]] = CONFIG_DIR / scelte[0]

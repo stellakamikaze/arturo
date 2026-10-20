@@ -27,7 +27,7 @@ export const register: Register = on => {
     if (args === 'lista' || voce === null) {
       if (lista.length === 0) return { text: 'Nelle risposte non ci sono link né file da aprire.' }
       const righe = lista.slice(0, 10).map((v, i) => `${i + 1}. ${v}`).join('\n')
-      const premessa = voce === null && args !== 'lista' ? `Niente che corrisponda a «${args}». ` : ''
+      const premessa = voce === null && args !== 'lista' ? `Niente che corrisponda a "${args}". ` : ''
       return { text: `${premessa}Da aprire con /apri <numero>:\n${righe}` }
     }
     const home = (await $.env.get('HOME')) ?? (await $.env.get('USERPROFILE')) ?? ''

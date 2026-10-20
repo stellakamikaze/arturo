@@ -48,14 +48,14 @@ VERBI = (
     ("ripristina ID STATO [motivo]", "rimette stato e motivo di prima (annulla un passo)"),
 )
 
-AIUTO = "Comandi dei todo (scrivi «arturo todo» davanti a ognuno):\n\n" + "\n".join(
+AIUTO = 'Comandi dei todo (scrivi "arturo todo" davanti a ognuno):\n\n' + "\n".join(
     f"  {sintassi:<29} {cosa}" for sintassi, cosa in VERBI) + """
 
 Campi di aggiungi e modifica:
-  --progetto NOME     di default il progetto della cartella in cui sei («.» vale lo stesso)
+  --progetto NOME     di default il progetto della cartella in cui sei ("." vale lo stesso)
   --scadenza DATA     2026-10-10, 10/10, oggi, domani, venerdì ("" la toglie)
   --chi               tu | decidi | io   (tu: lo fai tu · decidi: decidi tu, poi fa Claude · io: lo fa Claude)
-  --perche TESTO      perché tocca a te (es. «invio a terzi», «password»)
+  --perche TESTO      perché tocca a te (es. "invio a terzi", "password")
   --priorita          alta | media | bassa
   --quando            oggi | settimana | più avanti
   --note TESTO        (solo aggiungi) una prima nota
@@ -75,7 +75,7 @@ come annullo di uno precedente. Lo usano pannello e pagina web. ripristina lo me
 
 
 def progetto_corrente() -> str:
-    """Il progetto della cartella: la cartella git in cui sei. «generale» fuori da git, nella HOME e
+    """Il progetto della cartella: la cartella git in cui sei. "generale" fuori da git, nella HOME e
     dentro ~/.claude, dove /setup e le sessioni di config non sono il lavoro di un progetto."""
     try:
         cima = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=5)
@@ -155,12 +155,12 @@ class ErroreUso(Exception):
 
 # I messaggi di argparse sono in inglese: qui diventano italiani. L'ordine conta.
 TRADUZIONI = (
-    (r"argument cmd: invalid choice: '([^']*)'.*", r"comando sconosciuto: «\1»"),
-    (r"argument (\S+): invalid choice: '([^']*)'.*", r"valore «\2» non valido per \1"),
+    (r"argument cmd: invalid choice: '([^']*)'.*", r'comando sconosciuto: "\1"'),
+    (r"argument (\S+): invalid choice: '([^']*)'.*", r'valore "\2" non valido per \1'),
     (r"unrecognized arguments: (.*)", r"opzione o argomento in più: \1"),
     (r"the following arguments are required: (.*)", r"manca un argomento: \1"),
     (r"argument (\S+): expected one argument", r"\1 vuole un valore"),
-    (r"argument (\S+): invalid int value: '([^']*)'", r"\1 vuole un numero, non «\2»"),
+    (r"argument (\S+): invalid int value: '([^']*)'", r'\1 vuole un numero, non "\2"'),
 )
 
 
@@ -244,9 +244,9 @@ SCRIVONO = ("modifica", "fatto", "riprendi", "inizia", "su", "giu", "ferma", "sc
 def motivo_esatto(argv: list) -> tuple:
     """Toglie `--motivo=TESTO` da argv prima di argparse e ritorna (argv, TESTO o None).
 
-    Fino a Python 3.11 argparse toglie un «--» anche dal valore di `--motivo=--`: il pannello
+    Fino a Python 3.11 argparse toglie un "--" anche dal valore di `--motivo=--`: il pannello
     annulla con questa forma, e il motivo deve tornare identico su ogni Python. Vale solo prima di
-    un «--» separato, perché dopo ci sono solo argomenti.
+    un "--" separato, perché dopo ci sono solo argomenti.
     """
     if not argv or argv[0] != "ripristina":
         return argv, None
@@ -260,8 +260,8 @@ def motivo_esatto(argv: list) -> tuple:
 def atteso_esatto(argv: list) -> tuple:
     """Toglie `--titolo-atteso=TESTO` e `--atteso=CAMPO=VALORE` da argv prima di argparse.
 
-    Come per `--motivo=`: il valore torna identico anche se comincia con un trattino o è «--».
-    Vale solo prima di un «--» separato. Ritorna (argv, {campo: valore})."""
+    Come per `--motivo=`: il valore torna identico anche se comincia con un trattino o è "--".
+    Vale solo prima di un "--" separato. Ritorna (argv, {campo: valore})."""
     fine = argv.index("--") if "--" in argv else len(argv)
     atteso, resto = {}, []
     for x in argv[:fine]:
@@ -282,7 +282,7 @@ def atteso_da(args, esatti: dict) -> dict:
         atteso["titolo"] = args.titolo_atteso
     for voce in getattr(args, "atteso", None) or []:
         if "=" not in voce:
-            raise ts.ErroreTodo(f"--atteso vuole CAMPO=VALORE, non «{voce}»")
+            raise ts.ErroreTodo(f'--atteso vuole CAMPO=VALORE, non "{voce}"')
         campo, valore = voce.split("=", 1)
         atteso[campo] = valore
     atteso.update(esatti)
@@ -464,7 +464,7 @@ def todo(argv: list) -> int:
 
 
 def web(argv: list) -> int:
-    """La pagina dei todo nel browser. Il modulo si carica solo qui: «arturo todo» non lo legge mai.
+    """La pagina dei todo nel browser. Il modulo si carica solo qui: "arturo todo" non lo legge mai.
 
     Il progetto di partenza viene dalla cartella in cui parte il comando, come per aggiungi.
     """
@@ -475,7 +475,7 @@ def web(argv: list) -> int:
 # Un comando = una riga: nome -> (funzione con argv, oppure nome di un modulo in bin/ con main(argv);
 # riga di aiuto). Aiuto, smistamento e messaggio per un comando sconosciuto nascono da qui.
 COMANDI = {
-    "todo": (todo, "i tuoi todo: «arturo todo aiuto» mostra tutti i comandi"),
+    "todo": (todo, 'i tuoi todo: "arturo todo aiuto" mostra tutti i comandi'),
     "web": (web, "la pagina dei todo nel browser, solo su questo computer"),
     "segnala": ("segnala", "un problema, un'idea o un'integrazione per chi mantiene Arturo"),
     "telemetria": ("telemetria", "gli eventi d'uso che Arturo manda, con un id casuale: stato, mostra, spegni, accendi, invia"),
@@ -496,7 +496,7 @@ def uso() -> str:
 
 
 def sconosciuto(nome: str) -> str:
-    nomi = [f"«arturo {n}»" for n in COMANDI]
+    nomi = [f'"arturo {n}"' for n in COMANDI]
     elenco = nomi[0] if len(nomi) == 1 else ", ".join(nomi[:-1]) + " e " + nomi[-1]
     return f"Comando sconosciuto: {nome}. " + (f"Per ora c'è solo {elenco}." if len(nomi) == 1
                                                else f"I comandi sono {elenco}.")

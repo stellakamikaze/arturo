@@ -7,8 +7,8 @@ argument-hint: "(nessuno) | indietro | personale"
 
 Porti la copia di Arturo di chi ti parla all'ultima versione. Di solito non serve: dal 16/10/2026
 Arturo si aggiorna da solo alla chiusura della sessione, con i soli rilasci firmati
-(`bin/aggiornamenti.py`). `/aggiorna` serve quando l'avvio o la barra in basso dicono «serve
-/aggiorna» (modifiche non salvate, conflitto, aggiornamenti a mano), per tornare indietro, per le
+(`bin/aggiornamenti.py`). `/aggiorna` serve quando l'avvio o la barra in basso dicono "serve
+/aggiorna" (modifiche non salvate, conflitto, aggiornamenti a mano), per tornare indietro, per le
 aggiunte personali, o quando la persona vuole guardare prima.
 
 `/aggiorna` applica **solo l'ultimo rilascio con un tag firmato**, con la stessa verifica
@@ -51,8 +51,8 @@ fi
 
 Se compare `POSSIBILE COMPROMISSIONE`, **fermati e non applicare niente**, neanche col suo sì.
 L'ultimo rilascio pubblicato non ha la firma di chi mantiene Arturo, o la firma non torna con la
-chiave che ha già: è il segno di un repository manomesso. Diglielo con queste parole: «possibile
-compromissione: non aggiornare, segnala a chi mantiene Arturo». Proponi `/segnala`, oppure la
+chiave che ha già: è il segno di un repository manomesso. Diglielo con queste parole: "possibile
+compromissione: non aggiornare, segnala a chi mantiene Arturo". Proponi `/segnala`, oppure la
 segnalazione privata descritta in `SECURITY.md`. Non cercare un'altra strada per aggiornare
 (`main`, un tag più vecchio, un `git pull`): la verifica esiste per questo.
 
@@ -110,7 +110,7 @@ per cui questo passo esiste.
 ## Passo 2 — Controlla le sue modifiche
 
 Le sue modifiche possono stare in due posti: file cambiati e non ancora salvati, e commit suoi
-(per esempio il «session sync» di `/fine`).
+(per esempio il "session sync" di `/fine`).
 
 ```bash
 cd "$HOME/.claude"
@@ -144,8 +144,8 @@ prompt dice a Claude di leggerle. Così il comando non va in conflitto, né ades
 spostamento avviene nella copia di prova: se l'aggiornamento si annulla, non cambia niente.
 
 Il Passo 3 stampa una riga `SEPARATO: /<nome> -> personale/<nome>.md` per ogni comando spostato.
-Diglielo in una frase: «le tue aggiunte a /inizio ora stanno in un file tuo, e /inizio fa tutto come
-prima». Non chiedere conferma e non spiegare il meccanismo, se non lo chiede. Se vuole, rileggete
+Diglielo in una frase: "le tue aggiunte a /inizio ora stanno in un file tuo, e /inizio fa tutto come
+prima". Non chiedere conferma e non spiegare il meccanismo, se non lo chiede. Se vuole, rileggete
 insieme il file personale: le parti sono copiate così come erano.
 
 Vale lo stesso per `hooks/session-start.sh` e `hooks/session-end.sh`, con una differenza: la riga è
@@ -170,7 +170,7 @@ adesso i file toccati da tutti e due compaiono nell'elenco qui sopra.
 
 ## Passo 3 — Applica
 
-Solo dopo il suo sì. Se dice no, vai a «Se dice no» in fondo a questo passo. Ogni blocco gira in
+Solo dopo il suo sì. Se dice no, vai a "Se dice no" in fondo a questo passo. Ogni blocco gira in
 una shell nuova: questo ricava da sé da dove arrivano gli aggiornamenti.
 
 L'aggiornamento non si fa dentro `~/.claude`: lo fa `bin/aggiorna-applica.sh` in una copia di prova a
@@ -212,7 +212,7 @@ La prima parola dell'esito dice cosa è successo:
   sistemale con lui prima di aggiornare. Non scartare mai le sue modifiche per far passare
   l'aggiornamento. Se il motivo è **una copia di prova che aspetta**, l'esito dice da quando e da
   cosa (il sync fra le sue macchine o un aggiornamento). Dentro può esserci il lavoro di chi stava
-  risolvendo un conflitto. Proponi di concluderla con «Risolvere un conflitto» qui sotto. Solo se
+  risolvendo un conflitto. Proponi di concluderla con "Risolvere un conflitto" qui sotto. Solo se
   lui dice che non serve, col suo sì, scartala:
 
   ```bash
@@ -221,7 +221,7 @@ La prima parola dell'esito dice cosa è successo:
 
   Poi rilancia il Passo 3.
 - `APPLICAZIONE ANNULLATA`: la sua copia è **esattamente com'era prima**. Se la riga dice
-  `CONFLITTO`, vai a «Risolvere un conflitto» qui sotto.
+  `CONFLITTO`, vai a "Risolvere un conflitto" qui sotto.
 - `RIPRISTINO NON RIUSCITO`: **fermati**, la config può avere le guardie spente. Digli che la copia è
   rimasta a metà, mostragli i file elencati e lancia `python3 ~/.claude/hooks/controlla-config.py`,
   che dice cosa non va e come tornare a prima. Non lavorare su altro finché non dice `CONFIG OK`.
@@ -289,7 +289,7 @@ Due cose, in quest'ordine:
 
 ## Le guardie che ha modificato
 
-Se l'avvio ha mostrato una riga `DERIVA:` che nomina «le guardie di Arturo», una guardia di sicurezza
+Se l'avvio ha mostrato una riga `DERIVA:` che nomina "le guardie di Arturo", una guardia di sicurezza
 (o un modulo che la guida) è diversa da quella di Arturo. Protegge come l'ha scritta lei, e nessun
 aggiornamento la corregge più. Non è un errore: può averla allentata apposta. Mostrale cosa cambia
 col comando `git diff` che la riga indica, spiegando in parole semplici cosa la guardia ferma o
@@ -372,9 +372,9 @@ precedente. I passi 1-4 qui sopra non c'entrano.
 - Si applica dopo un sì, mai in automatico. `/inizio` e l'avvio non applicano niente.
 - Con `STORIA RISCRITTA` non si applica niente.
 - Si applica solo l'ultimo tag firmato, mai `main`. Con `POSSIBILE COMPROMISSIONE` non si applica
-  niente, neanche col suo sì: «possibile compromissione: non aggiornare, segnala a chi mantiene Arturo».
+  niente, neanche col suo sì: "possibile compromissione: non aggiornare, segnala a chi mantiene Arturo".
   Con `FIRMA NON VERIFICABILE` non si applica niente finché git e OpenSSH non sono aggiornati: non è
-  un allarme, e non si dice «compromissione».
+  un allarme, e non si dice "compromissione".
 - Con modifiche non salvate l'applicazione non parte. Il merge gira in una copia di prova:
   `~/.claude` cambia solo con un risultato integro, e i conflitti si risolvono nella copia di prova.
 - La procedura di applicazione si legge dal tag firmato in arrivo, dopo che il Passo 1 ne ha

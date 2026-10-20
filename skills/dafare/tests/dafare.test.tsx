@@ -66,8 +66,8 @@ function motore(on: On, iniziali: TodoVoce[], opzioni: Opzioni = {}) {
   })
 
   const esegui = (argomenti: string[]): Uscita => {
-    // «--» chiude le opzioni, come nella CLI vera: dopo restano solo argomenti. `--motivo=TESTO`
-    // prima di «--» è il motivo esatto di ripristina.
+    // "--" chiude le opzioni, come nella CLI vera: dopo restano solo argomenti. `--motivo=TESTO`
+    // prima di "--" è il motivo esatto di ripristina.
     const fine = argomenti.indexOf('--') < 0 ? argomenti.length : argomenti.indexOf('--')
     const motivo = argomenti.slice(0, fine).find(x => x.startsWith('--motivo='))?.slice('--motivo='.length) ?? null
     // `--titolo-atteso=T` e `--atteso=CAMPO=VALORE`: come la CLI vera, un todo cambiato non si tocca.
@@ -89,7 +89,7 @@ function motore(on: On, iniziali: TodoVoce[], opzioni: Opzioni = {}) {
     for (const [campo, valore] of Object.entries(atteso)) {
       const attuale = String((t as Record<string, unknown>)[campo] ?? '')
       if (attuale !== valore) {
-        return { exitCode: 2, stdout: '', stderr: `Errore: il todo #${t.id} non è più come lo aspettavi: ${campo} è «${attuale}», non «${valore}»\n` }
+        return { exitCode: 2, stdout: '', stderr: `Errore: il todo #${t.id} non è più come lo aspettavi: ${campo} è "${attuale}", non "${valore}"\n` }
       }
     }
     const scala = ['più avanti', 'settimana', 'oggi']
@@ -101,7 +101,7 @@ function motore(on: On, iniziali: TodoVoce[], opzioni: Opzioni = {}) {
     else if (a[0] === 'giu') t.quando = scala[Math.max(0, scala.indexOf(t.quando) - 1)]!
     else if (a[0] === 'modifica' && a[2] === '--chi') t.chi = a[3] as TodoVoce['chi']
     else if (a[0] === 'modifica' && a[2] === '--quando') t.quando = a[3]!
-    else return { exitCode: 2, stdout: '', stderr: `Errore: comando sconosciuto: «${a[0]}»\n` }
+    else return { exitCode: 2, stdout: '', stderr: `Errore: comando sconosciuto: "${a[0]}"\n` }
     return { exitCode: 0, stdout: 'ok\n', stderr: '' }
   }
 
@@ -232,7 +232,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
       ['todo', 'fatto', '3', '--titolo-atteso=Cosa numero 3'],
       ['todo', 'ripristina', '3', '--titolo-atteso=Cosa numero 3', '--atteso=stato=fatto', '--atteso=motivo=', '--', 'da fare'],
     ])
-    // Fra il tasto e «u» Claude riapre il todo e lo ferma: «u» non lo tocca e lo dice.
+    // Fra il tasto e "u" Claude riapre il todo e lo ferma: "u" non lo tocca e lo dice.
     await pane.press({ key: 'riga-2' })
     await pane.press({ key: 'fatto' })
     Object.assign(m.archivio.find(x => x.id === 2)!, { stato: 'fermo', motivo: 'aspetto Rossi' })
@@ -347,7 +347,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(m.chiamate.find(a => !a.includes('-c'))?.slice(0, 2)).toEqual(['py', '-3'])
   })
 
-  test(`${surface}: U28 nessun Python: l'esito dice «Non trovo Python»`, async ($, on) => {
+  test(`${surface}: U28 nessun Python: l'esito dice "Non trovo Python"`, async ($, on) => {
     motore(on, [voce(3)], { python: {} })
     const { r, pane } = await apri($)
     expect((r as { text: string }).text).toContain('Non trovo Python')

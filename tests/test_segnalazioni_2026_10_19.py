@@ -7,7 +7,7 @@ SG01 il workflow di igiene gira solo sul repository pubblico. /aggiorna lo porta
 SG02 i banchi d'avvio restano verdi quando un programma di terzi aggiunge a settings.json hook senza
      matcher, che per Claude Code è facoltativo. iTerm2 (cc-status) ne aggiunge uno per evento, e
      test-web-egress-guard.py cadeva con KeyError: 'matcher' prima del controllo vero: l'avvio diceva
-     «una guardia potrebbe non proteggere» con la guardia al suo posto (segnalazione n. 5).
+     "una guardia potrebbe non proteggere" con la guardia al suo posto (segnalazione n. 5).
 
 Sulla base 439a92b ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """

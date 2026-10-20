@@ -8,10 +8,10 @@ guadagni, cosa dai in cambio.
 ## Come si usa
 
 1. **Leggi un capitolo.** Sono corti, si leggono in dieci minuti.
-2. **Fai sparring.** Chiedi a Claude uno sparring su «<nome del principio>»: apre una sessione guidata, ti
+2. **Fai sparring.** Chiedi a Claude uno sparring su "<nome del principio>": apre una sessione guidata, ti
    fa tre domande sul tuo lavoro reale, ti dice se e dove il principio ti serve, e ti
-   propone un esperimento piccolo e reversibile per provarlo. Anche «questo per ora non
-   ti serve» è un risultato valido.
+   propone un esperimento piccolo e reversibile per provarlo. Anche "questo per ora non
+   ti serve" è un risultato valido.
 3. **Torna quando l'harness si aggiorna.** Le novità (`/novita`) rimandano qui quando un
    principio nuovo entra nel curriculum.
 
@@ -28,5 +28,5 @@ L'ordine dei capitoli non è casuale: si parte dal potere, non dai comandi.
 | 04 | [La memoria è tua](04-la-memoria-e-tua.md) — perché il contesto e la configurazione devono vivere in file tuoi, portabili, e non nella chat di qualcun altro | disponibile (bozza) |
 | 05 | [Tieni la decisione](05-tieni-la-decisione.md) — automatizza la forma, frena l'impegno: Claude esegue, la decisione e l'invio restano tuoi | disponibile (bozza) |
 
-I capitoli «in scrittura» sono una promessa, non un segnaposto: arrivano con le prossime
+I capitoli "in scrittura" sono una promessa, non un segnaposto: arrivano con le prossime
 novità dell'harness.

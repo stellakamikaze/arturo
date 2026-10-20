@@ -190,7 +190,7 @@ def test_s08(repo: Path) -> None:
 
 
 def test_s09(repo: Path) -> None:
-    # Lo stato scritto dalla prima versione del 13/10 non ha «versione»: il canale manuale decade.
+    # Lo stato scritto dalla prima versione del 13/10 non ha "versione": il canale manuale decade.
     lab = Lab(repo)
     f = lab.home / ".claude" / "session-env" / "segnala.json"
     f.parent.mkdir(parents=True)
@@ -217,7 +217,7 @@ def main() -> int:
     repo = args.repo.resolve()
     # Su Windows i finti in bash non partono: /segnala troverebbe gh.exe, clip e il browser veri.
     # Il 16/10/2026 S07 ha aperto una issue vera su stellakamikaze/arturo. Ogni controllo che
-    # lancia «invia» gira solo su macOS e Linux, anche sulla base.
+    # lancia "invia" gira solo su macOS e Linux, anche sulla base.
     saltati = ["S02", "S03", "S05", "S06", "S07"] if os.name == "nt" else []
     scelti = {k: v for k, v in TESTS.items() if k not in saltati}
     if args.baseline_ref:

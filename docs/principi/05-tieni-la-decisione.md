@@ -47,7 +47,7 @@ Non contano quante cose hai delegato.
 
 L'archivio dei todo ha già le parole giuste. Ogni todo dice chi agisce:
 
-- `tu`: lo fai tu. Il perché accanto («invio a terzi», «firma», «la cifra») è una tua regola.
+- `tu`: lo fai tu. Il perché accanto ("invio a terzi", "firma", "la cifra") è una tua regola.
 - `decidi`: serve una tua scelta, poi lavora Claude. Quando hai deciso, `arturo todo deciso`
   scrive la scelta nel todo e passa il lavoro a Claude.
 - `io`: lo fa Claude.
@@ -57,7 +57,7 @@ dopo è forma, e lo fa Claude. La porta in mezzo è tua.
 
 ## Un esempio
 
-Arriva un bando. Senza freno, chiedi a Claude «preparami la candidatura» e lui la prepara tutta,
+Arriva un bando. Senza freno, chiedi a Claude "preparami la candidatura" e lui la prepara tutta,
 anche la parte in cui il tuo ente promette cose che non hai deciso di promettere.
 
 Con il freno i passi sono tre. Claude legge il bando e scrive requisiti e scadenze. Tu decidi se
@@ -72,4 +72,4 @@ e scrivi il perché nel todo.
 
 ---
 
-*Vuoi provarlo sul tuo lavoro? Chiedi a Claude uno sparring su «tieni la decisione».*
+*Vuoi provarlo sul tuo lavoro? Chiedi a Claude uno sparring su "tieni la decisione".*

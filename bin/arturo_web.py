@@ -10,7 +10,7 @@ Ogni lettura e ogni scrittura passano da todo_store, con le stesse regole della 
 non tiene dati suoi e il processo non scrive niente su disco, salvo l'archivio dei todo.
 
 Il processo si ferma da solo dopo 30 minuti senza richieste della pagina (ARTURO_WEB_INATTIVO,
-in secondi, cambia il tempo), con il bottone «Spegni la pagina» o con Ctrl+C. Conta solo una
+in secondi, cambia il tempo), con il bottone "Spegni la pagina" o con Ctrl+C. Conta solo una
 richiesta con la chiave giusta: una richiesta respinta non tiene acceso il server.
 
 L'Annulla porta con sé lo stato atteso del todo (`atteso`): se nel frattempo la CLI, il pannello
@@ -45,7 +45,7 @@ MASSIMO = 16384  # byte di un corpo POST
 INATTIVO = 1800  # secondi senza richieste prima di spegnersi
 
 # Gli unici file serviti: nome nel link -> (file in bin/web, tipo). Nessun percorso si compone
-# con quello che chiede il browser, quindi «..» e simili non escono mai da qui.
+# con quello che chiede il browser, quindi ".." e simili non escono mai da qui.
 STATICI = {
     "stile.css": ("stile.css", "text/css; charset=utf-8"),
     "app.js": ("app.js", "text/javascript; charset=utf-8"),
@@ -108,7 +108,7 @@ class Stato:
         self.ultima = time.monotonic()
         self.motivo = ""
         self.server = None
-        # Una scrittura alla volta: l'immagine «prima» per Annulla e la scrittura restano coerenti.
+        # Una scrittura alla volta: l'immagine "prima" per Annulla e la scrittura restano coerenti.
         self.scrittura = threading.Lock()
 
     def spegni(self, motivo: str) -> None:
@@ -130,7 +130,7 @@ def scheda(numero) -> dict:
     t = ts.per_id(todo, numero)
     e = ts.esporta(t, todo)
     e["note_datate"] = [{"ts": n["ts"], "testo": n["testo"]} for n in t["note"]]
-    # Gli eventi «dopo» puntano a un uid: la pagina mostra il numero che la persona conosce.
+    # Gli eventi "dopo" puntano a un uid: la pagina mostra il numero che la persona conosce.
     numeri = {x["uid"]: x["id"] for x in todo.values()}
     e["storia"] = [dict(s, dati={k: (numeri.get(v, v) if k in ("aggiungi", "togli") else v)
                                  for k, v in s["dati"].items()}) for s in t["storia"]]
@@ -153,7 +153,7 @@ def controlla_corpo(corpo) -> dict:
     if not azione:
         raise ErroreRichiesta(400, "manca l'azione")
     if azione not in AZIONI:
-        raise ErroreRichiesta(400, f"azione «{azione}» sconosciuta. Azioni ammesse: {', '.join(AZIONI)}")
+        raise ErroreRichiesta(400, f"azione \"{azione}\" sconosciuta. Azioni ammesse: {', '.join(AZIONI)}")
     numero = corpo.get("id")
     if numero is not None and (isinstance(numero, bool) or not isinstance(numero, (int, str))):
         raise ErroreRichiesta(400, "il campo id deve essere un numero o testo")
@@ -259,7 +259,7 @@ def crea_gestore(stato: Stato):
         sys_version = ""
 
         def log_message(self, *_):
-            """Niente righe «GET /…» nel terminale: le richieste della pagina non interessano a nessuno."""
+            """Niente righe "GET /…" nel terminale: le richieste della pagina non interessano a nessuno."""
 
         # --- risposte -------------------------------------------------------
 
@@ -416,7 +416,7 @@ def porta(valore: str) -> int:
     try:
         n = int(valore)
     except ValueError:
-        raise argparse.ArgumentTypeError(f"--porta vuole un numero da 0 a 65535, non «{valore}».")
+        raise argparse.ArgumentTypeError(f'--porta vuole un numero da 0 a 65535, non "{valore}".')
     if not 0 <= n <= 65535:
         raise argparse.ArgumentTypeError(f"--porta vuole un numero da 0 a 65535, non {n}.")
     return n
@@ -434,7 +434,7 @@ class Parser(argparse.ArgumentParser):
             testo = f"--porta vuole un numero da 0 a 65535. {OPZIONI}"
         else:
             sconosciute = message.split(":", 1)[-1].strip() if "unrecognized" in message else ""
-            testo = (f"opzione sconosciuta «{sconosciute}». " if sconosciute else "opzione non valida. ") + OPZIONI
+            testo = (f'opzione sconosciuta "{sconosciute}". ' if sconosciute else "opzione non valida. ") + OPZIONI
         print(f"arturo web: {testo}", file=sys.stderr)
         raise SystemExit(2)
 
@@ -487,7 +487,7 @@ def main(argv: list, progetto: str = "generale") -> int:
             flusso.reconfigure(encoding="utf-8")
         except (AttributeError, ValueError):
             pass
-    # L'aiuto vale in ogni posizione: «arturo web --non-aprire --help» stampa l'aiuto, non un errore.
+    # L'aiuto vale in ogni posizione: "arturo web --non-aprire --help" stampa l'aiuto, non un errore.
     if any(a in ("aiuto", "-h", "--help") for a in argv):
         print(AIUTO)
         return 0
@@ -506,7 +506,7 @@ def main(argv: list, progetto: str = "generale") -> int:
     url = f"http://{HOST}:{stato.porta}/?t={stato.token}"
     print(f"Arturo web: {url}", flush=True)
     print(f"In ascolto su {indirizzo}:{stato.porta}, solo su questo computer. Si ferma dopo "
-          f"{durata(stato.inattivo)} senza la pagina aperta, con il bottone «Spegni la pagina» o con Ctrl+C.",
+          f'{durata(stato.inattivo)} senza la pagina aperta, con il bottone "Spegni la pagina" o con Ctrl+C.',
           flush=True)
     if not args.non_aprire:
         try:

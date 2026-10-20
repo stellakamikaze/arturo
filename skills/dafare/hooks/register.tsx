@@ -2,7 +2,7 @@
 //
 // Legge e scrive solo con la CLI `arturo todo`, lanciata per argv e senza shell. Dopo ogni tasto
 // rilegge `arturo todo --json`: il pannello non scrive mai l'archivio da solo. Un errore della CLI
-// compare in italiano e non cambia niente. Ogni tasto si annulla con «u».
+// compare in italiano e non cambia niente. Ogni tasto si annulla con "u".
 
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
@@ -70,7 +70,7 @@ async function python($: EngineInterface): Promise<string[] | null> {
 
 async function cli($: EngineInterface, argomenti: string[]): Promise<Risposta> {
   const py = await python($)
-  if (!py) return { ok: false, testo: 'Non trovo Python: scrivi a Claude «lancia /setup».' }
+  if (!py) return { ok: false, testo: 'Non trovo Python: scrivi a Claude "lancia /setup".' }
   try {
     const r = await $.process.run([...py, $.plugin.root + CLI_REL, 'todo', ...argomenti], { timeoutMs: 15000 })
     if (r.exitCode === 0) return { ok: true, stdout: r.stdout }
@@ -161,7 +161,7 @@ async function annulla($: EngineInterface): Promise<void> {
   }
   const r = await cli($, ultimo.argv)
   // Il passo esce dalla pila anche se l'inverso fallisce: un passo che non si annulla non deve
-  // bloccare «u» sugli annulli più vecchi.
+  // bloccare "u" sugli annulli più vecchi.
   await update($, annullabili, p => p.slice(0, -1))
   if (!r.ok) {
     await dici($, `Non riesco ad annullare ${ultimo.descrizione} e lo salto: il prossimo u annulla il passo prima. La CLI dice: ${r.testo}`, false)
@@ -228,7 +228,7 @@ function scadute(lista: TodoVoce[]): number {
   return lista.filter(t => t.giorni !== null && t.giorni < 0).length
 }
 
-// Testata e barra dicono le scadute con la stessa forma: niente, «1 scaduta», «N scadute».
+// Testata e barra dicono le scadute con la stessa forma: niente, "1 scaduta", "N scadute".
 function quanteScadute(lista: TodoVoce[]): string {
   const k = scadute(lista)
   return k === 0 ? '' : k === 1 ? '1 scaduta' : `${k} scadute`

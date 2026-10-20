@@ -20,10 +20,10 @@ Si attiva su ogni richiesta di lavoro rivolta a Claude Code, anche breve. Non si
 
 Casi di confine:
 
-- **Una domanda che chiede un'azione è lavoro.** «Puoi fermare X e farlo partire su Y?», «fai una review di…», «verifica se…»: il brief si mostra. Resta conversazione la domanda che chiede un parere o un fatto («ci serve?», «c'è spazio?»).
-- **Il via libera a proposte già elencate è una risposta a un menu.** «vai», «procedi su tutto», «1+2+3», «tutti», «il resto sì»: il brief l'hanno già avuto le proposte, non se ne scrive un altro.
-- **Stop e comandi di controllo non passano mai dal brief.** «ferma», «interrompi», «stato», «un update al minuto»: si esegue subito. Un brief prima di fermare un'operazione ritarda un'azione di sicurezza.
-- **Una correzione a lavoro iniziato è una riga**, «Brief corretto: …», senza ricaricare la skill. La skill si ricarica solo se l'obiettivo è nuovo.
+- **Una domanda che chiede un'azione è lavoro.** "Puoi fermare X e farlo partire su Y?", "fai una review di…", "verifica se…": il brief si mostra. Resta conversazione la domanda che chiede un parere o un fatto ("ci serve?", "c'è spazio?").
+- **Il via libera a proposte già elencate è una risposta a un menu.** "vai", "procedi su tutto", "1+2+3", "tutti", "il resto sì": il brief l'hanno già avuto le proposte, non se ne scrive un altro.
+- **Stop e comandi di controllo non passano mai dal brief.** "ferma", "interrompi", "stato", "un update al minuto": si esegue subito. Un brief prima di fermare un'operazione ritarda un'azione di sicurezza.
+- **Una correzione a lavoro iniziato è una riga**, "Brief corretto: …", senza ricaricare la skill. La skill si ricarica solo se l'obiettivo è nuovo.
 
 ### 1. Arricchimento (silenzioso)
 
@@ -68,7 +68,7 @@ Da chiarire: [max 3 punti]
 
 - **La riga Skill è sempre presente.** Scegli dall'elenco delle skill di questa sessione per
   giudizio sul lavoro da fare, non per parole chiave. Se una skill che la persona non ha nominato
-  fa meglio il lavoro di quella che ha chiesto, dillo qui. Se nessuna serve, scrivi «nessuna». Questa skill (prompt-master) non conta: c'è
+  fa meglio il lavoro di quella che ha chiesto, dillo qui. Se nessuna serve, scrivi "nessuna". Questa skill (prompt-master) non conta: c'è
   sempre.
 - Il brief mostrato è la punta dell'arricchimento, non tutto: il contesto recuperato resta nel tuo ragionamento e nel lavoro che ne segue. Non trascriverlo per intero, e non trasformare il brief in un rapporto di ricerca.
 - Se un'ambiguità cambierebbe materialmente il lavoro, chiedi prima di procedere, con una raccomandazione motivata. Max 3 punti. Il menu AskUserQuestion vale solo se il testo prima sta in una o due righe: dopo un brief di più righe, chiudi con l'elenco numerato e le parole di risposta in grassetto.

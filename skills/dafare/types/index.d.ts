@@ -40,7 +40,7 @@ export type Vista = {
   avvisi: string[]
 }
 
-// Un passo da annullare: gli argomenti della CLI dopo «todo», calcolati prima di scrivere.
+// Un passo da annullare: gli argomenti della CLI dopo "todo", calcolati prima di scrivere.
 export type Annullabile = { argv: string[]; descrizione: string; id: number }
 
 // L'ultima risposta a un tasto: una riga sotto il titolo del pannello.

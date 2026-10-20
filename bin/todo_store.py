@@ -57,7 +57,7 @@ AZIONI_STATO = {
     "scarta": ("scartato", "Scartato"),
 }
 # Il progetto degli esercizi del percorso a tappe, uscito da Arturo il 16/10/2026. L'archivio è
-# append-only, quindi gli esercizi rimasti aperti restano: «Da dove partire» continua a saltarli.
+# append-only, quindi gli esercizi rimasti aperti restano: "Da dove partire" continua a saltarli.
 # Lo slug di una cartella ammette solo [a-z0-9-] e non comincia con un trattino, quindi nessun
 # repository finisce qui per caso.
 PROGETTO_PERCORSO = "_percorso"
@@ -100,7 +100,7 @@ def scelta(valore: str, ammessi: tuple, nome: str) -> str:
     if v in ("da-fare", "da_fare"):
         v = "da fare"
     if v not in ammessi:
-        raise ErroreTodo(f"{nome} «{valore}» non valido. Valori ammessi: {', '.join(ammessi)}")
+        raise ErroreTodo(f"{nome} \"{valore}\" non valido. Valori ammessi: {', '.join(ammessi)}")
     return v
 
 
@@ -129,11 +129,11 @@ def data(valore: str) -> str:
             return dt.date(anno, int(m.group(2)), int(m.group(1))).isoformat()
     except ValueError:
         pass
-    raise ErroreTodo(f"data «{valore}» non valida. Scrivi 2026-10-10, 10/10, oggi, domani o un giorno (venerdì)")
+    raise ErroreTodo(f'data "{valore}" non valida. Scrivi 2026-10-10, 10/10, oggi, domani o un giorno (venerdì)')
 
 
-# I caratteri di controllo: ESC e gli altri C0, DEL e i C1. Un titolo con «ESC ] 52» scrive negli
-# appunti di un terminale, «ESC [ 2J» cancella lo schermo. Tab e a capo diventano uno spazio: un
+# I caratteri di controllo: ESC e gli altri C0, DEL e i C1. Un titolo con "ESC ] 52" scrive negli
+# appunti di un terminale, "ESC [ 2J" cancella lo schermo. Tab e a capo diventano uno spazio: un
 # titolo è una riga. U+0085 resta: è un separatore di riga che un PDF incollato porta con sé, non
 # apre sequenze, e il registro lo scrive come escape JSON (_SEPARATORI).
 _SPAZI = re.compile(r"[\t\n\r\x0b\x0c]")
@@ -258,7 +258,7 @@ def carica(file: Path | None = None) -> tuple:
                 continue
             numero_todo = numeri[uid]
             if numero_todo != e["id"]:
-                avvisi.append(f"#{e['id']} esisteva già su un'altra macchina: il todo «{pulisci(dati['titolo'])}» "
+                avvisi.append(f"#{e['id']} esisteva già su un'altra macchina: il todo \"{pulisci(dati['titolo'])}\" "
                               f"ora è #{numero_todo}")
             t = {"id": numero_todo, "id_originale": e["id"], "uid": uid, "titolo": "", "progetto": "generale",
                  "scadenza": "", "chi": "tu", "perche": "", "priorita": "media", "quando": "settimana",
@@ -321,7 +321,7 @@ def rinumerati(todo: dict, numero) -> list:
         n = int(str(numero).lstrip("#"))
     except ValueError:
         return []
-    return [f"#{t['id_originale']} esisteva già su un'altra macchina: il todo «{t['titolo']}» ora è #{t['id']}"
+    return [f"#{t['id_originale']} esisteva già su un'altra macchina: il todo \"{t['titolo']}\" ora è #{t['id']}"
             for t in sorted(todo.values(), key=lambda x: x["id"])
             if t["id_originale"] != t["id"] and n in (t["id_originale"], t["id"])]
 
@@ -337,15 +337,15 @@ def controlla_atteso(t: dict, atteso) -> None:
             raise ErroreTodo(f"campo atteso sconosciuto: {campo}")
         attuale = t.get(campo) or ""
         if attuale != (valore or ""):
-            raise ErroreCambiato(f"il todo #{t['id']} non è più come lo aspettavi: {campo} è «{attuale}», "
-                                 f"non «{valore}». Non ho cambiato niente: rileggi la lista con arturo todo")
+            raise ErroreCambiato(f"il todo #{t['id']} non è più come lo aspettavi: {campo} è \"{attuale}\", "
+                                 f'non "{valore}". Non ho cambiato niente: rileggi la lista con arturo todo')
 
 
 def per_id(todo: dict, numero) -> dict:
     try:
         n = int(str(numero).lstrip("#"))
     except ValueError:
-        raise ErroreTodo(f"«{numero}» non è un numero di todo")
+        raise ErroreTodo(f'"{numero}" non è un numero di todo')
     for t in todo.values():
         if t["id"] == n:
             return t
@@ -575,7 +575,7 @@ def ripristina(numero, stato: str, motivo: str = "", file: Path | None = None, a
 
 
 def deciso(numero, testo: str, file: Path | None = None, atteso: dict | None = None) -> dict:
-    """La persona ha deciso: nota «Deciso: testo» e chi passa a io, in una sola scrittura.
+    """La persona ha deciso: nota "Deciso: testo" e chi passa a io, in una sola scrittura.
 
     Un todo chiuso si rifiuta: nessuno ci lavora piu', e il suo chi=decidi resta come segnale.
     Un todo FERMO accetta la decisione e resta FERMO: quando riparte, lo fa Claude.
@@ -591,7 +591,7 @@ def deciso(numero, testo: str, file: Path | None = None, atteso: dict | None = N
         raise ErroreTodo(f"il todo #{t['id']} è chiuso ({t['stato']}): riaprilo con riprendi prima di "
                          "registrare la decisione")
     if t["chi"] != "decidi":
-        raise ErroreTodo(f"il todo #{t['id']} non aspetta una tua decisione: chi è «{t['chi']}», non «decidi»")
+        raise ErroreTodo(f"il todo #{t['id']} non aspetta una tua decisione: chi è \"{t['chi']}\", non \"decidi\"")
     nota = _evento("nota", t["uid"], {"testo": DECISO + testo})
     # Lo stesso ts sui due eventi: chi legge la storia riconosce la nota scritta da deciso
     # (l'ordine resta quello delle righe). Una nota scritta a mano ha sempre un ts suo.

@@ -30,7 +30,7 @@ export function avviso(c: Cache): string | undefined {
 
 // cache/banchi-ultimo-esito.txt, scritto solo dai banchi delle guardie (tests/banchi-avvio.sh), che
 // session-start.sh lancia in background al massimo ogni 12 ore. Riga 1 ROSSO o VERDE, riga 2 il
-// riassunto («2 banchi delle guardie rossi su 5 (data)»). Lo stesso file lo legge la riga GUARDIE
+// riassunto ("2 banchi delle guardie rossi su 5 (data)"). Lo stesso file lo legge la riga GUARDIE
 // dell'avvio: i due avvisi danno lo stesso rimedio.
 export function leggiBanchi(testo: string): Banchi | null {
   const righe = testo.split('\n')

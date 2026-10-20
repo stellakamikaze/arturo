@@ -45,7 +45,7 @@ MIN_TOKENS = 2         # sotto questo, prompt troppo povero → skip
 # agenti in background, messaggi fra sessioni, output di `!cmd`. Non li scrive
 # la persona: dal 15 al 26/9 erano il 40% dei suggerimenti, letti all'1,1% (#2575).
 # Il report di un subagent arriva con una riga davanti al tag (19/10/2026):
-# «Another Claude session sent a message:\n<agent-message ...>».
+# "Another Claude session sent a message:\n<agent-message ...>".
 SYSTEM_ENVELOPE = re.compile(
     r"\s*(?:Another Claude session sent a message:\s*)?"
     r"<(task-notification|agent-message|cross-session-message|teammate-message"

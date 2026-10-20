@@ -331,15 +331,15 @@ def test_m13(repo: Path) -> None:
     assert not attese.exists(), "M13 l'attesa resta dopo la conferma"
     assert dopo("toolu_01").returncode == 0 and len(lab.coda()) == 2, "M13 la stessa chiamata conta due volte"
     # Su Windows la pipe è in cp1252: una conferma con «”» nel comando va registrata lo stesso (16/10).
-    virgolette = comando + "  # lista ”vecchia”"
+    virgolette = comando + '  # lista ”vecchia”'
     r = lab.hook("bash-dispatcher.sh", json.dumps({"tool_name": "Bash", "tool_input": {"command": virgolette},
                                                     "tool_use_id": "toolu_03"}))
-    assert '"ask"' in r.stdout, f"M13 il comando con «”» non chiede conferma: {r.stdout[:200]}"
+    assert '"ask"' in r.stdout, f'M13 il comando con «”» non chiede conferma: {r.stdout[:200]}'
     cp1252 = dict(lab.env, PYTHONIOENCODING="cp1252", PYTHONUTF8="0")
     entrata = json.dumps({"tool_use_id": "toolu_03", "tool_input": {"command": virgolette}}, ensure_ascii=False)
     r = subprocess.run([BASH, "-c", esito], input=entrata.encode("utf-8"), capture_output=True, env=cp1252, timeout=60)
     assert r.returncode == 0 and [e["evento"] for e in lab.coda()][-2:] == ["chiede", "confermata"], \
-        f"M13 la conferma di un comando con «”» non entra (pipe cp1252): {lab.coda()[-2:]}"
+        f'M13 la conferma di un comando con «”» non entra (pipe cp1252): {lab.coda()[-2:]}'
     # Anche la guardia sui file (CLAUDE.md nuovo), con il PostToolUse di Edit/Write.
     entrata = {"tool_name": "Write", "tool_use_id": "toolu_02",
                "tool_input": {"file_path": str(lab.dir / "progetto" / "CLAUDE.md"), "content": "x"}}
@@ -395,7 +395,7 @@ def test_m15(repo: Path) -> None:
 
 def test_m16(repo: Path) -> None:
     # Il 16/10/2026 quattro test lanciati da soli, con la telemetria accesa, hanno mandato al server vero
-    # quattro «installazioni nuove». Una HOME in una cartella temporanea è un banco di prova: senza un
+    # quattro "installazioni nuove". Una HOME in una cartella temporanea è un banco di prova: senza un
     # server indicato a mano, l'indirizzo è uno morto. Si legge l'indirizzo, senza rete.
     lab = Lab(repo)
     del lab.env["ARTURO_TELEMETRIA_URL"]

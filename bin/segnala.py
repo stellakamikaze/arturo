@@ -112,7 +112,7 @@ def cambia_stato(cambia) -> dict:
     with ts.Lucchetto(file_stato()):
         stato = leggi_stato()
         cambia(stato)
-        # La chiave «pausa» resta scritta anche quando è spenta: session-start la cerca col grep.
+        # La chiave "pausa" resta scritta anche quando è spenta: session-start la cerca col grep.
         pulito = {"versione": VERSIONE_STATO, "domanda": stato.get("domanda"), "inviata": stato.get("inviata"),
                   "canale": stato.get("canale"), "pausa": stato.get("pausa")}
         ts.scrivi_json_atomico(file_stato(), pulito)
@@ -247,7 +247,7 @@ def _opzioni(resto: list, ammesse: tuple) -> dict:
             i += 1
             continue
         if chiave not in ammesse or i + 1 >= len(resto):
-            raise ValueError(f"opzione sconosciuta o senza valore: «{chiave}»")
+            raise ValueError(f'opzione sconosciuta o senza valore: "{chiave}"')
         valori[chiave] = resto[i + 1]
         i += 2
     return valori
@@ -392,7 +392,7 @@ def main(argv: list) -> int:
                 print(canale or "nessuno")
                 return 0 if canale else 3
             if resto[0] not in CANALI:
-                raise ValueError(f"canale sconosciuto: «{resto[0]}» ({', '.join(CANALI)})")
+                raise ValueError(f"canale sconosciuto: \"{resto[0]}\" ({', '.join(CANALI)})")
             cambia_stato(lambda s: s.__setitem__("canale", resto[0]))
             print(f"Canale ricordato: {resto[0]}")
             return 0
@@ -411,5 +411,5 @@ def main(argv: list) -> int:
     except OSError as errore:
         print(f"Errore: {errore}", file=sys.stderr)
         return 2
-    print(f"Errore: comando sconosciuto: «{' '.join(argv)}»\n\n{AIUTO}", file=sys.stderr)
+    print(f"Errore: comando sconosciuto: \"{' '.join(argv)}\"\n\n{AIUTO}", file=sys.stderr)
     return 2

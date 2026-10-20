@@ -28,7 +28,7 @@ jobs:
           PRIMA: ${{ github.event.before }}
           DOPO: ${{ github.sha }}
         run: |
-          # Un branch nuovo non ha un «prima»: si controllano tutti i commit che arrivano.
+          # Un branch nuovo non ha un "prima": si controllano tutti i commit che arrivano.
           if git cat-file -e "${PRIMA}^{commit}" 2>/dev/null; then
             INTERVALLO="${PRIMA}..${DOPO}"
           else

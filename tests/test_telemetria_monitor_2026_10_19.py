@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """TM01-TM05: Arturo non spegne più la telemetria di Claude Code (19/10/2026).
 
-Decisione di Federico del 19/10/2026: «arturo non tiene disable telemtry». DISABLE_TELEMETRY
-spegneva anche i feature flag di Claude Code (env-vars.md, «Features that need feature-flag
-fetching»): il segno sui testi incollati, l'esclusione degli schemi MCP rotti, l'advisor,
+Decisione di Federico del 19/10/2026: "arturo non tiene disable telemtry". DISABLE_TELEMETRY
+spegneva anche i feature flag di Claude Code (env-vars.md, "Features that need feature-flag
+fetching"): il segno sui testi incollati, l'esclusione degli schemi MCP rotti, l'advisor,
 /skill-doctor, la compattazione a riposo. Con i flag accesi arrivano anche il tool Monitor e, su
 Windows con Git Bash, lo strumento PowerShell: le guardie devono coprirli prima.
 
@@ -12,7 +12,7 @@ TM02 il dispatcher delle guardie scatta anche su Monitor (matcher) e un comando 
      riceve dalle guardie la stessa decisione che riceve da Bash.
 TM03 le tre guardie PreToolUse hanno `onFailure: "block"`: una guardia che non parte ferma l'azione.
 TM04 CLAUDE_CODE_USE_POWERSHELL_TOOL=0: lo strumento PowerShell, che le guardie non vedono, resta spento.
-TM05 «Cosa non è neutro» dice che Claude Code manda la sua telemetria ad Anthropic e come spegnerla.
+TM05 "Cosa non è neutro" dice che Claude Code manda la sua telemetria ad Anthropic e come spegnerla.
 
 Sulla base 40b26c2 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -106,7 +106,7 @@ def test_tm05(repo: Path) -> None:
     m = re.search(r"^## Cosa non è neutro\n(.*?)(?=^## |\Z)", readme, re.M | re.S)
     testo = m.group(1) if m else ""
     assert "DISABLE_TELEMETRY" in testo, \
-        "TM05 «Cosa non è neutro» non dice della telemetria di Claude Code né come spegnerla"
+        'TM05 "Cosa non è neutro" non dice della telemetria di Claude Code né come spegnerla'
 
 
 TESTS = {"TM01": test_tm01, "TM02": test_tm02, "TM03": test_tm03, "TM04": test_tm04, "TM05": test_tm05}

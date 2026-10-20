@@ -10,13 +10,13 @@ Bozza: la rilegge e la corregge Federico prima del rilascio su main.
 Ogni sessione con Claude parte da zero. Non sa chi sei, su cosa lavori, cosa avete deciso ieri.
 Sa soltanto quello che trova all'inizio della conversazione.
 
-Quindi «la memoria» di un assistente è sempre un testo che qualcuno gli rilegge all'inizio. La
+Quindi "la memoria" di un assistente è sempre un testo che qualcuno gli rilegge all'inizio. La
 domanda vera è un'altra: **dove sta quel testo, e chi lo controlla?**
 
 ## Due posti possibili
 
-Il primo posto è l'account del fornitore. Molte chat AI ricordano da sole: «ricordo che lavori
-in una casa editrice». È comodo. Però quel ricordo vive sui computer di qualcun altro. Non sempre
+Il primo posto è l'account del fornitore. Molte chat AI ricordano da sole: "ricordo che lavori
+in una casa editrice". È comodo. Però quel ricordo vive sui computer di qualcun altro. Non sempre
 puoi leggerlo tutto, correggerlo riga per riga o portarlo con te se cambi strumento.
 
 Il secondo posto sono file sul tuo computer. Meno magici, perché li devi tenere in ordine. Però
@@ -67,9 +67,9 @@ regola non serve più, cancellala.
 ## La cosa da portarsi via
 
 Chiediti: **se domani cambiassi strumento, cosa di quello che Claude sa di me potrei portarmi
-via?** Se la risposta è «niente», la tua memoria vive in casa d'altri. Se la risposta è «una
-cartella di file che conosco», la memoria è tua.
+via?** Se la risposta è "niente", la tua memoria vive in casa d'altri. Se la risposta è "una
+cartella di file che conosco", la memoria è tua.
 
 ---
 
-*Vuoi provarlo sul tuo lavoro? Chiedi a Claude uno sparring su «la memoria è tua».*
+*Vuoi provarlo sul tuo lavoro? Chiedi a Claude uno sparring su "la memoria è tua".*

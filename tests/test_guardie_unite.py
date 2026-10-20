@@ -527,7 +527,7 @@ def test_g211(repo: Path) -> None:
                                                           encoding="utf-8")
         nudo = {"PATH": str(senza_timeout)}
         if os.name == "nt":
-            # Python non lancia gli script senza estensione: per i suoi «git» serve git.exe, che sta
+            # Python non lancia gli script senza estensione: per i suoi "git" serve git.exe, che sta
             # da solo in Git\cmd, senza timeout.
             nudo["PATH"] += os.pathsep + os.path.dirname(shutil.which("git") or "")
         assert dispatcher(home, 'git commit -m "fix; timeout 30 secondi"', radice, **nudo) == "silent", \

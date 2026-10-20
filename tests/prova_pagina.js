@@ -2,13 +2,13 @@
 /* La pagina dei todo in Chrome headless, pilotata con il protocollo DevTools (W13 di test_web.py).
 
    Uso: node tests/prova_pagina.js REPO PYTHON CHROME
-   Exit: 0 tutto bene, 1 un controllo fallisce (la riga «FAIL …» dice quale), 77 la prova non può
+   Exit: 0 tutto bene, 1 un controllo fallisce (la riga "FAIL …" dice quale), 77 la prova non può
    partire (node senza WebSocket, Chrome che non apre la porta di debug).
 
    Controlla due comportamenti che solo un browser vede:
-   - un pannello «Modifica» aperto tiene i campi non salvati quando arriva l'esito di una nota o
-     di «Fatto» su un'altra riga, e la nota salvata esce dal suo campo;
-   - «Fatto» sulla riga del pannello aperto («Modifica» o «Ho deciso») chiude il pannello, e un
+   - un pannello "Modifica" aperto tiene i campi non salvati quando arriva l'esito di una nota o
+     di "Fatto" su un'altra riga, e la nota salvata esce dal suo campo;
+   - "Fatto" sulla riga del pannello aperto ("Modifica" o "Ho deciso") chiude il pannello, e un
      todo scritto dalla CLI compare alla lettura successiva.
    Nessuna dipendenza: node 22 o successivo (il WebSocket globale c'è da node 22), script classico,
    nessuna rete esterna. */
@@ -116,10 +116,10 @@ async function main() {
 
     await cdp("Page.enable");
     await cdp("Page.navigate", { url });
-    // 0. Il tavolo: «Da dove partirei», un foglio per il progetto, il foglio apre il progetto.
+    // 0. Il tavolo: "Da dove partirei", un foglio per il progetto, il foglio apre il progetto.
     controlla(await finche(`!!document.querySelector('.foglio .foglio-nome a')`, 10000), "il tavolo non mostra il foglio del progetto");
     const daDove = await valuta(`(document.getElementById("da-dove-titolo") || {}).textContent || ""`);
-    controlla(daDove.indexOf("Uno") !== -1, `«Da dove partirei» non sceglie il primo todo della persona: ${JSON.stringify(daDove)}`);
+    controlla(daDove.indexOf("Uno") !== -1, `"Da dove partirei" non sceglie il primo todo della persona: ${JSON.stringify(daDove)}`);
     await valuta(`document.querySelector('.foglio .foglio-nome a').click(); true`);
     controlla(await finche(`document.getElementById("titolo").textContent === "p" && !!document.querySelector('.todo[data-id="4"]')`, 10000),
       "il foglio non apre la pagina del progetto");
@@ -130,34 +130,34 @@ async function main() {
     controlla(await finche(`!document.getElementById("dettaglio") && !!document.querySelector('.todo[data-id="4"]')`), "Indietro non chiude il dettaglio");
 
     // 1. Il pannello tiene i campi non salvati.
-    controlla(await premi(1, "Modifica"), "manca «Modifica» su #1");
+    controlla(await premi(1, "Modifica"), "manca \"Modifica\" su #1");
     controlla(await finche(`!!document.getElementById("m-1-titolo")`), "il pannello di #1 non si apre");
     await valuta(`document.getElementById("m-1-titolo").value = "Uno cambiato"; document.getElementById("m-1-nota").value = "una nota"; document.getElementById("m-1-nota").form.requestSubmit(); true`);
     controlla(await finche(`[...document.querySelectorAll('.todo[data-id="1"] .note li')].some(function (x) { return x.textContent === "una nota"; })`),
       "la nota non compare nel pannello");
     const dopoNota = await valuta(`JSON.stringify([(document.getElementById("m-1-titolo") || {}).value, (document.getElementById("m-1-nota") || {}).value])`);
     controlla(dopoNota === JSON.stringify(["Uno cambiato", ""]), `dopo la nota il pannello ha [titolo, nota] = ${dopoNota}, non ["Uno cambiato", ""]`);
-    controlla(await premi(2, "Fatto"), "manca «Fatto» su #2");
-    controlla(await finche(`document.getElementById("esito").textContent.indexOf("Chiuso #2") === 0`), `«Fatto» su #2 dà l'esito ${JSON.stringify(await esito())}`);
+    controlla(await premi(2, "Fatto"), "manca \"Fatto\" su #2");
+    controlla(await finche(`document.getElementById("esito").textContent.indexOf("Chiuso #2") === 0`), `"Fatto" su #2 dà l'esito ${JSON.stringify(await esito())}`);
     const dopoFatto = await valuta(`(document.getElementById("m-1-titolo") || {}).value`);
-    controlla(dopoFatto === "Uno cambiato", `dopo «Fatto» su un'altra riga il titolo nel pannello è ${JSON.stringify(dopoFatto)}`);
+    controlla(dopoFatto === "Uno cambiato", `dopo "Fatto" su un'altra riga il titolo nel pannello è ${JSON.stringify(dopoFatto)}`);
 
-    // 2. «Fatto» sulla riga del pannello aperto: la lettura successiva arriva nella pagina.
-    controlla(await premi(1, "Fatto"), "manca «Fatto» su #1");
-    controlla(await finche(`document.getElementById("esito").textContent.indexOf("Chiuso #1") === 0`), `«Fatto» su #1 dà l'esito ${JSON.stringify(await esito())}`);
+    // 2. "Fatto" sulla riga del pannello aperto: la lettura successiva arriva nella pagina.
+    controlla(await premi(1, "Fatto"), "manca \"Fatto\" su #1");
+    controlla(await finche(`document.getElementById("esito").textContent.indexOf("Chiuso #1") === 0`), `"Fatto" su #1 dà l'esito ${JSON.stringify(await esito())}`);
     cli("aggiungi", "Scritto da Claude", "--progetto", "p");
     await leggiOra();
     controlla(await finche(`document.body.textContent.indexOf("Scritto da Claude") !== -1`),
-      `con il pannello «Modifica» chiuso da «Fatto», un todo della CLI non compare: ${await titoli()}`);
+      `con il pannello "Modifica" chiuso da "Fatto", un todo della CLI non compare: ${await titoli()}`);
 
-    controlla(await premi(3, "Ho deciso"), "manca «Ho deciso» su #3");
-    controlla(await finche(`!!document.getElementById("deciso-3")`), "il pannello «Ho deciso» non si apre");
-    controlla(await premi(3, "Fatto"), "manca «Fatto» su #3");
-    controlla(await finche(`document.getElementById("esito").textContent.indexOf("Chiuso #3") === 0`), `«Fatto» su #3 dà l'esito ${JSON.stringify(await esito())}`);
+    controlla(await premi(3, "Ho deciso"), "manca \"Ho deciso\" su #3");
+    controlla(await finche(`!!document.getElementById("deciso-3")`), "il pannello \"Ho deciso\" non si apre");
+    controlla(await premi(3, "Fatto"), "manca \"Fatto\" su #3");
+    controlla(await finche(`document.getElementById("esito").textContent.indexOf("Chiuso #3") === 0`), `"Fatto" su #3 dà l'esito ${JSON.stringify(await esito())}`);
     cli("aggiungi", "Ancora Claude", "--progetto", "p");
     await leggiOra();
     controlla(await finche(`document.body.textContent.indexOf("Ancora Claude") !== -1`),
-      `con il pannello «Ho deciso» chiuso da «Fatto», un todo della CLI non compare: ${await titoli()}`);
+      `con il pannello "Ho deciso" chiuso da "Fatto", un todo della CLI non compare: ${await titoli()}`);
 
     if (errori.length) { errori.forEach((e) => console.log("FAIL " + e)); return 1; }
     console.log("PROVA_PAGINA_OK controlli=3");

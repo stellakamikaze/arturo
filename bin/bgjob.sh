@@ -34,7 +34,7 @@ avvio_pid() {  # stampa un'impronta dell'ora di avvio del PID, vuota se non si l
   if [[ -r "$PROC/$pid/stat" ]]; then
     s=$(cat "$PROC/$pid/stat" 2>/dev/null)
     s=${s##*) }   # il nome del processo sta fra parentesi e può contenere spazi
-    # dopo «) » il primo campo è il 3 di stat: starttime (campo 22) è il ventesimo
+    # dopo ") " il primo campo è il 3 di stat: starttime (campo 22) è il ventesimo
     set -- $s
     [[ $# -ge 20 ]] && { printf 'proc:%s\n' "${20}"; return 0; }
   fi

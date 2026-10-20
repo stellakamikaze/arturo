@@ -71,7 +71,7 @@ def test_g214(repo: Path) -> None:
         (r / "leak.txt").write_text(f"k={AWS_FINTO}\n", encoding="utf-8")
         _git(r, "add", "leak.txt")
         segreto, irrisolto, passa = "segreto", "irrisolto", "passa"
-        # Barre dritte: in bash le barre di Windows non quotate sono escape e «cd» non arriva al repository.
+        # Barre dritte: in bash le barre di Windows non quotate sono escape e "cd" non arriva al repository.
         rp, fp = r.as_posix(), fuori.as_posix()
         casi = [
             ("messaggio su piu' righe dopo cd", f'cd {rp} && git commit -q -m "riga uno\n\nriga tre; con | pipe"', segreto),

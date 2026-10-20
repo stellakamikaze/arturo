@@ -17,7 +17,7 @@ ripristino non registra l'aggiornamento. A10 i comandi a mano del README non las
 settings.json. A11 nessun blocco di /aggiorna, /inizio e /novita usa una variabile nata in un
 altro blocco.
 
-Il conflitto «a codice 0» di A06-A09 si fabbrica con un git finto in testa al PATH: dopo il pull,
+Il conflitto "a codice 0" di A06-A09 si fabbrica con un git finto in testa al PATH: dopo il pull,
 il rebase, il merge o il reset veri lascia settings.json con tre versioni nell'indice e i marcatori
 nel file, come un autostash che non si riapplica, nel repository dove il comando e' girato (`-C` o la
 cartella corrente). Con FALLISCE_RESET=1 il reset fallisce dopo i primi RESET_BUONI (0 se manca).
@@ -93,9 +93,9 @@ def read(path: Path) -> str:
 
 def blocchi(testo: str, titolo: str, codice: str) -> List[str]:
     """I blocchi ```bash dopo l'intestazione `titolo`, senza il rientro degli elenchi numerati."""
-    assert titolo in testo, f"{codice} non trovo «{titolo}»"
+    assert titolo in testo, f'{codice} non trovo "{titolo}"'
     trovati = re.findall(r"```bash\n(.*?)```", testo[testo.index(titolo):], re.S)
-    assert trovati, f"{codice} nessun blocco bash dopo «{titolo}»"
+    assert trovati, f'{codice} nessun blocco bash dopo "{titolo}"'
     return ["\n".join(r[3:] if r.startswith("   ") else r for r in b.splitlines()) for b in trovati]
 
 

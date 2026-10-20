@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """F01-F12: il ciclo di sessione di /fine e /inizio sopra l'archivio dei todo (15/10/2026).
 
-F01 bin/handoff-gate.sh: la sezione «## Task Pendenti» c'è sempre, ogni riga ha l'ID di un todo
-aperto dell'archivio, Chi è una categoria dei todo o la sua forma per la persona («Claude»,
-«Decidi tu», «Tu: <cosa serve>», dal 20/10/2026), niente segnaposti del modello mai compilati.
+F01 bin/handoff-gate.sh: la sezione "## Task Pendenti" c'è sempre, ogni riga ha l'ID di un todo
+aperto dell'archivio, Chi è una categoria dei todo o la sua forma per la persona ("Claude",
+"Decidi tu", "Tu: <cosa serve>", dal 20/10/2026), niente segnaposti del modello mai compilati.
 F02 il gate legge le categorie di Chi da bin/todo_store.py: non ne tiene una copia.
 F03 bin/handoff-retention.py tiene gli ultimi 5 per filone, in ordine di nome e non di data del
 file, stampa vicoli ciechi e task senza ID dei file in uscita e cancella solo con --applica.
@@ -12,7 +12,7 @@ F04 bin/index-rigenera.py: una riga per filone, prossimo passo dalla Ripartenza,
 F05 bin/inventario-sessione.py: dalla trascrizione i file della sessione con un destino proposto
 (repo, archivia, resta, scarto), le bozze create online, ~/.claude escluso.
 F06 arturo contesto: git, ripartenza, todo per chi agisce, chiusi, scadenze in una chiamata;
-NON TROVATO con i nomi simili; --tutti e il compito dopo « -- » restano fuori dal nome.
+NON TROVATO con i nomi simili; --tutti e il compito dopo " -- " restano fuori dal nome.
 F07 bin/sync-progetti.sh: pull di ogni progetto con stash, conflitti e credenziali riportati.
 F08 /fine usa inventario, gate, retention e indice; il modello della tabella passa il gate;
 niente find|tail|rm; nessun blocco legge una variabile di un altro blocco.
@@ -142,28 +142,28 @@ def prepara_todo(lab: Lab) -> None:
 
 CASI_GATE = [
     # (nome, testo o None per il file assente, exit, marcatore, righe rosse)
-    ("sezione assente", handoff(""), 1, "manca la sezione «## Task Pendenti»", 1),
+    ("sezione assente", handoff(""), 1, "manca la sezione \"## Task Pendenti\"", 1),
     ("sezione con la sola intestazione", handoff("## Task Pendenti\n\n" + TESTA), 1, "non ha righe", 1),
     ("titolo minuscolo", handoff("## Task pendenti\n\n" + TESTA + riga("#1", "io")), 1,
      "il titolo deve essere esatto", 1),
     ("titolo quasi uguale accanto a quello esatto",
      handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "io") + "\n## Task Pendenti (3)\nNessun task pendente.\n"),
-     1, "«## Task Pendenti (3)»", 1),
+     1, "\"## Task Pendenti (3)\"", 1),
     ("frase senza sezione", handoff("Nessun task pendente: il lavoro è chiuso.\n"), 1, "manca la sezione", 1),
-    ("ID vuoto", handoff("## Task Pendenti\n\n" + TESTA + riga("", "io")), 1, "ID «» non è un #numero", 1),
-    ("ID senza cancelletto", handoff("## Task Pendenti\n\n" + TESTA + riga("1", "io")), 1, "ID «1» non è", 1),
+    ("ID vuoto", handoff("## Task Pendenti\n\n" + TESTA + riga("", "io")), 1, "ID \"\" non è un #numero", 1),
+    ("ID senza cancelletto", handoff("## Task Pendenti\n\n" + TESTA + riga("1", "io")), 1, "ID \"1\" non è", 1),
     ("ID di un todo che non esiste", handoff("## Task Pendenti\n\n" + TESTA + riga("#99", "io")), 1,
      "#99 non esiste", 1),
     ("ID di un todo chiuso", handoff("## Task Pendenti\n\n" + TESTA + riga("#4", "io")), 1, "#4 è già chiuso", 1),
-    # 20/10/2026: /fine scrive Chi come la config dell'autore, in forma neutra («Claude», «Decidi tu»,
-    # «Tu: <cosa serve>»). «Claude» da solo è entrato fra le forme ammesse: il caso fuori lista è un altro nome.
-    ("Chi fuori lista", handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "Qualcuno")), 1, "Chi «Qualcuno»", 1),
-    ("Chi «Tu:» senza cosa serve", handoff("## Task Pendenti\n\n" + TESTA + riga("#2", "Tu:")), 1, "Chi «Tu:»", 1),
-    ("Chi «claude» minuscolo", handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "claude")), 1, "Chi «claude»", 1),
-    ("Chi vuoto", handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "")), 1, "Chi «»", 1),
+    # 20/10/2026: /fine scrive Chi come la config dell'autore, in forma neutra ("Claude", "Decidi tu",
+    # "Tu: <cosa serve>"). "Claude" da solo è entrato fra le forme ammesse: il caso fuori lista è un altro nome.
+    ("Chi fuori lista", handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "Qualcuno")), 1, "Chi \"Qualcuno\"", 1),
+    ("Chi \"Tu:\" senza cosa serve", handoff("## Task Pendenti\n\n" + TESTA + riga("#2", "Tu:")), 1, "Chi \"Tu:\"", 1),
+    ("Chi \"claude\" minuscolo", handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "claude")), 1, "Chi \"claude\"", 1),
+    ("Chi vuoto", handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "")), 1, "Chi \"\"", 1),
     ("colonna Chi non ultima",
      handoff("## Task Pendenti\n\n| ID | Chi | Task |\n|---|---|---|\n| #1 | io | Rileggere |\n"), 1,
-     "l'ultima colonna della tabella non è «Chi»", 1),
+     "l'ultima colonna della tabella non è \"Chi\"", 1),
     ("colonna ID assente",
      handoff("## Task Pendenti\n\n| Task | Chi |\n|---|---|\n| Rileggere | io |\n"), 1, "non ha la colonna ID", 1),
     ("descrizione del modello mai compilata",
@@ -197,7 +197,7 @@ def test_f01(repo: Path) -> None:
         for nome, testo, rc, marcatore, rosse in CASI_GATE:
             codice, uscita, n = gate(lab, testo)
             assert codice == rc and marcatore in uscita and n == rosse, \
-                f"F01 caso «{nome}»: exit {codice} (atteso {rc}), righe rosse {n} (attese {rosse}): {uscita[-400:]!r}"
+                f"F01 caso \"{nome}\": exit {codice} (atteso {rc}), righe rosse {n} (attese {rosse}): {uscita[-400:]!r}"
         r = lab.run([BASH, str(repo / "bin" / "handoff-gate.sh")])
         assert r.returncode == 2 and "uso:" in r.stderr, f"F01 senza argomento: {r.returncode} {r.stderr!r}"
         print(f"  F01 casi={len(CASI_GATE) + 1}")

@@ -6,14 +6,14 @@ for tool in bash python3 git node; do
   command -v "$tool" >/dev/null 2>&1 || { echo "FAIL: $tool mancante" >&2; exit 1; }
 done
 python3 -c 'import yaml' >/dev/null 2>&1 || { echo "FAIL: PyYAML mancante" >&2; exit 1; }
-# Un Python fino alla 3.11: lì argparse toglie «--» da `--motivo=--`, e U04 lo prova sulla CLI vera.
+# Un Python fino alla 3.11: lì argparse toglie "--" da `--motivo=--`, e U04 lo prova sulla CLI vera.
 PYTHON_VECCHIO=""
 for py in python3.8 python3.9 python3.10 python3.11 /usr/bin/python3; do
   if command -v "$py" >/dev/null 2>&1 && "$py" -c 'import sys; sys.exit(0 if (3, 8) <= sys.version_info[:2] <= (3, 11) else 1)' 2>/dev/null; then
     PYTHON_VECCHIO=$(command -v "$py"); break
   fi
 done
-[[ -n "$PYTHON_VECCHIO" ]] || { echo "FAIL: serve un Python dalla 3.8 alla 3.11 per U04 (il motivo «--» sui Python vecchi)" >&2; exit 1; }
+[[ -n "$PYTHON_VECCHIO" ]] || { echo "FAIL: serve un Python dalla 3.8 alla 3.11 per U04 (il motivo \"--\" sui Python vecchi)" >&2; exit 1; }
 echo "PYTHON_VECCHIO=$PYTHON_VECCHIO"
 # Il pannello /dafare si prova con Claude Code vero (validate, test, claude -p): senza, il gate fallisce.
 command -v claude >/dev/null 2>&1 || {
@@ -138,8 +138,8 @@ else
   echo "NOTA: python3.8 assente, todo e pagina provati solo con $(python3 --version 2>&1)"
 fi
 
-# Controprove: ogni riga e' «banco ref [radice]». Il banco gira sulla base `ref` estratta con
-# git archive e deve dichiararla discriminante. Con «radice» il banco riceve il repository vero
+# Controprove: ogni riga e' "banco ref [radice]". Il banco gira sulla base `ref` estratta con
+# git archive e deve dichiararla discriminante. Con "radice" il banco riceve il repository vero
 # e la base se la estrae da solo. Ogni ciclo aggiunge le sue righe in coda.
 BASELINE=(
   # Revisioni fino al 29/9/2026: la base e' ee10fc6.
@@ -287,7 +287,7 @@ js=0
 while IFS= read -r -d '' file; do
   case "$file" in
     *.workflow.js)
-      # Uno script del tool Workflow gira come corpo di una funzione async: «export const meta»,
+      # Uno script del tool Workflow gira come corpo di una funzione async: "export const meta",
       # await e return stanno al primo livello. node --check lo legge avvolto allo stesso modo.
       avvolto="$FIXTURE/workflow-check.js"
       { echo '(async () => {'; sed 's/^export const meta/const meta/' "$REPO/$file"; echo '})()'; } > "$avvolto"

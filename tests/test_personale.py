@@ -102,7 +102,7 @@ def test_p02(repo: Path) -> None:
         personale = lab.utente / "personale" / "inizio.md"
         assert personale.exists(), "P02 manca personale/inizio.md"
         testo = read(personale)
-        assert "Poi la tabella dei miei progetti e i dischi." in testo and "dopo la riga di Arturo «Leggi l'handoff.»" in testo, \
+        assert "Poi la tabella dei miei progetti e i dischi." in testo and "dopo la riga di Arturo \"Leggi l'handoff.\"" in testo, \
             f"P02 l'aggiunta non c'è o non dice dove stava: {testo!r}"
         assert "## Parti di Arturo che non seguo" in testo and "> Apri la sessione." in testo, f"P02 la parte tolta manca: {testo!r}"
         assert read(lab.utente / "commands" / "inizio.md") == INIZIO, "P02 /inizio non è tornato com'era in Arturo"
@@ -142,7 +142,7 @@ def test_p03(repo: Path) -> None:
             "P03 /inizio non dice di leggere le aggiunte personali"
         assert "PERSONALE:" not in hook("/fine"), "P03 PERSONALE per un comando senza aggiunte"
         assert "BRIEF:" not in hook("/inizio") and "REGOLA FISSA" not in hook("/inizio"), "P03 il promemoria del brief scatta su un comando"
-        # Dal 20/10/2026 il promemoria ha il testo della config («REGOLA FISSA»), uguale dalle due parti.
+        # Dal 20/10/2026 il promemoria ha il testo della config ("REGOLA FISSA"), uguale dalle due parti.
         assert "REGOLA FISSA" in hook("sistemami il deploy"), "P03 il promemoria del brief manca su una richiesta"
     con_lab(prova, repo)
 

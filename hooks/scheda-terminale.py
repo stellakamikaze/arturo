@@ -4,12 +4,12 @@
 Gira come hook asincrono su SessionStart, UserPromptSubmit, PostToolUse, Notification, Stop,
 StopFailure e SessionEnd. Legge l'evento da stdin e scrive sul terminale:
   - il titolo, con OSC 0: il solo progetto dove il colore dice lo stato, altrimenti
-    «<progetto> · <stato>». Regge solo se Claude Code non lo riscrive: in settings.json c'è
+    "<progetto> · <stato>". Regge solo se Claude Code non lo riscrive: in settings.json c'è
     CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1;
   - il colore della scheda, dove il terminale lo sa fare: verde attende, giallo al lavoro,
     rosso se il turno si è fermato per un errore (StopFailure). Windows Terminal con DECAC,
     iTerm2 con OSC 6. Gli altri terminali ricevono solo il titolo.
-Il progetto viene da un «/inizio <nome>» della sessione, poi dalla radice git della cartella,
+Il progetto viene da un "/inizio <nome>" della sessione, poi dalla radice git della cartella,
 poi dal nome della cartella. Stato e progetto stanno in ~/.claude/cache/scheda/<sessione>.json:
 SessionEnd toglie il suo file, SessionStart quelli fermi da una settimana (sessioni chiuse male).
 Su Windows un hook non vede la console della scheda: si attacca a quella del processo claude.exe.
@@ -96,7 +96,7 @@ def sequenze(stato: str, progetto: str, campanella: bool = False) -> str:
                 f"\x1b]6;1;bg;green;brightness;{g}\x07\x1b]6;1;bg;blue;brightness;{b}\x07")
     testo = f"\x1b]0;{TITOLO_SENZA_COLORE[stato].format(p=pulito)}\x07"
     # Terminal di Apple non colora la scheda, ma segna con una campanella la scheda in secondo
-    # piano che riceve un BEL, finché non ci si entra: è il suo «tocca a te» (18/10/2026).
+    # piano che riceve un BEL, finché non ci si entra: è il suo "tocca a te" (18/10/2026).
     if campanella and os.environ.get("TERM_PROGRAM") == "Apple_Terminal":
         testo += "\x07"
     return testo

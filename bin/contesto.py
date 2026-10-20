@@ -3,7 +3,7 @@
 
 Uso: arturo contesto [nome] [--giorni N]
   Senza nome usa la cartella in cui sei. Accetta anche gli argomenti interi di /inizio:
-  «--tutti» si ignora, e il testo dopo « -- » (il compito) non fa parte del nome.
+  "--tutti" si ignora, e il testo dopo " -- " (il compito) non fa parte del nome.
 
 Stampa, in quest'ordine: progetto e cartella, git (branch, modifiche, conflitti, commit dopo
 l'ultimo handoff), la ripartenza degli handoff degli ultimi N giorni (14), i todo aperti del
@@ -70,12 +70,12 @@ def cima_git(cartella: Path) -> Path | None:
 def leggi_argomenti(argv: list) -> tuple:
     """(nome, giorni). Gli argomenti di /inizio arrivano spesso come una stringa sola."""
     testo = " ".join(argv)
-    testo = re.split(r"(?:^|\s)--(?:\s|$)", testo, maxsplit=1)[0]  # il compito dopo « -- »
+    testo = re.split(r"(?:^|\s)--(?:\s|$)", testo, maxsplit=1)[0]  # il compito dopo " -- "
     giorni = GIORNI
     m = re.search(r"--giorni(?:=|\s+)(\S+)", testo)
     if m:
         if not m.group(1).isdigit() or int(m.group(1)) < 1:
-            raise ValueError(f"--giorni vuole un numero intero da 1 in su, non «{m.group(1)}»")
+            raise ValueError(f'--giorni vuole un numero intero da 1 in su, non "{m.group(1)}"')
         giorni = int(m.group(1))
         testo = testo.replace(m.group(0), " ")
     parole = [p for p in testo.split() if p != "--tutti"]
@@ -216,7 +216,7 @@ def riga_todo(t: dict, con_progetto: bool = False) -> str:
 def sezione_todo(todo: dict, progetto: str, dal: str | None) -> list:
     v = ts.vista(todo, [], progetto=progetto)
     aperti = sum(len(g["todo"]) for g in v["gruppi"])
-    righe = [f"TODO APERTI DEL PROGETTO «{progetto}» ({aperti})"]
+    righe = [f'TODO APERTI DEL PROGETTO "{progetto}" ({aperti})']
     if not aperti:
         righe.append("  nessuno")
     for g in v["gruppi"]:
@@ -238,7 +238,7 @@ def sezione_todo(todo: dict, progetto: str, dal: str | None) -> list:
             if g is not None and g <= GIORNI_SCADENZE:
                 vicine.append((g, ts.esporta(t, todo)))
     if vicine:
-        righe += ["", f"SCADENZE (scadute o entro {GIORNI_SCADENZE} giorni, anche di «generale»)"]
+        righe += ["", f'SCADENZE (scadute o entro {GIORNI_SCADENZE} giorni, anche di "generale")']
         righe += [riga_todo(t, con_progetto=True) for _, t in sorted(vicine, key=lambda x: (x[0], x[1]["id"]))]
 
     del_progetto = {u: t for u, t in todo.items() if t["progetto"] == progetto}
@@ -259,7 +259,7 @@ def main(argv: list) -> int:
         print(f"contesto: {e}", file=sys.stderr)
         return 3
     if nome and not slug(nome):
-        print(f"contesto: nome non valido: «{nome}»", file=sys.stderr)
+        print(f'contesto: nome non valido: "{nome}"', file=sys.stderr)
         return 3
 
     cartella, contenitore = trova_cartella(nome)
@@ -270,7 +270,7 @@ def main(argv: list) -> int:
 
     if contenitore or not (cartella or elenco or ha_todo):
         motivo = ("la cartella in cui sei contiene i progetti, non è un progetto" if contenitore
-                  else f"nessuna cartella, nessun handoff e nessun todo per «{nome}»")
+                  else f'nessuna cartella, nessun handoff e nessun todo per "{nome}"')
         print(f"NON TROVATO: {motivo}")
         simili = candidati(nome)
         print("Progetti simili: " + (", ".join(simili) if simili else "nessuno"))

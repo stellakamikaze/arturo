@@ -9,12 +9,12 @@ validate` passa, il mod aggancia gli eventi giusti e chiama solo process.run (ni
 niente modello, niente prompt). U03 `claude plugin test` passa con 0 fail e su ogni superficie passano tutti
 i test del kit, contati per id con la tabella KIT. U04 la tabella dei tasti (hooks/verbi.mjs) sulla CLI vera:
 ogni verbo fa quello che dice e ogni inverso rimette stato, motivo, chi e quando di prima, con
-il segno di annullo, anche con un motivo «--» e su ogni Python dalla 3.8 alla 3.11 che c'è (stampa
+il segno di annullo, anche con un motivo "--" e su ogni Python dalla 3.8 alla 3.11 che c'è (stampa
 quali), e motivo_esatto() si prova come funzione su ogni macchina; le
 chiavi di TodoVoce sono quelle della CLI. U05 in una HOME pulita Claude
 Code adotta il mod e `claude -p /dafare` legge l'archivio. U06 il percorso della CLI viene dalla
 cartella del mod, e nel mod non ci sono percorsi assoluti né dati personali. U07 i testi del
-pannello: niente emoji, niente apostrofo al posto dell'accento, niente «dovresti» o «qualora».
+pannello: niente emoji, niente apostrofo al posto dell'accento, niente "dovresti" o "qualora".
 U08 /system-audit riconosce un mod e lo distingue da una skill rotta. U09 .gitignore tiene fuori
 i file che Claude Code genera accanto al mod, e dentro il mod vero. U10 il diff di /aggiorna,
 lanciato con bash e zsh in un clone fermo alla base, mostra il codice del mod. U11 la persona scopre il pannello da skill, /inizio, README, NOVITA, /setup e
@@ -205,7 +205,7 @@ def test_u04(repo: Path) -> None:
     assert dichiarate == chiavi, f"U04 TodoVoce e CHIAVI_TODO non coincidono: {sorted(dichiarate ^ chiavi)}"
 
     # motivo_esatto() come funzione, sull'argv grezzo: il veleno va in rosso su ogni macchina, anche
-    # senza un Python fino alla 3.11 (dove argparse toglie «--» da `--motivo=--`).
+    # senza un Python fino alla 3.11 (dove argparse toglie "--" da `--motivo=--`).
     cli_mod = carica_cli(repo)
     for argv, atteso in ((["ripristina", "4", "--motivo=--", "--", "fermo"], (["ripristina", "4", "--", "fermo"], "--")),
                          (["ripristina", "4", "--motivo=-firma", "fermo"], (["ripristina", "4", "fermo"], "-firma")),
@@ -240,7 +240,7 @@ def carica_cli(repo: Path):
 
 def pythons() -> list:
     """L'interprete del banco più ogni Python dalla 3.8 alla 3.11 che c'è: fino alla 3.11 argparse
-    tratta «--» in un altro modo, e il pannello usa il primo python3 che trova (su macOS il 3.9)."""
+    tratta "--" in un altro modo, e il pannello usa il primo python3 che trova (su macOS il 3.9)."""
     trovati, visti = [], set()
     for nome in [sys.executable, "/usr/bin/python3"] + [shutil.which(f"python3.{n}") or "" for n in range(8, 12)]:
         if not nome or not os.path.isfile(nome):
@@ -296,7 +296,7 @@ def verbi_sulla_cli(repo: Path, chiavi: set, python: str) -> None:
         prova("avvicina", {"quando": "oggi"})
         prova("allontana", {"quando": "più avanti"})
         cli_("inizia", "1")
-        prova("fatto", {"stato": "fatto"})  # l'inverso rimette «in corso», non «da fare»
+        prova("fatto", {"stato": "fatto"})  # l'inverso rimette "in corso", non "da fare"
         cli_("ferma", "1", "aspetto la firma")
         prova("riprendi", {"stato": "da fare", "gruppo": "tu"})  # l'inverso rimette FERMO con il motivo
         assert mostra()["motivo"] == "aspetto la firma", "U04 l'inverso di riprendi perde il motivo"
@@ -304,16 +304,16 @@ def verbi_sulla_cli(repo: Path, chiavi: set, python: str) -> None:
         # CLI non lo legge come un'opzione.
         cli_("ferma", "1", "--", "-firma")
         prova("riprendi", {"stato": "da fare", "gruppo": "tu"})
-        assert mostra()["motivo"] == "-firma", "U04 l'inverso di riprendi perde il motivo «-firma»"
+        assert mostra()["motivo"] == "-firma", "U04 l'inverso di riprendi perde il motivo \"-firma\""
         prova("fatto", {"stato": "fatto"})
-        assert mostra()["motivo"] == "-firma", "U04 l'inverso di fatto perde il motivo «-firma»"
-        # Un motivo «--»: fino a Python 3.11 argparse lo toglie da un argomento normale.
+        assert mostra()["motivo"] == "-firma", "U04 l'inverso di fatto perde il motivo \"-firma\""
+        # Un motivo "--": fino a Python 3.11 argparse lo toglie da un argomento normale.
         cli_("ripristina", "1", "--motivo=--", "fermo")
         assert mostra()["motivo"] == "--", f"U04 ripristina --motivo=-- con {python}: {mostra()['motivo']!r}"
         prova("riprendi", {"stato": "da fare", "gruppo": "tu"})
-        assert mostra()["motivo"] == "--", f"U04 l'inverso di riprendi perde il motivo «--» con {python}"
+        assert mostra()["motivo"] == "--", f"U04 l'inverso di riprendi perde il motivo \"--\" con {python}"
         prova("fatto", {"stato": "fatto"})
-        assert mostra()["motivo"] == "--", f"U04 l'inverso di fatto perde il motivo «--» con {python}"
+        assert mostra()["motivo"] == "--", f"U04 l'inverso di fatto perde il motivo \"--\" con {python}"
 
 
 def test_u05(repo: Path) -> None:
@@ -358,7 +358,7 @@ def test_u06(repo: Path) -> None:
         assert not igiene.trova(testo, igiene.PANNELLO), f"U06 dati personali in {nome}"
     # Lacuna 5: nessuna istruzione della macchina dell'autore nelle .md sotto skills/.
     for p in (repo / "skills").rglob("*.md"):
-        assert "Documents/ClaudeCode" not in read(p), f"U06 «Documents/ClaudeCode» in {p.relative_to(repo)}"
+        assert "Documents/ClaudeCode" not in read(p), f'U06 "Documents/ClaudeCode" in {p.relative_to(repo)}'
 
 
 EMOJI = re.compile("[\U0001F000-\U0001FAFF\u2600-\u2604\u2606-\u27BF\u2B00-\u2BFF\uFE0F]")
@@ -374,7 +374,7 @@ def test_u07(repo: Path) -> None:
             assert not EMOJI.search(s), f"U07 emoji in {nome}: {s[:80]!r}"
             assert not re.search(r"\b(e|perche|piu|gia|cosi|puo)'(?!\w)", s, re.I), \
                 f"U07 apostrofo al posto dell'accento in {nome}: {s[:80]!r}"
-            assert not re.search(r"\b(dovresti|qualora)\b", s, re.I), f"U07 condizionale o «qualora» in {nome}: {s[:80]!r}"
+            assert not re.search(r"\b(dovresti|qualora)\b", s, re.I), f'U07 condizionale o "qualora" in {nome}: {s[:80]!r}'
 
 
 def audit(home: Path) -> subprocess.CompletedProcess:
@@ -442,7 +442,7 @@ def blocco_di_aggiorna(repo: Path) -> str:
     """Il blocco bash del Passo 1 di /aggiorna che mostra il codice che gira da solo."""
     testo = read(repo / "commands" / "aggiorna.md")
     dopo = testo.split("**Leggi cosa cambia nel codice che gira da solo**", 1)
-    assert len(dopo) == 2, "il passo «Leggi cosa cambia» di /aggiorna manca"
+    assert len(dopo) == 2, 'il passo "Leggi cosa cambia" di /aggiorna manca'
     m = re.search(r"```bash\n(.*?)```", dopo[1], re.S)
     assert m, "il blocco del diff di /aggiorna manca"
     # Il blocco entra in ~/.claude: qui gira nel clone di prova, che è già la cartella corrente.
@@ -537,7 +537,7 @@ def test_u11(repo: Path) -> None:
     controllo_del_mod(skill, "skills/todo/SKILL.md")
     inizio = read(repo / "commands" / "inizio.md")
     # 20/10/2026: /inizio presenta la ripartenza per filone come la config dell'autore: il cruscotto
-    # con la sezione «## Todo» è diventato la FASE 5.
+    # con la sezione "## Todo" è diventato la FASE 5.
     todo = sezione(inizio, "## FASE 5: La ripartenza")
     assert "/dafare" in todo, "U11 /inizio non nomina /dafare"
     for riga in [r for r in todo.splitlines() if "/dafare" in r]:
@@ -591,7 +591,7 @@ def test_u13(repo: Path) -> None:
         # ...e la HOME di prova non ha un accesso: validate e test qui sopra non lo usano.
         r = lancia([exe, "-p", "rispondi ok"], home, base, timeout=60)
         assert "login" in (r.stdout + r.stderr).lower(), \
-            f"U13 la HOME di prova ha un accesso: la prova «senza login» non vale ({(r.stdout + r.stderr)[-300:]})"
+            f'U13 la HOME di prova ha un accesso: la prova "senza login" non vale ({(r.stdout + r.stderr)[-300:]})'
 
 
 TESTS = {

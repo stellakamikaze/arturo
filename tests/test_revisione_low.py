@@ -77,7 +77,7 @@ def avviso_novita(repo: Path, viste: str | None, vecchia: str | None) -> str:
 
 def test_l03(repo: Path) -> None:
     got = avviso_novita(repo, "2026-09-13 — Terza\n", None)
-    assert "3 aggiornamenti" in got, f"L03 vista solo «Terza»: «Quarta» (stessa data), «Seconda» e «Prima» restano da leggere, avviso={got!r}"
+    assert "3 aggiornamenti" in got, f'L03 vista solo "Terza": "Quarta" (stessa data), "Seconda" e "Prima" restano da leggere, avviso={got!r}'
     got = avviso_novita(repo, "2026-09-13 — Quarta\n2026-09-13 — Terza\n2026-09-02 — Seconda\n2026-08-17 — Prima\n", None)
     assert got == "", f"L03 controllo: tutte viste, nessun avviso atteso, avviso={got!r}"
     got = avviso_novita(repo, None, "2026-09-02")

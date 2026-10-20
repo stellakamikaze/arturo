@@ -3,7 +3,7 @@
 
 G01 un `rm` ricorsivo con le opzioni separate, in una subshell, dentro `sh -c` o dietro
 `xargs` chiede conferma come la forma nuda; `rm -rf build` (rigenerabile) no. G02 lo
-skip «git puro» legge le virgolette come bash: un apostrofo fra doppie non nasconde i
+skip "git puro" legge le virgolette come bash: un apostrofo fra doppie non nasconde i
 comandi che seguono, e un `git log` vero resta senza decisione. G03 `gh repo delete`
 viene bloccato anche dopo un a capo, in una subshell e col path completo; `gh pr list`
 no. G04 `git add X && git commit` con un segreto in X chiede conferma. G05 i due scanner

@@ -1,4 +1,4 @@
-/* Arturo web: il tavolo dei progetti, mondo «la stella dei naviganti».
+/* Arturo web: il tavolo dei progetti, mondo "la stella dei naviganti".
    I token sono una copia di landing-v2:DESIGN.md (palette, famiglie, raggi, componenti) e di
    landing-v2:sito/index.html. Se la landing cambia un colore, va cambiato anche qui.
    La Regola della Stella: l'arancio vive solo nelle regole .stella e .marchio di questo file.
@@ -182,7 +182,7 @@ fieldset legend{padding:0;margin-bottom:6px}
 .avvisi ul{margin:6px 0 0;padding-left:18px;color:var(--cenere)}
 
 /* --- il segno di chi agisce ------------------------------------------------- */
-/* Una forma per ogni «chi»: pieno = tocca a te, metà = decidi tu, vuoto = faccio io, lineetta = fermo. */
+/* Una forma per ogni "chi": pieno = tocca a te, metà = decidi tu, vuoto = faccio io, lineetta = fermo. */
 .segno{display:inline-flex;align-items:center;gap:7px;flex:none;font-size:var(--t-meta);font-weight:600;color:var(--carbone);white-space:nowrap}
 .segno::before{content:"";flex:none;width:10px;height:10px;border-radius:50%;box-sizing:border-box}
 .segno--tu::before{background:var(--grafite)}

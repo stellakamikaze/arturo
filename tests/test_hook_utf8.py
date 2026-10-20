@@ -11,9 +11,9 @@ U02 block-dangerous chiede conferma per un rm ricorsivo anche se il comando cont
 U03 emoji_remover vede l'emoji nuova in un file di codice.
 U04 memory-write-scanner vede i caratteri invisibili in una nota di memoria.
 U05 memory-retrieve trova una nota con le parole accentate del messaggio.
-U06 il dispatcher passa alle guardie il comando intero: un rm con «”» e un invio con «→»
+U06 il dispatcher passa alle guardie il comando intero: un rm con «”» e un invio con \"→\"
 chiedono conferma.
-U07 nessun hook si rompe all'avvio con un input minimo, e forma_comando riconosce «git status» come git puro.
+U07 nessun hook si rompe all'avvio con un input minimo, e forma_comando riconosce \"git status\" come git puro.
 
 Sulla base b0ec3ac ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -31,7 +31,7 @@ from pathlib import Path
 
 # Su Windows "bash" per nome è quello di WSL: si prende il bash del PATH (Git Bash).
 BASH = shutil.which("bash") or "bash"
-VIRGOLETTA = "”"  # in UTF-8 è E2 80 9D: 0x9D non esiste in cp1252
+VIRGOLETTA = '”'  # in UTF-8 è E2 80 9D: 0x9D non esiste in cp1252
 
 
 def ambiente(casa: Path, **extra: str) -> dict:
@@ -82,7 +82,7 @@ def test_u02(repo: Path) -> None:
         comando = f"rm -rf ~/Documents  # pulizia {VIRGOLETTA}vecchia{VIRGOLETTA}"
         r = hook(repo, "block-dangerous.py", {"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": d}, casa)
         assert r.returncode == 2 or '"ask"' in testo(r.stdout), \
-            f"U02 rm ricorsivo con «”» passa senza conferma: rc={r.returncode} stdout={testo(r.stdout)[-300:]!r}"
+            f'U02 rm ricorsivo con «”» passa senza conferma: rc={r.returncode} stdout={testo(r.stdout)[-300:]!r}'
 
 
 def test_u03(repo: Path) -> None:
@@ -137,9 +137,9 @@ def test_u06(repo: Path) -> None:
         casa = Path(d) / "casa"
         shutil.copytree(repo, casa / ".claude", ignore=shutil.ignore_patterns(".git", "__pycache__", "worktrees"))
         esito = dispatcher(casa, f"rm -rf ~/Documents  # {VIRGOLETTA}vecchia{VIRGOLETTA}")
-        assert esito in ("block", "ask"), f"U06 rm con «”» dal dispatcher passa senza conferma: {esito!r}"
+        assert esito in ("block", "ask"), f'U06 rm con «”» dal dispatcher passa senza conferma: {esito!r}'
         esito = dispatcher(casa, f"echo \"nota {VIRGOLETTA} → fine\" | sendmail a@esempio.org")
-        assert esito == "ask", f"U06 invio con «→» e «”» dal dispatcher: {esito!r}"
+        assert esito == "ask", f'U06 invio con "→" e «”» dal dispatcher: {esito!r}'
 
 
 def test_u07(repo: Path) -> None:
@@ -160,7 +160,7 @@ def test_u07(repo: Path) -> None:
         r = subprocess.run([sys.executable, "-B", str(repo / "hooks" / "forma_comando.py"), "git-puro", "git status"],
                            capture_output=True, env=ambiente(casa), timeout=30)
         if r.returncode != 0:
-            rotti.append(f"forma_comando.py git-puro «git status»: rc={r.returncode} {testo(r.stderr)[-200:]}")
+            rotti.append(f'forma_comando.py git-puro "git status": rc={r.returncode} {testo(r.stderr)[-200:]}')
         assert not rotti, "U07 hook che si rompono all'avvio: " + "; ".join(rotti)
 
 

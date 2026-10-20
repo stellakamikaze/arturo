@@ -45,7 +45,7 @@ pesa circa 100 KB, il markdown del contenuto 12 KB, i soli titoli con `--sel` me
 
 `scrape` fa una sola richiesta HTTP e si presenta per quello che è: un programma, non un browser.
 Non finge di essere Chrome e non prova a superare le verifiche anti-bot. Se il sito risponde 401,
-403, 429, 503 o una pagina di verifica («Just a moment…», «Verifying you are human»), `scrape`
+403, 429, 503 o una pagina di verifica ("Just a moment…", "Verifying you are human"), `scrape`
 esce con 3 e consiglia di aprire la pagina nel browser.
 
 | Exit | Significato |

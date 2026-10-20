@@ -45,7 +45,7 @@ Un `[WARN] console.log` non blocca: va letto e deciso.
 
 ## Un banco nuovo: prima il veleno
 
-Un gate vale solo se boccia una versione rotta apposta, il «veleno», per il motivo atteso.
+Un gate vale solo se boccia una versione rotta apposta, il "veleno", per il motivo atteso.
 Quando scrivi un banco o un controllo nuovo, eseguilo con `~/.claude/bin/gate-run.sh`:
 
 ```bash

@@ -1,5 +1,5 @@
 // Logica pura, provata da tests/apri.test.ts.
-// «Aprimi quel link» costa un turno intero del modello. /apri apre su questo computer l'ultimo link
+// "Aprimi quel link" costa un turno intero del modello. /apri apre su questo computer l'ultimo link
 // o file citato nelle risposte, senza turno e senza modello, con il programma predefinito.
 
 const URL_RE = /https?:\/\/[^\s<>()`"'\]]+(?:\([^\s()]*\))?[^\s<>()`"'\].,;:!?]*/g

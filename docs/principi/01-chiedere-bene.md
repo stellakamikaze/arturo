@@ -8,7 +8,7 @@
 
 Quando chiedi qualcosa a una persona che lavora con te da anni, metà del lavoro l'ha già
 fatto lei: sa a che progetto ti riferisci, sa cosa è andato storto la settimana scorsa, sa
-cosa consideri «fatto bene». Puoi dire «senti, sistemiamo quella cosa delle foto» e vi
+cosa consideri "fatto bene". Puoi dire "senti, sistemiamo quella cosa delle foto" e vi
 capite.
 
 Con un assistente AI quella metà non esiste. Non perché sia stupido — è il contrario: è
@@ -27,17 +27,17 @@ frasi.
 Una richiesta che funziona contiene quasi sempre tre cose, in quest'ordine:
 
 1. **Cosa c'è adesso.** La situazione da cui parti, detta come la diresti a un conoscente
-   competente che però non c'era. «Ho una cartella con quindici anni di foto, scaricate da
-   tre telefoni diversi.»
+   competente che però non c'era. "Ho una cartella con quindici anni di foto, scaricate da
+   tre telefoni diversi."
 2. **Cosa è cambiato, o cosa non va.** Il fatto nuovo che ti ha spinto a chiedere. Senza
    questo, l'assistente non sa distinguere ciò che ti preoccupa da ciò che è normale.
-   «Da quando ho cambiato telefono, molte sono doppie e alcune hanno la data sbagliata.»
-3. **Cosa chiedi.** Una domanda sola, in una riga. «Come faccio a togliere i doppioni
-   senza perdere gli originali?»
+   "Da quando ho cambiato telefono, molte sono doppie e alcune hanno la data sbagliata."
+3. **Cosa chiedi.** Una domanda sola, in una riga. "Come faccio a togliere i doppioni
+   senza perdere gli originali?"
 
 Situazione, cosa è cambiato, domanda. Non è un modulo da compilare né una formula da
 recitare: è l'ordine in cui una storia diventa comprensibile a chi non l'ha vissuta. Se la
-richiesta è minuscola («come si chiama il comando per vedere la cartella?») bastano le
+richiesta è minuscola ("come si chiama il comando per vedere la cartella?") bastano le
 ultime parole. Se il lavoro è grosso, le tre frasi possono diventare tre paragrafi. Quello
 che non cambia è che **ci siano tutte e tre**, e che la domanda sia una.
 
@@ -48,12 +48,12 @@ Prova a scrivere la terza frase — la domanda — in una riga sola, prima di pr
 Se non ti viene, non è colpa tua e non è colpa dello strumento: **non hai ancora deciso
 cosa vuoi.** È l'informazione più utile che puoi ricevere, e la ricevi in dieci secondi
 invece che in mezz'ora di risposte fuori fuoco. In quel caso la mossa giusta non è chiedere
-meglio: è chiedere *un'altra cosa*, cioè aiuto a capire cosa chiedere. «Non so bene cosa
-voglio: fammi due o tre domande» è una richiesta perfettamente legittima, e quasi sempre
+meglio: è chiedere *un'altra cosa*, cioè aiuto a capire cosa chiedere. "Non so bene cosa
+voglio: fammi due o tre domande" è una richiesta perfettamente legittima, e quasi sempre
 la più produttiva della giornata.
 
-L'altro sintomo da riconoscere è la domanda doppia: «riorganizziamo l'archivio e già che
-ci siamo mettiamo a posto anche i contatti?». Sono due lavori. Uniti in un messaggio solo
+L'altro sintomo da riconoscere è la domanda doppia: "riorganizziamo l'archivio e già che
+ci siamo mettiamo a posto anche i contatti?". Sono due lavori. Uniti in un messaggio solo
 ottengono due mezze risposte. Separati, due risposte intere.
 
 ## Come sapremo che è fatto
@@ -63,17 +63,17 @@ dire **come si riconosce che il lavoro è finito.**
 
 La differenza è tra queste due frasi:
 
-- «Sistema l'archivio delle foto.»
-- «Voglio arrivare a una cartella per anno, senza doppioni, e le foto del telefono vecchio
-  con la data giusta. Quando apro la cartella 2019 devo trovarci solo il 2019.»
+- "Sistema l'archivio delle foto."
+- "Voglio arrivare a una cartella per anno, senza doppioni, e le foto del telefono vecchio
+  con la data giusta. Quando apro la cartella 2019 devo trovarci solo il 2019."
 
 La seconda non è più lunga per pignoleria. È più lunga perché contiene una cosa che la
-prima non ha: **un risultato che si può guardare e verificare.** «Sistemare» non si può
-verificare — sistemato quanto? Fino a dove? «Nella cartella 2019 c'è solo il 2019» sì: lo
+prima non ha: **un risultato che si può guardare e verificare.** "Sistemare" non si può
+verificare — sistemato quanto? Fino a dove? "Nella cartella 2019 c'è solo il 2019" sì: lo
 apri e lo vedi.
 
-Questo vale anche al contrario, come difesa. Quando l'assistente ti dice «fatto», tu hai un
-metro per rispondere «no, guarda che qui dentro ci sono ancora due file del 2020» invece di
+Questo vale anche al contrario, come difesa. Quando l'assistente ti dice "fatto", tu hai un
+metro per rispondere "no, guarda che qui dentro ci sono ancora due file del 2020" invece di
 avere la sensazione vaga che qualcosa non torni. Chi lavora con te — persona o macchina —
 può darti quello che hai descritto; non può indovinare quello che avevi in mente.
 
@@ -94,7 +94,7 @@ sbrigativo — o se tu insisti — comincerà a lavorare su un'ipotesi presa dal
 > e cosa costa sistemarlo — mi basta che i messaggi arrivino a una casella che leggo io.
 
 Stessa persona, stesso problema, cinque minuti in più di scrittura. Ma adesso la
-conversazione parte dal punto giusto, e soprattutto: c'è scritto cosa vuol dire «risolto».
+conversazione parte dal punto giusto, e soprattutto: c'è scritto cosa vuol dire "risolto".
 
 ## Perché questo principio viene prima dei comandi
 
@@ -122,4 +122,4 @@ consulente e autrice di* The Pyramid Principle *(1987), la insegnava a chi dovev
 relazioni che qualcuno leggesse davvero — situazione, complicazione, domanda, e la risposta
 in cima. Qui l'abbiamo presa in prestito e girata verso chi la domanda deve farla.*
 
-*Vuoi provarlo sul tuo lavoro? Chiedi a Claude uno sparring su «chiedere bene».*
+*Vuoi provarlo sul tuo lavoro? Chiedi a Claude uno sparring su "chiedere bene".*

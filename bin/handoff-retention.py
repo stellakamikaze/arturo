@@ -12,7 +12,7 @@ Output (stdout):
   RETENTION <slug> · keep N per filone · <dry-run|applica>
   FILONE <chiave>: <n> file, tengo <k>[, escono <m>]
   === IN USCITA <slug>/<file> (filone <chiave>) ===
-  Vicoli ciechi: / Task senza ID: (righe, o «nessuno»)
+  Vicoli ciechi: / Task senza ID: (righe, o "nessuno")
   CANCELLATO <slug>/<file>            (solo con --applica)
   TOTALE in uscita: <m>
 Exit: 0 fatto (anche niente da fare) · 2 uso sbagliato o slug assente · 3 cancellazione fallita.

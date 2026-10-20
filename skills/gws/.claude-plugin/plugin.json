@@ -1,6 +1,6 @@
 {
   "name": "gws",
   "version": "0.1.0",
-  "description": "gws: un errore di credenziali si dichiara al primo colpo (nota a Claude e avviso, con il login da rifare) e «gws gmail messages» diventa «gws gmail users messages»",
+  "description": "gws: un errore di credenziali si dichiara al primo colpo (nota a Claude e avviso, con il login da rifare) e \"gws gmail messages\" diventa \"gws gmail users messages\"",
   "author": { "name": "Arturo" }
 }

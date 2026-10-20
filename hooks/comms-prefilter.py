@@ -4,7 +4,7 @@
 Misura 2026-09-04 (30 giorni di transcript): 14 blocchi duri del comms-guard, 13
 erano testo che NOMINAVA smtplib/sendmail/gws +send senza inviare nulla: heredoc
 scritti su file, `grep -ril smtp`, edit di script, messaggi di commit. Il 28/8 il
-modello ha riscritto un comando «evitando keyword bloccate»: una regex che sbaglia
+modello ha riscritto un comando "evitando keyword bloccate": una regex che sbaglia
 13 volte su 14 addestra ad aggirarla.
 
 Stampa la versione RIDOTTA del comando, su cui il dispatcher e comms-guard.py
@@ -82,7 +82,7 @@ def reduce(cmd: str) -> str:
 
 
 def main() -> int:
-    # Su Windows stdin e stdout sono in cp1252: un «→» nel comando faceva fallire la stampa,
+    # Su Windows stdin e stdout sono in cp1252: un "→" nel comando faceva fallire la stampa,
     # l'uscita restava vuota con exit 0 e il dispatcher la prendeva per sola lettura.
     try:
         sys.stdout.reconfigure(encoding="utf-8")

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """TV01-TV02: la telemetria manda il rilascio di Arturo installato, non i commit della persona (19/10/2026, #3613).
 
-Il riepilogo del 19/10 mostrava versioni come «v2026-10-17-94-g03ee13d»: il git describe del repository
+Il riepilogo del 19/10 mostrava versioni come "v2026-10-17-94-g03ee13d": il git describe del repository
 privato di sync, con un hash che in Arturo non esiste. Non si capiva chi era sull'ultimo rilascio.
 
-TV01 con tre commit della persona sopra il tag v2026-10-17, la versione è «v2026-10-17».
-TV02 un tag della persona («backup/prima») sopra il tag di Arturo non cambia la versione.
+TV01 con tre commit della persona sopra il tag v2026-10-17, la versione è "v2026-10-17".
+TV02 un tag della persona ("backup/prima") sopra il tag di Arturo non cambia la versione.
 
 Sulla base 0c12a5b ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """

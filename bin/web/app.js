@@ -3,8 +3,8 @@
    del codice HTML resta testo. Ogni scrittura passa da /api/azione, cioè da todo_store.
    Tre viste, scelte dall'indirizzo: il tavolo (#/), un progetto (#/progetto/NOME) e il
    dettaglio di un todo dentro il suo progetto (#/progetto/NOME/ID). */
-// I percorsi delle API sono relativi alla pagina: in locale la pagina sta a «/», ma può stare
-// anche sotto un prefisso (per esempio «/admin/») dietro un proxy, senza cambiare questo file.
+// I percorsi delle API sono relativi alla pagina: in locale la pagina sta a "/", ma può stare
+// anche sotto un prefisso (per esempio "/admin/") dietro un proxy, senza cambiare questo file.
 (function () {
   "use strict";
 
@@ -23,7 +23,7 @@
   var NOMI_CAMPI = { titolo: "titolo", progetto: "progetto", scadenza: "scadenza", chi: "chi agisce",
     perche: "perché", priorita: "priorità", quando: "quando" };
   var ORDINE_GRUPPI = ["tu", "decidi", "io", "fermo"];
-  // I pezzi della striscia, nell'ordine in cui compaiono: «senza» sono i «tu» ancora senza chi.
+  // I pezzi della striscia, nell'ordine in cui compaiono: "senza" sono i "tu" ancora senza chi.
   var PEZZI_STRISCIA = [["tu", "a te"], ["senza", "senza chi"], ["decidi", "da decidere"], ["io", "a Claude"], ["fermo", "fermi"]];
   var IN_VISTA = 3;            // i task che un foglio mostra dopo il prossimo passo
   // Un todo senza chi agisce. In locale non succede: ogni todo nasce con un chi. Lo usa una
@@ -38,7 +38,7 @@
     rotta: { tipo: "tavolo", progetto: "", todo: null },
     scheda: null,      // il dettaglio letto da /api/todo: {id, todo} oppure {id, errore}
     aperto: null,      // il pannello in linea aperto: {id, tipo: "modifica" | "decidi"}
-    apriDopo: null,    // il pannello da aprire appena cambia la vista («Ho deciso» dal tavolo)
+    apriDopo: null,    // il pannello da aprire appena cambia la vista ("Ho deciso" dal tavolo)
     daFoglio: null,    // il nome del foglio appena cliccato: passa nel titolo della pagina del progetto
     categorieChiuse: {}, // in registro, le categorie chiuse per nome: restano chiuse fra due letture
     aggiuntaAperta: false, // in registro, il campo per aggiungere aperto
@@ -110,7 +110,7 @@
   function tondo(titolo) {
     return titolo.charAt(0) + titolo.slice(1).toLowerCase();
   }
-  // I nomi di «chi» vengono dai titoli dei gruppi dello store: gruppi, segni, select e radio
+  // I nomi di "chi" vengono dai titoli dei gruppi dello store: gruppi, segni, select e radio
   // dicono la stessa cosa con le stesse parole.
   function nomiChi() {
     var nomi = {};
@@ -194,7 +194,7 @@
     if (stato.rotta.todo) { leggiScheda(stato.rotta.todo); }
   }
 
-  // Un pannello aperto resta aperto quando arriva l'esito di un'altra azione (una nota, «Fatto»
+  // Un pannello aperto resta aperto quando arriva l'esito di un'altra azione (una nota, "Fatto"
   // su un'altra riga). Il ridisegno lo ricostruisce: i campi che la persona ha cambiato e non ha
   // ancora salvato tornano al loro posto. Ogni campo ricorda in data-iniziale il valore disegnato.
   function ricordaCampi() {
@@ -447,7 +447,7 @@
     $("aggiunta").hidden = registrino && !stato.aggiuntaAperta;
     $("briciole").hidden = r.tipo === "tavolo";
     if (r.tipo === "tavolo") { disegnaTavolo(vista); } else { disegnaProgetto(vista, r.progetto); }
-    // Il todo del pannello aperto non è più nella vista (chiuso con «Fatto», spostato di progetto):
+    // Il todo del pannello aperto non è più nella vista (chiuso con "Fatto", spostato di progetto):
     // il pannello non c'è più, e le letture successive arrivano di nuovo nella pagina.
     if (stato.aperto && !$("pannello-todo-" + stato.aperto.id)) { stato.aperto = null; }
   }
@@ -472,7 +472,7 @@
     if (r.tipo === "progetto") {
       // Nella pagina di un progetto, quello che si aggiunge va lì.
       if (campo.getAttribute("data-rotta") !== r.progetto) { campo.value = r.progetto; campo.setAttribute("data-rotta", r.progetto); }
-      $("aggiunta-etichetta").textContent = "Cosa c'è da fare in «" + r.progetto + "»?";
+      $("aggiunta-etichetta").textContent = "Cosa c'è da fare in \"" + r.progetto + "\"?";
     } else {
       if (campo.hasAttribute("data-rotta") || stato.primo) { campo.value = partenza; campo.removeAttribute("data-rotta"); }
       $("aggiunta-etichetta").textContent = "Cosa c'è da fare?";
@@ -492,7 +492,7 @@
     box.appendChild(el("ul", {}, avvisi.map(function (a) { return el("li", { testo: a }); })));
   }
 
-  // La sintesi in testata fa anche da legenda: ogni frase porta il segno del suo «chi».
+  // La sintesi in testata fa anche da legenda: ogni frase porta il segno del suo "chi".
   function sintesi(lista, dove) {
     var nodo = $("sintesi");
     svuota(nodo);
@@ -503,7 +503,7 @@
     var io = conta(lista, "io");
     var frasi = [];
     if (!lista.length) {
-      frasi.push([null, dove ? "Niente di aperto in «" + dove + "»." : "Niente di aperto. Il cielo è sgombro."]);
+      frasi.push([null, dove ? "Niente di aperto in \"" + dove + "\"." : "Niente di aperto. Il cielo è sgombro."]);
     } else {
       frasi.push(["tu", tu ? "Tocca a te: " + quante(tu, "una cosa.", "cose.") : "Niente tocca a te adesso."]);
       if (senza) { frasi.push(["senza", senza === 1 ? "Una non ha ancora chi la fa." : senza + " non hanno ancora chi le fa."]); }
@@ -549,7 +549,7 @@
   function vuoto(dove) {
     var campo = $("nuovo-titolo");
     return el("div", { classe: "vuoto" }, [
-      el("h2", { tabindex: "-1", testo: dove ? "Nessuna cosa da fare aperta in «" + dove + "»." : "Il tavolo è sgombro." }),
+      el("h2", { tabindex: "-1", testo: dove ? "Nessuna cosa da fare aperta in \"" + dove + "\"." : "Il tavolo è sgombro." }),
       el("p", { testo: "Scrivi in alto la prima cosa da fare. Per esempio:" }),
       el("div", { classe: "esempi" }, ESEMPI.map(function (testo) {
         return bottone(testo, "azione--bordo", function () {
@@ -558,7 +558,7 @@
           campo.setSelectionRange(testo.length, testo.length);
         });
       })),
-      el("p", { classe: "dirlo", testo: "Puoi anche dirlo a Claude: «ricordami di…»." })
+      el("p", { classe: "dirlo", testo: "Puoi anche dirlo a Claude: \"ricordami di…\"." })
     ]);
   }
 
@@ -603,7 +603,7 @@
   }
 
   // Prima i progetti dove qualcosa chiede una persona, poi quelli in mano a Claude.
-  // «generale» chiude il tavolo: è il cassetto, non un progetto.
+  // "generale" chiude il tavolo: è il cassetto, non un progetto.
   function ordinaProgetti() {
     var conti = stato.dati.progetti;
     var tutti = aperti();
@@ -665,7 +665,7 @@
     var suoi = aperti().filter(function (t) { return t.progetto === nome; });
     suoi.sort(function (a, b) { return ORDINE_GRUPPI.indexOf(a.gruppo) - ORDINE_GRUPPI.indexOf(b.gruppo); });
     var persona = suoi.some(function (t) { return t.gruppo === "tu" || t.gruppo === "decidi"; });
-    // Il prossimo passo non aspetta nessuno: la stessa esclusione di «Da dove partirei».
+    // Il prossimo passo non aspetta nessuno: la stessa esclusione di "Da dove partirei".
     var liberi = suoi.filter(function (t) { return t.gruppo !== "fermo" && !(t.attende || []).length; });
     var primo = liberi[0] || suoi.filter(function (t) { return t.gruppo !== "fermo"; })[0] || null;
     var altri = suoi.filter(function (t) { return t !== primo; });
@@ -702,7 +702,7 @@
   // Quando il server manda le categorie ([{nome, progetti: [chiave, ...]}]) il tavolo diventa un
   // registro: per ogni categoria una tabella, una riga per progetto, i conti in colonne con il
   // nome scritto. Serve a chi ha decine di progetti: si legge senza legenda. Ogni categoria si
-  // chiude e si riapre. Un progetto senza categoria va in «Altro».
+  // chiude e si riapre. Un progetto senza categoria va in "Altro".
 
   var COLONNE = [["tu", "A te"], ["senza", "Senza chi"], ["decidi", "Da decidere"], ["io", "A Claude"]];
 
@@ -719,7 +719,7 @@
     return el("div", { classe: "registro" }, gruppi.filter(function (g) { return g.progetti.length; }).map(categoria));
   }
 
-  // «tu» conta solo i todo che hanno un chi; «senza» quelli ancora da classificare, come nella striscia.
+  // "tu" conta solo i todo che hanno un chi; "senza" quelli ancora da classificare, come nella striscia.
   function conta(lista, gruppo) {
     return lista.filter(function (t) {
       if (gruppo === "tu") { return t.gruppo === "tu" && t.perche !== DA_CLASSIFICARE; }
@@ -949,7 +949,7 @@
     form.addEventListener("submit", function (e) {
       e.preventDefault();
       var testo = $(idCampo).value.trim();
-      if (!testo) { errore("Scrivi cosa hai deciso, per esempio «va bene il piano B»."); $(idCampo).focus(); return; }
+      if (!testo) { errore("Scrivi cosa hai deciso, per esempio \"va bene il piano B\"."); $(idCampo).focus(); return; }
       azione({ azione: "deciso", id: t.id, titolo_atteso: t.titolo, testo: testo }, { chiudi: true });
     });
     tastoEsc(form, t.id, "decidi");
@@ -991,7 +991,7 @@
     var idMotivo = p + "motivo";
     var sezioneStato = el("div", { classe: "pannello-sezione" }, [
       el("h3", { testo: "Stato" }),
-      el("p", { classe: "nota-aiuto", testo: "Ora è «" + t.stato + "»" + (t.motivo ? ": " + t.motivo : "") + "." }),
+      el("p", { classe: "nota-aiuto", testo: "Ora è \"" + t.stato + "\"" + (t.motivo ? ": " + t.motivo : "") + "." }),
       chiuso ? null : el("div", { classe: "riga-campo campo" },
         campoTesto(idMotivo, "Motivo, per Ferma e Scarta", "", { maxlength: "200" })),
       el("div", { classe: "pannello-azioni" }, bottoniStato(t, function () { var c = $(idMotivo); return c ? c.value.trim() : ""; },
@@ -1016,7 +1016,7 @@
     return box;
   }
 
-  // I passaggi di stato, gli stessi nel pannello «Modifica» e nel dettaglio.
+  // I passaggi di stato, gli stessi nel pannello "Modifica" e nel dettaglio.
   function bottoniStato(t, motivo, fuocoMotivo) {
     var chiuso = t.stato === "fatto" || t.stato === "scartato";
     var bottoni = [];
@@ -1028,7 +1028,7 @@
     if (!chiuso && t.stato !== "fermo") {
       bottoni.push(bottone("Ferma", "azione--bordo", function () {
         var m = motivo();
-        if (!m) { errore("Scrivi cosa aspetta il todo, per esempio «aspetto la risposta di Rossi»."); fuocoMotivo(); return; }
+        if (!m) { errore("Scrivi cosa aspetta il todo, per esempio \"aspetto la risposta di Rossi\"."); fuocoMotivo(); return; }
         azione({ azione: "ferma", id: t.id, titolo_atteso: t.titolo, motivo: m }, { chiudi: true, ruolo: "modifica" });
       }));
     }
@@ -1148,7 +1148,7 @@
     if (!chiuso) {
       conferma = bottone("Ferma il todo", "azione--bordo", function () {
         var m = $(idMotivo).value.trim();
-        if (scelta === "ferma" && !m) { errore("Scrivi cosa aspetta il todo, per esempio «aspetto la risposta di Rossi»."); $(idMotivo).focus(); return; }
+        if (scelta === "ferma" && !m) { errore("Scrivi cosa aspetta il todo, per esempio \"aspetto la risposta di Rossi\"."); $(idMotivo).focus(); return; }
         azione({ azione: scelta, id: t.id, titolo_atteso: t.titolo, motivo: m }, { fuoco: false });
       });
       motivo = el("div", { classe: "campo dettaglio-motivo", hidden: true }, campoTesto(idMotivo, "Cosa aspetta?", "", { maxlength: "200" })

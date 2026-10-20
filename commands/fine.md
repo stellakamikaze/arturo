@@ -116,7 +116,7 @@ Da `arturo todo --progetto .`: tutti i todo aperti del progetto.
 ```
 
 Regole della tabella `## Task Pendenti` (le controlla il gate della FASE 5):
-- **La sezione c'è sempre**, con questo titolo esatto. Senza task contiene la frase «Nessun task pendente».
+- **La sezione c'è sempre**, con questo titolo esatto. Senza task contiene la frase "Nessun task pendente".
 - **Ogni riga ha nella colonna ID il numero del todo** nell'archivio (`#4`): prima crei il todo, poi
   scrivi la riga. Un todo chiuso non sta nella tabella. Entrano anche i todo aperti delle sessioni
   prima: la tabella è la fotografia, la fonte di verità è l'archivio.
@@ -135,16 +135,16 @@ la CLI e le altre viste. `TaskList` vale solo per i passi di questa sessione: sp
 Un todo bloccato va in FERMO con `ferma`, non con `--chi`.
 
 ```bash
-# Il progetto dei todo è quello della cartella, calcolato dalla CLI: lo stesso di «ricordami di…».
+# Il progetto dei todo è quello della cartella, calcolato dalla CLI: lo stesso di "ricordami di…".
 # Fuori da git e nella HOME è «generale». Ogni riga scrive il comando intero, tra virgolette:
-# una HOME con uno spazio («Mario Rossi») resta un percorso solo, e nessuna variabile deve
+# una HOME con uno spazio ("Mario Rossi") resta un percorso solo, e nessuna variabile deve
 # sopravvivere da una chiamata all'altra.
 python3 "$HOME/.claude/bin/arturo" todo progetto
 python3 "$HOME/.claude/bin/arturo" todo --progetto .     # cosa c'è già: non creare doppioni
 ```
 
 Poi, per ogni item, una riga intera come queste. `arturo todo aggiungi` mette il todo nel
-progetto della cartella, come «ricordami di…»:
+progetto della cartella, come "ricordami di…":
 
 ```bash
 python3 "$HOME/.claude/bin/arturo" todo aggiungi "verbo e oggetto" --chi io --priorita media --note "cosa serve per riprendere"
@@ -154,14 +154,14 @@ python3 "$HOME/.claude/bin/arturo" todo nota ID "testo"
 python3 "$HOME/.claude/bin/arturo" todo modifica ID --chi tu
 ```
 
-Se la lettura stampa righe «Attenzione:», riportale alla persona: un todo può aver cambiato
+Se la lettura stampa righe "Attenzione:", riportale alla persona: un todo può aver cambiato
 numero dopo un merge. Per un numero letto da un handoff aggiungi `--titolo-atteso="titolo"`:
 se il todo con quel numero ha un altro titolo, la CLI non scrive niente.
 
-Il titolo dice l'azione a una persona («Mandare a Gigi la parola d'ordine»), non uno slug.
-Se la persona ha chiesto un todo durante la sessione («ricordami di…»), c'è già: aggiornalo.
+Il titolo dice l'azione a una persona ("Mandare a Gigi la parola d'ordine"), non uno slug.
+Se la persona ha chiesto un todo durante la sessione ("ricordami di…"), c'è già: aggiornalo.
 Un todo `tu` porta un perché (`--perche`) solo se la persona lo ha detto con parole sue nella
-sessione («la firma la metto io»). Non dedurlo tu dalla frase: un perché inventato diventa un limite
+sessione ("la firma la metto io"). Non dedurlo tu dalla frase: un perché inventato diventa un limite
 che la persona non ha mai messo. Se lei non l'ha detto, lascialo vuoto. Il `Tu: <cosa serve>` della
 tabella nomina il gesto del passo (un invio, una password), non un perché. Non spostare mai un todo
 da tu a io o decidi senza un sì.
@@ -170,7 +170,7 @@ da tu a io o decidi senza un sì.
 
 ```bash
 # Slug: nome del progetto in minuscolo, spazi e simboli diventano trattini.
-# /inizio calcola lo stesso slug, cosi' «Il mio libro» ritrova il suo handoff.
+# /inizio calcola lo stesso slug, cosi' "Il mio libro" ritrova il suo handoff.
 PROGETTO=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")   # la cartella del progetto
 SLUG=$(printf '%s' "$PROGETTO" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
 HDIR=~/.claude/data/handoffs/"$SLUG"
@@ -184,7 +184,7 @@ fi
 echo "Handoff: $HANDOFF_FILE"
 ```
 
-Scrivi il contenuto del modello nel file stampato dopo «Handoff:». La variabile non arriva
+Scrivi il contenuto del modello nel file stampato dopo "Handoff:". La variabile non arriva
 ai blocchi dopo: ognuno gira in una shell nuova, quindi lì scrivi il percorso per intero.
 Se la persona chiede una copia dell'handoff nel progetto, prima mostrale la visibilità del remote
 (`gh repo view --json visibility`) e aspetta una conferma esplicita.
@@ -198,13 +198,13 @@ bash "$HOME/.claude/bin/handoff-gate.sh" "<handoff>"; echo "rc=$?"
 ```
 
 Il gate è bloccante. Il rosso (`rc=1`) stampa una riga per difetto: la sezione `## Task Pendenti`
-assente o vuota senza «Nessun task pendente», un ID che non è un todo aperto dell'archivio, un Chi
+assente o vuota senza "Nessun task pendente", un ID che non è un todo aperto dell'archivio, un Chi
 fuori lista o non in ultima colonna, un segnaposto del modello mai compilato. Correggi l'handoff (e
 l'archivio, se manca un todo) e rilancia finché è verde.
 
 ## FASE 6 · Retention e indice
 
-Lo store tiene gli ultimi 5 handoff per progetto, o per filone se l'handoff ha la riga «- Filone:».
+Lo store tiene gli ultimi 5 handoff per progetto, o per filone se l'handoff ha la riga "- Filone:".
 Prima guarda cosa uscirebbe, senza cancellare niente:
 
 ```bash
@@ -214,8 +214,8 @@ python3 "$HOME/.claude/bin/handoff-retention.py" "$SLUG"; echo "rc=$?"
 
 Per ogni handoff in uscita lo script stampa i Vicoli ciechi e le righe dei task senza ID: nessun
 handoff esce senza essere letto. Per ogni voce scegli:
-- **Promuovi.** Il vicolo cieco che può tornare va in due righe nel `CLAUDE.md` del progetto («NON
-  fare X: causa Y»). Un task ancora valido diventa un todo adesso.
+- **Promuovi.** Il vicolo cieco che può tornare va in due righe nel `CLAUDE.md` del progetto ("NON
+  fare X: causa Y"). Un task ancora valido diventa un todo adesso.
 - **Già coperto.** Dici dove, dopo una ricerca vera (`grep` sul `CLAUDE.md` del progetto, `arturo todo`,
   `arturo memoria cerca "parole"`).
 - **Muore.** Era una tantum o è superato, e lo dici.
@@ -230,7 +230,7 @@ python3 "$HOME/.claude/bin/index-rigenera.py" --scrivi; echo "rc=$?"
 
 `rc=3` della retention: una cancellazione non è riuscita, il file resta e la riga tecnica lo dice.
 L'indice `~/.claude/data/handoffs/INDEX.md` nasce dagli handoff e non si corregge a mano: una
-riga per progetto o filone, con stato e prossimo passo (dalla riga «Prossimo passo:» della
+riga per progetto o filone, con stato e prossimo passo (dalla riga "Prossimo passo:" della
 Ripartenza). Con `rc=1` l'indice non è stato scritto: la riga stampata dice perché.
 
 ## FASE 7 · CLAUDE.md del progetto

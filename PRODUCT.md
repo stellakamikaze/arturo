@@ -13,7 +13,7 @@ Una persona sola che usa Arturo ogni giorno: un autore che lavora con Claude Cod
 Arturo è un harness per Claude Code: guardie, memoria, todo condivisi fra la persona e Claude. La pagina dei progetti legge lo stesso archivio di Claude e di `arturo todo` e lo rende governabile: per ogni progetto i todo aperti, chi agisce, cosa è scaduto, cosa è fermo, il prossimo passo. Successo: in un minuto la persona sa quali progetti chiedono lei, quali sono fermi e quali stanno andando da soli.
 
 ## Positioning
-Ogni todo dice chi agisce: «tocca a te», «decidi tu, poi faccio io», «faccio io», oppure «fermo». La pagina divide il lavoro fra la persona e Claude, cosa che un gestore di task generico non fa.
+Ogni todo dice chi agisce: "tocca a te", "decidi tu, poi faccio io", "faccio io", oppure "fermo". La pagina divide il lavoro fra la persona e Claude, cosa che un gestore di task generico non fa.
 
 ## Operating Context
 Scala reale di un'istanza in uso (15/10/2026): circa 1.000 todo aperti e 1.000 chiusi, 40 progetti in 4 categorie. Due terzi dei todo toccano alla persona, un quinto a Claude, un decimo aspetta una decisione. Una cinquantina sono scaduti. Pochi progetti grandi (oltre 100 todo) convivono con molti piccoli (1-10). I nomi di progetto e di categoria vengono dall'archivio: la pagina non li conosce in anticipo.

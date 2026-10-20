@@ -1,7 +1,7 @@
 export const meta = {
   name: 'config-review',
   description: 'Revisione con più agenti della config ~/.claude: un revisore per area, un verificatore avversario per area, un critico di completezza. Sola lettura.',
-  whenToUse: 'Motore della revisione profonda di /system-audit (sezione «Revisione con più agenti»), lanciato via scriptPath dopo review-prep.sh. Non è una skill a sé.',
+  whenToUse: 'Motore della revisione profonda di /system-audit (sezione "Revisione con più agenti"), lanciato via scriptPath dopo review-prep.sh. Non è una skill a sé.',
   phases: [
     { title: 'Revisione', detail: 'un revisore per area' },
     { title: 'Verifica', detail: 'verificatore avversario per area' },
@@ -29,7 +29,7 @@ log(`args: ${typeof args} · config=${C} · scratch=${S} · dal=${DAL} · aree=$
 const COMMON = `Contesto: la config Claude Code da rivedere sta in ${C} (Arturo, un repository git). Rivedi le modifiche dal ${DAL} al ${OGGI}.
 Digest già pronti, leggili per primi: ${S}/config-log.txt (commit con stat), ${S}/touched-files.txt, ${S}/gone-files.txt (file toccati che oggi non esistono), ${S}/git-status.txt (lavoro non committato di ALTRE sessioni: segnalalo, non è un reperto da correggere), ${S}/root-ls.txt, ${S}/tree.txt, ${S}/ignored-root.txt, ${S}/grep-index.txt (righe con credenziali lette a mano, percorsi di una sola macchina, termini scelti dalla persona).
 TOOL: usa solo Read. Per cercare, parti da grep-index.txt e tree.txt, poi apri i file con Read. Bash non va usato.
-Le righe con «rimosso», «archiviato», «dismesso» sono storia, non fantasmi: è un fantasma solo un riferimento OPERATIVO (codice che lo chiama, regola che lo prescrive, hook che lo carica).
+Le righe con "rimosso", "archiviato", "dismesso" sono storia, non fantasmi: è un fantasma solo un riferimento OPERATIVO (codice che lo chiama, regola che lo prescrive, hook che lo carica).
 I dati della persona (data/, projects/, personale/, CLAUDE.md) non sono reperti: non citarne il contenuto.
 Ogni reperto ha una prova concreta: percorso assoluto e riga, o citazione esatta. Pochi reperti veri valgono più di molti deboli. Sola lettura. Rispondi in italiano.`
 
@@ -96,7 +96,7 @@ const results = await pipeline(
   (rev, a) => {
     if (!rev) return { area: a.key, findings: [], verdicts: [], fallito: true }
     if (!rev.findings.length) return { area: a.key, findings: [], verdicts: [] }
-    return agent(`${COMMON}\n\nSei un verificatore avversario. Per ogni reperto dell'area «${a.key}» apri la prova e cerca di SMENTIRLO: il file esiste? la riga dice quello? il riferimento è operativo o storico? qualcosa lo usa ancora (grep-index.txt, tree.txt)? la proposta romperebbe qualcosa? Nel dubbio: «parziale» col motivo. Correggi le proposte sbagliate o troppo aggressive.\n\nREPERTI:\n${JSON.stringify(rev.findings, null, 1)}`, { label: `ver:${a.key}`, phase: 'Verifica', schema: VERDICTS })
+    return agent(`${COMMON}\n\nSei un verificatore avversario. Per ogni reperto dell'area "${a.key}" apri la prova e cerca di SMENTIRLO: il file esiste? la riga dice quello? il riferimento è operativo o storico? qualcosa lo usa ancora (grep-index.txt, tree.txt)? la proposta romperebbe qualcosa? Nel dubbio: "parziale" col motivo. Correggi le proposte sbagliate o troppo aggressive.\n\nREPERTI:\n${JSON.stringify(rev.findings, null, 1)}`, { label: `ver:${a.key}`, phase: 'Verifica', schema: VERDICTS })
       .then(v => ({ area: a.key, findings: rev.findings, verdicts: v ? v.verdicts : [], verificaFallita: !v }))
   },
 )
@@ -105,7 +105,7 @@ const valid = results.filter(Boolean)
 const areeFallite = AREE.map(a => a.key).filter(k => !valid.some(r => r.area === k) || valid.find(r => r.area === k).fallito)
 const nonVerificate = valid.filter(r => r.verificaFallita).map(r => r.area)
 if (areeFallite.length) log(`ATTENZIONE: revisore fallito per ${areeFallite.join(', ')}`)
-if (nonVerificate.length) log(`ATTENZIONE: verifica fallita per ${nonVerificate.join(', ')}: i loro reperti restano «non-verificato»`)
+if (nonVerificate.length) log(`ATTENZIONE: verifica fallita per ${nonVerificate.join(', ')}: i loro reperti restano "non-verificato"`)
 
 const merged = valid.flatMap(r => r.findings.map(f => {
   const v = r.verdicts.find(x => x.id === f.id)

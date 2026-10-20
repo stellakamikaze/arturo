@@ -108,7 +108,7 @@ Spegnere la telemetria di Claude Code era una scelta presa all'inizio e mai spie
 di quanto proteggeva. Secondo Anthropic quegli eventi non contengono codice, percorsi dei file o
 comandi. Una guardia che si rompe in silenzio è peggio di una guardia che ti ferma per sbaglio.
 
-**Da sapere**: se vuoi la telemetria di Claude Code spenta lo stesso, «Cosa non è neutro» nel
+**Da sapere**: se vuoi la telemetria di Claude Code spenta lo stesso, "Cosa non è neutro" nel
 README spiega come e cosa perdi. Su Windows lo strumento PowerShell resta spento, perché le guardie
 di Arturo controllano solo Git Bash. Con Claude Code più vecchio della 2.1.300 `/setup` ti chiede di
 aggiornarlo.
@@ -135,12 +135,12 @@ modello di riserva il lavoro va avanti.
 ## 2026-10-19 — La scheda del terminale anche sul Mac, e niente falsi rossi da igiene e iTerm2
 
 **Cosa cambia**: sul Mac la scheda del terminale ora cambia davvero titolo e colore: prima restava
-ferma. Nel Terminale di Apple, che non colora le schede, il titolo comincia con «● TOCCA A TE» quando
+ferma. Nel Terminale di Apple, che non colora le schede, il titolo comincia con "● TOCCA A TE" quando
 Claude aspetta te, e la scheda in secondo piano mostra la campanella. Il controllo di igiene su
 GitHub gira solo sul repository pubblico di Arturo. Se salvi la tua `~/.claude` in un repository
-privato, non ricevi più l'email «Run failed: igiene» a ogni `/fine`. E se un programma aggiunge a
+privato, non ricevi più l'email "Run failed: igiene" a ogni `/fine`. E se un programma aggiunge a
 `settings.json` hook suoi senza `matcher` (lo fa iTerm2 con `cc-status`), l'avvio non dice più
-«una guardia potrebbe non proteggere».
+"una guardia potrebbe non proteggere".
 
 **Il principio dietro**: con più sessioni aperte devi vedere da fuori quale ti aspetta, senza
 entrare in ogni scheda. E un avviso falso insegna a ignorare quelli veri. Il controllo di igiene cerca
@@ -155,8 +155,8 @@ lecito per Claude Code, e le guardie di Arturo restavano al loro posto.
 
 **Cosa cambia**: `/aggiorna` installa solo l'ultimo rilascio firmato da chi mantiene Arturo, come
 l'aggiornamento automatico, e mai le modifiche pubblicate dopo. Se l'ultimo rilascio non ha una firma
-valida, l'avvio, la barra in basso, `/inizio` e `/novita` dicono «possibile compromissione: non
-aggiornare, segnala a chi mantiene Arturo», e `/aggiorna` non installa niente, neanche col tuo sì. In
+valida, l'avvio, la barra in basso, `/inizio` e `/novita` dicono "possibile compromissione: non
+aggiornare, segnala a chi mantiene Arturo", e `/aggiorna` non installa niente, neanche col tuo sì. In
 più Claude ti chiede conferma prima di: leggere un file `.env` (dove stanno le chiavi dei servizi),
 cancellare una cartella con `shutil.rmtree` o i file non salvati in git con `git clean -f`, allineare
 una cartella con `rsync --delete`, mandare dati fuori con un `curl` che costruisce l'indirizzo con un
@@ -169,7 +169,7 @@ va, e la risposta giusta è fermarsi e dirlo. Le guardie nuove seguono la regola
 dove un errore non si annulla, e restano zitte sul lavoro normale. Un `curl` qualsiasi, un `rsync`
 senza `--delete`, `git clean -n` e la cartella `build/` passano senza domande.
 
-**Da sapere**: niente da fare. Se vedi «possibile compromissione», non cercare un'altra strada per
+**Da sapere**: niente da fare. Se vedi "possibile compromissione", non cercare un'altra strada per
 aggiornare: segnalalo con `/segnala`, o in privato come dice `SECURITY.md`. Per controllare la firma
 servono git 2.34 e OpenSSH 8.2, o più recenti: con versioni più vecchie Arturo non si aggiorna e lo
 dice, senza parlare di compromissione.
@@ -187,7 +187,7 @@ versione di prima: `/aggiorna indietro` sa qual è.
 ## 2026-10-16 — Arturo si aggiorna da solo, come Claude Code
 
 **Cosa cambia**: non serve più `/aggiorna`. Quando esce una versione nuova, la barra in basso di
-Claude Code te lo dice («↑ Arturo … · si installa alla chiusura»). Quando chiudi la sessione, Arturo
+Claude Code te lo dice ("↑ Arturo … · si installa alla chiusura"). Quando chiudi la sessione, Arturo
 la installa da solo, con la stessa procedura di `/aggiorna`: le tue aggiunte restano tue, e se
 qualcosa non torna non cambia niente. Se hai più sessioni aperte, la installa l'ultima che chiudi.
 Alla sessione dopo Claude ti dice a che versione sei arrivato, e `/novita` ti racconta cosa cambia.
@@ -197,8 +197,8 @@ si installano da soli solo i rilasci firmati con la chiave di chi mantiene Artur
 controlla con la chiave che hai già: un repository manomesso non basta. Se la firma manca, o la
 storia pubblicata è stata riscritta, Arturo non installa niente e te lo dice.
 
-**Da sapere**: preferisci leggere ogni aggiornamento prima? Scrivi a Claude «tieni gli
-aggiornamenti a mano», oppure lancia `python3 ~/.claude/bin/arturo aggiornamenti manuali`: resta
+**Da sapere**: preferisci leggere ogni aggiornamento prima? Scrivi a Claude "tieni gli
+aggiornamenti a mano", oppure lancia `python3 ~/.claude/bin/arturo aggiornamenti manuali`: resta
 l'avviso, e aggiorni con `/aggiorna` come prima. Questa è l'ultima volta che serve `/aggiorna` per
 ricevere una versione: da qui in poi arrivano da sole. La telemetria conta a parte gli
 aggiornamenti installati da soli (l'esito `automatico` dell'evento `aggiorna`): per questo
@@ -251,7 +251,7 @@ fatto.
 **Cosa cambia**: su Windows alcune guardie di Arturo leggevano male i comandi con caratteri
 speciali, e in quei casi lasciavano passare senza chiedere. Un `rm -rf` su una cartella con una
 virgoletta tipografica («”») nel comando passava senza conferma. Un invio di email con una
-freccia («→») partiva senza conferma. Adesso ogni guardia legge il comando intero, con gli
+freccia ("→") partiva senza conferma. Adesso ogni guardia legge il comando intero, con gli
 accenti e i simboli, e ti chiede conferma come sul Mac. Su Windows è corretto anche `/fine`:
 un file già salvato in un repository, in una sottocartella, non risulta più da scartare. Lo
 scratchpad di Claude adesso conta come cartella temporanea. La memoria trova anche le note
@@ -271,8 +271,8 @@ server che indichi tu con `ARTURO_TELEMETRIA_URL`.
 **Cosa cambia**: il titolo della scheda in cui gira Claude Code ora dice su quale progetto lavora.
 In Windows Terminal e in iTerm2 il colore della scheda dice lo stato: verde quando Claude aspetta
 te, giallo mentre lavora, rosso quando il turno si è fermato per un errore, come un'API giù o un
-limite raggiunto. Negli altri terminali lo stato è scritto nel titolo, per esempio «romanzo · al
-lavoro». Il progetto è quello scelto con `/inizio`, altrimenti il repository o la cartella
+limite raggiunto. Negli altri terminali lo stato è scritto nel titolo, per esempio "romanzo · al
+lavoro". Il progetto è quello scelto con `/inizio`, altrimenti il repository o la cartella
 in cui hai aperto Claude Code. Il titolo automatico di Claude Code, quello col riassunto della
 conversazione, non c'è più: al suo posto c'è il progetto.
 
@@ -319,8 +319,8 @@ resta installato ma non si aggiorna più da solo: `claude plugin list` lo mostra
 **Cosa cambia**: Claude ti propone di sua iniziativa solo i comandi che servono ogni giorno o quando serve:
 `/inizio`, `/fine`, `/aggiorna`, `/novita`, `/segnala`, `/setup`. Gli altri (`/guidami`, `/sparring`,
 `/progetto`, `/discovery`, `/write-plan`, `/diagnosi`, `/strato`, `/percorso`, `/italiano-semplificato`)
-restano tutti: li lanci tu scrivendo il nome. Il README li divide in «Ogni giorno», «Quando serve» e
-«Gli altri comandi». In più `/setup` ti propone Impeccable (fase 8c), la skill di design delle
+restano tutti: li lanci tu scrivendo il nome. Il README li divide in "Ogni giorno", "Quando serve" e
+"Gli altri comandi". In più `/setup` ti propone Impeccable (fase 8c), la skill di design delle
 interfacce di Paul Bakaus: la installa dall'autore, con le sue versioni nuove. Esce il mod
 `blast-radius`: fermava ogni `rm -rf` e aspettava una risposta, e quando la risposta non arrivava
 bloccava anche il lavoro utile scritto nello stesso comando.
@@ -330,7 +330,7 @@ fa sembrare difficile anche quello che è semplice. E una guardia che ferma il l
 quanto lo protegga va tolta.
 
 **Da sapere**: niente da fare. Prima di cancellare una cartella Claude ti chiede ancora conferma
-(`block-dangerous`), e il push forzato resta vietato. «A che punto sono?» non apre più da solo il percorso: scrivi `/percorso`.
+(`block-dangerous`), e il push forzato resta vietato. "A che punto sono?" non apre più da solo il percorso: scrivi `/percorso`.
 Se fai siti o pagine e vuoi Impeccable senza rifare tutto il setup: `/setup` e salta alla fase 8c,
 oppure leggi `docs/impeccable.md`.
 
@@ -341,7 +341,7 @@ oppure leggi `docs/impeccable.md`.
 **Cosa cambia**: per collegare la posta, il calendario e i documenti non serve più creare un
 progetto su Google Cloud. `/inizio gws` ti propone prima i connettori di claude.ai: li attivi dal
 browser, riapri Claude Code e ci sono. La strada vecchia resta per chi usa più account Google. In
-più i messaggi delle guardie scrivono «c'è» e «già» con gli accenti veri, non con l'apostrofo.
+più i messaggi delle guardie scrivono "c'è" e "già" con gli accenti veri, non con l'apostrofo.
 
 **Il principio dietro**: il primo collegamento deve stare nei cinque minuti. Se costa un'ora di
 pagine in inglese, chi comincia si ferma lì.
@@ -435,9 +435,9 @@ ha una strada sua, `bin/bgjob.sh`: gira staccato dalla sessione e scrive l'esito
 installati ma spenti. In `/setup` c'è una fase facoltativa per `scrape`, che legge una pagina web e
 tiene solo il testo utile.
 
-**Il principio dietro**: un controllo vale solo se sa dire «rosso». Ogni gate nuovo ha un caso
-avvelenato, una versione rotta apposta che deve bocciare. Il «non so» è un esito onesto: il testo e
-gli strumenti mancanti danno «inconclusivo», mai verde.
+**Il principio dietro**: un controllo vale solo se sa dire "rosso". Ogni gate nuovo ha un caso
+avvelenato, una versione rotta apposta che deve bocciare. Il "non so" è un esito onesto: il testo e
+gli strumenti mancanti danno "inconclusivo", mai verde.
 
 **Da sapere**: `scrape` occupa circa 300 MB e si installa solo se dici sì in `/setup`. Non finge di
 essere un browser: se un sito blocca i programmi, te lo dice e ti consiglia di aprire la pagina nel
@@ -455,8 +455,8 @@ tabella dei pendenti c'è sempre, ogni riga è un todo vero dell'archivio, e chi
 o io. Tiene gli ultimi 5 handoff per progetto, ma prima ti mostra cosa conteneva quello che esce, e
 rigenera l'indice dei progetti.
 
-**Il principio dietro**: una sessione nuova vale quanto quello che trova. Un handoff che dice «cosa
-resta» senza dire cosa, o un file lasciato in una cartella che sparisce al riavvio, è lavoro perso.
+**Il principio dietro**: una sessione nuova vale quanto quello che trova. Un handoff che dice "cosa
+resta" senza dire cosa, o un file lasciato in una cartella che sparisce al riavvio, è lavoro perso.
 Meglio un controllo che ferma la chiusura che una ripartenza al buio.
 
 **Da sapere**: gli handoff restano solo sul tuo computer, come prima, e viaggiano fra le tue
@@ -585,7 +585,7 @@ rotta parte subito, perché spegne le guardie. La spegni come sempre con
 --hard`, `git clean` o un push forzato, il comando si ferma e compare un pannello: quanti file
 spariscono e quali, quali modifiche non salvate si perdono, quali commit. Premi Procedi o Annulla.
 `riscrivi-bash` fa comportare zsh, la shell del Mac, come bash: un glob che non trova file
-(`ls *.png` in una cartella senza png) non ferma più il comando con «no matches found». Escono due
+(`ls *.png` in una cartella senza png) non ferma più il comando con "no matches found". Escono due
 mod che nessuno usava: `menu-contesto` e `agent-flow`.
 
 **Il principio dietro**: prima di un gesto che non si annulla, devi vedere cosa fa, non leggere
@@ -599,7 +599,7 @@ un comando. E una comodità che nessuno apre è solo codice da mantenere.
 **Cosa cambia**: sotto la frase che riassume i tuoi todo, la pagina di `arturo web` ha una
 striscia. Ogni pezzo è largo quanto la sua parte: quelli che toccano a te, quelli da decidere,
 quelli in mano a Claude, quelli fermi. A colpo d'occhio vedi dove pesa il lavoro. Il controllo
-degli invii email ora giudica il comando che gira, non le parole che contiene: cercare «smtplib»
+degli invii email ora giudica il comando che gira, non le parole che contiene: cercare "smtplib"
 in una cartella o scriverlo in una nota non si ferma più. Si fermano invece forme che prima
 passavano: `find -exec sendmail`, `awk` con `system()`, `git send-email`, un testo mandato a `sh`.
 
@@ -620,7 +620,7 @@ toglieva in silenzio, con il lavoro che c'era dentro. All'avvio della sessione A
 `/strato` funziona dal secondo passo in poi, e `pubblica` non manda niente se un controllo fallisce.
 
 **Il principio dietro**: una promessa vale per quello che il codice fa, non per quello che il README
-dice. La telemetria prometteva «il nome di un comando di Arturo», e mandava il nome di qualunque
+dice. La telemetria prometteva "il nome di un comando di Arturo", e mandava il nome di qualunque
 comando. Lo stesso vale per le guardie: un invio verso fuori non deve passare solo perché nello
 stesso comando compare anche un indirizzo interno.
 
@@ -638,7 +638,7 @@ In più `/segnala` non ti chiede più di mandare una email a mano. Dopo il tuo s
 arriva direttamente a chi mantiene Arturo. Se la rete non risponde, parte da sola alla sessione dopo.
 
 **Il principio dietro**: questo cambia una promessa. Fino a oggi l'Impegno 3 del README diceva
-«Niente telemetria», e la novità di stamattina diceva che `/segnala` non era telemetria. Chi
+"Niente telemetria", e la novità di stamattina diceva che `/segnala` non era telemetria. Chi
 mantiene Arturo ha deciso di cambiarla, perché senza dati d'uso non vede dove le persone si
 bloccano. Le persone per cui Arturo è fatto spesso non lo sanno dire, e di sicuro non aprono una
 issue. Il nuovo Impegno 3 dice cosa parte, cosa non parte mai e come spegnerla.
@@ -703,11 +703,11 @@ pull rimasto a metà da prima: sistemalo con Claude prima di aggiornare.
 `/setup` in `settings.json`), `/aggiorna` non applica niente e `/inizio` non scarica dal tuo
 repository. Ti dicono quali file sono e cosa fare: li salva `/fine`, poi riprovi. Prima
 l'aggiornamento poteva lasciare `settings.json` con i segni di un conflitto e le guardie spente,
-dicendo che era tutto a posto. Ora il messaggio «ho riportato la copia a prima» compare solo se è
+dicendo che era tutto a posto. Ora il messaggio "ho riportato la copia a prima" compare solo se è
 vero. In più `/aggiorna` mostra le guardie e prende gli aggiornamenti da `upstream` anche quando
 hai un tuo repository.
 
-**Il principio dietro**: un comando che fallisce lo dice, e non dice mai «fatto» senza controllare.
+**Il principio dietro**: un comando che fallisce lo dice, e non dice mai "fatto" senza controllare.
 
 ## 2026-10-09 — Cinque mod nuovi: segreti, Bash, menu, cache, agenti
 
@@ -734,16 +734,16 @@ arrivano solo quando c'è qualcosa da fare.
 ## 2026-10-04 — Il tavolo dei progetti
 
 **Cosa cambia**: la pagina delle cose da fare (`arturo web`) ora parte dai progetti. In cima trovi
-«Da dove partirei»: un todo solo, scelto con una regola fissa, e il motivo in parole («Sblocca #7»,
-«Scade domani»). Sotto, un foglio per ogni progetto, con il prossimo passo, gli altri todo in vista,
+"Da dove partirei": un todo solo, scelto con una regola fissa, e il motivo in parole ("Sblocca #7",
+"Scade domani"). Sotto, un foglio per ogni progetto, con il prossimo passo, gli altri todo in vista,
 chi agisce e la scadenza più vicina. Davanti stanno i progetti dove qualcosa chiede te, dietro quelli
 tutti in mano a Claude. Un foglio si apre e diventa la pagina del progetto. Lì un todo si apre nel
 dettaglio, con le note datate, la storia di ogni passaggio e quello che aspetta o sblocca. In testa
 c'è anche una riga con la tappa del tuo percorso.
 
 **Il principio dietro**: il modo in cui chi sviluppa Arturo riparte ogni mattina. Prima la cosa da
-cui partire, poi i progetti uno per uno, ogni todo con il segno di chi agisce. La regola di «Da dove
-partirei» è la stessa per ogni vista: prima quello che chiede una persona, poi quello che sblocca
+cui partire, poi i progetti uno per uno, ogni todo con il segno di chi agisce. La regola di "Da dove
+partirei" è la stessa per ogni vista: prima quello che chiede una persona, poi quello che sblocca
 altri todo, poi scadenze e priorità.
 
 **A chi serve**: a chi ha più di un progetto aperto e vuole vedere da dove ripartire senza leggere
@@ -753,16 +753,16 @@ l'elenco intero.
 
 ## 2026-10-04 — Claude ti dice quale skill usa
 
-**Cosa cambia**: nel brief che Claude mostra prima di ogni lavoro c'è una riga nuova, «Skill:».
-Dice quale skill userà e perché, oppure «nessuna». Se una skill che non hai nominato fa meglio il
+**Cosa cambia**: nel brief che Claude mostra prima di ogni lavoro c'è una riga nuova, "Skill:".
+Dice quale skill userà e perché, oppure "nessuna". Se una skill che non hai nominato fa meglio il
 lavoro, te lo dice lì. Il brief si carica anche più leggero: la parte per scrivere prompt destinati
 ad altri strumenti (ChatGPT, Midjourney e simili) ora si legge solo quando la chiedi. In `/setup`
 ci sono due regole consigliate in più per il tuo `CLAUDE.md`: l'ultima riga di ogni lavoro dice il
-prossimo passo, e un risultato visivo è «fatto» solo quando Claude l'ha aperto come lo vedrai tu.
+prossimo passo, e un risultato visivo è "fatto" solo quando Claude l'ha aperto come lo vedrai tu.
 
 **Il principio dietro**: l'harness si misura su come lo usi. Le due regole e la riga Skill vengono
-dall'analisi di due mesi d'uso reale di chi sviluppa Arturo: «e adesso?» chiesto 59 volte, il
-«fatto» non verificato come correzione più frequente sui lavori visivi.
+dall'analisi di due mesi d'uso reale di chi sviluppa Arturo: "e adesso?" chiesto 59 volte, il
+"fatto" non verificato come correzione più frequente sui lavori visivi.
 
 **A chi serve**: a chi non sa ancora quali skill ha, e a chi vuole capire dal brief se Claude ha
 preso la strada giusta prima che cominci.
@@ -773,9 +773,9 @@ preso la strada giusta prima che cominci.
 
 ## 2026-10-03 — Il percorso a tappe
 
-**Cosa cambia**: chiedi a Claude «a che punto sono?» oppure scrivi `/percorso`. Vedi la tua
+**Cosa cambia**: chiedi a Claude "a che punto sono?" oppure scrivi `/percorso`. Vedi la tua
 tappa fra quattro: Osserva, Prova, Delega, Orchestra. Accanto a ogni tappa c'è il numero del todo
-che la prova, così puoi controllare. Vedi anche la lista «Cose che tieni per te» e un esercizio
+che la prova, così puoi controllare. Vedi anche la lista "Cose che tieni per te" e un esercizio
 della settimana sul tuo lavoro vero. `/inizio` ti mostra la tappa in una riga. A fine sessione
 `/fine` può proporti una sola delega, e dopo un tuo no tace per qualche giorno.
 
@@ -783,14 +783,14 @@ della settimana sul tuo lavoro vero. `/inizio` ti mostra la tappa in una riga. A
 che tieni, non il lavoro che deleghi. Le tappe si aprono con una decisione presa prima che Claude
 lavori, un limite che dichiari o un no motivato. Delega chiede due segni insieme: una decisione
 presa prima che Claude lavori (con `deciso`, o chiudendo tu un todo DECIDI TU) e un limite (un
-perché detto da te su un todo tuo, oppure un no motivato). Il nuovo capitolo «Tieni la decisione» lo
+perché detto da te su un todo tuo, oppure un no motivato). Il nuovo capitolo "Tieni la decisione" lo
 racconta (`docs/principi/05-tieni-la-decisione.md`), e `docs/esercizi.md` ha otto esercizi.
 
 **Da sapere**: il percorso si calcola solo sul tuo computer, dai tuoi todo, e il suo stato resta lì.
-I todo da cui nasce (i perché e le note «Tenuto:») viaggiano come gli altri todo: solo verso il
+I todo da cui nasce (i perché e le note "Tenuto:") viaggiano come gli altri todo: solo verso il
 tuo repository privato, con `/fine`. Il referente della tua organizzazione non vede il percorso. Dopo un no alla proposta di `/fine`, Claude tace
-tre giorni. Dopo due no di fila, due settimane. «Basta suggerimenti» le spegne finché non dici
-«riprendi i suggerimenti». Pausa e silenzi valgono solo sul computer dove li dici: lo stato del
+tre giorni. Dopo due no di fila, due settimane. "Basta suggerimenti" le spegne finché non dici
+"riprendi i suggerimenti". Pausa e silenzi valgono solo sul computer dove li dici: lo stato del
 percorso non viaggia con `/fine`.
 
 <!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->
@@ -801,7 +801,7 @@ percorso non viaggia con `/fine`.
 fare, divise in TOCCA A TE, DECIDI TU, FACCIO IO e FERMO. Ogni riga dice il progetto e la
 scadenza. Scegli una riga con il numero e premi una lettera: `f` fatto, `s` ferma, `r` riprendi,
 `c` chi lo fa, `a` avvicina, `l` allontana. `p` mostra un progetto alla volta. Quando hai cose
-aperte, sopra il prompt compare una riga sottile: «3 cose da fare · /dafare per vederle».
+aperte, sopra il prompt compare una riga sottile: "3 cose da fare · /dafare per vederle".
 
 **Il principio dietro**: vedere in ogni momento cosa è in mano tua e cosa in mano a Claude, e
 agire senza scrivere comandi. Il pannello non ha un archivio suo: scrive con la stessa CLI
@@ -817,11 +817,11 @@ Code.
 
 ## 2026-10-03 — La pagina delle cose da fare
 
-**Cosa cambia**: ora vedi i tuoi todo anche in una pagina del browser. Chiedi a Claude «fammi
-vedere le mie cose da fare in una pagina», oppure scrivi nel terminale
+**Cosa cambia**: ora vedi i tuoi todo anche in una pagina del browser. Chiedi a Claude "fammi
+vedere le mie cose da fare in una pagina", oppure scrivi nel terminale
 `python3 ~/.claude/bin/arturo web` (solo `arturo web` se con `/setup` hai aggiunto il comando breve). Da lì aggiungi un todo, lo segni fatto, lo modifichi o lo
-fermi. Su un todo di «Decidi tu, poi faccio io» premi «Ho deciso», scrivi la scelta e il lavoro
-passa a Claude. Dopo ogni azione compare «Annulla», salvo dopo una nota. Niente si
+fermi. Su un todo di "Decidi tu, poi faccio io" premi "Ho deciso", scrivi la scelta e il lavoro
+passa a Claude. Dopo ogni azione compare "Annulla", salvo dopo una nota. Niente si
 cancella dall'archivio.
 
 **Il principio dietro**: lo stesso archivio, più modi di guardarlo. La pagina non tiene dati suoi
@@ -830,13 +830,13 @@ che scrive Claude compare nella pagina entro 20 secondi.
 
 **Da sapere**: la pagina è facoltativa e gira solo sul tuo computer. Il link contiene una chiave
 che cambia a ogni avvio, e la pagina non si collega a internet. Si spegne da sola dopo 30 minuti
-senza la pagina aperta, oppure con il bottone «Spegni la pagina».
+senza la pagina aperta, oppure con il bottone "Spegni la pagina".
 
 <!-- Nota dell'autore: la scrive Federico prima del rilascio su main. -->
 
 ## 2026-10-03 — Le tue cose da fare, in un posto solo
 
-**Cosa cambia**: quando dici a Claude «ricordami di mandare il preventivo venerdì», il todo
+**Cosa cambia**: quando dici a Claude "ricordami di mandare il preventivo venerdì", il todo
 finisce in un archivio sul tuo computer e ci resta. Prima i task sparivano a fine sessione, e
 sopravviveva solo la tabella dell'handoff. Ogni todo sa di quale progetto è, quando scade e chi
 agisce: tu, tu che decidi e poi Claude, oppure Claude. `/fine` ci scrive quello che resta da
@@ -857,7 +857,7 @@ tra i tuoi computer solo se il repository della tua config è privato.
 
 ## 2026-09-30 — Lo strato della tua organizzazione
 
-**Cosa cambia**: se lavori in un'organizzazione, Arturo ora può diventare «vostro». Il
+**Cosa cambia**: se lavori in un'organizzazione, Arturo ora può diventare "vostro". Il
 **referente**, una persona del team, prepara con `/strato crea` uno strato con chi siete, come
 scrivete, i lavori che si ripetono e i dati che non devono uscire. I colleghi lo ricevono con
 `/strato installa` e lo tengono aggiornato con `/aggiorna`. All'avvio Claude sa per chi lavora, la
@@ -904,12 +904,12 @@ Windows Arturo funziona solo dentro Git Bash: `/setup` ora lo controlla.
 ## 2026-09-16 — Dove segnalare un problema
 
 **Cosa cambia**: segnalare un problema ora ha una strada guidata. Quando apri una
-issue su GitHub trovi due moduli pronti: «Qualcosa non funziona» (cosa stavi
-facendo, cosa ti aspettavi, cosa è successo) e «Una proposta» (quale problema
+issue su GitHub trovi due moduli pronti: "Qualcosa non funziona" (cosa stavi
+facendo, cosa ti aspettavi, cosa è successo) e "Una proposta" (quale problema
 vuoi risolvere). Nessuna domanda tecnica obbligatoria. Se invece trovi un
 segreto esposto o un modo per aggirare una guardia, il modulo te lo dice subito:
 non aprire una issue pubblica, usa la procedura privata in `SECURITY.md`, col
-pulsante «Report a vulnerability» nella scheda Security del repository.
+pulsante "Report a vulnerability" nella scheda Security del repository.
 
 **Il principio dietro**: una segnalazione di sicurezza pubblica avvisa anche chi
 potrebbe approfittarne. Il canale privato protegge tutti gli utenti mentre il
@@ -948,13 +948,13 @@ sposta la riga in `hooks/hosts-interni.local` e accetta la versione nuova dei du
 **Cosa cambia**: `/aggiorna indietro` riporta la tua copia alla versione di prima dell'ultimo
 aggiornamento. Prima di toccare qualunque cosa ti mostra in parole semplici cosa torna indietro — i
 commit arrivati e le novità che spariranno — e lo fa solo dopo il tuo sì. In più, l'avviso di
-avvio «la config è AVANTI di N commit» non compare più se il tuo `origin` è il repo originale di
+avvio "la config è AVANTI di N commit" non compare più se il tuo `origin` è il repo originale di
 Arturo: su quel repo non puoi scrivere, quindi i commit locali sono normali e l'avviso era solo
 rumore. Se `origin` è un repo tuo, l'avviso resta.
 
 **Il principio dietro**: un aggiornamento è codice di altri che gira sul tuo computer (vedi
-«Cosa non è neutro»): la scelta è tua solo se puoi anche tornare indietro. E un avviso che non
-puoi risolvere — come «non hai pushato» su un repo dove non puoi pushare — insegna a ignorare
+"Cosa non è neutro"): la scelta è tua solo se puoi anche tornare indietro. E un avviso che non
+puoi risolvere — come "non hai pushato" su un repo dove non puoi pushare — insegna a ignorare
 gli avvisi.
 
 **Da sapere**: il punto di ritorno si salva quando fai `/aggiorna`. Se non hai ancora fatto un
@@ -1035,12 +1035,12 @@ compensa niente.
 
 ---
 
-## 2026-09-02 — La porta e la procedura: description, when_to_use e le sezioni «Freni»
+## 2026-09-02 — La porta e la procedura: description, when_to_use e le sezioni "Freni"
 
 **Cosa cambia**: ogni skill ha ora due campi in testa. `description` dice in una frase che cosa
 la skill produce; `when_to_use` dice quando si accende — le frasi che dici davvero, i casi in cui
-NON si accende e a chi passa la palla — e chiude sempre con «Segui tutti i passi nell'ordine: non
-prendere scorciatoie basandoti su questa description». Nel corpo, la prima cosa dopo il titolo è
+NON si accende e a chi passa la palla — e chiude sempre con "Segui tutti i passi nell'ordine: non
+prendere scorciatoie basandoti su questa description". Nel corpo, la prima cosa dopo il titolo è
 un passo o un prerequisito, non una spiegazione; le regole che non si possono saltare stanno sotto
 un'intestazione propria, `## Freni` o `## Importante`. Due skill nuove: `prompt-master` (mostra un
 brief di otto righe prima di ogni lavoro: obiettivo, output, vincoli, quando è fatto, assunzioni,
@@ -1050,14 +1050,14 @@ così un file sporco non blocca più l'aggiornamento.
 
 **Il principio dietro**: il modello legge la `description` per decidere se una skill si applica —
 e se lì trova i passi, li esegue senza aprire il corpo, saltando le regole. Quindi la porta dice
-solo *se entrare*; la procedura sta dentro. E due domande valgono più di dieci regole: «se un
-agente leggesse solo la description, cosa farebbe?» (deve rispondere: decide se serve) e «cosa
-farebbe un agente pigro se questa skill non esistesse?» (il corpo deve impedire proprio quello).
+solo *se entrare*; la procedura sta dentro. E due domande valgono più di dieci regole: "se un
+agente leggesse solo la description, cosa farebbe?" (deve rispondere: decide se serve) e "cosa
+farebbe un agente pigro se questa skill non esistesse?" (il corpo deve impedire proprio quello).
 Idee prese da `gsarig/skills`, applicate qui alla lettera.
 
 **A chi serve**: a chi scrive o modifica una skill, e a chi si chiede perché una skill non è
 partita quando doveva — il primo sospetto è la frase in `when_to_use`. Prova: `/sparring` sul
-principio «la porta e la procedura» con una skill che usi spesso.
+principio "la porta e la procedura" con una skill che usi spesso.
 
 ---
 
@@ -1076,10 +1076,10 @@ cima invece che in fondo.
 avevi in testa — e quando il contesto manca se lo inventa, in modo convincente. Formulare la
 richiesta è la parte del lavoro che resta tua, non scade con la versione dello strumento, e
 vale anche con le persone. L'altra metà dello stesso principio è dire come si riconosce che è
-fatto: senza un risultato osservabile, «fatto» è un'opinione.
+fatto: senza un risultato osservabile, "fatto" è un'opinione.
 
 **Ti riguarda se**: ti è capitato di ricevere una risposta ben scritta e fuori bersaglio, o
-di accorgerti a lavoro finito che «finito» voleva dire due cose diverse per te e per
+di accorgerti a lavoro finito che "finito" voleva dire due cose diverse per te e per
 l'assistente. La numerazione del curriculum è cambiata: i tre capitoli annunciati prima
 (rail, orchestrazione, memoria) sono ora 02, 03 e 04.
 

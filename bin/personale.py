@@ -24,7 +24,7 @@ macchine. Il controllo sta in chi lancia separa: `sposta` a mano lo salta, e per
 indica /aggiorna personale.
 
 `sposta` è meccanico: copia le parti aggiunte così come sono, con la riga di Arturo dopo cui stavano,
-e le parti tolte sotto «Parti di Arturo che non seguo». Il riordino lo fa Claude con la persona.
+e le parti tolte sotto "Parti di Arturo che non seguo". Il riordino lo fa Claude con la persona.
 Il confronto è con il punto in cui la config si è staccata da Arturo: merge-base con upstream/main
 se esiste, altrimenti origin/main. Con upstream il ritorno del comando è un commit nuovo (/aggiorna
 fa un merge). Senza, i commit locali vengono riscritti senza le modifiche al comando, perché il
@@ -137,7 +137,7 @@ def testo_personale(comando: str, originale: list, attuale: list, gia: str) -> s
     for op, i1, i2, j1, j2 in difflib.SequenceMatcher(a=originale, b=attuale, autojunk=False).get_opcodes():
         if op in ("insert", "replace"):
             dopo = next((x.strip() for x in reversed(originale[:i1]) if x.strip()), "")
-            dove = f"(dopo la riga di Arturo «{dopo}»)" if dopo else "(in cima al comando)"
+            dove = f'(dopo la riga di Arturo "{dopo}")' if dopo else "(in cima al comando)"
             blocco = f"{dove}\n\n" + "".join(attuale[j1:j2]).rstrip("\n")
             if blocco not in gia:  # un secondo spostamento non ripete le stesse righe
                 aggiunte.append(blocco)
@@ -163,7 +163,7 @@ def testo_hook(hook: str, originale: list, attuale: list, gia: str) -> str:
     for op, i1, i2, j1, j2 in difflib.SequenceMatcher(a=originale, b=attuale, autojunk=False).get_opcodes():
         if op in ("insert", "replace"):
             dopo = next((x.strip() for x in reversed(originale[:i1]) if x.strip()), "")
-            dove = f"# (dopo la riga di Arturo «{dopo}»)" if dopo else "# (in cima all'hook)"
+            dove = f'# (dopo la riga di Arturo "{dopo}")' if dopo else "# (in cima all'hook)"
             blocco = dove + "\n" + "".join("#   " + x.rstrip("\n") + "\n" for x in attuale[j1:j2]).rstrip("\n")
             if blocco not in gia:
                 blocchi.append(blocco)
@@ -203,7 +203,7 @@ def sposta(file: str, parla: bool = True) -> int:
     m = NOME.match(file) or SESSIONE.match(file)
     if not m:
         print(f"Errore: si spostano solo i comandi di Arturo (commands/<nome>.md) e hooks/session-start.sh o "
-              f"hooks/session-end.sh (non «{file}»).", file=sys.stderr)
+              f'hooks/session-end.sh (non "{file}").', file=sys.stderr)
         return 2
     comando = m.group(1)
     e_hook = bool(SESSIONE.match(file))
@@ -217,7 +217,7 @@ def sposta(file: str, parla: bool = True) -> int:
         return 2
     percorso = r / file
     attuale = percorso.read_bytes() if percorso.exists() else b""
-    if attuale == vecchio.stdout:  # in byte: un file salvato con CRLF non e' «uguale»
+    if attuale == vecchio.stdout:  # in byte: un file salvato con CRLF non e' "uguale"
         if parla:
             print(f"{file if e_hook else '/' + comando} e' gia' com'e' in Arturo: niente da spostare.")
         return 0
@@ -250,10 +250,10 @@ def ripristina(file: str) -> int:
     da Arturo. Le modifiche della persona si perdono: lo si lancia solo col suo sì, dopo averle mostrate."""
     r = radice()
     if not HOOK.match(file) or ".." in file:
-        print(f"Errore: si ripristinano solo gli hook di Arturo, nella forma hooks/<nome> (non «{file}»).", file=sys.stderr)
+        print(f'Errore: si ripristinano solo gli hook di Arturo, nella forma hooks/<nome> (non "{file}").', file=sys.stderr)
         return 2
     if SESSIONE.match(file):
-        print(f"Errore: per {file} usa «sposta»: tiene le tue aggiunte in personale/.", file=sys.stderr)
+        print(f'Errore: per {file} usa "sposta": tiene le tue aggiunte in personale/.', file=sys.stderr)
         return 2
     b = base(r)
     if not b:
@@ -332,7 +332,7 @@ def main(argv: list) -> int:
         except (OSError, subprocess.SubprocessError) as errore:
             print(f"Errore: {errore}", file=sys.stderr)
             return 2
-    print(f"Errore: comando sconosciuto: «{' '.join(argv)}»\n\n{AIUTO}", file=sys.stderr)
+    print(f"Errore: comando sconosciuto: \"{' '.join(argv)}\"\n\n{AIUTO}", file=sys.stderr)
     return 2
 
 

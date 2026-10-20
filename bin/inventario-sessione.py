@@ -18,7 +18,7 @@ FONTI
   - oggetti creati online con i connettori (un file su Drive, una bozza di email): vanno nell'handoff;
   - file in ~/Downloads e ~/Desktop modificati durante la sessione.
   Scarta ~/.claude/** (lo copre il Config Sync di /fine) e /dev/*. I file assenti finiscono in
-  «spariti». Lo scratchpad e /tmp restano in elenco, marcati: si perdono al riavvio.
+  "spariti". Lo scratchpad e /tmp restano in elenco, marcati: si perdono al riavvio.
 
 DESTINI PROPOSTI
   repo (commit) · archivia (documento fuori da un repository: va in una cartella che resta) ·
@@ -401,7 +401,7 @@ def tipo_file(path, byte):
 def repo_di(path, cache):
     d = path if os.path.isdir(path) else os.path.dirname(path)
     visti = []
-    # Ci si ferma alla radice: «/», oppure «C:\» su Windows, dove dirname rende la stessa cartella.
+    # Ci si ferma alla radice: "/", oppure "C:\" su Windows, dove dirname rende la stessa cartella.
     while d and os.path.dirname(d) != d:
         if d in cache:
             r = cache[d]; break
@@ -419,7 +419,7 @@ def stato_git(repo, paths):
     """Ritorna {path: pulito|modificato|non tracciato|ignorato}."""
     env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")
     # git risponde a barre dritte: su Windows relpath le dà rovesce, e un file in commit in una
-    # sottocartella risultava «ignorato» (16/10/2026)
+    # sottocartella risultava "ignorato" (16/10/2026)
     rel = [os.path.relpath(p, repo).replace(os.sep, "/") for p in paths]
     def git(*a):
         p = subprocess.run(["git", "-C", repo, *a, "--", *rel], capture_output=True, env=env)

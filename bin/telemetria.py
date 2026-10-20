@@ -179,9 +179,9 @@ def installazione() -> str:
 
 def versione() -> str:
     """Il rilascio di Arturo installato: l'ultimo tag v* raggiungibile, senza i commit della persona.
-    Solo i tag di Arturo (v*): un tag della persona come «backup/prima» fa rifiutare dal server ogni lotto
+    Solo i tag di Arturo (v*): un tag della persona come "backup/prima" fa rifiutare dal server ogni lotto
     (VERSIONE in server/logica.js), e con i lotti si perdono anche gli avvisi delle config rotte (17/10/2026).
-    Senza --abbrev=0 la versione era «v2026-10-17-94-g03ee13d», con l'hash del repository privato di sync:
+    Senza --abbrev=0 la versione era "v2026-10-17-94-g03ee13d", con l'hash del repository privato di sync:
     il riepilogo non diceva chi era sull'ultimo rilascio (19/10/2026, #3613)."""
     try:
         r = subprocess.run(["git", "-C", str(Path.home() / ".claude"), "describe", "--tags", "--abbrev=0", "--match", "v*"],
@@ -472,7 +472,7 @@ def main(argv: list) -> int:
         spenta = perche_spenta()
         print("Telemetria accesa." + (f" Però resta spenta da {spenta}." if spenta else ""))
         return 0
-    print(f"Errore: comando sconosciuto: «{' '.join(argv)}»\n\n{AIUTO}", file=sys.stderr)
+    print(f"Errore: comando sconosciuto: \"{' '.join(argv)}\"\n\n{AIUTO}", file=sys.stderr)
     return 2
 
 

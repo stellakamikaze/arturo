@@ -36,9 +36,9 @@ for n in nomi:
     if n in VOLUTE:
         continue
     if n not in MAPPA:
-        rossi.append(f"lo scanner ha «{n}», che il mod non mappa: aggiungilo a patterns.ts o a VOLUTE")
+        rossi.append(f'lo scanner ha "{n}", che il mod non mappa: aggiungilo a patterns.ts o a VOLUTE')
     elif MAPPA[n] not in tipi_mod:
-        rossi.append(f"«{n}» punta a «{MAPPA[n]}», che patterns.ts non ha più")
+        rossi.append(f'"{n}" punta a "{MAPPA[n]}", che patterns.ts non ha più')
 CASI = len(nomi)
 for r in rossi:
     print("ROSSO", r)

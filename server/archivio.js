@@ -14,7 +14,7 @@ const VISTE = `installazione IN (SELECT installazione FROM eventi GROUP BY insta
 
 export function archivio(db) {
   return {
-    // Gli eventi del giorno di un'installazione. Il totale di tutte sta nel contatore «eventi».
+    // Gli eventi del giorno di un'installazione. Il totale di tutte sta nel contatore "eventi".
     async contaEventi(installazione, giorno) {
       const r = await db.prepare("SELECT COUNT(*) AS n FROM eventi WHERE installazione = ? AND ricevuto_giorno = ?").bind(installazione, giorno).first();
       return r ? r.n : 0;
@@ -82,7 +82,7 @@ export function archivio(db) {
       }
       return fuori;
     },
-    // «Dove migliorare Arturo», per il riepilogo del lunedì e per /v1/riepilogo. Numeri e rapporti,
+    // "Dove migliorare Arturo", per il riepilogo del lunedì e per /v1/riepilogo. Numeri e rapporti,
     // nessuna soglia che decide: il giudizio su cosa correggere spetta a chi legge. Le finestre sono
     // di 30 giorni, perché con poche installazioni una settimana non mostra niente.
     async miglioramento(al) {
@@ -159,7 +159,7 @@ export function archivio(db) {
       await db.batch([
         db.prepare("DELETE FROM eventi WHERE giorno < ?").bind(prima),
         db.prepare("DELETE FROM contatori WHERE giorno < ?").bind(prima),
-        // Le chiavi «una volta per installazione» (giorno 'sempre', come setup-fine:<id>) non hanno una data:
+        // Le chiavi "una volta per installazione" (giorno 'sempre', come setup-fine:<id>) non hanno una data:
         // se ne vanno con l'ultimo evento della loro installazione, cioè dopo gli stessi 12 mesi (#3507).
         db.prepare(`DELETE FROM contatori WHERE giorno = 'sempre' AND NOT EXISTS
           (SELECT 1 FROM eventi WHERE eventi.installazione = substr(contatori.chiave, instr(contatori.chiave, ':') + 1))`),

@@ -161,10 +161,10 @@ def controlla(dirs=None) -> dict:
             continue
         for k in ("name", "description"):
             if not campo(fm, k):
-                errori.append({"file": dove, "motivo": f"manca «{k}» nel frontmatter"})
+                errori.append({"file": dove, "motivo": f'manca "{k}" nel frontmatter'})
         t = campo(fm, "type")
         if t and str(t) not in TIPI:
-            avvisi.append({"file": dove, "motivo": f"type «{t}» fuori dai quattro di Claude Code ({', '.join(TIPI)})"})
+            avvisi.append({"file": dove, "motivo": f"type \"{t}\" fuori dai quattro di Claude Code ({', '.join(TIPI)})"})
         m = FM.match(testo)
         for r in (m.group(1).splitlines() if m else []):
             k = CHIAVE.match(r)
@@ -174,10 +174,10 @@ def controlla(dirs=None) -> dict:
             if not valore or valore[0] in "\"'[{>|":
                 continue
             if ": " in valore:
-                errori.append({"file": dove, "motivo": f"il valore di «{k.group(1)}» contiene «: » senza virgolette: "
+                errori.append({"file": dove, "motivo": f'il valore di "{k.group(1)}" contiene ": " senza virgolette: '
                                                        "il frontmatter non si legge come YAML"})
             elif " #" in valore:
-                avvisi.append({"file": dove, "motivo": f"il valore di «{k.group(1)}» contiene « #»: in YAML il resto "
+                avvisi.append({"file": dove, "motivo": f'il valore di "{k.group(1)}" contiene " #": in YAML il resto '
                                                        "della riga diventa un commento e si perde"})
         for n, r in righe_utili(testo):
             for w in WIKILINK.finditer(r):
@@ -231,7 +231,7 @@ def stato() -> int:
         for d in mie:
             print(f"  - {breve(d)} ({len(file_note([d]))} note)")
     print("Tutto resta su questo computer. Niente della memoria entra nella telemetria.")
-    print("Accendi con «arturo memoria accendi», spegni con «arturo memoria spegni».")
+    print('Accendi con "arturo memoria accendi", spegni con "arturo memoria spegni".')
     return 0
 
 
@@ -347,7 +347,7 @@ def main(argv: list) -> int:
         return comando_controlla(argv[1:])
     if len(argv) == 3 and argv[0] == "cartella" and argv[1] in ("aggiungi", "togli"):
         return cartella(argv[1], argv[2])
-    print(f"Errore: comando sconosciuto: «{' '.join(argv)}»\n\n{AIUTO}", file=sys.stderr)
+    print(f"Errore: comando sconosciuto: \"{' '.join(argv)}\"\n\n{AIUTO}", file=sys.stderr)
     return 2
 
 

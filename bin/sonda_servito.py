@@ -7,7 +7,7 @@ file locale con quello che il server restituisce, e riprova finché la versione 
 
 Uso:
     sonda_servito.py --base URL [--attesa 60] FILE_LOCALE[=PERCORSO_URL] ...
-        FILE_LOCALE=PERCORSO_URL confronta il file con BASE/PERCORSO_URL. Senza «=», usa il nome
+        FILE_LOCALE=PERCORSO_URL confronta il file con BASE/PERCORSO_URL. Senza "=", usa il nome
         del file. Esempio: sonda_servito.py --base https://esempio.org web/index.html= web/app.js
     sonda_servito.py --selftest
 
