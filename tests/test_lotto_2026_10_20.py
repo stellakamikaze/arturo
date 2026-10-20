@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LT01-LT10: lotto del 20/10/2026 sui task aperti di Arturo.
+"""LT01-LT12: lotto del 20/10/2026 sui task aperti di Arturo.
 
 LT01 l'audit vede lo script della barra anche dentro `... statusline.js; echo ...` (#3632): se
      manca, lo dice invece di saltare il controllo.
@@ -18,16 +18,22 @@ LT09 non chiedono più `--exclude .env` di rsync e tar né rmtree su una cartell
      rmtree per alias, `py -c`, `git clean --forc`, clean.requireForce=false e `-enode_modules` (#3525).
 LT10 un aggiornamento che non parte da solo lascia un evento `aggiorna` col motivo, una volta per
      versione e motivo, e il server accetta gli stessi valori del client (#3637).
+LT11 il ponte con Chrome (`claude --chrome-native-host`, installazione nativa o npm, Mac e Windows) non
+     conta come sessione aperta, una sessione vera sì (segnalazione n. 7).
+LT12 un aggiornamento rimandato per un'altra sessione aperta lascia l'esito, e l'avvio dopo dice perché
+     non si è installato invece di ripetere che si installa da solo (segnalazione n. 7).
 
 Sulla base 0936b4c ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 BASH = shutil.which("bash") or "bash"
@@ -231,8 +237,71 @@ def test_lt10(repo: Path) -> None:
             f"LT10 gli eventi degli aggiornamenti fermi non sono uno per motivo: {valori}"
 
 
+def carica_aggiornamenti(repo: Path):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("aggiornamenti_lt", str(repo / "bin" / "aggiornamenti.py"))
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def test_lt11(repo: Path) -> None:
+    m = carica_aggiornamenti(repo)
+    assert hasattr(m, "conta_sessioni"), "LT11 il conteggio delle sessioni non si separa dalla lettura dei processi"
+    ponte = "/Users/x/.local/bin/claude --chrome-native-host chrome-extension://fcoeoabgfenejglbffodgkkbkcdhcgfn/"
+    npm = "/Users/x/.local/node/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe --chrome-native-host"
+    sessione = "/Users/x/.local/bin/claude --resume"
+    assert m.conta_sessioni([ponte, npm, sessione, ""], windows=False) == 1, \
+        "LT11 su Mac e Linux il ponte con Chrome conta come sessione aperta, o la sessione vera no"
+    w_ponte = "C:\\Users\\x\\.local\\bin\\claude.exe\t\"C:\\Users\\x\\.local\\bin\\claude.exe\" --chrome-native-host chrome-extension://abc/"
+    w_sessione = "C:\\Users\\x\\.local\\bin\\claude.exe\tclaude"
+    assert m.conta_sessioni([w_ponte, w_sessione], windows=True) == 1, \
+        "LT11 su Windows il ponte con Chrome conta come sessione aperta, o la sessione vera no"
+    if os.name != "nt":
+        # La riga vera di ps per un processo che si presenta come il ponte nativo di Chrome.
+        finto = subprocess.Popen([BASH, "-c", 'exec -a "$HOME/.local/bin/claude --chrome-native-host chrome-extension://lt11/" sleep 30'])
+        try:
+            righe = []
+            for _ in range(20):
+                uscita = subprocess.run(["ps", "-Ao", "args="], capture_output=True, text=True, timeout=30).stdout
+                righe = [x for x in uscita.splitlines() if "chrome-extension://lt11/" in x]
+                if righe:
+                    break
+                time.sleep(0.2)
+            assert righe and m.conta_sessioni(righe, windows=False) == 0, \
+                f"LT11 la riga di ps del ponte con Chrome conta come sessione aperta: {righe}"
+        finally:
+            finto.kill()
+            finto.wait()
+
+
+def test_lt12(repo: Path) -> None:
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("autoaggiorna_lt", str(Path(__file__).parent / "test_autoaggiorna.py"))
+    aa = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(aa)
+
+    def prova(lab) -> None:
+        prima = lab.head()
+        lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        lab.arturo_cli("applica", ARTURO_ALTRE_SESSIONI="1")
+        assert lab.head() == prima, "LT12 con un'altra sessione aperta si installa lo stesso"
+        f = lab.utente / "session-env" / "aggiornamento-esito.json"
+        esito = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+        assert esito.get("esito") == "RINVIATO" and esito.get("versione") == "v2026-02-01", \
+            f"LT12 un aggiornamento rimandato non lascia l'esito: {esito}"
+        uscita = lab.arturo_cli("stato").stdout
+        assert "un'altra sessione" in uscita and "/aggiorna" in uscita and "si installa da sola" not in uscita, \
+            f"LT12 l'avvio dopo un rinvio non dice perché: {uscita!r}"
+        uscita = lab.arturo_cli("stato").stdout
+        assert "si installa da sola" in uscita and "un'altra sessione" not in uscita, \
+            f"LT12 il motivo del rinvio si ripete anche dopo che l'avvio l'ha detto: {uscita!r}"
+    aa.con_lab(repo, "LT12", prova)
+
+
 TESTS = {"LT01": test_lt01, "LT02": test_lt02, "LT03": test_lt03, "LT04": test_lt04, "LT05": test_lt05,
-         "LT06": test_lt06, "LT07": test_lt07, "LT08": test_lt08, "LT09": test_lt09, "LT10": test_lt10}
+         "LT06": test_lt06, "LT07": test_lt07, "LT08": test_lt08, "LT09": test_lt09, "LT10": test_lt10,
+         "LT11": test_lt11, "LT12": test_lt12}
 
 
 def main() -> int:

@@ -68,6 +68,10 @@ lavoro che avevi già.
 
 **Da sapere**: niente da fare. Se un aggiornamento non si installa da solo, adesso chi mantiene
 Arturo vede il motivo (un'altra sessione aperta, la firma, la versione) e può correggerlo.
+Con Chrome aperto e l'estensione Claude in Chrome attiva, l'aggiornamento automatico non partiva
+mai: Arturo scambiava il ponte con Chrome per una sessione aperta. Ora lo riconosce. E se un'altra
+sessione aperta rimanda davvero l'aggiornamento, l'avvio dopo te lo dice, con il modo di
+installarlo subito.
 
 ---
 

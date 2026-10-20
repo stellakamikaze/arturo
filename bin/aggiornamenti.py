@@ -169,18 +169,30 @@ def processi_claude() -> int:
                        "ForEach-Object { \"$($_.ExecutablePath)`t$($_.CommandLine)\" }")
             uscita = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", comando],
                                     capture_output=True, text=True, timeout=30).stdout
-            righe = [x for x in uscita.splitlines() if x.strip()]
-            return sum(1 for x in righe if "AnthropicClaude" not in x and "WindowsApps" not in x
-                       and (re.search(r"\\\.local\\bin\\claude\.exe", x, re.I) or "claude-code" in x.lower()))
+            return conta_sessioni(uscita.splitlines(), windows=True)
         uscita = subprocess.run(["ps", "-Ao", "args="], capture_output=True, text=True, timeout=30).stdout
-        conta = 0
-        for riga in uscita.splitlines():
-            parti = riga.split()
-            if parti and (os.path.basename(parti[0]) == "claude" or "@anthropic-ai/claude-code" in riga):
-                conta += 1
-        return conta
+        return conta_sessioni(uscita.splitlines(), windows=False)
     except (OSError, subprocess.SubprocessError, ValueError):
         return 1  # nel dubbio una sessione è aperta: si rimanda
+
+
+def conta_sessioni(righe: list, windows: bool) -> int:
+    """Quante righe dei processi sono sessioni di Claude Code. Il ponte con Chrome
+    (`claude --chrome-native-host`) non è una sessione: resta acceso finché Chrome è aperto, e contato
+    rimandava l'aggiornamento per sempre (segnalazione n. 7, 20/10/2026)."""
+    conta = 0
+    for riga in righe:
+        if not riga.strip() or "--chrome-native-host" in riga:
+            continue
+        if windows:
+            if "AnthropicClaude" not in riga and "WindowsApps" not in riga and \
+                    (re.search(r"\\\.local\\bin\\claude\.exe", riga, re.I) or "claude-code" in riga.lower()):
+                conta += 1
+            continue
+        parti = riga.split()
+        if os.path.basename(parti[0]) == "claude" or "@anthropic-ai/claude-code" in riga:
+            conta += 1
+    return conta
 
 
 def cmd_stato(r: Path) -> int:
@@ -197,10 +209,13 @@ def cmd_stato(r: Path) -> int:
         except OSError:
             pass
     esito = leggi(file_esito(r))
+    rinviato = ""
     if esito and not esito.get("mostrato"):
         if esito.get("esito") == "APPLICATO":
             righe.append(f"ARTURO: aggiornato a {esito.get('versione')} alla chiusura della sessione. /novita racconta "
                          "cosa cambia.")
+        elif esito.get("esito") == "RINVIATO":
+            rinviato = esito.get("versione", "")
         else:
             righe.append(f"ARTURO: l'aggiornamento automatico a {esito.get('versione')} non è partito "
                          f"({esito.get('riga') or 'motivo sconosciuto'}). Scaricalo con /aggiorna.")
@@ -215,7 +230,11 @@ def cmd_stato(r: Path) -> int:
         scrivi(file_stato(r), stato)
     except OSError:
         pass
-    if stato["stato"] == "pronto":
+    if stato["stato"] == "pronto" and rinviato == stato["versione"]:
+        righe.append(f"ARTURO: la versione {rinviato} non si è installata alla chiusura scorsa, perché un'altra "
+                     "sessione di Claude Code era ancora aperta. Si installa quando chiudi l'ultima, oppure subito con "
+                     "/aggiorna. Dillo alla persona in una frase.")
+    elif stato["stato"] == "pronto":
         righe.append(f"ARTURO: c'è la versione {stato['versione']}: si installa da sola alla chiusura della sessione.")
     elif stato.get("compromesso"):
         righe.append(f"ARTURO: {COMPROMISSIONE}. {stato['motivo'][0].upper()}{stato['motivo'][1:]}: la versione "
@@ -307,7 +326,10 @@ def _applica(r: Path) -> int:
     while processi_claude() > 0:
         if time.time() >= limite:
             _segnala_ostacolo(r, stato, "rinviato")
-            return 0  # un'altra sessione è aperta: la installa l'ultima che chiude
+            # Un'altra sessione è aperta: la installa l'ultima che chiude. L'esito resta scritto, così
+            # l'avvio dopo dice perché non è successo, invece di ripetere che si installa da sola.
+            _esito(r, stato["versione"], "RINVIATO", "un'altra sessione di Claude Code era ancora aperta")
+            return 0
         time.sleep(2)
     stato = calcola(r)
     if stato["stato"] != "pronto":
