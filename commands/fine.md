@@ -291,7 +291,7 @@ if [ "$CONFIG_INTEGRA" = 1 ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; 
   # CLAUDE.md personale, aggiunte ai comandi (personale/), handoff e todo viaggiano solo verso un remote privato verificato.
   if [ "$VIS" = "PRIVATE" ]; then
     # -f scavalca .gitignore: l'esclusione tiene fuori il lucchetto (*.lock) di arturo todo.
-    for p in CLAUDE.md data/handoffs data/todo personale; do
+    for p in CLAUDE.md data/handoffs data/todo personale data/memory; do
       [ -e "$p" ] || continue
       git add -f -- "$p" ':(exclude,glob)**/*.lock' || echo "git add fallito su $p: resta fuori dal commit"
     done

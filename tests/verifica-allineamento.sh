@@ -236,6 +236,8 @@ BASELINE=(
   "test_heredoc_backtick.py 3211b74"
   # Lotto del 20/10/2026 (#3632 #3552 #3596 #3587 #3594 #3595 #3524 #3525 #3637): 0936b4c, l'ultimo dev prima.
   "test_lotto_2026_10_20.py 0936b4c"
+  # Arturo usa Melchior, la memoria della config di chi lo mantiene (20/10/2026): aabe7fa, l'ultimo dev prima.
+  "test_memoria.py aabe7fa"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"
@@ -250,6 +252,10 @@ for riga in "${BASELINE[@]}"; do
     python3 -B "$REPO/tests/$test" --repo "$base" --baseline-ref "$ref"
   fi
 done
+
+# I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
+# fallire il controllo col suo codice e il motivo atteso (test_memoria.py Y08-Y12, 20/10/2026).
+python3 -B "$REPO/tests/test_memoria.py" --repo "$REPO" --avvelena
 
 # Il server della telemetria (server/logica.js) con un archivio e una posta finti.
 node "$REPO/server/test.mjs"

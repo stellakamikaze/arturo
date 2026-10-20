@@ -24,6 +24,9 @@ data/segnalazioni/
 data/telemetria/
 # L'interruttore e le cartelle della memoria facoltativa (bin/memoria.py): restano su questo computer.
 data/memoria/
+# Le note della memoria curata (Melchior): sono della persona, mai nel repository. /fine le porta
+# solo verso un remote privato verificato.
+data/memory/
 # Il segno della FASE 9 di /setup: dice che questa installazione è configurata.
 data/setup-fatto
 # La scelta fra aggiornamenti automatici e manuali (bin/aggiornamenti.py): è di chi usa Arturo.
@@ -65,6 +68,7 @@ client_secret*.json
 CLAUDE.md
 hooks/hosts-interni.local
 hooks/api-fidate.local
+hooks/melchior-stopword.local
 # Le aggiunte ai comandi di Arturo (arturo personale): /fine le porta solo verso un remote privato.
 /personale/
 

@@ -480,7 +480,7 @@ COMANDI = {
     "segnala": ("segnala", "un problema, un'idea o un'integrazione per chi mantiene Arturo"),
     "telemetria": ("telemetria", "gli eventi d'uso che Arturo manda, con un id casuale: stato, mostra, spegni, accendi, invia"),
     "personale": ("personale", "le tue aggiunte ai comandi e agli hook di sessione di Arturo, in file che gli aggiornamenti non toccano"),
-    "memoria": ("memoria", "la memoria facoltativa, spenta di default: stato, accendi, spegni, cerca, controlla"),
+    "memoria": ("memoria", "la memoria facoltativa (Melchior), spenta di default: stato, accendi, spegni, cerca, controlla"),
     "contesto": ("contesto", "il contesto di un progetto in una chiamata: git, handoff, todo, scadenze (/inizio)"),
     "diagnosi": ("diagnosi", "percorsi spariti e file sparsi di un progetto, in sola lettura (/diagnosi)"),
     "aggiornamenti": ("aggiornamenti", "Arturo si aggiorna da solo alla chiusura, solo coi rilasci firmati: stato, controlla, applica, manuali, automatici"),

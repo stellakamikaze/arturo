@@ -9,8 +9,8 @@ U01 nessun hook Python legge stdin come testo: tutti decodificano sys.stdin.buff
     Vale per hooks/*.py e per gli script di bin/ che settings.json lancia come hook.
 U02 block-dangerous chiede conferma per un rm ricorsivo anche se il comando contiene «”».
 U03 emoji_remover vede l'emoji nuova in un file di codice.
-U04 memoria-scrittura vede i caratteri invisibili in una nota di memoria.
-U05 memoria-richiamo trova una nota con le parole accentate del messaggio.
+U04 memory-write-scanner vede i caratteri invisibili in una nota di memoria.
+U05 memory-retrieve trova una nota con le parole accentate del messaggio.
 U06 il dispatcher passa alle guardie il comando intero: un rm con «”» e un invio con «→»
 chiedono conferma.
 U07 nessun hook si rompe all'avvio con un input minimo, e forma_comando riconosce «git status» come git puro.
@@ -102,7 +102,7 @@ def test_u04(repo: Path) -> None:
         nota.parent.mkdir(parents=True)
         nota.write_text("", encoding="utf-8")
         contenuto = f"---\nname: nota\n---\nRicorda la città​ e la società {VIRGOLETTA}\n"
-        r = hook(repo, "memoria-scrittura.py", {"tool_name": "Write", "tool_input": {"file_path": str(nota), "content": contenuto}}, casa)
+        r = hook(repo, "memory-write-scanner.py", {"tool_name": "Write", "tool_input": {"file_path": str(nota), "content": contenuto}}, casa)
         assert "invisibili" in testo(r.stdout), f"U04 caratteri invisibili non visti: rc={r.returncode} stdout={testo(r.stdout)[-300:]!r}"
 
 
@@ -115,7 +115,7 @@ def test_u05(repo: Path) -> None:
             "---\nname: fattura-societa\ndescription: perché la società paga la città\n"
             "triggers: società, città, perché\ntype: reference\n---\nLa società paga la città.\n", encoding="utf-8")
         dati = {"prompt": "la società paga la città perché?", "session_id": "u05"}
-        r = hook(repo, "memoria-richiamo.py", dati, casa, ARTURO_MEMORIA="1")
+        r = hook(repo, "memory-retrieve.py", dati, casa, ARTURO_MEMORIA="1")
         assert "fattura-societa" in testo(r.stdout), \
             f"U05 nota con parole accentate non richiamata: rc={r.returncode} stdout={testo(r.stdout)[-300:]!r} stderr={testo(r.stderr)[-300:]!r}"
 

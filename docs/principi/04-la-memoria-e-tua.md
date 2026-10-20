@@ -35,7 +35,9 @@ Arturo sceglie il secondo posto, per le ragioni del capitolo 00.
 - **Le tue aggiunte ai comandi** stanno in `personale/`. Gli aggiornamenti di Arturo non le
   toccano.
 - **Le note che Claude Code prende da solo** diventano utili ovunque se accendi la memoria
-  facoltativa (`arturo memoria accendi`). È spenta finché non la accendi tu.
+  facoltativa (`arturo memoria accendi`). È spenta finché non la accendi tu. Legge le note dove
+  sono, in `~/.claude/projects/*/memory/`, in `~/.claude/data/memory/` e nelle cartelle che
+  aggiungi: non le copia e non le sposta.
 
 Tutto questo è testo semplice dentro `~/.claude`, una cartella sul tuo computer. Niente sta su
 un server, e niente della memoria entra nella telemetria. Se la cartella va in un tuo

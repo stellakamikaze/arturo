@@ -293,7 +293,7 @@ Fuori dal dispatcher:
 - `web-egress-guard.py` — PreToolUse su `WebFetch`, jina, tavily, `browser_navigate` (anche Firefox) e Claude in Chrome (`navigate` e `browser_batch`): esfiltrazione via URL verso host esterni.
 - `credential-leak-scanner.py` — PostToolUse: rileva token e chiavi negli output di Bash/WebFetch/MCP. L'avviso arriva a Claude, non solo a te (`additionalContext`).
 - `prompt-injection-scanner.py` — PostToolUse: segnala tentativi di prompt injection nei contenuti esterni (pattern EN + IT). Anche questo avviso arriva a Claude.
-- `memoria-scrittura.py` — PostToolUse, sempre acceso: controlla le note di memoria e gli handoff che Claude scrive (password, chiavi, istruzioni nascoste). `memoria-richiamo.py` e `memoria-subagente.py` sono la memoria facoltativa, spenta di default: vedi «La memoria (facoltativa)».
+- `memory-write-scanner.py` — PostToolUse, sempre acceso: controlla le note di memoria e gli handoff che Claude scrive (password, chiavi, istruzioni nascoste, URL che portano dati fuori). `memory-retrieve.py`, `memory-autoload.py`, `subagent-memory-context.py` e `melchior-postwrite.py` sono la memoria facoltativa, spenta di default: vedi «La memoria (facoltativa)».
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
 - `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
 - `session-start.sh` / `session-end.sh` — riga `MACCHINA`, riga `NODE` se node manca, avvisi Git locali, file della config modificati e non salvati, controllo della deriva (`deriva.py`), banchi delle guardie in background ogni 12 ore (`tests/banchi-avvio.sh`, un rosso si dice all'avvio; `ARTURO_BANCHI_AVVIO=0` li spegne), avvio della telemetria (`arturo telemetria`), invito a `/segnala` (si spegne con `arturo segnala basta`), promemoria di chiusura anche senza file cambiati e cleanup degli unlock di sessione. L'avvio dice anche lo stato dell'aggiornamento automatico (`bin/aggiornamenti.py stato`, senza rete), e la chiusura lo installa (`aggiornamenti.py applica`, staccato).
@@ -382,20 +382,29 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 `~/.claude/projects/*/memory/`: cosa preferisci, cosa hai deciso, dove stanno le cose. Di solito le
 rilegge solo nel progetto in cui le ha scritte. La memoria di Arturo le rende utili ovunque, ed è
 spenta finché non la accendi (`/setup` te lo chiede, oppure `python3 ~/.claude/bin/arturo memoria accendi`).
+È Melchior, la memoria della config di chi mantiene Arturo: lo stesso codice (`hooks/melchior_match.py`,
+gli hook `memory-*`, `scripts/melchior_recall.py`), copiato identico. Le note di chi mantiene Arturo
+non sono nel repository: Arturo legge solo le tue. Le note stanno in tre posti, e restano lì: le note
+di Claude Code in `~/.claude/projects/*/memory/`, la memoria curata in `~/.claude/data/memory/`
+(fuori da git, come i todo), e le cartelle che aggiungi tu. Una nota raggiunta da due posti conta
+una volta, e due note con lo stesso nome in due progetti restano due note.
 Quando è accesa:
 
-- a ogni tuo messaggio `memoria-richiamo.py` cerca le note che parlano della stessa cosa e ne dà a
+- a ogni tuo messaggio `memory-retrieve.py` cerca le note che parlano della stessa cosa e ne dà a
   Claude il percorso. Claude apre una nota solo se gli serve. Sotto una soglia di pertinenza tace;
-- `memoria-subagente.py` dice ai subagenti che la memoria esiste e come cercarla.
+- all'avvio `memory-autoload.py` indica la scheda del progetto (`progetto-<cartella>.md`), se c'è;
+- `subagent-memory-context.py` dice ai subagenti che la memoria esiste e come cercarla;
+- `melchior-postwrite.py` tiene in ordine solo `~/.claude/data/memory/`: date nel frontmatter e
+  cartella giusta per una nota nuova. Le note di Claude Code e le tue cartelle non le tocca mai.
 
-`arturo memoria cerca "parole"` cerca a mano, anche a memoria spenta. `arturo memoria controlla`
+`arturo memoria cerca "parole"` cerca a mano, anche a memoria spenta (è `scripts/melchior_recall.py`). `arturo memoria controlla`
 trova note senza descrizione, frontmatter illeggibili e link rotti. `arturo memoria cartella aggiungi
 <cartella>` aggiunge una tua cartella di note markdown (con `name` e `description` in testa).
 `arturo memoria spegni` la spegne: le note restano dove sono. Tutto resta su questo computer:
 nessun server, nessun archivio nuovo, e niente della memoria entra nella telemetria.
 L'interruttore sta in `~/.claude/data/memoria/`, fuori da git; `ARTURO_MEMORIA=0` lo scavalca.
 
-Una parte resta sempre accesa, anche a memoria spenta: `memoria-scrittura.py` controlla ogni nota e
+Una parte resta sempre accesa, anche a memoria spenta: `memory-write-scanner.py` controlla ogni nota e
 ogni handoff che Claude scrive. Se dentro c'è una password, una chiave o un'istruzione nascosta,
 Claude riceve un avviso. Il valore trovato non viene mai stampato.
 

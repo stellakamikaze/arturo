@@ -183,6 +183,11 @@ if [ -f "$HOME/.claude/NOVITA.md" ]; then
   fi
 fi
 
+# Auto-load selettivo memory (just-in-time: mostra indice, non carica contenuti)
+if [ -x /usr/bin/python3 ] || command -v python3 >/dev/null 2>&1; then
+    python3 "$HOME/.claude/hooks/memory-autoload.py" 2>/dev/null || true
+fi
+
 # Deriva (hooks/deriva.py): file e hook di Arturo cambiati o spenti, config rotta. Una riga solo se
 # c'è da fare; registra per la telemetria l'elenco quando cambia. Prima dell'avvio della telemetria,
 # così una config rotta parte con l'invio di questa sessione.

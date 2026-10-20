@@ -56,6 +56,10 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos; do
   [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mv "$B/$x" "$HOME/.claude/"
 done
+# Anche la memoria di un Arturo installato prima: le note curate e l'interruttore.
+for x in data/memory data/memoria; do
+  [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mkdir -p "$HOME/.claude/data" && mv "$B/$x" "$HOME/.claude/$x"
+done
 ```
 
 Su Windows questi comandi vanno dati in **Git Bash**, non nel Prompt dei comandi o in PowerShell: lì la tilde `~` non si espande e il clone finisce in una cartella sbagliata senza errori. Poi digli di riaprire Claude Code dentro l'harness e rilanciare `/setup`.
@@ -247,7 +251,9 @@ I todo si leggono anche fuori da Claude Code, con `python3 ~/.claude/bin/arturo 
 
 Claude Code salva da solo alcune note sulle sessioni passate: cosa preferisci, cosa hai deciso,
 dove stanno le cose. Di solito le rilegge solo nel progetto in cui le ha scritte. La memoria di
-Arturo le rende utili ovunque. Spiegalo così, in parole semplici:
+Arturo (Melchior, la stessa di chi mantiene Arturo) le rende utili ovunque. Legge le note di
+Claude Code dove sono, quelle di `~/.claude/data/memory/` e le cartelle che aggiungi tu: non copia
+e non sposta niente. Spiegalo così, in parole semplici:
 
 - quando scrivi un messaggio, Arturo cerca fra le note quelle che parlano della stessa cosa e dice
   a Claude dove sono. Claude le apre solo se servono;

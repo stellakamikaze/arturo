@@ -11,6 +11,27 @@ modo di lavorare.
 
 ---
 
+## 2026-10-20 — La memoria è la stessa di chi mantiene Arturo
+
+**Cosa cambia**: la memoria facoltativa di Arturo ora è Melchior, la memoria che chi mantiene
+Arturo usa ogni giorno: lo stesso codice, copiato identico. Le tue note restano dove sono e come
+sono: quelle che Claude Code scrive da solo, le cartelle che hai aggiunto, e una cartella nuova,
+`~/.claude/data/memory/`, per le note che curi tu (fuori da git, come i todo). Il richiamo trova
+anche due note con lo stesso nome in due progetti, e non conta due volte una nota raggiunta da due
+posti. All'avvio, se c'è, Claude riceve la scheda del progetto in cui lavori. Il controllo sulle
+note che Claude scrive guarda anche gli URL che portano dati fuori, e fida gli host che hai messo
+in `hooks/hosts-interni.local`. La memoria resta spenta finché non la accendi.
+
+**Il principio dietro**: chi mantiene Arturo deve usare quello che usi tu. Con due memorie diverse,
+i difetti della tua restano invisibili a chi la mantiene. Le sue note invece non arrivano a te:
+nel repository c'è solo il codice.
+
+**Da sapere**: niente da fare. `arturo memoria stato` dice dove cerca e quante note trova, e
+`arturo memoria accendi` la accende. Se ci sono parole che il richiamo deve ignorare, scrivile una
+per riga in `hooks/melchior-stopword.local`.
+
+---
+
 ## 2026-10-20 — Meno domande inutili, meno uscite nascoste, e l'installazione non ti fa perdere niente
 
 **Cosa cambia**: Claude ti chiede conferma meno spesso dove non serve. Copiare una cartella con

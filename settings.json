@@ -314,6 +314,12 @@
             "type": "command",
             "command": "bash ~/.claude/bin/telemetria-esito.sh",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/melchior-postwrite.py",
+            "timeout": 10,
+            "async": true
           }
         ]
       },
@@ -357,8 +363,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.claude/hooks/memoria-scrittura.py",
-            "timeout": 5
+            "command": "python3 ~/.claude/hooks/memory-write-scanner.py",
+            "timeout": 6
           }
         ]
       },
@@ -394,7 +400,7 @@
           },
           {
             "type": "command",
-            "command": "python3 ~/.claude/hooks/memoria-richiamo.py",
+            "command": "python3 ~/.claude/hooks/memory-retrieve.py",
             "timeout": 5
           },
           {
@@ -412,7 +418,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.claude/hooks/memoria-subagente.py",
+            "command": "python3 ~/.claude/hooks/subagent-memory-context.py",
             "timeout": 5
           }
         ]
