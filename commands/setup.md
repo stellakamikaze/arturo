@@ -170,18 +170,17 @@ Lo stile decide come Claude scrive le risposte: lunghezza, tono, quanto spiega. 
 Claude può fare: permessi e guardie restano gli stessi. Mostra all'utente questa scelta, con la
 prima voce consigliata:
 
-1. **Guida** (consigliato per iniziare) — frasi semplici, niente gergo, prima l'esito e poi cosa fare. Pensato per chi non programma. È lo stile di partenza di Arturo.
-2. **Conciso** — risposte brevi e dirette, per chi usa Claude ogni giorno e vuole leggere poco.
-3. **Default** — lo stile standard di Claude Code, pensato per chi sviluppa software.
-4. **Explanatory** — Claude spiega le scelte che fa mentre lavora (stile di Claude Code, in inglese nelle intestazioni).
-5. **Learning** — Claude ti lascia scrivere alcune parti da solo per imparare (stile di Claude Code).
+1. **Conciso** (consigliato) — risposte brevi e dirette, prima l'esito e poi cosa fare. È lo stile di partenza di Arturo.
+2. **Default** — lo stile standard di Claude Code, pensato per chi sviluppa software.
+3. **Explanatory** — Claude spiega le scelte che fa mentre lavora (stile di Claude Code, in inglese nelle intestazioni).
+4. **Learning** — Claude ti lascia scrivere alcune parti da solo per imparare (stile di Claude Code).
 
-I primi due stanno in `~/.claude/output-styles/` e arrivano con gli aggiornamenti di Arturo. Gli
-ultimi tre sono di Claude Code. Imposta la scelta nel campo `outputStyle` di `~/.claude/settings.json`
-(`Guida`, `Conciso`, `default`, `Explanatory` o `Learning`), mostrando prima la riga. Spiega che lo
+Il primo sta in `~/.claude/output-styles/` e arriva con gli aggiornamenti di Arturo. Gli altri
+tre sono di Claude Code. Imposta la scelta nel campo `outputStyle` di `~/.claude/settings.json`
+(`Conciso`, `default`, `Explanatory` o `Learning`), mostrando prima la riga. Spiega che lo
 stile si cambia anche dopo, in qualunque sessione, con `/output-style`, e che vale dalla sessione
 successiva. Se l'utente vuole uno stile tutto suo, crealo in `~/.claude/output-styles/<nome>.md`
-partendo da `guida.md`: un file con un nome nuovo non entra mai in conflitto con un aggiornamento.
+partendo da `conciso.md`: un file con un nome nuovo non entra mai in conflitto con un aggiornamento.
 
 ---
 

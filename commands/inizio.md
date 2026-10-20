@@ -1,17 +1,18 @@
 ---
-description: Avvia la sessione su un progetto - sync della config (con --tutti anche dei progetti), contesto in una chiamata (git, handoff, todo con chi agisce, scadenze), cruscotto e scelta del lavoro
+description: >-
+  Apre la sessione su un progetto: sync della config (con --tutti anche dei progetti), contesto in una
+  chiamata con arturo contesto (git, handoff recenti, todo con chi agisce, scadenze), le altre sessioni
+  sullo stesso progetto, poi la ripartenza per filone con ogni todo marcato per chi agisce. Con «--
+  <compito>» parte subito sul compito. Progetto non trovato: propone i nomi simili e non crea niente
+  senza un sì. La chiusura è /fine.
 argument-hint: "<nome-progetto> [--tutti] [-- <compito>]"
 ---
 
-# Inizio Sessione
+# Inizio sessione
 
-Avvia sessione di lavoro su **$ARGUMENTS**.
-
-`--tutti` è un flag: aggiorna anche tutti i progetti (FASE 0) e non entra nel nome. Il testo dopo
-« -- » è il compito della sessione (vedi «Con un compito» in fondo). Con `--tutti` e senza nome
-ti fermi dopo la FASE 0.
-
----
+Argomenti: **$ARGUMENTS**. Il testo dopo « -- » è il compito della sessione (vedi «Con un compito» in
+fondo). `--tutti` è un flag: aggiorna anche tutti i progetti (FASE 0) e non entra nel nome. Senza nome
+usa la cartella in cui sei. Con `--tutti` e senza nome ti fermi dopo la FASE 0.
 
 ## FASE -1: Onboarding speciali
 
@@ -23,8 +24,6 @@ verifica) solo se l'utente vuole più account, i comandi `gws` nel terminale, o 
 connettori non sono disponibili per lui. Esegui i comandi verificabili, chiedi
 all'utente quelli interattivi (login browser). Alla fine esegui la checklist della
 strada scelta. Poi FERMATI: le fasi sotto non si applicano.
-
----
 
 ## FASE 0: Sync Config
 
@@ -114,8 +113,6 @@ Con `rc=1` almeno un progetto ha un pull fallito, uno stash in conflitto o file 
 riporta quale e cosa dice la riga `ERRORE`, e non toccarlo. Lo sistemi con `/inizio <quel progetto>`.
 Un progetto senza remote è solo locale: non è un errore.
 
----
-
 ## FASE 1: Contesto in una chiamata
 
 `$ARGUMENTS` può contenere `--tutti` e, dopo « -- », il compito della sessione: lo script li
@@ -131,24 +128,31 @@ Lo script legge e non scrive niente. Calcola lo slug del progetto come `/fine`
 ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
 - `PROGETTO` e la riga `cartella:` (il percorso, oppure `nessuna`);
 - `GIT`: branch, modifiche non salvate, CONFLITTI DI MERGE, i commit arrivati dopo l'ultimo handoff;
-- `RIPARTENZA`: la Ripartenza e il prossimo passo degli handoff degli ultimi 14 giorni, e il
-  percorso dell'ultimo handoff da leggere per intero;
+- `RIPARTENZA`: la Ripartenza e il prossimo passo degli handoff degli ultimi 14 giorni, col filone
+  quando c'è, e il percorso dell'ultimo handoff da leggere per intero;
 - i todo aperti del progetto divisi per chi agisce (TOCCA A TE, DECIDI TU POI FACCIO IO, FACCIO
   IO, FERMO), i todo chiusi dopo l'ultimo handoff, le SCADENZE dei prossimi 7 giorni anche fuori
   dal progetto, il todo DA DOVE PARTIRE e gli avvisi.
 
 Con `rc=0` entra nella cartella della riga `cartella:` con `cd "<cartella>"`: la sessione e
 `/fine` lavorano lì. Con `cartella: nessuna` il progetto vive solo negli handoff o nei todo:
-resta dove sei. Se il progetto ha un remote, aggiornalo senza riscrivere la storia:
+resta dove sei.
 
-```bash
-git remote 2>/dev/null | grep -q . && { GIT_TERMINAL_PROMPT=0 git pull --ff-only 2>&1 || echo "Pull non riuscito: il progetto e il remote hanno storie diverse. Non ho toccato niente."; }
-```
+- **Pull.** Se il progetto ha un remote, aggiornalo senza riscrivere la storia:
 
-Se il pull non riesce, dillo alla persona: niente rebase in automatico. Se `GIT` mostra
-CONFLITTI DI MERGE, risolvili PRIMA di procedere.
+  ```bash
+  git remote 2>/dev/null | grep -q . && { GIT_TERMINAL_PROMPT=0 git pull --ff-only 2>&1 || echo "Pull non riuscito: il progetto e il remote hanno storie diverse. Non ho toccato niente."; }
+  ```
 
----
+  Se il pull non riesce, dillo alla persona: niente rebase in automatico. Se `GIT` mostra CONFLITTI
+  DI MERGE, risolvili PRIMA di tutto il resto. I commit arrivati vanno nel «Da allora».
+- **Altre sessioni.** Lancia `ListAgents`. Un'altra sessione di Claude Code sullo stesso progetto va
+  in cima alla ripartenza, con quello che sta facendo.
+- **Worktree, solo se c'è quella sessione.** Due sessioni nella stessa cartella si pestano i piedi:
+  test, build e commit vedono anche il lavoro dell'altra. Prima di qualsiasi modifica entra con
+  `EnterWorktree` (nome `<slug>-<aaaammgg-hhmm>`, parte dall'ultimo commit locale). La ripartenza dice
+  che la sessione lavora in una copia a parte, e `/fine` riporta il lavoro nella cartella principale.
+  Sessione unica: resta nella cartella principale.
 
 ## FASE 2: Progetto non trovato
 
@@ -173,17 +177,22 @@ percorsi dei file che stanno fuori dal repo (all'inizio può essere vuota). Poi 
 `git add .gitignore CLAUDE.md && git commit -q -m "inizio del progetto"`. Gli handoff non entrano
 mai nel repo del progetto.
 
----
+## FASE 3: Carica il contesto
 
-## FASE 3: Carica Contesto
-
-Leggi in ordine (se esistono):
-1. `CLAUDE.md` — Istruzioni progetto
-2. L'ultimo handoff per intero: il percorso è nella riga «da leggere per intero» della FASE 1.
+Leggi in ordine, se esistono:
+1. il `CLAUDE.md` del progetto;
+2. l'ultimo handoff per intero: il percorso è nella riga «da leggere per intero» della FASE 1.
    Se la FASE 1 segnala un handoff nella cartella del progetto più recente dello store (lasciato
    da una versione vecchia di `/fine`), leggi quello.
 
----
+Per farti un'idea dello stack (un segnale per il tuo giudizio, non una regola):
+
+```bash
+[ -f "package.json" ] && echo "HAS_PKG=true"
+[ -f "prisma/schema.prisma" ] && echo "HAS_PRISMA=true"
+[ -d "docs" ] && echo "HAS_DOCS=true"
+ls next.config.* 2>/dev/null && echo "HAS_NEXT=true"
+```
 
 ## FASE 4: Carica i Todo con Cross-Reference
 
@@ -208,101 +217,96 @@ claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p 
 
 1. Per ogni todo aperto del progetto, verifica se un commit recente lo ha già completato. Se sì,
    chiudilo con `python3 ~/.claude/bin/arturo todo fatto ID --titolo-atteso="titolo"` e dillo
-   alla persona. I todo di «generale» non si confrontano con il git log del progetto.
+   alla persona nel «Da allora». I todo di «generale» non si confrontano con il git log del progetto.
 2. Un item della tabella `## Task Pendenti` senza ID e senza todo (handoff di una versione
    precedente) diventa un todo con `arturo todo aggiungi`. Un todo già chiuso non si ricrea.
 3. Non creare task di sessione (`TaskCreate`) all'apertura: si crea solo quello che la persona
    sceglie di riprendere.
 
+## FASE 5: La ripartenza
+
+La persona guarda la lista e sceglie da dove partire. La ripartenza è markdown semplice: niente
+blocco di codice, niente riquadri. Un buon risultato:
+
 ---
+**Il libro** · branch main · ultimo handoff 14/10 alle 18:40
 
-## FASE 5: Presenta Dashboard
+**Da allora.** Il 14/10 il capitolo tre è stato riscritto e mancano solo le note dell'editor. Oggi
+sono arrivati 3 commit dall'altro computer, e nessun handoff li racconta. Il todo dell'indice è già
+fatto da uno di quei commit: l'ho chiuso.
 
-```
-----------------------------------------------------
- SESSIONE: $ARGUMENTS
-----------------------------------------------------
+**Capitolo tre**
+1. Mandare la bozza all'editor · #5 · Preparo io, poi tu: invio a terzi
+2. Rileggere il capitolo con le note · #4 · Fermo: aspetta il 5
 
-## Contesto
-- Branch: [nome]
-- Ultimo stato: [HANDOFF / nessuno]
-- Config sync: [ok / failed]  (con --tutti: progetti aggiornati / con errori)
-- Merge conflicts: [nessuno / LISTA]
+**Copertina**
+3. Scegliere fra le due proposte della grafica · #7 · Decidi tu
+   Mi serve sapere quale delle due ti convince, poi preparo i file per la tipografia.
+4. Preparare i file per la tipografia · #8 · Faccio io
 
-## Da allora
-[2-4 frasi: la Ripartenza dell'ultimo handoff e cosa è cambiato dopo: i commit arrivati, i todo
- chiusi, le scadenze arrivate, un handoff di un'altra macchina. Chiudi con quello che ne segue.]
+**Fuori dai progetti**
+5. Rinnovare l'abbonamento al dominio, scade venerdì · #2 · Tocca a te: pagamento
 
-## Todo
-[se la lettura della FASE 4 stampa righe «Attenzione:», riportale qui per prime, una riga
- ciascuna, con parole tue: «#1 adesso è #2, dopo il merge con l'altro computer».]
-[i gruppi di `arturo todo`: TOCCA A TE, DECIDI TU POI FACCIO IO, FACCIO IO, FERMO.
- Ogni todo con l'ID a destra e una riga su a cosa serve. Le scadenze passate in cima.
- Un FERMO dice cosa aspetta. Un todo di Claude che prepara una parte prima del gesto della
- persona (una pagina aperta, una bozza) si legge «Preparo io, poi tu».]
-[Da dove partirei: UN todo, quello di DA DOVE PARTIRE della FASE 1 o uno migliore, col motivo.]
-[poi, se ci sono, i todo aperti di «generale», in un gruppo «Fuori dai progetti».]
-[solo se il controllo del pannello della FASE 4 stampa «mod caricato»:]
-Per chiuderli o spostarli con un tasto: /dafare
+**Da dove partirei:** #5. Sblocca la rilettura, e la rilettura chiude il capitolo. Scrivimi «vai» e
+preparo la mail.
 
-## Skill Progetto
-[suggerisci le poche skill davvero utili a QUESTO progetto ora, in base a stack,
- stato dell'handoff e task pendenti — non una lista meccanica. Ometti la sezione
- se non c'è nulla di rilevante da proporre.]
-
-----------------------------------------------------
-```
-
-Per farti un'idea dello stack (segnale per il tuo giudizio, non una regola):
-```bash
-[ -f "package.json" ] && echo "HAS_PKG=true"
-[ -f "prisma/schema.prisma" ] && echo "HAS_PRISMA=true"
-[ -d "docs" ] && echo "HAS_DOCS=true"
-ls next.config.* 2>/dev/null && echo "HAS_NEXT=true"
-```
+Rispondi **tutto il delegabile**, il nome di un filone (**copertina**) o i numeri (**3 4**). Per
+correggere: **8 a te**, **7 scarta**.
 
 ---
 
-## FASE 6: Selezione Lavoro
+Perché è fatta così:
+- **Prima le avvertenze.** Se la lettura della FASE 4 stampa righe «Attenzione:», riportale in cima,
+  una riga ciascuna, con parole tue: «#1 adesso è #2, dopo il merge con l'altro computer». Un'altra
+  sessione sullo stesso progetto (FASE 1) sta lì accanto.
+- **Da allora** (2-4 frasi) unisce la Ripartenza degli handoff e cosa è cambiato dopo: i commit
+  arrivati, i todo chiusi (anche quelli chiusi ora dal confronto col git log), le scadenze arrivate,
+  un handoff di un'altra macchina. Chiude con la considerazione che ne segue.
+- **I todo stanno per filone**, numerati, con l'ID. I filoni vengono dalle righe «filone» della
+  RIPARTENZA, coi nomi che la persona riconosce. Senza filoni, un gruppo solo col nome del progetto.
+  Entrano tutti i todo aperti del progetto. I todo di «generale» chiudono la lista, nel gruppo «Fuori
+  dai progetti». Le scadenze passate salgono in cima al loro filone.
+- **Ogni todo ha il verbo all'infinito** e una riga sotto solo se serve: a cosa serve, o cosa manca.
+- **La marca viene da chi agisce.** FACCIO IO dà «Faccio io». DECIDI TU, POI FACCIO IO dà «Decidi
+  tu». TOCCA A TE dà «Tocca a te: <perché>», col perché del todo quando c'è. Se Claude prepara una parte
+  prima del gesto della persona (una bozza, una pagina aperta), vale «Preparo io, poi tu: <perché>».
+  FERMO dà «Fermo: aspetta X», con X dal motivo del todo.
+- **Un Chi che sembra sbagliato si stima.** Un todo segnato «tocca a te» che Claude può fare da solo,
+  senza password, pagamenti, invii a terzi o decisioni della persona, porta la marca «Faccio io
+  (stima)». Nell'archivio cambia solo dopo il suo sì.
+- **Bozze in attesa** in cima al loro filone, con la data: oltre tre giorni proponi di riscriverle.
+- **Da dove partirei** è uno solo, col motivo: il todo di DA DOVE PARTIRE della FASE 1, o uno migliore.
+- **Il pannello.** [solo se il controllo della FASE 4 stampa «mod caricato»] dopo la lista scrivi
+  «Per chiuderli o spostarli con un tasto: /dafare».
+- **Skill del progetto.** Se una skill serve davvero a questo progetto ora (per lo stack, l'handoff o
+  i todo), nominala in una riga. Altrimenti niente.
+- **La riga di sistema compare solo se qualcosa non va** (sync, pull, conflitti, config): sale in
+  cima se blocca il lavoro.
+- **Il messaggio chiude senza menu**, con le parole di risposta in grassetto. La persona risponde a
+  parole.
 
-Usa AskUserQuestion:
+## FASE 6: La risposta della persona
 
-**Header**: "Cosa vuoi fare?"
-
-**Opzioni**:
-1. **Continua task** — "Riprendi [primo task pending]"
-2. **Nuovo task** — "Inizia nuovo lavoro"
-3. **Diagnosi** — "Qualcosa non torna: controllo Arturo e il progetto" → apri con Read
-   `~/.claude/commands/diagnosi.md` e seguilo
-4. **Debug** — "C'è un bug da fixare"
-
-Se la persona corregge un todo dal cruscotto («il 4 lo faccio io», «il 5 scartalo»), scrivilo
-subito nell'archivio con `arturo todo modifica ID --chi …` o `arturo todo scarta ID "motivo"`
-e riporta la riga di conferma. Non spostare un todo da tu a io o decidi senza un suo sì.
-
----
+- **Correzioni.** «8 a te» o «7 scarta» vanno subito nell'archivio, e riporti la riga di conferma:
+  `python3 ~/.claude/bin/arturo todo modifica ID --chi tu|decidi|io` oppure
+  `python3 ~/.claude/bin/arturo todo scarta ID "motivo"`, col motivo nelle sue parole. Non spostare un
+  todo da tu a io o decidi senza un suo sì.
+- **«tutto il delegabile».** Esegui in sessione, uno dopo l'altro, i todo «Faccio io» reversibili,
+  stime comprese dopo il suo sì. Chiudi ognuno solo dopo aver controllato il risultato vero (il test
+  che passa, il file che c'è, la pagina che si apre): poi `arturo todo fatto ID`. Di un «Preparo io,
+  poi tu» fai la tua parte e il todo resta aperto. Davanti a un'azione con effetti che non si annullano
+  (un invio, un pagamento, una cancellazione) ti fermi e chiedi.
+- **Un filone o dei numeri.** Parti da quei todo. Il task di sessione (`TaskCreate`) nasce solo per
+  i todo scelti: due numerazioni insieme confondono i numeri.
+- **«qualcosa non torna».** Se la persona dice che Arturo o il progetto non funzionano come si
+  aspetta, apri con Read `~/.claude/commands/diagnosi.md` e seguilo.
 
 ## Con un compito
 
-Con « -- <compito>» negli argomenti il cruscotto esce breve: il titolo, «Da allora» in una o due
-frasi, una riga per gruppo di todo con il loro numero. Al posto di «Da dove partirei» scrivi
-«Oggi: <compito>», con l'ID del todo che lo copre se esiste. Salta la FASE 6 e parti sul compito.
+Con « -- <compito>» negli argomenti la ripartenza esce breve: il titolo, «Da allora» in una o due
+frasi, una riga per filone col numero di todo e quanti sono «Faccio io». Al posto di «Da dove
+partirei» scrivi «Oggi: <compito>», con l'ID del todo che lo copre se esiste. Poi carica
+`prompt-master` col tool `Skill` sul compito, mostra PROMPT e BRIEF come li prescrive la skill e parti
+senza aspettare una scelta.
 
----
-
-## Orchestrazione
-
-Questo workflow chiama automaticamente:
-- Sync GitHub config (`git -C`), e con `--tutti` di ogni progetto (`bin/sync-progetti.sh`)
-- `arturo contesto` — git, handoff recenti, todo con chi agisce, scadenze, in una chiamata
-- Check merge conflicts
-- Cross-reference task vs `git log` (skip task già completati)
-- `arturo todo` — I todo aperti del progetto (chiude quelli già fatti da un commit)
-
-**L'utente chiama solo /inizio, il resto è automatico.**
-
----
-
-## Avvia
-
-Esegui FASE 0: sync config, poi FASE 1: contesto del progetto $ARGUMENTS.
+Esegui ora la FASE 0, poi la FASE 1 su $ARGUMENTS.

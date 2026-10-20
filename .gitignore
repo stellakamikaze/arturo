@@ -69,6 +69,7 @@ CLAUDE.md
 hooks/hosts-interni.local
 hooks/api-fidate.local
 hooks/melchior-stopword.local
+skills/system-audit/review-termini.local
 # Le aggiunte ai comandi di Arturo (arturo personale): /fine le porta solo verso un remote privato.
 /personale/
 

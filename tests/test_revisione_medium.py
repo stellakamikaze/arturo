@@ -120,8 +120,9 @@ def test_m05(repo: Path) -> None:
 
 def step6(repo: Path) -> str:
     fine = read(repo / "commands" / "fine.md")
-    start = fine.find("### 6. Config Sync")
-    return fine[start:fine.find("### 7.", start)] if start != -1 else ""
+    # 20/10/2026: /fine numera le fasi come la config dell'autore, il Config Sync è la FASE 9.
+    start = fine.find("## FASE 9 · Config Sync")
+    return fine[start:fine.find("## FASE 10", start)] if start != -1 else ""
 
 
 def test_m06(repo: Path) -> None:
@@ -140,7 +141,8 @@ def test_m07(repo: Path) -> None:
 
 def test_m08(repo: Path) -> None:
     fine = read(repo / "commands" / "fine.md")
-    validate = fine[fine.find("### 3. Validate"):fine.find("### 4.")]
+    # 20/10/2026: il validate sta nella FASE 3, insieme a completezza e commit, come nella config dell'autore.
+    validate = fine[fine.find("## FASE 3"):fine.find("## FASE 4")]
     assert "NON committare" in validate, "M08 /fine arriva al commit anche con il validate rosso"
 
 

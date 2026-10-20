@@ -317,7 +317,9 @@ def _sync(repo: Path, base: Path, visibilita: str, lucchetto: bool = False) -> s
         (cfg / "data" / "todo" / "eventi.jsonl.lock").write_text("", encoding="utf-8")
     (cfg / "commands" / "nota-locale.md").write_text("modifica\n", encoding="utf-8")
     testo = read(repo / "commands" / "fine.md")
-    inizio = testo.index("### 6. Config Sync")
+    # 20/10/2026: /fine numera le fasi come la config dell'autore, il Config Sync è la FASE 9.
+    assert "## FASE 9 · Config Sync" in testo, "T10 manca la FASE 9 · Config Sync di /fine"
+    inizio = testo.index("## FASE 9 · Config Sync")
     script = re.findall(r"```bash\n(.*?)```", testo[inizio:], re.S)[0]
     r = subprocess.run([BASH, "-c", script], cwd=str(home), env=env, capture_output=True, text=True, timeout=120)
     assert r.returncode == 0, f"T10 sync {visibilita}: {r.stderr}"

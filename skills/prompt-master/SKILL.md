@@ -27,31 +27,31 @@ Casi di confine:
 
 ### 1. Arricchimento (silenzioso)
 
-Le richieste dell'utente sono spesso sintetiche: il lavoro non è riformularle, è ricostruire il contesto operativo che non contengono. Il destinatario del contesto sei tu, non lui. Prima di scrivere il brief recupera davvero:
+Le richieste sono spesso sintetiche: il lavoro non è riformularle, è ricostruire il contesto operativo che non contengono. Il destinatario del contesto sei tu, non la persona. Prima di scrivere il brief recupera davvero:
 
-- L'handoff più recente del progetto (`HANDOFF_*.md`, vedi `/inizio`) e il `CLAUDE.md` del progetto
+- Il `CLAUDE.md` del progetto e l'handoff più recente in `~/.claude/data/handoffs/<progetto>/` (vedi `/inizio`)
 - Stato reale: `git log --oneline -20`, file e sistemi che la richiesta tocca, cosa è già stato fatto
-- Decisioni già chiuse che vincolano il lavoro: le regole del `CLAUDE.md` personale e di progetto, le convenzioni di voce e formato, gli errori già documentati nel repo
+- Decisioni già chiuse che vincolano il lavoro: le regole del `CLAUDE.md` personale e di progetto, le convenzioni di voce e formato, gli errori già documentati, le note di memoria pertinenti (`arturo memoria cerca "parole"`)
 - Vincoli tecnici e side-effect: cosa viene scritto, inviato, sovrascritto o speso
 
 Le letture necessarie si fanno prima del brief. Un brief costruito su assunzioni non nutre, aggiunge rumore. In silenzio chiarisci compito, formato dell'output, vincoli, input, contesto, pubblico e criterio di successo.
 
 ### 2. Prompt e brief (mostrati insieme)
 
-Non si mostra solo il brief: si mostra **prima il prompt**, cioè la richiesta dell'utente
-riscritta come la eseguirai. È il pezzo che gli permette di fermarti quando hai capito
-un'altra cosa, e costa una riga. Il brief da solo dice cosa faresti, non da quale lettura
-della richiesta nasce.
+Non si mostra solo il brief: si mostra **prima il prompt**, cioè la richiesta della persona
+riscritta come la eseguirai. È il pezzo che le permette di fermarti quando hai capito
+un'altra cosa, e costa una riga. Il brief da solo dice cosa faresti, non da quale
+lettura della richiesta nasce.
 
 ```
 PROMPT
-[la richiesta riscritta in una o due frasi: cosa l'utente sta chiedendo, come lo eseguirai,
+[la richiesta riscritta in una o due frasi: cosa la persona sta chiedendo, come lo eseguirai,
  su quali file o sistemi. Non la parafrasi delle sue parole: la loro traduzione operativa.]
 ```
 
 Se la richiesta era già completa, il prompt è quasi identico all'originale: si mostra lo stesso,
-una riga, e si va avanti. Se l'hai dovuta interpretare, il prompt è il punto in cui
-l'interpretazione diventa visibile.
+una riga, e si va avanti. Se l'hai dovuta interpretare, il prompt è il punto in cui l'interpretazione
+diventa visibile.
 
 Sotto il prompt, la sintesi verificabile dell'arricchimento, in un blocco di massimo 8 righe. La profondità si adatta alla richiesta: per un comando singolo o una correzione puntuale bastano tre righe (obiettivo, output, fatto quando); per un lavoro che tocca più file, sistemi o side-effect servono tutte e sei. Scrivi solo le righe che portano informazione: una riga ovvia si omette, non si riempie di parole.
 
@@ -66,30 +66,23 @@ Assunzioni: [cosa sto dando per scontato]
 Da chiarire: [max 3 punti]
 ```
 
-- **La riga Skill è sempre presente.** Scegli dall'elenco delle skill di questa sessione per giudizio
-  sul lavoro da fare, non per parole chiave. Se una skill che l'utente non ha nominato fa meglio il
-  lavoro di quella che ha chiesto, dillo qui. Se nessuna serve, scrivi «nessuna». Questa skill
-  (prompt-master) non conta: c'è sempre.
+- **La riga Skill è sempre presente.** Scegli dall'elenco delle skill di questa sessione per
+  giudizio sul lavoro da fare, non per parole chiave. Se una skill che la persona non ha nominato
+  fa meglio il lavoro di quella che ha chiesto, dillo qui. Se nessuna serve, scrivi «nessuna». Questa skill (prompt-master) non conta: c'è
+  sempre.
 - Il brief mostrato è la punta dell'arricchimento, non tutto: il contesto recuperato resta nel tuo ragionamento e nel lavoro che ne segue. Non trascriverlo per intero, e non trasformare il brief in un rapporto di ricerca.
-- Se un'ambiguità cambierebbe materialmente il lavoro, chiedi prima di procedere, con AskUserQuestion e con una raccomandazione motivata. Max 3 punti.
+- Se un'ambiguità cambierebbe materialmente il lavoro, chiedi prima di procedere, con una raccomandazione motivata. Max 3 punti. Il menu AskUserQuestion vale solo se il testo prima sta in una o due righe: dopo un brief di più righe, chiudi con l'elenco numerato e le parole di risposta in grassetto.
 - In plan mode il brief precede il piano e ne è il cappello.
-- Se l'obiettivo cambia a lavoro iniziato, correggi il brief con una riga; non riemetterlo per intero.
+- Se l'obiettivo cambia a lavoro iniziato, correggi il brief con una riga, senza riemetterlo per intero.
 - Italiano, come il resto della config.
 
 ## Importante
 
-- **Il brief c'è sempre**: prompt e brief si mostrano prima di qualunque altro lavoro, anche per una
-  richiesta breve (Federico, 15/10/2026). Per una richiesta piccola bastano tre righe. L'obiezione a cui
-  risponde il passo del prompt: un brief che l'utente non può ricondurre alla sua richiesta lo fa
-  reagire a una ricostruzione invece che alla cosa. Il prompt mostrato è il rimedio, perché si
-  vede subito se la richiesta è stata capita.
-- Se l'arricchimento fa emergere un fatto che cambia le carte (lavoro già fatto, decisione già chiusa in senso opposto, freno CLAUDE.md che scatta), dillo nel brief prima di procedere — è il motivo principale per cui questa modalità esiste.
-- Il brief non è un gate e non richiede conferma: se il prompt è corretto e non hai nulla da
-  chiarire, mostri e procedi.
-- **Questa skill si carica col tool `Skill`**, quando la richiesta di lavoro chiede il brief: il corpo si
-  legge, non si ricostruisce a memoria da una riga del `CLAUDE.md`. L'hook `inject-now.sh` lo ricorda sui
-  messaggi che non sono comandi.
+- **Il brief c'è sempre**: prompt e brief si mostrano prima di qualunque altro lavoro, anche per una richiesta breve. Per una richiesta piccola bastano tre righe. Il prompt serve a far vedere subito se la richiesta è stata capita: un brief che la persona non riconduce alla sua richiesta la fa reagire a una ricostruzione invece che alla cosa.
+- Se l'arricchimento fa emergere un fatto che cambia le carte (lavoro già fatto, decisione già chiusa in senso opposto, regola del CLAUDE.md che scatta), dillo nel brief prima di procedere: è il motivo principale per cui questa modalità esiste.
+- Il brief non è un gate e non richiede conferma: se il prompt è corretto e non hai nulla da chiarire, mostri e procedi. Ma se una domanda di approfondimento cambierebbe materialmente il lavoro, si chiede PRIMA, non dopo aver iniziato.
+- **Questa skill si carica sempre col tool `Skill`**, a ogni richiesta di lavoro: il corpo si legge, non si ricostruisce a memoria da una riga del `CLAUDE.md`. L'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi.
 
 ## MODALITÀ PROMPT ESTERNO — un prompt per un altro tool AI
 
-Si attiva solo quando l'utente chiede esplicitamente un prompt da incollare in un altro tool (ChatGPT, Gemini, Cursor, Midjourney, Sora, ElevenLabs, Codex, agenti di coding). Prima di scrivere il prompt leggi per intero `references/prompt-esterno.md` in questa skill: identità, regole, instradamento per tool, diagnostica e formato d'uscita stanno lì. Sta fuori da questo file perché questo file si carica a ogni brief interno, e la modalità esterna serve di rado.
+Si attiva solo quando la persona chiede esplicitamente un prompt da incollare in un altro tool (ChatGPT, Gemini, Cursor, Midjourney, Sora, ElevenLabs, Codex, agenti di coding). Prima di scrivere il prompt leggi per intero `references/prompt-esterno.md` in questa skill: identità, regole, instradamento per tool, diagnostica e formato d'uscita stanno lì. Sta fuori da questo file perché questo file si carica a ogni brief interno, e la modalità esterna serve di rado.

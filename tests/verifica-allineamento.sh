@@ -285,7 +285,16 @@ PY
 
 js=0
 while IFS= read -r -d '' file; do
-  node --check "$REPO/$file"
+  case "$file" in
+    *.workflow.js)
+      # Uno script del tool Workflow gira come corpo di una funzione async: «export const meta»,
+      # await e return stanno al primo livello. node --check lo legge avvolto allo stesso modo.
+      avvolto="$FIXTURE/workflow-check.js"
+      { echo '(async () => {'; sed 's/^export const meta/const meta/' "$REPO/$file"; echo '})()'; } > "$avvolto"
+      node --check "$avvolto" || { echo "FAIL: $file non è un workflow valido" >&2; exit 1; }
+      ;;
+    *) node --check "$REPO/$file" ;;
+  esac
   js=$((js + 1))
 done < <(git -C "$REPO" ls-files -z -- '*.js' '*.mjs')
 [[ $js -gt 0 ]] || { echo "FAIL: nessun file JavaScript" >&2; exit 1; }

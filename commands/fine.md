@@ -1,36 +1,31 @@
 ---
-description: Chiudi la sessione - inventario dei file e destino di ognuno, commit, handoff con i todo e chi agisce, gate dell'handoff, retention e indice, sync della config
-argument-hint: "[--full] [note opzionali]"
+description: >-
+  Chiude la sessione in dieci fasi: inventario dei file della sessione e destino di ognuno (repo,
+  archivia, resta, scarto), validate e commit per pathspec, handoff con i todo e chi agisce, gate
+  dell'handoff, retention e indice, CLAUDE.md del progetto, memoria, sync della config, una domanda per
+  migliorare Arturo. Si invoca con /fine [--full] [salva] [note] e si può rilanciare senza danni. Non
+  apre sessioni (/inizio).
+argument-hint: "[--full] [salva] [note opzionali]"
 ---
 
-# Fine Sessione
+# Fine sessione
 
-Chiudi la sessione in modo pulito. **Chiusura tipica leggera**; le fasi costose sono
-opzionali (flag `--full`) o condizionali (si attivano solo se rilevanti).
-
-**Argomenti / Note utente**: $ARGUMENTS
-
-- `--full` → esegue anche: plugin claude-md, doc-staleness, retro.
-- Senza flag → esegue solo il core + le fasi condizionali che risultano rilevanti.
+Argomenti e note della persona: **$ARGUMENTS**. Con `--full`, o quando la loro condizione è vera,
+applica anche gli opzionali in fondo: CLAUDE.md personale e doc staleness. `salva` dà in anticipo il sì
+alle note di memoria della FASE 8, tranne il `CLAUDE.md` personale.
 
 Tre regole per tutte le fasi:
 - **Dentro /fine non si sviluppa.** Un gap, un fix o un test rosso diventa un todo con un numero.
-- **/fine si può rilanciare senza danni.** L'handoff di questa sessione si riscrive (non ne nasce
-  un secondo), un todo che esiste non si ricrea, un commit vuoto non parte.
+- **/fine si può rilanciare senza danni.** L'handoff di questa sessione si riscrive (FASE 4), un todo
+  che esiste non si ricrea, un commit vuoto non parte.
 - **Un destino incerto non ferma la chiusura.** Il file resta dov'è e l'handoff dice dove sta.
 
----
+## FASE 1 · Inventario
 
-## CORE (sempre)
-
-### 1. Stato e inventario
-
-```bash
-git status --short
-git branch --show-current 2>/dev/null
-```
-
-Poi l'inventario dei file che questa sessione ha scritto, anche fuori dal progetto:
+Git, validate e commit girano nella cartella del progetto: quella della riga `cartella:` che `/inizio`
+ha letto da `arturo contesto`. Se la sessione è partita senza `/inizio`, lancia
+`python3 "$HOME/.claude/bin/arturo" contesto` e leggi la riga. Con `cartella: nessuna` non c'è commit
+di progetto, e lo dice la riga tecnica. Poi lancia `git status --short`, `TaskList` e l'inventario:
 
 ```bash
 python3 "$HOME/.claude/bin/inventario-sessione.py"; echo "rc=$?"
@@ -39,13 +34,16 @@ python3 "$HOME/.claude/bin/inventario-sessione.py"; echo "rc=$?"
 Lo script legge la trascrizione della sessione (file scritti, uscite dei comandi, file nuovi in
 Download e Scrivania, oggetti creati online con i connettori), salta `~/.claude` e propone per
 ogni voce un `destino` con il motivo. Con `rc=2` manca l'id della sessione o la trascrizione:
-ricostruisci l'elenco dalla conversazione e dillo nella chiusura. Aggiungi i file che ricordi e
-che lo script non ha visto (per esempio quelli scritti da un programma Python).
+ricostruisci l'elenco dalla conversazione e dillo nella riga tecnica. Aggiungi i file che ricordi e
+che lo script non ha visto (per esempio quelli scritti da un programma Python). Raccogli anche i punti
+pendenti emersi nella sessione: servono alla FASE 4.
+
+## FASE 2 · Destino di ogni file
 
 Il destino proposto è un punto di partenza, il giudizio è tuo. Ogni file finisce dove sopravvive
 a un riavvio del computer:
 - **repo**: codice, testi e note del progetto. Un file scritto fuori (scratchpad, Download) si
-  copia nel progetto ed entra nel commit della fase 4.
+  copia nel progetto ed entra nel commit della FASE 3.
 - **archivia**: un documento fuori da un repository. Chiedi alla persona dove lo tiene (la cartella
   del progetto, i suoi Documenti) e spostalo lì solo dopo il suo sì.
 - **resta**: un file pesante (video, immagini grandi) o creato online. L'handoff scrive dove sta.
@@ -54,111 +52,87 @@ a un riavvio del computer:
 Nessun handoff indica lo scratchpad o `/tmp` come posizione di un file: si perdono al riavvio.
 Una bozza di email creata nella sessione riceve un esito nell'handoff (mandata, da mandare, scartata).
 
-Raccogli anche i punti pendenti emersi nella sessione prima di scrivere l'handoff.
+## FASE 3 · Completezza, validate, commit del progetto
 
-### 2. Completezza
-
-Se la sessione modifica codice, lancia internamente `structural-completeness-reviewer`. Ricostruisci poi l'obiettivo e confrontalo con i deliverable. Se la sessione non modifica codice, salta il reviewer e registra l'esito.
-
-Se emergono gap: elencali e chiedi se fixare ora o documentarli nell'handoff come task pendente.
-Se tutto coperto: procedi in silenzio.
-
-### 3. Validate
-
-Applica `~/.claude/shared/validation-gate.md` con **mode=quick** (tsc + test + console.log).
-
-- Passa → commit.
-- Errori chiari e ripetibili → correggi e rilancia il validate dopo l'ultima modifica.
-- Errori ambigui o persistenti → documentali nell'handoff come punti pendenti e **NON committare** il codice rosso.
-
-### 4. Commit Progetto
-
-Solo con un validate verde eseguito dopo l'ultima modifica, oppure se la sessione non ha toccato codice. Se ci sono modifiche non committate:
-1. Staging **selettivo**, file per file (`git add -- <file>` — MAI `git add .` / `-A`)
-2. Escludi file sensibili (.env, credentials, temporanei)
-3. Controlla lo staging: niente marcatori di conflitto, e l'elenco coincide con quello che volevi
-4. Commit con messaggio appropriato. **NON usare Co-Authored-By.**
+- **Completezza.** Confronta l'obiettivo della sessione con i deliverable. Se la sessione ha toccato
+  codice, lancia l'agente `structural-completeness-reviewer`. Ogni gap diventa un todo.
+- **Validate.** Applica `~/.claude/shared/validation-gate.md` con **mode=quick** (tsc, test, console.log).
+  Verde: commit. Rosso: il codice toccato resta fuori dal commit e l'errore esatto diventa un todo.
+  **NON committare** il codice rosso e non correggerlo qui. Un esito inconclusivo non è verde.
+- **Commit per pathspec.** Ogni progetto ha un git. Se manca, crealo nella cartella del progetto
+  (`git -C <cartella> init -b main`, un `CLAUDE.md` breve, un `.gitignore` per i binari), mai nella HOME.
+  Staging file per file (`git add -- <file>`), mai `git add .` o `-A`. Fuori dal commit restano `.env`,
+  credenziali e file temporanei. **NON usare Co-Authored-By.**
 
 ```bash
 git diff --cached | grep -qE '^\+(<<<<<<< |=======$|>>>>>>> )' && echo "MARCATORE DI CONFLITTO: fermati e risolvi prima del commit"
 git diff --cached --stat
 ```
 
-### 5. Handoff + Push
+  Controlla che l'elenco coincida con quello che volevi, poi `git commit -m "<messaggio>" -- <file-1> <file-2>`.
+- **Sessione in un worktree** (aperto da `/inizio` perché un'altra sessione lavorava sullo stesso
+  progetto). Il commit va sul branch del worktree. Poi riporta il lavoro sul tree principale con
+  `git -C <tree principale> merge --ff-only <branch>`. Riuscito: `ExitWorktree` con `remove`. Non
+  riuscito (l'altra sessione ha committato nel frattempo, o ha modifiche sugli stessi file): il worktree
+  resta con `keep`, il branch diventa un todo e l'handoff lo cita. Rebase e merge con conflitti non si
+  fanno a fine sessione.
 
-Nome file: `HANDOFF_$(date +%Y-%m-%d_%H-%M).md`, scritto **solo** nello store
-`~/.claude/data/handoffs/<slug>/` (vedi sotto). Mai nel repository del progetto: in un
-progetto pubblico decisioni, note e task entrerebbero nella storia Git.
+## FASE 4 · Handoff e todo
 
-**Prima di scrivere, rispondi internamente alle 6 domande:**
-1. Cosa c'è da fare? (anche cose dette di sfuggita)
-2. Cosa è rimasto in sospeso? (decisioni rimandate, dubbi)
-3. Cosa si potrebbe fare che non è stato discusso? (migliorie, edge case, tech debt)
-4. Ogni item emerso è un todo nell'archivio (`arturo todo`)? Se manca, crealo ora (vedi
-   «Todo» sotto). `TaskList` vale solo per i passi di questa sessione: sparisce alla chiusura.
-5. I todo da sessioni precedenti vanno aggiornati o chiusi?
-6. Cosa hai provato che non ha funzionato, e perché? (finisce in «Vicoli ciechi»: la
-   sessione dopo non deve rifare gli stessi tentativi)
-
-Template:
+L'handoff vive **solo** nello store `~/.claude/data/handoffs/<slug>/`, mai nel repository del progetto:
+in un progetto pubblico decisioni, note e task entrerebbero nella storia Git. Prima chiediti cosa resta
+da fare (anche detto di sfuggita), cosa è in sospeso o fallito, quali todo vecchi chiudere, quali bozze
+aspettano un esito, cosa hai provato che non ha funzionato.
 
 ```markdown
-# Session Handoff - [YYYY-MM-DD] [HH:MM]
-
+# Session Handoff - AAAA-MM-GG HH:MM
 ## Progetto
-- Nome: [slug] / Branch: [branch] / Status: in progress|completato|bloccato
-- Filone: [solo se il progetto ha più filoni di lavoro separati: un nome breve e sempre lo stesso]
-- Sessione: [valore di $CLAUDE_CODE_SESSION_ID]
-- Ultimo commit: [hash - messaggio]
-
+- Nome: <slug> / Branch: <branch> / Status: in progress|completato|bloccato
+- Filone: <solo se il progetto ha più filoni di lavoro: un nome breve, sempre lo stesso>
+- Sessione: <valore di $CLAUDE_CODE_SESSION_ID>
+- Ultimo commit: <hash - messaggio>
 ## Ripartenza
-[Per la persona fra una settimana, tre o quattro frasi senza gergo, hash e nomi di file: cosa
-esiste adesso, cosa è cambiato per lei, dove vi siete fermati e perché.]
-Prossimo passo: [una azione, con il gesto che serve: «mi dici quale account uso»]
-
-## Decisioni prese
-1. [Decisione e motivazione]
-
-## Vicoli ciechi (tentativi falliti)
-- NON [cosa] — [perché non funziona, con l'errore esatto se c'è]
-
+<Per la persona fra una settimana, tre o quattro frasi senza gergo, hash e nomi di file: cosa esiste
+adesso, cosa è cambiato per lei, dove vi siete fermati e perché.>
+Prossimo passo: <una azione col gesto che serve: «mi dici quale account uso»>
+## Decisioni
+1. <decisione e motivo>
+## Vicoli ciechi
+- NON fare X: causa Y, con l'errore esatto se c'è
 ## File e materiali
-- [file o oggetto] → [posizione finale: percorso nel progetto, link, percorso dove resta, scarto]
-
+- <file o oggetto> → <posizione finale: percorso nel progetto, link, percorso dove resta, scarto>
 ## Task Pendenti
-Da `arturo todo --progetto .`, tutti i todo aperti del progetto:
+Da `arturo todo --progetto .`: tutti i todo aperti del progetto.
 
 | ID | Progetto | Priorità | Task | Status | Descrizione | Chi |
 |----|----------|----------|------|--------|-------------|-----|
-| #4 | libro | alta | Rileggere il capitolo tre | da fare | Mancano le note dell'editor: senza, la revisione resta a metà | io |
+| #4 | libro | alta | Rileggere il capitolo tre | da fare | Mancano le note dell'editor: senza, la revisione resta a metà | Claude |
+| #5 | libro | media | Mandare la bozza all'editor | da fare | La bozza è pronta nella cartella del progetto | Tu: invio a terzi |
 
-## In sospeso (non ancora task)
-- [Decisioni rimandate, dubbi]
-
-## Idee emerse (non discusse)
-- [idea] → #ID se è diventata un todo | → scartata: [motivo]
-
-## Riferimenti / Note
-- [Link a issue/PR/doc] · [Note utente]
+## In sospeso
+- <decisione rimandata o dubbio>
+## Idee
+- <idea> → #ID | → memoria | → scartata: <motivo>
 ```
 
-Regole della tabella `## Task Pendenti` (le controlla il gate più sotto):
-- La sezione c'è sempre, con questo titolo esatto. Senza task contiene la frase «Nessun task pendente».
-- Ogni riga ha nella colonna ID il numero del todo nell'archivio (`#4`): prima crei il todo, poi
-  scrivi la riga. Un todo chiuso non sta nella tabella.
-- **Chi** è l'ultima colonna e vale `tu`, `decidi` o `io`, come nell'archivio dei todo.
-- Status `da fare|in corso|fermo`, priorità `alta|media|bassa`.
-- Task e Descrizione si leggono senza contesto: il verbo all'infinito e cosa serve per riprendere.
-  Il gergo, i percorsi e gli hash vanno in Decisioni.
-- Includi anche i todo delle sessioni precedenti se ancora validi. La tabella è la fotografia
-  della sessione: la fonte di verità è l'archivio dei todo.
-- Ogni idea ha un destino: un'idea già vista prima non resta idea una terza volta.
+Regole della tabella `## Task Pendenti` (le controlla il gate della FASE 5):
+- **La sezione c'è sempre**, con questo titolo esatto. Senza task contiene la frase «Nessun task pendente».
+- **Ogni riga ha nella colonna ID il numero del todo** nell'archivio (`#4`): prima crei il todo, poi
+  scrivi la riga. Un todo chiuso non sta nella tabella. Entrano anche i todo aperti delle sessioni
+  prima: la tabella è la fotografia, la fonte di verità è l'archivio.
+- **Chi** è l'ultima colonna. Vale `Claude` per ogni passo che Claude esegue da solo, `Decidi tu` se
+  serve una scelta della persona prima che Claude lavori, `Tu: <cosa serve>` se il gesto è della
+  persona (`Tu: invio a terzi`, `Tu: password`, `Tu: pagamento`, `Tu: gesto fisico`). Nell'archivio
+  Chi vale `tu`, `decidi` o `io`: `Claude` è `io`, `Decidi tu` è `decidi`, `Tu: …` è `tu`.
+- Status `da fare|in corso|fermo`, priorità `alta|media|bassa`, come in `arturo todo`.
+- **Task e Descrizione si leggono senza contesto**: il verbo all'infinito e cosa serve per riprendere.
+  Gergo, percorsi e hash vanno in Decisioni.
+- **Ogni idea ha un destino**: un'idea già vista prima non resta idea una terza volta.
 
 **Todo.** Prima di scrivere l'handoff porta nell'archivio ogni item della tabella. L'archivio è
 il file `~/.claude/data/todo/eventi.jsonl`: sopravvive alla sessione e lo leggono `/inizio`,
-la CLI e le altre viste. Chi agisce: `tu` se tocca alla persona (un invio, una password, un
-gesto), `decidi` se serve una sua scelta prima che lavori tu, `io` se lo fai tu. Un todo
-bloccato va in FERMO con `ferma`, non con `--chi`.
+la CLI e le altre viste. `TaskList` vale solo per i passi di questa sessione: sparisce alla chiusura.
+Un todo bloccato va in FERMO con `ferma`, non con `--chi`.
 
 ```bash
 # Il progetto dei todo è quello della cartella, calcolato dalla CLI: lo stesso di «ricordami di…».
@@ -186,15 +160,13 @@ se il todo con quel numero ha un altro titolo, la CLI non scrive niente.
 
 Il titolo dice l'azione a una persona («Mandare a Gigi la parola d'ordine»), non uno slug.
 Se la persona ha chiesto un todo durante la sessione («ricordami di…»), c'è già: aggiornalo.
-Un todo `tu` porta un perché solo se la persona lo ha detto con parole sue nella sessione
-(«la firma la metto io»). Non dedurlo tu dalla frase: un perché inventato diventa un limite che
-la persona non ha mai messo. Se lei non l'ha detto, lascialo vuoto. Non spostare mai un todo da
-tu a io o decidi senza un sì.
+Un todo `tu` porta un perché (`--perche`) solo se la persona lo ha detto con parole sue nella
+sessione («la firma la metto io»). Non dedurlo tu dalla frase: un perché inventato diventa un limite
+che la persona non ha mai messo. Se lei non l'ha detto, lascialo vuoto. Il `Tu: <cosa serve>` della
+tabella nomina il gesto del passo (un invio, una password), non un perché. Non spostare mai un todo
+da tu a io o decidi senza un sì.
 
-**Dove va l'handoff.** Scrivilo nello store `~/.claude/data/handoffs/<slug>/`. Slug = nome
-progetto in kebab-case (lo stesso usato con `/inizio`). Non creare l'handoff nel repository
-del progetto e non committarlo lì. Se l'utente chiede una copia nel progetto, prima mostragli
-la visibilità del remote (`gh repo view --json visibility`) e aspetta una conferma esplicita.
+**Dove va l'handoff.** Lo slug è il nome della cartella del progetto in kebab-case, lo stesso di `/inizio`:
 
 ```bash
 # Slug: nome del progetto in minuscolo, spazi e simboli diventano trattini.
@@ -212,10 +184,14 @@ fi
 echo "Handoff: $HANDOFF_FILE"
 ```
 
-Scrivi il contenuto del template nel file stampato dopo «Handoff:». La variabile non arriva
+Scrivi il contenuto del modello nel file stampato dopo «Handoff:». La variabile non arriva
 ai blocchi dopo: ognuno gira in una shell nuova, quindi lì scrivi il percorso per intero.
+Se la persona chiede una copia dell'handoff nel progetto, prima mostrale la visibilità del remote
+(`gh repo view --json visibility`) e aspetta una conferma esplicita.
 
-**Gate dell'handoff.** Lancialo sul file appena scritto, al posto di `<handoff>`:
+## FASE 5 · Gate dell'handoff
+
+Lancialo sul file appena scritto, al posto di `<handoff>`:
 
 ```bash
 bash "$HOME/.claude/bin/handoff-gate.sh" "<handoff>"; echo "rc=$?"
@@ -223,21 +199,28 @@ bash "$HOME/.claude/bin/handoff-gate.sh" "<handoff>"; echo "rc=$?"
 
 Il gate è bloccante. Il rosso (`rc=1`) stampa una riga per difetto: la sezione `## Task Pendenti`
 assente o vuota senza «Nessun task pendente», un ID che non è un todo aperto dell'archivio, un Chi
-fuori da `tu|decidi|io` o non in ultima colonna, un segnaposto del modello mai compilato.
-Correggi l'handoff (e l'archivio, se manca un todo) e rilancia finché è verde.
+fuori lista o non in ultima colonna, un segnaposto del modello mai compilato. Correggi l'handoff (e
+l'archivio, se manca un todo) e rilancia finché è verde.
 
-**Retention e indice.** Lo store tiene gli ultimi 5 handoff per progetto, o per filone se
-l'handoff ha la riga «- Filone:». Prima guarda cosa uscirebbe, senza cancellare niente:
+## FASE 6 · Retention e indice
+
+Lo store tiene gli ultimi 5 handoff per progetto, o per filone se l'handoff ha la riga «- Filone:».
+Prima guarda cosa uscirebbe, senza cancellare niente:
 
 ```bash
 SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
 python3 "$HOME/.claude/bin/handoff-retention.py" "$SLUG"; echo "rc=$?"
 ```
 
-Per ogni handoff in uscita lo script stampa i Vicoli ciechi e le righe dei task senza ID.
-Nessun handoff esce senza essere letto. Per ogni voce scegli: un vicolo cieco che può tornare
-entra nel `CLAUDE.md` del progetto in due righe («NON fare X: causa Y»), un task ancora valido
-diventa un todo adesso, il resto muore e lo dici. Poi cancella i vecchi e rigenera l'indice:
+Per ogni handoff in uscita lo script stampa i Vicoli ciechi e le righe dei task senza ID: nessun
+handoff esce senza essere letto. Per ogni voce scegli:
+- **Promuovi.** Il vicolo cieco che può tornare va in due righe nel `CLAUDE.md` del progetto («NON
+  fare X: causa Y»). Un task ancora valido diventa un todo adesso.
+- **Già coperto.** Dici dove, dopo una ricerca vera (`grep` sul `CLAUDE.md` del progetto, `arturo todo`,
+  `arturo memoria cerca "parole"`).
+- **Muore.** Era una tantum o è superato, e lo dici.
+
+Poi cancella i vecchi e rigenera l'indice:
 
 ```bash
 SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
@@ -245,17 +228,40 @@ python3 "$HOME/.claude/bin/handoff-retention.py" "$SLUG" --applica; echo "rc=$?"
 python3 "$HOME/.claude/bin/index-rigenera.py" --scrivi; echo "rc=$?"
 ```
 
-`rc=3` della retention: una cancellazione non è riuscita, il file resta e la chiusura lo dice.
+`rc=3` della retention: una cancellazione non è riuscita, il file resta e la riga tecnica lo dice.
 L'indice `~/.claude/data/handoffs/INDEX.md` nasce dagli handoff e non si corregge a mano: una
 riga per progetto o filone, con stato e prossimo passo (dalla riga «Prossimo passo:» della
 Ripartenza). Con `rc=1` l'indice non è stato scritto: la riga stampata dice perché.
 
-La copia degli handoff sulle altre macchine è facoltativa: avviene nel Config Sync della
-FASE 6, e solo verso un remote privato.
+## FASE 7 · CLAUDE.md del progetto
 
-### 6. Config Sync (condizionale)
+Il `CLAUDE.md` del progetto è la sua memoria durevole: cosa è, decisioni chiuse, trappole già viste
+(«NON fare X: causa Y»), percorsi dei materiali fuori dal repo. Non è un diario: la riga che invecchia
+si riscrive, e stato e prossimo passo restano nei todo e nell'handoff. Le righe nuove di questa
+sessione le scrivi tu ed entrano nel commit del progetto (FASE 3, o un commit a parte ora). Se il
+progetto non ha un `CLAUDE.md` e ha sostanza, proponilo con due righe su cosa è.
 
-**Si attiva se `~/.claude` ha modifiche non committate o commit non ancora pushati.** Un push fallito la volta prima si ritenta qui.
+## FASE 8 · Memoria
+
+La domanda: **cosa di questa sessione serve fra tre mesi?** Il test: **può ripresentarsi?**
+- Vale per questo progetto: due righe nel `CLAUDE.md` del progetto (FASE 7).
+- Vale per ogni progetto: una nota nella memoria di Claude Code. Prima cerca se esiste già
+  (`python3 "$HOME/.claude/bin/arturo" memoria cerca "parole"`): se c'è, aggiorna quella. Un fatto, un file.
+- Una regola che deve valere in ogni sessione va nel `CLAUDE.md` personale (opzionale A).
+- No: muore con l'handoff.
+
+Mai in memoria: todo, uno stato che si legge dal vivo, una correzione una tantum, la copia di un
+documento stabile, password e chiavi.
+
+Chi decide: Claude **applica** una riga nel `CLAUDE.md` del progetto e un fatto aggiornato in una nota
+che esiste. **Chiede il sì** per una nota nuova, per dati su persone e per il `CLAUDE.md` personale.
+Con `/fine salva` il sì è già dato, tranne per il `CLAUDE.md` personale.
+
+## FASE 9 · Config Sync
+
+**Si attiva se `~/.claude` ha modifiche non committate o commit non ancora pushati.** Un push fallito
+la volta prima si ritenta qui. Se `ListAgents` mostra un'altra sessione viva su questa macchina,
+avvisala con `SendMessage` prima del commit: il commit di sync prende anche i suoi file della config.
 
 ```bash
 PREV_DIR="$PWD" && cd ~/.claude
@@ -324,77 +330,44 @@ pubblicarle. Col suo sì, per ognuna: `git -C ~/.claude add -- skills/<nome>`, p
 `git -C ~/.claude commit -m "skill <nome>"` e `git -C ~/.claude push origin main`. Senza sì
 restano su questa macchina, e il prossimo `/fine` lo ricorda.
 
-### 7. Migliorare Arturo
+## FASE 10 · Migliorare Arturo
 
-Arturo migliora con quello che le persone gli dicono: questo passo glielo chiede ogni volta
-che ha senso. Una sola proposta per sessione, mai un elenco.
+Una sola proposta per sessione, mai un elenco.
+- **Se nella sessione Arturo o Claude Code si sono inceppati** (un comando fallito, una guardia che
+  ha fermato un lavoro legittimo, una correzione della persona, una cosa che Arturo non sa fare),
+  proponi la segnalazione col fatto già scritto: «Ho visto che X non ha funzionato. Lo segnalo a chi
+  mantiene Arturo? Il testo lo preparo io.» Col sì segui `/segnala` dal Passo 1, che tiene fuori dalla
+  issue pubblica un segreto esposto o una guardia aggirabile. Se l'hai già proposta, non riproporla.
+- **Altrimenti** lancia `python3 "$HOME/.claude/bin/arturo" segnala chiedi`. Con exit 0 fai una
+  domanda in una riga: «In questi giorni Arturo ti ha fatto perdere tempo, o c'è una cosa che vorresti
+  facesse?» Se la persona racconta qualcosa, segui `/segnala`. Con exit 3 taci.
+- Se la persona non vuole più queste domande, lancia `python3 "$HOME/.claude/bin/arturo" segnala basta`.
 
-- **Se nella sessione Arturo o Claude Code si sono inceppati** (un comando fallito, una guardia
-  che ha fermato un lavoro legittimo, la persona che ti ha corretto, una cosa chiesta che Arturo
-  non sa fare), proponi la segnalazione con il fatto già scritto: «Ho visto che X non ha
-  funzionato. Lo segnalo a chi mantiene Arturo? Il testo lo preparo io.» Con un sì segui
-  `/segnala` dal Passo 1, con la bozza già pronta: il Passo 1 tiene fuori
-  dalla issue pubblica un segreto esposto o una guardia aggirabile. Se l'hai già proposta durante la sessione,
-  non riproporla.
-- **Altrimenti** chiedi allo script se è il momento della domanda della settimana:
+## Opzionali (`--full`, o quando la condizione è vera)
 
-  ```bash
-  python3 "$HOME/.claude/bin/arturo" segnala chiedi
-  ```
+**A. CLAUDE.md personale**: con `--full`, o se la sessione ha prodotto una regola che vale in ogni
+sessione. Sale in `~/.claude/CLAUDE.md` solo una preferenza della persona, un freno prima di un'azione
+con effetti, o una correzione che si è ripetuta. Una riga per regola. La scrivi dopo il sì della
+persona, ed entra nel commit della FASE 9.
 
-  Con exit 0 fai una domanda, una riga: «In questi giorni Arturo ti ha fatto perdere tempo, o
-  c'è una cosa che vorresti facesse?» Se la persona racconta qualcosa, segui `/segnala`. Con
-  exit 3 taci.
-- Se la persona dice di non volere più queste domande, lancia
-  `python3 "$HOME/.claude/bin/arturo" segnala basta` e non insistere. `/segnala` resta lì.
+**B. Doc staleness**: con `--full`, o se la sessione ha toccato documenti `.md`. Confronta le modifiche
+con i `.md` del repo. Un documento che descrive codice cambiato e non aggiornato diventa un todo e una
+riga della tabella dell'handoff.
 
-### 8. Conferma
+## Chiusura
 
-Prima della tabella, una riga per file o materiale della fase 1 con la sua posizione finale
-(anche gli scarti), poi la Ripartenza dell'handoff in tre righe con il prossimo passo.
+La chiusura non ristampa la ripartenza di `/inizio`. Il messaggio ha, in quest'ordine:
+1. una riga per file o materiale della FASE 1 con la posizione finale, anche gli scarti;
+2. la Ripartenza dell'handoff in tre righe, col prossimo passo;
+3. la riga tecnica: «chiuso · commit a1b2c3d · handoff HANDOFF_2026-10-03_18-40.md · gate verde ·
+   validate ok · retention: 1 tolto · config: push riuscito · segnalazione: nessuna · riprendi:
+   /inizio libro». Per la config vale uno fra «push riuscito», «niente da pushare»,
+   «push non riuscito: N commit da ritentare», «solo locale». Per la segnalazione uno fra «inviata»,
+   «proposta, non inviata», «domanda fatta», «nessuna». Un passo saltato o fallito lo dice al suo posto.
 
-```
-+====================================================================+
-|                      SESSIONE CHIUSA                                |
-+--------------------------------------------------------------------+
-| Commit progetto | [hash o "nessuno"]                               |
-| Materiali       | [N file: repo / archivia / resta / scarto]       |
-| Handoff         | [HANDOFF_*.md]                                   |
-| Gate handoff    | [verde / rosso: motivo]                          |
-| Task pendenti   | [N] (nell'handoff)                               |
-| Retention       | [N handoff vecchi tolti / niente da togliere]    |
-| Validate        | [passed / N errori documentati]                  |
-| Config sync     | [push riuscito / niente da pushare / push non riuscito: N commit da ritentare]                     |
-| Segnalazione    | [inviata / proposta, non inviata / domanda fatta / nessuna]       |
-| Extra (--full)  | [claude-md/doc o "skip"]                        |
-+--------------------------------------------------------------------+
-| Riprendi: /inizio [progetto]  ·  sessione esatta: claude -r        |
-+====================================================================+
-```
+Se la FASE 8 ha scritto memoria, segue il blocco **Memoria applicata**: un percorso per riga e cosa è
+cambiato.
 
----
-
-## OPZIONALI (`--full` o se rilevante)
-
-Esegui queste fasi **solo** se è passato `--full`, oppure quando la condizione indicata è vera.
-
-### A. CLAUDE.md — `--full`, o se la sessione ha prodotto una regola che vale in ogni sessione
-Plugin `claude-md-management:revise-claude-md` (fallback: leggi, identifica pattern
-ripetuti, proponi update). Sale nel `CLAUDE.md` solo ciò che deve valere in OGNI sessione:
-una preferenza della persona, un freno prima di un'azione con effetti, o una correzione che si
-è ripetuta. Una riga per regola. Le modifiche al `CLAUDE.md` personale le scrivi dopo il sì
-della persona, ed entrano nel commit config della FASE 6.
-
-### B. Doc staleness — `--full`, o se la sessione ha toccato doc/.md
-Cross-reference le modifiche con i `.md` del repo. Se un doc descrive codice modificato ma non
-aggiornato: diventa un todo e una riga della tabella dell'handoff.
-
-### C. Riepilogo — `--full`, o se la sessione ha lavoro significativo
-
-Registra nell'handoff i punti emersi e i prossimi passi.
-
----
-
-## Avvia
-
-Esegui il CORE. Attiva le fasi OPZIONALI solo con `--full` o quando la loro condizione è vera.
+Nessun menu. Senza `salva`, elenca le note che aspettano il sì, una per riga (percorso e perché), e
+chiudi con «scrivimi **salva** per tutte, **togli N** per escluderne una». Al sì le scrivi e, se
+toccano `~/.claude`, ripeti la FASE 9.

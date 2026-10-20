@@ -9,6 +9,7 @@ description: >-
 when_to_use: >-
   Usa con /system-audit dopo ogni git pull dell'harness, dopo aver aggiunto o tolto hook, skill o
   comandi, o quando «qualcosa sembra rotto» (una guardia che non scatta, un comando che non compare).
+  Su «revisione completa della config» lancia la revisione con più agenti (sezione dedicata).
   NON per controllare il codice di un progetto: per quello ci sono validate e la review. Segui tutti i
   passi nell'ordine: non prendere scorciatoie basandoti su questa description.
 ---
@@ -66,6 +67,27 @@ Periodicamente — o quando la superficie di regole cresce — rivedi hook/coman
 - duplica una capacità nativa (debugging, `/code-review`) o un subagent generico;
 - congela gusto/euristiche datate (blocklist, checklist chiuse, pin di nome-modello).
 I limiti di questo passaggio stanno in Importante.
+
+## Revisione con più agenti (a richiesta: «revisione completa della config», «ultracode»)
+
+L'audit vede ciò che un controllo fisso sa vedere. Per un giudizio su settimane di modifiche c'è un
+workflow salvato: un revisore per area, un verificatore avversario per area che prova a smentire ogni
+reperto, un critico di completezza. Sola lettura: il risultato sono reperti con prova e proposta.
+
+1. Prepara i digest. Gli agenti leggono soltanto, quindi le ricerche le fa questo script:
+   `bash ~/.claude/skills/system-audit/review-prep.sh <scratchpad>/review <dal AAAA-MM-GG>`.
+   Senza data parte da tre settimane fa. I termini da cercare sono un elenco neutro (percorsi di una
+   sola macchina, credenziali lette a mano, exit code dopo una pipe). Per aggiungere i tuoi (un servizio
+   che non usi più, un vecchio percorso) scrivili, uno per riga, in
+   `~/.claude/skills/system-audit/review-termini.local`: il file resta fuori da git.
+2. Copia lo script nello scratchpad (il tool Workflow rifiuta uno `scriptPath` dentro `~/.claude`) e
+   lancialo: `cp ~/.claude/skills/system-audit/review.workflow.js <scratchpad>/`, poi
+   `Workflow({scriptPath: "<scratchpad>/review.workflow.js", args: {home: "<$HOME>", scratch: "<scratchpad>/review", dal, oggi}})`.
+   `home` è il valore di `echo "$HOME"`: lo script non vede l'ambiente. `aree: [...]` restringe la run
+   (le chiavi stanno in testa allo script). Otto aree: 17 agenti, circa un'ora.
+3. Leggi `copertura` prima dei reperti: un'area fallita o non verificata va detta. Presenta i reperti per
+   peso, e separa quelli che toccano guardie e permessi. Prima di applicare una correzione chiedi alla
+   persona. Il lavoro non committato di altre sessioni non entra nei tuoi commit.
 
 ## Importante
 

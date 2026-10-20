@@ -11,6 +11,24 @@ modo di lavorare.
 
 ---
 
+## 2026-10-20 — Arturo lavora come chi lo mantiene: /inizio, /fine e lo stile Conciso
+
+**Cosa cambia**: `/inizio` ti mostra il lavoro per filone, con chi deve agire («Faccio io»,
+«Preparo io, poi tu», «Decidi tu»), e rispondi a parole invece che da un menu. Con `-- compito`
+Claude ti mostra prima come ha capito la richiesta. Se un'altra sessione lavora sullo stesso
+progetto, `/inizio` se ne accorge e lavora in una copia separata. `/fine` non corregge più niente
+all'ultimo momento: un test rosso o un pezzo mancante diventa un todo, e il lavoro fatto in una
+copia separata torna nel progetto. Lo stile di partenza è Conciso: risposte brevi, prima l'esito.
+Lo stile Guida e l'agente doc-reviewer escono.
+
+**Il principio dietro**: chi mantiene Arturo usa ogni giorno questi comandi. Se i tuoi fossero
+diversi, i loro difetti resterebbero invisibili a chi può correggerli.
+
+**Da sapere**: se avevi scelto lo stile Guida, dalla prossima sessione vale quello standard di
+Claude Code. Per tornare a uno stile breve scrivi `/output-style` e scegli Conciso.
+
+---
+
 ## 2026-10-20 — La memoria è la stessa di chi mantiene Arturo
 
 **Cosa cambia**: la memoria facoltativa di Arturo ora è Melchior, la memoria che chi mantiene
