@@ -198,6 +198,13 @@ OTHER_FLAG_VAL = re.compile(
     r'|--cookie-jar|-w|--write-out|--cacert|--cert|--key|-K|--config|-O|--output-document'
     r'|-a|--append-output|--save-cookies|--load-cookies)[\s=]*(?:\$?\'[^\']*\'|"[^"]*"|[^\s"\']+)',
 )
+# Valori che non portano dati all'host: file di uscita, certificati, config. Intestazioni, credenziali,
+# user-agent, referer e cookie invece arrivano al server: una sostituzione lì dentro porta fuori dati
+# quanto una nell'URL (20/10/2026, #3524: `curl -A "$(cat f)"` passava in silenzio).
+NON_DATI_FLAG_VAL = re.compile(
+    r'(?<![\w-])(?:-o|--output|-c|--cookie-jar|-w|--write-out|--cacert|--cert|--key|-K|--config|-O'
+    r'|--output-document|-a|--append-output|--save-cookies|--load-cookies)[\s=]*(?:\$?\'[^\']*\'|"[^"]*"|[^\s"\']+)',
+)
 BARE_HOST = re.compile(r'(?<![\w@/.:=-])([A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})(?::\d+)?(?:/[^\s"\']*)?(?![\w.])')
 FILE_EXT = frozenset("txt json md csv log pdf png jpg jpeg gif html htm xml yaml yml toml ini cfg conf "
                      "py js ts sh zip gz tgz tar bz2 xz db sqlite sql pem crt der p12 env bak out tmp".split())
@@ -228,7 +235,9 @@ SOSTITUZIONE = re.compile(r'\$\(|`[^`]*`')
 CURL_SEG = re.compile(r'\b(?:curl|wget)\b[^\n|;&]*', re.IGNORECASE)
 NC_PIPE = re.compile(r'\|\s*(?:sudo\s+)?(?:\S*/)?(nc|ncat|netcat|socat)\b([^\n|;&]*)', re.IGNORECASE)
 INTERPRETE = re.compile(r'(?:^|[\s;&|(/])(?:node|nodejs|deno|bun|python3?)(?:\.\d+)?(?=\s|$)')
-CHIAMATA_RETE = re.compile(r'(?<![\w.$])fetch\s*\(|\bhttps?[\'"]?\)?\.(?:request|get)\s*\(')
+CHIAMATA_RETE = re.compile(r'(?<![\w.$])fetch\s*\(|\bhttps?[\'"]?\)?\.(?:request|get)\s*\('
+                           r'|\brequests\.(?:get|head|request|Session)\b|\bhttpx\.(?:get|head|request|stream|Client)\b'
+                           r'|\burlopen\s*\(')
 NC_HOST = re.compile(r'\b(nc|ncat)\b\s+[^\n|;&]*?\b([A-Za-z0-9][A-Za-z0-9.\-]+\.[A-Za-z]{2,})\b',
                      re.IGNORECASE)
 
@@ -356,11 +365,12 @@ def main() -> int:
     if m and _external_host(m.group(2)):
         return _ask("nc/ncat verso un host esterno (canale di esfiltrazione). "
                     "Conferma solo se voluto.")
-    # curl/wget GET con command-substitution nell'URL: fuori dai valori di intestazioni, credenziali e
-    # file di uscita (`-H "Authorization: Bearer $(cat t)"` non porta dati nell'URL). Se l'host non si
-    # legge, perché l'URL intero arriva da una sostituzione, si chiede lo stesso.
+    # curl/wget con command-substitution nell'URL o nei valori che arrivano al server (intestazioni,
+    # credenziali, user-agent, referer, cookie), verso un host non fidato: chiede. Restano fuori i file
+    # di uscita e i certificati. Un token letto da file per un'API fidata (hooks/api-fidate.local)
+    # passa. Se l'host non si legge, perché l'URL intero arriva da una sostituzione, si chiede lo stesso.
     for seg in CURL_SEG.findall(cmd):
-        resto = OTHER_FLAG_VAL.sub(" ", DATA_FLAG_VAL.sub(" ", seg))
+        resto = NON_DATI_FLAG_VAL.sub(" ", DATA_FLAG_VAL.sub(" ", seg))
         if SOSTITUZIONE.search(resto) and not _solo_fidati(_hosts(resto)):
             return _ask("curl/wget con dati interpolati nell'URL ($()/backtick), verso un host "
                         "esterno o che non si legge: possibile esfiltrazione via GET. "

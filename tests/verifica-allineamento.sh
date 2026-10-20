@@ -120,6 +120,8 @@ BANCHI=(
   test_guardie_uniche_2026_10_19.py
   test_node_assente_2026_10_19.py
   test_guardie_uniche_2026_10_19.py
+  test_heredoc_backtick.py
+  test_lotto_2026_10_20.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -233,6 +235,10 @@ BASELINE=(
   "test_node_assente_2026_10_19.py dbaefa1"
   # Guardie uniche fra Arturo e la config di chi lo mantiene (19/10/2026, #3612): dbaefa1, l'ultimo dev prima.
   "test_guardie_uniche_2026_10_19.py dbaefa1"
+  # Backtick negli heredoc (#3584): 3211b74, l'ultimo dev prima di 439a92b.
+  "test_heredoc_backtick.py 3211b74"
+  # Lotto del 20/10/2026 (#3632 #3552 #3596 #3587 #3594 #3595 #3524 #3525): 910ac0b, l'ultimo dev prima.
+  "test_lotto_2026_10_20.py 910ac0b"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

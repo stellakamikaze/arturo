@@ -324,6 +324,14 @@ def _reads_secret_flat(cmd: str) -> bool:
             if t.startswith("-oIdentityFile=") or t.startswith("IdentityFile="):
                 j += 1
                 continue
+            # rsync e tar: il valore di --exclude è un file che NON si legge (`--exclude .env` chiedeva
+            # conferma, 20/10/2026, #3525).
+            if t in ("--exclude", "--exclude-from", "--filter") and j + 1 < len(parole):
+                j += 2
+                continue
+            if t.startswith(("--exclude=", "--exclude-from=", "--filter=")):
+                j += 1
+                continue
             args.append(t)
             j += 1
         if any(SECRET_PATH_RE.search(a) for a in args):
@@ -650,8 +658,11 @@ def _find_delete(command):
 
 
 # shutil.rmtree cancella una cartella intera come `rm -r`, ma da dentro python (17/10/2026, #3506).
-_RMTREE_RE = re.compile(r"\b(?:shutil\.)?rmtree\s*\(\s*(?:(['\"])([^'\"]*)\1)?")
-_PYTHON_RE = re.compile(r"(?:^|[\s;&|(/])python3?(?:\.\d+)?(?=\s|$)")
+_RMTREE_RE = re.compile(r"\b(?:shutil\.)?rmtree\s*\(\s*(?:(['\"])([^'\"]*)\1|([A-Za-z_]\w*)\s*\))?")
+# `py` è il lanciatore di python su Windows (20/10/2026, #3525: `py -c "...rmtree..."` passava).
+_PYTHON_RE = re.compile(r"(?:^|[\s;&|(/])(?:python3?(?:\.\d+)?|py)(?=\s|$)")
+_RMTREE_ALIAS_RE = re.compile(r"\brmtree\s+as\s+([A-Za-z_]\w*)")
+_TEMPORANEA = "<cartella di tempfile>"
 
 
 def _rmtree_bersagli(command):
@@ -660,7 +671,18 @@ def _rmtree_bersagli(command):
     testo = _hd.togli(command, lambda h: h.quotato and h.inerte())
     if "rmtree" not in testo or "shutil" not in testo or not _PYTHON_RE.search(testo):
         return []
-    return [m.group(2) if m.group(1) else None for m in _RMTREE_RE.finditer(testo)]
+    # `from shutil import rmtree as r` e poi `r(...)`: l'alias cancella come rmtree (20/10/2026, #3525).
+    for alias in _RMTREE_ALIAS_RE.findall(testo):
+        testo += "\n" + re.sub(r"\b" + re.escape(alias) + r"\s*\(", "rmtree(", testo)
+    bersagli = []
+    for m in _RMTREE_RE.finditer(testo):
+        if m.group(1):
+            bersagli.append(m.group(2))
+        elif m.group(3) and re.search(r"\b" + re.escape(m.group(3)) + r"\s*=\s*tempfile\.mkdtemp\s*\(", testo):
+            bersagli.append(_TEMPORANEA)  # una cartella appena creata da tempfile: è temporanea
+        else:
+            bersagli.append(None)
+    return bersagli
 
 
 # Le opzioni di git prima del sottocomando che prendono un valore staccato.
@@ -674,15 +696,40 @@ def _git_clean_forzato(command):
     for nome, args in _forma().programmi(command):
         if nome != "git":
             continue
-        i = 0
+        i, senza_obbligo = 0, False
         while i < len(args) and args[i].startswith("-"):
+            # `git -c clean.requireForce=false clean` cancella anche senza -f (20/10/2026, #3525).
+            if args[i] == "-c" and i + 1 < len(args) and \
+                    args[i + 1].replace(" ", "").lower() in ("clean.requireforce=false", "clean.requireforce=0",
+                                                             "clean.requireforce=no", "clean.requireforce=off"):
+                senza_obbligo = True
             i += 2 if args[i] in _GIT_OPZIONI_CON_VALORE else 1
         if i >= len(args) or args[i] != "clean":
             continue
-        opzioni = [a for a in args[i + 1:] if a.startswith("-") and a != "--"]
-        corte = "".join(a[1:] for a in opzioni if not a.startswith("--"))
-        forza = "f" in corte or "--force" in opzioni
-        prova = "n" in corte or "--dry-run" in opzioni
+        corte, lunghe = "", []
+        resto = args[i + 1:]
+        k = 0
+        while k < len(resto):
+            a = resto[k]
+            if a == "--":
+                break
+            if a.startswith("--"):
+                lunghe.append(a.split("=", 1)[0])
+                if a in ("--exclude",):
+                    k += 1  # il valore staccato di --exclude non è un'opzione
+            elif a.startswith("-"):
+                # -e prende un valore attaccato o staccato: `-enode_modules` non contiene un -n.
+                gruppo = a[1:]
+                if "e" in gruppo:
+                    corte += gruppo[:gruppo.index("e")]
+                    if gruppo.endswith("e"):
+                        k += 1
+                else:
+                    corte += gruppo
+            k += 1
+        # git accetta l'inizio di un'opzione lunga se non è ambiguo: `--forc` è `--force`.
+        forza = "f" in corte or any(len(o) > 2 and "--force".startswith(o) for o in lunghe) or senza_obbligo
+        prova = "n" in corte or any(len(o) > 2 and "--dry-run".startswith(o) for o in lunghe)
         if forza and not prova:
             return True
     return False
@@ -887,6 +934,8 @@ def main() -> int:
     # 7) shutil.rmtree -> ask, come rm ricorsivo: tranne cartelle rigenerabili e file temporanei.
     try:
         for t in _rmtree_bersagli(command):
+            if t == _TEMPORANEA:
+                continue
             p = _resolve(t, os.path.normpath(cwd)) if t else None
             if p is None:
                 return _ask(
