@@ -11,7 +11,8 @@
 #   - la tabella non ha la colonna ID, o l'ultima colonna non è «Chi»;
 #   - una riga ha nella colonna ID un valore diverso da #numero;
 #   - il #numero non esiste nell'archivio dei todo, oppure il todo è già chiuso;
-#   - Chi non è una delle categorie di bin/todo_store.py (tu, decidi, io);
+#   - Chi non è una delle categorie di bin/todo_store.py (tu, decidi, io) né una delle sue forme
+#     scritte per la persona: «Claude» (io), «Decidi tu» (decidi), «Tu: <cosa serve>» (tu);
 #   - Task o Descrizione è un segnaposto del modello mai compilato («cosa resta», «[task]», TODO).
 #   La frase «nessun task pendente» conta solo dentro la sezione, con maiuscole libere.
 #
@@ -111,8 +112,13 @@ function controlla(riga,    n, c, id, num, chi) {
   }
   if (chiok) {
     chi = (n > 0) ? c[n] : ""
-    if (!index(" " chi_ammessi " ", " " chi " ") || chi == "")
-      rosso("riga " NR ": Chi «" chi "» non è una delle categorie ammesse (" chi_ammessi ")")
+    # Le forme per la persona (/fine FASE 4) valgono la categoria che nominano.
+    cat = chi
+    if (chi == "Claude") cat = "io"
+    else if (chi == "Decidi tu") cat = "decidi"
+    else if (chi ~ /^Tu:[ \t]*[^ \t]/) cat = "tu"
+    if (!index(" " chi_ammessi " ", " " cat " ") || cat == "")
+      rosso("riga " NR ": Chi «" chi "» non è una delle categorie ammesse (Claude, Decidi tu, Tu: <cosa serve>, oppure " chi_ammessi ")")
   }
   if (coltask && coltask <= n && guscio(c[coltask]))
     rosso("riga " NR ": Task «" c[coltask] "» è un segnaposto: scrivi l\047azione")

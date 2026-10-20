@@ -536,7 +536,9 @@ def test_u11(repo: Path) -> None:
         "U11 la skill todo cerca /dafare fra i comandi che vede: il modello non vede i comandi di un mod"
     controllo_del_mod(skill, "skills/todo/SKILL.md")
     inizio = read(repo / "commands" / "inizio.md")
-    todo = sezione(inizio, "## Todo")
+    # 20/10/2026: /inizio presenta la ripartenza per filone come la config dell'autore: il cruscotto
+    # con la sezione «## Todo» è diventato la FASE 5.
+    todo = sezione(inizio, "## FASE 5: La ripartenza")
     assert "/dafare" in todo, "U11 /inizio non nomina /dafare"
     for riga in [r for r in todo.splitlines() if "/dafare" in r]:
         prima = todo.splitlines()[todo.splitlines().index(riga) - 1]

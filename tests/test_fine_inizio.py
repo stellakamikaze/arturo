@@ -2,7 +2,8 @@
 """F01-F12: il ciclo di sessione di /fine e /inizio sopra l'archivio dei todo (15/10/2026).
 
 F01 bin/handoff-gate.sh: la sezione «## Task Pendenti» c'è sempre, ogni riga ha l'ID di un todo
-aperto dell'archivio, Chi è una categoria dei todo, niente segnaposti del modello mai compilati.
+aperto dell'archivio, Chi è una categoria dei todo o la sua forma per la persona («Claude»,
+«Decidi tu», «Tu: <cosa serve>», dal 20/10/2026), niente segnaposti del modello mai compilati.
 F02 il gate legge le categorie di Chi da bin/todo_store.py: non ne tiene una copia.
 F03 bin/handoff-retention.py tiene gli ultimi 5 per filone, in ordine di nome e non di data del
 file, stampa vicoli ciechi e task senza ID dei file in uscita e cancella solo con --applica.
@@ -154,7 +155,11 @@ CASI_GATE = [
     ("ID di un todo che non esiste", handoff("## Task Pendenti\n\n" + TESTA + riga("#99", "io")), 1,
      "#99 non esiste", 1),
     ("ID di un todo chiuso", handoff("## Task Pendenti\n\n" + TESTA + riga("#4", "io")), 1, "#4 è già chiuso", 1),
-    ("Chi fuori lista", handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "Claude")), 1, "Chi «Claude»", 1),
+    # 20/10/2026: /fine scrive Chi come la config dell'autore, in forma neutra («Claude», «Decidi tu»,
+    # «Tu: <cosa serve>»). «Claude» da solo è entrato fra le forme ammesse: il caso fuori lista è un altro nome.
+    ("Chi fuori lista", handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "Qualcuno")), 1, "Chi «Qualcuno»", 1),
+    ("Chi «Tu:» senza cosa serve", handoff("## Task Pendenti\n\n" + TESTA + riga("#2", "Tu:")), 1, "Chi «Tu:»", 1),
+    ("Chi «claude» minuscolo", handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "claude")), 1, "Chi «claude»", 1),
     ("Chi vuoto", handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "")), 1, "Chi «»", 1),
     ("colonna Chi non ultima",
      handoff("## Task Pendenti\n\n| ID | Chi | Task |\n|---|---|---|\n| #1 | io | Rileggere |\n"), 1,
@@ -171,6 +176,9 @@ CASI_GATE = [
     ("verde con le tre categorie",
      handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "io") + riga("#2", "tu") + riga("#3", "decidi")),
      0, "GATE HANDOFF: verde", 0),
+    ("verde con le forme per la persona",
+     handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "Claude") + riga("#2", "Tu: invio a terzi")
+             + riga("#3", "Decidi tu")), 0, "GATE HANDOFF: verde", 0),
     ("verde senza task", handoff("## Task Pendenti\nNessun task pendente.\n"), 0, "GATE HANDOFF: verde", 0),
     ("verde con un task che parla di segnaposti",
      handoff("## Task Pendenti\n\n" + TESTA + riga("#1", "io", desc="Togliere i TODO rimasti nel capitolo due")),
@@ -447,7 +455,9 @@ def test_f11(repo: Path) -> None:
 
 def test_f12(repo: Path) -> None:
     fine = read(serve(repo, "commands/fine.md", "F12"))
-    inizio = fine.index("### 6. Config Sync")
+    # 20/10/2026: /fine numera le fasi come la config dell'autore, il Config Sync è la FASE 9.
+    assert "## FASE 9 · Config Sync" in fine, "F12 manca la FASE 9 · Config Sync di /fine"
+    inizio = fine.index("## FASE 9 · Config Sync")
     blocco = fine[fine.index("```bash\n", inizio) + 8:fine.index("\n```", fine.index("```bash\n", inizio))]
 
     def sync(visibilita: str) -> tuple:

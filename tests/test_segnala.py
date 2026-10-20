@@ -179,7 +179,9 @@ def test_s07(repo: Path) -> None:
 def test_s08(repo: Path) -> None:
     fine = read(repo / "commands" / "fine.md")
     assert "arturo\" segnala chiedi" in fine, "S08 /fine non chiede la domanda della settimana"
-    assert "| Segnalazione" in fine, "S08 la tabella di chiusura non ha la riga Segnalazione"
+    # 20/10/2026: la chiusura di /fine è una riga tecnica, non più una tabella: la segnalazione è una sua voce.
+    chiusura = fine.split("## Chiusura", 1)[1] if "## Chiusura" in fine else ""
+    assert "| Segnalazione" in fine or "segnalazione:" in chiusura, "S08 la chiusura di /fine non dice la segnalazione"
     assert "/segnala" in read(repo / "commands" / "setup.md"), "S08 /setup non presenta /segnala"
     assert "/segnala" in read(repo / "README.md"), "S08 il README non cita /segnala"
     assert "federico@stellakamikaze.org" in read(repo / "bin" / "segnala.py"), "S08 l'indirizzo email manca"

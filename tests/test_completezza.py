@@ -41,8 +41,12 @@ def test_k4(repo: Path) -> None:
 
 
 def test_k5(repo: Path) -> None:
-    riga = next((row for row in read(repo / "commands" / "fine.md").splitlines() if row.startswith("| Config sync")), "")
-    assert "non riuscito" in riga, f"K5 la tabella di chiusura non prevede il push rimasto indietro: {riga.strip()!r}"
+    fine = read(repo / "commands" / "fine.md")
+    # 20/10/2026: la chiusura di /fine è una riga tecnica, come nella config dell'autore, non più una tabella.
+    tabella = next((row for row in fine.splitlines() if row.startswith("| Config sync")), "")
+    chiusura = fine.split("## Chiusura", 1)[1] if "## Chiusura" in fine else ""
+    assert "non riuscito" in tabella or "push non riuscito" in chiusura, \
+        "K5 la chiusura di /fine non prevede il push rimasto indietro"
 
 
 def test_k6(repo: Path) -> None:
