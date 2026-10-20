@@ -712,9 +712,13 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
             </li>
             <li class="carta" hidden>
               <h3>Scarica Arturo</h3>
-              <p><span data-solo="mac">Apri un terminale nuovo</span><span data-solo="win">Apri <strong>Git Bash</strong> dal menu Start</span>, incolla e premi <kbd>Invio</kbd>. Se avevi già una configurazione, la mette da parte con la data nel nome.</p>
-              <div class="comando"><pre id="c-scarica">[ -d "$HOME/.claude" ] &amp;&amp; mv "$HOME/.claude" "$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
-git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><button type="button" data-copia="c-scarica">Copia</button></div>
+              <p><span data-solo="mac">Apri un terminale nuovo</span><span data-solo="win">Apri <strong>Git Bash</strong> dal menu Start</span>, incolla e premi <kbd>Invio</kbd>. Se avevi già una configurazione, la mette da parte con la data nel nome, e riporta al loro posto login, sessioni e plugin.</p>
+              <div class="comando"><pre id="c-scarica">B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+[ -d "$HOME/.claude" ] &amp;&amp; mv "$HOME/.claude" "$B"
+git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
+for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos; do
+  [ -e "$B/$x" ] &amp;&amp; [ ! -e "$HOME/.claude/$x" ] &amp;&amp; mv "$B/$x" "$HOME/.claude/"
+done</pre><button type="button" data-copia="c-scarica">Copia</button></div>
             </li>
             <li class="carta" hidden>
               <h3>Il resto, nella guida</h3>

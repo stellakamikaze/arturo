@@ -48,8 +48,13 @@ Servono Claude Code con un abbonamento Anthropic che lo includa (Pro, Max, Team,
 Arturo vive nella cartella di Claude Code, `~/.claude`. Il primo comando mette da parte la cartella che c'è già, con la data nel nome. Il secondo scarica Arturo:
 
 ```bash
-[ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+[ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$B"
 git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
+# Tornano al loro posto login, sessioni, cronologia e plugin di Claude Code: sono tuoi, non di Arturo.
+for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos; do
+  [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mv "$B/$x" "$HOME/.claude/"
+done
 ```
 
 Poi apri Claude Code dentro la cartella con `cd ~/.claude && claude` e scrivi `/setup`. La guida sul sito porta dal computer vuoto al primo lavoro in dieci passi, con ogni comando già scritto.

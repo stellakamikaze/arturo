@@ -568,9 +568,13 @@ python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/
         <div class="tappa__piega" id="corpo-4"><div><div class="foglio">
           <p class="perche">Arturo vive nella cartella delle impostazioni di Claude Code, <code>~/.claude</code>. Se la cartella esiste già, il primo comando la mette da parte con la data nel nome: non si perde niente.</p>
           <div class="consegna">
-            <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Incolla le due righe insieme <small data-solo="win">in Git Bash</small></p>
-            <div class="comando"><pre id="cmd-scarica">[ -d "$HOME/.claude" ] &amp;&amp; mv "$HOME/.claude" "$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
-git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"</pre><button type="button" data-copia="cmd-scarica">Copia</button></div>
+            <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Incolla il blocco intero <small data-solo="win">in Git Bash</small></p>
+            <div class="comando"><pre id="cmd-scarica">B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+[ -d "$HOME/.claude" ] &amp;&amp; mv "$HOME/.claude" "$B"
+git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
+for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos; do
+  [ -e "$B/$x" ] &amp;&amp; [ ! -e "$HOME/.claude/$x" ] &amp;&amp; mv "$B/$x" "$HOME/.claude/"
+done</pre><button type="button" data-copia="cmd-scarica">Copia</button></div>
           </div>
           <div class="esito">
             <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Qualche riga sullo scaricamento, che arriva al 100%. Poi il terminale torna pronto per un altro comando.</p></div>
