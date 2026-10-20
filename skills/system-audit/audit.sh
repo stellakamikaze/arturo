@@ -92,9 +92,13 @@ for command in "${hook_commands[@]}"; do
 import re
 import shlex
 import sys
-# shlex toglie le virgolette e tiene insieme i path con spazi.
+# shlex toglie le virgolette e tiene insieme i path con spazi. punctuation_chars stacca ; && | dal
+# path: con `... statusline.js; echo ...` (barra senza node, 19/10/2026) il token era «statusline.js;»
+# e il controllo saltava in silenzio.
 try:
-    tokens = shlex.split(sys.argv[1])
+    lex = shlex.shlex(sys.argv[1], posix=True, punctuation_chars=True)
+    lex.whitespace_split = True
+    tokens = list(lex)
 except ValueError:
     print("::parse-error::")
     raise SystemExit(0)
