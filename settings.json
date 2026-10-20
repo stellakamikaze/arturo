@@ -449,7 +449,7 @@
     "refreshInterval": 30
   },
   "language": "italian",
-  "outputStyle": "Guida",
+  "outputStyle": "Conciso",
   "alwaysThinkingEnabled": true,
   "fileCheckpointingEnabled": true,
   "showTurnDuration": true,

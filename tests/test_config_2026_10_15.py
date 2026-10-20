@@ -13,8 +13,8 @@ K06 la statusline legge i task nativi in tasks/session-<id>/.
 K07 `sed … ; for w in …` non chiede più conferma, `sed 'w file'` sì.
 K08 `rsync --delete` in dry-run o dentro un heredoc non eseguito non chiede più conferma.
 K09 il suono delle notifiche parte solo quando Claude aspetta la persona.
-K10 due stili di scrittura (Guida, Conciso) con le istruzioni da programmatore, Guida di partenza,
-    e /setup fa scegliere fra questi e i tre di Claude Code.
+K10 lo stile di scrittura Conciso con le istruzioni da programmatore, di partenza, e /setup fa
+    scegliere fra questo e i tre di Claude Code (dal 20/10/2026: lo stile Guida è uscito).
 K11 niente allow larghi che saltano il classificatore, autoMode generale senza dati personali,
     divieti per Windows e file di lavoro di Claude Code fuori da git.
 K12 un banco che sposta HOME sposta anche USERPROFILE: su Windows Python trova la home da lì.
@@ -212,11 +212,12 @@ def test_k10(repo: Path) -> None:
         assert campi.get("keep-coding-instructions", "").strip() == "true", \
             f"K10 {file.name} toglie le istruzioni da programmatore"
         nomi[campi.get("name", "").strip()] = file.name
-    assert {"Guida", "Conciso"} <= set(nomi), f"K10 mancano gli stili di Arturo: trovati {sorted(nomi)}"
+    # 20/10/2026: Arturo si comporta come la config dell'autore, con Conciso come stile di partenza.
+    assert "Conciso" in nomi, f"K10 manca lo stile Conciso: trovati {sorted(nomi)}"
     scelto = impostazioni(repo).get("outputStyle")
     assert scelto in nomi, f"K10 outputStyle {scelto!r} non è uno stile di Arturo"
     setup = (repo / "commands" / "setup.md").read_text(encoding="utf-8")
-    assert "Stile di scrittura" in setup and all(n in setup for n in ("Guida", "Conciso", "Explanatory", "Learning")), \
+    assert "Stile di scrittura" in setup and all(n in setup for n in ("Conciso", "Explanatory", "Learning")), \
         "K10 /setup non fa scegliere lo stile"
 
 

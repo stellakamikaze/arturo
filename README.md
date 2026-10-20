@@ -265,7 +265,7 @@ server/              Il server della telemetria e delle segnalazioni (Cloudflare
 commands/            10 slash command (i nove della rotta, più lo sparring che Claude apre da solo)
 agents/              9 subagent specializzati
 skills/              4 skill (+ regole condivise in shared/)
-output-styles/       Due stili di scrittura: Guida (di partenza) e Conciso (si sceglie in /setup)
+output-styles/       Lo stile di scrittura Conciso, quello di partenza (lo stile si cambia in /setup)
 docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/onboarding/     Guide di setup guidato (/inizio gws)
 docs/impeccable.md   Come installare Impeccable (design delle interfacce) dall'upstream
@@ -354,7 +354,7 @@ Qualità: usa le capacità native di review e verifica dell'harness.
 
 ### L'equipaggio (`agents/`)
 
-Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-finder`, `structural-completeness-reviewer`, `doc-reviewer`, `performance-profiler`, `ui-ux-consultant`, `test-runner`, `researcher`, `fact-checker`.
+Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-finder`, `structural-completeness-reviewer`, `performance-profiler`, `ui-ux-consultant`, `test-runner`, `researcher`, `fact-checker`.
 
 ### Le skill (`skills/`)
 

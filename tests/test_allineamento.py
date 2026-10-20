@@ -21,6 +21,8 @@ REMOVED = (
     "commands/strato.md", "commands/progetto.md", "commands/discovery.md", "commands/write-plan.md",
     "templates/strato", "docs/referente.md", "skills/percorso", "bin/percorso.py", "docs/esercizi.md",
     "tests/test_strato.py", "tests/test_percorso.py",
+    # 20/10/2026: Arturo si comporta come la config dell'autore, che non ha lo stile Guida né doc-reviewer.
+    "output-styles/guida.md", "agents/doc-reviewer.md",
 )
 # I03 dal 17/10/2026 (#3505): i nomi della config privata stanno solo come impronte sha256 in
 # tests/igiene.py, e il controllo legge anche i percorsi e i messaggi dei commit da pubblicare.
