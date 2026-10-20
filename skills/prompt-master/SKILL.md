@@ -73,13 +73,13 @@ Da chiarire: [max 3 punti]
 - Il brief mostrato è la punta dell'arricchimento, non tutto: il contesto recuperato resta nel tuo ragionamento e nel lavoro che ne segue. Non trascriverlo per intero, e non trasformare il brief in un rapporto di ricerca.
 - Se un'ambiguità cambierebbe materialmente il lavoro, chiedi prima di procedere, con una raccomandazione motivata. Max 3 punti. Il menu AskUserQuestion vale solo se il testo prima sta in una o due righe: dopo un brief di più righe, chiudi con l'elenco numerato e le parole di risposta in grassetto.
 - In plan mode il brief precede il piano e ne è il cappello.
-- Se l'obiettivo cambia a lavoro iniziato, correggi il brief con una riga; non riemetterlo per intero.
+- Se l'obiettivo cambia a lavoro iniziato, correggi il brief con una riga, senza riemetterlo per intero.
 - Italiano, come il resto della config.
 
 ## Importante
 
 - **Il brief c'è sempre**: prompt e brief si mostrano prima di qualunque altro lavoro, anche per una richiesta breve. Per una richiesta piccola bastano tre righe. Il prompt serve a far vedere subito se la richiesta è stata capita: un brief che la persona non riconduce alla sua richiesta la fa reagire a una ricostruzione invece che alla cosa.
-- Se l'arricchimento fa emergere un fatto che cambia le carte (lavoro già fatto, decisione già chiusa in senso opposto, freno CLAUDE.md che scatta), dillo nel brief prima di procedere — è il motivo principale per cui questa modalità esiste.
+- Se l'arricchimento fa emergere un fatto che cambia le carte (lavoro già fatto, decisione già chiusa in senso opposto, regola del CLAUDE.md che scatta), dillo nel brief prima di procedere: è il motivo principale per cui questa modalità esiste.
 - Il brief non è un gate e non richiede conferma: se il prompt è corretto e non hai nulla da chiarire, mostri e procedi. Ma se una domanda di approfondimento cambierebbe materialmente il lavoro, si chiede PRIMA, non dopo aver iniziato.
 - **Questa skill si carica sempre col tool `Skill`**, a ogni richiesta di lavoro: il corpo si legge, non si ricostruisce a memoria da una riga del `CLAUDE.md`. L'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi.
 
