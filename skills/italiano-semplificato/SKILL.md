@@ -5,8 +5,8 @@ description: >-
   ASD-STE100, 63 regole): classifica il testo, lo riscrive frase per frase e ne verifica la
   conformità, lasciando intatti codice, comandi e fatti.
 when_to_use: >-
-  Usa quando l'utente passa un testo e dice «riscrivi in ITS», «togli il burocratese», «rendi
-  leggibile», «accorcia le frasi», «de-slop», «controlla che sia conforme», o chiede documentazione,
+  Usa quando l'utente passa un testo e dice "riscrivi in ITS", "togli il burocratese", "rendi
+  leggibile", "accorcia le frasi", "de-slop", "controlla che sia conforme", o chiede documentazione,
   runbook, messaggi di errore, note di rilascio, capitolati, istruzioni per agenti. NON per le
   risposte in chat (le regole base stanno nel CLAUDE.md), non per marketing o voce di brand, non per impaginare un documento che ha un suo standard grafico. Segui tutti i passi nell'ordine: non prendere scorciatoie
   basandoti su questa description.
@@ -28,31 +28,31 @@ Il lettore è stanco, di fretta o non madrelingua: ogni frase regge una lettura 
 - Una parola per concetto in tutto il testo. Prima di scrivere scegli il verbo tra `verifica / controlla / accertati`, il nome tra `configurazione / impostazioni / parametri`, il verbo tra `esegui / avvia / lancia`.
 - Una sola forma per le istruzioni: imperativo alla seconda singolare, oppure infinito (Regola 5.3).
 - Codice, identificatori, comandi, errori citati e fatti restano esatti (vedi Intoccabili).
-- Prima di consegnare, il controllo della sezione «Prima di consegnare».
+- Prima di consegnare, il controllo della sezione "Prima di consegnare".
 
-Se ti chiedono di CONTROLLARE un testo invece di riscriverlo, riporta ogni violazione con: numero di regola (la numerazione è quella della sezione «Limiti»), testo che la viola, riscrittura conforme.
+Se ti chiedono di CONTROLLARE un testo invece di riscriverlo, riporta ogni violazione con: numero di regola (la numerazione è quella della sezione "Limiti"), testo che la viola, riscrittura conforme.
 
 ## Due modalità
 
 | Modalità | Quando | Che cosa applichi |
 |---|---|---|
-| **Pragmatica** (predefinita) | Documentazione, README, messaggi di errore. L'utente vuole un testo chiaro. | Tutte le regole di struttura. Le parole di dominio restano («idempotente», «webhook», «capitolato»). |
+| **Pragmatica** (predefinita) | Documentazione, README, messaggi di errore. L'utente vuole un testo chiaro. | Tutte le regole di struttura. Le parole di dominio restano ("idempotente", "webhook", "capitolato"). |
 | **Rigorosa** | L'utente nomina ITS, ASD-STE100 o la conformità. Il testo va tradotto o certificato. | Regole di struttura più glossario di progetto scritto, una sola forma verbale per le istruzioni, nessuna parola fuori glossario. |
 
-In modalità rigorosa dichiara sempre il limite della sezione «Limiti»: ITS trasporta la meccanica di ASD-STE100, non la certificazione.
+In modalità rigorosa dichiara sempre il limite della sezione "Limiti": ITS trasporta la meccanica di ASD-STE100, non la certificazione.
 
 ## Classifica il testo
 
 | Tratto | Procedurale (istruzioni) | Descrittivo (spiegazioni) |
 |---|---|---|
 | Scopo | Dire al lettore che cosa fare | Spiegare che cosa è o che cosa fa una cosa |
-| Forma verbale | Imperativo: «Installa la pompa.» | Indicativo presente, passato prossimo, futuro semplice |
+| Forma verbale | Imperativo: "Installa la pompa." | Indicativo presente, passato prossimo, futuro semplice |
 | Limite di frase | **22 parole** (Regola 5.1) | **28 parole** (Regola 6.3) |
 | Unità | Un'istruzione per frase (5.2) | Un tema per paragrafo (6.5), massimo sei frasi (6.6) |
 
-Una sezione «Per iniziare» è procedurale. Una sezione «Architettura» è descrittiva. Una nota dentro una procedura è descrittiva: limite di 28 parole, niente imperativo.
+Una sezione "Per iniziare" è procedurale. Una sezione "Architettura" è descrittiva. Una nota dentro una procedura è descrittiva: limite di 28 parole, niente imperativo.
 
-ASD-STE100 fissa 20 e 25 parole. L'italiano dice la stessa cosa con più parole grammaticali («the configuration file» sono tre parole, «il file di configurazione» quattro): il rapporto misurato in localizzazione sta tra 1,10 e 1,20. ITS applica 1,10 e arrotonda a 22 e 28. Se il dominio ha nomi tecnici lunghi, alza le soglie una volta sola e scrivilo nella guida di stile del progetto.
+ASD-STE100 fissa 20 e 25 parole. L'italiano dice la stessa cosa con più parole grammaticali ("the configuration file" sono tre parole, "il file di configurazione" quattro): il rapporto misurato in localizzazione sta tra 1,10 e 1,20. ITS applica 1,10 e arrotonda a 22 e 28. Se il dominio ha nomi tecnici lunghi, alza le soglie una volta sola e scrivilo nella guida di stile del progetto.
 
 ## Il catalogo delle regole
 
@@ -66,14 +66,14 @@ ASD-STE100 fissa 20 e 25 parole. L'italiano dice la stessa cosa con più parole 
 | 1.2 | Usa una parola solo nella parte del discorso in cui l'hai registrata. |
 | 1.3 | Usa una parola solo con il significato che le hai assegnato. |
 | 1.4 | Tra due parole che dicono la stessa cosa, scegli sempre la più breve e la più comune. |
-| 1.5 | Le parole di dominio sono nomi tecnici legittimi («webhook», «commit», «endpoint», «stazione appaltante»). |
+| 1.5 | Le parole di dominio sono nomi tecnici legittimi ("webhook", "commit", "endpoint", "stazione appaltante"). |
 | 1.6 | Usa una parola fuori glossario solo se è un nome tecnico o ne fa parte. |
-| 1.7 | Non trasformare i nomi tecnici in verbi («deployare», «schedulare», «triggerare», «committare»). |
+| 1.7 | Non trasformare i nomi tecnici in verbi ("deployare", "schedulare", "triggerare", "committare"). |
 | 1.8 | Usa i nomi tecnici del tuo settore e scrivili nel glossario. |
 | 1.9 | Quando scegli un nome tecnico, scegline uno breve e trasparente. |
 | 1.10 | Niente regionalismi, gergo di reparto, sigle non sciolte alla prima occorrenza. |
-| 1.11 | Una cosa, un nome. Non chiamarla «configurazione» qui e «impostazioni» là. |
-| 1.12 | I verbi di dominio sono verbi tecnici legittimi («compila», «distribuisci», «unisci»). |
+| 1.11 | Una cosa, un nome. Non chiamarla "configurazione" qui e "impostazioni" là. |
+| 1.12 | I verbi di dominio sono verbi tecnici legittimi ("compila", "distribuisci", "unisci"). |
 
 La Regola 1.4 è la leva più forte in italiano: la lingua tecnica preferisce per abitudine `utilizzare` a `usare`, `effettuare` al verbo pieno, `provvedere a` all'azione.
 
@@ -98,11 +98,11 @@ La Regola 1.4 è la leva più forte in italiano: la lingua tecnica preferisce pe
 | 3.1 | Usa solo questi modi e tempi: infinito, imperativo, indicativo presente, passato prossimo, futuro semplice, participio passato con funzione di aggettivo. |
 | 3.2 | Non usare congiuntivo, condizionale, trapassato prossimo, futuro anteriore, passato remoto. |
 | 3.3 | Non usare il gerundio come verbo. Spezza la frase in due. |
-| 3.4 | Non usare il participio presente come verbo («i dati risultanti dalla query» diventa «i dati che la query restituisce»). |
+| 3.4 | Non usare il participio presente come verbo ("i dati risultanti dalla query" diventa "i dati che la query restituisce"). |
 | 3.5 | Voce attiva. Nel testo descrittivo il passivo è ammesso solo quando l'agente è ignoto. |
-| 3.6 | Niente «si» passivante o impersonale nelle procedure. |
+| 3.6 | Niente "si" passivante o impersonale nelle procedure. |
 | 3.7 | Un'azione si dice con un verbo, non con un nome. |
-| 3.8 | Non usare l'infinito sostantivato al posto del verbo («l'invio dei dati avviene» diventa «il servizio invia i dati»). |
+| 3.8 | Non usare l'infinito sostantivato al posto del verbo ("l'invio dei dati avviene" diventa "il servizio invia i dati"). |
 | 3.9 | Modali ammessi: `puoi`, `devi`, il futuro semplice. Vietati: `dovresti`, `potresti`, `sarebbe`, `si consiglia di`, `è opportuno`, `eventualmente`. |
 
 Il condizionale è la principale fonte di ambiguità dell'italiano tecnico: un agente e un lettore stanco leggono `dovresti` come facoltativo.
@@ -110,7 +110,7 @@ Il condizionale è la principale fonte di ambiguità dell'italiano tecnico: un a
 | Hai scritto | ITS scrive |
 |---|---|
 | dovresti, si consiglia di, è opportuno (requisito) | devi |
-| dovresti (consiglio) | Cancella, oppure afferma il fatto: «X è più veloce perché Y.» |
+| dovresti (consiglio) | Cancella, oppure afferma il fatto: "X è più veloce perché Y." |
 | potrebbe, può darsi, eventualmente, in taluni casi | può |
 | sarebbe, qualora si verificasse, laddove | Se X, allora Y (indicativo) |
 | è possibile che si verifichi un errore | può verificarsi un errore |
@@ -133,9 +133,9 @@ La nominalizzazione (Regole 3.7 e 3.8) è il burocratese in forma pura: il verbo
 | Regola | Istruzione |
 |---|---|
 | 4.1 | Scrivi frasi brevi e chiare. |
-| 4.2 | Non tagliare parole per accorciare. Tieni gli articoli, le preposizioni e il «che» completivo. |
+| 4.2 | Non tagliare parole per accorciare. Tieni gli articoli, le preposizioni e il "che" completivo. |
 | 4.3 | Usa un elenco verticale quando il testo diventa complesso. |
-| 4.4 | Collega le frasi con connettivi espliciti («Poi», «Di conseguenza», «Invece», «Per questo»). |
+| 4.4 | Collega le frasi con connettivi espliciti ("Poi", "Di conseguenza", "Invece", "Per questo"). |
 | 4.5 | Metti l'articolo o il dimostrativo davanti ai nomi. |
 | 4.6 | Ripeti il soggetto quando il soggetto cambia. L'italiano lo sottintende e il lettore lo perde. |
 
@@ -155,11 +155,11 @@ La Regola 4.6 non esiste in inglese, dove il soggetto è obbligatorio. In italia
 |---|---|
 | 5.1 | Massimo 22 parole per frase. Le avvertenze rientrano nel limite. |
 | 5.2 | Un'istruzione per frase, salvo due azioni simultanee. |
-| 5.3 | Scrivi le istruzioni all'imperativo, seconda persona singolare: «Esegui la migrazione.» L'infinito («Eseguire la migrazione») è ammesso nei contesti industriali e regolati, ma una forma sola per tutto il documento. |
-| 5.4 | Metti la condizione prima del comando, separata da una virgola: «Se la build fallisce, leggi il log.» |
+| 5.3 | Scrivi le istruzioni all'imperativo, seconda persona singolare: "Esegui la migrazione." L'infinito ("Eseguire la migrazione") è ammesso nei contesti industriali e regolati, ma una forma sola per tutto il documento. |
+| 5.4 | Metti la condizione prima del comando, separata da una virgola: "Se la build fallisce, leggi il log." |
 | 5.5 | Le note danno informazioni, mai istruzioni. Le note hanno il limite di 28 parole. |
 
-La Regola 5.3 chiude l'oscillazione dei manuali italiani, che alternano «Premere il tasto», «Premi il tasto» e «Prema il tasto» nella stessa pagina.
+La Regola 5.3 chiude l'oscillazione dei manuali italiani, che alternano "Premere il tasto", "Premi il tasto" e "Prema il tasto" nella stessa pagina.
 
 **Prima:** Sarà necessario recuperare la chiave API dalla dashboard prima di procedere alla configurazione del client, operazione che si effettua nella sezione Impostazioni.
 **Dopo:** Apri la dashboard, sezione Impostazioni. Copia la chiave API. Poi configura il client con questa chiave.
@@ -219,11 +219,11 @@ Per la Regola 8.6, `sqlpipe run --config sqlpipe.yaml` tra backtick vale una par
 |---|---|
 | 9.1 | Quando la sostituzione parola per parola non funziona, ristruttura la frase. |
 | 9.2 | Usa ogni parola con il significato e la parte del discorso che le hai assegnato nel glossario. |
-| 9.3 | Non costruire perifrasi verbali: «andare a configurare» diventa «configura», «provvedere all'invio» diventa «invia». |
+| 9.3 | Non costruire perifrasi verbali: "andare a configurare" diventa "configura", "provvedere all'invio" diventa "invia". |
 | 9.4 | Tieni uno stile e una terminologia coerenti in tutto il documento. |
-| 9.5 | Niente abbreviazioni oscure: «ad es.» diventa «per esempio», «cfr.» diventa «vedi», «N.B.» diventa «Nota». Cancella «ecc.» ed elenca le voci. |
+| 9.5 | Niente abbreviazioni oscure: "ad es." diventa "per esempio", "cfr." diventa "vedi", "N.B." diventa "Nota". Cancella "ecc." ed elenca le voci. |
 
-La Regola 9.3 colpisce due tic: «andare a» più infinito (il tutorial parlato) e «provvedere a», «procedere a», «effettuare» più nome (il documento amministrativo).
+La Regola 9.3 colpisce due tic: "andare a" più infinito (il tutorial parlato) e "provvedere a", "procedere a", "effettuare" più nome (il documento amministrativo).
 
 ### Sezione 10 — Ortografia e forma italiana (Regole 10.1-10.6)
 
@@ -231,8 +231,8 @@ La Regola 9.3 colpisce due tic: «andare a» più infinito (il tutorial parlato)
 |---|---|
 | 10.1 | Accenti sempre corretti. Mai l'apostrofo al posto dell'accento: `e'`, `puo'`, `citta'`, `piu'` sono errori, non varianti. |
 | 10.2 | Accento acuto su `perché`, `poiché`, `affinché`, `benché`, `né`, `sé`. Accento grave su `è`, `cioè`, `caffè`, `ciò`. |
-| 10.3 | Usa `ad` ed `ed` solo davanti alla stessa vocale: «ad andare», «ed erano». Scrivi «per esempio», non «ad esempio». |
-| 10.4 | Scegli un tipo di virgolette e tienilo. Se il documento ha uno standard di casa, vale quello. |
+| 10.3 | Usa `ad` ed `ed` solo davanti alla stessa vocale: "ad andare", "ed erano". Scrivi "per esempio", non "ad esempio". |
+| 10.4 | Usa solo le virgolette dritte ("). Mai le basse (« ») né quelle curve (“ ”). |
 | 10.5 | Numeri all'italiana: virgola decimale, spazio fine per le migliaia, spazio prima dell'unità (`12 GB`, `30 s`). Date in formato ISO oppure per esteso, mai `03/04/2026`. |
 | 10.6 | Maiuscole all'italiana: solo la prima parola del titolo, i nomi propri e le sigle. Niente Title Case all'inglese. |
 
@@ -251,7 +251,7 @@ ASD-STE100 ha un dizionario ufficiale di circa 900 parole. Per l'italiano non es
 | mandare dati | inviare, mandare, spedire, trasmettere | `invia` |
 | creare una risorsa | creare, generare, istanziare, produrre | `crea` |
 
-Se il dominio usa un'altra parola, cambiala una volta e scrivila nel glossario. Le tabelle di sostituzione per slop AI e burocratese (da «al fine di» a «per», da «consente di» a «puoi») stanno in `references/sostituzioni.md`. Aprile quando riscrivi un testo scritto da persone o preesistente.
+Se il dominio usa un'altra parola, cambiala una volta e scrivila nel glossario. Le tabelle di sostituzione per slop AI e burocratese (da "al fine di" a "per", da "consente di" a "puoi") stanno in `references/sostituzioni.md`. Aprile quando riscrivi un testo scritto da persone o preesistente.
 
 ## Intoccabili
 
@@ -271,7 +271,7 @@ Stesse regole, adattamenti diversi, in `references/casi-uso.md`: messaggi di err
 
 ## Prima di consegnare
 
-Il benchmark del 20/8/2026 (54 generazioni, 3 modelli Claude) dice dove sta il lavoro. Condizionale, nominalizzazioni, «qualora», «si consiglia» e accenti sbagliati non compaiono quasi mai nel testo generato. Le violazioni vere sono quattro: frasi oltre il limite, gerundio, rotazione di sinonimi, lineetta lunga. Controlla prima quelle quattro. Poi ogni «se» e ogni «quando» di un comando: deve stare all'inizio della sua frase.
+Il benchmark del 20/8/2026 (54 generazioni, 3 modelli Claude) dice dove sta il lavoro. Condizionale, nominalizzazioni, "qualora", "si consiglia" e accenti sbagliati non compaiono quasi mai nel testo generato. Le violazioni vere sono quattro: frasi oltre il limite, gerundio, rotazione di sinonimi, lineetta lunga. Controlla prima quelle quattro. Poi ogni "se" e ogni "quando" di un comando: deve stare all'inizio della sua frase.
 
 Per un testo scritto da persone, e per la modalità controllo, usa `references/checklist.md`.
 
@@ -283,7 +283,7 @@ Poi una seconda passata sul ritmo e sulla struttura con `references/tic-scrittur
 
 > **Timeout di connessione.** Qualora sqlpipe risultasse bloccato o fallisse con `dial tcp: i/o timeout`, è importante verificare che l'host su cui gira sqlpipe possa raggiungere la porta Postgres (solitamente la 5432) — si tratta spesso di una regola di firewall o di un security group che sta bloccando la connessione. Nel caso in cui ci si stia connettendo a un database gestito (RDS, Cloud SQL, ecc.), occorre altresì accertarsi che l'istanza consenta le connessioni provenienti dall'IP di sqlpipe. Si potrebbe inoltre provare ad andare ad aumentare `source.connect_timeout_seconds` nella config, dal momento che una rete lenta potrebbe far scattare il timeout di default anche quando la connessione andrebbe comunque a buon fine.
 
-**Dopo (classificato procedurale, verbo scelto «verifica», condizioni prima, un'istruzione per frase):**
+**Dopo (classificato procedurale, verbo scelto "verifica", condizioni prima, un'istruzione per frase):**
 
 > **Timeout di connessione.** sqlpipe si ferma con `dial tcp: i/o timeout` quando non raggiunge la porta Postgres (5432 nella configurazione predefinita).
 >
@@ -291,13 +291,13 @@ Poi una seconda passata sul ritmo e sulla struttura con `references/tic-scrittur
 > 2. Se il database è gestito (RDS, Cloud SQL), verifica che l'istanza accetti le connessioni dall'IP di sqlpipe.
 > 3. Se la rete è lenta, aumenta `source.connect_timeout_seconds` nella configurazione.
 
-Che cosa è cambiato: frasi da 50 parole spezzate sotto le 22, tolti tre condizionali e due congiuntivi, `verificare / accertarsi` uniti in `verifica`. Via il gerundio, «andare ad aumentare», «altresì», «ecc.» e la lineetta lunga. Ogni condizione sta prima del comando. Codice e stringhe di errore sono intatti.
+Che cosa è cambiato: frasi da 50 parole spezzate sotto le 22, tolti tre condizionali e due congiuntivi, `verificare / accertarsi` uniti in `verifica`. Via il gerundio, "andare ad aumentare", "altresì", "ecc." e la lineetta lunga. Ogni condizione sta prima del comando. Codice e stringhe di errore sono intatti.
 
 ## Limiti
 
 ITS serve per fatti tecnici e istruzioni. Non applicarlo a testi di marketing, a un pezzo con una voce d'autore o alla scrittura di brand: toglie la persuasione per costruzione, e toglie anche il ritmo. Quando l'utente chiede ITS su un testo promozionale, dillo e offri ITS per la documentazione collegata.
 
-Se il documento ha uno standard di casa (titoli, virgolette, voce), quello standard detta la voce e ITS governa la frase.
+Se il documento ha uno standard di casa (titoli, voce), quello standard detta la voce e ITS governa la frase.
 
 ### ITS non è ASD-STE100 e non lo sostituisce
 

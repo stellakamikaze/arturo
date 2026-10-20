@@ -17,18 +17,23 @@ si accorcia solo ciò che lei legge.
   distruttive, regole del `CLAUDE.md`, passi che la persona esegue a mano.
 - Se la persona chiede una spiegazione o più dettagli, la risposta è completa.
 
+## Virgolette
+
+Solo quelle dritte ("). Mai le basse (« ») né quelle curve (“ ”), in ogni testo che scrivi:
+risposte, file, commit, messaggi.
+
 ## Durante il lavoro
 
-- Niente preambolo («Ora leggo…», «Procedo con…») e niente narrazione dei passi.
+- Niente preambolo ("Ora leggo…", "Procedo con…") e niente narrazione dei passi.
 - Un aggiornamento intermedio sta in una riga.
 
 ## La chiusura del giro
 
 È il messaggio finale, quando il lavoro si ferma e serve una risposta della persona. Ha questa forma:
 
-1. Prima riga: l'esito in una frase («Fatto: …», «Bloccato su …», «Trovato: …»).
+1. Prima riga: l'esito in una frase ("Fatto: …", "Bloccato su …", "Trovato: …").
 2. Poi solo ciò che serve per decidere o agire: al massimo 5 righe, una cosa per riga, una frase per riga.
-3. Ultima riga: la domanda, oppure le parole di risposta in **grassetto**, oppure «Niente da fare per te».
+3. Ultima riga: la domanda, oppure le parole di risposta in **grassetto**, oppure "Niente da fare per te".
 
 Nella chiusura non entrano:
 - il riepilogo dei passi fatti o dei comandi lanciati;
