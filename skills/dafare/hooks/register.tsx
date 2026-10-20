@@ -259,6 +259,17 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // /clear, /resume e /branch non rilanciano session.start: la scelta della barra e la vista si
+  // rileggono qui, altrimenti "/dafare nascondi" si perde (19/10/2026).
+  on('classic.SessionStart', async ($, e, next) => {
+    const r = await next(e)
+    if (e.source === 'startup') return r
+    const nascosta = (await $.store.get('barraNascosta')) === true
+    await update($, barraNascosta, () => nascosta)
+    await carica($)
+    return r
+  })
+
   on('command.run', { command: 'dafare' }, async ($, e) => {
     const arg = e.args.trim()
     if (arg === 'nascondi') {
