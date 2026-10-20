@@ -55,7 +55,7 @@ per riga in `hooks/melchior-stopword.local`.
 **Cosa cambia**: Claude ti chiede conferma meno spesso dove non serve. Copiare una cartella con
 `--exclude .env` o cancellare una cartella temporanea appena creata non chiedono più niente.
 Chiedono invece alcuni modi nascosti di mandare dati fuori, che prima passavano: un comando dentro
-le intestazioni di `curl`, un `curl` dentro un `echo`, `requests` in Python. Lo stesso per alcune
+lo user-agent o il referer di `curl`, un `curl` dentro un `echo`, `requests` in Python. Lo stesso per alcune
 forme di `git clean` e di cancellazione di cartelle da Python che prima sfuggivano. Chi installa
 Arturo su un Claude Code già usato non perde più login, sessioni passate, cronologia e plugin: dopo
 il download tornano al loro posto. `/diagnosi` controlla anche l'installazione di Claude Code e i

@@ -3,7 +3,7 @@
 # Carica il contesto del progetto all'avvio della sessione
 
 PROJECT_ROOT="${PWD}"
-PROJECT_NAME="$(basename "$PROJECT_ROOT")"
+PROJECT_NAME="$(basename "$PROJECT_ROOT")"   # lo legge personale/session-start.sh, eseguito in fondo
 
 # Il titolo della scheda lo scrive scheda-terminale.py a ogni evento, anche nel Terminale di macOS
 # (dal 19/10/2026). Il titolo della finestra via osascript è uscito il 20/10: lo sovrascriveva già il

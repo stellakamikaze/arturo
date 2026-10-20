@@ -395,7 +395,7 @@ def avvio() -> int:
             nuova = " Cosa esce è cambiato da quando l'ha letto: diglielo." if stato.get("avviso") else ""
             print("TELEMETRIA: Arturo manda a chi lo mantiene eventi d'uso con un id casuale: versione di Arturo e di "
                   "Claude Code, sistema, comandi di Arturo usati, guardie che bloccano o chiedono e se la persona "
-                  "conferma, guardie che si rompono, fase di /setup raggiunta, esiti di /aggiorna e degli aggiornamenti automatici, file e hook di "
+                  "conferma, guardie che si rompono, fase di /setup raggiunta, esiti di /aggiorna e degli aggiornamenti automatici, perché un aggiornamento automatico non parte, file e hook di "
                   "Arturo cambiati o spenti. Mai prompt, file, nomi o testi."
                   + nuova + " Dillo alla persona una volta, in due righe, con il perché: con questi dati Arturo "
                   "corregge ogni settimana i punti dove le persone si bloccano. "
