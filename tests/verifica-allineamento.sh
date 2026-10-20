@@ -73,7 +73,9 @@ PY
 
 js=0
 while IFS= read -r -d '' file; do
-  node --check "$file"
+  # Gli script del sito sono moduli ES caricati dal browser (import, import.meta): se il controllo
+  # come script fallisce, si rifà come modulo, e il rosso vale solo se falliscono tutti e due (20/10/2026).
+  node --check "$file" 2>/dev/null || node --input-type=module --check < "$file"
   js=$((js + 1))
 done < <(git -C "$REPO" ls-files -z -- '*.js')
 [[ $js -gt 0 ]] || { echo "FAIL: nessun file JavaScript" >&2; exit 1; }
