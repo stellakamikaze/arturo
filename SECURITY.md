@@ -35,5 +35,7 @@ del README. Le issue vengono lette, ma non c'è obbligo di risposta né di fix.
 ## Cosa NON serve segnalare qui
 
 Un falso positivo di una guardia — un comando legittimo che chiede conferma —
-non è un problema di sicurezza. Quello si segnala con `/segnala`, oppure in una
+non è un problema di sicurezza. Non lo è neanche l'avviso «firma non verificabile»:
+vuol dire che git o OpenSSH sono troppo vecchi per controllare la firma dei rilasci
+(servono git 2.34 e OpenSSH 8.2). Si risolve aggiornandoli. Quello si segnala con `/segnala`, oppure in una
 issue normale col comando esatto (vedi il Troubleshooting nel README).

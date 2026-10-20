@@ -12,7 +12,7 @@ IG02 il controllo del repository riconosce un termine anche con un punto in mezz
 IG03 il controllo legge anche i percorsi dei file e i messaggi dei commit dell'intervallo, e il rapporto
      non ripete mai il termine.
 IG04 un workflow di GitHub Actions lancia il solo controllo di igiene su ogni push, su ogni branch, in
-     sola lettura.
+     sola lettura, e solo nel repository pubblico di Arturo (19/10/2026, segnalazione n. 4).
 
 Sulla base 93f323e ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """

@@ -5,18 +5,10 @@
 PROJECT_ROOT="${PWD}"
 PROJECT_NAME="$(basename "$PROJECT_ROOT")"
 
-# macOS: cattura window ID e setta titolo terminale
-# Solo nell'app Terminale: da iTerm, VS Code o dall'app desktop osascript aprirebbe il
-# Terminale e macOS chiederebbe il permesso di Automazione a chi non sa cosa sia.
-if [[ "$OSTYPE" == "darwin"* && "${TERM_PROGRAM:-}" == "Apple_Terminal" ]]; then
-  mkdir -p "$HOME/.claude/session-env"   # dir gitignored: non esiste su un clone fresco
-  WID_FILE="$HOME/.claude/session-env/terminal-wid-$PROJECT_NAME"
-  WID=$(osascript -e 'tell application "Terminal" to id of front window' 2>/dev/null)
-  if [ -n "$WID" ]; then
-    echo "$WID" > "$WID_FILE"
-    osascript -e "tell application \"Terminal\" to set custom title of window id $WID to \"Claude: $PROJECT_NAME\"" 2>/dev/null
-  fi
-fi
+# Il titolo della scheda lo scrive scheda-terminale.py a ogni evento, anche nel Terminale di macOS
+# (dal 19/10/2026). Il titolo della finestra via osascript è uscito il 20/10: lo sovrascriveva già il
+# primo evento, e osascript poteva far chiedere a macOS il permesso di Automazione (#3587).
+mkdir -p "$HOME/.claude/session-env"   # dir gitignored: non esiste su un clone fresco
 
 # Info directory di lavoro e macchina: con piu' computer, Claude sa su quale lavora.
 echo "DIRECTORY: $PROJECT_ROOT"

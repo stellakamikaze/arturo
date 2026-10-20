@@ -193,7 +193,10 @@ def test_k08(repo: Path) -> None:
 
 def test_k09(repo: Path) -> None:
     hooks = impostazioni(repo)["hooks"]
-    matcher = hooks["Notification"][0].get("matcher", "")
+    # Il gruppo col suono si cerca per contenuto: un hook di terzi messo in testa (iTerm2, 19/10/2026)
+    # spostava il primo gruppo e faceva cadere K09 per posizione.
+    matcher = next((g.get("matcher", "") for g in hooks["Notification"]
+                    if any("input-notifier" in str(h.get("command", "")) for h in g.get("hooks", []))), "")
     assert "permission_prompt" in matcher and "auth_success" not in matcher, \
         f"K09 il suono parte su ogni notifica (matcher {matcher!r})"
 

@@ -220,7 +220,7 @@ def info() -> str:
             return r.stdout.strip() if r.returncode == 0 else ""
         except (OSError, subprocess.SubprocessError):
             return ""
-    versione = esegui(["git", "-C", str(Path.home() / ".claude"), "describe", "--tags", "--always"]) or "sconosciuta"
+    versione = esegui(["git", "-C", str(Path.home() / ".claude"), "describe", "--tags", "--abbrev=0", "--match", "v*"]) or "sconosciuta"
     claude = esegui(["claude", "--version"]) or "sconosciuta"
     if not shutil.which("gh"):
         gh = "non installato"

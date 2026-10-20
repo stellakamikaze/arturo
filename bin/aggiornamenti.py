@@ -18,7 +18,9 @@ riscritta; hai modifiche non salvate in ~/.claude; un'altra sessione di Claude C
 installa l'ultima che chiude); l'aggiornamento va in conflitto con le tue modifiche. In tutti questi
 casi l'avviso resta, col motivo, e /aggiorna fa il resto con te. Una firma che manca o non torna non
 si scavalca neanche con /aggiorna: è il segno di un repository manomesso, e l'avviso dice di non
-aggiornare e di segnalarlo a chi mantiene Arturo (17/10/2026, #3504). ARTURO_AGGIORNAMENTI=manuali
+aggiornare e di segnalarlo a chi mantiene Arturo (17/10/2026, #3504). Una firma che questo computer
+non sa verificare (git prima della 2.34, OpenSSH prima della 8.2) blocca allo stesso modo, ma senza
+allarme: «firma non verificabile», uscita 4 di firmato. ARTURO_AGGIORNAMENTI=manuali
 ha lo stesso effetto di «manuali». Solo libreria standard, Python 3.8 o successivo.
 """
 from __future__ import annotations

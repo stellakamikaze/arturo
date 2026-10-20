@@ -1,4 +1,5 @@
-# Igiene del repository pubblico (I03, #3505): su ogni push, su ogni branch, controlla che nei file, nei
+# Igiene del repository pubblico (I03, #3505): su ogni push, su ogni branch, solo nel repository pubblico
+# di Arturo (il job ha un `if`), controlla che nei file, nei
 # percorsi e nei messaggi dei commit arrivati non ci siano i nomi della config privata dell'autore.
 # Lancia solo tests/igiene.py: niente segreti, niente rete oltre al checkout, permessi in sola lettura.
 name: igiene

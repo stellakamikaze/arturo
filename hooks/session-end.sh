@@ -34,7 +34,8 @@ if [ -d "$PROJECT_ROOT/.git" ]; then
     [ -z "$CHANGES" ] && SOLO_LETTURA=1
 fi
 
-# macOS: ripristina titolo terminale
+# macOS: ripristina il titolo della finestra lasciato dalle versioni prima del 20/10/2026, che lo
+# impostavano via osascript all'avvio. Il file si cancella, quindi succede una volta sola (#3587).
 if [[ "$OSTYPE" == "darwin"* ]]; then
   WID_FILE="$HOME/.claude/session-env/terminal-wid-$PROJECT_NAME"
   if [ -f "$WID_FILE" ]; then

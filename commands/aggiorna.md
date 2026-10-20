@@ -15,7 +15,9 @@ aggiunte personali, o quando la persona vuole guardare prima.
 dell'aggiornamento automatico (`bin/aggiornamenti.py firmato`), e legge la procedura da quel tag.
 Non applica mai `main`: i commit pubblicati dopo l'ultimo tag non arrivano. Se l'ultimo tag non è
 firmato, o la firma non torna, compare `POSSIBILE COMPROMISSIONE`: niente si applica, neanche con
-il suo sì (vedi il Passo 1).
+il suo sì (vedi il Passo 1). Se invece compare `FIRMA NON VERIFICABILE` (uscita 4), il computer non sa
+controllare la firma: non è una compromissione, niente si applica finché la persona non aggiorna git e
+OpenSSH, e lo dici senza allarme.
 
 Chi ti parla **potrebbe non essere una persona tecnica**: niente gergo di Git, nessun output
 grezzo incollato senza spiegazione.
@@ -34,7 +36,7 @@ git fetch --quiet --tags "$SRC" main 2>&1 || echo "fetch non riuscito (rete?)"
 if [ -n "$NOTA" ] && ! git merge-base --is-ancestor "$NOTA" "$SRC/main"; then
   echo "STORIA RISCRITTA: la versione pubblicata non discende più da quella che conoscevi"
 fi
-echo "Versione installata: $(git describe --tags --always HEAD 2>/dev/null)"
+echo "Versione installata: $(git describe --tags --abbrev=0 --match 'v*' HEAD 2>/dev/null)"
 # Solo l'ultimo tag firmato di $SRC, verificato con la chiave già installata: main non si applica mai.
 TAG=$(python3 "$HOME/.claude/bin/aggiornamenti.py" firmato) || TAG=""
 if [ -n "$TAG" ]; then
@@ -192,7 +194,7 @@ if TAG=$(python3 "$HOME/.claude/bin/aggiornamenti.py" firmato); then
     echo "APPLICAZIONE NON PARTITA: il rilascio $TAG non ha la procedura di applicazione. Non ho toccato niente."
   fi
 else
-  echo "APPLICAZIONE NON PARTITA: nessun rilascio firmato da applicare. Non ho toccato niente."
+  echo "APPLICAZIONE NON PARTITA: nessun rilascio firmato e verificabile da applicare (vedi la riga di firmato qui sopra). Non ho toccato niente."
 fi
 rm -f "$APPLICA"
 ```
@@ -371,6 +373,8 @@ precedente. I passi 1-4 qui sopra non c'entrano.
 - Con `STORIA RISCRITTA` non si applica niente.
 - Si applica solo l'ultimo tag firmato, mai `main`. Con `POSSIBILE COMPROMISSIONE` non si applica
   niente, neanche col suo sì: «possibile compromissione: non aggiornare, segnala a chi mantiene Arturo».
+  Con `FIRMA NON VERIFICABILE` non si applica niente finché git e OpenSSH non sono aggiornati: non è
+  un allarme, e non si dice «compromissione».
 - Con modifiche non salvate l'applicazione non parte. Il merge gira in una copia di prova:
   `~/.claude` cambia solo con un risultato integro, e i conflitti si risolvono nella copia di prova.
 - La procedura di applicazione si legge dal tag firmato in arrivo, dopo che il Passo 1 ne ha

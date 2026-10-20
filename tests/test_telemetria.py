@@ -321,8 +321,8 @@ def test_m13(repo: Path) -> None:
     assert "clienti" not in json.dumps(lab.coda()) + attese.read_text(encoding="utf-8"), "M13 il comando esce"
     # Il PostToolUse vero, preso dal settings.json di Arturo.
     impostazioni = json.loads(read(repo / "settings.json"))
-    esito = next(h["command"] for g in impostazioni["hooks"]["PostToolUse"] for h in g["hooks"]
-                 if "telemetria-esito.sh" in h["command"])
+    esito = next(str(h.get("command", "")) for g in impostazioni["hooks"]["PostToolUse"] for h in g["hooks"]
+                 if "telemetria-esito.sh" in str(h.get("command", "")))
     dopo = lambda uso: subprocess.run([BASH, "-c", esito], input=json.dumps({"tool_use_id": uso}),  # noqa: E731
                                       capture_output=True, text=True, env=lab.env, timeout=60)
     assert dopo("toolu_99").returncode == 0 and len(lab.coda()) == 1, "M13 un'altra chiamata conta come conferma"
@@ -347,7 +347,7 @@ def test_m13(repo: Path) -> None:
                        input=json.dumps(entrata), capture_output=True, text=True, env=lab.env, timeout=60)
     assert '"ask"' in r.stdout, f"M13 la guardia sui file non chiede: {r.stdout[:200]}"
     scrittura = next(g for g in impostazioni["hooks"]["PostToolUse"] if "Write" in g.get("matcher", "")
-                     and any("telemetria-esito.sh" in h["command"] for h in g["hooks"]))
+                     and any("telemetria-esito.sh" in str(h.get("command", "")) for h in g["hooks"]))
     assert scrittura, "M13 nessun PostToolUse di Write registra la conferma"
     assert dopo("toolu_02").returncode == 0
     assert [e["valore"] for e in lab.coda()][-2:] == ["protect_claude_md.py", "protect_claude_md.py"], \

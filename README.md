@@ -141,7 +141,9 @@ di `/aggiorna` qui sotto. Si installano da soli solo i rilasci con un tag firmat
 mantiene Arturo, verificato con la chiave che hai già (`firme/rilasci.allowed_signers`). Se un
 aggiornamento non può installarsi da solo (modifiche non salvate, un'altra sessione aperta, un
 conflitto), l'avviso resta col motivo, e `/aggiorna` lo applica con te. Se invece l'ultimo rilascio non
-ha una firma valida, non si installa in nessun modo, e l'avviso lo dice:
+ha una firma valida, non si installa in nessun modo, e l'avviso lo dice. Se è il computer a non saper
+controllare la firma (git prima della 2.34, OpenSSH prima della 8.2), l'avviso lo dice senza allarme:
+non è una compromissione, e il rilascio arriva quando aggiorni git e OpenSSH.
 
 ```
 ARTURO: possibile compromissione: non aggiornare, segnala a chi mantiene Arturo. Il rilascio v2026-10-17 non ha la firma di Arturo: ...
@@ -165,7 +167,9 @@ TAG=$(python3 ~/.claude/bin/aggiornamenti.py firmato) &&
 ```
 
 Se la riga di `firmato` dice `POSSIBILE COMPROMISSIONE`, gli altri due comandi non partono: non
-aggiornare, e segnalalo a chi mantiene Arturo (`SECURITY.md`).
+aggiornare, e segnalalo a chi mantiene Arturo (`SECURITY.md`). Se dice `FIRMA NON VERIFICABILE`, non
+è un problema di sicurezza: questo computer non sa controllare la firma (servono git 2.34 e OpenSSH
+8.2). Aggiorna git e OpenSSH, poi rilancia.
 
 La prima parola dell'ultima riga dice com'è andata: `APPLICATO`, `GIÀ AGGIORNATO`,
 `APPLICAZIONE NON PARTITA` o `APPLICAZIONE ANNULLATA` (in questi due casi `~/.claude` è com'era).
@@ -287,14 +291,14 @@ Fuori dal dispatcher:
 - `memoria-scrittura.py` — PostToolUse, sempre acceso: controlla le note di memoria e gli handoff che Claude scrive (password, chiavi, istruzioni nascoste). `memoria-richiamo.py` e `memoria-subagente.py` sono la memoria facoltativa, spenta di default: vedi «La memoria (facoltativa)».
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
 - `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
-- `session-start.sh` / `session-end.sh` — titolo della finestra nell'app Terminale di macOS (il titolo della scheda lo scrive `scheda-terminale.py`), riga `MACCHINA`, riga `NODE` se node manca, avvisi Git locali, file della config modificati e non salvati, controllo della deriva (`deriva.py`), banchi delle guardie in background ogni 12 ore (`tests/banchi-avvio.sh`, un rosso si dice all'avvio; `ARTURO_BANCHI_AVVIO=0` li spegne), avvio della telemetria (`arturo telemetria`), invito a `/segnala` (si spegne con `arturo segnala basta`), promemoria di chiusura anche senza file cambiati e cleanup degli unlock di sessione. L'avvio dice anche lo stato dell'aggiornamento automatico (`bin/aggiornamenti.py stato`, senza rete), e la chiusura lo installa (`aggiornamenti.py applica`, staccato).
+- `session-start.sh` / `session-end.sh` — riga `MACCHINA`, riga `NODE` se node manca, avvisi Git locali, file della config modificati e non salvati, controllo della deriva (`deriva.py`), banchi delle guardie in background ogni 12 ore (`tests/banchi-avvio.sh`, un rosso si dice all'avvio; `ARTURO_BANCHI_AVVIO=0` li spegne), avvio della telemetria (`arturo telemetria`), invito a `/segnala` (si spegne con `arturo segnala basta`), promemoria di chiusura anche senza file cambiati e cleanup degli unlock di sessione. L'avvio dice anche lo stato dell'aggiornamento automatico (`bin/aggiornamenti.py stato`, senza rete), e la chiusura lo installa (`aggiornamenti.py applica`, staccato).
 - `controlla-config.py` — strumento, non un hook: controlla che la config sia integra (`settings.json` valido, nessun rebase o conflitto a metà) e stampa `CONFIG OK` o `CONFIG ROTTA`. Lo usano l'avvio, `/inizio`, `/aggiorna` e `/fine`.
 - `deriva.py` — strumento, non un hook: all'avvio misura quanto la tua config si è allontanata da quella di Arturo (comandi e file di Arturo modificati, hook di Arturo tolti o spenti, config rotta) e stampa una riga `DERIVA` solo se c'è da fare.
 - `inject-now.sh` — inietta data/ora corrente a ogni prompt. Quando lanci un comando con aggiunte tue in
   `personale/`, dice a Claude di leggerle. Sui messaggi che non sono comandi ricorda che ogni richiesta di lavoro, anche breve, comincia con PROMPT + BRIEF; domande e conversazione hanno risposta diretta. Per spegnere il promemoria, cancella il blocco `cat` finale
   dello script.
 - `input-notifier-start.sh` — notifica quando Claude aspetta input.
-- `scheda-terminale.py` — il nome del progetto nel titolo della scheda, e il colore della scheda per lo stato: verde se Claude aspetta te, giallo mentre lavora, rosso se il turno si è fermato per un errore (API giù, limite raggiunto). Il colore c'è in Windows Terminal e in iTerm2, e lì il titolo è il solo progetto. Negli altri terminali lo stato si legge nel titolo («arturo · al lavoro»). Il progetto viene da `/inizio <nome>`, poi dal repository git, poi dalla cartella. Perché il titolo resti, `settings.json` spegne quello automatico di Claude Code (`CLAUDE_CODE_DISABLE_TERMINAL_TITLE`). In Windows Terminal non colora una scheda aperta con `--tabColor`.
+- `scheda-terminale.py` — il nome del progetto nel titolo della scheda, e il colore della scheda per lo stato: verde se Claude aspetta te, giallo mentre lavora, rosso se il turno si è fermato per un errore (API giù, limite raggiunto). Il colore c'è in Windows Terminal e in iTerm2, e lì il titolo è il solo progetto. Negli altri terminali lo stato si legge nel titolo: «● TOCCA A TE · arturo» quando Claude aspetta te, «arturo · al lavoro», «● PROBLEMA · arturo». Nel Terminale di macOS una scheda in secondo piano che aspetta te suona anche la campanella. Su macOS l'hook scrive sul terminale della sessione di Claude Code, trovato risalendo i processi. Il progetto viene da `/inizio <nome>`, poi dal repository git, poi dalla cartella. Perché il titolo resti, `settings.json` spegne quello automatico di Claude Code (`CLAUDE_CODE_DISABLE_TERMINAL_TITLE`). In Windows Terminal non colora una scheda aperta con `--tabColor`.
 - `statusline.js` — statusline con modello abbreviato, task in corso, progetto@ramo (`*` se ci sono modifiche), uso del contesto, quota delle finestre di 5 ore e 7 giorni e la versione di Arturo in arrivo (controlla al massimo ogni ora).
 - `typecheck-after-edit.py` — PostToolUse: dopo una modifica a un file `.ts`, `.tsx` o `.vue` lancia il type-check del progetto (lo script `typecheck` o il `tsc`/`vue-tsc` del `build`) e manda gli errori a Claude. Fuori da un progetto TypeScript tace.
 - `bozze-mcp-auto-approve.py` — PreToolUse: la creazione di una bozza via un collegamento (`create_draft`, `slack_send_message_draft`) non chiede conferma; l'invio, la pubblicazione e la cancellazione di una bozza sì.
@@ -475,7 +479,7 @@ La strada avanzata è la CLI `gws`: serve se vuoi più account Google (lavoro + 
 | `/system-audit` segnala `hook diretto mancante` | un file citato in `settings.json` non c'è (copia manuale incompleta) | ricopia il file da Arturo e rilancia `/system-audit` |
 | Un guard chiede conferma su un comando legittimo | falso positivo del pattern | conferma ed esegui; se ricorre, scrivi `/segnala` (o apri una issue col comando esatto) |
 | Commit bloccato con un messaggio che *parla* di comandi pericolosi | il messaggio contiene un pattern come `curl\|bash` | usa `git commit -F file` (il guard scansiona il comando, non il file) |
-| La scheda del terminale non mostra il progetto, o non cambia colore | il terminale non riceve le sequenze di `scheda-terminale.py`: il colore c'è solo in Windows Terminal e iTerm2, e in Windows Terminal non in una scheda aperta con `--tabColor` | negli altri terminali lo stato è nel titolo; se manca anche quello, controlla che `settings.json` abbia `CLAUDE_CODE_DISABLE_TERMINAL_TITLE` e scrivi `/segnala` |
+| La scheda del terminale non mostra il progetto, o non cambia colore | il terminale non riceve le sequenze di `scheda-terminale.py`: il colore c'è solo in Windows Terminal e iTerm2, e in Windows Terminal non in una scheda aperta con `--tabColor` | negli altri terminali, compreso il Terminale di macOS, lo stato è nel titolo («● TOCCA A TE»); se manca anche quello, controlla che `settings.json` abbia `CLAUDE_CODE_DISABLE_TERMINAL_TITLE` e scrivi `/segnala` |
 | `/system-audit` segnala `cita /qualcosa, che non esiste` | un documento cita un comando tolto o rinominato | correggi la riga; se è un comando nuovo di Claude Code, aggiungilo a `NATIVE` in `skills/system-audit/audit.sh` |
 | `scrape` esce 3 con «bloccato» | il sito rifiuta le richieste automatiche | apri la pagina nel browser: `scrape` non prova a superare le verifiche anti-bot |
 

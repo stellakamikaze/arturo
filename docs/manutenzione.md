@@ -15,7 +15,8 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
 1. **Gate verde**: `bash tests/verifica-allineamento.sh` esce con `0`. Dentro c'è l'igiene (I03,
    `tests/igiene.py`): nessun nome della config privata nei file, nei percorsi e nei messaggi dei
    commit che non sono ancora su un remoto. Su GitHub lo stesso controllo gira a ogni push, su ogni
-   branch (`.github/workflows/igiene.yml`). I nomi stanno nel controllo solo come impronte sha256:
+   branch, solo nel repository pubblico di Arturo (`.github/workflows/igiene.yml`): nelle copie
+   private di `~/.claude` di chi usa Arturo il job non parte. I nomi stanno nel controllo solo come impronte sha256:
    uno nuovo si aggiunge con `python3 tests/igiene.py --impronta < file`, mai in chiaro.
 2. **Entry nuova in `NOVITA.md`**: in cima, con data ISO nell'intestazione, nel formato delle
    altre (Cosa cambia, Il principio dietro, Da sapere). Gli utenti imparano la novità da lì.
@@ -64,8 +65,9 @@ Non c'è semver. La versione di Arturo è la data dell'entry in cima a `NOVITA.m
 `## 2026-09-16 — …` vuol dire «versione del 16 settembre 2026». Il tag `v2026-09-16` che
 accompagna ogni pubblicazione è la stessa data scritta in un punto che Git sa leggere: non è un
 secondo sistema di versioni. Serve perché la data del commit locale cambia con ogni `/fine`,
-e perché due uscite nello stesso giorno si distinguono solo con `.2`. `/aggiorna` e il modulo
-delle segnalazioni leggono il tag con `git describe --tags --always`.
+e perché due uscite nello stesso giorno si distinguono solo con `.2`. La telemetria e il modulo
+delle segnalazioni leggono il tag con `git describe --tags --abbrev=0 --match 'v*'`: l'ultimo
+rilascio installato, senza i commit della persona.
 
 **Mai riscrivere `main` dopo un tag.** `/aggiorna` confronta la versione pubblicata con quella
 che la copia dell'utente conosceva, e se la nuova non discende dalla vecchia si ferma con

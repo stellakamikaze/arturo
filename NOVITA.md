@@ -74,8 +74,9 @@ modello di riserva il lavoro va avanti.
 ferma. Nel Terminale di Apple, che non colora le schede, il titolo comincia con «● TOCCA A TE» quando
 Claude aspetta te, e la scheda in secondo piano mostra la campanella. Il controllo di igiene su
 GitHub gira solo sul repository pubblico di Arturo. Se salvi la tua `~/.claude` in un repository
-privato, non ricevi più l'email «Run failed: igiene» a ogni `/fine`. E se un programma aggiunge a `settings.json` hook suoi senza `matcher` (lo fa iTerm2 con
-`cc-status`), l'avvio non dice più «una guardia potrebbe non proteggere».
+privato, non ricevi più l'email «Run failed: igiene» a ogni `/fine`. E se un programma aggiunge a
+`settings.json` hook suoi senza `matcher` (lo fa iTerm2 con `cc-status`), l'avvio non dice più
+«una guardia potrebbe non proteggere».
 
 **Il principio dietro**: con più sessioni aperte devi vedere da fuori quale ti aspetta, senza
 entrare in ogni scheda. E un avviso falso insegna a ignorare quelli veri. Il controllo di igiene cerca

@@ -42,6 +42,6 @@ body:
     id: versione
     attributes:
       label: Versione di Arturo
-      description: L'output di `git -C ~/.claude describe --tags --always` (per esempio `v2026-09-30-3-g1a2b3c4`), oppure la data dell'ultima novità in `NOVITA.md`.
+      description: L'output di `git -C ~/.claude describe --tags --abbrev=0 --match 'v*'` (per esempio `v2026-10-19.3`), oppure la data dell'ultima novità in `NOVITA.md`.
     validations:
       required: false
