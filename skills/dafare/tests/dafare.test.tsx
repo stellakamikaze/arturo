@@ -1,5 +1,5 @@
 // I test del pannello /dafare con il kit di Claude Code (`claude plugin test`).
-// Ogni test comincia con il suo id (U20-U33): il banco tests/test_pannello.py (U03) conta i test
+// Ogni test comincia con il suo id (U20-U34): il banco tests/test_pannello.py (U03) conta i test
 // passati per id, sulle due superfici, e li confronta con la sua tabella KIT.
 //
 // Sotto il pannello c'è una CLI finta: tiene un piccolo archivio in memoria, risponde a
@@ -434,6 +434,19 @@ for (const surface of ['terminal', 'desktop'] as const) {
       const barra = await $.ui.mount({ plugin: 'dafare', surface, component: 'AbovePrompt', props: BAND })
       expect(Boolean(await barra.find({ type: 'Text', text: '2 cose da fare' }))).toBe(!nascosta)
       expect(m.store.get('barraNascosta')).toBe(nascosta)
+    })
+  }
+
+  // /clear e /resume non rilanciano session.start: la barra rilegge la scelta dallo store.
+  for (const source of ['clear', 'resume'] as const) {
+    test(`${surface}: U34 dopo /${source} la barra resta spenta`, async ($, on) => {
+      // Lo store dice "spenta" da prima del /clear. La vista c'è già: senza il ricarico la barra comparirebbe.
+      motore(on, [voce(1), voce(2)], { store: { barraNascosta: true } })
+      on('classic.SessionStart', async () => ({}) as never)
+      await $.command.run({ command: 'dafare', args: '', ...COMANDO } as never)
+      await $.classic.SessionStart({ source } as never)
+      const barra = await $.ui.mount({ plugin: 'dafare', surface, component: 'AbovePrompt', props: BAND })
+      expect(await barra.find({ type: 'Text', text: '2 cose da fare' })).toBeFalsy()
     })
   }
 

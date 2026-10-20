@@ -100,7 +100,18 @@ export const register: Register = on => {
   })
 
   on('tool.call', { tool: ['Write', 'Edit', 'NotebookEdit'] }, ($, e, next) => {
-    if (testiDaScrivere(e as unknown as Record<string, unknown>).some(t => SIGLA.test(t))) {
+    // Se il controllo si rompe, la scrittura si ferma: senza controllo una sigla passerebbe (19/10/2026).
+    let conSigla = true
+    try {
+      conSigla = testiDaScrivere(e as unknown as Record<string, unknown>).some(t => SIGLA.test(t))
+    } catch {
+      return {
+        deny:
+          'redazione-segreti: il controllo della sigla [REDATTO:…] si è rotto, quindi la scrittura si ferma. ' +
+          'Riprova, oppure chiedi a chi usa Claude Code di farla a mano.',
+      }
+    }
+    if (conSigla) {
       return {
         deny:
           'redazione-segreti: il testo da scrivere contiene una sigla [REDATTO:…]. Il file è stato letto redatto: ' +

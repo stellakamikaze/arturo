@@ -179,7 +179,9 @@ run_prose() {
     if have claude; then
       local content verdict
       content="$(cat "$dir"/*.md "$dir"/*.txt 2>/dev/null | head -c 6000)"
-      verdict="$(printf '%s' "$content" | perl -e 'alarm 60; exec @ARGV' claude -p \
+      # Il giudice legge solo il testo che riceve: niente strumenti, MCP, CLAUDE.md e memoria (19/10/2026).
+      verdict="$(printf '%s' "$content" | CLAUDE_CODE_DISABLE_CLAUDE_MDS=1 CLAUDE_CODE_DISABLE_AUTO_MEMORY=1 \
+        perl -e 'alarm 60; exec @ARGV' claude -p --tools "" --strict-mcp-config --no-session-persistence \
         'Questo testo e in stato consegnabile o e un placeholder/bozza incompleta? Rispondi con una riga: CONSEGNABILE o INCOMPLETO + motivo breve.' \
         2>/dev/null)"
       if [ -n "$verdict" ]; then

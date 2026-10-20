@@ -80,6 +80,17 @@ segna_esito() {  # $1 = applicato|conflitto|fallito|scartato, $2 = il modo. Un e
   return 0
 }
 
+segna_conflitti() {  # $1 = il modo, $2 = i file in conflitto, uno per riga. Dopo un conflitto escono i loro
+  # percorsi dentro Arturo come righe `file:` della deriva, così il riepilogo dice quale file blocca
+  # (20/10/2026, #3589). telemetria.py scarta un percorso fuori dalla forma della deriva. Non fallisce mai.
+  [ "${1:-}" = sync ] && return 0
+  [ -f "$RADICE/bin/telemetria.py" ] || return 0
+  printf '%s\n' "$2" | head -20 | while IFS= read -r f; do
+    [ -n "$f" ] && python3 "$RADICE/bin/telemetria.py" registra deriva "file:$f" >/dev/null 2>&1
+  done
+  return 0
+}
+
 pulita() {  # ~/.claude senza modifiche non salvate
   [ -z "$(git status --porcelain --untracked-files=no)" ]
 }
@@ -289,6 +300,7 @@ if [ $rc != 0 ] || [ -n "$CONFLITTI" ]; then
   if [ -n "$CONFLITTI" ]; then
     printf '%s %s %s %s\n' "$COPIA" "$PRIMA" "$MODO" "$(date +%Y-%m-%d_%H:%M)" > "$STATO"
     segna_esito conflitto "$MODO"
+    segna_conflitti "$MODO" "$CONFLITTI"
     echo "APPLICAZIONE ANNULLATA: CONFLITTO. La tua copia è com'era prima, e nei suoi file non c'è nessun marcatore."
     echo "Copia di prova con i conflitti: $COPIA"
     echo "File in conflitto:"

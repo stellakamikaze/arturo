@@ -122,6 +122,7 @@ BANCHI=(
   test_heredoc_backtick.py
   test_lotto_2026_10_20.py
   test_falsi_allarmi_2026_10_20.py
+  test_conflitto_telemetria_2026_10_20.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -239,6 +240,8 @@ BASELINE=(
   "test_lotto_2026_10_20.py 0936b4c"
   # Falsi allarmi delle guardie su mktemp e json.load (20/10/2026, #3700): 3184831, l'ultimo dev prima.
   "test_falsi_allarmi_2026_10_20.py 3184831"
+  # Il conflitto di un aggiornamento dice quale file blocca (20/10/2026, #3589): 3184831, l'ultimo dev prima.
+  "test_conflitto_telemetria_2026_10_20.py 3184831"
   # Arturo usa Melchior, la memoria della config di chi lo mantiene (20/10/2026): aabe7fa, l'ultimo dev prima.
   "test_memoria.py aabe7fa"
 )
