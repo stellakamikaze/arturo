@@ -71,6 +71,11 @@ def _budget():
 
 def _righe_dopo(path, ti):
     """Numero di righe del file come sarà dopo Write, Edit o MultiEdit."""
+    return len(_testo_dopo(path, ti).splitlines())
+
+
+def _testo_dopo(path, ti):
+    """Il file come sarà dopo Write, Edit o MultiEdit."""
     if isinstance(ti.get('content'), str):
         testo = ti['content']
     else:
@@ -81,7 +86,7 @@ def _righe_dopo(path, ti):
             vecchio, nuovo = m.get('old_string'), m.get('new_string')
             if isinstance(vecchio, str) and isinstance(nuovo, str) and vecchio:
                 testo = testo.replace(vecchio, nuovo) if m.get('replace_all') else testo.replace(vecchio, nuovo, 1)
-    return len(testo.splitlines())
+    return testo
 
 
 def _avviso_budget(rp, claude_dir, ti):
@@ -207,6 +212,16 @@ def main():
             or relativo in ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh')
         )
         if is_config:
+            # Un settings*.json che diventerebbe JSON non valido si ferma anche con l'unlock: un
+            # settings rotto spegne deny e hook alla ricarica successiva (dalla config dell'autore,
+            # 20/10/2026).
+            if re.match(r'SETTINGS.*\.JSON$', base) is not None:
+                try:
+                    json.loads(_testo_dopo(rp, ti))
+                except (ValueError, OSError) as e:
+                    _emit("deny", f"{os.path.basename(rp)} non sarebbe JSON valido dopo la modifica ({e}). "
+                          "Un settings rotto spegne deny e hook: correggi la modifica e riprova.")
+                    sys.exit(0)
             if unlocked('config-unlock'):
                 _emit("allow", "config/hook Claude Code sbloccati da conferma utente")
                 sys.exit(0)

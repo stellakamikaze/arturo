@@ -6,6 +6,9 @@ Detects emojis in edited files and asks Claude to remove them.
 Guarda solo il testo appena scritto dal tool (new_string di Edit e MultiEdit, content di Write,
 new_source di NotebookEdit), non il file intero: un'emoji che c'era già, messa da una persona,
 non fa riscrivere a Claude righe che non ha toccato.
+Di default vale solo sui file di codice e config. Con hooks/emoji-ovunque.local (fuori da git)
+vale su ogni file, .md compresi: è la preferenza dell'autore (15/10/2026), che così resta
+nella sua config senza cambiare il codice comune con Arturo (20/10/2026).
 """
 import json
 import sys
@@ -103,6 +106,7 @@ try:
     # Solo codice e config. Un testo dell'utente (nota, articolo, newsletter in .md o
     # .txt) è suo: le emoji che ci mette restano. Prima l'hook faceva riscrivere a
     # Claude anche quelli.
+    OVUNQUE = os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emoji-ovunque.local'))
     CODE_EXT = {'.py', '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.sh', '.bash',
                 '.zsh', '.json', '.yml', '.yaml', '.toml', '.ini', '.cfg', '.css',
                 '.scss', '.vue', '.svelte', '.go', '.rs', '.rb', '.java', '.kt',
@@ -112,7 +116,7 @@ try:
         # Skip binary and non-text files (per-file check for MultiEdit)
         if os.path.splitext(fp)[1].lower() in SKIP_EXT:
             continue
-        if os.path.splitext(fp)[1].lower() not in CODE_EXT:
+        if not OVUNQUE and os.path.splitext(fp)[1].lower() not in CODE_EXT:
             continue
 
         # Skip file di contenuto social: le emoji sono contenuto, non rumore.
@@ -130,7 +134,7 @@ try:
             # a un'azione già avvenuta.)
             print(
                 f"Emoji nel testo appena scritto in {fp}: {sample}. "
-                "Nel codice sostituiscile con testo come [X], [OK], [ATTENZIONE].",
+                "Sostituiscile con testo come [X], [OK], [ATTENZIONE].",
                 file=sys.stderr
             )
             sys.exit(2)

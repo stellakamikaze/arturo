@@ -67,6 +67,8 @@ client_secret*.json
 # File personali dell'utente — non arrivano mai con un aggiornamento
 CLAUDE.md
 hooks/hosts-interni.local
+hooks/gws-account.local
+hooks/emoji-ovunque.local
 hooks/api-fidate.local
 hooks/melchior-stopword.local
 skills/system-audit/review-termini.local
