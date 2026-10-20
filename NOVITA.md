@@ -11,6 +11,27 @@ modo di lavorare.
 
 ---
 
+## 2026-10-20 — Meno domande inutili, meno uscite nascoste, e l'installazione non ti fa perdere niente
+
+**Cosa cambia**: Claude ti chiede conferma meno spesso dove non serve. Copiare una cartella con
+`--exclude .env` o cancellare una cartella temporanea appena creata non chiedono più niente.
+Chiedono invece alcuni modi nascosti di mandare dati fuori, che prima passavano: un comando dentro
+le intestazioni di `curl`, un `curl` dentro un `echo`, `requests` in Python. Lo stesso per alcune
+forme di `git clean` e di cancellazione di cartelle da Python che prima sfuggivano. Chi installa
+Arturo su un Claude Code già usato non perde più login, sessioni passate, cronologia e plugin: dopo
+il download tornano al loro posto. `/diagnosi` controlla anche l'installazione di Claude Code e i
+test dei mod, e la guida spiega `claude --safe-mode`. Nel Terminale di macOS l'avvio non chiede più
+il permesso di Automazione per il titolo della finestra.
+
+**Il principio dietro**: una domanda inutile insegna a rispondere sì senza leggere. Le guardie
+devono fermarsi dove c'è un rischio vero e tacere altrove. E un'installazione non deve costarti il
+lavoro che avevi già.
+
+**Da sapere**: niente da fare. Se un aggiornamento non si installa da solo, adesso chi mantiene
+Arturo vede il motivo (un'altra sessione aperta, la firma, la versione) e può correggerlo.
+
+---
+
 ## 2026-10-19 — Se manca node, la barra in basso te lo dice
 
 **Cosa cambia**: la barra in basso mostra il modello, quanto contesto hai usato e la quota del tuo
