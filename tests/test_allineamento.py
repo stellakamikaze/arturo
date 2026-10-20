@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import re
 import subprocess
 import sys
@@ -17,13 +16,10 @@ REMOVED = (
     "agents/drafter.md", "agents/synthesizer.md", "hooks/github_issue_guard.py", "hooks/quality-check.sh",
     "hooks/session-reminder.sh", "skills/autofix", "skills/keyword-research", "skills/review-checklist",
     "skills/ui-reference", "skills/validate",
-    # 16/10/2026: escono lo strato, il percorso a tappe e i comandi di progetto.
-    "commands/strato.md", "commands/progetto.md", "commands/discovery.md", "commands/write-plan.md",
-    "templates/strato", "docs/referente.md", "skills/percorso", "bin/percorso.py", "docs/esercizi.md",
-    "tests/test_strato.py", "tests/test_percorso.py",
 )
 # I03 dal 17/10/2026 (#3505): i nomi della config privata stanno solo come impronte sha256 in
-# tests/igiene.py, e il controllo legge anche i percorsi e i messaggi dei commit da pubblicare.
+# tests/igiene.py. Sul ramo della landing il resto del file resta quello del ramo: i controlli di dev
+# (defaultMode, validation-gate-lang, file tolti) qui non valgono (20/10/2026, #3551).
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import igiene  # noqa: E402
 
@@ -45,14 +41,10 @@ def main() -> int:
         print("BASELINE_DISCRIMINANTE=C01-C06,I03")
         return 0
     settings = (repo / "settings.json").read_text(encoding="utf-8")
-    # I01: auto mode dal 30/9/2026 (il classificatore giudica ogni comando; prima acceptEdits + allow Bash).
-    permessi = json.loads(settings)["permissions"]
-    assert permessi.get("defaultMode") == "auto" and "Bash" not in permessi["allow"], "I01 defaultMode o allow Bash ampio cambiati"
+    assert '"defaultMode": "acceptEdits"' in settings, "I01 defaultMode cambiato"
     assert "github_issue_guard.py" not in settings and "quality-check.sh" not in settings and "session-reminder.sh" not in settings, "C05 wiring rimosso residuo"
     gate = (repo / "shared" / "validation-gate.md").read_text(encoding="utf-8")
-    # C06: il gate legge l'exit da file (in zsh PIPESTATUS non esiste e l'exit letto resta vuoto).
-    assert "PIPESTATUS[0]" not in gate and "validation-gate-lang.sh" in gate and '.rc"' in gate \
-        and "Quality gate: SKIP" not in gate, "C06 gate maschera errori"
+    assert "PIPESTATUS[0]" in gate and "Quality gate: SKIP" not in gate, "C06 gate maschera errori"
     start = (repo / "hooks" / "session-start.sh").read_text(encoding="utf-8")
     end = (repo / "hooks" / "session-end.sh").read_text(encoding="utf-8")
     assert "rev-parse --git-path rebase-merge" in start, "C01 rebase non rilevato"
@@ -60,15 +52,11 @@ def main() -> int:
     for item in REMOVED:
         assert not (repo / item).exists(), f"I03 file rimosso ancora presente: {item}"
     # README dichiara python3 >= 3.8: annotazioni `X | None` e `list[str]` senza import
-    # differito vanno in TypeError al caricamento su 3.8 e spengono la guardia o la CLI.
-    sorgenti = sorted((repo / "hooks").glob("*.py")) + sorted((repo / "bin").glob("*.py"))
-    if (repo / "bin" / "arturo").is_file():
-        sorgenti.append(repo / "bin" / "arturo")
-    for hook in sorgenti:
+    # differito vanno in TypeError al caricamento su 3.8 e spengono la guardia.
+    for hook in sorted((repo / "hooks").glob("*.py")):
         source = hook.read_text(encoding="utf-8")
         if re.search(r"(->|:)\s*[\w\[\], .]*(\|\s*None|\b(list|dict|tuple|set|type)\[)", source):
-            nome = hook.relative_to(repo).as_posix()
-            assert "from __future__ import annotations" in source, f"C07 {nome}: annotazione moderna senza import differito"
+            assert "from __future__ import annotations" in source, f"C07 {hook.name}: annotazione moderna senza import differito"
     assert_igiene(repo)
     print(f"PASS C01-C06,I03 rimossi={len(REMOVED)}")
     return 0
