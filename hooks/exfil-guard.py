@@ -207,7 +207,7 @@ NON_DATI_FLAG_VAL = re.compile(
     r'|--cert|--key|-K|--config|-O|--output-document|-a|--append-output|--save-cookies|--load-cookies)'
     r'[\s=]*(?:\$?\'[^\']*\'|"[^"]*"|[^\s"\']+)',
 )
-BARE_HOST = re.compile(r'(?<![\w@/.:=-])([A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})(?::\d+)?(?:/[^\s"\']*)?(?![\w.])')
+BARE_HOST = re.compile(r'(?<![\w@/.:=-])([A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})(?::\d+)?(?:/[^\s"\']*)?(?![\w.(])')
 FILE_EXT = frozenset("txt json md csv log pdf png jpg jpeg gif html htm xml yaml yml toml ini cfg conf "
                      "py js ts sh zip gz tgz tar bz2 xz db sqlite sql pem crt der p12 env bak out tmp".split())
 

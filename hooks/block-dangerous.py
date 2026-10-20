@@ -414,15 +414,22 @@ _VAR_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)(:?[-=])([^}]*)\}|\$\{([A-Za-
 # Assegnazioni nel comando: `X=...`, `export X=... Y=...`. Il valore vale per il
 # comando: `export D=$TMPDIR/prova; rm -rf $D` cancella una cartella temporanea.
 _ASSEGNAZIONE_CMD_RE = re.compile(r"""(?:^|(?<=[\s;&|(]))([A-Za-z_][A-Za-z0-9_]*)=("([^"]*)"|'([^']*)'|[^\s;&|()]*)""")
+_ASSEGNAZIONE_MKTEMP_RE = re.compile(r"""(?:^|(?<=[\s;&|(]))([A-Za-z_][A-Za-z0-9_]*)=(?:"(\$\(\s*mktemp\b[^()`$;|&"]*\))"|(\$\(\s*mktemp\b[^()`$;|&"]*\)))""")
 _ASSEGNATE = {}
 
 
 def _assegnazioni(command):
     """Le variabili assegnate nel comando, in ordine (vince l'ultima), col valore grezzo."""
-    out = {}
+    trovate = []
     for m in _ASSEGNAZIONE_CMD_RE.finditer(command):
         grezzo = m.group(3) if m.group(3) is not None else (m.group(4) if m.group(4) is not None else m.group(2))
-        out[m.group(1)] = grezzo
+        trovate.append((m.start(), m.group(1), grezzo))
+    # `tmp=$(mktemp -d)`: la regex sopra si ferma alla parentesi e lascia "$" (20/10/2026)
+    for m in _ASSEGNAZIONE_MKTEMP_RE.finditer(command):
+        trovate.append((m.start(), m.group(1), m.group(2) or m.group(3)))
+    out = {}
+    for _, nome, valore in sorted(trovate, key=lambda x: x[0]):
+        out[nome] = valore
     return out
 
 
@@ -433,7 +440,9 @@ def _expand_vars(t):
     path che non si conosce non si giudica come sicuro."""
     def rep(m):
         name = m.group(1) or m.group(4) or m.group(5)
-        if name in _ASSEGNATE:
+        if name in _ASSEGNATE and _MKTEMP_RE.match(_ASSEGNATE[name]):
+            val = "/tmp/mktemp.XXXXXX"  # cartella appena creata da mktemp: vedi _MKTEMP_RE
+        elif name in _ASSEGNATE:
             val = os.path.expanduser(_ASSEGNATE[name]) if _ASSEGNATE[name].startswith("~") else _ASSEGNATE[name]
         else:
             val = _home() if name == "HOME" else os.environ.get(name)
