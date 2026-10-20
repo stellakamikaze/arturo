@@ -11,6 +11,20 @@ modo di lavorare.
 
 ---
 
+## 2026-10-21 — Meno conferme inutili, /dafare ricorda la barra, gli aggiornamenti dicono cosa li blocca
+
+**Cosa cambia**: le guardie non chiedono più conferma per cancellare una cartella appena creata con
+`mktemp`, né per uno script che legge un JSON dopo una richiesta verso il tuo computer. `/dafare
+nascondi` resta valido anche dopo `/clear` e `/resume`. Se un aggiornamento si ferma per un
+conflitto, Arturo annota quale file lo blocca, così il problema si corregge più in fretta.
+
+**Il principio dietro**: una conferma che non protegge niente insegna a dire sì senza leggere.
+
+**Da sapere**: della telemetria escono solo i percorsi dei file di Arturo in conflitto, mai il
+loro contenuto. È la stessa forma che usa già la deriva.
+
+---
+
 ## 2026-10-20 — Arturo lavora come chi lo mantiene: /inizio, /fine e lo stile Conciso
 
 **Cosa cambia**: `/inizio` ti mostra il lavoro per filone, con chi deve agire («Faccio io»,
