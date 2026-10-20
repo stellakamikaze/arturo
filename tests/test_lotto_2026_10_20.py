@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LT01-LT05: lotto del 20/10/2026 sui task aperti di Arturo.
+"""LT01-LT07: lotto del 20/10/2026 sui task aperti di Arturo.
 
 LT01 l'audit vede lo script della barra anche dentro `... statusline.js; echo ...` (#3632): se
      manca, lo dice invece di saltare il controllo.
@@ -8,6 +8,10 @@ LT03 README, /aggiorna, SECURITY e la docstring di aggiornamenti.py conoscono il
      verificabile», che non è una compromissione; /segnala manda il solo tag del rilascio (#3552).
 LT04 un hook di terzi in testa a Notification o senza `command` non fa cadere K09 e i banchi M (#3596).
 LT05 l'avvio non usa più osascript, e il README racconta le schede nel Terminale di macOS (#3587).
+LT06 l'installazione del README, eseguita in una HOME usa e getta con una ~/.claude già usata, riporta
+     login, sessioni, cronologia e plugin, e git li ignora (#3594).
+LT07 /diagnosi lancia sempre `claude doctor` e i test di tutti i mod, e README e /diagnosi spiegano
+     `claude --safe-mode` dicendo che spegne le guardie (#3595).
 
 Sulla base 910ac0b ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -93,7 +97,53 @@ def test_lt05(repo: Path) -> None:
         "LT05 il README non racconta le schede nel Terminale di macOS"
 
 
-TESTS = {"LT01": test_lt01, "LT02": test_lt02, "LT03": test_lt03, "LT04": test_lt04, "LT05": test_lt05}
+def test_lt06(repo: Path) -> None:
+    import re
+    readme = (repo / "README.md").read_text(encoding="utf-8")
+    blocco = re.search(r"```bash\n(B=\"\$HOME/\.claude-backup.*?)```", readme, re.S)
+    assert blocco and "projects" in blocco.group(1), \
+        "LT06 l'installazione del README sposta tutta ~/.claude e non riporta login, sessioni e plugin"
+    setup = (repo / "commands" / "setup.md").read_text(encoding="utf-8")
+    assert blocco.group(1) in setup, "LT06 /setup e README hanno due comandi di installazione diversi"
+    if not (repo / ".git").exists():
+        return  # copia senza storia (controprova): basta la parte sul testo
+    with tempfile.TemporaryDirectory() as d:
+        home = Path(d) / "home"
+        vecchia = home / ".claude"
+        (vecchia / "projects" / "-x").mkdir(parents=True)
+        (vecchia / "projects" / "-x" / "s.jsonl").write_text("{}", encoding="utf-8")
+        (vecchia / "plugins").mkdir()
+        (vecchia / "plugins" / "p.json").write_text("{}", encoding="utf-8")
+        for f in (".credentials.json", "history.jsonl", "settings.json"):
+            (vecchia / f).write_text("{}", encoding="utf-8")
+        script = blocco.group(1).replace("https://github.com/stellakamikaze/arturo.git", str(repo))
+        r = subprocess.run([BASH, "-c", script], capture_output=True, text=True, timeout=120,
+                           env=env_di(home), check=False)
+        nuova = home / ".claude"
+        for f in (".credentials.json", "history.jsonl", "projects/-x/s.jsonl", "plugins/p.json"):
+            assert (nuova / f).exists(), f"LT06 dopo l'installazione manca {f}: {r.stderr[:200]}"
+        assert (nuova / "bin").is_dir(), f"LT06 il clone non è avvenuto: {r.stderr[:200]}"
+        sporchi = subprocess.run(["git", "-C", str(nuova), "status", "--porcelain"], capture_output=True,
+                                 text=True, env=env_di(home), check=False).stdout.strip()
+        assert not sporchi, f"LT06 git vede i file della persona: {sporchi[:200]}"
+        backup = [x for x in home.iterdir() if x.name.startswith(".claude-backup-")]
+        assert backup and (backup[0] / "settings.json").exists(), "LT06 il backup della vecchia config manca"
+
+
+def test_lt07(repo: Path) -> None:
+    diagnosi = (repo / "commands" / "diagnosi.md").read_text(encoding="utf-8")
+    import re
+    blocchi = "\n".join(re.findall(r"```bash\n(.*?)```", diagnosi, re.S))
+    assert "claude doctor" in blocchi and "claude plugin test" in blocchi, \
+        "LT07 /diagnosi non lancia claude doctor e i test dei mod"
+    readme = (repo / "README.md").read_text(encoding="utf-8")
+    for nome, testo in (("README", readme), ("/diagnosi", diagnosi)):
+        assert "--safe-mode" in testo and "guardie" in testo.split("--safe-mode", 1)[1][:200], \
+            f"LT07 {nome} non spiega claude --safe-mode con l'avviso sulle guardie spente"
+
+
+TESTS = {"LT01": test_lt01, "LT02": test_lt02, "LT03": test_lt03, "LT04": test_lt04, "LT05": test_lt05,
+         "LT06": test_lt06, "LT07": test_lt07}
 
 
 def main() -> int:

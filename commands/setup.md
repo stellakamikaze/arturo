@@ -49,8 +49,13 @@ segno «dedotto» vale lo stesso: la persona usava già Arturo prima che il segn
 Verifica che l'harness sia installato in `~/.claude`. Se NON lo è, fermati e guida l'utente a installarlo prima. Il caso normale è che `~/.claude` esista già: Claude Code la crea al primo avvio, con dentro le sue impostazioni. Va spostata da parte, non cancellata:
 
 ```bash
-[ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+[ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$B"
 git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
+# Tornano al loro posto login, sessioni, cronologia e plugin di Claude Code: sono tuoi, non di Arturo.
+for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos; do
+  [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mv "$B/$x" "$HOME/.claude/"
+done
 ```
 
 Su Windows questi comandi vanno dati in **Git Bash**, non nel Prompt dei comandi o in PowerShell: lì la tilde `~` non si espande e il clone finisce in una cartella sbagliata senza errori. Poi digli di riaprire Claude Code dentro l'harness e rilanciare `/setup`.

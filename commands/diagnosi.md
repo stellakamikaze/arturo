@@ -26,6 +26,7 @@ python3 "$HOME/.claude/hooks/controlla-config.py" "$HOME/.claude"; echo "config 
 python3 "$HOME/.claude/hooks/deriva.py" "$HOME/.claude"
 cat "$HOME/.claude/cache/banchi-ultimo-esito.txt" 2>/dev/null | head -3 || echo "banchi: nessun esito salvato"
 bash "$HOME/.claude/skills/system-audit/audit.sh" 2>&1 | tail -25
+claude doctor 2>&1 | tail -20
 ```
 
 - `CONFIG ROTTA` o un FAIL dell'audit: le guardie possono essere spente. È la prima cosa da
@@ -35,8 +36,13 @@ bash "$HOME/.claude/skills/system-audit/audit.sh" 2>&1 | tail -25
 - Le aggiunte della persona ai comandi: `python3 ~/.claude/bin/arturo personale elenco`. Una riga
   `Senza comando` nomina i file di `personale/` di un comando uscito da Arturo: nessuno li legge
   più. Mostrali alla persona: decide lei se tenerli altrove o cancellarli.
-- Se il problema sembra dell'installazione di Claude Code (accesso, account, versione), lancia
-  `claude doctor` e riporta cosa dice.
+- `claude doctor` controlla l'installazione di Claude Code (versione, aggiornamenti, impostazioni).
+  Riporta ogni riga che non dice OK. Per un controllo più ampio, che può anche correggere, la
+  persona scrive `/doctor` in una sessione: tu non puoi lanciarlo.
+- Se Claude Code si comporta in modo strano e non si capisce se la causa è Arturo, la persona può
+  aprire `claude --safe-mode`: parte senza CLAUDE.md, skill, plugin, hook, MCP, comandi, agenti e
+  stili. **In safe-mode le guardie di Arturo sono spente**: serve solo per capire, una sessione
+  breve, poi si richiude. Se lì il problema sparisce, la causa sta nella config.
 
 **I todo.** L'archivio deve essere leggibile:
 
@@ -47,6 +53,17 @@ python3 ~/.claude/bin/arturo todo --json | PYTHONIOENCODING=utf-8 python3 -c 'im
 Riporta ogni avviso con le sue parole: una riga illeggibile, un evento per un todo che non
 esiste, un numero cambiato dopo un merge. Non correggere il file a mano: ogni riga resta, e il
 resto dell'archivio funziona. Se il comando esce con un errore, riporta l'errore esatto.
+
+**I mod.** Lo stato di tutti i mod di Arturo, e i loro test lanciati da una cartella vuota (così
+non leggono il progetto aperto):
+
+```bash
+claude plugin list --json | python3 -c 'import json,sys; [print(("acceso " if p.get("enabled") else "SPENTO ") + p["id"]) for p in json.load(sys.stdin) if str(p.get("id","")).endswith("@skills-dir")]'
+V=$(mktemp -d) && for m in "$HOME"/.claude/skills/*/.claude-plugin; do d=$(dirname "$m"); [ -d "$d/tests" ] || continue; (cd "$V" && claude plugin test "$d" >/dev/null 2>&1 && echo "test ok: $(basename "$d")" || echo "TEST ROSSI: $(basename "$d")"); done; rmdir "$V"
+```
+
+Un mod `SPENTO` o con `TEST ROSSI` si dice con il nome. `redazione-segreti` spento vuol dire che
+Claude legge in chiaro i token stampati dai comandi: è la prima cosa da riaccendere.
 
 **Il pannello `/dafare`.** Controlla che il mod sia caricato e che Claude Code sia abbastanza
 nuovo:

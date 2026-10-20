@@ -108,13 +108,18 @@ Facoltativi: **`gitleaks`** (audit segreti), **`bw`** (Bitwarden CLI, per le cre
 
 ## Installazione
 
-Claude Code crea `~/.claude` al primo avvio, quindi la cartella di solito esiste già. Il primo comando la mette da parte con la data nel nome: le tue impostazioni restano lì, niente si perde.
+Claude Code crea `~/.claude` al primo avvio, quindi la cartella di solito esiste già. Il primo comando la mette da parte con la data nel nome: le tue impostazioni restano lì, niente si perde. Dopo il download tornano al loro posto il login, le sessioni passate (per riprenderle con `claude --resume`), la cronologia e i plugin: sono di Claude Code, non di Arturo, e git li ignora.
 
 **macOS e Linux** (Terminale), **Windows** (Git Bash, non PowerShell né il Prompt dei comandi):
 
 ```bash
-[ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+[ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$B"
 git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
+# Tornano al loro posto login, sessioni, cronologia e plugin di Claude Code: sono tuoi, non di Arturo.
+for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos; do
+  [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mv "$B/$x" "$HOME/.claude/"
+done
 ```
 
 Poi apri Claude Code dentro la cartella: `cd ~/.claude && claude`, e scrivi `/setup`.
@@ -476,6 +481,7 @@ La strada avanzata è la CLI `gws`: serve se vuoi più account Google (lavoro + 
 | Sintomo | Causa probabile | Rimedio |
 |---|---|---|
 | `/fine` dice "Config push non riuscito" | hai clonato il repo originale, non un tuo fork (nessun accesso in scrittura) | normale; per sincronizzare imposta un tuo `origin` (vedi [Installazione](#installazione)) |
+| Claude Code fa qualcosa di strano e non sai se è colpa di Arturo | una skill, un hook o un plugin della config | apri `claude --safe-mode`: parte senza config, quindi **senza le guardie di Arturo**. Se lì il problema sparisce, la causa è nella config: richiudi subito e lancia `/diagnosi`, che passa anche `claude doctor` e i test dei mod |
 | `/system-audit` segnala `hook diretto mancante` | un file citato in `settings.json` non c'è (copia manuale incompleta) | ricopia il file da Arturo e rilancia `/system-audit` |
 | Un guard chiede conferma su un comando legittimo | falso positivo del pattern | conferma ed esegui; se ricorre, scrivi `/segnala` (o apri una issue col comando esatto) |
 | Commit bloccato con un messaggio che *parla* di comandi pericolosi | il messaggio contiene un pattern come `curl\|bash` | usa `git commit -F file` (il guard scansiona il comando, non il file) |

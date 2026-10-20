@@ -111,3 +111,13 @@ skills/synced/
 # Worktree delle sessioni Claude Code (anche node_modules in symlink, senza barra)
 .claude/worktrees/
 node_modules
+
+# Altre cartelle e file che Claude Code crea in ~/.claude (20/10/2026, #3594): sono della persona.
+/agent-memory/
+/feedback/
+/feedback-bundles/
+/scheduled-tasks/
+/security/
+/remote/
+/remote-settings.json
+/policy-limits.json
