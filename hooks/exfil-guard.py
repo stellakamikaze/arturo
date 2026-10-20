@@ -198,12 +198,14 @@ OTHER_FLAG_VAL = re.compile(
     r'|--cookie-jar|-w|--write-out|--cacert|--cert|--key|-K|--config|-O|--output-document'
     r'|-a|--append-output|--save-cookies|--load-cookies)[\s=]*(?:\$?\'[^\']*\'|"[^"]*"|[^\s"\']+)',
 )
-# Valori che non portano dati all'host: file di uscita, certificati, config. Intestazioni, credenziali,
-# user-agent, referer e cookie invece arrivano al server: una sostituzione lì dentro porta fuori dati
-# quanto una nell'URL (20/10/2026, #3524: `curl -A "$(cat f)"` passava in silenzio).
+# Valori dove una sostituzione è l'uso normale: un token letto da file in un'intestazione o nelle
+# credenziali (`-H "Authorization: Bearer $(cat t)"`, GS01), cookie, file di uscita, certificati. Restano
+# fuori user-agent e referer: lì un comando non ha usi legittimi, e portava fuori dati in silenzio
+# (20/10/2026, #3524: `curl -A "$(cat f)"`). Scelta di attrito: fluidità sulle intestazioni.
 NON_DATI_FLAG_VAL = re.compile(
-    r'(?<![\w-])(?:-o|--output|-c|--cookie-jar|-w|--write-out|--cacert|--cert|--key|-K|--config|-O'
-    r'|--output-document|-a|--append-output|--save-cookies|--load-cookies)[\s=]*(?:\$?\'[^\']*\'|"[^"]*"|[^\s"\']+)',
+    r'(?<![\w-])(?:-o|--output|-H|--header|-u|--user|-b|--cookie|-c|--cookie-jar|-w|--write-out|--cacert'
+    r'|--cert|--key|-K|--config|-O|--output-document|-a|--append-output|--save-cookies|--load-cookies)'
+    r'[\s=]*(?:\$?\'[^\']*\'|"[^"]*"|[^\s"\']+)',
 )
 BARE_HOST = re.compile(r'(?<![\w@/.:=-])([A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})(?::\d+)?(?:/[^\s"\']*)?(?![\w.])')
 FILE_EXT = frozenset("txt json md csv log pdf png jpg jpeg gif html htm xml yaml yml toml ini cfg conf "
@@ -365,10 +367,9 @@ def main() -> int:
     if m and _external_host(m.group(2)):
         return _ask("nc/ncat verso un host esterno (canale di esfiltrazione). "
                     "Conferma solo se voluto.")
-    # curl/wget con command-substitution nell'URL o nei valori che arrivano al server (intestazioni,
-    # credenziali, user-agent, referer, cookie), verso un host non fidato: chiede. Restano fuori i file
-    # di uscita e i certificati. Un token letto da file per un'API fidata (hooks/api-fidate.local)
-    # passa. Se l'host non si legge, perché l'URL intero arriva da una sostituzione, si chiede lo stesso.
+    # curl/wget con command-substitution nell'URL, nello user-agent o nel referer, verso un host non
+    # fidato: chiede. Intestazioni, credenziali, cookie e file di uscita restano fuori (NON_DATI_FLAG_VAL).
+    # Se l'host non si legge, perché l'URL intero arriva da una sostituzione, si chiede lo stesso.
     for seg in CURL_SEG.findall(cmd):
         resto = NON_DATI_FLAG_VAL.sub(" ", DATA_FLAG_VAL.sub(" ", seg))
         if SOSTITUZIONE.search(resto) and not _solo_fidati(_hosts(resto)):
