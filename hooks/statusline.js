@@ -139,7 +139,8 @@ function aggiornamentoSegmento() {
   try {
     const controllato = Number(stato.controllato || 0) * 1000;
     const tentato = gitMtime(AGG_TENTATIVO);
-    if (Date.now() - controllato > AGG_ORA_S * 1000 && (!tentato || Date.now() - tentato > AGG_ORA_S * 1000)) {
+    // Fuori da Arturo (nessun bin/aggiornamenti.py) non lancia niente, e senza stato il segmento tace.
+    if (fs.existsSync(path.join(CLAUDE_DIR, 'bin', 'aggiornamenti.py')) && Date.now() - controllato > AGG_ORA_S * 1000 && (!tentato || Date.now() - tentato > AGG_ORA_S * 1000)) {
       fs.mkdirSync(path.dirname(AGG_TENTATIVO), { recursive: true });
       fs.writeFileSync(AGG_TENTATIVO, '');
       const p = child_process.spawn('python3', [path.join(CLAUDE_DIR, 'bin', 'aggiornamenti.py'), 'controlla'],
@@ -213,15 +214,13 @@ process.stdin.on('end', () => {
     const session = data.session_id || '';
     const remaining = data.context_window?.remaining_percentage;
 
-    // Context window display (shows USED percentage scaled to usable context)
-    // Claude Code reserves ~16.5% for autocompact buffer, so usable context
-    // is 83.5% of the total window. We normalize to show 100% at that point.
-    const AUTO_COMPACT_BUFFER_PCT = 16.5;
+    // Context usato, scala GREZZA (100 - remaining): una scala sola per statusline,
+    // context-monitor e la regola della rotazione al ~65% (3/10/2026; in Arturo dal 20/10/2026).
+    // Prima la barra normalizzava sul context utile (tolto il 16,5% di autocompact) e
+    // mostrava ~7 punti in più di quanto dicesse la regola.
     let ctx = '';
     if (remaining != null) {
-      // Normalize: subtract buffer from remaining, scale to usable range
-      const usableRemaining = Math.max(0, ((remaining - AUTO_COMPACT_BUFFER_PCT) / (100 - AUTO_COMPACT_BUFFER_PCT)) * 100);
-      const used = Math.max(0, Math.min(100, Math.round(100 - usableRemaining)));
+      const used = Math.max(0, Math.min(100, Math.round(100 - remaining)));
 
       // Write context metrics to bridge file for the context-monitor PostToolUse hook.
       // The monitor reads this file to inject agent-facing warnings when context is low.
@@ -247,8 +246,8 @@ process.stdin.on('end', () => {
       const filled = Math.floor(used / 10);
       const bar = '█'.repeat(filled) + '░'.repeat(10 - filled);
 
-      // Color based on usable context thresholds
-      if (used < 50) {
+      // Soglie: 55 giallo, 65 arancio (rotazione), 80 critico
+      if (used < 55) {
         ctx = ` \x1b[32m${bar} ${used}%\x1b[0m`;
       } else if (used < 65) {
         ctx = ` \x1b[33m${bar} ${used}%\x1b[0m`;

@@ -142,7 +142,8 @@ def test_p03(repo: Path) -> None:
             "P03 /inizio non dice di leggere le aggiunte personali"
         assert "PERSONALE:" not in hook("/fine"), "P03 PERSONALE per un comando senza aggiunte"
         assert "BRIEF:" not in hook("/inizio") and "REGOLA FISSA" not in hook("/inizio"), "P03 il promemoria del brief scatta su un comando"
-        assert "BRIEF:" in hook("sistemami il deploy"), "P03 il promemoria del brief manca su una richiesta"
+        # Dal 20/10/2026 il promemoria ha il testo della config («REGOLA FISSA»), uguale dalle due parti.
+        assert "REGOLA FISSA" in hook("sistemami il deploy"), "P03 il promemoria del brief manca su una richiesta"
     con_lab(prova, repo)
 
 

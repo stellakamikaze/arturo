@@ -36,7 +36,7 @@ let input = '';
 // Timeout guard: if stdin doesn't close within 10s (e.g. pipe issues on
 // Windows/Git Bash, or slow Claude Code piping during large outputs),
 // exit silently instead of hanging until Claude Code kills the process
-// and reports "hook error".
+// and reports "hook error". See #775, #1162.
 const stdinTimeout = setTimeout(() => process.exit(0), 10000);
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', chunk => input += chunk);
@@ -115,16 +115,15 @@ process.stdin.on('end', () => {
     fs.writeFileSync(warnPath, JSON.stringify(warnData));
 
     // Build advisory warning message (never use imperative commands that
-    // override user preferences)
+    // override user preferences — see #884)
     let message;
     if (isCritical) {
       message = `CONTEXT CRITICAL: Usage at ${usedPct}%. Remaining: ${remaining}%. ` +
-        'Context is nearly exhausted. Inform the user that context is low and ask how they ' +
-        'want to proceed. Do NOT autonomously save state or write handoff files unless the user asks.';
+        'Propose /fine to the user now, before any other work.';
     } else {
       message = `CONTEXT WARNING: Usage at ${usedPct}%. Remaining: ${remaining}%. ` +
-        'Be aware that context is getting limited. Avoid unnecessary exploration or ' +
-        'starting new complex work.';
+        'This is the rotation threshold: finish the task in progress, then propose ' +
+        'to the user /fine, /clear and /inizio. Do not start new complex work.';
     }
 
     const output = {
