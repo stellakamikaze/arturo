@@ -234,8 +234,8 @@ BASELINE=(
   "test_node_assente_2026_10_19.py dbaefa1"
   # Backtick negli heredoc (#3584): 3211b74, l'ultimo dev prima di 439a92b.
   "test_heredoc_backtick.py 3211b74"
-  # Lotto del 20/10/2026 (#3632 #3552 #3596 #3587 #3594 #3595 #3524 #3525): 910ac0b, l'ultimo dev prima.
-  "test_lotto_2026_10_20.py 910ac0b"
+  # Lotto del 20/10/2026 (#3632 #3552 #3596 #3587 #3594 #3595 #3524 #3525 #3637): 0936b4c, l'ultimo dev prima.
+  "test_lotto_2026_10_20.py 0936b4c"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

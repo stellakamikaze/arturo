@@ -19,7 +19,7 @@ LT09 non chiedono più `--exclude .env` di rsync e tar né rmtree su una cartell
 LT10 un aggiornamento che non parte da solo lascia un evento `aggiorna` col motivo, una volta per
      versione e motivo, e il server accetta gli stessi valori del client (#3637).
 
-Sulla base 910ac0b ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
+Sulla base 0936b4c ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
 from __future__ import annotations
 
