@@ -124,6 +124,7 @@ BANCHI=(
   test_falsi_allarmi_2026_10_20.py
   test_conflitto_telemetria_2026_10_20.py
   test_argv_lista_2026_10_21.py
+  test_moduli_2026_10_21.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -247,6 +248,8 @@ BASELINE=(
   "test_memoria.py aabe7fa"
   # Un invio con curl in una lista di argomenti python chiede (21/10/2026, #3645): 6e0b36b, l'ultimo dev prima.
   "test_argv_lista_2026_10_21.py 6e0b36b"
+  # Un modulo python non conta come dominio esterno (21/10/2026, #3720): d0a5ce6, l'ultimo dev prima.
+  "test_moduli_2026_10_21.py d0a5ce6"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

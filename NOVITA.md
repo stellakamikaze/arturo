@@ -14,7 +14,9 @@ modo di lavorare.
 ## 2026-10-21 — Meno conferme inutili, /dafare ricorda la barra, gli aggiornamenti dicono cosa li blocca
 
 **Cosa cambia**: le guardie non chiedono più conferma per cancellare una cartella appena creata con
-`mktemp`, né per uno script che legge un JSON dopo una richiesta verso il tuo computer. `/dafare
+`mktemp`, né per uno script che legge un JSON dopo una richiesta verso il tuo computer o che importa
+`urllib.request`. Chiedono invece quando uno script python manda un file con `curl` scritto come lista
+di argomenti (`subprocess.run(['curl', '-d', '@file', ...])`), che prima passava senza conferma. `/dafare
 nascondi` resta valido anche dopo `/clear` e `/resume`. Se un aggiornamento si ferma per un
 conflitto, Arturo annota quale file lo blocca, così il problema si corregge più in fretta.
 

