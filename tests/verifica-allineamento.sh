@@ -123,6 +123,7 @@ BANCHI=(
   test_lotto_2026_10_20.py
   test_falsi_allarmi_2026_10_20.py
   test_conflitto_telemetria_2026_10_20.py
+  test_argv_lista_2026_10_21.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -244,6 +245,8 @@ BASELINE=(
   "test_conflitto_telemetria_2026_10_20.py 3184831"
   # Arturo usa Melchior, la memoria della config di chi lo mantiene (20/10/2026): aabe7fa, l'ultimo dev prima.
   "test_memoria.py aabe7fa"
+  # Un invio con curl in una lista di argomenti python chiede (21/10/2026, #3645): 6e0b36b, l'ultimo dev prima.
+  "test_argv_lista_2026_10_21.py 6e0b36b"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"
