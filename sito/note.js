@@ -8,6 +8,7 @@
     if (!prova.ok || !(prova.headers.get("content-type") || "").includes("json")) { return; }
     // React e Agentation stanno sul sito (vendor/note-vendor-1.js), non più su esm.sh: chi passa da
     // Access ha i poteri dell'admin, e su questa origine gira solo codice nostro (16/10/2026).
+    // La pagina admin ne tiene una copia identica (static/note-vendor-1.js): si aggiornano insieme.
     const { R, RD, AG } = await import(new URL("vendor/note-vendor-1.js", import.meta.url).href);
     if (document.getElementById("note-radice")) { return; }
     const nodo = document.createElement("div");
