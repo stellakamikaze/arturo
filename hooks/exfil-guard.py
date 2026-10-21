@@ -321,7 +321,11 @@ def main() -> int:
     if POST_MARKERS.search(cmd):
         # Valuta solo l'host di DESTINAZIONE: rimuovi i valori dei flag-dato
         # (payload) così gli URL nel corpo non vengono scambiati per destinazioni.
-        dest = DATA_FLAG_VAL.sub(" ", cmd)
+        # Un curl/wget senza dati (GET) non è una destinazione della POST: `curl https://$u/` in un
+        # altro segmento rendeva "non leggibile" la POST verso un host interno (21/10/2026). I GET li giudica
+        # il ramo B, che ora gira anche quando la POST va a un host interno.
+        dest = CURL_SEG.sub(lambda m: m.group(0) if POST_MARKERS.search(m.group(0)) else " ", cmd)
+        dest = DATA_FLAG_VAL.sub(" ", dest)
         ext = False
         internal_seen = False
         for host in _hosts(dest):
@@ -344,9 +348,8 @@ def main() -> int:
                 break
         if ext:
             return _ask()
-        if internal_seen:
-            return 0
-        return _ask()  # POST ma host non chiaro -> conservativo
+        if not internal_seen:
+            return _ask()  # POST ma host non chiaro -> conservativo
 
     # ---- Ramo B: egress-GET mascherato ----
     # /dev/tcp e /dev/udp verso un host esterno, o che non si legge (una variabile)

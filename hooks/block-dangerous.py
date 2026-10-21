@@ -56,7 +56,8 @@ DANGEROUS = [
     (r"\bchmod\s+-R\s+0*777\s+/(\s|$)", "permessi world-writable su root"),
     (r"\bchown\s+-R\s+\S+\s+/(\s|$)", "cambio ownership ricorsivo su root"),
     # curl|bash e le sue varianti che eseguono uno script remoto scaricato al volo:
-    (r"\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(bash|sh|zsh|fish|perl|ruby|node|php)\b",
+    # `\|` non è una pipe: è l'alternativa di un pattern (`grep 'curl\|python'`, 21/10/2026).
+    (r"\b(curl|wget|fetch)\b[^|]*(?<!(?<!\\)\\)\|\s*(sudo\s+)?(bash|sh|zsh|fish|perl|ruby|node|php)\b",
      "pipe di script remoto in un interprete"),
     # 15/9/2026: `curl ... | python3 -c "import json..."` è parsing, non esecuzione
     # dello stdin (14 blocchi in una settimana). Passa solo il codice inline fra
@@ -65,7 +66,7 @@ DANGEROUS = [
     # vietate continua fino alla virgoletta che chiude davvero.
     # 15/10/2026: anche con i flag dell'interprete prima di -c (`python3 -I -c`, la
     # forma isolata) e con la versione (`python3.13`).
-    (r"\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?python3?(?:\.\d+)?(?![\w.])"
+    (r"\b(curl|wget|fetch)\b[^|]*(?<!(?<!\\)\\)\|\s*(sudo\s+)?python3?(?:\.\d+)?(?![\w.])"
      r"(?!(?:\s+-[IEsSBuOqP]+)*\s+-c\s+([\"'])(?:\\[\s\S]|(?!\3|\\|\$\(|`|\b(?:exec|eval|compile|__import__|__builtins__|builtins|"
      r"getattr|globals|importlib|system|popen|subprocess|runpy|pickle|marshal|spawn)\b)[\s\S])*\3)",
      "pipe di script remoto in un interprete"),
@@ -291,6 +292,11 @@ def _lettura_indiretta(cmd):
     return False
 
 
+_INTERPRETI = frozenset(("python", "python3", "perl", "ruby"))
+# Prosa: contiene spazi e non comincia come un path (/, ~, ., $).
+_PROSA_RE = re.compile(r"^(?![/~.$])(?=[^\n]*\s)", re.DOTALL)
+
+
 def _reads_secret_flat(cmd: str) -> bool:
     if _SECRET_REDIR_RE.search(cmd):
         return True
@@ -334,6 +340,11 @@ def _reads_secret_flat(cmd: str) -> bool:
                 continue
             args.append(t)
             j += 1
+        # Interprete che esegue uno script: un argomento in prosa (con spazi, non un path) è testo
+        # per lo script, non un file letto (`tasks.py comment ... "entra con ~/.ssh/id_ed25519"`
+        # chiedeva conferma, 21/10/2026). Il codice di -c/-e resta controllato per intero.
+        if binario in _INTERPRETI and args and not args[0].startswith("-"):
+            args = [a for a in args if not _PROSA_RE.match(a)]
         if any(SECRET_PATH_RE.search(a) for a in args):
             return True
         letti = args[:-1] if binario in ("cp", "install", "rsync", "scp") and len(args) >= 2 else args

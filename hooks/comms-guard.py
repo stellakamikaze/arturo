@@ -16,6 +16,7 @@ Lettura JSON da stdin (Claude Code PreToolUse payload).
 import json
 import os
 import re
+import shlex
 import sys
 import signal
 
@@ -81,6 +82,39 @@ SEND_ENDPOINTS = re.compile(
 )
 
 
+_SMTP_URL = r"\bsmtps?://"
+_SMTP_CURL_INVIO = re.compile(r"--mail-rcpt|--mail-from|(?<![\w-])-T\b|--upload-file|(?<![\w-])-d\b|--data", re.IGNORECASE)
+_SMTP_SOLO_TESTO = re.compile(r"^\s*(?:grep|egrep|fgrep|rg|ugrep|echo|printf)\b")
+
+
+def _opzioni_nascoste(seg: str) -> bool:
+    """Opzioni di curl che non si leggono: un file di config (-K) o una variabile come argomento a sé
+    (`curl smtp://x $OPTS` con --mail-rcpt dentro). Il valore di un'opzione (`--netrc-file $N`) no."""
+    if re.search(r"(?<![\w-])-K\b|--config\b", seg):
+        return True
+    try:
+        parole = shlex.split(seg)
+    except ValueError:
+        parole = seg.split()
+    return any(p.startswith("$") and (i == 0 or not parole[i - 1].startswith("-"))
+               for i, p in enumerate(parole))
+
+
+def _smtp_invia(command: str) -> bool:
+    """smtp:// conta come invio solo se un segmento lo usa per spedire. Non spedisce un curl senza
+    destinatario né corpo (`curl smtp://host:587 -X NOOP` prova l'accesso), né un grep che cerca
+    la stringa (21/10/2026: due falsi allarmi in una mattina)."""
+    for seg in re.split(r"[|;&\n]", command.replace("\\\n", " ")):
+        if not re.search(_SMTP_URL, seg, re.IGNORECASE):
+            continue
+        if re.search(r"\bcurl\b", seg) and not _SMTP_CURL_INVIO.search(seg) and not _opzioni_nascoste(seg):
+            continue
+        if _SMTP_SOLO_TESTO.match(seg):
+            continue
+        return True
+    return False
+
+
 def main() -> int:
     try:
         if hasattr(signal, "SIGALRM"):
@@ -104,6 +138,11 @@ def main() -> int:
 
     matched = None
     for pattern, label in SEND_BINARIES:
+        if pattern == _SMTP_URL:
+            if _smtp_invia(command):
+                matched = label
+                break
+            continue
         if re.search(pattern, command, re.IGNORECASE):
             matched = label
             break

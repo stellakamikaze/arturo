@@ -444,6 +444,8 @@ def script_claude_non_tracciati(cmd: str, cwd: str):
         if not reale.startswith(radice + os.sep):
             continue
         rel = os.path.relpath(reale, radice)
+        if banco(rel.split(os.sep)):
+            continue
         try:
             tracciato = subprocess.run(["git", "-C", radice, "ls-files", "--error-unmatch", "--", rel],
                                        capture_output=True, timeout=5).returncode == 0
@@ -495,11 +497,27 @@ def _codice_inline(cmd: str, progs):
         codici.append(cmd)  # heredoc che heredoc.py non legge con certezza: conta tutto il testo
     argomenti = []
     for _, args in interpreti:
+        inline = False
         for j, a in enumerate(args):
             if a in ("-c", "-e", "--eval", "-p", "--print") and j + 1 < len(args):
                 codici.append(args[j + 1])
-        argomenti += [a for a in args if not a.startswith(("-", "<")) and not _REDIREZIONE.match(a)]
+                inline = True
+        liberi = [a for a in args if not a.startswith(("-", "<")) and not _REDIREZIONE.match(a)]
+        # Solo l'interprete che esegue codice inline (`python3 - ARG`, `-c`, stdin): gli argomenti di
+        # `python3 ~/.claude/skills/posta/posta.py bozza` accanto a un heredoc non sono destinazioni
+        # del codice inline, e lo script stesso lo copre D1 (21/10/2026).
+        if inline or "-" in args or not liberi:
+            argomenti += liberi
     return codici, argomenti
+
+
+_BANCO = re.compile(r"^test[_-][\w.-]*\.py$")
+
+
+def banco(parti) -> bool:
+    """Un banco di prova (`hooks/test_*.py`, `tests/*.py`): nessun hook lo carica, eseguirlo vale
+    come uno script nello scratchpad. Scriverlo e lanciarlo non chiede (21/10/2026)."""
+    return len(parti) == 2 and parti[0] in ("hooks", "tests") and bool(_BANCO.match(parti[1]))
 
 
 def e_config(path: str) -> bool:
@@ -509,6 +527,8 @@ def e_config(path: str) -> bool:
     if not reale.startswith(radice + os.sep):
         return False
     parti = os.path.relpath(reale, radice).split(os.sep)
+    if banco(parti):
+        return False
     if parti[0] in CONFIG_DIR:
         return True
     return len(parti) == 1 and (parti[0] in CONFIG_FILE or bool(_SETTINGS.match(parti[0])))
