@@ -106,7 +106,7 @@ segnalazione privata di `SECURITY.md`.
 per ognuno mette da parte le modifiche non salvate, scarica, e le rimette al loro posto.
 
 ```bash
-bash "$HOME/.claude/bin/sync-progetti.sh"; echo "rc=$?"
+bash ~/.claude/bin/sync-progetti.sh; echo "rc=$?"
 ```
 
 Con `rc=1` almeno un progetto ha un pull fallito, uno stash in conflitto o file in conflitto:
@@ -120,7 +120,7 @@ riconosce e il nome del progetto resta pulito. Senza nome usa la cartella in cui
 
 ```bash
 # Tutto il contesto in un processo solo: tra due blocchi bash le variabili si perdono.
-python3 "$HOME/.claude/bin/arturo" contesto "$ARGUMENTS"; echo "rc=$?"
+python3 ~/.claude/bin/arturo contesto "$ARGUMENTS"; echo "rc=$?"
 ```
 
 Lo script legge e non scrive niente. Calcola lo slug del progetto come `/fine`
@@ -206,10 +206,12 @@ il confronto e il pannello.
 # Il progetto dei todo è quello della cartella (FASE 1 ci è entrata), calcolato dalla CLI come per
 # "ricordami di…": nessuna variabile di un blocco precedente. Gli avvisi ("Attenzione: …") restano
 # visibili: dopo il pull un todo può aver cambiato numero.
-python3 "$HOME/.claude/bin/arturo" todo progetto
-python3 "$HOME/.claude/bin/arturo" todo --progetto .
+python3 ~/.claude/bin/arturo todo progetto
+python3 ~/.claude/bin/arturo todo --progetto .
 # I todo di "generale": quelli presi fuori da un progetto (nella HOME, in /setup, fuori da git).
-[ "$(python3 "$HOME/.claude/bin/arturo" todo progetto)" = generale ] || python3 "$HOME/.claude/bin/arturo" todo --progetto generale
+# Se la prima riga ha stampato "generale", questa ripete la stessa lista: leggila una volta sola.
+# Niente sostituzione di comando per saltarla: in un worktree la guardia di Claude Code rifiuta il blocco.
+python3 ~/.claude/bin/arturo todo --progetto generale
 git log --oneline -20 2>/dev/null
 # Il pannello /dafare c'è? I comandi di un mod non compaiono fra quelli che vedi.
 claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "dafare@skills-dir"]; print("mod caricato" if v and v[0].get("enabled") else "mod assente")' 2>/dev/null || echo "mod assente"

@@ -178,7 +178,7 @@ def test_s07(repo: Path) -> None:
 
 def test_s08(repo: Path) -> None:
     fine = read(repo / "commands" / "fine.md")
-    assert "arturo\" segnala chiedi" in fine, "S08 /fine non chiede la domanda della settimana"
+    assert "arturo segnala chiedi" in fine, "S08 /fine non chiede la domanda della settimana"
     # 20/10/2026: la chiusura di /fine è una riga tecnica, non più una tabella: la segnalazione è una sua voce.
     chiusura = fine.split("## Chiusura", 1)[1] if "## Chiusura" in fine else ""
     assert "| Segnalazione" in fine or "segnalazione:" in chiusura, "S08 la chiusura di /fine non dice la segnalazione"

@@ -24,6 +24,9 @@ Windows %TEMP%, che sta dentro la HOME) è volatile e riconosciuto come scratchp
 in UTF-8 anche se la pipe è in cp1252.
 F12 il Config Sync di /fine non pubblica una skill nuova della persona su un remote pubblico: la
 nomina e Claude chiede. Verso un remote privato la salva (16/10/2026).
+F13 in un worktree (segnalazione n. 11, 22/10/2026): i blocchi che girano dentro il worktree, cioè
+/fine fino al commit e /inizio FASE 4, non usano "$HOME" né $(...), che la guardia di Claude Code
+rifiuta; /fine esce dal worktree prima del merge sul tree principale.
 
 Sulla base cbd8305 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -640,7 +643,7 @@ def variabili_orfane(script: str) -> list:
 def test_f08(repo: Path) -> None:
     fine = read(repo / "commands" / "fine.md")
     for pezzo in ("bin/inventario-sessione.py", "bin/handoff-gate.sh", "bin/handoff-retention.py",
-                  "bin/index-rigenera.py\" --scrivi"):
+                  "bin/index-rigenera.py --scrivi"):
         assert pezzo in fine, f"F08 /fine non usa {pezzo}"
     assert "tail -n +6" not in fine, "F08 /fine cancella ancora gli handoff con find | tail | rm"
     # Gli strumenti della config dell'autore: solo le impronte, in tests/igiene.py (#3505).
@@ -692,7 +695,7 @@ def test_f10(repo: Path) -> None:
     fase0 = inizio[inizio.index("## FASE 0"):inizio.index("## FASE 1")]
     assert "--tutti" in fase0 and "bin/sync-progetti.sh" in fase0, "F10 /inizio --tutti non aggiorna i progetti"
     fase1 = inizio[inizio.index("## FASE 1"):inizio.index("## FASE 2")]
-    assert 'arturo" contesto "$ARGUMENTS"' in fase1, "F10 /inizio non prende il contesto in una chiamata"
+    assert 'arturo contesto "$ARGUMENTS"' in fase1, "F10 /inizio non prende il contesto in una chiamata"
     assert "[--tutti]" in inizio.split("---", 2)[1], "F10 l'aiuto di /inizio non mostra --tutti"
     codice = blocchi(fase1)[0]
 
@@ -708,9 +711,23 @@ def test_f10(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+def test_f13(repo: Path) -> None:
+    fine = read(repo / "commands" / "fine.md")
+    inizio = read(repo / "commands" / "inizio.md")
+    passo = "**Sessione in un worktree**"
+    assert all(t in fine for t in ("## FASE 4", passo)) and all(t in inizio for t in ("## FASE 4", "## FASE 5")), \
+        "F13 /fine o /inizio non hanno le fasi che girano dentro un worktree"
+    dentro = blocchi(fine[:fine.index("## FASE 4")]) + blocchi(inizio[inizio.index("## FASE 4"):inizio.index("## FASE 5")])
+    rifiutati = [b.strip().splitlines()[0] for b in dentro if '"$HOME' in b or "$(" in b]
+    assert dentro and not rifiutati, f"F13 blocchi che in un worktree la guardia di Claude Code rifiuta: {rifiutati}"
+    passo = fine[fine.index(passo):fine.index("## FASE 4")]
+    assert "ExitWorktree" in passo and passo.index("ExitWorktree") < passo.index("merge --ff-only"), \
+        "F13 /fine fa il merge sul tree principale da dentro il worktree, dove git fuori è vietato"
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
-         "F11": test_f11, "F12": test_f12}
+         "F11": test_f11, "F12": test_f12, "F13": test_f13}
 
 
 def main() -> int:

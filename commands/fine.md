@@ -24,11 +24,11 @@ Tre regole per tutte le fasi:
 
 Git, validate e commit girano nella cartella del progetto: quella della riga `cartella:` che `/inizio`
 ha letto da `arturo contesto`. Se la sessione è partita senza `/inizio`, lancia
-`python3 "$HOME/.claude/bin/arturo" contesto` e leggi la riga. Con `cartella: nessuna` non c'è commit
+`python3 ~/.claude/bin/arturo contesto` e leggi la riga. Con `cartella: nessuna` non c'è commit
 di progetto, e lo dice la riga tecnica. Poi lancia `git status --short`, `TaskList` e l'inventario:
 
 ```bash
-python3 "$HOME/.claude/bin/inventario-sessione.py"; echo "rc=$?"
+python3 ~/.claude/bin/inventario-sessione.py; echo "rc=$?"
 ```
 
 Lo script legge la trascrizione della sessione (file scritti, uscite dei comandi, file nuovi in
@@ -71,11 +71,13 @@ git diff --cached --stat
 
   Controlla che l'elenco coincida con quello che volevi, poi `git commit -m "<messaggio>" -- <file-1> <file-2>`.
 - **Sessione in un worktree** (aperto da `/inizio` perché un'altra sessione lavorava sullo stesso
-  progetto). Il commit va sul branch del worktree. Poi riporta il lavoro sul tree principale con
-  `git -C <tree principale> merge --ff-only <branch>`. Riuscito: `ExitWorktree` con `remove`. Non
-  riuscito (l'altra sessione ha committato nel frattempo, o ha modifiche sugli stessi file): il worktree
-  resta con `keep`, il branch diventa un todo e l'handoff lo cita. Rebase e merge con conflitti non si
-  fanno a fine sessione.
+  progetto). Il commit va sul branch del worktree. Poi esci con `ExitWorktree` e `keep`: dentro il
+  worktree la guardia di Claude Code vieta git sul tree principale. Fuori, riporta il lavoro con
+  `git -C <tree principale> merge --ff-only <branch>`. Riuscito: `git -C <tree principale> worktree
+  remove <percorso del worktree>` e `git -C <tree principale> branch -d <branch>`. Non riuscito (l'altra
+  sessione ha committato nel frattempo, o ha modifiche sugli stessi file): il worktree resta, il branch
+  diventa un todo e l'handoff lo cita. Rebase e merge con conflitti non si fanno a fine sessione. Il
+  resto di /fine gira dal tree principale (segnalazione n. 11, 22/10/2026).
 
 ## FASE 4 · Handoff e todo
 
@@ -136,22 +138,23 @@ Un todo bloccato va in FERMO con `ferma`, non con `--chi`.
 
 ```bash
 # Il progetto dei todo è quello della cartella, calcolato dalla CLI: lo stesso di "ricordami di…".
-# Fuori da git e nella HOME è «generale». Ogni riga scrive il comando intero, tra virgolette:
-# una HOME con uno spazio ("Mario Rossi") resta un percorso solo, e nessuna variabile deve
+# Fuori da git e nella HOME è "generale". Ogni riga scrive il comando intero, con la tilde fuori
+# dalle virgolette: una HOME con uno spazio ("Mario Rossi") resta un percorso solo, e in un worktree
+# la guardia di Claude Code accetta la tilde ma rifiuta "$HOME" e $(...). Nessuna variabile deve
 # sopravvivere da una chiamata all'altra.
-python3 "$HOME/.claude/bin/arturo" todo progetto
-python3 "$HOME/.claude/bin/arturo" todo --progetto .     # cosa c'è già: non creare doppioni
+python3 ~/.claude/bin/arturo todo progetto
+python3 ~/.claude/bin/arturo todo --progetto .     # cosa c'è già: non creare doppioni
 ```
 
 Poi, per ogni item, una riga intera come queste. `arturo todo aggiungi` mette il todo nel
 progetto della cartella, come "ricordami di…":
 
 ```bash
-python3 "$HOME/.claude/bin/arturo" todo aggiungi "verbo e oggetto" --chi io --priorita media --note "cosa serve per riprendere"
-python3 "$HOME/.claude/bin/arturo" todo fatto ID
-python3 "$HOME/.claude/bin/arturo" todo ferma ID "motivo"
-python3 "$HOME/.claude/bin/arturo" todo nota ID "testo"
-python3 "$HOME/.claude/bin/arturo" todo modifica ID --chi tu
+python3 ~/.claude/bin/arturo todo aggiungi "verbo e oggetto" --chi io --priorita media --note "cosa serve per riprendere"
+python3 ~/.claude/bin/arturo todo fatto ID
+python3 ~/.claude/bin/arturo todo ferma ID "motivo"
+python3 ~/.claude/bin/arturo todo nota ID "testo"
+python3 ~/.claude/bin/arturo todo modifica ID --chi tu
 ```
 
 Se la lettura stampa righe "Attenzione:", riportale alla persona: un todo può aver cambiato
@@ -194,7 +197,7 @@ Se la persona chiede una copia dell'handoff nel progetto, prima mostrale la visi
 Lancialo sul file appena scritto, al posto di `<handoff>`:
 
 ```bash
-bash "$HOME/.claude/bin/handoff-gate.sh" "<handoff>"; echo "rc=$?"
+bash ~/.claude/bin/handoff-gate.sh "<handoff>"; echo "rc=$?"
 ```
 
 Il gate è bloccante. Il rosso (`rc=1`) stampa una riga per difetto: la sezione `## Task Pendenti`
@@ -209,7 +212,7 @@ Prima guarda cosa uscirebbe, senza cancellare niente:
 
 ```bash
 SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
-python3 "$HOME/.claude/bin/handoff-retention.py" "$SLUG"; echo "rc=$?"
+python3 ~/.claude/bin/handoff-retention.py "$SLUG"; echo "rc=$?"
 ```
 
 Per ogni handoff in uscita lo script stampa i Vicoli ciechi e le righe dei task senza ID: nessun
@@ -224,8 +227,8 @@ Poi cancella i vecchi e rigenera l'indice:
 
 ```bash
 SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
-python3 "$HOME/.claude/bin/handoff-retention.py" "$SLUG" --applica; echo "rc=$?"
-python3 "$HOME/.claude/bin/index-rigenera.py" --scrivi; echo "rc=$?"
+python3 ~/.claude/bin/handoff-retention.py "$SLUG" --applica; echo "rc=$?"
+python3 ~/.claude/bin/index-rigenera.py --scrivi; echo "rc=$?"
 ```
 
 `rc=3` della retention: una cancellazione non è riuscita, il file resta e la riga tecnica lo dice.
@@ -246,7 +249,7 @@ progetto non ha un `CLAUDE.md` e ha sostanza, proponilo con due righe su cosa è
 La domanda: **cosa di questa sessione serve fra tre mesi?** Il test: **può ripresentarsi?**
 - Vale per questo progetto: due righe nel `CLAUDE.md` del progetto (FASE 7).
 - Vale per ogni progetto: una nota nella memoria di Claude Code. Prima cerca se esiste già
-  (`python3 "$HOME/.claude/bin/arturo" memoria cerca "parole"`): se c'è, aggiorna quella. Un fatto, un file.
+  (`python3 ~/.claude/bin/arturo memoria cerca "parole"`): se c'è, aggiorna quella. Un fatto, un file.
 - Una regola che deve valere in ogni sessione va nel `CLAUDE.md` personale (opzionale A).
 - No: muore con l'handoff.
 
@@ -338,10 +341,10 @@ Una sola proposta per sessione, mai un elenco.
   proponi la segnalazione col fatto già scritto: «Ho visto che X non ha funzionato. Lo segnalo a chi
   mantiene Arturo? Il testo lo preparo io.» Col sì segui `/segnala` dal Passo 1, che tiene fuori dalla
   issue pubblica un segreto esposto o una guardia aggirabile. Se l'hai già proposta, non riproporla.
-- **Altrimenti** lancia `python3 "$HOME/.claude/bin/arturo" segnala chiedi`. Con exit 0 fai una
+- **Altrimenti** lancia `python3 ~/.claude/bin/arturo segnala chiedi`. Con exit 0 fai una
   domanda in una riga: «In questi giorni Arturo ti ha fatto perdere tempo, o c'è una cosa che vorresti
   facesse?» Se la persona racconta qualcosa, segui `/segnala`. Con exit 3 taci.
-- Se la persona non vuole più queste domande, lancia `python3 "$HOME/.claude/bin/arturo" segnala basta`.
+- Se la persona non vuole più queste domande, lancia `python3 ~/.claude/bin/arturo segnala basta`.
 
 ## Opzionali (`--full`, o quando la condizione è vera)
 
