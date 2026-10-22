@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M01-M17: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
+"""M01-M18: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
 
 Ogni caso gira con una HOME finta e un server HTTP finto su 127.0.0.1 (ARTURO_TELEMETRIA_URL):
 niente parte mai verso il server vero. Sulla base db96709, prima della telemetria, ogni controllo
@@ -430,10 +430,30 @@ def test_m17(repo: Path) -> None:
         f"M17 un evento parte due volte, o una riga vecchia parte: {partiti}"
 
 
+def test_m18(repo: Path) -> None:
+    # 22/10/2026: block-dangerous ha chiesto 33 volte in una settimana, 20 confermate, e la telemetria
+    # non diceva quale regola. Ora chiede e confermata portano <guardia>.<regola>; Claude Code riceve
+    # solo il JSON, e la guardia lanciata senza il dispatcher di Arturo non stampa la regola.
+    lab = Lab(repo)
+    libro = lab.home / "Documents" / "libro"
+    libro.mkdir(parents=True)
+    r = lab.hook("bash-dispatcher.sh", json.dumps({"tool_name": "Bash", "tool_input": {"command": f"rm -rf {libro}"},
+                                                    "tool_use_id": "toolu_18"}))
+    assert '"ask"' in r.stdout and "REGOLA" not in r.stdout, f"M18 a Claude Code arriva altro dal JSON: {r.stdout!r}"
+    json.loads(r.stdout)
+    assert [(e["evento"], e["valore"]) for e in lab.coda()] == [("chiede", "block-dangerous.py.rm-cartella")], \
+        f"M18 la telemetria non dice quale regola chiede: {lab.coda()}"
+    assert "libro" not in json.dumps(lab.coda()), "M18 il percorso esce nella telemetria"
+    entrata = json.dumps({"tool_name": "Bash", "tool_input": {"command": f"rm -rf {libro}"}})
+    r = subprocess.run([sys.executable, str(repo / "hooks" / "block-dangerous.py")], input=entrata, capture_output=True,
+                       text=True, env={k: v for k, v in lab.env.items() if k != "ARTURO_REGOLA"}, timeout=60)
+    assert '"ask"' in r.stdout and "REGOLA" not in r.stdout, f"M18 senza il dispatcher di Arturo esce la riga REGOLA: {r.stdout!r}"
+
+
 TESTS = {"M01": test_m01, "M02": test_m02, "M03": test_m03, "M04": test_m04, "M05": test_m05,
          "M06": test_m06, "M07": test_m07, "M08": test_m08, "M09": test_m09, "M10": test_m10,
          "M11": test_m11, "M12": test_m12, "M13": test_m13, "M14": test_m14, "M15": test_m15,
-         "M16": test_m16, "M17": test_m17}
+         "M16": test_m16, "M17": test_m17, "M18": test_m18}
 
 
 def main() -> int:

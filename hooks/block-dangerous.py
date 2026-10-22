@@ -409,7 +409,7 @@ def _projects_base():
     return os.path.normpath(os.path.join(_home(), "Documents", "ClaudeCode"))
 
 
-def _ask(reason):
+def _ask(regola, reason):
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
@@ -417,6 +417,11 @@ def _ask(reason):
             "permissionDecisionReason": reason,
         }
     }))
+    # Il dispatcher di Arturo chiede anche quale regola ha parlato: va nella telemetria come
+    # block-dangerous.py.<regola>, così si vede quale chiede a vuoto (22/10/2026). Senza la
+    # variabile l'uscita resta il solo JSON, come la legge la config dell'autore.
+    if os.environ.get("ARTURO_REGOLA") == "1":
+        print(f"REGOLA: {regola}")
     return 0
 
 
@@ -847,7 +852,7 @@ def main() -> int:
 
     # 2) Scrittura shell su config/hook di Claude Code -> ask (auto-modifica guardie)
     if CONFIG_WRITE_RE.search(testo) or _writes_config(testo, cwd):
-        return _ask(
+        return _ask("config",
             "Scrittura via shell su settings/hook di Claude Code o sull'aggiornamento automatico "
             "di Arturo: modificherebbe le guardie stesse, o cosa si installa da solo. Conferma "
             "solo se stai aggiornando la config di proposito."
@@ -855,14 +860,14 @@ def main() -> int:
 
     # 2a) Scrittura shell su un CLAUDE.md -> ask (le istruzioni di ogni sessione futura)
     if CLAUDE_MD_WRITE_RE.search(testo) or _writes_config(testo, cwd, _is_claude_md):
-        return _ask(
+        return _ask("claude-md",
             "Scrittura via shell su un CLAUDE.md: cambierebbe le istruzioni di ogni sessione "
             "futura in quella cartella. Conferma solo se sei tu a volerlo."
         )
 
     # 2a-bis) Scrittura shell su un percorso di avvio automatico -> ask (persistenza)
     if PERSIST_WRITE_RE.search(testo) or _writes_config(testo, cwd, _is_persistenza):
-        return _ask(
+        return _ask("avvio-automatico",
             "Scrittura via shell su un git hook o su un servizio di avvio automatico "
             "(LaunchAgents, systemd, autostart): il codice partirebbe da solo a ogni "
             "commit o a ogni accesso. Conferma solo se l'hai chiesto tu."
@@ -871,19 +876,19 @@ def main() -> int:
     # 2b) Creazione di un file di unlock -> ask (sbloccherebbe l'auto-modifica)
     sblocco = UNLOCK_RE.search(testo) or _writes_config(testo, cwd, _is_unlock)
     if sblocco and "claude-md-unlock" in testo and "config-unlock" not in testo:
-        return _ask(
+        return _ask("sblocco-claude-md",
             "Sblocco della modifica di CLAUDE.md per questa sessione: Claude potrà "
             "cambiare le istruzioni che segue. Conferma se sei tu ad aver chiesto la modifica."
         )
     if sblocco:
-        return _ask(
+        return _ask("sblocco",
             "Creazione di un file di unlock che disattiverebbe la protezione "
             "sull'auto-modifica di config/hook. Conferma solo se sei tu a volerlo."
         )
 
     # 3) Lettura di file segreti via shell -> ask (per-segmento, alta precisione)
     if _reads_secret(command):
-        return _ask(
+        return _ask("segreto",
             "Lettura di un file segreto via shell (chiave privata, credenziali, "
             "~/.ssh, ~/.aws...). Conferma solo se serve davvero: il contenuto "
             "finirebbe nel contesto e potrebbe essere esfiltrato."
@@ -891,7 +896,7 @@ def main() -> int:
 
     # 3-bis) sed che scrive col comando `w` -> ask
     if _sed_scrive(command):
-        return _ask(
+        return _ask("sed-w",
             "sed scrive su file col comando `w` (vale anche sotto -n e come flag "
             "di s///): il file indicato viene sovrascritto. Conferma solo se la "
             "scrittura è voluta."
@@ -899,7 +904,7 @@ def main() -> int:
 
     # 4) Docker distruttivo su volumi -> ask
     if DOCKER_DESTRUCTIVE_RE.search(command):
-        return _ask(
+        return _ask("docker-volumi",
             "Rimozione di volumi Docker (dati persistenti). Irreversibile: "
             "conferma solo se vuoi davvero cancellare i dati dei container."
         )
@@ -910,7 +915,7 @@ def main() -> int:
     try:
         for targets, cwd_decl in _rm_segments(command):
             if targets is None:
-                return _ask(
+                return _ask("rm-xargs",
                     "rm ricorsivo dietro xargs: i percorsi arrivano da un altro comando e "
                     "non si possono controllare prima. Conferma solo se sai cosa cancella."
                 )
@@ -921,24 +926,24 @@ def main() -> int:
                 else:
                     p = _resolve(t, base_cwd)
                 if _is_protected_tree(p):
-                    return _ask(
+                    return _ask("rm-protetto",
                         f"rm ricorsivo su un percorso protetto ({p}): memoria, "
                         "progetti o config di Claude Code. Irreversibile: dal terminale "
                         "non passa dal cestino. Conferma solo se vuoi davvero cancellarlo."
                     )
                 if p is None:
-                    return _ask(
+                    return _ask("rm-ignoto",
                         f"rm ricorsivo su un percorso che non so risolvere ({t}). "
                         "Irreversibile: controlla la cartella prima di confermare."
                     )
                 if not (_rigenerabile(p) or _temporaneo(p)):
-                    return _ask(
+                    return _ask("rm-cartella",
                         f"rm ricorsivo su una cartella ({p}). Dal terminale non passa "
                         "dal cestino: se dentro c'è lavoro tuo, lo perdi. Conferma solo "
                         "se vuoi davvero cancellarla."
                     )
     except Exception:
-        return _ask("rm ricorsivo che la guardia non riesce a leggere: controlla prima di confermare.")
+        return _ask("rm-illeggibile", "rm ricorsivo che la guardia non riesce a leggere: controlla prima di confermare.")
 
     # 6) find che cancella -> ask
     try:
@@ -946,7 +951,7 @@ def main() -> int:
     except Exception:
         cancella = "find" in command  # come rm e rmtree: un find che la guardia non legge si controlla
     if cancella:
-        return _ask(
+        return _ask("find-delete",
             "find con -delete o -exec rm cancella file in blocco, senza cestino. "
             "Conferma solo se hai controllato cosa trova."
         )
@@ -958,21 +963,21 @@ def main() -> int:
                 continue
             p = _resolve(t, os.path.normpath(cwd)) if t else None
             if p is None:
-                return _ask(
+                return _ask("rmtree-variabile",
                     "shutil.rmtree su un percorso che arriva da una variabile: cancella una cartella "
                     "intera, senza cestino. Controlla quale prima di confermare."
                 )
             if _is_protected_tree(p) or not (_rigenerabile(p) or _temporaneo(p)):
-                return _ask(
+                return _ask("rmtree-cartella",
                     f"shutil.rmtree su una cartella ({p}): la cancella intera, senza cestino. Se dentro "
                     "c'è lavoro tuo, lo perdi. Conferma solo se vuoi davvero cancellarla."
                 )
     except Exception:
-        return _ask("shutil.rmtree che la guardia non riesce a leggere: controlla prima di confermare.")
+        return _ask("rmtree-illeggibile", "shutil.rmtree che la guardia non riesce a leggere: controlla prima di confermare.")
 
     # 8) git clean -f -> ask: i file non tracciati non stanno in nessun commit.
     if _git_clean_forzato(command):
-        return _ask(
+        return _ask("git-clean",
             "git clean -f cancella i file che git non traccia: non stanno in nessun commit e non "
             "tornano indietro. Prova prima con `git clean -n` per vedere cosa toglie."
         )

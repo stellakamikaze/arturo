@@ -176,14 +176,24 @@ segna_chiede() {
     uso=$(printf '%s' "$INPUT" | python3 -c 'import json, sys
 try: print(json.load(sys.stdin).get("tool_use_id") or "")
 except Exception: pass' 2>/dev/null)
-    [[ -n "$uso" ]] && python3 "$HOME/.claude/bin/telemetria.py" chiede "$1" "$uso" >/dev/null 2>&1
+    [[ -n "$uso" ]] && python3 "$HOME/.claude/bin/telemetria.py" chiede "$1${2:+.$2}" "$uso" >/dev/null 2>&1
     return 0
 }
 
 run_guard() {
-    local out rc
-    out=$(python3 "$HOME/.claude/hooks/$1" <<< "$GUARD_INPUT")
+    local out rc regola=""
+    # ARTURO_REGOLA=1: una guardia che sa nominare la regola che chiede (block-dangerous) la scrive in
+    # una riga "REGOLA: <nome>" dopo il JSON. Si toglie qui, prima di ogni controllo: Claude Code
+    # riceve solo il JSON, la telemetria registra <guardia>.<regola> (22/10/2026).
+    out=$(ARTURO_REGOLA=1 python3 "$HOME/.claude/hooks/$1" <<< "$GUARD_INPUT")
     rc=$?
+    if [[ "$out" == *$'\n'"REGOLA: "* ]]; then
+        regola=${out##*$'\n'REGOLA: }
+        regola=${regola%$'\r'}  # Python su Windows scrive \r\n
+        out=${out%$'\n'REGOLA: *}
+        out=${out%$'\r'}
+        [[ "$regola" =~ ^[a-z0-9-]{1,30}$ ]] || regola=""
+    fi
     if [[ $rc -eq 2 ]]; then
         [[ -n "$out" ]] && printf '%s\n' "$out" >&2
         segna_guardia "$1"
@@ -197,7 +207,7 @@ try:
 except Exception:
     sys.exit(1)'; then
         [[ "$out" == *'"deny"'* ]] && segna_guardia "$1"
-        [[ "$out" == *'"ask"'* ]] && segna_chiede "$1"
+        [[ "$out" == *'"ask"'* ]] && segna_chiede "$1" "$regola"
         printf '%s\n' "$out"
         exit 0
     fi
