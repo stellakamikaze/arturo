@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""D01-D11: la deriva fra la config della persona e quella di Arturo (hooks/deriva.py).
+"""D01-D12: la deriva fra la config della persona e quella di Arturo (hooks/deriva.py).
 
 Ogni caso costruisce un Arturo finto (un repository con settings.json, un comando e due hook), lo
 clona come ~/.claude in una HOME finta e cambia la config come farebbe una persona. La telemetria
@@ -205,8 +205,26 @@ def test_d11(repo: Path) -> None:
         f"D11 l'hook di sessione modificato non va nel file personale: {r.stdout!r}"
 
 
+def test_d12(repo: Path) -> None:
+    # Segnalazione n. 10 (21/10/2026, #3780): un cambio dei soli permessi, anche committato, non è
+    # deriva. "arturo personale ripristina" confronta il contenuto e non lo correggerebbe.
+    lab = Lab(repo)
+    guardia = lab.claude / "hooks" / "bash-dispatcher.sh"
+    guardia.chmod(0o755)
+    git(lab.claude, "-c", "core.fileMode=true", "add", "hooks/bash-dispatcher.sh")
+    git(lab.claude, "commit", "-q", "-m", "mio: permessi")
+    assert "100755" in git(lab.claude, "ls-files", "-s", "hooks/bash-dispatcher.sh") or os.name == "nt", \
+        "D12 il cambio di permessi non è entrato nel commit: il caso non prova niente"
+    r = lab.deriva()
+    assert r.stdout == "" and lab.coda() == [], f"D12 un cambio dei soli permessi è contato come deriva: {r.stdout!r} {lab.coda()}"
+    lab.scrivi("hooks/bash-dispatcher.sh", "#!/bin/bash\n# mio\nexit 0\n")
+    lab.deriva()
+    assert ("deriva", "file:hooks/bash-dispatcher.sh") in lab.coda(), f"D12 un contenuto cambiato non esce più: {lab.coda()}"
+
+
 TESTS = {"D01": test_d01, "D02": test_d02, "D03": test_d03, "D04": test_d04, "D05": test_d05,
-         "D06": test_d06, "D07": test_d07, "D08": test_d08, "D09": test_d09, "D10": test_d10, "D11": test_d11}
+         "D06": test_d06, "D07": test_d07, "D08": test_d08, "D09": test_d09, "D10": test_d10, "D11": test_d11,
+         "D12": test_d12}
 
 
 def main() -> int:

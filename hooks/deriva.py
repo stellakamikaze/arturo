@@ -95,6 +95,26 @@ def categorie_config(radice: Path) -> list:
     return sorted(fuori)
 
 
+def contenuto_cambiato(radice: Path, di_arturo: dict, file: list) -> list:
+    """Solo i file col contenuto diverso da quello di Arturo. git diff conta anche un cambio di
+    permessi (100644 -> 100755), che non cambia niente: gli hook partono tutti da un interprete, e
+    `arturo personale ripristina` confronta il contenuto e risponde "già com'è" (segnalazione n. 10,
+    21/10/2026, #3780). hash-object applica i filtri del percorso, quindi anche gli a capo di Windows."""
+    presenti = [f for f in file if (radice / f).is_file()]
+    if not presenti:
+        return file
+    try:
+        r = subprocess.run(["git", "-C", str(radice), "hash-object", "--stdin-paths"], input="\n".join(presenti) + "\n",
+                           capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return file
+    impronte = r.stdout.split()
+    if r.returncode != 0 or len(impronte) != len(presenti):
+        return file
+    uguali = {f for f, h in zip(presenti, impronte) if di_arturo.get(f) == h}
+    return [f for f in file if f not in uguali]
+
+
 def rileva(radice: Path) -> dict:
     """{'file': [...], 'hook': [...], 'config': [...]}: vuoto dove non si può misurare."""
     esito = {"file": [], "hook": [], "config": categorie_config(radice), "base": ""}
@@ -106,11 +126,14 @@ def rileva(radice: Path) -> dict:
     if rc != 0 or not base:
         return esito
     esito["base"] = base[:12]
-    _, albero = git(radice, "ls-tree", "-r", "--name-only", base)
-    di_arturo = set(albero.splitlines())
+    _, albero = git(radice, "ls-tree", "-r", base)
+    di_arturo = {}  # percorso -> impronta del blob in Arturo
+    for riga in albero.splitlines():
+        testa, _, nome = riga.partition("\t")
+        di_arturo[nome] = testa.split()[-1]
     _, cambiati = git(radice, "diff", "--name-only", base)
-    esito["file"] = sorted(f for f in set(cambiati.splitlines())
-                           if f in di_arturo and f != "settings.json" and FILE.match(f))[:MASSIMO]
+    esito["file"] = contenuto_cambiato(radice, di_arturo, sorted(
+        f for f in set(cambiati.splitlines()) if f in di_arturo and f != "settings.json" and FILE.match(f)))[:MASSIMO]
     rc, testo = git(radice, "show", f"{base}:settings.json")
     try:
         attesi = hook_dichiarati(json.loads(testo)) if rc == 0 else set()
