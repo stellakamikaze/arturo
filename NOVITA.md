@@ -11,6 +11,24 @@ modo di lavorare.
 
 ---
 
+## 2026-10-22 — Gli hook che avevi tornano, e tre segnalazioni chiuse
+
+**Cosa cambia**: se prima di Arturo un'altra app aveva aggiunto i suoi hook a Claude Code (ClaudeBar,
+una barra di stato, un notificatore), `/setup` li ritrova nella cartella messa da parte
+all'installazione e, col tuo sì, li rimette. Lo fa `python3 ~/.claude/bin/arturo personale
+hook-precedenti`, che puoi lanciare anche adesso. In modalità auto, dopo il tuo sì a una modifica del
+CLAUDE.md, Claude può sbloccarla da solo: prima dovevi lanciare tu il comando con `!`. L'avviso DERIVA
+non conta più un file che ha cambiato solo i permessi, e `/setup` non li cambia più. `/inizio` e
+`/fine` funzionano anche quando la sessione lavora in una copia separata del progetto (un worktree).
+
+**Il principio dietro**: Arturo si aggiunge a quello che c'è. Non deve togliere niente in silenzio.
+
+**Da sapere**: lo sblocco automatico vale solo per il CLAUDE.md e solo dopo il tuo sì a quella
+modifica. Per le impostazioni e gli hook di Claude Code il comando resta tuo. Se l'avviso DERIVA
+ti segnalava guardie modificate senza differenze nel contenuto, dalla prossima sessione sparisce.
+
+---
+
 ## 2026-10-21 — Meno conferme inutili, /dafare ricorda la barra, gli aggiornamenti dicono cosa li blocca
 
 **Cosa cambia**: le guardie non chiedono più conferma per cancellare una cartella appena creata con
