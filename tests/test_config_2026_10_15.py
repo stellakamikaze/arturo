@@ -231,6 +231,10 @@ def test_k11(repo: Path) -> None:
     assert "Bash(format C:\\*)" in p["deny"], "K11 mancano i divieti per Windows"
     am = d.get("autoMode") or {}
     assert any("scratchpad" in x for x in am.get("allow", [])), "K11 nessuna istruzione al classificatore sullo scratchpad"
+    # Segnalazione n. 9 (20/10/2026, #3779): dopo il sì della persona lo sblocco del CLAUDE.md passa, gli altri no.
+    sblocco = [x for x in am.get("allow", []) if "claude-md-unlock" in x]
+    assert sblocco and "config-unlock" in sblocco[0] and "NOT covered" in sblocco[0], \
+        "K11 il classificatore nega lo sblocco del CLAUDE.md anche dopo il sì della persona"
     for lista in ("allow", "soft_deny", "environment"):
         # Senza $defaults una lista di autoMode sostituisce le regole di serie invece di aggiungersi (15/10/2026).
         assert "$defaults" in am.get(lista, []), f"K11 autoMode.{lista} senza i default di Claude Code"
