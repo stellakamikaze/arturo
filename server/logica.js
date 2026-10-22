@@ -220,6 +220,7 @@ export function testoMigliorare(m) {
   if (!m) return [];
   const righe = (elenco, riga, vuoto = "  niente") => elenco && elenco.length ? elenco.map(riga) : [vuoto];
   const per = (a, b) => (b ? `${Math.round((100 * a) / b)}%` : "-");
+  const conferma = (x) => `  ${x.valore}  ${x.chiede} / ${x.confermata} / ${per(x.confermata, x.chiede)}, ${installazioni(x.installazioni)}`;
   const r = m.ritenzione || { nuove: 0, soglie: [] };
   return [
     "DOVE MIGLIORARE ARTURO (ultimi 30 giorni, numeri e non verdetti)",
@@ -229,7 +230,9 @@ export function testoMigliorare(m) {
     "",
     `Guardie: contano solo le installazioni viste in almeno ${LIMITI.giorniGuardie} giorni diversi. Una guardia non si allenta sulla sola base di questi numeri.`,
     "Guardie che chiedono conferma (chiede / confermata / quota di sì, installazioni):",
-    ...righe(m.conferme, (x) => `  ${x.valore}  ${x.chiede} / ${x.confermata} / ${per(x.confermata, x.chiede)}, ${installazioni(x.installazioni)}`, "  nessuna"),
+    ...righe(m.confermeGuardie || m.conferme, conferma, "  nessuna"),
+    "Per regola, dove la guardia la dice:",
+    ...righe((m.conferme || []).filter((x) => x.valore.includes(".py.")), conferma, "  nessuna"),
     "",
     "Guardie che si rompono (volte, installazioni):",
     ...righe(m.errori, (x) => `  ${x.valore}  ${x.n}, ${installazioni(x.installazioni)}`, "  nessuna"),

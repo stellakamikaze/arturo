@@ -474,6 +474,19 @@ const casi = {
       { ...f, adesso, token })).json();
     assert.match(json.regola || "", /non si allenta sulla sola base della telemetria anonima/, "V28 il JSON per la routine non porta la regola");
   },
+  // Le conferme per guardia vengono prima, poi quelle per regola, dove la guardia la dice (#3799).
+  async V29() {
+    const r = { ...VUOTO, migliorare: {
+      confermeGuardie: [{ valore: "block-dangerous.py", chiede: 42, confermata: 2, installazioni: 2 },
+        { valore: "exfil-guard.py", chiede: 1, confermata: 0, installazioni: 1 }],
+      conferme: [{ valore: "block-dangerous.py.rm-cartella", chiede: 21, confermata: 1, installazioni: 2 }],
+      errori: [], ritenzione: { nuove: 0, soglie: [] } } };
+    const testo = testoRiepilogo(r, "prova");
+    assert.match(testo, /quota di sì, installazioni\):\n {2}block-dangerous\.py {2}42 \/ 2 \/ 5%, 2 installazioni\n {2}exfil-guard\.py {2}1 \/ 0 \/ 0%, 1 installazione\n/,
+      "V29 le conferme non sono sommate per guardia");
+    assert.match(testo, /Per regola, dove la guardia la dice:\n {2}block-dangerous\.py\.rm-cartella {2}21 \/ 1 \/ 5%, 2 installazioni\n/,
+      "V29 manca il dettaglio per regola");
+  },
 };
 
 for (const [nome, caso] of Object.entries(casi)) await caso();

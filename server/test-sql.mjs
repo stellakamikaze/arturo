@@ -155,6 +155,23 @@ const casi = {
     assert.equal(await a.primaVolta("sempre", "setup-fine:viva0000"), false, "Q11 la chiave di un'installazione viva è sparita");
   },
   // Installazione nuova: vera solo finché dall'id non è arrivato niente (l'avviso Telegram parte una volta).
+  // Dal 22/10/2026 block-dangerous dice la regola: le conferme si sommano anche per guardia, e
+  // ventuno regole non fanno sparire dal riepilogo un'altra guardia (#3799).
+  async Q12() {
+    const righe = [];
+    for (const io of ["aaaaaaaa", "bbbbbbbb"]) {
+      righe.push(["2026-10-01", io, "sessione"]);
+      for (let i = 0; i < 21; i++) righe.push(["2026-10-10", io, "chiede", `block-dangerous.py.regola-${i}`]);
+      righe.push(["2026-10-10", io, "confermata", "block-dangerous.py.regola-0"]);
+    }
+    righe.push(["2026-10-11", "aaaaaaaa", "chiede", "exfil-guard.py"]);
+    const m = await (await con(righe)).miglioramento(AL);
+    assert.ok(!m.conferme.some((x) => x.valore === "exfil-guard.py"), "Q12 prova: exfil-guard.py resta nelle prime 20 regole");
+    assert.deepEqual(m.confermeGuardie, [
+      { valore: "block-dangerous.py", chiede: 42, confermata: 2, installazioni: 2 },
+      { valore: "exfil-guard.py", chiede: 1, confermata: 0, installazioni: 1 },
+    ], "Q12 le conferme per guardia");
+  },
   async Q06() {
     const a = await con([["2026-10-12", "aaaaaaaa", "sessione"]]);
     assert.equal(await a.installazioneNuova("aaaaaaaa"), false, "Q06 un'installazione già vista risulta nuova");

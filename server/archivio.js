@@ -113,6 +113,13 @@ export function archivio(db) {
           `SELECT valore, SUM(evento = 'chiede') AS chiede, SUM(evento = 'confermata') AS confermata,
              COUNT(DISTINCT installazione) AS installazioni FROM eventi
            WHERE evento IN ('chiede', 'confermata') AND ${trenta} AND ${VISTE} GROUP BY valore ORDER BY chiede DESC LIMIT 20`, al, al),
+        // Le stesse, sommate per guardia: dal 22/10/2026 block-dangerous manda <guardia>.<regola>, e
+        // con tante regole le altre guardie uscirebbero dalle prime 20 di `conferme` (#3799).
+        confermeGuardie: await tutte(
+          `SELECT CASE WHEN instr(valore, '.py.') > 0 THEN substr(valore, 1, instr(valore, '.py.') + 2) ELSE valore END AS valore,
+             SUM(evento = 'chiede') AS chiede, SUM(evento = 'confermata') AS confermata,
+             COUNT(DISTINCT installazione) AS installazioni FROM eventi
+           WHERE evento IN ('chiede', 'confermata') AND ${trenta} AND ${VISTE} GROUP BY 1 ORDER BY chiede DESC LIMIT 20`, al, al),
         errori: await tutte(
           `SELECT valore, COUNT(*) AS n, COUNT(DISTINCT installazione) AS installazioni FROM eventi
            WHERE evento = 'errore' AND ${trenta} AND ${VISTE} GROUP BY valore ORDER BY n DESC LIMIT 20`, al, al),
