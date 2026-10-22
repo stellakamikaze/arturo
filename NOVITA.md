@@ -11,6 +11,21 @@ modo di lavorare.
 
 ---
 
+## 2026-10-22 — Aggiornamenti senza conflitti sulle impostazioni
+
+**Cosa cambia**: quando Arturo e tu, o un'app come iTerm2, cambiate tutti e due `settings.json`,
+l'aggiornamento unisce le due versioni come impostazioni e non più riga per riga. Un hook in più di
+qua e un permesso in più di là stanno insieme, e l'aggiornamento non si ferma. Se tutti e due avete
+cambiato la stessa impostazione in modo diverso, resta il conflitto di prima e `/aggiorna` lo risolve
+con te. Quando una guardia ti chiede conferma, la telemetria registra anche quale regola ha chiesto.
+
+**Il principio dietro**: il 21/10 tutti e due gli aggiornamenti si sono fermati su `settings.json`, per
+modifiche che non si toccavano.
+
+**Da sapere**: della regola esce solo il nome (per esempio `rm-cartella`), mai il comando o il percorso.
+
+---
+
 ## 2026-10-22 — Gli hook che avevi tornano, e tre segnalazioni chiuse
 
 **Cosa cambia**: se prima di Arturo un'altra app aveva aggiunto i suoi hook a Claude Code (ClaudeBar,
