@@ -125,6 +125,7 @@ BANCHI=(
   test_conflitto_telemetria_2026_10_20.py
   test_argv_lista_2026_10_21.py
   test_moduli_2026_10_21.py
+  test_unisci_settings_2026_10_22.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -250,6 +251,8 @@ BASELINE=(
   "test_argv_lista_2026_10_21.py 6e0b36b"
   # Un modulo python non conta come dominio esterno (21/10/2026, #3720): d0a5ce6, l'ultimo dev prima.
   "test_moduli_2026_10_21.py d0a5ce6"
+  # L'aggiornamento unisce settings.json come JSON (22/10/2026): dbb37e7, il main v2026-10-22.
+  "test_unisci_settings_2026_10_22.py dbb37e7"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

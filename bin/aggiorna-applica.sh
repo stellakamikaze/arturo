@@ -288,10 +288,20 @@ if [ "$MODO" != sync ] && ! separa_nella_copia; then
   exit 1
 fi
 
+# settings.json si unisce come JSON (22/10/2026): il 21/10 un hook aggiunto da Arturo e righe vicine
+# cambiate dalla persona, o da un'app come iTerm2, hanno fermato l'aggiornamento di tutti. L'unione
+# viene dalla versione in arrivo e vale solo qui, per questo comando. Se la versione non ce l'ha, o se
+# le due parti hanno cambiato la stessa cosa, resta il conflitto riga per riga di sempre.
+UNISCI=()
+if git show "$REF:bin/unisci-settings.py" > "$LAVORO/unisci-settings.py" 2>/dev/null; then
+  printf 'settings.json merge=arturo-settings\n' > "$LAVORO/attributi"
+  UNISCI=(-c "core.attributesFile=$LAVORO/attributi"
+          -c "merge.arturo-settings.driver=python3 \"$LAVORO/unisci-settings.py\" %O %A %B")
+fi
 if [ "$MODO" = merge ]; then
-  git -C "$COPIA" merge --no-edit "$REF" > "$LAVORO/esito" 2>&1
+  git ${UNISCI[@]+"${UNISCI[@]}"} -C "$COPIA" merge --no-edit "$REF" > "$LAVORO/esito" 2>&1
 else
-  git -C "$COPIA" rebase "$REF" > "$LAVORO/esito" 2>&1
+  git ${UNISCI[@]+"${UNISCI[@]}"} -C "$COPIA" rebase "$REF" > "$LAVORO/esito" 2>&1
 fi
 rc=$?
 # Un comando che esce con 0 può lasciare file in conflitto: conta lo stato, non il codice d'uscita.
