@@ -131,14 +131,25 @@ done
 
 ---
 
-## FASE 2 — Permessi degli hook
+## FASE 2 — Gli hook che avevi prima
 
-Dopo un clone i permessi di esecuzione possono mancare. Sistemali:
+Gli hook di Arturo partono tutti col loro interprete (`bash`, `python3`, `node`): i permessi dei file
+non contano, e non vanno cambiati. Un `chmod` li farebbe risultare modificati nell'avviso DERIVA.
+
+L'installazione ha messo da parte la vecchia `~/.claude`, e il suo `settings.json` con lei. Se la
+persona usava un'altra app che aggiunge hook a Claude Code (ClaudeBar, una barra di stato, un
+notificatore), quegli hook oggi mancano. Controlla:
 
 ```bash
-chmod +x "$HOME/.claude/hooks/"*.sh "$HOME/.claude/hooks/"*.py 2>/dev/null
-echo "Permessi hook aggiornati."
+python3 ~/.claude/bin/arturo personale hook-precedenti
 ```
+
+- `Hook da riportare: nessuno` o `Nessuna config precedente`: vai avanti.
+- Righe `HOOK:` e `FILE:`: spiega in una frase cosa facevano, se lo capisci dal comando, e chiedi se
+  riportarli. Col sì lo lancia la persona, perché cambia il `settings.json`:
+  `! python3 ~/.claude/bin/arturo personale hook-precedenti --applica`. Valgono dalla sessione dopo.
+- Riga `BARRA:`: la barra in basso è una sola. Quella di Arturo mostra contesto e quota. Se la persona
+  vuole la sua, la mettete insieme dopo il setup.
 
 ---
 

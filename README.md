@@ -122,7 +122,7 @@ for x in .credentials.json projects history.jsonl plugins file-history jobs daem
 done
 ```
 
-Poi apri Claude Code dentro la cartella: `cd ~/.claude && claude`, e scrivi `/setup`.
+Poi apri Claude Code dentro la cartella: `cd ~/.claude && claude`, e scrivi `/setup`. Se un'altra app aveva aggiunto i suoi hook a Claude Code (ClaudeBar, per esempio), `/setup` li ritrova nella cartella messa da parte e, col tuo sì, li riporta.
 
 Oppure, per innestare Arturo su una config esistente: clona altrove e copia `settings.json`, `bin/`, `hooks/`, `commands/`, `agents/`, `skills/`, `shared/`, `output-styles/`, `docs/`, `tools/`, `tests/`, `firme/`, `NOVITA.md` dentro `~/.claude/` (`docs/` e `NOVITA.md` servono allo sparring, a `/novita` e a `/inizio gws`; `tests/` ai banchi delle guardie che l'avvio lancia da solo; `firme/` alla verifica dei rilasci firmati). Chi copia a mano non riceve l'aggiornamento automatico: serve un clone git.
 Chi copia a mano ricopia le cartelle a ogni rilascio, `commands/` e `skills/` insieme: i comandi

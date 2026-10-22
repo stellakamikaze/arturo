@@ -17,6 +17,9 @@ Arturo esegue in fondo.
   ripristina hooks/X      riporta una guardia (o un altro hook) com'è in Arturo, senza tenere le modifiche
   separa [--verso REF]    sposta i comandi di Arturo modificati (con --verso solo quelli che REF cambia);
                           /aggiorna lo lancia da solo nella copia di prova
+  hook-precedenti [--applica]
+                          gli hook che la persona aveva prima di Arturo, nell'ultima ~/.claude-backup-*:
+                          li elenca, e con --applica li aggiunge al settings.json con i file che usano
 
 Con un repository della persona come origin (Arturo come upstream), /aggiorna e /aggiorna personale
 lanciano separa solo se quel repository è privato: altrimenti personale/ non viaggerebbe fra le sue
@@ -33,7 +36,9 @@ rebase di /aggiorna li ripeterebbe uno per uno. Solo libreria standard, Python 3
 from __future__ import annotations
 
 import difflib
+import json
 import os
+import shutil
 import re
 import subprocess
 import sys
@@ -308,6 +313,86 @@ def elenco() -> int:
     return 0
 
 
+# Un percorso dentro ~/.claude in un comando di hook: ~/.claude/x, $HOME/.claude/x, ${HOME}/.claude/x.
+DENTRO = re.compile(r"(?:~|\$HOME|\$\{HOME\})/\.claude/([A-Za-z0-9_./-]+)")
+
+
+def comandi(impostazioni: dict) -> set:
+    """(evento, matcher, comando) di ogni hook dichiarato."""
+    visti = set()
+    for evento, gruppi in (impostazioni.get("hooks") or {}).items():
+        for gruppo in gruppi if isinstance(gruppi, list) else []:
+            for h in gruppo.get("hooks") or [] if isinstance(gruppo, dict) else []:
+                if isinstance(h, dict) and h.get("command"):
+                    visti.add((evento, gruppo.get("matcher"), h["command"]))
+    return visti
+
+
+def hook_precedenti(applica: bool) -> int:
+    """Gli hook che la persona aveva prima di Arturo (#3758, dal Computer Club il 16/10/2026).
+
+    L'installazione mette da parte ~/.claude in ~/.claude-backup-<data> e riporta login, sessioni e
+    plugin, ma non il settings.json: gli hook di un'altra app (ClaudeBar, per esempio) sparivano senza
+    avviso. Qui si confronta l'ultima copia con il settings.json di Arturo. Con --applica gli hook
+    mancanti si aggiungono, con lo stesso evento e lo stesso matcher, e tornano i file che usano dentro
+    ~/.claude. La barra in basso è una sola: se era diversa si dice, e sceglie la persona."""
+    r = radice()
+    copie = sorted(p for p in r.parent.glob(r.name + "-backup-*/settings.json") if p.is_file())
+    if not copie:
+        print("Nessuna config precedente: non c'è una ~/.claude-backup-* con un settings.json.")
+        return 0
+    copia = copie[-1]
+    try:
+        vecchie = json.loads(copia.read_text(encoding="utf-8"))
+        attuali = json.loads((r / "settings.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError) as errore:
+        print(f"Errore: non leggo {copia} o il settings.json di Arturo: {errore}", file=sys.stderr)
+        return 2
+    gia = comandi(attuali)
+    nuovi = sorted((c for c in comandi(vecchie) if c not in gia), key=lambda c: (c[0], c[1] or "", c[2]))
+    assoluto = re.compile(re.escape(str(r)) + r"/([A-Za-z0-9_./-]+)")  # /Users/x/.claude/x
+    file = sorted({m for _, _, comando in nuovi for m in DENTRO.findall(comando) + assoluto.findall(comando)
+                   if ".." not in m and (copia.parent / m).is_file() and not (r / m).exists()})
+    barra = vecchie.get("statusLine")
+    print(f"Config precedente: {copia.parent}")
+    if not nuovi:
+        print("Hook da riportare: nessuno, quelli che avevi ci sono già.")
+    for evento, matcher, comando in nuovi:
+        print(f"HOOK: {evento}{' [' + matcher + ']' if matcher else ''}: {comando}")
+    for m in file:
+        print(f"FILE: ~/.claude/{m}")
+    if barra and barra != attuali.get("statusLine"):
+        print(f"BARRA: avevi una barra in basso tua ({json.dumps(barra, ensure_ascii=False)}). Ce n'è una sola: "
+              "quella di Arturo mostra contesto e quota. Se la persona vuole la sua, Claude la mette con lei.")
+    if not applica or not nuovi:
+        if nuovi:
+            print("Per riportarli: python3 ~/.claude/bin/arturo personale hook-precedenti --applica")
+        return 0
+    for m in file:
+        (r / m).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(copia.parent / m), str(r / m))
+    tutti = attuali.setdefault("hooks", {})
+    for evento, gruppi in (vecchie.get("hooks") or {}).items():
+        for gruppo in gruppi if isinstance(gruppi, list) else []:
+            if not isinstance(gruppo, dict):
+                continue
+            matcher = gruppo.get("matcher")
+            da_aggiungere = [h for h in gruppo.get("hooks") or []
+                             if isinstance(h, dict) and (evento, matcher, h.get("command")) in nuovi]
+            if not da_aggiungere:
+                continue
+            lista = tutti.setdefault(evento, [])
+            stesso = next((g for g in lista if isinstance(g, dict) and g.get("matcher") == matcher), None)
+            if stesso is None:
+                stesso = {"matcher": matcher, "hooks": []} if matcher is not None else {"hooks": []}
+                lista.append(stesso)
+            stesso.setdefault("hooks", []).extend(da_aggiungere)
+    (r / "settings.json").write_text(json.dumps(attuali, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"RIPORTATI: {len(nuovi)} hook nel settings.json" + (f" e {len(file)} file" if file else "")
+          + ". Valgono dalla prossima sessione di Claude Code.")
+    return 0
+
+
 def main(argv: list) -> int:
     if not argv or argv[0] in ("-h", "--help", "aiuto", "help"):
         print(AIUTO)
@@ -320,6 +405,8 @@ def main(argv: list) -> int:
         except (OSError, subprocess.SubprocessError) as errore:
             print(f"Errore: {errore}", file=sys.stderr)
             return 2
+    if argv[:1] == ["hook-precedenti"] and argv[1:] in ([], ["--applica"]):
+        return hook_precedenti(argv[1:] == ["--applica"])
     if len(argv) == 2 and argv[0] == "ripristina":
         try:
             return ripristina(argv[1])

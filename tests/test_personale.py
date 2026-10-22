@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""P01-P18: le aggiunte della persona ai comandi di Arturo stanno in ~/.claude/personale/ (14/10/2026).
+"""P01-P19: le aggiunte della persona ai comandi di Arturo stanno in ~/.claude/personale/ (14/10/2026).
 
 Il caso vero è quello di chi aggiunge a /inizio la tabella dei suoi progetti: ogni aggiornamento
 che tocca /inizio va in conflitto. P01 con lo spostamento il Passo 3 di /aggiorna applica pulito, e
@@ -19,7 +19,8 @@ tiene le righe personali di prima. P15 /aggiorna personale rispetta la stessa re
 privato. P16 le aggiunte a hooks/session-start.sh vanno in personale/session-start.sh, commentate, e
 l'hook di Arturo esegue quel file in fondo. P17 ripristina rimette una guardia com'è in Arturo. P18
 quando è /aggiorna a spostare le aggiunte all'hook, personale/session-start.sh arriva in ~/.claude e
-tiene quelle spostate prima.
+tiene quelle spostate prima. P19 gli hook di un'altra app che la persona aveva prima di Arturo
+(nell'ultima ~/.claude-backup-*) tornano nel settings.json con i file che usano, senza doppioni (#3758).
 
 Riusa il Lab di test_aggiorna_sicuro.py: un Arturo pubblicato, chi ne scrive gli aggiornamenti e
 una HOME con ~/.claude clonata. Sulla base f750408 ogni controllo deve fallire col suo codice, anche P18
@@ -435,11 +436,46 @@ def test_p18(repo: Path) -> None:
     con_lab(prova, repo)
 
 
+def test_p19(repo: Path) -> None:
+    # Computer Club, 16/10/2026 (#3758): l'installazione metteva da parte ~/.claude e gli hook di
+    # ClaudeBar sparivano dal settings.json senza avviso.
+    def prova(lab: Lab) -> None:
+        copia = lab.home / ".claude-backup-20261016-1000"
+        (copia / "hooks").mkdir(parents=True)
+        (copia / "hooks" / "claudebar.sh").write_text("#!/bin/bash\nexit 0\n", encoding="utf-8")
+        (lab.home / ".claude-backup-20261001-0900").mkdir()
+        (lab.home / ".claude-backup-20261001-0900" / "settings.json").write_text("{}", encoding="utf-8")
+        vecchie = {"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "bash ~/.claude/hooks/claudebar.sh stop"}]}],
+                             "PreToolUse": [{"matcher": "Bash", "hooks": [
+                                 {"type": "command", "command": "bash ~/.claude/hooks/claudebar.sh tool", "timeout": 5}]}]},
+                   "statusLine": {"type": "command", "command": "claudebar status"}}
+        (copia / "settings.json").write_text(json.dumps(vecchie), encoding="utf-8")
+        impostazioni = lab.utente / "settings.json"
+        impostazioni.write_text(json.dumps({"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [
+            {"type": "command", "command": "bash ~/.claude/hooks/bash-dispatcher.sh"}]}]}}), encoding="utf-8")
+        r = arturo(lab, "personale", "hook-precedenti")
+        assert r.returncode == 0 and r.stdout.count("HOOK: ") == 2 and "FILE: ~/.claude/hooks/claudebar.sh" in r.stdout \
+            and "BARRA:" in r.stdout and "20261016" in r.stdout, f"P19 l'elenco non dice cosa c'era prima: {r.stdout!r} {r.stderr!r}"
+        assert "claudebar" not in read(impostazioni), "P19 senza --applica il settings.json è cambiato"
+        r = arturo(lab, "personale", "hook-precedenti", "--applica")
+        dopo = json.loads(read(impostazioni))
+        bash = dopo["hooks"]["PreToolUse"][0]["hooks"]
+        assert r.returncode == 0 and "RIPORTATI: 2 hook" in r.stdout and len(dopo["hooks"]["PreToolUse"]) == 1 \
+            and [h["command"] for h in bash] == ["bash ~/.claude/hooks/bash-dispatcher.sh", "bash ~/.claude/hooks/claudebar.sh tool"] \
+            and bash[1].get("timeout") == 5 and dopo["hooks"]["Stop"][0]["hooks"][0]["command"].endswith("claudebar.sh stop"), \
+            f"P19 gli hook non tornano al loro evento e matcher: {r.stdout!r} {r.stderr!r} {dopo}"
+        assert (lab.utente / "hooks" / "claudebar.sh").is_file(), "P19 il file usato dall'hook non torna in ~/.claude"
+        assert "statusLine" not in dopo, "P19 la barra in basso è cambiata senza la persona"
+        r = arturo(lab, "personale", "hook-precedenti", "--applica")
+        assert "nessuno" in r.stdout and json.loads(read(impostazioni)) == dopo, f"P19 un secondo giro aggiunge doppioni: {r.stdout!r}"
+    con_lab(prova, repo)
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {
     "P01": test_p01, "P02": test_p02, "P03": test_p03, "P04": test_p04, "P05": test_p05, "P06": test_p06,
     "P07": test_p07, "P08": test_p08, "P09": test_p09, "P10": test_p10,
     "P11": test_p11, "P12": test_p12, "P13": test_p13, "P14": test_p14, "P15": test_p15,
-    "P16": test_p16, "P17": test_p17, "P18": test_p18,
+    "P16": test_p16, "P17": test_p17, "P18": test_p18, "P19": test_p19,
 }
 
 
