@@ -50,6 +50,8 @@ _TRATTO = re.compile(r"[^\W_]+")
 _CONFINE = re.compile(r"(?<=[a-z])(?=[A-Z])|(?<=[^\W\d_])(?=\d)|(?<=\d)(?=[^\W\d_])")
 
 # I nomi della config dell'autore e dei suoi servizi: in nessun file, percorso o messaggio di commit.
+# Dal 20/10/2026 il nome della memoria (Melchior) non è più fra questi: Arturo usa la stessa memoria
+# della config, con gli stessi file (hooks/melchior_match.py). Resta in FINE: /fine non lo nomina.
 GLOBALE = frozenset((
     "2055c47117d5b5e12671b864e7c3b42633d03115cd43dda6c6af38a4e734e0c9",
     "238195c30e42765ff5a88b6d855b207dd34958d602d05a94327338cbabb89b1f",
@@ -62,7 +64,6 @@ GLOBALE = frozenset((
     "9b26c65fe33bf161eea7edd9f1e361783a2ee985b8d5036ddc5b6029f957cd0d",
     "a80c03a36280a2d3b7cf58396e853c93c8ab5c52fef47fbaabff3bb09a319d88",
     "a998e1435e5b2c69883a2864415916ab5d95659864ab13be1748ec8a1cecb0d8",
-    "c84ae2ab912bc26b22e566d70ca7cc102ff40bcece20ff0a811d161a1abaaabe",
     "ce5d15cebdd978a2f8bd164613a609fca32c6e0161a83199c2162429a09790b8",
     "d307be7d14339b3cc82cdfce1a991e744551113c287c48501569d82b7a4a64e1",
     "ec8f69a31cf186ac13ebc131ed2c602c8af6b9270235b1329d7ca47e6e98e679",

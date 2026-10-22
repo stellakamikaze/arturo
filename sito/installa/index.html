@@ -64,7 +64,7 @@
    "@type": "HowToStep",
    "position": 4,
    "name": "Scarica Arturo",
-   "text": "Arturo vive nella cartella delle impostazioni di Claude Code, ~/.claude. Se la cartella esiste già, il primo comando la mette da parte con la data nel nome: non si perde niente.",
+   "text": "Arturo vive nella cartella delle impostazioni di Claude Code, ~/.claude. Se la cartella esiste già, il primo comando la mette da parte con la data nel nome: non si perde niente. Login, sessioni e plugin tornano subito al loro posto. Se un'altra app aveva aggiunto i suoi hook a Claude Code (ClaudeBar, una barra di stato), al passo 6 /setup li ritrova e, col tuo sì, li rimette.",
    "url": "https://arturo.stellakamikaze.org/installa/#tappa-4"
   },
   {
@@ -566,7 +566,7 @@ python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/
       <div class="tappa__corpo">
         <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-4"><span class="tappa__nome">Scarica Arturo</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span></button></h2>
         <div class="tappa__piega" id="corpo-4"><div><div class="foglio">
-          <p class="perche">Arturo vive nella cartella delle impostazioni di Claude Code, <code>~/.claude</code>. Se la cartella esiste già, il primo comando la mette da parte con la data nel nome: non si perde niente.</p>
+          <p class="perche">Arturo vive nella cartella delle impostazioni di Claude Code, <code>~/.claude</code>. Se la cartella esiste già, il primo comando la mette da parte con la data nel nome: non si perde niente. Login, sessioni e plugin tornano subito al loro posto. Se un'altra app aveva aggiunto i suoi hook a Claude Code (ClaudeBar, una barra di stato), al passo 6 <code>/setup</code> li ritrova e, col tuo sì, li rimette.</p>
           <div class="consegna">
             <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Incolla il blocco intero <small data-solo="win">in Git Bash</small></p>
             <div class="comando"><pre id="cmd-scarica">B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
