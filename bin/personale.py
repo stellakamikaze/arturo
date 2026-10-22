@@ -335,7 +335,12 @@ def hook_precedenti(applica: bool) -> int:
     plugin, ma non il settings.json: gli hook di un'altra app (ClaudeBar, per esempio) sparivano senza
     avviso. Qui si confronta l'ultima copia con il settings.json di Arturo. Con --applica gli hook
     mancanti si aggiungono, con lo stesso evento e lo stesso matcher, e tornano i file che usano dentro
-    ~/.claude. La barra in basso è una sola: se era diversa si dice, e sceglie la persona."""
+    ~/.claude. La barra in basso è una sola: se era diversa si dice, e sceglie la persona.
+
+    I file tornano al loro percorso di prima e /fine li salva con settings.json (#3803, 22/10/2026).
+    Restano lì perché l'altra app li cerca e li aggiorna in quel punto. Viaggiano nel commit perché
+    settings.json li nomina: su un'altra macchina senza il file, controlla-config.py direbbe config
+    rotta, e un hook PreToolUse mancante esce con 2 e blocca ogni azione."""
     r = radice()
     copie = sorted(p for p in r.parent.glob(r.name + "-backup-*/settings.json") if p.is_file())
     if not copie:

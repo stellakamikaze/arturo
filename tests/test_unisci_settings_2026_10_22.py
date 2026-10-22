@@ -10,6 +10,8 @@ permesso della persona e uno di Arturo, un valore cambiato da una parte sola sta
 stesso valore cambiato in modo diverso dalle due parti è un conflitto: esce 1 e non tocca il file.
 US02 il Passo 3 di /aggiorna applica senza conflitto lo stesso caso del 21/10, con la procedura e
 l'unione presi dalla versione in arrivo.
+US03 dopo un conflitto vero il rebase riparte con l'unione: un commit della persona su settings.json
+che viene dopo il conflitto si unisce da solo, e non torna riga per riga (#3801). Con bash e zsh.
 
 Riusa il Lab di test_aggiorna_sicuro.py. Sulla base dbb37e7 ogni controllo deve fallire col suo codice.
 """
@@ -29,7 +31,7 @@ _spec = importlib.util.spec_from_file_location("aggiorna_sicuro", Path(__file__)
 assert _spec and _spec.loader
 _sicuro = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_sicuro)
-Lab, blocco, read, baseline = _sicuro.Lab, _sicuro.blocco, _sicuro.read, _sicuro.baseline
+Lab, blocco, read, baseline, per_shell = _sicuro.Lab, _sicuro.blocco, _sicuro.read, _sicuro.baseline, _sicuro.per_shell
 
 
 def hook(comando: str) -> dict:
@@ -132,7 +134,50 @@ def test_us02(repo: Path) -> None:
         assert lab.config_integra(), "US02 la config non è integra"
 
 
-TESTS: Dict[str, Callable[[Path], None]] = {"US01": test_us01, "US02": test_us02}
+def test_us03(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        unione = repo / "bin" / "unisci-settings.py"
+        if unione.exists():
+            shutil.copy(str(unione), str(lab.autore / "bin" / "unisci-settings.py"))
+        (lab.autore / "settings.json").write_text(json.dumps(BASE, indent=2) + "\n", encoding="utf-8")
+        (lab.autore / "hooks" / "session-start.sh").write_text("#!/bin/bash\nexit 0\n", encoding="utf-8")
+        (lab.autore / "nota.md").write_text("riga di Arturo\n", encoding="utf-8")
+        lab.git(lab.autore, "add", "-A")
+        lab.git(lab.autore, "commit", "-q", "-m", "v1: settings e nota")
+        lab.git(lab.autore, "push", "-q", "origin", "main")
+        lab.git(lab.utente, "pull", "-q", "--ff-only")
+        # Prima un commit che va in conflitto davvero, poi uno su settings.json che si unisce.
+        (lab.utente / "nota.md").write_text("riga mia\n", encoding="utf-8")
+        lab.git(lab.utente, "commit", "-q", "-am", "la mia nota")
+        (lab.utente / "settings.json").write_text(json.dumps(nostro(), indent=2) + "\n", encoding="utf-8")
+        lab.git(lab.utente, "commit", "-q", "-am", "chore: session sync")
+        (lab.autore / "hooks" / "gws-token-health.py").write_text("pass\n", encoding="utf-8")
+        (lab.autore / "bin" / "telemetria-esito.sh").write_text("#!/bin/bash\nexit 0\n", encoding="utf-8")
+        lab.git(lab.autore, "add", "hooks/gws-token-health.py", "bin/telemetria-esito.sh")
+        lab.pubblica(lab.autore, {"settings.json": lambda _: json.dumps(loro(), indent=2) + "\n",
+                                  "nota.md": lambda _: "riga nuova di Arturo\n"}, "v2: settings e nota")
+        testo = read(repo / "commands" / "aggiorna.md")
+        lab.lancia(blocco(testo, "## Passo 1", "US03"))
+        uscita = lab.lancia(blocco(testo, "## Passo 3", "US03"))
+        stato = lab.utente / ".git" / "arturo-aggiorna-copia"
+        assert "CONFLITTO" in uscita and stato.exists(), f"US03 prova: la nota non va in conflitto: {uscita[-300:]!r}"
+        copia = Path(read(stato).split()[0])
+        (copia / "nota.md").write_text("riga mia\n", encoding="utf-8")
+        lab.git(copia, "add", "nota.md")
+        seguito = lab.lancia(blocco(testo, "Il rebase riparte con l'unione", "US03"))
+        aperti = lab.git(copia, "diff", "--name-only", "--diff-filter=U").strip()
+        assert not aperti and "CONFLICT" not in seguito, \
+            f"US03 con {lab.shell} dopo il primo conflitto settings.json torna riga per riga: {aperti!r} {seguito[-300:]!r}"
+        fine = lab.lancia([b for b in _sicuro.blocchi(testo, "### Risolvere un conflitto", "US03") if " concludi" in b][0])
+        d = json.loads(read(lab.utente / "settings.json"))
+        assert "APPLICATO" in fine and "bash ~/.iterm2/cc-status.sh" in comandi(d, "SessionStart") \
+            and "python3 ~/.claude/hooks/gws-token-health.py" in comandi(d, "SessionStart"), \
+            f"US03 con {lab.shell} il risultato non arriva intero: {fine[-300:]!r} {comandi(d, 'SessionStart')}"
+        assert lab.config_integra(), f"US03 con {lab.shell} la config non è integra"
+    per_shell(prova, repo)
+
+
+TESTS: Dict[str, Callable[[Path], None]] = {"US01": test_us01, "US02": test_us02, "US03": test_us03}
 
 
 def main() -> int:

@@ -725,9 +725,21 @@ def test_f13(repo: Path) -> None:
         "F13 /fine fa il merge sul tree principale da dentro il worktree, dove git fuori è vietato"
 
 
+def test_f14(repo: Path) -> None:
+    """Gli altri comandi che possono girare in un worktree scrivono ~/.claude, non "$HOME/.claude" (#3802)."""
+    rifiutati = []
+    for nome in ("diagnosi", "segnala", "aggiorna", "novita", "setup"):
+        for b in blocchi(read(repo / "commands" / f"{nome}.md")):
+            if b.startswith('B="$HOME/.claude-backup'):
+                continue  # l'installazione gira nel Terminale, ed è uguale a README e landing (LT06)
+            rifiutati += [f"{nome}: {r.strip()}" for r in b.splitlines()
+                          if ('"$HOME/.claude' in r or '"$HOME"/.claude' in r) and "alias arturo=" not in r]
+    assert not rifiutati, f"F14 percorsi che in un worktree la guardia di Claude Code rifiuta: {rifiutati[:5]}"
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
-         "F11": test_f11, "F12": test_f12, "F13": test_f13}
+         "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14}
 
 
 def main() -> int:

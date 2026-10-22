@@ -18,7 +18,7 @@ Sei la guida di installazione di **Arturo**, l'harness Claude Code in cui ti tro
 - **Segna la fase.** All'inizio di ogni fase, anche di quelle che salti, registra il numero per la telemetria di Arturo: dice a chi lo mantiene in quale fase le persone si fermano. Esce solo il numero.
 
   ```bash
-  python3 "$HOME/.claude/bin/telemetria.py" registra setup fase:N >/dev/null 2>&1 || true
+  python3 ~/.claude/bin/telemetria.py registra setup fase:N >/dev/null 2>&1 || true
   ```
 
   `N` è il numero della fase, con la lettera se c'è (`0`…`10`, `4b`, `7c`). Dopo il riepilogo finale registra `setup fine`. Non serve commentarlo ogni volta: la telemetria la spieghi una volta in FASE 0.
@@ -32,15 +32,15 @@ Alla fine fai un **riepilogo** di cosa è stato configurato e cosa è rimasto op
 ```bash
 echo "HOME: $HOME"
 echo "Config attuale: ${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-ls -d "$HOME/.claude" >/dev/null 2>&1 && echo "~/.claude esiste" || echo "~/.claude NON esiste"
-git -C "$HOME/.claude" rev-parse --is-inside-work-tree 2>/dev/null && echo "è un repo git" || echo "NON è un repo git"
+ls -d ~/.claude >/dev/null 2>&1 && echo "~/.claude esiste" || echo "~/.claude NON esiste"
+git -C ~/.claude rev-parse --is-inside-work-tree 2>/dev/null && echo "è un repo git" || echo "NON è un repo git"
 # Chi ha finito il setup prima della v2026-10-16.3 non ha il segno. Un aggiornamento già fatto
 # e un audit senza FAIL dicono che la configurazione c'era: il segno si scrive una volta sola.
-if [ ! -f "$HOME/.claude/data/setup-fatto" ] && [ -s "$HOME/.claude/session-env/aggiornamenti" ] \
-  && bash "$HOME/.claude/skills/system-audit/audit.sh" 2>/dev/null | grep -q '^Totali: .*FAIL=0$'; then
-  mkdir -p "$HOME/.claude/data" && echo "$(date +%Y-%m-%d) dedotto da aggiornamenti e audit" > "$HOME/.claude/data/setup-fatto"
+if [ ! -f ~/.claude/data/setup-fatto ] && [ -s ~/.claude/session-env/aggiornamenti ] \
+  && bash ~/.claude/skills/system-audit/audit.sh 2>/dev/null | grep -q '^Totali: .*FAIL=0$'; then
+  mkdir -p ~/.claude/data && echo "$(date +%Y-%m-%d) dedotto da aggiornamenti e audit" > ~/.claude/data/setup-fatto
 fi
-cat "$HOME/.claude/data/setup-fatto" 2>/dev/null && echo "SETUP GIÀ FATTO" || echo "setup mai finito"
+cat ~/.claude/data/setup-fatto 2>/dev/null && echo "SETUP GIÀ FATTO" || echo "setup mai finito"
 ```
 
 `SETUP GIÀ FATTO` è il segno che una FASE 9 è già andata a buon fine: è il caso della verifica. Il
@@ -56,15 +56,11 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos; do
   [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mv "$B/$x" "$HOME/.claude/"
 done
-# Anche la memoria di un Arturo installato prima: le note curate e l'interruttore.
-for x in data/memory data/memoria; do
-  [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mkdir -p "$HOME/.claude/data" && mv "$B/$x" "$HOME/.claude/$x"
-done
 ```
 
 Su Windows questi comandi vanno dati in **Git Bash**, non nel Prompt dei comandi o in PowerShell: lì la tilde `~` non si espande e il clone finisce in una cartella sbagliata senza errori. Poi digli di riaprire Claude Code dentro l'harness e rilanciare `/setup`.
 
-Se l'harness c'è, spiega la telemetria prima di andare avanti, in due o tre frasi semplici: "Arturo manda a chi lo mantiene eventi d'uso con un numero casuale al posto del tuo nome: quali comandi di Arturo usi, quali guardie ti fermano o ti chiedono conferma, a che fase di questo setup arrivi, e se gli aggiornamenti vanno a buon fine. Mai i tuoi testi, i tuoi file o il tuo nome. Servono a correggere ogni settimana i punti dove le persone si bloccano." Poi chiedi se va bene così. Se non vuole, spegnila con `python3 ~/.claude/bin/arturo telemetria spegni` e vai avanti senza insistere. Nello stesso modo, in una frase, l'aggiornamento: "Arturo si aggiorna da solo quando chiudi la sessione, come Claude Code, e installa solo le versioni firmate da chi lo mantiene. Se preferisci decidere tu ogni volta, lo spengo." Se vuole decidere lui: `python3 ~/.claude/bin/arturo aggiornamenti manuali`.
+Se l'harness c'è, spiega la telemetria prima di andare avanti, in due o tre frasi semplici: "Arturo manda a chi lo mantiene eventi d'uso con un numero casuale al posto del tuo nome: quali comandi di Arturo usi, quali guardie ti fermano o ti chiedono conferma e per quale regola, a che fase di questo setup arrivi, e se gli aggiornamenti vanno a buon fine. Mai i tuoi testi, i tuoi file o il tuo nome. Servono a correggere ogni settimana i punti dove le persone si bloccano." Poi chiedi se va bene così. Se non vuole, spegnila con `python3 ~/.claude/bin/arturo telemetria spegni` e vai avanti senza insistere. Nello stesso modo, in una frase, l'aggiornamento: "Arturo si aggiorna da solo quando chiudi la sessione, come Claude Code, e installa solo le versioni firmate da chi lo mantiene. Se preferisci decidere tu ogni volta, lo spengo." Se vuole decidere lui: `python3 ~/.claude/bin/arturo aggiornamenti manuali`.
 
 ---
 
@@ -123,10 +119,10 @@ done
 - **Identità di Git.** `/fine` salva il lavoro con un commit, e Git vuole un nome e un'email:
 
   ```bash
-  git -C "$HOME/.claude" config user.email >/dev/null || echo "MANCA l'identità di Git"
+  git -C ~/.claude config user.email >/dev/null || echo "MANCA l'identità di Git"
   ```
 
-  Se manca, chiedi all'utente nome ed email (anche un'email finta va bene, resta sul suo computer) e impostali **per il solo repository di Arturo**: `git -C "$HOME/.claude" config user.name "<nome>"` e `git -C "$HOME/.claude" config user.email "<email>"`. Non usare `--global`: Arturo lo nega, perché cambierebbe l'identità di ogni repository dell'utente.
+  Se manca, chiedi all'utente nome ed email (anche un'email finta va bene, resta sul suo computer) e impostali **per il solo repository di Arturo**: `git -C ~/.claude config user.name "<nome>"` e `git -C ~/.claude config user.email "<email>"`. Non usare `--global`: Arturo lo nega, perché cambierebbe l'identità di ogni repository dell'utente.
 - Gli opzionali servono solo per funzioni specifiche (`gh` per GitHub, `gitleaks` per l'audit segreti, `bw` per le password, `gws` per più account Google: per uno solo bastano i connettori di claude.ai): non bloccare per questi.
 
 ---
@@ -148,6 +144,7 @@ python3 ~/.claude/bin/arturo personale hook-precedenti
 - Righe `HOOK:` e `FILE:`: spiega in una frase cosa facevano, se lo capisci dal comando, e chiedi se
   riportarli. Col sì lo lancia la persona, perché cambia il `settings.json`:
   `! python3 ~/.claude/bin/arturo personale hook-precedenti --applica`. Valgono dalla sessione dopo.
+  I file tornano dove l'app li aveva messi, e `/fine` li salva insieme a `settings.json`, che li nomina.
 - Riga `BARRA:`: la barra in basso è una sola. Quella di Arturo mostra contesto e quota. Se la persona
   vuole la sua, la mettete insieme dopo il setup.
 
@@ -202,7 +199,7 @@ Spiega: è il file dove Claude impara **chi sei, cosa fai e come vuoi che lavori
 Verifica se esiste già:
 
 ```bash
-ls -la "$HOME/.claude/CLAUDE.md" 2>/dev/null && echo "ESISTE già" || echo "non esiste ancora"
+ls -la ~/.claude/CLAUDE.md 2>/dev/null && echo "ESISTE già" || echo "non esiste ancora"
 ```
 
 Se non esiste, fai una **breve intervista** (poche domande, semplici), poi genera un `CLAUDE.md` conciso. Copri:
@@ -233,9 +230,9 @@ Spiega: se userà Arturo su **più computer**, può tenerli allineati con un pro
 Se l'utente lo vuole e ha `gh`:
 
 ```bash
-git -C "$HOME/.claude" remote rename origin upstream
-gh repo create <nome-repo> --private --source "$HOME/.claude" --remote origin --push
-git -C "$HOME/.claude" remote -v
+git -C ~/.claude remote rename origin upstream
+gh repo create <nome-repo> --private --source ~/.claude --remote origin --push
+git -C ~/.claude remote -v
 ```
 
 Altrimenti spiega che, senza un remote proprio, tutto funziona lo stesso: i dati restano in locale e il push di `/fine` semplicemente non avviene (te lo segnala con un messaggio, non è un errore). Se non gli serve, salta.
@@ -276,15 +273,15 @@ e non sposta niente. Spiegalo così, in parole semplici:
 Mostra lo stato e chiedi: "Vuoi accendere la memoria?".
 
 ```bash
-python3 "$HOME/.claude/bin/arturo" memoria stato
+python3 ~/.claude/bin/arturo memoria stato
 ```
 
 - Se sì, accendila e mostra l'esito:
   ```bash
-  python3 "$HOME/.claude/bin/arturo" memoria accendi
+  python3 ~/.claude/bin/arturo memoria accendi
   ```
   Se l'utente tiene già note sue in una cartella (markdown con `name` e `description` in testa),
-  chiedi il percorso e aggiungila con `python3 "$HOME/.claude/bin/arturo" memoria cartella aggiungi <percorso>`.
+  chiedi il percorso e aggiungila con `python3 ~/.claude/bin/arturo memoria cartella aggiungi <percorso>`.
   Digli che `arturo memoria cerca "parole"` cerca a mano, `arturo memoria controlla` trova note
   senza descrizione e link rotti, e `arturo memoria spegni` la spegne.
 - Se no, salta senza insistere: non cambia niente.
@@ -306,18 +303,18 @@ browser. Occupa circa 300 MB sul disco. Lo installo?"
 Controlla prima se c'è già:
 
 ```bash
-[ -x "$HOME/.claude/tools/scrapling/.venv/bin/python" ] || [ -x "$HOME/.claude/tools/scrapling/.venv/Scripts/python.exe" ] && echo "scrape già installato" || echo "scrape non installato"
+[ -x ~/.claude/tools/scrapling/.venv/bin/python ] || [ -x ~/.claude/tools/scrapling/.venv/Scripts/python.exe ] && echo "scrape già installato" || echo "scrape non installato"
 ```
 
 - Se è già installato, dillo e vai avanti.
 - Solo dopo il sì dell'utente, installalo e prova il banco. Il primo comando dura qualche minuto:
 
   ```bash
-  bash "$HOME/.claude/tools/scrapling/setup.sh"
+  bash ~/.claude/tools/scrapling/setup.sh
   ```
 
   ```bash
-  bash "$HOME/.claude/tools/scrapling/banco.sh"
+  bash ~/.claude/tools/scrapling/banco.sh
   ```
 
   Se `setup.sh` dice che serve Python 3.10, spiega che il resto di Arturo funziona e che `scrape`
@@ -336,7 +333,7 @@ primo uso scarica un suo programma di controllo. La installo?"
 Controlla prima se c'è già:
 
 ```bash
-[ -f "$HOME/.claude/skills/impeccable/SKILL.md" ] && echo "impeccable già installata" || echo "impeccable non installata"
+[ -f ~/.claude/skills/impeccable/SKILL.md ] && echo "impeccable già installata" || echo "impeccable non installata"
 ```
 
 - Se è già installata, dillo e vai avanti.
@@ -360,15 +357,15 @@ Controlla prima se c'è già:
 Lancia l'audit dell'harness e mostra l'esito:
 
 ```bash
-bash "$HOME/.claude/skills/system-audit/audit.sh"
+bash ~/.claude/skills/system-audit/audit.sh
 ```
 
 - Obiettivo: **tutto verde** (o solo WARN innocui, che spieghi).
-- Se ci sono FAIL, risolvili con l'utente (di solito: permessi hook → torna alla FASE 2; JSON di `settings.json` rotto → mostra e correggi).
+- Se ci sono FAIL, risolvili con l'utente (di solito: `python3` mancante o uno smoke fallito per un interprete che non c'è → torna alla FASE 1; JSON di `settings.json` rotto → mostra e correggi). I permessi dei file degli hook non c'entrano: non cambiarli.
 - Quando l'audit non ha FAIL, lascia il segno che il prossimo `/setup` legge nella FASE 0:
 
 ```bash
-mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/setup-fatto"
+mkdir -p ~/.claude/data && date +%Y-%m-%d > ~/.claude/data/setup-fatto
 ```
 
 ---

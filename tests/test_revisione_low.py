@@ -83,7 +83,7 @@ def test_l03(repo: Path) -> None:
     got = avviso_novita(repo, None, "2026-09-02")
     assert "2 aggiornamenti" in got, f"L03 il vecchio segnalibro deve valere come viste fino a quella data, avviso={got!r}"
     novita = read(repo / "commands" / "novita.md")
-    assert '>> "$HOME/.claude/session-env/novita-viste"' in novita, "L03 /novita non segna le entry una per una"
+    assert '>> ~/.claude/session-env/novita-viste' in novita, "L03 /novita non segna le entry una per una"
     assert "novità AAAA-MM-GG — Titolo" in novita, "L03 /novita non passa allo sparring l'intestazione dell'entry"
     assert "novità AAAA-MM-GG — Titolo" in read(repo / "commands" / "sparring.md"), "L03 /sparring non sa partire da un'entry precisa"
 

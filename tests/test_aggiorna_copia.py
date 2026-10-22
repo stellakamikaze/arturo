@@ -41,7 +41,7 @@ _spec = importlib.util.spec_from_file_location("aggiorna_sicuro", Path(__file__)
 assert _spec and _spec.loader
 _sicuro = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_sicuro)
-Lab, blocco, read, SHELL, SECONDA = _sicuro.Lab, _sicuro.blocco, _sicuro.read, _sicuro.SHELL, _sicuro.SECONDA
+Lab, blocco, blocchi, read, SHELL, SECONDA = _sicuro.Lab, _sicuro.blocco, _sicuro.blocchi, _sicuro.read, _sicuro.SHELL, _sicuro.SECONDA
 
 SPIA_GIT = r'''#!/bin/bash
 # Il git vero, poi un'occhiata a settings.json della config in uso.
@@ -134,7 +134,7 @@ def test_c02(repo: Path) -> None:
         (copia / "settings.json").write_text(json.dumps(risolto, indent=2) + "\n", encoding="utf-8")
         lab.git(copia, "add", "settings.json")
         lab.git(copia, "commit", "-q", "--no-edit")
-        fine = lab.lancia(blocco(aggiorna(repo), "### Risolvere un conflitto", "C02"))
+        fine = lab.lancia(concludi(aggiorna(repo), "C02"))
         impostazioni = json.loads(read(lab.utente / "settings.json"))
         assert "APPLICATO" in fine and impostazioni["permissions"]["deny"] == risolto["permissions"]["deny"], \
             f"C02 con {lab.shell} il risultato risolto non arriva in ~/.claude: {fine[-400:]!r}"
@@ -166,6 +166,14 @@ def test_c03(repo: Path) -> None:
     per_shell(prova, repo)
 
 
+def concludi(testo: str, codice: str) -> str:
+    """Il blocco di "Risolvere un conflitto" che porta dentro il risultato: dal 22/10/2026 lo precede
+    quello del rebase che riparte."""
+    scelti = [b for b in blocchi(testo, "### Risolvere un conflitto", codice) if " concludi" in b]
+    assert scelti, f'{codice} nessun blocco con "concludi" in "Risolvere un conflitto"'
+    return scelti[0]
+
+
 def test_c04(repo: Path) -> None:
     def prova(lab: Lab) -> None:
         lab.pubblica(lab.autore, {"settings.json": lambda t: json.dumps(
@@ -193,7 +201,7 @@ def test_c04(repo: Path) -> None:
         r = subprocess.run(["git", "-C", str(copia), "rebase", "--continue"], env=dict(lab.env, GIT_EDITOR="true"),
                            capture_output=True, text=True)
         assert r.returncode == 0, f"C04 prova: rebase --continue nella copia di prova: {r.stderr[-300:]!r}"
-        fine = lab.lancia(blocco(aggiorna(repo), "### Risolvere un conflitto", "C04"))
+        fine = lab.lancia(concludi(aggiorna(repo), "C04"))
         deny = json.loads(read(lab.utente / "settings.json"))["permissions"]["deny"]
         assert "APPLICATO" in fine and deny == risolto["permissions"]["deny"] and lab.config_integra(), \
             f"C04 con {lab.shell} il sync risolto non arriva in ~/.claude: {fine[-400:]!r}"

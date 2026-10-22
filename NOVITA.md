@@ -11,6 +11,23 @@ modo di lavorare.
 
 ---
 
+## 2026-10-22 — L'avviso sulla telemetria torna, e l'unione regge dopo un conflitto
+
+**Cosa cambia**: alla prossima sessione Arturo ti ridice in due righe cosa manda la telemetria, perché
+ora c'è una cosa in più: quando `block-dangerous` ti chiede conferma, esce anche il nome della regola.
+Se un aggiornamento si ferma su un conflitto vero e lo risolvi con `/aggiorna`, il resto
+dell'aggiornamento continua a unire `settings.json` come impostazioni. Prima, dopo il primo conflitto,
+tornava a unirlo riga per riga. `/diagnosi`, `/segnala`, `/aggiorna`, `/novita` e `/setup` scrivono i
+percorsi con la tilde (`~/.claude`), che Claude Code accetta anche quando la sessione lavora in un worktree.
+
+**Il principio dietro**: quando cambia cosa esce dal tuo computer, lo devi sapere da Arturo prima che
+da un riepilogo.
+
+**Da sapere**: della regola esce solo il nome, come `rm-cartella`. Gli hook che `/setup` ti riporta
+da prima di Arturo restano dove l'altra app li aveva messi, e `/fine` li salva con `settings.json`.
+
+---
+
 ## 2026-10-22 — Aggiornamenti senza conflitti sulle impostazioni
 
 **Cosa cambia**: quando Arturo e tu, o un'app come iTerm2, cambiate tutti e due `settings.json`,

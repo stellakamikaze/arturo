@@ -12,11 +12,11 @@ Sei il canale di aggiornamento di **Arturo**. Quando l'harness evolve, il repo s
 Gli aggiornamenti di Arturo arrivano da `upstream` se l'utente ha un repository suo come `origin` (vedi `/setup` FASE 7), altrimenti da `origin`.
 
 ```bash
-SRC=$(git -C "$HOME/.claude" remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
-git -C "$HOME/.claude" fetch --quiet --tags "$SRC" main 2>/dev/null
+SRC=$(git -C ~/.claude remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
+git -C ~/.claude fetch --quiet --tags "$SRC" main 2>/dev/null
 # Conta solo fino all'ultimo tag firmato: i commit di main dopo il tag non si applicano (#3504).
-if TAG=$(python3 "$HOME/.claude/bin/aggiornamenti.py" firmato); then
-  BEHIND=$(git -C "$HOME/.claude" rev-list --count "HEAD..$TAG" 2>/dev/null || echo 0)
+if TAG=$(python3 ~/.claude/bin/aggiornamenti.py firmato); then
+  BEHIND=$(git -C ~/.claude rev-list --count "HEAD..$TAG" 2>/dev/null || echo 0)
   echo "Aggiornamenti di Arturo da $SRC non ancora applicati: ${BEHIND:-0} (fino al rilascio firmato $TAG)"
 fi
 ```
@@ -33,9 +33,9 @@ OpenSSH, e che non è un problema di sicurezza.
 Le novità vivono in `~/.claude/NOVITA.md` (entry in ordine inverso, la più recente in cima, intestazione `## AAAA-MM-GG — Titolo`). Il segnalibro è l'elenco delle intestazioni delle entry già raccontate (data e titolo, senza `## `), una per riga, in `~/.claude/session-env/novita-viste`. L'intestazione intera distingue due entry della stessa data. Un vecchio `~/.claude/session-env/novita-vista` con una sola data vale ancora: le entry fino a quella data contano come viste.
 
 ```bash
-VISTE="$HOME/.claude/session-env/novita-viste"
-VECCHIA=$(cat "$HOME/.claude/session-env/novita-vista" 2>/dev/null || echo "")
-grep '^## ' "$HOME/.claude/NOVITA.md" 2>/dev/null | sed 's/^## //' | while IFS= read -r ENTRY; do
+VISTE=~/.claude/session-env/novita-viste
+VECCHIA=$(cat ~/.claude/session-env/novita-vista 2>/dev/null || echo "")
+grep '^## ' ~/.claude/NOVITA.md 2>/dev/null | sed 's/^## //' | while IFS= read -r ENTRY; do
   DATA=$(printf '%s' "$ENTRY" | grep -oE '^[0-9]{4}-[0-9]{2}-[0-9]{2}')
   if { [ -n "$VECCHIA" ] && [ -n "$DATA" ] && [[ ! "$DATA" > "$VECCHIA" ]]; } || grep -qxF "$ENTRY" "$VISTE" 2>/dev/null; then
     echo "vista:     $ENTRY"
@@ -66,9 +66,9 @@ Linguaggio semplice, zero gergo non spiegato. Se le entry nuove sono più di una
 Dopo ogni singola entry raccontata, subito, mai in blocco alla fine. Se la lettura si interrompe, le entry non raccontate restano `non vista`.
 
 ```bash
-mkdir -p "$HOME/.claude/session-env"
+mkdir -p ~/.claude/session-env
 ENTRY="AAAA-MM-GG — Titolo"   # l'intestazione dell'entry appena raccontata, senza "## "
-grep -qxF "$ENTRY" "$HOME/.claude/session-env/novita-viste" 2>/dev/null || echo "$ENTRY" >> "$HOME/.claude/session-env/novita-viste"
+grep -qxF "$ENTRY" ~/.claude/session-env/novita-viste 2>/dev/null || echo "$ENTRY" >> ~/.claude/session-env/novita-viste
 echo "Segnata come vista: $ENTRY"
 ```
 

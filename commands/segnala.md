@@ -41,7 +41,7 @@ queste domande, una per volta:
 Prendi le informazioni sull'ambiente con:
 
 ```bash
-python3 "$HOME/.claude/bin/arturo" segnala info
+python3 ~/.claude/bin/arturo segnala info
 ```
 
 Scrivi la bozza in un file temporaneo, in markdown, con le stesse intestazioni dei modelli di
@@ -72,7 +72,7 @@ Il titolo dice il fatto in poche parole: "/fine si ferma al commit", non "Bug".
 ## Passo 3 — Anteprima
 
 ```bash
-python3 "$HOME/.claude/bin/arturo" segnala prepara --tipo TIPO --titolo "TITOLO" --file BOZZA
+python3 ~/.claude/bin/arturo segnala prepara --tipo TIPO --titolo "TITOLO" --file BOZZA
 ```
 
 - Con exit 3 la bozza contiene qualcosa che sembra un segreto: toglilo e rilancia.
@@ -80,7 +80,7 @@ python3 "$HOME/.claude/bin/arturo" segnala prepara --tipo TIPO --titolo "TITOLO"
 
 Il canale è `arturo`: la segnalazione arriva direttamente a chi mantiene Arturo, senza account e
 senza altri passi. Usa un altro canale solo se la persona lo chiede o se l'ha scelto prima
-(`python3 "$HOME/.claude/bin/arturo" segnala canale` lo dice):
+(`python3 ~/.claude/bin/arturo segnala canale` lo dice):
 
 - `gh` o `web` se vuole una issue pubblica su GitHub;
 - `email` se vuole mandarla lei, dal suo programma di posta.
@@ -97,7 +97,7 @@ nuovo da `prepara`.
 ## Passo 4 — Invio, solo dopo il sì
 
 ```bash
-python3 "$HOME/.claude/bin/arturo" segnala invia --canale CANALE --file PRONTA
+python3 ~/.claude/bin/arturo segnala invia --canale CANALE --file PRONTA
 ```
 
 `PRONTA` è il percorso stampato da `prepara` nella riga `PRONTA:`.

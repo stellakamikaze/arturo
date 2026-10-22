@@ -22,10 +22,10 @@ parte solo dopo il sì della persona, e nessun file si cancella: si sposta, o re
 ## Parte 1 — Arturo regge?
 
 ```bash
-python3 "$HOME/.claude/hooks/controlla-config.py" "$HOME/.claude"; echo "config rc=$?"
-python3 "$HOME/.claude/hooks/deriva.py" "$HOME/.claude"
-cat "$HOME/.claude/cache/banchi-ultimo-esito.txt" 2>/dev/null | head -3 || echo "banchi: nessun esito salvato"
-bash "$HOME/.claude/skills/system-audit/audit.sh" 2>&1 | tail -25
+python3 ~/.claude/hooks/controlla-config.py ~/.claude; echo "config rc=$?"
+python3 ~/.claude/hooks/deriva.py ~/.claude
+cat ~/.claude/cache/banchi-ultimo-esito.txt 2>/dev/null | head -3 || echo "banchi: nessun esito salvato"
+bash ~/.claude/skills/system-audit/audit.sh 2>&1 | tail -25
 claude doctor 2>&1 | tail -20
 ```
 
@@ -59,7 +59,7 @@ non leggono il progetto aperto):
 
 ```bash
 claude plugin list --json | python3 -c 'import json,sys; [print(("acceso " if p.get("enabled") else "SPENTO ") + p["id"]) for p in json.load(sys.stdin) if str(p.get("id","")).endswith("@skills-dir")]'
-V=$(mktemp -d) && for m in "$HOME"/.claude/skills/*/.claude-plugin; do d=$(dirname "$m"); [ -d "$d/tests" ] || continue; (cd "$V" && claude plugin test "$d" >/dev/null 2>&1 && echo "test ok: $(basename "$d")" || echo "TEST ROSSI: $(basename "$d")"); done; rmdir "$V"
+V=$(mktemp -d) && for m in ~/.claude/skills/*/.claude-plugin; do d=$(dirname "$m"); [ -d "$d/tests" ] || continue; (cd "$V" && claude plugin test "$d" >/dev/null 2>&1 && echo "test ok: $(basename "$d")" || echo "TEST ROSSI: $(basename "$d")"); done; rmdir "$V"
 ```
 
 Un mod `SPENTO` o con `TEST ROSSI` si dice con il nome. `redazione-segreti` spento vuol dire che
@@ -91,7 +91,7 @@ comando. Se va spento qualcosa, si spegne il solo pannello con
 ## Parte 2 — Lo stato del progetto
 
 ```bash
-python3 "$HOME/.claude/bin/arturo" contesto "<progetto>"; echo "rc=$?"
+python3 ~/.claude/bin/arturo contesto "<progetto>"; echo "rc=$?"
 ```
 
 Con `rc=2` il progetto non c'è: proponi i nomi simili che stampa e fermati. Dal contesto
@@ -101,9 +101,9 @@ i todo aperti, le scadenze passate e gli AVVISI.
 Poi due controlli sugli handoff, in sola lettura:
 
 ```bash
-H=$(ls -t "$HOME/.claude/data/handoffs/<slug>"/HANDOFF_*.md 2>/dev/null | head -1)
-[ -n "$H" ] && { bash "$HOME/.claude/bin/handoff-gate.sh" "$H"; echo "gate rc=$?"; } || echo "nessun handoff"
-python3 "$HOME/.claude/bin/index-rigenera.py" --dry-run --diff; echo "indice rc=$?"
+H=$(ls -t ~/.claude/data/handoffs/<slug>/HANDOFF_*.md 2>/dev/null | head -1)
+[ -n "$H" ] && { bash ~/.claude/bin/handoff-gate.sh "$H"; echo "gate rc=$?"; } || echo "nessun handoff"
+python3 ~/.claude/bin/index-rigenera.py --dry-run --diff; echo "indice rc=$?"
 ```
 
 Un gate rosso vuol dire un handoff con la tabella dei todo rotta. Un `LINK MORTO` vuol dire
@@ -117,7 +117,7 @@ Gli handoff (sezione "File e materiali") e il `CLAUDE.md` del progetto (sezione 
 dicono dove stanno i file del lavoro. Controlla che ci siano ancora:
 
 ```bash
-python3 "$HOME/.claude/bin/arturo" diagnosi percorsi "<progetto>"; echo "rc=$?"
+python3 ~/.claude/bin/arturo diagnosi percorsi "<progetto>"; echo "rc=$?"
 ```
 
 Ogni riga `MANCA:` è un file che un handoff o il `CLAUDE.md` danno per esistente, e non c'è
@@ -132,7 +132,7 @@ handoff vecchio non si riscrive: la correzione va nel prossimo.
 I file di un progetto finiscono sparsi: in Download, sulla Scrivania, fuori dal repo. Trovali:
 
 ```bash
-python3 "$HOME/.claude/bin/arturo" diagnosi materiali "<progetto>"; echo "rc=$?"
+python3 ~/.claude/bin/arturo diagnosi materiali "<progetto>"; echo "rc=$?"
 ```
 
 Per ogni file lo script propone un destino, con le stesse regole di `/fine`:

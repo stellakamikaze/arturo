@@ -17,7 +17,8 @@ esattamente cosa parte.
 
 Due tempi, perché un hook non deve mai aspettare la rete:
 - `registra` aggiunge una riga alla coda in ~/.claude/data/telemetria/coda.jsonl, senza rete. Lo
-  stesso fanno `chiede` (una guardia chiede conferma: l'id della chiamata resta in
+  stesso fanno `chiede` (una guardia chiede conferma, per block-dangerous con il nome della
+  regola: l'id della chiamata resta in
   session-env/telemetria-attese.json) ed `esito` (il PostToolUse, via bin/telemetria-esito.sh: se la
   chiamata era in attesa, registra `confermata`);
 - `invia` manda la coda in un lotto. L'avvio della sessione lo lancia in background, al massimo
@@ -77,7 +78,8 @@ EVENTI = {
 # l'avviso torna una volta, anche a chi aveva già visto la precedente. 3: senza le tappe (16/10/2026).
 # 4: gli aggiornamenti installati da soli alla chiusura si contano a parte (16/10/2026, #3482).
 # 5: gli aggiornamenti che non partono da soli dicono perché, una volta per versione (20/10/2026, #3637).
-PROMESSA = 5
+# 6: le conferme di block-dangerous dicono quale regola ha chiesto (22/10/2026, #3798).
+PROMESSA = 6
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
 # ~/.claude/commands/ ha un nome suo, e non esce.
 # Il banco M10 controlla che l'elenco coincida con commands/ del repository.
@@ -394,7 +396,7 @@ def avvio() -> int:
         if stato.get("avviso_promessa") != PROMESSA:
             nuova = " Cosa esce è cambiato da quando l'ha letto: diglielo." if stato.get("avviso") else ""
             print("TELEMETRIA: Arturo manda a chi lo mantiene eventi d'uso con un id casuale: versione di Arturo e di "
-                  "Claude Code, sistema, comandi di Arturo usati, guardie che bloccano o chiedono e se la persona "
+                  "Claude Code, sistema, comandi di Arturo usati, guardie che bloccano o chiedono, con il nome della regola che chiede, e se la persona "
                   "conferma, guardie che si rompono, fase di /setup raggiunta, esiti di /aggiorna e degli aggiornamenti automatici, perché un aggiornamento automatico non parte, file e hook di "
                   "Arturo cambiati o spenti. Mai prompt, file, nomi o testi."
                   + nuova + " Dillo alla persona una volta, in due righe, con il perché: con questi dati Arturo "

@@ -28,7 +28,7 @@ Gli aggiornamenti arrivano da `upstream` se ha un repository suo come `origin` (
 FASE 7), altrimenti da `origin`.
 
 ```bash
-cd "$HOME/.claude"
+cd ~/.claude
 export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes"
 SRC=$(git remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
 NOTA=$(git rev-parse -q --verify "$SRC/main" || echo "")
@@ -38,7 +38,7 @@ if [ -n "$NOTA" ] && ! git merge-base --is-ancestor "$NOTA" "$SRC/main"; then
 fi
 echo "Versione installata: $(git describe --tags --abbrev=0 --match 'v*' HEAD 2>/dev/null)"
 # Solo l'ultimo tag firmato di $SRC, verificato con la chiave già installata: main non si applica mai.
-TAG=$(python3 "$HOME/.claude/bin/aggiornamenti.py" firmato) || TAG=""
+TAG=$(python3 ~/.claude/bin/aggiornamenti.py firmato) || TAG=""
 if [ -n "$TAG" ]; then
   echo "Versione disponibile (firmata): $TAG"
   BEHIND=$(git rev-list --count "HEAD..$TAG" 2>/dev/null || echo 0)
@@ -79,8 +79,8 @@ solo ogni 12 ore (`tests`), gli strumenti come `scrape` (`tools`) e ogni file de
 Code (una cartella di `skills/` con `.claude-plugin/plugin.json`, come il pannello `/dafare`).
 
 ```bash
-cd "$HOME/.claude"
-TAG=$(python3 "$HOME/.claude/bin/aggiornamenti.py" firmato) || exit 1
+cd ~/.claude
+TAG=$(python3 ~/.claude/bin/aggiornamenti.py firmato) || exit 1
 echo "=== guardie e permessi di $TAG, interi"
 git diff "HEAD...$TAG" -- hooks settings.json 2>/dev/null
 echo "=== codice che gira da solo: righe aggiunte e tolte, file per file"
@@ -113,9 +113,9 @@ Le sue modifiche possono stare in due posti: file cambiati e non ancora salvati,
 (per esempio il "session sync" di `/fine`).
 
 ```bash
-cd "$HOME/.claude"
+cd ~/.claude
 SRC=$(git remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
-TAG=$(python3 "$HOME/.claude/bin/aggiornamenti.py" firmato) || exit 1
+TAG=$(python3 ~/.claude/bin/aggiornamenti.py firmato) || exit 1
 git status --short --untracked-files=no
 echo "--- file che hai cambiato rispetto ad Arturo"
 git diff --stat "$TAG...HEAD" 2>/dev/null | tail -20
@@ -181,15 +181,15 @@ protegge già l'aggiornamento che la porta, e un `main` manomesso non la sostitu
 da solo, e il Passo 1 te ne ha mostrato il diff. La firma si verifica di nuovo qui, subito prima.
 
 ```bash
-cd "$HOME/.claude"
+cd ~/.claude
 SRC=$(git remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
 MODO=$([ "$SRC" = upstream ] && echo merge || echo rebase)
 # Con un repository suo, i suoi commit sono gia' pubblicati: il merge non li riscrive.
 APPLICA=$(mktemp)
-if TAG=$(python3 "$HOME/.claude/bin/aggiornamenti.py" firmato); then
+if TAG=$(python3 ~/.claude/bin/aggiornamenti.py firmato); then
   git show "$TAG:bin/aggiorna-applica.sh" > "$APPLICA" 2>/dev/null
   if [ -s "$APPLICA" ]; then
-    bash "$APPLICA" "$HOME/.claude" "$MODO" "$TAG"
+    bash "$APPLICA" ~/.claude "$MODO" "$TAG"
   else
     echo "APPLICAZIONE NON PARTITA: il rilascio $TAG non ha la procedura di applicazione. Non ho toccato niente."
   fi
@@ -216,7 +216,7 @@ La prima parola dell'esito dice cosa è successo:
   lui dice che non serve, col suo sì, scartala:
 
   ```bash
-  cd "$HOME/.claude" && bash bin/aggiorna-applica.sh "$HOME/.claude" scarta
+  cd ~/.claude && bash bin/aggiorna-applica.sh ~/.claude scarta
   ```
 
   Poi rilancia il Passo 3.
@@ -232,7 +232,7 @@ Rispetta il no e fermati, dopo aver registrato l'esito per la telemetria di Artu
 aggiornamenti le persone non vogliono, mai il perché):
 
 ```bash
-python3 "$HOME/.claude/bin/telemetria.py" registra aggiorna rifiutato >/dev/null 2>&1 || true
+python3 ~/.claude/bin/telemetria.py registra aggiorna rifiutato >/dev/null 2>&1 || true
 ```
 
 ### Risolvere un conflitto
@@ -254,17 +254,31 @@ nella cartella che l'esito ha stampato, con i file elencati. Si risolvono lì, m
    cancellato. Se accetta che esca, al punto 2 usa `rm` al posto di `add` per quel file. Se vuole
    tenerlo, il file resta suo e si usa `add` come per gli altri.
 2. Chiudi l'aggiornamento nella copia di prova. Con un merge: `git -C <copia> add <file>` per ogni
-   file, poi `git -C <copia> commit --no-edit`. Con un rebase: `git -C <copia> add <file>`, poi
-   `GIT_EDITOR=true git -C <copia> rebase --continue`, finché il rebase non finisce.
+   file, poi `git -C <copia> commit --no-edit`. Con un rebase: `git -C <copia> add <file>`, poi il
+   blocco qui sotto, finché il rebase non finisce.
+   Il rebase riparte con l'unione di `settings.json` presa dalla versione in arrivo: senza, i commit
+   dopo il conflitto tornano a unire `settings.json` riga per riga.
+
+   ```bash
+   cd ~/.claude
+   COPIA=$(cut -d' ' -f1 "$(git rev-parse --git-path arturo-aggiorna-copia)" 2>/dev/null)
+   L=$(dirname "$COPIA")
+   if [ -f "$L/attributi" ] && [ -f "$L/unisci-settings.py" ]; then
+     GIT_EDITOR=true git -c "core.attributesFile=$L/attributi" \
+       -c "merge.arturo-settings.driver=python3 \"$L/unisci-settings.py\" %O %A %B" -C "$COPIA" rebase --continue
+   else
+     GIT_EDITOR=true git -C "$COPIA" rebase --continue
+   fi
+   ```
 3. Solo dopo il suo sì, porta il risultato dentro:
 
 ```bash
-cd "$HOME/.claude"
+cd ~/.claude
 COPIA=$(cut -d' ' -f1 "$(git rev-parse --git-path arturo-aggiorna-copia)" 2>/dev/null)
 APPLICA=$(mktemp)
 cp "$COPIA/bin/aggiorna-applica.sh" "$APPLICA" 2>/dev/null || cp bin/aggiorna-applica.sh "$APPLICA" 2>/dev/null
 if [ -s "$APPLICA" ]; then
-  bash "$APPLICA" "$HOME/.claude" concludi
+  bash "$APPLICA" ~/.claude concludi
 else
   echo "APPLICAZIONE NON PARTITA: non trovo la procedura di applicazione. Non ho toccato niente."
 fi
@@ -296,7 +310,7 @@ col comando `git diff` che la riga indica, spiegando in parole semplici cosa la 
 lascia passare in più. Poi chiedi se rimetterla com'è in Arturo. Col suo sì, una guardia per volta:
 
 ```bash
-python3 "$HOME/.claude/bin/arturo" personale ripristina hooks/<guardia>
+python3 ~/.claude/bin/arturo personale ripristina hooks/<guardia>
 ```
 
 `RIPRISTINATO` vuol dire che la guardia è tornata quella di Arturo e il prossimo `/aggiorna` la porta
@@ -311,13 +325,13 @@ comandi o sugli hook di sessione), non scarichi niente: sposti solo le sue modif
 agli hook di sessione di Arturo.
 
 ```bash
-cd "$HOME/.claude"
+cd ~/.claude
 VIS=PRIVATE
 if git remote get-url upstream >/dev/null 2>&1; then
   VIS=$(gh repo view "$(git remote get-url origin)" --json visibility -q .visibility 2>/dev/null)
 fi
 if [ "$VIS" = PRIVATE ]; then
-  python3 "$HOME/.claude/bin/arturo" personale separa
+  python3 ~/.claude/bin/arturo personale separa
 else
   echo "NON SEPARATO: il tuo repository della config non risulta privato (${VIS:-visibilità sconosciuta}), e personale/ non viaggerebbe fra le tue macchine."
 fi
@@ -338,7 +352,7 @@ precedente. I passi 1-4 qui sopra non c'entrano.
 1. **Leggi l'ultimo aggiornamento.**
 
    ```bash
-   cd "$HOME/.claude"
+   cd ~/.claude
    tail -1 session-env/aggiornamenti 2>/dev/null || echo "nessun aggiornamento registrato"
    ```
 
@@ -352,7 +366,7 @@ precedente. I passi 1-4 qui sopra non c'entrano.
 3. **Solo dopo il suo sì**, torna indietro portando con te i suoi commit successivi:
 
    ```bash
-   cd "$HOME/.claude" && bash bin/aggiorna-applica.sh "$HOME/.claude" indietro
+   cd ~/.claude && bash bin/aggiorna-applica.sh ~/.claude indietro
    ```
 
    I suoi commit successivi si rifanno sulla versione vecchia in una copia di prova, come il
