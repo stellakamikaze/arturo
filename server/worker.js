@@ -60,6 +60,6 @@ export default {
       limite: limite(env) });
   },
   async scheduled(evento, env, ctx) {
-    ctx.waitUntil(programmato({ archivio: archivio(env.DB), posta: posta(env) }));
+    ctx.waitUntil(programmato({ archivio: archivio(env.DB), posta: posta(env), avviso: avviso(env) }));
   },
 };

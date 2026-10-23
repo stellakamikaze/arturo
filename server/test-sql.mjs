@@ -172,6 +172,24 @@ const casi = {
       { valore: "exfil-guard.py", chiede: 1, confermata: 0, installazioni: 1 },
     ], "Q12 le conferme per guardia");
   },
+  // Le installazioni rimaste indietro, con le query vere (23/10/2026): conta la versione dell'ultimo evento,
+  // e solo chi il server ha visto in almeno due giorni.
+  async Q13() {
+    const a = await con([
+      ["2026-10-18", "gigi0000", "sessione", "", "v2026-10-19.3"], ["2026-10-19", "gigi0000", "sessione", "", "v2026-10-19.3"],
+      ["2026-10-22", "gigi0000", "sessione", "", "v2026-10-22.2"],
+      ["2026-10-19", "ales0000", "sessione", "", "v2026-10-19.2"], ["2026-10-23", "ales0000", "sessione", "", "v2026-10-19.2-1-gdf1c2d0"],
+      ["2026-10-23", "nuov0000", "sessione", "", "v2026-10-14"],  // vista un giorno solo: non conta
+      ["2026-10-10", "vecc0000", "sessione", "", "v2026-10-14"], ["2026-10-11", "vecc0000", "sessione", "", "v2026-10-14"],  // non attiva
+    ]);
+    const fuori = await a.indietro("2026-10-23");
+    assert.deepEqual(fuori.map((x) => [x.installazione, x.rilascio, x.nuovo, x.dal, x.ultima]),
+      [["ales0000", "v2026-10-19.2", "v2026-10-19.3", "2026-10-18", "2026-10-23"]], "Q13 installazioni indietro");
+    assert.equal(await a.ultimoAvviso("indietro:ales0000"), null, "Q13 un avviso mai mandato ha un giorno");
+    await a.incrementa("2026-10-23", "indietro:ales0000");
+    assert.equal(await a.ultimoAvviso("indietro:ales0000"), "2026-10-23", "Q13 l'ultimo avviso non si ritrova");
+    assert.deepEqual((await a.miglioramento("2026-10-23")).indietro, fuori, "Q13 il riepilogo non porta chi è indietro");
+  },
   async Q06() {
     const a = await con([["2026-10-12", "aaaaaaaa", "sessione"]]);
     assert.equal(await a.installazioneNuova("aaaaaaaa"), false, "Q06 un'installazione già vista risulta nuova");

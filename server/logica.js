@@ -70,6 +70,12 @@ export const LIMITI = {
   feedbackCorpo: 5 * 1024 * 1024,
   audioMax: 4 * 1024 * 1024,
   sitoPerGiorno: 60,
+  // Installazioni rimaste indietro (23/10/2026): attive negli ultimi `fermaGiorni` giorni, senza un rilascio
+  // uscito da almeno altrettanti. Su Telegram al massimo una volta ogni `avvisoIndietroOgni` giorni per
+  // installazione, e non più di `avvisiIndietroPerGiorno` al giorno.
+  fermaGiorni: 3,
+  avvisoIndietroOgni: 7,
+  avvisiIndietroPerGiorno: 5,
 };
 
 const FEEDBACK_TIPI = ["problema", "idea", "installazione", "altro"];
@@ -84,6 +90,48 @@ const VERSIONE = /^[A-Za-z0-9._+-]{1,60}$/;
 
 export function oggi(adesso = new Date()) {
   return adesso.toISOString().slice(0, 10);
+}
+
+const giornoMeno = (giorno, n) => oggi(new Date(Date.parse(`${giorno}T00:00:00Z`) - n * 86400000));
+
+// Il rilascio di una versione, senza i commit della persona: "v2026-10-19.2-1-gdf1c2d0" -> "v2026-10-19.2".
+// Una versione che non viene da un rilascio (sconosciuta, un ramo di prova) dà null.
+export function rilascio(versione) {
+  const m = /^(v\d{4}-\d{2}-\d{2}(?:\.\d+)?)(?:-\d+-g[0-9a-f]+)?$/.exec(versione || "");
+  return m ? m[1] : null;
+}
+
+function confronta(a, b) {
+  const [da, na = "0"] = a.slice(1).split(".");
+  const [db, nb = "0"] = b.slice(1).split(".");
+  return da === db ? Number(na) - Number(nb) : (da < db ? -1 : 1);
+}
+
+// Le installazioni rimaste indietro (23/10/2026). Alessio è restato quattro giorni alla v2026-10-19.2, che
+// rinviava l'aggiornamento automatico con Chrome aperto, e Filippo prima di lui alla v2026-10-15.2: un
+// difetto dell'aggiornamento impedisce l'aggiornamento che lo corregge, e solo un /aggiorna a mano lo sblocca.
+// `attive`: {installazione, versione, ultima} con la versione dell'ultimo evento. `versioni`: {versione, prima},
+// il primo giorno in cui il server l'ha vista. Un rilascio conta se è uscito da almeno `fermaGiorni` giorni e
+// la sua data non è nel futuro: una versione inventata da un lotto non fa sembrare indietro tutti.
+export function calcolaIndietro(attive, versioni, al, giorni = LIMITI.fermaGiorni) {
+  const soglia = giornoMeno(al, giorni);
+  const uscita = new Map();
+  for (const v of versioni) {
+    const r = rilascio(v.versione);
+    if (!r || r.slice(1, 11) > al) continue;
+    if (!uscita.has(r) || v.prima < uscita.get(r)) uscita.set(r, v.prima);
+  }
+  const maturi = [...uscita].filter(([, prima]) => prima <= soglia).map(([r]) => r).sort(confronta);
+  const fuori = [];
+  for (const a of attive) {
+    const r = rilascio(a.versione);
+    if (!r) continue;
+    const mancanti = maturi.filter((m) => confronta(m, r) > 0);
+    if (!mancanti.length) continue;
+    fuori.push({ installazione: a.installazione, rilascio: r, ultima: a.ultima, nuovo: mancanti[mancanti.length - 1],
+      dal: uscita.get(mancanti[0]) });
+  }
+  return fuori.sort((x, y) => (x.dal < y.dal ? -1 : x.dal > y.dal ? 1 : 0));
 }
 
 function risposta(status, dati) {
@@ -237,6 +285,9 @@ export function testoMigliorare(m) {
     "Guardie che si rompono (volte, installazioni):",
     ...righe(m.errori, (x) => `  ${x.valore}  ${x.n}, ${installazioni(x.installazioni)}`, "  nessuna"),
     "",
+    `Rimaste indietro (attive negli ultimi ${LIMITI.fermaGiorni} giorni, senza un rilascio uscito da almeno ${LIMITI.fermaGiorni}):`,
+    ...righe(m.indietro, (x) => `  ${corto(x.installazione)}  ferma alla ${x.rilascio}, manca dal ${x.dal}, c'è la ${x.nuovo}`, "  nessuna"),
+    "",
     "Aggiornamenti non applicati (versione, esito, volte):",
     ...righe(m.aggiornaStorti, (x) => `  ${x.versione}  ${x.valore}  ${x.n}`, "  nessuno"),
     "",
@@ -329,6 +380,11 @@ export function avvisoSegnalazione(s, numero) {
 
 export function avvisoSetupFinito(riga) {
   return `Arturo: setup finito (${riga.installazione.slice(0, 8)}) · ${riga.versione} · ${riga.sistema}`;
+}
+
+export function avvisoIndietro(x) {
+  return `Arturo: installazione ${x.installazione.slice(0, 8)} ferma alla ${x.rilascio}, attiva il ${x.ultima}. ` +
+    `Non riceve gli aggiornamenti dal ${x.dal}, e c'è la ${x.nuovo}: serve un /aggiorna a mano.`;
 }
 
 export function avvisoFeedback(f, numero) {
@@ -569,8 +625,26 @@ export async function settimanale({ archivio, posta, adesso = new Date() }) {
   await archivio.pulisci(giorniFa(adesso, LIMITI.conservazioneGiorni));
 }
 
-// Il cron gira ogni mattina alle 6 UTC: il recap del giorno prima se c'è qualcosa, il lunedì sempre la settimana.
-export async function programmato({ archivio, posta, adesso = new Date() }) {
+// Le installazioni rimaste indietro, su Telegram ogni mattina: una volta ogni avvisoIndietroOgni giorni per
+// installazione, perché il guasto non si ripara da solo e va sbloccato a mano (23/10/2026).
+export async function avvisiIndietro({ archivio, avviso, adesso = new Date() }) {
+  const al = oggi(adesso);
+  let mandati = 0;
+  for (const x of await archivio.indietro(al)) {
+    if (mandati >= LIMITI.avvisiIndietroPerGiorno) break;
+    const chiave = `indietro:${x.installazione}`;
+    const ultimo = await archivio.ultimoAvviso(chiave);
+    if (ultimo && ultimo > giornoMeno(al, LIMITI.avvisoIndietroOgni)) continue;
+    await archivio.incrementa(al, chiave);
+    await avvisa(avviso, avvisoIndietro(x));
+    mandati++;
+  }
+}
+
+// Il cron gira ogni mattina alle 6 UTC: il recap del giorno prima se c'è qualcosa, le installazioni rimaste
+// indietro, il lunedì sempre la settimana.
+export async function programmato({ archivio, posta, avviso = async () => {}, adesso = new Date() }) {
   await giornaliero({ archivio, posta, adesso });
+  await avvisiIndietro({ archivio, avviso, adesso });
   if (adesso.getUTCDay() === 1) await settimanale({ archivio, posta, adesso });
 }

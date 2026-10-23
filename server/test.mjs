@@ -1,7 +1,8 @@
 // Banco del server di Arturo (W-casi con la sigla V): logica.js con un archivio e una posta finti.
 // Uso: node server/test.mjs   (esce con 0 se tutto passa)
 import assert from "node:assert/strict";
-import { gestisci, settimanale, giornaliero, programmato, mime, testoDeriva, testoRiepilogo, ritenzione, LIMITI, EVENTI } from "./logica.js";
+import { gestisci, settimanale, giornaliero, programmato, mime, testoDeriva, testoRiepilogo, ritenzione, LIMITI, EVENTI, calcolaIndietro,
+  rilascio } from "./logica.js";
 
 const VUOTO = { installazioni: 0, sessioni: 0, versioni: [], sistemi: [], comandi: [], guardie: [], aggiorna: [], config: [], deriva: [],
   guardieFrequenti: null, segnalazioni: 0 };
@@ -39,6 +40,11 @@ function finti(riepilogo = null) {
         guardie: [], aggiorna: [], segnalazioni: 1 };
     },
     async pulisci(prima) { stato.pulito = prima; },
+    async indietro() { return stato.indietro || []; },
+    async ultimoAvviso(chiave) {
+      const giorni = Object.keys(stato.conteggi).filter((k) => k.endsWith(` ${chiave}`)).map((k) => k.split(" ")[0]).sort();
+      return giorni.length ? giorni[giorni.length - 1] : null;
+    },
   };
   const posta = async (m) => { stato.email.push(m); };
   const avviso = async (t) => { stato.avvisi.push(t); };
@@ -486,6 +492,38 @@ const casi = {
       "V29 le conferme non sono sommate per guardia");
     assert.match(testo, /Per regola, dove la guardia la dice:\n {2}block-dangerous\.py\.rm-cartella {2}21 \/ 1 \/ 5%, 2 installazioni\n/,
       "V29 manca il dettaglio per regola");
+  },
+  // Le installazioni rimaste indietro (23/10/2026): il caso di Alessio, ferma alla v2026-10-19.2 con la
+  // v2026-10-19.3 uscita da quattro giorni. Filippo alla v2026-10-21 non lo è: la v2026-10-22.2 ha un giorno.
+  async V30() {
+    assert.equal(rilascio("v2026-10-19.2-1-gdf1c2d0"), "v2026-10-19.2", "V30 il rilascio tiene i commit della persona");
+    assert.equal(rilascio("sconosciuta"), null, "V30 una versione senza rilascio ha un rilascio");
+    const versioni = [{ versione: "v2026-10-19.2", prima: "2026-10-19" }, { versione: "v2026-10-19.3-4-gabc1234", prima: "2026-10-19" },
+      { versione: "v2026-10-21", prima: "2026-10-21" }, { versione: "v2026-10-22.2", prima: "2026-10-22" },
+      { versione: "v2099-01-01", prima: "2026-10-01" }];  // inventata da un lotto: data nel futuro, non conta
+    const attive = [{ installazione: "2c64c0dc-aaaa", versione: "v2026-10-19.2-1-gdf1c2d0", ultima: "2026-10-23" },
+      { installazione: "826cca31-bbbb", versione: "v2026-10-21", ultima: "2026-10-22" },
+      { installazione: "91288389-cccc", versione: "v2026-10-22.2", ultima: "2026-10-23" }];
+    const fuori = calcolaIndietro(attive, versioni, "2026-10-23");
+    assert.deepEqual(fuori, [{ installazione: "2c64c0dc-aaaa", rilascio: "v2026-10-19.2", ultima: "2026-10-23", nuovo: "v2026-10-19.3",
+      dal: "2026-10-19" }], "V30 le installazioni indietro sono sbagliate");
+    const f = finti();
+    f.stato.indietro = fuori;
+    await programmato({ ...f, adesso: new Date("2026-10-23T06:00:00Z") });
+    assert.equal(f.stato.avvisi.length, 1, "V30 l'installazione indietro non arriva su Telegram");
+    assert.match(f.stato.avvisi[0], /^Arturo: installazione 2c64c0dc ferma alla v2026-10-19\.2, attiva il 2026-10-23\..*\/aggiorna a mano/,
+      "V30 il testo dell'avviso");
+    await programmato({ ...f, adesso: new Date("2026-10-24T06:00:00Z") });
+    assert.equal(f.stato.avvisi.length, 1, "V30 l'avviso torna il giorno dopo");
+    await programmato({ ...f, adesso: new Date("2026-10-30T06:00:00Z") });
+    assert.equal(f.stato.avvisi.length, 2, "V30 dopo una settimana l'avviso non torna");
+    const g = finti();
+    g.stato.indietro = Array.from({ length: 9 }, (_, i) => ({ ...fuori[0], installazione: `id${i}-xxxxxxxx` }));
+    await programmato({ ...g, adesso: new Date("2026-10-23T06:00:00Z") });
+    assert.equal(g.stato.avvisi.length, LIMITI.avvisiIndietroPerGiorno, "V30 gli avvisi superano il tetto del giorno");
+    const testo = testoRiepilogo({ ...VUOTO, migliorare: { indietro: fuori, ritenzione: { nuove: 0, soglie: [] } } }, "prova");
+    assert.match(testo, /Rimaste indietro[^\n]*\n {2}2c64c0dc {2}ferma alla v2026-10-19\.2, manca dal 2026-10-19, c'è la v2026-10-19\.3\n/,
+      "V30 il riepilogo non elenca chi è rimasto indietro");
   },
 };
 

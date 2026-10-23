@@ -1,6 +1,6 @@
 // L'archivio del server di Arturo: le query su D1. Separato da worker.js, che importa cloudflare:email,
 // così test-sql.mjs prova le query vere su SQLite con node, senza Cloudflare.
-import { LIMITI, ritenzione } from "./logica.js";
+import { LIMITI, ritenzione, calcolaIndietro } from "./logica.js";
 
 // v2026-10-15: da qui /setup manda i suoi eventi alla telemetria.
 const SETUP_DAL = "2026-10-15";
@@ -85,10 +85,29 @@ export function archivio(db) {
     // "Dove migliorare Arturo", per il riepilogo del lunedì e per /v1/riepilogo. Numeri e rapporti,
     // nessuna soglia che decide: il giudizio su cosa correggere spetta a chi legge. Le finestre sono
     // di 30 giorni, perché con poche installazioni una settimana non mostra niente.
+    // Le installazioni rimaste indietro (calcolaIndietro in logica.js): la versione dell'ultimo evento di chi è
+    // attivo negli ultimi giorni, e il primo giorno di ogni versione. Solo installazioni viste in più giorni.
+    async indietro(al) {
+      const tutte = async (sql, ...valori) => (await db.prepare(sql).bind(...valori).all()).results;
+      const attive = await tutte(
+        `SELECT e.installazione AS installazione, e.versione AS versione, m.ultima AS ultima FROM eventi e
+         JOIN (SELECT installazione, MAX(rowid) AS r, MAX(giorno) AS ultima FROM eventi
+               WHERE giorno > date(?, '-${Number(LIMITI.fermaGiorni)} day') AND giorno <= ? AND ${VISTE} GROUP BY installazione) m
+         ON e.rowid = m.r`, al, al);
+      const versioni = await tutte(
+        `SELECT versione, MIN(giorno) AS prima FROM eventi WHERE giorno <= ? AND ${VISTE} GROUP BY versione`, al);
+      return calcolaIndietro(attive, versioni, al);
+    },
+    // Il giorno dell'ultimo avviso con questa chiave, per non ripeterlo ogni mattina.
+    async ultimoAvviso(chiave) {
+      const r = await db.prepare("SELECT MAX(giorno) AS giorno FROM contatori WHERE chiave = ? AND giorno <> 'sempre'").bind(chiave).first();
+      return r ? r.giorno : null;
+    },
     async miglioramento(al) {
       const tutte = async (sql, ...valori) => (await db.prepare(sql).bind(...valori).all()).results;
       const trenta = "giorno > date(?, '-30 day') AND giorno <= ?";
       return {
+        indietro: await this.indietro(al),
         // L'ultima fase vista per installazione, se non è arrivata in fondo e tace da 3 giorni.
         setupFermi: await tutte(
           `SELECT e.valore AS valore, COUNT(*) AS n FROM eventi e

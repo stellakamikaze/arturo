@@ -57,9 +57,14 @@ feedback più vecchi di 12 mesi si cancellano il lunedì. Le chiavi "una volta p
   altro sito (`Sec-Fetch-Site: cross-site`), e del vocale si controllano i primi byte.
 - **Ogni mattina alle 8** (06:00 UTC) arriva il recap del giorno prima, solo se quel giorno ci
   sono stati eventi o segnalazioni. Ha anche le config rotte e la deriva cambiata.
+- **Ogni mattina, su Telegram, le installazioni rimaste indietro (23/10/2026)**: attive negli ultimi
+  3 giorni e senza un rilascio uscito da almeno 3. Contano solo le installazioni viste in almeno due
+  giorni, e un rilascio con la data nel futuro non conta. Un avviso per installazione ogni 7 giorni,
+  al massimo 5 al giorno. Nasce da Filippo e Alessio: un difetto dell'aggiornamento automatico gli
+  impediva di ricevere la correzione, e solo un `/aggiorna` a mano li ha sbloccati.
 - **Il lunedì** arriva sempre il riepilogo dei 7 giorni, anche vuoto. Si apre con "Dove migliorare
-  Arturo" (ultimi 30 giorni: setup fermi, conferme delle guardie, guardie rotte, aggiornamenti non
-  applicati, ritenzione, versioni di Claude Code), poi tutta la deriva aperta e le
+  Arturo" (ultimi 30 giorni: setup fermi, conferme delle guardie, guardie rotte, installazioni rimaste
+  indietro, aggiornamenti non applicati, ritenzione, versioni di Claude Code), poi tutta la deriva aperta e le
   guardie frequenti (almeno 5 blocchi nella settimana sulla stessa installazione). Poi parte la pulizia. Se il
   riepilogo del lunedì manca, il Worker è fermo.
 
