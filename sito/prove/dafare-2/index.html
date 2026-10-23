@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prove di /dafare, seconda parte · Arturo</title>
+<meta name="description" content="Il pannello /dafare con linguette e catena, e i quattro posti dove si può vedere in Claude Code.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#d7ebff">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0d10'/%3E%3Cpath d='M5 25 13 11l6 8 8-11' fill='none' stroke='%23d7ebff' stroke-width='1.6'/%3E%3Ccircle cx='13' cy='11' r='3.2' fill='%23f2a24a'/%3E%3C/svg%3E">
+<link rel="preload" href="../../font/archivo.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../font/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../../stile/colori.css">
+<style>
+@font-face{font-family:"Archivo";src:url(../../font/archivo.woff2) format("woff2");font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+@font-face{font-family:"Atkinson Next";src:url(../../font/atkinson-next.woff2) format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
+@font-face{font-family:"Atkinson Mono";src:url(../../font/atkinson-mono.woff2) format("woff2");font-weight:200 800;font-display:swap}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scrollbar-color:#a3abb5 var(--carta)}
+body{margin:0;background:var(--carta);color:var(--grafite);font:400 clamp(16.5px, .98rem + .15vw, 18px)/1.55 var(--testo);letter-spacing:-.005em;-webkit-font-smoothing:antialiased}
+::selection{background:var(--azione);color:#fff}
+:focus-visible{outline:2px solid var(--azione);outline-offset:3px}
+img,svg{display:block;max-width:100%}
+a{color:inherit;text-underline-offset:.2em;text-decoration-thickness:1px}
+p{margin:0 0 1em;text-wrap:pretty}
+button{font:inherit;color:inherit;cursor:pointer}
+code{font-family:var(--mono);font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inchiostro)}
+.dentro{max-width:var(--colonna);margin:0 auto;padding:0 var(--gutter)}
+.salta{position:absolute;left:-9999px;top:8px;z-index:20;padding:10px 14px;background:var(--inchiostro);color:#fff}
+.salta:focus{left:12px}
+.stretta{font-family:var(--titolo);font-stretch:75%;font-weight:560;text-transform:uppercase;letter-spacing:.04em}
+h1,h2,h3{margin:0;color:var(--inchiostro);font-family:var(--titolo);font-weight:400;text-wrap:balance}
+
+.azione{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border:1px solid var(--azione);background:var(--azione);color:#fff;font:560 .98rem/1 var(--titolo);font-stretch:75%;letter-spacing:.06em;text-transform:uppercase;transition:background-color .18s,border-color .18s}
+.azione:hover{background:var(--azione-giu);border-color:var(--azione-giu)}
+.azione svg{width:16px;height:16px;flex:none}
+.azione[disabled]{background:#9aa1aa;border-color:#9aa1aa;cursor:progress}
+
+/* ---------- testata (come /feedback/) ---------- */
+.testata{position:relative;background:var(--cielo);overflow:hidden;isolation:isolate}
+.testata__volta{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:right top;z-index:-1;-webkit-mask-image:linear-gradient(90deg,rgba(0,0,0,.15) 0,rgba(0,0,0,.3) 45%,#000 85%);mask-image:linear-gradient(90deg,rgba(0,0,0,.15) 0,rgba(0,0,0,.3) 45%,#000 85%)}
+.menu .dentro{display:flex;align-items:center;gap:28px;min-height:68px}
+.marchio{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--inchiostro);font:500 1.2rem/1 var(--titolo);font-stretch:108%;letter-spacing:-.01em}
+.marchio svg{width:28px;height:28px}
+.menu__fine{margin-left:auto;display:flex;gap:24px;font-size:.86rem}
+.menu__fine a{text-decoration:none;padding:6px 0;border-bottom:1px solid currentColor}
+.testata__corpo{padding:clamp(40px,7vw,104px) 0 clamp(48px,6vw,88px);max-width:900px}
+.testata h1{font-weight:250;font-size:clamp(2.6rem, 1.2rem + 5vw, 5.6rem);line-height:.95;letter-spacing:-.025em;font-stretch:114%}
+.testata__corpo > p{margin:22px 0 0;max-width:58ch;font-size:1.1rem;color:var(--grafite)}
+.come{list-style:none;margin:30px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 28px;max-width:900px}
+.come li{padding:14px 0 0;border-top:1px solid var(--inchiostro);font-size:.95rem;color:var(--grafite)}
+.come strong{display:block;margin-bottom:4px;color:var(--inchiostro);font:400 1.15rem/1.2 var(--titolo);letter-spacing:-.015em}
+
+/* ---------- gruppi e varianti ---------- */
+.gruppo{padding-top:var(--ritmo)}
+.gruppo__testa{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px clamp(40px,6vw,96px);align-items:end;margin-bottom:clamp(40px,5vw,72px)}
+.gruppo__testa h2{font-weight:300;font-size:clamp(2.1rem, 1.3rem + 2.6vw, 3.6rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%}
+.gruppo__testa h2 span{display:block;color:var(--cenere)}
+.gruppo__testa p{margin:0;max-width:52ch}
+
+.variante{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);grid-template-areas:"testo lastra" "voto lastra";grid-template-rows:auto 1fr;gap:28px clamp(40px,6vw,96px);padding:clamp(40px,5vw,72px) 0;border-top:1px solid var(--filetto)}
+.variante--giro{grid-template-columns:minmax(0,7fr) minmax(0,5fr);grid-template-areas:"lastra testo" "lastra voto"}
+.variante__testo{grid-area:testo;min-width:0}
+.variante__testo h3{font-weight:350;font-size:clamp(1.5rem, 1.2rem + .9vw, 2rem);line-height:1.15;letter-spacing:-.015em;font-stretch:108%;margin-bottom:16px}
+.variante__testo h3 span{display:block;color:var(--cenere)}
+.sigla{display:inline-block;margin-bottom:14px;padding:4px 8px;background:var(--inchiostro);color:#fff;font-size:.8rem;line-height:1}
+.variante__testo p{max-width:48ch}
+.variante__testo p:last-child{margin-bottom:0}
+.variante__voto{grid-area:voto;min-width:0;display:grid;gap:14px;align-content:start}
+.lastra{grid-area:lastra;min-width:0;display:flex;align-items:center;justify-content:center;padding:clamp(28px,5vw,64px) clamp(18px,4vw,56px)}
+.lastra--cielo{background:var(--cielo) url(../../img/volta.svg) right top/cover no-repeat}
+.lastra--giallo{background:var(--giallo)}
+.lastra--verde{background:var(--verde)}
+.lastra--azzurro{background:var(--azzurro)}
+
+/* ---------- la finestra del pannello ---------- */
+.finestra{width:100%;max-width:560px;margin:0;background:var(--term);color:var(--term-testo);border-radius:4px;box-shadow:0 1px 2px rgba(5,8,12,.18),0 18px 40px -12px rgba(5,8,12,.38);overflow:hidden}
+.finestra__barra{display:flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-bottom:1px solid var(--term-filetto);font:.74rem/1 var(--mono);color:var(--term-cenere)}
+.finestra__barra i{width:10px;height:10px;border-radius:50%;background:#2c333d}
+.finestra__barra span{margin:0 auto;padding-right:51px;white-space:nowrap}
+.pan{padding:16px 18px 18px;font:400 .84rem/1.65 var(--mono)}
+.pan__testa{display:flex;flex-wrap:wrap;justify-content:space-between;gap:0 16px;margin-bottom:6px;color:var(--term-testo);font-weight:600}
+.pan__testa small{font-weight:400;font-size:1em;color:var(--term-cenere)}
+.h{margin:12px 0 2px;color:var(--term-cenere);font-size:.74rem;letter-spacing:.08em}
+.r{display:grid;grid-template-columns:2.4ch minmax(0,1fr) auto;gap:0 1.4ch;padding:1px 6px;margin:0 -6px}
+.r .k{color:var(--term-cenere)}
+.r .m{color:var(--term-cenere);text-align:right}
+.r.sel{background:var(--azione);color:#fff}
+.r.sel .k,.r.sel .m{color:#fff}
+.su{color:var(--term-tu)}
+.scade{color:#ff9a8a}
+.spento{color:var(--term-cenere)}
+.riga{margin:10px 0 0}
+.pan__piede{margin-top:14px;padding-top:10px;border-top:1px solid var(--term-filetto);color:var(--term-cenere);font-size:.76rem}
+.linguette{display:flex;flex-wrap:wrap;gap:4px 0;margin:0 -18px 6px;padding:0 18px;border-bottom:1px solid var(--term-filetto)}
+.linguette span{padding:6px 10px 7px;color:var(--term-cenere);border-bottom:2px solid transparent}
+.linguette .su{color:var(--term-testo);border-bottom-color:var(--term-tu)}
+.albero{margin:0;white-space:pre;overflow-x:auto;font:inherit}
+.albero b{font-weight:600;color:var(--term-testo)}
+.adesso{margin:14px 0 4px;font-size:1.15rem;line-height:1.35;color:#fff;font-weight:600}
+.didascalia{margin:10px 0 0;font:.8rem/1.4 var(--testo);color:var(--cenere);text-align:center}
+
+/* ---------- voto e commento ---------- */
+.nome-campo{display:block;margin:0 0 8px;padding:0;font:600 .95rem/1.3 var(--testo);color:var(--inchiostro)}
+.nome-campo small{font-weight:400;color:var(--cenere)}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+.scelte{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--inchiostro);background:#fff}
+.scelte--4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.scelte input{position:absolute;opacity:0;pointer-events:none}
+.scelte label{display:flex;align-items:center;justify-content:center;min-height:48px;padding:6px 8px;text-align:center;font:560 .86rem/1.15 var(--titolo);font-stretch:75%;letter-spacing:.05em;text-transform:uppercase;color:var(--cenere);cursor:pointer;transition:background-color .2s,color .2s}
+.scelte label:not(:first-of-type){border-left:1px solid var(--inchiostro)}
+.scelte label:hover{color:var(--inchiostro);background:var(--azione-velo)}
+.scelte input:checked + label{background:var(--inchiostro);color:#fff}
+.scelte input:focus-visible + label{outline:2px solid var(--azione);outline-offset:2px;position:relative;z-index:1}
+.campo{display:grid;gap:8px;min-width:0}
+.campo textarea,.campo input{width:100%;padding:12px 14px;border:0;border-bottom:1px solid var(--inchiostro);border-radius:0;background:#fff;color:var(--inchiostro);caret-color:var(--azione);font:inherit}
+.campo input{height:48px}
+.campo textarea{min-height:88px;resize:vertical;line-height:1.5}
+.campo--alto textarea{min-height:132px}
+.campo textarea::placeholder,.campo input::placeholder{color:#6b727b}
+.campo textarea:focus,.campo input:focus{outline:none;border-bottom-color:var(--azione);box-shadow:inset 0 -2px 0 var(--azione)}
+.trappola{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+
+/* ---------- le ultime domande e l'invio ---------- */
+.fine{padding:var(--ritmo) 0;margin-top:var(--ritmo);background:var(--carta-2)}
+.fine__impianto{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:40px clamp(40px,6vw,96px)}
+.fine h2{font-weight:300;font-size:clamp(2.1rem, 1.3rem + 2.6vw, 3.6rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%}
+.fine h2 span{display:block;color:var(--cenere)}
+.domande{display:grid;gap:30px;min-width:0}
+.invio{display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;padding-top:18px;border-top:1px solid var(--inchiostro)}
+.invio p{margin:0;font-size:.88rem;color:var(--cenere);flex:1 1 240px}
+.invio output{font-variant-numeric:tabular-nums;color:var(--inchiostro);font-weight:600}
+.esito{display:none;padding:22px 24px;background:#fff}
+.esito.visibile{display:block}
+.esito h3{font-weight:350;font-size:1.5rem;line-height:1.15;letter-spacing:-.015em;font-stretch:108%;margin-bottom:8px}
+.esito p{margin:0;max-width:56ch}
+.esito--ok{box-shadow:inset 0 3px 0 var(--passa)}
+.esito--ok h3{color:var(--passa)}
+.esito--errore{box-shadow:inset 0 3px 0 var(--blocca)}
+.esito--errore h3{color:var(--blocca)}
+.domande.spedito > :not(.esito){display:none}
+.senza-script{padding:16px 18px;background:#fff;box-shadow:inset 0 3px 0 var(--blocca)}
+
+.piede{padding:32px 0 44px;font-size:.86rem;color:var(--cenere)}
+.piede .dentro{display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}
+.piede strong{color:var(--inchiostro)}
+.piede p{margin:0}
+
+@media (max-width:1020px){
+  .variante,.variante--giro{grid-template-columns:minmax(0,1fr);grid-template-areas:"testo" "lastra" "voto";grid-template-rows:auto}
+  .lastra{margin:0 calc(var(--gutter) * -1)}
+}
+@media (max-width:760px){
+  .gruppo__testa,.fine__impianto{grid-template-columns:minmax(0,1fr)}
+  .come{grid-template-columns:minmax(0,1fr);gap:0}
+  .come li{padding-bottom:14px}
+  .testata__volta{opacity:.35}
+}
+@media (max-width:520px){
+  .pan{padding:14px 12px 16px;font-size:.78rem}
+  .linguette{margin:0 -12px 6px;padding:0 12px}
+  .r{grid-template-columns:2.4ch minmax(0,1fr)}
+  .r .m{grid-column:2;text-align:left}
+  .scelte--4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .scelte--4 label:nth-of-type(3){border-left:0}
+  .scelte--4 label:nth-of-type(n+3){border-top:1px solid var(--inchiostro)}
+  .menu__fine a:first-child{display:none}
+}
+/* ---------- seconda parte: la prova cliccabile ---------- */
+.finestra--larga{max-width:620px}
+.r{grid-template-columns:4.5ch minmax(0,1fr) auto}
+.pan button{margin:0;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.pan button:focus-visible{outline:2px solid var(--term-tu);outline-offset:1px}
+.pan__comandi{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px;font-weight:600}
+.pan .tasto{padding:1px 10px;border:1px solid var(--term-cenere);color:var(--term-testo);font-weight:400}
+.pan .tasto:hover{border-color:var(--term-tu);color:var(--term-tu)}
+.linguette button{padding:6px 10px 7px;color:var(--term-cenere);border-bottom:2px solid transparent}
+.linguette button:hover{color:var(--term-testo)}
+.linguette button[aria-pressed="true"]{color:var(--term-testo);border-bottom-color:var(--term-tu)}
+.pan .stato{color:var(--term-cenere)}
+.pan .daqui{margin:2px 0 10px;color:var(--term-tu);font-weight:600}
+button.r{width:100%}
+button.r:hover{background:#161b22}
+button.r.sel:hover{background:var(--azione)}
+.r .ramo{color:var(--term-cenere);white-space:pre}
+.pan .gruppo-h{margin:10px 0 2px;font-size:.74rem;letter-spacing:.08em;font-weight:600}
+.gruppo-h.tu,.gruppo-h.decidi{color:var(--term-tu)}
+.gruppo-h.io{color:#8fd6a3}
+.gruppo-h.fermo{color:#ff9a8a}
+.progetto{display:block;width:100%;padding:6px 6px 7px;margin:0 -6px}
+.progetto:hover{background:#161b22}
+.progetto b{font-weight:600;color:var(--term-testo)}
+.progetto span{display:block;color:var(--term-cenere)}
+.pan .azioni{display:flex;flex-wrap:wrap;gap:4px 18px;margin-top:14px;padding-top:10px;border-top:1px solid var(--term-filetto);font-size:.8rem}
+.azioni button{color:var(--term-tu)}
+.azioni button:hover{text-decoration:underline}
+.pan .esito-riga{margin:6px 0 0;color:#8fd6a3;font-size:.8rem;min-height:1.3em}
+
+/* ---------- i quattro posti ---------- */
+.schermo{position:relative;width:100%;max-width:620px;margin:0;background:var(--term);color:var(--term-testo);border-radius:4px;box-shadow:0 1px 2px rgba(5,8,12,.18),0 18px 40px -12px rgba(5,8,12,.38);overflow:hidden;font:400 .76rem/1.6 var(--mono)}
+.schermo--stretta{max-width:400px}
+.schermo__corpo{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr)}
+.conv{padding:14px 16px;color:var(--term-cenere);min-width:0}
+.conv p{margin:0}
+.conv b{color:var(--term-testo);font-weight:600}
+.conv pre{margin:6px 0 0;font:inherit;white-space:pre;overflow-x:auto;color:var(--term-testo)}
+.schermo__corpo .conv{border-right:1px solid var(--term-filetto)}
+.schermo .pan{padding:12px 14px 14px;font-size:.76rem}
+.schermo .linguette{margin:0 -14px 6px;padding:0 14px}
+.schermo .linguette span{padding:5px 8px 6px}
+.schermo .linguette{flex-wrap:nowrap;overflow:hidden;white-space:nowrap}
+.in-linea{border-top:1px solid var(--term-filetto);border-bottom:1px solid var(--term-filetto);background:#0f1318}
+.prompt{padding:8px 16px;color:var(--term-testo)}
+.prompt span{color:var(--term-cenere)}
+.cursore{position:absolute;width:18px;height:22px;pointer-events:none;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5))}
+.limiti{display:grid;gap:14px;margin:18px 0 0}
+.limiti div{padding-top:10px;border-top:1px solid var(--filetto)}
+.limiti dt{margin-bottom:4px;font:560 .82rem/1.2 var(--titolo);font-stretch:75%;letter-spacing:.06em;text-transform:uppercase}
+.limiti .puoi dt{color:var(--passa)}
+.limiti .non dt{color:var(--blocca)}
+.limiti .serve dt{color:var(--cenere)}
+.limiti dd{margin:0;font-size:.95rem}
+.gruppo__testa--su{align-items:start}
+.preso{list-style:none;margin:0;padding:0;display:grid;gap:0}
+.preso li{padding:14px 0;border-top:1px solid var(--filetto)}
+.preso strong{display:block;color:var(--inchiostro);font:400 1.1rem/1.25 var(--titolo);letter-spacing:-.01em}
+.nota-gruppo{margin:clamp(28px,4vw,48px) 0 0;padding:18px 20px;background:var(--azione-velo);max-width:70ch}
+.scelte--3x2{grid-template-columns:repeat(3,minmax(0,1fr))}
+.scelte--3x2 label:nth-of-type(4){border-left:0}
+.scelte--3x2 label:nth-of-type(n+4){border-top:1px solid var(--inchiostro)}
+@media (max-width:520px){
+  .cursore{display:none}
+  .schermo__corpo{grid-template-columns:minmax(0,1fr)}
+  .schermo__corpo .conv{border-right:0;border-bottom:1px solid var(--term-filetto)}
+  .scelte--3x2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .scelte--3x2 label:nth-of-type(n){border-left:1px solid var(--inchiostro)}
+  .scelte--3x2 label:nth-of-type(odd){border-left:0}
+  .scelte--3x2 label:nth-of-type(n+3){border-top:1px solid var(--inchiostro)}
+}
+@media (prefers-reduced-motion:no-preference){
+  button.r,.progetto,.linguette button{transition:background-color .15s,color .15s}
+}
+</style>
+<script defer data-domain="arturo.stellakamikaze.org" data-api="/api/e" src="/js/a.js"></script>
+</head>
+<body>
+<a class="salta" href="#varianti">Vai alla prova</a>
+
+<header class="testata">
+  <img class="testata__volta" src="../../img/volta.svg" alt="" width="1600" height="1000">
+  <nav class="menu" aria-label="Principale">
+    <div class="dentro">
+      <a class="marchio" href="../../" aria-label="Arturo, pagina principale">
+        <svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M3 24 11.5 9.5 17 17l8-11" stroke="#0b0d10" stroke-width="1.5"/><circle cx="11.5" cy="9.5" r="3.2" fill="#f2a24a"/><circle cx="17" cy="17" r="1.6" fill="#0b0d10"/><circle cx="25" cy="6" r="1.6" fill="#0b0d10"/></svg>
+        Arturo
+      </a>
+      <div class="menu__fine stretta"><a href="../../">Cos'è Arturo</a><a href="../../feedback/">Feedback</a></div>
+    </div>
+  </nav>
+  <div class="dentro">
+    <div class="testata__corpo">
+      <h1 id="titolo">Dove vuoi vedere le tue cose da fare?</h1>
+      <p>Grazie delle risposte. Hai scelto le linguette per progetto (A3) e la catena (B2): le abbiamo costruite in una prova dentro Claude Code. Ora resta da scegliere dove si vede il pannello, e ogni posto ha i suoi limiti.</p>
+      <ul class="come">
+        <li><strong>Prova il pannello</strong>Qui sotto si clicca davvero: linguette, catena, righe e azioni. I dati sono inventati.</li>
+        <li><strong>Giudica i quattro posti</strong>Mi serve, forse o non mi serve. Il commento è facoltativo.</li>
+        <li><strong>Invia in fondo</strong>Le risposte arrivano a Federico. Fino all'invio restano salvate in questo browser.</li>
+      </ul>
+    </div>
+  </div>
+</header>
+
+<main id="varianti">
+<form id="prove" action="/api/feedback" method="post" novalidate>
+
+  <section class="gruppo dentro" aria-labelledby="g-preso">
+    <div class="gruppo__testa gruppo__testa--su">
+      <h2 id="g-preso">Cosa abbiamo preso<span>dalle tue risposte</span></h2>
+      <ul class="preso">
+        <li><strong>Una linguetta per progetto</strong>"Tutti" mostra lo stato di ogni progetto in una riga, con la cosa da cui ripartire.</li>
+        <li><strong>La catena a un clic</strong>Dentro un progetto si parte dalla lista. Il pulsante "catena" mostra cosa dipende da cosa, e torna indietro con un altro clic.</li>
+        <li><strong>Prima il processo, poi chi agisce</strong>In cima c'è "Da qui": la cosa da cui ripartire e cosa sblocca. Chi la fa è un dettaglio.</li>
+        <li><strong>Progetti in pausa: per ora no</strong>I tuoi progetti sono tutti attivi. La pausa torna se ne servirà.</li>
+      </ul>
+    </div>
+
+    <article class="variante" data-variante="P1" aria-labelledby="v-p1">
+      <div class="variante__testo">
+        <span class="sigla stretta">P1</span>
+        <h3 id="v-p1">Il pannello<span>linguette e catena</span></h3>
+        <p>Clicca una linguetta per cambiare progetto. In un progetto, il pulsante "catena" passa dalla lista all'albero.</p>
+        <p>Clicca una riga per sceglierla, poi "fatto", "ferma" o "chi lo fa". "Ripristina" rimette i dati com'erano.</p>
+      </div>
+      <div class="lastra lastra--cielo">
+        <figure class="finestra finestra--larga" aria-label="Prova del pannello /dafare">
+          <div class="finestra__barra"><i></i><i></i><i></i><span>/dafare</span></div>
+          <div class="pan" id="demo"><p>Il pannello di prova ha bisogno di JavaScript.</p></div>
+        </figure>
+      </div>
+      <div class="variante__voto"></div>
+    </article>
+  </section>
+
+  <section class="gruppo dentro" aria-labelledby="g-dove">
+    <div class="gruppo__testa">
+      <h2 id="g-dove">Dove si vede<span>quattro posti in Claude Code</span></h2>
+      <p>Il pannello è lo stesso. Cambia dove Claude Code lo mette, e se ci arrivano i clic. I clic del mouse arrivano solo con Claude Code a schermo intero: è un'impostazione di Claude Code, non di Arturo.</p>
+    </div>
+
+    <article class="variante variante--giro" data-variante="D1" aria-labelledby="v-d1">
+      <div class="variante__testo">
+        <span class="sigla stretta">D1</span>
+        <h3 id="v-d1">A lato, col mouse<span>accanto alla conversazione</span></h3>
+        <p>Claude Code a schermo intero mette il pannello a destra, e lì resta mentre lavori.</p>
+        <dl class="limiti">
+          <div class="puoi"><dt>Puoi</dt><dd>Cliccare linguette, catena, righe e azioni. Vedere le cose da fare mentre scrivi a Claude. Usare anche i tasti.</dd></div>
+          <div class="non"><dt>Non puoi</dt><dd>Tenere Claude Code come oggi: a schermo intero la conversazione sta in una pagina fissa e si scorre col mouse dentro la finestra.</dd></div>
+          <div class="serve"><dt>Serve</dt><dd>L'impostazione schermo intero e una finestra larga almeno 110 colonne. Il pannello prende fino a metà della larghezza.</dd></div>
+        </dl>
+      </div>
+      <div class="lastra lastra--giallo">
+        <figure class="schermo" aria-label="Esempio del pannello a lato">
+          <div class="schermo__corpo">
+            <div class="conv">
+              <p><b>&gt; sistemiamo la home</b></p>
+              <p>Leggo i testi approvati e preparo l'impaginazione…</p>
+              <p>&nbsp;</p>
+              <p>&bull; Edit sito/index.html</p>
+            </div>
+            <div class="pan">
+              <div class="linguette"><span>Tutti 25</span><span class="su">Sito nuovo 12</span><span>Podcast 7</span></div>
+              <div class="daqui">Da qui: #5 Mandare il logo</div>
+              <div class="h">TOCCA A TE</div>
+              <div class="r sel"><span class="k">#5</span><span>Mandare il logo</span><span class="m">scaduto ieri</span></div>
+              <div class="r"><span class="k">#2</span><span>Rileggere la privacy</span><span class="m"></span></div>
+              <div class="h">DECIDI TU</div>
+              <div class="r"><span class="k">#4</span><span>Scegliere l'hosting</span><span class="m"></span></div>
+            </div>
+          </div>
+          <div class="prompt">&gt; <span>scrivi qui</span></div>
+          <svg class="cursore" style="left:76%;top:30px" viewBox="0 0 18 22" aria-hidden="true"><path d="M1 1v17l4.5-4.2 3 6.7 3-1.4-3-6.6H15z" fill="#fff" stroke="#0b0d10" stroke-width="1.2"/></svg>
+        </figure>
+      </div>
+      <div class="variante__voto"></div>
+    </article>
+
+    <article class="variante" data-variante="D2" aria-labelledby="v-d2">
+      <div class="variante__testo">
+        <span class="sigla stretta">D2</span>
+        <h3 id="v-d2">In linea, coi tasti<span>sopra il prompt, come oggi</span></h3>
+        <p>Nel terminale normale il pannello si apre dentro la stessa finestra, sopra il prompt. È la modalità che usi già.</p>
+        <dl class="limiti">
+          <div class="puoi"><dt>Puoi</dt><dd>Usare il pannello senza cambiare niente di Claude Code. Cambiare progetto coi numeri, aprire la catena con g, agire con f, s e c.</dd></div>
+          <div class="non"><dt>Non puoi</dt><dd>Cliccare: nel terminale normale i clic restano al terminale, per selezionare e copiare il testo.</dd></div>
+          <div class="serve"><dt>Serve</dt><dd>Niente. Mentre è aperto, il pannello prende circa un terzo dell'altezza. Esc lo chiude.</dd></div>
+        </dl>
+      </div>
+      <div class="lastra lastra--verde">
+        <figure class="schermo" aria-label="Esempio del pannello in linea">
+          <div class="conv">
+            <p><b>&gt; sistemiamo la home</b></p>
+            <p>Leggo i testi approvati e preparo l'impaginazione…</p>
+          </div>
+          <div class="pan in-linea">
+            <div class="linguette"><span>0 Tutti 25</span><span class="su">1 Sito nuovo 12</span><span>2 Podcast 7</span><span>3 Fatture 4</span></div>
+            <div class="daqui">Da qui: #5 Mandare il logo in vettoriale, sblocca #11</div>
+            <div class="r sel"><span class="k">#5</span><span>Mandare il logo in vettoriale</span><span class="m">scaduto ieri</span></div>
+            <div class="r"><span class="k">#4</span><span>Scegliere l'hosting</span><span class="m">decidi tu</span></div>
+            <div class="pan__piede">0-5 progetto · g catena · f fatto · s ferma · Esc chiude</div>
+          </div>
+          <div class="prompt">&gt; <span>scrivi qui</span></div>
+        </figure>
+      </div>
+      <div class="variante__voto"></div>
+    </article>
+
+    <article class="variante variante--giro" data-variante="D3" aria-labelledby="v-d3">
+      <div class="variante__testo">
+        <span class="sigla stretta">D3</span>
+        <h3 id="v-d3">Testo nella conversazione<span>come una risposta</span></h3>
+        <p><code>/dafare testo</code> scrive l'elenco o la catena nella conversazione, come fa oggi <code>/monitor</code>. Niente pannello.</p>
+        <dl class="limiti">
+          <div class="puoi"><dt>Puoi</dt><dd>Vederlo in qualunque terminale e in qualunque modalità. Ritrovarlo più su nella conversazione.</dd></div>
+          <div class="non"><dt>Non puoi</dt><dd>Cliccare né usare i tasti: agisci scrivendo, per esempio <code>/dafare fatto 5</code>. Non si aggiorna da solo: per vederlo aggiornato lo rilanci.</dd></div>
+          <div class="serve"><dt>Serve</dt><dd>Niente. Si combina con gli altri posti: è un comando in più.</dd></div>
+        </dl>
+      </div>
+      <div class="lastra lastra--azzurro">
+        <figure class="schermo" aria-label="Esempio del testo nella conversazione">
+          <div class="conv">
+            <p><b>&gt; /dafare catena sito</b></p>
+<pre>Sito nuovo · 12 aperte · 1 scaduta
+Da qui: #5 Mandare il logo, sblocca #11
+
+  #5   Mandare il logo        tocca a te
+  #11  └─ Stampare biglietti  faccio io
+  #4   Scegliere l'hosting    decidi tu
+  #7   ├─ Configurare dominio faccio io
+  #9   │  └─ Pubblicare beta  faccio io
+  #8   └─ Attivare le email   faccio io</pre>
+          </div>
+          <div class="prompt">&gt; <span>/dafare fatto 5</span></div>
+        </figure>
+      </div>
+      <div class="variante__voto"></div>
+    </article>
+
+    <article class="variante" data-variante="D4" aria-labelledby="v-d4">
+      <div class="variante__testo">
+        <span class="sigla stretta">D4</span>
+        <h3 id="v-d4">In linea, col mouse<span>a schermo intero, finestra stretta</span></h3>
+        <p>A schermo intero, sotto le 110 colonne, il pannello va sopra il prompt come in D2, e i clic arrivano come in D1.</p>
+        <dl class="limiti">
+          <div class="puoi"><dt>Puoi</dt><dd>Cliccare tutto restando in una finestra sola, senza il pannello a lato.</dd></div>
+          <div class="non"><dt>Non puoi</dt><dd>Sceglierlo tu: lo decide Claude Code dalla larghezza. Se allarghi la finestra, il pannello passa a lato.</dd></div>
+          <div class="serve"><dt>Serve</dt><dd>Lo schermo intero, come in D1, e una finestra stretta, per esempio metà schermo.</dd></div>
+        </dl>
+      </div>
+      <div class="lastra lastra--cielo">
+        <figure class="schermo schermo--stretta" aria-label="Esempio del pannello in linea col mouse">
+          <div class="conv">
+            <p><b>&gt; sistemiamo la home</b></p>
+            <p>Preparo l'impaginazione…</p>
+          </div>
+          <div class="pan in-linea">
+            <div class="linguette"><span>Tutti 25</span><span class="su">Sito nuovo 12</span><span>Podcast 7</span></div>
+            <div class="daqui">Da qui: #5 Mandare il logo</div>
+            <div class="r sel"><span class="k">#5</span><span>Mandare il logo</span><span class="m">scaduto</span></div>
+            <div class="r"><span class="k">#4</span><span>Scegliere l'hosting</span><span class="m"></span></div>
+          </div>
+          <div class="prompt">&gt; <span>scrivi qui</span></div>
+          <svg class="cursore" style="left:44%;top:76px" viewBox="0 0 18 22" aria-hidden="true"><path d="M1 1v17l4.5-4.2 3 6.7 3-1.4-3-6.6H15z" fill="#fff" stroke="#0b0d10" stroke-width="1.2"/></svg>
+        </figure>
+      </div>
+      <div class="variante__voto"></div>
+    </article>
+
+    <p class="nota-gruppo">I posti si combinano. Il pannello va da solo a lato o in linea, in base a modalità e larghezza. Il testo nella conversazione è sempre un comando in più.</p>
+  </section>
+
+  <section class="fine" aria-labelledby="g-fine">
+    <div class="dentro fine__impianto">
+      <h2 id="g-fine">Ancora tre domande<span>poi invii tutto</span></h2>
+      <div class="domande" id="domande">
+
+        <div class="esito esito--ok" id="inviato" tabindex="-1" role="status">
+          <h3>Arrivato, grazie</h3>
+          <p>Federico legge le risposte e sceglie da qui dove mettere <code>/dafare</code>.</p>
+        </div>
+        <div class="esito esito--errore" id="errore" tabindex="-1" role="alert">
+          <h3>Le risposte non sono partite</h3>
+          <p data-motivo>Riprova tra un momento. Le risposte restano salvate in questo browser.</p>
+        </div>
+
+        <noscript><p class="senza-script">Questa pagina ha bisogno di JavaScript per mettere insieme le risposte. Senza, scrivi a Federico dalla pagina <a href="../../feedback/">feedback</a>.</p></noscript>
+
+        <fieldset data-domanda="Terminale">
+          <legend class="nome-campo">In quale terminale usi Claude Code?</legend>
+          <div class="scelte scelte--3x2">
+            <input type="radio" name="terminale" id="t-1" value="Terminale del Mac"><label for="t-1">Terminale del Mac</label>
+            <input type="radio" name="terminale" id="t-2" value="iTerm"><label for="t-2">iTerm</label>
+            <input type="radio" name="terminale" id="t-3" value="Ghostty"><label for="t-3">Ghostty</label>
+            <input type="radio" name="terminale" id="t-4" value="VS Code o Cursor"><label for="t-4">VS Code o Cursor</label>
+            <input type="radio" name="terminale" id="t-5" value="app desktop di Claude"><label for="t-5">App desktop</label>
+            <input type="radio" name="terminale" id="t-6" value="altro"><label for="t-6">Altro</label>
+          </div>
+        </fieldset>
+
+        <fieldset data-domanda="Schermo intero">
+          <legend class="nome-campo">Proveresti Claude Code a schermo intero per avere il mouse?</legend>
+          <div class="scelte">
+            <input type="radio" name="intero" id="s-1" value="sì"><label for="s-1">Sì</label>
+            <input type="radio" name="intero" id="s-2" value="forse"><label for="s-2">Forse</label>
+            <input type="radio" name="intero" id="s-3" value="no"><label for="s-3">No</label>
+          </div>
+        </fieldset>
+
+        <div class="campo campo--alto">
+          <label class="nome-campo" for="d-mouse">Cosa vuoi poter fare col mouse, che coi tasti ti pesa?</label>
+          <textarea id="d-mouse" name="mouse" data-domanda="Col mouse" maxlength="800" placeholder="Per esempio: passare da un progetto all'altro, aprire una cosa per leggerne i dettagli."></textarea>
+        </div>
+
+        <div class="campo">
+          <label class="nome-campo" for="d-nome">Il tuo nome</label>
+          <input id="d-nome" name="nome" type="text" autocomplete="given-name" maxlength="60">
+        </div>
+
+        <div class="trappola" aria-hidden="true">
+          <label for="d-sito">Non compilare questo campo</label>
+          <input id="d-sito" name="sito" type="text" tabindex="-1" autocomplete="off">
+        </div>
+
+        <div class="invio">
+          <button class="azione" type="submit" id="invia">Invia a Federico <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 8h10M9 4.5 12.5 8 9 11.5" stroke="currentColor" stroke-width="1.5"/></svg></button>
+          <p>Hai giudicato <output id="contate">0</output> voci su <span id="totale">5</span>. Le risposte arrivano a Federico Nejrotti come il <a href="../../feedback/">modulo di feedback</a>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</form>
+</main>
+
+<footer class="piede">
+  <div class="dentro">
+    <p><strong>Progetto di Federico Nejrotti.</strong> Pagina di prova, fuori dal menu del sito. <a href="../dafare/">La prima parte</a></p>
+    <p>Niente cookie, nessun tracker di terzi. <a href="../../privacy/">Privacy</a></p>
+  </div>
+</footer>
+
+<script src="../../js/prove-dafare-2.js"></script>
+<script type="module" src="../../note.js"></script>
+</body>
+</html>
