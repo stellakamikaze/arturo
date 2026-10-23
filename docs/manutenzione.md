@@ -80,8 +80,11 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
 
 - **Dove migliorare Arturo.** Il riepilogo del lunedì si apre con questa sezione, sugli ultimi 30
   giorni: fase di `/setup` dove si fermano le installazioni che non arrivano in fondo, guardie che
-  chiedono conferma con la quota di sì (vicina al 100% vuol dire domanda inutile), guardie che si
-  rompono, aggiornamenti rifiutati o annullati per versione, ritenzione a 7, 30 e 60 giorni,
+  chiedono conferma con la quota di sì (vicina al 100% vuol dire domanda inutile), sommate per guardia
+  (`confermeGuardie`) e per regola dove la guardia la dice (`conferme`: block-dangerous e
+  commit-secret-gate), guardie che si rompono, installazioni rimaste indietro (`indietro`: attive
+  negli ultimi 3 giorni senza un rilascio uscito da almeno 3, anche su Telegram ogni mattina),
+  aggiornamenti rifiutati o annullati per versione, ritenzione a 7, 30 e 60 giorni,
   versioni di Claude Code. Sono numeri, non verdetti: cosa correggere lo decide chi mantiene Arturo. Ogni correzione nata
   da un segnale lo dice nella sua voce di `NOVITA.md` ("Da sapere: lo mostrava la telemetria").
 - **Il riepilogo in JSON.** `GET /v1/riepilogo?dal=AAAA-MM-GG&al=AAAA-MM-GG` con l'intestazione

@@ -38,7 +38,7 @@ Proponi un nome corto, in minuscolo con i trattini, che dica il lavoro (`lettera
 
 ```bash
 NOME="nome-proposto"
-ls -d "$HOME/.claude/skills/$NOME" "$HOME/.claude/commands/$NOME.md" 2>/dev/null && echo "OCCUPATO" || echo "libero"
+ls -d ~/.claude/skills/"$NOME" ~/.claude/commands/"$NOME".md 2>/dev/null && echo "OCCUPATO" || echo "libero"
 ```
 
 Con `OCCUPATO` scegli un altro nome. Evita anche i nomi generici (`posta`, `scrivi`, `report`):
@@ -50,7 +50,7 @@ ne ha uno. Se il repository non risulta privato, `/fine` la tiene sulla macchina
 di pubblicarla:
 
 ```bash
-git -C "$HOME/.claude" remote get-url origin 2>/dev/null && gh repo view "$(git -C "$HOME/.claude" remote get-url origin)" --json visibility -q .visibility 2>/dev/null
+git -C ~/.claude remote get-url origin 2>/dev/null && gh repo view "$(git -C ~/.claude remote get-url origin)" --json visibility -q .visibility 2>/dev/null
 ```
 
 Se risponde `PUBLIC`, o se la visibilità non si legge, dillo alla persona prima di scrivere:
@@ -93,7 +93,7 @@ parti lunghe (un modello, un elenco di nomi), mettile in file a parte nella cart
 ## Passo 4 — La prova
 
 ```bash
-bash "$HOME/.claude/skills/system-audit/audit.sh" 2>&1 | grep -iE "skill|fantasma|peso|FAIL" | head -20
+bash ~/.claude/skills/system-audit/audit.sh 2>&1 | grep -iE "skill|fantasma|peso|FAIL" | head -20
 ```
 
 Nessun FAIL sulla skill nuova. Poi la prova vera, che fa la persona: apre una sessione nuova

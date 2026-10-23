@@ -57,7 +57,7 @@ else
     if [ ! -s "$APPLICA" ]; then
       echo "Config sync: manca bin/aggiorna-applica.sh, non ho scaricato. Non ho toccato niente."
     else
-      SYNC_OUTPUT=$(bash "$APPLICA" "$HOME/.claude" sync origin/main 2>&1)
+      SYNC_OUTPUT=$(bash "$APPLICA" ~/.claude sync origin/main 2>&1)
       case $? in
         0) printf '%s\n' "$SYNC_OUTPUT" | grep -q '^APPLICATO' && echo "Config sync: scaricate le modifiche delle tue altre macchine." ;;
         1) echo "Config sync: il sync dal tuo repository non è riuscito. La config è com'era prima."

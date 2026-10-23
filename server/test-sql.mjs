@@ -154,7 +154,6 @@ const casi = {
     assert.deepEqual(resto, ["setup-fine:viva0000"], "Q11 pulisci() non toglie le chiavi \"sempre\" delle installazioni senza più eventi");
     assert.equal(await a.primaVolta("sempre", "setup-fine:viva0000"), false, "Q11 la chiave di un'installazione viva è sparita");
   },
-  // Installazione nuova: vera solo finché dall'id non è arrivato niente (l'avviso Telegram parte una volta).
   // Dal 22/10/2026 block-dangerous dice la regola: le conferme si sommano anche per guardia, e
   // ventuno regole non fanno sparire dal riepilogo un'altra guardia (#3799).
   async Q12() {
@@ -190,6 +189,7 @@ const casi = {
     assert.equal(await a.ultimoAvviso("indietro:ales0000"), "2026-10-23", "Q13 l'ultimo avviso non si ritrova");
     assert.deepEqual((await a.miglioramento("2026-10-23")).indietro, fuori, "Q13 il riepilogo non porta chi è indietro");
   },
+  // Installazione nuova: vera solo finché dall'id non è arrivato niente (l'avviso Telegram parte una volta).
   async Q06() {
     const a = await con([["2026-10-12", "aaaaaaaa", "sessione"]]);
     assert.equal(await a.installazioneNuova("aaaaaaaa"), false, "Q06 un'installazione già vista risulta nuova");

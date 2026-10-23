@@ -728,7 +728,9 @@ def test_f13(repo: Path) -> None:
 def test_f14(repo: Path) -> None:
     """Gli altri comandi che possono girare in un worktree scrivono ~/.claude, non "$HOME/.claude" (#3802)."""
     rifiutati = []
-    for nome in ("diagnosi", "segnala", "aggiorna", "novita", "setup"):
+    for nome in ("diagnosi", "segnala", "aggiorna", "novita", "setup", "creaskill", "inizio"):  # gli ultimi due dal 23/10 (#3826)
+        if not (repo / "commands" / f"{nome}.md").exists():
+            continue  # una base vecchia può non avere ancora il comando (/creaskill nasce il 16/10)
         for b in blocchi(read(repo / "commands" / f"{nome}.md")):
             if b.startswith('B="$HOME/.claude-backup'):
                 continue  # l'installazione gira nel Terminale, ed è uguale a README e landing (LT06)
