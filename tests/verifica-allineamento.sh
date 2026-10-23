@@ -127,6 +127,7 @@ BANCHI=(
   test_moduli_2026_10_21.py
   test_unisci_settings_2026_10_22.py
   test_setup_invito_2026_10_23.py
+  test_reinstalla_2026_10_23.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -256,6 +257,8 @@ BASELINE=(
   "test_unisci_settings_2026_10_22.py dbb37e7"
   # L'avvio invita a finire /setup (23/10/2026): f4ae0aa, l'ultimo dev prima.
   "test_setup_invito_2026_10_23.py f4ae0aa"
+  # La reinstallazione riporta memoria, todo e scelte della persona (#3825): f4ae0aa, la regressione.
+  "test_reinstalla_2026_10_23.py f4ae0aa"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

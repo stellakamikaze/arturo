@@ -108,17 +108,27 @@ Facoltativi: **`gitleaks`** (audit segreti), **`bw`** (Bitwarden CLI, per le cre
 
 ## Installazione
 
-Claude Code crea `~/.claude` al primo avvio, quindi la cartella di solito esiste già. Il primo comando la mette da parte con la data nel nome: le tue impostazioni restano lì, niente si perde. Dopo il download tornano al loro posto il login, le sessioni passate (per riprenderle con `claude --resume`), la cronologia e i plugin: sono di Claude Code, non di Arturo, e git li ignora.
+Claude Code crea `~/.claude` al primo avvio, quindi la cartella di solito esiste già. L'installazione la mette da parte con la data nel nome: le tue impostazioni restano lì, niente si perde. Dopo il download tornano al loro posto il login, le sessioni passate (per riprenderle con `claude --resume`), la cronologia e i plugin: sono di Claude Code, non di Arturo, e git li ignora. Se reinstalli Arturo sopra un Arturo, tornano anche il tuo `CLAUDE.md`, `personale/`, la memoria, i todo e le tue scelte, compresa la telemetria spenta.
 
-**macOS e Linux** (Terminale), **Windows** (Git Bash, non PowerShell né il Prompt dei comandi):
+**macOS e Linux** (Terminale), **Windows** (Git Bash, non PowerShell né il Prompt dei comandi), una riga sola. Prima controlla git, python3, node e claude, e se `claude` non è nel PATH lo aggiunge:
+
+```bash
+curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash
+```
+
+Lo script sta nel ramo `landing-v2` (`sito/installa.sh`). Se preferisci leggere ogni comando, questo blocco fa lo stesso senza i controlli:
 
 ```bash
 B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
 [ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$B"
 git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
-# Tornano al loro posto login, sessioni, cronologia e plugin di Claude Code: sono tuoi, non di Arturo.
-for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos; do
-  [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mv "$B/$x" "$HOME/.claude/"
+# Tornano al loro posto login, sessioni, cronologia e plugin di Claude Code. Da un Arturo installato
+# prima tornano anche istruzioni, memoria, todo e scelte, compresa la telemetria spenta: sono tuoi.
+for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos \
+  CLAUDE.md settings.local.json personale hooks/hosts-interni.local data/memory data/memoria data/todo \
+  data/segnalazioni data/setup-fatto data/aggiornamenti.json session-env/telemetria.json \
+  session-env/segnala.json session-env/novita-viste; do
+  [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mkdir -p "$(dirname "$HOME/.claude/$x")" && mv "$B/$x" "$HOME/.claude/$x"
 done
 ```
 

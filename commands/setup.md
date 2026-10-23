@@ -52,9 +52,13 @@ Verifica che l'harness sia installato in `~/.claude`. Se NON lo è, fermati e gu
 B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
 [ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$B"
 git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
-# Tornano al loro posto login, sessioni, cronologia e plugin di Claude Code: sono tuoi, non di Arturo.
-for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos; do
-  [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mv "$B/$x" "$HOME/.claude/"
+# Tornano al loro posto login, sessioni, cronologia e plugin di Claude Code. Da un Arturo installato
+# prima tornano anche istruzioni, memoria, todo e scelte, compresa la telemetria spenta: sono tuoi.
+for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos \
+  CLAUDE.md settings.local.json personale hooks/hosts-interni.local data/memory data/memoria data/todo \
+  data/segnalazioni data/setup-fatto data/aggiornamenti.json session-env/telemetria.json \
+  session-env/segnala.json session-env/novita-viste; do
+  [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mkdir -p "$(dirname "$HOME/.claude/$x")" && mv "$B/$x" "$HOME/.claude/$x"
 done
 ```
 
