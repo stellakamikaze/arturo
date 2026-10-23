@@ -494,6 +494,43 @@ def test_f12(repo: Path) -> None:
     assert pubblicata, f"F12 /fine non salva la skill verso un remote privato: {uscita[-400:]}"
 
 
+def test_f15(repo: Path) -> None:
+    """Un progetto che la persona toglie dal sync con una riga sua nel .gitignore resta fuori (segnalazione n. 12)."""
+    fine = read(serve(repo, "commands/fine.md", "F15"))
+    assert "## FASE 9 · Config Sync" in fine, "F15 manca la FASE 9 · Config Sync di /fine"
+    inizio = fine.index("## FASE 9 · Config Sync")
+    blocco = fine[fine.index("```bash\n", inizio) + 8:fine.index("\n```", fine.index("```bash\n", inizio))]
+    with tempfile.TemporaryDirectory(prefix="arturo-f15-") as tmp:
+        lab = Lab(repo, Path(tmp))
+        config = lab.home / ".claude"
+        shutil.copytree(str(repo), str(config), ignore=shutil.ignore_patterns(".git", "__pycache__", "worktrees"),
+                        dirs_exist_ok=True)
+        # 23/10/2026, Gigi: un progetto riservato esce dal sync con una riga nel .gitignore della sua config.
+        with open(config / ".gitignore", "a", encoding="utf-8") as f:
+            f.write("\n# progetto riservato\ndata/handoffs/riservato/\n")
+        remoto = Path(tmp) / "config.git"
+        lab.git(Path(tmp), "init", "-q", "--bare", "-b", "main", str(remoto))
+        lab.git(config, "init", "-q", "-b", "main")
+        lab.git(config, "add", "-A")
+        lab.git(config, "commit", "-q", "-m", "config")
+        lab.git(config, "remote", "add", "origin", str(remoto))
+        lab.git(config, "push", "-q", "origin", "main")
+        for nome in ("aperto", "riservato"):
+            (config / "data" / "handoffs" / nome).mkdir(parents=True, exist_ok=True)
+            (config / "data" / "handoffs" / nome / "HANDOFF_2026-10-23_10-00.md").write_text("# h\n", encoding="utf-8")
+        finti = Path(tmp) / "finti"
+        finti.mkdir()
+        (finti / "gh").write_text("#!/bin/sh\necho PRIVATE\n", encoding="utf-8")
+        (finti / "gh").chmod(0o755)
+        r = lab.run([BASH, "-c", blocco], cwd=lab.home, PATH=f"{finti}{os.pathsep}{os.environ.get('PATH', '')}")
+        nel_remoto = lab.run(["git", "-C", str(remoto), "ls-tree", "-r", "--name-only", "main"]).stdout
+        uscita = (r.stdout + r.stderr)[-400:]
+        assert "data/handoffs/aperto/HANDOFF_2026-10-23_10-00.md" in nel_remoto, \
+            f"F15 /fine non salva più gli handoff verso un remote privato: {uscita}"
+        assert "data/handoffs/riservato/" not in nel_remoto, \
+            f"F15 /fine pubblica gli handoff di un progetto che la persona ha escluso dal sync: {uscita}"
+
+
 # --- F06: arturo contesto -----------------------------------------------------------------------
 
 def test_f06(repo: Path) -> None:
@@ -741,7 +778,7 @@ def test_f14(repo: Path) -> None:
 
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
-         "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14}
+         "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15}
 
 
 def main() -> int:
