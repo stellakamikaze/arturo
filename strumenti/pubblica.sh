@@ -32,8 +32,9 @@ case "$passo" in
     ;;
   applica)
     ssh "$HOST" "test -d '$arrivo/sito'" || { echo "Manca $arrivo: lancia prima $0 prepara $commit" >&2; exit 1; }
-    backup="backup-$(date +%Y-%m-%d-%H%M)-html-prima-di-$commit"
-    ssh "$HOST" "cd '$BASE' && cp -a html '$backup' && diff -rq html '$backup' >/dev/null" \
+    backup="backup-$(date +%Y-%m-%d-%H%M%S)-html-prima-di-$commit"
+    # Un nome che c'è già farebbe copiare html/ dentro il backup vecchio: si ferma prima.
+    ssh "$HOST" "cd '$BASE' && test ! -e '$backup' && cp -a html '$backup' && diff -rq html '$backup' >/dev/null" \
       || { echo "Il backup $backup non è uguale a html/: mi fermo prima di copiare" >&2; exit 1; }
     ssh "$HOST" "cd '$BASE' && rsync -a --delete --exclude '*.json' '_arrivo-$commit/sito/' html/ && diff -rq -x '*.json' html '_arrivo-$commit/sito'" \
       || { echo "html/ non è uguale al pacchetto dopo la copia: $arrivo resta per guardarci" >&2; exit 1; }
@@ -42,8 +43,9 @@ case "$passo" in
     git -C "$RADICE" archive "$commit" sito | tar -x -C "$tmp"
     hash=$(cd "$tmp/sito" && find . -type f ! -name '*.json' -print0 | xargs -0 shasum -a 256 | sed 's#  \./#  /usr/share/nginx/html/#')
     rm -rf "$tmp"
-    fuori=$(printf '%s\n' "$hash" | ssh "$HOST" "docker exec -i arturo-sito sha256sum -c --quiet" 2>&1) \
-      || { echo "Il servito non ha gli hash del commit: $arrivo resta" >&2; echo "$fuori" >&2; exit 1; }
+    # sha256sum del container è quello di BusyBox: niente --quiet, le righe giuste finiscono con ": OK".
+    fuori=$(printf '%s\n' "$hash" | ssh "$HOST" "docker exec -i arturo-sito sha256sum -c" 2>&1) \
+      || { echo "Il servito non ha gli hash del commit: $arrivo resta" >&2; printf '%s\n' "$fuori" | grep -v ': OK$' >&2; exit 1; }
     n=$(printf '%s\n' "$hash" | grep -c .)
     [[ "$arrivo" =~ ^$BASE/_arrivo-[0-9a-f]{7,40}$ ]] || { echo "Percorso inatteso: $arrivo" >&2; exit 1; }
     ssh "$HOST" "rm -rf '$arrivo'"
