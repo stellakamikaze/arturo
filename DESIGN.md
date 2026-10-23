@@ -371,6 +371,9 @@ Ogni tappa ha una boa quadrata di 40 px. La tappa corrente ha la boa piena `azio
 ### Modulo di feedback (`/feedback/`)
 Testata cielo con la volta, poi 5/12 a sinistra «Dove va il tuo messaggio» (elenco con filetto `inchiostro` e icone `azione`) e 7/12 a destra il modulo. Il tipo è una fila di quattro scelte squadrate con bordo `inchiostro`, la scelta piena `inchiostro`, come la scelta Mac/Windows della guida. Testo ed email sono campi con il solo filetto in basso. Il registratore sta su `carta-2`: pulsante `azione` «Registra un vocale», mentre registra pulsante `inchiostro` «Ferma» con un quadrato `blocca` che pulsa (fermo con movimento ridotto), il livello del microfono in barre `inchiostro` su canvas, il tempo in mono con le cifre tabellari. Gli esiti sono riquadri bianchi con una riga di 3 px in testa, `passa` o `blocca`. Senza script il modulo parte come form e l'esito si accende con `:target` sull'ancora del rimando.
 
+### Pagine di prova (`/prove/<nome>/`)
+Pagine temporanee per far giudicare a qualcuno delle varianti prima di costruirle: `/prove/dafare/` (sette varianti del pannello, 22/10/2026) e `/prove/dafare-2/` (il pannello da cliccare, 23/10). Fuori da menu e sitemap, `noindex`. Testata e menu si copiano dal `<style>` di `/feedback/`, e `stile/colori.css` porta solo i token. Lo script sta in `sito/js/prove-<nome>.js` (CSP `script-src 'self'`). Voti e commenti restano in `localStorage` mentre la persona scrive, e partono in un solo invio a `/api/feedback` come `idea`, entro i 4000 caratteri del modulo. A invio riuscito la copia locale si cancella: la privacy lo dice. Una pagina di prova si toglie quando le risposte sono arrivate e lette.
+
 ### Privacy (`/privacy/`)
 Pagina da leggere, con la stessa griglia 3/9 della pagina novità. In testa quattro voci brevi con il filetto `inchiostro`. Il «mai» sta su `carta-2`. Le tabelle hanno l'intestazione in voce stretta e diventano righe impilate sotto 520 px.
 
