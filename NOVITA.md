@@ -11,6 +11,21 @@ modo di lavorare.
 
 ---
 
+## 2026-10-23 — Un progetto riservato resta fuori dal sync
+
+**Cosa cambia**: se togli dal sync gli appunti di un progetto, con una riga nel `.gitignore` della tua
+config, `/fine` la rispetta. Prima li aggiungeva lo stesso e li avrebbe mandati al tuo repository
+privato al primo sync. Gli appunti degli altri progetti viaggiano come prima, solo verso un repository
+privato.
+
+**Il principio dietro**: una scelta che fai tu sulla tua config vale più di una regola generale di
+Arturo.
+
+**Da sapere**: lo mostrava la segnalazione n. 12. Insieme agli appunti restano fuori anche i file
+`.key` e `.env`, che il `.gitignore` di Arturo esclude già.
+
+---
+
 ## 2026-10-23 — Claude ti ricorda di finire /setup, e una reinstallazione non perde niente di tuo
 
 **Cosa cambia**: se hai installato Arturo e non sei arrivato in fondo a `/setup`, Claude te lo dice in
