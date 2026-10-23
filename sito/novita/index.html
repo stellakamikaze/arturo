@@ -47,6 +47,17 @@
  "blogPost": [
   {
    "@type": "BlogPosting",
+   "headline": "Un progetto riservato resta fuori dal sync",
+   "datePublished": "2026-10-23",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-10-23-un-progetto-riservato-resta-fuori-dal-sync",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
    "headline": "Claude ti ricorda di finire /setup, e una reinstallazione non perde niente di tuo",
    "datePublished": "2026-10-23",
    "author": {
@@ -840,11 +851,21 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
   <div class="dentro">
     <div class="voci" id="voci">
 
+      <article class="voce" id="2026-10-23-un-progetto-riservato-resta-fuori-dal-sync" aria-labelledby="t-2026-10-23-un-progetto-riservato-resta-fuori-dal-sync">
+        <p class="voce__data stretta"><time datetime="2026-10-23">23 ottobre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-10-23-un-progetto-riservato-resta-fuori-dal-sync"><a href="#2026-10-23-un-progetto-riservato-resta-fuori-dal-sync">Un progetto riservato resta fuori dal sync</a></h2>
+          <p><strong>Cosa cambia</strong>: se togli dal sync gli appunti di un progetto, con una riga nel <code>.gitignore</code> della tua config, <code>/fine</code> la rispetta. Prima li aggiungeva lo stesso e li avrebbe mandati al tuo repository privato al primo sync. Gli appunti degli altri progetti viaggiano come prima, solo verso un repository privato.</p>
+          <p><strong>Il principio dietro</strong>: una scelta che fai tu sulla tua config vale più di una regola generale di Arturo.</p>
+          <p><strong>Da sapere</strong>: lo mostrava la segnalazione n. 12. Insieme agli appunti restano fuori anche i file <code>.key</code> e <code>.env</code>, che il <code>.gitignore</code> di Arturo esclude già.</p>
+        </div>
+      </article>
+
       <article class="voce" id="2026-10-23-claude-ti-ricorda-di-finire-setup-e-una-reinstallazione-non" aria-labelledby="t-2026-10-23-claude-ti-ricorda-di-finire-setup-e-una-reinstallazione-non">
         <p class="voce__data stretta"><time datetime="2026-10-23">23 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-23-claude-ti-ricorda-di-finire-setup-e-una-reinstallazione-non"><a href="#2026-10-23-claude-ti-ricorda-di-finire-setup-e-una-reinstallazione-non">Claude ti ricorda di finire /setup, e una reinstallazione non perde niente di tuo</a></h2>
-          <p><strong>Cosa cambia</strong>: se hai installato Arturo e non sei arrivato in fondo a <code>/setup</code>, Claude te lo dice in una riga all'inizio della sessione, una volta al giorno. Puoi rispondere di no: l'invito torna il giorno dopo, e smette quando <code>/setup</code> arriva in fondo. Se reinstalli Arturo sopra un Arturo, tornano al loro posto il tuo <code>CLAUDE.md</code>, <code>personale/</code>, la memoria, i todo e le tue scelte. Fra le scelte c'è la telemetria spenta, che prima una reinstallazione riaccendeva. Arturo ora si installa anche con una riga sola: <code>curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash</code>.</p>
+          <p><strong>Cosa cambia</strong>: se hai installato Arturo e non sei arrivato in fondo a <code>/setup</code>, Claude te lo dice in una riga all'inizio della sessione, una volta al giorno. Puoi rispondere di no: l'invito torna il giorno dopo, e smette quando <code>/setup</code> arriva in fondo. Se reinstalli Arturo da capo coi comandi del README, tornano al loro posto il tuo <code>CLAUDE.md</code>, <code>personale/</code>, la memoria, i todo e le tue scelte. Fra le scelte c'è la telemetria spenta, che prima una reinstallazione riaccendeva. Arturo ora si installa anche con una riga sola: <code>curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash</code>. Se Arturo c'è già, la riga si ferma e ti dice di scrivere <code>/aggiorna</code>.</p>
           <p><strong>Il principio dietro</strong>: la telemetria ha mostrato installazioni nuove che non hanno mai aperto <code>/setup</code>, o che si sono fermate a metà. Senza la configurazione Arturo non sa chi sei né dove stanno i tuoi progetti.</p>
           <p><strong>Da sapere</strong>: chi ha installato Arturo prima del 16 ottobre non riceve l'invito, perché allora <code>/setup</code> non lasciava il segno di essere finito.</p>
         </div>
