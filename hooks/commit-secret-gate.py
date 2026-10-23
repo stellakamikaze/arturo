@@ -23,10 +23,19 @@ import subprocess
 import sys
 
 
+def _regola(nome: str) -> None:
+    # Il dispatcher di Arturo chiede anche quale regola ha parlato: va nella telemetria come
+    # commit-secret-gate.py.<regola>. Dal 19 al 22/10/2026 la guardia ha chiesto 6 volte durante
+    # /fine e nessun dato diceva perché. Senza la variabile l'uscita resta il solo JSON.
+    if os.environ.get("ARTURO_REGOLA") == "1":
+        print(f"REGOLA: {nome}")
+
+
 def _stdin_timeout(signum, frame):
     # 9/10/2026: un gate che scade e tace è un gate spento (git lento, disco freddo).
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask",
                       "permissionDecisionReason": "Scansione dei segreti nel commit scaduta: conferma prima di proseguire."}}))
+    _regola("scaduta")
     sys.exit(0)
 
 
@@ -227,8 +236,9 @@ def _diff(repo: str, commit_all: bool, add_prima: bool = False) -> str | None:
     return "\n".join(part for part in output if part)
 
 
-def _ask(reason: str) -> int:
+def _ask(regola: str, reason: str) -> int:
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": reason}}))
+    _regola(regola)
     return 0
 
 
@@ -250,7 +260,7 @@ def main() -> int:
     if repo is False:
         return 0
     if not repo:
-        return _ask("Repository destinatario del commit non risolvibile: conferma prima di proseguire.")
+        return _ask("repo-ignoto", "Repository destinatario del commit non risolvibile: conferma prima di proseguire.")
     # Fuori da un repository Git il commit fallisce da solo: niente da scansionare.
     try:
         dentro = subprocess.run(["git", "-C", repo, "rev-parse", "--git-dir"], capture_output=True,
@@ -273,7 +283,7 @@ def main() -> int:
         if hasattr(signal, "SIGALRM"):
             signal.alarm(0)
     if out is None:
-        return _ask("Scansione Git del repository destinatario fallita: conferma prima di proseguire.")
+        return _ask("scansione-fallita", "Scansione Git del repository destinatario fallita: conferma prima di proseguire.")
 
     if not out:
         return 0
@@ -293,18 +303,11 @@ def main() -> int:
         return 0
 
     uniq = list(dict.fromkeys(found))
-    print(json.dumps({
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "ask",
-            "permissionDecisionReason": (
+    # La regola è il primo pattern trovato, in minuscolo col trattino: "Google API key" -> google-api-key.
+    return _ask(re.sub(r"[^a-z0-9]+", "-", uniq[0].lower()).strip("-")[:30],
                 "Possibile secret nel diff staged: " + ", ".join(uniq[:5]) + ". "
                 "Un leak pushato è irreversibile. Conferma solo dopo aver "
-                "verificato che non sia una credenziale reale."
-            ),
-        }
-    }))
-    return 0
+                "verificato che non sia una credenziale reale.")
 
 
 if __name__ == "__main__":

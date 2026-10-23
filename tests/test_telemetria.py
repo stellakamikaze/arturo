@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M01-M18: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
+"""M01-M19: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
 
 Ogni caso gira con una HOME finta e un server HTTP finto su 127.0.0.1 (ARTURO_TELEMETRIA_URL):
 niente parte mai verso il server vero. Sulla base db96709, prima della telemetria, ogni controllo
@@ -450,10 +450,30 @@ def test_m18(repo: Path) -> None:
     assert '"ask"' in r.stdout and "REGOLA" not in r.stdout, f"M18 senza il dispatcher di Arturo esce la riga REGOLA: {r.stdout!r}"
 
 
+def test_m19(repo: Path) -> None:
+    # 23/10/2026: commit-secret-gate ha chiesto 6 volte durante /fine fra il 19 e il 22/10, e la telemetria
+    # non diceva quale regola. Ora chiede porta commit-secret-gate.py.<regola>, come block-dangerous (M18).
+    lab = Lab(repo)
+    progetto = lab.dir / "progetto"
+    progetto.mkdir()
+    subprocess.run(["git", "init", "-q", str(progetto)], check=True)
+    chiave = "AIza" + "x" * 35  # composta qui, così il banco non contiene una chiave intera
+    (progetto / "conf.txt").write_text(f"chiave = {chiave}\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(progetto), "add", "conf.txt"], check=True)
+    r = lab.hook("bash-dispatcher.sh", json.dumps({"tool_name": "Bash", "cwd": str(progetto),
+                                                    "tool_input": {"command": "git commit -m prova"},
+                                                    "tool_use_id": "toolu_19"}))
+    assert '"ask"' in r.stdout and "REGOLA" not in r.stdout, f"M19 a Claude Code arriva altro dal JSON: {r.stdout!r}"
+    json.loads(r.stdout)
+    assert [(e["evento"], e["valore"]) for e in lab.coda()] == [("chiede", "commit-secret-gate.py.google-api-key")], \
+        f"M19 la telemetria non dice quale regola chiede: {lab.coda()}"
+    assert chiave not in json.dumps(lab.coda()), "M19 la chiave esce nella telemetria"
+
+
 TESTS = {"M01": test_m01, "M02": test_m02, "M03": test_m03, "M04": test_m04, "M05": test_m05,
          "M06": test_m06, "M07": test_m07, "M08": test_m08, "M09": test_m09, "M10": test_m10,
          "M11": test_m11, "M12": test_m12, "M13": test_m13, "M14": test_m14, "M15": test_m15,
-         "M16": test_m16, "M17": test_m17, "M18": test_m18}
+         "M16": test_m16, "M17": test_m17, "M18": test_m18, "M19": test_m19}
 
 
 def main() -> int:

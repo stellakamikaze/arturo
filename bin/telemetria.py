@@ -17,8 +17,8 @@ esattamente cosa parte.
 
 Due tempi, perché un hook non deve mai aspettare la rete:
 - `registra` aggiunge una riga alla coda in ~/.claude/data/telemetria/coda.jsonl, senza rete. Lo
-  stesso fanno `chiede` (una guardia chiede conferma, per block-dangerous con il nome della
-  regola: l'id della chiamata resta in
+  stesso fanno `chiede` (una guardia chiede conferma, per block-dangerous e commit-secret-gate con il
+  nome della regola: l'id della chiamata resta in
   session-env/telemetria-attese.json) ed `esito` (il PostToolUse, via bin/telemetria-esito.sh: se la
   chiamata era in attesa, registra `confermata`);
 - `invia` manda la coda in un lotto. L'avvio della sessione lo lancia in background, al massimo
@@ -78,7 +78,7 @@ EVENTI = {
 # l'avviso torna una volta, anche a chi aveva già visto la precedente. 3: senza le tappe (16/10/2026).
 # 4: gli aggiornamenti installati da soli alla chiusura si contano a parte (16/10/2026, #3482).
 # 5: gli aggiornamenti che non partono da soli dicono perché, una volta per versione (20/10/2026, #3637).
-# 6: le conferme di block-dangerous dicono quale regola ha chiesto (22/10/2026, #3798).
+# 6: le conferme di block-dangerous e di commit-secret-gate dicono quale regola ha chiesto (22-23/10/2026, #3798).
 PROMESSA = 6
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
 # ~/.claude/commands/ ha un nome suo, e non esce.
