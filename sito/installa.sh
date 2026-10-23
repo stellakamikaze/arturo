@@ -79,7 +79,8 @@ main() {
   fi
 
   # Passo 4: la cartella che c'è va da parte con la data, Arturo prende il suo posto,
-  # e login, sessioni e plugin di Claude Code tornano dove erano.
+  # e tornano dove erano login, sessioni e plugin di Claude Code, e da un Arturo di prima
+  # anche istruzioni, memoria, todo e scelte (la lista più sotto).
   local b=""
   if [ -e "$dest" ]; then
     b="$HOME/.claude-backup-$(date +%Y%m%d-%H%M%S)"
@@ -110,7 +111,8 @@ main() {
   echo "Arturo installato."
   [ -n "$b" ] && echo "La configurazione di prima è in $b"
   echo
-  echo "Arturo manda dati d'uso anonimi a chi lo mantiene, mai le tue richieste o i tuoi file."
+  echo "Arturo manda a chi lo mantiene dati d'uso da un elenco chiuso, mai le tue richieste o i tuoi file."
+  echo "Per vedere cosa parte: python3 ~/.claude/bin/arturo telemetria mostra"
   echo "Per spegnerli: python3 ~/.claude/bin/arturo telemetria spegni"
   echo
   echo "Adesso:"
