@@ -201,6 +201,23 @@ if [ -f "$HOME/.claude/bin/telemetria.py" ]; then
   python3 "$HOME/.claude/bin/telemetria.py" avvio 2>/dev/null || true
 fi
 
+# Invito a finire /setup (23/10/2026): nella telemetria Liliana ha installato e non l'ha mai lanciato,
+# Alessio si è fermato prima della fase 9. Una volta al giorno, solo in un'installazione vera senza il
+# segno di data/setup-fatto. Il segno c'è dal 16/10: chi ha installato prima (data del clone nel reflog,
+# o reflog vuoto perché scaduto) poteva aver finito senza segno, e lì non si chiede. Gli aggiornamenti
+# non contano: arrivano anche da soli, a chi /setup non l'ha mai aperto.
+NATA_SETUP=$(git -C "$HOME/.claude" reflog show --date=short --format=%gd HEAD 2>/dev/null | tail -1)
+NATA_SETUP=${NATA_SETUP#HEAD@\{}
+NATA_SETUP=${NATA_SETUP%\}}
+if [ -d "$HOME/.claude/.git" ] && [ ! -f "$HOME/.claude/data/setup-fatto" ] \
+  && [[ "$NATA_SETUP" > "2026-10-15" ]]; then
+  OGGI_SETUP=$(date +%Y-%m-%d)
+  if [ "$(cat "$HOME/.claude/session-env/setup-invito" 2>/dev/null)" != "$OGGI_SETUP" ]; then
+    mkdir -p "$HOME/.claude/session-env" && printf '%s\n' "$OGGI_SETUP" > "$HOME/.claude/session-env/setup-invito"
+    echo "SETUP: la prima configurazione di Arturo non è finita. Nella tua prima risposta dillo alla persona in una riga e proponi di scrivere /setup, che la guida una cosa per volta. Poi fai quello che chiede, e se dice di no non insistere: l'invito torna domani."
+  fi
+fi
+
 # Invito a segnalare: Arturo migliora con quello che le persone gli dicono. Una riga di contesto,
 # spenta da "arturo segnala basta" (stato in session-env/segnala.json).
 if ! grep -q '"pausa": "sempre"' "$HOME/.claude/session-env/segnala.json" 2>/dev/null; then

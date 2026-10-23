@@ -126,6 +126,7 @@ BANCHI=(
   test_argv_lista_2026_10_21.py
   test_moduli_2026_10_21.py
   test_unisci_settings_2026_10_22.py
+  test_setup_invito_2026_10_23.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -253,6 +254,8 @@ BASELINE=(
   "test_moduli_2026_10_21.py d0a5ce6"
   # L'aggiornamento unisce settings.json come JSON (22/10/2026): dbb37e7, il main v2026-10-22.
   "test_unisci_settings_2026_10_22.py dbb37e7"
+  # L'avvio invita a finire /setup (23/10/2026): f4ae0aa, l'ultimo dev prima.
+  "test_setup_invito_2026_10_23.py f4ae0aa"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

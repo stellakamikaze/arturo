@@ -11,10 +11,25 @@ modo di lavorare.
 
 ---
 
+## 2026-10-23 — Claude ti ricorda di finire /setup
+
+**Cosa cambia**: se hai installato Arturo e non sei arrivato in fondo a `/setup`, Claude te lo dice in
+una riga all'inizio della sessione, una volta al giorno. Puoi rispondere di no: l'invito torna il giorno
+dopo, e smette quando `/setup` arriva in fondo.
+
+**Il principio dietro**: la telemetria ha mostrato installazioni nuove che non hanno mai aperto `/setup`,
+o che si sono fermate a metà. Senza la configurazione Arturo non sa chi sei né dove stanno i tuoi progetti.
+
+**Da sapere**: chi ha installato Arturo prima del 16 ottobre non riceve l'invito, perché allora `/setup`
+non lasciava il segno di essere finito.
+
+---
+
 ## 2026-10-22 — L'avviso sulla telemetria torna, e l'unione regge dopo un conflitto
 
 **Cosa cambia**: alla prossima sessione Arturo ti ridice in due righe cosa manda la telemetria, perché
-ora c'è una cosa in più: quando `block-dangerous` ti chiede conferma, esce anche il nome della regola.
+ora c'è una cosa in più: quando `block-dangerous` o `commit-secret-gate` ti chiedono conferma, esce anche
+il nome della regola.
 Se un aggiornamento si ferma su un conflitto vero e lo risolvi con `/aggiorna`, il resto
 dell'aggiornamento continua a unire `settings.json` come impostazioni. Prima, dopo il primo conflitto,
 tornava a unirlo riga per riga. `/diagnosi`, `/segnala`, `/aggiorna`, `/novita` e `/setup` scrivono i
@@ -23,7 +38,7 @@ percorsi con la tilde (`~/.claude`), che Claude Code accetta anche quando la ses
 **Il principio dietro**: quando cambia cosa esce dal tuo computer, lo devi sapere da Arturo prima che
 da un riepilogo.
 
-**Da sapere**: della regola esce solo il nome, come `rm-cartella`. Gli hook che `/setup` ti riporta
+**Da sapere**: della regola esce solo il nome, come `rm-cartella` o `google-api-key`, mai il file o la chiave. Gli hook che `/setup` ti riporta
 da prima di Arturo restano dove l'altra app li aveva messi, e `/fine` li salva con `settings.json`.
 
 ---
