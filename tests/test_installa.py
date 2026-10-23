@@ -134,7 +134,35 @@ def caso_dentro_claude_code(lab):
     assert rc == 0 and "/exit" in out, f"rc {rc}\n{out}"
 
 
-CASI = [caso_nuova, caso_senza_cartella, caso_clone_fallito, caso_python_vecchio,
+def caso_config_di_prima(lab):
+    # La ~/.claude di prima ha cose della persona: tornano al loro posto (#3825).
+    lab.claude_locale()
+    c = lab.home / ".claude"
+    (c / "data" / "memory").mkdir(parents=True)
+    (c / "data" / "memory" / "nota.md").write_text("mia")
+    (c / "CLAUDE.md").write_text("# Gunnar")
+    (c / "session-env").mkdir()
+    (c / "session-env" / "telemetria.json").write_text('{"spenta": true}')
+    rc, out = lab.lancia()
+    assert rc == 0, f"rc {rc}\n{out}"
+    for f, t in (("data/memory/nota.md", "mia"), ("CLAUDE.md", "# Gunnar"), ("session-env/telemetria.json", '{"spenta": true}')):
+        assert (c / f).is_file() and (c / f).read_text() == t, f"non torna {f}"
+
+
+def caso_sincronizzata(lab):
+    # Arturo sincronizzato su un repository privato: origin è suo, upstream è Arturo. Non si reinstalla.
+    lab.claude_locale()
+    c = lab.home / ".claude"
+    sh("git", "init", "-q", str(c))
+    sh("git", "-C", str(c), "remote", "add", "origin", "https://github.com/qualcuno/config-privata.git")
+    sh("git", "-C", str(c), "remote", "add", "upstream", "https://github.com/stellakamikaze/arturo.git")
+    (c / "mio.txt").write_text("mio")
+    rc, out = lab.lancia()
+    assert rc == 0 and "già installato" in out, f"rc {rc}\n{out}"
+    assert (c / "mio.txt").is_file() and lab.backup() == [], "ha spostato una config sincronizzata"
+
+
+CASI = [caso_nuova, caso_config_di_prima, caso_sincronizzata, caso_senza_cartella, caso_clone_fallito, caso_python_vecchio,
         caso_senza_claude, caso_dentro_claude_code]
 
 

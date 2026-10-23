@@ -568,7 +568,7 @@ python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/
       <div class="tappa__corpo">
         <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-4"><span class="tappa__nome">Scarica Arturo</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span></button></h2>
         <div class="tappa__piega" id="corpo-4"><div><div class="foglio">
-          <p class="perche">Arturo vive nella cartella delle impostazioni di Claude Code, <code>~/.claude</code>. Il comando controlla prima i programmi dei passi 2 e 3. Poi mette da parte la cartella che c'è già, con la data nel nome: non si perde niente. Login, sessioni e plugin tornano subito al loro posto. Se un'altra app aveva aggiunto i suoi hook a Claude Code (ClaudeBar, una barra di stato), al passo 6 <code>/setup</code> li ritrova e, col tuo sì, li rimette.</p>
+          <p class="perche">Arturo vive nella cartella delle impostazioni di Claude Code, <code>~/.claude</code>. Il comando controlla prima i programmi dei passi 2 e 3. Poi mette da parte la cartella che c'è già, con la data nel nome: non si perde niente. Login, sessioni e plugin tornano subito al loro posto. Se reinstalli sopra un Arturo, tornano anche il tuo <code>CLAUDE.md</code>, la memoria, i todo e le tue scelte. Se un'altra app aveva aggiunto i suoi hook a Claude Code (ClaudeBar, una barra di stato), al passo 6 <code>/setup</code> li ritrova e, col tuo sì, li rimette.</p>
           <div class="consegna">
             <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Incolla e premi Invio <small data-solo="win">in Git Bash</small></p>
             <div class="comando"><pre id="cmd-scarica">curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash</pre><button type="button" data-copia="cmd-scarica">Copia</button></div>
@@ -580,8 +580,11 @@ python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/
               <div class="comando"><pre id="cmd-scarica-esteso">B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
 [ -d "$HOME/.claude" ] &amp;&amp; mv "$HOME/.claude" "$B"
 git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
-for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos; do
-  [ -e "$B/$x" ] &amp;&amp; [ ! -e "$HOME/.claude/$x" ] &amp;&amp; mv "$B/$x" "$HOME/.claude/"
+for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos \
+  CLAUDE.md settings.local.json personale hooks/hosts-interni.local data/memory data/memoria data/todo \
+  data/segnalazioni data/setup-fatto data/aggiornamenti.json session-env/telemetria.json \
+  session-env/segnala.json session-env/novita-viste; do
+  [ -e "$B/$x" ] &amp;&amp; [ ! -e "$HOME/.claude/$x" ] &amp;&amp; mkdir -p "$(dirname "$HOME/.claude/$x")" &amp;&amp; mv "$B/$x" "$HOME/.claude/$x"
 done</pre><button type="button" data-copia="cmd-scarica-esteso">Copia</button></div>
             </div>
           </details>

@@ -51,7 +51,7 @@ Arturo vive nella cartella di Claude Code, `~/.claude`. Si installa con una riga
 curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash
 ```
 
-Lo script controlla git, python3 3.8+, node e claude. Se `claude` sta in `~/.local/bin` ma non nel PATH, aggiunge la riga al file della shell. Poi mette da parte la cartella che c'è già, con la data nel nome, scarica Arturo e riporta login, sessioni e plugin. Se lo scaricamento fallisce, rimette la cartella com'era. Se Arturo c'è già, non rifà niente.
+Lo script controlla git, python3 3.8+, node e claude. Se `claude` sta in `~/.local/bin` ma non nel PATH, aggiunge la riga al file della shell. Poi mette da parte la cartella che c'è già, con la data nel nome, scarica Arturo e riporta login, sessioni e plugin, e da un Arturo di prima anche CLAUDE.md, memoria, todo e scelte. Se lo scaricamento fallisce, rimette la cartella com'era. Se Arturo c'è già, non rifà niente.
 
 ### Se sei Claude Code e l'utente ti chiede di installare Arturo
 
@@ -67,9 +67,13 @@ Lo stesso a mano, senza i controlli:
 B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
 [ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$B"
 git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
-# Tornano al loro posto login, sessioni, cronologia e plugin di Claude Code: sono tuoi, non di Arturo.
-for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos; do
-  [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mv "$B/$x" "$HOME/.claude/"
+# Tornano al loro posto login, sessioni, cronologia e plugin di Claude Code. Da un Arturo installato
+# prima tornano anche istruzioni, memoria, todo e scelte, compresa la telemetria spenta: sono tuoi.
+for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos \
+  CLAUDE.md settings.local.json personale hooks/hosts-interni.local data/memory data/memoria data/todo \
+  data/segnalazioni data/setup-fatto data/aggiornamenti.json session-env/telemetria.json \
+  session-env/segnala.json session-env/novita-viste; do
+  [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mkdir -p "$(dirname "$HOME/.claude/$x")" && mv "$B/$x" "$HOME/.claude/$x"
 done
 ```
 

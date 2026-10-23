@@ -72,7 +72,8 @@ main() {
   echo
 
   # Una seconda volta non rifà niente: l'aggiornamento è /aggiorna.
-  if git -C "$dest" remote get-url origin 2>/dev/null | grep -q 'stellakamikaze/arturo'; then
+  # Anche come upstream: chi sincronizza Arturo fra più computer ha origin sul suo repository privato.
+  if git -C "$dest" remote -v 2>/dev/null | grep -q 'stellakamikaze/arturo'; then
     echo "Arturo è già installato in $dest. Per aggiornarlo scrivi /aggiorna in Claude Code."
     return 0
   fi
@@ -94,9 +95,14 @@ main() {
   fi
   if [ -n "$b" ]; then
     local x
-    for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos; do
+    # Come il blocco del README: da un Arturo installato prima tornano anche istruzioni, memoria, todo
+    # e scelte, compresa la telemetria spenta (#3825, 23/10/2026).
+    for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos \
+      CLAUDE.md settings.local.json personale hooks/hosts-interni.local data/memory data/memoria data/todo \
+      data/segnalazioni data/setup-fatto data/aggiornamenti.json session-env/telemetria.json \
+      session-env/segnala.json session-env/novita-viste; do
       if [ -e "$b/$x" ] && [ ! -e "$dest/$x" ]; then
-        mv "$b/$x" "$dest/"
+        mkdir -p "$(dirname "$dest/$x")" && mv "$b/$x" "$dest/$x"
       fi
     done
   fi
