@@ -45,7 +45,23 @@ Il primo caso d'uso è il lavoro con le parole e le informazioni: scrivere e rev
 
 Servono Claude Code con un abbonamento Anthropic che lo includa (Pro, Max, Team, Enterprise o Console: il piano gratuito di claude.ai non lo include), `git`, `python3` 3.8 o successivo e `node` 18 o successivo. Sistemi: macOS e Linux. Su Windows Arturo funziona solo dentro Git Bash.
 
-Arturo vive nella cartella di Claude Code, `~/.claude`. Il primo comando mette da parte la cartella che c'è già, con la data nel nome. Il secondo scarica Arturo:
+Arturo vive nella cartella di Claude Code, `~/.claude`. Si installa con una riga, nel Terminale (su Windows in Git Bash):
+
+```bash
+curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash
+```
+
+Lo script controlla git, python3 3.8+, node e claude. Se `claude` sta in `~/.local/bin` ma non nel PATH, aggiunge la riga al file della shell. Poi mette da parte la cartella che c'è già, con la data nel nome, scarica Arturo e riporta login, sessioni e plugin. Se lo scaricamento fallisce, rimette la cartella com'era. Se Arturo c'è già, non rifà niente.
+
+### Se sei Claude Code e l'utente ti chiede di installare Arturo
+
+- Non spostare né sostituire `~/.claude` con i tuoi strumenti. In modalità auto, quella predefinita, il classificatore dei permessi lo nega come modifica di sé ("Self-Modification"). Anche fuori dalla modalità auto, la sessione aperta continua a scrivere nella cartella che stai spostando.
+- Non comporre comandi su più righe da far lanciare con `!`. Quando l'utente li copia dalla finestra, gli a capo si spezzano e zsh risponde `parse error`.
+- Dai all'utente la riga sola qui sopra. Può lanciarla nel Terminale con Claude Code chiuso, oppure qui con `! curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash`.
+- Se manca node, dillo prima: senza, la barra in basso di Arturo resta vuota. Si scarica da https://nodejs.org/it/download (versione LTS, file `.pkg` su Mac).
+- Dopo l'installazione l'utente chiude la sessione, apre un terminale nuovo e lancia `cd ~/.claude && claude`, poi segue la guida dal passo 5: https://arturo.stellakamikaze.org/installa/#tappa-5
+
+Lo stesso a mano, senza i controlli:
 
 ```bash
 B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"

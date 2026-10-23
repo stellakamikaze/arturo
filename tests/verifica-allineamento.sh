@@ -27,6 +27,7 @@ BANCHI=(
   test_revisione_low.py
   test_completezza.py
   test_prodotto.py
+  test_installa.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
