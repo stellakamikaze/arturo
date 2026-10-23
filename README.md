@@ -108,7 +108,7 @@ Facoltativi: **`gitleaks`** (audit segreti), **`bw`** (Bitwarden CLI, per le cre
 
 ## Installazione
 
-Claude Code crea `~/.claude` al primo avvio, quindi la cartella di solito esiste già. L'installazione la mette da parte con la data nel nome: le tue impostazioni restano lì, niente si perde. Dopo il download tornano al loro posto il login, le sessioni passate (per riprenderle con `claude --resume`), la cronologia e i plugin: sono di Claude Code, non di Arturo, e git li ignora. Se reinstalli Arturo sopra un Arturo, tornano anche il tuo `CLAUDE.md`, `personale/`, la memoria, i todo e le tue scelte, compresa la telemetria spenta.
+Claude Code crea `~/.claude` al primo avvio, quindi la cartella di solito esiste già. L'installazione la mette da parte con la data nel nome: le tue impostazioni restano lì, niente si perde. Dopo il download tornano al loro posto il login, le sessioni passate (per riprenderle con `claude --resume`), la cronologia e i plugin: sono di Claude Code, non di Arturo, e git li ignora. Se nella cartella c'era un Arturo, tornano anche il tuo `CLAUDE.md`, `personale/`, la memoria, i todo e le tue scelte, compresa la telemetria spenta.
 
 **macOS e Linux** (Terminale), **Windows** (Git Bash, non PowerShell né il Prompt dei comandi), una riga sola. Prima controlla git, python3, node e claude, e se `claude` non è nel PATH lo aggiunge:
 
@@ -116,7 +116,7 @@ Claude Code crea `~/.claude` al primo avvio, quindi la cartella di solito esiste
 curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash
 ```
 
-Lo script sta nel ramo `landing-v2` (`sito/installa.sh`). Se preferisci leggere ogni comando, questo blocco fa lo stesso senza i controlli:
+Lo script sta nel ramo `landing-v2` (`sito/installa.sh`). Se Arturo è già installato con git, la riga si ferma e rimanda a `/aggiorna`: non reinstalla sopra. Se preferisci leggere ogni comando, o vuoi reinstallare Arturo da capo, questo blocco fa lo stesso senza i controlli:
 
 ```bash
 B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
@@ -306,7 +306,7 @@ Fuori dal dispatcher:
 - `memory-write-scanner.py` — PostToolUse, sempre acceso: controlla le note di memoria e gli handoff che Claude scrive (password, chiavi, istruzioni nascoste, URL che portano dati fuori). `memory-retrieve.py`, `memory-autoload.py`, `subagent-memory-context.py` e `melchior-postwrite.py` sono la memoria facoltativa, spenta di default: vedi "La memoria (facoltativa)".
 - `emoji_remover.py` — PostToolUse: niente emoji decorative nei file (i simboli tecnici legittimi sono whitelistati).
 - `context-monitor.js` — avvisa quando il context si avvicina alla soglia di rotazione.
-- `session-start.sh` / `session-end.sh` — riga `MACCHINA`, riga `NODE` se node manca, avvisi Git locali, file della config modificati e non salvati, controllo della deriva (`deriva.py`), banchi delle guardie in background ogni 12 ore (`tests/banchi-avvio.sh`, un rosso si dice all'avvio; `ARTURO_BANCHI_AVVIO=0` li spegne), avvio della telemetria (`arturo telemetria`), invito a `/segnala` (si spegne con `arturo segnala basta`), promemoria di chiusura anche senza file cambiati e cleanup degli unlock di sessione. L'avvio dice anche lo stato dell'aggiornamento automatico (`bin/aggiornamenti.py stato`, senza rete), e la chiusura lo installa (`aggiornamenti.py applica`, staccato).
+- `session-start.sh` / `session-end.sh` — riga `MACCHINA`, riga `NODE` se node manca, avvisi Git locali, file della config modificati e non salvati, controllo della deriva (`deriva.py`), banchi delle guardie in background ogni 12 ore (`tests/banchi-avvio.sh`, un rosso si dice all'avvio; `ARTURO_BANCHI_AVVIO=0` li spegne), avvio della telemetria (`arturo telemetria`), invito a `/segnala` (si spegne con `arturo segnala basta`), riga `SETUP` una volta al giorno se la prima configurazione non è finita (solo per le installazioni nate dal 16/10), promemoria di chiusura anche senza file cambiati e cleanup degli unlock di sessione. L'avvio dice anche lo stato dell'aggiornamento automatico (`bin/aggiornamenti.py stato`, senza rete), e la chiusura lo installa (`aggiornamenti.py applica`, staccato).
 - `controlla-config.py` — strumento, non un hook: controlla che la config sia integra (`settings.json` valido, nessun rebase o conflitto a metà) e stampa `CONFIG OK` o `CONFIG ROTTA`. Lo usano l'avvio, `/inizio`, `/aggiorna` e `/fine`.
 - `deriva.py` — strumento, non un hook: all'avvio misura quanto la tua config si è allontanata da quella di Arturo (comandi e file di Arturo modificati, hook di Arturo tolti o spenti, config rotta) e stampa una riga `DERIVA` solo se c'è da fare.
 - `inject-now.sh` — inietta data/ora corrente a ogni prompt. Quando lanci un comando con aggiunte tue in

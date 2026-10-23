@@ -121,8 +121,10 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   npx wrangler d1 execute arturo --remote --command "SELECT id, ricevuta, tipo, titolo FROM segnalazioni ORDER BY id DESC LIMIT 20"
   ```
 
-- **Una richiesta di cancellazione** arriva con un id: `DELETE FROM eventi WHERE installazione = '…'`
-  e `DELETE FROM segnalazioni WHERE installazione = '…'`.
+- **Una richiesta di cancellazione** arriva con un id: `DELETE FROM eventi WHERE installazione = '…'`,
+  `DELETE FROM segnalazioni WHERE installazione = '…'` e
+  `DELETE FROM contatori WHERE substr(chiave, instr(chiave, ':') + 1) = '…'`. L'ultima toglie le
+  chiavi che portano l'id (`setup-fine:`, `rotta:`, `indietro:`), che altrimenti restano fino a 12 mesi.
 
 Dal lato GitHub restano le misure di prima:
 
