@@ -80,9 +80,12 @@ def test_h10(repo: Path) -> None:
     fine = (repo / "commands" / "fine.md").read_text(encoding="utf-8")
     assert 'git add "$HANDOFF_FILE"' not in fine, "H10 /fine committa l'handoff nel repository del progetto"
     assert 'HANDOFF_FILE="$HDIR/' in fine, "H10 l'handoff non nasce nello store privato"
-    staging = fine.find("for p in CLAUDE.md data/handoffs")
-    check = fine.find('"$VIS" = "PRIVATE"')
-    assert check != -1 and staging > check, "H10 gli handoff si sincronizzano senza verificare che il remote sia privato"
+    # Gli handoff si aggiungono solo dentro il ramo del remote privato. Dal 23/10/2026 hanno un git add loro,
+    # senza -f (segnalazione n. 12): si cerca quella riga, o il ciclo con -f di prima.
+    staging = max(fine.find("for p in CLAUDE.md data/handoffs"), fine.find("git add -- data/handoffs"))
+    dentro = fine.find('if [ "$VIS" = "PRIVATE" ]; then')
+    fuori = fine.find("\n  else", dentro)
+    assert -1 < dentro < staging < fuori, "H10 gli handoff si sincronizzano senza verificare che il remote sia privato"
 
 
 TESTS = {"H01": test_h01, "H07": test_h07, "H10": test_h10}

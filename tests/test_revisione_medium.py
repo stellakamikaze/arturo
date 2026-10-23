@@ -131,8 +131,10 @@ def test_m06(repo: Path) -> None:
     assert 'git add -- "$p" || echo' in sync, "M06 gli errori di git add non vengono riportati"
     for item in ("docs", "NOVITA.md", "CLAUDE.md"):
         assert item in sync, f"M06 la sync non porta {item}"
-    private = sync.find('"$VIS" = "PRIVATE"')
-    assert private != -1 and sync.find("for p in CLAUDE.md data/handoffs") > private, "M06 CLAUDE.md viaggia senza verificare che il remote sia privato"
+    # Il ciclo con -f di CLAUDE.md sta dentro il ramo del remote privato (dal 23/10/2026 senza data/handoffs).
+    dentro = sync.find('if [ "$VIS" = "PRIVATE" ]; then')
+    fuori = sync.find("\n  else", dentro)
+    assert -1 < dentro < sync.find("for p in CLAUDE.md ") < fuori, "M06 CLAUDE.md viaggia senza verificare che il remote sia privato"
 
 
 def test_m07(repo: Path) -> None:
