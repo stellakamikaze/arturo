@@ -47,6 +47,28 @@
  "blogPost": [
   {
    "@type": "BlogPosting",
+   "headline": "Claude ti ricorda di finire /setup, e una reinstallazione non perde niente di tuo",
+   "datePublished": "2026-10-23",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-10-23-claude-ti-ricorda-di-finire-setup-e-una-reinstallazione-non",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
+   "headline": "L'avviso sulla telemetria torna, e l'unione regge dopo un conflitto",
+   "datePublished": "2026-10-22",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-10-22-l-avviso-sulla-telemetria-torna-e-l-unione-regge-dopo-un-con",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
    "headline": "Aggiornamenti senza conflitti sulle impostazioni",
    "datePublished": "2026-10-22",
    "author": {
@@ -803,7 +825,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
   <div class="dentro">
     <div class="testata__corpo">
       <h1 id="titolo">Novità di Arturo</h1>
-      <p>Cosa cambia a ogni aggiornamento, il principio dietro e cosa devi fare tu. La voce più recente sta in cima: l'ultima è del 22 ottobre 2026. Dentro Claude Code le stesse voci te le racconta <code>/novita</code>.</p>
+      <p>Cosa cambia a ogni aggiornamento, il principio dietro e cosa devi fare tu. La voce più recente sta in cima: l'ultima è del 23 ottobre 2026. Dentro Claude Code le stesse voci te le racconta <code>/novita</code>.</p>
       <div class="testata__vie">
         <a class="azione" href="#voci">Leggi le novità</a>
         <a class="azione azione--bordo" href="https://github.com/stellakamikaze/arturo/blob/main/NOVITA.md">NOVITA.md su GitHub</a>
@@ -817,6 +839,26 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 <section class="sezione" aria-labelledby="titolo">
   <div class="dentro">
     <div class="voci" id="voci">
+
+      <article class="voce" id="2026-10-23-claude-ti-ricorda-di-finire-setup-e-una-reinstallazione-non" aria-labelledby="t-2026-10-23-claude-ti-ricorda-di-finire-setup-e-una-reinstallazione-non">
+        <p class="voce__data stretta"><time datetime="2026-10-23">23 ottobre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-10-23-claude-ti-ricorda-di-finire-setup-e-una-reinstallazione-non"><a href="#2026-10-23-claude-ti-ricorda-di-finire-setup-e-una-reinstallazione-non">Claude ti ricorda di finire /setup, e una reinstallazione non perde niente di tuo</a></h2>
+          <p><strong>Cosa cambia</strong>: se hai installato Arturo e non sei arrivato in fondo a <code>/setup</code>, Claude te lo dice in una riga all'inizio della sessione, una volta al giorno. Puoi rispondere di no: l'invito torna il giorno dopo, e smette quando <code>/setup</code> arriva in fondo. Se reinstalli Arturo sopra un Arturo, tornano al loro posto il tuo <code>CLAUDE.md</code>, <code>personale/</code>, la memoria, i todo e le tue scelte. Fra le scelte c'è la telemetria spenta, che prima una reinstallazione riaccendeva. Arturo ora si installa anche con una riga sola: <code>curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash</code>.</p>
+          <p><strong>Il principio dietro</strong>: la telemetria ha mostrato installazioni nuove che non hanno mai aperto <code>/setup</code>, o che si sono fermate a metà. Senza la configurazione Arturo non sa chi sei né dove stanno i tuoi progetti.</p>
+          <p><strong>Da sapere</strong>: chi ha installato Arturo prima del 16 ottobre non riceve l'invito, perché allora <code>/setup</code> non lasciava il segno di essere finito.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="2026-10-22-l-avviso-sulla-telemetria-torna-e-l-unione-regge-dopo-un-con" aria-labelledby="t-2026-10-22-l-avviso-sulla-telemetria-torna-e-l-unione-regge-dopo-un-con">
+        <p class="voce__data stretta"><time datetime="2026-10-22">22 ottobre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-10-22-l-avviso-sulla-telemetria-torna-e-l-unione-regge-dopo-un-con"><a href="#2026-10-22-l-avviso-sulla-telemetria-torna-e-l-unione-regge-dopo-un-con">L'avviso sulla telemetria torna, e l'unione regge dopo un conflitto</a></h2>
+          <p><strong>Cosa cambia</strong>: alla prossima sessione Arturo ti ridice in due righe cosa manda la telemetria, perché ora c'è una cosa in più: quando <code>block-dangerous</code> o <code>commit-secret-gate</code> ti chiedono conferma, esce anche il nome della regola. Se un aggiornamento si ferma su un conflitto vero e lo risolvi con <code>/aggiorna</code>, il resto dell'aggiornamento continua a unire <code>settings.json</code> come impostazioni. Prima, dopo il primo conflitto, tornava a unirlo riga per riga. <code>/diagnosi</code>, <code>/segnala</code>, <code>/aggiorna</code>, <code>/novita</code> e <code>/setup</code> scrivono i percorsi con la tilde (<code>~/.claude</code>), che Claude Code accetta anche quando la sessione lavora in un worktree.</p>
+          <p><strong>Il principio dietro</strong>: quando cambia cosa esce dal tuo computer, lo devi sapere da Arturo prima che da un riepilogo.</p>
+          <p><strong>Da sapere</strong>: della regola esce solo il nome, come <code>rm-cartella</code> o <code>google-api-key</code>, mai il file o la chiave. Gli hook che <code>/setup</code> ti riporta da prima di Arturo restano dove l'altra app li aveva messi, e <code>/fine</code> li salva con <code>settings.json</code>.</p>
+        </div>
+      </article>
 
       <article class="voce" id="2026-10-22-aggiornamenti-senza-conflitti-sulle-impostazioni" aria-labelledby="t-2026-10-22-aggiornamenti-senza-conflitti-sulle-impostazioni">
         <p class="voce__data stretta"><time datetime="2026-10-22">22 ottobre 2026</time></p>
