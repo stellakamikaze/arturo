@@ -159,4 +159,10 @@ con `python3 ~/.claude/bin/arturo telemetria mostra`:
 
 ```bash
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM eventi WHERE installazione = '<id>'"
+npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM segnalazioni WHERE installazione = '<id>'"
+npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM contatori WHERE substr(chiave, instr(chiave, ':') + 1) = '<id>'"
 ```
+
+L'ultima toglie le chiavi dei contatori che portano l'id (`setup-fine:`, `rotta:`, `indietro:`), che
+altrimenti restano fino a 12 mesi. La stessa procedura sta in `docs/manutenzione.md`: il banco CP01
+le confronta.

@@ -128,6 +128,7 @@ BANCHI=(
   test_unisci_settings_2026_10_22.py
   test_setup_invito_2026_10_23.py
   test_reinstalla_2026_10_23.py
+  test_copie_2026_10_23.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -259,6 +260,8 @@ BASELINE=(
   "test_setup_invito_2026_10_23.py f4ae0aa"
   # La reinstallazione riporta memoria, todo e scelte della persona (#3825): f4ae0aa, la regressione.
   "test_reinstalla_2026_10_23.py f4ae0aa"
+  # Le copie dello stesso testo (cancellazione, lista del ripristino) restano uguali (#3852): f4ae0aa.
+  "test_copie_2026_10_23.py f4ae0aa"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

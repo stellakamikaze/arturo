@@ -30,10 +30,11 @@ Arturo.
 
 **Cosa cambia**: se hai installato Arturo e non sei arrivato in fondo a `/setup`, Claude te lo dice in
 una riga all'inizio della sessione, una volta al giorno. Puoi rispondere di no: l'invito torna il giorno
-dopo, e smette quando `/setup` arriva in fondo. Se reinstalli Arturo sopra un Arturo, tornano al loro
-posto il tuo `CLAUDE.md`, `personale/`, la memoria, i todo e le tue scelte. Fra le scelte c'è la
-telemetria spenta, che prima una reinstallazione riaccendeva. Arturo ora si installa anche con una riga
-sola: `curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash`.
+dopo, e smette quando `/setup` arriva in fondo. Se reinstalli Arturo da capo coi comandi del README,
+tornano al loro posto il tuo `CLAUDE.md`, `personale/`, la memoria, i todo e le tue scelte. Fra le
+scelte c'è la telemetria spenta, che prima una reinstallazione riaccendeva. Arturo ora si installa
+anche con una riga sola: `curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash`. Se Arturo
+c'è già, la riga si ferma e ti dice di scrivere `/aggiorna`.
 
 **Il principio dietro**: la telemetria ha mostrato installazioni nuove che non hanno mai aperto `/setup`,
 o che si sono fermate a metà. Senza la configurazione Arturo non sa chi sei né dove stanno i tuoi progetti.
