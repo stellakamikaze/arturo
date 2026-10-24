@@ -259,8 +259,11 @@ def test_m10(repo: Path) -> None:
     lab.hook("inject-now.sh", json.dumps({"prompt": "/cliente-rossi"}))
     lab.arturo("telemetria", "registra", "comando", "cliente-rossi")
     lab.hook("inject-now.sh", json.dumps({"prompt": "/fine"}))
-    assert [(e["evento"], e["valore"]) for e in lab.coda()] == [("comando", "fine")], \
+    # Dal 24/10/2026 (contratto F1 della telemetria) un comando della persona conta come `altro`, senza il
+    # nome: prima non si registrava. Il nome "cliente-rossi" non deve uscire in nessun caso.
+    assert [(e["evento"], e["valore"]) for e in lab.coda()] == [("comando", "altro"), ("comando", "altro"), ("comando", "fine")], \
         f"M10 parte il nome di un comando che non è di Arturo: {lab.coda()}"
+    assert "rossi" not in json.dumps(lab.coda()), f"M10 il nome del comando della persona esce: {lab.coda()}"
     elenco = re.search(r"COMANDI = frozenset\(\{(.*?)\}\)", read(repo / "bin" / "telemetria.py"), re.S)
     assert elenco, "M10 manca l'elenco dei comandi di Arturo"
     assert sorted(re.findall(r'"([a-z0-9-]+)"', elenco.group(1))) == sorted(f.stem for f in (repo / "commands").glob("*.md")), \
@@ -465,7 +468,9 @@ def test_m19(repo: Path) -> None:
                                                     "tool_use_id": "toolu_19"}))
     assert '"ask"' in r.stdout and "REGOLA" not in r.stdout, f"M19 a Claude Code arriva altro dal JSON: {r.stdout!r}"
     json.loads(r.stdout)
-    assert [(e["evento"], e["valore"]) for e in lab.coda()] == [("chiede", "commit-secret-gate.py.google-api-key")], \
+    # Dal 24/10/2026 la regola è la famiglia del segreto, non il fornitore: google-api-key diceva quale
+    # servizio usa la persona (TF01 in test_telemetria_f1_2026_10_24.py).
+    assert [(e["evento"], e["valore"]) for e in lab.coda()] == [("chiede", "commit-secret-gate.py.segreto-cloud")], \
         f"M19 la telemetria non dice quale regola chiede: {lab.coda()}"
     assert chiave not in json.dumps(lab.coda()), "M19 la chiave esce nella telemetria"
 

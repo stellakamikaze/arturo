@@ -85,7 +85,9 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   commit-secret-gate), guardie che si rompono, installazioni rimaste indietro (`indietro`: attive
   negli ultimi 3 giorni senza un rilascio uscito da almeno 3, anche su Telegram ogni mattina),
   aggiornamenti rifiutati o annullati per versione, ritenzione a 7, 30 e 60 giorni,
-  versioni di Claude Code. Sono numeri, non verdetti: cosa correggere lo decide chi mantiene Arturo. Ogni correzione nata
+  versioni di Claude Code. Dal 24/10/2026 la finestra di 30 giorni vale per tutto il blocco, setup e
+  ritenzione compresi, e contano solo le installazioni viste dal server in almeno due giorni (salvo la
+  ritenzione), come per le guardie. Sono numeri, non verdetti: cosa correggere lo decide chi mantiene Arturo. Ogni correzione nata
   da un segnale lo dice nella sua voce di `NOVITA.md` ("Da sapere: lo mostrava la telemetria").
 - **Il riepilogo in JSON.** `GET /v1/riepilogo?dal=AAAA-MM-GG&al=AAAA-MM-GG` con l'intestazione
   `authorization: Bearer <token>` dà lo stesso riepilogo, per la routine che propone le correzioni.
@@ -100,7 +102,9 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   giorno prima: installazioni attive, versioni, sistemi, comandi usati, guardie che hanno bloccato,
   esiti di `/aggiorna`, config rotte, deriva (per ogni installazione il cui elenco è cambiato:
   OSTACOLO se un hook di Arturo è spento, una guardia è modificata o un comando modificato va in
-  conflitto con un aggiornamento), segnalazioni. Nei giorni senza eventi né segnalazioni non parte.
+  conflitto con un aggiornamento), segnalazioni, eventi scartati perché fuori elenco, avvisi Telegram ed
+  email non partiti (contatori `scartati`, `telegram-ko`, `email-ko`, senza id, dal 24/10/2026). Nei giorni
+  in cui tutti questi numeri sono zero non parte.
 - **La config rotta arriva subito.** Un'email `[Arturo] Config rotta su un'installazione`, una sola
   al giorno per installazione, dentro un tetto di 20 tutto suo.
 - **Il riepilogo del lunedì.** Il lunedì arriva sempre lo stesso riepilogo sui 7 giorni, anche
@@ -108,9 +112,12 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   anche ferma, e le guardie frequenti: almeno 5 blocchi della stessa guardia nella settimana sulla
   stessa installazione, il segno che Arturo intralcia. Poi il Worker cancella gli eventi più vecchi
   di 12 mesi.
-- **Le segnalazioni.** Ogni segnalazione di `/segnala` col canale `arturo` arriva per email,
-  con l'oggetto `[Arturo] [tipo] …`, e resta in D1. Arriva anche come messaggio Telegram. Quelle
-  aperte da GitHub sono issue con il titolo `[problema]`, `[proposta]` o `[integrazione]`.
+- **Le segnalazioni.** Ogni segnalazione di `/segnala` col canale `arturo` resta in D1, e arriva per
+  email e su Telegram come campanello (24/10/2026): numero, tipo e origine, mai il testo, il titolo o
+  l'id completo. L'email porta la query che legge il testo in D1. Il feedback del sito arriva su
+  Telegram allo stesso modo, senza testo né email, e il vocale non si accetta più. Le segnalazioni si
+  cancellano dopo 12 mesi, come gli eventi. Quelle aperte da GitHub sono issue con il titolo
+  `[problema]`, `[proposta]` o `[integrazione]`.
 - **Le installazioni nuove.** Il primo lotto di eventi da un id mai visto manda un messaggio
   Telegram: id abbreviato, versione e sistema. Telegram parte solo se il Worker ha i secret
   `TELEGRAM_TOKEN` e `TELEGRAM_CHAT` (come si danno: `server/README.md`, passo 4).
@@ -123,8 +130,17 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
 
 - **Una richiesta di cancellazione** arriva con un id: `DELETE FROM eventi WHERE installazione = '…'`,
   `DELETE FROM segnalazioni WHERE installazione = '…'` e
-  `DELETE FROM contatori WHERE substr(chiave, instr(chiave, ':') + 1) = '…'`. L'ultima toglie le
+  `DELETE FROM contatori WHERE substr(chiave, instr(chiave, ':') + 1) = '…'`. La terza toglie le
   chiavi che portano l'id (`setup-fine:`, `rotta:`, `indietro:`), che altrimenti restano fino a 12 mesi.
+  Il feedback del sito non ha un id: si cancella con l'email lasciata nel modulo,
+  `DELETE FROM feedback WHERE email = '…'`. Una segnalazione senza id o un feedback senza email si
+  cancella col suo numero (`WHERE id = N`), se la persona lo dice.
+  Le copie già uscite verso Gmail e Telegram non si raggiungono dal server, e la pulizia dei 12 mesi non
+  le tocca: il recap e il riepilogo del lunedì (prime 8 cifre dell'id con deriva, guardie frequenti e
+  installazioni indietro), gli avvisi di installazione nuova, setup finito, installazione indietro e
+  config rotta. Prima del 24/10/2026 portavano anche il testo delle segnalazioni e del feedback. Chi
+  mantiene Arturo le cancella a mano nella casella e nella chat; l'elenco intero sta in `docs/privacy.md`
+  ("Chi li riceve"). La stessa procedura sta in `server/README.md` (banco CP01).
 
 Dal lato GitHub restano le misure di prima:
 
@@ -138,8 +154,13 @@ Un cambio dell'elenco degli eventi tocca tre posti che il banco M09 confronta: `
 `server/logica.js` e l'Impegno 3 del README. Gli eventi però sono raccontati anche in
 `server/README.md`, nell'avviso di `bin/telemetria.py`, nella FASE 0 di
 `commands/setup.md` e nella landing: prima del rilascio, `git grep -n` sul nome di un evento. Il server va pubblicato **prima** del client: un
-lotto con un evento che il server non conosce viene rifiutato per intero, e il client lo toglie dalla
-coda. Per lo stesso motivo un evento tolto dal client resta accettato dal server ancora qualche
+evento o un valore che il server non conosce si scarta e si conta in `scartati` (dal 24/10/2026; prima
+faceva rifiutare il lotto intero), quindi un client più nuovo del server perde quei dati. Anche una
+guardia, una regola o un comando nuovi vanno nelle liste chiuse di `server/logica.js` (`GUARDIE`,
+`REGOLE`, `COMANDI`), che il banco TF03 (`tests/test_telemetria_f1_2026_10_24.py`) confronta con il
+repository e con `bin/telemetria.py`. Lo stesso vale per una skill, un agent, un file della radice o un
+hook di `settings.json` nuovi: vanno in `DERIVA_NOMI` e `DERIVA_HOOK`, che il banco TF05 confronta con
+il repository. Fino al deploy il server salva quel nome come `file:altro` o `hook:altro`. Per lo stesso motivo un evento tolto dal client resta accettato dal server ancora qualche
 settimana, per i client non aggiornati: sta in coda all'elenco di `server/logica.js` e in
 `EVENTI_VECCHI` di `tests/test_telemetria.py`, e da lì si toglie insieme (oggi: `tappa`, tolta il
 16/10/2026). Se cambia cosa esce, alza anche `PROMESSA` in `bin/telemetria.py`: l'avviso torna una volta.

@@ -5,11 +5,14 @@ bloccano. Senza dati d'uso chi lo mantiene non vede la fase di /setup dove ci si
 che chiedono a vuoto, gli aggiornamenti rifiutati. Ogni lunedì il server ne fa un riepilogo, e ogni
 correzione nata da un segnale lo dice nella sua voce di NOVITA.md.
 
-Cosa esce, e solo questo: un id di installazione casuale (non legato alla persona, ma stabile), la
-versione di Arturo, il sistema operativo (Darwin, Linux, Windows) e gli eventi di EVENTI con il solo
-giorno. Dei file di Arturo modificati esce il percorso dentro Arturo, che è pubblico (hooks/deriva.py).
-Mai prompt, file della persona, percorsi del suo computer, nomi, risposte o testi. Il server non
-salva l'IP e tiene gli eventi 12 mesi. Il suo codice è in server/.
+Cosa esce, e solo questo: un id di installazione casuale e stabile, la versione di Arturo, il sistema
+operativo (Darwin, Linux, Windows) e gli eventi di EVENTI con il solo giorno. L'id è casuale, ma chi
+mantiene Arturo può sapere chi c'è dietro se conosce la persona: non sono dati anonimi
+(docs/privacy.md). Dei file di Arturo modificati o in conflitto esce il percorso dentro Arturo, che è
+pubblico, e solo per un file versionato di Arturo (percorso_pubblico): un file della persona esce come
+`file:altro`. Delle guardie e dei comandi escono solo i nomi di Arturo, da un elenco chiuso. Mai prompt,
+file della persona, percorsi del suo computer, nomi, risposte o testi. Il server non salva l'IP e
+tiene gli eventi 12 mesi. Il suo codice è in server/.
 
 Accesa di default. Si spegne con `arturo telemetria spegni`, con ARTURO_TELEMETRIA=0 o con lo
 standard DO_NOT_TRACK=1. `arturo telemetria mostra` fa vedere l'id e la coda, così si vede
@@ -17,10 +20,10 @@ esattamente cosa parte.
 
 Due tempi, perché un hook non deve mai aspettare la rete:
 - `registra` aggiunge una riga alla coda in ~/.claude/data/telemetria/coda.jsonl, senza rete. Lo
-  stesso fanno `chiede` (una guardia chiede conferma, per block-dangerous e commit-secret-gate con il
-  nome della regola: l'id della chiamata resta in
-  session-env/telemetria-attese.json) ed `esito` (il PostToolUse, via bin/telemetria-esito.sh: se la
-  chiamata era in attesa, registra `confermata`);
+  stesso fanno `chiede` (una guardia chiede conferma, per block-dangerous con il nome della regola e
+  per commit-secret-gate con la famiglia del segreto: l'id della chiamata resta in
+  session-env/telemetria-attese.json) ed `esito` (il PostToolUse o il PostToolUseFailure, via
+  bin/telemetria-esito.sh: se la chiamata era in attesa, registra `confermata`);
 - `invia` manda la coda in un lotto. L'avvio della sessione lo lancia in background, al massimo
   ogni 6 ore, e lì registra anche la versione di Claude Code quando cambia. Manda anche le
   segnalazioni di /segnala rimaste in attesa.
@@ -74,14 +77,37 @@ EVENTI = {
     "errore": re.compile(r"^[a-z0-9_.-]{1,60}$"),
     "claude": re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,4}$"),
 }
+# Le guardie di Arturo che parlano alla telemetria: quelle che bash-dispatcher.sh lancia con run_guard,
+# più web-egress-guard.py e protect_claude_md.py, che chiamano chiede da sole. Un nome fuori elenco non
+# si registra: un hook della persona con un nome suo, o un client modificato, non fa uscire uno slug
+# parlante (24/10/2026). Lo stesso elenco sta in server/logica.js; il banco TF03 (tests/test_telemetria_f1_2026_10_24.py) lo confronta col repository.
+GUARDIE = frozenset({"block-dangerous.py", "comms-guard.py", "commit-secret-gate.py", "data-guard.py", "exfil-guard.py",
+                     "gh-destructive-guard.py", "protect_claude_md.py", "web-egress-guard.py"})
+# Le regole che una guardia può aggiungere al nome in chiede e confermata, come <guardia>.<regola>.
+# block-dangerous: le regole di _ask() nel suo codice. commit-secret-gate: la famiglia del segreto, mai
+# il fornitore (24/10/2026: "google-api-key" diceva quale servizio usa la persona), e i tre casi senza
+# segreto (scaduta, repo-ignoto, scansione-fallita). Una regola fuori elenco cade, e resta il solo nome
+# della guardia.
+FAMIGLIE_SEGRETI = ("segreto-cloud", "segreto-token", "segreto-password", "segreto-chiave-privata", "segreto-altro")
+REGOLE = {
+    "block-dangerous.py": frozenset({"avvio-automatico", "claude-md", "config", "docker-volumi", "find-delete", "git-clean",
+                                     "rm-cartella", "rm-ignoto", "rm-illeggibile", "rm-protetto", "rm-xargs",
+                                     "rmtree-cartella", "rmtree-illeggibile", "rmtree-variabile", "sblocco",
+                                     "sblocco-claude-md", "sed-w", "segreto"}),
+    "commit-secret-gate.py": frozenset(FAMIGLIE_SEGRETI + ("scaduta", "repo-ignoto", "scansione-fallita")),
+}
 # La promessa sulla telemetria cambia di versione quando cambia cosa esce. A una versione nuova
 # l'avviso torna una volta, anche a chi aveva già visto la precedente. 3: senza le tappe (16/10/2026).
 # 4: gli aggiornamenti installati da soli alla chiusura si contano a parte (16/10/2026, #3482).
 # 5: gli aggiornamenti che non partono da soli dicono perché, una volta per versione (20/10/2026, #3637).
 # 6: le conferme di block-dangerous e di commit-secret-gate dicono quale regola ha chiesto (22-23/10/2026, #3798).
-PROMESSA = 6
+# 7: esce di meno (24/10/2026). Di commit-secret-gate la famiglia del segreto, non il fornitore; di un file
+# in conflitto che non è di Arturo solo `file:altro`; un comando della persona diventa `altro`. Le
+# conferme contano anche su Monitor e dopo un comando fallito. Come versione esce solo un tag di rilascio di
+# Arturo, mai un tag della persona. Il README non dice più "non legato a te".
+PROMESSA = 7
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
-# ~/.claude/commands/ ha un nome suo, e non esce.
+# ~/.claude/commands/ ha un nome suo: esce come `altro`, che conta l'uso senza dire il nome (24/10/2026).
 # Il banco M10 controlla che l'elenco coincida con commands/ del repository.
 COMANDI = frozenset({"aggiorna", "creaskill", "diagnosi", "fine", "guidami", "inizio", "novita", "segnala",
                      "setup", "sparring"})
@@ -89,6 +115,8 @@ OGNI = 6 * 3600          # secondi fra due invii automatici
 CODA_MASSIMA = 2000      # righe: oltre, gli eventi nuovi si perdono finché la coda non parte
 LOTTO = 500
 SPENTI = {"0", "no", "off", "false", "spenta"}
+# I tag dei rilasci di Arturo: v2026-10-19, v2026-10-19.2. Lo stesso nome di rilascio() in server/logica.js.
+RILASCIO = re.compile(r"v\d{4}-\d{2}-\d{2}(\.\d+)?")
 
 AIUTO = f"""arturo telemetria: gli eventi d'uso che Arturo manda a chi lo mantiene, per migliorarsi.
 
@@ -99,8 +127,13 @@ AIUTO = f"""arturo telemetria: gli eventi d'uso che Arturo manda a chi lo mantie
   invia          manda adesso la coda e le segnalazioni in attesa
 
 Escono solo questi eventi, con il giorno e mai l'ora: {", ".join(EVENTI)}.
-Dei file di Arturo modificati solo la posizione nel repository di Arturo, che è pubblica.
+Dei file di Arturo modificati o in conflitto solo la posizione nel repository di Arturo, che è
+pubblica; un file tuo esce come "file:altro". Delle guardie e dei comandi solo i nomi di Arturo: un
+comando tuo esce come "altro", di un segreto fermato in un commit solo la famiglia, mai il servizio.
+Come versione esce solo il rilascio di Arturo installato, mai un tuo tag.
 Mai prompt, file tuoi, percorsi del tuo computer, nomi, risposte o testi.
+L'id è casuale, ma chi mantiene Arturo può sapere chi c'è dietro se ti conosce: non sono dati
+anonimi. Cosa si tiene, per quanto e i tuoi diritti: docs/privacy.md.
 Server: {URL} (codice in server/). Si spegne anche con ARTURO_TELEMETRIA=0 o DO_NOT_TRACK=1.
 Da una HOME in una cartella temporanea, un banco di prova, non parte niente verso questo server:
 gli eventi vanno solo a un server indicato con ARTURO_TELEMETRIA_URL."""
@@ -184,12 +217,15 @@ def versione() -> str:
     Solo i tag di Arturo (v*): un tag della persona come "backup/prima" fa rifiutare dal server ogni lotto
     (VERSIONE in server/logica.js), e con i lotti si perdono anche gli avvisi delle config rotte (17/10/2026).
     Senza --abbrev=0 la versione era "v2026-10-17-94-g03ee13d", con l'hash del repository privato di sync:
-    il riepilogo non diceva chi era sull'ultimo rilascio (19/10/2026, #3613)."""
+    il riepilogo non diceva chi era sull'ultimo rilascio (19/10/2026, #3613).
+    Dal 24/10/2026 vale solo la forma dei rilasci di Arturo (RILASCIO, la stessa di rilascio() in
+    server/logica.js): v* prendeva anche un tag della persona come "vacanze-rossi", che arrivava fino a
+    Telegram e al recap. Un tag con la data e un nome suo dopo ("v2026-10-20-rossi") dà "sconosciuta"."""
     try:
-        r = subprocess.run(["git", "-C", str(Path.home() / ".claude"), "describe", "--tags", "--abbrev=0", "--match", "v*"],
-                           capture_output=True, text=True, timeout=3)
-        v = (r.stdout.strip() if r.returncode == 0 else "")[:60]
-        return v if re.fullmatch(r"[A-Za-z0-9._+-]+", v) else "sconosciuta"
+        r = subprocess.run(["git", "-C", str(Path.home() / ".claude"), "describe", "--tags", "--abbrev=0", "--match",
+                            "v[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*"], capture_output=True, text=True, timeout=3)
+        v = r.stdout.strip() if r.returncode == 0 else ""
+        return v if RILASCIO.fullmatch(v) else "sconosciuta"
     except (OSError, subprocess.SubprocessError):
         return "sconosciuta"
 
@@ -199,30 +235,123 @@ def sistema() -> str:
     return nome if nome in ("Darwin", "Linux", "Windows") else "altro"
 
 
-def valido(evento: str, valore: str) -> bool:
+def normalizza(evento: str, valore: str):
+    """Il valore che parte per questo evento, o None se non parte. La forma la decide EVENTI; poi le
+    liste chiuse (24/10/2026): un comando fuori da COMANDI diventa `altro`, una guardia fuori da
+    GUARDIE non parte, una regola fuori da REGOLE cade e resta il nome della guardia."""
     regola = EVENTI.get(evento)
-    if evento == "comando" and valore not in COMANDI:
-        return False
-    return bool(regola) and isinstance(valore, str) and bool(regola.fullmatch(valore))
+    if not regola or not isinstance(valore, str) or not regola.fullmatch(valore):
+        return None
+    if evento == "comando":
+        return valore if valore in COMANDI else "altro"
+    if evento in ("guardia", "errore"):
+        return valore if valore in GUARDIE else None
+    if evento in ("chiede", "confermata"):
+        if valore in GUARDIE:
+            return valore
+        guardia = next((g for g in GUARDIE if valore.startswith(g + ".")), None)
+        if guardia is None:
+            return None
+        return valore if valore[len(guardia) + 1:] in REGOLE.get(guardia, ()) else guardia
+    return valore
+
+
+def valido(evento: str, valore: str) -> bool:
+    return normalizza(evento, valore) is not None
+
+
+def ref_di_arturo(radice) -> str | None:
+    """Il ref che dice cosa è Arturo: upstream/main se la persona ha un remote upstream (il suo repository
+    è origin), altrimenti origin/main. None se manca. Con un upstream dichiarato ma mai scaricato non
+    ripiega su origin/main, che lì è il repository della persona (24/10/2026)."""
+    def git(*argomenti) -> int:
+        try:
+            return subprocess.run(["git", "-C", str(radice), *argomenti], capture_output=True, timeout=10).returncode
+        except (OSError, subprocess.SubprocessError):
+            return 1
+    ha_upstream = git("config", "--get", "remote.upstream.url") == 0
+    ref = "upstream/main" if ha_upstream else "origin/main"
+    return ref if git("rev-parse", "--verify", "--quiet", ref + "^{commit}") == 0 else None
+
+
+def file_di_arturo(radice=None, ref=None):
+    """I percorsi versionati di Arturo, o None se git non risponde.
+
+    Arturo è il ref che arriva (`ref`, da bin/aggiorna-applica.sh) oppure ref_di_arturo, come in
+    hooks/deriva.py. Senza un ref di Arturo torna None, e ogni file diventa `file:altro`: fino al
+    24/10/2026 qui si ripiegava su git ls-files, che comprende i file che la persona ha versionato nel
+    suo repository, e skills/clienti-rossi/SKILL.md usciva col suo nome."""
+    radice = str(radice or Path.home() / ".claude")
+    if ref and ref.startswith("-"):  # un ref che git leggerebbe come opzione non vale
+        ref = None
+    chiave = (radice, ref or "")
+    if chiave in _MANIFESTI:
+        return _MANIFESTI[chiave]
+    elenco = None
+    scelto = ref or ref_di_arturo(radice)
+    if scelto:
+        try:
+            r = subprocess.run(["git", "-C", radice, "ls-tree", "-r", "-z", "--name-only", scelto], capture_output=True, timeout=10)
+            if r.returncode == 0:
+                elenco = frozenset(p for p in r.stdout.decode("utf-8", "replace").split("\0") if p)
+        except (OSError, subprocess.SubprocessError):
+            pass
+    _MANIFESTI[chiave] = elenco
+    return elenco
+
+
+_MANIFESTI = {}
+
+
+def percorso_pubblico(percorso: str, di_arturo=None, radice=None, ref=None) -> str:
+    """Il valore `file:` della deriva per un percorso dentro la config: `file:<percorso>` se è un file
+    versionato di Arturo con la forma della deriva, altrimenti `file:altro`.
+
+    Il filtro unico di hooks/deriva.py e di segna_conflitti in bin/aggiorna-applica.sh. Fino al
+    24/10/2026 bastava la forma: un conflitto su skills/clienti-rossi/SKILL.md, una skill della persona,
+    mandava il nome del cliente. `di_arturo` è l'elenco dei file di Arturo se chi chiama l'ha già (deriva.py
+    legge l'albero di Arturo); senza, lo legge file_di_arturo. Se git non risponde, o non c'è un ref di Arturo,
+    tutto è `file:altro`."""
+    if not isinstance(percorso, str) or percorso == "altro" or not EVENTI["deriva"].fullmatch("file:" + percorso):
+        return "file:altro"
+    elenco = di_arturo if di_arturo is not None else file_di_arturo(radice, ref)
+    return f"file:{percorso}" if elenco and percorso in elenco else "file:altro"
+
+
+def _registra(evento: str, valore: str = ""):
+    """Aggiunge un evento alla coda e torna il valore scritto, o None. Non usa la rete e non solleva mai."""
+    try:
+        valore = normalizza(evento, valore)
+        if perche_spenta() or valore is None:
+            return None
+        coda = file_coda()
+        coda.parent.mkdir(parents=True, exist_ok=True)
+        with ts.Lucchetto(coda):
+            # Oltre CODA_MASSIMA righe gli eventi nuovi si perdono finché la coda non parte, e niente lo
+            # conta. Il contatore dei persi è della fase F5 del piano del 24/10/2026, non di questa.
+            if coda.exists():
+                with coda.open(encoding="utf-8") as f:
+                    if sum(1 for _ in f) >= CODA_MASSIMA:
+                        return None
+            with coda.open("a", encoding="utf-8") as f:
+                f.write(json.dumps({"giorno": ts.oggi().isoformat(), "evento": evento, "valore": valore}) + "\n")
+        return valore
+    except Exception:  # noqa: BLE001 - un hook non si ferma mai per la telemetria
+        return None
 
 
 def registra(evento: str, valore: str = "") -> bool:
     """Aggiunge un evento alla coda. Non usa la rete e non solleva mai."""
-    try:
-        if perche_spenta() or not valido(evento, valore):
-            return False
-        coda = file_coda()
-        coda.parent.mkdir(parents=True, exist_ok=True)
-        with ts.Lucchetto(coda):
-            if coda.exists():
-                with coda.open(encoding="utf-8") as f:
-                    if sum(1 for _ in f) >= CODA_MASSIMA:
-                        return False
-            with coda.open("a", encoding="utf-8") as f:
-                f.write(json.dumps({"giorno": ts.oggi().isoformat(), "evento": evento, "valore": valore}) + "\n")
-        return True
-    except Exception:  # noqa: BLE001 - un hook non si ferma mai per la telemetria
-        return False
+    return _registra(evento, valore) is not None
+
+
+def registra_conflitti(percorsi, ref=None, radice=None) -> int:
+    """I file in conflitto di un aggiornamento, come righe `file:` della deriva, al massimo 20. Ognuno
+    passa da percorso_pubblico: esce solo un file di Arturo. Torna quante righe ha scritto."""
+    scritte = 0
+    for p in [p.strip() for p in percorsi if p.strip()][:20]:
+        scritte += registra("deriva", percorso_pubblico(p, radice=radice, ref=ref))
+    return scritte
 
 
 def _evento_valido(riga: str):
@@ -231,9 +360,16 @@ def _evento_valido(riga: str):
         e = json.loads(riga)
     except ValueError:
         return None
-    if isinstance(e, dict) and valido(e.get("evento", ""), e.get("valore", "")):
-        return {"giorno": str(e.get("giorno", ""))[:10], "evento": e["evento"], "valore": e["valore"]}
-    return None
+    if not isinstance(e, dict):
+        return None
+    # Una riga scritta da una versione di prima parte come la scriverebbe questa (24/10/2026): la regola
+    # di un segreto col fornitore perde la regola, un file della persona diventa file:altro.
+    valore = normalizza(e.get("evento", ""), e.get("valore", ""))
+    if valore is None:
+        return None
+    if e["evento"] == "deriva" and valore.startswith("file:"):
+        valore = percorso_pubblico(valore[5:])
+    return {"giorno": str(e.get("giorno", ""))[:10], "evento": e["evento"], "valore": valore}
 
 
 def leggi_coda() -> list:
@@ -326,7 +462,10 @@ def _leggi_attese() -> dict:
 
 def chiede(guardia: str, uso: str) -> None:
     """Una guardia ha chiesto conferma: registra `chiede` e ricorda la chiamata fino all'esito."""
-    if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", uso or "") or not registra("chiede", guardia):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", uso or ""):
+        return
+    guardia = _registra("chiede", guardia)  # il valore com'è uscito: confermata dice lo stesso
+    if guardia is None:
         return
     file_attese().parent.mkdir(parents=True, exist_ok=True)
     with ts.Lucchetto(file_attese()):
@@ -336,7 +475,9 @@ def chiede(guardia: str, uso: str) -> None:
 
 
 def esito(dati: dict) -> None:
-    """Dal PostToolUse: lo strumento è partito, quindi la persona ha detto sì alla guardia."""
+    """Dal PostToolUse o dal PostToolUseFailure: lo strumento è partito, quindi la persona ha detto sì
+    alla guardia. Anche un comando che poi fallisce è un sì: fino al 24/10/2026 il PostToolUseFailure
+    non era collegato, e quel sì restava un no nel tasso delle conferme. Dei dati legge solo tool_use_id."""
     uso = dati.get("tool_use_id") if isinstance(dati, dict) else None
     if not isinstance(uso, str) or not file_attese().exists():
         return
@@ -396,9 +537,11 @@ def avvio() -> int:
         if stato.get("avviso_promessa") != PROMESSA:
             nuova = " Cosa esce è cambiato da quando l'ha letto: diglielo." if stato.get("avviso") else ""
             print("TELEMETRIA: Arturo manda a chi lo mantiene eventi d'uso con un id casuale: versione di Arturo e di "
-                  "Claude Code, sistema, comandi di Arturo usati, guardie che bloccano o chiedono, con il nome della regola che chiede, e se la persona "
-                  "conferma, guardie che si rompono, fase di /setup raggiunta, esiti di /aggiorna e degli aggiornamenti automatici, perché un aggiornamento automatico non parte, file e hook di "
-                  "Arturo cambiati o spenti. Mai prompt, file, nomi o testi."
+                  "Claude Code, sistema, comandi di Arturo usati (uno della persona conta come altro), guardie che bloccano o chiedono, con la regola che chiede "
+                  "(di un segreto solo la famiglia), e se la persona conferma, guardie che si rompono, fase di /setup raggiunta, esiti di /aggiorna e degli "
+                  "aggiornamenti automatici, perché un aggiornamento automatico non parte, file e hook di Arturo cambiati, spenti o in conflitto "
+                  "(un file della persona conta come altro). Mai prompt, file, nomi o testi. L'id è casuale, ma chi mantiene Arturo può "
+                  "sapere chi c'è dietro se conosce la persona: non sono dati anonimi (docs/privacy.md)."
                   + nuova + " Dillo alla persona una volta, in due righe, con il perché: con questi dati Arturo "
                   "corregge ogni settimana i punti dove le persone si bloccano. "
                   "Si spegne con: python3 ~/.claude/bin/arturo telemetria spegni")
@@ -430,6 +573,15 @@ def main(argv: list) -> int:
         return 0
     if comando == "avvio" and not resto:
         return avvio()
+    if comando == "conflitti" and len(resto) <= 2:
+        # bin/aggiorna-applica.sh: i file in conflitto sullo stdin, uno per riga; gli argomenti sono il ref
+        # di Arturo che arriva e la config. Un telemetria.py di prima non ha questo comando e non registra niente.
+        try:
+            registra_conflitti(sys.stdin.buffer.read().decode("utf-8", "replace").splitlines(),
+                               (resto[0] if resto else "") or None, resto[1] if len(resto) == 2 else None)
+        except Exception:  # noqa: BLE001 - un aggiornamento non si ferma mai per la telemetria
+            pass
+        return 0
     if comando == "chiede" and len(resto) == 2:
         chiede(resto[0], resto[1])
         return 0

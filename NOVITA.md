@@ -11,6 +11,26 @@ modo di lavorare.
 
 ---
 
+## 2026-10-24 — La telemetria manda meno, e conta meglio i tuoi sì
+
+**Cosa cambia**: dalla telemetria esce meno di prima. Se un aggiornamento va in conflitto su un file
+tuo, per esempio una skill che hai scritto tu, esce solo `file:altro`, mai il nome del file. Se una
+guardia ferma un commit con un segreto, esce la famiglia del segreto, come `segreto-cloud`, e non più il
+servizio, come `google-api-key`. Un comando tuo conta come `altro`, senza il nome. Delle guardie escono
+solo i nomi di Arturo, da un elenco chiuso. Come versione esce solo il rilascio di Arturo: un tag tuo non esce. Un sì a una guardia conta anche su Monitor e quando il
+comando poi fallisce: prima contava come un no. Il README non dice più che l'id è "non legato a te", e
+la nuova pagina [`docs/privacy.md`](docs/privacy.md) dice chi tiene i dati, per quanto e come li cancelli.
+
+**Il principio dietro**: la promessa del README deve dire esattamente ciò che esce. Un nome di file o
+di servizio dice qualcosa di te, e un numero sbagliato porta a correggere la cosa sbagliata.
+
+**Da sapere**: alla prima sessione Arturo ti avvisa di nuovo, perché cosa esce è cambiato. L'id è
+casuale, ma chi mantiene Arturo può sapere quale persona c'è dietro se la conosce: per questo i dati non
+sono anonimi. Le segnalazioni restano sul server 12 mesi, e di una segnalazione Telegram ed email ricevono solo il
+numero, l'origine e il tipo. Cosa arriva su Telegram e per email, in tutto, lo dice `docs/privacy.md`. La spegni come sempre con `python3 ~/.claude/bin/arturo telemetria spegni`.
+
+---
+
 ## 2026-10-23 — Un progetto riservato resta fuori dal sync
 
 **Cosa cambia**: se togli dal sync gli appunti di un progetto, con una riga nel `.gitignore` della tua

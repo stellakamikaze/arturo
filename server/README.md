@@ -6,12 +6,24 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
   `logica.js` (`sessione`, `comando`, `guardia`, `aggiorna`, `segnalazione`, `deriva`, `config`, `setup`,
   `chiede`, `confermata`, `errore`, `claude`). Ogni evento ha il giorno e mai l'ora. `config`
   (config rotta) manda subito un'email, una al giorno per installazione. Il server accetta ancora
-  `tappa`, che il client non manda più dal 16/10/2026, per non rifiutare i lotti dei client non
+  `tappa`, che il client non manda più dal 16/10/2026, per non perdere i dati dei client non
   aggiornati: in coda all'elenco, si toglie dopo qualche settimana.
+  Dal 24/10/2026 anche i valori sono a lista chiusa: `guardia`, `chiede`, `confermata` ed `errore`
+  accettano solo i nomi delle guardie di Arturo (`GUARDIE` in `logica.js`), con il suffisso
+  `.<regola>` solo per le regole che esistono (`REGOLE`: quelle di block-dangerous e le famiglie del
+  segreto di commit-secret-gate, mai il nome del fornitore). `comando` accetta solo i comandi di
+  `commands/` (`COMANDI`) e `altro`. Il lotto passa in parte: la risposta è `200 {accettati, scartati}`,
+  gli eventi fuori elenco non si salvano e si contano nel contatore `scartati` del giorno, senza id.
+  Il `400` resta per il lotto malformato (installazione, versione o sistema storti, JSON rotto).
+  Di `deriva` si salvano solo i nomi di Arturo dove la persona crea cose sue: i file della radice, le
+  voci di `skills/`, `agents/` e `commands/` e gli hook di `settings.json` (`DERIVA_NOMI` e `DERIVA_HOOK`).
+  Un altro nome si salva come `file:altro` o `hook:altro`. Della versione si salva solo il rilascio
+  (`v2026-10-19.2`), senza i commit della persona; un tag della persona diventa `sconosciuta`.
 - `POST /v1/segnalazioni`: una segnalazione che la persona ha letto e approvato con `/segnala`.
 - `POST /v1/feedback`: il modulo di feedback del sito, che la landing serve come `/api/feedback`.
-  Il testo, il tipo e l'email facoltativa restano nella tabella `feedback`. Il vocale non si salva:
-  passa solo a Telegram. Al massimo 100 al giorno, corpo fino a 5 MB, vocale fino a 4 MB.
+  Il testo, il tipo e l'email facoltativa restano nella tabella `feedback`. Dal 24/10/2026 il vocale
+  non si accetta più: un modulo con il campo `voce` torna `400` con il motivo. Prima passava solo a
+  Telegram, che lo teneva senza scadenza. Al massimo 100 al giorno, corpo fino a 5 MB.
 - `POST /v1/sito`: un download dal sito, servito come `/api/sito`: il comando di installazione
   copiato o il repository aperto. Non si salva niente oltre al contatore del giorno, e Telegram
   avvisa fino a 60 volte al giorno.
@@ -24,8 +36,8 @@ producono: chiunque può mandare eventi con un id nuovo, e un lotto di un giorno
 spostare quei numeri. **Una guardia non si allenta sulla sola base della telemetria anonima**: la
 routine che propone correzioni lo tratta come un indizio da verificare, mai come la prova.
 
-L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi, i contatori e il
-feedback più vecchi di 12 mesi si cancellano il lunedì. Le chiavi "una volta per installazione"
+L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi, i contatori, il
+feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le segnalazioni dal 24/10/2026). Le chiavi "una volta per installazione"
 (come l'avviso del setup finito) se ne vanno con l'ultimo evento della loro installazione.
 
 ## I file
@@ -44,17 +56,24 @@ feedback più vecchi di 12 mesi si cancellano il lunedì. Le chiavi "una volta p
 
 - **Su Telegram**, se il Worker ha i secret `TELEGRAM_TOKEN` e `TELEGRAM_CHAT`: un messaggio per ogni
   installazione nuova (il primo lotto da un id mai visto), per ogni segnalazione, per ogni feedback
-  del sito (col vocale, se c'è), per ogni download dal sito (fino a 60 al giorno) e per il setup
-  finito, una volta per installazione. Il testo porta solo quello che il server già salva, più il
-  vocale, che non si salva. Senza i secret non parte niente.
-- **Ogni segnalazione** arriva come email, con l'oggetto `[Arturo] [tipo] (da verificare) titolo`:
-  il testo lo scrive chiunque. Il tetto è di 20 email al giorno, separato dalle 20 delle config
-  rotte: oltre, la segnalazione resta in D1 senza email.
+  del sito, per ogni download dal sito (fino a 60 al giorno) e per il setup finito, una volta per
+  installazione. Il testo porta solo quello che il server già salva, e l'id esce con 8 caratteri.
+  Senza i secret non parte niente.
+- **Segnalazioni e feedback sono campanelli (24/10/2026).** Telegram ed email dicono solo numero, tipo
+  e origine: `Arturo: segnalazione n. 14 · problema · segnala`, `Arturo: feedback n. 3 · idea · sito`.
+  Mai il titolo, il testo, l'email di chi scrive o l'id completo: il testo resta in D1, e si legge
+  con la query della sezione "Le query". Ogni segnalazione arriva anche come email, con l'oggetto
+  `[Arturo] [tipo] Segnalazione n. N`. Il tetto è di 20 email al giorno, separato dalle 20 delle
+  config rotte: oltre, la segnalazione resta in D1 senza email.
+- **Un canale che tace si conta (24/10/2026).** Un avviso Telegram o un'email che non parte non ferma
+  la richiesta, e sale il contatore del giorno `telegram-ko` o `email-ko`, senza id. Il recap e il
+  riepilogo del lunedì mostrano questi due numeri e gli eventi scartati; un giorno con uno di questi
+  numeri sopra zero manda il recap anche senza eventi.
 - **Tetti e limiti contro l'abuso (16/10/2026).** Gli avvisi Telegram hanno un tetto al giorno:
   20 installazioni nuove, 20 setup finiti, 30 segnalazioni. Oltre, il dato si salva e il messaggio
   no. Il limite per IP sta nei binding `LIMITE_EVENTI` (60 al minuto) e `LIMITE_MODULI` (10 al
   minuto) di `wrangler.toml`; l'IP non si salva. Il modulo e i download rifiutano un invio da un
-  altro sito (`Sec-Fetch-Site: cross-site`), e del vocale si controllano i primi byte.
+  altro sito (`Sec-Fetch-Site: cross-site`).
 - **Ogni mattina alle 8** (06:00 UTC) arriva il recap del giorno prima, solo se quel giorno ci
   sono stati eventi o segnalazioni. Ha anche le config rotte e la deriva cambiata.
 - **Ogni mattina, su Telegram, le installazioni rimaste indietro (23/10/2026)**: attive negli ultimi
@@ -65,7 +84,10 @@ feedback più vecchi di 12 mesi si cancellano il lunedì. Le chiavi "una volta p
 - **Il lunedì** arriva sempre il riepilogo della settimana prima, da lunedì a domenica in ora di Roma
   (24/10/2026: prima perdeva il lunedì di sette giorni prima e contava il lunedì appena cominciato), anche vuoto. Si apre con "Dove migliorare
   Arturo" (ultimi 30 giorni: setup fermi, conferme delle guardie, guardie rotte, installazioni rimaste
-  indietro, aggiornamenti non applicati, ritenzione, versioni di Claude Code), poi tutta la deriva aperta e le
+  indietro, aggiornamenti non applicati, ritenzione, versioni di Claude Code). Dal 24/10/2026 la finestra
+  di 30 giorni vale per tutto il blocco, setup e ritenzione compresi (per la soglia di n giorni, le
+  installazioni nate fra n e n+30 giorni fa), e contano solo le installazioni viste in almeno due giorni,
+  salvo la ritenzione. Lo stesso filtro vale per i comandi usati. Poi tutta la deriva aperta e le
   guardie frequenti (almeno 5 blocchi nella settimana sulla stessa installazione). Poi parte la pulizia. Se il
   riepilogo del lunedì manca, il Worker è fermo.
 - **Ogni passo del cron ha il suo try** (24/10/2026): recap, installazioni indietro, riepilogo del lunedì e
@@ -160,14 +182,22 @@ npx wrangler@4 d1 execute arturo --remote --command "SELECT testo FROM segnalazi
 ```
 
 Per cancellare i dati di un'installazione che lo chiede, serve il suo id. La persona lo legge
-con `python3 ~/.claude/bin/arturo telemetria mostra`:
+con `python3 ~/.claude/bin/arturo telemetria mostra`. Il feedback del sito non ha un id: si
+cancella con l'email che la persona ha lasciato nel modulo:
 
 ```bash
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM eventi WHERE installazione = '<id>'"
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM segnalazioni WHERE installazione = '<id>'"
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM contatori WHERE substr(chiave, instr(chiave, ':') + 1) = '<id>'"
+npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM feedback WHERE email = '<email>'"
 ```
 
-L'ultima toglie le chiavi dei contatori che portano l'id (`setup-fine:`, `rotta:`, `indietro:`), che
-altrimenti restano fino a 12 mesi. La stessa procedura sta in `docs/manutenzione.md`: il banco CP01
-le confronta.
+La terza toglie le chiavi dei contatori che portano l'id (`setup-fine:`, `rotta:`, `indietro:`), che
+altrimenti restano fino a 12 mesi. Una segnalazione mandata senza id, o un feedback senza email, si
+cancella col suo numero (`DELETE` con `WHERE id = N`), se la persona lo dice.
+Le copie già uscite verso Gmail e Telegram non si raggiungono dal server, e la pulizia dei 12 mesi non
+le tocca: il recap e il riepilogo del lunedì (prime 8 cifre dell'id con deriva, guardie frequenti e
+installazioni indietro), gli avvisi di installazione nuova, setup finito, installazione indietro e config
+rotta. Prima del 24/10/2026 portavano anche il testo delle segnalazioni e del feedback. Chi mantiene
+Arturo le cancella a mano nella casella e nella chat; l'elenco intero sta in `docs/privacy.md` ("Chi li
+riceve"). La stessa procedura sta in `docs/manutenzione.md`: il banco CP01 le confronta.

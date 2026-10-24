@@ -5,7 +5,7 @@ Arturo convive con la config personale: la persona aggiunge le sue regole, i suo
 permessi. Il guaio arriva quando la distanza rompe Arturo: un hook di Arturo tolto o spento, un
 file di Arturo modificato che manda in conflitto ogni aggiornamento, una config rotta. Questo
 controllo misura tre cose rispetto al punto in cui la config si è staccata da Arturo (merge-base
-con upstream/main se esiste, altrimenti origin/main):
+con upstream/main se c'è un remote upstream, altrimenti con origin/main):
 
   - file di Arturo modificati in locale (settings.json escluso: le sue modifiche sono normali, e
     gli hook li guarda il secondo controllo);
@@ -14,7 +14,8 @@ con upstream/main se esiste, altrimenti origin/main):
 
 Stampa una riga DERIVA: solo se c'è qualcosa da fare. Registra nella telemetria l'elenco corrente
 solo quando cambia (evento `deriva`, prima un `insieme:<n>`), e la config rotta una volta al giorno
-(evento `config`), con l'invio subito. Dei file esce solo il percorso dentro Arturo, che è pubblico.
+(evento `config`), con l'invio subito. Dei file esce solo il percorso dentro Arturo, che è pubblico,
+e passa dallo stesso filtro dei conflitti di /aggiorna (percorso_pubblico di bin/telemetria.py).
 Non ferma mai l'avvio: ogni errore tace.
 """
 from __future__ import annotations
@@ -50,10 +51,11 @@ def git(radice: Path, *argomenti) -> tuple:
 
 
 def riferimento(radice: Path):
-    for ref in ("upstream/main", "origin/main"):
-        if git(radice, "rev-parse", "--verify", "--quiet", ref)[0] == 0:
-            return ref
-    return None
+    """upstream/main se la persona ha un remote upstream, altrimenti origin/main; None se manca. Con un
+    upstream dichiarato e mai scaricato non ripiega su origin/main, che lì è il repository della persona:
+    i suoi file sembravano di Arturo (24/10/2026). La stessa scelta di ref_di_arturo in bin/telemetria.py."""
+    ref = "upstream/main" if git(radice, "config", "--get", "remote.upstream.url")[0] == 0 else "origin/main"
+    return ref if git(radice, "rev-parse", "--verify", "--quiet", ref + "^{commit}")[0] == 0 else None
 
 
 def hook_dichiarati(impostazioni: dict) -> set:
@@ -117,7 +119,7 @@ def contenuto_cambiato(radice: Path, di_arturo: dict, file: list) -> list:
 
 def rileva(radice: Path) -> dict:
     """{'file': [...], 'hook': [...], 'config': [...]}: vuoto dove non si può misurare."""
-    esito = {"file": [], "hook": [], "config": categorie_config(radice), "base": ""}
+    esito = {"file": [], "hook": [], "config": categorie_config(radice), "base": "", "di_arturo": frozenset()}
     ref = riferimento(radice)
     if not ref:
         return esito
@@ -131,6 +133,7 @@ def rileva(radice: Path) -> dict:
     for riga in albero.splitlines():
         testa, _, nome = riga.partition("\t")
         di_arturo[nome] = testa.split()[-1]
+    esito["di_arturo"] = frozenset(di_arturo)
     _, cambiati = git(radice, "diff", "--name-only", base)
     esito["file"] = contenuto_cambiato(radice, di_arturo, sorted(
         f for f in set(cambiati.splitlines()) if f in di_arturo and f != "settings.json" and FILE.match(f)))[:MASSIMO]
@@ -148,8 +151,15 @@ def rileva(radice: Path) -> dict:
     return esito
 
 
-def valori(esito: dict) -> list:
-    return [f"file:{f}" for f in esito["file"]] + [f"hook:{h}" for h in esito["hook"]]
+def valori(esito: dict, t=None) -> list:
+    """I valori della deriva per la telemetria. I file passano da percorso_pubblico di bin/telemetria.py,
+    con l'albero di Arturo letto da rileva come elenco dei file di Arturo (24/10/2026): rileva li
+    sceglie già da lì, il filtro unico tiene allineati questo controllo e i conflitti di /aggiorna."""
+    if t is None or not hasattr(t, "percorso_pubblico"):  # un telemetria.py di prima del filtro
+        file = [f"file:{f}" for f in esito["file"]]
+    else:
+        file = [t.percorso_pubblico(f, esito.get("di_arturo") or frozenset()) for f in esito["file"]]
+    return file + [f"hook:{h}" for h in esito["hook"]]
 
 
 def riga(esito: dict) -> str:
@@ -191,7 +201,7 @@ def registra(esito: dict) -> None:
     if t.perche_spenta():
         return
     stato = t.leggi_stato()
-    attuali = valori(esito)
+    attuali = valori(esito, t)
     if attuali != stato.get("deriva_inviata", []):
         if t.registra("deriva", f"insieme:{len(attuali)}") and all(t.registra("deriva", v) for v in attuali):
             t.cambia_stato(lambda s: s.__setitem__("deriva_inviata", attuali))

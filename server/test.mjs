@@ -1,6 +1,7 @@
 // Banco del server di Arturo (W-casi con la sigla V): logica.js con un archivio e una posta finti.
 // Uso: node server/test.mjs   (esce con 0 se tutto passa)
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 // Import per nome dal modulo intero: una funzione che manca (il veleno sulla versione vecchia) fa fallire il suo
 // caso con il suo messaggio, non il caricamento del banco.
 import * as logica from "./logica.js";
@@ -8,11 +9,11 @@ const { gestisci, settimanale, giornaliero, programmato, pulizia, giornoRoma, se
   LIMITI, EVENTI, calcolaIndietro, rilascio } = logica;
 
 const VUOTO = { installazioni: 0, sessioni: 0, versioni: [], sistemi: [], comandi: [], guardie: [], aggiorna: [], config: [], deriva: [],
-  guardieFrequenti: null, segnalazioni: 0 };
+  guardieFrequenti: null, segnalazioni: 0, scartati: 0, telegramKo: 0, emailKo: 0 };
 
 function finti(riepilogo = null) {
   const stato = { eventi: [], segnalazioni: [], email: [], avvisi: [], contatori: {}, chiavi: {}, pulito: null, finestre: [], opzioni: [],
-    feedback: [], vocali: [], conteggi: {} };
+    feedback: [], conteggi: {} };
   const archivio = {
     async installazioneNuova(inst) { return !stato.eventi.some((e) => e.installazione === inst); },
     async contaEventi(inst, giorno) {
@@ -40,7 +41,7 @@ function finti(riepilogo = null) {
       stato.opzioni.push(opzioni);
       if (riepilogo) return riepilogo;
       return { installazioni: 2, sessioni: 5, versioni: [{ valore: "v2026-10-13", n: 2 }], sistemi: [], comandi: [{ valore: "fine", n: 3 }],
-        guardie: [], aggiorna: [], segnalazioni: 1 };
+        guardie: [], aggiorna: [], segnalazioni: 1, scartati: 0, telegramKo: 0, emailKo: 0 };
     },
     async pulisci(prima) { stato.pulito = prima; },
     async indietro() { return stato.indietro || []; },
@@ -51,21 +52,29 @@ function finti(riepilogo = null) {
   };
   const posta = async (m) => { stato.email.push(m); };
   const avviso = async (t) => { stato.avvisi.push(t); };
-  const voce = async (audio, t, numero) => { stato.avvisi.push(t); stato.vocali.push({ tipo: audio.type, size: audio.size, numero }); };
-  return { stato, archivio, posta, avviso, voce };
+  return { stato, archivio, posta, avviso };
 }
 
 const adesso = new Date("2026-10-13T10:00:00Z");
 const post = (percorso, corpo) => new Request(`https://arturo.example${percorso}`, {
   method: "POST", body: typeof corpo === "string" ? corpo : JSON.stringify(corpo) });
 const lotto = (eventi, extra = {}) => ({ installazione: "1b2c3d4e-aaaa-bbbb", versione: "v2026-10-13", sistema: "Darwin", eventi, ...extra });
+// Dal 24/10/2026 un evento fuori elenco non fa rifiutare il lotto: si scarta, si conta, e non si salva niente.
+async function scartato(evento, valore, marcatore) {
+  const f = finti();
+  const r = await gestisci(post("/v1/eventi", lotto([{ giorno: "2026-10-13", evento, valore }])), { ...f, adesso });
+  assert.equal(r.status, 200, `${marcatore} ${evento} ${JSON.stringify(valore)}: il lotto non è accettato in parte`);
+  assert.deepEqual(await r.json(), { accettati: 0, scartati: 1 }, `${marcatore} ${evento} ${JSON.stringify(valore)} accettato`);
+  assert.equal(f.stato.eventi.length, 0, `${marcatore} ${evento} ${JSON.stringify(valore)} salvato`);
+}
 
 const casi = {
   async V01() {
     const f = finti();
     const r = await gestisci(post("/v1/eventi", lotto([{ giorno: "2026-10-12", evento: "comando", valore: "fine" },
       { giorno: "2026-10-13", evento: "sessione" }])), { ...f, adesso });
-    assert.equal(r.status, 202, "V01 un lotto valido non è accettato");
+    assert.equal(r.status, 200, "V01 un lotto valido non è accettato");
+    assert.deepEqual(await r.json(), { accettati: 2, scartati: 0 }, "V01 la risposta non conta gli accettati");
     assert.equal(f.stato.eventi.length, 2);
     assert.deepEqual(Object.keys(f.stato.eventi[0]).sort(),
       ["evento", "giorno", "installazione", "ricevuto", "sistema", "valore", "versione"], "V01 salvato un campo in più");
@@ -74,8 +83,7 @@ const casi = {
     const f = finti();
     for (const e of [{ evento: "prompt", valore: "ciao" }, { evento: "comando", valore: "/fine con testo privato" },
       { evento: "guardia", valore: "x".repeat(61) }, { evento: "sessione", valore: "qualcosa" }]) {
-      const r = await gestisci(post("/v1/eventi", lotto([e])), { ...f, adesso });
-      assert.equal(r.status, 400, `V02 evento fuori elenco accettato: ${JSON.stringify(e)}`);
+      await scartato(e.evento, e.valore, "V02");
     }
     for (const extra of [{ installazione: "corto" }, { sistema: "Amiga" }, { versione: "v".repeat(61) }]) {
       const r = await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }], extra)), { ...f, adesso });
@@ -88,14 +96,14 @@ const casi = {
     const grande = post("/v1/eventi", JSON.stringify(lotto([{ evento: "sessione" }])) + " ".repeat(LIMITI.corpoEventi));
     assert.equal((await gestisci(grande, { ...f, adesso })).status, 413, "V03 corpo troppo grande accettato");
     const pieno = Array.from({ length: LIMITI.eventiPerGiorno }, () => ({ evento: "sessione" }));
-    assert.equal((await gestisci(post("/v1/eventi", lotto(pieno)), { ...f, adesso })).status, 202);
+    assert.equal((await gestisci(post("/v1/eventi", lotto(pieno)), { ...f, adesso })).status, 200);
     assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }])), { ...f, adesso })).status, 429,
       "V03 il tetto giornaliero per installazione non regge");
   },
   async V04() {
     const f = finti();
     const r = await gestisci(post("/v1/eventi", lotto([{ giorno: "2099-01-01", evento: "sessione" }])), { ...f, adesso });
-    assert.equal(r.status, 202);
+    assert.equal(r.status, 200);
     assert.equal(f.stato.eventi[0].giorno, "2026-10-13", "V04 un giorno nel futuro resta nel futuro");
   },
   async V05() {
@@ -104,8 +112,11 @@ const casi = {
     const r = await gestisci(post("/v1/segnalazioni", s), { ...f, adesso });
     assert.equal(r.status, 201, "V05 segnalazione valida rifiutata");
     assert.deepEqual(await r.json(), { numero: 1, email: true });
-    assert.equal(f.stato.email[0].oggetto, "[Arturo] [problema] (da verificare) /fine si ferma", "V05 oggetto sbagliato");
-    assert.match(f.stato.email[0].testo, /Il commit non parte\./);
+    // Dal 24/10/2026 l'email è un campanello: numero e tipo, il testo resta in D1 (R18).
+    assert.equal(f.stato.email[0].oggetto, "[Arturo] [problema] Segnalazione n. 1", "V05 oggetto sbagliato");
+    assert.doesNotMatch(f.stato.email[0].testo, /Il commit non parte/, "V05 il testo della segnalazione esce per email");
+    assert.match(f.stato.email[0].testo, /WHERE id = 1"/, "V05 l'email non dice come leggere la segnalazione");
+    assert.equal(f.stato.segnalazioni[0].testo, "Il commit non parte.", "V05 il testo non resta sul server");
     for (const cattiva of [{ ...s, tipo: "spam" }, { ...s, titolo: "" }, { ...s, testo: "x".repeat(16001) }]) {
       assert.equal((await gestisci(post("/v1/segnalazioni", cattiva), { ...f, adesso })).status, 400, "V05 segnalazione non valida accettata");
     }
@@ -166,14 +177,14 @@ const casi = {
     const h = finti(VUOTO);
     await programmato({ ...h, adesso: new Date("2026-10-12T06:00:00Z") });
     assert.deepEqual(h.stato.email.map((m) => m.oggetto.split(" ")[1]), ["Riepilogo"], "V12 il lunedì vuoto deve mandare il solo riepilogo");
-    assert.match(h.stato.email[0].testo, /Versioni in uso:\n  nessuna\n[\s\S]*Comandi usati:\n  nessuno\n[\s\S]*Guardie che hanno bloccato \(volte, installazioni viste in almeno 2 giorni\):\n  nessuna\n/,
+    assert.match(h.stato.email[0].testo, /Versioni in uso:\n  nessuna\n[\s\S]*Comandi usati \(installazioni viste in almeno 2 giorni\):\n  nessuno\n[\s\S]*Guardie che hanno bloccato \(volte, installazioni viste in almeno 2 giorni\):\n  nessuna\n/,
       "V12 il genere di nessuno/nessuna è sbagliato");
   },
   async V13() {
     // La config rotta arriva subito per email, una sola al giorno per installazione, dentro il tetto.
     const f = finti();
     const rotta = lotto([{ evento: "config", valore: "rotta-settings" }]);
-    assert.equal((await gestisci(post("/v1/eventi", rotta), { ...f, adesso })).status, 202, "V13 config rotta rifiutata");
+    assert.equal((await gestisci(post("/v1/eventi", rotta), { ...f, adesso })).status, 200, "V13 config rotta rifiutata");
     assert.equal(f.stato.email.length, 1, "V13 la config rotta non manda l'email subito");
     assert.match(f.stato.email[0].oggetto, /Config rotta/);
     assert.match(f.stato.email[0].testo, /Installazione 1b2c3d4e /, "V13 l'id non è accorciato");
@@ -185,18 +196,16 @@ const casi = {
     g.stato.conteggi["2026-10-13 email-rotta"] = LIMITI.emailRottePerGiorno;
     await gestisci(post("/v1/eventi", rotta), { ...g, adesso });
     assert.equal(g.stato.email.length, 0, "V13 il tetto delle email non vale per la config rotta");
-    for (const v of ["rotta-altro", "rotta-settings ", "../x"]) {
-      assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "config", valore: v }])), { ...f, adesso })).status, 400, `V13 config accetta ${v}`);
-    }
+    for (const v of ["rotta-altro", "rotta-settings ", "../x"]) await scartato("config", v, "V13");
   },
   async V14() {
     // Deriva: valori chiusi, ostacoli in cima, id accorciato, rientro detto.
     const f = finti();
     for (const v of ["insieme:2", "file:commands/inizio.md", "hook:bash-dispatcher.sh", "file:skills/x/SKILL.md"]) {
-      assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "deriva", valore: v }])), { ...f, adesso })).status, 202, `V14 deriva rifiuta ${v}`);
+      assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "deriva", valore: v }])), { ...f, adesso })).status, 200, `V14 deriva rifiuta ${v}`);
     }
     for (const v of ["file:/Users/gigi/segreto.md", "file:commands/con spazio.md", "insieme:1000", "progetto:x", "hook:", "file:../x", "file:commands/../../etc/passwd"]) {
-      assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "deriva", valore: v }])), { ...f, adesso })).status, 400, `V14 deriva accetta ${v}`);
+      await scartato("deriva", v, "V14");
     }
     const righe = testoDeriva([
       { installazione: "aaaaaaaa-1111", valori: ["file:commands/inizio.md"], conflitto: false },
@@ -245,16 +254,12 @@ const casi = {
     for (const [evento, valore] of buoni) {
       const f = finti();
       const r = await gestisci(post("/v1/eventi", lotto([{ giorno: "2026-10-13", evento, valore }])), { ...f, adesso });
-      assert.equal(r.status, 202, `V16 ${evento} ${valore} rifiutato`);
+      assert.deepEqual(await r.json(), { accettati: 1, scartati: 0 }, `V16 ${evento} ${valore} rifiutato`);
     }
     const cattivi = [["setup", "fase:11"], ["setup", "fase:3 nota"], ["tappa", "tappa:5"], ["tappa", "tappa:testo"],
       ["tappa", "note:3"], ["claude", "2.1.x-beta"], ["chiede", "una guardia con spazi"], ["aggiorna", "forse"],
       ["tappa", "tappa:3\n"]];
-    for (const [evento, valore] of cattivi) {
-      const f = finti();
-      const r = await gestisci(post("/v1/eventi", lotto([{ giorno: "2026-10-13", evento, valore }])), { ...f, adesso });
-      assert.equal(r.status, 400, `V16 ${evento} ${JSON.stringify(valore)} accettato`);
-    }
+    for (const [evento, valore] of cattivi) await scartato(evento, valore, "V16");
   },
   // Il riepilogo in JSON esce solo con il token giusto, e un token corto non apre niente.
   async V17() {
@@ -273,16 +278,17 @@ const casi = {
     assert.deepEqual(f.stato.opzioni, [{ settimana: true }], "V17 il JSON non chiede la settimana");
     assert.equal(dati.migliorare.setupIniziati, 1, "V17 manca \"Dove migliorare\"");
   },
-  // Ritenzione: per ogni soglia contano solo le installazioni nate da almeno quei giorni.
+  // Ritenzione: per ogni soglia n contano solo le installazioni nate da almeno n giorni, e dal 24/10/2026 da meno
+  // di n+30: la finestra di 30 giorni del blocco "Dove migliorare".
   async V18() {
     const r = ritenzione([
-      { installazione: "a", prima: "2026-08-01", ultima: "2026-10-12" },  // 72 giorni: viva a 7, 30, 60
-      { installazione: "b", prima: "2026-08-01", ultima: "2026-08-05" },  // morta dopo 4 giorni
+      { installazione: "a", prima: "2026-08-01", ultima: "2026-10-12" },  // nata 73 giorni fa: idonea solo a 60, viva
+      { installazione: "b", prima: "2026-08-01", ultima: "2026-08-05" },  // nata 73 giorni fa, morta dopo 4 giorni
       { installazione: "c", prima: "2026-09-20", ultima: "2026-10-13" },  // 23 giorni: idonea solo a 7
       { installazione: "d", prima: "2026-10-10", ultima: "2026-10-13" },  // nuova
     ], "2026-10-13");
     assert.equal(r.nuove, 1, "V18 installazioni nuove");
-    assert.deepEqual(r.soglie, [{ giorni: 7, idonee: 3, vive: 2 }, { giorni: 30, idonee: 2, vive: 1 }, { giorni: 60, idonee: 2, vive: 1 }],
+    assert.deepEqual(r.soglie, [{ giorni: 7, idonee: 1, vive: 1 }, { giorni: 30, idonee: 0, vive: 0 }, { giorni: 60, idonee: 2, vive: 1 }],
       "V18 soglie della ritenzione");
   },
   // Il lunedì apre con "Dove migliorare Arturo"; il recap del giorno no.
@@ -313,37 +319,27 @@ const casi = {
     assert.equal(f.stato.avvisi.length, 2, "V20 una seconda installazione non viene avvisata");
     await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "Il setup si ferma", testo: "Alla fase 2 esce un errore.", versione: "v2026-10-13", sistema: "Darwin" }), { ...f, adesso });
     assert.equal(f.stato.avvisi.length, 3, "V20 la segnalazione non viene avvisata");
-    assert.match(f.stato.avvisi[2], /segnalazione n\. 1 \(problema\)[\s\S]*Il setup si ferma[\s\S]*Alla fase 2/, "V20 testo dell'avviso di segnalazione");
+    assert.equal(f.stato.avvisi[2], "Arturo: segnalazione n. 1 · problema · segnala", "V20 testo dell'avviso di segnalazione");
     // Un avviso che non parte non deve far perdere eventi o segnalazioni.
     const g = finti();
     const rotto = async () => { throw new Error("Telegram giù"); };
     const r = await gestisci(post("/v1/eventi", lotto([{ evento: "sessione", valore: "" }])), { ...g, avviso: rotto, adesso });
-    assert.equal(r.status, 202, "V20 un avviso fallito fa fallire la richiesta");
+    assert.equal(r.status, 200, "V20 un avviso fallito fa fallire la richiesta");
     assert.equal(g.stato.eventi.length, 1, "V20 un avviso fallito fa perdere l'evento");
   },
   async V21() {
-    // Il modulo di feedback del sito (16/10/2026): testo, tipo, email, e il vocale che passa a Telegram.
+    // Il modulo di feedback del sito (16/10/2026): testo, tipo, email. Su Telegram il solo campanello (24/10/2026).
     const f = finti();
-    const modulo = (campi, voce) => {
-      const m = new FormData();
-      for (const [k, v] of Object.entries(campi)) m.append(k, v);
-      if (voce) m.append("voce", voce, "voce.webm");
-      return new Request("https://arturo.example/v1/feedback", { method: "POST", body: m });
-    };
-    let r = await gestisci(modulo({ tipo: "idea", testo: "Mi piacerebbe un comando per le bozze.", email: "a@esempio.it" }), { ...f, adesso });
+    const m = new FormData();
+    for (const [k, v] of Object.entries({ tipo: "idea", testo: "Mi piacerebbe un comando per le bozze.", email: "a@esempio.it" })) m.append(k, v);
+    const r = await gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: m }), { ...f, adesso });
     assert.equal(r.status, 201, "V21 un feedback scritto non è accettato");
-    assert.deepEqual(f.stato.feedback[0], { tipo: "idea", testo: "Mi piacerebbe un comando per le bozze.", email: "a@esempio.it", voce: 0 },
+    assert.deepEqual(f.stato.feedback[0], { tipo: "idea", testo: "Mi piacerebbe un comando per le bozze.", email: "a@esempio.it" },
       "V21 il feedback salvato non è quello mandato");
-    assert.match(f.stato.avvisi[0], /^Arturo: feedback n\. 1 dal sito \(idea\) · a@esempio\.it\n\nMi piacerebbe/, "V21 testo dell'avviso");
-    const audio = new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3]), new Uint8Array(2044)], { type: "audio/webm;codecs=opus" });
-    r = await gestisci(modulo({ tipo: "problema", testo: "" }, audio), { ...f, adesso });
-    assert.equal(r.status, 201, "V21 un feedback solo vocale non è accettato");
-    assert.equal(f.stato.vocali.length, 1, "V21 il vocale non passa a Telegram");
-    assert.equal(f.stato.feedback[1].voce, 1, "V21 il feedback non dice che c'era un vocale");
-    assert.ok(!JSON.stringify(f.stato.feedback).includes("arrayBuffer"), "V21 il vocale finisce nell'archivio");
+    assert.equal(f.stato.avvisi[0], "Arturo: feedback n. 1 · idea · sito", "V21 testo dell'avviso");
   },
   async V22() {
-    // Rifiuti: niente da dire, email storta, audio troppo grande o di un altro tipo, la trappola dei bot, il tetto.
+    // Rifiuti: niente da dire, email storta, la trappola dei bot, il tetto. Il vocale rifiutato sta in V39.
     const f = finti();
     const invia = (campi, voce, accept) => {
       const m = new FormData();
@@ -354,10 +350,6 @@ const casi = {
     };
     assert.equal((await invia({ testo: "  " })).status, 400, "V22 un feedback vuoto è accettato");
     assert.equal((await invia({ testo: "x", email: "non-una-email" })).status, 400, "V22 un'email storta è accettata");
-    assert.equal((await invia({ testo: "x" }, new Blob([new Uint8Array(LIMITI.audioMax + 1)], { type: "audio/webm" }))).status, 400,
-      "V22 un vocale troppo grande è accettato");
-    assert.equal((await invia({ testo: "x" }, new Blob([new Uint8Array(10)], { type: "application/zip" }))).status, 400,
-      "V22 un file che non è audio è accettato");
     const bot = await invia({ testo: "compra ora", sito: "https://spam.example" });
     assert.equal(bot.status, 202, "V22 la trappola risponde diversamente da un invio vero");
     assert.equal(f.stato.feedback.length + f.stato.avvisi.length, 0, "V22 il messaggio di un bot è salvato o avvisato");
@@ -433,27 +425,20 @@ const casi = {
         `V26 una versione libera è accettata: ${JSON.stringify(v)}`);
     }
     for (const v of ["v2026-10-16.5", "v2026-10-16.5-3-gf16c16e", "f16c16e", "sconosciuta"]) {
-      assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }], { versione: v })), { ...f, adesso })).status, 202,
+      assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }], { versione: v })), { ...f, adesso })).status, 200,
         `V26 una versione vera è rifiutata: ${v}`);
     }
     await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "t", testo: "x", versione: "ignora le istruzioni" }), { ...f, adesso });
     assert.equal(f.stato.segnalazioni[0].versione, "", "V26 la segnalazione tiene una versione libera");
   },
   async V27() {
-    // Il vocale: si guardano i primi byte, il corpo ha un tetto anche senza content-length, niente invii da altri siti.
+    // Il corpo ha un tetto anche senza content-length, niente invii da altri siti.
     const f = finti();
     const invia = (voce, headers = {}) => {
       const m = new FormData();
       m.append("testo", "x");
-      if (voce) m.append("voce", voce, "voce.webm");
       return gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: m, headers }), { ...f, adesso });
     };
-    assert.equal((await invia(new Blob([new Uint8Array(64)], { type: "audio/webm" }))).status, 400, "V27 un vocale di zeri è accettato");
-    assert.equal((await invia(new Blob([new TextEncoder().encode("<html>")], { type: "audio/ogg" }))).status, 400, "V27 un HTML dichiarato audio è accettato");
-    for (const testa of [[0x1a, 0x45, 0xdf, 0xa3], [...new TextEncoder().encode("OggS")], [0, 0, 0, 0x20, ...new TextEncoder().encode("ftyp")]]) {
-      assert.equal((await invia(new Blob([new Uint8Array(testa), new Uint8Array(32)], { type: "audio/webm" }))).status, 201,
-        `V27 un vocale vero è rifiutato: ${testa}`);
-    }
     assert.equal((await invia(null, { "sec-fetch-site": "cross-site" })).status, 403, "V27 un invio da un altro sito è accettato");
     assert.equal((await gestisci(new Request("https://arturo.example/v1/sito", { method: "POST", body: JSON.stringify({ tipo: "download", pagina: "/", sistema: "" }),
       headers: { "sec-fetch-site": "cross-site" } }), { ...f, adesso })).status, 403, "V27 un download da un altro sito è accettato");
@@ -578,6 +563,188 @@ const casi = {
     } finally {
       console.error = originale;
     }
+  },
+  // F1 della telemetria (24/10/2026): liste chiuse, lotti accettati in parte, campanelli, contatori senza id.
+  async V33() {
+    // Una guardia che non è di Arturo ("hook-di-rossi") si scarta e si conta, senza id; il resto del lotto passa.
+    const f = finti();
+    const r = await gestisci(post("/v1/eventi", lotto([{ evento: "guardia", valore: "hook-di-rossi" }, { evento: "sessione" }])), { ...f, adesso });
+    assert.equal(r.status, 200, "V33 il lotto con una guardia ignota non è accettato in parte");
+    assert.deepEqual(await r.json(), { accettati: 1, scartati: 1 }, "V33 la risposta non conta la guardia scartata");
+    assert.ok(!JSON.stringify(f.stato.eventi).includes("rossi"), "V33 la guardia hook-di-rossi è salvata");
+    assert.equal(f.stato.conteggi["2026-10-13 scartati"], 1, "V33 la guardia scartata non è contata");
+    assert.ok(Object.keys(f.stato.conteggi).every((k) => !k.includes("1b2c3d4e")), "V33 un contatore porta l'id dell'installazione");
+    // Nomi parlanti, regole che non esistono, il fornitore del segreto, un comando della persona: tutti fuori.
+    for (const [evento, valore] of [["guardia", "hook-di-rossi"], ["chiede", "hook-di-rossi"], ["confermata", "rossi-guard.py"],
+      ["errore", "cliente-rossi.py"], ["chiede", "commit-secret-gate.py.google-api-key"], ["confermata", "block-dangerous.py.regola-inventata"],
+      ["chiede", "block-dangerous.py."], ["comando", "cliente-rossi"], ["guardia", "block-dangerous"]]) {
+      await scartato(evento, valore, "V33");
+    }
+    // I nomi veri del repository passano, con la regola dove la guardia la dice e "altro" per un comando della persona.
+    for (const [evento, valore] of [["guardia", "block-dangerous.py"], ["chiede", "commit-secret-gate.py.segreto-cloud"],
+      ["confermata", "block-dangerous.py.rm-cartella"], ["errore", "web-egress-guard.py"], ["chiede", "protect_claude_md.py"],
+      ["chiede", "commit-secret-gate.py.scaduta"], ["comando", "altro"], ["comando", "fine"]]) {
+      const g = finti();
+      const r2 = await gestisci(post("/v1/eventi", lotto([{ evento, valore }])), { ...g, adesso });
+      assert.deepEqual(await r2.json(), { accettati: 1, scartati: 0 }, `V33 ${evento} ${valore} è scartato`);
+    }
+  },
+  async V34() {
+    // Un lotto con 2 eventi validi e 1 ignoto salva i 2 e risponde {accettati: 2, scartati: 1}: prima il 400 faceva
+    // perdere al client il lotto intero.
+    const f = finti();
+    const r = await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }, { evento: "prompt", valore: "testo privato" },
+      { evento: "comando", valore: "fine" }])), { ...f, adesso });
+    assert.equal(r.status, 200, "V34 il lotto con un evento ignoto non è accettato in parte");
+    assert.deepEqual(await r.json(), { accettati: 2, scartati: 1 }, "V34 la risposta non è {accettati: 2, scartati: 1}");
+    assert.deepEqual(f.stato.eventi.map((e) => e.evento), ["sessione", "comando"], "V34 non si salvano i 2 eventi validi");
+    assert.equal(f.stato.conteggi["2026-10-13 eventi"], 2, "V34 il totale del giorno conta anche lo scartato");
+    // Un lotto tutto fuori elenco: niente salvato, nessun avviso, e "constructor" non fa cadere il server.
+    const g = finti();
+    const tutti = await gestisci(post("/v1/eventi", lotto([{ evento: "constructor" }, { evento: "__proto__" }, { evento: "prompt" }, null])),
+      { ...g, adesso });
+    assert.deepEqual([tutti.status, await tutti.json()], [200, { accettati: 0, scartati: 4 }], "V34 il lotto tutto scartato");
+    assert.equal(g.stato.eventi.length + g.stato.avvisi.length, 0, "V34 un lotto tutto scartato salva o avvisa");
+    // Il 400 resta per il lotto malformato, che non conta scartati.
+    const h = finti();
+    for (const extra of [{ installazione: "corto" }, { eventi: "non un elenco" }, { sistema: "Amiga" }]) {
+      assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }], extra)), { ...h, adesso })).status, 400,
+        `V34 un lotto malformato è accettato: ${JSON.stringify(extra)}`);
+    }
+    assert.equal(h.stato.conteggi["2026-10-13 scartati"], undefined, "V34 un lotto malformato conta scartati");
+  },
+  async V39() {
+    // Il vocale non si accetta più (24/10/2026): 400 con il motivo, niente salvato e niente su Telegram.
+    const f = finti();
+    const m = new FormData();
+    m.append("testo", "Ecco il mio vocale.");
+    m.append("voce", new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3]), new Uint8Array(64)], { type: "audio/webm" }), "voce.webm");
+    const r = await gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: m }), { ...f, adesso });
+    assert.equal(r.status, 400, "V39 un feedback con il vocale è accettato");
+    assert.match((await r.json()).errore || "", /vocale/, "V39 il rifiuto non dice il motivo");
+    assert.equal(f.stato.feedback.length + f.stato.avvisi.length, 0, "V39 il feedback con il vocale è salvato o avvisato");
+    // Testo ed email facoltativa restano.
+    const n = new FormData();
+    n.append("testo", "Solo testo.");
+    n.append("email", "x@esempio.it");
+    assert.equal((await gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: n }), { ...f, adesso })).status, 201,
+      "V39 un feedback scritto con l'email è rifiutato");
+  },
+  async R18() {
+    // Telegram ed email sono campanelli (24/10/2026): nessuna parola del testo, nessuna email, nessun id completo.
+    const f = finti();
+    const titolo = "Fattura sparita a Vigevano";
+    const testo = "Il cliente Rossi ha perso la fattura numero 4471 dentro Dropbox";
+    const installazione = "1b2c3d4e-aaaa-bbbb-cccc-ddddeeeeffff";
+    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo, testo, versione: "v2026-10-13", sistema: "Darwin", installazione }),
+      { ...f, adesso });
+    const m = new FormData();
+    for (const [k, v] of Object.entries({ tipo: "idea", testo: "Vorrei salvare le bozze di Zanzibar", email: "maria.bianchi@esempio.it" })) m.append(k, v);
+    await gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: m }), { ...f, adesso });
+    assert.equal(f.stato.avvisi.length, 2, "R18 segnalazione e feedback non arrivano su Telegram");
+    assert.equal(f.stato.email.length, 1, "R18 la segnalazione non arriva per email");
+    const uscito = [...f.stato.avvisi, ...f.stato.email.map((e) => `${e.oggetto}\n${e.testo}`)].join("\n").toLowerCase();
+    for (const parola of `${titolo} ${testo} Vorrei salvare le bozze di Zanzibar`.split(/\s+/).filter((p) => p.length >= 4)) {
+      assert.ok(!uscito.includes(parola.toLowerCase()), `R18 la parola "${parola}" del testo esce verso Telegram o email`);
+    }
+    assert.ok(!uscito.includes("maria.bianchi") && !uscito.includes("esempio.it"), "R18 l'email del feedback esce verso Telegram");
+    assert.ok(!uscito.includes(installazione.slice(0, 9)), "R18 l'id completo dell'installazione esce");
+    assert.match(f.stato.avvisi[0], /segnalazione n\. 1 · problema · segnala$/, "R18 il campanello non dice numero, tipo e origine");
+    assert.equal(f.stato.segnalazioni[0].testo, testo, "R18 il testo non resta sul server");
+  },
+  async V37() {
+    // Un canale che tace si conta (24/10/2026): "telegram-ko" ed "email-ko" per giorno, senza id, e il recap li mostra.
+    const f = finti();
+    const giu = async () => { throw new Error("Telegram giù"); };
+    const postaGiu = async () => { throw new Error("posta giù"); };
+    const s = await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "t", testo: "x" }), { ...f, avviso: giu, posta: postaGiu, adesso });
+    assert.deepEqual(await s.json(), { numero: 1, email: false }, "V37 con la posta giù la segnalazione non è salvata");
+    await gestisci(post("/v1/eventi", lotto([{ evento: "config", valore: "rotta-settings" }])), { ...f, avviso: giu, posta: postaGiu, adesso });
+    assert.equal(f.stato.conteggi["2026-10-13 telegram-ko"], 2, "V37 gli avvisi Telegram non partiti non sono contati");
+    assert.equal(f.stato.conteggi["2026-10-13 email-ko"], 2, "V37 le email non partite non sono contate");
+    const g = finti();
+    const esito = await giornaliero({ ...g, posta: postaGiu, adesso }).then(() => null, (e) => e);
+    assert.ok(esito, "V37 il recap non partito risulta riuscito");
+    assert.equal(g.stato.conteggi["2026-10-13 email-ko"], 1, "V37 il recap non partito non è contato");
+    // Un giorno con soli canali muti non è un giorno di zeri: il recap parte e li mostra, anche il lunedì.
+    const h = finti({ ...VUOTO, scartati: 3, telegramKo: 2, emailKo: 1 });
+    await giornaliero({ ...h, adesso });
+    await settimanale({ ...h, adesso });
+    assert.equal(h.stato.email.length, 2, "V37 un giorno con canali muti non manda il recap");
+    for (const e of h.stato.email) {
+      assert.match(e.testo, /Eventi scartati perché fuori elenco: 3\nAvvisi non partiti: Telegram 2, email 1\n/, `V37 ${e.oggetto} non mostra i contatori`);
+    }
+  },
+  async V40() {
+    // La cancellazione manuale copre anche feedback e segnalazioni, e dice che Gmail e Telegram non si raggiungono dal
+    // server (24/10/2026). Il banco CP01 (tests/test_copie_2026_10_23.py) controlla che le due copie coincidano.
+    for (const nome of ["server/README.md", "docs/manutenzione.md"]) {
+      const testo = readFileSync(new URL(`../${nome}`, import.meta.url), "utf8");
+      assert.match(testo, /DELETE FROM feedback WHERE email = '/, `V40 ${nome}: la cancellazione non tocca il feedback`);
+      assert.match(testo, /DELETE FROM segnalazioni WHERE installazione = '/, `V40 ${nome}: la cancellazione non tocca le segnalazioni`);
+      assert.match(testo, /Gmail\s+e\s+Telegram[^.]*non\s+si\s+raggiungono\s+dal\s+server/, `V40 ${nome}: non dice che Gmail e Telegram restano fuori`);
+    }
+  },
+  async V41() {
+    // Si salva solo il rilascio di Arturo (24/10/2026). Un tag della persona come "v-clienti-rossi" passava la forma di
+    // VERSIONE e arrivava al D1, a Telegram (installazione nuova, setup finito), all'email della config rotta e al recap.
+    const f = finti();
+    const r = await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }, { evento: "setup", valore: "fine" },
+      { evento: "config", valore: "rotta-settings" }], { versione: "v-clienti-rossi" })), { ...f, adesso });
+    assert.ok(r.status >= 200 && r.status < 300, "V41 un lotto con un tag della persona come versione è rifiutato");
+    const uscito = JSON.stringify([f.stato.eventi, f.stato.avvisi, f.stato.email]);
+    assert.ok(!uscito.includes("rossi"), `V41 un tag della persona esce come versione: ${uscito.slice(0, 300)}`);
+    assert.deepEqual([...new Set(f.stato.eventi.map((e) => e.versione))], ["sconosciuta"], "V41 un tag della persona non diventa sconosciuta");
+    // Il conteggio e l'hash dei commit della persona cadono: resta il rilascio.
+    const g = finti();
+    await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }], { versione: "v2026-10-16.5-3-gf16c16e" })), { ...g, adesso });
+    assert.deepEqual(g.stato.eventi.map((e) => e.versione), ["v2026-10-16.5"], "V41 l'hash dei commit della persona si salva");
+    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "t", testo: "x", versione: "vacanze-rossi" }), { ...g, adesso });
+    assert.equal(g.stato.segnalazioni[0].versione, "sconosciuta", "V41 la segnalazione tiene il tag della persona come versione");
+  },
+  async V42() {
+    // La deriva sul server ha i suoi elenchi chiusi (24/10/2026): un client di prima di F1 mandava i file della persona in
+    // conflitto, e il recap li stampava. Un nome fuori elenco si salva come file:altro o hook:altro, il resto com'è.
+    const f = finti();
+    const valori = ["insieme:7", "file:skills/clienti-rossi/SKILL.md", "file:preventivo-rossi.md", "hook:hook-di-rossi.py",
+      "file:agents/rossi.md", "file:skills/apri/SKILL.md", "file:settings.json", "hook:session-start.sh"];
+    const r = await gestisci(post("/v1/eventi", lotto(valori.map((valore) => ({ evento: "deriva", valore })))), { ...f, adesso });
+    assert.ok(r.status >= 200 && r.status < 300, "V42 la deriva di un client vecchio non è accettata");
+    const salvati = f.stato.eventi.map((e) => e.valore);
+    assert.ok(!salvati.join(" ").includes("rossi"), `V42 un file o un hook della persona si salva col suo nome: ${salvati}`);
+    assert.deepEqual(salvati, ["insieme:7", "file:altro", "file:altro", "hook:altro", "file:altro", "file:skills/apri/SKILL.md",
+      "file:settings.json", "hook:session-start.sh"], "V42 i nomi di Arturo non restano, o quelli fuori elenco non diventano altro");
+    assert.deepEqual(await r.json(), { accettati: 8, scartati: 0 }, "V42 la deriva di un client vecchio non conta come accettata");
+    const recap = testoDeriva([{ installazione: "1b2c3d4e-aaaa-bbbb", conflitto: true, valori: salvati.slice(1) }]).join("\n");
+    assert.ok(!recap.includes("rossi"), "V42 il recap stampa un nome della persona");
+    assert.deepEqual(["hook:tutti", "file:altro", "insieme:0"].map(logica.derivaPubblica), ["hook:tutti", "file:altro", "insieme:0"],
+      "V42 hook:tutti, file:altro o insieme cambiano");
+  },
+  async V43() {
+    // Una risposta di Telegram che non è ok diventa un errore, e consegna() la conta in "telegram-ko" (24/10/2026).
+    // Prima finiva nel log del Worker: telegram-ko restava a zero con Telegram muto.
+    const { avvisoTelegram } = logica;
+    assert.equal(typeof avvisoTelegram, "function", "V43 avvisoTelegram manca in logica.js: la risposta di Telegram non si prova");
+    const env = { TELEGRAM_TOKEN: "finto", TELEGRAM_CHAT: "42" };
+    const chiamate = [];
+    const risponde = (corpo, status = 200) => async (url, init) => {
+      chiamate.push([url, JSON.parse(init.body)]);
+      return new Response(JSON.stringify(corpo), { status });
+    };
+    for (const [corpo, status] of [[{ ok: false, description: "Bad Request: chat not found" }, 400], [{ ok: false }, 200], [{}, 502]]) {
+      const errore = await avvisoTelegram(env, risponde(corpo, status))("x").then(() => null, (e) => e);
+      assert.ok(errore, `V43 una risposta di Telegram non ok non diventa un errore: ${status} ${JSON.stringify(corpo)}`);
+    }
+    await avvisoTelegram(env, risponde({ ok: true, result: { message_id: 7 } }))("prova");
+    assert.deepEqual(chiamate[chiamate.length - 1][1], { chat_id: "42", text: "prova", disable_web_page_preview: true }, "V43 il messaggio cambia");
+    const f = finti();
+    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "t", testo: "x" }),
+      { ...f, avviso: avvisoTelegram(env, risponde({ ok: false }, 200)), adesso });
+    assert.equal(f.stato.conteggi["2026-10-13 telegram-ko"], 1, "V43 un avviso che Telegram rifiuta non è contato in telegram-ko");
+    // Senza token non parte niente e non c'è errore.
+    const prima = chiamate.length;
+    await avvisoTelegram({}, risponde({ ok: false }))("x");
+    assert.equal(chiamate.length, prima, "V43 senza token parte una chiamata a Telegram");
   },
 };
 

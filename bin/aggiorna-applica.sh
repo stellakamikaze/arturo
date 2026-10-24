@@ -82,12 +82,13 @@ segna_esito() {  # $1 = applicato|conflitto|fallito|scartato, $2 = il modo. Un e
 
 segna_conflitti() {  # $1 = il modo, $2 = i file in conflitto, uno per riga. Dopo un conflitto escono i loro
   # percorsi dentro Arturo come righe `file:` della deriva, così il riepilogo dice quale file blocca
-  # (20/10/2026, #3589). telemetria.py scarta un percorso fuori dalla forma della deriva. Non fallisce mai.
+  # (20/10/2026, #3589). Dal 24/10/2026 passano dal filtro unico di telemetria.py (percorso_pubblico):
+  # esce solo un file versionato nel ref di Arturo che arriva, ogni altro diventa `file:altro`. Prima
+  # bastava la forma, e un conflitto su skills/clienti-rossi/SKILL.md mandava il nome del cliente. Un
+  # telemetria.py di prima non conosce `conflitti` e non registra niente. Non fallisce mai.
   [ "${1:-}" = sync ] && return 0
   [ -f "$RADICE/bin/telemetria.py" ] || return 0
-  printf '%s\n' "$2" | head -20 | while IFS= read -r f; do
-    [ -n "$f" ] && python3 "$RADICE/bin/telemetria.py" registra deriva "file:$f" >/dev/null 2>&1
-  done
+  printf '%s\n' "$2" | head -20 | python3 "$RADICE/bin/telemetria.py" conflitti "$REF" "$RADICE" >/dev/null 2>&1
   return 0
 }
 

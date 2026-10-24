@@ -43,6 +43,11 @@ def per_chiave(lista):
     visti = {}
     for elemento in lista:
         k = chiave(elemento)
+        if k[0] == "gruppo":
+            # Due gruppi con lo stesso matcher si riconoscono dall'ordine: Arturo ne ha due "Edit|MultiEdit|Write"
+            # in PostToolUse, e ogni aggiornamento che toccava PostToolUse, come i matcher nuovi della
+            # telemetria (24/10/2026), andava in conflitto per chi aveva cambiato anche un solo hook lì.
+            k = k + (sum(1 for v in visti if v[:2] == k),)
         if k in visti:  # due elementi con la stessa chiave: niente indovinelli
             raise Conflitto(f"due elementi uguali per {k}")
         visti[k] = elemento

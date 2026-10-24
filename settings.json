@@ -364,6 +364,16 @@
         ]
       },
       {
+        "matcher": "Monitor",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/bin/telemetria-esito.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
         "matcher": "Edit|MultiEdit|Write",
         "hooks": [
           {
@@ -391,6 +401,18 @@
             "command": "python3 ~/.claude/hooks/scheda-terminale.py",
             "timeout": 5,
             "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/bin/telemetria-esito.sh",
+            "timeout": 10
           }
         ]
       }

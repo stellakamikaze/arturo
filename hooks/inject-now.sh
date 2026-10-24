@@ -29,7 +29,8 @@ sys.exit(0 if isinstance(p, str) and re.match(busta, p) else 1)' 2>/dev/null; th
 fi
 
 # --- Telemetria: quale comando di Arturo viene usato -----------------------------
-# Solo il nome di un comando che esiste in ~/.claude/commands, mai il testo del prompt.
+# Solo il nome di un comando che esiste in ~/.claude/commands, mai il testo del prompt. Un comando
+# della persona esce come `altro` (bin/telemetria.py, COMANDI), dal 24/10/2026.
 COMANDO=""
 if [[ "$INPUT" =~ \"prompt\"[[:space:]]*:[[:space:]]*\"/([a-z0-9-]+) ]]; then
   COMANDO="${BASH_REMATCH[1]}"

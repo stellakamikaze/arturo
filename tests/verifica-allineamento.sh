@@ -129,6 +129,7 @@ BANCHI=(
   test_setup_invito_2026_10_23.py
   test_reinstalla_2026_10_23.py
   test_copie_2026_10_23.py
+  test_telemetria_f1_2026_10_24.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -262,6 +263,8 @@ BASELINE=(
   "test_reinstalla_2026_10_23.py f4ae0aa"
   # Le copie dello stesso testo (cancellazione, lista del ripristino) restano uguali (#3852): f4ae0aa.
   "test_copie_2026_10_23.py f4ae0aa"
+  # Telemetria F1, lato client: numeri veri e fughe chiuse (24/10/2026): 8c7b6f7, il dev prima della fase.
+  "test_telemetria_f1_2026_10_24.py 8c7b6f7"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

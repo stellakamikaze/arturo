@@ -26,7 +26,8 @@ import sys
 def _regola(nome: str) -> None:
     # Il dispatcher di Arturo chiede anche quale regola ha parlato: va nella telemetria come
     # commit-secret-gate.py.<regola>. Dal 19 al 22/10/2026 la guardia ha chiesto 6 volte durante
-    # /fine e nessun dato diceva perché. Senza la variabile l'uscita resta il solo JSON.
+    # /fine e nessun dato diceva perché. Senza la variabile l'uscita resta il solo JSON. Per un segreto
+    # la regola è la famiglia (FAMIGLIA), dal 24/10/2026.
     if os.environ.get("ARTURO_REGOLA") == "1":
         print(f"REGOLA: {nome}")
 
@@ -59,6 +60,24 @@ HIGH_CONF = [
     (r"postgres(?:ql)?://[^:@\s]+:[^@\s]+@[^/\s]+", "connection string con password"),
 ]
 COMPILED = [(re.compile(p), name) for p, name in HIGH_CONF]
+# La telemetria di Arturo riceve la famiglia del segreto, mai il fornitore (24/10/2026): "google-api-key"
+# diceva quale servizio usa la persona. Le famiglie sono quelle di FAMIGLIE_SEGRETI in bin/telemetria.py e
+# di server/logica.js; un pattern nuovo senza famiglia esce come segreto-altro.
+FAMIGLIA = {
+    "chiave privata": "segreto-chiave-privata",
+    "AWS Access Key": "segreto-cloud",
+    "Google API key": "segreto-cloud",
+    "Google OAuth client secret": "segreto-cloud",
+    "Google refresh token": "segreto-cloud",
+    "GitHub token": "segreto-token",
+    "GitHub PAT": "segreto-token",
+    "Anthropic API key": "segreto-token",
+    "Stripe live key": "segreto-token",
+    "Slack token": "segreto-token",
+    "Telegram bot token": "segreto-token",
+    "JWT": "segreto-token",
+    "connection string con password": "segreto-password",
+}
 
 
 # Gli heredoc li riconosce heredoc.py, lo stesso modulo delle altre guardie (15/10/2026).
@@ -303,8 +322,9 @@ def main() -> int:
         return 0
 
     uniq = list(dict.fromkeys(found))
-    # La regola è il primo pattern trovato, in minuscolo col trattino: "Google API key" -> google-api-key.
-    return _ask(re.sub(r"[^a-z0-9]+", "-", uniq[0].lower()).strip("-")[:30],
+    # La regola è la famiglia del primo pattern trovato: "Google API key" -> segreto-cloud. Il nome del
+    # fornitore resta solo nel messaggio per la persona, che non esce da questo computer.
+    return _ask(FAMIGLIA.get(uniq[0], "segreto-altro"),
                 "Possibile secret nel diff staged: " + ", ".join(uniq[:5]) + ". "
                 "Un leak pushato è irreversibile. Conferma solo dopo aver "
                 "verificato che non sia una credenziale reale.")

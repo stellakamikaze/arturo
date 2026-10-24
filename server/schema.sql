@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS eventi (
   giorno TEXT NOT NULL,           -- il giorno dell'evento sul computer della persona, mai l'ora
   ricevuto_giorno TEXT NOT NULL,  -- il giorno in cui il server l'ha ricevuto, per i tetti
-  installazione TEXT NOT NULL,    -- id casuale creato da Arturo, non legato alla persona
+  installazione TEXT NOT NULL,    -- id casuale creato da Arturo: non è anonimo, vedi docs/privacy.md
   versione TEXT NOT NULL,
   sistema TEXT NOT NULL,
   evento TEXT NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS contatori (
   PRIMARY KEY (giorno, chiave)
 );
 
--- Il modulo di feedback del sito (16/10/2026). Il vocale non si salva: passa a Telegram.
+-- Il modulo di feedback del sito (16/10/2026). Dal 24/10/2026 il vocale non si accetta più: la colonna voce resta 0.
 CREATE TABLE IF NOT EXISTS feedback (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ricevuto TEXT NOT NULL,
