@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { archivio } from "./archivio.js";
+import { settimanale } from "./logica.js";
 
 function d1() {
   const db = new DatabaseSync(":memory:");
@@ -194,6 +195,18 @@ const casi = {
     const a = await con([["2026-10-12", "aaaaaaaa", "sessione"]]);
     assert.equal(await a.installazioneNuova("aaaaaaaa"), false, "Q06 un'installazione già vista risulta nuova");
     assert.equal(await a.installazioneNuova("bbbbbbbb"), true, "Q06 un'installazione mai vista non risulta nuova");
+  },
+  // Il riepilogo del lunedì sulle query vere: conta il lunedì della settimana prima, non il lunedì di oggi (24/10/2026).
+  async Q14() {
+    const a = await con([
+      ["2026-10-18", "dddddddd", "sessione"],  // domenica della settimana prima ancora: fuori
+      ["2026-10-19", "aaaaaaaa", "sessione"], ["2026-10-19", "a2a2a2a2", "sessione"],  // lunedì 19: dentro
+      ["2026-10-25", "bbbbbbbb", "sessione"],  // domenica 25: dentro
+      ["2026-10-26", "cccccccc", "sessione"],  // lunedì 26, il giorno del riepilogo: fuori
+    ]);
+    const email = [];
+    await settimanale({ archivio: a, posta: async (m) => { email.push(m); }, adesso: new Date("2026-10-26T06:00:00Z") });
+    assert.match(email[0].testo, /Installazioni attive: 3\nSessioni: 3\n/, "Q14 la settimana non conta dal lunedì 19 alla domenica 25");
   },
 };
 

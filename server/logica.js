@@ -617,11 +617,35 @@ export async function giornaliero({ archivio, posta, adesso = new Date() }) {
   await posta({ oggetto: `[Arturo] Recap del ${ieri}`, testo: testoRiepilogo(r, `Arturo, il giorno ${ieri}`) });
 }
 
+// Il giorno di calendario in Europe/Rome: il cron del Worker gira in UTC (wrangler.toml), le settimane di
+// Federico no. "2026-10-26" alle 06:00 UTC del 26/10, e anche alle 23:30 UTC del 25/10.
+export function giornoRoma(adesso = new Date()) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit",
+    day: "2-digit" }).formatToParts(adesso).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+const giornoDellaSettimana = (giorno) => new Date(`${giorno}T12:00:00Z`).getUTCDay();
+
+// La settimana del riepilogo: da lunedì a domenica, l'ultima finita prima di oggi in ora di Roma (24/10/2026).
+// Prima andava da oggi meno 7 escluso a oggi incluso: il lunedì di sette giorni prima restava fuori,
+// entrava il lunedì appena cominciato, e il titolo mostrava otto date.
+export function settimanaPrima(adesso = new Date()) {
+  const oggiRoma = giornoRoma(adesso);
+  const domenica = giornoMeno(oggiRoma, giornoDellaSettimana(oggiRoma) || 7);
+  return { lunedi: giornoMeno(domenica, 6), domenica };
+}
+
 export async function settimanale({ archivio, posta, adesso = new Date() }) {
-  const al = oggi(adesso);
-  const dal = giorniFa(adesso, 7);
-  const r = await archivio.riepilogo(dal, al, { settimana: true });
-  await posta({ oggetto: `[Arturo] Riepilogo della settimana ${dal} - ${al}`, testo: testoRiepilogo(r, `Arturo, settimana dal ${dal} al ${al}`) });
+  const { lunedi, domenica } = settimanaPrima(adesso);
+  // archivio.riepilogo esclude il primo giorno (giorno > dal): si parte dalla domenica prima del lunedì.
+  const r = await archivio.riepilogo(giornoMeno(lunedi, 1), domenica, { settimana: true });
+  await posta({ oggetto: `[Arturo] Riepilogo della settimana ${lunedi} - ${domenica}`,
+    testo: testoRiepilogo(r, `Arturo, settimana dal ${lunedi} al ${domenica}`) });
+}
+
+// La pulizia del lunedì: eventi, contatori e feedback più vecchi di 12 mesi.
+export async function pulizia({ archivio, adesso = new Date() }) {
   await archivio.pulisci(giorniFa(adesso, LIMITI.conservazioneGiorni));
 }
 
@@ -642,9 +666,26 @@ export async function avvisiIndietro({ archivio, avviso, adesso = new Date() }) 
 }
 
 // Il cron gira ogni mattina alle 6 UTC: il recap del giorno prima se c'è qualcosa, le installazioni rimaste
-// indietro, il lunedì sempre la settimana.
+// indietro, il lunedì (in ora di Roma) sempre la settimana e poi la pulizia. Ogni passo ha il suo try (24/10/2026):
+// prima un'email del recap fallita fermava gli avvisi e il riepilogo del lunedì, che è il segno di vita del Worker.
+// L'errore va nel log del Worker con il nome del passo. Finiti tutti i passi, se uno è fallito, programmato
+// rilancia un errore unico con i nomi in .falliti: così il cron risulta fallito anche negli eventi di Cloudflare.
 export async function programmato({ archivio, posta, avviso = async () => {}, adesso = new Date() }) {
-  await giornaliero({ archivio, posta, adesso });
-  await avvisiIndietro({ archivio, avviso, adesso });
-  if (adesso.getUTCDay() === 1) await settimanale({ archivio, posta, adesso });
+  const passi = [
+    ["recap", () => giornaliero({ archivio, posta, adesso })],
+    ["indietro", () => avvisiIndietro({ archivio, avviso, adesso })],
+  ];
+  if (giornoDellaSettimana(giornoRoma(adesso)) === 1) {
+    passi.push(["settimana", () => settimanale({ archivio, posta, adesso })], ["pulizia", () => pulizia({ archivio, adesso })]);
+  }
+  const falliti = [];
+  for (const [nome, passo] of passi) {
+    try {
+      await passo();
+    } catch (e) {
+      falliti.push(nome);
+      console.error(`cron: il passo ${nome} non è riuscito:`, e && e.message);
+    }
+  }
+  if (falliti.length) throw Object.assign(new Error(`cron: passi non riusciti: ${falliti.join(", ")}`), { falliti });
 }

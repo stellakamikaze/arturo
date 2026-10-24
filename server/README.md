@@ -62,11 +62,16 @@ feedback più vecchi di 12 mesi si cancellano il lunedì. Le chiavi "una volta p
   giorni, e un rilascio con la data nel futuro non conta. Un avviso per installazione ogni 7 giorni,
   al massimo 5 al giorno. Nasce da Filippo e Alessio: un difetto dell'aggiornamento automatico gli
   impediva di ricevere la correzione, e solo un `/aggiorna` a mano li ha sbloccati.
-- **Il lunedì** arriva sempre il riepilogo dei 7 giorni, anche vuoto. Si apre con "Dove migliorare
+- **Il lunedì** arriva sempre il riepilogo della settimana prima, da lunedì a domenica in ora di Roma
+  (24/10/2026: prima perdeva il lunedì di sette giorni prima e contava il lunedì appena cominciato), anche vuoto. Si apre con "Dove migliorare
   Arturo" (ultimi 30 giorni: setup fermi, conferme delle guardie, guardie rotte, installazioni rimaste
   indietro, aggiornamenti non applicati, ritenzione, versioni di Claude Code), poi tutta la deriva aperta e le
   guardie frequenti (almeno 5 blocchi nella settimana sulla stessa installazione). Poi parte la pulizia. Se il
   riepilogo del lunedì manca, il Worker è fermo.
+- **Ogni passo del cron ha il suo try** (24/10/2026): recap, installazioni indietro, riepilogo del lunedì e
+  pulizia. Se un passo fallisce, gli altri partono lo stesso, e il log del Worker scrive
+  `cron: il passo <nome> non è riuscito` con l'errore. Alla fine il cron risulta fallito anche negli eventi
+  di Cloudflare, con i nomi dei passi non riusciti.
 
 ## Mettere su il tuo server
 

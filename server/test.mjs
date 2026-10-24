@@ -1,8 +1,11 @@
 // Banco del server di Arturo (W-casi con la sigla V): logica.js con un archivio e una posta finti.
 // Uso: node server/test.mjs   (esce con 0 se tutto passa)
 import assert from "node:assert/strict";
-import { gestisci, settimanale, giornaliero, programmato, mime, testoDeriva, testoRiepilogo, ritenzione, LIMITI, EVENTI, calcolaIndietro,
-  rilascio } from "./logica.js";
+// Import per nome dal modulo intero: una funzione che manca (il veleno sulla versione vecchia) fa fallire il suo
+// caso con il suo messaggio, non il caricamento del banco.
+import * as logica from "./logica.js";
+const { gestisci, settimanale, giornaliero, programmato, pulizia, giornoRoma, settimanaPrima, mime, testoDeriva, testoRiepilogo, ritenzione,
+  LIMITI, EVENTI, calcolaIndietro, rilascio } = logica;
 
 const VUOTO = { installazioni: 0, sessioni: 0, versioni: [], sistemi: [], comandi: [], guardie: [], aggiorna: [], config: [], deriva: [],
   guardieFrequenti: null, segnalazioni: 0 };
@@ -123,6 +126,7 @@ const casi = {
     await settimanale({ ...f, adesso });
     assert.equal(f.stato.email.length, 1, "V07 il riepilogo non parte");
     assert.match(f.stato.email[0].testo, /Installazioni attive: 2/);
+    await pulizia({ ...f, adesso });
     assert.equal(f.stato.pulito, "2025-10-13", "V07 la pulizia non usa 12 mesi");
   },
   async V08() {
@@ -525,7 +529,63 @@ const casi = {
     assert.match(testo, /Rimaste indietro[^\n]*\n {2}2c64c0dc {2}ferma alla v2026-10-19\.2, manca dal 2026-10-19, c'è la v2026-10-19\.3\n/,
       "V30 il riepilogo non elenca chi è rimasto indietro");
   },
+  async V31() {
+    // Il riepilogo del lunedì copre da lunedì a domenica della settimana prima, in ora di Roma (24/10/2026).
+    // archivio.riepilogo esclude il primo giorno: la finestra (18/10, 25/10] sono i sette giorni dal 19 al 25.
+    const f = finti();
+    await programmato({ ...f, adesso: new Date("2026-10-26T06:00:00Z") });  // dopo il cambio d'ora del 25/10
+    const settimana = f.stato.opzioni.findIndex((o) => o.settimana);
+    assert.deepEqual(f.stato.finestre[settimana], ["2026-10-18", "2026-10-25"], "V31 la settimana non va dal lunedì 19 alla domenica 25");
+    const oggetto = f.stato.email.find((m) => /Riepilogo/.test(m.oggetto)).oggetto;
+    assert.equal(oggetto, "[Arturo] Riepilogo della settimana 2026-10-19 - 2026-10-25", "V31 il titolo non ha sette date");
+    // Le 22:30 UTC di domenica 18/10 (ora legale) sono le 00:30 di lunedì 19 a Roma: parte la settimana dal 12 al 18.
+    const g = finti();
+    assert.equal(giornoRoma(new Date("2026-10-18T22:30:00Z")), "2026-10-19", "V31 il giorno di Roma è sbagliato");
+    await programmato({ ...g, adesso: new Date("2026-10-18T22:30:00Z") });
+    assert.ok(g.stato.email.some((m) => m.oggetto === "[Arturo] Riepilogo della settimana 2026-10-12 - 2026-10-18"),
+      "V31 il lunedì di Roma non manda la settimana dal 12 al 18");
+    // In un giorno qualsiasi la settimana è l'ultima finita, mai una che comprende oggi.
+    assert.deepEqual(settimanaPrima(new Date("2026-10-24T10:00:00Z")), { lunedi: "2026-10-12", domenica: "2026-10-18" },
+      "V31 di sabato la settimana non è l'ultima finita");
+    assert.deepEqual(settimanaPrima(new Date("2026-10-25T10:00:00Z")), { lunedi: "2026-10-12", domenica: "2026-10-18" },
+      "V31 di domenica la settimana comprende oggi");
+  },
+  async V32() {
+    // Un passo del cron che fallisce non ferma gli altri, e il suo errore va nel log (24/10/2026).
+    const errori = [];
+    const originale = console.error;
+    console.error = (...a) => errori.push(a.join(" "));
+    try {
+      const f = finti();
+      f.stato.indietro = [{ installazione: "2c64c0dc-aaaa", rilascio: "v2026-10-19.2", ultima: "2026-10-25", nuovo: "v2026-10-22.1",
+        dal: "2026-10-20" }];
+      const posta = async (m) => { if (/Recap/.test(m.oggetto)) throw new Error("posta giù"); f.stato.email.push(m); };
+      // Il cron finisce tutti i passi e poi risulta fallito, con i nomi dei passi falliti.
+      const esito = await programmato({ ...f, posta, adesso: new Date("2026-10-26T06:00:00Z") }).then(() => null, (e) => e);
+      assert.equal(f.stato.avvisi.length, 1, "V32 dopo il recap fallito l'avviso delle installazioni indietro non parte");
+      assert.ok(f.stato.email.some((m) => /Riepilogo/.test(m.oggetto)), "V32 dopo il recap fallito il riepilogo del lunedì non parte");
+      assert.equal(f.stato.pulito, "2025-10-26", "V32 dopo il recap fallito la pulizia non parte");
+      assert.ok(esito, "V32 con un passo fallito il cron risulta riuscito");
+      assert.deepEqual(esito.falliti, ["recap"], "V32 il cron non dice quale passo è fallito");
+      assert.ok(errori.some((x) => /recap/.test(x) && /posta giù/.test(x)), "V32 l'errore del recap non è nel log");
+      // Il riepilogo del lunedì fallito non salta la pulizia, e gli avvisi falliti non fermano la settimana.
+      const g = finti();
+      g.archivio.indietro = async () => { throw new Error("D1 giù"); };
+      const postaG = async (m) => { if (/Riepilogo/.test(m.oggetto)) throw new Error("posta giù"); g.stato.email.push(m); };
+      const esitoG = await programmato({ ...g, posta: postaG, adesso: new Date("2026-10-26T06:00:00Z") }).then(() => null, (e) => e);
+      assert.deepEqual(esitoG && esitoG.falliti, ["indietro", "settimana"], "V32 i passi falliti sono sbagliati");
+      assert.equal(g.stato.pulito, "2025-10-26", "V32 dopo il riepilogo fallito la pulizia non parte");
+    } finally {
+      console.error = originale;
+    }
+  },
 };
 
-for (const [nome, caso] of Object.entries(casi)) await caso();
-console.log(`PASS ${Object.keys(casi).join(",")} controlli=${Object.keys(casi).length}`);
+// `node test.mjs V31 V32` fa girare i soli casi nominati (serve al veleno di un caso alla volta).
+const scelti = process.argv.slice(2);
+// Un nome sbagliato ferma il banco: altrimenti un caso scritto male non girerebbe e il banco direbbe PASS.
+const ignoti = scelti.filter((nome) => !(nome in casi));
+if (ignoti.length) throw new Error(`nessun caso con questi nomi: ${ignoti.join(" ")}`);
+const daFare = Object.entries(casi).filter(([nome]) => !scelti.length || scelti.includes(nome));
+for (const [, caso] of daFare) await caso();
+console.log(`PASS ${daFare.map(([nome]) => nome).join(",")} controlli=${daFare.length}`);
