@@ -379,7 +379,12 @@ def git_puro(cmd: str) -> bool:
     except ValueError:
         return False
     progs = programmi(cmd)
-    return bool(progs) and all(p in ("git", "cd") for p, _ in progs)
+    if not progs or not all(p in ("git", "cd") for p, _ in progs):
+        return False
+    # 24/10/2026 (#3575): un git che riscrive file della cartella di lavoro (apply, am, checkout,
+    # restore, switch, stash pop e stash apply) non è git puro: il comando passa da D6 invece di
+    # uscire prima. _git_riscrive sta più sotto, con le scritture che il comando non nomina.
+    return not any(p == "git" and _git_riscrive(args) for p, args in progs)
 
 
 # --- Script eseguiti da sotto ~/.claude (18/10/2026) ---
@@ -465,7 +470,9 @@ def script_claude_non_tracciati(cmd: str, cwd: str):
 CONFIG_DIR = frozenset(("hooks", "mods", "scripts", "skills", "agents", "commands", "output-styles"))
 CONFIG_FILE = frozenset(("CLAUDE.md", "INSTANCE.md"))
 _SETTINGS = re.compile(r"^settings[^/]*\.json$")
-_SCRIVONO_ULTIMO = frozenset("cp install ln rsync".split())
+# ditto scrive l'ultimo argomento come cp. Il contenuto che ci mette dentro lo conta
+# _scritture_indirette (24/10/2026, #3575).
+_SCRIVONO_ULTIMO = frozenset("cp install ln rsync ditto".split())
 # mv scrive la destinazione e toglie la sorgente: contano tutti i suoi argomenti.
 _SCRIVONO_TUTTI = frozenset("mv tee touch truncate chmod chown rm unlink".split())
 _SCRITTURA_INLINE = re.compile(
@@ -534,11 +541,142 @@ def e_config(path: str) -> bool:
     return len(parti) == 1 and (parti[0] in CONFIG_FILE or bool(_SETTINGS.match(parti[0])))
 
 
+# --- Scritture che il comando non nomina (24/10/2026, #3575) ---
+# Un archivio estratto, una patch applicata o uno stash ripreso scrivono file che non compaiono
+# nel comando: conta la cartella in cui finiscono. `--output FILE` scrive quanto una redirezione.
+# cp, mv, ln, install e rsync verso una cartella scrivono la cartella più il nome della sorgente.
+# ditto mette dentro la destinazione il contenuto della sorgente, o dell'archivio con -x.
+_TAR = frozenset(("tar", "gtar", "bsdtar"))
+# Opzioni di patch che prendono un valore staccato: il valore non è il file da correggere.
+_PATCH_CON_VALORE = frozenset("-d -o -i -p -D -B -r -z -V -F -Y -g --directory --output --input".split())
+_GIT_CON_VALORE = frozenset(("-C", "-c", "--git-dir", "--work-tree", "--namespace"))
+# git che riscrive file della cartella di lavoro senza nominarli tutti: git_puro non lo salta.
+_GIT_RISCRIVE = frozenset(("apply", "am", "checkout", "restore", "switch"))
+
+
+def _git_riscrive(args) -> bool:
+    """Vero se git esegue apply, am, checkout, restore, switch, stash pop o stash apply."""
+    i = 0
+    while i < len(args) and args[i].startswith("-"):
+        i += 2 if args[i] in _GIT_CON_VALORE else 1
+    sotto = args[i] if i < len(args) else ""
+    return sotto in _GIT_RISCRIVE or (sotto == "stash" and args[i + 1:i + 2] in (["pop"], ["apply"]))
+
+
+def _radice_git(cartella: str) -> str:
+    """La cartella del repo git che contiene `cartella`: lì scrivono git apply, git am e
+    git stash pop. Fuori da un repo, `cartella` stessa."""
+    c = os.path.realpath(cartella)
+    while not os.path.exists(os.path.join(c, ".git")):
+        if os.path.dirname(c) == c:
+            return cartella
+        c = os.path.dirname(c)
+    return c
+
+
+def _scrive_dentro(cartella: str) -> bool:
+    """Vero se un file scritto dentro `cartella` può essere config: la cartella è config o sta in
+    una cartella di config, oppure è ~/.claude o una cartella che la contiene."""
+    radice = os.path.realpath(os.path.expanduser("~/.claude"))
+    reale = os.path.realpath(cartella)
+    return (e_config(reale) or e_config(os.path.join(reale, "x")) or reale == radice
+            or radice.startswith(reale.rstrip(os.sep) + os.sep))
+
+
+def _scritture_indirette(nome, args, liberi, base, assegnate):
+    """(candidati, cartelle) che scritture_config non legge dalla destinazione scritta: i candidati
+    sono file come (parola, base), le cartelle sono path assoluti in cui il comando scrive."""
+    candidati, cartelle = [], []
+
+    def valore(*opzioni):
+        # `-C DIR` e `-CDIR` per le opzioni corte, `--directory DIR` e `--directory=DIR` per le lunghe.
+        for i, a in enumerate(args):
+            for o in opzioni:
+                if a == o and i + 1 < len(args):
+                    return args[i + 1]
+                if o.startswith("--") and a.startswith(o + "="):
+                    return a[len(o) + 1:]
+                if not o.startswith("--") and not a.startswith("--") and a.startswith(o) and len(a) > len(o):
+                    return a[len(o):]
+        return None
+
+    def cartella(opzioni):
+        v = valore(*opzioni)
+        return _espandi(v, base, assegnate) if v else base
+
+    if nome == "git":
+        i = 0
+        while i < len(args) and args[i].startswith("-"):
+            if args[i] == "-C" and i + 1 < len(args):
+                base = _espandi(args[i + 1], base, assegnate)
+            i += 2 if args[i] in _GIT_CON_VALORE else 1
+        sotto, resto = (args[i], args[i + 1:]) if i < len(args) else ("", [])
+        lettura = "--apply" not in resto and any(a in ("--check", "--stat", "--numstat", "--summary") for a in resto)
+        if (sotto == "apply" and not lettura and "--cached" not in resto) or sotto == "am" or \
+                (sotto == "stash" and resto[:1] in (["pop"], ["apply"])):
+            cartelle.append(_radice_git(base))
+        if sotto == "format-patch" and valore("-o", "--output-directory"):
+            cartelle.append(cartella(("-o", "--output-directory")))
+    elif nome in _TAR:
+        brevi = "".join(a[1:] for a in args if a.startswith("-") and not a.startswith(("--", "-C")))
+        if args and not args[0].startswith("-"):
+            brevi += args[0]  # forma vecchia: `tar xzf archivio.tgz`
+        lunghe = [a.split("=", 1)[0] for a in args if a.startswith("--")]
+        if ("x" in brevi or "--extract" in lunghe or "--get" in lunghe) and \
+                "O" not in brevi and "--to-stdout" not in lunghe:
+            cartelle.append(cartella(("-C", "--directory", "--cd")))
+    elif nome == "unzip":
+        # -l, -t, -v, -z, -Z elencano o provano, -p stampa: nessun file scritto.
+        brevi = "".join(a[1:] for a in args if a.startswith("-") and not a.startswith(("--", "-d")))
+        if not any(m in brevi for m in "lptvzZ"):
+            cartelle.append(cartella(("-d",)))
+    elif nome in ("patch", "gpatch") and not any(a in ("--dry-run", "--check", "-C") for a in args):
+        dove = cartella(("-d", "--directory"))
+        cartelle.append(dove)
+        salta = False
+        for a in args:
+            if salta:
+                salta = False
+            elif a in _PATCH_CON_VALORE or re.fullmatch(r"\d*<", a):
+                salta = True
+            elif not a.startswith("-") and not re.match(r"^\d*[<>]", a):
+                candidati.append((a, dove))  # `patch FILE < diff`: il file da correggere
+        uscita = valore("-o", "--output")
+        if uscita:
+            candidati.append((uscita, dove))
+    if nome == "ditto":
+        # ditto non scrive destinazione/nome come cp: il contenuto della sorgente, o dell'archivio
+        # con -x, finisce dentro la destinazione. Conta la cartella intera.
+        if len(liberi) >= 2:
+            cartelle.append(_espandi(liberi[-1], base, assegnate))
+    elif nome in _SCRIVONO_ULTIMO or nome == "mv":
+        dest = valore("-t", "--target-directory") if nome != "rsync" else None
+        sorgenti = [a for a in liberi if a != dest] if dest else liberi[:-1]
+        dest = dest or (liberi[-1] if len(liberi) >= 2 else "")
+        if dest and not (nome == "rsync" and re.match(r"^[^/]*:", dest)):
+            d = _espandi(dest, base, assegnate)
+            if dest.endswith("/") or os.path.isdir(d):
+                for s in sorgenti:
+                    if s.endswith(("/", "/.")):
+                        cartelle.append(d)  # `rsync a/ d`, `cp -R a/. d`: il contenuto di a finisce in d
+                    else:
+                        t = os.path.join(d, os.path.basename(s))
+                        candidati.append((t, base))
+                        if os.path.isdir(_espandi(s, base, assegnate)):
+                            cartelle.append(t)
+    uscita = valore("--output")
+    if uscita:
+        candidati.append((uscita, base))
+    return candidati, cartelle
+
+
 def scritture_config(cmd: str, cwd: str):
     """Path di config sotto ~/.claude che `cmd` scrive: redirezioni, cp/mv/tee/touch/rm/sed -i,
-    git checkout/restore, e codice inline (python, node) con una scrittura che nomina un path."""
+    git checkout/restore, e codice inline (python, node) con una scrittura che nomina un path.
+    Dal 24/10/2026 anche archivi estratti, patch, git apply, git am e stash pop, --output, ditto
+    e copie verso una cartella (_scritture_indirette)."""
     assegnate = _assegnazioni(cmd)
-    base, basi, candidati = cwd, [cwd], []
+    base, basi, candidati, cartelle = cwd, [cwd], [], []
     progs = comandi(cmd)
     for tok, args in progs:
         nome = _nome(tok)
@@ -554,6 +692,10 @@ def scritture_config(cmd: str, cwd: str):
                 if bersaglio and not bersaglio.startswith("&"):
                     candidati.append((bersaglio, base))
         liberi = [a for a in args if not a.startswith("-") and not _REDIREZIONE.match(a)]
+        # Archivi, patch, stash, --output e copie verso una cartella (24/10/2026, #3575).
+        indiretti, dentro = _scritture_indirette(nome, args, liberi, base, assegnate)
+        candidati += indiretti
+        cartelle += dentro
         if nome in _SCRIVONO_ULTIMO and len(liberi) >= 2:
             candidati.append((liberi[-1], base))
             if "-t" in args and args.index("-t") + 1 < len(args):
@@ -599,6 +741,16 @@ def scritture_config(cmd: str, cwd: str):
             rel = "~/.claude/" + os.path.relpath(os.path.realpath(path), os.path.realpath(os.path.expanduser("~/.claude")))
             if rel not in trovati:
                 trovati.append(rel)
+    # Le cartelle in cui il comando scrive file che non nomina (24/10/2026, #3575).
+    radice_claude = os.path.realpath(os.path.expanduser("~/.claude"))
+    for c in cartelle:
+        if "$" in c or "`" in c or not _scrive_dentro(c):
+            continue
+        reale = os.path.realpath(c)
+        voce = "~/.claude" + reale[len(radice_claude):] if (reale + os.sep).startswith(radice_claude + os.sep) else reale
+        voce += "/ (file che il comando non nomina)"
+        if voce not in trovati:
+            trovati.append(voce)
     return trovati
 
 
