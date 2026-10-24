@@ -168,7 +168,7 @@ def nome_nota_valido(name):
     return bool(_NOME_NOTA.match(name or "")) and name not in EXCLUDE
 
 
-def append_access(names, context, ts=None, log_path=None):
+def append_access(names, context, ts=None, log_path=None, extra=()):
     """Appende una riga per nota: ts, nome, contesto, host. Mai righe senza host
     né nomi non validi. Errori ignorati: il log non deve fermare un hook."""
     try:
@@ -184,7 +184,7 @@ def append_access(names, context, ts=None, log_path=None):
         log.parent.mkdir(parents=True, exist_ok=True)
         with log.open("a", encoding="utf-8") as fh:
             for n in righe:
-                fh.write(f"{ts}\t{n}\t{context}\t{host}\n")
+                fh.write("\t".join([ts, n, context, host, *extra]) + "\n")
     except Exception:
         pass
 
