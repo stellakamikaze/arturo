@@ -126,6 +126,8 @@ def main(argv=None):
     ap.add_argument("--memory-dir", default=None, help="una sola cartella (default: tutte le radici)")
     ap.add_argument("--controprova", action="store_true",
                     help="indice degradato (corpo ignorato): solo per il banco, non operativo")
+    ap.add_argument("--archivio", action="store_true",
+                    help="cerca anche in _archive e propone il ripristino (v3-9)")
     args = ap.parse_args(argv)
 
     memory_dir = Path(args.memory_dir) if args.memory_dir else None
@@ -151,7 +153,15 @@ def main(argv=None):
             _log_recall(results, memory_dir)
         return 0
 
-    if not results:
+    archiviate = []
+    if args.archivio and memory_dir is None:
+        # v3-9 (24/10/2026): una nota archiviata che torna utile si ripristina invece di
+        # ri-derivare la lezione (caso AirPlay: archiviata il 6/9, ri-derivata il 16/10).
+        arch = mm.MEMORY_DIR / "_archive"
+        if arch.is_dir():
+            archiviate = build(arch).rank(args.testo, n=3)
+
+    if not results and not archiviate:
         print("nessuna nota")
         return 0
 
@@ -163,6 +173,14 @@ def main(argv=None):
         desc = str(mm.campo(fm, "description") or "")[:80]
         print(f"  - {name} [{tipo}] · score {score:.1f} · token: {','.join(matched)} — {desc}")
         print(f"    {_rel(path, memory_dir)}")
+
+    if archiviate:
+        print("  archiviate (se valgono ancora, ripristinale con git mv fuori da _archive):")
+        for score, path, fm, matched in archiviate:
+            name = str(mm.campo(fm, "name") or path.stem)
+            desc = str(mm.campo(fm, "description") or "")[:80]
+            print(f"  - {name} [archiviata] · score {score:.1f} — {desc}")
+            print(f"    {mm.breve(path)}")
 
     if not args.controprova:
         _log_recall(results, memory_dir)

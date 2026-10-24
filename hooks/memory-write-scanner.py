@@ -178,12 +178,47 @@ def main():
     reach = check_reachability(rp)
     if reach:
         avvisi.append(reach)
+    pointer = check_pointer(rp)
+    if pointer:
+        avvisi.append(pointer)
     if avvisi:
         # Lo stdout semplice di un PostToolUse va solo nel log di debug: Claude lo vede
         # soltanto in additionalContext (context-window.md, 19/10/2026).
         print(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse",
                                                  "additionalContext": "\n\n".join(avvisi)}}))
     return 0
+
+
+DESC_LEN_ERRORI = 220  # come hooks/memory-retrieve.py: oltre, il pointer arriva tagliato
+MAX_BYTE_NOTA = 15_000
+
+
+def check_pointer(rp):
+    """v3-6 (24/10/2026): in errori/ la lezione viaggia nel pointer (V1), e il retrieve
+    lo taglia a 220 caratteri. Nella nota sul Chrome fantasma il taglio toglieva proprio
+    il rimedio, e le correzioni sono continuate sei volte dopo la nota. Una nota oltre
+    i 15 KB (gws-gotchas ne pesava 57) annega la lezione: va spezzata."""
+    if _mm is None or not _mm.memoria_accesa():
+        return None
+    p = Path(rp)
+    if (not _dentro(rp, MEMORY_DIR) or p.suffix != ".md" or "_archive" in p.parts
+            or p.parent.name != "errori" or not p.exists()):
+        return None
+    try:
+        testo = _mm.leggi(p)
+        fm = _mm.parse_frontmatter_simple(testo)
+    except Exception:
+        return None
+    problemi = []
+    desc = str(_mm.campo(fm, "description") or "") if isinstance(fm, dict) else ""
+    if len(desc) > DESC_LEN_ERRORI:
+        problemi.append(f"description di {len(desc)} caratteri: il retrieve ne mostra {DESC_LEN_ERRORI}, "
+                        f"e taglia qui: \"...{desc[DESC_LEN_ERRORI - 40:DESC_LEN_ERRORI]}\". Il rimedio deve stare prima")
+    if len(testo.encode("utf-8")) > MAX_BYTE_NOTA:
+        problemi.append(f"nota di {len(testo.encode('utf-8')) // 1000} KB: oltre 15 KB la lezione annega, spezzala per famiglia")
+    if not problemi:
+        return None
+    return "\n".join([f"[WARNING] MEMORY-POINTER ({p.name}):"] + [f"  - {x}" for x in problemi])
 
 
 def check_reachability(rp):

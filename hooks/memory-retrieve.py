@@ -63,8 +63,8 @@ DESC_LEN_ERRORI = 220  # V1 (retention v2 2026-08-01): per errori/ il pointer po
 
 
 def note_age_days(fm, path=None):
-    """Età in giorni da last_verified||created (il postwrite bumpa last_verified
-    a ogni edit di contenuto, quindi è affidabile in avanti). Senza date (le note
+    """Età in giorni da last_verified||created (dal 24/10/2026 last_verified lo scrive
+    solo chi ha fatto una sonda, v3-10: il postwrite non lo tocca più). Senza date (le note
     di Claude Code non le hanno) conta l'ultima modifica del file. None se ignota."""
     for k in ("last_verified", "created"):
         v = str(mm.campo(fm, k) or "").strip().strip("\"'")
@@ -137,7 +137,10 @@ def main():
         return
 
     seen, state_file = load_seen(session_id)
-    fresh = [(s, p, fm) for s, p, fm in scored if str(p) not in seen][:MAX_SUGGEST]
+    # v3-9 (24/10/2026): una nota `stato: dormiente` esce dal push, non dal punteggio
+    # (il matcher resta congelato). Resta nel recall e nelle firme d'errore.
+    fresh = [(s, p, fm) for s, p, fm in scored
+             if str(p) not in seen and str(mm.campo(fm, "stato") or "") != "dormiente"][:MAX_SUGGEST]
     if not fresh:
         return
 

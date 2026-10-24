@@ -148,52 +148,6 @@ def update_updated_field(text: str) -> tuple[str, bool]:
     return new_text, True
 
 
-_FM_LINE = re.compile(r"^\s*(?:---\s*|[a-zA-Z_]\w*:.*|-\s+.*)?$")
-
-
-def looks_like_content_edit(payload: dict) -> bool:
-    """True se la scrittura tocca il CORPO della nota, non solo il frontmatter.
-    Chi riscrive il contenuto ha riletto i fatti → last_verified bumpa da solo
-    (R6: la disciplina manuale di bump aveva conversione ~10%, è morta).
-    Write di file intero = sempre contenuto. Edit = contenuto se il new_string
-    ha almeno una riga che non sembra frontmatter (key:, lista, ---)."""
-    ti = payload.get("tool_input") or {}
-    if isinstance(ti.get("content"), str):
-        return True
-    chunks = []
-    if isinstance(ti.get("new_string"), str):
-        chunks.append(ti["new_string"])
-    for e in ti.get("edits") or []:
-        if isinstance(e, dict) and isinstance(e.get("new_string"), str):
-            chunks.append(e["new_string"])
-    for c in chunks:
-        for line in c.split("\n"):
-            if line.strip() and not _FM_LINE.match(line):
-                return True
-    return False
-
-
-def update_last_verified_field(text: str) -> tuple[str, bool]:
-    """Bumpa (o aggiunge) last_verified: TODAY nel frontmatter."""
-    fm, raw, rest = parse_frontmatter(text)
-    if fm is None:
-        return text, False
-    current = fm.get("last_verified", "").strip().strip('"\'')
-    if current == TODAY:
-        return text, False
-    if "last_verified" in fm:
-        new_raw = re.sub(
-            r"^(last_verified:\s*).*$",
-            f"last_verified: {TODAY}",
-            raw,
-            count=1,
-            flags=re.MULTILINE,
-        )
-    else:
-        new_raw = raw.rstrip() + f"\nlast_verified: {TODAY}"
-    return f"---\n{new_raw}\n---\n{rest}", True
-
-
 def ensure_created_field(text: str) -> tuple[str, bool]:
     """Se il frontmatter esiste e manca `created:`, lo aggiunge = TODAY (immutabile).
     Non tocca mai un created gia' presente. Serve alle note NUOVE: la freschezza
@@ -279,18 +233,16 @@ def main() -> int:
 
     new_text, changed = update_updated_field(text)
     new_text, created_added = ensure_created_field(new_text)
-    lv_bumped = False
-    if looks_like_content_edit(payload):
-        new_text, lv_bumped = update_last_verified_field(new_text)
-    if changed or created_added or lv_bumped:
+    # v3-10 (24/10/2026): last_verified non si aggiorna più a ogni modifica. Dichiara
+    # "l'ho guardata contro il mondo" e lo scrive solo chi ha fatto una sonda o una
+    # rilettura di giudizio (R9). Una modifica di forma non è una verifica.
+    if changed or created_added:
         try:
             path.write_text(new_text, encoding="utf-8")
             if changed:
                 actions.append("updated")
             if created_added:
                 actions.append("created")
-            if lv_bumped:
-                actions.append("last_verified")
         except Exception:
             pass
 
