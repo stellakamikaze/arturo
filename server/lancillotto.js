@@ -12,7 +12,7 @@ export const BROWSER = ["com.apple.Safari", "com.apple.SafariTechnologyPreview",
 export const SENSORI = ["app", "ax", "input", "schermo", "ocr", "testo", "file", "appunti", "avvio_login", "menu"];
 export const VERBI = ["stato", "oggi", "giorno", "settimana", "routine", "episodi", "episodio", "catene", "cerca", "conta", "verifica",
   "testo", "conferma", "rifiuta", "automatizzata", "rivedi", "mostra", "raggiungo", "pausa", "riprendi", "escludi", "dimentica",
-  "cancella-tutto", "telemetria"];
+  "cancella-tutto", "telemetria", "aggiorna"];
 
 // L'elenco chiuso, uguale a EVENTI in lancillotto/telemetria.py (il test L03 li confronta).
 // Le fasce (0-5) le calcola il client: il server non riceve mai un numero esatto di eventi, MB o ore.
@@ -30,6 +30,7 @@ export const EVENTI_LANCILLOTTO = {
   comando: unoDi(VERBI),
   routine: /^(proposte:[0-9]{1,2}|confermata|rifiutata|automatizzata)$/,
   errore: /^(cli|registro|analisi|invio|permessi|avvio)$/,
+  aggiorna: /^(applicato|binario|nessuno|bloccato|fallito)$/,
 };
 
 const ID = /^[A-Za-z0-9-]{8,64}$/;
