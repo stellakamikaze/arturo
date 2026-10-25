@@ -21,10 +21,9 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
   (`v2026-10-19.2`), senza i commit della persona; un tag della persona diventa `sconosciuta`.
 - `POST /v1/segnalazioni`: una segnalazione che la persona ha letto e approvato con `/segnala`.
 - `POST /v1/feedback`: il modulo di feedback del sito, che la landing serve come `/api/feedback`.
-  Il testo, il tipo e l'email facoltativa restano nella tabella `feedback`. Dal 24/10/2026 il vocale
-  non si accetta più: un modulo con il campo `voce` torna `400` con il motivo. Prima passava solo a
-  Telegram, che lo teneva senza scadenza. Al massimo 100 al giorno, corpo fino a 64 KB (dal 25/10/2026:
-  solo messaggi scritti, un vocale non entra e torna `413`).
+  Il testo, il tipo e l'email facoltativa restano nella tabella `feedback`. Solo testo scritto: un modulo
+  con il campo `voce` torna `400` con il motivo, un corpo oltre 64 KB torna `413`. Al massimo 100 al
+  giorno. Cosa ne sa chi usa il sito sta in `docs/privacy.md`, l'unica fonte delle frasi sui dati.
 - `POST /v1/lancillotto/eventi`: gli eventi d'uso di Lancillotto (dal 25/10/2026), con un id casuale suo, la versione
   `x.y.z` e `macos-NN`. Elenco chiuso in `server/lancillotto.js`, uguale a `lancillotto/telemetria.py` (caso L03).
   Vanno nella tabella `eventi_lancillotto`, che il Worker crea da solo alla prima richiesta: i numeri di Arturo non

@@ -35,7 +35,7 @@ Per questo i dati non sono anonimi, e questa pagina li tratta come dati personal
 Cosa non esce mai: prompt, risposte, file tuoi, percorsi del tuo computer, nomi, testi.
 Di un file tuo, per esempio una skill che hai scritto tu, esce solo `file:altro`. Di un comando tuo esce solo `altro`.
 Di un segreto fermato in un commit esce solo la famiglia, come `segreto-cloud`, mai il servizio.
-Il server non salva il tuo indirizzo IP. Il modulo del sito non accetta più i messaggi vocali.
+Il server non salva il tuo indirizzo IP. Il modulo del sito accetta solo testo scritto, fino a 64 KB per messaggio.
 
 Sul tuo computer restano la coda degli eventi non ancora partiti (`~/.claude/data/telemetria/coda.jsonl`) e lo stato della telemetria (`~/.claude/session-env/telemetria.json`).
 Li vedi con `python3 ~/.claude/bin/arturo telemetria mostra`.
@@ -56,7 +56,7 @@ Li vedi con `python3 ~/.claude/bin/arturo telemetria mostra`.
 Telegram e Gmail non ricevono mai il testo di una segnalazione o di un feedback, la tua email o l'id completo.
 Queste copie stanno fuori dal server: la pulizia dei 12 mesi e la cancellazione sul server non le raggiungono.
 Chi mantiene Arturo le cancella a mano nella chat e nella casella, se lo chiedi.
-I messaggi e le email partiti prima del 24/10/2026 possono contenere anche il titolo e il testo di una segnalazione, l'email e il testo di un feedback, o un messaggio vocale.
+I messaggi e le email partiti prima del 24/10/2026 possono contenere anche il titolo e il testo di una segnalazione, l'email e il testo di un feedback.
 Nessun altro riceve i dati. Non si vendono e non servono per pubblicità.
 
 ## I tuoi diritti
