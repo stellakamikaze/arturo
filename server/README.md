@@ -23,7 +23,8 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
 - `POST /v1/feedback`: il modulo di feedback del sito, che la landing serve come `/api/feedback`.
   Il testo, il tipo e l'email facoltativa restano nella tabella `feedback`. Dal 24/10/2026 il vocale
   non si accetta più: un modulo con il campo `voce` torna `400` con il motivo. Prima passava solo a
-  Telegram, che lo teneva senza scadenza. Al massimo 100 al giorno, corpo fino a 5 MB.
+  Telegram, che lo teneva senza scadenza. Al massimo 100 al giorno, corpo fino a 64 KB (dal 25/10/2026:
+  solo messaggi scritti, un vocale non entra e torna `413`).
 - `POST /v1/sito`: un download dal sito, servito come `/api/sito`: il comando di installazione
   copiato o il repository aperto. Non si salva niente oltre al contatore del giorno, e Telegram
   avvisa fino a 60 volte al giorno.

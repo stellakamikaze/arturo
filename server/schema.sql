@@ -31,12 +31,12 @@ CREATE TABLE IF NOT EXISTS contatori (
   PRIMARY KEY (giorno, chiave)
 );
 
--- Il modulo di feedback del sito (16/10/2026). Dal 24/10/2026 il vocale non si accetta più: la colonna voce resta 0.
+-- Il modulo di feedback del sito (16/10/2026): solo messaggi scritti. La colonna voce è uscita il 25/10/2026
+-- (server/migrazioni/2026-10-25-feedback-senza-voce.sql): nessun vocale era mai arrivato.
 CREATE TABLE IF NOT EXISTS feedback (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ricevuto TEXT NOT NULL,
   tipo TEXT NOT NULL,
   testo TEXT NOT NULL DEFAULT '',
-  email TEXT NOT NULL DEFAULT '',
-  voce INTEGER NOT NULL DEFAULT 0
+  email TEXT NOT NULL DEFAULT ''
 );

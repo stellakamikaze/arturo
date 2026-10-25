@@ -623,9 +623,16 @@ const casi = {
     assert.equal(r.status, 400, "V39 un feedback con il vocale è accettato");
     assert.match((await r.json()).errore || "", /vocale/, "V39 il rifiuto non dice il motivo");
     assert.equal(f.stato.feedback.length + f.stato.avvisi.length, 0, "V39 il feedback con il vocale è salvato o avvisato");
-    // Testo ed email facoltativa restano.
+    // Dal 25/10/2026 il tetto è quello di un messaggio scritto: un vocale di un minuto (circa 500 KB) torna 413.
+    const lungo = new FormData();
+    lungo.append("testo", "Ecco il mio vocale lungo.");
+    lungo.append("voce", new Blob([new Uint8Array(500 * 1024)], { type: "audio/webm" }), "voce.webm");
+    const l = await gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: lungo }), { ...f, adesso });
+    assert.equal(l.status, 413, "V39 un vocale di un minuto passa il tetto del modulo");
+    assert.equal(f.stato.feedback.length + f.stato.avvisi.length, 0, "V39 il vocale lungo è salvato o avvisato");
+    // Testo ed email facoltativa restano, anche al massimo dei caratteri.
     const n = new FormData();
-    n.append("testo", "Solo testo.");
+    n.append("testo", "è".repeat(4000));
     n.append("email", "x@esempio.it");
     assert.equal((await gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: n }), { ...f, adesso })).status, 201,
       "V39 un feedback scritto con l'email è rifiutato");

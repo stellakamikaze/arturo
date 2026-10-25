@@ -134,11 +134,12 @@ export const LIMITI = {
   // Le statistiche delle guardie contano solo installazioni viste in almeno tanti giorni diversi (#3507).
   giorniGuardie: 2,
   conservazioneGiorni: 365,
-  // Il sito (16/10/2026): il modulo di feedback e i download. Il vocale non si accetta più dal 24/10/2026: il
-  // tetto del corpo resta quello di prima, così un modulo vecchio con il vocale riceve il motivo e non un 413.
+  // Il sito (16/10/2026): il modulo di feedback e i download. Il vocale non si accetta più dal 24/10/2026, e
+  // dal 25/10/2026 il tetto del corpo è quello di un messaggio scritto (Federico: "voglio solo messaggi
+  // scritti"): 4000 caratteri ed email stanno larghi in 64 KB, un vocale vero non entra e torna 413.
   feedbackPerGiorno: 100,
   feedbackTesto: 4000,
-  feedbackCorpo: 5 * 1024 * 1024,
+  feedbackCorpo: 64 * 1024,
   sitoPerGiorno: 60,
   // Installazioni rimaste indietro (23/10/2026): attive negli ultimi `fermaGiorni` giorni, senza un rilascio
   // uscito da almeno altrettanti. Su Telegram al massimo una volta ogni `avvisoIndietroOgni` giorni per
