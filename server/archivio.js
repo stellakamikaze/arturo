@@ -14,8 +14,59 @@ const SETUP_DAL = "2026-10-15";
 const VISTE = `installazione IN (SELECT installazione FROM eventi GROUP BY installazione
   HAVING COUNT(DISTINCT ricevuto_giorno) >= ${Number(LIMITI.giorniGuardie)})`;
 
+// Lancillotto (25/10/2026) ha una tabella sua. La crea il Worker alla prima richiesta che la usa: dal MacBook Air
+// `wrangler d1 execute` risponde 7403, e una CREATE TABLE IF NOT EXISTS ripetuta non costa niente.
+const TABELLA_LANCILLOTTO = `CREATE TABLE IF NOT EXISTS eventi_lancillotto (
+  giorno TEXT NOT NULL, ricevuto_giorno TEXT NOT NULL, installazione TEXT NOT NULL, versione TEXT NOT NULL,
+  sistema TEXT NOT NULL, evento TEXT NOT NULL, valore TEXT NOT NULL DEFAULT '')`;
+
 export function archivio(db) {
+  let tabellaPronta = false;
+  const lancillotto = async () => {
+    if (!tabellaPronta) {
+      await db.prepare(TABELLA_LANCILLOTTO).run();
+      tabellaPronta = true;
+    }
+  };
   return {
+    async contaEventiLancillotto(installazione, giorno) {
+      await lancillotto();
+      const r = await db.prepare("SELECT COUNT(*) AS n FROM eventi_lancillotto WHERE installazione = ? AND ricevuto_giorno = ?")
+        .bind(installazione, giorno).first();
+      return r ? r.n : 0;
+    },
+    async installazioneNuovaLancillotto(installazione) {
+      await lancillotto();
+      return !(await db.prepare("SELECT 1 AS x FROM eventi_lancillotto WHERE installazione = ? LIMIT 1").bind(installazione).first());
+    },
+    async scriviEventiLancillotto(righe, ricevuto) {
+      await lancillotto();
+      const giorno = ricevuto.slice(0, 10);
+      const insert = db.prepare(
+        "INSERT INTO eventi_lancillotto (giorno, ricevuto_giorno, installazione, versione, sistema, evento, valore) VALUES (?, ?, ?, ?, ?, ?, ?)");
+      await db.batch(righe.map((x) => insert.bind(x.giorno, giorno, x.installazione, x.versione, x.sistema, x.evento, x.valore)));
+    },
+    // I numeri di "Dove migliorare Lancillotto": per ogni valore, quante installazioni diverse.
+    async riepilogoLancillotto(dal, al) {
+      await lancillotto();
+      const gruppo = async (evento, filtro = "") => (await db.prepare(
+        `SELECT valore, COUNT(DISTINCT installazione) AS n FROM eventi_lancillotto WHERE evento = ? ${filtro}
+         AND giorno > ? AND giorno <= ? GROUP BY valore ORDER BY n DESC, valore LIMIT 20`).bind(evento, dal, al).all()).results;
+      const uno = async (sql) => ((await db.prepare(sql).bind(dal, al).first()) || { n: 0 }).n || 0;
+      return {
+        installazioni: await uno("SELECT COUNT(DISTINCT installazione) AS n FROM eventi_lancillotto WHERE giorno > ? AND giorno <= ?"),
+        versioni: (await db.prepare(`SELECT versione AS valore, COUNT(DISTINCT installazione) AS n FROM eventi_lancillotto
+          WHERE giorno > ? AND giorno <= ? GROUP BY versione ORDER BY n DESC LIMIT 20`).bind(dal, al).all()).results,
+        guida: await gruppo("guida"),
+        permessiMancanti: await gruppo("permesso", "AND valore LIKE '%:no'"),
+        sensori: await gruppo("sensore"),
+        urlAssente: await gruppo("url_assente"),
+        errori: await gruppo("errore"),
+        routine: await gruppo("routine"),
+        comandi: await gruppo("comando"),
+        riavvii: await uno("SELECT COALESCE(SUM(CAST(valore AS INTEGER)), 0) AS n FROM eventi_lancillotto WHERE evento = 'riavvio' AND giorno > ? AND giorno <= ?"),
+      };
+    },
     // Gli eventi del giorno di un'installazione. Il totale di tutte sta nel contatore "eventi".
     async contaEventi(installazione, giorno) {
       const r = await db.prepare("SELECT COUNT(*) AS n FROM eventi WHERE installazione = ? AND ricevuto_giorno = ?").bind(installazione, giorno).first();
@@ -192,10 +243,13 @@ export function archivio(db) {
         scartati: await contatore("scartati"),
         telegramKo: await contatore("telegram-ko"),
         emailKo: await contatore("email-ko"),
+        lancillotto: await this.riepilogoLancillotto(dal, al),
       };
     },
     async pulisci(prima) {
+      await lancillotto();
       await db.batch([
+        db.prepare("DELETE FROM eventi_lancillotto WHERE giorno < ?").bind(prima),
         db.prepare("DELETE FROM eventi WHERE giorno < ?").bind(prima),
         db.prepare("DELETE FROM contatori WHERE giorno < ?").bind(prima),
         // Le chiavi "una volta per installazione" (giorno 'sempre', come setup-fine:<id>) non hanno una data:

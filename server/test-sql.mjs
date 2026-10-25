@@ -293,6 +293,34 @@ const casi = {
     const salvati = (await db.prepare("SELECT valore FROM eventi WHERE evento = 'guardia'").all()).results;
     assert.deepEqual(salvati, [], "Q21 la guardia scartata è salvata");
   },
+  // Lancillotto (25/10/2026): la tabella nasce dal Worker, il riepilogo conta installazioni, la pulizia regge
+  // anche su un database dove la tabella non c'era ancora.
+  async QL1() {
+    const db = d1();
+    const a = archivio(db);
+    await a.pulisci("2025-10-13");
+    const corpo = (id, eventi) => JSON.stringify({ installazione: id, versione: "0.2.0", sistema: "macos-26", eventi });
+    for (const [id, eventi] of [
+      ["aaaa1111-l", [{ evento: "guida", valore: "accessibilita:ok" }, { evento: "permesso", valore: "schermo:no" },
+        { evento: "url_assente", valore: "org.mozilla.firefox" }, { evento: "riavvio", valore: "2" }]],
+      ["bbbb2222-l", [{ evento: "guida", valore: "accessibilita:ok" }, { evento: "permesso", valore: "ax:si" },
+        { evento: "riavvio", valore: "1" }]]]) {
+      const r = await gestisci(new Request("https://x/v1/lancillotto/eventi", { method: "POST", body: corpo(id, eventi) }),
+        { archivio: a, posta: async () => {}, adesso: new Date("2026-10-12T10:00:00Z") });
+      assert.equal(r.status, 200, "QL1 lotto rifiutato");
+    }
+    const r = await a.riepilogoLancillotto("2026-10-11", "2026-10-12");
+    assert.equal(r.installazioni, 2, "QL1 installazioni");
+    assert.deepEqual(r.guida, [{ valore: "accessibilita:ok", n: 2 }], "QL1 guida");
+    assert.deepEqual(r.permessiMancanti, [{ valore: "schermo:no", n: 1 }], "QL1 permessi mancanti");
+    assert.equal(r.riavvii, 3, "QL1 riavvii");
+    const arturo = (await db.prepare("SELECT COUNT(*) AS n FROM eventi").first()).n;
+    assert.equal(arturo, 0, "QL1 eventi di Lancillotto tra quelli di Arturo");
+    const tutto = await a.riepilogo("2026-10-11", "2026-10-12");
+    assert.equal(tutto.lancillotto.installazioni, 2, "QL1 il riepilogo di Arturo non porta Lancillotto");
+    await a.pulisci("2026-10-13");
+    assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM eventi_lancillotto").first()).n, 0, "QL1 la pulizia non tocca Lancillotto");
+  },
 };
 
 // `node test-sql.mjs Q15 Q19` fa girare i soli casi nominati (24/10/2026: serve al veleno di un caso alla volta).

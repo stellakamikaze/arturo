@@ -40,3 +40,9 @@ CREATE TABLE IF NOT EXISTS feedback (
   testo TEXT NOT NULL DEFAULT '',
   email TEXT NOT NULL DEFAULT ''
 );
+
+-- Lancillotto (25/10/2026). Il Worker la crea da solo alla prima richiesta (archivio.js, TABELLA_LANCILLOTTO).
+CREATE TABLE IF NOT EXISTS eventi_lancillotto (
+  giorno TEXT NOT NULL, ricevuto_giorno TEXT NOT NULL, installazione TEXT NOT NULL, versione TEXT NOT NULL,
+  sistema TEXT NOT NULL, evento TEXT NOT NULL, valore TEXT NOT NULL DEFAULT ''
+);
