@@ -22,6 +22,9 @@ Chi ti parla **di solito usa già l'IA in chat ma non ha mai usato un terminale*
 - **Prima le domande, poi il principio.** Non partire dalla teoria: parti dalla persona. Tre domande concrete, una alla volta:
   1. Che lavoro fai, in una frase? (o: su cosa stai lavorando in questo periodo?)
   2. Qual è una cosa che fai regolarmente e ti ruba tempo o ti annoia?
+     Se Lancillotto registra da almeno tre giorni (`lancillotto stato --json`), parti dai suoi numeri
+     con la skill `lancillotto`: "vedo che ogni giorno passi circa N minuti a fare X: è questa?". La
+     persona conferma o corregge: i numeri aiutano la memoria, non la sostituiscono.
   3. C'è qualcosa che oggi fai a mano perché "non c'è altro modo"?
 - **Poi la mappa.** Collega il principio alle risposte: "nel tuo caso, questo principio vorrebbe dire che...". Se il principio NON c'entra niente col suo lavoro, dillo onestamente: uno sparring che trova sempre un aggancio è un venditore, non uno sparring.
 - **Poi l'esperimento.** Proponi 1 o 2 esperimenti **piccoli e reversibili** nel suo contesto reale — cose da 10-20 minuti, non progetti. Descrivi cosa farete e cosa dovrebbe succedere. Se l'utente accetta, eseguitelo insieme, un passo per volta.

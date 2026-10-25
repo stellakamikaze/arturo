@@ -12,7 +12,7 @@ Sei la guida di installazione di **Arturo**, l'harness Claude Code in cui ti tro
 - **Una fase per volta.** Fai UNA fase, mostri l'esito, e solo dopo passi alla successiva. Non scaricare tutto insieme.
 - **Linguaggio semplice.** Niente gergo non spiegato. Se usi un termine tecnico, spiegalo in mezza riga.
 - **Chiedi prima di scrivere.** Ogni volta che stai per modificare un file (`settings.json`, `CLAUDE.md`), mostra cosa scriverai e chiedi conferma. Nota: modificare `settings.json` durante `/setup` è legittimo — l'utente lo ha chiesto lanciando questo comando — quindi se una guardia chiede conferma, spiega all'utente che è normale e che può approvare.
-- **Sono obbligatorie solo le fasi 0–4 e la verifica finale (FASE 9).** Tutte le altre sono opzionali: la 4b (stile), dalla 5 alla 8b (`CLAUDE.md`, host e API fidate, sync, comando `arturo`, memoria, `gws`, `scrape`) e la 10 (sparring). Proponile, e se l'utente non le vuole, salta senza insistere.
+- **Sono obbligatorie solo le fasi 0–4 e la verifica finale (FASE 9).** Tutte le altre sono opzionali: la 4b (stile), dalla 5 alla 8d (`CLAUDE.md`, host e API fidate, sync, comando `arturo`, memoria, `gws`, `scrape`, Impeccable, Lancillotto) e la 10 (sparring). Proponile, e se l'utente non le vuole, salta senza insistere.
 - **Idempotente.** Se qualcosa è già configurato correttamente, dillo ("questo è già a posto") e vai avanti, non rifarlo.
 - **Prima configurazione o verifica.** Se la FASE 0 stampa `SETUP GIÀ FATTO`, o la persona scrive `/setup verifica`, chiedi se vuole rifare la configurazione o solo verificarla. Nella verifica non scrivi niente: per ogni fase obbligatoria dici se è a posto, lanci la FASE 9 e poi proponi `/diagnosi` sul progetto su cui lavora. Quello che non è a posto lo sistemi rifacendo la sua fase, col suo sì.
 - **Segna la fase.** All'inizio di ogni fase, anche di quelle che salti, registra il numero per la telemetria di Arturo: dice a chi lo mantiene in quale fase le persone si fermano. Esce solo il numero.
@@ -21,7 +21,7 @@ Sei la guida di installazione di **Arturo**, l'harness Claude Code in cui ti tro
   python3 ~/.claude/bin/telemetria.py registra setup fase:N >/dev/null 2>&1 || true
   ```
 
-  `N` è il numero della fase, con la lettera se c'è (`0`…`10`, `4b`, `7c`). Dopo il riepilogo finale registra `setup fine`. Non serve commentarlo ogni volta: la telemetria la spieghi una volta in FASE 0.
+  `N` è il numero della fase, con la lettera se c'è (`0`…`10`, `4b`, `7c`, `8d`). Dopo il riepilogo finale registra `setup fine`. Non serve commentarlo ogni volta: la telemetria la spieghi una volta in FASE 0.
 
 Alla fine fai un **riepilogo** di cosa è stato configurato e cosa è rimasto opzionale/da fare.
 
@@ -356,6 +356,39 @@ Controlla prima se c'è già:
 
 ---
 
+## FASE 8d — Lancillotto, per trovare cosa delegare (opzionale, solo Mac)
+
+Chiedi: "Vuoi che Arturo impari da come lavori? Lancillotto è una piccola app per Mac che annota in
+locale quali app, finestre e file usi, senza video, foto dello schermo o tasti. Dopo tre giorni Arturo
+lo legge e ti propone al massimo tre lavori che ripeti e che può fare lui, con i numeri. Il registro
+resta sul tuo Mac. La installo?"
+
+Controlla prima se si può e se c'è già:
+
+```bash
+[ "$(uname -s)" = Darwin ] || echo "non è un Mac: Lancillotto non c'è"
+[ -d ~/Applications/Lancillotto.app ] && echo "Lancillotto già installato" || echo "Lancillotto non installato"
+gh repo view stellakamikaze/lancillotto >/dev/null 2>&1 && echo "repo raggiungibile" || echo "repo non raggiungibile"
+```
+
+- Se non è un Mac, o è già installato, dillo e vai avanti. Se è installato, ricorda che dalla sua
+  finestra il tasto "Copia il prompt per Arturo" copia la domanda pronta.
+- Se il repo non è raggiungibile, Lancillotto non è ancora aperto a tutti: spiega che serve un invito
+  di chi mantiene Arturo, che la persona chiede con `/segnala`, e salta.
+- Solo dopo il sì dell'utente, scarica e installa. L'installatore compila l'app in circa un minuto,
+  la mette in `~/Applications` e apre la sua guida:
+
+  ```bash
+  gh repo clone stellakamikaze/lancillotto ~/.local/share/lancillotto && ~/.local/share/lancillotto/installa.sh
+  ```
+
+  Poi spiega: "Si è aperta la guida di Lancillotto: ti chiede l'Accessibilità, l'unico permesso
+  obbligatorio. Il testo delle finestre e i dati d'uso anonimi sono a tua scelta. Lancillotto si
+  aggiorna da solo una volta al giorno. Fra tre giorni scrivimi `dove mi puoi aiutare?`."
+- Se l'utente dice no, salta: si installa anche più tardi con lo stesso comando.
+
+---
+
 ## FASE 9 — Verifica finale
 
 Lancia l'audit dell'harness e mostra l'esito:
@@ -390,7 +423,7 @@ Se preferisce esplorare da solo, indicagli `docs/principi/README.md` e chiudi.
 
 Chiudi con un riepilogo in linguaggio semplice:
 - Cosa è stato configurato: prerequisiti, permessi, `PROJECTS_BASE`, lingua, verifica finale.
-- Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), Google (8), `scrape` (8b), Impeccable (8c), sparring (10). Una fase saltata si recupera rilanciando `/setup`.
+- Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), Google (8), `scrape` (8b), Impeccable (8c), Lancillotto (8d), sparring (10). Una fase saltata si recupera rilanciando `/setup`.
 - **Come iniziare a lavorare**: "Ogni giorno ti bastano due comandi: `/inizio <nome>` per riprendere un progetto e `/fine` per chiuderlo. Quando ti viene in mente qualcosa da fare, dimmi "ricordami di…": lo ritrovi a ogni `/inizio`."
 - **Gli altri comandi, quando servono**: "Non sai da dove partire? `/guidami` guarda il tuo lavoro recente e ti propone i prossimi passi. Qualcosa non torna in un progetto? `/diagnosi` controlla Arturo e il progetto, e ti dice cosa sistemare. Fai spesso lo stesso lavoro? `/creaskill` ti aiuta a farne una skill tua." Gli altri strumenti non elencarli: Claude li usa da solo quando servono.
 - **Come restare aggiornato**: Arturo si aggiorna da solo, come Claude Code. Quando esce una versione nuova la barra in basso lo dice, e alla chiusura della sessione si installa, solo se è firmata da chi mantiene Arturo. **`/novita`** racconta cosa è cambiato e propone lo sparring. Per guardare prima ogni aggiornamento: `python3 ~/.claude/bin/arturo aggiornamenti manuali`, poi **`/aggiorna`** quando vuoi.
