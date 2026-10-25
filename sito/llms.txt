@@ -85,7 +85,7 @@ Poi apri Claude Code dentro la cartella con `cd ~/.claude && claude` e scrivi `/
 - [Installa Arturo](https://arturo.stellakamikaze.org/installa/): la guida d'installazione in dieci passi, per Mac e Windows
 - [Novità di Arturo](https://arturo.stellakamikaze.org/novita/): cosa cambia a ogni aggiornamento, la voce più recente in cima
 - [Arturo per organizzazioni](https://arturo.stellakamikaze.org/organizzazioni/): cosa vale oggi per uno studio, una redazione o un'associazione
-- [Dimmi com'è andata](https://arturo.stellakamikaze.org/feedback/): il modulo per scrivere o dire a voce un problema o un'idea a chi mantiene Arturo
+- [Dimmi com'è andata](https://arturo.stellakamikaze.org/feedback/): il modulo per scrivere un problema o un'idea a chi mantiene Arturo
 - [Privacy](https://arturo.stellakamikaze.org/privacy/): cosa raccolgono il sito, il modulo di feedback e la telemetria di Arturo
 
 ## Codice e documenti

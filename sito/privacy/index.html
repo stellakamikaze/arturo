@@ -155,7 +155,7 @@ h1,h2,h3{margin:0;color:var(--inchiostro);font-family:var(--titolo);font-weight:
               <tr><td>Download</td><td>se hai copiato il comando che scarica Arturo o aperto il repository su GitHub</td></tr>
               <tr><td>Guida: passo fatto</td><td>il numero del passo che hai segnato come fatto</td></tr>
               <tr><td>Link esterno</td><td>il nome del sito che apri da qui</td></tr>
-              <tr><td>Feedback inviato</td><td>il tipo di messaggio e se c'era un vocale, mai il testo</td></tr>
+              <tr><td>Feedback inviato</td><td>il tipo di messaggio, mai il testo</td></tr>
             </tbody>
           </table>
           <p>Quando qualcuno scarica Arturo, il server di Arturo avvisa Federico su Telegram con la pagina e il computer scelto, al massimo 60 volte al giorno. Non salva altro che il conteggio del giorno.</p>
@@ -166,14 +166,15 @@ h1,h2,h3{margin:0;color:var(--inchiostro);font-family:var(--titolo);font-weight:
       <article class="voce" id="feedback" aria-labelledby="t-feedback">
         <p class="voce__dove">Il modulo di feedback</p>
         <div class="voce__corpo">
-          <h2 id="t-feedback">Quello che scrivi, e il vocale se lo registri</h2>
+          <h2 id="t-feedback">Quello che scrivi</h2>
           <ul>
-            <li><strong>Il testo e il tipo di messaggio</strong> arrivano a Federico su Telegram e restano nel database del server di Arturo per 12 mesi. Poi si cancellano da soli.</li>
-            <li><strong>Il vocale</strong> non si salva nel server: passa dritto alla chat Telegram di Federico, e resta lì finché lui non lo cancella.</li>
+            <li><strong>Il testo e il tipo di messaggio</strong> restano nel database del server di Arturo per 12 mesi. Poi si cancellano da soli.</li>
+            <li><strong>Su Telegram e per email</strong> Federico riceve solo un avviso con il numero del messaggio e il tipo. Il testo e la tua email non ci passano.</li>
+            <li><strong>Il vocale</strong> non si registra più dal 25 ottobre 2026. I vocali arrivati prima stanno nella chat Telegram di Federico finché lui non li cancella: scrivigli se vuoi che tolga il tuo.</li>
             <li><strong>L'email</strong>, se la lasci, sta insieme al testo e serve solo a risponderti.</li>
             <li><strong>Le pagine di prova</strong> (gli indirizzi che cominciano con <code>/prove/</code>) tengono voti e commenti nel tuo browser mentre li scrivi, così non li perdi se chiudi la pagina. Quando premi «Invia» partono come un messaggio di feedback, con lo stesso trattamento, e la copia nel browser si cancella.</li>
           </ul>
-          <p>Il server non salva l'indirizzo IP. Il server di Arturo è un Worker di Cloudflare, e il suo codice è pubblico nel repository (<a href="https://github.com/stellakamikaze/arturo/tree/main/server">cartella server</a>). Telegram consegna i messaggi a Federico.</p>
+          <p>Il server non salva l'indirizzo IP. Il server di Arturo è un Worker di Cloudflare, e il suo codice è pubblico nel repository (<a href="https://github.com/stellakamikaze/arturo/tree/main/server">cartella server</a>). Telegram consegna gli avvisi a Federico.</p>
         </div>
       </article>
 
