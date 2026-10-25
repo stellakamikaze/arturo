@@ -373,8 +373,8 @@ gh repo view stellakamikaze/lancillotto >/dev/null 2>&1 && echo "repo raggiungib
 
 - Se non è un Mac, o è già installato, dillo e vai avanti. Se è installato, ricorda che dalla sua
   finestra il tasto "Copia il prompt per Arturo" copia la domanda pronta.
-- Se il repo non è raggiungibile, Lancillotto non è ancora aperto a tutti: spiega che serve un invito
-  di chi mantiene Arturo, che la persona chiede con `/segnala`, e salta.
+- Se il repo non è raggiungibile, il problema è la rete o l'accesso a GitHub: controlla
+  `gh auth status`, che la FASE 1 ha già preparato, e riprova.
 - Solo dopo il sì dell'utente, scarica e installa. L'installatore compila l'app in circa un minuto,
   la mette in `~/Applications` e apre la sua guida:
 
