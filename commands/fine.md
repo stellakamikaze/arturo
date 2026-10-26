@@ -316,6 +316,15 @@ if [ "$CONFIG_INTEGRA" = 1 ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; 
     [ -e data/handoffs ] && { git add -- data/handoffs || echo "git add fallito su data/handoffs: resta fuori dal commit"; }
   else
     echo "CLAUDE.md, personale/, handoff e todo non sincronizzati: il remote della config non risulta privato (visibilità: ${VIS:-sconosciuta}). Restano su questa macchina."
+    # Senza un remote dove pushare, un archivio già tracciato esce dal tracciamento e resta su disco
+    # (segnalazione n. 14, 26/10/2026): altrimenti la retention lascia per sempre file cancellati e non
+    # salvati. Con un remote suo non si tocca: un'altra macchina, al pull, li cancellerebbe dal disco.
+    if [ "$ORIGIN_ARTURO" = 1 ] || [ -z "$ORIGIN_URL" ]; then
+      for p in data/handoffs data/todo data/memory; do
+        [ -n "$(git ls-files -- "$p")" ] || continue
+        git rm -r -q --cached -- "$p" && echo "$p: tolto dal tracciamento di git, i file restano su questa macchina"
+      done
+    fi
   fi
   git diff --cached --quiet || git commit -m "chore: session sync $(date +%Y-%m-%d)" || echo "Commit di sync non riuscito: vedi errore sopra"
 fi

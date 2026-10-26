@@ -811,10 +811,50 @@ def test_f16(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+def test_f17(repo: Path) -> None:
+    """Con Arturo come origin un archivio già tracciato esce dal tracciamento (segnalazione n. 14, 26/10/2026):
+    la retention ne toglie un handoff e riscrive INDEX.md, e dopo il sync git non ha più modifiche non
+    salvate. I file restano su disco come la persona li ha lasciati."""
+    fine = read(serve(repo, "commands/fine.md", "F17"))
+    assert "## FASE 9 · Config Sync" in fine, "F17 manca la FASE 9 · Config Sync di /fine"
+    inizio = fine.index("## FASE 9 · Config Sync")
+    blocco = fine[fine.index("```bash\n", inizio) + 8:fine.index("\n```", fine.index("```bash\n", inizio))]
+    with tempfile.TemporaryDirectory(prefix="arturo-f17-") as tmp:
+        lab = Lab(repo, Path(tmp))
+        config = lab.home / ".claude"
+        shutil.copytree(str(repo), str(config), ignore=shutil.ignore_patterns(".git", "__pycache__", "worktrees"),
+                        dirs_exist_ok=True)
+        cartella = config / "data" / "handoffs"
+        vecchio = cartella / "libro" / "HANDOFF_2026-10-01_10-00.md"
+        vecchio.parent.mkdir(parents=True, exist_ok=True)
+        vecchio.write_text("# vecchio\n", encoding="utf-8")
+        (cartella / "INDEX.md").write_text("# Indice\n- libro 1/10\n", encoding="utf-8")
+        lab.git(config, "init", "-q", "-b", "main")
+        lab.git(config, "add", "-A")
+        lab.git(config, "add", "data/handoffs")
+        lab.git(config, "commit", "-q", "-m", "config")
+        # Il blocco riconosce Arturo dall'indirizzo: con Arturo come origin non fa fetch né push.
+        lab.git(config, "remote", "add", "origin", "https://github.com/stellakamikaze/arturo.git")
+        vecchio.unlink()
+        (cartella / "INDEX.md").write_text("# Indice\n- libro 26/10\n", encoding="utf-8")
+        finti = Path(tmp) / "finti"
+        finti.mkdir()
+        (finti / "gh").write_text("#!/bin/sh\necho PUBLIC\n", encoding="utf-8")
+        (finti / "gh").chmod(0o755)
+        r = lab.run([BASH, "-c", blocco], cwd=lab.home, PATH=f"{finti}{os.pathsep}{os.environ.get('PATH', '')}")
+        uscita = (r.stdout + r.stderr)[-400:]
+        sporchi = lab.run(["git", "-C", str(config), "status", "--porcelain", "--untracked-files=no"]).stdout
+        assert not sporchi.strip(), f"F17 dopo il sync restano modifiche non salvate negli archivi: {sporchi} {uscita}"
+        tracciati = lab.run(["git", "-C", str(config), "ls-files", "--", "data/handoffs"]).stdout
+        assert not tracciati.strip(), f"F17 gli handoff restano tracciati con Arturo come origin: {tracciati} {uscita}"
+        assert not vecchio.exists() and "26/10" in read(cartella / "INDEX.md"), \
+            f"F17 il sync ha cambiato gli archivi su disco: {uscita}"
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
-         "F16": test_f16}
+         "F16": test_f16, "F17": test_f17}
 
 
 def main() -> int:
