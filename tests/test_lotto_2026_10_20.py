@@ -22,6 +22,8 @@ LT11 il ponte con Chrome (`claude --chrome-native-host`, installazione nativa o 
      conta come sessione aperta, una sessione vera sì (segnalazione n. 7).
 LT12 un aggiornamento rimandato per un'altra sessione aperta lascia l'esito, e l'avvio dopo dice perché
      non si è installato invece di ripetere che si installa da solo (segnalazione n. 7).
+LT13 l'audit salta skills/synced, dove Claude Code tiene le skill di claude.ai, invece di dare FAIL
+     perché manca un SKILL.md (26/10/2026, #3974).
 
 Sulla base 0936b4c ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -299,9 +301,22 @@ def test_lt12(repo: Path) -> None:
     aa.con_lab(repo, "LT12", prova)
 
 
+def test_lt13(repo: Path) -> None:
+    with tempfile.TemporaryDirectory() as d:
+        home = casa(repo, Path(d))
+        sincronizzata = home / ".claude" / "skills" / "synced" / "b19a9d21_a393d39d" / "pdf"
+        sincronizzata.mkdir(parents=True)
+        (sincronizzata / "SKILL.md").write_text("---\nname: pdf\ndescription: PDF\n---\n", encoding="utf-8")
+        r = subprocess.run([BASH, str(home / ".claude" / "skills" / "system-audit" / "audit.sh")],
+                           capture_output=True, text=True, timeout=180, env=env_di(home), check=False)
+        uscita = r.stdout + r.stderr
+        assert "Totali:" in uscita and "SKILL.md mancante" not in uscita, \
+            f"LT13 l'audit dà FAIL sulla cartella synced delle skill di claude.ai: {uscita[-400:]}"
+
+
 TESTS = {"LT01": test_lt01, "LT02": test_lt02, "LT03": test_lt03, "LT04": test_lt04, "LT05": test_lt05,
          "LT06": test_lt06, "LT07": test_lt07, "LT08": test_lt08, "LT09": test_lt09, "LT10": test_lt10,
-         "LT11": test_lt11, "LT12": test_lt12}
+         "LT11": test_lt11, "LT12": test_lt12, "LT13": test_lt13}
 
 
 def main() -> int:

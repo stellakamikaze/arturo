@@ -238,7 +238,8 @@ def skill_valida(directory):
 
 skill_rotta = mod_rotto = False
 for directory in Path(sys.argv[1]).iterdir():
-    if not directory.is_dir() or directory.name == "shared":
+    # synced/ la tiene Claude Code per le skill di claude.ai: ha le sue cartelle, non un SKILL.md
+    if not directory.is_dir() or directory.name in ("shared", "synced"):
         continue
     if (directory / ".claude-plugin" / "plugin.json").is_file():
         mod_rotto = mod_rotto or not mod_valido(directory)

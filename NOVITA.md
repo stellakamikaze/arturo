@@ -11,6 +11,29 @@ modo di lavorare.
 
 ---
 
+## 2026-10-26 — L'aggiornamento non si ferma sui tuoi appunti, e un worktree non perde file
+
+**Cosa cambia**: l'aggiornamento automatico parte anche se i tuoi archivi (handoff, todo, memoria)
+hanno modifiche non salvate. Con Arturo come origin, la pulizia degli handoff di `/fine` lasciava file
+cambiati, e quei file fermavano l'aggiornamento a ogni sessione. Ora quegli archivi restano come li hai
+lasciati, e solo un file di Arturo cambiato ferma l'aggiornamento. Quando `/inizio` apre la sessione in
+una copia a parte del progetto (un worktree, perché un'altra sessione lavora nella stessa cartella),
+`/fine` riporta nella cartella principale anche i file che git ignora, come una cartella `lavoro/`.
+Prima la rimozione della copia li cancellava senza avviso. `/inizio` dice anche come scrivere i comandi
+nella copia: uno per volta, con i cicli in uno script, perché Claude Code rifiuta quelli che non sa
+leggere. `/setup` ha una fase facoltativa in più, solo su Mac: Lancillotto annota in locale quali app e
+file usi, e dopo tre giorni Arturo ti propone fino a tre lavori che può fare lui. La guardia delle
+scritture vede più comandi, fra cui `tar -x`, `unzip -d`, `patch`, `git apply` e `git stash pop`.
+
+**Il principio dietro**: un file tuo non si cancella e non ti blocca in silenzio, neanche quando sta
+fuori da git.
+
+**Da sapere**: lo mostravano le segnalazioni n. 13 e n. 14. Se il tuo aggiornamento automatico era
+fermo, si sblocca con questo rilascio, perché la procedura si legge dal rilascio in arrivo. Se
+Lancillotto non ti interessa, `/setup` salta la fase.
+
+---
+
 ## 2026-10-24 — La telemetria manda meno, e conta meglio i tuoi sì
 
 **Cosa cambia**: dalla telemetria esce meno di prima. Se un aggiornamento va in conflitto su un file
