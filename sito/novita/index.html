@@ -47,6 +47,28 @@
  "blogPost": [
   {
    "@type": "BlogPosting",
+   "headline": "L'aggiornamento non si ferma sui tuoi appunti, e un worktree non perde file",
+   "datePublished": "2026-10-26",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-10-26-l-aggiornamento-non-si-ferma-sui-tuoi-appunti-e-un-worktree",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
+   "headline": "La telemetria manda meno, e conta meglio i tuoi sì",
+   "datePublished": "2026-10-24",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-10-24-la-telemetria-manda-meno-e-conta-meglio-i-tuoi-si",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
    "headline": "Un progetto riservato resta fuori dal sync",
    "datePublished": "2026-10-23",
    "author": {
@@ -836,7 +858,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
   <div class="dentro">
     <div class="testata__corpo">
       <h1 id="titolo">Novità di Arturo</h1>
-      <p>Cosa cambia a ogni aggiornamento, il principio dietro e cosa devi fare tu. La voce più recente sta in cima: l'ultima è del 23 ottobre 2026. Dentro Claude Code le stesse voci te le racconta <code>/novita</code>.</p>
+      <p>Cosa cambia a ogni aggiornamento, il principio dietro e cosa devi fare tu. La voce più recente sta in cima: l'ultima è del 26 ottobre 2026. Dentro Claude Code le stesse voci te le racconta <code>/novita</code>.</p>
       <div class="testata__vie">
         <a class="azione" href="#voci">Leggi le novità</a>
         <a class="azione azione--bordo" href="https://github.com/stellakamikaze/arturo/blob/main/NOVITA.md">NOVITA.md su GitHub</a>
@@ -850,6 +872,26 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 <section class="sezione" aria-labelledby="titolo">
   <div class="dentro">
     <div class="voci" id="voci">
+
+      <article class="voce" id="2026-10-26-l-aggiornamento-non-si-ferma-sui-tuoi-appunti-e-un-worktree" aria-labelledby="t-2026-10-26-l-aggiornamento-non-si-ferma-sui-tuoi-appunti-e-un-worktree">
+        <p class="voce__data stretta"><time datetime="2026-10-26">26 ottobre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-10-26-l-aggiornamento-non-si-ferma-sui-tuoi-appunti-e-un-worktree"><a href="#2026-10-26-l-aggiornamento-non-si-ferma-sui-tuoi-appunti-e-un-worktree">L'aggiornamento non si ferma sui tuoi appunti, e un worktree non perde file</a></h2>
+          <p><strong>Cosa cambia</strong>: l'aggiornamento automatico parte anche se i tuoi archivi (handoff, todo, memoria) hanno modifiche non salvate. Con Arturo come origin, la pulizia degli handoff di <code>/fine</code> lasciava file cambiati, e quei file fermavano l'aggiornamento a ogni sessione. Ora quegli archivi restano come li hai lasciati, e solo un file di Arturo cambiato ferma l'aggiornamento. Quando <code>/inizio</code> apre la sessione in una copia a parte del progetto (un worktree, perché un'altra sessione lavora nella stessa cartella), <code>/fine</code> riporta nella cartella principale anche i file che git ignora, come una cartella <code>lavoro/</code>. Prima la rimozione della copia li cancellava senza avviso. <code>/inizio</code> dice anche come scrivere i comandi nella copia: uno per volta, con i cicli in uno script, perché Claude Code rifiuta quelli che non sa leggere. <code>/setup</code> ha una fase facoltativa in più, solo su Mac: Lancillotto annota in locale quali app e file usi, e dopo tre giorni Arturo ti propone fino a tre lavori che può fare lui. La guardia delle scritture vede più comandi, fra cui <code>tar -x</code>, <code>unzip -d</code>, <code>patch</code>, <code>git apply</code> e <code>git stash pop</code>.</p>
+          <p><strong>Il principio dietro</strong>: un file tuo non si cancella e non ti blocca in silenzio, neanche quando sta fuori da git.</p>
+          <p><strong>Da sapere</strong>: lo mostravano le segnalazioni n. 13 e n. 14. Se il tuo aggiornamento automatico era fermo, si sblocca con questo rilascio, perché la procedura si legge dal rilascio in arrivo. Se Lancillotto non ti interessa, <code>/setup</code> salta la fase.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="2026-10-24-la-telemetria-manda-meno-e-conta-meglio-i-tuoi-si" aria-labelledby="t-2026-10-24-la-telemetria-manda-meno-e-conta-meglio-i-tuoi-si">
+        <p class="voce__data stretta"><time datetime="2026-10-24">24 ottobre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-10-24-la-telemetria-manda-meno-e-conta-meglio-i-tuoi-si"><a href="#2026-10-24-la-telemetria-manda-meno-e-conta-meglio-i-tuoi-si">La telemetria manda meno, e conta meglio i tuoi sì</a></h2>
+          <p><strong>Cosa cambia</strong>: dalla telemetria esce meno di prima. Se un aggiornamento va in conflitto su un file tuo, per esempio una skill che hai scritto tu, esce solo <code>file:altro</code>, mai il nome del file. Se una guardia ferma un commit con un segreto, esce la famiglia del segreto, come <code>segreto-cloud</code>, e non più il servizio, come <code>google-api-key</code>. Un comando tuo conta come <code>altro</code>, senza il nome. Delle guardie escono solo i nomi di Arturo, da un elenco chiuso. Come versione esce solo il rilascio di Arturo: un tag tuo non esce. Un sì a una guardia conta anche su Monitor e quando il comando poi fallisce: prima contava come un no. Il README non dice più che l'id è "non legato a te", e la nuova pagina <a href="https://github.com/stellakamikaze/arturo/blob/main/docs/privacy.md"><code>docs/privacy.md</code></a> dice chi tiene i dati, per quanto e come li cancelli.</p>
+          <p><strong>Il principio dietro</strong>: la promessa del README deve dire esattamente ciò che esce. Un nome di file o di servizio dice qualcosa di te, e un numero sbagliato porta a correggere la cosa sbagliata.</p>
+          <p><strong>Da sapere</strong>: alla prima sessione Arturo ti avvisa di nuovo, perché cosa esce è cambiato. L'id è casuale, ma chi mantiene Arturo può sapere quale persona c'è dietro se la conosce: per questo i dati non sono anonimi. Le segnalazioni restano sul server 12 mesi, e di una segnalazione Telegram ed email ricevono solo il numero, l'origine e il tipo. Cosa arriva su Telegram e per email, in tutto, lo dice <code>docs/privacy.md</code>. La spegni come sempre con <code>python3 ~/.claude/bin/arturo telemetria spegni</code>.</p>
+        </div>
+      </article>
 
       <article class="voce" id="2026-10-23-un-progetto-riservato-resta-fuori-dal-sync" aria-labelledby="t-2026-10-23-un-progetto-riservato-resta-fuori-dal-sync">
         <p class="voce__data stretta"><time datetime="2026-10-23">23 ottobre 2026</time></p>
