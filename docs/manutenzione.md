@@ -121,12 +121,8 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
 - **Le installazioni nuove.** Il primo lotto di eventi da un id mai visto manda un messaggio
   Telegram: id abbreviato, versione e sistema. Telegram parte solo se il Worker ha i secret
   `TELEGRAM_TOKEN` e `TELEGRAM_CHAT` (come si danno: `server/README.md`, passo 4).
-- **Le query.** Da `server/`, con wrangler autenticato:
-
-  ```bash
-  npx wrangler d1 execute arturo --remote --command "SELECT evento, valore, COUNT(*) n FROM eventi WHERE giorno >= date('now','-30 day') GROUP BY 1,2 ORDER BY n DESC"
-  npx wrangler d1 execute arturo --remote --command "SELECT id, ricevuta, tipo, titolo FROM segnalazioni ORDER BY id DESC LIMIT 20"
-  ```
+- **Le query** di lettura (eventi, installazioni attive, segnalazioni e il loro testo) stanno in
+  `server/README.md`, sezione "Le query": è l'unica copia.
 
 - **Una richiesta di cancellazione** arriva con un id: `DELETE FROM eventi WHERE installazione = '…'`,
   `DELETE FROM segnalazioni WHERE installazione = '…'` e

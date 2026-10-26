@@ -170,7 +170,8 @@ L'MCP di Cloudflare non basta per il deploy: la sua autorizzazione non scrive su
 
 ## Le query
 
-Da qualunque cartella, con wrangler autenticato:
+Da una cartella senza `wrangler.toml`, con wrangler autenticato. Da `server/` non funzionano: il
+`wrangler.toml` del repository ha i segnaposto, e la query risponde "Invalid uuid [code: 7400]".
 
 ```bash
 # Gli eventi degli ultimi 30 giorni, per tipo e valore
