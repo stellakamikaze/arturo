@@ -71,13 +71,20 @@ git diff --cached --stat
 
   Controlla che l'elenco coincida con quello che volevi, poi `git commit -m "<messaggio>" -- <file-1> <file-2>`.
 - **Sessione in un worktree** (aperto da `/inizio` perché un'altra sessione lavorava sullo stesso
-  progetto). Il commit va sul branch del worktree. Poi esci con `ExitWorktree` e `keep`: dentro il
-  worktree la guardia di Claude Code vieta git sul tree principale. Fuori, riporta il lavoro con
-  `git -C <tree principale> merge --ff-only <branch>`. Riuscito: `git -C <tree principale> worktree
-  remove <percorso del worktree>` e `git -C <tree principale> branch -d <branch>`. Non riuscito (l'altra
-  sessione ha committato nel frattempo, o ha modifiche sugli stessi file): il worktree resta, il branch
-  diventa un todo e l'handoff lo cita. Rebase e merge con conflitti non si fanno a fine sessione. Il
-  resto di /fine gira dal tree principale (segnalazione n. 11, 22/10/2026).
+  progetto). Il commit va sul branch del worktree. Prima di uscire guarda i file ignorati con
+  `git status --short --ignored` (righe `!!`): i file di lavoro fuori da git, come una cartella
+  `lavoro/`, esistono solo lì. Poi esci con `ExitWorktree` e `keep`: dentro il worktree la guardia di
+  Claude Code vieta git sul tree principale. Fuori, riporta il lavoro con
+  `git -C <tree principale> merge --ff-only <branch>`. Riuscito: copia nel tree principale, allo stesso
+  percorso, i file ignorati che sono lavoro della sessione. Cache, dipendenze e build si rigenerano
+  (`node_modules`, `__pycache__`, `.venv`, `dist`): restano fuori. Un file che esiste già nel tree
+  principale non si sovrascrive: il worktree resta e l'handoff lo dice. Solo dopo la copia,
+  `git -C <tree principale> worktree remove <percorso del worktree>` e `git -C <tree principale> branch
+  -d <branch>`: `worktree remove` cancella anche i file ignorati, senza avviso (segnalazione n. 13,
+  26/10/2026). Merge non riuscito (l'altra sessione ha committato nel frattempo, o ha modifiche sugli
+  stessi file): il worktree resta, il branch diventa un todo e l'handoff lo cita. Rebase e merge con
+  conflitti non si fanno a fine sessione. Il resto di /fine gira dal tree principale (segnalazione
+  n. 11, 22/10/2026).
 
 ## FASE 4 · Handoff e todo
 

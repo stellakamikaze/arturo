@@ -776,9 +776,45 @@ def test_f14(repo: Path) -> None:
     assert not rifiutati, f"F14 percorsi che in un worktree la guardia di Claude Code rifiuta: {rifiutati[:5]}"
 
 
+def test_f16(repo: Path) -> None:
+    """In un worktree (segnalazione n. 13, 26/10/2026): /fine riporta nel tree principale i file ignorati
+    prima di `git worktree remove`, che li cancella senza avviso; /inizio dice che cicli e variabili
+    vanno in uno script, perché la guardia di Claude Code li rifiuta."""
+    fine = read(repo / "commands" / "fine.md")
+    inizio = read(repo / "commands" / "inizio.md")
+    passo = "**Sessione in un worktree**"
+    assert passo in fine and "## FASE 4" in fine, "F16 /fine non ha il passo del worktree"
+    passo = fine[fine.index(passo):fine.index("## FASE 4")]
+    comando = re.search(r"`(git status --short --ignored)`", passo)
+    assert comando and "worktree remove" in passo and passo.index(comando.group(1)) < passo.index("worktree remove"), \
+        "F16 /fine rimuove il worktree senza aver guardato i file ignorati, che la rimozione cancella"
+    voce = "**Worktree, solo se c'è quella sessione.**"
+    assert voce in inizio, "F16 /inizio non ha la voce del worktree"
+    voce = inizio[inizio.index(voce):].split("\n\n")[0]
+    assert "script" in voce and "cicli" in voce, \
+        "F16 /inizio non dice che nel worktree cicli e variabili vanno in uno script"
+
+    def prova(lab: Lab) -> None:
+        progetto = lab.progetti / "tavole"
+        progetto.mkdir()
+        lab.git(progetto, "init", "-q", "-b", "main")
+        (progetto / ".gitignore").write_text("lavoro/\n", encoding="utf-8")
+        lab.git(progetto, "add", "-A")
+        lab.git(progetto, "commit", "-q", "-m", "primo")
+        albero = progetto / ".claude" / "worktrees" / "prova"
+        lab.git(progetto, "worktree", "add", "-q", "-b", "wt-prova", str(albero))
+        (albero / "lavoro").mkdir()
+        (albero / "lavoro" / "tavola.pdf").write_text("pdf\n", encoding="utf-8")
+        r = lab.run(comando.group(1).split(), cwd=albero)
+        assert r.returncode == 0 and "!! lavoro/" in r.stdout, \
+            f"F16 il comando di /fine non mostra i file ignorati del worktree: {r.stdout} {r.stderr}"
+    con_lab(repo, prova)
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
-         "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15}
+         "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
+         "F16": test_f16}
 
 
 def main() -> int:
