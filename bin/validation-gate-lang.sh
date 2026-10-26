@@ -17,6 +17,8 @@
 #   package.json                             -> node
 #   pyproject.toml|requirements.txt|setup.py -> python
 #   *.py nella radice                        -> python (marcatore secondario)
+#   Package.swift                            -> swift (scripts/test.sh o swift test, più .NET se c'è)
+#   *.sln o *.csproj (anche in una sottocartella) -> dotnet (dotnet test)
 #   altrimenti                               -> prosa (mai verde da solo)
 #
 # STRUMENTI ASSENTI
@@ -53,7 +55,18 @@ detect_lang() {
   fi
   # marcatore secondario: sorgenti python in radice (shallow -> alta precisione)
   if ls "$d"/*.py >/dev/null 2>&1; then echo "python"; return; fi
+  [ -f "$d/Package.swift" ] && { echo "swift"; return; }
+  [ -n "$(soluzione_dotnet "$d")" ] && { echo "dotnet"; return; }
   echo "prosa"
+}
+
+# Una soluzione .NET (.sln, se no .csproj) nella radice o in una sottocartella: in un progetto con
+# un'app Mac e una Windows sta spesso in windows/ (Cornetta, 24/10/2026).
+soluzione_dotnet() {
+  local d="$1" f
+  for f in "$d"/*.sln "$d"/*/*.sln "$d"/*.csproj; do
+    [ -f "$f" ] && { echo "$f"; return; }
+  done
 }
 
 # --- esegue un tool e riporta rc, con skip esplicito se assente --------------
@@ -113,6 +126,35 @@ run_python() {
     return "$VERDE"
   fi
   echo "[WARN] gate INCONCLUSIVO (python) — nessun validatore core eseguibile. NON e' verde."
+  return "$INCONCLUSIVO"
+}
+
+# --- validazione Swift e .NET: core = i test del progetto ---------------------
+# Swift: scripts/test.sh se il progetto ne ha uno (prepara quello che `swift test` da solo non fa),
+# se no `swift test`. Poi la soluzione .NET, se c'è: un progetto con le due app le prova tutte e due.
+# Fino al 26/10/2026 un progetto Swift o C# usciva "prosa", e il gate non lanciava nessun test (#3906).
+run_compilati() {
+  local dir="$1" core_ran=0 any_fail=0 sln
+  if [ -f "$dir/Package.swift" ]; then
+    if [ -f "$dir/scripts/test.sh" ]; then
+      run_tool bash "scripts/test.sh" "$dir" bash scripts/test.sh
+    else
+      run_tool swift "swift test" "$dir" swift test
+    fi
+    case $? in 0) core_ran=1;; 1) core_ran=1; any_fail=1;; esac
+  fi
+  sln="$(soluzione_dotnet "$dir")"
+  if [ -n "$sln" ]; then
+    run_tool dotnet "dotnet test ${sln#"$dir"/}" "$dir" dotnet test "$sln"
+    case $? in 0) core_ran=1;; 1) core_ran=1; any_fail=1;; esac
+  fi
+  if [ "$any_fail" -eq 1 ]; then
+    echo "[X] gate ROSSO (swift/dotnet) — almeno un validatore ha fallito"; return "$ROSSO"
+  fi
+  if [ "$core_ran" -eq 1 ]; then
+    echo "[OK] gate VERDE (swift/dotnet)"; return "$VERDE"
+  fi
+  echo "[WARN] gate INCONCLUSIVO (swift/dotnet) — nessun validatore core eseguibile. NON e' verde."
   return "$INCONCLUSIVO"
 }
 
@@ -248,6 +290,7 @@ main() {
   case "$lang" in
     node)   run_node "$dir" "$mode"; return $?;;
     python) run_python "$dir"; return $?;;
+    swift|dotnet) run_compilati "$dir"; return $?;;
     prosa)  run_prose "$dir" "$semantic"; return $?;;
   esac
 }

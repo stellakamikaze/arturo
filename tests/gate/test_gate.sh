@@ -121,6 +121,35 @@ else
   ok "prosa NON esce 0-silenziosa"
 fi
 
+# --- 7. SWIFT E .NET (#3906, 26/10/2026): non più prosa, e un test rotto è ROSSO ---------
+# Il caso vero: Cornetta (Swift, C#) usciva "prosa" e il gate non lanciava nessun test.
+SW="$(mktemp -d "${TMPDIR:-/tmp}/gate-swift.XXXXXX")"
+mkdir -p "$SW/scripts"
+echo '// swift-tools-version:5.9' > "$SW/Package.swift"
+printf 'echo "test rotto"\nexit 1\n' > "$SW/scripts/test.sh"
+sw_out="$( bash "$GATE" --dir "$SW" --mode quick 2>&1 )"; sw_rc=$?
+[ "$sw_rc" -eq 1 ] && printf '%s' "$sw_out" | grep -q "scripts/test.sh FALLITO" \
+  && ok "swift: scripts/test.sh rotto -> ROSSO (rc=1)" \
+  || ko "swift veleno" "atteso rc=1 con 'scripts/test.sh FALLITO', avuto rc=$sw_rc"
+printf 'exit 0\n' > "$SW/scripts/test.sh"
+sw_out="$( bash "$GATE" --dir "$SW" --mode quick 2>&1 )"; sw_rc=$?
+[ "$sw_rc" -eq 0 ] && printf '%s' "$sw_out" | grep -q "scripts/test.sh passato" \
+  && ok "swift: scripts/test.sh verde -> VERDE con la prova nell'output" \
+  || ko "swift verde" "atteso rc=0 con 'scripts/test.sh passato', avuto rc=$sw_rc"
+rm -rf "$SW"
+NET="$(mktemp -d "${TMPDIR:-/tmp}/gate-dotnet.XXXXXX")"
+mkdir -p "$NET/windows" && echo 'Microsoft Visual Studio Solution File' > "$NET/windows/App.sln"
+net_lang="$( bash "$GATE" --detect-only --dir "$NET" 2>/dev/null | tail -1 )"
+[ "$net_lang" = "dotnet" ] && ok "routing: una .sln in una sottocartella -> 'dotnet'" \
+  || ko "routing dotnet" "atteso 'dotnet', avuto '$net_lang'"
+if ! command -v dotnet >/dev/null 2>&1; then
+  net_out="$( bash "$GATE" --dir "$NET" --mode quick 2>&1 )"; net_rc=$?
+  [ "$net_rc" -eq 2 ] && printf '%s' "$net_out" | grep -q "non installato" \
+    && ok "dotnet assente: INCONCLUSIVO (rc=2) con lo SKIP detto" \
+    || ko "dotnet assente" "atteso rc=2 con 'non installato', avuto rc=$net_rc"
+fi
+rm -rf "$NET"
+
 # --- 6. selftest interno del gate stesso ------------------------------------
 if bash "$GATE" --selftest >/dev/null 2>&1; then
   ok "gate --selftest interno verde"
