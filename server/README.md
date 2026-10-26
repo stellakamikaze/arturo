@@ -33,8 +33,8 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
   copiato o il repository aperto. Non si salva niente oltre al contatore del giorno, e Telegram
   avvisa fino a 60 volte al giorno.
 
-E dà una cosa sola, a chi ha il token: `GET /v1/riepilogo`, il riepilogo della settimana in JSON con
-la sezione "Dove migliorare Arturo" (secret `RIEPILOGO_TOKEN`, almeno 32 caratteri). Le statistiche
+E dà una cosa sola, a chi ha il token: `GET /v1/riepilogo`, il riepilogo della settimana in JSON (senza
+`dal` e `al`, la stessa dell'email del lunedì: da lunedì a domenica in ora di Roma) con la sezione "Dove migliorare Arturo" (secret `RIEPILOGO_TOKEN`, almeno 32 caratteri). Le statistiche
 delle guardie (blocchi, conferme, guardie rotte, guardie frequenti) contano solo le installazioni che
 il server ha ricevuto in almeno due giorni diversi, e ogni numero dice quante installazioni lo
 producono: chiunque può mandare eventi con un id nuovo, e un lotto di un giorno solo non deve

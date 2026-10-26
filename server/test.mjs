@@ -766,6 +766,21 @@ const casi = {
     await avvisoTelegram({}, risponde({ ok: false }))("x");
     assert.equal(chiamate.length, prima, "V43 senza token parte una chiamata a Telegram");
   },
+  // Il riepilogo in JSON senza date conta la stessa settimana dell'email del lunedì (26/10/2026, #3892): da lunedì
+  // a domenica in ora di Roma. Prima contava oggi meno 7 in UTC, e il lunedì in corso entrava nei numeri.
+  async V44() {
+    const token = "t".repeat(40);
+    const get = (query) => new Request(`https://arturo.example/v1/riepilogo${query}`, { headers: { authorization: "Bearer " + token } });
+    const lunedi = new Date("2026-10-26T07:30:00Z");
+    const f = finti();
+    const dati = await (await gestisci(get(""), { ...f, adesso: lunedi, token })).json();
+    await settimanale({ archivio: f.archivio, posta: f.posta, adesso: lunedi });
+    assert.deepEqual([dati.dal, dati.al], f.stato.finestre[1], "V44 il JSON e l'email del lunedì contano settimane diverse");
+    assert.deepEqual(f.stato.finestre[0], ["2026-10-18", "2026-10-25"], "V44 il JSON senza date non conta da lunedì a domenica");
+    const g = finti();
+    await gestisci(get("?dal=2026-10-06&al=2026-10-13"), { ...g, adesso: lunedi, token });
+    assert.deepEqual(g.stato.finestre[0], ["2026-10-06", "2026-10-13"], "V44 le date chieste non valgono più");
+  },
   // Lancillotto (25/10/2026): un lotto valido va nella sua tabella, non tra gli eventi di Arturo.
   async L01() {
     const f = finti();

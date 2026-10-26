@@ -606,8 +606,14 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
   if (request.method === "GET" && url.pathname === "/v1/riepilogo") {
     const dato = (request.headers.get("authorization") || "").replace(/^Bearer /, "");
     if (!stessoToken(dato, token)) return risposta(401, { errore: "token mancante o sbagliato" });
-    const al = GIORNO.test(url.searchParams.get("al") || "") ? url.searchParams.get("al") : oggi(adesso);
-    const dal = GIORNO.test(url.searchParams.get("dal") || "") ? url.searchParams.get("dal") : giorniFa(new Date(`${al}T12:00:00Z`), 7);
+    // Senza date, la stessa settimana dell'email del lunedì (26/10/2026, #3892). dal è escluso, come in settimanale.
+    const chiesti = { dal: url.searchParams.get("dal") || "", al: url.searchParams.get("al") || "" };
+    const settimana = settimanaPrima(adesso);
+    let al = GIORNO.test(chiesti.al) ? chiesti.al : null;
+    let dal = GIORNO.test(chiesti.dal) ? chiesti.dal : null;
+    if (!al && !dal) [dal, al] = [giornoMeno(settimana.lunedi, 1), settimana.domenica];
+    al = al || oggi(adesso);
+    dal = dal || giorniFa(new Date(`${al}T12:00:00Z`), 7);
     return risposta(200, { dal, al, regola: REGOLA_GUARDIE, ...(await archivio.riepilogo(dal, al, { settimana: true })) });
   }
   if (request.method !== "POST") return risposta(405, { errore: "solo POST" });

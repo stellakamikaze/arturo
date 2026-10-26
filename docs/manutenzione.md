@@ -107,9 +107,9 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   in cui tutti questi numeri sono zero non parte.
 - **La config rotta arriva subito.** Un'email `[Arturo] Config rotta su un'installazione`, una sola
   al giorno per installazione, dentro un tetto di 20 tutto suo.
-- **Il riepilogo del lunedì.** Il lunedì arriva sempre lo stesso riepilogo sui 7 giorni, anche
-  vuoto: se manca, il server è fermo. In più ha la deriva di tutte le installazioni che ne hanno una,
-  anche ferma, e le guardie frequenti: almeno 5 blocchi della stessa guardia nella settimana sulla
+- **Il riepilogo del lunedì.** Il lunedì arriva sempre lo stesso riepilogo della settimana prima, da lunedì a
+  domenica in ora di Roma, anche vuoto: se manca, il server è fermo. In più ha la deriva di tutte le
+  installazioni che ne hanno una, anche ferma, e le guardie frequenti: almeno 5 blocchi della stessa guardia nella settimana sulla
   stessa installazione, il segno che Arturo intralcia. Poi il Worker cancella gli eventi più vecchi
   di 12 mesi.
 - **Le segnalazioni.** Ogni segnalazione di `/segnala` col canale `arturo` resta in D1, e arriva per
