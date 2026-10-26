@@ -164,7 +164,9 @@ la prossima volta Arturo lo sa.
 Se `git status` elenca dei file, sono modifiche sue non ancora salvate con un commit (le scrive
 anche `/setup`, per esempio `PROJECTS_BASE` o la lingua in `settings.json`). Il Passo 3 non parte
 finché ci sono: un aggiornamento sopra modifiche non salvate può lasciare un file mezzo suo e mezzo
-di Arturo. Spiegaglielo e proponi di salvarle prima con un commit, col suo sì:
+di Arturo. Non contano gli archivi suoi, `data/handoffs/`, `data/todo/` e `data/memory/`: Arturo
+non li versiona e il Passo 3 li lascia come sono. Per gli altri file spiegaglielo e proponi di
+salvarle prima con un commit, col suo sì:
 `git -C ~/.claude commit -am "chore: modifiche locali prima di /aggiorna"`. Poi rilancia il Passo 2:
 adesso i file toccati da tutti e due compaiono nell'elenco qui sopra.
 

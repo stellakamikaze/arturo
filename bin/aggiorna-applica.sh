@@ -92,8 +92,18 @@ segna_conflitti() {  # $1 = il modo, $2 = i file in conflitto, uno per riga. Dop
   return 0
 }
 
+# Gli archivi della persona (handoff, todo, memoria) non fermano l'applicazione (segnalazione n. 14,
+# 26/10/2026). /fine li salva solo verso un remote privato: con Arturo come origin un handoff già
+# tracciato, tolto dalla retention, restava una modifica non salvata e l'aggiornamento non partiva più.
+# Arturo non li versiona, e `git reset --keep` lascia com'è ogni file che l'aggiornamento non cambia.
+ARCHIVI_PERSONALI=(':(exclude)data/handoffs' ':(exclude)data/todo' ':(exclude)data/memory')
+
+modificati() {  # i file tracciati con modifiche non salvate, archivi della persona esclusi
+  git status --porcelain --untracked-files=no -- . "${ARCHIVI_PERSONALI[@]}" | cut -c4-
+}
+
 pulita() {  # ~/.claude senza modifiche non salvate
-  [ -z "$(git status --porcelain --untracked-files=no)" ]
+  [ -z "$(modificati)" ]
 }
 
 # Le modifiche della persona ai comandi di Arturo che l'aggiornamento cambia vanno in personale/
@@ -248,7 +258,7 @@ fi
 case "$MODO" in merge|rebase|sync) ;; *) echo "APPLICAZIONE NON PARTITA: modo sconosciuto \"$MODO\""; exit 1 ;; esac
 [ -n "$REF" ] || { echo "APPLICAZIONE NON PARTITA: manca la versione da applicare"; exit 1; }
 
-MODIFICATI=$(git status --porcelain --untracked-files=no | cut -c4-)
+MODIFICATI=$(modificati)
 if [ -n "$MODIFICATI" ]; then
   echo "APPLICAZIONE NON PARTITA: questi file hanno modifiche tue non ancora salvate con un commit:"
   printf '%s\n' "$MODIFICATI" | sed 's/^/  /'
