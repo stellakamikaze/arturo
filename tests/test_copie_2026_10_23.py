@@ -94,25 +94,26 @@ def test_cp02(repo: Path) -> None:
         print(f"NOTA CP02: ramo della landing assente, confrontate {len(liste)} copie su 5")
 
 
+# Cartelle locali o generate, che git non porta: data/ e cache/ della persona, dipendenze.
+FUORI = {".git", "data", "cache", "node_modules", "__pycache__", "session-env", "worktrees", ".claude"}
 NEGA = re.compile(r"non (sono )?(dati )?anonim|non anonim", re.I)
 
 
 def test_cp03(repo: Path) -> None:
-    file = subprocess.run(["git", "-C", str(repo), "ls-files", "--", "*.md", "*.py", "*.sh", "*.js", "*.html"],
-                          capture_output=True, text=True, encoding="utf-8", check=True).stdout.split()
+    # Dal disco e non da git ls-files: nel gate la base è una cartella esportata, senza .git.
+    file = [p for p in repo.rglob("*") if p.suffix in (".md", ".py", ".sh", ".js", ".html") and p.is_file()
+            and not set(p.relative_to(repo).parts[:-1]) & FUORI]
     trovate = []
-    for nome in file:
-        if nome == "NOVITA.md" or nome.startswith("tests/"):
-            continue
-        percorso = repo / nome
-        if not percorso.is_file():
+    for percorso in file:
+        nome = percorso.relative_to(repo).as_posix()
+        if nome == "NOVITA.md" or nome.startswith("tests/") or percorso.name.startswith("HANDOFF_"):
             continue
         righe = percorso.read_text(encoding="utf-8", errors="replace").splitlines()
         for n, riga in enumerate(righe, 1):
             # la negazione può andare a capo: "non sono dati" / "anonimi"
             if re.search(r"anonim", riga, re.I) and not NEGA.search(" ".join(righe[max(n - 2, 0):n])):
                 trovate.append(f"{nome}:{n}")
-    assert len(file) > 50, f"CP03 git ls-files ha dato {len(file)} file: l'elenco si è rotto"
+    assert len(file) > 50, f"CP03 trovati solo {len(file)} file di testo: l'elenco si è rotto"
     assert not trovate, f"CP03 testi che chiamano anonimi i dati d'uso: {trovate}"
 
 
