@@ -635,7 +635,12 @@ const casi = {
     const lungo = new FormData();
     lungo.append("testo", "Ecco il mio vocale lungo.");
     lungo.append("voce", new Blob([new Uint8Array(500 * 1024)], { type: "audio/webm" }), "voce.webm");
-    const l = await gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST", body: lungo }), { ...f, adesso });
+    // Il modulo va come byte già pronti (26/10/2026): un FormData come corpo lo genera undici, che dopo
+    // il cancel del tetto scrive ancora nello stream chiuso e manda in crash node dopo il PASS. Su
+    // Cloudflare il corpo arriva dalla rete e il cancel non fa danni.
+    const giaPronto = new Response(lungo);
+    const l = await gestisci(new Request("https://arturo.example/v1/feedback", { method: "POST",
+      headers: { "content-type": giaPronto.headers.get("content-type") }, body: new Uint8Array(await giaPronto.arrayBuffer()) }), { ...f, adesso });
     assert.equal(l.status, 413, "V39 un vocale di un minuto passa il tetto del modulo");
     assert.equal(f.stato.feedback.length + f.stato.avvisi.length, 0, "V39 il vocale lungo è salvato o avvisato");
     // Testo ed email facoltativa restano, anche al massimo dei caratteri.
