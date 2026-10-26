@@ -383,7 +383,7 @@ gh repo view stellakamikaze/lancillotto >/dev/null 2>&1 && echo "repo raggiungib
   ```
 
   Poi spiega: "Si è aperta la guida di Lancillotto: ti chiede l'Accessibilità, l'unico permesso
-  obbligatorio. Il testo delle finestre e i dati d'uso anonimi sono a tua scelta. Lancillotto si
+  obbligatorio. Il testo delle finestre e l'invio dei dati d'uso sono a tua scelta. Lancillotto si
   aggiorna da solo una volta al giorno. Fra tre giorni scrivimi `dove mi puoi aiutare?`."
 - Se l'utente dice no, salta: si installa anche più tardi con lo stesso comando.
 

@@ -126,7 +126,7 @@ export const LIMITI = {
   // email delle config rotte.
   emailRottePerGiorno: 20,
   emailSegnalazioniPerGiorno: 20,
-  // Gli avvisi su Telegram che un POST anonimo può far partire: oltre il tetto il dato si salva, il
+  // Gli avvisi su Telegram che un POST senza autenticazione può far partire: oltre il tetto il dato si salva, il
   // messaggio no (review di sicurezza del 16/10/2026).
   avvisiInstallazioniPerGiorno: 20,
   avvisiSetupPerGiorno: 20,
@@ -349,7 +349,7 @@ export function ritenzione(righe, al) {
 }
 
 // Viaggia col riepilogo in JSON: la routine che propone correzioni la legge insieme ai numeri (#3507).
-export const REGOLA_GUARDIE = "Una guardia non si allenta sulla sola base della telemetria anonima: gli id sono casuali e " +
+export const REGOLA_GUARDIE = "Una guardia non si allenta sulla sola base della telemetria: gli id sono casuali e " +
   "chiunque può crearne. Le statistiche delle guardie contano solo installazioni viste in almeno " +
   `${LIMITI.giorniGuardie} giorni diversi, e ogni numero dice quante installazioni lo producono.`;
 

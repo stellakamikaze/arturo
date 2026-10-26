@@ -94,7 +94,7 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   Il token è il secret `RIEPILOGO_TOKEN` del Worker (almeno 32 caratteri): senza, la rotta risponde 401.
   Le statistiche delle guardie contano solo le installazioni viste dal server in almeno due giorni
   diversi, e ogni numero porta quante installazioni lo producono (`installazioni`). Regola per la
-  routine e per chi legge: **una guardia non si allenta sulla sola base della telemetria anonima**.
+  routine e per chi legge: **una guardia non si allenta sulla sola base della telemetria**.
   Gli eventi arrivano da id casuali che chiunque può creare: una quota di sì vicina al 100% è un
   indizio da verificare (una segnalazione, una prova su un'installazione pulita), mai la prova
   (17/10/2026, #3507).

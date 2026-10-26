@@ -460,7 +460,7 @@ const casi = {
     assert.equal(r.status, 413, "V27 un corpo a pezzi oltre il tetto non è fermato");
   },
   // Ogni numero delle guardie dice quante installazioni lo producono, e il riepilogo ricorda che una guardia
-  // non si allenta sulla sola base della telemetria anonima (#3507).
+  // non si allenta sulla sola base della telemetria (#3507).
   async V28() {
     const r = { ...VUOTO, guardie: [{ valore: "exfil-guard.py", n: 4, installazioni: 2 }],
       migliorare: { conferme: [{ valore: "data-guard.py", chiede: 10, confermata: 10, installazioni: 1 }],
@@ -475,7 +475,7 @@ const casi = {
     const f = finti({ ...VUOTO });
     const json = await (await gestisci(new Request("https://arturo.example/v1/riepilogo", { headers: { authorization: "Bearer " + token } }),
       { ...f, adesso, token })).json();
-    assert.match(json.regola || "", /non si allenta sulla sola base della telemetria anonima/, "V28 il JSON per la routine non porta la regola");
+    assert.match(json.regola || "", /non si allenta sulla sola base della telemetria:/, "V28 il JSON per la routine non porta la regola");
   },
   // Le conferme per guardia vengono prima, poi quelle per regola, dove la guardia la dice (#3799).
   async V29() {

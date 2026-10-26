@@ -38,7 +38,7 @@ la sezione "Dove migliorare Arturo" (secret `RIEPILOGO_TOKEN`, almeno 32 caratte
 delle guardie (blocchi, conferme, guardie rotte, guardie frequenti) contano solo le installazioni che
 il server ha ricevuto in almeno due giorni diversi, e ogni numero dice quante installazioni lo
 producono: chiunque può mandare eventi con un id nuovo, e un lotto di un giorno solo non deve
-spostare quei numeri. **Una guardia non si allenta sulla sola base della telemetria anonima**: la
+spostare quei numeri. **Una guardia non si allenta sulla sola base della telemetria**: la
 routine che propone correzioni lo tratta come un indizio da verificare, mai come la prova.
 
 L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi, i contatori, il
