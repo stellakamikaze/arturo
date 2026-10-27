@@ -11,6 +11,26 @@ modo di lavorare.
 
 ---
 
+## 2026-10-27 — /fine non lascia archivi a metà, e /segnala dice perché non è partita
+
+**Cosa cambia**: se usi Arturo senza un tuo repository remoto, `/fine` toglie dal tracciamento di git
+gli handoff, i todo e la memoria che erano già tracciati, e li lascia sul disco come sono. Prima la
+pulizia degli handoff lasciava file cancellati e non salvati, che a ogni sessione sembravano lavoro in
+sospeso. Se hai un remoto tuo, non cambia niente. Quando `/inizio` apre una copia a parte del progetto,
+Claude scrive anche i testi lunghi dei comandi in una forma che Claude Code accetta. Se un'installazione
+chiede la password del Mac (un comando con `sudo`), Claude non te lo passa più col prefisso `!`, dove
+la password non si può scrivere: cerca prima una strada senza password, poi ti chiede di usare il
+Terminale. Quando `/segnala` non riesce a inviare, il messaggio dice il codice che ha risposto il
+server, oppure che la rete non ha risposto.
+
+**Il principio dietro**: un errore che non dice la sua causa costa due volte, a te e a chi lo deve
+correggere.
+
+**Da sapere**: lo mostravano le segnalazioni n. 14, 15 e 16. Se una tua segnalazione non è partita,
+rimandala dopo l'aggiornamento: il messaggio ci dirà dove si ferma.
+
+---
+
 ## 2026-10-26 — L'aggiornamento non si ferma sui tuoi appunti, e un worktree non perde file
 
 **Cosa cambia**: l'aggiornamento automatico parte anche se i tuoi archivi (handoff, todo, memoria)
