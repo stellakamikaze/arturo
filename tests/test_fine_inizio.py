@@ -862,10 +862,25 @@ def test_f17(repo: Path) -> None:
             f"F17 il sync ha cambiato gli archivi su disco: {uscita}"
 
 
+def test_f18(repo: Path) -> None:
+    """/inizio e /aggiorna escludono gli archivi della persona come bin/aggiorna-applica.sh (#4021, 27/10/2026):
+    un handoff tracciato e modificato non ferma il pull di /inizio e non compare fra le modifiche di /aggiorna."""
+    escluso = "':(exclude)data/handoffs' ':(exclude)data/todo' ':(exclude)data/memory'"
+    applica = read(repo / "bin" / "aggiorna-applica.sh")
+    assert all(f"':(exclude){p}'" in applica for p in ("data/handoffs", "data/todo", "data/memory")), \
+        "F18 aggiorna-applica.sh ha cambiato gli archivi esclusi"
+    inizio = read(repo / "commands" / "inizio.md")
+    aggiorna = read(repo / "commands" / "aggiorna.md")
+    riga_inizio = next(r for r in inizio.splitlines() if "MODIFICATI=$(git -C ~/.claude status" in r)
+    riga_aggiorna = next(r for r in aggiorna.splitlines() if r.startswith("git status --short"))
+    assert escluso in riga_inizio, "F18 /inizio si ferma su un archivio della persona modificato"
+    assert escluso in riga_aggiorna, "F18 /aggiorna elenca gli archivi della persona fra le modifiche"
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
-         "F16": test_f16, "F17": test_f17}
+         "F16": test_f16, "F17": test_f17, "F18": test_f18}
 
 
 def main() -> int:

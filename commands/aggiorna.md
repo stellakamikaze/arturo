@@ -116,7 +116,7 @@ Le sue modifiche possono stare in due posti: file cambiati e non ancora salvati,
 cd ~/.claude
 SRC=$(git remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
 TAG=$(python3 ~/.claude/bin/aggiornamenti.py firmato) || exit 1
-git status --short --untracked-files=no
+git status --short --untracked-files=no -- . ':(exclude)data/handoffs' ':(exclude)data/todo' ':(exclude)data/memory'
 echo "--- file che hai cambiato rispetto ad Arturo"
 git diff --stat "$TAG...HEAD" 2>/dev/null | tail -20
 echo "--- file cambiati sia da te sia dall'aggiornamento"
@@ -164,8 +164,8 @@ la prossima volta Arturo lo sa.
 Se `git status` elenca dei file, sono modifiche sue non ancora salvate con un commit (le scrive
 anche `/setup`, per esempio `PROJECTS_BASE` o la lingua in `settings.json`). Il Passo 3 non parte
 finché ci sono: un aggiornamento sopra modifiche non salvate può lasciare un file mezzo suo e mezzo
-di Arturo. Non contano gli archivi suoi, `data/handoffs/`, `data/todo/` e `data/memory/`: Arturo
-non li versiona e il Passo 3 li lascia come sono. Per gli altri file spiegaglielo e proponi di
+di Arturo. Gli archivi suoi, `data/handoffs/`, `data/todo/` e `data/memory/`, non compaiono e non contano:
+Arturo non li versiona e il Passo 3 li lascia come sono. Per gli altri file spiegaglielo e proponi di
 salvarle prima con un commit, col suo sì:
 `git -C ~/.claude commit -am "chore: modifiche locali prima di /aggiorna"`. Poi rilancia il Passo 2:
 adesso i file toccati da tutti e due compaiono nell'elenco qui sopra.

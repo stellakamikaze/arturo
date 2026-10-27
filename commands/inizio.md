@@ -43,7 +43,8 @@ export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes"
 if [ "$ORIGIN_ARTURO" = 1 ] || [ -z "$ORIGIN_URL" ]; then
   git -C ~/.claude fetch --quiet --tags origin main 2>&1 || echo "Config sync: controllo aggiornamenti non riuscito (rete?)"
 else
-  MODIFICATI=$(git -C ~/.claude status --porcelain --untracked-files=no | cut -c4-)
+  # Gli archivi della persona non fermano il pull, come in bin/aggiorna-applica.sh (segnalazione n. 14).
+  MODIFICATI=$(git -C ~/.claude status --porcelain --untracked-files=no -- . ':(exclude)data/handoffs' ':(exclude)data/todo' ':(exclude)data/memory' | cut -c4-)
   if [ -n "$MODIFICATI" ]; then
     echo "Config sync: non ho scaricato dal tuo repository. Questi file della config hanno modifiche non ancora salvate con un commit:"
     printf '%s\n' "$MODIFICATI" | sed 's/^/  /'
