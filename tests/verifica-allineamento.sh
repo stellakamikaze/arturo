@@ -131,6 +131,7 @@ BANCHI=(
   test_copie_2026_10_23.py
   test_telemetria_f1_2026_10_24.py
   test_archivi_aggiorna_2026_10_26.py
+  test_segnalazioni_2026_10_27.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -268,6 +269,9 @@ BASELINE=(
   "test_telemetria_f1_2026_10_24.py 8c7b6f7"
   # Gli archivi della persona non fermano l'aggiornamento (segnalazione n. 14): 7337350, il dev prima.
   "test_archivi_aggiorna_2026_10_26.py 7337350"
+  # Segnalazioni n. 15 e n. 16 del 26/10/2026 (heredoc nel worktree, sudo col prefisso !) e codice
+  # nel messaggio di /segnala quando il server non accetta (27/10/2026): 32a574e, il dev prima.
+  "test_segnalazioni_2026_10_27.py 32a574e"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

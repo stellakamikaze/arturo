@@ -17,6 +17,14 @@ si accorcia solo ciò che lei legge.
   distruttive, regole del `CLAUDE.md`, passi che la persona esegue a mano.
 - Se la persona chiede una spiegazione o più dettagli, la risposta è completa.
 
+## I comandi che lancia la persona
+
+Un comando che la persona lancia col prefisso `!` gira senza un terminale vero: non può chiedere una
+password né aspettare una risposta. Un comando con `sudo`, o che chiede una password, non passa dal `!`.
+Prima cerca una via senza sudo: per esempio, un'app si copia dal suo `.dmg` in `/Applications`.
+Se non c'è, chiedi alla persona di aprire il Terminale e di incollare lì il comando (segnalazione
+n. 16, 26/10/2026).
+
 ## Virgolette
 
 Solo quelle dritte ("). Mai le basse (« ») né quelle curve (“ ”), in ogni testo che scrivi:

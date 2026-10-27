@@ -153,9 +153,10 @@ resta dove sei.
   `EnterWorktree` (nome `<slug>-<aaaammgg-hhmm>`, parte dall'ultimo commit locale). La ripartenza dice
   che la sessione lavora in una copia a parte, e `/fine` riporta il lavoro nella cartella principale.
   Nel worktree la guardia di Claude Code rifiuta i comandi che non sa leggere: scrivi un comando per
-  chiamata, senza cicli, variabili, `$(...)` né `cd ... &&`. Un ciclo o una copia di più file va in uno
-  script Python nello scratchpad. I file nuovi nascono nel worktree, anche quelli ignorati da git, e
-  `/fine` li riporta nella cartella principale (segnalazione n. 13, 26/10/2026).
+  chiamata, senza cicli, variabili, `$(...)`, heredoc (`python3 - <<'E'`) né `cd ... &&`. Un ciclo,
+  un heredoc o una copia di più file va in uno script nello scratchpad, lanciato con `python3 <file>`
+  o `bash <file>` (segnalazione n. 15, 26/10/2026). I file nuovi nascono nel worktree, anche quelli
+  ignorati da git, e `/fine` li riporta nella cartella principale (segnalazione n. 13, 26/10/2026).
   Sessione unica: resta nella cartella principale.
 
 ## FASE 2: Progetto non trovato

@@ -315,7 +315,10 @@ def invia(opz: dict) -> int:
             attesa = telemetria.cartella_attesa()
             attesa.mkdir(parents=True, exist_ok=True)
             ts.scrivi_json_atomico(attesa / f"{dt.datetime.now():%Y-%m-%d_%H%M%S}_{tipo}.attesa.json", dati_server)
-            print("Il server ora non risponde: la segnalazione è salvata e parte da sola alla prossima sessione.")
+            # Il codice dice a chi mantiene Arturo dove guardare: rete o server (segnalazione di Liliana, 27/10/2026).
+            motivo = f"risposta {status}" if status else "nessuna risposta dalla rete"
+            print(f"Il server ora non risponde ({motivo}): la segnalazione è salvata e parte da sola "
+                  "alla prossima sessione.")
             esito = "in attesa: parte da sola appena il server risponde"
     elif canale == "gh":
         link, errore = invia_gh(titolo, testo)
