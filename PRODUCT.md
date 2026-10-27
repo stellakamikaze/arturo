@@ -8,7 +8,7 @@ web
 
 ## Stack
 
-HTML e CSS statici, nessun framework, nessuna dipendenza di build. Sorgente in `sito/`, configurazione del server in `server/`. Pubblica dal 16/10/2026, senza parola d'ordine (decisione di Federico: "togli l'accesso via parola d'ordine"); prima era dietro una parola d'ordine condivisa (1/10/2026). `/admin/` resta dietro Cloudflare Access.
+HTML e CSS statici, nessun framework, nessuna dipendenza di build. Sorgente in `sito/`, configurazione del server in `server/`. Pubblica dal 16/10/2026, senza parola d'ordine (decisione di Federico: "togli l'accesso via parola d'ordine"); prima era dietro una parola d'ordine condivisa (1/10/2026). `/admin/` resta dietro Cloudflare Access. `/sviluppo/` (dal 27/10/2026) raccoglie le pagine dove Federico chiede un parere agli utenti invitati, dietro una sua app di Access e in un suo container, senza i poteri dell'admin.
 
 ## Users
 
