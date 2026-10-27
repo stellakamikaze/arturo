@@ -27,8 +27,19 @@ nomina e Claude chiede. Verso un remote privato la salva (16/10/2026).
 F13 in un worktree (segnalazione n. 11, 22/10/2026): i blocchi che girano dentro il worktree, cioè
 /fine fino al commit e /inizio FASE 4, non usano "$HOME" né $(...), che la guardia di Claude Code
 rifiuta; /fine esce dal worktree prima del merge sul tree principale.
+F14 gli altri comandi che possono girare in un worktree scrivono ~/.claude, non "$HOME/.claude" (#3802).
+F15 un progetto che la persona toglie dal sync degli handoff con una riga sua nel .gitignore resta
+fuori (segnalazione n. 12, 23/10/2026).
+F16 in un worktree (segnalazione n. 13, 26/10/2026): /fine riporta nel tree principale i file ignorati
+prima di `git worktree remove`, che li cancella senza avviso; /inizio dice che cicli e variabili
+vanno in uno script.
+F17 con Arturo come origin un archivio già tracciato esce dal tracciamento (segnalazione n. 14,
+26/10/2026): dopo retention e sync git non ha più modifiche non salvate.
 
 Sulla base cbd8305 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
+Lì F15 e F17 falliscono perché manca la FASE 9 di /fine: la loro controprova vera è sulla base prima
+del loro commit. Su 5e82705^ F17 è rosso perché dopo il sync restano un INDEX.md cambiato e un
+handoff cancellato e non salvati (provato il 27/10/2026, #3987).
 """
 from __future__ import annotations
 

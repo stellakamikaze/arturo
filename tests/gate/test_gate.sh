@@ -8,6 +8,9 @@
 #   4. ruff e mypy assenti danno uno SKIP esplicito, non un fallimento.
 #   5. La prosa esce 2 (INCONCLUSIVO), mai verde.
 #   6. Il --selftest interno del gate è verde.
+#   7. Swift e .NET (#3906): un Package.swift col test rotto dà ROSSO, col test verde dà VERDE con
+#      la prova nell'output; una .sln in una sottocartella va nel ramo dotnet; senza dotnet il gate
+#      esce INCONCLUSIVO e lo dice.
 #   GATE_OVERRIDE=<path> prova un'altra versione del gate (controprova sul codice vecchio).
 #
 # Serve pytest nel PATH: senza, il veleno non gira e il banco è rosso, non verde.

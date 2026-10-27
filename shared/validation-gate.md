@@ -19,7 +19,7 @@ Ogni gate esegue i controlli nel working tree corrente. Un esito recente non pro
 ## Esecuzione
 
 Il gate è uno script solo, `~/.claude/bin/validation-gate-lang.sh`. Riconosce il linguaggio del
-progetto (Node, Python, prosa) e lancia i validatori giusti. Il suo banco è `tests/gate/test_gate.sh`.
+progetto (Node, Python, Swift, .NET, prosa) e lancia i validatori giusti. Il suo banco è `tests/gate/test_gate.sh`.
 
 ```bash
 G="${TMPDIR:-/tmp}/gate-${CLAUDE_CODE_SESSION_ID:-$PPID}"
@@ -29,7 +29,8 @@ cat "$G.out"; cat "$G.rc"
 
 - Lancia le tre righe in una sola chiamata Bash: le variabili non passano da una chiamata all'altra.
 - Il file porta il nome della sessione: due `/fine` in parallelo non si sovrascrivono.
-- `--dir` è la radice del progetto, cioè la cartella che contiene `package.json` o `pyproject.toml`.
+- `--dir` è la radice del progetto, cioè la cartella che contiene `package.json`, `pyproject.toml`, `Package.swift` o la soluzione
+  `.sln` (anche in una sottocartella).
 - Leggi l'exit code dal file, mai dopo una pipe. La shell del tool Bash può essere zsh, e in zsh
   `PIPESTATUS` non esiste: un exit letto così resta vuoto e sembra un verde.
 
@@ -39,7 +40,7 @@ cat "$G.out"; cat "$G.rc"
 |------|-------------|----------|
 | `0` | VERDE: validatori core eseguiti e passati | procedi |
 | `1` | ROSSO: un validatore ha fallito | **STOP**, mostra gli errori. In `/fine` chiedi se correggere ora o scrivere l'errore nell'handoff. Prima di una consegna: STOP assoluto, non consegnare codice rotto. |
-| `2` | INCONCLUSIVO: prosa, configurazione o strumenti assenti | NON è verde. Controlla a mano i testi destinati a persone reali: contenuto non vuoto, ogni cifra con la sua fonte, la chiusura è un fatto e non una metafora. Se mancano pytest o npm, dillo alla persona. |
+| `2` | INCONCLUSIVO: prosa, configurazione o strumenti assenti | NON è verde. Controlla a mano i testi destinati a persone reali: contenuto non vuoto, ogni cifra con la sua fonte, la chiusura è un fatto e non una metafora. Se mancano pytest, npm, swift o dotnet, dillo alla persona. |
 
 Un `[WARN] console.log` non blocca: va letto e deciso.
 

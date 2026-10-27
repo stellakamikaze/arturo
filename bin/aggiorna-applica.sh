@@ -95,7 +95,11 @@ segna_conflitti() {  # $1 = il modo, $2 = i file in conflitto, uno per riga. Dop
 # Gli archivi della persona (handoff, todo, memoria) non fermano l'applicazione (segnalazione n. 14,
 # 26/10/2026). /fine li salva solo verso un remote privato: con Arturo come origin un handoff già
 # tracciato, tolto dalla retention, restava una modifica non salvata e l'aggiornamento non partiva più.
-# Arturo non li versiona, e `git reset --keep` lascia com'è ogni file che l'aggiornamento non cambia.
+# Il controllo vale per ogni modo. In rebase Arturo non li versiona: `git reset --keep` lascia com'è
+# ogni file che l'aggiornamento non cambia. In merge e sync li versiona il repository della persona, e
+# un commit in arrivo (un handoff scritto su un'altra macchina) può cambiare un archivio con modifiche
+# non salvate: lì `git reset --keep` si rifiuta, e porta_dentro risponde APPLICAZIONE ANNULLATA con
+# ~/.claude com'era. Il /fine dopo salva l'archivio, e l'applicazione riparte.
 ARCHIVI_PERSONALI=(':(exclude)data/handoffs' ':(exclude)data/todo' ':(exclude)data/memory')
 
 modificati() {  # i file tracciati con modifiche non salvate, archivi della persona esclusi

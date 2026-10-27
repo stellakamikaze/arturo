@@ -174,7 +174,7 @@ lasciare per un attimo un file rotto. Solo se la copia di prova è integra il ri
 `~/.claude`. A mano, con lo stesso script del rilascio firmato in arrivo (mai `main`):
 
 ```bash
-git -C ~/.claude status --short --untracked-files=no   # deve restare vuoto: vedi sotto
+git -C ~/.claude status --short --untracked-files=no -- . ':!data/handoffs' ':!data/todo' ':!data/memory'   # deve restare vuoto: vedi sotto
 git -C ~/.claude fetch --tags origin main   # upstream invece di origin, se hai un tuo repository
 TAG=$(python3 ~/.claude/bin/aggiornamenti.py firmato) &&
   git -C ~/.claude show "$TAG:bin/aggiorna-applica.sh" > /tmp/aggiorna-applica.sh &&
@@ -193,7 +193,8 @@ In entrambi i casi, poi **chiudi e riapri Claude Code**: comandi, hook e skill s
 quindi quelli appena arrivati non compaiono finché non riapri. Se la prima riga elenca dei file,
 sono modifiche tue non ancora salvate con un commit (tipico: `/setup` scrive in `settings.json`).
 Lo script allora risponde `APPLICAZIONE NON PARTITA` e non tocca niente: salvale con `/fine`, poi
-lancia `/aggiorna`. Se un commit tuo tocca gli stessi punti dell'aggiornamento, lo script risponde
+lancia `/aggiorna`. Gli archivi tuoi (`data/handoffs`, `data/todo`, `data/memory`) non contano: una
+loro modifica non salvata non ferma l'aggiornamento (segnalazione n. 14, 26/10/2026). Se un commit tuo tocca gli stessi punti dell'aggiornamento, lo script risponde
 `APPLICAZIONE ANNULLATA` con un `CONFLITTO`: `~/.claude` resta com'era e la copia di prova aspetta.
 Lancia `/aggiorna` e risolvi con Claude un file per volta, nella copia di prova.
 
@@ -369,7 +370,7 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 
 ### Le skill (`skills/`)
 
-- **`shared/validation-gate.md`** — il gate: riconosce il linguaggio del progetto (Node, Python, prosa) con `bin/validation-gate-lang.sh` e legge l'exit da file, mai da una pipe. Esce verde, rosso o "inconclusivo": la prosa e gli strumenti assenti non sono mai un verde. Spiega anche come provare un banco nuovo con `bin/gate-run.sh` (prima il veleno, poi il gate) e come confrontare i file serviti dopo un deploy con `bin/sonda_servito.py`.
+- **`shared/validation-gate.md`** — il gate: riconosce il linguaggio del progetto (Node, Python, Swift, .NET, prosa) con `bin/validation-gate-lang.sh` e legge l'exit da file, mai da una pipe. Esce verde, rosso o "inconclusivo": la prosa e gli strumenti assenti non sono mai un verde. Spiega anche come provare un banco nuovo con `bin/gate-run.sh` (prima il veleno, poi il gate) e come confrontare i file serviti dopo un deploy con `bin/sonda_servito.py`.
 - **`shared/lavori-lunghi.md`** — un comando che dura più di due minuti va in background. Per un lavoro che deve sopravvivere alla sessione c'è `bin/bgjob.sh`: log, PID e un marker con l'exit code in `data/logs/bgjobs/`.
 - **`system-audit`** — audit dell'harness: hook diretti e transitivi, smoke test, frontmatter YAML, permessi, slash-comandi citati nei documenti senza una skill o un comando dietro, peso dei corpi, plugin installati e non attivi. `--strict` fallisce se manca un requisito. Il banco avvelenato `skills/system-audit/tests/banco-gate.sh` lavora su una copia e non tocca la tua `~/.claude`.
 - **`prompt-master`** — due modalità: un prompt pronto da incollare in un altro tool AI, oppure il **brief interno**: prima di ogni richiesta di lavoro, anche breve, ricostruisce il contesto che manca, riscrive la richiesta come la eseguirà (il **prompt**) e mostra obiettivo, output, vincoli, criterio di fatto, assunzioni e ambiguità (il **brief**). Domande e conversazione hanno risposta diretta. L'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi (upstream `nidhinjs/prompt-master`, MIT).

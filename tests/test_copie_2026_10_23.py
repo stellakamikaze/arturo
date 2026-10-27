@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CP01-CP02: i testi scritti in più posti dicono la stessa cosa (#3852, 23/10/2026).
+"""CP01-CP04: i testi scritti in più posti dicono la stessa cosa (#3852, 23/10/2026).
 
 La revisione di fine sessione del 23/10 ha trovato due copie rimaste indietro: la cancellazione dei
 dati di un'installazione aveva tre righe in docs/manutenzione.md e una sola in server/README.md.
@@ -12,9 +12,14 @@ CP02 la lista del ripristino ha le stesse voci nel README e in commands/setup.md
      il ramo della landing (origin/landing-v2 o landing-v2), anche installatore, guida e llms.txt della
      landing hanno le stesse voci. Senza quel ramo (un clone di chi usa Arturo) la parte della landing
      si salta e lo dice.
-CP03 nessun testo tracciato chiama anonimi i dati d'uso (26/10/2026): l'id è casuale, ma chi mantiene
+CP03 nessun testo di Arturo chiama anonimi i dati d'uso (26/10/2026): l'id è casuale, ma chi mantiene
      Arturo può sapere chi c'è dietro (docs/privacy.md). Restano le frasi che lo negano ("non sono
-     anonimi") e NOVITA.md, che racconta anche la storia.
+     anonimi") e NOVITA.md, che racconta anche la storia. I file si leggono dal disco, non da git:
+     nel gate la base è una cartella esportata, senza .git. Restano fuori le cartelle locali o
+     generate (data/, cache/, node_modules/, i worktree).
+CP04 gli archivi della persona che non fermano l'aggiornamento (data/handoffs, data/todo,
+     data/memory, segnalazione n. 14) sono gli stessi in bin/aggiorna-applica.sh, hooks/session-start.sh,
+     README.md e nel ciclo di /fine che li toglie dal tracciamento (27/10/2026, #3987).
 
 Sulla base f4ae0aa ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -117,7 +122,27 @@ def test_cp03(repo: Path) -> None:
     assert not trovate, f"CP03 testi che chiamano anonimi i dati d'uso: {trovate}"
 
 
-TESTS = {"CP01": test_cp01, "CP02": test_cp02, "CP03": test_cp03}
+def test_cp04(repo: Path) -> None:
+    # Ogni copia ha la sua forma: il pathspec di git, il ciclo di /fine, il testo del README.
+    copie = {
+        "bin/aggiorna-applica.sh": r"':\(exclude\)(data/\w+)'",
+        "hooks/session-start.sh": r"':!(data/\w+)'",
+        "README.md": r"':!(data/\w+)'",
+        "commands/fine.md": r"for p in ((?:data/\w+ ?)+); do",
+    }
+    liste = {}
+    for nome, schema in copie.items():
+        percorso = repo / nome
+        trovate = re.findall(schema, percorso.read_text(encoding="utf-8")) if percorso.exists() else []
+        liste[nome] = set(" ".join(trovate).split())
+    vuote = [nome for nome, lista in liste.items() if not lista]
+    assert not vuote, f"CP04 senza la lista degli archivi della persona: {vuote}"
+    diverse = {nome: sorted(lista) for nome, lista in liste.items() if lista != liste["bin/aggiorna-applica.sh"]}
+    assert not diverse, (f"CP04 liste degli archivi diverse da bin/aggiorna-applica.sh "
+                         f"{sorted(liste['bin/aggiorna-applica.sh'])}: {diverse}")
+
+
+TESTS = {"CP01": test_cp01, "CP02": test_cp02, "CP03": test_cp03, "CP04": test_cp04}
 
 
 def main() -> int:

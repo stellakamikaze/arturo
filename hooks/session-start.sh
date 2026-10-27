@@ -57,9 +57,10 @@ if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1 && ! git -C "$HOME
   echo "CONFIG: ~/.claude non sta su un branch (HEAD scollegato): i commit di /fine non finirebbero su main. Chiedi a Claude di riportarla su main."
 fi
 # File della config cambiati e non salvati in git: lavoro di un'altra sessione o rimasto da
-# ieri. I file nuovi non contano: molti sono dati locali che git ignora o non deve vedere.
+# ieri. I file nuovi non contano: molti sono dati locali che git ignora o non deve vedere. Non
+# contano neanche gli archivi della persona, che non fermano l'aggiornamento (bin/aggiorna-applica.sh).
 if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
-  SPORCHI=$(git -C "$HOME/.claude" status --porcelain 2>/dev/null | grep -v '^??' | wc -l | tr -d ' ')
+  SPORCHI=$(git -C "$HOME/.claude" status --porcelain --untracked-files=no -- . ':!data/handoffs' ':!data/todo' ':!data/memory' 2>/dev/null | wc -l | tr -d ' ')
   if [ "${SPORCHI:-0}" -gt 0 ]; then
     echo "CONFIG: $SPORCHI file di ~/.claude modificati e non salvati in git (lavoro di un'altra sessione o rimasto da ieri). Chiedi a Claude cosa sono prima di aggiornare."
   fi

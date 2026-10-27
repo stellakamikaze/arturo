@@ -245,7 +245,9 @@ _selftest() {
   local tmp ok=1
   tmp="$(mktemp -d "${TMPDIR:-/tmp}/gatelang.XXXXXX")"
 
-  mkdir -p "$tmp/node" "$tmp/py" "$tmp/prose"
+  mkdir -p "$tmp/node" "$tmp/py" "$tmp/prose" "$tmp/swift" "$tmp/dotnet/app"
+  echo '// swift-tools-version:5.9' > "$tmp/swift/Package.swift"
+  echo 'Microsoft Visual Studio Solution File' > "$tmp/dotnet/app/App.sln"  # in una sottocartella, come Cornetta
   echo '{"name":"x"}' > "$tmp/node/package.json"
   echo '# req' > "$tmp/py/requirements.txt"
   echo 'Testo di prova con abbastanza parole per non essere scarno affatto.' > "$tmp/prose/nota.md"
@@ -258,6 +260,8 @@ _selftest() {
   assert_lang "$tmp/node" node
   assert_lang "$tmp/py" python
   assert_lang "$tmp/prose" prosa
+  assert_lang "$tmp/swift" swift
+  assert_lang "$tmp/dotnet" dotnet
 
   # prosa NON deve mai uscire verde
   run_prose "$tmp/prose" 0 >/dev/null; local rc=$?
