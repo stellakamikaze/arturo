@@ -546,8 +546,10 @@ def avvio() -> int:
                   "corregge ogni settimana i punti dove le persone si bloccano. "
                   "Si spegne con: python3 ~/.claude/bin/arturo telemetria spegni")
             cambia_stato(lambda s: s.update(avviso=ts.oggi().isoformat(), avviso_promessa=PROMESSA))
+        # Una segnalazione in attesa parte alla sessione dopo, come promette /segnala, senza aspettare le 6 ore
+        # dell'invio degli eventi (Liliana, 27/10/2026).
         ultimo = stato.get("ultimo_tentativo")
-        if not isinstance(ultimo, int) or time.time() - ultimo > OGNI:
+        if not isinstance(ultimo, int) or time.time() - ultimo > OGNI or any(cartella_attesa().glob("*.attesa.json")):
             _invio_in_background()
     except Exception:  # noqa: BLE001
         pass

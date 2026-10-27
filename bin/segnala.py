@@ -308,6 +308,10 @@ def invia(opz: dict) -> int:
         status = telemetria.posta("/v1/segnalazioni", dati_server, timeout=10)
         if 200 <= status < 300:
             esito = "arrivata a chi mantiene Arturo"
+            # Il server risponde: partono anche quelle rimaste in attesa (Liliana, 27/10/2026).
+            partite = telemetria.invia_segnalazioni_in_attesa()
+            if partite:
+                esito += f", con {partite} rimast{'a' if partite == 1 else 'e'} in attesa"
         elif status in (400, 413):
             print(f"Non inviata: il server l'ha rifiutata ({status}). Prova il canale web o email.", file=sys.stderr)
             return 1

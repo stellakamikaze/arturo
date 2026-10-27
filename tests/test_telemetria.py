@@ -475,10 +475,41 @@ def test_m19(repo: Path) -> None:
     assert chiave not in json.dumps(lab.coda()), "M19 la chiave esce nella telemetria"
 
 
+def test_m20(repo: Path) -> None:
+    # Liliana, 27/10/2026: la proposta delle 9:18 restò in attesa tutto il giorno. Il rinvio aspettava le 6 ore
+    # dell'invio della telemetria, e la segnalazione n. 18 delle 14:52 partì da sola senza portarsi dietro l'altra.
+    srv = Server()
+    lab = Lab(repo, srv)
+    stato = lab.home / ".claude" / "session-env" / "telemetria.json"
+    stato.parent.mkdir(parents=True)
+    stato.write_text(json.dumps({"avviso": "2026-10-14", "ultimo_tentativo": int(time.time())}), encoding="utf-8")
+    attesa = lab.home / ".claude" / "data" / "segnalazioni"
+    attesa.mkdir(parents=True)
+    vecchia = {"tipo": "proposta", "titolo": "[proposta] fine più corto", "testo": "Il testo di /fine è lungo."}
+    (attesa / "2026-10-27_091803_proposta.attesa.json").write_text(json.dumps(vecchia), encoding="utf-8")
+    lab.hook("session-start.sh")
+    for _ in range(300):
+        if any(p == "/v1/segnalazioni" for p, _d in srv.richieste):
+            break
+        time.sleep(0.1)
+    assert any(p == "/v1/segnalazioni" for p, _d in srv.richieste), "M20 la segnalazione in attesa aspetta le 6 ore"
+    # Una segnalazione che parte si porta dietro quelle rimaste in attesa.
+    (attesa / "2026-10-27_091803_proposta.attesa.json").write_text(json.dumps(vecchia), encoding="utf-8")
+    bozza = lab.dir / "bozza.md"
+    bozza.write_text("Falsi allarmi sugli screenshot.", encoding="utf-8")
+    r = lab.arturo("segnala", "prepara", "--tipo", "problema", "--titolo", "guardia", "--file", str(bozza))
+    pronta = next(x for x in r.stdout.splitlines() if x.startswith("PRONTA: "))[8:]
+    prima = len(srv.richieste)
+    lab.arturo("segnala", "invia", "--canale", "arturo", "--file", pronta)
+    titoli = [d.get("titolo") for p, d in srv.richieste[prima:] if p == "/v1/segnalazioni"]
+    assert titoli == ["[problema] guardia", "[proposta] fine più corto"] and not list(attesa.glob("*.attesa.json")), \
+        f"M20 la segnalazione in attesa resta indietro: {titoli}"
+
+
 TESTS = {"M01": test_m01, "M02": test_m02, "M03": test_m03, "M04": test_m04, "M05": test_m05,
          "M06": test_m06, "M07": test_m07, "M08": test_m08, "M09": test_m09, "M10": test_m10,
          "M11": test_m11, "M12": test_m12, "M13": test_m13, "M14": test_m14, "M15": test_m15,
-         "M16": test_m16, "M17": test_m17, "M18": test_m18, "M19": test_m19}
+         "M16": test_m16, "M17": test_m17, "M18": test_m18, "M19": test_m19, "M20": test_m20}
 
 
 def main() -> int:
