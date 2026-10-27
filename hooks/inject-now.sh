@@ -49,15 +49,17 @@ fi
 # La regola "PROMPT + BRIEF prima, su ogni richiesta di lavoro" scritta e basta non reggeva:
 # la misura del 9/9/2026 dava un brief in 16 sessioni su 54. Questo hook non blocca e non
 # chiede niente: aggiunge una riga al contesto, dove la regola serve. Un comando /nome ha già
-# il suo flusso e non riceve il promemoria. Per spegnerlo: cancella il blocco cat qui sotto,
-# oppure togli la skill prompt-master.
+# il suo flusso e non riceve il promemoria. Dal 27/10/2026 (segnalazione n. 17) la skill si
+# carica una volta per sessione: ogni Skill(prompt-master) rimetteva nel contesto il corpo
+# intero. Per spegnerlo: cancella il blocco cat qui sotto, oppure togli la skill prompt-master.
 if [ -z "$COMANDO" ]; then
 cat <<'PROMEMORIA'
-REGOLA FISSA: se questo messaggio chiede un lavoro, anche piccolo, il primo tool è
-Skill(prompt-master) e le prime righe che scrivi sono PROMPT e BRIEF, con la riga "Skill:"
-(quale skill usi e perché, o "nessuna"), prima di qualunque altro lavoro. Esente solo la
-conversazione pura: domande, commenti, risposte a un menu; lì consiglia una skill solo se
-c'entra davvero. Il brief non è un gate: mostrato il prompt, se è giusto si procede.
+REGOLA FISSA: se questo messaggio chiede un lavoro, anche piccolo, le prime righe che scrivi
+sono PROMPT e BRIEF, con la riga "Skill:" (quale skill usi e perché, o "nessuna"), prima di
+qualunque altro lavoro. Se il corpo di prompt-master non è nel contesto (sessione nuova o dopo
+una compattazione), il primo tool è Skill(prompt-master); se c'è già, applicalo senza
+ricaricarlo: si carica una volta per sessione. Esente solo la conversazione pura: domande,
+commenti, risposte a un menu; lì consiglia una skill solo se c'entra davvero. Il brief non è un gate: mostrato il prompt, se è giusto si procede.
 PROMEMORIA
 fi
 

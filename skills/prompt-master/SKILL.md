@@ -23,7 +23,7 @@ Casi di confine:
 - **Una domanda che chiede un'azione è lavoro.** "Puoi fermare X e farlo partire su Y?", "fai una review di…", "verifica se…": il brief si mostra. Resta conversazione la domanda che chiede un parere o un fatto ("ci serve?", "c'è spazio?").
 - **Il via libera a proposte già elencate è una risposta a un menu.** "vai", "procedi su tutto", "1+2+3", "tutti", "il resto sì": il brief l'hanno già avuto le proposte, non se ne scrive un altro.
 - **Stop e comandi di controllo non passano mai dal brief.** "ferma", "interrompi", "stato", "un update al minuto": si esegue subito. Un brief prima di fermare un'operazione ritarda un'azione di sicurezza.
-- **Una correzione a lavoro iniziato è una riga**, "Brief corretto: …", senza ricaricare la skill. La skill si ricarica solo se l'obiettivo è nuovo.
+- **Una correzione a lavoro iniziato è una riga**, "Brief corretto: …". Una richiesta nuova ha il suo prompt e il suo brief, ma la skill non si ricarica: il corpo è già nel contesto.
 
 ### 1. Arricchimento (silenzioso)
 
@@ -34,7 +34,7 @@ Le richieste sono spesso sintetiche: il lavoro non è riformularle, è ricostrui
 - Decisioni già chiuse che vincolano il lavoro: le regole del `CLAUDE.md` personale e di progetto, le convenzioni di voce e formato, gli errori già documentati, le note di memoria pertinenti (`arturo memoria cerca "parole"`)
 - Vincoli tecnici e side-effect: cosa viene scritto, inviato, sovrascritto o speso
 
-Le letture necessarie si fanno prima del brief. Un brief costruito su assunzioni non nutre, aggiunge rumore. In silenzio chiarisci compito, formato dell'output, vincoli, input, contesto, pubblico e criterio di successo.
+Le letture necessarie si fanno prima del brief. Leggi ciò che la richiesta tocca: quello che è già nel contesto della sessione non si rilegge. Un brief costruito su assunzioni non nutre, aggiunge rumore. In silenzio chiarisci compito, formato dell'output, vincoli, input, contesto, pubblico e criterio di successo.
 
 ### 2. Prompt e brief (mostrati insieme)
 
@@ -81,7 +81,7 @@ Da chiarire: [max 3 punti]
 - **Il brief c'è sempre**: prompt e brief si mostrano prima di qualunque altro lavoro, anche per una richiesta breve. Per una richiesta piccola bastano tre righe. Il prompt serve a far vedere subito se la richiesta è stata capita: un brief che la persona non riconduce alla sua richiesta la fa reagire a una ricostruzione invece che alla cosa.
 - Se l'arricchimento fa emergere un fatto che cambia le carte (lavoro già fatto, decisione già chiusa in senso opposto, regola del CLAUDE.md che scatta), dillo nel brief prima di procedere: è il motivo principale per cui questa modalità esiste.
 - Il brief non è un gate e non richiede conferma: se il prompt è corretto e non hai nulla da chiarire, mostri e procedi. Ma se una domanda di approfondimento cambierebbe materialmente il lavoro, si chiede PRIMA, non dopo aver iniziato.
-- **Questa skill si carica sempre col tool `Skill`**, a ogni richiesta di lavoro: il corpo si legge, non si ricostruisce a memoria da una riga del `CLAUDE.md`. L'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi.
+- **Questa skill si carica col tool `Skill` una volta per sessione**, e di nuovo dopo ogni compattazione: il corpo si legge, non si ricostruisce a memoria da una riga del `CLAUDE.md`. Finché il corpo è nel contesto, una richiesta nuova lo applica senza ricaricarlo: ogni caricamento rimette nel contesto una copia intera (segnalazione n. 17, 27/10/2026). L'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi.
 
 ## MODALITÀ PROMPT ESTERNO — un prompt per un altro tool AI
 

@@ -154,9 +154,21 @@ def test_q08(repo: Path) -> None:
         "Q08 il promemoria di inject-now esclude ancora le richieste piccole"
 
 
+def test_q09(repo: Path) -> None:
+    # Segnalazione n. 17 (Gigi, 27/10/2026): ogni Skill(prompt-master) rimette il corpo intero nel contesto,
+    # anche se la copia di prima c'è ancora. Il brief resta su ogni richiesta, il corpo si carica una volta.
+    testo = read(repo / "skills" / "prompt-master" / "SKILL.md")
+    importante = testo.split("## Importante", 1)[-1].split("## MODALITÀ PROMPT ESTERNO", 1)[0]
+    promemoria = read(repo / "hooks" / "inject-now.sh")
+    for nome, t in (("la skill", importante), ("il promemoria di inject-now", promemoria)):
+        assert "una volta per sessione" in t and "compattazione" in t, f"Q09 {nome} non dice che il corpo si carica una volta"
+    assert "a ogni richiesta di lavoro: il corpo si legge" not in importante, "Q09 la skill chiede ancora di ricaricarsi a ogni richiesta"
+    assert "il primo tool è\nSkill(prompt-master)" not in promemoria, "Q09 il promemoria chiede ancora la skill a ogni messaggio"
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {
     "Q01": test_q01, "Q02": test_q02, "Q03": test_q03, "Q04": test_q04,
-    "Q05": test_q05, "Q07": test_q07, "Q08": test_q08,
+    "Q05": test_q05, "Q07": test_q07, "Q08": test_q08, "Q09": test_q09,
 }
 
 
