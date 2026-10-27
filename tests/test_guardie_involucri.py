@@ -15,6 +15,7 @@ Ogni controllo prova una forma vera e una avvelenata: sulla base bb19ef9 fallisc
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import shutil
@@ -115,8 +116,20 @@ def test_g05(repo: Path) -> None:
     assert verde.returncode == 0 and rosso.returncode != 0, "G05 pattern dei segreti non allineati, o veleno che non attacca"
 
 
+def test_g06(repo: Path) -> None:
+    # Segnalazione n. 18: nel base64 di uno screenshot AKIA… e AIza… compaiono per caso.
+    finta = base64.b64encode(b"\x89PNG" + b"\x00" * 64).decode() + "AKIA" + "ABCDEFGHIJKLMNOP" + "AIza" + "B" * 35
+    immagine = {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": finta}}
+    uri = "screenshot data:image/png;base64," + finta
+    chiave = {"type": "text", "text": "chiave AKIA" + "ABCDEFGHIJKLMNOP"}
+    for risposta, avvisa in (([immagine], False), (uri, False), (json.dumps([immagine]), False), ([chiave, immagine], True)):
+        r = subprocess.run([sys.executable, str(repo / "hooks" / "credential-leak-scanner.py")], input=json.dumps(
+            {"tool_name": "mcp__claude-in-chrome__computer", "tool_response": risposta}), capture_output=True, text=True, timeout=30)
+        assert ("additionalContext" in r.stdout) == avvisa, f"G06 avviso={not avvisa} su {str(risposta)[:60]}"
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {
-    "G01": test_g01, "G02": test_g02, "G03": test_g03, "G04": test_g04, "G05": test_g05,
+    "G01": test_g01, "G02": test_g02, "G03": test_g03, "G04": test_g04, "G05": test_g05, "G06": test_g06,
 }
 
 

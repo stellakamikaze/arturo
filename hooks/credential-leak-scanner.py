@@ -56,6 +56,28 @@ CREDENTIAL_PATTERNS = [
 
 COMPILED = [(re.compile(p), name) for p, name in CREDENTIAL_PATTERNS]
 
+# Nel base64 di uno screenshot AKIA… o AIza… compaiono per caso: i blocchi immagine non si
+# scansionano (segnalazione n. 18, 27/10/2026).
+DATA_URI = re.compile(r'data:image/[\w.+-]+;base64,[A-Za-z0-9+/=]+')
+
+
+def _senza_immagini(valore):
+    if isinstance(valore, dict):
+        tipo = str(valore.get("mimeType") or valore.get("media_type") or "")
+        if valore.get("type") == "image" or tipo.startswith("image/"):
+            return None
+        return {k: _senza_immagini(v) for k, v in valore.items()}
+    if isinstance(valore, list):
+        return [_senza_immagini(v) for v in valore]
+    if isinstance(valore, str):
+        if valore[:1] in "[{":
+            try:
+                return _senza_immagini(json.loads(valore))
+            except ValueError:
+                pass
+        return DATA_URI.sub("", valore)
+    return valore
+
 def main():
     try:
         if _HAS_SIGALRM:
@@ -67,7 +89,7 @@ def main():
         sys.exit(0)
 
     # Claude Code usa "tool_response"; "tool_output" mantenuto come fallback
-    tool_output = data.get("tool_response") or data.get("tool_output") or ""
+    tool_output = _senza_immagini(data.get("tool_response") or data.get("tool_output") or "")
 
     if isinstance(tool_output, (dict, list)):
         text = json.dumps(tool_output)
