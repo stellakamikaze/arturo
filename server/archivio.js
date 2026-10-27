@@ -112,6 +112,18 @@ export function archivio(db) {
         .bind(ricevuta, f.tipo, f.testo, f.email).first();
       return r.id;
     },
+    // Per la pagina privata (27/10/2026): l'elenco senza il testo, le più recenti prima, e una segnalazione intera.
+    async segnalazioni(limite) {
+      const r = await db.prepare(
+        "SELECT id, ricevuta, tipo, titolo, versione, sistema, installazione, email_inviata FROM segnalazioni ORDER BY id DESC LIMIT ?")
+        .bind(limite).all();
+      return r.results || [];
+    },
+    async segnalazione(id) {
+      return await db.prepare(
+        "SELECT id, ricevuta, tipo, titolo, testo, versione, sistema, installazione, email_inviata FROM segnalazioni WHERE id = ?")
+        .bind(id).first() || null;
+    },
     async segnaEmail(id) {
       await db.prepare("UPDATE segnalazioni SET email_inviata = 1 WHERE id = ?").bind(id).run();
     },

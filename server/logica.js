@@ -10,6 +10,7 @@
 //   POST /v1/lancillotto/eventi  gli eventi d'uso di Lancillotto (25/10/2026), in una tabella loro (lancillotto.js)
 // Cosa dà, solo a chi ha il token (secret RIEPILOGO_TOKEN):
 //   GET  /v1/riepilogo     il riepilogo della settimana in JSON, con "Dove migliorare Arturo"
+//   GET  /v1/segnalazioni  le ultime 50 segnalazioni, senza testo; /v1/segnalazioni/<n> una intera (27/10/2026)
 // L'IP non viene mai salvato. Gli eventi hanno il solo giorno, mai l'ora.
 // Telegram ed email sono campanelli (24/10/2026): numero, tipo e origine, mai il testo né l'email di chi scrive.
 
@@ -122,6 +123,7 @@ export const LIMITI = {
   eventiPerGiorno: 500,
   eventiTotaliPerGiorno: 100000,
   segnalazioniPerGiorno: 200,
+  segnalazioniInElenco: 50,
   // Due tetti separati (16/10/2026): le segnalazioni, che chiunque può mandare, non consumano le
   // email delle config rotte.
   emailRottePerGiorno: 20,
@@ -311,14 +313,43 @@ export function mime({ da, a, oggetto, testo, adesso = new Date(), id = crypto.r
   ].join("\r\n");
 }
 
-// L'email di una segnalazione è un campanello (24/10/2026): numero, tipo e origine. Prima portava il titolo, il
+// Il tipo in parole, per chi legge l'avviso (27/10/2026): "proposta" da sola non diceva che è un'idea.
+const TIPO_IN_PAROLE = { problema: "un problema", proposta: "un'idea", integrazione: "un'integrazione" };
+
+// Chi ha segnalato, nella forma che esce dal server: 8 caratteri dell'installazione, la versione, il sistema.
+function provenienza(s) {
+  const parti = [s.installazione ? `installazione ${s.installazione.slice(0, 8)}` : "installazione senza id",
+    s.versione ? `Arturo ${s.versione}` : "", s.sistema || ""];
+  return parti.filter(Boolean).join(" · ");
+}
+
+// Il link alla pagina che mostra la segnalazione intera, dietro il login di chi mantiene Arturo (27/10/2026).
+// La base arriva dalla variabile LEGGI_SEGNALAZIONI del Worker: senza, l'avviso dice di leggerla col token.
+const linkSegnalazione = (leggi, numero) => (leggi ? `${leggi.replace(/\/+$/, "")}/${Number(numero)}` : "");
+
+// L'ora di arrivo in ora di Roma, "27/10 alle 15:52".
+function oraRoma(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const p = Object.fromEntries(new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", day: "2-digit", month: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d).map((x) => [x.type, x.value]));
+  return `${p.day}/${p.month} alle ${p.hour}:${p.minute}`;
+}
+
+// L'email di una segnalazione è un campanello (24/10/2026): niente titolo né testo. Prima portava il titolo, il
 // testo intero e l'id completo dell'installazione, e ogni copia restava nella casella di chi mantiene Arturo,
-// fuori dalla pulizia dei 12 mesi e da ogni cancellazione. Il testo si legge in D1, con la query nell'email.
-export function emailSegnalazione(s, numero) {
+// fuori dalla pulizia dei 12 mesi e da ogni cancellazione. Dal 27/10/2026 il campanello si legge senza comandi:
+// tipo in parole, da dove arriva, l'ora e il link alla pagina che mostra il testo.
+export function emailSegnalazione(s, numero, { leggi = "", ricevuta = "" } = {}) {
+  const link = linkSegnalazione(leggi, numero);
+  const quando = oraRoma(ricevuta);
   return {
-    oggetto: `[Arturo] [${s.tipo}] Segnalazione n. ${numero}`,
-    testo: `Segnalazione n. ${numero} · ${s.tipo} · segnala\n\nIl testo resta sul server. Si legge con:\n` +
-      `npx wrangler@4 d1 execute arturo --remote --command "SELECT titolo, testo FROM segnalazioni WHERE id = ${Number(numero)}"\n`,
+    oggetto: `[Arturo] Segnalazione n. ${Number(numero)}: ${TIPO_IN_PAROLE[s.tipo] || s.tipo}`,
+    testo: `È arrivata la segnalazione n. ${Number(numero)} su Arturo.\n\n` +
+      `Tipo: ${TIPO_IN_PAROLE[s.tipo] || s.tipo}\nDa: ${provenienza(s)}\n` +
+      (quando ? `Arrivata: ${quando}\n` : "") +
+      (link ? `\nLeggila qui, col tuo accesso:\n${link}\n` : `\nSi legge con GET /v1/segnalazioni/${Number(numero)} e il token del riepilogo.\n`) +
+      `\nIl testo resta sul server e non passa da questa email.\n`,
   };
 }
 
@@ -472,8 +503,9 @@ export function avvisoInstallazione(riga) {
 // Segnalazioni e feedback sono campanelli (24/10/2026): numero, tipo e origine, e basta. Prima Telegram riceveva
 // il titolo e 600 caratteri del testo, e per il feedback l'email della persona e 1500 caratteri: copie fuori dal
 // server, senza scadenza, che nessuna cancellazione raggiunge. Il tipo viene da un elenco chiuso.
-export function avvisoSegnalazione(s, numero) {
-  return `Arturo: segnalazione n. ${Number(numero)} · ${s.tipo} · segnala`;
+export function avvisoSegnalazione(s, numero, leggi = "") {
+  const link = linkSegnalazione(leggi, numero);
+  return `Arturo: segnalazione n. ${Number(numero)}, ${TIPO_IN_PAROLE[s.tipo] || s.tipo} · ${provenienza(s)}` + (link ? `\n${link}` : "");
 }
 
 export function avvisoSetupFinito(riga) {
@@ -596,7 +628,7 @@ async function spedisci(archivio, posta, messaggio, adesso) {
 // `limite(tipo, request)` è il limite per IP del Worker (binding Rate Limiting): falso quando la
 // richiesta va oltre. Senza binding, come nei test e in un fork che non lo configura, lascia passare.
 export async function gestisci(request, { archivio, posta, avviso = async () => {}, adesso = new Date(), token,
-  limite = async () => true }) {
+  limite = async () => true, leggi = "" }) {
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/") {
     return new Response("Arturo: qui arrivano eventi d'uso, con un id casuale e senza contenuti, segnalazioni e feedback. Codice: https://github.com/stellakamikaze/arturo/tree/main/server\n",
@@ -615,6 +647,17 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     al = al || oggi(adesso);
     dal = dal || giorniFa(new Date(`${al}T12:00:00Z`), 7);
     return risposta(200, { dal, al, regola: REGOLA_GUARDIE, ...(await archivio.riepilogo(dal, al, { settimana: true })) });
+  }
+  // Le segnalazioni, per la pagina privata di chi mantiene Arturo (27/10/2026): l'elenco senza testo, oppure una
+  // segnalazione intera. Stesso token del riepilogo: senza, le email restavano l'unica traccia, e il testo si
+  // leggeva solo con wrangler.
+  const unaSegnalazione = /^\/v1\/segnalazioni\/([0-9]{1,9})$/.exec(url.pathname);
+  if (request.method === "GET" && (url.pathname === "/v1/segnalazioni" || unaSegnalazione)) {
+    const dato = (request.headers.get("authorization") || "").replace(/^Bearer /, "");
+    if (!stessoToken(dato, token)) return risposta(401, { errore: "token mancante o sbagliato" });
+    if (!unaSegnalazione) return risposta(200, { segnalazioni: await archivio.segnalazioni(LIMITI.segnalazioniInElenco) });
+    const trovata = await archivio.segnalazione(Number(unaSegnalazione[1]));
+    return trovata ? risposta(200, trovata) : risposta(404, { errore: "segnalazione inesistente" });
   }
   if (request.method !== "POST") return risposta(405, { errore: "solo POST" });
   const giorno = oggi(adesso);
@@ -693,11 +736,11 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     }
     const numero = await archivio.salvaSegnalazione(segnalazione, adesso.toISOString());
     if (await archivio.incrementa(giorno, "avviso-segnalazione") <= LIMITI.avvisiSegnalazioniPerGiorno) {
-      await telegram(avvisoSegnalazione(segnalazione, numero));
+      await telegram(avvisoSegnalazione(segnalazione, numero, leggi));
     }
     let partita = false;
     if (await archivio.incrementa(giorno, "email-segnalazione") <= LIMITI.emailSegnalazioniPerGiorno) {
-      partita = await email(emailSegnalazione(segnalazione, numero));
+      partita = await email(emailSegnalazione(segnalazione, numero, { leggi, ricevuta: adesso.toISOString() }));
       if (partita) {
         try {
           await archivio.segnaEmail(numero);

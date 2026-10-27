@@ -38,3 +38,6 @@ simple = { limit = 10, period = 60 }
 [vars]
 MITTENTE = "MITTENTE_SUL_TUO_DOMINIO"
 DESTINATARIO = "DESTINATARIO_VERIFICATO"
+# Facoltativa: la pagina privata dove leggi una segnalazione, senza il numero in fondo. Email e Telegram
+# portano il link <LEGGI_SEGNALAZIONI>/<numero>. Senza, dicono di leggerla con GET /v1/segnalazioni/<numero>.
+# LEGGI_SEGNALAZIONI = "https://IL_TUO_SITO/admin/segnalazioni"

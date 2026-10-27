@@ -25,7 +25,7 @@ function limite(env) {
 export default {
   async fetch(request, env) {
     return gestisci(request, { archivio: archivio(env.DB), posta: posta(env), avviso: avvisoTelegram(env), token: env.RIEPILOGO_TOKEN,
-      limite: limite(env) });
+      limite: limite(env), leggi: env.LEGGI_SEGNALAZIONI || "" });
   },
   async scheduled(evento, env, ctx) {
     ctx.waitUntil(programmato({ archivio: archivio(env.DB), posta: posta(env), avviso: avvisoTelegram(env) }));

@@ -120,10 +120,12 @@ const casi = {
     const r = await gestisci(post("/v1/segnalazioni", s), { ...f, adesso });
     assert.equal(r.status, 201, "V05 segnalazione valida rifiutata");
     assert.deepEqual(await r.json(), { numero: 1, email: true });
-    // Dal 24/10/2026 l'email è un campanello: numero e tipo, il testo resta in D1 (R18).
-    assert.equal(f.stato.email[0].oggetto, "[Arturo] [problema] Segnalazione n. 1", "V05 oggetto sbagliato");
+    // Dal 24/10/2026 l'email è un campanello: numero e tipo, il testo resta in D1 (R18). Dal 27/10/2026 il tipo è in
+    // parole, e senza LEGGI_SEGNALAZIONI l'email dice come leggerla col token (il link lo prova S01).
+    assert.equal(f.stato.email[0].oggetto, "[Arturo] Segnalazione n. 1: un problema", "V05 oggetto sbagliato");
     assert.doesNotMatch(f.stato.email[0].testo, /Il commit non parte/, "V05 il testo della segnalazione esce per email");
-    assert.match(f.stato.email[0].testo, /WHERE id = 1"/, "V05 l'email non dice come leggere la segnalazione");
+    assert.match(f.stato.email[0].testo, /GET \/v1\/segnalazioni\/1 /, "V05 l'email non dice come leggere la segnalazione");
+    assert.match(f.stato.email[0].testo, /Arrivata: 13\/10 alle 12:00/, "V05 l'ora di Roma manca");
     assert.equal(f.stato.segnalazioni[0].testo, "Il commit non parte.", "V05 il testo non resta sul server");
     for (const cattiva of [{ ...s, tipo: "spam" }, { ...s, titolo: "" }, { ...s, testo: "x".repeat(16001) }]) {
       assert.equal((await gestisci(post("/v1/segnalazioni", cattiva), { ...f, adesso })).status, 400, "V05 segnalazione non valida accettata");
@@ -327,7 +329,8 @@ const casi = {
     assert.equal(f.stato.avvisi.length, 2, "V20 una seconda installazione non viene avvisata");
     await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "Il setup si ferma", testo: "Alla fase 2 esce un errore.", versione: "v2026-10-13", sistema: "Darwin" }), { ...f, adesso });
     assert.equal(f.stato.avvisi.length, 3, "V20 la segnalazione non viene avvisata");
-    assert.equal(f.stato.avvisi[2], "Arturo: segnalazione n. 1 · problema · segnala", "V20 testo dell'avviso di segnalazione");
+    assert.equal(f.stato.avvisi[2], "Arturo: segnalazione n. 1, un problema · installazione senza id · Arturo v2026-10-13 · Darwin",
+      "V20 testo dell'avviso di segnalazione");
     // Un avviso che non parte non deve far perdere eventi o segnalazioni.
     const g = finti();
     const rotto = async () => { throw new Error("Telegram giù"); };
@@ -669,7 +672,7 @@ const casi = {
     }
     assert.ok(!uscito.includes("maria.bianchi") && !uscito.includes("esempio.it"), "R18 l'email del feedback esce verso Telegram");
     assert.ok(!uscito.includes(installazione.slice(0, 9)), "R18 l'id completo dell'installazione esce");
-    assert.match(f.stato.avvisi[0], /segnalazione n\. 1 · problema · segnala$/, "R18 il campanello non dice numero, tipo e origine");
+    assert.match(f.stato.avvisi[0], /segnalazione n\. 1, un problema · installazione 1b2c3d4e · /, "R18 il campanello non dice numero, tipo e origine");
     assert.equal(f.stato.segnalazioni[0].testo, testo, "R18 il testo non resta sul server");
   },
   async V37() {
@@ -827,6 +830,34 @@ const casi = {
     assert.ok(blocco, "L03 EVENTI non trovato nel client");
     const nomi = [...blocco[1].matchAll(/^\s+"([a-z_]+)":/gm)].map((m) => m[1]).sort();
     assert.deepEqual(nomi, Object.keys(EVENTI_LANCILLOTTO).sort(), "L03 eventi diversi fra client e server");
+  },
+  // Le segnalazioni per la pagina privata (27/10/2026): solo col token, l'elenco senza testo, il link negli avvisi.
+  async S01() {
+    const token = "t".repeat(40);
+    const f = finti();
+    f.archivio.segnalazioni = async (limite) => { f.stato.limite = limite; return f.stato.segnalazioni.map((s, i) => ({ id: i + 1, tipo: s.tipo, titolo: s.titolo })); };
+    f.archivio.segnalazione = async (id) => (f.stato.segnalazioni[id - 1] ? { id, ...f.stato.segnalazioni[id - 1] } : null);
+    const leggi = "https://sito.example/admin/segnalazioni/";
+    await gestisci(post("/v1/segnalazioni", { tipo: "proposta", titolo: "Bozze salvate", testo: "Vorrei le bozze.", versione: "v2026-10-13", sistema: "Darwin" }),
+      { ...f, adesso, leggi });
+    assert.match(f.stato.email[0].testo, /Leggila qui, col tuo accesso:\nhttps:\/\/sito\.example\/admin\/segnalazioni\/1\n/, "S01 l'email non porta il link");
+    assert.match(f.stato.email[0].oggetto, /: un'idea$/, "S01 il tipo proposta non esce come idea");
+    assert.match(f.stato.avvisi.at(-1), /\nhttps:\/\/sito\.example\/admin\/segnalazioni\/1$/, "S01 Telegram non porta il link");
+    const get = (percorso, intestazione) => new Request(`https://arturo.example${percorso}`, { headers: intestazione ? { authorization: intestazione } : {} });
+    for (const percorso of ["/v1/segnalazioni", "/v1/segnalazioni/1"]) {
+      assert.equal((await gestisci(get(percorso, null), { ...f, adesso, token })).status, 401, `S01 ${percorso} risponde senza token`);
+      assert.equal((await gestisci(get(percorso, "Bearer " + token.slice(0, 39)), { ...f, adesso, token })).status, 401, `S01 ${percorso} con token corto`);
+      assert.equal((await gestisci(get(percorso, "Bearer "), { ...f, adesso, token: "" })).status, 401, `S01 ${percorso} senza token configurato`);
+    }
+    const elenco = await gestisci(get("/v1/segnalazioni", "Bearer " + token), { ...f, adesso, token });
+    assert.equal(elenco.status, 200, "S01 l'elenco non si apre col token");
+    assert.equal(f.stato.limite, 50, "S01 l'elenco non ha il tetto di 50");
+    assert.doesNotMatch(JSON.stringify(await elenco.json()), /Vorrei le bozze/, "S01 l'elenco porta il testo");
+    const una = await gestisci(get("/v1/segnalazioni/1", "Bearer " + token), { ...f, adesso, token });
+    assert.equal(una.status, 200, "S01 la segnalazione non si apre col token");
+    assert.equal((await una.json()).testo, "Vorrei le bozze.", "S01 la segnalazione intera non ha il testo");
+    assert.equal((await gestisci(get("/v1/segnalazioni/9", "Bearer " + token), { ...f, adesso, token })).status, 404, "S01 una segnalazione che non c'è");
+    assert.equal((await gestisci(get("/v1/segnalazioni/1x", "Bearer " + token), { ...f, adesso, token })).status, 405, "S01 un numero storto passa");
   },
 };
 

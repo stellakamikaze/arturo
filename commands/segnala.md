@@ -44,10 +44,12 @@ Prendi le informazioni sull'ambiente con:
 python3 ~/.claude/bin/arturo segnala info
 ```
 
-Scrivi la bozza in un file temporaneo, in markdown, con le stesse intestazioni dei modelli di
-GitHub e un blocco finale "Ambiente" con l'output di `info`:
+Scrivi la bozza in un file temporaneo, in markdown. Apre con "In breve", poi le stesse intestazioni
+dei modelli di GitHub e un blocco finale "Ambiente" con l'output di `info`:
 
 ```markdown
+### In breve
+…
 ### Cosa stavi facendo?
 …
 ### Cosa ti aspettavi che succedesse?
@@ -58,6 +60,12 @@ GitHub e un blocco finale "Ambiente" con l'output di `info`:
 Arturo: … · Claude Code: … · Sistema: …
 ```
 
+**"In breve"** è la parte che chi mantiene Arturo legge per prima: una o due frasi, senza nomi di
+file, di hook o di comandi. Dicono cosa non va o cosa serve, e cosa cambia per chi usa Arturo.
+Esempio: "Durante il lavoro nel browser compaiono decine di avvisi di credenziali che non ci sono:
+interrompono il lavoro e fanno pensare a una fuga che non c'è." I messaggi esatti e i comandi
+restano sotto, nelle loro sezioni.
+
 Per una proposta: "Quale problema vuoi risolvere, nel tuo lavoro?" e "Come immagini la
 soluzione?". Per un'integrazione: "Quale strumento?", "Per fare cosa, nel tuo lavoro?", "Come
 fai oggi, senza?".
@@ -67,7 +75,8 @@ di documenti ed email, indirizzi interni, nomi di file che dicono troppo. Lascia
 "un cliente" al posto del nome basta. Lo script toglie da solo le cartelle personali e ferma i
 segreti, ma non riconosce un nome o un contenuto riservato: quello è il tuo lavoro.
 
-Il titolo dice il fatto in poche parole: "/fine si ferma al commit", non "Bug".
+Il titolo dice il fatto in poche parole comuni: "/fine si ferma al commit", non "Bug", e non
+"commit-secret-gate.py dà scansione-fallita".
 
 ## Passo 3 — Anteprima
 

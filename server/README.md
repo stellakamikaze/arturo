@@ -33,7 +33,9 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
   copiato o il repository aperto. Non si salva niente oltre al contatore del giorno, e Telegram
   avvisa fino a 60 volte al giorno.
 
-E dà una cosa sola, a chi ha il token: `GET /v1/riepilogo`, il riepilogo della settimana in JSON (senza
+E dà due cose, a chi ha il token. La prima: `GET /v1/segnalazioni`, le ultime 50 segnalazioni senza testo, e
+`GET /v1/segnalazioni/<n>`, una segnalazione intera (27/10/2026): le legge la pagina privata di chi mantiene
+Arturo. La seconda: `GET /v1/riepilogo`, il riepilogo della settimana in JSON (senza
 `dal` e `al`, la stessa dell'email del lunedì: da lunedì a domenica in ora di Roma) con la sezione "Dove migliorare Arturo" (secret `RIEPILOGO_TOKEN`, almeno 32 caratteri). Le statistiche
 delle guardie (blocchi, conferme, guardie rotte, guardie frequenti) contano solo le installazioni che
 il server ha ricevuto in almeno due giorni diversi, e ogni numero dice quante installazioni lo
@@ -65,11 +67,13 @@ feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le s
   installazione. Il testo porta solo quello che il server già salva, e l'id esce con 8 caratteri.
   Senza i secret non parte niente.
 - **Segnalazioni e feedback sono campanelli (24/10/2026).** Telegram ed email dicono solo numero, tipo
-  e origine: `Arturo: segnalazione n. 14 · problema · segnala`, `Arturo: feedback n. 3 · idea · sito`.
-  Mai il titolo, il testo, l'email di chi scrive o l'id completo: il testo resta in D1, e si legge
-  con la query della sezione "Le query". Ogni segnalazione arriva anche come email, con l'oggetto
-  `[Arturo] [tipo] Segnalazione n. N`. Il tetto è di 20 email al giorno, separato dalle 20 delle
-  config rotte: oltre, la segnalazione resta in D1 senza email.
+  e origine: `Arturo: feedback n. 3 · idea · sito`. Mai il titolo, il testo, l'email di chi scrive o
+  l'id completo: il testo resta in D1. Dal 27/10/2026 la segnalazione si legge senza comandi:
+  `Arturo: segnalazione n. 14, un problema · installazione 826cca31 · Arturo v2026-10-21 · Darwin`,
+  e sotto il link `<LEGGI_SEGNALAZIONI>/14` alla pagina privata, che la legge con `GET /v1/segnalazioni/14`.
+  Senza la variabile `LEGGI_SEGNALAZIONI` l'avviso dice di leggerla col token. Ogni segnalazione arriva
+  anche come email, con l'oggetto `[Arturo] Segnalazione n. 14: un problema` e lo stesso link. Il tetto è
+  di 20 email al giorno, separato dalle 20 delle config rotte: oltre, la segnalazione resta in D1 senza email.
 - **Un canale che tace si conta (24/10/2026).** Un avviso Telegram o un'email che non parte non ferma
   la richiesta, e sale il contatore del giorno `telegram-ko` o `email-ko`, senza id. Il recap e il
   riepilogo del lunedì mostrano questi due numeri e gli eventi scartati; un giorno con uno di questi

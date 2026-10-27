@@ -321,6 +321,18 @@ const casi = {
     await a.pulisci("2026-10-13");
     assert.equal((await db.prepare("SELECT COUNT(*) AS n FROM eventi_lancillotto").first()).n, 0, "QL1 la pulizia non tocca Lancillotto");
   },
+  // Le segnalazioni per la pagina privata (27/10/2026): l'elenco dal più recente, senza testo, col tetto;
+  // la segnalazione intera col testo; null per un numero che non c'è.
+  async QS1() {
+    const a = archivio(d1());
+    const s = (titolo) => ({ tipo: "problema", titolo, testo: `testo di ${titolo}`, versione: "v2026-10-13", sistema: "Darwin", installazione: "" });
+    for (const t of ["prima", "seconda", "terza"]) await a.salvaSegnalazione(s(t), "2026-10-13T10:00:00Z");
+    const elenco = await a.segnalazioni(2);
+    assert.deepEqual(elenco.map((r) => r.titolo), ["terza", "seconda"], "QS1 ordine o tetto dell'elenco");
+    assert.ok(elenco.every((r) => !("testo" in r)), "QS1 l'elenco porta il testo");
+    assert.equal((await a.segnalazione(1)).testo, "testo di prima", "QS1 la segnalazione intera non ha il testo");
+    assert.equal(await a.segnalazione(99), null, "QS1 un numero che non c'è non dà null");
+  },
 };
 
 // `node test-sql.mjs Q15 Q19` fa girare i soli casi nominati (24/10/2026: serve al veleno di un caso alla volta).
