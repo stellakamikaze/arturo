@@ -28,6 +28,29 @@ sys.exit(0 if isinstance(p, str) and re.match(busta, p) else 1)' 2>/dev/null; th
   exit 0
 fi
 
+# --- Avviso prima di un ultracode (Computer Club N.3, 28/10/2026) ----------------
+# Un ultracode lancia molti agenti: il 27/10 uno ha usato circa il 5% della finestra di 5 ore
+# in pochi minuti, e chi lo lanciava non lo sapeva. La quota la scrive la statusline in
+# cache/statusline/quota.json; se manca, la riga dice solo il costo.
+if [[ "$INPUT" =~ [Uu][Ll][Tt][Rr][Aa][Cc][Oo][Dd][Ee] ]]; then
+  QUOTA="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/cache/statusline/quota.json"
+  python3 - "$QUOTA" <<'ULTRACODE' 2>/dev/null || true
+import json, sys, time
+riga = ("ULTRACODE: prima di lanciarlo, di' alla persona che lancia molti agenti e costa quota "
+        "(il 27/10 un lancio ha usato circa il 5% della finestra di 5 ore in pochi minuti)")
+try:
+    q = json.load(open(sys.argv[1], encoding="utf-8")).get("cinque_ore") or {}
+    pct, resets = q.get("pct"), q.get("resets")
+    if isinstance(pct, int):
+        riga += f"; oggi la finestra di 5 ore è al {pct}%"
+        if isinstance(resets, (int, float)) and resets > time.time():
+            riga += f" e si azzera alle {time.strftime('%H:%M', time.localtime(resets))}"
+except Exception:
+    pass
+print(riga + ". Chiedi il sì e di' quanti agenti partono.")
+ULTRACODE
+fi
+
 # --- Telemetria: quale comando di Arturo viene usato -----------------------------
 # Solo il nome di un comando che esiste in ~/.claude/commands, mai il testo del prompt. Un comando
 # della persona esce come `altro` (bin/telemetria.py, COMANDI), dal 24/10/2026.

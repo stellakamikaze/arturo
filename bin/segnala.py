@@ -61,6 +61,7 @@ Di solito lo usa /segnala dentro Claude Code. Comandi:
   invia --canale C --file PRONTA         la manda (C: arturo = diretta a chi mantiene Arturo, il default;
                                          gh = issue pubblica; web = pagina della issue compilata;
                                          email = testo negli appunti per {EMAIL})
+  stato                                  le tue segnalazioni: in attesa, arrivate, corrette (da NOVITA.md)
   canale [arturo|gh|web|email]           il canale ricordato, o lo ricorda
   chiedi                                 /fine può fare la domanda della settimana? (0 sì, 3 no)
   basta                                  niente inviti a segnalare finché non dici riprendi
@@ -298,6 +299,8 @@ def invia(opz: dict) -> int:
                            if trovati else "tipo sconosciuto") + ". Niente è partito.", file=sys.stderr)
         return 3
 
+    # Un solo orario per il file in attesa e la copia: lo stesso nome li lega quando parte (28/10/2026).
+    adesso = dt.datetime.now()
     esito = ""
     if canale == "arturo":
         dati_server = {"tipo": tipo, "titolo": titolo, "testo": testo, "versione": telemetria.versione(),
@@ -323,7 +326,7 @@ def invia(opz: dict) -> int:
         else:
             attesa = telemetria.cartella_attesa()
             attesa.mkdir(parents=True, exist_ok=True)
-            ts.scrivi_json_atomico(attesa / f"{dt.datetime.now():%Y-%m-%d_%H%M%S}_{tipo}.attesa.json", dati_server)
+            ts.scrivi_json_atomico(attesa / f"{adesso:%Y-%m-%d_%H%M%S}_{tipo}.attesa.json", dati_server)
             # Il codice dice a chi mantiene Arturo dove guardare: rete o server (segnalazione di Liliana, 27/10/2026).
             motivo = f"risposta {status}" if status else "nessuna risposta dalla rete"
             print(f"Il server ora non risponde ({motivo}): la segnalazione è salvata e parte da sola "
@@ -354,7 +357,6 @@ def invia(opz: dict) -> int:
             print(f"Non riesco a copiare negli appunti. Manda questa email:\nA: {EMAIL}\nOggetto: {oggetto}\n\n{testo}")
         esito = f"email pronta per {EMAIL}: la persona la invia"
 
-    adesso = dt.datetime.now()
     cartella = cartella_copie()
     cartella.mkdir(parents=True, exist_ok=True)
     copia = cartella / f"{adesso:%Y-%m-%d_%H%M%S}_{tipo}.md"
@@ -364,6 +366,58 @@ def invia(opz: dict) -> int:
     cambia_stato(lambda s: s.update({"inviata": oggi, "canale": canale}))
     telemetria.registra("segnalazione", tipo)
     print(f"\nFatto: {esito}.\nCopia: {copia}")
+    return 0
+
+
+def novita_per_numero(testo: str) -> dict:
+    """{numero: (data, titolo)} della prima voce di NOVITA.md che cita "segnalazione n. X" (o "segnalazioni
+    n. 14, 15 e 16"). Le voci sono in ordine inverso: vince la più vecchia, cioè la correzione."""
+    trovate, data, titolo = {}, "", ""
+    for riga in testo.splitlines():
+        intestazione = re.match(r"## (\d{4}-\d{2}-\d{2})\s*\S*\s*(.*)", riga)
+        if intestazione:
+            data, titolo = intestazione.group(1), intestazione.group(2).strip()
+            continue
+        if not data:
+            continue
+        for gruppo in re.finditer(r"segnalazion[ei]\s+n\.\s*\d+(?:(?:\s*,\s*|\s+e\s+)(?:n\.\s*)?\d+)*", riga):
+            for numero in re.findall(r"\d+", gruppo.group(0)):
+                trovate[int(numero)] = (data, titolo)
+    return trovate
+
+
+def stato() -> int:
+    """Le segnalazioni partite da questo computer e dove sono: in attesa, arrivate, corrette e uscite
+    (Computer Club N.3, 27/10/2026: "quando faccio il segnale cosa succede?")."""
+    copie = sorted(cartella_copie().glob("*.md"))
+    if not copie:
+        print("Nessuna segnalazione partita da questo computer.")
+        return 0
+    try:
+        uscite = novita_per_numero((Path.home() / ".claude" / "NOVITA.md").read_text(encoding="utf-8"))
+    except OSError:
+        uscite = {}
+    for copia in copie:
+        try:
+            testo = copia.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        titolo = testo.splitlines()[0].lstrip("# ").strip() if testo else copia.stem
+        data = re.search(r"^Data: (\S+)", testo, re.M)
+        esito = re.search(r"^Esito: (.*)$", testo, re.M)
+        esito = esito.group(1) if esito else ""
+        numero = re.search(r"segnalazione n\. (\d+)", esito)
+        quando = data.group(1) if data else ""
+        if numero and int(numero.group(1)) in uscite:
+            giorno, voce = uscite[int(numero.group(1))]
+            dove = f"corretta: la novità del {giorno} \"{voce}\" la racconta"
+        elif numero:
+            dove = "arrivata, la correzione non è ancora uscita"
+        elif esito.startswith("in attesa"):
+            dove = "in attesa: parte da sola appena il server risponde"
+        else:
+            dove = esito or "esito non scritto"
+        print(f"{'n. ' + numero.group(1) if numero else '-'} · {quando} · {titolo}: {dove}")
     return 0
 
 
@@ -396,6 +450,8 @@ def main(argv: list) -> int:
             return prepara(_opzioni(resto, ("--tipo", "--titolo", "--file")))
         if comando == "invia":
             return invia(_opzioni(resto, ("--canale", "--file")))
+        if comando == "stato" and not resto:
+            return stato()
         if comando == "chiedi" and not resto:
             return chiedi()
         if comando == "canale" and len(resto) <= 1:

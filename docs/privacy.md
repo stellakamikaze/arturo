@@ -33,7 +33,7 @@ Per questo i dati non sono anonimi, e questa pagina li tratta come dati personal
 | Eventi di Lancillotto (dal 25/10/2026) | Solo se usi Lancillotto, l'app che annota sul tuo Mac come lavori: un suo id casuale, la versione, la versione di macOS, il giorno e un evento da un elenco chiuso (passi della guida, permessi sì o no, fasce di eventi, MB e ore del giorno, sensori guasti, browser senza indirizzo, comandi della CLI, routine contate). Il registro di Lancillotto resta sul Mac: non escono app, siti, titoli, file né testo. Elenco in `lancillotto/telemetria.py` e in `server/lancillotto.js` | Ogni ora, se nella guida hai detto sì; si spegne dalla finestra di Lancillotto | 12 mesi |
 
 Cosa non esce mai: prompt, risposte, file tuoi, percorsi del tuo computer, nomi, testi.
-Di un file tuo, per esempio una skill che hai scritto tu, esce solo `file:altro`. Di un comando tuo esce solo `altro`.
+Di un file tuo, per esempio una skill che hai scritto tu, esce solo `file:altro`. Il testo di una tua skill esce solo se la proponi tu con `/proponi`: come una segnalazione, dopo che hai letto la copia ripulita e detto sì. Di un comando tuo esce solo `altro`.
 Di un segreto fermato in un commit esce solo la famiglia, come `segreto-cloud`, mai il servizio.
 Il server non salva il tuo indirizzo IP. Il modulo del sito accetta solo testo scritto, fino a 64 KB per messaggio.
 

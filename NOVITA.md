@@ -2,7 +2,8 @@
 
 Questo file è il canale di aggiornamento di Arturo. Ogni volta che l'harness evolve in un
 modo che vale la pena raccontare, qui compare una entry: cosa cambia, il principio dietro,
-a chi serve. La entry più recente sta in cima, con data ISO nell'intestazione.
+a chi serve. La entry più recente sta in cima, con data ISO nell'intestazione. Una correzione nata
+da una segnalazione la cita con la forma "segnalazione n. X": `/segnala stato` la riconosce così.
 
 Non serve leggerlo a mano: dopo un `git pull`, all'avvio della sessione Arturo ti avvisa se
 c'è qualcosa che non hai ancora visto, e `/novita` te lo racconta in parole semplici —
@@ -10,6 +11,23 @@ con la possibilità di fare sparring (`/sparring`) per capire se la novità serv
 modo di lavorare.
 
 ---
+
+## 2026-10-28 — Il resto delle domande del Computer Club: sessioni dal pannello, segnalazioni seguite, skill proposte
+
+**Cosa cambia**: dal pannello `/dafare` il tasto `o` apre una finestra nuova del terminale con Claude
+già partito sul todo scelto (`/inizio progetto -- il todo`), su Mac, Windows e Linux. `/segnala stato`
+ti dice a che punto sono le tue segnalazioni: in attesa, arrivate col loro numero, o corrette, con la
+novità che lo racconta; `/novita` ti avvisa quando esce la correzione di una tua. `/proponi` porta a chi
+mantiene Arturo una skill che hai scritto tu: la ripulisce con te da nomi e dati, ti mostra il testo e
+parte solo dopo il tuo sì. Prima di un ultracode, Claude ti dice quanto costa e quanta quota ti resta.
+
+**Il principio**: ogni pezzo risponde a una domanda fatta alla sera del 27/10: "clicco e vado avanti",
+"quando faccio il segnale cosa succede?", "come la faccio arrivare agli altri?", "quanto mi è costato?".
+Una promessa che nessun codice manteneva ("/novita la racconta con quel numero") ora ha il suo codice.
+
+**Da sapere**: una segnalazione partita in differita ora tiene il suo numero; le correzioni nate da una
+segnalazione la citano sempre come "segnalazione n. X". Della skill proposta esce solo il testo che hai
+letto, come per `/segnala`: nessun file parte da solo.
 
 ## 2026-10-28 — Meno conferme quando Claude legge il web con uno script
 

@@ -45,8 +45,8 @@ OGGI = "2026-10-03"
 VERBI_ATTESI = {"fatto", "ferma", "riprendi", "chi", "avvicina", "allontana"}
 # Quanti test del kit porta ogni id, su ogni superficie. Si conta, non si confronta un insieme:
 # un test tolto da un id che ne ha due deve far fallire U03.
-KIT = {f"U{n}": 1 for n in range(20, 35)}
-KIT.update(U21=2, U27=2, U28=3, U30=2, U31=3, U34=2)
+KIT = {f"U{n}": 1 for n in range(20, 36)}
+KIT.update(U21=2, U27=2, U28=3, U30=2, U31=3, U34=2, U35=2)
 TEST_KIT = sum(KIT.values())
 PROXY_MORTO = "http://127.0.0.1:9"
 GENERATI = (".claude-plugin/types", "tsconfig.json")

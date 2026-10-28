@@ -1,5 +1,5 @@
 // I test del pannello /dafare con il kit di Claude Code (`claude plugin test`).
-// Ogni test comincia con il suo id (U20-U34): il banco tests/test_pannello.py (U03) conta i test
+// Ogni test comincia con il suo id (U20-U35): il banco tests/test_pannello.py (U03) conta i test
 // passati per id, sulle due superfici, e li confronta con la sua tabella KIT.
 //
 // Sotto il pannello c'è una CLI finta: tiene un piccolo archivio in memoria, risponde a
@@ -115,6 +115,11 @@ function motore(on: On, iniziali: TodoVoce[], opzioni: Opzioni = {}) {
       return { value: { ...uscita, isStdoutTruncated: false, isStderrTruncated: false } }
     }
     const i = argv.findIndex(x => x.endsWith('/bin/arturo'))
+    // `arturo sessione --todo N` apre un terminale: qui risponde e basta, rompi può farla fallire.
+    if (argv[i + 1] === 'sessione') {
+      const uscita = opzioni.rompi?.(argv.slice(i + 1)) ?? { exitCode: 0, stdout: 'Aperta una sessione nuova\n', stderr: '' }
+      return { value: { ...uscita, isStdoutTruncated: false, isStderrTruncated: false } }
+    }
     return { value: { ...esegui(argv.slice(i + 2)), isStdoutTruncated: false, isStderrTruncated: false } }
   })
   on('ui.open', async (_$, e) => {
@@ -472,5 +477,27 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(await pane.find({ type: 'Text', text: 'formato che il pannello non legge' })).toBeTruthy()
     expect(await pane.find({ key: 'riga-1' })).toBeTruthy()
     expect(await pane.find({ key: 'riga-2' })).toBeTruthy()
+  })
+
+  test(`${surface}: U35 o apre una sessione sul todo scelto e non lo cambia`, async ($, on) => {
+    const m = motore(on, [voce(1), voce(2, { titolo: 'Montare il mixer' })])
+    const { pane } = await apri($)
+    await pane.press({ key: 'riga-2' })
+    await pane.press({ key: 'sessione' })
+    expect(m.cli().filter(a => a[0] === 'sessione')).toEqual([['sessione', '--todo', '2']])
+    expect(m.toast[m.toast.length - 1]).toBe('Aperta una sessione nuova su #2: guarda la finestra del terminale.')
+    expect(m.scritture()).toEqual([['sessione', '--todo', '2']])
+    expect(m.archivio.find(t => t.id === 2)?.stato).toBe('da fare')
+    await pane.press({ key: 'annulla' })
+    expect(m.toast[m.toast.length - 1]).toContain('Niente da annullare')
+  })
+
+  test(`${surface}: U35 un terminale che non si apre: l'esito dice cosa fare`, async ($, on) => {
+    const m = motore(on, [voce(4)], {
+      rompi: a => (a[0] === 'sessione' ? { exitCode: 1, stdout: "Non riesco ad aprire un terminale. Lancia questo: claude '/inizio libro'\n", stderr: '' } : null),
+    })
+    const { pane } = await apri($)
+    await pane.press({ key: 'sessione' })
+    expect(m.toast[m.toast.length - 1]).toBe("Non riesco ad aprire un terminale. Lancia questo: claude '/inizio libro'")
   })
 }

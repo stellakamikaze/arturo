@@ -68,11 +68,11 @@ async function python($: EngineInterface): Promise<string[] | null> {
   return null
 }
 
-async function cli($: EngineInterface, argomenti: string[]): Promise<Risposta> {
+async function cli($: EngineInterface, argomenti: string[], comando = 'todo'): Promise<Risposta> {
   const py = await python($)
   if (!py) return { ok: false, testo: 'Non trovo Python: scrivi a Claude "lancia /setup".' }
   try {
-    const r = await $.process.run([...py, $.plugin.root + CLI_REL, 'todo', ...argomenti], { timeoutMs: 15000 })
+    const r = await $.process.run([...py, $.plugin.root + CLI_REL, comando, ...argomenti], { timeoutMs: 15000 })
     if (r.exitCode === 0) return { ok: true, stdout: r.stdout }
     const prima = (r.stderr || r.stdout).split('\n').map(x => x.trim()).find(x => x !== '')
     return { ok: false, testo: prima ?? `La CLI dei todo si è fermata con il codice ${r.exitCode}.` }
@@ -150,6 +150,18 @@ async function agisci($: EngineInterface, verbo: Verbo): Promise<void> {
   await update($, scelto, () => t.id)
   await carica($)
   await dici($, `Fatto: ${voce.etichetta} su #${t.id}. Premi u per annullare.`, true)
+}
+
+// Una finestra nuova del terminale con Claude già partito sul todo scelto (Computer Club N.3,
+// 27/10/2026: "clicco e vado avanti"). Il todo non cambia: niente da annullare.
+async function apriSessione($: EngineInterface): Promise<void> {
+  const t = await sceltaOra($)
+  if (!t) {
+    await dici($, 'Non ci sono righe da scegliere.', false)
+    return
+  }
+  const r = await cli($, ['--todo', String(t.id)], 'sessione')
+  await dici($, r.ok ? `Aperta una sessione nuova su #${t.id}: guarda la finestra del terminale.` : r.testo, r.ok)
 }
 
 async function annulla($: EngineInterface): Promise<void> {
@@ -244,7 +256,7 @@ function dettagli(t: TodoVoce, conProgetto: boolean): string[] {
   ].filter(x => x !== '')
 }
 
-const AIUTO = 'Tasti: numero o j/k per scegliere, f fatto, s ferma, r riprendi, c chi lo fa, a avvicina, l allontana, u annulla, p progetto, Esc chiude.'
+const AIUTO = 'Tasti: numero o j/k per scegliere, o apre una sessione sul todo, f fatto, s ferma, r riprendi, c chi lo fa, a avvicina, l allontana, u annulla, p progetto, Esc chiude.'
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
@@ -325,6 +337,7 @@ export const register: Register = on => {
                 {(Object.keys(VERBI) as Verbo[]).map(verbo => (
                   <Button key={verbo} plain hotkey={VERBI[verbo]!.tasto} label={VERBI[verbo]!.etichetta} onPress={() => agisci($, verbo)} />
                 ))}
+                <Button key="sessione" plain hotkey="o" label="apri sessione" onPress={() => apriSessione($)} />
               </Box>
             ) : null}
             <Box gap={2} flexWrap="wrap">

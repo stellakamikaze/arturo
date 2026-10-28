@@ -477,6 +477,7 @@ def web(argv: list) -> int:
 COMANDI = {
     "todo": (todo, 'i tuoi todo: "arturo todo aiuto" mostra tutti i comandi'),
     "web": (web, "la pagina dei todo nel browser, solo su questo computer"),
+    "sessione": ("sessione", "una finestra nuova del terminale con Claude già partito su un progetto o un todo (/dafare, tasto o)"),
     "segnala": ("segnala", "un problema, un'idea o un'integrazione per chi mantiene Arturo"),
     "telemetria": ("telemetria", "gli eventi d'uso che Arturo manda, con un id casuale: stato, mostra, spegni, accendi, invia"),
     "personale": ("personale", "le tue aggiunte ai comandi e agli hook di sessione di Arturo, in file che gli aggiornamenti non toccano"),

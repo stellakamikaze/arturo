@@ -1,6 +1,6 @@
 ---
 description: Manda a chi mantiene Arturo un problema, un'idea o una richiesta di integrazione - la bozza la scrive Claude, parte solo dopo il tuo sì
-argument-hint: "[cosa vuoi segnalare] (opzionale)"
+argument-hint: "[cosa vuoi segnalare] | stato (opzionale)"
 ---
 
 # Segnala
@@ -17,6 +17,10 @@ La segnalazione riguarda Arturo e Claude Code, non i bug del codice del progetto
 per quelli proponi alla persona di scrivere `/diagnosi`.
 
 **Cosa dice la persona**: $ARGUMENTS
+
+Se la persona scrive `stato`, o chiede che fine hanno fatto le sue segnalazioni, lancia
+`python3 ~/.claude/bin/arturo segnala stato` e racconta l'elenco: in attesa, arrivate, corrette
+(con la novità che le racconta). Poi fermati.
 
 ## Passo 1 — Il tipo
 
@@ -113,7 +117,7 @@ python3 ~/.claude/bin/arturo segnala invia --canale CANALE --file PRONTA
 
 - `arturo`: è arrivata, e l'esito dice il suo numero ("è la segnalazione n. 19"). Dillo alla
   persona: chi mantiene Arturo la legge, e quando esce la correzione `/novita` la racconta con
-  quel numero. Se il server non risponde, la segnalazione resta salvata e parte da sola alla
+  quel numero. `/segnala stato` le mostra tutte con il punto in cui sono. Se il server non risponde, la segnalazione resta salvata e parte da sola alla
   prossima sessione: la persona non deve fare altro.
 - `gh`: la issue si apre subito. Dai il link.
 - `web`: si apre la pagina della issue già compilata. La persona controlla e preme Invia.

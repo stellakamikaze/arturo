@@ -109,7 +109,7 @@ PROMESSA = 7
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
 # ~/.claude/commands/ ha un nome suo: esce come `altro`, che conta l'uso senza dire il nome (24/10/2026).
 # Il banco M10 controlla che l'elenco coincida con commands/ del repository.
-COMANDI = frozenset({"aggiorna", "creaskill", "diagnosi", "fine", "guidami", "inizio", "novita", "segnala",
+COMANDI = frozenset({"aggiorna", "creaskill", "diagnosi", "fine", "guidami", "inizio", "novita", "proponi", "segnala",
                      "setup", "sparring"})
 OGNI = 6 * 3600          # secondi fra due invii automatici
 CODA_MASSIMA = 2000      # righe: oltre, gli eventi nuovi si perdono finché la coda non parte
@@ -424,6 +424,30 @@ def posta(rotta: str, dati: dict, timeout: float = 5) -> int:
     return posta_json(rotta, dati, timeout)[0]
 
 
+def _segna_numero(attesa: Path, dati: dict, numero) -> None:
+    """Una segnalazione partita in differita: la copia .md passa da "in attesa" al suo numero, che
+    /segnala stato incrocia con NOVITA.md (Computer Club N.3, 28/10/2026). La copia ha lo stesso
+    nome del file in attesa; per quelle di prima del 28/10 vale il titolo."""
+    if not isinstance(numero, int) or isinstance(numero, bool) or numero <= 0:
+        return
+    stessa = attesa.with_name(attesa.name.replace(".attesa.json", ".md"))
+    candidate = [stessa] if stessa.exists() else sorted(attesa.parent.glob("*.md"))
+    for copia in candidate:
+        try:
+            testo = copia.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if not testo.startswith(f"# {dati.get('titolo', '')}\n") or "\nEsito: in attesa" not in testo:
+            continue
+        testo = re.sub(r"\nEsito: in attesa[^\n]*", f"\nEsito: arrivata a chi mantiene Arturo: è la segnalazione n. {numero}",
+                       testo, count=1)
+        try:
+            copia.write_text(testo, encoding="utf-8")
+        except OSError:
+            pass
+        return
+
+
 def invia_segnalazioni_in_attesa() -> int:
     """Le segnalazioni approvate ma non partite: sono un sì della persona, partono anche a telemetria spenta."""
     partite = 0
@@ -432,8 +456,9 @@ def invia_segnalazioni_in_attesa() -> int:
             dati = json.loads(f.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        status = posta("/v1/segnalazioni", dati)
+        status, risposta = posta_json("/v1/segnalazioni", dati)
         if 200 <= status < 300:
+            _segna_numero(f, dati, risposta.get("numero"))
             f.unlink()
             partite += 1
         elif status in (400, 413):

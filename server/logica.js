@@ -39,7 +39,7 @@ export const REGOLE = {
 };
 // COMANDI: i file di commands/, lo stesso elenco di COMANDI in bin/telemetria.py (banco M10). Il client manda
 // "altro" per un comando che non è di Arturo: il server lo accetta, il nome vero non esce mai.
-export const COMANDI = ["aggiorna", "creaskill", "diagnosi", "fine", "guidami", "inizio", "novita", "segnala", "setup", "sparring"];
+export const COMANDI = ["aggiorna", "creaskill", "diagnosi", "fine", "guidami", "inizio", "novita", "proponi", "segnala", "setup", "sparring"];
 
 // I nomi di Arturo che la deriva può dire oltre la forma (24/10/2026). La regex di `deriva` resta uguale, lettera per
 // lettera, a quella del client (banco A01): la chiusura sta in derivaPubblica, come percorso_pubblico nel client.
