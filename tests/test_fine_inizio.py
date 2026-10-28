@@ -919,7 +919,9 @@ def test_f20(repo: Path) -> None:
     """Il blocco di /inizio che crea un progetto nuovo espande la tilde di PROJECTS_BASE (segnalazione n. 19,
     27/10/2026): con PROJECTS_BASE="~/Progetti" nasceva una cartella chiamata ~ dentro quella corrente."""
     inizio = read(repo / "commands" / "inizio.md")
-    blocco = next(b for b in re.findall(r"```bash\n(.*?)```", inizio, re.DOTALL) if 'mkdir -p "$BASE/$NOME"' in b)
+    blocchi = [b for b in re.findall(r"```bash\n(.*?)```", inizio, re.DOTALL) if 'mkdir -p "$BASE/$NOME"' in b]
+    assert blocchi, "F20 /inizio non ha il blocco che crea un progetto nuovo"
+    blocco = blocchi[0]
 
     def prova(lab: Lab) -> None:
         script = lab.home / "nuovo.sh"
