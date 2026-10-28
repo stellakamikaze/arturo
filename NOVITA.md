@@ -11,6 +11,22 @@ modo di lavorare.
 
 ---
 
+## 2026-10-28 — Meno conferme quando Claude legge il web con uno script
+
+**Cosa cambia**: uno script che legge pagine o servizi web, per esempio per cercare su archive.org una
+copia dei link morti, non ti chiede più "Invio di dati (POST/upload)". La guardia anti-esfiltrazione
+chiede conferma solo quando un file del tuo computer parte verso un server esterno (un upload con
+`curl -F @file`), o quando un comando apre un canale di rete grezzo (`nc`, `/dev/tcp`). Il resto lo
+giudica il classificatore di auto mode, che legge lo script e capisce se legge o se porta fuori dati.
+
+**Il principio dietro**: una guardia chiede solo dove la forma del comando basta a decidere. Dove serve
+capire cosa fa il codice, decide chi lo legge.
+
+**Da sapere**: la conferma arrivava anche sulla sola lettura, e chi la vede dieci volte al giorno impara
+a rispondere sì senza leggere. Se usi auto mode, il controllo resta: lo fa il classificatore.
+
+---
+
 ## 2026-10-28 — Le domande della sera del Computer Club
 
 **Cosa cambia**: la barra in basso scrive la quota in parole, "5 ore" e "settimana", e dice sempre a

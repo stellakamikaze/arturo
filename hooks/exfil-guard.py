@@ -3,24 +3,22 @@
 
 Due rami:
 
-  (A) POST/upload  (curl/wget con metodo mutante o payload; python requests.post/
-      urllib/httpx/smtplib) -> host esterno = ask, host interno = allow.
-      Comportamento storico invariato.
+  (A) POST/upload  (curl/wget con metodo mutante o payload) -> host esterno = ask,
+      host interno = allow. Il dispatcher manda qui solo l'upload di un FILE LOCALE
+      (`-F @file`, `-T`, `-d @file`): la forma con cui una chiave o un dump escono.
 
-  (B) EGRESS-GET mascherato (NUOVO): canali che portano dati fuori senza POST e che
-      quindi sfuggivano al ramo A:
-        - curl/wget GET con command-substitution $()/backtick nell'URL, o query con
-          blob opaco/base64 lungo, verso host esterno
-        - DNS-exfil: dig/nslookup/host con sottodominio che sembra dati (base64/hex >=20)
-        - /dev/tcp/<host> redirection bash
-        - nc/ncat verso host esterno
-      Tutti -> ask (host interni esclusi).
-      Dal 17/10/2026 (#3506) il dispatcher li manda qui anche col ramo GET spento, e in più:
-        - curl/wget con $() o backtick fuori dai valori di intestazioni e credenziali: chiede
-          anche se l'host non si legge (l'URL intero arriva da una sostituzione);
+  (B) Canali di rete grezzi, che portano fuori dati senza un client HTTP:
+        - /dev/tcp e /dev/udp verso un host esterno o che non si legge (una variabile);
         - una pipe verso nc/ncat/netcat/socat, verso un IP, un nome o una variabile;
-        - /dev/tcp e /dev/udp verso un host che non si legge (una variabile);
-        - fetch( e http(s).request/get dentro node, deno, bun o python.
+        - nc/ncat verso host esterno; DNS-exfil e blob opachi in un curl, se il comando
+          arriva qui per uno dei casi sopra.
+      Tutti -> ask (host interni esclusi).
+
+Contratto del 28/10/2026 (Federico: "togli i controlli"): una guardia chiede solo sui rail, dove
+la forma del comando basta a decidere. Il codice Python, node o curl che chiama la rete (GET, POST
+generico, $() nell'URL) non arriva più qui: lo giudica il classificatore di auto mode, che legge
+il codice. Una regex non distingue uno script che legge archive.org da uno che porta fuori un
+file, e ogni tentativo ha prodotto falsi positivi (ramo spento e riacceso cinque volte dal 12/7).
 
 comms-guard.py (messaggistica/email nota) gira PRIMA e chiede conferma su quei casi.
 Gli scanner PostToolUse (credential-leak) restano come secondo layer detective.
@@ -198,15 +196,6 @@ OTHER_FLAG_VAL = re.compile(
     r'|--cookie-jar|-w|--write-out|--cacert|--cert|--key|-K|--config|-O|--output-document'
     r'|-a|--append-output|--save-cookies|--load-cookies)[\s=]*(?:\$?\'[^\']*\'|"[^"]*"|[^\s"\']+)',
 )
-# Valori dove una sostituzione è l'uso normale: un token letto da file in un'intestazione o nelle
-# credenziali (`-H "Authorization: Bearer $(cat t)"`, GS01), cookie, file di uscita, certificati. Restano
-# fuori user-agent e referer: lì un comando non ha usi legittimi, e portava fuori dati in silenzio
-# (20/10/2026, #3524: `curl -A "$(cat f)"`). Scelta di attrito: fluidità sulle intestazioni.
-NON_DATI_FLAG_VAL = re.compile(
-    r'(?<![\w-])(?:-o|--output|-H|--header|-u|--user|-b|--cookie|-c|--cookie-jar|-w|--write-out|--cacert'
-    r'|--cert|--key|-K|--config|-O|--output-document|-a|--append-output|--save-cookies|--load-cookies)'
-    r'[\s=]*(?:\$?\'[^\']*\'|"[^"]*"|[^\s"\']+)',
-)
 BARE_HOST = re.compile(r'(?<![\w@/.:=-])([A-Za-z0-9][A-Za-z0-9-]*(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})(?::\d+)?(?:/[^\s"\']*)?(?![\w.(])')
 # Nomi di moduli python: `import json, urllib.request`, `from urllib.request import x`, `python3 -m json.tool`.
 # Hanno la forma di un dominio senza schema, e in un POST verso un host interno chiedevano conferma
@@ -222,9 +211,7 @@ FILE_EXT = frozenset("txt json md csv log pdf png jpg jpeg gif html htm xml yaml
 POST_MARKERS = re.compile(
     r'(curl|wget)\b[^\n]*(-X\s*(POST|PUT|PATCH|DELETE)|--request\s*(POST|PUT|PATCH|DELETE)'
     r'|-d\b|--data|-F\b|--form|-T\b|--upload-file|--post-file|--post-data|--body-file|--body-data'
-    r'|--method[=\s]*(POST|PUT|PATCH|DELETE))'
-    r'|requests\.(post|put|patch|delete)|urllib\.request|httpx\.(post|put|patch)'
-    r'|import\s+smtplib|smtplib\.',
+    r'|--method[=\s]*(POST|PUT|PATCH|DELETE))',
     re.IGNORECASE,
 )
 
@@ -239,14 +226,8 @@ DNS_EXFIL = re.compile(
     re.IGNORECASE,
 )
 DEV_TCP = re.compile(r'/dev/(?:tcp|udp)/([^/\s"\']*)', re.IGNORECASE)
-# Una sostituzione vera: $( oppure una coppia di backtick (un backtick solo chiude quella di prima).
-SOSTITUZIONE = re.compile(r'\$\(|`[^`]*`')
 CURL_SEG = re.compile(r'\b(?:curl|wget)\b[^\n|;&]*', re.IGNORECASE)
 NC_PIPE = re.compile(r'\|\s*(?:sudo\s+)?(?:\S*/)?(nc|ncat|netcat|socat)\b([^\n|;&]*)', re.IGNORECASE)
-INTERPRETE = re.compile(r'(?:^|[\s;&|(/])(?:node|nodejs|deno|bun|python3?)(?:\.\d+)?(?=\s|$)')
-CHIAMATA_RETE = re.compile(r'(?<![\w.$])fetch\s*\(|\bhttps?[\'"]?\)?\.(?:request|get)\s*\('
-                           r'|\brequests\.(?:get|head|request|Session)\b|\bhttpx\.(?:get|head|request|stream|Client)\b'
-                           r'|\burlopen\s*\(')
 NC_HOST = re.compile(r'\b(nc|ncat)\b\s+[^\n|;&]*?\b([A-Za-z0-9][A-Za-z0-9.\-]+\.[A-Za-z]{2,})\b',
                      re.IGNORECASE)
 
@@ -362,11 +343,6 @@ def main() -> int:
         if not _solo_fidati(_destinazioni_nc(m.group(1), m.group(2))):
             return _ask(f"Pipe verso {m.group(1)}: i dati del comando prima vanno a un host esterno, o a "
                         "uno che non si legge. Conferma solo se l'invio è voluto.")
-    # fetch( e http(s).request/get dentro node, deno, bun o python
-    if INTERPRETE.search(cmd) and CHIAMATA_RETE.search(cmd):
-        if not _solo_fidati(_hosts(cmd)):
-            return _ask("Codice node o python che chiama la rete (fetch, http.request) verso un host "
-                        "esterno o che non si legge: può portare fuori dati. Conferma solo se voluto.")
     # DNS-exfil: comando dig/nslookup/host con dati interpolati ($()/backtick) o
     # sottodominio che sembra dati codificati.
     if DNS_CMD.search(cmd) and (CMD_SUB.search(cmd) or DNS_EXFIL.search(cmd)):
@@ -377,15 +353,6 @@ def main() -> int:
     if m and _external_host(m.group(2)):
         return _ask("nc/ncat verso un host esterno (canale di esfiltrazione). "
                     "Conferma solo se voluto.")
-    # curl/wget con command-substitution nell'URL, nello user-agent o nel referer, verso un host non
-    # fidato: chiede. Intestazioni, credenziali, cookie e file di uscita restano fuori (NON_DATI_FLAG_VAL).
-    # Se l'host non si legge, perché l'URL intero arriva da una sostituzione, si chiede lo stesso.
-    for seg in CURL_SEG.findall(cmd):
-        resto = NON_DATI_FLAG_VAL.sub(" ", DATA_FLAG_VAL.sub(" ", seg))
-        if SOSTITUZIONE.search(resto) and not _solo_fidati(_hosts(resto)):
-            return _ask("curl/wget con dati interpolati nell'URL ($()/backtick), verso un host "
-                        "esterno o che non si legge: possibile esfiltrazione via GET. "
-                        "Conferma solo se voluto.")
     # curl/wget GET con blob opaco lungo nell'URL verso host esterno
     for h, rest in CURL_URL.findall(cmd):
         if _external_host(h):

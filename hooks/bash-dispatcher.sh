@@ -126,21 +126,24 @@ PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*77
 # Dal 15/10/2026 anche dentro virgolette (`bash -c 'git commit'`, `eval "git commit"`) e dopo
 # nohup, time, xargs e sudo: commit-secret-gate.py sa già leggerli, il pre-filtro non lo chiamava.
 PATTERN_COMMIT="(^|[;&|(\`'\"${_NL}])[[:space:]]*((env|command|exec|nohup|time|xargs|sudo)[[:space:]]+)*([A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*[[:space:]]+)*(git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+commit|gh[[:space:]]+pr[[:space:]]+create)"
-# exfil: POST/upload di dati (curl/wget con metodo o payload; python post/smtplib).
+# exfil: upload di un FILE LOCALE con curl o wget (`-F @file`, `-T`, `--upload-file`, `-d @file`), la forma
+# con cui una chiave o un dump escono dalla macchina. Dal 28/10/2026 il POST generico e il codice python
+# che chiama la rete non passano più da qui: li giudica il classificatore di auto mode (contratto delle
+# guardie: certezze all'hook, dubbi al classificatore). Le email via smtplib restano a comms-guard.
 # _FINE_ARG chiude un argomento nella shell (uno spazio) o in una lista python (`'curl', '-d', '@x'`):
 # con il solo spazio un invio da subprocess.run([...]) passava senza conferma (21/10/2026, #3645).
 _FINE_ARG="([[:space:]]|[\"'],[[:space:]]*[\"']?)"
-PATTERN_EXFIL='(curl|wget)'"$_FINE_ARG"'.*(-X[[:space:]]*(POST|PUT|PATCH|DELETE)|--request[[:space:]]*(POST|PUT|PATCH|DELETE)|-d'"$_FINE_ARG"'|--data|-F'"$_FINE_ARG"'|--form|-T'"$_FINE_ARG"'|--upload-file|--(post|body)-(file|data)|--method[=[:space:]]*(POST|PUT|PATCH|DELETE))|requests\.(post|put|patch|delete)|urllib\.request|httpx\.(post|put|patch)|import[[:space:]]+smtplib|smtplib\.'
+PATTERN_EXFIL='(curl|wget)[^|;&]*(-F'"$_FINE_ARG"'*[^[:space:]]*@|--form'"$_FINE_ARG"'*[^[:space:]]*@|-T'"$_FINE_ARG"'|--upload-file|--(post|body)-file|-d'"$_FINE_ARG"'*@|--data[a-z-]*'"$_FINE_ARG"'*@)'
 # exfil ramo egress-GET/transport: canali che portano dati fuori SENZA POST e che
 # sfuggivano al pattern sopra — curl/wget GET, DNS-exfil (dig/nslookup/host),
 # /dev/tcp, netcat/socat. exfil-guard.py decide poi con precisione (ask solo su
 # command-substitution/blob-opaco/host esterno; host interni esclusi).
 PATTERN_EGRESS_GET='(^|[;&|[:space:]])(curl|wget|dig|nslookup|host|nc|ncat|socat)[[:space:]]|/dev/tcp/'
-# 17/10/2026 (#3506): il ramo GET resta spento, ma i canali che portano fuori dati senza POST vanno a
-# exfil-guard: curl o wget con $( o un backtick nel comando, una pipe verso nc/ncat/netcat/socat,
-# /dev/tcp e /dev/udp, fetch( e http(s).request/get dentro node, deno, bun o python. Un curl o un wget
-# senza sostituzioni non arriva qui: il GET innocuo resta senza attrito.
-PATTERN_EGRESS_SOSPETTO='(curl|wget)[[:space:]][^|;&]*(\$\(|`[^`]*`)|\|[[:space:]]*(sudo[[:space:]]+)?(nc|ncat|netcat|socat)([[:space:]]|$)|/dev/(tcp|udp)/|(node|nodejs|deno|bun|python3?)[[:space:]].*(fetch[[:space:]]*\(|https?.{0,3}\.(request|get)[[:space:]]*\(|requests\.(get|head|request|Session)|httpx\.(get|head|request|stream|Client)|urlopen[[:space:]]*\()'
+# Il ramo GET resta spento. Vanno a exfil-guard i soli canali di rete grezzi: una pipe verso
+# nc/ncat/netcat/socat, /dev/tcp e /dev/udp. Dal 28/10/2026 curl con $() e il codice node o python che
+# chiama la rete non passano più da qui: li giudica il classificatore di auto mode. Uno script che
+# legge archive.org con urllib riceveva "Invio di dati (POST/upload)".
+PATTERN_EGRESS_SOSPETTO='\|[[:space:]]*(sudo[[:space:]]+)?(nc|ncat|netcat|socat)([[:space:]]|$)|/dev/(tcp|udp)/'
 # Una redirezione verso /dev/tcp scrive in rete anche da un comando che sembra sola lettura (`echo x > /dev/tcp/…`).
 PATTERN_DEV_TCP='[<>]&?[[:space:]]*/dev/(tcp|udp)/'
 # git clean -f con opzioni in mezzo (`git -C dir clean -fdx`, `git -c k=v clean --force`).
@@ -266,7 +269,7 @@ fi
 # Block dangerous: rm su tree protetti, bw export, scrittura config/hook, fork bomb...
 [[ "$GUARD_COMMAND" =~ $PATTERN_DANGER ]] && run_guard block-dangerous.py
 
-# Exfil guard: POST/upload di dati verso host esterni -> ask. Come per comms, si giudica il
+# Exfil guard: upload di un file locale verso host esterni -> ask. Come per comms, si giudica il
 # codice eseguito: COMMS_REDUCED e' il comando senza gli heredoc scritti su file (vuoto se
 # il comando solo legge). Se il pre-filtro non gira, si giudica il comando intero.
 if [[ "$GUARD_COMMAND" =~ $PATTERN_EXFIL ]]; then
@@ -277,10 +280,10 @@ if [[ "$GUARD_COMMAND" =~ $PATTERN_EXFIL ]]; then
     fi
 fi
 
-# Scelta di attrito approvata: GET disattivato; POST e upload restano protetti.
+# Scelta di attrito approvata: GET e POST generico disattivati; l'upload di un file locale resta protetto.
 # [[ "$GUARD_COMMAND" =~ $PATTERN_EGRESS_GET ]] && run_guard exfil-guard.py
 
-# I canali di PATTERN_EGRESS_SOSPETTO (17/10/2026, #3506) passano da exfil-guard, sul codice eseguito come
+# I canali di PATTERN_EGRESS_SOSPETTO (17/10/2026, #3506, ridotti il 28/10) passano da exfil-guard, sul codice eseguito come
 # per il POST. Una redirezione verso /dev/tcp si giudica sul comando intero: il pre-filtro tace su
 # `echo`, che lì scrive in rete.
 if [[ "$GUARD_COMMAND" =~ $PATTERN_EGRESS_SOSPETTO ]]; then
