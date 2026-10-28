@@ -11,6 +11,25 @@ modo di lavorare.
 
 ---
 
+## 2026-10-28 — Le domande della sera del Computer Club
+
+**Cosa cambia**: la barra in basso scrive la quota in parole, "5 ore" e "settimana", e dice sempre a
+che ora si azzerano le 5 ore. `/guidami` legge la quota: se ne avanza molta e l'azzeramento è vicino,
+te lo dice e mette in cima i lavori lunghi che Claude può fare mentre tu fai altro. Se chiedi cos'è il
+contesto, che differenza c'è tra git e GitHub, cos'è un branch, cosa succede alle tue modifiche quando
+Arturo si aggiorna, cos'è un subagent o ultracode, Claude risponde in poche frasi e ti dice dove trovi
+la cosa in Arturo. Quando `/segnala` arriva, ti dice il suo numero: è quello con cui la correzione
+compare qui. Una segnalazione rimasta in attesa parte alla sessione dopo da sola, senza portarsi dietro
+i dati d'uso prima delle 6 ore.
+
+**Il principio dietro**: una domanda che torna tre volte a voce è una funzione che manca.
+
+**Da sapere**: sono le domande fatte alla terza sera del Computer Club, il 27/10, da chi usava Arturo da
+una settimana. Il pannello `/dafare` c'era già: ora il riepilogo di `/setup` lo presenta, insieme alla
+barra e al suono di quando Claude ti aspetta.
+
+---
+
 ## 2026-10-27 — /fine non lascia archivi a metà, e /segnala dice perché non è partita
 
 **Cosa cambia**: se usi Arturo senza un tuo repository remoto, `/fine` toglie dal tracciamento di git

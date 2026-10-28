@@ -399,18 +399,29 @@ def _scrivi_coda_atomica(righe: list) -> None:
         raise
 
 
-def posta(rotta: str, dati: dict, timeout: float = 5) -> int:
-    """POST JSON. Torna lo status HTTP, 0 se la rete non risponde."""
+def posta_json(rotta: str, dati: dict, timeout: float = 5) -> tuple:
+    """POST JSON. Torna (status HTTP, risposta in JSON): (0, {}) se la rete non risponde, {} se la
+    risposta non è un oggetto JSON. /segnala ne legge il numero della segnalazione."""
     corpo = json.dumps(dati, ensure_ascii=False).encode("utf-8")
     richiesta = urllib.request.Request(url() + rotta, data=corpo, method="POST",
                                        headers={"content-type": "application/json", "user-agent": "arturo"})
     try:
         with urllib.request.urlopen(richiesta, timeout=timeout) as r:
-            return r.status
+            status = r.status
+            try:
+                risposta = json.loads(r.read(65536).decode("utf-8"))
+            except (OSError, ValueError, UnicodeDecodeError):
+                risposta = {}
+            return status, risposta if isinstance(risposta, dict) else {}
     except urllib.error.HTTPError as e:
-        return e.code
+        return e.code, {}
     except (urllib.error.URLError, OSError, ValueError):
-        return 0
+        return 0, {}
+
+
+def posta(rotta: str, dati: dict, timeout: float = 5) -> int:
+    """POST JSON. Torna lo status HTTP, 0 se la rete non risponde."""
+    return posta_json(rotta, dati, timeout)[0]
 
 
 def invia_segnalazioni_in_attesa() -> int:

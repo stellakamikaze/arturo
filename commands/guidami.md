@@ -66,6 +66,35 @@ PY
 Il nome della cartella è il percorso del progetto con i trattini al posto delle barre: ti dice su
 cosa stava lavorando.
 
+**La quota** — quanto resta dell'abbonamento e quando si azzera. La barra in basso ne salva l'ultima
+lettura:
+
+```bash
+python3 - <<'PY'
+import json, pathlib, time
+f = pathlib.Path.home() / ".claude" / "cache" / "statusline" / "quota.json"
+try:
+    q = json.loads(f.read_text(encoding="utf-8"))
+except (OSError, ValueError):
+    print("quota: non ancora letta")
+    raise SystemExit(0)
+print(f"letta {(time.time() - f.stat().st_mtime) / 60:.0f} minuti fa")
+for nome, chiave in (("5 ore", "cinque_ore"), ("settimana", "settimana")):
+    v = q.get(chiave) or {}
+    if isinstance(v.get("pct"), int):
+        r = v.get("resets")
+        quando = time.strftime("%a %H:%M", time.localtime(r)) if isinstance(r, (int, float)) else "?"
+        print(f"{nome}: usata {v['pct']}%, si azzera {quando}")
+PY
+```
+
+Usala per scegliere la taglia del lavoro, non per fare paura. Se avanza molta quota e l'azzeramento
+è vicino, dillo in apertura ("ti resta il 60% fino alle 14:00") e metti in cima i lavori lunghi che
+puoi fare tu mentre la persona fa altro: revisioni, ordine nei todo, un progetto fermo da riprendere.
+Se la quota è quasi finita, proponi passi piccoli e di' quando si azzera. Una lettura vecchia di ore
+non vale: in quel caso non citarla. È la domanda che è tornata più volte alla sera del Computer Club
+del 27/10/2026: "ho token e tempo, cosa facciamo?".
+
 ## Passo 2 — Scarta quello che è già fatto
 
 Una cosa lasciata aperta in un handoff può essere stata chiusa il giorno dopo. Prima di proporla,

@@ -162,7 +162,34 @@ function aggiornamentoSegmento() {
 // --- Quota dell'abbonamento ------------------------------------------------
 // Arriva già su stdin (`rate_limits`): nessuna lettura, nessun processo.
 // Chiavi assenti (prima della prima risposta, o piano senza limiti dichiarati,
-// o uso via API) -> segmento vuoto. 5h e 7g sono le due finestre della quota.
+// o uso via API) -> segmento vuoto. Le due finestre della quota si dicono in
+// parole, "5 ore" e "settimana": alla sera del Computer Club del 27/10/2026 chi
+// leggeva "5h 84%" lo prendeva per la quota della settimana.
+const QUOTA_FILE = path.join(GIT_CACHE_DIR, 'quota.json');
+const GIORNI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
+
+function hhmm(d) {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+// L'ultima quota vista, per /guidami: sa quanto resta e quando si azzera senza
+// chiederlo alla persona. Si scrive solo quando cambia, con rename atomico; sta
+// in cache/, che git ignora e gli aggiornamenti non toccano.
+function salvaQuota(corta, lunga) {
+  try {
+    const dati = JSON.stringify({ cinque_ore: corta, settimana: lunga });
+    let prima = '';
+    try { prima = fs.readFileSync(QUOTA_FILE, 'utf8'); } catch (e) {}
+    if (prima === dati) return;
+    fs.mkdirSync(GIT_CACHE_DIR, { recursive: true });
+    const tmp = `${QUOTA_FILE}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, dati);
+    fs.renameSync(tmp, QUOTA_FILE);
+  } catch (e) {
+    // La barra non si ferma per un file di appoggio
+  }
+}
+
 function quotaSegmento(rate) {
   try {
     if (!rate || typeof rate !== 'object') return '';
@@ -171,26 +198,28 @@ function quotaSegmento(rate) {
       if (!v || typeof v !== 'object') return null;
       const p = v.used_percentage;
       if (typeof p !== 'number' || !Number.isFinite(p)) return null;
-      return { pct: Math.max(0, Math.min(100, Math.round(p))), resets: v.resets_at };
+      const r = typeof v.resets_at === 'number' && Number.isFinite(v.resets_at) ? v.resets_at : null;
+      return { pct: Math.max(0, Math.min(100, Math.round(p))), resets: r };
     };
     const corta = leggi('five_hour');
     const lunga = leggi('seven_day');
     if (!corta && !lunga) return '';
+    salvaQuota(corta, lunga);
 
     const picco = Math.max(corta ? corta.pct : 0, lunga ? lunga.pct : 0);
     const colore = picco >= 90 ? '\x1b[5;31m' : picco >= 75 ? '\x1b[38;5;208m'
       : picco >= 50 ? '\x1b[33m' : '\x1b[32m';
-    // L'orario di riazzeramento compare solo quando la finestra stringe davvero:
-    // sotto il 75% è un dato che non cambia nessuna decisione.
-    const orario = v => {
-      if (!v || v.pct < 75 || typeof v.resets !== 'number' || !Number.isFinite(v.resets)) return '';
+    // L'orario di azzeramento delle 5 ore si vede sempre: dice quanto tempo resta
+    // per usare quello che avanza. Quello della settimana solo da 75%, col giorno.
+    const azzera = (v, conGiorno) => {
+      if (!v || v.resets === null) return '';
       const d = new Date(v.resets * 1000);
       if (Number.isNaN(d.getTime())) return '';
-      return `⟳${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      return `, si azzera ${conGiorno ? GIORNI[d.getDay()] + ' ' : 'alle '}${hhmm(d)}`;
     };
     const pezzi = [];
-    if (corta) pezzi.push(`5h ${corta.pct}%${orario(corta)}`);
-    if (lunga) pezzi.push(`7g ${lunga.pct}%${orario(lunga)}`);
+    if (corta) pezzi.push(`5 ore ${corta.pct}%${azzera(corta, false)}`);
+    if (lunga) pezzi.push(`settimana ${lunga.pct}%${lunga.pct >= 75 ? azzera(lunga, true) : ''}`);
     return ` │ ${colore}quota ${pezzi.join(' · ')}\x1b[0m`;
   } catch (e) {
     return '';

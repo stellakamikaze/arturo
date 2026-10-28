@@ -305,9 +305,14 @@ def invia(opz: dict) -> int:
         # L'id lega la segnalazione agli eventi d'uso solo se la telemetria è accesa.
         if not telemetria.perche_spenta():
             dati_server["installazione"] = telemetria.installazione()
-        status = telemetria.posta("/v1/segnalazioni", dati_server, timeout=10)
+        status, risposta = telemetria.posta_json("/v1/segnalazioni", dati_server, timeout=10)
         if 200 <= status < 300:
             esito = "arrivata a chi mantiene Arturo"
+            # Il numero è quello che torna nelle /novita quando esce la correzione: chi segnala lo deve
+            # sapere (Computer Club, 27/10/2026: "quando faccio il segnale cosa succede?").
+            numero = risposta.get("numero")
+            if isinstance(numero, int) and not isinstance(numero, bool) and numero > 0:
+                esito += f": è la segnalazione n. {numero}"
             # Il server risponde: partono anche quelle rimaste in attesa (Liliana, 27/10/2026).
             partite = telemetria.invia_segnalazioni_in_attesa()
             if partite:

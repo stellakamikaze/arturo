@@ -111,8 +111,10 @@ python3 ~/.claude/bin/arturo segnala invia --canale CANALE --file PRONTA
 
 `PRONTA` è il percorso stampato da `prepara` nella riga `PRONTA:`.
 
-- `arturo`: è arrivata. Se il server non risponde, la segnalazione resta salvata e parte da sola
-  alla prossima sessione: la persona non deve fare altro.
+- `arturo`: è arrivata, e l'esito dice il suo numero ("è la segnalazione n. 19"). Dillo alla
+  persona: chi mantiene Arturo la legge, e quando esce la correzione `/novita` la racconta con
+  quel numero. Se il server non risponde, la segnalazione resta salvata e parte da sola alla
+  prossima sessione: la persona non deve fare altro.
 - `gh`: la issue si apre subito. Dai il link.
 - `web`: si apre la pagina della issue già compilata. La persona controlla e preme Invia.
 - `email`: il testo è negli appunti. La persona apre il suo programma di posta, incolla e invia.

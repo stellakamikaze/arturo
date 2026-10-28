@@ -498,7 +498,7 @@ def test_g210(repo: Path) -> None:
         assert "Opus5·1M" in r, f"G210 il modello non è abbreviato: {r!r}"
         assert "Rileggo il capitolo" in r, f"G210 il task in corso sparisce: {r!r}"
         assert "romanzo" in r and "@bozza" in r, f"G210 manca progetto@ramo: {r!r}"
-        assert "5h 82%" in r and "7g 12%" in r, f"G210 manca la quota: {r!r}"
+        assert "5 ore 82%" in r and "settimana 12%" in r, f"G210 manca la quota: {r!r}"
         assert "@bozza*" not in r, f"G210 tree pulito segnato come modificato: {r!r}"
         (progetto / "a.md").write_text("y\n", encoding="utf-8")
         time.sleep(16)  # la statusline rilancia git status al massimo ogni 15 s

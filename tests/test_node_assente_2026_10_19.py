@@ -69,7 +69,7 @@ def test_na01(repo: Path) -> None:
             env["PATH"] = f"{Path(node).parent}:{env['PATH']}"
             p = subprocess.run(["/bin/sh", "-c", comando_barra(repo)], input=ENTRATA, env=env,
                                capture_output=True, text=True, timeout=20)
-            assert p.returncode == 0 and "quota 5h 15%" in p.stdout and "manca node" not in p.stdout, \
+            assert p.returncode == 0 and "quota 5 ore 15%" in p.stdout and "manca node" not in p.stdout, \
                 f"NA01 con node la barra non è quella di statusline.js: {p.stdout!r}"
 
 

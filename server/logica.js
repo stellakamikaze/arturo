@@ -50,7 +50,7 @@ export const COMANDI = ["aggiorna", "creaskill", "diagnosi", "fine", "guidami", 
 // Il banco TF05 (tests/test_telemetria_f1_2026_10_24.py) confronta questi elenchi col repository.
 export const DERIVA_NOMI = {
   radice: [".gitattributes", ".gitignore", "LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "SECURITY.md", "package.json", "settings.json"],
-  skills: ["apri", "cache-fredda", "dafare", "gws", "italiano-semplificato", "prompt-master", "redazione-segreti", "riscrivi-bash",
+  skills: ["apri", "cache-fredda", "concetti", "dafare", "gws", "italiano-semplificato", "prompt-master", "redazione-segreti", "riscrivi-bash",
     "system-audit", "todo"],
   agents: ["architecture-reviewer.md", "bug-finder.md", "fact-checker.md", "performance-profiler.md", "researcher.md",
     "structural-completeness-reviewer.md", "test-runner.md", "ui-ux-consultant.md"],

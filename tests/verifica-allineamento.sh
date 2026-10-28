@@ -132,6 +132,7 @@ BANCHI=(
   test_telemetria_f1_2026_10_24.py
   test_archivi_aggiorna_2026_10_26.py
   test_segnalazioni_2026_10_27.py
+  test_computer_club_2026_10_28.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -272,6 +273,9 @@ BASELINE=(
   # Segnalazioni n. 15 e n. 16 del 26/10/2026 (heredoc nel worktree, sudo col prefisso !) e codice
   # nel messaggio di /segnala quando il server non accetta (27/10/2026): 32a574e, il dev prima.
   "test_segnalazioni_2026_10_27.py 32a574e"
+  # Le domande della sera del Computer Club del 27/10/2026 (quota in parole, /guidami con la quota, concetti,
+  # numero della segnalazione, /setup che presenta /dafare): 443b191, il dev prima.
+  "test_computer_club_2026_10_28.py 443b191"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"
