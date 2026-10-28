@@ -493,6 +493,10 @@ def test_m20(repo: Path) -> None:
             break
         time.sleep(0.1)
     assert any(p == "/v1/segnalazioni" for p, _d in srv.richieste), "M20 la segnalazione in attesa aspetta le 6 ore"
+    # Il rinvio manda solo le segnalazioni: gli eventi d'uso aspettano le 6 ore promesse da docs/privacy.md
+    # (revisione del 27/10 sera, #4073). La sessione appena registrata è in coda: se l'invio fosse intero partirebbe.
+    time.sleep(1.5)
+    assert not any(p == "/v1/eventi" for p, _d in srv.richieste), "M20 il rinvio manda gli eventi prima delle 6 ore"
     # Una segnalazione che parte si porta dietro quelle rimaste in attesa.
     (attesa / "2026-10-27_091803_proposta.attesa.json").write_text(json.dumps(vecchia), encoding="utf-8")
     bozza = lab.dir / "bozza.md"

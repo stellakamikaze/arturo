@@ -125,6 +125,7 @@ AIUTO = f"""arturo telemetria: gli eventi d'uso che Arturo manda a chi lo mantie
   spegni         la spegne e svuota la coda
   accendi        la riaccende
   invia          manda adesso la coda e le segnalazioni in attesa
+  segnalazioni   manda adesso solo le segnalazioni in attesa
 
 Escono solo questi eventi, con il giorno e mai l'ora: {", ".join(EVENTI)}.
 Dei file di Arturo modificati o in conflitto solo la posizione nel repository di Arturo, che è
@@ -531,7 +532,7 @@ def avvio() -> int:
         stato = leggi_stato()
         if perche_spenta(stato):
             if any(cartella_attesa().glob("*.attesa.json")):
-                _invio_in_background()
+                _invio_in_background(solo_segnalazioni=True)
             return 0
         registra("sessione")
         if stato.get("avviso_promessa") != PROMESSA:
@@ -547,22 +548,26 @@ def avvio() -> int:
                   "Si spegne con: python3 ~/.claude/bin/arturo telemetria spegni")
             cambia_stato(lambda s: s.update(avviso=ts.oggi().isoformat(), avviso_promessa=PROMESSA))
         # Una segnalazione in attesa parte alla sessione dopo, come promette /segnala, senza aspettare le 6 ore
-        # dell'invio degli eventi (Liliana, 27/10/2026).
+        # dell'invio degli eventi (Liliana, 27/10/2026). Parte da sola: gli eventi aspettano le 6 ore promesse
+        # da docs/privacy.md (#4073).
         ultimo = stato.get("ultimo_tentativo")
-        if not isinstance(ultimo, int) or time.time() - ultimo > OGNI or any(cartella_attesa().glob("*.attesa.json")):
+        if not isinstance(ultimo, int) or time.time() - ultimo > OGNI:
             _invio_in_background()
+        elif any(cartella_attesa().glob("*.attesa.json")):
+            _invio_in_background(solo_segnalazioni=True)
     except Exception:  # noqa: BLE001
         pass
     return 0
 
 
-def _invio_in_background() -> None:
+def _invio_in_background(solo_segnalazioni: bool = False) -> None:
     opzioni = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
     if os.name == "nt":
         opzioni["creationflags"] = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
     else:
         opzioni["start_new_session"] = True
-    subprocess.Popen([sys.executable, os.path.realpath(__file__), "invia", "--zitto"], **opzioni)
+    comando = ["segnalazioni"] if solo_segnalazioni else ["invia", "--zitto"]
+    subprocess.Popen([sys.executable, os.path.realpath(__file__), *comando], **opzioni)
 
 
 def main(argv: list) -> int:
@@ -599,6 +604,9 @@ def main(argv: list) -> int:
             spenta = perche_spenta()
             print(f"Eventi partiti: {partiti}" + (f" (telemetria spenta: {spenta})" if spenta else "")
                   + f". Segnalazioni partite: {segnalazioni}.")
+        return 0
+    if comando == "segnalazioni" and not resto:
+        print(f"Segnalazioni partite: {invia_segnalazioni_in_attesa()}.")
         return 0
     if comando == "stato" and not resto:
         spenta = perche_spenta()
