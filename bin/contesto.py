@@ -98,6 +98,12 @@ def trova_cartella(nome: str) -> tuple:
     for c in (cwd / nome, pb / nome, home / "Documents" / nome, home / "Projects" / nome, home / nome):
         if c.is_dir() and c != home:
             return c.resolve(), False
+    # Il nome scritto come slug ("mio-progetto") per una cartella "mio_progetto" o "Mio Progetto":
+    # l'INDEX e gli handoff usano lo slug (segnalazione n. 21, 27/10/2026).
+    if pb.is_dir() and slug(nome):
+        for c in sorted(pb.iterdir()):
+            if c.is_dir() and not c.name.startswith(".") and slug(c.name) == slug(nome):
+                return c.resolve(), False
     return None, False
 
 
@@ -163,6 +169,33 @@ def sezione_git(cartella: Path, dal: str | None) -> list:
         nuovi = [r for r in git(cartella, "log", f"--since={dal}", "--format=%h %s (%cs)").splitlines() if r]
         righe.append(f"  commit dal giorno dell'ultimo handoff ({dal}): {len(nuovi)}")
         righe += [f"    {r}" for r in nuovi[:MAX_COMMIT]]
+    rami = rami_non_riportati(cartella)
+    if rami:
+        righe.append(f"  RAMI CON COMMIT CHE NON SONO SU {branch}: {len(rami)}")
+        righe += [f"    {r}" for r in rami[:MAX_STATUS]]
+    return righe
+
+
+def rami_non_riportati(cartella: Path) -> list:
+    """I rami locali con commit che il branch corrente non ha, col worktree se ne hanno uno.
+    Il ramo di un worktree che /fine non ha riportato resta qui finché qualcuno non lo unisce
+    (segnalazione n. 20, 27/10/2026: venti commit fermi sul ramo e /inizio zitto)."""
+    worktree, percorso = {}, ""
+    for r in git(cartella, "worktree", "list", "--porcelain").splitlines():
+        if r.startswith("worktree "):
+            percorso = r[len("worktree "):]
+        elif r.startswith("branch refs/heads/"):
+            worktree[r[len("branch refs/heads/"):]] = percorso
+    righe = []
+    elenco = git(cartella, "for-each-ref", "refs/heads", "--no-merged=HEAD",
+                 "--format=%(refname:short)\t%(committerdate:short)")
+    for r in elenco.splitlines():
+        if "\t" not in r:
+            continue
+        ramo, data = r.split("\t", 1)
+        quanti = git(cartella, "rev-list", "--count", f"HEAD..refs/heads/{ramo}") or "?"
+        dove = f" · worktree {worktree[ramo]}" if ramo in worktree else ""
+        righe.append(f"{ramo} · {quanti} commit · ultimo {data}{dove}")
     return righe
 
 

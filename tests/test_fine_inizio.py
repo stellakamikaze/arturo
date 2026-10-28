@@ -35,6 +35,10 @@ prima di `git worktree remove`, che li cancella senza avviso; /inizio dice che c
 vanno in uno script.
 F17 con Arturo come origin un archivio già tracciato esce dal tracciamento (segnalazione n. 14,
 26/10/2026): dopo retention e sync git non ha più modifiche non salvate.
+F19 un ramo di worktree non riportato (segnalazione n. 20, 27/10/2026): arturo contesto lo elenca coi
+commit e il worktree finché non è unito; /inizio lo mette in cima, /fine controlla il merge.
+F20 il blocco di /inizio per un progetto nuovo espande la tilde di PROJECTS_BASE (segnalazione n. 19).
+F21 arturo contesto trova "mio_progetto" anche scritto come slug (segnalazione n. 21).
 
 Sulla base cbd8305 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 Lì F15 e F17 falliscono perché manca la FASE 9 di /fine: la loro controprova vera è sulla base prima
@@ -877,10 +881,78 @@ def test_f18(repo: Path) -> None:
     assert escluso in riga_aggiorna, "F18 /aggiorna elenca gli archivi della persona fra le modifiche"
 
 
+def test_f19(repo: Path) -> None:
+    """Un ramo di worktree che /fine non ha riportato (segnalazione n. 20, 27/10/2026): arturo contesto lo
+    mostra col numero dei commit e il worktree, /inizio lo mette in cima, /fine controlla il merge prima
+    dell'handoff."""
+    serve(repo, "bin/contesto.py", "F19")
+
+    def prova(lab: Lab) -> None:
+        progetto = lab.progetti / "Il Libro"
+        progetto.mkdir()
+        lab.git(progetto, "init", "-q", "-b", "main")
+        (progetto / "a.md").write_text("a\n", encoding="utf-8")
+        lab.git(progetto, "add", "a.md")
+        lab.git(progetto, "commit", "-qm", "Primo capitolo")
+        copia = lab.home / "copia-della-sessione"
+        lab.git(progetto, "worktree", "add", "-q", "-b", "il-libro-20261027-0935", str(copia))
+        for n in (1, 2):
+            (copia / f"c{n}.md").write_text(f"{n}\n", encoding="utf-8")
+            lab.git(copia, "add", f"c{n}.md")
+            lab.git(copia, "commit", "-qm", f"Capitolo {n} nel worktree")
+        r = lab.arturo("contesto", "Il Libro", cwd=lab.home)
+        out = r.stdout
+        assert r.returncode == 0, f"F19 exit {r.returncode}: {r.stderr} {out}"
+        assert re.search(r"RAMI CON COMMIT CHE NON SONO SU main: 1\n\s+il-libro-20261027-0935 · 2 commit · ultimo \S+ "
+                         r"· worktree \S*copia-della-sessione", out), f"F19 il ramo del worktree non riportato è muto: {out}"
+        lab.git(progetto, "merge", "-q", "--ff-only", "il-libro-20261027-0935")
+        out = lab.arturo("contesto", "Il Libro", cwd=lab.home).stdout
+        assert "RAMI CON COMMIT" not in out, f"F19 un ramo già riportato resta in elenco: {out}"
+    con_lab(repo, prova)
+    inizio = read(repo / "commands" / "inizio.md")
+    fine = read(repo / "commands" / "fine.md")
+    assert "**Rami non riportati.**" in inizio and "--abort" in inizio, "F19 /inizio non dice cosa fare di un ramo non riportato"
+    assert "--no-merged" in fine and "merge --no-edit" in fine, "F19 /fine non controlla il merge prima dell'handoff"
+
+
+def test_f20(repo: Path) -> None:
+    """Il blocco di /inizio che crea un progetto nuovo espande la tilde di PROJECTS_BASE (segnalazione n. 19,
+    27/10/2026): con PROJECTS_BASE="~/Progetti" nasceva una cartella chiamata ~ dentro quella corrente."""
+    inizio = read(repo / "commands" / "inizio.md")
+    blocco = next(b for b in re.findall(r"```bash\n(.*?)```", inizio, re.DOTALL) if 'mkdir -p "$BASE/$NOME"' in b)
+
+    def prova(lab: Lab) -> None:
+        script = lab.home / "nuovo.sh"
+        script.write_text(blocco.replace("nome-del-progetto", "quaderno"), encoding="utf-8")
+        r = lab.run([BASH, str(script)], PROJECTS_BASE="~/Progetti")
+        assert r.returncode == 0, f"F20 il blocco esce con {r.returncode}: {r.stderr}"
+        assert (lab.home / "Progetti" / "quaderno" / ".git").is_dir(), \
+            f"F20 il progetto non nasce in ~/Progetti: {sorted(str(x) for x in lab.home.rglob('quaderno'))}"
+        assert not any(x.name == "~" for x in lab.home.rglob("~")), "F20 nasce una cartella chiamata ~"
+    con_lab(repo, prova)
+
+
+def test_f21(repo: Path) -> None:
+    """arturo contesto trova la cartella "mio_progetto" anche col nome scritto come slug, "mio-progetto",
+    che è la forma di INDEX e handoff (segnalazione n. 21, 27/10/2026)."""
+    serve(repo, "bin/contesto.py", "F21")
+
+    def prova(lab: Lab) -> None:
+        progetto = lab.progetti / "mio_progetto"
+        progetto.mkdir()
+        lab.git(progetto, "init", "-q")
+        for nome in ("mio-progetto", "mio_progetto"):
+            r = lab.arturo("contesto", nome, cwd=lab.home)
+            assert r.returncode == 0 and f"cartella: {progetto.resolve()}" in r.stdout, \
+                f"F21 {nome} non trova la cartella col trattino basso: {r.returncode} {r.stdout[:300]}"
+    con_lab(repo, prova)
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
-         "F16": test_f16, "F17": test_f17, "F18": test_f18}
+         "F16": test_f16, "F17": test_f17, "F18": test_f18,
+         "F19": test_f19, "F20": test_f20, "F21": test_f21}
 
 
 def main() -> int:

@@ -145,9 +145,9 @@ def test_cc05(repo: Path) -> None:
     for parola in ("/dafare", "quota", "suona"):
         assert parola in riepilogo, f"CC05 il riepilogo di /setup non presenta {parola}"
     novita = read(repo / "NOVITA.md")
-    prima = re.search(r"^## (\d{4}-\d\d-\d\d)", novita, re.M)
-    assert prima and prima.group(1) == "2026-10-28" and "Computer Club" in novita[prima.start():prima.start() + 400], \
-        "CC05 NOVITA non racconta le domande del Computer Club"
+    # Una voce del 28/10 sul Computer Club, non per forza la prima: lo stesso giorno ne possono uscire altre.
+    voci = [m.start() for m in re.finditer(r"^## 2026-10-28", novita, re.M)]
+    assert any("Computer Club" in novita[v:v + 400] for v in voci), "CC05 NOVITA non racconta le domande del Computer Club"
 
 
 TESTS = {"CC01": test_cc01, "CC02": test_cc02, "CC03": test_cc03, "CC04": test_cc04, "CC05": test_cc05}

@@ -129,6 +129,7 @@ Lo script legge e non scrive niente. Calcola lo slug del progetto come `/fine`
 ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
 - `PROGETTO` e la riga `cartella:` (il percorso, oppure `nessuna`);
 - `GIT`: branch, modifiche non salvate, CONFLITTI DI MERGE, i commit arrivati dopo l'ultimo handoff;
+  e i RAMI CON COMMIT che il branch corrente non ha, col worktree se ne hanno uno;
 - `RIPARTENZA`: la Ripartenza e il prossimo passo degli handoff degli ultimi 14 giorni, col filone
   quando c'è, e il percorso dell'ultimo handoff da leggere per intero;
 - i todo aperti del progetto divisi per chi agisce (TOCCA A TE, DECIDI TU POI FACCIO IO, FACCIO
@@ -147,6 +148,12 @@ resta dove sei.
 
   Se il pull non riesce, dillo alla persona: niente rebase in automatico. Se `GIT` mostra CONFLITTI
   DI MERGE, risolvili PRIMA di tutto il resto. I commit arrivati vanno nel «Da allora».
+- **Rami non riportati.** Un ramo coi commit di una sessione (nome `<slug>-<aaaammgg-hhmm>`, o con
+  un worktree) è lavoro che `/fine` non ha riportato nella cartella principale: va in cima alla
+  ripartenza, col numero dei commit. Proponi di riportarlo con `git merge --ff-only <ramo>`; se non
+  basta e la cartella principale non ha modifiche, `git merge --no-edit <ramo>`, con `git merge
+  --abort` al primo conflitto. Un conflitto lo dici alla persona e non lo risolvi da solo. Gli altri
+  rami (prove, vecchie versioni) restano una riga col conteggio (segnalazione n. 20, 27/10/2026).
 - **Altre sessioni.** Lancia `ListAgents`. Un'altra sessione di Claude Code sullo stesso progetto va
   in cima alla ripartenza, con quello che sta facendo.
 - **Worktree, solo se c'è quella sessione.** Due sessioni nella stessa cartella si pestano i piedi:
@@ -173,6 +180,7 @@ col nome nuovo:
 
 ```bash
 BASE="${PROJECTS_BASE:-$HOME/Documents/ClaudeCode}"
+case "$BASE" in "~"*) BASE="$HOME${BASE#\~}" ;; esac   # la tilde fra virgolette non si espande (segnalazione n. 19)
 NOME="nome-del-progetto"   # minuscole e trattini, come lo slug della FASE 1
 mkdir -p "$BASE/$NOME" && cd "$BASE/$NOME" && git init -q -b main
 printf '.DS_Store\nnode_modules/\n*.log\n.env\n' > .gitignore

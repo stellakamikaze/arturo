@@ -12,6 +12,20 @@ modo di lavorare.
 
 ---
 
+## 2026-10-28 — Il lavoro di un worktree non resta indietro, e /inizio trova le cartelle col trattino basso
+
+**Cosa cambia**: se una sessione ha lavorato in una copia a parte (un worktree) e i suoi commit non
+sono tornati nella cartella principale, `/inizio` te lo dice in cima, col numero dei commit, e propone
+di riportarli. `/fine` prova anche il merge quando il fast-forward non basta, e prima dell'handoff
+controlla che il ramo sia davvero unito: se non lo è, te lo dice nella chiusura (segnalazione n. 20).
+`/inizio mio-progetto` trova la cartella `mio_progetto` (segnalazione n. 21). Con la cartella dei
+progetti scritta come `~/Progetti`, un progetto nuovo nasce lì e non in una cartella chiamata `~`
+(segnalazione n. 19). `/diagnosi` non propone più di mettere nel repository cache, dipendenze e le
+copie di lavoro di Claude Code (segnalazione n. 22).
+
+**Il principio**: il lavoro fatto non deve sparire in silenzio. Un ramo non unito è lavoro che nessuno
+vede: lo deve vedere chi apre la sessione dopo.
+
 ## 2026-10-28 — Il resto delle domande del Computer Club: sessioni dal pannello, segnalazioni seguite, skill proposte
 
 **Cosa cambia**: dal pannello `/dafare` il tasto `o` apre una finestra nuova del terminale con Claude

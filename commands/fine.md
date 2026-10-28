@@ -81,10 +81,16 @@ git diff --cached --stat
   principale non si sovrascrive: il worktree resta e l'handoff lo dice. Solo dopo la copia,
   `git -C <tree principale> worktree remove <percorso del worktree>` e `git -C <tree principale> branch
   -d <branch>`: `worktree remove` cancella anche i file ignorati, senza avviso (segnalazione n. 13,
-  26/10/2026). Merge non riuscito (l'altra sessione ha committato nel frattempo, o ha modifiche sugli
-  stessi file): il worktree resta, il branch diventa un todo e l'handoff lo cita. Rebase e merge con
-  conflitti non si fanno a fine sessione. Il resto di /fine gira dal tree principale (segnalazione
-  n. 11, 22/10/2026).
+  26/10/2026). Se il fast-forward non riesce perché l'altra sessione ha committato nel frattempo, e il
+  tree principale non ha modifiche, prova `git -C <tree principale> merge --no-edit <branch>`; al primo
+  conflitto `git -C <tree principale> merge --abort`. Rebase e merge con conflitti non si fanno a fine
+  sessione. Il resto di /fine gira dal tree principale (segnalazione n. 11, 22/10/2026).
+- **Il ramo è riportato? Controllalo prima dell'handoff.** `git -C <tree principale> branch
+  --no-merged` non deve elencare il branch della sessione. Se lo elenca, il lavoro non è nella
+  cartella principale: il worktree resta, l'handoff ha Status `bloccato`, la Ripartenza comincia con
+  "N commit restano sul ramo <branch>, non nella cartella principale", e riportarli diventa un todo.
+  Lo dici alla persona nella chiusura, non solo nell'handoff (segnalazione n. 20, 27/10/2026: venti
+  commit fermi sul ramo e nessuno lo sapeva).
 
 ## FASE 4 · Handoff e todo
 

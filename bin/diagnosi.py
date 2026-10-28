@@ -38,6 +38,16 @@ RE_TITOLO = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 RE_URL = re.compile(r"^(?:[a-z][a-z0-9+.-]*://|www\.|mailto:)", re.I)
 RE_ASSOLUTO = re.compile(r"(?:~[/\\]|/|[A-Za-z]:[/\\])")
 RE_TOKEN = re.compile(r"(?:(?<=\s)|^)(~[/\\][^\s`]*|/[^\s`]+|[A-Za-z]:[/\\][^\s`]*)")
+# Cache, dipendenze, build e le copie di lavoro di Claude Code: si rigenerano, o sono un altro
+# checkout. Non vanno nel repository (segnalazione n. 22, 27/10/2026).
+RIGENERABILI = {"__pycache__", "node_modules", ".venv", "venv", "dist", ".pytest_cache", ".mypy_cache",
+                ".ruff_cache", ".DS_Store"}
+WORKTREE = (".claude/worktrees/", ".claude/worktrees")
+
+
+def rigenerabile(rel: str) -> bool:
+    rel = rel.replace("\\", "/")
+    return rel.startswith(WORKTREE) or any(parte in RIGENERABILI for parte in rel.split("/"))
 
 
 def assoluto_scritto(p: str) -> bool:
@@ -234,7 +244,12 @@ def file_progetto(cartella: Path) -> tuple:
     tracciati = git(cartella, "ls-files", "-z", "--full-name", "--", ".")
     if stato is None or tracciati is None:
         return [], [], ["git non risponde nella cartella del progetto"]
-    nuovi = [str(radice / v[3:]) for v in stato.split("\0") if v.startswith("?? ")]
+    tutti = [v[3:] for v in stato.split("\0") if v.startswith("?? ")]
+    nuovi = [str(radice / v) for v in tutti if not rigenerabile(v)]
+    avvisi = []
+    if len(nuovi) < len(tutti):
+        avvisi.append(f"{len(tutti) - len(nuovi)} file di cache, dipendenze o worktree non tracciati restano fuori "
+                      "dalle proposte: non vanno nel repository, mettili nel .gitignore")
     pesanti = []
     for rel in (x for x in tracciati.split("\0") if x):
         p = radice / rel
@@ -243,7 +258,7 @@ def file_progetto(cartella: Path) -> tuple:
                 pesanti.append(str(p))
         except OSError:
             continue
-    return nuovi, pesanti, []
+    return nuovi, pesanti, avvisi
 
 
 def materiali(s: str, cartella: Path | None) -> dict:

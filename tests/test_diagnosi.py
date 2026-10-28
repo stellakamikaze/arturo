@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""D01-D13: arturo diagnosi, i due controlli di /diagnosi su un progetto intero (16/10/2026).
+"""D01-D14: arturo diagnosi, i due controlli di /diagnosi su un progetto intero (16/10/2026).
 
 D01 percorsi: un percorso degli handoff che non esiste più stampa "MANCA: … (da HANDOFF_…)" ed esce 1.
 D02 percorsi: tutti presenti, "OK n presenti, 0 mancanti" ed exit 0.
@@ -18,6 +18,8 @@ D11 --json: uscita strutturata coi campi dichiarati; senza nome vale la cartella
 D12 "arturo" elenca diagnosi nell'aiuto.
 D13 fuori dai backtick il percorso finisce al primo ", ", " (", " — ", " → " o spazio: la prosa dopo
     non entra nel percorso (falsi MANCA su due handoff veri, 16/10/2026). Tra backtick valgono gli spazi.
+D14 materiali: cache, dipendenze e worktree di Claude Code non tracciati non sono proposti per il
+    repository, e un avviso li conta (segnalazione n. 22, 27/10/2026).
 
 Sulla base 5fd0443, l'ultimo dev prima di /diagnosi di progetto, ogni controllo deve fallire con un
 AssertionError che comincia con il suo codice.
@@ -327,9 +329,28 @@ def test_d13(lab: Lab) -> None:
         f'D13 fuori dai backtick il percorso non finisce a ", ", " (", " — ", " → " o allo spazio: {esito(r)}'
 
 
+@caso("D14")
+def test_d14(lab: Lab) -> None:
+    cartella = progetto_libro(lab)
+    lab.git(cartella, "init", "-q")
+    lab.file(cartella / "capitolo1.md", "# Uno\n")
+    lab.git(cartella, "add", "-A")
+    lab.git(cartella, "commit", "-q", "-m", "inizio")
+    lab.file(cartella / "note.md", "nuove")
+    lab.file(cartella / "bin" / "__pycache__" / "x.cpython-312.pyc", "\0")
+    lab.file(cartella / "node_modules" / "pacchetto" / "index.js", "x")
+    lab.file(cartella / ".claude" / "worktrees" / "libro-20261027-0935" / "capitolo2.md", "due")
+    r = lab.arturo("diagnosi", "materiali", "libro")
+    assert r.returncode == 0 and "note.md" in r.stdout, f"D14 il file non tracciato vero non compare: {esito(r)}"
+    for nome in ("__pycache__", "node_modules", "worktrees"):
+        assert nome not in "\n".join(x for x in r.stdout.splitlines() if "|" in x), \
+            f"D14 propone {nome} per il repository: {esito(r)}"
+    assert "3 file di cache, dipendenze o worktree" in r.stdout, f"D14 manca l'avviso sui file esclusi: {esito(r)}"
+
+
 TESTS = {"D01": test_d01, "D02": test_d02, "D03": test_d03, "D04": test_d04, "D05": test_d05, "D06": test_d06,
          "D07": test_d07, "D08": test_d08, "D09": test_d09, "D10": test_d10, "D11": test_d11, "D12": test_d12,
-         "D13": test_d13}
+         "D13": test_d13, "D14": test_d14}
 
 
 def main() -> int:
