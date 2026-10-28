@@ -44,6 +44,9 @@ class Banco:
         self.lavoro = self.home / "Documents" / "libro"
         self.lavoro.mkdir(parents=True)
         shutil.copytree(str(repo), str(self.home / ".claude"), ignore=shutil.ignore_patterns(".git", "__pycache__"))
+        # data/ non è mai tracciata: è l'archivio di chi usa il repo. Una coda di telemetria rimasta lì
+        # (il 13/10/2026 su un Mac di sviluppo) faceva risultare "mandata" una telemetria mai partita (#4108).
+        shutil.rmtree(self.home / ".claude" / "data", ignore_errors=True)
         self.ascolto = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.ascolto.bind(("127.0.0.1", 0))
         self.ascolto.listen(16)
