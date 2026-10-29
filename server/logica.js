@@ -12,7 +12,8 @@
 //   GET  /v1/riepilogo     il riepilogo della settimana in JSON, con "Dove migliorare Arturo"
 //   GET  /v1/segnalazioni  le ultime 50 segnalazioni, senza testo; /v1/segnalazioni/<n> una intera (27/10/2026)
 // L'IP non viene mai salvato. Gli eventi hanno il solo giorno, mai l'ora.
-// Telegram ed email sono campanelli (24/10/2026): numero, tipo e origine, mai il testo né l'email di chi scrive.
+// Telegram ed email sono campanelli (24/10/2026): mai il testo né l'email di chi scrive. Una segnalazione porta
+// numero, tipo, da dove arriva e il link alla pagina privata (27/10/2026), un feedback numero, tipo e origine.
 
 import { validaLottoLancillotto, avvisoInstallazioneLancillotto, testoLancillotto } from "./lancillotto.js";
 
@@ -500,9 +501,10 @@ export function avvisoInstallazione(riga) {
   return `Arturo: installazione nuova (${riga.installazione.slice(0, 8)}) · ${riga.versione} · ${riga.sistema}`;
 }
 
-// Segnalazioni e feedback sono campanelli (24/10/2026): numero, tipo e origine, e basta. Prima Telegram riceveva
-// il titolo e 600 caratteri del testo, e per il feedback l'email della persona e 1500 caratteri: copie fuori dal
-// server, senza scadenza, che nessuna cancellazione raggiunge. Il tipo viene da un elenco chiuso.
+// Segnalazioni e feedback sono campanelli (24/10/2026): mai titolo né testo. Prima Telegram riceveva il titolo e
+// 600 caratteri del testo, e per il feedback l'email della persona e 1500 caratteri: copie fuori dal server, senza
+// scadenza, che nessuna cancellazione raggiunge. Il tipo viene da un elenco chiuso. Dal 27/10/2026 la segnalazione
+// porta anche da dove arriva (8 caratteri dell'installazione, versione, sistema) e il link alla pagina privata.
 export function avvisoSegnalazione(s, numero, leggi = "") {
   const link = linkSegnalazione(leggi, numero);
   return `Arturo: segnalazione n. ${Number(numero)}, ${TIPO_IN_PAROLE[s.tipo] || s.tipo} · ${provenienza(s)}` + (link ? `\n${link}` : "");

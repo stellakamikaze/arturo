@@ -113,8 +113,10 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   stessa installazione, il segno che Arturo intralcia. Poi il Worker cancella gli eventi più vecchi
   di 12 mesi.
 - **Le segnalazioni.** Ogni segnalazione di `/segnala` col canale `arturo` resta in D1, e arriva per
-  email e su Telegram come campanello (24/10/2026): numero, tipo e origine, mai il testo, il titolo o
-  l'id completo. L'email porta la query che legge il testo in D1. Il feedback del sito arriva su
+  email e su Telegram come campanello (24/10/2026): mai il testo, il titolo o l'id completo. Dal
+  27/10/2026 porta numero, tipo in parole, le prime 8 cifre dell'installazione, versione e sistema, e
+  il link `LEGGI_SEGNALAZIONI/<n>` alla pagina privata dell'admin, che legge il testo da D1 col token
+  del riepilogo; l'email aggiunge l'ora di arrivo. Il feedback del sito arriva su
   Telegram allo stesso modo, senza testo né email, e il vocale non si accetta più. Le segnalazioni si
   cancellano dopo 12 mesi, come gli eventi. Quelle aperte da GitHub sono issue con il titolo
   `[problema]`, `[proposta]` o `[integrazione]`.
