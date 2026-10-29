@@ -32,6 +32,7 @@ AIUTO = """arturo sessione: una finestra nuova del terminale con Claude già par
 
   arturo sessione PROGETTO               apre /inizio PROGETTO
   arturo sessione --todo ID              apre /inizio sul progetto del todo, col suo titolo
+  --titolo-atteso=TESTO                  con --todo: si ferma se il todo ha un altro titolo
   --stampa                               scrive il comando senza aprire niente
 
 Lo usa il pannello /dafare (tasto o)."""
@@ -60,7 +61,7 @@ def prompt_per(progetto: str, todo: dict | None) -> str:
 
 
 def cartella() -> Path:
-    """La cartella dei progetti, come per la pagina dafare personale: /inizio poi entra nel progetto."""
+    """La cartella dei progetti (PROJECTS_BASE): /inizio poi entra nel progetto."""
     base = contesto.base_progetti()
     return base if base.is_dir() else Path.home()
 
@@ -90,14 +91,14 @@ def comando(sis: str, dove: Path, prompt: str) -> tuple:
 
 def _copia(testo: str) -> bool:
     import segnala
-    return segnala._copia(testo)
+    return segnala.copia_appunti(testo)
 
 
 def main(argv: list) -> int:
     if not argv or argv[0] in ("-h", "--help", "aiuto", "help"):
         print(AIUTO)
         return 0 if argv else 2
-    progetto, numero, stampa = "", None, False
+    progetto, numero, stampa, titolo = "", None, False, None
     resto = list(argv)
     while resto:
         voce = resto.pop(0)
@@ -107,6 +108,8 @@ def main(argv: list) -> int:
             numero = resto.pop(0)
         elif voce.startswith("--todo="):
             numero = voce.split("=", 1)[1]
+        elif voce.startswith("--titolo-atteso="):
+            titolo = voce[len("--titolo-atteso="):]
         elif not voce.startswith("-") and not progetto:
             progetto = voce
         else:
@@ -115,8 +118,15 @@ def main(argv: list) -> int:
 
     todo = None
     if numero is not None:
-        todo_map, _ = ts.carica()
-        todo = ts.per_id(todo_map, numero)
+        try:
+            todo_map, _ = ts.carica()
+            todo = ts.per_id(todo_map, numero)
+            # Dopo un merge lo stesso numero può indicare un altro todo: la sessione partirebbe sul
+            # lavoro sbagliato (#4106).
+            ts.controlla_atteso(todo, {"titolo": titolo} if titolo is not None else None)
+        except ts.ErroreTodo as e:
+            print(f"Errore: {e}", file=sys.stderr)
+            return 1
         progetto = progetto or todo["progetto"]
     progetto = contesto.slug(progetto)
     if not SLUG.match(progetto):

@@ -134,6 +134,7 @@ BANCHI=(
   test_segnalazioni_2026_10_27.py
   test_computer_club_2026_10_28.py
   test_computer_club_2026_10_28b.py
+  test_rilascio_2026_11_02.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -280,6 +281,9 @@ BASELINE=(
   # Il secondo giro (/dafare apre una sessione, /segnala stato, il numero delle segnalazioni in differita,
   # l'avviso prima di un ultracode, /proponi): 5bdec48, il dev prima.
   "test_computer_club_2026_10_28b.py 5bdec48"
+  # I ritocchi prima del rilascio del 2/11/2026 (/setup sotto 30 KB, testi dei comandi nuovi, titolo
+  # atteso del tasto o): 60b7d8d, il dev prima.
+  "test_rilascio_2026_11_02.py 60b7d8d"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

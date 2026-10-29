@@ -484,7 +484,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     const { pane } = await apri($)
     await pane.press({ key: 'riga-2' })
     await pane.press({ key: 'sessione' })
-    expect(m.cli().filter(a => a[0] === 'sessione')).toEqual([['sessione', '--todo', '2']])
+    expect(m.cli().filter(a => a[0] === 'sessione')).toEqual([['sessione', '--todo', '2', '--titolo-atteso=Montare il mixer']])
     expect(m.toast[m.toast.length - 1]).toBe('Aperta una sessione nuova su #2: guarda la finestra del terminale.')
     expect(m.scritture()).toEqual([['sessione', '--todo', '2']])
     expect(m.archivio.find(t => t.id === 2)?.stato).toBe('da fare')

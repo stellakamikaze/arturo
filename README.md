@@ -6,7 +6,7 @@ Arturo è un **harness per [Claude Code](https://docs.anthropic.com/en/docs/clau
 
 È il telaio di una config personale usata quotidianamente in produzione, estratto e igienizzato: **zero dati, zero credenziali, zero riferimenti a infrastrutture private**. Quello che resta è il metodo.
 
-In due righe: **23 guardie e automazioni**, **10 slash command**, **9 subagent**, **5 skill**, una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), un **server open source** per la telemetria e le segnalazioni (`server/`), che dice a chi mantiene Arturo dove correggerlo — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi usa già l'IA in chat ma non ha mai aperto un terminale. A te non serve un server né un account: il server della telemetria lo tiene chi mantiene Arturo. Ti bastano `git` e le CLI standard.
+In due righe: **23 guardie e automazioni**, **11 slash command**, **9 subagent**, **5 skill**, una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), un **server open source** per la telemetria e le segnalazioni (`server/`), che dice a chi mantiene Arturo dove correggerlo — più un **curriculum di principi** (`docs/principi/`) e un canale di aggiornamento (`/novita`) pensati per chi usa già l'IA in chat ma non ha mai aperto un terminale. A te non serve un server né un account: il server della telemetria lo tiene chi mantiene Arturo. Ti bastano `git` e le CLI standard.
 
 I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure scrivi `python3 ~/.claude/bin/arturo web` nel terminale. La pagina è facoltativa e locale: risponde solo sul tuo computer (127.0.0.1), non si collega a internet e si spegne da sola dopo 30 minuti senza la pagina aperta.
 
@@ -272,7 +272,7 @@ hooks/               23 guardie e automazioni, più 4 strumenti che usano
 bin/                 La CLI arturo e i suoi moduli
 tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativo, si installa da /setup)
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
-commands/            10 slash command (i nove della rotta, più lo sparring che Claude apre da solo)
+commands/            11 slash command (i dieci della rotta, più lo sparring che Claude apre da solo)
 agents/              9 subagent specializzati
 skills/              5 skill (+ regole condivise in shared/)
 output-styles/       Lo stile di scrittura Conciso, quello di partenza (lo stile si cambia in /setup)
@@ -311,7 +311,7 @@ Fuori dal dispatcher:
 - `controlla-config.py` — strumento, non un hook: controlla che la config sia integra (`settings.json` valido, nessun rebase o conflitto a metà) e stampa `CONFIG OK` o `CONFIG ROTTA`. Lo usano l'avvio, `/inizio`, `/aggiorna` e `/fine`.
 - `deriva.py` — strumento, non un hook: all'avvio misura quanto la tua config si è allontanata da quella di Arturo (comandi e file di Arturo modificati, hook di Arturo tolti o spenti, config rotta) e stampa una riga `DERIVA` solo se c'è da fare.
 - `inject-now.sh` — inietta data/ora corrente a ogni prompt. Quando lanci un comando con aggiunte tue in
-  `personale/`, dice a Claude di leggerle. Sui messaggi che non sono comandi ricorda che ogni richiesta di lavoro, anche breve, comincia con PROMPT + BRIEF; domande e conversazione hanno risposta diretta. Per spegnere il promemoria, cancella il blocco `cat` finale
+  `personale/`, dice a Claude di leggerle. Sui messaggi che non sono comandi ricorda che ogni richiesta di lavoro, anche breve, comincia con PROMPT + BRIEF; domande e conversazione hanno risposta diretta. Prima di un ultracode aggiunge quanto costa e quanta quota resta nella finestra di 5 ore. Per spegnere il promemoria, cancella il blocco `cat` finale
   dello script.
 - `input-notifier-start.sh` — notifica quando Claude aspetta input.
 - `scheda-terminale.py` — il nome del progetto nel titolo della scheda, e il colore della scheda per lo stato: verde se Claude aspetta te, giallo mentre lavora, rosso se il turno si è fermato per un errore (API giù, limite raggiunto). Il colore c'è in Windows Terminal e in iTerm2, e lì il titolo è il solo progetto. Negli altri terminali lo stato si legge nel titolo: "● TOCCA A TE · arturo" quando Claude aspetta te, "arturo · al lavoro", "● PROBLEMA · arturo". Nel Terminale di macOS una scheda in secondo piano che aspetta te suona anche la campanella. Su macOS l'hook scrive sul terminale della sessione di Claude Code, trovato risalendo i processi. Il progetto viene da `/inizio <nome>`, poi dal repository git, poi dalla cartella. Perché il titolo resti, `settings.json` spegne quello automatico di Claude Code (`CLAUDE_CODE_DISABLE_TERMINAL_TITLE`). In Windows Terminal non colora una scheda aperta con `--tabColor`.
@@ -339,7 +339,7 @@ fa vedere la coda così come parte.
 
 ### La rotta (`commands/`)
 
-Nove comandi, e Arturo te li propone quando servono. Gli altri strumenti li usa Claude da solo, dentro questi.
+Dieci comandi, e Arturo te li propone quando servono. Gli altri strumenti li usa Claude da solo, dentro questi.
 
 **Ogni giorno.** Due comandi bastano: apri la giornata con `/inizio` e la chiudi con `/fine`.
 

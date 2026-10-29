@@ -11,6 +11,8 @@ deve essere sempre uguale:
   gh (issue pubblica con la CLI di GitHub), web (la pagina della issue già compilata, la persona
   preme Invia), email (il testo negli appunti, la persona lo incolla e lo invia dal suo programma
   di posta). Nessun canale apre un mailto:, che comms-guard nega di proposito;
+- stato: a che punto sono le segnalazioni della persona (in attesa, arrivate col numero, corrette
+  con la voce di NOVITA.md che le cita);
 - chiedi, basta, riprendi: la cadenza della domanda di /fine e il modo di spegnerla.
 
 Lo stato (ultima domanda, ultima segnalazione, canale scelto, pausa) sta in
@@ -165,7 +167,7 @@ def _apri(url: str) -> bool:
         return False
 
 
-def _copia(testo: str) -> bool:
+def copia_appunti(testo: str) -> bool:
     if sys.platform == "darwin":
         comandi = [["pbcopy"]]
     elif os.name == "nt":
@@ -340,7 +342,7 @@ def invia(opz: dict) -> int:
         esito = f"issue aperta: {link}"
     elif canale == "web":
         url, testo_dentro = _url_issue(tipo, titolo, testo)
-        copiato = True if testo_dentro else _copia(testo)
+        copiato = True if testo_dentro else copia_appunti(testo)
         if not _apri(url):
             print(f"Non riesco ad aprire il browser. Apri tu questo indirizzo:\n{url}")
         if not testo_dentro:
@@ -350,7 +352,7 @@ def invia(opz: dict) -> int:
         esito = "pagina della issue aperta: la persona controlla e preme Invia"
     else:
         oggetto = f"[Arturo] {titolo}"
-        if _copia(testo):
+        if copia_appunti(testo):
             print(f"Il testo è negli appunti.\nA: {EMAIL}\nOggetto: {oggetto}\n"
                   "Apri il tuo programma di posta, incolla il testo e invia.")
         else:

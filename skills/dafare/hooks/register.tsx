@@ -2,7 +2,8 @@
 //
 // Legge e scrive solo con la CLI `arturo todo`, lanciata per argv e senza shell. Dopo ogni tasto
 // rilegge `arturo todo --json`: il pannello non scrive mai l'archivio da solo. Un errore della CLI
-// compare in italiano e non cambia niente. Ogni tasto si annulla con "u".
+// compare in italiano e non cambia niente. Ogni tasto che cambia un todo si annulla con "u"; il tasto
+// "o" apre una sessione con `arturo sessione` e non cambia niente.
 
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
@@ -75,9 +76,9 @@ async function cli($: EngineInterface, argomenti: string[], comando = 'todo'): P
     const r = await $.process.run([...py, $.plugin.root + CLI_REL, comando, ...argomenti], { timeoutMs: 15000 })
     if (r.exitCode === 0) return { ok: true, stdout: r.stdout }
     const prima = (r.stderr || r.stdout).split('\n').map(x => x.trim()).find(x => x !== '')
-    return { ok: false, testo: prima ?? `La CLI dei todo si è fermata con il codice ${r.exitCode}.` }
+    return { ok: false, testo: prima ?? `Il comando arturo ${comando} si è fermato con il codice ${r.exitCode}.` }
   } catch {
-    return { ok: false, testo: 'La CLI dei todo non parte: scrivi /diagnosi.' }
+    return { ok: false, testo: `Il comando arturo ${comando} non parte: scrivi /diagnosi.` }
   }
 }
 
@@ -160,7 +161,8 @@ async function apriSessione($: EngineInterface): Promise<void> {
     await dici($, 'Non ci sono righe da scegliere.', false)
     return
   }
-  const r = await cli($, ['--todo', String(t.id)], 'sessione')
+  // Col titolo atteso, come gli altri tasti: dopo un merge lo stesso numero può essere un altro todo.
+  const r = await cli($, ['--todo', String(t.id), `--titolo-atteso=${t.titolo}`], 'sessione')
   await dici($, r.ok ? `Aperta una sessione nuova su #${t.id}: guarda la finestra del terminale.` : r.testo, r.ok)
 }
 
