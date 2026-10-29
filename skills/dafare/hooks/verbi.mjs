@@ -35,7 +35,7 @@ function spostato(quando, passo) {
  * con "=", così un titolo che comincia con un trattino resta un valore.
  * @param {Riga} t @returns {string}
  */
-function titolo(t) {
+export function titolo(t) {
   return `--titolo-atteso=${t.titolo}`
 }
 

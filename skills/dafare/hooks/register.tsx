@@ -9,7 +9,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Annullabile, Esito, TodoVoce, Vista } from '../types'
-import { VERBI } from './verbi.mjs'
+import { titolo, VERBI } from './verbi.mjs'
 
 const PANE = 'dafare'
 // La CLI sta accanto alla cartella skills/ di Arturo: <radice>/skills/dafare/../../bin/arturo.
@@ -162,7 +162,7 @@ async function apriSessione($: EngineInterface): Promise<void> {
     return
   }
   // Col titolo atteso, come gli altri tasti: dopo un merge lo stesso numero può essere un altro todo.
-  const r = await cli($, ['--todo', String(t.id), `--titolo-atteso=${t.titolo}`], 'sessione')
+  const r = await cli($, ['--todo', String(t.id), titolo(t)], 'sessione')
   await dici($, r.ok ? `Aperta una sessione nuova su #${t.id}: guarda la finestra del terminale.` : r.testo, r.ok)
 }
 

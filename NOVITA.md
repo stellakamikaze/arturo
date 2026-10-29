@@ -47,7 +47,9 @@ vede: lo deve vedere chi apre la sessione dopo.
 ## 2026-10-28 — Il resto delle domande del Computer Club: sessioni dal pannello, segnalazioni seguite, skill proposte
 
 **Cosa cambia**: dal pannello `/dafare` il tasto `o` apre una finestra nuova del terminale con Claude
-già partito sul todo scelto (`/inizio progetto -- il todo`), su Mac, Windows e Linux. `/segnala stato`
+già partito sul todo scelto (`/inizio progetto -- il todo`), su Mac, Windows e Linux. Prima di aprire
+controlla che il numero indichi ancora il todo che vedi: dopo un merge che ha rinumerato i todo si
+ferma, invece di partire su quello sbagliato. `/segnala stato`
 ti dice a che punto sono le tue segnalazioni: in attesa, arrivate col loro numero, o corrette, con la
 novità che lo racconta; `/novita` ti avvisa quando esce la correzione di una tua. `/proponi` porta a chi
 mantiene Arturo una skill che hai scritto tu: la ripulisce con te da nomi e dati, ti mostra il testo e

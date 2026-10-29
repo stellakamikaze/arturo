@@ -64,7 +64,10 @@ def test_rl02(repo: Path) -> None:
 
 def test_rl03(repo: Path) -> None:
     pannello = read(repo / "skills" / "dafare" / "hooks" / "register.tsx")
-    assert "'sessione'" in pannello and "--titolo-atteso=${t.titolo}" in pannello.split("async function apriSessione")[-1][:900], \
+    verbi = read(repo / "skills" / "dafare" / "hooks" / "verbi.mjs")
+    # Il parametro lo costruisce solo titolo() di verbi.mjs, come per gli altri tasti (#4175).
+    assert "'sessione'" in pannello and "titolo(t)" in pannello.split("async function apriSessione")[-1][:900] \
+        and "export function titolo(t)" in verbi and "--titolo-atteso=${t.titolo}" in verbi, \
         "RL03 il tasto o non passa il titolo atteso"
     spec = importlib.util.spec_from_file_location("telemetria_banco", Path(__file__).with_name("test_telemetria.py"))
     assert spec and spec.loader

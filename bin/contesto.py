@@ -6,7 +6,7 @@ Uso: arturo contesto [nome] [--giorni N]
   "--tutti" si ignora, e il testo dopo " -- " (il compito) non fa parte del nome.
 
 Stampa, in quest'ordine: progetto e cartella, git (branch, modifiche, conflitti, commit dopo
-l'ultimo handoff), la ripartenza degli handoff degli ultimi N giorni (14), i todo aperti del
+l'ultimo handoff, rami locali non riportati), la ripartenza degli handoff degli ultimi N giorni (14), i todo aperti del
 progetto divisi per chi agisce, i todo chiusi dopo l'ultimo handoff, le scadenze dei prossimi
 7 giorni (anche fuori dal progetto), il todo da cui ripartire e gli avvisi.
 Tra due blocchi bash le variabili si perdono: qui tutto vive in un processo.
@@ -179,7 +179,9 @@ def sezione_git(cartella: Path, dal: str | None) -> list:
 def rami_non_riportati(cartella: Path) -> list:
     """I rami locali con commit che il branch corrente non ha, col worktree se ne hanno uno.
     Il ramo di un worktree che /fine non ha riportato resta qui finché qualcuno non lo unisce
-    (segnalazione n. 20, 27/10/2026: venti commit fermi sul ramo e /inizio zitto)."""
+    (segnalazione n. 20, 27/10/2026: venti commit fermi sul ramo e /inizio zitto). Un ramo coi
+    commit già arrivati in altra forma (cherry-pick, rebase) non compare: lo dice git cherry, lo
+    stesso controllo che /fine fa prima dell'handoff."""
     worktree, percorso = {}, ""
     for r in git(cartella, "worktree", "list", "--porcelain").splitlines():
         if r.startswith("worktree "):

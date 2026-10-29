@@ -89,11 +89,6 @@ def comando(sis: str, dove: Path, prompt: str) -> tuple:
     return [], a_mano
 
 
-def _copia(testo: str) -> bool:
-    import segnala
-    return segnala.copia_appunti(testo)
-
-
 def main(argv: list) -> int:
     if not argv or argv[0] in ("-h", "--help", "aiuto", "help"):
         print(AIUTO)
@@ -150,7 +145,8 @@ def main(argv: list) -> int:
             return 0
         except OSError:
             pass
-    copiato = _copia(a_mano)
+    import segnala
+    copiato = segnala.copia_appunti(a_mano)
     print("Non riesco ad aprire un terminale. " + ("Il comando è negli appunti: " if copiato else "Lancia questo: ")
           + a_mano)
     return 1

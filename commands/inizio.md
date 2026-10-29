@@ -129,7 +129,8 @@ Lo script legge e non scrive niente. Calcola lo slug del progetto come `/fine`
 ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
 - `PROGETTO` e la riga `cartella:` (il percorso, oppure `nessuna`);
 - `GIT`: branch, modifiche non salvate, CONFLITTI DI MERGE, i commit arrivati dopo l'ultimo handoff;
-  e i RAMI CON COMMIT che il branch corrente non ha, col worktree se ne hanno uno;
+  e i RAMI CON COMMIT che il branch corrente non ha, col worktree se ne hanno uno (un ramo coi
+  commit già arrivati con un cherry-pick o un rebase non compare);
 - `RIPARTENZA`: la Ripartenza e il prossimo passo degli handoff degli ultimi 14 giorni, col filone
   quando c'è, e il percorso dell'ultimo handoff da leggere per intero;
 - i todo aperti del progetto divisi per chi agisce (TOCCA A TE, DECIDI TU POI FACCIO IO, FACCIO
