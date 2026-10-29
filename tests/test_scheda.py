@@ -17,8 +17,10 @@ TS10 in Terminal di Apple la campanella (BEL) suona quando la sessione passa la 
      StopFailure); all'avvio, al lavoro, alla sola fine del turno e negli altri terminali no.
 TS11 "SBLOCCA" solo quando la persona serve: permesso, domanda, errore, idle_prompt. La fine del turno
      da sola (Claude può aspettare un job in background) e le notifiche come auth_success no.
-TS12 il nome è lo slug che il risolutore di /inizio stampa ("PROGETTO <slug>"), non le parole scritte;
-     un grep del sorgente non conta; senza /inizio vale la cartella di progetto dove Claude scrive.
+TS12 il nome è lo slug che il risolutore di /inizio stampa ("PROGETTO <slug>"), non le parole scritte,
+     che cedono a un file scritto; un grep del sorgente non conta, neanche senza numeri di riga; senza
+     /inizio vale la cartella di progetto dove Claude scrive (PROJECTS_BASE), e in ~/.claude contano
+     hook e comandi, non piani e memoria; il titolo non porta caratteri di controllo o di formato.
 TS09 senza terminale di controllo (il caso normale di un hook su macOS e Linux) le sequenze vanno sul
      tty del processo claude trovato fra i padri. Senza claude fra i padri non si scrive niente.
 
@@ -312,6 +314,25 @@ def test_ts12(repo: Path) -> None:
         grep = c.evento("PostToolUse", sessione="g", **bash("grep -n PROGETTO bin/contesto.py",
                                                            '314:    righe = [f"PROGETTO {s}"]'))
         assert grep == "", f"TS12 un grep del sorgente cambia il progetto: {grep!r}"
+        nudo = c.evento("PostToolUse", sessione="g", **bash("grep -h PROGETTO bin/contesto.py tests/*.py",
+                                                            "PROGETTO finto\nPROGETTO {s}"))
+        assert nudo == "", f"TS12 un grep senza numeri di riga cambia il progetto: {nudo!r}"
+        cede = c.evento("PostToolUse", sessione="g", tool_name="Edit",
+                        tool_input={"file_path": str(c.home / "Documents" / "ClaudeCode" / "saggio" / "a.md")},
+                        tool_response={})
+        assert "]0;saggio\x07" in cede, f"TS12 il testo di /inizio non risolto non cede a un file scritto: {cede!r}"
+        config = c.home / ".claude"
+        c.evento("UserPromptSubmit", sessione="p", prompt="fai il piano")
+        piano = c.evento("PostToolUse", sessione="p", tool_name="Write",
+                         tool_input={"file_path": str(config / "plans" / "piano.md")}, tool_response={})
+        assert "claude-config" not in piano, f"TS12 un piano scritto rinomina la scheda: {piano!r}"
+        hook_ = c.evento("PostToolUse", sessione="p", tool_name="Edit",
+                         tool_input={"file_path": str(config / "hooks" / "x.py")}, tool_response={})
+        assert "]0;claude-config\x07" in hook_, f"TS12 un hook modificato non è lavoro sulla config: {hook_!r}"
+        sporco = c.evento("PostToolUse", sessione="q", tool_name="Write",
+                          tool_input={"file_path": str(c.home / "Documents" / "ClaudeCode" / "ab\u009c\u202ecd" / "x")},
+                          tool_response={})
+        assert "]0;abcd\x07" in sporco, f"TS12 il titolo porta caratteri di controllo o di formato: {sporco!r}"
         progetti = c.home / "Documents" / "ClaudeCode"
         c.evento("UserPromptSubmit", sessione="f", prompt="sistema il capitolo")
         scritto = c.evento("PostToolUse", sessione="f", tool_name="Edit",

@@ -1,22 +1,25 @@
 """arturo schede: nel Terminale di macOS la scheda mostra solo il titolo che scrive scheda-terminale.py.
 
 Il Terminale di Apple accoda al titolo della scheda il processo attivo, la cartella e l'indicatore di
-attività: "arturo  caffeinate ◂ claude …". Federico, 29/10/2026: la scheda deve dire solo il progetto,
-o "SBLOCCA · <progetto>", e per tutti. Le sette chiavi del profilo che lo fanno sono in CHIAVI.
+attività: "arturo  caffeinate ◂ claude …". Dal 29/10/2026 la scheda deve dire solo il progetto, o
+"SBLOCCA · <progetto>", per tutti. Le sette chiavi del profilo che lo fanno sono in CHIAVI.
 
 Terminale non rilegge un profilo cambiato da fuori, e quando salva i profili riscrive le preferenze
 dalla sua memoria: una chiave scritta con defaults sparisce al primo salvataggio (provato il 29/10).
 Per questo il profilo nuovo entra dal vivo: un file .terminal aperto con open, poi AppleScript sul
 modello di Terminale per assegnarlo alle schede e farne il predefinito. Il profilo "Arturo" è una copia
 di quello predefinito (stessi colori e font) con le sette chiavi spente; quello di prima resta, e
-"arturo schede ripristina" lo rimette.
+"arturo schede ripristina" lo rimette. Un profilo "Arturo" che la persona aveva già non si tocca.
 
 session-start.sh lancia "applica --una-volta" alla prima sessione nel Terminale di Apple: vale per chi
-installa e per chi aggiorna. Il segno sta in ~/.claude/data/schede-terminale.json, che nessun
-aggiornamento tocca; dopo tre tentativi falliti non riprova più da solo.
+installa e per chi aggiorna. L'avvio ha 10 secondi in tutto: il lavoro ha un tetto di TETTO secondi, e
+il tentativo si conta PRIMA di lavorare, perché un processo ucciso dal timeout non arriva all'except.
+Il segno sta in ~/.claude/data/schede-terminale.json, che nessun aggiornamento tocca; dopo TENTATIVI
+tentativi l'avvio non riprova più da solo.
 
-AppleScript riceve i nomi dei profili come argv, mai dentro il testo dello script. ARTURO_SISTEMA
-finge il sistema, solo per i banchi. Solo libreria standard, Python 3.8 o successivo.
+AppleScript riceve i nomi come argv, mai dentro il testo dello script; gli script stanno in costanti,
+così il banco li compila con osacompile. ARTURO_SISTEMA finge il sistema, solo per i banchi. Solo
+libreria standard, Python 3.8 o successivo.
 """
 from __future__ import annotations
 
@@ -43,14 +46,13 @@ CHIAVI = ("ShowActiveProcessInTabTitle", "ShowActiveProcessArgumentsInTabTitle",
           "ShowRepresentedURLInTabTitle", "ShowRepresentedURLPathInTabTitle", "ShowTTYNameInTabTitle",
           "ShowActivityIndicatorInTab")
 TENTATIVI = 3
-ATTESA = 4.0  # secondi per vedere comparire il profilo importato
-# session-start.sh ha 10 secondi in tutto: ogni comando ne ha al massimo 4, e di solito basta mezzo.
-TEMPO = 4
+TETTO = 6.0  # secondi per tutto il lavoro: session-start.sh ne ha 10, e il resto dell'avvio ne usa uno
 LUCCHETTO_VECCHIO = 60  # secondi: un lucchetto più vecchio è di un processo morto
+RISERVA = 1.5  # secondi che l'attesa della finestra lascia allo scambio dei profili
 
 # Assegna il profilo nuovo alle schede che usano quello vecchio, poi predefinito e, se era il vecchio,
 # di avvio. Rende il nome del predefinito, per controllare che il cambio sia avvenuto.
-SCAMBIA = [
+SCAMBIA = (
     "on run argv",
     'tell application "Terminal"',
     "set vecchio to item 1 of argv",
@@ -65,7 +67,16 @@ SCAMBIA = [
     "return name of default settings",
     "end tell",
     "end run",
-]
+)
+FINESTRE = ('tell application "Terminal" to get id of every window',)
+ESISTE = ("on run argv", 'tell application "Terminal" to return exists settings set (item 1 of argv)', "end run")
+# Della finestra: se qualche scheda è al lavoro, e il profilo della prima scheda.
+FINESTRA = ("on run argv", 'tell application "Terminal"', "set w to window id ((item 1 of argv) as integer)",
+            "return {busy of every tab of w, name of current settings of tab 1 of w}", "end tell", "end run")
+CHIUDI = ("on run argv", 'tell application "Terminal" to close window id ((item 1 of argv) as integer)', "end run")
+ELIMINA = ("on run argv", 'tell application "Terminal" to delete settings set (item 1 of argv)', "end run")
+SCRIPT = {"SCAMBIA": SCAMBIA, "FINESTRE": FINESTRE, "ESISTE": ESISTE, "FINESTRA": FINESTRA, "CHIUDI": CHIUDI,
+          "ELIMINA": ELIMINA}
 
 
 class Errore(Exception):
@@ -93,16 +104,38 @@ def leggi_segno() -> dict:
         return {}
 
 
+def tentativi(segno: dict) -> int:
+    try:
+        return int(segno.get("tentativi") or 0)
+    except (TypeError, ValueError):
+        return TENTATIVI  # un segno illeggibile non deve far riprovare a ogni avvio
+
+
 def scrivi_segno(dati: dict) -> None:
     f = file_segno()
     f.parent.mkdir(parents=True, exist_ok=True)
-    f.write_text(json.dumps(dict(dati, quando=time.strftime("%Y-%m-%dT%H:%M:%S")), ensure_ascii=False) + "\n",
-                 encoding="utf-8")
+    provvisorio = f.with_name(f"{f.name}.{os.getpid()}.tmp")
+    provvisorio.write_text(json.dumps(dict(dati, quando=time.strftime("%Y-%m-%dT%H:%M:%S")), ensure_ascii=False)
+                           + "\n", encoding="utf-8")
+    os.replace(str(provvisorio), str(f))
 
 
-def esegui(argv: list, cosa: str) -> str:
+class Tempo:
+    """Il tetto di tutto il lavoro: ogni comando ha al massimo il tempo che resta."""
+
+    def __init__(self, secondi: float):
+        self.fine = time.time() + secondi
+
+    def resta(self) -> float:
+        rimasto = self.fine - time.time()
+        if rimasto <= 0:
+            raise Errore("tempo finito")
+        return rimasto
+
+
+def esegui(argv: list, cosa: str, tempo: Tempo) -> str:
     try:
-        r = subprocess.run(argv, capture_output=True, timeout=TEMPO)
+        r = subprocess.run(argv, capture_output=True, timeout=tempo.resta())
     except (OSError, subprocess.SubprocessError) as e:
         raise Errore(f"{cosa}: {e}")
     if r.returncode != 0:
@@ -110,16 +143,16 @@ def esegui(argv: list, cosa: str) -> str:
     return r.stdout.decode("utf-8", "replace")
 
 
-def osa(righe: list, *argomenti: str, cosa: str = "AppleScript") -> str:
+def osa(script: tuple, *argomenti: str, cosa: str, tempo: Tempo) -> str:
     argv = ["osascript"]
-    for riga in righe:
+    for riga in script:
         argv += ["-e", riga]
-    return esegui(argv + list(argomenti), cosa).strip()
+    return esegui(argv + list(argomenti), cosa, tempo).strip()
 
 
-def preferenze() -> dict:
+def preferenze(tempo: Tempo) -> dict:
     """Le preferenze di Terminale come le vede cfprefsd adesso, non il file su disco."""
-    testo = esegui(["defaults", "export", "com.apple.Terminal", "-"], "lettura delle preferenze di Terminale")
+    testo = esegui(["defaults", "export", "com.apple.Terminal", "-"], "lettura delle preferenze di Terminale", tempo)
     try:
         dati = plistlib.loads(testo.encode("utf-8"))
     except Exception as e:  # plistlib solleva tipi diversi a seconda del formato rotto
@@ -127,11 +160,15 @@ def preferenze() -> dict:
     return dati if isinstance(dati, dict) else {}
 
 
+def profili(prefs: dict) -> dict:
+    p = prefs.get("Window Settings")
+    return p if isinstance(p, dict) else {}
+
+
 def predefinito(prefs: dict) -> tuple:
     """(nome, profilo) del profilo predefinito; il profilo è {} se non sta nelle preferenze."""
     nome = str(prefs.get("Default Window Settings") or "Basic")
-    profili = prefs.get("Window Settings") if isinstance(prefs.get("Window Settings"), dict) else {}
-    profilo = profili.get(nome)
+    profilo = profili(prefs).get(nome)
     return nome, (profilo if isinstance(profilo, dict) else {})
 
 
@@ -139,52 +176,44 @@ def pulito(profilo: dict) -> bool:
     return all(profilo.get(k) is False for k in CHIAVI)
 
 
-def finestre() -> set:
-    uscita = osa(['tell application "Terminal" to get id of every window'], cosa="elenco delle finestre")
+def finestre(tempo: Tempo) -> set:
+    uscita = osa(FINESTRE, cosa="elenco delle finestre", tempo=tempo)
     return {x.strip() for x in uscita.split(",") if x.strip().isdigit()}
 
 
-def profili_aperti() -> list:
-    uscita = osa(['tell application "Terminal" to get name of every settings set'], cosa="elenco dei profili")
-    return [x.strip() for x in uscita.split(",")]
+def esiste(nome: str, tempo: Tempo) -> bool:
+    return osa(ESISTE, nome, cosa="ricerca del profilo", tempo=tempo) == "true"
 
 
-def importa(profilo: dict) -> None:
+def importa(profilo: dict, tempo: Tempo) -> None:
     """Apre il .terminal del profilo nuovo e chiude la finestra vuota che l'import apre."""
-    prima = finestre()
+    prima = finestre(tempo)
     cartella = Path(tempfile.mkdtemp(prefix="arturo-schede."))
     try:
         file = cartella / f"{NOME}.terminal"
         with open(file, "wb") as f:
             plistlib.dump(profilo, f)
-        esegui(["open", "-g", "-a", "Terminal", str(file)], "apertura del profilo")
-        limite = time.time() + float(os.environ.get("ARTURO_SCHEDE_ATTESA", ATTESA))
-        while NOME not in profili_aperti():
-            if time.time() >= limite:
-                raise Errore(f'il profilo "{NOME}" non è comparso in Terminale')
+        esegui(["open", "-g", "-a", "Terminal", str(file)], "apertura del profilo", tempo)
+        while not esiste(NOME, tempo):
             time.sleep(0.3)
-        # La finestra dell'import arriva dopo il profilo (provato il 29/10): si aspetta anche lei.
-        nuove = finestre() - prima
-        while not nuove and time.time() < limite:
-            time.sleep(0.3)
-            nuove = finestre() - prima
     finally:
         for f in cartella.glob("*"):
             f.unlink()
         cartella.rmdir()
-    # Si chiude solo una finestra nuova e senza processi al lavoro: mai una sessione della persona.
-    # Appena nata la finestra è occupata dal login per un attimo (provato il 29/10): si aspetta che
-    # si liberi; se resta occupata fino al limite, resta aperta.
-    for wid in sorted(nuove):
-        while True:
-            occupate = osa(["on run argv", 'tell application "Terminal" to get busy of every tab of window id '
-                            "((item 1 of argv) as integer)", "end run"], wid, cosa="controllo della finestra nuova")
-            if "true" not in occupate or time.time() >= limite:
-                break
+    # La finestra dell'import arriva dopo il profilo, e appena nata il login la tiene occupata per un
+    # attimo (provato il 29/10). Si chiude solo lei: nuova, col profilo "Arturo" (una finestra aperta
+    # dalla persona in questi secondi ha ancora il profilo di prima) e senza processi al lavoro. Se non
+    # si libera entro il tetto resta aperta: la si chiude a mano, mai una sessione della persona.
+    try:
+        while tempo.fine - time.time() > RISERVA:
+            for wid in sorted(finestre(tempo) - prima):
+                occupate, scheda = osa(FINESTRA, wid, cosa="controllo della finestra nuova", tempo=tempo).rsplit(", ", 1)
+                if scheda == NOME and "true" not in occupate:
+                    osa(CHIUDI, wid, cosa="chiusura della finestra nuova", tempo=tempo)
+                    return
             time.sleep(0.3)
-        if "true" not in occupate:
-            osa(["on run argv", 'tell application "Terminal" to close window id ((item 1 of argv) as integer)',
-                 "end run"], wid, cosa="chiusura della finestra nuova")
+    except Errore:
+        return  # il profilo c'è: la finestra rimasta non ferma il resto
 
 
 def applica(una_volta: bool) -> int:
@@ -194,7 +223,7 @@ def applica(una_volta: bool) -> int:
         return 0
     segno = leggi_segno()
     if una_volta and (os.environ.get("TERM_PROGRAM") != "Apple_Terminal" or segno.get("fatto")
-                      or int(segno.get("tentativi") or 0) >= TENTATIVI):
+                      or tentativi(segno) >= TENTATIVI):
         return 0
     # Due sessioni che partono insieme: il profilo lo importa una sola. mkdir è atomico.
     lucchetto = file_segno().with_suffix(".lock")
@@ -215,34 +244,46 @@ def applica(una_volta: bool) -> int:
 
 
 def _applica(una_volta: bool, segno: dict) -> int:
+    conto = tentativi(segno) + 1
+    # Prima di lavorare: se il timeout dell'avvio uccide il processo, il tentativo è già contato.
+    scrivi_segno(dict(segno, fatto=False, tentativi=conto))
+    tempo = Tempo(float(os.environ.get("ARTURO_SCHEDE_TETTO", TETTO)))
     try:
-        prefs = preferenze()
+        prefs = preferenze(tempo)
         nome, profilo = predefinito(prefs)
-        if nome == NOME or pulito(profilo):
-            scrivi_segno({"fatto": True, "prima": segno.get("prima") or nome, "gia_pulito": True})
+        if (nome == NOME and segno.get("creato")) or pulito(profilo):
+            scrivi_segno({"fatto": True, "prima": segno.get("prima") or nome,
+                          "creato": bool(segno.get("creato") or segno.get("importato")), "gia_pulito": True})
             if not una_volta:
                 print(f'SCHEDE: il profilo "{nome}" mostra già solo il titolo: niente da cambiare.')
             return 0
+        nostro = bool(segno.get("importato") or segno.get("creato"))
+        if (NOME in profili(prefs) or nome == NOME) and not nostro:
+            raise Errore(f'c\'è già un profilo "{NOME}" tuo: non lo tocco')
         if not profilo and nome != "Basic":
             raise Errore(f'il profilo "{nome}" non si legge dalle preferenze')
         nuovo = dict(profilo)
         nuovo.update({k: False for k in CHIAVI}, name=NOME, type="Window Settings")
-        if NOME not in profili_aperti():
-            importa(nuovo)
         avvio = str(prefs.get("Startup Window Settings") or nome)
-        if osa(SCAMBIA, nome, NOME, cosa="assegnazione del profilo") != NOME:
+        if not esiste(NOME, tempo):
+            importa(nuovo, tempo)
+            # Da qui il profilo è nostro: se il timeout uccide il processo, il giro dopo lo sa, e sa
+            # quale profilo rimettere con ripristina.
+            segno = dict(segno, importato=True, prima=nome, avvio_prima=avvio)
+            scrivi_segno(dict(segno, fatto=False, tentativi=conto))
+        if osa(SCAMBIA, nome, NOME, cosa="assegnazione del profilo", tempo=tempo) != NOME:
             raise Errore(f'il profilo predefinito non è diventato "{NOME}"')
     except Errore as e:
-        tentativi = int(segno.get("tentativi") or 0) + 1
-        scrivi_segno({"fatto": False, "tentativi": tentativi, "errore": str(e)[:200]})
-        dopo = "riprovo alla prossima sessione" if tentativi < TENTATIVI else "non riprovo più da solo"
+        resta = {k: v for k, v in segno.items() if k in ("importato", "prima", "avvio_prima")}
+        scrivi_segno(dict(resta, fatto=False, tentativi=conto, errore=str(e)[:200]))
+        dopo = "riprovo alla prossima sessione" if conto < TENTATIVI else "non riprovo più da solo"
         print(f"SCHEDE: non ho sistemato il titolo delle schede del Terminale ({e}): {dopo}. "
-              'A mano: "arturo schede applica".')
+              'A mano: "python3 ~/.claude/bin/arturo schede applica".')
         return 0 if una_volta else 1
-    scrivi_segno({"fatto": True, "prima": nome, "avvio_prima": avvio})
+    scrivi_segno({"fatto": True, "prima": nome, "avvio_prima": avvio, "creato": True})
     print(f'SCHEDE: nel Terminale le schede mostrano solo il progetto, o "SBLOCCA · <progetto>". Ho creato il '
           f'profilo "{NOME}", copia di "{nome}" senza processo, cartella e indicatore nel titolo. '
-          'Per tornare indietro: "arturo schede ripristina".')
+          'Per tornare indietro: "python3 ~/.claude/bin/arturo schede ripristina".')
     return 0
 
 
@@ -252,11 +293,14 @@ def ripristina() -> int:
         return 0
     segno = leggi_segno()
     prima = str(segno.get("prima") or "Basic")
+    if not (segno.get("creato") or segno.get("importato")):
+        print(f'SCHEDE: il profilo "{NOME}" non l\'ho creato io: niente da ripristinare.')
+        return 0
+    tempo = Tempo(4 * TETTO)  # a mano, senza il timeout dell'avvio
     try:
-        if prima != NOME and NOME in profili_aperti():
-            osa(SCAMBIA, NOME, prima, cosa="ritorno al profilo di prima")
-            osa(["on run argv", 'tell application "Terminal" to delete settings set (item 1 of argv)', "end run"],
-                NOME, cosa=f'cancellazione del profilo "{NOME}"')
+        if prima != NOME and esiste(NOME, tempo):
+            osa(SCAMBIA, NOME, prima, cosa="ritorno al profilo di prima", tempo=tempo)
+            osa(ELIMINA, NOME, cosa=f'cancellazione del profilo "{NOME}"', tempo=tempo)
     except Errore as e:
         print(f"SCHEDE: ripristino non riuscito: {e}", file=sys.stderr)
         return 1
@@ -271,12 +315,12 @@ def stato() -> int:
         print("SCHEDE: serve solo nel Terminale di macOS.")
         return 0
     try:
-        nome, profilo = predefinito(preferenze())
+        nome, profilo = predefinito(preferenze(Tempo(TETTO)))
     except Errore as e:
         print(f"SCHEDE: {e}", file=sys.stderr)
         return 1
     segno = leggi_segno()
-    print(f'profilo predefinito: "{nome}", titolo {"pulito" if nome == NOME or pulito(profilo) else "con processo e cartella"}')
+    print(f'profilo predefinito: "{nome}", titolo {"pulito" if pulito(profilo) else "con processo e cartella"}')
     print(f"segno: {json.dumps(segno, ensure_ascii=False) if segno else 'nessuno'}")
     return 0
 

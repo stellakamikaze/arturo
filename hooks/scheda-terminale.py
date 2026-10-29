@@ -4,7 +4,7 @@
 Gira come hook asincrono su SessionStart, UserPromptSubmit, PostToolUse, Notification, Stop,
 StopFailure e SessionEnd. Legge l'evento da stdin e scrive sul terminale:
   - il titolo, con OSC 0: il solo progetto, oppure "SBLOCCA · <progetto>" quando la sessione aspetta la persona:
-    permesso, domanda, errore, o idle_prompt. Federico, 28/10/2026: "SOLO il titolo del progetto".
+    permesso, domanda, errore, o idle_prompt. Richiesta del 28/10/2026: "SOLO il titolo del progetto".
     La fine del turno da sola non basta (mostrava SBLOCCA a vuoto): Claude Code manda idle_prompt dopo
     60 secondi fermi, e solo se nessun job in background gira e nessuna finestra di dialogo è aperta. Regge solo se Claude Code non lo riscrive: in settings.json c'è
     CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1. Su Terminal di Apple il profilo deve avere spenti
@@ -14,9 +14,11 @@ StopFailure e SessionEnd. Legge l'evento da stdin e scrive sul terminale:
     iTerm2 con OSC 6. Gli altri terminali ricevono solo il titolo.
 Il progetto viene dallo slug che il risolutore di /inizio stampa in testa ("# CONTESTO <slug>" di
 contesto-progetto.py, "PROGETTO <slug>" di arturo contesto), e prima della risoluzione dal testo intero
-dopo "/inizio". Senza /inizio vale l'ultima cartella di progetto toccata da Edit o Write
-(<PROJECTS_BASE>/<progetto>, di default ~/Documents/ClaudeCode; ~/.claude = "claude-config"), poi la radice
-git o il nome della cartella. Stato e progetto stanno in ~/.claude/cache/scheda/<sessione>.json:
+dopo "/inizio" (una fonte debole: un file scritto la sostituisce, lo slug no). Senza /inizio vale l'ultima cartella di progetto toccata da Edit o Write
+(<PROJECTS_BASE>/<progetto>, di default ~/Documents/ClaudeCode; hook, comandi, skill e file di testa della
+config = "claude-config", non piani, memoria e cache), poi la radice git o il nome della cartella.
+Limite noto: dopo un permesso concesso Claude Code non manda eventi finché lo strumento non finisce, quindi
+"SBLOCCA" resta per tutta la durata del comando approvato. Stato e progetto stanno in ~/.claude/cache/scheda/<sessione>.json:
 SessionEnd toglie il suo file, SessionStart quelli fermi da una settimana (sessioni chiuse male).
 Su Windows un hook non vede la console della scheda: si attacca a quella del processo claude.exe.
 Su macOS e Linux l'hook non ha un terminale di controllo (/dev/tty risponde ENXIO): scrive sul tty del
@@ -33,6 +35,7 @@ import re
 import subprocess
 import sys
 import time
+import unicodedata
 from pathlib import Path
 
 EVENTI = {"SessionStart": "nuova", "UserPromptSubmit": "lavoro", "PostToolUse": "lavoro",
@@ -49,9 +52,15 @@ DECAC = {"nuova": 2, "fermo": 2, "attende": 2, "lavoro": 3, "problema": 1}  # ta
 RGB = {"nuova": (40, 167, 69), "fermo": (40, 167, 69), "attende": (40, 167, 69), "lavoro": (230, 180, 0),
        "problema": (200, 40, 40)}
 INIZIO = re.compile(r"^\s*/inizio\b(.*)$", re.S)
-# La riga d'intestazione del risolutore: c'è solo se lo script è girato e ha trovato il progetto.
-CONTESTO = re.compile(r"^(?:# CONTESTO|PROGETTO) (\w[\w.-]*)\s*$", re.M)
+# Il comando deve eseguire il risolutore (un grep che lo nomina non conta), e la sua prima riga
+# d'intestazione c'è solo se ha trovato il progetto.
+RISOLUTORE = re.compile(r"(?:^|[\s;&|(])(?:\S*contesto-progetto\.py|\S*arturo\s+contesto)(?=\s|$|[;&|)])", re.M)
+CONTESTO = re.compile(r"^(?:# CONTESTO|PROGETTO) (\w[\w.-]*)\s*$")
 SCRITTURE = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
+# Le cartelle della config che sono lavoro sulla config. Piani, memoria automatica, cache e dati di
+# sessione li scrive Claude Code mentre lavora su altro: non rinominano la scheda.
+CONFIG = {"hooks", "scripts", "skills", "commands", "agents", "mods", "output-styles", "bin", "tests", "shared",
+          "personale", "linux"}
 VECCHIO = 7 * 24 * 3600  # secondi: una sessione ferma da una settimana non riparte
 
 
@@ -103,13 +112,15 @@ def progetto_da_strumento(dati: dict) -> tuple:
     if nome == "Bash":
         risposta = dati.get("tool_response")
         uscita = risposta.get("stdout") if isinstance(risposta, dict) else risposta
-        m = CONTESTO.search(str(uscita or "")) if "contesto" in str(entrata.get("command") or "") else None
+        prima = (str(uscita or "").strip().splitlines() or [""])[0]
+        m = CONTESTO.match(prima) if RISOLUTORE.search(str(entrata.get("command") or "")) else None
         return (m.group(1)[:40], "inizio") if m else ("", "")
     if nome not in SCRITTURE:
         return "", ""
     percorso = Path(str(entrata.get("file_path") or entrata.get("notebook_path") or "")).expanduser()
-    if dentro(percorso, Path.home() / ".claude") is not None:
-        return "claude-config", "file"
+    config = dentro(percorso, Path(os.path.expanduser(os.environ.get("CLAUDE_CONFIG_DIR") or "~/.claude")))
+    if config is not None:
+        return ("claude-config", "file") if len(config) == 1 or config[0] in CONFIG else ("", "")
     # La cartella dei progetti come la legge contesto.base_progetti() di Arturo.
     parti = dentro(percorso, Path(os.path.expanduser(os.environ.get("PROJECTS_BASE") or "~/Documents/ClaudeCode")))
     return (parti[0][:40], "file") if parti and len(parti) > 1 else ("", "")
@@ -124,7 +135,8 @@ def dentro(percorso: Path, radice: Path):
 
 
 def sequenze(stato: str, progetto: str, campanella: bool = False) -> str:
-    pulito = re.sub(r"[\x00-\x1f\x7f]", "", progetto)[:40]
+    # Fuori ogni carattere di controllo (C0, DEL, C1: U+009C chiude un OSC) e di formato (U+202E rovescia il testo).
+    pulito = "".join(c for c in progetto if unicodedata.category(c) not in ("Cc", "Cf"))[:40]
     if stato == "fine":
         testo = "\x1b]0;\x07"
         if os.environ.get("TERM_PROGRAM") == "iTerm.app":
@@ -236,7 +248,7 @@ def scrivi(testo: str) -> None:
 
 def pulisci(adesso: float) -> None:
     """Toglie lo stato delle sessioni chiuse male (niente SessionEnd): fermo da più di VECCHIO."""
-    for vecchio in cache_dir().glob("*.json"):
+    for vecchio in [*cache_dir().glob("*.json"), *cache_dir().glob("*.tmp")]:
         try:
             if adesso - vecchio.stat().st_mtime > VECCHIO:
                 vecchio.unlink()
@@ -259,8 +271,9 @@ def main() -> int:
     # Gli hook asincroni possono arrivare fuori ordine: vale l'evento partito per ultimo.
     if adesso < float(salvato.get("quando") or 0):
         return 0
-    # Una fonte "inizio" (l'argomento di /inizio, poi il suo slug risolto) non la scavalca un file toccato.
-    progetto, fonte = progetto_da_prompt(str(dati.get("prompt") or "")), "inizio"
+    # Lo slug risolto da /inizio ("inizio") non lo scavalca un file toccato; il testo scritto dopo /inizio
+    # ("prompt") sì, perché può essere un nome che il risolutore non ha trovato.
+    progetto, fonte = progetto_da_prompt(str(dati.get("prompt") or "")), "prompt"
     if not progetto and evento == "PostToolUse":
         progetto, fonte = progetto_da_strumento(dati)
         if fonte == "file" and salvato.get("fonte") == "inizio":
@@ -274,12 +287,18 @@ def main() -> int:
             f.unlink()
         except OSError:
             pass
-    elif salvato.get("stato") == stato and salvato.get("progetto") == progetto:
+    elif salvato.get("stato") == stato and salvato.get("progetto") == progetto and salvato.get("fonte") == fonte:
         return 0  # niente cambia: è il caso comune di PostToolUse
     else:
+        # Un evento partito dopo può aver scritto mentre questo leggeva: si ricontrolla, poi si scrive in
+        # un file a parte e si sostituisce, così nessuno legge uno stato scritto a metà.
+        if adesso < float(leggi(f).get("quando") or 0):
+            return 0
         f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text(json.dumps({"stato": stato, "progetto": progetto, "fonte": fonte, "quando": adesso}),
-                     encoding="utf-8")
+        provvisorio = f.with_name(f"{f.stem}.{os.getpid()}.tmp")
+        provvisorio.write_text(json.dumps({"stato": stato, "progetto": progetto, "fonte": fonte, "quando": adesso}),
+                               encoding="utf-8")
+        os.replace(str(provvisorio), str(f))
     scrivi(sequenze(stato, progetto, campanella=evento in FERMANO))
     return 0
 

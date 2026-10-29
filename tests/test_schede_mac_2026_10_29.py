@@ -5,8 +5,9 @@ SM01 fuori dal Terminale di Apple, o fuori da macOS, non tocca niente e non lasc
 SM02 un profilo predefinito già pulito lascia solo il segno: nessun profilo nuovo.
 SM03 applica crea "Arturo": copia del predefinito (colori, font) con le sette chiavi spente, ne fa il
      predefinito e il profilo d'avvio, e il segno ricorda quello di prima.
-SM04 si chiude solo la finestra vuota dell'import, anche quando arriva dopo il profilo (come nel Terminale
-     vero): mai una finestra di prima, mai una al lavoro.
+SM04 si chiude solo la finestra vuota dell'import, anche quando arriva dopo il profilo o resta occupata
+     dal login per un attimo (come nel Terminale vero): mai una finestra di prima, mai una al lavoro,
+     mai una aperta dalla persona negli stessi secondi.
 SM05 il profilo nuovo va solo sulle schede che usavano il predefinito: le altre tengono il loro.
 SM06 un errore di AppleScript non lascia il segno "fatto", conta il tentativo e non ferma l'avvio
      (exit 0); dopo tre tentativi l'avvio non riprova.
@@ -15,6 +16,9 @@ SM08 ripristina rimette il profilo di prima su schede e predefinito, cancella "A
      non lo rimette.
 SM09 session-start.sh lo lancia nel Terminale di Apple e ne riporta la riga SCHEDE:; col segno non
      avvia Python.
+SM10 un profilo "Arturo" che la persona aveva già non si tocca: né predefinito né cancellato.
+SM11 un processo ucciso a metà (il timeout dell'avvio) ha già contato il tentativo.
+SM12 su macOS gli AppleScript veri compilano (osacompile): i finti li riconoscono solo per sottostringa.
 
 osascript, open e defaults sono finti: simulano Terminale in un file JSON, niente tocca il Mac vero.
 Sulla base 3b1e66f ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
@@ -29,6 +33,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 CHIAVI = ("ShowActiveProcessInTabTitle", "ShowActiveProcessArgumentsInTabTitle", "ShowComponentsWhenTabHasCustomTitle",
@@ -38,7 +43,7 @@ CHIAVI = ("ShowActiveProcessInTabTitle", "ShowActiveProcessArgumentsInTabTitle",
 # Terminale finto. Lo stato: finestre {id: [[profilo, occupata], ...]}, profili, predefinito, avvio,
 # prefs (quello che defaults export rende), rompi (osascript esce 1), apertura_occupata.
 FINTO = r'''#!/usr/bin/env python3
-import json, os, plistlib, sys
+import json, os, plistlib, sys, time
 from pathlib import Path
 STATO = Path(os.environ["SM_STATO"])
 s = json.loads(STATO.read_text())
@@ -48,6 +53,7 @@ with open(os.environ["SM_LOG"], "a") as log:
 def salva():
     STATO.write_text(json.dumps(s))
 if nome == "defaults":
+    time.sleep(s.get("lento") or 0)
     prefs = dict(s["prefs"], **{"Default Window Settings": s["predefinito"], "Startup Window Settings": s["avvio"]})
     prefs["Window Settings"] = {k: {kk: (vv.encode() if kk.endswith("Color") else vv) for kk, vv in v.items()}
                                 for k, v in prefs.get("Window Settings", {}).items()}
@@ -66,6 +72,8 @@ if nome == "open":
         s["in_arrivo"] = [nuovo, finestra, s["finestra_in_ritardo"]]
     else:
         s["finestre"][nuovo] = finestra
+    if s.get("finestra_utente"):  # Cmd+N della persona negli stessi secondi: profilo di prima, libera
+        s["finestre"][str(int(nuovo) + 1)] = [[s["predefinito"], False]]
     salva()
     sys.exit(0)
 # osascript: gli -e sono lo script, il resto argv
@@ -88,15 +96,15 @@ if "id of every window" in testo:
             s["in_arrivo"][2] = attese - 1
         salva()
     print(", ".join(s["finestre"]))
-elif "name of every settings set" in testo:
-    print(", ".join(s["profili"]))
+elif "exists settings set" in testo:
+    print("true" if argv[0] in s["profili"] else "false")
 elif "busy of every tab" in testo:
     schede = s["finestre"][argv[0]]
     if s.get("login_lento") and argv[0] == s.get("nuova"):  # il login occupa la finestra per qualche controllo
         s["login_lento"] -= 1; salva()
-        print(", ".join("true" for _ in schede))
+        print(", ".join(["true" for _ in schede] + [schede[0][0]]))
     else:
-        print(", ".join("true" if t[1] else "false" for t in schede))
+        print(", ".join(["true" if t[1] else "false" for t in schede] + [schede[0][0]]))
 elif "close window id" in testo:
     s["finestre"].pop(argv[0]); salva()
 elif "set default settings to nuovo" in testo:
@@ -151,7 +159,7 @@ class Mac:
         self.env = {k: v for k, v in os.environ.items() if k not in ("TERM_PROGRAM", "ARTURO_SISTEMA")}
         self.env.update(HOME=str(self.home), USERPROFILE=str(self.home), PATH=f"{self.bin}{os.pathsep}{os.environ['PATH']}",
                         SM_STATO=str(self.stato_file), SM_LOG=str(self.log), ARTURO_SISTEMA="darwin",
-                        TERM_PROGRAM="Apple_Terminal", ARTURO_SCHEDE_ATTESA="2", ARTURO_TELEMETRIA="0",
+                        TERM_PROGRAM="Apple_Terminal", ARTURO_SCHEDE_TETTO="10", ARTURO_TELEMETRIA="0",
                         PYTHONDONTWRITEBYTECODE="1")
 
     def stato(self) -> dict:
@@ -251,6 +259,16 @@ def test_sm04(repo: Path) -> None:
         assert set(f) == {"10", "11"}, f"SM04 la finestra dell'import occupata dal login resta aperta: {sorted(f)}"
     con(repo, "SM04", login_lento)
 
+    def utente(m):
+        s = m.stato()
+        s["finestra_utente"] = True
+        m.scrivi_stato(s)
+        m.esegui("applica")
+        f = m.stato()["finestre"]
+        assert set(f) == {"10", "11", "13"}, \
+            f"SM04 chiude la finestra aperta dalla persona, o lascia quella dell'import: {sorted(f)}"
+    con(repo, "SM04", utente)
+
 
 def test_sm05(repo: Path) -> None:
     def prova(m):
@@ -318,8 +336,61 @@ def test_sm09(repo: Path) -> None:
     con(repo, "SM09", prova)
 
 
+def test_sm10(repo: Path) -> None:
+    def prova(m):
+        s = m.stato()
+        s["profili"].append("Arturo")
+        s["prefs"]["Window Settings"]["Arturo"] = {"name": "Arturo", "BackgroundColor": "rosa"}
+        m.scrivi_stato(s)
+        m.esegui("applica", "--una-volta")
+        s = m.stato()
+        assert s["predefinito"] == "Basic" and "importato" not in s, f"SM10 usa o sovrascrive l'Arturo della persona: {s}"
+        assert m.segno().get("fatto") is False, f"SM10 segna fatto senza aver cambiato niente: {m.segno()}"
+        r = m.esegui("ripristina")
+        assert "Arturo" in m.stato()["profili"], f"SM10 ripristina cancella l'Arturo della persona: {r.stdout!r}"
+    con(repo, "SM10", prova)
+
+
+def test_sm11(repo: Path) -> None:
+    def prova(m):
+        s = m.stato()
+        s["lento"] = 30
+        m.scrivi_stato(s)
+        p = subprocess.Popen([sys.executable, "-B", str(m.home / ".claude" / "bin" / "arturo"), "schede", "applica",
+                              "--una-volta"], env=m.env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            for _ in range(50):
+                if m.chiamate():
+                    break
+                time.sleep(0.1)
+        finally:
+            p.kill()
+            p.wait()
+        assert m.segno().get("tentativi") == 1 and m.segno().get("fatto") is False, \
+            f"SM11 un processo ucciso a metà non ha contato il tentativo: {m.segno()}"
+    con(repo, "SM11", prova)
+
+
+def test_sm12(repo: Path) -> None:
+    modulo = repo / "bin" / "schede_mac.py"
+    assert modulo.is_file(), "SM12 manca bin/schede_mac.py"
+    if sys.platform != "darwin" or not shutil.which("osacompile"):
+        print("SM12 saltato: osacompile c'è solo su macOS")
+        return
+    spazio = {"__name__": "schede_mac_banco"}
+    exec(compile(modulo.read_text(encoding="utf-8"), str(modulo), "exec"), spazio)
+    with tempfile.TemporaryDirectory() as d:
+        for nome, script in spazio["SCRIPT"].items():
+            argv = ["osacompile", "-o", str(Path(d) / f"{nome}.scpt")]
+            for riga in script:
+                argv += ["-e", riga]
+            r = subprocess.run(argv, capture_output=True, text=True, timeout=30)
+            assert r.returncode == 0, f"SM12 lo script {nome} non compila: {r.stderr.strip()[:200]}"
+
+
 TESTS = {"SM01": test_sm01, "SM02": test_sm02, "SM03": test_sm03, "SM04": test_sm04, "SM05": test_sm05,
-         "SM06": test_sm06, "SM07": test_sm07, "SM08": test_sm08, "SM09": test_sm09}
+         "SM06": test_sm06, "SM07": test_sm07, "SM08": test_sm08, "SM09": test_sm09,
+         "SM10": test_sm10, "SM11": test_sm11, "SM12": test_sm12}
 
 
 def main() -> int:
