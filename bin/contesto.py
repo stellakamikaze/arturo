@@ -193,7 +193,11 @@ def rami_non_riportati(cartella: Path) -> list:
         if "\t" not in r:
             continue
         ramo, data = r.split("\t", 1)
-        quanti = git(cartella, "rev-list", "--count", f"HEAD..refs/heads/{ramo}") or "?"
+        # git cherry segna con "-" un commit già arrivato in altra forma (cherry-pick, rebase): non manca.
+        mancanti = [c for c in git(cartella, "cherry", "HEAD", f"refs/heads/{ramo}").splitlines() if c.startswith("+")]
+        if not mancanti:
+            continue
+        quanti = len(mancanti)
         dove = f" · worktree {worktree[ramo]}" if ramo in worktree else ""
         righe.append(f"{ramo} · {quanti} commit · ultimo {data}{dove}")
     return righe

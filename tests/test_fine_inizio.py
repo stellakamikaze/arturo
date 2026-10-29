@@ -905,9 +905,11 @@ def test_f19(repo: Path) -> None:
         assert r.returncode == 0, f"F19 exit {r.returncode}: {r.stderr} {out}"
         assert re.search(r"RAMI CON COMMIT CHE NON SONO SU main: 1\n\s+il-libro-20261027-0935 · 2 commit · ultimo \S+ "
                          r"· worktree \S*copia-della-sessione", out), f"F19 il ramo del worktree non riportato è muto: {out}"
-        lab.git(progetto, "merge", "-q", "--ff-only", "il-libro-20261027-0935")
+        # Gli stessi commit portati con cherry-pick: il ramo non è unito, ma non manca niente.
+        for n in (1, 2):
+            lab.git(progetto, "cherry-pick", f"il-libro-20261027-0935~{2 - n}")
         out = lab.arturo("contesto", "Il Libro", cwd=lab.home).stdout
-        assert "RAMI CON COMMIT" not in out, f"F19 un ramo già riportato resta in elenco: {out}"
+        assert "RAMI CON COMMIT" not in out, f"F19 un ramo coi commit già riportati in altra forma resta in elenco: {out}"
     con_lab(repo, prova)
     inizio = read(repo / "commands" / "inizio.md")
     fine = read(repo / "commands" / "fine.md")
