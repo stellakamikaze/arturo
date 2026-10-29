@@ -19,7 +19,9 @@ CP03 nessun testo di Arturo chiama anonimi i dati d'uso (26/10/2026): l'id è ca
      generate (data/, cache/, node_modules/, i worktree).
 CP04 gli archivi della persona che non fermano l'aggiornamento (data/handoffs, data/todo,
      data/memory, segnalazione n. 14) sono gli stessi in bin/aggiorna-applica.sh, hooks/session-start.sh,
-     README.md e nel ciclo di /fine che li toglie dal tracciamento (27/10/2026, #3987).
+     README.md, nel ciclo di /fine che li toglie dal tracciamento (27/10/2026, #3987) e nei controlli
+     delle modifiche di /inizio e /aggiorna (#4079). La fonte è ARCHIVI_PERSONALI di aggiorna-applica.sh:
+     un archivio nuovo si aggiunge lì, e questo controllo dice tutte le copie da allineare.
 
 Sulla base f4ae0aa ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -129,6 +131,8 @@ def test_cp04(repo: Path) -> None:
         "hooks/session-start.sh": r"':!(data/\w+)'",
         "README.md": r"':!(data/\w+)'",
         "commands/fine.md": r"for p in ((?:data/\w+ ?)+); do",
+        "commands/inizio.md": r"':\(exclude\)(data/\w+)'",
+        "commands/aggiorna.md": r"':\(exclude\)(data/\w+)'",
     }
     liste = {}
     for nome, schema in copie.items():

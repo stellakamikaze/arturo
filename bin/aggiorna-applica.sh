@@ -100,6 +100,7 @@ segna_conflitti() {  # $1 = il modo, $2 = i file in conflitto, uno per riga. Dop
 # un commit in arrivo (un handoff scritto su un'altra macchina) può cambiare un archivio con modifiche
 # non salvate: lì `git reset --keep` si rifiuta, e porta_dentro risponde APPLICAZIONE ANNULLATA con
 # ~/.claude com'era. Il /fine dopo salva l'archivio, e l'applicazione riparte.
+# La fonte della lista: le copie in session-start.sh, /inizio, /aggiorna, /fine e README le controlla CP04.
 ARCHIVI_PERSONALI=(':(exclude)data/handoffs' ':(exclude)data/todo' ':(exclude)data/memory')
 
 modificati() {  # i file tracciati con modifiche non salvate, archivi della persona esclusi
