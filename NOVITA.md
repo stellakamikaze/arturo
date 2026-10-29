@@ -32,6 +32,19 @@ aspetta te la mostra, insieme a "SBLOCCA". Per tornare al profilo di prima: `pyt
 
 ---
 
+## 2026-10-29 — Claude trova il comando arturo per nome, e una correzione resta una riga
+
+**Cosa cambia**: all'avvio della sessione Arturo mette `~/.claude/bin` fra i percorsi dei comandi di
+Claude. Così `arturo todo` funziona anche senza `python3 ~/.claude/bin/` davanti, e Claude non perde
+un giro a cercarlo (segnalazione n. 33). Il promemoria che arriva con ogni messaggio dice anche che una
+correzione a lavoro iniziato è una riga, "Brief corretto: ...", come nella skill prompt-master: niente
+prompt e brief riscritti da capo per un nome di cartella (segnalazione n. 34).
+
+**Il principio**: due regole che si contraddicono costano a ogni messaggio. Una sola fonte, detta uguale
+dove la si ripete.
+
+---
+
 ## 2026-10-29 — Un handoff tolto da /fine si recupera per un mese
 
 **Cosa cambia**: quando `/fine` tiene solo gli ultimi cinque handoff di un progetto, quelli vecchi non

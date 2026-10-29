@@ -50,8 +50,9 @@ lavorando adesso va "in corso" con `inizia ID`.
 
 ## I comandi
 
-Scrivi sempre `python3 ~/.claude/bin/arturo todo` davanti. La persona può avere l'alias
-`arturo`, ma tu non contarci.
+Scrivi sempre `python3 ~/.claude/bin/arturo todo` davanti. L'avvio della sessione mette `arturo` nel
+PATH dei tuoi comandi (segnalazione n. 33), ma il percorso intero funziona ovunque, anche in una
+sessione aperta prima dell'aggiornamento.
 
 | Comando | Effetto |
 |---|---|

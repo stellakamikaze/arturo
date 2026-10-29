@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RL01-RL04: i ritocchi prima del rilascio del 2/11/2026.
+"""RL01-RL06: i ritocchi prima del rilascio del 2/11/2026.
 
 RL01 /setup sta sotto il tetto di 30 KB dell'audit: la FASE 8d (Lancillotto, solo Mac) vive in
      shared/setup-lancillotto.md, che /setup nomina e che ha ancora il comando d'installazione (#4104).
@@ -11,6 +11,10 @@ RL03 il tasto o del pannello passa il titolo atteso, e arturo sessione si ferma 
      numero ha un altro titolo (#4106): dopo un merge la sessione partirebbe sul lavoro sbagliato.
 RL04 /segnala non vede un segreto nel base64 di un'immagine in linea, come la guardia credenziali
      (#4078); una chiave nel testo la trova ancora.
+RL05 l'avvio della sessione mette ~/.claude/bin nel PATH dei comandi di Claude con $CLAUDE_ENV_FILE,
+     una riga sola anche dopo due avvii (segnalazione n. 33).
+RL06 il promemoria di inject-now dice che una correzione a lavoro iniziato è una riga, come prompt-master
+     (segnalazione n. 34).
 
 Sulla base 60b7d8d ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -20,8 +24,10 @@ import argparse
 import importlib.util
 import json
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 PAROLE = {9: "Nove", 10: "Dieci", 11: "Undici", 12: "Dodici"}
@@ -101,7 +107,35 @@ def test_rl04(repo: Path) -> None:
     assert testo, "RL04 /segnala non trova più una chiave scritta nel testo"
 
 
-TESTS = {"RL01": test_rl01, "RL02": test_rl02, "RL03": test_rl03, "RL04": test_rl04}
+def test_rl05(repo: Path) -> None:
+    bash = shutil.which("bash") or "bash"
+    with tempfile.TemporaryDirectory() as d:
+        home = Path(d) / "home"
+        shutil.copytree(repo, home / ".claude", ignore=shutil.ignore_patterns(".git", "__pycache__", "cache"))
+        ambiente = Path(d) / "ambiente.sh"
+        ambiente.write_text("", encoding="utf-8")
+        env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+               "CLAUDE_ENV_FILE": str(ambiente),
+               "ARTURO_BANCHI_AVVIO": "0", "ARTURO_TELEMETRIA": "0", "GIT_CONFIG_GLOBAL": "/dev/null",
+               "TMPDIR": tempfile.gettempdir()}
+        for _ in range(2):
+            subprocess.run([bash, str(home / ".claude" / "hooks" / "session-start.sh")], input="{}", text=True,
+                           capture_output=True, cwd=d, env=env, timeout=60)
+        righe = [r for r in ambiente.read_text(encoding="utf-8").splitlines() if ".claude/bin" in r]
+        assert len(righe) == 1, f"RL05 l'avvio non mette ~/.claude/bin nel PATH una volta sola: {righe}"
+        trovato = subprocess.run([bash, "-c", f'source "{ambiente}"; command -v arturo'], text=True,
+                                 capture_output=True, env=env, timeout=30).stdout.strip()
+        assert trovato == str(home / ".claude" / "bin" / "arturo"), f"RL05 arturo non si trova per nome: {trovato!r}"
+
+
+def test_rl06(repo: Path) -> None:
+    promemoria = " ".join(read(repo / "hooks" / "inject-now.sh").split("<<'PROMEMORIA'", 1)[-1].split())
+    assert "correzione a lavoro iniziato è una riga" in promemoria and "Brief corretto" in promemoria, \
+        "RL06 il promemoria chiede prompt e brief interi anche per una correzione a lavoro iniziato"
+
+
+TESTS = {"RL01": test_rl01, "RL02": test_rl02, "RL03": test_rl03, "RL04": test_rl04, "RL05": test_rl05,
+         "RL06": test_rl06}
 
 
 def main() -> int:

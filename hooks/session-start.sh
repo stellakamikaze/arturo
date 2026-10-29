@@ -10,6 +10,13 @@ PROJECT_NAME="$(basename "$PROJECT_ROOT")"   # lo legge personale/session-start.
 # primo evento, e osascript poteva far chiedere a macOS il permesso di Automazione (#3587).
 mkdir -p "$HOME/.claude/session-env"   # dir gitignored: non esiste su un clone fresco
 
+# Il comando arturo per nome anche nei comandi di Claude (segnalazione n. 33, 29/10/2026): Claude Code
+# applica ai comandi Bash della sessione le righe export che un hook di avvio scrive in $CLAUDE_ENV_FILE.
+# Una riga sola per file: /clear e la ripresa rilanciano l'avvio.
+if [ -n "${CLAUDE_ENV_FILE:-}" ] && ! grep -qs 'arturo-bin-nel-path' "$CLAUDE_ENV_FILE"; then
+  printf 'export PATH="$HOME/.claude/bin:$PATH"  # arturo-bin-nel-path\n' >> "$CLAUDE_ENV_FILE" 2>/dev/null || true
+fi
+
 # Info directory di lavoro e macchina: con piu' computer, Claude sa su quale lavora.
 echo "DIRECTORY: $PROJECT_ROOT"
 MACCHINA=$(scutil --get ComputerName 2>/dev/null || hostname 2>/dev/null)

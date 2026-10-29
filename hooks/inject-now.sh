@@ -74,7 +74,8 @@ fi
 # chiede niente: aggiunge una riga al contesto, dove la regola serve. Un comando /nome ha già
 # il suo flusso e non riceve il promemoria. Dal 27/10/2026 (segnalazione n. 17) la skill si
 # carica una volta per sessione: ogni Skill(prompt-master) rimetteva nel contesto il corpo
-# intero. Per spegnerlo: cancella il blocco cat qui sotto, oppure togli la skill prompt-master.
+# intero. Una correzione a lavoro iniziato è una riga, come nella skill (segnalazione n. 34, 29/10/2026).
+# Per spegnerlo: cancella il blocco cat qui sotto, oppure togli la skill prompt-master.
 if [ -z "$COMANDO" ]; then
 cat <<'PROMEMORIA'
 REGOLA FISSA: se questo messaggio chiede un lavoro, anche piccolo, le prime righe che scrivi
@@ -82,7 +83,9 @@ sono PROMPT e BRIEF, con la riga "Skill:" (quale skill usi e perché, o "nessuna
 qualunque altro lavoro. Se il corpo di prompt-master non è nel contesto (sessione nuova o dopo
 una compattazione), il primo tool è Skill(prompt-master); se c'è già, applicalo senza
 ricaricarlo: si carica una volta per sessione. Esente solo la conversazione pura: domande,
-commenti, risposte a un menu; lì consiglia una skill solo se c'entra davvero. Il brief non è un gate: mostrato il prompt, se è giusto si procede.
+commenti, risposte a un menu; lì consiglia una skill solo se c'entra davvero. Una correzione a
+lavoro iniziato è una riga, "Brief corretto: ...", senza prompt e brief interi.
+Il brief non è un gate: mostrato il prompt, se è giusto si procede.
 PROMEMORIA
 fi
 
