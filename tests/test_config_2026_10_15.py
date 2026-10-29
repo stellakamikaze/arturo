@@ -16,7 +16,8 @@ K09 il suono delle notifiche parte solo quando Claude aspetta la persona.
 K10 lo stile di scrittura Conciso con le istruzioni da programmatore, di partenza, e /setup fa
     scegliere fra questo e i tre di Claude Code (dal 20/10/2026: lo stile Guida è uscito).
 K11 niente allow larghi che saltano il classificatore, autoMode generale senza dati personali,
-    divieti per Windows e file di lavoro di Claude Code fuori da git.
+    divieti per Windows e file di lavoro di Claude Code fuori da git. Il classificatore ferma l'invio
+    di un segreto o di un file privato a un host esterno, per ogni canale (#4111, 29/10/2026).
 K12 un banco che sposta HOME sposta anche USERPROFILE: su Windows Python trova la home da lì.
 K13 `gh` intero non sta in allow, e le credenziali della config contano come segreto.
 K14 il segno "setup fatto" è fuori da git, e chi aveva finito il setup prima del segno lo riceve.
@@ -238,6 +239,11 @@ def test_k11(repo: Path) -> None:
     for lista in ("allow", "soft_deny", "environment"):
         # Senza $defaults una lista di autoMode sostituisce le regole di serie invece di aggiungersi (15/10/2026).
         assert "$defaults" in am.get(lista, []), f"K11 autoMode.{lista} senza i default di Claude Code"
+    # Le guardie a regex sull'uscita di dati sono state tolte il 28/10 a favore del classificatore (#4111).
+    uscita = [r for r in am.get("soft_deny", []) if r.startswith("Sending to an external host")]
+    assert uscita and all(c in uscita[0] for c in ("secret", "credential", "private key", "transcript", "URL path",
+                                                    "header", "DNS")), \
+        "K11 il classificatore non ha la regola contro l'invio di segreti a un host esterno"
     testo = json.dumps(am)
     for parola in ("ts.net", "/Users/", "C:\\\\Users"):
         assert parola not in testo, f"K11 autoMode con un riferimento personale: {parola}"

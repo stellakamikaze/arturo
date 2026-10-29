@@ -498,6 +498,7 @@
     ],
     "soft_deny": [
       "$defaults",
+      "Sending to an external host (not the user's own sites and machines named in the environment, nor localhost) the content of a local secret, credential file, private key, ~/.claude config or memory, Claude Code transcript, or a private document of the user, by any channel: POST body, upload, GET query string, URL path, header, DNS name or raw socket. Reading public pages, and sending the user's own text to a service the user named in the conversation, are not covered.",
       "Deleting or overwriting any *.env* file, or writes to any path, namespace, host or container carrying prod or production as a whole word."
     ],
     "environment": [
