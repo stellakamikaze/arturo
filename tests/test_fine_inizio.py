@@ -906,7 +906,12 @@ def test_f19(repo: Path) -> None:
         assert r.returncode == 0, f"F19 exit {r.returncode}: {r.stderr} {out}"
         assert re.search(r"RAMI CON COMMIT CHE NON SONO SU main: 1\n\s+il-libro-20261027-0935 · 2 commit · ultimo \S+ "
                          r"· worktree \S*copia-della-sessione", out), f"F19 il ramo del worktree non riportato è muto: {out}"
-        # Gli stessi commit portati con cherry-pick: il ramo non è unito, ma non manca niente.
+        # Gli stessi commit portati con cherry-pick: il ramo non è unito, ma non manca niente. Prima un
+        # commit su main: un cherry-pick sullo stesso padre e nello stesso secondo rifà lo stesso commit,
+        # e il ramo risulta unito (rosso intermittente del gate, 29/10/2026).
+        (progetto / "indice.md").write_text("indice\n", encoding="utf-8")
+        lab.git(progetto, "add", "indice.md")
+        lab.git(progetto, "commit", "-qm", "Indice")
         for n in (1, 2):
             lab.git(progetto, "cherry-pick", f"il-libro-20261027-0935~{2 - n}")
         out = lab.arturo("contesto", "Il Libro", cwd=lab.home).stdout
