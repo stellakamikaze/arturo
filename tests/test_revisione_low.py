@@ -69,7 +69,14 @@ def avviso_novita(repo: Path, viste: str | None, vecchia: str | None) -> str:
             (config / "session-env" / "novita-viste").write_text(viste, encoding="utf-8")
         if vecchia is not None:
             (config / "session-env" / "novita-vista").write_text(vecchia, encoding="utf-8")
-        env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": os.environ.get("PATH", "")}
+        # Le basi prima del 20/10/2026 rinominavano via osascript la finestra in primo piano del Terminale
+        # vero ("Claude: arturo-l03-..."): un osascript finto in testa al PATH tiene il banco nella sandbox.
+        finti = Path(tmp) / "bin"
+        finti.mkdir()
+        (finti / "osascript").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        (finti / "osascript").chmod(0o755)
+        env = {"HOME": str(home), "USERPROFILE": str(home),
+               "PATH": f"{finti}{os.pathsep}{os.environ.get('PATH', '')}"}
         result = subprocess.run([BASH, str(config / "hooks" / "session-start.sh")], cwd=tmp, text=True,
                                 capture_output=True, env=env, timeout=30, check=False)
         return next((row for row in result.stdout.splitlines() if row.startswith("NOVITA")), "")

@@ -3,21 +3,26 @@
 
 Gira come hook asincrono su SessionStart, UserPromptSubmit, PostToolUse, Notification, Stop,
 StopFailure e SessionEnd. Legge l'evento da stdin e scrive sul terminale:
-  - il titolo, con OSC 0: il solo progetto dove il colore dice lo stato, altrimenti
-    "<progetto> · <stato>". Regge solo se Claude Code non lo riscrive: in settings.json c'è
-    CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1;
+  - il titolo, con OSC 0: il solo progetto, oppure "SBLOCCA · <progetto>" quando la sessione aspetta la persona:
+    permesso, domanda, errore, o idle_prompt. Federico, 28/10/2026: "SOLO il titolo del progetto".
+    La fine del turno da sola non basta (mostrava SBLOCCA a vuoto): Claude Code manda idle_prompt dopo
+    60 secondi fermi, e solo se nessun job in background gira e nessuna finestra di dialogo è aperta. Regge solo se Claude Code non lo riscrive: in settings.json c'è
+    CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1. Su Terminal di Apple il profilo deve avere spenti
+    "Nome processo attivo" nella scheda (ShowActiveProcessInTabTitle), altrimenti accoda "— caffeinate ◂ claude";
   - il colore della scheda, dove il terminale lo sa fare: verde attende, giallo al lavoro,
     rosso se il turno si è fermato per un errore (StopFailure). Windows Terminal con DECAC,
     iTerm2 con OSC 6. Gli altri terminali ricevono solo il titolo.
-Il progetto viene da un "/inizio <nome>" della sessione, poi dalla radice git della cartella,
-poi dal nome della cartella. Stato e progetto stanno in ~/.claude/cache/scheda/<sessione>.json:
+Il progetto viene dallo slug che il risolutore di /inizio stampa in testa ("# CONTESTO <slug>" di
+contesto-progetto.py, "PROGETTO <slug>" di arturo contesto), e prima della risoluzione dal testo intero
+dopo "/inizio". Senza /inizio vale l'ultima cartella di progetto toccata da Edit o Write
+(~/Documents/ClaudeCode/<progetto>, ~/.claude = "claude-config"), poi la radice git o il nome della cartella. Stato e progetto stanno in ~/.claude/cache/scheda/<sessione>.json:
 SessionEnd toglie il suo file, SessionStart quelli fermi da una settimana (sessioni chiuse male).
 Su Windows un hook non vede la console della scheda: si attacca a quella del processo claude.exe.
 Su macOS e Linux l'hook non ha un terminale di controllo (/dev/tty risponde ENXIO): scrive sul tty del
 processo claude, trovato risalendo i padri con ps (18/10/2026: sul Mac le schede non cambiavano mai).
 Con ARTURO_SCHEDA_USCITA=<file> le sequenze vanno in quel file (banchi), con ARTURO_SCHEDA_DEV=<cartella>
 il tty di claude si cerca lì invece che in /dev (banchi). Ogni errore: exit 0.
-Solo libreria standard, Python 3.8+.
+Solo libreria standard, Python 3.9+ (Path.is_relative_to).
 """
 from __future__ import annotations
 
@@ -29,15 +34,23 @@ import sys
 import time
 from pathlib import Path
 
-EVENTI = {"SessionStart": "attende", "UserPromptSubmit": "lavoro", "PostToolUse": "lavoro",
-          "Notification": "attende", "Stop": "attende", "StopFailure": "problema", "SessionEnd": "fine"}
-# Senza colore il titolo deve dire a colpo d'occhio chi aspetta la persona: il segnale sta in testa.
-TITOLO_SENZA_COLORE = {"attende": "● TOCCA A TE · {p}", "lavoro": "{p} · al lavoro", "problema": "● PROBLEMA · {p}"}
-# Gli eventi che fermano il turno e passano la mano: solo questi suonano la campanella.
-FERMANO = {"Notification", "Stop", "StopFailure"}
-DECAC = {"attende": 2, "lavoro": 3, "problema": 1}  # indici della tavolozza: verde, giallo, rosso
-RGB = {"attende": (40, 167, 69), "lavoro": (230, 180, 0), "problema": (200, 40, 40)}
+EVENTI = {"SessionStart": "nuova", "UserPromptSubmit": "lavoro", "PostToolUse": "lavoro",
+          "Notification": "attende", "Stop": "fermo", "StopFailure": "problema", "SessionEnd": "fine"}
+# Le notifiche che vogliono davvero la persona (il matcher in settings.json filtra già: qui è la seconda rete).
+CHIEDONO = {"permission_prompt", "idle_prompt", "elicitation_dialog", "elicitation_url_dialog",
+            "agent_needs_input", "worker_permission_prompt", "workflow_permission_prompt"}
+# Il titolo è il progetto; quando tocca alla persona "SBLOCCA" gli va davanti, senza nasconderlo (29/10/2026).
+# Una sessione appena aperta, o col turno finito, non ha niente da sbloccare: mostra il progetto.
+TITOLO = {"nuova": "{p}", "fermo": "{p}", "attende": "SBLOCCA · {p}", "lavoro": "{p}", "problema": "SBLOCCA · {p}"}
+# Gli eventi che passano la mano alla persona: solo questi suonano la campanella.
+FERMANO = {"Notification", "StopFailure"}
+DECAC = {"nuova": 2, "fermo": 2, "attende": 2, "lavoro": 3, "problema": 1}  # tavolozza: verde, giallo, rosso
+RGB = {"nuova": (40, 167, 69), "fermo": (40, 167, 69), "attende": (40, 167, 69), "lavoro": (230, 180, 0),
+       "problema": (200, 40, 40)}
 INIZIO = re.compile(r"^\s*/inizio\b(.*)$", re.S)
+# La riga d'intestazione del risolutore: c'è solo se lo script è girato e ha trovato il progetto.
+CONTESTO = re.compile(r"^(?:# CONTESTO|PROGETTO) (\w[\w.-]*)\s*$", re.M)
+SCRITTURE = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 VECCHIO = 7 * 24 * 3600  # secondi: una sessione ferma da una settimana non riparte
 
 
@@ -69,15 +82,38 @@ def progetto_da_cartella(cwd: str) -> str:
 
 
 def progetto_da_prompt(prompt: str) -> str:
+    """Il testo dopo "/inizio" fino a "--": "/inizio due mondi spoleto" dà "due mondi spoleto"."""
     m = INIZIO.match(prompt or "")
     if not m:
         return ""
+    parole = []
     for parola in m.group(1).split():
         if parola == "--":
             break
         if not parola.startswith("-"):
-            return re.sub(r"[^\w.-]", "", parola)[:40]
-    return ""
+            parole.append(re.sub(r"[^\w.-]", "", parola))
+    return " ".join(p for p in parole if p)[:40]
+
+
+def progetto_da_strumento(dati: dict) -> tuple:
+    """(progetto, fonte) da un PostToolUse: lo slug risolto da /inizio, o la cartella di un file scritto."""
+    nome = str(dati.get("tool_name") or "")
+    entrata = dati.get("tool_input") if isinstance(dati.get("tool_input"), dict) else {}
+    if nome == "Bash":
+        risposta = dati.get("tool_response")
+        uscita = risposta.get("stdout") if isinstance(risposta, dict) else risposta
+        m = CONTESTO.search(str(uscita or "")) if "contesto" in str(entrata.get("command") or "") else None
+        return (m.group(1)[:40], "inizio") if m else ("", "")
+    if nome not in SCRITTURE:
+        return "", ""
+    percorso = Path(str(entrata.get("file_path") or entrata.get("notebook_path") or "")).expanduser()
+    casa = Path.home()
+    if percorso.is_relative_to(casa / ".claude"):
+        return "claude-config", "file"
+    if not percorso.is_relative_to(casa / "Documents" / "ClaudeCode"):
+        return "", ""
+    parti = percorso.relative_to(casa / "Documents" / "ClaudeCode").parts
+    return (parti[0][:40], "file") if len(parti) > 1 else ("", "")
 
 
 def sequenze(stato: str, progetto: str, campanella: bool = False) -> str:
@@ -87,14 +123,13 @@ def sequenze(stato: str, progetto: str, campanella: bool = False) -> str:
         if os.environ.get("TERM_PROGRAM") == "iTerm.app":
             testo += "\x1b]6;1;bg;*;default\x07"
         return testo
-    # Dove il colore dice lo stato, il titolo è solo il progetto: nella scheda stretta si legge intero.
+    testo = f"\x1b]0;{TITOLO[stato].format(p=pulito)}\x07"
     if os.environ.get("WT_SESSION"):
-        return f"\x1b]0;{pulito}\x07\x1b[2;15;{DECAC[stato]},|"
+        return testo + f"\x1b[2;15;{DECAC[stato]},|"
     if os.environ.get("TERM_PROGRAM") == "iTerm.app":
         r, g, b = RGB[stato]
-        return (f"\x1b]0;{pulito}\x07\x1b]6;1;bg;red;brightness;{r}\x07"
+        return (testo + f"\x1b]6;1;bg;red;brightness;{r}\x07"
                 f"\x1b]6;1;bg;green;brightness;{g}\x07\x1b]6;1;bg;blue;brightness;{b}\x07")
-    testo = f"\x1b]0;{TITOLO_SENZA_COLORE[stato].format(p=pulito)}\x07"
     # Terminal di Apple non colora la scheda, ma segna con una campanella la scheda in secondo
     # piano che riceve un BEL, finché non ci si entra: è il suo "tocca a te" (18/10/2026).
     if campanella and os.environ.get("TERM_PROGRAM") == "Apple_Terminal":
@@ -205,8 +240,9 @@ def pulisci(adesso: float) -> None:
 def main() -> int:
     adesso = time.time()
     dati = json.loads(sys.stdin.buffer.read().decode("utf-8") or "{}")
-    stato = EVENTI.get(str(dati.get("hook_event_name") or ""))
-    if not stato:
+    evento = str(dati.get("hook_event_name") or "")
+    stato = EVENTI.get(evento)
+    if not stato or (evento == "Notification" and dati.get("notification_type") not in CHIEDONO):
         return 0
     sessione = re.sub(r"[^\w-]", "", str(dati.get("session_id") or ""))[:64] or "nessuna"
     f = cache_dir() / f"{sessione}.json"
@@ -216,8 +252,16 @@ def main() -> int:
     # Gli hook asincroni possono arrivare fuori ordine: vale l'evento partito per ultimo.
     if adesso < float(salvato.get("quando") or 0):
         return 0
-    progetto = progetto_da_prompt(str(dati.get("prompt") or "")) if stato == "lavoro" else ""
-    progetto = progetto or salvato.get("progetto") or progetto_da_cartella(str(dati.get("cwd") or os.getcwd()))
+    # Una fonte "inizio" (l'argomento di /inizio, poi il suo slug risolto) non la scavalca un file toccato.
+    progetto, fonte = progetto_da_prompt(str(dati.get("prompt") or "")), "inizio"
+    if not progetto and evento == "PostToolUse":
+        progetto, fonte = progetto_da_strumento(dati)
+        if fonte == "file" and salvato.get("fonte") == "inizio":
+            progetto = ""
+    if not progetto:
+        progetto, fonte = salvato.get("progetto") or "", salvato.get("fonte") or ""
+    if not progetto:
+        progetto, fonte = progetto_da_cartella(str(dati.get("cwd") or os.getcwd())), "cartella"
     if stato == "fine":
         try:
             f.unlink()
@@ -227,8 +271,9 @@ def main() -> int:
         return 0  # niente cambia: è il caso comune di PostToolUse
     else:
         f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text(json.dumps({"stato": stato, "progetto": progetto, "quando": adesso}), encoding="utf-8")
-    scrivi(sequenze(stato, progetto, campanella=dati.get("hook_event_name") in FERMANO))
+        f.write_text(json.dumps({"stato": stato, "progetto": progetto, "fonte": fonte, "quando": adesso}),
+                     encoding="utf-8")
+    scrivi(sequenze(stato, progetto, campanella=evento in FERMANO))
     return 0
 
 

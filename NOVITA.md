@@ -12,6 +12,24 @@ modo di lavorare.
 
 ---
 
+## 2026-10-29 — La scheda del terminale dice il progetto vero, e "SBLOCCA" solo quando servi tu
+
+**Cosa cambia**: il titolo della scheda è il solo nome del progetto. Quando Claude aspetta te diventa
+"SBLOCCA · <progetto>": per una richiesta di permesso, una domanda, un errore, o dopo un minuto fermo
+senza lavori in background. Prima bastava la fine del turno, e la scheda diceva "tocca a te" anche
+mentre Claude aspettava un comando lanciato in background. Il nome è quello che `/inizio` ha trovato:
+"/inizio due mondi" mostra "due-mondi-myway", non "due". Senza `/inizio` vale la cartella del
+progetto in cui Claude scrive i file.
+
+**Il principio dietro**: la scheda serve a vedere da fuori quale sessione ti aspetta davvero. Un
+avviso che scatta a vuoto insegna a ignorarlo.
+
+**Nel Terminale di macOS**: se accanto al nome vedi in grigio il processo ("caffeinate ◂ claude"),
+apri Impostazioni → Profili → il tuo profilo → Scheda e togli le spunte sotto "Titolo", compreso
+l'indicatore di attività.
+
+---
+
 ## 2026-10-28 — Il lavoro di un worktree non resta indietro, e /inizio trova le cartelle col trattino basso
 
 **Cosa cambia**: se una sessione ha lavorato in una copia a parte (un worktree) e i suoi commit non

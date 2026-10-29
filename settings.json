@@ -245,7 +245,7 @@
     ],
     "Notification": [
       {
-        "matcher": "permission_prompt|idle_prompt|elicitation_dialog|agent_needs_input",
+        "matcher": "permission_prompt|idle_prompt|elicitation_dialog|elicitation_url_dialog|agent_needs_input|worker_permission_prompt|workflow_permission_prompt",
         "hooks": [
           {
             "type": "command",

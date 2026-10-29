@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
 """TS01-TS07: titolo e colore della scheda del terminale (hooks/scheda-terminale.py, 16/10/2026).
 
-TS01 lo stato segue l'evento: al lavoro giallo, attende verde, problema rosso (StopFailure). Senza
-     colore lo stato è scritto nel titolo.
+TS01 lo stato segue l'evento: al lavoro giallo, attende verde, problema rosso (StopFailure). Il titolo
+     è il progetto, e "SBLOCCA · <progetto>" quando la sessione aspetta la persona (29/10/2026).
 TS02 il progetto viene da "/inizio <nome>", poi dalla radice git (il repo principale anche da un
      worktree), poi dalla cartella.
 TS03 il colore va solo dove il terminale lo sa fare: DECAC in Windows Terminal, OSC 6 in iTerm2,
-     altrove solo il titolo. Dove c'è il colore il titolo è il solo progetto, che si legge intero.
+     altrove solo il titolo. Al lavoro il titolo è il solo progetto in ogni terminale.
 TS04 se stato e progetto non cambiano l'hook non scrive niente, e il titolo non porta caratteri
      di controllo.
 TS05 un input rotto o un evento sconosciuto non scrive niente ed esce 0.
 TS06 settings.json collega l'hook ai sette eventi in async e spegne il titolo di Claude Code.
 TS07 un evento partito prima dell'ultimo salvato non sovrascrive lo stato.
 TS08 all'avvio di una sessione sparisce lo stato delle sessioni ferme da una settimana, e solo quello.
-TS10 in Terminal di Apple chi aspetta la persona ha "● TOCCA A TE" in testa al titolo e la campanella
-     (BEL) quando il turno si ferma; all'avvio, al lavoro e negli altri terminali niente campanella.
+TS10 in Terminal di Apple la campanella (BEL) suona quando la sessione passa la mano (Notification,
+     StopFailure); all'avvio, al lavoro, alla sola fine del turno e negli altri terminali no.
+TS11 "SBLOCCA" solo quando la persona serve: permesso, domanda, errore, idle_prompt. La fine del turno
+     da sola (Claude può aspettare un job in background) e le notifiche come auth_success no.
+TS12 il nome è lo slug che il risolutore di /inizio stampa ("PROGETTO <slug>"), non le parole scritte;
+     un grep del sorgente non conta; senza /inizio vale la cartella di progetto dove Claude scrive.
 TS09 senza terminale di controllo (il caso normale di un hook su macOS e Linux) le sequenze vanno sul
      tty del processo claude trovato fra i padri. Senza claude fra i padri non si scrive niente.
 
@@ -81,19 +85,20 @@ def test_ts01(repo: Path) -> None:
         assert "\x1b[2;15;3,|" in lavoro, f"TS01 al lavoro non è giallo: {lavoro!r}"
         assert "\x1b[2;15;2,|" in c.evento("Stop"), "TS01 a fine turno non è verde"
         assert "\x1b[2;15;3,|" in c.evento("PostToolUse"), "TS01 dopo un permesso non torna giallo"
-        assert "\x1b[2;15;2,|" in c.evento("Notification"), "TS01 una richiesta di permesso non è verde"
+        assert "\x1b[2;15;2,|" in c.evento("Notification", notification_type="permission_prompt"), \
+            "TS01 una richiesta di permesso non è verde"
         assert "\x1b[2;15;1,|" in c.evento("StopFailure", error="rate_limit"), "TS01 l'errore non è rosso"
         fine = c.evento("SessionEnd")
         assert fine.startswith("\x1b]0;\x07"), f"TS01 a fine sessione il titolo non torna vuoto: {fine!r}"
     finally:
         c.chiudi()
-    # Senza colore lo stato sta nel titolo.
+    # Il titolo: il progetto, oppure SBLOCCA davanti al progetto.
     c = Casa(repo, "TS01")
     try:
-        for evento, titolo in (("UserPromptSubmit", " · al lavoro\x07"), ("Stop", "]0;● TOCCA A TE · "),
-                               ("StopFailure", "]0;● PROBLEMA · ")):
+        nome = c.dir.name
+        for evento, titolo in (("UserPromptSubmit", f"]0;{nome}\x07"), ("StopFailure", f"]0;SBLOCCA · {nome}\x07")):
             uscita = c.evento(evento, prompt="vai")
-            assert titolo in uscita, f"TS01 senza colore il titolo non dice {titolo!r}: {uscita!r}"
+            assert titolo in uscita, f"TS01 il titolo non dice {titolo!r}: {uscita!r}"
     finally:
         c.chiudi()
 
@@ -107,19 +112,20 @@ def test_ts02(repo: Path) -> None:
         (libro / "a.md").write_text("x\n", encoding="utf-8")
         git(libro, "add", "a.md")
         git(libro, "commit", "-qm", "a")
-        assert "TOCCA A TE · libro\x07" in c.evento("SessionStart", cwd=libro / "capitoli", sessione="g"), \
+        assert "]0;libro\x07" in c.evento("SessionStart", cwd=libro / "capitoli", sessione="g"), \
             "TS02 il progetto non è la radice git"
         ramo = c.dir / "ramo"
         git(libro, "worktree", "add", "-q", str(ramo))
-        assert "TOCCA A TE · libro\x07" in c.evento("SessionStart", cwd=ramo, sessione="w"), \
+        assert "]0;libro\x07" in c.evento("SessionStart", cwd=ramo, sessione="w"), \
             "TS02 da un worktree il progetto non è il repo principale"
         sciolta = c.dir / "appunti"
         sciolta.mkdir()
-        assert "TOCCA A TE · appunti\x07" in c.evento("SessionStart", cwd=sciolta, sessione="d"), \
+        assert "]0;appunti\x07" in c.evento("SessionStart", cwd=sciolta, sessione="d"), \
             "TS02 fuori da git il progetto non è la cartella"
         uscita = c.evento("UserPromptSubmit", cwd=sciolta, sessione="d", prompt="/inizio --tutti romanzo -- rileggi")
-        assert "\x1b]0;romanzo · al lavoro" in uscita, f"TS02 /inizio non dà il progetto: {uscita!r}"
-        assert "TOCCA A TE · romanzo\x07" in c.evento("Stop", cwd=sciolta, sessione="d"), \
+        assert "\x1b]0;romanzo\x07" in uscita, f"TS02 /inizio non dà il progetto: {uscita!r}"
+        assert "SBLOCCA · romanzo\x07" in c.evento("Notification", cwd=sciolta, sessione="d",
+                                                   notification_type="idle_prompt"), \
             "TS02 il progetto di /inizio non resta per la sessione"
     finally:
         c.chiudi()
@@ -136,8 +142,7 @@ def test_ts03(repo: Path) -> None:
             assert atteso in uscita and not any(v in uscita for v in vietati), \
                 f"TS03 sequenze sbagliate per {terminale}: {uscita!r}"
             titolo = uscita.split("\x07", 1)[0]
-            assert (" · " in titolo) == (terminale.get("TERM_PROGRAM") == "Apple_Terminal"), \
-                f"TS03 dove c'è il colore il titolo è solo il progetto, altrove porta lo stato: {titolo!r}"
+            assert titolo == f"\x1b]0;{c.dir.name}", f"TS03 al lavoro il titolo non è il solo progetto: {titolo!r}"
         finally:
             c.chiudi()
 
@@ -254,28 +259,70 @@ def test_ts10(repo: Path) -> None:
     c = Casa(repo, "TS10", {"TERM_PROGRAM": "Apple_Terminal"})
     try:
         avvio = c.evento("SessionStart")
-        assert avvio.startswith("\x1b]0;● TOCCA A TE · ") and not avvio.endswith("\x07\x07"), \
-            f"TS10 all'avvio il titolo è sbagliato o suona la campanella: {avvio!r}"
+        assert avvio == f"\x1b]0;{c.dir.name}\x07", f"TS10 all'avvio il titolo è sbagliato o suona: {avvio!r}"
         lavoro = c.evento("UserPromptSubmit", prompt="vai")
-        assert "TOCCA A TE" not in lavoro and not lavoro.endswith("\x07\x07"), f"TS10 al lavoro: {lavoro!r}"
-        for evento in ("Stop", "Notification", "StopFailure"):
+        assert not lavoro.endswith("\x07\x07"), f"TS10 al lavoro suona la campanella: {lavoro!r}"
+        assert not c.evento("Stop").endswith("\x07\x07"), "TS10 la sola fine del turno suona la campanella"
+        for evento, altro in (("Notification", {"notification_type": "idle_prompt"}), ("StopFailure", {})):
             c.evento("UserPromptSubmit", prompt="vai")
-            fermo = c.evento(evento)
+            fermo = c.evento(evento, **altro)
             assert fermo.endswith("\x07\x07"), f"TS10 {evento} non suona la campanella: {fermo!r}"
     finally:
         c.chiudi()
     c = Casa(repo, "TS10")
     try:
         c.evento("UserPromptSubmit", prompt="vai")
-        fermo = c.evento("Stop")
-        assert "TOCCA A TE" in fermo and not fermo.endswith("\x07\x07"), \
+        fermo = c.evento("Notification", notification_type="permission_prompt")
+        assert "SBLOCCA" in fermo and not fermo.endswith("\x07\x07"), \
             f"TS10 fuori da Terminal di Apple suona la campanella: {fermo!r}"
     finally:
         c.chiudi()
 
 
+def test_ts11(repo: Path) -> None:
+    c = Casa(repo, "TS11", {"TERM_PROGRAM": "Apple_Terminal"})
+    try:
+        c.evento("UserPromptSubmit", prompt="/inizio romanzo")
+        fermo = c.evento("Stop")
+        assert "SBLOCCA" not in fermo, f"TS11 la sola fine del turno dice SBLOCCA: {fermo!r}"
+        assert c.evento("Notification", notification_type="auth_success") == "", \
+            "TS11 una notifica che non chiede niente cambia il titolo"
+        for tipo in ("idle_prompt", "permission_prompt", "elicitation_dialog", "worker_permission_prompt"):
+            c.evento("UserPromptSubmit", prompt="vai")
+            uscita = c.evento("Notification", notification_type=tipo)
+            assert "]0;SBLOCCA · romanzo\x07" in uscita, f"TS11 {tipo} non dice SBLOCCA · romanzo: {uscita!r}"
+    finally:
+        c.chiudi()
+
+
+def bash(comando: str, stdout: str) -> dict:
+    return {"tool_name": "Bash", "tool_input": {"command": comando}, "tool_response": {"stdout": stdout}}
+
+
+def test_ts12(repo: Path) -> None:
+    c = Casa(repo, "TS12", {"TERM_PROGRAM": "Apple_Terminal"})
+    try:
+        assert "]0;due mondi\x07" in c.evento("UserPromptSubmit", prompt="/inizio due mondi"), \
+            "TS12 prima della risoluzione il titolo non è il testo intero di /inizio"
+        uscita = c.evento("PostToolUse", **bash('python3 ~/.claude/bin/arturo contesto "due mondi"',
+                                                "PROGETTO due-mondi-myway\ncartella: x\nrc=0"))
+        assert "]0;due-mondi-myway\x07" in uscita, f"TS12 lo slug risolto non arriva al titolo: {uscita!r}"
+        c.evento("UserPromptSubmit", sessione="g", prompt="/inizio x y")
+        grep = c.evento("PostToolUse", sessione="g", **bash("grep -n PROGETTO bin/contesto.py",
+                                                           '314:    righe = [f"PROGETTO {s}"]'))
+        assert grep == "", f"TS12 un grep del sorgente cambia il progetto: {grep!r}"
+        progetti = c.home / "Documents" / "ClaudeCode"
+        c.evento("UserPromptSubmit", sessione="f", prompt="sistema il capitolo")
+        scritto = c.evento("PostToolUse", sessione="f", tool_name="Edit",
+                           tool_input={"file_path": str(progetti / "romanzo" / "cap1.md")}, tool_response={})
+        assert "]0;romanzo\x07" in scritto, f"TS12 senza /inizio la cartella scritta non dà il progetto: {scritto!r}"
+    finally:
+        c.chiudi()
+
+
 TESTS = {"TS01": test_ts01, "TS02": test_ts02, "TS03": test_ts03, "TS04": test_ts04, "TS05": test_ts05,
-         "TS06": test_ts06, "TS07": test_ts07, "TS08": test_ts08, "TS09": test_ts09, "TS10": test_ts10}
+         "TS06": test_ts06, "TS07": test_ts07, "TS08": test_ts08, "TS09": test_ts09, "TS10": test_ts10,
+         "TS11": test_ts11, "TS12": test_ts12}
 
 
 def main() -> int:
