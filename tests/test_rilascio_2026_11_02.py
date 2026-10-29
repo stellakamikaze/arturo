@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RL01-RL03: i ritocchi prima del rilascio del 2/11/2026.
+"""RL01-RL04: i ritocchi prima del rilascio del 2/11/2026.
 
 RL01 /setup sta sotto il tetto di 30 KB dell'audit: la FASE 8d (Lancillotto, solo Mac) vive in
      shared/setup-lancillotto.md, che /setup nomina e che ha ancora il comando d'installazione (#4104).
@@ -9,6 +9,8 @@ RL02 i testi seguono i comandi nuovi del 28/10 (#4105): il README conta i comand
      alla pagina personale e non usa una funzione privata di segnala.
 RL03 il tasto o del pannello passa il titolo atteso, e arturo sessione si ferma se il todo con quel
      numero ha un altro titolo (#4106): dopo un merge la sessione partirebbe sul lavoro sbagliato.
+RL04 /segnala non vede un segreto nel base64 di un'immagine in linea, come la guardia credenziali
+     (#4078); una chiave nel testo la trova ancora.
 
 Sulla base 60b7d8d ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -16,7 +18,9 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -84,7 +88,20 @@ def test_rl03(repo: Path) -> None:
         f"RL03 con un altro titolo la sessione parte lo stesso: {r.returncode} {r.stdout!r} {r.stderr!r}"
 
 
-TESTS = {"RL01": test_rl01, "RL02": test_rl02, "RL03": test_rl03}
+def test_rl04(repo: Path) -> None:
+    chiave = "AKIA" + "ABCDEFGHIJKLMNOP"
+    prova = ("import json, sys; sys.path.insert(0, sys.argv[1]); import segnala; "
+             "print(json.dumps([segnala.segreti_trovati(t) for t in json.loads(sys.argv[2])]))")
+    testi = ["schermata ![x](data:image/png;base64,iVBORw0KGgo" + chiave + "AAAA==) fine", "chiave " + chiave]
+    r = subprocess.run([sys.executable, "-B", "-c", prova, str(repo / "bin"), json.dumps(testi)],
+                       capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert r.returncode == 0, f"RL04 segnala non si importa: {r.stderr[-300:]}"
+    immagine, testo = json.loads(r.stdout.strip().splitlines()[-1])
+    assert not immagine, f"RL04 /segnala vede {immagine} nel base64 di un'immagine in linea"
+    assert testo, "RL04 /segnala non trova più una chiave scritta nel testo"
+
+
+TESTS = {"RL01": test_rl01, "RL02": test_rl02, "RL03": test_rl03, "RL04": test_rl04}
 
 
 def main() -> int:

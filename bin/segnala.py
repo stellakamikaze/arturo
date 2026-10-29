@@ -124,17 +124,21 @@ def cambia_stato(cambia) -> dict:
 
 # --- pulizia ------------------------------------------------------------------
 
-def _pattern_segreti() -> list:
-    """I pattern di hooks/credential-leak-scanner.py: una sola lista, quella della guardia."""
+def _scanner():
+    """hooks/credential-leak-scanner.py: pattern e immagini in linea vengono da lì, una lista sola."""
     scanner = Path(os.path.realpath(__file__)).parent.parent / "hooks" / "credential-leak-scanner.py"
     spec = importlib.util.spec_from_file_location("credential_leak_scanner", str(scanner))
     modulo = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(modulo)
-    return [(re.compile(p), nome) for p, nome in modulo.CREDENTIAL_PATTERNS if nome not in NON_SEGRETI]
+    return modulo
 
 
 def segreti_trovati(testo: str) -> list:
-    return sorted({nome for regex, nome in _pattern_segreti() if regex.search(testo)})
+    modulo = _scanner()
+    # Come la guardia: nel base64 di un'immagine in linea AKIA… o BSA… compaiono per caso (#4078).
+    testo = modulo.DATA_URI.sub("", testo)
+    return sorted({nome for p, nome in modulo.CREDENTIAL_PATTERNS
+                   if nome not in NON_SEGRETI and re.search(p, testo)})
 
 
 def togli_home(testo: str) -> str:

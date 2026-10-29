@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""G01-G05: guardie e forme travestite (9/10/2026).
+"""G01-G06: guardie e forme travestite (9/10/2026).
 
 G01 un `rm` ricorsivo con le opzioni separate, in una subshell, dentro `sh -c` o dietro
 `xargs` chiede conferma come la forma nuda; `rm -rf build` (rigenerabile) no. G02 lo
@@ -8,7 +8,10 @@ comandi che seguono, e un `git log` vero resta senza decisione. G03 `gh repo del
 viene bloccato anche dopo un a capo, in una subshell e col path completo; `gh pr list`
 no. G04 `git add X && git commit` con un segreto in X chiede conferma. G05 i due scanner
 PostToolUse consegnano l'avviso come additionalContext, e i pattern dei segreti sono
-allineati col mod redazione-segreti (il veleno del test di allineamento e' rosso).
+allineati col mod redazione-segreti (il veleno del test di allineamento e' rosso). G06 il
+base64 di uno screenshot non fa scattare l'avviso, in ogni forma di Claude in Chrome (blocco
+immagine, data URI, JSON in stringa, browser_batch); una chiave nel testo accanto sì
+(segnalazioni n. 18, 27, 28 e 30).
 
 Ogni controllo prova una forma vera e una avvelenata: sulla base bb19ef9 falliscono tutti.
 """
@@ -122,7 +125,14 @@ def test_g06(repo: Path) -> None:
     immagine = {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": finta}}
     uri = "screenshot data:image/png;base64," + finta
     chiave = {"type": "text", "text": "chiave AKIA" + "ABCDEFGHIJKLMNOP"}
-    for risposta, avvisa in (([immagine], False), (uri, False), (json.dumps([immagine]), False), ([chiave, immagine], True)):
+    # Segnalazioni n. 27, 28 e 30: le forme di Claude in Chrome. Il blocco MCP porta data e mimeType, uno zoom
+    # ha accanto il testo con l'id ss_, browser_batch mette più blocchi in una lista, anche dentro "content".
+    finta_brave = finta + "BSA" + "q" * 12
+    mcp = {"type": "image", "data": finta_brave, "mimeType": "image/jpeg"}
+    testo_ss = {"type": "text", "text": "Successfully captured zoomed screenshot - ID: ss_5176sgpkw"}
+    lotto = {"content": [{"type": "text", "text": "[navigate] Navigated"}, testo_ss, mcp, [testo_ss, mcp]]}
+    for risposta, avvisa in (([immagine], False), (uri, False), (json.dumps([immagine]), False), ([chiave, immagine], True),
+                             ([testo_ss, mcp], False), (lotto, False), (json.dumps(lotto), False), ([chiave, mcp], True)):
         r = subprocess.run([sys.executable, str(repo / "hooks" / "credential-leak-scanner.py")], input=json.dumps(
             {"tool_name": "mcp__claude-in-chrome__computer", "tool_response": risposta}), capture_output=True, text=True, timeout=30)
         assert ("additionalContext" in r.stdout) == avvisa, f"G06 avviso={not avvisa} su {str(risposta)[:60]}"
