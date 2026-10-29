@@ -6,7 +6,8 @@ aperto dell'archivio, Chi è una categoria dei todo o la sua forma per la person
 "Decidi tu", "Tu: <cosa serve>", dal 20/10/2026), niente segnaposti del modello mai compilati.
 F02 il gate legge le categorie di Chi da bin/todo_store.py: non ne tiene una copia.
 F03 bin/handoff-retention.py tiene gli ultimi 5 per filone, in ordine di nome e non di data del
-file, stampa vicoli ciechi e task senza ID dei file in uscita e cancella solo con --applica.
+file, stampa vicoli ciechi e task senza ID dei file in uscita; solo con --applica li sposta nel
+cestino dello store, dove restano 30 giorni (segnalazione n. 26).
 F04 bin/index-rigenera.py: una riga per filone, prossimo passo dalla Ripartenza, archivio oltre
 30 giorni, nessun link morto, scrittura atomica, nessun elenco di cartelle personali.
 F05 bin/inventario-sessione.py: dalla trascrizione i file della sessione con un destino proposto
@@ -35,6 +36,8 @@ prima di `git worktree remove`, che li cancella senza avviso; /inizio dice che c
 vanno in uno script.
 F17 con Arturo come origin un archivio già tracciato esce dal tracciamento (segnalazione n. 14,
 26/10/2026): dopo retention e sync git non ha più modifiche non salvate.
+F18 /inizio e /aggiorna escludono gli archivi della persona (handoff, todo, memoria) come
+bin/aggiorna-applica.sh: un handoff tracciato e modificato non ferma il pull (#4021, 27/10/2026).
 F19 un ramo di worktree non riportato (segnalazione n. 20, 27/10/2026): arturo contesto lo elenca coi
 commit e il worktree finché non è unito; /inizio lo mette in cima, /fine controlla il merge. Un ramo
 riportato con un cherry-pick non compare, e /fine lo controlla con lo stesso git cherry (#4175).
@@ -293,11 +296,21 @@ def test_f03(repo: Path) -> None:
         assert uscenti == [f"libro/HANDOFF_{date[0]}.md"], f"F03 in uscita {uscenti}: il filone Copertina conta a parte"
         assert "VICOLO-USCENTE" in r.stdout and "TASK-SENZA-ID" in r.stdout and "TASK-CON-ID" not in r.stdout, \
             f"F03 il triage del file in uscita: {r.stdout}"
+        # Nel cestino da prima: uno da 31 giorni esce, uno da 29 resta (segnalazione n. 26).
+        cestino = radice / ".cestino" / "libro"
+        scrivi(radice, {".cestino/libro/HANDOFF_2026-07-01_10-00.md": "vecchio\n",
+                        ".cestino/libro/HANDOFF_2026-07-02_10-00.md": "recente\n"})
+        for nome, giorni in (("HANDOFF_2026-07-01_10-00.md", 31), ("HANDOFF_2026-07-02_10-00.md", 29)):
+            os.utime(str(cestino / nome), (adesso - giorni * 86400, adesso - giorni * 86400))
         r = lancia("libro", "--applica")
         assert r.returncode == 0 and not (radice / "libro" / f"HANDOFF_{date[0]}.md").exists(), \
-            f"F03 --applica non cancella: {r.stdout} {r.stderr}"
+            f"F03 --applica non toglie il file in uscita: {r.stdout} {r.stderr}"
+        assert (cestino / f"HANDOFF_{date[0]}.md").is_file(), \
+            f"F03 l'handoff tolto non è nel cestino dello store, non si recupera: {r.stdout}"
+        assert not (cestino / "HANDOFF_2026-07-01_10-00.md").exists() and (cestino / "HANDOFF_2026-07-02_10-00.md").exists(), \
+            "F03 il cestino non tiene i 30 giorni"
         assert len(list((radice / "libro").glob("HANDOFF_*.md"))) == 7 and (radice / "libro" / "note.txt").exists(), \
-            "F03 --applica ha cancellato più del file in uscita"
+            "F03 --applica ha tolto più del file in uscita"
 
 
 INDEX = """# Indice

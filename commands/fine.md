@@ -240,7 +240,8 @@ handoff esce senza essere letto. Per ogni voce scegli:
   `arturo memoria cerca "parole"`).
 - **Muore.** Era una tantum o è superato, e lo dici.
 
-Poi cancella i vecchi e rigenera l'indice:
+Poi sposta i vecchi nel cestino dello store (`~/.claude/data/handoffs/.cestino/`, dove restano 30
+giorni e si recuperano) e rigenera l'indice:
 
 ```bash
 SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
@@ -248,7 +249,7 @@ python3 ~/.claude/bin/handoff-retention.py "$SLUG" --applica; echo "rc=$?"
 python3 ~/.claude/bin/index-rigenera.py --scrivi; echo "rc=$?"
 ```
 
-`rc=3` della retention: una cancellazione non è riuscita, il file resta e la riga tecnica lo dice.
+`rc=3` della retention: uno spostamento non è riuscito, il file resta e la riga tecnica lo dice.
 L'indice `~/.claude/data/handoffs/INDEX.md` nasce dagli handoff e non si corregge a mano: una
 riga per progetto o filone, con stato e prossimo passo (dalla riga "Prossimo passo:" della
 Ripartenza). Con `rc=1` l'indice non è stato scritto: la riga stampata dice perché.

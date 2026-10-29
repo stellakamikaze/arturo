@@ -32,6 +32,17 @@ lo dice "SBLOCCA". Per tornare al profilo di prima: `python3 ~/.claude/bin/artur
 
 ---
 
+## 2026-10-29 — Un handoff tolto da /fine si recupera per un mese
+
+**Cosa cambia**: quando `/fine` tiene solo gli ultimi cinque handoff di un progetto, quelli vecchi non
+si cancellano più. Vanno in `~/.claude/data/handoffs/.cestino/`, nella cartella del progetto, e ci
+restano 30 giorni. Per riaverne uno, chiedi a Claude di riportarlo indietro. Il cestino resta sul tuo
+computer e non entra in git (segnalazione n. 26).
+
+**Il principio**: un file della persona non sparisce senza una via per tornare indietro.
+
+---
+
 ## 2026-10-29 — Un file con le lettere accentate non fa più chiedere conferma a ogni commit
 
 **Cosa cambia**: se nel commit c'è un file salvato con una codifica vecchia, come il CSV di una banca,
