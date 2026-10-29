@@ -11,6 +11,8 @@ G215 `git add X && git commit` nello stesso comando: il gate guarda anche quello
      in stage, sia da solo sia passando dal dispatcher. In un repository pulito tace.
      Le forme del commit nel dispatcher (a capo, git -c, env, subshell, --no-pager, cartella in
      variabile) stanno in K01 di test_config_2026_10_15.py e qui non si ripetono.
+G216 un file Latin-1 in stage non fa chiedere "scansione fallita", e un segreto lì dentro si trova
+     ancora (#4047, Mac di Liliana).
 
 Sulla base 842b06f (prima del gate allineato alla config dell'autore) ogni controllo deve
 fallire con un AssertionError che comincia con il suo codice.
@@ -141,7 +143,23 @@ def test_g215(repo: Path) -> None:
             assert dispatcher(comando) == "silent", f"G215 il dispatcher ferma un comando che non fa commit: {comando!r}"
 
 
-TESTS = {"G214": test_g214, "G215": test_g215}
+def test_g216(repo: Path) -> None:
+    """Un file non UTF-8 in stage (#4047, 29/10/2026): sul Mac di Liliana ogni commit chiedeva conferma per
+    "scansione fallita", perché la decodifica del diff cadeva su un byte Latin-1."""
+    with tempfile.TemporaryDirectory() as d:
+        for nome, contenuto, atteso in (("latin1 pulito", b"Caff\xe8 1,50\n", "silent"),
+                                        ("latin1 col segreto", b"Caff\xe8 k=" + AWS_FINTO.encode() + b"\n", "segreto")):
+            r = Path(d) / nome.replace(" ", "-")
+            r.mkdir()
+            _git(r, "init", "-q")
+            (r / "conti.csv").write_bytes(contenuto)
+            _git(r, "add", "conti.csv")
+            decisione, motivo = _esito(_gate(repo, "git commit -m conti", r))
+            ottenuto = "segreto" if "Possibile secret" in motivo else (decisione if decisione == "silent" else motivo[:60])
+            assert ottenuto == atteso, f"G216 {nome}: atteso {atteso}, ottenuto {ottenuto}"
+
+
+TESTS = {"G214": test_g214, "G215": test_g215, "G216": test_g216}
 
 
 def main() -> int:

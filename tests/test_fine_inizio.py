@@ -36,7 +36,8 @@ vanno in uno script.
 F17 con Arturo come origin un archivio già tracciato esce dal tracciamento (segnalazione n. 14,
 26/10/2026): dopo retention e sync git non ha più modifiche non salvate.
 F19 un ramo di worktree non riportato (segnalazione n. 20, 27/10/2026): arturo contesto lo elenca coi
-commit e il worktree finché non è unito; /inizio lo mette in cima, /fine controlla il merge.
+commit e il worktree finché non è unito; /inizio lo mette in cima, /fine controlla il merge. Un ramo
+riportato con un cherry-pick non compare, e /fine lo controlla con lo stesso git cherry (#4175).
 F20 il blocco di /inizio per un progetto nuovo espande la tilde di PROJECTS_BASE (segnalazione n. 19).
 F21 arturo contesto trova "mio_progetto" anche scritto come slug (segnalazione n. 21).
 
@@ -905,16 +906,28 @@ def test_f19(repo: Path) -> None:
         assert r.returncode == 0, f"F19 exit {r.returncode}: {r.stderr} {out}"
         assert re.search(r"RAMI CON COMMIT CHE NON SONO SU main: 1\n\s+il-libro-20261027-0935 · 2 commit · ultimo \S+ "
                          r"· worktree \S*copia-della-sessione", out), f"F19 il ramo del worktree non riportato è muto: {out}"
-        # Gli stessi commit portati con cherry-pick: il ramo non è unito, ma non manca niente.
+        # Gli stessi commit portati con cherry-pick: il ramo non è unito, ma non manca niente. Prima un
+        # commit su main: un cherry-pick sullo stesso padre e nello stesso secondo rifà lo stesso commit,
+        # e il ramo risulta unito (rosso intermittente del gate, 29/10/2026).
+        (progetto / "indice.md").write_text("indice\n", encoding="utf-8")
+        lab.git(progetto, "add", "indice.md")
+        lab.git(progetto, "commit", "-qm", "Indice")
         for n in (1, 2):
             lab.git(progetto, "cherry-pick", f"il-libro-20261027-0935~{2 - n}")
         out = lab.arturo("contesto", "Il Libro", cwd=lab.home).stdout
         assert "RAMI CON COMMIT" not in out, f"F19 un ramo coi commit già riportati in altra forma resta in elenco: {out}"
+        # Il controllo di /fine dice lo stesso: branch --no-merged elenca ancora il ramo, git cherry no.
+        assert "il-libro-20261027-0935" in lab.git(progetto, "branch", "--no-merged"), \
+            "preparazione: il ramo riportato con cherry-pick risulta già unito"
+        piu = [c for c in lab.git(progetto, "cherry", "HEAD", "il-libro-20261027-0935").splitlines() if c.startswith("+")]
+        assert not piu, f"F19 git cherry segna commit mancanti su un ramo riportato con cherry-pick: {piu}"
     con_lab(repo, prova)
     inizio = read(repo / "commands" / "inizio.md")
     fine = read(repo / "commands" / "fine.md")
     assert "**Rami non riportati.**" in inizio and "--abort" in inizio, "F19 /inizio non dice cosa fare di un ramo non riportato"
-    assert "--no-merged" in fine and "merge --no-edit" in fine, "F19 /fine non controlla il merge prima dell'handoff"
+    assert "merge --no-edit" in fine, "F19 /fine non prova il merge quando il fast-forward non basta"
+    assert re.search(r"cherry HEAD\s+<branch>", fine) and "righe con `+`" in fine, \
+        "F19 /fine controlla il ramo con branch --no-merged e non con git cherry, come arturo contesto"
 
 
 def test_f20(repo: Path) -> None:

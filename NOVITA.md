@@ -32,6 +32,18 @@ lo dice "SBLOCCA". Per tornare al profilo di prima: `python3 ~/.claude/bin/artur
 
 ---
 
+## 2026-10-29 — Un file con le lettere accentate non fa più chiedere conferma a ogni commit
+
+**Cosa cambia**: se nel commit c'è un file salvato con una codifica vecchia, come il CSV di una banca,
+la guardia dei segreti lo legge lo stesso. Prima non riusciva a leggere le lettere accentate, diceva
+"scansione fallita" e chiedeva conferma a ogni commit. Un segreto dentro quel file la guardia lo trova
+ancora.
+
+**Il principio**: una conferma chiesta a vuoto insegna a dire sì senza leggere. La telemetria ne ha
+contate otto fra il 25 e il 27/10 su un'installazione sola.
+
+---
+
 ## 2026-10-28 — Il lavoro di un worktree non resta indietro, e /inizio trova le cartelle col trattino basso
 
 **Cosa cambia**: se una sessione ha lavorato in una copia a parte (un worktree) e i suoi commit non
@@ -49,7 +61,9 @@ vede: lo deve vedere chi apre la sessione dopo.
 ## 2026-10-28 — Il resto delle domande del Computer Club: sessioni dal pannello, segnalazioni seguite, skill proposte
 
 **Cosa cambia**: dal pannello `/dafare` il tasto `o` apre una finestra nuova del terminale con Claude
-già partito sul todo scelto (`/inizio progetto -- il todo`), su Mac, Windows e Linux. `/segnala stato`
+già partito sul todo scelto (`/inizio progetto -- il todo`), su Mac, Windows e Linux. Prima di aprire
+controlla che il numero indichi ancora il todo che vedi: dopo un merge che ha rinumerato i todo si
+ferma, invece di partire su quello sbagliato. `/segnala stato`
 ti dice a che punto sono le tue segnalazioni: in attesa, arrivate col loro numero, o corrette, con la
 novità che lo racconta; `/novita` ti avvisa quando esce la correzione di una tua. `/proponi` porta a chi
 mantiene Arturo una skill che hai scritto tu: la ripulisce con te da nomi e dati, ti mostra il testo e

@@ -85,8 +85,12 @@ git diff --cached --stat
   tree principale non ha modifiche, prova `git -C <tree principale> merge --no-edit <branch>`; al primo
   conflitto `git -C <tree principale> merge --abort`. Rebase e merge con conflitti non si fanno a fine
   sessione. Il resto di /fine gira dal tree principale (segnalazione n. 11, 22/10/2026).
-- **Il ramo è riportato? Controllalo prima dell'handoff.** `git -C <tree principale> branch
-  --no-merged` non deve elencare il branch della sessione. Se lo elenca, il lavoro non è nella
+- **Il ramo è riportato? Controllalo prima dell'handoff.** `git -C <tree principale> cherry HEAD
+  <branch>` non deve stampare righe con `+`: ognuna è un commit del ramo che la cartella principale
+  non ha. Una riga con `-` è un commit già arrivato in altra forma (cherry-pick, rebase) e non conta.
+  `branch --no-merged` qui non basta: guarda solo la storia, e segnerebbe bloccato un ramo già
+  riportato. È lo stesso controllo di `arturo contesto`, così `/inizio` e `/fine` dicono la stessa
+  cosa. Con almeno una riga `+` il lavoro non è nella
   cartella principale: il worktree resta, l'handoff ha Status `bloccato`, la Ripartenza comincia con
   "N commit restano sul ramo <branch>, non nella cartella principale", e riportarli diventa un todo.
   Lo dici alla persona nella chiusura, non solo nell'handoff (segnalazione n. 20, 27/10/2026: venti

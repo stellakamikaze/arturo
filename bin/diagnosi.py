@@ -13,7 +13,9 @@ percorsi   legge i percorsi di file scritti nella sezione "## File e materiali" 
 materiali  trova i file del progetto sparsi e propone un destino (repo, archivia, resta, scarto):
            in Download e Scrivania i file col nome del progetto o citati per nome dagli handoff,
            nella cartella del progetto i file non tracciati e non ignorati da git, dentro git i
-           file tracciati sopra 20 MB. Propone soltanto: non sposta e non cancella niente.
+           file tracciati sopra 20 MB. Cache, dipendenze, build e worktree di Claude Code restano
+           fuori dalle proposte, con un avviso che dice quanti sono e di metterli nel .gitignore.
+           Propone soltanto: non sposta e non cancella niente.
 
 Exit: percorsi 0 nessuno manca · 1 ne manca almeno uno. materiali 0 sempre.
       Entrambi: 2 progetto non trovato · 3 uso sbagliato.

@@ -44,12 +44,13 @@ Li vedi con `python3 ~/.claude/bin/arturo telemetria mostra`.
 
 - **Cloudflare** ospita il server e il database (Workers e D1). È il solo posto dove stanno gli eventi e i testi.
 - **Telegram** riceve questi messaggi per chi mantiene Arturo:
-  - il campanello di una segnalazione o di un feedback dal sito: numero, tipo e origine;
+  - il campanello di una segnalazione: numero, tipo, le prime 8 cifre dell'id, la versione di Arturo, il sistema e il link alla pagina privata che la mostra a chi mantiene Arturo;
+  - il campanello di un feedback dal sito: numero, tipo e origine;
   - l'avviso di un'installazione nuova e di un `/setup` finito: le prime 8 cifre dell'id, la versione di Arturo e il sistema;
   - l'avviso di un'installazione rimasta indietro: le prime 8 cifre dell'id, il rilascio installato, il giorno dell'ultima attività e il rilascio che manca;
   - l'avviso di un download dal sito: la pagina, Mac o Windows e quanti download ci sono stati quel giorno, senza id.
 - **Gmail** riceve queste email per chi mantiene Arturo:
-  - lo stesso campanello delle segnalazioni, con la query che legge il testo sul server;
+  - lo stesso campanello delle segnalazioni, con l'ora di arrivo e il link alla pagina privata;
   - l'avviso di una config rotta: le prime 8 cifre dell'id, la versione di Arturo e il tipo di guasto;
   - il recap di ogni mattina e il riepilogo del lunedì: i numeri degli eventi sommati fra le installazioni e, per installazione con le prime 8 cifre dell'id, i file e gli hook di Arturo cambiati o spenti, le guardie che bloccano spesso e le installazioni rimaste indietro.
 

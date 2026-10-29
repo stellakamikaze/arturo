@@ -235,15 +235,21 @@ def _diff(repo: str, commit_all: bool, add_prima: bool = False) -> str | None:
         commands.append(["git", "-C", repo, "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--unified=0"])
     output = []
     for command in commands:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=4, check=False)
+        # Un file non UTF-8 in stage (un CSV della banca in Latin-1) faceva cadere la decodifica e ogni
+        # commit chiedeva conferma per "scansione fallita" (#4047, 29/10/2026). Un segreto è ASCII:
+        # sostituire i byte non validi non lo nasconde.
+        result = subprocess.run(command, capture_output=True, encoding="utf-8", errors="replace", timeout=4,
+                                check=False)
         if result.returncode:
             return None
         output.append(result.stdout)
     if add_prima:
         # 9/10/2026: `git add X && git commit` mette X in stage dopo questo controllo.
         # Si leggono anche i file non tracciati che git add potrebbe aggiungere.
+        # surrogateescape: un nome di file non UTF-8 resta apribile con open().
         result = subprocess.run(["git", "-C", repo, "ls-files", "--others", "--exclude-standard", "-z"],
-                                capture_output=True, text=True, timeout=4, check=False)
+                                capture_output=True, encoding="utf-8", errors="surrogateescape", timeout=4,
+                                check=False)
         if result.returncode:
             return None
         for nome in [n for n in result.stdout.split("\0") if n][:200]:
