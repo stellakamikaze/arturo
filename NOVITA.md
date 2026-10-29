@@ -30,6 +30,18 @@ l'indicatore di attività.
 
 ---
 
+## 2026-10-29 — Un file con le lettere accentate non fa più chiedere conferma a ogni commit
+
+**Cosa cambia**: se nel commit c'è un file salvato con una codifica vecchia, come il CSV di una banca,
+la guardia dei segreti lo legge lo stesso. Prima non riusciva a leggere le lettere accentate, diceva
+"scansione fallita" e chiedeva conferma a ogni commit. Un segreto dentro quel file la guardia lo trova
+ancora.
+
+**Il principio**: una conferma chiesta a vuoto insegna a dire sì senza leggere. La telemetria ne ha
+contate otto fra il 25 e il 27/10 su un'installazione sola.
+
+---
+
 ## 2026-10-28 — Il lavoro di un worktree non resta indietro, e /inizio trova le cartelle col trattino basso
 
 **Cosa cambia**: se una sessione ha lavorato in una copia a parte (un worktree) e i suoi commit non
