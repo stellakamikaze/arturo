@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Q01-Q08: mod e skill portati dalla config dell'autore il 15/10/2026.
+"""Q01-Q09: mod e skill portati dalla config dell'autore il 15/10/2026.
 
 Q01 il mod apri passa claude plugin validate e claude plugin test, e apre con il programma
 predefinito del sistema (open, start, xdg-open), mai con un browser scelto nel codice.
@@ -12,6 +12,8 @@ Q05 il catalogo dei tic della scrittura generata è scritto da zero, collegato d
 dice perché non copia tropes.fyi.
 Q07 Impeccable è un rimando all'upstream: la nota in docs/ c'è, la skill non è copiata.
 Q08 prompt-master non dice più che il brief si mostra anche per una richiesta breve.
+Q09 prompt-master e il promemoria di inject-now.sh caricano il corpo una volta per sessione e dopo
+una compattazione, non a ogni richiesta (segnalazione n. 17, 27/10/2026).
 
 Il banco richiede il binario `claude`. Sulla base cbd8305 ogni controllo deve fallire con un
 AssertionError che comincia con il suo codice.

@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""M01-M19: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
+"""M01-M20: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
 
 Ogni caso gira con una HOME finta e un server HTTP finto su 127.0.0.1 (ARTURO_TELEMETRIA_URL):
 niente parte mai verso il server vero. Sulla base db96709, prima della telemetria, ogni controllo
 deve fallire per conto suo.
+
+M20 una segnalazione in attesa parte alla sessione dopo, senza aspettare le 6 ore degli eventi, e una
+segnalazione che parte si porta dietro quelle in attesa (Liliana, 27/10/2026).
 """
 from __future__ import annotations
 
