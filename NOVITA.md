@@ -27,8 +27,8 @@ avviso che scatta a vuoto insegna a ignorarlo.
 **Nel Terminale di macOS**: accanto al nome compariva in grigio il processo ("caffeinate ◂ claude").
 Alla prima sessione dopo l'aggiornamento Arturo crea il profilo "Arturo", una copia del tuo con colori
 e font uguali, senza processo, cartella e indicatore di attività nel titolo, e lo mette su tutte le
-schede. Te lo dice con una riga all'avvio. Sparisce anche la campanellina nella scheda: chi ti aspetta
-lo dice "SBLOCCA". Per tornare al profilo di prima: `python3 ~/.claude/bin/arturo schede ripristina`.
+schede. Te lo dice con una riga all'avvio. La campanella resta: una scheda in secondo piano che
+aspetta te la mostra, insieme a "SBLOCCA". Per tornare al profilo di prima: `python3 ~/.claude/bin/arturo schede ripristina`.
 
 ---
 
