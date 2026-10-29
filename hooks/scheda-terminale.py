@@ -3,10 +3,12 @@
 
 Gira come hook asincrono su SessionStart, UserPromptSubmit, PostToolUse, Notification, Stop,
 StopFailure e SessionEnd. Legge l'evento da stdin e scrive sul terminale:
-  - il titolo, con OSC 0: il solo progetto, oppure "SBLOCCA · <progetto>" quando la sessione aspetta la persona:
-    permesso, domanda, errore, o idle_prompt. Richiesta del 28/10/2026: "SOLO il titolo del progetto".
-    La fine del turno da sola non basta (mostrava SBLOCCA a vuoto): Claude Code manda idle_prompt dopo
-    60 secondi fermi, e solo se nessun job in background gira e nessuna finestra di dialogo è aperta. Regge solo se Claude Code non lo riscrive: in settings.json c'è
+  - il titolo, con OSC 0: "LAVORANDO · <progetto>" mentre la sessione lavora, "SBLOCCA · <progetto>" quando
+    aspetta la persona (permesso, domanda, errore, idle_prompt), il solo progetto a turno finito.
+    Richieste del 28/10/2026 ("SOLO il titolo del progetto") e del 29/10/2026 ("LAVORANDO" invece di "SBLOCCA"
+    quando serve attendere altro output). Claude Code manda idle_prompt 60 secondi dopo la fine del turno anche
+    mentre un job in background gira (29/10/2026, il gate di Arturo): a Stop e a idle_prompt l'hook legge il
+    transcript, e un job lanciato senza la sua notifica di fine vale "LAVORANDO". Regge solo se Claude Code non lo riscrive: in settings.json c'è
     CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1. Su Terminal di Apple il profilo deve avere spenti
     "Nome processo attivo" nella scheda (ShowActiveProcessInTabTitle), altrimenti accoda "— caffeinate ◂ claude";
   - il colore della scheda, dove il terminale lo sa fare: verde attende, giallo al lavoro,
@@ -36,6 +38,7 @@ import subprocess
 import sys
 import time
 import unicodedata
+from datetime import datetime
 from pathlib import Path
 
 EVENTI = {"SessionStart": "nuova", "UserPromptSubmit": "lavoro", "PostToolUse": "lavoro",
@@ -43,9 +46,10 @@ EVENTI = {"SessionStart": "nuova", "UserPromptSubmit": "lavoro", "PostToolUse": 
 # Le notifiche che vogliono davvero la persona (il matcher in settings.json filtra già: qui è la seconda rete).
 CHIEDONO = {"permission_prompt", "idle_prompt", "elicitation_dialog", "elicitation_url_dialog",
             "agent_needs_input", "worker_permission_prompt", "workflow_permission_prompt"}
-# Il titolo è il progetto; quando tocca alla persona "SBLOCCA" gli va davanti, senza nasconderlo (29/10/2026).
+# Il titolo è il progetto; lo stato gli va davanti, senza nasconderlo (29/10/2026).
 # Una sessione appena aperta, o col turno finito, non ha niente da sbloccare: mostra il progetto.
-TITOLO = {"nuova": "{p}", "fermo": "{p}", "attende": "SBLOCCA · {p}", "lavoro": "{p}", "problema": "SBLOCCA · {p}"}
+TITOLO = {"nuova": "{p}", "fermo": "{p}", "attende": "SBLOCCA · {p}", "lavoro": "LAVORANDO · {p}",
+          "problema": "SBLOCCA · {p}"}
 # Gli eventi che passano la mano alla persona: solo questi suonano la campanella.
 FERMANO = {"Notification", "StopFailure"}
 DECAC = {"nuova": 2, "fermo": 2, "attende": 2, "lavoro": 3, "problema": 1}  # tavolozza: verde, giallo, rosso
@@ -62,6 +66,19 @@ SCRITTURE = {"Edit", "Write", "MultiEdit", "NotebookEdit"}
 CONFIG = {"hooks", "scripts", "skills", "commands", "agents", "mods", "output-styles", "bin", "tests", "shared",
           "personale", "linux"}
 VECCHIO = 7 * 24 * 3600  # secondi: una sessione ferma da una settimana non riparte
+# I job in background nel transcript: l'avvio sta nel toolUseResult (comando, agente, Monitor a tempo), la fine
+# nella <task-notification> che Claude Code accoda, o nel risultato di TaskStop.
+AVVIO_JOB = ('"backgroundTaskId"', '"async_launched"', '"timeoutMs"', '"run_in_background"')
+FINE_JOB = re.compile(r"<task-id>([\w-]+)</task-id>.*?<status>(\w+)</status>", re.S)
+FERMATO = re.compile(r"stopped task: ([\w-]+)")
+MASSIMO_JOB = 2 * 3600  # secondi: un job senza notifica di fine oltre questo tempo si dà per perso
+# Un server avviato in background (vite, wrangler dev, http.server) non finisce mai e nessuno ne aspetta l'esito:
+# non è lavoro in corso. Il 29/10/2026 due sessioni post-studio avevano vite acceso da ore. Anche la pagina di
+# impeccable che aspetta la scelta della persona (serve-question) non è lavoro: tocca a lei.
+SERVER = re.compile(r"\b(?:vite|next|nuxt|astro)\b(?!\s+build)|\b(?:npm|pnpm|yarn|bun)\s+(?:run\s+)?(?:dev|start|serve|preview)\b"
+                    r"|\b(?:wrangler|netlify)\s+dev\b|-m\s+http\.server|\brunserver\b|\b(?:uvicorn|gunicorn|nodemon|live-server"
+                    r"|browser-sync|ngrok)\b|\bflask\s+run\b|\b(?:npx|bunx)\s+serve\b|--watch\b|\btail\s+-[fF]\b|--port\b"
+                    r"|\bimpeccable\s+(?:component-review\s+serve|serve-question)\b")
 
 
 def cache_dir() -> Path:
@@ -124,6 +141,56 @@ def progetto_da_strumento(dati: dict) -> tuple:
     # La cartella dei progetti come la legge contesto.base_progetti() di Arturo.
     parti = dentro(percorso, Path(os.path.expanduser(os.environ.get("PROJECTS_BASE") or "~/Documents/ClaudeCode")))
     return (parti[0][:40], "file") if parti and len(parti) > 1 else ("", "")
+
+
+def istante(testo) -> float:
+    """Il timestamp ISO del transcript in secondi, o adesso se manca."""
+    try:
+        return datetime.fromisoformat(str(testo).replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return time.time()
+
+
+def job_in_corso(transcript: str, adesso: float) -> bool:
+    """True se il transcript ha un job in background lanciato e ancora senza la sua notifica di fine."""
+    aperti, comandi = {}, {}
+    try:
+        righe = open(transcript, encoding="utf-8", errors="replace")
+    except (OSError, ValueError):
+        return False
+    with righe:
+        for riga in righe:
+            if not any(s in riga for s in AVVIO_JOB) and "<task-notification>" not in riga and "stopped task:" not in riga:
+                continue
+            try:
+                d = json.loads(riga)
+            except ValueError:
+                continue
+            if not isinstance(d, dict):
+                continue
+            contenuto = d.get("message", {}).get("content") if isinstance(d.get("message"), dict) else None
+            blocchi = [b for b in contenuto if isinstance(b, dict)] if isinstance(contenuto, list) else []
+            for b in blocchi:
+                if b.get("type") == "tool_use" and isinstance(b.get("input"), dict):
+                    comandi[b.get("id")] = str(b["input"].get("command") or "")
+            r = d.get("toolUseResult")
+            if isinstance(r, dict):
+                quando = istante(d.get("timestamp"))
+                if r.get("backgroundTaskId"):
+                    comando = "".join(comandi.get(b.get("tool_use_id"), "") for b in blocchi)
+                    if not SERVER.search(comando):
+                        aperti[str(r["backgroundTaskId"])] = quando + MASSIMO_JOB
+                elif r.get("status") == "async_launched" and r.get("agentId"):
+                    aperti[str(r["agentId"])] = quando + MASSIMO_JOB
+                elif r.get("taskId") and "timeoutMs" in r and not r.get("persistent"):
+                    aperti[str(r["taskId"])] = quando + float(r.get("timeoutMs") or 0) / 1000
+                for m in FERMATO.finditer(str(r.get("message") or "")):
+                    aperti.pop(m.group(1), None)
+            if d.get("type") in ("user", "queue-operation"):
+                for m in FINE_JOB.finditer(riga):
+                    if m.group(2) != "running":
+                        aperti.pop(m.group(1), None)
+    return any(scade > adesso for scade in aperti.values())
 
 
 def dentro(percorso: Path, radice: Path):
@@ -263,6 +330,10 @@ def main() -> int:
     stato = EVENTI.get(evento)
     if not stato or (evento == "Notification" and dati.get("notification_type") not in CHIEDONO):
         return 0
+    # Turno finito o sessione ferma da un minuto, ma con un job in background che deve ancora rispondere.
+    if evento == "Stop" or dati.get("notification_type") == "idle_prompt":
+        if job_in_corso(str(dati.get("transcript_path") or ""), adesso):
+            stato = "lavoro"
     sessione = re.sub(r"[^\w-]", "", str(dati.get("session_id") or ""))[:64] or "nessuna"
     f = cache_dir() / f"{sessione}.json"
     if dati.get("hook_event_name") == "SessionStart":
@@ -299,7 +370,7 @@ def main() -> int:
         provvisorio.write_text(json.dumps({"stato": stato, "progetto": progetto, "fonte": fonte, "quando": adesso}),
                                encoding="utf-8")
         os.replace(str(provvisorio), str(f))
-    scrivi(sequenze(stato, progetto, campanella=evento in FERMANO))
+    scrivi(sequenze(stato, progetto, campanella=evento in FERMANO and stato != "lavoro"))
     return 0
 
 

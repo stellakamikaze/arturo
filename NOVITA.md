@@ -12,12 +12,14 @@ modo di lavorare.
 
 ---
 
-## 2026-10-29 — La scheda del terminale dice il progetto vero, e "SBLOCCA" solo quando servi tu
+## 2026-10-29 — La scheda del terminale dice il progetto vero, "LAVORANDO" mentre Claude lavora e "SBLOCCA" solo quando servi tu
 
-**Cosa cambia**: il titolo della scheda è il solo nome del progetto. Quando Claude aspetta te diventa
-"SBLOCCA · <progetto>": per una richiesta di permesso, una domanda, un errore, o dopo un minuto fermo
-senza lavori in background. Prima bastava la fine del turno, e la scheda diceva "tocca a te" anche
-mentre Claude aspettava un comando lanciato in background. Il nome è quello che `/inizio` ha trovato:
+**Cosa cambia**: il titolo della scheda è il nome del progetto. Mentre Claude lavora diventa
+"LAVORANDO · <progetto>", anche a turno finito se aspetta un comando o un agente lanciato in
+background. Quando Claude aspetta te diventa "SBLOCCA · <progetto>": per una richiesta di permesso, una
+domanda, un errore, o dopo un minuto fermo. Prima bastava la fine del turno, e la scheda diceva "tocca
+a te" anche mentre Claude aspettava il risultato di un gate. Un server lasciato acceso (vite, un server
+locale di anteprima) non conta come lavoro: nessuno ne aspetta la fine. Il nome è quello che `/inizio` ha trovato:
 "/inizio due mondi" mostra "due-mondi-myway", non "due". Senza `/inizio` vale la cartella del
 progetto in cui Claude scrive i file.
 
