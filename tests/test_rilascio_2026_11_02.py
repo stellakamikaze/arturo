@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RL01-RL06: i ritocchi prima del rilascio del 2/11/2026.
+"""RL01-RL07: i ritocchi prima del rilascio del 2/11/2026.
 
 RL01 /setup sta sotto il tetto di 30 KB dell'audit: la FASE 8d (Lancillotto, solo Mac) vive in
      shared/setup-lancillotto.md, che /setup nomina e che ha ancora il comando d'installazione (#4104).
@@ -15,6 +15,8 @@ RL05 l'avvio della sessione mette ~/.claude/bin nel PATH dei comandi di Claude c
      una riga sola anche dopo due avvii (segnalazione n. 33).
 RL06 il promemoria di inject-now dice che una correzione a lavoro iniziato è una riga, come prompt-master
      (segnalazione n. 34).
+RL07 la barra in basso mostra il progetto che la scheda ha trovato per la sessione, senza il ramo di
+     un altro repository; senza scheda resta la cartella (segnalazione n. 35).
 
 Sulla base 60b7d8d ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -134,8 +136,33 @@ def test_rl06(repo: Path) -> None:
         "RL06 il promemoria chiede prompt e brief interi anche per una correzione a lavoro iniziato"
 
 
+def test_rl07(repo: Path) -> None:
+    node = shutil.which("node")
+    assert node, "RL07 serve node per provare statusline.js"
+    with tempfile.TemporaryDirectory() as d:
+        home = Path(d) / "home"
+        (home / ".claude" / "cache" / "scheda").mkdir(parents=True)
+        (home / ".claude" / "cache" / "scheda" / "s1.json").write_text(
+            json.dumps({"stato": "lavoro", "progetto": "amministrazione\x1b]0;x"}), encoding="utf-8")
+        altro = Path(d) / "altro"
+        altro.mkdir()
+        subprocess.run(["git", "init", "-q", "-b", "main", str(altro)], check=True, capture_output=True)
+        env = {"HOME": str(home), "USERPROFILE": str(home), "PATH": "/usr/bin:/bin:/usr/local/bin:/opt/homebrew/bin",
+               "GIT_CONFIG_GLOBAL": "/dev/null"}
+
+        def barra(sessione: str, cartella: Path) -> str:
+            dati = {"session_id": sessione, "workspace": {"current_dir": str(cartella)}, "model": {"display_name": "Opus"}}
+            r = subprocess.run([node, str(repo / "hooks" / "statusline.js")], input=json.dumps(dati), text=True,
+                               capture_output=True, env=env, timeout=30)
+            return re.sub(r"\x1b\[[0-9;]*m", "", r.stdout)
+        con = barra("s1", altro)
+        assert "amministrazione" in con and "@main" not in con and "\x1b]" not in con, \
+            f"RL07 la barra non mostra il progetto della scheda, o mostra il ramo di un altro repository: {con!r}"
+        assert "altro@main" in barra("s2", altro), "RL07 senza scheda la barra non mostra repository e ramo"
+
+
 TESTS = {"RL01": test_rl01, "RL02": test_rl02, "RL03": test_rl03, "RL04": test_rl04, "RL05": test_rl05,
-         "RL06": test_rl06}
+         "RL06": test_rl06, "RL07": test_rl07}
 
 
 def main() -> int:

@@ -227,6 +227,25 @@ function quotaSegmento(rate) {
 }
 
 
+// Lo slug di una cartella, come lo calcolano /inizio e /fine.
+function slug(nome) {
+  return String(nome).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+
+// Il progetto che scheda-terminale.py ha salvato per la sessione in cache/scheda/<sessione>.json.
+// Fuori i caratteri di controllo: il nome finisce dentro le sequenze della barra.
+function progettoScheda(sessione) {
+  const id = String(sessione || '').replace(/[^\w-]/g, '').slice(0, 64);
+  if (!id) return '';
+  try {
+    const s = JSON.parse(fs.readFileSync(path.join(CLAUDE_DIR, 'cache', 'scheda', id + '.json'), 'utf8'));
+    return typeof s.progetto === 'string' ? s.progetto.replace(/[\x00-\x1f\x7f-\x9f]/g, '').slice(0, 40) : '';
+  } catch (e) {
+    return '';
+  }
+}
+
+
 // Read JSON from stdin
 let input = '';
 // Timeout guard: if stdin doesn't close within 3s (e.g. pipe issues on
@@ -308,11 +327,15 @@ process.stdin.on('end', () => {
       }
     }
 
-    // Luogo: nome del repository e ramo (con * se ci sono modifiche), oppure il
-    // nome della cartella fuori da un repository.
+    // Luogo: il progetto che la scheda del terminale ha trovato per questa sessione (/inizio, un alias
+    // che lancia arturo contesto, i file scritti), poi il repository e infine la cartella
+    // (segnalazione n. 35, 29/10/2026). Il ramo, con * se ci sono modifiche, solo se il repository è
+    // quel progetto: aperta dalla home, la sessione non mostra il ramo di un altro repository.
     const git = gitInfo(dir);
-    const progetto = git ? path.basename(git.root) : path.basename(dir);
-    const luogo = git && git.ramo
+    const daCartella = git ? path.basename(git.root) : path.basename(dir);
+    const scheda = progettoScheda(session);
+    const progetto = scheda || daCartella;
+    const luogo = git && git.ramo && (!scheda || slug(daCartella) === scheda)
       ? `${progetto}\x1b[0m\x1b[2m@${git.ramo}${git.sporco ? '*' : ''}`
       : progetto;
 
