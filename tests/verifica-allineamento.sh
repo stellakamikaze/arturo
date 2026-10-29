@@ -108,6 +108,7 @@ BANCHI=(
   test_aggiorna_indietro.py
   test_diagnosi.py
   test_scheda.py
+  test_schede_mac_2026_10_29.py
   test_hook_utf8.py
   test_autoaggiorna.py
   test_aggiorna_firmato.py
@@ -142,7 +143,7 @@ done
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py)
+PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py)
 PY38=$(command -v python3.8 || true)
 if [[ -n "$PY38" ]]; then
   for test in "${PY38_BANCHI[@]}"; do
@@ -224,6 +225,8 @@ BASELINE=(
   "test_aggiorna_indietro.py 4515e63"
   # Titolo e colore della scheda del terminale (16/10/2026): b0ec3ac, l'ultimo dev prima dell'hook.
   "test_scheda.py b0ec3ac"
+  # Il profilo del Terminale di macOS senza processo nel titolo (29/10/2026): 3b1e66f, prima di bin/schede_mac.py.
+  "test_schede_mac_2026_10_29.py 3b1e66f"
   # /diagnosi di progetto (16/10/2026): 5fd0443, l'ultimo dev prima di bin/diagnosi.py.
   "test_diagnosi.py 5fd0443"
   # Hook in UTF-8 anche su Windows (16/10/2026, #3423): b0ec3ac, il main v2026-10-16.2.

@@ -301,6 +301,7 @@ def bash(comando: str, stdout: str) -> dict:
 
 def test_ts12(repo: Path) -> None:
     c = Casa(repo, "TS12", {"TERM_PROGRAM": "Apple_Terminal"})
+    c.env.pop("PROJECTS_BASE", None)  # quella di chi lancia il banco punterebbe fuori dalla HOME di prova
     try:
         assert "]0;due mondi\x07" in c.evento("UserPromptSubmit", prompt="/inizio due mondi"), \
             "TS12 prima della risoluzione il titolo non è il testo intero di /inizio"
@@ -316,6 +317,11 @@ def test_ts12(repo: Path) -> None:
         scritto = c.evento("PostToolUse", sessione="f", tool_name="Edit",
                            tool_input={"file_path": str(progetti / "romanzo" / "cap1.md")}, tool_response={})
         assert "]0;romanzo\x07" in scritto, f"TS12 senza /inizio la cartella scritta non dà il progetto: {scritto!r}"
+        c.env["PROJECTS_BASE"] = "~/Progetti"
+        c.evento("UserPromptSubmit", sessione="b", prompt="sistema il capitolo")
+        scelta = c.evento("PostToolUse", sessione="b", tool_name="Write",
+                          tool_input={"file_path": str(c.home / "Progetti" / "saggio" / "a.md")}, tool_response={})
+        assert "]0;saggio\x07" in scelta, f"TS12 la cartella dei progetti scelta in /setup non conta: {scelta!r}"
     finally:
         c.chiudi()
 

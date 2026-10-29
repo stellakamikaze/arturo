@@ -24,9 +24,11 @@ progetto in cui Claude scrive i file.
 **Il principio dietro**: la scheda serve a vedere da fuori quale sessione ti aspetta davvero. Un
 avviso che scatta a vuoto insegna a ignorarlo.
 
-**Nel Terminale di macOS**: se accanto al nome vedi in grigio il processo ("caffeinate ◂ claude"),
-apri Impostazioni → Profili → il tuo profilo → Scheda e togli le spunte sotto "Titolo", compreso
-l'indicatore di attività.
+**Nel Terminale di macOS**: accanto al nome compariva in grigio il processo ("caffeinate ◂ claude").
+Alla prima sessione dopo l'aggiornamento Arturo crea il profilo "Arturo", una copia del tuo con colori
+e font uguali, senza processo, cartella e indicatore di attività nel titolo, e lo mette su tutte le
+schede. Te lo dice con una riga all'avvio. Sparisce anche la campanellina nella scheda: chi ti aspetta
+lo dice "SBLOCCA". Per tornare al profilo di prima: `python3 ~/.claude/bin/arturo schede ripristina`.
 
 ---
 

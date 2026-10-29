@@ -109,7 +109,7 @@ def test_lt05(repo: Path) -> None:
     righe = [r for r in avvio.splitlines() if not r.lstrip().startswith("#")]
     assert not any("osascript" in r for r in righe), "LT05 l'avvio usa ancora osascript per il titolo della finestra"
     readme = (repo / "README.md").read_text(encoding="utf-8")
-    assert "TOCCA A TE" in readme and "Terminale di macOS" in readme, \
+    assert "SBLOCCA" in readme and "Terminale di macOS" in readme, \
         "LT05 il README non racconta le schede nel Terminale di macOS"
 
 

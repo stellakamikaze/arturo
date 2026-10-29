@@ -20,6 +20,14 @@ MACCHINA=$(scutil --get ComputerName 2>/dev/null || hostname 2>/dev/null)
 command -v node >/dev/null 2>&1 \
   || echo "NODE: manca node, la barra in basso (contesto e quota) e l'avviso sul contesto sono spenti. Dillo a Claude: installa node da nodejs.org, poi riapri Claude Code."
 
+# Nel Terminale di macOS il profilo accoda al titolo della scheda processo e cartella: la prima
+# sessione lo sistema una volta per tutte (bin/schede_mac.py, 29/10/2026). Il segno si controlla qui,
+# così le sessioni dopo non avviano Python. La riga SCHEDE: dice alla persona cosa è cambiato.
+if [ "$TERM_PROGRAM" = "Apple_Terminal" ] && [ -f "$HOME/.claude/bin/schede_mac.py" ] \
+   && ! grep -q '"fatto": true' "$HOME/.claude/data/schede-terminale.json" 2>/dev/null; then
+  python3 "$HOME/.claude/bin/arturo" schede applica --una-volta 2>/dev/null
+fi
+
 # Dopo un compact il contesto e' stato riassunto: prima di continuare, un riepilogo che
 # l'utente puo' controllare. SessionStart con source "compact" e' la via documentata;
 # lo stdout di PostCompact non entra nel contesto.

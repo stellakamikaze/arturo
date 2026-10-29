@@ -15,14 +15,15 @@ StopFailure e SessionEnd. Legge l'evento da stdin e scrive sul terminale:
 Il progetto viene dallo slug che il risolutore di /inizio stampa in testa ("# CONTESTO <slug>" di
 contesto-progetto.py, "PROGETTO <slug>" di arturo contesto), e prima della risoluzione dal testo intero
 dopo "/inizio". Senza /inizio vale l'ultima cartella di progetto toccata da Edit o Write
-(~/Documents/ClaudeCode/<progetto>, ~/.claude = "claude-config"), poi la radice git o il nome della cartella. Stato e progetto stanno in ~/.claude/cache/scheda/<sessione>.json:
+(<PROJECTS_BASE>/<progetto>, di default ~/Documents/ClaudeCode; ~/.claude = "claude-config"), poi la radice
+git o il nome della cartella. Stato e progetto stanno in ~/.claude/cache/scheda/<sessione>.json:
 SessionEnd toglie il suo file, SessionStart quelli fermi da una settimana (sessioni chiuse male).
 Su Windows un hook non vede la console della scheda: si attacca a quella del processo claude.exe.
 Su macOS e Linux l'hook non ha un terminale di controllo (/dev/tty risponde ENXIO): scrive sul tty del
 processo claude, trovato risalendo i padri con ps (18/10/2026: sul Mac le schede non cambiavano mai).
 Con ARTURO_SCHEDA_USCITA=<file> le sequenze vanno in quel file (banchi), con ARTURO_SCHEDA_DEV=<cartella>
 il tty di claude si cerca lì invece che in /dev (banchi). Ogni errore: exit 0.
-Solo libreria standard, Python 3.9+ (Path.is_relative_to).
+Solo libreria standard, Python 3.8+.
 """
 from __future__ import annotations
 
@@ -107,13 +108,19 @@ def progetto_da_strumento(dati: dict) -> tuple:
     if nome not in SCRITTURE:
         return "", ""
     percorso = Path(str(entrata.get("file_path") or entrata.get("notebook_path") or "")).expanduser()
-    casa = Path.home()
-    if percorso.is_relative_to(casa / ".claude"):
+    if dentro(percorso, Path.home() / ".claude") is not None:
         return "claude-config", "file"
-    if not percorso.is_relative_to(casa / "Documents" / "ClaudeCode"):
-        return "", ""
-    parti = percorso.relative_to(casa / "Documents" / "ClaudeCode").parts
-    return (parti[0][:40], "file") if len(parti) > 1 else ("", "")
+    # La cartella dei progetti come la legge contesto.base_progetti() di Arturo.
+    parti = dentro(percorso, Path(os.path.expanduser(os.environ.get("PROJECTS_BASE") or "~/Documents/ClaudeCode")))
+    return (parti[0][:40], "file") if parti and len(parti) > 1 else ("", "")
+
+
+def dentro(percorso: Path, radice: Path):
+    """Le parti di percorso sotto radice, o None se sta fuori (Path.is_relative_to è solo dal 3.9)."""
+    try:
+        return percorso.relative_to(radice).parts
+    except ValueError:
+        return None
 
 
 def sequenze(stato: str, progetto: str, campanella: bool = False) -> str:
