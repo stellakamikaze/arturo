@@ -41,6 +41,7 @@ GIORNI_SCADENZE = 7
 MAX_STATUS = 15
 MAX_COMMIT = 15
 MAX_RIPARTENZA = 700
+MAX_CARATTERI = 28000
 ETICHETTE = {"tu": "TOCCA A TE", "decidi": "DECIDI TU, POI FACCIO IO", "io": "FACCIO IO", "fermo": "FERMO"}
 
 
@@ -63,7 +64,8 @@ def handoff_dir() -> Path:
 def git(cartella: Path, *argomenti: str) -> str:
     try:
         r = subprocess.run(["git", "-c", "core.fsmonitor=false", "-C", str(cartella), *argomenti],
-                           capture_output=True, text=True, timeout=15)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15,
+                           env={**os.environ, "GIT_OPTIONAL_LOCKS": "0"})
     except (OSError, subprocess.SubprocessError):
         return ""
     return r.stdout.rstrip("\n") if r.returncode == 0 else ""
@@ -102,7 +104,7 @@ def trova_cartella(nome: str) -> tuple:
     cima = cima_git(cwd)
     if cima and slug(cima.name) == slug(nome) and cima != home:
         return cima, False
-    for c in (cwd / nome, pb / nome, home / "Documents" / nome, home / "Projects" / nome, home / nome):
+    for c in (pb / nome, home / "Documents" / nome, home / "Projects" / nome, home / nome, cwd / nome):
         if c.is_dir() and c != home:
             return c.resolve(), False
     # Il nome scritto come slug ("mio-progetto") per una cartella "mio_progetto" o "Mio Progetto":
@@ -134,13 +136,44 @@ def handoff_di(s: str) -> list:
     return out
 
 
-def candidati(nome: str) -> list:
+def nomi_noti() -> set:
+    """Le cartelle dei progetti e quelle degli handoff."""
     nomi = set()
-    pb = base_progetti()
-    if pb.is_dir():
-        nomi.update(p.name for p in pb.iterdir() if p.is_dir() and not p.name.startswith("."))
-    if handoff_dir().is_dir():
-        nomi.update(p.name for p in handoff_dir().iterdir() if p.is_dir() and not p.name.startswith("."))
+    for d in (base_progetti(), handoff_dir()):
+        try:
+            nomi.update(p.name for p in d.iterdir() if p.is_dir() and not p.name.startswith("."))
+        except OSError:
+            continue
+    return nomi
+
+
+def forti(pref: str, nomi) -> list:
+    """I nomi che contengono il prefisso intero, o tutte le sue parole di 3 lettere o più."""
+    parole = [p for p in pref.split("-") if len(p) >= 3]
+    return sorted(n for n in nomi if pref in slug(n) or (len(parole) > 1 and all(p in slug(n) for p in parole)))
+
+
+def risolvi_nome(nome: str) -> tuple:
+    """(nome, resto, avviso). Il compito scritto subito dopo il nome, senza " -- ", resta fuori dal nome: si
+    prova il prefisso più lungo che porta a un progetto. Se nessun prefisso ci porta, un candidato forte
+    unico vale con l'avviso "interpretato" ("due mondi" per due-mondi-myway)."""
+    parole = nome.split()
+    prefissi = [(" ".join(parole[:k]), " ".join(parole[k:])) for k in range(len(parole), 0, -1)]
+    for pref, resto in prefissi:
+        if slug(pref) and (trova_cartella(pref)[0] or (handoff_dir() / slug(pref)).is_dir()):
+            return pref, resto, None
+    nomi = nomi_noti()
+    for pref, resto in prefissi:
+        f = forti(slug(pref), nomi) if slug(pref) else []
+        if len(f) == 1:
+            return f[0], resto, f'interpretato "{pref}" come {f[0]}'
+        if f:
+            break  # più candidati: un prefisso più corto ne darebbe di più
+    return nome, "", None
+
+
+def candidati(nome: str) -> list:
+    nomi = nomi_noti()
     if not nome:
         return sorted(nomi)[:15]
     per_minuscolo = {}
@@ -362,6 +395,22 @@ def sezione_non_verificata(elenco: list, ir, errore: str) -> list:
     return righe + ([] if trovati else ["  nessuna riga nella tabella Task Pendenti"]) + [f"  da {nome}"]
 
 
+def sezione_filoni(progetto: str, ir) -> list:
+    """I filoni di tutti gli handoff del progetto, non solo degli ultimi giorni: /fine riusa questi nomi
+    nella riga "- Filone:", così un filone non si spezza in due."""
+    try:
+        tutti = [h for h in ir.elenca(handoff_dir()) if h["slug"] == progetto]
+    except Exception:  # noqa: BLE001 - i filoni sono un aiuto, non fermano il contesto
+        return []
+    if not tutti:
+        return []
+    righe = ["", 'FILONI NOTI (/fine riusa questi nomi nella riga "- Filone:")']
+    for chiave, gruppo in sorted(ir.per_chiave(tutti).items()):
+        nome = ir.filone_esplicito(gruppo[0]["testo"]) or progetto
+        righe.append(f'  {nome} · {len(gruppo)} handoff, ultimo {gruppo[0]["data"]} {gruppo[0]["ora"]}')
+    return righe
+
+
 def compito_da(argv: list) -> str:
     parti = re.split(r"(?:^|\s)--(?:\s|$)", " ".join(argv), maxsplit=1)
     return " ".join(parti[1].split()) if len(parti) > 1 else ""
@@ -383,6 +432,10 @@ def main(argv: list) -> int:
     if nome and not slug(nome):
         print(f'contesto: nome non valido: "{nome}"', file=sys.stderr)
         return 3
+    interpretato = None
+    if nome:
+        nome, resto, interpretato = risolvi_nome(nome)
+        compito = " ".join(x for x in (resto, compito) if x)
 
     cartella, contenitore = trova_cartella(nome)
     s = slug(cartella.name) if cartella else slug(nome)
@@ -408,6 +461,8 @@ def main(argv: list) -> int:
     ir = modulo_index()
     dal = elenco[0][1] if elenco else None
     righe = [f"PROGETTO {s}", f"cartella: {cartella if cartella else 'nessuna'}"]
+    if interpretato:
+        righe.append(f"NOME: {interpretato}. Se è un altro progetto, ripeti /inizio col nome giusto.")
     if compito:
         righe.append(f"compito: {compito}")
     if cartella:
@@ -427,7 +482,14 @@ def main(argv: list) -> int:
         righe += sezione_non_verificata(elenco, ir, errore)
     if avvisi:
         righe += ["", "AVVISI"] + [f"  Attenzione: {a}" for a in avvisi]
-    print("\n".join(righe))
+    righe += sezione_filoni(s, ir)
+    testo = "\n".join(righe)
+    if len(testo) > MAX_CARATTERI:
+        # Un'uscita lunga finisce troncata dal tool e /inizio perde la coda (todo, avvisi): meglio tagliare
+        # qui e dirlo.
+        testo = testo[:MAX_CARATTERI].rsplit("\n", 1)[0] + (
+            f"\nTAGLIATO: il contesto supera {MAX_CARATTERI} caratteri. Riduci i giorni con --giorni.")
+    print(testo)
     return 0
 
 

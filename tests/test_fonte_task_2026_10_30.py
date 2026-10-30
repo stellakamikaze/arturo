@@ -8,6 +8,9 @@ FT03 arturo contesto mostra i todo e i chiusi dalla fonte esterna.
 FT04 se la fonte non risponde, arturo contesto mostra i task dell'ultimo handoff con NON VERIFICATO, mai
      "nessuno".
 FT05 arturo contesto --stdin legge gli argomenti da stdin e stampa il compito, senza eseguire niente.
+FT06 il compito scritto dopo il nome senza " -- " non entra nel nome.
+FT07 un nome parziale con un solo candidato forte vale, con l'avviso NOME: interpretato.
+FT08 arturo contesto elenca i filoni di tutti gli handoff del progetto.
 
 Sulla base ba61272 (il dev prima di L4) sono rossi tutti i casi tranne FT02, che è l'invariante.
 """
@@ -23,8 +26,8 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-CASI = ["FT01", "FT02", "FT03", "FT04", "FT05"]
-DISCRIMINANTI = ["FT01", "FT03", "FT04", "FT05"]
+CASI = ["FT01", "FT02", "FT03", "FT04", "FT05", "FT06", "FT07", "FT08"]
+DISCRIMINANTI = ["FT01", "FT03", "FT04", "FT05", "FT06", "FT07", "FT08"]
 SU = ('import json, sys\n'
       'open(sys.argv[0] + ".argomenti", "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))\n'
       'if "aggiungi" in sys.argv:\n'
@@ -115,6 +118,22 @@ def prova(lab: Lab) -> list:
     if r.returncode != 0 or "PROGETTO libro" not in r.stdout or 'compito: rileggere "tutto"' not in r.stdout \
             or trappola.exists():
         rossi.append(f"FT05 stdin: rc={r.returncode} {r.stdout[:200]!r} {r.stderr[-160:]!r}")
+    # FT06 il compito scritto subito dopo il nome, senza " -- ", non fa parte del nome
+    r = lab.arturo("contesto", "--stdin", entrata="libro rileggere il terzo capitolo\n")
+    if r.returncode != 0 or "PROGETTO libro" not in r.stdout or "compito: rileggere il terzo capitolo" not in r.stdout:
+        rossi.append(f"FT06 prefisso: rc={r.returncode} {r.stdout[:200]!r}")
+    # FT07 un nome parziale con un solo candidato forte vale, con l'avviso NOME: interpretato
+    (lab.home / "Documents" / "ClaudeCode" / "storia-del-mare").mkdir()
+    r = lab.arturo("contesto", "--stdin", entrata="storia mare\n")
+    if r.returncode != 0 or "PROGETTO storia-del-mare" not in r.stdout or 'NOME: interpretato "storia mare"' not in r.stdout:
+        rossi.append(f"FT07 interpretato: rc={r.returncode} {r.stdout[:200]!r}")
+    # FT08 i filoni di tutti gli handoff del progetto
+    h = lab.cl / "data" / "handoffs" / "libro" / "HANDOFF_2026-09-01_10-00.md"
+    h.write_text(HANDOFF.replace("- Nome: libro / Branch: main\n", "- Nome: libro / Branch: main\n- Filone: copertina\n"),
+                 encoding="utf-8")
+    r = lab.arturo("contesto", "libro")
+    if r.returncode != 0 or "FILONI NOTI" not in r.stdout or "copertina · 1 handoff" not in r.stdout:
+        rossi.append(f"FT08 filoni noti: rc={r.returncode} {r.stdout[-300:]!r}")
     return rossi
 
 

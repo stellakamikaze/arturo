@@ -128,7 +128,10 @@ $ARGUMENTS
 ARGOMENTI
 ```
 
-Se c'è un compito, lo script lo stampa nella riga `compito:`.
+Se c'è un compito, lo script lo stampa nella riga `compito:`. Se stampa `NOME: interpretato "X" come Y`,
+ha scelto l'unico progetto che somiglia al nome: scrivilo nella prima riga della ripartenza, così la
+persona corregge subito se intendeva un altro progetto. `FILONI NOTI` elenca i filoni di tutti gli
+handoff del progetto.
 
 Lo script legge e non scrive niente. Calcola lo slug del progetto come `/fine`
 (`basename | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g'`), così
@@ -165,7 +168,9 @@ resta dove sei.
   in cima alla ripartenza, con quello che sta facendo.
 - **Worktree, solo se c'è quella sessione.** Due sessioni nella stessa cartella si pestano i piedi:
   test, build e commit vedono anche il lavoro dell'altra. Prima di qualsiasi modifica entra con
-  `EnterWorktree` (nome `<slug>-<aaaammgg-hhmm>`, parte dall'ultimo commit locale). La ripartenza dice
+  `EnterWorktree` (nome `<slug>-<aaaammgg-hhmm>`, parte dall'ultimo commit locale). Prima aggiungi
+  `.claude/worktrees/` e `node_modules` a `<cartella>/.git/info/exclude`, se mancano: quel file vale per
+  tutti i worktree del repository, resta sulla macchina e non tocca il `.gitignore` del progetto. La ripartenza dice
   che la sessione lavora in una copia a parte, e `/fine` riporta il lavoro nella cartella principale.
   Nel worktree la guardia di Claude Code rifiuta i comandi che non sa leggere: scrivi un comando per
   chiamata, senza cicli, variabili, `$(...)`, heredoc (`python3 - <<'E'`) né `cd ... &&`. Un ciclo,
