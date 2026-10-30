@@ -3,16 +3,18 @@
 
 Due rami:
 
-  (A) POST/upload  (curl/wget con metodo mutante o payload) -> host esterno = ask,
-      host interno = allow. Il dispatcher manda qui solo l'upload di un FILE LOCALE
-      (`-F @file`, `-T`, `-d @file`): la forma con cui una chiave o un dump escono.
+  (A) Upload di un FILE LOCALE (`-F @file`, `-T`, `--upload-file`, `-d @file`), la forma con cui
+      una chiave o un dump escono -> host esterno = ask, host interno = allow. Contano solo i
+      curl/wget che caricano un file: dal 30/10/2026 un POST generico nello stesso comando non
+      fa più chiedere.
 
   (B) Canali di rete grezzi, che portano fuori dati senza un client HTTP:
         - /dev/tcp e /dev/udp verso un host esterno o che non si legge (una variabile);
         - una pipe verso nc/ncat/netcat/socat, verso un IP, un nome o una variabile;
-        - nc/ncat verso host esterno; DNS-exfil e blob opachi in un curl, se il comando
-          arriva qui per uno dei casi sopra.
-      Tutti -> ask (host interni esclusi).
+        - nc/ncat verso host esterno.
+      Tutti -> ask (host interni esclusi). I controlli su DNS e blob opachi in un GET sono
+      stati tolti il 30/10/2026: il dispatcher non manda più qui né dig né i GET, e
+      scattavano solo se lo stesso comando conteneva anche un upload.
 
 Contratto del 28/10/2026 (Federico: "togli i controlli"): una guardia chiede solo sui rail, dove
 la forma del comando basta a decidere. Il codice Python, node o curl che chiama la rete (GET, POST
@@ -207,26 +209,20 @@ MODULI_PY = re.compile(r'(?:(?:\A|(?<!\\)\n|;)[ \t]*(?:import|from)|\bpython3?(?
 FILE_EXT = frozenset("txt json md csv log pdf png jpg jpeg gif html htm xml yaml yml toml ini cfg conf "
                      "py js ts sh zip gz tgz tar bz2 xz db sqlite sql pem crt der p12 env bak out tmp".split())
 
-# --- Ramo A: marcatori POST/upload ---
-POST_MARKERS = re.compile(
-    r'(curl|wget)\b[^\n]*(-X\s*(POST|PUT|PATCH|DELETE)|--request\s*(POST|PUT|PATCH|DELETE)'
-    r'|-d\b|--data|-F\b|--form|-T\b|--upload-file|--post-file|--post-data|--body-file|--body-data'
-    r'|--method[=\s]*(POST|PUT|PATCH|DELETE))',
-    re.IGNORECASE,
+# --- Ramo A: upload di un file locale ---
+# Le stesse forme di PATTERN_UPLOAD_FILE nel dispatcher. _FINE_ARG chiude un argomento nella shell
+# (uno spazio) o in una lista python (`'curl', '-d', '@x'`, 21/10/2026).
+_FINE_ARG = r'''(?:\s|["'],\s*["']?)'''
+UPLOAD_FILE = re.compile(
+    r'(?:-F' + _FINE_ARG + r'*\S*@|--form' + _FINE_ARG + r'*\S*@|-T' + _FINE_ARG
+    + r'|--upload-file|--(?:post|body)-file|-d' + _FINE_ARG + r'*@|--data[a-z-]*' + _FINE_ARG + r'*@)'
 )
+# Un curl/wget fino al primo separatore della shell fuori dalle virgolette: un & o un ; dentro
+# `"https://x/?a=1&b=2"` non chiude il comando. Le righe continuate con \ si uniscono prima.
+CURL_SEG_Q = re.compile(r'''\b(?:curl|wget)\b(?:[^\n|;&"']|"[^"\n]*"|'[^'\n]*')*''', re.IGNORECASE)
 
-# --- Ramo B: marcatori egress-GET ---
-CMD_SUB = re.compile(r'\$\(|`')
-DNS_CMD = re.compile(r'(^|[;&|]\s*)(dig|nslookup|host|drill)\b', re.IGNORECASE)
-CURL_URL = re.compile(r'\b(?:curl|wget)\b[^\n|;&]*?\bhttps?://([A-Za-z0-9_.\-]+)([^\s"\']*)',
-                      re.IGNORECASE)
-OPAQUE = re.compile(r'[A-Za-z0-9_\-+/%=]{40,}')
-DNS_EXFIL = re.compile(
-    r'\b(dig|nslookup|host)\b[^\n|;&]*?([A-Za-z0-9+/=_-]{20,})\.[A-Za-z0-9.-]+\.[A-Za-z]{2,}',
-    re.IGNORECASE,
-)
+# --- Ramo B: canali di rete grezzi ---
 DEV_TCP = re.compile(r'/dev/(?:tcp|udp)/([^/\s"\']*)', re.IGNORECASE)
-CURL_SEG = re.compile(r'\b(?:curl|wget)\b[^\n|;&]*', re.IGNORECASE)
 NC_PIPE = re.compile(r'\|\s*(?:sudo\s+)?(?:\S*/)?(nc|ncat|netcat|socat)\b([^\n|;&]*)', re.IGNORECASE)
 NC_HOST = re.compile(r'\b(nc|ncat)\b\s+[^\n|;&]*?\b([A-Za-z0-9][A-Za-z0-9.\-]+\.[A-Za-z]{2,})\b',
                      re.IGNORECASE)
@@ -298,14 +294,16 @@ def main() -> int:
         if not cmd.strip():
             return 0
 
-    # ---- Ramo A: POST/upload (comportamento storico) ----
-    if POST_MARKERS.search(cmd):
+    # ---- Ramo A: upload di un file locale ----
+    unito = cmd.replace("\\\n", " ")
+    segmenti = [m.group(0) for m in CURL_SEG_Q.finditer(unito) if UPLOAD_FILE.search(m.group(0))]
+    if segmenti:
         # Valuta solo l'host di DESTINAZIONE: rimuovi i valori dei flag-dato
         # (payload) così gli URL nel corpo non vengono scambiati per destinazioni.
-        # Un curl/wget senza dati (GET) non è una destinazione della POST: `curl https://$u/` in un
-        # altro segmento rendeva "non leggibile" la POST verso un host interno (21/10/2026). I GET li giudica
-        # il ramo B, che ora gira anche quando la POST va a un host interno.
-        dest = CURL_SEG.sub(lambda m: m.group(0) if POST_MARKERS.search(m.group(0)) else " ", cmd)
+        # Un curl/wget che non carica un file non è una destinazione: `curl https://$u/` in un altro
+        # segmento rendeva "non leggibile" la POST verso un host interno (21/10/2026), e un POST generico
+        # verso l'esterno faceva chiedere un upload verso un host interno (fino al 30/10/2026).
+        dest = " ; ".join(segmenti)
         dest = DATA_FLAG_VAL.sub(" ", dest)
         ext = False
         internal_seen = False
@@ -330,9 +328,9 @@ def main() -> int:
         if ext:
             return _ask()
         if not internal_seen:
-            return _ask()  # POST ma host non chiaro -> conservativo
+            return _ask()  # upload ma host non chiaro -> conservativo
 
-    # ---- Ramo B: egress-GET mascherato ----
+    # ---- Ramo B: canali di rete grezzi ----
     # /dev/tcp e /dev/udp verso un host esterno, o che non si legge (una variabile)
     for h in DEV_TCP.findall(cmd):
         if not _internal_host(h):
@@ -343,24 +341,11 @@ def main() -> int:
         if not _solo_fidati(_destinazioni_nc(m.group(1), m.group(2))):
             return _ask(f"Pipe verso {m.group(1)}: i dati del comando prima vanno a un host esterno, o a "
                         "uno che non si legge. Conferma solo se l'invio è voluto.")
-    # DNS-exfil: comando dig/nslookup/host con dati interpolati ($()/backtick) o
-    # sottodominio che sembra dati codificati.
-    if DNS_CMD.search(cmd) and (CMD_SUB.search(cmd) or DNS_EXFIL.search(cmd)):
-        return _ask("Query DNS con dati interpolati o un sottodominio che sembra "
-                    "codificato (possibile DNS-exfiltration). Conferma solo se voluto.")
     # nc/ncat verso host esterno
     m = NC_HOST.search(cmd)
     if m and _external_host(m.group(2)):
         return _ask("nc/ncat verso un host esterno (canale di esfiltrazione). "
                     "Conferma solo se voluto.")
-    # curl/wget GET con blob opaco lungo nell'URL verso host esterno
-    for h, rest in CURL_URL.findall(cmd):
-        if _external_host(h):
-            mm = OPAQUE.search(rest or "")
-            if mm and len(mm.group(0)) >= 40:
-                return _ask("curl/wget verso host esterno con un blob opaco lungo "
-                            "nell'URL: possibile esfiltrazione di dati via GET. "
-                            "Conferma solo se voluto.")
     return 0
 
 
