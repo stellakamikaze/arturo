@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Hook PreToolUse (Edit/MultiEdit/Write/NotebookEdit): protegge file critici.
 
-Tre categorie, ognuna con un unlock per-sessione distinto:
+Tre categorie, ognuna con un unlock per-sessione distinto, più il resto di ~/.claude:
 
   Persistenza (codice che parte da solo, fuori da Claude Code):
     .git/hooks/** di qualunque repository
@@ -38,6 +38,11 @@ La categoria persistenza viene prima delle altre: un git hook o un servizio
 di avvio esegue codice a ogni commit o a ogni login, senza che nessuno lo chieda.
 Il vettore shell (echo >, cp, tee...) su questi percorsi chiede conferma in
 block-dangerous.py.
+
+hooks/protect_claude_md.local (dal 30/10/2026) cambia la decisione di cinque categorie: i due
+CLAUDE.md, i settings della radice, la config e il resto di ~/.claude (dot-claude). Persistenza,
+file di unlock, firme/, gli script dell'aggiornamento e i .local restano col default. Il vocabolario
+sta accanto a _locale().
 
 Fail-closed: errore di parsing = blocca per sicurezza.
 """
@@ -135,10 +140,12 @@ def _locale():
     return scelte
 
 
-def _emetti_locale(categoria, avviso=""):
-    """Se il .local decide la categoria, emette la sua decisione ed esce."""
+def _emetti_locale(categoria, avviso="", chiede=None):
+    """Se il .local decide la categoria, emette la sua decisione ed esce. Un ask passa dalla telemetria."""
     decisione = _locale().get(categoria)
     if decisione:
+        if decisione == 'ask' and chiede:
+            chiede()
         _emit(decisione, f"{categoria}: decisione di hooks/protect_claude_md.local." + avviso)
         sys.exit(0)
 
@@ -232,7 +239,7 @@ def main():
                 _emit("allow", "CLAUDE.md sbloccato da conferma utente." + avviso)
                 sys.exit(0)
             _emetti_locale('claude-md-globale' if rp == os.path.join(claude_dir, 'CLAUDE.md')
-                           else 'claude-md-progetto', avviso)
+                           else 'claude-md-progetto', avviso, chiede)
             _emit("deny", (
                 "CLAUDE.md protetto. Per modificarlo: "
                 "1) chiedi conferma esplicita all'utente. "
@@ -271,7 +278,8 @@ def main():
             if not intoccabile:
                 in_radice = os.path.dirname(rp) == claude_dir
                 _emetti_locale('settings-radice' if in_radice and (re.match(r'SETTINGS.*\.JSON$', base)
-                                                                    or base == '.CLAUDE.JSON') else 'config')
+                                                                    or base == '.CLAUDE.JSON') else 'config',
+                               chiede=chiede)
             _emit("deny", (
                 f"File di config/hook di Claude Code protetto ({os.path.basename(rp)}). "
                 "Modificarlo può disattivare le guardie di sicurezza. Per procedere: "
@@ -283,7 +291,7 @@ def main():
 
         # Categoria 4: il resto di ~/.claude decide il flusso normale dei permessi, o il .local.
         if under_claude:
-            _emetti_locale('dot-claude')
+            _emetti_locale('dot-claude', chiede=chiede)
 
         sys.exit(0)
 

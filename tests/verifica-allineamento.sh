@@ -136,6 +136,10 @@ BANCHI=(
   test_computer_club_2026_10_28.py
   test_computer_club_2026_10_28b.py
   test_rilascio_2026_11_02.py
+  test_dispatcher_locale_2026_10_30.py
+  test_protect_locale_2026_10_30.py
+  test_hook_sessione_2026_10_30.py
+  test_sync_merge_2026_10_30.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -287,6 +291,12 @@ BASELINE=(
   # I ritocchi prima del rilascio del 2/11/2026 (/setup sotto 30 KB, testi dei comandi nuovi, titolo
   # atteso del tasto o): 60b7d8d, il dev prima.
   "test_rilascio_2026_11_02.py 60b7d8d"
+  # Migrazione della config di Federico, F0 L1-L2 (30/10/2026): guardie e protect personali da .local,
+  # sblocchi per sessione, sync che tiene i merge. 749e18d, il dev prima; i banchi leggono la base con git show.
+  "test_dispatcher_locale_2026_10_30.py 749e18d radice"
+  "test_protect_locale_2026_10_30.py 749e18d radice"
+  "test_hook_sessione_2026_10_30.py 749e18d radice"
+  "test_sync_merge_2026_10_30.py 749e18d radice"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"
