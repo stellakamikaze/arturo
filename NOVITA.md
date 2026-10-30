@@ -12,6 +12,26 @@ modo di lavorare.
 
 ---
 
+## 2026-10-30 — /fine chiude in un comando, e i tuoi todo possono stare nel tuo strumento
+
+**Cosa cambia**: la parte finale di `/fine` è un comando solo. Controlla l'handoff, mette nel cestino
+gli handoff vecchi che ti ha mostrato prima e nessun altro, rigenera l'indice, poi salva e manda la
+config. La memoria, il tuo CLAUDE.md, i todo e `personale/` partono solo verso un repository privato, e
+mai i file di servizio della memoria. Prima un modo di `git add` su Windows poteva non salvare
+`personale/` senza dirlo. Se tieni i todo in un altro strumento, un programma tuo indicato in
+`bin/fonte-task.local` li legge e li scrive al posto dell'archivio di Arturo (`docs/fonte-task.md`).
+Se quello strumento non risponde, `/inizio` mostra i task dell'ultimo handoff con l'avviso NON
+VERIFICATO, invece di dire che non c'è niente. `/inizio` riconosce il progetto anche quando scrivi il
+compito subito dopo il nome o un nome a metà, e dice come l'ha interpretato. Il compito non passa più
+dalla shell: un `$(...)` scritto lì non viene eseguito. I passi tuoi di `/fine` stanno in
+`personale/fine-coda.py`, e le tue regole sugli handoff, sui progetti contenitore e sui tuoi script in
+tre file `hooks/*.local`: gli aggiornamenti non li toccano.
+
+**Il principio dietro**: i passi che non chiedono giudizio girano in un processo solo, e i tuoi dati
+partono solo dove hai detto tu.
+
+---
+
 ## 2026-10-30 — Le tue guardie accanto a quelle di Arturo, e meno conferme a vuoto
 
 **Cosa cambia**: puoi aggiungere guardie tue senza toccare quelle di Arturo, e senza perderle al
