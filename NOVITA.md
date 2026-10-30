@@ -12,6 +12,18 @@ modo di lavorare.
 
 ---
 
+## 2026-10-30 — /fine è un salvataggio, e la barra tiene il ramo anche nella config
+
+**Cosa cambia**: quando la conversazione si avvicina al limite, Claude ti propone `/fine` per
+salvare il lavoro, e dopo puoi continuare nella stessa sessione. `/clear` e `/inizio` per ripartire da
+capo te li nomina una volta sola per sessione, non a ogni avviso. La barra in basso mostra il ramo
+anche quando lavori sulla config (`~/.claude`), su un progetto con maiuscole o spazi nel nome, o in
+una copia a parte aperta da `/inizio`: prima in quei casi il ramo spariva.
+
+**Il principio dietro**: un avviso che ripete sempre la stessa proposta smette di essere letto.
+
+---
+
 ## 2026-10-29 — La scheda del terminale dice il progetto vero, "LAVORANDO" mentre Claude lavora e "SBLOCCA" solo quando servi tu
 
 **Cosa cambia**: il titolo della scheda è il nome del progetto. Mentre Claude lavora diventa
@@ -53,8 +65,10 @@ dove la si ripete.
 
 **Cosa cambia**: quando `/fine` tiene solo gli ultimi cinque handoff di un progetto, quelli vecchi non
 si cancellano più. Vanno in `~/.claude/data/handoffs/.cestino/`, nella cartella del progetto, e ci
-restano 30 giorni. Per riaverne uno, chiedi a Claude di riportarlo indietro. Il cestino resta sul tuo
-computer e non entra in git (segnalazione n. 26).
+restano 30 giorni. Per riaverne uno, chiedi a Claude di riportarlo indietro, oppure sposta tu il file
+da `~/.claude/data/handoffs/.cestino/<progetto>/` a `~/.claude/data/handoffs/<progetto>/`. Dopo 30
+giorni il cestino si svuota per tutti i progetti, anche per quelli che non chiudi più con `/fine`. Il
+cestino resta sul tuo computer e non entra in git (segnalazione n. 26).
 
 **Il principio**: un file della persona non sparisce senza una via per tornare indietro.
 

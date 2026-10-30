@@ -298,10 +298,16 @@ def test_f03(repo: Path) -> None:
             f"F03 il triage del file in uscita: {r.stdout}"
         # Nel cestino da prima: uno da 31 giorni esce, uno da 29 resta (segnalazione n. 26).
         cestino = radice / ".cestino" / "libro"
+        # Anche il cestino di un progetto che non passa più da /fine si svuota (#4264).
+        fermo = radice / ".cestino" / "fermo"
         scrivi(radice, {".cestino/libro/HANDOFF_2026-07-01_10-00.md": "vecchio\n",
-                        ".cestino/libro/HANDOFF_2026-07-02_10-00.md": "recente\n"})
-        for nome, giorni in (("HANDOFF_2026-07-01_10-00.md", 31), ("HANDOFF_2026-07-02_10-00.md", 29)):
-            os.utime(str(cestino / nome), (adesso - giorni * 86400, adesso - giorni * 86400))
+                        ".cestino/libro/HANDOFF_2026-07-02_10-00.md": "recente\n",
+                        ".cestino/fermo/HANDOFF_2026-06-01_10-00.md": "vecchio\n",
+                        ".cestino/fermo/HANDOFF_2026-06-02_10-00.md": "recente\n"})
+        for cartella in (cestino, fermo):
+            for nome, giorni in ((sorted(p.name for p in cartella.iterdir())[0], 31),
+                                 (sorted(p.name for p in cartella.iterdir())[1], 29)):
+                os.utime(str(cartella / nome), (adesso - giorni * 86400, adesso - giorni * 86400))
         r = lancia("libro", "--applica")
         assert r.returncode == 0 and not (radice / "libro" / f"HANDOFF_{date[0]}.md").exists(), \
             f"F03 --applica non toglie il file in uscita: {r.stdout} {r.stderr}"
@@ -309,6 +315,9 @@ def test_f03(repo: Path) -> None:
             f"F03 l'handoff tolto non è nel cestino dello store, non si recupera: {r.stdout}"
         assert not (cestino / "HANDOFF_2026-07-01_10-00.md").exists() and (cestino / "HANDOFF_2026-07-02_10-00.md").exists(), \
             "F03 il cestino non tiene i 30 giorni"
+        assert not (fermo / "HANDOFF_2026-06-01_10-00.md").exists() and (fermo / "HANDOFF_2026-06-02_10-00.md").exists(), \
+            f"F03 il cestino di un progetto fermo non si svuota: {r.stdout}"
+        assert "Per riportarne uno: sposta il file da" in r.stdout, f"F03 non dice come riportare un handoff: {r.stdout}"
         assert len(list((radice / "libro").glob("HANDOFF_*.md"))) == 7 and (radice / "libro" / "note.txt").exists(), \
             "F03 --applica ha tolto più del file in uscita"
 

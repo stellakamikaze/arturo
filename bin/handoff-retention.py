@@ -7,9 +7,10 @@ L'ordine viene dalla data nel nome del file, mai dalla data del file: dopo un pu
 ripristino le date dei file sono tutte fresche. Per ogni file in uscita stampa i Vicoli
 ciechi e le righe di Task Pendenti senza #ID, per decidere cosa salvare prima che esca.
 Di default non tocca niente. Con --applica sposta i file in uscita nel cestino dello store,
-<radice>/.cestino/<slug>/, e toglie dal cestino quelli che ci stanno da più di 30 giorni:
-un handoff tolto si recupera per un mese (segnalazione n. 26, 28/10/2026: con os.remove
-era sparito per sempre). L'indice e /inizio saltano le cartelle col punto.
+<radice>/.cestino/<slug>/, e toglie dal cestino quelli che ci stanno da più di 30 giorni,
+di ogni progetto (#4264): un handoff tolto si recupera per un mese (segnalazione n. 26,
+28/10/2026: con os.remove era sparito per sempre). Per riaverlo si sposta il file da
+.cestino/<slug>/ alla cartella <slug>/. L'indice e /inizio saltano le cartelle col punto.
 
 Output (stdout):
   RETENTION <slug> · keep N per filone · <dry-run|applica>
@@ -17,7 +18,8 @@ Output (stdout):
   === IN USCITA <slug>/<file> (filone <chiave>) ===
   Vicoli ciechi: / Task senza ID: (righe, o "nessuno")
   NEL CESTINO <slug>/<file> → .cestino/<slug>/<file>     (solo con --applica)
-  TOLTO DAL CESTINO <slug>/<file> (oltre 30 giorni)      (solo con --applica)
+  Per riportarne uno: sposta il file da … a …            (solo con --applica e file in uscita)
+  TOLTO DAL CESTINO <progetto>/<file> (oltre 30 giorni)  (solo con --applica, ogni progetto)
   TOTALE in uscita: <m>
 Exit: 0 fatto (anche niente da fare) · 2 uso sbagliato o slug assente · 3 spostamento fallito.
 """
@@ -114,14 +116,19 @@ def main(argv=None):
             except OSError as e:
                 errori += 1
                 print(f"ERRORE {h['rel']}: {e}", file=sys.stderr)
+        if uscita:
+            print(f"Per riportarne uno: sposta il file da {cestino / a.slug} a {radice / a.slug}.")
+        # Il cestino si svuota per ogni progetto, non solo per questo: un progetto che non passa
+        # più da /fine terrebbe i suoi file per sempre (#4264).
         limite = time.time() - GIORNI_NEL_CESTINO * 86400
-        for f in sorted((cestino / a.slug).glob("HANDOFF_*.md")) if (cestino / a.slug).is_dir() else []:
+        for f in sorted(cestino.glob("*/HANDOFF_*.md")) if cestino.is_dir() else []:
+            rel = f"{f.parent.name}/{f.name}"
             try:
                 if f.stat().st_mtime < limite:
                     f.unlink()
-                    print(f"TOLTO DAL CESTINO {a.slug}/{f.name} (oltre {GIORNI_NEL_CESTINO} giorni)")
+                    print(f"TOLTO DAL CESTINO {rel} (oltre {GIORNI_NEL_CESTINO} giorni)")
             except OSError as e:
-                print(f"ERRORE {CESTINO}/{a.slug}/{f.name}: {e}", file=sys.stderr)
+                print(f"ERRORE {CESTINO}/{rel}: {e}", file=sys.stderr)
     print(f"\nTOTALE in uscita: {len(uscita)}")
     if uscita and not a.applica:
         print("Niente spostato. Dopo aver deciso cosa salvare, rilancia con --applica.")

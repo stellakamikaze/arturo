@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CP01-CP04: i testi scritti in più posti dicono la stessa cosa (#3852, 23/10/2026).
+"""CP01-CP06: i testi scritti in più posti dicono la stessa cosa (#3852, 23/10/2026).
 
 La revisione di fine sessione del 23/10 ha trovato due copie rimaste indietro: la cancellazione dei
 dati di un'installazione aveva tre righe in docs/manutenzione.md e una sola in server/README.md.
@@ -22,6 +22,14 @@ CP04 gli archivi della persona che non fermano l'aggiornamento (data/handoffs, d
      README.md, nel ciclo di /fine che li toglie dal tracciamento (27/10/2026, #3987) e nei controlli
      delle modifiche di /inizio e /aggiorna (#4079). La fonte è ARCHIVI_PERSONALI di aggiorna-applica.sh:
      un archivio nuovo si aggiunge lì, e questo controllo dice tutte le copie da allineare.
+CP05 lo slug di un progetto è lo stesso in ogni copia (#4263, 30/10/2026): bin/contesto.py e bin/arturo
+     con la stessa espressione, la funzione di hooks/statusline.js e le righe tr | sed di commands/*.md
+     danno gli stessi slug su un elenco di nomi. Solo nomi ASCII: con le lettere accentate tr e sed
+     dipendono dalla lingua del sistema.
+CP06 i due filtri dei segreti fuori dalla guardia, bin/segnala.py e hooks/memory-write-scanner.py,
+     trovano una chiave in chiaro, non la vedono nel base64 di un'immagine in linea e lasciano passare
+     una chiave pubblica di Stripe (#4263): fino al 30/10 lo scanner della memoria guardava anche le
+     immagini.
 
 Sulla base f4ae0aa ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -29,8 +37,13 @@ from __future__ import annotations
 
 import argparse
 import html
+import importlib.util
+import json
+import os
 import re
+import shutil
 import subprocess
+from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
 MINIMO = 20  # il 23/10/2026 le voci sono 22: sotto 20 l'estrazione si è rotta, non la lista
@@ -146,7 +159,66 @@ def test_cp04(repo: Path) -> None:
                          f"{sorted(liste['bin/aggiorna-applica.sh'])}: {diverse}")
 
 
-TESTS = {"CP01": test_cp01, "CP02": test_cp02, "CP03": test_cp03, "CP04": test_cp04}
+NOMI = ["Due Mondi", "due_mondi", "--A..b--", "Progetto 2026", "arturo", "UF / Gare & Bandi"]
+SLUG_PY = 're.sub(r"^-+|-+$", "", re.sub(r"[^a-z0-9]+", "-", nome.lower()))'
+TR_SED = re.compile(r"tr '\[:upper:\]' '\[:lower:\]' \| sed -E '[^']+'")
+
+
+def atteso(nome: str) -> str:
+    return re.sub(r"^-+|-+$", "", re.sub(r"[^a-z0-9]+", "-", nome.lower()))
+
+
+def test_cp05(repo: Path) -> None:
+    for nome in ("bin/contesto.py", "bin/arturo"):
+        percorso = repo / nome
+        assert percorso.exists() and SLUG_PY in percorso.read_text(encoding="utf-8"), \
+            f"CP05 {nome} non calcola lo slug come /inizio e /fine"
+    voluti = [atteso(n) for n in NOMI]
+    barra = (repo / "hooks" / "statusline.js").read_text(encoding="utf-8")
+    funzione = re.search(r"^function slug\(nome\) \{.*?^\}", barra, re.M | re.S)
+    assert funzione, "CP05 hooks/statusline.js senza la funzione slug"
+    node = shutil.which("node")
+    assert node, "CP05 serve node per provare lo slug della barra"
+    r = subprocess.run([node, "-e", funzione.group(0) + f"\nconsole.log(JSON.stringify({json.dumps(NOMI)}.map(slug)))"],
+                       capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert r.returncode == 0 and json.loads(r.stdout) == voluti, f"CP05 la barra dà altri slug: {r.stdout or r.stderr}"
+    bash = shutil.which("bash")  # su Windows "bash" nudo è quello di WSL
+    righe = [(f.name, m.group(0)) for f in sorted((repo / "commands").glob("*.md"))
+             for m in TR_SED.finditer(f.read_text(encoding="utf-8"))]
+    assert len(righe) >= 3, f"CP05 trovate solo {len(righe)} righe tr | sed nei comandi: l'estrazione si è rotta"
+    for file, riga in righe:
+        dati = [subprocess.run([bash, "-c", f"printf '%s' \"$1\" | {riga}", "_", n], capture_output=True, text=True,
+                               encoding="utf-8", env={**os.environ, "LC_ALL": "C"}, timeout=30).stdout.strip()
+                for n in NOMI]
+        assert dati == voluti, f"CP05 {file} dà altri slug: {dati} invece di {voluti}"
+
+
+def carica(repo: Path, relativo: str):
+    nome = relativo.replace("/", "_").replace("-", "_").replace(".", "_")
+    loader = SourceFileLoader(nome, str(repo / relativo))
+    modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader(nome, loader))
+    loader.exec_module(modulo)
+    return modulo
+
+
+def test_cp06(repo: Path) -> None:
+    chiave = "AKIA" + "IOSFODNN7" + "EXAMPLE"
+    immagine = "data:image/png;base64,iVBORw0KGgo" + chiave + "AAAA=="
+    pubblica = "pk_live_" + "a" * 24
+    try:
+        segnala = carica(repo, "bin/segnala.py").segreti_trovati
+        memoria = carica(repo, "hooks/memory-write-scanner.py").trova
+    except Exception as e:  # noqa: BLE001
+        raise AssertionError(f"CP06 un filtro non si carica: {type(e).__name__} {e}") from e
+    for nome, filtro in (("bin/segnala.py", lambda t: segnala(t)),
+                         ("hooks/memory-write-scanner.py", lambda t: [m for m in memoria(t) if "segreto" in m])):
+        assert filtro(chiave), f"CP06 {nome} non trova una chiave in chiaro"
+        assert not filtro(immagine), f"CP06 {nome} vede un segreto nel base64 di un'immagine in linea"
+        assert not filtro(pubblica), f"CP06 {nome} tratta da segreto una chiave pubblica di Stripe"
+
+
+TESTS = {"CP01": test_cp01, "CP02": test_cp02, "CP03": test_cp03, "CP04": test_cp04, "CP05": test_cp05,
+         "CP06": test_cp06}
 
 
 def main() -> int:

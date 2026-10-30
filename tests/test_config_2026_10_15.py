@@ -239,7 +239,8 @@ def test_k11(repo: Path) -> None:
     for lista in ("allow", "soft_deny", "environment"):
         # Senza $defaults una lista di autoMode sostituisce le regole di serie invece di aggiungersi (15/10/2026).
         assert "$defaults" in am.get(lista, []), f"K11 autoMode.{lista} senza i default di Claude Code"
-    # Le guardie a regex sull'uscita di dati sono state tolte il 28/10 a favore del classificatore (#4111).
+    # Nella config dell'autore le guardie a regex sull'uscita di dati sono uscite il 28/10 a favore del
+    # classificatore (#4111). In Arturo la regola si aggiunge: exfil-guard resta per upload e canali grezzi.
     uscita = [r for r in am.get("soft_deny", []) if r.startswith("Sending to an external host")]
     assert uscita and all(c in uscita[0] for c in ("secret", "credential", "private key", "transcript", "URL path",
                                                     "header", "DNS")), \

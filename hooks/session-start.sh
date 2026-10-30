@@ -38,7 +38,7 @@ if printf '%s' "$HOOK_INPUT" | grep -qE '"source"[[:space:]]*:[[:space:]]*"compa
 fi
 
 # Reminder context management
-echo "CONTEXT: al ~65% di utilizzo completa il task, chiudi con /fine e riparti con /inizio in una sessione nuova"
+echo "CONTEXT: al ~65% di utilizzo completa il task e salva con /fine. /clear e /inizio si propongono una volta sola per sessione"
 
 # Avvisi Git locali: nessuna rete, nessun comando in background.
 if git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then

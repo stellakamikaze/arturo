@@ -124,8 +124,10 @@ def trova(testo):
     if inj is not None and any(re.search(p, testo) for p in getattr(inj, "INJECTION_PATTERNS", [])):
         motivi.append(INJECTION)
     cred = _carica("credential-leak-scanner.py")
+    # Come la guardia e /segnala: nel base64 di un'immagine in linea AKIA… compaiono per caso (#4263).
+    senza_immagini = cred.DATA_URI.sub("", testo) if hasattr(cred, "DATA_URI") else testo
     for schema, nome in (getattr(cred, "CREDENTIAL_PATTERNS", []) if cred is not None else []):
-        if nome not in NON_SEGRETI and re.search(schema, testo):
+        if nome not in NON_SEGRETI and re.search(schema, senza_immagini):
             motivi.append(f"possibile segreto in chiaro: {nome}")
     return list(dict.fromkeys(motivi))
 

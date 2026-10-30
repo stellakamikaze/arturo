@@ -113,7 +113,9 @@ function gitInfo(dir) {
         }
         const stato = gitStatoCache(cur);
         gitRichiediRefresh(cur);
-        return { root: cur, ramo: gitRamo(gitDir), sporco: stato.fresca && stato.sporco };
+        // principale: il repository vero anche da un worktree (<repo>/.git/worktrees/<nome>), come la scheda
+        const wt = gitDir.match(/^(.*)[\\/]\.git[\\/]worktrees[\\/][^\\/]+$/);
+        return { root: cur, principale: wt ? wt[1] : cur, ramo: gitRamo(gitDir), sporco: stato.fresca && stato.sporco };
       }
       const su = path.dirname(cur);
       if (su === cur) return null;
@@ -331,11 +333,14 @@ process.stdin.on('end', () => {
     // che lancia arturo contesto, i file scritti), poi il repository e infine la cartella
     // (segnalazione n. 35, 29/10/2026). Il ramo, con * se ci sono modifiche, solo se il repository è
     // quel progetto: aperta dalla home, la sessione non mostra il ramo di un altro repository.
+    // Il confronto passa dallo slug dai due lati: la scheda può avere un nome di cartella ("Due Mondi"),
+    // la config vale "claude-config" e un worktree vale il suo repository principale (#4262).
     const git = gitInfo(dir);
-    const daCartella = git ? path.basename(git.root) : path.basename(dir);
+    const daCartella = git ? path.basename(git.principale) : path.basename(dir);
     const scheda = progettoScheda(session);
     const progetto = scheda || daCartella;
-    const luogo = git && git.ramo && (!scheda || slug(daCartella) === scheda)
+    const slugRepo = git && path.resolve(git.principale) === path.resolve(CLAUDE_DIR) ? 'claude-config' : slug(daCartella);
+    const luogo = git && git.ramo && (!scheda || slugRepo === slug(scheda))
       ? `${progetto}\x1b[0m\x1b[2m@${git.ramo}${git.sporco ? '*' : ''}`
       : progetto;
 

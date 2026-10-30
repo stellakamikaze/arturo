@@ -22,6 +22,8 @@ config = "claude-config", non piani, memoria e cache), poi la radice git o il no
 Limite noto: dopo un permesso concesso Claude Code non manda eventi finché lo strumento non finisce, quindi
 "SBLOCCA" resta per tutta la durata del comando approvato. Stato e progetto stanno in ~/.claude/cache/scheda/<sessione>.json:
 SessionEnd toglie il suo file, SessionStart quelli fermi da una settimana (sessioni chiuse male).
+La barra in basso (hooks/statusline.js) legge il progetto da questo file: il nome resta come lo ha
+trovato la scheda, e la barra lo confronta col repository passando dallo slug dai due lati (#4262).
 Su Windows un hook non vede la console della scheda: si attacca a quella del processo claude.exe.
 Su macOS e Linux l'hook non ha un terminale di controllo (/dev/tty risponde ENXIO): scrive sul tty del
 processo claude, trovato risalendo i padri con ps (18/10/2026: sul Mac le schede non cambiavano mai).

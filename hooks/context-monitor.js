@@ -115,15 +115,23 @@ process.stdin.on('end', () => {
     fs.writeFileSync(warnPath, JSON.stringify(warnData));
 
     // Build advisory warning message (never use imperative commands that
-    // override user preferences — see #884)
+    // override user preferences — see #884).
+    // /fine is a save, and the person often keeps working in the same session after it:
+    // /clear and /inizio are proposed once per session, not at every warning (#3883).
+    const primaRotazione = !warnData.rotazioneProposta;
+    warnData.rotazioneProposta = true;
+    fs.writeFileSync(warnPath, JSON.stringify(warnData));
     let message;
     if (isCritical) {
       message = `CONTEXT CRITICAL: Usage at ${usedPct}%. Remaining: ${remaining}%. ` +
         'Propose /fine to the user now, before any other work.';
     } else {
       message = `CONTEXT WARNING: Usage at ${usedPct}%. Remaining: ${remaining}%. ` +
-        'This is the rotation threshold: finish the task in progress, then propose ' +
-        'to the user /fine, /clear and /inizio. Do not start new complex work.';
+        'This is the rotation threshold: finish the task in progress, then propose /fine ' +
+        'to the user in one line, as a save. Do not start new complex work. ' +
+        (primaRotazione
+          ? 'Mention once that /clear and /inizio start a fresh session: the user may keep working here after /fine.'
+          : '/clear and /inizio were already proposed in this session: do not repeat them.');
     }
 
     const output = {
