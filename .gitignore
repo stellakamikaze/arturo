@@ -78,6 +78,7 @@ hooks/protect_claude_md.local
 hooks/handoff-gate.local
 hooks/index-contenitori.local
 hooks/inventario.local
+bin/fonte-task.local
 skills/system-audit/review-termini.local
 # Le aggiunte ai comandi di Arturo (arturo personale): /fine le porta solo verso un remote privato.
 /personale/

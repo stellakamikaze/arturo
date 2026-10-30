@@ -722,3 +722,32 @@ def vista(todo: dict, avvisi: list, progetto: str | None = None, tutti: bool = F
     if tutti:
         risultato["chiusi_todo"] = [esporta(t, todo) for t in chiusi]
     return risultato
+
+
+# --- Fonte esterna dei task (30/10/2026, #4291) ----------------------------------------------------
+# Chi tiene i task in un altro strumento scrive in bin/fonte-task.local una riga `comando = <programma>
+# [argomenti]`. Da lì `arturo todo <argomenti>` lancia quel programma con gli stessi argomenti, senza shell,
+# e ne restituisce uscita e codice: 0 fatto, 2 uso sbagliato, 3 fonte giù o esito incerto. Il contratto è
+# in docs/fonte-task.md. Il file si legge come dati; i percorsi vanno scritti con le barre dritte.
+
+FONTE_LOCALE = Path(os.path.realpath(__file__)).parent / "fonte-task.local"
+
+
+def comando_fonte(file: Path | None = None) -> list | None:
+    """Il comando della fonte esterna, già diviso, o None se non c'è (vale l'archivio di Arturo)."""
+    import shlex
+    try:
+        testo = (file or FONTE_LOCALE).read_text(encoding="utf-8")
+    except (OSError, ValueError):
+        return None
+    for riga in testo.splitlines():
+        if riga.lstrip().startswith("#") or "=" not in riga:
+            continue
+        chiave, valore = (x.strip() for x in riga.split("=", 1))
+        if chiave == "comando" and valore:
+            try:
+                parti = shlex.split(valore)
+            except ValueError:
+                return None
+            return [os.path.expanduser(p) for p in parti] or None
+    return None

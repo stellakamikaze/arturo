@@ -304,6 +304,16 @@ def stato_e_motivo(resto: list, motivo=None) -> tuple:
 
 
 def todo(argv: list) -> int:
+    # Con bin/fonte-task.local i task stanno in un altro strumento: stessi argomenti, stesso codice d'uscita.
+    esterna = ts.comando_fonte()
+    if esterna:
+        try:
+            # UTF-8 anche per una fonte in Python su Windows, dove la pipe è in cp1252
+            return subprocess.run([*esterna, *argv], timeout=120,
+                                  env={**os.environ, "PYTHONIOENCODING": "utf-8"}).returncode
+        except (OSError, subprocess.SubprocessError) as e:
+            print(f"Errore: la fonte dei task di bin/fonte-task.local non risponde ({e}).", file=sys.stderr)
+            return 3
     if not argv or argv[0].startswith("--"):
         argv = ["lista", *argv]
     if argv[0] in ("-h", "--help"):

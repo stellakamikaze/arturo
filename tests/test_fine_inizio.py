@@ -405,7 +405,7 @@ def test_f05(repo: Path) -> None:
     script = serve(repo, "bin/inventario-sessione.py", "F05")
     testo = read(script)
     # Dal 30/10/2026 l'inventario riconosce i comandi della CLI gws (#4291): il nome della CLI va bene, i nomi
-    # degli account dell'autore (gws-uf, gws-gmail) e i suoi destini no.
+    # degli account dell'autore (gws- e il nome) e i suoi destini no.
     for parola in ("gws-", "drive-personale"):
         assert parola not in testo, f"F05 inventario con un destino o un account personale: {parola}"
     assert not igiene.trova(testo, igiene.FINE), "F05 inventario con uno strumento della config dell'autore"
@@ -784,7 +784,9 @@ def test_f10(repo: Path) -> None:
     fase0 = inizio[inizio.index("## FASE 0"):inizio.index("## FASE 1")]
     assert "--tutti" in fase0 and "bin/sync-progetti.sh" in fase0, "F10 /inizio --tutti non aggiorna i progetti"
     fase1 = inizio[inizio.index("## FASE 1"):inizio.index("## FASE 2")]
-    assert 'arturo contesto "$ARGUMENTS"' in fase1, "F10 /inizio non prende il contesto in una chiamata"
+    # Dal 30/10/2026 gli argomenti passano su stdin (#4291): "$ARGUMENTS" nella riga di comando eseguiva un $(...)
+    # scritto nel compito.
+    assert "arturo contesto --stdin <<'ARGOMENTI'" in fase1, "F10 /inizio non prende il contesto in una chiamata, su stdin"
     assert "[--tutti]" in inizio.split("---", 2)[1], "F10 l'aiuto di /inizio non mostra --tutti"
     codice = blocchi(fase1)[0]
 
@@ -794,9 +796,15 @@ def test_f10(repo: Path) -> None:
         progetto.mkdir()
         lab.git(progetto, "init", "-q")
         lab.todo("aggiungi", "Rileggere il capitolo", "--progetto", "libro", "--chi", "io")
-        r = lab.run([BASH, "-c", codice], cwd=lab.home, ARGUMENTS="libro --tutti")
+        # Claude Code sostituisce $ARGUMENTS nel testo del comando prima che il modello lo legga.
+        r = lab.run([BASH, "-c", codice.replace("$ARGUMENTS", "libro --tutti")], cwd=lab.home)
         assert "PROGETTO libro" in r.stdout and "#1 Rileggere il capitolo" in r.stdout and "rc=0" in r.stdout, \
             f"F10 il blocco della FASE 1 non stampa il contesto: {r.stdout} {r.stderr}"
+        trappola = lab.home / "ESEGUITO"
+        compito = f'libro -- prova "virgolette" $(touch {trappola.as_posix()}) `touch {trappola.as_posix()}` # fine'
+        r = lab.run([BASH, "-c", codice.replace("$ARGUMENTS", compito)], cwd=lab.home)
+        assert not trappola.exists() and "PROGETTO libro" in r.stdout and "compito: prova" in r.stdout, \
+            f"F10 il compito di /inizio passa dalla shell: {r.stdout[-300:]} {r.stderr[-200:]}"
     con_lab(repo, prova)
 
 

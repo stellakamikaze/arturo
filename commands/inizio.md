@@ -121,8 +121,14 @@ riconosce e il nome del progetto resta pulito. Senza nome usa la cartella in cui
 
 ```bash
 # Tutto il contesto in un processo solo: tra due blocchi bash le variabili si perdono.
-python3 ~/.claude/bin/arturo contesto "$ARGUMENTS"; echo "rc=$?"
+# Gli argomenti passano su stdin, fra le due righe ARGOMENTI e mai nella riga di comando: il compito
+# può contenere virgolette, # e $(...), e la shell li taglierebbe o li eseguirebbe.
+python3 ~/.claude/bin/arturo contesto --stdin <<'ARGOMENTI'; echo "rc=$?"
+$ARGUMENTS
+ARGOMENTI
 ```
+
+Se c'è un compito, lo script lo stampa nella riga `compito:`.
 
 Lo script legge e non scrive niente. Calcola lo slug del progetto come `/fine`
 (`basename | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g'`), così

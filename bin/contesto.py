@@ -2,6 +2,8 @@
 """arturo contesto: il contesto di un progetto per /inizio, in una chiamata e in sola lettura.
 
 Uso: arturo contesto [nome] [--giorni N]
+     arturo contesto --stdin          gli argomenti di /inizio su stdin, mai nella riga di comando: il
+                                      compito può contenere virgolette, # e $(...) che la shell eseguirebbe
   Senza nome usa la cartella in cui sei. Accetta anche gli argomenti interi di /inizio:
   "--tutti" si ignora, e il testo dopo " -- " (il compito) non fa parte del nome.
 
@@ -11,6 +13,10 @@ progetto divisi per chi agisce, i todo chiusi dopo l'ultimo handoff, le scadenze
 7 giorni (anche fuori dal progetto), il todo da cui ripartire e gli avvisi.
 Tra due blocchi bash le variabili si perdono: qui tutto vive in un processo.
 
+Con bin/fonte-task.local i todo vengono dalla fonte esterna (arturo todo --progetto <slug> --json --tutti).
+Se non risponde, la sezione dei todo mostra la tabella Task Pendenti dell'ultimo handoff con l'avviso
+NON VERIFICATO: mai "nessuno" quando la fonte è giù.
+
 Exit: 0 contesto stampato · 2 NON TROVATO (né cartella, né handoff, né todo; stampa i nomi
 simili) · 3 uso sbagliato. Non scrive niente: niente pull, niente mkdir, niente todo.
 """
@@ -19,6 +25,7 @@ from __future__ import annotations
 import datetime as dt
 import difflib
 import importlib.util
+import json
 import os
 import re
 import subprocess
@@ -234,20 +241,21 @@ def sezione_handoff(elenco: list, giorni: int, ir) -> list:
 
 
 def riga_todo(t: dict, con_progetto: bool = False) -> str:
-    pezzi = [f"#{t['id']} {t['titolo']}"]
+    # .get: una fonte esterna può non avere tutti i campi dell'archivio di Arturo
+    pezzi = [f"#{t.get('id')} {t.get('titolo', '')}"]
     if con_progetto:
-        pezzi.append(t["progetto"])
-    if t["scadenza_testo"]:
+        pezzi.append(t.get("progetto", ""))
+    if t.get("scadenza_testo"):
         pezzi.append(t["scadenza_testo"])
-    if t["priorita"] == "alta":
+    if t.get("priorita") == "alta":
         pezzi.append("priorità alta")
-    if t["perche"]:
+    if t.get("perche"):
         pezzi.append(f"perché: {t['perche']}")
-    if t["stato"] == "fermo" and t["motivo"]:
+    if t.get("stato") == "fermo" and t.get("motivo"):
         pezzi.append(f"aspetta: {t['motivo']}")
-    if t["attende"]:
+    if t.get("attende"):
         pezzi.append("dopo " + ", ".join(f"#{n}" for n in t["attende"]))
-    if t["stato"] == "in corso":
+    if t.get("stato") == "in corso":
         pezzi.append("in corso")
     return "    " + " · ".join(pezzi)
 
@@ -288,10 +296,85 @@ def sezione_todo(todo: dict, progetto: str, dal: str | None) -> list:
     return righe
 
 
+def leggi_esterna(progetto: str) -> tuple:
+    """(vista, errore) dalla fonte esterna, con lo stesso comando che userebbe la persona."""
+    try:
+        r = subprocess.run([sys.executable, str(QUI / "arturo"), "todo", "--progetto", progetto, "--json", "--tutti"],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=90)
+    except (OSError, subprocess.SubprocessError) as e:
+        return None, str(e)
+    if r.returncode != 0:
+        righe = [x for x in (r.stderr + r.stdout).splitlines() if x.strip()]
+        return None, f"exit {r.returncode}" + (f": {righe[-1][:160]}" if righe else "")
+    try:
+        v = json.loads(r.stdout)
+    except ValueError:
+        return None, "risposta non in JSON"
+    if not isinstance(v, dict) or not isinstance(v.get("gruppi"), list):
+        return None, "JSON senza \"gruppi\""
+    return v, None
+
+
+def sezione_esterna(v: dict, progetto: str, dal: str | None) -> list:
+    gruppi = [g for g in v["gruppi"] if isinstance(g, dict)]
+    aperti = sum(len(g.get("todo") or []) for g in gruppi)
+    righe = [f'TODO APERTI DEL PROGETTO "{progetto}" ({aperti}, dalla fonte di bin/fonte-task.local)']
+    if not aperti:
+        righe.append("  nessuno")
+    for g in gruppi:
+        if g.get("todo"):
+            righe.append(f"  {ETICHETTE.get(g.get('tipo'), g.get('titolo') or g.get('tipo') or '')}")
+            righe += [riga_todo(t) for t in g["todo"] if isinstance(t, dict)]
+    chiusi = [t for t in v.get("chiusi_todo") or []
+              if isinstance(t, dict) and dal and str(t.get("chiuso") or "")[:10] >= dal]
+    if chiusi:
+        righe += ["", f"CHIUSI DAL GIORNO DELL'ULTIMO HANDOFF ({dal})"]
+        righe += [f"    #{t.get('id')} {t.get('titolo', '')} · {t.get('stato', '')} il {str(t.get('chiuso'))[:10]}"
+                  for t in chiusi]
+    return righe
+
+
+def sezione_non_verificata(elenco: list, ir, errore: str) -> list:
+    """I task della tabella dell'ultimo handoff, quando la fonte esterna non risponde."""
+    righe = [f"TODO NON VERIFICATO: la fonte dei task non risponde ({errore}). Questi sono i task pendenti "
+             "dell'ultimo handoff: possono essere già chiusi o cambiati."]
+    if not elenco:
+        return righe + ["  nessun handoff da cui leggerli"]
+    nome, _, _, percorso = elenco[0]
+    try:
+        testo = percorso.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return righe + [f"  {nome} non si legge"]
+    testa, trovati = None, 0
+    for riga in ir.sezione(testo, "Task Pendenti").splitlines():
+        if not riga.lstrip().startswith("|"):
+            continue
+        c = ir.celle(riga)
+        if testa is None:
+            testa = [x.lower() for x in c]
+            continue
+        if set("".join(c)) <= set("-: "):
+            continue
+        campo = dict(zip(testa, c))
+        ident = next((x for x in c if re.fullmatch(r"#\d+|OFFLINE", x)), "")
+        trovati += 1
+        righe.append(f"    {ident} {campo.get('task', ' '.join(c))} · Chi: {c[-1] if c else ''}")
+    return righe + ([] if trovati else ["  nessuna riga nella tabella Task Pendenti"]) + [f"  da {nome}"]
+
+
+def compito_da(argv: list) -> str:
+    parti = re.split(r"(?:^|\s)--(?:\s|$)", " ".join(argv), maxsplit=1)
+    return " ".join(parti[1].split()) if len(parti) > 1 else ""
+
+
 def main(argv: list) -> int:
     if argv and argv[0] in ("-h", "--help", "aiuto", "help"):
         print(__doc__.strip())
         return 0
+    if argv and argv[0] == "--stdin":
+        # Gli argomenti di /inizio arrivano da un heredoc: la shell non li tocca (#4291, inizio.md).
+        argv = [sys.stdin.read(), *argv[1:]]
+    compito = compito_da(argv)
     try:
         nome, giorni = leggi_argomenti(argv)
     except ValueError as e:
@@ -304,8 +387,14 @@ def main(argv: list) -> int:
     cartella, contenitore = trova_cartella(nome)
     s = slug(cartella.name) if cartella else slug(nome)
     elenco = handoff_di(s)
-    todo, avvisi = ts.carica()
-    ha_todo = any(t["progetto"] == s for t in todo.values())
+    esterna = ts.comando_fonte()
+    vista, errore = (leggi_esterna(s) if esterna else (None, None))
+    if esterna:
+        todo, avvisi = {}, []
+        ha_todo = bool(vista and any(g.get("todo") for g in vista["gruppi"] if isinstance(g, dict)))
+    else:
+        todo, avvisi = ts.carica()
+        ha_todo = any(t["progetto"] == s for t in todo.values())
 
     if contenitore or not (cartella or elenco or ha_todo):
         motivo = ("la cartella in cui sei contiene i progetti, non è un progetto" if contenitore
@@ -319,6 +408,8 @@ def main(argv: list) -> int:
     ir = modulo_index()
     dal = elenco[0][1] if elenco else None
     righe = [f"PROGETTO {s}", f"cartella: {cartella if cartella else 'nessuna'}"]
+    if compito:
+        righe.append(f"compito: {compito}")
     if cartella:
         vecchi = sorted(cartella.glob("HANDOFF_*.md"), key=lambda p: p.name, reverse=True)
         if vecchi and (not elenco or vecchi[0].name > elenco[0][0]):
@@ -328,7 +419,12 @@ def main(argv: list) -> int:
     righe.append("")
     righe += sezione_handoff(elenco, giorni, ir)
     righe.append("")
-    righe += sezione_todo(todo, s, dal)
+    if not esterna:
+        righe += sezione_todo(todo, s, dal)
+    elif vista:
+        righe += sezione_esterna(vista, s, dal)
+    else:
+        righe += sezione_non_verificata(elenco, ir, errore)
     if avvisi:
         righe += ["", "AVVISI"] + [f"  Attenzione: {a}" for a in avvisi]
     print("\n".join(righe))
