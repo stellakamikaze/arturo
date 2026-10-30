@@ -131,7 +131,7 @@ Da `arturo todo --progetto .`: tutti i todo aperti del progetto.
 ## In sospeso
 - <decisione rimandata o dubbio>
 ## Idee
-- <idea> → #ID | → memoria | → scartata: <motivo>
+- <idea> → #ID | → memoria [[nome-della-nota]] | → scartata: <motivo>
 ```
 
 Regole della tabella `## Task Pendenti` (le controlla il gate della FASE 5):
@@ -146,7 +146,7 @@ Regole della tabella `## Task Pendenti` (le controlla il gate della FASE 5):
 - Status `da fare|in corso|fermo`, priorità `alta|media|bassa`, come in `arturo todo`.
 - **Task e Descrizione si leggono senza contesto**: il verbo all'infinito e cosa serve per riprendere.
   Gergo, percorsi e hash vanno in Decisioni.
-- **Ogni idea ha un destino**: un'idea già vista prima non resta idea una terza volta.
+- **Ogni idea ha un destino**: un'idea già vista prima non resta idea una terza volta. "→ memoria" nomina con `[[nome]]` la nota dove l'idea è finita: il controllo dell'handoff cerca quella nota nella memoria o in `_in-attesa.md`, e senza nota esce rosso.
 
 **Todo.** Prima di scrivere l'handoff porta nell'archivio ogni item della tabella. L'archivio è
 il file `~/.claude/data/todo/eventi.jsonl`: sopravvive alla sessione e lo leggono `/inizio`,

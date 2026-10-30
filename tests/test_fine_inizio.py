@@ -284,9 +284,15 @@ def test_f03(repo: Path) -> None:
         for i, f in enumerate(sorted((radice / "libro").glob("HANDOFF_*.md"))):
             os.utime(str(f), (adesso - i * 3600, adesso - i * 3600))
 
+        # L'elenco del dry-run è per sessione: --applica sposta solo ciò che il dry-run ha mostrato.
+        temp = Path(tmp) / ".tmp"
+        temp.mkdir()
+        ambiente = {**os.environ, "CLAUDE_CODE_SESSION_ID": "prova-f03", "TMPDIR": str(temp), "TEMP": str(temp),
+                    "TMP": str(temp)}
+
         def lancia(*a: str) -> subprocess.CompletedProcess:
             return subprocess.run([sys.executable, "-B", str(script), *a, "--radice", str(radice)],
-                                  capture_output=True, text=True, encoding="utf-8", timeout=60)
+                                  capture_output=True, text=True, encoding="utf-8", timeout=60, env=ambiente)
         assert lancia("nessuno").returncode == 2 and lancia("../libro").returncode == 2, "F03 slug assente non è exit 2"
         prima = sorted(p.name for p in (radice / "libro").iterdir())
         r = lancia("libro")
