@@ -125,7 +125,8 @@ git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 # Tornano al loro posto login, sessioni, cronologia e plugin di Claude Code. Da un Arturo installato
 # prima tornano anche istruzioni, memoria, todo e scelte, compresa la telemetria spenta: sono tuoi.
 for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos \
-  CLAUDE.md settings.local.json personale hooks/hosts-interni.local data/memory data/memoria data/todo \
+  CLAUDE.md settings.local.json personale hooks/hosts-interni.local hooks/bash-dispatcher.local \
+  hooks/protect_claude_md.local data/memory data/memoria data/todo \
   data/segnalazioni data/setup-fatto data/aggiornamenti.json session-env/telemetria.json \
   session-env/segnala.json session-env/novita-viste; do
   [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mkdir -p "$(dirname "$HOME/.claude/$x")" && mv "$B/$x" "$HOME/.claude/$x"
@@ -209,7 +210,7 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 
 | Di Arturo (arriva con gli aggiornamenti) | Tuo (nessun aggiornamento lo tocca) |
 |---|---|
-| `bin/`, `hooks/`, `commands/`, `agents/`, `skills/` (le skill di Arturo; una tua fatta con `/creaskill`, con un nome nuovo, resta tua), `shared/`, `output-styles/` (gli stili di Arturo; uno tuo con un nome nuovo resta tuo), `docs/`, `tools/`, `tests/`, `firme/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `tools/scrapling/.venv/` (il venv di `scrape`), `personale/` (le tue aggiunte ai comandi e agli hook di sessione di Arturo), `hooks/hosts-interni.local`, `hooks/api-fidate.local`, `data/` (compresi i tuoi todo in `data/todo/` e la scelta fra aggiornamenti automatici e manuali in `data/aggiornamenti.json`), `projects/` e le altre cartelle di lavoro |
+| `bin/`, `hooks/`, `commands/`, `agents/`, `skills/` (le skill di Arturo; una tua fatta con `/creaskill`, con un nome nuovo, resta tua), `shared/`, `output-styles/` (gli stili di Arturo; uno tuo con un nome nuovo resta tuo), `docs/`, `tools/`, `tests/`, `firme/`, `NOVITA.md`, `README.md` | `CLAUDE.md`, `tools/scrapling/.venv/` (il venv di `scrape`), `personale/` (le tue aggiunte ai comandi e agli hook di sessione di Arturo), `hooks/hosts-interni.local`, `hooks/api-fidate.local`, `hooks/bash-dispatcher.local` e `hooks/protect_claude_md.local` (le tue guardie e le tue scelte su CLAUDE.md, settings e hook), `data/` (compresi i tuoi todo in `data/todo/` e la scelta fra aggiornamenti automatici e manuali in `data/aggiornamenti.json`), `projects/` e le altre cartelle di lavoro |
 
 `settings.json` è di Arturo, ma le tue modifiche restano come commit locali. `/aggiorna` ti mostra i file cambiati sia da te sia dall'aggiornamento prima di applicare. Se tu, o un'app, e l'aggiornamento cambiate `settings.json` in punti diversi, l'aggiornamento unisce le due versioni come impostazioni e va avanti da solo. Resta un conflitto solo quando avete cambiato la stessa impostazione in modo diverso. Se nella copia di prova `settings.json` non è JSON valido o resta un conflitto, l'aggiornamento non arriva in `~/.claude`: un `settings.json` rotto spegnerebbe tutte le guardie. L'avvio della sessione te lo segnala con una riga `CONFIG ROTTA`.
 
@@ -298,9 +299,18 @@ Instradati dal dispatcher:
 | `comms-guard.py` | invio email/messaggi da CLI (sendmail, msmtp, `mail`, gws, smtplib, `http.client`, `git send-email`, AppleScript Mail...) — policy draft-first. Chiede conferma invece di bloccare: il blocco insegnava a Claude ad aggirare la regex. Giudica il codice eseguito: `comms-prefilter.py` toglie gli heredoc scritti su file e tace sulle letture (`grep -ril smtplib`), mentre `find -exec`, `awk system()` e `sed` contano come esecuzione | conferma |
 | `gh-destructive-guard.py` | operazioni GitHub distruttive (repo delete anche via GraphQL, secret, api DELETE/PUT/PATCH) → blocco; mutazioni GraphQL, query lette da file e POST anche impliciti (`-f`/`-F`/`--input`) → conferma; anche con prefisso `env`/`command` | blocco / conferma |
 
+**Le tue guardie.** In `hooks/bash-dispatcher.local` nomini guardie tue, una per riga:
+`<punto> <guardia> [argomenti]`, con la guardia in `hooks/` (`.py` o `.sh`). Il dispatcher legge il file
+come dati e non lo esegue mai. I punti: `prima-danger` (prima di `block-dangerous.py`, può anche lasciar
+fare), `danger-claude` (al suo posto sui comandi che nominano `.claude`; se si rompe decide
+`block-dangerous.py`; non può lasciar fare), `attenua` (dopo una conferma chiesta da `block-dangerous.py`,
+`exfil-guard.py`, `data-guard.py` o `danger-claude`: se stampa `tace` la conferma cade e il comando
+prosegue), `finale` (prima del ramo memoria, sui comandi che nominano `.claude`). Una guardia rotta
+chiede conferma, una riga scritta male si salta e lo dice.
+
 Fuori dal dispatcher:
 
-- `protect_claude_md.py` — PreToolUse: protegge `CLAUDE.md`, settings e hook da modifiche via `Edit`/`Write` senza file di unlock, e i percorsi di avvio automatico (`.git/hooks`, `~/Library/LaunchAgents`, `~/.config/systemd/user`, `~/.config/autostart`) con un unlock di sistema; scrivere un file di unlock chiede sempre conferma. Avvisa quando il `CLAUDE.md` globale supera il budget di righe (`ARTURO_CLAUDE_MD_RIGHE`, default 200).
+- `protect_claude_md.py` — PreToolUse: protegge `CLAUDE.md`, settings e hook da modifiche via `Edit`/`Write` senza file di unlock, e i percorsi di avvio automatico (`.git/hooks`, `~/Library/LaunchAgents`, `~/.config/systemd/user`, `~/.config/autostart`) con un unlock di sistema; scrivere un file di unlock chiede sempre conferma. Avvisa quando il `CLAUDE.md` globale supera il budget di righe (`ARTURO_CLAUDE_MD_RIGHE`, default 200). In `hooks/protect_claude_md.local` scegli `allow`, `ask` o `deny` per categoria, una per riga (`ask claude-md-globale`): `claude-md-globale`, `claude-md-progetto`, `settings-radice`, `config`, `dot-claude`. Percorsi di avvio, file di unlock, `firme/`, script dell'aggiornamento e i file `hooks/*.local` restano sempre protetti.
 - `web-egress-guard.py` — PreToolUse su `WebFetch`, jina, tavily, `browser_navigate` (anche Firefox) e Claude in Chrome (`navigate` e `browser_batch`): esfiltrazione via URL verso host esterni.
 - `credential-leak-scanner.py` — PostToolUse: rileva token e chiavi negli output di Bash/WebFetch/MCP. L'avviso arriva a Claude, non solo a te (`additionalContext`).
 - `prompt-injection-scanner.py` — PostToolUse: segnala tentativi di prompt injection nei contenuti esterni (pattern EN + IT). Anche questo avviso arriva a Claude.

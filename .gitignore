@@ -73,6 +73,8 @@ hooks/gws-account.local
 hooks/emoji-ovunque.local
 hooks/api-fidate.local
 hooks/melchior-stopword.local
+hooks/bash-dispatcher.local
+hooks/protect_claude_md.local
 skills/system-audit/review-termini.local
 # Le aggiunte ai comandi di Arturo (arturo personale): /fine le porta solo verso un remote privato.
 /personale/

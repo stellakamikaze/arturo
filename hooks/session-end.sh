@@ -21,10 +21,21 @@ if [ ! -d "$PROJECT_ROOT/.git" ] && [ ! -f "$PROJECT_ROOT/CLAUDE.md" ]; then
 fi
 
 # Cleanup file temporanei sessione: deve avvenire anche su tree pulito.
-rm -f ~/.claude/claude-md-unlock-* ~/.claude/config-unlock-* ~/.claude/system-unlock-* 2>/dev/null
+# I file di sblocco di questa sessione, e quelli rimasti da più di un giorno: un'altra sessione ancora
+# aperta perdeva il suo sblocco a metà lavoro (30/10/2026). L'id arriva nel JSON dell'hook.
+HOOK_INPUT=""
+[ -t 0 ] || IFS= read -r -t 2 -d '' HOOK_INPUT || true
+SESSIONE=$(printf '%s' "$HOOK_INPUT" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9_-]*\)".*/\1/p' | head -1)
+if [ -n "$SESSIONE" ]; then
+  rm -f ~/.claude/claude-md-unlock-"$SESSIONE" ~/.claude/config-unlock-"$SESSIONE" \
+        ~/.claude/system-unlock-"$SESSIONE" ~/.claude/session-env/retrieve-"$SESSIONE".seen 2>/dev/null
+fi
+find ~/.claude -maxdepth 1 \( -name 'claude-md-unlock-*' -o -name 'config-unlock-*' -o -name 'system-unlock-*' \) \
+  -mtime +0 -exec rm -f {} + 2>/dev/null
+# I file seen di memory-retrieve.py, uno per sessione: nessuno li toglieva.
+find ~/.claude/session-env -maxdepth 1 -name 'retrieve-*.seen' -mtime +0 -exec rm -f {} + 2>/dev/null
 # Le conferme chieste dalle guardie e rimaste senza esito (un no): gli id valgono per una sessione.
 rm -f ~/.claude/session-env/telemetria-attese.json 2>/dev/null
-rm -f /tmp/claude_session_reminder_* 2>/dev/null
 
 # Il promemoria esce anche a tree pulito: una sessione di ricerca, bozze o decisioni non
 # cambia file, ma produce cose da ricordare. Cambia solo il testo.

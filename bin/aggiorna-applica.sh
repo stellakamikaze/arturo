@@ -316,6 +316,11 @@ if git show "$REF:bin/unisci-settings.py" > "$LAVORO/unisci-settings.py" 2>/dev/
 fi
 if [ "$MODO" = merge ]; then
   git ${UNISCI[@]+"${UNISCI[@]}"} -C "$COPIA" merge --no-edit "$REF" > "$LAVORO/esito" 2>&1
+elif [ "$MODO" = sync ]; then
+  # Nel sync fra macchine un aggiornamento di Arturo appena unito con merge può non essere ancora
+  # pushato: un rebase semplice lo appiattiva in commit singoli e la storia di upstream si perdeva
+  # (30/10/2026, migrazione della config di Federico). --rebase-merges rifà il merge.
+  git ${UNISCI[@]+"${UNISCI[@]}"} -C "$COPIA" rebase --rebase-merges "$REF" > "$LAVORO/esito" 2>&1
 else
   git ${UNISCI[@]+"${UNISCI[@]}"} -C "$COPIA" rebase "$REF" > "$LAVORO/esito" 2>&1
 fi

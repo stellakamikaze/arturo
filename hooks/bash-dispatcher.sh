@@ -136,12 +136,7 @@ _FINE_ARG="([[:space:]]|[\"'],[[:space:]]*[\"']?)"
 # Un & seguito da un carattere che non è spazio né operatore sta dentro l'URL (`?a=1&b=2`) e non chiude
 # il comando: prima `curl "https://x/?a=1&b=2" -d @file` passava senza conferma (30/10/2026).
 PATTERN_EXFIL='(curl|wget)([^|;&]|&[^[:space:]&|;])*(-F'"$_FINE_ARG"'*[^[:space:]]*@|--form'"$_FINE_ARG"'*[^[:space:]]*@|-T'"$_FINE_ARG"'|--upload-file|--(post|body)-file|-d'"$_FINE_ARG"'*@|--data[a-z-]*'"$_FINE_ARG"'*@)'
-# exfil ramo egress-GET/transport: canali che portano dati fuori SENZA POST e che
-# sfuggivano al pattern sopra — curl/wget GET, DNS-exfil (dig/nslookup/host),
-# /dev/tcp, netcat/socat. exfil-guard.py decide poi con precisione (ask solo su
-# command-substitution/blob-opaco/host esterno; host interni esclusi).
-PATTERN_EGRESS_GET='(^|[;&|[:space:]])(curl|wget|dig|nslookup|host|nc|ncat|socat)[[:space:]]|/dev/tcp/'
-# Il ramo GET resta spento. Vanno a exfil-guard i soli canali di rete grezzi: una pipe verso
+# Il GET non passa da exfil-guard (ramo tolto il 30/10/2026, #4325). Vanno a exfil-guard i soli canali di rete grezzi: una pipe verso
 # nc/ncat/netcat/socat, /dev/tcp e /dev/udp. Dal 28/10/2026 curl con $() e il codice node o python che
 # chiama la rete non passano più da qui: li giudica il classificatore di auto mode. Uno script che
 # legge archive.org con urllib riceveva "Invio di dati (POST/upload)".
@@ -185,13 +180,82 @@ except Exception: pass' 2>/dev/null)
     return 0
 }
 
+# --- Guardie personali (hooks/bash-dispatcher.local, 30/10/2026) ---
+# Chi installa Arturo aggiunge le sue guardie senza toccare questo file. Il .local è solo dati, una
+# riga per guardia: `<punto> <guardia> [argomenti]`, `#` per i commenti. Si legge riga per riga e non
+# si esegue mai: un `exit 0` scritto lì spegnerebbe tutte le guardie. I punti sono questi quattro:
+#   prima-danger   prima di block-dangerous, sui comandi che block-dangerous guarda; può dare allow
+#   danger-claude  al posto di block-dangerous sui comandi che nominano .claude (solo la prima riga);
+#                  se si rompe decide block-dangerous; non può dare allow
+#   attenua        dopo un ask di block-dangerous, exfil-guard, data-guard o danger-claude: se stampa
+#                  "tace" l'ask cade e il comando prosegue verso le guardie seguenti; mai un allow
+#   finale         prima del ramo memoria, sui comandi che nominano .claude; può dare allow
+# La guardia sta in hooks/, il nome è [A-Za-z0-9_.-] con .py o .sh. Ogni guardia gira dentro run_guard:
+# un crash chiede conferma. Una riga che non rispetta la forma si salta e lo dice su stderr.
+_LOC_PUNTO=(); _LOC_GUARDIA=(); _LOC_ARGS=()
+_PUNTI_LOCALI=" prima-danger danger-claude attenua finale "
+if [[ -f "$HOME/.claude/hooks/bash-dispatcher.local" ]]; then
+    while IFS= read -r _riga || [[ -n "$_riga" ]]; do
+        _riga="${_riga%%#*}"; _riga="${_riga//$'\r'/}"
+        _p=""; _g=""; _a=""
+        read -r _p _g _a <<< "$_riga"
+        [[ -z "$_p" ]] && continue
+        if [[ "$_PUNTI_LOCALI" == *" $_p "* && "$_g" =~ ^[A-Za-z0-9_.-]+\.(py|sh)$ && -f "$HOME/.claude/hooks/$_g" ]]; then
+            _LOC_PUNTO+=("$_p"); _LOC_GUARDIA+=("$_g"); _LOC_ARGS+=("$_a")
+        else
+            echo "bash-dispatcher.local: riga ignorata, forma non valida o guardia assente: $_riga" >&2
+        fi
+    done < "$HOME/.claude/hooks/bash-dispatcher.local"
+fi
+# Gli indici delle righe di un punto, nell'ordine del file.
+locali() {
+    local i
+    for i in "${!_LOC_PUNTO[@]}"; do [[ "${_LOC_PUNTO[$i]}" == "$1" ]] && printf '%s\n' "$i"; done
+    return 0
+}
+run_locale() {
+    local args=()
+    read -ra args <<< "${_LOC_ARGS[$1]}"
+    run_guard "${_LOC_GUARDIA[$1]}" "${args[@]}"
+}
+# Le guardie il cui ask passa dal punto attenua. danger-claude si aggiunge quando c'è.
+_ATTENUABILI=" block-dangerous.py exfil-guard.py data-guard.py "
+for _i in $(locali danger-claude); do _ATTENUABILI+="${_LOC_GUARDIA[$_i]} "; break; done
+# Vero se una guardia del punto attenua risponde "tace" all'ask di $1 (JSON in $2).
+attenua() {
+    local i r args
+    for i in $(locali attenua); do
+        args=()
+        read -ra args <<< "${_LOC_ARGS[$i]}"
+        r=$(ATTENUA_OUT="$2" lancia_guardia "${_LOC_GUARDIA[$i]}" "${args[@]}" "$1" 2>/dev/null) || continue
+        [[ "${r//[$'\r\n']/}" == "tace" ]] && return 0
+    done
+    return 1
+}
+# _RISERVA: la guardia che decide se questa si rompe. _SENZA_ALLOW: un allow vale come guardia rotta.
+_RISERVA=""; _SENZA_ALLOW=""
+
+lancia_guardia() {
+    local g="$1"; shift
+    if [[ "$g" == *.sh ]]; then
+        ARTURO_REGOLA=1 bash "$HOME/.claude/hooks/$g" "$@" <<< "$GUARD_INPUT"
+    else
+        ARTURO_REGOLA=1 python3 "$HOME/.claude/hooks/$g" "$@" <<< "$GUARD_INPUT"
+    fi
+}
+
 run_guard() {
-    local out rc regola=""
+    local out rc regola="" riserva="$_RISERVA" senza_allow="$_SENZA_ALLOW"
+    _RISERVA=""; _SENZA_ALLOW=""
     # ARTURO_REGOLA=1: una guardia che sa nominare la regola che chiede (block-dangerous, commit-secret-gate) la scrive in
     # una riga "REGOLA: <nome>" dopo il JSON. Si toglie qui, prima di ogni controllo: Claude Code
     # riceve solo il JSON, la telemetria registra <guardia>.<regola> (22/10/2026).
-    out=$(ARTURO_REGOLA=1 python3 "$HOME/.claude/hooks/$1" <<< "$GUARD_INPUT")
+    out=$(lancia_guardia "$@")
     rc=$?
+    if [[ $rc -ne 0 && $rc -ne 2 && -n "$riserva" ]]; then
+        run_guard "$riserva"
+        return 0
+    fi
     if [[ "$out" == *$'\n'"REGOLA: "* ]]; then
         regola=${out##*$'\n'REGOLA: }
         regola=${regola%$'\r'}  # Python su Windows scrive \r\n
@@ -211,6 +275,10 @@ try:
     sys.exit(0 if value in {"ask", "allow", "deny"} else 1)
 except Exception:
     sys.exit(1)'; then
+        [[ -n "$senza_allow" && "$out" == *'"allow"'* ]] && ask_guard "$1"
+        if [[ "$out" == *'"ask"'* && "$_ATTENUABILI" == *" $1 "* ]] && attenua "$1" "$out"; then
+            return 0
+        fi
         [[ "$out" == *'"deny"'* ]] && segna_guardia "$1"
         [[ "$out" == *'"ask"'* ]] && segna_chiede "$1" "$regola"
         printf '%s\n' "$out"
@@ -269,7 +337,19 @@ if invio_in_vista "$GUARD_COMMAND"; then
 fi
 
 # Block dangerous: rm su tree protetti, bw export, scrittura config/hook, fork bomb...
-[[ "$GUARD_COMMAND" =~ $PATTERN_DANGER ]] && run_guard block-dangerous.py
+# Prima le guardie personali di prima-danger; sui comandi che nominano .claude, se il .local ha una
+# danger-claude, decide lei e block-dangerous resta come riserva.
+_RE_CWD_CLAUDE='"cwd"[[:space:]]*:[[:space:]]*"[^"]*[/\\]\.claude'
+if [[ "$GUARD_COMMAND" =~ $PATTERN_DANGER ]]; then
+    for _i in $(locali prima-danger); do run_locale "$_i"; done
+    _DC=""; for _i in $(locali danger-claude); do _DC=$_i; break; done
+    if [[ -n "$_DC" && ( "$COMMAND" == *".claude"* || "$INPUT" =~ $_RE_CWD_CLAUDE ) ]]; then
+        _RISERVA=block-dangerous.py; _SENZA_ALLOW=1
+        run_locale "$_DC"
+    else
+        run_guard block-dangerous.py
+    fi
+fi
 
 # Exfil guard: upload di un file locale verso host esterni -> ask. Come per comms, si giudica il
 # codice eseguito: COMMS_REDUCED e' il comando senza gli heredoc scritti su file (vuoto se
@@ -281,9 +361,6 @@ if [[ "$GUARD_COMMAND" =~ $PATTERN_EXFIL ]]; then
         run_guard exfil-guard.py
     fi
 fi
-
-# Scelta di attrito approvata: GET e POST generico disattivati; l'upload di un file locale resta protetto.
-# [[ "$GUARD_COMMAND" =~ $PATTERN_EGRESS_GET ]] && run_guard exfil-guard.py
 
 # I canali di PATTERN_EGRESS_SOSPETTO (17/10/2026, #3506, ridotti il 28/10) passano da exfil-guard, sul codice eseguito come
 # per il POST. Una redirezione verso /dev/tcp si giudica sul comando intero: il pre-filtro tace su
@@ -304,6 +381,11 @@ fi
 
 # GitHub CLI: operazioni distruttive/sensibili (repo delete, secret, api mutante...).
 [[ "$COMMAND" =~ $PATTERN_GH_ANY ]] && run_guard gh-destructive-guard.py
+
+# Guardie personali del punto finale, sui comandi che nominano .claude.
+if [[ "$COMMAND" == *".claude"* || "$INPUT" =~ $_RE_CWD_CLAUDE ]]; then
+    for _i in $(locali finale); do run_locale "$_i"; done
+fi
 
 # Ramo memoria e handoff: nessuna guardia ha deciso. Claude Code chiederebbe conferma a ogni
 # scrittura via shell sotto ~/.claude, anche per salvare un handoff o una memoria. Qui l'allow

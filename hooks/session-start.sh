@@ -50,6 +50,18 @@ if git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
     echo "GIT: rebase in corso — risolvilo prima di lavorare"
   fi
 fi
+# Lo stesso controllo su ~/.claude: un aggiornamento o un /fine fermi a metà rebase lasciano la config
+# in uno stato che ogni sessione legge (30/10/2026).
+if [[ "$(cd "$PROJECT_ROOT" 2>/dev/null && pwd -P)" != "$(cd "$HOME/.claude" 2>/dev/null && pwd -P)" ]] \
+   && git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
+  REBASE_MERGE=$(git -C "$HOME/.claude" rev-parse --git-path rebase-merge 2>/dev/null)
+  REBASE_APPLY=$(git -C "$HOME/.claude" rev-parse --git-path rebase-apply 2>/dev/null)
+  case "$REBASE_MERGE" in /*|?:*) ;; *) REBASE_MERGE="$HOME/.claude/$REBASE_MERGE" ;; esac
+  case "$REBASE_APPLY" in /*|?:*) ;; *) REBASE_APPLY="$HOME/.claude/$REBASE_APPLY" ;; esac
+  if [[ -d "$REBASE_MERGE" || -d "$REBASE_APPLY" ]]; then
+    echo "CONFIG: ~/.claude è a metà rebase — chiudilo (git -C ~/.claude status) prima di lavorare"
+  fi
+fi
 
 # Guardia anti-divergenza config (~/.claude vs origin/main).
 # Il confronto legge gli oggetti Git gia' presenti in locale: senza un fetch resta fermo a
@@ -128,6 +140,10 @@ if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
     ( export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes"
       REMOTO=$(git -C "$HOME/.claude" remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
       git -C "$HOME/.claude" fetch --quiet --tags "$REMOTO" main >/dev/null 2>&1 && printf '%s' "$ADESSO" > "$RIUSCITO"
+      # Con upstream, origin è il repository privato di chi usa: senza questo fetch il BEHIND qui
+      # sotto, che confronta con origin/main, restava fermo e il lavoro di un'altra macchina non si
+      # vedeva più (30/10/2026).
+      [ "$REMOTO" = upstream ] && git -C "$HOME/.claude" fetch --quiet origin main >/dev/null 2>&1
     ) >/dev/null 2>&1 &
   fi
   RIUSCITO_T=$(cat "$RIUSCITO" 2>/dev/null || echo 0)

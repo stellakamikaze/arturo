@@ -12,6 +12,26 @@ modo di lavorare.
 
 ---
 
+## 2026-10-30 — Le tue guardie accanto a quelle di Arturo, e meno conferme a vuoto
+
+**Cosa cambia**: puoi aggiungere guardie tue senza toccare quelle di Arturo, e senza perderle al
+prossimo aggiornamento. Le nomini in `hooks/bash-dispatcher.local`, una per riga, con il punto in cui
+devono girare: prima del controllo dei comandi pericolosi, al suo posto sui comandi che toccano
+`~/.claude`, dopo una conferma per farla cadere, o in fondo. In `hooks/protect_claude_md.local` scegli
+cosa fare quando Claude modifica CLAUDE.md, i settings o gli hook: chiedere, lasciar fare o bloccare.
+Lo sblocco che dai per una modifica protetta vale per la tua sessione, e chiudere un'altra finestra
+non lo toglie più. Se lavori su più computer, l'avvio vede di nuovo il lavoro arrivato dagli altri
+anche quando Arturo è collegato come upstream, e ti avvisa se la config è ferma a metà di un rebase.
+Il passaggio fra computer non spezza più un aggiornamento di Arturo appena installato.
+Due conferme in meno: `curl … | python3 -m json.tool`, che formatta il JSON e non esegue niente, e i
+comandi di rete che non caricano un file. La conferma resta sull'invio di un file dal tuo computer,
+anche con un `&` dentro l'indirizzo.
+
+**Il principio dietro**: le regole tue stanno in file tuoi, che Arturo legge come dati e non esegue.
+I file che proteggono tutto il resto, fra cui i due `.local`, restano fuori dalla tua scelta.
+
+---
+
 ## 2026-10-30 — /fine è un salvataggio, e la barra tiene il ramo anche nella config
 
 **Cosa cambia**: quando la conversazione si avvicina al limite, Claude ti propone `/fine` per

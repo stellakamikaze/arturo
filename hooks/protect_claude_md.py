@@ -105,6 +105,44 @@ def _avviso_budget(rp, claude_dir, ti):
             "un'altra nella stessa modifica.")
 
 
+# hooks/protect_claude_md.local (30/10/2026, #4291): chi installa Arturo può cambiare la decisione di
+# alcune categorie senza toccare questo file. Righe `<decisione> <categoria>`, `#` per i commenti.
+# Decisioni: allow, ask, deny. Categorie:
+#   claude-md-globale   ~/.claude/CLAUDE.md
+#   claude-md-progetto  ogni altro CLAUDE.md già esistente (crearne uno chiede sempre)
+#   settings-radice     ~/.claude/settings*.json e ~/.claude/.claude.json (la validità JSON resta)
+#   config              hooks/** e i settings*.json nelle sottocartelle di ~/.claude
+#   dot-claude          ogni altro file sotto ~/.claude
+# Restano fuori, sempre col default di Arturo: percorsi di avvio automatico, file di sblocco, firme/,
+# gli script dell'aggiornamento e i file hooks/*.local, che altrimenti potrebbero allentare sé stessi.
+# Un file illeggibile o una riga fuori vocabolario valgono come assenti.
+DECISIONI_LOCALI = {'allow', 'ask', 'deny'}
+CATEGORIE_LOCALI = {'claude-md-globale', 'claude-md-progetto', 'settings-radice', 'config', 'dot-claude'}
+
+
+def _locale():
+    """Le decisioni di protect_claude_md.local, per categoria."""
+    scelte = {}
+    try:
+        with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'protect_claude_md.local'),
+                  encoding='utf-8') as fh:
+            for riga in fh:
+                parti = riga.split('#', 1)[0].split()
+                if len(parti) == 2 and parti[0] in DECISIONI_LOCALI and parti[1] in CATEGORIE_LOCALI:
+                    scelte[parti[1]] = parti[0]
+    except OSError:
+        return {}
+    return scelte
+
+
+def _emetti_locale(categoria, avviso=""):
+    """Se il .local decide la categoria, emette la sua decisione ed esce."""
+    decisione = _locale().get(categoria)
+    if decisione:
+        _emit(decisione, f"{categoria}: decisione di hooks/protect_claude_md.local." + avviso)
+        sys.exit(0)
+
+
 def _persistenza(rp):
     """True se il path installa codice che parte da solo: git hook o servizio di avvio."""
     if (os.sep + '.git' + os.sep + 'hooks' + os.sep) in rp or rp.endswith(os.sep + '.git' + os.sep + 'hooks'):
@@ -193,6 +231,8 @@ def main():
             if unlocked('claude-md-unlock'):
                 _emit("allow", "CLAUDE.md sbloccato da conferma utente." + avviso)
                 sys.exit(0)
+            _emetti_locale('claude-md-globale' if rp == os.path.join(claude_dir, 'CLAUDE.md')
+                           else 'claude-md-progetto', avviso)
             _emit("deny", (
                 "CLAUDE.md protetto. Per modificarlo: "
                 "1) chiedi conferma esplicita all'utente. "
@@ -225,6 +265,13 @@ def main():
             if unlocked('config-unlock'):
                 _emit("allow", "config/hook Claude Code sbloccati da conferma utente")
                 sys.exit(0)
+            intoccabile = (relativo == 'firme' or relativo.startswith('firme/')
+                           or relativo in ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh')
+                           or (relativo.startswith('hooks/') and relativo.endswith('.local')))
+            if not intoccabile:
+                in_radice = os.path.dirname(rp) == claude_dir
+                _emetti_locale('settings-radice' if in_radice and (re.match(r'SETTINGS.*\.JSON$', base)
+                                                                    or base == '.CLAUDE.JSON') else 'config')
             _emit("deny", (
                 f"File di config/hook di Claude Code protetto ({os.path.basename(rp)}). "
                 "Modificarlo può disattivare le guardie di sicurezza. Per procedere: "
@@ -233,6 +280,10 @@ def main():
                 "3) riprova la modifica."
             ))
             sys.exit(0)
+
+        # Categoria 4: il resto di ~/.claude decide il flusso normale dei permessi, o il .local.
+        if under_claude:
+            _emetti_locale('dot-claude')
 
         sys.exit(0)
 
