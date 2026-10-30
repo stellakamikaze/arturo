@@ -126,6 +126,17 @@ def step6(repo: Path) -> str:
 
 
 def test_m06(repo: Path) -> None:
+    coda = repo / "bin" / "fine-coda.py"
+    if coda.exists():  # dal 30/10/2026 il Config Sync di /fine è bin/fine-coda.py (#4291)
+        testo = read(coda)
+        assert "git add fallito su" in testo and "falliti.append" in testo, "M06 gli errori di git add non vengono riportati"
+        arturo = testo[testo.index("ARTURO = ["):testo.index("]", testo.index("ARTURO = ["))]
+        privati = testo[testo.index("PRIVATI = ["):testo.index("]", testo.index("PRIVATI = ["))]
+        assert "docs" in arturo and "NOVITA.md" in arturo and "CLAUDE.md" in privati, "M06 la sync non porta docs, NOVITA.md o CLAUDE.md"
+        dentro = testo.find('if vis == "PRIVATE":')
+        assert -1 < dentro < testo.find("for p in PRIVATI") < testo.find("\n    else:", dentro), \
+            "M06 CLAUDE.md viaggia senza verificare che il remote sia privato"
+        return
     sync = step6(repo)
     assert "2>/dev/null; git commit" not in sync and "shared/ package.json README.md 2>/dev/null" not in sync, "M06 lo staging della sync nasconde gli errori"
     assert 'git add -- "$p" || echo' in sync, "M06 gli errori di git add non vengono riportati"
@@ -138,7 +149,10 @@ def test_m06(repo: Path) -> None:
 
 
 def test_m07(repo: Path) -> None:
-    assert "rev-list --count origin/main..HEAD" in step6(repo), "M07 la sync non ritenta i commit gia' fatti e non pushati"
+    coda = repo / "bin" / "fine-coda.py"
+    testo = read(coda) if coda.exists() else step6(repo)  # dal 30/10/2026 la sync è bin/fine-coda.py
+    assert "rev-list --count origin/main..HEAD" in testo or '"rev-list", "--count", "origin/main..HEAD"' in testo, \
+        "M07 la sync non ritenta i commit gia' fatti e non pushati"
 
 
 def test_m08(repo: Path) -> None:

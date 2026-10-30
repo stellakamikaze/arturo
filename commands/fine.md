@@ -34,7 +34,9 @@ python3 ~/.claude/bin/inventario-sessione.py; echo "rc=$?"
 Lo script legge la trascrizione della sessione (file scritti, uscite dei comandi, file nuovi in
 Download e Scrivania, oggetti creati online con i connettori), salta `~/.claude` e propone per
 ogni voce un `destino` con il motivo. Con `rc=2` manca l'id della sessione o la trascrizione:
-ricostruisci l'elenco dalla conversazione e dillo nella riga tecnica. Aggiungi i file che ricordi e
+ricostruisci l'elenco dalla conversazione e dillo nella riga tecnica. Con `rc=124` lo script ha
+superato il suo tetto di 120 secondi: ricostruisci allo stesso modo, segnala il guasto e non rilanciarlo.
+Aggiungi i file che ricordi e
 che lo script non ha visto (per esempio quelli scritti da un programma Python). Raccogli anche i punti
 pendenti emersi nella sessione: servono alla FASE 4.
 
@@ -240,19 +242,11 @@ handoff esce senza essere letto. Per ogni voce scegli:
   `arturo memoria cerca "parole"`).
 - **Muore.** Era una tantum o è superato, e lo dici.
 
-Poi sposta i vecchi nel cestino dello store (`~/.claude/data/handoffs/.cestino/`, dove restano 30
-giorni e si recuperano) e rigenera l'indice:
-
-```bash
-SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
-python3 ~/.claude/bin/handoff-retention.py "$SLUG" --applica; echo "rc=$?"
-python3 ~/.claude/bin/index-rigenera.py --scrivi; echo "rc=$?"
-```
-
-`rc=3` della retention: uno spostamento non è riuscito, il file resta e la riga tecnica lo dice.
-L'indice `~/.claude/data/handoffs/INDEX.md` nasce dagli handoff e non si corregge a mano: una
-riga per progetto o filone, con stato e prossimo passo (dalla riga "Prossimo passo:" della
-Ripartenza). Con `rc=1` l'indice non è stato scritto: la riga stampata dice perché.
+Lo spostamento nel cestino dello store (`~/.claude/data/handoffs/.cestino/`, dove i file restano 30
+giorni e si recuperano) e l'indice li fa la coda della FASE 9. Esce solo ciò che questo dry-run ha
+mostrato: un handoff scritto nel frattempo da un'altra sessione resta. Senza dry-run non esce niente, e
+la riga della coda dice "retention NON applicata". L'indice `~/.claude/data/handoffs/INDEX.md` nasce
+dagli handoff e non si corregge a mano.
 
 ## FASE 7 · CLAUDE.md del progetto
 
@@ -278,84 +272,50 @@ Chi decide: Claude **applica** una riga nel `CLAUDE.md` del progetto e un fatto 
 che esiste. **Chiede il sì** per una nota nuova, per dati su persone e per il `CLAUDE.md` personale.
 Con `/fine salva` il sì è già dato, tranne per il `CLAUDE.md` personale.
 
-## FASE 9 · Config Sync
+## FASE 9 · Config Sync, in una chiamata
 
-**Si attiva se `~/.claude` ha modifiche non committate o commit non ancora pushati.** Un push fallito
-la volta prima si ritenta qui. Se `ListAgents` mostra un'altra sessione viva su questa macchina,
-avvisala con `SendMessage` prima del commit: il commit di sync prende anche i suoi file della config.
+Solo dopo le fasi 4-8. Se `ListAgents` mostra un'altra sessione viva su questa macchina, avvisala con
+`SendMessage` prima: il commit di sync prende anche i suoi file della config.
 
 ```bash
-PREV_DIR="$PWD" && cd ~/.claude
-# Una config rotta (JSON non valido, conflitto, rebase a meta') non si committa: il commit
-# la porterebbe su tutte le macchine dell'utente.
-CONFIG_INTEGRA=1
-python3 hooks/controlla-config.py --quiet || CONFIG_INTEGRA=0
-[ "$CONFIG_INTEGRA" = 1 ] || echo "Config sync saltato: la config non è integra (vedi sopra). Sistemala prima con /aggiorna o con il comando indicato."
-ORIGIN_URL=$(git remote get-url origin 2>/dev/null || echo "")
-case "$ORIGIN_URL" in
-  *github.com[:/]stellakamikaze/arturo|*github.com[:/]stellakamikaze/arturo.git) ORIGIN_ARTURO=1 ;;
-  *) ORIGIN_ARTURO=0 ;;
-esac
-if [ "$CONFIG_INTEGRA" = 1 ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; then
-  VIS=$(gh repo view "$ORIGIN_URL" --json visibility -q .visibility 2>/dev/null)
-  # Senza -f: git add salta i file ignorati, come il venv di scrape (tools/scrapling/.venv/).
-  for p in settings.json .gitattributes .gitignore bin commands agents hooks shared docs tools tests output-styles NOVITA.md README.md package.json; do
-    [ -e "$p" ] || continue
-    git add -- "$p" || echo "git add fallito su $p: resta fuori dal commit"
-  done
-  # Le skill già nel repository (quelle di Arturo, le tue già salvate) seguono le modifiche. Una skill
-  # nuova della persona (/creaskill) può avere dati suoi: verso un remote che non risulta privato
-  # resta fuori, e Claude chiede.
-  [ -d skills ] && git add -u -- skills
-  SKILL_NUOVE=$(git ls-files --others --exclude-standard --directory -- skills 2>/dev/null | tr '\n' ' ')
-  if [ -n "$SKILL_NUOVE" ]; then
-    if [ "$VIS" = "PRIVATE" ] || [ "$ORIGIN_ARTURO" = 1 ] || [ -z "$ORIGIN_URL" ]; then
-      git add -- skills || echo "git add fallito su skills: resta fuori dal commit"
-    else
-      echo "SKILL TUE NON SALVATE: ${SKILL_NUOVE}- il remote della config non risulta privato (visibilità: ${VIS:-sconosciuta}). Restano su questa macchina."
-    fi
-  fi
-  # CLAUDE.md personale, aggiunte ai comandi (personale/), handoff e todo viaggiano solo verso un remote privato verificato.
-  if [ "$VIS" = "PRIVATE" ]; then
-    # -f scavalca .gitignore: l'esclusione tiene fuori il lucchetto (*.lock) di arturo todo.
-    for p in CLAUDE.md data/todo personale data/memory; do
-      [ -e "$p" ] || continue
-      git add -f -- "$p" ':(exclude,glob)**/*.lock' || echo "git add fallito su $p: resta fuori dal commit"
-    done
-    # Gli handoff senza -f: Arturo non li esclude, e una riga della persona nel .gitignore (un progetto
-    # riservato) va rispettata (segnalazione n. 12, 23/10/2026).
-    [ -e data/handoffs ] && { git add -- data/handoffs || echo "git add fallito su data/handoffs: resta fuori dal commit"; }
-  else
-    echo "CLAUDE.md, personale/, handoff e todo non sincronizzati: il remote della config non risulta privato (visibilità: ${VIS:-sconosciuta}). Restano su questa macchina."
-    # Senza un remote dove pushare, un archivio già tracciato esce dal tracciamento e resta su disco
-    # (segnalazione n. 14, 26/10/2026): altrimenti la retention lascia per sempre file cancellati e non
-    # salvati. Con un remote suo non si tocca: un'altra macchina, al pull, li cancellerebbe dal disco.
-    if [ "$ORIGIN_ARTURO" = 1 ] || [ -z "$ORIGIN_URL" ]; then
-      for p in data/handoffs data/todo data/memory; do
-        [ -n "$(git ls-files -- "$p")" ] || continue
-        git rm -r -q --cached -- "$p" && echo "$p: tolto dal tracciamento di git, i file restano su questa macchina"
-      done
-    fi
-  fi
-  git diff --cached --quiet || git commit -m "chore: session sync $(date +%Y-%m-%d)" || echo "Commit di sync non riuscito: vedi errore sopra"
-fi
-if [ "$ORIGIN_ARTURO" = 1 ]; then
-  echo "Config: commit salvati su questa macchina. origin è il repository pubblico di Arturo, dove non puoi pushare: per sincronizzare tra più computer vedi /setup FASE 7."
-elif [ "$CONFIG_INTEGRA" = 1 ] && git remote get-url origin >/dev/null 2>&1; then
-  GIT_TERMINAL_PROMPT=0 git fetch --quiet origin main 2>/dev/null
-  AHEAD=$(git rev-list --count origin/main..HEAD 2>/dev/null || echo "?")
-  if [ "$AHEAD" = "0" ]; then
-    echo "Config: niente da pushare"
-  elif git push origin main 2>&1; then
-    echo "Config: push riuscito"
-  else
-    echo "Config push non riuscito: $AHEAD commit restano locali e il prossimo /fine li ritenta (serve un remote tuo con accesso in scrittura)"
-  fi
-elif [ "$CONFIG_INTEGRA" = 1 ]; then
-  echo "Config senza remote 'origin': i commit restano locali (ok). Per sincronizzare tra le tue macchine, configura un tuo repo privato come origin."
-fi
-cd "$PREV_DIR"
+python3 ~/.claude/bin/fine-coda.py; echo "rc=$?"
 ```
+
+La coda trova da sola l'handoff di questa sessione, dalla riga "- Sessione:" della FASE 4, e lo slug
+dalla sua cartella. Per un altro handoff aggiungi `--handoff <percorso>`, per la riga di attribuzione dei
+commit `--trailer "<riga>"`. Senza handoff della sessione fa solo il sync della config. In ordine:
+- si ferma se `~/.claude` è a metà di un rebase o se `hooks/controlla-config.py` la trova rotta: una
+  config rotta committata arriverebbe su tutte le macchine;
+- ripete il gate della FASE 5;
+- sposta nel cestino i file del dry-run della FASE 6 e rigenera l'indice;
+- aggiunge al commit i file di Arturo e gli handoff. CLAUDE.md, `personale/`, todo e memoria entrano
+  solo se il remote della config risulta privato a `gh`, e mai lucchetti, log delle letture della memoria, copie
+  `.bak-*` e indice della memoria;
+- ferma il commit se un file in stage ha i marcatori di conflitto;
+- fa due commit: la memoria a parte ("memoria: applicata da /fine"), così si annulla da sola, poi il
+  sync;
+- fa il push. Se il push è rifiutato, fa un pull `--rebase --autostash` e riprova una volta. Non
+  pusha se origin è il repository pubblico di Arturo.
+
+Per ogni commit stampa lo stat (`-- commit <hash> --`), poi le righe di `git status` rimaste fuori.
+Confronta lo stat con i file della sessione. L'ultima riga (`coda: ...`) va nella riga tecnica della
+chiusura.
+
+- **rc=1**: gate rosso, niente commit. Correggi l'handoff (FASE 5) e rilancia.
+- **rc=4**: rebase a metà, config rotta, marcatori di conflitto o blocco delle tue aggiunte. Niente
+  commit. Leggi la riga, sistema e rilancia.
+- **rc=6**: `git add` o `git commit` falliti, la riga dice perché.
+- **rc=3**: le tue aggiunte dicono che un servizio è giù. Il resto è fatto.
+
+La coda si può rilanciare: il gate si ripete, la retention non trova più niente, un commit vuoto non
+parte, e un push fallito la volta prima si ritenta.
+
+**Le tue aggiunte.** Se esiste `~/.claude/personale/fine-coda.py`, la coda lo lancia dopo l'indice
+(`"fase": "dopo-index"`) e prima del commit (`"fase": "prima-commit"`). Riceve su stdin un JSON con
+fase, handoff, slug, radice, i file in stage e gli argomenti scritti dopo `--` nel comando della coda.
+Risponde con una riga JSON `{"esiti": [...], "path": [...], "blocca": null}`: gli esiti finiscono nella
+riga `coda:`, i path entrano nel commit di sync (solo verso un remote privato). Exit 0 fatto, 3 servizio
+giù, 4 blocca. Gli aggiornamenti di Arturo non lo toccano.
 
 Se esce `SKILL TUE NON SALVATE`, dillo alla persona con i nomi delle skill: il repository della
 sua config non risulta privato, e pubblicarle lì le rende visibili a tutti. Chiedi se vuole

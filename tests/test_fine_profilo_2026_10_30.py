@@ -10,6 +10,9 @@ FP04 un'idea "→ memoria" vuole un [[slug]] che sia una nota o una nota in atte
 FP05 la retention con --applica sposta solo ciò che il dry-run ha mostrato: senza dry-run niente, e un
      handoff spinto oltre il keep dopo il dry-run resta (RESTA).
 FP06 senza CLAUDE_CODE_SESSION_ID e senza --elenco il dry-run lo dice e --applica non sposta niente.
+FP07 l'indice toglie dal filone le parole dello slug, divide una cartella contenitore (hooks/index-contenitori.local)
+     per il testo fra parentesi del Nome, e rende testo i link delle celle.
+FP08 inventario-sessione.py oltre il suo tetto di tempo esce da solo con 124.
 
 Sulla base 0a4f73f (il dev prima di L3) sono rossi tutti i casi.
 """
@@ -23,10 +26,11 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["FP01", "FP02", "FP03", "FP04", "FP05", "FP06"]
+CASI = ["FP01", "FP02", "FP03", "FP04", "FP05", "FP06", "FP07", "FP08"]
 BASH = shutil.which("bash") or "bash"
 FILE = ["bin/handoff-gate.sh", "bin/handoff-retention.py", "bin/index-rigenera.py", "bin/todo_store.py",
-        "bin/handoff_profilo.py", "hooks/melchior_match.py"]
+        "bin/handoff_profilo.py", "hooks/melchior_match.py",
+        "bin/inventario-sessione.py"]
 PROFILO = ("# il profilo della config di Federico\n"
            "colonna-id = Ticket\n"
            "chi = Claude|Federico: (segreto|OTP/2FA|consenso OAuth|pagamento|invio a terzi|direzione|persone|gesto fisico)\n"
@@ -168,6 +172,42 @@ def prova(b: Banco) -> list:
     if "CLAUDE_CODE_SESSION_ID" not in d.stderr + d.stdout or b.presenti() != prima:
         rossi.append(f"FP06 senza sessione: dry-run {d.stderr.strip()[:160]!r}, presenti {b.presenti()}, "
                      f"applica {a.stdout.strip()[-160:]!r}")
+
+    # FP07 indice: filone senza le parole dello slug, cartella contenitore dal .local, link resi testo
+    radice = b.tmp / "indice"
+    for rel, testo in {
+            "libro/HANDOFF_2026-10-10_10-00.md": "## Progetto\n- Nome: libro\n- Filone: libro copertina\n\n"
+                                                 "## Ripartenza\nTesto.\nProssimo passo: leggere [la bozza](docs/bozza.md)\n",
+            "libro/HANDOFF_2026-10-11_10-00.md": "## Progetto\n- Nome: libro\n- Filone: copertina\n\n"
+                                                 "## Ripartenza\nTesto.\nProssimo passo: PASSO-COPERTINA\n",
+            "casa/HANDOFF_2026-10-12_10-00.md": "## Progetto\n- Nome: casa (caldaia nuova)\n\n"
+                                                "## Ripartenza\nTesto.\nProssimo passo: PASSO-CALDAIA\n",
+            "casa/HANDOFF_2026-10-13_10-00.md": "## Progetto\n- Nome: casa (giardino)\n\n"
+                                                "## Ripartenza\nTesto.\nProssimo passo: PASSO-GIARDINO\n"}.items():
+        (radice / rel).parent.mkdir(parents=True, exist_ok=True)
+        (radice / rel).write_text(testo, encoding="utf-8")
+    (b.radice / "hooks" / "index-contenitori.local").write_text("# cartelle con filoni scollegati\ncasa\n", encoding="utf-8")
+    uscita = b.tmp / "INDEX.md"
+    r = subprocess.run([sys.executable, "-B", str(b.radice / "bin" / "index-rigenera.py"), "--out", str(uscita),
+                        "--radice", str(radice), "--oggi", "2026-10-20"], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", env=b.env(), timeout=60)
+    indice = uscita.read_text(encoding="utf-8") if uscita.exists() else ""
+    righe_libro = [x for x in indice.splitlines() if x.startswith("| libro")]
+    if r.returncode != 0 or len(righe_libro) != 1 or "PASSO-CALDAIA" not in indice or "PASSO-GIARDINO" not in indice \
+            or "](docs/bozza.md)" in indice:
+        rossi.append(f"FP07 indice: rc={r.returncode} {r.stderr.strip()[-160:]!r}, righe libro {len(righe_libro)}")
+
+    # FP08 l'inventario si ferma da solo oltre il suo tetto, con 124
+    progetti = b.tmp / "progetti" / "p"
+    progetti.mkdir(parents=True)
+    with open(progetti / "s1.jsonl", "w", encoding="utf-8") as f:
+        riga = '{"type": "user", "message": {"content": "' + "x" * 50 + '"}, "timestamp": "2026-10-30T10:00:00Z"}\n'
+        f.write(riga * 200000)
+    r = subprocess.run([sys.executable, "-B", str(b.radice / "bin" / "inventario-sessione.py"), "--session", "s1",
+                        "--projects", str(b.tmp / "progetti")], capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", env={**b.env(), "INVENTARIO_TIMEOUT": "0.2"}, timeout=120)
+    if r.returncode != 124:
+        rossi.append(f"FP08 tetto dell'inventario: rc={r.returncode} {r.stderr.strip()[-120:]!r}")
     return rossi
 
 

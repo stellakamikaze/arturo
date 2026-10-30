@@ -25,9 +25,13 @@ DESTINI PROPOSTI
   resta (binario pesante, col percorso nel CLAUDE.md del progetto) · scarto (temporaneo)
 
 EXIT
-  0 inventario stampato · 2 id di sessione assente o transcript non trovato
+  0 inventario stampato · 2 id di sessione assente o transcript non trovato · 124 oltre il tetto di tempo
+
+TEMPO
+  Oltre 120 secondi lo script si interrompe da solo, con exit 124 come timeout(1). Il tetto sta qui
+  dentro perché sui Mac senza coreutils `timeout` non esiste (30/10/2026). INVENTARIO_TIMEOUT lo cambia.
 """
-import argparse, glob, json, os, re, shlex, subprocess, sys, tempfile
+import argparse, glob, json, os, re, shlex, subprocess, sys, tempfile, threading
 from datetime import datetime, timezone
 
 PESANTE = 20 * 1024 * 1024
@@ -679,7 +683,27 @@ def stampa(inv, home):
     e = inv["esclusi"]
     print(f"\nESCLUSI: {e['~/.claude']} in ~/.claude, {e['/dev']} in /dev · path non risolti nei comandi Bash: {inv['non_risolti']}")
 
+TEMPO_MAX = 120  # secondi
+
+
+def guardiano():
+    """Il tetto di tempo interno: un Timer daemon che chiude il processo con 124. Gira anche su Windows,
+    dove `timeout` è un altro comando. os._exit perché sys.exit da un thread non ferma il principale."""
+    try:
+        secondi = float(os.environ.get("INVENTARIO_TIMEOUT") or TEMPO_MAX)
+    except ValueError:
+        secondi = TEMPO_MAX
+
+    def scade():
+        print(f"inventario-sessione: oltre {secondi:g} s, interrotto", file=sys.stderr, flush=True)
+        os._exit(124)
+    t = threading.Timer(secondi, scade)
+    t.daemon = True
+    t.start()
+
+
 def main():
+    guardiano()
     ap = argparse.ArgumentParser(description="Inventario dei file prodotti da una sessione Claude Code.")
     ap.add_argument("--session", default=os.environ.get("CLAUDE_CODE_SESSION_ID"))
     ap.add_argument("--json", action="store_true")

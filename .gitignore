@@ -76,6 +76,7 @@ hooks/melchior-stopword.local
 hooks/bash-dispatcher.local
 hooks/protect_claude_md.local
 hooks/handoff-gate.local
+hooks/index-contenitori.local
 skills/system-audit/review-termini.local
 # Le aggiunte ai comandi di Arturo (arturo personale): /fine le porta solo verso un remote privato.
 /personale/

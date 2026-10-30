@@ -82,6 +82,14 @@ def test_h10(repo: Path) -> None:
     assert 'HANDOFF_FILE="$HDIR/' in fine, "H10 l'handoff non nasce nello store privato"
     # Gli handoff si aggiungono solo dentro il ramo del remote privato. Dal 23/10/2026 hanno un git add loro,
     # senza -f (segnalazione n. 12): si cerca quella riga, o il ciclo con -f di prima.
+    coda = repo / "bin" / "fine-coda.py"
+    if coda.exists():  # dal 30/10/2026 il commit di /fine lo fa bin/fine-coda.py (#4291)
+        testo = coda.read_text(encoding="utf-8")
+        dentro = testo.find('if vis == "PRIVATE":')
+        staging = testo.find('aggiungi("-A", "--", "data/handoffs")')
+        assert -1 < dentro < staging < testo.find("\n    else:", dentro), \
+            "H10 gli handoff si sincronizzano senza verificare che il remote sia privato"
+        return
     staging = max(fine.find("for p in CLAUDE.md data/handoffs"), fine.find("git add -- data/handoffs"))
     dentro = fine.find('if [ "$VIS" = "PRIVATE" ]; then')
     fuori = fine.find("\n  else", dentro)

@@ -9,8 +9,13 @@ Opzioni di prova: --radice DIR (default ~/.claude/data/handoffs),
   --index FILE (INDEX attuale da leggere, default <radice>/INDEX.md), --oggi AAAA-MM-GG.
 
 Una riga per filone. La chiave del filone (la usa anche handoff-retention.py):
-  - la riga "- Filone: <nome>" nella sezione ## Progetto dà <slug>/<nome normalizzato>;
-  - senza quella riga la chiave è lo slug: un progetto, una riga.
+  - la riga "- Filone: <nome>" nella sezione ## Progetto dà <slug>/<nome normalizzato>, senza le parole
+    iniziali uguali allo slug; un filone che resta vuoto dà <slug>;
+  - in una cartella contenitore (hooks/index-contenitori.local) dà <slug>/<prima parola fra le
+    parentesi della riga "Nome:">, per esempio "casa (caldaia)" dà casa/caldaia;
+  - altrimenti la chiave è lo slug: un progetto, una riga.
+Nelle celle Stato e Prossimo passo i link [testo](url) diventano testo. Un link morto ferma la scrittura
+e il messaggio nomina l'handoff da cui viene.
 La data viene dal nome del file (HANDOFF_AAAA-MM-GG_HH-MM.md), mai dalla data del file.
 Prossimo passo: la riga "Prossimo passo:" di ## Ripartenza, poi l'ultima colonna dell'INDEX
 attuale (se la riga punta allo stesso file), poi la prima voce di ## Prossimi passi.
@@ -40,7 +45,8 @@ RE_FILE = re.compile(r"^HANDOFF_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2})\.md$")
 RE_LINK = re.compile(r"\[([^\]]*)\]\(([^)\s]+)\)")
 RE_NOME_FILE = re.compile(r"HANDOFF_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}\.md")
 VUOTE = {"di", "del", "della", "dello", "dei", "delle", "e", "ed", "a", "al", "da", "in",
-         "con", "per", "su", "il", "la", "lo", "le", "i", "gli", "un", "una", "the", "of"}
+         "con", "per", "su", "il", "la", "lo", "le", "i", "gli", "un", "una", "the", "of",
+         "sessione", "nuova", "nuovo"}
 INTESTAZIONE = "| Progetto | Ultimo handoff | Data | Stato | Prossimo passo |\n|---|---|---|---|---|"
 
 
@@ -72,10 +78,53 @@ def filone_esplicito(testo):
     return ""
 
 
+def contenitori():
+    """Le cartelle che ospitano filoni scollegati (hooks/index-contenitori.local, uno slug per riga, # per i
+    commenti): lì il testo fra parentesi della riga "Nome:" fa da filone. Senza il file, nessuna."""
+    try:
+        testo = (Path(__file__).resolve().parent.parent / "hooks" / "index-contenitori.local").read_text(encoding="utf-8")
+    except (OSError, ValueError):
+        return set()
+    return {r.split("#", 1)[0].strip().lower() for r in testo.splitlines()} - {""}
+
+
+CONTENITORI = contenitori()
+
+
+def riga_nome(testo):
+    for r in sezione(testo, "Progetto").splitlines():
+        if re.match(r"^\s*-\s*\**Nome\**\s*:", r):
+            return r.replace("**", "").replace("`", "")
+    return ""
+
+
+def qualificatore(testo):
+    """Il testo fra le prime parentesi della riga Nome (prima di " / ")."""
+    m = re.search(r"\(([^)]*)\)", riga_nome(testo).split(" / ")[0])
+    return m.group(1).strip() if m else ""
+
+
 def chiave(slug, testo):
     """Chiave stabile del filone: vedi la docstring del modulo."""
-    p = parole(filone_esplicito(testo))
-    return f"{slug}/{'-'.join(p)}" if p and p != [slug] else slug
+    esplicito = filone_esplicito(testo)
+    if esplicito:
+        # Il filone non ripete il progetto: "/fine" scrive a volte "libro/copertina", a volte
+        # "libro copertina". Le parole iniziali uguali allo slug si tolgono, anche ripetute, e un filone che
+        # resta vuoto è il progetto stesso, come un handoff senza Filone.
+        p, s = parole(esplicito), parole(slug)
+        while s and p[:len(s)] == s:
+            p = p[len(s):]
+        return f"{slug}/{'-'.join(p)}" if p else slug
+    if slug in CONTENITORI:
+        p = parole(qualificatore(testo))
+        return f"{slug}/{p[0]}" if p else slug
+    return slug
+
+
+def solo_testo(testo):
+    """[testo](url) diventa testo, nelle celle Stato e Prossimo passo: un link relativo scritto nell'handoff
+    punta a un file del progetto, e nell'indice diventava un link morto che fermava tutto."""
+    return RE_LINK.sub(r"\1", testo or "")
 
 
 def elenca(radice):
@@ -228,7 +277,8 @@ def genera(radice, index_path, oggi):
         if v:
             etichetta = v["etichetta"].replace("~~", "").strip()
         elif "/" in k:
-            etichetta = f"{h['slug']} — {pulisci(filone_esplicito(h['testo']), 60)}"
+            q = filone_esplicito(h["testo"]) or qualificatore(h["testo"])
+            etichetta = f"{h['slug']} — {pulisci(q, 60)}"
         else:
             etichetta = h["slug"]
         stato = (v["stato"] if v else "") or stato_handoff(h["testo"])
@@ -236,7 +286,8 @@ def genera(radice, index_path, oggi):
                     or prossimi_passi(h["testo"]))
         cella = " · ".join([f"[{h['nome']}]({h['rel']})"] + (link_extra(v["cella"], radice) if v else []))
         righe.append({"etichetta": pulisci(etichetta, 80), "cella": cella, "data": h["data"],
-                      "ora": h["ora"], "stato": pulisci(stato), "prossimo": pulisci(prossimo)})
+                      "ora": h["ora"], "stato": pulisci(solo_testo(stato)),
+                      "prossimo": pulisci(solo_testo(prossimo))})
         stats["generate"] += 1
 
     slug_generati = {h["slug"] for h in handoff}
@@ -247,7 +298,7 @@ def genera(radice, index_path, oggi):
                 stats["superate"] += 1  # punta a un handoff che non è più l'ultimo del suo filone
             continue
         base = v["file"].split("/")[0] if "/" in v["file"] else slug_etichetta(v["etichetta"])
-        if base in slug_generati:
+        if base in slug_generati and base not in CONTENITORI:
             stats["superate"] += 1
             continue
         etichetta = pulisci(v["etichetta"], 80)
@@ -255,8 +306,8 @@ def genera(radice, index_path, oggi):
             continue
         viste.add(etichetta)
         righe.append({"etichetta": etichetta, "cella": pulisci(senza_link_morti(v["cella"], radice), 200),
-                      "data": v["data"], "ora": "", "stato": pulisci(v["stato"]),
-                      "prossimo": pulisci(v["prossimo"])})
+                      "data": v["data"], "ora": "", "stato": pulisci(solo_testo(v["stato"])),
+                      "prossimo": pulisci(solo_testo(v["prossimo"]))})
         stats["riportate"] += 1
 
     limite = (oggi - dt.timedelta(days=GIORNI_ARCHIVIO)).isoformat()
@@ -285,6 +336,19 @@ def genera(radice, index_path, oggi):
 def link_morti(testo, radice):
     return [d for _, d in RE_LINK.findall(testo)
             if not d.startswith(("http://", "https://", "#")) and not (Path(radice) / d).exists()]
+
+
+def sorgente_link(testo, dest):
+    """L'handoff (o l'etichetta) della riga dell'indice generato che contiene il link verso dest."""
+    for r in testo.splitlines():
+        if not r.startswith("|") or f"]({dest})" not in r:
+            continue
+        c = celle(r)
+        for _, d in RE_LINK.findall(c[1] if len(c) > 1 else ""):
+            if RE_NOME_FILE.search(d):
+                return d
+        return f"riga \"{c[0]}\" dell'indice di prima" if c else "riga senza celle"
+    return "riga non trovata"
 
 
 def scrivi_atomico(percorso, testo):
@@ -329,7 +393,9 @@ def main(argv=None):
     testo, stats = genera(radice, index_path, oggi)
     morti = link_morti(testo, radice)
     if morti:
-        print(f"index-rigenera: LINK MORTO nell'INDEX generato: {', '.join(morti[:5])}", file=sys.stderr)
+        # Il link morto nomina la sua sorgente: senza, il blocco di tutti non diceva dove guardare.
+        dove = [f"{d} (da {sorgente_link(testo, d)})" for d in morti[:5]]
+        print(f"index-rigenera: LINK MORTO nell'INDEX generato: {', '.join(dove)}", file=sys.stderr)
         return 1
     if stats["attive"] + stats["archivio"] == 0:
         print("index-rigenera: NESSUNA RIGA generata, non scrivo", file=sys.stderr)

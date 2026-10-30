@@ -141,6 +141,7 @@ BANCHI=(
   test_hook_sessione_2026_10_30.py
   test_sync_merge_2026_10_30.py
   test_fine_profilo_2026_10_30.py
+  test_fine_coda_2026_10_30.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -300,6 +301,7 @@ BASELINE=(
   "test_sync_merge_2026_10_30.py 749e18d radice"
   # F0 L3 (30/10/2026): profilo degli handoff, celle, gitleaks, idee in memoria, retention con elenco.
   "test_fine_profilo_2026_10_30.py 0a4f73f radice"
+  "test_fine_coda_2026_10_30.py 875109c radice"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

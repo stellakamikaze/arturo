@@ -341,7 +341,11 @@ INDEX = """# Indice
 
 def test_f04(repo: Path) -> None:
     script = serve(repo, "bin/index-rigenera.py", "F04")
-    assert "CONTENITORI" not in read(script), "F04 index-rigenera tiene un elenco di cartelle personali"
+    testo = read(script)
+    # Dal 30/10/2026 le cartelle contenitore vengono da hooks/index-contenitori.local della persona (#4291):
+    # nel codice non resta un elenco di cartelle personali.
+    assert not re.search(r"CONTENITORI\s*=\s*\{", testo) and "index-contenitori.local" in testo if "CONTENITORI" in testo \
+        else True, "F04 index-rigenera tiene un elenco di cartelle personali"
     with tempfile.TemporaryDirectory(prefix="arturo-index-") as tmp:
         radice = Path(tmp)
         scrivi(radice, {
@@ -723,9 +727,11 @@ def variabili_orfane(script: str) -> list:
 
 def test_f08(repo: Path) -> None:
     fine = read(repo / "commands" / "fine.md")
-    for pezzo in ("bin/inventario-sessione.py", "bin/handoff-gate.sh", "bin/handoff-retention.py",
-                  "bin/index-rigenera.py --scrivi"):
+    for pezzo in ("bin/inventario-sessione.py", "bin/handoff-gate.sh", "bin/handoff-retention.py", "bin/fine-coda.py"):
         assert pezzo in fine, f"F08 /fine non usa {pezzo}"
+    # dal 30/10/2026 retention con --applica e indice li lancia la coda (#4291)
+    coda = read(repo / "bin" / "fine-coda.py")
+    assert '"index-rigenera.py"), "--scrivi"' in coda, "F08 la coda di /fine non rigenera l'indice"
     assert "tail -n +6" not in fine, "F08 /fine cancella ancora gli handoff con find | tail | rm"
     # Gli strumenti della config dell'autore: solo le impronte, in tests/igiene.py (#3505).
     assert not igiene.trova(fine, igiene.FINE), "F08 /fine nomina uno strumento della config dell'autore"
