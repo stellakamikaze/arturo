@@ -66,7 +66,10 @@ DANGEROUS = [
     # vietate continua fino alla virgoletta che chiude davvero.
     # 15/10/2026: anche con i flag dell'interprete prima di -c (`python3 -I -c`, la
     # forma isolata) e con la versione (`python3.13`).
+    # 30/10/2026 (#4109): passa anche `| python3 -m json.tool` con le sue opzioni a fine segmento:
+    # formatta il JSON e non esegue niente.
     (r"\b(curl|wget|fetch)\b[^|]*(?<!(?<!\\)\\)\|\s*(sudo\s+)?python3?(?:\.\d+)?(?![\w.])"
+     r"(?!(?:\s+-[IEsSBuOqP]+)*\s+-m\s+json\.tool(?:\s+--[a-z-]+(?:[=\s]\d+)?)*(?=\s*(?:$|[;&|)>\n]|2>)))"
      r"(?!(?:\s+-[IEsSBuOqP]+)*\s+-c\s+([\"'])(?:\\[\s\S]|(?!\3|\\|\$\(|`|\b(?:exec|eval|compile|__import__|__builtins__|builtins|"
      r"getattr|globals|importlib|system|popen|subprocess|runpy|pickle|marshal|spawn)\b)[\s\S])*\3)",
      "pipe di script remoto in un interprete"),

