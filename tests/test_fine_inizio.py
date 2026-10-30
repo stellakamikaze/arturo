@@ -404,7 +404,9 @@ def test_f04(repo: Path) -> None:
 def test_f05(repo: Path) -> None:
     script = serve(repo, "bin/inventario-sessione.py", "F05")
     testo = read(script)
-    for parola in ("gws", "drive-personale"):
+    # Dal 30/10/2026 l'inventario riconosce i comandi della CLI gws (#4291): il nome della CLI va bene, i nomi
+    # degli account dell'autore (gws-uf, gws-gmail) e i suoi destini no.
+    for parola in ("gws-", "drive-personale"):
         assert parola not in testo, f"F05 inventario con un destino o un account personale: {parola}"
     assert not igiene.trova(testo, igiene.FINE), "F05 inventario con uno strumento della config dell'autore"
 

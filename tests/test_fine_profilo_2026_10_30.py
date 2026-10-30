@@ -13,12 +13,15 @@ FP06 senza CLAUDE_CODE_SESSION_ID e senza --elenco il dry-run lo dice e --applic
 FP07 l'indice toglie dal filone le parole dello slug, divide una cartella contenitore (hooks/index-contenitori.local)
      per il testo fra parentesi del Nome, e rende testo i link delle celle.
 FP08 inventario-sessione.py oltre il suo tetto di tempo esce da solo con 124.
+FP09 l'inventario elenca i Google Doc creati con gws e con un tuo script di hooks/inventario.local, senza l'id
+     del modello copiato.
 
 Sulla base 0a4f73f (il dev prima di L3) sono rossi tutti i casi.
 """
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -26,7 +29,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["FP01", "FP02", "FP03", "FP04", "FP05", "FP06", "FP07", "FP08"]
+CASI = ["FP01", "FP02", "FP03", "FP04", "FP05", "FP06", "FP07", "FP08", "FP09"]
 BASH = shutil.which("bash") or "bash"
 FILE = ["bin/handoff-gate.sh", "bin/handoff-retention.py", "bin/index-rigenera.py", "bin/todo_store.py",
         "bin/handoff_profilo.py", "hooks/melchior_match.py",
@@ -208,6 +211,31 @@ def prova(b: Banco) -> list:
                        errors="replace", env={**b.env(), "INVENTARIO_TIMEOUT": "0.2"}, timeout=120)
     if r.returncode != 124:
         rossi.append(f"FP08 tetto dell'inventario: rc={r.returncode} {r.stderr.strip()[-120:]!r}")
+
+    # FP09 l'inventario vede gli oggetti creati con gws e con uno script elencato in hooks/inventario.local
+    modello = "1" + "M" * 32
+    nuovo_gws, nuovo_mio = "1" + "G" * 32, "1" + "L" * 32
+    (b.radice / "hooks" / "inventario.local").write_text("# i miei script\nGoogle Doc = duplica_modello[.]py\n",
+                                                         encoding="utf-8")
+    eventi = []
+    for n, (cmd, ris) in enumerate((
+            ("gws docs documents create --json '{\"title\": \"Nota\"}'", '{"documentId": "' + nuovo_gws + '"}'),
+            (f"python3 duplica_modello.py {modello}", f"Creato: https://docs.google.com/document/d/{nuovo_mio}/edit"))):
+        eventi.append({"type": "assistant", "timestamp": "2026-10-30T10:00:0%dZ" % n, "cwd": str(b.tmp),
+                       "message": {"content": [{"type": "tool_use", "id": f"t{n}", "name": "Bash",
+                                                "input": {"command": cmd}}]}})
+        eventi.append({"type": "user", "timestamp": "2026-10-30T10:00:0%dZ" % n, "cwd": str(b.tmp),
+                       "message": {"content": [{"type": "tool_result", "tool_use_id": f"t{n}", "content": ris}]}})
+    (progetti / "s2.jsonl").write_text("".join(json.dumps(e) + "\n" for e in eventi), encoding="utf-8")
+    r = subprocess.run([sys.executable, "-B", str(b.radice / "bin" / "inventario-sessione.py"), "--session", "s2",
+                        "--projects", str(b.tmp / "progetti"), "--json", "--home", str(b.home)], capture_output=True,
+                       text=True, encoding="utf-8", errors="replace", env=b.env(), timeout=120)
+    try:
+        online = {o.get("id"): o.get("tipo") for o in json.loads(r.stdout).get("online", [])}
+    except ValueError:
+        online = {}
+    if online.get(nuovo_gws) != "Google Doc" or online.get(nuovo_mio) != "Google Doc" or modello in online:
+        rossi.append(f"FP09 oggetti online: rc={r.returncode} {online} {r.stderr.strip()[-120:]!r}")
     return rossi
 
 

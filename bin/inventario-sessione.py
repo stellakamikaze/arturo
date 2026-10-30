@@ -15,7 +15,9 @@ FONTI
   - tool_use Write, Edit, MultiEdit, NotebookEdit (file_path o notebook_path);
   - comandi Bash: > >> &> tee, cp e mv (destinazione), -o --output --out, --pdf <file.pdf>.
     Le righe si dividono solo fuori dalle virgolette: una stringa su più righe resta un comando;
-  - oggetti creati online con i connettori (un file su Drive, una bozza di email): vanno nell'handoff;
+  - oggetti creati online con i connettori (un file su Drive, una bozza di email), con gws (documents,
+    presentations, spreadsheets, drafts create, files create o copy) o con i tuoi script elencati in
+    hooks/inventario.local: vanno nell'handoff;
   - file in ~/Downloads e ~/Desktop modificati durante la sessione.
   Scarta ~/.claude/** (lo copre il Config Sync di /fine) e /dev/*. I file assenti finiscono in
   "spariti". Lo scratchpad e /tmp restano in elenco, marcati: si perdono al riavvio.
@@ -347,12 +349,59 @@ def analizza_bash(comando, cwd, home, var=None):
 # Connettori che creano qualcosa fuori dal computer: il nome del tool finisce così.
 CONNETTORI = {"Google_Drive__create_file": "file su Drive", "Google_Drive__copy_file": "file su Drive",
               "Gmail__create_draft": "bozza di email"}
-RE_ID_JSON = re.compile(r"[\"'](?:id|fileId|draftId)[\"']\s*:\s*[\"']([A-Za-z0-9_-]{8,})[\"']")
+RE_ID_JSON = re.compile(r"[\"'](?:id|fileId|draftId|documentId|presentationId|spreadsheetId)[\"']\s*:\s*"
+                        r"[\"']([A-Za-z0-9_-]{8,})[\"']")
+RE_ID_URL = re.compile(r"(?:docs|drive)\.google\.com/(?:document|presentation|spreadsheets|file|drive/folders)"
+                       r"(?:/u/\d+)?/(?:d/)?([A-Za-z0-9_-]{20,})")
+# Comandi Bash che creano qualcosa online: la CLI di Google Workspace (gws, docs/onboarding-gws.md).
+CREA_BASH = [
+    (re.compile(r"\bdocuments\s+create\b"), "Google Doc"),
+    (re.compile(r"\bpresentations\s+create\b"), "presentazione Google"),
+    (re.compile(r"\bspreadsheets\s+create\b"), "foglio Google"),
+    (re.compile(r"\bdrafts\s+create\b"), "bozza di email"),
+    (re.compile(r"\bfiles\s+(?:create|copy)\b"), "file su Drive"),
+]
 
 
-def id_online(risultato):
-    m = RE_ID_JSON.search(risultato)
-    return m.group(1) if m else None
+def crea_locali():
+    """I tuoi script che creano qualcosa online, da hooks/inventario.local: righe `<tipo> = <regex>`, la regex
+    cercata nel comando Bash (per esempio `Google Doc = duplica_modello\\.py`). # per i commenti; una regex che
+    non si compila si salta. Il file si legge come dati."""
+    try:
+        locale = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "hooks", "inventario.local")
+        with open(locale, encoding="utf-8") as fh:
+            testo = fh.read()
+    except (OSError, ValueError):
+        return []
+    out = []
+    for riga in testo.splitlines():
+        if riga.lstrip().startswith("#") or " = " not in riga:
+            continue
+        tipo, regex = (x.strip() for x in riga.split(" = ", 1))
+        try:
+            out.append((re.compile(regex), tipo))
+        except re.error:
+            continue
+    return out
+
+
+def tipo_bash(cmd, locali):
+    if "gws" in cmd:
+        for rx, tipo in CREA_BASH:
+            if rx.search(cmd):
+                return tipo
+    for rx, tipo in locali:
+        if rx.search(cmd):
+            return tipo
+    return None
+
+
+def id_online(risultato, comando=""):
+    """Il primo id nel risultato che non sta già nel comando (il modello copiato, la cartella padre)."""
+    trovati = RE_ID_JSON.findall(risultato) + RE_ID_URL.findall(risultato)
+    if not trovati:
+        trovati = re.findall(r"(?<![A-Za-z0-9-])(r-?\d{8,})(?!\d)", risultato)  # id di una bozza Gmail
+    return next((i for i in trovati if i not in comando), None)
 
 
 # --- classificazione --------------------------------------------------------------------------
@@ -530,6 +579,7 @@ def raccogli(sid, projects, home):
     inizio = min((t for t in (primo_timestamp(p) for p in principali) if t), default=None)
     ultimo = inizio
     file, spostati, online, irrisolti = {}, {}, [], 0
+    locali = crea_locali()
 
     def aggiungi(path, fonte, agente):
         f = file.setdefault(path, {"fonti": set(), "agenti": set(), "operazioni": 0})
@@ -562,13 +612,16 @@ def raccogli(sid, projects, home):
                             aggiungi(p, fonte, agente)
                         for s, d in sp:
                             spostati[s] = d
+                        t = tipo_bash(cmd, locali)
+                        if t:
+                            attesi[c.get("id")] = (t, cmd)
                     else:
                         for chiave, t in CONNETTORI.items():
                             if nome.endswith(chiave):
-                                attesi[c.get("id")] = t
+                                attesi[c.get("id")] = (t, json.dumps(inp, ensure_ascii=False))
                 elif c.get("type") == "tool_result" and c.get("tool_use_id") in attesi:
-                    t = attesi.pop(c["tool_use_id"])
-                    online.append({"tipo": t, "id": id_online(testo_risultato(c)), "agente": agente})
+                    t, cmd = attesi.pop(c["tool_use_id"])
+                    online.append({"tipo": t, "id": id_online(testo_risultato(c), cmd), "agente": agente})
 
     # Downloads e Desktop tra l'avvio e l'ultimo record (più 10 minuti): una sessione
     # vecchia non raccoglie i download dei giorni dopo
