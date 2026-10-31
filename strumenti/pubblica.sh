@@ -43,7 +43,8 @@ case "$passo" in
     # La prova del servito: gli hash di ogni file del commit, letti dentro il container.
     tmp=$(mktemp -d)
     git -C "$RADICE" -c core.autocrlf=false archive "$commit" sito | tar -x -C "$tmp"
-    hash=$(cd "$tmp/sito" && find . -type f ! -name '*.json' -print0 | xargs -0 shasum -a 256 | sed 's#  \./#  /usr/share/nginx/html/#')
+    # Su Windows shasum scrive " *./file" (modo binario) invece di "  ./file": il sed accetta tutti e due.
+    hash=$(cd "$tmp/sito" && find . -type f ! -name '*.json' -print0 | xargs -0 shasum -a 256 | sed -E 's#^([0-9a-f]{64}) [ *]\./#\1  /usr/share/nginx/html/#')
     rm -rf "$tmp"
     # sha256sum del container è quello di BusyBox: niente --quiet, le righe giuste finiscono con ": OK".
     fuori=$(printf '%s\n' "$hash" | ssh "$HOST" "docker exec -i arturo-sito sha256sum -c" 2>&1) \
