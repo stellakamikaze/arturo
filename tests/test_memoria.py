@@ -76,7 +76,9 @@ class Lab:
         for parte in ("bin", "hooks", "scripts"):
             try:
                 (self.claude / parte).symlink_to(repo / parte)
-            except OSError:  # Windows senza il privilegio dei link: una copia vale lo stesso
+            except OSError as e:  # Windows senza il privilegio dei link: una copia vale lo stesso
+                if os.name != "nt" or getattr(e, "winerror", None) != 1314:
+                    raise  # su macOS e Linux un link che non nasce è un guasto (#4411)
                 shutil.copytree(repo / parte, self.claude / parte)
         self.mem = self.claude / "projects" / "-progetto-uno" / "memory"
         self.mem.mkdir(parents=True)

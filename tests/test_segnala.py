@@ -20,6 +20,8 @@ import tempfile
 import urllib.parse
 from pathlib import Path
 
+from salti_windows import dichiara
+
 # Su Windows "bash" per nome è quello di WSL: si prende il bash del PATH (Git Bash).
 BASH = shutil.which("bash") or "bash"
 
@@ -233,8 +235,9 @@ def main() -> int:
         return 0
     for test in scelti.values():
         test(repo)
-    if saltati:
-        print(f"SALTA {','.join(saltati)} su Windows: appunti e browser veri, senza finti")
+    # I salti passano da salti_windows.dichiara, così il gate li conta nell'esito (#4411).
+    for codice in saltati:
+        dichiara(codice, "appunti e browser veri, senza finti: su Windows non si provano")
     print(f"PASS {','.join(scelti)} controlli={len(scelti)}")
     return 0
 

@@ -21,6 +21,11 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    branch, solo nel repository pubblico di Arturo (`.github/workflows/igiene.yml`): nelle copie
    private di `~/.claude` di chi usa Arturo il job non parte. I nomi stanno nel controllo solo come impronte sha256:
    uno nuovo si aggiunge con `python3 tests/igiene.py --impronta < file`, mai in chiaro.
+   Su Windows alcuni controlli non si possono provare (link simbolici senza la Modalità
+   sviluppatore, appunti e browser veri): escono come `SALTO <codice>` da `tests/salti_windows.py`,
+   e la riga finale li conta (`salti=N`) e li elenca. Il gate esce con `0` anche con dei salti, ma un
+   controllo saltato non è provato: il gate del rilascio gira su un Mac, dove i salti sono `0`.
+   Un banco nuovo dichiara un salto solo con `dichiara()`, mai con una stampa sua.
 2. **Entry nuova in `NOVITA.md`**: in cima, con data ISO nell'intestazione, nel formato delle
    altre (Cosa cambia, Il principio dietro, Da sapere). Gli utenti imparano la novità da lì.
 3. **Prova su un clone pulito**: clona il repo in una cartella temporanea e verifica che i

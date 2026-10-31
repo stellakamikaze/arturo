@@ -12,6 +12,21 @@ modo di lavorare.
 
 ---
 
+## 2026-10-31 — Su Windows le guardie leggono il comando intero
+
+**Cosa cambia**: se usi Arturo su Windows, le guardie leggono un comando su più righe come lo legge
+bash. Prima un a capo scritto da `jq` o da python su Windows portava un carattere in più, e un
+comando che continuava sulla riga dopo poteva mandare un file a un sito esterno senza chiederti
+conferma. Ora la guardia lo vede e chiede. Su macOS e Linux non cambia niente.
+
+**Da sapere**: chi mantiene Arturo prova ogni rilascio anche su Windows. Alcuni controlli lì non si
+possono provare, perché Windows non concede i link simbolici senza la Modalità sviluppatore: il
+controllo lo dice come salto, invece di passare in silenzio. Il rilascio si prova per intero su un Mac.
+
+**Il principio dietro**: una guardia deve leggere il comando come lo esegue il sistema, non come appare.
+
+---
+
 ## 2026-10-31 — Meno conferme sul tuo lavoro, le stesse guardie sui rischi veri
 
 **Cosa cambia**: le guardie smettono di chiederti conferma per il lavoro tuo che si può rifare. Un

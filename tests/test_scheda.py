@@ -43,7 +43,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from salti_windows import SaltoWindows, dichiara, link
+from salti_windows import SaltoWindows, dichiara
 
 EVENTI = ("SessionStart", "UserPromptSubmit", "PostToolUse", "Notification", "Stop", "StopFailure", "SessionEnd")
 

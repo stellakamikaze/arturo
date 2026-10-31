@@ -524,7 +524,9 @@ def test_g211(repo: Path) -> None:
             if percorso:
                 try:
                     (senza_timeout / programma).symlink_to(percorso)
-                except OSError:  # Windows senza il privilegio dei link: uno script che rimanda al programma
+                except OSError as e:  # Windows senza il privilegio dei link: uno script che rimanda al programma
+                    if os.name != "nt" or getattr(e, "winerror", None) != 1314:
+                        raise  # su macOS e Linux un link che non nasce è un guasto (#4411)
                     (senza_timeout / programma).write_text(f'#!/bin/sh\nexec "{Path(percorso).as_posix()}" "$@"\n',
                                                           encoding="utf-8")
         nudo = {"PATH": str(senza_timeout)}

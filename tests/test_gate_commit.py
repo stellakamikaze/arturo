@@ -28,7 +28,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from salti_windows import SaltoWindows, dichiara, link
+from salti_windows import SaltoWindows, dichiara
 
 BASH = shutil.which("bash") or "bash"
 # Token finti composti a runtime: nessun segreto nel sorgente.
