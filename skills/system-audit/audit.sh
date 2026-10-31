@@ -305,8 +305,8 @@ NATIVE = {"add-dir", "agents", "artifacts", "btw", "bug", "clear", "code-review"
 # Parole che compaiono come `/parola` senza essere comandi: path e rotte.
 NOTCMD = {"api", "bin", "dev", "etc", "graphql", "home", "opt", "proc", "root", "tmp", "usr", "var",
           "well-known", "xargs"}
-# Skill che la persona installa dall'autore, fuori dal repo (/setup fase 8c, 16/10/2026).
-UPSTREAM = {"impeccable"}
+# Skill che la persona installa dall'autore, fuori dal repo (/setup fase 8c, 16/10/2026; hallmark dal 30/10/2026).
+UPSTREAM = {"impeccable", "hallmark"}
 known = skills | cmds | wfs | modcmds | NATIVE | NOTCMD | UPSTREAM
 STORICO = re.compile(r"rimoss|deprecat|eliminat|dismess|assorbit|archiviat|sostituisc|precedent|"
                      r"\bfus[oiae]\b|\bvecchi[oi]\b|\bex\b|non esiste|retrocompatibilit", re.I)

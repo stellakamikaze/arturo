@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Q01-Q09: mod e skill portati dalla config dell'autore il 15/10/2026.
+"""Q01-Q10: mod e skill portati dalla config dell'autore il 15/10/2026.
 
 Q01 il mod apri passa claude plugin validate e claude plugin test, e apre con il programma
 predefinito del sistema (open, start, xdg-open), mai con un browser scelto nel codice.
@@ -14,6 +14,9 @@ Q07 Impeccable è un rimando all'upstream: la nota in docs/ c'è, la skill non �
 Q08 prompt-master non dice più che il brief si mostra anche per una richiesta breve.
 Q09 prompt-master e il promemoria di inject-now.sh caricano il corpo una volta per sessione e dopo
 una compattazione, non a ogni richiesta (segnalazione n. 17, 27/10/2026).
+Q10 Hallmark è un rimando all'upstream come Impeccable (30/10/2026): la nota in docs/ dice da dove
+    installarla e come lavora con Impeccable, /setup fase 8c la propone con la regola per CLAUDE.md
+    scritta solo dopo il sì, l'audit la conosce, la skill non è copiata.
 
 Il banco richiede il binario `claude`. Sulla base cbd8305 ogni controllo deve fallire con un
 AssertionError che comincia con il suo codice.
@@ -44,7 +47,7 @@ def personali(testo: str) -> List[int]:
 
 EMAIL = re.compile(r"[\w.+-]+@([\w-]+\.)+[a-z]{2,}", re.IGNORECASE)
 NUOVI = ("skills/apri", "skills/gws", "skills/cache-fredda", "skills/italiano-semplificato/references/tic-scrittura-ia.md",
-         "docs/impeccable.md")
+         "docs/impeccable.md", "docs/hallmark.md")
 
 
 def read(path: Path) -> str:
@@ -168,9 +171,33 @@ def test_q09(repo: Path) -> None:
     assert "il primo tool è\nSkill(prompt-master)" not in promemoria, "Q09 il promemoria chiede ancora la skill a ogni messaggio"
 
 
+def test_q10(repo: Path) -> None:
+    # Federico, 30/10/2026: hallmark e impeccable lavorano in catena, come nella config dell'autore.
+    nota = repo / "docs" / "hallmark.md"
+    assert nota.is_file(), "Q10 manca docs/hallmark.md"
+    testo = read(nota)
+    assert "nutlope/hallmark" in testo and "npx --yes skills add nutlope/hallmark -g -a claude-code --copy -y" in testo, \
+        "Q10 la nota non dice da dove installarla"
+    assert "impeccable document" in testo and "lock the system" in testo, "Q10 la nota non dice chi scrive DESIGN.md"
+    assert "install-hook.mjs" in testo, "Q10 la nota non avvisa dell'hook che scrive in settings.json"
+    assert "docs/hallmark.md" in read(repo / "docs" / "impeccable.md"), "Q10 la nota di Impeccable non rimanda a Hallmark"
+    setup = read(repo / "commands" / "setup.md")
+    fase = setup.split("## FASE 8c", 1)[-1].split("## FASE 8d", 1)[0]
+    assert "## La regola per il tuo CLAUDE.md" in testo and "impeccable guida, hallmark costruisce" in testo, \
+        "Q10 la nota non porta la regola della catena per CLAUDE.md"
+    assert "nutlope/hallmark" in fase and "La regola per il tuo CLAUDE.md" in fase, \
+        "Q10 /setup fase 8c non propone Hallmark con la regola della catena"
+    regola = fase.split("- Con tutte", 1)[-1].split("\n- ", 1)[0].split("\n## ", 1)[0]
+    assert "solo dopo il sì" in regola, "Q10 /setup scrive la regola nel CLAUDE.md senza chiedere"
+    assert re.search(r'UPSTREAM = \{[^}]*"hallmark"', read(repo / "skills" / "system-audit" / "audit.sh")), \
+        "Q10 l'audit non conosce hallmark come skill dell'upstream"
+    assert not (repo / "skills" / "hallmark").exists(), "Q10 la skill hallmark è copiata in Arturo"
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {
     "Q01": test_q01, "Q02": test_q02, "Q03": test_q03, "Q04": test_q04,
     "Q05": test_q05, "Q07": test_q07, "Q08": test_q08, "Q09": test_q09,
+    "Q10": test_q10,
 }
 
 

@@ -44,3 +44,9 @@ Le altre vie (copia manuale, sottomodulo git) sono nel README dell'upstream, sez
   scelte di progetto stanno in `PRODUCT.md` e `DESIGN.md`, nel progetto.
 - L'agente `ui-ux-consultant` di Arturo fa una revisione dell'interfaccia leggendo il codice.
   Impeccable invece guida il lavoro di design e prova la pagina vera. Puoi usarli insieme.
+
+## Con Hallmark
+
+Per le pagine nuove da zero c'è Hallmark, una skill di Together AI che lavora in catena con
+Impeccable: Impeccable guida e rifinisce, Hallmark costruisce la pagina. Come si installa e come
+si dividono il lavoro: `docs/hallmark.md`.

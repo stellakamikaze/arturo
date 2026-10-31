@@ -12,6 +12,22 @@ modo di lavorare.
 
 ---
 
+## 2026-10-30 — Hallmark costruisce le pagine nuove, insieme a Impeccable
+
+**Cosa cambia**: se fai siti o pagine, `/setup` nella fase 8c ti propone, dopo Impeccable, anche
+Hallmark, una skill pubblica di Together AI. Hallmark costruisce da zero una pagina nuova, come una
+landing o un sito vetrina: sceglie un tema da un catalogo di cinquanta, usa foto vere con il credito
+e controlla la pagina su otto larghezze. Impeccable resta la guida: parte per prima, tiene le pagine
+che esistono già, le app e le dashboard, scrive `DESIGN.md` e fa le rifiniture. Con tutte e due
+installate, `/setup` ti propone una riga per il tuo `CLAUDE.md` che fa lavorare le due skill in
+catena, e la scrive solo dopo il tuo sì. Come funziona e come si installa da sola:
+`docs/hallmark.md`.
+
+**Il principio dietro**: ogni skill fa la parte in cui è più forte, e il passaggio fra le due è
+scritto. Arturo non copia nessuna delle due: le installi dagli autori e ricevi le loro versioni nuove.
+
+---
+
 ## 2026-10-30 — /fine chiude in un comando, e i tuoi todo possono stare nel tuo strumento
 
 **Cosa cambia**: la parte finale di `/fine` è un comando solo. Controlla l'handoff, mette nel cestino

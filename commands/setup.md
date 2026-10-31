@@ -12,7 +12,7 @@ Sei la guida di installazione di **Arturo**, l'harness Claude Code in cui ti tro
 - **Una fase per volta.** Fai UNA fase, mostri l'esito, e solo dopo passi alla successiva. Non scaricare tutto insieme.
 - **Linguaggio semplice.** Niente gergo non spiegato. Se usi un termine tecnico, spiegalo in mezza riga.
 - **Chiedi prima di scrivere.** Ogni volta che stai per modificare un file (`settings.json`, `CLAUDE.md`), mostra cosa scriverai e chiedi conferma. Nota: modificare `settings.json` durante `/setup` è legittimo — l'utente lo ha chiesto lanciando questo comando — quindi se una guardia chiede conferma, spiega all'utente che è normale e che può approvare.
-- **Sono obbligatorie solo le fasi 0–4 e la verifica finale (FASE 9).** Tutte le altre sono opzionali: la 4b (stile), dalla 5 alla 8d (`CLAUDE.md`, host e API fidate, sync, comando `arturo`, memoria, `gws`, `scrape`, Impeccable, Lancillotto) e la 10 (sparring). Proponile, e se l'utente non le vuole, salta senza insistere.
+- **Sono obbligatorie solo le fasi 0–4 e la verifica finale (FASE 9).** Tutte le altre sono opzionali: la 4b (stile), dalla 5 alla 8d (`CLAUDE.md`, host e API fidate, sync, comando `arturo`, memoria, `gws`, `scrape`, Impeccable e Hallmark, Lancillotto) e la 10 (sparring). Proponile, e se l'utente non le vuole, salta senza insistere.
 - **Idempotente.** Se qualcosa è già configurato correttamente, dillo ("questo è già a posto") e vai avanti, non rifarlo.
 - **Prima configurazione o verifica.** Se la FASE 0 stampa `SETUP GIÀ FATTO`, o la persona scrive `/setup verifica`, chiedi se vuole rifare la configurazione o solo verificarla. Nella verifica non scrivi niente: per ogni fase obbligatoria dici se è a posto, lanci la FASE 9 e poi proponi `/diagnosi` sul progetto su cui lavora. Quello che non è a posto lo sistemi rifacendo la sua fase, col suo sì.
 - **Segna la fase.** All'inizio di ogni fase, anche di quelle che salti, registra il numero per la telemetria di Arturo: dice a chi lo mantiene in quale fase le persone si fermano. Esce solo il numero.
@@ -328,7 +328,7 @@ Controlla prima se c'è già:
 
 ---
 
-## FASE 8c — Impeccable, per chi fa siti e pagine (opzionale)
+## FASE 8c — Impeccable e Hallmark, per chi fa siti e pagine (opzionale)
 
 Chiedi: "Ti capita di fare siti, pagine o piccole app? Esiste una skill di design delle interfacce,
 Impeccable, di Paul Bakaus: con lei Claude lavora come un direttore di design e controlla da solo i
@@ -352,8 +352,20 @@ Controlla prima se c'è già:
   Poi spiega: "È installata. Riapri Claude Code, e in un progetto scrivi `/impeccable init`: ti fa
   qualche domanda sul progetto e la ricorda in `PRODUCT.md`." Dettagli e aggiornamento:
   `docs/impeccable.md`.
-- Se l'utente dice no, o non fa interfacce, salta: si installa anche più tardi con lo stesso
-  comando.
+- Se l'utente dice no, o non fa interfacce, salta tutta la fase: si installa anche più tardi con
+  lo stesso comando.
+
+Se Impeccable c'è, proponi anche Hallmark, di Together AI, per le pagine nuove da zero (landing,
+sito vetrina): Impeccable guida e rifinisce, Hallmark costruisce. Controlla se c'è già:
+
+```bash
+[ -f ~/.claude/skills/hallmark/SKILL.md ] && echo "hallmark già installata" || echo "hallmark non installata"
+```
+
+- Solo dopo il sì installala, senza il suo hook di lint:
+  `npx --yes skills add nutlope/hallmark -g -a claude-code --copy -y`.
+- Con tutte e due installate, proponi la riga di "La regola per il tuo CLAUDE.md" in
+  `docs/hallmark.md`. Scrivila in fondo a `~/.claude/CLAUDE.md` solo dopo il sì: il file è dell'utente.
 
 ---
 
@@ -398,7 +410,7 @@ Se preferisce esplorare da solo, indicagli `docs/principi/README.md` e chiudi.
 
 Chiudi con un riepilogo in linguaggio semplice:
 - Cosa è stato configurato: prerequisiti, permessi, `PROJECTS_BASE`, lingua, verifica finale.
-- Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), Google (8), `scrape` (8b), Impeccable (8c), Lancillotto (8d), sparring (10). Una fase saltata si recupera rilanciando `/setup`.
+- Per ogni fase opzionale, se è fatta o saltata: stile di scrittura (4b), `CLAUDE.md` (5), host interni e API fidate (6), sincronizzazione tra macchine (7), comando `arturo` nel terminale (7c), memoria accesa o spenta (7d), Google (8), `scrape` (8b), Impeccable e Hallmark (8c), Lancillotto (8d), sparring (10). Una fase saltata si recupera rilanciando `/setup`.
 - **Come iniziare a lavorare**: "Ogni giorno ti bastano due comandi: `/inizio <nome>` per riprendere un progetto e `/fine` per chiuderlo. Quando ti viene in mente qualcosa da fare, dimmi "ricordami di…": lo ritrovi a ogni `/inizio`."
 - **Gli altri comandi, quando servono**: "Non sai da dove partire? `/guidami` guarda il tuo lavoro recente e ti propone i prossimi passi. Qualcosa non torna in un progetto? `/diagnosi` controlla Arturo e il progetto, e ti dice cosa sistemare. Fai spesso lo stesso lavoro? `/creaskill` ti aiuta a farne una skill tua." Gli altri strumenti non elencarli: Claude li usa da solo quando servono.
 - **Cosa vedi senza chiedere**: "In basso c'è la barra: quanto contesto hai usato e la quota dell'abbonamento, con l'orario in cui le 5 ore si azzerano. Quando Claude ti aspetta, il Mac suona e la scheda del terminale cambia colore. `/dafare` apre il pannello delle tue cose da fare, divise per progetto. Se un termine non ti è chiaro (contesto, memoria, branch, quota), chiedimelo: te lo spiego con dove lo trovi in Arturo."

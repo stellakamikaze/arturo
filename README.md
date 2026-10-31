@@ -280,6 +280,7 @@ output-styles/       Lo stile di scrittura Conciso, quello di partenza (lo stile
 docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/onboarding/     Guide di setup guidato (/inizio gws)
 docs/impeccable.md   Come installare Impeccable (design delle interfacce) dall'upstream
+docs/hallmark.md     Come installare Hallmark (pagine nuove) dall'upstream, e come lavora con Impeccable
 docs/privacy.md      Cosa raccoglie la telemetria, per quanto, e i tuoi diritti
 tests/               I banchi di prova: il gate completo e i banchi delle guardie che l'avvio lancia da solo
 firme/               La chiave pubblica dei rilasci: l'aggiornamento automatico installa solo i tag firmati con essa
