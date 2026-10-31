@@ -12,6 +12,28 @@ modo di lavorare.
 
 ---
 
+## 2026-10-31 — Meno conferme sul tuo lavoro, le stesse guardie sui rischi veri
+
+**Cosa cambia**: le guardie smettono di chiederti conferma per il lavoro tuo che si può rifare. Un
+`rm` dentro una cartella temporanea, anche dopo un `cd`, non chiede più: la guardia segue i `cd` e
+guarda la cartella vera. Cancellare un ramo git non chiede se i suoi commit stanno anche altrove.
+Le guardie chiedono ancora per i rischi veri: un file che parte verso un sito esterno, un'email, un
+link `mailto:` aperto da un programma, un segreto in un commit, la cancellazione di un ramo o di uno
+stash che esistono solo lì. In modalità auto Arturo dice al classificatore di Claude Code quale
+lavoro è tuo: le tue macchine, i tuoi repository, i deploy delle tue app, la lettura del web. Le
+regole che negavano tutta una famiglia di comandi sono diventate più strette: per esempio leggere
+`~/.ssh/config` si può, leggere una chiave no.
+
+**Se una conferma ti sembra inutile**: chiedi a Claude da dove viene. Una conferma di una guardia si
+allenta coi file `.local` in `hooks/`. Un diniego del classificatore si allarga con una riga in
+`autoMode`, che Claude ti propone e scrive dopo il tuo sì. Il README lo spiega nella sezione
+"Personalizzazione".
+
+**Il principio dietro**: una guardia che chiede sempre insegna a dire sì senza leggere. Le conferme
+servono solo dove un errore non si annulla.
+
+---
+
 ## 2026-10-30 — Hallmark costruisce le pagine nuove, insieme a Impeccable
 
 **Cosa cambia**: se fai siti o pagine, `/setup` nella fase 8c ti propone, dopo Impeccable, anche
