@@ -28,6 +28,7 @@ una HOME con ~/.claude clonata. Sulla base f750408 ogni controllo deve fallire c
 """
 from __future__ import annotations
 
+import ast
 import argparse
 import importlib.util
 import json
@@ -151,17 +152,17 @@ def test_p03(repo: Path) -> None:
 def test_p04(repo: Path) -> None:
     r = subprocess.run(["git", "-C", str(repo), "check-ignore", "-q", "--no-index", "personale/inizio.md"], capture_output=True)
     assert r.returncode == 0, "P04 personale/ non è in .gitignore"
+    # Dal 30/10/2026 il commit di /fine lo fa bin/fine-coda.py (#4291): gli elenchi si leggono come
+    # valori Python, non come testo. Il ramo su commands/fine.md non girava più (#4362).
     coda = repo / "bin" / "fine-coda.py"
-    if coda.exists():  # dal 30/10/2026 il commit di /fine lo fa bin/fine-coda.py (#4291)
-        testo = read(coda)
-        privato = testo[testo.index("PRIVATI = ["):testo.index("]", testo.index("PRIVATI = ["))]
-        pubblico = testo[testo.index("ARTURO = ["):testo.index("]", testo.index("ARTURO = ["))]
-    else:
-        fine = read(repo / "commands" / "fine.md")
-        privato = fine[fine.index('if [ "$VIS" = "PRIVATE" ]; then'):fine.index("else", fine.index('if [ "$VIS" = "PRIVATE" ]; then'))]
-        pubblico = fine[fine.index("for p in settings.json"):fine.index("done", fine.index("for p in settings.json"))]
-    assert "personale" in privato, "P04 /fine non porta personale/ verso il remote privato"
-    assert "personale" not in pubblico, "P04 /fine porta personale/ anche verso un remote pubblico"
+    assert coda.exists(), "P04 manca bin/fine-coda.py, che porta personale/ col commit di /fine"
+    elenchi = {}
+    for nodo in ast.parse(read(coda)).body:
+        if isinstance(nodo, ast.Assign) and len(nodo.targets) == 1 and isinstance(nodo.targets[0], ast.Name)                 and nodo.targets[0].id in ("PRIVATI", "ARTURO"):
+            elenchi[nodo.targets[0].id] = ast.literal_eval(nodo.value)
+    assert set(elenchi) == {"PRIVATI", "ARTURO"}, "P04 fine-coda.py non ha gli elenchi PRIVATI e ARTURO"
+    assert "personale" in elenchi["PRIVATI"], "P04 /fine non porta personale/ verso il remote privato"
+    assert not any(p == "personale" or p.startswith("personale/") for p in elenchi["ARTURO"]),         "P04 /fine porta personale/ anche verso un remote pubblico"
 
 
 def test_p05(repo: Path) -> None:
