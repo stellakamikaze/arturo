@@ -42,7 +42,7 @@ case "$passo" in
       || { echo "html/ non è uguale al pacchetto dopo la copia: $arrivo resta per guardarci" >&2; exit 1; }
     # La prova del servito: gli hash di ogni file del commit, letti dentro il container.
     tmp=$(mktemp -d)
-    git -C "$RADICE" archive "$commit" sito | tar -x -C "$tmp"
+    git -C "$RADICE" -c core.autocrlf=false archive "$commit" sito | tar -x -C "$tmp"
     hash=$(cd "$tmp/sito" && find . -type f ! -name '*.json' -print0 | xargs -0 shasum -a 256 | sed 's#  \./#  /usr/share/nginx/html/#')
     rm -rf "$tmp"
     # sha256sum del container è quello di BusyBox: niente --quiet, le righe giuste finiscono con ": OK".
