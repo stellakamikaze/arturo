@@ -21,6 +21,9 @@ K11 niente allow larghi che saltano il classificatore, autoMode generale senza d
 K12 un banco che sposta HOME sposta anche USERPROFILE: su Windows Python trova la home da lì.
 K13 `gh` intero non sta in allow, e le credenziali della config contano come segreto.
 K14 il segno "setup fatto" è fuori da git, e chi aveva finito il setup prima del segno lo riceve.
+K15 i deny coprono le chiavi in ~/.ssh e non config o known_hosts, git -c solo nelle forme che
+    cambiano destinazione o credenziali, rm -rf della radice e della home alla lettera, find solo
+    quando lancia rm; git branch -D e git stash drop passano alla guardia (31/10/2026).
 
 Sulla base 842b06f ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -304,9 +307,60 @@ def test_k14(repo: Path) -> None:
     assert prova(True, 1) == (False, False), "K14 con un FAIL nell'audit il segno si scrive lo stesso"
 
 
+def _copre(regola: str, testo: str) -> bool:
+    """Il matcher delle regole di permissions, come lo legge Claude Code (2.1.316): in Bash(...) `*` vale
+    qualunque sequenza, `\\*` è un asterisco vero, `:*` in coda è un prefisso; in Read(...) `*` resta
+    dentro una cartella e `**` attraversa le cartelle. Maiuscole e minuscole contano."""
+    import re
+    strumento, _, corpo = regola.partition("(")
+    corpo = corpo[:-1]
+    if strumento == "Bash":
+        if corpo.endswith(":*"):
+            return testo == corpo[:-2] or testo.startswith(corpo[:-2] + " ")
+        parti = re.split(r"(\\\*|\*)", corpo)
+        rx = "".join(r"\*" if p == "\\*" else ".*" if p == "*" else re.escape(p) for p in parti)
+        return re.fullmatch(rx, testo, re.DOTALL) is not None
+    parti = re.split(r"(\*\*/|\*\*|\*)", corpo)
+    rx = "".join("(?:.*/)?" if p == "**/" else ".*" if p == "**" else "[^/]*" if p == "*" else re.escape(p)
+                 for p in parti)
+    return re.fullmatch(rx, testo) is not None
+
+
+def test_k15(repo: Path) -> None:
+    # Revisione dei permessi del 31/10/2026 (C04, C10, C14, C18, C25, C30): i deny bloccavano letture e
+    # comandi innocui (cat ~/.ssh/config, un push con -c http.postBuffer, ogni rm -rf assoluto).
+    deny = impostazioni(repo)["permissions"]["deny"]
+    bash = [r for r in deny if r.startswith("Bash(")]
+    lettura = [r for r in deny if r.startswith("Read(")]
+
+    def coperto(regole, testo):
+        return any(_copre(r, testo) for r in regole)
+    for testo in ("~/.ssh/config", "~/.ssh/known_hosts", "~/.ssh/x.pub"):
+        assert not coperto(lettura, testo), f"K15 il deny blocca la lettura di {testo}"
+    for testo in ("~/.ssh/id_ed25519", "~/.ssh/server.pem", "~/.ssh/x.key", "~/.ssh/x.ppk", "~/.ssh/github_ed25519"):
+        assert coperto(lettura, testo), f"K15 la chiave {testo} non è più coperta dal deny"
+    liberi = ("git config --get core.hooksPath", "git config --show-origin --list",
+              "git -c http.postBuffer=524288000 push origin FETCH_HEAD:main",
+              "rm -rf /tmp/x", "rm -rf ~/Documents/ClaudeCode/p/__pycache__",
+              "git branch -D x", "git stash drop",
+              "find . -exec grep -l format {} +", "find . -newermt 2026-10-16 -exec grep x {} +")
+    for testo in liberi:
+        assert not coperto(bash, testo), f"K15 il deny blocca {testo}"
+    vietati = ("git config --global core.hookspath /x", "git config --global --get core.hooksPath",
+               "git -c x=y push --force origin main", "git -c x=y push -f", "git -c x=y push origin +main",
+               "git -c remote.origin.mirror=true push", "git -c remote.origin.push=+refs/heads/*:refs/heads/* push",
+               "git -c alias.p='push --force' p", "git -c core.sshCommand=x push", "git -c core.sshcommand=x push",
+               "rm -rf /*", "rm -rf ~/*", "rm -rf /", "rm -rf ~", "rm -rf ~/", "rm -rf $HOME", "rm -rf $HOME/",
+               "rm -rf / --no-preserve-root",
+               "find . -exec rm {} +", "find . -execdir rm -rf {} +", "find . -exec /bin/rm {} +", "find . -ok rm {} \\;",
+               "find . -exec sh -c 'rm -rf \"$1\"' _ {} \\;")
+    for testo in vietati:
+        assert coperto(bash, testo), f"K15 il deny non copre più {testo}"
+
+
 TESTS = {"K01": test_k01, "K02": test_k02, "K03": test_k03, "K04": test_k04, "K05": test_k05,
          "K06": test_k06, "K07": test_k07, "K08": test_k08, "K09": test_k09, "K10": test_k10, "K11": test_k11, "K12": test_k12,
-         "K13": test_k13, "K14": test_k14}
+         "K13": test_k13, "K14": test_k14, "K15": test_k15}
 
 
 def main() -> int:
