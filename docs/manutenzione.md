@@ -10,6 +10,9 @@ Per chi mantiene Arturo e per chi ne fa un fork. Le regole sono poche e delibera
 
 ## Portare `dev` su `main`
 
+**Il ritmo è un rilascio al giorno** (dal 31/10/2026): se `dev` ha cambi col gate verde dopo
+l'ultimo tag, quel giorno esce un rilascio. Senza cambi, niente rilascio.
+
 Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
 
 1. **Gate verde**: `bash tests/verifica-allineamento.sh` esce con `0`. Dentro c'è l'igiene (I03,
