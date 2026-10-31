@@ -99,7 +99,9 @@ main() {
     # Come il blocco del README: da un Arturo installato prima tornano anche istruzioni, memoria, todo
     # e scelte, compresa la telemetria spenta (#3825, 23/10/2026).
     for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos \
-      CLAUDE.md settings.local.json personale hooks/hosts-interni.local data/memory data/memoria data/todo \
+      CLAUDE.md settings.local.json personale hooks/hosts-interni.local hooks/bash-dispatcher.local \
+      hooks/protect_claude_md.local hooks/api-fidate.local hooks/handoff-gate.local hooks/index-contenitori.local \
+      hooks/inventario.local bin/fonte-task.local data/memory data/memoria data/todo \
       data/segnalazioni data/setup-fatto data/aggiornamenti.json session-env/telemetria.json \
       session-env/segnala.json session-env/novita-viste; do
       if [ -e "$b/$x" ] && [ ! -e "$dest/$x" ]; then

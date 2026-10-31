@@ -581,7 +581,9 @@ python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/
 [ -d "$HOME/.claude" ] &amp;&amp; mv "$HOME/.claude" "$B"
 git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
 for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos \
-  CLAUDE.md settings.local.json personale hooks/hosts-interni.local data/memory data/memoria data/todo \
+  CLAUDE.md settings.local.json personale hooks/hosts-interni.local hooks/bash-dispatcher.local \
+  hooks/protect_claude_md.local hooks/api-fidate.local hooks/handoff-gate.local hooks/index-contenitori.local \
+  hooks/inventario.local bin/fonte-task.local data/memory data/memoria data/todo \
   data/segnalazioni data/setup-fatto data/aggiornamenti.json session-env/telemetria.json \
   session-env/segnala.json session-env/novita-viste; do
   [ -e "$B/$x" ] &amp;&amp; [ ! -e "$HOME/.claude/$x" ] &amp;&amp; mkdir -p "$(dirname "$HOME/.claude/$x")" &amp;&amp; mv "$B/$x" "$HOME/.claude/$x"
