@@ -73,7 +73,7 @@ def test_ri01(repo: Path) -> None:
             (vecchia / nome).parent.mkdir(parents=True, exist_ok=True)
             (vecchia / nome).write_text(testo, encoding="utf-8")
         (vecchia / "settings.json").write_text("{\"vecchio\": true}\n", encoding="utf-8")
-        script = blocco.group(1).replace("https://github.com/stellakamikaze/arturo.git", str(sorgente(repo, radice)))
+        script = blocco.group(1).replace("https://github.com/stellakamikaze/arturo.git", sorgente(repo, radice).as_posix())
         r = subprocess.run([BASH, "-c", script], capture_output=True, text=True, timeout=180, env=env_di(home),
                            check=False)
         nuova = home / ".claude"

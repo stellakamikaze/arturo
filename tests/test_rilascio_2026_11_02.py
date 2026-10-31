@@ -47,7 +47,8 @@ def read(path: Path) -> str:
 
 def test_rl01(repo: Path) -> None:
     setup = repo / "commands" / "setup.md"
-    peso = setup.stat().st_size
+    # Con gli a capo LF, come nel repository: su Windows il checkout scrive CRLF e il peso cresce.
+    peso = len(setup.read_bytes().replace(b"\r\n", b"\n"))
     assert peso <= 30000, f"RL01 /setup pesa {peso} byte, oltre il tetto di 30000 dell'audit"
     testo = read(setup)
     fase = testo[testo.index("## FASE 8d"):testo.index("## FASE 9")]
@@ -131,9 +132,12 @@ def test_rl05(repo: Path) -> None:
                            capture_output=True, cwd=d, env=env, timeout=60)
         righe = [r for r in ambiente.read_text(encoding="utf-8").splitlines() if ".claude/bin" in r]
         assert len(righe) == 1, f"RL05 l'avvio non mette ~/.claude/bin nel PATH una volta sola: {righe}"
-        trovato = subprocess.run([bash, "-c", f'source "{ambiente}"; command -v arturo'], text=True,
+        # Su Windows bash risponde con un percorso /tmp/...: cygpath -w lo riporta alla forma di Windows.
+        cerca = 'p=$(command -v arturo); command -v cygpath >/dev/null && p=$(cygpath -w "$p"); printf %s "$p"'
+        trovato = subprocess.run([bash, "-c", f'source "{ambiente}"; {cerca}'], text=True,
                                  capture_output=True, env=env, timeout=30).stdout.strip()
-        assert trovato == str(home / ".claude" / "bin" / "arturo"), f"RL05 arturo non si trova per nome: {trovato!r}"
+        atteso = str(home / ".claude" / "bin" / "arturo")
+        assert os.path.normcase(trovato) == os.path.normcase(atteso), f"RL05 arturo non si trova per nome: {trovato!r}"
 
 
 def test_rl06(repo: Path) -> None:
