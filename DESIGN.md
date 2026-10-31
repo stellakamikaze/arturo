@@ -30,6 +30,37 @@ colors:
   term-filetto: "#1d232c"
   term-guardia: "#2f6fe0"
   term-guardia-testo: "#d8e6ff"
+  bianco: "#fff"
+  inchiostro-su: "#262b33"
+  scorrimento: "#a3abb5"
+  volta-griglia: "#2b8cff"
+  firma: "#a9b0b8"
+  allarme: "#8a2316"
+  allarme-fondo: "#fdecea"
+  verde-testo: "#1f4d2b"
+  pagina-barra: "#f1f1ef"
+  chiara-barra: "#fbfbfa"
+  chiara-puntino: "#dcdedb"
+  term-puntino: "#2c333d"
+  term-tu-fondo: "#161c25"
+  term-tu-testo: "#d6e8ff"
+  term-cc: "#f3f5f8"
+  term-strumento: "#a9b3bf"
+  term-quieto: "#aab4c0"
+  term-passa: "#7fd39b"
+  term-blocca: "#ff9a8a"
+  term-blocca-bordo: "#a8382a"
+  term-forse: "#f2c46b"
+  term-bordo: "#2a3340"
+  term-bordo-su: "#3a4553"
+  term-sopra: "#151b23"
+  term-sopra-2: "#1b2430"
+  term-cartella: "#c4ccd6"
+  term-letto: "#132036"
+  term-letto-testo: "#cfe4ff"
+  term-nuovo: "#123622"
+  term-nuovo-testo: "#c9f2d6"
+  term-nuovo-bordo: "#3aa866"
 typography:
   display:
     fontFamily: "Archivo, Helvetica Neue, Arial, sans-serif"
@@ -241,10 +272,10 @@ Una palette fredda e chiara: cielo azzurro, carta grigio caldo, inchiostro quasi
 - **Grafite** (`grafite`): il testo corrente. **Cenere** (`cenere`): seconde righe dei titoli, didascalie, etichette quiete. **Filetto** (`filetto`): le linee tra le voci.
 - **Vuoto** (`vuoto`, `vuoto-2`, `vuoto-testo`, `vuoto-cenere`, `vuoto-filetto`): la fascia scura con la grana, i suoi comandi e i suoi filetti.
 - **Terminale** (`term`, `term-testo`, `term-cenere`, `term-tu`, `term-filetto`): la finestra di Claude Code. `term-tu` colora quello che scrive la persona. `term-filetto` separa barra e righe dentro la finestra.
-- **Esiti** (`passa`, `blocca`): il verde dei passi fatti e il rosso degli errori nella guida. Nei terminali «Chiede a te» è `term-tu` su bordo `term-guardia`, col testo del messaggio in `term-guardia-testo`. «Blocca» usa ancora tinte letterali (`#ff9a8a` su bordo `#a8382a`).
+- **Esiti** (`passa`, `blocca`): il verde dei passi fatti e il rosso degli errori nella guida. Nei terminali «Chiede a te» è `term-tu` su bordo `term-guardia`, col testo del messaggio in `term-guardia-testo`. «Blocca» è `term-blocca` su bordo `term-blocca-bordo`.
 
 ### Dove stanno
-Tutti i token di colore, carattere e misura stanno in `sito/stile/colori.css`, caricato da ogni pagina prima del suo `<style>`. Una pagina tiene nel suo `:root` solo i token che usa lei sola (`--esce`, `--segno` nella guida).
+Tutti i token di colore, carattere e misura stanno in `sito/stile/colori.css`, caricato da ogni pagina prima del suo `<style>`. Una pagina tiene nel suo `:root` solo i token che usa lei sola (`--esce`, `--segno` nella guida). Dal 31/10/2026 anche i colori che la home teneva letterali nel suo `<style>` hanno un nome in `colori.css`, con lo stesso valore: `bianco`, la famiglia `term-*` dei terminali (righe, albero dei file, esiti, bordi e fondi dei controlli), `allarme` e `allarme-fondo`, `volta-griglia`, `firma`, `scorrimento`. Le tre ombre hanno un nome anche loro (`ombra-finestra`, `ombra-foglio`, `ombra-appunto`). Restano letterali solo le maschere a gradiente della volta e dei nomi delle sessioni.
 
 ### Named Rules
 **The Una Stella Rule.** L'arancio `stella` compare solo nella stella Arturo (reticolo, alone, marchio, favicon) e nella barra in cima. Mai su pulsanti, titoli, etichette o lastre.
@@ -267,7 +298,7 @@ Tutti i token di colore, carattere e misura stanno in `sito/stile/colori.css`, c
 - **Title Piccolo** (400, larghezza normale): i titoli delle colonne con filetto (`tre`, impegni, voci della pagina per le organizzazioni).
 - **Body** (400, 16,5-18 px fluido): testo corrente, misura tra 46 e 70 caratteri.
 - **Label** (560, larghezza 75%, maiuscolo): menu, pulsanti, etichette sotto la promessa.
-- **Label Piccola** (600, larghezza 75%, maiuscolo): esiti, intestazioni di tabella, titoli del piede, stato dei passi.
+- **Label Piccola** (600, larghezza 75%, maiuscolo): esiti, intestazioni di tabella, titoli del piede, stato dei passi. Nel testo funzionale (tabelle, stato dei passi, miniature di "Cosa ti restituisce", albero dei file della scena) mai sotto 0,74 rem (11,8 px). Dentro le finestre del terminale scende a 0,66-0,72 rem, come nell'interfaccia vera; su fondi chiari il colore resta almeno a 4,5:1.
 - **Mono** (400): sessioni, comandi, registro delle guardie, barra delle finestre.
 
 ### Named Rules
@@ -308,7 +339,9 @@ Gli angoli sono vivi. Le finestre e le bolle della chat d'esempio hanno 4 px (`f
 Blocchi squadrati, con la voce stretta e maiuscola.
 - **Shape:** angoli vivi (`vivo`), bordo di 1 px dello stesso colore del fondo.
 - **Primary:** fondo `azione`, testo bianco. Alto 44 px nel menu, 60 px nella versione grande dell'apertura.
-- **Hover / Focus:** il fondo scende ad `azione-giu` in 0,18 s. Il focus è un contorno di 2 px `azione` staccato di 3 px.
+- **Hover / Focus:** il fondo scende ad `azione-giu` in 0,18 s. Il focus è un contorno di 2 px `azione` staccato di 3 px. Sulla barra arancio il contorno è `inchiostro` (9,3:1); nella fascia scura e nelle finestre è `term-tu`, salvo i pulsanti blu pieni ("Continua dal passo 5", Copia), che tengono il contorno `azione`.
+- **Active:** alla pressione il controllo scende di 1 px, senza transizione.
+- **Misura:** ogni controllo è alto almeno 44 px, anche dentro le finestre (frecce, nomi delle sessioni, Mac/Windows, pulsanti della scena).
 - **Scura:** fondo `inchiostro`, per «Installa» nel menu.
 - **Chiara:** fondo bianco e testo `inchiostro` sulla fascia scura, al passaggio diventa `cielo`.
 - **Bordo:** fondo trasparente, bordo e testo `inchiostro` nella pagina per le organizzazioni. Nella guida il bordo è blu `azione` e il passaggio stende `azione-velo`.
@@ -336,10 +369,10 @@ Il marchio (colline, stella arancio, «Arturo» in Archivo 500 a larghezza 108%)
 ### Finestra del prodotto (componente firma)
 Il terminale di Claude Code: fondo `term`, raggio 4 px, ombra Finestra. Una barra di 34 px con tre puntini e il titolo in mono centrato. Dentro, la sessione: le righe della persona in `term-tu` dopo «> », le azioni con un punto verde, la guardia in un riquadro con bordo blu e il titolo in grassetto chiaro, la scelta evidenziata in blu pieno. La variante chiara (fondo bianco, barra `#fbfbfa`) mostra la chat d'esempio.
 
-I messaggi delle guardie sono quelli che Arturo stampa davvero, parola per parola: se cambia la guardia, cambia anche la pagina. Le sessioni intorno sono esempi, e la didascalia lo dichiara («Sessione di esempio», «Esempio scritto per questa pagina»). Nell'apertura la finestra ha due schede, «Cosa ci fai» e «Installalo», sottolineate in `term-tu` quando sono scelte. «Cosa ci fai» è una galleria di sessioni: una per volta, cambia ogni 7 s con una dissolvenza da sfocato, si ferma al passaggio del mouse, al fuoco e al primo clic; sotto, frecce e nomi delle sessioni. «Installalo» sono carte in sequenza con i primi quattro passi della guida, Mac o Windows, il comando da copiare e «Fatto, avanti»; scrivono lo stesso stato della guida (`arturo-setup-1`), che riparte dal passo 5. Con movimento ridotto niente scorre e niente sfuma.
+I messaggi delle guardie sono quelli che Arturo stampa davvero, parola per parola: se cambia la guardia, cambia anche la pagina. Le sessioni intorno sono esempi, e la didascalia lo dichiara («Sessione di esempio», «Esempio scritto per questa pagina»). Nell'apertura la finestra ha due schede, «Cosa ci fai» e «Installalo», sottolineate in `term-tu` quando sono scelte. «Cosa ci fai» è una galleria di sessioni: una per volta, cambia ogni 7 s con una dissolvenza da sfocato, si ferma al passaggio del mouse, al fuoco e al primo clic; sotto, frecce, nomi delle sessioni e un pulsante che ferma e riprende la galleria (WCAG 2.2.2), con due segni disegnati e l'etichetta "Ferma la galleria" o "Riprendi la galleria". «Installalo» sono carte in sequenza con i primi quattro passi della guida, Mac o Windows, il comando da copiare e «Fatto, avanti»; scrivono lo stesso stato della guida (`arturo-setup-1`), che riparte dal passo 5. Con movimento ridotto niente scorre e niente sfuma, e il pulsante di pausa non compare.
 
 ### La volta (componente firma)
-Il reticolo è generato da uno script, in proiezione gnomonica centrata su Boote, e non è disegnato a mano. Meridiani e paralleli sono linee blu `#2b8cff` a opacità 0,5, larghe 1 px a ogni scala. Boote e l'Orsa sono spezzate `azione` da 1,6 px con stelle a punti. Un arco tratteggiato in `inchiostro` porta dal timone dell'Orsa ad Arturo. Arturo è un punto `stella` con un alone che si allarga in 4,8 s. Con movimento ridotto l'alone resta fermo. Una maschera a gradiente lo schiarisce a sinistra, dove sta il testo.
+Il reticolo è generato da uno script, in proiezione gnomonica centrata su Boote, e non è disegnato a mano. Meridiani e paralleli sono linee blu `volta-griglia` a opacità 0,5, larghe 1 px a ogni scala. Boote e l'Orsa sono spezzate `azione` da 1,6 px con stelle a punti. Un arco tratteggiato in `inchiostro` porta dal timone dell'Orsa ad Arturo. Arturo è un punto `stella` con un alone che si allarga in 4,8 s. Con movimento ridotto l'alone resta fermo. Una maschera a gradiente lo schiarisce a sinistra, dove sta il testo.
 
 ### Fascia vuoto
 Fondo `vuoto` con una grana a rumore frattale al 13%. Porta i dati d'uso (tabella degli eventi, parole barrate di ciò che non esce mai, comandi da copiare) e la chiusura con il pulsante chiaro. I comandi qui sono piatti, con un bordo e senza raggio.
@@ -348,22 +381,22 @@ Fondo `vuoto` con una grana a rumore frattale al 13%. Porta i dati d'uso (tabell
 Tre cerchi concentrici: fuori `cielo` con bordo `azione` (Arturo), in mezzo bianco con bordo `inchiostro` (Claude Code), dentro `inchiostro` pieno (il modello). I nomi corrono lungo gli archi in voce stretta maiuscola. Un punto `stella` sull'anello esterno è Arturo. È l'unico posto dove il cerchio fa da forma.
 
 ### Articoli e iscrizione
-Un elenco di quattro righe sotto un filetto `inchiostro`: data in voce stretta, titolo in Archivo 1,15 rem. Accanto, l'iscrizione. L'elenco nella pagina è di riserva e lo rinfresca `strumenti/articoli.py`; nel browser lo sostituisce la Content API di Ghost. L'iscrizione è il modulo di Ghost (`sito/vendor/`), con il pulsante `azione`.
+Un elenco di quattro righe sotto un filetto `inchiostro`: data in voce stretta, titolo in Archivo 1,15 rem. Accanto, l'iscrizione. L'elenco nella pagina è di riserva e lo rinfresca `strumenti/articoli.py`; nel browser lo sostituisce la Content API di Ghost. L'iscrizione è il modulo di Ghost (`sito/vendor/`), con il pulsante `azione`. Nella copia i raggi del modulo valgono 0, per la regola Zero-Quattro: `sito/vendor/LEGGIMI.txt` lo ricorda a ogni aggiornamento.
 
 ### La scena «Dalla chat al terminale» (momento animato)
-L'unico momento d'autore della pagina. A sinistra la chat, che chiede di incollarle quattro cose. A destra Claude Code con un pannello «I tuoi file». Quando la finestra entra nello schermo la sessione parte una volta: la richiesta si scrive, ogni passo appare da sfocato, la voce corrispondente della chat si barra con «l'ha letto Claude Code» in `azione`, e i file si accendono (letto su `#132036`, scritto su `#123622`). Finisce sulla guardia vera e su un «no». «Salta alla fine» e «Guarda di nuovo» stanno sotto. Il codice parte dallo stato finito: senza script, o con movimento ridotto, la scena è già completa.
+L'unico momento d'autore della pagina. A sinistra la chat, che chiede di incollarle quattro cose. A destra Claude Code con un pannello «I tuoi file». Quando la finestra entra nello schermo la sessione parte una volta: la richiesta si scrive, ogni passo appare da sfocato, la voce corrispondente della chat si barra con «l'ha letto Claude Code» in `azione`, e i file si accendono (letto su `term-letto`, scritto su `term-nuovo`). Finisce sulla guardia vera e su un «no». «Salta alla fine» e «Guarda di nuovo» stanno sotto, e nel markup sono nascosti: li mostra lo script. Il markup porta già lo stato finito (`fatto` sulle voci della chat, `letto` e `nuovo` sui file) e lo script lo azzera solo quando la sessione parte: senza script, o con movimento ridotto, la scena è già completa. Il confronto delle fonti scorre in orizzontale quando non ci sta, e un'ombra `term-cenere` sul bordo dice che la riga continua.
 
 ### La sera e la mattina
 Tre pezzi in fila: la finestra di `/fine`, l'appunto su carta bianca legato da due filetti `inchiostro`, la finestra di `/inizio` il giorno dopo. Sopra ciascuno, quando, in voce stretta.
 
 ### Cosa ti restituisce
-Tre lastre (cielo con la volta, giallo, verde) con dentro un risultato finito disegnato in HTML: il dossier impaginato, una pagina su misura con la settimana e gli stati, una tabella di ricerca. Il rosso chiaro `#fdecea` su `#8a2316` segna solo ciò che non torna o manca.
+Tre lastre (cielo con la volta, giallo, verde) con dentro un risultato finito disegnato in HTML: il dossier impaginato, una pagina su misura con la settimana e gli stati, una tabella di ricerca. Il rosso chiaro `allarme-fondo` su `allarme` segna solo ciò che non torna o manca. In alto a sinistra di ogni lastra la parola "Esempio" in Label Piccola `grafite` dice a schermo quello che prima diceva solo l'`aria-label`.
 
 ### Come lo uso io
-Sei voci su tre colonne su fondo `carta-2`: titolo, frequenza in voce stretta `azione`, poi «Prima» e «Ora». Una nota chiude dicendo che quelle abilità non sono dentro Arturo.
+Sei voci su tre colonne su fondo `carta-2`: titolo, frequenza in voce stretta `azione-giu` (6,12:1 su `carta-2`), poi «Prima» e «Ora». Una nota chiude dicendo che quelle abilità non sono dentro Arturo.
 
 ### Il terminale
-Il terminale è scritto per essere letto: 0,9 rem, interlinea 1,65, la richiesta della persona su una fascia `#161c25` a tutta larghezza, le azioni di Claude più piccole e grigie, le risposte quasi bianche.
+Il terminale è scritto per essere letto: 0,9 rem, interlinea 1,65, la richiesta della persona su una fascia `term-tu-fondo` a tutta larghezza, le azioni di Claude più piccole e grigie, le risposte quasi bianche.
 
 ### Guida a tappe
 Ogni tappa ha una boa quadrata di 40 px. La tappa corrente ha la boa piena `azione` e un velo `azione-velo` che sfuma verso destra. La tappa fatta ha la boa con bordo `passa` e una spunta. Il passo si apre con una piega di 0,5 s sulla curva `--esce`.

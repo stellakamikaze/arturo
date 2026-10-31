@@ -1,2 +1,3 @@
 ghost-signup-form-0.4.3.min.js: @tryghost/signup-form 0.4.3, licenza MIT, da https://github.com/TryGhost/Ghost (apps/signup-form).
 Copiato qui per non caricare script da server esterni. Si aggiorna a mano, con la versione nel nome.
+Unica modifica alla copia (31/10/2026): i due raggi rounded-[.3rem] e rounded-[.5rem] valgono 0, per la regola Zero-Quattro di DESIGN.md. Da rifare a ogni aggiornamento.

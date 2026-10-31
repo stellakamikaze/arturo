@@ -41,10 +41,18 @@
   var casi=[].slice.call(d.querySelectorAll('.caso'));
   var puntini=d.getElementById('puntini');
   var ora=0, timer=null, fermo=false;
+  /* la pausa visibile: senza movimento la galleria non gira, e il pulsante resta nascosto */
+  var pausa=d.getElementById('galleria-pausa');
+  function segnaPausa(){if(!pausa)return;pausa.classList.toggle('ferma',fermo);pausa.setAttribute('aria-label',fermo?'Riprendi la galleria':'Ferma la galleria')}
+  function blocca(){fermo=true;ferma();segnaPausa()}
+  if(pausa&&!riduci){
+    pausa.hidden=false;
+    pausa.addEventListener('click',function(){if(fermo){fermo=false;segnaPausa();riparti()}else blocca()});
+  }
   casi.forEach(function(c,i){
     var li=d.createElement('li'), b=d.createElement('button');
     b.type='button'; b.textContent=c.getAttribute('data-nome');
-    b.addEventListener('click',function(){mostra(i);fermo=true;ferma()});
+    b.addEventListener('click',function(){mostra(i);blocca()});
     li.appendChild(b); puntini.appendChild(li);
   });
   var bottoni=[].slice.call(puntini.querySelectorAll('button'));
@@ -56,8 +64,8 @@
   }
   function ferma(){if(timer){clearInterval(timer);timer=null}}
   function riparti(){ferma();if(!riduci&&!fermo)timer=setInterval(function(){mostra(ora+1)},7000)}
-  d.getElementById('caso-prima').addEventListener('click',function(){mostra(ora-1);fermo=true;ferma()});
-  d.getElementById('caso-dopo').addEventListener('click',function(){mostra(ora+1);fermo=true;ferma()});
+  d.getElementById('caso-prima').addEventListener('click',function(){mostra(ora-1);blocca()});
+  d.getElementById('caso-dopo').addEventListener('click',function(){mostra(ora+1);blocca()});
   var palco=d.getElementById('sessione');
   palco.addEventListener('mouseenter',ferma);
   palco.addEventListener('mouseleave',function(){if(!d.getElementById('vista-casi').hidden)riparti()});
@@ -140,7 +148,9 @@
     }
     salta.addEventListener('click',function(){fine();ancora.focus()});
     ancora.addEventListener('click',function(){parti()});
-    effetti(MAX); salta.hidden=true;
+    /* il markup porta già lo stato finito (class "fatto", "letto", "nuovo"): senza script la scena è completa.
+       parti() lo azzera con effetti(-1) quando la sessione comincia. */
+    effetti(MAX); salta.hidden=true; ancora.hidden=false;
     if(!riduci&&'IntersectionObserver' in window){
       var visto=new IntersectionObserver(function(e){if(e[0].isIntersecting){visto.disconnect();parti()}},{threshold:.35});
       visto.observe(scena.querySelector('.scena__term'));
