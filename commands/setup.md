@@ -220,11 +220,13 @@ Mostra la bozza e chiedi conferma prima di scriverla in `~/.claude/CLAUDE.md`. T
 
 ## FASE 6 — Host interni fidati (opzionale)
 
-Solo se l'utente ha **un proprio server** a cui si connette spesso, o usa **Tailscale**: un nome `.ts.net` non conta come interno, perché con Tailscale Funnel può essere pubblico, quindi i nodi della sua tailnet vanno scritti qui uno per uno. Spiega: aggiungendo l'hostname alla lista degli host "interni", Arturo non chiederà conferma per le connessioni verso di esso (le guardie anti-esfiltrazione lo considerano fidato).
+Solo se l'utente ha **un proprio server** o usa **Tailscale**: un nome `.ts.net` può essere pubblico con Funnel, quindi i nodi della tailnet si scrivono uno per uno. Spiega: verso un host "interno" le guardie anti-esfiltrazione non chiedono conferma.
 
 Se serve, aggiungi l'hostname o la rete del server in `~/.claude/hooks/hosts-interni.local`, una voce per riga (esempio: `mioserver.example.net`, `203.0.113.0/24`, oppure `.example.net` col punto davanti per il dominio e i suoi sottodomini). Le reti locali (`10.x`, `172.16.x`-`172.31.x`, `192.168.x`, gli indirizzi Tailscale `100.64.x`-`100.127.x`, `169.254.x` e le IPv6 locali) sono già fidate: non serve aggiungerle, e una rete più larga di `/8` viene ignorata. Se l'utente manda dati con la sua chiave a un servizio esterno che usa per lavoro (fatturazione, CRM), il nome host esatto di quell'API va in `~/.claude/hooks/api-fidate.local`, una voce per riga: un POST verso quel servizio non chiede più conferma. Crea il file se non c'è. Non modificare i file `.py` delle guardie: questo file esiste proprio per tenere i tuoi host fuori dal codice di Arturo, così nessun aggiornamento lo tocca. Con lo stesso principio le guardie personali stanno in `hooks/bash-dispatcher.local` e le scelte sui file protetti in `hooks/protect_claude_md.local`: il README le spiega in "Le tue guardie". Qui non si creano.
 
-Prima di scrivere, mostra all'utente il contenuto del file e chiedi conferma. Se una guardia chiede conferma sulla scrittura, spiega che è normale: il file allenta una guardia di sicurezza (aggiunge host fidati), quindi Arturo vuole sempre il sì dell'utente prima di cambiarlo. Se l'utente non ha un server, salta.
+Prima di scrivere, mostra il file e chiedi conferma. Se una guardia chiede conferma sulla scrittura è normale: il file allenta una guardia, e Arturo vuole il sì dell'utente. Senza un server, salta.
+
+Poi le macchine dell'utente: leggi gli alias di `~/.ssh/config`, `tailscale status` e i domini dei file di deploy. Fai confermare host per host che la macchina è sua. Scrivi i soli confermati in `autoMode.environment` di `~/.claude/settings.json`, una riga `Machines and sites of this user: <host>`: backup, nessun doppione, JSON valido prima e dopo, commit locale. Per la tailnet scrivi "MagicDNS names", mai il suffisso del dominio. Se il classificatore la nega, l'utente la lancia con `!`.
 
 ---
 

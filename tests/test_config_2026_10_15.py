@@ -24,6 +24,8 @@ K14 il segno "setup fatto" è fuori da git, e chi aveva finito il setup prima de
 K15 i deny coprono le chiavi in ~/.ssh e non config o known_hosts, git -c solo nelle forme che
     cambiano destinazione o credenziali, rm -rf della radice e della home alla lettera, find solo
     quando lancia rm; git branch -D e git stash drop passano alla guardia (31/10/2026).
+K16 autoMode del 31/10/2026: le regole sul lavoro proprio, le voci dell'ambiente senza doppioni degli
+    slot di serie, $defaults in testa a ogni lista, e /setup che scrive le macchine della persona.
 
 Sulla base 842b06f ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -358,9 +360,39 @@ def test_k15(repo: Path) -> None:
         assert coperto(bash, testo), f"K15 il deny non copre più {testo}"
 
 
+def test_k16(repo: Path) -> None:
+    # autoMode del 31/10/2026 (C02, C03, C07, C08, C09, C11, C13, C15, C16, C19, C22-C24, C26-C29, C34).
+    d = impostazioni(repo)
+    am = d.get("autoMode") or {}
+    for lista in ("allow", "soft_deny", "environment"):
+        assert (am.get(lista) or [None])[0] == "$defaults", f"K16 autoMode.{lista} non comincia con $defaults"
+    allow, env, soft = " ".join(am.get("allow", [])), " ".join(am.get("environment", [])), " ".join(am.get("soft_deny", []))
+    for frase in ("Changing the user's own Claude Code configuration", "Deploying the user's own website or app",
+                  "ssh and scp to the user's own machines", "Using the user's own credentials without exposing them",
+                  "On the user's own machines (Key internal services", "`git checkout -- <paths>` and `git stash drop`",
+                  "Test-bench work inside the session scratchpad, on any operating system", "git push without force of commits",
+                  "Python, node or curl scripts that READ public web pages", "Creating, loading or removing a scheduled job",
+                  "Stopping a process on the user's own machine", "Closing, reopening, labelling or commenting on an issue",
+                  "Read-only system diagnostics on the user's own Windows machine", "Changing a setting of an app",
+                  "Claude writing its own memory notes and handoffs"):
+        assert frase in allow, f"K16 manca la regola autoMode.allow: {frase}"
+    for frase in ("**Live configuration**", "**Key internal services / personal machines**", "**Temp files**",
+                  "**Local git**", "**Trusted repo / projects folder**", "**Org-specific CLIs**",
+                  "Public paste, gist and snippet services are third-party hosts"):
+        assert frase in env, f"K16 manca la voce autoMode.environment: {frase}"
+    for doppia in ("**Internal sharing / snippet hosting**", "**Network posture / host containment**",
+                   "**Trusted cloud buckets, internal package registry", "**Sensitive remote targets**"):
+        assert doppia not in env, f"K16 voce che ripete uno slot di serie: {doppia}"
+    assert "That is authentication, not exfiltration." in soft, "K16 la soft_deny sui segreti prende l'autenticazione"
+    assert "Deleting or overwriting a real *.env* file" in soft, "K16 la soft_deny su prod vale ancora per ogni percorso"
+    assert "Read(//tmp/**)" not in d["permissions"]["allow"], "K16 Read(//tmp/**) ripete Read"
+    assert "Machines and sites of this user" in (repo / "commands" / "setup.md").read_text(encoding="utf-8"), \
+        "K16 /setup non scrive le macchine della persona in autoMode.environment"
+
+
 TESTS = {"K01": test_k01, "K02": test_k02, "K03": test_k03, "K04": test_k04, "K05": test_k05,
          "K06": test_k06, "K07": test_k07, "K08": test_k08, "K09": test_k09, "K10": test_k10, "K11": test_k11, "K12": test_k12,
-         "K13": test_k13, "K14": test_k14, "K15": test_k15}
+         "K13": test_k13, "K14": test_k14, "K15": test_k15, "K16": test_k16}
 
 
 def main() -> int:
