@@ -243,7 +243,8 @@ handoff esce senza essere letto. Per ogni voce scegli:
 - **Muore.** Era una tantum o è superato, e lo dici.
 
 Lo spostamento nel cestino dello store (`~/.claude/data/handoffs/.cestino/`, dove i file restano 30
-giorni e si recuperano) e l'indice li fa la coda della FASE 9. Esce solo ciò che questo dry-run ha
+giorni e si recuperano) e l'indice li fa la coda della FASE 9. La coda stampa anche la riga per riportare
+un handoff, e svuota il cestino oltre i 30 giorni per ogni progetto. Esce solo ciò che questo dry-run ha
 mostrato: un handoff scritto nel frattempo da un'altra sessione resta. Senza dry-run non esce niente, e
 la riga della coda dice "retention NON applicata". L'indice `~/.claude/data/handoffs/INDEX.md` nasce
 dagli handoff e non si corregge a mano.
