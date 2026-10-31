@@ -28,6 +28,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from salti_windows import SaltoWindows, dichiara, link
+
 BASH = shutil.which("bash") or "bash"
 # Token finti composti a runtime: nessun segreto nel sorgente.
 AWS_FINTO = "AKIA" + "X" * 16
@@ -44,7 +46,7 @@ def _git(cartella: Path, *argomenti: str) -> None:
 def _gate(repo: Path, comando: str, cwd: Path) -> subprocess.CompletedProcess:
     return subprocess.run([sys.executable, "-B", str(repo / "hooks" / "commit-secret-gate.py")], text=True,
                           input=json.dumps({"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": str(cwd)}),
-                          capture_output=True, timeout=60, env=dict(os.environ, **GIT_ENV))
+                          capture_output=True, timeout=60, env=dict(os.environ, PYTHONUTF8="1", **GIT_ENV))
 
 
 def _esito(proc: subprocess.CompletedProcess) -> tuple:
@@ -169,19 +171,28 @@ def main() -> int:
     args = parser.parse_args()
     repo = args.repo.resolve()
     if args.baseline_ref:
-        rossi, altro = [], []
+        rossi, altro, saltati = [], [], []
         for nome, test in TESTS.items():
             try:
                 test(repo)
+            except SaltoWindows as e:
+                saltati.append(nome)
+                dichiara(f"{nome} (base)", e)
             except AssertionError as e:
                 (rossi if str(e).startswith(nome) else altro).append(f"{nome}: {e}")
-        assert not altro and len(rossi) == len(TESTS), \
+        assert not altro and len(rossi) == len(TESTS) - len(saltati), \
             "baseline non discriminante: ogni controllo deve fallire col suo codice.\n" + "\n".join(altro + rossi)
         print(f"BASELINE_DISCRIMINANTE={','.join(r.split(':')[0] for r in rossi)}")
         return 0
-    for test in TESTS.values():
-        test(repo)
-    print(f"PASS {','.join(TESTS)} controlli={len(TESTS)}")
+    saltati = []
+    for nome, test in TESTS.items():
+        try:
+            test(repo)
+        except SaltoWindows as e:
+            saltati.append(nome)
+            dichiara(nome, e)
+    provati = [nome for nome in TESTS if nome not in saltati]
+    print(f"PASS {','.join(provati)} controlli={len(provati)}" + (f" saltati={','.join(saltati)}" if saltati else ""))
     return 0
 
 

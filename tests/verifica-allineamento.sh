@@ -21,8 +21,17 @@ command -v claude >/dev/null 2>&1 || {
   exit 1
 }
 
+# Un solo gate completo per macchina (#4360): due gate insieme si pestano e danno rossi che da soli
+# passano. Il lucchetto si prende prima di cambiare HOME e TMPDIR, così due gate vedono lo stesso.
+# shellcheck source=../bin/gate-lucchetto.sh
+source "$ROOT/bin/gate-lucchetto.sh"
+gate_lucchetto_prendi "${ARTURO_GATE_LUCCHETTO:-${TMPDIR:-/tmp}/arturo-gate.lucchetto}" \
+  "$ROOT ($(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?'))" || exit 1
+trap gate_lucchetto_lascia EXIT
+trap 'exit 130' INT TERM
+
 FIXTURE=$(mktemp -d "${TMPDIR:-/tmp}/arturo-allineamento.XXXXXX")
-trap 'rm -rf "$FIXTURE"' EXIT
+trap 'rm -rf "$FIXTURE"; gate_lucchetto_lascia' EXIT
 # Su Windows Chrome con uno USERPROFILE di prova non apre la porta di debug (W13): prova_pagina.js
 # gli ridà quello vero. Il suo profilo resta comunque nella cartella di prova (--user-data-dir).
 export ARTURO_USERPROFILE_VERO="${USERPROFILE:-}"
@@ -36,6 +45,10 @@ export ARTURO_TELEMETRIA=0
 # I banchi delle guardie in background (session-start.sh) non partono dentro le prove: ogni
 # session-start di un banco li lancerebbe in una HOME finta.
 export ARTURO_BANCHI_AVVIO=0
+# Un controllo che Windows non permette di provare (link simbolici senza la Modalità sviluppatore,
+# #4383) esce come SALTO col suo codice: tests/salti_windows.py lo scrive qui, e l'esito lo conta.
+export ARTURO_SALTI="$FIXTURE/salti.txt"
+: > "$ARTURO_SALTI"
 mkdir -p "$HOME" "$TMPDIR"
 # Nella copia entrano .git e i file che git vede (tracciati e nuovi non ignorati), come in un clone
 # pulito con le modifiche in corso. Con `cp -R` entravano anche cache/ e data/ della macchina: il
@@ -144,6 +157,7 @@ BANCHI=(
   test_fine_coda_2026_10_30.py
   test_fonte_task_2026_10_30.py
   test_lavoro_proprio_2026_10_31.py
+  test_gate_lucchetto_2026_10_31.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -306,6 +320,8 @@ BASELINE=(
   "test_fine_coda_2026_10_30.py 875109c radice"
   # F0 L4 (30/10/2026): la fonte dei task da bin/fonte-task.local e gli argomenti di /inizio su stdin.
   "test_fonte_task_2026_10_30.py ba61272 radice"
+  # Un solo gate completo per macchina (31/10/2026, #4360): 5122a03, il dev prima del lucchetto.
+  "test_gate_lucchetto_2026_10_31.py 5122a03 radice"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"
@@ -370,4 +386,6 @@ done < <(git -C "$REPO" ls-files -z -- '*.js' '*.mjs')
 [[ $js -gt 0 ]] || { echo "FAIL: nessun file JavaScript" >&2; exit 1; }
 
 bash "$REPO/skills/system-audit/audit.sh" --strict
-printf 'PASS: banchi=%s shell=%s js=%s\n' "${#BANCHI[@]}" "$shells" "$js"
+salti=$(grep -c . "$ARTURO_SALTI" || true)
+printf 'PASS: banchi=%s shell=%s js=%s salti=%s\n' "${#BANCHI[@]}" "$shells" "$js" "$salti"
+[[ "$salti" == 0 ]] || sed 's/^/  /' "$ARTURO_SALTI"

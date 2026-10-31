@@ -71,11 +71,12 @@ class Lab:
 
     def arturo(self, *argomenti: str) -> subprocess.CompletedProcess:
         return subprocess.run([sys.executable, "-B", str(self.repo / "bin" / "arturo"), *argomenti],
-                              capture_output=True, text=True, env=self.env, timeout=60)
+                              capture_output=True, text=True, encoding="utf-8", errors="replace",
+                              env=self.env, timeout=60)
 
     def hook(self, nome: str, stdin: str = "") -> subprocess.CompletedProcess:
         return subprocess.run([BASH, str(self.repo / "hooks" / nome)], input=stdin, capture_output=True, text=True,
-                              env=self.env, cwd=str(self.dir), timeout=60)
+                              encoding="utf-8", errors="replace", env=self.env, cwd=str(self.dir), timeout=60)
 
     def coda(self) -> list:
         f = self.home / ".claude" / "data" / "telemetria" / "coda.jsonl"

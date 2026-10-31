@@ -19,6 +19,8 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from salti_windows import SaltoWindows, dichiara, link
+
 
 def installazione(repo: Path, radice: Path, nata: str | None = None) -> Path:
     """Una HOME con ~/.claude repository git nato oggi, o nel giorno `nata`, coi file di Arturo in link."""
@@ -27,7 +29,7 @@ def installazione(repo: Path, radice: Path, nata: str | None = None) -> Path:
     claude.mkdir(parents=True)
     for voce in repo.iterdir():
         if voce.name not in (".git", "data", "session-env"):
-            (claude / voce.name).symlink_to(voce, target_is_directory=voce.is_dir())
+            link(claude / voce.name, voce, cartella=voce.is_dir())
     env = dict(os.environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t",
                GIT_COMMITTER_EMAIL="t@t")
     if nata:
@@ -87,19 +89,28 @@ def main() -> int:
     args = parser.parse_args()
     repo = args.repo.resolve()
     if args.baseline_ref:
-        rossi, altro = [], []
+        rossi, altro, saltati = [], [], []
         for nome, test in TESTS.items():
             try:
                 test(repo)
+            except SaltoWindows as e:
+                saltati.append(nome)
+                dichiara(f"{nome} (base)", e)
             except AssertionError as e:
                 (rossi if str(e).startswith(nome) else altro).append(f"{nome}: {e}")
-        assert not altro and len(rossi) == len(TESTS), \
+        assert not altro and len(rossi) == len(TESTS) - len(saltati), \
             "baseline non discriminante: ogni controllo deve fallire col suo codice.\n" + "\n".join(altro + rossi)
         print(f"BASELINE_DISCRIMINANTE={','.join(r.split(':')[0] for r in rossi)}")
         return 0
-    for test in TESTS.values():
-        test(repo)
-    print(f"PASS {','.join(TESTS)} controlli={len(TESTS)}")
+    saltati = []
+    for nome, test in TESTS.items():
+        try:
+            test(repo)
+        except SaltoWindows as e:
+            saltati.append(nome)
+            dichiara(nome, e)
+    provati = [nome for nome in TESTS if nome not in saltati]
+    print(f"PASS {','.join(provati)} controlli={len(provati)}" + (f" saltati={','.join(saltati)}" if saltati else ""))
     return 0
 
 

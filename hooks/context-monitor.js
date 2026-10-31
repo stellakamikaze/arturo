@@ -109,10 +109,9 @@ process.stdin.on('end', () => {
       process.exit(0);
     }
 
-    // Reset debounce counter
+    // Reset debounce counter (the state file is written once, below, with rotazioneProposta)
     warnData.callsSinceWarn = 0;
     warnData.lastLevel = currentLevel;
-    fs.writeFileSync(warnPath, JSON.stringify(warnData));
 
     // Build advisory warning message (never use imperative commands that
     // override user preferences — see #884).

@@ -84,8 +84,10 @@ def reduce(cmd: str) -> str:
 def main() -> int:
     # Su Windows stdin e stdout sono in cp1252: un "→" nel comando faceva fallire la stampa,
     # l'uscita restava vuota con exit 0 e il dispatcher la prendeva per sola lettura.
+    # Su Windows stdout scriveva ogni a capo come CRLF: `\` + CR + LF non è più una continuazione di
+    # riga, ed exfil-guard non vedeva l'import su un host esterno (MO01, 31/10/2026, #4383).
     try:
-        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stdout.reconfigure(encoding="utf-8", newline="\n")
         data = json.loads(sys.stdin.buffer.read().decode("utf-8"))
         cmd = (data.get("tool_input") or {}).get("command") or ""
         sys.stdout.write(reduce(cmd))

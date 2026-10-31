@@ -118,39 +118,27 @@ def test_m05(repo: Path) -> None:
         and '"upstream"' in read(agg), "M05 session-start non vede gli aggiornamenti su upstream"
 
 
-def step6(repo: Path) -> str:
-    fine = read(repo / "commands" / "fine.md")
-    # 20/10/2026: /fine numera le fasi come la config dell'autore, il Config Sync è la FASE 9.
-    start = fine.find("## FASE 9 · Config Sync")
-    return fine[start:fine.find("## FASE 10", start)] if start != -1 else ""
+def coda_di_fine(repo: Path, codice: str) -> str:
+    # Dal 30/10/2026 il Config Sync di /fine è bin/fine-coda.py (#4291). Il ramo che leggeva la FASE 9
+    # di fine.md non girava più (#4362): sulla base senza fine-coda.py il caso è rosso col suo codice.
+    coda = repo / "bin" / "fine-coda.py"
+    assert coda.exists(), f"{codice} /fine non ha bin/fine-coda.py: la sync non è sorvegliata"
+    return read(coda)
 
 
 def test_m06(repo: Path) -> None:
-    coda = repo / "bin" / "fine-coda.py"
-    if coda.exists():  # dal 30/10/2026 il Config Sync di /fine è bin/fine-coda.py (#4291)
-        testo = read(coda)
-        assert "git add fallito su" in testo and "falliti.append" in testo, "M06 gli errori di git add non vengono riportati"
-        arturo = testo[testo.index("ARTURO = ["):testo.index("]", testo.index("ARTURO = ["))]
-        privati = testo[testo.index("PRIVATI = ["):testo.index("]", testo.index("PRIVATI = ["))]
-        assert "docs" in arturo and "NOVITA.md" in arturo and "CLAUDE.md" in privati, "M06 la sync non porta docs, NOVITA.md o CLAUDE.md"
-        dentro = testo.find('if vis == "PRIVATE":')
-        assert -1 < dentro < testo.find("for p in PRIVATI") < testo.find("\n    else:", dentro), \
-            "M06 CLAUDE.md viaggia senza verificare che il remote sia privato"
-        return
-    sync = step6(repo)
-    assert "2>/dev/null; git commit" not in sync and "shared/ package.json README.md 2>/dev/null" not in sync, "M06 lo staging della sync nasconde gli errori"
-    assert 'git add -- "$p" || echo' in sync, "M06 gli errori di git add non vengono riportati"
-    for item in ("docs", "NOVITA.md", "CLAUDE.md"):
-        assert item in sync, f"M06 la sync non porta {item}"
-    # Il ciclo con -f di CLAUDE.md sta dentro il ramo del remote privato (dal 23/10/2026 senza data/handoffs).
-    dentro = sync.find('if [ "$VIS" = "PRIVATE" ]; then')
-    fuori = sync.find("\n  else", dentro)
-    assert -1 < dentro < sync.find("for p in CLAUDE.md ") < fuori, "M06 CLAUDE.md viaggia senza verificare che il remote sia privato"
+    testo = coda_di_fine(repo, "M06")
+    assert "git add fallito su" in testo and "falliti.append" in testo, "M06 gli errori di git add non vengono riportati"
+    arturo = testo[testo.index("ARTURO = ["):testo.index("]", testo.index("ARTURO = ["))]
+    privati = testo[testo.index("PRIVATI = ["):testo.index("]", testo.index("PRIVATI = ["))]
+    assert "docs" in arturo and "NOVITA.md" in arturo and "CLAUDE.md" in privati, "M06 la sync non porta docs, NOVITA.md o CLAUDE.md"
+    dentro = testo.find('if vis == "PRIVATE":')
+    assert -1 < dentro < testo.find("for p in PRIVATI") < testo.find("\n    else:", dentro), \
+        "M06 CLAUDE.md viaggia senza verificare che il remote sia privato"
 
 
 def test_m07(repo: Path) -> None:
-    coda = repo / "bin" / "fine-coda.py"
-    testo = read(coda) if coda.exists() else step6(repo)  # dal 30/10/2026 la sync è bin/fine-coda.py
+    testo = coda_di_fine(repo, "M07")
     assert "rev-list --count origin/main..HEAD" in testo or '"rev-list", "--count", "origin/main..HEAD"' in testo, \
         "M07 la sync non ritenta i commit gia' fatti e non pushati"
 

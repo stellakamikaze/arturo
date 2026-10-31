@@ -22,6 +22,10 @@ else
 try: print(json.load(sys.stdin).get("tool_input",{}).get("command",""))
 except Exception: pass')
 fi
+# Windows (30/10/2026 nella config, 31/10/2026 qui): jq e python scrivono ogni a capo come CRLF, e
+# le guardie vedevano un comando diverso da quello che esegue bash. Si toglie solo il CR davanti a
+# un LF, e solo su Windows: su Mac e Linux il comando resta intatto.
+[[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && COMMAND="${COMMAND//$'\r\n'/$'\n'}"
 
 # Riduce solo heredoc quotati che vanno a un lettore (cat, tee, grep...) e che nessuno esegue:
 # il corpo e' dato, non shell. Lo decide hooks/heredoc.py, lo stesso modulo delle guardie
@@ -38,6 +42,8 @@ print(hd.togli(source, lambda h: h.quotato and h.inerte()), end="")' "$HOME/.cla
 }
 
 GUARD_COMMAND=$(reduce_inert_heredocs "$COMMAND")
+# Anche la riduzione passa da un print di python: su Windows rimetteva i CRLF (MO01, 31/10/2026).
+[[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && GUARD_COMMAND="${GUARD_COMMAND//$'\r\n'/$'\n'}"
 # Su Windows la shell converte gli argomenti che sembrano path prima di passarli a un programma
 # nativo: `/bin/rm -rf ~/Documents` arrivava alle guardie come `C:/Program Files/.../rm` e nessuna
 # lo riconosceva. Dove l'argomento è il testo del comando la conversione si spegne. Fuori da

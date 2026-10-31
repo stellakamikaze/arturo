@@ -209,11 +209,15 @@ def test_d12(repo: Path) -> None:
     # Segnalazione n. 10 (21/10/2026, #3780): un cambio dei soli permessi, anche committato, non è
     # deriva. "arturo personale ripristina" confronta il contenuto e non lo correggerebbe.
     lab = Lab(repo)
+    # Il modo si inverte nell'indice con update-index --chmod: su Windows chmod non tocca git, e il file
+    # era già 100755, quindi il commit restava vuoto e il caso cadeva (31/10/2026, gate su Balthasar).
     guardia = lab.claude / "hooks" / "bash-dispatcher.sh"
-    guardia.chmod(0o755)
-    git(lab.claude, "-c", "core.fileMode=true", "add", "hooks/bash-dispatcher.sh")
+    prima = git(lab.claude, "ls-files", "-s", "hooks/bash-dispatcher.sh").split()[0]
+    verso = "-x" if prima == "100755" else "+x"
+    guardia.chmod(0o644 if verso == "-x" else 0o755)
+    git(lab.claude, "update-index", f"--chmod={verso}", "hooks/bash-dispatcher.sh")
     git(lab.claude, "commit", "-q", "-m", "mio: permessi")
-    assert "100755" in git(lab.claude, "ls-files", "-s", "hooks/bash-dispatcher.sh") or os.name == "nt", \
+    assert git(lab.claude, "ls-files", "-s", "hooks/bash-dispatcher.sh").split()[0] != prima, \
         "D12 il cambio di permessi non è entrato nel commit: il caso non prova niente"
     r = lab.deriva()
     assert r.stdout == "" and lab.coda() == [], f"D12 un cambio dei soli permessi è contato come deriva: {r.stdout!r} {lab.coda()}"

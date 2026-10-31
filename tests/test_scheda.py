@@ -43,6 +43,8 @@ import tempfile
 import time
 from pathlib import Path
 
+from salti_windows import SaltoWindows, dichiara, link
+
 EVENTI = ("SessionStart", "UserPromptSubmit", "PostToolUse", "Notification", "Stop", "StopFailure", "SessionEnd")
 
 
@@ -228,8 +230,7 @@ sed -n "${n}p" "$CATENA"
 
 def test_ts09(repo: Path) -> None:
     if os.name == "nt":
-        print("TS09 saltato: su Windows la scheda passa da AttachConsole")
-        return
+        raise SaltoWindows("su Windows la scheda passa da AttachConsole")
     c = Casa(repo, "TS09", {"TERM_PROGRAM": "iTerm.app"})
     try:
         bin_, dev = c.dir / "bin", c.dir / "dev"
@@ -405,19 +406,28 @@ def main() -> int:
     args = parser.parse_args()
     repo = args.repo.resolve()
     if args.baseline_ref:
-        rossi, altro = [], []
+        rossi, altro, saltati = [], [], []
         for nome, test in TESTS.items():
             try:
                 test(repo)
+            except SaltoWindows as e:
+                saltati.append(nome)
+                dichiara(f"{nome} (base)", e)
             except AssertionError as e:
                 (rossi if str(e).startswith(nome) else altro).append(f"{nome}: {e}")
-        assert not altro and len(rossi) == len(TESTS), \
+        assert not altro and len(rossi) == len(TESTS) - len(saltati), \
             "baseline non discriminante: ogni controllo deve fallire col suo codice.\n" + "\n".join(altro + rossi)
         print(f"BASELINE_DISCRIMINANTE={','.join(r.split(':')[0] for r in rossi)}")
         return 0
-    for test in TESTS.values():
-        test(repo)
-    print(f"PASS {','.join(TESTS)} controlli={len(TESTS)}")
+    saltati = []
+    for nome, test in TESTS.items():
+        try:
+            test(repo)
+        except SaltoWindows as e:
+            saltati.append(nome)
+            dichiara(nome, e)
+    provati = [nome for nome in TESTS if nome not in saltati]
+    print(f"PASS {','.join(provati)} controlli={len(provati)}" + (f" saltati={','.join(saltati)}" if saltati else ""))
     return 0
 
 
