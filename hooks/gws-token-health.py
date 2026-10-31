@@ -51,11 +51,14 @@ def _account():
 
 EXPECTED_ACCOUNTS = _account()
 
-GWS_TIMEOUT_SEC = 8
+# Il check vero gira in background (--refresh), fuori dal timeout di 12 s dell'hook: su Windows
+# un solo `gws auth status` impiega 5-9 s, e con 8 s di limite ogni account risultava in timeout,
+# nascondendo il token davvero scaduto di gws-sansecondo (verifica Balthasar, 31/10/2026).
+GWS_TIMEOUT_SEC = 30
 
 
 def check_account(alias: str, config_path: Path) -> tuple[str, str, str]:
-    """Return (alias, status, detail) dove status è 'ok' | 'warn' | 'missing'."""
+    """Return (alias, status, detail) dove status è 'ok' | 'warn' | 'missing' | 'unverified'."""
     if not config_path.exists():
         return alias, "missing", f"config dir non esistente ({config_path})"
 
@@ -79,7 +82,8 @@ def check_account(alias: str, config_path: Path) -> tuple[str, str, str]:
             env=env,
         )
     except subprocess.TimeoutExpired:
-        return alias, "warn", f"timeout {GWS_TIMEOUT_SEC}s su auth status"
+        # Un timeout non dice che il token è guasto: si dichiara "non verificato".
+        return alias, "unverified", f"non verificato (auth status oltre {GWS_TIMEOUT_SEC}s)"
     except FileNotFoundError:
         return alias, "warn", f"gws binary non eseguibile ({GWS_BIN})"
 
@@ -113,25 +117,12 @@ CACHE_FILE = Path.home() / ".claude" / "session-env" / "gws-health.cache"
 CACHE_TTL_SEC = 6 * 3600
 
 
-def main() -> int:
-    # Cache: i check gws (fino a 8s wall-clock) girano al massimo ogni 6h.
-    # Nel frattempo si ristampa l'ultimo esito (vuoto = tutto ok).
-    import time
-    if not EXPECTED_ACCOUNTS:
-        return 0
-    try:
-        # Un login rifatto dopo l'ultimo check invalida la cache (16/9/2026: avviso stale per ore).
-        creds_mtime = max((p.stat().st_mtime for d in EXPECTED_ACCOUNTS.values()
-                           for p in (d / "credentials.enc", d / "credentials.json") if p.exists()), default=0)
-        if (CACHE_FILE.exists() and (time.time() - CACHE_FILE.stat().st_mtime) < CACHE_TTL_SEC
-                and CACHE_FILE.stat().st_mtime > creds_mtime):
-            cached = CACHE_FILE.read_text()
-            if cached.strip():
-                sys.stdout.write(cached)
-            return 0
-    except Exception:
-        pass
+LOCK_FILE = CACHE_FILE.with_suffix(".lock")
+LOCK_TTL_SEC = 180  # un refresh in corso da meno di 3 minuti non se ne lancia un altro
 
+
+def run_checks() -> str:
+    """Esegue i check (fino a GWS_TIMEOUT_SEC per account, in parallelo) e restituisce l'avviso."""
     issues = []
     with ThreadPoolExecutor(max_workers=len(EXPECTED_ACCOUNTS)) as pool:
         futures = {
@@ -140,33 +131,87 @@ def main() -> int:
         }
         for future in as_completed(futures):
             try:
-                alias, status, detail = future.result(timeout=GWS_TIMEOUT_SEC + 2)
+                alias, status, detail = future.result(timeout=GWS_TIMEOUT_SEC + 5)
             except Exception as exc:
                 alias = futures[future]
-                status, detail = "warn", f"check failed: {exc}"
+                status, detail = "unverified", f"check fallito: {exc}"
             if status != "ok":
                 issues.append((alias, status, detail))
-
-    out = ""
-    if issues:
-        issues.sort(key=lambda x: x[0])
-        lines = ["GWS TOKEN HEALTH:"]
-        for alias, status, detail in issues:
-            marker = "!" if status == "warn" else "-"
-            lines.append(f"  {marker} {alias}: {detail}")
+    if not issues:
+        return ""
+    issues.sort(key=lambda x: x[0])
+    lines = ["GWS TOKEN HEALTH:"]
+    for alias, status, detail in issues:
+        marker = {"warn": "!", "missing": "-", "unverified": "?"}.get(status, "!")
+        lines.append(f"  {marker} {alias}: {detail}")
+    if any(st in ("warn", "missing") for _, st, _ in issues):
         lines.append(
             "  fix: GOOGLE_WORKSPACE_CLI_CONFIG_DIR=<path> gws auth login "
             "-s drive,docs,sheets,gmail,calendar,tasks"
         )
-        out = "\n".join(lines) + "\n"
-        sys.stdout.write(out)
+    return "\n".join(lines) + "\n"
 
+
+def refresh() -> int:
+    """Modo --refresh: gira staccato dalla sessione, scrive la cache e libera il lock."""
     try:
+        out = run_checks()
         CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        CACHE_FILE.write_text(out)
+        tmp = CACHE_FILE.with_suffix(".tmp")
+        tmp.write_text(out, encoding="utf-8")
+        os.replace(tmp, CACHE_FILE)
+    finally:
+        try:
+            LOCK_FILE.unlink()
+        except OSError:
+            pass
+    return 0
+
+
+def lancia_refresh() -> None:
+    """Lancia --refresh in un processo staccato, se non ce n'è già uno recente."""
+    import time
+    try:
+        if LOCK_FILE.exists() and time.time() - LOCK_FILE.stat().st_mtime < LOCK_TTL_SEC:
+            return
+        LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+        LOCK_FILE.write_text(str(os.getpid()), encoding="utf-8")
+    except OSError:
+        return
+    kw = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True)
+    if os.name == "nt":
+        kw["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000  # DETACHED | NEW_GROUP | NO_WINDOW
+    else:
+        kw["start_new_session"] = True
+    subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--refresh"], **kw)
+
+
+def main() -> int:
+    # I check gws girano al massimo ogni 6 h e mai dentro l'hook: se la cache è scaduta, parte un
+    # refresh in background e la sessione mostra l'ultimo esito noto (vuoto = tutto ok).
+    import time
+    if not EXPECTED_ACCOUNTS:
+        return 0
+    if "--refresh" in sys.argv:
+        return refresh()
+    fresca = False
+    cached = ""
+    try:
+        # Un login rifatto dopo l'ultimo check invalida la cache (16/9/2026: avviso stale per ore).
+        creds_mtime = max((p.stat().st_mtime for d in EXPECTED_ACCOUNTS.values()
+                           for p in (d / "credentials.enc", d / "credentials.json") if p.exists()), default=0)
+        if CACHE_FILE.exists():
+            eta = time.time() - CACHE_FILE.stat().st_mtime
+            valida = CACHE_FILE.stat().st_mtime > creds_mtime
+            fresca = valida and eta < CACHE_TTL_SEC
+            if valida:
+                cached = CACHE_FILE.read_text(encoding="utf-8")
     except Exception:
         pass
-
+    if cached.strip():
+        sys.stdout.write(cached)
+    if not fresca:
+        lancia_refresh()
     return 0
 
 
