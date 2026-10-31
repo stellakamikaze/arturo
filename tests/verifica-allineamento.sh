@@ -45,6 +45,10 @@ export ARTURO_TELEMETRIA=0
 # I banchi delle guardie in background (session-start.sh) non partono dentro le prove: ogni
 # session-start di un banco li lancerebbe in una HOME finta.
 export ARTURO_BANCHI_AVVIO=0
+# Un controllo che Windows non permette di provare (link simbolici senza la Modalità sviluppatore,
+# #4383) esce come SALTO col suo codice: tests/salti_windows.py lo scrive qui, e l'esito lo conta.
+export ARTURO_SALTI="$FIXTURE/salti.txt"
+: > "$ARTURO_SALTI"
 mkdir -p "$HOME" "$TMPDIR"
 # Nella copia entrano .git e i file che git vede (tracciati e nuovi non ignorati), come in un clone
 # pulito con le modifiche in corso. Con `cp -R` entravano anche cache/ e data/ della macchina: il
@@ -379,4 +383,6 @@ done < <(git -C "$REPO" ls-files -z -- '*.js' '*.mjs')
 [[ $js -gt 0 ]] || { echo "FAIL: nessun file JavaScript" >&2; exit 1; }
 
 bash "$REPO/skills/system-audit/audit.sh" --strict
-printf 'PASS: banchi=%s shell=%s js=%s\n' "${#BANCHI[@]}" "$shells" "$js"
+salti=$(grep -c . "$ARTURO_SALTI" || true)
+printf 'PASS: banchi=%s shell=%s js=%s salti=%s\n' "${#BANCHI[@]}" "$shells" "$js" "$salti"
+[[ "$salti" == 0 ]] || sed 's/^/  /' "$ARTURO_SALTI"

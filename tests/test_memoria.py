@@ -42,6 +42,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from salti_windows import SaltoWindows, dichiara, link
+
 NOTA = """---
 name: feedback-pytest-pipx
 description: pytest e ruff si installano con pipx, non con brew
@@ -341,10 +343,7 @@ def test_y08(repo: Path) -> None:
             encoding="utf-8")
         collegata = lab.claude / "projects" / "-progetto-collegato" / "memory"
         collegata.parent.mkdir(parents=True)
-        try:
-            collegata.symlink_to(lab.claude / "data" / "memory", target_is_directory=True)
-        except OSError:  # Windows senza il privilegio dei link: il caso del link non si prova
-            return
+        link(collegata, lab.claude / "data" / "memory", cartella=True)
         r = lab.richiamo("il tram notturno e il deposito", "y08")
         trovate = [v for v in voci(r.stdout) if "errore-tram-notturno.md" in v]
         assert len(trovate) == 1, f"Y08 la nota raggiunta da due radici conta più di una volta: {trovate}"
@@ -467,7 +466,7 @@ VELENI = (
 
 def avvelena(repo: Path) -> int:
     """Ogni veleno deve far fallire il suo controllo col suo codice e il motivo atteso."""
-    inerti = []
+    inerti, saltati = [], []
     for codice, modifiche, motivo in VELENI:
         copia = Path(tempfile.mkdtemp(prefix="arturo-veleno."))
         try:
@@ -485,6 +484,9 @@ def avvelena(repo: Path) -> int:
             try:
                 TESTS[codice](copia)
                 inerti.append(f"{codice}: verde con il veleno")
+            except SaltoWindows as e:
+                saltati.append(codice)
+                dichiara(f"veleno {codice}", e)
             except AssertionError as e:
                 if not (str(e).startswith(codice) and motivo in str(e)):
                     inerti.append(f"{codice}: rosso col motivo sbagliato: {e}")
@@ -493,7 +495,8 @@ def avvelena(repo: Path) -> int:
         finally:
             shutil.rmtree(copia, ignore_errors=True)
     assert not inerti, "veleni che non attaccano:\n" + "\n".join(inerti)
-    print(f"VELENI_ROSSI={','.join(v[0] for v in VELENI)} veleni={len(VELENI)}")
+    rossi = [v[0] for v in VELENI if v[0] not in saltati]
+    print(f"VELENI_ROSSI={','.join(rossi)} veleni={len(rossi)}" + (f" saltati={','.join(saltati)}" if saltati else ""))
     return 0
 
 
@@ -507,19 +510,28 @@ def main() -> int:
     if args.avvelena:
         return avvelena(repo)
     if args.baseline_ref:
-        rossi, altro = [], []
+        rossi, altro, saltati = [], [], []
         for nome, test in TESTS.items():
             try:
                 test(repo)
+            except SaltoWindows as e:
+                saltati.append(nome)
+                dichiara(f"{nome} (base)", e)
             except AssertionError as e:
                 (rossi if str(e).startswith(nome) else altro).append(f"{nome}: {e}")
-        assert not altro and len(rossi) == len(TESTS), \
+        assert not altro and len(rossi) == len(TESTS) - len(saltati), \
             "baseline non discriminante: ogni controllo deve fallire col suo codice.\n" + "\n".join(altro + rossi)
         print(f"BASELINE_DISCRIMINANTE={','.join(r.split(':')[0] for r in rossi)}")
         return 0
-    for test in TESTS.values():
-        test(repo)
-    print(f"PASS {','.join(TESTS)} controlli={len(TESTS)}")
+    saltati = []
+    for nome, test in TESTS.items():
+        try:
+            test(repo)
+        except SaltoWindows as e:
+            saltati.append(nome)
+            dichiara(nome, e)
+    provati = [nome for nome in TESTS if nome not in saltati]
+    print(f"PASS {','.join(provati)} controlli={len(provati)}" + (f" saltati={','.join(saltati)}" if saltati else ""))
     return 0
 
 

@@ -33,6 +33,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from salti_windows import SaltoWindows, dichiara, link
+
 BASH = shutil.which("bash") or "bash"
 NODE = shutil.which("node") or "node"
 
@@ -571,8 +573,9 @@ def test_g211(repo: Path) -> None:
         zona = home / ".claude" / "data" / "handoffs"
         zona.mkdir(parents=True, exist_ok=True)
         try:
-            (zona / "scorciatoia").symlink_to(home / ".claude" / "hooks")
-        except OSError:  # Windows senza il privilegio dei link: lì nemmeno Claude può crearne uno
+            link(zona / "scorciatoia", home / ".claude" / "hooks")
+        except SaltoWindows as e:  # lì nemmeno Claude può crearne uno: la parte del link si dichiara saltata
+            dichiara("G211 (link verso gli hook)", e)
             return
         assert dispatcher(home, "echo x > ~/.claude/data/handoffs/scorciatoia/nuovo.py", radice) != "allow", \
             "G211 il ramo memoria segue un link simbolico verso gli hook"
