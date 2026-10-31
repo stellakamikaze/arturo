@@ -142,18 +142,13 @@ def test_p08(repo: Path) -> None:
     righe = [r.strip() for r in read(repo / ".gitignore").splitlines()]
     for attesa in ("CLAUDE.md", "hooks/hosts-interni.local"):
         assert attesa in righe, f"P08 .gitignore non ha la riga esatta {attesa}"
+    # Dal 30/10/2026 il commit di /fine lo fa bin/fine-coda.py (#4291): il ramo che leggeva fine.md non
+    # girava più (#4362).
     coda = repo / "bin" / "fine-coda.py"
-    if coda.exists():  # dal 30/10/2026 il commit di /fine lo fa bin/fine-coda.py (#4291)
-        testo = read(coda)
-        assert 'if vis == "PRIVATE":' in testo and "aggiungi_forzati(file_privati(" in testo, (
-            "P08 il ramo privato di bin/fine-coda.py non aggiunge con -f")
-        return
-    fine = read(repo / "commands" / "fine.md")
-    blocco = re.search(r'"PRIVATE".*?\bdone\b', fine, re.S)
-    assert blocco, "P08 blocco privato di commands/fine.md non trovato"
-    assert 'git add -f -- "$p"' in blocco.group(0), (
-        "P08 il blocco privato di fine.md non usa git add -f"
-    )
+    assert coda.exists(), "P08 /fine non ha bin/fine-coda.py: il ramo privato non è sorvegliato"
+    testo = read(coda)
+    assert 'if vis == "PRIVATE":' in testo and "aggiungi_forzati(file_privati(" in testo, (
+        "P08 il ramo privato di bin/fine-coda.py non aggiunge con -f")
 
 
 def _decisione(script: Path, payload: dict, env=None) -> str:

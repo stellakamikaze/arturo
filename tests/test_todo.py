@@ -302,7 +302,8 @@ def _sync(repo: Path, base: Path, visibilita: str, lucchetto: bool = False) -> s
     remoto = base / visibilita / "remoto.git"
 
     def git(*a: str, cwd: Path = cfg) -> str:
-        r = subprocess.run(["git", *a], cwd=str(cwd), env=env, capture_output=True, text=True, timeout=30)
+        # 120 s: su Windows un commit della copia dura 5 s a macchina ferma e oltre 30 sotto il gate (31/10/2026)
+        r = subprocess.run(["git", *a], cwd=str(cwd), env=env, capture_output=True, text=True, timeout=120)
         assert r.returncode == 0, f"git {a}: {r.stderr}"
         return r.stdout
     git("init", "-q", "--bare", str(remoto), cwd=base)
