@@ -132,7 +132,7 @@ def test_lt06(repo: Path) -> None:
         (vecchia / "plugins" / "p.json").write_text("{}", encoding="utf-8")
         for f in (".credentials.json", "history.jsonl", "settings.json"):
             (vecchia / f).write_text("{}", encoding="utf-8")
-        script = blocco.group(1).replace("https://github.com/stellakamikaze/arturo.git", str(repo))
+        script = blocco.group(1).replace("https://github.com/stellakamikaze/arturo.git", repo.as_posix())
         r = subprocess.run([BASH, "-c", script], capture_output=True, text=True, timeout=120,
                            env=env_di(home), check=False)
         nuova = home / ".claude"
