@@ -25,7 +25,9 @@ arrivo="$BASE/_arrivo-$commit"
 
 case "$passo" in
   prepara)
-    git -C "$RADICE" archive "$commit" sito | ssh "$HOST" "rm -rf '$arrivo' && mkdir -p '$arrivo' && tar -x -C '$arrivo'"
+    # Senza core.autocrlf=false, da Windows git archive scrive i fine riga CRLF: il 31/10/2026 il
+    # pacchetto di 58d4cad aveva 28 file diversi dal servito invece di 4.
+    git -C "$RADICE" -c core.autocrlf=false archive "$commit" sito | ssh "$HOST" "rm -rf '$arrivo' && mkdir -p '$arrivo' && tar -x -C '$arrivo'"
     echo "Caricato in $arrivo. Cosa cambia rispetto al servito (i *.json del server restano):"
     ssh "$HOST" "cd '$BASE' && diff -rq -x '*.json' html '_arrivo-$commit/sito'" || true
     echo "Se l'elenco è quello atteso: $0 applica $commit"
