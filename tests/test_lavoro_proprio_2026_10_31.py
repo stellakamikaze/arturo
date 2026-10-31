@@ -406,6 +406,7 @@ def test_lp09(repo: Path) -> int:
             ("osascript open location", "osascript -e 'open location \"mailto:x@y.z\"'", "ask"),
             ("Start-Process mailto:", "powershell -c \"Start-Process 'mailto:x@y.z'\"", "ask"),
             ("cmd start mailto:", "cmd /c start mailto:x@y.z", "ask"),
+            ("os.startfile mailto:", "python3 -c \"import os; os.startfile('mailto:x@y.z')\"", "ask"),
             ("python -m webbrowser", "python3 -m webbrowser mailto:x@y.z", "ask"),
             ("--help-non-flag non è --help", "gws gmail +send --to x --help-non-flag", "ask"),
             ("--help come oggetto", "gws gmail +send --to a@b.c --subject --help", "ask"),

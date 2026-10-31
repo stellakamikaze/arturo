@@ -87,7 +87,7 @@ SEND_ENDPOINTS = re.compile(
 _MAILTO_APERTO = re.compile(
     r"(?:\b(?:open|xdg-open|gio|kde-open|gnome-open|wslview|start|explorer(?:\.exe)?|Start-Process|saps)\b"
     r"|\brundll32(?:\.exe)?\s+url\.dll,\s*FileProtocolHandler\b|\bopen\s+location\b"
-    r"|\bpython[0-9.]*\s+-m\s+webbrowser\b|\bwebbrowser\.open(?:_new(?:_tab)?)?\s*\()"
+    r"|\bpython[0-9.]*\s+-m\s+webbrowser\b|\bwebbrowser\.open(?:_new(?:_tab)?)?\s*\(|\bos\.startfile\s*\()"
     r"[^;&|\n]*mailto:",
     re.IGNORECASE,
 )
