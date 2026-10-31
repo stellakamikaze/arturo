@@ -64,8 +64,8 @@
   }
   function ferma(){if(timer){clearInterval(timer);timer=null}}
   function riparti(){ferma();if(!riduci&&!fermo)timer=setInterval(function(){mostra(ora+1)},7000)}
-  d.getElementById('caso-prima').addEventListener('click',function(){mostra(ora-1);blocca()});
-  d.getElementById('caso-dopo').addEventListener('click',function(){mostra(ora+1);blocca()});
+  /* le frecce nascono nascoste: senza JavaScript non farebbero niente (#4395) */
+  ['caso-prima','caso-dopo'].forEach(function(id,k){var f=d.getElementById(id);f.hidden=false;f.addEventListener('click',function(){mostra(k?ora+1:ora-1);blocca()})});
   var palco=d.getElementById('sessione');
   palco.addEventListener('mouseenter',ferma);
   palco.addEventListener('mouseleave',function(){if(!d.getElementById('vista-casi').hidden)riparti()});
