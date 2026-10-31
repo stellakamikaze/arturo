@@ -213,10 +213,21 @@ FILE_EXT = frozenset("txt json md csv log pdf png jpg jpeg gif html htm xml yaml
 # Le stesse forme di PATTERN_UPLOAD_FILE nel dispatcher. _FINE_ARG chiude un argomento nella shell
 # (uno spazio) o in una lista python (`'curl', '-d', '@x'`, 21/10/2026).
 _FINE_ARG = r'''(?:\s|["'],\s*["']?)'''
+# -F e --form caricano un file solo con `nome=@file` o `nome=<file` (31/10/2026): `-F "email=a@b.it"` è un
+# campo di testo, e `-F 'testo=<file'` legge il file quanto `@`.
 UPLOAD_FILE = re.compile(
-    r'(?:-F' + _FINE_ARG + r'*\S*@|--form' + _FINE_ARG + r'*\S*@|-T' + _FINE_ARG
+    r'(?:-F' + _FINE_ARG + r'*[^\s=]*=[@<]|--form' + _FINE_ARG + r'*[^\s=]*=[@<]|-T' + _FINE_ARG
     + r'|--upload-file|--(?:post|body)-file|-d' + _FINE_ARG + r'*@|--data[a-z-]*' + _FINE_ARG + r'*@)'
 )
+# Variabili assegnate nel comando (31/10/2026): `J="http://127.0.0.1:8096"; … curl --data @- "$J/x"`. Senza
+# espanderle la destinazione non si legge, e ogni POST al proprio servizio chiedeva (18 conferme su 21 in
+# due settimane, tutte verso 127.0.0.1 o 192.168.1.3). Contano solo i valori letterali: un valore con $,
+# backtick o parentesi lascia la variabile chiusa, e la destinazione resta illeggibile. Si leggono le
+# assegnazioni di tutto il comando, anche dopo il curl (un loop riassegna al giro dopo), e una variabile
+# legata in altro modo (read, for, +=, printf -v, ${X:=}) si chiude. Vedi _assegnate.
+# Anche in testa a una stringa per ssh o bash -c: `ssh host 'A="http://192.168.1.3:8686"; curl … $A/x'`.
+ASSEGNAZIONE = re.compile(r'''(?:^|(?<=[\s;&|('"]))([A-Za-z_]\w*)=("[^"]*"|'[^']*'|[^\s;&|()'"]*)''')
+RIFERIMENTO = re.compile(r'\$(?:\{([A-Za-z_]\w*)\}|([A-Za-z_]\w*))')
 # Un curl/wget fino al primo separatore della shell fuori dalle virgolette: un & o un ; dentro
 # `"https://x/?a=1&b=2"` non chiude il comando. Le righe continuate con \ si uniscono prima.
 CURL_SEG_Q = re.compile(r'''\b(?:curl|wget)\b(?:[^\n|;&"']|"[^"\n]*"|'[^'\n]*')*''', re.IGNORECASE)
@@ -273,6 +284,158 @@ def _destinazioni_nc(programma: str, argomenti: str):
     return fuori
 
 
+def _espansioni(segmento: str, assegnate: dict) -> list:
+    """Le letture del segmento con le variabili assegnate nel comando.
+
+    Una variabile assegnata più volte dà una lettura per valore: `J=localhost; J=evil.com`
+    fa giudicare anche evil.com. Una variabile con un valore non letterale non si espande."""
+    letture = [segmento]
+    if _TUTTE in assegnate:
+        return letture
+    for nome in dict.fromkeys(a or b for a, b in RIFERIMENTO.findall(segmento)):
+        valori = assegnate.get(nome)
+        if not valori or None in valori:
+            continue
+        rif = re.compile(r'\$(?:\{' + nome + r'\}|' + nome + r'(?!\w))')
+        letture = [rif.sub(lambda _m, v=v: v, x) for x in letture for v in valori]
+        if len(letture) > 16:
+            return [segmento]
+    return letture
+
+
+# Modi di legare una variabile che non sono NOME=letterale: la variabile si chiude, e la destinazione
+# che la usa resta illeggibile (31/10/2026, lente sicurezza). `J+=.evil.example`, `read J < url.txt`,
+# `printf -v J`, `for J in …`, `${J:=…}`, `declare -n J=X`: il valore non si legge dal testo.
+_LEGA_APPENDE = re.compile(r'(?<![\w$])([A-Za-z_]\w*)\+=')
+_LEGA_ELENCO = re.compile(r'(?:^|(?<=[\s;&|(`]))(?:read|mapfile|readarray|unset)\b([^\n;&|)]*)')
+_LEGA_PRINTF = re.compile(r'\bprintf\s+(?:-\S+\s+)*-v\s*([A-Za-z_]\w*)')
+_LEGA_FOR = re.compile(r'(?:^|(?<=[\s;&|(]))(?:for|select)\s+([A-Za-z_]\w*)')
+_LEGA_GETOPTS = re.compile(r'\bgetopts\s+\S+\s+([A-Za-z_]\w*)')
+_LEGA_DEFAULT = re.compile(r'\$\{([A-Za-z_]\w*):?=')
+_LEGA_ARRAY = re.compile(r'''(?:^|(?<=[\s;&|('"]))([A-Za-z_]\w*)=\(''')
+_LEGA_DICHIARA = re.compile(r'(?:^|(?<=[\s;&|(]))(?:declare|typeset|local|export|readonly)((?:\s+-\S+)+)([^\n;&|)]*)')
+# source, il punto come comando, eval e set -a possono assegnare qualunque variabile: si chiudono tutte.
+# Solo in posizione di comando: `jq . x.json` non è il punto che carica un file.
+_CHIUDE_TUTTE = re.compile(r'''(?:^|[;&|(\n`]|\b(?:then|do|else)|(?<!\S)['"])\s*(?:source|eval|\.)(?=\s)'''
+                           r'|\bset\s+(?:-[A-Za-z]*a[A-Za-z]*|-o\s+allexport)\b')
+_TUTTE = "*"
+# Proxy e reindirizzamenti di curl: l'invio va (anche) a quell'host, non solo all'URL scritto.
+PROXY_ENV = frozenset(("http_proxy", "https_proxy", "all_proxy"))
+_PROXY_CORTA = "x"
+_PROXY_LUNGHE = frozenset(("--proxy", "--preproxy", "--socks4", "--socks4a", "--socks5", "--socks5-hostname"))
+_REINDIRIZZA = frozenset(("--connect-to", "--resolve"))
+
+
+def _assegnate(testo: str) -> dict:
+    """nome -> valori letterali assegnati in TUTTO il comando (None = non letterale o legata altrove).
+
+    Si legge tutto il comando, anche dopo il curl: in un loop un'assegnazione che segue il curl vale
+    al giro dopo. Una variabile legata anche fuori da NOME=letterale si chiude. Con source, eval, il
+    punto o set -a si chiudono tutte (chiave _TUTTE)."""
+    out = {}
+
+    def aggiungi(nome, valore):
+        out.setdefault(nome, [])
+        if valore not in out[nome]:
+            out[nome].append(valore)
+
+    if _CHIUDE_TUTTE.search(testo):
+        out[_TUTTE] = [None]
+    for m in ASSEGNAZIONE.finditer(testo):
+        grezzo = m.group(2)
+        if len(grezzo) >= 2 and grezzo[0] == grezzo[-1] and grezzo[0] in "\"'":
+            grezzo = grezzo[1:-1]
+        aggiungi(m.group(1), None if re.search(r'[$`()]', grezzo) else grezzo)
+    for regex in (_LEGA_APPENDE, _LEGA_PRINTF, _LEGA_FOR, _LEGA_GETOPTS, _LEGA_DEFAULT, _LEGA_ARRAY):
+        for m in regex.finditer(testo):
+            aggiungi(m.group(1), None)
+    for m in _LEGA_ELENCO.finditer(testo):
+        for nome in re.findall(r'(?<![\w$-])([A-Za-z_]\w*)', m.group(1)):
+            aggiungi(nome, None)
+    for m in _LEGA_DICHIARA.finditer(testo):
+        for nome in re.findall(r'(?<![\w$-])([A-Za-z_]\w*)', m.group(2)):
+            aggiungi(nome, None)
+    return out
+
+
+def _host_di(valore: str):
+    """L'host di un valore di proxy (`http://u:p@h:8080`, `h:8080`, `socks5://h`). None se non si legge."""
+    valore = (valore or "").strip().strip("'\"")
+    if not valore or "$" in valore or "`" in valore:
+        return None
+    try:
+        return urlsplit(valore if "://" in valore else "//" + valore).hostname
+    except ValueError:
+        return None
+
+
+def _host_reindirizzati(valore: str) -> list:
+    """Dove va davvero la richiesta: H2 di --connect-to H1:P1:H2:P2, gli ADDR di --resolve [+]H:P:ADDR[,ADDR].
+    [None] se non si legge. Un H2 vuoto vuol dire l'host dell'URL, che si giudica già."""
+    valore = (valore or "").strip().strip("'\"").lstrip("+-")
+    if not valore or "$" in valore or "`" in valore:
+        return [None]
+    parti = re.split(r':(?![^\[]*\])', valore)
+    if len(parti) < 3:
+        return [None]
+    return [h.strip("[]") for h in parti[2].split(",") if h]
+
+
+def _proxy_fidati(segmento: str, assegnate: dict) -> bool:
+    """Vero se ogni proxy e ogni reindirizzamento del segmento (opzioni di curl e variabili *_PROXY
+    assegnate nel comando) va a un host interno o fidato. Senza proxy: vero."""
+    host = []
+    for nome, valori in assegnate.items():
+        if nome.lower() in PROXY_ENV:
+            host += [_host_di(v) if v is not None else None for v in valori]
+    if _TUTTE in assegnate:
+        host.append(None)  # source, eval o set -a possono esportare un proxy che non si legge
+    pulito = DATA_FLAG_VAL.sub(" ", segmento)
+    parole = re.findall(r'''"[^"]*"|'[^']*'|\S+''', pulito)
+    for i, parola in enumerate(parole):
+        dopo = parole[i + 1] if i + 1 < len(parole) else ""
+        nome, uguale, attaccato = parola.partition("=")
+        if parola.startswith("--"):
+            if nome in _PROXY_LUNGHE:
+                host.append(_host_di(attaccato if uguale else dopo))
+            elif nome in _REINDIRIZZA:
+                host += _host_reindirizzati(attaccato if uguale else dopo)
+        elif parola.startswith("-") and len(parola) > 1 and parola[1:2].isalpha() and _PROXY_CORTA in parola[1:]:
+            # `-x h:8080`, `-xh:8080`, `-sx h`: in un gruppo di opzioni corte quel che segue la x è il proxy.
+            prima, _, resto = parola[1:].partition(_PROXY_CORTA)
+            if prima.isalpha() or not prima:
+                host.append(_host_di(resto or dopo))
+    return all(h is not None and _fidato(h) for h in host)
+
+
+def _destinazione_fidata(dest: str) -> bool:
+    """Vero se il segmento di upload ha almeno un host e sono tutti interni o fidati."""
+    # Valuta solo l'host di DESTINAZIONE: rimuovi i valori dei flag-dato
+    # (payload) così gli URL nel corpo non vengono scambiati per destinazioni.
+    dest = DATA_FLAG_VAL.sub(" ", dest)
+    ext = False
+    internal_seen = False
+    for host in _hosts(dest):
+        if _fidato(host):
+            internal_seen = True
+        else:
+            ext = True
+    if not ext:
+        for m in EXT_HINT.finditer(dest):
+            if not _fidato(m.group(0)):
+                ext = True
+                break
+    if not ext and internal_seen:
+        senza_url = MODULI_PY.sub(" ", OTHER_FLAG_VAL.sub(" ", URL.sub(" ", dest)))
+        for m in BARE_HOST.finditer(senza_url):
+            host = m.group(1)
+            if host.rsplit(".", 1)[-1].lower() in FILE_EXT or _fidato(host):
+                continue
+            ext = True
+            break
+    return internal_seen and not ext
+
+
 def main() -> int:
     try:
         if hasattr(signal, "SIGALRM"):
@@ -296,39 +459,21 @@ def main() -> int:
 
     # ---- Ramo A: upload di un file locale ----
     unito = cmd.replace("\\\n", " ")
-    segmenti = [m.group(0) for m in CURL_SEG_Q.finditer(unito) if UPLOAD_FILE.search(m.group(0))]
-    if segmenti:
-        # Valuta solo l'host di DESTINAZIONE: rimuovi i valori dei flag-dato
-        # (payload) così gli URL nel corpo non vengono scambiati per destinazioni.
-        # Un curl/wget che non carica un file non è una destinazione: `curl https://$u/` in un altro
-        # segmento rendeva "non leggibile" la POST verso un host interno (21/10/2026), e un POST generico
-        # verso l'esterno faceva chiedere un upload verso un host interno (fino al 30/10/2026).
-        dest = " ; ".join(segmenti)
-        dest = DATA_FLAG_VAL.sub(" ", dest)
-        ext = False
-        internal_seen = False
-        for host in _hosts(dest):
-            if _fidato(host):
-                internal_seen = True
-            else:
-                ext = True
-        if not ext:
-            for m in EXT_HINT.finditer(dest):
-                if not _fidato(m.group(0)):
-                    ext = True
-                    break
-        if not ext and internal_seen:
-            senza_url = MODULI_PY.sub(" ", OTHER_FLAG_VAL.sub(" ", URL.sub(" ", dest)))
-            for m in BARE_HOST.finditer(senza_url):
-                host = m.group(1)
-                if host.rsplit(".", 1)[-1].lower() in FILE_EXT or _fidato(host):
-                    continue
-                ext = True
-                break
-        if ext:
+    # Un curl/wget che non carica un file non è una destinazione: `curl https://$u/` in un altro
+    # segmento rendeva "non leggibile" la POST verso un host interno (21/10/2026), e un POST generico
+    # verso l'esterno faceva chiedere un upload verso un host interno (fino al 30/10/2026).
+    # Dal 31/10/2026 ogni upload si giudica da solo: prima un host interno in un upload copriva
+    # l'altro, e `curl -d @a http://localhost/; curl -d @segreto "$X"` passava. Host esterno o
+    # destinazione illeggibile in uno qualunque -> ask.
+    tutte = _assegnate(unito)
+    for m in CURL_SEG_Q.finditer(unito):
+        if not UPLOAD_FILE.search(m.group(0)):
+            continue
+        # Una variabile assegnata solo dopo il curl, al primo giro vale quanto nell'ambiente: non si legge.
+        prima = _assegnate(unito[:m.start()])
+        assegnate = {nome: valori + ([None] if nome not in prima else []) for nome, valori in tutte.items()}
+        if not all(_destinazione_fidata(x) and _proxy_fidati(x, assegnate) for x in _espansioni(m.group(0), assegnate)):
             return _ask()
-        if not internal_seen:
-            return _ask()  # upload ma host non chiaro -> conservativo
 
     # ---- Ramo B: canali di rete grezzi ----
     # /dev/tcp e /dev/udp verso un host esterno, o che non si legge (una variabile)

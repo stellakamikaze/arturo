@@ -109,10 +109,21 @@ _UNRESOLVED = object()
 def _senza_heredoc(command: str) -> str:
     """Il comando senza i corpi di heredoc che vanno a un lettore (cat, tee) o a codice di un
     interprete che non lancia programmi. Nel dubbio il corpo resta (vedi heredoc.py)."""
-    return _togli_heredoc(command, lambda h: h.inerte() or h.codice_inerte())
+    return _togli_heredoc(command, lambda h: h.inerte() or h.codice_inerte()
+                          or (h.consumatore == "git" and h.quotato))
+
+
+_MKTEMP = re.compile(r"^\$\(\s*mktemp\b[^()`$;|&]*\)$")
+_NUOVA = "<cartella nuova di mktemp>"
+# Nel commit in una cartella di mktemp: i soli programmi di cui si sa cosa portano nella cartella.
+_NUOVA_AMMESSI = frozenset("mktemp cd pushd popd git cp mv install cat echo printf mkdir touch ls true : test [ rm".split())
+# Quelli che portano dentro il contenuto di un file: i loro argomenti si scansionano.
+_NUOVA_SORGENTI = frozenset(("cp", "mv", "install", "cat"))
 
 
 def _expand(word: str, variables: dict):
+    if _MKTEMP.match(word.strip()):
+        return _NUOVA
     if "`" in word or "$(" in word:
         return _UNRESOLVED
 
@@ -122,6 +133,8 @@ def _expand(word: str, variables: dict):
             return variables[name]
         if name == "HOME":
             return os.path.expanduser("~")
+        if os.environ.get(name):
+            return os.environ[name]
         raise KeyError(name)
 
     try:
@@ -141,6 +154,9 @@ def _segments(command: str):
             if segment:
                 yield segment
             segment = []
+            for ch in token:
+                if ch in "()":
+                    yield ["\x00" + ch]  # subshell o $(...): un cd qui dentro non vale fuori
         else:
             segment.append(token)
     if segment:
@@ -161,7 +177,42 @@ def _repo_for_command(command: str, cwd: str):
         segments = list(_segments(_senza_heredoc(command)))
     except ValueError:
         return None
+    nuove = set(re.findall(r"(?<![\w$])([A-Za-z_]\w*)=\"?\$\(\s*mktemp\b", command))
+    pila = []
+    sorgenti = []     # i file che il comando copia o legge: si scansionano se il commit va in una cartella nuova
+    estranei = False  # un programma fuori da _NUOVA_AMMESSI, o una sorgente che non si risolve
+
+    def dentro_nuova(loc):
+        return isinstance(loc, str) and loc.startswith(_NUOVA)
+
+    def sposta(loc, target):
+        if target is _UNRESOLVED or loc is None:
+            return None
+        if target.startswith(_NUOVA):
+            return _NUOVA
+        if os.name == "nt" and target.startswith("/"):
+            # Git Bash: /c/Users/... e /tmp/... non sono percorsi di Windows; cygpath li traduce.
+            try:
+                r = subprocess.run(["cygpath", "-w", target], capture_output=True, text=True, timeout=3)
+                target = r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
+            except (OSError, subprocess.SubprocessError):
+                target = None
+            if target is None:
+                return None
+        if dentro_nuova(loc):
+            if os.path.isabs(os.path.expanduser(target)):
+                return os.path.abspath(os.path.expanduser(target))
+            return None if ".." in re.split(r"[\\/]", target) else _NUOVA
+        return os.path.abspath(os.path.join(loc, target))
+
     for tokens in segments:
+        if tokens == ["\x00("]:
+            pila.append(location)
+            continue
+        if tokens == ["\x00)"]:
+            if pila:
+                location = pila.pop()
+            continue
         index = 0
         assigned = {}
         while index < len(tokens) and _ASSIGN.match(tokens[index]):
@@ -176,6 +227,9 @@ def _repo_for_command(command: str, cwd: str):
             index = len(tokens)
         if index >= len(tokens):
             for name, value in assigned.items():
+                if value == "$" and name in nuove:
+                    variables[name] = _NUOVA  # `D=$(mktemp -d)`: shlex lascia solo "$"
+                    continue
                 expanded = _expand(value, variables)
                 if expanded is _UNRESOLVED:
                     variables.pop(name, None)
@@ -184,13 +238,24 @@ def _repo_for_command(command: str, cwd: str):
             continue
         tokens = tokens[index:]
         head = os.path.basename(tokens[0])
+        if head == "ssh" and re.search(r"\bgit\b.*\bcommit\b", " ".join(tokens[1:])):
+            return None  # un commit su un'altra macchina: il suo diff non si legge da qui (31/10/2026)
+        if head not in _NUOVA_AMMESSI:
+            estranei = True
+        elif head in _NUOVA_SORGENTI:
+            argomenti = [x for x in tokens[1:] if not x.startswith("-") and not re.match(r"^\d*[<>]", x)]
+            if head in ("cp", "mv", "install"):
+                argomenti = argomenti[:-1]  # l'ultimo è la destinazione
+            for x in argomenti:
+                espanso = _expand(x, variables)
+                dove = sposta(location, espanso if espanso is _UNRESOLVED else os.path.expanduser(espanso))
+                if dove is None:
+                    estranei = True
+                elif not dove.startswith(_NUOVA):
+                    sorgenti.append(dove)
         if head in ("cd", "pushd"):
             if len(tokens) > 1:
-                target = _expand(tokens[1], variables)
-                if target is _UNRESOLVED:
-                    location = None
-                elif location is not None:
-                    location = os.path.abspath(os.path.join(location, target))
+                location = sposta(location, _expand(tokens[1], variables))
             continue
         # `env VAR=… git …` e `command git …` (4/10/2026, #2832): si tolgono il wrapper e le
         # assegnazioni e si guarda il git che resta. Gli altri wrapper restano "non risolvibile".
@@ -213,16 +278,25 @@ def _repo_for_command(command: str, cwd: str):
                 if index + 1 >= len(tokens):
                     return None
                 if opzione == "-C":
-                    target = _expand(tokens[index + 1], variables)
-                    if target is _UNRESOLVED or location is None:
+                    location = sposta(location, _expand(tokens[index + 1], variables))
+                    if location is None:
                         return None
-                    location = os.path.abspath(os.path.join(location, target))
                 index += 2
                 continue
             if opzione.startswith(("--git-dir", "--work-tree", "--namespace", "--config-env", "--exec-path")):
                 return None
             index += 1
         if index < len(tokens) and tokens[index] == "commit":
+            if dentro_nuova(location):
+                # Repo nato nello stesso comando in una cartella di mktemp (31/10/2026). Il diff non si
+                # legge prima che il comando giri: si scansionano il testo del comando e i file che vi
+                # copia. Vale solo con `git init` nello stesso comando, senza un modo di prendere o
+                # mandare commit (clone, fetch, push, remote...) e solo con i programmi di
+                # _NUOVA_AMMESSI: `git clone … "$D"; cp <credenziali> .` passava muto col False largo.
+                if estranei or not re.search(r"\bgit\b[^;&|\n]*\binit\b", command) or re.search(
+                        r"\bgit\b[^;&|\n]*\b(clone|fetch|pull|remote|push|submodule|bundle|am|apply)\b", command):
+                    return None
+                return (_NUOVA, tuple(sorgenti))
             return location
     if re.search(r"\bgh\s+pr\s+create\b", command):
         return location
@@ -261,6 +335,41 @@ def _diff(repo: str, commit_all: bool, add_prima: bool = False) -> str | None:
     return "\n".join(part for part in output if part)
 
 
+def _leggi_sorgenti(percorsi) -> str | None:
+    """Il contenuto dei file e delle cartelle copiati (al massimo 200 file, 200 KB ciascuno). None se troppi."""
+    parti, visti = [], 0
+    for percorso in percorsi:
+        candidati = [percorso]
+        if os.path.isdir(percorso):
+            candidati = [os.path.join(r, f) for r, _, fs in os.walk(percorso) for f in fs]
+        for nome in candidati:
+            visti += 1
+            if visti > 200:
+                return None
+            try:
+                with open(nome, encoding="utf-8", errors="ignore") as f:
+                    parti.append(f.read(200_000))
+            except OSError:
+                continue
+    return "\n".join(parti)
+
+
+def _scansiona_nuova(command: str, sorgenti) -> int:
+    """Commit in una cartella appena creata da mktemp: si scansionano il comando e i file copiati."""
+    contenuto = _leggi_sorgenti(sorgenti)
+    if contenuto is None:
+        return _ask("scansione-fallita", "Commit in una cartella nuova con troppi file copiati da scansionare: "
+                    "conferma prima di proseguire.")
+    testo = command + "\n" + contenuto
+    uniq = list(dict.fromkeys(name for rx, name in COMPILED if rx.search(testo)))
+    if not uniq:
+        return 0
+    return _ask(FAMIGLIA.get(uniq[0], "segreto-altro"),
+                "Possibile secret nei file del commit (cartella nuova): " + ", ".join(uniq[:5]) + ". "
+                "Un leak pushato è irreversibile. Conferma solo dopo aver "
+                "verificato che non sia una credenziale reale.")
+
+
 def _ask(regola: str, reason: str) -> int:
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": reason}}))
     _regola(regola)
@@ -284,6 +393,8 @@ def main() -> int:
     repo = _repo_for_command(command, cwd)
     if repo is False:
         return 0
+    if isinstance(repo, tuple):
+        return _scansiona_nuova(command, repo[1])
     if not repo:
         return _ask("repo-ignoto", "Repository destinatario del commit non risolvibile: conferma prima di proseguire.")
     # Fuori da un repository Git il commit fallisce da solo: niente da scansionare.

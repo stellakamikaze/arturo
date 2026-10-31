@@ -47,7 +47,8 @@ SEND_BINARIES = [
     # mail e mutt come programma, anche senza -s e con l'indirizzo in una variabile.
     (r"(?:^|[;&|(`\n])\s*(?:sudo\s+|command\s+|env\s+)?(?:mail|mutt)\s+\S", "mail/mutt"),
     (r"\bmutt\s+\S+@\S+", "mutt <indirizzo>"),
-    (r"mailto:", "mailto: (apre un invio)"),
+    # mailto: conta solo come argomento di un programma che apre un link (31/10/2026): dentro sed, un
+    # heredoc o un --json è testo (un invito di calendario ha ORGANIZER;CN=…:mailto:…). Vedi _MAILTO_APERTO.
     (r"\bsmtps?://", "smtp:// (invio diretto)"),
     (r"\bswaks\b", "swaks"),
     (r"\bosascript\b.*\b(Mail|Messages)\b", "AppleScript Mail/Messages"),
@@ -80,6 +81,37 @@ SEND_ENDPOINTS = re.compile(
     r")",
     re.IGNORECASE,
 )
+
+
+# I programmi che aprono un link, quindi anche un mailto: che prepara un invio.
+_MAILTO_APERTO = re.compile(
+    r"(?:\b(?:open|xdg-open|gio|kde-open|gnome-open|wslview|start|explorer(?:\.exe)?|Start-Process|saps)\b"
+    r"|\brundll32(?:\.exe)?\s+url\.dll,\s*FileProtocolHandler\b|\bopen\s+location\b"
+    r"|\bpython[0-9.]*\s+-m\s+webbrowser\b|\bwebbrowser\.open(?:_new(?:_tab)?)?\s*\()"
+    r"[^;&|\n]*mailto:",
+    re.IGNORECASE,
+)
+_HELP_ESENTI = frozenset(("gws", "gh"))
+
+
+def _senza_help(command: str) -> str:
+    """Il comando senza i segmenti `gws … --help` e `gh … --help` (31/10/2026): chiedono l'aiuto, non
+    inviano. Vale solo la forma lunga, come parola a sé e non come valore di un'opzione
+    (`--subject --help` manda una mail con oggetto "--help"). mail, mailx, sendmail e msmtp no."""
+    parti = re.split(r"([|;&\n]+)", command)
+    for i, seg in enumerate(parti):
+        try:
+            parole = shlex.split(seg)
+        except ValueError:
+            continue
+        if not parole or os.path.basename(parole[0]) not in _HELP_ESENTI:
+            continue
+        for k, parola in enumerate(parole[1:], start=1):
+            prima = parole[k - 1]
+            if parola == "--help" and not (prima.startswith("-") and "=" not in prima):
+                parti[i] = " "
+                break
+    return "".join(parti)
 
 
 _SMTP_URL = r"\bsmtps?://"
@@ -136,8 +168,9 @@ def main() -> int:
     if not isinstance(command, str) or not command:
         return 0
 
-    matched = None
-    for pattern, label in SEND_BINARIES:
+    command = _senza_help(command)
+    matched = "mailto: (apre un invio)" if _MAILTO_APERTO.search(command) else None
+    for pattern, label in ([] if matched else SEND_BINARIES):
         if pattern == _SMTP_URL:
             if _smtp_invia(command):
                 matched = label

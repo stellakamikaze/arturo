@@ -117,7 +117,7 @@ PATTERN_COMMS='(^|[[:space:];|&("'"'"'`])(sendmail|mailx|mutt|msmtp|swaks|mail)(
 # scrittura su git hook e servizi di avvio automatico,
 # lettura segreti via shell (.ssh/id_*/credentials/.pem...), docker volume rm.
 # 20/10/2026: la cartella delle credenziali anche senza la barra finale (`find ~/.claude/data/credentials | xargs cat`).
-PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([[:space:]]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-exec(dir)?[[:space:]]+[^[:space:]]*rm)|bw[[:space:]].*export|\.claude/(settings|hooks|firme|\.claude\.json)|firme/|rilasci\.allowed_signers|aggiornamenti\.py|aggiorna-applica\.sh|\.claude/[^[:space:]]*unlock|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.claude/data/credentials(/|[[:space:]\"]|$)|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|sed[[:space:]][^|&]*[^[:alnum:]]w[[:space:]]+[^[:space:]|;&]|\.env([^[:alnum:]_]|$)|shutil\.rmtree|from[[:space:]]+shutil[[:space:]]+import[^;]*rmtree'
+PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([[:space:]]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-(exec|execdir|ok|okdir)[[:space:]].*(rm|unlink|shred)|xargs[^|;&]*(rm|unlink|shred))|bw[[:space:]].*export|\.claude/(settings|hooks|firme|\.claude\.json)|firme/|rilasci\.allowed_signers|aggiornamenti\.py|aggiorna-applica\.sh|\.claude/[^[:space:]]*unlock|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.claude/data/credentials(/|[[:space:]\"]|$)|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|sed[[:space:]][^|&]*[^[:alnum:]]w[[:space:]]+[^[:space:]|;&]|\.env([^[:alnum:]_]|$)|shutil\.rmtree|from[[:space:]]+shutil[[:space:]]+import[^;]*rmtree'
 # 17/10/2026 (#3506): i file .env (anche .env.local), shutil.rmtree. git clean ha un pattern suo,
 # PATTERN_GIT_CLEAN, che parte prima dello skip git-puro.
 # Commit secret gate: scansiona il diff staged prima di git commit / gh pr create.
@@ -135,7 +135,7 @@ PATTERN_COMMIT="(^|[;&|(\`'\"${_NL}])[[:space:]]*((env|command|exec|nohup|time|x
 _FINE_ARG="([[:space:]]|[\"'],[[:space:]]*[\"']?)"
 # Un & seguito da un carattere che non è spazio né operatore sta dentro l'URL (`?a=1&b=2`) e non chiude
 # il comando: prima `curl "https://x/?a=1&b=2" -d @file` passava senza conferma (30/10/2026).
-PATTERN_EXFIL='(curl|wget)([^|;&]|&[^[:space:]&|;])*(-F'"$_FINE_ARG"'*[^[:space:]]*@|--form'"$_FINE_ARG"'*[^[:space:]]*@|-T'"$_FINE_ARG"'|--upload-file|--(post|body)-file|-d'"$_FINE_ARG"'*@|--data[a-z-]*'"$_FINE_ARG"'*@)'
+PATTERN_EXFIL='(curl|wget)([^|;&]|&[^[:space:]&|;])*(-F'"$_FINE_ARG"'*[^[:space:]]*[@<]|--form'"$_FINE_ARG"'*[^[:space:]]*[@<]|-T'"$_FINE_ARG"'|--upload-file|--(post|body)-file|-d'"$_FINE_ARG"'*@|--data[a-z-]*'"$_FINE_ARG"'*@)'
 # Il GET non passa da exfil-guard (ramo tolto il 30/10/2026, #4325). Vanno a exfil-guard i soli canali di rete grezzi: una pipe verso
 # nc/ncat/netcat/socat, /dev/tcp e /dev/udp. Dal 28/10/2026 curl con $() e il codice node o python che
 # chiama la rete non passano più da qui: li giudica il classificatore di auto mode. Uno script che
@@ -146,6 +146,9 @@ PATTERN_DEV_TCP='[<>]&?[[:space:]]*/dev/(tcp|udp)/'
 # git clean -f con opzioni in mezzo (`git -C dir clean -fdx`, `git -c k=v clean --force`).
 # Anche l'inizio di --force (`--forc`, git lo accetta) e `-c clean.requireForce=false`, che cancella
 # senza -f (20/10/2026, #3525).
+# git branch -D e git stash drop: dal 31/10/2026 li giudica block-dangerous (tace se il lavoro esiste
+# altrove), non più un deny. Partono prima dello skip git-puro, come git clean.
+PATTERN_GIT_PERDE='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?(branch[[:space:]]([^|;&]*[[:space:]])?(-[[:alpha:]]*D|--delete|-[[:alpha:]]*d)|stash[[:space:]]+drop)'
 PATTERN_GIT_CLEAN='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?clean[[:space:]]([^|;&]*[[:space:]])?(-[[:alpha:]]*f|--f)|(^|[^[:alnum:]_.-])git[[:space:]][^|;&]*[cC]lean\.[rR]equire[fF]orce'
 # data-guard: operazioni DATI irreversibili non coperte da block-dangerous
 # (SQL DROP/TRUNCATE/DELETE FROM, docker compose down -v, rsync --delete remoto, overwrite .db).
@@ -293,6 +296,7 @@ except Exception:
 # git clean -f cancella i file non tracciati, che git non sa ridare: PRIMA dello skip git-puro, che
 # altrimenti lascerebbe passare `git log && git clean -fdx` (17/10/2026, #3506).
 [[ "$GUARD_COMMAND" =~ $PATTERN_GIT_CLEAN ]] && run_guard block-dangerous.py
+[[ "$GUARD_COMMAND" =~ $PATTERN_GIT_PERDE ]] && run_guard block-dangerous.py
 
 # --- Skip pre-filtro su git puro (commit/log/show...): i message possono
 # contenere "rm -rf"/"smtplib" come testo, NON sono esecuzioni. Skip SOLO se

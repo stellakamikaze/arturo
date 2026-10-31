@@ -93,7 +93,8 @@ REGOLE = {
     "block-dangerous.py": frozenset({"avvio-automatico", "claude-md", "config", "docker-volumi", "find-delete", "git-clean",
                                      "rm-cartella", "rm-ignoto", "rm-illeggibile", "rm-protetto", "rm-xargs",
                                      "rmtree-cartella", "rmtree-illeggibile", "rmtree-variabile", "sblocco",
-                                     "sblocco-claude-md", "sed-w", "segreto"}),
+                                     "sblocco-claude-md", "sed-w", "segreto", "git-ramo",
+                                     "git-stash"}),
     "commit-secret-gate.py": frozenset(FAMIGLIE_SEGRETI + ("scaduta", "repo-ignoto", "scansione-fallita")),
 }
 # La promessa sulla telemetria cambia di versione quando cambia cosa esce. A una versione nuova

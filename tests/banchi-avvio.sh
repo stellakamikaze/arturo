@@ -18,7 +18,7 @@
 CLAUDE_DIR="${ARTURO_DIR:-$HOME/.claude}"
 CACHE="$CLAUDE_DIR/cache"
 ESITO="$CACHE/banchi-ultimo-esito.txt"
-BANCHI="test-block-dangerous-falsi-positivi.py test-web-egress-guard.py test_guardie_minori.py test_guardie_involucri.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_hook_utf8.py"
+BANCHI="test-block-dangerous-falsi-positivi.py test-web-egress-guard.py test_guardie_minori.py test_guardie_involucri.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_hook_utf8.py test_lavoro_proprio_2026_10_31.py"
 
 mkdir -p "$CACHE" || exit 1
 LAVORO=$(mktemp -d "${TMPDIR:-/tmp}/arturo-banchi.XXXXXX") || exit 1

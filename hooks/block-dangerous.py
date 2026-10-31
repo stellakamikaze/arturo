@@ -36,6 +36,7 @@ import sys
 import os
 import signal
 import shlex
+import subprocess
 import importlib.util
 
 
@@ -371,6 +372,19 @@ BARE_TARGETS = {".", "./", "*", ".*", "*.*", "./*", ".//"}
 # pipe, così `sed -n p x | grep w foo` non matcha.
 SED_WRITE_RE = re.compile(r"(^|[\s;&|])sed\s[^|&]*[^A-Za-z0-9]w\s+[^\s|;&]")
 _SED_SCRIPT_W = re.compile(r"(^|[^A-Za-z0-9])w\s+[^\s|;&]")
+# Il pattern e la sostituzione di s/// e y/// e gli indirizzi /re/ sono testo, non comandi (31/10/2026):
+# `sed -i 's/if (w >= 700 \&\& w <= 1000) {/if (w <= 1000) {/' probe.cjs` sembrava una scrittura per la `w`
+# del codice JavaScript. Si svuotano prima di cercare `w`; i flag di s/// restano, anche attaccati (`gw`).
+_SED_S_CORPO = re.compile(r"(^|[;\n{}!\s\d$,])([sy])([^\w\s\\])((?:\\.|(?!\3)[^\\])*)\3((?:\\.|(?!\3)[^\\])*)\3")
+_SED_INDIRIZZO = re.compile(r"(^|[;\n{}!\s,])/((?:\\.|[^/\\\n])*)/")
+_SED_FLAG_W = re.compile(r"s([^\w\s\\])\1\1[gpiImMe0-9]*w")
+# `1w file`, `$w file`, `2,5w file`: un indirizzo numerico attaccato a `w` (prima sfuggiva).
+_SED_ADDR_W = re.compile(r"(^|[\s;{}!])(?:\d+|\$)(?:,(?:\d+|\$))?!?\s*w\s*[^\s|;&]")
+
+
+def _senza_corpi_sed(t: str) -> str:
+    t = _SED_S_CORPO.sub(lambda m: m.group(1) + m.group(2) + m.group(3) * 3, t)
+    return _SED_INDIRIZZO.sub(lambda m: m.group(1) + "//", t)
 
 
 def _sed_scrive(command: str) -> bool:
@@ -387,8 +401,10 @@ def _sed_scrive(command: str) -> bool:
         if i >= len(toks):
             continue
         binario = os.path.basename(toks[i])
-        if binario == "sed" and _SED_SCRIPT_W.search(" ".join(toks[i + 1:])):
-            return True
+        if binario == "sed":
+            script = _senza_corpi_sed(" ".join(toks[i + 1:]))
+            if _SED_SCRIPT_W.search(script) or _SED_FLAG_W.search(script) or _SED_ADDR_W.search(script):
+                return True
         if binario in _SHELLS | {"ssh", "eval", "xargs"} and SED_WRITE_RE.search(" ".join(toks)):
             return True
     return False
@@ -568,6 +584,22 @@ def _is_claude_md(p):
     return bool(p) and os.path.basename(p) in ("CLAUDE.md", "CLAUDE.local.md")
 
 
+def _is_claude_md_globale(p):
+    """True per ~/.claude/CLAUDE.md e ~/.claude/CLAUDE.local.md."""
+    return _is_claude_md(p) and os.path.dirname(p) == os.path.normpath(os.path.join(_home(), ".claude"))
+
+
+def _claude_md_progetto_libero():
+    """True se hooks/protect_claude_md.local contiene la riga `allow claude-md-progetto`: la stessa
+    scelta che protect_claude_md.py applica a Edit e Write (31/10/2026)."""
+    try:
+        with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), "protect_claude_md.local"),
+                  encoding="utf-8") as fh:
+            return any(riga.split("#", 1)[0].split() == ["allow", "claude-md-progetto"] for riga in fh)
+    except OSError:
+        return False
+
+
 def _is_unlock(p):
     """True per un file di unlock: "unlock" nel nome, direttamente in ~/.claude."""
     return (bool(p) and "unlock" in os.path.basename(p).lower()
@@ -672,17 +704,121 @@ def _forma():
     return _fc
 
 
+# Programmi che cancellano file come rm (31/10/2026: unlink e shred passavano da find -exec).
+_CANCELLANO = frozenset(("rm", "unlink", "shred"))
+
+
+def _cancella_dentro(args) -> bool:
+    """Vero se gli argomenti di -exec lanciano rm, unlink o shred, anche dentro `sh -c '…'`."""
+    if not args:
+        return False
+    nome = os.path.basename(args[0])
+    if nome in _CANCELLANO:
+        return True
+    if nome in _SHELLS and "-c" in args and args.index("-c") + 1 < len(args):
+        return any(n in _CANCELLANO for n, _ in _forma().programmi(args[args.index("-c") + 1]))
+    return False
+
+
 def _find_delete(command):
-    """`find … -delete` e `find … -exec rm` cancellano quanto un rm ricorsivo."""
-    for nome, args in _forma().programmi(command):
+    """`find … -delete`, `find … -exec rm|unlink|shred` (anche dentro `-exec sh -c '…'`) e
+    `find … | xargs rm` cancellano quanto un rm ricorsivo."""
+    programmi = _forma().programmi(command)
+    trova = False
+    for nome, args in programmi:
         if nome != "find":
             continue
+        trova = True
         if "-delete" in args:
             return True
         for i, t in enumerate(args[:-1]):
-            if t in ("-exec", "-execdir", "-ok", "-okdir") and os.path.basename(args[i + 1]) == "rm":
+            if t in ("-exec", "-execdir", "-ok", "-okdir") and _cancella_dentro(args[i + 1:]):
+                return True
+    if trova:
+        for nome, args in programmi:
+            if nome == "xargs" and any(os.path.basename(a) in _CANCELLANO for a in args):
                 return True
     return False
+
+
+# --- git branch -D e git stash drop (31/10/2026) ---
+# Fino al 31/10 li bloccava un deny, che vince anche sulla regola autoMode che li permette quando non si
+# perde niente. Ora decide la guardia: tace se il lavoro esiste altrove, altrimenti chiede.
+
+
+def _git_parti(args):
+    """(cartella di -C o None, sottocomando, argomenti dopo il sottocomando) di un `git …`."""
+    i, cartella = 0, None
+    while i < len(args) and args[i].startswith("-"):
+        if args[i] == "-C" and i + 1 < len(args):
+            cartella = args[i + 1]
+        i += 2 if args[i] in _GIT_OPZIONI_CON_VALORE else 1
+    if i >= len(args):
+        return cartella, "", []
+    return cartella, args[i], args[i + 1:]
+
+
+def _git_esegui(repo, *argomenti):
+    try:
+        r = subprocess.run(["git", "-C", repo, *argomenti], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=5, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.stdout if r.returncode == 0 else None
+
+
+def _ramo_altrove(repo, ramo) -> bool:
+    """Vero se i commit di `ramo` stanno in un ramo remoto o in un altro ramo locale."""
+    uscita = _git_esegui(repo, "branch", "-a", "--contains", ramo, "--format=%(refname)")
+    if uscita is None:
+        return False
+    proprio = "refs/heads/" + ramo
+    return any(r.strip() and r.strip() != proprio for r in uscita.splitlines())
+
+
+def _git_perde_lavoro(command, cwd):
+    """(regola, motivo) se il comando cancella un ramo con commit che non stanno altrove, o uno stash
+    che lo stesso comando non salva prima. None se non perde niente."""
+    salvato = False
+    for nome, args, cds in _programmi_con_cd(command):
+        if nome != "git":
+            continue
+        cartella, sotto, resto = _git_parti(args)
+        if sotto == "tag" or (sotto == "stash" and resto[:1] == ["branch"]):
+            salvato = True
+            continue
+        if sotto == "stash" and resto[:1] == ["show"]:
+            destinazioni = []
+            for i, a in enumerate(resto):
+                m = re.match(r"^1?>>?(.*)$", a)
+                if m:
+                    destinazioni.append(m.group(1) or (resto[i + 1] if i + 1 < len(resto) else ""))
+            if any(x and x != "/dev/null" for x in destinazioni):
+                salvato = True
+            continue
+        if sotto == "stash" and resto[:1] == ["drop"]:
+            if not salvato:
+                return ("git-stash", "git stash drop cancella uno stash che lo stesso comando non salva prima: "
+                        "le modifiche dentro non stanno in nessun commit. Salvalo prima con "
+                        "`git stash show -p > file.patch` o `git stash branch`, oppure conferma.")
+            continue
+        if sotto != "branch":
+            continue
+        corte = "".join(a[1:] for a in resto if a.startswith("-") and not a.startswith("--"))
+        lunghe = [a for a in resto if a.startswith("--")]
+        forza = "D" in corte or (("d" in corte or "--delete" in lunghe) and ("f" in corte or "--force" in lunghe))
+        if not forza:
+            continue
+        basi = _basi_dopo_cd(cds, cwd)
+        if len(basi) != 1 or basi[0] is None:
+            repo = None
+        else:
+            repo = _resolve(cartella, basi[0]) if cartella else basi[0]
+        for ramo in [a for a in resto if not a.startswith("-")]:
+            if repo is None or not _ramo_altrove(repo, ramo):
+                return ("git-ramo", f"git branch -D cancella il ramo {ramo}, e i suoi commit non stanno in un ramo "
+                        "remoto né in un altro ramo locale: si perderebbero. Conferma solo se non ti servono.")
+    return None
 
 
 # shutil.rmtree cancella una cartella intera come `rm -r`, ma da dentro python (17/10/2026, #3506).
@@ -767,21 +903,145 @@ _REDIREZIONE_RE = re.compile(r"^(?:\d*|&)(?:>>?|<)")
 _REDIREZIONE_SOLA_RE = re.compile(r"^(?:\d*|&)(?:>>?|<)$")
 
 
+_CAMBIA_CARTELLA = frozenset(("cd", "pushd", "popd"))
+_APRE_BLOCCO = frozenset("if while until for case select".split())
+_CHIUDE_BLOCCO = frozenset("fi done esac".split())
+_OPERATORI = re.compile(r"&&|\|\||;;|\|&|[;&|()\n]")
+
+
+def _cd_certi(command, profondita=0, forzato=False):
+    """Per ogni cd, pushd e popd del comando, nell'ordine di forma_comando.programmi: True se gira di
+    sicuro nella shell dei comandi che lo seguono (31/10/2026).
+
+    Non è sicuro un cd in ( ), in $( ) o <( ), fra backtick, in un blocco { } o nel corpo di una
+    funzione, in un ramo di if/while/until/for/case/select, dentro sh -c o eval, dopo `||` o `|`,
+    dopo `&&` preceduto da un altro comando, o seguito da `&`, `|` o `||`. Le parole si leggono come
+    in forma_comando: stesso testo (testo_shell) e stessi confini."""
+    forma = _forma()
+    try:
+        lexer = shlex.shlex(forma.testo_shell(command), posix=True, punctuation_chars=";&|()\n")
+        lexer.whitespace = " \t\r"
+        lexer.whitespace_split = True
+        gettoni = list(lexer)
+    except ValueError:
+        return []  # forma_comando ricade su uno split semplice: il conteggio non torna, e ogni cd è incerto
+    out = []
+    pila = []          # "sub", "subst", "kw", "graffa"
+    backtick = False
+    parole = []        # il comando semplice in corso
+    prima = None       # l'operatore prima del comando
+    indice = 0         # posizione del comando nella lista && / ||
+    precedente = None  # l'ultimo gettone visto
+
+    def chiudi(dopo):
+        nonlocal parole, prima, indice
+        if parole:
+            i = 0
+            while i < len(parole) and (parole[i] in forma._DAVANTI or forma._ASSEGNAZIONE.match(parole[i])
+                                       or forma._nome(parole[i]) in forma._WRAPPER):
+                i += 1
+            nome = forma._nome(parole[i]) if i < len(parole) else ""
+            args = parole[i + 1:]
+            if nome in _CAMBIA_CARTELLA:
+                out.append(not (forzato or pila or backtick) and prima in (None, ";", "\n", "&", ";;")
+                           and indice == 0 and dopo not in ("|", "|&", "&", "||"))
+            if profondita < 3:
+                if nome in forma.SHELL and "-c" in args and args.index("-c") + 1 < len(args):
+                    out.extend(_cd_certi(args[args.index("-c") + 1], profondita + 1, True))
+                elif nome == "eval" and args:
+                    out.extend(_cd_certi(" ".join(args), profondita + 1, True))
+        parole = []
+        if dopo in ("&&", "||"):
+            indice += 1
+        elif dopo is not None:
+            indice = 0
+        prima = dopo
+
+    for g in gettoni:
+        if g and set(g) <= set(";&|()\n"):
+            for op in _OPERATORI.findall(g):
+                if op == "(":
+                    if parole and parole[-1].endswith(("$", "<", ">")):
+                        chiudi(None)
+                        pila.append("subst")
+                    elif parole and precedente not in (None, "(") and not set(precedente) <= set(";&|()\n"):
+                        pila.append("funz")  # `f() {`: le parentesi della definizione
+                    else:
+                        chiudi(None)
+                        pila.append("sub")
+                elif op == ")":
+                    if pila and pila[-1] == "funz":
+                        pila.pop()
+                        chiudi(None)
+                        pila.append("graffa-funz")
+                    elif pila and pila[-1] in ("sub", "subst"):
+                        chiudi(None)
+                        pila.pop()
+                    else:
+                        chiudi(None)  # il pattern di un case
+                else:
+                    chiudi(op)
+                precedente = op
+            continue
+        if g.count("`") % 2:
+            backtick = not backtick
+        if all(p in forma._DAVANTI for p in parole):  # posizione di comando, anche dopo then, do, {
+            if g in _APRE_BLOCCO:
+                pila.append("kw")
+            elif g in _CHIUDE_BLOCCO and "kw" in pila:
+                del pila[len(pila) - 1 - pila[::-1].index("kw")]
+            elif g == "{":
+                if pila and pila[-1] == "graffa-funz":
+                    pila[-1] = "graffa"
+                else:
+                    pila.append("graffa")
+            elif g == "}" and "graffa" in pila:
+                del pila[len(pila) - 1 - pila[::-1].index("graffa")]
+        parole.append(g)
+        precedente = g
+    chiudi(None)
+    return out
+
+
+def _programmi_con_cd(command):
+    """(programma, argomenti, catena dei cd prima di lui) per ogni comando che non è cd, pushd o popd.
+
+    Ogni voce della catena è (cartella o None, certo): None per popd, `cd -`, `cd -P x`, `pushd +1`;
+    certo viene da _cd_certi. Se le due letture non contano gli stessi cd, ogni cd vale come incerto."""
+    out = []
+    cds = []
+    programmi = _forma().programmi(command)
+    certi = _cd_certi(command)
+    if len(certi) != sum(1 for nome, _ in programmi if nome in _CAMBIA_CARTELLA):
+        certi = None
+    for nome, args in programmi:
+        if nome in _CAMBIA_CARTELLA:
+            certo = bool(certi and certi[len(cds)])
+            if nome == "popd" or (args and (args[0].startswith(("-", "+")) and args[0] != "--")):
+                dest = None
+            else:
+                resto = args[1:] if args and args[0] == "--" else args
+                dest = resto[0] if resto else ("~" if nome == "cd" else None)  # `cd` da solo va nella home
+            cds.append((dest, certo))
+            continue
+        out.append((nome, args, tuple(cds)))
+    return out
+
+
 def _rm_segments(command):
-    """(bersagli, cd dichiarato) per ogni `rm` ricorsivo; bersagli None per `xargs rm -r`.
+    """(bersagli, catena dei cd) per ogni `rm` ricorsivo; bersagli None per `xargs rm -r`.
 
     I comandi si leggono con forma_comando.programmi: `rm` col path completo, in
     una subshell o in un blocco `{ }`, dopo `then`/`do`, dietro un wrapper o dentro
     `sh -c` ed `eval` è lo stesso `rm`. Il testo di un heredoc quotato verso python
     o cat non è un comando. `xargs rm -r` ha bersagli che arrivano da stdin.
+    Dal 31/10/2026 si tengono tutti i cd prima dell'rm, in ordine: `cd "$S/x" && …; cd .. &&
+    rm -rf x` cancella in $S, e la guardia teneva solo l'ultimo cd (`..`) e lo leggeva dalla
+    cwd della sessione. Li risolve _basi_dopo_cd.
     """
     forma = _forma()
     out = []
-    cwd_decl = None
-    for nome, args in forma.programmi(command):
-        if nome == "cd" and args:
-            cwd_decl = args[0]
-            continue
+    for nome, args, cwd_decl in _programmi_con_cd(command):
         if nome == "xargs" and "rm" in [os.path.basename(a) for a in args]:
             dopo = args[[os.path.basename(a) for a in args].index("rm") + 1:]
             if forma._ricorsivo(dopo):
@@ -810,6 +1070,30 @@ def _rm_segments(command):
             if recursive:
                 out.append((targets, cwd_decl))
     return out
+
+
+def _basi_dopo_cd(cds, cwd):
+    """Le cartelle da cui può girare un comando dopo la catena `cds` (31/10/2026).
+
+    Ogni cd parte da dove ha lasciato il precedente, con le variabili assegnate nel comando
+    (`S=…; cd "$S/x"`). Se la cartella di un cd non esiste adesso, il cd può fallire e un
+    comando dopo `;` gira dalla cartella di prima: contano entrambe, e l'rm passa solo se è
+    sicuro da tutte. None = una cartella che non si risolve (`cd -`, `cd $(…)`, popd).
+    Un cd che non gira di sicuro nella shell dell'rm (in una subshell, in un ramo, dopo `||`, dopo
+    `&&` preceduto da un altro comando, prima di `&` o `|`: vedi _cd_certi) tiene anche la cartella
+    di prima, anche quando la sua cartella esiste."""
+    basi = [os.path.normpath(cwd)]
+    for c, certo in cds:
+        nuove = []
+        for b in basi:
+            dest = None if (b is None or c is None) else _resolve(c, b)
+            for x in ([dest] if certo and dest is not None and os.path.isdir(dest) else [dest, b]):
+                if x not in nuove:
+                    nuove.append(x)
+        basi = nuove
+        if len(basi) > 16:
+            return [None]
+    return basi
 
 
 def _inert_reference(command: str) -> bool:
@@ -861,8 +1145,14 @@ def main() -> int:
             "solo se stai aggiornando la config di proposito."
         )
 
-    # 2a) Scrittura shell su un CLAUDE.md -> ask (le istruzioni di ogni sessione futura)
-    if CLAUDE_MD_WRITE_RE.search(testo) or _writes_config(testo, cwd, _is_claude_md):
+    # 2a) Scrittura shell su un CLAUDE.md -> ask (le istruzioni di ogni sessione futura).
+    # Dal 31/10/2026 conta il percorso risolto, come per Edit e Write: ~/.claude/CLAUDE.md chiede sempre,
+    # un CLAUDE.md di progetto tace se protect_claude_md.local dice "allow claude-md-progetto". La regex
+    # testuale resta per le scritture che non si risolvono (open() in python): quelle chiedono.
+    globale = _writes_config(testo, cwd, _is_claude_md_globale)
+    progetto = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _is_claude_md_globale(p))
+    if globale or (progetto and not _claude_md_progetto_libero()) or \
+            (CLAUDE_MD_WRITE_RE.search(testo) and not progetto):
         return _ask("claude-md",
             "Scrittura via shell su un CLAUDE.md: cambierebbe le istruzioni di ogni sessione "
             "futura in quella cartella. Conferma solo se sei tu a volerlo."
@@ -922,8 +1212,7 @@ def main() -> int:
                     "rm ricorsivo dietro xargs: i percorsi arrivano da un altro comando e "
                     "non si possono controllare prima. Conferma solo se sai cosa cancella."
                 )
-            base_cwd = _resolve(cwd_decl, cwd) if cwd_decl else os.path.normpath(cwd)
-            for t in (targets or ["."]):
+            for base_cwd, t in [(b, t) for b in _basi_dopo_cd(cwd_decl, cwd) for t in (targets or ["."])]:
                 if t in BARE_TARGETS:
                     p = os.path.normpath(base_cwd) if base_cwd else None
                 else:
@@ -984,6 +1273,17 @@ def main() -> int:
             "git clean -f cancella i file che git non traccia: non stanno in nessun commit e non "
             "tornano indietro. Prova prima con `git clean -n` per vedere cosa toglie."
         )
+
+    # 9) git branch -D e git stash drop -> ask, solo se il lavoro non esiste altrove (31/10/2026).
+    try:
+        perde = _git_perde_lavoro(command, cwd)
+    except Exception:
+        perde = ("git-ramo", "git branch -D o git stash drop che la guardia non riesce a leggere: "
+                 "controlla prima di confermare.") if re.search(r"branch\s.*-[a-zA-Z]*D|stash\s+drop", command) else None
+    if perde and perde[0] == "git-stash":
+        return _ask("git-stash", perde[1])
+    if perde:
+        return _ask("git-ramo", perde[1])
 
     return 0
 

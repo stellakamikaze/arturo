@@ -143,6 +143,7 @@ BANCHI=(
   test_fine_profilo_2026_10_30.py
   test_fine_coda_2026_10_30.py
   test_fonte_task_2026_10_30.py
+  test_lavoro_proprio_2026_10_31.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -323,6 +324,8 @@ done
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
 # fallire il controllo col suo codice e il motivo atteso (test_memoria.py Y08-Y12, 20/10/2026).
 python3 -B "$REPO/tests/test_memoria.py" --repo "$REPO" --avvelena
+# Le conferme su lavoro proprio (31/10/2026): con le guardie di 15eb18d ogni gruppo LP deve essere rosso.
+python3 -B "$REPO/tests/test_lavoro_proprio_2026_10_31.py" --repo "$REPO" --avvelena
 
 # Il server della telemetria (server/logica.js) con un archivio e una posta finti.
 node "$REPO/server/test.mjs"
