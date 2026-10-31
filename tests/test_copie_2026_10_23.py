@@ -19,7 +19,8 @@ CP03 nessun testo di Arturo chiama anonimi i dati d'uso (26/10/2026): l'id è ca
      generate (data/, cache/, node_modules/, i worktree).
 CP04 gli archivi della persona che non fermano l'aggiornamento (data/handoffs, data/todo,
      data/memory, segnalazione n. 14) sono gli stessi in bin/aggiorna-applica.sh, hooks/session-start.sh,
-     README.md, nel ciclo di /fine che li toglie dal tracciamento (27/10/2026, #3987) e nei controlli
+     README.md, nel ciclo di /fine che li toglie dal tracciamento (27/10/2026, #3987; dal 30/10 in
+     bin/fine-coda.py, #4291) e nei controlli
      delle modifiche di /inizio e /aggiorna (#4079). La fonte è ARCHIVI_PERSONALI di aggiorna-applica.sh:
      un archivio nuovo si aggiunge lì, e questo controllo dice tutte le copie da allineare.
 CP05 lo slug di un progetto è lo stesso in ogni copia (#4263, 30/10/2026): bin/contesto.py e bin/arturo
@@ -143,7 +144,7 @@ def test_cp04(repo: Path) -> None:
         "bin/aggiorna-applica.sh": r"':\(exclude\)(data/\w+)'",
         "hooks/session-start.sh": r"':!(data/\w+)'",
         "README.md": r"':!(data/\w+)'",
-        "commands/fine.md": r"for p in ((?:data/\w+ ?)+); do",
+        "bin/fine-coda.py": r'for p in \(((?:"data/\w+",? ?)+)\):',
         "commands/inizio.md": r"':\(exclude\)(data/\w+)'",
         "commands/aggiorna.md": r"':\(exclude\)(data/\w+)'",
     }
@@ -151,7 +152,7 @@ def test_cp04(repo: Path) -> None:
     for nome, schema in copie.items():
         percorso = repo / nome
         trovate = re.findall(schema, percorso.read_text(encoding="utf-8")) if percorso.exists() else []
-        liste[nome] = set(" ".join(trovate).split())
+        liste[nome] = set(re.findall(r"data/\w+", " ".join(trovate)))
     vuote = [nome for nome, lista in liste.items() if not lista]
     assert not vuote, f"CP04 senza la lista degli archivi della persona: {vuote}"
     diverse = {nome: sorted(lista) for nome, lista in liste.items() if lista != liste["bin/aggiorna-applica.sh"]}
