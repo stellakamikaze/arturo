@@ -6,12 +6,28 @@ repository locale al posto di GitHub (ARTURO_REPO). Nessun caso tocca la rete.
 """
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
+# Su Windows "bash" per nome è il lanciatore di WSL in System32: serve il bash del PATH (Git Bash, #4362).
+BASH = shutil.which("bash") or "bash"
+
 PATH_BASE = "/usr/bin:/bin:/usr/sbin:/sbin"
+
+
+def _posix(p) -> str:
+    """Su Windows un percorso C:\… nel PATH di bash spezza la lista ai due punti: va in forma /c/… (#4362)."""
+    if os.name != "nt":
+        return str(p)
+    return subprocess.run(["cygpath", "-u", str(p)], capture_output=True, text=True, check=True).stdout.strip()
+
+
+if os.name == "nt":
+    # Git Bash tiene git in /mingw64/bin e python3 sta fuori dalle cartelle di sistema.
+    PATH_BASE += ":/mingw64/bin:" + _posix(Path(shutil.which("python3") or sys.executable).parent)
 
 
 def sh(*args, cwd=None):
@@ -59,14 +75,14 @@ class Lab:
 
     def lancia(self, repo=None, extra=None):
         env = {
-            "HOME": str(self.home),
-            "PATH": f"{self.bin}:{PATH_BASE}",
+            "HOME": _posix(self.home),
+            "PATH": f"{_posix(self.bin)}:{PATH_BASE}",
             "SHELL": "/bin/zsh",
-            "ARTURO_REPO": repo or self.repo,
+            "ARTURO_REPO": repo or _posix(self.repo),  # con le barre dritte, come lo scrive chi installa
             "LANG": "C.UTF-8",
         }
         env.update(extra or {})
-        r = subprocess.run(["bash", str(self.script)], env=env, capture_output=True, text=True,
+        r = subprocess.run([BASH, str(self.script)], env=env, capture_output=True, text=True, encoding="utf-8",
                            stdin=subprocess.DEVNULL, timeout=60)
         return r.returncode, r.stdout + r.stderr
 
@@ -84,14 +100,14 @@ def caso_nuova(lab):
     assert (c / ".git").is_dir() and (c / "README.md").is_file(), "Arturo non è in ~/.claude"
     assert (c / ".credentials.json").is_file() and (c / "projects").is_dir(), "login o sessioni non tornati"
     assert len(b) == 1 and (lab.home / b[0] / "mio.txt").is_file(), f"backup sbagliato: {b}"
-    rcfile = (lab.home / ".zshrc").read_text()
+    rcfile = (lab.home / ".zshrc").read_text(encoding="utf-8")
     assert rcfile.count(".local/bin") == 1, f"PATH non aggiunto una volta:\n{rcfile}"
     assert "Arturo installato" in out and "tappa-5" in out, out
     # Seconda volta: niente backup nuovo, niente riga doppia.
     rc, out = lab.lancia()
     assert rc == 0 and "già installato" in out, f"rc {rc}\n{out}"
     assert lab.backup() == b, f"backup in più: {lab.backup()}"
-    assert (lab.home / ".zshrc").read_text().count(".local/bin") == 1, "riga del PATH doppia"
+    assert (lab.home / ".zshrc").read_text(encoding="utf-8").count(".local/bin") == 1, "riga del PATH doppia"
 
 
 def caso_senza_cartella(lab):
@@ -146,7 +162,7 @@ def caso_config_di_prima(lab):
     rc, out = lab.lancia()
     assert rc == 0, f"rc {rc}\n{out}"
     for f, t in (("data/memory/nota.md", "mia"), ("CLAUDE.md", "# Gunnar"), ("session-env/telemetria.json", '{"spenta": true}')):
-        assert (c / f).is_file() and (c / f).read_text() == t, f"non torna {f}"
+        assert (c / f).is_file() and (c / f).read_text(encoding="utf-8") == t, f"non torna {f}"
 
 
 def caso_sincronizzata(lab):
