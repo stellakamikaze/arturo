@@ -157,6 +157,7 @@ def test_rv03(repo: Path) -> int:
         con_riga = [
             ("progetto esistente con la riga .local", "sed -i s/a/b/ CLAUDE.md; rm -rf node_modules", "silent"),
             ("CLAUDE.md nuovo con la riga .local", "mkdir -p nuova; echo x > nuova/CLAUDE.md; rm -rf node_modules", "ask"),
+            ("sed -i su un CLAUDE.md che non esiste non lo crea", "sed -i s/a/b/ assente/CLAUDE.md", "silent"),
             ("progetto più open() sul globale",
              f"sed -i s/a/b/ CLAUDE.md; python3 -c \"open('{g}','a').write('x')\"; rm -rf node_modules", "ask"),
         ]

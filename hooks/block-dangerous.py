@@ -654,7 +654,7 @@ def _is_unlock(p):
             and os.path.dirname(p) == os.path.normpath(os.path.join(_home(), ".claude")))
 
 
-def _writes_config(command, cwd, protetto=None):
+def _writes_config(command, cwd, protetto=None, sed=True):
     """Copre `cd ~/.claude/hooks && > file` (target relativo dopo un cd): il match
     testuale di CONFIG_WRITE_RE vede solo i path assoluti che contengono `.claude/`.
     Qui si traccia il cd per segmento e si risolve il target reale del redirect/binario.
@@ -702,7 +702,7 @@ def _writes_config(command, cwd, protetto=None):
                 if protetto(_resolve(t, base_cwd)):
                     return True
         # sed -i sul file
-        if cmd0 == "sed" and "-i" in seg:
+        if sed and cmd0 == "sed" and "-i" in seg:
             for t in toks[1:]:
                 if not t.startswith("-") and protetto(_resolve(t, base_cwd)):
                     return True
@@ -1444,11 +1444,13 @@ def main() -> int:
         return _is_claude_md_globale(p) or (bool(p) and _is_claude_md_globale(os.path.realpath(p)))
 
     globale = _writes_config(testo, cwd, _globale)
-    progetto_nuovo = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _globale(p)
+    # sed -i su un file che non esiste non lo crea: per i CLAUDE.md nuovi conta solo chi scrive davvero.
+    progetto_nuovo = _writes_config(testo, cwd, sed=False, protetto=lambda p: _is_claude_md(p) and not _globale(p)
                                     and not os.path.exists(p))
     progetto = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _globale(p) and os.path.exists(p))
+    risolto = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _globale(p))
     if globale or progetto_nuovo or (progetto and not _claude_md_progetto_libero()) or \
-            CLAUDE_MD_OPEN_RE.search(testo) or (CLAUDE_MD_WRITE_RE.search(testo) and not progetto):
+            CLAUDE_MD_OPEN_RE.search(testo) or (CLAUDE_MD_WRITE_RE.search(testo) and not risolto):
         return _ask("claude-md",
             "Scrittura via shell su un CLAUDE.md: cambierebbe le istruzioni di ogni sessione "
             "futura in quella cartella. Conferma solo se sei tu a volerlo."
