@@ -219,11 +219,57 @@ def test_rv05(repo: Path) -> int:
         return verifica("RV05", casi, lambda c: hook(repo, "comms-guard.py", c, progetto, home, temp))
 
 
-TESTS = {"RV01": test_rv01, "RV02": test_rv02, "RV03": test_rv03, "RV04": test_rv04, "RV05": test_rv05}
+def test_rv06(repo: Path) -> int:
+    with tempfile.TemporaryDirectory() as d:
+        radice = Path(d)
+        home, temp, progetto, _ = banco(radice)
+        env = _env(home, temp)
+        token = lp.TOKEN
+        veleno = radice / "repo-veleno"
+        git(env, radice, "init", "-q", str(veleno))
+        (veleno / "k.txt").write_text(f"token={token}\n", encoding="utf-8")
+        git(env, veleno, "add", "k.txt")
+        pulito = radice / "repo-pulito"
+        git(env, radice, "init", "-q", str(pulito))
+        chiave = progetto / "k.txt"
+        chiave.write_text(f"token={token}\n", encoding="utf-8")
+        K = chiave.as_posix()
+        nel_veleno = [
+            ("popd torna al repository col segreto",
+             'D=$(mktemp -d); pushd "$D"; git init -q; popd; git commit -qm x', "secret"),
+            ("cd - dopo mktemp", 'D=$(mktemp -d); cd "$D"; git init -q; cd -; git commit -qm x', "ask"),
+            ("mktemp con modello relativo e messaggio init", 'D=$(mktemp -d ./t.XXXX); cd "$D"; git commit -qm "init"',
+             "ask"),
+            ("cd verso una cartella che non esiste", "cd zz 2>/dev/null; git commit -qm x", "ask"),
+            ("cd - fuori da mktemp", "cd /tmp; cd -; git commit -qm x", "ask"),
+        ]
+        n = verifica("RV06", nel_veleno, lambda c: hook(repo, "commit-secret-gate.py", c, veleno, home, temp, True))
+        da_mktemp = [
+            ("mktemp con un file scritto pulito", 'D=$(mktemp -d); cd "$D"; git init -q; echo ciao > a.txt; '
+             'git add .; git commit -qm x', "silent"),
+            ("sorgente letta con <file", f'D=$(mktemp -d); cd "$D"; git init -q; cat <{K} >n; git add n; git commit -qm x',
+             "secret"),
+            ("sorgente letta con $(<file)", f'D=$(mktemp -d); cd "$D"; git init -q; echo "$(<{K})" > n; git add n; '
+             'git commit -qm x', "ask"),
+            ("cp -t verso mktemp", f'D=$(mktemp -d); cp -t "$D" {K}; cd "$D"; git init -q; git add .; git commit -qm x',
+             "secret"),
+        ]
+        n += verifica("RV06", da_mktemp, lambda c: hook(repo, "commit-secret-gate.py", c, progetto, home, temp, True))
+        nel_pulito = [
+            ("file pulito scritto e aggiunto", 'echo ciao > a.txt; git add a.txt; git commit -m "nota"', "silent"),
+            ("segreto scritto e aggiunto nello stesso comando",
+             f"printf 'key={token}' > new.txt; git add new.txt; git commit -qm x", "secret"),
+        ]
+        return n + verifica("RV06", nel_pulito, lambda c: hook(repo, "commit-secret-gate.py", c, pulito, home, temp,
+                                                              True))
+
+
+TESTS = {"RV01": test_rv01, "RV02": test_rv02, "RV03": test_rv03, "RV04": test_rv04, "RV05": test_rv05,
+         "RV06": test_rv06}
 # Le guardie che ogni gruppo sorveglia: il veleno le rimette com'erano sulla base.
 VELENI = {"RV01": ["block-dangerous.py"], "RV02": ["block-dangerous.py"],
           "RV03": ["block-dangerous.py", "bash-dispatcher.sh"], "RV04": ["exfil-guard.py", "bash-dispatcher.sh"],
-          "RV05": ["comms-guard.py"]}
+          "RV05": ["comms-guard.py"], "RV06": ["commit-secret-gate.py"]}
 
 
 def avvelena(repo: Path, ref: str) -> int:
