@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Scrive sito/novita/index.html dalle voci di NOVITA.md di Arturo.
 
-Ogni voce di NOVITA.md comincia con «## AAAA-MM-GG — Titolo» e diventa un <article> con un'ancora
+Ogni voce di NOVITA.md comincia con "## AAAA-MM-GG — Titolo" e diventa un <article> con un'ancora
 (data più titolo) e un <time datetime>. Il resto del markdown che NOVITA.md usa (paragrafi, liste,
 **grassetto**, *corsivo*, `codice`, link, citazioni, blocchi di codice) diventa HTML semplice ed
-escapato. Testata, menu, stile e piede riprendono la pagina per le organizzazioni.
+escapato. Testata, menu, stile e piede sono quelli delle altre pagine interne (testata unica, 1/11/2026).
 
   python3 strumenti/novita.py                       legge ../arturo/NOVITA.md accanto al worktree
   python3 strumenti/novita.py --da PERCORSO         legge un altro NOVITA.md
@@ -203,7 +203,7 @@ def json_ld(elenco: list) -> str:
 def articolo(v: dict) -> str:
     return (
         '      <article class="voce" id="' + v["id"] + '" aria-labelledby="t-' + v["id"] + '">\n'
-        '        <p class="voce__data stretta"><time datetime="' + v["data"] + '">'
+        '        <p class="voce__data"><time datetime="' + v["data"] + '">'
         + data_lunga(v["data"]) + "</time></p>\n"
         '        <div class="voce__corpo">\n'
         '          <h2 id="t-' + v["id"] + '"><a href="#' + v["id"] + '">' + in_linea(v["titolo"]) + "</a></h2>\n"
@@ -263,48 +263,67 @@ MODELLO = """<!doctype html>
 @font-face{{font-family:"Atkinson Mono";src:url(../font/atkinson-mono.woff2) format("woff2");font-weight:200 800;font-display:swap}}
 
 *,*::before,*::after{{box-sizing:border-box}}
-html{{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scrollbar-color:#a3abb5 var(--carta)}}
+html{{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scrollbar-color:var(--scorrimento) var(--carta)}}
 @media (prefers-reduced-motion:reduce){{html{{scroll-behavior:auto}}}}
 body{{margin:0;background:var(--carta);color:var(--grafite);font:400 clamp(16.5px, .98rem + .15vw, 18px)/1.55 var(--testo);letter-spacing:-.005em;-webkit-font-smoothing:antialiased}}
-::selection{{background:var(--azione);color:#fff}}
+::selection{{background:var(--azione);color:var(--bianco)}}
 :focus-visible{{outline:2px solid var(--azione);outline-offset:3px}}
 img,svg{{display:block;max-width:100%}}
 a{{color:inherit;text-underline-offset:.2em;text-decoration-thickness:1px}}
 p{{margin:0 0 1em;text-wrap:pretty}}
-ul,ol{{margin:0;padding:0}}
-h1,h2,h3{{margin:0;color:var(--inchiostro);font-family:var(--titolo);font-weight:400;text-wrap:balance}}
+h1,h2,h3{{margin:0;color:var(--inchiostro);font-family:var(--titolo);font-weight:400;text-wrap:balance;overflow-wrap:break-word;min-width:0}}
 code,pre{{font-family:var(--mono)}}
 code{{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inchiostro);overflow-wrap:anywhere}}
 .dentro{{max-width:var(--colonna);margin:0 auto;padding:0 var(--gutter)}}
-.salta{{position:absolute;left:-9999px;top:8px;z-index:20;padding:10px 14px;background:var(--inchiostro);color:#fff}}
-.salta:focus{{left:12px}}
+.salta{{position:absolute;left:12px;top:8px;z-index:20;padding:10px 14px;background:var(--inchiostro);color:var(--bianco);transform:translateY(-150%)}}
+.salta:focus{{transform:none}}
+/* voce stretta e maiuscola: solo sui pulsanti, a 0,04em */
 .stretta{{font-family:var(--titolo);font-stretch:75%;font-weight:560;text-transform:uppercase;letter-spacing:.04em}}
 
-.azione{{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border:1px solid var(--azione);background:var(--azione);color:#fff;text-decoration:none;font:560 .98rem/1 var(--titolo);font-stretch:75%;letter-spacing:.06em;text-transform:uppercase;transition:background-color .18s,border-color .18s,color .18s}}
+.azione{{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border:1px solid var(--azione);background:var(--azione);color:var(--bianco);text-decoration:none;font:560 .98rem/1 var(--titolo);font-stretch:75%;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:background-color .18s,border-color .18s,color .18s}}
 .azione:hover{{background:var(--azione-giu);border-color:var(--azione-giu)}}
+.azione:active{{transform:translateY(1px);transition:none}}
 .azione--bordo{{background:transparent;color:var(--inchiostro);border-color:var(--inchiostro)}}
-.azione--bordo:hover{{background:var(--inchiostro);border-color:var(--inchiostro);color:#fff}}
+.azione--bordo:hover{{background:var(--inchiostro);border-color:var(--inchiostro);color:var(--bianco)}}
 
-/* ---------- testata ---------- */
-.testata{{position:relative;background:var(--cielo);overflow:hidden;isolation:isolate}}
-.testata__volta{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:right top;z-index:-1;-webkit-mask-image:linear-gradient(90deg,rgba(0,0,0,.15) 0,rgba(0,0,0,.3) 45%,#000 85%);mask-image:linear-gradient(90deg,rgba(0,0,0,.15) 0,rgba(0,0,0,.3) 45%,#000 85%)}}
+/* ---------- testata unica delle pagine interne ---------- */
+.menu{{position:relative;z-index:3}}
 .menu .dentro{{display:flex;align-items:center;gap:28px;min-height:68px}}
-.marchio{{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--inchiostro);font:500 1.2rem/1 var(--titolo);font-stretch:108%;letter-spacing:-.01em}}
-.marchio svg{{width:28px;height:28px}}
-.menu__fine{{margin-left:auto;display:flex;gap:24px;font-size:.86rem}}
-.menu__fine a{{text-decoration:none;padding:6px 0;border-bottom:1px solid currentColor}}
+.marchio{{display:inline-flex;align-items:center;gap:10px;min-height:44px;text-decoration:none;color:var(--inchiostro);font:500 1.2rem/1 var(--titolo);font-stretch:108%;letter-spacing:-.01em}}
+.marchio svg{{width:28px;height:28px;flex:none}}
+.menu__fine{{margin-left:auto;display:flex;align-items:center;gap:24px}}
+.menu__voce{{display:inline-flex;align-items:center;min-height:44px;color:var(--grafite);text-decoration:none;font-size:.9rem;white-space:nowrap}}
+a.menu__voce:hover{{color:var(--inchiostro);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.3em}}
+.menu__voce[aria-current="page"]{{color:var(--inchiostro);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:.3em}}
+.menu .azione--scura{{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border:1px solid var(--inchiostro);background:var(--inchiostro);color:var(--bianco);text-decoration:none;font-size:.9rem;transition:background-color .18s,border-color .18s}}
+.menu .azione--scura:hover{{background:var(--inchiostro-su);border-color:var(--inchiostro-su);color:var(--bianco)}}
+.menu a:active{{transform:translateY(1px);transition:none}}
+@media (max-width:480px){{.menu .dentro,.menu__fine{{gap:16px}}}}
+/* sotto 360 px il marchio basta per tornare alla home */
+@media (max-width:360px){{a.menu__voce{{display:none}}}}
+
+.testata{{position:relative;background:var(--cielo);overflow:hidden;isolation:isolate}}
+.testata__volta{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:right top;z-index:-1;-webkit-mask-image:linear-gradient(90deg,var(--maschera-lieve) 0,var(--maschera-media) 45%,var(--maschera) 85%);mask-image:linear-gradient(90deg,var(--maschera-lieve) 0,var(--maschera-media) 45%,var(--maschera) 85%)}}
 .testata__corpo{{padding:clamp(40px,7vw,104px) 0 clamp(48px,6vw,88px);max-width:900px}}
-.testata h1{{font-weight:250;font-size:clamp(2.6rem, 1.2rem + 5vw, 5.8rem);line-height:.95;letter-spacing:-.025em;font-stretch:114%}}
-.testata p{{margin:22px 0 28px;max-width:56ch;font-size:1.1rem;color:var(--grafite)}}
+.testata h1{{font-weight:250;font-size:clamp(2.6rem, 1.3rem + 4.6vw, 5.6rem);line-height:.95;letter-spacing:-.025em;font-stretch:114%}}
+.testata p{{margin:22px 0 0;max-width:56ch;font-size:1.1rem;color:var(--grafite)}}
+@media (max-width:760px){{.testata__volta{{opacity:.35}}}}
+
+.piede{{padding:32px 0 44px;font-size:.9rem;color:var(--cenere);border-top:1px solid var(--filetto)}}
+.piede .dentro{{display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}}
+.piede strong{{color:var(--inchiostro)}}
+.piede p{{margin:0}}
+.testata p{{margin:22px 0 28px}}
 .testata__vie{{display:flex;flex-wrap:wrap;gap:12px}}
+ul,ol{{margin:0;padding:0}}
 
 /* ---------- le voci ---------- */
 .sezione{{padding:var(--ritmo) 0}}
 .voci{{display:grid;gap:clamp(44px,6vw,80px)}}
 .voce{{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,9fr);gap:12px 48px;padding-top:18px;border-top:1px solid var(--inchiostro);scroll-margin-top:24px}}
-.voce__data{{margin:0;font-size:.82rem;font-weight:600;letter-spacing:.07em;color:var(--cenere);font-variant-numeric:tabular-nums}}
-.voce__corpo{{min-width:0;max-width:70ch}}
-.voce h2{{font-weight:350;font-size:clamp(1.5rem, 1.2rem + .9vw, 2rem);line-height:1.15;letter-spacing:-.015em;font-stretch:108%;margin-bottom:18px}}
+.voce__data{{margin:0;font:600 .9rem/1.3 var(--titolo);font-stretch:75%;color:var(--cenere);font-variant-numeric:tabular-nums}}
+.voce__corpo{{min-width:0;max-width:50ch}}
+.voce h2{{font-weight:350;font-size:clamp(1.5rem, 1.2rem + .9vw, 2rem);line-height:1.15;letter-spacing:-.015em;font-stretch:108%;margin-bottom:18px;overflow-wrap:break-word;min-width:0}}
 .voce h2 a{{text-decoration:none}}
 .voce h2 a:hover{{text-decoration:underline}}
 .voce h3{{font-size:1.15rem;margin:1.4em 0 .5em}}
@@ -316,31 +335,23 @@ code{{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--in
 .voce pre{{margin:0 0 1em;padding:14px 16px;background:var(--term);color:var(--term-testo);border-radius:4px;font-size:.8rem;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}}
 .voce pre code{{background:none;padding:0;color:inherit;font-size:inherit}}
 
-/* chiusura */
+/* ---------- chiusura ---------- */
 .vuoto{{position:relative;background:var(--vuoto);color:var(--vuoto-testo);isolation:isolate}}
 .vuoto::before{{content:"";position:absolute;inset:0;z-index:-1;opacity:.13;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E")}}
-.vuoto ::selection{{background:#fff;color:var(--vuoto)}}
+.vuoto ::selection{{background:var(--bianco);color:var(--vuoto)}}
 .vuoto :focus-visible{{outline-color:var(--term-tu)}}
-.chiusura .dentro{{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:32px;align-items:end}}
-.chiusura h2{{color:#fff;font-weight:300;font-size:clamp(2.2rem, 1.4rem + 2.6vw, 3.8rem);line-height:1;letter-spacing:-.02em;font-stretch:112%}}
+.chiusura .dentro{{display:grid;grid-template-columns:minmax(0,1fr);gap:28px;justify-items:start}}
+.chiusura h2{{color:var(--bianco);font-weight:300;font-size:clamp(2.1rem, 1.3rem + 2.6vw, 3.6rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%}}
 .chiusura p{{margin:18px 0 0;color:var(--vuoto-cenere);max-width:52ch}}
-.chiusura code{{background:var(--vuoto-2);color:#fff}}
-.chiusura__vie{{justify-self:end;display:flex;flex-wrap:wrap;gap:12px;justify-content:flex-end}}
-.chiusura .azione--chiara{{background:#fff;border-color:#fff;color:var(--inchiostro)}}
+.chiusura code{{background:var(--vuoto-2);color:var(--bianco)}}
+.chiusura__vie{{display:flex;flex-wrap:wrap;gap:12px}}
+.chiusura .azione--chiara{{background:var(--bianco);border-color:var(--bianco);color:var(--inchiostro)}}
 .chiusura .azione--chiara:hover{{background:var(--cielo);border-color:var(--cielo)}}
-.chiusura .azione--bordo{{color:#fff;border-color:#fff}}
-.chiusura .azione--bordo:hover{{background:#fff;color:var(--inchiostro)}}
-
-.piede{{padding:32px 0 44px;font-size:.86rem;color:var(--cenere)}}
-.piede .dentro{{display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}}
-.piede strong{{color:var(--inchiostro)}}
-.piede p{{margin:0}}
+.chiusura .azione--bordo{{color:var(--bianco);border-color:var(--bianco)}}
+.chiusura .azione--bordo:hover{{background:var(--bianco);color:var(--inchiostro)}}
 
 @media (max-width:760px){{
-  .voce,.chiusura .dentro{{grid-template-columns:minmax(0,1fr)}}
-  .chiusura__vie{{justify-self:stretch;justify-content:flex-start}}
-  .menu__fine a:first-child{{display:none}}
-  .testata__volta{{opacity:.35}}
+  .voce{{grid-template-columns:minmax(0,1fr)}}
 }}
 </style>
 <script defer data-domain="arturo.stellakamikaze.org" data-api="/api/e" src="/js/a.js"></script>
@@ -357,7 +368,10 @@ code{{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--in
         <svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M3 24 11.5 9.5 17 17l8-11" stroke="#0b0d10" stroke-width="1.5"/><circle cx="11.5" cy="9.5" r="3.2" fill="#f2a24a"/><circle cx="17" cy="17" r="1.6" fill="#0b0d10"/><circle cx="25" cy="6" r="1.6" fill="#0b0d10"/></svg>
         Arturo
       </a>
-      <div class="menu__fine stretta"><a href="../">Cos'è Arturo</a><a href="../installa/">Installa</a></div>
+      <div class="menu__fine">
+        <a class="menu__voce stretta" href="../">Cos'è Arturo</a>
+        <a class="azione azione--scura stretta" href="../installa/">Installa</a>
+      </div>
     </div>
   </nav>
   <div class="dentro">
@@ -427,7 +441,7 @@ def main(argomenti: list) -> int:
         testo = sorgente.read_text(encoding="utf-8")
     elenco = voci(testo)
     if not elenco:
-        print("Nessuna voce «## AAAA-MM-GG — Titolo» trovata: non scrivo niente", file=sys.stderr)
+        print('Nessuna voce "## AAAA-MM-GG — Titolo" trovata: non scrivo niente', file=sys.stderr)
         return 1
     risultato = pagina(elenco)
     if opzioni.prova:

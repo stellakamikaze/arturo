@@ -64,7 +64,7 @@ colors:
 typography:
   display:
     fontFamily: "Archivo, Helvetica Neue, Arial, sans-serif"
-    fontSize: "clamp(3.4rem, 1rem + 8.6vw, 8.6rem)"
+    fontSize: "clamp(3.4rem, .7rem + 5.7vw, 5.7rem)"
     fontWeight: 250
     lineHeight: 0.9
     letterSpacing: "0"
@@ -111,10 +111,10 @@ typography:
     fontVariation: '"wdth" 75'
   label-piccola:
     fontFamily: "Archivo, Helvetica Neue, Arial, sans-serif"
-    fontSize: "0.74rem"
-    fontWeight: 600
+    fontSize: "0.78rem"
+    fontWeight: 560
     lineHeight: 1.3
-    letterSpacing: "0.07em"
+    letterSpacing: "0"
     fontVariation: '"wdth" 75'
   mono:
     fontFamily: "Atkinson Mono, ui-monospace, SF Mono, Menlo, monospace"
@@ -242,13 +242,13 @@ Arturo è un prodotto, e la pagina lo mostra al lavoro. L'oggetto principale è 
 
 Il registro è quello delle landing di prodotto delle IA, a righe alternate. Il testo sta a sinistra o a destra, la finestra sta su una lastra piatta di colore pieno. Le lastre si alternano: cielo col reticolo, giallo, verde, azzurro. Una fascia "vuoto" quasi nera, con una grana leggera, porta i dati d'uso e la chiusura. Il resto è carta grigio caldo con filetti sottili.
 
-La tipografia ha due voci della stessa famiglia. Archivo largo e leggero parla nei titoli. Archivo stretto in maiuscolo dà i comandi dell'interfaccia: menu, pulsanti, etichette. Atkinson Next porta il testo e Atkinson Mono porta i terminali. Gli angoli sono vivi. La pagina rifiuta la pagina-documento numerata e l'hero scuro col terminale al neon.
+La tipografia ha due voci della stessa famiglia. Archivo largo e leggero parla nei titoli. Archivo stretto in maiuscolo dà solo i controlli: pulsanti, Copia, scelte Mac/Windows, schede, voci di menu. Le etichette di contenuto (date, "Esempio", stati, intestazioni di tabella) sono in tono di frase, nel carattere del testo. Atkinson Next porta il testo e Atkinson Mono porta i terminali. Gli angoli sono vivi. La pagina rifiuta la pagina-documento numerata e l'hero scuro col terminale al neon.
 
 **Key Characteristics:**
 - Il cielo `cielo` col reticolo generato della volta, in apertura e in una lastra per pagina.
 - La finestra del prodotto come unico oggetto con ombra.
 - Righe alternate su lastre piatte di quattro colori, senza bordo e senza raggio.
-- Archivo largo e leggero per i titoli, Archivo stretto maiuscolo per l'interfaccia.
+- Archivo largo e leggero per i titoli, Archivo stretto maiuscolo solo per i controlli.
 - Angoli da 0 a 4 px. Il pulsante principale è un blocco blu pieno e squadrato.
 - L'arancio solo sulla stella e sulla barra in cima.
 
@@ -257,7 +257,7 @@ La tipografia ha due voci della stessa famiglia. Archivo largo e leggero parla n
 Una palette fredda e chiara: cielo azzurro, carta grigio caldo, inchiostro quasi nero, un solo blu d'azione e un arancio che compare due volte.
 
 ### Primary
-- **Blu Azione** (`azione`): il pulsante principale ("Guida passo per passo"), la selezione del testo, il contorno del focus, le icone delle etichette, le linee di Boote e dell'Orsa nel reticolo. Al passaggio del mouse scende a **Blu Azione Fondo** (`azione-giu`). **Velo Azione** (`azione-velo`) è il fondo leggero del passo corrente nella guida e dello strato scelto nella pagina per le organizzazioni.
+- **Blu Azione** (`azione`): il pulsante principale ("Guida passo per passo"), la selezione del testo, il contorno del focus, le linee di Boote e dell'Orsa nel reticolo. Al passaggio del mouse scende a **Blu Azione Fondo** (`azione-giu`). **Velo Azione** (`azione-velo`) è il fondo leggero del passo corrente nella guida.
 
 ### Secondary
 - **Stella** (`stella`): l'arancio di Arturo. Vive nella stella del reticolo e nel suo alone, nel punto del marchio, nella favicon e nella barra sottile in cima alla home.
@@ -275,7 +275,7 @@ Una palette fredda e chiara: cielo azzurro, carta grigio caldo, inchiostro quasi
 - **Esiti** (`passa`, `blocca`): il verde dei passi fatti e il rosso degli errori nella guida. Nei terminali "Chiede a te" è `term-tu` su bordo `term-guardia`, col testo del messaggio in `term-guardia-testo`. "Blocca" è `term-blocca` su bordo `term-blocca-bordo`.
 
 ### Dove stanno
-Tutti i token di colore, carattere e misura stanno in `sito/stile/colori.css`, caricato da ogni pagina prima del suo `<style>`. Una pagina tiene nel suo `:root` solo i token che usa lei sola (`--esce`, `--segno` nella guida). Dal 31/10/2026 anche i colori che la home teneva letterali nel suo `<style>` hanno un nome in `colori.css`, con lo stesso valore: `bianco`, la famiglia `term-*` dei terminali (righe, albero dei file, esiti, bordi e fondi dei controlli), `allarme` e `allarme-fondo`, `volta-griglia`, `firma`, `scorrimento`. Le tre ombre hanno un nome anche loro (`ombra-finestra`, `ombra-foglio`, `ombra-appunto`). Restano letterali solo le maschere a gradiente della volta e dei nomi delle sessioni.
+Tutti i token di colore, carattere e misura stanno in `sito/stile/colori.css`, caricato da ogni pagina prima del suo `<style>`. Il file porta anche le regole comuni: `html, body` con `overflow-x: clip` (niente scorrimento orizzontale, lo sticky resta) e il link "Salta al contenuto" che scende al fuoco con `transform`, non con `left`. Una pagina tiene nel suo `:root` solo i token che usa lei sola (`--esce`, `--segno` nella guida). Dal 31/10/2026 anche i colori che la home teneva letterali nel suo `<style>` hanno un nome in `colori.css`, con lo stesso valore: `bianco`, la famiglia `term-*` dei terminali (righe, albero dei file, esiti, bordi e fondi dei controlli), `allarme` e `allarme-fondo`, `volta-griglia`, `firma`, `scorrimento`. Le tre ombre hanno un nome anche loro (`ombra-finestra`, `ombra-foglio`, `ombra-appunto`). Anche le maschere a gradiente hanno un nome: `maschera`, `maschera-lieve`, `maschera-media`. Una maschera legge solo l'opacità, non il colore.
 
 ### Named Rules
 **The Una Stella Rule.** L'arancio `stella` compare solo nella stella Arturo (reticolo, alone, marchio, favicon) e nella barra in cima. Mai su pulsanti, titoli, etichette o lastre.
@@ -288,31 +288,31 @@ Tutti i token di colore, carattere e misura stanno in `sito/stile/colori.css`, c
 **Body Font:** Atkinson Next (Atkinson Hyperlegible Next), con system-ui
 **Label/Mono Font:** Archivo stretto per le etichette, Atkinson Mono (Atkinson Hyperlegible Mono) per i terminali
 
-**Character:** Archivo largo e leggero dà ai titoli un respiro ampio e tecnico. Lo stesso Archivo stretto in maiuscolo dà all'interfaccia il tono di un pannello di controllo. Atkinson tiene il testo leggibile per chi non è tecnico. Tutti i font sono OFL e ospitati in `sito/font/`.
+**Character:** Archivo largo e leggero dà ai titoli un respiro ampio e tecnico. Lo stesso Archivo stretto in maiuscolo dà ai controlli il tono di un pannello. Atkinson tiene il testo leggibile per chi non è tecnico. Tutti i font sono OFL e ospitati in `sito/font/`.
 
 ### Hierarchy
-- **Display** (250, larghezza 118%): la parola "ARTURO" in apertura, una lettera per colonna, distribuita su tutta la larghezza.
+- **Display** (250, larghezza 118%, `clamp(3.4rem, .7rem + 5.7vw, 5.7rem)`): il marchio "A R T U R O" in apertura, una lettera per colonna. Nel piede non c'è più il marchio gigante a contorno.
 - **Display Pagina** (250, larghezza 114%): il titolo d'apertura della guida e della pagina per le organizzazioni.
 - **Headline** (300, larghezza 112%): i titoli di sezione. Spesso hanno una seconda riga in `cenere`, sullo stesso corpo.
 - **Title** (350, larghezza 108%): i titoli delle righe alternate, con la seconda riga in `cenere`.
 - **Title Piccolo** (400, larghezza normale): i titoli delle colonne con filetto (`tre`, impegni, voci della pagina per le organizzazioni).
 - **Body** (400, 16,5-18 px fluido): testo corrente, misura tra 46 e 70 caratteri.
-- **Label** (560, larghezza 75%, maiuscolo): menu, pulsanti, etichette sotto la promessa.
-- **Label Piccola** (600, larghezza 75%, maiuscolo): esiti, intestazioni di tabella, titoli del piede, stato dei passi. Nel testo funzionale (tabelle, stato dei passi, miniature di "Cosa ti restituisce", albero dei file della scena) mai sotto 0,74 rem (11,8 px). Dentro le finestre del terminale scende a 0,66-0,72 rem, come nell'interfaccia vera; su fondi chiari il colore resta almeno a 4,5:1.
+- **Label** (560, larghezza 75%, maiuscolo, 0,04 em): solo i controlli. Pulsanti `.azione`, Copia, scelte Mac/Windows, schede, voci di menu dove resta il maiuscolo.
+- **Label Piccola** (560, larghezza 75%, tono di frase, senza spaziatura): le etichette di contenuto. Date, "Esempio", teste del piede, stati, nomi della costellazione, intestazioni di tabella, stato dei passi. Hanno il carattere del testo, non il maiuscolo. Nel testo funzionale mai sotto 0,74-0,78 rem. Dentro le finestre del terminale scende a 0,66-0,72 rem, come nell'interfaccia vera; su fondi chiari il colore resta almeno a 4,5:1.
 - **Mono** (400): sessioni, comandi, registro delle guardie, barra delle finestre.
 
 ### Named Rules
-**The Due Larghezze Rule.** Archivo è largo (112-118%) e leggero (250-300) nei titoli grandi. È stretto (75%) e maiuscolo nell'interfaccia. Le larghezze intermedie servono solo al marchio e ai titoli di riga (108%).
+**The Due Larghezze Rule.** Archivo è largo (112-118%) e leggero (250-300) nei titoli grandi. È stretto (75%) e maiuscolo solo nei controlli. Le larghezze intermedie servono solo al marchio e ai titoli di riga (108%).
 
 **The Terminale Mono Rule.** Atkinson Mono compare dentro le finestre, nei comandi da copiare e nei `code`. Fuori dal terminale il testo è sempre Atkinson Next.
 
 ## Layout
 
-Una colonna di `colonna` con `gutter` fluido. Le sezioni distano `ritmo`. Le testate di sezione sono a due colonne uguali: titolo a sinistra, attacco a destra, allineati in basso.
+Una colonna di `colonna` con `gutter` fluido. Le sezioni distano `ritmo`. Il ritmo delle aperture di sezione cambia di proposito. `.testa` classica: due colonne uguali, titolo a sinistra, attacco a destra, allineati in basso. `.testa--riga` (`#ritmo`): una colonna, frase fino a 60 caratteri. `.testa--pila` ("Cosa fa Arturo", "I limiti", "Ne scrivo"): titolo sopra, frase sotto, una colonna. In `#domande` il titolo sta di lato e resta fisso (`.dentro--lato`, 4/12 e 8/12, sticky; sotto 1020 px diventa una colonna). La chiusura sta in una colonna da 760 px. Le righe dei testi lunghi non superano 68 caratteri.
 
 Le funzioni stanno in righe alternate distanti `righe`. Il testo prende 5/12, la lastra 7/12, e le righe pari invertono il lato. La fascia dei dati d'uso usa lo stesso 5/12 e 7/12. La guida d'installazione ha un indice fisso a sinistra (300 px) e il passo aperto a destra.
 
-Ogni griglia usa `minmax(0, 1fr)`, così un comando lungo va a capo e la pagina non sborda. La home passa a una colonna sotto 1020 px per le righe e sotto 760 px per il resto. Su mobile l'apertura mette prima la promessa e poi la finestra; dentro la promessa i due passi salgono subito sotto il titolo, prima del testo lungo. La guida passa a una colonna sotto 980 px.
+Ogni griglia usa `minmax(0, 1fr)`, così un comando lungo va a capo e la pagina non sborda. La home passa a una colonna sotto 1020 px per le righe e sotto 760 px per il resto. Su mobile l'apertura mette prima la promessa e poi la finestra. La guida passa a una colonna sotto 980 px.
 
 ## Elevation & Depth
 
@@ -328,7 +328,7 @@ La pagina è piatta. La profondità sta in un solo oggetto: la finestra del prod
 
 ## Shapes
 
-Gli angoli sono vivi. Le finestre e le bolle della chat d'esempio hanno 4 px (`finestra`). Pulsanti, lastre, campi, comandi sulla fascia scura e segni sono a 0 px (`vivo`). Il cerchio compare solo nei tre puntini della barra delle finestre, nelle stelle del reticolo e nel punto del richiamo della guida. I campi hanno solo il filetto in basso, come un modulo cartaceo. Gli strati della pagina per le organizzazioni sono quattro cornici a filo, una dentro l'altra.
+Gli angoli sono vivi. Le finestre e le bolle della chat d'esempio hanno 4 px (`finestra`). Pulsanti, lastre, campi, comandi sulla fascia scura e segni sono a 0 px (`vivo`). Il cerchio compare solo nelle stelle del reticolo e nel punto del richiamo della guida. I campi hanno solo il filetto in basso, come un modulo cartaceo. La pagina per le organizzazioni non ha più gli strati: righe piane con filetto.
 
 ### Named Rules
 **The Zero-Quattro Rule.** I raggi vanno da 0 a 4 px. Il 4 è per le finestre, lo 0 per tutto il resto.
@@ -338,17 +338,17 @@ Gli angoli sono vivi. Le finestre e le bolle della chat d'esempio hanno 4 px (`f
 ### Buttons
 Blocchi squadrati, con la voce stretta e maiuscola.
 - **Shape:** angoli vivi (`vivo`), bordo di 1 px dello stesso colore del fondo.
-- **Primary:** fondo `azione`, testo bianco. Alto 44 px nel menu, 60 px nella versione grande dell'apertura.
+- **Primary:** fondo `azione`, testo bianco, maiuscolo a 0,04 em. Alto 44 px nel menu, 60 px nella versione grande dell'apertura. Nella pagina per le organizzazioni il blu sta solo su "Installa Arturo".
 - **Hover / Focus:** il fondo scende ad `azione-giu` in 0,18 s. Il focus è un contorno di 2 px `azione` staccato di 3 px. Sulla barra arancio il contorno è `inchiostro` (9,3:1); nella fascia scura e nelle finestre è `term-tu`, salvo i pulsanti blu pieni ("Continua dal passo 3", Copia), che tengono il contorno `azione`.
 - **Active:** alla pressione il controllo scende di 1 px, senza transizione.
-- **Misura:** ogni controllo è alto almeno 44 px, anche dentro le finestre (frecce, nomi delle sessioni, Mac/Windows, pulsanti della scena).
+- **Misura:** ogni controllo è alto almeno 44 px, anche dentro le finestre (frecce, nomi delle sessioni, Mac/Windows, pulsanti della scena). Il testo minimo è 0,74-0,78 rem.
 - **Scura:** fondo `inchiostro`, per "Installa" nel menu.
 - **Chiara:** fondo bianco e testo `inchiostro` sulla fascia scura, al passaggio diventa `cielo`.
 - **Bordo:** fondo trasparente, bordo e testo `inchiostro` nella pagina per le organizzazioni. Nella guida il bordo è blu `azione` e il passaggio stende `azione-velo`.
 
 ### Etichette e segni
-- **Etichette della promessa:** voce stretta maiuscola con un'icona SVG di 15 px in `azione`, senza fondo.
-- **Esiti nel terminale:** riquadro con bordo di 1 px, voce stretta maiuscola, nessun raggio.
+- **Etichette della promessa:** tolte. L'apertura non ha più le quattro etichette con icona.
+- **Esiti nel terminale:** riquadro con bordo di 1 px, testo in tono di frase, nessun raggio.
 - **Dove si incolla (guida):** tre segni alti 24 px. Terminale: fondo `inchiostro`. Claude: fondo bianco con anello `inchiostro`. Pagina: fondo `carta-2`.
 
 ### Lastre (righe alternate)
@@ -364,13 +364,13 @@ Blocchi squadrati, con la voce stretta e maiuscola.
 - **Accesso:** nella pagina d'accesso campo e pulsante stanno uniti in una riga, con bordo pieno `inchiostro`. L'errore usa `blocca`.
 
 ### Navigation
-Il marchio (colline, stella arancio, "Arturo" in Archivo 500 a larghezza 108%) sta a sinistra. Le voci stanno in fila, in voce stretta maiuscola, con un filetto che compare sotto al passaggio. "Installa" chiude a destra come pulsante scuro. Sotto 1020 px restano marchio e pulsante. Sopra il menu, nella home, corre la barra arancio sottile.
+Il marchio (colline, stella arancio, "Arturo" in Archivo 500 a larghezza 108%) sta a sinistra. Le pagine interne hanno una testata unica: logo, "Cos'è Arturo", "Installa" come pulsante scuro alto 44 px a destra. Su `installa/` la voce corrente è testo con `aria-current` e sottolineatura. Sotto 1020 px restano marchio e pulsante. Sopra il menu, nella home, corre la barra arancio sottile.
 
 ### I due passi (apertura)
-Dal 1/11/2026 la colonna destra della promessa porta "Si installa in due passi": un riquadro a fondo `bianco` pieno, con il filetto `inchiostro` in alto, così il reticolo della volta non passa sotto il testo. Due voci con una boa quadrata `azione` di 28 px, come le tappe della guida: 1 Installa Claude Code (link a `installa/#tappa-1`), 2 la frase con /inizia/ in un `comando` scuro. La frase sta su due righe intere e il pulsante Copia va sotto, a tutta larghezza (`comando--pila`). Chiude una riga sotto un filetto: Claude fa il resto, poi `/exit`, `claude`, `/setup`. Sotto il riquadro il pulsante grande "Guida passo per passo". La stessa frase col Copia torna nella chiusura, sotto "Un link, e Claude fa il resto.". `tests/test_inizia.py` controlla che le due copie siano fuori dalle schede e uguali alla frase.
+L'apertura della home ha a sinistra il titolo (seconda riga in `cenere`), una frase e il pulsante grande "Guida passo per passo". Dal 1/11/2026 la colonna destra porta il riquadro "Si installa in due passi": un riquadro a fondo `bianco` pieno, con il filetto `inchiostro` in alto, così il reticolo della volta non passa sotto il testo. Due voci con una boa quadrata `azione` di 28 px, come le tappe della guida: 1 Installa Claude Code (link a `installa/#tappa-1`), 2 la frase con /inizia/ in un `comando` scuro. La frase sta su due righe intere e il pulsante Copia va sotto, a tutta larghezza (`comando--pila`). Chiude una riga sotto un filetto: Claude fa il resto, poi `/exit`, `claude`, `/setup`. La stessa frase col Copia torna nella chiusura, sotto "Un link, e Claude fa il resto.". `tests/test_inizia.py` controlla che le due copie siano fuori dalle schede e uguali alla frase.
 
 ### Finestra del prodotto (componente firma)
-Il terminale di Claude Code: fondo `term`, raggio 4 px, ombra Finestra. Una barra di 34 px con tre puntini e il titolo in mono centrato. Dentro, la sessione: le righe della persona in `term-tu` dopo "> ", le azioni con un punto verde, la guardia in un riquadro con bordo blu e il titolo in grassetto chiaro, la scelta evidenziata in blu pieno. La variante chiara (fondo bianco, barra `#fbfbfa`) mostra la chat d'esempio.
+Il terminale di Claude Code: fondo `term`, raggio 4 px, ombra Finestra. Una barra di 34 px con il titolo in mono centrato, senza i tre puntini. Dentro, la sessione: le righe della persona in `term-tu` dopo "> ", le azioni con un punto verde, la guardia in un riquadro con bordo blu e il titolo in grassetto chiaro, la scelta evidenziata in blu pieno. La variante chiara (fondo bianco, barra `#fbfbfa`) mostra la chat d'esempio.
 
 I messaggi delle guardie sono quelli che Arturo stampa davvero, parola per parola: se cambia la guardia, cambia anche la pagina. Le sessioni intorno sono esempi, e la didascalia lo dichiara ("Sessione di esempio", "Esempio scritto per questa pagina"). Nell'apertura la finestra ha due schede, "Cosa ci fai" e "Installalo", sottolineate in `term-tu` quando sono scelte. "Cosa ci fai" è una galleria di sessioni: una per volta, cambia ogni 7 s con una dissolvenza da sfocato, si ferma al passaggio del mouse, al fuoco e al primo clic; sotto, frecce, nomi delle sessioni e un pulsante che ferma e riprende la galleria (WCAG 2.2.2), con due segni disegnati e l'etichetta "Ferma la galleria" o "Riprendi la galleria". "Installalo" sono tre carte in sequenza: "Installa Claude Code" (la riga di Anthropic per Mac o per Windows), "Incolla questa frase" (la frase con /inizia/ e il pulsante Copia) e "Claude installa e ti conosce". Le prime due sono i passi 1 e 2 della guida e scrivono il suo stesso stato (`arturo-setup-2`), che riparte dal passo 3. Lo script delle carte sta in `sito/js/home.js`. Con movimento ridotto niente scorre e niente sfuma, e il pulsante di pausa non compare.
 
@@ -381,22 +381,22 @@ Il reticolo è generato da uno script, in proiezione gnomonica centrata su Boote
 Fondo `vuoto` con una grana a rumore frattale al 13%. Porta i dati d'uso (tabella degli eventi, parole barrate di ciò che non esce mai, comandi da copiare) e la chiusura con il pulsante chiaro. I comandi qui sono piatti, con un bordo e senza raggio.
 
 ### Schema dell'harness
-Tre cerchi concentrici: fuori `cielo` con bordo `azione` (Arturo), in mezzo bianco con bordo `inchiostro` (Claude Code), dentro `inchiostro` pieno (il modello). I nomi corrono lungo gli archi in voce stretta maiuscola. Un punto `stella` sull'anello esterno è Arturo. È l'unico posto dove il cerchio fa da forma.
+Tre cerchi concentrici: fuori `cielo` con bordo `azione` (Arturo), in mezzo bianco con bordo `inchiostro` (Claude Code), dentro `inchiostro` pieno (il modello). I nomi corrono lungo gli archi in tono di frase. Un punto `stella` sull'anello esterno è Arturo. È l'unico posto dove il cerchio fa da forma.
 
 ### Articoli e iscrizione
-Un elenco di quattro righe sotto un filetto `inchiostro`: data in voce stretta, titolo in Archivo 1,15 rem. Accanto, l'iscrizione. L'elenco nella pagina è di riserva e lo rinfresca `strumenti/articoli.py`; nel browser lo sostituisce la Content API di Ghost. L'iscrizione è il modulo di Ghost (`sito/vendor/`), con il pulsante `azione`. Nella copia i raggi del modulo valgono 0, per la regola Zero-Quattro: `sito/vendor/LEGGIMI.txt` lo ricorda a ogni aggiornamento.
+Un elenco di quattro righe sotto un filetto `inchiostro`: data in tono di frase, titolo in Archivo 1,15 rem. Accanto, l'iscrizione. L'elenco nella pagina è di riserva e lo rinfresca `strumenti/articoli.py`; nel browser lo sostituisce la Content API di Ghost. L'iscrizione è il modulo di Ghost (`sito/vendor/`), con il pulsante `azione`. Nella copia i raggi del modulo valgono 0, per la regola Zero-Quattro: `sito/vendor/LEGGIMI.txt` lo ricorda a ogni aggiornamento.
 
 ### La scena "Dalla chat al terminale" (momento animato)
 L'unico momento d'autore della pagina. A sinistra la chat, che chiede di incollarle quattro cose. A destra Claude Code con un pannello "I tuoi file". Quando la finestra entra nello schermo la sessione parte una volta: la richiesta si scrive, ogni passo appare da sfocato, la voce corrispondente della chat si barra con "l'ha letto Claude Code" in `azione`, e i file si accendono (letto su `term-letto`, scritto su `term-nuovo`). Finisce sulla guardia vera e su un "no". "Salta alla fine" e "Guarda di nuovo" stanno sotto, e nel markup sono nascosti: li mostra lo script. Il markup porta già lo stato finito (`fatto` sulle voci della chat, `letto` e `nuovo` sui file) e lo script lo azzera solo quando la sessione parte: senza script, o con movimento ridotto, la scena è già completa. Il confronto delle fonti scorre in orizzontale quando non ci sta, e un'ombra `term-cenere` sul bordo dice che la riga continua.
 
 ### La sera e la mattina
-Tre pezzi in fila: la finestra di `/fine`, l'appunto su carta bianca legato da due filetti `inchiostro`, la finestra di `/inizio` il giorno dopo. Sopra ciascuno, quando, in voce stretta.
+Tre pezzi in fila: la finestra di `/fine`, l'appunto su carta bianca legato da due filetti `inchiostro`, la finestra di `/inizio` il giorno dopo. Sopra ciascuno, quando, in tono di frase.
 
 ### Cosa ti restituisce
-Tre lastre (cielo con la volta, giallo, verde) con dentro un risultato finito disegnato in HTML: il dossier impaginato, una pagina su misura con la settimana e gli stati, una tabella di ricerca. Il rosso chiaro `allarme-fondo` su `allarme` segna solo ciò che non torna o manca. In alto a sinistra di ogni lastra la parola "Esempio" in Label Piccola `grafite` dice a schermo quello che prima diceva solo l'`aria-label`.
+Tre lastre (cielo con la volta, giallo, verde) con dentro un risultato finito disegnato in HTML: il dossier impaginato, una pagina su misura con la settimana e gli stati, una tabella di ricerca. Il rosso chiaro `allarme-fondo` su `allarme` segna solo ciò che non torna o manca. In alto a sinistra di ogni lastra la parola "Esempio" in tono di frase `grafite` dice a schermo quello che prima diceva solo l'`aria-label`.
 
 ### Come lo uso io
-Sei voci su tre colonne su fondo `carta-2`: titolo, frequenza in voce stretta `azione-giu` (6,12:1 su `carta-2`), poi "Prima" e "Ora". Una nota chiude dicendo che quelle abilità non sono dentro Arturo.
+Sei voci su tre colonne su fondo `carta-2`: titolo, frequenza in tono di frase `azione-giu` (6,12:1 su `carta-2`), poi "Prima" e "Ora". Una nota chiude dicendo che quelle abilità non sono dentro Arturo.
 
 ### Il terminale
 Il terminale è scritto per essere letto: 0,9 rem, interlinea 1,65, la richiesta della persona su una fascia `term-tu-fondo` a tutta larghezza, le azioni di Claude più piccole e grigie, le risposte quasi bianche.
@@ -416,7 +416,7 @@ Testata cielo con la volta, poi 5/12 a sinistra "Dove va il tuo messaggio" (elen
 Pagine temporanee per far giudicare a qualcuno delle varianti prima di costruirle: `/prove/dafare/` (sette varianti del pannello, 22/10/2026) e `/prove/dafare-2/` (il pannello da cliccare, 23/10). Fuori da menu e sitemap, `noindex`. Testata e menu si copiano dal `<style>` di `/feedback/`, e `stile/colori.css` porta solo i token. Lo script sta in `sito/js/prove-<nome>.js` (CSP `script-src 'self'`). Voti e commenti restano in `localStorage` mentre la persona scrive, e partono in un solo invio a `/api/feedback` come `idea`, entro i 4000 caratteri del modulo. A invio riuscito la copia locale si cancella: la privacy lo dice. Una pagina di prova si toglie quando le risposte sono arrivate e lette.
 
 ### Privacy (`/privacy/`)
-Pagina da leggere, con la stessa griglia 3/9 della pagina novità. In testa quattro voci brevi con il filetto `inchiostro`. Il "mai" sta su `carta-2`. Le tabelle hanno l'intestazione in voce stretta e diventano righe impilate sotto 520 px.
+Pagina da leggere, con la stessa griglia 3/9 della pagina novità. In testa quattro voci brevi con il filetto `inchiostro`; l'etichetta di ogni voce è l'`h2`. Il "mai" sta su `carta-2`. Le tabelle hanno l'intestazione in tono di frase e diventano righe impilate sotto 520 px.
 
 ## Do's and Don'ts
 
@@ -424,14 +424,15 @@ Pagina da leggere, con la stessa griglia 3/9 della pagina novità. In testa quat
 - **Do** mettere ogni finestra su una lastra piatta o sul cielo, mai sulla carta nuda nelle righe alternate.
 - **Do** alternare il lato del testo a ogni riga e cambiare lastra a ogni riga (cielo col reticolo, giallo, verde, azzurro).
 - **Do** stampare nei terminali i messaggi veri delle guardie, e dichiarare nella didascalia che la sessione è un esempio.
-- **Do** usare Archivo largo e leggero (112-118%, 250-300) per i titoli e Archivo stretto maiuscolo (75%) per menu, pulsanti ed etichette.
+- **Do** usare Archivo largo e leggero (112-118%, 250-300) per i titoli e Archivo stretto maiuscolo (75%) solo per i controlli, tono di frase per le etichette di contenuto.
 - **Do** dare ai titoli di sezione la seconda riga in `cenere` sullo stesso corpo.
 - **Do** rigenerare il reticolo con lo script quando serve un'inquadratura nuova della volta.
 
 ### Don't:
 - **Don't** usare l'arancio `stella` fuori dalla stella Arturo e dalla barra in cima.
 - **Don't** dare ombra a qualcosa che non sia una finestra del prodotto.
-- **Don't** superare i 4 px di raggio, né usare il cerchio fuori dai puntini delle finestre, dalle stelle del reticolo, dal punto del richiamo e dallo schema dell'harness.
+- **Don't** superare i 4 px di raggio, né usare il cerchio fuori dalle stelle del reticolo, dal punto del richiamo e dallo schema dell'harness.
+- **Don't** mettere in maiuscolo spaziato un'etichetta di contenuto: il maiuscolo è dei controlli.
 - **Don't** usare Atkinson Mono fuori dai terminali, dai comandi e dai `code`.
 - **Don't** inventare il messaggio di una guardia: se il testo non è quello che Arturo stampa, non va in un terminale.
 - **Don't** mettere bordi o raggi sulle lastre delle righe alternate.

@@ -143,7 +143,7 @@ def caso_impostazioni_prima(repo):
 def caso_ingresso_persone(repo):
     """F1: chi arriva dal browser va alla guida; /inizia/ è scritta per Claude e lo dice in apertura."""
     h = leggi(repo, "sito/index.html")
-    m = re.search(r'<div class="promessa__via">.*?<a class="azione azione--grande[^"]*" href="([^"]+)"', h, re.S)
+    m = re.search(r'<div class="promessa">.*?<a class="azione azione--grande[^"]*" href="([^"]+)".*?<figure class="palco">', h, re.S)
     assert m, "manca il pulsante principale della home"
     assert m.group(1) == "installa/", f"il pulsante principale della home non porta alla guida: {m.group(1)}"
     assert 'href="inizia/"' not in h, "la home ha ancora un link a inizia/"

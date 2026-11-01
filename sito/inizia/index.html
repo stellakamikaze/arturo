@@ -21,16 +21,30 @@ body{margin:0;background:var(--carta);color:var(--grafite);font:400 clamp(16.5px
 :focus-visible{outline:2px solid var(--azione);outline-offset:3px}
 a{color:var(--azione);text-underline-offset:.2em;text-decoration-thickness:1px}
 a:hover{color:var(--azione-giu)}
-.testa{background:var(--cielo);border-bottom:1px solid var(--inchiostro)}
-.testa__riga{max-width:760px;margin:0 auto;padding:18px 16px}
+/* testata unica delle pagine interne (1/11/2026): logo, Cos'è Arturo, Installa */
+.dentro{max-width:var(--colonna);margin:0 auto;padding:0 var(--gutter)}
+.stretta{font-family:var(--titolo);font-stretch:75%;font-weight:560;text-transform:uppercase;letter-spacing:.04em}
+.testa{background:var(--cielo)}
+.menu{position:relative;z-index:3}
+.menu .dentro{display:flex;align-items:center;gap:28px;min-height:68px}
 .marchio{display:inline-flex;align-items:center;gap:10px;min-height:44px;text-decoration:none;color:var(--inchiostro);font:500 1.2rem/1 var(--titolo);font-stretch:108%;letter-spacing:-.01em}
 .marchio svg{width:28px;height:28px;flex:none}
+.menu__fine{margin-left:auto;display:flex;align-items:center;gap:24px}
+.menu__voce{display:inline-flex;align-items:center;min-height:44px;color:var(--grafite);text-decoration:none;font-size:.9rem;white-space:nowrap}
+a.menu__voce:hover{color:var(--inchiostro);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.3em}
+.menu__voce[aria-current="page"]{color:var(--inchiostro);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:.3em}
+.menu .azione--scura{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border:1px solid var(--inchiostro);background:var(--inchiostro);color:var(--bianco);text-decoration:none;font-size:.9rem;white-space:nowrap;transition:background-color .18s,border-color .18s}
+.menu .azione--scura:hover{background:var(--inchiostro-su);border-color:var(--inchiostro-su);color:var(--bianco)}
+.menu a:active{transform:translateY(1px);transition:none}
+@media (max-width:480px){.menu .dentro,.menu__fine{gap:16px}}
+@media (max-width:374px){.menu .dentro,.menu__fine{gap:8px}.menu__voce{font-size:.84rem}.menu .azione--scura{padding:0 12px}}
 main{max-width:760px;margin:0 auto;padding:clamp(36px,6vw,72px) 16px clamp(56px,8vw,96px)}
 h1,h2{margin:0;color:var(--inchiostro);font-family:var(--titolo);text-wrap:balance}
 h1{font-weight:250;font-size:clamp(2.1rem, 1.3rem + 2.6vw, 3.6rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%}
 h2{margin:2.4em 0 .7em;padding-top:12px;border-top:1px solid var(--inchiostro);font-weight:350;font-size:clamp(1.5rem, 1.2rem + .9vw, 2rem);line-height:1.15;letter-spacing:-.015em;font-stretch:108%}
-p,li{max-width:68ch;text-wrap:pretty}
+p,li{max-width:54ch;text-wrap:pretty}
 p{margin:0 0 1em}
+h1 + p{margin-top:16px}
 ol,ul{margin:0 0 1em;padding-left:1.4em}
 li{margin:0 0 .9em;padding-left:.2em}
 ol > li::marker{font:500 .95em var(--mono);color:var(--azione)}
@@ -44,9 +58,15 @@ pre::selection{background:var(--azione);color:var(--bianco)}
 </head>
 <body>
 <header class="testa">
-<div class="testa__riga">
-<a class="marchio" href="../"><svg viewBox="0 0 28 28" fill="none" role="presentation"><path d="M3 24 11.5 9.5 17 17l8-11" stroke="#0b0d10" stroke-width="1.5"/><circle cx="11.5" cy="9.5" r="3.2" fill="#f2a24a"/><circle cx="17" cy="17" r="1.6" fill="#0b0d10"/><circle cx="25" cy="6" r="1.6" fill="#0b0d10"/></svg>Arturo</a>
+<nav class="menu" aria-label="Principale">
+<div class="dentro">
+<a class="marchio" href="../" aria-label="Arturo, pagina principale"><svg viewBox="0 0 28 28" fill="none" role="presentation"><path d="M3 24 11.5 9.5 17 17l8-11" stroke="#0b0d10" stroke-width="1.5"/><circle cx="11.5" cy="9.5" r="3.2" fill="#f2a24a"/><circle cx="17" cy="17" r="1.6" fill="#0b0d10"/><circle cx="25" cy="6" r="1.6" fill="#0b0d10"/></svg>Arturo</a>
+<div class="menu__fine">
+<a class="menu__voce stretta" href="../">Cos'è Arturo</a>
+<a class="azione azione--scura stretta" href="../installa/">Installa</a>
 </div>
+</div>
+</nav>
 </header>
 <main>
 <h1>Installa Arturo con Claude Code</h1>
@@ -55,7 +75,7 @@ pre::selection{background:var(--azione);color:var(--bianco)}
 <h2>Per te</h2>
 <p>Hai incollato questo link in Claude Code: adesso Claude installa Arturo per te. Prima di ogni passo che cambia qualcosa, ti chiede il permesso. Per fermarlo premi Esc.</p>
 <p>Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il tuo vecchio settings.json finisce in una copia di sicurezza con la data nel nome: /setup ti propone di riportare hook, plugin e preferenze.</p>
-<p>Su Mac può aprirsi una finestra di Apple: clicca "Installa". Su Windows può comparire una richiesta di conferma: clicca "Sì". Alla fine scrivi <code>/exit</code>, poi <code>claude</code>, poi <code>/setup</code>.</p>
+<p>Su Mac può aprirsi una finestra di Apple: clicca "Installa". Su Windows può comparire una conferma: clicca "Sì". Alla fine scrivi <code>/exit</code>, poi <code>claude</code>, poi <code>/setup</code>.</p>
 
 <h2>Per Claude Code</h2>
 <p>La persona ti ha chiesto di installare Arturo, un progetto open source con licenza MIT: <a href="https://github.com/stellakamikaze/arturo">github.com/stellakamikaze/arturo</a>. Il README del progetto rimanda a questo sito. Procedi un passo alla volta e copia i comandi esattamente come sono scritti, senza aggiungerne altri.</p>

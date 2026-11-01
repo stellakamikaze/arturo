@@ -61,6 +61,10 @@
   --term-nuovo:#123622;
   --term-nuovo-testo:#c9f2d6;
   --term-nuovo-bordo:#3aa866;
+  /* le maschere a gradiente (volta, nomi delle sessioni): una maschera legge solo l'opacità */
+  --maschera:#000;
+  --maschera-lieve:rgba(0,0,0,.18);
+  --maschera-media:rgba(0,0,0,.35);
   --ombra-finestra:0 1px 2px rgba(5,8,12,.18),0 18px 40px -12px rgba(5,8,12,.38);
   --ombra-foglio:0 1px 2px rgba(5,8,12,.1),0 18px 36px -16px rgba(5,8,12,.35);
   --ombra-appunto:0 1px 2px rgba(5,8,12,.08),0 12px 28px -14px rgba(5,8,12,.28);
@@ -71,3 +75,12 @@
   --gutter:clamp(16px, 4vw, 48px);
   --ritmo:clamp(80px, 10vw, 152px);
 }
+
+/* Regole comuni a tutte le pagine (1/11/2026).
+   Niente scorrimento orizzontale: clip non crea un contenitore di scorrimento, quindi sticky funziona ancora. */
+html,body{overflow-x:clip}
+/* Il link "Salta al contenuto" sta fuori schermo in alto e scende al fuoco.
+   html .salta vince sulle vecchie regole .salta{left:-9999px} rimaste nel <style> di una pagina. */
+html .salta{position:absolute;left:12px;top:8px;z-index:20;padding:10px 14px;background:var(--inchiostro);color:var(--bianco);transform:translateY(-150%);transition:transform .15s}
+html .salta:focus{left:12px;transform:none}
+@media (prefers-reduced-motion:reduce){html .salta{transition:none}}

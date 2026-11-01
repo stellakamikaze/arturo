@@ -945,48 +945,67 @@
 @font-face{font-family:"Atkinson Mono";src:url(../font/atkinson-mono.woff2) format("woff2");font-weight:200 800;font-display:swap}
 
 *,*::before,*::after{box-sizing:border-box}
-html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scrollbar-color:#a3abb5 var(--carta)}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scrollbar-color:var(--scorrimento) var(--carta)}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 body{margin:0;background:var(--carta);color:var(--grafite);font:400 clamp(16.5px, .98rem + .15vw, 18px)/1.55 var(--testo);letter-spacing:-.005em;-webkit-font-smoothing:antialiased}
-::selection{background:var(--azione);color:#fff}
+::selection{background:var(--azione);color:var(--bianco)}
 :focus-visible{outline:2px solid var(--azione);outline-offset:3px}
 img,svg{display:block;max-width:100%}
 a{color:inherit;text-underline-offset:.2em;text-decoration-thickness:1px}
 p{margin:0 0 1em;text-wrap:pretty}
-ul,ol{margin:0;padding:0}
-h1,h2,h3{margin:0;color:var(--inchiostro);font-family:var(--titolo);font-weight:400;text-wrap:balance}
+h1,h2,h3{margin:0;color:var(--inchiostro);font-family:var(--titolo);font-weight:400;text-wrap:balance;overflow-wrap:break-word;min-width:0}
 code,pre{font-family:var(--mono)}
 code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inchiostro);overflow-wrap:anywhere}
 .dentro{max-width:var(--colonna);margin:0 auto;padding:0 var(--gutter)}
-.salta{position:absolute;left:-9999px;top:8px;z-index:20;padding:10px 14px;background:var(--inchiostro);color:#fff}
-.salta:focus{left:12px}
+.salta{position:absolute;left:12px;top:8px;z-index:20;padding:10px 14px;background:var(--inchiostro);color:var(--bianco);transform:translateY(-150%)}
+.salta:focus{transform:none}
+/* voce stretta e maiuscola: solo sui pulsanti, a 0,04em */
 .stretta{font-family:var(--titolo);font-stretch:75%;font-weight:560;text-transform:uppercase;letter-spacing:.04em}
 
-.azione{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border:1px solid var(--azione);background:var(--azione);color:#fff;text-decoration:none;font:560 .98rem/1 var(--titolo);font-stretch:75%;letter-spacing:.06em;text-transform:uppercase;transition:background-color .18s,border-color .18s,color .18s}
+.azione{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border:1px solid var(--azione);background:var(--azione);color:var(--bianco);text-decoration:none;font:560 .98rem/1 var(--titolo);font-stretch:75%;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:background-color .18s,border-color .18s,color .18s}
 .azione:hover{background:var(--azione-giu);border-color:var(--azione-giu)}
+.azione:active{transform:translateY(1px);transition:none}
 .azione--bordo{background:transparent;color:var(--inchiostro);border-color:var(--inchiostro)}
-.azione--bordo:hover{background:var(--inchiostro);border-color:var(--inchiostro);color:#fff}
+.azione--bordo:hover{background:var(--inchiostro);border-color:var(--inchiostro);color:var(--bianco)}
 
-/* ---------- testata ---------- */
-.testata{position:relative;background:var(--cielo);overflow:hidden;isolation:isolate}
-.testata__volta{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:right top;z-index:-1;-webkit-mask-image:linear-gradient(90deg,rgba(0,0,0,.15) 0,rgba(0,0,0,.3) 45%,#000 85%);mask-image:linear-gradient(90deg,rgba(0,0,0,.15) 0,rgba(0,0,0,.3) 45%,#000 85%)}
+/* ---------- testata unica delle pagine interne ---------- */
+.menu{position:relative;z-index:3}
 .menu .dentro{display:flex;align-items:center;gap:28px;min-height:68px}
-.marchio{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--inchiostro);font:500 1.2rem/1 var(--titolo);font-stretch:108%;letter-spacing:-.01em}
-.marchio svg{width:28px;height:28px}
-.menu__fine{margin-left:auto;display:flex;gap:24px;font-size:.86rem}
-.menu__fine a{text-decoration:none;padding:6px 0;border-bottom:1px solid currentColor}
+.marchio{display:inline-flex;align-items:center;gap:10px;min-height:44px;text-decoration:none;color:var(--inchiostro);font:500 1.2rem/1 var(--titolo);font-stretch:108%;letter-spacing:-.01em}
+.marchio svg{width:28px;height:28px;flex:none}
+.menu__fine{margin-left:auto;display:flex;align-items:center;gap:24px}
+.menu__voce{display:inline-flex;align-items:center;min-height:44px;color:var(--grafite);text-decoration:none;font-size:.9rem;white-space:nowrap}
+a.menu__voce:hover{color:var(--inchiostro);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.3em}
+.menu__voce[aria-current="page"]{color:var(--inchiostro);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:.3em}
+.menu .azione--scura{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border:1px solid var(--inchiostro);background:var(--inchiostro);color:var(--bianco);text-decoration:none;font-size:.9rem;transition:background-color .18s,border-color .18s}
+.menu .azione--scura:hover{background:var(--inchiostro-su);border-color:var(--inchiostro-su);color:var(--bianco)}
+.menu a:active{transform:translateY(1px);transition:none}
+@media (max-width:480px){.menu .dentro,.menu__fine{gap:16px}}
+/* sotto 360 px il marchio basta per tornare alla home */
+@media (max-width:360px){a.menu__voce{display:none}}
+
+.testata{position:relative;background:var(--cielo);overflow:hidden;isolation:isolate}
+.testata__volta{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:right top;z-index:-1;-webkit-mask-image:linear-gradient(90deg,var(--maschera-lieve) 0,var(--maschera-media) 45%,var(--maschera) 85%);mask-image:linear-gradient(90deg,var(--maschera-lieve) 0,var(--maschera-media) 45%,var(--maschera) 85%)}
 .testata__corpo{padding:clamp(40px,7vw,104px) 0 clamp(48px,6vw,88px);max-width:900px}
-.testata h1{font-weight:250;font-size:clamp(2.6rem, 1.2rem + 5vw, 5.8rem);line-height:.95;letter-spacing:-.025em;font-stretch:114%}
-.testata p{margin:22px 0 28px;max-width:56ch;font-size:1.1rem;color:var(--grafite)}
+.testata h1{font-weight:250;font-size:clamp(2.6rem, 1.3rem + 4.6vw, 5.6rem);line-height:.95;letter-spacing:-.025em;font-stretch:114%}
+.testata p{margin:22px 0 0;max-width:56ch;font-size:1.1rem;color:var(--grafite)}
+@media (max-width:760px){.testata__volta{opacity:.35}}
+
+.piede{padding:32px 0 44px;font-size:.9rem;color:var(--cenere);border-top:1px solid var(--filetto)}
+.piede .dentro{display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}
+.piede strong{color:var(--inchiostro)}
+.piede p{margin:0}
+.testata p{margin:22px 0 28px}
 .testata__vie{display:flex;flex-wrap:wrap;gap:12px}
+ul,ol{margin:0;padding:0}
 
 /* ---------- le voci ---------- */
 .sezione{padding:var(--ritmo) 0}
 .voci{display:grid;gap:clamp(44px,6vw,80px)}
 .voce{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,9fr);gap:12px 48px;padding-top:18px;border-top:1px solid var(--inchiostro);scroll-margin-top:24px}
-.voce__data{margin:0;font-size:.82rem;font-weight:600;letter-spacing:.07em;color:var(--cenere);font-variant-numeric:tabular-nums}
-.voce__corpo{min-width:0;max-width:70ch}
-.voce h2{font-weight:350;font-size:clamp(1.5rem, 1.2rem + .9vw, 2rem);line-height:1.15;letter-spacing:-.015em;font-stretch:108%;margin-bottom:18px}
+.voce__data{margin:0;font:600 .9rem/1.3 var(--titolo);font-stretch:75%;color:var(--cenere);font-variant-numeric:tabular-nums}
+.voce__corpo{min-width:0;max-width:50ch}
+.voce h2{font-weight:350;font-size:clamp(1.5rem, 1.2rem + .9vw, 2rem);line-height:1.15;letter-spacing:-.015em;font-stretch:108%;margin-bottom:18px;overflow-wrap:break-word;min-width:0}
 .voce h2 a{text-decoration:none}
 .voce h2 a:hover{text-decoration:underline}
 .voce h3{font-size:1.15rem;margin:1.4em 0 .5em}
@@ -998,31 +1017,23 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 .voce pre{margin:0 0 1em;padding:14px 16px;background:var(--term);color:var(--term-testo);border-radius:4px;font-size:.8rem;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
 .voce pre code{background:none;padding:0;color:inherit;font-size:inherit}
 
-/* chiusura */
+/* ---------- chiusura ---------- */
 .vuoto{position:relative;background:var(--vuoto);color:var(--vuoto-testo);isolation:isolate}
 .vuoto::before{content:"";position:absolute;inset:0;z-index:-1;opacity:.13;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E")}
-.vuoto ::selection{background:#fff;color:var(--vuoto)}
+.vuoto ::selection{background:var(--bianco);color:var(--vuoto)}
 .vuoto :focus-visible{outline-color:var(--term-tu)}
-.chiusura .dentro{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:32px;align-items:end}
-.chiusura h2{color:#fff;font-weight:300;font-size:clamp(2.2rem, 1.4rem + 2.6vw, 3.8rem);line-height:1;letter-spacing:-.02em;font-stretch:112%}
+.chiusura .dentro{display:grid;grid-template-columns:minmax(0,1fr);gap:28px;justify-items:start}
+.chiusura h2{color:var(--bianco);font-weight:300;font-size:clamp(2.1rem, 1.3rem + 2.6vw, 3.6rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%}
 .chiusura p{margin:18px 0 0;color:var(--vuoto-cenere);max-width:52ch}
-.chiusura code{background:var(--vuoto-2);color:#fff}
-.chiusura__vie{justify-self:end;display:flex;flex-wrap:wrap;gap:12px;justify-content:flex-end}
-.chiusura .azione--chiara{background:#fff;border-color:#fff;color:var(--inchiostro)}
+.chiusura code{background:var(--vuoto-2);color:var(--bianco)}
+.chiusura__vie{display:flex;flex-wrap:wrap;gap:12px}
+.chiusura .azione--chiara{background:var(--bianco);border-color:var(--bianco);color:var(--inchiostro)}
 .chiusura .azione--chiara:hover{background:var(--cielo);border-color:var(--cielo)}
-.chiusura .azione--bordo{color:#fff;border-color:#fff}
-.chiusura .azione--bordo:hover{background:#fff;color:var(--inchiostro)}
-
-.piede{padding:32px 0 44px;font-size:.86rem;color:var(--cenere)}
-.piede .dentro{display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}
-.piede strong{color:var(--inchiostro)}
-.piede p{margin:0}
+.chiusura .azione--bordo{color:var(--bianco);border-color:var(--bianco)}
+.chiusura .azione--bordo:hover{background:var(--bianco);color:var(--inchiostro)}
 
 @media (max-width:760px){
-  .voce,.chiusura .dentro{grid-template-columns:minmax(0,1fr)}
-  .chiusura__vie{justify-self:stretch;justify-content:flex-start}
-  .menu__fine a:first-child{display:none}
-  .testata__volta{opacity:.35}
+  .voce{grid-template-columns:minmax(0,1fr)}
 }
 </style>
 <script defer data-domain="arturo.stellakamikaze.org" data-api="/api/e" src="/js/a.js"></script>
@@ -1039,7 +1050,10 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
         <svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M3 24 11.5 9.5 17 17l8-11" stroke="#0b0d10" stroke-width="1.5"/><circle cx="11.5" cy="9.5" r="3.2" fill="#f2a24a"/><circle cx="17" cy="17" r="1.6" fill="#0b0d10"/><circle cx="25" cy="6" r="1.6" fill="#0b0d10"/></svg>
         Arturo
       </a>
-      <div class="menu__fine stretta"><a href="../">Cos'è Arturo</a><a href="../installa/">Installa</a></div>
+      <div class="menu__fine">
+        <a class="menu__voce stretta" href="../">Cos'è Arturo</a>
+        <a class="azione azione--scura stretta" href="../installa/">Installa</a>
+      </div>
     </div>
   </nav>
   <div class="dentro">
@@ -1061,7 +1075,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
     <div class="voci" id="voci">
 
       <article class="voce" id="2026-11-01-arturo-si-installa-incollando-un-link-in-claude-code" aria-labelledby="t-2026-11-01-arturo-si-installa-incollando-un-link-in-claude-code">
-        <p class="voce__data stretta"><time datetime="2026-11-01">1 novembre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-11-01">1 novembre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-11-01-arturo-si-installa-incollando-un-link-in-claude-code"><a href="#2026-11-01-arturo-si-installa-incollando-un-link-in-claude-code">Arturo si installa incollando un link in Claude Code</a></h2>
           <p><strong>Cosa cambia</strong>: per installare Arturo ora basta Claude Code. Scrivi <code>claude</code> e incolla la frase <code>Installa Arturo: https://arturo.stellakamikaze.org/inizia/</code>. Claude legge la pagina, scarica lo script, lo confronta con la copia su GitHub e lo lancia dopo il tuo sì. Se manca un programma, lo installa col tuo sì. Lo script mette Arturo dentro <code>~/.claude</code> senza spostare la cartella: login, conversazioni, plugin installati e il tuo <code>CLAUDE.md</code> restano dove sono. I file sostituiti, compreso il <code>settings.json</code> che avevi, vanno in una copia con la data nel nome: <code>/setup</code> ti propone di riportare hook, plugin e preferenze. Poi scrivi <code>/exit</code>, <code>claude</code> e <code>/setup</code>. <code>/setup</code> fa in silenzio i controlli tecnici e ti fa conoscere da Claude: con un sì legge le tue ultime conversazioni, con un altro sì guarda le cartelle che gli indichi, e ti propone un <code>CLAUDE.md</code> con la fonte di ogni riga. Alla fine ti propone un primo lavoro vero, sul tuo materiale.</p>
@@ -1071,7 +1085,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-11-01-le-guardie-del-31-10-chiudono-i-buchi-trovati-dalla-revision" aria-labelledby="t-2026-11-01-le-guardie-del-31-10-chiudono-i-buchi-trovati-dalla-revision">
-        <p class="voce__data stretta"><time datetime="2026-11-01">1 novembre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-11-01">1 novembre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-11-01-le-guardie-del-31-10-chiudono-i-buchi-trovati-dalla-revision"><a href="#2026-11-01-le-guardie-del-31-10-chiudono-i-buchi-trovati-dalla-revision">Le guardie del 31/10 chiudono i buchi trovati dalla revisione</a></h2>
           <p><strong>Cosa cambia</strong>: il giorno dopo il cambio che ha tolto le conferme sul tuo lavoro, una revisione ha cercato i modi per far passare un rischio vero senza conferma. Ne ha trovati 38, e ora sono chiusi. Qualche esempio. Uno stash conta come salvato solo se il comando salva proprio quello stash, e <code>git stash clear</code> chiede. Un file caricato con <code>curl -d '@file'</code> chiede come <code>curl -d @file</code>. Un link <code>mailto:</code> chiede anche se sta in una variabile. Un commit con un segreto chiede anche dopo un <code>cd -</code>. Leggere una chiave privata in <code>~/.ssh</code> chiede, qualunque nome abbia. <code>rm -rf /*</code>, <code>rm -rf ~/*</code> e la cancellazione del disco intero su Windows sono bloccati.</p>
@@ -1081,7 +1095,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-31-su-windows-le-guardie-leggono-il-comando-intero" aria-labelledby="t-2026-10-31-su-windows-le-guardie-leggono-il-comando-intero">
-        <p class="voce__data stretta"><time datetime="2026-10-31">31 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-31">31 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-31-su-windows-le-guardie-leggono-il-comando-intero"><a href="#2026-10-31-su-windows-le-guardie-leggono-il-comando-intero">Su Windows le guardie leggono il comando intero</a></h2>
           <p><strong>Cosa cambia</strong>: se usi Arturo su Windows, le guardie leggono un comando su più righe come lo legge bash. Prima un a capo scritto da <code>jq</code> o da python su Windows portava un carattere in più, e un comando che continuava sulla riga dopo poteva mandare un file a un sito esterno senza chiederti conferma. Ora la guardia lo vede e chiede. Su macOS e Linux non cambia niente.</p>
@@ -1091,7 +1105,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-31-meno-conferme-sul-tuo-lavoro-le-stesse-guardie-sui-rischi-ve" aria-labelledby="t-2026-10-31-meno-conferme-sul-tuo-lavoro-le-stesse-guardie-sui-rischi-ve">
-        <p class="voce__data stretta"><time datetime="2026-10-31">31 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-31">31 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-31-meno-conferme-sul-tuo-lavoro-le-stesse-guardie-sui-rischi-ve"><a href="#2026-10-31-meno-conferme-sul-tuo-lavoro-le-stesse-guardie-sui-rischi-ve">Meno conferme sul tuo lavoro, le stesse guardie sui rischi veri</a></h2>
           <p><strong>Cosa cambia</strong>: le guardie smettono di chiederti conferma per il lavoro tuo che si può rifare. Un <code>rm</code> dentro una cartella temporanea, anche dopo un <code>cd</code>, non chiede più: la guardia segue i <code>cd</code> e guarda la cartella vera. Cancellare un ramo git non chiede se i suoi commit stanno anche altrove. Le guardie chiedono ancora per i rischi veri: un file che parte verso un sito esterno, un'email, un link <code>mailto:</code> aperto da un programma, un segreto in un commit, la cancellazione di un ramo o di uno stash che esistono solo lì. In modalità auto Arturo dice al classificatore di Claude Code quale lavoro è tuo: le tue macchine, i tuoi repository, i deploy delle tue app, la lettura del web. Le regole che negavano tutta una famiglia di comandi sono diventate più strette: per esempio leggere <code>~/.ssh/config</code> si può, leggere una chiave no (dal 1/11 anche una chiave con un nome libero).</p>
@@ -1101,7 +1115,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-30-hallmark-costruisce-le-pagine-nuove-insieme-a-impeccable" aria-labelledby="t-2026-10-30-hallmark-costruisce-le-pagine-nuove-insieme-a-impeccable">
-        <p class="voce__data stretta"><time datetime="2026-10-30">30 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-30">30 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-30-hallmark-costruisce-le-pagine-nuove-insieme-a-impeccable"><a href="#2026-10-30-hallmark-costruisce-le-pagine-nuove-insieme-a-impeccable">Hallmark costruisce le pagine nuove, insieme a Impeccable</a></h2>
           <p><strong>Cosa cambia</strong>: se fai siti o pagine, <code>/setup</code> nella fase 8c ti propone, dopo Impeccable, anche Hallmark, una skill pubblica di Together AI. Hallmark costruisce da zero una pagina nuova, come una landing o un sito vetrina: sceglie un tema da un catalogo di cinquanta, usa foto vere con il credito e controlla la pagina su otto larghezze. Impeccable resta la guida: parte per prima, tiene le pagine che esistono già, le app e le dashboard, scrive <code>DESIGN.md</code> e fa le rifiniture. Con tutte e due installate, <code>/setup</code> ti propone una riga per il tuo <code>CLAUDE.md</code> che fa lavorare le due skill in catena, e la scrive solo dopo il tuo sì. Come funziona e come si installa da sola: <code>docs/hallmark.md</code>.</p>
@@ -1110,7 +1124,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-30-fine-chiude-in-un-comando-e-i-tuoi-todo-possono-stare-nel-tu" aria-labelledby="t-2026-10-30-fine-chiude-in-un-comando-e-i-tuoi-todo-possono-stare-nel-tu">
-        <p class="voce__data stretta"><time datetime="2026-10-30">30 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-30">30 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-30-fine-chiude-in-un-comando-e-i-tuoi-todo-possono-stare-nel-tu"><a href="#2026-10-30-fine-chiude-in-un-comando-e-i-tuoi-todo-possono-stare-nel-tu">/fine chiude in un comando, e i tuoi todo possono stare nel tuo strumento</a></h2>
           <p><strong>Cosa cambia</strong>: la parte finale di <code>/fine</code> è un comando solo. Controlla l'handoff, mette nel cestino gli handoff vecchi che ti ha mostrato prima e nessun altro, rigenera l'indice, poi salva e manda la config. La memoria, il tuo CLAUDE.md, i todo e <code>personale/</code> partono solo verso un repository privato, e mai i file di servizio della memoria. Prima un modo di <code>git add</code> su Windows poteva non salvare <code>personale/</code> senza dirlo. Se tieni i todo in un altro strumento, un programma tuo indicato in <code>bin/fonte-task.local</code> li legge e li scrive al posto dell'archivio di Arturo (<code>docs/fonte-task.md</code>). Se quello strumento non risponde, <code>/inizio</code> mostra i task dell'ultimo handoff con l'avviso NON VERIFICATO, invece di dire che non c'è niente. <code>/inizio</code> riconosce il progetto anche quando scrivi il compito subito dopo il nome o un nome a metà, e dice come l'ha interpretato. Il compito non passa più dalla shell: un <code>$(...)</code> scritto lì non viene eseguito. I passi tuoi di <code>/fine</code> stanno in <code>personale/fine-coda.py</code>, e le tue regole sugli handoff, sui progetti contenitore e sui tuoi script in tre file <code>hooks/*.local</code>: gli aggiornamenti non li toccano.</p>
@@ -1119,7 +1133,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-30-le-tue-guardie-accanto-a-quelle-di-arturo-e-meno-conferme-a" aria-labelledby="t-2026-10-30-le-tue-guardie-accanto-a-quelle-di-arturo-e-meno-conferme-a">
-        <p class="voce__data stretta"><time datetime="2026-10-30">30 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-30">30 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-30-le-tue-guardie-accanto-a-quelle-di-arturo-e-meno-conferme-a"><a href="#2026-10-30-le-tue-guardie-accanto-a-quelle-di-arturo-e-meno-conferme-a">Le tue guardie accanto a quelle di Arturo, e meno conferme a vuoto</a></h2>
           <p><strong>Cosa cambia</strong>: puoi aggiungere guardie tue senza toccare quelle di Arturo, e senza perderle al prossimo aggiornamento. Le nomini in <code>hooks/bash-dispatcher.local</code>, una per riga, con il punto in cui devono girare: prima del controllo dei comandi pericolosi, al suo posto sui comandi che toccano <code>~/.claude</code>, dopo una conferma per farla cadere, o in fondo. In <code>hooks/protect_claude_md.local</code> scegli cosa fare quando Claude modifica CLAUDE.md, i settings o gli hook: chiedere, lasciar fare o bloccare. Lo sblocco che dai per una modifica protetta vale per la tua sessione, e chiudere un'altra finestra non lo toglie più. Se lavori su più computer, l'avvio vede di nuovo il lavoro arrivato dagli altri anche quando Arturo è collegato come upstream, e ti avvisa se la config è ferma a metà di un rebase. Il passaggio fra computer non spezza più un aggiornamento di Arturo appena installato. Due conferme in meno: <code>curl … | python3 -m json.tool</code>, che formatta il JSON e non esegue niente, e i comandi di rete che non caricano un file. La conferma resta sull'invio di un file dal tuo computer, anche con un <code>&amp;</code> dentro l'indirizzo.</p>
@@ -1128,7 +1142,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-30-fine-e-un-salvataggio-e-la-barra-tiene-il-ramo-anche-nella-c" aria-labelledby="t-2026-10-30-fine-e-un-salvataggio-e-la-barra-tiene-il-ramo-anche-nella-c">
-        <p class="voce__data stretta"><time datetime="2026-10-30">30 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-30">30 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-30-fine-e-un-salvataggio-e-la-barra-tiene-il-ramo-anche-nella-c"><a href="#2026-10-30-fine-e-un-salvataggio-e-la-barra-tiene-il-ramo-anche-nella-c">/fine è un salvataggio, e la barra tiene il ramo anche nella config</a></h2>
           <p><strong>Cosa cambia</strong>: quando la conversazione si avvicina al limite, Claude ti propone <code>/fine</code> per salvare il lavoro, e dopo puoi continuare nella stessa sessione. <code>/clear</code> e <code>/inizio</code> per ripartire da capo te li nomina una volta sola per sessione, non a ogni avviso. La barra in basso mostra il ramo anche quando lavori sulla config (<code>~/.claude</code>), su un progetto con maiuscole o spazi nel nome, o in una copia a parte aperta da <code>/inizio</code>: prima in quei casi il ramo spariva.</p>
@@ -1137,7 +1151,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-29-la-scheda-del-terminale-dice-il-progetto-vero-lavorando-ment" aria-labelledby="t-2026-10-29-la-scheda-del-terminale-dice-il-progetto-vero-lavorando-ment">
-        <p class="voce__data stretta"><time datetime="2026-10-29">29 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-29">29 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-29-la-scheda-del-terminale-dice-il-progetto-vero-lavorando-ment"><a href="#2026-10-29-la-scheda-del-terminale-dice-il-progetto-vero-lavorando-ment">La scheda del terminale dice il progetto vero, "LAVORANDO" mentre Claude lavora e "SBLOCCA" solo quando servi tu</a></h2>
           <p><strong>Cosa cambia</strong>: il titolo della scheda è il nome del progetto. Mentre Claude lavora diventa "LAVORANDO · &lt;progetto&gt;", anche a turno finito se aspetta un comando o un agente lanciato in background. Quando Claude aspetta te diventa "SBLOCCA · &lt;progetto&gt;": per una richiesta di permesso, una domanda, un errore, o dopo un minuto fermo. Prima bastava la fine del turno, e la scheda diceva "tocca a te" anche mentre Claude aspettava il risultato di un gate. Un server lasciato acceso (vite, un server locale di anteprima) non conta come lavoro: nessuno ne aspetta la fine. Il nome è quello che <code>/inizio</code> ha trovato: "/inizio due mondi" mostra "due-mondi-myway", non "due". Senza <code>/inizio</code> vale la cartella del progetto in cui Claude scrive i file.</p>
@@ -1147,7 +1161,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-29-claude-trova-il-comando-arturo-per-nome-una-correzione-resta" aria-labelledby="t-2026-10-29-claude-trova-il-comando-arturo-per-nome-una-correzione-resta">
-        <p class="voce__data stretta"><time datetime="2026-10-29">29 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-29">29 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-29-claude-trova-il-comando-arturo-per-nome-una-correzione-resta"><a href="#2026-10-29-claude-trova-il-comando-arturo-per-nome-una-correzione-resta">Claude trova il comando arturo per nome, una correzione resta una riga, la barra dice il progetto</a></h2>
           <p><strong>Cosa cambia</strong>: all'avvio della sessione Arturo mette <code>~/.claude/bin</code> fra i percorsi dei comandi di Claude. Così <code>arturo todo</code> funziona anche senza <code>python3 ~/.claude/bin/</code> davanti, e Claude non perde un giro a cercarlo (segnalazione n. 33). Il promemoria che arriva con ogni messaggio dice anche che una correzione a lavoro iniziato è una riga, "Brief corretto: ...", come nella skill prompt-master: niente prompt e brief riscritti da capo per un nome di cartella (segnalazione n. 34). La barra in basso mostra il progetto aperto, lo stesso della scheda del terminale, anche se hai aperto Claude Code dalla home (segnalazione n. 35).</p>
@@ -1156,7 +1170,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-29-un-handoff-tolto-da-fine-si-recupera-per-un-mese" aria-labelledby="t-2026-10-29-un-handoff-tolto-da-fine-si-recupera-per-un-mese">
-        <p class="voce__data stretta"><time datetime="2026-10-29">29 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-29">29 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-29-un-handoff-tolto-da-fine-si-recupera-per-un-mese"><a href="#2026-10-29-un-handoff-tolto-da-fine-si-recupera-per-un-mese">Un handoff tolto da /fine si recupera per un mese</a></h2>
           <p><strong>Cosa cambia</strong>: quando <code>/fine</code> tiene solo gli ultimi cinque handoff di un progetto, quelli vecchi non si cancellano più. Vanno in <code>~/.claude/data/handoffs/.cestino/</code>, nella cartella del progetto, e ci restano 30 giorni. Per riaverne uno, chiedi a Claude di riportarlo indietro, oppure sposta tu il file da <code>~/.claude/data/handoffs/.cestino/&lt;progetto&gt;/</code> a <code>~/.claude/data/handoffs/&lt;progetto&gt;/</code>. Dopo 30 giorni il cestino si svuota per tutti i progetti, anche per quelli che non chiudi più con <code>/fine</code>. Il cestino resta sul tuo computer e non entra in git (segnalazione n. 26).</p>
@@ -1165,7 +1179,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-29-un-file-con-le-lettere-accentate-non-fa-piu-chiedere-conferm" aria-labelledby="t-2026-10-29-un-file-con-le-lettere-accentate-non-fa-piu-chiedere-conferm">
-        <p class="voce__data stretta"><time datetime="2026-10-29">29 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-29">29 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-29-un-file-con-le-lettere-accentate-non-fa-piu-chiedere-conferm"><a href="#2026-10-29-un-file-con-le-lettere-accentate-non-fa-piu-chiedere-conferm">Un file con le lettere accentate non fa più chiedere conferma a ogni commit</a></h2>
           <p><strong>Cosa cambia</strong>: se nel commit c'è un file salvato con una codifica vecchia, come il CSV di una banca, la guardia dei segreti lo legge lo stesso. Prima non riusciva a leggere le lettere accentate, diceva "scansione fallita" e chiedeva conferma a ogni commit. Un segreto dentro quel file la guardia lo trova ancora.</p>
@@ -1174,7 +1188,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-28-il-lavoro-di-un-worktree-non-resta-indietro-e-inizio-trova-l" aria-labelledby="t-2026-10-28-il-lavoro-di-un-worktree-non-resta-indietro-e-inizio-trova-l">
-        <p class="voce__data stretta"><time datetime="2026-10-28">28 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-28">28 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-28-il-lavoro-di-un-worktree-non-resta-indietro-e-inizio-trova-l"><a href="#2026-10-28-il-lavoro-di-un-worktree-non-resta-indietro-e-inizio-trova-l">Il lavoro di un worktree non resta indietro, e /inizio trova le cartelle col trattino basso</a></h2>
           <p><strong>Cosa cambia</strong>: se una sessione ha lavorato in una copia a parte (un worktree) e i suoi commit non sono tornati nella cartella principale, <code>/inizio</code> te lo dice in cima, col numero dei commit, e propone di riportarli. <code>/fine</code> prova anche il merge quando il fast-forward non basta, e prima dell'handoff controlla che il ramo sia davvero unito: se non lo è, te lo dice nella chiusura (segnalazione n. 20). <code>/inizio mio-progetto</code> trova la cartella <code>mio_progetto</code> (segnalazione n. 21). Con la cartella dei progetti scritta come <code>~/Progetti</code>, un progetto nuovo nasce lì e non in una cartella chiamata <code>~</code> (segnalazione n. 19). <code>/diagnosi</code> non propone più di mettere nel repository cache, dipendenze e le copie di lavoro di Claude Code (segnalazione n. 22).</p>
@@ -1183,7 +1197,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-28-il-resto-delle-domande-del-computer-club-sessioni-dal-pannel" aria-labelledby="t-2026-10-28-il-resto-delle-domande-del-computer-club-sessioni-dal-pannel">
-        <p class="voce__data stretta"><time datetime="2026-10-28">28 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-28">28 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-28-il-resto-delle-domande-del-computer-club-sessioni-dal-pannel"><a href="#2026-10-28-il-resto-delle-domande-del-computer-club-sessioni-dal-pannel">Il resto delle domande del Computer Club: sessioni dal pannello, segnalazioni seguite, skill proposte</a></h2>
           <p><strong>Cosa cambia</strong>: dal pannello <code>/dafare</code> il tasto <code>o</code> apre una finestra nuova del terminale con Claude già partito sul todo scelto (<code>/inizio progetto -- il todo</code>), su Mac, Windows e Linux. Prima di aprire controlla che il numero indichi ancora il todo che vedi: dopo un merge che ha rinumerato i todo si ferma, invece di partire su quello sbagliato. <code>/segnala stato</code> ti dice a che punto sono le tue segnalazioni: in attesa, arrivate col loro numero, o corrette, con la novità che lo racconta; <code>/novita</code> ti avvisa quando esce la correzione di una tua. <code>/proponi</code> porta a chi mantiene Arturo una skill che hai scritto tu: la ripulisce con te da nomi e dati, ti mostra il testo e parte solo dopo il tuo sì. Prima di un ultracode, Claude ti dice quanto costa e quanta quota ti resta.</p>
@@ -1193,7 +1207,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-28-meno-conferme-quando-claude-legge-il-web-con-uno-script" aria-labelledby="t-2026-10-28-meno-conferme-quando-claude-legge-il-web-con-uno-script">
-        <p class="voce__data stretta"><time datetime="2026-10-28">28 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-28">28 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-28-meno-conferme-quando-claude-legge-il-web-con-uno-script"><a href="#2026-10-28-meno-conferme-quando-claude-legge-il-web-con-uno-script">Meno conferme quando Claude legge il web con uno script</a></h2>
           <p><strong>Cosa cambia</strong>: uno script che legge pagine o servizi web, per esempio per cercare su archive.org una copia dei link morti, non ti chiede più "Invio di dati (POST/upload)". La guardia anti-esfiltrazione chiede conferma solo quando un file del tuo computer parte verso un server esterno (un upload con <code>curl -F @file</code>), o quando un comando apre un canale di rete grezzo (<code>nc</code>, <code>/dev/tcp</code>). Il resto lo giudica il classificatore di auto mode, che legge lo script e capisce se legge o se porta fuori dati.</p>
@@ -1203,7 +1217,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-28-le-domande-della-sera-del-computer-club" aria-labelledby="t-2026-10-28-le-domande-della-sera-del-computer-club">
-        <p class="voce__data stretta"><time datetime="2026-10-28">28 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-28">28 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-28-le-domande-della-sera-del-computer-club"><a href="#2026-10-28-le-domande-della-sera-del-computer-club">Le domande della sera del Computer Club</a></h2>
           <p><strong>Cosa cambia</strong>: la barra in basso scrive la quota in parole, "5 ore" e "settimana", e dice sempre a che ora si azzerano le 5 ore. <code>/guidami</code> legge la quota: se ne avanza molta e l'azzeramento è vicino, te lo dice e mette in cima i lavori lunghi che Claude può fare mentre tu fai altro. Se chiedi cos'è il contesto, che differenza c'è tra git e GitHub, cos'è un branch, cosa succede alle tue modifiche quando Arturo si aggiorna, cos'è un subagent o ultracode, Claude risponde in poche frasi e ti dice dove trovi la cosa in Arturo. Quando <code>/segnala</code> arriva, ti dice il suo numero: è quello con cui la correzione compare qui. Una segnalazione rimasta in attesa parte alla sessione dopo da sola, senza portarsi dietro i dati d'uso prima delle 6 ore.</p>
@@ -1213,7 +1227,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-27-fine-non-lascia-archivi-a-meta-e-segnala-dice-perche-non-e-p" aria-labelledby="t-2026-10-27-fine-non-lascia-archivi-a-meta-e-segnala-dice-perche-non-e-p">
-        <p class="voce__data stretta"><time datetime="2026-10-27">27 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-27">27 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-27-fine-non-lascia-archivi-a-meta-e-segnala-dice-perche-non-e-p"><a href="#2026-10-27-fine-non-lascia-archivi-a-meta-e-segnala-dice-perche-non-e-p">/fine non lascia archivi a metà, e /segnala dice perché non è partita</a></h2>
           <p><strong>Cosa cambia</strong>: se usi Arturo senza un tuo repository remoto, <code>/fine</code> toglie dal tracciamento di git gli handoff, i todo e la memoria che erano già tracciati, e li lascia sul disco come sono. Prima la pulizia degli handoff lasciava file cancellati e non salvati, che a ogni sessione sembravano lavoro in sospeso. Se hai un remoto tuo, non cambia niente. Quando <code>/inizio</code> apre una copia a parte del progetto, Claude scrive anche i testi lunghi dei comandi in una forma che Claude Code accetta. Se un'installazione chiede la password del Mac (un comando con <code>sudo</code>), Claude non te lo passa più col prefisso <code>!</code>, dove la password non si può scrivere: cerca prima una strada senza password, poi ti chiede di usare il Terminale. Quando <code>/segnala</code> non riesce a inviare, il messaggio dice il codice che ha risposto il server, oppure che la rete non ha risposto.</p>
@@ -1223,7 +1237,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-26-l-aggiornamento-non-si-ferma-sui-tuoi-appunti-e-un-worktree" aria-labelledby="t-2026-10-26-l-aggiornamento-non-si-ferma-sui-tuoi-appunti-e-un-worktree">
-        <p class="voce__data stretta"><time datetime="2026-10-26">26 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-26">26 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-26-l-aggiornamento-non-si-ferma-sui-tuoi-appunti-e-un-worktree"><a href="#2026-10-26-l-aggiornamento-non-si-ferma-sui-tuoi-appunti-e-un-worktree">L'aggiornamento non si ferma sui tuoi appunti, e un worktree non perde file</a></h2>
           <p><strong>Cosa cambia</strong>: l'aggiornamento automatico parte anche se i tuoi archivi (handoff, todo, memoria) hanno modifiche non salvate. Con Arturo come origin, la pulizia degli handoff di <code>/fine</code> lasciava file cambiati, e quei file fermavano l'aggiornamento a ogni sessione. Ora quegli archivi restano come li hai lasciati, e solo un file di Arturo cambiato ferma l'aggiornamento. Quando <code>/inizio</code> apre la sessione in una copia a parte del progetto (un worktree, perché un'altra sessione lavora nella stessa cartella), <code>/fine</code> riporta nella cartella principale anche i file che git ignora, come una cartella <code>lavoro/</code>. Prima la rimozione della copia li cancellava senza avviso. <code>/inizio</code> dice anche come scrivere i comandi nella copia: uno per volta, con i cicli in uno script, perché Claude Code rifiuta quelli che non sa leggere. <code>/setup</code> ha una fase facoltativa in più, solo su Mac: Lancillotto annota in locale quali app e file usi, e dopo tre giorni Arturo ti propone fino a tre lavori che può fare lui. La guardia delle scritture vede più comandi, fra cui <code>tar -x</code>, <code>unzip -d</code>, <code>patch</code>, <code>git apply</code> e <code>git stash pop</code>.</p>
@@ -1233,7 +1247,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-24-la-telemetria-manda-meno-e-conta-meglio-i-tuoi-si" aria-labelledby="t-2026-10-24-la-telemetria-manda-meno-e-conta-meglio-i-tuoi-si">
-        <p class="voce__data stretta"><time datetime="2026-10-24">24 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-24">24 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-24-la-telemetria-manda-meno-e-conta-meglio-i-tuoi-si"><a href="#2026-10-24-la-telemetria-manda-meno-e-conta-meglio-i-tuoi-si">La telemetria manda meno, e conta meglio i tuoi sì</a></h2>
           <p><strong>Cosa cambia</strong>: dalla telemetria esce meno di prima. Se un aggiornamento va in conflitto su un file tuo, per esempio una skill che hai scritto tu, esce solo <code>file:altro</code>, mai il nome del file. Se una guardia ferma un commit con un segreto, esce la famiglia del segreto, come <code>segreto-cloud</code>, e non più il servizio, come <code>google-api-key</code>. Un comando tuo conta come <code>altro</code>, senza il nome. Delle guardie escono solo i nomi di Arturo, da un elenco chiuso. Come versione esce solo il rilascio di Arturo: un tag tuo non esce. Un sì a una guardia conta anche su Monitor e quando il comando poi fallisce: prima contava come un no. Il README non dice più che l'id è "non legato a te", e la nuova pagina <a href="https://github.com/stellakamikaze/arturo/blob/main/docs/privacy.md"><code>docs/privacy.md</code></a> dice chi tiene i dati, per quanto e come li cancelli.</p>
@@ -1243,7 +1257,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-23-un-progetto-riservato-resta-fuori-dal-sync" aria-labelledby="t-2026-10-23-un-progetto-riservato-resta-fuori-dal-sync">
-        <p class="voce__data stretta"><time datetime="2026-10-23">23 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-23">23 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-23-un-progetto-riservato-resta-fuori-dal-sync"><a href="#2026-10-23-un-progetto-riservato-resta-fuori-dal-sync">Un progetto riservato resta fuori dal sync</a></h2>
           <p><strong>Cosa cambia</strong>: se togli dal sync gli appunti di un progetto, con una riga nel <code>.gitignore</code> della tua config, <code>/fine</code> la rispetta. Prima li aggiungeva lo stesso e li avrebbe mandati al tuo repository privato al primo sync. Gli appunti degli altri progetti viaggiano come prima, solo verso un repository privato.</p>
@@ -1253,7 +1267,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-23-claude-ti-ricorda-di-finire-setup-e-una-reinstallazione-non" aria-labelledby="t-2026-10-23-claude-ti-ricorda-di-finire-setup-e-una-reinstallazione-non">
-        <p class="voce__data stretta"><time datetime="2026-10-23">23 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-23">23 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-23-claude-ti-ricorda-di-finire-setup-e-una-reinstallazione-non"><a href="#2026-10-23-claude-ti-ricorda-di-finire-setup-e-una-reinstallazione-non">Claude ti ricorda di finire /setup, e una reinstallazione non perde niente di tuo</a></h2>
           <p><strong>Cosa cambia</strong>: se hai installato Arturo e non sei arrivato in fondo a <code>/setup</code>, Claude te lo dice in una riga all'inizio della sessione, una volta al giorno. Puoi rispondere di no: l'invito torna il giorno dopo, e smette quando <code>/setup</code> arriva in fondo. Se reinstalli Arturo da capo coi comandi del README, tornano al loro posto il tuo <code>CLAUDE.md</code>, <code>personale/</code>, la memoria, i todo e le tue scelte. Fra le scelte c'è la telemetria spenta, che prima una reinstallazione riaccendeva. Arturo ora si installa anche con una riga sola: <code>curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash</code>. Se Arturo c'è già, la riga si ferma e ti dice di scrivere <code>/aggiorna</code>.</p>
@@ -1263,7 +1277,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-22-l-avviso-sulla-telemetria-torna-e-l-unione-regge-dopo-un-con" aria-labelledby="t-2026-10-22-l-avviso-sulla-telemetria-torna-e-l-unione-regge-dopo-un-con">
-        <p class="voce__data stretta"><time datetime="2026-10-22">22 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-22">22 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-22-l-avviso-sulla-telemetria-torna-e-l-unione-regge-dopo-un-con"><a href="#2026-10-22-l-avviso-sulla-telemetria-torna-e-l-unione-regge-dopo-un-con">L'avviso sulla telemetria torna, e l'unione regge dopo un conflitto</a></h2>
           <p><strong>Cosa cambia</strong>: alla prossima sessione Arturo ti ridice in due righe cosa manda la telemetria, perché ora c'è una cosa in più: quando <code>block-dangerous</code> o <code>commit-secret-gate</code> ti chiedono conferma, esce anche il nome della regola. Se un aggiornamento si ferma su un conflitto vero e lo risolvi con <code>/aggiorna</code>, il resto dell'aggiornamento continua a unire <code>settings.json</code> come impostazioni. Prima, dopo il primo conflitto, tornava a unirlo riga per riga. <code>/diagnosi</code>, <code>/segnala</code>, <code>/aggiorna</code>, <code>/novita</code> e <code>/setup</code> scrivono i percorsi con la tilde (<code>~/.claude</code>), che Claude Code accetta anche quando la sessione lavora in un worktree.</p>
@@ -1273,7 +1287,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-22-aggiornamenti-senza-conflitti-sulle-impostazioni" aria-labelledby="t-2026-10-22-aggiornamenti-senza-conflitti-sulle-impostazioni">
-        <p class="voce__data stretta"><time datetime="2026-10-22">22 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-22">22 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-22-aggiornamenti-senza-conflitti-sulle-impostazioni"><a href="#2026-10-22-aggiornamenti-senza-conflitti-sulle-impostazioni">Aggiornamenti senza conflitti sulle impostazioni</a></h2>
           <p><strong>Cosa cambia</strong>: quando Arturo e tu, o un'app come iTerm2, cambiate tutti e due <code>settings.json</code>, l'aggiornamento unisce le due versioni come impostazioni e non più riga per riga. Un hook in più di qua e un permesso in più di là stanno insieme, e l'aggiornamento non si ferma. Se tutti e due avete cambiato la stessa impostazione in modo diverso, resta il conflitto di prima e <code>/aggiorna</code> lo risolve con te. Quando una guardia ti chiede conferma, la telemetria registra anche quale regola ha chiesto.</p>
@@ -1283,7 +1297,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-22-gli-hook-che-avevi-tornano-e-tre-segnalazioni-chiuse" aria-labelledby="t-2026-10-22-gli-hook-che-avevi-tornano-e-tre-segnalazioni-chiuse">
-        <p class="voce__data stretta"><time datetime="2026-10-22">22 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-22">22 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-22-gli-hook-che-avevi-tornano-e-tre-segnalazioni-chiuse"><a href="#2026-10-22-gli-hook-che-avevi-tornano-e-tre-segnalazioni-chiuse">Gli hook che avevi tornano, e tre segnalazioni chiuse</a></h2>
           <p><strong>Cosa cambia</strong>: se prima di Arturo un'altra app aveva aggiunto i suoi hook a Claude Code (ClaudeBar, una barra di stato, un notificatore), <code>/setup</code> li ritrova nella cartella messa da parte all'installazione e, col tuo sì, li rimette. Lo fa <code>python3 ~/.claude/bin/arturo personale hook-precedenti</code>, che puoi lanciare anche adesso. In modalità auto, dopo il tuo sì a una modifica del CLAUDE.md, Claude può sbloccarla da solo: prima dovevi lanciare tu il comando con <code>!</code>. L'avviso DERIVA non conta più un file che ha cambiato solo i permessi, e <code>/setup</code> non li cambia più. <code>/inizio</code> e <code>/fine</code> funzionano anche quando la sessione lavora in una copia separata del progetto (un worktree).</p>
@@ -1293,7 +1307,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-21-meno-conferme-inutili-dafare-ricorda-la-barra-gli-aggiorname" aria-labelledby="t-2026-10-21-meno-conferme-inutili-dafare-ricorda-la-barra-gli-aggiorname">
-        <p class="voce__data stretta"><time datetime="2026-10-21">21 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-21">21 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-21-meno-conferme-inutili-dafare-ricorda-la-barra-gli-aggiorname"><a href="#2026-10-21-meno-conferme-inutili-dafare-ricorda-la-barra-gli-aggiorname">Meno conferme inutili, /dafare ricorda la barra, gli aggiornamenti dicono cosa li blocca</a></h2>
           <p><strong>Cosa cambia</strong>: le guardie non chiedono più conferma per cancellare una cartella appena creata con <code>mktemp</code>, né per uno script che legge un JSON dopo una richiesta verso il tuo computer o che importa <code>urllib.request</code>. Chiedono invece quando uno script python manda un file con <code>curl</code> scritto come lista di argomenti (<code>subprocess.run(['curl', '-d', '@file', ...])</code>), che prima passava senza conferma. <code>/dafare nascondi</code> resta valido anche dopo <code>/clear</code> e <code>/resume</code>. Se un aggiornamento si ferma per un conflitto, Arturo annota quale file lo blocca, così il problema si corregge più in fretta.</p>
@@ -1303,17 +1317,17 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-20-arturo-lavora-come-chi-lo-mantiene-inizio-fine-e-lo-stile-co" aria-labelledby="t-2026-10-20-arturo-lavora-come-chi-lo-mantiene-inizio-fine-e-lo-stile-co">
-        <p class="voce__data stretta"><time datetime="2026-10-20">20 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-20">20 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-20-arturo-lavora-come-chi-lo-mantiene-inizio-fine-e-lo-stile-co"><a href="#2026-10-20-arturo-lavora-come-chi-lo-mantiene-inizio-fine-e-lo-stile-co">Arturo lavora come chi lo mantiene: /inizio, /fine e lo stile Conciso</a></h2>
-          <p><strong>Cosa cambia</strong>: <code>/inizio</code> ti mostra il lavoro per filone, con chi deve agire («Faccio io», «Preparo io, poi tu», «Decidi tu»), e rispondi a parole invece che da un menu. Con <code>-- compito</code> Claude ti mostra prima come ha capito la richiesta. Se un'altra sessione lavora sullo stesso progetto, <code>/inizio</code> se ne accorge e lavora in una copia separata. <code>/fine</code> non corregge più niente all'ultimo momento: un test rosso o un pezzo mancante diventa un todo, e il lavoro fatto in una copia separata torna nel progetto. Lo stile di partenza è Conciso: risposte brevi, prima l'esito. Lo stile Guida e l'agente doc-reviewer escono.</p>
+          <p><strong>Cosa cambia</strong>: <code>/inizio</code> ti mostra il lavoro per filone, con chi deve agire ("Faccio io", "Preparo io, poi tu", "Decidi tu"), e rispondi a parole invece che da un menu. Con <code>-- compito</code> Claude ti mostra prima come ha capito la richiesta. Se un'altra sessione lavora sullo stesso progetto, <code>/inizio</code> se ne accorge e lavora in una copia separata. <code>/fine</code> non corregge più niente all'ultimo momento: un test rosso o un pezzo mancante diventa un todo, e il lavoro fatto in una copia separata torna nel progetto. Lo stile di partenza è Conciso: risposte brevi, prima l'esito. Lo stile Guida e l'agente doc-reviewer escono.</p>
           <p><strong>Il principio dietro</strong>: chi mantiene Arturo usa ogni giorno questi comandi. Se i tuoi fossero diversi, i loro difetti resterebbero invisibili a chi può correggerli.</p>
           <p><strong>Da sapere</strong>: se avevi scelto lo stile Guida, dalla prossima sessione vale quello standard di Claude Code. Per tornare a uno stile breve scrivi <code>/output-style</code> e scegli Conciso.</p>
         </div>
       </article>
 
       <article class="voce" id="2026-10-20-la-memoria-e-la-stessa-di-chi-mantiene-arturo" aria-labelledby="t-2026-10-20-la-memoria-e-la-stessa-di-chi-mantiene-arturo">
-        <p class="voce__data stretta"><time datetime="2026-10-20">20 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-20">20 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-20-la-memoria-e-la-stessa-di-chi-mantiene-arturo"><a href="#2026-10-20-la-memoria-e-la-stessa-di-chi-mantiene-arturo">La memoria è la stessa di chi mantiene Arturo</a></h2>
           <p><strong>Cosa cambia</strong>: la memoria facoltativa di Arturo ora è Melchior, la memoria che chi mantiene Arturo usa ogni giorno: lo stesso codice, copiato identico. Le tue note restano dove sono e come sono: quelle che Claude Code scrive da solo, le cartelle che hai aggiunto, e una cartella nuova, <code>~/.claude/data/memory/</code>, per le note che curi tu (fuori da git, come i todo). Il richiamo trova anche due note con lo stesso nome in due progetti, e non conta due volte una nota raggiunta da due posti. All'avvio, se c'è, Claude riceve la scheda del progetto in cui lavori. Il controllo sulle note che Claude scrive guarda anche gli URL che portano dati fuori, e fida gli host che hai messo in <code>hooks/hosts-interni.local</code>. La memoria resta spenta finché non la accendi.</p>
@@ -1323,7 +1337,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-20-meno-domande-inutili-meno-uscite-nascoste-e-l-installazione" aria-labelledby="t-2026-10-20-meno-domande-inutili-meno-uscite-nascoste-e-l-installazione">
-        <p class="voce__data stretta"><time datetime="2026-10-20">20 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-20">20 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-20-meno-domande-inutili-meno-uscite-nascoste-e-l-installazione"><a href="#2026-10-20-meno-domande-inutili-meno-uscite-nascoste-e-l-installazione">Meno domande inutili, meno uscite nascoste, e l'installazione non ti fa perdere niente</a></h2>
           <p><strong>Cosa cambia</strong>: Claude ti chiede conferma meno spesso dove non serve. Copiare una cartella con <code>--exclude .env</code> o cancellare una cartella temporanea appena creata non chiedono più niente. Chiedono invece alcuni modi nascosti di mandare dati fuori, che prima passavano: un comando dentro lo user-agent o il referer di <code>curl</code>, un <code>curl</code> dentro un <code>echo</code>, <code>requests</code> in Python. Lo stesso per alcune forme di <code>git clean</code> e di cancellazione di cartelle da Python che prima sfuggivano. Chi installa Arturo su un Claude Code già usato non perde più login, sessioni passate, cronologia e plugin: dopo il download tornano al loro posto. <code>/diagnosi</code> controlla anche l'installazione di Claude Code e i test dei mod, e la guida spiega <code>claude --safe-mode</code>. Nel Terminale di macOS l'avvio non chiede più il permesso di Automazione per il titolo della finestra.</p>
@@ -1333,17 +1347,17 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-19-se-manca-node-la-barra-in-basso-te-lo-dice" aria-labelledby="t-2026-10-19-se-manca-node-la-barra-in-basso-te-lo-dice">
-        <p class="voce__data stretta"><time datetime="2026-10-19">19 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-19">19 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-19-se-manca-node-la-barra-in-basso-te-lo-dice"><a href="#2026-10-19-se-manca-node-la-barra-in-basso-te-lo-dice">Se manca node, la barra in basso te lo dice</a></h2>
-          <p><strong>Cosa cambia</strong>: la barra in basso mostra il modello, quanto contesto hai usato e la quota del tuo abbonamento. È uno script che gira con node. Claude Code oggi si installa anche senza node, e su un computer appena preparato la barra restava vuota senza dire perché. Ora, se node manca, la barra scrive «Arturo: manca node» e l'avvio della sessione lo dice a Claude, che ti aiuta a installarlo. Lo stesso vale per l'avviso che ti dice quando il contesto sta per finire.</p>
+          <p><strong>Cosa cambia</strong>: la barra in basso mostra il modello, quanto contesto hai usato e la quota del tuo abbonamento. È uno script che gira con node. Claude Code oggi si installa anche senza node, e su un computer appena preparato la barra restava vuota senza dire perché. Ora, se node manca, la barra scrive "Arturo: manca node" e l'avvio della sessione lo dice a Claude, che ti aiuta a installarlo. Lo stesso vale per l'avviso che ti dice quando il contesto sta per finire.</p>
           <p><strong>Il principio dietro</strong>: uno strumento che si spegne in silenzio sembra funzionare. Se qualcosa non può partire, Arturo lo dice nel punto dove lo stai cercando.</p>
           <p><strong>Da sapere</strong>: node si scarica da nodejs.org (l'installer per Mac è un file .pkg). Dopo l'installazione chiudi e riapri Claude Code. Se la barra resta vuota anche con node, dillo con <code>/segnala</code>.</p>
         </div>
       </article>
 
       <article class="voce" id="2026-10-19-claude-code-torna-con-tutte-le-sue-funzioni-e-le-guardie-ved" aria-labelledby="t-2026-10-19-claude-code-torna-con-tutte-le-sue-funzioni-e-le-guardie-ved">
-        <p class="voce__data stretta"><time datetime="2026-10-19">19 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-19">19 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-19-claude-code-torna-con-tutte-le-sue-funzioni-e-le-guardie-ved"><a href="#2026-10-19-claude-code-torna-con-tutte-le-sue-funzioni-e-le-guardie-ved">Claude Code torna con tutte le sue funzioni, e le guardie vedono anche Monitor</a></h2>
           <p><strong>Cosa cambia</strong>: Arturo non spegne più la telemetria di Claude Code. Quando era spenta, Claude Code smetteva anche di scaricare le impostazioni delle sue funzioni, e ne perdevi alcune senza saperlo. Tra queste c'è il segno sui testi incollati, che aiuta Claude a non scambiare per tue le istruzioni scritte da altri. Le altre sono l'esclusione dei collegamenti rotti che bloccavano ogni richiesta, la compattazione della conversazione mentre sei via e <code>/skill-doctor</code>, che dice quali skill non usi. Con le funzioni accese arriva anche Monitor, lo strumento con cui Claude segue un comando in background: le guardie ora controllano anche i suoi comandi. In più una guardia che non riesce a partire ferma l'azione invece di lasciarla passare.</p>
@@ -1353,7 +1367,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-19-conferma-per-le-ricerche-che-eseguono-programmi-e-sonnet-di" aria-labelledby="t-2026-10-19-conferma-per-le-ricerche-che-eseguono-programmi-e-sonnet-di">
-        <p class="voce__data stretta"><time datetime="2026-10-19">19 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-19">19 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-19-conferma-per-le-ricerche-che-eseguono-programmi-e-sonnet-di"><a href="#2026-10-19-conferma-per-le-ricerche-che-eseguono-programmi-e-sonnet-di">Conferma per le ricerche che eseguono programmi, e Sonnet di riserva</a></h2>
           <p><strong>Cosa cambia</strong>: tre comandi di ricerca e lettura (<code>rg</code>, <code>sed -n</code> e <code>find</code>) non sono più approvati in blocco. Quando cercano o leggono, passano senza domanda come prima. Quando eseguono un programma o riscrivono un file, Claude ti chiede conferma. Due esempi: <code>rg --pre</code>, che passa ogni file a un programma, e <code>sed -n -i</code>, che modifica il file sul posto. Prima passavano senza domanda. In più, se il modello principale è sovraccarico, Claude continua con Sonnet invece di fermarsi con un errore.</p>
@@ -1363,7 +1377,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-19-la-scheda-del-terminale-anche-sul-mac-e-niente-falsi-rossi-d" aria-labelledby="t-2026-10-19-la-scheda-del-terminale-anche-sul-mac-e-niente-falsi-rossi-d">
-        <p class="voce__data stretta"><time datetime="2026-10-19">19 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-19">19 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-19-la-scheda-del-terminale-anche-sul-mac-e-niente-falsi-rossi-d"><a href="#2026-10-19-la-scheda-del-terminale-anche-sul-mac-e-niente-falsi-rossi-d">La scheda del terminale anche sul Mac, e niente falsi rossi da igiene e iTerm2</a></h2>
           <p><strong>Cosa cambia</strong>: sul Mac la scheda del terminale ora cambia davvero titolo e colore: prima restava ferma. Nel Terminale di Apple, che non colora le schede, il titolo comincia con "● TOCCA A TE" quando Claude aspetta te, e la scheda in secondo piano mostra la campanella. Il controllo di igiene su GitHub gira solo sul repository pubblico di Arturo. Se salvi la tua <code>~/.claude</code> in un repository privato, non ricevi più l'email "Run failed: igiene" a ogni <code>/fine</code>. E se un programma aggiunge a <code>settings.json</code> hook suoi senza <code>matcher</code> (lo fa iTerm2 con <code>cc-status</code>), l'avvio non dice più "una guardia potrebbe non proteggere".</p>
@@ -1373,7 +1387,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-17-solo-rilasci-firmati-anche-con-aggiorna-e-guardie-che-vedono" aria-labelledby="t-2026-10-17-solo-rilasci-firmati-anche-con-aggiorna-e-guardie-che-vedono">
-        <p class="voce__data stretta"><time datetime="2026-10-17">17 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-17">17 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-17-solo-rilasci-firmati-anche-con-aggiorna-e-guardie-che-vedono"><a href="#2026-10-17-solo-rilasci-firmati-anche-con-aggiorna-e-guardie-che-vedono">Solo rilasci firmati, anche con /aggiorna, e guardie che vedono di più</a></h2>
           <p><strong>Cosa cambia</strong>: <code>/aggiorna</code> installa solo l'ultimo rilascio firmato da chi mantiene Arturo, come l'aggiornamento automatico, e mai le modifiche pubblicate dopo. Se l'ultimo rilascio non ha una firma valida, l'avvio, la barra in basso, <code>/inizio</code> e <code>/novita</code> dicono "possibile compromissione: non aggiornare, segnala a chi mantiene Arturo", e <code>/aggiorna</code> non installa niente, neanche col tuo sì. In più Claude ti chiede conferma prima di: leggere un file <code>.env</code> (dove stanno le chiavi dei servizi), cancellare una cartella con <code>shutil.rmtree</code> o i file non salvati in git con <code>git clean -f</code>, allineare una cartella con <code>rsync --delete</code>, mandare dati fuori con un <code>curl</code> che costruisce l'indirizzo con un comando, una pipe verso <code>nc</code> o il codice di <code>node</code> e <code>python</code> che chiama la rete.</p>
@@ -1385,7 +1399,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-16-arturo-si-aggiorna-da-solo-come-claude-code" aria-labelledby="t-2026-10-16-arturo-si-aggiorna-da-solo-come-claude-code">
-        <p class="voce__data stretta"><time datetime="2026-10-16">16 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-16">16 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-16-arturo-si-aggiorna-da-solo-come-claude-code"><a href="#2026-10-16-arturo-si-aggiorna-da-solo-come-claude-code">Arturo si aggiorna da solo, come Claude Code</a></h2>
           <p><strong>Cosa cambia</strong>: non serve più <code>/aggiorna</code>. Quando esce una versione nuova, la barra in basso di Claude Code te lo dice ("↑ Arturo … · si installa alla chiusura"). Quando chiudi la sessione, Arturo la installa da solo, con la stessa procedura di <code>/aggiorna</code>: le tue aggiunte restano tue, e se qualcosa non torna non cambia niente. Se hai più sessioni aperte, la installa l'ultima che chiudi. Alla sessione dopo Claude ti dice a che versione sei arrivato, e <code>/novita</code> ti racconta cosa cambia.</p>
@@ -1395,7 +1409,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-16-l-avvio-e-la-chiusura-personali-non-bloccano-piu-gli-aggiorn" aria-labelledby="t-2026-10-16-l-avvio-e-la-chiusura-personali-non-bloccano-piu-gli-aggiorn">
-        <p class="voce__data stretta"><time datetime="2026-10-16">16 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-16">16 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-16-l-avvio-e-la-chiusura-personali-non-bloccano-piu-gli-aggiorn"><a href="#2026-10-16-l-avvio-e-la-chiusura-personali-non-bloccano-piu-gli-aggiorn">L'avvio e la chiusura personali non bloccano più gli aggiornamenti</a></h2>
           <p><strong>Cosa cambia</strong>: se hai aggiunto righe all'avvio o alla chiusura della sessione (<code>hooks/session-start.sh</code>, <code>hooks/session-end.sh</code>), ogni aggiornamento di Arturo che toccava quei file andava in conflitto e si fermava. Adesso <code>/aggiorna</code> sposta le tue righe in un file tuo, <code>~/.claude/personale/session-start.sh</code> (o <code>session-end.sh</code>), che l'hook di Arturo esegue alla fine e che nessun aggiornamento tocca. Le righe arrivano commentate: Claude le rilegge con te e toglie il <code>#</code> a quelle che devono girare. Se invece hai modificato una delle guardie di sicurezza, l'avvio adesso te lo dice a parte. Claude ti mostra cosa cambia e, se vuoi, la rimette com'è in Arturo con <code>arturo personale ripristina</code>. Al server di Arturo il riepilogo del lunedì dice anche quante installazioni nuove non hanno mai lanciato <code>/setup</code>.</p>
@@ -1405,7 +1419,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-16-le-tue-skill-restano-tue-e-setup-ti-riconosce" aria-labelledby="t-2026-10-16-le-tue-skill-restano-tue-e-setup-ti-riconosce">
-        <p class="voce__data stretta"><time datetime="2026-10-16">16 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-16">16 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-16-le-tue-skill-restano-tue-e-setup-ti-riconosce"><a href="#2026-10-16-le-tue-skill-restano-tue-e-setup-ti-riconosce">Le tue skill restano tue, e /setup ti riconosce</a></h2>
           <p><strong>Cosa cambia</strong>: quando <code>/fine</code> salva la config verso il tuo repository, le skill nuove che hai creato con <code>/creaskill</code> partono solo se il repository è privato. Se non risulta privato, restano su questo computer e Claude ti chiede se pubblicarle: una skill tua può contenere dati tuoi. <code>/diagnosi</code> ti dice anche quando un tuo file in <code>personale/</code> appartiene a un comando che Arturo non ha più, come <code>/strato</code>: nessuno lo legge, e puoi tenerlo da parte o cancellarlo. Se avevi finito <code>/setup</code> prima di oggi e lo rilanci, Arturo ti riconosce e ti propone la verifica invece della prima configurazione. Su Windows la telemetria registra anche le conferme dei comandi con caratteri speciali, e un <code>rm -rf</code> nella cartella temporanea di Windows non chiede più conferma, come <code>/tmp</code> sul Mac.</p>
@@ -1415,17 +1429,17 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-16-su-windows-le-guardie-leggono-tutto-il-comando" aria-labelledby="t-2026-10-16-su-windows-le-guardie-leggono-tutto-il-comando">
-        <p class="voce__data stretta"><time datetime="2026-10-16">16 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-16">16 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-16-su-windows-le-guardie-leggono-tutto-il-comando"><a href="#2026-10-16-su-windows-le-guardie-leggono-tutto-il-comando">Su Windows le guardie leggono tutto il comando</a></h2>
-          <p><strong>Cosa cambia</strong>: su Windows alcune guardie di Arturo leggevano male i comandi con caratteri speciali, e in quei casi lasciavano passare senza chiedere. Un <code>rm -rf</code> su una cartella con una virgoletta tipografica («”») nel comando passava senza conferma. Un invio di email con una freccia ("→") partiva senza conferma. Adesso ogni guardia legge il comando intero, con gli accenti e i simboli, e ti chiede conferma come sul Mac. Su Windows è corretto anche <code>/fine</code>: un file già salvato in un repository, in una sottocartella, non risulta più da scartare. Lo scratchpad di Claude adesso conta come cartella temporanea. La memoria trova anche le note con parole accentate.</p>
+          <p><strong>Cosa cambia</strong>: su Windows alcune guardie di Arturo leggevano male i comandi con caratteri speciali, e in quei casi lasciavano passare senza chiedere. Un <code>rm -rf</code> su una cartella con una virgoletta tipografica (<code>”</code>) nel comando passava senza conferma. Un invio di email con una freccia ("→") partiva senza conferma. Adesso ogni guardia legge il comando intero, con gli accenti e i simboli, e ti chiede conferma come sul Mac. Su Windows è corretto anche <code>/fine</code>: un file già salvato in un repository, in una sottocartella, non risulta più da scartare. Lo scratchpad di Claude adesso conta come cartella temporanea. La memoria trova anche le note con parole accentate.</p>
           <p><strong>Il principio dietro</strong>: una guardia che si confonde deve chiedere, non tacere. E una correzione vale solo se un controllo la prova anche sul sistema dove il guasto è nato.</p>
           <p><strong>Da sapere</strong>: niente da fare. Sul Mac non cambia niente. Se provi Arturo in una cartella temporanea, da lì la telemetria non parte più verso il server di Arturo: parte solo verso un server che indichi tu con <code>ARTURO_TELEMETRIA_URL</code>.</p>
         </div>
       </article>
 
       <article class="voce" id="2026-10-16-la-scheda-del-terminale-dice-il-progetto-e-lo-stato" aria-labelledby="t-2026-10-16-la-scheda-del-terminale-dice-il-progetto-e-lo-stato">
-        <p class="voce__data stretta"><time datetime="2026-10-16">16 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-16">16 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-16-la-scheda-del-terminale-dice-il-progetto-e-lo-stato"><a href="#2026-10-16-la-scheda-del-terminale-dice-il-progetto-e-lo-stato">La scheda del terminale dice il progetto e lo stato</a></h2>
           <p><strong>Cosa cambia</strong>: il titolo della scheda in cui gira Claude Code ora dice su quale progetto lavora. In Windows Terminal e in iTerm2 il colore della scheda dice lo stato: verde quando Claude aspetta te, giallo mentre lavora, rosso quando il turno si è fermato per un errore, come un'API giù o un limite raggiunto. Negli altri terminali lo stato è scritto nel titolo, per esempio "romanzo · al lavoro". Il progetto è quello scelto con <code>/inizio</code>, altrimenti il repository o la cartella in cui hai aperto Claude Code. Il titolo automatico di Claude Code, quello col riassunto della conversazione, non c'è più: al suo posto c'è il progetto.</p>
@@ -1435,7 +1449,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-16-nove-comandi-una-diagnosi-del-progetto-e-le-tue-skill-con-cr" aria-labelledby="t-2026-10-16-nove-comandi-una-diagnosi-del-progetto-e-le-tue-skill-con-cr">
-        <p class="voce__data stretta"><time datetime="2026-10-16">16 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-16">16 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-16-nove-comandi-una-diagnosi-del-progetto-e-le-tue-skill-con-cr"><a href="#2026-10-16-nove-comandi-una-diagnosi-del-progetto-e-le-tue-skill-con-cr">Nove comandi, una diagnosi del progetto, e le tue skill con /creaskill</a></h2>
           <p><strong>Cosa cambia</strong>: Arturo ti racconta e ti propone nove comandi: <code>/inizio</code>, <code>/fine</code>, <code>/aggiorna</code>, <code>/novita</code>, <code>/segnala</code>, <code>/setup</code>, <code>/guidami</code>, <code>/diagnosi</code> e il nuovo <code>/creaskill</code>. Tutto il resto lo usa Claude da solo, dentro questi: lo sparring, la scrittura semplificata, il brief, i todo, l'audit. <code>/setup</code> adesso fa anche la verifica di una configurazione già fatta: scrivi <code>/setup verifica</code>. <code>/diagnosi</code> non guarda più solo il codice ma il progetto intero: controlla che Arturo regga, lo stato di git, handoff e todo, i file citati negli handoff che non esistono più, e i materiali sparsi in Download o fuori dal repo, con un posto proposto per ognuno. <code>/creaskill</code> ti fa quattro domande e trasforma un lavoro che fai spesso in una skill tua.</p>
@@ -1446,7 +1460,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-16-in-vista-solo-i-comandi-di-ogni-giorno-impeccable-dal-setup" aria-labelledby="t-2026-10-16-in-vista-solo-i-comandi-di-ogni-giorno-impeccable-dal-setup">
-        <p class="voce__data stretta"><time datetime="2026-10-16">16 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-16">16 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-16-in-vista-solo-i-comandi-di-ogni-giorno-impeccable-dal-setup"><a href="#2026-10-16-in-vista-solo-i-comandi-di-ogni-giorno-impeccable-dal-setup">In vista solo i comandi di ogni giorno, Impeccable dal setup, esce blast-radius</a></h2>
           <p><strong>Cosa cambia</strong>: Claude ti propone di sua iniziativa solo i comandi che servono ogni giorno o quando serve: <code>/inizio</code>, <code>/fine</code>, <code>/aggiorna</code>, <code>/novita</code>, <code>/segnala</code>, <code>/setup</code>. Gli altri (<code>/guidami</code>, <code>/sparring</code>, <code>/progetto</code>, <code>/discovery</code>, <code>/write-plan</code>, <code>/diagnosi</code>, <code>/strato</code>, <code>/percorso</code>, <code>/italiano-semplificato</code>) restano tutti: li lanci tu scrivendo il nome. Il README li divide in "Ogni giorno", "Quando serve" e "Gli altri comandi". In più <code>/setup</code> ti propone Impeccable (fase 8c), la skill di design delle interfacce di Paul Bakaus: la installa dall'autore, con le sue versioni nuove. Esce il mod <code>blast-radius</code>: fermava ogni <code>rm -rf</code> e aspettava una risposta, e quando la risposta non arrivava bloccava anche il lavoro utile scritto nello stesso comando.</p>
@@ -1456,7 +1470,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-15-gmail-calendar-e-drive-senza-google-cloud-e-guardie-con-gli" aria-labelledby="t-2026-10-15-gmail-calendar-e-drive-senza-google-cloud-e-guardie-con-gli">
-        <p class="voce__data stretta"><time datetime="2026-10-15">15 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-15">15 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-15-gmail-calendar-e-drive-senza-google-cloud-e-guardie-con-gli"><a href="#2026-10-15-gmail-calendar-e-drive-senza-google-cloud-e-guardie-con-gli">Gmail, Calendar e Drive senza Google Cloud, e guardie con gli accenti</a></h2>
           <p><strong>Cosa cambia</strong>: per collegare la posta, il calendario e i documenti non serve più creare un progetto su Google Cloud. <code>/inizio gws</code> ti propone prima i connettori di claude.ai: li attivi dal browser, riapri Claude Code e ci sono. La strada vecchia resta per chi usa più account Google. In più i messaggi delle guardie scrivono "c'è" e "già" con gli accenti veri, non con l'apostrofo.</p>
@@ -1466,7 +1480,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-15-guardie-che-non-perdono-il-filo-e-il-brief-su-ogni-richiesta" aria-labelledby="t-2026-10-15-guardie-che-non-perdono-il-filo-e-il-brief-su-ogni-richiesta">
-        <p class="voce__data stretta"><time datetime="2026-10-15">15 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-15">15 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-15-guardie-che-non-perdono-il-filo-e-il-brief-su-ogni-richiesta"><a href="#2026-10-15-guardie-che-non-perdono-il-filo-e-il-brief-su-ogni-richiesta">Guardie che non perdono il filo, e il brief su ogni richiesta</a></h2>
           <p><strong>Cosa cambia</strong>: una review di Arturo ha trovato comandi che la shell esegue e che le guardie non vedevano: un <code>&lt;&lt;</code> scritto dentro virgolette, un delimitatore come <code>'E'OF</code>, un testo mandato a <code>/bin/bash</code> o scritto in un file e poi eseguito. Ora una guardia toglie il testo di un heredoc solo quando i confini sono certi e il testo va a un lettore come <code>cat</code>: nel dubbio lo controlla. In modalità auto il controllo di sicurezza di Claude Code tiene anche le sue regole di serie, <code>gh</code> è libero solo in lettura (un <code>gh gist create --public</code> passa dal giudizio) e una lettura di <code>~/.claude/data/credentials/</code> chiede conferma. Il brief torna su ogni richiesta di lavoro, anche breve: per una richiesta piccola bastano tre righe.</p>
@@ -1476,7 +1490,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-15-le-tue-modifiche-ai-comandi-si-mettono-da-parte-da-sole" aria-labelledby="t-2026-10-15-le-tue-modifiche-ai-comandi-si-mettono-da-parte-da-sole">
-        <p class="voce__data stretta"><time datetime="2026-10-15">15 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-15">15 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-15-le-tue-modifiche-ai-comandi-si-mettono-da-parte-da-sole"><a href="#2026-10-15-le-tue-modifiche-ai-comandi-si-mettono-da-parte-da-sole">Le tue modifiche ai comandi si mettono da parte da sole</a></h2>
           <p><strong>Cosa cambia</strong>: se hai modificato un comando di Arturo (per esempio hai aggiunto a <code>/inizio</code> la tabella dei tuoi progetti) e l'aggiornamento cambia lo stesso comando, <code>/aggiorna</code> sposta da solo le tue righe in un file tuo, <code>~/.claude/personale/inizio.md</code>. Il comando torna quello di Arturo e non va più in conflitto. Quando lanci <code>/inizio</code>, Claude legge anche le tue righe, quindi il comando fa tutto quello che faceva prima. Non devi fare niente: Claude te lo dice in una frase. Lo spostamento avviene nella copia di prova: se l'aggiornamento non va in porto, la tua config non cambia. Se hai un tuo repository della config, deve essere privato: solo così <code>personale/</code> viaggia fra le tue macchine. Se non lo è, le tue modifiche restano dove sono, come prima.</p>
@@ -1486,7 +1500,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-15-un-solo-modo-di-leggere-gli-heredoc-per-tutte-le-guardie" aria-labelledby="t-2026-10-15-un-solo-modo-di-leggere-gli-heredoc-per-tutte-le-guardie">
-        <p class="voce__data stretta"><time datetime="2026-10-15">15 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-15">15 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-15-un-solo-modo-di-leggere-gli-heredoc-per-tutte-le-guardie"><a href="#2026-10-15-un-solo-modo-di-leggere-gli-heredoc-per-tutte-le-guardie">Un solo modo di leggere gli heredoc per tutte le guardie</a></h2>
           <p><strong>Cosa cambia</strong>: quattro guardie leggevano gli heredoc ognuna a modo suo, e sbagliavano in punti diversi. Una here-string (<code>&lt;&lt;&lt;"x"</code>) faceva sparire il resto del comando: una lettura di <code>~/.ssh</code> scritta dopo passava senza conferma. Il testo mandato a bash con <code>cat &lt;&lt;'EOF' | bash</code> sfuggiva a due guardie su quattro. Ora le quattro usano lo stesso modulo, <code>hooks/heredoc.py</code>.</p>
@@ -1496,7 +1510,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-15-guardie-che-leggono-il-comando-come-lo-esegue-la-shell" aria-labelledby="t-2026-10-15-guardie-che-leggono-il-comando-come-lo-esegue-la-shell">
-        <p class="voce__data stretta"><time datetime="2026-10-15">15 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-15">15 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-15-guardie-che-leggono-il-comando-come-lo-esegue-la-shell"><a href="#2026-10-15-guardie-che-leggono-il-comando-come-lo-esegue-la-shell">Guardie che leggono il comando come lo esegue la shell</a></h2>
           <p><strong>Cosa cambia</strong>: un invio di email o messaggi da terminale ora chiede conferma invece di essere bloccato: vedi il comando vero e decidi tu. Le guardie leggono il comando come lo esegue la shell: il testo di un heredoc scritto su file, un messaggio di commit e il pattern di <code>grep</code> non fanno più scattare allarmi, mentre un <code>rm</code> col percorso completo o dentro <code>sh -c</code> si vede. Un git hook o un servizio che parte all'accesso (<code>~/Library/LaunchAgents</code> su Mac, <code>~/.config/systemd/user</code> e <code>~/.config/autostart</code> su Linux) si scrive solo con la tua conferma. Le reti locali contano tutte come interne (anche <code>172.16.x</code>-<code>172.31.x</code> e le IPv6 locali); un servizio esterno che usi con la tua chiave lo scrivi in <code>hooks/api-fidate.local</code>. Salvare un handoff o una memoria non chiede più conferma; settings, hook e file di sblocco la chiedono sempre. La statusline mostra il ramo git, un <code>*</code> se ci sono modifiche e la quota dell'abbonamento. Dopo ogni modifica a un file TypeScript o Vue Claude vede subito gli errori di tipo. Creare una bozza via un collegamento non chiede conferma, inviarla sì.</p>
@@ -1506,7 +1520,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-15-gate-che-non-mentono-lavori-lunghi-lettura-del-web-senza-bro" aria-labelledby="t-2026-10-15-gate-che-non-mentono-lavori-lunghi-lettura-del-web-senza-bro">
-        <p class="voce__data stretta"><time datetime="2026-10-15">15 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-15">15 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-15-gate-che-non-mentono-lavori-lunghi-lettura-del-web-senza-bro"><a href="#2026-10-15-gate-che-non-mentono-lavori-lunghi-lettura-del-web-senza-bro">Gate che non mentono, lavori lunghi, lettura del web senza browser</a></h2>
           <p><strong>Cosa cambia</strong>: il gate di <code>/fine</code> è uno script (<code>bin/validation-gate-lang.sh</code>). Riconosce se il progetto è Node, Python o testo, e lancia i controlli giusti. Prima il gate leggeva l'esito dei test in un modo che, nella shell di Claude Code, poteva restare vuoto e sembrare un verde. Un comando lungo ha una strada sua, <code>bin/bgjob.sh</code>: gira staccato dalla sessione e scrive l'esito su un file. <code>/system-audit</code> segnala anche i comandi citati nei documenti che non esistono più, e i plugin installati ma spenti. In <code>/setup</code> c'è una fase facoltativa per <code>scrape</code>, che legge una pagina web e tiene solo il testo utile.</p>
@@ -1516,7 +1530,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-15-inizio-e-fine-il-contesto-in-una-chiamata-un-handoff-che-reg" aria-labelledby="t-2026-10-15-inizio-e-fine-il-contesto-in-una-chiamata-un-handoff-che-reg">
-        <p class="voce__data stretta"><time datetime="2026-10-15">15 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-15">15 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-15-inizio-e-fine-il-contesto-in-una-chiamata-un-handoff-che-reg"><a href="#2026-10-15-inizio-e-fine-il-contesto-in-una-chiamata-un-handoff-che-reg">/inizio e /fine: il contesto in una chiamata, un handoff che regge</a></h2>
           <p><strong>Cosa cambia</strong>: <code>/inizio</code> raccoglie il contesto del progetto in una chiamata sola (<code>arturo contesto</code>): cosa è cambiato in git, la ripartenza degli ultimi handoff, i todo aperti divisi fra te e Claude, le scadenze dei prossimi giorni e il todo da cui ripartire. Con <code>/inizio --tutti</code> aggiorna anche tutti i progetti della tua cartella dei progetti. <code>/fine</code> parte dall'inventario dei file che la sessione ha scritto, anche fuori dal progetto (Download, Scrivania, cartelle temporanee), e propone dove deve finire ognuno. Prima di chiudere controlla l'handoff: la tabella dei pendenti c'è sempre, ogni riga è un todo vero dell'archivio, e chi agisce è tu, decidi o io. Tiene gli ultimi 5 handoff per progetto, ma prima ti mostra cosa conteneva quello che esce, e rigenera l'indice dei progetti.</p>
@@ -1526,7 +1540,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-15-apri-avvisi-sotto-il-prompt-esempi-per-lo-strato" aria-labelledby="t-2026-10-15-apri-avvisi-sotto-il-prompt-esempi-per-lo-strato">
-        <p class="voce__data stretta"><time datetime="2026-10-15">15 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-15">15 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-15-apri-avvisi-sotto-il-prompt-esempi-per-lo-strato"><a href="#2026-10-15-apri-avvisi-sotto-il-prompt-esempi-per-lo-strato">/apri, avvisi sotto il prompt, esempi per lo strato</a></h2>
           <p><strong>Cosa cambia</strong>: scrivi <code>/apri</code> e si apre l'ultimo link o file che Claude ha citato, con il programma predefinito del tuo computer. Sotto il prompt, oltre alla cache fredda, compaiono due avvisi nuovi: i banchi delle guardie sono rossi, oppure un account Google della CLI <code>gws</code> va ricollegato. Se usi <code>gws</code>, un errore di credenziali ora si dichiara al primo colpo, con il comando per rifare il login. La skill dell'italiano semplificato ha un catalogo dei tic della scrittura generata. Chi cura lo strato di un'organizzazione trova in <code>esempi/</code> tre modelli da adattare: le email che imparano dalle correzioni, il recap delle riunioni dalla trascrizione intera, l'anteprima prima dell'invio. Per il design delle interfacce, <code>docs/impeccable.md</code> spiega come installare Impeccable dall'autore.</p>
@@ -1536,7 +1550,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-15-una-memoria-che-puoi-accendere" aria-labelledby="t-2026-10-15-una-memoria-che-puoi-accendere">
-        <p class="voce__data stretta"><time datetime="2026-10-15">15 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-15">15 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-15-una-memoria-che-puoi-accendere"><a href="#2026-10-15-una-memoria-che-puoi-accendere">Una memoria che puoi accendere</a></h2>
           <p><strong>Cosa cambia</strong>: Claude Code salva da solo alcune note sulle sessioni passate: cosa preferisci, cosa hai deciso, dove stanno le cose. Ora Arturo può usarle in ogni progetto. Se accendi la memoria, a ogni messaggio Arturo cerca le note che parlano della stessa cosa e dice a Claude dove sono. Claude le apre solo se servono. Ogni nota e ogni handoff che Claude scrive passa da un controllo, anche a memoria spenta: se dentro c'è una password o un'istruzione nascosta, Claude riceve un avviso. Con <code>arturo memoria cerca "parole"</code> cerchi a mano, con <code>arturo memoria controlla</code> trovi le note senza descrizione e i link rotti. Puoi aggiungere una tua cartella di note con <code>arturo memoria cartella aggiungi &lt;cartella&gt;</code>.</p>
@@ -1546,7 +1560,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-15-la-telemetria-si-allarga-e-serve-a-correggere-arturo-ogni-se" aria-labelledby="t-2026-10-15-la-telemetria-si-allarga-e-serve-a-correggere-arturo-ogni-se">
-        <p class="voce__data stretta"><time datetime="2026-10-15">15 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-15">15 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-15-la-telemetria-si-allarga-e-serve-a-correggere-arturo-ogni-se"><a href="#2026-10-15-la-telemetria-si-allarga-e-serve-a-correggere-arturo-ogni-se">La telemetria si allarga, e serve a correggere Arturo ogni settimana</a></h2>
           <p><strong>Cosa cambia</strong>: la telemetria di Arturo manda qualche evento in più, sempre senza contenuti. Partono la fase di <code>/setup</code> a cui arrivi, il nome di una guardia che ti chiede conferma e se poi hai detto sì, una guardia che si rompe, un <code>/aggiorna</code> rifiutato, annullato o scartato, la versione di Claude Code, e del percorso a tappe i soli numeri: la tappa, quante decisioni e limiti hai tenuto, quante proposte di delega e quanti no. Mai cosa hai scritto. Alla prima sessione dopo l'aggiornamento Claude ti dice di nuovo cosa esce, perché la promessa è cambiata. L'elenco intero è nell'Impegno 3 del README.</p>
@@ -1557,7 +1571,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-15-scegli-come-ti-scrive-claude" aria-labelledby="t-2026-10-15-scegli-come-ti-scrive-claude">
-        <p class="voce__data stretta"><time datetime="2026-10-15">15 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-15">15 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-15-scegli-come-ti-scrive-claude"><a href="#2026-10-15-scegli-come-ti-scrive-claude">Scegli come ti scrive Claude</a></h2>
           <p><strong>Cosa cambia</strong>: Arturo porta due stili di scrittura. <strong>Guida</strong>, lo stile di partenza, scrive frasi semplici, senza gergo, e dice prima l'esito e poi cosa devi fare tu. <strong>Conciso</strong> è per chi usa Claude ogni giorno e vuole leggere poco. <code>/setup</code> ha una fase nuova per scegliere fra questi due e i tre di Claude Code (Default, Explanatory, Learning). Lo cambi quando vuoi con <code>/output-style</code>.</p>
@@ -1567,7 +1581,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-15-guardie-piu-strette-dove-servono-meno-allarmi-dove-non-servo" aria-labelledby="t-2026-10-15-guardie-piu-strette-dove-servono-meno-allarmi-dove-non-servo">
-        <p class="voce__data stretta"><time datetime="2026-10-15">15 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-15">15 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-15-guardie-piu-strette-dove-servono-meno-allarmi-dove-non-servo"><a href="#2026-10-15-guardie-piu-strette-dove-servono-meno-allarmi-dove-non-servo">Guardie più strette dove servono, meno allarmi dove non servono</a></h2>
           <p><strong>Cosa cambia</strong>: Claude chiede conferma prima di leggere una password con <code>bw get</code>, di aprire un file <code>.env</code>, di rispondere, inoltrare o condividere via un collegamento (Gmail, Calendar, Drive, GitHub) e di correggere un commit con <code>--amend</code>. Non può più eseguire codice arbitrario nel browser né lanciare un altro Claude senza permessi. Il controllo dei segreti nei commit parte anche con le forme che prima lo saltavano (<code>env … git commit</code>, un commit a capo, <code>git --no-pager commit</code>). Un indirizzo <code>.ts.net</code> non conta più come interno: se lavori con la tua tailnet, scrivi i tuoi host in <code>hooks/hosts-interni.local</code>. Due falsi allarmi spariscono: <code>sed</code> in lettura seguito da un ciclo <code>for w</code>, e <code>rsync --delete</code> in prova (<code>-n</code>) o citato in un testo. La statusline torna a mostrare il task in corso, e il suono parte solo quando Claude aspetta te.</p>
@@ -1577,7 +1591,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-14-arturo-convive-con-la-tua-config" aria-labelledby="t-2026-10-14-arturo-convive-con-la-tua-config">
-        <p class="voce__data stretta"><time datetime="2026-10-14">14 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-14">14 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-14-arturo-convive-con-la-tua-config"><a href="#2026-10-14-arturo-convive-con-la-tua-config">Arturo convive con la tua config</a></h2>
           <p><strong>Cosa cambia</strong>: le tue aggiunte a un comando di Arturo hanno un posto loro, <code>~/.claude/personale/&lt;comando&gt;.md</code>. Quando lanci il comando Claude le legge, e nessun aggiornamento le tocca. Se hai già modificato un comando di Arturo, <code>/aggiorna personale</code> sposta le tue modifiche lì e riporta il comando com'era: l'aggiornamento successivo non va più in conflitto. All'avvio una riga <code>DERIVA</code> ti avvisa quando la distanza da Arturo rischia di rompere qualcosa: un comando modificato, un hook di Arturo tolto o spento. Il promemoria del brief non scatta più sui comandi e sulle richieste chiare e piccole: solo su un lavoro che tocca più file, ha effetti fuori dal computer o si può capire in due modi.</p>
@@ -1587,7 +1601,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-14-prima-di-cancellare-vedi-cosa-sparisce-e-zsh-si-comporta-com" aria-labelledby="t-2026-10-14-prima-di-cancellare-vedi-cosa-sparisce-e-zsh-si-comporta-com">
-        <p class="voce__data stretta"><time datetime="2026-10-14">14 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-14">14 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-14-prima-di-cancellare-vedi-cosa-sparisce-e-zsh-si-comporta-com"><a href="#2026-10-14-prima-di-cancellare-vedi-cosa-sparisce-e-zsh-si-comporta-com">Prima di cancellare vedi cosa sparisce, e zsh si comporta come bash</a></h2>
           <p><strong>Cosa cambia</strong>: un mod nuovo, <code>blast-radius</code>. Quando Claude sta per lanciare <code>rm -rf</code>, <code>git reset --hard</code>, <code>git clean</code> o un push forzato, il comando si ferma e compare un pannello: quanti file spariscono e quali, quali modifiche non salvate si perdono, quali commit. Premi Procedi o Annulla. <code>riscrivi-bash</code> fa comportare zsh, la shell del Mac, come bash: un glob che non trova file (<code>ls *.png</code> in una cartella senza png) non ferma più il comando con "no matches found". Escono due mod che nessuno usava: <code>menu-contesto</code> e <code>agent-flow</code>.</p>
@@ -1597,7 +1611,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-14-una-striscia-per-i-conti-e-il-controllo-degli-invii-guarda-c" aria-labelledby="t-2026-10-14-una-striscia-per-i-conti-e-il-controllo-degli-invii-guarda-c">
-        <p class="voce__data stretta"><time datetime="2026-10-14">14 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-14">14 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-14-una-striscia-per-i-conti-e-il-controllo-degli-invii-guarda-c"><a href="#2026-10-14-una-striscia-per-i-conti-e-il-controllo-degli-invii-guarda-c">Una striscia per i conti, e il controllo degli invii guarda cosa gira davvero</a></h2>
           <p><strong>Cosa cambia</strong>: sotto la frase che riassume i tuoi todo, la pagina di <code>arturo web</code> ha una striscia. Ogni pezzo è largo quanto la sua parte: quelli che toccano a te, quelli da decidere, quelli in mano a Claude, quelli fermi. A colpo d'occhio vedi dove pesa il lavoro. Il controllo degli invii email ora giudica il comando che gira, non le parole che contiene: cercare "smtplib" in una cartella o scriverlo in una nota non si ferma più. Si fermano invece forme che prima passavano: <code>find -exec sendmail</code>, <code>awk</code> con <code>system()</code>, <code>git send-email</code>, un testo mandato a <code>sh</code>.</p>
@@ -1607,7 +1621,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-13-meno-dati-in-uscita-copie-di-prova-che-non-si-perdono-guardi" aria-labelledby="t-2026-10-13-meno-dati-in-uscita-copie-di-prova-che-non-si-perdono-guardi">
-        <p class="voce__data stretta"><time datetime="2026-10-13">13 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-13">13 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-13-meno-dati-in-uscita-copie-di-prova-che-non-si-perdono-guardi"><a href="#2026-10-13-meno-dati-in-uscita-copie-di-prova-che-non-si-perdono-guardi">Meno dati in uscita, copie di prova che non si perdono, guardie più precise</a></h2>
           <p><strong>Cosa cambia</strong>: quattro correzioni. La telemetria manda il nome di un comando solo se il comando è di Arturo: un comando che hai scritto tu in <code>~/.claude/commands/</code> ha un nome tuo, e da oggi non parte. Se un aggiornamento o il sync fra le tue macchine si è fermato su un conflitto, la copia di prova con il conflitto resta finché non la concludi o dici di scartarla: prima un <code>/aggiorna</code> successivo la toglieva in silenzio, con il lavoro che c'era dentro. All'avvio della sessione Arturo te la ricorda. <code>/segnala</code> torna al canale diretto anche se con la prima versione avevi usato la email o il web. <code>/strato</code> funziona dal secondo passo in poi, e <code>pubblica</code> non manda niente se un controllo fallisce.</p>
@@ -1617,7 +1631,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-13-telemetria-minima-e-segnala-arriva-da-sola" aria-labelledby="t-2026-10-13-telemetria-minima-e-segnala-arriva-da-sola">
-        <p class="voce__data stretta"><time datetime="2026-10-13">13 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-13">13 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-13-telemetria-minima-e-segnala-arriva-da-sola"><a href="#2026-10-13-telemetria-minima-e-segnala-arriva-da-sola">Telemetria minima, e /segnala arriva da sola</a></h2>
           <p><strong>Cosa cambia</strong>: Arturo comincia a mandare a chi lo mantiene pochi dati d'uso anonimi. Sono sempre gli stessi: l'avvio di una sessione, il nome dei comandi di Arturo che usi, il nome della guardia che ti ha fermato, l'esito di <code>/aggiorna</code> e il tipo delle segnalazioni. Partono con un id casuale, la versione e il sistema operativo, con il giorno e mai l'ora. È accesa di default. In più <code>/segnala</code> non ti chiede più di mandare una email a mano. Dopo il tuo sì, la segnalazione arriva direttamente a chi mantiene Arturo. Se la rete non risponde, parte da sola alla sessione dopo.</p>
@@ -1627,7 +1641,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-13-dire-ad-arturo-cosa-non-va-con-segnala" aria-labelledby="t-2026-10-13-dire-ad-arturo-cosa-non-va-con-segnala">
-        <p class="voce__data stretta"><time datetime="2026-10-13">13 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-13">13 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-13-dire-ad-arturo-cosa-non-va-con-segnala"><a href="#2026-10-13-dire-ad-arturo-cosa-non-va-con-segnala">Dire ad Arturo cosa non va, con /segnala</a></h2>
           <p><strong>Cosa cambia</strong>: c'è un comando nuovo, <code>/segnala</code>. Lo usi quando qualcosa di Arturo non funziona, quando hai un'idea o quando vorresti collegare uno strumento che usi nel lavoro. Claude scrive il testo con te, toglie nomi, clienti e segreti, e te lo fa leggere. Parte solo con il tuo sì: come issue su GitHub se hai un account, altrimenti come email a chi mantiene Arturo. Arturo poi te lo propone da solo: subito dopo un intoppo, con il testo già pronto, e a fine sessione con una domanda breve, al massimo una volta a settimana.</p>
@@ -1637,7 +1651,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-12-anche-il-sync-fra-le-tue-macchine-passa-dalla-copia-di-prova" aria-labelledby="t-2026-10-12-anche-il-sync-fra-le-tue-macchine-passa-dalla-copia-di-prova">
-        <p class="voce__data stretta"><time datetime="2026-10-12">12 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-12">12 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-12-anche-il-sync-fra-le-tue-macchine-passa-dalla-copia-di-prova"><a href="#2026-10-12-anche-il-sync-fra-le-tue-macchine-passa-dalla-copia-di-prova">Anche il sync fra le tue macchine passa dalla copia di prova</a></h2>
           <p><strong>Cosa cambia</strong>: se hai un tuo repository, <code>/inizio</code> scarica le modifiche delle tue altre macchine come fa ora <code>/aggiorna</code>: le prova in una copia a parte e le porta dentro solo se la config resta integra. Se due macchine hanno cambiato le stesse righe, i tuoi file restano com'erano e il conflitto aspetta nella copia di prova. Claude te lo mostra e lo risolvete insieme.</p>
@@ -1647,7 +1661,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-12-aggiornare-senza-mai-rompere-i-file-in-uso" aria-labelledby="t-2026-10-12-aggiornare-senza-mai-rompere-i-file-in-uso">
-        <p class="voce__data stretta"><time datetime="2026-10-12">12 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-12">12 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-12-aggiornare-senza-mai-rompere-i-file-in-uso"><a href="#2026-10-12-aggiornare-senza-mai-rompere-i-file-in-uso">Aggiornare senza mai rompere i file in uso</a></h2>
           <p><strong>Cosa cambia</strong>: <code>/aggiorna</code> non unisce più l'aggiornamento dentro <code>~/.claude</code>. Lo prova in una copia a parte, controlla lì la config, e porta dentro solo un risultato integro. Se le tue modifiche e quelle di Arturo vanno in conflitto, i tuoi file restano com'erano, senza segni di conflitto: Claude ti mostra il conflitto nella copia di prova, lo risolvete insieme lì e poi lo porta dentro. In più la procedura che applica l'aggiornamento arriva con l'aggiornamento stesso: una correzione alla procedura vale già dal primo giro. Prima, un conflitto poteva lasciare i segni dentro <code>settings.json</code> e negli hook, e Claude Code spegneva le guardie senza dirlo.</p>
@@ -1657,7 +1671,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-09-aggiornare-con-modifiche-non-salvate-si-ferma-e-te-lo-dice" aria-labelledby="t-2026-10-09-aggiornare-con-modifiche-non-salvate-si-ferma-e-te-lo-dice">
-        <p class="voce__data stretta"><time datetime="2026-10-09">9 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-09">9 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-09-aggiornare-con-modifiche-non-salvate-si-ferma-e-te-lo-dice"><a href="#2026-10-09-aggiornare-con-modifiche-non-salvate-si-ferma-e-te-lo-dice">Aggiornare con modifiche non salvate: si ferma e te lo dice</a></h2>
           <p><strong>Cosa cambia</strong>: se hai cambiato un file della config senza salvarlo con un commit (lo fa anche <code>/setup</code> in <code>settings.json</code>), <code>/aggiorna</code> non applica niente e <code>/inizio</code> non scarica dal tuo repository. Ti dicono quali file sono e cosa fare: li salva <code>/fine</code>, poi riprovi. Prima l'aggiornamento poteva lasciare <code>settings.json</code> con i segni di un conflitto e le guardie spente, dicendo che era tutto a posto. Ora il messaggio "ho riportato la copia a prima" compare solo se è vero. In più <code>/aggiorna</code> mostra le guardie e prende gli aggiornamenti da <code>upstream</code> anche quando hai un tuo repository.</p>
@@ -1666,7 +1680,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-09-cinque-mod-nuovi-segreti-bash-menu-cache-agenti" aria-labelledby="t-2026-10-09-cinque-mod-nuovi-segreti-bash-menu-cache-agenti">
-        <p class="voce__data stretta"><time datetime="2026-10-09">9 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-09">9 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-09-cinque-mod-nuovi-segreti-bash-menu-cache-agenti"><a href="#2026-10-09-cinque-mod-nuovi-segreti-bash-menu-cache-agenti">Cinque mod nuovi: segreti, Bash, menu, cache, agenti</a></h2>
           <p><strong>Cosa cambia</strong>: in <code>skills/</code> arrivano cinque mod che Claude Code carica da solo.</p>
@@ -1677,7 +1691,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-04-il-tavolo-dei-progetti" aria-labelledby="t-2026-10-04-il-tavolo-dei-progetti">
-        <p class="voce__data stretta"><time datetime="2026-10-04">4 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-04">4 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-04-il-tavolo-dei-progetti"><a href="#2026-10-04-il-tavolo-dei-progetti">Il tavolo dei progetti</a></h2>
           <p><strong>Cosa cambia</strong>: la pagina delle cose da fare (<code>arturo web</code>) ora parte dai progetti. In cima trovi "Da dove partirei": un todo solo, scelto con una regola fissa, e il motivo in parole ("Sblocca #7", "Scade domani"). Sotto, un foglio per ogni progetto, con il prossimo passo, gli altri todo in vista, chi agisce e la scadenza più vicina. Davanti stanno i progetti dove qualcosa chiede te, dietro quelli tutti in mano a Claude. Un foglio si apre e diventa la pagina del progetto. Lì un todo si apre nel dettaglio, con le note datate, la storia di ogni passaggio e quello che aspetta o sblocca. In testa c'è anche una riga con la tappa del tuo percorso.</p>
@@ -1688,7 +1702,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-04-claude-ti-dice-quale-skill-usa" aria-labelledby="t-2026-10-04-claude-ti-dice-quale-skill-usa">
-        <p class="voce__data stretta"><time datetime="2026-10-04">4 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-04">4 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-04-claude-ti-dice-quale-skill-usa"><a href="#2026-10-04-claude-ti-dice-quale-skill-usa">Claude ti dice quale skill usa</a></h2>
           <p><strong>Cosa cambia</strong>: nel brief che Claude mostra prima di ogni lavoro c'è una riga nuova, "Skill:". Dice quale skill userà e perché, oppure "nessuna". Se una skill che non hai nominato fa meglio il lavoro, te lo dice lì. Il brief si carica anche più leggero: la parte per scrivere prompt destinati ad altri strumenti (ChatGPT, Midjourney e simili) ora si legge solo quando la chiedi. In <code>/setup</code> ci sono due regole consigliate in più per il tuo <code>CLAUDE.md</code>: l'ultima riga di ogni lavoro dice il prossimo passo, e un risultato visivo è "fatto" solo quando Claude l'ha aperto come lo vedrai tu.</p>
@@ -1699,7 +1713,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-03-il-percorso-a-tappe" aria-labelledby="t-2026-10-03-il-percorso-a-tappe">
-        <p class="voce__data stretta"><time datetime="2026-10-03">3 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-03">3 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-03-il-percorso-a-tappe"><a href="#2026-10-03-il-percorso-a-tappe">Il percorso a tappe</a></h2>
           <p><strong>Cosa cambia</strong>: chiedi a Claude "a che punto sono?" oppure scrivi <code>/percorso</code>. Vedi la tua tappa fra quattro: Osserva, Prova, Delega, Orchestra. Accanto a ogni tappa c'è il numero del todo che la prova, così puoi controllare. Vedi anche la lista "Cose che tieni per te" e un esercizio della settimana sul tuo lavoro vero. <code>/inizio</code> ti mostra la tappa in una riga. A fine sessione <code>/fine</code> può proporti una sola delega, e dopo un tuo no tace per qualche giorno.</p>
@@ -1710,7 +1724,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-03-il-pannello-delle-cose-da-fare" aria-labelledby="t-2026-10-03-il-pannello-delle-cose-da-fare">
-        <p class="voce__data stretta"><time datetime="2026-10-03">3 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-03">3 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-03-il-pannello-delle-cose-da-fare"><a href="#2026-10-03-il-pannello-delle-cose-da-fare">Il pannello delle cose da fare</a></h2>
           <p><strong>Cosa cambia</strong>: scrivi <code>/dafare</code> e dentro Claude Code si apre un pannello con le tue cose da fare, divise in TOCCA A TE, DECIDI TU, FACCIO IO e FERMO. Ogni riga dice il progetto e la scadenza. Scegli una riga con il numero e premi una lettera: <code>f</code> fatto, <code>s</code> ferma, <code>r</code> riprendi, <code>c</code> chi lo fa, <code>a</code> avvicina, <code>l</code> allontana. <code>p</code> mostra un progetto alla volta. Quando hai cose aperte, sopra il prompt compare una riga sottile: "3 cose da fare · /dafare per vederle".</p>
@@ -1721,7 +1735,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-03-la-pagina-delle-cose-da-fare" aria-labelledby="t-2026-10-03-la-pagina-delle-cose-da-fare">
-        <p class="voce__data stretta"><time datetime="2026-10-03">3 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-03">3 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-03-la-pagina-delle-cose-da-fare"><a href="#2026-10-03-la-pagina-delle-cose-da-fare">La pagina delle cose da fare</a></h2>
           <p><strong>Cosa cambia</strong>: ora vedi i tuoi todo anche in una pagina del browser. Chiedi a Claude "fammi vedere le mie cose da fare in una pagina", oppure scrivi nel terminale <code>python3 ~/.claude/bin/arturo web</code> (solo <code>arturo web</code> se con <code>/setup</code> hai aggiunto il comando breve). Da lì aggiungi un todo, lo segni fatto, lo modifichi o lo fermi. Su un todo di "Decidi tu, poi faccio io" premi "Ho deciso", scrivi la scelta e il lavoro passa a Claude. Dopo ogni azione compare "Annulla", salvo dopo una nota. Niente si cancella dall'archivio.</p>
@@ -1732,7 +1746,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-10-03-le-tue-cose-da-fare-in-un-posto-solo" aria-labelledby="t-2026-10-03-le-tue-cose-da-fare-in-un-posto-solo">
-        <p class="voce__data stretta"><time datetime="2026-10-03">3 ottobre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-10-03">3 ottobre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-10-03-le-tue-cose-da-fare-in-un-posto-solo"><a href="#2026-10-03-le-tue-cose-da-fare-in-un-posto-solo">Le tue cose da fare, in un posto solo</a></h2>
           <p><strong>Cosa cambia</strong>: quando dici a Claude "ricordami di mandare il preventivo venerdì", il todo finisce in un archivio sul tuo computer e ci resta. Prima i task sparivano a fine sessione, e sopravviveva solo la tabella dell'handoff. Ogni todo sa di quale progetto è, quando scade e chi agisce: tu, tu che decidi e poi Claude, oppure Claude. <code>/fine</code> ci scrive quello che resta da fare, <code>/inizio</code> te lo mostra diviso in TOCCA A TE, DECIDI TU, FACCIO IO e FERMO. Dal terminale lo leggi con <code>python3 ~/.claude/bin/arturo todo</code> (con <code>/setup</code> puoi aggiungere il comando breve <code>arturo todo</code>). Quando hai deciso su un todo di DECIDI TU, dillo a Claude, oppure scrivi <code>python3 ~/.claude/bin/arturo todo deciso 4 "piano B"</code>: la scelta resta nel todo e il lavoro passa a Claude.</p>
@@ -1743,7 +1757,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-09-30-lo-strato-della-tua-organizzazione" aria-labelledby="t-2026-09-30-lo-strato-della-tua-organizzazione">
-        <p class="voce__data stretta"><time datetime="2026-09-30">30 settembre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-09-30">30 settembre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-09-30-lo-strato-della-tua-organizzazione"><a href="#2026-09-30-lo-strato-della-tua-organizzazione">Lo strato della tua organizzazione</a></h2>
           <p><strong>Cosa cambia</strong>: se lavori in un'organizzazione, Arturo ora può diventare "vostro". Il <strong>referente</strong>, una persona del team, prepara con <code>/strato crea</code> uno strato con chi siete, come scrivete, i lavori che si ripetono e i dati che non devono uscire. I colleghi lo ricevono con <code>/strato installa</code> e lo tengono aggiornato con <code>/aggiorna</code>. All'avvio Claude sa per chi lavora, la voce dell'organizzazione è una skill, e prima di mandare fuori un dato riservato chiede conferma.</p>
@@ -1753,7 +1767,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-09-30-aggiornamenti-che-non-rompono-niente-cartelle-protette" aria-labelledby="t-2026-09-30-aggiornamenti-che-non-rompono-niente-cartelle-protette">
-        <p class="voce__data stretta"><time datetime="2026-09-30">30 settembre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-09-30">30 settembre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-09-30-aggiornamenti-che-non-rompono-niente-cartelle-protette"><a href="#2026-09-30-aggiornamenti-che-non-rompono-niente-cartelle-protette">Aggiornamenti che non rompono niente, cartelle protette</a></h2>
           <p><strong>Cosa cambia</strong>: tre cose che senti subito.</p>
@@ -1765,7 +1779,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-09-16-dove-segnalare-un-problema" aria-labelledby="t-2026-09-16-dove-segnalare-un-problema">
-        <p class="voce__data stretta"><time datetime="2026-09-16">16 settembre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-09-16">16 settembre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-09-16-dove-segnalare-un-problema"><a href="#2026-09-16-dove-segnalare-un-problema">Dove segnalare un problema</a></h2>
           <p><strong>Cosa cambia</strong>: segnalare un problema ora ha una strada guidata. Quando apri una issue su GitHub trovi due moduli pronti: "Qualcosa non funziona" (cosa stavi facendo, cosa ti aspettavi, cosa è successo) e "Una proposta" (quale problema vuoi risolvere). Nessuna domanda tecnica obbligatoria. Se invece trovi un segreto esposto o un modo per aggirare una guardia, il modulo te lo dice subito: non aprire una issue pubblica, usa la procedura privata in <code>SECURITY.md</code>, col pulsante "Report a vulnerability" nella scheda Security del repository.</p>
@@ -1775,7 +1789,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-09-16-i-tuoi-file-restano-tuoi" aria-labelledby="t-2026-09-16-i-tuoi-file-restano-tuoi">
-        <p class="voce__data stretta"><time datetime="2026-09-16">16 settembre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-09-16">16 settembre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-09-16-i-tuoi-file-restano-tuoi"><a href="#2026-09-16-i-tuoi-file-restano-tuoi">I tuoi file restano tuoi</a></h2>
           <p><strong>Cosa cambia</strong>: ora c'è un confine chiaro tra i file di Arturo e i file tuoi. Il tuo <code>CLAUDE.md</code> e i tuoi host fidati non vivono più dentro i file che gli aggiornamenti sostituiscono. Gli host personali si scrivono in <code>hooks/hosts-interni.local</code>, una voce per riga (hostname o rete): le due guardie anti-esfiltrazione lo leggono e non chiedono più conferma verso quei server. <code>/setup</code> (FASE 6) guida su quel file invece di modificare i <code>.py</code>, e il README ha una tabella che dice cosa arriva con gli aggiornamenti e cosa resta tuo.</p>
@@ -1785,17 +1799,17 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-09-16-tornare-indietro-dopo-un-aggiornamento" aria-labelledby="t-2026-09-16-tornare-indietro-dopo-un-aggiornamento">
-        <p class="voce__data stretta"><time datetime="2026-09-16">16 settembre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-09-16">16 settembre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-09-16-tornare-indietro-dopo-un-aggiornamento"><a href="#2026-09-16-tornare-indietro-dopo-un-aggiornamento">Tornare indietro dopo un aggiornamento</a></h2>
-          <p><strong>Cosa cambia</strong>: <code>/aggiorna indietro</code> riporta la tua copia alla versione di prima dell'ultimo aggiornamento. Prima di toccare qualunque cosa ti mostra in parole semplici cosa torna indietro — i commit arrivati e le novità che spariranno — e lo fa solo dopo il tuo sì. In più, l'avviso di avvio "la config è AVANTI di N commit" non compare più se il tuo <code>origin</code> è il repo originale di Arturo: su quel repo non puoi scrivere, quindi i commit locali sono normali e l'avviso era solo rumore. Se <code>origin</code> è un repo tuo, l'avviso resta.</p>
-          <p><strong>Il principio dietro</strong>: un aggiornamento è codice di altri che gira sul tuo computer (vedi "Cosa non è neutro"): la scelta è tua solo se puoi anche tornare indietro. E un avviso che non puoi risolvere — come "non hai pushato" su un repo dove non puoi pushare — insegna a ignorare gli avvisi.</p>
-          <p><strong>Da sapere</strong>: il punto di ritorno si salva quando fai <code>/aggiorna</code>. Se non hai ancora fatto un aggiornamento con questa versione, <code>/aggiorna indietro</code> ti dice che non c'è nulla da annullare. Le modifiche ai tuoi file non si perdono: se un tuo file è toccato anche dall'aggiornamento, il ritorno si ferma e te lo dice, invece di forzare. Dopo il ritorno, chiudi e riapri Claude Code. Come si rilascia una versione — per chi mantiene Arturo o ne fa un fork — ora è scritto in <code>docs/manutenzione.md</code>.</p>
+          <p><strong>Cosa cambia</strong>: <code>/aggiorna indietro</code> riporta la tua copia alla versione di prima dell'ultimo aggiornamento. Prima di toccare qualunque cosa ti mostra in parole semplici cosa torna indietro: i commit arrivati e le novità che spariranno. Lo fa solo dopo il tuo sì. In più, l'avviso di avvio "la config è AVANTI di N commit" non compare più se il tuo <code>origin</code> è il repo originale di Arturo: su quel repo non puoi scrivere, quindi i commit locali sono normali e l'avviso era solo rumore. Se <code>origin</code> è un repo tuo, l'avviso resta.</p>
+          <p><strong>Il principio dietro</strong>: un aggiornamento è codice di altri che gira sul tuo computer (vedi "Cosa non è neutro"): la scelta è tua solo se puoi anche tornare indietro. E un avviso che non puoi risolvere, come "non hai pushato" su un repo dove non puoi pushare, insegna a ignorare gli avvisi.</p>
+          <p><strong>Da sapere</strong>: il punto di ritorno si salva quando fai <code>/aggiorna</code>. Se non hai ancora fatto un aggiornamento con questa versione, <code>/aggiorna indietro</code> ti dice che non c'è nulla da annullare. Le modifiche ai tuoi file non si perdono: se un tuo file è toccato anche dall'aggiornamento, il ritorno si ferma e te lo dice, invece di forzare. Dopo il ritorno, chiudi e riapri Claude Code. Come si rilascia una versione, per chi mantiene Arturo o ne fa un fork, ora è scritto in <code>docs/manutenzione.md</code>.</p>
         </div>
       </article>
 
       <article class="voce" id="2026-09-16-cosa-non-e-neutro-e-cosa-arturo-promette" aria-labelledby="t-2026-09-16-cosa-non-e-neutro-e-cosa-arturo-promette">
-        <p class="voce__data stretta"><time datetime="2026-09-16">16 settembre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-09-16">16 settembre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-09-16-cosa-non-e-neutro-e-cosa-arturo-promette"><a href="#2026-09-16-cosa-non-e-neutro-e-cosa-arturo-promette">Cosa non è neutro, e cosa Arturo promette</a></h2>
           <p><strong>Cosa cambia</strong>: il README si apre con tre sezioni nuove. <strong>In breve</strong> dice per chi è Arturo e come cominciare in tre passi. <strong>Cosa non è neutro</strong> dice che Claude Code è un servizio a pagamento di un'azienda privata, che quello che scrivi passa dai suoi server, e che un aggiornamento di Arturo è codice di altri che gira sul tuo computer. <strong>Impegni</strong> dice cosa puoi aspettarti: repository pubblico e MIT, niente telemetria, Arturo in italiano, e un avviso scritto se lo sviluppo si ferma.</p>
@@ -1805,17 +1819,17 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-09-16-l-avviso-di-aggiornamento-aggiorna-e-guidami" aria-labelledby="t-2026-09-16-l-avviso-di-aggiornamento-aggiorna-e-guidami">
-        <p class="voce__data stretta"><time datetime="2026-09-16">16 settembre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-09-16">16 settembre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-09-16-l-avviso-di-aggiornamento-aggiorna-e-guidami"><a href="#2026-09-16-l-avviso-di-aggiornamento-aggiorna-e-guidami">L'avviso di aggiornamento, <code>/aggiorna</code> e <code>/guidami</code></a></h2>
-          <p><strong>Cosa cambia</strong>: all'avvio della sessione Arturo ti dice quando c'è una versione nuova, come fa Claude Code: <code>ARTURO: c'e' un aggiornamento (3 commit) — scaricalo con /aggiorna</code>. Il comando <strong><code>/aggiorna</code></strong> ti mostra cosa arriva, controlla che non travolga i file che hai modificato tu e applica solo dopo il tuo sì. Arriva anche <strong><code>/guidami</code></strong>: guarda gli ultimi handoff e le conversazioni recenti e ti propone tre o quattro cose che ha senso fare adesso, con il motivo e il primo passo, scartando quello che nel frattempo hai già fatto.</p>
+          <p><strong>Cosa cambia</strong>: all'avvio della sessione Arturo ti dice quando c'è una versione nuova, come fa Claude Code: <code>ARTURO: c'e' un aggiornamento (3 commit): scaricalo con /aggiorna</code>. Il comando <strong><code>/aggiorna</code></strong> ti mostra cosa arriva, controlla che non travolga i file che hai modificato tu e applica solo dopo il tuo sì. Arriva anche <strong><code>/guidami</code></strong>: guarda gli ultimi handoff e le conversazioni recenti e ti propone tre o quattro cose che ha senso fare adesso, con il motivo e il primo passo, scartando quello che nel frattempo hai già fatto.</p>
           <p><strong>Il principio dietro</strong>: il controllo degli aggiornamenti leggeva solo quello che era già sul disco. Senza un <code>git fetch</code> restava fermo per sempre, e chi non lanciava <code>/inizio</code> non vedeva mai una novità: il canale c'era, ma non arrivava a nessuno. Ora il fetch parte da solo all'avvio, in background e al massimo ogni sei ore, così l'avvio non aspetta la rete.</p>
           <p><strong>Da sapere</strong>: dopo un aggiornamento, chiudi e riapri Claude Code. Comandi, hook e skill si leggono all'avvio della sessione: finché non riapri, quello che è appena arrivato non c'è.</p>
         </div>
       </article>
 
       <article class="voce" id="2026-09-16-il-prompt-prima-del-brief-e-il-promemoria-a-ogni-richiesta" aria-labelledby="t-2026-09-16-il-prompt-prima-del-brief-e-il-promemoria-a-ogni-richiesta">
-        <p class="voce__data stretta"><time datetime="2026-09-16">16 settembre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-09-16">16 settembre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-09-16-il-prompt-prima-del-brief-e-il-promemoria-a-ogni-richiesta"><a href="#2026-09-16-il-prompt-prima-del-brief-e-il-promemoria-a-ogni-richiesta">Il prompt prima del brief, e il promemoria a ogni richiesta</a></h2>
           <p><strong>Cosa cambia</strong>: <code>prompt-master</code> non mostra più solo il brief. Prima mostra il <strong>prompt</strong>: la tua richiesta riscritta come Arturo la eseguirà, in una o due frasi. Poi il brief, come prima. E l'hook <code>inject-now.sh</code> aggiunge a ogni messaggio una riga che ricorda la regola, così non vive solo nel <code>CLAUDE.md</code>.</p>
@@ -1825,7 +1839,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-09-13-seconda-passata-dati-sincronizzazione-audit-e-licenza" aria-labelledby="t-2026-09-13-seconda-passata-dati-sincronizzazione-audit-e-licenza">
-        <p class="voce__data stretta"><time datetime="2026-09-13">13 settembre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-09-13">13 settembre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-09-13-seconda-passata-dati-sincronizzazione-audit-e-licenza"><a href="#2026-09-13-seconda-passata-dati-sincronizzazione-audit-e-licenza">Seconda passata: dati, sincronizzazione, audit e licenza</a></h2>
           <p><strong>Cosa cambia</strong>: la guardia sui dati riconosce <code>docker compose -f … down -v</code> e non si fa ingannare da un <code>WHERE</code> dentro una stringa SQL. Se crei un tuo repository privato, <code>/setup</code> tiene Arturo come <code>upstream</code> e <code>/inizio</code> ne scarica gli aggiornamenti, così <code>/novita</code> continua a raccontarli. <code>/fine</code> non committa con il validate rosso, segnala gli errori di staging e ritenta i push rimasti indietro. L'audit legge i path fra virgolette e controlla anche statusline e <code>defaultMode</code>. I tool GitHub via MCP passano da soli solo quando leggono. <code>/novita</code> segna ogni entry appena raccontata, per data e titolo, così una lettura interrotta non ne salta nessuna. Arturo ha ora una licenza MIT (<code>LICENSE</code>).</p>
@@ -1834,45 +1848,45 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
       </article>
 
       <article class="voce" id="2026-09-13-guardie-aggiornate-errori-visibili" aria-labelledby="t-2026-09-13-guardie-aggiornate-errori-visibili">
-        <p class="voce__data stretta"><time datetime="2026-09-13">13 settembre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-09-13">13 settembre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-09-13-guardie-aggiornate-errori-visibili"><a href="#2026-09-13-guardie-aggiornate-errori-visibili">Guardie aggiornate, errori visibili</a></h2>
           <p><strong>Cosa cambia</strong>: Arturo distingue il vero hostname da userinfo, porta e sottostringhe. Un URL che sembra interno può quindi essere esterno. Il dispatcher trasforma crash e output spurio delle guardie in una richiesta di conferma. Il gate di validazione conserva il codice del comando che produce l'output: un test fallito ferma il lavoro.</p>
-          <p><strong>Tre porte chiuse</strong>: un file di unlock creato con Write o Edit chiede conferma come quello creato da shell, altrimenti l'assistente potrebbe sbloccarsi da solo. <code>gh api</code> chiede conferma quando scrive: mutazioni GraphQL, query lette da file, POST anche impliciti. <code>/fine</code> scrive l'handoff solo nello store della config e lo sincronizza solo verso un remote privato: in un progetto pubblico decisioni e note non entrano più nella storia Git.</p>
+          <p><strong>Tre porte chiuse</strong>: un file di sblocco creato con Write o Edit chiede conferma come quello creato da shell, altrimenti l'assistente potrebbe sbloccarsi da solo. <code>gh api</code> chiede conferma quando scrive: mutazioni GraphQL, query lette da file, POST anche impliciti. <code>/fine</code> scrive l'handoff solo nello store della config e lo sincronizza solo verso un remote privato: in un progetto pubblico decisioni e note non entrano più nella storia Git.</p>
           <p><strong>Potature</strong>: spariscono i wrapper di comandi, skill e agenti approvati come duplicati, oltre al content guard GitHub e ai controlli PostToolUse non vincolanti. Restano le guardie distruttive e gli strumenti pedagogici.</p>
           <p><strong>Il principio dietro</strong>: una guardia deve identificare il destinatario reale. Un controllo deve riportare l'esito reale. Se non può provarlo, deve fermarsi.</p>
         </div>
       </article>
 
       <article class="voce" id="2026-09-02-la-porta-e-la-procedura-description-when-to-use-e-le-sezioni" aria-labelledby="t-2026-09-02-la-porta-e-la-procedura-description-when-to-use-e-le-sezioni">
-        <p class="voce__data stretta"><time datetime="2026-09-02">2 settembre 2026</time></p>
+        <p class="voce__data"><time datetime="2026-09-02">2 settembre 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-09-02-la-porta-e-la-procedura-description-when-to-use-e-le-sezioni"><a href="#2026-09-02-la-porta-e-la-procedura-description-when-to-use-e-le-sezioni">La porta e la procedura: description, when_to_use e le sezioni "Freni"</a></h2>
-          <p><strong>Cosa cambia</strong>: ogni skill ha ora due campi in testa. <code>description</code> dice in una frase che cosa la skill produce; <code>when_to_use</code> dice quando si accende — le frasi che dici davvero, i casi in cui NON si accende e a chi passa la palla — e chiude sempre con "Segui tutti i passi nell'ordine: non prendere scorciatoie basandoti su questa description". Nel corpo, la prima cosa dopo il titolo è un passo o un prerequisito, non una spiegazione; le regole che non si possono saltare stanno sotto un'intestazione propria, <code>## Freni</code> o <code>## Importante</code>. Due skill nuove: <code>prompt-master</code> (mostra un brief di otto righe prima di ogni lavoro: obiettivo, output, vincoli, quando è fatto, assunzioni, cosa chiarire) e <code>italiano-semplificato</code> (riscrive un testo con frasi corte e senza burocratese). <code>/setup</code> propone entrambe le regole nel tuo <code>CLAUDE.md</code>; <code>/inizio</code> fa il pull con <code>--autostash</code>, così un file sporco non blocca più l'aggiornamento.</p>
-          <p><strong>Il principio dietro</strong>: il modello legge la <code>description</code> per decidere se una skill si applica — e se lì trova i passi, li esegue senza aprire il corpo, saltando le regole. Quindi la porta dice solo <em>se entrare</em>; la procedura sta dentro. E due domande valgono più di dieci regole: "se un agente leggesse solo la description, cosa farebbe?" (deve rispondere: decide se serve) e "cosa farebbe un agente pigro se questa skill non esistesse?" (il corpo deve impedire proprio quello). Idee prese da <code>gsarig/skills</code>, applicate qui alla lettera.</p>
-          <p><strong>A chi serve</strong>: a chi scrive o modifica una skill, e a chi si chiede perché una skill non è partita quando doveva — il primo sospetto è la frase in <code>when_to_use</code>. Prova: <code>/sparring</code> sul principio "la porta e la procedura" con una skill che usi spesso.</p>
+          <p><strong>Cosa cambia</strong>: ogni skill ha ora due campi in testa. <code>description</code> dice in una frase che cosa la skill produce; <code>when_to_use</code> dice quando si accende: le frasi che dici davvero, i casi in cui NON si accende e a chi passa la palla. Chiude sempre con "Segui tutti i passi nell'ordine: non prendere scorciatoie basandoti su questa description". Nel corpo, la prima cosa dopo il titolo è un passo o un prerequisito, non una spiegazione; le regole che non si possono saltare stanno sotto un'intestazione propria, <code>## Freni</code> o <code>## Importante</code>. Due skill nuove: <code>prompt-master</code> (mostra un brief di otto righe prima di ogni lavoro: obiettivo, output, vincoli, quando è fatto, assunzioni, cosa chiarire) e <code>italiano-semplificato</code> (riscrive un testo con frasi corte e senza burocratese). <code>/setup</code> propone entrambe le regole nel tuo <code>CLAUDE.md</code>; <code>/inizio</code> fa il pull con <code>--autostash</code>, così un file sporco non blocca più l'aggiornamento.</p>
+          <p><strong>Il principio dietro</strong>: il modello legge la <code>description</code> per decidere se una skill si applica. Se lì trova i passi, li esegue senza aprire il corpo, saltando le regole. Quindi la porta dice solo <em>se entrare</em>; la procedura sta dentro. E due domande valgono più di dieci regole: "se un agente leggesse solo la description, cosa farebbe?" (deve rispondere: decide se serve) e "cosa farebbe un agente pigro se questa skill non esistesse?" (il corpo deve impedire proprio quello). Idee prese da <code>gsarig/skills</code>, applicate qui alla lettera.</p>
+          <p><strong>A chi serve</strong>: a chi scrive o modifica una skill, e a chi si chiede perché una skill non è partita quando doveva: il primo sospetto è la frase in <code>when_to_use</code>. Prova: <code>/sparring</code> sul principio "la porta e la procedura" con una skill che usi spesso.</p>
         </div>
       </article>
 
       <article class="voce" id="2026-08-19-chiedere-bene-il-capitolo-01-e-i-punti-dove-l-harness-lo-pre" aria-labelledby="t-2026-08-19-chiedere-bene-il-capitolo-01-e-i-punti-dove-l-harness-lo-pre">
-        <p class="voce__data stretta"><time datetime="2026-08-19">19 agosto 2026</time></p>
+        <p class="voce__data"><time datetime="2026-08-19">19 agosto 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-08-19-chiedere-bene-il-capitolo-01-e-i-punti-dove-l-harness-lo-pre"><a href="#2026-08-19-chiedere-bene-il-capitolo-01-e-i-punti-dove-l-harness-lo-pre">Chiedere bene: il capitolo 01 e i punti dove l'harness lo pretende</a></h2>
-          <p><strong>Cosa cambia</strong>: il curriculum ha un secondo capitolo disponibile, <code>docs/principi/01-chiedere-bene.md</code> — la forma di una richiesta che funziona (da dove parto, cosa è cambiato, cosa chiedo) e come si dichiara che il lavoro è finito. In più tre comandi ora lo pretendono dove serve: <code>/discovery</code> chiede che i criteri di successo siano risultati osservabili e non intenzioni, <code>/write-plan</code> fa aprire ogni fase con l'effetto che produce, <code>/debug</code> chiede che l'ipotesi sia formulata in modo da poter essere smentita da una verifica sì/no. Gli agenti che scrivono (<code>drafter</code>, <code>synthesizer</code>) mettono la conclusione in cima invece che in fondo.</p>
-          <p><strong>Il principio dietro</strong>: il modello risponde alla domanda che gli hai fatto, non a quella che avevi in testa — e quando il contesto manca se lo inventa, in modo convincente. Formulare la richiesta è la parte del lavoro che resta tua, non scade con la versione dello strumento, e vale anche con le persone. L'altra metà dello stesso principio è dire come si riconosce che è fatto: senza un risultato osservabile, "fatto" è un'opinione.</p>
+          <p><strong>Cosa cambia</strong>: il curriculum ha un secondo capitolo disponibile, <code>docs/principi/01-chiedere-bene.md</code>: la forma di una richiesta che funziona (da dove parto, cosa è cambiato, cosa chiedo) e come si dichiara che il lavoro è finito. In più tre comandi ora lo pretendono dove serve: <code>/discovery</code> chiede che i criteri di successo siano risultati osservabili e non intenzioni, <code>/write-plan</code> fa aprire ogni fase con l'effetto che produce, <code>/debug</code> chiede che l'ipotesi sia formulata in modo da poter essere smentita da una verifica sì/no. Gli agenti che scrivono (<code>drafter</code>, <code>synthesizer</code>) mettono la conclusione in cima invece che in fondo.</p>
+          <p><strong>Il principio dietro</strong>: il modello risponde alla domanda che gli hai fatto, non a quella che avevi in testa. Quando il contesto manca, se lo inventa in modo convincente. Formulare la richiesta è la parte del lavoro che resta tua, non scade con la versione dello strumento, e vale anche con le persone. L'altra metà dello stesso principio è dire come si riconosce che è fatto: senza un risultato osservabile, "fatto" è un'opinione.</p>
           <p><strong>Ti riguarda se</strong>: ti è capitato di ricevere una risposta ben scritta e fuori bersaglio, o di accorgerti a lavoro finito che "finito" voleva dire due cose diverse per te e per l'assistente. La numerazione del curriculum è cambiata: i tre capitoli annunciati prima (rail, orchestrazione, memoria) sono ora 02, 03 e 04.</p>
-          <p><strong>Per provarlo</strong>: leggi <code>docs/principi/01-chiedere-bene.md</code> — sono dieci minuti — poi <code>/sparring chiedere bene</code> per riscrivere insieme una richiesta vera, magari una che era andata storta.</p>
+          <p><strong>Per provarlo</strong>: leggi <code>docs/principi/01-chiedere-bene.md</code> (sono dieci minuti), poi <code>/sparring chiedere bene</code> per riscrivere insieme una richiesta vera, magari una che era andata storta.</p>
         </div>
       </article>
 
       <article class="voce" id="2026-08-17-nasce-il-canale-novita-lo-sparring-e-il-curriculum-dei-princ" aria-labelledby="t-2026-08-17-nasce-il-canale-novita-lo-sparring-e-il-curriculum-dei-princ">
-        <p class="voce__data stretta"><time datetime="2026-08-17">17 agosto 2026</time></p>
+        <p class="voce__data"><time datetime="2026-08-17">17 agosto 2026</time></p>
         <div class="voce__corpo">
           <h2 id="t-2026-08-17-nasce-il-canale-novita-lo-sparring-e-il-curriculum-dei-princ"><a href="#2026-08-17-nasce-il-canale-novita-lo-sparring-e-il-curriculum-dei-princ">Nasce il canale novità, lo sparring e il curriculum dei principi</a></h2>
-          <p><strong>Cosa cambia</strong>: Arturo ora è un harness che ti tiene aggiornato. Tre pezzi nuovi: <code>/novita</code> (questo canale: dopo ogni aggiornamento ti racconta cosa è cambiato e perché), <code>/sparring</code> (una sessione guidata che parte da un principio e lo prova sui TUOI casi d'uso, con esperimenti piccoli e reversibili), e la cartella <code>docs/principi/</code> — il curriculum: i principi dell'usare bene un'AI, spiegati in semplice, per chi non fa un mestiere tecnico.</p>
-          <p><strong>Il principio dietro</strong>: uno strumento che impari una volta sola invecchia con te. Questo campo cambia in fretta: quando un modo di lavorare nuovo diventa importante, l'harness si aggiorna per tutti — e tu scopri la novità con il suo perché, non con un changelog di sigle.</p>
+          <p><strong>Cosa cambia</strong>: Arturo ora è un harness che ti tiene aggiornato. Tre pezzi nuovi: <code>/novita</code> (questo canale: dopo ogni aggiornamento ti racconta cosa è cambiato e perché), <code>/sparring</code> (una sessione guidata che parte da un principio e lo prova sui TUOI casi d'uso, con esperimenti piccoli e reversibili), e la cartella <code>docs/principi/</code>, il curriculum: i principi dell'usare bene un'AI, spiegati in semplice, per chi non fa un mestiere tecnico.</p>
+          <p><strong>Il principio dietro</strong>: uno strumento che impari una volta sola invecchia con te. Questo campo cambia in fretta: quando un modo di lavorare nuovo diventa importante, l'harness si aggiorna per tutti, e tu scopri la novità con il suo perché, non con un changelog di sigle.</p>
           <p><strong>Ti riguarda se</strong>: usi Arturo e vuoi che continui a valere anche fra sei mesi; oppure sei all'inizio e vuoi una strada per imparare i principi, non solo i comandi.</p>
-          <p><strong>Per provarlo</strong>: leggi il primo capitolo del curriculum, <code>docs/principi/00-chi-possiede-lo-strumento.md</code> — parte dalla domanda che viene prima di ogni comando: di chi è lo strumento che stai imparando? Poi, se vuoi, <code>/sparring</code>.</p>
+          <p><strong>Per provarlo</strong>: leggi il primo capitolo del curriculum, <code>docs/principi/00-chi-possiede-lo-strumento.md</code>: parte dalla domanda che viene prima di ogni comando: di chi è lo strumento che stai imparando? Poi, se vuoi, <code>/sparring</code>.</p>
         </div>
       </article>
 

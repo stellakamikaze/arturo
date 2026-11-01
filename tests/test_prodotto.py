@@ -113,6 +113,10 @@ def test_p06(repo: Path) -> None:
         session_env = claude / "session-env"
         session_env.mkdir(exist_ok=True)
         (session_env / "ultimo-fetch").write_text(str(int(time.time())))
+        # L'hook di avvio può lanciare un git fetch in background: verso GitHub, con la rete lenta, resta vivo
+        # oltre la fine del gate e su Windows ne blocca la pulizia. Solo file:// ammesso: il fetch https
+        # fallisce subito, l'URL di origin resta quello di Arturo (1/11/2026).
+        env = {**env, "GIT_ALLOW_PROTOCOL": "file"}
         hook = str(repo / "hooks" / "session-start.sh")
         out = _esegui([BASH, hook], cwd=str(tmp), env=env)
         assert out.returncode == 0, (
