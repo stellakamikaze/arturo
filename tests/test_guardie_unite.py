@@ -571,6 +571,9 @@ def test_g211(repo: Path) -> None:
         ]
         for comando in mai:
             assert dispatcher(home, comando, radice) != "allow", f"G211 il ramo memoria approva: {comando!r}"
+        # Il CLAUDE.md globale chiede davvero dal dispatcher, non solo "non approva" (1/11/2026, F04).
+        assert dispatcher(home, "echo x > ~/.claude/CLAUDE.md", radice) == "ask", \
+            "G211 la scrittura del CLAUDE.md globale non chiede dal dispatcher"
         # Un link simbolico nella zona che punta agli hook non porta l'allow fuori.
         zona = home / ".claude" / "data" / "handoffs"
         zona.mkdir(parents=True, exist_ok=True)

@@ -127,6 +127,7 @@ CLAUDE_MD_WRITE_RE = re.compile(
     r"|\bsed\b[^|;&]*-i[^|;&]*CLAUDE(?:\.local)?\.md\b"
     r"|open\(\s*['\"][^'\"]*CLAUDE(?:\.local)?\.md['\"]\s*,\s*['\"][wa])"
 )
+CLAUDE_MD_OPEN_RE = re.compile(r"open\(\s*['\"][^'\"]*CLAUDE(?:\.local)?\.md['\"]\s*,\s*['\"][wax+]")
 # Percorsi di avvio automatico (git hook, LaunchAgents, systemd utente, autostart):
 # via Edit/Write li protegge protect_claude_md.py con un unlock, qui il vettore shell.
 _PERSIST_ABS = (r"[^\s'\";|&]*(?:\.git/hooks/[^\s'\";|&]+|Library/LaunchAgents/[^\s'\";|&]+"
@@ -1338,10 +1339,19 @@ def main() -> int:
     # Dal 31/10/2026 conta il percorso risolto, come per Edit e Write: ~/.claude/CLAUDE.md chiede sempre,
     # un CLAUDE.md di progetto tace se protect_claude_md.local dice "allow claude-md-progetto". La regex
     # testuale resta per le scritture che non si risolvono (open() in python): quelle chiedono.
-    globale = _writes_config(testo, cwd, _is_claude_md_globale)
-    progetto = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _is_claude_md_globale(p))
-    if globale or (progetto and not _claude_md_progetto_libero()) or \
-            (CLAUDE_MD_WRITE_RE.search(testo) and not progetto):
+    # Dal 1/11/2026 (F16 F17) ogni scrittura si giudica da sola: il globale chiede anche se lo stesso
+    # comando scrive un CLAUDE.md di progetto, il confronto passa da realpath (un link verso il globale
+    # non è un CLAUDE.md di progetto), crearne uno nuovo chiede sempre come in protect_claude_md.py, e
+    # open() di python su un CLAUDE.md chiede sempre: _writes_config non lo risolve.
+    def _globale(p):
+        return _is_claude_md_globale(p) or (bool(p) and _is_claude_md_globale(os.path.realpath(p)))
+
+    globale = _writes_config(testo, cwd, _globale)
+    progetto_nuovo = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _globale(p)
+                                    and not os.path.exists(p))
+    progetto = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _globale(p) and os.path.exists(p))
+    if globale or progetto_nuovo or (progetto and not _claude_md_progetto_libero()) or \
+            CLAUDE_MD_OPEN_RE.search(testo) or (CLAUDE_MD_WRITE_RE.search(testo) and not progetto):
         return _ask("claude-md",
             "Scrittura via shell su un CLAUDE.md: cambierebbe le istruzioni di ogni sessione "
             "futura in quella cartella. Conferma solo se sei tu a volerlo."

@@ -128,9 +128,35 @@ def test_rv02(repo: Path) -> int:
         return verifica("RV02", casi, lambda c: hook(repo, "block-dangerous.py", c, progetto, home, temp))
 
 
-TESTS = {"RV01": test_rv01, "RV02": test_rv02}
+def test_rv03(repo: Path) -> int:
+    with tempfile.TemporaryDirectory() as d:
+        home, temp, progetto, _ = banco(Path(d))
+        (progetto / "CLAUDE.md").write_text("x\n", encoding="utf-8")
+        (home / ".claude" / "CLAUDE.md").write_text("x\n", encoding="utf-8")
+        shutil.copytree(repo / "hooks", home / ".claude" / "hooks", ignore=shutil.ignore_patterns("__pycache__", "*.local"),
+                        dirs_exist_ok=True)
+        dal_dispatcher = [
+            ("cat del globale", "cat ~/.claude/CLAUDE.md", "silent"),
+            ("echo >> sul globale", "echo x >> ~/.claude/CLAUDE.md", "ask"),
+            ("sed -i sul globale", "sed -i s/a/b/ ~/.claude/CLAUDE.md", "ask"),
+        ]
+        n = verifica("RV03", dal_dispatcher, lambda c: dispatcher(home, c, progetto, temp))
+        (home / ".claude" / "hooks" / "protect_claude_md.local").write_text("allow claude-md-progetto\n", encoding="utf-8")
+        g = (home / ".claude" / "CLAUDE.md").as_posix()
+        con_riga = [
+            ("progetto esistente con la riga .local", "sed -i s/a/b/ CLAUDE.md; rm -rf node_modules", "silent"),
+            ("CLAUDE.md nuovo con la riga .local", "mkdir -p nuova; echo x > nuova/CLAUDE.md; rm -rf node_modules", "ask"),
+            ("progetto più open() sul globale",
+             f"sed -i s/a/b/ CLAUDE.md; python3 -c \"open('{g}','a').write('x')\"; rm -rf node_modules", "ask"),
+        ]
+        return n + verifica("RV03", con_riga, lambda c: hook(home / ".claude", "block-dangerous.py", c, progetto, home,
+                                                            temp))
+
+
+TESTS = {"RV01": test_rv01, "RV02": test_rv02, "RV03": test_rv03}
 # Le guardie che ogni gruppo sorveglia: il veleno le rimette com'erano sulla base.
-VELENI = {"RV01": ["block-dangerous.py"], "RV02": ["block-dangerous.py"]}
+VELENI = {"RV01": ["block-dangerous.py"], "RV02": ["block-dangerous.py"],
+          "RV03": ["block-dangerous.py", "bash-dispatcher.sh"]}
 
 
 def avvelena(repo: Path, ref: str) -> int:
