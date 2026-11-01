@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Banco della lista del ripristino: le cinque copie scritte a mano devono dire le stesse voci (#3844).
+"""Banco della lista del ripristino: le quattro copie scritte a mano devono dire le stesse voci (#3844).
 
-La lista dice cosa torna dalla cartella messa da parte quando si installa Arturo. Tre copie stanno
-qui sulla landing (installatore, guida, llms.txt), due sul ramo che ricevono gli utenti (README e
-/setup), lette con git dal ramo main. Una voce che manca in una copia vuol dire una persona che
-perde memoria, todo o scelte solo perché ha seguito la strada sbagliata.
+La lista dice cosa torna dalla cartella messa da parte quando si installa Arturo a mano (strada
+"A mano, con Claude Code chiuso"). Due copie stanno qui sulla landing (guida e llms.txt), due sul
+ramo che ricevono gli utenti (README e /setup), lette con git dal ramo main. Una voce che manca in
+una copia vuol dire una persona che perde memoria, todo o scelte solo perché ha seguito la strada
+sbagliata.
+
+Dal 1/11/2026 sito/installa.sh innesta Arturo sul posto e non sposta più ~/.claude: il ciclo è uscito
+dallo script, e il banco controlla che non ci torni come quinta copia da allineare.
+
+--avvelena toglie l'ultima voce dalla copia di llms.txt e vuole il rosso "mancano".
 """
 import argparse
 import html
@@ -28,7 +34,8 @@ def voci(testo: str):
 
 def dal_ramo(repo: Path, rami, percorso: str):
     for ramo in rami:
-        r = subprocess.run(["git", "-C", str(repo), "show", f"{ramo}:{percorso}"], capture_output=True, text=True)
+        r = subprocess.run(["git", "-C", str(repo), "show", f"{ramo}:{percorso}"], capture_output=True, text=True,
+                           encoding="utf-8")
         if r.returncode == 0:
             return r.stdout, f"{ramo}:{percorso}"
     return None, f"{'/'.join(rami)}:{percorso}"
@@ -38,12 +45,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default=str(Path(__file__).resolve().parent.parent))
     ap.add_argument("--ramo", action="append", help="ramo dove leggere README e /setup (default origin/main, poi main)")
+    ap.add_argument("--avvelena", action="store_true", help="toglie una voce da llms.txt: deve dare rosso")
     a = ap.parse_args()
     repo = Path(a.repo)
     rami = a.ramo or ["origin/main", "main"]
 
     copie = {}
-    for percorso in ("sito/installa.sh", "sito/installa/index.html", "sito/llms.txt"):
+    for percorso in ("sito/installa/index.html", "sito/llms.txt"):
         f = repo / percorso
         copie[percorso] = f.read_text(encoding="utf-8") if f.is_file() else None
     for percorso in ("README.md", "commands/setup.md"):
@@ -51,6 +59,13 @@ def main():
         copie[nome] = testo
 
     errori = []
+    if a.avvelena and copie["sito/llms.txt"]:
+        v = voci(copie["sito/llms.txt"])
+        if v:
+            copie["sito/llms.txt"] = re.sub(r"\s" + re.escape(v[-1]) + r";", ";", html.unescape(copie["sito/llms.txt"]), 1)
+    installatore = repo / "sito" / "installa.sh"
+    if installatore.is_file() and voci(installatore.read_text(encoding="utf-8")) is not None:
+        errori.append("sito/installa.sh: è tornato il ciclo `for x in …; do` con CLAUDE.md, ma lo script innesta sul posto")
     liste = {}
     for nome, testo in copie.items():
         if testo is None:

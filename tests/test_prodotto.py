@@ -27,6 +27,9 @@ from pathlib import Path
 import yaml
 
 
+# Su Windows "bash" per nome è quello di WSL: si prende il bash del PATH (Git Bash).
+BASH = shutil.which("bash") or "bash"
+
 def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
@@ -111,7 +114,7 @@ def test_p06(repo: Path) -> None:
         session_env.mkdir(exist_ok=True)
         (session_env / "ultimo-fetch").write_text(str(int(time.time())))
         hook = str(repo / "hooks" / "session-start.sh")
-        out = _esegui(["bash", hook], cwd=str(tmp), env=env)
+        out = _esegui([BASH, hook], cwd=str(tmp), env=env)
         assert out.returncode == 0, (
             f"P06 session-start non e' partito: rc={out.returncode} {out.stderr.strip()!r}"
         )
@@ -119,7 +122,7 @@ def test_p06(repo: Path) -> None:
             "P06 l'avviso AVANTI compare con origin = repo originale di Arturo"
         )
         _esegui(git + ["remote", "set-url", "origin", "https://github.com/altro/mio-claude.git"])
-        out = _esegui(["bash", hook], cwd=str(tmp), env=env)
+        out = _esegui([BASH, hook], cwd=str(tmp), env=env)
         assert "AVANTI" in out.stdout, (
             "P06 l'avviso AVANTI manca con origin = repo personale dell'utente"
         )
