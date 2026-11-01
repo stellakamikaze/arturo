@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
@@ -264,12 +265,40 @@ def test_rv06(repo: Path) -> int:
                                                               True))
 
 
+def _leggi(repo: Path, percorso: str, home: Path, temp: Path) -> str:
+    """block-dangerous.py chiamato per il tool Read, come lo chiama settings.json."""
+    dati = {"tool_name": "Read", "tool_input": {"file_path": percorso}, "cwd": str(home), "hook_event_name": "PreToolUse"}
+    p = subprocess.run([sys.executable, "-B", str(repo / "hooks" / "block-dangerous.py")], input=json.dumps(dati),
+                       text=True, encoding="utf-8", capture_output=True, timeout=30, check=False, env=_env(home, temp))
+    return lp.decisione(p)
+
+
+def test_rv07(repo: Path) -> int:
+    impostazioni = json.loads((repo / "settings.json").read_text(encoding="utf-8"))
+    lettura = [g for g in impostazioni["hooks"]["PreToolUse"] if g.get("matcher") == "Read"]
+    assert lettura and any("block-dangerous.py" in h.get("command", "") for h in lettura[0]["hooks"]), \
+        "RV07 settings.json non manda il tool Read a block-dangerous.py"
+    with tempfile.TemporaryDirectory() as d:
+        home, temp, _, _ = banco(Path(d))
+        h = home.as_posix()
+        casi = [
+            ("config", f"{h}/.ssh/config", "silent"),
+            ("known_hosts", f"{h}/.ssh/known_hosts", "silent"),
+            ("chiave pubblica", f"{h}/.ssh/github.pub", "silent"),
+            ("file di un progetto", f"{h}/Documents/ClaudeCode/p/a.txt", "silent"),
+            ("chiave con un nome libero", f"{h}/.ssh/github", "ask"),
+            ("chiave con un nome libero, barre di Windows", str(home / ".ssh" / "lavoro"), "ask"),
+        ]
+        return 1 + verifica("RV07", casi, lambda c: _leggi(repo, c, home, temp))
+
+
 TESTS = {"RV01": test_rv01, "RV02": test_rv02, "RV03": test_rv03, "RV04": test_rv04, "RV05": test_rv05,
-         "RV06": test_rv06}
+         "RV06": test_rv06, "RV07": test_rv07}
 # Le guardie che ogni gruppo sorveglia: il veleno le rimette com'erano sulla base.
 VELENI = {"RV01": ["block-dangerous.py"], "RV02": ["block-dangerous.py"],
           "RV03": ["block-dangerous.py", "bash-dispatcher.sh"], "RV04": ["exfil-guard.py", "bash-dispatcher.sh"],
-          "RV05": ["comms-guard.py"], "RV06": ["commit-secret-gate.py"]}
+          "RV05": ["comms-guard.py"], "RV06": ["commit-secret-gate.py"],
+          "RV07": ["block-dangerous.py", "./settings.json"]}
 
 
 def avvelena(repo: Path, ref: str) -> int:

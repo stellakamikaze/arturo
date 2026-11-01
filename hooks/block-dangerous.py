@@ -159,6 +159,8 @@ UNLOCK_RE = re.compile(
 # (8/9/2026, la config dell'autore chiedeva a ogni `grep Host ~/.ssh/config`).
 _SSH_SEGRETO = (r"\.ssh/(?!(?:config|known_hosts(?:\.old)?|authorized_keys)(?![\w.-])|[^\s'\"/]*\.pub(?![\w.-]))"
                 r"|(?:^|/)id_(?:rsa|ed25519|ecdsa|dsa)\b(?!\.pub\b)")
+_SSH_LETTURA = re.compile(r"(?:^|/)\.ssh/(?!(?:config|known_hosts(?:\.old)?|authorized_keys)$|[^/]*\.pub$)[^/]+$",
+                          re.IGNORECASE)
 SECRET_PATH_RE = re.compile(
     r"(" + _SSH_SEGRETO + r"|\.aws/credentials|\.gnupg/|"
     # I file col solo nome (token_cache.json...) contano come argomento o in un path, non
@@ -1302,6 +1304,16 @@ def main() -> int:
     except Exception:
         return 0
 
+    # Read di una chiave privata in ~/.ssh con un nome libero (`~/.ssh/github`): i deny di settings.json
+    # coprono solo i nomi noti, e `Read` in allow salta il classificatore (1/11/2026, F01).
+    if data.get("tool_name") == "Read":
+        percorso = str((data.get("tool_input") or {}).get("file_path") or "")
+        if _SSH_LETTURA.search(percorso.replace("\\", "/")):
+            return _ask("segreto",
+                "Lettura di un file in ~/.ssh che non è config, known_hosts, authorized_keys o una chiave "
+                "pubblica: è probabilmente una chiave privata, e il contenuto finirebbe nel contesto. "
+                "Conferma solo se serve davvero.")
+        return 0
     if data.get("tool_name") not in ("Bash", "Monitor"):  # Monitor lancia comandi shell (19/10/2026)
         return 0
     command = (data.get("tool_input") or {}).get("command", "")
