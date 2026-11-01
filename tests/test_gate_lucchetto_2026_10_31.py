@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GL01-GL06: un solo gate completo per macchina (bin/gate-lucchetto.sh, 31/10/2026, #4360).
+"""GL01-GL08: un solo gate completo per macchina (bin/gate-lucchetto.sh, 31/10/2026, #4360).
 
 Il 30-31/10 sul MacBook Air due tests/verifica-allineamento.sh in parallelo hanno dato rossi che da
 soli passano. Il gate prende un lucchetto all'avvio: il secondo aspetta in fila e dice chi lo tiene.
@@ -10,9 +10,14 @@ GL03 lucchetto rimasto da un gate che non gira più: si toglie e si prende.
 GL04 attesa scaduta: rosso, col pid di chi lo tiene.
 GL05 lasciare non toglie il lucchetto di un altro gate.
 GL06 il gate prende il lucchetto prima della cartella di prova e lo lascia all'uscita.
+GL07 un lucchetto senza "chi": vecchio di oltre un minuto si toglie e si prende, appena creato resta
+     (1/11/2026).
+GL08 una cartella con altri file non è un lucchetto: il gate esce rosso e non la tocca (1/11/2026).
 
 Veleno interno: GL02 e GL04 girano anche contro un lucchetto finto che non blocca, e devono dare
-rosso col loro codice. Sulla base 5122a03 è rosso GL06: il gate non aveva il lucchetto.
+rosso col loro codice. GL07 gira contro il lucchetto senza la condizione dell'età, e GL08 contro
+il lucchetto di e80e43d, che toglieva le cartelle con rm -rf: devono dare rosso. Sulla base 5122a03 è
+rosso GL06: il gate non aveva il lucchetto.
 """
 from __future__ import annotations
 
@@ -24,7 +29,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = [f"GL{n:02d}" for n in range(1, 7)]
+CASI = [f"GL{n:02d}" for n in range(1, 9)]
 DISCRIMINANTI = ["GL06"]
 BASH = shutil.which("bash") or "bash"
 FINTO = """
@@ -86,6 +91,43 @@ def caso_gl04(script: Path, tmp: Path) -> str | None:
     return None
 
 
+def _vecchia(cartella: Path, minuti: int = 5) -> None:
+    import os
+    t = time.time() - minuti * 60
+    os.utime(cartella, (t, t))
+
+
+def caso_gl07(script: Path, tmp: Path) -> str | None:
+    """Un lucchetto senza "chi": vecchio si toglie e si prende, appena fatto resta (1/11/2026)."""
+    vecchio = tmp / "gl07a.lucchetto"
+    vecchio.mkdir()
+    _vecchia(vecchio)
+    r = bash(script, f'gate_lucchetto_prendi "{vecchio.as_posix()}" nuovo && cat "{vecchio.as_posix()}/chi"',
+             {"ARTURO_GATE_ATTESA": "5"})
+    if r.returncode != 0 or "senza proprietario" not in r.stderr or "nuovo" not in r.stdout:
+        return f"GL07 lucchetto vecchio senza proprietario non ripreso: rc={r.returncode} {r.stdout!r} {r.stderr!r}"
+    fresco = tmp / "gl07b.lucchetto"
+    fresco.mkdir()
+    r = bash(script, f'gate_lucchetto_prendi "{fresco.as_posix()}" nuovo', {"ARTURO_GATE_ATTESA": "1"})
+    if r.returncode == 0 or "FAIL" not in r.stderr or not fresco.is_dir():
+        return f"GL07 un lucchetto appena creato senza chi è stato tolto: rc={r.returncode} {r.stderr!r}"
+    return None
+
+
+def caso_gl08(script: Path, tmp: Path) -> str | None:
+    """Una cartella vera con altri file non è un lucchetto: il gate esce rosso e non la tocca."""
+    cartella = tmp / "gl08.cartella"
+    cartella.mkdir()
+    (cartella / "importante.txt").write_text("lavoro\n", encoding="utf-8")
+    _vecchia(cartella)
+    r = bash(script, f'gate_lucchetto_prendi "{cartella.as_posix()}" nuovo', {"ARTURO_GATE_ATTESA": "3"})
+    if not (cartella / "importante.txt").exists():
+        return "GL08 il gate ha cancellato una cartella che non è un lucchetto"
+    if r.returncode == 0:
+        return f"GL08 il gate parte su una cartella che non è un lucchetto: {r.stderr!r}"
+    return None
+
+
 def prova_script(script: Path) -> list[str]:
     rossi: list[str] = []
     with tempfile.TemporaryDirectory() as t:
@@ -123,6 +165,10 @@ def prova_script(script: Path) -> list[str]:
         r = bash(script, f'GATE_LUCCHETTO_DIR="{l5.as_posix()}"\ngate_lucchetto_lascia')
         if not (l5 / "chi").exists():
             rossi.append("GL05 lasciare ha tolto il lucchetto di un altro gate")
+        for caso in (caso_gl07, caso_gl08):
+            e = caso(script, tmp)
+            if e:
+                rossi.append(e)
     return rossi
 
 
@@ -170,6 +216,20 @@ def main() -> int:
             esito = caso(finto, tmp)
             if not esito or not esito.startswith(codice):
                 rossi.append(f"{codice} veleno: col lucchetto finto il caso resta verde ({esito!r})")
+        vero = (repo / "bin" / "gate-lucchetto.sh").read_text(encoding="utf-8")
+        senza_eta = Path(t) / "senza-eta.sh"
+        condizione = ' && [[ -n "$(find "$dir" -maxdepth 0 -mmin +1 2>/dev/null)" ]]'
+        assert condizione in vero, "GL07 veleno: la condizione dell'età non c'è più nel lucchetto"
+        senza_eta.write_text(vero.replace(condizione, ""), encoding="utf-8")
+        vecchio = Path(t) / "vecchio.sh"
+        vecchio.write_bytes(subprocess.run(["git", "-C", str(repo), "show", "e80e43d:bin/gate-lucchetto.sh"],
+                                           capture_output=True, check=True).stdout)
+        for codice, caso, rotto in (("GL07", caso_gl07, senza_eta), ("GL08", caso_gl08, vecchio)):
+            prova = Path(t) / f"veleno-{codice}"
+            prova.mkdir()
+            esito = caso(rotto, prova)
+            if not esito or not esito.startswith(codice):
+                rossi.append(f"{codice} veleno: col lucchetto rotto il caso resta verde ({esito!r})")
     for r in rossi:
         print("ROSSO", r)
     print(f"lucchetto del gate: {len(CASI) - len({r.split()[0] for r in rossi})}/{len(CASI)} casi verdi, veleno provato")

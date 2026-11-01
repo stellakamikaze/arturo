@@ -19,6 +19,27 @@
 
 GATE_LUCCHETTO_DIR=""
 
+# Toglie un lucchetto rimasto, solo se è ancora quello letto come morto (1/11/2026, F02 F03).
+# La cartella si rinomina prima su un nome solo suo (mv è atomico): se dentro c'è ora un "chi" diverso,
+# è il lucchetto vivo di un altro gate e torna al suo posto. Niente rm -rf: si toglie solo "chi" e poi la
+# cartella vuota. Una cartella con altri file non è un lucchetto, e il gate esce rosso senza toccarla.
+_gate_lucchetto_togli() {
+  local dir="$1" letto="$2" morto="$1.morto.$$" ora
+  if [[ -n "$(ls -A "$dir" 2>/dev/null | grep -vx chi)" ]]; then
+    echo "FAIL: $dir contiene altri file: non è un lucchetto del gate. Controlla ARTURO_GATE_LUCCHETTO." >&2
+    return 1
+  fi
+  mv "$dir" "$morto" 2>/dev/null || return 0   # già tolto o preso da un altro: si riprova il giro
+  ora=$(cat "$morto/chi" 2>/dev/null || true)
+  if [[ "$ora" != "$letto" ]]; then
+    mv "$morto" "$dir" 2>/dev/null || echo "LUCCHETTO: il lucchetto di un altro gate è rimasto in $morto" >&2
+    return 0
+  fi
+  rm -f "$morto/chi"
+  rmdir "$morto" 2>/dev/null || { echo "FAIL: $morto non si toglie: contiene altri file" >&2; return 1; }
+  return 0
+}
+
 gate_lucchetto_prendi() {
   local dir="$1" descrizione="${2:-}" attesa="${ARTURO_GATE_ATTESA:-5400}" passo="${ARTURO_GATE_PASSO:-15}"
   local inizio=$SECONDS detto="" chi pid
@@ -28,13 +49,13 @@ gate_lucchetto_prendi() {
     pid=${chi%%,*}
     if [[ "$pid" =~ ^[0-9]+$ ]] && ! kill -0 "$pid" 2>/dev/null; then
       echo "LUCCHETTO: il gate che lo teneva non gira più ($chi): tolgo il lucchetto rimasto" >&2
-      rm -rf "$dir"
+      _gate_lucchetto_togli "$dir" "$chi" || return 1
       continue
     fi
     if [[ -z "$chi" ]] && [[ -n "$(find "$dir" -maxdepth 0 -mmin +1 2>/dev/null)" ]]; then
       # Una cartella senza "chi" da oltre un minuto: un gate morto fra mkdir e la scrittura.
       echo "LUCCHETTO: lucchetto senza proprietario da oltre un minuto: lo tolgo" >&2
-      rm -rf "$dir"
+      _gate_lucchetto_togli "$dir" "" || return 1
       continue
     fi
     if [[ -n "$chi" && "$chi" != "$detto" ]]; then
@@ -42,7 +63,7 @@ gate_lucchetto_prendi() {
       detto=$chi
     fi
     if (( SECONDS - inizio >= attesa )); then
-      echo "FAIL: dopo ${attesa}s il lucchetto del gate è ancora preso (pid ${chi:-sconosciuto}). Se quel gate è fermo, toglilo: rm -rf $dir" >&2
+      echo "FAIL: dopo ${attesa}s il lucchetto del gate è ancora preso (pid ${chi:-sconosciuto}). Se quel gate è fermo, toglilo: rm -f $dir/chi; rmdir $dir" >&2
       return 1
     fi
     sleep "$passo"
@@ -58,7 +79,10 @@ gate_lucchetto_lascia() {
   local dir="$GATE_LUCCHETTO_DIR" chi
   [[ -n "$dir" ]] || return 0
   chi=$(cat "$dir/chi" 2>/dev/null || true)
-  [[ "${chi%%,*}" == "$$" ]] && rm -rf "$dir"
+  if [[ "${chi%%,*}" == "$$" ]]; then
+    rm -f "$dir/chi"
+    rmdir "$dir" 2>/dev/null || true
+  fi
   GATE_LUCCHETTO_DIR=""
   return 0
 }
