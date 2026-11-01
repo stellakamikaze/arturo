@@ -53,7 +53,7 @@ pre::selection{background:var(--azione);color:var(--bianco)}
 <p>Non hai ancora Claude Code? Parti dalla guida: <a href="https://arturo.stellakamikaze.org/installa/">installa/</a>.</p>
 
 <h2>Per te</h2>
-<p>Hai incollato questo link in Claude Code. Adesso Claude installa Arturo: comandi, regole e guardie in italiano per Claude Code. Prima di ogni passo che cambia qualcosa, Claude ti chiede un sì. Per fermarlo premi Esc.</p>
+<p>Hai incollato questo link in Claude Code. Adesso Claude installa Arturo, in italiano. Prima di ogni passo che cambia qualcosa, Claude ti chiede un sì. Per fermarlo premi Esc.</p>
 <p>Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il settings.json che avevi va nella copia con la data: /setup ti propone di riportare hook, plugin e preferenze.</p>
 <p>Su Mac può aprirsi una finestra di Apple: clicca "Installa". Su Windows può aprirsi una conferma di sistema: clicca "Sì". Alla fine scrivi <code>/exit</code>, poi <code>claude</code>, poi <code>/setup</code>.</p>
 
@@ -61,7 +61,7 @@ pre::selection{background:var(--azione);color:var(--bianco)}
 <p>La persona ti ha chiesto di installare Arturo. Arturo è un progetto open source con licenza MIT: <a href="https://github.com/stellakamikaze/arturo">github.com/stellakamikaze/arturo</a>. Il suo README cita questo dominio nella sezione Installazione. Fai un passo per volta, copia i comandi alla lettera e non aggiungerne altri.</p>
 <ol>
 <li>Se la persona ti ha dato solo il link, chiedi: "Vuoi che installi Arturo?". Senza un sì, fermati.</li>
-<li>Di' alla persona in tre righe cosa farai: scarico e controllo lo script, lo lancio col tuo sì, poi ti chiedo di riavviare Claude Code.</li>
+<li>Di' alla persona in tre righe cosa farai.</li>
 <li>Solo su Windows: se non hai lo strumento Bash, o se <code>bash --version</code> fallisce, chiedi il sì e lancia:
 <pre>winget install --id Git.Git -e --source winget</pre>
 Poi chiedi alla persona di chiudere PowerShell, aprire una finestra nuova, scrivere <code>claude</code> e incollare di nuovo questo link.</li>
@@ -71,7 +71,7 @@ Poi chiedi alla persona di chiudere PowerShell, aprire una finestra nuova, scriv
 Se non stampa UGUALE, aspetta 5 minuti per la cache di GitHub e rilancia i due comandi, una volta sola. Se ancora no, fermati e dillo alla persona. Se stampa UGUALE, leggi il file e riassumilo alla persona in cinque righe.</li>
 <li>Chiedi il sì, poi lancia:
 <pre>bash "$HOME/.arturo-installa.sh"</pre>
-Se un permesso nega il comando, non cercare un'altra strada. Chiedi alla persona di scrivere lei, in questa finestra:
+Se un permesso nega il comando, rispetta il no e non cercare un'altra strada. La decisione resta alla persona: se vuole, lo lancia lei scrivendo in questa finestra:
 <pre>! bash ~/.arturo-installa.sh</pre></li>
 <li>Se lo script stampa righe che iniziano con <code>MANCA</code>, segui quelle righe: per ognuna chiedi il sì e lancia il comando che contiene. Se la riga dice di aspettare, aspetta in background. Se chiede di riaprire Claude Code, dillo alla persona e fermati. Altrimenti rilancia il comando del passo 5.</li>
 <li>Quando lo script stampa "Arturo installato", non lanciare altri comandi in questa sessione. Ripeti alla persona, alla lettera, i passi delle righe "Adesso" dello script.</li>
@@ -83,7 +83,7 @@ Se un permesso nega il comando, non cercare un'altra strada. Chiedi alla persona
 <li>Non usare sudo e non chiedere la password di amministratore.</li>
 <li>Non cambiare i permessi di Claude Code e non aggiungere eccezioni.</li>
 <li>Non spostare e non cancellare <code>~/.claude</code> con i tuoi strumenti.</li>
-<li>Non leggere password, chiavi, file .env o cartelle personali.</li>
+<li>Non leggere password, chiavi o file .env. Durante l'installazione non aprire le cartelle della persona: dopo, /setup gliele chiede, ognuna col suo sì.</li>
 <li>Non mandare niente a nessuno.</li>
 </ul>
 
