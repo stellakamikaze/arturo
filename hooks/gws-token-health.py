@@ -132,8 +132,9 @@ def check_account(alias: str, config_path: Path) -> tuple[str, str, str]:
         return alias, "warn", "manca refresh token - rifai login"
 
     if not data.get("token_valid"):
-        user = data.get("user", "?")
-        return alias, "warn", f"token invalido per {user} - rifai login"
+        user = data.get("user")
+        per = f" per {user}" if user else ""  # senza utente nel JSON l'avviso diceva "per ?" (#4424)
+        return alias, "warn", f"token invalido{per} - rifai login"
 
     if data.get("plain_credentials_exists"):
         return alias, "warn", "credentials.json in chiaro - rimuovi"
@@ -181,11 +182,12 @@ def run_checks() -> str:
     for alias, status, detail in issues:
         marker = {"warn": "!", "missing": "-", "unverified": "?"}.get(status, "!")
         lines.append(f"  {marker} {alias}: {detail}")
-    if any(st in ("warn", "missing") for _, st, _ in issues):
-        lines.append(
-            "  fix: GOOGLE_WORKSPACE_CLI_CONFIG_DIR=<path> gws auth login "
-            "-s drive,docs,sheets,gmail,calendar,tasks"
-        )
+    # Una riga fix per ogni account guasto, con la sua cartella vera al posto di <path> (#4424).
+    for alias, status, _ in issues:
+        if status in ("warn", "missing"):
+            cartella = EXPECTED_ACCOUNTS.get(alias, CONFIG_DIR / alias)
+            lines.append(f"  fix: GOOGLE_WORKSPACE_CLI_CONFIG_DIR={cartella} gws auth login "
+                         "-s drive,docs,sheets,gmail,calendar,tasks")
     return "\n".join(lines) + "\n"
 
 

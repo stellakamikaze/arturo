@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GT01-GT05: il controllo dei token gws all'avvio (hooks/gws-token-health.py, 1/11/2026).
+"""GT01-GT06: il controllo dei token gws all'avvio (hooks/gws-token-health.py, 1/11/2026).
 
 L'hook non lancia gws dentro l'avvio: mostra la cache e, se serve, lancia `--refresh` staccato. Fino al
 1/11 nessun banco provava questo percorso, e su Windows un gws appeso lasciava il refresh fermo.
@@ -9,6 +9,7 @@ GT02 gws con un token invalido: il refresh scrive "! gws-x" e la riga fix.
 GT03 un lock fresco: l'hook non lancia un secondo refresh.
 GT04 un login più recente della cache la scarta: l'avviso vecchio non esce.
 GT05 l'hook senza cache torna subito, e il refresh che lancia scrive la cache.
+GT06 senza utente nel JSON l'avviso non dice "per ?", e la riga fix porta la cartella vera (#4424).
 
 Ogni caso gira con una HOME finta e un gws finto in testa al PATH. Con --avvelena il banco rompe la
 copia dell'hook in due punti (un timeout che vale "ok", un refresh lanciato senza --refresh) e vuole
@@ -33,8 +34,13 @@ if modo == "lento":
 if modo == "rotto":
     sys.exit(1)
 valido = modo == "valido"
+if modo == "senza-utente":
+    valido = False
 print("banner")
-print(json.dumps({"has_refresh_token": True, "token_valid": valido, "user": "x@example.invalid"}))
+dati = {"has_refresh_token": True, "token_valid": valido}
+if modo != "senza-utente":
+    dati["user"] = "x@example.invalid"
+print(json.dumps(dati))
 '''
 
 
@@ -84,6 +90,16 @@ def test_gt02(hook: Path) -> None:
         lancia(h, home, b, "invalido", "--refresh")
         testo = cache.read_text(encoding="utf-8") if cache.exists() else ""
         assert "! gws-x: token invalido" in testo and "fix:" in testo, f"GT02 token invalido non segnalato: {testo!r}"
+        assert "<path>" not in testo and str(home / ".config" / "gws-x") in testo, \
+            f"GT02 la riga fix non porta la cartella vera dell'account: {testo!r}"
+
+
+def test_gt06(hook: Path) -> None:
+    with tempfile.TemporaryDirectory() as d:
+        home, b, h, cache = prepara(Path(d), hook)
+        lancia(h, home, b, "senza-utente", "--refresh")
+        testo = cache.read_text(encoding="utf-8") if cache.exists() else ""
+        assert "token invalido - rifai login" in testo and "per ?" not in testo,             f"GT06 senza utente nel JSON l'avviso dice 'per ?': {testo!r}"
 
 
 def test_gt03(hook: Path) -> None:
@@ -124,7 +140,7 @@ def test_gt05(hook: Path) -> None:
             time.sleep(0.5)
 
 
-TESTS = {"GT01": test_gt01, "GT02": test_gt02, "GT03": test_gt03, "GT04": test_gt04, "GT05": test_gt05}
+TESTS = {"GT01": test_gt01, "GT02": test_gt02, "GT03": test_gt03, "GT04": test_gt04, "GT05": test_gt05, "GT06": test_gt06}
 VELENI = {
     "GT01": ('return alias, "unverified", f"non verificato (auth status oltre', 'return alias, "ok", f"non verificato (auth status oltre'),
     "GT05": ('str(Path(__file__).resolve()), "--refresh"]', 'str(Path(__file__).resolve())]'),
