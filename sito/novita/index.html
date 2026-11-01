@@ -47,6 +47,50 @@
  "blogPost": [
   {
    "@type": "BlogPosting",
+   "headline": "Arturo si installa incollando un link in Claude Code",
+   "datePublished": "2026-11-01",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-11-01-arturo-si-installa-incollando-un-link-in-claude-code",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
+   "headline": "Le guardie del 31/10 chiudono i buchi trovati dalla revisione",
+   "datePublished": "2026-11-01",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-11-01-le-guardie-del-31-10-chiudono-i-buchi-trovati-dalla-revision",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
+   "headline": "Su Windows le guardie leggono il comando intero",
+   "datePublished": "2026-10-31",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-10-31-su-windows-le-guardie-leggono-il-comando-intero",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
+   "headline": "Meno conferme sul tuo lavoro, le stesse guardie sui rischi veri",
+   "datePublished": "2026-10-31",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-10-31-meno-conferme-sul-tuo-lavoro-le-stesse-guardie-sui-rischi-ve",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
    "headline": "Hallmark costruisce le pagine nuove, insieme a Impeccable",
    "datePublished": "2026-10-30",
    "author": {
@@ -1001,7 +1045,7 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
   <div class="dentro">
     <div class="testata__corpo">
       <h1 id="titolo">Novità di Arturo</h1>
-      <p>Cosa cambia a ogni aggiornamento, il principio dietro e cosa devi fare tu. La voce più recente sta in cima: l'ultima è del 30 ottobre 2026. Dentro Claude Code le stesse voci te le racconta <code>/novita</code>.</p>
+      <p>Cosa cambia a ogni aggiornamento, il principio dietro e cosa devi fare tu. La voce più recente sta in cima: l'ultima è del 1 novembre 2026. Dentro Claude Code le stesse voci te le racconta <code>/novita</code>.</p>
       <div class="testata__vie">
         <a class="azione" href="#voci">Leggi le novità</a>
         <a class="azione azione--bordo" href="https://github.com/stellakamikaze/arturo/blob/main/NOVITA.md">NOVITA.md su GitHub</a>
@@ -1015,6 +1059,46 @@ code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inc
 <section class="sezione" aria-labelledby="titolo">
   <div class="dentro">
     <div class="voci" id="voci">
+
+      <article class="voce" id="2026-11-01-arturo-si-installa-incollando-un-link-in-claude-code" aria-labelledby="t-2026-11-01-arturo-si-installa-incollando-un-link-in-claude-code">
+        <p class="voce__data stretta"><time datetime="2026-11-01">1 novembre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-11-01-arturo-si-installa-incollando-un-link-in-claude-code"><a href="#2026-11-01-arturo-si-installa-incollando-un-link-in-claude-code">Arturo si installa incollando un link in Claude Code</a></h2>
+          <p><strong>Cosa cambia</strong>: per installare Arturo ora basta Claude Code. Scrivi <code>claude</code> e incolla la frase <code>Installa Arturo: https://arturo.stellakamikaze.org/inizia/</code>. Claude legge la pagina, scarica lo script, lo confronta con la copia su GitHub e lo lancia dopo il tuo sì. Se manca un programma, lo installa col tuo sì. Lo script mette Arturo dentro <code>~/.claude</code> senza spostare la cartella: login, conversazioni, plugin installati e il tuo <code>CLAUDE.md</code> restano dove sono. I file sostituiti, compreso il <code>settings.json</code> che avevi, vanno in una copia con la data nel nome: <code>/setup</code> ti propone di riportare hook, plugin e preferenze. Poi scrivi <code>/exit</code>, <code>claude</code> e <code>/setup</code>. <code>/setup</code> fa in silenzio i controlli tecnici e ti fa conoscere da Claude: con un sì legge le tue ultime conversazioni, con un altro sì guarda le cartelle che gli indichi, e ti propone un <code>CLAUDE.md</code> con la fonte di ogni riga. Alla fine ti propone un primo lavoro vero, sul tuo materiale.</p>
+          <p><strong>Da sapere</strong>: la lettura delle cartelle non apre mai cartelle di sistema, cartelle nascoste, <code>.ssh</code>, chiavi, password manager, file <code>.env</code>, credenziali e documenti d'identità, di salute o di banca. Da Download legge solo i nomi. Quello che legge passa dalla conversazione con Anthropic, come ogni richiesta a Claude, e non va a chi mantiene Arturo. In telemetria esce solo che hai passato le fasi 2b e 2c, mai il ritratto. Quello che legge resta nella cronologia della conversazione, che Claude Code tiene sul computer e cancella da sola dopo 90 giorni: Arturo non ne fa altre copie. La strada a mano resta, nel README e sul sito, per chi preferisce il terminale. Le finestre di sistema, come l'installazione degli strumenti di Apple o la conferma di Windows, le confermi tu.</p>
+          <p><strong>Il principio dietro</strong>: la persona fa solo quello che solo una persona può fare, e vede tutto quello che Claude legge.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="2026-11-01-le-guardie-del-31-10-chiudono-i-buchi-trovati-dalla-revision" aria-labelledby="t-2026-11-01-le-guardie-del-31-10-chiudono-i-buchi-trovati-dalla-revision">
+        <p class="voce__data stretta"><time datetime="2026-11-01">1 novembre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-11-01-le-guardie-del-31-10-chiudono-i-buchi-trovati-dalla-revision"><a href="#2026-11-01-le-guardie-del-31-10-chiudono-i-buchi-trovati-dalla-revision">Le guardie del 31/10 chiudono i buchi trovati dalla revisione</a></h2>
+          <p><strong>Cosa cambia</strong>: il giorno dopo il cambio che ha tolto le conferme sul tuo lavoro, una revisione ha cercato i modi per far passare un rischio vero senza conferma. Ne ha trovati 38, e ora sono chiusi. Qualche esempio. Uno stash conta come salvato solo se il comando salva proprio quello stash, e <code>git stash clear</code> chiede. Un file caricato con <code>curl -d '@file'</code> chiede come <code>curl -d @file</code>. Un link <code>mailto:</code> chiede anche se sta in una variabile. Un commit con un segreto chiede anche dopo un <code>cd -</code>. Leggere una chiave privata in <code>~/.ssh</code> chiede, qualunque nome abbia. <code>rm -rf /*</code>, <code>rm -rf ~/*</code> e la cancellazione del disco intero su Windows sono bloccati.</p>
+          <p><strong>Cosa resta uguale</strong>: le conferme tolte il 31/10 sul tuo lavoro restano tolte. Un comando come <code>find . | xargs grep -n rm</code> ora tace: prima chiedeva per la parola <code>rm</code> nel testo cercato.</p>
+          <p><strong>Il principio dietro</strong>: togliere una conferma vale solo se il rischio vero resta coperto, e lo si prova cercando apposta il modo di aggirarla.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="2026-10-31-su-windows-le-guardie-leggono-il-comando-intero" aria-labelledby="t-2026-10-31-su-windows-le-guardie-leggono-il-comando-intero">
+        <p class="voce__data stretta"><time datetime="2026-10-31">31 ottobre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-10-31-su-windows-le-guardie-leggono-il-comando-intero"><a href="#2026-10-31-su-windows-le-guardie-leggono-il-comando-intero">Su Windows le guardie leggono il comando intero</a></h2>
+          <p><strong>Cosa cambia</strong>: se usi Arturo su Windows, le guardie leggono un comando su più righe come lo legge bash. Prima un a capo scritto da <code>jq</code> o da python su Windows portava un carattere in più, e un comando che continuava sulla riga dopo poteva mandare un file a un sito esterno senza chiederti conferma. Ora la guardia lo vede e chiede. Su macOS e Linux non cambia niente.</p>
+          <p><strong>Da sapere</strong>: chi mantiene Arturo prova ogni rilascio anche su Windows. Alcuni controlli lì non si possono provare, perché Windows non concede i link simbolici senza la Modalità sviluppatore: il controllo lo dice come salto, invece di passare in silenzio. Il rilascio si prova per intero su un Mac.</p>
+          <p><strong>Il principio dietro</strong>: una guardia deve leggere il comando come lo esegue il sistema, non come appare.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="2026-10-31-meno-conferme-sul-tuo-lavoro-le-stesse-guardie-sui-rischi-ve" aria-labelledby="t-2026-10-31-meno-conferme-sul-tuo-lavoro-le-stesse-guardie-sui-rischi-ve">
+        <p class="voce__data stretta"><time datetime="2026-10-31">31 ottobre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-10-31-meno-conferme-sul-tuo-lavoro-le-stesse-guardie-sui-rischi-ve"><a href="#2026-10-31-meno-conferme-sul-tuo-lavoro-le-stesse-guardie-sui-rischi-ve">Meno conferme sul tuo lavoro, le stesse guardie sui rischi veri</a></h2>
+          <p><strong>Cosa cambia</strong>: le guardie smettono di chiederti conferma per il lavoro tuo che si può rifare. Un <code>rm</code> dentro una cartella temporanea, anche dopo un <code>cd</code>, non chiede più: la guardia segue i <code>cd</code> e guarda la cartella vera. Cancellare un ramo git non chiede se i suoi commit stanno anche altrove. Le guardie chiedono ancora per i rischi veri: un file che parte verso un sito esterno, un'email, un link <code>mailto:</code> aperto da un programma, un segreto in un commit, la cancellazione di un ramo o di uno stash che esistono solo lì. In modalità auto Arturo dice al classificatore di Claude Code quale lavoro è tuo: le tue macchine, i tuoi repository, i deploy delle tue app, la lettura del web. Le regole che negavano tutta una famiglia di comandi sono diventate più strette: per esempio leggere <code>~/.ssh/config</code> si può, leggere una chiave no (dal 1/11 anche una chiave con un nome libero).</p>
+          <p><strong>Se una conferma ti sembra inutile</strong>: chiedi a Claude da dove viene. Una conferma di una guardia si allenta coi file <code>.local</code> in <code>hooks/</code>. Un diniego del classificatore si allarga con una riga in <code>autoMode</code>, che Claude ti propone e scrive dopo il tuo sì. Il README lo spiega nella sezione "Personalizzazione".</p>
+          <p><strong>Il principio dietro</strong>: una guardia che chiede sempre insegna a dire sì senza leggere. Le conferme servono solo dove un errore non si annulla.</p>
+        </div>
+      </article>
 
       <article class="voce" id="2026-10-30-hallmark-costruisce-le-pagine-nuove-insieme-a-impeccable" aria-labelledby="t-2026-10-30-hallmark-costruisce-le-pagine-nuove-insieme-a-impeccable">
         <p class="voce__data stretta"><time datetime="2026-10-30">30 ottobre 2026</time></p>
