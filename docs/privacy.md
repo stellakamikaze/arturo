@@ -40,6 +40,17 @@ Il server non salva il tuo indirizzo IP. Il modulo del sito accetta solo testo s
 Sul tuo computer restano la coda degli eventi non ancora partiti (`~/.claude/data/telemetria/coda.jsonl`) e lo stato della telemetria (`~/.claude/session-env/telemetria.json`).
 Li vedi con `python3 ~/.claude/bin/arturo telemetria mostra`.
 
+## Il ritratto di /setup
+
+Nelle fasi 2b e 2c `/setup` ti chiede due volte un sì, per conoscerti prima di scrivere il tuo `CLAUDE.md`. Un no non blocca niente.
+
+- **Cosa legge, col primo sì.** Le tue ultime conversazioni con Claude Code: solo le frasi che hai scritto tu, tagliate, e le note che Claude Code ha preso da solo. Legge anche le ultime richieste nella cronologia di Claude Code (`~/.claude/history.jsonl`), comprese quelle di conversazioni che hai cancellato, e le conversazioni nella copia fatta all'installazione. Poi ti chiede di incollare le istruzioni dei tuoi Progetti di claude.ai, se li usi.
+- **Cosa legge, col secondo sì.** Ti mostra prima l'elenco delle cartelle. Poi legge i nomi di file e cartelle fino a tre livelli, e l'inizio di al massimo 12 documenti di testo in Documenti, Scrivania e nelle cartelle dei progetti. Da Download legge solo i nomi, anche quando una cartella di lavoro sta dentro Download. Se al primo sì hai risposto no, non apre le conversazioni nemmeno per trovare le cartelle di lavoro.
+- **Cosa non legge mai.** Cartelle di sistema e dei programmi, cartelle nascoste, `.ssh`, chiavi, password manager, file `.env`, credenziali, e i documenti che dal nome o dal testo sembrano d'identità, di salute o di banca. Dai testi che legge toglie password scritte in chiaro, chiavi, IBAN, numeri di carta, codici fiscali, telefoni e le email che non sono la tua. Le esclusioni stanno nel codice di `bin/ritratto.py`, non in un'istruzione a Claude.
+- **Dove va.** Quello che legge passa dalla conversazione con Anthropic, come ogni richiesta che scrivi a Claude. Non va a chi mantiene Arturo.
+- **Cosa esce in telemetria.** Solo il passaggio per le due fasi, `setup fase:2b` e `setup fase:2c`. Mai conteggi, esiti, nomi di file o testi.
+- **Cosa resta sul computer.** Arturo non salva il ritratto in nessun file. Quello che legge resta nella cronologia della conversazione di `/setup`, che Claude Code tiene sul tuo computer e cancella da sola dopo 90 giorni. Arturo non ne fa altre copie. La cronologia sta in `~/.claude/projects`, e i 90 giorni li fissa `cleanupPeriodDays` nel `settings.json` di Arturo. Oltre a quella resta il `CLAUDE.md` che approvi prima che venga scritto.
+
 ## Chi li riceve
 
 - **Cloudflare** ospita il server e il database (Workers e D1). È il solo posto dove stanno gli eventi e i testi.

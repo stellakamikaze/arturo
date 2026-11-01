@@ -67,6 +67,9 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    `--ff-only` è un freno: se `main` non può avanzare in modo lineare, il merge si ferma e
    ti costringe a guardare perché `dev` e `main` hanno diverto. Mai forzare.
 
+   **Prima il rilascio firmato di `main`, poi la landing** (ramo `landing-v2`, `strumenti/pubblica.sh`):
+   il sito non promette mai una cosa che il rilascio installato non fa ancora.
+
 ## La versione è la data
 
 Non c'è semver. La versione di Arturo è la data dell'entry in cima a `NOVITA.md`:

@@ -18,8 +18,10 @@ Arturo esegue in fondo.
   separa [--verso REF]    sposta i comandi di Arturo modificati (con --verso solo quelli che REF cambia);
                           /aggiorna lo lancia da solo nella copia di prova
   hook-precedenti [--applica]
-                          gli hook che la persona aveva prima di Arturo, nell'ultima ~/.claude-backup-*:
-                          li elenca, e con --applica li aggiunge al settings.json con i file che usano
+                          gli hook, i plugin accesi e le impostazioni (model, env, apiKeyHelper) che la
+                          persona aveva prima di Arturo, nell'ultima ~/.claude-backup-*: li elenca, e con
+                          --applica li aggiunge al settings.json, coi file degli hook, senza togliere
+                          niente di Arturo
 
 Con un repository della persona come origin (Arturo come upstream), /aggiorna e /aggiorna personale
 lanciano separa solo se quel repository è privato: altrimenti personale/ non viaggerebbe fra le sue
@@ -328,6 +330,47 @@ def comandi(impostazioni: dict) -> set:
     return visti
 
 
+# Le impostazioni del settings.json di prima che l'installazione lascia nella copia (revisione del
+# 1/11/2026, I3): settings.json è un file di Arturo, e il reset lo sostituisce. I plugin restano
+# installati in ~/.claude/plugins, ma il loro stato acceso sta in enabledPlugins; model, env e
+# apiKeyHelper decidono modello e accesso (ANTHROPIC_BASE_URL, CLAUDE_CODE_USE_BEDROCK).
+DIZIONARI = ("enabledPlugins", "extraKnownMarketplaces", "env")
+VALORI = ("model", "apiKeyHelper")
+
+
+def impostazioni_precedenti(vecchie: dict, attuali: dict) -> dict:
+    """Le voci della copia che il settings.json di Arturo non ha. Solo aggiunte: una chiave che Arturo
+    ha già resta la sua. Le righe non stampano i valori di env e apiKeyHelper, che possono essere
+    chiavi: si legge solo il nome."""
+    righe, unisci, plugin, altre = [], {}, 0, 0
+    for chiave in DIZIONARI:
+        prima, ora = vecchie.get(chiave), attuali.get(chiave)
+        if not isinstance(prima, dict) or (ora is not None and not isinstance(ora, dict)):
+            continue
+        mancanti = {k: v for k, v in prima.items() if k not in (ora or {})}
+        if not mancanti:
+            continue
+        unisci[chiave] = mancanti
+        for nome in sorted(mancanti):
+            if chiave == "enabledPlugins":
+                plugin += 1
+                righe.append(f"PLUGIN: {nome}" + ("" if mancanti[nome] else " (era spento)"))
+            elif chiave == "extraKnownMarketplaces":
+                altre += 1
+                righe.append(f"PLUGIN: marketplace {nome}")
+            else:
+                altre += 1
+                righe.append(f"IMPOSTAZIONE: env {nome}")
+    for chiave in VALORI:
+        valore = vecchie.get(chiave)
+        if isinstance(valore, str) and valore and chiave not in attuali:
+            unisci[chiave] = valore
+            altre += 1
+            righe.append(f"IMPOSTAZIONE: model {valore}" if chiave == "model"
+                         else "IMPOSTAZIONE: apiKeyHelper (il comando che dà la chiave di accesso)")
+    return {"righe": righe, "unisci": unisci, "plugin": plugin, "impostazioni": altre}
+
+
 def hook_precedenti(applica: bool) -> int:
     """Gli hook che la persona aveva prima di Arturo (#3758, dal Computer Club il 16/10/2026).
 
@@ -336,6 +379,8 @@ def hook_precedenti(applica: bool) -> int:
     avviso. Qui si confronta l'ultima copia con il settings.json di Arturo. Con --applica gli hook
     mancanti si aggiungono, con lo stesso evento e lo stesso matcher, e tornano i file che usano dentro
     ~/.claude. La barra in basso è una sola: se era diversa si dice, e sceglie la persona.
+    Dal 1/11/2026 tornano anche i plugin accesi, i marketplace, model, env e apiKeyHelper
+    (impostazioni_precedenti): righe PLUGIN e IMPOSTAZIONE, mai coi valori di env.
 
     I file tornano al loro percorso di prima e /fine li salva con settings.json (#3803, 22/10/2026).
     Restano lì perché l'altra app li cerca e li aggiorna in quel punto. Viaggiano nel commit perché
@@ -359,6 +404,7 @@ def hook_precedenti(applica: bool) -> int:
     file = sorted({m for _, _, comando in nuovi for m in DENTRO.findall(comando) + assoluto.findall(comando)
                    if ".." not in m and (copia.parent / m).is_file() and not (r / m).exists()})
     barra = vecchie.get("statusLine")
+    extra = impostazioni_precedenti(vecchie, attuali)
     print(f"Config precedente: {copia.parent}")
     if not nuovi:
         print("Hook da riportare: nessuno, quelli che avevi ci sono già.")
@@ -366,13 +412,21 @@ def hook_precedenti(applica: bool) -> int:
         print(f"HOOK: {evento}{' [' + matcher + ']' if matcher else ''}: {comando}")
     for m in file:
         print(f"FILE: ~/.claude/{m}")
+    for riga in extra["righe"]:
+        print(riga)
     if barra and barra != attuali.get("statusLine"):
         print(f"BARRA: avevi una barra in basso tua ({json.dumps(barra, ensure_ascii=False)}). Ce n'è una sola: "
               "quella di Arturo mostra contesto e quota. Se la persona vuole la sua, Claude la mette con lei.")
-    if not applica or not nuovi:
-        if nuovi:
+    da_fare = bool(nuovi or extra["righe"])
+    if not applica or not da_fare:
+        if da_fare:
             print("Per riportarli: python3 ~/.claude/bin/arturo personale hook-precedenti --applica")
         return 0
+    for chiave, valori in extra["unisci"].items():
+        if isinstance(valori, dict):
+            attuali.setdefault(chiave, {}).update(valori)
+        else:
+            attuali[chiave] = valori
     for m in file:
         (r / m).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(str(copia.parent / m), str(r / m))
@@ -393,7 +447,12 @@ def hook_precedenti(applica: bool) -> int:
                 lista.append(stesso)
             stesso.setdefault("hooks", []).extend(da_aggiungere)
     (r / "settings.json").write_text(json.dumps(attuali, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(f"RIPORTATI: {len(nuovi)} hook nel settings.json" + (f" e {len(file)} file" if file else "")
+    parti = [f"{len(nuovi)} hook"]
+    if extra["plugin"]:
+        parti.append(f"{extra['plugin']} plugin")
+    if extra["impostazioni"]:
+        parti.append(f"{extra['impostazioni']} impostazioni")
+    print(f"RIPORTATI: {', '.join(parti)} nel settings.json" + (f" e {len(file)} file" if file else "")
           + ". Valgono dalla prossima sessione di Claude Code.")
     return 0
 

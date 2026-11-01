@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""P01-P19: le aggiunte della persona ai comandi di Arturo stanno in ~/.claude/personale/ (14/10/2026).
+"""P01-P20: le aggiunte della persona ai comandi di Arturo stanno in ~/.claude/personale/ (14/10/2026).
 
 Il caso vero è quello di chi aggiunge a /inizio la tabella dei suoi progetti: ogni aggiornamento
 che tocca /inizio va in conflitto. P01 con lo spostamento il Passo 3 di /aggiorna applica pulito, e
@@ -21,6 +21,8 @@ l'hook di Arturo esegue quel file in fondo. P17 ripristina rimette una guardia c
 quando è /aggiorna a spostare le aggiunte all'hook, personale/session-start.sh arriva in ~/.claude e
 tiene quelle spostate prima. P19 gli hook di un'altra app che la persona aveva prima di Arturo
 (nell'ultima ~/.claude-backup-*) tornano nel settings.json con i file che usano, senza doppioni (#3758).
+P20 tornano anche plugin accesi, marketplace, model, env e apiKeyHelper, senza togliere niente di
+Arturo e senza stampare i valori di env (revisione del 1/11/2026, I3): sulla base e80e43d è rosso.
 
 Riusa il Lab di test_aggiorna_sicuro.py: un Arturo pubblicato, chi ne scrive gli aggiornamenti e
 una HOME con ~/.claude clonata. Sulla base f750408 ogni controllo deve fallire col suo codice, anche P18
@@ -478,11 +480,50 @@ def test_p19(repo: Path) -> None:
     con_lab(prova, repo)
 
 
+def test_p20(repo: Path) -> None:
+    # Revisione del 1/11/2026 (I3): settings.json è di Arturo e l'installazione lo sostituisce. Il
+    # plugin installato resta in ~/.claude/plugins ma risulta spento, e chi entra con ANTHROPIC_BASE_URL
+    # o apiKeyHelper perde l'accesso. hook-precedenti li ripropone dalla copia.
+    def prova(lab: Lab) -> None:
+        copia = lab.home / ".claude-backup-20261101-1000"
+        copia.mkdir()
+        vecchie = {"enabledPlugins": {"mio@negozio": True, "spento@negozio": False, "arturo@x": False},
+                   "extraKnownMarketplaces": {"negozio": {"source": {"source": "github", "repo": "qualcuno/negozio"}}},
+                   "model": "opus", "apiKeyHelper": "~/bin/chiave.sh",
+                   "env": {"ANTHROPIC_BASE_URL": "https://proxy.example", "SEGRETO_TOKEN": "sk-finto-123",
+                           "CLAUDE_CODE_ENABLE_TODO_TOOLS": "0"}}
+        (copia / "settings.json").write_text(json.dumps(vecchie), encoding="utf-8")
+        impostazioni = lab.utente / "settings.json"
+        arturo_prima = {"env": {"CLAUDE_CODE_ENABLE_TODO_TOOLS": "1"}, "enabledPlugins": {"arturo@x": True},
+                        "language": "italiano"}
+        impostazioni.write_text(json.dumps(arturo_prima), encoding="utf-8")
+        r = arturo(lab, "personale", "hook-precedenti")
+        attese = ("PLUGIN: mio@negozio", "PLUGIN: spento@negozio (era spento)", "PLUGIN: marketplace negozio",
+                  "IMPOSTAZIONE: model opus", "IMPOSTAZIONE: env ANTHROPIC_BASE_URL", "IMPOSTAZIONE: env SEGRETO_TOKEN",
+                  "IMPOSTAZIONE: apiKeyHelper", "hook-precedenti --applica")
+        mancano = [a for a in attese if a not in r.stdout]
+        assert r.returncode == 0 and not mancano, f"P20 l'elenco non dice plugin e impostazioni di prima: {mancano} {r.stdout!r} {r.stderr!r}"
+        assert "sk-finto-123" not in r.stdout + r.stderr, "P20 l'elenco stampa il valore di una variabile env"
+        assert "env CLAUDE_CODE_ENABLE_TODO_TOOLS" not in r.stdout and "PLUGIN: arturo@x" not in r.stdout,             f"P20 propone di cambiare una chiave che Arturo ha già: {r.stdout!r}"
+        assert json.loads(read(impostazioni)) == arturo_prima, "P20 senza --applica il settings.json è cambiato"
+        r = arturo(lab, "personale", "hook-precedenti", "--applica")
+        dopo = json.loads(read(impostazioni))
+        assert r.returncode == 0 and "RIPORTATI: 0 hook, 2 plugin, 5 impostazioni" in r.stdout,             f"P20 --applica non riporta plugin e impostazioni: {r.stdout!r} {r.stderr!r}"
+        assert dopo["enabledPlugins"] == {"arturo@x": True, "mio@negozio": True, "spento@negozio": False},             f"P20 i plugin non tornano accesi com'erano, o cambia quello di Arturo: {dopo.get('enabledPlugins')}"
+        assert dopo["env"] == {"CLAUDE_CODE_ENABLE_TODO_TOOLS": "1", "ANTHROPIC_BASE_URL": "https://proxy.example",
+                               "SEGRETO_TOKEN": "sk-finto-123"}, f"P20 env non unito senza togliere Arturo: {dopo.get('env')}"
+        assert dopo.get("model") == "opus" and dopo.get("apiKeyHelper") == "~/bin/chiave.sh"             and dopo.get("extraKnownMarketplaces") == vecchie["extraKnownMarketplaces"] and dopo.get("language") == "italiano",             f"P20 model, apiKeyHelper o marketplace non tornano, o sparisce una chiave di Arturo: {dopo}"
+        assert "sk-finto-123" not in r.stdout + r.stderr, "P20 --applica stampa il valore di una variabile env"
+        r = arturo(lab, "personale", "hook-precedenti", "--applica")
+        assert "nessuno" in r.stdout and "PLUGIN:" not in r.stdout and "IMPOSTAZIONE:" not in r.stdout             and json.loads(read(impostazioni)) == dopo, f"P20 un secondo giro riporta di nuovo: {r.stdout!r}"
+    con_lab(prova, repo)
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {
     "P01": test_p01, "P02": test_p02, "P03": test_p03, "P04": test_p04, "P05": test_p05, "P06": test_p06,
     "P07": test_p07, "P08": test_p08, "P09": test_p09, "P10": test_p10,
     "P11": test_p11, "P12": test_p12, "P13": test_p13, "P14": test_p14, "P15": test_p15,
-    "P16": test_p16, "P17": test_p17, "P18": test_p18, "P19": test_p19,
+    "P16": test_p16, "P17": test_p17, "P18": test_p18, "P19": test_p19, "P20": test_p20,
 }
 
 

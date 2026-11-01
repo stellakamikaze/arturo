@@ -9,9 +9,12 @@ della landing.
 CP01 la cancellazione di un'installazione ha le stesse istruzioni DELETE in docs/manutenzione.md e
      in server/README.md, e tocca eventi, segnalazioni e contatori.
 CP02 la lista del ripristino ha le stesse voci nel README e in commands/setup.md. Se il repository ha
-     il ramo della landing (origin/landing-v2 o landing-v2), anche installatore, guida e llms.txt della
-     landing hanno le stesse voci. Senza quel ramo (un clone di chi usa Arturo) la parte della landing
-     si salta e lo dice.
+     il ramo della landing (origin/landing-v2 o landing-v2), anche guida e llms.txt della landing hanno
+     le stesse voci. Dal 1/11/2026 sito/installa.sh innesta Arturo dentro ~/.claude senza spostarla:
+     non ha più il ciclo del ripristino, e CP02 controlla che non sposti più tutta la cartella
+     (mv "$dest"). Senza quel ramo (un clone di chi usa Arturo) la parte della landing si salta e lo
+     dice. ARTURO_LANDING_DIR legge la landing da una cartella (un worktree) invece che dal ramo.
+     Con --avvelena una landing finta con il vecchio mv "$dest" deve far fallire CP02 col suo motivo.
 CP03 nessun testo di Arturo chiama anonimi i dati d'uso (26/10/2026): l'id è casuale, ma chi mantiene
      Arturo può sapere chi c'è dietro (docs/privacy.md). Restano le frasi che lo negano ("non sono
      anonimi") e NOVITA.md, che racconta anche la storia. I file si leggono dal disco, non da git:
@@ -51,7 +54,11 @@ MINIMO = 20  # il 23/10/2026 le voci sono 22: sotto 20 l'estrazione si è rotta,
 CICLO = re.compile(r"for x in (.*?); do", re.S)
 DELETE = re.compile(r"DELETE FROM (\w+) WHERE (.+?) = '")
 RAMI_LANDING = ("origin/landing-v2", "landing-v2")
-LANDING = ("sito/installa.sh", "sito/installa/index.html", "sito/llms.txt")
+# Le copie del ciclo del ripristino nella landing: dal 1/11/2026 installa.sh non ne ha più una.
+LANDING = ("sito/installa/index.html", "sito/llms.txt")
+INSTALLATORE = "sito/installa.sh"
+# Spostare tutta la config: la sorgente di mv è la cartella intera, non un file dentro.
+SPOSTA_TUTTO = re.compile(r'\bmv\s+(?:-\w+\s+)*(?:"\$dest"|\$dest|"\$HOME/\.claude"|"\$\{HOME\}/\.claude"|~/\.claude)(?=\s)')
 
 
 def voci(testo: str):
@@ -80,6 +87,11 @@ def test_cp01(repo: Path) -> None:
 
 
 def dal_ramo(repo: Path, percorso: str):
+    cartella = os.environ.get("ARTURO_LANDING_DIR")
+    if cartella:  # un worktree della landing, prima che il ramo abbia il file nuovo
+        f = Path(cartella) / percorso
+        assert f.is_file(), f"CP02 ARTURO_LANDING_DIR senza {percorso}: {cartella}"
+        return f.read_text(encoding="utf-8"), f"{Path(cartella).name}/{percorso}"
     if not (repo / ".git").exists():
         return None, None
     for ramo in RAMI_LANDING:
@@ -111,8 +123,14 @@ def test_cp02(repo: Path) -> None:
     for nome, v in liste.items():
         assenti = sorted(tutte - set(v))
         assert not assenti, f"CP02 {nome}: mancano {' '.join(assenti)}"
+    testo, nome = dal_ramo(repo, INSTALLATORE)
+    if testo is not None:
+        codice = "\n".join(r for r in testo.splitlines() if not r.lstrip().startswith("#"))
+        spostato = SPOSTA_TUTTO.search(codice)
+        assert not spostato, (f"CP02 {nome}: l'installatore sposta ancora tutta ~/.claude "
+                              f"({spostato.group(0)!r}), invece di innestare Arturo sul posto")
     if saltate:
-        print(f"NOTA CP02: ramo della landing assente, confrontate {len(liste)} copie su 5")
+        print(f"NOTA CP02: ramo della landing assente, confrontate {len(liste)} copie su {2 + len(LANDING)}")
 
 
 # Cartelle locali o generate, che git non porta: data/ e cache/ della persona, dipendenze.
@@ -221,13 +239,58 @@ def test_cp06(repo: Path) -> None:
 TESTS = {"CP01": test_cp01, "CP02": test_cp02, "CP03": test_cp03, "CP04": test_cp04, "CP05": test_cp05,
          "CP06": test_cp06}
 
+# Il veleno di CP02: una landing finta con guida e llms.txt allineati al README, e un installa.sh
+# per caso. Atteso None = CP02 verde; una stringa = CP02 rosso con quel motivo.
+CASI = [
+    ("installa.sh col vecchio mv della cartella", 'dest="$HOME/.claude"\nmv "$dest" "$b" || exit 1\n',
+     "sposta ancora tutta ~/.claude"),
+    ("installa.sh che sposta ~/.claude per nome", 'mv -f "$HOME/.claude" "$b"\n', "sposta ancora tutta ~/.claude"),
+    ("installa.sh che innesta sul posto", '# prima: mv "$dest" "$b"\nmv "$tmp/a/.git" "$dest/.git"\n', None),
+]
+
+
+def avvelena(repo: Path) -> int:
+    import tempfile
+    ciclo = CICLO.search(html.unescape((repo / "README.md").read_text(encoding="utf-8")))
+    assert ciclo, "CP02 veleno: il README non ha il ciclo del ripristino"
+    prima = os.environ.get("ARTURO_LANDING_DIR")
+    sbagliati = []
+    try:
+        for nome, installa, atteso in CASI:
+            with tempfile.TemporaryDirectory() as d:
+                for percorso in LANDING:
+                    (Path(d) / percorso).parent.mkdir(parents=True, exist_ok=True)
+                    (Path(d) / percorso).write_text(ciclo.group(0) + "\n", encoding="utf-8")
+                (Path(d) / INSTALLATORE).write_text("#!/bin/bash\n" + installa, encoding="utf-8")
+                os.environ["ARTURO_LANDING_DIR"] = d
+                try:
+                    test_cp02(repo)
+                    esito = None
+                except AssertionError as e:
+                    esito = str(e)
+            if atteso is None and esito is not None:
+                sbagliati.append(f"{nome}: rosso senza motivo ({esito})")
+            elif atteso is not None and not (esito and esito.startswith("CP02") and atteso in esito):
+                sbagliati.append(f"{nome}: atteso rosso con {atteso!r}, avuto {esito!r}")
+    finally:
+        if prima is None:
+            os.environ.pop("ARTURO_LANDING_DIR", None)
+        else:
+            os.environ["ARTURO_LANDING_DIR"] = prima
+    assert not sbagliati, "CP02 il veleno non attacca:\n" + "\n".join(sbagliati)
+    print(f"VELENO CP02 rosso col motivo atteso casi={len(CASI)}")
+    return 0
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", type=Path, required=True)
     parser.add_argument("--baseline-ref")
+    parser.add_argument("--avvelena", action="store_true")
     args = parser.parse_args()
     repo = args.repo.resolve()
+    if args.avvelena:
+        return avvelena(repo)
     if args.baseline_ref:
         rossi, altro = [], []
         for nome, test in TESTS.items():

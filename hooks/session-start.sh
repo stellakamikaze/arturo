@@ -238,7 +238,14 @@ if [ -d "$HOME/.claude/.git" ] && [ ! -f "$HOME/.claude/data/setup-fatto" ] \
   OGGI_SETUP=$(date +%Y-%m-%d)
   if [ "$(cat "$HOME/.claude/session-env/setup-invito" 2>/dev/null)" != "$OGGI_SETUP" ]; then
     mkdir -p "$HOME/.claude/session-env" && printf '%s\n' "$OGGI_SETUP" > "$HOME/.claude/session-env/setup-invito"
-    echo "SETUP: la prima configurazione di Arturo non è finita. Nella tua prima risposta dillo alla persona in una riga e proponi di scrivere /setup, che la guida una cosa per volta. Poi fai quello che chiede, e se dice di no non insistere: l'invito torna domani."
+    # /setup scrive in session-env/setup-fase il numero dell'ultima fase finita (1/11/2026). Entra nella
+    # riga solo un numero di fase valido, come la telemetria: il file non porta testo nel contesto.
+    FASE_SETUP=$(head -c 8 "$HOME/.claude/session-env/setup-fase" 2>/dev/null | tr -d '[:space:]')
+    case "$FASE_SETUP" in
+      10|[0-9]|[0-9][a-z]) RIPRESA_SETUP=" (ultima fase finita: $FASE_SETUP, proponi di ripartire dalla fase dopo)" ;;
+      *) RIPRESA_SETUP="" ;;
+    esac
+    echo "SETUP: la prima configurazione di Arturo non è finita$RIPRESA_SETUP. Nella tua prima risposta dillo alla persona in una riga e proponi di scrivere /setup, che la guida una cosa per volta. Poi fai quello che chiede, e se dice di no non insistere: l'invito torna domani."
   fi
 fi
 

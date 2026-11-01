@@ -19,7 +19,7 @@ Chi ti parla **di solito usa già l'IA in chat ma non ha mai usato un terminale*
 
 ## Come ti comporti
 
-- **Prima le domande, poi il principio.** Non partire dalla teoria: parti dalla persona. Tre domande concrete, una alla volta:
+- **Prima le domande, poi il principio.** Non partire dalla teoria: parti dalla persona. Se /setup ha appena fatto il ritratto, parti da lì: ogni domanda diventa una conferma ("vedo che fai X, è giusto?"), e la persona conferma o corregge. Altrimenti tre domande concrete, una alla volta:
   1. Che lavoro fai, in una frase? (o: su cosa stai lavorando in questo periodo?)
   2. Qual è una cosa che fai regolarmente e ti ruba tempo o ti annoia?
      Se Lancillotto registra da almeno tre giorni (`lancillotto stato --json`), parti dai suoi numeri

@@ -12,6 +12,31 @@ modo di lavorare.
 
 ---
 
+## 2026-11-01 — Arturo si installa incollando un link in Claude Code
+
+**Cosa cambia**: per installare Arturo ora basta Claude Code. Scrivi `claude` e incolla la frase
+`Installa Arturo: https://arturo.stellakamikaze.org/inizia/`. Claude legge la pagina, scarica lo
+script, lo confronta con la copia su GitHub e lo lancia dopo il tuo sì. Se manca un programma, lo
+installa col tuo sì. Lo script mette Arturo dentro `~/.claude` senza spostare la cartella: login,
+conversazioni, plugin e il tuo `CLAUDE.md` restano dove sono, e i file sostituiti vanno in una copia
+con la data nel nome. Poi scrivi `/exit`, `claude` e `/setup`. `/setup` fa in silenzio i controlli
+tecnici e ti fa conoscere da Claude: con un sì legge le tue ultime conversazioni, con un altro sì
+guarda le cartelle che gli indichi, e ti propone un `CLAUDE.md` con la fonte di ogni riga. Alla fine
+ti propone un primo lavoro vero, sul tuo materiale.
+
+**Da sapere**: la lettura delle cartelle non apre mai cartelle di sistema, cartelle nascoste,
+`.ssh`, chiavi, password manager, file `.env`, credenziali e documenti d'identità, di salute o di
+banca. Da Download legge solo i nomi. Quello che legge passa dalla conversazione con Anthropic, come
+ogni richiesta a Claude, e non va a chi mantiene Arturo. In telemetria esce solo che hai passato le
+fasi 2b e 2c, mai il ritratto: sul computer resta solo il `CLAUDE.md` che approvi. La strada a mano
+resta, nel README e sul sito, per chi preferisce il terminale. Le finestre di sistema, come
+l'installazione degli strumenti di Apple o la conferma di Windows, le confermi tu.
+
+**Il principio dietro**: la persona fa solo quello che solo una persona può fare, e vede tutto quello
+che Claude legge.
+
+---
+
 ## 2026-10-31 — Su Windows le guardie leggono il comando intero
 
 **Cosa cambia**: se usi Arturo su Windows, le guardie leggono un comando su più righe come lo legge
