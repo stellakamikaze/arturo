@@ -253,6 +253,33 @@ def caso_carte(repo):
     assert "installa.sh" not in carte, "le carte danno ancora la riga di installa.sh"
 
 
+def frase_copiabile(pezzo, ident):
+    """Il testo del <pre id=ident> nel pezzo di pagina, se ha accanto il suo pulsante Copia."""
+    m = re.search(r'<pre id="' + re.escape(ident) + r'">(.*?)</pre>\s*<button type="button" data-copia="'
+                  + re.escape(ident) + r'">Copia</button>', pezzo, re.S)
+    return testo(m.group(1), "") if m else None
+
+
+def caso_frase_in_vista(repo):
+    """La frase da copiare sta nell'apertura, fuori dalle schede della finestra, e di nuovo nella chiusura (1/11/2026).
+
+    Chi apre la home deve trovare i due passi e la frase col Copia senza cliccare una scheda."""
+    h = leggi(repo, "sito/index.html")
+    m = re.search(r'<div class="promessa__via">(.*?)<figure class="palco">', h, re.S)
+    assert m, "manca il blocco dei due passi nell'apertura"
+    via = m.group(1)
+    assert frase_copiabile(via, "c-frase-hero") == FRASE, "manca la frase da copiare nell'apertura"
+    assert not re.search(r"<[^>]+\shidden[\s>=]", via), "il blocco dei due passi nell'apertura è nascosto"
+    assert 'href="installa/#tappa-1"' in via, "i due passi non portano a come si installa Claude Code"
+    for comando in ("/exit", "claude", "/setup"):
+        assert f"<code>{comando}</code>" in via, f"i due passi non dicono {comando}"
+    m = re.search(r'<section class="sezione vuoto chiusura".*?</section>', h, re.S)
+    assert m and frase_copiabile(m.group(0), "c-frase-chiusura") == FRASE, "manca la frase da copiare nella chiusura"
+    for ident in ("c-frase-hero", "c-frase-chiusura"):
+        assert h.count(f'id="{ident}"') == 1, f"id {ident} non unico"
+    assert "querySelectorAll('[data-copia]')" in leggi(repo, "sito/js/home.js"), "home.js non copia ogni [data-copia]"
+
+
 # ---------- server, sitemap, rimandi, pubblicazione ----------
 
 def caso_server(repo):
@@ -279,7 +306,7 @@ def caso_pubblica_punta(repo):
 CASI = [caso_niente_nascosto, caso_comandi_pagina, caso_niente_scorciatoie, caso_parole, caso_dopo,
         caso_impostazioni_prima, caso_ingresso_persone, caso_attesa_cache, caso_windows,
         caso_frase_ovunque, caso_virgolette, caso_guida_cinque, caso_a_mano, caso_faq_uguali, caso_carte,
-        caso_server, caso_rimandi, caso_pubblica_punta]
+        caso_frase_in_vista, caso_server, caso_rimandi, caso_pubblica_punta]
 
 INIZIA = "sito/inizia/index.html"
 
@@ -331,6 +358,11 @@ VELENI = [
         "di chiudere PowerShell, aprire una finestra nuova, scrivere <code>claude</code> e",
         "di chiudere Claude Code, riaprirlo e"),
      caso_windows, "finestra nuova"),
+    ("frase dell'apertura solo nella scheda", "sito/index.html", sostituisci(
+        '<pre id="c-frase-hero">', '<pre id="c-frase-eroe">'),
+     caso_frase_in_vista, "manca la frase da copiare nell'apertura"),
+    ("chiusura senza frase", "sito/index.html", togli('<div class="comando comando--pila"><pre id="c-frase-chiusura">', "</div>"),
+     caso_frase_in_vista, "manca la frase da copiare nella chiusura"),
     ("F8 virgolette basse in PRODUCT.md", "PRODUCT.md", sostituisci(
         '"update automatico è acceso di default"', "\u00abupdate automatico è acceso di default\u00bb"),
      caso_virgolette, "PRODUCT.md:"),

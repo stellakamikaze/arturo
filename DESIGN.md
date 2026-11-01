@@ -257,7 +257,7 @@ La tipografia ha due voci della stessa famiglia. Archivo largo e leggero parla n
 Una palette fredda e chiara: cielo azzurro, carta grigio caldo, inchiostro quasi nero, un solo blu d'azione e un arancio che compare due volte.
 
 ### Primary
-- **Blu Azione** (`azione`): il pulsante principale ("Installa Arturo"), la selezione del testo, il contorno del focus, le icone delle etichette, le linee di Boote e dell'Orsa nel reticolo. Al passaggio del mouse scende a **Blu Azione Fondo** (`azione-giu`). **Velo Azione** (`azione-velo`) è il fondo leggero del passo corrente nella guida e dello strato scelto nella pagina per le organizzazioni.
+- **Blu Azione** (`azione`): il pulsante principale ("Guida passo per passo"), la selezione del testo, il contorno del focus, le icone delle etichette, le linee di Boote e dell'Orsa nel reticolo. Al passaggio del mouse scende a **Blu Azione Fondo** (`azione-giu`). **Velo Azione** (`azione-velo`) è il fondo leggero del passo corrente nella guida e dello strato scelto nella pagina per le organizzazioni.
 
 ### Secondary
 - **Stella** (`stella`): l'arancio di Arturo. Vive nella stella del reticolo e nel suo alone, nel punto del marchio, nella favicon e nella barra sottile in cima alla home.
@@ -312,7 +312,7 @@ Una colonna di `colonna` con `gutter` fluido. Le sezioni distano `ritmo`. Le tes
 
 Le funzioni stanno in righe alternate distanti `righe`. Il testo prende 5/12, la lastra 7/12, e le righe pari invertono il lato. La fascia dei dati d'uso usa lo stesso 5/12 e 7/12. La guida d'installazione ha un indice fisso a sinistra (300 px) e il passo aperto a destra.
 
-Ogni griglia usa `minmax(0, 1fr)`, così un comando lungo va a capo e la pagina non sborda. La home passa a una colonna sotto 1020 px per le righe e sotto 760 px per il resto. Su mobile l'apertura mette prima la promessa e poi la finestra. La guida passa a una colonna sotto 980 px.
+Ogni griglia usa `minmax(0, 1fr)`, così un comando lungo va a capo e la pagina non sborda. La home passa a una colonna sotto 1020 px per le righe e sotto 760 px per il resto. Su mobile l'apertura mette prima la promessa e poi la finestra; dentro la promessa i due passi salgono subito sotto il titolo, prima del testo lungo. La guida passa a una colonna sotto 980 px.
 
 ## Elevation & Depth
 
@@ -365,6 +365,9 @@ Blocchi squadrati, con la voce stretta e maiuscola.
 
 ### Navigation
 Il marchio (colline, stella arancio, "Arturo" in Archivo 500 a larghezza 108%) sta a sinistra. Le voci stanno in fila, in voce stretta maiuscola, con un filetto che compare sotto al passaggio. "Installa" chiude a destra come pulsante scuro. Sotto 1020 px restano marchio e pulsante. Sopra il menu, nella home, corre la barra arancio sottile.
+
+### I due passi (apertura)
+Dal 1/11/2026 la colonna destra della promessa porta "Si installa in due passi": un riquadro a fondo `bianco` pieno, con il filetto `inchiostro` in alto, così il reticolo della volta non passa sotto il testo. Due voci con una boa quadrata `azione` di 28 px, come le tappe della guida: 1 Installa Claude Code (link a `installa/#tappa-1`), 2 la frase con /inizia/ in un `comando` scuro. La frase sta su due righe intere e il pulsante Copia va sotto, a tutta larghezza (`comando--pila`). Chiude una riga sotto un filetto: Claude fa il resto, poi `/exit`, `claude`, `/setup`. Sotto il riquadro il pulsante grande "Guida passo per passo". La stessa frase col Copia torna nella chiusura, sotto "Un link, e Claude fa il resto.". `tests/test_inizia.py` controlla che le due copie siano fuori dalle schede e uguali alla frase.
 
 ### Finestra del prodotto (componente firma)
 Il terminale di Claude Code: fondo `term`, raggio 4 px, ombra Finestra. Una barra di 34 px con tre puntini e il titolo in mono centrato. Dentro, la sessione: le righe della persona in `term-tu` dopo "> ", le azioni con un punto verde, la guardia in un riquadro con bordo blu e il titolo in grassetto chiaro, la scelta evidenziata in blu pieno. La variante chiara (fondo bianco, barra `#fbfbfa`) mostra la chat d'esempio.
