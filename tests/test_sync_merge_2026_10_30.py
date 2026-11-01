@@ -27,7 +27,12 @@ BASH = shutil.which("bash") or "bash"
 
 def git(cartella: Path, *argomenti: str) -> str:
     p = subprocess.run(["git", "-C", str(cartella), "-c", "user.name=Prova", "-c", "user.email=p@example.com",
-                        "-c", "commit.gpgsign=false", *argomenti],
+                        "-c", "commit.gpgsign=false",
+                        # Commit e push fanno partire in background git maintenance --auto e gc --auto
+                        # (migliaia di oggetti sciolti dall'archivio; git 2.54 sul Mac): il clone dopo
+                        # trovava pack a metà o file appena cancellati, 1 giro su 3.
+                        "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-c", "receive.autogc=false",
+                        *argomenti],
                        capture_output=True, text=True, encoding="utf-8", timeout=60)
     if p.returncode:
         raise RuntimeError(f"git {' '.join(argomenti)}: {p.stderr.strip()}")
@@ -50,6 +55,10 @@ def prova(repo: Path, applica: str) -> list[str]:
         git(arturo, "add", "-A")
         git(arturo, "commit", "-q", "-m", "rilascio A0")
         git(t, "clone", "-q", "--bare", str(arturo), str(privato))
+        # Il trasporto locale toglie i -c a receive-pack: nel privato il gc dopo un push va spento
+        # nella sua config, o cancella oggetti mentre il clone dell'altra macchina li copia.
+        for chiave, valore in (("receive.autogc", "false"), ("gc.auto", "0"), ("maintenance.auto", "false")):
+            git(privato, "config", chiave, valore)
         git(t, "clone", "-q", str(privato), str(casa))
         git(casa, "remote", "add", "upstream", str(arturo))
         (casa / "personale.md").write_text("mio\n", encoding="utf-8")
