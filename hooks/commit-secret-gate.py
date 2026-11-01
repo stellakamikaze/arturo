@@ -458,6 +458,12 @@ def main() -> int:
     # Una cartella calcolata che non esiste vuol dire un cd che fallisce: la shell resta dov'era, e il
     # commit gira nel repository di prima (1/11/2026, F21). Non è "fuori da un repository".
     if not os.path.isdir(repo):
+        # Una cartella che lo stesso comando crea prima del cd (`mkdir nuovo && cd nuovo && git init …`,
+        # `git clone … && cd y && … git commit`) è nuova: si scansiona il testo del comando, come per mktemp
+        # (review delle correzioni del 1/11/2026). Il caso di F21 resta: un cd che fallisce senza crearla.
+        nome = os.path.basename(os.path.normpath(repo))
+        if re.search(r"\b(?:mkdir\b|git\b[^;&|\n]*\b(?:clone|init)\b)[^;&|\n]*" + re.escape(nome), command):
+            return _scansiona_nuova(command, [])
         return _ask("repo-ignoto", "Il commit gira dopo un cd verso una cartella che non esiste: la shell resta "
                     "nella cartella di prima, e il repository non si legge. Conferma prima di proseguire.")
     # Fuori da un repository Git il commit fallisce da solo: niente da scansionare.

@@ -93,7 +93,7 @@ REGOLE = {
     "block-dangerous.py": frozenset({"avvio-automatico", "claude-md", "config", "docker-volumi", "find-delete", "git-clean",
                                      "rm-cartella", "rm-ignoto", "rm-illeggibile", "rm-protetto", "rm-xargs",
                                      "rmtree-cartella", "rmtree-illeggibile", "rmtree-variabile", "sblocco",
-                                     "sblocco-claude-md", "sed-w", "sed-e", "segreto", "git-ramo",
+                                     "sblocco-claude-md", "sed-w", "sed-e", "segreto", "git-ramo", "git-destinazione",
                                      "git-stash"}),
     "commit-secret-gate.py": frozenset(FAMIGLIE_SEGRETI + ("scaduta", "repo-ignoto", "scansione-fallita")),
 }
