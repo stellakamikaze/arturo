@@ -34,7 +34,7 @@ export const GUARDIE = ["block-dangerous.py", "commit-secret-gate.py", "comms-gu
 export const REGOLE = {
   "block-dangerous.py": ["avvio-automatico", "claude-md", "config", "docker-volumi", "find-delete", "git-clean", "rm-cartella",
     "rm-ignoto", "rm-illeggibile", "rm-protetto", "rm-xargs", "rmtree-cartella", "rmtree-illeggibile", "rmtree-variabile",
-    "sblocco", "sblocco-claude-md", "sed-w", "segreto", "git-ramo", "git-stash"],
+    "sblocco", "sblocco-claude-md", "sed-w", "sed-e", "segreto", "git-ramo", "git-stash"],
   "commit-secret-gate.py": ["segreto-cloud", "segreto-token", "segreto-password", "segreto-chiave-privata", "segreto-altro",
     "scaduta", "repo-ignoto", "scansione-fallita"],
 };
@@ -58,7 +58,7 @@ export const DERIVA_NOMI = {
   commands: COMANDI.map((c) => `${c}.md`),
 };
 // Gli hook che il settings.json di Arturo dichiara (hook_dichiarati in hooks/deriva.py), più "tutti" per disableAllHooks.
-export const DERIVA_HOOK = ["bash-dispatcher.sh", "bozze-mcp-auto-approve.py", "context-monitor.js", "credential-leak-scanner.py",
+export const DERIVA_HOOK = ["bash-dispatcher.sh", "block-dangerous.py", "bozze-mcp-auto-approve.py", "context-monitor.js", "credential-leak-scanner.py",
   "emoji_remover.py", "gws-token-health.py", "inject-now.sh", "input-notifier-start.sh", "melchior-postwrite.py", "memory-retrieve.py",
   "memory-write-scanner.py", "prompt-injection-scanner.py", "protect_claude_md.py", "scheda-terminale.py", "session-end.sh",
   "session-start.sh", "subagent-memory-context.py", "typecheck-after-edit.py", "web-egress-guard.py"];

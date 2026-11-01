@@ -18,8 +18,9 @@ modo di lavorare.
 `Installa Arturo: https://arturo.stellakamikaze.org/inizia/`. Claude legge la pagina, scarica lo
 script, lo confronta con la copia su GitHub e lo lancia dopo il tuo sì. Se manca un programma, lo
 installa col tuo sì. Lo script mette Arturo dentro `~/.claude` senza spostare la cartella: login,
-conversazioni, plugin e il tuo `CLAUDE.md` restano dove sono, e i file sostituiti vanno in una copia
-con la data nel nome. Poi scrivi `/exit`, `claude` e `/setup`. `/setup` fa in silenzio i controlli
+conversazioni, plugin installati e il tuo `CLAUDE.md` restano dove sono. I file sostituiti, compreso il
+`settings.json` che avevi, vanno in una copia con la data nel nome: `/setup` ti propone di riportare
+hook, plugin e preferenze. Poi scrivi `/exit`, `claude` e `/setup`. `/setup` fa in silenzio i controlli
 tecnici e ti fa conoscere da Claude: con un sì legge le tue ultime conversazioni, con un altro sì
 guarda le cartelle che gli indichi, e ti propone un `CLAUDE.md` con la fonte di ogni riga. Alla fine
 ti propone un primo lavoro vero, sul tuo materiale.
@@ -28,12 +29,31 @@ ti propone un primo lavoro vero, sul tuo materiale.
 `.ssh`, chiavi, password manager, file `.env`, credenziali e documenti d'identità, di salute o di
 banca. Da Download legge solo i nomi. Quello che legge passa dalla conversazione con Anthropic, come
 ogni richiesta a Claude, e non va a chi mantiene Arturo. In telemetria esce solo che hai passato le
-fasi 2b e 2c, mai il ritratto: sul computer resta solo il `CLAUDE.md` che approvi. La strada a mano
+fasi 2b e 2c, mai il ritratto. Quello che legge resta nella cronologia della conversazione, che Claude Code
+tiene sul computer e cancella da sola dopo 90 giorni: Arturo non ne fa altre copie. La strada a mano
 resta, nel README e sul sito, per chi preferisce il terminale. Le finestre di sistema, come
 l'installazione degli strumenti di Apple o la conferma di Windows, le confermi tu.
 
 **Il principio dietro**: la persona fa solo quello che solo una persona può fare, e vede tutto quello
 che Claude legge.
+
+---
+
+## 2026-11-01 — Le guardie del 31/10 chiudono i buchi trovati dalla revisione
+
+**Cosa cambia**: il giorno dopo il cambio che ha tolto le conferme sul tuo lavoro, una revisione ha
+cercato i modi per far passare un rischio vero senza conferma. Ne ha trovati 38, e ora sono chiusi.
+Qualche esempio. Uno stash conta come salvato solo se il comando salva proprio quello stash, e
+`git stash clear` chiede. Un file caricato con `curl -d '@file'` chiede come `curl -d @file`. Un link
+`mailto:` chiede anche se sta in una variabile. Un commit con un segreto chiede anche dopo un `cd -`.
+Leggere una chiave privata in `~/.ssh` chiede, qualunque nome abbia. `rm -rf /*`, `rm -rf ~/*` e la
+cancellazione del disco intero su Windows sono bloccati.
+
+**Cosa resta uguale**: le conferme tolte il 31/10 sul tuo lavoro restano tolte. Un comando come
+`find . | xargs grep -n rm` ora tace: prima chiedeva per la parola `rm` nel testo cercato.
+
+**Il principio dietro**: togliere una conferma vale solo se il rischio vero resta coperto, e lo si
+prova cercando apposta il modo di aggirarla.
 
 ---
 
@@ -62,7 +82,7 @@ link `mailto:` aperto da un programma, un segreto in un commit, la cancellazione
 stash che esistono solo lì. In modalità auto Arturo dice al classificatore di Claude Code quale
 lavoro è tuo: le tue macchine, i tuoi repository, i deploy delle tue app, la lettura del web. Le
 regole che negavano tutta una famiglia di comandi sono diventate più strette: per esempio leggere
-`~/.ssh/config` si può, leggere una chiave no.
+`~/.ssh/config` si può, leggere una chiave no (dal 1/11 anche una chiave con un nome libero).
 
 **Se una conferma ti sembra inutile**: chiedi a Claude da dove viene. Una conferma di una guardia si
 allenta coi file `.local` in `hooks/`. Un diniego del classificatore si allarga con una riga in

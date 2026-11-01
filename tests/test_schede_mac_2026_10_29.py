@@ -36,6 +36,9 @@ import tempfile
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from salti_windows import dichiara  # noqa: E402  (i salti contano nell'esito del gate, 1/11/2026)
+
 CHIAVI = ("ShowActiveProcessInTabTitle", "ShowActiveProcessArgumentsInTabTitle", "ShowComponentsWhenTabHasCustomTitle",
           "ShowRepresentedURLInTabTitle", "ShowRepresentedURLPathInTabTitle", "ShowTTYNameInTabTitle",
           "ShowActivityIndicatorInTab")
@@ -375,7 +378,7 @@ def test_sm12(repo: Path) -> None:
     modulo = repo / "bin" / "schede_mac.py"
     assert modulo.is_file(), "SM12 manca bin/schede_mac.py"
     if sys.platform != "darwin" or not shutil.which("osacompile"):
-        print("SM12 saltato: osacompile c'è solo su macOS")
+        dichiara("SM12", "osacompile c'è solo su macOS")
         return
     spazio = {"__name__": "schede_mac_banco"}
     exec(compile(modulo.read_text(encoding="utf-8"), str(modulo), "exec"), spazio)
@@ -400,7 +403,7 @@ def main() -> int:
     args = parser.parse_args()
     repo = args.repo.resolve()
     if os.name == "nt":
-        print("SM saltati: il profilo del Terminale c'è solo su macOS, e i finti sono script senza estensione")
+        dichiara("SM01-SM12", "il profilo del Terminale c'è solo su macOS, e i finti sono script senza estensione")
         return 0
     if args.baseline_ref:
         rossi, altro = [], []

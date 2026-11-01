@@ -121,9 +121,27 @@ _NUOVA_AMMESSI = frozenset("mktemp cd pushd popd git cp mv install cat echo prin
 _NUOVA_SORGENTI = frozenset(("cp", "mv", "install", "cat"))
 
 
+def _mktemp_nuova(testo: str) -> bool:
+    """Vero se `$(mktemp …)` crea di sicuro una cartella nuova nel temporaneo di sistema (1/11/2026, F20):
+    con -d, senza -p/--tmpdir, e con un modello solo se assoluto o con -t. `mktemp -d ./t.XXXX` crea la
+    cartella dentro la cartella corrente, che può stare in un repository vero."""
+    m = re.match(r"^\$\(\s*mktemp\b([^()`$;|&]*)\)$", testo.strip())
+    if not m:
+        return False
+    parole = m.group(1).split()
+    opzioni = [p for p in parole if p.startswith("-")]
+    modelli = [p for p in parole if not p.startswith("-")]
+    corte = "".join(o[1:] for o in opzioni if not o.startswith("--"))
+    if not ("d" in corte or "--directory" in opzioni):
+        return False
+    if "p" in corte or any(o.startswith("--tmpdir") for o in opzioni):
+        return False
+    return all(os.path.isabs(x) or x.startswith("/") or "t" in corte for x in modelli)
+
+
 def _expand(word: str, variables: dict):
     if _MKTEMP.match(word.strip()):
-        return _NUOVA
+        return _NUOVA if _mktemp_nuova(word) else _UNRESOLVED
     if "`" in word or "$(" in word:
         return _UNRESOLVED
 
@@ -177,8 +195,11 @@ def _repo_for_command(command: str, cwd: str):
         segments = list(_segments(_senza_heredoc(command)))
     except ValueError:
         return None
-    nuove = set(re.findall(r"(?<![\w$])([A-Za-z_]\w*)=\"?\$\(\s*mktemp\b", command))
+    nuove = {nome for nome, valore in re.findall(r"(?<![\w$])([A-Za-z_]\w*)=\"?(\$\(\s*mktemp\b[^()`$;|&]*\))",
+                                                 command) if _mktemp_nuova(valore)}
     pila = []
+    cartelle = []   # la pila di pushd: popd torna alla cartella di prima (1/11/2026, F20)
+    inizializzato = False  # un `git init` vero, letto sui token e non sul testo del messaggio
     sorgenti = []     # i file che il comando copia o legge: si scansionano se il commit va in una cartella nuova
     estranei = False  # un programma fuori da _NUOVA_AMMESSI, o una sorgente che non si risolve
 
@@ -230,6 +251,9 @@ def _repo_for_command(command: str, cwd: str):
                 if value == "$" and name in nuove:
                     variables[name] = _NUOVA  # `D=$(mktemp -d)`: shlex lascia solo "$"
                     continue
+                if value == "$":
+                    variables.pop(name, None)  # un $( ) che non è un mktemp nuovo: non si risolve
+                    continue
                 expanded = _expand(value, variables)
                 if expanded is _UNRESOLVED:
                     variables.pop(name, None)
@@ -242,20 +266,52 @@ def _repo_for_command(command: str, cwd: str):
             return None  # un commit su un'altra macchina: il suo diff non si legge da qui (31/10/2026)
         if head not in _NUOVA_AMMESSI:
             estranei = True
-        elif head in _NUOVA_SORGENTI:
-            argomenti = [x for x in tokens[1:] if not x.startswith("-") and not re.match(r"^\d*[<>]", x)]
-            if head in ("cp", "mv", "install"):
-                argomenti = argomenti[:-1]  # l'ultimo è la destinazione
-            for x in argomenti:
+        else:
+            # Un file letto con `<file` o `< file` porta il suo contenuto nel comando (1/11/2026, F19).
+            letti = []
+            for k, x in enumerate(tokens[1:], start=1):
+                m = re.match(r"^\d*<(?![<&])(.*)$", x)
+                if m:
+                    letti.append(m.group(1) or (tokens[k + 1] if k + 1 < len(tokens) else ""))
+            argomenti = []
+            if head in _NUOVA_SORGENTI:
+                argomenti = [x for x in tokens[1:] if not x.startswith("-") and not re.match(r"^\d*[<>]", x)
+                             and x not in letti]
+                bersaglio = None
+                for k, x in enumerate(tokens[1:], start=1):
+                    if x in ("-t", "--target-directory") and k + 1 < len(tokens):
+                        bersaglio = tokens[k + 1]
+                    elif x.startswith("--target-directory="):
+                        bersaglio = x.split("=", 1)[1]
+                if head in ("cp", "mv", "install"):
+                    if bersaglio is not None:
+                        argomenti = [x for x in argomenti if x != bersaglio]  # con -t le altre sono sorgenti
+                    else:
+                        argomenti = argomenti[:-1]  # l'ultimo è la destinazione
+            if head in ("echo", "printf") and any("$(" in x or "`" in x for x in tokens[1:]):
+                estranei = True  # `echo "$(<k.txt)"` legge un file che non si vede
+            for x in argomenti + [x for x in letti if x]:
                 espanso = _expand(x, variables)
                 dove = sposta(location, espanso if espanso is _UNRESOLVED else os.path.expanduser(espanso))
                 if dove is None:
                     estranei = True
                 elif not dove.startswith(_NUOVA):
                     sorgenti.append(dove)
-        if head in ("cd", "pushd"):
-            if len(tokens) > 1:
-                location = sposta(location, _expand(tokens[1], variables))
+        if head in ("cd", "pushd", "popd"):
+            argomenti_cd = [x for x in tokens[1:] if not re.match(r"^\d*[<>]", x) and x != "--"]
+            if head == "popd":
+                location = cartelle.pop() if cartelle else None
+            elif argomenti_cd[:1] == ["-"] or (argomenti_cd and argomenti_cd[0].startswith(("-", "+"))):
+                location = None  # `cd -`, `pushd +1`: la cartella non si legge dal testo (F20 F21)
+            elif not argomenti_cd:
+                if head == "pushd":
+                    location = None
+                else:
+                    location = os.path.expanduser("~")  # `cd` da solo va nella home, anche da mktemp
+            else:
+                if head == "pushd":
+                    cartelle.append(location)
+                location = sposta(location, _expand(argomenti_cd[0], variables))
             continue
         # `env VAR=… git …` e `command git …` (4/10/2026, #2832): si tolgono il wrapper e le
         # assegnazioni e si guarda il git che resta. Gli altri wrapper restano "non risolvibile".
@@ -286,6 +342,8 @@ def _repo_for_command(command: str, cwd: str):
             if opzione.startswith(("--git-dir", "--work-tree", "--namespace", "--config-env", "--exec-path")):
                 return None
             index += 1
+        if index < len(tokens) and tokens[index] == "init" and dentro_nuova(location):
+            inizializzato = True
         if index < len(tokens) and tokens[index] == "commit":
             if dentro_nuova(location):
                 # Repo nato nello stesso comando in una cartella di mktemp (31/10/2026). Il diff non si
@@ -293,7 +351,7 @@ def _repo_for_command(command: str, cwd: str):
                 # copia. Vale solo con `git init` nello stesso comando, senza un modo di prendere o
                 # mandare commit (clone, fetch, push, remote...) e solo con i programmi di
                 # _NUOVA_AMMESSI: `git clone … "$D"; cp <credenziali> .` passava muto col False largo.
-                if estranei or not re.search(r"\bgit\b[^;&|\n]*\binit\b", command) or re.search(
+                if estranei or not inizializzato or re.search(
                         r"\bgit\b[^;&|\n]*\b(clone|fetch|pull|remote|push|submodule|bundle|am|apply)\b", command):
                     return None
                 return (_NUOVA, tuple(sorgenti))
@@ -397,6 +455,11 @@ def main() -> int:
         return _scansiona_nuova(command, repo[1])
     if not repo:
         return _ask("repo-ignoto", "Repository destinatario del commit non risolvibile: conferma prima di proseguire.")
+    # Una cartella calcolata che non esiste vuol dire un cd che fallisce: la shell resta dov'era, e il
+    # commit gira nel repository di prima (1/11/2026, F21). Non è "fuori da un repository".
+    if not os.path.isdir(repo):
+        return _ask("repo-ignoto", "Il commit gira dopo un cd verso una cartella che non esiste: la shell resta "
+                    "nella cartella di prima, e il repository non si legge. Conferma prima di proseguire.")
     # Fuori da un repository Git il commit fallisce da solo: niente da scansionare.
     try:
         dentro = subprocess.run(["git", "-C", repo, "rev-parse", "--git-dir"], capture_output=True,
@@ -421,14 +484,18 @@ def main() -> int:
     if out is None:
         return _ask("scansione-fallita", "Scansione Git del repository destinatario fallita: conferma prima di proseguire.")
 
-    if not out:
+    if not out and not add_prima:
         return 0
 
     added = "\n".join(
         ln[1:] for ln in out.splitlines()
         if ln.startswith("+") and not ln.startswith("+++")
     )
-    if not added:
+    if add_prima:
+        # Un file scritto nello stesso comando prima di `git add` non esiste ancora quando la guardia legge il
+        # repository: si scansiona anche il testo del comando, senza il messaggio di commit (1/11/2026, F22).
+        added += "\n" + re.sub(r"""(?:\s-m|\s--message)(?:=|\s+)(?:"[^"]*"|'[^']*'|\S+)""", " ", command)
+    if not added.strip():
         return 0
 
     found = []

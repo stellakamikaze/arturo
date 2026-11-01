@@ -81,6 +81,17 @@ DANGEROUS = [
     (r"\b(bash|sh|zsh|fish|python3?|perl|ruby|node)\b\s+-c\s+[\"']?\$\(\s*(curl|wget|fetch)\b",
      "interprete -c su output di download remoto"),
     (r"\bsudo\s+rm\s+-rf?\s+(/|~|\$HOME|\*)", "rm ricorsivo con sudo su root/home/wildcard"),
+    # rm ricorsivo sulla radice o sulla home intera (1/11/2026, F33): i deny `rm -rf /\\*` di settings.json
+    # sono confronti esatti nel matcher di Claude Code e non scattavano su `rm -rf /*`.
+    (r"(?<![\w.-])rm\s+(?:-[a-zA-Z]+\s+|--[a-z-]+\s+)*(?:-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)"
+     r"(?:\s+-[a-zA-Z]+|\s+--[a-z-]+)*\s+(?:--\s+)?[\"']?(?:/|~/?|\$HOME/?|\$\{HOME\}/?)\*?[\"']?(?=\s|$|[;&|)])",
+     "rm ricorsivo sulla radice o sulla home intera"),
+    # Lo stesso su Windows: del /s, rd /s e format sul disco intero (F35).
+    (r"(?<![\w.-])(?:del|erase)\s+(?:/[a-zA-Z]\s+)*/s(?:\s+/[a-zA-Z])*\s+[\"']?[a-zA-Z]:[\\/]*(?:\*(?:\.\*)?)?[\"']?(?=\s|$|[;&|)])",
+     "cancellazione ricorsiva del disco intero"),
+    (r"(?<![\w.-])(?:rd|rmdir)\s+(?:/[a-zA-Z]\s+)*/s(?:\s+/[a-zA-Z])*\s+[\"']?[a-zA-Z]:[\\/]*[\"']?(?=\s|$|[;&|)])",
+     "cancellazione ricorsiva del disco intero"),
+    (r"(?<![\w.-])format(?:\.com)?\s+[a-zA-Z]:(?=[\s\\/]|$)", "format filesystem"),
     # `bw export` anche con opzioni e valori davanti (`bw --session X export`):
     # il deny di settings.json copre solo la forma letterale. `--help` non esporta
     # niente: resta libero (tre falsi positivi il 12/9/2026).
@@ -116,6 +127,7 @@ CLAUDE_MD_WRITE_RE = re.compile(
     r"|\bsed\b[^|;&]*-i[^|;&]*CLAUDE(?:\.local)?\.md\b"
     r"|open\(\s*['\"][^'\"]*CLAUDE(?:\.local)?\.md['\"]\s*,\s*['\"][wa])"
 )
+CLAUDE_MD_OPEN_RE = re.compile(r"open\(\s*['\"][^'\"]*CLAUDE(?:\.local)?\.md['\"]\s*,\s*['\"][wax+]")
 # Percorsi di avvio automatico (git hook, LaunchAgents, systemd utente, autostart):
 # via Edit/Write li protegge protect_claude_md.py con un unlock, qui il vettore shell.
 _PERSIST_ABS = (r"[^\s'\";|&]*(?:\.git/hooks/[^\s'\";|&]+|Library/LaunchAgents/[^\s'\";|&]+"
@@ -147,6 +159,8 @@ UNLOCK_RE = re.compile(
 # (8/9/2026, la config dell'autore chiedeva a ogni `grep Host ~/.ssh/config`).
 _SSH_SEGRETO = (r"\.ssh/(?!(?:config|known_hosts(?:\.old)?|authorized_keys)(?![\w.-])|[^\s'\"/]*\.pub(?![\w.-]))"
                 r"|(?:^|/)id_(?:rsa|ed25519|ecdsa|dsa)\b(?!\.pub\b)")
+_SSH_LETTURA = re.compile(r"(?:^|/)\.ssh/(?!(?:config|known_hosts(?:\.old)?|authorized_keys)$|[^/]*\.pub$)[^/]+$",
+                          re.IGNORECASE)
 SECRET_PATH_RE = re.compile(
     r"(" + _SSH_SEGRETO + r"|\.aws/credentials|\.gnupg/|"
     # I file col solo nome (token_cache.json...) contano come argomento o in un path, non
@@ -380,11 +394,28 @@ _SED_INDIRIZZO = re.compile(r"(^|[;\n{}!\s,])/((?:\\.|[^/\\\n])*)/")
 _SED_FLAG_W = re.compile(r"s([^\w\s\\])\1\1[gpiImMe0-9]*w")
 # `1w file`, `$w file`, `2,5w file`: un indirizzo numerico attaccato a `w` (prima sfuggiva).
 _SED_ADDR_W = re.compile(r"(^|[\s;{}!])(?:\d+|\$)(?:,(?:\d+|\$))?!?\s*w\s*[^\s|;&]")
+# GNU sed esegue in shell il testo del comando `e` e quello del flag `e` di s/// (1/11/2026, F05):
+# `sed -n '1e rm -rf X' f` cancellava senza conferma. Si cercano sullo script già svuotato.
+_SED_CMD_E = re.compile(r"(^|[;\n{}!\s])(?:(?:\d+|\$|//)(?:,(?:\d+|\$|//))?!?\s*)?e(\s|$|;)")
+_SED_FLAG_E = re.compile(r"s([^\w\s\\])\1\1[gpiImMw0-9]*e")
 
 
 def _senza_corpi_sed(t: str) -> str:
     t = _SED_S_CORPO.sub(lambda m: m.group(1) + m.group(2) + m.group(3) * 3, t)
     return _SED_INDIRIZZO.sub(lambda m: m.group(1) + "//", t)
+
+
+def _sed_esegue(command: str) -> bool:
+    """`sed` che esegue un comando di shell col comando `e` o col flag `e` di s///."""
+    for toks in _segmenti_parole(_testo_shell(command)):
+        i = 0
+        while i < len(toks) and (_ENV_ASSIGN_RE.match(toks[i]) or toks[i] in _SKIP_WRAPPERS):
+            i += 1
+        if i < len(toks) and os.path.basename(toks[i]) == "sed":
+            script = _senza_corpi_sed(" ".join(toks[i + 1:]))
+            if _SED_CMD_E.search(script) or _SED_FLAG_E.search(script):
+                return True
+    return False
 
 
 def _sed_scrive(command: str) -> bool:
@@ -462,9 +493,16 @@ def _assegnazioni(command):
     # `tmp=$(mktemp -d)`: la regex sopra si ferma alla parentesi e lascia "$" (20/10/2026)
     for m in _ASSEGNAZIONE_MKTEMP_RE.finditer(command):
         trovate.append((m.start(), m.group(1), m.group(2) or m.group(3)))
+    # La stessa posizione può comparire due volte (la regex generica e quella di mktemp): vince mktemp.
+    per_posizione = {}
+    for pos, nome, valore in trovate:
+        if pos not in per_posizione or _MKTEMP_RE.match(valore or ""):
+            per_posizione[pos] = (nome, valore)
+    # Una variabile assegnata due volte con valori diversi non si risolve (1/11/2026, F06):
+    # `S=~/Documents; cd "$S"; S=/tmp; rm -rf ClaudeCode` leggeva il cd col valore finale.
     out = {}
-    for _, nome, valore in sorted(trovate, key=lambda x: x[0]):
-        out[nome] = valore
+    for _, (nome, valore) in sorted(per_posizione.items()):
+        out[nome] = None if (nome in out and out[nome] != valore) else valore
     return out
 
 
@@ -475,6 +513,8 @@ def _expand_vars(t):
     path che non si conosce non si giudica come sicuro."""
     def rep(m):
         name = m.group(1) or m.group(4) or m.group(5)
+        if name in _ASSEGNATE and _ASSEGNATE[name] is None:
+            return m.group(0)  # assegnata più volte: il valore dipende dal punto del comando
         if name in _ASSEGNATE and _MKTEMP_RE.match(_ASSEGNATE[name]):
             val = "/tmp/mktemp.XXXXXX"  # cartella appena creata da mktemp: vedi _MKTEMP_RE
         elif name in _ASSEGNATE:
@@ -708,8 +748,49 @@ def _forma():
 _CANCELLANO = frozenset(("rm", "unlink", "shred"))
 
 
+# Programmi che ne lanciano un altro: `-exec env rm` cancella come `-exec rm` (1/11/2026, F07).
+_INVOLUCRI = frozenset(_fc._WRAPPER | {"timeout", "time", "stdbuf", "ionice", "doas", "chrt", "taskset"})
+# Le loro opzioni che prendono un valore staccato (`sudo -u utente`, `nice -n 5`, `timeout -s KILL`).
+_INVOLUCRI_CON_VALORE = frozenset(("-u", "-g", "-n", "-p", "-C", "-h", "-U", "-s", "-k", "-c", "-o", "-e", "-i"))
+
+
+def _dopo_involucri(args):
+    """Gli argomenti dal programma vero in poi, saltando wrapper, opzioni, durate e assegnazioni."""
+    i = 0
+    while i < len(args):
+        if os.path.basename(args[i]) in _INVOLUCRI:
+            i += 1
+            while i < len(args) and (args[i].startswith("-") or re.fullmatch(r"\d+(?:\.\d+)?[smhd]?", args[i])
+                                     or _ENV_ASSIGN_RE.match(args[i])):
+                i += 2 if args[i] in _INVOLUCRI_CON_VALORE else 1
+            continue
+        if _ENV_ASSIGN_RE.match(args[i]):
+            i += 1
+            continue
+        break
+    return args[i:]
+
+
+# Le opzioni di xargs che prendono un valore staccato.
+_XARGS_CON_VALORE = frozenset(("-I", "-n", "-P", "-L", "-l", "-d", "-E", "-e", "-s", "-a", "--max-args",
+                               "--max-procs", "--max-lines", "--delimiter", "--eof", "--max-chars",
+                               "--arg-file", "--replace"))
+
+
+def _xargs_programma(args):
+    """Gli argomenti di xargs dal programma che lancia in poi (1/11/2026, F08)."""
+    i = 0
+    while i < len(args) and args[i].startswith("-") and args[i] != "--":
+        i += 2 if args[i] in _XARGS_CON_VALORE else 1
+    if i < len(args) and args[i] == "--":
+        i += 1
+    return args[i:]
+
+
 def _cancella_dentro(args) -> bool:
-    """Vero se gli argomenti di -exec lanciano rm, unlink o shred, anche dentro `sh -c '…'`."""
+    """Vero se gli argomenti di -exec lanciano rm, unlink o shred, anche dietro un wrapper
+    (env, sudo, command, nice) o dentro `sh -c '…'`."""
+    args = _dopo_involucri(args)
     if not args:
         return False
     nome = os.path.basename(args[0])
@@ -736,7 +817,8 @@ def _find_delete(command):
                 return True
     if trova:
         for nome, args in programmi:
-            if nome == "xargs" and any(os.path.basename(a) in _CANCELLANO for a in args):
+            # Conta il programma che xargs lancia: `xargs grep -n rm` non cancella (F08).
+            if nome == "xargs" and _cancella_dentro(_xargs_programma(args)):
                 return True
     return False
 
@@ -767,46 +849,107 @@ def _git_esegui(repo, *argomenti):
     return r.stdout if r.returncode == 0 else None
 
 
-def _ramo_altrove(repo, ramo) -> bool:
-    """Vero se i commit di `ramo` stanno in un ramo remoto o in un altro ramo locale."""
-    uscita = _git_esegui(repo, "branch", "-a", "--contains", ramo, "--format=%(refname)")
+def _ramo_altrove(repo, ramo, cancellati=frozenset()) -> bool:
+    """Vero se i commit di `ramo` stanno in un ramo remoto o in un altro ramo locale che lo stesso
+    comando non cancella. `--contains` riceve il ref pieno: un tag omonimo non lo devia (1/11/2026, F09)."""
+    proprio = "refs/heads/" + ramo
+    uscita = _git_esegui(repo, "branch", "-a", "--contains", proprio, "--format=%(refname)")
     if uscita is None:
         return False
-    proprio = "refs/heads/" + ramo
-    return any(r.strip() and r.strip() != proprio for r in uscita.splitlines())
+    esclusi = {proprio} | {"refs/heads/" + r for r in cancellati}
+    return any(r.strip() and r.strip() not in esclusi for r in uscita.splitlines())
+
+
+def _lunga(lunghe, opzione) -> bool:
+    """git accetta l'inizio non ambiguo di un'opzione lunga: `--forc` è `--force` (1/11/2026, F13)."""
+    return any(len(o.split("=", 1)[0]) > 3 and opzione.startswith(o.split("=", 1)[0]) for o in lunghe)
+
+
+def _branch_cancella(resto):
+    """(forzato, rami) di un `git branch …`: forzato se -D, -d -f, --delete --force o i loro prefissi."""
+    corte = "".join(a[1:] for a in resto if a.startswith("-") and not a.startswith("--"))
+    lunghe = [a for a in resto if a.startswith("--")]
+    cancella = "d" in corte or "D" in corte or _lunga(lunghe, "--delete")
+    forza = "D" in corte or (cancella and ("f" in corte or _lunga(lunghe, "--force")))
+    return forza, [a for a in resto if not a.startswith("-")]
+
+
+def _stash_ref(args):
+    """La chiave dello stash nominato negli argomenti: `stash@{N}` o `N` danno N, nessuno dà 0."""
+    for a in args:
+        if a.startswith("-"):
+            continue
+        m = re.fullmatch(r"stash@\{(\d+)\}|(\d+)", a)
+        if m:
+            return int(m.group(1) or m.group(2))
+        return a  # un ref che non è uno stash numerato: chiave a sé
+    return 0
+
+
+def _senza_redirezioni(args):
+    """Gli argomenti senza le redirezioni (`> f`, `>f`, `2>/dev/null`) e il loro bersaglio."""
+    fuori, salta = [], False
+    for a in args:
+        if salta:
+            salta = False
+        elif _REDIREZIONE_SOLA_RE.match(a):
+            salta = True
+        elif not _REDIREZIONE_RE.match(a):
+            fuori.append(a)
+    return fuori
 
 
 def _git_perde_lavoro(command, cwd):
     """(regola, motivo) se il comando cancella un ramo con commit che non stanno altrove, o uno stash
-    che lo stesso comando non salva prima. None se non perde niente."""
-    salvato = False
-    for nome, args, cds in _programmi_con_cd(command):
+    che lo stesso comando non salva prima. None se non perde niente.
+
+    Uno stash conta come salvato solo se lo stesso comando ne scrive la patch su un file
+    (`git stash show -p [ref] > file`) o lo tagga (`git tag nome stash@{N}`), e solo per quel ref
+    (1/11/2026, F11 F12). `git stash branch` toglie già da solo lo stash che applica: il drop che segue
+    ne butta un altro (F37). `git stash clear` li butta tutti. I rami cancellati dallo stesso comando
+    non si coprono a vicenda (F10)."""
+    programmi = list(_programmi_con_cd(command))
+    cancellati = set()
+    for nome, args, _cds in programmi:
+        if nome == "git":
+            _c, sotto, resto = _git_parti(args)
+            if sotto == "branch":
+                forza, rami = _branch_cancella(resto)
+                if forza:
+                    cancellati.update(rami)
+    salvati = set()
+    for nome, args, cds in programmi:
         if nome != "git":
             continue
         cartella, sotto, resto = _git_parti(args)
-        if sotto == "tag" or (sotto == "stash" and resto[:1] == ["branch"]):
-            salvato = True
+        if sotto == "tag":
+            nomi = [a for a in _senza_redirezioni(resto) if not a.startswith("-")]
+            elenca = any(a in ("-l", "--list", "-d", "--delete", "-v", "--verify") for a in resto)
+            if not elenca and len(nomi) >= 2 and re.fullmatch(r"stash@\{\d+\}", nomi[1]):
+                salvati.add(_stash_ref(nomi[1:2]))
             continue
         if sotto == "stash" and resto[:1] == ["show"]:
+            patch = any(a in ("-p", "--patch") or (re.match(r"^-[A-Za-z]+$", a) and "p" in a) for a in resto[1:])
             destinazioni = []
             for i, a in enumerate(resto):
                 m = re.match(r"^1?>>?(.*)$", a)
                 if m:
                     destinazioni.append(m.group(1) or (resto[i + 1] if i + 1 < len(resto) else ""))
-            if any(x and x != "/dev/null" for x in destinazioni):
-                salvato = True
+            if patch and any(x and x != "/dev/null" for x in destinazioni):
+                salvati.add(_stash_ref(_senza_redirezioni(resto[1:])))
             continue
+        if sotto == "stash" and resto[:1] == ["clear"]:
+            return ("git-stash", "git stash clear cancella tutti gli stash: le modifiche dentro non stanno in "
+                    "nessun commit. Salvali prima con `git stash show -p stash@{N} > file.patch`, oppure conferma.")
         if sotto == "stash" and resto[:1] == ["drop"]:
-            if not salvato:
+            if _stash_ref(_senza_redirezioni(resto[1:])) not in salvati:
                 return ("git-stash", "git stash drop cancella uno stash che lo stesso comando non salva prima: "
                         "le modifiche dentro non stanno in nessun commit. Salvalo prima con "
-                        "`git stash show -p > file.patch` o `git stash branch`, oppure conferma.")
+                        "`git stash show -p stash@{N} > file.patch` (lo stesso stash del drop), oppure conferma.")
             continue
         if sotto != "branch":
             continue
-        corte = "".join(a[1:] for a in resto if a.startswith("-") and not a.startswith("--"))
-        lunghe = [a for a in resto if a.startswith("--")]
-        forza = "D" in corte or (("d" in corte or "--delete" in lunghe) and ("f" in corte or "--force" in lunghe))
+        forza, rami = _branch_cancella(resto)
         if not forza:
             continue
         basi = _basi_dopo_cd(cds, cwd)
@@ -814,10 +957,10 @@ def _git_perde_lavoro(command, cwd):
             repo = None
         else:
             repo = _resolve(cartella, basi[0]) if cartella else basi[0]
-        for ramo in [a for a in resto if not a.startswith("-")]:
-            if repo is None or not _ramo_altrove(repo, ramo):
+        for ramo in rami:
+            if repo is None or not _ramo_altrove(repo, ramo, cancellati):
                 return ("git-ramo", f"git branch -D cancella il ramo {ramo}, e i suoi commit non stanno in un ramo "
-                        "remoto né in un altro ramo locale: si perderebbero. Conferma solo se non ti servono.")
+                        "remoto né in un altro ramo locale che resta: si perderebbero. Conferma solo se non ti servono.")
     return None
 
 
@@ -904,6 +1047,8 @@ _REDIREZIONE_SOLA_RE = re.compile(r"^(?:\d*|&)(?:>>?|<)$")
 
 
 _CAMBIA_CARTELLA = frozenset(("cd", "pushd", "popd"))
+_CD_RIDEFINITO = re.compile(r"(?:^|[;&|\s(])(?:function\s+)?(?:cd|pushd|popd)\s*\(\s*\)"
+                            r"|\bfunction\s+(?:cd|pushd|popd)\b|\balias\s+(?:cd|pushd|popd)=")
 _APRE_BLOCCO = frozenset("if while until for case select".split())
 _CHIUDE_BLOCCO = frozenset("fi done esac".split())
 _OPERATORI = re.compile(r"&&|\|\||;;|\|&|[;&|()\n]")
@@ -1014,6 +1159,11 @@ def _programmi_con_cd(command):
     certi = _cd_certi(command)
     if len(certi) != sum(1 for nome, _ in programmi if nome in _CAMBIA_CARTELLA):
         certi = None
+    # Un CR senza LF dopo separa le parole per il lexer ma non per bash e zsh (`cd /tmp\r` cerca la
+    # cartella "/tmp\r"), e un cd ridefinito come funzione o alias non cambia cartella: ogni cd è
+    # incerto (1/11/2026, F14 F15).
+    if re.search(r"\r(?!\n)", command) or _CD_RIDEFINITO.search(command):
+        certi = None
     for nome, args in programmi:
         if nome in _CAMBIA_CARTELLA:
             certo = bool(certi and certi[len(cds)])
@@ -1022,10 +1172,52 @@ def _programmi_con_cd(command):
             else:
                 resto = args[1:] if args and args[0] == "--" else args
                 dest = resto[0] if resto else ("~" if nome == "cd" else None)  # `cd` da solo va nella home
+                if len(_senza_redirezioni(resto)) > 1:
+                    certo = False  # `cd /tmp foo`: "too many arguments", resta dov'era (F15)
             cds.append((dest, certo))
             continue
         out.append((nome, args, tuple(cds)))
     return out
+
+
+def _reale(p):
+    """Il percorso con i link risolti nella parte che esiste già (1/11/2026, F18): `/tmp/xx/*` con
+    /tmp/xx link ai progetti è la cartella dei progetti. Un glob resta in coda, come scritto."""
+    if p is None:
+        return None
+    testa, coda = p, []
+    while testa and not os.path.lexists(testa):
+        su, nome = os.path.split(testa)
+        if su == testa:
+            return p
+        coda.insert(0, nome)
+        testa = su
+    try:
+        vero = os.path.realpath(testa)
+        # Nessun link sul percorso: resta com'è scritto. Su Windows realpath trasforma anche `/tmp` in
+        # `C:\tmp`, che non è il temporaneo che la shell intende.
+        if os.path.normcase(vero) == os.path.normcase(os.path.normpath(os.path.abspath(testa))):
+            return p
+        return os.path.normpath(os.path.join(vero, *coda))
+    except (OSError, ValueError):
+        return p
+
+
+def _sotto_link_nuovo(p, command, cwd):
+    """Vero se `p` sta sotto un link che lo stesso comando crea con `ln -s`: il link non esiste ancora
+    quando la guardia gira, e realpath non lo vede."""
+    for nome, args in _forma().programmi(command):
+        if nome != "ln":
+            continue
+        if not any(a == "--symbolic" or (a.startswith("-") and not a.startswith("--") and "s" in a) for a in args):
+            continue
+        posizionali = [a for a in _senza_redirezioni(args) if not a.startswith("-")]
+        if len(posizionali) < 2:
+            continue
+        link = _resolve(posizionali[-1], os.path.normpath(cwd))
+        if link and (p == link or p.startswith(link.rstrip("/\\") + os.sep) or p.startswith(link.rstrip("/") + "/")):
+            return True
+    return False
 
 
 def _rm_segments(command):
@@ -1112,6 +1304,16 @@ def main() -> int:
     except Exception:
         return 0
 
+    # Read di una chiave privata in ~/.ssh con un nome libero (`~/.ssh/github`): i deny di settings.json
+    # coprono solo i nomi noti, e `Read` in allow salta il classificatore (1/11/2026, F01).
+    if data.get("tool_name") == "Read":
+        percorso = str((data.get("tool_input") or {}).get("file_path") or "")
+        if _SSH_LETTURA.search(percorso.replace("\\", "/")):
+            return _ask("segreto",
+                "Lettura di un file in ~/.ssh che non è config, known_hosts, authorized_keys o una chiave "
+                "pubblica: è probabilmente una chiave privata, e il contenuto finirebbe nel contesto. "
+                "Conferma solo se serve davvero.")
+        return 0
     if data.get("tool_name") not in ("Bash", "Monitor"):  # Monitor lancia comandi shell (19/10/2026)
         return 0
     command = (data.get("tool_input") or {}).get("command", "")
@@ -1149,10 +1351,19 @@ def main() -> int:
     # Dal 31/10/2026 conta il percorso risolto, come per Edit e Write: ~/.claude/CLAUDE.md chiede sempre,
     # un CLAUDE.md di progetto tace se protect_claude_md.local dice "allow claude-md-progetto". La regex
     # testuale resta per le scritture che non si risolvono (open() in python): quelle chiedono.
-    globale = _writes_config(testo, cwd, _is_claude_md_globale)
-    progetto = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _is_claude_md_globale(p))
-    if globale or (progetto and not _claude_md_progetto_libero()) or \
-            (CLAUDE_MD_WRITE_RE.search(testo) and not progetto):
+    # Dal 1/11/2026 (F16 F17) ogni scrittura si giudica da sola: il globale chiede anche se lo stesso
+    # comando scrive un CLAUDE.md di progetto, il confronto passa da realpath (un link verso il globale
+    # non è un CLAUDE.md di progetto), crearne uno nuovo chiede sempre come in protect_claude_md.py, e
+    # open() di python su un CLAUDE.md chiede sempre: _writes_config non lo risolve.
+    def _globale(p):
+        return _is_claude_md_globale(p) or (bool(p) and _is_claude_md_globale(os.path.realpath(p)))
+
+    globale = _writes_config(testo, cwd, _globale)
+    progetto_nuovo = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _globale(p)
+                                    and not os.path.exists(p))
+    progetto = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _globale(p) and os.path.exists(p))
+    if globale or progetto_nuovo or (progetto and not _claude_md_progetto_libero()) or \
+            CLAUDE_MD_OPEN_RE.search(testo) or (CLAUDE_MD_WRITE_RE.search(testo) and not progetto):
         return _ask("claude-md",
             "Scrittura via shell su un CLAUDE.md: cambierebbe le istruzioni di ogni sessione "
             "futura in quella cartella. Conferma solo se sei tu a volerlo."
@@ -1195,6 +1406,13 @@ def main() -> int:
             "scrittura è voluta."
         )
 
+    # 3-ter) sed che esegue un comando di shell (`e`, flag `e` di s///) -> ask (1/11/2026, F05)
+    if _sed_esegue(command):
+        return _ask("sed-e",
+            "sed esegue in shell un comando col comando `e` o col flag `e` di s///: il testo diventa "
+            "un comando, anche un rm. Conferma solo se l'esecuzione è voluta."
+        )
+
     # 4) Docker distruttivo su volumi -> ask
     if DOCKER_DESTRUCTIVE_RE.search(command):
         return _ask("docker-volumi",
@@ -1217,6 +1435,17 @@ def main() -> int:
                     p = os.path.normpath(base_cwd) if base_cwd else None
                 else:
                     p = _resolve(t, base_cwd)
+                if p is not None and _sotto_link_nuovo(p, command, cwd):
+                    return _ask("rm-ignoto",
+                        f"rm ricorsivo su {t}, sotto un link che lo stesso comando crea: la cartella vera "
+                        "non si conosce prima. Controlla dove punta il link prima di confermare."
+                    )
+                reale = _reale(p)
+                if reale != p and (_is_protected_tree(reale) or not (_rigenerabile(reale) or _temporaneo(reale))):
+                    return _ask("rm-protetto" if _is_protected_tree(reale) else "rm-cartella",
+                        f"rm ricorsivo su {p}, che attraverso un link porta a {reale}. Dal terminale non passa "
+                        "dal cestino: conferma solo se vuoi davvero cancellarlo."
+                    )
                 if _is_protected_tree(p):
                     return _ask("rm-protetto",
                         f"rm ricorsivo su un percorso protetto ({p}): memoria, "
@@ -1259,7 +1488,9 @@ def main() -> int:
                     "shutil.rmtree su un percorso che arriva da una variabile: cancella una cartella "
                     "intera, senza cestino. Controlla quale prima di confermare."
                 )
-            if _is_protected_tree(p) or not (_rigenerabile(p) or _temporaneo(p)):
+            reale = _reale(p)
+            if _is_protected_tree(p) or not (_rigenerabile(p) or _temporaneo(p)) or \
+                    _is_protected_tree(reale) or not (_rigenerabile(reale) or _temporaneo(reale)):
                 return _ask("rmtree-cartella",
                     f"shutil.rmtree su una cartella ({p}): la cancella intera, senza cestino. Se dentro "
                     "c'è lavoro tuo, lo perdi. Conferma solo se vuoi davvero cancellarla."
@@ -1279,7 +1510,7 @@ def main() -> int:
         perde = _git_perde_lavoro(command, cwd)
     except Exception:
         perde = ("git-ramo", "git branch -D o git stash drop che la guardia non riesce a leggere: "
-                 "controlla prima di confermare.") if re.search(r"branch\s.*-[a-zA-Z]*D|stash\s+drop", command) else None
+                 "controlla prima di confermare.") if re.search(r"branch\s.*(-[a-zA-Z]*D|--de)|stash\s+(drop|clear)", command) else None
     if perde and perde[0] == "git-stash":
         return _ask("git-stash", perde[1])
     if perde:

@@ -217,8 +217,10 @@ _FINE_ARG = r'''(?:\s|["'],\s*["']?)'''
 # campo di testo, e `-F 'testo=<file'` legge il file quanto `@`.
 UPLOAD_FILE = re.compile(
     r'(?:-F' + _FINE_ARG + r'*[^\s=]*=[@<]|--form' + _FINE_ARG + r'*[^\s=]*=[@<]|-T' + _FINE_ARG
-    + r'|--upload-file|--(?:post|body)-file|-d' + _FINE_ARG + r'*@|--data[a-z-]*' + _FINE_ARG + r'*@)'
+    + r'|--upload-file|--(?:post|body)-file|-d' + _FINE_ARG + r'''*["']?@|--data[a-z-]*''' + _FINE_ARG
+    + r'''*["']?@|--json''' + _FINE_ARG + r'''*["']?@|--url-query''' + _FINE_ARG + r'''*["']?@)'''
 )
+# `curl -d '@secret'` e `--json @f` caricano il file quanto `-d @secret` (1/11/2026, F25).
 # Variabili assegnate nel comando (31/10/2026): `J="http://127.0.0.1:8096"; … curl --data @- "$J/x"`. Senza
 # espanderle la destinazione non si legge, e ogni POST al proprio servizio chiedeva (18 conferme su 21 in
 # due settimane, tutte verso 127.0.0.1 o 192.168.1.3). Contano solo i valori letterali: un valore con $,
@@ -226,7 +228,14 @@ UPLOAD_FILE = re.compile(
 # assegnazioni di tutto il comando, anche dopo il curl (un loop riassegna al giro dopo), e una variabile
 # legata in altro modo (read, for, +=, printf -v, ${X:=}) si chiude. Vedi _assegnate.
 # Anche in testa a una stringa per ssh o bash -c: `ssh host 'A="http://192.168.1.3:8686"; curl … $A/x'`.
-ASSEGNAZIONE = re.compile(r'''(?:^|(?<=[\s;&|('"]))([A-Za-z_]\w*)=("[^"]*"|'[^']*'|[^\s;&|()'"]*)''')
+# Il valore è la parola intera della shell (1/11/2026, F26): `X="localhost".evil.com` vale
+# localhost.evil.com, e leggere solo il pezzo fra virgolette lasciava passare un host di terzi.
+ASSEGNAZIONE = re.compile(r'''(?:^|(?<=[\s;&|('"]))([A-Za-z_]\w*)=((?:"[^"]*"|'[^']*'|[^\s;&|()'"])*)''')
+_PEZZO = re.compile(r'''"([^"]*)"|'([^']*)'|([^"']+)''')
+
+
+def _senza_virgolette(parola: str) -> str:
+    return "".join(next(g for g in m.groups() if g is not None) for m in _PEZZO.finditer(parola))
 RIFERIMENTO = re.compile(r'\$(?:\{([A-Za-z_]\w*)\}|([A-Za-z_]\w*))')
 # Un curl/wget fino al primo separatore della shell fuori dalle virgolette: un & o un ; dentro
 # `"https://x/?a=1&b=2"` non chiude il comando. Le righe continuate con \ si uniscono prima.
@@ -314,16 +323,33 @@ _LEGA_GETOPTS = re.compile(r'\bgetopts\s+\S+\s+([A-Za-z_]\w*)')
 _LEGA_DEFAULT = re.compile(r'\$\{([A-Za-z_]\w*):?=')
 _LEGA_ARRAY = re.compile(r'''(?:^|(?<=[\s;&|('"]))([A-Za-z_]\w*)=\(''')
 _LEGA_DICHIARA = re.compile(r'(?:^|(?<=[\s;&|(]))(?:declare|typeset|local|export|readonly)((?:\s+-\S+)+)([^\n;&|)]*)')
+# `X[0]=evil.com` cambia $X quanto `X=evil.com` (1/11/2026, F27).
+_LEGA_INDICE = re.compile(r'''(?:^|(?<=[\s;&|('"]))([A-Za-z_]\w*)\[[^\]]*\]\+?=''')
+# Un nome che non è letterale (`declare "$(printf …)"`, `printf -v "$N"`, `read "$N"`) può legare
+# qualunque variabile: si chiudono tutte.
+_LEGA_DINAMICA = re.compile(
+    r'''(?:^|(?<=[\s;&|(]))(?:declare|typeset|local|export|readonly|read|mapfile|readarray)\b(?:\s+-\S+)*'''
+    r'''(?:\s+[A-Za-z_]\w*(?:=\S*)?)*\s+["']?[$`]'''
+    r'''|\bprintf\s+(?:-\S+\s+)*-v\s*["']?[$`]''')
 # source, il punto come comando, eval e set -a possono assegnare qualunque variabile: si chiudono tutte.
 # Solo in posizione di comando: `jq . x.json` non è il punto che carica un file.
-_CHIUDE_TUTTE = re.compile(r'''(?:^|[;&|(\n`]|\b(?:then|do|else)|(?<!\S)['"])\s*(?:source|eval|\.)(?=\s)'''
+_CHIUDE_TUTTE = re.compile(r'''(?:^|[;&|(\n`]|\b(?:then|do|else)|(?<!\S)['"])\s*'''
+                           r'''(?:(?:command|builtin|exec)(?:\s+-\S+)*\s+)*(?:source|eval|\.)(?=\s)'''
                            r'|\bset\s+(?:-[A-Za-z]*a[A-Za-z]*|-o\s+allexport)\b')
 _TUTTE = "*"
 # Proxy e reindirizzamenti di curl: l'invio va (anche) a quell'host, non solo all'URL scritto.
 PROXY_ENV = frozenset(("http_proxy", "https_proxy", "all_proxy"))
 _PROXY_CORTA = "x"
-_PROXY_LUNGHE = frozenset(("--proxy", "--preproxy", "--socks4", "--socks4a", "--socks5", "--socks5-hostname"))
+_PROXY_LUNGHE = frozenset(("--proxy", "--proxy1.0", "--preproxy", "--socks4", "--socks4a", "--socks5",
+                           "--socks5-hostname"))
+# wget legge un proxy da `-e http_proxy=…` (anche attaccato, con spazi attorno all'uguale, o --execute).
+_WGET_PROXY = re.compile(r'^\s*(?:https?|ftp|all)_proxy\s*=\s*(.+?)\s*$', re.IGNORECASE)
 _REINDIRIZZA = frozenset(("--connect-to", "--resolve"))
+
+
+_RIDEFINITO = re.compile(r'(?:^|[;&|(\s])(?:function\s+)?(?:curl|wget)\s*\(\s*\)|\bfunction\s+(?:curl|wget)\b'
+                         r'|\balias\s+(?:curl|wget)=')
+_CONFIG_CURL = re.compile(r'''(?:^|\s)["']?(?:-[A-Za-z]*K|--config\b)''')
 
 
 def _assegnate(testo: str) -> dict:
@@ -339,14 +365,12 @@ def _assegnate(testo: str) -> dict:
         if valore not in out[nome]:
             out[nome].append(valore)
 
-    if _CHIUDE_TUTTE.search(testo):
+    if _CHIUDE_TUTTE.search(testo) or _LEGA_DINAMICA.search(testo):
         out[_TUTTE] = [None]
     for m in ASSEGNAZIONE.finditer(testo):
-        grezzo = m.group(2)
-        if len(grezzo) >= 2 and grezzo[0] == grezzo[-1] and grezzo[0] in "\"'":
-            grezzo = grezzo[1:-1]
+        grezzo = _senza_virgolette(m.group(2))
         aggiungi(m.group(1), None if re.search(r'[$`()]', grezzo) else grezzo)
-    for regex in (_LEGA_APPENDE, _LEGA_PRINTF, _LEGA_FOR, _LEGA_GETOPTS, _LEGA_DEFAULT, _LEGA_ARRAY):
+    for regex in (_LEGA_APPENDE, _LEGA_PRINTF, _LEGA_FOR, _LEGA_GETOPTS, _LEGA_DEFAULT, _LEGA_ARRAY, _LEGA_INDICE):
         for m in regex.finditer(testo):
             aggiungi(m.group(1), None)
     for m in _LEGA_ELENCO.finditer(testo):
@@ -392,18 +416,28 @@ def _proxy_fidati(segmento: str, assegnate: dict) -> bool:
         host.append(None)  # source, eval o set -a possono esportare un proxy che non si legge
     pulito = DATA_FLAG_VAL.sub(" ", segmento)
     parole = re.findall(r'''"[^"]*"|'[^']*'|\S+''', pulito)
+    # Le virgolette si tolgono prima dei confronti: `curl "-x" h` è `curl -x h` (1/11/2026, F28).
+    parole = [_senza_virgolette(p) for p in parole]
     for i, parola in enumerate(parole):
         dopo = parole[i + 1] if i + 1 < len(parole) else ""
         nome, uguale, attaccato = parola.partition("=")
+        esegue = None
+        if nome == "--execute":
+            esegue = attaccato if uguale else dopo
+        elif parola.startswith("-e") and not parola.startswith("--"):
+            esegue = parola[2:] or dopo
+        if esegue is not None and _WGET_PROXY.match(esegue):
+            host.append(_host_di(_WGET_PROXY.match(esegue).group(1)))
+            continue
         if parola.startswith("--"):
             if nome in _PROXY_LUNGHE:
                 host.append(_host_di(attaccato if uguale else dopo))
             elif nome in _REINDIRIZZA:
                 host += _host_reindirizzati(attaccato if uguale else dopo)
-        elif parola.startswith("-") and len(parola) > 1 and parola[1:2].isalpha() and _PROXY_CORTA in parola[1:]:
-            # `-x h:8080`, `-xh:8080`, `-sx h`: in un gruppo di opzioni corte quel che segue la x è il proxy.
+        elif parola.startswith("-") and len(parola) > 1 and parola[1:2].isalnum() and _PROXY_CORTA in parola[1:]:
+            # `-x h:8080`, `-xh:8080`, `-sx h`, `-4x h`: in un gruppo di opzioni corte quel che segue la x è il proxy.
             prima, _, resto = parola[1:].partition(_PROXY_CORTA)
-            if prima.isalpha() or not prima:
+            if prima.isalnum() or not prima:
                 host.append(_host_di(resto or dopo))
     return all(h is not None and _fidato(h) for h in host)
 
@@ -469,6 +503,10 @@ def main() -> int:
     for m in CURL_SEG_Q.finditer(unito):
         if not UPLOAD_FILE.search(m.group(0)):
             continue
+        # Un curl o un wget ridefinito come funzione o alias nasconde la destinazione vera, e -K/--config
+        # legge le opzioni (anche l'URL) da un file (1/11/2026, F29).
+        if _RIDEFINITO.search(unito) or _CONFIG_CURL.search(m.group(0)):
+            return _ask()
         # Una variabile assegnata solo dopo il curl, al primo giro vale quanto nell'ambiente: non si legge.
         prima = _assegnate(unito[:m.start()])
         assegnate = {nome: valori + ([None] if nome not in prima else []) for nome, valori in tutte.items()}
