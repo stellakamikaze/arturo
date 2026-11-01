@@ -41,8 +41,8 @@ MAX_PAROLE = 650
 CRONOLOGIA = ("Quello che leggo resta nella cronologia di questa conversazione, che Claude Code tiene sul tuo "
               "computer e cancella da sola dopo 90 giorni. Arturo non ne fa altre copie.")
 IMPOSTAZIONI_PRIMA = ("Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. "
-                      "Il settings.json che avevi va nella copia con la data: /setup ti propone di riportare "
-                      "hook, plugin e preferenze.")
+                      "Il tuo vecchio settings.json finisce in una copia di sicurezza con la data nel nome: "
+                      "/setup ti propone di riportare hook, plugin e preferenze.")
 RIGA_GUIDA = "Non hai ancora Claude Code? Parti dalla guida: installa/"
 # I file del sito toccati dall'ingresso col link: qui niente virgolette basse o curve. Il resto di
 # sito/ (novità, privacy, feedback) ne ha ancora, e una voce delle novità cita una virgoletta curva
@@ -330,7 +330,7 @@ VELENI = [
         "https://arturo.stellakamikaze.org/installa.sh -o", "https://arturo.example.org/installa.sh -o"),
      caso_comandi_pagina, "comandi diversi"),
     ("R4 resta solo il CLAUDE.md", INIZIA, lambda p: re.sub(
-        r"Claude te lo dice così: .*? prima che venga salvato\.",
+        r"Prima di leggere, Claude te lo dice: .*? prima che venga salvato\.",
         "Sul computer resta solo il tuo CLAUDE.md, e lo approvi tu prima che venga salvato.", p, flags=re.S),
      caso_dopo, "resta solo il CLAUDE.md"),
     ("I3 plugin restano dove sono", INIZIA, sostituisci(
@@ -347,12 +347,12 @@ VELENI = [
     ("F1 setup/ rimanda a inizia/", "sito/setup/index.html", sostituisci("installa/", "inizia/"),
      caso_rimandi, "setup/ non porta alla guida"),
     ("F7 si ferma subito", INIZIA, sostituisci(
-        "aspetta 5 minuti per la cache di GitHub e rilancia i due comandi, una volta sola. Se ancora no, fermati", "fermati"),
+        "aspetta 5 minuti (GitHub si aggiorna in ritardo) e rilancia i due comandi, una volta sola. Se ancora non compare, fermati", "fermati"),
      caso_attesa_cache, "non fa aspettare 5 minuti"),
     ("F7 pubblica.sh senza confronto", "strumenti/pubblica.sh", togli("    # Il confronto di /inizia/", "    fi\n"),
      caso_attesa_cache, "pubblica.sh applica non rifà il confronto"),
     ("F2 istruzione python su Windows", INIZIA, sostituisci(
-        "<li>Se lo script stampa righe", "<li>Su Windows installa python3 da python.org.</li>\n<li>Se lo script stampa righe"),
+        "<li>Se lo script scrive righe", "<li>Su Windows installa python3 da python.org.</li>\n<li>Se lo script scrive righe"),
      caso_windows, "istruzioni su python"),
     ("F2 riavvio nella stessa finestra", INIZIA, sostituisci(
         "di chiudere PowerShell, aprire una finestra nuova, scrivere <code>claude</code> e",

@@ -479,7 +479,7 @@ main() {
     echo "I file che Arturo ha sostituito sono in $b"
   fi
   if [ "$impostazioni" = 1 ]; then
-    echo "Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il settings.json che avevi va nella copia con la data: /setup ti propone di riportare hook, plugin e preferenze."
+    echo "Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il tuo vecchio settings.json finisce in una copia di sicurezza con la data nel nome: /setup ti propone di riportare hook, plugin e preferenze."
   fi
   echo
   echo "Arturo manda a chi lo mantiene dati d'uso da un elenco chiuso, mai le tue richieste o i tuoi file."

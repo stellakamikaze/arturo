@@ -400,8 +400,8 @@ def caso_settings_nel_backup(lab):
         "il settings.json di Arturo non c'è"
     assert (c / "claudebar" / "hook.sh").is_file(), "un file della persona è sparito"
     assert f"sostituito sono in {_posix(copia)}" in out, out
-    frase = ("Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il "
-             "settings.json che avevi va nella copia con la data: /setup ti propone di riportare hook, plugin e preferenze.")
+    frase = ("Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il tuo vecchio "
+             "settings.json finisce in una copia di sicurezza con la data nel nome: /setup ti propone di riportare hook, plugin e preferenze.")
     assert frase in out, f"impostazioni di prima non dette: plugin e preferenze nella copia senza avviso\n{out}"
     personale = None
     for ramo in ("origin/main", "main"):
@@ -629,7 +629,7 @@ def caso_guida_rimandi(lab):
         f"rimando rotto: la guida non dà il blocco esteso a chi ha ~/.claude già git: {git_estraneo}"
     assert "CLAUDE_CONFIG_DIR" in g, "rimando rotto: la guida non dice cosa fare con CLAUDE_CONFIG_DIR"
     assert "conversazioni e plugin restano dove sono" not in g, "la guida promette ancora i plugin com'erano"
-    frase = "Il settings.json che avevi va nella copia con la data: /setup ti propone di riportare hook, plugin e preferenze."
+    frase = "Il tuo vecchio settings.json finisce in una copia di sicurezza con la data nel nome: /setup ti propone di riportare hook, plugin e preferenze."
     assert frase in g, "manca la frase sulle impostazioni di prima"
     win = [li for li in re.findall(r'<li data-solo="win">(.*?)</li>', g, re.S) if "python" in li.lower()]
     assert win and all("finestra nuova" in li for li in win), f"python su Windows senza la finestra nuova: {win}"

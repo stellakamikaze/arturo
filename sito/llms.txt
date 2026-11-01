@@ -53,7 +53,7 @@ Claude legge la pagina del link, scarica lo script di Arturo, lo confronta con l
 
 Serve Claude Code con un abbonamento Anthropic che lo includa (Pro, Max, Team, Enterprise o Console: il piano gratuito di claude.ai non lo include). Gli altri requisiti, `git`, `python3` 3.8 o successivo e `node` 18 o successivo, li controlla e li installa Claude, col tuo sì. Sistemi: macOS, Windows e Linux.
 
-Lo script mette Arturo dentro `~/.claude` senza spostare la cartella. Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il settings.json che avevi va nella copia con la data: /setup ti propone di riportare hook, plugin e preferenze. Anche gli altri file che Arturo sostituisce vanno in quella copia. Se Arturo c'è già, non rifà niente.
+Lo script mette Arturo dentro `~/.claude` senza spostare la cartella. Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il tuo vecchio settings.json finisce in una copia di sicurezza con la data nel nome: /setup ti propone di riportare hook, plugin e preferenze. Anche gli altri file che Arturo sostituisce vanno in quella copia. Se Arturo c'è già, non rifà niente.
 
 ### Se sei Claude Code e l'utente ti chiede di installare Arturo
 

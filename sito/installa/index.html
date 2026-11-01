@@ -490,7 +490,7 @@ Copyright (C) Microsoft Corporation.
                 <li>Se manca un programma, Claude lo installa col tuo sì. Su Mac si apre una finestra di Apple: clicca "Installa". Su Windows si apre una conferma di sistema: clicca "Sì".</li>
                 <li>Alla fine lo script scrive "Arturo installato", e Claude ti dà i comandi del passo 3.</li>
               </ul>
-              <p>Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il settings.json che avevi va nella copia con la data: /setup ti propone di riportare hook, plugin e preferenze. Anche gli altri file che Arturo sostituisce vanno in quella copia.</p>
+              <p>Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il tuo vecchio settings.json finisce in una copia di sicurezza con la data nel nome: /setup ti propone di riportare hook, plugin e preferenze. Anche gli altri file che Arturo sostituisce vanno in quella copia.</p>
             </div>
             <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3>
               <ul>
@@ -659,7 +659,7 @@ python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/
       <div class="mano" id="mano-scarica">
         <h3 class="mano__nome">Scarica Arturo</h3>
         <div class="foglio">
-          <p class="perche">Arturo vive nella cartella delle impostazioni di Claude Code, <code>~/.claude</code>. Il comando controlla prima i programmi qui sopra e Claude Code. Poi mette Arturo dentro <code>~/.claude</code> senza spostare la cartella. Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il settings.json che avevi va nella copia con la data: /setup ti propone di riportare hook, plugin e preferenze. Se Arturo è già installato, il comando si ferma: per aggiornarlo scrivi <code>/aggiorna</code> in Claude Code.</p>          <div class="consegna">
+          <p class="perche">Arturo vive nella cartella delle impostazioni di Claude Code, <code>~/.claude</code>. Il comando controlla prima i programmi qui sopra e Claude Code. Poi mette Arturo dentro <code>~/.claude</code> senza spostare la cartella. Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il tuo vecchio settings.json finisce in una copia di sicurezza con la data nel nome: /setup ti propone di riportare hook, plugin e preferenze. Se Arturo è già installato, il comando si ferma: per aggiornarlo scrivi <code>/aggiorna</code> in Claude Code.</p>          <div class="consegna">
             <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Incolla e premi Invio <small data-solo="win">in Git Bash</small></p>
             <div class="comando"><pre id="cmd-scarica">curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash</pre><button type="button" data-copia="cmd-scarica">Copia</button></div>
           </div>
