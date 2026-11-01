@@ -258,7 +258,7 @@ def caso_carte(repo):
 def caso_server(repo):
     c = leggi(repo, "server/arturo-sito.conf")
     assert re.search(r"location = /inizia \{[^}]*try_files /inizia/index\.html =404;", c), "manca location = /inizia"
-    assert "charset utf-8;" in c and "charset_types text/plain text/html;" in c, "manca il charset"
+    assert "charset utf-8;" in c and "charset_types text/plain;" in c, "manca il charset"
     assert re.search(r"location = /installa\.sh \{(?:[^{}]|\{\s*\})*?default_type text/plain;", c), "installa.sh non è text/plain"
 
 
