@@ -15,6 +15,12 @@
     });
     item.appendChild(b); ol.appendChild(item); return b;
   });
+  /* dopo i cinque passi, la strada da terminale (1/11/2026) */
+  if(d.getElementById('a-mano')){
+    var mano=d.createElement('li'), a=d.createElement('a');
+    a.className='indice-mano'; a.href='#a-mano'; a.textContent='A mano, da terminale';
+    mano.appendChild(a); ol.appendChild(mano);
+  }
   function segui(){
     d.documentElement.classList.toggle('finito',tappe.every(function(li){return li.classList.contains('fatta')}));
     tappe.forEach(function(li,i){

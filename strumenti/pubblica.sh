@@ -2,7 +2,8 @@
 # Pubblica sito/ di un commit sul server della landing, nel container arturo-sito (23/10/2026).
 # Il server lo dice ARTURO_SITO_HOST, un nome di ssh: il ramo è pubblico e non lo scrive.
 #
-#   strumenti/pubblica.sh prepara <commit>   carica sito/ in _arrivo-<commit> e mostra cosa cambia
+#   strumenti/pubblica.sh prepara <commit>   carica sito/ in _arrivo-<commit> e mostra cosa cambia;
+#                                            rifiuta un commit che non è la punta di origin/landing-v2
 #   strumenti/pubblica.sh applica <commit>   backup, copia, prova del servito, poi toglie _arrivo
 #
 # Fra i due passi si legge il diff: deve elencare solo i file attesi. Il pacchetto viene da
@@ -10,11 +11,18 @@
 # percorso: la cartella non si rinomina, si copia dentro. I *.json di html/ li scrive il server e
 # restano. Il passo applica toglie la sua _arrivo solo dopo che html/ è identico al pacchetto e gli
 # hash nel container tornano: Federico, 23/10/2026, "procedi su tutto" sulla pulizia del deploy.
+#
+# installa.sh: push su landing-v2 e pubblicazione vanno fatti di seguito (1/11/2026). /inizia/ fa
+# confrontare a Claude lo script del sito con quello di raw.githubusercontent.com, che tiene la sua
+# copia in cache per circa 5 minuti. Se i due file sono diversi, la pagina fa aspettare Claude 5
+# minuti e riprovare una volta, poi lo ferma. Il passo applica rifà quel confronto alla fine.
 set -euo pipefail
 
 HOST=${ARTURO_SITO_HOST:?Scrivi in ARTURO_SITO_HOST il nome ssh del server della landing}
 BASE=/mnt/user/appdata/arturo-sito
 RADICE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+RAW_INSTALLA=https://raw.githubusercontent.com/stellakamikaze/arturo/landing-v2/sito/installa.sh
+SITO_INSTALLA=https://arturo.stellakamikaze.org/installa.sh
 
 uso() { echo "Uso: $0 prepara|applica <commit>" >&2; exit 2; }
 [[ $# -eq 2 ]] || uso
@@ -25,12 +33,20 @@ arrivo="$BASE/_arrivo-$commit"
 
 case "$passo" in
   prepara)
+    # Si pubblica solo la punta di origin/landing-v2 (1/11/2026): la pagina /inizia/ fa confrontare a
+    # Claude installa.sh del sito con quello di raw.githubusercontent.com su landing-v2. Un commit che
+    # non è la punta darebbe un falso allarme, o una copia che GitHub non mostra.
+    git -C "$RADICE" fetch --quiet origin landing-v2 || { echo "Non riesco a leggere origin/landing-v2: mi fermo" >&2; exit 1; }
+    pieno=$(git -C "$RADICE" rev-parse --verify "$commit^{commit}")
+    punta=$(git -C "$RADICE" rev-parse --verify "origin/landing-v2^{commit}")
+    [[ "$pieno" == "$punta" ]] || { echo "Il commit $commit non è la punta di origin/landing-v2 (${punta:0:7}): fai push, poi pubblica la punta" >&2; exit 1; }
     # Senza core.autocrlf=false, da Windows git archive scrive i fine riga CRLF: il 31/10/2026 il
     # pacchetto di 58d4cad aveva 28 file diversi dal servito invece di 4.
     git -C "$RADICE" -c core.autocrlf=false archive "$commit" sito | ssh "$HOST" "rm -rf '$arrivo' && mkdir -p '$arrivo' && tar -x -C '$arrivo'"
     echo "Caricato in $arrivo. Cosa cambia rispetto al servito (i *.json del server restano):"
     ssh "$HOST" "cd '$BASE' && diff -rq -x '*.json' html '_arrivo-$commit/sito'" || true
     echo "Se l'elenco è quello atteso: $0 applica $commit"
+    echo "Fallo subito se cambia installa.sh: finché il sito e GitHub danno due file diversi, /inizia/ ferma le installazioni."
     ;;
   applica)
     ssh "$HOST" "test -d '$arrivo/sito'" || { echo "Manca $arrivo: lancia prima $0 prepara $commit" >&2; exit 1; }
@@ -53,6 +69,12 @@ case "$passo" in
     [[ "$arrivo" =~ ^$BASE/_arrivo-[0-9a-f]{7,40}$ ]] || { echo "Percorso inatteso: $arrivo" >&2; exit 1; }
     ssh "$HOST" "rm -rf '$arrivo'"
     echo "Pubblicato $commit: $n file con gli hash giusti nel container. Backup in $BASE/$backup, $arrivo tolta."
+    # Il confronto di /inizia/, lo stesso che fa Claude: avvisa e non blocca, la pubblicazione è fatta.
+    if curl -fsSL "$RAW_INSTALLA" | cmp -s - <(curl -fsSL "$SITO_INSTALLA"); then
+      echo "installa.sh: il sito e GitHub danno lo stesso file (UGUALE)."
+    else
+      echo "Attenzione: installa.sh del sito e quello di GitHub non sono ancora uguali. Se hai appena fatto push, è la cache di GitHub: ricontrolla fra 5 minuti. Intanto /inizia/ fa aspettare Claude 5 minuti e riprovare una volta." >&2
+    fi
     ;;
   *) uso ;;
 esac

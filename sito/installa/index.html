@@ -3,31 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Installa Arturo · la guida in dieci passi</title>
-<meta name="description" content="Guida d'installazione di Arturo per Claude Code: dieci passi dal computer vuoto al primo lavoro, ogni comando già scritto da copiare. Su Mac o Windows.">
+<title>Installa Arturo · Claude Code e un link</title>
+<meta name="description" content="Guida d'installazione di Arturo per Claude Code: installi Claude Code, incolli un link e Claude fa il resto, chiedendoti conferma. Cinque passi, su Mac o Windows.">
 <link rel="canonical" href="https://arturo.stellakamikaze.org/installa/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Arturo">
 <meta property="og:locale" content="it_IT">
-<meta property="og:title" content="Installa Arturo · la guida in dieci passi">
-<meta property="og:description" content="Guida d'installazione di Arturo per Claude Code: dieci passi dal computer vuoto al primo lavoro, ogni comando già scritto da copiare. Su Mac o Windows.">
+<meta property="og:title" content="Installa Arturo · Claude Code e un link">
+<meta property="og:description" content="Guida d'installazione di Arturo per Claude Code: installi Claude Code, incolli un link e Claude fa il resto, chiedendoti conferma. Cinque passi, su Mac o Windows.">
 <meta property="og:url" content="https://arturo.stellakamikaze.org/installa/">
 <meta property="og:image" content="https://arturo.stellakamikaze.org/img/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Arturo, la stella sopra il reticolo blu della volta celeste">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Installa Arturo · la guida in dieci passi">
-<meta name="twitter:description" content="Guida d'installazione di Arturo per Claude Code: dieci passi dal computer vuoto al primo lavoro, ogni comando già scritto da copiare. Su Mac o Windows.">
+<meta name="twitter:title" content="Installa Arturo · Claude Code e un link">
+<meta name="twitter:description" content="Guida d'installazione di Arturo per Claude Code: installi Claude Code, incolli un link e Claude fa il resto, chiedendoti conferma. Cinque passi, su Mac o Windows.">
 <meta name="twitter:image" content="https://arturo.stellakamikaze.org/img/og.png">
 <script type="application/ld+json">
 {
  "@context": "https://schema.org",
  "@type": "HowTo",
  "name": "Installa Arturo",
- "description": "Dieci passi, dal computer vuoto al primo lavoro con Arturo e Claude Code. Ogni comando è già scritto.",
+ "description": "Cinque passi, dal computer vuoto al primo lavoro con Arturo e Claude Code. Installi Claude Code, incolli un link e Claude fa il resto, chiedendoti conferma.",
  "inLanguage": "it",
- "totalTime": "PT1H",
  "tool": [
   {
    "@type": "HowToTool",
@@ -42,72 +41,37 @@
   {
    "@type": "HowToStep",
    "position": 1,
-   "name": "Apri il terminale",
-   "text": "Il terminale è la finestra dove si scrivono i comandi. Ti serve per i primi sei passi. Poi lavori dentro Claude Code.",
+   "name": "Installa Claude Code",
+   "text": "Claude Code è l'assistente di Anthropic che lavora sui file del tuo computer, e Arturo si appoggia sopra. Si installa con una riga nel Terminale su Mac o in PowerShell su Windows. Serve un piano Pro, Max, Team, Enterprise o Console.",
    "url": "https://arturo.stellakamikaze.org/installa/#tappa-1"
   },
   {
    "@type": "HowToStep",
    "position": 2,
-   "name": "Gli strumenti di base",
-   "text": "Arturo usa tre programmi: git scarica Arturo e salva il tuo lavoro, python3 fa girare le guardie, node serve ad alcuni strumenti. Si installano una volta sola.",
+   "name": "Incolla il link",
+   "text": "In Claude Code incolla la frase \"Installa Arturo: https://arturo.stellakamikaze.org/inizia/\". Claude legge la pagina, scarica lo script di Arturo, lo confronta con la copia su GitHub e lo lancia col tuo sì.",
    "url": "https://arturo.stellakamikaze.org/installa/#tappa-2"
   },
   {
    "@type": "HowToStep",
    "position": 3,
-   "name": "Installa Claude Code",
-   "text": "Claude Code è l'assistente che lavora sui file del tuo computer, e Arturo si appoggia sopra. Serve un piano Pro, Max, Team, Enterprise o Console di Anthropic: il piano gratuito di claude.ai non include Claude Code. L'installazione scarica circa 270 MB e per qualche minuto non scrive niente: non interromperla.",
+   "name": "/exit, claude, /setup",
+   "text": "Nella stessa finestra scrivi /exit, poi claude, poi /setup. Arturo entra in funzione in una sessione nuova.",
    "url": "https://arturo.stellakamikaze.org/installa/#tappa-3"
   },
   {
    "@type": "HowToStep",
    "position": 4,
-   "name": "Scarica Arturo",
-   "text": "Arturo vive nella cartella delle impostazioni di Claude Code, ~/.claude. Il comando controlla prima i programmi dei passi 2 e 3. Se la cartella esiste già, la mette da parte con la data nel nome: non si perde niente. Login, sessioni e plugin tornano subito al loro posto, e se nella cartella c'erano il CLAUDE.md, la memoria, i todo e le scelte di Arturo, tornano anche quelli. Se Arturo è già installato, il comando si ferma: per aggiornarlo scrivi /aggiorna in Claude Code. Se un'altra app aveva aggiunto i suoi hook a Claude Code (ClaudeBar, una barra di stato), al passo 6 /setup li ritrova e, col tuo sì, li rimette.",
+   "name": "Il setup ti conosce",
+   "text": "/setup controlla programmi e impostazioni, poi con il tuo sì legge le tue conversazioni passate e guarda le tue cartelle. Ti mostra la bozza del tuo CLAUDE.md e la salva dopo il tuo ok.",
    "url": "https://arturo.stellakamikaze.org/installa/#tappa-4"
   },
   {
    "@type": "HowToStep",
    "position": 5,
-   "name": "Le tue scelte",
-   "text": "Quattro scelte, e la pagina prepara un blocco solo. Nome ed email servono a Git per firmare il lavoro che salvi con /fine: restano sul tuo computer, e anche un'email finta va bene.",
-   "url": "https://arturo.stellakamikaze.org/installa/#tappa-5"
-  },
-  {
-   "@type": "HowToStep",
-   "position": 6,
-   "name": "Accendi Arturo",
-   "text": "Questo comando apre Claude Code dentro Arturo. La prima volta si apre il browser per entrare nel tuo account Anthropic.",
-   "url": "https://arturo.stellakamikaze.org/installa/#tappa-6"
-  },
-  {
-   "@type": "HowToStep",
-   "position": 7,
-   "name": "Racconta chi sei",
-   "text": "Claude impara chi sei e come vuoi lavorare da un file tuo, il CLAUDE.md. Rispondi qui, e la pagina prepara la richiesta: Claude scrive la bozza e te la mostra prima di salvarla.",
-   "url": "https://arturo.stellakamikaze.org/installa/#tappa-7"
-  },
-  {
-   "@type": "HowToStep",
-   "position": 8,
-   "name": "Quello che ti serve in più",
-   "text": "Tre aggiunte, nessuna obbligatoria. Apri solo quelle che ti riguardano, oppure vai avanti.",
-   "url": "https://arturo.stellakamikaze.org/installa/#tappa-8"
-  },
-  {
-   "@type": "HowToStep",
-   "position": 9,
-   "name": "Il controllo finale",
-   "text": "Arturo controlla da solo che tutto sia al suo posto: impostazioni, guardie, permessi.",
-   "url": "https://arturo.stellakamikaze.org/installa/#tappa-9"
-  },
-  {
-   "@type": "HowToStep",
-   "position": 10,
    "name": "Il primo lavoro",
-   "text": "Arturo adesso conosce il tuo computer, ma non ancora il tuo lavoro. Dieci minuti di sparring: tre domande su cosa fai e un piccolo esperimento.",
-   "url": "https://arturo.stellakamikaze.org/installa/#tappa-10"
+   "text": "Claude ti propone tre lavori da dieci minuti sul tuo materiale vero. Ne scegli uno e lo guardi mentre lo fa.",
+   "url": "https://arturo.stellakamikaze.org/installa/#tappa-5"
   }
  ]
 }
@@ -196,6 +160,8 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
 .indice-passi .corrente b{color:var(--azione)}
 .indice-passi .corrente i{color:var(--azione)}
 .indice-passi .aperta span{font-weight:600;color:var(--inchiostro)}
+.indice-mano{display:flex;align-items:center;min-height:44px;padding-left:36px;font-size:.86rem;color:var(--cenere);text-decoration:underline;text-decoration-color:#a3aaa6}
+.indice-mano:hover{color:var(--inchiostro)}
 .legami{display:grid;gap:8px;font-size:.84rem;color:var(--cenere)}
 .legami li{display:flex;align-items:center;gap:10px}
 .azione{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:46px;padding:0 20px;border:1px solid var(--azione);background:var(--azione);color:#fff;text-decoration:none;font:560 .95rem/1 var(--titolo);font-stretch:75%;letter-spacing:.06em;text-transform:uppercase;transition:background-color .18s,border-color .18s}
@@ -361,6 +327,14 @@ html.finito .traguardo{display:block}
   .testata__volta{opacity:.35}
 }
 
+/* ---------- la strada a mano ---------- */
+.a-mano{margin-top:clamp(56px,7vw,96px);padding-top:18px;border-top:1px solid var(--inchiostro);scroll-margin-top:24px}
+.a-mano > h2{font-weight:300;font-size:clamp(2rem,1.3rem + 2vw,3rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%}
+.a-mano__lead{max-width:62ch;margin:14px 0 28px}
+.mano{padding:clamp(18px,2.5vw,26px) 0;border-top:1px solid var(--filetto)}
+.mano__nome{font:400 clamp(1.2rem, 1.05rem + .5vw, 1.5rem)/1.2 var(--titolo);letter-spacing:-.02em}
+.mano .foglio{margin-top:4px}
+
 /* risorse */
 .risorse{padding:clamp(56px,7vw,96px) 0;border-top:1px solid var(--filetto)}
 .risorse h2{margin:0 0 10px;font-weight:300;font-size:clamp(2rem,1.3rem + 2vw,3rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%;color:var(--inchiostro)}
@@ -394,12 +368,12 @@ html.finito .traguardo{display:block}
     <div class="testata__corpo">
       <div>
         <h1>Installa Arturo</h1>
-        <p class="testata__lead">Dieci passi, dal computer vuoto al primo lavoro. Apri un passo, fai quello che dice e premi «Fatto, avanti»: il passo dopo si apre da solo. Questa pagina non tocca il tuo computer. Prepara i comandi, e tu li incolli dove dice il segno accanto a ogni passo.</p>
+        <p class="testata__lead">Cinque passi, dal computer vuoto al primo lavoro. Installi Claude Code, incolli un link, e Claude fa il resto chiedendoti conferma. Apri un passo, fai quello che dice e premi "Fatto, avanti": il passo dopo si apre da solo. Questa pagina non tocca il tuo computer.</p>
       </div>
       <ul class="serve" aria-label="Ti serve">
         <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2" y="3" width="12" height="8" stroke="currentColor" stroke-width="1.3"/><path d="M1 13.5h14" stroke="currentColor" stroke-width="1.3"/></svg><span>Un <strong>Mac</strong> o un <strong>PC Windows</strong>, con il permesso di installare programmi.</span></li>
         <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 5h12v8H2Z" stroke="currentColor" stroke-width="1.3"/><path d="M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg><span>Un abbonamento ad Anthropic che includa Claude Code: Pro, Max, Team, Enterprise o Console. Il piano gratuito di claude.ai non lo include.</span></li>
-        <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.5V8l2.5 1.5" stroke="currentColor" stroke-width="1.3"/></svg><span>Circa un'ora e una connessione a internet. Prima di cominciare, leggi <a href="../#impegni">i limiti</a>.</span></li>
+        <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.5V8l2.5 1.5" stroke="currentColor" stroke-width="1.3"/></svg><span>Una connessione a internet. Prima di cominciare, leggi <a href="../#impegni">i limiti</a>.</span></li>
       </ul>
     </div>
   </div>
@@ -421,12 +395,12 @@ html.finito .traguardo{display:block}
     </div>
     <div>
       <div class="punto">
-          <p class="punto__dove" id="punto">Passo 1 di 10<span>circa un'ora in tutto</span></p>
+          <p class="punto__dove" id="punto">Passo 1 di 5<span>cinque passi in tutto</span></p>
           <button class="link-quieto" type="button" id="ricomincia">Ricomincia da capo</button>
         </div>
       <a class="azione azione--bordo" id="riprendi" href="#tappa-1" hidden><span>Riprendi</span></a>
     </div>
-    <nav aria-label="I dieci passi"><ol class="indice-passi" id="indice-passi"></ol></nav>
+    <nav aria-label="I cinque passi"><ol class="indice-passi" id="indice-passi"></ol></nav>
     <ul class="legami" aria-label="Dove si incolla">
           <li><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span><span class="legami__testo">i comandi del computer</span></li>
           <li><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span><span class="legami__testo">le richieste ad Arturo</span></li>
@@ -434,23 +408,22 @@ html.finito .traguardo{display:block}
   </aside>
 
   <main>
-    <h2 class="vis-sr">I dieci passi</h2>
+    <h2 class="vis-sr">I cinque passi</h2>
     <p class="vis-sr" aria-live="polite" id="annuncio"></p>
     <ol class="rotta" id="rotta">
     <li class="tappa" id="tappa-1" data-tappa="1">
       <div class="tappa__segno" aria-hidden="true"><span class="boa">1<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
       <div class="tappa__corpo">
-        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-1"><span class="tappa__nome">Apri il terminale</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--pagina">Sul computer</span></button></h2>
+        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-1"><span class="tappa__nome">Installa Claude Code</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span></button></h2>
         <div class="tappa__piega" id="corpo-1"><div><div class="foglio">
-          <p class="perche">Il terminale è la finestra dove si scrivono i comandi. Ti serve per i primi sei passi. Poi lavori dentro Claude Code.</p>
+          <p class="perche">Claude Code è l'assistente di Anthropic che lavora sui file del tuo computer, e Arturo si appoggia sopra. Serve un piano Pro, Max, Team, Enterprise o Console: il piano gratuito di claude.ai non include Claude Code. Il terminale lo apri solo qui: dal passo 2 parli con Claude.</p>
           <ol class="passi" data-solo="mac">
             <li><span>Premi <kbd>Cmd</kbd> + <kbd>Spazio</kbd>, scrivi <strong>Terminale</strong> e premi <kbd>Invio</kbd>.</span></li>
             <li><span>Si apre una finestra con una riga che finisce con <code>%</code>. Lì incolli i comandi con <kbd>Cmd</kbd> + <kbd>V</kbd> e li fai partire con <kbd>Invio</kbd>.</span></li>
           </ol>
           <ol class="passi" data-solo="win">
-            <li><span>Premi il tasto <kbd>Windows</kbd>, scrivi <strong>PowerShell</strong> e premi <kbd>Invio</kbd>. Ti serve per il passo 3.</span></li>
-            <li><span>Dal passo 4 usi <strong>Git Bash</strong>, che installi al passo 2. In Git Bash incolli con il tasto destro del mouse e scegli <strong>Paste</strong>, oppure con <kbd>Maiusc</kbd> + <kbd>Ins</kbd>.</span></li>
-            <li><span>Ogni comando parte con <kbd>Invio</kbd>.</span></li>
+            <li><span>Premi il tasto <kbd>Windows</kbd>, scrivi <strong>PowerShell</strong> e premi <kbd>Invio</kbd>.</span></li>
+            <li><span>Si apre una finestra con una riga che finisce con <code>&gt;</code>. Lì incolli i comandi con il tasto destro del mouse e li fai partire con <kbd>Invio</kbd>.</span></li>
           </ol>
           <figure class="schermo" data-solo="mac">
             <div class="schermo__finestra" aria-hidden="true">
@@ -473,6 +446,27 @@ Copyright (C) Microsoft Corporation.
             <figcaption>Esempio di quello che vedi: il nome nella riga è quello del tuo utente. Conta il segno <code>&gt;</code> alla fine.</figcaption>
           </figure>
           <p class="manca">Non hai mai aperto un terminale? La <a href="https://code.claude.com/docs/en/terminal-guide">guida al terminale</a> di Anthropic lo spiega con le immagini.</p>
+          <p class="perche">L'installazione scarica circa 270 MB e per qualche minuto non scrive niente. Non interromperla: aspetta che il terminale torni pronto per un altro comando.</p>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>L'installazione <small data-solo="win">in PowerShell</small></p>
+            <div class="comando" data-solo="mac"><pre id="cmd-cc-mac">curl -fsSL https://claude.ai/install.sh | bash</pre><button type="button" data-copia="cmd-cc-mac">Copia</button></div>
+            <div class="comando" data-solo="win"><pre id="cmd-cc-win">irm https://claude.ai/install.ps1 | iex</pre><button type="button" data-copia="cmd-cc-win">Copia</button></div>
+          </div>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Poi apri Claude Code <small>nella stessa finestra</small></p>
+            <div class="comando"><pre id="cmd-cc-apri">claude</pre><button type="button" data-copia="cmd-cc-apri">Copia</button></div>
+          </div>
+          <div class="esito">
+            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>La prima volta si apre il browser per entrare nel tuo account Anthropic. Poi Claude Code chiede se ti fidi della cartella: rispondi di sì. Compare la casella dove scrivere le richieste.</p></div>
+            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3>
+              <ul>
+                <li><code>command not found</code>: chiudi il terminale e aprine uno nuovo, poi scrivi di nuovo <code>claude</code>.</li>
+                <li data-solo="mac">L'installazione aveva scritto <code>~/.local/bin is not in your PATH</code>: apri Claude Code con <code>~/.local/bin/claude</code>. Arturo sistema il PATH quando lo installi.</li>
+                <li>L'accesso rifiuta il piano gratuito: Claude Code chiede un piano a pagamento.</li>
+                <li>Un altro errore: segui la <a href="https://code.claude.com/docs/en/setup">guida di installazione</a> di Anthropic, che ha anche le altre vie.</li>
+              </ul>
+            </div>
+          </div>
           <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="1">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
         </div></div></div>
       </div>
@@ -480,8 +474,149 @@ Copyright (C) Microsoft Corporation.
     <li class="tappa" id="tappa-2" data-tappa="2">
       <div class="tappa__segno" aria-hidden="true"><span class="boa">2<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
       <div class="tappa__corpo">
-        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-2"><span class="tappa__nome">Gli strumenti di base</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span></button></h2>
+        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-2"><span class="tappa__nome">Incolla il link</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span></button></h2>
         <div class="tappa__piega" id="corpo-2"><div><div class="foglio">
+          <p class="perche">Da qui lavori dentro Claude Code. Incolla la frase: Claude legge la pagina del link, che gli dice i passi, e ti chiede un sì prima di ogni cosa che cambia il computer. Per fermarlo premi <kbd>Esc</kbd>.</p>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Incolla la frase e premi Invio</p>
+            <div class="comando comando--claude"><pre id="cmd-frase">Installa Arturo: https://arturo.stellakamikaze.org/inizia/</pre><button type="button" data-copia="cmd-frase">Copia</button></div>
+          </div>
+          <div class="esito">
+            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3>
+              <ul>
+                <li>Claude Code chiede il permesso di leggere il sito <code>arturo.stellakamikaze.org</code>: approva.</li>
+                <li>Claude ti dice in tre righe cosa farà e chiede se procedere.</li>
+                <li>Scarica lo script di Arturo, lo confronta con la copia su GitHub e te lo riassume. Poi chiede il permesso di lanciarlo: approva.</li>
+                <li>Se manca un programma, Claude lo installa col tuo sì. Su Mac si apre una finestra di Apple: clicca "Installa". Su Windows si apre una conferma di sistema: clicca "Sì".</li>
+                <li>Alla fine lo script scrive "Arturo installato", e Claude ti dà i comandi del passo 3.</li>
+              </ul>
+              <p>Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il settings.json che avevi va nella copia con la data: /setup ti propone di riportare hook, plugin e preferenze. Anche gli altri file che Arturo sostituisce vanno in quella copia.</p>
+            </div>
+            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3>
+              <ul>
+                <li>Il permesso per lo script viene negato: Claude ti dà una riga che comincia con <code>!</code>. Scrivila tu in Claude Code e premi <kbd>Invio</kbd>: <code>! bash ~/.arturo-installa.sh</code></li>
+                <li data-solo="win">Claude ti dice che manca Git: lo installa col tuo sì. Poi chiudi Claude Code e la sua finestra di PowerShell, apri una finestra nuova, scrivi <code>claude</code> e incolla di nuovo la frase.</li>
+                <li data-solo="win">Claude ti dice che manca Python: lo installa col tuo sì. Poi chiudi Claude Code e la sua finestra di PowerShell, apri una finestra nuova, scrivi <code>claude</code> e incolla di nuovo la frase. Al giro dopo lo script crea da solo il comando <code>python3</code>, che Python per Windows non ha.</li>
+                <li>Claude scrive che lo script non è uguale alla copia su GitHub: fermati e <a href="../feedback/?tipo=installazione">dimmelo</a>.</li>
+                <li>Lo script scrive che <code>~/.claude</code> è già un repository git che non è Arturo: usa la strada a mano, col <a href="#a-mano-esteso">blocco che comincia con <code>B=</code></a> dentro "Preferisco leggere i comandi". Mette da parte tutta la cartella, git compreso, in una copia con la data.</li>
+                <li>Lo script scrive <code>CLAUDE_CONFIG_DIR</code>: Arturo vive solo in <code>~/.claude</code>, e con quella variabile non si installa, nemmeno a mano. Togli la variabile dal file della tua shell, apri un terminale nuovo e incolla di nuovo la frase.</li>
+                <li>Arturo è già installato: lo script lo dice e si ferma. Per aggiornarlo scrivi <code>/aggiorna</code>.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="2">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        </div></div></div>
+      </div>
+    </li>
+    <li class="tappa" id="tappa-3" data-tappa="3">
+      <div class="tappa__segno" aria-hidden="true"><span class="boa">3<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div class="tappa__corpo">
+        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-3"><span class="tappa__nome">/exit, claude, /setup</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span></button></h2>
+        <div class="tappa__piega" id="corpo-3"><div><div class="foglio">
+          <p class="perche">Arturo entra in funzione in una sessione nuova di Claude Code. Nella stessa finestra scrivi tre cose, una per volta, ognuna seguita da <kbd>Invio</kbd>.</p>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Chiudi la sessione</p>
+            <div class="comando comando--claude"><pre id="cmd-esci">/exit</pre><button type="button" data-copia="cmd-esci">Copia</button></div>
+          </div>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Riapri Claude Code</p>
+            <div class="comando"><pre id="cmd-riapri">claude</pre><button type="button" data-copia="cmd-riapri">Copia</button></div>
+          </div>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Comincia la configurazione</p>
+            <div class="comando comando--claude"><pre id="cmd-setup">/setup</pre><button type="button" data-copia="cmd-setup">Copia</button></div>
+          </div>
+          <div class="esito">
+            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Claude risponde in italiano e comincia <code>/setup</code>. Se dimentichi <code>/setup</code>, Arturo te lo propone alla prima risposta.</p></div>
+            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3>
+              <ul>
+                <li><code>claude</code> risponde <code>command not found</code>: chiudi il terminale, aprine uno nuovo e scrivi di nuovo <code>claude</code>.</li>
+                <li>Claude non conosce <code>/setup</code>: Arturo non si è installato. Torna al passo 2 e leggi cosa ha scritto lo script.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="3">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        </div></div></div>
+      </div>
+    </li>
+    <li class="tappa" id="tappa-4" data-tappa="4">
+      <div class="tappa__segno" aria-hidden="true"><span class="boa">4<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div class="tappa__corpo">
+        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-4"><span class="tappa__nome">Il setup ti conosce</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span></button></h2>
+        <div class="tappa__piega" id="corpo-4"><div><div class="foglio">
+          <p class="perche"><code>/setup</code> controlla in silenzio programmi e impostazioni, e installa col tuo sì quello che manca. Poi ti fa poche domande, e a ognuna puoi dire di no.</p>
+          <ol class="passi">
+            <li><span><strong>Telemetria e aggiornamenti.</strong> Claude ti dice cosa parte verso chi mantiene Arturo e come si aggiorna. Rispondi sì, oppure spegnili.</span></li>
+            <li><span><strong>Le tue conversazioni.</strong> Claude chiede un sì per leggere le tue ultime conversazioni con Claude Code. Poi ti invita a incollare le istruzioni dei tuoi Progetti di claude.ai, oppure a saltare.</span></li>
+            <li><span><strong>Le tue cartelle.</strong> Claude mostra l'elenco esatto delle cartelle che vuole guardare e cosa non legge mai. Rispondi "sì", "sì ma senza" una cartella, oppure "no". Su Mac il sistema chiede il permesso per ogni cartella: puoi dire no.</span></li>
+            <li><span><strong>La bozza.</strong> In un solo messaggio Claude mostra il tuo <code>CLAUDE.md</code>, con la fonte di ogni riga, e gli extra che ti propone. Correggi con parole tue, oppure scrivi "ok" e i numeri degli extra che vuoi.</span></li>
+          </ol>
+          <p>Non legge mai cartelle di sistema, cartelle nascoste, <code>.ssh</code>, chiavi, password manager, file <code>.env</code> e credenziali. Da Download legge solo i nomi. Quello che legge passa dalla conversazione con Anthropic, come ogni richiesta che scrivi a Claude: non va a chi mantiene Arturo e non entra nella telemetria. Sul computer resta solo il <code>CLAUDE.md</code> che approvi.</p>
+          <div class="dati">
+            <h3>Arturo manda dati d'uso a chi lo mantiene</h3>
+            <p>Dalla prima sessione partono pochi eventi da un elenco chiuso: quali comandi di Arturo usi, quali guardie ti fermano, come va un aggiornamento. Con loro partono un id casuale, la versione e il giorno. Mai le tue richieste, i tuoi file o dei nomi. Servono a correggere i punti dove le persone si bloccano.</p>
+            <div class="consegna">
+              <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>/setup te lo chiede subito. Puoi spegnerli anche dopo, in un terminale</p>
+              <div class="comando"><pre id="cmd-telemetria">python3 ~/.claude/bin/arturo telemetria spegni</pre><button type="button" data-copia="cmd-telemetria">Copia</button></div>
+            </div>
+            <p class="manca">Puoi spegnerli anche più tardi, e vedere cosa parte con <code>telemetria mostra</code> al posto di <code>telemetria spegni</code>. L'elenco completo è in <a href="../#telemetria">I limiti</a>, nella pagina principale.</p>
+          </div>
+          <div class="esito">
+            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Claude salva il tuo <code>CLAUDE.md</code> dopo il tuo "ok", poi fa la verifica finale da solo.</p></div>
+            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3>
+              <ul>
+                <li>La bozza non ti somiglia: diglielo con parole tue, per esempio "più corto" o "togli la regola sui brief". Il file si cambia quando vuoi.</li>
+                <li>La verifica ha una riga <code>FAIL</code>: scrivi a Claude "sistemalo con me".</li>
+                <li>Hai chiuso a metà: scrivi di nuovo <code>/setup</code>, e Claude ti propone di ripartire dalla fase dove eri.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="4">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        </div></div></div>
+      </div>
+    </li>
+    <li class="tappa" id="tappa-5" data-tappa="5">
+      <div class="tappa__segno" aria-hidden="true"><span class="boa">5<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+      <div class="tappa__corpo">
+        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-5"><span class="tappa__nome">Il primo lavoro</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span></button></h2>
+        <div class="tappa__piega" id="corpo-5"><div><div class="foglio">
+          <p class="perche">Con quello che ha visto, Claude ti propone tre lavori da dieci minuti sul tuo materiale vero. Scegline uno e guardalo mentre lo fa.</p>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Hai saltato le letture? Incolla questo</p>
+            <div class="comando comando--claude"><pre id="cmd-sparring">Facciamo lo sparring: tre domande sul mio lavoro e un piccolo esperimento.</pre><button type="button" data-copia="cmd-sparring">Copia</button></div>
+          </div>
+          <div>
+            <ul class="lista-comandi" aria-label="Come si lavora da domani">
+              <li><code>/inizio nome</code><span>Riprende un progetto da dove l'hai lasciato. Se non esiste, Claude ti chiede se crearlo: anche un libro o una ricerca.</span></li>
+              <li><code>/fine</code><span>Chiude la sessione e salva un appunto per la prossima volta.</span></li>
+              <li><code>ricordami di…</code><span>Mette una cosa da fare nell'elenco, che ritrovi a ogni <code>/inizio</code>.</span></li>
+              <li><code>/aggiorna</code><span>Di solito non serve: Arturo si aggiorna da solo quando chiudi la sessione, e la barra in basso ti dice quando c'è una versione nuova. Serve se vuoi guardare prima o tornare indietro.</span></li>
+              <li><code>/segnala</code><span>Qualcosa di Arturo non va? Lo dici a chi lo mantiene, con una bozza scritta da Claude.</span></li>
+            </ul>
+          </div>
+
+          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="5">Fatto <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+        </div></div></div>
+      </div>
+    </li>
+  </ol>
+    <section class="traguardo" id="traguardo" aria-labelledby="t-traguardo" tabindex="-1">
+      <h3 id="t-traguardo">Arturo è acceso</h3>
+      <p>Da qui la strada la fai con lui. Quando non sai da dove ripartire, scrivi <code>/guidami</code>. Se qualcosa non torna, <code>/diagnosi</code> controlla Arturo e il progetto su cui lavori.</p>
+      <p>Com'è andata l'installazione? Dove ti sei fermato, cosa non era chiaro: <a href="../feedback/?tipo=installazione">dimmelo in due righe o a voce</a>.</p>
+    </section>
+    <section class="a-mano" id="a-mano" aria-labelledby="t-a-mano">
+      <h2 id="t-a-mano">A mano, da terminale</h2>
+      <p class="a-mano__lead">La strada da terminale, con Claude Code chiuso. Serve se Claude Code non può lanciare lo script o se vuoi leggere ogni comando prima. Fai il passo 1, poi questi blocchi in ordine. Se <code>~/.claude</code> è già un tuo repository git, il comando di "Scarica Arturo" si ferma: usa il <a href="#a-mano-esteso">blocco che comincia con <code>B=</code></a>. Con <code>CLAUDE_CONFIG_DIR</code> Arturo non si installa: togli la variabile e apri un terminale nuovo.</p>
+      <div class="mano" id="mano-strumenti">
+        <h3 class="mano__nome">Gli strumenti di base</h3>
+        <div class="foglio">
+          <ol class="passi" data-solo="mac">
+            <li><span>Chiudi Claude Code. Premi <kbd>Cmd</kbd> + <kbd>Spazio</kbd>, scrivi <strong>Terminale</strong> e premi <kbd>Invio</kbd>.</span></li>
+          </ol>
+          <ol class="passi" data-solo="win">
+            <li><span>Chiudi Claude Code. Su Windows questi comandi vanno in <strong>Git Bash</strong>, che installi qui sotto con Git for Windows. In Git Bash incolli con il tasto destro del mouse e scegli <strong>Paste</strong>, oppure con <kbd>Maiusc</kbd> + <kbd>Ins</kbd>.</span></li>
+          </ol>
           <p class="perche">Arturo usa tre programmi: <strong>git</strong> scarica Arturo e salva il tuo lavoro, <strong>python3</strong> fa girare le guardie, <strong>node</strong> serve ad alcuni strumenti. Si installano una volta sola.</p>
 
           <ol class="passi" data-solo="mac">
@@ -514,69 +649,25 @@ python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/
             <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3>
               <ul>
                 <li>Una riga dice <code>MANCA</code>: rifai l'installazione di quel programma, poi apri un terminale nuovo e rilancia il controllo.</li>
-                <li data-solo="win"><code>MANCA python3</code> anche dopo l'installazione: spegni gli alias dello Store del passo 3.</li>
+                <li data-solo="win"><code>MANCA python3</code>, ma <code>python --version</code> risponde: va bene così. Python per Windows non ha il comando <code>python3</code>, e lo crea il comando di "Scarica Arturo". Se anche <code>python --version</code> apre il Microsoft Store, spegni gli alias come dice il terzo punto qui sopra, chiudi Git Bash e aprine una finestra nuova.</li>
                 <li data-solo="mac">Su macOS il controllo può riaprire la finestra di Apple: vuol dire che git o python3 non sono ancora installati.</li>
               </ul>
             </div>
           </div>
-          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="2">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
-        </div></div></div>
+        </div>
       </div>
-    </li>
-    <li class="tappa" id="tappa-3" data-tappa="3">
-      <div class="tappa__segno" aria-hidden="true"><span class="boa">3<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
-      <div class="tappa__corpo">
-        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-3"><span class="tappa__nome">Installa Claude Code</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span></button></h2>
-        <div class="tappa__piega" id="corpo-3"><div><div class="foglio">
-          <p class="perche">Claude Code è l'assistente che lavora sui file del tuo computer, e Arturo si appoggia sopra. Serve un piano Pro, Max, Team, Enterprise o Console di Anthropic: il piano gratuito di claude.ai non include Claude Code.</p>
-          <p class="perche">L'installazione scarica circa 270 MB e per qualche minuto non scrive niente. Non interromperla: aspetta che il terminale torni pronto per un altro comando.</p>
-          <div class="consegna">
-            <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>L'installazione <small data-solo="win">in PowerShell, non in Git Bash</small></p>
-            <div class="comando" data-solo="mac"><pre id="cmd-cc-mac">curl -fsSL https://claude.ai/install.sh | bash</pre><button type="button" data-copia="cmd-cc-mac">Copia</button></div>
-            <div class="comando" data-solo="win"><pre id="cmd-cc-win">irm https://claude.ai/install.ps1 | iex</pre><button type="button" data-copia="cmd-cc-win">Copia</button></div>
-          </div>
-          <div class="consegna">
-            <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Il controllo <small>in un terminale nuovo</small></p>
-            <div class="comando"><pre id="cmd-cc-versione">claude --version</pre><button type="button" data-copia="cmd-cc-versione">Copia</button></div>
-          </div>
-          <figure class="schermo">
-            <div class="schermo__finestra" aria-hidden="true">
-              <div class="schermo__barra"><i></i><i></i><i></i><span>Terminale</span></div>
-              <pre class="schermo__testo"><b>~ %</b> claude --version
-2.1.300 (Claude Code)
-<b>~ %</b> <span class="cursore"></span></pre>
-              <span class="richiamo richiamo--2"><span>Il numero cambia: va bene qualunque</span></span>
-            </div>
-            <figcaption>Esempio: il numero di versione sarà diverso dal tuo. Conta la scritta <code>(Claude Code)</code>.</figcaption>
-          </figure>
-          <div class="esito">
-            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Un numero di versione seguito da <code>(Claude Code)</code>. L'accesso al tuo account arriva al passo 6.</p></div>
-            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3>
-              <ul>
-                <li><code>command not found</code>: chiudi il terminale e aprine uno nuovo, poi rilancia il controllo.</li>
-                <li>L'errore resta, e l'installazione aveva scritto <code>~/.local/bin is not in your PATH</code>: vai avanti al passo 4. Il comando di Arturo sistema il PATH da solo.</li>
-                <li>Un altro errore: segui la <a href="https://code.claude.com/docs/en/setup">guida di installazione</a> di Anthropic, che ha anche le altre vie.</li>
-              </ul>
-            </div>
-          </div>
-          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="3">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
-        </div></div></div>
-      </div>
-    </li>
-    <li class="tappa" id="tappa-4" data-tappa="4">
-      <div class="tappa__segno" aria-hidden="true"><span class="boa">4<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
-      <div class="tappa__corpo">
-        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-4"><span class="tappa__nome">Scarica Arturo</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span></button></h2>
-        <div class="tappa__piega" id="corpo-4"><div><div class="foglio">
-          <p class="perche">Arturo vive nella cartella delle impostazioni di Claude Code, <code>~/.claude</code>. Il comando controlla prima i programmi dei passi 2 e 3. Poi mette da parte la cartella che c'è già, con la data nel nome: non si perde niente. Login, sessioni e plugin tornano subito al loro posto. Se nella cartella c'erano il tuo <code>CLAUDE.md</code>, la memoria, i todo e le scelte di Arturo, tornano anche quelli. Se Arturo è già installato, il comando si ferma: per aggiornarlo scrivi <code>/aggiorna</code> in Claude Code, per reinstallarlo da capo usa i comandi qui sotto. Se un'altra app aveva aggiunto i suoi hook a Claude Code (ClaudeBar, una barra di stato), al passo 6 <code>/setup</code> li ritrova e, col tuo sì, li rimette.</p>
-          <div class="consegna">
+      <div class="mano" id="mano-scarica">
+        <h3 class="mano__nome">Scarica Arturo</h3>
+        <div class="foglio">
+          <p class="perche">Arturo vive nella cartella delle impostazioni di Claude Code, <code>~/.claude</code>. Il comando controlla prima i programmi qui sopra e Claude Code. Poi mette Arturo dentro <code>~/.claude</code> senza spostare la cartella. Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il settings.json che avevi va nella copia con la data: /setup ti propone di riportare hook, plugin e preferenze. Se Arturo è già installato, il comando si ferma: per aggiornarlo scrivi <code>/aggiorna</code> in Claude Code.</p>          <div class="consegna">
             <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Incolla e premi Invio <small data-solo="win">in Git Bash</small></p>
             <div class="comando"><pre id="cmd-scarica">curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash</pre><button type="button" data-copia="cmd-scarica">Copia</button></div>
           </div>
-          <details class="facoltativa">
+          <details class="facoltativa" id="a-mano-esteso">
             <summary>Preferisco leggere i comandi prima di lanciarli</summary>
             <div class="facoltativa__dentro">
-              <p>Il comando scarica <a href="https://github.com/stellakamikaze/arturo/blob/landing-v2/sito/installa.sh">questo script</a>: puoi aprirlo e leggerlo. Oppure incolla al suo posto il blocco qui sotto, che fa lo stesso senza i controlli.</p>
+              <p>Il comando scarica <a href="https://github.com/stellakamikaze/arturo/blob/landing-v2/sito/installa.sh">questo script</a>: puoi aprirlo e leggerlo. Oppure incolla il blocco qui sotto, la strada più vecchia, senza controlli: mette da parte tutta la cartella con la data nel nome, scarica Arturo e riporta al loro posto login, sessioni, plugin e i file tuoi di un Arturo di prima. Serve anche se <code>~/.claude</code> è già un tuo repository git: il git va nella copia con la cartella. Il settings.json che avevi resta nella copia: /setup ti propone di riportare hook, plugin e preferenze.</p>
+              <p data-solo="win">Su Windows lancia prima, una volta, il comando qui sopra: crea il comando <code>python3</code>, e se <code>~/.claude</code> è già un repository git si ferma da solo senza toccarlo.</p>
               <div class="comando"><pre id="cmd-scarica-esteso">B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
 [ -d "$HOME/.claude" ] &amp;&amp; mv "$HOME/.claude" "$B"
 git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
@@ -591,35 +682,22 @@ done</pre><button type="button" data-copia="cmd-scarica-esteso">Copia</button></
             </div>
           </details>
           <div class="esito">
-            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Una riga <code>OK</code> per ogni programma, poi <code>Arturo installato</code> e i tre passi che seguono.</p></div>
+            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Una riga <code>OK</code> per ogni programma, poi <code>Arturo installato</code> e cosa fare dopo.</p></div>
             <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3>
               <ul>
                 <li>Una riga dice <code>MANCA</code> per git, python3 o claude: il comando dice cosa installare e non tocca niente. Installalo, poi rilancia il comando.</li>
-                <li>Hai chiesto a Claude Code di installare Arturo e si è fermato su <code>Self-Modification</code>: la sua modalità auto non lo lascia sostituire la sua cartella. Lancia tu il comando nel Terminale, con Claude Code chiuso.</li>
-                <li><code>MANCA node</code>: Arturo si installa lo stesso, ma la barra in basso resta vuota finché non installi node come al passo 2.</li>
+                <li>Hai chiesto a Claude Code di lanciare questi comandi e si è fermato su <code>Self-Modification</code>: la sua modalità auto non lo lascia sostituire la sua cartella. Lanciali tu nel Terminale, con Claude Code chiuso.</li>
+                <li><code>MANCA node</code>: Arturo si installa lo stesso, ma la barra in basso resta vuota finché non installi node come dice il primo blocco.</li>
                 <li>Hai usato il blocco esteso e leggi <code>already exists and is not an empty directory</code>: la prima riga non è partita. Copia di nuovo il blocco intero.</li>
                 <li data-solo="win">Hai incollato in PowerShell o nel Prompt dei comandi: lì la tilde <code>~</code> non funziona e Arturo finisce in un'altra cartella senza errori. Rifallo in Git Bash.</li>
               </ul>
             </div>
           </div>
-          <div class="dati">
-            <h3>Arturo manda dati d'uso a chi lo mantiene</h3>
-            <p>Dalla prima sessione partono pochi eventi da un elenco chiuso: quali comandi di Arturo usi, quali guardie ti fermano, come va un aggiornamento. Con loro partono un id casuale, la versione e il giorno. Mai le tue richieste, i tuoi file o dei nomi. Servono a correggere i punti dove le persone si bloccano.</p>
-            <div class="consegna">
-              <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Se non li vuoi, incolla questo prima di andare avanti <small data-solo="win">in Git Bash</small></p>
-              <div class="comando"><pre id="cmd-telemetria">python3 ~/.claude/bin/arturo telemetria spegni</pre><button type="button" data-copia="cmd-telemetria">Copia</button></div>
-            </div>
-            <p class="manca">Puoi spegnerli anche più tardi, e vedere cosa parte con <code>telemetria mostra</code> al posto di <code>telemetria spegni</code>. L'elenco completo è in <a href="../#telemetria">I limiti</a>, nella pagina principale.</p>
-          </div>
-          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="4">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
-        </div></div></div>
+        </div>
       </div>
-    </li>
-    <li class="tappa" id="tappa-5" data-tappa="5">
-      <div class="tappa__segno" aria-hidden="true"><span class="boa">5<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
-      <div class="tappa__corpo">
-        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-5"><span class="tappa__nome">Le tue scelte</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span></button></h2>
-        <div class="tappa__piega" id="corpo-5"><div><div class="foglio">
+      <div class="mano" id="mano-scelte">
+        <h3 class="mano__nome">Le tue scelte</h3>
+        <div class="foglio">
           <p class="perche">Quattro scelte, e la pagina prepara un blocco solo. Nome ed email servono a Git per firmare il lavoro che salvi con <code>/fine</code>: restano sul tuo computer, e anche un'email finta va bene.</p>
           <div class="campi">
             <div class="campo"><label for="f-nome">Nome</label><input type="text" id="f-nome" name="nome" autocomplete="name" placeholder="Maria Rossi"></div>
@@ -646,45 +724,32 @@ done</pre><button type="button" data-copia="cmd-scarica-esteso">Copia</button></
             <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Una riga per ogni scelta che inizia con <code>Fatto</code>, e alla fine <code>Scelte salvate.</code> Puoi rilanciare il blocco: non ripete niente.</p></div>
             <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3>
               <ul>
-                <li><code>not a git repository</code> o <code>No such file</code>: Arturo non è in <code>~/.claude</code>. Torna al passo 4.</li>
-                <li>Una riga dice <code>Non trovo</code>: le impostazioni hanno già un valore diverso. Vai avanti: al passo 6 scrivi <code>/setup</code> e Claude sistema quella riga con te.</li>
+                <li><code>not a git repository</code> o <code>No such file</code>: Arturo non è in <code>~/.claude</code>. Torna a "Scarica Arturo".</li>
+                <li>Una riga dice <code>Non trovo</code>: le impostazioni hanno già un valore diverso. Vai avanti: quando scrivi <code>/setup</code>, Claude sistema quella riga con te.</li>
               </ul>
             </div>
           </div>
-          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="5">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
-        </div></div></div>
+        </div>
       </div>
-    </li>
-    <li class="tappa" id="tappa-6" data-tappa="6">
-      <div class="tappa__segno" aria-hidden="true"><span class="boa">6<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
-      <div class="tappa__corpo">
-        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-6"><span class="tappa__nome">Accendi Arturo</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span></button></h2>
-        <div class="tappa__piega" id="corpo-6"><div><div class="foglio">
-          <p class="perche">Questo comando apre Claude Code dentro Arturo. La prima volta si apre il browser per entrare nel tuo account Anthropic.</p>
+      <div class="mano" id="mano-accendi">
+        <h3 class="mano__nome">Accendi Arturo</h3>
+        <div class="foglio">
+          <p class="perche">Apri un terminale nuovo e apri Claude Code. La prima volta si apre il browser per entrare nel tuo account Anthropic.</p>
           <div class="consegna">
             <p class="consegna__testa"><span class="dove dove--terminale"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 5 3 3-3 3M8.5 11.5h4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Terminale</span>Incolla e premi Invio <small data-solo="win">in Git Bash</small></p>
-            <div class="comando"><pre id="cmd-accendi">cd ~/.claude &amp;&amp; claude</pre><button type="button" data-copia="cmd-accendi">Copia</button></div>
+            <div class="comando"><pre id="cmd-accendi">claude</pre><button type="button" data-copia="cmd-accendi">Copia</button></div>
           </div>
-          <div class="esito">
-            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Claude Code chiede se ti fidi di questa cartella: rispondi di sì. Poi compare la casella dove scrivere le richieste.</p></div>
-            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3>
-              <ul>
-                <li>Il browser non si apre: copia il link che compare nel terminale e aprilo a mano.</li>
-                <li>L'accesso rifiuta il piano gratuito: Claude Code chiede un piano a pagamento, come dice il passo 3.</li>
-              </ul>
-            </div>
+          <div class="consegna">
+            <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Poi scrivi</p>
+            <div class="comando comando--claude"><pre id="cmd-accendi-setup">/setup</pre><button type="button" data-copia="cmd-accendi-setup">Copia</button></div>
           </div>
-          <p class="cambio"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 6.5h11.5m0 0L11 3m3.5 3.5L11 10M17 13.5H5.5m0 0L9 10m-3.5 3.5L9 17" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Da qui in poi incolli in <strong>Claude Code</strong>, non più nel terminale. Lascialo aperto.</span></p>
-          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="6">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
-        </div></div></div>
+          <p class="cambio"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 6.5h11.5m0 0L11 3m3.5 3.5L11 10M17 13.5H5.5m0 0L9 10m-3.5 3.5L9 17" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Da qui segui la guida dal <a href="#tappa-4">passo 4</a>.</span></p>
+        </div>
       </div>
-    </li>
-    <li class="tappa" id="tappa-7" data-tappa="7">
-      <div class="tappa__segno" aria-hidden="true"><span class="boa">7<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
-      <div class="tappa__corpo">
-        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-7"><span class="tappa__nome">Racconta chi sei</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span></button></h2>
-        <div class="tappa__piega" id="corpo-7"><div><div class="foglio">
-          <p class="perche">Claude impara chi sei e come vuoi lavorare da un file tuo, il <code>CLAUDE.md</code>. Rispondi qui, e la pagina prepara la richiesta: Claude scrive la bozza e te la mostra prima di salvarla.</p>
+      <div class="mano" id="mano-chisei">
+        <h3 class="mano__nome">Racconta chi sei, con un modulo</h3>
+        <div class="foglio">
+          <p class="perche">Claude impara chi sei e come vuoi lavorare da un file tuo, il <code>CLAUDE.md</code>. Se a <code>/setup</code> hai detto no alle letture, o preferisci un modulo, rispondi qui: la pagina prepara la richiesta, e Claude scrive la bozza e te la mostra prima di salvarla.</p>
           <div class="campi">
             <div class="campo"><label for="f-chi">Come ti chiami</label><input type="text" id="f-chi" name="chi" autocomplete="name" placeholder="Maria Rossi"></div>
             <div class="campo"><label for="f-mestiere">Che lavoro fai</label><input type="text" id="f-mestiere" name="mestiere" placeholder="editor in una casa editrice"></div>
@@ -718,101 +783,10 @@ done</pre><button type="button" data-copia="cmd-scarica-esteso">Copia</button></
           </div>
           <div class="esito">
             <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Claude mostra la bozza e aspetta il tuo sì. Una guardia di Arturo può chiedere il permesso di scrivere il file: è normale, approva.</p></div>
-            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3><p>La bozza non ti somiglia: diglielo con parole tue, per esempio «più corto» o «togli la regola sui brief». Il file si cambia quando vuoi.</p></div>
+            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3><p>La bozza non ti somiglia: diglielo con parole tue, per esempio "più corto" o "togli la regola sui brief". Il file si cambia quando vuoi.</p></div>
           </div>
-          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="7">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
-        </div></div></div>
+        </div>
       </div>
-    </li>
-    <li class="tappa" id="tappa-8" data-tappa="8">
-      <div class="tappa__segno" aria-hidden="true"><span class="boa">8<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
-      <div class="tappa__corpo">
-        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-8"><span class="tappa__nome">Quello che ti serve in più</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span></button></h2>
-        <div class="tappa__piega" id="corpo-8"><div><div class="foglio">
-          <p class="perche">Tre aggiunte, nessuna obbligatoria. Apri solo quelle che ti riguardano, oppure vai avanti.</p>
-          <div>
-            <details class="facoltativa">
-              <summary>Mi collego spesso a un mio server</summary>
-              <div class="facoltativa__dentro">
-                <p>Le guardie di Arturo chiedono conferma per le connessioni verso l'esterno. Un server tuo si può segnare come fidato. Le reti di casa, come <code>192.168.x</code>, lo sono già.</p>
-                <div class="campo"><label for="f-host">Nome o indirizzo del server</label><input type="text" id="f-host" name="host" spellcheck="false" autocapitalize="off" placeholder="mioserver.esempio.it"></div>
-                <div class="consegna">
-                  <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Incolla e premi Invio</p>
-                  <div class="comando comando--claude"><pre id="cmd-host">Scrivi il nome del server qui sopra.</pre><button type="button" data-copia="cmd-host">Copia</button></div>
-                </div>
-              </div>
-            </details>
-            <details class="facoltativa">
-              <summary>Uso Arturo su più computer</summary>
-              <div class="facoltativa__dentro">
-                <p>Un repository privato tuo tiene allineati i computer: <code>/fine</code> salva lì, <code>/inizio</code> riprende da lì. Serve un account GitHub. Senza, tutto funziona lo stesso e resta su questo computer.</p>
-                <div class="consegna">
-                  <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Incolla e premi Invio</p>
-                  <div class="comando comando--claude"><pre id="cmd-sync">Collega Arturo a un mio repository privato su GitHub, come dice la fase 7 di /setup: Arturo resta come upstream per gli aggiornamenti. Mostrami i comandi prima di lanciarli.</pre><button type="button" data-copia="cmd-sync">Copia</button></div>
-                </div>
-              </div>
-            </details>
-            <details class="facoltativa">
-              <summary>Voglio collegare Gmail, Drive e Calendar</summary>
-              <div class="facoltativa__dentro">
-                <p>La strada semplice: su claude.ai apri Impostazioni › Connettori e attiva Gmail, Google Calendar e Google Drive, poi chiudi e riapri Claude Code. Il comando qui sotto ti accompagna e controlla che ci siano. Se usi più account Google, ti propone la strada avanzata.</p>
-                <div class="consegna">
-                  <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Incolla e premi Invio</p>
-                  <div class="comando comando--claude"><pre id="cmd-gws">/inizio gws</pre><button type="button" data-copia="cmd-gws">Copia</button></div>
-                </div>
-              </div>
-            </details>
-          </div>
-          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="8">Avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
-        </div></div></div>
-      </div>
-    </li>
-    <li class="tappa" id="tappa-9" data-tappa="9">
-      <div class="tappa__segno" aria-hidden="true"><span class="boa">9<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
-      <div class="tappa__corpo">
-        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-9"><span class="tappa__nome">Il controllo finale</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span></button></h2>
-        <div class="tappa__piega" id="corpo-9"><div><div class="foglio">
-          <p class="perche">Arturo controlla da solo che tutto sia al suo posto: impostazioni, guardie, permessi.</p>
-          <div class="consegna">
-            <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Incolla e premi Invio</p>
-            <div class="comando comando--claude"><pre id="cmd-audit">/setup verifica</pre><button type="button" data-copia="cmd-audit">Copia</button></div>
-          </div>
-          <div class="esito">
-            <div class="esito__vedi"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m3.5 8.5 3 3 6-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cosa vedrai</h3><p>Un elenco di controlli e in fondo il totale, con <code>FAIL=0</code>. Le righe <code>WARN</code> sono avvisi: Claude ti dice se contano.</p></div>
-            <div class="esito__non"><h3><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 4.5v4.5M8 11.5v.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="8" cy="8" r="6.3" stroke="currentColor" stroke-width="1.3"/></svg>Se non torna</h3><p>Una riga <code>FAIL</code>: scrivi a Claude «sistemalo con me». Di solito sono i permessi delle guardie, che il passo 5 rimette a posto.</p></div>
-          </div>
-          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="9">Fatto, avanti <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
-        </div></div></div>
-      </div>
-    </li>
-    <li class="tappa" id="tappa-10" data-tappa="10">
-      <div class="tappa__segno" aria-hidden="true"><span class="boa">10<svg viewBox="0 0 18 18" fill="none"><path d="m4 9.5 3.2 3L14 5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
-      <div class="tappa__corpo">
-        <h2 class="tappa__testa"><button class="tappa__apri" type="button" aria-expanded="false" aria-controls="corpo-10"><span class="tappa__nome">Il primo lavoro</span><span class="tappa__stato"><span class="s-da">da fare</span><span class="s-ora">tocca a te</span><span class="s-ok">fatto</span></span><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span></button></h2>
-        <div class="tappa__piega" id="corpo-10"><div><div class="foglio">
-          <p class="perche">Arturo adesso conosce il tuo computer, ma non ancora il tuo lavoro. Dieci minuti di sparring: tre domande su cosa fai e un piccolo esperimento.</p>
-          <div class="consegna">
-            <p class="consegna__testa"><span class="dove dove--claude"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 13.5 4v5.5A1.5 1.5 0 0 1 12 11H7l-3 2.5V11a1.5 1.5 0 0 1-1.5-1.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>Claude Code</span>Incolla e premi Invio</p>
-            <div class="comando comando--claude"><pre id="cmd-sparring">Facciamo lo sparring: tre domande sul mio lavoro e un piccolo esperimento.</pre><button type="button" data-copia="cmd-sparring">Copia</button></div>
-          </div>
-          <div>
-            <ul class="lista-comandi" aria-label="Come si lavora da domani">
-              <li><code>/inizio nome</code><span>Riprende un progetto da dove l'hai lasciato. Se non esiste, Claude ti chiede se crearlo: anche un libro o una ricerca.</span></li>
-              <li><code>/fine</code><span>Chiude la sessione e salva un appunto per la prossima volta.</span></li>
-              <li><code>ricordami di…</code><span>Mette una cosa da fare nell'elenco, che ritrovi a ogni <code>/inizio</code>.</span></li>
-              <li><code>/aggiorna</code><span>Di solito non serve: Arturo si aggiorna da solo quando chiudi la sessione, e la barra in basso ti dice quando c'è una versione nuova. Serve se vuoi guardare prima o tornare indietro.</span></li>
-              <li><code>/segnala</code><span>Qualcosa di Arturo non va? Lo dici a chi lo mantiene, con una bozza scritta da Claude.</span></li>
-            </ul>
-          </div>
-          <div class="azioni"><button class="azione azione--piena" type="button" data-fatta="10">Fatto <svg viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 2v8M2.5 6.5 6 10l3.5-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
-        </div></div></div>
-      </div>
-    </li>
-  </ol>
-    <section class="traguardo" id="traguardo" aria-labelledby="t-traguardo" tabindex="-1">
-      <h3 id="t-traguardo">Arturo è acceso</h3>
-      <p>Da qui la strada la fai con lui. Quando non sai da dove ripartire, scrivi <code>/guidami</code>. Se qualcosa non torna, <code>/diagnosi</code> controlla Arturo e il progetto su cui lavori.</p>
-      <p>Com'è andata l'installazione? Dove ti sei fermato, cosa non era chiaro: <a href="../feedback/?tipo=installazione">dimmelo in due righe o a voce</a>.</p>
     </section>
   </main>
 </div>

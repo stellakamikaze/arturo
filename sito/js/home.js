@@ -3,8 +3,9 @@
   var d=document, root=d.documentElement;
   var riduci=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  /* lo stato della guida d'installazione: la stessa chiave di installa/, così la guida riparte da qui */
-  var CHIAVE='arturo-setup-1';
+  /* lo stato della guida d'installazione: la stessa chiave di installa/, così la guida riparte da qui.
+     Chiave nuova dal ritorno a cinque passi (1/11/2026): lo stato della guida in dieci passi non vale più. */
+  var CHIAVE='arturo-setup-2', TOTALE=5;
   function leggi(){try{var s=JSON.parse(localStorage.getItem(CHIAVE)||'null');return s&&typeof s==='object'?s:{}}catch(e){return {}}}
   function scrivi(s){try{localStorage.setItem(CHIAVE,JSON.stringify(s))}catch(e){}}
   var guida=leggi();
@@ -14,7 +15,9 @@
   /* le schede della finestra */
   var schede=[].slice.call(d.querySelectorAll('.scheda'));
   var nota=d.getElementById('palco-nota');
-  var note={casi:nota?nota.textContent:'',installa:'I primi quattro passi. Gli altri sei sono nella guida.'};
+  /* le carte fanno i primi passi della guida; l'ultima carta rimanda alla guida */
+  var carteN=d.querySelectorAll('.carta').length-1, PAROLE=['zero','uno','due','tre','quattro','cinque'];
+  var note={casi:nota?nota.textContent:'',installa:'I primi '+PAROLE[carteN]+' passi. Gli altri '+PAROLE[TOTALE-carteN]+' sono nella guida.'};
   function scegli(b,fuoco){
     schede.forEach(function(x){
       var su=x===b;
@@ -88,6 +91,7 @@
   function segna(n){
     var s=leggi(); s.os=os;
     var f=Array.isArray(s.fatte)?s.fatte:[];
+    n=Math.min(n,TOTALE);
     for(var k=1;k<=n;k++)if(f.indexOf(k)<0)f.push(k);
     s.fatte=f.sort(function(a,b){return a-b});
     if(!(s.ultima>=n))s.ultima=n;

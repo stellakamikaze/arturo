@@ -2,16 +2,18 @@
 (function(){
   var d=document, root=d.documentElement;
   root.classList.add('js');
-  var CHIAVE='arturo-setup-1', TOTALE=10;
+  // Chiave nuova dal 1/11/2026: la guida è passata da dieci a cinque passi, lo stato di prima non vale più.
+  var CHIAVE='arturo-setup-2', TOTALE=5;
   var attesa=null;
   var BASE='~/Documents/ClaudeCode';
   var riduci=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ---------- stato, solo in questo browser ---------- */
-  var stato={os:null,fatte:[],aperta:1,ultima:0,campi:{}};
+  var stato={os:null,fatte:[],aperta:1,ultima:0,campi:{}}, avevaStato=false;
   try{
     var letto=JSON.parse(localStorage.getItem(CHIAVE)||'null');
     if(letto&&typeof letto==='object'){
+      avevaStato=true;
       if(letto.os==='mac'||letto.os==='win')stato.os=letto.os;
       if(Array.isArray(letto.fatte))stato.fatte=letto.fatte.filter(function(n){return n>=1&&n<=TOTALE});
       if(letto.aperta>=0&&letto.aperta<=TOTALE)stato.aperta=letto.aperta;
@@ -63,7 +65,7 @@
     var punto=d.getElementById('punto');
     var fatte=stato.fatte.length;
     punto.firstChild.nodeValue=cur?('Passo '+cur+' di '+TOTALE):'Tutti i passi fatti';
-    punto.lastChild.textContent=fatte===0?'circa un\'ora in tutto':(fatte===1?'uno fatto':fatte+' fatti');
+    punto.lastChild.textContent=fatte===0?'cinque passi in tutto':(fatte===1?'uno fatto':fatte+' fatti');
     var qualcosa=fatte>0||Object.keys(stato.campi).some(function(k){var v=stato.campi[k];return typeof v==='string'&&v.trim()!==''});
     if(!attesa)d.getElementById('ricomincia').hidden=!qualcosa;
   }
@@ -179,7 +181,7 @@
         '    if vecchio in testo:\n'+
         '        testo = testo.replace(vecchio, nuovo, 1)\n'+
         '    elif nuovo not in testo:\n'+
-        '        print("Non trovo " + vecchio + " in settings.json: al passo 6 scrivi /setup in Claude Code e la sistemate insieme.")\n'+
+        '        print("Non trovo " + vecchio + " in settings.json: quando apri Claude Code scrivi /setup e la sistemate insieme.")\n'+
         'json.loads(testo)\n'+
         'p.write_bytes(testo.encode("utf-8"))\n'+
         'print("Fatto: le impostazioni")\n'+
@@ -199,7 +201,7 @@
     'r-azioni':"Le azioni tecniche le esegui tu: comandi, script, riavvii, verifiche. Chiedimi solo ciò che solo una persona può fare: password che conosco solo io, codici 2FA, pagamenti, invii a terzi, decisioni. Se un permesso ti blocca, non passarmi il comando: cerca un'altra via o chiedimi di allargare il permesso.",
     'r-brief':"Prima di ogni richiesta di lavoro riscrivi la mia richiesta come la eseguirai (il prompt), poi mostra un brief di massimo 8 righe: obiettivo, output, vincoli, fatto quando, assunzioni, da chiarire. Poi procedi.",
     'r-forma':"Frasi corte: 22 parole per un'istruzione, 28 per una descrizione. Voce attiva, niente gerundio né condizionale, una parola per concetto.",
-    'r-passo':"A lavoro finito l'ultima riga è «Prossimo passo:» con una sola azione e chi la fa, oppure «Niente da fare per te».",
+    'r-passo':"A lavoro finito l'ultima riga è \"Prossimo passo:\" con una sola azione e chi la fa, oppure \"Niente da fare per te\".",
     'r-visivo':"Un risultato visivo o in un'app esterna (documento, slide, grafica, pagina) è fatto solo quando l'hai aperto come lo vedrò io: dammi il link e lo screenshot che hai guardato."
   };
   function claudemd(){
@@ -218,12 +220,9 @@
     blocco('cmd-claudemd',p.join('\n'),!!chi,'manca il nome');
   }
 
-  function facoltative(){
-    var host=val('host');
-    blocco('cmd-host',host?('Aggiungi '+host+' agli host interni fidati di Arturo, nel file ~/.claude/hooks/hosts-interni.local, una voce per riga. Mostrami il file prima di scriverlo.'):'Scrivi il nome del server qui sopra.',!!host,'manca il nome del server');
-  }
-
-  function componi(){scelte();claudemd();facoltative()}
+  // Le scelte e il modulo per il CLAUDE.md stanno nella strada a mano (#a-mano) dal 1/11/2026.
+  // Il server fidato non ha più un modulo: lo propone /setup nella bozza, se serve.
+  function componi(){scelte();claudemd()}
 
   /* ---------- copia ---------- */
   [].forEach.call(d.querySelectorAll('[data-copia]'),function(b){
@@ -243,10 +242,16 @@
 
   /* ---------- avvio ---------- */
   sistema(stato.os,false);
-  var dal=/^#tappa-(\d+)$/.exec(location.hash);
+  // #tappa-5 portava alle scelte dopo lo script (guida in dieci passi, fino al 31/10/2026): chi arriva da
+  // quel link senza stato della guida nuova va alla strada a mano, che ha le scelte. #a-mano ci va sempre.
+  var aMano=location.hash==='#a-mano'||(location.hash==='#tappa-5'&&!avevaStato);
+  if(aMano&&location.hash!=='#a-mano'&&history.replaceState)history.replaceState(null,'','#a-mano');
+  var dal=aMano?null:/^#tappa-(\d+)$/.exec(location.hash);
   if(dal&&+dal[1]>=1&&+dal[1]<=TOTALE)stato.aperta=+dal[1];
   else if(stato.aperta&&stato.fatte.indexOf(stato.aperta)>=0&&prossima())stato.aperta=prossima();
   disegna();
+  // la piega del passo aperto sposta la pagina: l'ancora della strada a mano si raggiunge dopo
+  if(aMano){var mano=d.getElementById('a-mano');if(mano)setTimeout(function(){mano.scrollIntoView({block:'start',behavior:'instant'})},riduci?0:560)}
 
   /* ---------- la bandierina: dove ti eri fermato ---------- */
   (function(){

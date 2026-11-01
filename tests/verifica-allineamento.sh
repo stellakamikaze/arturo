@@ -29,10 +29,24 @@ BANCHI=(
   test_prodotto.py
   test_installa.py
   test_lista_ripristino.py
+  test_inizia.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
 done
+
+# I veleni (1/11/2026): la versione rotta deve uscire diversa da 0 col motivo atteso.
+veleno_rosso() {
+  local motivo=$1; shift
+  local log="$FIXTURE/veleno.log"
+  if python3 -B "$@" --avvelena >"$log" 2>&1; then
+    echo "FAIL: veleno verde: $*" >&2; cat "$log" >&2; exit 1
+  fi
+  grep -qF -- "$motivo" "$log" || { echo "FAIL: veleno rosso senza il motivo atteso ($motivo): $*" >&2; cat "$log" >&2; exit 1; }
+}
+veleno_rosso 'FAIL caso_innesto_sessione_viva: righe perse' "$REPO/tests/test_installa.py" --repo "$REPO"
+veleno_rosso 'mancano' "$REPO/tests/test_lista_ripristino.py" --repo "$REPO"
+veleno_rosso 'comandi diversi' "$REPO/tests/test_inizia.py" --repo "$REPO"
 
 BASELINE="$FIXTURE/baseline"
 mkdir -p "$BASELINE"

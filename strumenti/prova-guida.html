@@ -11,19 +11,21 @@ f.onload=function(){
   var w=f.contentWindow,d=w.document;
   if(fase===0){
     fase=1;
-    try{w.localStorage.removeItem('arturo-setup-1')}catch(e){}
+    try{w.localStorage.removeItem('arturo-setup-2')}catch(e){}
     if(!sessionStorage.getItem('pulito')){sessionStorage.setItem('pulito','1');w.location.reload();fase=0;return}
     ok(d.getElementById('tappa-1').classList.contains('aperta'),'passo 1 aperto all\'avvio');
     ok(w.getComputedStyle(d.getElementById('traguardo')).display==='none','Arturo è acceso nascosto all\'avvio');
+    ok(/Passo 1 di 5/.test(d.getElementById('punto').textContent),'il punto dice Passo 1 di 5');
+    ok(!!d.getElementById('a-mano')&&!!d.querySelector('#indice-passi a[href="#a-mano"]'),'#a-mano presente, anche nell\'indice');
     d.querySelector('[data-fatta="1"]').click();
     setTimeout(function(){
       ok(d.getElementById('tappa-2').classList.contains('aperta'),'Fatto, avanti apre il passo 2');
       ok(d.getElementById('tappa-1').classList.contains('fatta'),'passo 1 segnato fatto');
-      ok(/Passo 2 di 10/.test(d.getElementById('punto').textContent),'il punto dice Passo 2 di 10');
+      ok(/Passo 2 di 5/.test(d.getElementById('punto').textContent),'il punto dice Passo 2 di 5');
       var idx=d.querySelectorAll('#indice-passi button');
-      ok(idx.length===10&&idx[1].classList.contains('corrente'),'indice: 10 voci, la 2 corrente');
+      ok(idx.length===5&&idx[1].classList.contains('corrente'),'indice: 5 voci, la 2 corrente');
       var win=d.getElementById('os-win'); win.checked=true; win.dispatchEvent(new Event('change'));
-      var mac=d.querySelector('#tappa-2 .passi[data-solo="mac"]'), wi=d.querySelector('#tappa-2 .passi[data-solo="win"]');
+      var mac=d.querySelector('#tappa-1 .passi[data-solo="mac"]'), wi=d.querySelector('#tappa-1 .passi[data-solo="win"]');
       ok(w.getComputedStyle(mac).display==='none'&&w.getComputedStyle(wi).display!=='none','Windows nasconde i passi Mac e mostra i suoi');
       d.getElementById('f-nome').value='Maria Rossi'; d.getElementById('f-nome').dispatchEvent(new Event('input'));
       d.getElementById('f-email').value='maria@esempio.it'; d.getElementById('f-email').dispatchEvent(new Event('input'));
@@ -37,10 +39,10 @@ f.onload=function(){
       ok(!!b&&/fermato/.test(b.textContent),'dopo il ricaricamento la bandierina sta sul passo 2');
       ok(d.documentElement.getAttribute('data-os')==='win','dopo il ricaricamento resta Windows');
       var r=d.getElementById('riprendi'); ok(r&&!r.hidden&&/passo 2/.test(r.textContent),'Riprendi dal passo 2 visibile');
-      for(var n=2;n<=10;n++){var b=d.querySelector('[data-fatta="'+n+'"]');b.click();}
+      for(var n=2;n<=5;n++){var b=d.querySelector('[data-fatta="'+n+'"]');b.click();}
       setTimeout(function(){
       ok(w.getComputedStyle(d.getElementById('traguardo')).display!=='none','Arturo è acceso visibile a passi finiti');
-      try{w.localStorage.removeItem('arturo-setup-1')}catch(e){}
+      try{w.localStorage.removeItem('arturo-setup-2')}catch(e){}
       document.getElementById('esito').textContent=out.join('\n')+'\nTOTALE '+out.length;
       },400);
     },500);

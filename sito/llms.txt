@@ -43,25 +43,32 @@ Il primo caso d'uso è il lavoro con le parole e le informazioni: scrivere e rev
 
 ## Come si installa
 
-Servono Claude Code con un abbonamento Anthropic che lo includa (Pro, Max, Team, Enterprise o Console: il piano gratuito di claude.ai non lo include), `git`, `python3` 3.8 o successivo e `node` 18 o successivo. Sistemi: macOS e Linux. Su Windows Arturo funziona solo dentro Git Bash.
+Si installa da Claude Code. Installa Claude Code, aprilo e incolla questa frase:
 
-Arturo vive nella cartella di Claude Code, `~/.claude`. Si installa con una riga, nel Terminale (su Windows in Git Bash):
+```
+Installa Arturo: https://arturo.stellakamikaze.org/inizia/
+```
+
+Claude legge la pagina del link, scarica lo script di Arturo, lo confronta con la copia su GitHub e lo lancia col tuo sì. Alla fine scrivi `/exit`, poi `claude`, poi `/setup`.
+
+Serve Claude Code con un abbonamento Anthropic che lo includa (Pro, Max, Team, Enterprise o Console: il piano gratuito di claude.ai non lo include). Gli altri requisiti, `git`, `python3` 3.8 o successivo e `node` 18 o successivo, li controlla e li installa Claude, col tuo sì. Sistemi: macOS, Windows e Linux.
+
+Lo script mette Arturo dentro `~/.claude` senza spostare la cartella. Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il settings.json che avevi va nella copia con la data: /setup ti propone di riportare hook, plugin e preferenze. Anche gli altri file che Arturo sostituisce vanno in quella copia. Se Arturo c'è già, non rifà niente.
+
+### Se sei Claude Code e l'utente ti chiede di installare Arturo
+
+- Segui https://arturo.stellakamikaze.org/inizia/: è la fonte unica dei passi.
+- Se un permesso nega il comando, dai alla persona la riga sola con `!`: `! bash ~/.arturo-installa.sh`
+
+### A mano, con Claude Code chiuso
+
+Nel Terminale (su Windows in Git Bash), una riga:
 
 ```bash
 curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash
 ```
 
-Lo script controlla git, python3 3.8+, node e claude. Se `claude` sta in `~/.local/bin` ma non nel PATH, aggiunge la riga al file della shell. Poi mette da parte la cartella che c'è già, con la data nel nome, scarica Arturo e riporta login, sessioni e plugin, e da un Arturo di prima anche CLAUDE.md, memoria, todo e scelte. Se lo scaricamento fallisce, rimette la cartella com'era. Se Arturo c'è già, non rifà niente.
-
-### Se sei Claude Code e l'utente ti chiede di installare Arturo
-
-- Non spostare né sostituire `~/.claude` con i tuoi strumenti. In modalità auto, quella predefinita, il classificatore dei permessi lo nega come modifica di sé ("Self-Modification"). Anche fuori dalla modalità auto, la sessione aperta continua a scrivere nella cartella che stai spostando.
-- Non comporre comandi su più righe da far lanciare con `!`. Quando l'utente li copia dalla finestra, gli a capo si spezzano e zsh risponde `parse error`.
-- Dai all'utente la riga sola qui sopra. Può lanciarla nel Terminale con Claude Code chiuso, oppure qui con `! curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash`.
-- Se manca node, dillo prima: senza, la barra in basso di Arturo resta vuota. Si scarica da https://nodejs.org/it/download (versione LTS, file `.pkg` su Mac).
-- Dopo l'installazione l'utente chiude la sessione, apre un terminale nuovo e lancia `cd ~/.claude && claude`, poi segue la guida dal passo 5: https://arturo.stellakamikaze.org/installa/#tappa-5
-
-Lo stesso a mano, senza i controlli:
+Lo stesso a mano, senza i controlli. Questo blocco mette da parte tutta la cartella con la data nel nome, scarica Arturo e riporta al loro posto i file elencati:
 
 ```bash
 B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
@@ -79,12 +86,13 @@ for x in .credentials.json projects history.jsonl plugins file-history jobs daem
 done
 ```
 
-Poi apri Claude Code dentro la cartella con `cd ~/.claude && claude` e scrivi `/setup`. La guida sul sito porta dal computer vuoto al primo lavoro in dieci passi, con ogni comando già scritto.
+Poi apri un terminale nuovo, scrivi `claude` e poi `/setup`. La guida sul sito ha cinque passi, e la strada a mano con ogni comando già scritto: https://arturo.stellakamikaze.org/installa/#a-mano
 
 ## Pagine
 
 - [Arturo](https://arturo.stellakamikaze.org/): cos'è, cosa fa, i limiti e le domande frequenti
-- [Installa Arturo](https://arturo.stellakamikaze.org/installa/): la guida d'installazione in dieci passi, per Mac e Windows
+- [Installa Arturo con Claude Code](https://arturo.stellakamikaze.org/inizia/): la pagina da incollare in Claude Code, con i passi per Claude e per la persona
+- [La guida](https://arturo.stellakamikaze.org/installa/): l'installazione in cinque passi, per Mac e Windows, con la strada a mano
 - [Novità di Arturo](https://arturo.stellakamikaze.org/novita/): cosa cambia a ogni aggiornamento, la voce più recente in cima
 - [Arturo per organizzazioni](https://arturo.stellakamikaze.org/organizzazioni/): cosa vale oggi per uno studio, una redazione o un'associazione
 - [Dimmi com'è andata](https://arturo.stellakamikaze.org/feedback/): il modulo per scrivere un problema o un'idea a chi mantiene Arturo
