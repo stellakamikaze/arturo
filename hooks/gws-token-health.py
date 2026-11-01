@@ -7,9 +7,15 @@ credenziale dentro. Gli account che devono esserci in ogni caso (e vanno segnala
 mancano) si elencano, uno per riga, in hooks/gws-account.local, fuori da git: così il file
 è lo stesso nella config dell'autore e in Arturo (20/10/2026). Senza gws e senza cartelle tace.
 
-Stampa un avviso solo se almeno un account ha un token invalido o manca. Non blocca mai
-l'avvio sessione: exit 0 anche in caso di errori interni. I check girano in parallelo con
-timeout 8s ciascuno.
+L'hook non lancia mai `gws` dentro l'avvio: mostra l'ultimo esito in cache e, se la cache ha più di
+6 ore o un login è più recente, lancia un processo staccato (`--refresh`) che rifà i check. Il refresh
+ha un lock di 3 minuti, così due sessioni non ne lanciano due, e 30 s di limite per account: al limite
+chiude l'intero albero dei processi di gws (su Windows cmd, node e gws.exe) e scrive "non verificato".
+Dopo un login nuovo, o senza cache, l'esito arriva alla sessione successiva.
+
+Marcatori: "!" guasto (token invalido, refresh token assente, credenziali in chiaro), "-" account
+mancante, "?" non verificato (limite superato o check fallito, senza la riga fix). Non blocca mai
+l'avvio sessione: exit 0 anche in caso di errori interni.
 """
 from __future__ import annotations
 
@@ -20,6 +26,7 @@ import shutil
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as AttesaScaduta  # prima di python 3.11 non è il TimeoutError di serie
 from pathlib import Path
 
 CONFIG_DIR = Path.home() / ".config"
@@ -54,7 +61,25 @@ EXPECTED_ACCOUNTS = _account()
 # Il check vero gira in background (--refresh), fuori dal timeout di 12 s dell'hook: su Windows
 # un solo `gws auth status` impiega 5-9 s, e con 8 s di limite ogni account risultava in timeout,
 # nascondendo il token davvero scaduto di gws-sansecondo (verifica Balthasar, 31/10/2026).
-GWS_TIMEOUT_SEC = 30
+GWS_TIMEOUT_SEC = int(os.environ.get("ARTURO_GWS_TIMEOUT_SEC") or 30)  # la variabile serve ai banchi
+
+
+def _chiudi_albero(proc: subprocess.Popen) -> None:
+    """Chiude gws e i suoi figli. Su Windows lo shim npm è cmd -> node -> gws.exe, e kill() chiude solo
+    cmd: gli altri tengono aperte le pipe e communicate() resta appeso (1/11/2026, F31)."""
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)], capture_output=True, timeout=10,
+                           check=False)
+        else:
+            import signal
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    try:
+        proc.kill()
+    except OSError:
+        pass
 
 
 def check_account(alias: str, config_path: Path) -> tuple[str, str, str]:
@@ -73,25 +98,28 @@ def check_account(alias: str, config_path: Path) -> tuple[str, str, str]:
     env = os.environ.copy()
     env["GOOGLE_WORKSPACE_CLI_CONFIG_DIR"] = str(config_path)
 
+    kw = {"creationflags": 0x00000200} if os.name == "nt" else {"start_new_session": True}  # gruppo nuovo
     try:
-        result = subprocess.run(
-            [GWS_BIN, "auth", "status"],
-            capture_output=True,
-            text=True,
-            timeout=GWS_TIMEOUT_SEC,
-            env=env,
-        )
+        proc = subprocess.Popen([GWS_BIN, "auth", "status"], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace", env=env, **kw)
+    except (FileNotFoundError, OSError):
+        return alias, "warn", f"gws binary non eseguibile ({GWS_BIN})"
+    try:
+        stdout, _ = proc.communicate(timeout=GWS_TIMEOUT_SEC)
     except subprocess.TimeoutExpired:
         # Un timeout non dice che il token è guasto: si dichiara "non verificato".
+        _chiudi_albero(proc)
+        try:
+            proc.communicate(timeout=5)
+        except (subprocess.TimeoutExpired, OSError, ValueError):
+            pass
         return alias, "unverified", f"non verificato (auth status oltre {GWS_TIMEOUT_SEC}s)"
-    except FileNotFoundError:
-        return alias, "warn", f"gws binary non eseguibile ({GWS_BIN})"
 
-    if result.returncode != 0:
-        return alias, "warn", f"gws auth status exit {result.returncode}"
+    if proc.returncode != 0:
+        return alias, "warn", f"gws auth status exit {proc.returncode}"
 
     # gws stampa un banner su stderr/stdout prima del JSON
-    stdout = result.stdout
+    stdout = stdout or ""
     brace_idx = stdout.find("{")
     if brace_idx < 0:
         return alias, "warn", "output non contiene JSON"
@@ -124,19 +152,28 @@ LOCK_TTL_SEC = 180  # un refresh in corso da meno di 3 minuti non se ne lancia u
 def run_checks() -> str:
     """Esegue i check (fino a GWS_TIMEOUT_SEC per account, in parallelo) e restituisce l'avviso."""
     issues = []
-    with ThreadPoolExecutor(max_workers=len(EXPECTED_ACCOUNTS)) as pool:
-        futures = {
-            pool.submit(check_account, alias, path): alias
-            for alias, path in EXPECTED_ACCOUNTS.items()
-        }
-        for future in as_completed(futures):
+    pool = ThreadPoolExecutor(max_workers=len(EXPECTED_ACCOUNTS))
+    futures = {
+        pool.submit(check_account, alias, path): alias
+        for alias, path in EXPECTED_ACCOUNTS.items()
+    }
+    finiti = set()
+    try:
+        # Seconda rete: un check che non torna entro il limite vale "non verificato" (1/11/2026, F31).
+        for future in as_completed(futures, timeout=GWS_TIMEOUT_SEC + 15):
+            finiti.add(future)
             try:
-                alias, status, detail = future.result(timeout=GWS_TIMEOUT_SEC + 5)
+                alias, status, detail = future.result()
             except Exception as exc:
                 alias = futures[future]
                 status, detail = "unverified", f"check fallito: {exc}"
             if status != "ok":
                 issues.append((alias, status, detail))
+    except AttesaScaduta:
+        for future, alias in futures.items():
+            if future not in finiti:
+                issues.append((alias, "unverified", "non verificato (il check non è tornato)"))
+    pool.shutdown(wait=False, cancel_futures=True)
     if not issues:
         return ""
     issues.sort(key=lambda x: x[0])

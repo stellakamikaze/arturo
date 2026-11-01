@@ -159,6 +159,7 @@ BANCHI=(
   test_lavoro_proprio_2026_10_31.py
   test_gate_lucchetto_2026_10_31.py
   test_revisione_2026_11_01.py
+  test_gws_token_health.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -345,6 +346,9 @@ python3 -B "$REPO/tests/test_memoria.py" --repo "$REPO" --avvelena
 python3 -B "$REPO/tests/test_lavoro_proprio_2026_10_31.py" --repo "$REPO" --avvelena
 # I buchi della review del 1/11/2026: con le guardie di e80e43d ogni gruppo RV deve essere rosso.
 python3 -B "$REPO/tests/test_revisione_2026_11_01.py" --repo "$REPO" --avvelena
+# Il controllo dei token gws all'avvio (1/11/2026): un timeout che vale "ok" o un refresh lanciato male
+# devono far rossi GT01 e GT05.
+python3 -B "$REPO/tests/test_gws_token_health.py" --repo "$REPO" --avvelena
 
 # Il server della telemetria (server/logica.js) con un archivio e una posta finti.
 node "$REPO/server/test.mjs"

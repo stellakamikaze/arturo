@@ -12,6 +12,24 @@ modo di lavorare.
 
 ---
 
+## 2026-11-01 — Le guardie del 31/10 chiudono i buchi trovati dalla revisione
+
+**Cosa cambia**: il giorno dopo il cambio che ha tolto le conferme sul tuo lavoro, una revisione ha
+cercato i modi per far passare un rischio vero senza conferma. Ne ha trovati 38, e ora sono chiusi.
+Qualche esempio. Uno stash conta come salvato solo se il comando salva proprio quello stash, e
+`git stash clear` chiede. Un file caricato con `curl -d '@file'` chiede come `curl -d @file`. Un link
+`mailto:` chiede anche se sta in una variabile. Un commit con un segreto chiede anche dopo un `cd -`.
+Leggere una chiave privata in `~/.ssh` chiede, qualunque nome abbia. `rm -rf /*`, `rm -rf ~/*` e la
+cancellazione del disco intero su Windows sono bloccati.
+
+**Cosa resta uguale**: le conferme tolte il 31/10 sul tuo lavoro restano tolte. Un comando come
+`find . | xargs grep -n rm` ora tace: prima chiedeva per la parola `rm` nel testo cercato.
+
+**Il principio dietro**: togliere una conferma vale solo se il rischio vero resta coperto, e lo si
+prova cercando apposta il modo di aggirarla.
+
+---
+
 ## 2026-10-31 — Su Windows le guardie leggono il comando intero
 
 **Cosa cambia**: se usi Arturo su Windows, le guardie leggono un comando su più righe come lo legge
@@ -37,7 +55,7 @@ link `mailto:` aperto da un programma, un segreto in un commit, la cancellazione
 stash che esistono solo lì. In modalità auto Arturo dice al classificatore di Claude Code quale
 lavoro è tuo: le tue macchine, i tuoi repository, i deploy delle tue app, la lettura del web. Le
 regole che negavano tutta una famiglia di comandi sono diventate più strette: per esempio leggere
-`~/.ssh/config` si può, leggere una chiave no.
+`~/.ssh/config` si può, leggere una chiave no (dal 1/11 anche una chiave con un nome libero).
 
 **Se una conferma ti sembra inutile**: chiedi a Claude da dove viene. Una conferma di una guardia si
 allenta coi file `.local` in `hooks/`. Un diniego del classificatore si allarga con una riga in
