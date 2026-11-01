@@ -81,17 +81,6 @@ DANGEROUS = [
     (r"\b(bash|sh|zsh|fish|python3?|perl|ruby|node)\b\s+-c\s+[\"']?\$\(\s*(curl|wget|fetch)\b",
      "interprete -c su output di download remoto"),
     (r"\bsudo\s+rm\s+-rf?\s+(/|~|\$HOME|\*)", "rm ricorsivo con sudo su root/home/wildcard"),
-    # rm ricorsivo sulla radice o sulla home intera (1/11/2026, F33): i deny `rm -rf /\\*` di settings.json
-    # sono confronti esatti nel matcher di Claude Code e non scattavano su `rm -rf /*`.
-    (r"(?<![\w.-])rm\s+(?:-[a-zA-Z]+\s+|--[a-z-]+\s+)*(?:-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)"
-     r"(?:\s+-[a-zA-Z]+|\s+--[a-z-]+)*\s+(?:--\s+)?[\"']?(?:/|~/?|\$HOME/?|\$\{HOME\}/?)\*?[\"']?(?=\s|$|[;&|)])",
-     "rm ricorsivo sulla radice o sulla home intera"),
-    # Lo stesso su Windows: del /s, rd /s e format sul disco intero (F35).
-    (r"(?<![\w.-])(?:del|erase)\s+(?:/[a-zA-Z]\s+)*/s(?:\s+/[a-zA-Z])*\s+[\"']?[a-zA-Z]:[\\/]*(?:\*(?:\.\*)?)?[\"']?(?=\s|$|[;&|)])",
-     "cancellazione ricorsiva del disco intero"),
-    (r"(?<![\w.-])(?:rd|rmdir)\s+(?:/[a-zA-Z]\s+)*/s(?:\s+/[a-zA-Z])*\s+[\"']?[a-zA-Z]:[\\/]*[\"']?(?=\s|$|[;&|)])",
-     "cancellazione ricorsiva del disco intero"),
-    (r"(?<![\w.-])format(?:\.com)?\s+[a-zA-Z]:(?=[\s\\/]|$)", "format filesystem"),
     # `bw export` anche con opzioni e valori davanti (`bw --session X export`):
     # il deny di settings.json copre solo la forma letterale. `--help` non esporta
     # niente: resta libero (tre falsi positivi il 12/9/2026).
@@ -159,8 +148,8 @@ UNLOCK_RE = re.compile(
 # (8/9/2026, la config dell'autore chiedeva a ogni `grep Host ~/.ssh/config`).
 _SSH_SEGRETO = (r"\.ssh/(?!(?:config|known_hosts(?:\.old)?|authorized_keys)(?![\w.-])|[^\s'\"/]*\.pub(?![\w.-]))"
                 r"|(?:^|/)id_(?:rsa|ed25519|ecdsa|dsa)\b(?!\.pub\b)")
-_SSH_LETTURA = re.compile(r"(?:^|/)\.ssh/(?!(?:config|known_hosts(?:\.old)?|authorized_keys)$|[^/]*\.pub$)[^/]+$",
-                          re.IGNORECASE)
+_SSH_LETTURA = re.compile(r"(?:^|/)\.ssh/(?!config\.d/)(?:[^/]+/)*"
+                          r"(?!(?:config|known_hosts(?:\.old)?|authorized_keys)$|[^/]*\.pub$)[^/]+$", re.IGNORECASE)
 SECRET_PATH_RE = re.compile(
     r"(" + _SSH_SEGRETO + r"|\.aws/credentials|\.gnupg/|"
     # I file col solo nome (token_cache.json...) contano come argomento o in un path, non
@@ -503,7 +492,26 @@ def _assegnazioni(command):
     out = {}
     for _, (nome, valore) in sorted(per_posizione.items()):
         out[nome] = None if (nome in out and out[nome] != valore) else valore
+    # Legata anche fuori da NOME=valore (read, printf -v, for, mapfile, declare, +=): il valore dipende dal
+    # punto del comando, e `read S <<< ~/Documents; cd "$S"; S=/tmp` leggeva il cd come /tmp (review del 1/11).
+    for nome in _legate_altrove(command):
+        if nome in out:
+            out[nome] = None
     return out
+
+
+_LEGA_ELENCO = re.compile(r"(?:^|[\s;&|(])(?:read|mapfile|readarray|declare|typeset|local|export|readonly)\b([^\n;&|)]*)")
+_LEGA_UNA = re.compile(r"\bprintf\s+(?:-\S+\s+)*-v\s*([A-Za-z_]\w*)|(?:^|[\s;&|(])(?:for|select)\s+([A-Za-z_]\w*)"
+                       r"|\bgetopts\s+\S+\s+([A-Za-z_]\w*)|(?<![\w$])([A-Za-z_]\w*)\+=")
+
+
+def _legate_altrove(command):
+    nomi = set()
+    for m in _LEGA_ELENCO.finditer(command):
+        nomi.update(re.findall(r"(?<![\w$=/.-])([A-Za-z_]\w*)(?![\w=])", m.group(1)))
+    for m in _LEGA_UNA.finditer(command):
+        nomi.update(g for g in m.groups() if g)
+    return nomi
 
 
 def _expand_vars(t):
@@ -862,7 +870,7 @@ def _ramo_altrove(repo, ramo, cancellati=frozenset()) -> bool:
 
 def _lunga(lunghe, opzione) -> bool:
     """git accetta l'inizio non ambiguo di un'opzione lunga: `--forc` è `--force` (1/11/2026, F13)."""
-    return any(len(o.split("=", 1)[0]) > 3 and opzione.startswith(o.split("=", 1)[0]) for o in lunghe)
+    return any(len(o.split("=", 1)[0]) >= 3 and opzione.startswith(o.split("=", 1)[0]) for o in lunghe)
 
 
 def _branch_cancella(resto):
@@ -942,10 +950,15 @@ def _git_perde_lavoro(command, cwd):
             return ("git-stash", "git stash clear cancella tutti gli stash: le modifiche dentro non stanno in "
                     "nessun commit. Salvali prima con `git stash show -p stash@{N} > file.patch`, oppure conferma.")
         if sotto == "stash" and resto[:1] == ["drop"]:
-            if _stash_ref(_senza_redirezioni(resto[1:])) not in salvati:
+            ref = _stash_ref(_senza_redirezioni(resto[1:]))
+            if ref not in salvati:
                 return ("git-stash", "git stash drop cancella uno stash che lo stesso comando non salva prima: "
                         "le modifiche dentro non stanno in nessun commit. Salvalo prima con "
                         "`git stash show -p stash@{N} > file.patch` (lo stesso stash del drop), oppure conferma.")
+            # Dopo il drop gli stash sotto salgono di un posto: stash@{1} diventa stash@{0} (review del 1/11).
+            salvati.discard(ref)
+            if isinstance(ref, int):
+                salvati = {k - 1 if isinstance(k, int) and k > ref else k for k in salvati}
             continue
         if sotto != "branch":
             continue
@@ -1198,7 +1211,14 @@ def _reale(p):
         # `C:\tmp`, che non è il temporaneo che la shell intende.
         if os.path.normcase(vero) == os.path.normcase(os.path.normpath(os.path.abspath(testa))):
             return p
-        return os.path.normpath(os.path.join(vero, *coda))
+        reale = os.path.normpath(os.path.join(vero, *coda))
+        # Su macOS realpath porta /var e /tmp sotto /private: la home e i progetti tornano nella forma con
+        # cui li conoscono le regole (RV02 rosso su macOS il 1/11/2026, verde su Windows senza link).
+        casa = os.path.normpath(_home())
+        casa_vera = os.path.realpath(casa)
+        if casa_vera != casa and (reale == casa_vera or reale.startswith(casa_vera + os.sep)):
+            reale = casa + reale[len(casa_vera):]
+        return reale
     except (OSError, ValueError):
         return p
 
@@ -1216,6 +1236,61 @@ def _sotto_link_nuovo(p, command, cwd):
             continue
         link = _resolve(posizionali[-1], os.path.normpath(cwd))
         if link and (p == link or p.startswith(link.rstrip("/\\") + os.sep) or p.startswith(link.rstrip("/") + "/")):
+            return True
+    return False
+
+
+# La radice, la home intera e il disco intero (1/11/2026, F33 F35 e review delle correzioni): si giudicano
+# sui programmi del comando, non sul testo, così `grep -n "rm -rf /" f` e "Format A:" in una stringa tacciono.
+_RADICE_RM = re.compile(r"^(?:/|~/?|\$HOME/?|\$\{HOME\}/?)\*?$")
+_DISCO_DEL = re.compile(r"^[a-zA-Z]:[\\/]*(?:\*(?:\.\*)?)?$")
+_DISCO_RD = re.compile(r"^[a-zA-Z]:[\\/]*$")
+
+
+def _distruzione_totale(command, profondita=0):
+    """Il motivo del blocco se il comando cancella la radice, la home o un disco intero; None altrimenti."""
+    for nome, args in _forma().programmi(command):
+        nome = nome.lower()
+        if nome.endswith(".exe"):
+            nome = nome[:-4]
+        opzioni = [a.lower() for a in args if a.startswith("/") and len(a) == 2]
+        if nome == "cmd" and args and args[0].lower() in ("/c", "//c", "/k", "//k") and profondita < 3:
+            motivo = _distruzione_totale(" ".join(a.replace("\\", "\\\\") for a in args[1:]), profondita + 1)
+            if motivo:
+                return motivo
+            continue
+        if nome == "rm" and _forma()._ricorsivo(args) and any(_RADICE_RM.match(a) for a in args if not a.startswith("-")):
+            return "rm ricorsivo sulla radice o sulla home intera"
+        if nome in ("del", "erase") and "/s" in opzioni and any(_DISCO_DEL.match(a) for a in args):
+            return "cancellazione ricorsiva del disco intero"
+        if nome in ("rd", "rmdir") and "/s" in opzioni and any(_DISCO_RD.match(a) for a in args):
+            return "cancellazione ricorsiva del disco intero"
+        if nome == "format" and any(re.fullmatch(r"[a-zA-Z]:", a) for a in args):
+            return "format filesystem"
+    return None
+
+
+# Una destinazione del push riscritta nello stesso comando (review delle correzioni del 1/11/2026): git legge
+# le chiavi senza badare alle maiuscole, `git -C dir -c …` e GIT_CONFIG_* sfuggivano ai deny di settings.json.
+_CHIAVE_DESTINAZIONE = re.compile(r"^(?:remote\..+\.(?:url|pushurl)|url\..+\.(?:push)?insteadof)=", re.IGNORECASE)
+_GIT_CONFIG_AMBIENTE = re.compile(r"\bGIT_CONFIG_(?:COUNT|KEY_\d+|PARAMETERS)=", re.IGNORECASE)
+
+
+def _push_riscritto(command) -> bool:
+    for nome, args in _forma().programmi(command):
+        if nome != "git":
+            continue
+        i, riscritto = 0, False
+        while i < len(args) and args[i].startswith("-"):
+            a = args[i]
+            if a == "-c" and i + 1 < len(args) and _CHIAVE_DESTINAZIONE.match(args[i + 1]):
+                riscritto = True
+            elif a.startswith("-c") and len(a) > 2 and _CHIAVE_DESTINAZIONE.match(a[2:]):
+                riscritto = True
+            elif a.startswith("--config-env"):
+                riscritto = True
+            i += 2 if a in _GIT_OPZIONI_CON_VALORE else 1
+        if i < len(args) and args[i] == "push" and (riscritto or _GIT_CONFIG_AMBIENTE.search(command)):
             return True
     return False
 
@@ -1308,7 +1383,7 @@ def main() -> int:
     # coprono solo i nomi noti, e `Read` in allow salta il classificatore (1/11/2026, F01).
     if data.get("tool_name") == "Read":
         percorso = str((data.get("tool_input") or {}).get("file_path") or "")
-        if _SSH_LETTURA.search(percorso.replace("\\", "/")):
+        if _SSH_LETTURA.search(re.sub(r"/+", "/", percorso.replace("\\", "/"))):
             return _ask("segreto",
                 "Lettura di un file in ~/.ssh che non è config, known_hosts, authorized_keys o una chiave "
                 "pubblica: è probabilmente una chiave privata, e il contenuto finirebbe nel contesto. "
@@ -1338,6 +1413,16 @@ def main() -> int:
                     "operazioni distruttive irreversibili.\n"
                 )
                 return 2
+        try:
+            motivo = _distruzione_totale(command)
+        except Exception:
+            motivo = None
+        if motivo:
+            sys.stderr.write(
+                f"Bloccato: questo comando sembra {motivo}. L'assistente non esegue operazioni "
+                "distruttive irreversibili, e non proporre all'utente di eseguirlo a mano.\n"
+            )
+            return 2
 
     # 2) Scrittura shell su config/hook di Claude Code -> ask (auto-modifica guardie)
     if CONFIG_WRITE_RE.search(testo) or _writes_config(testo, cwd):
@@ -1505,12 +1590,24 @@ def main() -> int:
             "tornano indietro. Prova prima con `git clean -n` per vedere cosa toglie."
         )
 
+    # 8-bis) push verso una destinazione riscritta nello stesso comando -> ask
+    try:
+        riscritto = _push_riscritto(command)
+    except Exception:
+        riscritto = bool(re.search(r"\bpush\b", command) and re.search(r"(?i)insteadof|\.url=|config-env|GIT_CONFIG_", command))
+    if riscritto:
+        return _ask("git-destinazione",
+            "git push con la destinazione riscritta nello stesso comando (git -c remote.<nome>.url=, "
+            "insteadOf, pushurl, --config-env o GIT_CONFIG_*): il contenuto andrebbe a un indirizzo che il "
+            "repository non ha configurato. Conferma solo se l'indirizzo è tuo."
+        )
+
     # 9) git branch -D e git stash drop -> ask, solo se il lavoro non esiste altrove (31/10/2026).
     try:
         perde = _git_perde_lavoro(command, cwd)
     except Exception:
         perde = ("git-ramo", "git branch -D o git stash drop che la guardia non riesce a leggere: "
-                 "controlla prima di confermare.") if re.search(r"branch\s.*(-[a-zA-Z]*D|--de)|stash\s+(drop|clear)", command) else None
+                 "controlla prima di confermare.") if re.search(r"branch\s.*(-[a-zA-Z]*D|--d)|stash\s+(drop|clear)", command) else None
     if perde and perde[0] == "git-stash":
         return _ask("git-stash", perde[1])
     if perde:

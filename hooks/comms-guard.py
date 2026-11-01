@@ -85,20 +85,31 @@ SEND_ENDPOINTS = re.compile(
 
 # I programmi che aprono un link, quindi anche un mailto: che prepara un invio.
 _MAILTO_APERTO = re.compile(
-    r"(?:\b(?:open|xdg-open|gio|kde-open|gnome-open|wslview|start|explorer(?:\.exe)?|Start-Process|saps)\b"
-    r"|\brundll32(?:\.exe)?\s+url\.dll,\s*FileProtocolHandler\b|\bopen\s+location\b"
+    r"(?:\b(?:open(?!\s*\()|xdg-open|gio|kde-open|gnome-open|wslview|start|explorer(?:\.exe)?|Start-Process|saps)\b"
+    r"|\brundll32(?:\.exe)?\s+(?:url\.dll,\s*FileProtocolHandler|shell32\.dll,\s*ShellExec_RunDLL)\b"
+    r"|\bopen\s+location\b"
     r"|\bpython[0-9.]*\s+-m\s+webbrowser\b|\bwebbrowser\.open(?:_new(?:_tab)?)?\s*\(|\bos\.startfile\s*\()"
     r"[^;&|\n]*mailto:",
     re.IGNORECASE,
 )
-# Un apritore in un punto qualunque e un mailto: in un altro (1/11/2026, F23): `U="mailto:…"; open "$U"`,
-# `printf 'mailto:…' | xargs open`, `u='mailto:…'; os.startfile(u)` aprivano la bozza senza conferma.
-_APRITORE = re.compile(
-    r"\b(?:open|xdg-open|gio|kde-open|gnome-open|wslview|start|explorer(?:\.exe)?|Start-Process|saps)\b"
-    r"|\brundll32(?:\.exe)?\s+(?:url\.dll|shell32\.dll)\b|\bopen\s+location\b"
-    r"|\bpython[0-9.]*\s+-m\s+webbrowser\b|\bwebbrowser\.open|\bos\.startfile\b",
-    re.IGNORECASE,
-)
+# Un mailto: che arriva all'apritore per un'altra strada (1/11/2026, F23): `U="mailto:…"; open "$U"`,
+# `printf 'mailto:…' | xargs open`, `u='mailto:…'; os.startfile(u)` aprivano la bozza senza conferma. Conta
+# solo se l'apritore riceve davvero quel valore: `sed … mailto: … && open index.html` o `open('x').read()`
+# di python con un mailto: nel testo non aprono nessuna bozza (review delle correzioni del 1/11/2026).
+_APRITORE_NOME = (r"(?:open(?!\s*\()|xdg-open|gio|kde-open|gnome-open|wslview|start|explorer(?:\.exe)?"
+                  r"|Start-Process|saps)")
+_VALORE_MAILTO = re.compile(r"""([A-Za-z_]\w*)\s*=\s*["']?[^"'\s;]*mailto:""", re.IGNORECASE)
+_PIPE_MAILTO = re.compile(r"mailto:[^\n]*\|\s*xargs\s+(?:-\S+\s+)*(?:open|xdg-open|start|gio|wslview)\b", re.IGNORECASE)
+
+
+def _mailto_indiretto(command: str) -> bool:
+    for nome in dict.fromkeys(_VALORE_MAILTO.findall(command)):
+        n = re.escape(nome)
+        if re.search(r"(?<![\w-])" + _APRITORE_NOME + r"\b[^;&|\n]*\$\{?" + n + r"\b", command, re.IGNORECASE):
+            return True
+        if re.search(r"\b(?:os\.startfile|webbrowser\.open\w*)\s*\(\s*" + n + r"\b", command):
+            return True
+    return bool(_PIPE_MAILTO.search(command))
 _HELP_ESENTI = frozenset(("gws", "gh"))
 # Una sostituzione gira prima del programma: `gws --help $(gws gmail +send …)` invia (F24).
 _SOSTITUZIONE = re.compile(r"\$\(|`|<\(|>\(")
@@ -181,8 +192,7 @@ def main() -> int:
         return 0
 
     command = _senza_help(command)
-    aperto = _MAILTO_APERTO.search(command) or (re.search(r"mailto:", command, re.IGNORECASE)
-                                                and _APRITORE.search(command))
+    aperto = _MAILTO_APERTO.search(command) or _mailto_indiretto(command)
     matched = "mailto: (apre un invio)" if aperto else None
     for pattern, label in ([] if matched else SEND_BINARIES):
         if pattern == _SMTP_URL:

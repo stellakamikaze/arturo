@@ -216,8 +216,10 @@ _FINE_ARG = r'''(?:\s|["'],\s*["']?)'''
 # -F e --form caricano un file solo con `nome=@file` o `nome=<file` (31/10/2026): `-F "email=a@b.it"` è un
 # campo di testo, e `-F 'testo=<file'` legge il file quanto `@`.
 UPLOAD_FILE = re.compile(
-    r'(?:-F' + _FINE_ARG + r'*[^\s=]*=[@<]|--form' + _FINE_ARG + r'*[^\s=]*=[@<]|-T' + _FINE_ARG
-    + r'|--upload-file|--(?:post|body)-file|-d' + _FINE_ARG + r'''*["']?@|--data[a-z-]*''' + _FINE_ARG
+    # -d, -F e -T anche in coda a un gruppo di opzioni corte: `curl -sd @file` (review del 1/11/2026).
+    r'(?:(?<![\w-])-[A-Za-z0-9]*F' + _FINE_ARG + r'*[^\s=]*=[@<]|--form' + _FINE_ARG + r'*[^\s=]*=[@<]'
+    + r'|(?<![\w-])-[A-Za-z0-9]*T' + _FINE_ARG
+    + r'|--upload-file|--(?:post|body)-file|(?<![\w-])-[A-Za-z0-9]*d' + _FINE_ARG + r'''*["']?@|--data[a-z-]*''' + _FINE_ARG
     + r'''*["']?@|--json''' + _FINE_ARG + r'''*["']?@|--url-query''' + _FINE_ARG + r'''*["']?@)'''
 )
 # `curl -d '@secret'` e `--json @f` caricano il file quanto `-d @secret` (1/11/2026, F25).
