@@ -154,7 +154,7 @@ PATTERN_DEV_TCP='[<>]&?[[:space:]]*/dev/(tcp|udp)/'
 # senza -f (20/10/2026, #3525).
 # git branch -D e git stash drop: dal 31/10/2026 li giudica block-dangerous (tace se il lavoro esiste
 # altrove), non più un deny. Partono prima dello skip git-puro, come git clean.
-PATTERN_GIT_PERDE='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?(branch[[:space:]]([^|;&]*[[:space:]])?(-[[:alpha:]]*D|--delete|-[[:alpha:]]*d)|stash[[:space:]]+drop)'
+PATTERN_GIT_PERDE='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?(branch[[:space:]]([^|;&]*[[:space:]])?(-[[:alpha:]]*D|--de|-[[:alpha:]]*d)|stash[[:space:]]+(drop|clear))'
 PATTERN_GIT_CLEAN='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?clean[[:space:]]([^|;&]*[[:space:]])?(-[[:alpha:]]*f|--f)|(^|[^[:alnum:]_.-])git[[:space:]][^|;&]*[cC]lean\.[rR]equire[fF]orce'
 # data-guard: operazioni DATI irreversibili non coperte da block-dangerous
 # (SQL DROP/TRUNCATE/DELETE FROM, docker compose down -v, rsync --delete remoto, overwrite .db).

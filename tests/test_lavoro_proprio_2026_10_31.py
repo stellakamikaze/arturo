@@ -297,8 +297,8 @@ def test_lp05(repo: Path) -> int:
         casi = [
             ("ramo contenuto in main e in origin/main", "git branch -D pushato", "silent"),
             ("stash salvato come patch prima", "git stash show -p > s.patch && git stash drop", "silent"),
-            ("stash salvato in un ramo prima", "git stash branch salva && git stash drop", "silent"),
-            # Devono chiedere.
+            # Devono chiedere. `git stash branch` toglie già lo stash: il drop dopo ne butta un altro (1/11/2026).
+            ("stash branch e poi drop", "git stash branch salva && git stash drop", "ask"),
             ("ramo con un commit che non sta altrove", "git branch -D locale", "ask"),
             ("-d --force vale -D", "git branch -d --force locale", "ask"),
             ("stash drop da solo", "git stash drop", "ask"),

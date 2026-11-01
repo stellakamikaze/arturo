@@ -767,46 +767,107 @@ def _git_esegui(repo, *argomenti):
     return r.stdout if r.returncode == 0 else None
 
 
-def _ramo_altrove(repo, ramo) -> bool:
-    """Vero se i commit di `ramo` stanno in un ramo remoto o in un altro ramo locale."""
-    uscita = _git_esegui(repo, "branch", "-a", "--contains", ramo, "--format=%(refname)")
+def _ramo_altrove(repo, ramo, cancellati=frozenset()) -> bool:
+    """Vero se i commit di `ramo` stanno in un ramo remoto o in un altro ramo locale che lo stesso
+    comando non cancella. `--contains` riceve il ref pieno: un tag omonimo non lo devia (1/11/2026, F09)."""
+    proprio = "refs/heads/" + ramo
+    uscita = _git_esegui(repo, "branch", "-a", "--contains", proprio, "--format=%(refname)")
     if uscita is None:
         return False
-    proprio = "refs/heads/" + ramo
-    return any(r.strip() and r.strip() != proprio for r in uscita.splitlines())
+    esclusi = {proprio} | {"refs/heads/" + r for r in cancellati}
+    return any(r.strip() and r.strip() not in esclusi for r in uscita.splitlines())
+
+
+def _lunga(lunghe, opzione) -> bool:
+    """git accetta l'inizio non ambiguo di un'opzione lunga: `--forc` è `--force` (1/11/2026, F13)."""
+    return any(len(o.split("=", 1)[0]) > 3 and opzione.startswith(o.split("=", 1)[0]) for o in lunghe)
+
+
+def _branch_cancella(resto):
+    """(forzato, rami) di un `git branch …`: forzato se -D, -d -f, --delete --force o i loro prefissi."""
+    corte = "".join(a[1:] for a in resto if a.startswith("-") and not a.startswith("--"))
+    lunghe = [a for a in resto if a.startswith("--")]
+    cancella = "d" in corte or "D" in corte or _lunga(lunghe, "--delete")
+    forza = "D" in corte or (cancella and ("f" in corte or _lunga(lunghe, "--force")))
+    return forza, [a for a in resto if not a.startswith("-")]
+
+
+def _stash_ref(args):
+    """La chiave dello stash nominato negli argomenti: `stash@{N}` o `N` danno N, nessuno dà 0."""
+    for a in args:
+        if a.startswith("-"):
+            continue
+        m = re.fullmatch(r"stash@\{(\d+)\}|(\d+)", a)
+        if m:
+            return int(m.group(1) or m.group(2))
+        return a  # un ref che non è uno stash numerato: chiave a sé
+    return 0
+
+
+def _senza_redirezioni(args):
+    """Gli argomenti senza le redirezioni (`> f`, `>f`, `2>/dev/null`) e il loro bersaglio."""
+    fuori, salta = [], False
+    for a in args:
+        if salta:
+            salta = False
+        elif _REDIREZIONE_SOLA_RE.match(a):
+            salta = True
+        elif not _REDIREZIONE_RE.match(a):
+            fuori.append(a)
+    return fuori
 
 
 def _git_perde_lavoro(command, cwd):
     """(regola, motivo) se il comando cancella un ramo con commit che non stanno altrove, o uno stash
-    che lo stesso comando non salva prima. None se non perde niente."""
-    salvato = False
-    for nome, args, cds in _programmi_con_cd(command):
+    che lo stesso comando non salva prima. None se non perde niente.
+
+    Uno stash conta come salvato solo se lo stesso comando ne scrive la patch su un file
+    (`git stash show -p [ref] > file`) o lo tagga (`git tag nome stash@{N}`), e solo per quel ref
+    (1/11/2026, F11 F12). `git stash branch` toglie già da solo lo stash che applica: il drop che segue
+    ne butta un altro (F37). `git stash clear` li butta tutti. I rami cancellati dallo stesso comando
+    non si coprono a vicenda (F10)."""
+    programmi = list(_programmi_con_cd(command))
+    cancellati = set()
+    for nome, args, _cds in programmi:
+        if nome == "git":
+            _c, sotto, resto = _git_parti(args)
+            if sotto == "branch":
+                forza, rami = _branch_cancella(resto)
+                if forza:
+                    cancellati.update(rami)
+    salvati = set()
+    for nome, args, cds in programmi:
         if nome != "git":
             continue
         cartella, sotto, resto = _git_parti(args)
-        if sotto == "tag" or (sotto == "stash" and resto[:1] == ["branch"]):
-            salvato = True
+        if sotto == "tag":
+            nomi = [a for a in _senza_redirezioni(resto) if not a.startswith("-")]
+            elenca = any(a in ("-l", "--list", "-d", "--delete", "-v", "--verify") for a in resto)
+            if not elenca and len(nomi) >= 2 and re.fullmatch(r"stash@\{\d+\}", nomi[1]):
+                salvati.add(_stash_ref(nomi[1:2]))
             continue
         if sotto == "stash" and resto[:1] == ["show"]:
+            patch = any(a in ("-p", "--patch") or (re.match(r"^-[A-Za-z]+$", a) and "p" in a) for a in resto[1:])
             destinazioni = []
             for i, a in enumerate(resto):
                 m = re.match(r"^1?>>?(.*)$", a)
                 if m:
                     destinazioni.append(m.group(1) or (resto[i + 1] if i + 1 < len(resto) else ""))
-            if any(x and x != "/dev/null" for x in destinazioni):
-                salvato = True
+            if patch and any(x and x != "/dev/null" for x in destinazioni):
+                salvati.add(_stash_ref(_senza_redirezioni(resto[1:])))
             continue
+        if sotto == "stash" and resto[:1] == ["clear"]:
+            return ("git-stash", "git stash clear cancella tutti gli stash: le modifiche dentro non stanno in "
+                    "nessun commit. Salvali prima con `git stash show -p stash@{N} > file.patch`, oppure conferma.")
         if sotto == "stash" and resto[:1] == ["drop"]:
-            if not salvato:
+            if _stash_ref(_senza_redirezioni(resto[1:])) not in salvati:
                 return ("git-stash", "git stash drop cancella uno stash che lo stesso comando non salva prima: "
                         "le modifiche dentro non stanno in nessun commit. Salvalo prima con "
-                        "`git stash show -p > file.patch` o `git stash branch`, oppure conferma.")
+                        "`git stash show -p stash@{N} > file.patch` (lo stesso stash del drop), oppure conferma.")
             continue
         if sotto != "branch":
             continue
-        corte = "".join(a[1:] for a in resto if a.startswith("-") and not a.startswith("--"))
-        lunghe = [a for a in resto if a.startswith("--")]
-        forza = "D" in corte or (("d" in corte or "--delete" in lunghe) and ("f" in corte or "--force" in lunghe))
+        forza, rami = _branch_cancella(resto)
         if not forza:
             continue
         basi = _basi_dopo_cd(cds, cwd)
@@ -814,10 +875,10 @@ def _git_perde_lavoro(command, cwd):
             repo = None
         else:
             repo = _resolve(cartella, basi[0]) if cartella else basi[0]
-        for ramo in [a for a in resto if not a.startswith("-")]:
-            if repo is None or not _ramo_altrove(repo, ramo):
+        for ramo in rami:
+            if repo is None or not _ramo_altrove(repo, ramo, cancellati):
                 return ("git-ramo", f"git branch -D cancella il ramo {ramo}, e i suoi commit non stanno in un ramo "
-                        "remoto né in un altro ramo locale: si perderebbero. Conferma solo se non ti servono.")
+                        "remoto né in un altro ramo locale che resta: si perderebbero. Conferma solo se non ti servono.")
     return None
 
 
@@ -1279,7 +1340,7 @@ def main() -> int:
         perde = _git_perde_lavoro(command, cwd)
     except Exception:
         perde = ("git-ramo", "git branch -D o git stash drop che la guardia non riesce a leggere: "
-                 "controlla prima di confermare.") if re.search(r"branch\s.*-[a-zA-Z]*D|stash\s+drop", command) else None
+                 "controlla prima di confermare.") if re.search(r"branch\s.*(-[a-zA-Z]*D|--de)|stash\s+(drop|clear)", command) else None
     if perde and perde[0] == "git-stash":
         return _ask("git-stash", perde[1])
     if perde:
