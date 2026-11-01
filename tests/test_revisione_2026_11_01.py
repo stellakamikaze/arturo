@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import os
 import shutil
 import subprocess
 import sys
@@ -29,6 +30,8 @@ _spec = importlib.util.spec_from_file_location("lp", _QUI / "test_lavoro_proprio
 lp = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(lp)
 hook, dispatcher, banco, git, verifica, _env = lp.hook, lp.dispatcher, lp.banco, lp.git, lp.verifica, lp._env
+sys.path.insert(0, str(_QUI))
+import salti_windows  # noqa: E402
 
 
 def _commit(env: dict, repo: Path, nome: str) -> None:
@@ -83,9 +86,51 @@ def test_rv01(repo: Path) -> int:
         return verifica("RV01", casi, lambda c: hook(repo, "block-dangerous.py", c, rami, home, temp))
 
 
-TESTS = {"RV01": test_rv01}
+def test_rv02(repo: Path) -> int:
+    with tempfile.TemporaryDirectory() as d:
+        home, temp, progetto, scratch = banco(Path(d))
+        S = scratch.as_posix()
+        (progetto / "f.txt").write_text("x\n", encoding="utf-8")
+        casi = [
+            # Lavoro proprio: resta libero.
+            ("sed con indirizzo /e/", "sed -n '/e/p' f.txt", "silent"),
+            ("sed -e con s///", "sed -e 's/a/b/' f.txt", "silent"),
+            ("xargs grep di rm", "find . -name '*.md' | xargs grep -n rm", "silent"),
+            ("cd nello scratchpad e rm relativo", f'cd "{S}"; rm -rf x', "silent"),
+            ("rm di una cartella temporanea assoluta", f'rm -rf "{temp.as_posix()}/arturo-prova-x"', "silent"),
+            # Devono chiedere.
+            ("sed comando e", "sed -n '1e rm -rf ~/Documents/ClaudeCode' f.txt", "ask"),
+            ("sed flag e di s///", "sed 's/.*/rm -rf x/e' f.txt", "ask"),
+            ("variabile riassegnata dopo il cd", 'S=~/Documents; cd "$S"; S=/tmp; rm -rf ClaudeCode', "ask"),
+            ("find -exec env rm", "find . -exec env rm -rf {} +", "ask"),
+            ("find -exec sudo rm", "find . -exec sudo rm -rf {} +", "ask"),
+            ("find -exec command rm", "find . -exec command rm {} +", "ask"),
+            ("find -exec nice -n 5 rm", "find . -exec nice -n 5 rm {} +", "ask"),
+            ("find | xargs rm resta", "find . | xargs rm", "ask"),
+            ("CR da solo dopo il cd", f'cd "{S}"\r; rm -rf .', "ask"),
+            ("cd con due argomenti", f'cd "{S}" foo; rm -rf .', "ask"),
+            ("cd ridefinito come funzione", f'cd() {{ :; }}; cd "{S}"; rm -rf .', "ask"),
+            ("rm sotto un link creato nello stesso comando",
+             f'ln -s ~/Documents/ClaudeCode "{S}/yy" && rm -rf "{S}/yy"/*', "ask"),
+            # Bloccati.
+            ("rm -rf /*", "rm -rf /*", "block"),
+            ("rm -rf ~/*", "rm -rf ~/*", "block"),
+            ("del /s /q C:\\*", "del /s /q C:\\*", "block"),
+            ("rd /s /q C:\\ da cmd", "cmd //c rd /s /q C:\\", "block"),
+            ("format C:", "format C:", "block"),
+        ]
+        link = scratch / "xx"
+        try:
+            salti_windows.link(link, home / "Documents" / "ClaudeCode", cartella=True)
+            casi.append(("rm sotto un link che esiste verso i progetti", f'rm -rf "{link.as_posix()}"/*', "ask"))
+        except salti_windows.SaltoWindows as e:
+            salti_windows.dichiara("RV02-link", e)
+        return verifica("RV02", casi, lambda c: hook(repo, "block-dangerous.py", c, progetto, home, temp))
+
+
+TESTS = {"RV01": test_rv01, "RV02": test_rv02}
 # Le guardie che ogni gruppo sorveglia: il veleno le rimette com'erano sulla base.
-VELENI = {"RV01": ["block-dangerous.py"]}
+VELENI = {"RV01": ["block-dangerous.py"], "RV02": ["block-dangerous.py"]}
 
 
 def avvelena(repo: Path, ref: str) -> int:

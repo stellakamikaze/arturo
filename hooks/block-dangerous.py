@@ -81,6 +81,17 @@ DANGEROUS = [
     (r"\b(bash|sh|zsh|fish|python3?|perl|ruby|node)\b\s+-c\s+[\"']?\$\(\s*(curl|wget|fetch)\b",
      "interprete -c su output di download remoto"),
     (r"\bsudo\s+rm\s+-rf?\s+(/|~|\$HOME|\*)", "rm ricorsivo con sudo su root/home/wildcard"),
+    # rm ricorsivo sulla radice o sulla home intera (1/11/2026, F33): i deny `rm -rf /\\*` di settings.json
+    # sono confronti esatti nel matcher di Claude Code e non scattavano su `rm -rf /*`.
+    (r"(?<![\w.-])rm\s+(?:-[a-zA-Z]+\s+|--[a-z-]+\s+)*(?:-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)"
+     r"(?:\s+-[a-zA-Z]+|\s+--[a-z-]+)*\s+(?:--\s+)?[\"']?(?:/|~/?|\$HOME/?|\$\{HOME\}/?)\*?[\"']?(?=\s|$|[;&|)])",
+     "rm ricorsivo sulla radice o sulla home intera"),
+    # Lo stesso su Windows: del /s, rd /s e format sul disco intero (F35).
+    (r"(?<![\w.-])(?:del|erase)\s+(?:/[a-zA-Z]\s+)*/s(?:\s+/[a-zA-Z])*\s+[\"']?[a-zA-Z]:[\\/]*(?:\*(?:\.\*)?)?[\"']?(?=\s|$|[;&|)])",
+     "cancellazione ricorsiva del disco intero"),
+    (r"(?<![\w.-])(?:rd|rmdir)\s+(?:/[a-zA-Z]\s+)*/s(?:\s+/[a-zA-Z])*\s+[\"']?[a-zA-Z]:[\\/]*[\"']?(?=\s|$|[;&|)])",
+     "cancellazione ricorsiva del disco intero"),
+    (r"(?<![\w.-])format(?:\.com)?\s+[a-zA-Z]:(?=[\s\\/]|$)", "format filesystem"),
     # `bw export` anche con opzioni e valori davanti (`bw --session X export`):
     # il deny di settings.json copre solo la forma letterale. `--help` non esporta
     # niente: resta libero (tre falsi positivi il 12/9/2026).
@@ -380,11 +391,28 @@ _SED_INDIRIZZO = re.compile(r"(^|[;\n{}!\s,])/((?:\\.|[^/\\\n])*)/")
 _SED_FLAG_W = re.compile(r"s([^\w\s\\])\1\1[gpiImMe0-9]*w")
 # `1w file`, `$w file`, `2,5w file`: un indirizzo numerico attaccato a `w` (prima sfuggiva).
 _SED_ADDR_W = re.compile(r"(^|[\s;{}!])(?:\d+|\$)(?:,(?:\d+|\$))?!?\s*w\s*[^\s|;&]")
+# GNU sed esegue in shell il testo del comando `e` e quello del flag `e` di s/// (1/11/2026, F05):
+# `sed -n '1e rm -rf X' f` cancellava senza conferma. Si cercano sullo script già svuotato.
+_SED_CMD_E = re.compile(r"(^|[;\n{}!\s])(?:(?:\d+|\$|//)(?:,(?:\d+|\$|//))?!?\s*)?e(\s|$|;)")
+_SED_FLAG_E = re.compile(r"s([^\w\s\\])\1\1[gpiImMw0-9]*e")
 
 
 def _senza_corpi_sed(t: str) -> str:
     t = _SED_S_CORPO.sub(lambda m: m.group(1) + m.group(2) + m.group(3) * 3, t)
     return _SED_INDIRIZZO.sub(lambda m: m.group(1) + "//", t)
+
+
+def _sed_esegue(command: str) -> bool:
+    """`sed` che esegue un comando di shell col comando `e` o col flag `e` di s///."""
+    for toks in _segmenti_parole(_testo_shell(command)):
+        i = 0
+        while i < len(toks) and (_ENV_ASSIGN_RE.match(toks[i]) or toks[i] in _SKIP_WRAPPERS):
+            i += 1
+        if i < len(toks) and os.path.basename(toks[i]) == "sed":
+            script = _senza_corpi_sed(" ".join(toks[i + 1:]))
+            if _SED_CMD_E.search(script) or _SED_FLAG_E.search(script):
+                return True
+    return False
 
 
 def _sed_scrive(command: str) -> bool:
@@ -462,9 +490,16 @@ def _assegnazioni(command):
     # `tmp=$(mktemp -d)`: la regex sopra si ferma alla parentesi e lascia "$" (20/10/2026)
     for m in _ASSEGNAZIONE_MKTEMP_RE.finditer(command):
         trovate.append((m.start(), m.group(1), m.group(2) or m.group(3)))
+    # La stessa posizione può comparire due volte (la regex generica e quella di mktemp): vince mktemp.
+    per_posizione = {}
+    for pos, nome, valore in trovate:
+        if pos not in per_posizione or _MKTEMP_RE.match(valore or ""):
+            per_posizione[pos] = (nome, valore)
+    # Una variabile assegnata due volte con valori diversi non si risolve (1/11/2026, F06):
+    # `S=~/Documents; cd "$S"; S=/tmp; rm -rf ClaudeCode` leggeva il cd col valore finale.
     out = {}
-    for _, nome, valore in sorted(trovate, key=lambda x: x[0]):
-        out[nome] = valore
+    for _, (nome, valore) in sorted(per_posizione.items()):
+        out[nome] = None if (nome in out and out[nome] != valore) else valore
     return out
 
 
@@ -475,6 +510,8 @@ def _expand_vars(t):
     path che non si conosce non si giudica come sicuro."""
     def rep(m):
         name = m.group(1) or m.group(4) or m.group(5)
+        if name in _ASSEGNATE and _ASSEGNATE[name] is None:
+            return m.group(0)  # assegnata più volte: il valore dipende dal punto del comando
         if name in _ASSEGNATE and _MKTEMP_RE.match(_ASSEGNATE[name]):
             val = "/tmp/mktemp.XXXXXX"  # cartella appena creata da mktemp: vedi _MKTEMP_RE
         elif name in _ASSEGNATE:
@@ -708,8 +745,49 @@ def _forma():
 _CANCELLANO = frozenset(("rm", "unlink", "shred"))
 
 
+# Programmi che ne lanciano un altro: `-exec env rm` cancella come `-exec rm` (1/11/2026, F07).
+_INVOLUCRI = frozenset(_fc._WRAPPER | {"timeout", "time", "stdbuf", "ionice", "doas", "chrt", "taskset"})
+# Le loro opzioni che prendono un valore staccato (`sudo -u utente`, `nice -n 5`, `timeout -s KILL`).
+_INVOLUCRI_CON_VALORE = frozenset(("-u", "-g", "-n", "-p", "-C", "-h", "-U", "-s", "-k", "-c", "-o", "-e", "-i"))
+
+
+def _dopo_involucri(args):
+    """Gli argomenti dal programma vero in poi, saltando wrapper, opzioni, durate e assegnazioni."""
+    i = 0
+    while i < len(args):
+        if os.path.basename(args[i]) in _INVOLUCRI:
+            i += 1
+            while i < len(args) and (args[i].startswith("-") or re.fullmatch(r"\d+(?:\.\d+)?[smhd]?", args[i])
+                                     or _ENV_ASSIGN_RE.match(args[i])):
+                i += 2 if args[i] in _INVOLUCRI_CON_VALORE else 1
+            continue
+        if _ENV_ASSIGN_RE.match(args[i]):
+            i += 1
+            continue
+        break
+    return args[i:]
+
+
+# Le opzioni di xargs che prendono un valore staccato.
+_XARGS_CON_VALORE = frozenset(("-I", "-n", "-P", "-L", "-l", "-d", "-E", "-e", "-s", "-a", "--max-args",
+                               "--max-procs", "--max-lines", "--delimiter", "--eof", "--max-chars",
+                               "--arg-file", "--replace"))
+
+
+def _xargs_programma(args):
+    """Gli argomenti di xargs dal programma che lancia in poi (1/11/2026, F08)."""
+    i = 0
+    while i < len(args) and args[i].startswith("-") and args[i] != "--":
+        i += 2 if args[i] in _XARGS_CON_VALORE else 1
+    if i < len(args) and args[i] == "--":
+        i += 1
+    return args[i:]
+
+
 def _cancella_dentro(args) -> bool:
-    """Vero se gli argomenti di -exec lanciano rm, unlink o shred, anche dentro `sh -c '…'`."""
+    """Vero se gli argomenti di -exec lanciano rm, unlink o shred, anche dietro un wrapper
+    (env, sudo, command, nice) o dentro `sh -c '…'`."""
+    args = _dopo_involucri(args)
     if not args:
         return False
     nome = os.path.basename(args[0])
@@ -736,7 +814,8 @@ def _find_delete(command):
                 return True
     if trova:
         for nome, args in programmi:
-            if nome == "xargs" and any(os.path.basename(a) in _CANCELLANO for a in args):
+            # Conta il programma che xargs lancia: `xargs grep -n rm` non cancella (F08).
+            if nome == "xargs" and _cancella_dentro(_xargs_programma(args)):
                 return True
     return False
 
@@ -965,6 +1044,8 @@ _REDIREZIONE_SOLA_RE = re.compile(r"^(?:\d*|&)(?:>>?|<)$")
 
 
 _CAMBIA_CARTELLA = frozenset(("cd", "pushd", "popd"))
+_CD_RIDEFINITO = re.compile(r"(?:^|[;&|\s(])(?:function\s+)?(?:cd|pushd|popd)\s*\(\s*\)"
+                            r"|\bfunction\s+(?:cd|pushd|popd)\b|\balias\s+(?:cd|pushd|popd)=")
 _APRE_BLOCCO = frozenset("if while until for case select".split())
 _CHIUDE_BLOCCO = frozenset("fi done esac".split())
 _OPERATORI = re.compile(r"&&|\|\||;;|\|&|[;&|()\n]")
@@ -1075,6 +1156,11 @@ def _programmi_con_cd(command):
     certi = _cd_certi(command)
     if len(certi) != sum(1 for nome, _ in programmi if nome in _CAMBIA_CARTELLA):
         certi = None
+    # Un CR senza LF dopo separa le parole per il lexer ma non per bash e zsh (`cd /tmp\r` cerca la
+    # cartella "/tmp\r"), e un cd ridefinito come funzione o alias non cambia cartella: ogni cd è
+    # incerto (1/11/2026, F14 F15).
+    if re.search(r"\r(?!\n)", command) or _CD_RIDEFINITO.search(command):
+        certi = None
     for nome, args in programmi:
         if nome in _CAMBIA_CARTELLA:
             certo = bool(certi and certi[len(cds)])
@@ -1083,10 +1169,52 @@ def _programmi_con_cd(command):
             else:
                 resto = args[1:] if args and args[0] == "--" else args
                 dest = resto[0] if resto else ("~" if nome == "cd" else None)  # `cd` da solo va nella home
+                if len(_senza_redirezioni(resto)) > 1:
+                    certo = False  # `cd /tmp foo`: "too many arguments", resta dov'era (F15)
             cds.append((dest, certo))
             continue
         out.append((nome, args, tuple(cds)))
     return out
+
+
+def _reale(p):
+    """Il percorso con i link risolti nella parte che esiste già (1/11/2026, F18): `/tmp/xx/*` con
+    /tmp/xx link ai progetti è la cartella dei progetti. Un glob resta in coda, come scritto."""
+    if p is None:
+        return None
+    testa, coda = p, []
+    while testa and not os.path.lexists(testa):
+        su, nome = os.path.split(testa)
+        if su == testa:
+            return p
+        coda.insert(0, nome)
+        testa = su
+    try:
+        vero = os.path.realpath(testa)
+        # Nessun link sul percorso: resta com'è scritto. Su Windows realpath trasforma anche `/tmp` in
+        # `C:\tmp`, che non è il temporaneo che la shell intende.
+        if os.path.normcase(vero) == os.path.normcase(os.path.normpath(os.path.abspath(testa))):
+            return p
+        return os.path.normpath(os.path.join(vero, *coda))
+    except (OSError, ValueError):
+        return p
+
+
+def _sotto_link_nuovo(p, command, cwd):
+    """Vero se `p` sta sotto un link che lo stesso comando crea con `ln -s`: il link non esiste ancora
+    quando la guardia gira, e realpath non lo vede."""
+    for nome, args in _forma().programmi(command):
+        if nome != "ln":
+            continue
+        if not any(a == "--symbolic" or (a.startswith("-") and not a.startswith("--") and "s" in a) for a in args):
+            continue
+        posizionali = [a for a in _senza_redirezioni(args) if not a.startswith("-")]
+        if len(posizionali) < 2:
+            continue
+        link = _resolve(posizionali[-1], os.path.normpath(cwd))
+        if link and (p == link or p.startswith(link.rstrip("/\\") + os.sep) or p.startswith(link.rstrip("/") + "/")):
+            return True
+    return False
 
 
 def _rm_segments(command):
@@ -1256,6 +1384,13 @@ def main() -> int:
             "scrittura è voluta."
         )
 
+    # 3-ter) sed che esegue un comando di shell (`e`, flag `e` di s///) -> ask (1/11/2026, F05)
+    if _sed_esegue(command):
+        return _ask("sed-e",
+            "sed esegue in shell un comando col comando `e` o col flag `e` di s///: il testo diventa "
+            "un comando, anche un rm. Conferma solo se l'esecuzione è voluta."
+        )
+
     # 4) Docker distruttivo su volumi -> ask
     if DOCKER_DESTRUCTIVE_RE.search(command):
         return _ask("docker-volumi",
@@ -1278,6 +1413,17 @@ def main() -> int:
                     p = os.path.normpath(base_cwd) if base_cwd else None
                 else:
                     p = _resolve(t, base_cwd)
+                if p is not None and _sotto_link_nuovo(p, command, cwd):
+                    return _ask("rm-ignoto",
+                        f"rm ricorsivo su {t}, sotto un link che lo stesso comando crea: la cartella vera "
+                        "non si conosce prima. Controlla dove punta il link prima di confermare."
+                    )
+                reale = _reale(p)
+                if reale != p and (_is_protected_tree(reale) or not (_rigenerabile(reale) or _temporaneo(reale))):
+                    return _ask("rm-protetto" if _is_protected_tree(reale) else "rm-cartella",
+                        f"rm ricorsivo su {p}, che attraverso un link porta a {reale}. Dal terminale non passa "
+                        "dal cestino: conferma solo se vuoi davvero cancellarlo."
+                    )
                 if _is_protected_tree(p):
                     return _ask("rm-protetto",
                         f"rm ricorsivo su un percorso protetto ({p}): memoria, "
@@ -1320,7 +1466,9 @@ def main() -> int:
                     "shutil.rmtree su un percorso che arriva da una variabile: cancella una cartella "
                     "intera, senza cestino. Controlla quale prima di confermare."
                 )
-            if _is_protected_tree(p) or not (_rigenerabile(p) or _temporaneo(p)):
+            reale = _reale(p)
+            if _is_protected_tree(p) or not (_rigenerabile(p) or _temporaneo(p)) or \
+                    _is_protected_tree(reale) or not (_rigenerabile(reale) or _temporaneo(reale)):
                 return _ask("rmtree-cartella",
                     f"shutil.rmtree su una cartella ({p}): la cancella intera, senza cestino. Se dentro "
                     "c'è lavoro tuo, lo perdi. Conferma solo se vuoi davvero cancellarla."

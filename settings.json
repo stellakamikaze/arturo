@@ -83,9 +83,7 @@
     "deny": [
       "Bash(rm -rf /)",
       "Bash(rm -rf ~)",
-      "Bash(rm -rf /\\*)",
       "Bash(rm -rf / *)",
-      "Bash(rm -rf ~/\\*)",
       "Bash(rm -rf ~/)",
       "Bash(rm -rf $HOME)",
       "Bash(rm -rf $HOME/)",
@@ -167,10 +165,7 @@
       "mcp__playwright-ff__browser_run_code_unsafe",
       "mcp__claude-in-chrome__javascript_tool",
       "Read(~/.claude/.credentials.json)",
-      "Read(~/.claude/data/credentials/**)",
-      "Bash(del /s /q C:\\*)",
-      "Bash(rd /s /q C:\\*)",
-      "Bash(format C:\\*)"
+      "Read(~/.claude/data/credentials/**)"
     ],
     "ask": [
       "mcp__*__*delete*",
