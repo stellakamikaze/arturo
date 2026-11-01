@@ -91,7 +91,17 @@ _MAILTO_APERTO = re.compile(
     r"[^;&|\n]*mailto:",
     re.IGNORECASE,
 )
+# Un apritore in un punto qualunque e un mailto: in un altro (1/11/2026, F23): `U="mailto:…"; open "$U"`,
+# `printf 'mailto:…' | xargs open`, `u='mailto:…'; os.startfile(u)` aprivano la bozza senza conferma.
+_APRITORE = re.compile(
+    r"\b(?:open|xdg-open|gio|kde-open|gnome-open|wslview|start|explorer(?:\.exe)?|Start-Process|saps)\b"
+    r"|\brundll32(?:\.exe)?\s+(?:url\.dll|shell32\.dll)\b|\bopen\s+location\b"
+    r"|\bpython[0-9.]*\s+-m\s+webbrowser\b|\bwebbrowser\.open|\bos\.startfile\b",
+    re.IGNORECASE,
+)
 _HELP_ESENTI = frozenset(("gws", "gh"))
+# Una sostituzione gira prima del programma: `gws --help $(gws gmail +send …)` invia (F24).
+_SOSTITUZIONE = re.compile(r"\$\(|`|<\(|>\(")
 
 
 def _senza_help(command: str) -> str:
@@ -100,6 +110,8 @@ def _senza_help(command: str) -> str:
     (`--subject --help` manda una mail con oggetto "--help"). mail, mailx, sendmail e msmtp no."""
     parti = re.split(r"([|;&\n]+)", command)
     for i, seg in enumerate(parti):
+        if _SOSTITUZIONE.search(seg):
+            continue
         try:
             parole = shlex.split(seg)
         except ValueError:
@@ -169,7 +181,9 @@ def main() -> int:
         return 0
 
     command = _senza_help(command)
-    matched = "mailto: (apre un invio)" if _MAILTO_APERTO.search(command) else None
+    aperto = _MAILTO_APERTO.search(command) or (re.search(r"mailto:", command, re.IGNORECASE)
+                                                and _APRITORE.search(command))
+    matched = "mailto: (apre un invio)" if aperto else None
     for pattern, label in ([] if matched else SEND_BINARIES):
         if pattern == _SMTP_URL:
             if _smtp_invia(command):
