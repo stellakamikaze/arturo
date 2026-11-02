@@ -47,6 +47,17 @@
  "blogPost": [
   {
    "@type": "BlogPosting",
+   "headline": "/inizio capisce una frase, e un passo fermato diventa un comando per te",
+   "datePublished": "2026-11-02",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-11-02-inizio-capisce-una-frase-e-un-passo-fermato-diventa-un-coman",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
    "headline": "Arturo si installa incollando un link in Claude Code",
    "datePublished": "2026-11-01",
    "author": {
@@ -1059,7 +1070,7 @@ ul,ol{margin:0;padding:0}
   <div class="dentro">
     <div class="testata__corpo">
       <h1 id="titolo">Novità di Arturo</h1>
-      <p>Cosa cambia a ogni aggiornamento, il principio dietro e cosa devi fare tu. La voce più recente sta in cima: l'ultima è del 1 novembre 2026. Dentro Claude Code le stesse voci te le racconta <code>/novita</code>.</p>
+      <p>Cosa cambia a ogni aggiornamento, il principio dietro e cosa devi fare tu. La voce più recente sta in cima: l'ultima è del 2 novembre 2026. Dentro Claude Code le stesse voci te le racconta <code>/novita</code>.</p>
       <div class="testata__vie">
         <a class="azione" href="#voci">Leggi le novità</a>
         <a class="azione azione--bordo" href="https://github.com/stellakamikaze/arturo/blob/main/NOVITA.md">NOVITA.md su GitHub</a>
@@ -1073,6 +1084,17 @@ ul,ol{margin:0;padding:0}
 <section class="sezione" aria-labelledby="titolo">
   <div class="dentro">
     <div class="voci" id="voci">
+
+      <article class="voce" id="2026-11-02-inizio-capisce-una-frase-e-un-passo-fermato-diventa-un-coman" aria-labelledby="t-2026-11-02-inizio-capisce-una-frase-e-un-passo-fermato-diventa-un-coman">
+        <p class="voce__data"><time datetime="2026-11-02">2 novembre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-11-02-inizio-capisce-una-frase-e-un-passo-fermato-diventa-un-coman"><a href="#2026-11-02-inizio-capisce-una-frase-e-un-passo-fermato-diventa-un-coman">/inizio capisce una frase, e un passo fermato diventa un comando per te</a></h2>
+          <p><strong>Cosa cambia</strong>: se scrivi a <code>/inizio</code> cosa vuoi fare senza il nome del progetto ("oggi ho scaricato molti documenti, riordinameli"), la frase diventa il compito della sessione. Claude ti propone il progetto più vicino, o di lavorare dove sei, e non te la fa riscrivere (segnalazione n. 39). Un testo molto lungo non dà più un errore tecnico con Python 3.9 (segnalazione n. 42).</p>
+          <p>Quando il controllo di sicurezza della modalità auto di Claude Code ferma un passo che hai già approvato, non ti chiede niente: il passo resta fermo. Ora Claude ti prepara un solo comando da lanciare tu col prefisso <code>!</code>, e ti dice in una frase cosa fa. Vale per la riga di Homebrew in <code>~/.zprofile</code> (segnalazione n. 36), per lo sblocco di una guardia (segnalazione n. 38) e per un passo su un tuo server (segnalazione n. 41). Lo sblocco delle guardie sui servizi di avvio e sui file di config lo lanci sempre tu, col prefisso <code>!</code>.</p>
+          <p><strong>Da sapere</strong>: se il progetto sta fuori dalle cartelle che Claude Code ha aperto, la shell torna alla cartella di partenza dopo ogni comando. <code>/inizio</code> ora se ne accorge e ti propone <code>/add-dir</code>, e fino ad allora <code>/inizio</code> e <code>/fine</code> lavorano nella cartella giusta (segnalazione n. 37). Se colleghi Chrome con <code>/chrome</code> a sessione aperta, gli strumenti del browser arrivano solo dopo <code>/exit</code> e <code>claude --continue</code>: Claude ora te lo dice subito (segnalazione n. 40). Un programma che macOS avvia da solo (un LaunchAgent) non può scrivere in iCloud Drive, Documenti e Scrivania: Claude mette dati e script altrove.</p>
+          <p><strong>Il principio dietro</strong>: quando Claude non può fare un passo, ti dice subito il gesto che serve, in una riga.</p>
+        </div>
+      </article>
 
       <article class="voce" id="2026-11-01-arturo-si-installa-incollando-un-link-in-claude-code" aria-labelledby="t-2026-11-01-arturo-si-installa-incollando-un-link-in-claude-code">
         <p class="voce__data"><time datetime="2026-11-01">1 novembre 2026</time></p>
