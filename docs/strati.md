@@ -60,4 +60,14 @@ Plugin di prova caricato con `--plugin-dir` in una sessione `claude -p`:
 | Nome senza prefisso | `/sondaruolo` funziona se nessun altro usa il nome |
 | Omonimo | con `/inizio` nell'Orsa, la skill del plugin diventa `arturo-spike:inizio` e il nome nudo resta alla persona |
 
-Da provare: Windows; installazione da marketplace GitHub con sha fissato; statusLine con puntatore stabile.
+| Variabili nel testo di una skill | Claude Code sostituisce `${CLAUDE_PLUGIN_ROOT}` e `${CLAUDE_SKILL_DIR}` prima che il modello legga; un'altra variabile resta letterale |
+| File in `commands/` del plugin | resta solo `/arturo-spike:sondacomando`: il nome senza prefisso ce l'hanno solo le skill con `name:` |
+
+Da provare: Windows (prima di migrare Balthasar); installazione da marketplace GitHub con sha fissato; statusLine con puntatore stabile.
+
+## Come un testo di Arturo indica il codice
+
+Due conseguenze della prova:
+- **I comandi di Arturo diventano skill** (`skills/<nome>/SKILL.md` con `name:`). Così `/inizio` resta senza prefisso anche nel plugin.
+- **Un percorso al codice si scrive `${CLAUDE_SKILL_DIR}/../../bin/...`**. Vale in tutti e due i layout: nel plugin porta alla cartella del plugin, nel clone in `~/.claude` porta a `~/.claude`. Claude Code lo risolve prima della lettura, quindi funziona anche con il tool Read, che non espande le variabili.
+- Negli script e negli hook vale `ARTURO_CODICE`: l'hook di avvio lo calcola dalla sua cartella e lo scrive in `$CLAUDE_ENV_FILE` insieme al PATH di `bin/`.
