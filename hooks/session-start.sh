@@ -13,8 +13,12 @@ mkdir -p "$HOME/.claude/session-env"   # dir gitignored: non esiste su un clone 
 # Il comando arturo per nome anche nei comandi di Claude (segnalazione n. 33, 29/10/2026): Claude Code
 # applica ai comandi Bash della sessione le righe export che un hook di avvio scrive in $CLAUDE_ENV_FILE.
 # Una riga sola per file: /clear e la ripresa rilanciano l'avvio.
-if [ -n "${CLAUDE_ENV_FILE:-}" ] && ! grep -qs 'arturo-bin-nel-path' "$CLAUDE_ENV_FILE"; then
-  printf 'export PATH="$HOME/.claude/bin:$PATH"  # arturo-bin-nel-path\n' >> "$CLAUDE_ENV_FILE" 2>/dev/null || true
+# ARTURO_CODICE dice dove sta il codice di Arturo: ~/.claude oggi, la cartella del plugin domani
+# (docs/strati.md). I comandi scrivono ${ARTURO_CODICE:-$HOME/.claude}/bin/..., mai ~/.claude/bin/...
+ARTURO_CODICE="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)"
+if [ -n "${CLAUDE_ENV_FILE:-}" ] && [ -n "$ARTURO_CODICE" ] && ! grep -qs 'arturo-bin-nel-path' "$CLAUDE_ENV_FILE"; then
+  printf 'export ARTURO_CODICE="%s"; export PATH="%s/bin:$PATH"  # arturo-bin-nel-path\n' \
+    "$ARTURO_CODICE" "$ARTURO_CODICE" >> "$CLAUDE_ENV_FILE" 2>/dev/null || true
 fi
 
 # Info directory di lavoro e macchina: con piu' computer, Claude sa su quale lavora.
