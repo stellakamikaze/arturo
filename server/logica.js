@@ -11,6 +11,7 @@
 // Cosa dà, solo a chi ha il token (secret RIEPILOGO_TOKEN):
 //   GET  /v1/riepilogo     il riepilogo della settimana in JSON, con "Dove migliorare Arturo"
 //   GET  /v1/segnalazioni  le ultime 50 segnalazioni, senza testo; /v1/segnalazioni/<n> una intera (27/10/2026)
+//   GET  /v1/uso           chi usa Arturo, quanto e come: una riga per installazione, ultimi 30 giorni (2/11/2026)
 // L'IP non viene mai salvato. Gli eventi hanno il solo giorno, mai l'ora.
 // Telegram ed email sono campanelli (24/10/2026): mai il testo né l'email di chi scrive. Una segnalazione porta
 // numero, tipo, da dove arriva e il link alla pagina privata (27/10/2026), un feedback numero, tipo e origine.
@@ -448,6 +449,21 @@ export function testoDeriva(deriva) {
   return righe.sort((a, b) => Number(b.includes("OSTACOLO")) - Number(a.includes("OSTACOLO")));
 }
 
+// "Chi lo usa" nell'email del lunedì (2/11/2026, #4539): le installazioni attive nella settimana, poi quante
+// tacciono. Solo l'id corto: i nomi li conosce la pagina privata dell'admin, non il Worker.
+export function testoUso(uso) {
+  if (!Array.isArray(uso)) return [];
+  const attive = uso.filter((x) => x.giorniAttivi > 0)
+    .sort((a, b) => b.giorniAttivi - a.giorniAttivi || b.sessioni - a.sessioni);
+  return [
+    "Chi lo usa (giorni attivi, sessioni, comando più usato, ultimo giorno):",
+    attive.length ? attive.map((x) => `  ${corto(x.installazione)}  ${x.giorniAttivi} giorni, ${x.sessioni} sessioni, ` +
+      `${(x.comandi[0] && x.comandi[0].valore) || "nessun comando"}, ultimo ${x.ultima}`).join("\n") : "  nessuna",
+    `Installazioni ferme nella settimana: ${uso.length - attive.length}`,
+    "",
+  ];
+}
+
 export function testoRiepilogo(r, titolo) {
   const elenco = (righe, vuoto = "nessuno") => righe.length ? righe.map((x) => `  ${x.n}  ${x.valore || "(vuoto)"}`).join("\n") : `  ${vuoto}`;
   const frequenti = r.guardieFrequenti
@@ -477,6 +493,7 @@ export function testoRiepilogo(r, titolo) {
     `Avvisi non partiti: Telegram ${r.telegramKo || 0}, email ${r.emailKo || 0}`,
     "",
     ...(testoLancillotto(r.lancillotto) ? [testoLancillotto(r.lancillotto), ""] : []),
+    ...testoUso(r.uso),
   ].join("\n");
 }
 
@@ -649,6 +666,16 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     al = al || oggi(adesso);
     dal = dal || giorniFa(new Date(`${al}T12:00:00Z`), 7);
     return risposta(200, { dal, al, regola: REGOLA_GUARDIE, ...(await archivio.riepilogo(dal, al, { settimana: true })) });
+  }
+  // Chi usa Arturo, per la pagina privata dell'admin (2/11/2026, #4539). Stesso token del riepilogo.
+  if (request.method === "GET" && url.pathname === "/v1/uso") {
+    const dato = (request.headers.get("authorization") || "").replace(/^Bearer /, "");
+    if (!stessoToken(dato, token)) return risposta(401, { errore: "token mancante o sbagliato" });
+    const chiesto = url.searchParams.get("al") || "";
+    const al = GIORNO.test(chiesto) ? chiesto : oggi(adesso);
+    const da = url.searchParams.get("dal") || "";
+    const dal = GIORNO.test(da) && da < al ? da : giorniFa(new Date(`${al}T12:00:00Z`), 30);
+    return risposta(200, { dal, al, installazioni: await archivio.uso(dal, al) });
   }
   // Le segnalazioni, per la pagina privata di chi mantiene Arturo (27/10/2026): l'elenco senza testo, oppure una
   // segnalazione intera. Stesso token del riepilogo: senza, le email restavano l'unica traccia, e il testo si

@@ -220,6 +220,46 @@ export function archivio(db) {
            WHERE evento = 'claude' AND ${trenta} AND ${VISTE} GROUP BY valore ORDER BY n DESC LIMIT 20`, al, al),
       };
     },
+    // Chi usa Arturo, quanto e come (2/11/2026, #4539): una riga per installazione vista fino ad `al`, con
+    // l'attività nella finestra (dal, al]. Federico: "voglio sapere se le persone lo stanno usando, quanto e come".
+    // I nomi non stanno qui: li aggiunge la pagina privata dell'admin, che li tiene fuori dal repo pubblico.
+    async uso(dal, al) {
+      const tutte = async (sql, ...v) => (await db.prepare(sql).bind(...v).all()).results;
+      const finestra = "giorno > ? AND giorno <= ?";
+      // SQLite: con MAX(rowid) le colonne nude vengono dalla stessa riga, cioè l'ultima ricevuta.
+      const base = await tutte(
+        `SELECT installazione, MIN(giorno) AS prima, MAX(giorno) AS ultima, versione, sistema, MAX(rowid) AS r
+         FROM eventi WHERE giorno <= ? GROUP BY installazione ORDER BY ultima DESC LIMIT 200`, al);
+      const giorni = await tutte(
+        `SELECT installazione, giorno, SUM(evento = 'sessione') AS sessioni FROM eventi WHERE ${finestra}
+         GROUP BY installazione, giorno ORDER BY giorno`, dal, al);
+      const valori = await tutte(
+        `SELECT installazione, evento, valore, COUNT(*) AS n FROM eventi
+         WHERE evento IN ('comando', 'aggiorna', 'durata', 'turni', 'skill') AND ${finestra}
+         GROUP BY installazione, evento, valore ORDER BY n DESC`, dal, al);
+      const setup = new Set((await tutte(
+        "SELECT DISTINCT installazione FROM eventi WHERE evento = 'setup' AND valore = 'fine' AND giorno <= ?", al))
+        .map((x) => x.installazione));
+      const segnalazioni = new Map((await tutte(
+        `SELECT installazione, COUNT(*) AS n FROM segnalazioni WHERE installazione <> ''
+         AND substr(ricevuta, 1, 10) > ? AND substr(ricevuta, 1, 10) <= ? GROUP BY installazione`, dal, al))
+        .map((x) => [x.installazione, x.n]));
+      return base.map(({ installazione, prima, ultima, versione, sistema }) => {
+        const miei = giorni.filter((g) => g.installazione === installazione);
+        const conta = (evento) => valori.filter((v) => v.installazione === installazione && v.evento === evento)
+          .map(({ valore, n }) => ({ valore, n }));
+        return {
+          installazione, prima, ultima, versione, sistema,
+          giorniAttivi: miei.length,
+          sessioni: miei.reduce((s, g) => s + g.sessioni, 0),
+          perGiorno: miei.map(({ giorno, sessioni }) => ({ giorno, sessioni })),
+          comandi: conta("comando"), aggiorna: conta("aggiorna"),
+          durata: conta("durata"), turni: conta("turni"), skill: conta("skill"),
+          setupFinito: setup.has(installazione),
+          segnalazioni: segnalazioni.get(installazione) || 0,
+        };
+      });
+    },
     async riepilogo(dal, al, { settimana = false } = {}) {
       const gruppo = async (evento) => (await db.prepare(
         "SELECT valore, COUNT(*) AS n FROM eventi WHERE evento = ? AND giorno > ? AND giorno <= ? GROUP BY valore ORDER BY n DESC LIMIT 20")
@@ -256,6 +296,7 @@ export function archivio(db) {
         telegramKo: await contatore("telegram-ko"),
         emailKo: await contatore("email-ko"),
         lancillotto: await this.riepilogoLancillotto(dal, al),
+        uso: settimana ? await this.uso(dal, al) : null,
       };
     },
     async pulisci(prima) {

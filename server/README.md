@@ -33,7 +33,7 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
   copiato o il repository aperto. Non si salva niente oltre al contatore del giorno, e Telegram
   avvisa fino a 60 volte al giorno.
 
-E dà due cose, a chi ha il token. La prima: `GET /v1/segnalazioni`, le ultime 50 segnalazioni senza testo, e
+E dà tre cose, a chi ha il token. La prima: `GET /v1/segnalazioni`, le ultime 50 segnalazioni senza testo, e
 `GET /v1/segnalazioni/<n>`, una segnalazione intera (27/10/2026): le legge la pagina privata di chi mantiene
 Arturo. La seconda: `GET /v1/riepilogo`, il riepilogo della settimana in JSON (senza
 `dal` e `al`, la stessa dell'email del lunedì: da lunedì a domenica in ora di Roma) con la sezione "Dove migliorare Arturo" (secret `RIEPILOGO_TOKEN`, almeno 32 caratteri). Le statistiche
@@ -41,7 +41,12 @@ delle guardie (blocchi, conferme, guardie rotte, guardie frequenti) contano solo
 il server ha ricevuto in almeno due giorni diversi, e ogni numero dice quante installazioni lo
 producono: chiunque può mandare eventi con un id nuovo, e un lotto di un giorno solo non deve
 spostare quei numeri. **Una guardia non si allenta sulla sola base della telemetria**: la
-routine che propone correzioni lo tratta come un indizio da verificare, mai come la prova.
+routine che propone correzioni lo tratta come un indizio da verificare, mai come la prova. La terza: `GET /v1/uso`
+(2/11/2026), chi usa Arturo, quanto e come: una riga per installazione vista, con prima e ultima giornata,
+giorni attivi e sessioni nella finestra (di default gli ultimi 30 giorni, oppure `dal` e `al`), sessioni per
+giorno, comandi contati, esiti degli aggiornamenti, versione e sistema dell'ultimo evento, `/setup` finito e
+segnalazioni. La legge la pagina privata dell'admin, che sola conosce i nomi delle persone. L'email del lunedì
+ne porta la sezione "Chi lo usa", con il solo id corto.
 
 L'IP non viene salvato: nello schema non c'è una colonna per l'IP. Gli eventi, i contatori, il
 feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le segnalazioni dal 24/10/2026). Le chiavi "una volta per installazione"

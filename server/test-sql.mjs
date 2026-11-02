@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { archivio } from "./archivio.js";
-import { settimanale, pulizia, gestisci } from "./logica.js";
+import { settimanale, pulizia, gestisci, testoUso } from "./logica.js";
 
 function d1() {
   const db = new DatabaseSync(":memory:");
@@ -332,6 +332,36 @@ const casi = {
     assert.ok(elenco.every((r) => !("testo" in r)), "QS1 l'elenco porta il testo");
     assert.equal((await a.segnalazione(1)).testo, "testo di prima", "QS1 la segnalazione intera non ha il testo");
     assert.equal(await a.segnalazione(99), null, "QS1 un numero che non c'è non dà null");
+  },
+  // Chi lo usa (2/11/2026, #4539): una riga per installazione, giorni attivi e sessioni nella finestra, comandi
+  // contati, versione dell'ultima riga, setup finito; un'installazione ferma resta con zero giorni; la rotta
+  // vuole il token.
+  async QU1() {
+    const a = await con([
+      ["2026-10-01", "aaaaaaaa-1", "sessione", "", "v1"],
+      ["2026-10-10", "aaaaaaaa-1", "sessione", "", "v1"], ["2026-10-10", "aaaaaaaa-1", "sessione", "", "v1"],
+      ["2026-10-10", "aaaaaaaa-1", "comando", "inizio", "v1"], ["2026-10-11", "aaaaaaaa-1", "comando", "fine", "v1"],
+      ["2026-10-11", "aaaaaaaa-1", "comando", "fine", "v1"], ["2026-10-12", "aaaaaaaa-1", "sessione", "", "v2"],
+      ["2026-10-12", "aaaaaaaa-1", "setup", "fine", "v2"],
+      ["2026-09-20", "bbbbbbbb-2", "sessione", "", "v1"],
+    ]);
+    const uso = await a.uso("2026-10-06", AL);
+    const io = uso.find((x) => x.installazione === "aaaaaaaa-1");
+    const ferma = uso.find((x) => x.installazione === "bbbbbbbb-2");
+    assert.deepEqual([io.giorniAttivi, io.sessioni, io.versione, io.prima, io.ultima, io.setupFinito],
+      [3, 3, "v2", "2026-10-01", "2026-10-12", true], "QU1 giorni, sessioni, versione o setup dell'installazione attiva");
+    assert.deepEqual(io.comandi, [{ valore: "fine", n: 2 }, { valore: "inizio", n: 1 }], "QU1 i comandi non sono contati");
+    assert.deepEqual(io.perGiorno.map((g) => g.sessioni), [2, 0, 1], "QU1 le sessioni per giorno");
+    assert.deepEqual([ferma.giorniAttivi, ferma.sessioni], [0, 0], "QU1 l'installazione ferma conta attività");
+    const testo = testoUso(uso).join("\n");
+    assert.ok(testo.includes("aaaaaaaa  3 giorni, 3 sessioni, fine, ultimo 2026-10-12"), "QU1 la riga dell'email: " + testo);
+    assert.ok(testo.includes("ferme nella settimana: 1"), "QU1 l'email non conta le ferme");
+    const token = "t".repeat(40);
+    const chiedi = (h) => gestisci(new Request("https://arturo.example/v1/uso?dal=2026-10-06&al=2026-10-13", { headers: h }),
+      { archivio: a, posta: async () => {}, adesso: new Date("2026-10-13T10:00:00Z"), token });
+    assert.equal((await chiedi({})).status, 401, "QU1 la rotta risponde senza token");
+    const json = await (await chiedi({ authorization: "Bearer " + token })).json();
+    assert.deepEqual([json.dal, json.al, json.installazioni.length], ["2026-10-06", "2026-10-13", 2], "QU1 la rotta col token");
   },
 };
 
