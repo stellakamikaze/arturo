@@ -162,6 +162,7 @@ BANCHI=(
   test_gate_lucchetto_2026_10_31.py
   test_revisione_2026_11_01.py
   test_segnalazioni_2026_11_02.py
+  test_monitor_ponti_2026_11_02.py
   test_gws_token_health.py
 )
 for test in "${BANCHI[@]}"; do
@@ -330,6 +331,8 @@ BASELINE=(
   "test_fonte_task_2026_10_30.py ba61272 radice"
   # Un solo gate completo per macchina (31/10/2026, #4360): 5122a03, il dev prima del lucchetto.
   "test_gate_lucchetto_2026_10_31.py 5122a03 radice"
+  # /monitor in Arturo, Fase 1 (2/11/2026): i ponti della persona. 2fe4037, il dev prima di bin/monitor.
+  "test_monitor_ponti_2026_11_02.py 2fe4037"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

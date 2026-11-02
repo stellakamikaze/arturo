@@ -20,6 +20,8 @@ data/todo/
 data/todo/*.lock
 # Le copie di /segnala restano su questo computer.
 data/segnalazioni/
+# Lo stato di /monitor (cursori, cartelle delle run): è della persona.
+data/monitor/
 # La coda della telemetria (bin/telemetria.py).
 data/telemetria/
 # L'interruttore e le cartelle della memoria facoltativa (bin/memoria.py): restano su questo computer.
