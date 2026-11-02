@@ -25,6 +25,15 @@ Prima cerca una via senza sudo: per esempio, un'app si copia dal suo `.dmg` in `
 Se non c'è, chiedi alla persona di aprire il Terminale e di incollare lì il comando (segnalazione
 n. 16, 26/10/2026).
 
+Se il classificatore della modalità auto ferma un passo che la persona ha già approvato ("denied by
+the Claude Code auto mode classifier"), non cercare un'altra via: il classificatore non offre una
+conferma, quindi prepara un solo comando da lanciare con `!` e spiega in una frase cosa fa. Vale anche
+per lo sblocco di una guardia (`! touch ~/.claude/system-unlock-...`) e per le righe che un installer
+chiede di aggiungere al profilo della shell. Dopo Homebrew su un Mac Apple Silicon la riga è
+`! echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile`. Un programma lanciato da un
+LaunchAgent non legge né scrive in iCloud Drive, Documenti e Scrivania (privacy di macOS): dati e
+script vanno altrove, per esempio in `~/.claude/data` (segnalazioni n. 36, 38 e 41, ottobre 2026).
+
 ## Virgolette
 
 Solo quelle dritte ("). Mai le basse (« ») né quelle curve (“ ”), in ogni testo che scrivi:

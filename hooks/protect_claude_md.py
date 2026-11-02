@@ -219,8 +219,9 @@ def main():
                 f"Percorso di avvio automatico protetto ({rp}): un git hook o un servizio "
                 "di avvio esegue codice da solo, a ogni commit o a ogni accesso. "
                 "Per procedere: 1) chiedi conferma esplicita all'utente. "
-                f"2) esegui: touch ~/.claude/system-unlock-{safe_id} "
-                "3) riprova la modifica."
+                f"2) dopo il sì fagli lanciare: ! touch ~/.claude/system-unlock-{safe_id} "
+                "(lo sblocco resta all'utente: in modalità auto il classificatore ferma il touch "
+                "lanciato da Claude) 3) riprova la modifica."
             ))
             sys.exit(0)
 
@@ -284,8 +285,9 @@ def main():
                 f"File di config/hook di Claude Code protetto ({os.path.basename(rp)}). "
                 "Modificarlo può disattivare le guardie di sicurezza. Per procedere: "
                 "1) chiedi conferma esplicita all'utente. "
-                f"2) esegui: touch ~/.claude/config-unlock-{safe_id} "
-                "3) riprova la modifica."
+                f"2) dopo il sì fagli lanciare: ! touch ~/.claude/config-unlock-{safe_id} "
+                "(lo sblocco resta all'utente: in modalità auto il classificatore ferma il touch "
+                "lanciato da Claude) 3) riprova la modifica."
             ))
             sys.exit(0)
 

@@ -161,6 +161,7 @@ BANCHI=(
   test_lavoro_proprio_2026_10_31.py
   test_gate_lucchetto_2026_10_31.py
   test_revisione_2026_11_01.py
+  test_segnalazioni_2026_11_02.py
   test_gws_token_health.py
 )
 for test in "${BANCHI[@]}"; do
@@ -304,6 +305,9 @@ BASELINE=(
   # Segnalazioni n. 15 e n. 16 del 26/10/2026 (heredoc nel worktree, sudo col prefisso !) e codice
   # nel messaggio di /segnala quando il server non accetta (27/10/2026): 32a574e, il dev prima.
   "test_segnalazioni_2026_10_27.py 32a574e"
+  # Segnalazioni n. 36, 38 e 41 (classificatore della modalità auto: comando con !, sblocco alla
+  # persona, brew shellenv e LaunchAgent fuori da iCloud), lette il 2/11/2026: 8b141c0, il dev prima.
+  "test_segnalazioni_2026_11_02.py 8b141c0"
   # Le domande della sera del Computer Club del 27/10/2026 (quota in parole, /guidami con la quota, concetti,
   # numero della segnalazione, /setup che presenta /dafare): 443b191, il dev prima.
   "test_computer_club_2026_10_28.py 443b191"
