@@ -305,8 +305,8 @@ BASELINE=(
   # Segnalazioni n. 15 e n. 16 del 26/10/2026 (heredoc nel worktree, sudo col prefisso !) e codice
   # nel messaggio di /segnala quando il server non accetta (27/10/2026): 32a574e, il dev prima.
   "test_segnalazioni_2026_10_27.py 32a574e"
-  # Segnalazioni n. 36, 38 e 41 (classificatore della modalità auto: comando con !, sblocco alla
-  # persona, brew shellenv e LaunchAgent fuori da iCloud), lette il 2/11/2026: 8b141c0, il dev prima.
+  # Segnalazioni n. 36-38, 40 e 41 (classificatore della modalità auto: comando con !, sblocco alla
+  # persona, brew, LaunchAgent fuori da iCloud, cartella fuori sessione, /chrome), 2/11/2026: 8b141c0.
   "test_segnalazioni_2026_11_02.py 8b141c0"
   # Le domande della sera del Computer Club del 27/10/2026 (quota in parole, /guidami con la quota, concetti,
   # numero della segnalazione, /setup che presenta /dafare): 443b191, il dev prima.

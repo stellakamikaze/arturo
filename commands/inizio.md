@@ -150,6 +150,12 @@ Con `rc=0` entra nella cartella della riga `cartella:` con `cd "<cartella>"`: la
 `/fine` lavorano lì. Con `cartella: nessuna` il progetto vive solo negli handoff o nei todo:
 resta dove sei.
 
+Se dopo il `cd` Claude Code risponde "Shell cwd was reset", la cartella sta fuori dalle cartelle
+della sessione e ogni comando torna alla cartella di partenza. Di' alla persona in una riga di
+scrivere `/add-dir <cartella>`, o di riaprire Claude Code da lì. Fino ad allora ogni comando, anche
+in `/fine`, comincia con `cd "<cartella>" &&`: senza, `arturo todo --progetto .` e lo slug di
+`/fine` prendono la cartella di partenza (segnalazione n. 37, 30/10/2026).
+
 - **Pull.** Se il progetto ha un remote, aggiornalo senza riscrivere la storia:
 
   ```bash

@@ -34,6 +34,10 @@ chiede di aggiungere al profilo della shell. Dopo Homebrew su un Mac Apple Silic
 LaunchAgent non legge né scrive in iCloud Drive, Documenti e Scrivania (privacy di macOS): dati e
 script vanno altrove, per esempio in `~/.claude/data` (segnalazioni n. 36, 38 e 41, ottobre 2026).
 
+Se la persona collega Chrome con `/chrome` a sessione già aperta, gli strumenti del browser arrivano
+solo dopo `/exit` e `claude --continue`, e Claude Code non lo dice. Diglielo subito, senza cercarli
+con ToolSearch (segnalazione n. 40, 31/10/2026).
+
 ## Virgolette
 
 Solo quelle dritte ("). Mai le basse (« ») né quelle curve (“ ”), in ogni testo che scrivi:

@@ -188,7 +188,9 @@ che la persona non ha mai messo. Se lei non l'ha detto, lascialo vuoto. Il `Tu: 
 tabella nomina il gesto del passo (un invio, una password), non un perché. Non spostare mai un todo
 da tu a io o decidi senza un sì.
 
-**Dove va l'handoff.** Lo slug è il nome della cartella del progetto in kebab-case, lo stesso di `/inizio`:
+**Dove va l'handoff.** Lo slug è il nome della cartella del progetto in kebab-case, lo stesso di `/inizio`.
+Se la shell torna alla cartella di partenza ("Shell cwd was reset"), apri il blocco con
+`cd "<cartella del progetto>" &&`, altrimenti lo slug esce dalla cartella sbagliata (segnalazione n. 37):
 
 ```bash
 # Slug: nome del progetto in minuscolo, spazi e simboli diventano trattini.

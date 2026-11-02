@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SG01-SG02: le segnalazioni n. 36, 38 e 41 di fine ottobre 2026, lette il 2/11/2026.
+"""SG01-SG03: le segnalazioni n. 36, 37, 38, 40 e 41 di fine ottobre 2026, lette il 2/11/2026.
 
 SG01 il classificatore della modalità auto ferma un passo già approvato senza offrire una conferma:
      la scrittura di brew shellenv in ~/.zprofile (n. 36), il touch dello sblocco di una guardia (n. 38),
@@ -9,6 +9,9 @@ SG02 la guardia dei percorsi di avvio automatico e quella dei file di config dic
      "esegui: touch ~/.claude/system-unlock-..." e "config-unlock-...": in modalità auto il classificatore
      lo ferma come [Self-Modification]. Lo sblocco resta alla persona: il messaggio le fa lanciare il
      touch col prefisso `!`.
+SG03 un progetto fuori dalle cartelle della sessione fa tornare la shell alla cartella di partenza a ogni
+     comando (n. 37): /inizio propone /add-dir e, con /fine, apre i comandi con `cd "<cartella>" &&`.
+     Dopo /chrome a sessione aperta gli strumenti arrivano solo con claude --continue (n. 40).
 
 Sulla base 8b141c0 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -65,7 +68,18 @@ def test_sg02(repo: Path) -> None:
             f"SG02 lo sblocco di {relativo} non passa alla persona col prefisso !: {m[:300]}"
 
 
-TESTS = {"SG01": test_sg01, "SG02": test_sg02}
+def test_sg03(repo: Path) -> None:
+    inizio, fine = read(repo / "commands" / "inizio.md"), read(repo / "commands" / "fine.md")
+    for nome, testo in (("inizio", inizio), ("fine", fine)):
+        assert "Shell cwd was reset" in testo and 'cd "<cartella' in testo, \
+            f"SG03 /{nome} non dice cosa fare se la shell torna alla cartella di partenza"
+    assert "/add-dir" in inizio, "SG03 /inizio non propone /add-dir per una cartella fuori dalla sessione"
+    stile = read(repo / "output-styles" / "conciso.md")
+    assert "/chrome" in stile and "claude --continue" in stile, \
+        "SG03 lo stile non dice che dopo /chrome serve claude --continue"
+
+
+TESTS = {"SG01": test_sg01, "SG02": test_sg02, "SG03": test_sg03}
 
 
 def main() -> int:
@@ -77,7 +91,8 @@ def main() -> int:
     if args.baseline_ref:
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
-            for f in ("output-styles/conciso.md", "hooks/protect_claude_md.py"):
+            for f in ("output-styles/conciso.md", "hooks/protect_claude_md.py", "commands/inizio.md",
+                      "commands/fine.md"):
                 (base / f).parent.mkdir(parents=True, exist_ok=True)
                 (base / f).write_text(subprocess.run(["git", "-C", str(repo), "show", f"{args.baseline_ref}:{f}"],
                                                      capture_output=True, text=True, encoding="utf-8",
