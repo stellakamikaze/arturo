@@ -2,16 +2,17 @@
 description: >-
   Apre la sessione su un progetto: sync della config (con --tutti anche dei progetti), contesto in una
   chiamata con arturo contesto (git, handoff recenti, todo con chi agisce, scadenze), le altre sessioni
-  sullo stesso progetto, poi la ripartenza per filone con ogni todo marcato per chi agisce. Con «--
-  <compito>» parte subito sul compito. Progetto non trovato: propone i nomi simili e non crea niente
-  senza un sì. La chiusura è /fine.
-argument-hint: "<nome-progetto> [--tutti] [-- <compito>]"
+  sullo stesso progetto, poi la ripartenza per filone con ogni todo marcato per chi agisce. Le parole
+  dopo il nome, o dopo " -- ", sono il compito e la sessione parte subito lì; una frase senza nome di
+  progetto è tutta compito. Progetto non trovato: propone i nomi simili e non crea niente senza un sì.
+  La chiusura è /fine.
+argument-hint: "<nome-progetto> [--tutti] [<compito>]"
 ---
 
 # Inizio sessione
 
-Argomenti: **$ARGUMENTS**. Il testo dopo " -- " è il compito della sessione (vedi "Con un compito" in
-fondo). `--tutti` è un flag: aggiorna anche tutti i progetti (FASE 0) e non entra nel nome. Senza nome
+Argomenti: **$ARGUMENTS**. Le parole dopo il nome del progetto, o dopo " -- ", sono il compito della
+sessione (vedi "Con un compito" in fondo); una frase senza nome di progetto è tutta compito. `--tutti` è un flag: aggiorna anche tutti i progetti (FASE 0) e non entra nel nome. Senza nome
 usa la cartella in cui sei. Con `--tutti` e senza nome ti fermi dopo la FASE 0.
 
 ## FASE -1: Onboarding speciali
@@ -116,8 +117,8 @@ Un progetto senza remote è solo locale: non è un errore.
 
 ## FASE 1: Contesto in una chiamata
 
-`$ARGUMENTS` può contenere `--tutti` e, dopo " -- ", il compito della sessione: lo script li
-riconosce e il nome del progetto resta pulito. Senza nome usa la cartella in cui sei.
+`$ARGUMENTS` può contenere `--tutti` e il compito della sessione, dopo il nome o dopo " -- ": lo
+script trova il progetto nelle prime parole e il nome resta pulito. Senza nome usa la cartella in cui sei.
 
 ```bash
 # Tutto il contesto in un processo solo: tra due blocchi bash le variabili si perdono.
@@ -339,7 +340,7 @@ Perché è fatta così:
 
 ## Con un compito
 
-Con " -- <compito>" negli argomenti la ripartenza esce breve: il titolo, "Da allora" in una o due
+Con la riga `compito:` nell'uscita la ripartenza esce breve: il titolo, "Da allora" in una o due
 frasi, una riga per filone col numero di todo e quanti sono "Faccio io". Al posto di "Da dove
 partirei" scrivi "Oggi: <compito>", con l'ID del todo che lo copre se esiste. Poi carica
 `prompt-master` col tool `Skill` sul compito, mostra PROMPT e BRIEF come li prescrive la skill e parti

@@ -5,7 +5,7 @@ Uso: arturo contesto [nome] [--giorni N]
      arturo contesto --stdin          gli argomenti di /inizio su stdin, mai nella riga di comando: il
                                       compito può contenere virgolette, # e $(...) che la shell eseguirebbe
   Senza nome usa la cartella in cui sei. Accetta anche gli argomenti interi di /inizio:
-  "--tutti" si ignora, e il testo dopo " -- " (il compito) non fa parte del nome.
+  "--tutti" si ignora, e il compito (le parole dopo il nome, o dopo " -- ") non fa parte del nome.
 
 Stampa, in quest'ordine: progetto e cartella, git (branch, modifiche, conflitti, commit dopo
 l'ultimo handoff, rami locali non riportati), la ripartenza degli handoff degli ultimi N giorni (14), i todo aperti del
