@@ -11,6 +11,15 @@
 # un «”» nel comando svuotava l'input delle guardie e un rm ricorsivo passava (16/10/2026).
 export PYTHONIOENCODING=utf-8
 
+# Dove sta il codice (docs/strati.md): ARTURO_HOOKS è la cartella di questo file, ~/.claude/hooks
+# nel clone, la cartella del plugin domani. ORSA_HOOKS tiene il .local e le guardie della persona.
+# Si calcola solo dal file, mai da una variabile d'ambiente: una guardia non si sposta da fuori.
+ARTURO_HOOKS="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+ARTURO_BIN="$(dirname "$ARTURO_HOOKS")/bin"
+ORSA_HOOKS="$HOME/.claude/hooks"
+# Il file di una guardia: prima Arturo, poi l'Orsa.
+guardia_file() { if [[ -f "$ARTURO_HOOKS/$1" ]]; then printf '%s' "$ARTURO_HOOKS/$1"; else printf '%s' "$ORSA_HOOKS/$1"; fi; }
+
 INPUT=$(cat)
 if command -v jq &>/dev/null; then
   COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
@@ -37,7 +46,7 @@ spec = importlib.util.spec_from_file_location("arturo_heredoc", sys.argv[1])
 hd = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(hd)
 source = sys.stdin.read().replace("\r\n", "\n")
-print(hd.togli(source, lambda h: h.quotato and h.inerte()), end="")' "$HOME/.claude/hooks/heredoc.py" <<< "$1" 2>/dev/null \
+print(hd.togli(source, lambda h: h.quotato and h.inerte()), end="")' "$ARTURO_HOOKS/heredoc.py" <<< "$1" 2>/dev/null \
         || printf '%s' "$1"
 }
 
@@ -165,8 +174,8 @@ PATTERN_DATA='[Dd][Rr][Oo][Pp][[:space:]]+([Tt][Aa][Bb][Ll][Ee]|[Dd][Aa][Tt][Aa]
 # Esegue un guard: un crash o stdout non decisionale diventa ask, mai allow implicito.
 # $1 = la guardia che si e' rotta: la telemetria la registra come `errore`.
 ask_guard() {
-    [[ -n "${1:-}" && -f "$HOME/.claude/bin/telemetria.py" ]] && \
-        python3 "$HOME/.claude/bin/telemetria.py" registra errore "$1" >/dev/null 2>&1
+    [[ -n "${1:-}" && -f "$ARTURO_BIN/telemetria.py" ]] && \
+        python3 "$ARTURO_BIN/telemetria.py" registra errore "$1" >/dev/null 2>&1
     printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Una guardia non ha prodotto una decisione valida. Conferma prima di eseguire il comando."}}'
     exit 0
 }
@@ -174,7 +183,7 @@ ask_guard() {
 # Telemetria (bin/telemetria.py): il nome della guardia che ha bloccato, mai il comando.
 # Dice dove le persone si fermano e quali guardie danno falsi positivi. Non fallisce mai.
 segna_guardia() {
-    [[ -f "$HOME/.claude/bin/telemetria.py" ]] && python3 "$HOME/.claude/bin/telemetria.py" registra guardia "$1" >/dev/null 2>&1
+    [[ -f "$ARTURO_BIN/telemetria.py" ]] && python3 "$ARTURO_BIN/telemetria.py" registra guardia "$1" >/dev/null 2>&1
     return 0
 }
 
@@ -182,12 +191,12 @@ segna_guardia() {
 # il PostToolUse registra `confermata` (bin/telemetria.py esito). Il rapporto fra i due dice quali
 # guardie chiedono a vuoto. Escono il nome della guardia e l'id della chiamata, mai il comando.
 segna_chiede() {
-    [[ -f "$HOME/.claude/bin/telemetria.py" ]] || return 0
+    [[ -f "$ARTURO_BIN/telemetria.py" ]] || return 0
     local uso
     uso=$(printf '%s' "$INPUT" | python3 -c 'import json, sys
 try: print(json.load(sys.stdin).get("tool_use_id") or "")
 except Exception: pass' 2>/dev/null)
-    [[ -n "$uso" ]] && python3 "$HOME/.claude/bin/telemetria.py" chiede "$1${2:+.$2}" "$uso" >/dev/null 2>&1
+    [[ -n "$uso" ]] && python3 "$ARTURO_BIN/telemetria.py" chiede "$1${2:+.$2}" "$uso" >/dev/null 2>&1
     return 0
 }
 
@@ -211,7 +220,7 @@ if [[ -f "$HOME/.claude/hooks/bash-dispatcher.local" ]]; then
         _p=""; _g=""; _a=""
         read -r _p _g _a <<< "$_riga"
         [[ -z "$_p" ]] && continue
-        if [[ "$_PUNTI_LOCALI" == *" $_p "* && "$_g" =~ ^[A-Za-z0-9_.-]+\.(py|sh)$ && -f "$HOME/.claude/hooks/$_g" ]]; then
+        if [[ "$_PUNTI_LOCALI" == *" $_p "* && "$_g" =~ ^[A-Za-z0-9_.-]+\.(py|sh)$ && -f "$(guardia_file "$_g")" ]]; then
             _LOC_PUNTO+=("$_p"); _LOC_GUARDIA+=("$_g"); _LOC_ARGS+=("$_a")
         else
             echo "bash-dispatcher.local: riga ignorata, forma non valida o guardia assente: $_riga" >&2
@@ -249,9 +258,9 @@ _RISERVA=""; _SENZA_ALLOW=""
 lancia_guardia() {
     local g="$1"; shift
     if [[ "$g" == *.sh ]]; then
-        ARTURO_REGOLA=1 bash "$HOME/.claude/hooks/$g" "$@" <<< "$GUARD_INPUT"
+        ARTURO_REGOLA=1 bash "$(guardia_file "$g")" "$@" <<< "$GUARD_INPUT"
     else
-        ARTURO_REGOLA=1 python3 "$HOME/.claude/hooks/$g" "$@" <<< "$GUARD_INPUT"
+        ARTURO_REGOLA=1 python3 "$(guardia_file "$g")" "$@" <<< "$GUARD_INPUT"
     fi
 }
 
@@ -329,7 +338,7 @@ if [[ "$COMMAND" =~ $PATTERN_GIT_TEXT && ! "$COMMAND" =~ $PATTERN_SUBST && "$COM
     # git puro, e il comando passa dalle guardie.
     GIT_PURE=0
     # Come per le guardie: su Windows un argomento che sembra un path verrebbe convertito.
-    MSYS2_ARG_CONV_EXCL='*' python3 "$HOME/.claude/hooks/forma_comando.py" git-puro "$COMMAND" 2>/dev/null && GIT_PURE=1
+    MSYS2_ARG_CONV_EXCL='*' python3 "$ARTURO_HOOKS/forma_comando.py" git-puro "$COMMAND" 2>/dev/null && GIT_PURE=1
     [[ $GIT_PURE -eq 1 ]] && exit 0
 fi
 
@@ -342,7 +351,7 @@ fi
 # giudica il comando intero.
 invio_in_vista() { [[ "$1" =~ $PATTERN_COMMS || ( "$1" == *"gws "* && "$1" == *"messages send"* ) ]]; }
 if invio_in_vista "$GUARD_COMMAND"; then
-    COMMS_REDUCED=$(python3 "$HOME/.claude/hooks/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND
+    COMMS_REDUCED=$(python3 "$ARTURO_HOOKS/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND
     if invio_in_vista "$COMMS_REDUCED"; then
         export COMMS_REDUCED
         run_guard comms-guard.py
@@ -368,7 +377,7 @@ fi
 # codice eseguito: COMMS_REDUCED e' il comando senza gli heredoc scritti su file (vuoto se
 # il comando solo legge). Se il pre-filtro non gira, si giudica il comando intero.
 if [[ "$GUARD_COMMAND" =~ $PATTERN_EXFIL ]]; then
-    [[ -z "${COMMS_REDUCED+x}" ]] && { COMMS_REDUCED=$(python3 "$HOME/.claude/hooks/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND; }
+    [[ -z "${COMMS_REDUCED+x}" ]] && { COMMS_REDUCED=$(python3 "$ARTURO_HOOKS/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND; }
     if [[ "$COMMS_REDUCED" =~ $PATTERN_EXFIL ]]; then
         export COMMS_REDUCED
         run_guard exfil-guard.py
@@ -379,7 +388,7 @@ fi
 # per il POST. Una redirezione verso /dev/tcp si giudica sul comando intero: il pre-filtro tace su
 # `echo`, che lì scrive in rete.
 if [[ "$GUARD_COMMAND" =~ $PATTERN_EGRESS_SOSPETTO ]]; then
-    [[ -z "${COMMS_REDUCED+x}" ]] && { COMMS_REDUCED=$(python3 "$HOME/.claude/hooks/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND; }
+    [[ -z "${COMMS_REDUCED+x}" ]] && { COMMS_REDUCED=$(python3 "$ARTURO_HOOKS/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND; }
     if [[ "$COMMS_REDUCED" =~ $PATTERN_EGRESS_SOSPETTO ]]; then
         export COMMS_REDUCED
         run_guard exfil-guard.py
@@ -406,7 +415,7 @@ fi
 # file scritto stanno in data/handoffs/ o in projects/<p>/memory/, i programmi sono di una
 # lista breve, e settings, hook e file di unlock non compaiono nel testo eseguito.
 # Altrimenti il ramo tace e decide il flusso normale dei permessi.
-if [[ "$COMMAND" == *".claude/"* ]] && python3 "$HOME/.claude/hooks/forma_comando.py" ramo-memoria <<< "$INPUT" 2>/dev/null; then
+if [[ "$COMMAND" == *".claude/"* ]] && python3 "$ARTURO_HOOKS/forma_comando.py" ramo-memoria <<< "$INPUT" 2>/dev/null; then
     printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"scrittura di un handoff o di una memoria in ~/.claude: approvata dal ramo memoria del dispatcher"}}'
     exit 0
 fi

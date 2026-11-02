@@ -15,7 +15,8 @@ mkdir -p "$HOME/.claude/session-env"   # dir gitignored: non esiste su un clone 
 # Una riga sola per file: /clear e la ripresa rilanciano l'avvio.
 # ARTURO_CODICE dice dove sta il codice di Arturo: ~/.claude oggi, la cartella del plugin domani
 # (docs/strati.md). I comandi scrivono ${ARTURO_CODICE:-$HOME/.claude}/bin/..., mai ~/.claude/bin/...
-ARTURO_CODICE="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)"
+ARTURO_CODICE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
+[ -n "$ARTURO_CODICE" ] || ARTURO_CODICE="$HOME/.claude"
 if [ -n "${CLAUDE_ENV_FILE:-}" ] && [ -n "$ARTURO_CODICE" ] && ! grep -qs 'arturo-bin-nel-path' "$CLAUDE_ENV_FILE"; then
   printf 'export ARTURO_CODICE="%s"; export PATH="%s/bin:$PATH"  # arturo-bin-nel-path\n' \
     "$ARTURO_CODICE" "$ARTURO_CODICE" >> "$CLAUDE_ENV_FILE" 2>/dev/null || true
@@ -73,8 +74,8 @@ fi
 # aggiornamento. Per questo il fetch parte qui, in background e al massimo ogni 6 ore, cosi'
 # l'avvio non aspetta la rete. L'avviso di questa sessione usa il fetch della volta prima.
 # Config integra: un settings.json rotto spegne tutte le guardie senza avvisare.
-if [ -f "$HOME/.claude/hooks/controlla-config.py" ]; then
-  python3 "$HOME/.claude/hooks/controlla-config.py" --quiet "$HOME/.claude" 2>/dev/null
+if [ -f "$ARTURO_CODICE/hooks/controlla-config.py" ]; then
+  python3 "$ARTURO_CODICE/hooks/controlla-config.py" --quiet "$HOME/.claude" 2>/dev/null
 fi
 if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1 && ! git -C "$HOME/.claude" symbolic-ref -q HEAD >/dev/null 2>&1; then
   echo "CONFIG: ~/.claude non sta su un branch (HEAD scollegato): i commit di /fine non finirebbero su main. Chiedi a Claude di riportarla su main."
@@ -174,8 +175,8 @@ if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
   # Gli aggiornamenti di Arturo (bin/aggiornamenti.py, 16/10/2026): si installano da soli alla
   # chiusura, solo i rilasci con tag firmati. Qui, senza rete, l'annuncio una volta, l'esito
   # dell'ultima installazione e l'avviso se uno non può installarsi da solo.
-  if [ -f "$HOME/.claude/bin/aggiornamenti.py" ]; then
-    python3 "$HOME/.claude/bin/aggiornamenti.py" stato 2>/dev/null || true
+  if [ -f "$ARTURO_CODICE/bin/aggiornamenti.py" ]; then
+    python3 "$ARTURO_CODICE/bin/aggiornamenti.py" stato 2>/dev/null || true
   elif [ "${BEHIND:-0}" -gt 0 ]; then
     # Senza la verifica della firma /aggiorna non applica niente (17/10/2026, #3504): main non si applica mai.
     echo "ARTURO: manca bin/aggiornamenti.py, che verifica la firma dei rilasci: finche' non torna, nessun aggiornamento si installa. Si rimette con: git -C ~/.claude restore bin/aggiornamenti.py"
@@ -213,20 +214,20 @@ fi
 
 # Auto-load selettivo memory (just-in-time: mostra indice, non carica contenuti)
 if [ -x /usr/bin/python3 ] || command -v python3 >/dev/null 2>&1; then
-    python3 "$HOME/.claude/hooks/memory-autoload.py" 2>/dev/null || true
+    python3 "$ARTURO_CODICE/hooks/memory-autoload.py" 2>/dev/null || true
 fi
 
 # Deriva (hooks/deriva.py): file e hook di Arturo cambiati o spenti, config rotta. Una riga solo se
 # c'è da fare; registra per la telemetria l'elenco quando cambia. Prima dell'avvio della telemetria,
 # così una config rotta parte con l'invio di questa sessione.
-if [ -f "$HOME/.claude/hooks/deriva.py" ]; then
-  python3 "$HOME/.claude/hooks/deriva.py" "$HOME/.claude" 2>/dev/null || true
+if [ -f "$ARTURO_CODICE/hooks/deriva.py" ]; then
+  python3 "$ARTURO_CODICE/hooks/deriva.py" "$HOME/.claude" 2>/dev/null || true
 fi
 
 # Telemetria (bin/telemetria.py): registra la sessione senza rete, avvisa la persona una
 # volta sola e lancia l'invio in background al massimo ogni 6 ore. Non ferma mai l'avvio.
-if [ -f "$HOME/.claude/bin/telemetria.py" ]; then
-  python3 "$HOME/.claude/bin/telemetria.py" avvio 2>/dev/null || true
+if [ -f "$ARTURO_CODICE/bin/telemetria.py" ]; then
+  python3 "$ARTURO_CODICE/bin/telemetria.py" avvio 2>/dev/null || true
 fi
 
 # Invito a finire /setup (23/10/2026): nella telemetria Liliana ha installato e non l'ha mai lanciato,
@@ -263,9 +264,9 @@ fi
 # sessione lo sistema una volta per tutte (bin/schede_mac.py, 29/10/2026). Il segno si controlla qui,
 # così le sessioni dopo non avviano Python. La riga SCHEDE: dice alla persona cosa è cambiato. Sta in fondo,
 # prima delle aggiunte della persona: se il timeout di 10 secondi lo ferma, il resto dell'avvio è già uscito.
-if [ "$TERM_PROGRAM" = "Apple_Terminal" ] && [ -f "$HOME/.claude/bin/schede_mac.py" ] \
+if [ "$TERM_PROGRAM" = "Apple_Terminal" ] && [ -f "$ARTURO_CODICE/bin/schede_mac.py" ] \
    && ! grep -q '"fatto": true' "$HOME/.claude/data/schede-terminale.json" 2>/dev/null; then
-  python3 "$HOME/.claude/bin/arturo" schede applica --una-volta 2>/dev/null
+  python3 "$ARTURO_CODICE/bin/arturo" schede applica --una-volta 2>/dev/null
 fi
 
 # Le aggiunte della persona (personale/session-start.sh, 16/10/2026): gli aggiornamenti di Arturo non le

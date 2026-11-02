@@ -158,6 +158,7 @@ BANCHI=(
   test_fine_profilo_2026_10_30.py
   test_fine_coda_2026_10_30.py
   test_fonte_task_2026_10_30.py
+  test_strati_2026_11_02.py
   test_lavoro_proprio_2026_10_31.py
   test_gate_lucchetto_2026_10_31.py
   test_revisione_2026_11_01.py
@@ -329,6 +330,8 @@ BASELINE=(
   "test_fine_coda_2026_10_30.py 875109c radice"
   # F0 L4 (30/10/2026): la fonte dei task da bin/fonte-task.local e gli argomenti di /inizio su stdin.
   "test_fonte_task_2026_10_30.py ba61272 radice"
+  # Strati F1 (2/11/2026): guardie, avvio e telemetria trovano il codice fuori da ~/.claude. 94db031, il dev prima.
+  "test_strati_2026_11_02.py 94db031 radice"
   # Un solo gate completo per macchina (31/10/2026, #4360): 5122a03, il dev prima del lucchetto.
   "test_gate_lucchetto_2026_10_31.py 5122a03 radice"
   # /monitor in Arturo, Fase 1 (2/11/2026): i ponti della persona. 2fe4037, il dev prima di bin/monitor.

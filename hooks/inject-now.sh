@@ -57,8 +57,13 @@ fi
 COMANDO=""
 if [[ "$INPUT" =~ \"prompt\"[[:space:]]*:[[:space:]]*\"/([a-z0-9-]+) ]]; then
   COMANDO="${BASH_REMATCH[1]}"
-  if [ -f "$HOME/.claude/commands/$COMANDO.md" ] && [ -f "$HOME/.claude/bin/telemetria.py" ]; then
-    python3 "$HOME/.claude/bin/telemetria.py" registra comando "$COMANDO" >/dev/null 2>&1 || true
+  # Il codice sta accanto a questo file (docs/strati.md); nel plugin un comando è una skill.
+  _A="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
+  # Un comando di Arturo o dell'Orsa: telemetria.py manda il nome solo se è di Arturo, se no `altro`.
+  if { [ -f "$_A/commands/$COMANDO.md" ] || [ -f "$_A/skills/$COMANDO/SKILL.md" ] \
+       || [ -f "$HOME/.claude/commands/$COMANDO.md" ] || [ -f "$HOME/.claude/skills/$COMANDO/SKILL.md" ]; } \
+     && [ -f "$_A/bin/telemetria.py" ]; then
+    python3 "$_A/bin/telemetria.py" registra comando "$COMANDO" >/dev/null 2>&1 || true
   fi
   # --- Aggiunte personali al comando ------------------------------------------------
   # Le aggiunte della persona a un comando di Arturo stanno in ~/.claude/personale/<comando>.md,

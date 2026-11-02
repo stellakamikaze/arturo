@@ -6,4 +6,4 @@
 # stdin ha lo stesso tool_use_id. Il resto dello stdin (error, is_interrupt) non si legge.
 # Gira a ogni chiamata di strumento, quindi senza attese esce subito, senza avviare Python.
 [ -f "$HOME/.claude/session-env/telemetria-attese.json" ] || exit 0
-exec python3 "$HOME/.claude/bin/telemetria.py" esito
+exec python3 "$(dirname "${BASH_SOURCE[0]}")/telemetria.py" esito
