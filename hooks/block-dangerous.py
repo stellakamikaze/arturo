@@ -49,6 +49,8 @@ if hasattr(signal, "SIGALRM"):
 
 
 # --- Blocco duro (exit 2) ---
+# Il comando che scarica: curl e wget ovunque, fetch solo in testa a un segmento.
+_DOWNLOAD = r"(\b(?:curl|wget)\b|(?:^|[;&|(`\n])\s*(?:sudo\s+)?fetch\b)"
 DANGEROUS = [
     (r":\(\)\s*\{[^}]*\}\s*;\s*:", "fork bomb"),
     (r"\bmkfs\.[a-z0-9]+", "format filesystem"),
@@ -58,7 +60,10 @@ DANGEROUS = [
     (r"\bchown\s+-R\s+\S+\s+/(\s|$)", "cambio ownership ricorsivo su root"),
     # curl|bash e le sue varianti che eseguono uno script remoto scaricato al volo:
     # `\|` non è una pipe: è l'alternativa di un pattern (`grep 'curl\|python'`, 21/10/2026).
-    (r"\b(curl|wget|fetch)\b[^|]*(?<!(?<!\\)\\)\|\s*(sudo\s+)?(bash|sh|zsh|fish|perl|ruby|node|php)\b",
+    # `fetch` conta solo come comando in testa a un segmento (il fetch di BSD): `git fetch && git show
+    # x:f.py | python3 -` legge un file del repo, e non scarica niente (2/11/2026, #4478). _DOWNLOAD
+    # resta un solo gruppo che cattura: la regola python sotto conta i gruppi per il \3.
+    (_DOWNLOAD + r"[^|]*(?<!(?<!\\)\\)\|\s*(sudo\s+)?(bash|sh|zsh|fish|perl|ruby|node|php)\b",
      "pipe di script remoto in un interprete"),
     # 15/9/2026: `curl ... | python3 -c "import json..."` è parsing, non esecuzione
     # dello stdin (14 blocchi in una settimana). Passa solo il codice inline fra
@@ -69,7 +74,7 @@ DANGEROUS = [
     # forma isolata) e con la versione (`python3.13`).
     # 30/10/2026 (#4109): passa anche `| python3 -m json.tool` con le sue opzioni a fine segmento:
     # formatta il JSON e non esegue niente.
-    (r"\b(curl|wget|fetch)\b[^|]*(?<!(?<!\\)\\)\|\s*(sudo\s+)?python3?(?:\.\d+)?(?![\w.])"
+    (_DOWNLOAD + r"[^|]*(?<!(?<!\\)\\)\|\s*(sudo\s+)?python3?(?:\.\d+)?(?![\w.])"
      r"(?!(?:\s+-[IEsSBuOqP]+)*\s+-m\s+json\.tool(?:\s+--[a-z-]+(?:[=\s]\d+)?)*(?=\s*(?:$|[;&|)>\n]|2>)))"
      r"(?!(?:\s+-[IEsSBuOqP]+)*\s+-c\s+([\"'])(?:\\[\s\S]|(?!\3|\\|\$\(|`|\b(?:exec|eval|compile|__import__|__builtins__|builtins|"
      r"getattr|globals|importlib|system|popen|subprocess|runpy|pickle|marshal|spawn)\b)[\s\S])*\3)",
