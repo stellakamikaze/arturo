@@ -10,10 +10,11 @@ GT03 un lock fresco: l'hook non lancia un secondo refresh.
 GT04 un login più recente della cache la scarta: l'avviso vecchio non esce.
 GT05 l'hook senza cache torna subito, e il refresh che lancia scrive la cache.
 GT06 senza utente nel JSON l'avviso non dice "per ?", e la riga fix porta la cartella vera (#4424).
+GT07 su Python 3.8 (shutdown senza cancel_futures) il refresh scrive lo stesso la cache (#4434).
 
 Ogni caso gira con una HOME finta e un gws finto in testa al PATH. Con --avvelena il banco rompe la
 copia dell'hook in due punti (un timeout che vale "ok", un refresh lanciato senza --refresh) e vuole
-GT01 e GT05 rossi col loro codice.
+GT01, GT05 e GT07 rossi col loro codice.
 """
 from __future__ import annotations
 
@@ -102,6 +103,33 @@ def test_gt06(hook: Path) -> None:
         assert "token invalido - rifai login" in testo and "per ?" not in testo,             f"GT06 senza utente nel JSON l'avviso dice 'per ?': {testo!r}"
 
 
+PY38 = r'''
+import runpy, sys
+from concurrent.futures import ThreadPoolExecutor
+_orig = ThreadPoolExecutor.shutdown
+def shutdown(self, wait=True):  # la firma di Python 3.8: cancel_futures non esiste
+    return _orig(self, wait=wait)
+ThreadPoolExecutor.shutdown = shutdown
+hook = sys.argv[1]
+sys.argv = sys.argv[1:]
+runpy.run_path(hook, run_name="__main__")
+'''
+
+
+def test_gt07(hook: Path) -> None:
+    with tempfile.TemporaryDirectory() as d:
+        home, b, h, cache = prepara(Path(d), hook)
+        finto38 = Path(d) / "py38.py"
+        finto38.write_text(PY38, encoding="utf-8")
+        env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home), "FINTO_GWS": "invalido",
+               "PATH": str(b) + os.pathsep + os.environ.get("PATH", ""), "ARTURO_GWS_TIMEOUT_SEC": "3"}
+        r = subprocess.run([sys.executable, "-B", str(finto38), str(h), "--refresh"], capture_output=True,
+                           text=True, encoding="utf-8", timeout=60, env=env, check=False)
+        testo = cache.read_text(encoding="utf-8") if cache.exists() else ""
+        assert "! gws-x: token invalido" in testo, \
+            f"GT07 su Python 3.8 il refresh non scrive la cache: {testo!r} {r.stderr[-300:]!r}"
+
+
 def test_gt03(hook: Path) -> None:
     with tempfile.TemporaryDirectory() as d:
         home, b, h, cache = prepara(Path(d), hook)
@@ -140,10 +168,11 @@ def test_gt05(hook: Path) -> None:
             time.sleep(0.5)
 
 
-TESTS = {"GT01": test_gt01, "GT02": test_gt02, "GT03": test_gt03, "GT04": test_gt04, "GT05": test_gt05, "GT06": test_gt06}
+TESTS = {"GT01": test_gt01, "GT02": test_gt02, "GT03": test_gt03, "GT04": test_gt04, "GT05": test_gt05, "GT06": test_gt06, "GT07": test_gt07}
 VELENI = {
     "GT01": ('return alias, "unverified", f"non verificato (auth status oltre', 'return alias, "ok", f"non verificato (auth status oltre'),
     "GT05": ('str(Path(__file__).resolve()), "--refresh"]', 'str(Path(__file__).resolve())]'),
+    "GT07": ("pool.shutdown(wait=False)", "pool.shutdown(wait=False, cancel_futures=True)"),
 }
 
 

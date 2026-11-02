@@ -174,7 +174,10 @@ def run_checks() -> str:
         for future, alias in futures.items():
             if future not in finiti:
                 issues.append((alias, "unverified", "non verificato (il check non è tornato)"))
-    pool.shutdown(wait=False, cancel_futures=True)
+    # Python 3.8 non ha cancel_futures (arriva col 3.9): i check in coda si annullano a mano (#4434).
+    for future in futures:
+        future.cancel()
+    pool.shutdown(wait=False)
     if not issues:
         return ""
     issues.sort(key=lambda x: x[0])
