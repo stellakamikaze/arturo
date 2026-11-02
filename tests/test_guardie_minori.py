@@ -49,6 +49,9 @@ def test_r01(repo: Path) -> None:
 
 def test_r02(repo: Path) -> None:
     with tempfile.TemporaryDirectory() as d:
+        # sed -i non crea il file: chiede solo su un CLAUDE.md che c'è (RV03, 9cf3318, 1/11/2026).
+        (Path(d) / "progetto").mkdir()
+        (Path(d) / "progetto" / "CLAUDE.md").write_text("a\n", encoding="utf-8")
         for comando in ("echo x >> CLAUDE.md", "sed -i '' s/a/b/ progetto/CLAUDE.md", "cp /tmp/x CLAUDE.md",
                         "printf x | tee -a CLAUDE.md", "python3 -c \"open('CLAUDE.md','w')\"",
                         "cd progetto && echo x > CLAUDE.local.md", "mv CLAUDE.md /tmp/"):

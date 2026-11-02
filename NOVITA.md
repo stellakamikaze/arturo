@@ -12,6 +12,33 @@ modo di lavorare.
 
 ---
 
+## 2026-11-02 — /inizio capisce una frase, e un passo fermato diventa un comando per te
+
+**Cosa cambia**: se scrivi a `/inizio` cosa vuoi fare senza il nome del progetto ("oggi ho
+scaricato molti documenti, riordinameli"), la frase diventa il compito della sessione. Claude ti
+propone il progetto più vicino, o di lavorare dove sei, e non te la fa riscrivere (segnalazione
+n. 39). Un testo molto lungo non dà più un errore tecnico con Python 3.9 (segnalazione n. 42).
+
+Quando il controllo di sicurezza della modalità auto di Claude Code ferma un passo che hai già
+approvato, non ti chiede niente: il passo resta fermo. Ora Claude ti prepara un solo comando da
+lanciare tu col prefisso `!`, e ti dice in una frase cosa fa. Vale per la riga di Homebrew in
+`~/.zprofile` (segnalazione n. 36), per lo sblocco di una guardia (segnalazione n. 38) e per un
+passo su un tuo server (segnalazione n. 41). Lo sblocco delle guardie sui servizi di avvio e sui file
+di config lo lanci sempre tu, col prefisso `!`.
+
+**Da sapere**: se il progetto sta fuori dalle cartelle che Claude Code ha aperto, la shell torna alla
+cartella di partenza dopo ogni comando. `/inizio` ora se ne accorge e ti propone `/add-dir`, e fino
+ad allora `/inizio` e `/fine` lavorano nella cartella giusta (segnalazione n. 37). Se colleghi Chrome
+con `/chrome` a sessione aperta, gli strumenti del browser arrivano solo dopo `/exit` e
+`claude --continue`: Claude ora te lo dice subito (segnalazione n. 40). Un programma che macOS avvia
+da solo (un LaunchAgent) non può scrivere in iCloud Drive, Documenti e Scrivania: Claude mette dati e
+script altrove.
+
+**Il principio dietro**: quando Claude non può fare un passo, ti dice subito il gesto che serve,
+in una riga.
+
+---
+
 ## 2026-11-01 — Arturo si installa incollando un link in Claude Code
 
 **Cosa cambia**: per installare Arturo ora basta Claude Code. Scrivi `claude` e incolla la frase
