@@ -165,6 +165,7 @@ BANCHI=(
   test_segnalazioni_2026_11_02.py
   test_monitor_ponti_2026_11_02.py
   test_gws_token_health.py
+  test_telemetria_fase2_2026_11_03.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -172,7 +173,7 @@ done
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py)
+PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py)
 PY38=$(command -v python3.8 || true)
 if [[ -n "$PY38" ]]; then
   for test in "${PY38_BANCHI[@]}"; do
@@ -336,6 +337,8 @@ BASELINE=(
   "test_gate_lucchetto_2026_10_31.py 5122a03 radice"
   # /monitor in Arturo, Fase 1 (2/11/2026): i ponti della persona. 2fe4037, il dev prima di bin/monitor.
   "test_monitor_ponti_2026_11_02.py 2fe4037"
+  # Telemetria fase 2 (3/11/2026, #4540): durata, turni e skill alla chiusura. c5536a7, il dev prima.
+  "test_telemetria_fase2_2026_11_03.py c5536a7"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

@@ -4,7 +4,9 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
 
 - `POST /v1/eventi`: un lotto di eventi d'uso con un id di installazione casuale, dall'elenco chiuso in
   `logica.js` (`sessione`, `comando`, `guardia`, `aggiorna`, `segnalazione`, `deriva`, `config`, `setup`,
-  `chiede`, `confermata`, `errore`, `claude`). Ogni evento ha il giorno e mai l'ora. `config`
+  `chiede`, `confermata`, `errore`, `claude`, e dal 3/11/2026 `durata`, `turni` e `skill`, che il client
+  registra alla chiusura della sessione: le prime due solo in fasce, la terza solo coi nomi di `SKILL` o
+  `altro`). Ogni evento ha il giorno e mai l'ora. `config`
   (config rotta) manda subito un'email, una al giorno per installazione. Il server accetta ancora
   `tappa`, che il client non manda più dal 16/10/2026, per non perdere i dati dei client non
   aggiornati: in coda all'elenco, si toglie dopo qualche settimana.

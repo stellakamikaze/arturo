@@ -27,9 +27,12 @@ Due tempi, perché un hook non deve mai aspettare la rete:
 - `invia` manda la coda in un lotto. L'avvio della sessione lo lancia in background, al massimo
   ogni 6 ore, e lì registra anche la versione di Claude Code quando cambia. Manda anche le
   segnalazioni di /segnala rimaste in attesa.
+- `fine` (hooks/session-end.sh, in background) legge il transcript della sessione che chiude e registra
+  durata e messaggi della persona in fasce larghe, e le skill usate (dal 3/11/2026, #4540). Del transcript
+  non esce niente altro.
 
 Lo stato (id, ultimo tentativo, spenta, avviso_promessa, claude, deriva e config
-già inviate) sta in ~/.claude/session-env/telemetria.json.
+già inviate, gli id delle ultime sessioni contate da `fine`) sta in ~/.claude/session-env/telemetria.json.
 Solo libreria standard, Python 3.8 o successivo. Nessun comando di questo modulo fallisce in modo
 da fermare un hook: gli errori di registra e avvio tacciono.
 """
@@ -47,6 +50,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
@@ -76,6 +80,11 @@ EVENTI = {
     "confermata": re.compile(r"^[a-z0-9_.-]{1,60}$"),
     "errore": re.compile(r"^[a-z0-9_.-]{1,60}$"),
     "claude": re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,4}$"),
+    # Dal 3/11/2026 (#4540), il "come" dell'uso: alla chiusura della sessione la sua durata e i messaggi
+    # della persona, solo in fasce larghe, e una volta per sessione ogni skill usata (fine_sessione).
+    "durata": re.compile(r"^(<5m|5-30m|30m-2h|>2h)$"),
+    "turni": re.compile(r"^(1|2-5|6-20|>20)$"),
+    "skill": re.compile(r"^[a-z0-9-]{1,40}$"),
 }
 # Le guardie di Arturo che parlano alla telemetria: quelle che bash-dispatcher.sh lancia con run_guard,
 # più web-egress-guard.py e protect_claude_md.py, che chiamano chiede da sole. Un nome fuori elenco non
@@ -106,13 +115,23 @@ REGOLE = {
 # in conflitto che non è di Arturo solo `file:altro`; un comando della persona diventa `altro`. Le
 # conferme contano anche su Monitor e dopo un comando fallito. Come versione esce solo un tag di rilascio di
 # Arturo, mai un tag della persona. Il README non dice più "non legato a te".
-PROMESSA = 7
+# 8: escono la durata della sessione e i messaggi della persona in fasce, e le skill di Arturo usate (3/11/2026, #4540).
+PROMESSA = 8
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
 # ~/.claude/commands/ ha un nome suo: esce come `altro`, che conta l'uso senza dire il nome (24/10/2026).
 # Il banco M10 controlla che l'elenco coincida con commands/ del repository.
 COMANDI = frozenset({"aggiorna", "creaskill", "diagnosi", "fine", "guidami", "inizio", "novita", "proponi", "segnala",
                      "setup", "sparring"})
-OGNI = 6 * 3600          # secondi fra due invii automatici
+# Le skill di Arturo, le uniche di cui parte il nome (3/11/2026, #4540). Una skill della persona o di un plugin
+# esce come `altro`, come un comando. Il banco TS01 (tests/test_telemetria_fase2_2026_11_03.py) controlla che
+# l'elenco coincida con skills/ del repository e con SKILL in server/logica.js.
+SKILL = frozenset({"apri", "cache-fredda", "concetti", "dafare", "gws", "italiano-semplificato", "prompt-master",
+                   "redazione-segreti", "riscrivi-bash", "system-audit", "todo"})
+# Un transcript più grande non si legge alla chiusura: la sessione esce senza durata, turni e skill.
+TRANSCRIPT_MASSIMO = 64 * 1024 * 1024
+# Le sessioni già contate da fine_sessione: una sessione ripresa con --resume e chiusa di nuovo non si conta due volte.
+SESSIONI_RICORDATE = 50
+OGNI = 6 * 3600         # secondi fra due invii automatici
 CODA_MASSIMA = 2000      # righe: oltre, gli eventi nuovi si perdono finché la coda non parte
 LOTTO = 500
 SPENTI = {"0", "no", "off", "false", "spenta"}
@@ -130,9 +149,11 @@ AIUTO = f"""arturo telemetria: gli eventi d'uso che Arturo manda a chi lo mantie
 
 Escono solo questi eventi, con il giorno e mai l'ora: {", ".join(EVENTI)}.
 Dei file di Arturo modificati o in conflitto solo la posizione nel repository di Arturo, che è
-pubblica; un file tuo esce come "file:altro". Delle guardie e dei comandi solo i nomi di Arturo: un
-comando tuo esce come "altro", di un segreto fermato in un commit solo la famiglia, mai il servizio.
-Come versione esce solo il rilascio di Arturo installato, mai un tuo tag.
+pubblica; un file tuo esce come "file:altro". Delle guardie, dei comandi e delle skill solo i nomi
+di Arturo: un comando o una skill tua esce come "altro", di un segreto fermato in un commit solo la
+famiglia, mai il servizio. Come versione esce solo il rilascio di Arturo installato, mai un tuo tag.
+Di ogni sessione, alla chiusura, solo la durata e quanti messaggi hai scritto, in fasce larghe:
+meno di 5 minuti, fino a 30, fino a 2 ore, oltre; 1, da 2 a 5, da 6 a 20, oltre 20 messaggi.
 Mai prompt, file tuoi, percorsi del tuo computer, nomi, risposte o testi.
 L'id è casuale, ma chi mantiene Arturo può sapere chi c'è dietro se ti conosce: non sono dati
 anonimi. Cosa si tiene, per quanto e i tuoi diritti: docs/privacy.md.
@@ -246,6 +267,8 @@ def normalizza(evento: str, valore: str):
         return None
     if evento == "comando":
         return valore if valore in COMANDI else "altro"
+    if evento == "skill":
+        return valore if valore in SKILL else "altro"
     if evento in ("guardia", "errore"):
         return valore if valore in GUARDIE else None
     if evento in ("chiede", "confermata"):
@@ -563,6 +586,107 @@ def invia(zitto: bool = False) -> tuple:
     return partiti, segnalazioni
 
 
+def _fascia_durata(secondi: float) -> str:
+    if secondi < 5 * 60:
+        return "<5m"
+    if secondi < 30 * 60:
+        return "5-30m"
+    return "30m-2h" if secondi < 2 * 3600 else ">2h"
+
+
+def _fascia_turni(turni: int) -> str:
+    return "1" if turni == 1 else "2-5" if turni <= 5 else "6-20" if turni <= 20 else ">20"
+
+
+# I messaggi del transcript che la persona non ha scritto: l'uscita di un comando locale, il messaggio di
+# un'altra sessione, l'avviso di un job finito. /clear apre la sessione nuova col suo nome, ma non è una richiesta.
+NON_SCRITTI = ("<local-command", "<agent-message", "Another Claude session", "<task-notification", "<system-reminder",
+               "<command-name>/clear</command-name>", "Caveat:")
+COMANDO_DIGITATO = re.compile(r"<command-name>/([a-z0-9-]{1,40})</command-name>")
+
+
+def _secondi(testo) -> float | None:
+    if not isinstance(testo, str):
+        return None
+    try:  # fromisoformat di Python 3.8 non legge la Z finale
+        return datetime.fromisoformat(testo.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def leggi_sessione(percorso: Path) -> tuple:
+    """Da un transcript di Claude Code: (secondi fra il primo e l'ultimo messaggio, o None; messaggi scritti
+    dalla persona; skill usate, in ordine e senza doppi). Del transcript non esce niente altro: i testi servono
+    solo a riconoscere un messaggio della persona e il nome di una skill, e restano qui."""
+    primo = ultimo = None
+    turni = 0
+    skill: list = []
+    with percorso.open(encoding="utf-8", errors="replace") as f:
+        for riga in f:
+            try:
+                d = json.loads(riga)
+            except ValueError:
+                continue
+            if not isinstance(d, dict) or d.get("isSidechain") or d.get("type") not in ("user", "assistant"):
+                continue
+            t = _secondi(d.get("timestamp"))
+            if t is not None:
+                primo = t if primo is None else min(primo, t)
+                ultimo = t if ultimo is None else max(ultimo, t)
+            messaggio = d.get("message")
+            contenuto = messaggio.get("content") if isinstance(messaggio, dict) else None
+            blocchi = contenuto if isinstance(contenuto, list) else []
+            if d["type"] == "user" and not d.get("isMeta"):
+                testi = [contenuto] if isinstance(contenuto, str) else \
+                    [b.get("text") for b in blocchi if isinstance(b, dict) and b.get("type") == "text" and isinstance(b.get("text"), str)]
+                scritti = [x for x in testi if x.strip() and not x.lstrip().startswith(NON_SCRITTI)]
+                immagine = any(isinstance(b, dict) and b.get("type") == "image" for b in blocchi)
+                if scritti or immagine:
+                    turni += 1
+                for x in scritti:  # una skill di Arturo lanciata con la barra, come /todo
+                    for nome in COMANDO_DIGITATO.findall(x):
+                        if nome in SKILL and nome not in skill:
+                            skill.append(nome)
+            elif d["type"] == "assistant":
+                for b in blocchi:
+                    if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") == "Skill" \
+                            and isinstance(b.get("input"), dict) and isinstance(b["input"].get("skill"), str):
+                        nome = b["input"]["skill"].lstrip("/")
+                        nome = nome if nome in SKILL else "altro"
+                        if nome not in skill:
+                            skill.append(nome)
+    secondi = ultimo - primo if primo is not None and ultimo is not None else None
+    return secondi, turni, skill
+
+
+def fine_sessione(dati: dict) -> None:
+    """Lo chiama session-end.sh in background, col JSON dell'hook: registra durata, turni e skill della sessione
+    che chiude. Una sessione senza messaggi della persona non registra niente. Non usa la rete e non solleva."""
+    try:
+        if perche_spenta() or not isinstance(dati, dict):
+            return
+        sessione, percorso = dati.get("session_id"), dati.get("transcript_path")
+        if not isinstance(sessione, str) or not sessione or not isinstance(percorso, str) or not percorso:
+            return
+        if sessione in (leggi_stato().get("sessioni_chiuse") or []):
+            return
+        transcript = Path(percorso)
+        if not transcript.is_file() or transcript.stat().st_size > TRANSCRIPT_MASSIMO:
+            return
+        secondi, turni, skill = leggi_sessione(transcript)
+        cambia_stato(lambda s: s.__setitem__("sessioni_chiuse", (
+            [x for x in (s.get("sessioni_chiuse") or []) if isinstance(x, str) and x != sessione] + [sessione])[-SESSIONI_RICORDATE:]))
+        if not turni:
+            return
+        if secondi is not None:
+            registra("durata", _fascia_durata(secondi))
+        registra("turni", _fascia_turni(turni))
+        for nome in skill:
+            registra("skill", nome)
+    except Exception:  # noqa: BLE001 - la chiusura di una sessione non si ferma mai per la telemetria
+        pass
+
+
 def avvio() -> int:
     """Lo chiama session-start.sh: registra la sessione, stampa l'avviso una volta, lancia l'invio."""
     try:
@@ -575,7 +699,8 @@ def avvio() -> int:
         if stato.get("avviso_promessa") != PROMESSA:
             nuova = " Cosa esce è cambiato da quando l'ha letto: diglielo." if stato.get("avviso") else ""
             print("TELEMETRIA: Arturo manda a chi lo mantiene eventi d'uso con un id casuale: versione di Arturo e di "
-                  "Claude Code, sistema, comandi di Arturo usati (uno della persona conta come altro), guardie che bloccano o chiedono, con la regola che chiede "
+                  "Claude Code, sistema, comandi e skill di Arturo usati (uno della persona conta come altro), durata della sessione e "
+                  "numero dei messaggi della persona in fasce larghe, guardie che bloccano o chiedono, con la regola che chiede "
                   "(di un segreto solo la famiglia), e se la persona conferma, guardie che si rompono, fase di /setup raggiunta, esiti di /aggiorna e degli "
                   "aggiornamenti automatici, perché un aggiornamento automatico non parte, file e hook di Arturo cambiati, spenti o in conflitto "
                   "(un file della persona conta come altro). Mai prompt, file, nomi o testi. L'id è casuale, ma chi mantiene Arturo può "
@@ -624,6 +749,12 @@ def main(argv: list) -> int:
             registra_conflitti(sys.stdin.buffer.read().decode("utf-8", "replace").splitlines(),
                                (resto[0] if resto else "") or None, resto[1] if len(resto) == 2 else None)
         except Exception:  # noqa: BLE001 - un aggiornamento non si ferma mai per la telemetria
+            pass
+        return 0
+    if comando == "fine" and not resto:
+        try:  # hooks/session-end.sh, col JSON dell'hook sullo stdin
+            fine_sessione(json.loads(sys.stdin.buffer.read().decode("utf-8", "replace") or "{}"))
+        except Exception:  # noqa: BLE001 - un hook non si ferma mai per la telemetria
             pass
         return 0
     if comando == "chiede" and len(resto) == 2:

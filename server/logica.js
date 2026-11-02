@@ -42,6 +42,10 @@ export const REGOLE = {
 // COMANDI: i file di commands/, lo stesso elenco di COMANDI in bin/telemetria.py (banco M10). Il client manda
 // "altro" per un comando che non è di Arturo: il server lo accetta, il nome vero non esce mai.
 export const COMANDI = ["aggiorna", "creaskill", "diagnosi", "fine", "guidami", "inizio", "novita", "proponi", "segnala", "setup", "sparring"];
+// SKILL: le cartelle di skills/, lo stesso elenco di SKILL in bin/telemetria.py (banco TS01, 3/11/2026). Come per i
+// comandi, una skill della persona arriva come "altro".
+export const SKILL = ["apri", "cache-fredda", "concetti", "dafare", "gws", "italiano-semplificato", "prompt-master", "redazione-segreti",
+  "riscrivi-bash", "system-audit", "todo"];
 
 // I nomi di Arturo che la deriva può dire oltre la forma (24/10/2026). La regex di `deriva` resta uguale, lettera per
 // lettera, a quella del client (banco A01): la chiusura sta in derivaPubblica, come percorso_pubblico nel client.
@@ -106,6 +110,10 @@ export const EVENTI = {
   confermata: GUARDIA_E_REGOLA,
   errore: GUARDIA_E_REGOLA,
   claude: /^\d{1,3}\.\d{1,3}\.\d{1,4}$/,
+  // Dal 3/11/2026 (#4540): alla chiusura della sessione la durata e i messaggi della persona in fasce, e le skill usate.
+  durata: /^(<5m|5-30m|30m-2h|>2h)$/,
+  turni: /^(1|2-5|6-20|>20)$/,
+  skill: unoDi([...SKILL, "altro"]),
   // Eventi vecchi: il client non li manda più, ma un client non aggiornato sì. Restano accettati per
   // non perdere i dati dei client fermi (prima del 24/10/2026 un evento fuori elenco faceva rifiutare il
   // lotto intero). Da togliere dopo qualche settimana, insieme al loro posto in M09 (tests/test_telemetria.py).

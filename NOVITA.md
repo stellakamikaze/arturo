@@ -12,6 +12,24 @@ modo di lavorare.
 
 ---
 
+## 2026-11-03 — La telemetria dice anche come usi Arturo, non solo quanto
+
+**Cosa cambia**: alla chiusura di ogni sessione Arturo registra quanto è durata e quanti messaggi
+hai scritto, solo in fasce larghe (meno di 5 minuti, fino a 30, fino a 2 ore, oltre; 1, da 2 a 5, da
+6 a 20, oltre 20 messaggi), e quali skill di Arturo hai usato. Per contarli legge sul tuo computer la
+cronologia della sessione: non ne esce nessun testo, e una skill tua conta come `altro`. Alla prima
+sessione dopo l'aggiornamento Claude ti dice cosa esce di nuovo e come spegnerlo.
+
+**Perché**: finora chi mantiene Arturo vedeva quante sessioni apri, non come lavori. Una sessione di
+due minuti che finisce con `/fine` e una di due ore pesano uguale. Con le fasce si vede dove Arturo
+ti fa perdere tempo, per esempio una chiusura lunga anche a sessione vuota.
+
+**Da sapere**: la pagina [privacy](docs/privacy.md) ora dice la base giuridica senza riserve, il
+legittimo interesse, e dice che l'email del lunedì a chi mantiene Arturo porta la sezione "Chi lo
+usa". La telemetria si spegne sempre con `python3 ~/.claude/bin/arturo telemetria spegni`.
+
+---
+
 ## 2026-11-02 — /inizio capisce una frase, e un passo fermato diventa un comando per te
 
 **Cosa cambia**: se scrivi a `/inizio` cosa vuoi fare senza il nome del progetto ("oggi ho

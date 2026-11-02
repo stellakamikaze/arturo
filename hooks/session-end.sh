@@ -15,6 +15,20 @@ if [ -f "$HOME/.claude/bin/aggiornamenti.py" ] && [ "${ARTURO_AGGIORNAMENTI:-}" 
     >> "$HOME/.claude/session-env/aggiornamento.log" 2>&1 < /dev/null &
 fi
 
+# Il JSON dell'hook: id della sessione e transcript. Si legge prima dell'uscita qui sotto, perché la
+# telemetria della chiusura vale anche fuori da un progetto.
+HOOK_INPUT=""
+[ -t 0 ] || IFS= read -r -t 2 -d '' HOOK_INPUT || true
+
+# Telemetria (3/11/2026, #4540): durata e messaggi della sessione in fasce, e le skill usate. Legge il
+# transcript in background, così la chiusura non aspetta; spenta, telemetria.py non registra niente.
+# Il codice si trova dalla cartella di questo hook, come in session-start.sh (strati F1, docs/strati.md).
+ARTURO_CODICE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
+[ -n "$ARTURO_CODICE" ] || ARTURO_CODICE="$HOME/.claude"
+if [ -n "$HOOK_INPUT" ] && [ -f "$ARTURO_CODICE/bin/telemetria.py" ]; then
+  printf '%s' "$HOOK_INPUT" | nohup python3 "$ARTURO_CODICE/bin/telemetria.py" fine >/dev/null 2>&1 &
+fi
+
 # Il resto solo in una directory di progetto
 if [ ! -d "$PROJECT_ROOT/.git" ] && [ ! -f "$PROJECT_ROOT/CLAUDE.md" ]; then
     exit 0
@@ -23,8 +37,6 @@ fi
 # Cleanup file temporanei sessione: deve avvenire anche su tree pulito.
 # I file di sblocco di questa sessione, e quelli rimasti da più di un giorno: un'altra sessione ancora
 # aperta perdeva il suo sblocco a metà lavoro (30/10/2026). L'id arriva nel JSON dell'hook.
-HOOK_INPUT=""
-[ -t 0 ] || IFS= read -r -t 2 -d '' HOOK_INPUT || true
 SESSIONE=$(printf '%s' "$HOOK_INPUT" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9_-]*\)".*/\1/p' | head -1)
 if [ -n "$SESSIONE" ]; then
   rm -f ~/.claude/claude-md-unlock-"$SESSIONE" ~/.claude/config-unlock-"$SESSIONE" \

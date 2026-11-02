@@ -11,10 +11,9 @@ Scrivi a questo indirizzo per ogni domanda o richiesta su questa pagina.
 
 ## Base giuridica
 
-La base giuridica è **provvisoria**: il legittimo interesse (art. 6.1.f del GDPR) a migliorare uno strumento che usi.
-È provvisoria perché aspetta un parere scritto sull'art. 122 del Codice privacy, la regola sulle informazioni lette dal tuo computer.
-Se il parere chiede il consenso, Arturo lo chiederà prima di mandare altro, e questa pagina cambia.
-Fino ad allora la telemetria resta accesa di default, e la spegni in un comando (vedi "I tuoi diritti").
+La base giuridica è il legittimo interesse (art. 6.1.f del GDPR) di chi mantiene Arturo a migliorare uno strumento che usi.
+Per questo la telemetria è accesa di default, raccoglie solo eventi da un elenco chiuso e mai contenuti, e la spegni in un comando (vedi "I tuoi diritti").
+Quando cambia cosa esce, Arturo te lo dice alla prima sessione dopo l'aggiornamento, prima di mandare i dati nuovi.
 
 ## Non sono dati anonimi
 
@@ -26,7 +25,7 @@ Per questo i dati non sono anonimi, e questa pagina li tratta come dati personal
 
 | Dato | Cosa contiene | Da dove arriva | Quanto resta |
 |---|---|---|---|
-| Eventi d'uso | L'id casuale, il rilascio di Arturo installato (un tuo tag non esce), il sistema (Darwin, Linux, Windows), il giorno (mai l'ora) e un evento da un elenco chiuso: comandi di Arturo, guardie che bloccano o chiedono, esiti degli aggiornamenti, fase di `/setup`, file di Arturo cambiati, versione di Claude Code | Da solo, al massimo ogni sei ore | 12 mesi |
+| Eventi d'uso | L'id casuale, il rilascio di Arturo installato (un tuo tag non esce), il sistema (Darwin, Linux, Windows), il giorno (mai l'ora) e un evento da un elenco chiuso: comandi di Arturo, guardie che bloccano o chiedono, esiti degli aggiornamenti, fase di `/setup`, file di Arturo cambiati, versione di Claude Code, skill di Arturo usate. Dal 3/11/2026, alla chiusura di ogni sessione, anche la sua durata e quanti messaggi hai scritto, solo in fasce larghe (meno di 5 minuti, fino a 30, fino a 2 ore, oltre; 1, da 2 a 5, da 6 a 20, oltre 20 messaggi): per contarli Arturo legge sul tuo computer la cronologia della sessione, e non ne esce niente altro | Da solo, al massimo ogni sei ore | 12 mesi |
 | Segnalazioni di `/segnala` | Tipo, titolo e testo che hai letto e approvato, versione, sistema, l'id solo con la telemetria accesa | Solo dopo il tuo sì | 12 mesi |
 | Feedback dal sito | Tipo, testo, email solo se la scrivi tu | Dal modulo del sito | 12 mesi |
 | Contatori senza id | Numeri del giorno: download dal sito, eventi scartati, avvisi non partiti | Dal server | 12 mesi |
@@ -63,7 +62,10 @@ Nelle fasi 2b e 2c `/setup` ti chiede due volte un sì, per conoscerti prima di 
 - **Gmail** riceve queste email per chi mantiene Arturo:
   - lo stesso campanello delle segnalazioni, con l'ora di arrivo e il link alla pagina privata;
   - l'avviso di una config rotta: le prime 8 cifre dell'id, la versione di Arturo e il tipo di guasto;
-  - il recap di ogni mattina e il riepilogo del lunedì: i numeri degli eventi sommati fra le installazioni e, per installazione con le prime 8 cifre dell'id, i file e gli hook di Arturo cambiati o spenti, le guardie che bloccano spesso e le installazioni rimaste indietro.
+  - il recap di ogni mattina e il riepilogo del lunedì: i numeri degli eventi sommati fra le installazioni e, per installazione con le prime 8 cifre dell'id, i file e gli hook di Arturo cambiati o spenti, le guardie che bloccano spesso e le installazioni rimaste indietro;
+  - dal 2/11/2026, nel riepilogo del lunedì, la sezione "Chi lo usa": per installazione, con le prime 8 cifre dell'id, i giorni attivi della settimana, le sessioni, il comando più usato e l'ultimo giorno visto.
+
+Chi mantiene Arturo vede gli stessi numeri per installazione anche in una sua pagina privata, protetta da accesso, dove dà un nome agli id delle persone che conosce. Quei nomi stanno solo sul suo server, non nel server della telemetria e non in questo repository.
 
 Telegram e Gmail non ricevono mai il testo di una segnalazione o di un feedback, la tua email o l'id completo.
 Queste copie stanno fuori dal server: la pulizia dei 12 mesi e la cancellazione sul server non le raggiungono.

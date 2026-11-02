@@ -169,7 +169,9 @@ guardia, una regola o un comando nuovi vanno nelle liste chiuse di `server/logic
 `REGOLE`, `COMANDI`), che il banco TF03 (`tests/test_telemetria_f1_2026_10_24.py`) confronta con il
 repository e con `bin/telemetria.py`. Lo stesso vale per una skill, un agent, un file della radice o un
 hook di `settings.json` nuovi: vanno in `DERIVA_NOMI` e `DERIVA_HOOK`, che il banco TF05 confronta con
-il repository. Fino al deploy il server salva quel nome come `file:altro` o `hook:altro`. Per lo stesso motivo un evento tolto dal client resta accettato dal server ancora qualche
+il repository. Una skill nuova va anche in `SKILL` di `bin/telemetria.py` e di `server/logica.js`, che il banco
+TS01 (`tests/test_telemetria_fase2_2026_11_03.py`) confronta con `skills/`: fuori elenco esce come `skill altro`.
+Fino al deploy il server salva quel nome come `file:altro` o `hook:altro`. Per lo stesso motivo un evento tolto dal client resta accettato dal server ancora qualche
 settimana, per i client non aggiornati: sta in coda all'elenco di `server/logica.js` e in
 `EVENTI_VECCHI` di `tests/test_telemetria.py`, e da lì si toglie insieme (oggi: `tappa`, tolta il
 16/10/2026). Se cambia cosa esce, alza anche `PROMESSA` in `bin/telemetria.py`: l'avviso torna una volta.

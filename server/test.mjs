@@ -157,7 +157,7 @@ const casi = {
     const corpo = m.split("\r\n\r\n")[1].replace(/\r\n/g, "");
     assert.equal(Buffer.from(corpo, "base64").toString("utf8"), "àèì", "V08 il corpo non torna uguale");
     assert.deepEqual(Object.keys(EVENTI), ["sessione", "comando", "guardia", "aggiorna", "segnalazione", "deriva", "config",
-      "setup", "chiede", "confermata", "errore", "claude", "tappa"], "V08 l'elenco degli eventi, con i vecchi in coda");
+      "setup", "chiede", "confermata", "errore", "claude", "durata", "turni", "skill", "tappa"], "V08 l'elenco degli eventi, con i vecchi in coda");
   },
   async V10() {
     const f = finti();
@@ -270,6 +270,17 @@ const casi = {
       ["tappa", "note:3"], ["claude", "2.1.x-beta"], ["chiede", "una guardia con spazi"], ["aggiorna", "forse"],
       ["tappa", "tappa:3\n"]];
     for (const [evento, valore] of cattivi) await scartato(evento, valore, "V16");
+  },
+  // Fase 2 della telemetria (3/11/2026, #4540): durata e turni solo nelle fasce, skill solo di Arturo o altro.
+  async V16b() {
+    const buoni = [["durata", "<5m"], ["durata", ">2h"], ["turni", "1"], ["turni", ">20"], ["skill", "todo"], ["skill", "altro"]];
+    for (const [evento, valore] of buoni) {
+      const f = finti();
+      const r = await gestisci(post("/v1/eventi", lotto([{ giorno: "2026-11-03", evento, valore }])), { ...f, adesso });
+      assert.deepEqual(await r.json(), { accettati: 1, scartati: 0 }, `V16b ${evento} ${valore} rifiutato`);
+    }
+    for (const [evento, valore] of [["durata", "17m"], ["turni", "7"], ["skill", "cliente-rossi"], ["skill", "todo extra"]])
+      await scartato(evento, valore, "V16b");
   },
   // Il riepilogo in JSON esce solo con il token giusto, e un token corto non apre niente.
   async V17() {
