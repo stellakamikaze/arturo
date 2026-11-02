@@ -625,6 +625,19 @@ def test_f06(repo: Path) -> None:
         assert r.returncode == 0 and "PROGETTO il-libro" in r.stdout, f"F06 senza nome non usa la cartella: {r.stdout}"
         r = lab.arturo("contesto", "libro", "--boh", cwd=lab.home)
         assert r.returncode == 3, f"F06 un'opzione sconosciuta non è exit 3: {r.returncode}"
+        # Una frase senza nome di progetto è il compito (segnalazione n. 39), anche oltre i 255 byte di un
+        # nome di file, che fino a Python 3.13 fa sollevare OSError a is_dir() (segnalazione n. 42).
+        frase = "oggi ho scaricato molti documenti, riordinameli"
+        r = lab.arturo("contesto", frase, cwd=lab.progetti)
+        assert r.returncode == 2 and f"compito: {frase}" in r.stdout and "Il Libro" in r.stdout, \
+            f"F06 una frase senza progetto non resta il compito: {r.returncode} {r.stdout}"
+        lunga = " ".join(["riscrivi il messaggio per il cliente con un tono più caldo"] * 8)
+        r = lab.arturo("contesto", lunga, cwd=lab.progetti)
+        assert r.returncode == 2 and "Traceback" not in r.stderr and f"compito: {lunga}" in r.stdout, \
+            f"F06 un testo lungo rompe /inizio: {r.returncode} {r.stderr[-300:]}"
+        r = lab.arturo("contesto", "rileggi bene il capitolo", cwd=progetto)
+        assert r.returncode == 0 and "PROGETTO il-libro" in r.stdout and "compito: rileggi bene il capitolo" in r.stdout, \
+            f"F06 una frase dalla cartella del progetto non lavora lì: {r.stdout[:300]}"
     con_lab(repo, prova)
 
 

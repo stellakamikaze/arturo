@@ -42,6 +42,7 @@ MAX_STATUS = 15
 MAX_COMMIT = 15
 MAX_RIPARTENZA = 700
 MAX_CARATTERI = 28000
+PAROLE_COMPITO = 4  # da quante parole un testo senza progetto è un compito e non un nome
 ETICHETTE = {"tu": "TOCCA A TE", "decidi": "DECIDI TU, POI FACCIO IO", "io": "FACCIO IO", "fermo": "FERMO"}
 
 
@@ -94,6 +95,15 @@ def leggi_argomenti(argv: list) -> tuple:
     return " ".join(parole), giorni
 
 
+def e_cartella(p: Path) -> bool:
+    """is_dir() che regge un nome lungo: fino a Python 3.13 un componente oltre 255 byte solleva OSError
+    ENAMETOOLONG invece di dare False (segnalazione n. 42, 1/11/2026, Python 3.9.6)."""
+    try:
+        return p.is_dir()
+    except OSError:
+        return False
+
+
 def trova_cartella(nome: str) -> tuple:
     """(cartella o None, contenitore). Senza nome vale la cartella corrente, se è un progetto."""
     cwd, home, pb = Path.cwd().resolve(), Path.home().resolve(), base_progetti()
@@ -105,7 +115,7 @@ def trova_cartella(nome: str) -> tuple:
     if cima and slug(cima.name) == slug(nome) and cima != home:
         return cima, False
     for c in (pb / nome, home / "Documents" / nome, home / "Projects" / nome, home / nome, cwd / nome):
-        if c.is_dir() and c != home:
+        if e_cartella(c) and c != home:
             return c.resolve(), False
     # Il nome scritto come slug ("mio-progetto") per una cartella "mio_progetto" o "Mio Progetto":
     # l'INDEX e gli handoff usano lo slug (segnalazione n. 21, 27/10/2026).
@@ -126,7 +136,7 @@ def modulo_index():
 def handoff_di(s: str) -> list:
     """Gli handoff del progetto, dal più recente: (nome, data, ora, percorso)."""
     d = handoff_dir() / s
-    if not s or not d.is_dir():
+    if not s or not e_cartella(d):
         return []
     out = []
     for f in sorted(d.glob("HANDOFF_*.md"), key=lambda p: p.name, reverse=True):
@@ -160,7 +170,7 @@ def risolvi_nome(nome: str) -> tuple:
     parole = nome.split()
     prefissi = [(" ".join(parole[:k]), " ".join(parole[k:])) for k in range(len(parole), 0, -1)]
     for pref, resto in prefissi:
-        if slug(pref) and (trova_cartella(pref)[0] or (handoff_dir() / slug(pref)).is_dir()):
+        if slug(pref) and (trova_cartella(pref)[0] or e_cartella(handoff_dir() / slug(pref))):
             return pref, resto, None
     nomi = nomi_noti()
     for pref, resto in prefissi:
@@ -169,13 +179,18 @@ def risolvi_nome(nome: str) -> tuple:
             return f[0], resto, f'interpretato "{pref}" come {f[0]}'
         if f:
             break  # più candidati: un prefisso più corto ne darebbe di più
+    # Una frase senza nome di progetto ("oggi ho scaricato molti documenti, riordinameli") è un compito:
+    # vale la cartella corrente, e da una cartella contenitore /inizio propone i progetti col compito in
+    # mano (segnalazione n. 39, 31/10/2026). Fino a tre parole resta un nome, magari con un refuso.
+    if len(parole) >= PAROLE_COMPITO:
+        return "", nome, "nessun nome di progetto nel testo: è il compito della sessione"
     return nome, "", None
 
 
 def candidati(nome: str) -> list:
     nomi = nomi_noti()
     if not nome:
-        return sorted(nomi)[:15]
+        return sorted(n for n in nomi if not n.startswith("_"))[:15]  # _backup, _bozze: non sono progetti
     per_minuscolo = {}
     for n in sorted(nomi):
         per_minuscolo.setdefault(n.lower(), n)
@@ -453,6 +468,10 @@ def main(argv: list) -> int:
         motivo = ("la cartella in cui sei contiene i progetti, non è un progetto" if contenitore
                   else f'nessuna cartella, nessun handoff e nessun todo per "{nome}"')
         print(f"NON TROVATO: {motivo}")
+        if interpretato:
+            print(f"NOME: {interpretato}")
+        if compito:
+            print(f"compito: {compito}")
         simili = candidati(nome)
         print("Progetti simili: " + (", ".join(simili) if simili else "nessuno"))
         print(f"Cercato in: ./  {base_progetti()}/  ~/Documents/  ~/Projects/  ~/")

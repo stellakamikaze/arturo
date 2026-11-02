@@ -182,7 +182,9 @@ resta dove sei.
 ## FASE 2: Progetto non trovato
 
 Con `rc=2` lo script stampa `NON TROVATO` e i progetti con un nome simile: spesso è un refuso.
-Proponi i candidati e aspetta la scelta. Per una vista di cosa c'è da fare ovunque leggi
+Proponi i candidati e aspetta la scelta. Se l'uscita ha la riga `compito:`, la persona ha scritto cosa
+vuole fare senza il nome del progetto: proponi il progetto più vicino al compito, oppure di lavorare qui
+senza progetto, e col sì parti sul compito senza farglielo riscrivere. Per una vista di cosa c'è da fare ovunque leggi
 `~/.claude/data/handoffs/INDEX.md` (una riga per progetto con stato e prossimo passo) e proponi
 da lì. Con `rc=3` il nome non è valido: chiedi quello giusto.
 
