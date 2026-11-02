@@ -25,6 +25,8 @@ TS12 il nome è lo slug che il risolutore di /inizio stampa ("PROGETTO <slug>"),
 TS13 a fine turno e su idle_prompt un job in background senza la sua notifica di fine nel transcript vale
      "LAVORANDO" (idle_prompt arriva anche con un comando Bash in background, 29/10/2026); un job finito o
      fermato, un server (vite, http.server) e un permesso tornano a SBLOCCA.
+TS14 dopo /inizio il titolo porta il nome come lo separa arturo contesto: il compito scritto dopo il nome
+     resta fuori, e una frase senza progetto lascia la cartella (2/11/2026, #4480).
 TS09 senza terminale di controllo (il caso normale di un hook su macOS e Linux) le sequenze vanno sul
      tty del processo claude trovato fra i padri. Senza claude fra i padri non si scrive niente.
 
@@ -394,9 +396,27 @@ def test_ts13(repo: Path) -> None:
         c.chiudi()
 
 
+def test_ts14(repo: Path) -> None:
+    c = Casa(repo, "TS14", {"TERM_PROGRAM": "Apple_Terminal"})
+    c.env.pop("PROJECTS_BASE", None)
+    try:
+        (c.home / "Documents" / "ClaudeCode" / "romanzo").mkdir(parents=True)
+        uscita = c.evento("UserPromptSubmit", sessione="a", prompt="/inizio romanzo rileggi il capitolo tre")
+        assert "]0;LAVORANDO · romanzo\x07" in uscita, \
+            f"TS14 il compito scritto dopo il nome entra nel titolo: {uscita!r}"
+        appunti = c.dir / "appunti"
+        appunti.mkdir()
+        frase = "/inizio oggi ho scaricato molti documenti, riordinameli"
+        uscita = c.evento("UserPromptSubmit", cwd=appunti, sessione="b", prompt=frase)
+        assert "]0;LAVORANDO · appunti\x07" in uscita, \
+            f"TS14 una frase senza progetto diventa il nome nel titolo: {uscita!r}"
+    finally:
+        c.chiudi()
+
+
 TESTS = {"TS01": test_ts01, "TS02": test_ts02, "TS03": test_ts03, "TS04": test_ts04, "TS05": test_ts05,
          "TS06": test_ts06, "TS07": test_ts07, "TS08": test_ts08, "TS09": test_ts09, "TS10": test_ts10,
-         "TS11": test_ts11, "TS12": test_ts12, "TS13": test_ts13}
+         "TS11": test_ts11, "TS12": test_ts12, "TS13": test_ts13, "TS14": test_ts14}
 
 
 def main() -> int:

@@ -115,13 +115,35 @@ def progetto_da_prompt(prompt: str) -> str:
     m = INIZIO.match(prompt or "")
     if not m:
         return ""
-    parole = []
+    parole, trattino = [], False
     for parola in m.group(1).split():
         if parola == "--":
+            trattino = True
             break
         if not parola.startswith("-"):
             parole.append(re.sub(r"[^\w.-]", "", parola))
-    return " ".join(p for p in parole if p)[:40]
+    testo = " ".join(p for p in parole if p)
+    if not trattino and testo:
+        testo = nome_da_risolutore(testo)
+    return testo[:40]
+
+
+def nome_da_risolutore(testo: str) -> str:
+    """Il nome come lo separa arturo contesto: "/inizio arturo sistema la landing" dà "arturo", e una frase
+    senza progetto ("oggi ho scaricato molti documenti, riordinameli") non dà nessun nome (2/11/2026,
+    #4480). Senza il risolutore vale il testo intero, come prima."""
+    try:
+        import importlib.util
+        percorso = Path(os.path.realpath(__file__)).parent.parent / "bin" / "contesto.py"
+        spec = importlib.util.spec_from_file_location("arturo_contesto_scheda", percorso)
+        if spec is None or spec.loader is None:
+            return testo
+        modulo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modulo)
+        nome = modulo.risolvi_nome(testo)[0]
+    except Exception:  # noqa: BLE001 - il titolo della scheda non deve mai rompere l'hook
+        return testo
+    return nome if isinstance(nome, str) else testo
 
 
 def progetto_da_strumento(dati: dict) -> tuple:
