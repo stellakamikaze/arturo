@@ -89,20 +89,13 @@ def main() -> int:
     args = parser.parse_args()
     repo = args.repo.resolve()
     if args.baseline_ref:
-        with tempfile.TemporaryDirectory() as tmp:
-            base = Path(tmp)
-            for f in ("output-styles/conciso.md", "hooks/protect_claude_md.py", "commands/inizio.md",
-                      "commands/fine.md"):
-                (base / f).parent.mkdir(parents=True, exist_ok=True)
-                (base / f).write_text(subprocess.run(["git", "-C", str(repo), "show", f"{args.baseline_ref}:{f}"],
-                                                     capture_output=True, text=True, encoding="utf-8",
-                                                     check=True).stdout, encoding="utf-8")
-            rossi, altro = [], []
-            for nome, test in TESTS.items():
-                try:
-                    test(base)
-                except AssertionError as e:
-                    (rossi if str(e).startswith(nome) else altro).append(f"{nome}: {e}")
+        # Il gate passa in --repo la copia della base estratta con git archive, come per gli altri banchi.
+        rossi, altro = [], []
+        for nome, test in TESTS.items():
+            try:
+                test(repo)
+            except AssertionError as e:
+                (rossi if str(e).startswith(nome) else altro).append(f"{nome}: {e}")
         assert not altro and len(rossi) == len(TESTS), \
             "baseline non discriminante: ogni controllo deve fallire col suo codice.\n" + "\n".join(altro + rossi)
         print(f"BASELINE_DISCRIMINANTE={','.join(r.split(':')[0] for r in rossi)}")
