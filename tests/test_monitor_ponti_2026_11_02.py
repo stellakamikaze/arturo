@@ -10,7 +10,8 @@ MP04 ponti personali da personale/monitor/ponti.json: un ponte buono è pronto; 
      una prova che fallisce, una voce senza comando sono rotti; un JSON rotto non fa cadere niente.
 MP05 --json: ogni voce ha nome, stato, cosa, passo, dettaglio, e lo stato sta nell'elenco chiuso.
 MP06 nessun segreto in uscita: un valore che `gws auth status` stampa non arriva all'inventario.
-MP07 i file del nucleo ci sono. I nomi della persona li tiene fuori l'igiene del repo (I03).
+MP07 il nucleo è ponti.py, e in Arturo non ci sono copie di fingerprint.py e cursori.py: portano
+     le forme di una persona (fisc, crm, pec, canali Slack) e arrivano generiche con la skill di triage (F6).
 
 Sulla base 2fe4037 (il dev prima di bin/monitor) sono rossi tutti i casi.
 """
@@ -151,9 +152,10 @@ def prova(lab: Lab) -> list:
     if not j or "VALORE-CHE-NON-DEVE-USCIRE" in j + t:
         rossi.append("MP06 segreto: il valore stampato da gws arriva all'inventario, o l'inventario è vuoto")
 
-    nucleo = [lab.repo / "bin" / "monitor" / n for n in ("ponti.py", "fingerprint.py", "cursori.py")]
-    if not all(p.is_file() for p in nucleo):
-        rossi.append(f"MP07 file del nucleo assenti: {[p.name for p in nucleo if not p.is_file()]}")
+    cartella = lab.repo / "bin" / "monitor"
+    copie = [n for n in ("fingerprint.py", "cursori.py") if (cartella / n).exists()]
+    if not (cartella / "ponti.py").is_file() or copie:
+        rossi.append(f"MP07 nucleo: ponti.py presente {(cartella / 'ponti.py').is_file()}, copie personali {copie}")
     return rossi
 
 
