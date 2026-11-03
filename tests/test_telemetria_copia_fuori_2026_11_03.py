@@ -3,8 +3,8 @@
 
 bin/telemetria.py legge stato, id e versione sempre in ~/.claude. Lanciato da un clone di sviluppo o da un
 pacchetto del plugin provato con `claude -p --plugin-dir` (HOME vera), usava la config personale di chi
-sviluppa Arturo: tre installazioni nuove con la versione "sconosciuta" e tre avvisi su Telegram (Balthasar
-l'1/11, MacBook Air e Mac mini il 3/11).
+sviluppa Arturo: tre installazioni nuove con la versione "sconosciuta" e tre avvisi su Telegram (tre
+computer dell'autore, l'1/11 e il 3/11).
 
 TC01 codice fuori dalla config, HOME vera, nessun server indicato: spenta, e `registra` non scrive la coda;
 TC02 codice dentro la config (~/.claude/bin, come in un clone installato): accesa;

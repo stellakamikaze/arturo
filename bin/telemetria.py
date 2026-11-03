@@ -227,7 +227,7 @@ def copia_fuori_config() -> bool:
     """Questo file gira fuori dalla config di chi lo lancia: un clone di sviluppo, un worktree, un pacchetto
     del plugin provato con `claude -p --plugin-dir` (3/11/2026). Lo stato, l'id e la versione si leggono
     sempre in ~/.claude: da una copia fuori, la config personale di chi sviluppa Arturo diventava
-    un'installazione nuova con la versione "sconosciuta" (Balthasar l'1/11, MacBook Air e Mac mini il 3/11,
+    un'installazione nuova con la versione "sconosciuta" (tre computer dell'autore, l'1/11 e il 3/11,
     ciascuno con un avviso su Telegram). Un'installazione vera ha il codice dentro la config: ~/.claude/bin
     o la cache dei plugin in ~/.claude/plugins. Il percorso si risolve: un link dalla config al clone conta
     come il clone."""
