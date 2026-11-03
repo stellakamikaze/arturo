@@ -3,8 +3,9 @@ import type { Register } from 'claude-code'
 import { DB_URL, PATTERNS } from './patterns'
 
 // I fixture dei test contengono token finti per mestiere: redatti, un Edit su quei file fallirebbe.
-// Vale anche per i test dei mod in skills/: il test di questo mod tornerebbe a Claude con la sigla al posto del codice.
-const ESENTI = /\/(?:hooks\/test[^/]*|tests\/fixtures\/|skills\/[^/]+\/tests\/)/
+// Vale anche per i test dei mod in skills/ e in mods/ (i mod personali accanto ad Arturo): il test di questo
+// mod tornerebbe a Claude con la sigla al posto del codice.
+const ESENTI = /\/(?:hooks\/test[^/]*|tests\/fixtures\/|(?:skills|mods)\/[^/]+\/tests\/)/
 
 // Una sigla completa, come la scrive forma(): se compare in un testo da scrivere, Claude sta
 // riscrivendo su disco un file che ha letto redatto, e il valore vero andrebbe perso.

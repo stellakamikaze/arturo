@@ -12,6 +12,23 @@ modo di lavorare.
 
 ---
 
+## 2026-11-03 — All'avvio il blocco di Arturo, con la stella
+
+**Cosa cambia**: sotto l'intestazione di Claude Code, al posto della riga della 0.2.0, compare un
+blocco di tre righe accanto a una stella in pixel che pulsa per una ventina di secondi. La prima riga
+dice "Arturo" e il numero della versione. La seconda dice lo stato in parole: le modifiche non ancora
+rilasciate, un aggiornamento in arrivo, un controllo che non parte. La terza ha due link: la roadmap
+e la pagina per mandare Arturo a qualcuno. Quando la roadmap cambia, o ogni due settimane, il link
+della roadmap lo dice. In una finestra stretta la stella sparisce e restano le righe.
+
+**Perché**: la riga della 0.2.0 usava sigle e numeri. Il blocco dice cosa fare in parole, e porta
+alla roadmap chi vuole commentare cosa arriva.
+
+**A chi serve**: a tutti. Si vede dalla prossima sessione aperta dopo l'aggiornamento. Per non vedere
+più l'invito alla roadmap scrivi `{"pausa": "sempre"}` in `~/.claude/session-env/roadmap-vista.json`.
+
+---
+
 ## 2026-11-03 — In modalità auto un comando parte al primo colpo
 
 **Cosa cambia**: in modalità auto molti comandi venivano respinti una volta e andavano rilanciati

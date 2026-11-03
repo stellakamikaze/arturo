@@ -8,7 +8,7 @@ TB01 hooks/deriva.py scrive cache/deriva.json: misurata, i file di Arturo cambia
 TB02 tests/banchi-avvio.sh con un banco rosso manda il nome del banco con la telemetria, una volta sola
      finché l'elenco dei rossi non cambia; con la telemetria spenta non manda niente.
 TB03 l'evento banchi accetta solo il nome di un banco, nel client e nel server.
-TB04 il mod skills/testata passa validate e test, e scrive la sua riga con $.ui.log all'avvio.
+TB04 il mod skills/testata passa validate e test, e piazza il suo blocco con $.ui.place all'avvio.
 
 Ogni caso gira in una HOME finta: niente parte verso il server vero.
 Sulla base c247fed ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
@@ -124,12 +124,12 @@ def test_tb04(repo: Path) -> None:
     cartella = repo / "skills" / "testata"
     assert (cartella / "hooks" / "register.tsx").is_file(), "TB04 manca il mod skills/testata"
     codice = (cartella / "hooks" / "register.tsx").read_text(encoding="utf-8")
-    assert "$.ui.log(" in codice and "session.version()" in codice, "TB04 la testata non scrive la riga all'avvio"
+    assert "$.ui.place(" in codice and "session.version()" in codice, "TB04 la testata non piazza il blocco all'avvio"
     try:
         esito = _mod.prova_mod(repo, "testata", "TB04")
     except AssertionError as e:
         raise AssertionError(f"TB04 {e}") from None
-    assert "all'avvio la riga va sotto l'intestazione" in esito, "TB04 manca il test della riga all'avvio"
+    assert "all'avvio il blocco va sotto l'intestazione" in esito, "TB04 manca il test del blocco all'avvio"
 
 
 TESTS = {"TB01": test_tb01, "TB02": test_tb02, "TB03": test_tb03, "TB04": test_tb04}
