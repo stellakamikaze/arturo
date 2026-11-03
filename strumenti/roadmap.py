@@ -39,6 +39,7 @@ GITHUB = "https://github.com/stellakamikaze/arturo/blob/dev/ROADMAP.md"
 DATA = re.compile(r"^Aggiornata il (\d{4}-\d{2}-\d{2})\s*$")
 VOCE = re.compile(r"^### (.+?)\s*\{#([a-z0-9-]+)\}\s*$")
 STATO = re.compile(r"^Stato:\s*(.+)$")
+SEZIONE = re.compile(r"^## (.+?)(?:\s+\(versione ([^)]+)\))?\s*$")
 COMMENTO = re.compile(r"<!--.*?-->", re.S)
 
 # La seconda riga, in cenere, dei titoli di sezione. Una sezione nuova senza voce qui esce senza.
@@ -73,7 +74,9 @@ def leggi(testo: str) -> dict:
         if riga.startswith("# "):
             continue
         if riga.startswith("## "):
-            sezioni.append({"nome": riga[3:].strip(), "righe": [], "voci": []})
+            # "## Adesso (versione 0.3)": il numero con cui esce il blocco (3/11/2026). Il nome resta la chiave.
+            n = SEZIONE.match(riga)
+            sezioni.append({"nome": n.group(1).strip(), "versione": n.group(2), "righe": [], "voci": []})
             voce = None
             continue
         m = VOCE.match(riga)
@@ -145,6 +148,8 @@ def voce_pubblica(v: dict) -> str:
 def sezione_pubblica(s: dict, n: int) -> str:
     sid = "s-" + novita.slug(s["nome"])
     sotto = SOTTOTITOLI.get(s["nome"])
+    if s.get("versione"):
+        sotto = "Versione " + s["versione"] + "." + (" " + sotto if sotto else "")
     testa = ('    <h2 class="sezione__titolo" id="' + sid + '">' + novita.in_linea(s["nome"])
              + ("<span>" + html.escape(sotto) + "</span>" if sotto else "") + "</h2>\n")
     if s["voci"]:
@@ -337,7 +342,8 @@ def pagina_sviluppo(r: dict) -> tuple:
     blocchi = []
     for s in r["sezioni"]:
         if s["voci"]:
-            blocchi.append('<div class="dentro"><p class="tappa">' + html.escape(s["nome"]) + "</p></div>")
+            tappa = s["nome"] + (" · versione " + s["versione"] if s.get("versione") else "")
+            blocchi.append('<div class="dentro"><p class="tappa">' + html.escape(tappa) + "</p></div>")
             blocchi.extend(voce_sviluppo(v, i % 2 == 1) for i, v in enumerate(s["voci"]))
     decidere = next((s for s in r["sezioni"] if s["nome"] == "Da decidere" and not s["voci"]), None)
     sezioni = [v["ancora"] for s in r["sezioni"] for v in s["voci"]]

@@ -6,7 +6,8 @@ dipende da un clone accanto. Controlla:
   RM01 i commenti HTML con i numeri dei task non arrivano in nessuna delle due pagine;
   RM02 ogni voce ha "Commenta" verso la sua sezione, e pagina.json elenca le stesse sezioni;
   RM03 una roadmap fuori forma (ancora ripetuta, voce senza Stato, data mancante) si ferma;
-  RM04 la pagina pubblicata è collegata da menu e piede della home, sitemap e llms.txt.
+  RM04 la pagina pubblicata è collegata da menu e piede della home, sitemap e llms.txt;
+  RM05 "## Adesso (versione 0.3)" resta la sezione Adesso, e le due pagine dicono la versione.
 
 --avvelena rompe il filtro dei commenti e vuole RM01 rosso col suo motivo. Esce 1 solo se il
 veleno è rosso col motivo giusto: un veleno verde fa uscire 0, e il gate lo legge come tale.
@@ -111,8 +112,20 @@ def rm04(repo: Path) -> None:
     assert "https://arturo.stellakamikaze.org/roadmap/" in (repo / "sito" / "llms.txt").read_text(encoding="utf-8"), "RM04 llms.txt"
 
 
+def rm05(rm) -> None:
+    # Il numero di un blocco (3/11/2026): "## Adesso (versione 0.3)" resta la sezione Adesso, col suo sottotitolo.
+    r = rm.leggi(PROVA.replace("## Adesso\n", "## Adesso (versione 0.3)\n"))
+    assert [s["nome"] for s in r["sezioni"]][0] == "Adesso", "RM05 il numero entra nel nome della sezione"
+    pubblica = rm.pagina_pubblica(r)
+    assert 'id="s-adesso"' in pubblica and "<span>Versione 0.3. Il lavoro in corso.</span>" in pubblica, \
+        "RM05 la pagina pubblica non dice la versione del blocco"
+    sviluppo, _ = rm.pagina_sviluppo(r)
+    assert "Adesso · versione 0.3" in sviluppo, "RM05 la pagina di sviluppo non dice la versione del blocco"
+
+
 def esegui(repo: Path, rm) -> int:
-    casi = [("RM01", lambda: rm01(rm)), ("RM02", lambda: rm02(rm)), ("RM03", lambda: rm03(rm)), ("RM04", lambda: rm04(repo))]
+    casi = [("RM01", lambda: rm01(rm)), ("RM02", lambda: rm02(rm)), ("RM03", lambda: rm03(rm)), ("RM04", lambda: rm04(repo)),
+            ("RM05", lambda: rm05(rm))]
     rossi = 0
     for nome, caso in casi:
         try:
