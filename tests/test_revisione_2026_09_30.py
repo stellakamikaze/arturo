@@ -162,7 +162,8 @@ def test_r14(repo: Path) -> None:
         r = hook_diretto(repo, home, "protect_claude_md.py",
                          {"tool_name": "Edit", "tool_input": {"file_path": str(nuovo)}, "session_id": "s1"})
         uscita = json.loads(r.stdout or "{}").get("hookSpecificOutput", {})
-        assert uscita.get("permissionDecision") == "deny", "R14 CLAUDE.md esistente non piu' protetto"
+        # Dal 3/11/2026 (#4473) un CLAUDE.md esistente chiede invece di negare: resta protetto.
+        assert uscita.get("permissionDecision") in ("ask", "deny"), "R14 CLAUDE.md esistente non piu' protetto"
 
 
 def test_r15(repo: Path) -> None:

@@ -1590,7 +1590,8 @@ def main() -> int:
             CLAUDE_MD_OPEN_RE.search(testo) or (CLAUDE_MD_WRITE_RE.search(testo) and not risolto):
         return _ask("claude-md",
             "Scrittura via shell su un CLAUDE.md: cambierebbe le istruzioni di ogni sessione "
-            "futura in quella cartella. Conferma solo se sei tu a volerlo."
+            "futura in quella cartella. Conferma solo se sei tu a volerlo. Per una modifica sola "
+            "Claude usa Edit, che chiede una volta."
         )
 
     # 2a-bis) Scrittura shell su un percorso di avvio automatico -> ask (persistenza)

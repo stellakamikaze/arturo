@@ -10,7 +10,9 @@ Tre categorie, ognuna con un unlock per-sessione distinto, più il resto di ~/.c
     -> unlock: touch ~/.claude/system-unlock-{session_id}
 
   CLAUDE.md (qualsiasi cartella)
-    -> unlock: touch ~/.claude/claude-md-unlock-{session_id}
+    -> chiede conferma (ask) a ogni modifica: un popup solo (3/11/2026, #4473). Prima era
+       deny con istruzioni, e una modifica costava la domanda in chat più il popup dell'unlock.
+       L'unlock touch ~/.claude/claude-md-unlock-{session_id} vale ancora: con lui passa senza popup.
     Sul CLAUDE.md globale avvisa quando il file, dopo la modifica, supera il
     budget di righe (ARTURO_CLAUDE_MD_RIGHE, default 200).
 
@@ -27,8 +29,8 @@ un'iniezione può riscrivere settings.json o disattivare un hook via tool Edit/W
 senza alcun prompt, neutralizzando ogni altra guardia. Il vettore shell
 (sed -i, >, cp...) è coperto separatamente da block-dangerous.py.
 
-L'unlock (deny + istruzioni, non hard-deny in settings.json) preserva le
-modifiche legittime: chiedi conferma all'utente, crea il touch file, riprova.
+Per persistenza e config l'unlock (deny + istruzioni, non hard-deny in settings.json) preserva
+le modifiche legittime: chiedi conferma all'utente, crea il touch file, riprova.
 
 I file di unlock stessi (qualsiasi nome con "unlock" sotto ~/.claude) chiedono
 sempre conferma anche via Edit/Write: un marker scritto dall'assistente senza una
@@ -242,11 +244,12 @@ def main():
                 sys.exit(0)
             _emetti_locale('claude-md-globale' if rp == os.path.join(claude_dir, 'CLAUDE.md')
                            else 'claude-md-progetto', avviso, chiede)
-            _emit("deny", (
-                "CLAUDE.md protetto. Per modificarlo: "
-                "1) chiedi conferma esplicita all'utente. "
-                f"2) esegui: touch ~/.claude/claude-md-unlock-{safe_id} "
-                "3) riprova la modifica." + avviso
+            # Una conferma sola per modifica (3/11/2026, #4473): il popup è la conferma. Il deny con
+            # istruzioni costava due o tre sì (domanda in chat, popup dell'unlock, a volte la shell).
+            chiede()
+            _emit("ask", (
+                f"Modifica di {rp}: sono le istruzioni che Claude segue in questa cartella. "
+                "Conferma se l'hai chiesta tu." + avviso
             ))
             sys.exit(0)
 

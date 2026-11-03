@@ -52,7 +52,7 @@ def prova(guardia: str) -> list[str]:
     rossi = []
     tutto = "allow claude-md-globale\nallow claude-md-progetto\nallow settings-radice\nallow config\nallow dot-claude\n"
     casi = [
-        ("PL01", None, "Edit", "CLAUDE.md", None, True, False, "deny"),
+        ("PL01", None, "Edit", "CLAUDE.md", None, True, False, "protetto"),
         ("PL02", "ask claude-md-globale  # Federico\n", "Edit", "CLAUDE.md", None, True, False, "ask"),
         ("PL03", "allow config\n", "Edit", "hooks/mia-guardia.py", None, True, False, "allow"),
         ("PL04", tutto, "Edit", "hooks/bash-dispatcher.local", None, True, False, "deny"),
@@ -61,11 +61,12 @@ def prova(guardia: str) -> list[str]:
         ("PL07", tutto, "Write", "settings.json", "{ non json", True, False, "deny"),
         ("PL08", tutto, "Write", "config-unlock-s1", "", False, False, "ask"),
         ("PL09", tutto, "Write", "CLAUDE.md", "nuovo", False, True, "ask"),
-        ("PL10", "allow tutto\nallow\n", "Edit", "CLAUDE.md", None, True, False, "deny"),
+        ("PL10", "allow tutto\nallow\n", "Edit", "CLAUDE.md", None, True, False, "protetto"),
     ]
     for codice, local, strumento, relativo, contenuto, esiste, in_progetto, atteso in casi:
         avuto = decidi(guardia, local, strumento, relativo, contenuto, esiste, in_progetto)
-        if avuto != atteso:
+        # Il CLAUDE.md esistente resta protetto: dal 3/11/2026 (#4473) chiede invece di negare.
+        if avuto != atteso and not (atteso == "protetto" and avuto in ("ask", "deny")):
             rossi.append(f"{codice} {strumento} {relativo}: atteso {atteso}, avuto {avuto}")
     return rossi
 

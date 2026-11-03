@@ -147,6 +147,7 @@ BANCHI=(
   test_segnalazioni_2026_11_03.py
   test_gate_snello_2026_11_03.py
   test_mod_passo2_2026_11_03.py
+  test_claude_md_conferma_2026_11_03.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -337,6 +338,8 @@ BASELINE=(
   # Passo 2 dei mod (3/11/2026, #4619): escono riscrivi-bash e gws, l'hook gws-esito.py e il dispatcher che legge il
   # marcatore dell'avvio. 08d09cf, il dev prima.
   "test_mod_passo2_2026_11_03.py 08d09cf"
+  # Una conferma sola per il CLAUDE.md (3/11/2026, #4473): 72195b0, il dev prima.
+  "test_claude_md_conferma_2026_11_03.py 72195b0"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

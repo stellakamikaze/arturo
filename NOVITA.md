@@ -12,6 +12,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-03 — Quando modifichi le istruzioni di Arturo, ti chiede conferma una volta sola
+
+**Cosa cambia**: quando Claude modifica un `CLAUDE.md`, ti compare una conferma sola. Prima la
+guardia rifiutava la modifica e diceva a Claude di chiederti il permesso in chat. Poi un file di
+sblocco faceva comparire un'altra conferma, e a volte una terza, se Claude provava dalla shell.
+
+**Perché**: in una settimana le conferme sul `CLAUDE.md` sono state 47, e i sì 43. Una domanda che
+ricevi due o tre volte per la stessa modifica insegna a dire sì senza leggere.
+
+**Da sapere**: la protezione resta, perché ogni modifica a un `CLAUDE.md` chiede ancora. Se in
+`hooks/protect_claude_md.local` hai scelto `allow` o `deny` per i `CLAUDE.md`, vale la tua scelta.
+
+---
+
 ## 2026-11-03 — `/inizio` con una frase non ti chiede di ripeterlo
 
 **Cosa cambia**: se scrivi `/inizio` seguito da una frase che è tutta compito, Arturo sceglie il
