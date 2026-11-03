@@ -139,6 +139,7 @@ BANCHI=(
   test_revisione_2026_11_01.py
   test_segnalazioni_2026_11_02.py
   test_monitor_ponti_2026_11_02.py
+  test_viste_allineate_2026_11_03.py
   test_gws_token_health.py
   test_telemetria_fase2_2026_11_03.py
   test_amend_2026_11_03.py
@@ -343,6 +344,8 @@ BASELINE=(
   "test_claude_md_conferma_2026_11_03.py 72195b0"
   # La catena dei todo e la riga di stato (3/11/2026, #3888): acb4a39, il dev prima.
   "test_catena_2026_11_03.py acb4a39"
+  # Le tre viste dei todo allineate (3/11/2026, #3868): su acb4a39 la pagina non ha dopo.
+  "test_viste_allineate_2026_11_03.py acb4a39"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
@@ -368,6 +371,7 @@ VELENI=(
   test_impacchetta_2026_11_03.py
   test_rotazione_2026_11_03.py
   test_gate_snello_2026_11_03.py
+  test_viste_allineate_2026_11_03.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso
