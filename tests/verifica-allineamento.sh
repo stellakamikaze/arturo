@@ -30,6 +30,7 @@ BANCHI=(
   test_installa.py
   test_lista_ripristino.py
   test_inizia.py
+  test_roadmap.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -47,6 +48,7 @@ veleno_rosso() {
 veleno_rosso 'FAIL caso_innesto_sessione_viva: righe perse' "$REPO/tests/test_installa.py" --repo "$REPO"
 veleno_rosso 'mancano' "$REPO/tests/test_lista_ripristino.py" --repo "$REPO"
 veleno_rosso 'comandi diversi' "$REPO/tests/test_inizia.py" --repo "$REPO"
+veleno_rosso 'FAIL RM01: RM01 commento dei task' "$REPO/tests/test_roadmap.py" --repo "$REPO"
 
 BASELINE="$FIXTURE/baseline"
 mkdir -p "$BASELINE"

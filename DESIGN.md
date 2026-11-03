@@ -418,6 +418,9 @@ Pagine temporanee per far giudicare a qualcuno delle varianti prima di costruirl
 ### Privacy (`/privacy/`)
 Pagina da leggere, con la stessa griglia 3/9 della pagina novità. In testa quattro voci brevi con il filetto `inchiostro`; l'etichetta di ogni voce è l'`h2`. Il "mai" sta su `carta-2`. Le tabelle hanno l'intestazione in tono di frase e diventano righe impilate sotto 520 px.
 
+### Roadmap (`/roadmap/`)
+Pagina da leggere, generata da `strumenti/roadmap.py` a partire da `ROADMAP.md` del ramo dev di Arturo: non si scrive a mano. Testata `cielo` con la volta, la data in Label Piccola e due pulsanti: "Commenta la roadmap" (`azione`) e "ROADMAP.md su GitHub" (bordo). Ogni sezione (Adesso, Prossimo, Dopo) ha il titolo Headline con la seconda riga in `cenere`, e le sezioni alternano `carta` e `carta-2`. Le voci usano la griglia 3/9 della pagina novità: a sinistra lo stato in Label Piccola, a destra il titolo Title, la frase dello stato in `inchiostro`, il testo e il pulsante a bordo "Commenta questa voce", che porta alla stessa ancora in `/sviluppo/roadmap/`. "Da decidere" e "Uscito di recente" sono elenchi con filetto. Chiude la fascia vuoto "Non hai l'invito?". La pagina con i commenti (`arturo-admin/sviluppo/pagine/roadmap/`) esce dallo stesso generatore; i nomi delle sezioni lì sono `.tappa` di `sviluppo.css`.
+
 ## Do's and Don'ts
 
 ### Do:
