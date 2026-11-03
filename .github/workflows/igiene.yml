@@ -28,9 +28,13 @@ jobs:
           PRIMA: ${{ github.event.before }}
           DOPO: ${{ github.sha }}
         run: |
-          # Un branch nuovo non ha un "prima": si controllano tutti i commit che arrivano.
+          # Un branch nuovo, o riscritto da un rebase, non ha un "prima": si controllano i commit che dev
+          # non ha. Prima si controllava tutta la storia, e i nomi nei messaggi dei commit vecchi, già su
+          # dev, davano rosso a ogni branch nuovo (gate-snello e pm-monitor, 3/11/2026).
           if git cat-file -e "${PRIMA}^{commit}" 2>/dev/null; then
             INTERVALLO="${PRIMA}..${DOPO}"
+          elif BASE=$(git merge-base "$DOPO" origin/dev 2>/dev/null); then
+            INTERVALLO="${BASE}..${DOPO}"
           else
             INTERVALLO="${DOPO}"
           fi
