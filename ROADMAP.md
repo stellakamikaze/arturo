@@ -38,7 +38,7 @@ Le guardie fermano i comandi rischiosi: cancellazioni, invii, segreti. Alcune ch
 
 ### La testata di Arturo sotto quella di Claude Code {#testata}
 
-Stato: in corso.
+Stato: in corso. La riga con versione e stato della configurazione è uscita nella 0.2.0; il blocco con la stella e la roadmap arriva con la 0.3.
 
 All'avvio, subito sotto l'intestazione di Claude Code, compare il blocco di Arturo: il marchio con la stella, la versione, lo stato della configurazione e gli aggiornamenti in arrivo. Ogni due settimane, o quando questa pagina cambia, il blocco ti ricorda la roadmap. Gli avvisi dei controlli interni non compaiono più a ogni avvio.
 
@@ -133,6 +133,7 @@ Queste voci aspettano una scelta di chi mantiene Arturo. Il lavoro collegato par
 
 ## Uscito di recente
 
+- 3 novembre 2026, versione 0.2.0: Arturo ha un numero di versione, la sessione si rinnova da sola a ogni passo finito, una riga di Arturo all'avvio, e in modalità auto un comando parte al primo colpo.
 - 3 novembre 2026: la telemetria dice anche come usi Arturo, non solo quanto.
 - 2 novembre 2026: `/inizio` capisce una frase, e un passo fermato diventa un comando per te.
 - 1 novembre 2026: Arturo si installa incollando un link in Claude Code.
