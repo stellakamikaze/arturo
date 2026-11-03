@@ -452,10 +452,21 @@ def test_g209(repo: Path) -> None:
         avvio()
         assert aspetta(lambda: segno.read_text().count("x") == 2), "G209 un lock orfano ferma i banchi per sempre"
         aspetta(lambda: not lock.exists())
+        # Dal 3/11/2026 un esito rosso non si dice alla persona: l'avvio tace e, passati 30 minuti, rilancia
+        # subito i banchi invece di aspettare 12 ore.
         esito.write_text("ROSSO\n1 banchi delle guardie rossi su 5\ntest_x.py: AssertionError\n", encoding="utf-8")
         p, _ = avvio(ARTURO_BANCHI_AVVIO="0")
-        assert "GUARDIE: banchi rossi" in p.stdout and "test_x.py" in p.stdout, \
-            f"G209 un esito rosso non si dice all'avvio: {p.stdout[:400]!r}"
+        # Non la parola "banchi": compare nel percorso temporaneo di banchi-avvio.sh (arturo-banchi.*).
+        assert "GUARDIE:" not in p.stdout and "banchi rossi" not in p.stdout and "test_x.py" not in p.stdout, \
+            f"G209 un esito rosso si dice ancora all'avvio: {p.stdout[:400]!r}"
+        avvio()
+        time.sleep(1)
+        assert segno.read_text().count("x") == 2, "G209 un rosso fresco fa ripartire i banchi a ogni avvio"
+        esito.write_text("ROSSO\n1 banchi delle guardie rossi su 5\ntest_x.py: AssertionError\n", encoding="utf-8")
+        os.utime(esito, (time.time() - 31 * 60, time.time() - 31 * 60))
+        avvio()
+        assert aspetta(lambda: segno.read_text().count("x") == 3), "G209 un rosso di 31 minuti non rilancia i banchi"
+        aspetta(lambda: not lock.exists())
         _git(progetto, "init", "-q")
         fine = subprocess.run([BASH, str(claude / "hooks" / "session-end.sh")], input="{}", text=True,
                               capture_output=True, cwd=str(progetto), env=env_di(home), timeout=60)

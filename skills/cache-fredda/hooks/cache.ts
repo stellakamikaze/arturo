@@ -1,5 +1,5 @@
 // Logica pura, provata da tests/cache.test.ts.
-import type { Banchi, Cache, Segnali } from '../types'
+import type { Cache, Segnali } from '../types'
 
 // TTL della cache secondo le regole di Claude Code: 1 ora con un abbonamento Claude, 5 minuti quando
 // una finestra di quota (5 ore o 7 giorni) è piena e le richieste passano ai crediti. Metodo preso da
@@ -25,21 +25,10 @@ export function avviso(c: Cache): string | undefined {
   return `cache fredda: il prossimo messaggio riscrive ${Math.round(c.tokens / 1000)}k token. Se il lavoro è cambiato, conviene una sessione nuova`
 }
 
-// --- Gli altri avvisi sotto il prompt: banchi rossi e token gws in errore -----------------------
-// Solo eccezioni: un segnale in regola, o che non si può leggere, non scrive niente.
-
-// cache/banchi-ultimo-esito.txt, scritto solo dai banchi delle guardie (tests/banchi-avvio.sh), che
-// session-start.sh lancia in background al massimo ogni 12 ore. Riga 1 ROSSO o VERDE, riga 2 il
-// riassunto ("2 banchi delle guardie rossi su 5 (data)"). Lo stesso file lo legge la riga GUARDIE
-// dell'avvio: i due avvisi danno lo stesso rimedio.
-export function leggiBanchi(testo: string): Banchi | null {
-  const righe = testo.split('\n')
-  const stato = (righe[0] ?? '').trim()
-  if (stato !== 'ROSSO' && stato !== 'VERDE') return null
-  const conto = /(\d+) banchi delle guardie rossi su (\d+)/.exec(righe[1] ?? '')
-  const riassunto = conto ? `${conto[1]} banchi rossi su ${conto[2]}` : 'banchi rossi'
-  return { rosso: stato === 'ROSSO', riassunto: stato === 'ROSSO' ? riassunto : 'verdi' }
-}
+// --- L'altro avviso sotto il prompt: token gws in errore ----------------------------------------
+// Solo eccezioni: un segnale in regola, o che non si può leggere, non scrive niente. I banchi rossi delle
+// guardie non stanno più qui dal 3/11/2026 (un avviso invasivo, che chi usa Arturo non può riparare):
+// tests/banchi-avvio.sh li manda da solo a chi mantiene Arturo, con la telemetria.
 
 // Le cartelle di config di gws in ~/.config: gws (quella di default) e gws-<nome>, una per account.
 export function cartelleGws(nomi: readonly string[]): string[] {
@@ -59,13 +48,12 @@ export function tokenBuono(exitCode: number, stdout: string): boolean {
   }
 }
 
-export const SEGNALI_VUOTI: Segnali = { banchi: null, gwsKo: [] }
+export const SEGNALI_VUOTI: Segnali = { gwsKo: [] }
 
 export function avvisi(c: Cache, s: Segnali): string | undefined {
   const pezzi: string[] = []
   const fredda = avviso(c)
   if (fredda !== undefined) pezzi.push(fredda)
-  if (s.banchi?.rosso) pezzi.push(`guardie: ${s.banchi.riassunto}, una guardia potrebbe non proteggere: rilancia bash ~/.claude/tests/banchi-avvio.sh e proponi /segnala`)
   if (s.gwsKo.length > 0) pezzi.push(`gws: login da rifare per ${s.gwsKo.join(', ')} (docs/onboarding/gws.md)`)
   return pezzi.length === 0 ? undefined : pezzi.join(' · ')
 }

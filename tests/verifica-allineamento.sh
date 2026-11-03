@@ -168,6 +168,7 @@ BANCHI=(
   test_gws_token_health.py
   test_telemetria_fase2_2026_11_03.py
   test_amend_2026_11_03.py
+  test_testata_banchi_2026_11_03.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -343,6 +344,8 @@ BASELINE=(
   "test_monitor_ponti_2026_11_02.py 2fe4037"
   # Telemetria fase 2 (3/11/2026, #4540): durata, turni e skill alla chiusura. c5536a7, il dev prima.
   "test_telemetria_fase2_2026_11_03.py c5536a7"
+  # Testata di Arturo e banchi silenziosi (3/11/2026): c247fed, il dev prima.
+  "test_testata_banchi_2026_11_03.py c247fed"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

@@ -157,7 +157,7 @@ const casi = {
     const corpo = m.split("\r\n\r\n")[1].replace(/\r\n/g, "");
     assert.equal(Buffer.from(corpo, "base64").toString("utf8"), "àèì", "V08 il corpo non torna uguale");
     assert.deepEqual(Object.keys(EVENTI), ["sessione", "comando", "guardia", "aggiorna", "segnalazione", "deriva", "config",
-      "setup", "chiede", "confermata", "errore", "claude", "durata", "turni", "skill", "tappa"], "V08 l'elenco degli eventi, con i vecchi in coda");
+      "setup", "chiede", "confermata", "errore", "claude", "durata", "turni", "skill", "banchi", "tappa"], "V08 l'elenco degli eventi, con i vecchi in coda");
   },
   async V10() {
     const f = finti();

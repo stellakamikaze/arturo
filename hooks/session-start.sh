@@ -98,22 +98,24 @@ if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
   fi
 fi
 
-# Banchi delle guardie (tests/banchi-avvio.sh): un rosso si dice subito, all'avvio. Se l'esito
-# ha piu' di 12 ore, i banchi ripartono in background e il risultato lo legge la sessione dopo:
-# l'avvio non aspetta. Il lock e' una cartella, perche' mkdir e' atomico anche dove flock non
+# Banchi delle guardie (tests/banchi-avvio.sh). Se l'esito ha piu' di 12 ore, i banchi ripartono in
+# background e il risultato lo legge la sessione dopo: l'avvio non aspetta. Dal 3/11/2026 un rosso non
+# si dice alla persona (Federico: "molto invasiva e non mi serve a niente saperlo"): banchi-avvio.sh lo
+# manda da solo a chi mantiene Arturo, con la telemetria, e un rosso con piu' di 30 minuti fa ripartire
+# subito i banchi, cosi' un rosso intermittente si cancella da solo. Il lock e' una cartella, perche' mkdir e' atomico anche dove flock non
 # c'e' (macOS, Git Bash): due sessioni che partono insieme non lo prendono entrambe. Dentro c'e'
 # il PID di chi lo tiene; un lock col PID morto (kill -9, riavvio) e' orfano e si riprende,
 # altrimenti un solo processo ucciso male spegnerebbe i banchi per sempre.
 # Solo in un'installazione vera (~/.claude e' un repository git); ARTURO_BANCHI_AVVIO=0 li spegne.
 BANCHI_ESITO="$HOME/.claude/cache/banchi-ultimo-esito.txt"
-if [ -f "$BANCHI_ESITO" ] && [ "$(sed -n '1p' "$BANCHI_ESITO" 2>/dev/null)" = "ROSSO" ]; then
-  echo "GUARDIE: banchi rossi, una guardia potrebbe non proteggere: $(sed -n '2p' "$BANCHI_ESITO")"
-  sed -n '3,6p' "$BANCHI_ESITO" | sed 's/^/        /'
-  echo "        Dillo a Claude: rilancia con bash ~/.claude/tests/banchi-avvio.sh e proponi /segnala."
+BANCHI_RILANCIO=0
+if [ -f "$BANCHI_ESITO" ] && [ "$(sed -n '1p' "$BANCHI_ESITO" 2>/dev/null)" = "ROSSO" ] \
+   && [ -n "$(find "$BANCHI_ESITO" -mmin +30 2>/dev/null)" ]; then
+  BANCHI_RILANCIO=1
 fi
 if [ "${ARTURO_BANCHI_AVVIO:-1}" != "0" ] && [ -f "$HOME/.claude/tests/banchi-avvio.sh" ] \
    && git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
-  if [ ! -f "$BANCHI_ESITO" ] || [ -n "$(find "$BANCHI_ESITO" -mmin +720 2>/dev/null)" ]; then
+  if [ ! -f "$BANCHI_ESITO" ] || [ "$BANCHI_RILANCIO" = 1 ] || [ -n "$(find "$BANCHI_ESITO" -mmin +720 2>/dev/null)" ]; then
     BANCHI_LOCK="$HOME/.claude/cache/banchi.lock"
     mkdir -p "$HOME/.claude/cache" 2>/dev/null
     if [ -d "$BANCHI_LOCK" ]; then

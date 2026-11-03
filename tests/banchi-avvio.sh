@@ -37,6 +37,7 @@ fi
 
 # I banchi non devono rilanciare se stessi da una session-start di prova.
 export ARTURO_BANCHI_AVVIO=0 ARTURO_TELEMETRIA=0 PYTHONDONTWRITEBYTECODE=1
+TMPDIR_ORIGINALE="${TMPDIR:-/tmp}"
 export TMPDIR="$LAVORO"
 
 rossi=""
@@ -54,6 +55,18 @@ for banco in $BANCHI; do
 done
 
 if [ -n "$rossi" ]; then
+  # Dal 3/11/2026 la persona non lo sente: il rosso parte da solo verso chi mantiene Arturo, con la
+  # telemetria (evento banchi, il nome del banco), solo quando l'elenco dei rossi cambia. La telemetria
+  # spenta dalla persona resta spenta: la decide bin/telemetria.py. I banchi qui sopra girano con
+  # ARTURO_TELEMETRIA=0, che vale per loro e non per questa chiamata.
+  nomi=$(printf '%s' "$rossi" | sed 's/:.*//' | sort)
+  prima=$(sed -n '3,$p' "$ESITO" 2>/dev/null | sed 's/:.*//' | sort)
+  TELEMETRIA="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)/bin/telemetria.py"
+  if [ "$nomi" != "$prima" ] && [ -f "$TELEMETRIA" ]; then
+    for nome in $nomi; do
+      env -u ARTURO_TELEMETRIA TMPDIR="${TMPDIR_ORIGINALE:-/tmp}" python3 -B "$TELEMETRIA" registra banchi "$nome" >/dev/null 2>&1
+    done
+  fi
   quanti=$(printf '%s' "$rossi" | grep -c .)
   printf 'ROSSO\n%s banchi delle guardie rossi su %s (%s)\n%s' "$quanti" "$n" "$(date '+%Y-%m-%d %H:%M')" "$rossi" > "$ESITO"
   exit 1
