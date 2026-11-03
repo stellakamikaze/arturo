@@ -56,7 +56,7 @@ export const SKILL = ["apri", "cache-fredda", "concetti", "dafare", "gws", "ital
 // docs, tests...) restano alla sola forma: cambiano a ogni rilascio, e il client manda solo file versionati di Arturo.
 // Il banco TF05 (tests/test_telemetria_f1_2026_10_24.py) confronta questi elenchi col repository.
 export const DERIVA_NOMI = {
-  radice: [".gitattributes", ".gitignore", "LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "SECURITY.md", "package.json", "settings.json"],
+  radice: [".gitattributes", ".gitignore", "LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "ROADMAP.md", "SECURITY.md", "package.json", "settings.json"],
   skills: ["apri", "cache-fredda", "concetti", "dafare", "gws", "italiano-semplificato", "prompt-master", "redazione-segreti", "riscrivi-bash",
     "rotazione", "system-audit", "testata", "todo"],
   agents: ["architecture-reviewer.md", "bug-finder.md", "fact-checker.md", "performance-profiler.md", "researcher.md",
