@@ -266,7 +266,8 @@ che Claude legge.
 ## 2026-11-01 — Le guardie del 31/10 chiudono i buchi trovati dalla revisione
 
 **Cosa cambia**: il giorno dopo il cambio che ha tolto le conferme sul tuo lavoro, una revisione ha
-cercato i modi per far passare un rischio vero senza conferma. Ne ha trovati 38, e ora sono chiusi.
+cercato i modi per far passare un rischio vero senza conferma. Ne ha trovati 38, e una seconda
+revisione, sulle correzioni, ne ha trovati altri 7: ora sono chiusi tutti e 45.
 Qualche esempio. Uno stash conta come salvato solo se il comando salva proprio quello stash, e
 `git stash clear` chiede. Un file caricato con `curl -d '@file'` chiede come `curl -d @file`. Un link
 `mailto:` chiede anche se sta in una variabile. Un commit con un segreto chiede anche dopo un `cd -`.

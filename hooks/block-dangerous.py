@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""PreToolUse(Bash) hook: blocca o gate shell command pericolosi.
+"""PreToolUse(Bash, Monitor, Read) hook: blocca o gate shell command pericolosi.
 
 I deny in settings.json coprono i casi a stringa esatta (`rm -rf /`, force-push).
-Questo hook copre cio' che il match di stringa non gestisce:
+Questo hook copre cio' che il match di stringa non gestisce. Gira su Bash e Monitor;
+su Read guarda solo le chiavi private in ~/.ssh (sotto).
 
 BLOCCO DURO (exit 2, stderr -> modello):
 - fork bomb, raw write su disco (`> /dev/...`, `dd of=/dev/...`, `mkfs.*`)
+- cancellazione della radice, della home o di un disco intero, giudicata sui programmi
+  e non sul testo (1/11/2026): `rm -r /`, `rm -rf ~`, `del /s C:\\`, `rd /s C:`, `format C:`,
+  anche dentro `cmd /c`. `grep "rm -rf /" f` tace
 - chmod/chown ricorsivo su root
 - esecuzione di script remoto scaricato al volo: `curl ... | bash`, ma anche
   `bash <(curl ...)`, `eval "$(curl ...)"`, `curl ... | python`. Dal 15/9/2026
@@ -26,6 +30,13 @@ CHIEDE CONFERMA (permissionDecision:"ask", exit 0):
 - lettura di file segreti via shell (cat/head/xxd/base64/perl/ruby/nc/redirezione
   `< file`... su chiavi private, ~/.ssh, ~/.aws/credentials, .gnupg, *.pem, .env...),
   anche indiretta: `find <segreto> | xargs cat`, `find -exec cat`, `while read`
+- Read di un file in ~/.ssh che non è config, known_hosts, authorized_keys o una chiave
+  pubblica: una chiave privata con un nome libero sfugge ai deny (1/11/2026)
+- sed che esegue in shell, col comando `e` o col flag `e` di s/// (regola sed-e, 1/11/2026)
+- git push con la destinazione riscritta nello stesso comando: `-c remote.X.url=`, pushurl,
+  insteadOf, `--config-env`, GIT_CONFIG_* (regola git-destinazione, 1/11/2026)
+- git branch -D di un ramo con commit che non stanno altrove, git stash drop di uno stash che
+  lo stesso comando non salva prima, git stash clear (regole git-ramo e git-stash)
 - docker distruttivo su volumi (`docker volume rm`, `system prune --volumes`)
 
 Fail-open su parsing (i casi catastrofici su path root restano nei deny).
@@ -118,9 +129,9 @@ CONFIG_WRITE_RE = re.compile(
 # unlock, qui si copre il vettore shell (>, sed -i, cp, tee...), che altrimenti lo riscrive senza prompt.
 CLAUDE_MD_WRITE_RE = re.compile(
     r"(?:>>?\s*[^\s'\";|&]*CLAUDE(?:\.local)?\.md\b"
-    r"|\bsed\b[^|;&]*-i[^|;&]*CLAUDE(?:\.local)?\.md\b"
-    r"|open\(\s*['\"][^'\"]*CLAUDE(?:\.local)?\.md['\"]\s*,\s*['\"][wa])"
+    r"|\bsed\b[^|;&]*-i[^|;&]*CLAUDE(?:\.local)?\.md\b)"
 )
+# open() di python in scrittura su un CLAUDE.md: chiede sempre, prima di CLAUDE_MD_WRITE_RE (1/11/2026).
 CLAUDE_MD_OPEN_RE = re.compile(r"open\(\s*['\"][^'\"]*CLAUDE(?:\.local)?\.md['\"]\s*,\s*['\"][wax+]")
 # Percorsi di avvio automatico (git hook, LaunchAgents, systemd utente, autostart):
 # via Edit/Write li protegge protect_claude_md.py con un unlock, qui il vettore shell.

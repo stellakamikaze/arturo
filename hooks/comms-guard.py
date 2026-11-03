@@ -83,9 +83,12 @@ SEND_ENDPOINTS = re.compile(
 )
 
 
-# I programmi che aprono un link, quindi anche un mailto: che prepara un invio.
+# I programmi che aprono un link, quindi anche un mailto: che prepara un invio. Un elenco solo, per
+# _MAILTO_APERTO e _mailto_indiretto.
+_APRITORE_NOME = (r"(?:open(?!\s*\()|xdg-open|gio|kde-open|gnome-open|wslview|start|explorer(?:\.exe)?"
+                  r"|Start-Process|saps)")
 _MAILTO_APERTO = re.compile(
-    r"(?:\b(?:open(?!\s*\()|xdg-open|gio|kde-open|gnome-open|wslview|start|explorer(?:\.exe)?|Start-Process|saps)\b"
+    r"(?:\b" + _APRITORE_NOME + r"\b"
     r"|\brundll32(?:\.exe)?\s+(?:url\.dll,\s*FileProtocolHandler|shell32\.dll,\s*ShellExec_RunDLL)\b"
     r"|\bopen\s+location\b"
     r"|\bpython[0-9.]*\s+-m\s+webbrowser\b|\bwebbrowser\.open(?:_new(?:_tab)?)?\s*\(|\bos\.startfile\s*\()"
@@ -96,8 +99,6 @@ _MAILTO_APERTO = re.compile(
 # `printf 'mailto:…' | xargs open`, `u='mailto:…'; os.startfile(u)` aprivano la bozza senza conferma. Conta
 # solo se l'apritore riceve davvero quel valore: `sed … mailto: … && open index.html` o `open('x').read()`
 # di python con un mailto: nel testo non aprono nessuna bozza (review delle correzioni del 1/11/2026).
-_APRITORE_NOME = (r"(?:open(?!\s*\()|xdg-open|gio|kde-open|gnome-open|wslview|start|explorer(?:\.exe)?"
-                  r"|Start-Process|saps)")
 _VALORE_MAILTO = re.compile(r"""([A-Za-z_]\w*)\s*=\s*["']?[^"'\s;]*mailto:""", re.IGNORECASE)
 _PIPE_MAILTO = re.compile(r"mailto:[^\n]*\|\s*xargs\s+(?:-\S+\s+)*(?:open|xdg-open|start|gio|wslview)\b", re.IGNORECASE)
 

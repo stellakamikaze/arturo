@@ -210,11 +210,12 @@ FILE_EXT = frozenset("txt json md csv log pdf png jpg jpeg gif html htm xml yaml
                      "py js ts sh zip gz tgz tar bz2 xz db sqlite sql pem crt der p12 env bak out tmp".split())
 
 # --- Ramo A: upload di un file locale ---
-# Le stesse forme di PATTERN_UPLOAD_FILE nel dispatcher. _FINE_ARG chiude un argomento nella shell
+# Le stesse forme di PATTERN_EXFIL nel dispatcher. _FINE_ARG chiude un argomento nella shell
 # (uno spazio) o in una lista python (`'curl', '-d', '@x'`, 21/10/2026).
 _FINE_ARG = r'''(?:\s|["'],\s*["']?)'''
 # -F e --form caricano un file solo con `nome=@file` o `nome=<file` (31/10/2026): `-F "email=a@b.it"` è un
 # campo di testo, e `-F 'testo=<file'` legge il file quanto `@`.
+# `curl -d '@secret'` e `--json @f` caricano il file quanto `-d @secret` (1/11/2026, F25).
 UPLOAD_FILE = re.compile(
     # -d, -F e -T anche in coda a un gruppo di opzioni corte: `curl -sd @file` (review del 1/11/2026).
     r'(?:(?<![\w-])-[A-Za-z0-9]*F' + _FINE_ARG + r'*[^\s=]*=[@<]|--form' + _FINE_ARG + r'*[^\s=]*=[@<]'
@@ -222,7 +223,6 @@ UPLOAD_FILE = re.compile(
     + r'|--upload-file|--(?:post|body)-file|(?<![\w-])-[A-Za-z0-9]*d' + _FINE_ARG + r'''*["']?@|--data[a-z-]*''' + _FINE_ARG
     + r'''*["']?@|--json''' + _FINE_ARG + r'''*["']?@|--url-query''' + _FINE_ARG + r'''*["']?@)'''
 )
-# `curl -d '@secret'` e `--json @f` caricano il file quanto `-d @secret` (1/11/2026, F25).
 # Variabili assegnate nel comando (31/10/2026): `J="http://127.0.0.1:8096"; … curl --data @- "$J/x"`. Senza
 # espanderle la destinazione non si legge, e ogni POST al proprio servizio chiedeva (18 conferme su 21 in
 # due settimane, tutte verso 127.0.0.1 o 192.168.1.3). Contano solo i valori letterali: un valore con $,

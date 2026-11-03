@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RV01-RV09: i buchi trovati dalla review del 1/11/2026 sui 16 commit dopo v2026-10-30.
+"""RV01-RV08: i buchi trovati dalla review del 1/11/2026 sui 16 commit dopo v2026-10-30.
 
 Ogni gruppo raccoglie i casi di una guardia. I casi "ask" o "block" sono quelli che la versione
 e80e43d lasciava passare; i casi "silent" sono il lavoro proprio che deve restare libero.
@@ -8,6 +8,26 @@ RV01 block-dangerous, git: uno stash conta come salvato solo con `git stash show
      `git tag nome stash@{N}`, e solo per quel ref; `git stash branch` seguito da drop butta un altro
      stash; `git stash clear` chiede; `--forc` e `--dele` valgono come `--force` e `--delete`; due rami
      cancellati insieme non si coprono a vicenda; un tag omonimo non devia `--contains`.
+RV02 block-dangerous, cancellazioni: sed col comando o col flag `e` chiede; rm dopo un cd con la
+     variabile riassegnata, find -exec dietro env, sudo, command o nice, rm sotto un link chiedono;
+     rm della radice o della home, del /s e rd /s di un disco, format C: si bloccano; il testo
+     citato in grep, python o echo tace.
+RV03 protect_claude_md dal dispatcher e da block-dangerous: una scrittura shell sul CLAUDE.md
+     globale chiede; la riga `allow claude-md-progetto` del .local libera solo un CLAUDE.md di
+     progetto che esiste già, non uno nuovo né un open() sul globale.
+RV04 exfil-guard: un upload con @file tra virgolette, --json, gruppi di opzioni (-sd, -sF, -sT),
+     un proxy esterno, curl -K, un curl ridefinito o un host riscritto da eval, declare, printf -v
+     o read chiede; il proprio servizio su localhost o in rete interna resta libero.
+RV05 comms-guard: un invio dentro $( ) o backtick dopo --help chiede; un mailto: che arriva
+     all'apritore da una variabile, da xargs o da os.startfile chiede; un mailto: solo nel testo
+     (sed, grep, open() di python) tace.
+RV06 commit-secret-gate: dopo popd, cd - o un cd che fallisce il commit si giudica nel repository
+     di partenza; un segreto copiato in una cartella di mktemp (<file, $(<file), cp -t) o scritto e
+     aggiunto nello stesso comando si vede; mkdir, clone e cd verso una cartella nuova restano liberi.
+RV07 block-dangerous su Read: settings.json gli manda il tool Read; un file di ~/.ssh che non è
+     config, known_hosts o una chiave pubblica chiede.
+RV08 block-dangerous, git-destinazione: un push con la destinazione riscritta da -c, maiuscole,
+     pushInsteadOf, --config-env o GIT_CONFIG_* chiede; push, clone e chiavi innocue restano liberi.
 
 Sulla base e80e43d ogni gruppo fallisce con un AssertionError che comincia con il suo codice. Con
 --avvelena il banco lo prova da solo: rimette nella copia le guardie di e80e43d e vuole ogni gruppo
