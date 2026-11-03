@@ -170,6 +170,7 @@ BANCHI=(
   test_amend_2026_11_03.py
   test_testata_banchi_2026_11_03.py
   test_rotazione_2026_11_03.py
+  test_segnalazioni_2026_11_03.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -350,6 +351,9 @@ BASELINE=(
   # Rotazione automatica della sessione (3/11/2026): fine leggero e marca di /inizio. bf394ad, il dev
   # prima della rotazione.
   "test_rotazione_2026_11_03.py bf394ad radice"
+  # Segnalazioni n. 45 e n. 46 di Filippo (3/11/2026): zsh come bash da $CLAUDE_ENV_FILE, riscrivi-bash
+  # che lascia il comando com'è, /inizio che controlla da dove parte la copia separata. 9c6a0e6, il ramo prima.
+  "test_segnalazioni_2026_11_03.py 9c6a0e6"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"

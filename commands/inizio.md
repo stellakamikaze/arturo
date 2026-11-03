@@ -176,7 +176,12 @@ in `/fine`, comincia con `cd "<cartella>" &&`: senza, `arturo todo --progetto .`
   in cima alla ripartenza, con quello che sta facendo.
 - **Worktree, solo se c'è quella sessione.** Due sessioni nella stessa cartella si pestano i piedi:
   test, build e commit vedono anche il lavoro dell'altra. Prima di qualsiasi modifica entra con
-  `EnterWorktree` (nome `<slug>-<aaaammgg-hhmm>`, parte dall'ultimo commit locale). Prima aggiungi
+  `EnterWorktree` (nome `<slug>-<aaaammgg-hhmm>`). Parte dall'ultimo commit locale perché
+  `settings.json` ha `worktree.baseRef: "head"`: la descrizione del tool dice `fresh`, cioè la copia
+  online, ma quello è il default senza la chiave. Appena dentro, confronta `git rev-parse HEAD` con
+  l'HEAD della cartella principale. Se sono diversi, esci con `ExitWorktree`, crea la copia con
+  `git worktree add -b <nome> .claude/worktrees/<nome> HEAD` e rientra con `EnterWorktree` e `path`
+  (segnalazione n. 45, 3/11/2026). Prima aggiungi
   `.claude/worktrees/` e `node_modules` a `<cartella>/.git/info/exclude`, se mancano: quel file vale per
   tutti i worktree del repository, resta sulla macchina e non tocca il `.gitignore` del progetto. La ripartenza dice
   che la sessione lavora in una copia a parte, e `/fine` riporta il lavoro nella cartella principale.

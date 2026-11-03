@@ -21,6 +21,15 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ] && [ -n "$ARTURO_CODICE" ] && ! grep -qs 'artur
   printf 'export ARTURO_CODICE="%s"; export PATH="%s/bin:$PATH"  # arturo-bin-nel-path\n' \
     "$ARTURO_CODICE" "$ARTURO_CODICE" >> "$CLAUDE_ENV_FILE" 2>/dev/null || true
 fi
+# zsh come bash nei comandi di Claude (segnalazione n. 46, 3/11/2026): un glob senza file, una parola
+# che inizia con = e una variabile non quotata fanno come in bash. Prima lo faceva il mod riscrivi-bash
+# mettendo `setopt` davanti al comando, e in modalità auto Claude Code respinge un comando cambiato dopo
+# la revisione: andava rilanciato identico. Con questa riga il mod lascia il comando com'è.
+# `if ... fi` esce 0 anche in bash, dove la riga non fa niente.
+if [ -n "${CLAUDE_ENV_FILE:-}" ] && ! grep -qs 'arturo-zsh-come-bash' "$CLAUDE_ENV_FILE"; then
+  printf '%s\n' 'if [ -n "${ZSH_VERSION:-}" ]; then setopt nonomatch noequals shwordsplit; fi  # arturo-zsh-come-bash' \
+    >> "$CLAUDE_ENV_FILE" 2>/dev/null || true
+fi
 # Col plugin il codice sta in una cartella che cambia a ogni versione. La barra in basso la legge da
 # ~/.claude/arturo/radice, e il modello la riceve qui: Read non espande $ARTURO_CODICE (docs/strati.md).
 if [ "$(cd "$ARTURO_CODICE" 2>/dev/null && pwd -P)" != "$(cd "$HOME/.claude" 2>/dev/null && pwd -P)" ]; then

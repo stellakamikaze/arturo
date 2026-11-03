@@ -101,18 +101,23 @@ export function opzioniZsh(c: string): { command: string; fatti: string[] } {
   return { command: `setopt ${opzioni.join(' ')}; ${c}`, fatti: [`setopt ${opzioni.join(' ')}`] }
 }
 
-export type Contesto = { zsh: boolean; haTimeout: boolean; timeoutMs?: number; background?: boolean }
+// opzioniNellaShell: session-start.sh ha scritto in $CLAUDE_ENV_FILE la riga `setopt nonomatch noequals
+// shwordsplit` (marcatore arturo-zsh-come-bash), che Claude Code esegue prima di ogni comando. Allora
+// glob e opzioni non si riscrivono: in modalità auto un comando cambiato dopo la revisione del
+// classificatore viene respinto e va rilanciato identico (segnalazione n. 46, 3/11/2026).
+export type Contesto = { zsh: boolean; haTimeout: boolean; timeoutMs?: number; background?: boolean; opzioniNellaShell?: boolean }
 
 export function riscrivi(c: string, ctx: Contesto): { command: string; timeoutMs?: number; fatti: string[] } {
   let command = c
   const fatti: string[] = []
   let timeoutMs = ctx.timeoutMs
-  if (ctx.zsh && command.includes('*')) {
+  const riscriviZsh = ctx.zsh && ctx.opzioniNellaShell !== true
+  if (riscriviZsh && command.includes('*')) {
     const r = quotaGlob(command)
     command = r.command
     fatti.push(...r.fatti)
   }
-  if (ctx.zsh) {
+  if (riscriviZsh) {
     const r = opzioniZsh(command)
     command = r.command
     fatti.push(...r.fatti)
