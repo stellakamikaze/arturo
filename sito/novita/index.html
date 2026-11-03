@@ -47,6 +47,83 @@
  "blogPost": [
   {
    "@type": "BlogPosting",
+   "headline": "In modalità auto un comando parte al primo colpo",
+   "datePublished": "2026-11-03",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-11-03-in-modalita-auto-un-comando-parte-al-primo-colpo",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
+   "headline": "Arturo ha un numero di versione: questa è la 0.2.0",
+   "datePublished": "2026-11-03",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-11-03-arturo-ha-un-numero-di-versione-questa-e-la-0-2-0",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
+   "headline": "A ogni passo finito la sessione si rinnova da sola",
+   "datePublished": "2026-11-03",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-11-03-a-ogni-passo-finito-la-sessione-si-rinnova-da-sola",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
+   "headline": "Arturo si presenta all'avvio, e i banchi rossi non ti disturbano più",
+   "datePublished": "2026-11-03",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-11-03-arturo-si-presenta-all-avvio-e-i-banchi-rossi-non-ti-disturb",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
+   "headline": "/fine pesa meno, e a sessione vuota fa solo il sync",
+   "datePublished": "2026-11-03",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-11-03-fine-pesa-meno-e-a-sessione-vuota-fa-solo-il-sync",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
+   "headline": "Con due Chrome collegati, Claude resta su quello che hai scelto",
+   "datePublished": "2026-11-03",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-11-03-con-due-chrome-collegati-claude-resta-su-quello-che-hai-scel",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
+   "headline": "Un amend non riscrive più il commit di un'altra sessione",
+   "datePublished": "2026-11-03",
+   "author": {
+    "@type": "Person",
+    "name": "Federico Nejrotti"
+   },
+   "url": "https://arturo.stellakamikaze.org/novita/#2026-11-03-un-amend-non-riscrive-piu-il-commit-di-un-altra-sessione",
+   "inLanguage": "it"
+  },
+  {
+   "@type": "BlogPosting",
    "headline": "La telemetria dice anche come usi Arturo, non solo quanto",
    "datePublished": "2026-11-03",
    "author": {
@@ -1095,6 +1172,75 @@ ul,ol{margin:0;padding:0}
 <section class="sezione" aria-labelledby="titolo">
   <div class="dentro">
     <div class="voci" id="voci">
+
+      <article class="voce" id="2026-11-03-in-modalita-auto-un-comando-parte-al-primo-colpo" aria-labelledby="t-2026-11-03-in-modalita-auto-un-comando-parte-al-primo-colpo">
+        <p class="voce__data"><time datetime="2026-11-03">3 novembre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-11-03-in-modalita-auto-un-comando-parte-al-primo-colpo"><a href="#2026-11-03-in-modalita-auto-un-comando-parte-al-primo-colpo">In modalità auto un comando parte al primo colpo</a></h2>
+          <p><strong>Cosa cambia</strong>: in modalità auto molti comandi venivano respinti una volta e andavano rilanciati identici, circa 15 volte in un'ora di lavoro (segnalazione n. 45 e segnalazione n. 46). Succedeva ai comandi con un <code>*</code>, un heredoc, un <code>=</code> o una variabile. Ora partono al primo colpo. In più <code>/inizio</code> controlla che la copia separata, quando un'altra sessione lavora sullo stesso progetto, parta dal tuo ultimo lavoro salvato e non dalla copia online.</p>
+          <p><strong>Perché</strong>: il mod <code>riscrivi-bash</code> aggiungeva <code>setopt</code> davanti al comando dopo che la modalità auto lo aveva già approvato, e Claude Code respinge un comando cambiato dopo l'approvazione. Adesso quelle opzioni di zsh le imposta l'avvio della sessione una volta sola, e il comando resta com'è.</p>
+          <p><strong>A chi serve</strong>: a chi usa la modalità auto su un Mac, cioè quasi a tutti. Vale dalla prossima sessione aperta dopo l'aggiornamento.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="2026-11-03-arturo-ha-un-numero-di-versione-questa-e-la-0-2-0" aria-labelledby="t-2026-11-03-arturo-ha-un-numero-di-versione-questa-e-la-0-2-0">
+        <p class="voce__data"><time datetime="2026-11-03">3 novembre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-11-03-arturo-ha-un-numero-di-versione-questa-e-la-0-2-0"><a href="#2026-11-03-arturo-ha-un-numero-di-versione-questa-e-la-0-2-0">Arturo ha un numero di versione: questa è la 0.2.0</a></h2>
+          <p><strong>Cosa cambia</strong>: la versione di Arturo non è più una data ma un numero. Questo rilascio è la 0.2.0, e la testata all'avvio scrive "Arturo 0.2.0". I rilasci di prima hanno ricevuto un numero anche loro, dalla 0.1.0 (12 ottobre) alla 0.1.29 (3 novembre mattina). L'ultima cifra sale a ogni rilascio di correzioni, quella di mezzo quando esce un blocco della roadmap: il prossimo, il plugin, sarà la 0.3.0. La 1.0 sarà il rilascio pubblico.</p>
+          <p><strong>Perché</strong>: una data diceva quando era uscito un rilascio, non quanto Arturo era cresciuto. Con il numero la roadmap può dire in quale versione arriva ogni cosa.</p>
+          <p><strong>A chi serve</strong>: a tutti, senza fare niente. L'aggiornamento arriva come sempre alla chiusura della sessione. Se segnali un problema, la versione da scrivere è il numero.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="2026-11-03-a-ogni-passo-finito-la-sessione-si-rinnova-da-sola" aria-labelledby="t-2026-11-03-a-ogni-passo-finito-la-sessione-si-rinnova-da-sola">
+        <p class="voce__data"><time datetime="2026-11-03">3 novembre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-11-03-a-ogni-passo-finito-la-sessione-si-rinnova-da-sola"><a href="#2026-11-03-a-ogni-passo-finito-la-sessione-si-rinnova-da-sola">A ogni passo finito la sessione si rinnova da sola</a></h2>
+          <p><strong>Cosa cambia</strong>: quando Claude chiude un passo del piano o un compito, con i test verdi, salva con <code>/fine --rotazione</code> e rinnova la sessione da solo: <code>/clear</code>, poi <code>/inizio</code> sul passo dopo. Tu non scrivi più <code>/fine</code>, <code>/clear</code> e <code>/inizio</code> a mano fra un passo e l'altro. Il <code>/fine</code> completo gira una volta al giorno, dalle 18. Le note che chiedono il tuo sì aspettano nell'handoff, e il prossimo <code>/fine</code> che scrivi tu te le propone.</p>
+          <p><strong>Perché</strong>: una sessione lunga si appesantisce e Claude ricorda peggio. Una sessione nuova a ogni passo riparte leggera, con il contesto che serve.</p>
+          <p><strong>A chi serve</strong>: a chi lavora su piani a più passi. La rotazione non parte se premi Esc, se c'è un errore, se hai del testo nella casella o se la sessione dura meno di 3 minuti. Si spegne con <code>ARTURO_ROTAZIONE=0</code>.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="2026-11-03-arturo-si-presenta-all-avvio-e-i-banchi-rossi-non-ti-disturb" aria-labelledby="t-2026-11-03-arturo-si-presenta-all-avvio-e-i-banchi-rossi-non-ti-disturb">
+        <p class="voce__data"><time datetime="2026-11-03">3 novembre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-11-03-arturo-si-presenta-all-avvio-e-i-banchi-rossi-non-ti-disturb"><a href="#2026-11-03-arturo-si-presenta-all-avvio-e-i-banchi-rossi-non-ti-disturb">Arturo si presenta all'avvio, e i banchi rossi non ti disturbano più</a></h2>
+          <p><strong>Cosa cambia</strong>: all'avvio, subito sotto l'intestazione di Claude Code, compare una riga di Arturo: la sua versione, quella di Claude Code, la deriva della tua config (quanti file di Arturo hai cambiato) e l'aggiornamento in arrivo, se c'è. <code>/versione</code> la ripete col dettaglio. I banchi di prova delle guardie, quando diventano rossi, non compaiono più sotto il prompt né all'avvio: ripartono da soli dopo mezz'ora, e se restano rossi il nome del banco arriva a chi mantiene Arturo con la telemetria.</p>
+          <p><strong>Perché</strong>: l'avviso dei banchi chiedeva a te di riparare una cosa che ripara chi mantiene Arturo, e spesso era un rosso passeggero. La riga di testata dice invece in un colpo d'occhio con quale Arturo stai lavorando. Il logo di Claude Code resta: nessuna opzione e nessun mod lo può sostituire.</p>
+          <p><strong>A chi serve</strong>: a tutti. Se hai spento la telemetria, i banchi rossi restano sul tuo computer, in <code>~/.claude/cache/banchi-ultimo-esito.txt</code>, e <code>/diagnosi</code> li legge.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="2026-11-03-fine-pesa-meno-e-a-sessione-vuota-fa-solo-il-sync" aria-labelledby="t-2026-11-03-fine-pesa-meno-e-a-sessione-vuota-fa-solo-il-sync">
+        <p class="voce__data"><time datetime="2026-11-03">3 novembre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-11-03-fine-pesa-meno-e-a-sessione-vuota-fa-solo-il-sync"><a href="#2026-11-03-fine-pesa-meno-e-a-sessione-vuota-fa-solo-il-sync">/fine pesa meno, e a sessione vuota fa solo il sync</a></h2>
+          <p><strong>Cosa cambia</strong>: <code>/fine</code> è lungo poco più della metà. Le parti che servono solo in un caso (il worktree, la retention, le tue aggiunte alla coda, gli opzionali) stanno in file di <code>shared/</code> che Claude legge solo quando quel caso si presenta. Se la sessione non ha file, commit, todo né progetto, <code>/fine</code> salta tutte le fasi e fa solo il sync della config.</p>
+          <p><strong>Perché</strong>: proposta n. 29. <code>/fine</code> entrava intero nel contesto a ogni lancio, anche a sessione vuota, e pesava sull'uso di Claude Code più di ogni altro comando.</p>
+          <p><strong>Da sapere</strong>: le fasi e le regole sono le stesse. Il modello resta quello della sessione.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="2026-11-03-con-due-chrome-collegati-claude-resta-su-quello-che-hai-scel" aria-labelledby="t-2026-11-03-con-due-chrome-collegati-claude-resta-su-quello-che-hai-scel">
+        <p class="voce__data"><time datetime="2026-11-03">3 novembre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-11-03-con-due-chrome-collegati-claude-resta-su-quello-che-hai-scel"><a href="#2026-11-03-con-due-chrome-collegati-claude-resta-su-quello-che-hai-scel">Con due Chrome collegati, Claude resta su quello che hai scelto</a></h2>
+          <p><strong>Cosa cambia</strong>: se hai più Chrome collegati a Claude, Claude ricorda il browser che hai scelto e, dopo un errore di collegamento, controlla di essere ancora lì. Se è tornato sull'altro, lo riseleziona e te lo dice. Per farti scegliere, descrive ogni browser da quello che mostra.</p>
+          <p><strong>Perché</strong>: segnalazione n. 44. I nomi dei browser ("Browser 1", "Browser 2") cambiano durante la sessione, e dopo una disconnessione i comandi tornavano sul Chrome sbagliato senza avviso. La causa sta nell'estensione di Chrome: Arturo non può correggerla, ma può far controllare Claude.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="2026-11-03-un-amend-non-riscrive-piu-il-commit-di-un-altra-sessione" aria-labelledby="t-2026-11-03-un-amend-non-riscrive-piu-il-commit-di-un-altra-sessione">
+        <p class="voce__data"><time datetime="2026-11-03">3 novembre 2026</time></p>
+        <div class="voce__corpo">
+          <h2 id="t-2026-11-03-un-amend-non-riscrive-piu-il-commit-di-un-altra-sessione"><a href="#2026-11-03-un-amend-non-riscrive-piu-il-commit-di-un-altra-sessione">Un amend non riscrive più il commit di un'altra sessione</a></h2>
+          <p><strong>Cosa cambia</strong>: <code>git commit --amend</code> chiede conferma se l'ultimo commit del repository non l'ha fatto la stessa sessione. Se il commit è suo, tace come prima.</p>
+          <p><strong>Perché</strong>: segnalazione n. 25. Due sessioni lavoravano sullo stesso progetto. Fra il commit di una e il suo amend per un refuso, l'altra aveva fatto un commit, e l'amend ha riscritto quello. Nessuna guardia l'aveva fermato.</p>
+          <p><strong>Da sapere</strong>: per riconoscere i suoi commit, Arturo annota dopo ogni <code>git commit</code> l'ultimo commit della sessione, in un file di <code>~/.claude/session-env</code>. Un amend su un commit di ieri chiede anche se il commit è tuo: conferma. Per un refuso nel messaggio basta lasciarlo. <code>git reset</code> e <code>git rebase</code> restano come prima.</p>
+        </div>
+      </article>
 
       <article class="voce" id="2026-11-03-la-telemetria-dice-anche-come-usi-arturo-non-solo-quanto" aria-labelledby="t-2026-11-03-la-telemetria-dice-anche-come-usi-arturo-non-solo-quanto">
         <p class="voce__data"><time datetime="2026-11-03">3 novembre 2026</time></p>
