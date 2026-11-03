@@ -2,9 +2,7 @@
 
 Aggiornata il 2026-11-03
 
-Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in `NOVITA.md`.
-
-Ogni blocco ha il numero della versione con cui esce. Oggi Arturo è alla 0.2: il blocco "Adesso" sarà la 0.3, "Prossimo" la 0.4, e "Dopo" dalla 0.5 in avanti. La 1.0 sarà il rilascio pubblico.
+Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in `NOVITA.md`. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico.
 
 Se una voce ti riguarda, o se manca qualcosa che ti serve, scrivilo sulla pagina della roadmap: https://arturo.stellakamikaze.org/roadmap/. Ogni voce ha il suo spazio per i commenti, e gli altri utenti li leggono.
 
