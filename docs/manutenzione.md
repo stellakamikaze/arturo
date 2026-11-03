@@ -15,7 +15,12 @@ l'ultimo tag, quel giorno esce un rilascio. Senza cambi, niente rilascio.
 
 Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
 
-1. **Gate verde**: `bash tests/verifica-allineamento.sh` esce con `0`. Dentro c'è l'igiene (I03,
+1. **Gate verde**: `bash tests/verifica-allineamento.sh` esce con `0`. Banchi, controprove e veleni
+   girano in parallelo (`tests/esegui_gate.py`, `ARTURO_GATE_LAVORI` per il numero di worker) e tutti
+   anche dopo un rosso: un giro elenca ogni rosso sotto `=== ROSSO`. I banchi che sotto carico danno
+   rossi che da soli passano vanno nella lista `IN_FILA`. Dopo una correzione `--rossi` rifà solo i
+   rossi del giro prima: stampa `PARZIALE` e non vale per il tag, che vuole un giro completo verde.
+   Un banco nuovo si aggiunge alle liste come prima. Dentro c'è l'igiene (I03,
    `tests/igiene.py`): nessun nome della config privata nei file, nei percorsi e nei messaggi dei
    commit che non sono ancora su un remoto. Su GitHub lo stesso controllo gira a ogni push, su ogni
    branch, solo nel repository pubblico di Arturo (`.github/workflows/igiene.yml`): nelle copie

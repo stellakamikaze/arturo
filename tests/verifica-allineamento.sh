@@ -2,6 +2,10 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# --rossi rifà solo i lavori rossi dell'ultimo giro (tests/esegui_gate.py): serve a chi corregge, e
+# stampa PARZIALE perché un rilascio vuole un giro completo verde (docs/manutenzione.md).
+SOLO_ROSSI=""
+[[ "${1:-}" == --rossi ]] && SOLO_ROSSI=--rossi
 for tool in bash python3 git node; do
   command -v "$tool" >/dev/null 2>&1 || { echo "FAIL: $tool mancante" >&2; exit 1; }
 done
@@ -50,34 +54,9 @@ export ARTURO_BANCHI_AVVIO=0
 export ARTURO_SALTI="$FIXTURE/salti.txt"
 : > "$ARTURO_SALTI"
 mkdir -p "$HOME" "$TMPDIR"
-# Nella copia entrano .git e i file che git vede (tracciati e nuovi non ignorati), come in un clone
-# pulito con le modifiche in corso. Con `cp -R` entravano anche cache/ e data/ della macchina: il
-# 19/10/2026 una coda di telemetria vecchia ha fatto rosso GS06 e un .pyc dello strato tolto I03.
-python3 - "$ROOT" "$HOME/.claude" <<'PY'
-import os, shutil, stat, subprocess, sys
-radice, copia = sys.argv[1:3]
-git = os.path.join(radice, ".git")
-
-
-def socket(cartella, nomi):  # fsmonitor--daemon.ipc: un socket non si copia
-    return [n for n in nomi if stat.S_ISSOCK(os.lstat(os.path.join(cartella, n)).st_mode)]
-
-
-if os.path.isdir(git):
-    shutil.copytree(git, os.path.join(copia, ".git"), symlinks=True, ignore=socket)
-else:  # worktree: .git è un file che punta alla cartella vera
-    os.makedirs(copia, exist_ok=True)
-    shutil.copy2(git, os.path.join(copia, ".git"))
-elenco = subprocess.run(["git", "-C", radice, "ls-files", "-z", "-co", "--exclude-standard"],
-                        capture_output=True, check=True).stdout.decode("utf-8")
-for rel in filter(None, elenco.split("\0")):
-    origine = os.path.join(radice, rel)
-    if not os.path.lexists(origine):  # tracciato ma cancellato nel tree
-        continue
-    dest = os.path.join(copia, rel)
-    os.makedirs(os.path.dirname(dest), exist_ok=True)
-    shutil.copy2(origine, dest, follow_symlinks=False)
-PY
+# La copia del repository per la coda del gate (sintassi, audit): la stessa che ogni worker di
+# tests/esegui_gate.py si fa per i banchi, coi soli file che git vede (19/10/2026, GS06 e I03).
+python3 -B "$ROOT/tests/esegui_gate.py" copia "$ROOT" "$HOME/.claude"
 REPO="$HOME/.claude"
 
 BANCHI=(
@@ -95,10 +74,6 @@ BANCHI=(
   test_completezza.py
   test_prodotto.py
   test_revisione_2026_09_30.py
-  test_todo.py
-  test_pannello.py
-  test_web.py
-  test_revisione_ciclo5.py
   test_mod_portati.py
   test_guardie_involucri.py
   test_aggiorna_sicuro.py
@@ -123,7 +98,6 @@ BANCHI=(
   test_aggiorna_indietro.py
   test_diagnosi.py
   test_scheda.py
-  test_schede_mac_2026_10_29.py
   test_hook_utf8.py
   test_autoaggiorna.py
   test_aggiorna_firmato.py
@@ -171,22 +145,23 @@ BANCHI=(
   test_testata_banchi_2026_11_03.py
   test_rotazione_2026_11_03.py
   test_segnalazioni_2026_11_03.py
+  test_gate_snello_2026_11_03.py
 )
-for test in "${BANCHI[@]}"; do
-  python3 -B "$REPO/tests/$test" --repo "$REPO"
-done
+# Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
+# aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
+IN_FILA=(
+  test_todo.py
+  test_pannello.py
+  test_web.py
+  test_revisione_ciclo5.py
+  test_schede_mac_2026_10_29.py
+)
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
 PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py)
 PY38=$(command -v python3.8 || true)
-if [[ -n "$PY38" ]]; then
-  for test in "${PY38_BANCHI[@]}"; do
-    "$PY38" -B "$REPO/tests/$test" --repo "$REPO"
-  done
-else
-  echo "NOTA: python3.8 assente, todo e pagina provati solo con $(python3 --version 2>&1)"
-fi
+[[ -n "$PY38" ]] || echo "NOTA: python3.8 assente, todo e pagina provati solo con $(python3 --version 2>&1)"
 
 # Controprove: ogni riga e' "banco ref [radice]". Il banco gira sulla base `ref` estratta con
 # git archive e deve dichiararla discriminante. Con "radice" il banco riceve il repository vero
@@ -354,42 +329,48 @@ BASELINE=(
   # Segnalazioni n. 45 e n. 46 di Filippo (3/11/2026): zsh come bash da $CLAUDE_ENV_FILE, riscrivi-bash
   # che lascia il comando com'è, /inizio che controlla da dove parte la copia separata. 9c6a0e6, il ramo prima.
   "test_segnalazioni_2026_11_03.py 9c6a0e6"
+  # Il gate snello (3/11/2026): tests/esegui_gate.py in parallelo, tutti i rossi in un giro, --rossi.
+  # 177852f, il ramo prima.
+  "test_gate_snello_2026_11_03.py 177852f"
 )
-for riga in "${BASELINE[@]}"; do
-  read -r test ref modo <<<"$riga"
-  base="$FIXTURE/baseline-$ref"
-  if [[ ! -d "$base" ]]; then
-    mkdir -p "$base"
-    git -C "$ROOT" archive "$ref" | tar -x -C "$base"
-  fi
-  if [[ "${modo:-}" == radice ]]; then
-    python3 -B "$REPO/tests/$test" --repo "$ROOT" --baseline-ref "$ref"
-  else
-    python3 -B "$REPO/tests/$test" --repo "$base" --baseline-ref "$ref"
-  fi
-done
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
 # fallire il controllo col suo codice e il motivo atteso (test_memoria.py Y08-Y12, 20/10/2026).
-python3 -B "$REPO/tests/test_memoria.py" --repo "$REPO" --avvelena
 # Le conferme su lavoro proprio (31/10/2026): con le guardie di 15eb18d ogni gruppo LP deve essere rosso.
-python3 -B "$REPO/tests/test_lavoro_proprio_2026_10_31.py" --repo "$REPO" --avvelena
 # git commit --amend sul commit di un'altra sessione (3/11/2026, #4187): con le guardie di c4ae5a4 ogni gruppo AM è rosso.
-python3 -B "$REPO/tests/test_amend_2026_11_03.py" --repo "$REPO" --avvelena
 # Il ritratto di /setup (1/11/2026): senza esclusioni .env e chiavi escono; ogni regola di 2b/2c tolta
 # da setup.md fa rosso; un installatore che sposta ~/.claude fa rosso CP02.
-python3 -B "$REPO/tests/test_ritratto_2026_11_01.py" --repo "$REPO" --avvelena
-python3 -B "$REPO/tests/test_setup_ritratto_2026_11_01.py" --repo "$REPO" --avvelena
-python3 -B "$REPO/tests/test_copie_2026_10_23.py" --repo "$REPO" --avvelena
 # I buchi della review del 1/11/2026: con le guardie di e80e43d ogni gruppo RV deve essere rosso.
-python3 -B "$REPO/tests/test_revisione_2026_11_01.py" --repo "$REPO" --avvelena
 # Il controllo dei token gws all'avvio (1/11/2026): un timeout che vale "ok" o un refresh lanciato male
 # devono far rossi GT01 e GT05.
-python3 -B "$REPO/tests/test_gws_token_health.py" --repo "$REPO" --avvelena
-python3 -B "$REPO/tests/test_impacchetta_2026_11_03.py" --repo "$REPO" --avvelena
 # La rotazione della sessione (3/11/2026): ogni copia rotta (retention col fine leggero, segno, marca
 # non tagliata, riga sempre accesa, marca prima di " -- ") fa rosso il caso RT che la sorveglia.
-python3 -B "$REPO/tests/test_rotazione_2026_11_03.py" --repo "$REPO" --avvelena
+VELENI=(
+  test_memoria.py
+  test_lavoro_proprio_2026_10_31.py
+  test_amend_2026_11_03.py
+  test_ritratto_2026_11_01.py
+  test_setup_ritratto_2026_11_01.py
+  test_copie_2026_10_23.py
+  test_revisione_2026_11_01.py
+  test_gws_token_health.py
+  test_impacchetta_2026_11_03.py
+  test_rotazione_2026_11_03.py
+  test_gate_snello_2026_11_03.py
+)
+
+# Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso
+# (3/11/2026: 22 minuti in fila su un Mac, cinque giri per il rilascio 0.2.0). ARTURO_GATE_LAVORI
+# sceglie quanti worker; il default è metà dei core, al massimo 4.
+ESITO=0
+python3 -B "$ROOT/tests/esegui_gate.py" esegui --root "$ROOT" --fixture "$FIXTURE/lavori" $SOLO_ROSSI \
+  ${ARTURO_GATE_LAVORI:+--lavori "$ARTURO_GATE_LAVORI"} --py38 "$PY38" \
+  --banchi "${BANCHI[@]}" --in-fila "${IN_FILA[@]}" --banchi-py38 "${PY38_BANCHI[@]}" \
+  --controprove "${BASELINE[@]}" --veleni "${VELENI[@]}" || ESITO=$?
+if [[ -n "$SOLO_ROSSI" ]]; then
+  echo "PARZIALE: rifatti solo i rossi del giro prima; per un rilascio serve un giro completo"
+  exit "$ESITO"
+fi
 
 # Il server della telemetria (server/logica.js) con un archivio e una posta finti.
 node "$REPO/server/test.mjs"
@@ -435,5 +416,6 @@ done < <(git -C "$REPO" ls-files -z -- '*.js' '*.mjs')
 
 bash "$REPO/skills/system-audit/audit.sh" --strict
 salti=$(grep -c . "$ARTURO_SALTI" || true)
-printf 'PASS: banchi=%s shell=%s js=%s salti=%s\n' "${#BANCHI[@]}" "$shells" "$js" "$salti"
+printf 'PASS: banchi=%s shell=%s js=%s salti=%s\n' "$(( ${#BANCHI[@]} + ${#IN_FILA[@]} ))" "$shells" "$js" "$salti"
 [[ "$salti" == 0 ]] || sed 's/^/  /' "$ARTURO_SALTI"
+[[ "$ESITO" == 0 ]] || { echo "FAIL: lavori rossi, elencati sopra (=== ROSSO)" >&2; exit "$ESITO"; }

@@ -540,7 +540,9 @@ def test_x19(repo: Path) -> None:
 def test_x20(repo: Path) -> None:
     testo = gate(repo)
     m = re.search(r"PY38_BANCHI=\(([^)]*)\)", testo)
-    assert m and '"$PY38" -B "$REPO/tests/$test"' in testo, "X20 il gate non rilancia i banchi con Python 3.8"
+    # Dal 3/11/2026 i banchi li fa girare tests/esegui_gate.py, che riceve l'interprete e la lista.
+    assert m and '--py38 "$PY38"' in testo and '--banchi-py38 "${PY38_BANCHI[@]}"' in testo, \
+        "X20 il gate non rilancia i banchi con Python 3.8"
     for banco in ("test_todo.py", "test_web.py"):
         assert banco in m.group(1), f"X20 il gate non rilancia {banco} con Python 3.8"
 
