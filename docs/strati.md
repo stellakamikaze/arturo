@@ -63,7 +63,29 @@ Plugin di prova caricato con `--plugin-dir` in una sessione `claude -p`:
 | Variabili nel testo di una skill | Claude Code sostituisce `${CLAUDE_PLUGIN_ROOT}` e `${CLAUDE_SKILL_DIR}` prima che il modello legga; un'altra variabile resta letterale |
 | File in `commands/` del plugin | resta solo `/arturo-spike:sondacomando`: il nome senza prefisso ce l'hanno solo le skill con `name:` |
 
-Da provare: Windows (prima di migrare Balthasar); installazione da marketplace GitHub con sha fissato; statusLine con puntatore stabile.
+Seconda prova, 3/11/2026, col plugin vero generato da `bin/impacchetta.py` (`claude --plugin-dir`, settings della persona esclusi con `--setting-sources project`):
+
+| Controllo | Esito |
+|---|---|
+| Hook | ognuno scatta una volta per evento e per tool |
+| Comando diventato skill | `/novita` funziona senza prefisso; `$ARGUMENTS` arriva |
+| Stile di output | si chiama `arturo:Conciso`: col nome nudo Claude Code non lo applica |
+| Mod in `skills/<mod>/.claude-plugin` | dentro un plugin non si caricano: il marketplace li elenca a parte |
+| Agent | gli 8 agent si caricano |
+
+Da provare: Windows (prima di migrare Balthasar); installazione da marketplace GitHub con sha fissato; barra in basso dal puntatore su una macchina pulita.
+
+## Il pacchetto
+
+`python3 bin/impacchetta.py --uscita DIR` genera il plugin dal repository, che resta installabile come clone. Il banco `tests/test_impacchetta_2026_11_03.py` controlla il contratto:
+- `.claude-plugin/plugin.json` e `marketplace.json`, con Arturo e i suoi mod;
+- `hooks/hooks.json` dagli hook di `settings.json`, con `"${CLAUDE_PLUGIN_ROOT}/..."` tra virgolette;
+- `impostazioni/arturo.json`: il resto di `settings.json`, che `arturo impostazioni applica` unisce ai settings della persona;
+- ogni `commands/<nome>.md` diventa `skills/<nome>/SKILL.md` con `name:` e `disable-model-invocation: true`.
+
+`arturo impostazioni applica` fa un'unione a tre vie: la base è il file di blocco, poi i settings della persona, poi il frammento nuovo. Arturo cambia solo le voci che la persona ha lasciato com'erano. Se una voce è cambiata da tutte e due le parti, il comando non scrive niente e la nomina.
+
+Col codice fuori da `~/.claude`, l'avvio scrive `~/.claude/arturo/radice` per la barra in basso e dice al modello dove sta il codice.
 
 ## Come un testo di Arturo indica il codice
 
