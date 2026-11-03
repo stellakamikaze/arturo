@@ -152,6 +152,7 @@ BANCHI=(
   test_viste_allineate_2026_11_03.py
   test_gws_token_health.py
   test_telemetria_fase2_2026_11_03.py
+  test_telemetria_copia_fuori_2026_11_03.py
   test_amend_2026_11_03.py
   test_testata_banchi_2026_11_03.py
   test_rotazione_2026_11_03.py
@@ -356,6 +357,8 @@ BASELINE=(
   "test_catena_2026_11_03.py acb4a39"
   # Le tre viste dei todo allineate (3/11/2026, #3868): su acb4a39 la pagina non ha dopo.
   "test_viste_allineate_2026_11_03.py acb4a39"
+  # La telemetria tace da una copia fuori dalla config (3/11/2026): 9248ea9, il dev prima.
+  "test_telemetria_copia_fuori_2026_11_03.py 9248ea9"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

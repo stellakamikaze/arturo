@@ -165,7 +165,8 @@ L'id è casuale, ma chi mantiene Arturo può sapere chi c'è dietro se ti conosc
 anonimi. Cosa si tiene, per quanto e i tuoi diritti: docs/privacy.md.
 Server: {URL} (codice in server/). Si spegne anche con ARTURO_TELEMETRIA=0 o DO_NOT_TRACK=1.
 Da una HOME in una cartella temporanea, un banco di prova, non parte niente verso questo server:
-gli eventi vanno solo a un server indicato con ARTURO_TELEMETRIA_URL."""
+gli eventi vanno solo a un server indicato con ARTURO_TELEMETRIA_URL. Da una copia fuori dalla config
+(un clone di sviluppo, un plugin provato con --plugin-dir) la telemetria è spenta."""
 
 
 def file_stato() -> Path:
@@ -222,12 +223,32 @@ def cambia_stato(cambia) -> dict:
     return stato
 
 
+def copia_fuori_config() -> bool:
+    """Questo file gira fuori dalla config di chi lo lancia: un clone di sviluppo, un worktree, un pacchetto
+    del plugin provato con `claude -p --plugin-dir` (3/11/2026). Lo stato, l'id e la versione si leggono
+    sempre in ~/.claude: da una copia fuori, la config personale di chi sviluppa Arturo diventava
+    un'installazione nuova con la versione "sconosciuta" (Balthasar l'1/11, MacBook Air e Mac mini il 3/11,
+    ciascuno con un avviso su Telegram). Un'installazione vera ha il codice dentro la config: ~/.claude/bin
+    o la cache dei plugin in ~/.claude/plugins. Il percorso si risolve: un link dalla config al clone conta
+    come il clone."""
+    config = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
+    try:
+        Path(os.path.realpath(__file__)).relative_to(Path(os.path.realpath(config)))
+        return False
+    except ValueError:
+        return True
+
+
 def perche_spenta(stato: dict | None = None):
     """None se è accesa, altrimenti il motivo."""
     if os.environ.get("ARTURO_TELEMETRIA", "").strip().lower() in SPENTI:
         return "ARTURO_TELEMETRIA=0"
     if os.environ.get("DO_NOT_TRACK", "").strip() not in ("", "0"):
         return "DO_NOT_TRACK"
+    # Un banco con la HOME di prova o con un server indicato a mano resta acceso: i suoi eventi non
+    # arrivano al server vero (url()).
+    if copia_fuori_config() and not home_di_prova() and not os.environ.get("ARTURO_TELEMETRIA_URL", "").strip():
+        return "copia fuori dalla config"
     if (stato if stato is not None else leggi_stato()).get("spenta"):
         return "arturo telemetria spegni"
     return None
