@@ -11,6 +11,8 @@
 - Nome: <slug> / Branch: <branch> / Status: in progress|completato|bloccato
 - Filone: <solo se il progetto ha più filoni di lavoro: un nome breve, sempre lo stesso>
 - Sessione: <valore di $CLAUDE_CODE_SESSION_ID>
+- Rotazione: <AAAA-MM-GG, solo nel Modo rotazione di /fine>
+- Piano: <solo se c'è un piano: percorso in ~/.claude/plans/ · step N di M fatto>
 - Ultimo commit: <hash - messaggio>
 ## Ripartenza
 <Per la persona fra una settimana, tre o quattro frasi senza gergo, hash e nomi di file: cosa esiste
@@ -32,6 +34,8 @@ Da `arturo todo --progetto .`: tutti i todo aperti del progetto.
 
 ## In sospeso
 - <decisione rimandata o dubbio>
+## Note in attesa del sì
+- <solo nel Modo rotazione: percorso della nota → testo da scrivere, per il prossimo /fine della persona>
 ## Idee
 - <idea> → #ID | → memoria [[nome-della-nota]] | → scartata: <motivo>
 ```

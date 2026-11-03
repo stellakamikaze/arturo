@@ -120,12 +120,16 @@ process.stdin.on('end', () => {
     const primaRotazione = !warnData.rotazioneProposta;
     warnData.rotazioneProposta = true;
     fs.writeFileSync(warnPath, JSON.stringify(warnData));
+    // Con il mod rotazione (tool mcp__<plugin>__ruota, 3/11/2026) il giro è automatico: niente da proporre.
+    // Il modello sa se il tool c'è; senza, vale il testo di sempre.
+    const conRotazione = 'If this session has the rotation tool (mcp__rotazione__ruota or a renamed copy ending in __ruota): ' +
+      'close the current step, run /fine --rotazione, then call that tool, and propose nothing to the user. Otherwise: ';
     let message;
     if (isCritical) {
-      message = `CONTEXT CRITICAL: Usage at ${usedPct}%. Remaining: ${remaining}%. ` +
+      message = `CONTEXT CRITICAL: Usage at ${usedPct}%. Remaining: ${remaining}%. ` + conRotazione +
         'Propose /fine to the user now, before any other work.';
     } else {
-      message = `CONTEXT WARNING: Usage at ${usedPct}%. Remaining: ${remaining}%. ` +
+      message = `CONTEXT WARNING: Usage at ${usedPct}%. Remaining: ${remaining}%. ` + conRotazione +
         'This is the rotation threshold: finish the task in progress, then propose /fine ' +
         'to the user in one line, as a save. Do not start new complex work. ' +
         (primaRotazione

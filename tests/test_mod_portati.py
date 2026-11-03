@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 from typing import Callable, Dict, List
 
-MOD = ("redazione-segreti", "riscrivi-bash", "cache-fredda")
+MOD = ("redazione-segreti", "riscrivi-bash", "cache-fredda", "rotazione")
 TOLTI = ("menu-contesto", "agent-flow", "blast-radius")
 # I nomi della config dell'autore: solo le impronte, in tests/igiene.py (#3505). Un percorso
 # assoluto della sua macchina non è un nome e resta in chiaro.

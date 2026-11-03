@@ -346,4 +346,17 @@ partirei" scrivi "Oggi: <compito>", con l'ID del todo che lo copre se esiste. Po
 `prompt-master` col tool `Skill` sul compito, mostra PROMPT e BRIEF come li prescrive la skill e parti
 senza aspettare una scelta.
 
+## Modo rotazione
+
+Il contesto stampa `rotazione: sì` quando la sessione l'ha aperta il mod `rotazione`, dopo un
+`/fine --rotazione`: la persona non ha scritto niente e il lavoro continua da solo.
+- FASE 0 e FASE 1 restano intere: sync, contesto, altre sessioni, worktree.
+- La ripartenza è una riga: "Ripreso <progetto> · <step N+1 di M, se c'è un piano> · <compito>". Niente
+  elenco dei todo e niente "Da allora", salvo un fatto che cambia il lavoro (commit di un'altra sessione,
+  conflitto, scadenza arrivata): quello va in una seconda riga.
+- Se l'handoff ha la riga `- Piano: <percorso>`, leggi il piano e prendi lo step dopo quello fatto.
+- `prompt-master` si carica come in ogni sessione nuova, ma il brief è una riga, "Brief: <compito>": il
+  brief pieno l'ha avuto lo step prima. Poi parti subito.
+- A passo chiuso vale di nuovo `/fine --rotazione`, e il giro riparte.
+
 Esegui ora la FASE 0, poi la FASE 1 su $ARGUMENTS.
