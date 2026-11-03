@@ -76,6 +76,7 @@ def test_tv03(repo: Path) -> None:
         for nome, quando in (("v2026-11-03", "2026-11-03T06:49:59+01:00"), ("v0.1.29", "2026-11-03T11:00:00+01:00")):
             subprocess.run(["git", "-C", str(c), "tag", "-a", nome, "-m", f"Arturo {nome}"], check=True,
                            capture_output=True, env=dict(os.environ, GIT_COMMITTER_DATE=quando))
+        git(c, "commit", "-q", "--allow-empty", "-m", "commit della persona dopo il rilascio")
         v = versione(repo, home)
         assert v == "v0.1.29", f"TV03 con il tag a data e il suo numero sullo stesso commit la versione è {v!r}, non v0.1.29"
 
