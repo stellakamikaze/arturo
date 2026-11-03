@@ -43,6 +43,12 @@ commit e il worktree finché non è unito; /inizio lo mette in cima, /fine contr
 riportato con un cherry-pick non compare, e /fine lo controlla con lo stesso git cherry (#4175).
 F20 il blocco di /inizio per un progetto nuovo espande la tilde di PROJECTS_BASE (segnalazione n. 19).
 F21 arturo contesto trova "mio_progetto" anche scritto come slug (segnalazione n. 21).
+F22 /fine a sessione vuota (proposta n. 29, #4190): dopo la FASE 1, senza file, modifiche, todo e
+cartella, salta le fasi 2-8 e 10 e lancia solo la coda. Ogni file shared/ che /fine fa leggere esiste.
+
+Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
+(shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
+fine.md più il file che fine.md fa leggere in quel punto.
 
 Sulla base cbd8305 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 Lì F15 e F17 falliscono perché manca la FASE 9 di /fine: la loro controprova vera è sulla base prima
@@ -85,6 +91,19 @@ def serve(repo: Path, relativo: str, codice: str) -> Path:
     p = repo / relativo
     assert p.is_file(), f"{codice} manca {relativo}"
     return p
+
+
+def con_condiviso(repo: Path, testo: str, nome: str, codice: str) -> str:
+    """Il testo di /fine più shared/<nome>, se il testo lo fa leggere (#4190). Il file citato deve esistere."""
+    if f"shared/{nome}" not in testo:
+        return testo
+    return testo + "\n" + read(serve(repo, f"shared/{nome}", codice))
+
+
+def passo_worktree(repo: Path, fine: str, codice: str) -> str:
+    """Il passo "Sessione in un worktree" di /fine fino alla FASE 4, più shared/fine-worktree.md che fa leggere."""
+    passo = fine[fine.index("**Sessione in un worktree**"):fine.index("## FASE 4")]
+    return con_condiviso(repo, passo, "fine-worktree.md", codice)
 
 
 class Lab:
@@ -748,9 +767,11 @@ def test_f08(repo: Path) -> None:
     coda = read(repo / "bin" / "fine-coda.py")
     assert '"index-rigenera.py"), "--scrivi"' in coda, "F08 la coda di /fine non rigenera l'indice"
     assert "tail -n +6" not in fine, "F08 /fine cancella ancora gli handoff con find | tail | rm"
+    assert "`tu`, `decidi` o `io`" in fine, "F08 /fine non dice i valori di Chi"
+    # Dal 3/11/2026 il modello dell'handoff sta in shared/fine-handoff.md, che la FASE 4 fa leggere (#4190).
+    fine = con_condiviso(repo, fine, "fine-handoff.md", "F08")
     # Gli strumenti della config dell'autore: solo le impronte, in tests/igiene.py (#3505).
     assert not igiene.trova(fine, igiene.FINE), "F08 /fine nomina uno strumento della config dell'autore"
-    assert "`tu`, `decidi` o `io`" in fine, "F08 /fine non dice i valori di Chi"
     orfane = [f"blocco {n}: ${v}" for n, b in enumerate(blocchi(fine), 1) for v in variabili_orfane(b)]
     assert not orfane, "F08 blocchi di /fine che leggono una variabile nata in un altro blocco: " + "; ".join(orfane)
     modello = re.search(r"## Task Pendenti\n.*?\n(\| ID .*?)\n\n", fine, re.S)
@@ -827,10 +848,11 @@ def test_f13(repo: Path) -> None:
     passo = "**Sessione in un worktree**"
     assert all(t in fine for t in ("## FASE 4", passo)) and all(t in inizio for t in ("## FASE 4", "## FASE 5")), \
         "F13 /fine o /inizio non hanno le fasi che girano dentro un worktree"
-    dentro = blocchi(fine[:fine.index("## FASE 4")]) + blocchi(inizio[inizio.index("## FASE 4"):inizio.index("## FASE 5")])
+    passo = passo_worktree(repo, fine, "F13")
+    dentro = (blocchi(fine[:fine.index("## FASE 4")]) + blocchi(passo)
+              + blocchi(inizio[inizio.index("## FASE 4"):inizio.index("## FASE 5")]))
     rifiutati = [b.strip().splitlines()[0] for b in dentro if '"$HOME' in b or "$(" in b]
     assert dentro and not rifiutati, f"F13 blocchi che in un worktree la guardia di Claude Code rifiuta: {rifiutati}"
-    passo = fine[fine.index(passo):fine.index("## FASE 4")]
     assert "ExitWorktree" in passo and passo.index("ExitWorktree") < passo.index("merge --ff-only"), \
         "F13 /fine fa il merge sul tree principale da dentro il worktree, dove git fuori è vietato"
 
@@ -857,7 +879,7 @@ def test_f16(repo: Path) -> None:
     inizio = read(repo / "commands" / "inizio.md")
     passo = "**Sessione in un worktree**"
     assert passo in fine and "## FASE 4" in fine, "F16 /fine non ha il passo del worktree"
-    passo = fine[fine.index(passo):fine.index("## FASE 4")]
+    passo = passo_worktree(repo, fine, "F16")
     comando = re.search(r"`(git status --short --ignored)`", passo)
     assert comando and "worktree remove" in passo and passo.index(comando.group(1)) < passo.index("worktree remove"), \
         "F16 /fine rimuove il worktree senza aver guardato i file ignorati, che la rimozione cancella"
@@ -981,6 +1003,8 @@ def test_f19(repo: Path) -> None:
     con_lab(repo, prova)
     inizio = read(repo / "commands" / "inizio.md")
     fine = read(repo / "commands" / "fine.md")
+    if "**Sessione in un worktree**" in fine and "## FASE 4" in fine:
+        fine = passo_worktree(repo, fine, "F19")  # dal 3/11/2026 il controllo sta in shared/fine-worktree.md
     assert "**Rami non riportati.**" in inizio and "--abort" in inizio, "F19 /inizio non dice cosa fare di un ramo non riportato"
     assert "merge --no-edit" in fine, "F19 /fine non prova il merge quando il fast-forward non basta"
     assert re.search(r"cherry HEAD\s+<branch>", fine) and "righe con `+`" in fine, \
@@ -1022,11 +1046,27 @@ def test_f21(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+def test_f22(repo: Path) -> None:
+    """/fine a sessione vuota esce dopo la FASE 1 con la sola coda (proposta n. 29, #4190), e ogni file
+    shared/ che /fine fa leggere esiste: un rimando a un file assente toglierebbe un passo senza avviso."""
+    fine = read(repo / "commands" / "fine.md")
+    voce = "**Uscita breve a sessione vuota.**"
+    assert voce in fine and "## FASE 2" in fine, "F22 /fine non ha l'uscita breve a sessione vuota"
+    uscita = fine[fine.index(voce):fine.index("## FASE 2")]
+    assert "## FASE 1" in fine and fine.index("## FASE 1") < fine.index(voce), "F22 l'uscita breve non sta nella FASE 1"
+    for pezzo in ("fasi 2-8 e 10", "bin/fine-coda.py", "cartella: nessuna", "NON TROVATO", "git status", "todo"):
+        assert pezzo in uscita, f"F22 l'uscita breve non nomina {pezzo!r}"
+    citati = sorted(set(re.findall(r"~/\.claude/shared/([A-Za-z0-9_.-]+\.md)", fine)))
+    assert {"fine-handoff.md", "fine-worktree.md"} <= set(citati), f"F22 /fine non fa leggere i suoi file shared/: {citati}"
+    mancanti = [n for n in citati if not (repo / "shared" / n).is_file()]
+    assert not mancanti, f"F22 /fine fa leggere file shared/ che non esistono: {mancanti}"
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
          "F16": test_f16, "F17": test_f17, "F18": test_f18,
-         "F19": test_f19, "F20": test_f20, "F21": test_f21}
+         "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22}
 
 
 def main() -> int:
