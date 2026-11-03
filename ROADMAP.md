@@ -4,6 +4,8 @@ Aggiornata il 2026-11-03
 
 Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in `NOVITA.md`.
 
+Ogni blocco ha il numero della versione con cui esce. Oggi Arturo è alla 0.2: il blocco "Adesso" sarà la 0.3, "Prossimo" la 0.4, e "Dopo" dalla 0.5 in avanti. La 1.0 sarà il rilascio pubblico.
+
 Se una voce ti riguarda, o se manca qualcosa che ti serve, scrivilo sulla pagina della roadmap: https://arturo.stellakamikaze.org/roadmap/. Ogni voce ha il suo spazio per i commenti, e gli altri utenti li leggono.
 
 <!--
@@ -14,7 +16,7 @@ Forma di una voce: "### Titolo {#ancora}", poi "Stato: ...", poi i paragrafi, po
 L'ancora non cambia mai: i commenti sul sito sono legati a lei.
 -->
 
-## Adesso
+## Adesso (versione 0.3)
 
 ### Arturo diventa un plugin, separato dalle tue modifiche {#plugin}
 
@@ -52,7 +54,7 @@ Ogni `/segnala` e ogni messaggio dal sito diventa un compito. Qui stanno quelli 
 
 <!-- task: #4068 #4071 #4074 #4099 #4102 #3842 #3845 #4103 #4187 #4545 #4190 -->
 
-## Prossimo
+## Prossimo (versione 0.4)
 
 ### Aggiornamenti firmati anche con il plugin {#firma}
 
@@ -86,7 +88,7 @@ Ogni ruolo di un assistente diventa una skill di Arturo: smistare cosa ti arriva
 
 <!-- task: #4536 #4538 -->
 
-## Dopo
+## Dopo (versione 0.5 e oltre)
 
 ### Chi mantiene Arturo lo usa come voi {#autore}
 
