@@ -24,6 +24,10 @@ parta dal tuo ultimo lavoro salvato e non dalla copia online.
 lo aveva già approvato, e Claude Code respinge un comando cambiato dopo l'approvazione. Adesso
 quelle opzioni di zsh le imposta l'avvio della sessione una volta sola, e il comando resta com'è.
 
+Dopo la 0.2.0, se l'avvio non ha scritto le opzioni (una sessione aperta prima dell'aggiornamento),
+il mod mette ancora `setopt` davanti, ma una volta sola: il rilancio passa al secondo colpo e i
+`setopt` non si accumulano più (segnalazione n. 47 e segnalazione n. 48).
+
 **A chi serve**: a chi usa la modalità auto su un Mac, cioè quasi a tutti. Vale dalla prossima
 sessione aperta dopo l'aggiornamento.
 

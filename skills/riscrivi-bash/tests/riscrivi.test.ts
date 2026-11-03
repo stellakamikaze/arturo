@@ -140,3 +140,14 @@ describe('opzioni già nella shell (riga arturo-zsh-come-bash)', () => {
     expect(riscrivi('ls *.md', { ...MAC, opzioniNellaShell: false }).command).toBe('setopt nonomatch; ls *.md')
   })
 })
+
+// Segnalazione n. 47 (3/11/2026): il rilancio di un comando già riscritto passa identico.
+describe('rilancio di un comando già riscritto', () => {
+  test('un secondo setopt non si aggiunge', () => {
+    for (const c of ['ls *.md', 'echo $HOME *.txt', 'echo ==']) {
+      const prima = riscrivi(c, MAC).command
+      expect(prima.startsWith('setopt ')).toBe(true)
+      expect(riscrivi(prima, MAC).command).toBe(prima)
+    }
+  })
+})

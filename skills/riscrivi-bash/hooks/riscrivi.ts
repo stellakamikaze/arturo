@@ -94,7 +94,13 @@ const EQUALS = /(^|[\s;&|(])=/
 // Una variabile non quotata: in zsh `$T` resta una parola sola, in bash si spezza (3 "command not found").
 const VARIABILE = /\$(?:[A-Za-z_]|\{)/
 
+// Un comando che comincia già con setopt è un rilancio: in modalità auto Claude Code chiede di mandare
+// identico il comando riscritto, e un secondo prefisso lo cambiava di nuovo. Il 3/11/2026 i setopt
+// si accumulavano fino a sette volte e il rilancio non passava mai (segnalazione n. 47).
+const GIA_RISCRITTO = /^\s*setopt\s[^;\n]*;/
+
 export function opzioniZsh(c: string): { command: string; fatti: string[] } {
+  if (GIA_RISCRITTO.test(c)) return { command: c, fatti: [] }
   const m = maschera(c)
   const opzioni = [GLOB.test(m) ? 'nonomatch' : '', EQUALS.test(m) ? 'noequals' : '', VARIABILE.test(m) ? 'shwordsplit' : ''].filter(Boolean)
   if (opzioni.length === 0) return { command: c, fatti: [] }
