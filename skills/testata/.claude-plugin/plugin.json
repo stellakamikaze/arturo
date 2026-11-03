@@ -1,0 +1,9 @@
+{
+  "name": "testata",
+  "version": "0.1.0",
+  "description": "Sotto l'intestazione di Claude Code, una riga di Arturo: la sua versione, quella di Claude Code, la deriva della config e l'aggiornamento in arrivo; /versione la ripete col dettaglio",
+  "author": {
+    "name": "Federico Nejrotti"
+  },
+  "types": "./types/index.d.ts"
+}

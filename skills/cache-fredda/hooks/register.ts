@@ -1,17 +1,14 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import { avvisi, cacheFredda, cartelleGws, leggiBanchi, SEGNALI_VUOTI, tokenBuono, ttlDa, VUOTA } from './cache'
+import { avvisi, cacheFredda, cartelleGws, SEGNALI_VUOTI, tokenBuono, ttlDa, VUOTA } from './cache'
 
 // Gli avvisi stanno nella riga sotto il prompt ($.ui.status), accanto a quelli di Claude Code: non
-// coprono la fascia di /dafare. Solo eccezioni: cache fredda, banchi rossi, token gws in errore.
+// coprono la fascia di /dafare. Solo eccezioni: cache fredda e token gws in errore.
 const cache = atom({ plugin: 'cache-fredda', key: 'cache' } as const, VUOTA)
 const segnali = atom({ plugin: 'cache-fredda', key: 'segnali' } as const, SEGNALI_VUOTI)
 const UN_MINUTO = 60_000
-const DIECI_MINUTI = 600_000
 const SEI_ORE = 6 * 3_600_000
-// L'esito dei banchi delle guardie sta nella copia di Arturo che porta questo mod: <radice>/skills/cache-fredda/../../cache.
-const ESITO_REL = '/../../cache/banchi-ultimo-esito.txt'
 
 async function mostra($: EngineInterface): Promise<void> {
   $.ui.status(avvisi(await read($, cache), await read($, segnali)))
@@ -29,16 +26,6 @@ async function rinnovata($: EngineInterface): Promise<void> {
   const { context, rateLimits } = await $.session.usage()
   const ora = await $.clock.now()
   await update($, cache, () => ({ ultimo: ora, tokens: context.tokens ?? null, ttlMs: ttlDa(rateLimits), fredda: false }))
-  await mostra($)
-}
-
-async function banchi($: EngineInterface): Promise<void> {
-  const testo = await $.fs.read($.plugin.root + ESITO_REL).then(
-    t => (typeof t === 'string' ? t : null),
-    () => null,
-  )
-  const b = testo === null ? null : leggiBanchi(testo)
-  await update($, segnali, s => ({ ...s, banchi: b }))
   await mostra($)
 }
 
@@ -70,9 +57,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     $.clock.every(UN_MINUTO, () => void controlla($))
     // I controlli partono dopo l'avvio, per non rallentarlo, e poi tornano da soli.
-    $.clock.after(5_000, () => void banchi($).catch(() => undefined))
     $.clock.after(20_000, () => void gws($).catch(() => undefined))
-    $.clock.every(DIECI_MINUTI, () => void banchi($).catch(() => undefined))
     $.clock.every(SEI_ORE, () => void gws($).catch(() => undefined))
     return next(e)
   })

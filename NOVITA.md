@@ -12,6 +12,23 @@ modo di lavorare.
 
 ---
 
+## 2026-11-03 — Arturo si presenta all'avvio, e i banchi rossi non ti disturbano più
+
+**Cosa cambia**: all'avvio, subito sotto l'intestazione di Claude Code, compare una riga di Arturo:
+la sua versione, quella di Claude Code, la deriva della tua config (quanti file di Arturo hai cambiato)
+e l'aggiornamento in arrivo, se c'è. `/versione` la ripete col dettaglio. I banchi di prova delle
+guardie, quando diventano rossi, non compaiono più sotto il prompt né all'avvio: ripartono da soli
+dopo mezz'ora, e se restano rossi il nome del banco arriva a chi mantiene Arturo con la telemetria.
+
+**Perché**: l'avviso dei banchi chiedeva a te di riparare una cosa che ripara chi mantiene Arturo, e
+spesso era un rosso passeggero. La riga di testata dice invece in un colpo d'occhio con quale Arturo
+stai lavorando. Il logo di Claude Code resta: nessuna opzione e nessun mod lo può sostituire.
+
+**A chi serve**: a tutti. Se hai spento la telemetria, i banchi rossi restano sul tuo computer, in
+`~/.claude/cache/banchi-ultimo-esito.txt`, e `/diagnosi` li legge.
+
+---
+
 ## 2026-11-03 — La telemetria dice anche come usi Arturo, non solo quanto
 
 **Cosa cambia**: alla chiusura di ogni sessione Arturo registra quanto è durata e quanti messaggi

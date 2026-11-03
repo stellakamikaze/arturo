@@ -85,6 +85,9 @@ EVENTI = {
     "durata": re.compile(r"^(<5m|5-30m|30m-2h|>2h)$"),
     "turni": re.compile(r"^(1|2-5|6-20|>20)$"),
     "skill": re.compile(r"^[a-z0-9-]{1,40}$"),
+    # Dal 3/11/2026: il nome di un banco delle guardie diventato rosso su questo computer
+    # (tests/banchi-avvio.sh), solo quando l'elenco dei rossi cambia. Alla persona non si dice più.
+    "banchi": re.compile(r"^test[a-z0-9_-]{1,56}\.py$"),
 }
 # Le guardie di Arturo che parlano alla telemetria: quelle che bash-dispatcher.sh lancia con run_guard,
 # più web-egress-guard.py e protect_claude_md.py, che chiamano chiede da sole. Un nome fuori elenco non
@@ -116,7 +119,8 @@ REGOLE = {
 # conferme contano anche su Monitor e dopo un comando fallito. Come versione esce solo un tag di rilascio di
 # Arturo, mai un tag della persona. Il README non dice più "non legato a te".
 # 8: escono la durata della sessione e i messaggi della persona in fasce, e le skill di Arturo usate (3/11/2026, #4540).
-PROMESSA = 8
+# 9: esce il nome di un banco delle guardie diventato rosso, che alla persona non si dice più (3/11/2026).
+PROMESSA = 9
 # I comandi di Arturo, gli unici di cui parte il nome. Un comando scritto dalla persona in
 # ~/.claude/commands/ ha un nome suo: esce come `altro`, che conta l'uso senza dire il nome (24/10/2026).
 # Il banco M10 controlla che l'elenco coincida con commands/ del repository.
@@ -126,7 +130,7 @@ COMANDI = frozenset({"aggiorna", "creaskill", "diagnosi", "fine", "guidami", "in
 # esce come `altro`, come un comando. Il banco TS01 (tests/test_telemetria_fase2_2026_11_03.py) controlla che
 # l'elenco coincida con skills/ del repository e con SKILL in server/logica.js.
 SKILL = frozenset({"apri", "cache-fredda", "concetti", "dafare", "gws", "italiano-semplificato", "prompt-master",
-                   "redazione-segreti", "riscrivi-bash", "system-audit", "todo"})
+                   "redazione-segreti", "riscrivi-bash", "system-audit", "testata", "todo"})
 # Un transcript più grande non si legge alla chiusura: la sessione esce senza durata, turni e skill.
 TRANSCRIPT_MASSIMO = 64 * 1024 * 1024
 # Le sessioni già contate da fine_sessione: una sessione ripresa con --resume e chiusa di nuovo non si conta due volte.
@@ -701,7 +705,7 @@ def avvio() -> int:
             print("TELEMETRIA: Arturo manda a chi lo mantiene eventi d'uso con un id casuale: versione di Arturo e di "
                   "Claude Code, sistema, comandi e skill di Arturo usati (uno della persona conta come altro), durata della sessione e "
                   "numero dei messaggi della persona in fasce larghe, guardie che bloccano o chiedono, con la regola che chiede "
-                  "(di un segreto solo la famiglia), e se la persona conferma, guardie che si rompono, fase di /setup raggiunta, esiti di /aggiorna e degli "
+                  "(di un segreto solo la famiglia), e se la persona conferma, guardie che si rompono, banchi di prova delle guardie rossi, fase di /setup raggiunta, esiti di /aggiorna e degli "
                   "aggiornamenti automatici, perché un aggiornamento automatico non parte, file e hook di Arturo cambiati, spenti o in conflitto "
                   "(un file della persona conta come altro). Mai prompt, file, nomi o testi. L'id è casuale, ma chi mantiene Arturo può "
                   "sapere chi c'è dietro se conosce la persona: non sono dati anonimi (docs/privacy.md)."

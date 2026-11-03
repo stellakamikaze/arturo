@@ -6,11 +6,8 @@ export type Cache = {
   fredda: boolean
 }
 
-// L'ultimo esito dei banchi delle guardie (tests/banchi-avvio.sh), letto da cache/banchi-ultimo-esito.txt.
-export type Banchi = { rosso: boolean; riassunto: string }
-
-// Gli altri avvisi sotto il prompt: banchi rossi e account gws con il token in errore.
-export type Segnali = { banchi: Banchi | null; gwsKo: string[] }
+// L'altro avviso sotto il prompt: gli account gws con il token in errore.
+export type Segnali = { gwsKo: string[] }
 
 declare module 'claude-code' {
   interface PluginState {

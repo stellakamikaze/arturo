@@ -213,6 +213,21 @@ def registra(esito: dict) -> None:
                                   s.__setitem__("ultimo_tentativo", 0)))
 
 
+def salva(radice: Path, esito: dict) -> None:
+    """cache/deriva.json per la testata (skills/testata), che la mostra sotto l'intestazione dal 3/11/2026.
+    `misurata` è falso senza un riferimento ad Arturo: lì la testata non dice niente della deriva."""
+    dati = {"misurata": bool(esito.get("base")), "file": esito["file"],
+            "guardie": [f for f in esito["file"] if GUARDIA.match(f)], "hook": esito["hook"], "config": esito["config"]}
+    try:
+        cartella = radice / "cache"
+        cartella.mkdir(parents=True, exist_ok=True)
+        temporaneo = cartella / "deriva.json.tmp"
+        temporaneo.write_text(json.dumps(dati, ensure_ascii=False), encoding="utf-8")
+        os.replace(temporaneo, cartella / "deriva.json")
+    except OSError:
+        pass
+
+
 def main(argv: list) -> int:
     radice = Path(argv[0]) if argv else Path.home() / ".claude"
     try:
@@ -220,6 +235,7 @@ def main(argv: list) -> int:
         testo = riga(esito)
         if testo:
             print(testo)
+        salva(radice, esito)
         registra(esito)
     except Exception:  # noqa: BLE001 - l'avvio non si ferma mai per la deriva
         pass

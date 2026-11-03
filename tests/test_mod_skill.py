@@ -5,7 +5,7 @@ Q01 il mod apri passa claude plugin validate e claude plugin test, e apre con il
 predefinito del sistema (open, start, xdg-open), mai con un browser scelto nel codice.
 Q02 il mod gws passa validate e test, non nomina account personali né email vere, e rimanda
 all'onboarding di docs/onboarding/ invece di ripeterlo.
-Q03 cache-fredda porta i segnali "banchi rossi" e "token gws in errore" con i loro test, e non c'è
+Q03 cache-fredda porta il segnale "token gws in errore" col suo test, niente banchi (3/11/2026), e non c'è
 un cruscotto parallelo.
 Q04 nei file nuovi non ci sono nomi, host, percorsi o email personali.
 Q05 il catalogo dei tic della scrittura generata è scritto da zero, collegato dalla skill ITS, e
@@ -106,9 +106,13 @@ def test_q02(repo: Path) -> None:
 def test_q03(repo: Path) -> None:
     assert not any("cruscotto" in p.name for p in (repo / "skills").iterdir()), "Q03 cruscotto parallelo"
     register = read(repo / "skills" / "cache-fredda" / "hooks" / "register.ts")
-    assert "banchi-ultimo-esito.txt" in register and "auth', 'status'" in register, "Q03 cache-fredda non legge banchi e gws"
+    assert "auth', 'status'" in register, "Q03 cache-fredda non legge gws"
+    # Dal 3/11/2026 i banchi rossi non stanno più sotto il prompt: li riceve chi mantiene Arturo.
+    cache = read(repo / "skills" / "cache-fredda" / "hooks" / "cache.ts")
+    assert "banchi-ultimo-esito.txt" not in register and "leggiBanchi" not in cache, \
+        "Q03 cache-fredda mostra ancora i banchi rossi alla persona"
     esito = prova_mod(repo, "cache-fredda", "Q03")
-    for nome in ("banchi rossi >", "token gws in errore >", "solo eccezioni >"):
+    for nome in ("token gws in errore >", "solo eccezioni >"):
         assert nome in esito, f'Q03 manca il gruppo di test "{nome[:-2]}"'
 
 

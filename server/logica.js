@@ -45,7 +45,7 @@ export const COMANDI = ["aggiorna", "creaskill", "diagnosi", "fine", "guidami", 
 // SKILL: le cartelle di skills/, lo stesso elenco di SKILL in bin/telemetria.py (banco TS01, 3/11/2026). Come per i
 // comandi, una skill della persona arriva come "altro".
 export const SKILL = ["apri", "cache-fredda", "concetti", "dafare", "gws", "italiano-semplificato", "prompt-master", "redazione-segreti",
-  "riscrivi-bash", "system-audit", "todo"];
+  "riscrivi-bash", "system-audit", "testata", "todo"];
 
 // I nomi di Arturo che la deriva può dire oltre la forma (24/10/2026). La regex di `deriva` resta uguale, lettera per
 // lettera, a quella del client (banco A01): la chiusura sta in derivaPubblica, come percorso_pubblico nel client.
@@ -57,7 +57,7 @@ export const SKILL = ["apri", "cache-fredda", "concetti", "dafare", "gws", "ital
 export const DERIVA_NOMI = {
   radice: [".gitattributes", ".gitignore", "LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "SECURITY.md", "package.json", "settings.json"],
   skills: ["apri", "cache-fredda", "concetti", "dafare", "gws", "italiano-semplificato", "prompt-master", "redazione-segreti", "riscrivi-bash",
-    "system-audit", "todo"],
+    "system-audit", "testata", "todo"],
   agents: ["architecture-reviewer.md", "bug-finder.md", "fact-checker.md", "performance-profiler.md", "researcher.md",
     "structural-completeness-reviewer.md", "test-runner.md", "ui-ux-consultant.md"],
   commands: COMANDI.map((c) => `${c}.md`),
@@ -114,6 +114,8 @@ export const EVENTI = {
   durata: /^(<5m|5-30m|30m-2h|>2h)$/,
   turni: /^(1|2-5|6-20|>20)$/,
   skill: unoDi([...SKILL, "altro"]),
+  // Dal 3/11/2026: un banco delle guardie diventato rosso su un computer (tests/banchi-avvio.sh).
+  banchi: /^test[a-z0-9_-]{1,56}\.py$/,
   // Eventi vecchi: il client non li manda più, ma un client non aggiornato sì. Restano accettati per
   // non perdere i dati dei client fermi (prima del 24/10/2026 un evento fuori elenco faceva rifiutare il
   // lotto intero). Da togliere dopo qualche settimana, insieme al loro posto in M09 (tests/test_telemetria.py).

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { avvisi, avviso, cacheFredda, cartelleGws, leggiBanchi, SEGNALI_VUOTI, SOGLIA_TOKEN, tokenBuono, TTL_ABBONAMENTO, TTL_CREDITI, ttlDa } from '../hooks/cache'
+import { avvisi, avviso, cacheFredda, cartelleGws, SEGNALI_VUOTI, SOGLIA_TOKEN, tokenBuono, TTL_ABBONAMENTO, TTL_CREDITI, ttlDa } from '../hooks/cache'
 import type { Cache } from '../types'
 
 describe('cache fredda', () => {
@@ -33,19 +33,6 @@ describe('cache fredda', () => {
   })
 })
 
-describe('banchi rossi', () => {
-  // Il formato di tests/banchi-avvio.sh, l'unico che scrive il file.
-  test('esito rosso col numero di banchi rossi', () => {
-    const esito = 'ROSSO\n2 banchi delle guardie rossi su 5 (2026-10-15 09:12)\ntest_guardie_unite.py: AssertionError\n'
-    expect(leggiBanchi(esito)).toEqual({ rosso: true, riassunto: '2 banchi rossi su 5' })
-  })
-  test('esito rosso senza conteggio, esito verde, file illeggibile', () => {
-    expect(leggiBanchi('ROSSO\n')).toEqual({ rosso: true, riassunto: 'banchi rossi' })
-    expect(leggiBanchi('VERDE\n5 banchi delle guardie verdi (2026-10-15 09:12)\n')).toEqual({ rosso: false, riassunto: 'verdi' })
-    expect(leggiBanchi('')).toBeNull()
-  })
-})
-
 describe('token gws in errore', () => {
   test('le cartelle di gws: quella di default e una per account', () => {
     expect(cartelleGws(['gws-personale', 'git', 'gws', 'gws-lavoro', 'gwsx', 'gh'])).toEqual(['gws', 'gws-lavoro', 'gws-personale'])
@@ -63,16 +50,14 @@ describe('avvisi sotto il prompt: solo eccezioni', () => {
   const calda: Cache = { ultimo: 1, tokens: 120_000, ttlMs: TTL_ABBONAMENTO, fredda: false }
   test('tutto in regola: nessuna riga', () => {
     expect(avvisi(calda, SEGNALI_VUOTI)).toBeUndefined()
-    expect(avvisi(calda, { banchi: { rosso: false, riassunto: 'verdi' }, gwsKo: [] })).toBeUndefined()
   })
-  test('banchi rossi e gws in errore nella stessa riga', () => {
-    const r = avvisi(calda, { banchi: { rosso: true, riassunto: '2 banchi rossi su 5' }, gwsKo: ['gws-lavoro'] })
-    expect(r).toContain('guardie: 2 banchi rossi su 5')
-    expect(r).toContain('bash ~/.claude/tests/banchi-avvio.sh')
+  test('gws in errore: la riga lo dice, e non parla di banchi (3/11/2026)', () => {
+    const r = avvisi(calda, { gwsKo: ['gws-lavoro'] }) ?? ''
     expect(r).toContain('gws: login da rifare per gws-lavoro')
+    expect(r).not.toContain('banchi')
   })
   test('la cache fredda resta il primo avviso', () => {
-    const r = avvisi({ ...calda, fredda: true }, { banchi: null, gwsKo: ['gws'] }) ?? ''
+    const r = avvisi({ ...calda, fredda: true }, { gwsKo: ['gws'] }) ?? ''
     expect(r.startsWith('cache fredda')).toBe(true)
     expect(r).toContain('gws: login da rifare per gws')
   })
