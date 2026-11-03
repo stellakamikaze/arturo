@@ -202,7 +202,7 @@ risolvi_nella_orsa() {  # esce 0 se nella copia non resta nessun conflitto e mer
     if [ -z "$lista" ]; then
       in_corso || return 0
       # Un commit della persona rimasto vuoto dopo la risoluzione: il rebase lo salta.
-      git -C "$COPIA" rebase --skip >/dev/null 2>&1 || return 1
+      git ${UNISCI[@]+"${UNISCI[@]}"} -C "$COPIA" rebase --skip >/dev/null 2>&1 || return 1
       continue
     fi
     giri=$((giri + 1)); [ "$giri" -le 50 ] || return 1
@@ -218,10 +218,12 @@ risolvi_nella_orsa() {  # esce 0 se nella copia non resta nessun conflitto e mer
         git -C "$COPIA" rm -q --force -- "$f" >/dev/null 2>&1 || return 1
       fi
     done <<< "$lista"
+    # Con l'unione di settings.json (UNISCI, sotto): un rebase che riparte senza il driver tornerebbe al
+    # conflitto riga per riga sul commit dopo.
     if [ "$MODO" = merge ]; then
-      git -C "$COPIA" commit -q --no-edit >/dev/null 2>&1 || return 1
+      git ${UNISCI[@]+"${UNISCI[@]}"} -C "$COPIA" commit -q --no-edit >/dev/null 2>&1 || return 1
     else
-      git -C "$COPIA" rebase --continue >/dev/null 2>&1 || in_corso || return 1
+      git ${UNISCI[@]+"${UNISCI[@]}"} -C "$COPIA" rebase --continue >/dev/null 2>&1 || in_corso || return 1
     fi
   done
 }

@@ -295,10 +295,12 @@ def test_lt12(repo: Path) -> None:
         esito = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
         assert esito.get("esito") == "RINVIATO" and esito.get("versione") == "v2026-02-01", \
             f"LT12 un aggiornamento rimandato non lascia l'esito: {esito}"
-        uscita = lab.arturo_cli("stato").stdout
+        # Con un'altra sessione ancora aperta: con la sola sessione che parte, l'avvio installa il rinvio
+        # (aggiornamenti.py, 3/11/2026, AA12 in test_autoaggiorna.py).
+        uscita = lab.arturo_cli("stato", ARTURO_ALTRE_SESSIONI="2").stdout
         assert "un'altra sessione" in uscita and "/aggiorna" in uscita and "si installa da sola" not in uscita, \
             f"LT12 l'avvio dopo un rinvio non dice perché: {uscita!r}"
-        uscita = lab.arturo_cli("stato").stdout
+        uscita = lab.arturo_cli("stato", ARTURO_ALTRE_SESSIONI="2").stdout
         assert "si installa da sola" in uscita and "un'altra sessione" not in uscita, \
             f"LT12 il motivo del rinvio si ripete anche dopo che l'avvio l'ha detto: {uscita!r}"
     aa.con_lab(repo, "LT12", prova)
