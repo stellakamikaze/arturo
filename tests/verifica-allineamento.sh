@@ -168,6 +168,7 @@ BANCHI=(
   test_gws_token_health.py
   test_telemetria_fase2_2026_11_03.py
   test_amend_2026_11_03.py
+  test_rotazione_2026_11_03.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -343,6 +344,9 @@ BASELINE=(
   "test_monitor_ponti_2026_11_02.py 2fe4037"
   # Telemetria fase 2 (3/11/2026, #4540): durata, turni e skill alla chiusura. c5536a7, il dev prima.
   "test_telemetria_fase2_2026_11_03.py c5536a7"
+  # Rotazione automatica della sessione (3/11/2026): fine leggero e marca di /inizio. bf394ad, il dev
+  # prima della rotazione.
+  "test_rotazione_2026_11_03.py bf394ad radice"
 )
 for riga in "${BASELINE[@]}"; do
   read -r test ref modo <<<"$riga"
@@ -376,6 +380,9 @@ python3 -B "$REPO/tests/test_revisione_2026_11_01.py" --repo "$REPO" --avvelena
 # devono far rossi GT01 e GT05.
 python3 -B "$REPO/tests/test_gws_token_health.py" --repo "$REPO" --avvelena
 python3 -B "$REPO/tests/test_impacchetta_2026_11_03.py" --repo "$REPO" --avvelena
+# La rotazione della sessione (3/11/2026): ogni copia rotta (retention col fine leggero, segno, marca
+# non tagliata, riga sempre accesa, marca prima di " -- ") fa rosso il caso RT che la sorveglia.
+python3 -B "$REPO/tests/test_rotazione_2026_11_03.py" --repo "$REPO" --avvelena
 
 # Il server della telemetria (server/logica.js) con un archivio e una posta finti.
 node "$REPO/server/test.mjs"

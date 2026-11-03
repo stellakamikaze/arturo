@@ -6,6 +6,8 @@ Uso: arturo contesto [nome] [--giorni N]
                                       compito può contenere virgolette, # e $(...) che la shell eseguirebbe
   Senza nome usa la cartella in cui sei. Accetta anche gli argomenti interi di /inizio:
   "--tutti" si ignora, e il compito (le parole dopo il nome, o dopo " -- ") non fa parte del nome.
+  "<nome> -- --rotazione <compito>" è la marca della rotazione automatica: --rotazione esce dal compito
+  e il contesto stampa la riga "rotazione: sì".
 
 Stampa, in quest'ordine: progetto e cartella, git (branch, modifiche, conflitti, commit dopo
 l'ultimo handoff, rami locali non riportati), la ripartenza degli handoff degli ultimi N giorni (14), i todo aperti del
@@ -426,9 +428,16 @@ def sezione_filoni(progetto: str, ir) -> list:
     return righe
 
 
-def compito_da(argv: list) -> str:
+def compito_da(argv: list) -> tuple:
+    """(compito, rotazione). Il compito sono le parole dopo " -- ". Se la prima è --rotazione, è la marca
+    della rotazione automatica (3/11/2026: "/inizio <slug> -- --rotazione <compito>") e non fa parte del
+    compito. Prima di " -- " --rotazione resta un'opzione sconosciuta, rifiutata da leggi_argomenti."""
     parti = re.split(r"(?:^|\s)--(?:\s|$)", " ".join(argv), maxsplit=1)
-    return " ".join(parti[1].split()) if len(parti) > 1 else ""
+    parole = parti[1].split() if len(parti) > 1 else []
+    rotazione = parole[:1] == ["--rotazione"]
+    if rotazione:
+        parole = parole[1:]
+    return " ".join(parole), rotazione
 
 
 def main(argv: list) -> int:
@@ -438,7 +447,7 @@ def main(argv: list) -> int:
     if argv and argv[0] == "--stdin":
         # Gli argomenti di /inizio arrivano da un heredoc: la shell non li tocca (#4291, inizio.md).
         argv = [sys.stdin.read(), *argv[1:]]
-    compito = compito_da(argv)
+    compito, rotazione = compito_da(argv)
     try:
         nome, giorni = leggi_argomenti(argv)
     except ValueError as e:
@@ -484,6 +493,8 @@ def main(argv: list) -> int:
         righe.append(f"NOME: {interpretato}. Se è un altro progetto, ripeti /inizio col nome giusto.")
     if compito:
         righe.append(f"compito: {compito}")
+    if rotazione:
+        righe.append("rotazione: sì (sessione aperta dalla rotazione automatica)")
     if cartella:
         vecchi = sorted(cartella.glob("HANDOFF_*.md"), key=lambda p: p.name, reverse=True)
         if vecchi and (not elenco or vecchi[0].name > elenco[0][0]):

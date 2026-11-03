@@ -6,12 +6,19 @@ qui girano in un processo solo. Il giudizio resta in /fine: destino dei file, ha
 salvare degli handoff in uscita (il dry-run della retention), memoria.
 
 Uso:
-  python3 ~/.claude/bin/fine-coda.py --handoff <path> --slug <slug> [--trailer <riga>] [-- <argomenti tuoi>]
+  python3 ~/.claude/bin/fine-coda.py --handoff <path> --slug <slug> [--leggero] [--trailer <riga>] [-- <argomenti tuoi>]
+
+--leggero: il fine leggero della rotazione automatica (/fine --rotazione, 3/11/2026). Salta la retention,
+che aspetta il fine completo. Senza --leggero la coda scrive la data di oggi (AAAA-MM-GG) in
+<cartella dell'handoff>/.ultimo-fine-completo, e il file segue l'handoff: entra nel commit solo verso
+un remote privato. Senza handoff
+(solo il sync della config) niente segno. Indice, retention e contesto leggono solo i file HANDOFF_*.md.
 
 Ordine dei passi:
   1. stop se ~/.claude è a metà di un rebase, o se hooks/controlla-config.py la trova rotta;
   2. gate (bin/handoff-gate.sh): rosso = niente commit;
-  3. retention con --applica: escono solo i file dell'elenco del dry-run della FASE 6;
+  3. retention con --applica: escono solo i file dell'elenco del dry-run della FASE 6 (non con --leggero);
+     senza --leggero, il segno del fine completo nella cartella dell'handoff;
   4. indice (bin/index-rigenera.py --scrivi);
   5. aggancio personale "dopo-index";
   6. git add per percorso: i file di Arturo, gli handoff, e solo verso un remote privato CLAUDE.md,
@@ -62,6 +69,8 @@ PRIVATI = ["CLAUDE.md", "data/todo", "personale", "data/memory"]
 # coda: git add -f con un pathspec ":(exclude)" su una cartella ignorata a volte non aggiunge niente e
 # non dà errore (git 2.55 su Windows, 30/10/2026, stesso comando con esiti diversi).
 INDICE_MEMORIA = "data/memory/index.md"
+# Il segno del fine completo (rotazione automatica, 3/11/2026), nella cartella dell'handoff.
+SEGNO_COMPLETO = ".ultimo-fine-completo"
 
 
 def escluso(rel):
@@ -190,6 +199,24 @@ def aggiungi_forzati(elenco):
     return rc == 0, err
 
 
+def retention(slug):
+    """Il passo 3: la retention con --applica, in una riga di esito."""
+    rc, out, err = run([PY, str(QUI / "handoff-retention.py"), slug, "--applica",
+                        "--radice", str(CL / "data" / "handoffs")], 60)
+    if rc == 0:
+        n = len(re.findall(r"(?m)^NEL CESTINO ", out))
+        resta = len(re.findall(r"(?m)^RESTA ", out))
+        if "AVVISO: nessun elenco" in out:
+            return ("retention NON applicata: manca il dry-run della FASE 6"
+                    + (f", {resta} file oltre il keep restano" if resta else ""))
+        return ("retention ok" + (f" ({n} nel cestino)" if n else "")
+                + (f", {resta} restano: fuori dal dry-run" if resta else ""))
+    if rc == 2 and "cartella assente" in err:
+        return "retention: nessun handoff per questo slug"
+    print((out + err).strip())
+    return f"retention rc={rc}: {ultima(err, out)}"
+
+
 def main(argv):
     for flusso in (sys.stdout, sys.stderr):  # su Windows la pipe è in cp1252, chi legge vuole UTF-8
         if hasattr(flusso, "reconfigure"):
@@ -200,6 +227,8 @@ def main(argv):
     ap.add_argument("--handoff", help="default: l'handoff di questa sessione (CLAUDE_CODE_SESSION_ID)")
     ap.add_argument("--slug", help="default: la cartella dell'handoff")
     ap.add_argument("--trailer", action="append", default=[])
+    ap.add_argument("--leggero", action="store_true",
+                    help="fine leggero della rotazione: niente retention e niente segno del fine completo")
     ap.error = lambda m: (sys.stderr.write(f"fine-coda: {m}\n"), sys.exit(5))
     a = ap.parse_args(propri)
 
@@ -243,23 +272,21 @@ def main(argv):
             return 1
         esiti.append("gate verde")
 
-        # 3. retention: esce solo l'elenco del dry-run che /fine ha già letto
-        rc, out, err = run([PY, str(QUI / "handoff-retention.py"), slug, "--applica",
-                            "--radice", str(CL / "data" / "handoffs")], 60)
-        if rc == 0:
-            n = len(re.findall(r"(?m)^NEL CESTINO ", out))
-            resta = len(re.findall(r"(?m)^RESTA ", out))
-            if "AVVISO: nessun elenco" in out:
-                esiti.append("retention NON applicata: manca il dry-run della FASE 6"
-                             + (f", {resta} file oltre il keep restano" if resta else ""))
-            else:
-                esiti.append("retention ok" + (f" ({n} nel cestino)" if n else "")
-                             + (f", {resta} restano: fuori dal dry-run" if resta else ""))
-        elif rc == 2 and "cartella assente" in err:
-            esiti.append("retention: nessun handoff per questo slug")
+        # 3. retention: esce solo l'elenco del dry-run che /fine ha già letto. Il fine leggero della
+        # rotazione non fa il triage della FASE 6: la retention aspetta il fine completo.
+        if a.leggero:
+            esiti.append("retention: al fine completo")
         else:
-            print((out + err).strip())
-            esiti.append(f"retention rc={rc}: {ultima(err, out)}")
+            esiti.append(retention(slug))
+            # Il segno del fine completo: /fine --rotazione lo legge per promuoversi a completo una volta
+            # al giorno. Sta accanto all'handoff ed entra nel commit con lui; il punto lo tiene fuori da
+            # indice, retention e contesto, che leggono solo i file HANDOFF_*.md.
+            oggi = date.today().isoformat()
+            try:
+                (handoff.parent / SEGNO_COMPLETO).write_text(f"{oggi}\n", encoding="utf-8")
+                esiti.append(f"fine completo segnato: {oggi}")
+            except OSError as e:
+                esiti.append(f"segno del fine completo NON scritto: {e}")
 
         # 4. indice
         rc, out, err = run([PY, str(QUI / "index-rigenera.py"), "--scrivi", "--radice", str(CL / "data" / "handoffs")], 60)

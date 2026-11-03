@@ -2,8 +2,10 @@
 description: >-
   Chiude la sessione in dieci fasi: inventario e destino dei file, validate e commit per pathspec, handoff
   con i todo e chi agisce, gate, retention, CLAUDE.md, memoria, sync della config, una domanda per Arturo.
-  A sessione vuota fa solo il sync. /fine [--full] [salva] [note], rilanciabile. Non apre sessioni (/inizio).
-argument-hint: "[--full] [salva] [note opzionali]"
+  A sessione vuota fa solo il sync. /fine [--full] [salva] [--rotazione] [note], rilanciabile. Con
+  --rotazione è il fine leggero che Claude lancia a ogni passo chiuso, seguito dal tool ruota del mod
+  rotazione (/clear e /inizio da soli). Non apre sessioni (/inizio).
+argument-hint: "[--full] [salva] [--rotazione] [note opzionali]"
 ---
 
 # Fine sessione
@@ -15,6 +17,35 @@ Tre regole per tutte le fasi:
 - **Dentro /fine non si sviluppa.** Un gap, un fix o un test rosso diventa un todo con un numero.
 - **/fine si può rilanciare senza danni.** L'handoff si riscrive, un todo che c'è non si ricrea, un commit vuoto non parte.
 - **Un destino incerto non ferma la chiusura.** Il file resta dov'è e l'handoff dice dove sta.
+
+## Modo rotazione (`--rotazione`)
+
+Lo lancia Claude, mai la persona, quando chiude un passo: uno step del piano compiuto o un compito finito,
+con i test verdi. Serve a tenere fresca la sessione: dopo la coda il tool `ruota` del mod `rotazione` fa
+`/clear` e `/inizio` da solo, e il lavoro riparte sul passo dopo.
+
+- **Una volta al giorno è completo.** Se `~/.claude/data/handoffs/<slug>/.ultimo-fine-completo` non porta la
+  data di oggi e sono passate le 18, questo giro segue tutte le fasi, poi ruota. Il `/fine` scritto dalla
+  persona è sempre completo e non ruota.
+- **Fasi del fine leggero:** FASE 1 senza `structural-completeness-reviewer`, poi 2, 3, 4, 5, 7 solo se è
+  cambiato un fatto durevole del progetto, 8, e la 9 con `python3 ~/.claude/bin/fine-coda.py --leggero`.
+  Saltano la FASE 6 (la retention aspetta il fine completo) e la FASE 10.
+- **Un handoff per giornata.** Prima del blocco della FASE 4 cerca nel mirror l'ultimo handoff con
+  `- Rotazione: <oggi>`: se c'è, riscrivi quello e aggiorna la sua riga `- Sessione:`. Se non c'è, il
+  nuovo handoff porta `- Rotazione: <AAAA-MM-GG>` sotto `- Sessione:`.
+- **Il piano sopravvive al /clear.** Se la sessione lavora su un piano, l'handoff porta
+  `- Piano: <percorso in ~/.claude/plans/> · step <N> di <M> fatto`, e la Ripartenza nomina lo step dopo.
+- **Le note che chiedono il sì non si perdono.** Nel fine leggero non si chiede niente: le note nuove, i
+  dati su persone e le righe del `CLAUDE.md` personale vanno nella sezione `## Note in attesa del sì`
+  dell'handoff, una per riga col percorso e il testo. Il prossimo `/fine` scritto dalla persona le propone.
+- **Poi la rotazione.** Con la coda a `rc=0` scegli il passo dopo. Se è un passo di Claude (Chi `io`), la
+  chiusura è una riga ("ruoto: step N fatto · commit abc1234 · riparto da <passo>") e subito la chiamata
+  `mcp__rotazione__ruota` con `progetto` (lo slug) e `compito` (il passo dopo in una frase). È l'ultima
+  azione del turno.
+- **Niente rotazione, chiusura normale**, se: la coda esce con un codice diverso da 0; il passo dopo chiede
+  la persona (una decisione, un invio, un pagamento, un accesso, un gesto fisico); non ci sono passi; la
+  persona ha scritto durante il turno; il tool risponde "Rotazione spenta". Se il tool non c'è (mod spento),
+  chiudi con "scrivi **/clear** e poi **/inizio <slug>**".
 
 ## FASE 1 · Inventario
 
@@ -171,7 +202,9 @@ La domanda: **cosa di questa sessione serve fra tre mesi?** Il test: **può ripr
 Mai in memoria: todo, uno stato che si legge dal vivo, una correzione una tantum, la copia di un documento
 stabile, password e chiavi. Claude **applica** una riga nel `CLAUDE.md` del progetto e un fatto aggiornato
 in una nota che esiste. **Chiede il sì** per una nota nuova, per dati su persone e per il `CLAUDE.md`
-personale; con `/fine salva` il sì è già dato, tranne per il `CLAUDE.md` personale.
+personale; con `/fine salva` il sì è già dato, tranne per il `CLAUDE.md` personale. Nel Modo rotazione
+non si chiede: le note aspettano nella sezione `## Note in attesa del sì` dell'handoff. Un `/fine` scritto
+dalla persona propone anche quelle degli handoff di oggi, e al sì le toglie dalla sezione.
 
 ## FASE 9 · Config Sync, in una chiamata
 
