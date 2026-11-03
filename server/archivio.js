@@ -157,7 +157,8 @@ export function archivio(db) {
                WHERE giorno > date(?, '-${Number(LIMITI.fermaGiorni)} day') AND giorno <= ? AND ${VISTE} GROUP BY installazione) m
          ON e.rowid = m.r`, al, al);
       const versioni = await tutte(
-        `SELECT versione, MIN(giorno) AS prima FROM eventi WHERE giorno <= ? AND ${VISTE} GROUP BY versione`, al);
+        `SELECT versione, MIN(giorno) AS prima, COUNT(DISTINCT installazione) AS n FROM eventi
+         WHERE giorno <= ? AND ${VISTE} GROUP BY versione`, al);
       return calcolaIndietro(attive, versioni, al);
     },
     // Il giorno dell'ultimo avviso con questa chiave, per non ripeterlo ogni mattina.

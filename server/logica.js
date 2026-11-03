@@ -17,6 +17,7 @@
 // numero, tipo, da dove arriva e il link alla pagina privata (27/10/2026), un feedback numero, tipo e origine.
 
 import { validaLottoLancillotto, avvisoInstallazioneLancillotto, testoLancillotto } from "./lancillotto.js";
+import { DATA_A_NUMERO } from "./versioni.js";
 
 // Le liste chiuse dei valori (24/10/2026). Prima guardia, chiede, confermata ed errore accettavano qualunque
 // slug, e comando qualunque nome: un client modificato o un hook personale con un nome parlante
@@ -183,33 +184,42 @@ export function oggi(adesso = new Date()) {
 
 const giornoMeno = (giorno, n) => oggi(new Date(Date.parse(`${giorno}T00:00:00Z`) - n * 86400000));
 
-// Il rilascio di una versione, senza i commit della persona: "v2026-10-19.2-1-gdf1c2d0" -> "v2026-10-19.2".
-// Una versione che non viene da un rilascio (sconosciuta, un ramo di prova) dà null.
+// Il rilascio di una versione, senza i commit della persona: "v0.2.0-1-gdf1c2d0" -> "v0.2.0". Dal 3/11/2026 la versione
+// è un numero. Una copia installata prima manda ancora la data del rilascio ("v2026-10-19.2"), e qui diventa il suo
+// numero (versioni.js). Una data che non è stata un rilascio, o una versione senza rilascio (sconosciuta, un ramo di
+// prova), dà null.
 export function rilascio(versione) {
-  const m = /^(v\d{4}-\d{2}-\d{2}(?:\.\d+)?)(?:-\d+-g[0-9a-f]+)?$/.exec(versione || "");
-  return m ? m[1] : null;
+  const m = /^(v\d{1,4}\.\d{1,4}\.\d{1,6}|v\d{4}-\d{2}-\d{2}(?:\.\d+)?)(?:-\d+-g[0-9a-f]+)?$/.exec(versione || "");
+  if (!m) return null;
+  return m[1].includes("-") ? DATA_A_NUMERO[m[1]] || null : m[1];
 }
 
-function confronta(a, b) {
-  const [da, na = "0"] = a.slice(1).split(".");
-  const [db, nb = "0"] = b.slice(1).split(".");
-  return da === db ? Number(na) - Number(nb) : (da < db ? -1 : 1);
+export function confronta(a, b) {
+  const x = a.slice(1).split(".").map(Number);
+  const y = b.slice(1).split(".").map(Number);
+  return x[0] - y[0] || x[1] - y[1] || x[2] - y[2];
 }
+
+const NOTI = new Set(Object.values(DATA_A_NUMERO));
 
 // Le installazioni rimaste indietro (23/10/2026). Alessio è restato quattro giorni alla v2026-10-19.2, che
 // rinviava l'aggiornamento automatico con Chrome aperto, e Filippo prima di lui alla v2026-10-15.2: un
 // difetto dell'aggiornamento impedisce l'aggiornamento che lo corregge, e solo un /aggiorna a mano lo sblocca.
 // `attive`: {installazione, versione, ultima} con la versione dell'ultimo evento. `versioni`: {versione, prima},
-// il primo giorno in cui il server l'ha vista. Un rilascio conta se è uscito da almeno `fermaGiorni` giorni e
-// la sua data non è nel futuro: una versione inventata da un lotto non fa sembrare indietro tutti.
+// il primo giorno in cui il server l'ha vista, e `n`, quante installazioni l'hanno mandata. Un rilascio conta se è
+// uscito da almeno `fermaGiorni` giorni e se è vero: un rilascio a data della tabella, oppure un numero mandato da
+// almeno due installazioni. Così una versione inventata da un lotto non fa sembrare indietro tutti.
 export function calcolaIndietro(attive, versioni, al, giorni = LIMITI.fermaGiorni) {
   const soglia = giornoMeno(al, giorni);
   const uscita = new Map();
+  const viste = new Map();
   for (const v of versioni) {
     const r = rilascio(v.versione);
-    if (!r || r.slice(1, 11) > al) continue;
+    if (!r) continue;
+    viste.set(r, (viste.get(r) || 0) + (Number(v.n) || 0));
     if (!uscita.has(r) || v.prima < uscita.get(r)) uscita.set(r, v.prima);
   }
+  for (const r of [...uscita.keys()]) if (!NOTI.has(r) && viste.get(r) < 2) uscita.delete(r);
   const maturi = [...uscita].filter(([, prima]) => prima <= soglia).map(([r]) => r).sort(confronta);
   const fuori = [];
   for (const a of attive) {

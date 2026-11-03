@@ -14,7 +14,7 @@ Nei testi un percorso al codice (~/.claude/bin, hooks, shared...) diventa ${CLAU
 dove Claude Code lo sostituisce (skill), $ARTURO_CODICE/... altrove: l'avvio lo esporta nel Bash.
 I percorsi ai dati della persona (~/.claude/data, personale, CLAUDE.md, session-env) restano: sono l'Orsa.
 
-  python3 bin/impacchetta.py --uscita DIR [--versione v2026-11-03]
+  python3 bin/impacchetta.py --uscita DIR [--versione v0.2.0]
   python3 bin/impacchetta.py --verifica DIR     il pacchetto rispetta il contratto (rc 1 se no)
 """
 from __future__ import annotations
@@ -42,7 +42,8 @@ VARIANTI_HOME = (r"~/\.claude", r"\$HOME/\.claude", r"\$\{HOME\}/\.claude", r"\$
 
 def versione_da_git() -> str:
     try:
-        return subprocess.run(["git", "-C", str(RADICE), "describe", "--tags", "--always"],
+        # Solo i rilasci numerati (dal 3/11/2026): "v0.2.0", o "v0.2.0-8-gabc1234" su una copia di sviluppo.
+        return subprocess.run(["git", "-C", str(RADICE), "describe", "--tags", "--always", "--match", "v[0-9]*.[0-9]*.[0-9]*"],
                               capture_output=True, text=True, check=True).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
         return "0.0.0-sviluppo"

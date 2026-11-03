@@ -168,7 +168,7 @@ controllare la firma (git prima della 2.34, OpenSSH prima della 8.2), l'avviso l
 non è una compromissione, e il rilascio arriva quando aggiorni git e OpenSSH.
 
 ```
-ARTURO: possibile compromissione: non aggiornare, segnala a chi mantiene Arturo. Il rilascio v2026-10-17 non ha la firma di Arturo: ...
+ARTURO: possibile compromissione: non aggiornare, segnala a chi mantiene Arturo. Il rilascio v0.2.1 non ha la firma di Arturo: ...
 ```
 
 Con `python3 ~/.claude/bin/arturo aggiornamenti manuali` lo tieni a mano: resta solo l'avviso.

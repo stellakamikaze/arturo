@@ -1,16 +1,24 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { dettaglio, leggiAggiornamento, leggiDeriva, parolaDeriva, riga, versioneArturo } from '../hooks/testata'
+import { dettaglio, leggiAggiornamento, leggiDeriva, nomeVersione, parolaDeriva, riga, versioneArturo } from '../hooks/testata'
 import type { Deriva, Testata } from '../types'
 
 const pulita: Deriva = { misurata: true, file: [], guardie: [], hook: [], config: [] }
 
 describe('versione di Arturo', () => {
   test('rilascio, commit dopo il rilascio, nessun tag', () => {
-    expect(versioneArturo('v2026-11-03\n')).toBe('v2026-11-03')
+    expect(versioneArturo('v0.2.0\n')).toBe('v0.2.0')
+    expect(versioneArturo('v0.2.0-8-gabc1234')).toBe('v0.2.0 +8')
+    expect(versioneArturo('v0.10.12')).toBe('v0.10.12')
     expect(versioneArturo('v2026-11-03-2-gabc1234')).toBe('v2026-11-03 +2')
     expect(versioneArturo('v2026-10-12.2')).toBe('v2026-10-12.2')
     expect(versioneArturo('fatal: No names found')).toBeNull()
+  })
+  test('il nome che si legge', () => {
+    expect(nomeVersione('v0.2.0')).toBe('0.2.0')
+    expect(nomeVersione('v0.2.0 +8')).toBe('0.2.0, con 8 modifiche non ancora rilasciate')
+    expect(nomeVersione('v0.2.0 +1')).toBe('0.2.0, con 1 modifica non ancora rilasciata')
+    expect(nomeVersione('v2026-11-03')).toBe('v2026-11-03')
   })
 })
 
@@ -31,14 +39,14 @@ describe('deriva', () => {
 })
 
 describe('la riga', () => {
-  const t: Testata = { arturo: 'v2026-11-03', claude: '2.1.317', deriva: pulita, aggiornamento: null }
+  const t: Testata = { arturo: 'v0.2.0', claude: '2.1.317', deriva: pulita, aggiornamento: null }
   test('versioni e deriva in una riga', () => {
-    expect(riga(t)).toBe('Arturo v2026-11-03 · Claude Code 2.1.317 · deriva: nessuna')
+    expect(riga(t)).toBe('Arturo 0.2.0 · Claude Code 2.1.317 · deriva: nessuna')
   })
   test('aggiornamento pronto o fermo', () => {
-    expect(riga({ ...t, aggiornamento: leggiAggiornamento('{"stato": "pronto", "versione": "v2026-11-04"}') })).toContain('↑ v2026-11-04 si installa alla chiusura')
-    expect(riga({ ...t, aggiornamento: leggiAggiornamento('{"stato": "manuale", "versione": "v2026-11-04"}') })).toContain('serve /aggiorna')
-    expect(riga({ ...t, aggiornamento: leggiAggiornamento('{"stato": "aggiornato", "versione": "v2026-11-03"}') })).toBe(riga(t))
+    expect(riga({ ...t, aggiornamento: leggiAggiornamento('{"stato": "pronto", "versione": "v0.3.0"}') })).toContain('↑ 0.3.0 si installa alla chiusura')
+    expect(riga({ ...t, aggiornamento: leggiAggiornamento('{"stato": "manuale", "versione": "v0.3.0"}') })).toContain('↑ 0.3.0: serve /aggiorna')
+    expect(riga({ ...t, aggiornamento: leggiAggiornamento('{"stato": "aggiornato", "versione": "v0.2.0"}') })).toBe(riga(t))
   })
   test('senza dati resta il nome, mai una riga vuota', () => {
     expect(riga({ arturo: null, claude: null, deriva: null, aggiornamento: null })).toBe('Arturo')
@@ -58,7 +66,7 @@ test("all'avvio la riga va sotto l'intestazione, con versione, Claude Code e der
     if (t === undefined) throw new Error(`ENOENT ${e.path}`)
     return { value: t }
   })
-  on('process.run', ($, e) => ({ value: { exitCode: e.argv.includes('describe') ? 0 : 1, stdout: 'v2026-11-03-1-gc247fed\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+  on('process.run', ($, e) => ({ value: { exitCode: e.argv.includes('describe') ? 0 : 1, stdout: 'v0.2.0-8-gc247fed\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
   on('session.version', () => ({ value: { version: '2.1.317', base: '2.1.317' } }))
   const righe: string[] = []
   on('ui.log', ($, e) => {
@@ -68,5 +76,5 @@ test("all'avvio la riga va sotto l'intestazione, con versione, Claude Code e der
   on('command.register', async (_$, e) => ({ value: { command: e.name } }) as never)
   on('session.start', async (_$, e) => ({ cwd: e.cwd }))
   await $.session.start({ cwd: '/progetto', surface: 'terminal', isInteractive: true })
-  expect(righe).toEqual(['Arturo v2026-11-03 +1 · Claude Code 2.1.317 · deriva: 3 file di Arturo cambiati'])
+  expect(righe).toEqual(['Arturo 0.2.0, con 8 modifiche non ancora rilasciate · Claude Code 2.1.317 · deriva: 3 file di Arturo cambiati'])
 })

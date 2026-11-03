@@ -25,6 +25,9 @@ AF07 una copia senza bin/aggiornamenti.py (la verifica) non manda a /aggiorna i 
 AF08 un ssh-keygen senza -Y (OpenSSH prima della 8.2): "FIRMA NON VERIFICABILE", niente si applica, e
      nessuno parla di compromissione.
 AF09 un rilascio vecchio senza firma, già installato: `firmato` lo stampa e /inizio non dà l'allarme.
+AF10 (3/11/2026) il passaggio ai numeri: sul rilascio a data installato arriva il suo numero, firmato dopo,
+     e `firmato` stampa il numero senza allarme; poi la v0.2.0 firmata si applica. Il veleno è il numero
+     firmato con una data più vecchia del tag a data: git describe sceglie la data e AF10 è rosso.
 
 Sulla base 93f323e ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 AF08 e AF09 sulla base 89c7781.
@@ -320,8 +323,37 @@ def test_af09(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+def test_af10(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        # Il passaggio ai numeri (3/11/2026): una copia installata a un rilascio a data riceve, sullo stesso commit,
+        # il suo numero firmato dopo, poi la v0.2.0. Niente allarme sul numero nuovo, e la v0.2.0 si applica.
+        def tagga_il(tag: str, quando: str) -> None:
+            env = lab.env
+            lab.env = dict(env, GIT_COMMITTER_DATE=quando)
+            try:
+                lab.tagga(tag)
+            finally:
+                lab.env = env
+        installato = lab.commit("hooks/nuova.py", "x = 1\n")
+        tagga_il("v2026-02-01", "2026-02-01T10:00:00+01:00")
+        lab.pubblica()
+        lab.git(lab.utente, "pull", "-q", "--ff-only", "--tags", "origin", "main")
+        tagga_il("v0.1.1", "2026-11-03T11:00:00+01:00")
+        lab.pubblica()
+        lab.git(lab.utente, "fetch", "-q", "--tags", "origin", "main")
+        r = firmato(lab)
+        assert r.returncode == 0 and r.stdout.strip() == "v0.1.1" and "COMPROMISSIONE" not in r.stderr, \
+            f"AF10 il numero firmato sul rilascio installato non è v0.1.1, o dà l'allarme: rc={r.returncode} {r.stdout!r} {r.stderr!r}"
+        nuovo = lab.commit("hooks/dopo.py", "y = 1\n")
+        tagga_il("v0.2.0", "2026-11-03T11:05:00+01:00")
+        lab.pubblica()
+        uscita = lab.passi("## Passo 1", "## Passo 3")
+        assert lab.head() == nuovo and lab.head() != installato, f"AF10 la v0.2.0 firmata non si applica: {uscita[-300:]!r}"
+    con_lab(repo, prova)
+
+
 TESTS = {"AF01": test_af01, "AF02": test_af02, "AF03": test_af03, "AF04": test_af04, "AF05": test_af05, "AF06": test_af06,
-         "AF07": test_af07, "AF08": test_af08, "AF09": test_af09}
+         "AF07": test_af07, "AF08": test_af08, "AF09": test_af09, "AF10": test_af10}
 
 
 def main() -> int:

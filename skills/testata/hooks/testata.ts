@@ -1,11 +1,21 @@
 // Logica pura della testata, provata da tests/testata.test.ts.
 import type { Aggiornamento, Deriva, Testata } from '../types'
 
-// `git describe --tags --match v*`: "v2026-11-03" su un rilascio, "v2026-11-03-2-gabc1234" due commit dopo.
+// `git describe --tags --match v*`: "v0.2.0" su un rilascio, "v0.2.0-2-gabc1234" due commit dopo -> "v0.2.0 +2".
+// Dal 3/11/2026 i rilasci sono numeri; una copia senza i tag nuovi ha ancora la data ("v2026-11-03"), e passa com'è.
 export function versioneArturo(describe: string): string | null {
-  const m = /^(v\d{4}-\d{2}-\d{2}(?:\.\d+)?)(?:-(\d+)-g[0-9a-f]+)?$/.exec(describe.trim())
+  const m = /^(v\d{1,4}\.\d{1,4}\.\d{1,6}|v\d{4}-\d{2}-\d{2}(?:\.\d+)?)(?:-(\d+)-g[0-9a-f]+)?$/.exec(describe.trim())
   if (m === null) return null
   return m[2] === undefined ? m[1]! : `${m[1]} +${m[2]}`
+}
+
+// Il nome che si legge: "v0.2.0" -> "0.2.0"; "v0.2.0 +8" -> "0.2.0, con 8 modifiche non ancora rilasciate".
+export function nomeVersione(v: string): string {
+  const m = /^v?([^ ]+)(?: \+(\d+))?$/.exec(v)
+  if (m === null) return v
+  const nome = /^\d+\.\d+\.\d+$/.test(m[1]!) ? m[1]! : `v${m[1]}`
+  if (m[2] === undefined) return nome
+  return `${nome}, con ${m[2] === '1' ? '1 modifica non ancora rilasciata' : `${m[2]} modifiche non ancora rilasciate`}`
 }
 
 function testo(v: unknown, max: number): string {
@@ -50,15 +60,16 @@ export function parolaDeriva(d: Deriva | null): string | null {
 
 export function parolaAggiornamento(a: Aggiornamento | null): string | null {
   if (a === null) return null
-  if (a.compromesso) return `${a.versione} non verificato: segnala a chi mantiene Arturo`
-  if (a.stato === 'pronto') return `↑ ${a.versione} si installa alla chiusura`
-  if (a.non_verificabile) return `↑ ${a.versione}: aggiorna git e OpenSSH`
-  if (a.stato === 'manuale' || a.stato === 'bloccato') return `↑ ${a.versione}: serve /aggiorna`
+  const v = nomeVersione(a.versione)
+  if (a.compromesso) return `${v} non verificato: segnala a chi mantiene Arturo`
+  if (a.stato === 'pronto') return `↑ ${v} si installa alla chiusura`
+  if (a.non_verificabile) return `↑ ${v}: aggiorna git e OpenSSH`
+  if (a.stato === 'manuale' || a.stato === 'bloccato') return `↑ ${v}: serve /aggiorna`
   return null
 }
 
 export function riga(t: Testata): string {
-  const pezzi = [t.arturo === null ? 'Arturo' : `Arturo ${t.arturo}`]
+  const pezzi = [t.arturo === null ? 'Arturo' : `Arturo ${nomeVersione(t.arturo)}`]
   if (t.claude !== null) pezzi.push(`Claude Code ${t.claude}`)
   const deriva = parolaDeriva(t.deriva)
   if (deriva !== null) pezzi.push(deriva)

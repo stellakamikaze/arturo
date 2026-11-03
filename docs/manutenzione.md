@@ -42,8 +42,10 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
 
    ```bash
    git checkout main && git merge --ff-only dev
-   V="v$(grep -m1 '^## ' NOVITA.md | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')"
-   git rev-parse -q --verify "refs/tags/$V" >/dev/null && V="$V.2"   # seconda uscita nello stesso giorno
+   ULTIMA="$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' main)"   # es. v0.2.0
+   IFS=. read -r MAG MED UL <<< "${ULTIMA#v}"
+   V="v$MAG.$MED.$((UL + 1))"        # una correzione o un rilascio del giorno: v0.2.1
+   # V="v$MAG.$((MED + 1)).0"        # un blocco della roadmap completato: v0.3.0
    git tag -a "$V" -m "Arturo $V" && git push origin main "$V"
    ```
 
@@ -70,15 +72,28 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    **Prima il rilascio firmato di `main`, poi la landing** (ramo `landing-v2`, `strumenti/pubblica.sh`):
    il sito non promette mai una cosa che il rilascio installato non fa ancora.
 
-## La versione è la data
+## La versione è un numero
 
-Non c'è semver. La versione di Arturo è la data dell'entry in cima a `NOVITA.md`:
-`## 2026-09-16 — …` vuol dire "versione del 16 settembre 2026". Il tag `v2026-09-16` che
-accompagna ogni pubblicazione è la stessa data scritta in un punto che Git sa leggere: non è un
-secondo sistema di versioni. Serve perché la data del commit locale cambia con ogni `/fine`,
-e perché due uscite nello stesso giorno si distinguono solo con `.2`. La telemetria e il modulo
-delle segnalazioni leggono il tag con `git describe --tags --abbrev=0 --match 'v*'`: l'ultimo
-rilascio installato, senza i commit della persona.
+Dal 3/11/2026 la versione di Arturo è un numero a tre cifre, `v0.2.0`:
+
+- **l'ultima cifra** sale a ogni rilascio di correzioni o di piccole modifiche (`v0.2.1`);
+- **quella di mezzo** sale quando esce un blocco della roadmap (`v0.3.0`), e l'ultima torna a 0;
+- **la prima** resta 0 fino al rilascio pubblico, che sarà `v1.0.0`.
+
+`ROADMAP.md` dice quale numero avrà ogni blocco. Le entry di `NOVITA.md` tengono la data
+nell'intestazione: `/novita`, l'avvio e `/segnala stato` la leggono, e la data dice ancora quando è
+uscita la novità.
+
+Fino al 3/11/2026 la versione era la data (`v2026-10-12` … `v2026-11-03`, `.2` per la seconda
+uscita del giorno). Ogni tag a data ha il suo numero, `v0.1.0` … `v0.1.29`, firmato sullo stesso
+commit e dopo: `git describe` sceglie il tag più recente, quindi il numero. I tag a data restano,
+perché le copie installate li conoscono. Il server traduce la data che manda una copia vecchia
+(`server/versioni.js`). Un tag nuovo con il numero si crea sempre come oggetto firmato nuovo, mai
+ripubblicando un tag a data sotto un altro nome: `verify-tag` lo rifiuterebbe (AF06).
+
+La telemetria, il modulo delle segnalazioni e la testata leggono il tag con
+`git describe --tags --abbrev=0 --match 'v*'`: l'ultimo rilascio installato, senza i commit della
+persona. Su una copia di sviluppo la testata dice anche quante modifiche non sono ancora rilasciate.
 
 **Mai riscrivere `main` dopo un tag.** `/aggiorna` confronta la versione pubblicata con quella
 che la copia dell'utente conosceva, e se la nuova non discende dalla vecchia si ferma con

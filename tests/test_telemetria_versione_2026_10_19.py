@@ -6,6 +6,7 @@ privato di sync, con un hash che in Arturo non esiste. Non si capiva chi era sul
 
 TV01 con tre commit della persona sopra il tag v2026-10-17, la versione è "v2026-10-17".
 TV02 un tag della persona ("backup/prima") sopra il tag di Arturo non cambia la versione.
+TV03 (3/11/2026) un commit con il tag a data e il suo numero, firmato dopo, dà il numero: "v0.1.29".
 
 Sulla base 0c12a5b ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -66,7 +67,20 @@ def test_tv02(repo: Path) -> None:
         assert v == "v2026-10-17", f"TV02 con un tag della persona la versione è {v!r}, non il rilascio v2026-10-17"
 
 
-TESTS = {"TV01": test_tv01, "TV02": test_tv02}
+def test_tv03(repo: Path) -> None:
+    # Dal 3/11/2026 il commit di un rilascio a data porta anche il suo numero, firmato dopo: la versione è il numero.
+    with tempfile.TemporaryDirectory() as td:
+        home = Path(os.path.realpath(td))
+        copia_con_commit(home, 2)
+        c = home / ".claude"
+        for nome, quando in (("v2026-11-03", "2026-11-03T06:49:59+01:00"), ("v0.1.29", "2026-11-03T11:00:00+01:00")):
+            subprocess.run(["git", "-C", str(c), "tag", "-a", nome, "-m", f"Arturo {nome}"], check=True,
+                           capture_output=True, env=dict(os.environ, GIT_COMMITTER_DATE=quando))
+        v = versione(repo, home)
+        assert v == "v0.1.29", f"TV03 con il tag a data e il suo numero sullo stesso commit la versione è {v!r}, non v0.1.29"
+
+
+TESTS = {"TV01": test_tv01, "TV02": test_tv02, "TV03": test_tv03}
 
 
 def main() -> int:

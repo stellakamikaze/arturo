@@ -139,8 +139,11 @@ OGNI = 6 * 3600         # secondi fra due invii automatici
 CODA_MASSIMA = 2000      # righe: oltre, gli eventi nuovi si perdono finché la coda non parte
 LOTTO = 500
 SPENTI = {"0", "no", "off", "false", "spenta"}
-# I tag dei rilasci di Arturo: v2026-10-19, v2026-10-19.2. Lo stesso nome di rilascio() in server/logica.js.
-RILASCIO = re.compile(r"v\d{4}-\d{2}-\d{2}(\.\d+)?")
+# I tag dei rilasci di Arturo: v0.2.0, v0.2.1 dal 3/11/2026. Prima erano date (v2026-10-19, v2026-10-19.2), e il
+# server le traduce nel loro numero. La stessa forma di rilascio() in server/logica.js.
+RILASCIO = re.compile(r"v\d{1,4}\.\d{1,4}\.\d{1,6}|v\d{4}-\d{2}-\d{2}(\.\d+)?")
+# Solo i tag con la forma di un rilascio: un tag della persona come "vacanze-rossi" non copre quello di Arturo.
+TAG_RILASCIO = ("v[0-9]*.[0-9]*.[0-9]*", "v[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*")
 
 AIUTO = f"""arturo telemetria: gli eventi d'uso che Arturo manda a chi lo mantiene, per migliorarsi.
 
@@ -247,10 +250,13 @@ def versione() -> str:
     il riepilogo non diceva chi era sull'ultimo rilascio (19/10/2026, #3613).
     Dal 24/10/2026 vale solo la forma dei rilasci di Arturo (RILASCIO, la stessa di rilascio() in
     server/logica.js): v* prendeva anche un tag della persona come "vacanze-rossi", che arrivava fino a
-    Telegram e al recap. Un tag con la data e un nome suo dopo ("v2026-10-20-rossi") dà "sconosciuta"."""
+    Telegram e al recap. Un tag con la data e un nome suo dopo ("v2026-10-20-rossi") dà "sconosciuta".
+    Dal 3/11/2026 il rilascio è un numero (v0.2.0). Il commit di un rilascio a data porta anche il suo numero, con
+    un tag più recente, e git describe sceglie il numero."""
+    match = [x for t in TAG_RILASCIO for x in ("--match", t)]
     try:
-        r = subprocess.run(["git", "-C", str(Path.home() / ".claude"), "describe", "--tags", "--abbrev=0", "--match",
-                            "v[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*"], capture_output=True, text=True, timeout=3)
+        r = subprocess.run(["git", "-C", str(Path.home() / ".claude"), "describe", "--tags", "--abbrev=0", *match],
+                           capture_output=True, text=True, timeout=3)
         v = r.stdout.strip() if r.returncode == 0 else ""
         return v if RILASCIO.fullmatch(v) else "sconosciuta"
     except (OSError, subprocess.SubprocessError):

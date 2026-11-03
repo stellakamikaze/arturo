@@ -186,7 +186,7 @@ const casi = {
     ]);
     const fuori = await a.indietro("2026-10-23");
     assert.deepEqual(fuori.map((x) => [x.installazione, x.rilascio, x.nuovo, x.dal, x.ultima]),
-      [["ales0000", "v2026-10-19.2", "v2026-10-19.3", "2026-10-18", "2026-10-23"]], "Q13 installazioni indietro");
+      [["ales0000", "v0.1.16", "v0.1.17", "2026-10-18", "2026-10-23"]], "Q13 installazioni indietro");
     assert.equal(await a.ultimoAvviso("indietro:ales0000"), null, "Q13 un avviso mai mandato ha un giorno");
     await a.incrementa("2026-10-23", "indietro:ales0000");
     assert.equal(await a.ultimoAvviso("indietro:ales0000"), "2026-10-23", "Q13 l'ultimo avviso non si ritrova");

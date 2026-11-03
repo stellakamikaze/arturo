@@ -237,7 +237,7 @@ def test_tf04(repo: Path) -> None:
         subprocess.run(["git", "init", "-q", str(claude)], check=True, timeout=60)
         visti = []
         for messaggio, tag in (("arturo", "v2026-10-20"), ("mio", "vacanze-rossi"), ("mio 2", "v-clienti-rossi"),
-                               ("mio 3", "v2026-10-21-rossi")):
+                               ("mio 3", "v2026-10-21-rossi"), ("arturo 2", "v0.2.0"), ("mio 4", "vacanze-2")):
             (claude / "nota.txt").write_text(messaggio + "\n", encoding="utf-8")
             _git(claude, "add", "nota.txt")
             _git(claude, "commit", "-q", "-m", messaggio)
@@ -247,7 +247,7 @@ def test_tf04(repo: Path) -> None:
             r = subprocess.run([sys.executable, "-c", codice, str(repo / "bin")], capture_output=True, text=True, env=env, timeout=60)
             visti.append((tag, r.stdout.strip()))
     assert not any("rossi" in v for _, v in visti), f"TF04 un tag della persona esce come versione: {visti}"
-    assert [v for _, v in visti] == ["v2026-10-20", "v2026-10-20", "v2026-10-20", "sconosciuta"], \
+    assert [v for _, v in visti] == ["v2026-10-20", "v2026-10-20", "v2026-10-20", "sconosciuta", "v0.2.0", "v0.2.0"], \
         f"TF04 la versione non è il rilascio di Arturo: {visti}"
 
 

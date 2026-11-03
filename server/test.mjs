@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 // caso con il suo messaggio, non il caricamento del banco.
 import * as logica from "./logica.js";
 const { gestisci, settimanale, giornaliero, programmato, pulizia, giornoRoma, settimanaPrima, mime, testoDeriva, testoRiepilogo, ritenzione,
-  LIMITI, EVENTI, calcolaIndietro, rilascio } = logica;
+  LIMITI, EVENTI, calcolaIndietro, rilascio, confronta } = logica;
 
 const VUOTO = { installazioni: 0, sessioni: 0, versioni: [], sistemi: [], comandi: [], guardie: [], aggiorna: [], config: [], deriva: [],
   guardieFrequenti: null, segnalazioni: 0, scartati: 0, telegramKo: 0, emailKo: 0 };
@@ -48,7 +48,7 @@ function finti(riepilogo = null) {
       stato.finestre.push([dal, al]);
       stato.opzioni.push(opzioni);
       if (riepilogo) return riepilogo;
-      return { installazioni: 2, sessioni: 5, versioni: [{ valore: "v2026-10-13", n: 2 }], sistemi: [], comandi: [{ valore: "fine", n: 3 }],
+      return { installazioni: 2, sessioni: 5, versioni: [{ valore: "v0.1.2", n: 2 }], sistemi: [], comandi: [{ valore: "fine", n: 3 }],
         guardie: [], aggiorna: [], segnalazioni: 1, scartati: 0, telegramKo: 0, emailKo: 0 };
     },
     async pulisci(prima) { stato.pulito = prima; },
@@ -66,7 +66,7 @@ function finti(riepilogo = null) {
 const adesso = new Date("2026-10-13T10:00:00Z");
 const post = (percorso, corpo) => new Request(`https://arturo.example${percorso}`, {
   method: "POST", body: typeof corpo === "string" ? corpo : JSON.stringify(corpo) });
-const lotto = (eventi, extra = {}) => ({ installazione: "1b2c3d4e-aaaa-bbbb", versione: "v2026-10-13", sistema: "Darwin", eventi, ...extra });
+const lotto = (eventi, extra = {}) => ({ installazione: "1b2c3d4e-aaaa-bbbb", versione: "v0.1.2", sistema: "Darwin", eventi, ...extra });
 // Dal 24/10/2026 un evento fuori elenco non fa rifiutare il lotto: si scarta, si conta, e non si salva niente.
 async function scartato(evento, valore, marcatore) {
   const f = finti();
@@ -116,7 +116,7 @@ const casi = {
   },
   async V05() {
     const f = finti();
-    const s = { tipo: "problema", titolo: "[problema] /fine si ferma", testo: "Il commit non parte.", versione: "v2026-10-13", sistema: "Darwin" };
+    const s = { tipo: "problema", titolo: "[problema] /fine si ferma", testo: "Il commit non parte.", versione: "v0.1.2", sistema: "Darwin" };
     const r = await gestisci(post("/v1/segnalazioni", s), { ...f, adesso });
     assert.equal(r.status, 201, "V05 segnalazione valida rifiutata");
     assert.deepEqual(await r.json(), { numero: 1, email: true });
@@ -335,12 +335,12 @@ const casi = {
     await gestisci(post("/v1/eventi", lotto([{ evento: "sessione", valore: "" }])), { ...f, adesso });
     await gestisci(post("/v1/eventi", lotto([{ evento: "comando", valore: "fine" }])), { ...f, adesso });
     assert.equal(f.stato.avvisi.length, 1, "V20 l'installazione nuova va avvisata una volta sola");
-    assert.match(f.stato.avvisi[0], /^Arturo: installazione nuova \(1b2c3d4e\) · v2026-10-13 · Darwin$/, "V20 testo dell'avviso di installazione");
+    assert.match(f.stato.avvisi[0], /^Arturo: installazione nuova \(1b2c3d4e\) · v0.1.2 · Darwin$/, "V20 testo dell'avviso di installazione");
     await gestisci(post("/v1/eventi", lotto([{ evento: "sessione", valore: "" }], { installazione: "99999999-zzzz" })), { ...f, adesso });
     assert.equal(f.stato.avvisi.length, 2, "V20 una seconda installazione non viene avvisata");
-    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "Il setup si ferma", testo: "Alla fase 2 esce un errore.", versione: "v2026-10-13", sistema: "Darwin" }), { ...f, adesso });
+    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "Il setup si ferma", testo: "Alla fase 2 esce un errore.", versione: "v0.1.2", sistema: "Darwin" }), { ...f, adesso });
     assert.equal(f.stato.avvisi.length, 3, "V20 la segnalazione non viene avvisata");
-    assert.equal(f.stato.avvisi[2], "Arturo: segnalazione n. 1, un problema · installazione senza id · Arturo v2026-10-13 · Darwin",
+    assert.equal(f.stato.avvisi[2], "Arturo: segnalazione n. 1, un problema · installazione senza id · Arturo v0.1.2 · Darwin",
       "V20 testo dell'avviso di segnalazione");
     // Un avviso che non parte non deve far perdere eventi o segnalazioni.
     const g = finti();
@@ -403,7 +403,7 @@ const casi = {
     await gestisci(post("/v1/eventi", lotto([{ evento: "setup", valore: "fine" }])), { ...f, adesso });
     const finiti = f.stato.avvisi.filter((a) => a.startsWith("Arturo: setup finito"));
     assert.equal(finiti.length, 1, `V24 il setup finito va avvisato una volta sola: ${JSON.stringify(f.stato.avvisi)}`);
-    assert.equal(finiti[0], "Arturo: setup finito (1b2c3d4e) · v2026-10-13 · Darwin", "V24 testo dell'avviso di setup finito");
+    assert.equal(finiti[0], "Arturo: setup finito (1b2c3d4e) · v0.1.2 · Darwin", "V24 testo dell'avviso di setup finito");
     // Tetto degli avvisi: oltre, il setup finito si registra ma non manda niente.
     const g = finti();
     g.stato.conteggi["2026-10-13 avviso-setup"] = LIMITI.avvisiSetupPerGiorno;
@@ -446,7 +446,7 @@ const casi = {
       assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }], { versione: v })), { ...f, adesso })).status, 400,
         `V26 una versione libera è accettata: ${JSON.stringify(v)}`);
     }
-    for (const v of ["v2026-10-16.5", "v2026-10-16.5-3-gf16c16e", "f16c16e", "sconosciuta"]) {
+    for (const v of ["v0.2.0", "v0.2.0-3-gf16c16e", "v2026-10-16.5", "f16c16e", "sconosciuta"]) {
       assert.equal((await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }], { versione: v })), { ...f, adesso })).status, 200,
         `V26 una versione vera è rifiutata: ${v}`);
     }
@@ -507,22 +507,32 @@ const casi = {
   // Le installazioni rimaste indietro (23/10/2026): il caso di Alessio, ferma alla v2026-10-19.2 con la
   // v2026-10-19.3 uscita da quattro giorni. Filippo alla v2026-10-21 non lo è: la v2026-10-22.2 ha un giorno.
   async V30() {
-    assert.equal(rilascio("v2026-10-19.2-1-gdf1c2d0"), "v2026-10-19.2", "V30 il rilascio tiene i commit della persona");
+    assert.equal(rilascio("v0.2.0-1-gdf1c2d0"), "v0.2.0", "V30 il rilascio tiene i commit della persona");
+    assert.equal(rilascio("v2026-10-19.2-1-gdf1c2d0"), "v0.1.16", "V30 la data di una copia vecchia non diventa il suo numero");
+    assert.equal(rilascio("v2026-11-03"), "v0.1.29", "V30 l'ultimo rilascio a data non è la v0.1.29");
+    assert.equal(rilascio("v2026-10-05"), null, "V30 una data che non è stata un rilascio ha un rilascio");
     assert.equal(rilascio("sconosciuta"), null, "V30 una versione senza rilascio ha un rilascio");
+    assert.deepEqual(["v0.10.0", "v0.2.0", "v0.1.29", "v1.0.0", "v0.2.1"].sort(confronta),
+      ["v0.1.29", "v0.2.0", "v0.2.1", "v0.10.0", "v1.0.0"], "V30 i numeri non si ordinano come numeri");
     const versioni = [{ versione: "v2026-10-19.2", prima: "2026-10-19" }, { versione: "v2026-10-19.3-4-gabc1234", prima: "2026-10-19" },
       { versione: "v2026-10-21", prima: "2026-10-21" }, { versione: "v2026-10-22.2", prima: "2026-10-22" },
-      { versione: "v2099-01-01", prima: "2026-10-01" }];  // inventata da un lotto: data nel futuro, non conta
+      { versione: "v2099-01-01", prima: "2026-10-01" },  // inventata da un lotto: non è un rilascio, non conta
+      { versione: "v0.9.0", prima: "2026-10-01", n: 1 }];  // un numero mandato da una sola installazione: non conta
     const attive = [{ installazione: "2c64c0dc-aaaa", versione: "v2026-10-19.2-1-gdf1c2d0", ultima: "2026-10-23" },
       { installazione: "826cca31-bbbb", versione: "v2026-10-21", ultima: "2026-10-22" },
       { installazione: "91288389-cccc", versione: "v2026-10-22.2", ultima: "2026-10-23" }];
     const fuori = calcolaIndietro(attive, versioni, "2026-10-23");
-    assert.deepEqual(fuori, [{ installazione: "2c64c0dc-aaaa", rilascio: "v2026-10-19.2", ultima: "2026-10-23", nuovo: "v2026-10-19.3",
+    assert.deepEqual(fuori, [{ installazione: "2c64c0dc-aaaa", rilascio: "v0.1.16", ultima: "2026-10-23", nuovo: "v0.1.17",
       dal: "2026-10-19" }], "V30 le installazioni indietro sono sbagliate");
+    // Un numero mandato da due installazioni è un rilascio vero: chi è ancora alla data ne resta indietro.
+    const dopo = calcolaIndietro(attive, [...versioni, { versione: "v0.2.0", prima: "2026-10-19", n: 2 }], "2026-10-23");
+    assert.deepEqual(dopo.map((x) => [x.rilascio, x.nuovo]), [["v0.1.16", "v0.2.0"], ["v0.1.19", "v0.2.0"], ["v0.1.21", "v0.2.0"]],
+      "V30 un numero vero non conta come rilascio");
     const f = finti();
     f.stato.indietro = fuori;
     await programmato({ ...f, adesso: new Date("2026-10-23T06:00:00Z") });
     assert.equal(f.stato.avvisi.length, 1, "V30 l'installazione indietro non arriva su Telegram");
-    assert.match(f.stato.avvisi[0], /^Arturo: installazione 2c64c0dc ferma alla v2026-10-19\.2, attiva il 2026-10-23\..*\/aggiorna a mano/,
+    assert.match(f.stato.avvisi[0], /^Arturo: installazione 2c64c0dc ferma alla v0\.1\.16, attiva il 2026-10-23\..*\/aggiorna a mano/,
       "V30 il testo dell'avviso");
     await programmato({ ...f, adesso: new Date("2026-10-24T06:00:00Z") });
     assert.equal(f.stato.avvisi.length, 1, "V30 l'avviso torna il giorno dopo");
@@ -533,7 +543,7 @@ const casi = {
     await programmato({ ...g, adesso: new Date("2026-10-23T06:00:00Z") });
     assert.equal(g.stato.avvisi.length, LIMITI.avvisiIndietroPerGiorno, "V30 gli avvisi superano il tetto del giorno");
     const testo = testoRiepilogo({ ...VUOTO, migliorare: { indietro: fuori, ritenzione: { nuove: 0, soglie: [] } } }, "prova");
-    assert.match(testo, /Rimaste indietro[^\n]*\n {2}2c64c0dc {2}ferma alla v2026-10-19\.2, manca dal 2026-10-19, c'è la v2026-10-19\.3\n/,
+    assert.match(testo, /Rimaste indietro[^\n]*\n {2}2c64c0dc {2}ferma alla v0\.1\.16, manca dal 2026-10-19, c'è la v0\.1\.17\n/,
       "V30 il riepilogo non elenca chi è rimasto indietro");
   },
   async V31() {
@@ -564,7 +574,7 @@ const casi = {
     console.error = (...a) => errori.push(a.join(" "));
     try {
       const f = finti();
-      f.stato.indietro = [{ installazione: "2c64c0dc-aaaa", rilascio: "v2026-10-19.2", ultima: "2026-10-25", nuovo: "v2026-10-22.1",
+      f.stato.indietro = [{ installazione: "2c64c0dc-aaaa", rilascio: "v0.1.16", ultima: "2026-10-25", nuovo: "v0.1.21",
         dal: "2026-10-20" }];
       const posta = async (m) => { if (/Recap/.test(m.oggetto)) throw new Error("posta giù"); f.stato.email.push(m); };
       // Il cron finisce tutti i passi e poi risulta fallito, con i nomi dei passi falliti.
@@ -670,7 +680,7 @@ const casi = {
     const titolo = "Fattura sparita a Vigevano";
     const testo = "Il cliente Rossi ha perso la fattura numero 4471 dentro Dropbox";
     const installazione = "1b2c3d4e-aaaa-bbbb-cccc-ddddeeeeffff";
-    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo, testo, versione: "v2026-10-13", sistema: "Darwin", installazione }),
+    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo, testo, versione: "v0.1.2", sistema: "Darwin", installazione }),
       { ...f, adesso });
     const m = new FormData();
     for (const [k, v] of Object.entries({ tipo: "idea", testo: "Vorrei salvare le bozze di Zanzibar", email: "maria.bianchi@esempio.it" })) m.append(k, v);
@@ -732,7 +742,7 @@ const casi = {
     // Il conteggio e l'hash dei commit della persona cadono: resta il rilascio.
     const g = finti();
     await gestisci(post("/v1/eventi", lotto([{ evento: "sessione" }], { versione: "v2026-10-16.5-3-gf16c16e" })), { ...g, adesso });
-    assert.deepEqual(g.stato.eventi.map((e) => e.versione), ["v2026-10-16.5"], "V41 l'hash dei commit della persona si salva");
+    assert.deepEqual(g.stato.eventi.map((e) => e.versione), ["v0.1.13"], "V41 l'hash dei commit della persona si salva");
     await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "t", testo: "x", versione: "vacanze-rossi" }), { ...g, adesso });
     assert.equal(g.stato.segnalazioni[0].versione, "sconosciuta", "V41 la segnalazione tiene il tag della persona come versione");
   },
@@ -822,7 +832,7 @@ const casi = {
       assert.deepEqual(await r.json(), { accettati: 0, scartati: 1 }, `L02 ${evento}=${valore} accettato`);
     }
     assert.equal(f.stato.lancillotto.length, 0, "L02 un valore fuori elenco è stato salvato");
-    for (const extra of [{ versione: "v2026-10-13" }, { sistema: "Darwin" }, { installazione: "corto" }]) {
+    for (const extra of [{ versione: "v0.1.2" }, { sistema: "Darwin" }, { installazione: "corto" }]) {
       const r = await gestisci(post("/v1/lancillotto/eventi", { ...base, ...extra, eventi: [{ evento: "installa", valore: "nuova" }] }),
         { ...f, adesso });
       assert.equal(r.status, 400, `L02 base non valida accettata: ${JSON.stringify(extra)}`);
@@ -849,7 +859,7 @@ const casi = {
     f.archivio.segnalazioni = async (limite) => { f.stato.limite = limite; return f.stato.segnalazioni.map((s, i) => ({ id: i + 1, tipo: s.tipo, titolo: s.titolo })); };
     f.archivio.segnalazione = async (id) => (f.stato.segnalazioni[id - 1] ? { id, ...f.stato.segnalazioni[id - 1] } : null);
     const leggi = "https://sito.example/admin/segnalazioni/";
-    await gestisci(post("/v1/segnalazioni", { tipo: "proposta", titolo: "Bozze salvate", testo: "Vorrei le bozze.", versione: "v2026-10-13", sistema: "Darwin" }),
+    await gestisci(post("/v1/segnalazioni", { tipo: "proposta", titolo: "Bozze salvate", testo: "Vorrei le bozze.", versione: "v0.1.2", sistema: "Darwin" }),
       { ...f, adesso, leggi });
     assert.match(f.stato.email[0].testo, /Leggila qui, col tuo accesso:\nhttps:\/\/sito\.example\/admin\/segnalazioni\/1\n/, "S01 l'email non porta il link");
     assert.match(f.stato.email[0].oggetto, /: un'idea$/, "S01 il tipo proposta non esce come idea");

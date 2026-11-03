@@ -12,6 +12,22 @@ modo di lavorare.
 
 ---
 
+## 2026-11-03 — Arturo ha un numero di versione: questa è la 0.2.0
+
+**Cosa cambia**: la versione di Arturo non è più una data ma un numero. Questo rilascio è la
+0.2.0, e la testata all'avvio scrive "Arturo 0.2.0". I rilasci di prima hanno ricevuto un numero
+anche loro, dalla 0.1.0 (12 ottobre) alla 0.1.29 (3 novembre mattina). L'ultima cifra sale a ogni
+rilascio di correzioni, quella di mezzo quando esce un blocco della roadmap: il prossimo, il plugin,
+sarà la 0.3.0. La 1.0 sarà il rilascio pubblico.
+
+**Perché**: una data diceva quando era uscito un rilascio, non quanto Arturo era cresciuto. Con il
+numero la roadmap può dire in quale versione arriva ogni cosa.
+
+**A chi serve**: a tutti, senza fare niente. L'aggiornamento arriva come sempre alla chiusura della
+sessione. Se segnali un problema, la versione da scrivere è il numero.
+
+---
+
 ## 2026-11-03 — Arturo si presenta all'avvio, e i banchi rossi non ti disturbano più
 
 **Cosa cambia**: all'avvio, subito sotto l'intestazione di Claude Code, compare una riga di Arturo:

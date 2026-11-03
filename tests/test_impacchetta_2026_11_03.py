@@ -49,7 +49,7 @@ def prova(repo: Path) -> list[str]:
     with tempfile.TemporaryDirectory() as tmp:
         tmp = Path(tmp)
         pacchetto = tmp / "arturo"
-        esito = esegui([sys.executable, str(generatore), "--uscita", str(pacchetto), "--versione", "v2026-11-03"])
+        esito = esegui([sys.executable, str(generatore), "--uscita", str(pacchetto), "--versione", "v0.2.0"])
         if esito.returncode != 0 or not (pacchetto / ".claude-plugin" / "plugin.json").exists():
             return [f"IP01 il generatore fallisce: {(esito.stdout + esito.stderr)[-200:]!r}"] + \
                    [f"{c} pacchetto non generato" for c in CASI[1:]]
