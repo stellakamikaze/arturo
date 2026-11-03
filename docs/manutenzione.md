@@ -8,6 +8,16 @@ Per chi mantiene Arturo e per chi ne fa un fork. Le regole sono poche e delibera
 - **`main`**: il canale di rilascio. È il branch che ricevono gli utenti con
   `git clone` e `/aggiorna`: deve contenere solo versioni che funzionano.
 
+## La roadmap
+
+`ROADMAP.md` è la mappa unica del lavoro su Arturo, e il sito la pubblica in `/roadmap/`.
+- Una sessione che sviluppa Arturo parte da una voce della roadmap. Se il lavoro non sta in nessuna voce, la voce si aggiunge prima.
+- Il `/fine` di quella sessione aggiorna la riga "Stato" della voce e la data in testa ("Aggiornata il AAAA-MM-GG").
+- I task della voce stanno nel commento `<!-- task: ... -->`, che il sito non mostra.
+- L'ancora di una voce (`{#plugin}`) non cambia mai, perché i commenti del sito sono legati a lei. Una voce chiusa passa in "Uscito di recente" e la sua ancora non si riusa.
+- Prima di aggiornare una voce, leggi i commenti delle persone su quella voce (pagina `/sviluppo/roadmap/`).
+- Il testo è per chi usa Arturo: frasi semplici, niente nomi di persone, niente cifre.
+
 ## Portare `dev` su `main`
 
 **Il ritmo è un rilascio al giorno** (dal 31/10/2026): se `dev` ha cambi col gate verde dopo

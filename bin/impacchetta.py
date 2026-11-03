@@ -32,7 +32,7 @@ NOME = "arturo"
 # Cosa entra nel plugin. Restano fuori: tests (si girano sul repository), server (il Worker della
 # telemetria, si pubblica a parte), settings.json (diventa hooks.json più impostazioni/arturo.json).
 CARTELLE = ["agents", "bin", "docs", "firme", "hooks", "output-styles", "scripts", "shared", "skills", "tools"]
-FILE = ["LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "SECURITY.md", "package.json"]
+FILE = ["LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "ROADMAP.md", "SECURITY.md", "package.json"]
 IGNORA = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store", "node_modules")
 # Cartelle e file di ~/.claude che nel clone sono codice di Arturo e nel plugin stanno nella sua cartella.
 CODICE = ("bin", "hooks", "shared", "tools", "scripts", "docs", "firme", "agents", "output-styles",
