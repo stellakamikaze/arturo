@@ -37,7 +37,7 @@ Il primo caso d'uso è il lavoro con le parole e le informazioni: scrivere e rev
 
 1. Il repository resta pubblico e con licenza MIT. Non diventa privato e non viene cancellato.
 2. Arturo si aggiorna da solo alla chiusura della sessione, e installa solo i rilasci firmati con la chiave di chi lo mantiene. Gli aggiornamenti automatici si spengono con `python3 ~/.claude/bin/arturo aggiornamenti manuali`: da lì aggiorni con `/aggiorna`.
-3. La telemetria è accesa di default: escono eventi da un elenco chiuso, mai contenuti. Partono nomi di comandi e di guardie, esiti e numeri, con un id casuale e sempre lo stesso, la versione, il sistema operativo e il solo giorno. Mai prompt, file tuoi, percorsi del tuo computer, nomi o risposte. Il server è open source, non salva l'indirizzo IP e tiene gli eventi 12 mesi. `python3 ~/.claude/bin/arturo telemetria mostra` fa vedere cosa parte. `python3 ~/.claude/bin/arturo telemetria spegni` o `DO_NOT_TRACK=1` la spengono.
+3. La telemetria è accesa di default: escono eventi da un elenco chiuso, mai contenuti. Partono nomi di comandi, skill e guardie, esiti e numeri, e alla chiusura di ogni sessione la durata e quanti messaggi hai scritto, in fasce larghe, con un id casuale e sempre lo stesso, la versione, il sistema operativo e il solo giorno. Mai prompt, file tuoi, percorsi del tuo computer, nomi o risposte. Il server è open source, non salva l'indirizzo IP e tiene gli eventi 12 mesi. `python3 ~/.claude/bin/arturo telemetria mostra` fa vedere cosa parte. `python3 ~/.claude/bin/arturo telemetria spegni` o `DO_NOT_TRACK=1` la spengono.
 4. Arturo resta in italiano.
 5. Se lo sviluppo si ferma, lo dichiarano l'ultima voce di NOVITA.md e la cima del README. La copia che hai continua a funzionare, e puoi farne un fork.
 
