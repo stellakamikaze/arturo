@@ -4,8 +4,10 @@
 handoff delle sessioni, memoria. Ogni fonte arriva da un **ponte**. Questa pagina dice quali ponti
 ha Arturo, come aggiungerne uno tuo e cosa un ponte non deve mai fare.
 
-Stato: Fase 1 (2/11/2026). Esiste la scoperta dei ponti (`bin/monitor/ponti.py`); il giro
-quotidiano di /monitor in Arturo arriva con le fasi successive.
+Stato: primo avvio (3/11/2026). Esistono la scoperta dei ponti (`bin/monitor/ponti.py`), la scelta
+delle fonti al primo avvio della skill `monitor` (`bin/monitor/fonti.py`), lo schema delle righe
+(`bin/monitor/schema.md`, validato da `righe.py`), il fingerprint e i cursori per fonte. Il giro
+quotidiano, che legge le fonti scelte e scrive il report, arriva con la fase successiva.
 
 ## Cosa vede /monitor oggi
 
@@ -39,8 +41,8 @@ non li toccano. Si dichiarano in `ponti.json`:
 
 - `comando` e `prova` sono liste: niente shell. `~` vale la tua cartella home.
 - `prova` è facoltativa: esce con 0 se il ponte risponde. Non deve stampare segreti.
-- Il programma consegna righe JSON nello schema di /monitor: una riga per cosa da fare, più una
-  riga di copertura che dice quanto ha letto. Un ponte che non risponde dà "non letta" e le altre
+- Il programma consegna righe JSON nello schema di /monitor (`bin/monitor/schema.md`): una riga
+  per cosa da fare, più una riga di copertura che dice quanto ha letto. Un ponte che non risponde dà "non letta" e le altre
   fonti vanno avanti.
 
 ## Cosa un ponte non fa mai

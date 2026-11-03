@@ -80,7 +80,7 @@ La telemetria manda solo eventi: quale comando, quale guardia, quanto dura una s
 
 ### Assistenti per ruolo: posta, agenda, archivio {#ruoli}
 
-Stato: da fare. La prima parte, che trova i tuoi strumenti collegati, è uscita.
+Stato: in corso. È uscita la parte che trova i tuoi strumenti collegati. Su dev c'è il primo avvio dello smistamento: /monitor ti mostra le fonti che sa leggere e tu scegli quali.
 
 Ogni ruolo di un assistente diventa una skill di Arturo: smistare cosa ti arriva per urgenza, la posta, l'agenda, l'archivio dei documenti, e un osservatore che ti propone cosa delegare. Ogni skill ha una versione generica, e tu la adatti nella tua parte personale.
 
@@ -108,7 +108,7 @@ Il README si apre con lo schema degli strati, e un capitolo spiega come estender
 
 Stato: fermo, aspetta una decisione.
 
-I tuoi compiti hanno già un archivio, un comando e una pagina locale. Restano da scegliere la vista dei progetti e il pannello dentro Claude Code.
+I tuoi compiti hanno già un archivio, un comando e una pagina locale. Un compito può aspettarne un altro fin da quando nasce, e ogni progetto ha una riga che dice a che punto è. Restano da scegliere la vista dei progetti e il pannello dentro Claude Code.
 
 <!-- task: #3330 #3850 #3958 #3332 #4433 #3331 #3957 #3959 #3887 #3888 #3868 -->
 

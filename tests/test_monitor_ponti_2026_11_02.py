@@ -10,8 +10,8 @@ MP04 ponti personali da personale/monitor/ponti.json: un ponte buono è pronto; 
      una prova che fallisce, una voce senza comando sono rotti; un JSON rotto non fa cadere niente.
 MP05 --json: ogni voce ha nome, stato, cosa, passo, dettaglio, e lo stato sta nell'elenco chiuso.
 MP06 nessun segreto in uscita: un valore che `gws auth status` stampa non arriva all'inventario.
-MP07 il nucleo è ponti.py, e in Arturo non ci sono copie di fingerprint.py e cursori.py: portano
-     le forme di una persona (fisc, crm, pec, canali Slack) e arrivano generiche con la skill di triage (F6).
+MP07 il nucleo è ponti.py, e nessun file di bin/monitor porta le forme di una persona (fisc, crm, pec,
+     canali Slack): fingerprint.py e cursori.py ci sono, ma generici (3/11/2026).
 
 Sulla base 2fe4037 (il dev prima di bin/monitor) sono rossi tutti i casi.
 """
@@ -28,6 +28,9 @@ from pathlib import Path
 CASI = ["MP01", "MP02", "MP03", "MP04", "MP05", "MP06", "MP07"]
 DISCRIMINANTI = CASI
 STATI = {"pronto", "da collegare", "da controllare in sessione", "rotto"}
+# Le forme del /monitor di una persona: fingerprint fiscali, CRM, PEC, rotazione dei canali Slack. I nomi
+# propri li ferma l'igiene I03 (tests/igiene.py), che li tiene solo come impronte.
+FORME_PERSONALI = ("fisc:", "crm:", "pec:<", "slack-canali", "slack_canali")
 GWS_FINTO = """#!/usr/bin/env python3
 import json, os, sys
 d = os.environ.get("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", "")
@@ -153,9 +156,10 @@ def prova(lab: Lab) -> list:
         rossi.append("MP06 segreto: il valore stampato da gws arriva all'inventario, o l'inventario è vuoto")
 
     cartella = lab.repo / "bin" / "monitor"
-    copie = [n for n in ("fingerprint.py", "cursori.py") if (cartella / n).exists()]
-    if not (cartella / "ponti.py").is_file() or copie:
-        rossi.append(f"MP07 nucleo: ponti.py presente {(cartella / 'ponti.py').is_file()}, copie personali {copie}")
+    personali = sorted(f"{f.name}: {forma}" for f in cartella.glob("*.py") for forma in FORME_PERSONALI
+                       if forma in f.read_text(encoding="utf-8").lower())
+    if not (cartella / "ponti.py").is_file() or personali:
+        rossi.append(f"MP07 nucleo: ponti.py presente {(cartella / 'ponti.py').is_file()}, forme personali {personali}")
     return rossi
 
 

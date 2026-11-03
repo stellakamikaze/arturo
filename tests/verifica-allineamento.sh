@@ -149,6 +149,7 @@ BANCHI=(
   test_revisione_2026_11_01.py
   test_segnalazioni_2026_11_02.py
   test_monitor_ponti_2026_11_02.py
+  test_monitor_giro_2026_11_03.py
   test_viste_allineate_2026_11_03.py
   test_gws_token_health.py
   test_telemetria_fase2_2026_11_03.py
@@ -359,6 +360,9 @@ BASELINE=(
   "test_viste_allineate_2026_11_03.py acb4a39"
   # La telemetria tace da una copia fuori dalla config (3/11/2026): 9248ea9, il dev prima.
   "test_telemetria_copia_fuori_2026_11_03.py 9248ea9"
+  # /monitor in Arturo, primo avvio (3/11/2026, #4538): fonti scelte, schema delle righe, fingerprint e
+  # cursori generici. 9248ea9, il dev prima.
+  "test_monitor_giro_2026_11_03.py 9248ea9"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
@@ -385,6 +389,7 @@ VELENI=(
   test_rotazione_2026_11_03.py
   test_gate_snello_2026_11_03.py
   test_viste_allineate_2026_11_03.py
+  test_monitor_giro_2026_11_03.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso
