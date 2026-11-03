@@ -25,11 +25,15 @@ l'ultimo tag, quel giorno esce un rilascio. Senza cambi, niente rilascio.
 
 Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
 
-1. **Gate verde**: `bash tests/verifica-allineamento.sh` esce con `0`. Banchi, controprove e veleni
+1. **Gate verde**: `ARTURO_GATE_RILASCIO=1 bash tests/verifica-allineamento.sh` esce con `0`. Banchi, controprove e veleni
    girano in parallelo (`tests/esegui_gate.py`, `ARTURO_GATE_LAVORI` per il numero di worker) e tutti
    anche dopo un rosso: un giro elenca ogni rosso sotto `=== ROSSO`. I banchi che sotto carico danno
    rossi che da soli passano vanno nella lista `IN_FILA`. Dopo una correzione `--rossi` rifà solo i
-   rossi del giro prima: stampa `PARZIALE` e non vale per il tag, che vuole un giro completo verde.
+   rossi del giro prima, e `--toccati` solo i lavori con una fonte fra i file cambiati (il banco più
+   i file tracciati che il banco nomina o importa): stampano `PARZIALE` e non valgono per il tag, che
+   vuole un giro completo verde. Una controprova verde si salta ai giri dopo finché banco, fonti e
+   base restano uguali (`controprove saltate=N` nella riga `LAVORI:`). Il gate del tag le rifà tutte:
+   per questo gira con `ARTURO_GATE_RILASCIO=1` (o `--rilascio`).
    Un banco nuovo si aggiunge alle liste come prima. Dentro c'è l'igiene (I03,
    `tests/igiene.py`): nessun nome della config privata nei file, nei percorsi e nei messaggi dei
    commit che non sono ancora su un remoto. Su GitHub lo stesso controllo gira a ogni push, su ogni

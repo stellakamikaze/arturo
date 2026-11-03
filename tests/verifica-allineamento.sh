@@ -2,10 +2,20 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-# --rossi rifà solo i lavori rossi dell'ultimo giro (tests/esegui_gate.py): serve a chi corregge, e
-# stampa PARZIALE perché un rilascio vuole un giro completo verde (docs/manutenzione.md).
-SOLO_ROSSI=""
-[[ "${1:-}" == --rossi ]] && SOLO_ROSSI=--rossi
+# --rossi rifà solo i lavori rossi dell'ultimo giro (tests/esegui_gate.py); --toccati fa girare solo i
+# lavori con una fonte fra i file cambiati. Servono a chi corregge, e stampano PARZIALE perché un
+# rilascio vuole un giro completo verde (docs/manutenzione.md). Le controprove con banco, fonti e base
+# uguali all'ultima verde si saltano: --rilascio, o ARTURO_GATE_RILASCIO=1, le rifà tutte.
+PARZIALE_MODO=""
+RILASCIO=""
+for arg in "$@"; do
+  case "$arg" in
+    --rossi|--toccati) PARZIALE_MODO=$arg ;;
+    --rilascio) RILASCIO=--rilascio ;;
+    *) echo "FAIL: argomento sconosciuto $arg (--rossi, --toccati, --rilascio)" >&2; exit 2 ;;
+  esac
+done
+[[ "${ARTURO_GATE_RILASCIO:-}" == 1 ]] && RILASCIO=--rilascio
 for tool in bash python3 git node; do
   command -v "$tool" >/dev/null 2>&1 || { echo "FAIL: $tool mancante" >&2; exit 1; }
 done
@@ -378,12 +388,12 @@ VELENI=(
 # (3/11/2026: 22 minuti in fila su un Mac, cinque giri per il rilascio 0.2.0). ARTURO_GATE_LAVORI
 # sceglie quanti worker; il default è metà dei core, al massimo 4.
 ESITO=0
-python3 -B "$ROOT/tests/esegui_gate.py" esegui --root "$ROOT" --fixture "$FIXTURE/lavori" $SOLO_ROSSI \
+python3 -B "$ROOT/tests/esegui_gate.py" esegui --root "$ROOT" --fixture "$FIXTURE/lavori" $PARZIALE_MODO $RILASCIO \
   ${ARTURO_GATE_LAVORI:+--lavori "$ARTURO_GATE_LAVORI"} --py38 "$PY38" \
   --banchi "${BANCHI[@]}" --in-fila "${IN_FILA[@]}" --banchi-py38 "${PY38_BANCHI[@]}" \
   --controprove "${BASELINE[@]}" --veleni "${VELENI[@]}" || ESITO=$?
-if [[ -n "$SOLO_ROSSI" ]]; then
-  echo "PARZIALE: rifatti solo i rossi del giro prima; per un rilascio serve un giro completo"
+if [[ -n "$PARZIALE_MODO" ]]; then
+  echo "PARZIALE ($PARZIALE_MODO): fatti solo una parte dei lavori; per un rilascio serve un giro completo"
   exit "$ESITO"
 fi
 
