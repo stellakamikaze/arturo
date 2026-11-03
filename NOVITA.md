@@ -28,6 +28,23 @@ sessione. Se segnali un problema, la versione da scrivere è il numero.
 
 ---
 
+## 2026-11-03 — A ogni passo finito la sessione si rinnova da sola
+
+**Cosa cambia**: quando Claude chiude un passo del piano o un compito, con i test verdi, salva con
+`/fine --rotazione` e rinnova la sessione da solo: `/clear`, poi `/inizio` sul passo dopo. Tu non scrivi
+più `/fine`, `/clear` e `/inizio` a mano fra un passo e l'altro. Il `/fine` completo gira una volta al
+giorno, dalle 18. Le note che chiedono il tuo sì aspettano nell'handoff, e il prossimo `/fine` che scrivi
+tu te le propone.
+
+**Perché**: una sessione lunga si appesantisce e Claude ricorda peggio. Una sessione nuova a ogni passo
+riparte leggera, con il contesto che serve.
+
+**A chi serve**: a chi lavora su piani a più passi. La rotazione non parte se premi Esc, se c'è un
+errore, se hai del testo nella casella o se la sessione dura meno di 3 minuti. Si spegne con
+`ARTURO_ROTAZIONE=0`.
+
+---
+
 ## 2026-11-03 — Arturo si presenta all'avvio, e i banchi rossi non ti disturbano più
 
 **Cosa cambia**: all'avvio, subito sotto l'intestazione di Claude Code, compare una riga di Arturo:

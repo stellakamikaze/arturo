@@ -204,7 +204,8 @@ stabile, password e chiavi. Claude **applica** una riga nel `CLAUDE.md` del prog
 in una nota che esiste. **Chiede il sì** per una nota nuova, per dati su persone e per il `CLAUDE.md`
 personale; con `/fine salva` il sì è già dato, tranne per il `CLAUDE.md` personale. Nel Modo rotazione
 non si chiede: le note aspettano nella sezione `## Note in attesa del sì` dell'handoff. Un `/fine` scritto
-dalla persona propone anche quelle degli handoff di oggi, e al sì le toglie dalla sezione.
+dalla persona propone anche quelle ancora nella sezione degli handoff precedenti, di qualunque giorno, e al sì
+le toglie dalla sezione.
 
 ## FASE 9 · Config Sync, in una chiamata
 

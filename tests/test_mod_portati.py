@@ -4,7 +4,7 @@
 P01, P02, P04 redazione-segreti, riscrivi-bash e cache-fredda passano claude plugin validate e
 claude plugin test. P03 menu-contesto e agent-flow (tolti il 14/10/2026) e blast-radius (tolto il
 15/10/2026, era su main dal 14/10) non ci sono più, e NOVITA.md annuncia ogni uscita. P06 nei mod non ci sono nomi, host o percorsi personali. P08 il README nomina ogni mod.
-P05 e P07 (blast-radius) sono usciti col mod.
+P05 e P07 (blast-radius) sono usciti col mod. P09 (3/11/2026) il mod rotazione passa validate e i suoi test.
 
 Il gate richiede il binario `claude`: se manca, il banco fallisce con un messaggio esplicito.
 Sulla base cddcb10 ogni controllo deve fallire.
@@ -89,6 +89,7 @@ TESTS: Dict[str, Callable[[Path], None]] = {
     "P02": lambda r: prova_mod(r, "riscrivi-bash", "P02"),
     "P03": test_p03,
     "P04": lambda r: prova_mod(r, "cache-fredda", "P04"),
+    "P09": lambda r: prova_mod(r, "rotazione", "P09"),
     "P06": test_p06,
     "P08": test_p08,
 }

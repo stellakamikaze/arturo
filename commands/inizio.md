@@ -5,7 +5,8 @@ description: >-
   sullo stesso progetto, poi la ripartenza per filone con ogni todo marcato per chi agisce. Le parole
   dopo il nome, o dopo " -- ", sono il compito e la sessione parte subito lì; una frase senza nome di
   progetto è tutta compito. Progetto non trovato: propone i nomi simili e non crea niente senza un sì.
-  La chiusura è /fine.
+  La chiusura è /fine. Con " -- --rotazione <compito>" (lo scrive solo il mod rotazione) riparte in una
+  riga sul passo dopo.
 argument-hint: "<nome-progetto> [--tutti] [<compito>]"
 ---
 
