@@ -84,6 +84,19 @@ while i<len(c):
     i+=1
 m=re.search(r"(?:^|[\s;&|(])(--[A-Za-z][\w-]*=[^\s;&|()<>]*\*[^\s;&|()<>]*)", "".join(out))
 if m: print(m.group(1))' "$COMMAND" 2>/dev/null)
+    # Con la riga di session-start.sh in $CLAUDE_ENV_FILE (marcatore arturo-zsh-come-bash) zsh ha
+    # nonomatch e un glob senza file resta la parola scritta: il comando parte e il blocco non serve.
+    # Claude Code esegue quel file solo prima dei comandi del tool Bash, non di Monitor (3/11/2026).
+    if [[ -n "$_OPTGLOB" ]] && printf '%s' "$INPUT" | python3 -c 'import glob, json, os, sys
+d = json.load(sys.stdin)
+sid = str(d.get("session_id") or "")
+conf = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
+if d.get("tool_name") != "Bash" or not sid or "/" in sid or ".." in sid: sys.exit(1)
+for f in glob.glob(os.path.join(conf, "session-env", sid, "sessionstart-hook-*.sh")):
+    if "arturo-zsh-come-bash" in open(f, encoding="utf-8", errors="replace").read(): sys.exit(0)
+sys.exit(1)' 2>/dev/null; then
+        _OPTGLOB=""
+    fi
     if [[ -n "$_OPTGLOB" ]]; then
         _OPT="${_OPTGLOB%%=*}"; _VAL="${_OPTGLOB#*=}"
         echo "BLOCCATO: in zsh '$_OPTGLOB' senza virgolette e' un glob che fallisce con 'no matches found'. Scrivi $_OPT='$_VAL'." >&2

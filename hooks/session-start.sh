@@ -24,7 +24,8 @@ fi
 # zsh come bash nei comandi di Claude (segnalazione n. 46, 3/11/2026): un glob senza file, una parola
 # che inizia con = e una variabile non quotata fanno come in bash. Prima lo faceva il mod riscrivi-bash
 # mettendo `setopt` davanti al comando, e in modalità auto Claude Code respinge un comando cambiato dopo
-# la revisione: andava rilanciato identico. Con questa riga il mod lascia il comando com'è.
+# la revisione: andava rilanciato identico. Il mod è uscito il 3/11/2026; bash-dispatcher.sh legge il
+# marcatore e non blocca più un glob in un'opzione.
 # `if ... fi` esce 0 anche in bash, dove la riga non fa niente.
 if [ -n "${CLAUDE_ENV_FILE:-}" ] && ! grep -qs 'arturo-zsh-come-bash' "$CLAUDE_ENV_FILE"; then
   printf '%s\n' 'if [ -n "${ZSH_VERSION:-}" ]; then setopt nonomatch noequals shwordsplit; fi  # arturo-zsh-come-bash' \

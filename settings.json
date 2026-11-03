@@ -309,6 +309,16 @@
         ]
       },
       {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/gws-esito.py",
+            "timeout": 10
+          }
+        ]
+      },
+      {
         "matcher": "mcp__.*[Dd]raft.*",
         "hooks": [
           {
@@ -337,6 +347,11 @@
           {
             "type": "command",
             "command": "python3 ~/.claude/hooks/block-dangerous.py dopo",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/gws-esito.py",
             "timeout": 10
           }
         ]
@@ -446,6 +461,16 @@
           {
             "type": "command",
             "command": "bash ~/.claude/bin/telemetria-esito.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/gws-esito.py",
             "timeout": 10
           }
         ]

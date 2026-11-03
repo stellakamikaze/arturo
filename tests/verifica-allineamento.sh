@@ -146,6 +146,7 @@ BANCHI=(
   test_rotazione_2026_11_03.py
   test_segnalazioni_2026_11_03.py
   test_gate_snello_2026_11_03.py
+  test_mod_passo2_2026_11_03.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -326,12 +327,16 @@ BASELINE=(
   # Rotazione automatica della sessione (3/11/2026): fine leggero e marca di /inizio. bf394ad, il dev
   # prima della rotazione.
   "test_rotazione_2026_11_03.py bf394ad radice"
-  # Segnalazioni n. 45 e n. 46 di Filippo (3/11/2026): zsh come bash da $CLAUDE_ENV_FILE, riscrivi-bash
-  # che lascia il comando com'è, /inizio che controlla da dove parte la copia separata. 9c6a0e6, il ramo prima.
+  # Segnalazioni n. 45 e n. 46 di Filippo (3/11/2026): zsh come bash da $CLAUDE_ENV_FILE, nessun mod
+  # che cambia il comando (riscrivi-bash uscito col passo 2 dei mod), /inizio che controlla da dove
+  # parte la copia separata. 9c6a0e6, il ramo prima.
   "test_segnalazioni_2026_11_03.py 9c6a0e6"
   # Il gate snello (3/11/2026): tests/esegui_gate.py in parallelo, tutti i rossi in un giro, --rossi.
   # 177852f, il ramo prima.
   "test_gate_snello_2026_11_03.py 177852f"
+  # Passo 2 dei mod (3/11/2026, #4619): escono riscrivi-bash e gws, l'hook gws-esito.py e il dispatcher che legge il
+  # marcatore dell'avvio. 08d09cf, il dev prima.
+  "test_mod_passo2_2026_11_03.py 08d09cf"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

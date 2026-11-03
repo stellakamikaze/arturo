@@ -3,8 +3,9 @@
 
 Q01 il mod apri passa claude plugin validate e claude plugin test, e apre con il programma
 predefinito del sistema (open, start, xdg-open), mai con un browser scelto nel codice.
-Q02 il mod gws passa validate e test, non nomina account personali né email vere, e rimanda
-all'onboarding di docs/onboarding/ invece di ripeterlo.
+Q02 l'aiuto per gws è l'hook hooks/gws-esito.py (dal 3/11/2026, prima il mod skills/gws): il mod non c'è
+più, l'hook non nomina email vere e rimanda all'onboarding di docs/onboarding/ invece di ripeterlo. Il
+comportamento lo prova MP01-MP03 (tests/test_mod_passo2_2026_11_03.py).
 Q03 cache-fredda porta il segnale "token gws in errore" col suo test, niente banchi (3/11/2026), e non c'è
 un cruscotto parallelo.
 Q04 nei file nuovi non ci sono nomi, host, percorsi o email personali.
@@ -46,7 +47,7 @@ def personali(testo: str) -> List[int]:
 
 
 EMAIL = re.compile(r"[\w.+-]+@([\w-]+\.)+[a-z]{2,}", re.IGNORECASE)
-NUOVI = ("skills/apri", "skills/gws", "skills/cache-fredda", "skills/italiano-semplificato/references/tic-scrittura-ia.md",
+NUOVI = ("skills/apri", "hooks/gws-esito.py", "skills/cache-fredda", "skills/italiano-semplificato/references/tic-scrittura-ia.md",
          "docs/impeccable.md", "docs/hallmark.md")
 
 
@@ -90,17 +91,14 @@ def test_q01(repo: Path) -> None:
 
 
 def test_q02(repo: Path) -> None:
-    esito = prova_mod(repo, "gws", "Q02")
-    assert "account" in esito and "sintassi" in esito, "Q02 mancano i test di account e sintassi"
-    trovati = []
-    for f in sorgenti(repo / "skills" / "gws"):
-        for m in EMAIL.finditer(read(f)):
-            if not m.group(0).lower().endswith(("@example.org", "@example.com")):
-                trovati.append(f"{f.name}: {m.group(0)}")
-    assert not trovati, f"Q02 email vere nel mod gws: {trovati[:3]}"
-    codice = read(repo / "skills" / "gws" / "hooks" / "gws.ts")
+    assert not (repo / "skills" / "gws").exists(), "Q02 il mod skills/gws c'è ancora: l'aiuto per gws è un hook"
+    hook = repo / "hooks" / "gws-esito.py"
+    assert hook.is_file(), "Q02 manca hooks/gws-esito.py"
+    codice = read(hook)
+    trovati = [m.group(0) for m in EMAIL.finditer(codice) if not m.group(0).lower().endswith(("@example.org", "@example.com"))]
+    assert not trovati, f"Q02 email vere nell'hook gws: {trovati[:3]}"
     assert "docs/onboarding/gws.md" in codice, "Q02 la nota non rimanda all'onboarding"
-    assert "client_secret" not in codice and "-s drive" not in codice, "Q02 il mod ripete l'onboarding"
+    assert "client_secret" not in codice and "-s drive" not in codice, "Q02 l'hook ripete l'onboarding"
 
 
 def test_q03(repo: Path) -> None:

@@ -4,9 +4,9 @@
 SZ01 l'avvio scrive in $CLAUDE_ENV_FILE, una volta sola anche dopo due avvii, la riga che dà a zsh
      nonomatch, noequals e shwordsplit; in bash la stessa riga esce 0 e non ferma il comando dopo.
      Claude Code esegue quel file prima di ogni comando Bash (provato su 2.1.304 con claude -p).
-SZ02 il mod riscrivi-bash cerca la stessa riga e, se c'è, lascia il comando com'è: in modalità auto un
-     comando cambiato dopo la revisione del classificatore va rilanciato identico (n. 46). Il
-     comportamento lo provano i test del mod (P02); qui si controlla che i due marcatori coincidano.
+SZ02 nessun mod cambia il comando: in modalità auto un comando cambiato dopo la revisione del
+     classificatore va rilanciato identico (n. 46). Dal 3/11/2026 il mod riscrivi-bash è uscito, e
+     bash-dispatcher.sh legge lo stesso marcatore dell'avvio per non bloccare un glob in un'opzione.
 SZ03 /inizio dice perché la copia separata parte dall'HEAD locale (worktree.baseRef: "head" nei
      settings) e come accorgersene e rimediare se non succede (n. 45).
 
@@ -62,13 +62,10 @@ def test_sz01(repo: Path) -> None:
 
 
 def test_sz02(repo: Path) -> None:
-    mod = repo / "skills" / "riscrivi-bash" / "hooks"
-    registro, logica = read(mod / "register.ts"), read(mod / "riscrivi.ts")
-    assert f"'{MARCATORE}'" in registro and "sessionstart-hook-" in registro, \
-        "SZ02 il mod riscrivi-bash non cerca la riga dell'avvio in $CLAUDE_ENV_FILE"
-    assert "opzioniNellaShell" in logica and "opzioniNellaShell" in registro, \
-        "SZ02 il mod riscrivi-bash riscrive glob e opzioni anche con la riga dell'avvio"
-    assert MARCATORE in read(repo / "hooks" / "session-start.sh"), "SZ02 l'avvio non scrive il marcatore che il mod cerca"
+    assert not (repo / "skills" / "riscrivi-bash").exists(), "SZ02 il mod riscrivi-bash c'è ancora e cambia il comando"
+    assert MARCATORE in read(repo / "hooks" / "bash-dispatcher.sh"), \
+        "SZ02 bash-dispatcher.sh non legge il marcatore dell'avvio"
+    assert MARCATORE in read(repo / "hooks" / "session-start.sh"), "SZ02 l'avvio non scrive il marcatore"
 
 
 def test_sz03(repo: Path) -> None:

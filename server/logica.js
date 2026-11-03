@@ -45,8 +45,11 @@ export const REGOLE = {
 export const COMANDI = ["aggiorna", "creaskill", "diagnosi", "fine", "guidami", "inizio", "novita", "proponi", "segnala", "setup", "sparring"];
 // SKILL: le cartelle di skills/, lo stesso elenco di SKILL in bin/telemetria.py (banco TS01, 3/11/2026). Come per i
 // comandi, una skill della persona arriva come "altro".
-export const SKILL = ["apri", "cache-fredda", "concetti", "dafare", "gws", "italiano-semplificato", "prompt-master", "redazione-segreti",
-  "riscrivi-bash", "rotazione", "system-audit", "testata", "todo"];
+export const SKILL = ["apri", "cache-fredda", "concetti", "dafare", "italiano-semplificato", "prompt-master", "redazione-segreti",
+  "rotazione", "system-audit", "testata", "todo"];
+// Le skill uscite (3/11/2026: i mod gws e riscrivi-bash, diventati hook): un client fino alla 0.2.x le manda ancora.
+// Restano accettate perché un nome fuori elenco fa rifiutare il lotto intero; da togliere con l'evento tappa (#3435).
+export const SKILL_USCITE = ["gws", "riscrivi-bash"];
 
 // I nomi di Arturo che la deriva può dire oltre la forma (24/10/2026). La regex di `deriva` resta uguale, lettera per
 // lettera, a quella del client (banco A01): la chiusura sta in derivaPubblica, come percorso_pubblico nel client.
@@ -57,7 +60,7 @@ export const SKILL = ["apri", "cache-fredda", "concetti", "dafare", "gws", "ital
 // Il banco TF05 (tests/test_telemetria_f1_2026_10_24.py) confronta questi elenchi col repository.
 export const DERIVA_NOMI = {
   radice: [".gitattributes", ".gitignore", "LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "ROADMAP.md", "SECURITY.md", "package.json", "settings.json"],
-  skills: ["apri", "cache-fredda", "concetti", "dafare", "gws", "italiano-semplificato", "prompt-master", "redazione-segreti", "riscrivi-bash",
+  skills: ["apri", "cache-fredda", "concetti", "dafare", "italiano-semplificato", "prompt-master", "redazione-segreti",
     "rotazione", "system-audit", "testata", "todo"],
   agents: ["architecture-reviewer.md", "bug-finder.md", "fact-checker.md", "performance-profiler.md", "researcher.md",
     "structural-completeness-reviewer.md", "test-runner.md", "ui-ux-consultant.md"],
@@ -65,7 +68,7 @@ export const DERIVA_NOMI = {
 };
 // Gli hook che il settings.json di Arturo dichiara (hook_dichiarati in hooks/deriva.py), più "tutti" per disableAllHooks.
 export const DERIVA_HOOK = ["bash-dispatcher.sh", "block-dangerous.py", "bozze-mcp-auto-approve.py", "context-monitor.js", "credential-leak-scanner.py",
-  "emoji_remover.py", "gws-token-health.py", "inject-now.sh", "input-notifier-start.sh", "melchior-postwrite.py", "memory-retrieve.py",
+  "emoji_remover.py", "gws-esito.py", "gws-token-health.py", "inject-now.sh", "input-notifier-start.sh", "melchior-postwrite.py", "memory-retrieve.py",
   "memory-write-scanner.py", "prompt-injection-scanner.py", "protect_claude_md.py", "scheda-terminale.py", "session-end.sh",
   "session-start.sh", "subagent-memory-context.py", "typecheck-after-edit.py", "web-egress-guard.py"];
 
@@ -114,7 +117,7 @@ export const EVENTI = {
   // Dal 3/11/2026 (#4540): alla chiusura della sessione la durata e i messaggi della persona in fasce, e le skill usate.
   durata: /^(<5m|5-30m|30m-2h|>2h)$/,
   turni: /^(1|2-5|6-20|>20)$/,
-  skill: unoDi([...SKILL, "altro"]),
+  skill: unoDi([...SKILL, ...SKILL_USCITE, "altro"]),
   // Dal 3/11/2026: un banco delle guardie diventato rosso su un computer (tests/banchi-avvio.sh).
   banchi: /^test[a-z0-9_-]{1,56}\.py$/,
   // Eventi vecchi: il client non li manda più, ma un client non aggiornato sì. Restano accettati per

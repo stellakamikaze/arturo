@@ -12,6 +12,29 @@ modo di lavorare.
 
 ---
 
+## 2026-11-03 — Escono i mod `riscrivi-bash` e `gws`: al loro posto due hook
+
+**Cosa cambia**: esce il mod `riscrivi-bash`, ed esce il mod `gws`. I comandi restano quelli che
+scrive Claude: nessun mod li cambia più prima di eseguirli. Quello che facevano i due mod lo fanno
+l'avvio e due hook:
+- zsh si comporta come bash grazie all'avvio, come dalla 0.2.0. Un glob in un'opzione senza
+  virgolette (`--include=*.md`) ora parte com'è, senza blocco.
+- `timeout`, che sul Mac non esiste, non viene più tolto: `bash-dispatcher.sh` ferma il comando e
+  dice a Claude come scriverlo.
+- `gws gmail messages` non viene più corretto: `hooks/gws-esito.py` ferma il comando e dà a Claude
+  la forma giusta, `gws gmail users messages`.
+- Se `gws` fallisce per credenziali mancanti, lo stesso hook ti avvisa in una riga, dice a Claude di
+  fermarsi e chiederti il login, e rifà subito il controllo dei token.
+
+**Perché**: in modalità auto Claude Code respinge un comando cambiato da un mod dopo la sua
+approvazione, e il comando va rilanciato identico. Un hook che ferma e spiega non cambia niente: il
+comando che parte è quello approvato.
+
+**A chi serve**: a tutti. Vale dalla prossima sessione aperta dopo l'aggiornamento. Se avevi spento
+uno dei due mod con `claude plugin disable`, non devi fare niente.
+
+---
+
 ## 2026-11-03 — All'avvio il blocco di Arturo, con la stella
 
 **Cosa cambia**: sotto l'intestazione di Claude Code, al posto della riga della 0.2.0, compare un

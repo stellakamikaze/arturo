@@ -129,8 +129,8 @@ COMANDI = frozenset({"aggiorna", "creaskill", "diagnosi", "fine", "guidami", "in
 # Le skill di Arturo, le uniche di cui parte il nome (3/11/2026, #4540). Una skill della persona o di un plugin
 # esce come `altro`, come un comando. Il banco TS01 (tests/test_telemetria_fase2_2026_11_03.py) controlla che
 # l'elenco coincida con skills/ del repository e con SKILL in server/logica.js.
-SKILL = frozenset({"apri", "cache-fredda", "concetti", "dafare", "gws", "italiano-semplificato", "prompt-master",
-                   "redazione-segreti", "riscrivi-bash", "rotazione", "system-audit", "testata", "todo"})
+SKILL = frozenset({"apri", "cache-fredda", "concetti", "dafare", "italiano-semplificato", "prompt-master",
+                   "redazione-segreti", "rotazione", "system-audit", "testata", "todo"})
 # Un transcript più grande non si legge alla chiusura: la sessione esce senza durata, turni e skill.
 TRANSCRIPT_MASSIMO = 64 * 1024 * 1024
 # Le sessioni già contate da fine_sessione: una sessione ripresa con --resume e chiusa di nuovo non si conta due volte.

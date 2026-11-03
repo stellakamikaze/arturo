@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """P01-P08: i mod portati dalla config dell'autore (9/10/2026, rivisti il 14/10 e il 15/10/2026).
 
-P01, P02, P04 redazione-segreti, riscrivi-bash e cache-fredda passano claude plugin validate e
-claude plugin test. P03 menu-contesto e agent-flow (tolti il 14/10/2026) e blast-radius (tolto il
-15/10/2026, era su main dal 14/10) non ci sono più, e NOVITA.md annuncia ogni uscita. P06 nei mod non ci sono nomi, host o percorsi personali. P08 il README nomina ogni mod.
+P01, P04 redazione-segreti e cache-fredda passano claude plugin validate e claude plugin test. P03
+menu-contesto e agent-flow (tolti il 14/10/2026), blast-radius (tolto il 15/10/2026, era su main dal
+14/10) e riscrivi-bash (tolto il 3/11/2026, P02 è uscito col mod) non ci sono più, e NOVITA.md annuncia
+ogni uscita. P06 nei mod non ci sono nomi, host o percorsi personali. P08 il README nomina ogni mod.
 P05 e P07 (blast-radius) sono usciti col mod. P09 (3/11/2026) il mod rotazione passa validate e i suoi test.
 
 Il gate richiede il binario `claude`: se manca, il banco fallisce con un messaggio esplicito.
@@ -19,8 +20,8 @@ import sys
 from pathlib import Path
 from typing import Callable, Dict, List
 
-MOD = ("redazione-segreti", "riscrivi-bash", "cache-fredda", "rotazione")
-TOLTI = ("menu-contesto", "agent-flow", "blast-radius")
+MOD = ("redazione-segreti", "cache-fredda", "rotazione")
+TOLTI = ("menu-contesto", "agent-flow", "blast-radius", "riscrivi-bash")
 # I nomi della config dell'autore: solo le impronte, in tests/igiene.py (#3505). Un percorso
 # assoluto della sua macchina non è un nome e resta in chiaro.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -86,7 +87,6 @@ def test_p08(repo: Path) -> None:
 
 TESTS: Dict[str, Callable[[Path], None]] = {
     "P01": lambda r: prova_mod(r, "redazione-segreti", "P01"),
-    "P02": lambda r: prova_mod(r, "riscrivi-bash", "P02"),
     "P03": test_p03,
     "P04": lambda r: prova_mod(r, "cache-fredda", "P04"),
     "P09": lambda r: prova_mod(r, "rotazione", "P09"),
