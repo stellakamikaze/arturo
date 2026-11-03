@@ -219,7 +219,7 @@ def test_x02(repo: Path) -> None:
 # --- X03 ----------------------------------------------------------------------------------------
 
 def verbi_del_pannello(repo: Path, riga: dict, codice: str) -> dict:
-    verbi = repo / "skills" / "dafare" / "hooks" / "verbi.mjs"
+    verbi = repo / "skills" / "arturo" / "hooks" / "dafare" / "verbi.mjs"
     programma = ("const { pathToFileURL } = require('url');"
                  "import(pathToFileURL(process.argv[1]).href).then(m => {"
                  " const t = JSON.parse(process.argv[2]); const fuori = {};"

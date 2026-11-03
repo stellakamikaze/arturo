@@ -751,12 +751,12 @@ const casi = {
     // conflitto, e il recap li stampava. Un nome fuori elenco si salva come file:altro o hook:altro, il resto com'è.
     const f = finti();
     const valori = ["insieme:7", "file:skills/clienti-rossi/SKILL.md", "file:preventivo-rossi.md", "hook:hook-di-rossi.py",
-      "file:agents/rossi.md", "file:skills/apri/SKILL.md", "file:settings.json", "hook:session-start.sh"];
+      "file:agents/rossi.md", "file:skills/todo/SKILL.md", "file:settings.json", "hook:session-start.sh"];
     const r = await gestisci(post("/v1/eventi", lotto(valori.map((valore) => ({ evento: "deriva", valore })))), { ...f, adesso });
     assert.ok(r.status >= 200 && r.status < 300, "V42 la deriva di un client vecchio non è accettata");
     const salvati = f.stato.eventi.map((e) => e.valore);
     assert.ok(!salvati.join(" ").includes("rossi"), `V42 un file o un hook della persona si salva col suo nome: ${salvati}`);
-    assert.deepEqual(salvati, ["insieme:7", "file:altro", "file:altro", "hook:altro", "file:altro", "file:skills/apri/SKILL.md",
+    assert.deepEqual(salvati, ["insieme:7", "file:altro", "file:altro", "hook:altro", "file:altro", "file:skills/todo/SKILL.md",
       "file:settings.json", "hook:session-start.sh"], "V42 i nomi di Arturo non restano, o quelli fuori elenco non diventano altro");
     assert.deepEqual(await r.json(), { accettati: 8, scartati: 0 }, "V42 la deriva di un client vecchio non conta come accettata");
     const recap = testoDeriva([{ installazione: "1b2c3d4e-aaaa-bbbb", conflitto: true, valori: salvati.slice(1) }]).join("\n");

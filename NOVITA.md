@@ -12,6 +12,25 @@ modo di lavorare.
 
 ---
 
+## 2026-11-03 — Un mod solo, con sei parti
+
+**Cosa cambia**: i sei mod di Arturo diventano uno, `skills/arturo`, che Claude Code carica come
+`arturo@skills-dir`. Le parti sono le stesse di prima e fanno le stesse cose: `apri`, `cache-fredda`,
+`dafare`, `redazione-segreti`, `rotazione` e `testata`. Ognuna sta in una cartella di
+`skills/arturo/hooks/`. Cambiano tre dettagli:
+- per spegnere una parte la scrivi in `~/.claude/arturo/parti.json`, per esempio
+  `{"spente": ["dafare"]}`, e vale dalla sessione dopo;
+- il tool della rotazione si chiama `mcp__arturo__ruota`;
+- la barra di `/dafare` riparte accesa, anche se l'avevi nascosta con `/dafare nascondi`.
+
+**Perché**: meno pezzi da caricare e da tenere allineati. Lo stesso mod entra nel pacchetto plugin di
+Arturo, dove il plugin lo porta con sé: il tool e i comandi hanno lo stesso nome nel clone e nel plugin.
+
+**A chi serve**: a tutti. Vale dalla prossima sessione aperta dopo l'aggiornamento. Se avevi spento un
+mod con `claude plugin disable`, quella scelta non vale più: scrivi la parte in `parti.json`.
+
+---
+
 ## 2026-11-03 — Escono i mod `riscrivi-bash` e `gws`: al loro posto due hook
 
 **Cosa cambia**: esce il mod `riscrivi-bash`, ed esce il mod `gws`. I comandi restano quelli che

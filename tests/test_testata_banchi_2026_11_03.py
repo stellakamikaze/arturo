@@ -121,9 +121,9 @@ def test_tb03(repo: Path) -> None:
 
 
 def test_tb04(repo: Path) -> None:
-    cartella = repo / "skills" / "testata"
-    assert (cartella / "hooks" / "register.tsx").is_file(), "TB04 manca il mod skills/testata"
-    codice = (cartella / "hooks" / "register.tsx").read_text(encoding="utf-8")
+    cartella = repo / "skills" / "arturo" / "hooks" / "testata"
+    assert (cartella / "register.tsx").is_file(), "TB04 manca la parte skills/arturo/hooks/testata"
+    codice = (cartella / "register.tsx").read_text(encoding="utf-8")
     assert "$.ui.place(" in codice and "session.version()" in codice, "TB04 la testata non piazza il blocco all'avvio"
     try:
         esito = _mod.prova_mod(repo, "testata", "TB04")

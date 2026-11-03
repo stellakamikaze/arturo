@@ -47,7 +47,7 @@ def personali(testo: str) -> List[int]:
 
 
 EMAIL = re.compile(r"[\w.+-]+@([\w-]+\.)+[a-z]{2,}", re.IGNORECASE)
-NUOVI = ("skills/apri", "hooks/gws-esito.py", "skills/cache-fredda", "skills/italiano-semplificato/references/tic-scrittura-ia.md",
+NUOVI = ("skills/arturo/hooks/apri", "hooks/gws-esito.py", "skills/arturo/hooks/cache-fredda", "skills/italiano-semplificato/references/tic-scrittura-ia.md",
          "docs/impeccable.md", "docs/hallmark.md")
 
 
@@ -62,8 +62,10 @@ def claude() -> str:
 
 
 def prova_mod(repo: Path, nome: str, codice: str) -> str:
-    cartella = repo / "skills" / nome
-    assert (cartella / ".claude-plugin" / "plugin.json").is_file(), f"{codice} manca skills/{nome}"
+    # Dal 3/11/2026 (mod passo 3) la parte sta in skills/arturo/hooks/<nome>: validate e test girano sul mod intero.
+    cartella = repo / "skills" / "arturo"
+    assert (cartella / ".claude-plugin" / "plugin.json").is_file(), f"{codice} manca il mod skills/arturo"
+    assert list((cartella / "hooks" / nome).glob("register.ts*")), f"{codice} manca la parte skills/arturo/hooks/{nome}"
     # Claude Code scrive in UTF-8: letto con la codifica di Windows lo stdout diventa None.
     v = subprocess.run([claude(), "plugin", "validate", str(cartella)], capture_output=True, text=True,
                        encoding="utf-8", errors="replace", timeout=120)
@@ -83,7 +85,7 @@ def sorgenti(cartella: Path) -> List[Path]:
 def test_q01(repo: Path) -> None:
     esito = prova_mod(repo, "apri", "Q01")
     assert "programma predefinito" in esito and "(pass)" in esito, "Q01 mancano i test sul programma predefinito"
-    codice = read(repo / "skills" / "apri" / "hooks" / "apri.ts")
+    codice = read(repo / "skills" / "arturo" / "hooks" / "apri" / "apri.ts")
     for parola in ("'open'", "'start'", "'xdg-open'"):
         assert parola in codice, f"Q01 apri non usa {parola} per il suo sistema"
     assert not re.search(r"-a['\"]?\s*,|Chrome|Safari|Edge", codice) and "firefox" not in codice.lower(), \
@@ -103,10 +105,12 @@ def test_q02(repo: Path) -> None:
 
 def test_q03(repo: Path) -> None:
     assert not any("cruscotto" in p.name for p in (repo / "skills").iterdir()), "Q03 cruscotto parallelo"
-    register = read(repo / "skills" / "cache-fredda" / "hooks" / "register.ts")
+    parte = repo / "skills" / "arturo" / "hooks" / "cache-fredda"
+    assert (parte / "register.ts").is_file(), "Q03 manca la parte skills/arturo/hooks/cache-fredda"
+    register = read(parte / "register.ts")
     assert "auth', 'status'" in register, "Q03 cache-fredda non legge gws"
     # Dal 3/11/2026 i banchi rossi non stanno più sotto il prompt: li riceve chi mantiene Arturo.
-    cache = read(repo / "skills" / "cache-fredda" / "hooks" / "cache.ts")
+    cache = read(repo / "skills" / "arturo" / "hooks" / "cache-fredda" / "cache.ts")
     assert "banchi-ultimo-esito.txt" not in register and "leggiBanchi" not in cache, \
         "Q03 cache-fredda mostra ancora i banchi rossi alla persona"
     esito = prova_mod(repo, "cache-fredda", "Q03")

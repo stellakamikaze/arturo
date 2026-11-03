@@ -6,6 +6,7 @@ menu-contesto e agent-flow (tolti il 14/10/2026), blast-radius (tolto il 15/10/2
 14/10) e riscrivi-bash (tolto il 3/11/2026, P02 è uscito col mod) non ci sono più, e NOVITA.md annuncia
 ogni uscita. P06 nei mod non ci sono nomi, host o percorsi personali. P08 il README nomina ogni mod.
 P05 e P07 (blast-radius) sono usciti col mod. P09 (3/11/2026) il mod rotazione passa validate e i suoi test.
+Dal 3/11/2026 (mod passo 3) i tre sono parti del mod skills/arturo: si provano lì.
 
 Il gate richiede il binario `claude`: se manca, il banco fallisce con un messaggio esplicito.
 Sulla base cddcb10 ogni controllo deve fallire.
@@ -37,8 +38,11 @@ def claude() -> str:
 
 
 def prova_mod(repo: Path, nome: str, codice: str, con_test: bool = True) -> None:
-    cartella = repo / "skills" / nome
-    assert (cartella / ".claude-plugin" / "plugin.json").is_file(), f"{codice} manca skills/{nome}"
+    # Dal 3/11/2026 (mod passo 3) i mod di Arturo sono parti di un mod solo, skills/arturo: la parte sta
+    # in skills/arturo/hooks/<nome>, e validate e test girano sul mod intero.
+    cartella = repo / "skills" / "arturo"
+    assert (cartella / ".claude-plugin" / "plugin.json").is_file(), f"{codice} manca il mod skills/arturo"
+    assert list((cartella / "hooks" / nome).glob("register.ts*")), f"{codice} manca la parte skills/arturo/hooks/{nome}"
     # Claude Code scrive in UTF-8: letto con la codifica di Windows lo stdout diventa None.
     v = subprocess.run([claude(), "plugin", "validate", str(cartella)], capture_output=True, text=True,
                        encoding="utf-8", errors="replace", timeout=120)
@@ -54,8 +58,10 @@ def prova_mod(repo: Path, nome: str, codice: str, con_test: bool = True) -> None
 def test_p06(repo: Path) -> None:
     trovati: List[str] = []
     for nome in MOD:
-        cartella = repo / "skills" / nome
-        assert cartella.is_dir(), f"P06 manca skills/{nome}"
+        cartella = repo / "skills" / "arturo" / "hooks" / nome
+        assert cartella.is_dir(), f"P06 manca skills/arturo/hooks/{nome}"
+    cartella = repo / "skills" / "arturo"
+    if True:
         for f in sorted(cartella.rglob("*")):
             if not f.is_file() or ".claude-plugin/types" in f.as_posix() or f.name in ("tsconfig.json", "LICENSE"):
                 continue
@@ -81,7 +87,7 @@ def test_p03(repo: Path) -> None:
 
 def test_p08(repo: Path) -> None:
     readme = (repo / "README.md").read_text(encoding="utf-8")
-    mancanti = [m for m in MOD if f"skills/{m}/" not in readme]
+    mancanti = [m for m in MOD if f"skills/arturo/hooks/{m}/" not in readme]
     assert not mancanti, f"P08 il README non nomina {mancanti}"
 
 

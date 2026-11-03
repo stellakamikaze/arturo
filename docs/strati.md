@@ -71,6 +71,7 @@ Seconda prova, 3/11/2026, col plugin vero generato da `bin/impacchetta.py` (`cla
 | Comando diventato skill | `/novita` funziona senza prefisso; `$ARGUMENTS` arriva |
 | Stile di output | si chiama `arturo:Conciso`: col nome nudo Claude Code non lo applica |
 | Mod in `skills/<mod>/.claude-plugin` | dentro un plugin non si caricano: il marketplace li elenca a parte |
+| Hook di comando e modulo nello stesso `hooks.json` | scattano tutti e due; il modulo può stare in `../skills/arturo/hooks/` e il tool esce come `mcp__arturo__ruota` (terza prova, 3/11/2026) |
 | Agent | gli 8 agent si caricano |
 
 Da provare: Windows (prima di migrare Balthasar); installazione da marketplace GitHub con sha fissato; barra in basso dal puntatore su una macchina pulita.
@@ -78,7 +79,7 @@ Da provare: Windows (prima di migrare Balthasar); installazione da marketplace G
 ## Il pacchetto
 
 `python3 bin/impacchetta.py --uscita DIR` genera il plugin dal repository, che resta installabile come clone. Il banco `tests/test_impacchetta_2026_11_03.py` controlla il contratto:
-- `.claude-plugin/plugin.json` e `marketplace.json`, con Arturo e i suoi mod;
+- `.claude-plugin/plugin.json` e `marketplace.json`, con Arturo; il plugin porta anche il mod di Arturo (`skills/arturo`): il suo modulo sta sotto `modules` in `hooks/hooks.json` e il contratto dei tipi in `types` (mod passo 3, 3/11/2026);
 - `hooks/hooks.json` dagli hook di `settings.json`, con `"${CLAUDE_PLUGIN_ROOT}/..."` tra virgolette;
 - `impostazioni/arturo.json`: il resto di `settings.json`, che `arturo impostazioni applica` unisce ai settings della persona;
 - ogni `commands/<nome>.md` diventa `skills/<nome>/SKILL.md` con `name:` e `disable-model-invocation: true`.
@@ -96,4 +97,4 @@ Due conseguenze della prova:
 
 ## La testata: dove Arturo si presenta
 
-Il logo di Claude Code non si sostituisce: nessuna opzione dei settings lo cambia e nessun componente dei mod lo ridisegna (verificato su 2.1.317, 3/11/2026). Il mod `skills/testata` piazza con `$.ui.place` il primo blocco sotto l'intestazione: versione di Arturo (`git describe` dal repository che contiene il mod, chiesto a `git rev-parse --show-toplevel` così vale anche da un link in `~/.claude/skills`, altrimenti `$.plugin.root/../..`), versione di Claude Code (`$.session.version()`), deriva (`cache/deriva.json`, scritto da `hooks/deriva.py`) e aggiornamento (`session-env/aggiornamento.json`). I dati stanno nell'Orsa, il codice in Arturo.
+Il logo di Claude Code non si sostituisce: nessuna opzione dei settings lo cambia e nessun componente dei mod lo ridisegna (verificato su 2.1.317, 3/11/2026). La parte `skills/arturo/hooks/testata` del mod di Arturo piazza con `$.ui.place` il primo blocco sotto l'intestazione: versione di Arturo (`git describe` dal repository che contiene il mod, chiesto a `git rev-parse --show-toplevel` così vale anche da un link in `~/.claude/skills`, altrimenti la radice da `$.plugin.root`, `radiceCodice` di `hooks/parti.ts`), versione di Claude Code (`$.session.version()`), deriva (`cache/deriva.json`, scritto da `hooks/deriva.py`) e aggiornamento (`session-env/aggiornamento.json`). I dati stanno nell'Orsa, il codice in Arturo.

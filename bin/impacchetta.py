@@ -5,8 +5,9 @@ Il repository resta installabile come clone in ~/.claude (Gigi e Filippo fino a 
 ne ricava una cartella pronta per Claude Code come plugin:
 
   .claude-plugin/plugin.json      nome, versione (dal tag), descrizione
-  .claude-plugin/marketplace.json il marketplace: Arturo (sorgente "./") e i suoi mod (skills/<mod>)
-  hooks/hooks.json                gli hook di settings.json, coi percorsi in ${CLAUDE_PLUGIN_ROOT}
+  .claude-plugin/marketplace.json il marketplace: Arturo (sorgente "./"), che porta anche il suo mod
+  hooks/hooks.json                gli hook di settings.json, coi percorsi in ${CLAUDE_PLUGIN_ROOT}, e il modulo
+                                  del mod (skills/arturo/hooks/register.tsx) sotto "modules"
   impostazioni/arturo.json        il resto di settings.json: lo applica /setup col file di blocco
   skills/<comando>/SKILL.md       ogni commands/<comando>.md, con name: (il nome resta senza prefisso)
 
@@ -157,21 +158,34 @@ def impacchetta(uscita: Path, versione: str) -> None:
             md.write_text(dopo, encoding="utf-8")
 
     settings = json.loads((RADICE / "settings.json").read_text(encoding="utf-8"))
+    dati_hooks = hooks_json(settings)
+    # Il mod di Arturo (skills/arturo) dentro un plugin non si carica da solo: lo porta il plugin Arturo, con
+    # gli hook di comando nello stesso hooks.json (provato su 2.1.317, 3/11/2026). Così il tool resta
+    # mcp__arturo__ruota e gli atom restano del plugin "arturo" come nel clone.
+    mod = uscita / "skills" / NOME
+    if (mod / "hooks" / "register.tsx").is_file():
+        dati_hooks["modules"] = [f"../skills/{NOME}/hooks/register.tsx"]
+        shutil.rmtree(mod / ".claude-plugin", ignore_errors=True)
+        (mod / "hooks" / "hooks.json").unlink(missing_ok=True)
     (uscita / "hooks" / "hooks.json").write_text(
-        json.dumps(hooks_json(settings), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        json.dumps(dati_hooks, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     (uscita / "impostazioni").mkdir(exist_ok=True)
     (uscita / "impostazioni" / "arturo.json").write_text(
         json.dumps(impostazioni(settings), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     meta = uscita / ".claude-plugin"
     meta.mkdir(exist_ok=True)
     descrizione = "Arturo: guardie, metodo e skill condivise sopra Claude Code. Lo strato personale è l'Orsa, in ~/.claude."
-    (meta / "plugin.json").write_text(json.dumps({
+    manifest = {
         "name": NOME, "version": versione.lstrip("v"), "description": descrizione,
         "author": {"name": "Federico Nejrotti"}, "homepage": "https://github.com/stellakamikaze/arturo",
         "license": "MIT",
-    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    # I mod (skills/<nome>/.claude-plugin) sono plugin a sé: nel clone Claude Code li carica dalla
-    # cartella skills, dentro un plugin no. Il marketplace li elenca accanto ad Arturo.
+    }
+    # Il contratto dei valori in $.state del mod: senza, Claude Code rifiuta gli atom del modulo.
+    if "modules" in dati_hooks and (mod / "types" / "index.d.ts").is_file():
+        manifest["types"] = f"./skills/{NOME}/types/index.d.ts"
+    (meta / "plugin.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    # Un altro mod in skills/<nome>/.claude-plugin è un plugin a sé: nel clone Claude Code lo carica dalla
+    # cartella skills, dentro un plugin no. Il marketplace lo elenca accanto ad Arturo.
     plugin = [{"name": NOME, "source": "./", "description": descrizione, "version": versione.lstrip("v")}]
     for mod in sorted((uscita / "skills").glob("*/.claude-plugin/plugin.json")):
         dati = json.loads(mod.read_text(encoding="utf-8"))
@@ -200,6 +214,14 @@ def verifica(cartella: Path) -> list[str]:
         for rel in re.findall(r"\$\{CLAUDE_PLUGIN_ROOT\}/(\S+)", comando):
             if not (cartella / rel).exists():
                 errori.append(f"hooks.json: manca {rel}")
+    for modulo in hooks.get("modules", []):
+        if not (cartella / "hooks" / modulo).resolve().is_file():
+            errori.append(f"hooks.json: manca il modulo {modulo}")
+    manifest = json.loads((cartella / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    if hooks.get("modules") and not (cartella / str(manifest.get("types", "manca"))).is_file():
+        errori.append("plugin.json: il modulo del mod c'è, il contratto dei tipi (types) no")
+    if (cartella / "skills" / NOME / ".claude-plugin").exists():
+        errori.append(f"skills/{NOME}/.claude-plugin nel pacchetto: il mod lo porta il plugin, non è un plugin a sé")
     if (cartella / "commands").exists():
         errori.append("commands/ nel pacchetto: un comando del plugin prende il prefisso arturo:")
     return errori

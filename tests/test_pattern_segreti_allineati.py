@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """I pattern dei segreti vivono in due posti: hooks/credential-leak-scanner.py (rete, avvisa il
-modello) e skills/redazione-segreti/hooks/patterns.ts (redige prima che il modello legga).
+modello) e skills/arturo/hooks/redazione-segreti/patterns.ts (redige prima che il modello legga).
 Il mod li ha copiati a mano, e due copie a mano divergono (successo il 3/10/2026).
 Questo banco fallisce se lo scanner ha un tipo che il mod non mappa, o se la mappa punta a un
 tipo che il mod non ha più. Le differenze volute stanno in VOLUTE, con il motivo.
@@ -26,7 +26,7 @@ sc = importlib.util.module_from_spec(spec); spec.loader.exec_module(sc)
 nomi = [n for _, n in sc.CREDENTIAL_PATTERNS]
 if "--avvelena" in sys.argv:
     nomi.append("Tipo Finto Avvelenato")
-ts = open(f"{H}/skills/redazione-segreti/hooks/patterns.ts", encoding="utf-8").read()
+ts = open(f"{H}/skills/arturo/hooks/redazione-segreti/patterns.ts", encoding="utf-8").read()
 tipi_mod = set(re.findall(r"/[gimsuy]*, '([a-z0-9-]+)'\]", ts))
 if re.search(r"export const DB_URL\b", ts):
     tipi_mod.add("DB_URL")

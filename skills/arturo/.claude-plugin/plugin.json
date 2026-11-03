@@ -1,0 +1,7 @@
+{
+  "name": "arturo",
+  "version": "0.4.0",
+  "description": "Il mod di Arturo in sei parti: /apri, avvisi di cache fredda e token gws, il pannello /dafare, redazione dei segreti, rotazione della sessione, la testata con /versione",
+  "author": { "name": "Federico Nejrotti" },
+  "types": "./types/index.d.ts"
+}

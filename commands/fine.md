@@ -40,7 +40,7 @@ con i test verdi. Serve a tenere fresca la sessione: dopo la coda il tool `ruota
   dell'handoff, una per riga col percorso e il testo. Il prossimo `/fine` scritto dalla persona le propone.
 - **Poi la rotazione.** Con la coda a `rc=0` scegli il passo dopo. Se è un passo di Claude (Chi `io`), la
   chiusura è una riga ("ruoto: step N fatto · commit abc1234 · riparto da <passo>") e subito la chiamata
-  `mcp__rotazione__ruota` con `progetto` (lo slug) e `compito` (il passo dopo in una frase). È l'ultima
+  `mcp__arturo__ruota` con `progetto` (lo slug) e `compito` (il passo dopo in una frase). È l'ultima
   azione del turno.
 - **Niente rotazione, chiusura normale**, se: la coda esce con un codice diverso da 0; il passo dopo chiede
   la persona (una decisione, un invio, un pagamento, un accesso, un gesto fisico); non ci sono passi; la

@@ -255,7 +255,7 @@ python3 ~/.claude/bin/arturo todo --progetto .
 python3 ~/.claude/bin/arturo todo --progetto generale
 git log --oneline -20 2>/dev/null
 # Il pannello /dafare c'è? I comandi di un mod non compaiono fra quelli che vedi.
-claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "dafare@skills-dir"]; print("mod caricato" if v and v[0].get("enabled") else "mod assente")' 2>/dev/null || echo "mod assente"
+claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "arturo@skills-dir"]; print("mod caricato" if v and v[0].get("enabled") else "mod assente")' 2>/dev/null || echo "mod assente"
 ```
 
 1. Per ogni todo aperto del progetto, verifica se un commit recente lo ha già completato. Se sì,

@@ -1,8 +1,0 @@
-{
-  "name": "rotazione",
-  "version": "0.2.0",
-  "description": "Tiene fresca la sessione: a ogni step chiuso Arturo salva con /fine --rotazione, poi pulisce il contesto con /clear e riparte da solo con /inizio sul passo successivo",
-  "author": {
-    "name": "Federico Nejrotti"
-  }
-}

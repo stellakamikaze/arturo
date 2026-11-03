@@ -69,22 +69,22 @@ Claude legge in chiaro i token stampati dai comandi: è la prima cosa da riaccen
 nuovo:
 
 ```bash
-claude plugin list --json | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "dafare@skills-dir"]; print("mod caricato: dafare@skills-dir" if v and v[0].get("enabled") else "mod spento: dafare@skills-dir" if v else "mod NON caricato: dafare@skills-dir manca")'
+claude plugin list --json | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "arturo@skills-dir"]; print("mod caricato: arturo@skills-dir" if v and v[0].get("enabled") else "mod spento: arturo@skills-dir" if v else "mod NON caricato: arturo@skills-dir manca")'
 echo "versione di Claude Code: $(claude --version) (il pannello chiede la 2.1.287 o successiva, le guardie la 2.1.300)"
 ```
 
-Se il mod manca, guarda se esiste `~/.claude/skills/dafare/.claude-plugin/plugin.json` e se il
-plugin è spento (`claude plugin enable dafare@skills-dir` lo riaccende). In un'organizzazione
+Se il mod manca, guarda se esiste `~/.claude/skills/arturo/.claude-plugin/plugin.json` e se il
+plugin è spento (`claude plugin enable arturo@skills-dir` lo riaccende). In un'organizzazione
 le managed settings decidono se Claude Code carica i mod da `~/.claude/skills`:
 
 - con un elenco chiuso di marketplace (`strictKnownMarketplaces`) i mod non si caricano, finché
   l'elenco non contiene `{"source": "skills-dir"}`;
 - `{"source": "skills-dir"}` dentro `blockedMarketplaces` li spegne tutti.
 
-Spenti i mod, la persona perde il pannello **e la redazione dei segreti**
-(`redazione-segreti@skills-dir`): Claude torna a leggere in chiaro un token stampato da un
-comando. Se va spento qualcosa, si spegne il solo pannello con
-`claude plugin disable dafare@skills-dir`.
+Il mod è uno solo, con sei parti: spento il mod, la persona perde il pannello **e la redazione dei
+segreti**, e Claude torna a leggere in chiaro un token stampato da un comando. Se va spento qualcosa,
+si spegne la sola parte in `~/.claude/arturo/parti.json`, per esempio `{"spente": ["dafare"]}`, e vale
+dalla sessione dopo. Se il pannello manca e il mod è caricato, guarda se `dafare` sta in quel file.
 
 ---
 

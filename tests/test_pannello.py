@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """U01-U13: il pannello /dafare dentro Claude Code (ciclo 2, 3/10/2026).
 
-Il pannello è un mod di Claude Code in skills/dafare/: Claude Code lo carica da solo come
-dafare@skills-dir. Legge e scrive i todo solo con la CLI `arturo todo`.
+Il pannello è la parte dafare del mod di Arturo, skills/arturo/hooks/dafare/ (mod passo 3, 3/11/2026):
+Claude Code carica il mod da solo come arturo@skills-dir. Legge e scrive i todo solo con la CLI `arturo todo`.
 
 U01 il manifest, gli hook e niente SKILL.md: è un mod, non una skill. U02 `claude plugin
 validate` passa, il mod aggancia gli eventi giusti e chiama solo process.run (niente rete,
@@ -60,7 +60,7 @@ def read(path: Path) -> str:
 
 
 def mod(repo: Path) -> Path:
-    cartella = repo / "skills" / "dafare"
+    cartella = repo / "skills" / "arturo"
     if not (cartella / ".claude-plugin" / "plugin.json").is_file():
         raise FileNotFoundError(cartella / ".claude-plugin" / "plugin.json")
     return cartella
@@ -133,14 +133,15 @@ def kit(repo: Path, base: Path) -> subprocess.CompletedProcess:
 def test_u01(repo: Path) -> None:
     m = mod(repo)
     manifest = json.loads(read(m / ".claude-plugin" / "plugin.json"))
-    assert manifest.get("name") == "dafare" == m.name, f"U01 il nome del mod: {manifest.get('name')}"
+    assert manifest.get("name") == "arturo" == m.name, f"U01 il nome del mod: {manifest.get('name')}"
     tipi = manifest.get("types")
     assert tipi and (m / ".claude-plugin" / ".." / tipi).resolve().is_file(), f"U01 il contratto dei tipi: {tipi}"
     hooks = json.loads(read(m / "hooks" / "hooks.json"))
     assert hooks == {"modules": ["./register.tsx"]}, f"U01 hooks.json: {hooks}"
     assert (m / "hooks" / "register.tsx").is_file(), "U01 hooks.json nomina un modulo che non esiste"
+    assert (m / "hooks" / "dafare" / "register.tsx").is_file(), "U01 manca la parte skills/arturo/hooks/dafare"
     assert not (m / "SKILL.md").exists(), "U01 il mod ha una SKILL.md: diventerebbe anche una skill"
-    assert (m / ".." / ".." / "bin" / "arturo").resolve().is_file(), "U01 la CLI non sta in skills/dafare/../../bin/arturo"
+    assert (m / ".." / ".." / "bin" / "arturo").resolve().is_file(), "U01 la CLI non sta in skills/arturo/../../bin/arturo"
 
 
 def test_u02(repo: Path) -> None:
@@ -155,8 +156,11 @@ def test_u02(repo: Path) -> None:
                    "ui.render{component=Pane, requestId=dafare}", "ui.render{component=AbovePrompt}"):
         assert evento in hooks[0], f"U02 il mod non aggancia {evento}: {hooks[0]}"
     assert "$.process.run" in calls[0], f"U02 il mod non lancia la CLI: {calls[0]}"
+    # Nel mod unico validate elenca le chiamate di tutte le parti: il pannello si legge nel suo sorgente.
+    pannello = "".join(read(f) for f in sorted((mod(repo) / "hooks" / "dafare").iterdir()) if f.is_file())
+    assert "$.process.run" in pannello, "U02 il pannello non lancia la CLI"
     for vietato in ("$.http", "$.model", "$.prompt.submit", "$.tool.register", "$.session.append", "$.fs.write"):
-        assert vietato not in calls[0], f"U02 il mod chiama {vietato}: scrive fuori dalla CLI, esce in rete o avvia turni"
+        assert vietato not in pannello, f"U02 il pannello chiama {vietato}: scrive fuori dalla CLI, esce in rete o avvia turni"
 
 
 def test_u03(repo: Path) -> None:
@@ -175,7 +179,7 @@ def test_u03(repo: Path) -> None:
 
 def calcola_verbi(repo: Path, riga: dict) -> dict:
     """Carica hooks/verbi.mjs con node e calcola argv e inverso di ogni verbo per una riga."""
-    verbi = mod(repo) / "hooks" / "verbi.mjs"
+    verbi = mod(repo) / "hooks" / "dafare" / "verbi.mjs"
     if not verbi.is_file():
         raise FileNotFoundError(verbi)
     codice = ("const { pathToFileURL } = require('url');"
@@ -323,11 +327,11 @@ def test_u05(repo: Path) -> None:
         base = Path(tmp)
         home = base / "home"
         shutil.copytree(str(repo / "bin"), str(home / ".claude" / "bin"))
-        copia_mod(m, home / ".claude" / "skills" / "dafare")
+        copia_mod(m, home / ".claude" / "skills" / "arturo")
         r = lancia([exe, "plugin", "list", "--json"], home, base)
         assert r.returncode == 0, f"U05 claude plugin list: {r.stderr[-500:]}"
         voci = {p.get("id"): p for p in json.loads(r.stdout)}
-        assert voci.get("dafare@skills-dir", {}).get("enabled") is True, \
+        assert voci.get("arturo@skills-dir", {}).get("enabled") is True, \
             f"U05 Claude Code non adotta il mod da ~/.claude/skills: {sorted(voci)}"
         cli(repo, home, "aggiungi", "Provare il pannello", "--progetto", "prova")
         r = lancia([exe, "-p", "/dafare"], home, base, timeout=120)
@@ -341,10 +345,15 @@ def test_u05(repo: Path) -> None:
 
 def test_u06(repo: Path) -> None:
     m = mod(repo)
-    modulo = read(m / "hooks" / "register.tsx")
-    assert re.search(r"const CLI_REL = '/\.\./\.\./bin/arturo'", modulo), "U06 CLI_REL non è '/../../bin/arturo'"
-    assert "$.plugin.root + CLI_REL" in modulo, "U06 il percorso della CLI non parte da $.plugin.root"
-    file = [p for p in m.rglob("*") if p.is_file() and not any(g in p.relative_to(m).as_posix() for g in GENERATI)]
+    modulo = read(m / "hooks" / "dafare" / "register.tsx")
+    assert re.search(r"const CLI_REL = '/bin/arturo'", modulo), "U06 CLI_REL non è '/bin/arturo'"
+    assert "radiceCodice($.plugin.root) + CLI_REL" in modulo, "U06 il percorso della CLI non parte da $.plugin.root"
+    parti = read(m / "hooks" / "parti.ts")
+    assert r"skills[\\/]arturo$/" in parti and "`${pulita}/../..`" in parti, "U06 radiceCodice non sale da skills/arturo"
+    # Dal 3/11/2026 il mod ha sei parti: i test delle altre parti hanno percorsi finti di altri sistemi
+    # (/home/…, C:\\Users\\…) per mestiere, e restano fuori. Il codice di tutte le parti resta dentro.
+    file = [p for p in m.rglob("*") if p.is_file() and not any(g in p.relative_to(m).as_posix() for g in GENERATI)
+            and not (p.parent.name == "tests" and p.name != "dafare.test.tsx")]
     assert len(file) >= 6, f"U06 il mod ha pochi file: {[p.name for p in file]}"
     for p in file:
         testo = read(p)
@@ -366,7 +375,7 @@ EMOJI = re.compile("[\U0001F000-\U0001FAFF\u2600-\u2604\u2606-\u27BF\u2B00-\u2BF
 
 def test_u07(repo: Path) -> None:
     m = mod(repo)
-    for nome in ("hooks/register.tsx", "hooks/verbi.mjs"):
+    for nome in ("hooks/dafare/register.tsx", "hooks/dafare/verbi.mjs"):
         testo = read(m / nome)
         stringhe = re.findall(r"'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`|\"(?:[^\"\\\n]|\\.)*\"", testo)
         assert len(stringhe) > 10, f"U07 poche stringhe lette in {nome}: {len(stringhe)}"
@@ -424,18 +433,18 @@ def test_u09(repo: Path) -> None:
         def ignorato(path: str) -> bool:
             return subprocess.run(["git", "check-ignore", "-q", "--no-index", path], cwd=str(copia),
                                   timeout=30).returncode == 0
-        for path in ("skills/dafare/.claude-plugin/types/claude-code/index.d.ts", "skills/dafare/tsconfig.json"):
+        for path in ("skills/arturo/.claude-plugin/types/claude-code/index.d.ts", "skills/arturo/tsconfig.json"):
             assert ignorato(path), f"U09 .gitignore non esclude {path}: /fine lo committerebbe"
-        for path in ("skills/dafare/hooks/register.tsx", "skills/dafare/hooks/verbi.mjs",
-                     "skills/dafare/.claude-plugin/plugin.json", "skills/dafare/types/index.d.ts"):
+        for path in ("skills/arturo/hooks/dafare/register.tsx", "skills/arturo/hooks/dafare/verbi.mjs",
+                     "skills/arturo/.claude-plugin/plugin.json", "skills/arturo/types/index.d.ts"):
             assert not ignorato(path), f"U09 .gitignore esclude {path}, che è del mod"
 
 
 # Quello che il diff di /aggiorna deve mostrare: ogni file del codice che gira da solo, anche in
 # cartelle che la copia locale non ha ancora (un mod nuovo, gli script di una skill nuova).
 DIFF_ATTESI = ("hooks/guardia.py", "settings.json", "skills/todo/scripts/vecchio.py", "skills/nuova/scripts/nuovo.sh",
-               "bin/arturo", "skills/dafare/hooks/register.tsx", "skills/dafare/hooks/hooks.json",
-               "skills/dafare/.claude-plugin/plugin.json")
+               "bin/arturo", "skills/arturo/hooks/dafare/register.tsx", "skills/arturo/hooks/hooks.json",
+               "skills/arturo/.claude-plugin/plugin.json")
 
 
 def blocco_di_aggiorna(repo: Path) -> str:
@@ -516,8 +525,9 @@ def controllo_del_mod(testo: str, dove: str) -> None:
     `claude plugin list --json`. La riga si lancia davvero su tre liste finte."""
     righe = [r.strip() for r in testo.splitlines() if r.strip().startswith("claude plugin list --json")]
     assert len(righe) == 1, f"U11 {dove}: il controllo del pannello con claude plugin list --json: {righe}"
-    attesi = (('[{"id": "dafare@skills-dir", "enabled": true}]', "mod caricato"),
-              ('[{"id": "dafare@skills-dir", "enabled": false}]', "mod assente"),
+    attesi = (('[{"id": "arturo@skills-dir", "enabled": true}]', "mod caricato"),
+              ('[{"id": "arturo@skills-dir", "enabled": false}]', "mod assente"),
+              ('[{"id": "dafare@skills-dir", "enabled": true}]', "mod assente"),
               ('[{"id": "altro@skills-dir", "enabled": true}]', "mod assente"))
     with tempfile.TemporaryDirectory() as tmp:
         for lista, atteso in attesi:
@@ -556,9 +566,9 @@ def test_u11(repo: Path) -> None:
     assert "2.1.287" in setup and "claude --version" in setup, "U11 /setup non controlla la versione di Claude Code"
     diagnosi = read(repo / "commands" / "diagnosi.md")
     # 16/10/2026: docs/referente.md è uscito, le managed settings che spengono il mod le spiega /diagnosi.
-    for parola in ("skills-dir", "strictKnownMarketplaces", "blockedMarketplaces", "dafare@skills-dir"):
+    for parola in ("skills-dir", "strictKnownMarketplaces", "blockedMarketplaces", "arturo@skills-dir"):
         assert parola in diagnosi, f"U11 /diagnosi non dice {parola}"
-    assert "claude plugin list --json" in diagnosi and "dafare@skills-dir" in diagnosi and "claude --version" in diagnosi, \
+    assert "claude plugin list --json" in diagnosi and "arturo@skills-dir" in diagnosi and "claude --version" in diagnosi, \
         "U11 /diagnosi non controlla il mod caricato e la versione"
 
 
@@ -567,7 +577,7 @@ def test_u12(repo: Path) -> None:
     vere = len([d for d in (repo / "skills").iterdir() if (d / "SKILL.md").is_file()])
     scritti = re.findall(r"\*\*(\d+) skill\*\*", readme) + re.findall(r"^skills/\s+(\d+) skill", readme, re.M)
     assert scritti and all(int(n) == vere for n in scritti), f"U12 il README dice {scritti} skill, ce ne sono {vere}"
-    paragrafi = [p for p in readme.split("\n\n") if ".claude-plugin/plugin.json" in p and "skills/dafare/" in p]
+    paragrafi = [p for p in readme.split("\n\n") if ".claude-plugin/plugin.json" in p and "skills/arturo/" in p]
     assert paragrafi and "mod" in paragrafi[0] and "non una skill" in paragrafi[0], \
         "U12 il README non spiega che una cartella con .claude-plugin/plugin.json è un mod"
 
@@ -584,7 +594,7 @@ def test_u13(repo: Path) -> None:
             nati = sorted(p.name for p in home.iterdir() if p.name in ("SESSIONE", "PROMPT"))
             assert not nati, f"U13 {' '.join(argv[1:3])} esegue gli hook di sessione: {nati}"
         # Controllo positivo: una sessione vera nella stessa HOME fa scattare la sentinella...
-        copia_mod(m, home / ".claude" / "skills" / "dafare")
+        copia_mod(m, home / ".claude" / "skills" / "arturo")
         shutil.copytree(str(repo / "bin"), str(home / ".claude" / "bin"))
         r = lancia([exe, "-p", "/dafare mostra"], home, base, timeout=120)
         assert (home / "SESSIONE").exists(), f"U13 la sentinella non scatta nemmeno con claude -p: la prova non vale ({r.stdout[-300:]})"

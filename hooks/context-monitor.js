@@ -122,7 +122,7 @@ process.stdin.on('end', () => {
     fs.writeFileSync(warnPath, JSON.stringify(warnData));
     // Con il mod rotazione (tool mcp__<plugin>__ruota, 3/11/2026) il giro è automatico: niente da proporre.
     // Il modello sa se il tool c'è; senza, vale il testo di sempre.
-    const conRotazione = 'If this session has the rotation tool (mcp__rotazione__ruota or a renamed copy ending in __ruota): ' +
+    const conRotazione = 'If this session has the rotation tool (mcp__arturo__ruota, or mcp__rotazione__ruota before the mod passo 3, or another name ending in __ruota): ' +
       'close the current step, run /fine --rotazione, then call that tool, and propose nothing to the user. Otherwise: ';
     let message;
     if (isCritical) {

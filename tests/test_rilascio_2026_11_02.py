@@ -71,7 +71,7 @@ def test_rl02(repo: Path) -> None:
     riga = next((r for r in readme.splitlines() if r.startswith("- `inject-now.sh`")), "")
     blocco = readme[readme.index(riga):readme.index("- `input-notifier-start.sh`")] if riga else ""
     assert "ultracode" in blocco, "RL02 il README non dice che inject-now avvisa prima di un ultracode"
-    pannello = read(repo / "skills" / "dafare" / "hooks" / "register.tsx")
+    pannello = read(repo / "skills" / "arturo" / "hooks" / "dafare" / "register.tsx")
     assert 'Ogni tasto si annulla con "u"' not in pannello, "RL02 il pannello promette che ogni tasto si annulla"
     assert "La CLI dei todo si è fermata" not in pannello, "RL02 un errore di arturo sessione parla della CLI dei todo"
     segnala = read(repo / "bin" / "segnala.py")
@@ -82,8 +82,8 @@ def test_rl02(repo: Path) -> None:
 
 
 def test_rl03(repo: Path) -> None:
-    pannello = read(repo / "skills" / "dafare" / "hooks" / "register.tsx")
-    verbi = read(repo / "skills" / "dafare" / "hooks" / "verbi.mjs")
+    pannello = read(repo / "skills" / "arturo" / "hooks" / "dafare" / "register.tsx")
+    verbi = read(repo / "skills" / "arturo" / "hooks" / "dafare" / "verbi.mjs")
     # Il parametro lo costruisce solo titolo() di verbi.mjs, come per gli altri tasti (#4175).
     assert "'sessione'" in pannello and "titolo(t)" in pannello.split("async function apriSessione")[-1][:900] \
         and "export function titolo(t)" in verbi and "--titolo-atteso=${t.titolo}" in verbi, \

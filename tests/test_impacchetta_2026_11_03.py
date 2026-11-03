@@ -11,7 +11,8 @@ IP06 arturo impostazioni applica: in un'Orsa vuota scrive settings e blocco, la 
      niente, una voce propria della persona resta, una voce cambiata da tutte e due le parti ferma
      tutto con rc 1 e il file intatto;
 IP07 col codice fuori da ~/.claude l'avvio scrive ~/.claude/arturo/radice e dice dove sta il codice;
-IP08 il marketplace elenca Arturo e i suoi mod (skills/<mod>/.claude-plugin).
+IP08 il marketplace elenca Arturo, e il plugin Arturo porta il modulo del suo mod (skills/arturo/hooks/register.tsx
+     sotto "modules" in hooks.json, mod passo 3 del 3/11/2026): nel pacchetto skills/arturo non è un plugin a sé.
 
 Sulla base c247fed (il dev prima di F2) sono tutti rossi: il generatore non c'è. Con --avvelena una
 copia del repository rotta in un punto alla volta deve far fallire il caso che lo sorveglia.
@@ -121,9 +122,14 @@ def prova(repo: Path) -> list[str]:
 
         mercato = json.loads((pacchetto / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
         nomi = {p["name"]: p["source"] for p in mercato.get("plugins", [])}
-        mod = sorted(p.parent.parent.name for p in (repo / "skills").glob("*/.claude-plugin/plugin.json"))
-        if nomi.get("arturo") != "./" or any(nomi.get(m) != f"./skills/{m}" for m in mod) or not mod:
-            rossi.append(f"IP08 marketplace: {nomi}")
+        altri = sorted(p.parent.parent.name for p in (repo / "skills").glob("*/.claude-plugin/plugin.json")
+                       if p.parent.parent.name != "arturo")
+        moduli = json.loads((pacchetto / "hooks" / "hooks.json").read_text(encoding="utf-8")).get("modules")
+        modulo_c_e = (pacchetto / "skills" / "arturo" / "hooks" / "register.tsx").is_file()
+        if nomi.get("arturo") != "./" or any(nomi.get(m) != f"./skills/{m}" for m in altri) or "arturo" in [
+                m for m in nomi if nomi[m] != "./"] or moduli != ["../skills/arturo/hooks/register.tsx"] \
+                or not modulo_c_e or (pacchetto / "skills" / "arturo" / ".claude-plugin").exists():
+            rossi.append(f"IP08 marketplace {nomi}, moduli {moduli}, modulo nel pacchetto {modulo_c_e}")
     return rossi
 
 
@@ -134,7 +140,7 @@ VELENI = [
     ("IP04", "bin/impacchetta.py", 'resto["outputStyle"] = f"{NOME}:{stile}"', "pass"),
     ("IP06", "bin/impostazioni.py", "        return attuale, None, frammento, f\"{_dove(", "        return attuale, frammento, frammento, None and f\"{_dove("),
     ("IP07", "hooks/session-start.sh", '|| printf \'%s\' "$ARTURO_CODICE" > "$HOME/.claude/arturo/radice"', "|| true"),
-    ("IP08", "bin/impacchetta.py", "        plugin.append({", "        continue\n        plugin.append({"),
+    ("IP08", "bin/impacchetta.py", '        dati_hooks["modules"] = [f"../skills/{NOME}/hooks/register.tsx"]', "        pass"),
 ]
 
 

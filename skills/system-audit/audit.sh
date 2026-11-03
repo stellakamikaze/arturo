@@ -291,7 +291,8 @@ cmds = {os.path.basename(p)[:-3] for p in glob.glob(H + "/commands/*.md")}
 wfs = {os.path.basename(p)[:-3] for p in glob.glob(H + "/workflows/*.js")}
 # I comandi registrati dai mod si leggono dal sorgente: un mod tolto fa tornare fantasma la sua menzione.
 modcmds = set()
-for f in glob.glob(H + "/skills/*/hooks/*.ts*") + glob.glob(H + "/mods/*/hooks/*.ts*"):
+# Dal 3/11/2026 un mod ha le sue parti in hooks/<parte>/: si cerca a ogni profondità sotto hooks/.
+for f in glob.glob(H + "/skills/*/hooks/**/*.ts*", recursive=True) + glob.glob(H + "/mods/*/hooks/**/*.ts*", recursive=True):
     with open(f, encoding="utf-8", errors="ignore") as src:
         modcmds |= set(re.findall(r"command\.register\(\{\s*name:\s*'([^']+)'", src.read()))
 # Comandi di Claude Code: non stanno su disco.

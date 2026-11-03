@@ -84,7 +84,7 @@ def test_cc06(repo: Path) -> None:
     r = lab.arturo("sessione", "--stampa")
     assert r.returncode == 2, f"CC06 un progetto vuoto non si rifiuta: {r.returncode} {r.stdout!r}"
 
-    pannello = read(repo / "skills" / "dafare" / "hooks" / "register.tsx")
+    pannello = read(repo / "skills" / "arturo" / "hooks" / "dafare" / "register.tsx")
     assert 'hotkey="o"' in pannello and "'sessione'" in pannello, "CC06 il pannello /dafare non ha il tasto o"
 
 

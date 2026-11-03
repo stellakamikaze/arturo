@@ -1,9 +1,0 @@
-{
-  "name": "testata",
-  "version": "0.3.0",
-  "description": "Sotto l'intestazione di Claude Code il blocco di Arturo: la stella in pixel, la versione, lo stato in parole, la deriva della config, l'aggiornamento in arrivo e l'invito alla roadmap; /versione col dettaglio",
-  "author": {
-    "name": "Federico Nejrotti"
-  },
-  "types": "./types/index.d.ts"
-}
