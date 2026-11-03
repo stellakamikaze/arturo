@@ -239,6 +239,12 @@ python3 ~/.claude/bin/telemetria.py registra aggiorna rifiutato >/dev/null 2>&1 
 
 ### Risolvere un conflitto
 
+Dal 3/11/2026 la maggior parte dei conflitti si risolve da sola. Vince il file di Arturo, e la versione
+della persona va in `personale/conflitti/<data>/`, con `differenze.patch`. L'esito `APPLICATO` elenca
+quei file: proponigli di riportare le sue modifiche nell'Orsa, come `personale/<comando>.md`, una skill
+sua o un'impostazione `.local`. Arrivano qui sotto solo i conflitti su `settings.json` e sui `CLAUDE.md`,
+che sono suoi.
+
 Con `CONFLITTO` la sua `~/.claude` non è stata toccata. I conflitti stanno nella **copia di prova**,
 nella cartella che l'esito ha stampato, con i file elencati. Si risolvono lì, mai in `~/.claude`.
 

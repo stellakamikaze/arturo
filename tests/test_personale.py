@@ -13,7 +13,8 @@ coprono Arturo come origin (rebase), dove i commit locali vengono riscritti senz
 con Arturo come origin /aggiorna sposta da solo, senza i passi di Claude. P09 con un repository privato e
 Arturo come upstream /aggiorna sposta e non riscrive i commit pubblicati. P10 il sync fra le macchine
 non sposta niente. P11 con un repository non privato non si sposta niente e ~/.claude non cambia. P12
-se l'aggiornamento va in conflitto anche dopo lo spostamento, personale/ non viene scritto. P13 si
+se l'aggiornamento va in conflitto anche dopo lo spostamento (su settings.json, dal 3/11/2026), personale/
+non viene scritto. P13 si
 spostano solo i comandi che l'aggiornamento cambia, mai uno cancellato. P14 un secondo spostamento
 tiene le righe personali di prima. P15 /aggiorna personale rispetta la stessa regola del repository
 privato. P16 le aggiunte a hooks/session-start.sh vanno in personale/session-start.sh, commentate, e
@@ -275,17 +276,27 @@ def test_p11(repo: Path) -> None:
 
 def test_p12(repo: Path) -> None:
     # Separazione fatta, ma l'aggiornamento va in conflitto su un altro file: ~/.claude non cambia per niente.
+    # Dal 3/11/2026 un conflitto su un file di Arturo si risolve da solo (aggiorna-applica.sh, risolvi_nella_orsa):
+    # il conflitto che resta alla persona è su settings.json, la stessa chiave cambiata dalle due parti.
+    def con_giorni(giorni: int):
+        def cambia(testo: str) -> str:
+            dati = json.loads(testo)
+            dati["cleanupPeriodDays"] = giorni
+            return json.dumps(dati, indent=2, ensure_ascii=False) + "\n"
+        return cambia
+
     def prova(lab: Lab) -> None:
         lab.git(lab.utente, "commit", "-q", "--allow-empty", "-m", "vuoto")
-        (lab.utente / "NOVITA.md").write_text("# mia\n", encoding="utf-8")
-        lab.git(lab.utente, "commit", "-q", "-am", "mia NOVITA")
-        lab.pubblica(lab.autore, {"NOVITA.md": lambda t: t + "\n## 2026-10-16 — Altra\n"}, "v3: NOVITA")
+        impostazioni = lab.utente / "settings.json"
+        impostazioni.write_text(con_giorni(30)(read(impostazioni)), encoding="utf-8")
+        lab.git(lab.utente, "commit", "-q", "-am", "i miei giorni")
+        lab.pubblica(lab.autore, {"settings.json": con_giorni(60)}, "v3: settings")
         testo = read(repo / "commands" / "aggiorna.md")
         lab.lancia(blocco(testo, "## Passo 1", "P12"))
         prima, inizio = lab.head(), read(lab.utente / "commands" / "inizio.md")
         uscita = lab.lancia(blocco(testo, "## Passo 3", "P12"))
         assert "SEPARATO: /inizio" in uscita and "CONFLITTO" in uscita, \
-            f"P12 serve una separazione seguita da un conflitto su NOVITA: {uscita[-300:]!r}"
+            f"P12 serve una separazione seguita da un conflitto su settings.json: {uscita[-300:]!r}"
         assert lab.head() == prima and read(lab.utente / "commands" / "inizio.md") == inizio, \
             "P12 con l'aggiornamento annullato la separazione ha cambiato ~/.claude"
         assert not (lab.utente / "personale" / "inizio.md").exists(), "P12 personale/ scritto senza un'applicazione riuscita"

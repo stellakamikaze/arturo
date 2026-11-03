@@ -12,6 +12,22 @@ modo di lavorare.
 
 ---
 
+## 2026-11-03 — Gli aggiornamenti non restano più fermi
+
+**Cosa cambia**: se alla chiusura c'era un'altra sessione aperta, l'aggiornamento si installa
+all'avvio dopo, quando quella che parte è l'unica sessione. Se una tua modifica a un file di
+Arturo va in conflitto col rilascio, il rilascio si installa lo stesso. La tua versione resta in
+`personale/conflitti/`, e all'avvio Claude ti propone di riportarla nella tua parte della config.
+
+**Perché**: un'installazione è rimasta ferma per undici giorni. Alla chiusura c'era sempre un'altra
+sessione aperta, e ogni aggiornamento veniva rinviato. Un conflitto, invece, fermava tutti gli
+aggiornamenti dopo, finché non lanciavi `/aggiorna`.
+
+**Da sapere**: un conflitto su `settings.json` o su un `CLAUDE.md` resta da risolvere con te, con
+`/aggiorna`, perché quei file sono tuoi.
+
+---
+
 ## 2026-11-03 — Quando modifichi le istruzioni di Arturo, ti chiede conferma una volta sola
 
 **Cosa cambia**: quando Claude modifica un `CLAUDE.md`, ti compare una conferma sola. Prima la

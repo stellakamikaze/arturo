@@ -10,7 +10,8 @@ persona
   └─ Arturo          plugin: guardie (hook), skill e comandi, bin/, motore Melchior, mod,
   │                  output style, metodo iniettato all'avvio
   └─ Claude Code + modello
-aggiornamento: cambia solo Arturo. L'Orsa resta com'è.
+aggiornamento: cambia solo Arturo. L'Orsa resta com'è; in un conflitto riceve
+              la versione della persona, in personale/conflitti/<data>/.
 ```
 
 ## Glossario

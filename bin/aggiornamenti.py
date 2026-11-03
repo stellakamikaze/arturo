@@ -8,14 +8,15 @@ chi mantiene Arturo, verificati con la chiave che hai già installata (firme/ril
 
   stato        cosa sa adesso, senza rete: l'avvio della sessione lo stampa
   controlla    scarica i tag e aggiorna lo stato, al massimo una volta all'ora (la barra in basso)
-  applica      installa la versione nuova, se tutto torna (la chiusura della sessione)
+  applica      installa la versione nuova, se tutto torna (la chiusura della sessione); con --avvio
+               ammette una sessione aperta, quella che parte (l'avvio, dopo un rinvio)
   manuali      niente si installa da solo: resta l'avviso, e aggiorni tu con /aggiorna
   automatici   torna all'aggiornamento automatico (la scelta di partenza)
   firmato      l'ultimo rilascio, solo se la sua firma è valida: è l'unico che /aggiorna applica
 
 Non si installa niente da solo se: la firma manca o non è di Arturo; la storia pubblicata è stata
 riscritta; hai modifiche non salvate in ~/.claude; un'altra sessione di Claude Code è aperta (la
-installa l'ultima che chiude); l'aggiornamento va in conflitto con le tue modifiche. In tutti questi
+installa l'ultima che chiude, o l'avvio dopo se è l'unica sessione, dal 3/11/2026); l'aggiornamento va in conflitto con le tue modifiche. In tutti questi
 casi l'avviso resta, col motivo, e /aggiorna fa il resto con te. Una firma che manca o non torna non
 si scavalca neanche con /aggiorna: è il segno di un repository manomesso, e l'avviso dice di non
 aggiornare e di segnalarlo a chi mantiene Arturo (17/10/2026, #3504). Una firma che questo computer
@@ -223,6 +224,7 @@ def cmd_stato(r: Path) -> int:
             scrivi(file_esito(r), dict(esito, mostrato=True))
         except OSError:
             pass
+    righe.extend(conflitti_da_dire(r))
     stato = calcola(r)
     vecchio = leggi(file_stato(r))
     stato["controllato"] = vecchio.get("controllato", 0)  # calcola non scarica: l'ultimo controllo resta quello
@@ -230,10 +232,15 @@ def cmd_stato(r: Path) -> int:
         scrivi(file_stato(r), stato)
     except OSError:
         pass
-    if stato["stato"] == "pronto" and rinviato == stato["versione"]:
+    if stato["stato"] == "pronto" and rinviato == stato["versione"] and processi_claude() <= 1             and avvia_staccato(r, "applica", "--avvio"):
+        # Un rilascio rinviato si installa all'avvio dopo, se questa è l'unica sessione (3/11/2026): Alessio è
+        # restato al 23/10 perché alla chiusura c'era sempre un'altra sessione aperta, e l'attesa scadeva.
+        righe.append(f"ARTURO: installo ora la versione {rinviato}, rinviata alla chiusura scorsa perché c'era un'altra "
+                     "sessione aperta. Se un hook dà errore, riapri la sessione. Dillo alla persona in una frase.")
+    elif stato["stato"] == "pronto" and rinviato == stato["versione"]:
         righe.append(f"ARTURO: la versione {rinviato} non si è installata alla chiusura scorsa, perché un'altra "
-                     "sessione di Claude Code era ancora aperta. Si installa quando chiudi l'ultima, oppure subito con "
-                     "/aggiorna. Dillo alla persona in una frase.")
+                     "sessione di Claude Code era ancora aperta. Si installa quando chiudi l'ultima, all'avvio di una "
+                     "sessione sola, oppure subito con /aggiorna. Dillo alla persona in una frase.")
     elif stato["stato"] == "pronto":
         righe.append(f"ARTURO: c'è la versione {stato['versione']}: si installa da sola alla chiusura della sessione.")
     elif stato.get("compromesso"):
@@ -250,6 +257,63 @@ def cmd_stato(r: Path) -> int:
     if righe:
         print("\n".join(righe))
     return 0
+
+
+def conflitti_da_dire(r: Path) -> list:
+    """Le cartelle nuove di personale/conflitti (bin/aggiorna-applica.sh, 3/11/2026): una riga per l'avvio, una
+    volta sola per cartella. Il registro di quelle già dette sta in session-env/conflitti-detti.json."""
+    cartella = r / "personale" / "conflitti"
+    detti_f = r / "session-env" / "conflitti-detti.json"
+    detti = leggi(detti_f).get("detti", [])
+    nuove = sorted(d for d in (cartella.iterdir() if cartella.is_dir() else []) if d.is_dir() and d.name not in detti)
+    if not nuove:
+        return []
+    righe = []
+    for d in nuove:
+        try:
+            file = [x for x in (d / "FILE.txt").read_text(encoding="utf-8").splitlines() if x.strip()]
+        except OSError:
+            file = []
+        versione = ""
+        try:
+            versione = (d / "VERSIONE.txt").read_text(encoding="utf-8").strip()
+        except OSError:
+            pass
+        cosa = ", ".join(file[:5]) + (f" e altri {len(file) - 5}" if len(file) > 5 else "") if file else             "una copia di prova che aspettava (copia-in-attesa.patch)"
+        righe.append(f"ARTURO: nell'aggiornamento{' a ' + versione if versione else ''} le modifiche della persona a {cosa} "
+                     f"andavano in conflitto col rilascio: ora c'è la versione di Arturo, e le sue stanno in "
+                     f"personale/conflitti/{d.name} (differenze.patch dice cosa aveva cambiato). Diglielo in una frase e "
+                     "proponi di riportarle nell'Orsa: personale/<comando>.md, una skill sua, un'impostazione .local.")
+    try:
+        scrivi(detti_f, {"detti": detti + [d.name for d in nuove]})
+    except OSError:
+        pass
+    return righe
+
+
+def avvia_staccato(r: Path, *comando: str) -> bool:
+    """Lancia questo file con `comando` staccato dalla sessione, come fa hooks/session-end.sh: l'uscita va in
+    session-env/aggiornamento.log. ARTURO_BASH arriva da chi chiama (session-start.sh passa il suo $BASH): su
+    Windows `bash` del PATH può essere quello di WSL."""
+    if manuali(r):
+        return False
+    try:
+        (r / "session-env").mkdir(parents=True, exist_ok=True)
+        log = open(r / "session-env" / "aggiornamento.log", "ab")
+    except OSError:
+        return False
+    opzioni = {"stdin": subprocess.DEVNULL, "stdout": log, "stderr": log, "cwd": str(r)}
+    if os.name == "nt":
+        opzioni["creationflags"] = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+    else:
+        opzioni["start_new_session"] = True
+    try:
+        subprocess.Popen([sys.executable, os.path.realpath(__file__), *comando], **opzioni)
+        return True
+    except OSError:
+        return False
+    finally:
+        log.close()
 
 
 def cmd_firmato(r: Path) -> int:
@@ -292,7 +356,7 @@ def cmd_controlla(r: Path, forza: bool = False) -> int:
     return 0
 
 
-def cmd_applica(r: Path) -> int:
+def cmd_applica(r: Path, ammesse: int = 0) -> int:
     blocco = r / "session-env" / "aggiornamento.lock"
     try:
         blocco.parent.mkdir(parents=True, exist_ok=True)
@@ -305,12 +369,14 @@ def cmd_applica(r: Path) -> int:
     except OSError:
         return 1
     try:
-        return _applica(r)
+        return _applica(r, ammesse)
     finally:
         shutil.rmtree(str(blocco), ignore_errors=True)
 
 
-def _applica(r: Path) -> int:
+def _applica(r: Path, ammesse: int = 0) -> int:
+    """ammesse: le sessioni che possono restare aperte. 0 alla chiusura; 1 all'avvio (`applica --avvio`),
+    dove la sessione che parte è una."""
     if manuali(r) or not git(r, "remote").stdout.strip():
         return 0
     # Prima si guarda se c'è qualcosa da installare: aspettare le sessioni senza motivo terrebbe
@@ -323,7 +389,7 @@ def _applica(r: Path) -> int:
             _segnala_ostacolo(r, stato)
         return 0
     limite = time.time() + float(os.environ.get("ARTURO_ATTESA_MAX", ATTESA_MAX))
-    while processi_claude() > 0:
+    while processi_claude() > ammesse:
         if time.time() >= limite:
             _segnala_ostacolo(r, stato, "rinviato")
             # Un'altra sessione è aperta: la installa l'ultima che chiude. L'esito resta scritto, così
@@ -409,6 +475,8 @@ def main(argv: list) -> int:
             return cmd_controlla(r, forza=len(argv) == 2)
         if argv == ["applica"]:
             return cmd_applica(r)
+        if argv == ["applica", "--avvio"]:
+            return cmd_applica(r, ammesse=1)
         if argv == ["firmato"]:
             return cmd_firmato(r)
         if argv in (["manuali"], ["automatici"]):

@@ -15,8 +15,17 @@ AA08 l'avvio annuncia la funzione una volta sola, e dopo un'installazione dice l
 AA09 si installa il tag, non i commit di main arrivati dopo il tag.
 AA10 la chiusura vera della sessione (hooks/session-end.sh) lancia l'installazione.
 AA11 con un repository personale come origin, Arturo arriva da upstream con un merge.
+AA12 un rilascio rinviato si installa all'avvio dopo, se la sessione che parte è l'unica (3/11/2026).
+AA13 con un'altra sessione aperta l'avvio non installa il rinvio, e dice perché.
+AA14 un conflitto su un file di Arturo installa il rilascio: la versione della persona va in
+     personale/conflitti/<data>, con differenze.patch, e l'avvio lo dice una volta sola.
+AA15 un conflitto su settings.json resta alla persona: niente si installa, la copia di prova aspetta.
+AA16 una copia di prova in attesa da un aggiornamento si salva in copia-in-attesa.patch, e il rilascio
+     si installa.
+AA17 una copia di prova in attesa dal sync fra le macchine resta com'è: niente si installa.
 
-Sulla base 5d83592, prima della funzione, ogni controllo deve fallire col suo codice.
+Sulla base 5d83592, prima della funzione, ogni controllo deve fallire col suo codice. AA12-AA17 sono rossi
+anche sulla base 9ca11aa (dev del 3/11/2026), salvo le invarianti AA15 e AA17.
 """
 from __future__ import annotations
 
@@ -282,8 +291,130 @@ def test_aa11(repo: Path) -> None:
     con_lab(repo, "AA11", prova)
 
 
+def aspetta_head(lab: Lab, commit: str, secondi: int = 90) -> bool:
+    fine = time.time() + secondi
+    while time.time() < fine and lab.head() != commit:
+        time.sleep(1)
+    fine = time.time() + 30
+    while time.time() < fine and (lab.utente / "session-env" / "aggiornamento.lock").exists():
+        time.sleep(0.5)
+    return lab.head() == commit
+
+
+def gitdir(lab: Lab) -> Path:
+    return Path(lab.git(lab.utente, "rev-parse", "--absolute-git-dir"))
+
+
+def test_aa12(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        commit = lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        lab.arturo_cli("applica", ARTURO_ALTRE_SESSIONI="1")
+        assert lab.head() != commit, "AA12 la prova non parte: il rilascio si installa con un'altra sessione aperta"
+        uscita = lab.arturo_cli("stato", ARTURO_ALTRE_SESSIONI="1").stdout
+        assert "installo ora" in uscita, f"AA12 l'avvio con una sessione sola non installa il rinvio: {uscita!r}"
+        assert aspetta_head(lab, commit), f"AA12 il rinvio non si installa all'avvio: {lab.stato()}"
+    con_lab(repo, "AA12", prova)
+
+
+def test_aa13(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        prima = lab.head()
+        lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        lab.arturo_cli("applica", ARTURO_ALTRE_SESSIONI="1")
+        uscita = lab.arturo_cli("stato", ARTURO_ALTRE_SESSIONI="2").stdout
+        time.sleep(3)
+        assert lab.head() == prima, "AA13 con un'altra sessione aperta l'avvio installa lo stesso"
+        assert "non si è installata" in uscita and "all'avvio di una sessione sola" in uscita, \
+            f"AA13 l'avvio non dice perché il rinvio resta: {uscita!r}"
+    con_lab(repo, "AA13", prova)
+
+
+def guardia_della_persona(lab: Lab) -> str:
+    """Un file di Arturo installato, poi cambiato dalla persona con un commit suo."""
+    commit = lab.rilascia("hooks/guardia.py", "regola = 1\n", "v2026-02-01")
+    lab.arturo_cli("applica")
+    assert lab.head() == commit, "il primo rilascio non si installa"
+    (lab.utente / "hooks" / "guardia.py").write_text("regola = 'della persona'\n", encoding="utf-8")
+    lab.git(lab.utente, "commit", "-q", "-am", "la mia regola")
+    return lab.rilascia("hooks/guardia.py", "regola = 2\n", "v2026-02-02")
+
+
+def cartelle_orsa(lab: Lab) -> list:
+    c = lab.utente / "personale" / "conflitti"
+    return sorted(d for d in c.iterdir() if d.is_dir()) if c.is_dir() else []
+
+
+def test_aa14(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        commit = guardia_della_persona(lab)
+        r = lab.arturo_cli("applica")
+        dentro = subprocess.run(["git", "-C", str(lab.utente), "merge-base", "--is-ancestor", commit, "HEAD"],
+                                env=lab.env, capture_output=True).returncode == 0
+        assert dentro and read(lab.utente / "hooks" / "guardia.py") == "regola = 2\n", \
+            f"AA14 il conflitto ferma il rilascio: {r.stdout[-300:]!r} {lab.stato()}"
+        cartelle = cartelle_orsa(lab)
+        assert len(cartelle) == 1 and read(cartelle[0] / "hooks" / "guardia.py") == "regola = 'della persona'\n" \
+            and "della persona" in read(cartelle[0] / "differenze.patch"), \
+            f"AA14 la versione della persona non è in personale/conflitti: {cartelle}"
+        assert lab.git(lab.utente, "status", "--porcelain", "--untracked-files=no") == "", "AA14 restano modifiche"
+        assert not (gitdir(lab) / "arturo-aggiorna-copia").exists(), "AA14 resta una copia di prova in attesa"
+        primo = lab.arturo_cli("stato").stdout
+        secondo = lab.arturo_cli("stato").stdout
+        assert "personale/conflitti/" in primo and "hooks/guardia.py" in primo and "personale/conflitti/" not in secondo, \
+            f"AA14 l'avvio non lo dice una volta sola: {primo!r} {secondo!r}"
+    con_lab(repo, "AA14", prova)
+
+
+def test_aa15(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        (lab.utente / "settings.json").write_text(json.dumps({"env": {"A": "persona"}}, indent=2) + "\n", encoding="utf-8")
+        lab.git(lab.utente, "commit", "-q", "-am", "le mie impostazioni")
+        prima = lab.head()
+        lab.rilascia("settings.json", json.dumps({"env": {"A": "2"}}, indent=2) + "\n", "v2026-02-01")
+        lab.arturo_cli("applica")
+        assert lab.head() == prima and "persona" in read(lab.utente / "settings.json"), \
+            "AA15 un conflitto su settings.json si risolve senza la persona"
+        assert (gitdir(lab) / "arturo-aggiorna-copia").exists(), \
+            "AA15 la copia di prova col conflitto su settings.json non aspetta"
+    con_lab(repo, "AA15", prova)
+
+
+def copia_in_attesa(lab: Lab, modo: str) -> Path:
+    """Una copia di prova lasciata da una versione di prima, col lavoro a metà di chi la risolveva."""
+    copia = gitdir(lab) / "arturo-aggiorna" / "copia.vecchia" / "copia"
+    copia.parent.mkdir(parents=True)
+    lab.git(lab.utente, "worktree", "add", "-q", "--detach", str(copia), "HEAD")
+    (copia / "NOVITA.md").write_text("# Novita\nlavoro a metà\n", encoding="utf-8")
+    (gitdir(lab) / "arturo-aggiorna-copia").write_text(f"{copia} {lab.head()} {modo} 2026-02-01_10:00\n",
+                                                       encoding="utf-8")
+    return copia
+
+
+def test_aa16(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        copia_in_attesa(lab, "rebase")
+        commit = lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        r = lab.arturo_cli("applica")
+        assert lab.head() == commit, f"AA16 una copia in attesa ferma il rilascio: {r.stdout[-300:]!r} {lab.stato()}"
+        patch = [d / "copia-in-attesa.patch" for d in cartelle_orsa(lab) if (d / "copia-in-attesa.patch").exists()]
+        assert patch and "lavoro a metà" in read(patch[0]), f"AA16 il lavoro della copia in attesa non è salvato: {patch}"
+    con_lab(repo, "AA16", prova)
+
+
+def test_aa17(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        copia = copia_in_attesa(lab, "sync")
+        prima = lab.head()
+        lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        lab.arturo_cli("applica")
+        assert lab.head() == prima and copia.exists(), "AA17 una copia in attesa dal sync si toglie da sola"
+    con_lab(repo, "AA17", prova)
+
+
 TESTS = {"AA01": test_aa01, "AA02": test_aa02, "AA03": test_aa03, "AA04": test_aa04, "AA05": test_aa05,
-         "AA06": test_aa06, "AA07": test_aa07, "AA08": test_aa08, "AA09": test_aa09, "AA10": test_aa10, "AA11": test_aa11}
+         "AA06": test_aa06, "AA07": test_aa07, "AA08": test_aa08, "AA09": test_aa09, "AA10": test_aa10, "AA11": test_aa11,
+         "AA12": test_aa12, "AA13": test_aa13, "AA14": test_aa14, "AA15": test_aa15, "AA16": test_aa16,
+         "AA17": test_aa17}
 
 
 def main() -> int:

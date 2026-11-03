@@ -22,6 +22,10 @@
 #   aggiorna-applica.sh <radice> indietro       /aggiorna indietro: annulla l'ultimo aggiornamento registrato,
 #                                               coi commit successivi della persona rifatti nella copia di prova
 #
+# Un conflitto di un aggiornamento di Arturo si risolve da solo (3/11/2026): vince il file del rilascio, e la
+# versione della persona va in personale/conflitti/<data>/ (risolvi_nella_orsa). Restano da risolvere con
+# la persona settings.json, i CLAUDE.md e i conflitti del sync.
+#
 # Righe d'esito, la prima parola è quella che conta:
 #   APPLICATO                   l'aggiornamento è in ~/.claude e la config è integra
 #   GIÀ AGGIORNATO              niente da applicare
@@ -117,10 +121,19 @@ pulita() {  # ~/.claude senza modifiche non salvate
 # versione in arrivo: in ~/.claude i file personali arrivano solo con un risultato integro (porta_dentro).
 # Con un repository suo come origin, personale/ viaggia fra le sue macchine solo se quel repository è
 # privato (/fine): se non lo è, o non si sa, non si sposta niente e resta il conflitto di sempre.
+# ORSA_VIAGGIA: 0 se personale/ non viaggia fra le macchine della persona (il sync, o un suo repository non
+# privato come origin). Allora l'Orsa non riceve niente, e un conflitto resta suo (3/11/2026).
+ORSA_VIAGGIA=1
+VISIBILITA=""
+if [ "$MODO" = sync ]; then
+  ORSA_VIAGGIA=0
+elif [ "$MODO" = merge ]; then
+  VISIBILITA=$(gh repo view "$(git remote get-url origin 2>/dev/null)" --json visibility -q .visibility 2>/dev/null)
+  [ "$VISIBILITA" = PRIVATE ] || ORSA_VIAGGIA=0
+fi
 separa_nella_copia() {
   if [ "$MODO" = merge ]; then
-    local vis
-    vis=$(gh repo view "$(git remote get-url origin 2>/dev/null)" --json visibility -q .visibility 2>/dev/null)
+    local vis=$VISIBILITA
     if [ "$vis" != PRIVATE ]; then
       echo "  NON SEPARATO: il tuo repository della config non risulta privato (${vis:-visibilità sconosciuta}), e personale/ non viaggerebbe fra le tue macchine. Le tue modifiche ai comandi restano dove sono."
       return 0
@@ -149,6 +162,76 @@ riporta_personale() {  # i file personali della copia di prova, solo dopo un'app
   copia_personale "$COPIA" "$RADICE"
 }
 
+# I conflitti vanno nell'Orsa (3/11/2026). In un aggiornamento di Arturo, un file che va in conflitto prende
+# la versione del rilascio, e la versione della persona finisce in personale/conflitti/<data>/, fuori da git,
+# con differenze.patch: le sue modifiche rispetto al punto in cui si era staccata da Arturo. Prima un
+# conflitto lasciava la copia di prova in attesa, e ogni aggiornamento dopo si fermava lì finché la persona
+# non lanciava /aggiorna. Restano conflitti veri, da risolvere con la persona: settings.json (dopo
+# unisci-settings.py) e i CLAUDE.md, che sono suoi, e ogni conflitto del sync fra le sue macchine.
+CONFLITTI_ORSA=""
+salva_della_persona() {  # $1 = il file in conflitto. Copia la versione della persona (quella di $PRIMA)
+  local f=$1 dest="$LAVORO/conflitti/$1" base
+  grep -qxF -- "$f" "$LAVORO/conflitti/FILE.txt" 2>/dev/null && return 0
+  mkdir -p "$LAVORO/conflitti" && printf '%s\n' "$f" >> "$LAVORO/conflitti/FILE.txt" || return 1
+  if git cat-file -e "$PRIMA:$f" 2>/dev/null; then
+    mkdir -p "$(dirname "$dest")" && git show "$PRIMA:$f" > "$dest" || return 1
+  fi
+  base=$(git merge-base "$PRIMA" "$REF" 2>/dev/null)
+  [ -n "$base" ] && git diff "$base" "$PRIMA" -- "$f" >> "$LAVORO/conflitti/differenze.patch" 2>/dev/null
+  return 0
+}
+
+da_risolvere_a_mano() {  # $1 = l'elenco dei file in conflitto: c'è un file che resta alla persona?
+  local f
+  while IFS= read -r f; do
+    case "$f" in settings.json|CLAUDE.md|CLAUDE.local.md|*/CLAUDE.md) return 0 ;; esac
+  done <<< "$1"
+  return 1
+}
+
+in_corso() {  # un rebase o un merge fermo nella copia di prova
+  [ -d "$(git -C "$COPIA" rev-parse --git-path rebase-merge)" ] || [ -d "$(git -C "$COPIA" rev-parse --git-path rebase-apply)" ] \
+    || git -C "$COPIA" rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1
+}
+
+risolvi_nella_orsa() {  # esce 0 se nella copia non resta nessun conflitto e merge o rebase sono conclusi
+  [ "$ORSA_VIAGGIA" = 0 ] && return 1
+  local giri=0 f lista
+  while :; do
+    lista=$(git -C "$COPIA" diff --name-only --diff-filter=U)
+    if [ -z "$lista" ]; then
+      in_corso || return 0
+      # Un commit della persona rimasto vuoto dopo la risoluzione: il rebase lo salta.
+      git -C "$COPIA" rebase --skip >/dev/null 2>&1 || return 1
+      continue
+    fi
+    giri=$((giri + 1)); [ "$giri" -le 50 ] || return 1
+    da_risolvere_a_mano "$lista" && return 1
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      salva_della_persona "$f" || return 1
+      # Un file che la persona ha cancellato resta cancellato, anche se il rilascio lo cambia: è una sua
+      # scelta, come un comando che non usa. Se serviva alla config, controlla la ferma più sotto.
+      if git cat-file -e "$REF:$f" 2>/dev/null && git cat-file -e "$PRIMA:$f" 2>/dev/null; then
+        git -C "$COPIA" checkout "$REF" -- "$f" >/dev/null 2>&1 || return 1
+      else
+        git -C "$COPIA" rm -q --force -- "$f" >/dev/null 2>&1 || return 1
+      fi
+    done <<< "$lista"
+    if [ "$MODO" = merge ]; then
+      git -C "$COPIA" commit -q --no-edit >/dev/null 2>&1 || return 1
+    else
+      git -C "$COPIA" rebase --continue >/dev/null 2>&1 || in_corso || return 1
+    fi
+  done
+}
+
+porta_nella_orsa() {  # dopo un'applicazione riuscita: i file della persona in ~/.claude/personale/conflitti
+  [ -n "$CONFLITTI_ORSA" ] && [ -d "${LAVORO:-}/conflitti" ] || return 0
+  local dest="$RADICE/personale/conflitti/$(date +%Y-%m-%d_%H-%M)"
+  mkdir -p "$dest" && cp -R "$LAVORO/conflitti/." "$dest/" && printf '%s\n' "$REF" > "$dest/VERSIONE.txt"
+}
+
 porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando è nata, $3 = il modo
   local nuovo=$1 prima=$2 modo=$3
   if [ "$(git rev-parse HEAD)" != "$prima" ]; then
@@ -173,6 +256,12 @@ porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando è
     fi
     segna_esito applicato "$modo"
     riporta_personale || echo "ATTENZIONE: non riesco a copiare personale/ dalla copia di prova ($COPIA): copiali a mano prima di scartarla."
+    if [ -n "$CONFLITTI_ORSA" ]; then
+      porta_nella_orsa || echo "ATTENZIONE: non riesco a copiare le tue versioni dei file in conflitto in personale/conflitti: sono in $LAVORO/conflitti."
+      segna_conflitti "$modo" "$CONFLITTI_ORSA"
+      echo "Le tue versioni di questi file, andati in conflitto, sono in personale/conflitti:"
+      printf '%s\n' "$CONFLITTI_ORSA" | sed 's/^/  /'
+    fi
     echo "APPLICATO: config integra"
     return 0
   fi
@@ -284,6 +373,20 @@ if [ -f "$STATO" ] && read -r VECCHIA _ VECCHIO_MODO NATA _ < "$STATO"; then
   if [ ! -d "$VECCHIA" ]; then
     togli_copia "$VECCHIA"; rm -f "$STATO"
     echo "Una copia di prova in attesa non c'era più: tolta dal registro."
+  elif [ "$VECCHIO_MODO" != sync ] && [ "$ORSA_VIAGGIA" = 1 ] \
+      && ! da_risolvere_a_mano "$(git -C "$VECCHIA" diff --name-only --diff-filter=U 2>/dev/null)"; then
+    # Una copia in attesa da un aggiornamento di Arturo fermava ogni aggiornamento dopo (3/11/2026). Il suo
+    # stato, col lavoro di chi la stava risolvendo, va in una patch nell'Orsa; poi la copia si toglie e
+    # l'aggiornamento riparte, con i conflitti risolti come sopra.
+    SALVA="$RADICE/personale/conflitti/$(date +%Y-%m-%d_%H-%M)"
+    if mkdir -p "$SALVA" && { git -C "$VECCHIA" status --short; echo; git -C "$VECCHIA" diff HEAD; } > "$SALVA/copia-in-attesa.patch" 2>/dev/null \
+        && [ -s "$SALVA/copia-in-attesa.patch" ]; then
+      togli_copia "$VECCHIA"; rm -f "$STATO"
+      echo "Una copia di prova con un conflitto aspettava${NATA:+ dal ${NATA/_/ alle }}: il suo stato è in $SALVA/copia-in-attesa.patch, e l'aggiornamento riparte."
+    else
+      echo "APPLICAZIONE NON PARTITA: una copia di prova con un conflitto aspetta, e non riesco a salvarla in personale/conflitti: $VECCHIA. ~/.claude non è stata toccata."
+      exit 1
+    fi
   else
     case "$VECCHIO_MODO" in sync) DA="dal sync fra le tue macchine" ;; *) DA="da un aggiornamento di Arturo" ;; esac
     echo "APPLICAZIONE NON PARTITA: una copia di prova con un conflitto aspetta${NATA:+ dal ${NATA/_/ alle }}, $DA: $VECCHIA"
@@ -327,6 +430,15 @@ fi
 rc=$?
 # Un comando che esce con 0 può lasciare file in conflitto: conta lo stato, non il codice d'uscita.
 CONFLITTI=$(git -C "$COPIA" diff --name-only --diff-filter=U)
+if [ -n "$CONFLITTI" ] && risolvi_nella_orsa; then
+  CONFLITTI_ORSA=$(cat "$LAVORO/conflitti/FILE.txt" 2>/dev/null)
+  CONFLITTI=""; rc=0
+elif [ -n "$CONFLITTI" ]; then
+  # Resta un conflitto che non si risolve da solo (settings.json, un CLAUDE.md): la copia aspetta /aggiorna,
+  # con i file già risolti col rilascio e le versioni della persona in $LAVORO/conflitti.
+  CONFLITTI=$(git -C "$COPIA" diff --name-only --diff-filter=U)
+  [ -n "$CONFLITTI" ] || CONFLITTI=$(cat "$LAVORO/conflitti/FILE.txt" 2>/dev/null)
+fi
 if [ $rc != 0 ] || [ -n "$CONFLITTI" ]; then
   if [ -n "$CONFLITTI" ]; then
     printf '%s %s %s %s\n' "$COPIA" "$PRIMA" "$MODO" "$(date +%Y-%m-%d_%H:%M)" > "$STATO"
