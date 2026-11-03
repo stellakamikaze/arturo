@@ -45,7 +45,7 @@ export const REGOLE = {
 export const COMANDI = ["aggiorna", "creaskill", "diagnosi", "fine", "guidami", "inizio", "novita", "proponi", "segnala", "setup", "sparring"];
 // SKILL: le cartelle di skills/, lo stesso elenco di SKILL in bin/telemetria.py (banco TS01, 3/11/2026). Come per i
 // comandi, una skill della persona arriva come "altro".
-export const SKILL = ["arturo", "concetti", "italiano-semplificato", "prompt-master", "system-audit", "todo"];
+export const SKILL = ["arturo", "concetti", "italiano-semplificato", "monitor", "prompt-master", "system-audit", "todo"];
 // Le skill uscite (3/11/2026: i mod gws e riscrivi-bash, diventati hook; poi i sei mod diventati parti di skills/arturo):
 // un client fino alla 0.2.x le manda ancora.
 // Restano accettate perché un nome fuori elenco fa rifiutare il lotto intero; da togliere con l'evento tappa (#3435).
@@ -60,7 +60,7 @@ export const SKILL_USCITE = ["apri", "cache-fredda", "dafare", "gws", "redazione
 // Il banco TF05 (tests/test_telemetria_f1_2026_10_24.py) confronta questi elenchi col repository.
 export const DERIVA_NOMI = {
   radice: [".gitattributes", ".gitignore", "LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "ROADMAP.md", "SECURITY.md", "package.json", "settings.json"],
-  skills: ["arturo", "concetti", "italiano-semplificato", "prompt-master", "system-audit", "todo"],
+  skills: ["arturo", "concetti", "italiano-semplificato", "monitor", "prompt-master", "system-audit", "todo"],
   agents: ["architecture-reviewer.md", "bug-finder.md", "fact-checker.md", "performance-profiler.md", "researcher.md",
     "structural-completeness-reviewer.md", "test-runner.md", "ui-ux-consultant.md"],
   commands: COMANDI.map((c) => `${c}.md`),
