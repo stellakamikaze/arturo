@@ -21,6 +21,14 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ] && [ -n "$ARTURO_CODICE" ] && ! grep -qs 'artur
   printf 'export ARTURO_CODICE="%s"; export PATH="%s/bin:$PATH"  # arturo-bin-nel-path\n' \
     "$ARTURO_CODICE" "$ARTURO_CODICE" >> "$CLAUDE_ENV_FILE" 2>/dev/null || true
 fi
+# Col plugin il codice sta in una cartella che cambia a ogni versione. La barra in basso la legge da
+# ~/.claude/arturo/radice, e il modello la riceve qui: Read non espande $ARTURO_CODICE (docs/strati.md).
+if [ "$(cd "$ARTURO_CODICE" 2>/dev/null && pwd -P)" != "$(cd "$HOME/.claude" 2>/dev/null && pwd -P)" ]; then
+  mkdir -p "$HOME/.claude/arturo" 2>/dev/null \
+    && { [ "$(cat "$HOME/.claude/arturo/radice" 2>/dev/null)" = "$ARTURO_CODICE" ] \
+         || printf '%s' "$ARTURO_CODICE" > "$HOME/.claude/arturo/radice" 2>/dev/null; } || true
+  echo "ARTURO: il codice di Arturo sta in $ARTURO_CODICE (\$ARTURO_CODICE nel Bash). Un percorso \$ARTURO_CODICE/... in un testo di Arturo si legge da lì."
+fi
 
 # Info directory di lavoro e macchina: con piu' computer, Claude sa su quale lavora.
 echo "DIRECTORY: $PROJECT_ROOT"

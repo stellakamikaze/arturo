@@ -159,6 +159,7 @@ BANCHI=(
   test_fine_coda_2026_10_30.py
   test_fonte_task_2026_10_30.py
   test_strati_2026_11_02.py
+  test_impacchetta_2026_11_03.py
   test_lavoro_proprio_2026_10_31.py
   test_gate_lucchetto_2026_10_31.py
   test_revisione_2026_11_01.py
@@ -333,6 +334,8 @@ BASELINE=(
   "test_fonte_task_2026_10_30.py ba61272 radice"
   # Strati F1 (2/11/2026): guardie, avvio e telemetria trovano il codice fuori da ~/.claude. 94db031, il dev prima.
   "test_strati_2026_11_02.py 94db031 radice"
+  # Strati F2 (3/11/2026): il plugin generato dal repository. c247fed, il dev prima del generatore.
+  "test_impacchetta_2026_11_03.py c247fed"
   # Un solo gate completo per macchina (31/10/2026, #4360): 5122a03, il dev prima del lucchetto.
   "test_gate_lucchetto_2026_10_31.py 5122a03 radice"
   # /monitor in Arturo, Fase 1 (2/11/2026): i ponti della persona. 2fe4037, il dev prima di bin/monitor.
@@ -369,6 +372,7 @@ python3 -B "$REPO/tests/test_revisione_2026_11_01.py" --repo "$REPO" --avvelena
 # Il controllo dei token gws all'avvio (1/11/2026): un timeout che vale "ok" o un refresh lanciato male
 # devono far rossi GT01 e GT05.
 python3 -B "$REPO/tests/test_gws_token_health.py" --repo "$REPO" --avvelena
+python3 -B "$REPO/tests/test_impacchetta_2026_11_03.py" --repo "$REPO" --avvelena
 
 # Il server della telemetria (server/logica.js) con un archivio e una posta finti.
 node "$REPO/server/test.mjs"
