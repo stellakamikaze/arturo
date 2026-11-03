@@ -12,6 +12,19 @@ modo di lavorare.
 
 ---
 
+## 2026-11-03 — `/inizio` con una frase non ti chiede di ripeterlo
+
+**Cosa cambia**: se scrivi `/inizio` seguito da una frase che è tutta compito, Arturo sceglie il
+progetto e non aggiunge più "Se è un altro progetto, ripeti /inizio col nome giusto". L'invito resta
+quando Arturo ha interpretato un nome scritto in modo diverso.
+
+**Perché**: l'invito a ripetere serve quando un nome è stato letto male, non quando hai descritto il
+lavoro da fare.
+
+**A chi serve**: a chi apre le sessioni scrivendo il compito al posto del nome del progetto.
+
+---
+
 ## 2026-11-03 — Un mod solo, con sei parti
 
 **Cosa cambia**: i sei mod di Arturo diventano uno, `skills/arturo`, che Claude Code carica come
