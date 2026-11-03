@@ -598,7 +598,8 @@ def _is_protected_tree(p):
 
 
 def _under_claude_config(p):
-    """True se il path reale cade su ~/.claude/settings*, ~/.claude/hooks/** o .claude.json, oppure
+    """True se il path reale cade su ~/.claude/settings*, ~/.claude/hooks/**, plugins/cache/**,
+    plugins/marketplaces/** o .claude.json, oppure
     sull'aggiornamento automatico: la chiave dei rilasci (firme/**) e i due script che la verificano e
     installano. Chi li cambia fa installare da solo codice non firmato (16/10/2026, #3482). Solo qui,
     sul percorso risolto: la regex testuale li vedrebbe anche come sorgente di un cp (/inizio, /aggiorna)."""
@@ -606,7 +607,9 @@ def _under_claude_config(p):
         return False
     h = _home()
     radice = os.path.normpath(os.path.join(h, ".claude"))
-    for cartella in ("hooks", "firme"):
+    # La cache e i marketplace dei plugin installati: col plugin di Arturo il codice delle guardie
+    # sta lì, non in ~/.claude/hooks (docs/strati.md, 3/11/2026).
+    for cartella in ("hooks", "firme", os.path.join("plugins", "cache"), os.path.join("plugins", "marketplaces")):
         tutta = os.path.join(radice, cartella)
         if p == tutta or p.startswith(tutta + os.sep):
             return True

@@ -16,7 +16,8 @@ Tre categorie, ognuna con un unlock per-sessione distinto, più il resto di ~/.c
 
   Config e hook di Claude Code:
     ~/.claude/settings.json, settings.local.json, .claude.json
-    ~/.claude/hooks/**
+    ~/.claude/hooks/**, ~/.claude/plugins/cache/** e plugins/marketplaces/** (il codice dei plugin
+    installati, col plugin anche le guardie di Arturo)
     ~/.claude/firme/**, bin/aggiornamenti.py, bin/aggiorna-applica.sh (l'aggiornamento automatico:
     chi li cambia fa installare da solo codice non firmato)
     -> unlock: touch ~/.claude/config-unlock-{session_id}
@@ -258,6 +259,7 @@ def main():
             or rp.endswith(os.sep + 'hooks')
             or relativo == 'firme' or relativo.startswith('firme/')
             or relativo in ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh')
+            or relativo.startswith(('plugins/cache/', 'plugins/marketplaces/'))
         )
         if is_config:
             # Un settings*.json che diventerebbe JSON non valido si ferma anche con l'unlock: un
@@ -273,7 +275,10 @@ def main():
             if unlocked('config-unlock'):
                 _emit("allow", "config/hook Claude Code sbloccati da conferma utente")
                 sys.exit(0)
+            # Il codice dei plugin installati (col plugin, anche le guardie di Arturo): il .local
+            # della persona non lo apre, come firme/ (docs/strati.md, 3/11/2026).
             intoccabile = (relativo == 'firme' or relativo.startswith('firme/')
+                           or relativo.startswith(('plugins/cache/', 'plugins/marketplaces/'))
                            or relativo in ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh')
                            or (relativo.startswith('hooks/') and relativo.endswith('.local')))
             if not intoccabile:

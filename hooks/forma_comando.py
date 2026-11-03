@@ -538,6 +538,9 @@ def e_config(path: str) -> bool:
         return False
     if parti[0] in CONFIG_DIR:
         return True
+    # Il codice dei plugin installati: col plugin di Arturo le guardie stanno lì (3/11/2026).
+    if len(parti) > 2 and parti[0] == "plugins" and parti[1] in ("cache", "marketplaces"):
+        return True
     return len(parti) == 1 and (parti[0] in CONFIG_FILE or bool(_SETTINGS.match(parti[0])))
 
 

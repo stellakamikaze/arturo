@@ -10,9 +10,12 @@ ST02 col codice fuori da ~/.claude e un'Orsa vuota, il dispatcher blocca `rm -rf
 ST03 col codice fuori, la lettura delle credenziali chiede conferma come nel clone;
 ST04 l'avvio scrive in $CLAUDE_ENV_FILE ARTURO_CODICE e il PATH della cartella del codice;
 ST05 dispatcher, inject-now, session-start e telemetria-esito non chiamano codice in
-     $HOME/.claude/hooks|bin: restano solo il file .local e le guardie della persona.
+     $HOME/.claude/hooks|bin: restano solo il file .local e le guardie della persona;
+ST06 Write su un file della cache di un plugin installato (~/.claude/plugins/cache/...) è negato
+     da protect_claude_md: col plugin lì stanno le guardie e l'aggiornamento di Arturo;
+ST07 una scrittura via shell nella cache dei plugin chiede conferma, come su ~/.claude/hooks.
 
-Invariante (verde anche sulla base): ST01. Sulla base 94db031 sono rossi ST02, ST03, ST04, ST05.
+Invariante (verde anche sulla base): ST01. Sulla base 94db031 sono rossi ST02-ST07.
 """
 from __future__ import annotations
 
@@ -28,8 +31,8 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-CASI = ["ST01", "ST02", "ST03", "ST04", "ST05"]
-DISCRIMINANTI = ["ST02", "ST03", "ST04", "ST05"]
+CASI = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07"]
+DISCRIMINANTI = ["ST02", "ST03", "ST04", "ST05", "ST06", "ST07"]
 BASH = shutil.which("bash") or "bash"
 CODICE = ["hooks/bash-dispatcher.sh", "hooks/inject-now.sh", "hooks/session-start.sh", "bin/telemetria-esito.sh"]
 # Ammessi: il file delle preferenze della persona e la cartella delle sue guardie.
@@ -105,6 +108,20 @@ def prova(repo: Path, ref: str | None) -> list[str]:
                     fissi.append(f"{rel}:{n}")
         if fissi:
             rossi.append(f"ST05 codice cercato in $HOME/.claude: {', '.join(fissi[:6])}")
+
+        cache = orsa_home / ".claude" / "plugins" / "cache" / "arturo" / "arturo" / "1.0" / "bin"
+        cache.mkdir(parents=True)
+        bersaglio = cache / "aggiornamenti.py"
+        bersaglio.write_text("# firmato\n", encoding="utf-8")
+        dati = {"tool_name": "Write", "session_id": "st", "cwd": str(orsa_home),
+                "tool_input": {"file_path": str(bersaglio), "content": "print('altro')\n"}}
+        esito = subprocess.run([sys.executable, str(plugin / "hooks" / "protect_claude_md.py")],
+                               input=json.dumps(dati), capture_output=True, text=True, encoding="utf-8",
+                               errors="replace", env=ambiente(orsa_home), timeout=60)
+        if '"permissionDecision": "deny"' not in esito.stdout:
+            rossi.append(f"ST06 Write nella cache del plugin non è negato: {esito.stdout[-160:]!r}")
+        if not chiede(dispatcher(plugin, orsa_home, f"echo x > {bersaglio}")):
+            rossi.append("ST07 la scrittura via shell nella cache del plugin non chiede conferma")
     return rossi
 
 
