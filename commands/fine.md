@@ -130,7 +130,15 @@ python3 ~/.claude/bin/arturo todo fatto ID
 python3 ~/.claude/bin/arturo todo ferma ID "motivo"
 python3 ~/.claude/bin/arturo todo nota ID "testo"
 python3 ~/.claude/bin/arturo todo modifica ID --chi tu
+python3 ~/.claude/bin/arturo todo aggiungi "passo che viene dopo" --dopo ID   # la catena: aspetta il todo ID
+python3 ~/.claude/bin/arturo todo stato "a che punto è il progetto, in una frase"
 ```
+
+- Un item che può partire solo dopo un altro nasce legato con `--dopo ID`: `/inizio` e le viste lo
+  saltano finché ID è aperto, e mettono avanti chi lo sblocca.
+- La riga di stato si scrive a ogni `/fine`: una frase sul punto in cui è il progetto, letta da chi non c'era
+  ("La bozza è finita, manca la rilettura del capitolo 3"). `/inizio` la mostra prima dei todo, la pagina
+  web sotto il nome del progetto. Se la fonte dei task è esterna e risponde 2, salta la riga e prosegui.
 
 - Nell'archivio Chi vale `tu`, `decidi` o `io`: `Claude` è `io`, `Decidi tu` è `decidi`, `Tu: …` è `tu`.
   Un todo bloccato va in FERMO con `ferma`, non con `--chi`. Mai da tu a io o decidi senza un sì.

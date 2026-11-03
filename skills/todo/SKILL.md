@@ -45,7 +45,7 @@ la parola d'ordine, la mando io perché è una password", allora `--perche "è u
 | `--quando` | `oggi` · `settimana` · `più avanti` | `settimana` se non emerge altro |
 
 Un todo bloccato da qualcosa di esterno va in FERMO con `ferma ID "motivo"`. Non si segna con
-`--chi`. Un todo che aspetta un altro todo si collega con `dopo ID ALTRO`. Un todo su cui stai
+`--chi`. Un todo che aspetta un altro todo si collega con `dopo ID ALTRO`, oppure nasce già legato con `aggiungi "titolo" --dopo ALTRO`. Un todo su cui stai
 lavorando adesso va "in corso" con `inizia ID`.
 
 ## I comandi
@@ -70,6 +70,7 @@ sessione aperta prima dell'aggiornamento.
 | `ripristina ID STATO [motivo]` | rimette stato e motivo esatti di prima, con il segno di annullo |
 | `nota ID "testo"` | aggiunge una nota |
 | `dopo ID ALTRO [--togli]` | ID aspetta che ALTRO sia chiuso |
+| `stato ["riga"]` | a che punto è il progetto della cartella: senza riga la legge, con la riga la scrive |
 | `su ID` · `giu ID` | lo avvicina o lo allontana: più avanti, settimana, oggi |
 
 Le letture accettano `--json`: è il formato che leggono il pannello e la pagina web, e quello

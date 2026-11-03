@@ -27,6 +27,13 @@ Riceve gli argomenti di `arturo todo` e risponde come lui. Quelli che `/inizio`,
 | `fatto <numero>` | chiude un todo | una riga di conferma |
 | `ferma <numero> "<motivo>"`, `nota <numero> "<testo>"`, `modifica <numero> …` | cambia un todo | una riga di conferma |
 
+Due verbi sono facoltativi: se il tuo programma non li conosce, esce con 2 e Arturo prosegue senza.
+
+| Argomenti | Cosa fa | Uscita |
+|---|---|---|
+| `aggiungi "<titolo>" … --dopo N[,M]` | il todo nuovo aspetta i todo N e M | `#<numero>` del todo |
+| `stato [--progetto <slug>] ["<riga>"]` | senza riga legge, con la riga scrive a che punto è il progetto | la riga |
+
 `--titolo-atteso=<testo>` su un verbo che scrive vuol dire: il todo `<numero>` deve avere ancora quel
 titolo, altrimenti fermati con exit 2 e dillo.
 

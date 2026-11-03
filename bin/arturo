@@ -34,7 +34,7 @@ VERBI = (
     ("progetti", "quanti todo ha ogni progetto"),
     ("progetto", "il progetto della cartella in cui sei: quello che usa aggiungi"),
     ("mostra ID", "un todo con note e storia"),
-    ('aggiungi "titolo"', "un todo nuovo"),
+    ('aggiungi "titolo" [--dopo N]', "un todo nuovo; con --dopo aspetta il todo N (anche N,M)"),
     ("modifica ID", "cambia uno o più campi"),
     ("inizia ID", "lo segna in corso"),
     ("fatto ID", "lo chiude"),
@@ -44,6 +44,7 @@ VERBI = (
     ('deciso ID "testo"', "registra la tua scelta: il todo passa a Claude"),
     ('nota ID "testo"', "aggiunge una nota"),
     ("dopo ID ALTRO [--togli]", "ID aspetta che ALTRO sia chiuso"),
+    ('stato ["riga"]', "a che punto è il progetto: senza riga la legge, con la riga la scrive"),
     ("su ID / giu ID", "lo avvicina o lo allontana: più avanti, settimana, oggi"),
     ("ripristina ID STATO [motivo]", "rimette stato e motivo di prima (annulla un passo)"),
 )
@@ -196,6 +197,7 @@ def parser() -> argparse.ArgumentParser:
         if nome == "aggiungi":
             c.add_argument("titolo")
             c.add_argument("--note")
+            c.add_argument("--dopo", default="")
         else:
             c.add_argument("id")
             c.add_argument("--titolo")
@@ -227,6 +229,10 @@ def parser() -> argparse.ArgumentParser:
     c.add_argument("id")
     c.add_argument("altro")
     c.add_argument("--togli", action="store_true")
+    c = comando("stato")
+    c.add_argument("riga", nargs="?", default=None)
+    c.add_argument("--progetto")
+    c.add_argument("--json", action="store_true")
     for nome in ("aiuto", "help", "progetto"):
         comando(nome)
     for nome, c in sub.choices.items():
@@ -377,7 +383,8 @@ def todo(argv: list) -> int:
     if cmd == "progetti":
         conti = ts.progetti(todo_map)
         if args.json:
-            print(json.dumps({"versione": ts.VERSIONE_VISTA, "progetti": conti, "avvisi": avvisi}, ensure_ascii=False, indent=2))
+            print(json.dumps({"versione": ts.VERSIONE_VISTA, "progetti": conti, "stati": ts.stati(), "avvisi": avvisi},
+                             ensure_ascii=False, indent=2))
             return 0
         avvisa(avvisi)
         if not conti:
@@ -418,7 +425,7 @@ def todo(argv: list) -> int:
     if cmd == "aggiungi":
         campi = campi_da(args)
         campi.setdefault("progetto", progetto_corrente())
-        t = ts.aggiungi(campi)
+        t = ts.aggiungi(campi, dopo=[n for n in re.split(r"[,\s]+", args.dopo) if n])
         if args.note:
             t = ts.registra(t["id"], "nota", {"testo": args.note})
         print(json.dumps(ts.esporta(t, ts.carica()[0]), ensure_ascii=False) if args.json
@@ -457,6 +464,21 @@ def todo(argv: list) -> int:
     if cmd == "dopo":
         t = ts.registra(args.id, "dopo", {"id": args.altro, "togli": args.togli}, atteso=atteso)
         print(f"#{t['id']} " + ("non aspetta più" if args.togli else "aspetta") + f" #{args.altro.lstrip('#')}")
+        return 0
+
+    if cmd == "stato":
+        nome = args.progetto or progetto_corrente()
+        if args.riga is None:
+            letto = ts.stati().get(nome)
+            if args.json:
+                print(json.dumps({"progetto": nome, **(letto or {"riga": None, "ts": None})}, ensure_ascii=False))
+            else:
+                print(f"{nome}: {letto['riga']} ({locale(letto['ts'])})" if letto
+                      else f"{nome}: nessuna riga di stato. Scrivila con: arturo todo stato \"a che punto è\"")
+            return 0
+        letto = ts.scrivi_stato(nome, args.riga)
+        print(json.dumps({"progetto": nome, **letto}, ensure_ascii=False) if args.json
+              else f"Stato di {nome}: {letto['riga']}")
         return 0
 
     if cmd in ("su", "giu"):

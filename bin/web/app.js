@@ -156,7 +156,9 @@
     return { vista: dati.vista, progetti: dati.progetti, da_dove: dati.da_dove || null,
       partenza: dati.partenza || (stato.dati ? stato.dati.partenza : "generale"),
       // Facoltativi, da un server che li conosce: categorie del registro e nomi completi.
-      categorie: dati.categorie || null, nomi: dati.nomi || null };
+      categorie: dati.categorie || null, nomi: dati.nomi || null,
+      // La riga di stato di ogni progetto (arturo todo stato): {progetto: {riga, ts}}.
+      stati: dati.stati || null };
   }
 
   function ricevi(dati, forza) {
@@ -511,6 +513,9 @@
       if (io) { frasi.push(["io", io === 1 ? "Claude ne ha in mano una." : "Claude ne ha in mano " + io + "."]); }
       if (scaduti) { frasi.push([null, scaduti === 1 ? "Una è scaduta." : scaduti + " sono scadute."]); }
     }
+    // Nella pagina di un progetto, prima di tutto la riga di stato scritta a fine sessione.
+    var riga = dove ? statoDi(dove) : null;
+    if (riga) { nodo.appendChild(el("span", { classe: "frase frase--stato" }, [riga.riga + " (" + momento(riga.ts) + ")"])); }
     frasi.forEach(function (f) {
       nodo.appendChild(el("span", { classe: "frase" }, [f[0] ? segnoSolo(f[0]) : null, f[1]]));
     });
@@ -660,8 +665,15 @@
     return fuori;
   }
 
+  // La riga di stato del progetto (arturo todo stato), o null.
+  function statoDi(nome) {
+    var tutti = stato.dati && stato.dati.stati;
+    return tutti && tutti[nome] ? tutti[nome] : null;
+  }
+
   function foglio(nome) {
     var c = stato.dati.progetti[nome];
+    var riga = statoDi(nome);
     var suoi = aperti().filter(function (t) { return t.progetto === nome; });
     suoi.sort(function (a, b) { return ORDINE_GRUPPI.indexOf(a.gruppo) - ORDINE_GRUPPI.indexOf(b.gruppo); });
     var persona = suoi.some(function (t) { return t.gruppo === "tu" || t.gruppo === "decidi"; });
@@ -681,6 +693,7 @@
     var corpo = [
       el("h2", { classe: "foglio-nome" }, [el("a", { href: indirizzo(nome, null), testo: nomeDi(nome), "data-progetto": nome,
         su: function (e) { stato.daFoglio = e.currentTarget; } })]),
+      riga ? el("p", { classe: "foglio-stato", testo: riga.riga }) : null,
       primo ? el("p", { classe: "foglio-prossimo" }, [
         segno(primo, false),
         el("span", {}, [el("a", { href: indirizzo(nome, primo.id), testo: primo.titolo })].concat(segnali(primo)))
@@ -1117,6 +1130,45 @@
           testo: "#" + n + (altro ? " " + altro.titolo : "") })]);
       })));
     }
+    // La catena: chi aspetta, con il modo di togliere un legame o di aggiungerne uno (3/11/2026, #3888).
+    function aspetta() {
+      var numeri = t.attende || [];
+      var righe = numeri.map(function (n) {
+        var altro = perId(n);
+        return el("li", {}, [
+          el("a", { href: indirizzo(altro ? altro.progetto : t.progetto, n), testo: "#" + n + (altro ? " " + altro.titolo : "") }),
+          " ",
+          chiuso ? null : bottone("Togli", "azione--testo", function () {
+            azione({ azione: "dopo", id: t.id, altro: n, togli: true, titolo_atteso: t.titolo }, { fuoco: false });
+          })
+        ]);
+      });
+      var scelte = chiuso ? [] : aperti().filter(function (x) {
+        return x.id !== t.id && (t.dopo || []).indexOf(x.id) === -1;
+      }).sort(function (a, b) { return (a.progetto === t.progetto ? 0 : 1) - (b.progetto === t.progetto ? 0 : 1) || a.id - b.id; });
+      var idScelta = "d-" + t.id + "-dopo";
+      var form = scelte.length ? el("form", { classe: "dettaglio-dopo", novalidate: true }, [
+        el("label", { "for": idScelta, testo: "Aspetta un altro todo" }),
+        el("select", { id: idScelta }, [el("option", { value: "", testo: "Scegli il todo" })].concat(scelte.map(function (x) {
+          return el("option", { value: String(x.id), testo: "#" + x.id + " " + x.titolo + (x.progetto !== t.progetto ? " (" + nomeDi(x.progetto) + ")" : "") });
+        }))),
+        el("div", { classe: "pannello-azioni" }, [el("button", { type: "submit", classe: "azione azione--bordo", testo: "Aggiungi l'attesa" })])
+      ]) : null;
+      if (form) {
+        form.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var scelto = $(idScelta).value;
+          if (!scelto) { errore("Scegli il todo da aspettare."); $(idScelta).focus(); return; }
+          azione({ azione: "dopo", id: t.id, altro: Number(scelto), titolo_atteso: t.titolo }, { fuoco: false });
+        });
+      }
+      if (!righe.length && !form) { return null; }
+      return el("section", { classe: "dettaglio-sezione", "aria-label": "Aspetta" }, [
+        el("h3", { testo: "Aspetta" }),
+        righe.length ? el("ul", { classe: "dettaglio-legami" }, righe) : el("p", { classe: "nota-aiuto", testo: "Non aspetta nessun todo." }),
+        form
+      ]);
+    }
     var idNota = "d-" + t.id + "-nota";
     var formNota = el("form", { classe: "dettaglio-nota", novalidate: true }, [
       el("label", { "for": idNota, testo: "Aggiungi una nota" }),
@@ -1162,11 +1214,11 @@
       chiudiDettaglio(),
       el("h2", { classe: "dettaglio-titolo" }, [el("span", { classe: "numero", testo: "#" + t.id }), t.titolo]),
       dl,
-      collegati("Aspetta", t.attende),
       collegati("Sblocca", t.sblocca),
       el("div", { classe: "pannello-azioni dettaglio-azioni" }, primarie),
       secondarie.length ? el("div", { classe: "dettaglio-secondarie" }, secondarie) : null,
       motivo,
+      aspetta(),
       el("section", { classe: "dettaglio-sezione", "aria-label": "Note" }, [
         el("h3", { testo: "Note" }),
         t.note_datate.length ? el("ul", { classe: "note" }, t.note_datate.map(function (n) {

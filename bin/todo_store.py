@@ -514,7 +514,12 @@ def _evento(tipo: str, uid: str, dati: dict, **altro) -> dict:
     return {"v": VERSIONE_EVENTI, "ts": _adesso(), "ev": uuid.uuid4().hex, "todo": uid, "tipo": tipo, "dati": dati, **altro}
 
 
-def aggiungi(campi: dict, file: Path | None = None) -> dict:
+def aggiungi(campi: dict, file: Path | None = None, dopo: list | None = None) -> dict:
+    """Un todo nuovo. `dopo` sono i numeri dei todo che deve aspettare: la catena nasce insieme al todo.
+
+    Crea e legami si scrivono in una sola volta, sotto il lucchetto: un numero che non esiste ferma
+    tutto prima di scrivere, e nessun todo resta a metà senza i suoi legami.
+    """
     file = file or percorso()
     dati = normalizza(campi)
     if not dati.get("titolo"):
@@ -522,10 +527,64 @@ def aggiungi(campi: dict, file: Path | None = None) -> dict:
     uid = uuid.uuid4().hex
     with Lucchetto(file):
         todo, _ = carica(file)
+        attesi = []
+        for n in dopo or []:
+            altro = per_id(todo, n)
+            if altro["uid"] not in attesi:
+                attesi.append(altro["uid"])
         numero = max((t["id"] for t in todo.values()), default=0) + 1
         evento = _evento("crea", uid, dati, id=numero)
-        _scrivi(evento, file)
-    return _riletto(file, uid, evento)
+        legami = [dict(_evento("dopo", uid, {"aggiungi": u}), ts=evento["ts"]) for u in attesi]
+        _scrivi_molti([evento, *legami], file)
+    t = _riletto(file, uid, evento)
+    if any(u not in t["dopo"] for u in attesi):
+        raise ErroreTodo(f"#{t['id']} è scritto, ma rileggendo il registro i legami \"dopo\" non ci sono tutti: "
+                         f"controlla con arturo todo mostra {t['id']}")
+    return t
+
+
+# --- stato dei progetti (3/11/2026, #3888) ---------------------------------------------------------
+# Una riga per progetto che dice a che punto è, scritta a fine sessione. Sta in un file suo accanto al
+# registro dei todo, non nel registro: una versione vecchia di Arturo su un'altra macchina non conosce
+# l'evento e segnalerebbe ogni riga come illeggibile. Anche qui si aggiunge in coda; vale l'ultima riga.
+
+def percorso_stati(file: Path | None = None) -> Path:
+    return (file or percorso()).with_name("progetti.jsonl")
+
+
+def scrivi_stato(progetto: str, riga: str, file: Path | None = None) -> dict:
+    progetto, riga = pulisci(progetto).strip(), " ".join(pulisci(riga).split())
+    if not progetto:
+        raise ErroreTodo("manca il progetto")
+    if not riga:
+        raise ErroreTodo("la riga di stato è vuota: scrivi a che punto è il progetto")
+    voce = {"v": 1, "ts": _adesso(), "progetto": progetto, "riga": riga}
+    destino = percorso_stati(file)
+    with Lucchetto(destino):
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        with open(destino, "a", encoding="utf-8", newline="\n") as f:
+            f.write(json.dumps(voce, ensure_ascii=False) + "\n")
+    letto = stati(file).get(progetto)
+    if not letto or letto["riga"] != riga:
+        raise ErroreTodo("la riga di stato non si rilegge dal file: niente è cambiato")
+    return letto
+
+
+def stati(file: Path | None = None) -> dict:
+    """L'ultima riga di stato di ogni progetto: {progetto: {"riga", "ts"}}. Una riga rotta si salta."""
+    fuori = {}
+    for riga in _righe(percorso_stati(file)):
+        try:
+            v = json.loads(riga)
+        except ValueError:
+            continue
+        if not (isinstance(v, dict) and isinstance(v.get("progetto"), str) and isinstance(v.get("riga"), str)
+                and isinstance(v.get("ts"), str) and v["riga"].strip()):
+            continue
+        attuale = fuori.get(v["progetto"])
+        if attuale is None or v["ts"] >= attuale["ts"]:
+            fuori[v["progetto"]] = {"riga": pulisci(v["riga"]), "ts": v["ts"]}
+    return fuori
 
 
 def registra(numero, tipo: str, dati: dict, file: Path | None = None, atteso: dict | None = None) -> dict:

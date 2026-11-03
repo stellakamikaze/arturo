@@ -313,7 +313,12 @@ def riga_todo(t: dict, con_progetto: bool = False) -> str:
 def sezione_todo(todo: dict, progetto: str, dal: str | None) -> list:
     v = ts.vista(todo, [], progetto=progetto)
     aperti = sum(len(g["todo"]) for g in v["gruppi"])
-    righe = [f'TODO APERTI DEL PROGETTO "{progetto}" ({aperti})']
+    righe = []
+    # La riga di stato scritta dall'ultima /fine (arturo todo stato), prima dei todo.
+    stato = ts.stati().get(progetto)
+    if stato:
+        righe += [f"STATO DEL PROGETTO (scritto il {stato['ts'][:10]})", f"    {stato['riga']}", ""]
+    righe.append(f'TODO APERTI DEL PROGETTO "{progetto}" ({aperti})')
     if not aperti:
         righe.append("  nessuno")
     for g in v["gruppi"]:

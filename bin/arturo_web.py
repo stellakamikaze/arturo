@@ -80,7 +80,7 @@ PAGINA_NEGATA = """<!doctype html>
 </main></body></html>
 """
 
-AZIONI = ("aggiungi", "modifica", "nota", "deciso", "ripristina") + tuple(ts.AZIONI_STATO)
+AZIONI = ("aggiungi", "modifica", "nota", "deciso", "ripristina", "dopo") + tuple(ts.AZIONI_STATO)
 # La parola dell'esito di un ripristino viene dallo stato di arrivo, come per le azioni di stato.
 PAROLA_STATO = {nuovo: parola for nuovo, parola in ts.AZIONI_STATO.values()}
 # Il motivo con cui l'Annulla di un aggiungi scarta il todo appena scritto.
@@ -121,7 +121,7 @@ class Stato:
 def lettura() -> dict:
     todo, avvisi = ts.carica()
     return {"vista": ts.vista(todo, avvisi, tutti=True), "progetti": ts.progetti(todo),
-            "da_dove": ts.da_dove(todo)}
+            "da_dove": ts.da_dove(todo), "stati": ts.stati()}
 
 
 def scheda(numero) -> dict:
@@ -173,7 +173,13 @@ def controlla_corpo(corpo) -> dict:
         atteso = {}
     if not isinstance(atteso, dict) or not all(isinstance(v, str) for v in atteso.values()):
         raise ErroreRichiesta(400, "il campo atteso deve essere un oggetto di testi")
-    return {"azione": azione, "id": numero, "campi": campi, "annullo": annullo,
+    altro = corpo.get("altro")
+    if altro is not None and (isinstance(altro, bool) or not isinstance(altro, (int, str))):
+        raise ErroreRichiesta(400, "il campo altro deve essere un numero o testo")
+    togli = corpo.get("togli", False)
+    if not isinstance(togli, bool):
+        raise ErroreRichiesta(400, "il campo togli deve essere vero o falso")
+    return {"azione": azione, "id": numero, "campi": campi, "annullo": annullo, "altro": altro, "togli": togli,
             "motivo": _testo(corpo, "motivo") or "", "testo": _testo(corpo, "testo"),
             "stato": _testo(corpo, "stato"), "titolo_atteso": _testo(corpo, "titolo_atteso"), "atteso": atteso}
 
@@ -201,6 +207,7 @@ def esegui(stato: Stato, richiesta: dict) -> dict:
                                            "da Claude o da un'altra vista: non annullo niente e ricarico la lista.",
                                       **lettura())
         annulla = None
+        pieno = None
 
         if azione == "aggiungi":
             campi = dict(richiesta["campi"])
@@ -242,13 +249,24 @@ def esegui(stato: Stato, richiesta: dict) -> dict:
             t = ts.registra(numero, "nota", {"testo": richiesta["testo"] or ""})
             messaggio = "Nota aggiunta a"
 
+        elif azione == "dopo":
+            if richiesta["altro"] is None or richiesta["altro"] == "":
+                raise ErroreRichiesta(400, "manca il numero del todo da aspettare")
+            altro = ts.per_id(todo, richiesta["altro"])
+            togli = richiesta["togli"]
+            t = ts.registra(numero, "dopo", {"id": altro["id"], "togli": togli})
+            pieno = f"#{t['id']} " + ("non aspetta più" if togli else "aspetta") + f" #{altro['id']}: {t['titolo']}"
+            if not richiesta["annullo"]:
+                annulla = {"azione": "dopo", "id": t["id"], "altro": altro["id"], "togli": not togli,
+                           "titolo_atteso": t["titolo"], "annullo": True}
+
         else:  # deciso
             t = ts.deciso(numero, richiesta["testo"] or "")
             messaggio = "Deciso"
             annulla = {"azione": "modifica", "id": t["id"], "titolo_atteso": t["titolo"],
                        "campi": {"chi": prima["chi"]}, "annullo": True, "atteso": {"chi": t["chi"]}}
 
-        risposta = {"messaggio": f"{messaggio} #{t['id']}: {t['titolo']}", "id": t["id"], "annulla": annulla}
+        risposta = {"messaggio": pieno or f"{messaggio} #{t['id']}: {t['titolo']}", "id": t["id"], "annulla": annulla}
         risposta.update(lettura())
         return risposta
 
