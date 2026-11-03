@@ -12,6 +12,42 @@ modo di lavorare.
 
 ---
 
+## 2026-11-03 — /fine pesa meno, e a sessione vuota fa solo il sync
+
+**Cosa cambia**: `/fine` è lungo poco più della metà. Le parti che servono solo in un caso (il
+worktree, la retention, le tue aggiunte alla coda, gli opzionali) stanno in file di `shared/` che
+Claude legge solo quando quel caso si presenta. Se la sessione non ha file, commit, todo né progetto,
+`/fine` salta tutte le fasi e fa solo il sync della config.
+
+**Perché**: proposta n. 29. `/fine` entrava intero nel contesto a ogni lancio, anche a sessione
+vuota, e pesava sull'uso di Claude Code più di ogni altro comando.
+
+**Da sapere**: le fasi e le regole sono le stesse. Il modello resta quello della sessione.
+
+## 2026-11-03 — Con due Chrome collegati, Claude resta su quello che hai scelto
+
+**Cosa cambia**: se hai più Chrome collegati a Claude, Claude ricorda il browser che hai scelto e,
+dopo un errore di collegamento, controlla di essere ancora lì. Se è tornato sull'altro, lo
+riseleziona e te lo dice. Per farti scegliere, descrive ogni browser da quello che mostra.
+
+**Perché**: segnalazione n. 44. I nomi dei browser ("Browser 1", "Browser 2") cambiano durante la
+sessione, e dopo una disconnessione i comandi tornavano sul Chrome sbagliato senza avviso. La causa
+sta nell'estensione di Chrome: Arturo non può correggerla, ma può far controllare Claude.
+
+## 2026-11-03 — Un amend non riscrive più il commit di un'altra sessione
+
+**Cosa cambia**: `git commit --amend` chiede conferma se l'ultimo commit del repository non l'ha
+fatto la stessa sessione. Se il commit è suo, tace come prima.
+
+**Perché**: segnalazione n. 25. Due sessioni lavoravano sullo stesso progetto. Fra il commit di una e
+il suo amend per un refuso, l'altra aveva fatto un commit, e l'amend ha riscritto quello. Nessuna
+guardia l'aveva fermato.
+
+**Da sapere**: per riconoscere i suoi commit, Arturo annota dopo ogni `git commit` l'ultimo commit
+della sessione, in un file di `~/.claude/session-env`. Un amend su un commit di ieri chiede anche se
+il commit è tuo: conferma. Per un refuso nel messaggio basta lasciarlo. `git reset` e `git rebase`
+restano come prima.
+
 ## 2026-11-03 — La telemetria dice anche come usi Arturo, non solo quanto
 
 **Cosa cambia**: alla chiusura di ogni sessione Arturo registra quanto è durata e quanti messaggi

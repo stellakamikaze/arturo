@@ -166,6 +166,8 @@ PATTERN_DEV_TCP='[<>]&?[[:space:]]*/dev/(tcp|udp)/'
 PATTERN_GIT_PERDE='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?(branch[[:space:]]([^|;&]*[[:space:]])?(-[[:alpha:]]*D|--d|-[[:alpha:]]*d)|stash[[:space:]]+(drop|clear))'
 # Un push con la destinazione riscritta da -c, --config-env o GIT_CONFIG_* (1/11/2026): lo giudica block-dangerous.
 PATTERN_GIT_DEST='(^|[^[:alnum:]_.-])git[[:space:]][^|;&]*(-c|--config-env)[^|;&]*[[:space:]]push|GIT_CONFIG_(COUNT|KEY_[0-9]+|PARAMETERS)='
+# git commit --amend su un commit che questa sessione non ha fatto (3/11/2026, #4187): lo giudica block-dangerous.
+PATTERN_GIT_AMEND='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?commit[[:space:]]([^|;&]*[[:space:]])?--am'
 PATTERN_GIT_CLEAN='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?clean[[:space:]]([^|;&]*[[:space:]])?(-[[:alpha:]]*f|--f)|(^|[^[:alnum:]_.-])git[[:space:]][^|;&]*[cC]lean\.[rR]equire[fF]orce'
 # data-guard: operazioni DATI irreversibili non coperte da block-dangerous
 # (SQL DROP/TRUNCATE/DELETE FROM, docker compose down -v, rsync --delete remoto, overwrite .db).
@@ -315,6 +317,7 @@ except Exception:
 [[ "$GUARD_COMMAND" =~ $PATTERN_GIT_CLEAN ]] && run_guard block-dangerous.py
 [[ "$GUARD_COMMAND" =~ $PATTERN_GIT_PERDE ]] && run_guard block-dangerous.py
 [[ "$GUARD_COMMAND" =~ $PATTERN_GIT_DEST ]] && run_guard block-dangerous.py
+[[ "$GUARD_COMMAND" =~ $PATTERN_GIT_AMEND ]] && run_guard block-dangerous.py
 
 # --- Skip pre-filtro su git puro (commit/log/show...): i message possono
 # contenere "rm -rf"/"smtplib" come testo, NON sono esecuzioni. Skip SOLO se

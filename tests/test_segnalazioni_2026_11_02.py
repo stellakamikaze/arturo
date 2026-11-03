@@ -12,6 +12,8 @@ SG02 la guardia dei percorsi di avvio automatico e quella dei file di config dic
 SG03 un progetto fuori dalle cartelle della sessione fa tornare la shell alla cartella di partenza a ogni
      comando (n. 37): /inizio propone /add-dir e, con /fine, apre i comandi con `cd "<cartella>" &&`.
      Dopo /chrome a sessione aperta gli strumenti arrivano solo con claude --continue (n. 40).
+SG04 con due Chrome collegati Claude resta sul browser scelto per deviceId e, dopo una disconnessione,
+     controlla inUse e lo dice (n. 44, 3/11/2026).
 
 Sulla base 8b141c0 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -79,7 +81,13 @@ def test_sg03(repo: Path) -> None:
         "SG03 lo stile non dice che dopo /chrome serve claude --continue"
 
 
-TESTS = {"SG01": test_sg01, "SG02": test_sg02, "SG03": test_sg03}
+def test_sg04(repo: Path) -> None:
+    stile = read(repo / "output-styles" / "conciso.md")
+    for pezzo in ("deviceId", "list_connected_browsers", "inUse", "select_browser", "segnalazione n. 44"):
+        assert pezzo in stile, f"SG04 lo stile non dice come restare sul Chrome scelto: manca {pezzo}"
+
+
+TESTS = {"SG01": test_sg01, "SG02": test_sg02, "SG03": test_sg03, "SG04": test_sg04}
 
 
 def main() -> int:

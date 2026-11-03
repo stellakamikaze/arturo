@@ -332,6 +332,16 @@
     ],
     "PostToolUse": [
       {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/block-dangerous.py dopo",
+            "timeout": 10
+          }
+        ]
+      },
+      {
         "matcher": "Edit|MultiEdit|Write|NotebookEdit",
         "hooks": [
           {

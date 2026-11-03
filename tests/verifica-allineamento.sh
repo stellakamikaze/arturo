@@ -167,6 +167,7 @@ BANCHI=(
   test_monitor_ponti_2026_11_02.py
   test_gws_token_health.py
   test_telemetria_fase2_2026_11_03.py
+  test_amend_2026_11_03.py
 )
 for test in "${BANCHI[@]}"; do
   python3 -B "$REPO/tests/$test" --repo "$REPO"
@@ -174,7 +175,7 @@ done
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py)
+PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py)
 PY38=$(command -v python3.8 || true)
 if [[ -n "$PY38" ]]; then
   for test in "${PY38_BANCHI[@]}"; do
@@ -362,6 +363,8 @@ done
 python3 -B "$REPO/tests/test_memoria.py" --repo "$REPO" --avvelena
 # Le conferme su lavoro proprio (31/10/2026): con le guardie di 15eb18d ogni gruppo LP deve essere rosso.
 python3 -B "$REPO/tests/test_lavoro_proprio_2026_10_31.py" --repo "$REPO" --avvelena
+# git commit --amend sul commit di un'altra sessione (3/11/2026, #4187): con le guardie di c4ae5a4 ogni gruppo AM è rosso.
+python3 -B "$REPO/tests/test_amend_2026_11_03.py" --repo "$REPO" --avvelena
 # Il ritratto di /setup (1/11/2026): senza esclusioni .env e chiavi escono; ogni regola di 2b/2c tolta
 # da setup.md fa rosso; un installatore che sposta ~/.claude fa rosso CP02.
 python3 -B "$REPO/tests/test_ritratto_2026_11_01.py" --repo "$REPO" --avvelena

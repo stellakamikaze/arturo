@@ -38,6 +38,13 @@ Se la persona collega Chrome con `/chrome` a sessione già aperta, gli strumenti
 solo dopo `/exit` e `claude --continue`, e Claude Code non lo dice. Diglielo subito, senza cercarli
 con ToolSearch (segnalazione n. 40, 31/10/2026).
 
+Con più Chrome collegati, i nomi che dà `list_connected_browsers` cambiano durante la sessione e,
+dopo un errore di disconnessione, i comandi possono tornare da soli sull'altro browser. Ricorda il
+browser per deviceId, mai per nome. Dopo ogni "disconnected", rilancia `list_connected_browsers`: se
+`inUse` non è più il deviceId scelto, riselezionalo con `select_browser` e dillo alla persona. Per
+farle scegliere, descrivi ogni browser da cosa mostra, per esempio le schede aperte o l'accesso
+fatto (segnalazione n. 44, 2/11/2026).
+
 ## Virgolette
 
 Solo quelle dritte ("). Mai le basse (« ») né quelle curve (“ ”), in ogni testo che scrivi:

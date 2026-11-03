@@ -985,6 +985,114 @@ def _git_perde_lavoro(command, cwd):
     return None
 
 
+# --- git commit --amend sul commit di un'altra sessione (3/11/2026, #4187, segnalazione n. 25) ---
+# Due sessioni sullo stesso repository: fra il commit di A e il suo `--amend` per un refuso, B aveva fatto
+# un commit, e l'amend ha riscritto quello di B. Il modo `dopo` (PostToolUse di Bash) registra per
+# sessione l'HEAD lasciato da ogni `git commit`; prima di un amend, un HEAD che la sessione non ha
+# registrato chiede conferma. Nel dubbio (sessione senza id, repository illeggibile) chiede.
+_SESSIONE_RE = re.compile(r"^[A-Za-z0-9_-]{1,80}$")
+_REGISTRO_MAX = 50
+
+
+def _registro_percorso(sessione):
+    if not isinstance(sessione, str) or not _SESSIONE_RE.match(sessione):
+        return None
+    return os.path.join(_home(), ".claude", "session-env", f"commit-{sessione}.json")
+
+
+def _registro_leggi(percorso):
+    try:
+        with open(percorso, encoding="utf-8") as f:
+            dati = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return dati if isinstance(dati, dict) else {}
+
+
+def _commit_del_comando(command, cwd):
+    """[(repository o None, amend)] per ogni `git … commit` del comando, nell'ordine. None se la
+    cartella non è una sola o se --git-dir/--work-tree la spostano."""
+    out = []
+    for nome, args, cds in _programmi_con_cd(command):
+        if nome != "git":
+            continue
+        cartella, sotto, resto = _git_parti(args)
+        if sotto != "commit":
+            continue
+        amend = _lunga([a for a in resto if a.startswith("--")], "--amend")
+        basi = _basi_dopo_cd(cds, cwd)
+        if any(a.split("=", 1)[0] in ("--git-dir", "--work-tree") for a in args):
+            repo = None
+        elif len(basi) != 1 or basi[0] is None:
+            repo = None
+        else:
+            repo = _resolve(cartella, basi[0]) if cartella else basi[0]
+        out.append((repo, amend))
+    return out
+
+
+def _testa(repo):
+    """(radice del repository, sha di HEAD) oppure None."""
+    uscita = _git_esegui(repo, "rev-parse", "--show-toplevel", "HEAD")
+    righe = uscita.splitlines() if uscita else []
+    if len(righe) != 2:
+        return None
+    return os.path.normcase(os.path.normpath(righe[0])), righe[1].strip()
+
+
+def registra_commit(data) -> int:
+    """Modo `dopo`: scrive nel registro della sessione l'HEAD dei repository dove il comando ha fatto un commit."""
+    percorso = _registro_percorso(data.get("session_id"))
+    command = (data.get("tool_input") or {}).get("command", "")
+    if not percorso or not isinstance(command, str) or "commit" not in command:
+        return 0
+    registro = None
+    for repo, _amend in _commit_del_comando(command, data.get("cwd") or _home()):
+        testa = _testa(repo) if repo else None
+        if not testa:
+            continue
+        if registro is None:
+            registro = _registro_leggi(percorso)
+        voci = [s for s in registro.get(testa[0], []) if isinstance(s, str) and s != testa[1]]
+        registro[testa[0]] = (voci + [testa[1]])[-_REGISTRO_MAX:]
+    if registro is not None:
+        os.makedirs(os.path.dirname(percorso), exist_ok=True)
+        provvisorio = f"{percorso}.{os.getpid()}"
+        with open(provvisorio, "w", encoding="utf-8") as f:
+            json.dump(registro, f)
+        os.replace(provvisorio, percorso)
+    return 0
+
+
+def _amend_altrui(command, cwd, sessione):
+    """Il motivo della conferma se un `git commit --amend` del comando riscrive un HEAD che questa sessione
+    non ha registrato, None se no. Un commit senza amend prima, nello stesso comando e repository, è suo."""
+    commit = _commit_del_comando(command, cwd)
+    if not any(amend for _r, amend in commit):
+        return None
+    percorso = _registro_percorso(sessione)
+    registro = _registro_leggi(percorso) if percorso else {}
+    fatti = set()
+    for repo, amend in commit:
+        if not amend:
+            if repo:
+                fatti.add(repo)
+            continue
+        if repo in fatti:
+            continue
+        testa = _testa(repo) if repo else None
+        if not testa:
+            return ("git commit --amend su un repository che la guardia non riesce a leggere: se un'altra "
+                    "sessione ha fatto un commit nel frattempo, l'amend riscrive il suo. Controlla con "
+                    "`git log -1` prima di confermare.")
+        if testa[1] not in registro.get(testa[0], []):
+            ultimo = (_git_esegui(repo, "log", "-1", "--format=%h %s") or testa[1][:7]).strip()[:90]
+            return (f"L'ultimo commit ({ultimo}) non l'ha fatto questa sessione: se un'altra sessione ha fatto "
+                    "un commit nel frattempo, l'amend riscrive il suo. Per un refuso nel messaggio lascialo "
+                    "stare. Conferma solo se il commit è tuo.")
+    return None
+
+
 # shutil.rmtree cancella una cartella intera come `rm -r`, ma da dentro python (17/10/2026, #3506).
 _RMTREE_RE = re.compile(r"\b(?:shutil\.)?rmtree\s*\(\s*(?:(['\"])([^'\"]*)\1|([A-Za-z_]\w*)\s*\))?")
 # `py` è il lanciatore di python su Windows (20/10/2026, #3525: `py -c "...rmtree..."` passava).
@@ -1387,6 +1495,16 @@ def main() -> int:
     except Exception:
         return 0
 
+    # Modo `dopo` (PostToolUse di Bash): registra i commit della sessione per la regola git-amend. Non
+    # decide niente e non scrive su stdout; un suo errore non ferma la sessione.
+    if sys.argv[1:2] == ["dopo"]:
+        try:
+            if data.get("tool_name") == "Bash":
+                registra_commit(data)
+        except Exception:
+            pass
+        return 0
+
     # Read di una chiave privata in ~/.ssh con un nome libero (`~/.ssh/github`): i deny di settings.json
     # coprono solo i nomi noti, e `Read` in allow salta il classificatore (1/11/2026, F01).
     if data.get("tool_name") == "Read":
@@ -1622,6 +1740,15 @@ def main() -> int:
         return _ask("git-stash", perde[1])
     if perde:
         return _ask("git-ramo", perde[1])
+
+    # 10) git commit --amend su un HEAD che questa sessione non ha registrato -> ask (3/11/2026, #4187).
+    try:
+        altrui = _amend_altrui(command, cwd, data.get("session_id"))
+    except Exception:
+        altrui = ("git commit --amend che la guardia non riesce a leggere: controlla con `git log -1` "
+                  "prima di confermare.") if re.search(r"\bcommit\b.*--am", command) else None
+    if altrui:
+        return _ask("git-amend", altrui)
 
     return 0
 
