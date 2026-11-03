@@ -490,7 +490,10 @@ def main(argv: list) -> int:
     dal = elenco[0][1] if elenco else None
     righe = [f"PROGETTO {s}", f"cartella: {cartella if cartella else 'nessuna'}"]
     if interpretato:
-        righe.append(f"NOME: {interpretato}. Se è un altro progetto, ripeti /inizio col nome giusto.")
+        # Il consiglio di ripetere col nome giusto vale per un nome interpretato, non per una frase che è
+        # tutta compito (2/11/2026, #4481).
+        consiglio = " Se è un altro progetto, ripeti /inizio col nome giusto." if interpretato.startswith("interpretato") else ""
+        righe.append(f"NOME: {interpretato}.{consiglio}")
     if compito:
         righe.append(f"compito: {compito}")
     if rotazione:

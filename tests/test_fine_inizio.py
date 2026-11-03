@@ -657,6 +657,9 @@ def test_f06(repo: Path) -> None:
         r = lab.arturo("contesto", "rileggi bene il capitolo", cwd=progetto)
         assert r.returncode == 0 and "PROGETTO il-libro" in r.stdout and "compito: rileggi bene il capitolo" in r.stdout, \
             f"F06 una frase dalla cartella del progetto non lavora lì: {r.stdout[:300]}"
+        # La riga NOME di una frase che è tutta compito non chiede di ripetere col nome giusto (#4481).
+        assert "ripeti /inizio col nome giusto" not in r.stdout, \
+            f"F06 una frase senza progetto chiede di ripetere /inizio col nome: {r.stdout[:300]}"
     con_lab(repo, prova)
 
 
