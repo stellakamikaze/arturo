@@ -121,3 +121,22 @@ test('comando normale passa identico e senza fatti', () => {
   expect(r.command).toBe('git status --short')
   expect(r.fatti.length).toBe(0)
 })
+
+// Segnalazione n. 46 (3/11/2026): con le opzioni già nella shell, glob, heredoc e = passano identici,
+// così la modalità auto non respinge il comando cambiato dopo la revisione.
+describe('opzioni già nella shell (riga arturo-zsh-come-bash)', () => {
+  const SHELL = { ...MAC, opzioniNellaShell: true }
+  test('glob, heredoc, = e variabile passano identici', () => {
+    for (const c of ['ls *.md', "python3 - <<'E'\nprint(1)\nE", 'echo ===', 'echo $HOME', 'grep -rl x --include=*.md .']) {
+      const r = riscrivi(c, SHELL)
+      expect(r.command).toBe(c)
+      expect(r.fatti.length).toBe(0)
+    }
+  })
+  test('il timeout senza binario si toglie ancora', () => {
+    expect(riscrivi('timeout 5 make', SHELL).command).toBe('make')
+  })
+  test('senza la riga riscrive come prima', () => {
+    expect(riscrivi('ls *.md', { ...MAC, opzioniNellaShell: false }).command).toBe('setopt nonomatch; ls *.md')
+  })
+})

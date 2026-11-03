@@ -12,6 +12,23 @@ modo di lavorare.
 
 ---
 
+## 2026-11-03 — In modalità auto un comando parte al primo colpo
+
+**Cosa cambia**: in modalità auto molti comandi venivano respinti una volta e andavano rilanciati
+identici, circa 15 volte in un'ora di lavoro (segnalazione n. 45 e segnalazione n. 46). Succedeva
+ai comandi con un `*`, un heredoc, un `=` o una variabile. Ora partono al primo colpo. In più
+`/inizio` controlla che la copia separata, quando un'altra sessione lavora sullo stesso progetto,
+parta dal tuo ultimo lavoro salvato e non dalla copia online.
+
+**Perché**: il mod `riscrivi-bash` aggiungeva `setopt` davanti al comando dopo che la modalità auto
+lo aveva già approvato, e Claude Code respinge un comando cambiato dopo l'approvazione. Adesso
+quelle opzioni di zsh le imposta l'avvio della sessione una volta sola, e il comando resta com'è.
+
+**A chi serve**: a chi usa la modalità auto su un Mac, cioè quasi a tutti. Vale dalla prossima
+sessione aperta dopo l'aggiornamento.
+
+---
+
 ## 2026-11-03 — Arturo ha un numero di versione: questa è la 0.2.0
 
 **Cosa cambia**: la versione di Arturo non è più una data ma un numero. Questo rilascio è la
