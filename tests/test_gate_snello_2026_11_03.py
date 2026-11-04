@@ -74,7 +74,13 @@ class Lab:
         return subprocess.run([sys.executable, "-B", str(self.root / "tests" / "esegui_gate.py"), "esegui",
                                "--root", str(self.root), "--fixture", str(fixture), *argomenti],
                               capture_output=True, text=True, encoding="utf-8", timeout=300,
-                              env=dict(os.environ, **(env or {})))
+                              env=dict(self._ambiente(), **(env or {})))
+
+    @staticmethod
+    def _ambiente() -> Dict[str, str]:
+        # Il gate del rilascio gira con ARTURO_GATE_RILASCIO=1 e il banco lo ereditava: GS05, che prova il salto
+        # delle controprove in cache, diventava rosso proprio nel gate del tag (4/11/2026). Lo decide ogni caso.
+        return {k: v for k, v in os.environ.items() if k != "ARTURO_GATE_RILASCIO"}
 
     def tempi(self) -> Path:
         return self.root / ".git" / "arturo-gate-tempi.json"

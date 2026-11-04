@@ -11,7 +11,7 @@ Il nome viene da Arktouros, "il guardiano dell'orsa", la stella che i naviganti 
 Dentro ci sono:
 
 - **23 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
-- **11 comandi** — si scrivono con la barra davanti, come `/inizio`, `/fine` o `/diagnosi`;
+- **11 slash command** — i comandi che si scrivono con la barra davanti, come `/inizio`, `/fine` o `/diagnosi`;
 - **8 subagent** — assistenti che Claude manda a fare un compito a parte, come `bug-finder`, che cerca gli errori nel codice;
 - **6 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare.
 
