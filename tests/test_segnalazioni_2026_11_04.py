@@ -36,7 +36,7 @@ def hook(repo: Path, codice: str) -> Path:
 
 
 def lancia(h: Path, config: Path, dati: dict) -> dict:
-    r = subprocess.run([sys.executable, str(h)], input=json.dumps(dati), text=True, capture_output=True,
+    r = subprocess.run([sys.executable, str(h)], input=json.dumps(dati), text=True, encoding="utf-8", capture_output=True,
                        env={"CLAUDE_CONFIG_DIR": str(config), "PATH": "/usr/bin:/bin"}, timeout=30)
     assert r.returncode == 0, f"hook uscito {r.returncode}: {r.stderr}"
     return json.loads(r.stdout) if r.stdout.strip() else {}
