@@ -9,7 +9,7 @@ Uso: arturo contesto [nome] [--giorni N]
   "<nome> -- --rotazione <compito>" è la marca della rotazione automatica: --rotazione esce dal compito
   e il contesto stampa la riga "rotazione: sì".
 
-Stampa, in quest'ordine: progetto e cartella, git (branch, modifiche, conflitti, commit dopo
+Stampa, in quest'ordine: progetto e cartella, la quota di 5 ore e settimana vista dalla barra, git (branch, modifiche, conflitti, commit dopo
 l'ultimo handoff, rami locali non riportati), la ripartenza degli handoff degli ultimi N giorni (14), i todo aperti del
 progetto divisi per chi agisce, i todo chiusi dopo l'ultimo handoff, le scadenze dei prossimi
 7 giorni (anche fuori dal progetto), il todo da cui ripartire e gli avvisi.
@@ -424,6 +424,34 @@ def sezione_non_verificata(elenco: list, ir, errore: str) -> list:
     return righe + ([] if trovati else ["  nessuna riga nella tabella Task Pendenti"]) + [f"  da {nome}"]
 
 
+def riga_quota(adesso: float | None = None) -> str | None:
+    """La quota condivisa fra tutte le sessioni, come l'ha vista la barra in basso (proposta n. 54, #4771).
+
+    La scrive hooks/statusline.js in cache/statusline/quota.json. Una finestra già azzerata o senza
+    orario non si stampa: il numero sarebbe vecchio. Senza file, o senza dati validi, niente riga.
+    """
+    radice = os.environ.get("CLAUDE_CONFIG_DIR") or str(Path.home() / ".claude")
+    try:
+        dati = json.loads((Path(radice) / "cache" / "statusline" / "quota.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(dati, dict):
+        return None
+    adesso = dt.datetime.now().timestamp() if adesso is None else adesso
+    pezzi = []
+    for chiave, nome, formato in (("cinque_ore", "5 ore", "%H:%M"), ("settimana", "settimana", "%d/%m %H:%M")):
+        q = dati.get(chiave)
+        if not isinstance(q, dict):
+            continue
+        pct, resets = q.get("pct"), q.get("resets")
+        if isinstance(pct, bool) or not isinstance(pct, int):
+            continue
+        if isinstance(resets, bool) or not isinstance(resets, (int, float)) or resets <= adesso:
+            continue
+        pezzi.append(f"{nome} al {pct}%, si azzera {dt.datetime.fromtimestamp(resets).strftime(formato)}")
+    return "quota: " + " · ".join(pezzi) if pezzi else None
+
+
 def sezione_filoni(progetto: str, ir) -> list:
     """I filoni di tutti gli handoff del progetto, non solo degli ultimi giorni: /fine riusa questi nomi
     nella riga "- Filone:", così un filone non si spezza in due."""
@@ -510,6 +538,9 @@ def main(argv: list) -> int:
         righe.append(f"compito: {compito}")
     if rotazione:
         righe.append("rotazione: sì (sessione aperta dalla rotazione automatica)")
+    quota = riga_quota()
+    if quota:
+        righe.append(quota)
     if cartella:
         vecchi = sorted(cartella.glob("HANDOFF_*.md"), key=lambda p: p.name, reverse=True)
         if vecchi and (not elenco or vecchi[0].name > elenco[0][0]):

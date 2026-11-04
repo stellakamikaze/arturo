@@ -139,6 +139,8 @@ Lo script legge e non scrive niente. Calcola lo slug del progetto come `/fine`
 (`basename | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g'`), così
 ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
 - `PROGETTO` e la riga `cartella:` (il percorso, oppure `nessuna`);
+- la riga `quota:` con la finestra di 5 ore e quella della settimana, come le ha viste la barra in
+  basso; manca se la barra non ha ancora un dato valido;
 - `GIT`: branch, modifiche non salvate, CONFLITTI DI MERGE, i commit arrivati dopo l'ultimo handoff;
   e i RAMI CON COMMIT che il branch corrente non ha, col worktree se ne hanno uno (un ramo coi
   commit già arrivati con un cherry-pick o un rebase non compare);
@@ -175,6 +177,16 @@ in `/fine`, comincia con `cd "<cartella>" &&`: senza, `arturo todo --progetto .`
   rami (prove, vecchie versioni) restano una riga col conteggio (segnalazione n. 20, 27/10/2026).
 - **Altre sessioni.** Lancia `ListAgents`. Un'altra sessione di Claude Code sullo stesso progetto va
   in cima alla ripartenza, con quello che sta facendo.
+- **Terza sessione aperta.** Il limite delle 5 ore è uno solo per tutte le sessioni dell'account, anche
+  su altri computer. Dal 15/10 al 4/11 è scattato 9 volte, sempre con tre sessioni o più, e ogni volta
+  ha fermato più progetti insieme (proposta n. 54, 4/11/2026). Conta nell'elenco di `ListAgents` le
+  sessioni di qualunque progetto che stanno lavorando (busy) e quelle aperte in un terminale di questo
+  computer (interactive, idle). Le sessioni offline non contano, e nemmeno quelle remote o cloud ferme
+  (idle): non consumano. Se le sessioni contate sono 2 o più, la ripartenza apre con una riga: "Ci sono
+  già 2 sessioni aperte (<nome>, <nome>). Il limite delle 5 ore vale per tutte: con questa terza arriva
+  prima." Se la FASE 1 stampa la riga `quota:`, aggiungi la percentuale e l'orario delle 5 ore. È solo un
+  avviso: il lavoro parte lo stesso, e chiudere una sessione lo decide la persona. In rotazione l'avviso
+  non compare: la sessione era già aperta.
 - **Worktree, solo se c'è quella sessione.** Due sessioni nella stessa cartella si pestano i piedi:
   test, build e commit vedono anche il lavoro dell'altra. Prima di qualsiasi modifica entra con
   `EnterWorktree` (nome `<slug>-<aaaammgg-hhmm>`). Parte dall'ultimo commit locale perché
@@ -368,6 +380,7 @@ Il contesto stampa `rotazione: sì` quando la sessione l'ha aperta il mod `rotaz
   elenco dei todo e niente "Da allora", salvo un fatto che cambia il lavoro (commit di un'altra sessione,
   conflitto, scadenza arrivata): quello va in una seconda riga. I FACCIO IO FERMI della FASE 1 stanno
   anche loro in una riga sola, con ID e giorni: la rotazione è il caso in cui il compito nuovo li scavalca.
+  L'avviso della terza sessione aperta non compare: la rotazione non apre una sessione in più.
 - Se l'handoff ha la riga `- Piano: <percorso>`, leggi il piano e prendi lo step dopo quello fatto.
 - `prompt-master` si carica come in ogni sessione nuova, ma il brief è una riga, "Brief: <compito>": il
   brief pieno l'ha avuto lo step prima. Poi parti subito.

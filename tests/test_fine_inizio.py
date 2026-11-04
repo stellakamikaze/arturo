@@ -48,6 +48,8 @@ cartella, salta le fasi 2-8 e 10 e lancia solo la coda. Ogni file shared/ che /f
 F23 i todo di Claude fermi (proposta n. 52, #4769): arturo contesto elenca i todo "io", da fare o in
 corso, senza un passo da più di 3 giorni. Una nota non è un passo; restano fuori i fermi, chi aspetta un
 altro todo aperto, gli altri progetti e chi agisce "tu". /inizio li dice anche con un compito e in rotazione.
+F24 la terza sessione aperta (proposta n. 54, #4771): /inizio conta le sessioni di ListAgents e avvisa da
+2 in su, tranne in rotazione; arturo contesto stampa la riga quota: solo con dati validi e non azzerati.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -1117,11 +1119,60 @@ def test_f23(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+def test_f24(repo: Path) -> None:
+    """Avviso alla terza sessione aperta, con la quota vista dalla barra (proposta n. 54, #4771, 4/11/2026)."""
+    inizio = read(repo / "commands" / "inizio.md")
+    assert "**Terza sessione aperta.**" in inizio, "F24 /inizio non ha la regola della terza sessione aperta"
+    regola = inizio[inizio.index("**Terza sessione aperta.**"):].split("\n- **", 1)[0]
+    for atteso in ("ListAgents", "offline", "2 o più", "quota:", "In rotazione"):
+        assert atteso in regola, f"F24 la regola della terza sessione non dice {atteso!r}: {regola}"
+    rotazione = inizio[inizio.index("## Modo rotazione"):].split("\n## ", 1)[0]
+    assert "terza sessione" in rotazione, "F24 il modo rotazione non dice che l'avviso della terza sessione tace"
+    import datetime as dt
+    adesso = dt.datetime.now().timestamp()
+    futuro, passato = int(adesso + 3600), int(adesso - 3600)
+    ora = dt.datetime.fromtimestamp(futuro).strftime("%H:%M")
+    giorno = dt.datetime.fromtimestamp(futuro).strftime("%d/%m %H:%M")
+    casi = [
+        ("fresca", {"cinque_ore": {"pct": 62, "resets": futuro}, "settimana": {"pct": 40, "resets": futuro}},
+         f"quota: 5 ore al 62%, si azzera {ora} · settimana al 40%, si azzera {giorno}"),
+        ("5 ore azzerate", {"cinque_ore": {"pct": 90, "resets": passato}, "settimana": {"pct": 40, "resets": futuro}},
+         f"quota: settimana al 40%, si azzera {giorno}"),
+        ("5 ore assenti", {"cinque_ore": None, "settimana": {"pct": 55, "resets": futuro}},
+         f"quota: settimana al 55%, si azzera {giorno}"),
+        ("valori finti", {"cinque_ore": {"pct": True, "resets": futuro}, "settimana": {"pct": "40", "resets": futuro}}, None),
+        ("senza orario", {"cinque_ore": {"pct": 30}}, None),
+        ("rotto", "{non è json", None),
+        ("assente", ..., None),
+    ]
+
+    def prova(lab: Lab) -> None:
+        (lab.progetti / "libro").mkdir()
+        cartella = lab.home / ".claude" / "cache" / "statusline"
+        cartella.mkdir(parents=True)
+        for nome, dati, atteso in casi:
+            file = cartella / "quota.json"
+            if dati is ...:
+                file.unlink(missing_ok=True)
+            else:
+                file.write_text(dati if isinstance(dati, str) else json.dumps(dati), encoding="utf-8")
+            r = lab.run([sys.executable, "-B", str(lab.repo / "bin" / "arturo"), "contesto", "libro"],
+                        cwd=lab.home, CLAUDE_CONFIG_DIR=str(lab.home / ".claude"))
+            assert r.returncode == 0, f"F24 ({nome}) exit {r.returncode}: {r.stderr} {r.stdout[:300]}"
+            righe = [x for x in r.stdout.splitlines() if x.startswith("quota:")]
+            if atteso is None:
+                assert not righe, f"F24 ({nome}) una quota non valida non deve stampare la riga: {righe}"
+            else:
+                assert righe == [atteso], f"F24 ({nome}) riga della quota sbagliata: {righe}, attesa {atteso!r}"
+    con_lab(repo, prova)
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
          "F16": test_f16, "F17": test_f17, "F18": test_f18,
-         "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23}
+         "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23,
+         "F24": test_f24}
 
 
 def main() -> int:

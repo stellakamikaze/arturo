@@ -12,6 +12,19 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — /inizio avvisa quando apri la terza sessione
+
+**Cosa cambia**: se apri `/inizio` mentre altre due sessioni di Claude stanno già lavorando, su
+qualunque progetto, la ripartenza apre con una riga: quante sono, quali, e a che punto è la finestra
+di 5 ore. Il lavoro parte lo stesso: chiudere una sessione lo decidi tu. Le sessioni ferme su altri
+computer o nel cloud non contano, e una sessione ripresa dalla rotazione automatica non avvisa.
+
+**Perché**: proposta n. 54 di Filippo. Il limite delle 5 ore è uno solo per tutte le sessioni
+dell'account. Dal 15/10 al 4/11 è scattato 9 volte, sempre con tre sessioni o più, e ogni volta ha
+fermato più progetti insieme e lasciato agenti a metà. Con una sessione sola non è mai scattato.
+
+---
+
 ## 2026-11-04 — /segnala guarda se la segnalazione è già partita
 
 **Cosa cambia**: prima di mostrarti l'anteprima, `/segnala` guarda le segnalazioni già partite da questo
