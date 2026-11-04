@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AA01-AA11: Arturo si aggiorna da solo alla chiusura, solo con rilasci firmati (16/10/2026, #3477).
+"""AA01-AA20: Arturo si aggiorna da solo alla chiusura, solo con rilasci firmati (16/10/2026, #3477).
 
 Ogni caso costruisce un Arturo pubblicato (bare), chi ne firma i rilasci con una chiave di prova
 generata qui, e una HOME con ~/.claude clonata, che si fida solo di quella chiave. Niente rete.
@@ -25,6 +25,9 @@ AA16 una copia di prova in attesa da un aggiornamento si salva in copia-in-attes
 AA17 una copia di prova in attesa dal sync fra le macchine resta com'è: niente si installa.
 AA18 dopo un /clear, un /compact o una ripresa il rinvio non si installa: lo installa l'apertura dopo di
      Claude Code, perché il processo di prima ha i mod caricati (#4732, 4/11/2026).
+AA19 una procedura che non parte lascia all'avvio i file che la fermano, senza dire anche che il rilascio
+     si installa da solo (segnalazione n. 49 di Gigi, #4767, 4/11/2026).
+AA20 con le modifiche salvate in un commit lo stato torna pronto e il rilascio si installa alla chiusura.
 
 Sulla base 5d83592, prima della funzione, ogni controllo deve fallire col suo codice. AA12-AA17 sono rossi
 anche sulla base 9ca11aa (dev del 3/11/2026), salvo le invarianti AA15 e AA17.
@@ -188,7 +191,10 @@ def test_aa05(repo: Path) -> None:
         assert lab.head() == prima and '"mio"' in read(lab.utente / "settings.json"), \
             "AA05 con modifiche non salvate ~/.claude cambia"
         uscita = lab.arturo_cli("stato").stdout
-        assert "non è partito" in uscita and "/aggiorna" in uscita, f"AA05 l'avvio non dice perché: {uscita!r}"
+        assert "settings.json" in uscita and "/aggiorna" in uscita and "non si installa da sola" in uscita, \
+            f"AA05 l'avvio non dice perché: {uscita!r}"
+        assert "si installa da sola alla chiusura" not in uscita and lab.stato().get("stato") == "bloccato", \
+            f"AA05 l'avvio promette l'installazione che le modifiche fermano (n. 49): {uscita!r} {lab.stato()}"
     con_lab(repo, "AA05", prova)
 
 
@@ -429,10 +435,44 @@ def test_aa18(repo: Path) -> None:
     con_lab(repo, "AA18", prova)
 
 
+def test_aa19(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        prima = lab.head()
+        procedura = ("#!/usr/bin/env bash\n"
+                     "echo 'APPLICAZIONE NON PARTITA: questi file hanno modifiche tue non ancora salvate con un commit:'\n"
+                     "echo '  settings.json'\necho 'Non ho toccato niente.'\nexit 1\n")
+        lab.rilascia("bin/aggiorna-applica.sh", procedura, "v2026-02-01")
+        lab.arturo_cli("applica")
+        assert lab.head() == prima, "AA19 la prova non parte: il rilascio si installa"
+        uscita = lab.arturo_cli("stato").stdout
+        assert "non è partito" in uscita and "settings.json" in uscita, \
+            f"AA19 l'avvio non dice quali file fermano l'aggiornamento: {uscita!r}"
+        assert "si installa da sola" not in uscita, \
+            f"AA19 l'avvio dice insieme che non è partito e che si installa da solo (n. 49): {uscita!r}"
+    con_lab(repo, "AA19", prova)
+
+
+def test_aa20(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        (lab.utente / "settings.json").write_text(json.dumps({"env": {"A": "mio"}}, indent=2) + "\n", encoding="utf-8")
+        commit = lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        lab.arturo_cli("applica")
+        assert lab.stato().get("stato") == "bloccato", f"AA20 la prova non parte: {lab.stato()}"
+        lab.git(lab.utente, "commit", "-qam", "le mie impostazioni")
+        uscita = lab.arturo_cli("stato").stdout
+        assert lab.stato().get("stato") == "pronto" and "si installa da sola" in uscita, \
+            f"AA20 dopo il commit l'avvio non torna a dire che si installa: {uscita!r} {lab.stato()}"
+        lab.arturo_cli("applica")
+        assert (lab.utente / "hooks" / "nuova.py").exists() and '"mio"' in read(lab.utente / "settings.json"), \
+            f"AA20 dopo il commit il rilascio {commit[:7]} non si installa: {lab.stato()}"
+    con_lab(repo, "AA20", prova)
+
+
 TESTS = {"AA01": test_aa01, "AA02": test_aa02, "AA03": test_aa03, "AA04": test_aa04, "AA05": test_aa05,
          "AA06": test_aa06, "AA07": test_aa07, "AA08": test_aa08, "AA09": test_aa09, "AA10": test_aa10, "AA11": test_aa11,
          "AA12": test_aa12, "AA13": test_aa13, "AA14": test_aa14, "AA15": test_aa15, "AA16": test_aa16,
-         "AA17": test_aa17, "AA18": test_aa18}
+         "AA17": test_aa17, "AA18": test_aa18, "AA19": test_aa19,
+         "AA20": test_aa20}
 
 
 def main() -> int:

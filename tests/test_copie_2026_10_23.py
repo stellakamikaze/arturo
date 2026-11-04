@@ -24,7 +24,7 @@ CP04 gli archivi della persona che non fermano l'aggiornamento (data/handoffs, d
      data/memory, segnalazione n. 14) sono gli stessi in bin/aggiorna-applica.sh, hooks/session-start.sh,
      README.md, nel ciclo di /fine che li toglie dal tracciamento (27/10/2026, #3987; dal 30/10 in
      bin/fine-coda.py, #4291) e nei controlli
-     delle modifiche di /inizio e /aggiorna (#4079). La fonte è ARCHIVI_PERSONALI di aggiorna-applica.sh:
+     delle modifiche di /inizio e /aggiorna (#4079), e nello stato di bin/aggiornamenti.py (#4767). La fonte è ARCHIVI_PERSONALI di aggiorna-applica.sh:
      un archivio nuovo si aggiunge lì, e questo controllo dice tutte le copie da allineare.
 CP05 lo slug di un progetto è lo stesso in ogni copia (#4263, 30/10/2026): bin/contesto.py e bin/arturo
      con la stessa espressione, la funzione di hooks/statusline.js e le righe tr | sed di commands/*.md
@@ -165,6 +165,7 @@ def test_cp04(repo: Path) -> None:
         "bin/fine-coda.py": r'for p in \(((?:"data/\w+",? ?)+)\):',
         "commands/inizio.md": r"':\(exclude\)(data/\w+)'",
         "commands/aggiorna.md": r"':\(exclude\)(data/\w+)'",
+        "bin/aggiornamenti.py": r'":\(exclude\)(data/\w+)"',
     }
     liste = {}
     for nome, schema in copie.items():

@@ -12,6 +12,22 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — L'avviso dell'aggiornamento dice cosa lo ferma
+
+**Cosa cambia**: se hai modifiche non salvate con un commit in `~/.claude`, l'avvio non dice più che la
+versione nuova "si installa da sola alla chiusura". Dice che è ferma, quali file la fermano, e come
+sbloccarla: salvarle con `/fine`, e allora si installa alla chiusura dopo, oppure `/aggiorna` subito,
+che le salva col tuo sì. La barra in basso dice "serve /aggiorna". Appena salvi le modifiche, l'avviso
+torna a dire che si installa da sola. E quando un'installazione automatica non parte, l'avvio dice solo
+questo, con i file che l'hanno fermata, senza ripetere nella riga dopo che si installa da sola.
+
+**Perché**: segnalazione n. 49 di Gigi. L'aggiornamento automatico si fermava per una sua modifica non
+salvata, ma l'avvio diceva insieme "si installa da sola alla chiusura" e "non è partito", e alla sessione
+dopo tornava a promettere l'installazione senza dire come sbloccarla. Ha dovuto lanciare `/aggiorna` a
+mano per scoprirlo.
+
+---
+
 ## 2026-11-04 — Scrivere da terminale nei plugin installati chiede conferma
 
 **Cosa cambia**: se Claude scrive da terminale dentro la cartella dei plugin installati

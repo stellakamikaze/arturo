@@ -49,6 +49,9 @@ COMPROMISSIONE = "possibile compromissione: non aggiornare, segnala a chi mantie
 # (revisione del rilascio del 17/10/2026).
 FIRMA_SBAGLIATA = re.compile(r"no signature found|no principal matched|could not verify signature|bad signature",
                              re.I)
+# Gli archivi della persona: una loro modifica non salvata non ferma l'aggiornamento. Copia di
+# ARCHIVI_PERSONALI di bin/aggiorna-applica.sh, allineata dal banco CP04.
+ARCHIVI_PERSONALI = (":(exclude)data/handoffs", ":(exclude)data/todo", ":(exclude)data/memory")
 NON_VERIFICABILE = ("questo computer non sa controllare la firma dei rilasci: servono git 2.34 e OpenSSH 8.2, "
                     "o più recenti")
 
@@ -157,7 +160,24 @@ def calcola(r: Path) -> dict:
                     non_verificabile=not compromesso)
     if manuali(r):
         return dict(stato, stato="manuale", motivo="aggiornamenti a mano")
+    # Con modifiche non salvate la procedura non parte (APPLICAZIONE NON PARTITA): lo stato lo dice prima,
+    # così l'avvio e la barra non promettono un'installazione che non succede (segnalazione n. 49, #4767).
+    file = modificati(r)
+    if file:
+        elenco = ", ".join(file[:5]) + (f" e altri {len(file) - 5}" if len(file) > 5 else "")
+        return dict(stato, stato="bloccato", modifiche=file,
+                    motivo=f"hai modifiche non ancora salvate con un commit ({elenco})")
     return dict(stato, stato="pronto", motivo="")
+
+
+def modificati(r: Path) -> list:
+    """I file tracciati con modifiche non salvate, archivi della persona esclusi: la stessa domanda di
+    modificati() in bin/aggiorna-applica.sh, che resta il controllo che decide. Se git non risponde, la
+    lista è vuota e decide la procedura."""
+    p = git(r, "status", "--porcelain", "--untracked-files=no", "--", ".", *ARCHIVI_PERSONALI)
+    if p.returncode != 0:
+        return []
+    return [x[3:] for x in p.stdout.splitlines() if x.strip()]
 
 
 def processi_claude() -> int:
@@ -211,7 +231,7 @@ def cmd_stato(r: Path) -> int:
         except OSError:
             pass
     esito = leggi(file_esito(r))
-    rinviato = ""
+    rinviato = fallito = ""
     # Un rinvio si installa solo all'apertura di Claude Code (#4732, 4/11/2026). SessionStart scatta anche
     # dopo /clear, /compact e una ripresa, col processo di prima vivo: un rilascio che cambia o toglie un mod
     # glielo leva sotto i piedi, e Claude Code carica il mod nuovo solo all'apertura dopo. Così la rotazione
@@ -225,6 +245,7 @@ def cmd_stato(r: Path) -> int:
         elif esito.get("esito") == "RINVIATO":
             rinviato = esito.get("versione", "")
         else:
+            fallito = esito.get("versione", "")
             righe.append(f"ARTURO: l'aggiornamento automatico a {esito.get('versione')} non è partito "
                          f"({esito.get('riga') or 'motivo sconosciuto'}). Scaricalo con /aggiorna.")
         try:
@@ -253,8 +274,14 @@ def cmd_stato(r: Path) -> int:
         righe.append(f"ARTURO: la versione {rinviato} non si è installata alla chiusura scorsa, perché un'altra "
                      "sessione di Claude Code era ancora aperta. Si installa quando chiudi l'ultima, all'avvio di una "
                      "sessione sola, oppure subito con /aggiorna. Dillo alla persona in una frase.")
+    elif stato["stato"] == "pronto" and fallito == stato["versione"]:
+        pass  # la riga di "non è partito" basta: dire anche "si installa da sola" la contraddice (n. 49)
     elif stato["stato"] == "pronto":
         righe.append(f"ARTURO: c'è la versione {stato['versione']}: si installa da sola alla chiusura della sessione.")
+    elif stato.get("modifiche"):
+        righe.append(f"ARTURO: la versione {stato['versione']} non si installa da sola: {stato['motivo']}. Si installa "
+                     "alla chiusura dopo che le salvi (/fine lo fa), oppure subito con /aggiorna, che le salva col tuo "
+                     "sì. Dillo alla persona in una frase.")
     elif stato.get("compromesso"):
         righe.append(f"ARTURO: {COMPROMISSIONE}. {stato['motivo'][0].upper()}{stato['motivo'][1:]}: la versione "
                      f"{stato['versione']} non si installa, né da sola né con /aggiorna. Dillo alla persona con queste "
@@ -430,7 +457,13 @@ def _applica(r: Path, ammesse: int = 0) -> int:
     finally:
         shutil.rmtree(str(lavoro), ignore_errors=True)
     righe = [x for x in (p.stdout + p.stderr).splitlines() if x.strip()]
-    esito = next((x for x in righe if re.match(r"^(APPLICATO|GIÀ AGGIORNATO|APPLICAZIONE|RIPRISTINO)", x)), "")
+    i = next((n for n, x in enumerate(righe) if re.match(r"^(APPLICATO|GIÀ AGGIORNATO|APPLICAZIONE|RIPRISTINO)", x)), -1)
+    esito = righe[i] if i >= 0 else ""
+    if esito.endswith(":"):
+        # "questi file hanno modifiche tue…:" e l'elenco sotto, rientrato: l'avvio dice quali file (n. 49).
+        sotto = [x.strip() for x in righe[i + 1:i + 6] if x.startswith("  ")]
+        if sotto:
+            esito += " " + ", ".join(sotto)
     if esito.startswith("GIÀ AGGIORNATO"):
         scrivi(file_stato(r), calcola(r))
         return 0
