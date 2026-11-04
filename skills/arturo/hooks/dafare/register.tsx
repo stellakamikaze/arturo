@@ -268,9 +268,7 @@ export async function avvio($: EngineInterface, e: Evento<'session.start'>, next
     description: 'Apre il pannello delle tue cose da fare',
     argumentHint: '[progetto | nascondi | mostra]',
   })
-  const nascosta = (await $.store.get('barraNascosta')) === true
-  await update($, barraNascosta, () => nascosta)
-  await carica($)
+  await rileggi($)
   return next(e)
 }
 
@@ -285,6 +283,9 @@ export async function fineTurno($: EngineInterface, e: Evento<'turn.complete'>, 
 // vista si rileggono qui, altrimenti "/dafare nascondi" si perde (19/10/2026). Il secondo dopo cade
 // nella sessione nuova. Mai classic.SessionStart: il plugin di sistema cc-plugin-sec-default lo
 // scavalca e all'avvio compare "classic.SessionStart hook was skipped" (4/11/2026).
+// /branch resta fuori di proposito: session.end non ha un motivo suo per lui (i motivi sono clear,
+// resume, logout, prompt_input_exit e other). Se Claude Code lo chiude come resume, la rilettura parte.
+// session.end non ha matcher: lo registra hooks/register.tsx, in catena con le altre parti.
 export async function fineSessione($: EngineInterface, e: Evento<'session.end'>, next: Avanti<'session.end'>) {
   if (await parteSpenta($, 'dafare')) return next(e)
   const r = await next(e)
@@ -293,6 +294,7 @@ export async function fineSessione($: EngineInterface, e: Evento<'session.end'>,
   return r
 }
 
+// La scelta della barra dallo store, poi la vista: all'avvio e dopo /clear o /resume.
 async function rileggi($: EngineInterface): Promise<void> {
   const nascosta = (await $.store.get('barraNascosta')) === true
   await update($, barraNascosta, () => nascosta)

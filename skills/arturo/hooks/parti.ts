@@ -73,7 +73,7 @@ export function radiceCodice(radicePlugin: string): string {
   return /[\\/]skills[\\/]arturo$/.test(pulita) ? `${pulita}/../..` : pulita
 }
 
-// Gli hook in catena (session.start, turn.complete) sono funzioni dichiarate: il motore segue $ in un altro
+// Gli hook in catena (session.start, turn.complete, session.end) sono funzioni dichiarate: il motore segue $ in un altro
 // file solo dentro una dichiarazione. Il loro next è la parte dopo, quindi una funzione semplice.
 export type Evento<N extends EventName> = Parameters<Hook<N>>[1]
 export type Avanti<N extends EventName> = (e: Evento<N>) => ReturnType<Parameters<Hook<N>>[2]>
