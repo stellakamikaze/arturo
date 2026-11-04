@@ -54,7 +54,7 @@ altre persone e te ne consiglia altri. Più sotto ancora ci sono Claude Code e i
 │    prompt-master ......... ◄── nidhinjs/prompt-master (MIT)               │
 │    intervista e deleghe .. ◄── mattpocock/skills (MIT)                    │
 │                                                                           │
-│  consigliati, li installi dalla loro fonte (/setup te li propone):        │
+│  consigliati, li installi dalla loro fonte:                               │
 │    Impeccable ............ ◄── pbakaus/impeccable (Apache-2.0)            │
 │    Hallmark .............. ◄── Nutlope/hallmark (MIT)                     │
 │    diagram-design ........ ◄── cathrynlavery/diagram-design (MIT)         │

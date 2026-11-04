@@ -23,7 +23,7 @@ installi dalla loro fonte. Questa pagina li mette tutti in fila, con chi li aggi
 │    prompt-master ......... ◄── nidhinjs/prompt-master (MIT)               │
 │    intervista e deleghe .. ◄── mattpocock/skills (MIT)                    │
 │                                                                           │
-│  consigliati, li installi dalla loro fonte (/setup te li propone):        │
+│  consigliati, li installi dalla loro fonte:                               │
 │    Impeccable ............ ◄── pbakaus/impeccable (Apache-2.0)            │
 │    Hallmark .............. ◄── Nutlope/hallmark (MIT)                     │
 │    diagram-design ........ ◄── cathrynlavery/diagram-design (MIT)         │

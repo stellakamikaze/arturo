@@ -8,7 +8,8 @@ più, l'hook non nomina email vere e rimanda all'onboarding di docs/onboarding/ 
 comportamento lo prova MP01-MP03 (tests/test_mod_passo2_2026_11_03.py).
 Q03 cache-fredda porta il segnale "token gws in errore" col suo test, niente banchi (3/11/2026), e non c'è
 un cruscotto parallelo.
-Q04 nei file nuovi non ci sono nomi, host, percorsi o email personali.
+Q04 nei file nuovi non ci sono nomi, host, percorsi o email personali: dal 4/11/2026 anche nella skill humanizer
+intera, nel disegno di come è fatto Arturo e negli altri file arrivati con humanizer e con la procedura guidata.
 Q05 il catalogo dei tic della scrittura generata è la skill humanizer (da blader/humanizer, MIT, con la
 sua LICENSE), collegata dalla skill ITS; il vecchio catalogo di ITS non c'è più (4/11/2026).
 Q06 nomi e licenze allineati dopo humanizer (#4721, 4/11/2026): la sezione della voce nel CLAUDE.md ha il
@@ -50,8 +51,9 @@ def personali(testo: str) -> List[int]:
 
 
 EMAIL = re.compile(r"[\w.+-]+@([\w-]+\.)+[a-z]{2,}", re.IGNORECASE)
-NUOVI = ("skills/arturo/hooks/apri", "hooks/gws-esito.py", "skills/arturo/hooks/cache-fredda", "skills/humanizer/SKILL.md",
-         "docs/impeccable.md", "docs/hallmark.md")
+NUOVI = ("skills/arturo/hooks/apri", "hooks/gws-esito.py", "skills/arturo/hooks/cache-fredda", "skills/humanizer",
+         "docs/impeccable.md", "docs/hallmark.md", "docs/come-e-fatto.md", "docs/diagram-design.md",
+         "bin/humanizer-origine.py", "skills/italiano-semplificato/LICENSE", "shared/procedura-guidata.sh")
 
 
 def read(path: Path) -> str:
@@ -133,6 +135,8 @@ def test_q04(repo: Path) -> None:
                 if f.name == "plugin.json" and "Nejrotti" in linee[riga - 1]:
                     continue
                 trovati.append(f"{f.relative_to(repo)}:{riga}")
+            trovati += [f"{f.relative_to(repo)}: {m.group(0)}" for m in EMAIL.finditer(read(f))
+                        if not m.group(0).lower().endswith(("@example.org", "@example.com"))]
     assert not trovati, "Q04 dati personali: " + "; ".join(trovati[:5])
 
 

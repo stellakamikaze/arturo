@@ -18,8 +18,9 @@ G206 forma_comando: rm e find si riconoscono col path completo, in un blocco, do
      `sh -c`; un rm citato in un heredoc verso python non conta; le variabili assegnate nel
      comando si risolvono.
 G214 l'aggiornamento automatico (firme/, bin/aggiornamenti.py, bin/aggiorna-applica.sh) è protetto
-G215 il puntatore della barra (~/.claude/arturo/radice) è protetto come l'aggiornamento automatico
      come gli hook: Edit/Write negati senza unlock, scrittura shell con conferma, copia altrove libera.
+G215 il puntatore della barra (~/.claude/arturo/radice) è protetto come l'aggiornamento automatico;
+     leggerlo resta libero.
 
 Sulla base cbd8305 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """

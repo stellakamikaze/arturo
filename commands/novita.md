@@ -53,16 +53,16 @@ done
 
 Per ogni entry non vista, **una per volta**:
 
-1. **Il diagramma, se c'è.** Un blocco di codice aperto con ` ```diagramma ` si mostra così com'è, intero e
+1. **La sua segnalazione, se c'è.** Se l'entry cita una "segnalazione n. X" mandata da questa persona,
+   la prima frase lo dice: "è uscita la correzione della tua segnalazione n. X". Le sue segnalazioni e i
+   loro numeri: `python3 ~/.claude/bin/arturo segnala stato`, lanciato una volta all'inizio del racconto.
+2. **Il diagramma, se c'è.** Un blocco di codice aperto con ` ```diagramma ` si mostra così com'è, intero e
    prima del racconto, dentro un blocco di codice: è l'unica parte dell'entry che non racconti a parole.
    Poi una frase che dice dove si trova la persona nel disegno.
-2. **Cosa cambia**, in due frasi tue — non incollare l'entry, raccontala.
-3. **Il principio dietro** — perché questa novità esiste, cosa insegna. Se l'entry rimanda a un capitolo di `docs/principi/`, offri di leggerlo insieme.
-4. **Ti riguarda se...** — aiuta l'utente a capire se la novità tocca il suo modo di usare l'harness.
-5. Proponi: "vuoi fare un po' di sparring per vedere se ti serve?" → se sì, apri con Read `~/.claude/commands/sparring.md` e seguilo con l'argomento `novità AAAA-MM-GG — Titolo`, l'intestazione di questa entry.
-6. Se l'entry cita una "segnalazione n. X" mandata da questa persona, diglielo per primo: "è uscita
-   la correzione della tua segnalazione n. X". Le sue segnalazioni e i loro numeri: `python3
-   ~/.claude/bin/arturo segnala stato`, lanciato una volta all'inizio del racconto.
+3. **Cosa cambia**, in due frasi tue — non incollare l'entry, raccontala.
+4. **Il principio dietro** — perché questa novità esiste, cosa insegna. Se l'entry rimanda a un capitolo di `docs/principi/`, offri di leggerlo insieme.
+5. **Ti riguarda se...** — aiuta l'utente a capire se la novità tocca il suo modo di usare l'harness.
+6. Proponi: "vuoi fare un po' di sparring per vedere se ti serve?" → se sì, apri con Read `~/.claude/commands/sparring.md` e seguilo con l'argomento `novità AAAA-MM-GG — Titolo`, l'intestazione di questa entry.
 7. Segna questa entry come vista (Passo 3) prima di passare alla successiva.
 
 Linguaggio semplice, zero gergo non spiegato. Se le entry nuove sono più di una, chiedi dopo ciascuna se proseguire.
