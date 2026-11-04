@@ -1,13 +1,13 @@
 ---
 name: concetti
 description: >-
-  Spiega i concetti base di Claude Code e di Arturo a chi non ha mai usato un terminale: contesto e
-  memoria, git e GitHub, branch e fork, cosa succede alle tue modifiche quando Arturo si aggiorna,
-  subagent e modelli più economici, ultracode, le due finestre della quota, cosa vuol dire dire sì
-  a una conferma. Ogni risposta finisce con dove trovi quella cosa in Arturo.
+  Spiega i concetti base di Claude Code e di Arturo a chi non ha mai aperto un terminale: cos'è un
+  harness, contesto e memoria, git e GitHub, branch e fork, cosa succede alle tue modifiche quando
+  Arturo si aggiorna, subagent e modelli più economici, ultracode, le due finestre della quota, cosa
+  vuol dire dire sì a una conferma. Ogni risposta finisce con dove trovi quella cosa in Arturo.
 when_to_use: >-
-  Usa quando la persona chiede "cos'è…", "che differenza c'è tra…", "perché…" su uno di questi
-  concetti, o quando una sua frase mostra che li confonde ("la quota della settimana è all'84%"
+  Usa quando la persona chiede "cos'è…" (anche "cos'è un harness"), "che differenza c'è tra…",
+  "perché…" su uno di questi concetti, o quando una sua frase mostra che li confonde ("la quota della settimana è all'84%"
   mentre la barra dice 5 ore, "ho perso la memoria" dopo /clear). NON per spiegare il codice di un
   progetto, NON come lezione non richiesta.
 ---
@@ -15,7 +15,7 @@ when_to_use: >-
 # Concetti
 
 Sono le domande tornate alla sera del Computer Club del 27/10/2026, quando chi usava Arturo da una
-settimana le ha fatte a voce. Tu le sai già spiegare. Questa skill serve a due cose: usare le
+settimana le ha fatte a voce, più quella sulla parola harness, che apre il README dal 4/11/2026. Tu le sai già spiegare. Questa skill serve a due cose: usare le
 immagini che quella sera hanno funzionato, e chiudere ogni risposta con il punto di Arturo dove la
 persona ritrova la cosa.
 
@@ -28,6 +28,14 @@ persona ritrova la cosa.
   spiega in due frasi e torna al problema.
 
 ## Le voci
+
+**Harness.** Un harness è l'insieme di regole e strumenti che sta intorno a un'intelligenza
+artificiale e le dice come lavorare: cosa può fare da sola, cosa deve chiederti, dove tiene la
+memoria del lavoro. Claude Code è il motore, l'harness è il modo in cui quel motore lavora per te.
+Arturo è un harness per il lavoro della conoscenza, cioè scrivere, cercare e tenere in ordine
+progetti e documenti. È pensato per chi usa già l'intelligenza artificiale in chat e non ha mai
+aperto un terminale.
+In Arturo: le regole stanno in `~/.claude`, il README le racconta, e `/setup` le adatta a te.
 
 **Contesto e memoria.** Il contesto è la RAM: quello che la sessione ha sotto mano adesso. Si
 riempie mentre lavori, e quando la sessione finisce si svuota. La memoria è il disco: file che

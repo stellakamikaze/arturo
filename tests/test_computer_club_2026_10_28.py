@@ -6,7 +6,7 @@ CC01 la barra in basso dice la quota in parole ("5 ore", "settimana"): chi legge
      per la settimana. L'orario di azzeramento delle 5 ore si vede sempre, quello della settimana solo
      da 75%. L'ultima quota letta resta in cache/statusline/quota.json, mai in data/.
 CC02 /guidami legge la quota dal file che la barra scrive ("ho token e tempo, cosa facciamo?").
-CC03 la skill concetti spiega contesto e memoria, git e GitHub, branch e fork, aggiornamenti, subagent,
+CC03 la skill concetti spiega l'harness, contesto e memoria, git e GitHub, branch e fork, aggiornamenti, subagent,
      ultracode, le due finestre della quota e il sì a una conferma, ognuno con "In Arturo:". Il README
      conta le skill come le cartelle con SKILL.md.
 CC04 /segnala dice il numero che il server assegna ("quando faccio il segnale cosa succede?").
@@ -100,7 +100,7 @@ def test_cc03(repo: Path) -> None:
     assert m and re.search(r"^name: concetti$", m.group(1), re.M) and "when_to_use:" in m.group(1), \
         "CC03 il frontmatter della skill concetti non è valido"
     voci = re.findall(r"^\*\*(.+?)\*\*", testo[m.end():], re.M)
-    attese = ["Contesto e memoria.", "Git e GitHub.", "Branch e fork.", "Le tue modifiche e gli aggiornamenti.",
+    attese = ["Harness.", "Contesto e memoria.", "Git e GitHub.", "Branch e fork.", "Le tue modifiche e gli aggiornamenti.",
               "Subagent e modelli più economici.", "Ultracode.", "Le due finestre della quota.", "Dire sì a una conferma."]
     assert voci == attese, f"CC03 le voci della skill concetti sono {voci}"
     assert len(re.findall(r"^In Arturo:", testo, re.M)) == len(attese), "CC03 una voce non dice dove trovi la cosa in Arturo"

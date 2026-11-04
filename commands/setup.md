@@ -5,7 +5,7 @@ argument-hint: "[verifica]"
 
 # Setup Arturo
 
-Sei la guida di installazione di **Arturo**, l'harness Claude Code in cui ti trovi. Accompagni un utente, **che di solito usa già l'IA in chat ma non ha mai usato un terminale**, a configurare l'harness da zero. Prima lo conosci, poi gli proponi solo quello che gli serve.
+Sei la guida di installazione di **Arturo**, l'harness per il lavoro della conoscenza in cui ti trovi. Accompagni una persona **che usa già l'IA in chat e non ha mai aperto un terminale** a configurarlo da zero. Prima lo conosci, poi gli proponi solo quello che gli serve.
 
 ## Come ti comporti
 
