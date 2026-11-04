@@ -9,8 +9,8 @@ comportamento lo prova MP01-MP03 (tests/test_mod_passo2_2026_11_03.py).
 Q03 cache-fredda porta il segnale "token gws in errore" col suo test, niente banchi (3/11/2026), e non c'è
 un cruscotto parallelo.
 Q04 nei file nuovi non ci sono nomi, host, percorsi o email personali.
-Q05 il catalogo dei tic della scrittura generata è scritto da zero, collegato dalla skill ITS, e
-dice perché non copia tropes.fyi.
+Q05 il catalogo dei tic della scrittura generata è la skill humanizer (da blader/humanizer, MIT, con la
+sua LICENSE), collegata dalla skill ITS; il vecchio catalogo di ITS non c'è più (4/11/2026).
 Q07 Impeccable è un rimando all'upstream: la nota in docs/ c'è, la skill non è copiata.
 Q08 prompt-master non dice più che il brief si mostra anche per una richiesta breve.
 Q09 prompt-master e il promemoria di inject-now.sh caricano il corpo una volta per sessione e dopo
@@ -47,7 +47,7 @@ def personali(testo: str) -> List[int]:
 
 
 EMAIL = re.compile(r"[\w.+-]+@([\w-]+\.)+[a-z]{2,}", re.IGNORECASE)
-NUOVI = ("skills/arturo/hooks/apri", "hooks/gws-esito.py", "skills/arturo/hooks/cache-fredda", "skills/italiano-semplificato/references/tic-scrittura-ia.md",
+NUOVI = ("skills/arturo/hooks/apri", "hooks/gws-esito.py", "skills/arturo/hooks/cache-fredda", "skills/humanizer/SKILL.md",
          "docs/impeccable.md", "docs/hallmark.md")
 
 
@@ -134,15 +134,23 @@ def test_q04(repo: Path) -> None:
 
 
 def test_q05(repo: Path) -> None:
-    cat = repo / "skills" / "italiano-semplificato" / "references" / "tic-scrittura-ia.md"
-    assert cat.is_file(), "Q05 manca il catalogo dei tic"
-    testo = read(cat)
-    assert "tropes.fyi" in testo and "licenza" in testo and "scritto da zero" in testo, "Q05 manca la nota su fonte e licenza"
-    # Titoli tipici del catalogo d'origine: qui non devono comparire.
+    # Dal 4/11/2026 il catalogo dei tic è la skill humanizer, adattata da github.com/blader/humanizer (MIT):
+    # la licenza chiede la nota di copyright accanto al testo. Il vecchio catalogo di ITS è uscito, così i
+    # cataloghi non sono due.
+    skill = repo / "skills" / "humanizer" / "SKILL.md"
+    assert skill.is_file(), "Q05 manca la skill humanizer"
+    testo = read(skill)
+    assert "github.com/blader/humanizer" in testo and "3.1.0" in testo and "MIT" in testo, \
+        "Q05 la skill humanizer non dice fonte, versione e licenza"
+    licenza = repo / "skills" / "humanizer" / "LICENSE"
+    assert licenza.is_file() and "Siqi Chen" in read(licenza), "Q05 manca la nota MIT dell'originale"
+    assert not (repo / "skills" / "italiano-semplificato" / "references" / "tic-scrittura-ia.md").exists(), \
+        "Q05 il vecchio catalogo dei tic è ancora lì: i cataloghi sarebbero due"
+    # Titoli tipici di tropes.fyi, che non dichiara una licenza: qui non devono comparire.
     for titolo in ("Avverbi magici", "La scappatoia", "Anafora abusata", "Tricolon"):
-        assert titolo not in testo, f"Q05 titolo ripreso dalla fonte: {titolo}"
-    assert "references/tic-scrittura-ia.md" in read(repo / "skills" / "italiano-semplificato" / "SKILL.md"), \
-        "Q05 la skill ITS non collega il catalogo"
+        assert titolo not in testo, f"Q05 titolo ripreso da una fonte senza licenza: {titolo}"
+    assert "skills/humanizer/SKILL.md" in read(repo / "skills" / "italiano-semplificato" / "SKILL.md"), \
+        "Q05 la skill ITS non rimanda a humanizer"
 
 
 def test_q07(repo: Path) -> None:

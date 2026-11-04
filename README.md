@@ -13,7 +13,7 @@ Dentro ci sono:
 - **23 guardie e automazioni** — le guardie chiedono la conferma prima di un gesto che non si annulla; le automazioni aprono e chiudono le sessioni e tengono la memoria del lavoro;
 - **11 slash command** — i comandi che si scrivono con la barra davanti, come `/inizio`, `/fine` o `/diagnosi`;
 - **8 subagent** — assistenti che Claude manda a fare un compito a parte, come `bug-finder`, che cerca gli errori nel codice;
-- **6 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare.
+- **7 skill** — istruzioni che Claude carica quando gli serve un certo lavoro, come `todo` per le cose da fare o `humanizer` per un testo che suona da IA.
 
 Ci sono anche una **CLI per i todo** (`arturo todo`) e per il contesto di un progetto (`arturo contesto`), e un **curriculum di principi** (`docs/principi/`) scritto per chi usa già l'IA in chat ma non ha mai aperto un terminale. Il **server** che raccoglie telemetria e segnalazioni è open source (`server/`): mi dice dove Arturo si inceppa sui computer di chi lo usa. Riceve nomi di comandi e numeri, mai i tuoi testi o i tuoi file, e la telemetria si spegne con un comando ([Impegni](#impegni)). A te non serve un server né un account: il server della telemetria lo tiene chi mantiene Arturo. Ti serve `git`, e la guida ti fa installare anche Python e node, se mancano.
 
@@ -293,7 +293,7 @@ tools/scrapling/     scrape: lettura di una pagina web senza browser (facoltativ
 server/              Il server della telemetria e delle segnalazioni (Cloudflare Worker, open source)
 commands/            11 slash command (i dieci della rotta, più lo sparring che Claude apre da solo)
 agents/              8 subagent specializzati
-skills/              6 skill (+ regole condivise in shared/)
+skills/              7 skill (+ regole condivise in shared/)
 output-styles/       Lo stile di scrittura Conciso, quello di partenza (lo stile si cambia in /setup)
 docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/onboarding/     Guide di setup guidato (/inizio gws)
@@ -406,7 +406,8 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 - **`todo`** — quando dici "ricordami di…" o chiedi cosa c'è da fare, Claude usa la CLI `arturo todo`. I todo stanno in un archivio sul tuo computer (`data/todo/eventi.jsonl`), divisi per progetto, scadenza e chi agisce: tu, tu che decidi e poi Claude, oppure Claude. `/fine` ci scrive quello che resta, `/inizio` lo rilegge. Da terminale: `python3 ~/.claude/bin/arturo todo aiuto`. Se chiedi di vederli in una pagina, Claude avvia `arturo web`: una pagina nel browser che risponde solo sul tuo computer.
 
 - **`concetti`** — quando chiedi "cos'è" o "che differenza c'è" su contesto e memoria, git e GitHub, branch e fork, aggiornamenti e modifiche tue, subagent, ultracode, le due finestre della quota o il sì a una conferma, Claude risponde in poche frasi e chiude con dove trovi la cosa in Arturo. Sono le domande della sera del Computer Club del 27/10/2026.
-- **`italiano-semplificato`** — quando chiedi di semplificare un testo, riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI. Una seconda passata cerca i tic di ritmo e struttura del testo generato (contrasti inventati, terne automatiche, chiuse a sentenza): il catalogo è in italiano e scritto da zero.
+- **`italiano-semplificato`** — quando chiedi di semplificare un testo, riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI. Una seconda passata cerca i tic di ritmo e struttura del testo generato (contrasti inventati, terne automatiche, chiuse a sentenza) con gli schemi della skill `humanizer`.
+- **`humanizer`** — quando un testo in uscita suona scritto da un'IA (un post, un'email, una proposta, una pagina), lo riscrive perché suoni tuo senza cambiare cosa dice: toglie i contrasti inventati, le chiuse a sentenza, le terne, le lineette ovunque, le parole gonfie e i resti della chat, e non aggiunge fatti. Segue il tuo modo di scrivere: un tuo testo dato come campione, oppure la sezione "Come scrivi" del tuo `CLAUDE.md`. È l'adattamento italiano di [humanizer](https://github.com/blader/humanizer) di blader (MIT).
 - **`monitor`** — smista quello che ti arriva. Al primo avvio ti mostra in parole le fonti che sa leggere per te (posta, todo, sessioni con Claude, memoria), ti dice cosa manca per collegare le altre, e tiene la tua scelta in `data/monitor/fonti.json`. Il giro quotidiano, che legge le fonti e scrive il report, arriva con il prossimo aggiornamento. Come si aggiunge una fonte tua: `docs/monitor-ponti.md`.
 
 **Il mod di Arturo.** Claude Code lo carica da solo dalla cartella `skills/arturo/`, come `arturo@skills-dir`. È un mod solo con sei parti, una per cartella in `skills/arturo/hooks/`. Per spegnere una parte scrivi il suo nome in `~/.claude/arturo/parti.json`, per esempio `{"spente": ["dafare"]}`: vale dalla sessione dopo. `/plugin`, poi il mod, poi disattiva, spegne tutte e sei le parti. Attenzione a `redazione-segreti`: è la parte che protegge. Spenta, Claude legge i segreti in chiaro.

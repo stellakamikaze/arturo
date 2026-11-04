@@ -44,6 +44,14 @@ L'intestazione di Claude Code, con la sua mascotte, non si può cambiare: nessun
 
 <!-- task: #4573 #4574 -->
 
+### I testi che scrivi con Claude suonano tuoi {#scrittura}
+
+Stato: in corso. La skill `humanizer` è su dev ed esce con il prossimo rilascio.
+
+Un post, un'email o una proposta scritti con Claude si riconoscono: contrasti inventati, chiuse a effetto, elenchi di tre, parole gonfie. La skill `humanizer` li toglie senza cambiare cosa dice il testo, e segue il tuo modo di scrivere. È l'adattamento italiano di un progetto open source di blader, e prende il posto del catalogo dei tic che Arturo aveva dentro la skill dell'italiano semplificato.
+
+<!-- task: #4695 -->
+
 ### Le vostre segnalazioni {#segnalazioni}
 
 Stato: in corso. Tre correzioni escono con il prossimo rilascio.

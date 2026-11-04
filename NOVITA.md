@@ -12,6 +12,25 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — I testi che scrivi con Claude suonano tuoi
+
+**Cosa cambia**: c'è una skill nuova, `humanizer`. Quando un post, un'email o una proposta suonano
+scritti da un'IA, chiedi a Claude di renderli tuoi, oppure di passarli da `humanizer` prima di
+consegnarli. La skill toglie i contrasti inventati ("non è solo X, è Y"), le chiuse a effetto, gli
+elenchi di tre messi per abitudine, le lineette ovunque, le parole gonfie come "fondamentale" e
+"ecosistema", e i resti della chat come "Spero ti sia utile". Non aggiunge fatti, nomi o numeri.
+
+**Perché**: un testo che suona da IA si riconosce, e chi lo legge smette di fidarsi anche di ciò
+che è vero. La skill segue il tuo modo di scrivere: se le dai un tuo testo come campione, imita
+quello; altrimenti legge la sezione "Come scrivi" del tuo `CLAUDE.md`, che `/setup` ha scritto con
+te. Il campione vince sulle regole: se tu usi le lineette, restano.
+
+**Da sapere**: è l'adattamento italiano di humanizer di blader, un progetto open source con licenza
+MIT. Prende il posto del catalogo dei tic che stava dentro la skill `italiano-semplificato`, che
+adesso usa lo stesso elenco: i cataloghi non sono più due.
+
+---
+
 ## 2026-11-04 — Se il controllo dei segreti non parte, Arturo ti dice perché
 
 **Cosa cambia**: prima di ogni commit una guardia cerca password e chiavi nelle modifiche. Quando
