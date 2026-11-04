@@ -13,6 +13,7 @@ deve essere sempre uguale:
   di posta). Nessun canale apre un mailto:, che comms-guard nega di proposito;
 - stato: a che punto sono le segnalazioni della persona (in attesa, arrivate col numero, corrette
   con la voce di NOVITA.md che le cita);
+- precedenti: le segnalazioni già partite col loro "In breve", che /segnala confronta con la bozza;
 - chiedi, basta, riprendi: la cadenza della domanda di /fine e il modo di spegnerla.
 
 Lo stato (ultima domanda, ultima segnalazione, canale scelto, pausa) sta in
@@ -52,6 +53,9 @@ URL_MASSIMO = 6000
 # Non è un segreto: lo scanner la segnala, la segnalazione può contenerla.
 NON_SEGRETI = {"Stripe Publishable Key"}
 FIRMA = "\n\n---\n_Inviata con `/segnala` di Arturo._\n"
+# /segnala precedenti: quante copie e quanto del loro "In breve" legge Claude prima dell'anteprima.
+PRECEDENTI_MASSIMO = 30
+BREVE_MASSIMO = 400
 
 AIUTO = f"""arturo segnala: un problema, un'idea o un'integrazione da proporre a chi mantiene Arturo.
 
@@ -64,6 +68,8 @@ Di solito lo usa /segnala dentro Claude Code. Comandi:
                                          gh = issue pubblica; web = pagina della issue compilata;
                                          email = testo negli appunti per {EMAIL})
   stato                                  le tue segnalazioni: in attesa, arrivate, corrette (da NOVITA.md)
+  precedenti                             le segnalazioni già partite col loro "In breve", dalla più recente:
+                                         /segnala le confronta con la bozza prima dell'anteprima
   canale [arturo|gh|web|email]           il canale ricordato, o lo ricorda
   chiedi                                 /fine può fare la domanda della settimana? (0 sì, 3 no)
   basta                                  niente inviti a segnalare finché non dici riprendi
@@ -392,18 +398,11 @@ def novita_per_numero(testo: str) -> dict:
     return trovate
 
 
-def stato() -> int:
-    """Le segnalazioni partite da questo computer e dove sono: in attesa, arrivate, corrette e uscite
-    (Computer Club N.3, 27/10/2026: "quando faccio il segnale cosa succede?")."""
-    copie = sorted(cartella_copie().glob("*.md"))
-    if not copie:
-        print("Nessuna segnalazione partita da questo computer.")
-        return 0
-    try:
-        uscite = novita_per_numero((Path.home() / ".claude" / "NOVITA.md").read_text(encoding="utf-8"))
-    except OSError:
-        uscite = {}
-    for copia in copie:
+def _copie() -> list:
+    """Le copie delle segnalazioni partite da questo computer, dalla più vecchia: numero (o None), data,
+    titolo, esito, e il paragrafo "In breve" in una riga (per le copie senza, l'inizio del testo)."""
+    copie = []
+    for copia in sorted(cartella_copie().glob("*.md")):
         try:
             testo = copia.read_text(encoding="utf-8")
         except OSError:
@@ -413,9 +412,29 @@ def stato() -> int:
         esito = re.search(r"^Esito: (.*)$", testo, re.M)
         esito = esito.group(1) if esito else ""
         numero = re.search(r"segnalazione n\. (\d+)", esito)
-        quando = data.group(1) if data else ""
-        if numero and int(numero.group(1)) in uscite:
-            giorno, voce = uscite[int(numero.group(1))]
+        corpo = testo.split("\n\n", 2)[2] if testo.count("\n\n") >= 2 else testo
+        breve = re.search(r"^### In breve\s*\n(.*?)(?=^###|\Z)", corpo, re.M | re.S)
+        breve = " ".join((breve.group(1) if breve else corpo.replace(FIRMA.strip(), "")).split())
+        copie.append({"numero": int(numero.group(1)) if numero else None, "quando": data.group(1) if data else "",
+                      "titolo": titolo, "esito": esito, "breve": breve[:BREVE_MASSIMO]})
+    return copie
+
+
+def stato() -> int:
+    """Le segnalazioni partite da questo computer e dove sono: in attesa, arrivate, corrette e uscite
+    (Computer Club N.3, 27/10/2026: "quando faccio il segnale cosa succede?")."""
+    copie = _copie()
+    if not copie:
+        print("Nessuna segnalazione partita da questo computer.")
+        return 0
+    try:
+        uscite = novita_per_numero((Path.home() / ".claude" / "NOVITA.md").read_text(encoding="utf-8"))
+    except OSError:
+        uscite = {}
+    for c in copie:
+        numero, esito = c["numero"], c["esito"]
+        if numero and numero in uscite:
+            giorno, voce = uscite[numero]
             dove = f"corretta: la novità del {giorno} \"{voce}\" la racconta"
         elif numero:
             dove = "arrivata, la correzione non è ancora uscita"
@@ -423,7 +442,21 @@ def stato() -> int:
             dove = "in attesa: parte da sola appena il server risponde"
         else:
             dove = esito or "esito non scritto"
-        print(f"{'n. ' + numero.group(1) if numero else '-'} · {quando} · {titolo}: {dove}")
+        print(f"{'n. ' + str(numero) if numero else '-'} · {c['quando']} · {c['titolo']}: {dove}")
+    return 0
+
+
+def precedenti() -> int:
+    """Le segnalazioni già partite, dalla più recente, col loro "In breve": /segnala le confronta con la bozza
+    prima dell'anteprima. Il confronto lo fa Claude sul fatto, non sulle parole (proposta n. 53 di Filippo,
+    4/11/2026: tre problemi partiti tre volte ciascuno da sessioni diverse)."""
+    copie = _copie()[-PRECEDENTI_MASSIMO:]
+    if not copie:
+        print("Nessuna segnalazione partita da questo computer.")
+        return 0
+    for c in reversed(copie):
+        quale = f"n. {c['numero']}" if c["numero"] else ("in attesa" if c["esito"].startswith("in attesa") else "senza numero")
+        print(f"{quale} · {c['quando']} · {c['titolo']}\n  {c['breve']}")
     return 0
 
 
@@ -458,6 +491,8 @@ def main(argv: list) -> int:
             return invia(_opzioni(resto, ("--canale", "--file")))
         if comando == "stato" and not resto:
             return stato()
+        if comando == "precedenti" and not resto:
+            return precedenti()
         if comando == "chiedi" and not resto:
             return chiedi()
         if comando == "canale" and len(resto) <= 1:

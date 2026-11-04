@@ -12,6 +12,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — /segnala guarda se la segnalazione è già partita
+
+**Cosa cambia**: prima di mostrarti l'anteprima, `/segnala` guarda le segnalazioni già partite da questo
+computer, anche da altre sessioni. Se una racconta lo stesso fatto, Claude te lo dice col numero e la
+data, e ti chiede se mandare la nuova come aggiunta a quella. Decidi tu: niente blocchi. Un'aggiunta
+porta solo il nuovo, per esempio un caso diverso o un messaggio esatto, e dice a quale segnalazione si
+lega.
+
+**Perché**: proposta n. 53 di Filippo. Su 21 segnalazioni partite dal 19/10 al 4/11, tre problemi sono
+partiti tre volte ciascuno, da sessioni che non si vedevano fra loro. Il confronto lo fa Claude sul
+fatto, non sulle parole: un conteggio di parole uguali legava due casi su tre di uno stesso problema.
+
+---
+
 ## 2026-11-04 — /inizio ricorda i todo di Claude fermi da giorni
 
 **Cosa cambia**: all'avvio, `/inizio` elenca i todo che Claude deve fare e che non hanno avuto un passo

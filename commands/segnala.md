@@ -82,7 +82,27 @@ segreti, ma non riconosce un nome o un contenuto riservato: quello è il tuo lav
 Il titolo dice il fatto in poche parole comuni: "/fine si ferma al commit", non "Bug", e non
 "commit-secret-gate.py dà scansione-fallita".
 
-## Passo 3 — Anteprima
+## Passo 3 — È già partita?
+
+La stessa segnalazione può partire più volte, da sessioni diverse che non si vedono fra loro. Prima
+dell'anteprima guarda quelle già partite da questo computer:
+
+```bash
+python3 ~/.claude/bin/arturo segnala precedenti
+```
+
+Confronta tu il fatto, non le parole. Lo stesso problema raccontato con altre parole è un doppione.
+Due problemi diversi nello stesso comando non lo sono.
+
+- Se nessuna racconta lo stesso fatto, vai avanti senza dirlo.
+- Se una lo racconta, dillo alla persona prima dell'anteprima, con titolo, numero e data: "Forse è
+  già partita il 3/11, è la n. 46. La mando come aggiunta a quella, o la lasciamo stare?". Decide
+  lei: niente blocchi.
+- Come aggiunta, "In breve" apre con "Si aggiunge alla n. 46 del 3/11:" e il testo tiene solo il nuovo:
+  un caso diverso, un messaggio esatto, un'altra versione. Senza numero (in attesa, o partita su un
+  altro canale) vale la data col titolo.
+
+## Passo 4 — Anteprima
 
 ```bash
 python3 ~/.claude/bin/arturo segnala prepara --tipo TIPO --titolo "TITOLO" --file BOZZA
@@ -107,7 +127,7 @@ Di' dove va, prima del sì:
 Chiedi: "La mando?". La persona può cambiare il testo o il canale. Un cambio del testo passa di
 nuovo da `prepara`.
 
-## Passo 4 — Invio, solo dopo il sì
+## Passo 5 — Invio, solo dopo il sì
 
 ```bash
 python3 ~/.claude/bin/arturo segnala invia --canale CANALE --file PRONTA

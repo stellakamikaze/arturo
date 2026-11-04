@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""S01-S09: /segnala, il canale con cui chi usa Arturo manda problemi, idee e integrazioni.
+"""S01-S10: /segnala, il canale con cui chi usa Arturo manda problemi, idee e integrazioni.
 
 Ogni caso gira con una HOME finta e con comandi finti nel PATH (open, xdg-open, pbcopy, xclip,
 wl-copy, gh) che scrivono su file cosa hanno ricevuto. Niente parte davvero.
 Sulla base 75c8e23, prima di /segnala, ogni controllo deve fallire per conto suo.
+S10 (proposta n. 53 di Filippo, 4/11/2026): /segnala guarda le segnalazioni già partite prima
+dell'anteprima, e `arturo segnala precedenti` le elenca col loro "In breve".
 """
 from __future__ import annotations
 
@@ -207,8 +209,40 @@ def test_s09(repo: Path) -> None:
     assert lab.arturo("canale").stdout.strip() == "arturo", "S09 il canale diretto non resta"
 
 
+def test_s10(repo: Path) -> None:
+    lab = Lab(repo)
+    copie = lab.home / ".claude" / "data" / "segnalazioni"
+    copie.mkdir(parents=True)
+    (copie / "2026-11-03_140743_problema.md").write_text(
+        "# [problema] Comandi doppi\n\nData: 2026-11-03 14:07\nCanale: arturo\n"
+        "Esito: arrivata a chi mantiene Arturo: è la segnalazione n. 46\n\n"
+        "### In breve\nIn auto mode i comandi\nvanno lanciati due volte.\n\n### Cosa stavi facendo?\nLavoro.\n",
+        encoding="utf-8")
+    (copie / "2026-11-04_090000_proposta.md").write_text(
+        "# [proposta] Ancora ferma\n\nData: 2026-11-04 09:00\nCanale: arturo\nEsito: in attesa: parte da sola\n\n"
+        "Testo senza intestazioni.\n", encoding="utf-8")
+    r = lab.arturo("precedenti")
+    assert r.returncode == 0, f"S10 precedenti non risponde: {r.returncode} {r.stderr!r}"
+    righe = r.stdout.splitlines()
+    assert any("n. 46" in x and "Comandi doppi" in x for x in righe), f"S10 manca la n. 46 col titolo: {r.stdout!r}"
+    assert "In auto mode i comandi vanno lanciati due volte." in r.stdout, f"S10 manca l'In breve in una riga: {r.stdout!r}"
+    assert "Cosa stavi facendo" not in r.stdout, "S10 oltre l'In breve esce anche il resto del testo"
+    assert r.stdout.index("Ancora ferma") < r.stdout.index("Comandi doppi"), "S10 la più recente non viene prima"
+    assert any(x.startswith("in attesa") and "Ancora ferma" in x for x in righe), f"S10 quella in attesa non lo dice: {r.stdout!r}"
+    for i in range(35):
+        (copie / f"2026-10-01_1000{i:02d}_problema.md").write_text(
+            f"# [problema] vecchia {i}\n\nData: 2026-10-01 10:00\nCanale: gh\nEsito: issue aperta\n\nx\n", encoding="utf-8")
+    titoli = [x for x in lab.arturo("precedenti").stdout.splitlines() if not x.startswith("  ")]
+    assert len(titoli) == 30, f"S10 senza tetto: {len(titoli)} segnalazioni stampate, attese 30"
+    comando = read(repo / "commands" / "segnala.md")
+    assert "arturo segnala precedenti" in comando, "S10 /segnala non guarda le segnalazioni già partite"
+    assert comando.index("segnala precedenti") < comando.index("segnala prepara"), \
+        "S10 /segnala guarda le segnalazioni già partite dopo l'anteprima, non prima"
+
+
 TESTS = {"S01": test_s01, "S02": test_s02, "S03": test_s03, "S04": test_s04,
-         "S05": test_s05, "S06": test_s06, "S07": test_s07, "S08": test_s08, "S09": test_s09}
+         "S05": test_s05, "S06": test_s06, "S07": test_s07, "S08": test_s08, "S09": test_s09,
+         "S10": test_s10}
 
 
 def main() -> int:
