@@ -78,8 +78,31 @@ def prova_mod(repo: Path, nome: str, codice: str) -> str:
     t = subprocess.run([claude(), "plugin", "test", str(cartella)], capture_output=True, text=True,
                        encoding="utf-8", errors="replace", timeout=180)
     esito = t.stdout + t.stderr
-    assert t.returncode == 0 and re.search(r"\b0 fail\b", esito), f"{codice} plugin test di {nome}: rc={t.returncode} {esito[-300:]}"
+    assert t.returncode == 0 and re.search(r"\b0 fail\b", esito), \
+        f"{codice} plugin test di {nome}: rc={t.returncode}\n{rossi_del_test(esito)}"
     return esito
+
+
+def rossi_del_test(esito: str) -> str:
+    """Le righe "(fail)" del plugin test, ognuna col suo errore: la coda dell'uscita taglia il nome del test.
+
+    4/11/2026 (#4748): un TB04 rosso nel gate sotto carico diceva solo "1 fail", e il test non si è più
+    ripresentato in 11 giri, anche con il carico a 195. Senza il nome il rosso non si può indagare.
+    """
+    righe, blocchi, i = esito.splitlines(), [], 0
+    while i < len(righe):
+        if righe[i].startswith("(fail)"):
+            fine = i + 1
+            while fine < len(righe) and fine - i <= 12 and not righe[fine].startswith(("(pass)", "(fail)", "(skip)")):
+                fine += 1
+            blocchi.append("\n".join(r.rstrip() for r in righe[i:fine]).rstrip())
+            i = fine
+        else:
+            i += 1
+    if not blocchi:
+        return esito[-600:]
+    # Il gate mostra le ultime 40 righe del log: i primi due rossi stanno dentro anche col traceback sopra.
+    return "\n".join("\n".join(blocchi[:2]).splitlines()[:24])
 
 
 def sorgenti(cartella: Path) -> List[Path]:
