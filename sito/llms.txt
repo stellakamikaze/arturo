@@ -1,6 +1,6 @@
 # Arturo
 
-> Arturo è un harness gratuito e open source (licenza MIT) per Claude Code, in italiano. Porta dentro Claude Code chi usa l'IA in chat e non ha mai aperto un terminale: guardie che chiedono conferma prima delle azioni che non si annullano, sessioni che si aprono e si chiudono in ordine, agenti e skill. Progetto di Federico Nejrotti.
+> Arturo è un harness per il lavoro della conoscenza, pensato per chi usa già l'intelligenza artificiale in chat e non ha mai aperto un terminale. È gratuito e open source (licenza MIT), in italiano, e lavora dentro Claude Code: guardie che chiedono conferma prima delle azioni che non si annullano, sessioni che si aprono e si chiudono in ordine, agenti e skill. Progetto di Federico Nejrotti.
 
 ## Cos'è Arturo
 
