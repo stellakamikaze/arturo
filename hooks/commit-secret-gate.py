@@ -361,7 +361,47 @@ def _repo_for_command(command: str, cwd: str):
     return False
 
 
-def _diff(repo: str, commit_all: bool, add_prima: bool = False) -> str | None:
+class _Fallita(Exception):
+    """La scansione non è partita: causa e rimedio in parole, per il popup (3/11/2026, #4472)."""
+
+    def __init__(self, causa: str, rimedio: str) -> None:
+        super().__init__(causa)
+        self.causa, self.rimedio = causa, rimedio
+
+
+def _causa(stderr: str, repo: str) -> _Fallita:
+    """Traduce l'errore di git in causa e rimedio. Prima il popup diceva solo "fallita", e la persona
+    diceva sì alla cieca: 8 richieste e 7 sì in una settimana, su un'installazione (#4472)."""
+    testo = (stderr or "").strip()
+    basso = testo.lower()
+    if "dubious ownership" in basso:
+        return _Fallita("la cartella appartiene a un altro utente del computer, e git non la legge",
+                        f'git config --global --add safe.directory "{repo}"')
+    if "index.lock" in basso:
+        return _Fallita("un altro git sta lavorando su questo repository",
+                        "aspetta che finisca; se non gira nessun git, togli .git/index.lock")
+    if "index" in basso and ("corrupt" in basso or "bad signature" in basso or "bad index" in basso
+                            or "smaller than expected" in basso):
+        return _Fallita("l'indice di git è rotto", f"git status nella cartella {repo}, per vedere l'errore")
+    prima = testo.splitlines()[0][:160] if testo else "git è uscito con un errore senza messaggio"
+    return _Fallita(f"git ha risposto: {prima}", f'git -C "{repo}" diff --cached --stat, per vedere l\'errore intero')
+
+
+def _git(command: list, repo: str, **kw) -> subprocess.CompletedProcess:
+    # I messaggi di git in inglese: _causa li riconosce per parola, e un git in italiano diceva
+    # "versione indice non valida" (prova del 4/11/2026). LANGUAGE cambia solo i messaggi, non il diff.
+    env = dict(os.environ, LANGUAGE="en")
+    try:
+        return subprocess.run(command, capture_output=True, timeout=4, check=False, env=env, **kw)
+    except subprocess.TimeoutExpired:
+        raise _Fallita("git ha impiegato più di 4 secondi a mostrare le modifiche (repository grande o disco lento)",
+                       f'git -C "{repo}" diff --cached --stat, per vedere quanto pesa') from None
+    except OSError as e:
+        raise _Fallita(f"git non si avvia ({e.strerror or e})", "git --version, per vedere se git è installato") from None
+
+
+def _diff(repo: str, commit_all: bool, add_prima: bool = False) -> str:
+    """Il diff da scansionare. Se git non lo dà, solleva _Fallita con causa e rimedio."""
     commands = [["git", "-C", repo, "diff", "--cached", "--no-color", "--no-ext-diff", "--no-textconv", "--unified=0"]]
     if commit_all or add_prima:
         commands.append(["git", "-C", repo, "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--unified=0"])
@@ -370,20 +410,18 @@ def _diff(repo: str, commit_all: bool, add_prima: bool = False) -> str | None:
         # Un file non UTF-8 in stage (un CSV della banca in Latin-1) faceva cadere la decodifica e ogni
         # commit chiedeva conferma per "scansione fallita" (#4047, 29/10/2026). Un segreto è ASCII:
         # sostituire i byte non validi non lo nasconde.
-        result = subprocess.run(command, capture_output=True, encoding="utf-8", errors="replace", timeout=4,
-                                check=False)
+        result = _git(command, repo, encoding="utf-8", errors="replace")
         if result.returncode:
-            return None
+            raise _causa(result.stderr, repo)
         output.append(result.stdout)
     if add_prima:
         # 9/10/2026: `git add X && git commit` mette X in stage dopo questo controllo.
         # Si leggono anche i file non tracciati che git add potrebbe aggiungere.
         # surrogateescape: un nome di file non UTF-8 resta apribile con open().
-        result = subprocess.run(["git", "-C", repo, "ls-files", "--others", "--exclude-standard", "-z"],
-                                capture_output=True, encoding="utf-8", errors="surrogateescape", timeout=4,
-                                check=False)
+        result = _git(["git", "-C", repo, "ls-files", "--others", "--exclude-standard", "-z"], repo,
+                      encoding="utf-8", errors="surrogateescape")
         if result.returncode:
-            return None
+            raise _causa(result.stderr, repo)
         for nome in [n for n in result.stdout.split("\0") if n][:200]:
             try:
                 with open(os.path.join(repo, nome), encoding="utf-8", errors="ignore") as f:
@@ -482,13 +520,18 @@ def main() -> int:
     add_prima = bool(re.search(r"\bgit\b[^;&|\n]*\sadd\b", command))
     try:
         out = _diff(repo, commit_all, add_prima)
-    except Exception:
-        out = None
+    except _Fallita as f:
+        out = f
+    except Exception as e:
+        out = _Fallita(f"errore interno della guardia ({type(e).__name__})",
+                       "/diagnosi, oppure /segnala per dirlo a chi mantiene Arturo")
     finally:
         if hasattr(signal, "SIGALRM"):
             signal.alarm(0)
-    if out is None:
-        return _ask("scansione-fallita", "Scansione Git del repository destinatario fallita: conferma prima di proseguire.")
+    if isinstance(out, _Fallita):
+        # La conferma resta e il nome della regola non cambia: la telemetria resta confrontabile.
+        return _ask("scansione-fallita", f"La scansione dei segreti non è partita: {out.causa}. Per ripararla: "
+                    f"{out.rimedio}. Se confermi, il commit parte senza controllo dei segreti.")
 
     if not out and not add_prima:
         return 0

@@ -27,6 +27,8 @@ python3 ~/.claude/hooks/deriva.py ~/.claude
 cat ~/.claude/cache/banchi-ultimo-esito.txt 2>/dev/null | head -3 || echo "banchi: nessun esito salvato"
 bash ~/.claude/skills/system-audit/audit.sh 2>&1 | tail -25
 claude doctor 2>&1 | tail -20
+# La scansione dei segreti dei commit: lo stesso git diff della guardia, con lo stesso limite di 4 secondi.
+git rev-parse --git-dir >/dev/null 2>&1 && { python3 -c "import subprocess,sys; r=subprocess.run(['git','diff','--cached','--stat'],capture_output=True,text=True,timeout=4); print('scansione segreti: ok' if r.returncode==0 else 'scansione segreti: NON PARTE: '+(r.stderr.strip().splitlines() or ['nessun messaggio'])[0])" 2>&1 | tail -1; }
 ```
 
 - `CONFIG ROTTA` o un FAIL dell'audit: le guardie possono essere spente. È la prima cosa da
@@ -36,6 +38,10 @@ claude doctor 2>&1 | tail -20
 - Le aggiunte della persona ai comandi: `python3 ~/.claude/bin/arturo personale elenco`. Una riga
   `Senza comando` nomina i file di `personale/` di un comando uscito da Arturo: nessuno li legge
   più. Mostrali alla persona: decide lei se tenerli altrove o cancellarli.
+- `scansione segreti: NON PARTE`: prima di ogni commit la guardia dei segreti non legge le modifiche, e il
+  commit parte senza controllo se la persona conferma. Riporta l'errore esatto: il popup della guardia
+  dice causa e rimedio (cartella di un altro utente, un altro git al lavoro, indice rotto, git lento).
+  Un timeout di Python vuol dire git più lento di 4 secondi.
 - `claude doctor` controlla l'installazione di Claude Code (versione, aggiornamenti, impostazioni).
   Riporta ogni riga che non dice OK. Per un controllo più ampio, che può anche correggere, la
   persona scrive `/doctor` in una sessione: tu non puoi lanciarlo.

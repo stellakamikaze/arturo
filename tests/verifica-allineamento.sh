@@ -161,6 +161,7 @@ BANCHI=(
   test_gate_snello_2026_11_03.py
   test_mod_passo2_2026_11_03.py
   test_claude_md_conferma_2026_11_03.py
+  test_scansione_fallita_2026_11_03.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -354,6 +355,8 @@ BASELINE=(
   "test_mod_passo2_2026_11_03.py 08d09cf"
   # Una conferma sola per il CLAUDE.md (3/11/2026, #4473): 72195b0, il dev prima.
   "test_claude_md_conferma_2026_11_03.py 72195b0"
+  # La scansione dei segreti dice perché non parte (4/11/2026, #4472): e2106f0, il dev prima.
+  "test_scansione_fallita_2026_11_03.py e2106f0"
   # La catena dei todo e la riga di stato (3/11/2026, #3888): acb4a39, il dev prima.
   "test_catena_2026_11_03.py acb4a39"
   # Le tre viste dei todo allineate (3/11/2026, #3868): su acb4a39 la pagina non ha dopo.
