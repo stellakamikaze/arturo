@@ -12,6 +12,71 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — Claude salva a ogni compito finito
+
+**Cosa cambia**: quando Claude finisce un compito che lascia una traccia (un commit, un file, una
+decisione, un todo), salva subito con `/fine --rotazione`, anche se la sessione è ancora leggera:
+scrive l'appunto della giornata, aggiorna i todo e la memoria, e ti dice cosa ha fatto e dove sta.
+Se il passo dopo tocca ancora a lui, rinnova anche la sessione come prima. Se tocca a te, si ferma lì,
+col lavoro già salvato.
+
+**Perché**: prima il salvataggio andava insieme al rinnovo della sessione. Quando il passo dopo era tuo,
+o non c'era, non partiva nessuno dei due, e i risultati restavano solo nella conversazione finché non
+scrivevi `/fine`.
+
+**Da sapere**: un'azione che non lascia niente da salvare, come accendere la musica, non fa partire il
+salvataggio.
+
+---
+
+## 2026-11-04 — Da cosa è fatto Arturo
+
+**Cosa cambia**: c'è una pagina nuova, `docs/come-e-fatto.md`, con il disegno di come stanno insieme
+le parti. In cima ci sei tu, con la tua Orsa: le tue istruzioni, la tua voce e la tua memoria, che
+gli aggiornamenti non toccano. Sotto c'è Arturo, che contiene skill adattate da progetti aperti di
+altre persone e te ne consiglia altri. Più sotto ancora ci sono Claude Code e il modello di Anthropic.
+
+```diagramma
+  tu
+   │  chiedi, correggi, scrivi come scrivi
+   ▼
+┌─ Orsa ─────────────── ~/.claude, è tua: gli aggiornamenti non la toccano ─┐
+│  CLAUDE.md · personale/<skill>.md · memoria · todo · handoff              │
+│  la tua voce: "Come scrivi" nel CLAUDE.md + personale/humanizer.md        │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ Arturo la legge e la rispetta
+┌─ Arturo ─────────────── lo aggiorna chi lo mantiene, con rilasci firmati ─┐
+│  guardie · comandi · skill · memoria Melchior · mod · telemetria          │
+│                                                                           │
+│  adattati da progetti aperti, dentro Arturo:                              │
+│    humanizer ............. ◄── blader/humanizer (MIT)                     │
+│    italiano-semplificato . ◄── ASD-STE100 via AminBlg/SimpleEnglish (MIT) │
+│    prompt-master ......... ◄── nidhinjs/prompt-master (MIT)               │
+│                                                                           │
+│  consigliati, li installi dalla loro fonte (/setup te li propone):        │
+│    Impeccable ............ ◄── pbakaus/impeccable (Apache-2.0)            │
+│    Hallmark .............. ◄── Nutlope/hallmark (MIT)                     │
+│    diagram-design ........ ◄── cathrynlavery/diagram-design (MIT)         │
+│    scrape ................ ◄── D4Vinci/Scrapling (BSD-3)                  │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ hook, skill, comandi, permessi
+┌─ Claude Code ──────────────────── di Anthropic, a pagamento ──────────────┐
+│  il programma nel terminale: legge e scrive i file, lancia i comandi      │
+└──────────────────────────────────┬────────────────────────────────────────┘
+                                   │ la conversazione esce dal tuo computer
+                       il modello (Claude, sui server di Anthropic)
+```
+
+**Perché**: Arturo usa il lavoro di altri, e chi lo usa ha diritto di sapere di chi è ogni pezzo, con
+quale licenza e chi lo aggiorna. La pagina ha anche la tabella di chi aggiorna cosa.
+
+**Da sapere**: diagram-design, la skill per i diagrammi, è consigliata e si installa dalla sua fonte
+(`docs/diagram-design.md`). La pagina dice anche come stanno insieme i tre lavori della scrittura:
+`italiano-semplificato` per il testo tecnico, la tua voce per la prosa, `humanizer` per togliere i
+segni dell'IA.
+
+---
+
 ## 2026-11-04 — I testi che scrivi con Claude suonano tuoi
 
 **Cosa cambia**: c'è una skill nuova, `humanizer`. Quando un post, un'email o una proposta suonano
@@ -23,7 +88,10 @@ elenchi di tre messi per abitudine, le lineette ovunque, le parole gonfie come "
 **Perché**: un testo che suona da IA si riconosce, e chi lo legge smette di fidarsi anche di ciò
 che è vero. La skill segue il tuo modo di scrivere: se le dai un tuo testo come campione, imita
 quello; altrimenti legge la sezione "Come scrivi" del tuo `CLAUDE.md`, che `/setup` ha scritto con
-te. Il campione vince sulle regole: se tu usi le lineette, restano.
+te. Il campione vince sulle regole: se tu usi le lineette, restano. La tua voce ha anche un file
+tutto tuo, `~/.claude/personale/humanizer.md`, con i tuoi testi, le tue regole e le tue correzioni:
+quando correggi un testo riscritto, Claude ti propone di aggiungere la correzione, e la scrive solo
+col tuo sì. Per i testi in inglese la skill usa l'originale di blader così com'è.
 
 **Da sapere**: è l'adattamento italiano di humanizer di blader, un progetto open source con licenza
 MIT. Prende il posto del catalogo dei tic che stava dentro la skill `italiano-semplificato`, che

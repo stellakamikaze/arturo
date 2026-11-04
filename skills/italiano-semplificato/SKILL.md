@@ -275,7 +275,7 @@ Il benchmark del 20/8/2026 (54 generazioni, 3 modelli Claude) dice dove sta il l
 
 Per un testo scritto da persone, e per la modalità controllo, usa `references/checklist.md`.
 
-Poi una seconda passata sul ritmo e sulla struttura con gli schemi della skill `humanizer` (`skills/humanizer/SKILL.md`, gruppi A, B ed E): contrasti inventati, terne automatiche, chiuse a sentenza, resti della chat. Conta l'accumulo, non la singola occorrenza. Per la prosa in uscita (post, email, proposte) usa direttamente `humanizer`, che segue la voce della persona.
+Poi una seconda passata sul ritmo e sulla struttura con gli schemi della skill `humanizer` (`skills/humanizer/SKILL.md`, gruppi A, B ed E): contrasti inventati, terne automatiche, chiuse a sentenza, resti della chat. Conta l'accumulo, non la singola occorrenza. Per la prosa in uscita (post, email, proposte) usa direttamente `humanizer`, che segue la voce della persona nella sua Orsa (`~/.claude/personale/humanizer.md`): chi decide cosa lo dice il diagramma "Tre modi di scrivere" in `skills/humanizer/SKILL.md`.
 
 ## Esempio completo
 

@@ -71,6 +71,7 @@ Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
 - [Installazione](#installazione)
 - [Aggiornare Arturo](#aggiornare-arturo)
 - [Prima accensione — checklist](#prima-accensione--checklist)
+- [Come è fatto](#come-è-fatto)
 - [Come funziona: il dispatcher](#come-funziona-il-dispatcher)
 - [Cosa c'è dentro](#cosa-cè-dentro)
   - [I guardiani (`hooks/`)](#i-guardiani-hooks)
@@ -246,6 +247,16 @@ Quali file arrivano con gli aggiornamenti e quali restano tuoi:
 
 ---
 
+## Come è fatto
+
+In cima ci sei tu con la tua Orsa, sotto c'è Arturo, più sotto Claude Code e il modello di Anthropic. Dentro Arturo alcune skill sono adattate da progetti aperti di altre persone (humanizer, l'italiano semplificato, prompt-master); altre skill Arturo te le consiglia, e le installi dalla loro fonte (Impeccable, Hallmark, diagram-design, scrape). Il disegno completo, con licenze e chi aggiorna cosa, sta in [`docs/come-e-fatto.md`](docs/come-e-fatto.md).
+
+```
+tu ─► Orsa (tua) ─► Arturo ─► Claude Code ─► il modello
+                     ▲
+                     └── progetti aperti: adattati dentro, o consigliati e installati dalla fonte
+```
+
 ## Come funziona: il dispatcher
 
 Ogni comando `Bash` passa da un unico router, `hooks/bash-dispatcher.sh`, che lo instrada **solo** verso i guard rilevanti. Un comando innocuo (la stragrande maggioranza) non fa partire nessun guard: zero latenza percepita.
@@ -299,6 +310,8 @@ docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/onboarding/     Guide di setup guidato (/inizio gws)
 docs/impeccable.md   Come installare Impeccable (design delle interfacce) dall'upstream
 docs/hallmark.md     Come installare Hallmark (pagine nuove) dall'upstream, e come lavora con Impeccable
+docs/diagram-design.md Come installare diagram-design (diagrammi) dall'upstream
+docs/come-e-fatto.md Il disegno di Arturo: Orsa, Arturo, Claude Code e i progetti da cui dipende
 docs/privacy.md      Cosa raccoglie la telemetria, per quanto, e i tuoi diritti
 tests/               I banchi di prova: il gate completo e i banchi delle guardie che l'avvio lancia da solo
 firme/               La chiave pubblica dei rilasci: l'aggiornamento automatico installa solo i tag firmati con essa
@@ -407,7 +420,7 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 
 - **`concetti`** — quando chiedi "cos'è" o "che differenza c'è" su contesto e memoria, git e GitHub, branch e fork, aggiornamenti e modifiche tue, subagent, ultracode, le due finestre della quota o il sì a una conferma, Claude risponde in poche frasi e chiude con dove trovi la cosa in Arturo. Sono le domande della sera del Computer Club del 27/10/2026.
 - **`italiano-semplificato`** — quando chiedi di semplificare un testo, riscrive o controlla un testo con l'Italiano Tecnico Semplificato (63 regole): frasi corte, voce attiva, una parola per concetto, senza burocratese né slop AI. Una seconda passata cerca i tic di ritmo e struttura del testo generato (contrasti inventati, terne automatiche, chiuse a sentenza) con gli schemi della skill `humanizer`.
-- **`humanizer`** — quando un testo in uscita suona scritto da un'IA (un post, un'email, una proposta, una pagina), lo riscrive perché suoni tuo senza cambiare cosa dice: toglie i contrasti inventati, le chiuse a sentenza, le terne, le lineette ovunque, le parole gonfie e i resti della chat, e non aggiunge fatti. Segue il tuo modo di scrivere: un tuo testo dato come campione, oppure la sezione "Come scrivi" del tuo `CLAUDE.md`. È l'adattamento italiano di [humanizer](https://github.com/blader/humanizer) di blader (MIT).
+- **`humanizer`** — quando un testo in uscita suona scritto da un'IA (un post, un'email, una proposta, una pagina), lo riscrive perché suoni tuo senza cambiare cosa dice: toglie i contrasti inventati, le chiuse a sentenza, le terne, le lineette ovunque, le parole gonfie e i resti della chat, e non aggiunge fatti. Segue il tuo modo di scrivere: un tuo testo dato come campione, il tuo file `~/.claude/personale/humanizer.md`, che cresce con le tue correzioni, oppure la sezione "Come scrivi" del tuo `CLAUDE.md`. Per l'inglese usa l'originale. È l'adattamento italiano di [humanizer](https://github.com/blader/humanizer) di blader (MIT).
 - **`monitor`** — smista quello che ti arriva. Al primo avvio ti mostra in parole le fonti che sa leggere per te (posta, todo, sessioni con Claude, memoria), ti dice cosa manca per collegare le altre, e tiene la tua scelta in `data/monitor/fonti.json`. Il giro quotidiano, che legge le fonti e scrive il report, arriva con il prossimo aggiornamento. Come si aggiunge una fonte tua: `docs/monitor-ponti.md`.
 
 **Il mod di Arturo.** Claude Code lo carica da solo dalla cartella `skills/arturo/`, come `arturo@skills-dir`. È un mod solo con sei parti, una per cartella in `skills/arturo/hooks/`. Per spegnere una parte scrivi il suo nome in `~/.claude/arturo/parti.json`, per esempio `{"spente": ["dafare"]}`: vale dalla sessione dopo. `/plugin`, poi il mod, poi disattiva, spegne tutte e sei le parti. Attenzione a `redazione-segreti`: è la parte che protegge. Spenta, Claude legge i segreti in chiaro.
@@ -415,7 +428,7 @@ Subagent con un mestiere solo, richiamati a mano: `architecture-reviewer`, `bug-
 - `skills/arturo/hooks/redazione-segreti/` sostituisce i segreti negli output dei tool con la loro forma (`[REDATTO:tipo len=N sha256=…]`) prima che Claude li legga, e blocca la scrittura di una sigla su disco. `credential-leak-scanner.py` resta come rete.
 - `skills/arturo/hooks/cache-fredda/` scrive sotto il prompt, solo quando serve, due avvisi: la cache è scaduta (dopo un'ora con l'abbonamento, dopo 5 minuti a quota piena) e il prossimo messaggio riscriverebbe tutto il contesto; un account di `gws` ha il token in errore e va rifatto il login. Se tutto è in regola, non scrive niente.
 - `skills/arturo/hooks/apri/` aggiunge `/apri`: apre l'ultimo link o file citato nelle risposte con il programma predefinito del sistema (il browser per i link, l'app di solito per i file). `/apri 2` apre il secondo della lista, `/apri <parola>` il primo che la contiene, `/apri lista` mostra gli ultimi dieci. Non usa un turno del modello.
-- `skills/arturo/hooks/rotazione/` tiene fresca la sessione. Quando Claude chiude un passo del lavoro (uno step del piano o un compito), salva con `/fine --rotazione` e chiama il tool `mcp__arturo__ruota`, poi il mod pulisce il contesto con `/clear` e riparte da solo con `/inizio` sul passo successivo. Sotto il prompt compare una riga: "Sessione rinnovata: salvato tutto, riparto da …". Così una sessione lunga non si appesantisce e non devi scrivere tu `/fine`, `/clear` e `/inizio`. Il giro non parte se stai scrivendo, se hai fermato Claude con Esc, se manca un passo da fare o se il passo dopo chiede te (una decisione, un invio, un pagamento). Le note nuove aspettano il tuo "salva" al `/fine` che scrivi tu. Per spegnerla: `export ARTURO_ROTAZIONE=0` prima di aprire Claude, oppure `rotazione` in `parti.json`. L'ultimo esito di ogni giro sta in `~/.claude/cache/rotazione-ultimo.txt`.
+- `skills/arturo/hooks/rotazione/` tiene fresca la sessione. Quando Claude chiude un passo del lavoro (uno step del piano o un compito), salva con `/fine --rotazione` e chiama il tool `mcp__arturo__ruota`, poi il mod pulisce il contesto con `/clear` e riparte da solo con `/inizio` sul passo successivo. Sotto il prompt compare una riga: "Sessione rinnovata: salvato tutto, riparto da …". Così una sessione lunga non si appesantisce e non devi scrivere tu `/fine`, `/clear` e `/inizio`. Il giro non parte se stai scrivendo, se hai fermato Claude con Esc, se manca un passo da fare o se il passo dopo chiede te (una decisione, un invio, un pagamento). Il salvataggio invece parte a ogni compito finito che lascia una traccia (un commit, un file, una decisione, un todo), anche con la sessione leggera: Claude raccoglie i risultati e ti dice cosa ha fatto e dove sta. Le note nuove aspettano il tuo "salva" al `/fine` che scrivi tu. Per spegnerla: `export ARTURO_ROTAZIONE=0` prima di aprire Claude, oppure `rotazione` in `parti.json`. L'ultimo esito di ogni giro sta in `~/.claude/cache/rotazione-ultimo.txt`.
 - `skills/arturo/hooks/testata/` mette sotto l'intestazione di Claude Code il blocco di Arturo: la stella, la versione, lo stato in parole e i link alla roadmap. `/versione` dà il dettaglio.
 - `skills/arturo/hooks/dafare/` è il pannello dei todo, qui sotto.
 

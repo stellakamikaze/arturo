@@ -151,6 +151,19 @@ def test_q05(repo: Path) -> None:
         assert titolo not in testo, f"Q05 titolo ripreso da una fonte senza licenza: {titolo}"
     assert "skills/humanizer/SKILL.md" in read(repo / "skills" / "italiano-semplificato" / "SKILL.md"), \
         "Q05 la skill ITS non rimanda a humanizer"
+    # L'origine e la versione inglese (4/11/2026): ORIGINE fissa il commit, originale-en.md è l'originale a quel
+    # commit, e SKILL.md nomina lo stesso commit. Dopo `bin/humanizer-origine.py porta` Q05 resta rosso finché
+    # l'adattamento italiano non segue.
+    voci = dict(r.split(" ", 1) for r in read(repo / "skills" / "humanizer" / "ORIGINE").splitlines() if " " in r)
+    assert voci.get("repository", "").endswith("blader/humanizer") and voci.get("commit") and voci.get("versione"), \
+        f"Q05 ORIGINE incompleta: {voci}"
+    inglese = repo / "skills" / "humanizer" / "references" / "originale-en.md"
+    assert inglese.is_file() and f'version: "{voci["versione"]}"' in read(inglese), \
+        "Q05 l'originale inglese manca o non è alla versione di ORIGINE"
+    assert f"{voci['versione']} ({voci['commit']}" in testo, \
+        f"Q05 l'adattamento italiano non nomina versione e commit di ORIGINE ({voci['versione']}, {voci['commit']})"
+    assert "personale/humanizer.md" in testo and "Tre modi di scrivere" in testo, \
+        "Q05 la skill non legge la voce dall'Orsa o non dice i tre modi di scrivere"
 
 
 def test_q07(repo: Path) -> None:

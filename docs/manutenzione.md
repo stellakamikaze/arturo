@@ -105,6 +105,28 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    **Prima il rilascio firmato di `main`, poi la landing** (ramo `landing-v2`, `strumenti/pubblica.sh`):
    il sito non promette mai una cosa che il rilascio installato non fa ancora.
 
+## I progetti da cui Arturo prende
+
+Arturo adatta alcuni progetti aperti e ne consiglia altri: l'elenco, con licenze e chi aggiorna cosa,
+sta in [`docs/come-e-fatto.md`](come-e-fatto.md). Quelli adattati si seguono a mano, perché la copia
+in Arturo è riscritta.
+
+**humanizer** (blader/humanizer, MIT). `skills/humanizer/ORIGINE` fissa repository, commit e versione;
+`references/originale-en.md` è il `SKILL.md` dell'origine a quel commit, così com'è, e vale per i testi
+in inglese; `SKILL.md` è l'adattamento italiano. La config di chi mantiene Arturo lancia
+`python3 bin/humanizer-origine.py controlla` una volta al giorno: con una versione nuova l'avvio dice
+`HUMANIZER: ... è uscito`. Allora:
+
+1. `python3 bin/humanizer-origine.py porta`: riscrive l'originale inglese e `ORIGINE`, e mette in
+   `cache/humanizer-differenza.md` cosa è cambiato.
+2. Riporta ogni cambio nell'adattamento italiano, schema per schema e con esempi italiani, e aggiorna
+   la riga `derivato-da` del frontmatter: Q05 (`tests/test_mod_skill.py`) resta rosso finché
+   `SKILL.md` non nomina il commit di `ORIGINE`.
+3. Voce in `NOVITA.md` e rilascio, come ogni altro cambio.
+
+La voce della persona non c'entra: sta nella sua Orsa, in `~/.claude/personale/humanizer.md`, e un
+aggiornamento non la tocca.
+
 ## La versione è un numero
 
 Dal 3/11/2026 la versione di Arturo è un numero a tre cifre, `v0.2.0`:

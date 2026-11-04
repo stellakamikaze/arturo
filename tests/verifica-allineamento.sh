@@ -162,6 +162,7 @@ BANCHI=(
   test_mod_passo2_2026_11_03.py
   test_claude_md_conferma_2026_11_03.py
   test_scansione_fallita_2026_11_03.py
+  test_humanizer_origine.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -393,6 +394,8 @@ VELENI=(
   test_gate_snello_2026_11_03.py
   test_viste_allineate_2026_11_03.py
   test_monitor_giro_2026_11_03.py
+  # humanizer agganciato all'origine (4/11/2026): un controlla che non confronta fa rosso HO01.
+  test_humanizer_origine.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso
