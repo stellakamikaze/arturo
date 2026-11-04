@@ -21,6 +21,7 @@ installi dalla loro fonte. Questa pagina li mette tutti in fila, con chi li aggi
 │    humanizer ............. ◄── blader/humanizer (MIT)                     │
 │    italiano-semplificato . ◄── ASD-STE100 via AminBlg/SimpleEnglish (MIT) │
 │    prompt-master ......... ◄── nidhinjs/prompt-master (MIT)               │
+│    intervista e deleghe .. ◄── mattpocock/skills (MIT)                    │
 │                                                                           │
 │  consigliati, li installi dalla loro fonte (/setup te li propone):        │
 │    Impeccable ............ ◄── pbakaus/impeccable (Apache-2.0)            │
@@ -46,6 +47,7 @@ installi dalla loro fonte. Questa pagina li mette tutti in fila, con chi li aggi
 | humanizer | toglie i tic da IA dalla prosa, seguendo la tua voce | MIT | dentro Arturo, adattato in italiano; l'originale inglese accanto | chi mantiene Arturo segue [blader/humanizer](https://github.com/blader/humanizer) e porta le versioni nuove in inglese e in italiano |
 | italiano-semplificato | rende chiaro un testo tecnico | MIT | dentro Arturo | chi mantiene Arturo |
 | prompt-master | riscrive la tua richiesta prima del lavoro | MIT | dentro Arturo, riscritto | chi mantiene Arturo, a mano dall'origine |
+| mattpocock/skills | le domande a giri, le cose da delegare, la procedura guidata e la rispiegazione | MIT | dentro Arturo, riscritto in prompt-master, `/guidami`, lo stile Conciso e `shared/procedura-guidata.sh` | chi mantiene Arturo, a mano dall'origine |
 | Impeccable | design delle interfacce | Apache-2.0 | `/setup`, fase 8c ([`impeccable.md`](impeccable.md)) | `npx impeccable update` |
 | Hallmark | pagine nuove che non sembrano generate | MIT | `/setup`, fase 8c ([`hallmark.md`](hallmark.md)) | si reinstalla dalla fonte |
 | diagram-design | diagrammi editoriali in HTML e SVG | MIT | dalla fonte ([`diagram-design.md`](diagram-design.md)) | il plugin, con l'aggiornamento automatico acceso |
