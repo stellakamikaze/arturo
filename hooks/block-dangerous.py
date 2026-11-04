@@ -37,6 +37,8 @@ CHIEDE CONFERMA (permissionDecision:"ask", exit 0):
   insteadOf, `--config-env`, GIT_CONFIG_* (regola git-destinazione, 1/11/2026)
 - git branch -D di un ramo con commit che non stanno altrove, git stash drop di uno stash che
   lo stesso comando non salva prima, git stash clear (regole git-ramo e git-stash)
+- git worktree remove --force su un worktree con file modificati o nuovi (regola git-worktree,
+  segnalazione n. 55, 4/11/2026)
 - docker distruttivo su volumi (`docker volume rm`, `system prune --volumes`)
 
 Fail-open su parsing (i casi catastrofici su path root restano nei deny).
@@ -934,6 +936,40 @@ def _senza_redirezioni(args):
     return fuori
 
 
+def _worktree_perde(cartella, args, cds, cwd):
+    """("git-worktree", motivo) se `git worktree remove` con -f/--force toglie un worktree con file
+    modificati o nuovi: --force li cancella senza chiedere (segnalazione n. 55, 4/11/2026). Un worktree
+    pulito, che non esiste o dove git status fallisce tace: git fallirebbe comunque. I file ignorati
+    restano fuori (segnalazione n. 13): node_modules e cache darebbero una conferma a ogni remove."""
+    puliti = _senza_redirezioni(args)
+    corte = "".join(a[1:] for a in puliti if a.startswith("-") and not a.startswith("--"))
+    lunghe = [a for a in puliti if a.startswith("--")]
+    if "f" not in corte and not _lunga(lunghe, "--force"):
+        return None
+    percorsi = [a for a in puliti if not a.startswith("-")]
+    if not percorsi:
+        return None
+    illeggibile = ("git-worktree", f"git worktree remove --force su {percorsi[0]}: la guardia non riesce a "
+                   "risolvere il percorso. --force cancella i file non salvati in un commit: controlla con "
+                   "`git -C <worktree> status` prima di confermare.")
+    for base in _basi_dopo_cd(cds, cwd):
+        repo = None if base is None else (_resolve(cartella, base) if cartella else base)
+        wt = None if repo is None else _resolve(percorsi[0], repo)
+        if wt is None:
+            return illeggibile
+        if not os.path.isdir(wt):
+            continue
+        stato = _git_esegui(wt, "status", "--porcelain")
+        righe = [r[3:] for r in (stato or "").splitlines() if r.strip()]
+        if righe:
+            elenco = ", ".join(righe[:5]) + (f" e altri {len(righe) - 5}" if len(righe) > 5 else "")
+            salvati = "salvato" if len(righe) == 1 else "salvati"
+            return ("git-worktree", f"git worktree remove --force cancella {len(righe)} file non {salvati} in un "
+                    f"commit nel worktree {percorsi[0]}: {elenco}. Salvali con un commit o copiali, poi togli "
+                    "il worktree senza --force; conferma solo se non ti servono.")
+    return None
+
+
 def _git_perde_lavoro(command, cwd):
     """(regola, motivo) se il comando cancella un ramo con commit che non stanno altrove, o uno stash
     che lo stesso comando non salva prima. None se non perde niente.
@@ -986,6 +1022,11 @@ def _git_perde_lavoro(command, cwd):
             salvati.discard(ref)
             if isinstance(ref, int):
                 salvati = {k - 1 if isinstance(k, int) and k > ref else k for k in salvati}
+            continue
+        if sotto == "worktree" and resto[:1] == ["remove"]:
+            perso = _worktree_perde(cartella, resto[1:], cds, cwd)
+            if perso:
+                return perso
             continue
         if sotto != "branch":
             continue
@@ -1754,10 +1795,12 @@ def main() -> int:
     try:
         perde = _git_perde_lavoro(command, cwd)
     except Exception:
-        perde = ("git-ramo", "git branch -D o git stash drop che la guardia non riesce a leggere: "
-                 "controlla prima di confermare.") if re.search(r"branch\s.*(-[a-zA-Z]*D|--d)|stash\s+(drop|clear)", command) else None
-    if perde and perde[0] == "git-stash":
-        return _ask("git-stash", perde[1])
+        perde = ("git-ramo", "git branch -D, git stash drop o git worktree remove --force che la guardia non "
+                 "riesce a leggere: controlla prima di confermare.") if re.search(
+                     r"branch\s.*(-[a-zA-Z]*D|--d)|stash\s+(drop|clear)|worktree\s+remove\s.*(-[a-zA-Z]*f|--f)",
+                     command) else None
+    if perde and perde[0] in ("git-stash", "git-worktree"):
+        return _ask(perde[0], perde[1])
     if perde:
         return _ask("git-ramo", perde[1])
 

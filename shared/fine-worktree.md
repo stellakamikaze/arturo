@@ -22,6 +22,8 @@ un'altra sessione lavora sullo stesso progetto. Il resto di `/fine` gira poi dal
 7. Solo dopo la copia lancia `git -C <tree principale> worktree remove <percorso del worktree>` e
    `git -C <tree principale> branch -d <branch>`. `worktree remove` cancella anche i file ignorati,
    senza avviso (segnalazione n. 13).
+   Mai `--force`: se `remove` si rifiuta, nel worktree ci sono file non salvati in un commit, e
+   `--force` li cancella (segnalazione n. 55). La guardia chiede conferma e li elenca.
 
 ## Il ramo è riportato? Controllalo prima dell'handoff
 

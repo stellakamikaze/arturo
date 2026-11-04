@@ -36,7 +36,7 @@ export const GUARDIE = ["block-dangerous.py", "commit-secret-gate.py", "comms-gu
 export const REGOLE = {
   "block-dangerous.py": ["avvio-automatico", "claude-md", "config", "docker-volumi", "find-delete", "git-clean", "rm-cartella",
     "rm-ignoto", "rm-illeggibile", "rm-protetto", "rm-xargs", "rmtree-cartella", "rmtree-illeggibile", "rmtree-variabile",
-    "sblocco", "sblocco-claude-md", "sed-w", "sed-e", "segreto", "git-ramo", "git-stash", "git-destinazione", "git-amend"],
+    "sblocco", "sblocco-claude-md", "sed-w", "sed-e", "segreto", "git-ramo", "git-stash", "git-destinazione", "git-amend", "git-worktree"],
   "commit-secret-gate.py": ["segreto-cloud", "segreto-token", "segreto-password", "segreto-chiave-privata", "segreto-altro",
     "scaduta", "repo-ignoto", "scansione-fallita"],
 };

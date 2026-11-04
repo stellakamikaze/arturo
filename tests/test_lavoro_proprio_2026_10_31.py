@@ -27,6 +27,10 @@ LP08 commit-secret-gate: una cd in una subshell o in $( ) non sposta il reposito
      clone, remote, push, programmi sconosciuti e ssh chiedono.
 LP09 comms-guard: mailto: conta solo per un programma che apre un link; `gws … --help` e `gh … --help`
      non inviano, salvo che --help sia il valore di un'opzione. mail e la forma -h restano invii.
+LP10 block-dangerous, git worktree remove --force (segnalazione n. 55, 4/11/2026): chiede se il worktree ha
+     file modificati o nuovi, anche con -f, --forc, -f -f, -C e dentro una catena; tace su un worktree
+     pulito, con soli file ignorati, senza --force o su un percorso che non esiste. Un percorso che non
+     si risolve chiede.
 
 Sulla base 15eb18d ogni gruppo fallisce con un AssertionError che comincia con il suo codice. Con
 --avvelena il banco lo prova da solo: rimette nella copia le guardie di 15eb18d (git show) e vuole
@@ -416,12 +420,49 @@ def test_lp09(repo: Path) -> int:
         return verifica("LP09", casi, lambda c: hook(repo, "comms-guard.py", c, progetto, home, temp))
 
 
+def test_lp10(repo: Path) -> int:
+    with tempfile.TemporaryDirectory() as d:
+        home, temp, _, _ = banco(Path(d))
+        env = _env(home, temp)
+        rami = repo_con_rami(Path(d), env)
+        (rami / ".gitignore").write_text("cache/\n", encoding="utf-8")
+        git(env, rami, "add", ".gitignore")
+        git(env, rami, "commit", "-qm", "ignore")
+        for nome in ("pulito", "sporco", "ignorati"):
+            git(env, rami, "worktree", "add", "-q", "-b", nome, f".claude/worktrees/{nome}")
+        sporco = rami / ".claude" / "worktrees" / "sporco"
+        (sporco / "pcb.kicad").write_text("a metà\n", encoding="utf-8")
+        (sporco / "a.txt").write_text("cambiato\n", encoding="utf-8")
+        (rami / ".claude" / "worktrees" / "ignorati" / "cache").mkdir()
+        (rami / ".claude" / "worktrees" / "ignorati" / "cache" / "x").write_text("x\n", encoding="utf-8")
+        W = ".claude/worktrees"
+        casi = [
+            ("--force su un worktree pulito", f"git worktree remove --force {W}/pulito", "silent"),
+            ("--force con soli file ignorati", f"git worktree remove --force {W}/ignorati", "silent"),
+            ("remove senza --force", f"git worktree remove {W}/sporco", "silent"),
+            ("--force su un percorso che non esiste", f"git worktree remove --force {W}/manca", "silent"),
+            ("worktree list", "git worktree list", "silent"),
+            # Devono chiedere: --force cancella pcb.kicad e la modifica di a.txt.
+            ("--force su un worktree sporco", f"git worktree remove --force {W}/sporco", "ask"),
+            ("-f", f"git worktree remove -f {W}/sporco", "ask"),
+            ("--forc vale --force", f"git worktree remove --forc {W}/sporco", "ask"),
+            ("-f -f", f"git worktree remove -f -f {W}/sporco", "ask"),
+            ("-C verso il repository", f"git -C {rami.as_posix()} worktree remove --force {W}/sporco", "ask"),
+            ("la catena della segnalazione", f"git worktree remove --force {W}/pulito && git branch -d pulito && "
+                                             f"git worktree remove --force {W}/sporco", "ask"),
+            ("percorso che non si risolve", 'git worktree remove --force "$(cat dove)"', "ask"),
+        ]
+        return verifica("LP10", casi, lambda c: hook(repo, "block-dangerous.py", c, rami, home, temp))
+
+
 TESTS = {"LP01": test_lp01, "LP02": test_lp02, "LP03": test_lp03, "LP04": test_lp04, "LP05": test_lp05,
-         "LP06": test_lp06, "LP07": test_lp07, "LP08": test_lp08, "LP09": test_lp09}
+         "LP06": test_lp06, "LP07": test_lp07, "LP08": test_lp08, "LP09": test_lp09,
+         "LP10": test_lp10}
 # Le guardie che ogni gruppo sorveglia: il veleno le rimette com'erano sulla base. LP04 le prende tutte.
 VELENI = {"LP01": ["block-dangerous.py"], "LP02": ["exfil-guard.py"], "LP03": ["block-dangerous.py"],
           "LP04": None, "LP05": ["block-dangerous.py"], "LP06": ["block-dangerous.py"],
-          "LP07": ["block-dangerous.py"], "LP08": ["commit-secret-gate.py"], "LP09": ["comms-guard.py"]}
+          "LP07": ["block-dangerous.py"], "LP08": ["commit-secret-gate.py"], "LP09": ["comms-guard.py"],
+          "LP10": ["block-dangerous.py"]}
 
 
 def avvelena(repo: Path, ref: str) -> int:
