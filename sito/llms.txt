@@ -4,17 +4,25 @@
 
 ## Cos'è Arturo
 
-Claude Code è l'IA di Anthropic che lavora sui file del tuo computer. Arturo è una configurazione completa di Claude Code: 23 guardie e automazioni, 11 comandi, 8 agenti, 7 skill e un curriculum di principi spiegati in parole semplici (`docs/principi/`). Viene da una configurazione personale usata ogni giorno in produzione. È stato estratto e ripulito: niente dati, niente credenziali, niente riferimenti a infrastrutture private.
+Claude Code è l'IA di Anthropic che lavora sui file del tuo computer. Arturo è una configurazione completa di Claude Code: 23 guardie e automazioni, 11 comandi (i dieci qui sotto, più lo sparring che Claude apre da solo), 8 agenti, 7 skill e un curriculum di principi spiegati in parole semplici (`docs/principi/`). Viene da una configurazione personale usata ogni giorno in produzione. È stato estratto e ripulito: niente dati, niente credenziali, niente riferimenti a infrastrutture private.
 
 Le guardie sorvegliano i comandi pericolosi, tengono i segreti fuori dalla history di git e chiedono conferma prima dei punti di non ritorno: una cancellazione ricorsiva, un invio, un segreto in un commit. Le sessioni si aprono, si chiudono e si riprendono in ordine, anche su più macchine.
 
 ## Per chi è
 
-Arturo è per chi usa già l'IA in chat (ChatGPT, Claude) e non ha mai aperto un terminale. In chat l'IA risponde. In Claude Code lavora: legge e scrive i tuoi file, riprende il lavoro da una sessione all'altra, esegue i passi al posto tuo.
+Arturo è per chi usa già l'IA in chat (ChatGPT, Claude) e non ha mai aperto un terminale, ma vuole usarla in modo più strutturato. In chat il materiale lo raccogli tu, lo incolli nella conversazione e riporti la risposta in un documento. In Claude Code l'IA lavora dentro le tue cartelle: va a prendere appunti, trascrizioni e fogli di calcolo, li mette a confronto e scrive il risultato in un file. Con Arturo il lavoro resta anche fra una sessione e l'altra: `/fine` scrive un riepilogo con le cose da fare, `/inizio` riparte da lì.
 
-Il primo caso d'uso è il lavoro con le parole e le informazioni: scrivere e revisionare, cercare e sintetizzare, tenere in ordine posta, progetti e documenti. Il secondo è costruire piccoli strumenti su misura per un caso preciso, senza saper programmare.
+Il primo caso d'uso è il lavoro sui testi e sulle informazioni che hai già nelle cartelle: Claude Code rivede una bozza o riassume le trascrizioni di una riunione leggendole dal file, senza che tu le incolli. Il secondo è costruire piccoli strumenti per un caso preciso senza saper programmare: il codice lo scrive Claude Code, tu descrivi che cosa deve fare.
 
-## I nove comandi
+## Perché il terminale, anche se non scrivi codice
+
+- Anthropic, "Agentic coding and persistent returns to expertise" (16/6/2026): fra ottobre 2025 e aprile 2026 la scrittura e l'analisi dei dati sono passate da circa il 10 al 20% delle sessioni di Claude Code; chi non lavora nel software arriva a un risultato verificato nel 26% delle sessioni, contro il 30% di chi ci lavora. https://www.anthropic.com/research/claude-code-expertise
+- Ethan Mollick, "Claude Code and What Comes Next" (7/1/2026): Claude Code è potente perché lavora sul tuo computer e sui tuoi file, e serve a chi fa lavoro della conoscenza di ogni tipo. https://www.oneusefulthing.org/p/claude-code-and-what-comes-next
+- Simon Willison, "Claude Skills are awesome, maybe a bigger deal than MCP" (16/10/2025): Claude Code serve ad automatizzare il computer in generale, non solo a scrivere codice. https://simonwillison.net/2025/Oct/16/claude-skills/
+- I limiti: nell'esperimento Harvard e Boston Consulting Group del 2023 (758 consulenti, GPT-4), su un compito fuori dalla portata dell'IA chi la usava dava la risposta giusta fra il 60 e il 70% delle volte, contro l'84% di chi lavorava senza (https://www.oneusefulthing.org/p/centaurs-and-cyborgs-on-the-jagged). Uno studio di Microsoft Research su 319 persone (CHI 2025) ha trovato che chi si fida di più dell'IA dichiara di esercitare meno il pensiero critico. Simon Willison descrive il rischio di un agente che legge dati privati, incontra testi scritti da altri e può comunicare all'esterno (https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/).
+- Come risponde Arturo: regole che chiedono un sì prima di ogni gesto che non si annulla, come cancellare una cartella o mandare un messaggio. La conferma per gli indirizzi web che portano fuori un dato è ancora in lavorazione. Contro una risposta sbagliata accettata per fiducia non basta una regola: il risultato lo controlla chi lavora.
+
+## I dieci comandi
 
 - `/inizio <progetto>`: apre la giornata. Riprende il contesto del progetto, i todo aperti e le scadenze, poi sceglie il lavoro.
 - `/fine`: chiude la giornata. Salva il lavoro con un commit e scrive un appunto per la sessione dopo, con i todo che restano e chi agisce.
@@ -25,6 +33,7 @@ Il primo caso d'uso è il lavoro con le parole e le informazioni: scrivere e rev
 - `/guidami`: guarda gli ultimi appunti e propone tre o quattro cose da fare adesso, con il primo passo.
 - `/diagnosi`: controlla che Arturo regga, poi lo stato del progetto e i file fuori posto.
 - `/creaskill`: fa quattro domande e trasforma un lavoro che fai spesso in una skill tua.
+- `/proponi`: una tua skill può servire a tutti? La ripulisce con te da nomi e dati, ti mostra il testo e, dopo il tuo sì, la porta a chi mantiene Arturo.
 
 ## Cosa non è neutro
 

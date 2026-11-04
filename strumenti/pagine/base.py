@@ -8,7 +8,7 @@ import json
 import re
 
 SITO = "https://arturo.stellakamikaze.org"
-OG_IMG = SITO + "/img/og.png"
+OG_IMG = SITO + "/img/anteprima-github.png"
 
 FAVICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' "
            "height='32' fill='%230b0d10'/%3E%3Cpath d='M5 25 13 11l6 8 8-11' fill='none' stroke='%23d7ebff' "
@@ -273,8 +273,8 @@ def head(p) -> str:
         alterne = ('<link rel="alternate" hreflang="it" href="' + SITO + '/">\n'
                    '<link rel="alternate" hreflang="en" href="' + url + '">\n'
                    '<link rel="alternate" hreflang="x-default" href="' + SITO + '/">\n')
-    og_alt = ("Arturo, la stella sopra il reticolo blu della volta celeste" if p["lang"] == "it"
-              else "Arturo, the star above the blue grid of the celestial vault")
+    og_alt = ("Arturo, un harness per il lavoro della conoscenza: la stella sopra il reticolo blu della volta celeste" if p["lang"] == "it"
+              else "Arturo, a harness for knowledge work: the star above the blue grid of the celestial vault")
     return f"""<!doctype html>
 <html lang="{p['lang']}">
 <head>
@@ -290,8 +290,8 @@ def head(p) -> str:
 <meta property="og:description" content="{d}">
 <meta property="og:url" content="{url}">
 <meta property="og:image" content="{OG_IMG}">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="{og_alt}">
 <meta property="article:modified_time" content="2026-11-04">
 <meta name="twitter:card" content="summary_large_image">

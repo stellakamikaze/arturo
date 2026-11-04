@@ -240,14 +240,14 @@ MODELLO = """<!doctype html>
 <meta property="og:title" content="Novità di Arturo · cosa cambia e perché">
 <meta property="og:description" content="{descrizione}">
 <meta property="og:url" content="{url}">
-<meta property="og:image" content="{sito}/img/og.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Arturo, la stella sopra il reticolo blu della volta celeste">
+<meta property="og:image" content="{sito}/img/anteprima-github.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="Arturo, un harness per il lavoro della conoscenza: la stella sopra il reticolo blu della volta celeste">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Novità di Arturo · cosa cambia e perché">
 <meta name="twitter:description" content="{descrizione}">
-<meta name="twitter:image" content="{sito}/img/og.png">
+<meta name="twitter:image" content="{sito}/img/anteprima-github.png">
 <link rel="alternate" type="text/markdown" title="NOVITA.md su GitHub" href="https://github.com/stellakamikaze/arturo/blob/main/NOVITA.md">
 <meta name="theme-color" content="#d7ebff">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0d10'/%3E%3Cpath d='M5 25 13 11l6 8 8-11' fill='none' stroke='%23d7ebff' stroke-width='1.6'/%3E%3Ccircle cx='13' cy='11' r='3.2' fill='%23f2a24a'/%3E%3C/svg%3E">
