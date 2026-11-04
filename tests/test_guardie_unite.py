@@ -18,6 +18,7 @@ G206 forma_comando: rm e find si riconoscono col path completo, in un blocco, do
      `sh -c`; un rm citato in un heredoc verso python non conta; le variabili assegnate nel
      comando si risolvono.
 G214 l'aggiornamento automatico (firme/, bin/aggiornamenti.py, bin/aggiorna-applica.sh) è protetto
+G215 il puntatore della barra (~/.claude/arturo/radice) è protetto come l'aggiornamento automatico
      come gli hook: Edit/Write negati senza unlock, scrittura shell con conferma, copia altrove libera.
 
 Sulla base cbd8305 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
@@ -684,10 +685,32 @@ def test_g214(repo: Path) -> None:
         assert dispatcher(home, f'cp ~/.claude/bin/aggiorna-applica.sh "{radice}/applica.sh"', radice) != "ask",             "G214 copiare la procedura altrove (come /inizio) chiede conferma"
 
 
+def test_g215(repo: Path) -> None:
+    """Il puntatore della barra (4/11/2026, #4567): col plugin la barra esegue il codice della cartella che
+    ~/.claude/arturo/radice nomina. Chi lo riscrive fa girare codice suo a ogni aggiornamento della barra."""
+    with tempfile.TemporaryDirectory() as d:
+        radice = Path(d)
+        home = casa(repo, radice)
+        c = home / ".claude"
+        (c / "arturo").mkdir(parents=True, exist_ok=True)
+
+        def esito(path: Path) -> str:
+            dati = {"tool_name": "Write", "tool_input": {"file_path": str(path), "content": "/tmp/altro"},
+                    "session_id": "g215"}
+            return decisione(hook(home, "protect_claude_md.py", dati, radice))
+
+        assert esito(c / "arturo" / "radice") == "deny", "G215 Write sul puntatore della barra senza unlock"
+        for comando in ("printf /tmp/altro > ~/.claude/arturo/radice",
+                        "cd ~/.claude/arturo && echo /tmp/altro > radice"):
+            assert dispatcher(home, comando, radice) == "ask", f"G215 scrittura shell sul puntatore senza conferma: {comando}"
+        assert dispatcher(home, "cat ~/.claude/arturo/radice", radice) != "ask", "G215 leggere il puntatore chiede conferma"
+
+
 TESTS = {"G201": test_g201, "G202": test_g202, "G203": test_g203, "G204": test_g204, "G205": test_g205,
          "G206": test_g206, "G207": test_g207, "G208": test_g208,
          "G209": test_g209, "G210": test_g210,
-         "G211": test_g211, "G212": test_g212, "G213": test_g213, "G214": test_g214}
+         "G211": test_g211, "G212": test_g212, "G213": test_g213, "G214": test_g214,
+         "G215": test_g215}
 
 
 def main() -> int:

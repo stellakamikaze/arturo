@@ -22,6 +22,8 @@ Tre categorie, ognuna con un unlock per-sessione distinto, più il resto di ~/.c
     installati, col plugin anche le guardie di Arturo)
     ~/.claude/firme/**, bin/aggiornamenti.py, bin/aggiorna-applica.sh (l'aggiornamento automatico:
     chi li cambia fa installare da solo codice non firmato)
+    ~/.claude/arturo/radice (col plugin, la barra in basso esegue il codice della cartella che nomina;
+    lo scrive solo l'avvio, 4/11/2026, #4567)
     -> unlock: touch ~/.claude/config-unlock-{session_id}
 
 Motivo della categoria config/hook: senza questo, sotto defaultMode auto o acceptEdits
@@ -261,7 +263,7 @@ def main():
             or (os.sep + 'hooks' + os.sep) in rp
             or rp.endswith(os.sep + 'hooks')
             or relativo == 'firme' or relativo.startswith('firme/')
-            or relativo in ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh')
+            or relativo in ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh', 'arturo/radice')
             or relativo.startswith(('plugins/cache/', 'plugins/marketplaces/'))
         )
         if is_config:
@@ -282,7 +284,7 @@ def main():
             # della persona non lo apre, come firme/ (docs/strati.md, 3/11/2026).
             intoccabile = (relativo == 'firme' or relativo.startswith('firme/')
                            or relativo.startswith(('plugins/cache/', 'plugins/marketplaces/'))
-                           or relativo in ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh')
+                           or relativo in ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh', 'arturo/radice')
                            or (relativo.startswith('hooks/') and relativo.endswith('.local')))
             if not intoccabile:
                 in_radice = os.path.dirname(rp) == claude_dir

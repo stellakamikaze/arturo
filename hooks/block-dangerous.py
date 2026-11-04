@@ -624,7 +624,10 @@ def _under_claude_config(p):
         tutta = os.path.join(radice, cartella)
         if p == tutta or p.startswith(tutta + os.sep):
             return True
-    if p in (os.path.join(radice, "bin", "aggiornamenti.py"), os.path.join(radice, "bin", "aggiorna-applica.sh")):
+    # Il puntatore della barra (4/11/2026, #4567): col plugin la barra in basso esegue
+    # "$(cat ~/.claude/arturo/radice)/hooks/statusline.js". Lo scrive solo l'avvio.
+    if p in (os.path.join(radice, "bin", "aggiornamenti.py"), os.path.join(radice, "bin", "aggiorna-applica.sh"),
+             os.path.join(radice, "arturo", "radice")):
         return True
     base = os.path.basename(p)
     if os.path.dirname(p) == os.path.normpath(os.path.join(h, ".claude")):
