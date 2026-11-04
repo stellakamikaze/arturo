@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""PL01-PL10: le decisioni personali di hooks/protect_claude_md.local.
+"""PL01-PL11: le decisioni personali di hooks/protect_claude_md.local.
 
 Il .local cambia la decisione di alcune categorie (CLAUDE.md, settings in radice, config, il resto di
 ~/.claude) senza toccare la guardia (30/10/2026, #4291). Non può allentare i percorsi di avvio, i file
 di sblocco, firme/, gli script dell'aggiornamento, i file hooks/*.local né la validità JSON dei settings.
 
 Invarianti (verdi anche sulla base): PL01, PL04, PL05, PL07, PL08, PL09, PL10.
-Sulla base 749e18d sono rossi i casi del meccanismo: PL02, PL03, PL06.
+Sulla base 749e18d sono rossi i casi del meccanismo: PL02, PL03, PL06, PL11.
+PL11 è il caso allow sul CLAUDE.md: dal 3/11/2026 (#4473) PL02 coincide col default ask.
 """
 from __future__ import annotations
 
@@ -18,8 +19,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = [f"PL{n:02d}" for n in range(1, 11)]
-DISCRIMINANTI = ["PL02", "PL03", "PL06"]
+CASI = [f"PL{n:02d}" for n in range(1, 12)]
+DISCRIMINANTI = ["PL02", "PL03", "PL06", "PL11"]
 
 
 def decidi(guardia: str, local: str | None, strumento: str, relativo: str, contenuto: str | None = None,
@@ -62,6 +63,7 @@ def prova(guardia: str) -> list[str]:
         ("PL08", tutto, "Write", "config-unlock-s1", "", False, False, "ask"),
         ("PL09", tutto, "Write", "CLAUDE.md", "nuovo", False, True, "ask"),
         ("PL10", "allow tutto\nallow\n", "Edit", "CLAUDE.md", None, True, False, "protetto"),
+        ("PL11", "allow claude-md-progetto\n", "Edit", "CLAUDE.md", None, True, True, "allow"),
     ]
     for codice, local, strumento, relativo, contenuto, esiste, in_progetto, atteso in casi:
         avuto = decidi(guardia, local, strumento, relativo, contenuto, esiste, in_progetto)

@@ -354,8 +354,8 @@ BASELINE=(
   # Passo 2 dei mod (3/11/2026, #4619): escono riscrivi-bash e gws, l'hook gws-esito.py e il dispatcher che legge il
   # marcatore dell'avvio. 08d09cf, il dev prima.
   "test_mod_passo2_2026_11_03.py 08d09cf"
-  # Una conferma sola per il CLAUDE.md (3/11/2026, #4473): 72195b0, il dev prima.
-  "test_claude_md_conferma_2026_11_03.py 72195b0"
+  # Una conferma sola per il CLAUDE.md (3/11/2026, #4473): f99d781, il commit padre.
+  "test_claude_md_conferma_2026_11_03.py f99d781"
   # La scansione dei segreti dice perché non parte (4/11/2026, #4472): e2106f0, il dev prima.
   "test_scansione_fallita_2026_11_03.py e2106f0"
   # La catena dei todo e la riga di stato (3/11/2026, #3888): acb4a39, il dev prima.

@@ -246,6 +246,9 @@ def test_k11(repo: Path) -> None:
     sblocco = [x for x in am.get("allow", []) if "claude-md-unlock" in x]
     assert sblocco and "config-unlock" in sblocco[0] and "NOT covered" in sblocco[0], \
         "K11 il classificatore nega lo sblocco del CLAUDE.md anche dopo il sì della persona"
+    # Dal 3/11/2026 (#4473) la guardia chiede invece di negare: l'unlock è la scorciatoia per più modifiche.
+    assert "denied" not in sblocco[0] and "shortcut" in sblocco[0], \
+        "K11 la regola dello sblocco descrive ancora la guardia che nega il CLAUDE.md"
     for lista in ("allow", "soft_deny", "environment"):
         # Senza $defaults una lista di autoMode sostituisce le regole di serie invece di aggiungersi (15/10/2026).
         assert "$defaults" in am.get(lista, []), f"K11 autoMode.{lista} senza i default di Claude Code"

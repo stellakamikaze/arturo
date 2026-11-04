@@ -25,7 +25,7 @@ RV06 commit-secret-gate: dopo popd, cd - o un cd che fallisce il commit si giudi
      di partenza; un segreto copiato in una cartella di mktemp (<file, $(<file), cp -t) o scritto e
      aggiunto nello stesso comando si vede; mkdir, clone e cd verso una cartella nuova restano liberi.
 RV07 block-dangerous su Read: settings.json gli manda il tool Read; un file di ~/.ssh che non è
-     config, known_hosts o una chiave pubblica chiede.
+     config, known_hosts, authorized_keys o una chiave pubblica chiede.
 RV08 block-dangerous, git-destinazione: un push con la destinazione riscritta da -c, maiuscole,
      pushInsteadOf, --config-env o GIT_CONFIG_* chiede; push, clone e chiavi innocue restano liberi.
 

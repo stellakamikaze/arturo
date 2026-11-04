@@ -125,8 +125,9 @@ CONFIG_WRITE_RE = re.compile(
     r"|open\(\s*['\"][^'\"]*\.claude/(?:settings|hooks/|\.claude\.json)[^'\"]*['\"]\s*,\s*['\"][wa])",
     re.IGNORECASE,
 )
-# CLAUDE.md, in qualunque cartella: via Edit/Write lo protegge protect_claude_md.py con un
-# unlock, qui si copre il vettore shell (>, sed -i, cp, tee...), che altrimenti lo riscrive senza prompt.
+# CLAUDE.md, in qualunque cartella: via Edit/Write protect_claude_md.py chiede una volta per modifica
+# (l'unlock della sessione le fa passare tutte), qui si copre il vettore shell (>, sed -i, cp, tee...),
+# che altrimenti lo riscrive senza prompt.
 CLAUDE_MD_WRITE_RE = re.compile(
     r"(?:>>?\s*[^\s'\";|&]*CLAUDE(?:\.local)?\.md\b"
     r"|\bsed\b[^|;&]*-i[^|;&]*CLAUDE(?:\.local)?\.md\b)"

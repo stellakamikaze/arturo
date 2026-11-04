@@ -12,7 +12,7 @@ CM03 con l'unlock della sessione la modifica passa senza popup (allow).
 CM04 `deny claude-md-progetto` nel .local decide ancora: deny.
 CM05 un CLAUDE.md nuovo chiede come prima.
 
-Sulla base 72195b0 (dev prima della modifica) sono rossi CM01 e CM02.
+Sulla base f99d781 (il commit padre della modifica) sono rossi CM01 e CM02.
 """
 from __future__ import annotations
 

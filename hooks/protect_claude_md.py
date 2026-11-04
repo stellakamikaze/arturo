@@ -12,7 +12,8 @@ Tre categorie, ognuna con un unlock per-sessione distinto, più il resto di ~/.c
   CLAUDE.md (qualsiasi cartella)
     -> chiede conferma (ask) a ogni modifica: un popup solo (3/11/2026, #4473). Prima era
        deny con istruzioni, e una modifica costava la domanda in chat più il popup dell'unlock.
-       L'unlock touch ~/.claude/claude-md-unlock-{session_id} vale ancora: con lui passa senza popup.
+       L'unlock touch ~/.claude/claude-md-unlock-{session_id} è la scorciatoia per una serie di
+       modifiche: finché c'è, ogni modifica della sessione passa senza popup.
     Sul CLAUDE.md globale avvisa quando il file, dopo la modifica, supera il
     budget di righe (ARTURO_CLAUDE_MD_RIGHE, default 200).
 
@@ -36,7 +37,7 @@ le modifiche legittime: chiedi conferma all'utente, crea il touch file, riprova.
 
 I file di unlock stessi (qualsiasi nome con "unlock" sotto ~/.claude) chiedono
 sempre conferma anche via Edit/Write: un marker scritto dall'assistente senza una
-decisione dell'utente sbloccherebbe da solo le due categorie. Il vettore shell
+decisione dell'utente sbloccherebbe da solo le tre categorie. Il vettore shell
 (touch) chiede conferma in block-dangerous.py.
 
 La categoria persistenza viene prima delle altre: un git hook o un servizio
@@ -209,8 +210,8 @@ def main():
         if under_claude and 'UNLOCK' in base:
             chiede()
             _emit("ask", (
-                f"File di unlock ({os.path.basename(rp)}): sbloccherebbe la protezione "
-                "di CLAUDE.md, di config/hook o dei percorsi di avvio automatico. "
+                f"File di unlock ({os.path.basename(rp)}): toglierebbe la conferma "
+                "sui CLAUDE.md, o la protezione di config/hook o dei percorsi di avvio automatico. "
                 "Conferma solo se l'hai chiesto tu."
             ))
             sys.exit(0)
