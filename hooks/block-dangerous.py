@@ -1799,8 +1799,10 @@ def main() -> int:
                  "riesce a leggere: controlla prima di confermare.") if re.search(
                      r"branch\s.*(-[a-zA-Z]*D|--d)|stash\s+(drop|clear)|worktree\s+remove\s.*(-[a-zA-Z]*f|--f)",
                      command) else None
-    if perde and perde[0] in ("git-stash", "git-worktree"):
-        return _ask(perde[0], perde[1])
+    if perde and perde[0] == "git-stash":
+        return _ask("git-stash", perde[1])
+    if perde and perde[0] == "git-worktree":
+        return _ask("git-worktree", perde[1])
     if perde:
         return _ask("git-ramo", perde[1])
 
