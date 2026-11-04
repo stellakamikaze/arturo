@@ -281,19 +281,25 @@ export async function fineTurno($: EngineInterface, e: Evento<'turn.complete'>, 
   return r
 }
 
-export const register: Register = on => {
+// /clear e /resume chiudono la sessione senza rilanciare session.start: la scelta della barra e la
+// vista si rileggono qui, altrimenti "/dafare nascondi" si perde (19/10/2026). Il secondo dopo cade
+// nella sessione nuova. Mai classic.SessionStart: il plugin di sistema cc-plugin-sec-default lo
+// scavalca e all'avvio compare "classic.SessionStart hook was skipped" (4/11/2026).
+export async function fineSessione($: EngineInterface, e: Evento<'session.end'>, next: Avanti<'session.end'>) {
+  if (await parteSpenta($, 'dafare')) return next(e)
+  const r = await next(e)
+  if (e.reason !== 'clear' && e.reason !== 'resume') return r
+  $.clock.after(1_000, () => void rileggi($).catch(() => undefined))
+  return r
+}
 
-  // /clear, /resume e /branch non rilanciano session.start: la scelta della barra e la vista si
-  // rileggono qui, altrimenti "/dafare nascondi" si perde (19/10/2026).
-  on('classic.SessionStart', async ($, e, next) => {
-    if (await parteSpenta($, 'dafare')) return next(e)
-    const r = await next(e)
-    if (e.source === 'startup') return r
-    const nascosta = (await $.store.get('barraNascosta')) === true
-    await update($, barraNascosta, () => nascosta)
-    await carica($)
-    return r
-  })
+async function rileggi($: EngineInterface): Promise<void> {
+  const nascosta = (await $.store.get('barraNascosta')) === true
+  await update($, barraNascosta, () => nascosta)
+  await carica($)
+}
+
+export const register: Register = on => {
 
   on('command.run', { command: 'dafare' }, async ($, e, next) => {
     if (await parteSpenta($, 'dafare')) return next(e)

@@ -5,7 +5,7 @@
 // Sotto il pannello c'è una CLI finta: tiene un piccolo archivio in memoria, risponde a
 // `todo --json` e ai verbi del pannello, e registra ogni argv.
 
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
 
@@ -444,14 +444,19 @@ for (const surface of ['terminal', 'desktop'] as const) {
     })
   }
 
-  // /clear e /resume non rilanciano session.start: la barra rilegge la scelta dallo store.
-  for (const source of ['clear', 'resume'] as const) {
-    test(`${surface}: U34 dopo /${source} la barra resta spenta`, async ($, on) => {
+  // /clear e /resume chiudono la sessione senza rilanciare session.start: un secondo dopo la barra
+  // rilegge la scelta dallo store.
+  for (const reason of ['clear', 'resume'] as const) {
+    test(`${surface}: U34 dopo /${reason} la barra resta spenta`, async ($, on) => {
       // Lo store dice "spenta" da prima del /clear. La vista c'è già: senza il ricarico la barra comparirebbe.
-      motore(on, [voce(1), voce(2)], { store: { barraNascosta: true } })
-      on('classic.SessionStart', async () => ({}) as never)
+      const m = motore(on, [voce(1), voce(2)], { store: { barraNascosta: true } })
+      const clock = mock.clock(on)
+      on('session.end', (_, e) => ({ sessionId: e.sessionId }))
       await $.command.run({ command: 'dafare', args: '', ...COMANDO } as never)
-      await $.classic.SessionStart({ source } as never)
+      const prima = m.cli().length
+      await $.session.end({ reason, sessionId: 's1', resume: { id: 's1' } } as never)
+      await clock.advance(1_000)
+      expect(m.cli().slice(prima)).toEqual([['todo', '--json']])
       const barra = await $.ui.mount({ plugin: 'arturo', surface, component: 'AbovePrompt', props: BAND })
       expect(await barra.find({ type: 'Text', text: '2 cose da fare' })).toBeFalsy()
     })

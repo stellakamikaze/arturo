@@ -8,15 +8,25 @@
 // testata: il blocco di Arturo sotto l'intestazione di Claude Code, /versione.
 //
 // Una parte si spegne in ~/.claude/arturo/parti.json: {"spente": ["dafare"]}.
-// Un evento senza matcher si registra una volta sola per mod: session.start e turn.complete li registra
+// Un evento senza matcher si registra una volta sola per mod: session.start, turn.complete e session.end li registra
 // questo file, in catena; gli altri hook li registra ogni parte col suo matcher.
 import type { Register } from 'claude-code'
 
 import { avvio as avvioApri, register as registraApri } from './apri/register'
 import { avvio as avvioCacheFredda, fineTurno as fineCacheFredda, register as registraCacheFredda } from './cache-fredda/register'
-import { avvio as avvioDafare, fineTurno as fineDafare, register as registraDafare } from './dafare/register'
+import {
+  avvio as avvioDafare,
+  fineSessione as chiusuraDafare,
+  fineTurno as fineDafare,
+  register as registraDafare,
+} from './dafare/register'
 import { register as registraRedazioneSegreti } from './redazione-segreti/register'
-import { avvio as avvioRotazione, fineTurno as fineRotazione, register as registraRotazione } from './rotazione/register'
+import {
+  avvio as avvioRotazione,
+  fineSessione as chiusuraRotazione,
+  fineTurno as fineRotazione,
+  register as registraRotazione,
+} from './rotazione/register'
 import { avvio as avvioTestata, register as registraTestata } from './testata/register'
 
 export const register: Register = (on, options) => {
@@ -38,4 +48,6 @@ export const register: Register = (on, options) => {
   on('turn.complete', ($, e, next) =>
     fineRotazione($, e, e1 => fineCacheFredda($, e1, e2 => fineDafare($, e2, next))),
   )
+
+  on('session.end', ($, e, next) => chiusuraRotazione($, e, e1 => chiusuraDafare($, e1, next)))
 }

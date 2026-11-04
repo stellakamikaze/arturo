@@ -118,19 +118,19 @@ export const register: Register = on => {
     stato($, 'rotazione', `rotazione pronta: a fine turno riparto da "${r.compito}"`)
     return { result: `Rotazione armata: a fine turno /clear, poi /inizio ${argomentiInizio(r)}. Chiudi il turno ora.` }
   })
+}
 
-
-  on('session.end', async ($, e, next) => {
-    if (await parteSpenta($, 'rotazione')) return next(e)
-    const r = await next(e)
-    if (e.reason !== 'clear' || !inCorso) return r
-    const rot = inCorso
-    inCorso = undefined
-    // la riga "rotazione pronta" della sessione vecchia resterebbe sotto il prompt
-    stato($, 'rotazione', undefined)
-    $.clock.after(ATTESA_INIZIO_MS, () => lanciaInizio($, rot))
-    return r
-  })
+// session.end non ha matcher: lo registra hooks/register.tsx, in catena con le altre parti.
+export async function fineSessione($: EngineInterface, e: Evento<'session.end'>, next: Avanti<'session.end'>) {
+  if (await parteSpenta($, 'rotazione')) return next(e)
+  const r = await next(e)
+  if (e.reason !== 'clear' || !inCorso) return r
+  const rot = inCorso
+  inCorso = undefined
+  // la riga "rotazione pronta" della sessione vecchia resterebbe sotto il prompt
+  stato($, 'rotazione', undefined)
+  $.clock.after(ATTESA_INIZIO_MS, () => lanciaInizio($, rot))
+  return r
 }
 
 // L'ultima decisione, in un file da leggere quando una rotazione non parte (ultime 40 righe).
