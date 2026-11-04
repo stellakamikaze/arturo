@@ -12,6 +12,21 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — Un agente ripreso fuori dalla sua copia si ferma e lo dice
+
+**Cosa cambia**: un agente lanciato in una copia separata (`isolation: "worktree"`) che si ferma, per la
+quota finita o la rete, e poi viene ripreso, adesso controlla dove si trova. Se la sua copia non c'è più
+e lavora nella cartella della sessione che l'ha lanciato, riceve un avviso e non può modificare file né
+lanciare comandi lì. Può leggere, si ferma e scrive nel report che la copia è sparita e cosa gli resta da
+fare. La sessione decide: rilanciare il lavoro in un agente nuovo con la sua copia, oppure lasciarlo
+lavorare lì.
+
+**Perché**: segnalazione n. 51 di Filippo. Claude Code toglie la copia di un agente che si ferma senza
+modifiche, e alla ripresa lo fa lavorare nella cartella della sessione, senza avviso. Due agenti su tre
+hanno fatto commit sul ramo della sessione, e il file a metà di uno è poi andato perso (segnalazione n. 55).
+
+---
+
 ## 2026-11-04 — L'avviso dell'aggiornamento dice cosa lo ferma
 
 **Cosa cambia**: se hai modifiche non salvate con un commit in `~/.claude`, l'avvio non dice più che la

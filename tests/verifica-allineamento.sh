@@ -158,6 +158,7 @@ BANCHI=(
   test_testata_banchi_2026_11_03.py
   test_rotazione_2026_11_03.py
   test_segnalazioni_2026_11_03.py
+  test_segnalazioni_2026_11_04.py
   test_gate_snello_2026_11_03.py
   test_mod_passo2_2026_11_03.py
   test_claude_md_conferma_2026_11_03.py
@@ -348,6 +349,9 @@ BASELINE=(
   # che cambia il comando (riscrivi-bash uscito col passo 2 dei mod), /inizio che controlla da dove
   # parte la copia separata. 9c6a0e6, il ramo prima.
   "test_segnalazioni_2026_11_03.py 9c6a0e6"
+  # Segnalazione n. 51 di Filippo (4/11/2026, #4768): agente ripreso fuori dalla sua copia separata.
+  # c9ee540, il dev prima.
+  "test_segnalazioni_2026_11_04.py c9ee540"
   # Il gate snello (3/11/2026): tests/esegui_gate.py in parallelo, tutti i rossi in un giro, --rossi.
   # 177852f, il ramo prima.
   "test_gate_snello_2026_11_03.py 177852f"
