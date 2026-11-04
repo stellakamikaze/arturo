@@ -2,6 +2,10 @@
 
 **L'IA che usi in chat, al lavoro nelle tue cartelle. Prima di fare danni, chiede a te.**
 
+[![Licenza MIT](https://img.shields.io/badge/licenza-MIT-0a66ff)](LICENSE) [![Ultima versione](https://img.shields.io/github/v/release/stellakamikaze/arturo?label=versione&color=0a66ff)](https://github.com/stellakamikaze/arturo/releases) [![Sito](https://img.shields.io/badge/sito-arturo.stellakamikaze.org-0a66ff)](https://arturo.stellakamikaze.org)
+
+> **In English.** Arturo is a free, open source (MIT) harness for Claude Code, written in Italian for people who use AI in a chat window and have never opened a terminal. Hooks ask for confirmation before actions that cannot be undone (recursive deletes, sending messages, secrets in commits), `/inizio` and `/fine` open and close work sessions across machines, and agents and skills come ready to use. Arturo itself speaks Italian. Overview in English: [arturo.stellakamikaze.org/en](https://arturo.stellakamikaze.org/en/).
+
 Claude Code è l'IA di Anthropic che lavora sui file del tuo computer: legge e scrive i tuoi documenti, cerca sul web, prepara le bozze delle email e riprende il lavoro dal punto in cui l'avevi lasciato. Arturo te lo consegna già configurato, in italiano, con regole che chiedono una conferma prima di ogni gesto che non si annulla, come cancellare una cartella, mandare un messaggio o mettere una password in un commit. Arturo è gratuito e open source, con licenza MIT; Claude Code richiede un abbonamento a pagamento ad Anthropic.
 
 La guida passo per passo sta su [arturo.stellakamikaze.org](https://arturo.stellakamikaze.org): ci vuole circa un'ora, e ogni comando è già scritto: lo copi e lo incolli. Funziona su Mac e su Windows.
