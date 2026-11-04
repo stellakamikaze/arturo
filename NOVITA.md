@@ -25,7 +25,9 @@ o non c'era, non partiva nessuno dei due, e i risultati restavano solo nella con
 scrivevi `/fine`.
 
 **Da sapere**: un'azione che non lascia niente da salvare, come accendere la musica, non fa partire il
-salvataggio.
+salvataggio. E un aggiornamento di Arturo rimandato non si installa più quando la sessione si rinnova:
+aspetta che tu riapra Claude Code. Prima poteva arrivare proprio in quel momento, e la sessione rinnovata
+restava senza lo strumento che la fa ripartire da sola.
 
 ---
 

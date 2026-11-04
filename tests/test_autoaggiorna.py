@@ -23,6 +23,8 @@ AA15 un conflitto su settings.json resta alla persona: niente si installa, la co
 AA16 una copia di prova in attesa da un aggiornamento si salva in copia-in-attesa.patch, e il rilascio
      si installa.
 AA17 una copia di prova in attesa dal sync fra le macchine resta com'è: niente si installa.
+AA18 dopo un /clear, un /compact o una ripresa il rinvio non si installa: lo installa l'apertura dopo di
+     Claude Code, perché il processo di prima ha i mod caricati (#4732, 4/11/2026).
 
 Sulla base 5d83592, prima della funzione, ogni controllo deve fallire col suo codice. AA12-AA17 sono rossi
 anche sulla base 9ca11aa (dev del 3/11/2026), salvo le invarianti AA15 e AA17.
@@ -411,10 +413,26 @@ def test_aa17(repo: Path) -> None:
     con_lab(repo, "AA17", prova)
 
 
+def test_aa18(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        prima = lab.head()
+        commit = lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        lab.arturo_cli("applica", ARTURO_ALTRE_SESSIONI="1")
+        dopo_clear = lab.arturo_cli("stato", ARTURO_ALTRE_SESSIONI="1", ARTURO_AVVIO="clear").stdout
+        time.sleep(3)
+        assert "prossima apertura" in dopo_clear and "installo ora" not in dopo_clear, \
+            f"AA18 dopo un /clear l'avvio non rimanda il rinvio all'apertura: {dopo_clear!r}"
+        assert lab.head() == prima, "AA18 dopo un /clear il rinvio si installa con la sessione di prima viva"
+        apertura = lab.arturo_cli("stato", ARTURO_ALTRE_SESSIONI="1", ARTURO_AVVIO="startup").stdout
+        assert "installo ora" in apertura, f"AA18 l'apertura dopo il /clear non installa il rinvio: {apertura!r}"
+        assert aspetta_head(lab, commit), f"AA18 il rinvio non si installa all'apertura: {lab.stato()}"
+    con_lab(repo, "AA18", prova)
+
+
 TESTS = {"AA01": test_aa01, "AA02": test_aa02, "AA03": test_aa03, "AA04": test_aa04, "AA05": test_aa05,
          "AA06": test_aa06, "AA07": test_aa07, "AA08": test_aa08, "AA09": test_aa09, "AA10": test_aa10, "AA11": test_aa11,
          "AA12": test_aa12, "AA13": test_aa13, "AA14": test_aa14, "AA15": test_aa15, "AA16": test_aa16,
-         "AA17": test_aa17}
+         "AA17": test_aa17, "AA18": test_aa18}
 
 
 def main() -> int:

@@ -197,7 +197,10 @@ if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
   # dell'ultima installazione e l'avviso se uno non può installarsi da solo.
   if [ -f "$ARTURO_CODICE/bin/aggiornamenti.py" ]; then
     # ARTURO_BASH: un rinvio si installa da qui, staccato, col bash di questo hook (3/11/2026).
-    ARTURO_BASH="$BASH" python3 "$ARTURO_CODICE/bin/aggiornamenti.py" stato 2>/dev/null || true
+    # ARTURO_AVVIO: il "source" dell'hook. Il rinvio si installa solo con "startup", mai dopo /clear,
+    # /compact o una ripresa, col processo di prima vivo (#4732, 4/11/2026).
+    ARTURO_AVVIO="$(printf '%s' "$HOOK_INPUT" | sed -n 's/.*"source"[[:space:]]*:[[:space:]]*"\([a-z]*\)".*/\1/p' | head -n 1)"
+    ARTURO_AVVIO="$ARTURO_AVVIO" ARTURO_BASH="$BASH" python3 "$ARTURO_CODICE/bin/aggiornamenti.py" stato 2>/dev/null || true
   elif [ "${BEHIND:-0}" -gt 0 ]; then
     # Senza la verifica della firma /aggiorna non applica niente (17/10/2026, #3504): main non si applica mai.
     echo "ARTURO: manca bin/aggiornamenti.py, che verifica la firma dei rilasci: finche' non torna, nessun aggiornamento si installa. Si rimette con: git -C ~/.claude restore bin/aggiornamenti.py"

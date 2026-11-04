@@ -16,7 +16,8 @@ chi mantiene Arturo, verificati con la chiave che hai già installata (firme/ril
 
 Non si installa niente da solo se: la firma manca o non è di Arturo; la storia pubblicata è stata
 riscritta; hai modifiche non salvate in ~/.claude; un'altra sessione di Claude Code è aperta (la
-installa l'ultima che chiude, o l'avvio dopo se è l'unica sessione, dal 3/11/2026); l'aggiornamento va in conflitto con le tue modifiche. In tutti questi
+installa l'ultima che chiude, o l'apertura dopo di Claude Code se è l'unica sessione, dal 3/11/2026, mai un
+/clear, dal 4/11/2026); l'aggiornamento va in conflitto con le tue modifiche. In tutti questi
 casi l'avviso resta, col motivo, e /aggiorna fa il resto con te. Una firma che manca o non torna non
 si scavalca neanche con /aggiorna: è il segno di un repository manomesso, e l'avviso dice di non
 aggiornare e di segnalarlo a chi mantiene Arturo (17/10/2026, #3504). Una firma che questo computer
@@ -211,6 +212,12 @@ def cmd_stato(r: Path) -> int:
             pass
     esito = leggi(file_esito(r))
     rinviato = ""
+    # Un rinvio si installa solo all'apertura di Claude Code (#4732, 4/11/2026). SessionStart scatta anche
+    # dopo /clear, /compact e una ripresa, col processo di prima vivo: un rilascio che cambia o toglie un mod
+    # glielo leva sotto i piedi, e Claude Code carica il mod nuovo solo all'apertura dopo. Così la rotazione
+    # automatica (/clear e /inizio) restava senza il tool ruota. ARTURO_AVVIO è il "source" dell'hook:
+    # vuoto vale come apertura, per chi lancia `stato` a mano.
+    a_freddo = os.environ.get("ARTURO_AVVIO", "startup") in ("", "startup")
     if esito and not esito.get("mostrato"):
         if esito.get("esito") == "APPLICATO":
             righe.append(f"ARTURO: aggiornato a {esito.get('versione')} alla chiusura della sessione. /novita racconta "
@@ -221,7 +228,9 @@ def cmd_stato(r: Path) -> int:
             righe.append(f"ARTURO: l'aggiornamento automatico a {esito.get('versione')} non è partito "
                          f"({esito.get('riga') or 'motivo sconosciuto'}). Scaricalo con /aggiorna.")
         try:
-            scrivi(file_esito(r), dict(esito, mostrato=True))
+            # Il rinvio visto dopo un /clear resta da mostrare: lo installa l'apertura dopo.
+            if a_freddo or esito.get("esito") != "RINVIATO":
+                scrivi(file_esito(r), dict(esito, mostrato=True))
         except OSError:
             pass
     righe.extend(conflitti_da_dire(r))
@@ -232,7 +241,10 @@ def cmd_stato(r: Path) -> int:
         scrivi(file_stato(r), stato)
     except OSError:
         pass
-    if stato["stato"] == "pronto" and rinviato == stato["versione"] and processi_claude() <= 1             and avvia_staccato(r, "applica", "--avvio"):
+    if stato["stato"] == "pronto" and rinviato == stato["versione"] and not a_freddo:
+        righe.append(f"ARTURO: la versione {rinviato} si installa alla prossima apertura di Claude Code, non dopo un "
+                     "/clear: la sessione aperta tiene i suoi strumenti.")
+    elif stato["stato"] == "pronto" and rinviato == stato["versione"] and processi_claude() <= 1             and avvia_staccato(r, "applica", "--avvio"):
         # Un rilascio rinviato si installa all'avvio dopo, se questa è l'unica sessione (3/11/2026): Alessio è
         # restato al 23/10 perché alla chiusura c'era sempre un'altra sessione aperta, e l'attesa scadeva.
         righe.append(f"ARTURO: installo ora la versione {rinviato}, rinviata alla chiusura scorsa perché c'era un'altra "
