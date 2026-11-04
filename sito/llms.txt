@@ -98,6 +98,11 @@ Poi apri un terminale nuovo, scrivi `claude` e poi `/setup`. La guida sul sito h
 - [Arturo per organizzazioni](https://arturo.stellakamikaze.org/organizzazioni/): cosa vale oggi per uno studio, una redazione o un'associazione
 - [Dimmi com'è andata](https://arturo.stellakamikaze.org/feedback/): il modulo per scrivere un problema o un'idea a chi mantiene Arturo
 - [Privacy](https://arturo.stellakamikaze.org/privacy/): cosa raccolgono il sito, il modulo di feedback e la telemetria di Arturo
+- [Claude Code in italiano](https://arturo.stellakamikaze.org/claude-code-in-italiano/): cos'è Claude Code, perché configurarlo in italiano e cosa aggiunge Arturo, per chi non programma
+- [Usare Claude Code senza saper usare il terminale](https://arturo.stellakamikaze.org/claude-code-senza-terminale/): quanto terminale serve davvero, cosa fa Claude al posto tuo e dove ti chiede un sì
+- [Claude Code in sicurezza: le guardie di Arturo](https://arturo.stellakamikaze.org/claude-code-sicurezza/): cosa controllano le guardie (cancellazioni, segreti, invii, dati che escono), con i messaggi veri e i limiti
+- [Arturo, Claude Code da solo o la chat](https://arturo.stellakamikaze.org/confronto/): tabella delle differenze e i limiti di Arturo (abbonamento, telemetria accesa di default, solo italiano, un solo manutentore)
+- [Arturo in English](https://arturo.stellakamikaze.org/en/): what Arturo is, who it is for and how to install it (Arturo itself speaks Italian)
 
 ## Codice e documenti
 

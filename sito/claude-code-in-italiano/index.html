@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Code in italiano: guida per chi non programma · Arturo</title>
+<meta name="description" content="Cos&#x27;è Claude Code, perché conviene configurarlo in italiano e cosa aggiunge Arturo, l&#x27;harness gratuito e open source per chi non programma.">
+<link rel="canonical" href="https://arturo.stellakamikaze.org/claude-code-in-italiano/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Arturo">
+<meta property="og:locale" content="it_IT">
+<meta property="og:title" content="Claude Code in italiano: guida per chi non programma · Arturo">
+<meta property="og:description" content="Cos&#x27;è Claude Code, perché conviene configurarlo in italiano e cosa aggiunge Arturo, l&#x27;harness gratuito e open source per chi non programma.">
+<meta property="og:url" content="https://arturo.stellakamikaze.org/claude-code-in-italiano/">
+<meta property="og:image" content="https://arturo.stellakamikaze.org/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Arturo, la stella sopra il reticolo blu della volta celeste">
+<meta property="article:modified_time" content="2026-11-04">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Claude Code in italiano: guida per chi non programma · Arturo">
+<meta name="twitter:description" content="Cos&#x27;è Claude Code, perché conviene configurarlo in italiano e cosa aggiunge Arturo, l&#x27;harness gratuito e open source per chi non programma.">
+<meta name="twitter:image" content="https://arturo.stellakamikaze.org/img/og.png">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "WebPage",
+   "@id": "https://arturo.stellakamikaze.org/claude-code-in-italiano/#pagina",
+   "url": "https://arturo.stellakamikaze.org/claude-code-in-italiano/",
+   "name": "Claude Code in italiano: guida per chi non programma · Arturo",
+   "description": "Cos'è Claude Code, perché conviene configurarlo in italiano e cosa aggiunge Arturo, l'harness gratuito e open source per chi non programma.",
+   "inLanguage": "it",
+   "dateModified": "2026-11-04",
+   "isPartOf": {
+    "@id": "https://arturo.stellakamikaze.org/#sito"
+   },
+   "about": {
+    "@id": "https://arturo.stellakamikaze.org/#arturo"
+   },
+   "author": {
+    "@id": "https://arturo.stellakamikaze.org/#autore"
+   },
+   "breadcrumb": {
+    "@id": "https://arturo.stellakamikaze.org/claude-code-in-italiano/#percorso"
+   }
+  },
+  {
+   "@type": "BreadcrumbList",
+   "@id": "https://arturo.stellakamikaze.org/claude-code-in-italiano/#percorso",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "Arturo",
+     "item": "https://arturo.stellakamikaze.org/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "Claude Code in italiano",
+     "item": "https://arturo.stellakamikaze.org/claude-code-in-italiano/"
+    }
+   ]
+  },
+  {
+   "@type": "FAQPage",
+   "@id": "https://arturo.stellakamikaze.org/claude-code-in-italiano/#domande",
+   "inLanguage": "it",
+   "mainEntity": [
+    {
+     "@type": "Question",
+     "name": "Claude Code parla italiano?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Sì. Claude risponde nella lingua in cui gli scrivi, e la documentazione di Anthropic ha una versione italiana. Arturo aggiunge l'impostazione della lingua, i messaggi delle guardie, i comandi e un curriculum scritti in italiano."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Serve saper programmare per usare Claude Code?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "No. Con Arturo il terminale serve per installare Claude Code e per aprirlo scrivendo claude. Il resto lo chiedi a Claude a parole, e prima dei passi che non si annullano ti chiede un sì."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Arturo costa qualcosa?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Arturo è gratuito e open source, con licenza MIT. Claude Code invece richiede un abbonamento Anthropic a pagamento: Pro, Max, Team, Enterprise o Console."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Arturo esiste in inglese?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "No. Uno degli impegni del progetto è che Arturo resta in italiano: comandi, messaggi e documenti sono scritti in italiano. C'è soltanto una pagina di presentazione in inglese."
+     }
+    }
+   ]
+  }
+ ]
+}
+</script>
+<meta name="theme-color" content="#d7ebff">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0d10'/%3E%3Cpath d='M5 25 13 11l6 8 8-11' fill='none' stroke='%23d7ebff' stroke-width='1.6'/%3E%3Ccircle cx='13' cy='11' r='3.2' fill='%23f2a24a'/%3E%3C/svg%3E">
+<link rel="preload" href="../font/archivo.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../font/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../stile/colori.css">
+<script defer data-domain="arturo.stellakamikaze.org" data-api="/api/e" src="/js/a.js"></script>
+<script defer src="../traccia.js"></script>
+<style>
+@font-face{font-family:"Archivo";src:url(../font/archivo.woff2) format("woff2");font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+@font-face{font-family:"Atkinson Next";src:url(../font/atkinson-next.woff2) format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
+@font-face{font-family:"Atkinson Mono";src:url(../font/atkinson-mono.woff2) format("woff2");font-weight:200 800;font-display:swap}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:24px;scrollbar-color:var(--scorrimento) var(--carta)}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--carta);color:var(--grafite);font:400 clamp(16.5px, .98rem + .15vw, 18px)/1.55 var(--testo);letter-spacing:-.005em;-webkit-font-smoothing:antialiased}
+::selection{background:var(--azione);color:var(--bianco)}
+:focus-visible{outline:2px solid var(--azione);outline-offset:3px}
+img,svg{display:block;max-width:100%}
+a{color:inherit;text-underline-offset:.2em;text-decoration-thickness:1px}
+p,li,figcaption,summary{text-wrap:pretty}
+p{margin:0 0 1em}
+ul,ol{margin:0;padding:0;list-style:none}
+h1,h2,h3{margin:0;color:var(--inchiostro);font-family:var(--titolo);font-weight:400;text-wrap:balance;overflow-wrap:break-word;min-width:0}
+code,pre{font-family:var(--mono)}
+code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inchiostro);overflow-wrap:anywhere}
+kbd{display:inline-block;min-width:1.7em;padding:.05em .4em;border:1px solid var(--scorrimento);border-bottom-width:2px;background:var(--bianco);font:.82em var(--mono);text-align:center;color:var(--inchiostro)}
+.dentro{max-width:var(--colonna);margin:0 auto;padding:0 var(--gutter)}
+.salta{position:absolute;left:12px;top:8px;z-index:20;padding:10px 14px;background:var(--inchiostro);color:var(--bianco);transform:translateY(-150%)}
+.salta:focus{transform:none}
+/* voce stretta e maiuscola: solo sui pulsanti, a 0,04em */
+.stretta{font-family:var(--titolo);font-stretch:75%;font-weight:560;text-transform:uppercase;letter-spacing:.04em}
+
+.azione{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border:1px solid var(--azione);background:var(--azione);color:var(--bianco);text-decoration:none;font:560 .98rem/1 var(--titolo);font-stretch:75%;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:background-color .18s,border-color .18s,color .18s}
+.azione:hover{background:var(--azione-giu);border-color:var(--azione-giu)}
+.azione:active{transform:translateY(1px);transition:none}
+.azione--bordo{background:transparent;color:var(--inchiostro);border-color:var(--inchiostro)}
+.azione--bordo:hover{background:var(--inchiostro);border-color:var(--inchiostro);color:var(--bianco)}
+
+/* ---------- testata unica delle pagine interne ---------- */
+.menu{position:relative;z-index:3}
+.menu .dentro{display:flex;align-items:center;gap:28px;min-height:68px}
+.marchio{display:inline-flex;align-items:center;gap:10px;min-height:44px;text-decoration:none;color:var(--inchiostro);font:500 1.2rem/1 var(--titolo);font-stretch:108%;letter-spacing:-.01em}
+.marchio svg{width:28px;height:28px;flex:none}
+.menu__fine{margin-left:auto;display:flex;align-items:center;gap:24px}
+.menu__voce{display:inline-flex;align-items:center;min-height:44px;color:var(--grafite);text-decoration:none;font-size:.9rem;white-space:nowrap}
+a.menu__voce:hover{color:var(--inchiostro);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.3em}
+.menu .azione--scura{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border:1px solid var(--inchiostro);background:var(--inchiostro);color:var(--bianco);text-decoration:none;font-size:.9rem;white-space:nowrap;transition:background-color .18s,border-color .18s}
+.menu .azione--scura:hover{background:var(--inchiostro-su);border-color:var(--inchiostro-su);color:var(--bianco)}
+.menu a:active{transform:translateY(1px);transition:none}
+@media (max-width:480px){.menu .dentro,.menu__fine{gap:16px}}
+/* sotto 360 px il marchio basta per tornare alla home */
+@media (max-width:360px){a.menu__voce{display:none}}
+
+.testata{position:relative;background:var(--cielo);overflow:hidden;isolation:isolate}
+.testata__volta{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:right top;z-index:-1;-webkit-mask-image:linear-gradient(90deg,var(--maschera-lieve) 0,var(--maschera-media) 45%,var(--maschera) 85%);mask-image:linear-gradient(90deg,var(--maschera-lieve) 0,var(--maschera-media) 45%,var(--maschera) 85%)}
+.testata__corpo{padding:clamp(24px,5vw,72px) 0 clamp(44px,6vw,80px);max-width:940px}
+.testata h1{font-weight:250;font-size:clamp(2.4rem, 1.2rem + 4.2vw, 5.2rem);line-height:.98;letter-spacing:-.025em;font-stretch:114%}
+.testata__lead{margin:22px 0 0;max-width:50ch;font-size:1.1rem;color:var(--grafite)}
+@media (max-width:760px){.testata__volta{opacity:.35}}
+
+/* il percorso, sopra il titolo */
+.briciole{margin:0 0 14px}
+.briciole ol{display:flex;flex-wrap:wrap;align-items:center;gap:0 10px;font-size:.88rem;color:var(--cenere)}
+.briciole li{display:inline-flex;align-items:center;gap:10px}
+.briciole li + li::before{content:"/";color:var(--scorrimento)}
+.briciole a{display:inline-flex;align-items:center;min-height:44px;color:var(--grafite)}
+.briciole a:hover{color:var(--inchiostro)}
+
+/* ---------- l'indice in cima ---------- */
+.indice{padding:clamp(40px,5vw,64px) 0 0}
+.indice__corpo{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,9fr);gap:8px 48px;padding-top:16px;border-top:1px solid var(--inchiostro)}
+.indice h2{font:600 .9rem/1.3 var(--testo);color:var(--cenere);padding-top:12px}
+.indice ol{counter-reset:voce;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 32px}
+.indice li{counter-increment:voce;border-bottom:1px solid var(--filetto)}
+.indice a{display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;min-height:48px;padding:6px 0;color:var(--inchiostro);text-decoration:none}
+.indice a::before{content:counter(voce);font:500 .82rem/1 var(--mono);color:var(--cenere)}
+.indice a:hover{color:var(--azione)}
+.indice a:hover span{text-decoration:underline;text-underline-offset:.2em}
+
+/* ---------- le voci: titolo a sinistra, testo a destra ---------- */
+.sezione{padding:clamp(56px,7vw,104px) 0}
+.voci{display:grid;gap:clamp(48px,6vw,88px)}
+.voce{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,9fr);gap:12px 48px;padding-top:18px;border-top:1px solid var(--inchiostro);scroll-margin-top:24px}
+.voce > h2{font-weight:350;font-size:clamp(1.5rem, 1.2rem + .9vw, 2rem);line-height:1.15;letter-spacing:-.015em;font-stretch:108%}
+.voce__corpo{min-width:0;max-width:52ch}
+.voce__corpo > :last-child{margin-bottom:0}
+.voce__attacco{font-size:1.18rem;line-height:1.45;color:var(--inchiostro)}
+.voce h3{margin:1.6em 0 .5em;font:400 1.25rem/1.25 var(--titolo);letter-spacing:-.015em}
+.voce strong{color:var(--inchiostro);font-weight:600}
+.voce a{font-weight:600}
+.puntata{margin:0 0 1.2em;border-top:1px solid var(--filetto)}
+.puntata li{padding:12px 0;border-bottom:1px solid var(--filetto)}
+.puntata strong{color:var(--inchiostro)}
+.fonte{font-size:.88rem;color:var(--cenere)}
+.fonte a{font-weight:400}
+
+/* i passi del primo giorno: boa quadrata blu, come nella guida */
+.giorno{counter-reset:passo;display:grid;gap:0;margin:0 0 1.2em;border-top:1px solid var(--filetto)}
+.giorno li{counter-increment:passo;display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;padding:14px 0;border-bottom:1px solid var(--filetto)}
+.giorno li::before{content:counter(passo);display:grid;place-items:center;width:28px;height:28px;background:var(--azione);color:var(--bianco);font:500 .9rem/1 var(--mono)}
+.giorno p{margin:0}
+
+/* il messaggio di una guardia, com'è scritto nel codice */
+.messaggio{margin:.4em 0 1.4em;max-width:100%}
+.messaggio__finestra{background:var(--term);border-radius:4px;padding:14px 16px 16px}
+.messaggio__barra{margin:0 0 10px;font:400 .8rem/1.2 var(--mono);color:var(--term-cenere)}
+.messaggio__esito{border:1px solid var(--term-guardia);padding:12px 14px}
+.messaggio__esito b{display:block;margin:0 0 6px;font:600 .78rem/1.2 var(--mono);color:var(--term-tu)}
+.messaggio__esito p{margin:0;font:400 .86rem/1.6 var(--mono);color:var(--term-guardia-testo);overflow-wrap:anywhere}
+.messaggio--blocca .messaggio__esito{border-color:var(--term-blocca-bordo)}
+.messaggio--blocca .messaggio__esito b{color:var(--term-blocca)}
+.messaggio figcaption{margin-top:8px;font-size:.86rem;color:var(--cenere)}
+.messaggio figcaption a{font-weight:400}
+
+/* ---------- la tabella del confronto ---------- */
+.confronto{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.96rem;line-height:1.5}
+.confronto caption{text-align:left;margin:0 0 14px;font-size:.9rem;color:var(--cenere)}
+.confronto th,.confronto td{text-align:left;vertical-align:top;padding:14px 18px 14px 0;border-bottom:1px solid var(--filetto)}
+.confronto thead th{padding-top:0;font:600 .92rem/1.3 var(--titolo);font-stretch:75%;color:var(--cenere);border-bottom:1px solid var(--inchiostro)}
+.confronto thead th:last-child{color:var(--inchiostro)}
+.confronto tbody th{font:600 .96rem/1.4 var(--testo);color:var(--inchiostro)}
+.confronto td:last-child{color:var(--inchiostro)}
+.confronto code{font-size:.86em}
+
+/* ---------- domande ---------- */
+.dentro--lato{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,9fr);gap:0 48px;align-items:start}
+.testa-lato{position:sticky;top:32px}
+.testa-lato h2{font-weight:300;font-size:clamp(2.1rem, 1.3rem + 2.6vw, 3.6rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%}
+.testa-lato h2 span{display:block;color:var(--cenere)}
+.domande{border-top:1px solid var(--inchiostro)}
+.domande details{border-bottom:1px solid var(--filetto)}
+.domande summary{display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:44px;padding:20px 0;cursor:pointer;list-style:none;font:400 clamp(1.08rem, 1rem + .3vw, 1.25rem)/1.3 var(--titolo);letter-spacing:-.01em;color:var(--inchiostro)}
+.domande summary::-webkit-details-marker{display:none}
+.domande summary svg{width:16px;height:16px;flex:none;transition:transform .25s cubic-bezier(.16,1,.3,1)}
+.domande details[open] summary svg{transform:rotate(45deg)}
+.domande summary:hover{color:var(--azione)}
+.domande .risposta{padding:0 0 24px;max-width:66ch;color:var(--grafite)}
+.domande .risposta p:last-child{margin:0}
+@media (prefers-reduced-motion:reduce){.domande summary svg{transition:none}}
+
+/* ---------- chiusura ---------- */
+.vuoto{position:relative;background:var(--vuoto);color:var(--vuoto-testo);isolation:isolate}
+.vuoto::before{content:"";position:absolute;inset:0;z-index:-1;opacity:.13;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E")}
+.vuoto ::selection{background:var(--bianco);color:var(--vuoto)}
+.vuoto :focus-visible{outline-color:var(--term-tu)}
+.chiusura .dentro{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;justify-items:start}
+.chiusura .dentro > *{max-width:760px}
+.chiusura h2{color:var(--bianco);font-weight:300;font-size:clamp(2.1rem, 1.3rem + 2.6vw, 3.6rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%}
+.chiusura p{margin:16px 0 0;color:var(--vuoto-cenere);max-width:56ch}
+.chiusura code{background:var(--vuoto-2);color:var(--bianco)}
+.frase{width:100%;margin:0;padding:12px 14px;border:1px solid var(--vuoto-filetto);background:var(--vuoto-2);color:var(--bianco);font:400 .92rem/1.6 var(--mono);white-space:pre-wrap;overflow-wrap:break-word}
+.chiusura__vie{display:flex;flex-wrap:wrap;gap:12px}
+.chiusura .azione--chiara{background:var(--bianco);border-color:var(--bianco);color:var(--inchiostro)}
+.chiusura .azione--chiara:hover{background:var(--cielo);border-color:var(--cielo)}
+.chiusura .azione--bordo{color:var(--bianco);border-color:var(--bianco)}
+.chiusura .azione--bordo:hover{background:var(--bianco);color:var(--inchiostro)}
+
+/* un blocco a tutta larghezza, col titolo sopra un filetto */
+.blocco{padding-top:18px;border-top:1px solid var(--inchiostro)}
+.blocco > h2{margin-bottom:clamp(20px,3vw,32px);font-weight:350;font-size:clamp(1.5rem, 1.2rem + .9vw, 2rem);line-height:1.15;letter-spacing:-.015em;font-stretch:108%}
+.blocco + .voci{margin-top:clamp(56px,7vw,104px)}
+/* la frase da incollare in Claude Code, su fondo chiaro */
+.frase--chiara{margin:.4em 0 1.2em;border:0;background:var(--bianco);color:var(--inchiostro);box-shadow:inset 0 0 0 1px var(--inchiostro)}
+
+/* un comando da incollare nel terminale: una riga sola, che scorre se non ci sta */
+.riga{margin:0 0 4px;padding:10px 12px;background:var(--term);color:var(--term-testo);border-radius:4px;font:400 .86rem/1.5 var(--mono);white-space:pre;overflow-x:auto}
+.giorno .riga__nome{margin:12px 0 6px;font-size:.86rem;color:var(--cenere)}
+.giorno .frase{margin:10px 0 0}
+
+.piede{padding:32px 0 44px;font-size:.9rem;color:var(--cenere);border-top:1px solid var(--filetto)}
+.piede .dentro{display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}
+.piede strong{color:var(--inchiostro)}
+.piede p{margin:0}
+.piede a{display:inline-block;padding:10px 0}
+
+@media (max-width:860px){
+  .indice ol{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:760px){
+  .indice__corpo,.voce,.dentro--lato{grid-template-columns:minmax(0,1fr)}
+  .indice h2{padding-top:0}
+  .testa-lato{position:static;margin-bottom:24px}
+  .confronto caption{display:block}
+  .confronto thead{display:none}
+  .confronto,.confronto tbody,.confronto tr,.confronto th,.confronto td{display:block;width:100%}
+  .confronto tr{padding:14px 0 6px;border-top:1px solid var(--inchiostro)}
+  .confronto tbody th{padding:0 0 8px;border:0;font-size:1.05rem}
+  .confronto td{padding:8px 0;border:0;border-top:1px solid var(--filetto)}
+  .confronto td::before{content:attr(data-colonna);display:block;margin-bottom:2px;font:600 .82rem/1.3 var(--titolo);font-stretch:75%;color:var(--cenere)}
+}
+</style>
+</head>
+<body>
+<a class="salta" href="#contenuto">Vai al contenuto</a>
+
+<header class="testata">
+  <img class="testata__volta" src="../img/volta.svg" alt="" width="1600" height="1000">
+  <nav class="menu" aria-label="Principale">
+    <div class="dentro">
+      <a class="marchio" href="../" aria-label="Arturo, pagina principale">
+        <svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M3 24 11.5 9.5 17 17l8-11" stroke="#0b0d10" stroke-width="1.5"/><circle cx="11.5" cy="9.5" r="3.2" fill="#f2a24a"/><circle cx="17" cy="17" r="1.6" fill="#0b0d10"/><circle cx="25" cy="6" r="1.6" fill="#0b0d10"/></svg>
+        Arturo
+      </a>
+      <div class="menu__fine">
+        <a class="menu__voce" href="../">Cos'è Arturo</a>
+        <a class="azione azione--scura stretta" href="../installa/">Installa</a>
+      </div>
+    </div>
+  </nav>
+  <div class="dentro">
+    <div class="testata__corpo">
+      <nav class="briciole" aria-label="Percorso">
+        <ol>
+          <li><a href="../">Arturo</a></li>
+          <li aria-current="page">Claude Code in italiano</li>
+        </ol>
+      </nav>
+      <h1 id="titolo">Claude Code in italiano</h1>
+      <p class="testata__lead">Una guida per chi usa l'IA in chat e non programma: che cos'è Claude Code, che cosa cambia quando lo configuri in italiano e che cosa ci aggiunge Arturo.</p>
+    </div>
+  </div>
+</header>
+
+<main id="contenuto">
+
+<section class="indice" aria-labelledby="t-indice">
+  <div class="dentro">
+    <div class="indice__corpo">
+      <h2 id="t-indice">In questa pagina</h2>
+      <ol>
+        <li><a href="#cos-e"><span>Cos'è Claude Code</span></a></li>
+        <li><a href="#perche"><span>Perché configurarlo in italiano</span></a></li>
+        <li><a href="#cosa-aggiunge"><span>Cosa aggiunge Arturo</span></a></li>
+        <li><a href="#serve"><span>Cosa ti serve, e cosa resta uguale</span></a></li>
+        <li><a href="#domande"><span>Domande</span></a></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="sezione">
+  <div class="dentro">
+    <div class="voci">
+      <article class="voce" id="cos-e" aria-labelledby="t-cos-e">
+        <h2 id="t-cos-e">Cos'è Claude Code</h2>
+        <div class="voce__corpo">
+          <p class="voce__attacco">Claude Code è l'IA di Anthropic che lavora sui file del tuo computer: legge e scrive i documenti, cerca sul web, esegue i passi che gli chiedi e riprende il lavoro dal punto in cui l'avevi lasciato.</p>
+          <p>La <a href="https://code.claude.com/docs/it/overview">documentazione ufficiale</a> lo presenta come uno strumento per chi scrive codice, perché legge un progetto, modifica i file ed esegue comandi. Le stesse capacità servono a chi lavora con le parole e con le informazioni, dato che un capitolo o una cartella di appunti sono file come gli altri. In chat incolli un testo e ricevi una risposta da copiare altrove. In Claude Code chiedi di rileggere quel capitolo o di preparare la bozza di una email, e Claude apre i file, li legge e scrive il risultato dove serve.</p>
+          <p>Claude Code gira nel terminale, la finestra dove si scrivono i comandi al computer, e Anthropic lo offre anche come app desktop, nelle estensioni per gli editor di codice e nel browser. Per usarlo serve un abbonamento a pagamento: Pro, Max, Team, Enterprise oppure la Console di Anthropic. Il piano gratuito di claude.ai non lo include.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="perche" aria-labelledby="t-perche">
+        <h2 id="t-perche">Perché configurarlo in italiano</h2>
+        <div class="voce__corpo">
+          <p class="voce__attacco">Claude ti risponde in italiano se gli scrivi in italiano, e la documentazione di Anthropic ha una versione italiana. Le impostazioni, gli avvisi di permesso e le istruzioni di partenza, invece, sono pensati per chi programma.</p>
+          <p>Claude Code legge da un file di impostazioni che cosa può fare senza chiederti niente, e da un file chiamato <code>CLAUDE.md</code> le istruzioni con cui comincia ogni sessione. Chi arriva dalla chat di solito non sa che questi file esistono, quindi non li scrive e lavora con le impostazioni di partenza, che decidono al posto suo che cosa chiedere e che cosa no.</p>
+          <p>Una configurazione in italiano fa queste scelte per te e te le spiega nella tua lingua. In Arturo l'impostazione <code>language</code> di Claude Code vale <code>italian</code>, i messaggi delle guardie che ti chiedono conferma sono scritti in italiano e i comandi hanno nomi come <code>/inizio</code>, <code>/fine</code> e <code>/diagnosi</code>. Quando una guardia ti ferma, quindi, leggi subito che cosa sta per succedere e che cosa perdi se confermi, senza dover decifrare un avviso tecnico.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="cosa-aggiunge" aria-labelledby="t-cosa-aggiunge">
+        <h2 id="t-cosa-aggiunge">Cosa aggiunge Arturo</h2>
+        <div class="voce__corpo">
+          <p class="voce__attacco">Arturo è un harness per Claude Code, cioè l'insieme di regole, comandi e automazioni che gli sta attorno e ne guida il lavoro. È gratuito e open source, con licenza MIT.</p>
+          <p>Nasce dalla configurazione con cui Federico Nejrotti lavora ogni giorno in Claude Code, ripulita dai suoi dati, dalle credenziali e dai riferimenti alle sue macchine. Il <a href="https://github.com/stellakamikaze/arturo">README del progetto</a> conta 23 guardie e automazioni, 11 slash command, 8 subagent e 7 skill: gli slash command sono i comandi che si scrivono con la barra davanti, i subagent sono assistenti che Claude manda a fare un compito a parte, le skill sono istruzioni che Claude carica quando gli serve un certo lavoro. Per chi non programma pesano soprattutto tre parti.</p>
+          <ul class="puntata">
+            <li><strong>Le guardie</strong>: prima di un gesto che non si annulla, come cancellare una cartella, mandare un messaggio o mettere una password in un commit, Arturo ferma Claude e chiede a te. La pagina <a href="../claude-code-sicurezza/">Claude Code in sicurezza</a> le racconta una per una, con i loro messaggi.</li>
+            <li><strong>Le sessioni in ordine</strong>: <code>/inizio</code> riprende il contesto di un progetto, i todo aperti e le scadenze, mentre <code>/fine</code> salva il lavoro e lascia un appunto per la volta dopo, con quello che resta da fare e chi lo deve fare. Il giorno dopo non rispieghi tutto da capo.</li>
+            <li><strong>Un CLAUDE.md sul tuo lavoro</strong>: <code>/setup</code> controlla i programmi e poi, se gli dici sì, legge le tue conversazioni passate con Claude Code e guarda le tue cartelle di lavoro. Da lì scrive la bozza del tuo <code>CLAUDE.md</code>, e la salva solo dopo il tuo ok.</li>
+          </ul>
+          <p>Accanto ci sono un curriculum di principi in italiano (<code>docs/principi/</code>), che spiega come lavorare con un'IA che agisce sui tuoi file, e <code>/novita</code>, che a ogni aggiornamento racconta che cosa è cambiato e perché.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="serve" aria-labelledby="t-serve">
+        <h2 id="t-serve">Cosa ti serve, e cosa resta uguale</h2>
+        <div class="voce__corpo">
+          <p class="voce__attacco">Ti servono un Mac, un PC Windows o un computer Linux, e un abbonamento Anthropic che includa Claude Code.</p>
+          <p>Gli altri programmi che usa Arturo, cioè git, Python 3.8 o successivo e node 18 o successivo, li controlla Claude e li installa col tuo sì. Su Windows Arturo lavora dentro Git Bash, la finestra dei comandi che arriva con Git: senza, Claude Code esegue i comandi con PowerShell e le guardie non li vedono.</p>
+          <p>Alcune cose Arturo non le cambia, e conviene saperle prima. Claude Code è un servizio a pagamento di un'azienda privata, che ne decide prezzi e limiti. Quello che scrivi passa dai server di Anthropic, come in chat: le guardie chiedono conferma prima che Claude legga un file segreto, ma non filtrano quello che scrivi tu. Un aggiornamento di Arturo è codice scritto da altri che gira sul tuo computer, e per questo Arturo installa da solo soltanto i rilasci firmati da chi lo mantiene. Infine Arturo manda a chi lo mantiene dati d'uso da un elenco chiuso, accesi di default: il <a href="../confronto/#limiti">confronto con Claude Code da solo</a> dice che cosa esce e come si spengono.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="sezione" id="domande" aria-labelledby="t-domande" style="padding-top:0">
+  <div class="dentro dentro--lato">
+    <div class="testa-lato">
+      <h2 id="t-domande">Domande.</h2>
+    </div>
+    <div class="domande">
+        <details>
+          <summary>Claude Code parla italiano?<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
+          <div class="risposta"><p>Sì. Claude risponde nella lingua in cui gli scrivi, e la documentazione di Anthropic ha una versione italiana. Arturo aggiunge l'impostazione della lingua, i messaggi delle guardie, i comandi e un curriculum scritti in italiano.</p></div>
+        </details>
+        <details>
+          <summary>Serve saper programmare per usare Claude Code?<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
+          <div class="risposta"><p>No. Con Arturo il terminale serve per installare Claude Code e per aprirlo scrivendo <code>claude</code>. Il resto lo chiedi a Claude a parole, e prima dei passi che non si annullano ti chiede un sì.</p></div>
+        </details>
+        <details>
+          <summary>Arturo costa qualcosa?<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
+          <div class="risposta"><p>Arturo è gratuito e open source, con licenza MIT. Claude Code invece richiede un abbonamento Anthropic a pagamento: Pro, Max, Team, Enterprise o Console.</p></div>
+        </details>
+        <details>
+          <summary>Arturo esiste in inglese?<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
+          <div class="risposta"><p>No. Uno degli impegni del progetto è che Arturo resta in italiano: comandi, messaggi e documenti sono scritti in italiano. C'è soltanto una <a href="../en/" hreflang="en">pagina di presentazione in inglese</a>.</p></div>
+        </details>
+    </div>
+  </div>
+</section>
+
+<section class="sezione vuoto chiusura" aria-labelledby="t-comincia">
+  <div class="dentro">
+    <div>
+      <h2 id="t-comincia">Per cominciare</h2>
+      <p>Installa Claude Code, aprilo e incolla questa frase. Claude legge la pagina del link, scarica Arturo e ti chiede un sì prima di ogni passo. Alla fine scrivi <code>/exit</code>, poi <code>claude</code>, poi <code>/setup</code>.</p>
+    </div>
+    <pre class="frase">Installa Arturo: https://<wbr>arturo.stellakamikaze.org/<wbr>inizia/</pre>
+    <div class="chiusura__vie">
+      <a class="azione azione--chiara" href="../installa/">Guida passo per passo</a>
+      <a class="azione azione--bordo" href="../">Cos'è Arturo</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="piede">
+  <div class="dentro">
+    <p><strong>Progetto di Federico Nejrotti.</strong> Licenza MIT. <a href="https://github.com/stellakamikaze/arturo">github.com/stellakamikaze/arturo</a></p>
+    <p>Niente cookie, nessun tracker di terzi, nessun font da server esterni. <a href="../privacy/">Privacy</a> · <a href="../feedback/">Dimmi com'è andata</a></p>
+  </div>
+</footer>
+
+<script type="module" src="../note.js"></script>
+</body>
+</html>

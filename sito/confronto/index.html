@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arturo, Claude Code da solo o la chat: il confronto</title>
+<meta name="description" content="Differenze tra la chat, Claude Code da solo e Claude Code con Arturo: dove lavorano, quanto costano, quando chiedono. Con i limiti di Arturo.">
+<link rel="canonical" href="https://arturo.stellakamikaze.org/confronto/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Arturo">
+<meta property="og:locale" content="it_IT">
+<meta property="og:title" content="Arturo, Claude Code da solo o la chat: il confronto">
+<meta property="og:description" content="Differenze tra la chat, Claude Code da solo e Claude Code con Arturo: dove lavorano, quanto costano, quando chiedono. Con i limiti di Arturo.">
+<meta property="og:url" content="https://arturo.stellakamikaze.org/confronto/">
+<meta property="og:image" content="https://arturo.stellakamikaze.org/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Arturo, la stella sopra il reticolo blu della volta celeste">
+<meta property="article:modified_time" content="2026-11-04">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Arturo, Claude Code da solo o la chat: il confronto">
+<meta name="twitter:description" content="Differenze tra la chat, Claude Code da solo e Claude Code con Arturo: dove lavorano, quanto costano, quando chiedono. Con i limiti di Arturo.">
+<meta name="twitter:image" content="https://arturo.stellakamikaze.org/img/og.png">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@graph": [
+  {
+   "@type": "WebPage",
+   "@id": "https://arturo.stellakamikaze.org/confronto/#pagina",
+   "url": "https://arturo.stellakamikaze.org/confronto/",
+   "name": "Arturo, Claude Code da solo o la chat: il confronto",
+   "description": "Differenze tra la chat, Claude Code da solo e Claude Code con Arturo: dove lavorano, quanto costano, quando chiedono. Con i limiti di Arturo.",
+   "inLanguage": "it",
+   "dateModified": "2026-11-04",
+   "isPartOf": {
+    "@id": "https://arturo.stellakamikaze.org/#sito"
+   },
+   "about": {
+    "@id": "https://arturo.stellakamikaze.org/#arturo"
+   },
+   "author": {
+    "@id": "https://arturo.stellakamikaze.org/#autore"
+   },
+   "breadcrumb": {
+    "@id": "https://arturo.stellakamikaze.org/confronto/#percorso"
+   }
+  },
+  {
+   "@type": "BreadcrumbList",
+   "@id": "https://arturo.stellakamikaze.org/confronto/#percorso",
+   "itemListElement": [
+    {
+     "@type": "ListItem",
+     "position": 1,
+     "name": "Arturo",
+     "item": "https://arturo.stellakamikaze.org/"
+    },
+    {
+     "@type": "ListItem",
+     "position": 2,
+     "name": "Il confronto",
+     "item": "https://arturo.stellakamikaze.org/confronto/"
+    }
+   ]
+  },
+  {
+   "@type": "FAQPage",
+   "@id": "https://arturo.stellakamikaze.org/confronto/#domande",
+   "inLanguage": "it",
+   "mainEntity": [
+    {
+     "@type": "Question",
+     "name": "Che differenza c'è tra Claude in chat e Claude Code?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "In chat Claude risponde nella conversazione, e i file li porti tu. Claude Code lavora nelle cartelle del tuo computer: legge e scrive i file ed esegue comandi, chiedendo i permessi che hai impostato."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Arturo sostituisce Claude Code?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "No, si appoggia sopra. Arturo è una configurazione di Claude Code, che va installato a parte e richiede un abbonamento Anthropic."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Posso spegnere la telemetria di Arturo?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Sì, con python3 ~/.claude/bin/arturo telemetria spegni, oppure con ARTURO_TELEMETRIA=0 o DO_NOT_TRACK=1. Prima di decidere, python3 ~/.claude/bin/arturo telemetria mostra fa vedere che cosa parte."
+     }
+    },
+    {
+     "@type": "Question",
+     "name": "Cosa succede se Arturo smette di essere sviluppato?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Lo dichiarano l'ultima voce di NOVITA.md e la cima del README. La copia che hai continua a funzionare, il repository resta pubblico con licenza MIT e puoi farne un fork."
+     }
+    }
+   ]
+  }
+ ]
+}
+</script>
+<meta name="theme-color" content="#d7ebff">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0d10'/%3E%3Cpath d='M5 25 13 11l6 8 8-11' fill='none' stroke='%23d7ebff' stroke-width='1.6'/%3E%3Ccircle cx='13' cy='11' r='3.2' fill='%23f2a24a'/%3E%3C/svg%3E">
+<link rel="preload" href="../font/archivo.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../font/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../stile/colori.css">
+<script defer data-domain="arturo.stellakamikaze.org" data-api="/api/e" src="/js/a.js"></script>
+<script defer src="../traccia.js"></script>
+<style>
+@font-face{font-family:"Archivo";src:url(../font/archivo.woff2) format("woff2");font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+@font-face{font-family:"Atkinson Next";src:url(../font/atkinson-next.woff2) format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
+@font-face{font-family:"Atkinson Mono";src:url(../font/atkinson-mono.woff2) format("woff2");font-weight:200 800;font-display:swap}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;scroll-padding-top:24px;scrollbar-color:var(--scorrimento) var(--carta)}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--carta);color:var(--grafite);font:400 clamp(16.5px, .98rem + .15vw, 18px)/1.55 var(--testo);letter-spacing:-.005em;-webkit-font-smoothing:antialiased}
+::selection{background:var(--azione);color:var(--bianco)}
+:focus-visible{outline:2px solid var(--azione);outline-offset:3px}
+img,svg{display:block;max-width:100%}
+a{color:inherit;text-underline-offset:.2em;text-decoration-thickness:1px}
+p,li,figcaption,summary{text-wrap:pretty}
+p{margin:0 0 1em}
+ul,ol{margin:0;padding:0;list-style:none}
+h1,h2,h3{margin:0;color:var(--inchiostro);font-family:var(--titolo);font-weight:400;text-wrap:balance;overflow-wrap:break-word;min-width:0}
+code,pre{font-family:var(--mono)}
+code{font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inchiostro);overflow-wrap:anywhere}
+kbd{display:inline-block;min-width:1.7em;padding:.05em .4em;border:1px solid var(--scorrimento);border-bottom-width:2px;background:var(--bianco);font:.82em var(--mono);text-align:center;color:var(--inchiostro)}
+.dentro{max-width:var(--colonna);margin:0 auto;padding:0 var(--gutter)}
+.salta{position:absolute;left:12px;top:8px;z-index:20;padding:10px 14px;background:var(--inchiostro);color:var(--bianco);transform:translateY(-150%)}
+.salta:focus{transform:none}
+/* voce stretta e maiuscola: solo sui pulsanti, a 0,04em */
+.stretta{font-family:var(--titolo);font-stretch:75%;font-weight:560;text-transform:uppercase;letter-spacing:.04em}
+
+.azione{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border:1px solid var(--azione);background:var(--azione);color:var(--bianco);text-decoration:none;font:560 .98rem/1 var(--titolo);font-stretch:75%;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:background-color .18s,border-color .18s,color .18s}
+.azione:hover{background:var(--azione-giu);border-color:var(--azione-giu)}
+.azione:active{transform:translateY(1px);transition:none}
+.azione--bordo{background:transparent;color:var(--inchiostro);border-color:var(--inchiostro)}
+.azione--bordo:hover{background:var(--inchiostro);border-color:var(--inchiostro);color:var(--bianco)}
+
+/* ---------- testata unica delle pagine interne ---------- */
+.menu{position:relative;z-index:3}
+.menu .dentro{display:flex;align-items:center;gap:28px;min-height:68px}
+.marchio{display:inline-flex;align-items:center;gap:10px;min-height:44px;text-decoration:none;color:var(--inchiostro);font:500 1.2rem/1 var(--titolo);font-stretch:108%;letter-spacing:-.01em}
+.marchio svg{width:28px;height:28px;flex:none}
+.menu__fine{margin-left:auto;display:flex;align-items:center;gap:24px}
+.menu__voce{display:inline-flex;align-items:center;min-height:44px;color:var(--grafite);text-decoration:none;font-size:.9rem;white-space:nowrap}
+a.menu__voce:hover{color:var(--inchiostro);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:.3em}
+.menu .azione--scura{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border:1px solid var(--inchiostro);background:var(--inchiostro);color:var(--bianco);text-decoration:none;font-size:.9rem;white-space:nowrap;transition:background-color .18s,border-color .18s}
+.menu .azione--scura:hover{background:var(--inchiostro-su);border-color:var(--inchiostro-su);color:var(--bianco)}
+.menu a:active{transform:translateY(1px);transition:none}
+@media (max-width:480px){.menu .dentro,.menu__fine{gap:16px}}
+/* sotto 360 px il marchio basta per tornare alla home */
+@media (max-width:360px){a.menu__voce{display:none}}
+
+.testata{position:relative;background:var(--cielo);overflow:hidden;isolation:isolate}
+.testata__volta{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:right top;z-index:-1;-webkit-mask-image:linear-gradient(90deg,var(--maschera-lieve) 0,var(--maschera-media) 45%,var(--maschera) 85%);mask-image:linear-gradient(90deg,var(--maschera-lieve) 0,var(--maschera-media) 45%,var(--maschera) 85%)}
+.testata__corpo{padding:clamp(24px,5vw,72px) 0 clamp(44px,6vw,80px);max-width:940px}
+.testata h1{font-weight:250;font-size:clamp(2.4rem, 1.2rem + 4.2vw, 5.2rem);line-height:.98;letter-spacing:-.025em;font-stretch:114%}
+.testata__lead{margin:22px 0 0;max-width:50ch;font-size:1.1rem;color:var(--grafite)}
+@media (max-width:760px){.testata__volta{opacity:.35}}
+
+/* il percorso, sopra il titolo */
+.briciole{margin:0 0 14px}
+.briciole ol{display:flex;flex-wrap:wrap;align-items:center;gap:0 10px;font-size:.88rem;color:var(--cenere)}
+.briciole li{display:inline-flex;align-items:center;gap:10px}
+.briciole li + li::before{content:"/";color:var(--scorrimento)}
+.briciole a{display:inline-flex;align-items:center;min-height:44px;color:var(--grafite)}
+.briciole a:hover{color:var(--inchiostro)}
+
+/* ---------- l'indice in cima ---------- */
+.indice{padding:clamp(40px,5vw,64px) 0 0}
+.indice__corpo{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,9fr);gap:8px 48px;padding-top:16px;border-top:1px solid var(--inchiostro)}
+.indice h2{font:600 .9rem/1.3 var(--testo);color:var(--cenere);padding-top:12px}
+.indice ol{counter-reset:voce;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 32px}
+.indice li{counter-increment:voce;border-bottom:1px solid var(--filetto)}
+.indice a{display:grid;grid-template-columns:28px minmax(0,1fr);align-items:center;min-height:48px;padding:6px 0;color:var(--inchiostro);text-decoration:none}
+.indice a::before{content:counter(voce);font:500 .82rem/1 var(--mono);color:var(--cenere)}
+.indice a:hover{color:var(--azione)}
+.indice a:hover span{text-decoration:underline;text-underline-offset:.2em}
+
+/* ---------- le voci: titolo a sinistra, testo a destra ---------- */
+.sezione{padding:clamp(56px,7vw,104px) 0}
+.voci{display:grid;gap:clamp(48px,6vw,88px)}
+.voce{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,9fr);gap:12px 48px;padding-top:18px;border-top:1px solid var(--inchiostro);scroll-margin-top:24px}
+.voce > h2{font-weight:350;font-size:clamp(1.5rem, 1.2rem + .9vw, 2rem);line-height:1.15;letter-spacing:-.015em;font-stretch:108%}
+.voce__corpo{min-width:0;max-width:52ch}
+.voce__corpo > :last-child{margin-bottom:0}
+.voce__attacco{font-size:1.18rem;line-height:1.45;color:var(--inchiostro)}
+.voce h3{margin:1.6em 0 .5em;font:400 1.25rem/1.25 var(--titolo);letter-spacing:-.015em}
+.voce strong{color:var(--inchiostro);font-weight:600}
+.voce a{font-weight:600}
+.puntata{margin:0 0 1.2em;border-top:1px solid var(--filetto)}
+.puntata li{padding:12px 0;border-bottom:1px solid var(--filetto)}
+.puntata strong{color:var(--inchiostro)}
+.fonte{font-size:.88rem;color:var(--cenere)}
+.fonte a{font-weight:400}
+
+/* i passi del primo giorno: boa quadrata blu, come nella guida */
+.giorno{counter-reset:passo;display:grid;gap:0;margin:0 0 1.2em;border-top:1px solid var(--filetto)}
+.giorno li{counter-increment:passo;display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;padding:14px 0;border-bottom:1px solid var(--filetto)}
+.giorno li::before{content:counter(passo);display:grid;place-items:center;width:28px;height:28px;background:var(--azione);color:var(--bianco);font:500 .9rem/1 var(--mono)}
+.giorno p{margin:0}
+
+/* il messaggio di una guardia, com'è scritto nel codice */
+.messaggio{margin:.4em 0 1.4em;max-width:100%}
+.messaggio__finestra{background:var(--term);border-radius:4px;padding:14px 16px 16px}
+.messaggio__barra{margin:0 0 10px;font:400 .8rem/1.2 var(--mono);color:var(--term-cenere)}
+.messaggio__esito{border:1px solid var(--term-guardia);padding:12px 14px}
+.messaggio__esito b{display:block;margin:0 0 6px;font:600 .78rem/1.2 var(--mono);color:var(--term-tu)}
+.messaggio__esito p{margin:0;font:400 .86rem/1.6 var(--mono);color:var(--term-guardia-testo);overflow-wrap:anywhere}
+.messaggio--blocca .messaggio__esito{border-color:var(--term-blocca-bordo)}
+.messaggio--blocca .messaggio__esito b{color:var(--term-blocca)}
+.messaggio figcaption{margin-top:8px;font-size:.86rem;color:var(--cenere)}
+.messaggio figcaption a{font-weight:400}
+
+/* ---------- la tabella del confronto ---------- */
+.confronto{width:100%;table-layout:fixed;border-collapse:collapse;font-size:.96rem;line-height:1.5}
+.confronto caption{text-align:left;margin:0 0 14px;font-size:.9rem;color:var(--cenere)}
+.confronto th,.confronto td{text-align:left;vertical-align:top;padding:14px 18px 14px 0;border-bottom:1px solid var(--filetto)}
+.confronto thead th{padding-top:0;font:600 .92rem/1.3 var(--titolo);font-stretch:75%;color:var(--cenere);border-bottom:1px solid var(--inchiostro)}
+.confronto thead th:last-child{color:var(--inchiostro)}
+.confronto tbody th{font:600 .96rem/1.4 var(--testo);color:var(--inchiostro)}
+.confronto td:last-child{color:var(--inchiostro)}
+.confronto code{font-size:.86em}
+
+/* ---------- domande ---------- */
+.dentro--lato{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,9fr);gap:0 48px;align-items:start}
+.testa-lato{position:sticky;top:32px}
+.testa-lato h2{font-weight:300;font-size:clamp(2.1rem, 1.3rem + 2.6vw, 3.6rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%}
+.testa-lato h2 span{display:block;color:var(--cenere)}
+.domande{border-top:1px solid var(--inchiostro)}
+.domande details{border-bottom:1px solid var(--filetto)}
+.domande summary{display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:44px;padding:20px 0;cursor:pointer;list-style:none;font:400 clamp(1.08rem, 1rem + .3vw, 1.25rem)/1.3 var(--titolo);letter-spacing:-.01em;color:var(--inchiostro)}
+.domande summary::-webkit-details-marker{display:none}
+.domande summary svg{width:16px;height:16px;flex:none;transition:transform .25s cubic-bezier(.16,1,.3,1)}
+.domande details[open] summary svg{transform:rotate(45deg)}
+.domande summary:hover{color:var(--azione)}
+.domande .risposta{padding:0 0 24px;max-width:66ch;color:var(--grafite)}
+.domande .risposta p:last-child{margin:0}
+@media (prefers-reduced-motion:reduce){.domande summary svg{transition:none}}
+
+/* ---------- chiusura ---------- */
+.vuoto{position:relative;background:var(--vuoto);color:var(--vuoto-testo);isolation:isolate}
+.vuoto::before{content:"";position:absolute;inset:0;z-index:-1;opacity:.13;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E")}
+.vuoto ::selection{background:var(--bianco);color:var(--vuoto)}
+.vuoto :focus-visible{outline-color:var(--term-tu)}
+.chiusura .dentro{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;justify-items:start}
+.chiusura .dentro > *{max-width:760px}
+.chiusura h2{color:var(--bianco);font-weight:300;font-size:clamp(2.1rem, 1.3rem + 2.6vw, 3.6rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%}
+.chiusura p{margin:16px 0 0;color:var(--vuoto-cenere);max-width:56ch}
+.chiusura code{background:var(--vuoto-2);color:var(--bianco)}
+.frase{width:100%;margin:0;padding:12px 14px;border:1px solid var(--vuoto-filetto);background:var(--vuoto-2);color:var(--bianco);font:400 .92rem/1.6 var(--mono);white-space:pre-wrap;overflow-wrap:break-word}
+.chiusura__vie{display:flex;flex-wrap:wrap;gap:12px}
+.chiusura .azione--chiara{background:var(--bianco);border-color:var(--bianco);color:var(--inchiostro)}
+.chiusura .azione--chiara:hover{background:var(--cielo);border-color:var(--cielo)}
+.chiusura .azione--bordo{color:var(--bianco);border-color:var(--bianco)}
+.chiusura .azione--bordo:hover{background:var(--bianco);color:var(--inchiostro)}
+
+/* un blocco a tutta larghezza, col titolo sopra un filetto */
+.blocco{padding-top:18px;border-top:1px solid var(--inchiostro)}
+.blocco > h2{margin-bottom:clamp(20px,3vw,32px);font-weight:350;font-size:clamp(1.5rem, 1.2rem + .9vw, 2rem);line-height:1.15;letter-spacing:-.015em;font-stretch:108%}
+.blocco + .voci{margin-top:clamp(56px,7vw,104px)}
+/* la frase da incollare in Claude Code, su fondo chiaro */
+.frase--chiara{margin:.4em 0 1.2em;border:0;background:var(--bianco);color:var(--inchiostro);box-shadow:inset 0 0 0 1px var(--inchiostro)}
+
+/* un comando da incollare nel terminale: una riga sola, che scorre se non ci sta */
+.riga{margin:0 0 4px;padding:10px 12px;background:var(--term);color:var(--term-testo);border-radius:4px;font:400 .86rem/1.5 var(--mono);white-space:pre;overflow-x:auto}
+.giorno .riga__nome{margin:12px 0 6px;font-size:.86rem;color:var(--cenere)}
+.giorno .frase{margin:10px 0 0}
+
+.piede{padding:32px 0 44px;font-size:.9rem;color:var(--cenere);border-top:1px solid var(--filetto)}
+.piede .dentro{display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}
+.piede strong{color:var(--inchiostro)}
+.piede p{margin:0}
+.piede a{display:inline-block;padding:10px 0}
+
+@media (max-width:860px){
+  .indice ol{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:760px){
+  .indice__corpo,.voce,.dentro--lato{grid-template-columns:minmax(0,1fr)}
+  .indice h2{padding-top:0}
+  .testa-lato{position:static;margin-bottom:24px}
+  .confronto caption{display:block}
+  .confronto thead{display:none}
+  .confronto,.confronto tbody,.confronto tr,.confronto th,.confronto td{display:block;width:100%}
+  .confronto tr{padding:14px 0 6px;border-top:1px solid var(--inchiostro)}
+  .confronto tbody th{padding:0 0 8px;border:0;font-size:1.05rem}
+  .confronto td{padding:8px 0;border:0;border-top:1px solid var(--filetto)}
+  .confronto td::before{content:attr(data-colonna);display:block;margin-bottom:2px;font:600 .82rem/1.3 var(--titolo);font-stretch:75%;color:var(--cenere)}
+}
+</style>
+</head>
+<body>
+<a class="salta" href="#contenuto">Vai al contenuto</a>
+
+<header class="testata">
+  <img class="testata__volta" src="../img/volta.svg" alt="" width="1600" height="1000">
+  <nav class="menu" aria-label="Principale">
+    <div class="dentro">
+      <a class="marchio" href="../" aria-label="Arturo, pagina principale">
+        <svg viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M3 24 11.5 9.5 17 17l8-11" stroke="#0b0d10" stroke-width="1.5"/><circle cx="11.5" cy="9.5" r="3.2" fill="#f2a24a"/><circle cx="17" cy="17" r="1.6" fill="#0b0d10"/><circle cx="25" cy="6" r="1.6" fill="#0b0d10"/></svg>
+        Arturo
+      </a>
+      <div class="menu__fine">
+        <a class="menu__voce" href="../">Cos'è Arturo</a>
+        <a class="azione azione--scura stretta" href="../installa/">Installa</a>
+      </div>
+    </div>
+  </nav>
+  <div class="dentro">
+    <div class="testata__corpo">
+      <nav class="briciole" aria-label="Percorso">
+        <ol>
+          <li><a href="../">Arturo</a></li>
+          <li aria-current="page">Il confronto</li>
+        </ol>
+      </nav>
+      <h1 id="titolo">Arturo, Claude Code da solo o la chat</h1>
+      <p class="testata__lead">La chat, Claude Code da solo e Claude Code con Arturo servono a lavori diversi. La tabella li mette uno accanto all'altro, e sotto ci sono i limiti di Arturo, che conviene leggere prima di installarlo.</p>
+    </div>
+  </div>
+</header>
+
+<main id="contenuto">
+
+<section class="indice" aria-labelledby="t-indice">
+  <div class="dentro">
+    <div class="indice__corpo">
+      <h2 id="t-indice">In questa pagina</h2>
+      <ol>
+        <li><a href="#tabella"><span>Le differenze, riga per riga</span></a></li>
+        <li><a href="#quando-chat"><span>Quando basta la chat</span></a></li>
+        <li><a href="#quando-solo"><span>Quando basta Claude Code da solo</span></a></li>
+        <li><a href="#limiti"><span>I limiti di Arturo</span></a></li>
+        <li><a href="#domande"><span>Domande</span></a></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="sezione">
+  <div class="dentro">
+    <div class="blocco" id="tabella">
+      <h2 id="t-tabella">Le differenze, riga per riga</h2>
+      <table class="confronto">
+        <caption>La chat, Claude Code da solo e Claude Code con Arturo, una riga per differenza.</caption>
+        <colgroup><col style="width:16%"><col style="width:28%"><col style="width:28%"><col style="width:28%"></colgroup>
+        <thead><tr><td></td><th scope="col">La chat</th><th scope="col">Claude Code da solo</th><th scope="col">Claude Code con Arturo</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Dove lavora</th><td data-colonna="La chat">Nella conversazione: i file li carichi o li incolli tu, e il risultato lo copi dove serve.</td><td data-colonna="Claude Code da solo">Nelle cartelle del tuo computer: legge e scrive i file ed esegue comandi.</td><td data-colonna="Claude Code con Arturo">Come Claude Code, con regole, comandi e istruzioni già impostati in italiano.</td></tr>
+          <tr><th scope="row">Come si comincia</th><td data-colonna="La chat">Apri il sito o l'app ed entri nel tuo account.</td><td data-colonna="Claude Code da solo">Una riga nel terminale per installarlo, poi l'accesso al tuo account Anthropic.</td><td data-colonna="Claude Code con Arturo">Dopo Claude Code, una frase da incollare e <code>/setup</code>, che ti guida una cosa per volta.</td></tr>
+          <tr><th scope="row">Costo</th><td data-colonna="La chat">Claude e ChatGPT hanno anche un piano gratuito.</td><td data-colonna="Claude Code da solo">Un abbonamento Anthropic a pagamento: Pro, Max, Team, Enterprise o Console.</td><td data-colonna="Claude Code con Arturo">Arturo è gratuito, con licenza MIT. L'abbonamento a Claude Code serve lo stesso.</td></tr>
+          <tr><th scope="row">Lingua</th><td data-colonna="La chat">Risponde nella lingua in cui scrivi.</td><td data-colonna="Claude Code da solo">Risponde nella lingua in cui scrivi, e la documentazione di Anthropic ha una versione italiana.</td><td data-colonna="Claude Code con Arturo">Impostazione della lingua, comandi, messaggi delle guardie e curriculum in italiano. Solo in italiano.</td></tr>
+          <tr><th scope="row">Prima di un gesto che non si annulla</th><td data-colonna="La chat">Lavora dentro la conversazione: i tuoi file li tocchi tu.</td><td data-colonna="Claude Code da solo">Dipende dalla modalità di permesso: in auto un classificatore di Anthropic giudica ogni azione, in manuale Claude chiede prima di modificare file ed eseguire comandi.</td><td data-colonna="Claude Code con Arturo">In più le guardie, regole scritte nel codice che chiedono conferma prima di cancellazioni, invii e password nei commit, e bloccano i gesti più gravi.</td></tr>
+          <tr><th scope="row">Il giorno dopo</th><td data-colonna="La chat">Riapri la conversazione, o un progetto con i suoi documenti.</td><td data-colonna="Claude Code da solo">Puoi riprendere una conversazione passata.</td><td data-colonna="Claude Code con Arturo"><code>/fine</code> lascia un appunto con i todo e chi li deve fare, e <code>/inizio</code> lo rilegge prima di ripartire.</td></tr>
+          <tr><th scope="row">Aggiornamenti</th><td data-colonna="La chat">Li fa il fornitore, sui suoi server.</td><td data-colonna="Claude Code da solo">L'installazione nativa di Anthropic si aggiorna da sola, in background.</td><td data-colonna="Claude Code con Arturo">Arturo si aggiorna alla chiusura della sessione, solo con rilasci firmati da chi lo mantiene. Si può tornare al sì per ogni aggiornamento.</td></tr>
+          <tr><th scope="row">Dati d'uso</th><td data-colonna="La chat">Li regolano le condizioni del fornitore.</td><td data-colonna="Claude Code da solo">Claude Code manda ad Anthropic la sua telemetria, che secondo Anthropic non contiene codice, percorsi dei file o comandi.</td><td data-colonna="Claude Code con Arturo">In più, eventi da un elenco chiuso a chi mantiene Arturo, accesi di default, mai testi o file. Si spengono con un comando.</td></tr>
+          <tr><th scope="row">Sistemi</th><td data-colonna="La chat">Browser e app.</td><td data-colonna="Claude Code da solo">macOS, Linux e Windows.</td><td data-colonna="Claude Code con Arturo">macOS e Linux; su Windows dentro Git Bash.</td></tr>
+          <tr><th scope="row">Chi lo mantiene</th><td data-colonna="La chat">Un'azienda: Anthropic per Claude, OpenAI per ChatGPT.</td><td data-colonna="Claude Code da solo">Anthropic.</td><td data-colonna="Claude Code con Arturo">Una persona, Federico Nejrotti, senza promessa di risposta né di correzione.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="voci">
+      <article class="voce" id="quando-chat" aria-labelledby="t-quando-chat">
+        <h2 id="t-quando-chat">Quando basta la chat</h2>
+        <div class="voce__corpo">
+          <p class="voce__attacco">Se il lavoro sta tutto in una conversazione, come una domanda, un testo da rileggere o un'idea da discutere, la chat basta e costa meno.</p>
+          <p>Claude Code comincia a servire quando il lavoro sta in molti file o si ripete: rileggere i capitoli di un libro, tenere in ordine i documenti di un progetto, preparare ogni settimana lo stesso riepilogo. In quei casi Claude apre i file da solo invece di aspettare che tu li incolli, e scrive il risultato dove serve, quindi il tempo che risparmi cresce con il numero dei file.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="quando-solo" aria-labelledby="t-quando-solo">
+        <h2 id="t-quando-solo">Quando basta Claude Code da solo</h2>
+        <div class="voce__corpo">
+          <p class="voce__attacco">Chi programma, conosce git e sa già scrivere il proprio <code>CLAUDE.md</code> e le proprie regole di permesso ha poco da guadagnare da Arturo.</p>
+          <p>Claude Code ha i suoi permessi, e le guardie aggiungono conferme che una persona esperta può non volere. Lo stesso vale per chi lavora in un'altra lingua, perché Arturo parla soltanto italiano. Arturo serve a chi arriva dalla chat e non sa ancora quali scelte fare: le fa al posto suo, gliele spiega e gli lascia la possibilità di cambiarle, con <code>/setup</code> e con i file in <code>personale/</code> che nessun aggiornamento tocca.</p>
+        </div>
+      </article>
+
+      <article class="voce" id="limiti" aria-labelledby="t-limiti">
+        <h2 id="t-limiti">I limiti di Arturo</h2>
+        <div class="voce__corpo">
+                    <ul class="puntata">
+            <li><strong>Serve un abbonamento a pagamento.</strong> Arturo è gratuito, Claude Code no. Anthropic decide prezzi, limiti e funzioni, e li può cambiare; il piano gratuito di claude.ai non include Claude Code.</li>
+            <li><strong>La telemetria è accesa di default.</strong> Arturo manda a chi lo mantiene eventi da un elenco chiuso: nomi di comandi, skill e guardie, esiti e numeri, con un id casuale che resta lo stesso nel tempo, e per questo i dati non sono anonimi. Mai prompt, file tuoi, percorsi del tuo computer o nomi. Il server non salva l'indirizzo IP e tiene gli eventi 12 mesi. <code>python3 ~/.claude/bin/arturo telemetria mostra</code> fa vedere che cosa parte; <code>python3 ~/.claude/bin/arturo telemetria spegni</code>, <code>ARTURO_TELEMETRIA=0</code> o <code>DO_NOT_TRACK=1</code> la spengono. <code>DO_NOT_TRACK=1</code> spegne anche la telemetria di Claude Code e le funzioni che ne dipendono. Il dettaglio sta nella pagina della <a href="../privacy/">privacy</a>.</li>
+            <li><strong>Parla soltanto italiano.</strong> È uno degli impegni del progetto: comandi, messaggi e documenti restano in italiano.</li>
+            <li><strong>Lo mantiene una persona.</strong> Arturo è un progetto di Federico Nejrotti. Le segnalazioni vengono lette, ma non c'è promessa di risposta né di correzione. Se lo sviluppo si ferma, lo dicono l'ultima voce di <code>NOVITA.md</code> e la cima del README; la copia che hai continua a funzionare, e puoi farne un fork.</li>
+            <li><strong>Gli aggiornamenti sono codice di altri.</strong> Si installano da soli solo se portano la firma di chi mantiene Arturo, controllata con la chiave che hai già. Con <code>python3 ~/.claude/bin/arturo aggiornamenti manuali</code> torni a dire sì a ogni aggiornamento.</li>
+          </ul>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="sezione" id="domande" aria-labelledby="t-domande" style="padding-top:0">
+  <div class="dentro dentro--lato">
+    <div class="testa-lato">
+      <h2 id="t-domande">Domande.</h2>
+    </div>
+    <div class="domande">
+        <details>
+          <summary>Che differenza c'è tra Claude in chat e Claude Code?<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
+          <div class="risposta"><p>In chat Claude risponde nella conversazione, e i file li porti tu. Claude Code lavora nelle cartelle del tuo computer: legge e scrive i file ed esegue comandi, chiedendo i permessi che hai impostato.</p></div>
+        </details>
+        <details>
+          <summary>Arturo sostituisce Claude Code?<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
+          <div class="risposta"><p>No, si appoggia sopra. Arturo è una configurazione di Claude Code, che va installato a parte e richiede un abbonamento Anthropic.</p></div>
+        </details>
+        <details>
+          <summary>Posso spegnere la telemetria di Arturo?<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
+          <div class="risposta"><p>Sì, con <code>python3 ~/.claude/bin/arturo telemetria spegni</code>, oppure con <code>ARTURO_TELEMETRIA=0</code> o <code>DO_NOT_TRACK=1</code>. Prima di decidere, <code>python3 ~/.claude/bin/arturo telemetria mostra</code> fa vedere che cosa parte.</p></div>
+        </details>
+        <details>
+          <summary>Cosa succede se Arturo smette di essere sviluppato?<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
+          <div class="risposta"><p>Lo dichiarano l'ultima voce di <code>NOVITA.md</code> e la cima del README. La copia che hai continua a funzionare, il repository resta pubblico con licenza MIT e puoi farne un fork.</p></div>
+        </details>
+    </div>
+  </div>
+</section>
+
+<section class="sezione vuoto chiusura" aria-labelledby="t-comincia">
+  <div class="dentro">
+    <div>
+      <h2 id="t-comincia">Per cominciare</h2>
+      <p>Installa Claude Code, aprilo e incolla questa frase. Claude legge la pagina del link, scarica Arturo e ti chiede un sì prima di ogni passo. Alla fine scrivi <code>/exit</code>, poi <code>claude</code>, poi <code>/setup</code>.</p>
+    </div>
+    <pre class="frase">Installa Arturo: https://<wbr>arturo.stellakamikaze.org/<wbr>inizia/</pre>
+    <div class="chiusura__vie">
+      <a class="azione azione--chiara" href="../installa/">Guida passo per passo</a>
+      <a class="azione azione--bordo" href="../">Cos'è Arturo</a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="piede">
+  <div class="dentro">
+    <p><strong>Progetto di Federico Nejrotti.</strong> Licenza MIT. <a href="https://github.com/stellakamikaze/arturo">github.com/stellakamikaze/arturo</a></p>
+    <p>Niente cookie, nessun tracker di terzi, nessun font da server esterni. <a href="../privacy/">Privacy</a> · <a href="../feedback/">Dimmi com'è andata</a></p>
+  </div>
+</footer>
+
+<script type="module" src="../note.js"></script>
+</body>
+</html>
