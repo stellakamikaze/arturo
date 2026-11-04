@@ -210,7 +210,8 @@ in `/fine`, comincia con `cd "<cartella>" &&`: senza, `arturo todo --progetto .`
 Con `rc=2` lo script stampa `NON TROVATO` e i progetti con un nome simile: spesso è un refuso.
 Proponi i candidati e aspetta la scelta. Se l'uscita ha la riga `compito:`, la persona ha scritto cosa
 vuole fare senza il nome del progetto: proponi il progetto più vicino al compito, oppure di lavorare qui
-senza progetto, e col sì parti sul compito senza farglielo riscrivere. Per una vista di cosa c'è da fare ovunque leggi
+senza progetto, e col sì parti sul compito senza farglielo riscrivere. Se quel lavoro riprende nei giorni
+dopo, `/fine` lascia un handoff breve col nome del lavoro, e `/inizio <nome>` lo ritrova (#4071). Per una vista di cosa c'è da fare ovunque leggi
 `~/.claude/data/handoffs/INDEX.md` (una riga per progetto con stato e prossimo passo) e proponi
 da lì. Con `rc=3` il nome non è valido: chiedi quello giusto.
 

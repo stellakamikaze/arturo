@@ -71,7 +71,7 @@ conversazione e dillo nella riga tecnica. Aggiungi i file che lo script non ha v
 **Uscita breve a sessione vuota.** Se valgono tutte e quattro le condizioni, salta le fasi 2-8 e 10:
 - l'inventario non ha file né oggetti;
 - `git status --short` del progetto è pulito;
-- la sessione non ha todo nuovi né punti pendenti;
+- la sessione non ha todo nuovi né punti pendenti, e non ha aperto un lavoro che riprende nei giorni dopo;
 - `arturo contesto` dice `cartella: nessuna`, o NON TROVATO.
 
 Lancia solo la coda della FASE 9 (`python3 ~/.claude/bin/fine-coda.py`): senza handoff fa solo il sync
@@ -171,6 +171,17 @@ fi
 echo "Handoff: $HANDOFF_FILE"
 ```
 
+**Sessione senza progetto** (`cartella: nessuna` o NON TROVATO; proposta n. 23, #4071). Se il lavoro
+riprende nei giorni dopo, lascia un handoff breve: senza, la persona non ritrova più dove stava. Lo slug
+viene dal lavoro, non dalla cartella corrente, che qui è la home o la cartella dei progetti. Scegli un
+nome di due o tre parole che la persona riconosce ("preventivo-cucina"). Prima lancia
+`python3 ~/.claude/bin/arturo contesto <nome>`: se trova un progetto che è lo stesso lavoro, usa quello,
+altrimenti scegli un altro nome. Nel blocco sotto la prima riga diventa `PROGETTO="<nome>"`. L'handoff
+breve ha `## Progetto` con `- Nome: <slug> / Cartella: nessuna`, `## Ripartenza`, `## File e materiali`
+con la posizione di ogni file e documento, e `## Task Pendenti` coi todo creati con
+`--progetto <slug>`. Le altre sezioni entrano solo se hanno qualcosa. La chiusura dice "riprendi:
+/inizio <slug>" e offre in una riga la cartella di progetto: la crei solo dopo un sì.
+
 Scrivi il modello nel file stampato dopo "Handoff:". Ogni blocco gira in una shell nuova: dopo, scrivi il
 percorso intero. Una copia nel progetto solo su richiesta: mostra la visibilità del remote
 (`gh repo view --json visibility`) e aspetta un sì esplicito.
@@ -188,7 +199,8 @@ compilato). Correggi l'handoff (e l'archivio) e rilancia finché è verde.
 
 ## FASE 6 · Retention e indice
 
-Lo store tiene gli ultimi 5 handoff per progetto o per filone. Prima guarda cosa uscirebbe, senza cancellare:
+Lo store tiene gli ultimi 5 handoff per progetto o per filone. Prima guarda cosa uscirebbe, senza cancellare
+(in una sessione senza progetto la prima riga diventa `SLUG="<slug della FASE 4>"`):
 
 ```bash
 SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')

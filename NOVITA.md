@@ -12,6 +12,16 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — Un lavoro iniziato fuori da un progetto si ritrova
+
+**Cosa cambia**: se apri Claude fuori da un progetto e cominci un lavoro che continua nei giorni dopo,
+`/fine` lascia un handoff breve col nome di quel lavoro, per esempio "preventivo-cucina". Dentro ci
+sono dove eri arrivato, dove stanno i file e cosa resta da fare. Per riprendere scrivi
+`/inizio preventivo-cucina`. Claude ti offre anche una cartella di progetto, e la crea solo se dici sì.
+
+**Perché**: segnalazione n. 23 di Filippo. Il 15/10 aveva iniziato un lavoro fuori da un progetto, e il
+26/10 non trovava più dove fosse: la sessione non aveva lasciato né file né handoff.
+
 ## 2026-11-04 — Claude dice prima dove non arriva
 
 **Cosa cambia**: se chiedi un lavoro che Claude fa male anche impegnandosi, lo dice nel brief, prima

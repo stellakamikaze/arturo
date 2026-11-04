@@ -50,6 +50,9 @@ corso, senza un passo da più di 3 giorni. Una nota non è un passo; restano fuo
 altro todo aperto, gli altri progetti e chi agisce "tu". /inizio li dice anche con un compito e in rotazione.
 F24 la terza sessione aperta (proposta n. 54, #4771): /inizio conta le sessioni di ListAgents e avvisa da
 2 in su, tranne in rotazione; arturo contesto stampa la riga quota: solo con dati validi e non azzerati.
+F25 la sessione senza progetto che continua (proposta n. 23, #4071): /fine non la chiude con l'uscita
+breve, scrive un handoff breve con lo slug del lavoro e non della cartella corrente, e crea la cartella
+solo dopo un sì. arturo contesto ritrova quello slug dal solo handoff, con cartella: nessuna.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -1167,12 +1170,41 @@ def test_f24(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+def test_f25(repo: Path) -> None:
+    """La sessione senza progetto che continua lascia un handoff breve che /inizio ritrova (proposta n. 23,
+    #4071, 4/11/2026). Prima lo slug usciva dalla cartella corrente, cioè la home o la cartella dei progetti,
+    e l'uscita breve poteva saltare l'handoff."""
+    fine = read(repo / "commands" / "fine.md")
+    voce = "**Uscita breve a sessione vuota.**"
+    assert voce in fine and "## FASE 2" in fine, "F25 /fine non ha l'uscita breve"
+    uscita = fine[fine.index(voce):fine.index("## FASE 2")]
+    assert "riprende nei giorni dopo" in uscita, "F25 l'uscita breve chiude anche una sessione senza progetto che continua"
+    voce = "**Sessione senza progetto**"
+    assert voce in fine and "## FASE 5" in fine, "F25 /fine non dice dove va l'handoff di una sessione senza progetto"
+    regola = fine[fine.index(voce):fine.index("## FASE 5")]
+    for pezzo in ("non dalla cartella corrente", 'PROGETTO="<nome>"', "Cartella: nessuna", "## File e materiali",
+                  "--progetto <slug>", "/inizio <slug>", "dopo un sì", "arturo contesto <nome>"):
+        assert pezzo in regola, f"F25 la regola della sessione senza progetto non nomina {pezzo!r}"
+    fase6 = fine[fine.index("## FASE 6"):fine.index("## FASE 7")]
+    assert 'SLUG="<slug della FASE 4>"' in fase6, "F25 la retention della FASE 6 prende lo slug dalla cartella corrente"
+    serve(repo, "bin/contesto.py", "F25")
+
+    def prova(lab: Lab) -> None:
+        scrivi(lab.handoffs, {"preventivo-cucina/HANDOFF_2026-11-04_18-00.md":
+                              documento("preventivo-cucina", ripartenza="chiedere il secondo preventivo")})
+        r = lab.arturo("contesto", "preventivo-cucina", cwd=lab.home)
+        assert r.returncode == 0 and "cartella: nessuna" in r.stdout, \
+            f"F25 arturo contesto non ritrova il lavoro senza cartella dal suo handoff: {r.returncode} {r.stdout[:300]}"
+        assert "chiedere il secondo preventivo" in r.stdout, f"F25 arturo contesto non stampa la ripartenza: {r.stdout[:400]}"
+    con_lab(repo, prova)
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
          "F16": test_f16, "F17": test_f17, "F18": test_f18,
          "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23,
-         "F24": test_f24}
+         "F24": test_f24, "F25": test_f25}
 
 
 def main() -> int:
