@@ -395,6 +395,8 @@ def test_g209(repo: Path) -> None:
         _git(claude, "add", "-A")
         _git(claude, "commit", "-q", "-m", "base")
         segno, finiti = radice / "banchi-partiti", radice / "banchi-finiti"
+        lock = claude / "cache" / "banchi.lock"
+        esito = claude / "cache" / "banchi-ultimo-esito.txt"
 
         def banchi_finti(secondi: int) -> None:
             # Il segno si scrive alla partenza: un controllo "non partono" lo guarda subito, senza
@@ -420,16 +422,14 @@ def test_g209(repo: Path) -> None:
         def stato() -> str:
             # Il rosso sotto carico (#4057) non si riproduce da solo: il messaggio fotografa lock, PID,
             # esito, processi dei banchi e l'uscita dell'ultimo avvio.
-            lock_ = claude / "cache" / "banchi.lock"
-            esito_ = claude / "cache" / "banchi-ultimo-esito.txt"
-            pid = (lock_ / "pid").read_text().strip() if (lock_ / "pid").exists() else ""
+            pid = (lock / "pid").read_text().strip() if (lock / "pid").exists() else ""
             vivo_ = subprocess.run([BASH, "-c", f"kill -0 {pid} 2>&1 && echo vivo || echo morto"], capture_output=True,
                                    text=True).stdout.strip() if pid else "-"
             ps = subprocess.run(["ps", "-axo", "pid,ppid,etime,command"], capture_output=True, text=True).stdout
             righe = [r for r in ps.splitlines() if str(home) in r or (pid and r.split()[:1] == [pid])]
-            eta = f"{time.time() - esito_.stat().st_mtime:.0f}s" if esito_.exists() else "assente"
-            primo = esito_.read_text().splitlines()[:1] if esito_.exists() else []
-            return (f"lock={lock_.exists()} pid={pid!r} {vivo_} esito={primo} eta={eta} "
+            eta = f"{time.time() - esito.stat().st_mtime:.0f}s" if esito.exists() else "assente"
+            primo = esito.read_text().splitlines()[:1] if esito.exists() else []
+            return (f"lock={lock.exists()} pid={pid!r} {vivo_} esito={primo} eta={eta} "
                     f"segni={partiti()} finiti={finiti.exists()} "
                     f"avvio={ultimo.get('secondi', 0):.1f}s rc={ultimo.get('rc')} "
                     f"err={ultimo.get('err', '')[-300:]!r} processi={righe[:8]}")
@@ -440,9 +440,8 @@ def test_g209(repo: Path) -> None:
         def fermi(prima: int, tenuto_da: str = "") -> bool:
             # Dall'mkdir del lock in session-start alla rimozione nella trap, almeno uno fra lock
             # (con un PID nuovo) e segno nuovo esiste: i due insieme dicono "non partiti" senza corsa.
-            lock_ = claude / "cache" / "banchi.lock"
-            pid = (lock_ / "pid").read_text().strip() if (lock_ / "pid").exists() else ""
-            lock_nuovo = lock_.exists() and pid != tenuto_da
+            pid = (lock / "pid").read_text().strip() if (lock / "pid").exists() else ""
+            lock_nuovo = lock.exists() and pid != tenuto_da
             return partiti() == prima and not lock_nuovo
 
         # 120 s: l'attesa finisce appena la condizione vale, il tetto conta solo per un rosso. Con 40 s
@@ -463,21 +462,19 @@ def test_g209(repo: Path) -> None:
         p, durata = avvio()
         assert "file di ~/.claude modificati e non salvati" in p.stdout, \
             f"G209 nessun avviso sui file della config non salvati: {p.stdout[:400]!r}"
-        # I banchi finti durano 12 s: se all'uscita dell'avvio il segno c'è già, l'avvio li ha
+        # I banchi finti durano 12 s: se all'uscita dell'avvio il segno di fine c'è già, l'avvio li ha
         # aspettati. Una soglia sulla durata misurava la macchina: col Mac carico l'avvio senza
         # banchi va da 1 a 6 s, e il margine di 2 s andava rosso (19/10/2026, 1 giro su 10).
         assert not finiti.exists(), \
             f"G209 l'avvio aspetta i banchi: {durata:.1f} s (senza banchi {senza_banchi:.1f} s)"
         assert aspetta(segno.exists), f"G209 i banchi non partono in background: {stato()}"
-        assert aspetta(lambda: not (claude / "cache" / "banchi.lock").exists()), f"G209 il lock resta dopo i banchi: {stato()}"
+        assert aspetta(lambda: not lock.exists()), f"G209 il lock resta dopo i banchi: {stato()}"
         assert finiti.exists(), f"G209 il lock sparisce prima della fine dei banchi: {stato()}"
         banchi_finti(0)
         avvio()
         time.sleep(1)
         assert fermi(1), f"G209 i banchi ripartono con un esito fresco: {stato()}"
-        esito = claude / "cache" / "banchi-ultimo-esito.txt"
         os.utime(esito, (time.time() - 13 * 3600, time.time() - 13 * 3600))
-        lock = claude / "cache" / "banchi.lock"
         lock.mkdir()
         # I PID li legge `kill -0` di bash: su Windows Git Bash non vede i PID di Python, e un lock
         # col PID di Python risultava orfano (16/10/2026). Il PID lo dà un processo bash.
@@ -511,7 +508,7 @@ def test_g209(repo: Path) -> None:
         os.utime(esito, (time.time() - 31 * 60, time.time() - 31 * 60))
         avvio()
         assert aspetta(lambda: partiti() == 3), f"G209 un rosso di 31 minuti non rilancia i banchi: {stato()}"
-        aspetta(lambda: not lock.exists())
+        assert aspetta(lambda: not lock.exists()), f"G209 il lock resta dopo il rilancio del rosso: {stato()}"
         _git(progetto, "init", "-q")
         fine = subprocess.run([BASH, str(claude / "hooks" / "session-end.sh")], input="{}", text=True,
                               capture_output=True, cwd=str(progetto), env=env_di(home), timeout=60)
