@@ -12,6 +12,37 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — Se il controllo dei segreti non parte, Arturo ti dice perché
+
+**Cosa cambia**: prima di ogni commit una guardia cerca password e chiavi nelle modifiche. Quando
+non riesce a leggerle, adesso il popup dice il motivo e come ripararlo: la cartella appartiene a un
+altro utente del computer, un altro git sta lavorando sullo stesso repository, l'indice di git è
+rotto, oppure git ha impiegato più di 4 secondi. `/diagnosi` prova lo stesso controllo sul progetto
+e riporta l'errore esatto.
+
+**Perché**: la telemetria ha mostrato che in una settimana il popup "scansione fallita" è comparso
+8 volte su un'installazione, e 7 volte la risposta è stata sì. Ogni sì faceva partire il commit
+senza controllo dei segreti, e il messaggio non diceva cosa fare per rimetterlo in piedi.
+
+**Da sapere**: il popup chiede ancora la conferma, e se dici sì il commit parte senza il controllo
+dei segreti, come prima.
+
+---
+
+## 2026-11-04 — `/monitor` ti mostra le fonti che sa leggere
+
+**Cosa cambia**: la prima volta che scrivi `/monitor`, Arturo ti dice quali fonti sa già leggere per
+te (la posta, i todo, le sessioni con Claude, la memoria), quali mancano e cosa serve per
+collegarle. Scegli tu quali usare, e Arturo salva la scelta in `data/monitor/fonti.json`.
+
+**Perché**: lo smistamento, cioè il giro che legge quello che ti arriva e ne ricava le cose da fare
+in ordine di urgenza, deve sapere prima quali fonti può leggere. Questo è il primo pezzo; il giro
+quotidiano arriva con un prossimo aggiornamento.
+
+**Da sapere**: come si aggiunge una fonte tua sta in `docs/monitor-ponti.md`.
+
+---
+
 ## 2026-11-03 — Gli aggiornamenti non restano più fermi
 
 **Cosa cambia**: se alla chiusura c'era un'altra sessione aperta, l'aggiornamento si installa
