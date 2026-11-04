@@ -11,6 +11,9 @@ un cruscotto parallelo.
 Q04 nei file nuovi non ci sono nomi, host, percorsi o email personali.
 Q05 il catalogo dei tic della scrittura generata è la skill humanizer (da blader/humanizer, MIT, con la
 sua LICENSE), collegata dalla skill ITS; il vecchio catalogo di ITS non c'è più (4/11/2026).
+Q06 nomi e licenze allineati dopo humanizer (#4721, 4/11/2026): la sezione della voce nel CLAUDE.md ha il
+nome che scrive /setup ("Come scrivo"), italiano-semplificato ha la LICENSE di AminBlg/SimpleEnglish, il
+README cita le licenze delle tre skill adattate e la copia del disegno in NOVITA.md è uguale all'originale.
 Q07 Impeccable è un rimando all'upstream: la nota in docs/ c'è, la skill non è copiata.
 Q08 prompt-master non dice più che il brief si mostra anche per una richiesta breve.
 Q09 prompt-master e il promemoria di inject-now.sh caricano il corpo una volta per sessione e dopo
@@ -166,6 +169,33 @@ def test_q05(repo: Path) -> None:
         "Q05 la skill non legge la voce dall'Orsa o non dice i tre modi di scrivere"
 
 
+def _disegno(testo: str) -> str:
+    return testo.split("```diagramma\n", 1)[1].split("```", 1)[0] if "```diagramma\n" in testo else ""
+
+
+def test_q06(repo: Path) -> None:
+    schema = repo / "shared" / "setup-claude-md.md"
+    assert schema.is_file(), "Q06 manca shared/setup-claude-md.md, lo schema del CLAUDE.md di /setup"
+    sezione = re.search(r"\*\*(Come scriv\w)\*\*", read(schema))
+    assert sezione, "Q06 lo schema del CLAUDE.md di /setup non ha la sezione della voce"
+    nome, altro = sezione.group(1), "Come scrivi" if sezione.group(1) == "Come scrivo" else "Come scrivo"
+    for rel in ("skills/humanizer/SKILL.md", "skills/humanizer/references/da-dove-viene.md", "README.md",
+                "NOVITA.md", "docs/come-e-fatto.md"):
+        testo = read(repo / rel) if (repo / rel).is_file() else ""
+        assert f'"{altro}"' not in testo, f'Q06 {rel} cerca la sezione "{altro}", /setup scrive "{nome}"'
+    assert f'"{nome}"' in read(repo / "skills" / "humanizer" / "SKILL.md"), f'Q06 humanizer non nomina "{nome}"'
+    licenza = repo / "skills" / "italiano-semplificato" / "LICENSE"
+    assert licenza.is_file() and "AminBlg" in read(licenza), "Q06 manca la nota MIT di AminBlg/SimpleEnglish"
+    readme = read(repo / "README.md").split("## Licenza", 1)[-1]
+    for rel in ("skills/humanizer/LICENSE", "skills/italiano-semplificato/LICENSE", "skills/prompt-master/LICENSE"):
+        assert rel in readme, f"Q06 la sezione Licenza del README non cita {rel}"
+    disegno = repo / "docs" / "come-e-fatto.md"
+    originale = _disegno(read(disegno)) if disegno.is_file() else ""
+    novita = read(repo / "NOVITA.md")
+    copia = _disegno(novita[novita.find("docs/come-e-fatto.md"):])
+    assert originale and copia == originale, "Q06 la copia del disegno in NOVITA.md non è uguale a docs/come-e-fatto.md"
+
+
 def test_q07(repo: Path) -> None:
     nota = repo / "docs" / "impeccable.md"
     assert nota.is_file(), "Q07 manca docs/impeccable.md"
@@ -223,7 +253,7 @@ def test_q10(repo: Path) -> None:
 
 TESTS: Dict[str, Callable[[Path], None]] = {
     "Q01": test_q01, "Q02": test_q02, "Q03": test_q03, "Q04": test_q04,
-    "Q05": test_q05, "Q07": test_q07, "Q08": test_q08, "Q09": test_q09,
+    "Q05": test_q05, "Q06": test_q06, "Q07": test_q07, "Q08": test_q08, "Q09": test_q09,
     "Q10": test_q10,
 }
 

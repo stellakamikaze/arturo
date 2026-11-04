@@ -15,6 +15,6 @@ In Arturo cambiano quattro cose. Gli esempi sono italiani, e alcuni vengono dal 
 Arturo aveva in `italiano-semplificato` (scritto da zero, ispirato a raccolte pubbliche come
 [tropes.fyi](https://tropes.fyi/), che non dichiara una licenza). Il §10 parla di avverbi e aggettivi
 a catena, perché le parole composte col trattino dell'originale sono un tic dell'inglese. La voce si
-cerca nell'Orsa della persona (`personale/humanizer.md` e la sezione "Come scrivi" del CLAUDE.md
+cerca nell'Orsa della persona (`personale/humanizer.md` e la sezione "Come scrivo" del CLAUDE.md
 che scrive `/setup`), e cresce con le sue correzioni. La skill sta accanto a `italiano-semplificato`, con i compiti divisi
 come dice "Tre modi di scrivere".

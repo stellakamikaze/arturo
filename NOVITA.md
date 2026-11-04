@@ -42,7 +42,7 @@ altre persone e te ne consiglia altri. Più sotto ancora ci sono Claude Code e i
    ▼
 ┌─ Orsa ─────────────── ~/.claude, è tua: gli aggiornamenti non la toccano ─┐
 │  CLAUDE.md · personale/<skill>.md · memoria · todo · handoff              │
-│  la tua voce: "Come scrivi" nel CLAUDE.md + personale/humanizer.md        │
+│  la tua voce: "Come scrivo" nel CLAUDE.md + personale/humanizer.md        │
 └──────────────────────────────────┬────────────────────────────────────────┘
                                    │ Arturo la legge e la rispetta
 ┌─ Arturo ─────────────── lo aggiorna chi lo mantiene, con rilasci firmati ─┐
@@ -52,6 +52,7 @@ altre persone e te ne consiglia altri. Più sotto ancora ci sono Claude Code e i
 │    humanizer ............. ◄── blader/humanizer (MIT)                     │
 │    italiano-semplificato . ◄── ASD-STE100 via AminBlg/SimpleEnglish (MIT) │
 │    prompt-master ......... ◄── nidhinjs/prompt-master (MIT)               │
+│    intervista e deleghe .. ◄── mattpocock/skills (MIT)                    │
 │                                                                           │
 │  consigliati, li installi dalla loro fonte (/setup te li propone):        │
 │    Impeccable ............ ◄── pbakaus/impeccable (Apache-2.0)            │
@@ -87,7 +88,7 @@ elenchi di tre messi per abitudine, le lineette ovunque, le parole gonfie come "
 
 **Perché**: un testo che suona da IA si riconosce, e chi lo legge smette di fidarsi anche di ciò
 che è vero. La skill segue il tuo modo di scrivere: se le dai un tuo testo come campione, imita
-quello; altrimenti legge la sezione "Come scrivi" del tuo `CLAUDE.md`, che `/setup` ha scritto con
+quello; altrimenti legge la sezione "Come scrivo" del tuo `CLAUDE.md`, che `/setup` ha scritto con
 te. Il campione vince sulle regole: se tu usi le lineette, restano. La tua voce ha anche un file
 tutto tuo, `~/.claude/personale/humanizer.md`, con i tuoi testi, le tue regole e le tue correzioni:
 quando correggi un testo riscritto, Claude ti propone di aggiungere la correzione, e la scrive solo

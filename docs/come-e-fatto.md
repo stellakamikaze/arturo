@@ -11,7 +11,7 @@ installi dalla loro fonte. Questa pagina li mette tutti in fila, con chi li aggi
    ▼
 ┌─ Orsa ─────────────── ~/.claude, è tua: gli aggiornamenti non la toccano ─┐
 │  CLAUDE.md · personale/<skill>.md · memoria · todo · handoff              │
-│  la tua voce: "Come scrivi" nel CLAUDE.md + personale/humanizer.md        │
+│  la tua voce: "Come scrivo" nel CLAUDE.md + personale/humanizer.md        │
 └──────────────────────────────────┬────────────────────────────────────────┘
                                    │ Arturo la legge e la rispetta
 ┌─ Arturo ─────────────── lo aggiorna chi lo mantiene, con rilasci firmati ─┐
