@@ -37,7 +37,8 @@ git rev-parse --git-dir >/dev/null 2>&1 && { python3 -c "import subprocess,sys; 
   e ricorda che `/aggiorna personale` mette da parte le sue modifiche ai comandi.
 - Le aggiunte della persona ai comandi: `python3 ~/.claude/bin/arturo personale elenco`. Una riga
   `Senza comando` nomina i file di `personale/` di un comando uscito da Arturo: nessuno li legge
-  più. Mostrali alla persona: decide lei se tenerli altrove o cancellarli.
+  più. Un file con il nome di una skill di Arturo (come `personale/humanizer.md`, la voce della persona)
+  non compare mai lì: è vivo. Mostrali alla persona: decide lei se tenerli altrove o cancellarli.
 - `scansione segreti: NON PARTE`: prima di ogni commit la guardia dei segreti non legge le modifiche, e il
   commit parte senza controllo se la persona conferma. Riporta l'errore esatto: il popup della guardia
   dice causa e rimedio (cartella di un altro utente, un altro git al lavoro, indice rotto, git lento).

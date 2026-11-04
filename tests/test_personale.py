@@ -189,6 +189,15 @@ def test_p05(repo: Path) -> None:
         elenco = arturo(lab, "personale", "elenco").stdout
         assert "Senza comando (Arturo non ha più /strato): personale/strato.md" in elenco, \
             f"P05 il file personale di un comando uscito non è segnalato: {elenco!r}"
+        # Un file personale di una skill è vivo: personale/todo.md come personale/humanizer.md, la voce della
+        # persona, che /diagnosi proponeva di cancellare (4/11/2026, #4719).
+        (lab.utente / "skills" / "humanizer").mkdir(parents=True, exist_ok=True)
+        (lab.utente / "skills" / "humanizer" / "SKILL.md").write_text("---\nname: humanizer\n---\n", encoding="utf-8")
+        (lab.utente / "personale" / "humanizer.md").write_text("## Le mie regole\n- Mai il punto esclamativo.\n", encoding="utf-8")
+        elenco = arturo(lab, "personale", "elenco").stdout
+        senza = next((riga for riga in elenco.splitlines() if riga.startswith("Senza comando")), "")
+        assert "personale/humanizer.md" in elenco and "humanizer" not in senza and "personale/strato.md" in senza, \
+            f"P05 il file personale di una skill risulta orfano: {elenco!r}"
     con_lab(prova, repo)
 
 
