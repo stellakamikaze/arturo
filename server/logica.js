@@ -486,6 +486,18 @@ export function testoUso(uso) {
   ];
 }
 
+// I banchi delle guardie rossi (4/11/2026, #4588). Il client manda il nome solo quando l'elenco dei rossi cambia
+// (tests/banchi-avvio.sh), con tutti i rossi di quel momento: un banco che resta rosso non si ripete ogni giorno, e il
+// testo lo dice.
+export function testoBanchi(banchi) {
+  const righe = Array.isArray(banchi) ? banchi : [];
+  return [
+    "Banchi delle guardie rossi sui computer di chi usa Arturo (banco, installazione, versione, primo giorno visto).",
+    "Arrivano quando l'elenco dei rossi di un computer cambia: un banco che resta rosso non si ripete ogni giorno.",
+    ...(righe.length ? righe.map((x) => `  ${x.valore}  su ${corto(x.installazione)}, ${x.versione}, visto il ${x.dal}`) : ["  nessuno"]),
+  ];
+}
+
 export function testoRiepilogo(r, titolo) {
   const elenco = (righe, vuoto = "nessuno") => righe.length ? righe.map((x) => `  ${x.n}  ${x.valore || "(vuoto)"}`).join("\n") : `  ${vuoto}`;
   const frequenti = r.guardieFrequenti
@@ -500,6 +512,7 @@ export function testoRiepilogo(r, titolo) {
     `Sessioni: ${r.sessioni}`,
     "",
     "Config rotte:", elenco(r.config || [], "nessuna"),
+    "", ...testoBanchi(r.banchi),
     "", "Deriva dalla config di Arturo:", ...testoDeriva(r.deriva),
     "",
     "Versioni in uso:", elenco(r.versioni, "nessuna"),

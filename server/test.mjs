@@ -805,6 +805,23 @@ const casi = {
     await gestisci(get("?dal=2026-10-06&al=2026-10-13"), { ...g, adesso: lunedi, token });
     assert.deepEqual(g.stato.finestre[0], ["2026-10-06", "2026-10-13"], "V44 le date chieste non valgono più");
   },
+  // I banchi rossi di chi usa Arturo nel recap del mattino e nell'email del lunedì (4/11/2026, #4588): l'evento
+  // arrivava al server dal 3/11 e nessuna email lo raccontava.
+  async V45() {
+    const banchi = [{ valore: "test_guardie_unite.py", installazione: "826cca31-aaaa-bbbb", versione: "v0.2.3", dal: "2026-10-12" }];
+    const g = finti({ ...VUOTO, installazioni: 1, banchi });
+    await giornaliero({ ...g, adesso });
+    const riga = "  test_guardie_unite.py  su 826cca31, v0.2.3, visto il 2026-10-12";
+    assert.ok(g.stato.email.length === 1 && g.stato.email[0].testo.includes(riga), "V45 il recap del mattino non mostra il banco rosso");
+    assert.ok(!g.stato.email[0].testo.includes("826cca31-aaaa"), "V45 il recap porta l'id intero");
+    const lunedi = new Date("2026-10-26T07:30:00Z");
+    const s = finti({ ...VUOTO, banchi });
+    await settimanale({ ...s, adesso: lunedi });
+    assert.ok(s.stato.email[0].testo.includes(riga), "V45 l'email del lunedì non mostra il banco rosso");
+    const v = finti({ ...VUOTO });
+    await settimanale({ ...v, adesso: lunedi });
+    assert.match(v.stato.email[0].testo, /Banchi delle guardie rossi[^\n]*\n[^\n]*\n  nessuno\n/, "V45 senza rossi il lunedì non dice nessuno");
+  },
   // Lancillotto (25/10/2026): un lotto valido va nella sua tabella, non tra gli eventi di Arturo.
   async L01() {
     const f = finti();

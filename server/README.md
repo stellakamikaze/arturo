@@ -92,6 +92,10 @@ feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le s
   altro sito (`Sec-Fetch-Site: cross-site`).
 - **Ogni mattina alle 8** (06:00 UTC) arriva il recap del giorno prima, solo se quel giorno ci
   sono stati eventi o segnalazioni. Ha anche le config rotte e la deriva cambiata.
+- **I banchi delle guardie rossi (4/11/2026)** stanno nel recap del mattino e nell'email del lunedì, sotto le
+  config rotte: banco, id corto, versione dell'evento più recente e primo giorno visto. Il client manda
+  l'evento `banchi` solo quando l'elenco dei rossi di quel computer cambia: un banco che resta rosso non si
+  ripete ogni giorno. Contano anche le installazioni viste in un giorno solo, come le config rotte.
 - **Ogni mattina, su Telegram, le installazioni rimaste indietro (23/10/2026)**: attive negli ultimi
   3 giorni e senza un rilascio uscito da almeno 3. Contano solo le installazioni viste in almeno due
   giorni, e un rilascio con la data nel futuro non conta. Un avviso per installazione ogni 7 giorni,

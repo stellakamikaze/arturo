@@ -286,6 +286,16 @@ export function archivio(db) {
           .bind(dal, al).all()).results,
         aggiorna: await gruppo("aggiorna"),
         config: await gruppo("config"),
+        // I banchi delle guardie rossi sui computer di chi usa Arturo (4/11/2026, #4588): uno per banco e installazione,
+        // con la versione dell'evento più recente e il primo giorno visti nella finestra. La versione non si prende con
+        // MAX: "v2026-10-21" viene dopo "v0.2.3" in ordine alfabetico. Senza il filtro VISTE, come le config rotte: è un
+        // guasto da guardare, non una statistica che decide una correzione.
+        banchi: (await db.prepare(
+          `SELECT valore, installazione, (SELECT u.versione FROM eventi u WHERE u.evento = 'banchi' AND u.valore = e.valore
+             AND u.installazione = e.installazione AND u.giorno > ? AND u.giorno <= ? ORDER BY u.giorno DESC, u.rowid DESC LIMIT 1)
+             AS versione, MIN(giorno) AS dal FROM eventi e
+           WHERE evento = 'banchi' AND giorno > ? AND giorno <= ? GROUP BY valore, installazione ORDER BY valore, installazione LIMIT 30`)
+          .bind(dal, al, dal, al).all()).results,
         deriva: await this.deriva(dal, al, settimana),
         guardieFrequenti: settimana ? (await db.prepare(
           `SELECT installazione, valore, COUNT(*) AS n FROM eventi WHERE evento = 'guardia' AND giorno > ? AND giorno <= ? AND ${VISTE}

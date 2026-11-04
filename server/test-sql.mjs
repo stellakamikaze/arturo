@@ -293,6 +293,25 @@ const casi = {
     const salvati = (await db.prepare("SELECT valore FROM eventi WHERE evento = 'guardia'").all()).results;
     assert.deepEqual(salvati, [], "Q21 la guardia scartata è salvata");
   },
+  // I banchi rossi nel riepilogo (4/11/2026, #4588): uno per banco e installazione, con l'ultima versione e il primo
+  // giorno della finestra; fuori finestra non contano, e non serve il secondo giorno di VISTE.
+  async QB1() {
+    const a = await con([
+      ["2026-10-11", "aaaaaaaa-1", "banchi", "test_guardie_unite.py", "v1"],  // fuori dalla finestra (11, 13]
+      ["2026-10-12", "aaaaaaaa-1", "banchi", "test_guardie_unite.py", "v2026-10-21"],
+      ["2026-10-13", "aaaaaaaa-1", "banchi", "test_guardie_unite.py", "v0.2.3"],  // il rilascio dopo, alfabeticamente prima
+      ["2026-10-13", "aaaaaaaa-1", "banchi", "test_mod_skill.py", "v2"],
+      ["2026-10-13", "bbbbbbbb-2", "banchi", "test_guardie_unite.py", "v2"],  // vista un giorno solo: conta lo stesso
+      ["2026-10-13", "bbbbbbbb-2", "guardia", "data-guard.py"],
+    ]);
+    const r = await a.riepilogo("2026-10-11", AL);
+    assert.deepEqual(r.banchi, [
+      { valore: "test_guardie_unite.py", installazione: "aaaaaaaa-1", versione: "v0.2.3", dal: "2026-10-12" },
+      { valore: "test_guardie_unite.py", installazione: "bbbbbbbb-2", versione: "v2", dal: "2026-10-13" },
+      { valore: "test_mod_skill.py", installazione: "aaaaaaaa-1", versione: "v2", dal: "2026-10-13" },
+    ], "QB1 i banchi rossi del riepilogo");
+    assert.deepEqual((await a.riepilogo("2026-10-01", "2026-10-10")).banchi, [], "QB1 un banco fuori finestra entra nel riepilogo");
+  },
   // Lancillotto (25/10/2026): la tabella nasce dal Worker, il riepilogo conta installazioni, la pulizia regge
   // anche su un database dove la tabella non c'era ancora.
   async QL1() {
