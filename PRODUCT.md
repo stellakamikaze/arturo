@@ -30,7 +30,7 @@ Terminale e Claude Code. Installazione ufficiale (dal 1/11/2026): la persona ins
 
 ## Capabilities and Constraints
 
-- 23 guardie e automazioni, 10 comandi (nove in vetrina, più lo sparring che Claude apre da solo), 9 agenti, 4 skill (README di main al 16/10/2026, v2026-10-16.4: vanno riletti dal README prima di citarli). Lo strato delle organizzazioni, il percorso a tappe, `/progetto`, `/discovery` e `/write-plan` sono usciti il 16/10/2026: lo strato torna più avanti, rifatto.
+- 23 guardie e automazioni, 11 comandi, 8 agenti, 7 skill (README di dev al 4/11/2026: vanno riletti dal README prima di citarli). Lo strato delle organizzazioni, il percorso a tappe, `/progetto`, `/discovery` e `/write-plan` sono usciti il 16/10/2026: lo strato torna più avanti, rifatto.
 - Impegni del README: repository pubblico e MIT, aggiornamenti automatici solo con rilasci firmati e spegnibili (`arturo aggiornamenti manuali`), telemetria minima accesa di default con il perché, Arturo in italiano, stop dichiarato.
 - La telemetria è centrale nel racconto: Arturo impara da come lo usi. Accesa di default, si spegne con `arturo telemetria spegni`, `ARTURO_TELEMETRIA=0` o `DO_NOT_TRACK=1`. Escono solo eventi da un elenco chiuso con un id di installazione casuale e stabile (sulla pagina non si scrive che i dati sono senza nome: l'id resta lo stesso nel tempo), mai testi, file o nomi. La pagina dice cosa esce, cosa no, come si spegne e come i dati diventano correzioni.
 - Firma solo "Progetto di Federico Nejrotti" (decisione del 15/10/2026). Nessuna cifra, nessun prezzo. L'affiancamento a pagamento non compare finché la sua forma non è decisa.

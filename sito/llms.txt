@@ -4,7 +4,7 @@
 
 ## Cos'è Arturo
 
-Claude Code è l'IA di Anthropic che lavora sui file del tuo computer. Arturo è una configurazione completa di Claude Code: 23 guardie e automazioni, 10 comandi, 9 agenti, 4 skill e un curriculum di principi spiegati in parole semplici (`docs/principi/`). Viene da una configurazione personale usata ogni giorno in produzione. È stato estratto e ripulito: niente dati, niente credenziali, niente riferimenti a infrastrutture private.
+Claude Code è l'IA di Anthropic che lavora sui file del tuo computer. Arturo è una configurazione completa di Claude Code: 23 guardie e automazioni, 11 comandi, 8 agenti, 7 skill e un curriculum di principi spiegati in parole semplici (`docs/principi/`). Viene da una configurazione personale usata ogni giorno in produzione. È stato estratto e ripulito: niente dati, niente credenziali, niente riferimenti a infrastrutture private.
 
 Le guardie sorvegliano i comandi pericolosi, tengono i segreti fuori dalla history di git e chiedono conferma prima dei punti di non ritorno: una cancellazione ricorsiva, un invio, un segreto in un commit. Le sessioni si aprono, si chiudono e si riprendono in ordine, anche su più macchine.
 

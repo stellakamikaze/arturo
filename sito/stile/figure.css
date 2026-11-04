@@ -1,0 +1,102 @@
+/* Le tre figure della home: il mobile a cassetti (Come è fatto), il percorso nelle guardie, il ritmo.
+   Colori e caratteri vengono da colori.css. Tema scuro solo per le figure, con i colori dei terminali. */
+
+.figura{
+  --k-carta:var(--carta);--k-faccia:var(--bianco);
+  --k-s0:var(--filetto);--k-s1:var(--chiara-puntino);--k-s2:var(--carta-2);--k-s3:var(--pagina-barra);
+  --k-hi:var(--grafite);--k-mid:var(--cenere);--k-lo:var(--scorrimento);--k-faint:var(--filetto);
+  --k-lit:var(--azione);--k-alone:var(--inchiostro);--k-alone-op:.16;
+  --k-testo:var(--grafite);--k-quieto:var(--cenere);--k-forte:var(--inchiostro);
+  --k-passa:var(--passa);--k-blocca:var(--blocca);--k-chiede:var(--azione);
+  --k-velo-passa:var(--verde);--k-velo-blocca:var(--allarme-fondo);--k-velo-chiede:var(--azione-velo);
+  margin:0;background:var(--k-carta);color:var(--k-testo);box-shadow:inset 0 1px 0 var(--inchiostro)
+}
+/* il sito è solo chiaro: le figure diventano scure solo con data-theme="dark" */
+:root[data-theme="dark"] .figura{
+  --k-carta:var(--vuoto-2);--k-faccia:var(--term-sopra-2);
+  --k-s0:var(--term);--k-s1:var(--vuoto-2);--k-s2:var(--term-sopra);--k-s3:var(--term-tu-fondo);
+  --k-hi:var(--term-testo);--k-mid:var(--term-cenere);--k-lo:var(--term-bordo-su);--k-faint:var(--term-bordo);
+  --k-lit:var(--term-tu);--k-alone:var(--maschera);--k-alone-op:.7;
+  --k-testo:var(--term-testo);--k-quieto:var(--term-cenere);--k-forte:var(--term-cc);
+  --k-passa:var(--term-passa);--k-blocca:var(--term-blocca);--k-chiede:var(--term-tu);
+  --k-velo-passa:var(--term-nuovo);--k-velo-blocca:var(--term-sopra);--k-velo-chiede:var(--term-letto);
+  box-shadow:inset 0 1px 0 var(--term-bordo-su)
+}
+
+/* la piastra: Fig in alto a sinistra, titolo a destra, suggerimento e lettura in basso */
+.figura__piastra{position:relative;padding:14px clamp(12px,2.4vw,22px) 16px}
+.figura__testa,.figura__piede{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin:0;font:600 .78rem/1.3 var(--testo);color:var(--k-quieto)}
+.figura__testa span:last-child{color:var(--k-forte)}
+.figura__piede{margin-top:6px;align-items:flex-start}
+.figura__lettura{margin:0;max-width:46ch;text-align:right;font-weight:400;color:var(--k-testo);min-height:2.6em}
+.figura__lettura strong{color:var(--k-forte);font-weight:600}
+.figura svg{display:block;width:100%;height:auto;overflow:visible}
+.figura svg text{font-family:var(--testo)}
+.figura figcaption{padding:0 clamp(12px,2.4vw,22px) 18px;font-size:.92rem;color:var(--k-quieto)}
+.figura figcaption p{margin:12px 0 0;max-width:68ch}
+@media (max-width:560px){
+  .figura__piede{flex-direction:column;gap:4px}
+  .figura__lettura{text-align:left}
+  .figura__piastra{padding:12px 10px 14px}
+  .figura--diagramma svg{margin:8px -6px 0;width:calc(100% + 12px);max-width:none}
+  .figura--cassettiera .figura__piastra{overflow:hidden}
+  .figura--cassettiera svg{width:116%;max-width:none;margin:-4% -8% -2%}
+}
+
+/* i pezzi isometrici (classi corte del generatore: k*) */
+.figura .kf{fill:var(--k-carta)}
+.figura .ks0{fill:var(--k-s0)}.figura .ks1{fill:var(--k-s1)}.figura .ks2{fill:var(--k-s2)}.figura .ks3{fill:var(--k-s3)}
+.figura .kt{fill:var(--k-faccia)}
+.figura .kl,.figura .ke{fill:none;stroke-width:.6;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.figura .k1{stroke:var(--k-hi)}.figura .k2{stroke:var(--k-mid)}.figura .k3{stroke:var(--k-lo)}.figura .k4{stroke:var(--k-faint)}
+.figura .kd circle{fill:var(--k-hi);opacity:.4}
+.figura .kd.k1 circle{opacity:.85}.figura .kd.k3 circle{opacity:.25}
+.figura .kh{fill:var(--k-alone);opacity:var(--k-alone-op);filter:blur(9px);transform:translateY(3px)}
+.figura .kv{fill:var(--k-s0)}
+
+/* figura 1: la cassettiera */
+.fg-cassetto{cursor:pointer;transition:transform .7s cubic-bezier(.32,.72,0,1)}
+.fg-etichetta{fill:var(--k-hi);font-weight:600;letter-spacing:.01em}
+.fg-cassetto[data-aperto] .fg-fronte .ke{stroke:var(--k-lit);stroke-width:1.1}
+.fg-cassetto[data-aperto] .fg-etichetta{fill:var(--k-lit)}
+.fg-strati{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0;padding:0;list-style:none}
+.fg-strati button{min-height:44px;padding:0 14px;border:1px solid var(--k-lo);background:transparent;color:var(--k-testo);font:500 .9rem/1 var(--testo);cursor:pointer;transition:background-color .18s,border-color .18s}
+.fg-strati button:hover{border-color:var(--k-hi)}
+.fg-strati button[aria-pressed="true"]{background:var(--k-forte);border-color:var(--k-forte);color:var(--k-carta)}
+.fg-strati button:focus-visible{outline:2px solid var(--k-lit);outline-offset:3px}
+.fg-strati button:active{transform:translateY(1px)}
+
+/* figure 2 e 3: diagrammi piatti */
+.fd-box{fill:var(--k-faccia);stroke:var(--k-hi);stroke-width:1}
+.fd-box--quieta{fill:var(--k-carta);stroke:var(--k-lo)}
+.fd-box--passa{fill:var(--k-velo-passa);stroke:var(--k-passa)}
+.fd-box--chiede{fill:var(--k-velo-chiede);stroke:var(--k-chiede)}
+.fd-box--blocca{fill:var(--k-velo-blocca);stroke:var(--k-blocca)}
+.fd-box--guardia{fill:var(--k-forte);stroke:var(--k-forte)}
+.fd-nome{font:600 16px var(--testo);fill:var(--k-forte)}
+.fd-nome--chiaro{fill:var(--k-carta)}
+.fd-riga{font:400 13px var(--testo);fill:var(--k-testo)}
+.fd-riga--chiara{fill:var(--k-s3)}
+.fd-mono{font-family:var(--mono);font-size:12px}
+.fd-comando{font-family:var(--mono);font-weight:500}
+.figura figcaption code{font-family:var(--mono);font-size:.9em;background:none;padding:0;color:var(--k-forte)}
+.fd-etichetta{font:600 12px var(--testo);fill:var(--k-quieto)}
+.fd-linea{fill:none;stroke:var(--k-mid);stroke-width:1.2}
+.fd-linea--quieta{stroke:var(--k-lo);stroke-dasharray:4 4}
+.fd-punta{fill:var(--k-mid)}
+.fd-chiede{fill:var(--k-chiede)}
+.fd-segno{fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.fd-segno--passa{stroke:var(--k-passa)}.fd-segno--chiede{stroke:var(--k-chiede)}.fd-segno--blocca{stroke:var(--k-blocca)}
+.fd-arco{fill:none;stroke:var(--k-hi);stroke-width:1.4}
+.fd-punto{fill:var(--k-forte)}
+.figura--diagramma svg{max-width:480px;margin:8px auto 0}
+
+@media (prefers-reduced-motion:reduce){
+  .fg-cassetto,.fg-strati button{transition:none}
+}
+.figura .kn{fill:var(--k-hi)}
+.figura--cassettiera svg{max-width:760px;margin:0 auto}
+
+/* posto nella home */
+.harness .figura--cassettiera{margin-top:clamp(40px,6vw,80px)}
+#funzioni .figura--guardie,#ritmo .figura--ritmo{max-width:760px;margin:clamp(40px,5vw,64px) 0}
