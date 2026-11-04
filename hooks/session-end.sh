@@ -8,7 +8,7 @@ PROJECT_NAME="$(basename "$PROJECT_ROOT")"
 # L'aggiornamento automatico (bin/aggiornamenti.py), prima dell'uscita qui sotto: ogni chiusura,
 # anche fuori da un progetto. Gira staccato dalla sessione, così la sessione dopo parte con
 # impostazioni e hook della stessa versione. Aspetta che Claude Code sia uscito davvero, e rimanda
-# se resta aperta un'altra sessione: la installa l'ultima che chiude.
+# se resta aperta un'altra sessione: la installa la chiusura dopo, senza più aspettare le altre (#4074).
 if [ -f "$HOME/.claude/bin/aggiornamenti.py" ] && [ "${ARTURO_AGGIORNAMENTI:-}" != "manuali" ]; then
   mkdir -p "$HOME/.claude/session-env" 2>/dev/null
   ARTURO_BASH="$BASH" nohup python3 "$HOME/.claude/bin/aggiornamenti.py" applica \

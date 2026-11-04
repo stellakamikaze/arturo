@@ -15,9 +15,9 @@ chi mantiene Arturo, verificati con la chiave che hai già installata (firme/ril
   firmato      l'ultimo rilascio, solo se la sua firma è valida: è l'unico che /aggiorna applica
 
 Non si installa niente da solo se: la firma manca o non è di Arturo; la storia pubblicata è stata
-riscritta; hai modifiche non salvate in ~/.claude; un'altra sessione di Claude Code è aperta (la
-installa l'ultima che chiude, o l'apertura dopo di Claude Code se è l'unica sessione, dal 3/11/2026, mai un
-/clear, dal 4/11/2026); l'aggiornamento va in conflitto con le tue modifiche. In tutti questi
+riscritta; hai modifiche non salvate in ~/.claude; un'altra sessione di Claude Code è aperta (lo
+installa la chiusura dopo, anche con altre sessioni aperte, dal 4/11/2026, oppure l'apertura dopo di Claude
+Code se è l'unica sessione, dal 3/11/2026, mai un /clear, dal 4/11/2026); l'aggiornamento va in conflitto con le tue modifiche. In tutti questi
 casi l'avviso resta, col motivo, e /aggiorna fa il resto con te. Una firma che manca o non torna non
 si scavalca neanche con /aggiorna: è il segno di un repository manomesso, e l'avviso dice di non
 aggiornare e di segnalarlo a chi mantiene Arturo (17/10/2026, #3504). Una firma che questo computer
@@ -263,8 +263,8 @@ def cmd_stato(r: Path) -> int:
     except OSError:
         pass
     if stato["stato"] == "pronto" and rinviato == stato["versione"] and not a_freddo:
-        righe.append(f"ARTURO: la versione {rinviato} si installa alla prossima apertura di Claude Code, non dopo un "
-                     "/clear: la sessione aperta tiene i suoi strumenti.")
+        righe.append(f"ARTURO: la versione {rinviato} si installa alla prossima chiusura di una sessione o alla prossima "
+                     "apertura di Claude Code, non dopo un /clear: la sessione aperta tiene i suoi strumenti.")
     elif stato["stato"] == "pronto" and rinviato == stato["versione"] and processi_claude() <= 1             and avvia_staccato(r, "applica", "--avvio"):
         # Un rilascio rinviato si installa all'avvio dopo, se questa è l'unica sessione (3/11/2026): Alessio è
         # restato al 23/10 perché alla chiusura c'era sempre un'altra sessione aperta, e l'attesa scadeva.
@@ -272,8 +272,9 @@ def cmd_stato(r: Path) -> int:
                      "sessione aperta. Se un hook dà errore, riapri la sessione. Dillo alla persona in una frase.")
     elif stato["stato"] == "pronto" and rinviato == stato["versione"]:
         righe.append(f"ARTURO: la versione {rinviato} non si è installata alla chiusura scorsa, perché un'altra "
-                     "sessione di Claude Code era ancora aperta. Si installa quando chiudi l'ultima, all'avvio di una "
-                     "sessione sola, oppure subito con /aggiorna. Dillo alla persona in una frase.")
+                     "sessione di Claude Code era ancora aperta. Si installa alla prossima chiusura di una sessione, anche "
+                     "con altre aperte, all'avvio di una sessione sola, oppure subito con /aggiorna. Se dopo una sessione "
+                     "rimasta aperta dà errori, chiudila e riaprila. Dillo alla persona in una frase.")
     elif stato["stato"] == "pronto" and fallito == stato["versione"]:
         pass  # la riga di "non è partito" basta: dire anche "si installa da sola" la contraddice (n. 49)
     elif stato["stato"] == "pronto":
@@ -428,10 +429,14 @@ def _applica(r: Path, ammesse: int = 0) -> int:
             _segnala_ostacolo(r, stato)
         return 0
     limite = time.time() + float(os.environ.get("ARTURO_ATTESA_MAX", ATTESA_MAX))
-    while processi_claude() > ammesse:
+    # Un rilascio già rinviato una volta non aspetta più le altre sessioni (#4074, Federico 2/11/2026): chi
+    # tiene sempre una sessione aperta restava indietro per giorni, come Alessio al 23/10. Le sessioni rimaste
+    # aperte leggono gli hook nuovi da subito, come dopo un /aggiorna; i mod cambiano alla loro riapertura.
+    attende = ammesse > 0 or not rinvio_in_attesa(r, stato)
+    while attende and processi_claude() > ammesse:
         if time.time() >= limite:
             _segnala_ostacolo(r, stato, "rinviato")
-            # Un'altra sessione è aperta: la installa l'ultima che chiude. L'esito resta scritto, così
+            # Un'altra sessione è aperta: la installa la chiusura dopo. L'esito resta scritto, così
             # l'avvio dopo dice perché non è successo, invece di ripetere che si installa da sola.
             _esito(r, stato["versione"], "RINVIATO", "un'altra sessione di Claude Code era ancora aperta")
             return 0
@@ -471,6 +476,18 @@ def _applica(r: Path, ammesse: int = 0) -> int:
     _esito(r, tag, parola, esito[:240])
     scrivi(file_stato(r), calcola(r))
     return 0 if parola == "APPLICATO" else 1
+
+
+def rinvio_in_attesa(r: Path, stato: dict) -> bool:
+    """Vero se una chiusura di prima ha già rinviato un rilascio che manca ancora: lo stesso che è pronto ora,
+    o uno più vecchio rimasto fuori. Un rinvio poi installato con /aggiorna non conta più."""
+    esito = leggi(file_esito(r))
+    if esito.get("esito") != "RINVIATO" or not esito.get("versione"):
+        return False
+    if esito["versione"] == stato.get("versione"):
+        return True
+    commit = git(r, "rev-list", "-n", "1", esito["versione"]).stdout.strip()
+    return bool(commit) and git(r, "merge-base", "--is-ancestor", commit, "HEAD").returncode != 0
 
 
 def _segnala_ostacolo(r: Path, stato: dict, valore: str = "") -> None:

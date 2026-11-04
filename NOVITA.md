@@ -12,6 +12,18 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — Un aggiornamento rimandato non aspetta più le altre sessioni
+
+**Cosa cambia**: se alla chiusura di una sessione l'aggiornamento automatico si ferma perché un'altra
+sessione è ancora aperta, alla chiusura dopo si installa lo stesso, anche con altre sessioni aperte.
+Prima aspettava che chiudessi l'ultima, oppure un'apertura di Claude Code con una sessione sola.
+
+**Perché**: chi tiene sempre una sessione aperta restava indietro per giorni senza accorgersene. Le
+sessioni rimaste aperte usano da subito i controlli nuovi, come dopo `/aggiorna`. Se una di loro dà
+errori, chiudila e riaprila.
+
+---
+
 ## 2026-11-04 — Reinstallare Arturo riporta tutto quello che è tuo
 
 **Cosa cambia**: se reinstalli Arturo da capo col blocco del README o di `/setup`, tornano anche gli

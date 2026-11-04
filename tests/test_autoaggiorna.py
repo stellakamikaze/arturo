@@ -468,11 +468,30 @@ def test_aa20(repo: Path) -> None:
     con_lab(repo, "AA20", prova)
 
 
+def test_aa21(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        prima = lab.head()
+        lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        lab.arturo_cli("applica", ARTURO_ALTRE_SESSIONI="1")
+        assert lab.head() == prima, "AA21 la prova non parte: la prima chiusura installa con un'altra sessione aperta"
+        lab.arturo_cli("applica", ARTURO_ALTRE_SESSIONI="1", ARTURO_ATTESA_MAX="30")
+        assert (lab.utente / "hooks" / "nuova.py").exists(), \
+            f"AA21 la chiusura dopo un rinvio aspetta ancora le altre sessioni (#4074): {lab.stato()}"
+        commit = lab.rilascia("hooks/altra.py", "y = 1\n", "v2026-02-02")
+        lab.arturo_cli("applica", ARTURO_ALTRE_SESSIONI="1")
+        assert lab.head() != commit, "AA21 un rinvio già installato vale ancora per il rilascio dopo"
+        lab.rilascia("hooks/terza.py", "z = 1\n", "v2026-02-03")
+        lab.arturo_cli("applica", ARTURO_ALTRE_SESSIONI="1", ARTURO_ATTESA_MAX="30")
+        assert (lab.utente / "hooks" / "terza.py").exists(), \
+            f"AA21 un rinvio rimasto indietro non vale per il rilascio uscito dopo: {lab.stato()}"
+    con_lab(repo, "AA21", prova)
+
+
 TESTS = {"AA01": test_aa01, "AA02": test_aa02, "AA03": test_aa03, "AA04": test_aa04, "AA05": test_aa05,
          "AA06": test_aa06, "AA07": test_aa07, "AA08": test_aa08, "AA09": test_aa09, "AA10": test_aa10, "AA11": test_aa11,
          "AA12": test_aa12, "AA13": test_aa13, "AA14": test_aa14, "AA15": test_aa15, "AA16": test_aa16,
          "AA17": test_aa17, "AA18": test_aa18, "AA19": test_aa19,
-         "AA20": test_aa20}
+         "AA20": test_aa20, "AA21": test_aa21}
 
 
 def main() -> int:
