@@ -222,7 +222,7 @@ def lancia_refresh() -> None:
         return
     kw = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True)
     if os.name == "nt":
-        kw["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000  # DETACHED | NEW_GROUP | NO_WINDOW
+        kw["creationflags"] = 0x08000000 | 0x00000200  # NO_WINDOW | NEW_GROUP: con DETACHED, NO_WINDOW è ignorato e i figli aprono finestre
     else:
         kw["start_new_session"] = True
     subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--refresh"], **kw)

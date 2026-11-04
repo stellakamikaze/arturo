@@ -163,6 +163,7 @@ BANCHI=(
   test_mod_passo2_2026_11_03.py
   test_claude_md_conferma_2026_11_03.py
   test_scansione_fallita_2026_11_03.py
+  test_finestre_windows_2026_11_04.py
   test_humanizer_origine.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
@@ -371,6 +372,8 @@ BASELINE=(
   # /monitor in Arturo, primo avvio (3/11/2026, #4538): fonti scelte, schema delle righe, fingerprint e
   # cursori generici. 9248ea9, il dev prima.
   "test_monitor_giro_2026_11_03.py 9248ea9"
+  # Lanci staccati senza finestre su Windows (4/11/2026): efaa296, il dev prima.
+  "test_finestre_windows_2026_11_04.py efaa296"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far

@@ -755,7 +755,7 @@ def avvio() -> int:
 def _invio_in_background(solo_segnalazioni: bool = False) -> None:
     opzioni = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
     if os.name == "nt":
-        opzioni["creationflags"] = 0x00000008 | 0x00000200  # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+        opzioni["creationflags"] = 0x08000000 | 0x00000200  # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP: con DETACHED_PROCESS ogni git figlio apriva una finestra
     else:
         opzioni["start_new_session"] = True
     comando = ["segnalazioni"] if solo_segnalazioni else ["invia", "--zitto"]
