@@ -74,6 +74,8 @@
   --colonna:1280px;
   --gutter:clamp(16px, 4vw, 48px);
   --ritmo:clamp(80px, 10vw, 152px);
+  --fra-lati:clamp(32px, 5vw, 64px);
+  --fra-voci:clamp(20px, 2.5vw, 32px);
 }
 
 /* Regole comuni a tutte le pagine (1/11/2026).
@@ -81,6 +83,6 @@
 html,body{overflow-x:clip}
 /* Il link "Salta al contenuto" sta fuori schermo in alto e scende al fuoco.
    html .salta vince sulle vecchie regole .salta{left:-9999px} rimaste nel <style> di una pagina. */
-html .salta{position:absolute;left:12px;top:8px;z-index:20;padding:10px 14px;background:var(--inchiostro);color:var(--bianco);transform:translateY(-150%);transition:transform .15s}
+html .salta{position:absolute;left:12px;top:8px;z-index:20;padding:12px 16px;background:var(--inchiostro);color:var(--bianco);transform:translateY(-150%);transition:transform .15s}
 html .salta:focus{left:12px;transform:none}
 @media (prefers-reduced-motion:reduce){html .salta{transition:none}}
