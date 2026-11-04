@@ -394,10 +394,17 @@ def test_g209(repo: Path) -> None:
         _git(claude, "init", "-q")
         _git(claude, "add", "-A")
         _git(claude, "commit", "-q", "-m", "base")
-        segno = radice / "banchi-partiti"
-        (claude / "tests" / "banchi-avvio.sh").write_text(
-            f"#!/bin/bash\nsleep 12\nprintf 'VERDE\\nok\\n' > \"$HOME/.claude/cache/banchi-ultimo-esito.txt\"\n"
-            f"echo x >> '{segno}'\n", encoding="utf-8")
+        segno, finiti = radice / "banchi-partiti", radice / "banchi-finiti"
+
+        def banchi_finti(secondi: int) -> None:
+            # Il segno si scrive alla partenza: un controllo "non partono" lo guarda subito, senza
+            # aspettare la durata dei banchi. La durata serve solo al primo giro (l'avvio non aspetta).
+            (claude / "tests" / "banchi-avvio.sh").write_text(
+                f"#!/bin/bash\necho x >> '{segno}'\nsleep {secondi}\n"
+                f"printf 'VERDE\\nok\\n' > \"$HOME/.claude/cache/banchi-ultimo-esito.txt\"\n"
+                f"echo x >> '{finiti}'\n", encoding="utf-8")
+
+        banchi_finti(12)
         progetto = radice / "progetto"
         progetto.mkdir()
 
@@ -405,9 +412,42 @@ def test_g209(repo: Path) -> None:
             inizio = time.time()
             p = subprocess.run([BASH, str(claude / "hooks" / "session-start.sh")], input="{}", text=True,
                                capture_output=True, cwd=str(progetto), env=env_di(home, **extra), timeout=60)
+            ultimo.update(secondi=time.time() - inizio, rc=p.returncode, err=p.stderr)
             return p, time.time() - inizio
 
-        def aspetta(cond, secondi: float = 40) -> bool:
+        ultimo: dict = {}
+
+        def stato() -> str:
+            # Il rosso sotto carico (#4057) non si riproduce da solo: il messaggio fotografa lock, PID,
+            # esito, processi dei banchi e l'uscita dell'ultimo avvio.
+            lock_ = claude / "cache" / "banchi.lock"
+            esito_ = claude / "cache" / "banchi-ultimo-esito.txt"
+            pid = (lock_ / "pid").read_text().strip() if (lock_ / "pid").exists() else ""
+            vivo_ = subprocess.run([BASH, "-c", f"kill -0 {pid} 2>&1 && echo vivo || echo morto"], capture_output=True,
+                                   text=True).stdout.strip() if pid else "-"
+            ps = subprocess.run(["ps", "-axo", "pid,ppid,etime,command"], capture_output=True, text=True).stdout
+            righe = [r for r in ps.splitlines() if str(home) in r or (pid and r.split()[:1] == [pid])]
+            eta = f"{time.time() - esito_.stat().st_mtime:.0f}s" if esito_.exists() else "assente"
+            primo = esito_.read_text().splitlines()[:1] if esito_.exists() else []
+            return (f"lock={lock_.exists()} pid={pid!r} {vivo_} esito={primo} eta={eta} "
+                    f"segni={partiti()} finiti={finiti.exists()} "
+                    f"avvio={ultimo.get('secondi', 0):.1f}s rc={ultimo.get('rc')} "
+                    f"err={ultimo.get('err', '')[-300:]!r} processi={righe[:8]}")
+
+        def partiti() -> int:
+            return segno.read_text().count("x") if segno.exists() else 0
+
+        def fermi(prima: int, tenuto_da: str = "") -> bool:
+            # Dall'mkdir del lock in session-start alla rimozione nella trap, almeno uno fra lock
+            # (con un PID nuovo) e segno nuovo esiste: i due insieme dicono "non partiti" senza corsa.
+            lock_ = claude / "cache" / "banchi.lock"
+            pid = (lock_ / "pid").read_text().strip() if (lock_ / "pid").exists() else ""
+            lock_nuovo = lock_.exists() and pid != tenuto_da
+            return partiti() == prima and not lock_nuovo
+
+        # 120 s: l'attesa finisce appena la condizione vale, il tetto conta solo per un rosso. Con 40 s
+        # il gate completo a load 22 andava rosso una volta su qualche giro (#4057).
+        def aspetta(cond, secondi: float = 120) -> bool:
             fine = time.time() + secondi
             while time.time() < fine:
                 if cond():
@@ -418,7 +458,7 @@ def test_g209(repo: Path) -> None:
         p, senza_banchi = avvio(ARTURO_BANCHI_AVVIO="0")
         assert "MACCHINA:" in p.stdout, f"G209 manca la riga MACCHINA: {p.stdout[:300]!r}"
         time.sleep(1)
-        assert not segno.exists(), "G209 ARTURO_BANCHI_AVVIO=0 non spegne i banchi in background"
+        assert fermi(0), f"G209 ARTURO_BANCHI_AVVIO=0 non spegne i banchi in background: {stato()}"
         (claude / "hooks" / "statusline.js").write_text("// cambiato a mano\n", encoding="utf-8")
         p, durata = avvio()
         assert "file di ~/.claude modificati e non salvati" in p.stdout, \
@@ -426,13 +466,15 @@ def test_g209(repo: Path) -> None:
         # I banchi finti durano 12 s: se all'uscita dell'avvio il segno c'è già, l'avvio li ha
         # aspettati. Una soglia sulla durata misurava la macchina: col Mac carico l'avvio senza
         # banchi va da 1 a 6 s, e il margine di 2 s andava rosso (19/10/2026, 1 giro su 10).
-        assert not segno.exists(), \
+        assert not finiti.exists(), \
             f"G209 l'avvio aspetta i banchi: {durata:.1f} s (senza banchi {senza_banchi:.1f} s)"
-        assert aspetta(segno.exists), "G209 i banchi non partono in background"
-        assert aspetta(lambda: not (claude / "cache" / "banchi.lock").exists()), "G209 il lock resta dopo i banchi"
+        assert aspetta(segno.exists), f"G209 i banchi non partono in background: {stato()}"
+        assert aspetta(lambda: not (claude / "cache" / "banchi.lock").exists()), f"G209 il lock resta dopo i banchi: {stato()}"
+        assert finiti.exists(), f"G209 il lock sparisce prima della fine dei banchi: {stato()}"
+        banchi_finti(0)
         avvio()
         time.sleep(1)
-        assert segno.read_text().count("x") == 1, "G209 i banchi ripartono con un esito fresco"
+        assert fermi(1), f"G209 i banchi ripartono con un esito fresco: {stato()}"
         esito = claude / "cache" / "banchi-ultimo-esito.txt"
         os.utime(esito, (time.time() - 13 * 3600, time.time() - 13 * 3600))
         lock = claude / "cache" / "banchi.lock"
@@ -441,10 +483,11 @@ def test_g209(repo: Path) -> None:
         # col PID di Python risultava orfano (16/10/2026). Il PID lo dà un processo bash.
         vivo = subprocess.Popen([BASH, "-c", "echo $$; sleep 20"], stdout=subprocess.PIPE, text=True)
         try:
-            (lock / "pid").write_text(vivo.stdout.readline().strip(), encoding="utf-8")  # tenuto da un processo vivo
+            tenuto = vivo.stdout.readline().strip()
+            (lock / "pid").write_text(tenuto, encoding="utf-8")  # tenuto da un processo vivo
             avvio()
-            time.sleep(1.5)
-            assert segno.read_text().count("x") == 1, "G209 i banchi partono anche col lock tenuto da un processo vivo"
+            time.sleep(1)
+            assert fermi(1, tenuto), f"G209 i banchi partono anche col lock tenuto da un processo vivo: {stato()}"
         finally:
             vivo.kill()
             vivo.wait()
@@ -452,8 +495,8 @@ def test_g209(repo: Path) -> None:
                                 check=True).stdout.strip()
         (lock / "pid").write_text(finito, encoding="utf-8")  # il PID di un processo gia' uscito
         avvio()
-        assert aspetta(lambda: segno.read_text().count("x") == 2), "G209 un lock orfano ferma i banchi per sempre"
-        aspetta(lambda: not lock.exists())
+        assert aspetta(lambda: partiti() == 2), f"G209 un lock orfano ferma i banchi per sempre: {stato()}"
+        assert aspetta(lambda: not lock.exists()), f"G209 il lock resta dopo il lock orfano: {stato()}"
         # Dal 3/11/2026 un esito rosso non si dice alla persona: l'avvio tace e, passati 30 minuti, rilancia
         # subito i banchi invece di aspettare 12 ore.
         esito.write_text("ROSSO\n1 banchi delle guardie rossi su 5\ntest_x.py: AssertionError\n", encoding="utf-8")
@@ -463,11 +506,11 @@ def test_g209(repo: Path) -> None:
             f"G209 un esito rosso si dice ancora all'avvio: {p.stdout[:400]!r}"
         avvio()
         time.sleep(1)
-        assert segno.read_text().count("x") == 2, "G209 un rosso fresco fa ripartire i banchi a ogni avvio"
+        assert fermi(2), f"G209 un rosso fresco fa ripartire i banchi a ogni avvio: {stato()}"
         esito.write_text("ROSSO\n1 banchi delle guardie rossi su 5\ntest_x.py: AssertionError\n", encoding="utf-8")
         os.utime(esito, (time.time() - 31 * 60, time.time() - 31 * 60))
         avvio()
-        assert aspetta(lambda: segno.read_text().count("x") == 3), "G209 un rosso di 31 minuti non rilancia i banchi"
+        assert aspetta(lambda: partiti() == 3), f"G209 un rosso di 31 minuti non rilancia i banchi: {stato()}"
         aspetta(lambda: not lock.exists())
         _git(progetto, "init", "-q")
         fine = subprocess.run([BASH, str(claude / "hooks" / "session-end.sh")], input="{}", text=True,
