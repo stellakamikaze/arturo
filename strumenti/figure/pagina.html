@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prova delle figure · Arturo</title>
+<meta name="description" content="Tre figure per la home di Arturo: come è fatto, il percorso nelle guardie, il ritmo di lavoro.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#d7ebff">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0d10'/%3E%3Cpath d='M5 25 13 11l6 8 8-11' fill='none' stroke='%23d7ebff' stroke-width='1.6'/%3E%3Ccircle cx='13' cy='11' r='3.2' fill='%23f2a24a'/%3E%3C/svg%3E">
+<link rel="preload" href="../../font/archivo.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../../font/atkinson-next.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../../stile/colori.css">
+<link rel="stylesheet" href="../../stile/figure.css">
+<style>
+@font-face{font-family:"Archivo";src:url(../../font/archivo.woff2) format("woff2");font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+@font-face{font-family:"Atkinson Next";src:url(../../font/atkinson-next.woff2) format("woff2");font-weight:200 800;font-style:normal;font-display:swap}
+@font-face{font-family:"Atkinson Mono";src:url(../../font/atkinson-mono.woff2) format("woff2");font-weight:200 800;font-display:swap}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--carta);color:var(--grafite);font:400 clamp(16.5px, .98rem + .15vw, 18px)/1.55 var(--testo);letter-spacing:-.005em;-webkit-font-smoothing:antialiased}
+:focus-visible{outline:2px solid var(--azione);outline-offset:3px}
+p{margin:0 0 1em;text-wrap:pretty}
+code{font-family:var(--mono);font-size:.9em;padding:.05em .3em;background:var(--carta-2);color:var(--inchiostro)}
+h1,h2{margin:0;color:var(--inchiostro);font-family:var(--titolo);font-weight:300;text-wrap:balance}
+.dentro{max-width:var(--colonna);margin:0 auto;padding:0 var(--gutter)}
+.testata{background:var(--cielo);padding:clamp(40px,6vw,88px) 0 clamp(32px,5vw,64px)}
+.testata h1{font-weight:250;font-size:clamp(2.6rem, 1.2rem + 5vw, 5.6rem);line-height:.95;letter-spacing:-.025em;font-stretch:114%}
+.testata p{margin:20px 0 0;max-width:60ch;font-size:1.1rem}
+.prova{padding:clamp(48px,7vw,104px) 0 0}
+.prova:nth-of-type(odd){background:var(--carta-2);padding-bottom:clamp(48px,7vw,104px)}
+.prova:last-of-type{padding-bottom:clamp(48px,7vw,104px)}
+.prova h2{font-size:clamp(2.1rem, 1.3rem + 2.6vw, 3.6rem);line-height:1.02;letter-spacing:-.02em;font-stretch:112%;margin-bottom:12px}
+.prova h2 span{display:block;color:var(--cenere)}
+.prova__dove{margin:0 0 28px;color:var(--cenere);font-size:.95rem}
+.prova__stretta{max-width:760px}
+</style>
+</head>
+<body>
+<header class="testata">
+  <div class="dentro">
+    <h1>Tre figure per la home</h1>
+    <p>Pagina di prova, fuori dal menu. Ogni figura sta come starebbe nella sua sezione: guardale a tutta larghezza e sul telefono.</p>
+  </div>
+</header>
+<main>
+<section class="prova" aria-labelledby="p1">
+  <div class="dentro">
+    <h2 id="p1">Come è fatto.<span>Sei cassetti, uno per strato.</span></h2>
+    <p class="prova__dove">Sezione <code>#harness</code>, sotto il testo e gli anelli.</p>
+<!-- figura-1 inizio -->
+<!-- figura-1 fine -->
+  </div>
+</section>
+<section class="prova" aria-labelledby="p2">
+  <div class="dentro prova__stretta">
+    <h2 id="p2">Le guardie.<span>Cosa succede a un comando.</span></h2>
+    <p class="prova__dove">Sezione <code>#funzioni</code>, sotto le quattro voci, accanto a "Le guardie".</p>
+<!-- figura-2 inizio -->
+<!-- figura-2 fine -->
+  </div>
+</section>
+<section class="prova" aria-labelledby="p3">
+  <div class="dentro prova__stretta">
+    <h2 id="p3">La sera chiudi, la mattina riparti.<span>Il giro di ogni giorno.</span></h2>
+    <p class="prova__dove">Sezione <code>#ritmo</code>, tra la frase e le tre finestre.</p>
+<!-- figura-3 inizio -->
+<!-- figura-3 fine -->
+  </div>
+</section>
+</main>
+<script defer src="../../js/figura-cassettiera.js"></script>
+</body>
+</html>
