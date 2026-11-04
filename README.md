@@ -169,8 +169,8 @@ Lo script sta nel ramo `landing-v2` (`sito/installa.sh`). Se Arturo è già inst
 B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
 [ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$B"
 git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
-# Tornano al loro posto login, sessioni, cronologia e plugin di Claude Code. Da un Arturo installato
-# prima tornano anche istruzioni, memoria, todo e scelte, compresa la telemetria spenta: sono tuoi.
+# Tornano login, sessioni, cronologia e plugin di Claude Code. Da un Arturo installato prima
+# tornano i tuoi file: istruzioni, memoria, todo, handoff, scelte, file .local, skill e comandi tuoi.
 for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos \
   CLAUDE.md settings.local.json personale hooks/hosts-interni.local hooks/bash-dispatcher.local \
   hooks/protect_claude_md.local hooks/api-fidate.local hooks/handoff-gate.local hooks/index-contenitori.local hooks/inventario.local bin/fonte-task.local data/memory data/memoria data/todo \
@@ -178,6 +178,7 @@ for x in .credentials.json projects history.jsonl plugins file-history jobs daem
   session-env/segnala.json session-env/novita-viste; do
   [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mkdir -p "$(dirname "$HOME/.claude/$x")" && mv "$B/$x" "$HOME/.claude/$x"
 done
+[ -d "$B" ] && bash "$HOME/.claude/bin/riporta-tuoi.sh" "$B"
 ```
 
 Poi apri un terminale nuovo, scrivi `claude` e poi `/setup`. Se un'altra app aveva aggiunto i suoi hook a Claude Code (ClaudeBar, per esempio), `/setup` li ritrova nella copia messa da parte e, col tuo sì, li riporta.

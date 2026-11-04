@@ -12,6 +12,19 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — Reinstallare Arturo riporta tutto quello che è tuo
+
+**Cosa cambia**: se reinstalli Arturo da capo col blocco del README o di `/setup`, tornano anche gli
+handoff dei tuoi progetti, ogni tuo file `.local` (per esempio l'account Google scelto o le parole da
+non cercare nella memoria) e le skill, i comandi e gli agenti che hai fatto tu, anche con `/creaskill`.
+Un comando che Arturo ha tolto in un rilascio resta invece nella copia messa da parte.
+
+**Perché**: la promessa era "non perdi niente di tuo", ma la lista dei file da riportare ne nominava
+solo una parte. Ora un file è tuo se Arturo non l'ha mai avuto: non serve aggiornare una lista a ogni
+file nuovo.
+
+---
+
 ## 2026-11-04 — /inizio avvisa quando apri la terza sessione
 
 **Cosa cambia**: se apri `/inizio` mentre altre due sessioni di Claude stanno già lavorando, su

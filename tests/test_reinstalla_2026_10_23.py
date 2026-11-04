@@ -8,7 +8,9 @@ reinstallazione riaccendeva senza dirlo.
 
 RI01 il blocco d'installazione del README, eseguito in una HOME usa e getta con un Arturo già usato,
      riporta CLAUDE.md, personale/, memoria, todo, segnalazioni, il segno di /setup, la scelta sugli
-     aggiornamenti, lo stato della telemetria e degli inviti, e git non li vede. Il settings.json
+     aggiornamenti, lo stato della telemetria e degli inviti, e git non li vede. Dal 4/11 (#3842) riporta
+     anche gli handoff, ogni file .local e le skill, i comandi e gli agenti che Arturo non ha mai avuto;
+     un comando e una skill che Arturo ha tolto restano nella copia. Il settings.json
      vecchio resta nel backup: quello è di Arturo.
 
 Sulla base f4ae0aa il controllo deve fallire con un AssertionError che comincia con il suo codice.
@@ -40,7 +42,23 @@ DELLA_PERSONA = {
     "session-env/telemetria.json": "{\"id\": \"aaaabbbb-cccc\", \"spenta\": true}\n",
     "session-env/segnala.json": "{\"pausa\": \"sempre\"}\n",
     "session-env/novita-viste": "2026-10-22\n",
+    # #3842 (2/11/2026): tutti i file personali, anche quelli che la lista fissa non nomina
+    "hooks/gws-account.local": "uf\n",
+    "hooks/emoji-ovunque.local": "1\n",
+    "hooks/melchior-stopword.local": "anche\n",
+    "hooks/futuro-mio.local": "un .local che nessuna lista conosce\n",
+    "skills/system-audit/review-termini.local": "termine\n",
+    "data/handoffs/libro/HANDOFF_2026-11-01_10-00.md": "# Session Handoff\n",
+    "skills/mia-ricetta/SKILL.md": "---\nname: mia-ricetta\n---\nfatta con /creaskill\n",
+    "commands/mio-comando.md": "il mio comando\n",
+    "agents/mio-agente.md": "il mio agente\n",
 }
+
+# Un comando e una skill che Arturo ha avuto e poi tolto: la reinstallazione non li riporta.
+TOLTI = {"commands/discovery.md": "vecchio comando di Arturo\n", "skills/apri/SKILL.md": "vecchia skill di Arturo\n"}
+# I file della persona che git può vedere come nuovi: /fine li salva nel clone.
+NUOVI_PER_GIT = ("data/handoffs/", "skills/mia-ricetta/", "commands/mio-comando.md", "agents/mio-agente.md",
+                 "hooks/futuro-mio.local")
 
 
 def env_di(home: Path) -> dict:
@@ -69,7 +87,7 @@ def test_ri01(repo: Path) -> None:
         radice = Path(d)
         home = radice / "home"
         vecchia = home / ".claude"
-        for nome, testo in DELLA_PERSONA.items():
+        for nome, testo in {**DELLA_PERSONA, **TOLTI}.items():
             (vecchia / nome).parent.mkdir(parents=True, exist_ok=True)
             (vecchia / nome).write_text(testo, encoding="utf-8")
         (vecchia / "settings.json").write_text("{\"vecchio\": true}\n", encoding="utf-8")
@@ -81,11 +99,16 @@ def test_ri01(repo: Path) -> None:
         mancano = [n for n, t in DELLA_PERSONA.items()
                    if not (nuova / n).is_file() or (nuova / n).read_text(encoding="utf-8") != t]
         assert not mancano, f"RI01 la reinstallazione non riporta: {', '.join(mancano)}"
+        # In una copia senza storia (controprova) Arturo non ha mai avuto niente: il controllo vale sul repo.
+        tornati = [n for n in TOLTI if (nuova / n).exists()] if (repo / ".git").exists() else []
+        assert not tornati, f"RI01 la reinstallazione riporta file che Arturo ha tolto: {', '.join(tornati)}"
         assert "vecchio" not in (nuova / "settings.json").read_text(encoding="utf-8"), \
             "RI01 il settings.json vecchio ha preso il posto di quello di Arturo"
-        sporchi = subprocess.run(["git", "-C", str(nuova), "status", "--porcelain"], capture_output=True, text=True,
+        sporchi = subprocess.run(["git", "-C", str(nuova), "status", "--porcelain", "--untracked-files=all"], capture_output=True, text=True,
                                  env=env_di(home), check=False).stdout.strip()
-        assert not sporchi, f"RI01 git vede i file della persona: {sporchi[:300]}"
+        visti = [r for r in sporchi.splitlines()
+                 if not (r.startswith("?? ") and r[3:].strip('"').startswith(NUOVI_PER_GIT + tuple(TOLTI)))]
+        assert not visti, f"RI01 git vede i file della persona: {visti[:5]}"
 
 
 TESTS = {"RI01": test_ri01}
