@@ -16,6 +16,8 @@ Il primo caso d'uso è il lavoro sui testi e sulle informazioni che hai già nel
 
 ## Perché il terminale, anche se non scrivi codice
 
+Versione intera con le fonti: https://arturo.stellakamikaze.org/claude-code-senza-terminale/#perche
+
 - Anthropic, "Agentic coding and persistent returns to expertise" (16/6/2026): fra ottobre 2025 e aprile 2026 la scrittura e l'analisi dei dati sono passate da circa il 10 al 20% delle sessioni di Claude Code; chi non lavora nel software arriva a un risultato verificato nel 26% delle sessioni, contro il 30% di chi ci lavora. https://www.anthropic.com/research/claude-code-expertise
 - Ethan Mollick, "Claude Code and What Comes Next" (7/1/2026): Claude Code è potente perché lavora sul tuo computer e sui tuoi file, e serve a chi fa lavoro della conoscenza di ogni tipo. https://www.oneusefulthing.org/p/claude-code-and-what-comes-next
 - Simon Willison, "Claude Skills are awesome, maybe a bigger deal than MCP" (16/10/2025): Claude Code serve ad automatizzare il computer in generale, non solo a scrivere codice. https://simonwillison.net/2025/Oct/16/claude-skills/

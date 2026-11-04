@@ -337,6 +337,7 @@ a.menu__voce:hover{color:var(--inchiostro);text-decoration:underline;text-decora
     <div class="indice__corpo">
       <h2 id="t-indice">In questa pagina</h2>
       <ol>
+        <li><a href="#perche"><span>Perché il terminale, anche se non scrivi codice</span></a></li>
         <li><a href="#terminale"><span>Cos'è il terminale</span></a></li>
         <li><a href="#quanto"><span>Quanto terminale serve davvero</span></a></li>
         <li><a href="#cosa-fa"><span>Cosa fa Claude al posto tuo</span></a></li>
@@ -351,6 +352,17 @@ a.menu__voce:hover{color:var(--inchiostro);text-decoration:underline;text-decora
 <section class="sezione">
   <div class="dentro">
     <div class="voci">
+      <article class="voce" id="perche" aria-labelledby="t-perche">
+        <h2 id="t-perche">Perché il terminale, anche se non scrivi codice</h2>
+        <div class="voce__corpo">
+
+          <p>Faccio l'autore, non il programmatore, e sono passato dalla chat al terminale per due motivi. In chat il materiale lo raccoglievo io: aprivo i file, copiavo i pezzi che servivano, li incollavo nella conversazione e alla fine riportavo la risposta in un documento. In Claude Code l'IA lavora dentro le mie cartelle, quindi va a prendere da sola appunti, trascrizioni e fogli di calcolo, li mette a confronto e scrive il risultato in un file. L'altro motivo è la durata: quando chiudo la sessione, Arturo lascia un riepilogo con le cose da fare, e la mattina dopo il lavoro riparte da lì invece che da una conversazione nuova.</p>
+          <p>Anthropic ha visto lo stesso uso crescere nelle sessioni di Claude Code. Fra ottobre 2025 e aprile 2026 la scrittura e l'analisi dei dati sono passate da circa il 10 al 20% delle sessioni, e chi non lavora nel software arriva a un risultato verificato nel 26% delle sessioni, contro il 30% di chi ci lavora. La distanza è di quattro punti, e secondo la ricerca conta più conoscere il proprio mestiere che saper programmare. La <a href="https://www.anthropic.com/research/claude-code-expertise">ricerca</a> conclude che quello che succede su Claude Code può essere un'anteprima di dove va il lavoro della conoscenza. Due persone che non lavorano per Anthropic arrivano a una conclusione vicina. Simon Willison, programmatore indipendente che da anni scrive di questi strumenti, ha scritto che Claude Code <a href="https://simonwillison.net/2025/Oct/16/claude-skills/">ha un nome sbagliato</a>, perché serve ad automatizzare il computer in generale e non solo a scrivere codice. Ethan Mollick, che alla Wharton studia l'IA nel lavoro, indica <a href="https://www.oneusefulthing.org/p/claude-code-and-what-comes-next">la stessa ragione</a> che ho trovato io: Claude Code è potente perché lavora sul tuo computer e sui tuoi file, e serve a chi fa lavoro della conoscenza di ogni tipo, anche se oggi è costruito per i programmatori. Per questo ho costruito Arturo, che prepara Claude Code per chi non programma.</p>
+          <p>Le prove indipendenti però mostrano anche dove l'IA sbaglia. In un <a href="https://www.oneusefulthing.org/p/centaurs-and-cyborgs-on-the-jagged">esperimento</a> del 2023 di Harvard e Boston Consulting Group su 758 consulenti, chi usava GPT-4 su compiti alla portata dell'IA ne finiva il 12,2% in più, il 25,1% più in fretta e con una qualità più alta del 40%; su un compito costruito per sfuggirle, invece, chi usava l'IA dava la risposta giusta fra il 60 e il 70% delle volte, contro l'84% di chi lavorava senza. Uno <a href="https://www.microsoft.com/en-us/research/publication/the-impact-of-generative-ai-on-critical-thinking-self-reported-reductions-in-cognitive-effort-and-confidence-effects-from-a-survey-of-knowledge-workers/">studio</a> di Microsoft Research su 319 persone che fanno lavoro della conoscenza ha trovato che chi si fida di più dell'IA dichiara di esercitare meno il pensiero critico. E Willison avverte che un agente che legge i tuoi dati, incontra testi scritti da altri e può comunicare all'esterno <a href="https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/">può essere usato per rubarli</a>, perché quei testi possono contenere istruzioni che l'agente esegue come se venissero da te.</p>
+          <p>A questi rischi Arturo risponde in due modi diversi. Contro il furto dei dati ha regole che chiedono un sì prima di ogni gesto che non si annulla, come cancellare una cartella o mandare un messaggio; la stessa conferma per le pagine web che portano fuori un dato è ancora in lavorazione. Contro una risposta sbagliata accettata per fiducia non basta una regola: il risultato lo controlla chi lavora, ed è per questo che conta conoscere il proprio mestiere, come dice anche la ricerca di Anthropic.</p>
+        </div>
+      </article>
+
       <article class="voce" id="terminale" aria-labelledby="t-terminale">
         <h2 id="t-terminale">Cos'è il terminale</h2>
         <div class="voce__corpo">

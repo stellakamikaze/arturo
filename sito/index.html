@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Arturo · Claude Code in italiano per il lavoro della conoscenza</title>
-<meta name="description" content="Arturo è un harness per il lavoro della conoscenza, pensato per chi usa già l'intelligenza artificiale in chat e non ha mai aperto un terminale. Gratuito, open source, in italiano.">
+<meta name="description" content="Arturo è un harness gratuito e open source che porta Claude Code in italiano a chi usa già l'IA in chat e non ha mai aperto un terminale.">
 <link rel="canonical" href="https://arturo.stellakamikaze.org/">
 <link rel="alternate" hreflang="it" href="https://arturo.stellakamikaze.org/">
 <link rel="alternate" hreflang="en" href="https://arturo.stellakamikaze.org/en/">
@@ -13,7 +13,7 @@
 <meta property="og:site_name" content="Arturo">
 <meta property="og:locale" content="it_IT">
 <meta property="og:title" content="Arturo · Claude Code in italiano per il lavoro della conoscenza">
-<meta property="og:description" content="Arturo è un harness per il lavoro della conoscenza, pensato per chi usa già l'intelligenza artificiale in chat e non ha mai aperto un terminale. Gratuito, open source, in italiano.">
+<meta property="og:description" content="Arturo è un harness gratuito e open source che porta Claude Code in italiano a chi usa già l'IA in chat e non ha mai aperto un terminale.">
 <meta property="og:url" content="https://arturo.stellakamikaze.org/">
 <meta property="og:image" content="https://arturo.stellakamikaze.org/img/anteprima-github.png">
 <meta property="og:image:width" content="1280">
@@ -21,7 +21,7 @@
 <meta property="og:image:alt" content="Arturo, un harness per il lavoro della conoscenza: la stella sopra il reticolo blu della volta celeste">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Arturo · Claude Code in italiano per il lavoro della conoscenza">
-<meta name="twitter:description" content="Arturo è un harness per il lavoro della conoscenza, pensato per chi usa già l'intelligenza artificiale in chat e non ha mai aperto un terminale. Gratuito, open source, in italiano.">
+<meta name="twitter:description" content="Arturo è un harness gratuito e open source che porta Claude Code in italiano a chi usa già l'IA in chat e non ha mai aperto un terminale.">
 <meta name="twitter:image" content="https://arturo.stellakamikaze.org/img/anteprima-github.png">
 <script type="application/ld+json">
 {
@@ -78,6 +78,14 @@
    "mainEntity": [
     {
      "@type": "Question",
+     "name": "Che cos'è Arturo?",
+     "acceptedAnswer": {
+      "@type": "Answer",
+      "text": "Arturo è un harness gratuito e open source per Claude Code, in italiano: gli dà regole, comandi e memoria per chi fa lavoro della conoscenza e non programma."
+     }
+    },
+    {
+     "@type": "Question",
      "name": "Serve saper programmare?",
      "acceptedAnswer": {
       "@type": "Answer",
@@ -97,7 +105,7 @@
      "name": "Come lo tolgo?",
      "acceptedAnswer": {
       "@type": "Answer",
-      "text": "Arturo vive nella cartella ~/.claude, accanto a login, conversazioni e plugin di Claude Code. Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il tuo vecchio settings.json finisce in una copia di sicurezza con la data nel nome: /setup ti propone di riportare hook, plugin e preferenze. Anche gli altri file che Arturo sostituisce vanno in quella copia. Per toglierlo, chiedi a Claude di cancellare i file di Arturo e di rimettere quelli della copia."
+      "text": "Chiedi a Claude di togliere i file di Arturo e di rimettere la copia delle tue impostazioni salvata all'installazione, con la data nel nome. Account, conversazioni e plugin di Claude Code restano dove sono."
      }
     },
     {
@@ -105,7 +113,7 @@
      "name": "Cosa legge Claude sul mio computer?",
      "acceptedAnswer": {
       "@type": "Answer",
-      "text": "Per installare, solo lo script di Arturo. Poi /setup ti chiede un sì per leggere le tue conversazioni passate con Claude Code, e un secondo sì per guardare i nomi dei file e l'inizio di pochi documenti nelle tue cartelle. Non legge mai cartelle nascoste, .ssh, chiavi, password manager, file .env e credenziali. Quello che legge passa dalla conversazione con Anthropic, come ogni richiesta che scrivi a Claude: non va a chi mantiene Arturo e non entra nella telemetria."
+      "text": "All'installazione legge solo lo script di Arturo. Poi /setup chiede un sì per le tue conversazioni passate e un altro per i nomi dei file e l'inizio di pochi documenti. Non legge mai cartelle nascoste, password, chiavi e altre credenziali. Quello che legge passa da Anthropic, come ogni richiesta, ma non arriva a me né entra nei dati d'uso."
      }
     },
     {
@@ -673,7 +681,7 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
     <div class="promessa">
       <div>
         <h2>Un harness per il lavoro della conoscenza. <span>Per chi usa già l'IA in chat e non ha mai aperto un terminale.</span></h2>
-        <p class="promessa__testo">Un harness è l'insieme di regole e strumenti che sta intorno a un'intelligenza artificiale e le dice come lavorare: cosa può fare da sola e cosa deve chiederti. Arturo prende Claude Code, il programma di Anthropic con cui l'IA lavora sui file del tuo Mac o PC, e lo prepara in italiano: gli dà comandi come <code>/inizio</code> e <code>/fine</code>, che aprono e chiudono il lavoro della giornata, e regole che chiedono il tuo sì prima di cancellare una cartella o mandare un messaggio. È gratuito e open source.</p>
+        <p class="promessa__testo">Un harness è l'insieme di regole e strumenti intorno a un'intelligenza artificiale: dice cosa può fare da sola e cosa deve chiederti. Arturo è un harness per Claude Code, il programma di Anthropic che lavora sui file del tuo Mac o PC. Lo mette in italiano, con <code>/inizio</code> e <code>/fine</code> riprende il lavoro da dove l'hai lasciato, e prima di cancellare o mandare qualcosa ti chiede un sì. È gratuito e open source.</p>
         <a class="azione azione--grande stretta" href="installa/">Guida passo per passo</a>
       </div>
       <div class="promessa__via">
@@ -783,11 +791,9 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
     <div class="dentro">
       <div class="testa testa--riga">
         <h2 id="t-chat">Dalla chat al terminale.</h2>
-        <p>Faccio l'autore, non il programmatore, e sono passato dalla chat al terminale per due motivi. In chat il materiale lo raccoglievo io: aprivo i file, copiavo i pezzi che servivano, li incollavo nella conversazione e alla fine riportavo la risposta in un documento. In Claude Code l'IA lavora dentro le mie cartelle, quindi va a prendere da sola appunti, trascrizioni e fogli di calcolo, li mette a confronto e scrive il risultato in un file. L'altro motivo è la durata: quando chiudo la sessione, Arturo lascia un riepilogo con le cose da fare, e la mattina dopo il lavoro riparte da lì invece che da una conversazione nuova.</p>
-        <p>Anthropic ha visto lo stesso uso crescere nelle sessioni di Claude Code. Fra ottobre 2025 e aprile 2026 la scrittura e l'analisi dei dati sono passate da circa il 10 al 20% delle sessioni, e chi non lavora nel software arriva a un risultato verificato nel 26% delle sessioni, contro il 30% di chi ci lavora. La distanza è di quattro punti, e secondo la ricerca conta più conoscere il proprio mestiere che saper programmare. La <a href="https://www.anthropic.com/research/claude-code-expertise">ricerca</a> conclude che quello che succede su Claude Code può essere un'anteprima di dove va il lavoro della conoscenza. Due persone che non lavorano per Anthropic arrivano a una conclusione vicina. Simon Willison, programmatore indipendente che da anni scrive di questi strumenti, ha scritto che Claude Code <a href="https://simonwillison.net/2025/Oct/16/claude-skills/">ha un nome sbagliato</a>, perché serve ad automatizzare il computer in generale e non solo a scrivere codice. Ethan Mollick, che alla Wharton studia l'IA nel lavoro, indica <a href="https://www.oneusefulthing.org/p/claude-code-and-what-comes-next">la stessa ragione</a> che ho trovato io: Claude Code è potente perché lavora sul tuo computer e sui tuoi file, e serve a chi fa lavoro della conoscenza di ogni tipo, anche se oggi è costruito per i programmatori. Per questo ho costruito Arturo, che prepara Claude Code per chi non programma.</p>
-        <p>Le prove indipendenti però mostrano anche dove l'IA sbaglia. In un <a href="https://www.oneusefulthing.org/p/centaurs-and-cyborgs-on-the-jagged">esperimento</a> del 2023 di Harvard e Boston Consulting Group su 758 consulenti, chi usava GPT-4 su compiti alla portata dell'IA ne finiva il 12,2% in più, il 25,1% più in fretta e con una qualità più alta del 40%; su un compito costruito per sfuggirle, invece, chi usava l'IA dava la risposta giusta fra il 60 e il 70% delle volte, contro l'84% di chi lavorava senza. Uno <a href="https://www.microsoft.com/en-us/research/publication/the-impact-of-generative-ai-on-critical-thinking-self-reported-reductions-in-cognitive-effort-and-confidence-effects-from-a-survey-of-knowledge-workers/">studio</a> di Microsoft Research su 319 persone che fanno lavoro della conoscenza ha trovato che chi si fida di più dell'IA dichiara di esercitare meno il pensiero critico. E Willison avverte che un agente che legge i tuoi dati, incontra testi scritti da altri e può comunicare all'esterno <a href="https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/">può essere usato per rubarli</a>, perché quei testi possono contenere istruzioni che l'agente esegue come se venissero da te.</p>
-        <p>A questi rischi Arturo risponde in due modi diversi. Contro il furto dei dati ha regole che chiedono un sì prima di ogni gesto che non si annulla, come cancellare una cartella o mandare un messaggio; la stessa conferma per le pagine web che portano fuori un dato è ancora in lavorazione. Contro una risposta sbagliata accettata per fiducia non basta una regola: il risultato lo controlla chi lavora, ed è per questo che conta conoscere il proprio mestiere, come dice anche la ricerca di Anthropic.</p>
-        <p>La stessa richiesta, in due posti. In chat l'IA ti chiede il materiale. In Claude Code va a prenderselo da sola, nei canali che colleghi: calendario, posta, Drive, le tue cartelle, il web. Poi lo mette a confronto, ti riporta cosa ha trovato e si ferma prima di mandare o cancellare qualcosa.</p>
+        <p>Faccio l'autore, non il programmatore. In chat il materiale lo raccoglievo io: copiavo i pezzi dei file nella conversazione e riportavo la risposta in un documento. In Claude Code l'IA lavora dentro le mie cartelle, quindi legge da sola appunti, trascrizioni e fogli di calcolo, li mette a confronto e scrive il risultato in un file. Il giorno dopo l'IA riparte dall'appunto che ha scritto la sera prima, non da capo.</p>
+        <p>Secondo la <a href="https://www.anthropic.com/research/claude-code-expertise">ricerca di Anthropic</a>, fra ottobre 2025 e aprile 2026 scrittura e analisi dei dati sono passate da circa il 10 al 20% delle sessioni di Claude Code. Chi non lavora nel software arriva a un risultato verificato nel 26% delle sessioni, contro il 30% di chi ci lavora, e secondo la ricerca conta più conoscere il proprio mestiere che saper programmare. I limiti però ci sono: su un compito costruito perché l'IA sbagliasse, i consulenti che la usavano rispondevano bene fra il 60 e il 70% delle volte, contro l'84% di chi lavorava senza (<a href="https://www.oneusefulthing.org/p/centaurs-and-cyborgs-on-the-jagged">Harvard e BCG, 2023</a>). Per questo il risultato lo controlli tu, e Arturo chiede un sì prima dei gesti che non si annullano. <a href="claude-code-senza-terminale/#perche">Le fonti e i rischi, per intero</a>.</p>
+        <p>Qui sotto c'è la stessa richiesta, in chat e in Claude Code: in chat l'IA ti chiede il materiale, in Claude Code lo prende da sola dalle tue cartelle e dai servizi che colleghi, come posta e Drive, e si ferma prima di mandare o cancellare qualcosa.</p>
       </div>
 
       <div class="scena" id="scena">
@@ -844,7 +850,7 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
               <button class="scena__bottone" type="button" id="scena-ancora" hidden>Guarda di nuovo</button>
             </div>
           </div>
-          <figcaption><p>Cinque canali letti, un confronto e un documento, senza copia e incolla. E un dubbio che in chat non sarebbe emerso, perché il materiale non stava mai tutto insieme.</p><p>Esempio scritto sul lavoro vero di chi mantiene Arturo. Calendario, posta e Drive passano dal collegamento a Google, che /setup propone se ti serve. Il messaggio della guardia è quello che Arturo stampa davvero.</p></figcaption>
+          <figcaption><p>Claude mette a confronto cinque fonti senza copia e incolla, e trova un dubbio sulla sala che in chat non sarebbe emerso. Calendario, posta e Drive richiedono il collegamento a Google, che /setup propone. Il messaggio della guardia è quello che Arturo mostra davvero.</p></figcaption>
         </figure>
       </div>
     </div>
@@ -1065,7 +1071,7 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
       <div class="harness__testo">
         <h2 id="t-harness">Come è fatto.</h2>
         <p>Il <strong>modello</strong> è l'IA che risponde. <strong>Claude Code</strong> gli dà le mani sul computer. <strong>Arturo</strong> aggiunge le regole e le abitudini: cosa fare da solo, cosa chiedere, come ripartire domani.</p>
-        <p>In gergo questo terzo anello si chiama harness, l'imbracatura. È la configurazione che chi lo mantiene usa ogni giorno, ripulita e messa in italiano.</p>
+        <p>Questo terzo anello è l'harness: la configurazione che uso ogni giorno, ripulita e messa in italiano.</p>
       </div>
       <figure class="anelli">
         <svg viewBox="0 0 440 440" role="img" aria-labelledby="anelli-t anelli-d">
@@ -1108,7 +1114,7 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
       <ul class="limiti">
         <li><strong>Claude Code è a pagamento.</strong> Serve un abbonamento Anthropic, che decide prezzi e limiti.</li>
         <li><strong>Quello che scrivi passa da Anthropic.</strong> Come in chat. I file restano nelle tue cartelle.</li>
-        <li><strong>Gli aggiornamenti sono codice di altri.</strong> Per questo si installano da soli solo se sono firmati da chi mantiene Arturo, controllati con la chiave che hai già. Se preferisci dire sì a ognuno, lo spegni con un comando.</li>
+        <li><strong>Gli aggiornamenti sono codice di altri.</strong> Si installano da soli soltanto se li ho firmati io, e puoi chiedere di confermarli uno per uno.</li>
         <li id="telemetria"><strong>Arturo manda dati d'uso, accesi di default.</strong> Eventi da un elenco chiuso, per capire dove ci si blocca. Mai testi, file o nomi. Si spengono con <code>arturo telemetria spegni</code>.</li>
       </ul>
     </div>
@@ -1121,6 +1127,10 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
       </div>
       <div class="domande">
         <details>
+          <summary>Che cos'è Arturo?<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
+          <div class="risposta"><p>Arturo è un harness gratuito e open source per Claude Code, in italiano: gli dà regole, comandi e memoria per chi fa lavoro della conoscenza e non programma.</p></div>
+        </details>
+        <details>
           <summary>Serve saper programmare?<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
           <div class="risposta"><p>No. Installi Claude Code, incolli un link e Claude fa il resto, chiedendoti conferma a ogni passo.</p></div>
         </details>
@@ -1130,11 +1140,11 @@ html[data-os="mac"] [data-solo="win"],html[data-os="win"] [data-solo="mac"]{disp
         </details>
         <details>
           <summary>Come lo tolgo?<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
-          <div class="risposta"><p>Arturo vive nella cartella <code>~/.claude</code>, accanto a login, conversazioni e plugin di Claude Code. Il tuo accesso e le tue conversazioni restano dove sono, e i plugin restano installati. Il tuo vecchio <code>settings.json</code> finisce in una copia di sicurezza con la data nel nome: <code>/setup</code> ti propone di riportare hook, plugin e preferenze. Anche gli altri file che Arturo sostituisce vanno in quella copia. Per toglierlo, chiedi a Claude di cancellare i file di Arturo e di rimettere quelli della copia.</p></div>
+          <div class="risposta"><p>Chiedi a Claude di togliere i file di Arturo e di rimettere la copia delle tue impostazioni salvata all'installazione, con la data nel nome. Account, conversazioni e plugin di Claude Code restano dove sono.</p></div>
         </details>
         <details>
           <summary>Cosa legge Claude sul mio computer?<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
-          <div class="risposta"><p>Per installare, solo lo script di Arturo. Poi <code>/setup</code> ti chiede un sì per leggere le tue conversazioni passate con Claude Code, e un secondo sì per guardare i nomi dei file e l'inizio di pochi documenti nelle tue cartelle. Non legge mai cartelle nascoste, <code>.ssh</code>, chiavi, password manager, file <code>.env</code> e credenziali. Quello che legge passa dalla conversazione con Anthropic, come ogni richiesta che scrivi a Claude: non va a chi mantiene Arturo e non entra nella telemetria.</p></div>
+          <div class="risposta"><p>All'installazione legge solo lo script di Arturo. Poi <code>/setup</code> chiede un sì per le tue conversazioni passate e un altro per i nomi dei file e l'inizio di pochi documenti. Non legge mai cartelle nascoste, password, chiavi e altre credenziali. Quello che legge passa da Anthropic, come ogni richiesta, ma non arriva a me né entra nei dati d'uso.</p></div>
         </details>
         <details>
           <summary>Posso farlo a mano?<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="1.3"/></svg></summary>
