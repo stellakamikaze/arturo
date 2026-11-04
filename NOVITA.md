@@ -12,6 +12,21 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — Claude dice prima dove non arriva
+
+**Cosa cambia**: se chiedi un lavoro che Claude fa male anche impegnandosi, lo dice nel brief, prima
+di provarci. Succede col disegno delle piste di un circuito stampato, col disegno a mano dentro
+Illustrator, con una grafica da giudicare stampata o con un oggetto da costruire. La riga "Dove non
+arrivo" dice due cose: la parte che resta a te e cosa fa Claude al suo posto. Per esempio la distinta
+dei componenti, il budget, uno script che ricolora i file che salvi, il manuale che spiega ogni pista.
+La stessa risposta arriva se chiedi solo "mi puoi aiutare con questo?".
+
+**Perché**: al Computer Club Filippo ha raccontato che sul mixer, arrivato alle schede, Claude non
+lo aiutava più. Un tentativo scarso costa ore a chi lo deve buttare. Saperlo prima costa una riga, e
+lascia il tempo per la parte in cui Claude serve davvero.
+
+---
+
 ## 2026-11-04 — Una correzione detta una volta vale per tutta la sessione
 
 **Cosa cambia**: quando correggi Claude, lui scrive la correzione in una riga (`arturo correzione

@@ -62,6 +62,7 @@ Output: [forma, formato, dove finisce]
 Vincoli: [cosa deve e non deve accadere; regole del CLAUDE.md applicabili]
 Fatto quando: [criterio verificabile, binario dove possibile]
 Skill: [/nome e perché in poche parole, oppure «nessuna»]
+Dove non arrivo: [la parte che resta alla persona e cosa faccio io al suo posto; solo se c'è]
 Assunzioni: [cosa sto dando per scontato]
 Da chiarire: [max 3 punti]
 ```
@@ -70,6 +71,16 @@ Da chiarire: [max 3 punti]
   giudizio sul lavoro da fare, non per parole chiave. Se una skill che la persona non ha nominato
   fa meglio il lavoro di quella che ha chiesto, dillo qui. Se nessuna serve, scrivi "nessuna". Questa skill (prompt-master) non conta: c'è
   sempre.
+- **Dove non arrivi, dillo nel brief, prima di provarci.** Alcuni lavori Claude li fa male anche
+  quando ci prova con impegno: il disegno delle piste di un circuito stampato (lo schema elettrico
+  invece sì), il disegno a mano libera dentro Illustrator, una grafica da giudicare stampata o
+  sull'oggetto, tutto ciò che si costruisce con le mani. Sono esempi, non un elenco chiuso: decidi tu
+  se la richiesta, o una sua parte, sta lì. Se sì, scrivi la riga `Dove non arrivo:` con due cose:
+  la parte che resta alla persona e quella che fai tu al suo posto (la distinta dei componenti, il
+  budget, uno script che ricolora i file salvati, il manuale che spiega ogni pista). Un tentativo
+  scarso costa ore a chi lo deve buttare; una riga onesta prima costa niente (Computer Club N.3,
+  4/11/2026). Vale anche quando la persona chiede solo se puoi aiutarla: rispondi con le stesse due
+  cose. Per un lavoro che sai fare la riga si omette.
 - Il brief mostrato è la punta dell'arricchimento, non tutto: il contesto recuperato resta nel tuo ragionamento e nel lavoro che ne segue. Non trascriverlo per intero, e non trasformare il brief in un rapporto di ricerca.
 - Se un'ambiguità cambierebbe materialmente il lavoro, chiedi prima di procedere, con una raccomandazione motivata. Max 3 punti. Il menu AskUserQuestion vale solo se il testo prima sta in una o due righe: dopo un brief di più righe, chiudi con l'elenco numerato e le parole di risposta in grassetto.
 - In plan mode il brief precede il piano e ne è il cappello.

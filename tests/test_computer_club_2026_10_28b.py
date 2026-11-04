@@ -14,6 +14,10 @@ CC10 /proponi porta una tua skill come proposta, ripulita e dopo il sì; è nei 
 CC11 una correzione detta una volta vale per tutta la sessione ([0:01:09], #4099): arturo correzione la
      scrive per la sessione di CLAUDE_CODE_SESSION_ID, e torna a ogni messaggio (inject-now.sh), dopo
      una compattazione (session-start.sh) e nei subagenti; un'altra sessione non la vede.
+CC12 prima di provarci Claude dice dove non arriva ([0:08:46]-[0:09:09], #4102): il brief di
+     prompt-master ha la riga "Dove non arrivo:" con la parte che resta alla persona e quella che fa
+     Claude al suo posto, vale anche quando la persona chiede solo se può aiutarla, e si omette per un
+     lavoro che Claude sa fare.
 
 Sulla base 5bdec48 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -210,8 +214,20 @@ def test_cc11(repo: Path) -> None:
     assert r.returncode == 2, f"CC11 togli un numero che non c'è: {r.returncode}"
 
 
+def test_cc12(repo: Path) -> None:
+    testo = read(repo / "skills" / "prompt-master" / "SKILL.md")
+    blocco = testo.split("BRIEF\nObiettivo:", 1)[-1].split("```", 1)[0]
+    assert "\nDove non arrivo:" in blocco, "CC12 il modello del brief non ha la riga Dove non arrivo"
+    regola = testo.split("**Dove non arrivi, dillo nel brief, prima di provarci.**", 1)
+    assert len(regola) == 2, "CC12 prompt-master non dice di dichiarare prima dove Claude non arriva"
+    regola = regola[1].split("\n- ", 1)[0]
+    for pezzo in ("piste", "schema elettrico", "la parte che resta alla persona", "quella che fai tu al suo posto",
+                  "chiede solo se puoi aiutarla", "la riga si omette", "non un elenco chiuso"):
+        assert pezzo in regola, f"CC12 la regola su dove Claude non arriva non dice {pezzo!r}"
+
+
 TESTS = {"CC06": test_cc06, "CC07": test_cc07, "CC08": test_cc08, "CC09": test_cc09, "CC10": test_cc10,
-         "CC11": test_cc11}
+         "CC11": test_cc11, "CC12": test_cc12}
 
 
 def main() -> int:
