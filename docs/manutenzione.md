@@ -91,6 +91,17 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    `--ff-only` è un freno: se `main` non può avanzare in modo lineare, il merge si ferma e
    ti costringe a guardare perché `dev` e `main` hanno diverto. Mai forzare.
 
+   **La pagina del rilascio su GitHub** (dal 4/11/2026): dopo il push del tag, la sezione Releases del
+   repository riceve il testo delle voci di `NOVITA.md` uscite con quel tag. Chi arriva su GitHub vede
+   cosa è cambiato senza aprire il file:
+
+   ```bash
+   gh release create "$V" --verify-tag --title "Arturo ${V#v}" --notes-file /tmp/note-rilascio.md
+   ```
+
+   Il file delle note raccoglie le voci di `NOVITA.md` aggiunte dopo il tag precedente, con le loro
+   intestazioni. La release non installa niente: gli utenti ricevono il rilascio dal tag firmato.
+
    **Prima il rilascio firmato di `main`, poi la landing** (ramo `landing-v2`, `strumenti/pubblica.sh`):
    il sito non promette mai una cosa che il rilascio installato non fa ancora.
 
