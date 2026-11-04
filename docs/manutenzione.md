@@ -201,6 +201,14 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   Telegram allo stesso modo, senza testo né email, e il vocale non si accetta più. Le segnalazioni si
   cancellano dopo 12 mesi, come gli eventi. Quelle aperte da GitHub sono issue con il titolo
   `[problema]`, `[proposta]` o `[integrazione]`.
+- **Lo sportello (4/11/2026, #3925).** Chi segnala riceve col numero un codice (la ricevuta) e legge con
+  `/segnala stato` lo stato e la risposta che chi mantiene Arturo scrive. Si risponde dal Mac con il token del
+  riepilogo: `python3 ~/.claude/scripts/arturo-contributi.py elenco`, `mostra N` (testo, pacchetto tecnico,
+  seguiti) e `rispondi N --stato S --testo FILE [--versione V] --conferma`. Gli stati: `ricevuta`, `serve-info`
+  (la persona risponde con `segnala seguito`), `in-lavoro`, `chiusa`, `rifiutata`. La risposta la legge chi ha
+  segnalato: si scrive per lei. Seguito e ritiro suonano su Telegram col solo numero. Il pacchetto tecnico si
+  svuota dopo 90 giorni. Per il deploy, prima la migrazione `server/migrazioni/2026-11-04-sportello.sql`, poi
+  il Worker, poi il rilascio del client (`server/README.md`).
 - **Le installazioni nuove.** Il primo lotto di eventi da un id mai visto manda un messaggio
   Telegram: id abbreviato, versione e sistema. Telegram parte solo se il Worker ha i secret
   `TELEGRAM_TOKEN` e `TELEGRAM_CHAT` (come si danno: `server/README.md`, passo 4).

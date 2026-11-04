@@ -456,9 +456,18 @@ def _scrivi_coda_atomica(righe: list) -> None:
 def posta_json(rotta: str, dati: dict, timeout: float = 5) -> tuple:
     """POST JSON. Torna (status HTTP, risposta in JSON): (0, {}) se la rete non risponde, {} se la
     risposta non è un oggetto JSON. /segnala ne legge il numero della segnalazione."""
-    corpo = json.dumps(dati, ensure_ascii=False).encode("utf-8")
-    richiesta = urllib.request.Request(url() + rotta, data=corpo, method="POST",
-                                       headers={"content-type": "application/json", "user-agent": "arturo"})
+    return chiedi_json(rotta, "POST", dati, timeout=timeout)
+
+
+def chiedi_json(rotta: str, metodo: str = "GET", dati: dict | None = None, intestazioni: dict | None = None,
+                timeout: float = 5) -> tuple:
+    """Come posta_json, con metodo e intestazioni: lo sportello delle segnalazioni (4/11/2026) manda il codice della
+    ricevuta nell'header x-arturo-codice, mai nell'indirizzo."""
+    corpo = json.dumps(dati, ensure_ascii=False).encode("utf-8") if dati is not None else None
+    testata = {"user-agent": "arturo", **(intestazioni or {})}
+    if corpo is not None:
+        testata["content-type"] = "application/json"
+    richiesta = urllib.request.Request(url() + rotta, data=corpo, method=metodo, headers=testata)
     try:
         with urllib.request.urlopen(richiesta, timeout=timeout) as r:
             status = r.status
@@ -471,6 +480,115 @@ def posta_json(rotta: str, dati: dict, timeout: float = 5) -> tuple:
         return e.code, {}
     except (urllib.error.URLError, OSError, ValueError):
         return 0, {}
+
+
+# --- la ricevuta delle segnalazioni (4/11/2026, #3925) ---------------------------------------------
+# Il server dà col numero un codice, che tiene solo come hash: con quello la persona legge la risposta, aggiunge
+# un seguito o ritira la segnalazione. I codici stanno accanto alle copie delle segnalazioni, in un file letto solo
+# dalla persona (0600): la reinstallazione riporta data/segnalazioni intera.
+
+CODICE = re.compile(r"^[0-9a-f]{32}$")
+
+
+def file_codici() -> Path:
+    return cartella_attesa() / "ricevute.json"
+
+
+def codici() -> dict:
+    """{numero: codice}. Un file assente o rotto vale {}."""
+    try:
+        grezzo = json.loads(file_codici().read_text(encoding="utf-8"))
+    except (OSError, ValueError, UnicodeDecodeError):
+        return {}
+    if not isinstance(grezzo, dict):
+        return {}
+    return {int(n): c for n, c in grezzo.items() if str(n).isdigit() and isinstance(c, str) and CODICE.match(c)}
+
+
+def salva_codice(numero, codice) -> bool:
+    if not isinstance(numero, int) or isinstance(numero, bool) or numero <= 0 or not isinstance(codice, str) \
+            or not CODICE.match(codice):
+        return False
+    try:
+        with ts.Lucchetto(file_codici()):
+            tutti = codici()
+            tutti[numero] = codice
+            ts.scrivi_json_atomico(file_codici(), {str(n): c for n, c in sorted(tutti.items())})
+        try:
+            os.chmod(file_codici(), 0o600)
+        except OSError:
+            pass
+        return True
+    except OSError:
+        return False
+
+
+# Gli stati in cui la segnalazione non cambia più: il controllo in background smette di chiederla.
+STATI_FINALI = ("chiusa", "rifiutata", "ritirata")
+STATI_SPORTELLO = ("ricevuta", "serve-info", "in-lavoro") + STATI_FINALI
+
+
+def file_sportello() -> Path:
+    return Path.home() / ".claude" / "cache" / "sportello.json"
+
+
+def leggi_sportello() -> dict:
+    """{numero: {stato, risposta, versione_fix, aggiornata, vista}}: l'ultima risposta letta dal server per ogni
+    segnalazione col codice, e l'aggiornamento già mostrato alla persona."""
+    try:
+        grezzo = json.loads(file_sportello().read_text(encoding="utf-8"))
+    except (OSError, ValueError, UnicodeDecodeError):
+        return {}
+    return {int(n): v for n, v in grezzo.items() if str(n).isdigit() and isinstance(v, dict)} if isinstance(grezzo, dict) else {}
+
+
+def scrivi_sportello(dati: dict) -> None:
+    try:
+        ts.scrivi_json_atomico(file_sportello(), {str(n): v for n, v in sorted(dati.items())})
+    except OSError:
+        pass
+
+
+def leggi_contributo(numero: int, codice: str, timeout: float = 5) -> tuple:
+    """(status, risposta pulita). Della risposta restano solo i campi attesi, con lo stato da un elenco chiuso."""
+    status, r = chiedi_json(f"/v1/contributi/{int(numero)}", intestazioni={"x-arturo-codice": codice}, timeout=timeout)
+    if not 200 <= status < 300:
+        return status, {}
+    stato = r.get("stato") if r.get("stato") in STATI_SPORTELLO else "ricevuta"
+    testo = lambda k, n: r.get(k)[:n] if isinstance(r.get(k), str) else ""  # noqa: E731
+    return status, {"stato": stato, "risposta": testo("risposta", 4000), "versione_fix": testo("versione_fix", 60),
+                    "aggiornata": testo("aggiornata", 40)}
+
+
+def controlla_risposte() -> int:
+    """Chiede al server lo stato delle segnalazioni col codice che non sono ancora chiuse, e lo salva in
+    cache/sportello.json. Gira nell'invio in background: l'avvio dopo dice alla persona cosa è cambiato.
+    Torna quante ne ha lette; si ferma al primo silenzio della rete."""
+    noti, lette = leggi_sportello(), 0
+    for numero, codice in sorted(codici().items()):
+        if (noti.get(numero) or {}).get("stato") in STATI_FINALI:
+            continue
+        status, dati = leggi_contributo(numero, codice)
+        if status == 0:
+            break
+        if dati:
+            dati["vista"] = (noti.get(numero) or {}).get("vista", "")
+            noti[numero] = dati
+            lette += 1
+    if lette:
+        scrivi_sportello(noti)
+    return lette
+
+
+def riga_sportello() -> str:
+    """La riga dell'avvio per le segnalazioni con una novità che la persona non ha ancora visto."""
+    nuove = [n for n, v in sorted(leggi_sportello().items())
+             if v.get("aggiornata") and v.get("aggiornata") != v.get("vista") and (v.get("risposta") or v.get("stato") != "ricevuta")]
+    if not nuove:
+        return ""
+    elenco = ", ".join(f"n. {n}" for n in nuove)
+    return (f"SPORTELLO: chi mantiene Arturo ha risposto alle segnalazioni della persona ({elenco}). Diglielo una volta, "
+            "all'inizio, e mostrale le risposte con: python3 ~/.claude/bin/arturo segnala stato")
 
 
 def posta(rotta: str, dati: dict, timeout: float = 5) -> int:
@@ -513,6 +631,7 @@ def invia_segnalazioni_in_attesa() -> int:
         status, risposta = posta_json("/v1/segnalazioni", dati)
         if 200 <= status < 300:
             _segna_numero(f, dati, risposta.get("numero"))
+            salva_codice(risposta.get("numero"), risposta.get("codice"))
             f.unlink()
             partite += 1
         elif status in (400, 413):
@@ -588,6 +707,7 @@ def invia(zitto: bool = False) -> tuple:
     """Torna (eventi partiti, segnalazioni partite)."""
     cambia_stato(lambda s: s.__setitem__("ultimo_tentativo", int(time.time())))
     segnalazioni = invia_segnalazioni_in_attesa()
+    controlla_risposte()
     if perche_spenta():
         return 0, segnalazioni
     if zitto:
@@ -720,6 +840,10 @@ def fine_sessione(dati: dict) -> None:
 def avvio() -> int:
     """Lo chiama session-start.sh: registra la sessione, stampa l'avviso una volta, lancia l'invio."""
     try:
+        # Lo sportello (4/11/2026): legge solo cache/sportello.json, che riempie l'invio in background.
+        sportello = riga_sportello()
+        if sportello:
+            print(sportello)
         stato = leggi_stato()
         if perche_spenta(stato):
             if any(cartella_attesa().glob("*.attesa.json")):
@@ -805,6 +929,7 @@ def main(argv: list) -> int:
         return 0
     if comando == "segnalazioni" and not resto:
         print(f"Segnalazioni partite: {invia_segnalazioni_in_attesa()}.")
+        controlla_risposte()
         return 0
     if comando == "stato" and not resto:
         spenta = perche_spenta()

@@ -12,6 +12,13 @@
 //   GET  /v1/riepilogo     il riepilogo della settimana in JSON, con "Dove migliorare Arturo"
 //   GET  /v1/segnalazioni  le ultime 50 segnalazioni, senza testo; /v1/segnalazioni/<n> una intera (27/10/2026)
 //   GET  /v1/uso           chi usa Arturo, quanto e come: una riga per installazione, ultimi 30 giorni (2/11/2026)
+//   POST /v1/contributi/<n> lo stato e la risposta di una segnalazione, scritti da chi mantiene Arturo (4/11/2026)
+// Lo sportello (4/11/2026, #3925): chi segnala riceve col numero un codice, che il server tiene solo come hash.
+// Col codice nell'header x-arturo-codice la persona legge lo stato e la risposta, aggiunge un seguito o la ritira:
+//   GET  /v1/contributi/<n>          stato, risposta, versione con la correzione
+//   POST /v1/contributi/<n>/seguito  un'aggiunta alla segnalazione (le informazioni che chi la mantiene ha chiesto)
+//   POST /v1/contributi/<n>/ritira   titolo, testo, pacchetto e seguiti cancellati, resta il numero
+// Un codice sbagliato e un numero inesistente danno lo stesso 404: il numero da solo non dice se esiste.
 // L'IP non viene mai salvato. Gli eventi hanno il solo giorno, mai l'ora.
 // Telegram ed email sono campanelli (24/10/2026): mai il testo né l'email di chi scrive. Una segnalazione porta
 // numero, tipo, da dove arriva e il link alla pagina privata (27/10/2026), un feedback numero, tipo e origine.
@@ -130,10 +137,23 @@ export const EVENTI = {
 // Sessanta giorni è il criterio di successo di Arturo (uso vivo dopo due mesi).
 export const RITENZIONE = [7, 30, 60];
 export const TIPI = ["problema", "proposta", "integrazione"];
+// Lo sportello (4/11/2026, #3925). Gli stati che chi mantiene Arturo assegna, più "ritirata", che assegna solo la
+// persona col suo codice. Le voci del pacchetto tecnico sono le caselle dell'anteprima di /segnala (bin/segnala.py,
+// VOCI_PACCHETTO): la voce "collega" non viaggia nel pacchetto, diventa l'id dell'installazione.
+export const STATI = ["ricevuta", "serve-info", "in-lavoro", "chiusa", "rifiutata"];
+export const VOCI_PACCHETTO = ["ambiente", "banchi", "config", "deriva", "errore"];
+export const ORIGINI = ["segnala", "avvio", "fine"];
 export const SISTEMI = ["Darwin", "Linux", "Windows", "altro"];
 export const LIMITI = {
   corpoEventi: 64 * 1024,
-  corpoSegnalazione: 20 * 1024,
+  // Dal 4/11/2026 il corpo porta anche il pacchetto tecnico: 16000 caratteri di testo più cinque voci da 4000.
+  corpoSegnalazione: 48 * 1024,
+  vocePacchetto: 4000,
+  risposta: 4000,
+  seguito: 8000,
+  seguitiPerSegnalazione: 10,
+  // Il pacchetto tecnico si svuota prima del testo: serve alla diagnosi, non alla storia.
+  pacchettoGiorni: 90,
   eventiPerLotto: 500,
   eventiPerGiorno: 500,
   eventiTotaliPerGiorno: 100000,
@@ -174,6 +194,7 @@ const SITO_TIPI = ["download", "github"];
 const SITO_SISTEMI = ["mac", "win", ""];
 
 const ID = /^[A-Za-z0-9-]{8,64}$/;
+const CODICE = /^[0-9a-f]{32}$/;
 const GIORNO = /^\d{4}-\d{2}-\d{2}$/;
 // La versione è l'ultimo tag di rilascio raggiungibile (`git describe --tags --abbrev=0`, bin/telemetria.py), oppure
 // "sconosciuta". Niente testo libero: finisce nel riepilogo che legge la routine del lunedì. Si salva solo il rilascio
@@ -295,6 +316,15 @@ export function validaSegnalazione(dati) {
   const testo = testoCorto(dati.testo, 16000);
   if (!tipo || !titolo || !titolo.trim() || !testo || !testo.trim()) return { motivo: "tipo, titolo o testo non validi" };
   const installazione = typeof dati.installazione === "string" && ID.test(dati.installazione) ? dati.installazione : "";
+  // Il pacchetto tecnico (4/11/2026): solo le voci dell'elenco chiuso, ognuna testo corto. Una voce fuori elenco o
+  // troppo lunga si lascia fuori, senza rifiutare la segnalazione: il testo che la persona ha approvato arriva.
+  const pacchetto = {};
+  if (dati.pacchetto && typeof dati.pacchetto === "object" && !Array.isArray(dati.pacchetto)) {
+    for (const voce of VOCI_PACCHETTO) {
+      const valore = testoCorto(dati.pacchetto[voce], LIMITI.vocePacchetto);
+      if (valore && valore.trim()) pacchetto[voce] = valore;
+    }
+  }
   return {
     segnalazione: {
       tipo,
@@ -303,8 +333,54 @@ export function validaSegnalazione(dati) {
       versione: typeof dati.versione === "string" && VERSIONE.test(dati.versione) ? versionePubblica(dati.versione) : "",
       sistema: SISTEMI.includes(dati.sistema) ? dati.sistema : "altro",
       installazione,
+      origine: ORIGINI.includes(dati.origine) ? dati.origine : "segnala",
+      pacchetto: Object.keys(pacchetto).length ? JSON.stringify(pacchetto) : "",
     },
   };
+}
+
+// Il codice della ricevuta: 128 bit casuali in esadecimale. Sul server resta solo lo SHA-256.
+export function nuovoCodice() {
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export async function hashCodice(codice) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(codice));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Quello che la persona legge col suo codice: mai titolo, testo o pacchetto, che ha già nella sua copia.
+export function vistaPersona(riga) {
+  let seguiti = 0;
+  try {
+    seguiti = (JSON.parse(riga.seguiti || "[]") || []).length;
+  } catch {
+    seguiti = 0;
+  }
+  return { numero: riga.id, stato: riga.stato || "ricevuta", risposta: riga.risposta || "",
+    versione_fix: riga.versione_fix || "", aggiornata: riga.aggiornata || "", seguiti };
+}
+
+export function validaRisposta(dati) {
+  if (!dati || typeof dati !== "object") return { motivo: "corpo mancante" };
+  const cambi = {};
+  if (dati.stato !== undefined) {
+    if (!STATI.includes(dati.stato)) return { motivo: `stato fuori elenco (${STATI.join(", ")})` };
+    cambi.stato = dati.stato;
+  }
+  if (dati.risposta !== undefined) {
+    const r = testoCorto(dati.risposta, LIMITI.risposta);
+    if (r === null) return { motivo: `risposta oltre ${LIMITI.risposta} caratteri` };
+    cambi.risposta = r;
+  }
+  if (dati.versione_fix !== undefined) {
+    if (typeof dati.versione_fix !== "string" || !(dati.versione_fix === "" || VERSIONE.test(dati.versione_fix))) {
+      return { motivo: "versione_fix non valida" };
+    }
+    cambi.versione_fix = dati.versione_fix;
+  }
+  if (!Object.keys(cambi).length) return { motivo: "niente da cambiare: stato, risposta o versione_fix" };
+  return { cambi };
 }
 
 // --- email -------------------------------------------------------------------
@@ -562,6 +638,11 @@ export function avvisoSegnalazione(s, numero, leggi = "") {
   return `Arturo: segnalazione n. ${Number(numero)}, ${TIPO_IN_PAROLE[s.tipo] || s.tipo} · ${provenienza(s)}` + (link ? `\n${link}` : "");
 }
 
+// Lo sportello (4/11/2026): un seguito o un ritiro, col solo numero.
+export function avvisoContributo(numero, cosa) {
+  return `Arturo: segnalazione n. ${Number(numero)}, ${cosa === "ritira" ? "ritirata da chi l'ha mandata" : "un seguito di chi l'ha mandata"}`;
+}
+
 export function avvisoSetupFinito(riga) {
   return `Arturo: setup finito (${riga.installazione.slice(0, 8)}) · ${riga.versione} · ${riga.sistema}`;
 }
@@ -723,6 +804,57 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     const trovata = await archivio.segnalazione(Number(unaSegnalazione[1]));
     return trovata ? risposta(200, trovata) : risposta(404, { errore: "segnalazione inesistente" });
   }
+  // Lo sportello (4/11/2026, #3925). Con il token: chi mantiene Arturo scrive stato e risposta. Col codice della
+  // ricevuta: la persona legge, aggiunge un seguito, ritira. Codice sbagliato e numero inesistente: stesso 404.
+  const contributo = /^\/v1\/contributi\/([0-9]{1,9})(?:\/(seguito|ritira))?$/.exec(url.pathname);
+  if (contributo) {
+    const numero = Number(contributo[1]);
+    const azione = contributo[2] || "";
+    const autorizzazione = (request.headers.get("authorization") || "").replace(/^Bearer /, "");
+    if (request.method === "POST" && !azione && autorizzazione) {
+      if (!stessoToken(autorizzazione, token)) return risposta(401, { errore: "token mancante o sbagliato" });
+      const { dati, errore } = await leggiJson(request, LIMITI.risposta * 2);
+      if (errore) return errore;
+      const { cambi, motivo } = validaRisposta(dati);
+      if (motivo) return risposta(400, { errore: motivo });
+      const riga = await archivio.aggiornaContributo(numero, cambi, adesso.toISOString());
+      return riga ? risposta(200, vistaPersona(riga)) : risposta(404, { errore: "segnalazione inesistente" });
+    }
+    const nonTrovata = () => risposta(404, { errore: "segnalazione inesistente o codice sbagliato" });
+    if (!await limite("moduli", request)) return risposta(429, { errore: "troppe richieste" });
+    const codice = (request.headers.get("x-arturo-codice") || "").trim().toLowerCase();
+    if (!CODICE.test(codice)) return nonTrovata();
+    const riga = await archivio.contributo(numero);
+    if (!riga || !riga.codice_hash || !stessoToken(await hashCodice(codice), riga.codice_hash)) return nonTrovata();
+    if (request.method === "GET" && !azione) return risposta(200, vistaPersona(riga));
+    if (request.method !== "POST" || !azione) return risposta(405, { errore: "metodo non ammesso" });
+    const giornoC = oggi(adesso);
+    if (azione === "ritira") {
+      await archivio.ritiraContributo(numero, adesso.toISOString());
+      await consegna(() => avviso(avvisoContributo(numero, "ritira")), archivio, giornoC, "telegram-ko");
+      return risposta(200, { numero, stato: "ritirata" });
+    }
+    if ((riga.stato || "") === "ritirata") return risposta(409, { errore: "segnalazione ritirata" });
+    const { dati, errore } = await leggiJson(request, LIMITI.seguito * 2);
+    if (errore) return errore;
+    const testo = testoCorto(dati && dati.testo, LIMITI.seguito);
+    if (!testo || !testo.trim()) return risposta(400, { errore: `testo vuoto o oltre ${LIMITI.seguito} caratteri` });
+    let seguiti = [];
+    try {
+      seguiti = JSON.parse(riga.seguiti || "[]") || [];
+    } catch {
+      seguiti = [];
+    }
+    if (seguiti.length >= LIMITI.seguitiPerSegnalazione) return risposta(429, { errore: "troppi seguiti per questa segnalazione" });
+    seguiti.push({ quando: adesso.toISOString(), testo });
+    // Le informazioni chieste sono arrivate: la segnalazione torna da guardare.
+    const stato = (riga.stato || "ricevuta") === "serve-info" ? "ricevuta" : (riga.stato || "ricevuta");
+    await archivio.seguitoContributo(numero, JSON.stringify(seguiti), stato, adesso.toISOString());
+    if (await archivio.incrementa(giornoC, "avviso-segnalazione") <= LIMITI.avvisiSegnalazioniPerGiorno) {
+      await consegna(() => avviso(avvisoContributo(numero, "seguito")), archivio, giornoC, "telegram-ko");
+    }
+    return risposta(201, { numero, seguiti: seguiti.length, stato });
+  }
   if (request.method !== "POST") return risposta(405, { errore: "solo POST" });
   const giorno = oggi(adesso);
   // Il modulo e i download arrivano solo dalla landing: un altro sito non li fa inviare ai suoi visitatori.
@@ -798,7 +930,9 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     if (await archivio.contaSegnalazioni(giorno) >= LIMITI.segnalazioniPerGiorno) {
       return risposta(429, { errore: "troppe segnalazioni oggi" });
     }
-    const numero = await archivio.salvaSegnalazione(segnalazione, adesso.toISOString());
+    // La ricevuta (4/11/2026): il codice torna una volta sola, al client. Il server ne tiene l'hash.
+    const codice = nuovoCodice();
+    const numero = await archivio.salvaSegnalazione({ ...segnalazione, codice_hash: await hashCodice(codice) }, adesso.toISOString());
     if (await archivio.incrementa(giorno, "avviso-segnalazione") <= LIMITI.avvisiSegnalazioniPerGiorno) {
       await telegram(avvisoSegnalazione(segnalazione, numero, leggi));
     }
@@ -813,7 +947,7 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
         }
       }
     }
-    return risposta(201, { numero, email: partita });
+    return risposta(201, { numero, email: partita, codice });
   }
 
   // Il modulo di feedback del sito, servito dalla landing come /api/feedback. Il testo resta qui, su Telegram
@@ -904,9 +1038,11 @@ export async function settimanale({ archivio, posta, adesso = new Date() }) {
     testo: testoRiepilogo(r, `Arturo, settimana dal ${lunedi} al ${domenica}`) }, adesso);
 }
 
-// La pulizia del lunedì: eventi, contatori, feedback e segnalazioni più vecchi di 12 mesi.
+// La pulizia del lunedì: eventi, contatori, feedback e segnalazioni più vecchi di 12 mesi. Il pacchetto tecnico
+// delle segnalazioni si svuota dopo 90 giorni (4/11/2026).
 export async function pulizia({ archivio, adesso = new Date() }) {
   await archivio.pulisci(giorniFa(adesso, LIMITI.conservazioneGiorni));
+  await archivio.svuotaPacchetti(giorniFa(adesso, LIMITI.pacchettoGiorni));
 }
 
 // Le installazioni rimaste indietro, su Telegram ogni mattina: una volta ogni avvisoIndietroOgni giorni per

@@ -21,7 +21,18 @@ CREATE TABLE IF NOT EXISTS segnalazioni (
   versione TEXT NOT NULL DEFAULT '',
   sistema TEXT NOT NULL DEFAULT '',
   installazione TEXT NOT NULL DEFAULT '',
-  email_inviata INTEGER NOT NULL DEFAULT 0
+  email_inviata INTEGER NOT NULL DEFAULT 0,
+  -- Lo sportello (4/11/2026, server/migrazioni/2026-11-04-sportello.sql): da dove arriva, il pacchetto tecnico
+  -- (JSON, svuotato dopo 90 giorni), l'hash del codice della ricevuta, stato e risposta di chi mantiene Arturo,
+  -- i seguiti della persona (JSON).
+  origine TEXT NOT NULL DEFAULT 'segnala',
+  pacchetto TEXT NOT NULL DEFAULT '',
+  codice_hash TEXT NOT NULL DEFAULT '',
+  stato TEXT NOT NULL DEFAULT 'ricevuta',
+  risposta TEXT NOT NULL DEFAULT '',
+  versione_fix TEXT NOT NULL DEFAULT '',
+  aggiornata TEXT NOT NULL DEFAULT '',
+  seguiti TEXT NOT NULL DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS contatori (

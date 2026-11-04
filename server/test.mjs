@@ -52,6 +52,22 @@ function finti(riepilogo = null) {
         guardie: [], aggiorna: [], segnalazioni: 1, scartati: 0, telegramKo: 0, emailKo: 0 };
     },
     async pulisci(prima) { stato.pulito = prima; },
+    async svuotaPacchetti(prima) { stato.pacchettiPrima = prima; },
+    // Lo sportello (4/11/2026): la segnalazione n è stato.segnalazioni[n - 1].
+    async contributo(id) {
+      const r = stato.segnalazioni[id - 1];
+      return r ? { id, stato: "ricevuta", risposta: "", versione_fix: "", aggiornata: "", seguiti: "[]", ...r } : null;
+    },
+    async aggiornaContributo(id, cambi, quando) {
+      if (!stato.segnalazioni[id - 1]) return null;
+      Object.assign(stato.segnalazioni[id - 1], cambi, { aggiornata: quando });
+      return this.contributo(id);
+    },
+    async seguitoContributo(id, seguiti, st, quando) { Object.assign(stato.segnalazioni[id - 1], { seguiti, stato: st, aggiornata: quando }); },
+    async ritiraContributo(id, quando) {
+      Object.assign(stato.segnalazioni[id - 1], { titolo: "(ritirata)", testo: "", pacchetto: "", seguiti: "[]", installazione: "",
+        risposta: "", stato: "ritirata", aggiornata: quando });
+    },
     async indietro() { return stato.indietro || []; },
     async ultimoAvviso(chiave) {
       const giorni = Object.keys(stato.conteggi).filter((k) => k.endsWith(` ${chiave}`)).map((k) => k.split(" ")[0]).sort();
@@ -119,7 +135,9 @@ const casi = {
     const s = { tipo: "problema", titolo: "[problema] /fine si ferma", testo: "Il commit non parte.", versione: "v0.1.2", sistema: "Darwin" };
     const r = await gestisci(post("/v1/segnalazioni", s), { ...f, adesso });
     assert.equal(r.status, 201, "V05 segnalazione valida rifiutata");
-    assert.deepEqual(await r.json(), { numero: 1, email: true });
+    // Dal 4/11/2026 la risposta porta il codice della ricevuta (V46 lo prova).
+    const { codice, ...resto } = await r.json();
+    assert.deepEqual(resto, { numero: 1, email: true });
     // Dal 24/10/2026 l'email è un campanello: numero e tipo, il testo resta in D1 (R18). Dal 27/10/2026 il tipo è in
     // parole, e senza LEGGI_SEGNALAZIONI l'email dice come leggerla col token (il link lo prova S01).
     assert.equal(f.stato.email[0].oggetto, "[Arturo] Segnalazione n. 1: un problema", "V05 oggetto sbagliato");
@@ -702,7 +720,8 @@ const casi = {
     const giu = async () => { throw new Error("Telegram giù"); };
     const postaGiu = async () => { throw new Error("posta giù"); };
     const s = await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "t", testo: "x" }), { ...f, avviso: giu, posta: postaGiu, adesso });
-    assert.deepEqual(await s.json(), { numero: 1, email: false }, "V37 con la posta giù la segnalazione non è salvata");
+    const { codice: _c, ...corpo } = await s.json();
+    assert.deepEqual(corpo, { numero: 1, email: false }, "V37 con la posta giù la segnalazione non è salvata");
     await gestisci(post("/v1/eventi", lotto([{ evento: "config", valore: "rotta-settings" }])), { ...f, avviso: giu, posta: postaGiu, adesso });
     assert.equal(f.stato.conteggi["2026-10-13 telegram-ko"], 2, "V37 gli avvisi Telegram non partiti non sono contati");
     assert.equal(f.stato.conteggi["2026-10-13 email-ko"], 2, "V37 le email non partite non sono contate");
@@ -896,6 +915,95 @@ const casi = {
     assert.equal((await una.json()).testo, "Vorrei le bozze.", "S01 la segnalazione intera non ha il testo");
     assert.equal((await gestisci(get("/v1/segnalazioni/9", "Bearer " + token), { ...f, adesso, token })).status, 404, "S01 una segnalazione che non c'è");
     assert.equal((await gestisci(get("/v1/segnalazioni/1x", "Bearer " + token), { ...f, adesso, token })).status, 405, "S01 un numero storto passa");
+  },
+
+  // Lo sportello (4/11/2026, #3925). V36: codice sbagliato e numero inesistente danno lo stesso 404, col corpo uguale.
+  async V36() {
+    const f = finti();
+    const r = await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "t", testo: "x" }), { ...f, adesso });
+    const { codice } = await r.json();
+    const leggi = (n, c) => gestisci(new Request(`https://arturo.example/v1/contributi/${n}`, { headers: c === undefined ? {} : { "x-arturo-codice": c } }),
+      { ...f, adesso, token: "t".repeat(40) });
+    const giusta = await leggi(1, codice);
+    assert.equal(giusta.status, 200, "V36 col codice giusto la persona non legge la sua segnalazione");
+    const risposte = [];
+    for (const [n, c] of [[1, "0".repeat(32)], [2, codice], [1, undefined], [1, codice.slice(0, 31)], [1, codice.toUpperCase() + "x"]]) {
+      const x = await leggi(n, c);
+      risposte.push([x.status, await x.text()]);
+    }
+    for (const x of risposte) assert.deepEqual(x, risposte[0], `V36 le risposte di errore si distinguono: ${JSON.stringify(risposte)}`);
+    assert.equal(risposte[0][0], 404, "V36 un codice sbagliato non dà 404");
+  },
+  // V46: la ricevuta. Il codice torna una volta, 32 caratteri esadecimali; il server tiene solo l'hash. Il pacchetto
+  // tiene le sole voci dell'elenco chiuso, e una voce troppo lunga resta fuori senza rifiutare la segnalazione.
+  async V46() {
+    const f = finti();
+    const pacchetto = { ambiente: "Arturo: v0.2.3", banchi: "VERDE", deriva: "x".repeat(LIMITI.vocePacchetto + 1), intruso: "nome cliente" };
+    const r = await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "t", testo: "x", origine: "fine", pacchetto }), { ...f, adesso });
+    assert.equal(r.status, 201, "V46 una segnalazione col pacchetto è rifiutata");
+    const { codice } = await r.json();
+    assert.match(codice || "", /^[0-9a-f]{32}$/, "V46 la risposta non porta il codice della ricevuta");
+    const salvata = f.stato.segnalazioni[0];
+    assert.equal(salvata.codice_hash, await logica.hashCodice(codice), "V46 il server non tiene l'hash del codice");
+    assert.doesNotMatch(JSON.stringify(salvata), new RegExp(codice), "V46 il server tiene il codice in chiaro");
+    assert.deepEqual(JSON.parse(salvata.pacchetto), { ambiente: "Arturo: v0.2.3", banchi: "VERDE" }, "V46 il pacchetto non è filtrato");
+    assert.equal(salvata.origine, "fine", "V46 l'origine non si salva");
+    const altra = await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "t", testo: "x", origine: "chissà" }), { ...f, adesso });
+    assert.notEqual((await altra.json()).codice, codice, "V46 due segnalazioni hanno lo stesso codice");
+    assert.equal(f.stato.segnalazioni[1].origine, "segnala", "V46 un'origine fuori elenco passa");
+  },
+  // V47: chi mantiene Arturo scrive stato e risposta col token; la persona li legge col codice. Uno stato fuori elenco
+  // e una risposta troppo lunga si rifiutano. Senza token giusto niente cambia.
+  async V47() {
+    const token = "t".repeat(40);
+    const f = finti();
+    const { codice } = await (await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "t", testo: "x" }), { ...f, adesso })).json();
+    const scrivi = (corpo, chiave = token) => gestisci(new Request("https://arturo.example/v1/contributi/1", {
+      method: "POST", headers: { authorization: `Bearer ${chiave}` }, body: JSON.stringify(corpo) }), { ...f, adesso, token });
+    assert.equal((await scrivi({ stato: "chiusa" }, "x".repeat(40))).status, 401, "V47 un token sbagliato scrive la risposta");
+    assert.equal((await scrivi({ stato: "boh" })).status, 400, "V47 uno stato fuori elenco passa");
+    assert.equal((await scrivi({ stato: "ritirata" })).status, 400, "V47 chi mantiene Arturo può segnarla ritirata");
+    assert.equal((await scrivi({ risposta: "x".repeat(LIMITI.risposta + 1) })).status, 400, "V47 una risposta troppo lunga passa");
+    const ok = await scrivi({ stato: "chiusa", risposta: "Corretta: esce con la prossima versione.", versione_fix: "v0.2.4" });
+    assert.equal(ok.status, 200, "V47 la risposta non si scrive col token");
+    const letta = await (await gestisci(new Request("https://arturo.example/v1/contributi/1", { headers: { "x-arturo-codice": codice } }),
+      { ...f, adesso, token })).json();
+    assert.deepEqual(letta, { numero: 1, stato: "chiusa", risposta: "Corretta: esce con la prossima versione.", versione_fix: "v0.2.4",
+      aggiornata: adesso.toISOString(), seguiti: 0 }, "V47 la persona non legge stato e risposta");
+    assert.equal((await gestisci(new Request("https://arturo.example/v1/contributi/9", { method: "POST",
+      headers: { authorization: `Bearer ${token}` }, body: JSON.stringify({ stato: "chiusa" }) }), { ...f, adesso, token })).status, 404,
+      "V47 una risposta a una segnalazione che non c'è");
+  },
+  // V48: il seguito porta le informazioni chieste (serve-info torna ricevuta) e suona il campanello senza testo;
+  // il ritiro cancella titolo, testo, pacchetto e seguiti, e dopo non si aggiunge più niente.
+  async V48() {
+    const f = finti();
+    const { codice } = await (await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo: "Titolo riservato", testo: "Testo riservato",
+      pacchetto: { ambiente: "Arturo: v0.2.3" }, installazione: "1b2c3d4e-aaaa-bbbb" }), { ...f, adesso })).json();
+    f.stato.segnalazioni[0].stato = "serve-info";
+    const manda = (azione, corpo, c = codice) => gestisci(new Request(`https://arturo.example/v1/contributi/1/${azione}`, {
+      method: "POST", headers: { "x-arturo-codice": c }, body: JSON.stringify(corpo || {}) }), { ...f, adesso });
+    assert.equal((await manda("seguito", { testo: "aggiunta" }, "0".repeat(32))).status, 404, "V48 un seguito senza il codice giusto passa");
+    assert.equal((await manda("seguito", { testo: "" })).status, 400, "V48 un seguito vuoto passa");
+    const avvisiPrima = f.stato.avvisi.length;
+    const s = await manda("seguito", { testo: "Succede anche con la cartella sul disco esterno." });
+    assert.equal(s.status, 201, "V48 il seguito non si aggiunge");
+    assert.deepEqual(await s.json(), { numero: 1, seguiti: 1, stato: "ricevuta" }, "V48 il seguito non riporta la segnalazione fra quelle da guardare");
+    assert.equal(f.stato.avvisi.length, avvisiPrima + 1, "V48 il seguito non suona il campanello");
+    assert.doesNotMatch(f.stato.avvisi.at(-1), /disco esterno/, "V48 il campanello porta il testo del seguito");
+    const r = await manda("ritira");
+    assert.equal(r.status, 200, "V48 la persona non riesce a ritirare la sua segnalazione");
+    const resta = f.stato.segnalazioni[0];
+    assert.doesNotMatch(JSON.stringify(resta), /riservato|disco esterno|v0\.2\.3|1b2c3d4e/, `V48 il ritiro lascia dati: ${JSON.stringify(resta)}`);
+    assert.equal(resta.stato, "ritirata", "V48 la segnalazione ritirata non è segnata");
+    assert.equal((await manda("seguito", { testo: "ancora" })).status, 409, "V48 dopo il ritiro si aggiunge un seguito");
+  },
+  // V49: la pulizia svuota il pacchetto tecnico dopo 90 giorni, il testo dopo 12 mesi.
+  async V49() {
+    const f = finti();
+    await pulizia({ ...f, adesso });
+    assert.equal(f.stato.pacchettiPrima, "2026-07-15", "V49 il pacchetto tecnico non si svuota dopo 90 giorni");
+    assert.equal(f.stato.pulito, "2025-10-13", "V49 la pulizia dei 12 mesi è cambiata");
   },
 };
 

@@ -285,7 +285,7 @@ fi
 # Invito a segnalare: Arturo migliora con quello che le persone gli dicono. Una riga di contesto,
 # spenta da "arturo segnala basta" (stato in session-env/segnala.json).
 if ! grep -q '"pausa": "sempre"' "$HOME/.claude/session-env/segnala.json" 2>/dev/null; then
-  echo "SEGNALA: se in questa sessione qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, proponi una volta /segnala, con la bozza gia' scritta da te. Riguarda Arturo, non i bug del progetto della persona."
+  echo "SEGNALA: se in questa sessione qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, proponi una volta /segnala, con la bozza gia' scritta da te e --origine avvio in prepara. Riguarda Arturo, non i bug del progetto della persona."
 fi
 
 # Nel Terminale di macOS il profilo accoda al titolo della scheda processo e cartella: la prima

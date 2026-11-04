@@ -4,7 +4,9 @@ La conversazione la fa /segnala (commands/segnala.md): capisce il tipo, scrive l
 persona e toglie a giudizio nomi, clienti e contenuti di lavoro. Questo modulo fa la parte che
 deve essere sempre uguale:
 
-- prepara: toglie i percorsi della home, ferma la bozza se contiene un segreto, mostra l'anteprima;
+- prepara: toglie cartelle personali, email, indirizzi web esterni, indirizzi IP, nomi di computer della rete e
+  nomi di documenti (redigi, e l'anteprima dice cosa ha tolto), ferma la bozza se contiene un segreto, mostra
+  l'anteprima col pacchetto tecnico a caselle;
 - invia: l'unico passo verso fuori, lanciato solo dopo il sì della persona. Quattro canali:
   arturo (il default: la segnalazione va al server di Arturo, che la manda per email a chi lo
   mantiene; se la rete non risponde resta in attesa e parte con il prossimo invio della telemetria),
@@ -12,12 +14,15 @@ deve essere sempre uguale:
   preme Invia), email (il testo negli appunti, la persona lo incolla e lo invia dal suo programma
   di posta). Nessun canale apre un mailto:, che comms-guard nega di proposito;
 - stato: a che punto sono le segnalazioni della persona (in attesa, arrivate col numero, corrette
-  con la voce di NOVITA.md che le cita);
+  con la voce di NOVITA.md che le cita) e, col codice della ricevuta, lo stato e la risposta di chi
+  mantiene Arturo;
+- seguito, ritira: un'aggiunta a una segnalazione partita, o il suo ritiro, col codice della ricevuta;
 - precedenti: le segnalazioni già partite col loro "In breve", che /segnala confronta con la bozza;
 - chiedi, basta, riprendi: la cadenza della domanda di /fine e il modo di spegnerla.
 
 Lo stato (ultima domanda, ultima segnalazione, canale scelto, pausa) sta in
-~/.claude/session-env/segnala.json. Una copia di ogni segnalazione resta in
+~/.claude/session-env/segnala.json. I codici delle ricevute in ~/.claude/data/segnalazioni/ricevute.json,
+leggibile solo dalla persona (lo sportello, 4/11/2026, #3925). Una copia di ogni segnalazione resta in
 ~/.claude/data/segnalazioni/. Il modulo non raccoglie niente da solo: ogni segnalazione parte
 da una persona che ha visto il testo e ha detto sì.
 
@@ -53,6 +58,38 @@ URL_MASSIMO = 6000
 # Non è un segreto: lo scanner la segnala, la segnalazione può contenerla.
 NON_SEGRETI = {"Stripe Publishable Key"}
 FIRMA = "\n\n---\n_Inviata con `/segnala` di Arturo._\n"
+# Lo sportello (4/11/2026, #3925). Le caselle del pacchetto tecnico: (voce, cosa dice l'anteprima, accesa di default).
+# Le voci arrivano solo a chi mantiene Arturo, col canale arturo, e il server le svuota dopo 90 giorni. "collega" non
+# porta testo: manda l'id dell'installazione, che lega la segnalazione ai dati d'uso. Spenta di default (piano del
+# 24/10/2026, decisione 1): il testo legato alla storia d'uso identifica la persona.
+VOCI_PACCHETTO = (
+    ("ambiente", "ambiente: versioni di Arturo, Claude Code, sistema e Python", True),
+    ("banchi", "esito dei controlli delle guardie all'avvio", True),
+    ("config", "stato della config: solo i nomi dei guasti", True),
+    ("deriva", "file e hook di Arturo cambiati o spenti su questo computer", False),
+    ("errore", "il messaggio d'errore intero (con --errore FILE)", False),
+    ("collega", "collega la segnalazione ai miei dati d'uso (l'id dell'installazione)", False),
+)
+VOCE_MASSIMO = 3900
+ORIGINI = ("segnala", "avvio", "fine")
+# redigi: le categorie che la persona può rimettere con --tieni, col segnaposto e il nome nell'anteprima.
+REDAZIONE = {
+    "web": ("[indirizzo web]", "indirizzi web"),
+    "email": ("[email]", "email"),
+    "computer": ("[computer]", "nomi di computer della rete"),
+    "ip": ("[indirizzo IP]", "indirizzi IP"),
+    "documenti": ("[documento]", "nomi di documenti"),
+}
+# Gli indirizzi web pubblici che servono a capire il problema: restano.
+WEB_PUBBLICI = re.compile(r"^https?://(?:github\.com/stellakamikaze/arturo(?:[/?#]|$)|(?:[a-z0-9-]+\.)*stellakamikaze\.org(?:[/:?#]|$)|"
+                          r"(?:docs|code|support)\.(?:claude\.com|anthropic\.com)(?:[/?#]|$)|(?:www\.)?anthropic\.com(?:[/?#]|$)|"
+                          r"127\.0\.0\.1|localhost)", re.I)
+RE_WEB = re.compile(r"https?://[^\s<>\"'`)\]]+", re.I)
+RE_EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
+RE_COMPUTER = re.compile(r"\b[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.(?:local|lan|internal|home\.arpa|ts\.net)\b", re.I)
+RE_IP = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
+RE_DOCUMENTI = re.compile(r"[^\s/\\\"'`<>|*?:\[\]]+\.(pdf|docx?|xlsx?|pptx?|key|pages|numbers|odt|ods|odp|rtf|eml|msg|csv)\b", re.I)
+
 # /segnala precedenti: quante copie e quanto del loro "In breve" legge Claude prima dell'anteprima.
 PRECEDENTI_MASSIMO = 30
 BREVE_MASSIMO = 400
@@ -62,12 +99,21 @@ AIUTO = f"""arturo segnala: un problema, un'idea o un'integrazione da proporre a
 Di solito lo usa /segnala dentro Claude Code. Comandi:
 
   info                                   versione di Arturo e di Claude Code, sistema, gh collegato
-  prepara --tipo T --titolo "…" --file BOZZA
-                                         pulisce la bozza e mostra l'anteprima (T: {", ".join(TIPI)})
+  prepara --tipo T --titolo "…" --file BOZZA [--pacchetto VOCI] [--tieni CATEGORIE] [--errore FILE]
+          [--origine {"|".join(ORIGINI)}]
+                                         pulisce la bozza e mostra l'anteprima (T: {", ".join(TIPI)}).
+                                         --pacchetto: le caselle accese, separate da virgole, o "nessuna"
+                                         ({", ".join(v for v, _, _ in VOCI_PACCHETTO)}; di default
+                                         {", ".join(v for v, _, a in VOCI_PACCHETTO if a)}).
+                                         --tieni: cosa non togliere dal testo ({", ".join(REDAZIONE)})
   invia --canale C --file PRONTA         la manda (C: arturo = diretta a chi mantiene Arturo, il default;
                                          gh = issue pubblica; web = pagina della issue compilata;
                                          email = testo negli appunti per {EMAIL})
-  stato                                  le tue segnalazioni: in attesa, arrivate, corrette (da NOVITA.md)
+  stato                                  le tue segnalazioni: in attesa, arrivate, corrette (da NOVITA.md),
+                                         con lo stato e la risposta di chi mantiene Arturo
+  seguito N --file TESTO [--conferma]    aggiunge alla n. N quello che chi mantiene Arturo ha chiesto;
+                                         senza --conferma mostra solo cosa partirebbe
+  ritira N [--conferma]                  ritira la n. N: sul server restano solo numero, tipo e data
   precedenti                             le segnalazioni già partite col loro "In breve", dalla più recente:
                                          /segnala le confronta con la bozza prima dell'anteprima
   canale [arturo|gh|web|email]           il canale ricordato, o lo ricorda
@@ -75,7 +121,8 @@ Di solito lo usa /segnala dentro Claude Code. Comandi:
   basta                                  niente inviti a segnalare finché non dici riprendi
   riprendi                               gli inviti ripartono
 
-Lo stato resta su questo computer: ~/.claude/session-env/segnala.json.
+Lo stato resta su questo computer: ~/.claude/session-env/segnala.json. I codici delle ricevute:
+~/.claude/data/segnalazioni/ricevute.json, leggibile solo da te.
 Le copie delle segnalazioni: ~/.claude/data/segnalazioni/."""
 
 
@@ -157,6 +204,110 @@ def togli_home(testo: str) -> str:
     return re.sub(r"(?i)[A-Z]:\\Users\\[^\\\s\"'`]+", "~", testo)
 
 
+def _ip_vero(valore: str) -> bool:
+    parti = valore.split(".")
+    return all(0 <= int(x) <= 255 for x in parti) and valore not in ("127.0.0.1", "0.0.0.0")
+
+
+def redigi(testo: str, tieni=()) -> tuple:
+    """Toglie dal testo quello che dice troppo di chi scrive e non serve a capire il guasto (4/11/2026, piano del
+    24/10). Torna (testo, {categoria: quante}). Le cartelle personali escono sempre; le altre categorie restano se
+    la persona le nomina in `tieni`. Non riconosce un nome di persona o di cliente: quello lo toglie Claude nella
+    bozza, a giudizio."""
+    testo, tolti = togli_home(testo), {}
+
+    def via(categoria, regex, filtro=None, forma=None):
+        nonlocal testo
+        if categoria in tieni:
+            return
+
+        def cambia(m):
+            if filtro and not filtro(m.group(0)):
+                return m.group(0)
+            tolti[categoria] = tolti.get(categoria, 0) + 1
+            return forma(m) if forma else REDAZIONE[categoria][0]
+        testo = regex.sub(cambia, testo)
+
+    via("web", RE_WEB, lambda u: not WEB_PUBBLICI.match(u))
+    via("email", RE_EMAIL)
+    via("computer", RE_COMPUTER)
+    via("ip", RE_IP, _ip_vero)
+    # Del documento resta l'estensione: un PDF che non si apre è un'informazione, il suo nome no.
+    via("documenti", RE_DOCUMENTI, forma=lambda m: f"{REDAZIONE['documenti'][0]}.{m.group(1).lower()}")
+    return testo, tolti
+
+
+def descrivi_tolti(tolti: dict) -> str:
+    return ", ".join(f"{n} {REDAZIONE[c][1]}" for c, n in tolti.items())
+
+
+# --- pacchetto tecnico -----------------------------------------------------------
+
+def _leggi(percorso: Path, righe: int = 0) -> str:
+    try:
+        testo = percorso.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    return "\n".join(testo.splitlines()[:righe]) if righe else testo
+
+
+def voci_pacchetto(scelta) -> list:
+    """Le voci accese: quelle di default, oppure la scelta della persona ("nessuna" le spegne tutte)."""
+    if scelta is None:
+        return [v for v, _, accesa in VOCI_PACCHETTO if accesa]
+    nomi = [x.strip() for x in scelta.split(",") if x.strip()]
+    if nomi in (["nessuna"], ["nessuno"]):
+        return []
+    ignote = [x for x in nomi if x not in {v for v, _, _ in VOCI_PACCHETTO}]
+    if ignote:
+        raise ValueError(f"voce del pacchetto sconosciuta: {', '.join(ignote)} "
+                         f"({', '.join(v for v, _, _ in VOCI_PACCHETTO)}, oppure nessuna)")
+    return nomi
+
+
+def pacchetto(voci: list, errore: str = "", tieni=()) -> dict:
+    """Il testo di ogni voce accesa, già passato da redigi. La voce collega non ha testo."""
+    radice = Path.home() / ".claude"
+    deriva = {}
+    try:
+        deriva = json.loads((radice / "cache" / "deriva.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, UnicodeDecodeError):
+        pass
+    deriva = deriva if isinstance(deriva, dict) else {}
+    fonti = {
+        "ambiente": lambda: f"{ambiente()}\nPython: {platform.python_version()}",
+        "banchi": lambda: _leggi(radice / "cache" / "banchi-ultimo-esito.txt", 15) or "i controlli delle guardie non sono ancora girati",
+        "config": lambda: ("nessun guasto" if not deriva.get("config") else ", ".join(map(str, deriva["config"])))
+                          if deriva else "non misurata su questo computer",
+        "deriva": lambda: ("file: " + (", ".join(map(str, deriva.get("file") or [])) or "nessuno") + "\nhook mancanti: "
+                           + (", ".join(map(str, deriva.get("hook") or [])) or "nessuno")) if deriva.get("misurata")
+                          else "non misurata su questo computer",
+        "errore": lambda: errore[-VOCE_MASSIMO:],
+    }
+    pieno = {}
+    for voce in voci:
+        if voce == "collega" or voce not in fonti:
+            continue
+        valore = (fonti[voce]() or "").strip()
+        if valore:
+            pieno[voce] = redigi(valore, tieni)[0][:VOCE_MASSIMO]
+    return pieno
+
+
+def anteprima_pacchetto(voci: list, contenuto: dict, errore_presente: bool) -> str:
+    righe = ["Pacchetto tecnico, solo col canale arturo: lo legge solo chi mantiene Arturo e il server lo cancella dopo 90 giorni."]
+    for voce, cosa, _ in VOCI_PACCHETTO:
+        accesa = voce in voci and (voce in contenuto or voce == "collega")
+        if voce == "errore" and not errore_presente:
+            cosa += ", non c'è"
+        righe.append(f"  [{'x' if accesa else ' '}] {voce}: {cosa}")
+        if accesa and voce in contenuto:
+            righe += [f"      {r}" for r in contenuto[voce].splitlines()]
+    righe.append("Per cambiare le caselle rilancia prepara con --pacchetto e le voci da accendere, separate da virgole "
+                 "(--pacchetto nessuna le spegne tutte).")
+    return "\n".join(righe)
+
+
 def titolo_con_tipo(tipo: str, titolo: str) -> str:
     titolo = " ".join(titolo.split())
     titolo = re.sub(r"^\[(?:problema|proposta|integrazione)\]\s*", "", titolo, flags=re.I)
@@ -226,15 +377,23 @@ def invia_gh(titolo: str, testo: str):
     return esito.stdout.strip().splitlines()[-1] if esito.stdout.strip() else "", None
 
 
+def _esegui(comando: list) -> str:
+    try:
+        r = subprocess.run(comando, capture_output=True, text=True, timeout=10)
+        return r.stdout.strip() if r.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def ambiente() -> str:
+    """Versioni di Arturo e di Claude Code e sistema: le prime righe di info, senza gh né canale. La voce ambiente
+    del pacchetto tecnico la usa da sola, per non lanciare gh a ogni anteprima."""
+    versione = _esegui(["git", "-C", str(Path.home() / ".claude"), "describe", "--tags", "--abbrev=0", "--match", "v*"]) or "sconosciuta"
+    claude = _esegui(["claude", "--version"]) or "sconosciuta"
+    return f"Arturo: {versione}\nClaude Code: {claude}\nSistema: {platform.system()} {platform.release()}"
+
+
 def info() -> str:
-    def esegui(comando: list) -> str:
-        try:
-            r = subprocess.run(comando, capture_output=True, text=True, timeout=10)
-            return r.stdout.strip() if r.returncode == 0 else ""
-        except (OSError, subprocess.SubprocessError):
-            return ""
-    versione = esegui(["git", "-C", str(Path.home() / ".claude"), "describe", "--tags", "--abbrev=0", "--match", "v*"]) or "sconosciuta"
-    claude = esegui(["claude", "--version"]) or "sconosciuta"
     if not shutil.which("gh"):
         gh = "non installato"
     else:
@@ -244,8 +403,7 @@ def info() -> str:
         except (OSError, subprocess.SubprocessError):
             gh = "non collegato"
     canale = leggi_stato().get("canale", "non scelto")
-    return (f"Arturo: {versione}\nClaude Code: {claude}\nSistema: {platform.system()} {platform.release()}\n"
-            f"gh: {gh}\nCanale ricordato: {canale}")
+    return f"{ambiente()}\ngh: {gh}\nCanale ricordato: {canale}"
 
 
 # --- comandi -------------------------------------------------------------------
@@ -271,10 +429,24 @@ def prepara(opz: dict) -> int:
     if tipo not in TIPI or not titolo or not bozza:
         print(f"Errore: servono --tipo ({', '.join(TIPI)}), --titolo e --file", file=sys.stderr)
         return 2
+    tieni = tuple(x.strip() for x in (opz.get("--tieni") or "").split(",") if x.strip())
+    ignote = [x for x in tieni if x not in REDAZIONE]
+    origine = opz.get("--origine") or "segnala"
+    if ignote or origine not in ORIGINI:
+        print(f"Errore: --tieni vuole {', '.join(REDAZIONE)}; --origine vuole {', '.join(ORIGINI)}", file=sys.stderr)
+        return 2
+    voci = voci_pacchetto(opz.get("--pacchetto"))
+    errore = Path(opz["--errore"]).read_text(encoding="utf-8", errors="replace") if opz.get("--errore") else ""
+    if errore and opz.get("--pacchetto") is None:
+        voci.append("errore")  # un errore passato da Claude si vede acceso: la persona lo spegne nell'anteprima
     sorgente = Path(bozza)
-    testo = togli_home(sorgente.read_text(encoding="utf-8")).strip()
-    titolo = togli_home(titolo_con_tipo(tipo, titolo))
-    trovati = segreti_trovati(titolo + "\n" + testo)
+    testo, tolti = redigi(sorgente.read_text(encoding="utf-8"), tieni)
+    testo = testo.strip()
+    titolo, tolti_titolo = redigi(titolo_con_tipo(tipo, titolo), tieni)
+    for c, n in tolti_titolo.items():
+        tolti[c] = tolti.get(c, 0) + n
+    contenuto = pacchetto(voci, errore, tieni)
+    trovati = segreti_trovati(titolo + "\n" + testo + "\n" + "\n".join(contenuto.values()))
     if trovati:
         print("Fermo: la bozza contiene qualcosa che sembra un segreto (" + ", ".join(trovati) + "). "
               "Toglilo dalla bozza e rilancia prepara. Niente è stato preparato.", file=sys.stderr)
@@ -283,10 +455,15 @@ def prepara(opz: dict) -> int:
         print("Errore: la bozza è vuota", file=sys.stderr)
         return 2
     pronta = sorgente.with_name(sorgente.name + ".pronta.json")
-    ts.scrivi_json_atomico(pronta, {"tipo": tipo, "titolo": titolo, "testo": testo + FIRMA})
+    ts.scrivi_json_atomico(pronta, {"tipo": tipo, "titolo": titolo, "testo": testo + FIRMA, "pacchetto": contenuto,
+                                    "collega": "collega" in voci, "origine": origine})
     print(f"PRONTA: {pronta}\n")
     print(f"Titolo: {titolo}\n")
     print(testo + FIRMA)
+    if tolti:
+        print(f"Tolto dal testo: {descrivi_tolti(tolti)}. Se servono a capire il problema, rilancia prepara con "
+              f"--tieni {','.join(tolti)}.\n")
+    print(anteprima_pacchetto(voci, contenuto, bool(errore)) + "\n")
     print(f"Dove può andare:\n  arturo (di solito): arriva solo a chi mantiene Arturo, senza altri passi\n"
           f"  gh o web: issue pubblica su github.com/{REPO}, la vede chiunque\n"
           f"  email: testo negli appunti da mandare a {EMAIL}")
@@ -301,11 +478,16 @@ def invia(opz: dict) -> int:
     try:
         dati = json.loads(Path(file).read_text(encoding="utf-8"))
         tipo, titolo, testo = dati["tipo"], dati["titolo"], dati["testo"]
-    except (OSError, ValueError, KeyError, TypeError):
+        # Un file preparato prima dello sportello (4/11/2026) non ha pacchetto: parte senza.
+        contenuto = {k: v for k, v in (dati.get("pacchetto") or {}).items()
+                     if k in {x for x, _, _ in VOCI_PACCHETTO} and isinstance(v, str)}
+        collega = dati.get("collega") is True
+        origine = dati.get("origine") if dati.get("origine") in ORIGINI else "segnala"
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
         print("Errore: il file non è una segnalazione preparata. Lancia prima prepara.", file=sys.stderr)
         return 2
     # Il file può essere cambiato dopo prepara: il controllo si ripete qui, prima di uscire.
-    trovati = segreti_trovati(titolo + "\n" + testo)
+    trovati = segreti_trovati(titolo + "\n" + testo + "\n" + "\n".join(contenuto.values()))
     if trovati or tipo not in TIPI:
         print("Fermo: " + (f"il testo contiene qualcosa che sembra un segreto ({', '.join(trovati)})"
                            if trovati else "tipo sconosciuto") + ". Niente è partito.", file=sys.stderr)
@@ -313,12 +495,17 @@ def invia(opz: dict) -> int:
 
     # Un solo orario per il file in attesa e la copia: lo stesso nome li lega quando parte (28/10/2026).
     adesso = dt.datetime.now()
-    esito = ""
+    esito, ricevuta = "", False
+    if canale != "arturo" and contenuto:
+        print("Il pacchetto tecnico resta su questo computer: parte solo col canale arturo.")
     if canale == "arturo":
         dati_server = {"tipo": tipo, "titolo": titolo, "testo": testo, "versione": telemetria.versione(),
-                       "sistema": telemetria.sistema()}
-        # L'id lega la segnalazione agli eventi d'uso solo se la telemetria è accesa.
-        if not telemetria.perche_spenta():
+                       "sistema": telemetria.sistema(), "origine": origine}
+        if contenuto:
+            dati_server["pacchetto"] = contenuto
+        # L'id lega la segnalazione agli eventi d'uso solo con la casella "collega" accesa e la telemetria accesa
+        # (4/11/2026: prima partiva sempre a telemetria accesa).
+        if collega and not telemetria.perche_spenta():
             dati_server["installazione"] = telemetria.installazione()
         status, risposta = telemetria.posta_json("/v1/segnalazioni", dati_server, timeout=10)
         if 200 <= status < 300:
@@ -328,6 +515,9 @@ def invia(opz: dict) -> int:
             numero = risposta.get("numero")
             if isinstance(numero, int) and not isinstance(numero, bool) and numero > 0:
                 esito += f": è la segnalazione n. {numero}"
+                # La ricevuta (4/11/2026): col codice la persona legge la risposta. Un server di prima non lo manda.
+                if telemetria.salva_codice(numero, risposta.get("codice")):
+                    ricevuta = True
             # Il server risponde: partono anche quelle rimaste in attesa (Liliana, 27/10/2026).
             partite = telemetria.invia_segnalazioni_in_attesa()
             if partite:
@@ -372,12 +562,16 @@ def invia(opz: dict) -> int:
     cartella = cartella_copie()
     cartella.mkdir(parents=True, exist_ok=True)
     copia = cartella / f"{adesso:%Y-%m-%d_%H%M%S}_{tipo}.md"
-    copia.write_text(f"# {titolo}\n\nData: {adesso:%Y-%m-%d %H:%M}\nCanale: {canale}\nEsito: {esito}\n\n{testo}",
-                     encoding="utf-8")
+    partito = ", ".join(sorted(contenuto)) if canale == "arturo" and contenuto else "nessuno"
+    copia.write_text(f"# {titolo}\n\nData: {adesso:%Y-%m-%d %H:%M}\nCanale: {canale}\nEsito: {esito}\n"
+                     f"Pacchetto: {partito}\n\n{testo}", encoding="utf-8")
     oggi = ts.oggi().isoformat()
     cambia_stato(lambda s: s.update({"inviata": oggi, "canale": canale}))
     telemetria.registra("segnalazione", tipo)
     print(f"\nFatto: {esito}.\nCopia: {copia}")
+    if ricevuta:
+        print("Ricevuta: il codice per leggere la risposta è salvato su questo computer. "
+              "La risposta di chi mantiene Arturo si legge con: arturo segnala stato")
     return 0
 
 
@@ -415,14 +609,25 @@ def _copie() -> list:
         corpo = testo.split("\n\n", 2)[2] if testo.count("\n\n") >= 2 else testo
         breve = re.search(r"^### In breve\s*\n(.*?)(?=^###|\Z)", corpo, re.M | re.S)
         breve = " ".join((breve.group(1) if breve else corpo.replace(FIRMA.strip(), "")).split())
-        copie.append({"numero": int(numero.group(1)) if numero else None, "quando": data.group(1) if data else "",
+        copie.append({"file": copia.stem, "numero": int(numero.group(1)) if numero else None, "quando": data.group(1) if data else "",
                       "titolo": titolo, "esito": esito, "breve": breve[:BREVE_MASSIMO]})
     return copie
 
 
+STATO_IN_PAROLE = {
+    "ricevuta": "arrivata, chi mantiene Arturo deve ancora guardarla",
+    "serve-info": "chi mantiene Arturo ti chiede altre informazioni: rispondi con /segnala seguito",
+    "in-lavoro": "in lavoro",
+    "chiusa": "chiusa",
+    "rifiutata": "non accolta",
+    "ritirata": "ritirata da te",
+}
+
+
 def stato() -> int:
     """Le segnalazioni partite da questo computer e dove sono: in attesa, arrivate, corrette e uscite
-    (Computer Club N.3, 27/10/2026: "quando faccio il segnale cosa succede?")."""
+    (Computer Club N.3, 27/10/2026: "quando faccio il segnale cosa succede?"). Dal 4/11/2026, con il codice della
+    ricevuta, anche lo stato e la risposta di chi mantiene Arturo, letti dal server."""
     copie = _copie()
     if not copie:
         print("Nessuna segnalazione partita da questo computer.")
@@ -431,11 +636,26 @@ def stato() -> int:
         uscite = novita_per_numero((Path.home() / ".claude" / "NOVITA.md").read_text(encoding="utf-8"))
     except OSError:
         uscite = {}
+    codici, sportello, rete = telemetria.codici(), telemetria.leggi_sportello(), True
+    rifiutate = {f.name.replace(".rifiutata.json", "") for f in cartella_copie().glob("*.rifiutata.json")}
     for c in copie:
-        numero, esito = c["numero"], c["esito"]
-        if numero and numero in uscite:
+        numero, esito, risposta = c["numero"], c["esito"], {}
+        if numero and numero in codici and rete:
+            status, risposta = telemetria.leggi_contributo(numero, codici[numero])
+            rete = status != 0  # una rete giù non si richiede a ogni riga
+            if risposta:
+                risposta["vista"] = risposta.get("aggiornata", "")
+                sportello[numero] = risposta
+        risposta = risposta or (sportello.get(numero) if numero else None) or {}
+        if c["file"] in rifiutate:
+            dove = "rifiutata dal server (troppo lunga o non valida): mandala col canale web o email"
+        elif numero and numero in uscite:
             giorno, voce = uscite[numero]
             dove = f"corretta: la novità del {giorno} \"{voce}\" la racconta"
+        elif numero and risposta:
+            dove = STATO_IN_PAROLE.get(risposta.get("stato"), "arrivata")
+            if risposta.get("versione_fix"):
+                dove += f", la correzione esce con la versione {risposta['versione_fix']}"
         elif numero:
             dove = "arrivata, la correzione non è ancora uscita"
         elif esito.startswith("in attesa"):
@@ -443,7 +663,79 @@ def stato() -> int:
         else:
             dove = esito or "esito non scritto"
         print(f"{'n. ' + str(numero) if numero else '-'} · {c['quando']} · {c['titolo']}: {dove}")
+        if risposta.get("risposta"):
+            print("  Risposta di chi mantiene Arturo: " + " ".join(risposta["risposta"].split()))
+    if not rete:
+        print("\nIl server ora non risponde: stato e risposte sono quelli dell'ultima lettura.")
+    if sportello:
+        telemetria.scrivi_sportello(sportello)
     return 0
+
+
+def _codice_di(numero: str):
+    if not numero.isdigit():
+        raise ValueError(f'numero di segnalazione non valido: "{numero}"')
+    codice = telemetria.codici().get(int(numero))
+    if not codice:
+        print(f"La n. {numero} non ha la ricevuta su questo computer: è partita da un altro computer, prima del "
+              "4/11/2026 o da un altro canale. Scrivi a chi mantiene Arturo con una segnalazione nuova che la cita.",
+              file=sys.stderr)
+    return int(numero), codice
+
+
+def seguito(numero: str, opz: dict) -> int:
+    """Un'aggiunta alla segnalazione n. N: le informazioni che chi mantiene Arturo ha chiesto, o un caso nuovo.
+    Passa dalla stessa pulizia di prepara. Senza --conferma mostra solo cosa partirebbe."""
+    n, codice = _codice_di(numero)
+    if not codice:
+        return 3
+    if not opz.get("--file"):
+        print("Errore: serve --file col testo da aggiungere", file=sys.stderr)
+        return 2
+    testo, tolti = redigi(Path(opz["--file"]).read_text(encoding="utf-8"))
+    testo = testo.strip()
+    trovati = segreti_trovati(testo)
+    if trovati or not testo:
+        print("Fermo: " + (f"il testo contiene qualcosa che sembra un segreto ({', '.join(trovati)})" if trovati
+                           else "il testo è vuoto") + ". Niente è partito.", file=sys.stderr)
+        return 3
+    if "--conferma" not in opz:
+        print(f"Si aggiunge alla segnalazione n. {n}, solo per chi mantiene Arturo:\n\n{testo}\n")
+        if tolti:
+            print(f"Tolto dal testo: {descrivi_tolti(tolti)}.")
+        print(f"Parte con: arturo segnala seguito {n} --file {opz['--file']} --conferma")
+        return 0
+    status, risposta = telemetria.chiedi_json(f"/v1/contributi/{n}/seguito", "POST", {"testo": testo},
+                                              {"x-arturo-codice": codice}, timeout=10)
+    if 200 <= status < 300:
+        print(f"Fatto: aggiunta alla segnalazione n. {n}. Chi mantiene Arturo la vede col resto.")
+        return 0
+    print({0: "Il server ora non risponde: riprova più tardi.", 404: f"Il server non trova la n. {n}.",
+           409: f"La n. {n} è ritirata: manda una segnalazione nuova."}.get(status, f"Non partita: il server risponde {status}."),
+          file=sys.stderr)
+    return 1
+
+
+def ritira(numero: str, opz: dict) -> int:
+    """Ritira la segnalazione n. N: sul server si cancellano titolo, testo, pacchetto e seguiti, restano numero,
+    tipo e data. La copia su questo computer resta."""
+    n, codice = _codice_di(numero)
+    if not codice:
+        return 3
+    if "--conferma" not in opz:
+        print(f"Ritirare la n. {n} cancella dal server titolo, testo, pacchetto tecnico e aggiunte. Restano numero, tipo "
+              f"e data. Non si torna indietro.\nParte con: arturo segnala ritira {n} --conferma")
+        return 0
+    status, _ = telemetria.chiedi_json(f"/v1/contributi/{n}/ritira", "POST", {}, {"x-arturo-codice": codice}, timeout=10)
+    if 200 <= status < 300:
+        sportello = telemetria.leggi_sportello()
+        sportello[n] = {"stato": "ritirata", "risposta": "", "versione_fix": "", "aggiornata": "", "vista": ""}
+        telemetria.scrivi_sportello(sportello)
+        print(f"Fatto: la n. {n} è ritirata. Sul server restano solo numero, tipo e data.")
+        return 0
+    print("Il server ora non risponde: riprova più tardi." if status == 0 else f"Non ritirata: il server risponde {status}.",
+          file=sys.stderr)
+    return 1
 
 
 def precedenti() -> int:
@@ -486,7 +778,14 @@ def main(argv: list) -> int:
             print(info())
             return 0
         if comando == "prepara":
-            return prepara(_opzioni(resto, ("--tipo", "--titolo", "--file")))
+            return prepara(_opzioni(resto, ("--tipo", "--titolo", "--file", "--pacchetto", "--tieni", "--errore", "--origine")))
+        if comando in ("seguito", "ritira") and resto:
+            conferma = "--conferma" in resto
+            altri = [x for x in resto[1:] if x != "--conferma"]
+            opz = _opzioni(altri, ("--file",) if comando == "seguito" else ())
+            if conferma:
+                opz["--conferma"] = True
+            return seguito(resto[0], opz) if comando == "seguito" else ritira(resto[0], opz)
         if comando == "invia":
             return invia(_opzioni(resto, ("--canale", "--file")))
         if comando == "stato" and not resto:

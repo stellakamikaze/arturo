@@ -20,7 +20,21 @@ per quelli proponi alla persona di scrivere `/diagnosi`.
 
 Se la persona scrive `stato`, o chiede che fine hanno fatto le sue segnalazioni, lancia
 `python3 ~/.claude/bin/arturo segnala stato` e racconta l'elenco: in attesa, arrivate, corrette
-(con la novità che le racconta). Poi fermati.
+(con la novità che le racconta), e per quelle con la ricevuta lo stato e la risposta di chi mantiene
+Arturo, con le sue parole. Poi fermati.
+
+Se chi mantiene Arturo chiede altre informazioni (stato "serve-info"), o la persona vuole aggiungere
+qualcosa a una segnalazione partita, scrivi con lei l'aggiunta in un file temporaneo e lancia
+`python3 ~/.claude/bin/arturo segnala seguito N --file AGGIUNTA`. Lo script pulisce il testo come
+`prepara` e mostra cosa partirebbe: mostralo, chiedi "La mando?", e solo dopo il sì rilancia lo stesso
+comando con `--conferma`.
+
+Se la persona vuole ritirare una segnalazione, lancia `python3 ~/.claude/bin/arturo segnala ritira N`,
+riporta cosa succede (dal server spariscono titolo, testo, pacchetto e aggiunte; restano numero, tipo e
+data) e solo dopo il suo sì rilancia con `--conferma`.
+
+Seguito e ritiro funzionano solo con la ricevuta: le segnalazioni partite da questo computer col canale
+`arturo` dal 4/11/2026. Con exit 3 la ricevuta non c'è: proponi una segnalazione nuova che cita il numero.
 
 ## Passo 1 — Il tipo
 
@@ -49,7 +63,9 @@ python3 ~/.claude/bin/arturo segnala info
 ```
 
 Scrivi la bozza in un file temporaneo, in markdown. Apre con "In breve", poi le stesse intestazioni
-dei modelli di GitHub e un blocco finale "Ambiente" con l'output di `info`:
+dei modelli di GitHub e un blocco finale "Ambiente" con l'output di `info`. Le versioni e lo stato
+della config partono anche nel pacchetto tecnico (Passo 4), ma il blocco "Ambiente" resta: è l'unico
+che arriva con i canali `gh`, `web` ed `email`.
 
 ```markdown
 ### In breve
@@ -76,8 +92,13 @@ fai oggi, senza?".
 
 **Togli tu quello che non deve uscire**: nomi di persone, clienti e organizzazioni, contenuti
 di documenti ed email, indirizzi interni, nomi di file che dicono troppo. Lascia il fatto:
-"un cliente" al posto del nome basta. Lo script toglie da solo le cartelle personali e ferma i
-segreti, ma non riconosce un nome o un contenuto riservato: quello è il tuo lavoro.
+"un cliente" al posto del nome basta. Lo script toglie da solo cartelle personali, email, indirizzi
+web esterni, indirizzi IP, nomi di computer della rete e nomi di documenti, e ferma i segreti, ma non
+riconosce un nome o un contenuto riservato: quello è il tuo lavoro.
+
+Se il problema ha un messaggio d'errore lungo (un traceback, l'uscita di un comando), non metterlo
+intero nella bozza: salvalo in un altro file temporaneo e passalo a `prepara` con `--errore FILE`.
+Entra nel pacchetto tecnico, che la persona vede e può spegnere.
 
 Il titolo dice il fatto in poche parole comuni: "/fine si ferma al commit", non "Bug", e non
 "commit-secret-gate.py dà scansione-fallita".
@@ -105,11 +126,22 @@ Due problemi diversi nello stesso comando non lo sono.
 ## Passo 4 — Anteprima
 
 ```bash
-python3 ~/.claude/bin/arturo segnala prepara --tipo TIPO --titolo "TITOLO" --file BOZZA
+python3 ~/.claude/bin/arturo segnala prepara --tipo TIPO --titolo "TITOLO" --file BOZZA [--errore FILE]
 ```
 
-- Con exit 3 la bozza contiene qualcosa che sembra un segreto: toglilo e rilancia.
-- Con exit 0 mostra alla persona l'anteprima per intero, così come la stampa lo script.
+- Aggiungi `--origine` quando la segnalazione nasce altrove: `fine` dalla proposta di `/fine`, `avvio` da una
+  riga dell'avvio (SEGNALA, banchi rossi). Senza, vale `segnala`. Dice a chi
+  mantiene Arturo quale invito funziona.
+- Con exit 3 la bozza o il pacchetto contengono qualcosa che sembra un segreto: toglilo e rilancia.
+- Con exit 0 mostra alla persona l'anteprima per intero, così come la stampa lo script: il testo, la riga
+  "Tolto dal testo" se c'è, e il pacchetto tecnico con le sue caselle. Le caselle accese di default sono
+  ambiente, banchi e config; deriva, errore (acceso se hai passato `--errore`) e "collega ai miei dati
+  d'uso" sono spente. Dillo in una riga: "Con la segnalazione parte un pacchetto tecnico, qui sotto: puoi
+  spegnere o accendere ogni casella."
+- Se la persona cambia le caselle, rilancia `prepara` con `--pacchetto` e le voci accese separate da
+  virgole (`--pacchetto ambiente,deriva`, o `--pacchetto nessuna`). Se una cosa tolta serve a capire il
+  problema (l'indirizzo di un sito pubblico, per esempio), rilancia con `--tieni` e la categoria che
+  l'anteprima nomina, solo col sì della persona.
 
 Il canale è `arturo`: la segnalazione arriva direttamente a chi mantiene Arturo, senza account e
 senza altri passi. Usa un altro canale solo se la persona lo chiede o se l'ha scelto prima
@@ -136,8 +168,10 @@ python3 ~/.claude/bin/arturo segnala invia --canale CANALE --file PRONTA
 `PRONTA` è il percorso stampato da `prepara` nella riga `PRONTA:`.
 
 - `arturo`: è arrivata, e l'esito dice il suo numero ("è la segnalazione n. 19"). Dillo alla
-  persona: chi mantiene Arturo la legge, e quando esce la correzione `/novita` la racconta con
-  quel numero. `/segnala stato` le mostra tutte con il punto in cui sono. Se il server non risponde, la segnalazione resta salvata e parte da sola alla
+  persona: chi mantiene Arturo la legge e può rispondere. La riga "Ricevuta" dice che il codice per
+  leggere la risposta è salvato sul suo computer: quando la risposta arriva, l'avvio di una sessione
+  lo dice (riga SPORTELLO) e `/segnala stato` la mostra. Quando esce la correzione `/novita` la
+  racconta con quel numero. Se il server non risponde, la segnalazione resta salvata e parte da sola alla
   prossima sessione: la persona non deve fare altro.
 - `gh`: la issue si apre subito. Dai il link.
 - `web`: si apre la pagina della issue già compilata. La persona controlla e preme Invia.

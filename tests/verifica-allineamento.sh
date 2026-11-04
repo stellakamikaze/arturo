@@ -164,6 +164,7 @@ BANCHI=(
   test_claude_md_conferma_2026_11_03.py
   test_scansione_fallita_2026_11_03.py
   test_finestre_windows_2026_11_04.py
+  test_sportello_2026_11_04.py
   test_humanizer_origine.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
@@ -179,7 +180,7 @@ IN_FILA=(
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py)
+PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py)
 PY38=$(command -v python3.8 || true)
 [[ -n "$PY38" ]] || echo "NOTA: python3.8 assente, todo e pagina provati solo con $(python3 --version 2>&1)"
 
@@ -374,6 +375,8 @@ BASELINE=(
   "test_monitor_giro_2026_11_03.py 9248ea9"
   # Lanci staccati senza finestre su Windows (4/11/2026): efaa296, il dev prima.
   "test_finestre_windows_2026_11_04.py efaa296"
+  # Lo sportello delle segnalazioni (4/11/2026, #3925): ricevuta, pacchetto, redazione, risposta. fa14218, il dev prima.
+  "test_sportello_2026_11_04.py fa14218"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
