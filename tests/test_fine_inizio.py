@@ -45,6 +45,9 @@ F20 il blocco di /inizio per un progetto nuovo espande la tilde di PROJECTS_BASE
 F21 arturo contesto trova "mio_progetto" anche scritto come slug (segnalazione n. 21).
 F22 /fine a sessione vuota (proposta n. 29, #4190): dopo la FASE 1, senza file, modifiche, todo e
 cartella, salta le fasi 2-8 e 10 e lancia solo la coda. Ogni file shared/ che /fine fa leggere esiste.
+F23 i todo di Claude fermi (proposta n. 52, #4769): arturo contesto elenca i todo "io", da fare o in
+corso, senza un passo da più di 3 giorni. Una nota non è un passo; restano fuori i fermi, chi aspetta un
+altro todo aperto, gli altri progetti e chi agisce "tu". /inizio li dice anche con un compito e in rotazione.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -1065,11 +1068,60 @@ def test_f22(repo: Path) -> None:
     assert not mancanti, f"F22 /fine fa leggere file shared/ che non esistono: {mancanti}"
 
 
+def test_f23(repo: Path) -> None:
+    """I todo di Claude fermi da più di 3 giorni tornano in vista (proposta n. 52, #4769, 4/11/2026)."""
+    inizio = read(repo / "commands" / "inizio.md")
+    for sezione in ("## Con un compito", "## Modo rotazione"):
+        assert sezione in inizio, f"F23 /inizio non ha la sezione {sezione!r}"
+        corpo = inizio[inizio.index(sezione):].split("\n## ", 1)[0]
+        assert "FACCIO IO FERMI" in corpo, f"F23 {sezione!r} di /inizio non dice i todo di Claude fermi"
+    import datetime as dt
+    oggi = dt.date.today()
+
+    def prova(lab: Lab) -> None:
+        progetto = lab.progetti / "libro"
+        progetto.mkdir()
+        lab.todo("aggiungi", "Vecchio lavoro mio", "--progetto", "libro", "--chi", "io")           # 1 fermo
+        lab.todo("aggiungi", "Lavoro con una nota", "--progetto", "libro", "--chi", "io")          # 2 fermo
+        lab.todo("aggiungi", "Lavoro toccato oggi", "--progetto", "libro", "--chi", "io")          # 3 mosso
+        lab.todo("aggiungi", "Prova a banco della persona", "--progetto", "libro", "--chi", "tu")  # 4 tu
+        lab.todo("aggiungi", "Messo in fermo", "--progetto", "libro", "--chi", "io")               # 5 fermo apposta
+        lab.todo("aggiungi", "Lavoro di ieri l'altro", "--progetto", "libro", "--chi", "io")       # 6 sotto soglia
+        lab.todo("aggiungi", "Aspetta la prova", "--progetto", "libro", "--chi", "io", "--dopo", "4")  # 7 aspetta
+        lab.todo("aggiungi", "Lavoro di un altro progetto", "--progetto", "altro", "--chi", "io")  # 8 altro
+        lab.todo("aggiungi", "In corso da tanto", "--progetto", "libro", "--chi", "io")            # 9 in corso
+        # Ogni evento scritto finora si sposta indietro: 10 giorni, il #6 solo 2. Poi i passi di oggi.
+        eventi = []
+        for r in lab.todo_file.read_text(encoding="utf-8").splitlines():
+            e = json.loads(r)
+            giorni = 2 if e.get("id") == 6 else 10
+            e["ts"] = (dt.datetime.combine(oggi - dt.timedelta(days=giorni), dt.time(9))
+                       .replace(tzinfo=dt.timezone.utc).isoformat())
+            eventi.append(json.dumps(e, ensure_ascii=False))
+        lab.todo_file.write_text("\n".join(eventi) + "\n", encoding="utf-8")
+        lab.todo("nota", "2", "ci ho pensato, niente di fatto")
+        lab.todo("modifica", "3", "--priorita", "alta")
+        lab.todo("ferma", "5", "aspetta il preventivo")
+        lab.todo("inizia", "9")
+        r = lab.run([sys.executable, "-B", str(lab.repo / "bin" / "arturo"), "contesto", "libro"],
+                    cwd=lab.home, ARTURO_OGGI=oggi.isoformat())
+        out = r.stdout
+        assert r.returncode == 0, f"F23 exit {r.returncode}: {r.stderr} {out[:300]}"
+        assert "FACCIO IO FERMI DA PIÙ DI 3 GIORNI" in out, f"F23 il contesto non elenca i todo di Claude fermi: {out}"
+        blocco = out[out.index("FACCIO IO FERMI"):].split("\n\n", 1)[0]
+        for atteso in ("#1 Vecchio lavoro mio · fermo da 10 g", "#2 Lavoro con una nota · fermo da 10 g"):
+            assert atteso in blocco, f"F23 manca {atteso!r} fra i fermi (una nota non è un passo): {blocco}"
+        fuori = [n for n in ("#3 ", "#4 ", "#5 ", "#6 ", "#7 ", "#8 ", "#9 ") if n in blocco]
+        assert not fuori, f"F23 fra i fermi ci sono todo mossi, di altri, in fermo o sotto soglia: {fuori} {blocco}"
+        assert "(2)" in blocco.splitlines()[0], f"F23 il conteggio dei fermi è sbagliato: {blocco}"
+    con_lab(repo, prova)
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
          "F16": test_f16, "F17": test_f17, "F18": test_f18,
-         "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22}
+         "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23}
 
 
 def main() -> int:

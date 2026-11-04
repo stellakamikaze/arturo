@@ -12,6 +12,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — /inizio ricorda i todo di Claude fermi da giorni
+
+**Cosa cambia**: all'avvio, `/inizio` elenca i todo che Claude deve fare e che non hanno avuto un passo
+da più di 3 giorni, con l'ID e i giorni. La riga c'è anche quando apri la sessione con un compito, e
+nella rotazione automatica: dopo il compito Claude ne riprende uno, o ti chiede se toglierlo. Una nota
+sul todo non azzera il conteggio: conta solo un passo vero (una modifica, un cambio di stato). Un todo
+messo in fermo apposta, o che aspetta un altro todo, resta fuori. Se un todo fermo chiede le tue mani,
+per esempio una prova a banco, Claude lo segnala come assegnato male e ti propone di passarlo a te.
+
+**Perché**: proposta n. 52 di Filippo. Quattro decisioni passate a Claude il 28/10 erano ancora aperte il
+4/11, dopo tre sessioni sullo stesso progetto: il compito nuovo passava sempre davanti.
+
+---
+
 ## 2026-11-04 — Un agente ripreso fuori dalla sua copia si ferma e lo dice
 
 **Cosa cambia**: un agente lanciato in una copia separata (`isolation: "worktree"`) che si ferma, per la

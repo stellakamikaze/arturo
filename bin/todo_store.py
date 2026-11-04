@@ -262,7 +262,7 @@ def carica(file: Path | None = None) -> tuple:
                               f"ora è #{numero_todo}")
             t = {"id": numero_todo, "id_originale": e["id"], "uid": uid, "titolo": "", "progetto": "generale",
                  "scadenza": "", "chi": "tu", "perche": "", "priorita": "media", "quando": "settimana",
-                 "stato": "da fare", "motivo": "", "dopo": [], "note": [], "creato": ts, "aggiornato": ts,
+                 "stato": "da fare", "motivo": "", "dopo": [], "note": [], "creato": ts, "aggiornato": ts, "mosso": ts,
                  "chiuso": "", "storia": [], "ev": []}
             t.update({k: pulisci(v) for k, v in dati.items() if k in CAMPI})
             t["progetto"] = t["progetto"] or "generale"  # righe scritte prima che il vuoto fosse rifiutato
@@ -287,6 +287,9 @@ def carica(file: Path | None = None) -> tuple:
                 if dati.get("togli") in t["dopo"]:
                     t["dopo"].remove(dati["togli"])
             t["aggiornato"] = ts
+            if tipo != "nota":
+                # Una nota racconta, non sposta il todo: "fermo da" conta dall'ultimo passo vero (proposta n. 52).
+                t["mosso"] = ts
         todo[uid]["storia"].append({"ts": ts, "tipo": tipo, "dati": dati})
         todo[uid]["ev"].append(ev)
     return todo, avvisi
@@ -698,6 +701,32 @@ def progetti(todo: dict) -> dict:
         g = giorni(t)
         c["scaduti"] += g is not None and g < 0
     return conti
+
+
+def fermi_da(todo: dict, progetto: str, soglia: int = 3) -> list:
+    """I todo di Claude senza un passo da più di `soglia` giorni: [(todo, giorni)], i più vecchi prima.
+
+    Proposta n. 52 (Filippo, 4/11/2026): un compito nuovo passa davanti, e i todo "io" restano aperti per
+    giorni senza che una sessione li riprenda. Contano chi agisce "io", stato da fare o in corso, nessun
+    movimento (crea, modifica, stato, dopo) da più di `soglia` giorni. Una nota non conta come movimento.
+    Restano fuori i fermi, chi aspetta un altro todo aperto e gli esercizi del percorso.
+    """
+    per_uid = {t["uid"]: t for t in todo.values()}
+    fermi = []
+    for t in todo.values():
+        if (t["progetto"] != progetto or t["progetto"] == PROGETTO_PERCORSO or t["chi"] != "io"
+                or t["stato"] not in ("da fare", "in corso")):
+            continue
+        if any(per_uid[u]["stato"] in APERTI for u in t["dopo"] if u in per_uid):
+            continue
+        try:
+            dal = dt.date.fromisoformat(str(t.get("mosso") or t["creato"])[:10])
+        except ValueError:
+            continue  # un ts illeggibile non fa un'età
+        g = (oggi() - dal).days
+        if g > soglia:
+            fermi.append((t, g))
+    return sorted(fermi, key=lambda x: (-x[1], x[0]["id"]))
 
 
 def da_dove(todo: dict):

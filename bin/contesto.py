@@ -40,6 +40,7 @@ import todo_store as ts  # noqa: E402
 
 GIORNI = 14
 GIORNI_SCADENZE = 7
+GIORNI_FERMI = 3  # proposta n. 52: un todo di Claude senza un passo da più di 3 giorni torna in vista
 MAX_STATUS = 15
 MAX_COMMIT = 15
 MAX_RIPARTENZA = 700
@@ -325,6 +326,12 @@ def sezione_todo(todo: dict, progetto: str, dal: str | None) -> list:
         if g["todo"]:
             righe.append(f"  {ETICHETTE.get(g['tipo'], g['titolo'])}")
             righe += [riga_todo(t) for t in g["todo"]]
+
+    fermi = ts.fermi_da(todo, progetto, GIORNI_FERMI)
+    if fermi:
+        # Proposta n. 52: /inizio li dice in una riga anche con un compito e in rotazione (inizio.md).
+        righe += ["", f"FACCIO IO FERMI DA PIÙ DI {GIORNI_FERMI} GIORNI ({len(fermi)})"]
+        righe += [f"    #{t['id']} {t['titolo']} · fermo da {g} g" for t, g in fermi]
 
     if dal:
         chiusi = sorted((t for t in todo.values() if t["progetto"] == progetto and t["chiuso"]

@@ -145,8 +145,9 @@ ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
 - `RIPARTENZA`: la Ripartenza e il prossimo passo degli handoff degli ultimi 14 giorni, col filone
   quando c'è, e il percorso dell'ultimo handoff da leggere per intero;
 - i todo aperti del progetto divisi per chi agisce (TOCCA A TE, DECIDI TU POI FACCIO IO, FACCIO
-  IO, FERMO), i todo chiusi dopo l'ultimo handoff, le SCADENZE dei prossimi 7 giorni anche fuori
-  dal progetto, il todo DA DOVE PARTIRE e gli avvisi.
+  IO, FERMO), i FACCIO IO FERMI DA PIÙ DI 3 GIORNI (nessun passo vero: una nota non conta), i todo
+  chiusi dopo l'ultimo handoff, le SCADENZE dei prossimi 7 giorni anche fuori dal progetto, il todo DA
+  DOVE PARTIRE e gli avvisi.
 
 Con `rc=0` entra nella cartella della riga `cartella:` con `cd "<cartella>"`: la sessione e
 `/fine` lavorano lì. Con `cartella: nessuna` il progetto vive solo negli handoff o nei todo:
@@ -318,6 +319,9 @@ Perché è fatta così:
   senza password, pagamenti, invii a terzi o decisioni della persona, porta la marca «Faccio io
   (stima)». Nell'archivio cambia solo dopo il suo sì.
 - **Bozze in attesa** in cima al loro filone, con la data: oltre tre giorni proponi di riscriverle.
+- **Todo di Claude fermi.** Se la FASE 1 stampa FACCIO IO FERMI, la lista li segna con «fermo da N g».
+  Uno che chiede le mani della persona (una prova a banco, un gesto, un accesso) era assegnato male:
+  marcalo «Tocca a te (stima)» e proponi la correzione «N a te» (proposta n. 52, 4/11/2026).
 - **Da dove partirei** è uno solo, col motivo: il todo di DA DOVE PARTIRE della FASE 1, o uno migliore.
 - **Il pannello.** [solo se il controllo della FASE 4 stampa «mod caricato»] dopo la lista scrivi
   «Per chiuderli o spostarli con un tasto: /dafare».
@@ -348,7 +352,10 @@ Perché è fatta così:
 
 Con la riga `compito:` nell'uscita la ripartenza esce breve: il titolo, "Da allora" in una o due
 frasi, una riga per filone col numero di todo e quanti sono "Faccio io". Al posto di "Da dove
-partirei" scrivi "Oggi: <compito>", con l'ID del todo che lo copre se esiste. Poi carica
+partirei" scrivi "Oggi: <compito>", con l'ID del todo che lo copre se esiste. Se la FASE 1 stampa
+FACCIO IO FERMI, aggiungi una riga: "Todo di Claude fermi da più di 3 giorni: #12 (7 g), #13 (5 g).
+Dopo il compito ne chiudo uno breve, o chiedo se toglierlo." A compito finito mantieni la promessa:
+riprendine uno, o chiedi alla persona se scartarlo o passarlo a lei. Poi carica
 `prompt-master` col tool `Skill` sul compito, mostra PROMPT e BRIEF come li prescrive la skill e parti
 senza aspettare una scelta.
 
@@ -359,7 +366,8 @@ Il contesto stampa `rotazione: sì` quando la sessione l'ha aperta il mod `rotaz
 - FASE 0 e FASE 1 restano intere: sync, contesto, altre sessioni, worktree.
 - La ripartenza è una riga: "Ripreso <progetto> · <step N+1 di M, se c'è un piano> · <compito>". Niente
   elenco dei todo e niente "Da allora", salvo un fatto che cambia il lavoro (commit di un'altra sessione,
-  conflitto, scadenza arrivata): quello va in una seconda riga.
+  conflitto, scadenza arrivata): quello va in una seconda riga. I FACCIO IO FERMI della FASE 1 stanno
+  anche loro in una riga sola, con ID e giorni: la rotazione è il caso in cui il compito nuovo li scavalca.
 - Se l'handoff ha la riga `- Piano: <percorso>`, leggi il piano e prendi lo step dopo quello fatto.
 - `prompt-master` si carica come in ogni sessione nuova, ma il brief è una riga, "Brief: <compito>": il
   brief pieno l'ha avuto lo step prima. Poi parti subito.
