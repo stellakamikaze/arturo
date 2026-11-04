@@ -12,6 +12,21 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — Una correzione detta una volta vale per tutta la sessione
+
+**Cosa cambia**: quando correggi Claude, lui scrive la correzione in una riga (`arturo correzione
+aggiungi`). Da lì la rilegge prima di ogni risposta, anche dopo una compattazione, e la passa ai
+subagenti che lancia. `arturo correzione elenco` ti mostra cosa ha scritto, `arturo correzione togli N`
+ne toglie una. Le correzioni restano sul tuo computer e valgono per la sessione: dopo `/clear` si
+riparte da zero.
+
+**Perché**: al Computer Club è capitato di vedere lo stesso errore tre volte di fila, ogni volta
+dopo averlo fatto notare. Detta in chat, una correzione si allontana nel contesto, si perde nel
+riassunto di una compattazione e non arriva ai subagenti. Una correzione che vale sempre, non solo
+oggi, la metti nel `CLAUDE.md` con `/fine`.
+
+---
+
 ## 2026-11-04 — Un aggiornamento rimandato non aspetta più le altre sessioni
 
 **Cosa cambia**: se alla chiusura di una sessione l'aggiornamento automatico si ferma perché un'altra

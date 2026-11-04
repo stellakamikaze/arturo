@@ -28,6 +28,15 @@ sys.exit(0 if isinstance(p, str) and re.match(busta, p) else 1)' 2>/dev/null; th
   exit 0
 fi
 
+# --- Correzioni della sessione (Computer Club N.3, [0:01:09]; #4099, 4/11/2026) ----------
+# "Tre volte di fila ho fatto un errore, tu me l'hai fatto notare tutte e tre le volte": una correzione
+# scritta con `arturo correzione aggiungi` torna qui a ogni messaggio, anche dopo una compattazione.
+# Nessuna correzione, nessuna riga. Cosa è una correzione lo decide Claude (promemoria qui sotto).
+_A="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
+if [ -f "$_A/bin/correzioni.py" ]; then
+  printf '%s' "$INPUT" | python3 "$_A/bin/correzioni.py" blocco 2>/dev/null || true
+fi
+
 # --- Avviso prima di un ultracode (Computer Club N.3, 28/10/2026) ----------------
 # Un ultracode lancia molti agenti: il 27/10 uno ha usato circa il 5% della finestra di 5 ore
 # in pochi minuti, e chi lo lanciava non lo sapeva. La quota la scrive la statusline in
@@ -57,8 +66,7 @@ fi
 COMANDO=""
 if [[ "$INPUT" =~ \"prompt\"[[:space:]]*:[[:space:]]*\"/([a-z0-9-]+) ]]; then
   COMANDO="${BASH_REMATCH[1]}"
-  # Il codice sta accanto a questo file (docs/strati.md); nel plugin un comando è una skill.
-  _A="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
+  # Il codice sta accanto a questo file (docs/strati.md): $_A, definito sopra. Nel plugin un comando è una skill.
   # Un comando di Arturo o dell'Orsa: telemetria.py manda il nome solo se è di Arturo, se no `altro`.
   if { [ -f "$_A/commands/$COMANDO.md" ] || [ -f "$_A/skills/$COMANDO/SKILL.md" ] \
        || [ -f "$HOME/.claude/commands/$COMANDO.md" ] || [ -f "$HOME/.claude/skills/$COMANDO/SKILL.md" ]; } \
@@ -91,6 +99,8 @@ ricaricarlo: si carica una volta per sessione. Esente solo la conversazione pura
 commenti, risposte a un menu; lì consiglia una skill solo se c'entra davvero. Una correzione a
 lavoro iniziato è una riga, "Brief corretto: ...", senza prompt e brief interi.
 Il brief non è un gate: mostrato il prompt, se è giusto si procede.
+Se questo messaggio ti corregge (un errore, un modo di fare, una parola), prima di rifare scrivi la
+regola in una riga con: arturo correzione aggiungi "..." . Da lì vale per tutta la sessione.
 PROMEMORIA
 fi
 

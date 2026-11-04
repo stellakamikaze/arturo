@@ -11,6 +11,9 @@ CC08 una segnalazione partita in differita tiene il suo numero: la copia passa d
 CC09 prima di un ultracode il hook del prompt aggiunge costo e quota della finestra di 5 ore.
 CC10 /proponi porta una tua skill come proposta, ripulita e dopo il sì; è nei comandi della telemetria,
      del server e nella privacy.
+CC11 una correzione detta una volta vale per tutta la sessione ([0:01:09], #4099): arturo correzione la
+     scrive per la sessione di CLAUDE_CODE_SESSION_ID, e torna a ogni messaggio (inject-now.sh), dopo
+     una compattazione (session-start.sh) e nei subagenti; un'altra sessione non la vede.
 
 Sulla base 5bdec48 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -21,6 +24,7 @@ import importlib.util
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -158,7 +162,56 @@ def test_cc10(repo: Path) -> None:
     assert "/proponi" in read(repo / "docs" / "privacy.md"), "CC10 la privacy non dice cosa esce con /proponi"
 
 
-TESTS = {"CC06": test_cc06, "CC07": test_cc07, "CC08": test_cc08, "CC09": test_cc09, "CC10": test_cc10}
+def test_cc11(repo: Path) -> None:
+    lab = banco_telemetria().Lab(repo)
+    lab.env.pop("CLAUDE_CODE_SESSION_ID", None)
+    r = lab.arturo("correzione", "aggiungi", "Le date in forma 4/11, mai 04/11")
+    assert r.returncode != 0 and "CLAUDE_CODE_SESSION_ID" in (r.stdout + r.stderr), \
+        f"CC11 senza sessione la correzione non si rifiuta: {r.returncode} {r.stdout!r} {r.stderr!r}"
+    lab.env["CLAUDE_CODE_SESSION_ID"] = "sessione-uno"
+    r = lab.arturo("correzione", "aggiungi", "Le date in forma 4/11, mai 04/11")
+    assert r.returncode == 0 and "tutta la sessione" in r.stdout, f"CC11 correzione non scritta: {r.stdout!r} {r.stderr!r}"
+    r = lab.arturo("correzione", "aggiungi", "le date in forma 4/11, mai 04/11")
+    assert r.returncode == 0 and r.stdout.startswith("Già scritta"), f"CC11 la stessa correzione entra due volte: {r.stdout!r}"
+    testa = "CORREZIONI DI QUESTA SESSIONE"
+    voce = "1. Le date in forma 4/11, mai 04/11"
+    r = lab.arturo("correzione", "elenco")
+    assert testa in r.stdout and voce in r.stdout and "2." not in r.stdout, f"CC11 elenco: {r.stdout!r}"
+
+    r = lab.hook("inject-now.sh", json.dumps({"prompt": "rifai la tabella", "session_id": "sessione-uno"}))
+    assert testa in r.stdout and voce in r.stdout, f"CC11 la correzione non torna a ogni messaggio: {r.stdout!r}"
+    assert "arturo correzione aggiungi" in r.stdout, "CC11 il promemoria non dice come scrivere una correzione"
+    r = lab.hook("inject-now.sh", json.dumps({"prompt": "/fine", "session_id": "sessione-uno"}))
+    assert voce in r.stdout, "CC11 la correzione non torna quando il messaggio è un comando"
+    r = lab.hook("inject-now.sh", json.dumps({"prompt": "rifai la tabella", "session_id": "sessione-due"}))
+    assert testa not in r.stdout, "CC11 un'altra sessione vede la correzione"
+    r = lab.hook("inject-now.sh", json.dumps({"prompt": "x", "session_id": "../correzioni/sessione-uno"}))
+    assert testa not in r.stdout and r.returncode == 0, f"CC11 un id di sessione con percorso: {r.stdout!r}"
+
+    r = lab.hook("session-start.sh", json.dumps({"source": "compact", "session_id": "sessione-uno"}))
+    assert voce in r.stdout, f"CC11 dopo una compattazione la correzione non torna: {r.stdout[-600:]!r}"
+    r = lab.hook("session-start.sh", json.dumps({"source": "startup", "session_id": "sessione-uno"}))
+    assert testa not in r.stdout, "CC11 all'avvio normale il blocco esce due volte (lo porta già il messaggio)"
+
+    r = subprocess.run([sys.executable, "-B", str(repo / "hooks" / "subagent-memory-context.py")],
+                       input=json.dumps({"session_id": "sessione-uno", "agent_type": "Explore"}),
+                       capture_output=True, text=True, encoding="utf-8", env=lab.env, timeout=60)
+    contesto = json.loads(r.stdout or "{}").get("hookSpecificOutput", {}).get("additionalContext", "")
+    assert voce in contesto, f"CC11 il subagente non riceve la correzione: {r.stdout!r} {r.stderr!r}"
+
+    for n in range(2, 23):
+        lab.arturo("correzione", "aggiungi", f"Regola numero {n}")
+    r = lab.arturo("correzione", "elenco")
+    assert "20. Regola numero 22" in r.stdout and "21." not in r.stdout and "mai 04/11" not in r.stdout, \
+        f"CC11 oltre 20 correzioni non esce la più vecchia: {r.stdout[-300:]!r}"
+    r = lab.arturo("correzione", "togli", "20")
+    assert r.returncode == 0 and "Regola numero 22" in r.stdout, f"CC11 togli: {r.stdout!r} {r.stderr!r}"
+    r = lab.arturo("correzione", "togli", "99")
+    assert r.returncode == 2, f"CC11 togli un numero che non c'è: {r.returncode}"
+
+
+TESTS = {"CC06": test_cc06, "CC07": test_cc07, "CC08": test_cc08, "CC09": test_cc09, "CC10": test_cc10,
+         "CC11": test_cc11}
 
 
 def main() -> int:

@@ -513,6 +513,7 @@ COMANDI = {
     "sessione": ("sessione", "una finestra nuova del terminale con Claude già partito su un progetto o un todo (/dafare, tasto o)"),
     "segnala": ("segnala", "un problema, un'idea o un'integrazione per chi mantiene Arturo"),
     "telemetria": ("telemetria", "gli eventi d'uso che Arturo manda, con un id casuale: stato, mostra, spegni, accendi, invia"),
+    "correzione": ("correzioni", "le correzioni della persona, scritte una volta e valide per tutta la sessione: aggiungi, elenco, togli"),
     "personale": ("personale", "le tue aggiunte ai comandi e agli hook di sessione di Arturo, in file che gli aggiornamenti non toccano"),
     "memoria": ("memoria", "la memoria facoltativa (Melchior), spenta di default: stato, accendi, spegni, cerca, controlla"),
     "contesto": ("contesto", "il contesto di un progetto in una chiamata: git, handoff, todo, scadenze (/inizio)"),

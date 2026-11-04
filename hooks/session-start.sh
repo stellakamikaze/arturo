@@ -58,6 +58,10 @@ HOOK_INPUT=""
 [ -t 0 ] || IFS= read -r -t 2 -d '' HOOK_INPUT || true
 if printf '%s' "$HOOK_INPUT" | grep -qE '"source"[[:space:]]*:[[:space:]]*"compact"'; then
   echo "COMPACT APPENA AVVENUTO: fermati. Riepiloga all'utente file modificati, comandi di test e build, decisioni, task pendenti e ultimo errore. Poi aspetta la sua conferma prima di continuare."
+  # Il riassunto può perdere una correzione della persona: torna intera da qui (#4099).
+  if [ -f "$ARTURO_CODICE/bin/correzioni.py" ]; then
+    printf '%s' "$HOOK_INPUT" | python3 "$ARTURO_CODICE/bin/correzioni.py" blocco 2>/dev/null || true
+  fi
 fi
 
 # Reminder context management

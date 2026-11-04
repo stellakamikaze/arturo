@@ -212,6 +212,7 @@ La domanda: **cosa di questa sessione serve fra tre mesi?** Il test: **può ripr
 - Vale per ogni progetto: una nota nella memoria di Claude Code. Prima cerca se esiste già
   (`python3 ~/.claude/bin/arturo memoria cerca "parole"`) e aggiorna quella. Un fatto, un file.
 - Vale in ogni sessione: una regola nel `CLAUDE.md` personale (opzionale A). Altrimenti muore con l'handoff.
+  Le correzioni della sessione (`arturo correzione elenco`) passano da questo test: finiscono con la sessione.
 
 Mai in memoria: todo, uno stato che si legge dal vivo, una correzione una tantum, la copia di un documento
 stabile, password e chiavi. Claude **applica** una riga nel `CLAUDE.md` del progetto e un fatto aggiornato
