@@ -1,10 +1,12 @@
 # Arturo
 
-**L'IA che usi in chat, al lavoro nelle tue cartelle. Prima di fare danni, chiede a te.**
+**Arturo è un harness per il lavoro della conoscenza, pensato per chi usa già l'intelligenza artificiale in chat e non ha mai aperto un terminale.**
+
+Un harness è l'insieme di regole e strumenti che sta intorno a un'intelligenza artificiale e le dice come lavorare: cosa può fare da sola, cosa deve chiederti, dove tiene la memoria del lavoro. L'IA che usi in chat, al lavoro nelle tue cartelle. Prima di fare danni, chiede a te.
 
 [![Licenza MIT](https://img.shields.io/badge/licenza-MIT-0a66ff)](LICENSE) [![Ultima versione](https://img.shields.io/github/v/release/stellakamikaze/arturo?label=versione&color=0a66ff)](https://github.com/stellakamikaze/arturo/releases) [![Sito](https://img.shields.io/badge/sito-arturo.stellakamikaze.org-0a66ff)](https://arturo.stellakamikaze.org)
 
-> **In English.** Arturo is a free, open source (MIT) harness for Claude Code, written in Italian for people who use AI in a chat window and have never opened a terminal. Hooks ask for confirmation before actions that cannot be undone (recursive deletes, sending messages, secrets in commits), `/inizio` and `/fine` open and close work sessions across machines, and agents and skills come ready to use. Arturo itself speaks Italian. Overview in English: [arturo.stellakamikaze.org/en](https://arturo.stellakamikaze.org/en/).
+> **In English.** Arturo is a harness for knowledge work, made for people who already use AI in chat but have never opened a terminal. In a chat window you gather the material yourself and paste it in. In Claude Code the AI fetches it from your folders, and from your email and calendar once you connect them. Arturo adds rules that ask for your yes before anything that can't be undone, such as deleting a folder or sending an email, and commands that close a session with a summary and pick it up the next day. It is free and open source (MIT), and Arturo itself speaks Italian; Claude Code needs a paid Anthropic plan. Overview in English: [arturo.stellakamikaze.org/en](https://arturo.stellakamikaze.org/en/).
 
 Claude Code è l'IA di Anthropic che lavora sui file del tuo computer: legge e scrive i tuoi documenti, cerca sul web, prepara le bozze delle email e riprende il lavoro dal punto in cui l'avevi lasciato. Arturo te lo consegna già configurato, in italiano, con regole che chiedono una conferma prima di ogni gesto che non si annulla, come cancellare una cartella, mandare un messaggio o mettere una password in un commit. Arturo è gratuito e open source, con licenza MIT; Claude Code richiede un abbonamento a pagamento ad Anthropic.
 
@@ -27,7 +29,7 @@ I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure scri
 
 ## In breve
 
-**Per chi è.** Arturo è per chi usa già l'IA in chat (ChatGPT, Claude) e non ha mai aperto un terminale. In chat l'IA risponde. In Claude Code lavora: legge e scrive i tuoi file, riprende il lavoro da una sessione all'altra, esegue i passi al posto tuo. Arturo ti porta lì senza doverti fare imparare il terminale: regole di sicurezza già pronte che chiedono conferma prima delle azioni che non si annullano, un modo ordinato di aprire e chiudere il lavoro, e comandi che ti dicono da dove partire quando non lo sai.
+**Per chi è.** Arturo è per chi usa già l'IA in chat (ChatGPT, Claude) per scrivere, cercare e tenere in ordine il lavoro, non ha mai aperto un terminale e vuole usarla in modo più strutturato: su materiale vero, con un lavoro che resta da un giorno all'altro. In chat l'IA risponde. In Claude Code lavora: legge e scrive i tuoi file, riprende il lavoro da una sessione all'altra, esegue i passi al posto tuo. Arturo ti porta lì senza doverti fare imparare il terminale: regole di sicurezza già pronte che chiedono conferma prima delle azioni che non si annullano, un modo ordinato di aprire e chiudere il lavoro, e comandi che ti dicono da dove partire quando non lo sai. Perché il passaggio conta anche se non scrivi codice lo racconto [qui sotto](#perché-usare-il-terminale-anche-se-non-scrivi-codice).
 
 **Cosa ci fai.** Il primo caso d'uso è il lavoro con le parole e le informazioni: scrivere e revisionare, cercare e sintetizzare, tenere in ordine posta, progetti e documenti. Il secondo è costruire piccoli strumenti su misura per un tuo caso preciso, senza saper programmare.
 
@@ -40,6 +42,21 @@ I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure scri
 Arturo si aggiorna da solo, come Claude Code. Quando esce una versione nuova la barra in basso te lo dice, e alla chiusura della sessione si installa. Si installano solo i rilasci firmati da chi mantiene Arturo. Se preferisci guardare prima, `python3 ~/.claude/bin/arturo aggiornamenti manuali` lo spegne e `/aggiorna` ti mostra cosa arriva.
 
 Il resto della pagina spiega come funziona Arturo dentro. Per cominciare non serve leggerlo.
+
+## Perché usare il terminale anche se non scrivi codice
+
+Faccio l'autore, non il programmatore, e Claude Code è diventato lo strumento con cui lavoro ogni giorno. In chat l'intelligenza artificiale risponde a quello che le incolli: il materiale lo raccogli tu, e alla fine copi la risposta in un file. In Claude Code lavora sulle tue cartelle, e sulla posta, sul calendario e sui documenti quando li colleghi, quindi va a prendere da sola quello che le serve e lo mette accanto al resto del materiale, senza che tu debba copiarlo. Nel mio lavoro la raccolta del materiale è la parte che porta via più tempo, e in chat resta tutta a te.
+
+L'altra differenza sta nella durata: in chat il lavoro vive dentro la conversazione, e quando ne apri una nuova lo rimetti insieme tu; in Claude Code, quando chiudi la sessione con `/fine`, Arturo scrive un riepilogo e le cose da fare, e la mattina dopo `/inizio` riparte da lì. Così un lavoro che dura settimane, come riconciliare le fatture dello studio con i movimenti della banca o costruire un sito, non si perde fra una conversazione e l'altra.
+
+Questi sono i lavori che delego più spesso, misurati sulle mie sessioni degli ultimi mesi:
+
+- **Fatture e movimenti** — prima cercavo a mano, uno alla volta, la fattura di ognuno dei trecento movimenti senza giustificativo, fra email, portali dei fornitori e gestionale contabile; ora Claude legge il foglio in cui il commercialista segna i movimenti scoperti, cerca nei tre posti, carica i PDF su Drive, e io guardo solo quelli che restano aperti;
+- **Le email** — la bozza arriva nel thread giusto, scritta con la voce che Claude ricava dalle email che ho già mandato, e la mando io; quando la correggo, la correzione entra nelle regole che usa la volta dopo;
+- **Riunioni e cose da fare** — dalla trascrizione di una call Claude ricava le decisioni, le cifre e le cose da fare, ognuna con un responsabile e una data, e le scrive nel gestionale dei task;
+- **Presentazioni e pagine web** — scrivo io il contenuto; Claude monta il Keynote con le slide del catalogo dello studio, oppure costruisce la pagina web che ho descritto, e io rifinisco il risultato.
+
+Il terminale spaventa perché sembra un posto dove un errore costa caro, ed è così: lì un comando cancella una cartella senza passare dal cestino. Per questo Arturo mette intorno a Claude Code regole che chiedono un sì prima di ogni azione che non si annulla, come cancellare una cartella o mandare un'email, e comandi come `/inizio` che ti dicono da dove partire: così passi dalla chat a Claude Code senza dover imparare il terminale.
 
 ## Cosa non è neutro
 
@@ -68,6 +85,7 @@ Arturo cambia ogni giorno. Chi lo usa ha diritto di sapere cosa aspettarsi:
 ## Indice
 
 - [In breve](#in-breve)
+- [Perché usare il terminale anche se non scrivi codice](#perché-usare-il-terminale-anche-se-non-scrivi-codice)
 - [Cosa non è neutro](#cosa-non-è-neutro)
 - [Impegni](#impegni)
 - [Filosofia](#filosofia)
