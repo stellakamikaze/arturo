@@ -12,6 +12,19 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — Cancellare la cartella temporanea intera chiede conferma
+
+**Cosa cambia**: un `rm -rf /tmp`, un `rm -rf "$TMPDIR"` o uno `shutil.rmtree` sulla cartella temporanea
+del sistema ora ti chiedono conferma. Cancellare una cartella dentro, come una prova appena creata,
+continua a passare senza domande.
+
+**Perché**: la cartella temporanea intera contiene anche gli appunti di lavoro delle altre sessioni di
+Claude aperte, e un comando che la svuota li cancella tutti. Le guardie la trattavano come una cartella
+temporanea qualsiasi. Ora la guardia delle cancellazioni e l'elenco dei file di fine sessione usano la
+stessa regola: la cartella temporanea stessa, o una che la contiene, non è mai un file temporaneo.
+
+---
+
 ## 2026-11-04 — Claude salva a ogni compito finito
 
 **Cosa cambia**: quando Claude finisce un compito che lascia una traccia (un commit, un file, una

@@ -9,7 +9,7 @@ GS01 exfil-guard vede i canali di rete grezzi: una pipe verso nc/ncat, /dev/tcp.
      python tacciono: li giudica il classificatore di auto mode. I GET innocui restano senza domanda.
 GS02 leggere un file .env (anche .env.local) chiede conferma; .env.example e process.env no.
 GS03 shutil.rmtree chiede conferma come rm -r: su una cartella di lavoro o un percorso che arriva da
-     una variabile sì, su build/ o /tmp no.
+     una variabile sì, su build/ o /tmp/prova no; sulla cartella temporanea intera sì (#4547).
 GS04 git clean -f chiede conferma anche con opzioni in mezzo (git -C dir clean -fdx) e dietro un
      comando git di sola lettura; il dry-run no.
 GS05 rsync --delete verso una cartella locale chiede conferma come verso un server; il dry-run no.
@@ -151,6 +151,10 @@ def test_gs03(repo: Path) -> None:
         "python3 -c \"import shutil, sys; shutil.rmtree(sys.argv[1])\" capitoli",
         "python3 - <<'EOF'\nimport shutil\nshutil.rmtree('/Users/qualcuno/Documents')\nEOF",
         "python3 -c \"from shutil import rmtree; rmtree('capitoli')\"",
+        # #4547: la cartella temporanea intera non è un temporaneo.
+        "python3 -c \"import shutil; shutil.rmtree('/tmp')\"",
+        "rm -rf /tmp",
+        "rm -rf /var/folders",
     ], [
         "python3 -c \"import shutil; shutil.rmtree('build')\"",
         "python3 -c \"import shutil; shutil.rmtree('/tmp/prova-arturo')\"",

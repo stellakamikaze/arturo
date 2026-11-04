@@ -422,8 +422,11 @@ def radici_temporanee():
     return out
 
 def volatile(path, home=None):
-    """Vero per /tmp e simili: si perdono al riavvio. Una HOME che sta lì dentro non lo è (i banchi).
-    Su Windows è il contrario: %TEMP% sta dentro la HOME, e resta volatile."""
+    """Vero per i path dentro /tmp e simili: si perdono al riavvio. Una HOME che sta lì dentro non lo
+    è (i banchi), e nemmeno la cartella temporanea stessa o una che la contiene: stessa regola di
+    _temporaneo() in hooks/block-dangerous.py. Su Windows %TEMP% sta dentro la HOME, e resta volatile."""
+    if any(sotto(r, path) for r in radici_temporanee()):
+        return False
     for r in radici_temporanee():
         if sotto(path, r):
             if home and sotto(home, r) and sotto(path, home):

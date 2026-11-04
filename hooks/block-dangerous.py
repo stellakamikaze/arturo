@@ -733,9 +733,11 @@ def _writes_config(command, cwd, protetto=None, sed=True):
 
 
 def _temporaneo(p):
-    """True per i path di file temporanei del sistema: /tmp, /private/tmp, /var/folders, $TMPDIR,
-    e su Windows %TEMP%, che sta dentro la home. Stessa regola di volatile() in
-    bin/inventario-sessione.py: una HOME dentro una cartella temporanea (i banchi) non lo è."""
+    """True per i path dentro una cartella temporanea del sistema: /tmp, /private/tmp, /var/folders,
+    $TMPDIR, e su Windows %TEMP%, che sta dentro la home. Stessa regola di _temp() in
+    attenua-personale.py e di volatile() in bin/inventario-sessione.py (#4547): la cartella
+    temporanea stessa, o una che la contiene, non lo è (sul Mac $TMPDIR ha gli scratchpad di tutte le
+    sessioni), e nemmeno la home, una sua antenata o i file di una HOME dentro una temporanea (i banchi)."""
     # Su Windows normpath scrive `\tmp\prova` e Git Bash `/c/Users`: il confronto si fa con le
     # barre dritte, la lettera del disco e, su Windows, senza maiuscole.
     def dritto(q):
@@ -754,6 +756,8 @@ def _temporaneo(p):
     for nome in ("TMPDIR", "TEMP", "TMP"):
         if os.environ.get(nome, "").strip():
             radici.append(dritto(os.path.normpath(os.environ[nome])))
+    if any(r and sotto(r, p) for r in radici):
+        return False  # la cartella temporanea intera, o una che la contiene (2/11/2026, #4547)
     for r in radici:
         if r and sotto(p, r):
             if sotto(h, r) and sotto(p, h):
