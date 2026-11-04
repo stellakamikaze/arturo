@@ -99,6 +99,27 @@ adesso usa lo stesso elenco: i cataloghi non sono più due.
 
 ---
 
+## 2026-11-04 — Claude ti fa le domande giuste, e rispiega quando non è chiaro
+
+**Cosa cambia**: quattro cose che succedono da sole, senza comandi nuovi.
+Se chiedi un'idea ancora da decidere ("vorrei un sito per l'associazione"), Claude ti fa
+domande a giri, ognuna con la sua risposta consigliata: puoi rispondere "sì a tutto".
+`/guidami` cerca anche le cose che chiedi sempre uguali e te le propone da delegare, con la
+scheda di come Claude le farebbe da solo. Quando un passo lo puoi fare solo tu su un sito, come
+la console di Google Cloud, Claude ti prepara una procedura guidata da lanciare nel Terminale,
+una schermata per volta. Se scrivi "non ho capito", Claude rispiega da capo in parole semplici,
+invece di ripetere.
+
+**Perché**: chi inizia non sa quali domande servono, e non sa cosa delegare. Davanti a dieci
+passi scritti in chat, chi non ha mai usato un terminale perde il filo. Sono due dei blocchi che
+Arturo vuole togliere: non sapere cosa chiedere, e il terminale.
+
+**Da sapere**: le idee vengono da `mattpocock/skills` (licenza MIT), riscritte dentro
+prompt-master, `/guidami`, la guida a Google e lo stile Conciso. La procedura guidata vuole un Terminale
+vero: col prefisso `!` non può leggere quello che scrivi.
+
+---
+
 ## 2026-11-04 — Se il controllo dei segreti non parte, Arturo ti dice perché
 
 **Cosa cambia**: prima di ogni commit una guardia cerca password e chiavi nelle modifiche. Quando

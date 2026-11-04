@@ -97,6 +97,21 @@ Da tre a cinque voci, non di più. Per ognuna, tre righe:
 
 Ordina per quello che sbloccherebbe di più, non per data.
 
+**Una cosa che rifà sempre uguale.** Nelle conversazioni cerca anche le richieste che tornano
+simili da una sessione all'altra: "riassumi le email di oggi", "sistema questo testo per il
+sito", "fai il verbale". Una cosa ripetuta è la candidata migliore da delegare, perché è già
+prevedibile. Se ne trovi una, mettila fra le voci con il conto ("l'hai chiesto 4 volte in 10
+giorni") e, come primo passo, la scheda di come Claude la farebbe da solo:
+
+- **Cosa la fa partire**: un evento (arriva un'email, finisce una riunione) o un orario (ogni
+  lunedì mattina). Un evento di solito spreca meno.
+- **Dove chiede a te**: il punto in cui la persona controlla o decide. Spostalo più avanti che
+  puoi: Claude prepara tutto, e la persona interviene una volta sola, alla fine.
+- **Cosa ti mostra**: un riassunto pronto per decidere (cosa ha fatto, perché, il link al
+  file), mai il materiale grezzo.
+
+Se la persona sceglie quella voce, la scheda diventa una skill con `/creaskill`.
+
 Chiudi con un menu che gli fa scegliere da dove partire, e **se sceglie, parti davvero**: apri il
 progetto e fai il primo passo.
 
@@ -109,7 +124,11 @@ progetto e fai il primo passo.
 - **Niente proposte inventate.** Ogni voce nasce da un handoff, da una conversazione o dalla storia
   del progetto. Se i segnali sono pochi, proponi due cose e dillo: "ho trovato poco, è tutto qui".
   Riempire la lista per farla sembrare piena è il modo più veloce di rendere inutile questo comando.
-- **Se non trovi niente**, dillo in una riga e chiedi su cosa sta lavorando. Non è un errore: vuol
-  dire che è la prima volta, o che ha chiuso tutto.
+- **Se non trovi niente**, dillo in una riga. Non è un errore: vuol dire che è la prima volta, o
+  che ha chiuso tutto. Allora non chiedere "su cosa lavori?", che è la domanda a cui chi inizia
+  non sa rispondere. Fai invece un'intervista breve sulle sue settimane, a giri come in
+  prompt-master (domande numerate, il tuo consiglio sotto ognuna): cosa fa ogni lunedì, cosa
+  rifà a fine mese, quale lavoro rimanda sempre perché è noioso. Da lì proponi una o due cose
+  che rifà sempre uguale, con la scheda qui sopra.
 - **Le conversazioni sono materiale privato.** Le leggi per proporre lavoro a chi le ha scritte, non
   le riassumi altrove e non le mandi da nessuna parte.

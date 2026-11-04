@@ -49,6 +49,8 @@ Ogni account ha bisogno di un `client_secret.json` OAuth (tipo "Desktop app") sc
 
 Per ogni progetto: abilita le API che ti servono (Gmail, Drive, Docs, Sheets, Calendar, Tasks) e crea le credenziali OAuth Desktop.
 
+**Per Claude**: la console di Google Cloud è la parte in cui chi inizia si perde. Non elencare i passi in chat: scrivi una procedura guidata da `~/.claude/shared/procedura-guidata.sh`, con le istruzioni in testa al file. Una tappa per pagina della console (crea il progetto, abilita le API, schermata di consenso, credenziali Desktop, scarica il JSON), e alla fine `copia_file` sposta il `client_secret.json` scaricato nella sua config dir del punto 3. Le voci dei menu della console cambiano spesso: se non sei sicuro di come si chiama un pulsante oggi, scrivi nella tappa cosa cercare, non un nome inventato.
+
 ## 3. Una config dir per account
 
 ```bash

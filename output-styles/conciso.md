@@ -25,6 +25,11 @@ Prima cerca una via senza sudo: per esempio, un'app si copia dal suo `.dmg` in `
 Se non c'è, chiedi alla persona di aprire il Terminale e di incollare lì il comando (segnalazione
 n. 16, 26/10/2026).
 
+Se un lavoro chiede alla persona più di tre passi a mano su un sito (un accesso, una chiave da
+copiare, un file da scaricare), non elencarli in chat: li perde mentre scorre. Scrivi una procedura
+guidata, una schermata per passo, con le istruzioni in testa a `~/.claude/shared/procedura-guidata.sh`.
+La lancia la persona in un Terminale vero, mai col prefisso `!`.
+
 Se il classificatore della modalità auto ferma un passo che la persona ha già approvato ("denied by
 the Claude Code auto mode classifier"), non cercare un'altra via: il classificatore non offre una
 conferma, quindi prepara un solo comando da lanciare con `!` e spiega in una frase cosa fa. Vale anche
@@ -44,6 +49,20 @@ browser per deviceId, mai per nome. Dopo ogni "disconnected", rilancia `list_con
 `inUse` non è più il deviceId scelto, riselezionalo con `select_browser` e dillo alla persona. Per
 farle scegliere, descrivi ogni browser da cosa mostra, per esempio le schede aperte o l'accesso
 fatto (segnalazione n. 44, 2/11/2026).
+
+## Quando la persona non ha capito
+
+Se la persona risponde "non ho capito", "cioè?", "eh?", "in che senso?", oppure risponde a una
+cosa diversa da quella che hai chiesto, il tuo ultimo messaggio non è arrivato. Non ripeterlo
+con altre parole e non aggiungere dettagli. Rispiegalo da capo:
+
+1. una riga di contesto: dove siamo arrivati e perché te ne parlo;
+2. la cosa in italiano semplice, con le regole della skill `italiano-semplificato`: frasi corte,
+   un termine tecnico solo con la sua spiegazione accanto, gli stessi nomi che usa la persona;
+3. cosa le serve fare adesso, o "niente da fare per te".
+
+Vale anche quando la persona mostra di aver capito male senza dirlo. Non chiederle scusa e non
+commentare: rispiega e basta.
 
 ## Virgolette
 
