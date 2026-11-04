@@ -13,7 +13,10 @@ ST05 dispatcher, inject-now, session-start e telemetria-esito non chiamano codic
      $HOME/.claude/hooks|bin: restano solo il file .local e le guardie della persona;
 ST06 Write su un file della cache di un plugin installato (~/.claude/plugins/cache/...) è negato
      da protect_claude_md: col plugin lì stanno le guardie e l'aggiornamento di Arturo;
-ST07 una scrittura via shell nella cache dei plugin chiede conferma, come su ~/.claude/hooks.
+ST07 una scrittura via shell nella cache dei plugin chiede conferma, come su ~/.claude/hooks: col
+     percorso assoluto, relativa dopo un `cd ~/.claude` e con la sessione già nella cache. Il file ha
+     un nome neutro (#4566, 4/11/2026): con aggiornamenti.py il caso passava per il nome, e il
+     pre-filtro del dispatcher non conosceva la cartella.
 
 Invariante (verde anche sulla base): ST01. Sulla base 94db031 sono rossi ST02-ST07.
 """
@@ -57,8 +60,8 @@ def ambiente(home: Path, extra: dict | None = None) -> dict:
             "ARTURO_AGGIORNAMENTI": "manuali", "GIT_TERMINAL_PROMPT": "0", **(extra or {})}
 
 
-def dispatcher(codice: Path, home: Path, comando: str) -> subprocess.CompletedProcess:
-    dati = {"tool_name": "Bash", "tool_input": {"command": comando}, "session_id": "st", "cwd": str(home)}
+def dispatcher(codice: Path, home: Path, comando: str, cwd: Path | None = None) -> subprocess.CompletedProcess:
+    dati = {"tool_name": "Bash", "tool_input": {"command": comando}, "session_id": "st", "cwd": str(cwd or home)}
     return subprocess.run([BASH, str(codice / "hooks" / "bash-dispatcher.sh")], input=json.dumps(dati),
                           capture_output=True, text=True, encoding="utf-8", errors="replace",
                           env=ambiente(home), timeout=120)
@@ -111,7 +114,8 @@ def prova(repo: Path, ref: str | None) -> list[str]:
 
         cache = orsa_home / ".claude" / "plugins" / "cache" / "arturo" / "arturo" / "1.0" / "bin"
         cache.mkdir(parents=True)
-        bersaglio = cache / "aggiornamenti.py"
+        # Un nome che nessuna regola conosce: conta solo la cartella (#4566).
+        bersaglio = cache / "strumento.py"
         bersaglio.write_text("# firmato\n", encoding="utf-8")
         dati = {"tool_name": "Write", "session_id": "st", "cwd": str(orsa_home),
                 "tool_input": {"file_path": str(bersaglio), "content": "print('altro')\n"}}
@@ -120,8 +124,13 @@ def prova(repo: Path, ref: str | None) -> list[str]:
                                errors="replace", env=ambiente(orsa_home), timeout=60)
         if '"permissionDecision": "deny"' not in esito.stdout:
             rossi.append(f"ST06 Write nella cache del plugin non è negato: {esito.stdout[-160:]!r}")
-        if not chiede(dispatcher(plugin, orsa_home, f"echo x > {bersaglio}")):
-            rossi.append("ST07 la scrittura via shell nella cache del plugin non chiede conferma")
+        relativo = bersaglio.relative_to(orsa_home / ".claude").as_posix()
+        for nome, comando, cwd in (("assoluta", f"echo x > {bersaglio}", None),
+                                   ("dopo cd ~/.claude", f"cd ~/.claude && echo x > {relativo}", None),
+                                   ("dalla cartella della cache", "echo x > strumento.py", cache)):
+            if not chiede(dispatcher(plugin, orsa_home, comando, cwd)):
+                rossi.append(f"ST07 la scrittura via shell nella cache del plugin non chiede conferma ({nome})")
+                break
     return rossi
 
 

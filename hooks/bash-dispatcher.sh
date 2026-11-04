@@ -145,7 +145,7 @@ PATTERN_COMMS='(^|[[:space:];|&("'"'"'`])(sendmail|mailx|mutt|msmtp|swaks|mail)(
 # scrittura su git hook e servizi di avvio automatico,
 # lettura segreti via shell (.ssh/id_*/credentials/.pem...), docker volume rm.
 # 20/10/2026: la cartella delle credenziali anche senza la barra finale (`find ~/.claude/data/credentials | xargs cat`).
-PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([[:space:]]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|(^|[^[:alnum:]_.-])(del|erase|rd|rmdir|format(\.com)?)[[:space:]]|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-(exec|execdir|ok|okdir)[[:space:]].*(rm|unlink|shred)|xargs[^|;&]*(rm|unlink|shred))|bw[[:space:]].*export|\.claude/(settings|hooks|firme|\.claude\.json)|CLAUDE(\.local)?\.md|firme/|rilasci\.allowed_signers|aggiornamenti\.py|aggiorna-applica\.sh|arturo/radice|\.claude/arturo(/|[[:space:]\"]|$)|\.claude/[^[:space:]]*unlock|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.claude/data/credentials(/|[[:space:]\"]|$)|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|sed[[:space:]][^|&]*[^[:alnum:]]w[[:space:]]+[^[:space:]|;&]|\.env([^[:alnum:]_]|$)|shutil\.rmtree|from[[:space:]]+shutil[[:space:]]+import[^;]*rmtree'
+PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([[:space:]]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|(^|[^[:alnum:]_.-])(del|erase|rd|rmdir|format(\.com)?)[[:space:]]|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-(exec|execdir|ok|okdir)[[:space:]].*(rm|unlink|shred)|xargs[^|;&]*(rm|unlink|shred))|bw[[:space:]].*export|\.claude/(settings|hooks|firme|\.claude\.json|plugins(/|[[:space:]\"]|$))|CLAUDE(\.local)?\.md|firme/|rilasci\.allowed_signers|aggiornamenti\.py|aggiorna-applica\.sh|arturo/radice|\.claude/arturo(/|[[:space:]\"]|$)|\.claude/[^[:space:]]*unlock|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.claude/data/credentials(/|[[:space:]\"]|$)|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|sed[[:space:]][^|&]*[^[:alnum:]]w[[:space:]]+[^[:space:]|;&]|\.env([^[:alnum:]_]|$)|shutil\.rmtree|from[[:space:]]+shutil[[:space:]]+import[^;]*rmtree'
 # 17/10/2026 (#3506): i file .env (anche .env.local), shutil.rmtree. git clean ha un pattern suo,
 # PATTERN_GIT_CLEAN, che parte prima dello skip git-puro.
 # Commit secret gate: scansiona il diff staged prima di git commit / gh pr create.
@@ -377,8 +377,12 @@ fi
 # Block dangerous: rm su tree protetti, bw export, scrittura config/hook, fork bomb...
 # Prima le guardie personali di prima-danger; sui comandi che nominano .claude, se il .local ha una
 # danger-claude, decide lei e block-dangerous resta come riserva.
+# 4/11/2026 (#4566): una scrittura relativa dopo un `cd` dentro ~/.claude, o con la sessione già lì
+# (`cd ~/.claude && echo x > plugins/cache/...`, `> hooks/a.py`), non nomina il percorso protetto: il
+# pre-filtro testuale non la vedeva e block-dangerous, che risolve il percorso, non partiva.
+PATTERN_CD_CLAUDE="(^|[;&|(${_NL}][[:space:]]*)(cd|pushd)[[:space:]]+[^;&|${_NL}]*\.claude([/[:space:]\"']|\$)"
 _RE_CWD_CLAUDE='"cwd"[[:space:]]*:[[:space:]]*"[^"]*[/\\]\.claude'
-if [[ "$GUARD_COMMAND" =~ $PATTERN_DANGER ]]; then
+if [[ "$GUARD_COMMAND" =~ $PATTERN_DANGER || "$GUARD_COMMAND" =~ $PATTERN_CD_CLAUDE || "$INPUT" =~ $_RE_CWD_CLAUDE ]]; then
     for _i in $(locali prima-danger); do run_locale "$_i"; done
     _DC=""; for _i in $(locali danger-claude); do _DC=$_i; break; done
     if [[ -n "$_DC" && ( "$COMMAND" == *".claude"* || "$INPUT" =~ $_RE_CWD_CLAUDE ) ]]; then

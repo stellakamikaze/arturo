@@ -12,6 +12,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — Scrivere da terminale nei plugin installati chiede conferma
+
+**Cosa cambia**: se Claude scrive da terminale dentro la cartella dei plugin installati
+(`~/.claude/plugins`), ora ti chiede conferma, anche quando il file ha un nome qualsiasi e anche quando
+il percorso è relativo, dopo un `cd ~/.claude`. Leggere quei file o copiarli altrove resta senza domande.
+
+**Perché**: quando Arturo è installato come plugin, le sue guardie e il suo aggiornamento stanno in quella
+cartella. Chi la modifica può spegnere le protezioni. La guardia lo sapeva già, ma il filtro che decide
+quando chiamarla non conosceva quella cartella: passavano senza domande le scritture su file dai nomi
+nuovi. Ora il filtro chiama la guardia anche su ogni comando che entra con `cd` in `~/.claude` o che parte
+da lì, e lo stesso vale per una scrittura relativa nella cartella delle guardie.
+
+---
+
 ## 2026-11-04 — Cancellare la cartella temporanea intera chiede conferma
 
 **Cosa cambia**: un `rm -rf /tmp`, un `rm -rf "$TMPDIR"` o uno `shutil.rmtree` sulla cartella temporanea
