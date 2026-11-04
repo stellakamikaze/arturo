@@ -20,9 +20,13 @@ Tre regole per tutte le fasi:
 
 ## Modo rotazione (`--rotazione`)
 
-Lo lancia Claude, mai la persona, quando chiude un passo: uno step del piano compiuto o un compito finito,
-con i test verdi. Serve a tenere fresca la sessione: dopo la coda il tool `ruota` del mod `rotazione` fa
-`/clear` e `/inizio` da solo, e il lavoro riparte sul passo dopo.
+Lo lancia Claude, mai la persona, a ogni compito chiuso: uno step del piano compiuto o un incarico finito,
+con i test verdi e la sonda fatta. Parte sempre, anche col contesto leggero e anche quando non c'è un passo
+dopo: è la raccolta dei risultati (handoff del giorno, todo, memoria, commit). Un compito conta quando ha
+lasciato una traccia da salvare: un commit, un file, un documento, una decisione, un todo cambiato.
+Un'azione senza traccia (accendere la musica, leggere uno stato) non lo fa partire.
+La rotazione è il secondo tempo, e solo se il passo dopo è di Claude: dopo la coda il tool `ruota` del mod
+`rotazione` fa `/clear` e `/inizio` da solo, e il lavoro riparte sul passo dopo.
 
 - **Una volta al giorno è completo.** Se `~/.claude/data/handoffs/<slug>/.ultimo-fine-completo` non porta la
   data di oggi e sono passate le 18, questo giro segue tutte le fasi, poi ruota. Il `/fine` scritto dalla
@@ -44,7 +48,9 @@ con i test verdi. Serve a tenere fresca la sessione: dopo la coda il tool `ruota
   azione del turno.
 - **Niente rotazione, chiusura normale**, se: la coda esce con un codice diverso da 0; il passo dopo chiede
   la persona (una decisione, un invio, un pagamento, un accesso, un gesto fisico); non ci sono passi; la
-  persona ha scritto durante il turno; il tool risponde "Rotazione spenta". Se il tool non c'è (mod spento),
+  persona ha scritto durante il turno; il tool risponde "Rotazione spenta". Il fine leggero resta fatto:
+  la chiusura alla persona è la raccolta dei risultati, cioè l'esito, una riga per materiale con la sua
+  posizione e il prossimo passo con chi lo fa. Se il tool non c'è (mod spento),
   chiudi con "scrivi **/clear** e poi **/inizio <slug>**".
 
 ## FASE 1 · Inventario

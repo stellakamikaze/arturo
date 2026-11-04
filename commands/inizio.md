@@ -363,6 +363,6 @@ Il contesto stampa `rotazione: sì` quando la sessione l'ha aperta il mod `rotaz
 - Se l'handoff ha la riga `- Piano: <percorso>`, leggi il piano e prendi lo step dopo quello fatto.
 - `prompt-master` si carica come in ogni sessione nuova, ma il brief è una riga, "Brief: <compito>": il
   brief pieno l'ha avuto lo step prima. Poi parti subito.
-- A passo chiuso vale di nuovo `/fine --rotazione`, e il giro riparte.
+- A compito chiuso vale di nuovo `/fine --rotazione`, e il giro riparte se il passo dopo è di Claude.
 
 Esegui ora la FASE 0, poi la FASE 1 su $ARGUMENTS.

@@ -37,7 +37,7 @@ export async function avvio($: EngineInterface, e: Evento<'session.start'>, next
       '/fine --rotazione andato a buon fine, come ultima azione del turno. A fine turno /clear, poi ' +
       '/inizio <progetto> -- --rotazione <compito>: il lavoro riparte da solo con il contesto pulito. ' +
       'Non chiamarlo se il prossimo step chiede la persona (una decisione, un invio, un pagamento, un ' +
-      'accesso) o se non ci sono step.',
+      'accesso) o se non ci sono step: il /fine --rotazione si fa lo stesso, a ogni compito chiuso.',
     inputSchema: {
       type: 'object',
       properties: {

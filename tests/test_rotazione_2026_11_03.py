@@ -13,12 +13,16 @@ RT03 arturo contesto libro -- --rotazione scrivere i test: "compito: scrivere i 
 RT04 arturo contesto libro -- scrivere i test: il compito, e nessuna riga rotazione.
 RT05 arturo contesto --stdin con la marca, nella forma di commands/inizio.md: compito e rotazione.
 RT06 --rotazione prima di " -- " resta un'opzione sconosciuta: exit 3, nessuna riga rotazione.
+RT07 il fine leggero parte a ogni compito chiuso, anche senza rotazione (4/11/2026): l'avviso di
+     hooks/session-start.sh lega /fine --rotazione al compito chiuso e il tool ruota al passo dopo di
+     Claude; commands/fine.md dice che parte sempre, che un'azione senza traccia non lo fa partire e che
+     senza rotazione il fine resta fatto.
 
 bin/contesto.py non ha un'uscita --json: la chiave "rotazione" non ha dove stare, e RT06 sorveglia la
 marca scritta nel posto sbagliato.
 
-Sulla base bf394ad (il dev prima della rotazione) sono rossi RT01, RT02, RT03 e RT05; RT04 e RT06 sono
-invarianti. Con --avvelena una copia del repository rotta in un punto alla volta deve far fallire i casi
+Sulla base bf394ad (il dev prima della rotazione) sono rossi RT01, RT02, RT03, RT05 e RT07; RT04 e RT06
+sono invarianti. Con --avvelena una copia del repository rotta in un punto alla volta deve far fallire i casi
 che lo sorvegliano.
 """
 from __future__ import annotations
@@ -34,9 +38,10 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
-CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06"]
-DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05"]
-PERCORSI = ["bin", "hooks/melchior_match.py", "hooks/controlla-config.py", ".gitignore"]
+CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06", "RT07"]
+DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05", "RT07"]
+PERCORSI = ["bin", "hooks/melchior_match.py", "hooks/controlla-config.py", ".gitignore", "hooks/session-start.sh",
+            "commands/fine.md"]
 SEGNO = ".ultimo-fine-completo"
 GIT_ENV = {"GIT_AUTHOR_NAME": "Prova", "GIT_AUTHOR_EMAIL": "p@example.com", "GIT_COMMITTER_NAME": "Prova",
            "GIT_COMMITTER_EMAIL": "p@example.com", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
@@ -50,6 +55,8 @@ VELENI = [
     (["RT03", "RT05"], "bin/contesto.py", "        parole = parole[1:]\n", "        parole = parole[0:]\n"),
     (["RT04"], "bin/contesto.py", "    if rotazione:\n        righe.append(", "    if True:\n        righe.append("),
     (["RT06"], "bin/contesto.py", 'if p != "--tutti"]', 'if p not in ("--tutti", "--rotazione")]'),
+    (["RT07"], "hooks/session-start.sh", "a ogni compito chiuso con una traccia",
+     "a ogni passo chiuso con una traccia"),
 ]
 
 
@@ -194,7 +201,24 @@ def rt06(lab: Lab):
         return f"rc={r.returncode} {r.stdout[:200]!r} {r.stderr[-160:]!r}"
 
 
-PROVE = {"RT01": rt01, "RT02": rt02, "RT03": rt03, "RT04": rt04, "RT05": rt05, "RT06": rt06}
+def rt07(lab: Lab):
+    avvio = lab.cl / "hooks" / "session-start.sh"
+    fine = lab.cl / "commands" / "fine.md"
+    if not avvio.exists() or not fine.exists():
+        return "hooks/session-start.sh o commands/fine.md assente"
+    riga = next((x for x in avvio.read_text(encoding="utf-8").splitlines() if "CONTEXT:" in x), "")
+    mancano = [f for f in ("a ogni compito chiuso", "/fine --rotazione, sempre", "solo se il passo dopo è tuo")
+               if f not in riga]
+    testo = fine.read_text(encoding="utf-8")
+    inizio = testo.find("## Modo rotazione")
+    sezione = testo[inizio:testo.find("\n## ", inizio + 1)] if inizio >= 0 else ""
+    mancano += [f for f in ("a ogni compito chiuso", "Parte sempre", "Un'azione senza traccia",
+                            "Il fine leggero resta fatto") if f not in " ".join(sezione.split())]
+    if mancano:
+        return f"mancano {mancano} · CONTEXT {riga[:160]!r}"
+
+
+PROVE = {"RT01": rt01, "RT02": rt02, "RT03": rt03, "RT04": rt04, "RT05": rt05, "RT06": rt06, "RT07": rt07}
 
 
 def prova(repo: Path, ref: str | None) -> list:
