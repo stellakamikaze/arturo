@@ -18,6 +18,10 @@ fai una breve intervista, poche domande semplici, sui cinque punti.
 
 ## Le regole che consigliamo di includere
 
+Col plugin queste regole arrivano già col metodo di Arturo (`~/.claude/shared/metodo.md`), all'avvio
+di ogni sessione: non copiarle nel CLAUDE.md. Proponi solo quelle che la persona vuole diverse, scritte
+come sue preferenze ("al posto della regola sul brief: ...").
+
 La persona decide. Nella bozza ognuna è marcata "consigliata, togli se non la vuoi". Il testo fra
 virgolette va nel file; la nota fra parentesi spiega il perché e resta fuori dal file.
 

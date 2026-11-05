@@ -12,6 +12,10 @@ com'erano, e una voce cambiata da tutte e due le parti non si scrive: si segnala
 
   arturo impostazioni stato              applicato o no, e cosa cambierebbe
   arturo impostazioni applica [--prova]  unisce il frammento; --prova mostra senza scrivere
+  arturo impostazioni applica --togli-doppi
+                                         toglie prima dai settings della persona gli hook che il plugin
+                                         porta già (un clone di prima li aveva lì): senza, scatterebbero
+                                         due volte e applica si ferma
 
 Nel clone (Arturo dentro ~/.claude) settings.json è già quello di Arturo: non c'è niente da applicare.
 """
@@ -20,6 +24,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -73,7 +78,55 @@ def _differenze(prima, dopo, via="") -> list:
     return [f"{via}: {json.dumps(prima, ensure_ascii=False)[:60]} -> {json.dumps(dopo, ensure_ascii=False)[:60]}"]
 
 
-def calcola():
+def _registrati() -> set:
+    """I file (hooks/x, bin/y) che gli hook del plugin lanciano, da hooks/hooks.json."""
+    hooks = _leggi(CODICE / "hooks" / "hooks.json").get("hooks", {})
+    file = set()
+    for gruppi in hooks.values():
+        for gruppo in gruppi:
+            for hook in gruppo.get("hooks", []):
+                file.update(re.findall(r"\$\{CLAUDE_PLUGIN_ROOT\}/((?:hooks|bin)/[^\s\"']+)", hook.get("command", "")))
+    return file
+
+
+def doppi(settings: dict) -> list:
+    """Gli hook dei settings della persona che lanciano un file di Arturo che il plugin registra già.
+    Li lascia un clone di prima (settings.json era quello di Arturo): col plugin scatterebbero due volte."""
+    registrati = _registrati()
+    radici = ["~/.claude", "$HOME/.claude", "${HOME}/.claude", str(orsa()).replace("\\", "/")]
+    prefisso = "|".join(re.escape(r) for r in radici)
+    trovati = []
+    for evento, gruppi in (settings.get("hooks") or {}).items():
+        for gruppo in gruppi if isinstance(gruppi, list) else []:
+            for hook in gruppo.get("hooks", []) if isinstance(gruppo, dict) else []:
+                comando = hook.get("command", "") if isinstance(hook, dict) else ""
+                usati = re.findall(rf"(?:{prefisso})/((?:hooks|bin)/[^\s\"']+)", comando.replace("\\", "/"))
+                if any(u in registrati for u in usati):
+                    trovati.append((evento, comando))
+    return trovati
+
+
+def senza_doppi(settings: dict) -> dict:
+    """I settings senza gli hook doppi; gruppi ed eventi rimasti vuoti escono anche loro."""
+    via = {(e, c) for e, c in doppi(settings)}
+    copia = json.loads(json.dumps(settings))
+    hooks = copia.get("hooks") or {}
+    for evento in list(hooks):
+        gruppi = []
+        for gruppo in hooks[evento]:
+            restanti = [h for h in gruppo.get("hooks", []) if (evento, h.get("command", "")) not in via]
+            if restanti:
+                gruppi.append(dict(gruppo, hooks=restanti))
+        if gruppi:
+            hooks[evento] = gruppi
+        else:
+            del hooks[evento]
+    if "hooks" in copia and not hooks:
+        del copia["hooks"]
+    return copia
+
+
+def calcola(togli_doppi: bool = False):
     """(settings attuale, settings unito, frammento, errore) per la radice dell'Orsa."""
     frammento_file = CODICE / "impostazioni" / "arturo.json"
     if not frammento_file.exists():
@@ -84,10 +137,11 @@ def calcola():
     attuale = _leggi(settings_file)
     unisci = _unione()
     base = blocco.get("frammento", unisci.MANCA)
+    nostro = senza_doppi(attuale) if togli_doppi else attuale
     try:
-        unito = unisci.unisci(base, attuale, frammento)
+        unito = unisci.unisci(base, nostro, frammento)
     except unisci.Conflitto as errore:
-        return attuale, None, frammento, f"{_dove(unisci, base, attuale, frammento) or 'settings.json'}: {errore}"
+        return attuale, None, frammento, f"{_dove(unisci, base, nostro, frammento) or 'settings.json'}: {errore}"
     return attuale, unito, frammento, None
 
 
@@ -112,8 +166,9 @@ def main(argv: list) -> int:
     if azione not in ("stato", "applica"):
         print(f"Comando sconosciuto: {azione}. I comandi sono \"stato\" e \"applica\".", file=sys.stderr)
         return 2
+    togli = "--togli-doppi" in argv
     try:
-        attuale, unito, frammento, errore = calcola()
+        attuale, unito, frammento, errore = calcola(togli)
     except (OSError, ValueError) as e:
         print(f"IMPOSTAZIONI: non leggo i settings ({e}): non scrivo niente.", file=sys.stderr)
         return 1
@@ -124,6 +179,17 @@ def main(argv: list) -> int:
         print(f"IMPOSTAZIONI: una voce è cambiata sia da te sia da Arturo ({errore}). Non scrivo niente: "
               "decidi con Claude quale tenere, poi rilancia.", file=sys.stderr)
         return 1
+    restano = doppi(unito)
+    if restano:
+        print(f"IMPOSTAZIONI: {len(restano)} hook dei tuoi settings lanciano file che il plugin di Arturo "
+              "lancia già, e scatterebbero due volte:", file=sys.stderr)
+        for evento, comando in restano[:20]:
+            print(f"  {evento}: {comando[:100]}", file=sys.stderr)
+        print("  Con `arturo impostazioni applica --togli-doppi` li tolgo, con una copia dei settings di prima.",
+              file=sys.stderr)
+        if azione == "applica" and "--prova" not in argv:
+            print("IMPOSTAZIONI: non scrivo niente finché ci sono hook doppi.", file=sys.stderr)
+            return 1
     righe = _differenze(attuale, unito)
     if not righe:
         print("IMPOSTAZIONI: già applicate, niente da cambiare.")

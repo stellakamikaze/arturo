@@ -39,6 +39,7 @@ echo "HOME: $HOME"
 echo "Config attuale: ${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 ls -d ~/.claude >/dev/null 2>&1 && echo "~/.claude esiste" || echo "~/.claude NON esiste"
 git -C ~/.claude rev-parse --is-inside-work-tree 2>/dev/null && echo "è un repo git" || echo "NON è un repo git"
+python3 ~/.claude/bin/arturo impostazioni stato
 # Chi ha finito il setup prima della v2026-10-16.3 non ha il segno. Un aggiornamento già fatto
 # e un audit senza FAIL dicono che la configurazione c'era: il segno si scrive una volta sola.
 if [ ! -f ~/.claude/data/setup-fatto ] && [ -s ~/.claude/session-env/aggiornamenti ] \
@@ -53,6 +54,8 @@ cat ~/.claude/data/setup-fatto 2>/dev/null && echo "SETUP GIÀ FATTO" || echo "s
 
 Con `ultima fase finita: N` e senza `SETUP GIÀ FATTO`, chiedi: "L'ultima volta abbiamo finito la fase N:
 riparto dalla successiva?". Il ritratto non resta fra due sessioni: se la FASE 5 non è finita, riproponi 2b e 2c.
+
+Se `impostazioni stato` non dice "clone", Arturo è un plugin: segui `~/.claude/shared/setup-plugin.md`.
 
 Se `~/.claude` NON è un repo git, Arturo non è installato: fermati. Di' alla persona di seguire
 https://arturo.stellakamikaze.org/inizia/, poi di scrivere `/exit`, `claude` e `/setup`. A mano, a
@@ -251,7 +254,7 @@ Fase da bozza. Mai nella scansione della 2c.
 
 Solo se l'utente ha **un proprio server** o usa **Tailscale**: un nome `.ts.net` può essere pubblico con Funnel, quindi i nodi della tailnet si scrivono uno per uno. Spiega: verso un host "interno" le guardie anti-esfiltrazione non chiedono conferma.
 
-Se serve, aggiungi l'hostname o la rete del server in `~/.claude/arturo/hosts-interni.local`, una voce per riga (esempio: `mioserver.example.net`, `203.0.113.0/24`, oppure `.example.net` col punto davanti per il dominio e i suoi sottodomini). Le reti locali (`10.x`, `172.16.x`-`172.31.x`, `192.168.x`, gli indirizzi Tailscale `100.64.x`-`100.127.x`, `169.254.x` e le IPv6 locali) sono già fidate: non serve aggiungerle, e una rete più larga di `/8` viene ignorata. Se l'utente manda dati con la sua chiave a un servizio esterno che usa per lavoro (fatturazione, CRM), il nome host esatto di quell'API va in `~/.claude/arturo/api-fidate.local`, una voce per riga: un POST verso quel servizio non chiede più conferma. Crea il file se non c'è. Non modificare i file `.py` delle guardie: questo file tiene i tuoi host fuori dal codice di Arturo, e nessun aggiornamento lo tocca. Con lo stesso principio le guardie personali stanno in `arturo/bash-dispatcher.local` e le scelte sui file protetti in `arturo/protect_claude_md.local`: il README le spiega in "Le tue guardie". Qui non si creano.
+Se serve, aggiungi l'hostname o la rete del server in `~/.claude/arturo/hosts-interni.local`, una voce per riga (esempio: `mioserver.example.net`, `203.0.113.0/24`, oppure `.example.net` col punto davanti per il dominio e i suoi sottodomini). Le reti locali (`10.x`, `172.16.x`-`172.31.x`, `192.168.x`, gli indirizzi Tailscale `100.64.x`-`100.127.x`, `169.254.x` e le IPv6 locali) sono già fidate: non serve aggiungerle, e una rete più larga di `/8` viene ignorata. Se l'utente manda dati con la sua chiave a un servizio esterno che usa per lavoro (fatturazione, CRM), il nome host esatto di quell'API va in `~/.claude/arturo/api-fidate.local`, una voce per riga: un POST verso quel servizio non chiede più conferma. Crea il file se non c'è. Non modificare i file `.py` delle guardie: questo file tiene i tuoi host fuori dal codice di Arturo, e nessun aggiornamento lo tocca. Le guardie personali le spiega il README in "Le tue guardie".
 
 Prima di scrivere, mostra il file e chiedi conferma. Se una guardia chiede conferma sulla scrittura è normale: il file allenta una guardia, e Arturo vuole il sì dell'utente. Senza un server, salta.
 

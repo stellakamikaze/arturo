@@ -38,6 +38,7 @@ IGNORA = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store", "node_modul
 # Cartelle e file di ~/.claude che nel clone sono codice di Arturo e nel plugin stanno nella sua cartella.
 CODICE = ("bin", "hooks", "shared", "tools", "scripts", "docs", "firme", "agents", "output-styles",
           "commands", "tests", "NOVITA.md", "README.md")
+METODO = 'bash "${CLAUDE_PLUGIN_ROOT}/hooks/metodo.sh"'
 VARIANTI_HOME = (r"~/\.claude", r"\$HOME/\.claude", r"\$\{HOME\}/\.claude", r"\$\{ARTURO_CODICE:-\$HOME/\.claude\}")
 
 
@@ -78,6 +79,10 @@ def hooks_json(settings: dict) -> dict:
                     # Tra virgolette: su Windows la cartella dell'utente può avere spazi.
                     hook["command"] = re.sub(r"~/\.claude/((?:hooks|bin)/[^\s\"']+)",
                                              r'"${CLAUDE_PLUGIN_ROOT}/\1"', hook["command"])
+    # Il metodo (shared/metodo.md) col plugin arriva da un hook di avvio suo: un plugin non porta un
+    # CLAUDE.md. Col clone non c'è, perché le regole stanno nel CLAUDE.md scritto da /setup.
+    hooks.setdefault("SessionStart", []).append(
+        {"hooks": [{"type": "command", "command": METODO, "timeout": 10}]})
     return {"description": "Guardie, avvio e telemetria di Arturo", "hooks": hooks}
 
 

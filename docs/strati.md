@@ -75,7 +75,16 @@ Seconda prova, 3/11/2026, col plugin vero generato da `bin/impacchetta.py` (`cla
 | Hook di comando e modulo nello stesso `hooks.json` | scattano tutti e due; il modulo può stare in `../skills/arturo/hooks/` e il tool esce come `mcp__arturo__ruota` (terza prova, 3/11/2026) |
 | Agent | gli 8 agent si caricano |
 
-Da provare: Windows (prima di migrare Balthasar); installazione da marketplace GitHub con sha fissato; barra in basso dal puntatore su una macchina pulita.
+Terza prova, 5/11/2026 (Claude Code 2.1.318), sul pacchetto con il metodo: `impostazioni applica` in una casa vuota, poi `claude -p --plugin-dir` coi settings della persona esclusi (`--setting-sources project`) e `--include-hook-events`:
+
+| Controllo | Esito |
+|---|---|
+| Hook doppi | zero: i 4 hook di avvio e i 3 del messaggio scattano una volta ciascuno |
+| Metodo all'avvio | il modello ne cita la quarta sezione ("Fatto vuol dire verificato") |
+| Guardie | i banchi delle guardie lanciati sul pacchetto sono verdi; tre banchi leggono file del repository che il pacchetto non porta (`tests/`, `.gitignore`, `settings.json`) e si lanciano sul repository |
+| Login | con una `HOME` finta Claude Code non trova il login: la prova su una macchina pulita la fa una persona (#4565) |
+
+Da provare: Windows (prima di migrare Balthasar); installazione da marketplace GitHub con sha fissato (F3); barra in basso dal puntatore su una macchina pulita.
 
 ## Il pacchetto
 
@@ -86,6 +95,10 @@ Da provare: Windows (prima di migrare Balthasar); installazione da marketplace G
 - ogni `commands/<nome>.md` diventa `skills/<nome>/SKILL.md` con `name:` e `disable-model-invocation: true`.
 
 `arturo impostazioni applica` fa un'unione a tre vie: la base è il file di blocco, poi i settings della persona, poi il frammento nuovo. Arturo cambia solo le voci che la persona ha lasciato com'erano. Se una voce è cambiata da tutte e due le parti, il comando non scrive niente e la nomina.
+
+Un hook nei settings della persona che lancia un file di Arturo registrato anche dal plugin è **doppio**: lo lascia un clone di prima, e scatterebbe due volte. `impostazioni stato` li elenca, `applica` si ferma finché ci sono, `applica --togli-doppi` li toglie e tiene gli hook propri della persona. La copia dei settings di prima resta in `settings.json.prima-di-arturo`. `/setup` lo fa nella FASE 0, col sì della persona (banco IP10).
+
+**Il metodo** (`shared/metodo.md`, sotto i 9.000 caratteri) col plugin entra all'avvio da un hook suo, `hooks/metodo.sh`, che `impacchetta.py` aggiunge a `SessionStart`. Un hook a sé ha il suo tetto di 10.000 caratteri, mentre l'uscita di `session-start.sh` cresce con handoff e memoria. Col clone non scatta: le stesse regole stanno nel CLAUDE.md che la persona scrive con `/setup` (banco IP09).
 
 Col codice fuori da `~/.claude`, l'avvio scrive `~/.claude/arturo/radice` per la barra in basso e dice al modello dove sta il codice.
 

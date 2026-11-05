@@ -12,7 +12,11 @@ IP06 arturo impostazioni applica: in un'Orsa vuota scrive settings e blocco, la 
      tutto con rc 1 e il file intatto;
 IP07 col codice fuori da ~/.claude l'avvio scrive ~/.claude/arturo/radice e dice dove sta il codice;
 IP08 il marketplace elenca Arturo, e il plugin Arturo porta il modulo del suo mod (skills/arturo/hooks/register.tsx
-     sotto "modules" in hooks.json, mod passo 3 del 3/11/2026): nel pacchetto skills/arturo non è un plugin a sé.
+     sotto "modules" in hooks.json, mod passo 3 del 3/11/2026): nel pacchetto skills/arturo non è un plugin a sé;
+IP09 col plugin il metodo (shared/metodo.md) entra all'avvio da un hook suo, sotto i 9.000 caratteri e col
+     percorso al codice già risolto; il settings.json del clone non lo registra (strati F2, 5/11/2026);
+IP10 un hook di Arturo rimasto nei settings della persona (un clone di prima) è doppio: applica si ferma con
+     rc 1 e il file intatto, applica --togli-doppi lo toglie e tiene l'hook proprio della persona.
 
 Sulla base c247fed (il dev prima di F2) sono tutti rossi: il generatore non c'è. Con --avvelena una
 copia del repository rotta in un punto alla volta deve far fallire il caso che lo sorveglia.
@@ -28,7 +32,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["IP01", "IP02", "IP03", "IP04", "IP05", "IP06", "IP07", "IP08"]
+CASI = ["IP01", "IP02", "IP03", "IP04", "IP05", "IP06", "IP07", "IP08", "IP09", "IP10"]
 DISCRIMINANTI = list(CASI)
 BASH = shutil.which("bash") or "bash"
 
@@ -67,10 +71,13 @@ def prova(repo: Path) -> list[str]:
 
         settings = json.loads((repo / "settings.json").read_text(encoding="utf-8"))
         hooks = json.loads((pacchetto / "hooks" / "hooks.json").read_text(encoding="utf-8")).get("hooks", {})
-        attesi, generati = comandi_hook(settings.get("hooks", {})), comandi_hook(hooks)
+        attesi = comandi_hook(settings.get("hooks", {})) + ['bash "${CLAUDE_PLUGIN_ROOT}/hooks/metodo.sh"']
+        generati = comandi_hook(hooks)
         sbagliati = [c for c in generati if "~/.claude/" in c or "$HOME/.claude/" in c
                      or ("${CLAUDE_PLUGIN_ROOT}" in c and '"${CLAUDE_PLUGIN_ROOT}/' not in c)]
-        if len(attesi) != len(generati) or sbagliati or set(hooks) != set(settings.get("hooks", {})):
+        if sorted(c.split()[-1].strip('"').rsplit("/", 1)[-1] for c in attesi) != \
+                sorted(c.split()[-1].strip('"').rsplit("/", 1)[-1] for c in generati) or len(attesi) != len(generati) \
+                or sbagliati or set(hooks) != set(settings.get("hooks", {})):
             rossi.append(f"IP03 hooks.json: {len(generati)} hook su {len(attesi)}, sbagliati {sbagliati[:2]}")
 
         imp = json.loads((pacchetto / "impostazioni" / "arturo.json").read_text(encoding="utf-8"))
@@ -133,6 +140,34 @@ def prova(repo: Path) -> list[str]:
                 m for m in nomi if nomi[m] != "./"] or moduli != ["../skills/arturo/hooks/register.tsx"] \
                 or not modulo_c_e or (pacchetto / "skills" / "arturo" / ".claude-plugin").exists():
             rossi.append(f"IP08 marketplace {nomi}, moduli {moduli}, modulo nel pacchetto {modulo_c_e}")
+
+        avvii = comandi_hook({"SessionStart": json.loads((pacchetto / "hooks" / "hooks.json").read_text(
+            encoding="utf-8"))["hooks"].get("SessionStart", [])})
+        metodo = esegui([BASH, str(pacchetto / "hooks" / "metodo.sh")], cwd=progetto)
+        nel_clone = any("metodo.sh" in c for c in comandi_hook(settings.get("hooks", {})))
+        if sum("hooks/metodo.sh" in c for c in avvii) != 1 or nel_clone or metodo.returncode != 0 \
+                or "# Il metodo di Arturo" not in metodo.stdout or "$ARTURO_CODICE" in metodo.stdout \
+                or f"{visto}/shared/lavori-lunghi.md" not in metodo.stdout or len(metodo.stdout) > 9000:
+            rossi.append(f"IP09 metodo all'avvio: {sum('hooks/metodo.sh' in c for c in avvii)} hook, nel clone "
+                         f"{nel_clone}, {len(metodo.stdout)} caratteri, {metodo.stdout[:80]!r}")
+
+        orsa2 = tmp / "orsa2"
+        orsa2.mkdir()
+        mio = {"type": "command", "command": "bash ~/mio-hook.sh"}
+        vecchio = {"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "bash ~/.claude/hooks/session-start.sh"}, mio]}]}}
+        (orsa2 / "settings.json").write_text(json.dumps(vecchio), encoding="utf-8")
+        env2 = {**env, "CLAUDE_CONFIG_DIR": str(orsa2)}
+        prima2 = (orsa2 / "settings.json").read_text(encoding="utf-8")
+        fermo = esegui(arturo + ["applica"], env=env2)
+        intatto = (orsa2 / "settings.json").read_text(encoding="utf-8") == prima2
+        tolto = esegui(arturo + ["applica", "--togli-doppi"], env=env2)
+        dopo = json.loads((orsa2 / "settings.json").read_text(encoding="utf-8"))
+        restano = comandi_hook(dopo.get("hooks", {}))
+        stato = esegui(arturo + ["stato"], env=env2)
+        if fermo.returncode != 1 or not intatto or "due volte" not in fermo.stderr or tolto.returncode != 0 \
+                or restano != ["bash ~/mio-hook.sh"] or "già applicate" not in stato.stdout or stato.stderr:
+            rossi.append(f"IP10 hook doppi: rc {fermo.returncode}/{tolto.returncode}, intatto {intatto}, "
+                         f"restano {restano}, {(fermo.stderr + tolto.stderr + stato.stderr)[-160:]!r}")
     return rossi
 
 
@@ -144,6 +179,8 @@ VELENI = [
     ("IP06", "bin/impostazioni.py", "        return attuale, None, frammento, f\"{_dove(", "        return attuale, frammento, frammento, None and f\"{_dove("),
     ("IP07", "hooks/session-start.sh", '|| printf \'%s\' "$ARTURO_CODICE" > "$HOME/.claude/arturo/radice"', "|| true"),
     ("IP08", "bin/impacchetta.py", '        dati_hooks["modules"] = [f"../skills/{NOME}/hooks/register.tsx"]', "        pass"),
+    ("IP09", "hooks/metodo.sh", 'printf \'%s\\n\' "${testo//\\$ARTURO_CODICE/$CODICE}"', 'printf \'%s\\n\' "$testo"'),
+    ("IP10", "bin/impostazioni.py", "                if any(u in registrati for u in usati):", "                if False:"),
 ]
 
 
