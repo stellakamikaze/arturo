@@ -913,14 +913,20 @@ def vista(todo: dict, avvisi: list, progetto: str | None = None, tutti: bool = F
 # e ne restituisce uscita e codice: 0 fatto, 2 uso sbagliato, 3 fonte giù o esito incerto. Il contratto è
 # in docs/fonte-task.md. Il file si legge come dati; i percorsi vanno scritti con le barre dritte.
 
-FONTE_LOCALE = Path(os.path.realpath(__file__)).parent / "fonte-task.local"
+def fonte_locale() -> Path:
+    """~/.claude/bin/fonte-task.local della persona, letto dalla HOME e non accanto al codice (5/11/2026).
+
+    In un'installazione normale è la stessa cartella. Chi lancia Arturo dal repo (o un banco con la HOME
+    di prova che lancia il repo vero) non trova così la fonte vera della persona, che scriverebbe sul suo
+    strumento."""
+    return Path.home() / ".claude" / "bin" / "fonte-task.local"
 
 
 def comando_fonte(file: Path | None = None) -> list | None:
     """Il comando della fonte esterna, già diviso, o None se non c'è (vale l'archivio di Arturo)."""
     import shlex
     try:
-        testo = (file or FONTE_LOCALE).read_text(encoding="utf-8")
+        testo = (file or fonte_locale()).read_text(encoding="utf-8")
     except (OSError, ValueError):
         return None
     for riga in testo.splitlines():

@@ -14,6 +14,7 @@ comando = python3 ~/.claude/personale/mia_fonte.py
 Da quel momento `arturo todo <argomenti>` lancia il tuo programma con gli stessi argomenti, senza shell,
 e restituisce la sua uscita e il suo codice. Nei percorsi usa le barre dritte (`/`), anche su Windows.
 Il file è tuo: gli aggiornamenti di Arturo non lo toccano. Per tornare all'archivio di Arturo, toglilo.
+Arturo lo cerca sempre lì, nella tua cartella di casa, anche se lanci Arturo da un'altra cartella: un banco con una casa di prova non trova la tua fonte e non scrive sul tuo strumento.
 
 ## Cosa deve fare il tuo programma
 

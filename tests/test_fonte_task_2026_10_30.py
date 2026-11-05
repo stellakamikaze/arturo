@@ -13,8 +13,11 @@ FT07 un nome parziale con un solo candidato forte vale, con l'avviso NOME: inter
 FT08 arturo contesto elenca i filoni di tutti gli handoff del progetto.
 FT09 arturo sessione --todo con la fonte esterna legge titolo e progetto con "mostra N --json", ripulisce
      il titolo, si ferma se il titolo è cambiato e riduce un progetto fuori forma a uno slug (#3887).
+FT10 la fonte si legge da ~/.claude/bin della persona, non accanto al codice: un repo lanciato con una HOME
+     di prova non usa il fonte-task.local che sta nel suo bin (5/11/2026: un banco scriveva su NocoDB).
 
-Sulla base ba61272 (il dev prima di L4) sono rossi tutti i casi tranne FT02, che è l'invariante.
+Sulla base ba61272 (il dev prima di L4) sono rossi tutti i casi tranne FT02, che è l'invariante, e FT10:
+lì la fonte non c'era. FT10 è rosso su c0236f7, che leggeva il file accanto al codice.
 """
 from __future__ import annotations
 
@@ -28,7 +31,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-CASI = ["FT01", "FT02", "FT03", "FT04", "FT05", "FT06", "FT07", "FT08", "FT09"]
+CASI = ["FT01", "FT02", "FT03", "FT04", "FT05", "FT06", "FT07", "FT08", "FT09", "FT10"]
 DISCRIMINANTI = ["FT01", "FT03", "FT04", "FT05", "FT06", "FT07", "FT08", "FT09"]
 SU = ('import json, sys\n'
       'open(sys.argv[0] + ".argomenti", "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))\n'
@@ -162,6 +165,21 @@ def prova(lab: Lab) -> list:
             or prompt_fuori != "/inizio fuori-rm-rf -- #78 Fuori":
         rossi.append(f"FT09 sessione dalla fonte: rc={r.returncode} prompt={prompt!r} {r.stderr.strip()[-160:]!r} "
                      f"cambiato rc={cambiato.returncode} progetto fuori forma: {prompt_fuori!r}")
+    # FT10 un fonte-task.local accanto al codice, fuori dalla HOME: Arturo non lo usa
+    lab.locale(None)
+    altrove = lab.tmp / "altrove"
+    import shutil
+    shutil.copytree(str(lab.cl / "bin"), str(altrove / "bin"), ignore=shutil.ignore_patterns("__pycache__", "*.local"))
+    spia = lab.tmp / "SPIA"
+    fonte = lab.tmp / "fonte_altrove.py"
+    fonte.write_text(f"open({str(spia)!r}, 'w').write('x')\nprint('TODO-DALLA-FONTE')\n", encoding="utf-8")
+    (altrove / "bin" / "fonte-task.local").write_text(
+        f"comando = {Path(sys.executable).as_posix()} {fonte.as_posix()}\n", encoding="utf-8")
+    r = subprocess.run([sys.executable, "-B", str(altrove / "bin" / "arturo"), "todo", "--progetto", "libro", "--json"],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=lab.env(), timeout=120,
+                       cwd=str(lab.home))
+    if r.returncode != 0 or spia.exists() or "TODO-DALLA-FONTE" in r.stdout:
+        rossi.append(f"FT10 fonte accanto al codice: rc={r.returncode} spia={spia.exists()} {r.stdout[:160]!r}")
     return rossi
 
 
