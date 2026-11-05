@@ -202,8 +202,12 @@ def test_cc07(repo: Path) -> None:
         env = {**os.environ, "ENV_FILE": (d / "env").as_posix(), "PATH": str(finti) + os.pathsep + os.environ.get("PATH", "")}
         giri = []
         for ingresso in (f"\n{segreto}\n", "\n\n"):  # il secondo giro tiene il valore salvato con Invio
-            r = subprocess.run([bash, (d / "prova.sh").as_posix()], input=ingresso, capture_output=True,
-                               text=True, encoding="utf-8", env=env, timeout=60)
+            # In byte: in modo testo Python su Windows scrive \r\n, e read prenderebbe la \r nella chiave
+            # (un terminale manda solo \n; 5/11/2026, #4790).
+            b = subprocess.run([bash, (d / "prova.sh").as_posix()], input=ingresso.encode("utf-8"),
+                               capture_output=True, env=env, timeout=60)
+            r = subprocess.CompletedProcess(b.args, b.returncode, b.stdout.decode("utf-8", "replace"),
+                                            b.stderr.decode("utf-8", "replace"))
             assert r.returncode == 0, f"CC07 la procedura guidata esce con {r.returncode}: {r.stderr[-400:]!r}"
             assert segreto not in r.stdout and "s3gr" not in r.stdout, "CC07 la procedura guidata mostra la chiave incollata"
             giri.append(read(d / "env"))
