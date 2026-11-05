@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Il controllo dell'handoff e la retention per chi tiene i task fuori da Arturo (#4291, F0 L3).
 
-FP01 con hooks/handoff-gate.local (colonna Ticket, Chi "Federico: <categoria>", OFFLINE, archivio
+FP01 con ~/.claude/arturo/handoff-gate.local (colonna Ticket, Chi "Federico: <categoria>", OFFLINE, archivio
      spento) un handoff della config di Federico è verde; senza il file resta rosso.
 FP02 una riga con un "|" non scritto \\| ha più celle dell'intestazione: rosso col conteggio.
 FP03 il commento gitleaks dentro la cella dell'ID non conta; dopo l'ultimo "|" è un avviso, non un rosso.
@@ -10,10 +10,10 @@ FP04 un'idea "→ memoria" vuole un [[slug]] che sia una nota o una nota in atte
 FP05 la retention con --applica sposta solo ciò che il dry-run ha mostrato: senza dry-run niente, e un
      handoff spinto oltre il keep dopo il dry-run resta (RESTA).
 FP06 senza CLAUDE_CODE_SESSION_ID e senza --elenco il dry-run lo dice e --applica non sposta niente.
-FP07 l'indice toglie dal filone le parole dello slug, divide una cartella contenitore (hooks/index-contenitori.local)
+FP07 l'indice toglie dal filone le parole dello slug, divide una cartella contenitore (~/.claude/arturo/index-contenitori.local)
      per il testo fra parentesi del Nome, e rende testo i link delle celle.
 FP08 inventario-sessione.py oltre il suo tetto di tempo esce da solo con 124.
-FP09 l'inventario elenca i Google Doc creati con gws e con un tuo script di hooks/inventario.local, senza l'id
+FP09 l'inventario elenca i Google Doc creati con gws e con un tuo script di ~/.claude/arturo/inventario.local, senza l'id
      del modello copiato.
 
 Sulla base 0a4f73f (il dev prima di L3) sono rossi tutti i casi.
@@ -69,9 +69,12 @@ class Banco:
         self.temp.mkdir()
         self.n = 0
         self.tmp = tmp
+        # Le preferenze della persona stanno in ~/.claude/arturo (strati F1, #4531).
+        self.pref = self.home / ".claude" / "arturo"
+        self.pref.mkdir(parents=True)
 
     def profilo(self, acceso: bool) -> None:
-        f = self.radice / "hooks" / "handoff-gate.local"
+        f = self.pref / "handoff-gate.local"
         if acceso:
             f.write_text(PROFILO, encoding="utf-8")
         elif f.exists():
@@ -189,7 +192,7 @@ def prova(b: Banco) -> list:
                                                 "## Ripartenza\nTesto.\nProssimo passo: PASSO-GIARDINO\n"}.items():
         (radice / rel).parent.mkdir(parents=True, exist_ok=True)
         (radice / rel).write_text(testo, encoding="utf-8")
-    (b.radice / "hooks" / "index-contenitori.local").write_text("# cartelle con filoni scollegati\ncasa\n", encoding="utf-8")
+    (b.pref / "index-contenitori.local").write_text("# cartelle con filoni scollegati\ncasa\n", encoding="utf-8")
     uscita = b.tmp / "INDEX.md"
     r = subprocess.run([sys.executable, "-B", str(b.radice / "bin" / "index-rigenera.py"), "--out", str(uscita),
                         "--radice", str(radice), "--oggi", "2026-10-20"], capture_output=True, text=True,
@@ -212,10 +215,10 @@ def prova(b: Banco) -> list:
     if r.returncode != 124:
         rossi.append(f"FP08 tetto dell'inventario: rc={r.returncode} {r.stderr.strip()[-120:]!r}")
 
-    # FP09 l'inventario vede gli oggetti creati con gws e con uno script elencato in hooks/inventario.local
+    # FP09 l'inventario vede gli oggetti creati con gws e con uno script elencato in ~/.claude/arturo/inventario.local
     modello = "1" + "M" * 32
     nuovo_gws, nuovo_mio = "1" + "G" * 32, "1" + "L" * 32
-    (b.radice / "hooks" / "inventario.local").write_text("# i miei script\nGoogle Doc = duplica_modello[.]py\n",
+    (b.pref / "inventario.local").write_text("# i miei script\nGoogle Doc = duplica_modello[.]py\n",
                                                          encoding="utf-8")
     eventi = []
     for n, (cmd, ris) in enumerate((

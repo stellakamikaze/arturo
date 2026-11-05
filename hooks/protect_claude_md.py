@@ -25,6 +25,7 @@ Tre categorie, ognuna con un unlock per-sessione distinto, più il resto di ~/.c
     chi li cambia fa installare da solo codice non firmato)
     ~/.claude/arturo/radice (col plugin, la barra in basso esegue il codice della cartella che nomina;
     lo scrive solo l'avvio, 4/11/2026, #4567)
+    ~/.claude/arturo/*.local (le preferenze della persona, comprese quelle delle guardie: strati F1, #4531)
     -> unlock: touch ~/.claude/config-unlock-{session_id}
 
 Motivo della categoria config/hook: senza questo, sotto defaultMode auto o acceptEdits
@@ -45,7 +46,7 @@ di avvio esegue codice a ogni commit o a ogni login, senza che nessuno lo chieda
 Il vettore shell (echo >, cp, tee...) su questi percorsi chiede conferma in
 block-dangerous.py.
 
-hooks/protect_claude_md.local (dal 30/10/2026) cambia la decisione di cinque categorie: i due
+~/.claude/arturo/protect_claude_md.local (dal 30/10/2026; vale ancora il vecchio hooks/) cambia la decisione di cinque categorie: i due
 CLAUDE.md, i settings della radice, la config e il resto di ~/.claude (dot-claude). Persistenza,
 file di unlock, firme/, gli script dell'aggiornamento e i .local restano col default. Il vocabolario
 sta accanto a _locale().
@@ -116,7 +117,7 @@ def _avviso_budget(rp, claude_dir, ti):
             "un'altra nella stessa modifica.")
 
 
-# hooks/protect_claude_md.local (30/10/2026, #4291): chi installa Arturo può cambiare la decisione di
+# ~/.claude/arturo/protect_claude_md.local (30/10/2026, #4291): chi installa Arturo può cambiare la decisione di
 # alcune categorie senza toccare questo file. Righe `<decisione> <categoria>`, `#` per i commenti.
 # Decisioni: allow, ask, deny. Categorie:
 #   claude-md-globale   ~/.claude/CLAUDE.md
@@ -125,18 +126,28 @@ def _avviso_budget(rp, claude_dir, ti):
 #   config              hooks/** e i settings*.json nelle sottocartelle di ~/.claude
 #   dot-claude          ogni altro file sotto ~/.claude
 # Restano fuori, sempre col default di Arturo: percorsi di avvio automatico, file di sblocco, firme/,
-# gli script dell'aggiornamento e i file hooks/*.local, che altrimenti potrebbero allentare sé stessi.
+# gli script dell'aggiornamento e i file .local (arturo/*.local e hooks/*.local), che altrimenti potrebbero
+# allentare sé stessi.
 # Un file illeggibile o una riga fuori vocabolario valgono come assenti.
 DECISIONI_LOCALI = {'allow', 'ask', 'deny'}
 CATEGORIE_LOCALI = {'claude-md-globale', 'claude-md-progetto', 'settings-radice', 'config', 'dot-claude'}
+
+
+def _preferenza(nome):
+    """~/.claude/arturo/<nome>, o il vecchio ~/.claude/hooks/<nome> finché il nuovo manca (strati F1, #4531).
+    La guardia non importa radici.py: un import fallito la spegnerebbe, perché un errore diverso
+    dall'uscita 2 non blocca. Legge la home vera, la stessa su cui giudica i percorsi."""
+    claude = os.path.expanduser('~/.claude')
+    nuovo = os.path.join(claude, 'arturo', nome)
+    vecchio = os.path.join(claude, 'hooks', nome)
+    return vecchio if not os.path.exists(nuovo) and os.path.exists(vecchio) else nuovo
 
 
 def _locale():
     """Le decisioni di protect_claude_md.local, per categoria."""
     scelte = {}
     try:
-        with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'protect_claude_md.local'),
-                  encoding='utf-8') as fh:
+        with open(_preferenza('protect_claude_md.local'), encoding='utf-8') as fh:
             for riga in fh:
                 parti = riga.split('#', 1)[0].split()
                 if len(parti) == 2 and parti[0] in DECISIONI_LOCALI and parti[1] in CATEGORIE_LOCALI:
@@ -152,7 +163,7 @@ def _emetti_locale(categoria, avviso="", chiede=None):
     if decisione:
         if decisione == 'ask' and chiede:
             chiede()
-        _emit(decisione, f"{categoria}: decisione di hooks/protect_claude_md.local." + avviso)
+        _emit(decisione, f"{categoria}: decisione di protect_claude_md.local." + avviso)
         sys.exit(0)
 
 
@@ -265,6 +276,7 @@ def main():
             or rp.endswith(os.sep + 'hooks')
             or relativo == 'firme' or relativo.startswith('firme/')
             or relativo in ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh', 'arturo/radice')
+            or (relativo.startswith('arturo/') and relativo.endswith('.local'))
             or relativo.startswith(('plugins/cache/', 'plugins/marketplaces/'))
         )
         if is_config:
@@ -286,7 +298,7 @@ def main():
             intoccabile = (relativo == 'firme' or relativo.startswith('firme/')
                            or relativo.startswith(('plugins/cache/', 'plugins/marketplaces/'))
                            or relativo in ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh', 'arturo/radice')
-                           or (relativo.startswith('hooks/') and relativo.endswith('.local')))
+                           or (relativo.startswith(('hooks/', 'arturo/')) and relativo.endswith('.local')))
             if not intoccabile:
                 in_radice = os.path.dirname(rp) == claude_dir
                 _emetti_locale('settings-radice' if in_radice and (re.match(r'SETTINGS.*\.JSON$', base)

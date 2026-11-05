@@ -31,7 +31,7 @@ import time
 import uuid
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
-from radici import radice_orsa  # noqa: E402
+from radici import file_locale, radice_orsa  # noqa: E402
 
 VERSIONE_EVENTI = 1
 VERSIONE_VISTA = 1
@@ -911,18 +911,18 @@ def vista(todo: dict, avvisi: list, progetto: str | None = None, tutti: bool = F
 
 
 # --- Fonte esterna dei task (30/10/2026, #4291) ----------------------------------------------------
-# Chi tiene i task in un altro strumento scrive in bin/fonte-task.local una riga `comando = <programma>
+# Chi tiene i task in un altro strumento scrive in ~/.claude/arturo/fonte-task.local una riga `comando = <programma>
 # [argomenti]`. Da lì `arturo todo <argomenti>` lancia quel programma con gli stessi argomenti, senza shell,
 # e ne restituisce uscita e codice: 0 fatto, 2 uso sbagliato, 3 fonte giù o esito incerto. Il contratto è
 # in docs/fonte-task.md. Il file si legge come dati; i percorsi vanno scritti con le barre dritte.
 
 def fonte_locale() -> Path:
-    """~/.claude/bin/fonte-task.local della persona, letto dall'Orsa (radice_orsa) e non accanto al codice (5/11/2026).
+    """~/.claude/arturo/fonte-task.local della persona, letto dall'Orsa (radice_orsa) e non accanto al codice.
 
-    In un'installazione normale è la stessa cartella. Chi lancia Arturo dal repo (o un banco con la HOME
-    di prova che lancia il repo vero) non trova così la fonte vera della persona, che scriverebbe sul suo
-    strumento."""
-    return radice_orsa() / "bin" / "fonte-task.local"
+    Il vecchio posto, ~/.claude/bin/fonte-task.local, vale finché il nuovo manca (strati F1, #4531). Chi
+    lancia Arturo dal repo (o un banco con la HOME di prova che lancia il repo vero) non trova così la fonte
+    vera della persona, che scriverebbe sul suo strumento."""
+    return file_locale("fonte-task.local", radice_orsa() / "bin" / "fonte-task.local")
 
 
 def comando_fonte(file: Path | None = None) -> list | None:

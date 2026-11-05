@@ -11,7 +11,7 @@ Opzioni di prova: --radice DIR (default ~/.claude/data/handoffs),
 Una riga per filone. La chiave del filone (la usa anche handoff-retention.py):
   - la riga "- Filone: <nome>" nella sezione ## Progetto dà <slug>/<nome normalizzato>, senza le parole
     iniziali uguali allo slug; un filone che resta vuoto dà <slug>;
-  - in una cartella contenitore (hooks/index-contenitori.local) dà <slug>/<prima parola fra le
+  - in una cartella contenitore (~/.claude/arturo/index-contenitori.local) dà <slug>/<prima parola fra le
     parentesi della riga "Nome:">, per esempio "casa (caldaia)" dà casa/caldaia;
   - altrimenti la chiave è lo slug: un progetto, una riga.
 Nelle celle Stato e Prossimo passo i link [testo](url) diventano testo. Un link morto ferma la scrittura
@@ -38,7 +38,7 @@ import tempfile
 import unicodedata
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
-from radici import radice_orsa  # noqa: E402
+from radici import file_locale, radice_orsa  # noqa: E402
 
 RADICE = radice_orsa() / "data" / "handoffs"
 GIORNI_ARCHIVIO = 30
@@ -81,10 +81,12 @@ def filone_esplicito(testo):
 
 
 def contenitori():
-    """Le cartelle che ospitano filoni scollegati (hooks/index-contenitori.local, uno slug per riga, # per i
-    commenti): lì il testo fra parentesi della riga "Nome:" fa da filone. Senza il file, nessuna."""
+    """Le cartelle che ospitano filoni scollegati (~/.claude/arturo/index-contenitori.local, o il vecchio
+    hooks/index-contenitori.local, uno slug per riga, # per i commenti): lì il testo fra parentesi della riga
+    "Nome:" fa da filone. Senza il file, nessuna."""
     try:
-        testo = (Path(__file__).resolve().parent.parent / "hooks" / "index-contenitori.local").read_text(encoding="utf-8")
+        testo = file_locale("index-contenitori.local",
+                            radice_orsa() / "hooks" / "index-contenitori.local").read_text(encoding="utf-8")
     except (OSError, ValueError):
         return set()
     return {r.split("#", 1)[0].strip().lower() for r in testo.splitlines()} - {""}

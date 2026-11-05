@@ -15,7 +15,7 @@ progetto divisi per chi agisce, i todo chiusi dopo l'ultimo handoff, le scadenze
 7 giorni (anche fuori dal progetto), il todo da cui ripartire e gli avvisi.
 Tra due blocchi bash le variabili si perdono: qui tutto vive in un processo.
 
-Con bin/fonte-task.local i todo vengono dalla fonte esterna (arturo todo --progetto <slug> --json --tutti).
+Con ~/.claude/arturo/fonte-task.local i todo vengono dalla fonte esterna (arturo todo --progetto <slug> --json --tutti).
 Se non risponde, la sezione dei todo mostra la tabella Task Pendenti dell'ultimo handoff con l'avviso
 NON VERIFICATO: mai "nessuno" quando la fonte è giù.
 
@@ -382,7 +382,7 @@ def leggi_esterna(progetto: str) -> tuple:
 def sezione_esterna(v: dict, progetto: str, dal: str | None) -> list:
     gruppi = [g for g in v["gruppi"] if isinstance(g, dict)]
     aperti = sum(len(g.get("todo") or []) for g in gruppi)
-    righe = [f'TODO APERTI DEL PROGETTO "{progetto}" ({aperti}, dalla fonte di bin/fonte-task.local)']
+    righe = [f'TODO APERTI DEL PROGETTO "{progetto}" ({aperti}, dalla fonte di fonte-task.local)']
     if not aperti:
         righe.append("  nessuno")
     for g in gruppi:

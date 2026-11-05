@@ -11,7 +11,7 @@
 # Exit 1 se manca la cartella di uscita o se ~/.claude non è un repository git.
 #
 # I termini dell'indice grep: un elenco neutro qui sotto, più le righe del file facoltativo
-# review-termini.local accanto a questo script (una parola o un'espressione per riga, fuori da git).
+# ~/.claude/arturo/review-termini.local (una parola o un'espressione per riga, fuori da git).
 # Lì vanno i nomi che solo tu sai riconoscere: un servizio dismesso, un tuo vecchio percorso.
 set -u
 OUT="${1:-}"; DAL="${2:-$(date -v-21d +%Y-%m-%d 2>/dev/null || date -d '21 days ago' +%Y-%m-%d)}"
@@ -38,7 +38,9 @@ cerca() { (cd "$H" && grep -rnIE "$@" "${DOVE[@]}" 2>/dev/null | grep -v '/node_
 {
   cerca "$TERMINI"
   # I termini tuoi, senza distinguere maiuscole e minuscole.
-  LOCALE="$(dirname "$0")/review-termini.local"
+  # ~/.claude/arturo/review-termini.local; finché manca vale il vecchio, accanto a questo script.
+  LOCALE="$H/arturo/review-termini.local"
+  [ -f "$LOCALE" ] || LOCALE="$(dirname "$0")/review-termini.local"
   if [ -f "$LOCALE" ]; then
     MIEI=$(grep -vE '^[[:space:]]*(#|$)' "$LOCALE" | paste -sd '|' -)
     [ -n "$MIEI" ] && cerca -i "$MIEI"

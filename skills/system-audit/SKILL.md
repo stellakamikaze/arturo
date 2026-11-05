@@ -79,7 +79,7 @@ reperto, un critico di completezza. Sola lettura: il risultato sono reperti con 
    Senza data parte da tre settimane fa. I termini da cercare sono un elenco neutro (percorsi di una
    sola macchina, credenziali lette a mano, exit code dopo una pipe). Per aggiungere i tuoi (un servizio
    che non usi più, un vecchio percorso) scrivili, uno per riga, in
-   `~/.claude/skills/system-audit/review-termini.local`: il file resta fuori da git.
+   `~/.claude/arturo/review-termini.local`: il file resta fuori da git.
 2. Copia lo script nello scratchpad (il tool Workflow rifiuta uno `scriptPath` dentro `~/.claude`) e
    lancialo: `cp ~/.claude/skills/system-audit/review.workflow.js <scratchpad>/`, poi
    `Workflow({scriptPath: "<scratchpad>/review.workflow.js", args: {home: "<$HOME>", scratch: "<scratchpad>/review", dal, oggi}})`.

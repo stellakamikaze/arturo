@@ -100,9 +100,16 @@ def _leggi_host_locali(path: Path):
     return frozenset(host), frozenset(domini), tuple(reti)
 
 
-LOCAL_HOSTS, LOCAL_DOMAINS, LOCAL_NETS = _leggi_host_locali(
-    Path(__file__).resolve().parent / "hosts-interni.local"
-)
+def _preferenza(nome: str) -> Path:
+    """~/.claude/arturo/<nome>, o il vecchio ~/.claude/hooks/<nome> finché il nuovo manca (strati F1, #4531).
+    La guardia non importa radici.py: un import fallito la spegnerebbe, perché un errore diverso
+    dall'uscita 2 non blocca. Legge la home vera, come le altre guardie."""
+    claude = Path.home() / ".claude"
+    nuovo, vecchio = claude / "arturo" / nome, claude / "hooks" / nome
+    return vecchio if not nuovo.exists() and vecchio.exists() else nuovo
+
+
+LOCAL_HOSTS, LOCAL_DOMAINS, LOCAL_NETS = _leggi_host_locali(_preferenza("hosts-interni.local"))
 
 
 def _internal_host(host: str | None) -> bool:

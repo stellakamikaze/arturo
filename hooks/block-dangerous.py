@@ -636,6 +636,10 @@ def _under_claude_config(p):
     if p in (os.path.join(radice, "bin", "aggiornamenti.py"), os.path.join(radice, "bin", "aggiorna-applica.sh"),
              os.path.join(radice, "arturo", "radice")):
         return True
+    # Le preferenze della persona, comprese quelle delle guardie, in ~/.claude/arturo (strati F1, #4531):
+    # protette come lo erano in hooks/, perché un .local può allentare una guardia.
+    if os.path.dirname(p) == os.path.join(radice, "arturo") and p.endswith(".local"):
+        return True
     base = os.path.basename(p)
     if os.path.dirname(p) == os.path.normpath(os.path.join(h, ".claude")):
         if base == ".claude.json" or (base.startswith("settings") and base.endswith(".json")):
@@ -666,12 +670,21 @@ def _is_claude_md_globale(p):
     return _is_claude_md(p) and os.path.dirname(p) == os.path.normpath(os.path.join(_home(), ".claude"))
 
 
+def _preferenza(nome):
+    """~/.claude/arturo/<nome>, o il vecchio ~/.claude/hooks/<nome> finché il nuovo manca (strati F1, #4531).
+    La guardia non importa radici.py: un import fallito la spegnerebbe, perché un errore diverso
+    dall'uscita 2 non blocca. Legge la home vera, la stessa su cui giudica i percorsi."""
+    claude = os.path.join(_home(), ".claude")
+    nuovo = os.path.join(claude, "arturo", nome)
+    vecchio = os.path.join(claude, "hooks", nome)
+    return vecchio if not os.path.exists(nuovo) and os.path.exists(vecchio) else nuovo
+
+
 def _claude_md_progetto_libero():
-    """True se hooks/protect_claude_md.local contiene la riga `allow claude-md-progetto`: la stessa
+    """True se protect_claude_md.local contiene la riga `allow claude-md-progetto`: la stessa
     scelta che protect_claude_md.py applica a Edit e Write (31/10/2026)."""
     try:
-        with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), "protect_claude_md.local"),
-                  encoding="utf-8") as fh:
+        with open(_preferenza("protect_claude_md.local"), encoding="utf-8") as fh:
             return any(riga.split("#", 1)[0].split() == ["allow", "claude-md-progetto"] for riga in fh)
     except OSError:
         return False

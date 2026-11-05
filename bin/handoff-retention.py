@@ -66,7 +66,7 @@ def percorso_elenco(slug, esplicito=None):
 
 def task_senza_id(corpo, celle, colonna="id"):
     """Righe della tabella Task Pendenti senza #numero nella colonna ID (il nome viene dal profilo,
-    hooks/handoff-gate.local)."""
+    ~/.claude/arturo/handoff-gate.local)."""
     out, col = [], None
     for r in corpo.splitlines():
         if not r.lstrip().startswith("|"):

@@ -3,7 +3,7 @@
 
 Fino al 19/10 le guardie si erano divise: Arturo aveva le correzioni #3506, la config di chi
 mantiene Arturo aveva falsi positivi tolti e il confronto per dominio. Ora i file sono gli stessi,
-e ciò che è personale sta in hooks/hosts-interni.local e hooks/api-fidate.local.
+e ciò che è personale sta in ~/.claude/arturo/hosts-interni.local e api-fidate.local.
 
 GU01 una voce col punto davanti in hosts-interni.local (`.esempio-interno.org`) vale per il dominio
      e per i sottodomini, e non apre un dominio che la contiene solo come prefisso.
@@ -36,9 +36,12 @@ def guardia(repo: Path, nome: str, dati: dict, interni: str = "") -> str:
     with tempfile.TemporaryDirectory() as td:
         hooks = Path(os.path.realpath(td)) / "hooks"
         shutil.copytree(repo / "hooks", hooks, ignore=shutil.ignore_patterns("__pycache__", "test_*", "test-*"))
-        if interni:
-            (hooks / "hosts-interni.local").write_text(interni, encoding="utf-8")
+        if interni:  # le preferenze della persona stanno in ~/.claude/arturo (strati F1, #4531)
+            pref = Path(td) / ".claude" / "arturo"
+            pref.mkdir(parents=True)
+            (pref / "hosts-interni.local").write_text(interni, encoding="utf-8")
         env = dict(os.environ, HOME=td, USERPROFILE=td, ARTURO_TELEMETRIA="0")
+        env.pop("CLAUDE_CONFIG_DIR", None)
         p = subprocess.run([sys.executable, "-B", str(hooks / nome)], input=json.dumps(dati),
                            capture_output=True, text=True, env=env, encoding="utf-8")
     if p.returncode == 2:

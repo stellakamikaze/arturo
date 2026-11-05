@@ -17,7 +17,7 @@ FONTI
     Le righe si dividono solo fuori dalle virgolette: una stringa su più righe resta un comando;
   - oggetti creati online con i connettori (un file su Drive, una bozza di email), con gws (documents,
     presentations, spreadsheets, drafts create, files create o copy) o con i tuoi script elencati in
-    hooks/inventario.local: vanno nell'handoff;
+    ~/.claude/arturo/inventario.local: vanno nell'handoff;
   - file in ~/Downloads e ~/Desktop modificati durante la sessione.
   Scarta ~/.claude/** (lo copre il Config Sync di /fine) e /dev/*. I file assenti finiscono in
   "spariti". Lo scratchpad e /tmp restano in elenco, marcati: si perdono al riavvio.
@@ -35,6 +35,10 @@ TEMPO
 """
 import argparse, glob, json, os, re, shlex, subprocess, sys, tempfile, threading
 from datetime import datetime, timezone
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent / "hooks"))
+from radici import file_locale, radice_orsa  # noqa: E402
 
 PESANTE = 20 * 1024 * 1024
 
@@ -364,11 +368,12 @@ CREA_BASH = [
 
 
 def crea_locali():
-    """I tuoi script che creano qualcosa online, da hooks/inventario.local: righe `<tipo> = <regex>`, la regex
+    """I tuoi script che creano qualcosa online, da ~/.claude/arturo/inventario.local (o dal vecchio
+    hooks/inventario.local): righe `<tipo> = <regex>`, la regex
     cercata nel comando Bash (per esempio `Google Doc = duplica_modello\\.py`). # per i commenti; una regex che
     non si compila si salta. Il file si legge come dati."""
     try:
-        locale = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "hooks", "inventario.local")
+        locale = file_locale("inventario.local", radice_orsa() / "hooks" / "inventario.local")
         with open(locale, encoding="utf-8") as fh:
             testo = fh.read()
     except (OSError, ValueError):

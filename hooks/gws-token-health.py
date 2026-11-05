@@ -4,7 +4,7 @@ Session-start health check per i token OAuth di gws.
 
 Trova da solo gli account: ogni cartella ~/.config/gws o ~/.config/gws-<nome> con una
 credenziale dentro. Gli account che devono esserci in ogni caso (e vanno segnalati se
-mancano) si elencano, uno per riga, in hooks/gws-account.local, fuori da git: così il file
+mancano) si elencano, uno per riga, in ~/.claude/arturo/gws-account.local (prima hooks/), fuori da git: così il file
 è lo stesso nella config dell'autore e in Arturo (20/10/2026). Senza gws e senza cartelle tace.
 
 L'hook non lancia mai `gws` dentro l'avvio: mostra l'ultimo esito in cache e, se la cache ha più di
@@ -29,11 +29,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from concurrent.futures import TimeoutError as AttesaScaduta  # prima di python 3.11 non è il TimeoutError di serie
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent))
-from radici import radice_orsa  # noqa: E402
+from radici import file_locale, radice_orsa  # noqa: E402
 
 CONFIG_DIR = Path.home() / ".config"
 GWS_BIN = shutil.which("gws")
-ATTESI_FILE = Path(__file__).resolve().parent / "gws-account.local"
+ATTESI_FILE = file_locale("gws-account.local", radice_orsa() / "hooks" / "gws-account.local")
 
 
 def _account():

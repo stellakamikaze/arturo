@@ -19,7 +19,7 @@
 #     della memoria né una nota in attesa in _in-attesa.md.
 #   La frase "nessun task pendente" conta solo dentro la sezione, con maiuscole libere.
 #
-# PROFILO (hooks/handoff-gate.local, bin/handoff_profilo.py): chi tiene i task fuori da Arturo
+# PROFILO (~/.claude/arturo/handoff-gate.local, bin/handoff_profilo.py): chi tiene i task fuori da Arturo
 # cambia il nome della colonna ID, i valori ammessi in Chi, ammette OFFLINE e spegne il controllo
 # sull'archivio dei todo. Senza il file vale il profilo di Arturo descritto sopra.
 #
@@ -154,7 +154,7 @@ function controlla(riga,    n, c, id, num, chi, cat) {
     chi = (n > 0) ? c[n] : ""
     if (chire != "") {
       if (chi !~ ("^(" chire ")$"))
-        rosso("riga " NR ": Chi \"" chi "\" non è fra i valori di hooks/handoff-gate.local")
+        rosso("riga " NR ": Chi \"" chi "\" non è fra i valori di handoff-gate.local")
     } else {
       # Le forme per la persona (/fine FASE 4) valgono la categoria che nominano.
       cat = chi

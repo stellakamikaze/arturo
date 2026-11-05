@@ -12,7 +12,7 @@ Non blocca e non stampa mai il valore trovato, solo il tipo.
 Gira sempre, anche a memoria spenta: handoff e note di Claude Code esistono lo stesso.
 I pattern dei segreti e delle injection vengono da credential-leak-scanner.py e
 prompt-injection-scanner.py, gli host interni da exfil-guard.py (localhost, reti locali e
-hooks/hosts-interni.local): una copia sola. Il controllo di raggiungibilita' (MEMORY-REACH)
+~/.claude/arturo/hosts-interni.local): una copia sola. Il controllo di raggiungibilita' (MEMORY-REACH)
 vale per le note di data/memory e solo a memoria accesa.
 
 Fail-open. Zero dipendenze.
@@ -80,7 +80,7 @@ _GUARDIA = []
 
 def _host_interno(host):
     """Host che non escono dalla macchina o dalla rete locale: la stessa regola di exfil-guard.py
-    (localhost, reti private, hooks/hosts-interni.local). Senza exfil-guard, solo localhost."""
+    (localhost, reti private, ~/.claude/arturo/hosts-interni.local). Senza exfil-guard, solo localhost."""
     if not _GUARDIA:
         _GUARDIA.append(_carica("exfil-guard.py"))
     guardia = _GUARDIA[0]

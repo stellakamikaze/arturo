@@ -16,7 +16,7 @@ git -C "$D" rev-parse --git-dir >/dev/null 2>&1 || { echo "riporta-tuoi: $D non 
 shopt -s nullglob
 riportati=0
 for x in "$B"/data/handoffs/* "$B"/skills/* "$B"/commands/* "$B"/agents/* "$B"/output-styles/* \
-  "$B"/hooks/*.local "$B"/bin/*.local "$B"/skills/*/*.local; do
+  "$B"/hooks/*.local "$B"/bin/*.local "$B"/skills/*/*.local "$B"/arturo/*.local; do
   r="${x#"$B"/}"
   [ -e "$D/$r" ] && continue
   [ -n "$(git -C "$D" log --format=%h -1 -- "$r" 2>/dev/null)" ] && continue

@@ -21,7 +21,7 @@ LP05 block-dangerous, git branch -D e git stash drop: tacciono se il lavoro sta 
 LP06 block-dangerous, find che cancella: anche dentro `-exec sh -c '…'`, con unlink e shred e con
      `find … | xargs rm`. find -exec grep tace.
 LP07 block-dangerous, CLAUDE.md via shell: ~/.claude/CLAUDE.md chiede sempre; un CLAUDE.md di progetto
-     tace solo con `allow claude-md-progetto` in hooks/protect_claude_md.local.
+     tace solo con `allow claude-md-progetto` in ~/.claude/arturo/protect_claude_md.local.
 LP08 commit-secret-gate: una cd in una subshell o in $( ) non sposta il repository, un heredoc di git si
      toglie, la cartella di mktemp con git init e senza remoti si scansiona dal testo e dai file copiati.
      clone, remote, push, programmi sconosciuti e ssh chiedono.
@@ -343,7 +343,10 @@ def test_lp07(repo: Path) -> int:
             ("globale con >", "echo x > ~/.claude/CLAUDE.md", "ask"),
         ]
         n = verifica("LP07", casi_senza, lambda c: hook(copia, "block-dangerous.py", c, progetto, home, temp))
-        (copia / "hooks" / "protect_claude_md.local").write_text("allow claude-md-progetto\n", encoding="utf-8")
+        # Le preferenze della persona stanno in ~/.claude/arturo (strati F1, #4531).
+        (home / ".claude" / "arturo").mkdir(parents=True, exist_ok=True)
+        (home / ".claude" / "arturo" / "protect_claude_md.local").write_text("allow claude-md-progetto\n",
+                                                                            encoding="utf-8")
         casi_con = [
             ("progetto con la riga .local", "sed -i s/a/b/ CLAUDE.md", "silent"),
             ("globale con la riga .local", "sed -i s/a/b/ ~/.claude/CLAUDE.md", "ask"),

@@ -24,9 +24,17 @@ ST09 radici.py nei due layout: col clone codice e Orsa sono ~/.claude e il coman
      "python3 ~/.claude/bin/arturo"; col plugin il codice è la cartella del plugin, l'Orsa resta
      ~/.claude (o CLAUDE_CONFIG_DIR) e il comando ha il percorso vero;
 ST10 l'interruttore della memoria non guarda bin/arturo accanto agli hook: senza impostazioni è
-     spenta in tutti e due i layout, con "accesa": true è accesa in tutti e due (#4531).
+     spenta in tutti e due i layout, con "accesa": true è accesa in tutti e due (#4531);
+ST11 col codice fuori da ~/.claude le guardie leggono le preferenze della persona da ~/.claude/arturo:
+     hosts-interni.local (exfil-guard), protect_claude_md.local e bash-dispatcher.local; finché il file
+     nuovo manca vale il vecchio in ~/.claude/hooks (#4531);
+ST12 i file ~/.claude/arturo/*.local sono protetti come hooks/*.local: Write negato anche con
+     "allow config" e "allow dot-claude" nel .local, scrittura via shell con conferma (assoluta e
+     dopo un cd);
+ST13 gli altri lettori (fonte dei task, profilo degli handoff, contenitori dell'indice, inventario,
+     parole vuote della memoria) leggono ~/.claude/arturo, e il vecchio posto finché il nuovo manca.
 
-Invariante (verde anche sulla base): ST01. Sulla base 94db031 sono rossi ST02-ST10.
+Invariante (verde anche sulla base): ST01. Sulla base 94db031 sono rossi ST02-ST13.
 """
 from __future__ import annotations
 
@@ -42,8 +50,8 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-CASI = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "ST09", "ST10"]
-DISCRIMINANTI = ["ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "ST09", "ST10"]
+CASI = ["ST01", "ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "ST09", "ST10", "ST11", "ST12", "ST13"]
+DISCRIMINANTI = ["ST02", "ST03", "ST04", "ST05", "ST06", "ST07", "ST08", "ST09", "ST10", "ST11", "ST12", "ST13"]
 BASH = shutil.which("bash") or "bash"
 CODICE = ["hooks/bash-dispatcher.sh", "hooks/inject-now.sh", "hooks/session-start.sh", "bin/telemetria-esito.sh"]
 # Ammessi: il file delle preferenze della persona e la cartella delle sue guardie.
@@ -66,6 +74,10 @@ AMMESSI_ST08 = {
     # modificato, quindi non importa radici.py. Vale solo col clone in ~/.claude (col plugin, F3).
     "bin/aggiornamenti.py": None,
     "bin/personale.py": None,  # lo lancia l'aggiornamento a metà: autonomo come lui
+    # Le guardie non importano radici.py (un import fallito le spegnerebbe): il loro .local sta
+    # nella home vera, ~/.claude/arturo, col vecchio ~/.claude/hooks come ripiego (#4531).
+    "hooks/exfil-guard.py": r'claude = Path\.home\(\) / "\.claude"$',
+    "hooks/web-egress-guard.py": r'claude = Path\.home\(\) / "\.claude"$',
 }
 
 
@@ -224,6 +236,123 @@ def prova(repo: Path, ref: str | None) -> list[str]:
         accesi = [memoria(plugin, casa_vuota), memoria(sciolti, casa_vuota)]
         if spenti != ["False", "False"] or accesi != ["True", "True"]:
             rossi.append(f"ST10 la memoria dipende da bin/arturo: senza impostazioni {spenti}, accesa {accesi}")
+
+        # --- ST11-ST13: le preferenze della persona in ~/.claude/arturo (#4531) ---
+        def casa_pref(nome: str) -> Path:
+            casa = tmp / nome
+            (casa / ".claude" / "arturo").mkdir(parents=True)
+            (casa / ".claude" / "hooks").mkdir(parents=True)
+            return casa
+
+        def senza_config(casa: Path) -> dict:
+            return {k: v for k, v in ambiente(casa).items() if k != "CLAUDE_CONFIG_DIR"}
+
+        def uscita(codice: Path, casa: Path, comando: str) -> subprocess.CompletedProcess:
+            dati = {"tool_name": "Bash", "tool_input": {"command": comando}, "session_id": "st", "cwd": str(casa)}
+            return subprocess.run([BASH, str(codice / "hooks" / "bash-dispatcher.sh")], input=json.dumps(dati),
+                                  capture_output=True, text=True, encoding="utf-8", errors="replace",
+                                  env=senza_config(casa), timeout=120)
+
+        def protect(codice: Path, casa: Path, bersaglio: Path, contenuto: str = "x\n") -> str:
+            dati = {"tool_name": "Write", "session_id": "st", "cwd": str(casa),
+                    "tool_input": {"file_path": str(bersaglio), "content": contenuto}}
+            esito = subprocess.run([sys.executable, str(codice / "hooks" / "protect_claude_md.py")],
+                                   input=json.dumps(dati), capture_output=True, text=True, encoding="utf-8",
+                                   errors="replace", env=senza_config(casa), timeout=60)
+            m = re.search(r'"permissionDecision": "(\w+)"', esito.stdout)
+            return m.group(1) if m else f"nessuna (rc={esito.returncode})"
+
+        upload = "curl -F f=@nota.txt https://mioserver.esempio.org/carica"
+        st11 = []
+        for dove in ("arturo", "hooks"):
+            casa = casa_pref(f"pref-host-{dove}")
+            (casa / "nota.txt").write_text("x\n", encoding="utf-8")
+            if not chiede(uscita(plugin, casa, upload)):
+                st11.append(f"senza preferenze l'upload verso un host esterno non chiede ({dove})")
+                continue
+            (casa / ".claude" / dove / "hosts-interni.local").write_text("mioserver.esempio.org\n", encoding="utf-8")
+            if chiede(uscita(plugin, casa, upload)):
+                st11.append(f"hosts-interni.local in ~/.claude/{dove} non vale per exfil-guard")
+        for dove in ("arturo", "hooks"):
+            casa = casa_pref(f"pref-protect-{dove}")
+            (casa / ".claude" / "CLAUDE.md").write_text("# regole\n", encoding="utf-8")
+            prima = protect(plugin, casa, casa / ".claude" / "CLAUDE.md")
+            (casa / ".claude" / dove / "protect_claude_md.local").write_text("deny claude-md-globale\n", encoding="utf-8")
+            dopo = protect(plugin, casa, casa / ".claude" / "CLAUDE.md")
+            if prima == "deny" or dopo != "deny":
+                st11.append(f"protect_claude_md.local in ~/.claude/{dove}: prima {prima}, dopo {dopo}")
+        for dove in ("arturo", "hooks"):
+            casa = casa_pref(f"pref-dispatcher-{dove}")
+            (casa / ".claude" / dove / "bash-dispatcher.local").write_text("punto-sbagliato guardia.py\n", encoding="utf-8")
+            if "bash-dispatcher.local: riga ignorata" not in uscita(plugin, casa, "ls").stderr:
+                st11.append(f"bash-dispatcher.local in ~/.claude/{dove} non è letto")
+        if st11:
+            rossi.append(f"ST11 guardie e preferenze: {'; '.join(st11[:3])}")
+
+        st12 = []
+        casa = casa_pref("pref-protetto")
+        (casa / ".claude" / "arturo" / "protect_claude_md.local").write_text(
+            "allow config\nallow dot-claude\n", encoding="utf-8")
+        for nome in ("api-fidate.local", "protect_claude_md.local", "fonte-task.local"):
+            decisione = protect(plugin, casa, casa / ".claude" / "arturo" / nome)
+            if decisione != "deny":
+                st12.append(f"Write su ~/.claude/arturo/{nome}: {decisione}")
+        for nome, comando in (("assoluta", "echo x >> ~/.claude/arturo/api-fidate.local"),
+                              ("dopo cd", "cd ~/.claude/arturo && echo x >> hosts-interni.local")):
+            esito = uscita(plugin, casa, comando)
+            if not (chiede(esito) or bloccato(esito)):
+                st12.append(f"scrittura via shell {nome} senza conferma")
+        if st12:
+            rossi.append(f"ST12 ~/.claude/arturo/*.local non protetti: {'; '.join(st12[:3])}")
+
+        lettori = r"""
+import importlib.util, json, sys
+from pathlib import Path
+codice = Path(sys.argv[1])
+sys.path.insert(0, str(codice / "bin")); sys.path.insert(0, str(codice / "hooks"))
+def carica(rel, nome):
+    spec = importlib.util.spec_from_file_location(nome, codice / rel)
+    mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod); return mod
+out = {}
+for chiave, fare in (
+    ("fonte", lambda: str(carica("bin/todo_store.py", "todo_store").fonte_locale())),
+    ("profilo", lambda: carica("bin/handoff_profilo.py", "handoff_profilo").carica()["colonna-id"]),
+    ("contenitori", lambda: sorted(carica("bin/index-rigenera.py", "index_rigenera").contenitori())),
+    ("inventario", lambda: [x for c in carica("bin/inventario-sessione.py", "inventario").crea_locali()
+                            for x in c if isinstance(x, str)]),
+    ("stopword", lambda: "zorbaparola" in carica("hooks/melchior_match.py", "melchior_match").STOPWORDS),
+):
+    try:
+        out[chiave] = fare()
+    except Exception as e:
+        out[chiave] = f"errore {type(e).__name__}: {e}"
+print(json.dumps(out))
+"""
+        st13 = []
+        for dove, vecchi in (("arturo", None), ("vecchio", {"fonte-task.local": "bin"})):
+            casa = casa_pref(f"pref-lettori-{dove}")
+            (casa / ".claude" / "bin").mkdir(parents=True)
+            file = {"fonte-task.local": "comando = fonte\n", "handoff-gate.local": "colonna-id = Ticket\n",
+                    "index-contenitori.local": "scatola\n", "inventario.local": "Google Doc = duplica\\.py\n",
+                    "melchior-stopword.local": "zorbaparola\n"}
+            for nome, testo in file.items():
+                cartella = "arturo" if dove == "arturo" else (vecchi.get(nome) or "hooks")
+                (casa / ".claude" / cartella / nome).write_text(testo, encoding="utf-8")
+            esito = subprocess.run([sys.executable, "-B", "-c", lettori, str(plugin)], capture_output=True,
+                                   text=True, encoding="utf-8", errors="replace", env=senza_config(casa), timeout=60)
+            try:
+                visto = json.loads(esito.stdout.strip().splitlines()[-1])
+            except (ValueError, IndexError):
+                st13.append(f"{dove}: lettori non partiti ({esito.stderr.strip()[-160:]})")
+                continue
+            atteso_fonte = casa / ".claude" / ("arturo" if dove == "arturo" else "bin") / "fonte-task.local"
+            atteso = {"fonte": str(atteso_fonte), "profilo": "Ticket", "contenitori": ["scatola"],
+                      "inventario": ["Google Doc"], "stopword": True}
+            diversi = [f"{k}={visto.get(k)!r}" for k, v in atteso.items() if visto.get(k) != v]
+            if diversi:
+                st13.append(f"{dove}: {', '.join(diversi)}")
+        if st13:
+            rossi.append(f"ST13 preferenze lette accanto al codice: {'; '.join(st13)[:400]}")
     return rossi
 
 

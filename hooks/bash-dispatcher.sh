@@ -12,7 +12,7 @@
 export PYTHONIOENCODING=utf-8
 
 # Dove sta il codice (docs/strati.md): ARTURO_HOOKS è la cartella di questo file, ~/.claude/hooks
-# nel clone, la cartella del plugin domani. ORSA_HOOKS tiene il .local e le guardie della persona.
+# nel clone, la cartella del plugin domani. ORSA_HOOKS tiene le guardie della persona, ~/.claude/arturo il .local.
 # Si calcola solo dal file, mai da una variabile d'ambiente: una guardia non si sposta da fuori.
 ARTURO_HOOKS="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
 ARTURO_BIN="$(dirname "$ARTURO_HOOKS")/bin"
@@ -215,7 +215,9 @@ except Exception: pass' 2>/dev/null)
     return 0
 }
 
-# --- Guardie personali (hooks/bash-dispatcher.local, 30/10/2026) ---
+# --- Guardie personali (~/.claude/arturo/bash-dispatcher.local, 30/10/2026) ---
+# Il file sta in ~/.claude/arturo/ dagli strati F1 (#4531); finché lì manca vale il vecchio
+# ~/.claude/hooks/bash-dispatcher.local.
 # Chi installa Arturo aggiunge le sue guardie senza toccare questo file. Il .local è solo dati, una
 # riga per guardia: `<punto> <guardia> [argomenti]`, `#` per i commenti. Si legge riga per riga e non
 # si esegue mai: un `exit 0` scritto lì spegnerebbe tutte le guardie. I punti sono questi quattro:
@@ -229,7 +231,9 @@ except Exception: pass' 2>/dev/null)
 # un crash chiede conferma. Una riga che non rispetta la forma si salta e lo dice su stderr.
 _LOC_PUNTO=(); _LOC_GUARDIA=(); _LOC_ARGS=()
 _PUNTI_LOCALI=" prima-danger danger-claude attenua finale "
-if [[ -f "$HOME/.claude/hooks/bash-dispatcher.local" ]]; then
+_LOC_FILE="$HOME/.claude/arturo/bash-dispatcher.local"
+[[ ! -f "$_LOC_FILE" && -f "$HOME/.claude/hooks/bash-dispatcher.local" ]] && _LOC_FILE="$HOME/.claude/hooks/bash-dispatcher.local"
+if [[ -f "$_LOC_FILE" ]]; then
     while IFS= read -r _riga || [[ -n "$_riga" ]]; do
         _riga="${_riga%%#*}"; _riga="${_riga//$'\r'/}"
         _p=""; _g=""; _a=""
@@ -240,7 +244,7 @@ if [[ -f "$HOME/.claude/hooks/bash-dispatcher.local" ]]; then
         else
             echo "bash-dispatcher.local: riga ignorata, forma non valida o guardia assente: $_riga" >&2
         fi
-    done < "$HOME/.claude/hooks/bash-dispatcher.local"
+    done < "$_LOC_FILE"
 fi
 # Gli indici delle righe di un punto, nell'ordine del file.
 locali() {

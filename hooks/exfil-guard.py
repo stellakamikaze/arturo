@@ -26,9 +26,10 @@ comms-guard.py (messaggistica/email nota) gira PRIMA e chiede conferma su quei c
 Gli scanner PostToolUse (credential-leak) restano come secondo layer detective.
 
 Host interni: localhost, le reti locali (INTERNAL_NETS) e le voci di
-hooks/hosts-interni.local (hostname esatti, reti, o domini scritti col punto davanti:
-.esempio.org vale anche per i sottodomini). API esterne fidate: le voci di hooks/api-fidate.local,
-un nome host per riga, vuoto di default. Un POST verso un servizio che usi per
+~/.claude/arturo/hosts-interni.local (hostname esatti, reti, o domini scritti col punto davanti:
+.esempio.org vale anche per i sottodomini). API esterne fidate: le voci di
+~/.claude/arturo/api-fidate.local, un nome host per riga, vuoto di default. Finché il file nuovo
+manca vale quello vecchio in ~/.claude/hooks/. Un POST verso un servizio che usi per
 lavoro con la sua chiave (la tua fatturazione, il tuo CRM) è lavoro, non
 esfiltrazione. Entrambi i file sono ignorati da git: restano tuoi.
 
@@ -111,9 +112,16 @@ def _leggi_host_locali(path: Path):
     return frozenset(host), frozenset(domini), tuple(reti)
 
 
-LOCAL_HOSTS, LOCAL_DOMAINS, LOCAL_NETS = _leggi_host_locali(
-    Path(__file__).resolve().parent / "hosts-interni.local"
-)
+def _preferenza(nome: str) -> Path:
+    """~/.claude/arturo/<nome>, o il vecchio ~/.claude/hooks/<nome> finché il nuovo manca (strati F1, #4531).
+    La guardia non importa radici.py: un import fallito la spegnerebbe, perché un errore diverso
+    dall'uscita 2 non blocca. Legge la home vera, come le altre guardie."""
+    claude = Path.home() / ".claude"
+    nuovo, vecchio = claude / "arturo" / nome, claude / "hooks" / nome
+    return vecchio if not nuovo.exists() and vecchio.exists() else nuovo
+
+
+LOCAL_HOSTS, LOCAL_DOMAINS, LOCAL_NETS = _leggi_host_locali(_preferenza("hosts-interni.local"))
 
 
 def _internal_host(host: str | None) -> bool:
@@ -157,7 +165,7 @@ def _leggi_api_fidate(path: Path):
     return frozenset(host)
 
 
-TRUSTED_EXTERNAL = _leggi_api_fidate(Path(__file__).resolve().parent / "api-fidate.local")
+TRUSTED_EXTERNAL = _leggi_api_fidate(_preferenza("api-fidate.local"))
 
 
 def _fidato(host: str | None) -> bool:

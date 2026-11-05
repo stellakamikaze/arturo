@@ -22,7 +22,7 @@ Per ognuno dice cosa ti porta e, se manca, il passo per collegarlo.
 |---|---|---|
 | Google (connettori di claude.ai) | email a cui rispondere, promesse fatte, riunioni, trascrizioni su Drive | dalle impostazioni di claude.ai; /monitor li cerca fra i suoi tool |
 | Google (`gws`) | lo stesso, con più account e dal terminale | `/inizio gws` |
-| Task | task nuovi senza doppioni, task fermi da controllare | `arturo todo` di serie, oppure `bin/fonte-task.local` (`docs/fonte-task.md`) |
+| Task | task nuovi senza doppioni, task fermi da controllare | `arturo todo` di serie, oppure `arturo/fonte-task.local` (`docs/fonte-task.md`) |
 | Sessioni | il prossimo passo di ogni lavoro aperto con Claude | si accende alla prima `/fine` |
 | Memoria | schede dei progetti, note su persone e decisioni, scritte col tuo sì | `arturo memoria accendi` |
 

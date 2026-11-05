@@ -68,7 +68,7 @@ def todo_dalla_fonte(esterna: list, numero: str, titolo: str | None) -> tuple:
         r = subprocess.run([*esterna, "mostra", str(numero), "--json"], capture_output=True, timeout=30,
                            env={**os.environ, "PYTHONIOENCODING": "utf-8"})
     except (OSError, subprocess.SubprocessError) as e:
-        return None, f"la fonte dei task di bin/fonte-task.local non risponde ({e})"
+        return None, f"la fonte dei task di fonte-task.local non risponde ({e})"
     if r.returncode != 0:
         prima = next((x.strip() for x in r.stderr.decode("utf-8", "replace").splitlines() if x.strip()), "")
         return None, f"la fonte dei task non trova il todo #{numero}" + (f": {prima}" if prima else "")
@@ -139,7 +139,7 @@ def main(argv: list) -> int:
     if numero is not None:
         esterna = ts.comando_fonte()
         if esterna:
-            # Con bin/fonte-task.local il todo sta nell'altro strumento: titolo e progetto si leggono
+            # Con ~/.claude/arturo/fonte-task.local il todo sta nell'altro strumento: titolo e progetto si leggono
             # con "mostra N --json" (docs/fonte-task.md). Il prompt lo compone sempre questo script.
             todo, errore = todo_dalla_fonte(esterna, numero, titolo)
             if errore:

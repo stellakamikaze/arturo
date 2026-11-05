@@ -24,7 +24,7 @@ ponti.json, una voce per ponte personale:
 `comando` e `prova` sono liste: niente shell. `~` vale la home.
 
 Variabili per il banco: ARTURO_HOME (al posto di ~/.claude), GWS_CONFIG_BASE (al posto di
-~/.config), ARTURO_BIN (la cartella bin con fonte-task.local e memoria.py). Solo libreria standard, Python 3.8 o successivo.
+~/.config), ARTURO_BIN (la cartella bin con memoria.py e il vecchio fonte-task.local). Solo libreria standard, Python 3.8 o successivo.
 """
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ import subprocess
 import sys
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parents[2] / "hooks"))
-from radici import radice_orsa  # noqa: E402
+from radici import file_locale, radice_orsa  # noqa: E402
 
 CASA = Path(os.environ.get("ARTURO_HOME") or radice_orsa())
 CONFIG = Path(os.environ.get("GWS_CONFIG_BASE") or Path.home() / ".config")
@@ -93,7 +93,7 @@ def google():
 
 def task():
     cosa = "i task nuovi, senza doppioni, e quelli fermi da controllare"
-    locale = BIN / "fonte-task.local"
+    locale = file_locale("fonte-task.local", BIN / "fonte-task.local")
     if locale.is_file():
         riga = next((r for r in locale.read_text(encoding="utf-8").splitlines()
                      if r.strip().startswith("comando")), "")

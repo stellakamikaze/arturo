@@ -1,6 +1,6 @@
 """Il profilo degli handoff e il controllo delle idee "→ memoria" (#4291, 30/10/2026).
 
-hooks/handoff-gate.local dice come sono fatti gli handoff di chi installa Arturo, senza toccare
+~/.claude/arturo/handoff-gate.local (prima hooks/handoff-gate.local, che vale ancora) dice come sono fatti gli handoff di chi installa Arturo, senza toccare
 handoff-gate.sh e handoff-retention.py. Righe `chiave = valore`, `#` per i commenti:
 
   colonna-id = Ticket   nome della colonna con l'ID dei task (default: ID)
@@ -20,7 +20,11 @@ import sys
 from pathlib import Path
 
 QUI = Path(__file__).resolve().parent
-LOCALE = QUI.parent / "hooks" / "handoff-gate.local"
+sys.path.append(str(QUI.parent / "hooks"))
+from radici import file_locale, radice_orsa  # noqa: E402
+
+# ~/.claude/arturo/handoff-gate.local; il vecchio ~/.claude/hooks/handoff-gate.local vale finché il nuovo manca.
+LOCALE = file_locale("handoff-gate.local", radice_orsa() / "hooks" / "handoff-gate.local")
 DEFAULT = {"colonna-id": "ID", "chi": "", "offline": "no", "archivio": "sì"}
 SI = {"sì", "si", "yes", "1", "true"}
 

@@ -5,7 +5,7 @@ tracker, un foglio), Arturo può leggerli e scriverli lì, senza cambiare `/iniz
 
 ## Come si collega
 
-Scrivi in `~/.claude/bin/fonte-task.local` una riga:
+Scrivi in `~/.claude/arturo/fonte-task.local` una riga:
 
 ```
 comando = python3 ~/.claude/personale/mia_fonte.py
@@ -93,5 +93,5 @@ Con `3` in lettura, `arturo contesto` mostra i task della tabella dell'ultimo ha
 NON VERIFICATO. Con `3` su `aggiungi`, `/fine` non ritenta: prima cerca il titolo, poi scrive
 `OFFLINE` nella tabella.
 
-Se tieni i task fuori da Arturo, scrivi anche `hooks/handoff-gate.local` con `archivio = no`: il
+Se tieni i task fuori da Arturo, scrivi anche `arturo/handoff-gate.local` con `archivio = no`: il
 controllo dell'handoff non cerca più i numeri nell'archivio di Arturo (vedi `bin/handoff_profilo.py`).

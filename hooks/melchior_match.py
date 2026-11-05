@@ -12,7 +12,7 @@ Importato da:
 
 Lo stesso file vive nella config di chi mantiene Arturo e in Arturo, identico byte per byte
 (tests/test_melchior_uguale_arturo.py nella config). Ciò che è di una persona sta fuori dal
-codice, in file locali ignorati da git: hooks/melchior-stopword.local (parole senza segnale, una
+codice, in file locali ignorati da git: ~/.claude/arturo/melchior-stopword.local (parole senza segnale, una
 per riga, # per i commenti).
 
 Dove stanno le note (radici), in quest'ordine:
@@ -50,7 +50,7 @@ import os
 import re
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent))
-from radici import radice_orsa  # noqa: E402
+from radici import file_locale, radice_orsa  # noqa: E402
 
 QUI = Path(__file__).resolve().parent
 CLAUDE_DIR = radice_orsa()
@@ -224,7 +224,7 @@ STOPWORDS = {
     "questa", "sono", "hai", "del", "della", "che", "per", "una", "con",
     "mi", "il", "la", "le", "un", "in", "di", "da", "su", "se", "ho", "gli",
 }
-STOPWORDS |= _parole_locali(QUI / "melchior-stopword.local")
+STOPWORDS |= _parole_locali(file_locale("melchior-stopword.local", CLAUDE_DIR / "hooks" / "melchior-stopword.local"))
 
 
 def tokenize(text):

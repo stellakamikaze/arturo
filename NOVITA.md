@@ -12,6 +12,19 @@ modo di lavorare.
 
 ---
 
+## 2026-11-05 — Le tue preferenze hanno una cartella sola
+
+**Cosa cambia**: i file `.local`, quelli dove scrivi le tue scelte (i tuoi server in
+`hosts-interni.local`, le API fidate, le tue guardie, come sono fatti i tuoi handoff, la fonte dei
+task), adesso stanno tutti in `~/.claude/arturo/`. Non devi spostare niente: un file scritto prima in
+`~/.claude/hooks/` o in `~/.claude/bin/` vale ancora, finché lo stesso file non c'è nella cartella
+nuova. Se lo sposti, vale quello nuovo. I file in `~/.claude/arturo/` sono protetti come prima:
+Claude non li cambia senza la tua conferma, perché un file `.local` può allentare una guardia.
+
+**Perché**: è un passo per fare di Arturo un plugin di Claude Code. Col plugin il codice sta in una
+cartella che Claude Code aggiorna da solo, e un tuo file accanto al codice si perderebbe. Le tue scelte
+devono stare nella tua cartella, `~/.claude`, separate dal codice.
+
 ## 2026-11-04 — Le segnalazioni hanno una ricevuta e una risposta
 
 **Cosa cambia**: quando mandi una segnalazione con `/segnala`, oltre al numero ricevi una ricevuta: un
