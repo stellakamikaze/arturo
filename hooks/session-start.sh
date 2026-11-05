@@ -256,6 +256,12 @@ if [ -f "$ARTURO_CODICE/hooks/deriva.py" ]; then
   python3 "$ARTURO_CODICE/hooks/deriva.py" "$HOME/.claude" 2>/dev/null || true
 fi
 
+# Chi ha ancora il clone in ~/.claude (strati F4, 5/11/2026): una riga al giorno su come passare al plugin.
+# Col plugin migra.py non stampa niente.
+if [ -f "$ARTURO_CODICE/bin/migra.py" ]; then
+  python3 "$ARTURO_CODICE/bin/migra.py" avviso 2>/dev/null || true
+fi
+
 # Telemetria (bin/telemetria.py): registra la sessione senza rete, avvisa la persona una
 # volta sola e lancia l'invio in background al massimo ogni 6 ore. Non ferma mai l'avvio.
 if [ -f "$ARTURO_CODICE/bin/telemetria.py" ]; then
