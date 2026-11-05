@@ -14,7 +14,7 @@ FT08 arturo contesto elenca i filoni di tutti gli handoff del progetto.
 FT09 arturo sessione --todo con la fonte esterna legge titolo e progetto con "mostra N --json", ripulisce
      il titolo, si ferma se il titolo è cambiato e riduce un progetto fuori forma a uno slug (#3887).
 FT10 la fonte si legge da ~/.claude/bin della persona, non accanto al codice: un repo lanciato con una HOME
-     di prova non usa il fonte-task.local che sta nel suo bin (5/11/2026: un banco scriveva su NocoDB).
+     di prova non usa il fonte-task.local che sta nel suo bin (5/11/2026: un banco arrivava allo strumento vero della persona).
 
 Sulla base ba61272 (il dev prima di L4) sono rossi tutti i casi tranne FT02, che è l'invariante, e FT10:
 lì la fonte non c'era. FT10 è rosso su c0236f7, che leggeva il file accanto al codice.
