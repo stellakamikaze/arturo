@@ -578,6 +578,10 @@ def _resolve(target, cwd):
     if t is None:
         return None
     t = os.path.expanduser(t)
+    # Su Windows Git Bash scrive il disco come `/c/Users/...`: per Python è `\c\Users`, fuori dalla
+    # home, e `echo x > /c/Users/<io>/.claude/hooks/a.py` passava senza conferma (4/11/2026, #4790).
+    if os.name == "nt":
+        t = re.sub(r"^/([a-zA-Z])(?=/|$)", lambda m: m.group(1).upper() + ":", t)
     if not os.path.isabs(t):
         if cwd is None:
             return None  # cwd sconosciuto (cd verso un path che non si risolve): niente path inventati

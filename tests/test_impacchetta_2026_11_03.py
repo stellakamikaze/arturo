@@ -115,7 +115,10 @@ def prova(repo: Path) -> list[str]:
                                           "GIT_TERMINAL_PROMPT": "0"})
         puntatore = home / ".claude" / "arturo" / "radice"
         letto = puntatore.read_text(encoding="utf-8") if puntatore.exists() else ""
-        if Path(letto).resolve() != pacchetto.resolve() if letto else True:
+        # L'avvio scrive la cartella come la vede bash: su Windows `/tmp/...` o `/c/...`, che Python
+        # leggerebbe come `C:\tmp`. Si confronta con la stessa cartella vista da bash (#4790).
+        visto = esegui([BASH, "-c", 'cd "$1" && pwd', "_", str(pacchetto)]).stdout.strip()
+        if not letto or (Path(letto).resolve() != pacchetto.resolve() and letto != visto):
             rossi.append(f"IP07 puntatore della barra: {letto!r}")
         elif "ARTURO: il codice di Arturo sta in" not in avvio.stdout:
             rossi.append("IP07 l'avvio non dice dove sta il codice")

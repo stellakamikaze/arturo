@@ -627,6 +627,13 @@ def test_g211(repo: Path) -> None:
         # Il CLAUDE.md globale chiede davvero dal dispatcher, non solo "non approva" (1/11/2026, F04).
         assert dispatcher(home, "echo x > ~/.claude/CLAUDE.md", radice) == "ask", \
             "G211 la scrittura del CLAUDE.md globale non chiede dal dispatcher"
+        # Su Windows Git Bash scrive il disco come `/c/Users/...`: la guardia lo leggeva fuori dalla
+        # home e la scrittura nella cache dei plugin passava (4/11/2026, #4790).
+        if os.name == "nt":
+            git_bash = "/" + home.as_posix()[0].lower() + home.as_posix()[2:]
+            bersaglio = f"{git_bash}/.claude/plugins/cache/arturo/arturo/1.0/bin/strumento.py"
+            assert dispatcher(home, f"echo x > {bersaglio}", radice) == "ask", \
+                "G211 la scrittura nella cache dei plugin col percorso di Git Bash non chiede"
         # Un link simbolico nella zona che punta agli hook non porta l'allow fuori.
         zona = home / ".claude" / "data" / "handoffs"
         zona.mkdir(parents=True, exist_ok=True)

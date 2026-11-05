@@ -99,7 +99,10 @@ def prova(repo: Path, ref: str | None) -> list[str]:
                        cwd=progetto, capture_output=True, text=True, encoding="utf-8", errors="replace",
                        env=ambiente(orsa_home, {"CLAUDE_ENV_FILE": str(env_file)}), timeout=120)
         scritto = env_file.read_text(encoding="utf-8") if env_file.exists() else ""
-        if f'ARTURO_CODICE="{plugin}"' not in scritto or f'{plugin}/bin:' not in scritto:
+        # La cartella come la scrive bash: su Windows `/tmp/...` o `/c/...`, non `C:\...` (#4790).
+        visto = subprocess.run([BASH, "-c", 'cd "$1" && pwd', "_", str(plugin)], capture_output=True,
+                               text=True, encoding="utf-8", errors="replace").stdout.strip() or str(plugin)
+        if f'ARTURO_CODICE="{visto}"' not in scritto or f'{visto}/bin:' not in scritto:
             rossi.append(f"ST04 l'avvio non esporta la cartella del codice: {scritto[-200:]!r}")
 
         fissi = []
@@ -125,7 +128,13 @@ def prova(repo: Path, ref: str | None) -> list[str]:
         if '"permissionDecision": "deny"' not in esito.stdout:
             rossi.append(f"ST06 Write nella cache del plugin non è negato: {esito.stdout[-160:]!r}")
         relativo = bersaglio.relative_to(orsa_home / ".claude").as_posix()
-        for nome, comando, cwd in (("assoluta", f"echo x > {bersaglio}", None),
+        # In bash `C:\Users\...` senza virgolette perde le barre: su Windows le forme vere sono
+        # `C:/Users/...` e quella di Git Bash, `/c/Users/...`, che la guardia non riconosceva (#4790).
+        assolute = [("assoluta", f"echo x > {bersaglio.as_posix()}", None)]
+        if os.name == "nt":
+            git_bash = "/" + bersaglio.as_posix()[0].lower() + bersaglio.as_posix()[2:]
+            assolute.append(("assoluta di Git Bash", f"echo x > {git_bash}", None))
+        for nome, comando, cwd in (*assolute,
                                    ("dopo cd ~/.claude", f"cd ~/.claude && echo x > {relativo}", None),
                                    ("dalla cartella della cache", "echo x > strumento.py", cache)):
             if not chiede(dispatcher(plugin, orsa_home, comando, cwd)):
