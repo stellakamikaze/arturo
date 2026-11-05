@@ -40,7 +40,7 @@ from pathlib import Path
 
 CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06", "RT07"]
 DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05", "RT07"]
-PERCORSI = ["bin", "hooks/melchior_match.py", "hooks/controlla-config.py", ".gitignore", "hooks/session-start.sh",
+PERCORSI = ["bin", "hooks/radici.py", "hooks/melchior_match.py", "hooks/controlla-config.py", ".gitignore", "hooks/session-start.sh",
             "commands/fine.md"]
 SEGNO = ".ultimo-fine-completo"
 GIT_ENV = {"GIT_AUTHOR_NAME": "Prova", "GIT_AUTHOR_EMAIL": "p@example.com", "GIT_COMMITTER_NAME": "Prova",
@@ -69,7 +69,10 @@ class Lab:
         self.cl = self.home / ".claude"
         self.cl.mkdir(parents=True)
         if ref:
-            dati = subprocess.run(["git", "-C", str(repo), "archive", ref, *PERCORSI], capture_output=True,
+            # hooks/radici.py nasce con gli strati F1 (#4531): una base più vecchia non ce l'ha.
+            presenti = [p for p in PERCORSI if subprocess.run(["git", "-C", str(repo), "cat-file", "-e", f"{ref}:{p}"],
+                                                             capture_output=True).returncode == 0]
+            dati = subprocess.run(["git", "-C", str(repo), "archive", ref, *presenti], capture_output=True,
                                   check=True).stdout
             with tarfile.open(fileobj=io.BytesIO(dati)) as archivio:
                 archivio.extractall(self.cl, **({"filter": "data"} if hasattr(tarfile, "data_filter") else {}))

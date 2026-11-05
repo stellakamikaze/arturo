@@ -353,6 +353,9 @@ def test_p15(repo: Path) -> None:
         for f in [repo / "bin" / "arturo", *(repo / "bin").glob("*.py")]:  # la CLI vera, fuori da git
             if not (lab.utente / "bin" / f.name).exists():
                 shutil.copy(str(f), str(lab.utente / "bin" / f.name))
+        (lab.utente / "hooks").mkdir(exist_ok=True)
+        if (repo / "hooks" / "radici.py").exists():  # strati F1: una base vecchia non ce l'ha
+            shutil.copy(str(repo / "hooks" / "radici.py"), str(lab.utente / "hooks" / "radici.py"))
         codice = blocco(read(repo / "commands" / "aggiorna.md"), "## Le sue aggiunte, senza aggiornare", "P15")
         gh_finto(lab, "PUBLIC")
         prima, inizio = lab.head(), read(lab.utente / "commands" / "inizio.md")

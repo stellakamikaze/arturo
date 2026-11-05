@@ -24,12 +24,14 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
+sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+from radici import radice_orsa  # noqa: E402
 
 CODICE = Path(__file__).resolve().parent.parent
 
 
 def orsa() -> Path:
-    return Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
+    return radice_orsa()
 
 
 def _unione():

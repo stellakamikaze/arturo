@@ -67,6 +67,9 @@ class Lab:
         else:
             import shutil
             shutil.copytree(str(repo / "bin"), str(self.cl / "bin"), ignore=shutil.ignore_patterns("__pycache__", "*.local"))
+            (self.cl / "hooks").mkdir()
+            if (repo / "hooks" / "radici.py").exists():  # strati F1: una base vecchia non ce l'ha
+                shutil.copy2(str(repo / "hooks" / "radici.py"), str(self.cl / "hooks" / "radici.py"))
         h = self.cl / "data" / "handoffs" / "libro" / "HANDOFF_2026-10-29_10-00.md"
         h.parent.mkdir(parents=True)
         h.write_text(HANDOFF, encoding="utf-8")
@@ -170,6 +173,9 @@ def prova(lab: Lab) -> list:
     altrove = lab.tmp / "altrove"
     import shutil
     shutil.copytree(str(lab.cl / "bin"), str(altrove / "bin"), ignore=shutil.ignore_patterns("__pycache__", "*.local"))
+    if (lab.cl / "hooks" / "radici.py").exists():  # strati F1: una base vecchia non ce l'ha
+        (altrove / "hooks").mkdir()
+        shutil.copy2(str(lab.cl / "hooks" / "radici.py"), str(altrove / "hooks" / "radici.py"))
     spia = lab.tmp / "SPIA"
     fonte = lab.tmp / "fonte_altrove.py"
     fonte.write_text(f"open({str(spia)!r}, 'w').write('x')\nprint('TODO-DALLA-FONTE')\n", encoding="utf-8")

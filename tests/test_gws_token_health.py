@@ -62,6 +62,8 @@ def prepara(radice: Path, hook: Path):
     copia = radice / "hooks"
     copia.mkdir()
     shutil.copy2(hook, copia / "gws-token-health.py")
+    if (Path(hook).parent / "radici.py").exists():  # strati F1: le radici accanto all'hook
+        shutil.copy2(Path(hook).parent / "radici.py", copia / "radici.py")
     cache = home / ".claude" / "session-env" / "gws-health.cache"
     return home, bin_finto, copia / "gws-token-health.py", cache
 

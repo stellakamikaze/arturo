@@ -95,6 +95,8 @@ Due conseguenze della prova:
 - **I comandi di Arturo diventano skill** (`skills/<nome>/SKILL.md` con `name:`). Così `/inizio` resta senza prefisso anche nel plugin.
 - **Un percorso al codice si scrive `${CLAUDE_SKILL_DIR}/../../bin/...`**. Vale in tutti e due i layout: nel plugin porta alla cartella del plugin, nel clone in `~/.claude` porta a `~/.claude`. Claude Code lo risolve prima della lettura, quindi funziona anche con il tool Read, che non espande le variabili.
 - Negli script e negli hook vale `ARTURO_CODICE`: l'hook di avvio lo calcola dalla sua cartella e lo scrive in `$CLAUDE_ENV_FILE` insieme al PATH di `bin/`.
+- Negli script Python le due radici vengono da `hooks/radici.py`: `radice_arturo()` è la cartella del codice, calcolata dal file; `radice_orsa()` è `CLAUDE_CONFIG_DIR` o `~/.claude`. Un messaggio che dice alla persona quale comando lanciare usa `comando_arturo()`: col clone scrive `python3 ~/.claude/bin/arturo`, col plugin il percorso vero. Da `bin/` si importa con `sys.path.append(<bin>/../hooks)`. Il banco ST08 vieta `Path.home() / ".claude"` e `$HOME/.claude/hooks|bin` scritti a mano, salvo le guardie e le eccezioni che elenca col motivo.
+- La memoria (`memoria_accesa()` in `hooks/melchior_match.py`) non guarda più `bin/arturo` accanto agli hook: decidono `ARTURO_MEMORIA` e `"accesa"` in `data/memoria/impostazioni.json`, altrimenti è spenta.
 
 ## La testata: dove Arturo si presenta
 

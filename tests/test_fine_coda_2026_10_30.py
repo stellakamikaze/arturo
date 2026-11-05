@@ -28,7 +28,7 @@ from pathlib import Path
 
 CASI = ["FC01", "FC02", "FC03", "FC04", "FC05", "FC06", "FC07", "FC08", "FC09"]
 FILE = ["bin/fine-coda.py", "bin/handoff-gate.sh", "bin/handoff-retention.py", "bin/handoff_profilo.py",
-        "bin/index-rigenera.py", "bin/todo_store.py", "hooks/melchior_match.py", "hooks/controlla-config.py",
+        "bin/index-rigenera.py", "bin/todo_store.py", "hooks/melchior_match.py", "hooks/radici.py", "hooks/controlla-config.py",
         ".gitignore"]
 GIT_ENV = {"GIT_AUTHOR_NAME": "Prova", "GIT_AUTHOR_EMAIL": "p@example.com", "GIT_COMMITTER_NAME": "Prova",
            "GIT_COMMITTER_EMAIL": "p@example.com", "GIT_CONFIG_NOSYSTEM": "1"}

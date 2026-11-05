@@ -26,8 +26,10 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+sys.path.append(str(Path(os.path.realpath(__file__)).parents[2] / "hooks"))
+from radici import radice_orsa  # noqa: E402
 
-CASA = Path(os.environ.get("ARTURO_HOME") or Path.home() / ".claude")
+CASA = Path(os.environ.get("ARTURO_HOME") or radice_orsa())
 FILE = CASA / "data" / "monitor" / "cursori.json"
 MINIMO = 7
 

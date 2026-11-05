@@ -60,6 +60,9 @@ def _copia_con_rosso(repo: Path, radice: Path) -> Path:
     (copia / "tests").mkdir(parents=True)
     shutil.copy2(repo / "tests" / "banchi-avvio.sh", copia / "tests" / "banchi-avvio.sh")
     shutil.copytree(repo / "bin", copia / "bin")
+    (copia / "hooks").mkdir(exist_ok=True)
+    if (repo / "hooks" / "radici.py").exists():  # strati F1: una base vecchia non ce l'ha
+        shutil.copy2(repo / "hooks" / "radici.py", copia / "hooks" / "radici.py")
     testo = (repo / "tests" / "banchi-avvio.sh").read_text(encoding="utf-8")
     banchi = re.search(r'^BANCHI="([^"]+)"', testo, re.M)
     assert banchi, "TB02 banchi-avvio.sh non ha più l'elenco BANCHI"

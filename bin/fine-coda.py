@@ -53,8 +53,10 @@ import subprocess
 import sys
 from datetime import date
 from pathlib import Path
+sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+from radici import radice_orsa  # noqa: E402
 
-CL = Path(os.environ.get("FINE_CODA_CLAUDE") or Path.home() / ".claude")
+CL = Path(os.environ.get("FINE_CODA_CLAUDE") or radice_orsa())
 QUI = Path(__file__).resolve().parent
 PY = sys.executable
 # Su Windows "bash" senza percorso apre il bash di WSL da System32, prima del PATH: serve quello di Git.

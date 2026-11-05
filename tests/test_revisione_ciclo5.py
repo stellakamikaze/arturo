@@ -125,6 +125,9 @@ class Casa:
         """La CLI dove la cercano i comandi: ~/.claude/bin."""
         shutil.copytree(str(self.repo / "bin"), str(self.home / ".claude" / "bin"),
                         ignore=shutil.ignore_patterns("__pycache__"))
+        (self.home / ".claude" / "hooks").mkdir(exist_ok=True)
+        if (self.repo / "hooks" / "radici.py").exists():  # strati F1: una base vecchia non ce l'ha
+            shutil.copy2(str(self.repo / "hooks" / "radici.py"), str(self.home / ".claude" / "hooks" / "radici.py"))
 
     def scrivi_righe(self, eventi: list) -> None:
         self.registro.parent.mkdir(parents=True, exist_ok=True)

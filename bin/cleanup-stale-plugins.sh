@@ -44,7 +44,7 @@ echo "$STALE" | sed 's/^/  - /'
 echo ""
 
 if [ "${1:-}" = "--dry-run" ]; then
-  echo "Prova a vuoto: niente rimosso. Per rimuoverli: bash ~/.claude/bin/cleanup-stale-plugins.sh --yes"
+  echo "Prova a vuoto: niente rimosso. Per rimuoverli: bash $(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/cleanup-stale-plugins.sh --yes"
   exit 0
 fi
 

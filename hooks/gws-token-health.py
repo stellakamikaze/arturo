@@ -28,6 +28,8 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from concurrent.futures import TimeoutError as AttesaScaduta  # prima di python 3.11 non è il TimeoutError di serie
 from pathlib import Path
+sys.path.append(str(Path(os.path.realpath(__file__)).parent))
+from radici import radice_orsa  # noqa: E402
 
 CONFIG_DIR = Path.home() / ".config"
 GWS_BIN = shutil.which("gws")
@@ -142,7 +144,7 @@ def check_account(alias: str, config_path: Path) -> tuple[str, str, str]:
     return alias, "ok", data.get("user", "?")
 
 
-CACHE_FILE = Path.home() / ".claude" / "session-env" / "gws-health.cache"
+CACHE_FILE = radice_orsa() / "session-env" / "gws-health.cache"
 CACHE_TTL_SEC = 6 * 3600
 
 

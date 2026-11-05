@@ -327,6 +327,9 @@ def test_u05(repo: Path) -> None:
         base = Path(tmp)
         home = base / "home"
         shutil.copytree(str(repo / "bin"), str(home / ".claude" / "bin"))
+        (home / ".claude" / "hooks").mkdir(exist_ok=True)
+        if (repo / "hooks" / "radici.py").exists():  # strati F1: una base vecchia non ce l'ha
+            shutil.copy2(str(repo / "hooks" / "radici.py"), str(home / ".claude" / "hooks" / "radici.py"))
         copia_mod(m, home / ".claude" / "skills" / "arturo")
         r = lancia([exe, "plugin", "list", "--json"], home, base)
         assert r.returncode == 0, f"U05 claude plugin list: {r.stderr[-500:]}"
@@ -596,6 +599,9 @@ def test_u13(repo: Path) -> None:
         # Controllo positivo: una sessione vera nella stessa HOME fa scattare la sentinella...
         copia_mod(m, home / ".claude" / "skills" / "arturo")
         shutil.copytree(str(repo / "bin"), str(home / ".claude" / "bin"))
+        (home / ".claude" / "hooks").mkdir(exist_ok=True)
+        if (repo / "hooks" / "radici.py").exists():  # strati F1: una base vecchia non ce l'ha
+            shutil.copy2(str(repo / "hooks" / "radici.py"), str(home / ".claude" / "hooks" / "radici.py"))
         r = lancia([exe, "-p", "/dafare mostra"], home, base, timeout=120)
         assert (home / "SESSIONE").exists(), f"U13 la sentinella non scatta nemmeno con claude -p: la prova non vale ({r.stdout[-300:]})"
         # ...e la HOME di prova non ha un accesso: validate e test qui sopra non lo usano.

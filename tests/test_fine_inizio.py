@@ -259,6 +259,9 @@ def test_f02(repo: Path) -> None:
     def prova(lab: Lab) -> None:
         copia = lab.tmp / "arturo"
         shutil.copytree(str(repo / "bin"), str(copia / "bin"))
+        (copia / "hooks").mkdir(exist_ok=True)
+        if (repo / "hooks" / "radici.py").exists():  # strati F1: una base vecchia non ce l'ha
+            shutil.copy2(str(repo / "hooks" / "radici.py"), str(copia / "hooks" / "radici.py"))
         store = copia / "bin" / "todo_store.py"
         testo = read(store)
         assert 'CHI = ("tu", "decidi", "io")' in testo, "F02 preparazione: CHI di todo_store è cambiato"
@@ -837,6 +840,9 @@ def test_f10(repo: Path) -> None:
 
     def prova(lab: Lab) -> None:
         shutil.copytree(str(repo / "bin"), str(lab.home / ".claude" / "bin"))
+        (lab.home / ".claude" / "hooks").mkdir(exist_ok=True)
+        if (repo / "hooks" / "radici.py").exists():  # strati F1: una base vecchia non ce l'ha
+            shutil.copy2(str(repo / "hooks" / "radici.py"), str(lab.home / ".claude" / "hooks" / "radici.py"))
         progetto = lab.progetti / "libro"
         progetto.mkdir()
         lab.git(progetto, "init", "-q")

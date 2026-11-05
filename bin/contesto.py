@@ -37,6 +37,8 @@ from pathlib import Path
 QUI = Path(os.path.realpath(__file__)).parent
 sys.path.insert(0, str(QUI))
 import todo_store as ts  # noqa: E402
+sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+from radici import radice_orsa  # noqa: E402
 
 GIORNI = 14
 GIORNI_SCADENZE = 7
@@ -62,7 +64,7 @@ def base_progetti() -> Path:
 
 
 def handoff_dir() -> Path:
-    return Path.home() / ".claude" / "data" / "handoffs"
+    return radice_orsa() / "data" / "handoffs"
 
 
 def git(cartella: Path, *argomenti: str) -> str:
@@ -430,7 +432,7 @@ def riga_quota(adesso: float | None = None) -> str | None:
     La scrive hooks/statusline.js in cache/statusline/quota.json. Una finestra già azzerata o senza
     orario non si stampa: il numero sarebbe vecchio. Senza file, o senza dati validi, niente riga.
     """
-    radice = os.environ.get("CLAUDE_CONFIG_DIR") or str(Path.home() / ".claude")
+    radice = str(radice_orsa())
     try:
         dati = json.loads((Path(radice) / "cache" / "statusline" / "quota.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):

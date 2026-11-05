@@ -32,6 +32,8 @@ import re
 import sys
 from datetime import date
 from pathlib import Path
+sys.path.append(str(Path(os.path.realpath(__file__)).parent))
+from radici import radice_orsa  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
@@ -39,7 +41,7 @@ try:
 except ImportError:
     _mm = None
 
-MEMORY_DIR = Path.home() / ".claude" / "data" / "memory"
+MEMORY_DIR = radice_orsa() / "data" / "memory"
 LOG_FILE = MEMORY_DIR / ".melchior-log.jsonl"
 V2_CORE = {"name", "description", "type", "entity_type", "updated"}
 V2_FULL = V2_CORE | {"answers", "triggers", "sources"}

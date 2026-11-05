@@ -32,6 +32,8 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+from radici import comando_arturo, radice_orsa  # noqa: E402
 
 AIUTO = """arturo schede: nel Terminale di macOS la scheda mostra solo il progetto, o "SBLOCCA · <progetto>".
 
@@ -94,7 +96,7 @@ def sistema() -> str:
 
 
 def file_segno() -> Path:
-    return Path.home() / ".claude" / "data" / "schede-terminale.json"
+    return radice_orsa() / "data" / "schede-terminale.json"
 
 
 def leggi_segno() -> dict:
@@ -282,12 +284,12 @@ def _applica(una_volta: bool, segno: dict) -> int:
         scrivi_segno(dict(resta, fatto=False, tentativi=conto, errore=str(e)[:200]))
         dopo = "riprovo alla prossima sessione" if conto < TENTATIVI else "non riprovo più da solo"
         print(f"SCHEDE: non ho sistemato il titolo delle schede del Terminale ({e}): {dopo}. "
-              'A mano: "python3 ~/.claude/bin/arturo schede applica".')
+              f'A mano: "{comando_arturo()} schede applica".')
         return 0 if una_volta else 1
     scrivi_segno({"fatto": True, "prima": nome, "avvio_prima": avvio, "creato": True})
     print(f'SCHEDE: nel Terminale le schede mostrano solo il progetto, o "SBLOCCA · <progetto>". Ho creato il '
           f'profilo "{NOME}", copia di "{nome}" senza processo, cartella e indicatore nel titolo. '
-          'Per tornare indietro: "python3 ~/.claude/bin/arturo schede ripristina".')
+          f'Per tornare indietro: "{comando_arturo()} schede ripristina".')
     return 0
 
 

@@ -42,6 +42,8 @@ import time
 import unicodedata
 from datetime import datetime
 from pathlib import Path
+sys.path.append(str(Path(os.path.realpath(__file__)).parent))
+from radici import radice_orsa  # noqa: E402
 
 EVENTI = {"SessionStart": "nuova", "UserPromptSubmit": "lavoro", "PostToolUse": "lavoro",
           "Notification": "attende", "Stop": "fermo", "StopFailure": "problema", "SessionEnd": "fine"}
@@ -84,7 +86,7 @@ SERVER = re.compile(r"\b(?:vite|next|nuxt|astro)\b(?!\s+build)|\b(?:npm|pnpm|yar
 
 
 def cache_dir() -> Path:
-    radice = os.environ.get("CLAUDE_CONFIG_DIR") or str(Path.home() / ".claude")
+    radice = str(radice_orsa())
     return Path(radice) / "cache" / "scheda"
 
 

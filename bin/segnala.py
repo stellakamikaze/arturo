@@ -46,6 +46,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 import todo_store as ts  # noqa: E402
 import telemetria  # noqa: E402
+sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+from radici import radice_arturo, radice_orsa  # noqa: E402
 
 REPO = "stellakamikaze/arturo"
 EMAIL = "federico@stellakamikaze.org"
@@ -129,11 +131,11 @@ Le copie delle segnalazioni: ~/.claude/data/segnalazioni/."""
 # --- stato -------------------------------------------------------------------
 
 def file_stato() -> Path:
-    return Path.home() / ".claude" / "session-env" / "segnala.json"
+    return radice_orsa() / "session-env" / "segnala.json"
 
 
 def cartella_copie() -> Path:
-    return Path.home() / ".claude" / "data" / "segnalazioni"
+    return radice_orsa() / "data" / "segnalazioni"
 
 
 def _data(valore):
@@ -267,7 +269,7 @@ def voci_pacchetto(scelta) -> list:
 
 def pacchetto(voci: list, errore: str = "", tieni=()) -> dict:
     """Il testo di ogni voce accesa, già passato da redigi. La voce collega non ha testo."""
-    radice = Path.home() / ".claude"
+    radice = radice_orsa()
     deriva = {}
     try:
         deriva = json.loads((radice / "cache" / "deriva.json").read_text(encoding="utf-8"))
@@ -388,7 +390,7 @@ def _esegui(comando: list) -> str:
 def ambiente() -> str:
     """Versioni di Arturo e di Claude Code e sistema: le prime righe di info, senza gh né canale. La voce ambiente
     del pacchetto tecnico la usa da sola, per non lanciare gh a ogni anteprima."""
-    versione = _esegui(["git", "-C", str(Path.home() / ".claude"), "describe", "--tags", "--abbrev=0", "--match", "v*"]) or "sconosciuta"
+    versione = _esegui(["git", "-C", str(radice_orsa()), "describe", "--tags", "--abbrev=0", "--match", "v*"]) or "sconosciuta"
     claude = _esegui(["claude", "--version"]) or "sconosciuta"
     return f"Arturo: {versione}\nClaude Code: {claude}\nSistema: {platform.system()} {platform.release()}"
 
@@ -633,7 +635,7 @@ def stato() -> int:
         print("Nessuna segnalazione partita da questo computer.")
         return 0
     try:
-        uscite = novita_per_numero((Path.home() / ".claude" / "NOVITA.md").read_text(encoding="utf-8"))
+        uscite = novita_per_numero((radice_arturo() / "NOVITA.md").read_text(encoding="utf-8"))
     except OSError:
         uscite = {}
     codici, sportello, rete = telemetria.codici(), telemetria.leggi_sportello(), True

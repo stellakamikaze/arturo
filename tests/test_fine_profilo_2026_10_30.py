@@ -32,7 +32,7 @@ from pathlib import Path
 CASI = ["FP01", "FP02", "FP03", "FP04", "FP05", "FP06", "FP07", "FP08", "FP09"]
 BASH = shutil.which("bash") or "bash"
 FILE = ["bin/handoff-gate.sh", "bin/handoff-retention.py", "bin/index-rigenera.py", "bin/todo_store.py",
-        "bin/handoff_profilo.py", "hooks/melchior_match.py",
+        "bin/handoff_profilo.py", "hooks/melchior_match.py", "hooks/radici.py",
         "bin/inventario-sessione.py"]
 PROFILO = ("# il profilo della config di Federico\n"
            "colonna-id = Ticket\n"

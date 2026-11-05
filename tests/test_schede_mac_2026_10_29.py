@@ -146,6 +146,9 @@ class Mac:
         (self.home / ".claude").mkdir(parents=True)
         shutil.copytree(repo / "bin", self.home / ".claude" / "bin",
                         ignore=shutil.ignore_patterns("__pycache__", "web"))
+        (self.home / ".claude" / "hooks").mkdir(exist_ok=True)
+        if (repo / "hooks" / "radici.py").exists():  # strati F1: una base vecchia non ce l'ha
+            shutil.copy2(repo / "hooks" / "radici.py", self.home / ".claude" / "hooks" / "radici.py")
         self.bin = self.dir / "finti"
         self.bin.mkdir()
         for nome in ("osascript", "open", "defaults"):
@@ -329,7 +332,7 @@ def test_sm08(repo: Path) -> None:
 def test_sm09(repo: Path) -> None:
     def prova(m):
         avvio = m.home / ".claude" / "hooks" / "session-start.sh"
-        avvio.parent.mkdir(parents=True)
+        avvio.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(repo / "hooks" / "session-start.sh", avvio)
         env = dict(m.env, ARTURO_BANCHI_AVVIO="0")
         r = subprocess.run(["bash", str(avvio)], cwd=str(m.dir), capture_output=True, text=True, env=env, timeout=60,
@@ -384,7 +387,7 @@ def test_sm12(repo: Path) -> None:
     if sys.platform != "darwin" or not shutil.which("osacompile"):
         dichiara("SM12", "osacompile c'è solo su macOS")
         return
-    spazio = {"__name__": "schede_mac_banco"}
+    spazio = {"__name__": "schede_mac_banco", "__file__": str(modulo)}  # __file__: le radici (strati F1)
     exec(compile(modulo.read_text(encoding="utf-8"), str(modulo), "exec"), spazio)
     with tempfile.TemporaryDirectory() as d:
         for nome, script in spazio["SCRIPT"].items():

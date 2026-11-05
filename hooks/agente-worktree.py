@@ -22,6 +22,8 @@ import re
 import sys
 import time
 from pathlib import Path
+sys.path.append(str(Path(os.path.realpath(__file__)).parent))
+from radici import radice_orsa  # noqa: E402
 
 COPIA_AGENTE = re.compile(r"[/\\]\.claude[/\\]worktrees[/\\]agent-[^/\\]+$")
 SCRITTURA = {"Edit", "MultiEdit", "Write", "NotebookEdit", "Bash"}
@@ -29,7 +31,7 @@ SCADENZA = 7 * 86400  # le annotazioni più vecchie di una settimana si tolgono
 
 
 def cartella() -> Path:
-    radice = os.environ.get("CLAUDE_CONFIG_DIR") or str(Path.home() / ".claude")
+    radice = str(radice_orsa())
     return Path(radice) / "cache" / "agenti-worktree"
 
 

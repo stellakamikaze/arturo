@@ -37,6 +37,9 @@ def test_ct01(repo: Path) -> None:
         # fuori da git (pulita() guarda solo i file tracciati).
         for nome in ("telemetria.py", "todo_store.py"):
             shutil.copy(str(repo / "bin" / nome), str(lab.utente / "bin" / nome))
+        (lab.utente / "hooks").mkdir(exist_ok=True)
+        if (repo / "hooks" / "radici.py").exists():  # strati F1: una base vecchia non ce l'ha
+            shutil.copy(str(repo / "hooks" / "radici.py"), str(lab.utente / "hooks" / "radici.py"))
         uscita = _copia.passo3_in_conflitto(lab, repo, "CT01")
         assert "CONFLITTO" in uscita, f"CT01 con {lab.shell} prova: niente conflitto: {uscita[-300:]!r}"
         coda = lab.utente / "data" / "telemetria" / "coda.jsonl"

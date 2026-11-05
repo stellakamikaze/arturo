@@ -25,8 +25,8 @@ possono avere lo stesso feedback_x.md. Si saltano MEMORY.md, index.md, i file e 
 cominciano con _ o con un punto (_archive/, _reports/), le cartelle che sono link simbolici.
 
 Interruttore (memoria_accesa): ARTURO_MEMORIA=1 o 0 nell'ambiente, poi "accesa" in
-data/memoria/impostazioni.json, poi il default. Il default è accesa se accanto alla cartella degli
-hook non c'è bin/arturo, spenta se c'è: in Arturo la memoria si accende con "arturo memoria accendi".
+data/memoria/impostazioni.json, poi il default, che è spenta: la memoria si accende con "arturo memoria
+accendi". Il codice non conta: col plugin sta in un'altra cartella (strati F1, #4531).
 
 Punteggio del richiamo:
   1. tokenize e path_tokens spezzano su `-`, `_` e spazi: `nome-progetto` diventa {nome, progetto}.
@@ -45,12 +45,15 @@ funziona da qualunque hook nella stessa cartella.
 from __future__ import annotations
 
 import json
+import sys
 import os
 import re
 from pathlib import Path
+sys.path.append(str(Path(os.path.realpath(__file__)).parent))
+from radici import radice_orsa  # noqa: E402
 
 QUI = Path(__file__).resolve().parent
-CLAUDE_DIR = Path.home() / ".claude"
+CLAUDE_DIR = radice_orsa()
 MEMORY_DIR = CLAUDE_DIR / "data" / "memory"
 PROJECTS_DIR = CLAUDE_DIR / "projects"
 IMPOSTAZIONI = CLAUDE_DIR / "data" / "memoria" / "impostazioni.json"
@@ -81,15 +84,17 @@ def leggi_impostazioni():
 
 
 def memoria_accesa():
-    """ARTURO_MEMORIA (1 o 0) vince, poi "accesa" nelle impostazioni, poi il default:
-    accesa senza bin/arturo accanto agli hook, spenta con bin/arturo (Arturo)."""
+    """ARTURO_MEMORIA (1 o 0) vince, poi "accesa" nelle impostazioni, poi il default: spenta.
+    Fino al 4/11/2026 il default dipendeva da bin/arturo accanto agli hook (accesa senza): col plugin
+    il codice e l'Orsa stanno in cartelle diverse, quindi decidono solo l'ambiente e la persona
+    (strati F1, #4531). Chi mantiene Arturo la tiene accesa con "accesa": true nelle impostazioni."""
     valore = os.environ.get("ARTURO_MEMORIA", "").strip()
     if valore in ("1", "0"):
         return valore == "1"
     scelta = leggi_impostazioni().get("accesa")
     if isinstance(scelta, bool):
         return scelta
-    return not (QUI.parent / "bin" / "arturo").exists()
+    return False
 
 
 def cartelle_progetti():

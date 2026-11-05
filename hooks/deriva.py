@@ -27,6 +27,8 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+sys.path.append(str(Path(os.path.realpath(__file__)).parent))
+from radici import comando_arturo, radice_arturo  # noqa: E402
 
 MASSIMO = 50
 RADICI = ("agents", "bin", "commands", "docs", "firme", "hooks", "output-styles", "server", "shared", "skills",
@@ -173,7 +175,7 @@ def riga(esito: dict) -> str:
         base = esito.get("base") or "upstream/main"
         parti.append(f"hai modificato le guardie di Arturo {', '.join(guardie)}: proteggono come le hai scritte tu, e gli "
                      f"aggiornamenti non le correggono più. Mostra alla persona cosa cambia (git -C ~/.claude diff {base} -- "
-                     f"{' '.join(guardie)}) e, col suo sì, rimettile come in Arturo: python3 ~/.claude/bin/arturo personale "
+                     f"{' '.join(guardie)}) e, col suo sì, rimettile come in Arturo: {comando_arturo()} personale "
                      f"ripristina <file>, una per volta")
     comandi = [f for f in esito["file"] if f.startswith("commands/") or SESSIONE.match(f)]
     if comandi:
@@ -229,7 +231,7 @@ def salva(radice: Path, esito: dict) -> None:
 
 
 def main(argv: list) -> int:
-    radice = Path(argv[0]) if argv else Path.home() / ".claude"
+    radice = Path(argv[0]) if argv else radice_arturo()
     try:
         esito = rileva(radice)
         testo = riga(esito)

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import sys
 import os
 import re
 import tempfile
@@ -29,6 +30,8 @@ import threading
 import time
 import uuid
 from pathlib import Path
+sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+from radici import radice_orsa  # noqa: E402
 
 VERSIONE_EVENTI = 1
 VERSIONE_VISTA = 1
@@ -77,7 +80,7 @@ def percorso() -> Path:
     altro = os.environ.get("ARTURO_TODO")
     if altro:
         return Path(altro)
-    return Path.home() / ".claude" / "data" / "todo" / "eventi.jsonl"
+    return radice_orsa() / "data" / "todo" / "eventi.jsonl"
 
 
 def oggi() -> dt.date:
@@ -914,12 +917,12 @@ def vista(todo: dict, avvisi: list, progetto: str | None = None, tutti: bool = F
 # in docs/fonte-task.md. Il file si legge come dati; i percorsi vanno scritti con le barre dritte.
 
 def fonte_locale() -> Path:
-    """~/.claude/bin/fonte-task.local della persona, letto dalla HOME e non accanto al codice (5/11/2026).
+    """~/.claude/bin/fonte-task.local della persona, letto dall'Orsa (radice_orsa) e non accanto al codice (5/11/2026).
 
     In un'installazione normale è la stessa cartella. Chi lancia Arturo dal repo (o un banco con la HOME
     di prova che lancia il repo vero) non trova così la fonte vera della persona, che scriverebbe sul suo
     strumento."""
-    return Path.home() / ".claude" / "bin" / "fonte-task.local"
+    return radice_orsa() / "bin" / "fonte-task.local"
 
 
 def comando_fonte(file: Path | None = None) -> list | None:

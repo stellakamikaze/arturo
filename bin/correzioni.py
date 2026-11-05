@@ -27,6 +27,8 @@ import re
 import sys
 import time
 from pathlib import Path
+sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+from radici import radice_orsa  # noqa: E402
 
 MASSIMO = 20         # correzioni tenute per sessione: oltre, esce la più vecchia
 LUNGHEZZA = 300      # caratteri di una correzione
@@ -42,7 +44,7 @@ AIUTO = """arturo correzione: le correzioni della persona, valide per tutta la s
 
 
 def cartella() -> Path:
-    return Path(os.environ.get("ARTURO_RADICE") or Path.home() / ".claude") / "cache" / "correzioni"
+    return Path(os.environ.get("ARTURO_RADICE") or radice_orsa()) / "cache" / "correzioni"
 
 
 def file_di(sessione: str) -> Path:

@@ -80,6 +80,9 @@ def test_ct02(repo: Path) -> None:
         lab.env.pop("DO_NOT_TRACK", None)
         for nome in ("telemetria.py", "todo_store.py"):
             shutil.copy(str(repo / "bin" / nome), str(lab.utente / "bin" / nome))
+        (lab.utente / "hooks").mkdir(exist_ok=True)
+        if (repo / "hooks" / "radici.py").exists():  # strati F1: una base vecchia non ce l'ha
+            shutil.copy(str(repo / "hooks" / "radici.py"), str(lab.utente / "hooks" / "radici.py"))
         (lab.utente / "skills" / "clienti-rossi").mkdir(parents=True)
         (lab.utente / "skills" / "clienti-rossi" / "SKILL.md").write_text("# Clienti Rossi\n", encoding="utf-8")
         finti = lab.base / "git-rossi"

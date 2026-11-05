@@ -73,6 +73,9 @@ def prova(repo: Path) -> list[str]:
             rossi.append(f"TC01 codice fuori e HOME vera: {esito}, coda scritta: {coda.exists()}")
 
         shutil.copytree(repo / "bin", home / ".claude" / "bin")
+        (home / ".claude" / "hooks").mkdir(exist_ok=True)
+        if (repo / "hooks" / "radici.py").exists():  # strati F1: una base vecchia non ce l'ha
+            shutil.copy2(repo / "hooks" / "radici.py", home / ".claude" / "hooks" / "radici.py")
         esito = sonda(home / ".claude" / "bin" / "telemetria.py", home, True)
         if "spenta" not in esito or esito["spenta"] is not None:
             rossi.append(f"TC02 codice dentro ~/.claude: {esito}")

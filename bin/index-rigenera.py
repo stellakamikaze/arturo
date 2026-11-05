@@ -37,8 +37,10 @@ import sys
 import tempfile
 import unicodedata
 from pathlib import Path
+sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+from radici import radice_orsa  # noqa: E402
 
-RADICE = Path.home() / ".claude" / "data" / "handoffs"
+RADICE = radice_orsa() / "data" / "handoffs"
 GIORNI_ARCHIVIO = 30
 MAX_CELLA = 150
 RE_FILE = re.compile(r"^HANDOFF_(\d{4}-\d{2}-\d{2})_(\d{2}-\d{2})\.md$")

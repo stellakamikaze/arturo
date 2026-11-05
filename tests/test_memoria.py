@@ -5,7 +5,7 @@ la memoria della config di chi mantiene Arturo, copiata identica (15/10/2026, Me
 Y01 spenta di default: memory-retrieve, memory-autoload, subagent-memory-context e melchior-postwrite
     escono con 0 e senza output finché la persona non la accende; `arturo memoria accendi` e
     `spegni` la cambiano, ARTURO_MEMORIA vince sul file. Lo scanner delle scritture gira sempre.
-    Senza bin/arturo accanto agli hook (la config di chi mantiene Arturo) il default è accesa.
+    Il default non dipende da bin/arturo accanto agli hook (strati F1): senza impostazioni è spenta.
 Y02 richiamo per contenuto sulle note di Claude Code (frontmatter con `metadata: type:`), silenzio
     sui messaggi di sistema e su un messaggio che non c'entra, niente ripetizioni nella sessione,
     cartella della persona aggiunta con `arturo memoria cartella aggiungi`.
@@ -162,14 +162,24 @@ def test_y01(repo: Path) -> None:
         assert zitti(dict(lab.env, ARTURO_MEMORIA="0")), "Y01 ARTURO_MEMORIA=0 non spegne gli hook"
         assert lab.arturo("spegni").returncode == 0 and zitti(), "Y01 spegni non spegne gli hook"
         assert not zitti(dict(lab.env, ARTURO_MEMORIA="1")), "Y01 ARTURO_MEMORIA=1 non accende gli hook"
-        # La config di chi mantiene Arturo: gli stessi hook, senza bin/arturo accanto. Lì è accesa.
-        (lab.claude / "data" / "memoria" / "impostazioni.json").unlink()
+        # Gli stessi hook senza bin/arturo accanto (il codice del plugin, la config di chi mantiene Arturo):
+        # decide solo la persona. Senza impostazioni tace, con "accesa": true parla (strati F1, #4531).
+        impostazioni = lab.claude / "data" / "memoria" / "impostazioni.json"
+        impostazioni.unlink()
         sciolti = lab.dir / "config" / "hooks"
         shutil.copytree(repo / "hooks", sciolti)
-        r = subprocess.run([sys.executable, "-B", str(sciolti / "memory-retrieve.py")],
-                           input=json.dumps({"prompt": DOMANDA, "session_id": "y01-config"}), capture_output=True,
-                           text=True, encoding="utf-8", env=lab.env, cwd=str(lab.dir), timeout=60)
-        assert "feedback_pytest.md" in r.stdout, f"Y01 senza bin/arturo accanto agli hook la memoria non è accesa: {r.stdout!r}"
+
+        def sciolto() -> subprocess.CompletedProcess:
+            return subprocess.run([sys.executable, "-B", str(sciolti / "memory-retrieve.py")],
+                                  input=json.dumps({"prompt": DOMANDA, "session_id": f"y01-config-{os.urandom(3).hex()}"}),
+                                  capture_output=True, text=True, encoding="utf-8", env=lab.env, cwd=str(lab.dir),
+                                  timeout=60)
+        r = sciolto()
+        assert r.returncode == 0 and not r.stdout.strip(), \
+            f"Y01 senza bin/arturo e senza impostazioni la memoria parla: conta ancora la cartella del codice {r.stdout!r}"
+        impostazioni.write_text('{"accesa": true}', encoding="utf-8")
+        r = sciolto()
+        assert "feedback_pytest.md" in r.stdout, f"Y01 con accesa nelle impostazioni la memoria tace: {r.stdout!r}"
     finally:
         lab.chiudi()
 

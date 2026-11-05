@@ -19,6 +19,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+from radici import radice_orsa  # noqa: E402
+
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 import todo_store as ts  # noqa: E402
 
@@ -84,7 +87,7 @@ def progetto_corrente() -> str:
     except (OSError, subprocess.SubprocessError):
         radice = ""
     nome = Path(radice).name if radice else ""
-    config = Path.home() / ".claude"
+    config = radice_orsa()
     try:
         dentro_config = bool(radice) and Path(radice).resolve() == config.resolve()
     except OSError:

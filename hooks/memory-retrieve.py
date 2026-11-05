@@ -23,6 +23,7 @@ Memoria spenta (melchior_match.memoria_accesa): esce subito, senza output.
 Non-blocking: qualunque errore → exit 0 silenzioso.
 """
 import json
+import os
 import re
 import sys
 import time
@@ -31,9 +32,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import melchior_match as mm  # noqa: E402
+sys.path.append(str(Path(os.path.realpath(__file__)).parent))
+from radici import radice_orsa  # noqa: E402
 
 ACCESS_LOG = mm.access_log_path()  # un file per macchina, vedi melchior_match
-STATE_DIR = Path.home() / ".claude" / "session-env"
+STATE_DIR = radice_orsa() / "session-env"
 SCORE_MIN = 4          # soglia conservativa — CONGELATA (R7): mai abbassarla né
                        # ritoccare i pesi; il fix per una nota che non emerge è
                        # arricchirne il frontmatter; il recall profondo è

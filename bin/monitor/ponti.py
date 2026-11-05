@@ -35,8 +35,10 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+sys.path.append(str(Path(os.path.realpath(__file__)).parents[2] / "hooks"))
+from radici import radice_orsa  # noqa: E402
 
-CASA = Path(os.environ.get("ARTURO_HOME") or Path.home() / ".claude")
+CASA = Path(os.environ.get("ARTURO_HOME") or radice_orsa())
 CONFIG = Path(os.environ.get("GWS_CONFIG_BASE") or Path.home() / ".config")
 BIN = Path(os.environ.get("ARTURO_BIN") or Path(__file__).resolve().parents[1])
 NOME_GWS = re.compile(r"^gws(-[a-z0-9]+)?$")

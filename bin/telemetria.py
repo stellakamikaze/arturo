@@ -55,6 +55,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 import todo_store as ts  # noqa: E402
+sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+from radici import comando_arturo, radice_orsa  # noqa: E402
 
 URL = "https://arturo-dati.stellakamikaze.org"
 # L'elenco chiuso. Lo stesso elenco sta in server/logica.js e nel README (banco M09).
@@ -170,20 +172,20 @@ gli eventi vanno solo a un server indicato con ARTURO_TELEMETRIA_URL. Da una cop
 
 
 def file_stato() -> Path:
-    return Path.home() / ".claude" / "session-env" / "telemetria.json"
+    return radice_orsa() / "session-env" / "telemetria.json"
 
 
 def file_attese() -> Path:
     """Le conferme chieste da una guardia e non ancora eseguite: tool_use_id -> guardia."""
-    return Path.home() / ".claude" / "session-env" / "telemetria-attese.json"
+    return radice_orsa() / "session-env" / "telemetria-attese.json"
 
 
 def file_coda() -> Path:
-    return Path.home() / ".claude" / "data" / "telemetria" / "coda.jsonl"
+    return radice_orsa() / "data" / "telemetria" / "coda.jsonl"
 
 
 def cartella_attesa() -> Path:
-    return Path.home() / ".claude" / "data" / "segnalazioni"
+    return radice_orsa() / "data" / "segnalazioni"
 
 
 def home_di_prova() -> bool:
@@ -231,7 +233,7 @@ def copia_fuori_config() -> bool:
     ciascuno con un avviso su Telegram). Un'installazione vera ha il codice dentro la config: ~/.claude/bin
     o la cache dei plugin in ~/.claude/plugins. Il percorso si risolve: un link dalla config al clone conta
     come il clone."""
-    config = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
+    config = radice_orsa()
     try:
         Path(os.path.realpath(__file__)).relative_to(Path(os.path.realpath(config)))
         return False
@@ -275,7 +277,7 @@ def versione() -> str:
     un tag più recente, e git describe sceglie il numero."""
     match = [x for t in TAG_RILASCIO for x in ("--match", t)]
     try:
-        r = subprocess.run(["git", "-C", str(Path.home() / ".claude"), "describe", "--tags", "--abbrev=0", *match],
+        r = subprocess.run(["git", "-C", str(radice_orsa()), "describe", "--tags", "--abbrev=0", *match],
                            capture_output=True, text=True, timeout=3)
         v = r.stdout.strip() if r.returncode == 0 else ""
         return v if RILASCIO.fullmatch(v) else "sconosciuta"
@@ -336,7 +338,7 @@ def file_di_arturo(radice=None, ref=None):
     hooks/deriva.py. Senza un ref di Arturo torna None, e ogni file diventa `file:altro`: fino al
     24/10/2026 qui si ripiegava su git ls-files, che comprende i file che la persona ha versionato nel
     suo repository, e skills/clienti-rossi/SKILL.md usciva col suo nome."""
-    radice = str(radice or Path.home() / ".claude")
+    radice = str(radice or radice_orsa())
     if ref and ref.startswith("-"):  # un ref che git leggerebbe come opzione non vale
         ref = None
     chiave = (radice, ref or "")
@@ -529,7 +531,7 @@ STATI_SPORTELLO = ("ricevuta", "serve-info", "in-lavoro") + STATI_FINALI
 
 
 def file_sportello() -> Path:
-    return Path.home() / ".claude" / "cache" / "sportello.json"
+    return radice_orsa() / "cache" / "sportello.json"
 
 
 def leggi_sportello() -> dict:
@@ -588,7 +590,7 @@ def riga_sportello() -> str:
         return ""
     elenco = ", ".join(f"n. {n}" for n in nuove)
     return (f"SPORTELLO: chi mantiene Arturo ha risposto alle segnalazioni della persona ({elenco}). Diglielo una volta, "
-            "all'inizio, e mostrale le risposte con: python3 ~/.claude/bin/arturo segnala stato")
+            f"all'inizio, e mostrale le risposte con: {comando_arturo()} segnala stato")
 
 
 def posta(rotta: str, dati: dict, timeout: float = 5) -> int:
@@ -861,7 +863,7 @@ def avvio() -> int:
                   "sapere chi c'è dietro se conosce la persona: non sono dati anonimi (docs/privacy.md)."
                   + nuova + " Dillo alla persona una volta, in due righe, con il perché: con questi dati Arturo "
                   "corregge ogni settimana i punti dove le persone si bloccano. "
-                  "Si spegne con: python3 ~/.claude/bin/arturo telemetria spegni")
+                  f"Si spegne con: {comando_arturo()} telemetria spegni")
             cambia_stato(lambda s: s.update(avviso=ts.oggi().isoformat(), avviso_promessa=PROMESSA))
         # Una segnalazione in attesa parte alla sessione dopo, come promette /segnala, senza aspettare le 6 ore
         # dell'invio degli eventi (Liliana, 27/10/2026). Parte da sola: gli eventi aspettano le 6 ore promesse
