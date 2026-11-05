@@ -2,7 +2,8 @@
 # Dispatcher per PreToolUse Bash hooks.
 # Instrada verso gli guard solo quando il comando e' rilevante (un solo processo
 # per la stragrande maggioranza dei comandi). Ogni guard puo':
-#   - uscire con rc!=0  -> blocco duro (stderr -> modello)
+#   - uscire con rc 2    -> blocco duro (stderr -> modello)
+#   - uscire con altro rc -> guardia rotta: chiede conferma (ask_guard, fail-closed)
 #   - stampare JSON permissionDecision su stdout + rc 0 -> ask/allow esplicito
 #   - stampare nulla + rc 0 -> silenzioso (prosegue col guard successivo)
 # run_guard cattura la decisione e cortocircuita: al massimo UNA decisione emessa.

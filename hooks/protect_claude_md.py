@@ -46,8 +46,9 @@ di avvio esegue codice a ogni commit o a ogni login, senza che nessuno lo chieda
 Il vettore shell (echo >, cp, tee...) su questi percorsi chiede conferma in
 block-dangerous.py.
 
-~/.claude/arturo/protect_claude_md.local (dal 30/10/2026; vale ancora il vecchio hooks/) cambia la decisione di cinque categorie: i due
-CLAUDE.md, i settings della radice, la config e il resto di ~/.claude (dot-claude). Persistenza,
+~/.claude/arturo/protect_claude_md.local (dal 30/10/2026; vale ancora il vecchio hooks/) cambia la decisione di sei categorie: i due
+CLAUDE.md, i settings della radice, la config, il resto di ~/.claude (dot-claude) e le cartelle .claude dei
+progetti (dot-claude-progetto). Persistenza,
 file di unlock, firme/, gli script dell'aggiornamento e i .local restano col default. Il vocabolario
 sta accanto a _locale().
 
@@ -125,12 +126,14 @@ def _avviso_budget(rp, claude_dir, ti):
 #   settings-radice     ~/.claude/settings*.json e ~/.claude/.claude.json (la validità JSON resta)
 #   config              hooks/** e i settings*.json nelle sottocartelle di ~/.claude
 #   dot-claude          ogni altro file sotto ~/.claude
+#   dot-claude-progetto i file dentro una cartella .claude di un progetto, settings di progetto compresi
 # Restano fuori, sempre col default di Arturo: percorsi di avvio automatico, file di sblocco, firme/,
 # gli script dell'aggiornamento e i file .local (arturo/*.local e hooks/*.local), che altrimenti potrebbero
 # allentare sé stessi.
 # Un file illeggibile o una riga fuori vocabolario valgono come assenti.
 DECISIONI_LOCALI = {'allow', 'ask', 'deny'}
-CATEGORIE_LOCALI = {'claude-md-globale', 'claude-md-progetto', 'settings-radice', 'config', 'dot-claude'}
+CATEGORIE_LOCALI = {'claude-md-globale', 'claude-md-progetto', 'settings-radice', 'config', 'dot-claude',
+                    'dot-claude-progetto'}
 
 
 def _preferenza(nome):
@@ -317,6 +320,11 @@ def main():
         # Categoria 4: il resto di ~/.claude decide il flusso normale dei permessi, o il .local.
         if under_claude:
             _emetti_locale('dot-claude', chiede=chiede)
+
+        # Categoria 5: una cartella .claude dentro un progetto (settings di progetto, worktree, agenti).
+        # Claude Code chiede a ogni scrittura lì; senza .local la decisione resta sua (5/11/2026, #4535).
+        if (os.sep + '.claude' + os.sep) in rp:
+            _emetti_locale('dot-claude-progetto', chiede=chiede)
 
         sys.exit(0)
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DL01-DL09: le guardie personali di hooks/bash-dispatcher.local.
+"""DL01-DL11: le guardie personali di hooks/bash-dispatcher.local.
 
 Chi installa Arturo aggiunge le sue guardie senza toccare il dispatcher: il .local nomina punto,
 guardia e argomenti, e il dispatcher le lancia dentro run_guard (30/10/2026, migrazione della config
@@ -8,7 +8,9 @@ qualche guardia finta, e guarda la decisione del dispatcher.
 
 Invarianti (verdi anche sulla base): DL01 senza .local un rm ricorsivo chiede come prima; DL03 una
 riga `exit 0` nel .local non spegne le guardie; DL07 attenua non scioglie un blocco.
-Sulla base 749e18d sono rossi i casi del meccanismo: DL02, DL04, DL05, DL06, DL08, DL09.
+Sulla base 749e18d sono rossi i casi del meccanismo: DL02, DL04, DL05, DL06, DL08, DL09, DL10, DL11.
+DL10-DL11 (5/11/2026, #4535): la regola di uscita di una guardia personale. 2 blocca, ogni altra uscita
+diversa da 0 chiede, come nella config di Federico.
 """
 from __future__ import annotations
 
@@ -21,8 +23,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["DL01", "DL02", "DL03", "DL04", "DL05", "DL06", "DL07", "DL08", "DL09"]
-DISCRIMINANTI = ["DL02", "DL04", "DL05", "DL06", "DL08", "DL09"]
+CASI = ["DL01", "DL02", "DL03", "DL04", "DL05", "DL06", "DL07", "DL08", "DL09", "DL10", "DL11"]
+DISCRIMINANTI = ["DL02", "DL04", "DL05", "DL06", "DL08", "DL09", "DL10", "DL11"]
 BASH = shutil.which("bash") or "bash"
 
 GUARDIE = {
@@ -30,6 +32,7 @@ GUARDIE = {
                      '"permissionDecision": "allow", "permissionDecisionReason": "allow personale"}}))\n',
     "tace.py": "",
     "si-rompe.py": "import sys\nsys.exit(1)\n",
+    "blocca.py": "import sys\nprint('fermo personale', file=sys.stderr)\nsys.exit(2)\n",
     # print scrive CRLF su Windows: il dispatcher deve riconoscere "tace" lo stesso.
     "attenua-finta.py": 'print("tace")\n',
 }
@@ -86,6 +89,9 @@ def prova(repo: Path, dispatcher: str | None) -> list[str]:
     caso("DL08", "finale dice-allow.py\n", "ls ~/.claude/data", lambda d, m, e: d == "allow")
     caso("DL09", "prima-danger ../fuori.py\ndove-vuoi dice-allow.py\n", "rm -rf ~/Documents/lavoro",
          lambda d, m, e: d == "ask" and e.count("riga ignorata") == 2)
+    caso("DL10", "finale si-rompe.py\n", "ls ~/.claude/data",
+         lambda d, m, e: d == "ask" and "non ha prodotto una decisione valida" in m)
+    caso("DL11", "finale blocca.py\n", "ls ~/.claude/data", lambda d, m, e: d == "block" and "fermo personale" in e)
     return rossi
 
 
