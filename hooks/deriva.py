@@ -12,6 +12,10 @@ con upstream/main se c'è un remote upstream, altrimenti con origin/main):
   - hook che il settings.json di Arturo dichiara e che mancano, o `disableAllHooks`;
   - config rotta, dalle categorie di controlla-config.py.
 
+Col plugin (strati F3, 5/11/2026) la cartella del codice è la cache di Claude Code, senza git: la deriva
+confronta i suoi file col MANIFEST firmato del rilascio (hooks/fiducia.py), verificato con la chiave
+dell'ancora nell'Orsa. Una firma che manca o non torna è una possibile compromissione.
+
 Stampa una riga DERIVA: solo se c'è qualcosa da fare. Registra nella telemetria l'elenco corrente
 solo quando cambia (evento `deriva`, prima un `insieme:<n>`), e la config rotta una volta al giorno
 (evento `config`), con l'invio subito. Dei file esce solo il percorso dentro Arturo, che è pubblico,
@@ -28,7 +32,8 @@ import subprocess
 import sys
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent))
-from radici import comando_arturo, radice_arturo  # noqa: E402
+from radici import comando_arturo, radice_arturo, radice_orsa  # noqa: E402
+import fiducia  # noqa: E402
 
 MASSIMO = 50
 RADICI = ("agents", "bin", "commands", "docs", "firme", "hooks", "output-styles", "server", "shared", "skills",
@@ -153,6 +158,21 @@ def rileva(radice: Path) -> dict:
     return esito
 
 
+def rileva_plugin(codice: Path, orsa: Path) -> dict:
+    """La deriva della copia del plugin: i file diversi dal MANIFEST firmato e gli hook spenti."""
+    controllo = fiducia.controlla(codice, orsa)
+    if controllo["firma"] == "ok":
+        fiducia.fissa_ancora(codice, orsa)  # la prima verifica fissa la chiave; poi cambia solo con /aggiorna
+    file = sorted(set(controllo["cambiati"]) | set(controllo["mancano"]) | {
+        p for p in controllo["in_piu"] if p.startswith(("hooks/", "bin/", "skills/", "agents/", "shared/"))})
+    impostazioni = [leggi_json(orsa / n) for n in ("settings.json", "settings.local.json")]
+    esito = {"file": [f for f in file if FILE.match(f)][:MASSIMO],
+             "hook": ["tutti"] if any(i.get("disableAllHooks") for i in impostazioni) else [],
+             "config": [], "base": controllo["firma"], "di_arturo": frozenset(fiducia.leggi_manifest(codice) or ()),
+             "plugin": controllo}
+    return esito
+
+
 def valori(esito: dict, t=None) -> list:
     """I valori della deriva per la telemetria. I file passano da percorso_pubblico di bin/telemetria.py,
     con l'albero di Arturo letto da rileva come elenco dei file di Arturo (24/10/2026): rileva li
@@ -165,6 +185,8 @@ def valori(esito: dict, t=None) -> list:
 
 
 def riga(esito: dict) -> str:
+    if "plugin" in esito:
+        return riga_plugin(esito)
     parti = []
     if esito["hook"] == ["tutti"]:
         parti.append("gli hook sono spenti (disableAllHooks): le guardie di Arturo non girano")
@@ -187,6 +209,26 @@ def riga(esito: dict) -> str:
     if altri:
         parti.append(f"hai modificato {len(altri)} file di Arturo ({', '.join(altri[:3])}{'…' if len(altri) > 3 else ''}): "
                      "un aggiornamento può andare in conflitto")
+    return ("DERIVA: " + "; ".join(parti) + ".") if parti else ""
+
+
+def riga_plugin(esito: dict) -> str:
+    controllo = esito["plugin"]
+    if controllo["firma"] in ("manca", "non-torna"):
+        return (f"DERIVA: {controllo['motivo']}: possibile compromissione. Non usare le guardie di questa copia come "
+                "prova di niente, non aggiornare e segnala a chi mantiene Arturo (/segnala, o SECURITY.md). Per "
+                "rimettere il rilascio firmato: /aggiorna.")
+    parti = []
+    if esito["hook"] == ["tutti"]:
+        parti.append("gli hook sono spenti (disableAllHooks): le guardie di Arturo non girano")
+    if esito["file"]:
+        elenco = ", ".join(esito["file"][:3]) + ("…" if len(esito["file"]) > 3 else "")
+        parti.append(f"{len(esito['file'])} file del plugin non sono come nel rilascio firmato ({elenco}): un file "
+                     "cambiato nella cartella del plugin si perde al prossimo aggiornamento, e se è una guardia "
+                     "protegge come l'ha scritto chi l'ha cambiato. Per rimettere il rilascio: /aggiorna. Una "
+                     "modifica tua va in ~/.claude/personale/")
+    if controllo["firma"] == "non-verificabile" and esito["file"]:
+        parti.append(f"la firma non si può controllare su questo computer ({controllo['motivo']})")
     return ("DERIVA: " + "; ".join(parti) + ".") if parti else ""
 
 
@@ -219,6 +261,7 @@ def salva(radice: Path, esito: dict) -> None:
     """cache/deriva.json per la testata (skills/testata), che la mostra sotto l'intestazione dal 3/11/2026.
     `misurata` è falso senza un riferimento ad Arturo: lì la testata non dice niente della deriva."""
     dati = {"misurata": bool(esito.get("base")), "file": esito["file"],
+            "firma": (esito.get("plugin") or {}).get("firma", ""),
             "guardie": [f for f in esito["file"] if GUARDIA.match(f)], "hook": esito["hook"], "config": esito["config"]}
     try:
         cartella = radice / "cache"
@@ -233,7 +276,12 @@ def salva(radice: Path, esito: dict) -> None:
 def main(argv: list) -> int:
     radice = Path(argv[0]) if argv else radice_arturo()
     try:
-        esito = rileva(radice)
+        codice = radice_arturo()
+        if fiducia.plugin(codice):
+            # Col plugin l'argomento è l'Orsa (session-start passa ~/.claude): lì va cache/deriva.json.
+            esito = rileva_plugin(codice, radice if argv else radice_orsa())
+        else:
+            esito = rileva(radice)
         testo = riga(esito)
         if testo:
             print(testo)

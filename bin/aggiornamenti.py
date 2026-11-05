@@ -13,6 +13,9 @@ chi mantiene Arturo, verificati con la chiave che hai già installata (firme/ril
   manuali      niente si installa da solo: resta l'avviso, e aggiorni tu con /aggiorna
   automatici   torna all'aggiornamento automatico (la scelta di partenza)
   firmato      l'ultimo rilascio, solo se la sua firma è valida: è l'unico che /aggiorna applica
+  plugin       col plugin: aggiorna il catalogo, verifica che il tag indicato sia firmato e porti lo sha
+               del catalogo, poi claude plugin update e il controllo della copia installata col suo
+               MANIFEST firmato; con --verifica si ferma prima di installare (strati F3)
 
 Non si installa niente da solo se: la firma manca o non è di Arturo; la storia pubblicata è stata
 riscritta; hai modifiche non salvate in ~/.claude; un'altra sessione di Claude Code è aperta (lo
@@ -24,6 +27,11 @@ aggiornare e di segnalarlo a chi mantiene Arturo (17/10/2026, #3504). Una firma 
 non sa verificare (git prima della 2.34, OpenSSH prima della 8.2) blocca allo stesso modo, ma senza
 allarme: "firma non verificabile", uscita 4 di firmato. ARTURO_AGGIORNAMENTI=manuali
 ha lo stesso effetto di "manuali". Solo libreria standard, Python 3.8 o successivo.
+
+Col plugin (strati F3, 5/11/2026) il codice sta nella cache di Claude Code e non c'è git: stato,
+controlla e applica non fanno niente, e l'aggiornamento passa da `plugin`, che /aggiorna lancia. Claude
+Code installa lo sha scritto nel catalogo anche se nessun tag firmato lo indica (prova del 5/11/2026):
+per questo il tag si verifica qui, prima, con la chiave dell'ancora nell'Orsa (hooks/fiducia.py).
 """
 from __future__ import annotations
 
@@ -37,7 +45,11 @@ import tempfile
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+
 AIUTO = __doc__.split("\n\n")[2] if __doc__ else ""
+NOME_PLUGIN = "arturo@arturo"
+TAG_PLUGIN = re.compile(r"plugin-v(\d{1,4})\.(\d{1,4})\.(\d{1,6})")
 ORA = 3600            # controlla scarica al massimo una volta all'ora
 ATTESA_MAX = 90       # secondi: quanto applica aspetta che Claude Code si chiuda davvero
 FIRME = "firme/rilasci.allowed_signers"
@@ -127,7 +139,11 @@ def verifica_firma(r: Path, tag: str) -> tuple:
     """(motivo, compromesso): motivo vuoto se il tag è firmato da una chiave di firme/rilasci.allowed_signers
     della copia installata. compromesso solo se la firma manca o non torna, non se la verifica non è partita.
     È l'unica verifica: la usano l'aggiornamento automatico e /aggiorna."""
-    firme = r / FIRME
+    return verifica_tag(r, tag, r / FIRME)
+
+
+def verifica_tag(r: Path, tag: str, firme: Path) -> tuple:
+    """La stessa verifica di verifica_firma, con la chiave in `firme`: la usa anche il plugin."""
     if not firme.is_file():
         return f"manca {FIRME}: la firma non si può verificare", True
     verifica = git(r, "-c", "gpg.format=ssh", "-c", f"gpg.ssh.allowedSignersFile={firme}", "verify-tag", tag)
@@ -478,6 +494,155 @@ def _applica(r: Path, ammesse: int = 0) -> int:
     return 0 if parola == "APPLICATO" else 1
 
 
+def _moduli():
+    """fiducia e radici si caricano solo col plugin: l'aggiornamento della copia in ~/.claude non deve
+    dipendere da file arrivati dopo, come una copia ferma a prima di F3 che riceve questo script."""
+    import fiducia  # noqa: PLC0415
+    import radici  # noqa: PLC0415
+    return fiducia, radici
+
+
+def modo_plugin() -> bool:
+    """Vero se questo codice gira dalla cache dei plugin (niente git accanto): strati F3."""
+    try:
+        fiducia, radici = _moduli()
+    except ImportError:
+        return False
+    return fiducia.plugin(radici.radice_arturo())
+
+
+def _claude(*argomenti, timeout: int = 300) -> subprocess.CompletedProcess:
+    comando = [os.environ.get("ARTURO_CLAUDE") or "claude", "plugin", *argomenti]
+    try:
+        return subprocess.run(comando, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                              timeout=timeout, stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError) as errore:
+        return subprocess.CompletedProcess(comando, 1, "", str(errore))
+
+
+def installato(orsa: Path) -> dict:
+    """La voce di Arturo in plugins/installed_plugins.json: installPath, version, gitCommitSha."""
+    voci = (leggi(orsa / "plugins" / "installed_plugins.json").get("plugins") or {}).get(NOME_PLUGIN) or []
+    voci = [v for v in voci if isinstance(v, dict)]
+    return next((v for v in voci if v.get("scope") == "user"), voci[0] if voci else {})
+
+
+def voce_catalogo(orsa: Path) -> dict:
+    """La voce di Arturo nel catalogo scaricato da Claude Code (plugins/known_marketplaces.json)."""
+    catalogo = (leggi(orsa / "plugins" / "known_marketplaces.json").get("arturo") or {}).get("installLocation")
+    if not catalogo:
+        return {}
+    dati = leggi(Path(catalogo) / ".claude-plugin" / "marketplace.json")
+    return next((p for p in dati.get("plugins") or [] if isinstance(p, dict) and p.get("name") == "arturo"), {})
+
+
+def numero(testo: str) -> tuple:
+    m = re.search(r"(\d{1,4})\.(\d{1,4})\.(\d{1,6})", testo or "")
+    return tuple(int(x) for x in m.groups()) if m else ()
+
+
+def _blocca(motivo: str, compromesso: bool, scaricata: bool = False) -> int:
+    if compromesso and scaricata:
+        # Dopo claude plugin update la copia nuova è già nella cache, e parte alla prossima apertura.
+        print(f"POSSIBILE COMPROMISSIONE: {COMPROMISSIONE.split(': ', 1)[1]} ({motivo}). La copia nuova è già "
+              "scaricata: non riavviare Claude Code prima di aver segnalato con /segnala, o in privato come dice "
+              "SECURITY.md.", file=sys.stderr)
+        return 3
+    if compromesso:
+        print(f"POSSIBILE COMPROMISSIONE: {COMPROMISSIONE.split(': ', 1)[1]} ({motivo}). Non applico niente: "
+              "si segnala con /segnala, o in privato come dice SECURITY.md.", file=sys.stderr)
+        return 3
+    print(f"FIRMA NON VERIFICABILE: {motivo}. Non applico niente. Non è un problema di sicurezza: aggiorna "
+          "git e OpenSSH, poi rilancia /aggiorna.", file=sys.stderr)
+    return 4
+
+
+def verifica_catalogo(orsa: Path) -> tuple:
+    """(rc, tag, sha): rc 0 se il catalogo indica un tag firmato dalla chiave dell'ancora e il tag porta
+    proprio lo sha del catalogo; rc 2 se quello sha è già installato. Gli errori li stampa."""
+    fiducia, radici = _moduli()
+    radice_arturo = radici.radice_arturo
+    voce = voce_catalogo(orsa)
+    sorgente = voce.get("source") if isinstance(voce.get("source"), dict) else {}
+    tag, sha = str(sorgente.get("ref") or ""), str(sorgente.get("sha") or "")
+    if not voce:
+        print("NESSUN RILASCIO: il catalogo di Arturo non c'è o non elenca Arturo (claude plugin marketplace list).",
+              file=sys.stderr)
+        return 1, "", ""
+    if not TAG_PLUGIN.fullmatch(tag) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+        return _blocca("il catalogo non fissa Arturo a un tag plugin-vN.N.N e al suo sha", True), tag, sha
+    if sorgente.get("source") == "github" and re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", str(sorgente.get("repo"))):
+        url = f"https://github.com/{sorgente['repo']}.git"
+    elif sorgente.get("source") == "url" and isinstance(sorgente.get("url"), str):
+        url = sorgente["url"]
+    else:
+        return _blocca("il catalogo indica una sorgente che Arturo non sa verificare", True), tag, sha
+    prima = installato(orsa)
+    if prima.get("gitCommitSha") == sha:
+        return 2, tag, sha
+    if numero(tag) < numero(str(prima.get("version") or "")):
+        return _blocca(f"il catalogo indica {tag}, più vecchio della versione installata {prima.get('version')}",
+                       True), tag, sha
+    lavoro = Path(tempfile.mkdtemp(prefix="arturo-tag."))
+    try:
+        git(lavoro, "init", "-q")
+        scarico = git(lavoro, "fetch", "--quiet", "--depth=1", "--no-tags", url, f"+refs/tags/{tag}:refs/tags/{tag}",
+                      timeout=120)
+        if scarico.returncode != 0:
+            print(f"NESSUN RILASCIO: non riesco a scaricare il tag {tag} ({(scarico.stderr or '').strip()[:160]}). "
+                  "Rete? Non applico niente.", file=sys.stderr)
+            return 1, tag, sha
+        motivo, compromesso = verifica_tag(lavoro, tag, fiducia.firmatari_per(radice_arturo(), orsa))
+        if motivo:
+            return _blocca(motivo, compromesso), tag, sha
+        if git(lavoro, "rev-parse", f"{tag}^{{commit}}").stdout.strip() != sha:
+            return _blocca(f"lo sha del catalogo non è quello del rilascio firmato {tag}", True), tag, sha
+    finally:
+        shutil.rmtree(str(lavoro), ignore_errors=True)
+    return 0, tag, sha
+
+
+def cmd_plugin(solo_verifica: bool = False) -> int:
+    """/aggiorna col plugin. Uscite: 0 applicato o già aggiornato, 1 niente da applicare o errore, 3 possibile
+    compromissione, 4 firma non verificabile su questo computer."""
+    fiducia, radici = _moduli()
+    orsa = radici.radice_orsa()
+    catalogo = _claude("marketplace", "update", "arturo", timeout=180)
+    if catalogo.returncode != 0:
+        print(f"CATALOGO NON AGGIORNATO: {(catalogo.stderr or catalogo.stdout).strip()[:200]}. Verifico quello che ho.",
+              file=sys.stderr)
+    rc, tag, sha = verifica_catalogo(orsa)
+    if rc == 2:
+        print(f"GIÀ AGGIORNATO: {tag}")
+        return 0
+    if rc != 0:
+        return rc
+    if solo_verifica:
+        print(tag)
+        return 0
+    aggiorna = _claude("update", NOME_PLUGIN)
+    if aggiorna.returncode != 0:
+        print(f"APPLICAZIONE NON PARTITA: claude plugin update non è riuscito "
+              f"({(aggiorna.stderr or aggiorna.stdout).strip()[:200]}). Non ho toccato niente.")
+        return 1
+    dopo = installato(orsa)
+    copia = Path(str(dopo.get("installPath") or ""))
+    if dopo.get("gitCommitSha") != sha:
+        return _blocca(f"Claude Code ha installato {str(dopo.get('gitCommitSha'))[:12]}, non lo sha verificato "
+                       f"{sha[:12]}", True, scaricata=True)
+    controllo = fiducia.controlla(copia, orsa)
+    if controllo["firma"] != "ok":
+        return _blocca(controllo["motivo"], controllo["firma"] != "non-verificabile", scaricata=True)
+    diversi = controllo["cambiati"] + controllo["mancano"]
+    if diversi:
+        return _blocca(f"la copia installata non è come il MANIFEST firmato ({', '.join(diversi[:3])})", True,
+                       scaricata=True)
+    # Una chiave nuova entra nell'ancora solo da una copia verificata con la chiave di prima.
+    fiducia.fissa_ancora(copia, orsa)
+    print(f"APPLICATO: {tag}. Riavvia Claude Code per usarlo.")
+    return 0
+
+
 def rinvio_in_attesa(r: Path, stato: dict) -> bool:
     """Vero se una chiusura di prima ha già rinviato un rilascio che manca ancora: lo stesso che è pronto ora,
     o uno più vecchio rimasto fuori. Un rinvio poi installato con /aggiorna non conta più."""
@@ -531,6 +696,14 @@ def main(argv: list) -> int:
         print(AIUTO)
         return 0
     try:
+        if argv and argv[0] == "plugin" and argv[1:] in ([], ["--verifica"]):
+            if not modo_plugin():
+                print("COPIA IN ~/.claude: Arturo non è installato come plugin, vale la procedura con git.")
+                return 5
+            return cmd_plugin(solo_verifica=len(argv) == 2)
+        if modo_plugin() and argv and argv[0] in ("stato", "controlla", "applica", "firmato"):
+            # Col plugin non c'è git: niente si installa da solo, /aggiorna passa da `plugin`.
+            return cmd_plugin(solo_verifica=True) if argv == ["firmato"] else 0
         if argv == ["stato"]:
             return cmd_stato(r)
         if argv in (["controlla"], ["controlla", "--subito"]):

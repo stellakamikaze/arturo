@@ -84,7 +84,7 @@ Terza prova, 5/11/2026 (Claude Code 2.1.318), sul pacchetto con il metodo: `impo
 | Guardie | i banchi delle guardie lanciati sul pacchetto sono verdi; tre banchi leggono file del repository che il pacchetto non porta (`tests/`, `.gitignore`, `settings.json`) e si lanciano sul repository |
 | Login | con una `HOME` finta Claude Code non trova il login: la prova su una macchina pulita la fa una persona (#4565) |
 
-Da provare: Windows (prima di migrare Balthasar); installazione da marketplace GitHub con sha fissato (F3); barra in basso dal puntatore su una macchina pulita.
+Da provare: Windows (prima di migrare Balthasar); installazione dal catalogo su GitHub (`stellakamikaze/arturo#catalogo`) col primo rilascio del plugin; barra in basso dal puntatore su una macchina pulita.
 
 ## Il pacchetto
 
@@ -101,6 +101,28 @@ Un hook nei settings della persona che lancia un file di Arturo registrato anche
 **Il metodo** (`shared/metodo.md`, sotto i 9.000 caratteri) col plugin entra all'avvio da un hook suo, `hooks/metodo.sh`, che `impacchetta.py` aggiunge a `SessionStart`. Un hook a sé ha il suo tetto di 10.000 caratteri, mentre l'uscita di `session-start.sh` cresce con handoff e memoria. Col clone non scatta: le stesse regole stanno nel CLAUDE.md che la persona scrive con `/setup` (banco IP09).
 
 Col codice fuori da `~/.claude`, l'avvio scrive `~/.claude/arturo/radice` per la barra in basso e dice al modello dove sta il codice.
+
+## La catena di fiducia (F3, 5/11/2026)
+
+Col clone la fiducia la dà git: si installa solo un tag firmato. Col plugin la cartella del codice è una copia senza git, e Claude Code installa lo sha scritto nel catalogo anche se nessun tag firmato lo indica (prova del 5/11/2026, Claude Code 2.1.318). Quattro pezzi chiudono il buco:
+
+```
+rilascio   impacchetta.py --firma → MANIFEST (sha256 di ogni file) + MANIFEST.sig, commit sul ramo plugin,
+           tag firmato plugin-vN.N.N → impacchetta.py --catalogo → ramo catalogo: Arturo fissato a tag + sha
+/aggiorna  aggiornamenti.py plugin: claude plugin marketplace update → scarica solo il tag → verify-tag con
+           l'ancora → lo sha del tag è quello del catalogo? → versione non più vecchia? → claude plugin update
+           → la copia installata ha lo sha verificato e torna col suo MANIFEST firmato? → APPLICATO
+           un passo che non torna: POSSIBILE COMPROMISSIONE (uscita 3), niente update; firma che il
+           computer non sa controllare: FIRMA NON VERIFICABILE (uscita 4)
+avvio      deriva.py: la copia in uso ha il MANIFEST firmato? quali file non tornano? → riga DERIVA
+telemetria versione dal plugin.json della copia, non dai tag del git dell'Orsa
+```
+
+- **L'ancora.** La chiave che verifica sta nell'Orsa, in `~/.claude/arturo/rilasci.allowed_signers`: chi cambia la copia del plugin cambierebbe anche la chiave dentro. La prima verifica riuscita la scrive; dopo cambia solo con una copia nuova verificata con la chiave di prima. Così una chiave nuova entra con un rilascio firmato dalla vecchia, come nel clone.
+- **Lo spazio dei nomi.** Il MANIFEST si firma con `ssh-keygen -Y sign -n arturo-manifest`, da stdin: con un file, una `MANIFEST.sig` già presente resta com'era e `ssh-keygen` esce con 0 lo stesso. La chiave dei rilasci vale per `git` e `arturo-manifest` (`firme/rilasci.allowed_signers`).
+- **Fuori dal MANIFEST** stanno solo la firma, la cartella `.in_use` che Claude Code aggiunge alla cache e i `__pycache__` che Python scrive accanto agli script.
+- **Il catalogo** sta sul ramo `catalogo` del repository: la persona lo aggiunge con `claude plugin marketplace add stellakamikaze/arturo#catalogo`, e `main` resta il clone di Gigi e Filippo fino a F4.
+- Il banco `tests/test_fiducia_2026_11_05.py` (FD01-FD09) prova tutto con la CLI vera, in un `CLAUDE_CONFIG_DIR` di prova: tag non firmato, firmato da un'altra chiave, sha dopo il tag, rilascio più vecchio, e un aggiornamento vX → vY che va a buon fine.
 
 ## Come un testo di Arturo indica il codice
 

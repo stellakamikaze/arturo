@@ -56,7 +56,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 import todo_store as ts  # noqa: E402
 sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
-from radici import comando_arturo, radice_orsa  # noqa: E402
+from radici import comando_arturo, radice_arturo, radice_orsa  # noqa: E402
 
 URL = "https://arturo-dati.stellakamikaze.org"
 # L'elenco chiuso. Lo stesso elenco sta in server/logica.js e nel README (banco M09).
@@ -274,7 +274,12 @@ def versione() -> str:
     server/logica.js): v* prendeva anche un tag della persona come "vacanze-rossi", che arrivava fino a
     Telegram e al recap. Un tag con la data e un nome suo dopo ("v2026-10-20-rossi") dà "sconosciuta".
     Dal 3/11/2026 il rilascio è un numero (v0.2.0). Il commit di un rilascio a data porta anche il suo numero, con
-    un tag più recente, e git describe sceglie il numero."""
+    un tag più recente, e git describe sceglie il numero.
+    Col plugin (strati F3, 5/11/2026) la versione sta in .claude-plugin/plugin.json della cartella del codice:
+    lì non c'è git, e il git dell'Orsa ha i tag della persona, non quelli di Arturo."""
+    da_plugin = versione_plugin()
+    if da_plugin is not None:
+        return da_plugin
     match = [x for t in TAG_RILASCIO for x in ("--match", t)]
     try:
         r = subprocess.run(["git", "-C", str(radice_orsa()), "describe", "--tags", "--abbrev=0", *match],
@@ -283,6 +288,20 @@ def versione() -> str:
         return v if RILASCIO.fullmatch(v) else "sconosciuta"
     except (OSError, subprocess.SubprocessError):
         return "sconosciuta"
+
+
+def versione_plugin():
+    """"v0.3.0" dal plugin.json del plugin, "sconosciuta" se fuori forma, None col clone (c'è git)."""
+    codice = radice_arturo()
+    manifest = codice / ".claude-plugin" / "plugin.json"
+    if (codice / ".git").exists() or not manifest.is_file():
+        return None
+    try:
+        numero = json.loads(manifest.read_text(encoding="utf-8")).get("version")
+    except (OSError, ValueError, AttributeError):
+        return "sconosciuta"
+    v = "v" + numero if isinstance(numero, str) else ""
+    return v if RILASCIO.fullmatch(v) else "sconosciuta"
 
 
 def sistema() -> str:

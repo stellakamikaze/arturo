@@ -10,13 +10,19 @@ ne ricava una cartella pronta per Claude Code come plugin:
                                   del mod (skills/arturo/hooks/register.tsx) sotto "modules"
   impostazioni/arturo.json        il resto di settings.json: lo applica /setup col file di blocco
   skills/<comando>/SKILL.md       ogni commands/<comando>.md, con name: (il nome resta senza prefisso)
+  .gitattributes                  "* -text": il ramo plugin si scarica senza riscrivere gli a capo
+  .claude-plugin/MANIFEST         sha256 e percorso di ogni file (strati F3, hooks/fiducia.py); con --firma
+                                  anche MANIFEST.sig, firmato con la chiave dei rilasci
 
 Nei testi un percorso al codice (~/.claude/bin, hooks, shared...) diventa ${CLAUDE_PLUGIN_ROOT}/...
 dove Claude Code lo sostituisce (skill), $ARTURO_CODICE/... altrove: l'avvio lo esporta nel Bash.
 I percorsi ai dati della persona (~/.claude/data, personale, CLAUDE.md, session-env) restano: sono l'Orsa.
 
-  python3 bin/impacchetta.py --uscita DIR [--versione v0.2.0]
+  python3 bin/impacchetta.py --uscita DIR [--versione v0.2.0] [--firma CHIAVE]
   python3 bin/impacchetta.py --verifica DIR     il pacchetto rispetta il contratto (rc 1 se no)
+  python3 bin/impacchetta.py --catalogo DIR --tag plugin-v0.3.0 --sha SHA [--repo stellakamikaze/arturo]
+                                                il catalogo pubblicato (ramo catalogo): Arturo fissato allo
+                                                sha del tag firmato (strati F3)
 """
 from __future__ import annotations
 
@@ -29,6 +35,8 @@ import sys
 from pathlib import Path
 
 RADICE = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RADICE / "hooks"))
+import fiducia  # noqa: E402
 NOME = "arturo"
 # Cosa entra nel plugin. Restano fuori: tests (si girano sul repository), server (il Worker della
 # telemetria, si pubblica a parte), settings.json (diventa hooks.json più impostazioni/arturo.json).
@@ -39,6 +47,7 @@ IGNORA = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store", "node_modul
 CODICE = ("bin", "hooks", "shared", "tools", "scripts", "docs", "firme", "agents", "output-styles",
           "commands", "tests", "NOVITA.md", "README.md")
 METODO = 'bash "${CLAUDE_PLUGIN_ROOT}/hooks/metodo.sh"'
+TAG_PLUGIN = re.compile(r"plugin-v\d{1,4}\.\d{1,4}\.\d{1,6}")
 VARIANTI_HOME = (r"~/\.claude", r"\$HOME/\.claude", r"\$\{HOME\}/\.claude", r"\$\{ARTURO_CODICE:-\$HOME/\.claude\}")
 
 
@@ -199,6 +208,29 @@ def impacchetta(uscita: Path, versione: str) -> None:
     (meta / "marketplace.json").write_text(json.dumps({
         "name": NOME, "owner": {"name": "Federico Nejrotti"}, "description": descrizione, "plugins": plugin,
     }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    # Il ramo plugin si scarica byte per byte: su Windows, con core.autocrlf, git riscriverebbe gli a capo
+    # e il MANIFEST darebbe cambiati tutti i file di testo.
+    (uscita / ".gitattributes").write_text("* -text\n", encoding="utf-8")
+    # Il MANIFEST per ultimo, quando ogni file è al suo posto.
+    fiducia.scrivi_manifest(uscita)
+
+
+def catalogo(cartella: Path, tag: str, sha: str, repo: str) -> None:
+    """Il catalogo che le persone aggiungono (claude plugin marketplace add stellakamikaze/arturo#catalogo).
+    Arturo vi è fissato allo sha del tag firmato: Claude Code installa quello sha e nient'altro, e
+    `aggiornamenti.py plugin` controlla prima che il tag sia firmato e porti proprio quello sha."""
+    if not TAG_PLUGIN.fullmatch(tag):
+        raise SystemExit(f"il tag {tag} non ha la forma plugin-vN.N.N")
+    if not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise SystemExit("lo sha va scritto intero, 40 caratteri esadecimali")
+    descrizione = "Arturo: guardie, metodo e skill condivise sopra Claude Code. Lo strato personale è l'Orsa, in ~/.claude."
+    meta = cartella / ".claude-plugin"
+    meta.mkdir(parents=True, exist_ok=True)
+    (meta / "marketplace.json").write_text(json.dumps({
+        "name": NOME, "owner": {"name": "Federico Nejrotti"}, "description": descrizione,
+        "plugins": [{"name": NOME, "description": descrizione, "version": tag[len("plugin-v"):],
+                     "source": {"source": "github", "repo": repo, "ref": tag, "sha": sha}}],
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def verifica(cartella: Path) -> list[str]:
@@ -229,6 +261,16 @@ def verifica(cartella: Path) -> list[str]:
         errori.append(f"skills/{NOME}/.claude-plugin nel pacchetto: il mod lo porta il plugin, non è un plugin a sé")
     if (cartella / "commands").exists():
         errori.append("commands/ nel pacchetto: un comando del plugin prende il prefisso arturo:")
+    differenze = fiducia.confronta(cartella)
+    if differenze is None:
+        errori.append(f"{fiducia.MANIFEST}: manca o non si legge")
+    else:
+        for tipo, elenco in differenze.items():
+            errori += [f"{fiducia.MANIFEST}: {tipo.replace('_', ' ')} {p}" for p in elenco[:10]]
+    if (cartella / fiducia.FIRMA).is_file():
+        esito, motivo = fiducia.verifica_firma(cartella, cartella / fiducia.FIRMATARI)
+        if esito != "ok":
+            errori.append(f"{fiducia.FIRMA}: {motivo}")
     return errori
 
 
@@ -237,8 +279,19 @@ def main() -> int:
     gruppo = parser.add_mutually_exclusive_group(required=True)
     gruppo.add_argument("--uscita", type=Path)
     gruppo.add_argument("--verifica", type=Path)
+    gruppo.add_argument("--catalogo", type=Path)
     parser.add_argument("--versione", default=None)
+    parser.add_argument("--firma", type=Path, default=None, help="chiave privata dei rilasci (file 600 temporaneo)")
+    parser.add_argument("--tag")
+    parser.add_argument("--sha")
+    parser.add_argument("--repo", default="stellakamikaze/arturo")
     argomenti = parser.parse_args()
+    if argomenti.catalogo:
+        if not (argomenti.tag and argomenti.sha):
+            parser.error("--catalogo vuole --tag e --sha")
+        catalogo(argomenti.catalogo, argomenti.tag, argomenti.sha, argomenti.repo)
+        print(f"catalogo in {argomenti.catalogo}: arturo {argomenti.tag} @ {argomenti.sha[:12]}")
+        return 0
     if argomenti.verifica:
         errori = verifica(argomenti.verifica)
         for e in errori:
@@ -246,6 +299,8 @@ def main() -> int:
         print(f"pacchetto: {len(errori)} errori")
         return 1 if errori else 0
     impacchetta(argomenti.uscita.resolve(), argomenti.versione or versione_da_git())
+    if argomenti.firma:
+        fiducia.firma(argomenti.uscita.resolve(), argomenti.firma)
     errori = verifica(argomenti.uscita.resolve())
     for e in errori[:30]:
         print("ERRORE", e)

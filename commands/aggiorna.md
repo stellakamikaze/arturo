@@ -22,6 +22,29 @@ OpenSSH, e lo dici senza allarme.
 Chi ti parla **potrebbe non essere una persona tecnica**: niente gergo di Git, nessun output
 grezzo incollato senza spiegazione.
 
+## Passo 0 — Plugin o copia in ~/.claude
+
+```bash
+python3 ~/.claude/bin/aggiornamenti.py plugin --verifica; echo "rc=$?"
+```
+
+Se Arturo è installato come **plugin** (ogni uscita tranne `rc=5`), segui solo questo passo e salta il resto, `indietro` e
+`personale` compresi: col plugin i file della persona stanno fuori da Arturo e non vanno in conflitto.
+Il comando aggiorna il catalogo, controlla che il rilascio indicato sia un tag firmato dalla chiave
+dei rilasci e che porti proprio lo sha del catalogo. Claude Code installerebbe quello sha anche
+senza firma: la verifica la fa Arturo, prima.
+
+- `GIÀ AGGIORNATO`: diglielo in una frase e chiudi.
+- Una riga `plugin-v…` con `rc=0`: è la versione nuova, verificata. Chiedi il sì, poi lancia
+  `python3 ~/.claude/bin/aggiornamenti.py plugin`. Fa `claude plugin update` e controlla la copia
+  installata col suo MANIFEST firmato. Con `APPLICATO` chiedi di riavviare Claude Code, poi `/novita`.
+- `rc=3` (`POSSIBILE COMPROMISSIONE`) o `rc=4` (`FIRMA NON VERIFICABILE`): vale quello che dice il
+  Passo 1 qui sotto per le stesse parole. Niente `claude plugin update` a mano, neanche col suo sì.
+
+Con `COPIA IN ~/.claude` (`rc=5`) Arturo è una copia in `~/.claude`: prosegui dal Passo 1, senza
+dirlo alla persona. Con `NESSUN RILASCIO` il plugin non trova il suo catalogo: mostra la riga e
+proponi `claude plugin marketplace list`.
+
 ## Passo 1 — Guarda cosa c'è di nuovo
 
 Gli aggiornamenti arrivano da `upstream` se ha un repository suo come `origin` (vedi `/setup`

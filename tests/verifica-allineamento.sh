@@ -176,6 +176,8 @@ IN_FILA=(
   test_web.py
   test_revisione_ciclo5.py
   test_schede_mac_2026_10_29.py
+  # Strati F3 (5/11/2026, #4533): la CLI vera di Claude Code installa e aggiorna il plugin in sandbox.
+  test_fiducia_2026_11_05.py
 )
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
@@ -377,6 +379,9 @@ BASELINE=(
   "test_finestre_windows_2026_11_04.py efaa296"
   # Lo sportello delle segnalazioni (4/11/2026, #3925): ricevuta, pacchetto, redazione, risposta. fa14218, il dev prima.
   "test_sportello_2026_11_04.py fa14218"
+  # Strati F3 (5/11/2026, #4533): MANIFEST firmato, catalogo con lo sha, /aggiorna che verifica il tag.
+  # 809868a, il dev prima.
+  "test_fiducia_2026_11_05.py 809868a"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
@@ -406,6 +411,8 @@ VELENI=(
   test_monitor_giro_2026_11_03.py
   # humanizer agganciato all'origine (4/11/2026): un controlla che non confronta fa rosso HO01.
   test_humanizer_origine.py
+  # Strati F3 (5/11/2026): senza la verifica del tag Claude Code installa un tag non firmato (FD06).
+  test_fiducia_2026_11_05.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

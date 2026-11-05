@@ -102,6 +102,26 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    Il file delle note raccoglie le voci di `NOVITA.md` aggiunte dopo il tag precedente, con le loro
    intestazioni. La release non installa niente: gli utenti ricevono il rilascio dal tag firmato.
 
+   **Il rilascio del plugin** (strati F3, dal primo rilascio del plugin): dopo il tag di `main`, lo
+   stesso numero esce anche come plugin, dal ramo `plugin` in una worktree e con la stessa chiave nel
+   file 600 temporaneo:
+
+   ```bash
+   git worktree add ../arturo-plugin plugin        # la prima volta: git worktree add --orphan -b plugin ../arturo-plugin
+   python3 bin/impacchetta.py --uscita ../arturo-plugin --versione "$V" --firma "$CHIAVE"
+   git -C ../arturo-plugin add -A && git -C ../arturo-plugin commit -m "Arturo $V come plugin"
+   git -C ../arturo-plugin -c gpg.format=ssh -c user.signingkey="$CHIAVE" tag -s "plugin-$V" -m "Arturo $V, plugin"
+   SHA=$(git -C ../arturo-plugin rev-parse HEAD)
+   git worktree add ../arturo-catalogo catalogo    # la prima volta: --orphan -b catalogo, come sopra
+   python3 bin/impacchetta.py --catalogo ../arturo-catalogo --tag "plugin-$V" --sha "$SHA"
+   git -C ../arturo-catalogo commit -am "catalogo: plugin-$V"
+   git push origin plugin "plugin-$V" catalogo
+   ```
+
+   L'ordine conta: prima il tag firmato del plugin, poi il catalogo che lo indica. Un catalogo che
+   indica un tag senza firma, o uno sha diverso da quello del tag, ferma tutti con "possibile
+   compromissione" (`aggiornamenti.py plugin`, banco FD06-FD08).
+
    **Prima il rilascio firmato di `main`, poi la landing** (ramo `landing-v2`, `strumenti/pubblica.sh`):
    il sito non promette mai una cosa che il rilascio installato non fa ancora.
 
