@@ -729,7 +729,7 @@ def fermi_da(todo: dict, progetto: str, soglia: int = 3) -> list:
     return sorted(fermi, key=lambda x: (-x[1], x[0]["id"]))
 
 
-def da_dove(todo: dict):
+def da_dove(todo: dict, progetto: str | None = None):
     """Il todo da cui ripartire, con il motivo in parole. None se non c'è niente da fare.
 
     Una regola fissa, la stessa per ogni vista: prima chi chiede una persona (tu, decidi), poi
@@ -745,6 +745,8 @@ def da_dove(todo: dict):
     candidati = []
     for t in todo.values():
         if t["stato"] not in ("da fare", "in corso") or t["progetto"] == PROGETTO_PERCORSO:
+            continue
+        if progetto and t["progetto"] != progetto:
             continue
         if any(per_uid[u]["stato"] in APERTI for u in t["dopo"] if u in per_uid):
             continue
@@ -797,6 +799,98 @@ def esporta(t: dict, todo: dict) -> dict:
     }
 
 
+# --- la vista dei progetti (5/11/2026, #3887) -------------------------------------------------------
+# Il pannello /dafare mostra prima i progetti, poi i todo: con 50 progetti una lista piatta non si legge.
+# Ogni progetto aperto ha una parola di stato calcolata dai todo, la riga scritta a fine sessione (o una
+# riga di conti, dichiarata come calcolata), la catena dei todo legati da "dopo" e il todo da cui partire.
+# Una fonte esterna (docs/fonte-task.md) manda lo stesso blocco con le sue regole.
+
+PAROLE = ("a rischio", "chiede te", "fermo", "va")
+STATO_VECCHIO_GG = 7
+
+
+def parola(aperti: list) -> str:
+    """a rischio se c'è uno scaduto, chiede te se un todo non fermo aspetta la persona, fermo se lo sono
+    tutti, altrimenti va. La stessa regola della pagina personale di Federico (indice.py)."""
+    if any((g := giorni(t)) is not None and g < 0 for t in aperti):
+        return "a rischio"
+    if any(gruppo(t) in ("tu", "decidi") for t in aperti):
+        return "chiede te"
+    if aperti and all(t["stato"] == "fermo" for t in aperti):
+        return "fermo"
+    return "va"
+
+
+def catena(aperti: list) -> list:
+    """I numeri dei todo aperti legati da "dopo", dal primo passo all'ultimo. Un todo slegato resta fuori.
+
+    Ordine topologico; a pari livello vale l'ordine delle viste. Un giro (A aspetta B, B aspetta A)
+    non blocca: i todo del giro finiscono in coda, nell'ordine delle viste."""
+    per_uid = {t["uid"]: t for t in aperti}
+    prima = {t["uid"]: {u for u in t["dopo"] if u in per_uid} for t in aperti}
+    legati = {u for u, ps in prima.items() if ps} | {p for ps in prima.values() for p in ps}
+    restano = {u: set(prima[u]) for u in legati}
+    fuori = []
+    while restano:
+        pronti = sorted((per_uid[u] for u, ps in restano.items() if not ps), key=_ordine)
+        if not pronti:
+            fuori += [t["id"] for t in sorted((per_uid[u] for u in restano), key=_ordine)]
+            break
+        scelto = pronti[0]
+        fuori.append(scelto["id"])
+        del restano[scelto["uid"]]
+        for ps in restano.values():
+            ps.discard(scelto["uid"])
+    return fuori
+
+
+def riga_calcolata(aperti: list) -> str:
+    n = len(aperti)
+    pezzi = ["1 todo aperto" if n == 1 else f"{n} todo aperti"]
+    scaduti = sum((g := giorni(t)) is not None and g < 0 for t in aperti)
+    if scaduti:
+        pezzi.append("1 scaduto" if scaduti == 1 else f"{scaduti} scaduti")
+    tuoi = sum(gruppo(t) in ("tu", "decidi") for t in aperti)
+    if tuoi:
+        pezzi.append("1 chiede te" if tuoi == 1 else f"{tuoi} chiedono te")
+    fermi = sum(t["stato"] == "fermo" for t in aperti)
+    if fermi:
+        pezzi.append("1 fermo" if fermi == 1 else f"{fermi} fermi")
+    return ", ".join(pezzi) + "."
+
+
+def vista_progetti(todo: dict, righe_stato: dict | None = None, progetto: str | None = None) -> list:
+    """I progetti con almeno un todo aperto, dal più urgente: la forma del blocco "progetti" della vista."""
+    righe_stato = stati() if righe_stato is None else righe_stato
+    per_progetto = {}
+    for t in todo.values():
+        if progetto and t["progetto"] != progetto:
+            continue
+        if t["stato"] in APERTI and t["progetto"] != PROGETTO_PERCORSO:
+            per_progetto.setdefault(t["progetto"], []).append(t)
+    fuori = []
+    for nome, aperti in per_progetto.items():
+        scritto = righe_stato.get(nome)
+        eta = None
+        if scritto:
+            try:
+                eta = (oggi() - dt.date.fromisoformat(scritto["ts"][:10])).days
+            except ValueError:
+                eta = None
+        partenza = da_dove(todo, progetto=nome)
+        fuori.append({
+            "nome": nome, "parola": parola(aperti),
+            "riga": scritto["riga"] if scritto else riga_calcolata(aperti),
+            "calcolato": not scritto, "scritto": scritto["ts"] if scritto else None, "eta_gg": eta,
+            "vecchio": eta is not None and eta > STATO_VECCHIO_GG,
+            "aperti": len(aperti), "scaduti": sum((g := giorni(t)) is not None and g < 0 for t in aperti),
+            "chiedono_te": sum(gruppo(t) in ("tu", "decidi") for t in aperti),
+            "fermi": sum(t["stato"] == "fermo" for t in aperti),
+            "catena": catena(aperti), "da_dove": partenza,
+        })
+    return sorted(fuori, key=lambda p: (PAROLE.index(p["parola"]), p["nome"].lower()))
+
+
 def vista(todo: dict, avvisi: list, progetto: str | None = None, tutti: bool = False) -> dict:
     scelti = [t for t in todo.values() if not progetto or t["progetto"] == progetto]
     gruppi = []
@@ -805,8 +899,9 @@ def vista(todo: dict, avvisi: list, progetto: str | None = None, tutti: bool = F
         gruppi.append({"tipo": tipo, "titolo": titolo, "descrizione": descrizione,
                        "todo": [esporta(t, todo) for t in dentro]})
     chiusi = sorted((t for t in scelti if gruppo(t) is None), key=lambda t: t["chiuso"], reverse=True)
+    progetti_aperti = vista_progetti(todo, progetto=progetto)
     risultato = {"versione": VERSIONE_VISTA, "oggi": oggi().isoformat(), "progetto": progetto, "gruppi": gruppi,
-                 "chiusi": len(chiusi), "avvisi": avvisi}
+                 "progetti": progetti_aperti, "chiusi": len(chiusi), "avvisi": avvisi}
     if tutti:
         risultato["chiusi_todo"] = [esporta(t, todo) for t in chiusi]
     return risultato

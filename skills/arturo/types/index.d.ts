@@ -47,11 +47,32 @@ export type Gruppo = {
   todo: TodoVoce[]
 }
 
+// Un progetto con todo aperti: vista_progetti in bin/todo_store.py. Una fonte esterna può non
+// mandarlo (docs/fonte-task.md): il pannello allora lo ricava dai gruppi.
+export type Parola = 'a rischio' | 'chiede te' | 'fermo' | 'va'
+
+export type Progetto = {
+  nome: string
+  parola: Parola
+  riga: string
+  calcolato: boolean
+  scritto: string | null
+  eta_gg: number | null
+  vecchio: boolean
+  aperti: number
+  scaduti: number
+  chiedono_te: number
+  fermi: number
+  catena: number[]
+  da_dove: { id: number; motivo: string } | null
+}
+
 export type Vista = {
   versione: number
   oggi: string
   progetto: string | null
   gruppi: Gruppo[]
+  progetti?: Progetto[]
   chiusi: number
   avvisi: string[]
 }

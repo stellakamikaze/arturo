@@ -34,6 +34,20 @@ Due verbi sono facoltativi: se il tuo programma non li conosce, esce con 2 e Art
 | `aggiungi "<titolo>" … --dopo N[,M]` | il todo nuovo aspetta i todo N e M | `#<numero>` del todo |
 | `stato [--progetto <slug>] ["<riga>"]` | senza riga legge, con la riga scrive a che punto è il progetto | la riga |
 
+Il pannello `/dafare` usa altri verbi. Se il tuo programma non li conosce, il tasto risponde con il suo
+errore e non cambia niente.
+
+| Argomenti | Cosa fa | Uscita |
+|---|---|---|
+| `mostra <numero> --json` | un todo, per aprire una sessione su di lui (tasto o) | JSON con almeno `titolo` e `progetto` |
+| `riprendi <numero>`, `su <numero>`, `giu <numero>` | riapre, avvicina, allontana | una riga di conferma |
+| `ripristina <numero> --atteso=stato=<s> [--motivo=<m>] -- <stato>` | l'annulla di fatto, ferma, riprendi | una riga di conferma |
+| `modifica <numero> --chi <chi>` o `--quando <quando>` `[--atteso=<campo>=<valore>] [--annullo]` | chi lo fa, e l'annulla di su e giu | una riga di conferma |
+
+`--atteso=<campo>=<valore>` vuol dire: scrivi solo se il campo ha ancora quel valore, altrimenti esci
+con 2. Il `progetto` di `mostra` diventa il nome dopo `/inizio`: Arturo lo riduce a lettere, numeri e
+trattini.
+
 `--titolo-atteso=<testo>` su un verbo che scrive vuol dire: il todo `<numero>` deve avere ancora quel
 titolo, altrimenti fermati con exit 2 e dillo.
 
@@ -52,6 +66,21 @@ Il JSON di `--json`:
 `tipo` vale `tu`, `decidi`, `io` o `fermo`. Di ogni todo servono `id` e `titolo`; gli altri campi
 (`stato`, `priorita`, `scadenza_testo`, `perche`, `motivo`, `attende`) sono facoltativi. `chiusi_todo`
 serve solo con `--tutti`.
+
+Il pannello `/dafare` legge anche il blocco facoltativo `progetti`: un elemento per progetto con todo
+aperti, dal più urgente. Se manca, il pannello lo ricava dai gruppi, con la riga dichiarata come calcolata.
+
+```json
+"progetti": [
+  {"nome": "sito", "parola": "va", "riga": "La home è scritta a metà", "calcolato": false,
+   "scritto": "2026-11-05T09:00", "eta_gg": 0, "vecchio": false, "aperti": 3, "scaduti": 0,
+   "chiedono_te": 0, "fermi": 0, "catena": [2, 3, 4], "da_dove": {"id": 2, "motivo": "Sblocca #3"}}
+]
+```
+
+`parola` vale `a rischio`, `chiede te`, `fermo` o `va`. `catena` elenca i todo legati da "dopo", dal
+primo passo all'ultimo; `da_dove` è il todo da cui ripartire, o `null`. Con `--progetto <slug>` il
+blocco ha solo quel progetto.
 
 ## Codici d'uscita
 

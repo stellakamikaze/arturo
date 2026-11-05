@@ -25,7 +25,8 @@ aiuto, smistamento e messaggio di errore. T22 un .lock non parte mai con /fine.
 T23 tabella degli stati e conteggi per progetto stanno nel store. T24 /aggiorna
 mostra il codice di bin/ e dei mod, /diagnosi legge l'archivio. T25 da_dove sceglie il todo
 da cui ripartire con una regola fissa e il motivo in parole: persona prima, poi chi sblocca,
-scaduti, scadenza vicina. Fermi e attese restano fuori.
+scaduti, scadenza vicina. Fermi e attese restano fuori. T26 la vista porta il blocco progetti:
+parola di stato, riga scritta o calcolata, catena dei "dopo" e todo da cui partire (#3887).
 Sulla base b8eff39 ogni controllo deve fallire.
 """
 from __future__ import annotations
@@ -733,12 +734,49 @@ def test_t25(repo: Path) -> None:
     con_casa(repo, prova)
 
 
+def test_t26(repo: Path) -> None:
+    def prova(c: Casa) -> None:
+        c.cli("aggiungi", "Consegnare il capitolo", "--progetto", "libro", "--chi", "tu", "--scadenza", "1/10")  # 1
+        c.cli("aggiungi", "Scrivere la home", "--progetto", "sito", "--chi", "io")                               # 2
+        c.cli("aggiungi", "Pubblicare la home", "--progetto", "sito", "--chi", "io")                             # 3
+        c.cli("aggiungi", "Provare la home", "--progetto", "sito", "--chi", "io")                                # 4
+        c.cli("dopo", "4", "3")
+        c.cli("dopo", "3", "2")
+        c.cli("aggiungi", "Chiamare l'idraulico", "--progetto", "casa")                                          # 5
+        c.cli("ferma", "5", "aspetta il preventivo")
+        c.cli("aggiungi", "Scegliere la sigla", "--progetto", "radio", "--chi", "decidi")                        # 6
+        c.cli("aggiungi", "Archiviato", "--progetto", "vecchio")                                                 # 7
+        c.cli("fatto", "7")
+        c.cli("stato", "--progetto", "sito", "La home è scritta a metà")
+        v = c.json()
+        ps = v.get("progetti")
+        assert isinstance(ps, list), f"T26 la vista non porta il blocco progetti: {sorted(v)}"
+        nomi = [p["nome"] for p in ps]
+        assert nomi == ["libro", "radio", "casa", "sito"], f"T26 ordine o progetti chiusi: {nomi}"
+        per = {p["nome"]: p for p in ps}
+        assert [per[n]["parola"] for n in nomi] == ["a rischio", "chiede te", "fermo", "va"], \
+            f"T26 parole: {[(n, per[n]['parola']) for n in nomi]}"
+        assert per["sito"]["catena"] == [2, 3, 4], f"T26 catena: {per['sito']['catena']}"
+        assert per["libro"]["catena"] == [], f"T26 un todo slegato entra nella catena: {per['libro']['catena']}"
+        assert per["sito"]["riga"] == "La home è scritta a metà" and per["sito"]["calcolato"] is False, \
+            f"T26 la riga scritta: {per['sito']}"
+        assert per["libro"]["calcolato"] is True and "1 scaduto" in per["libro"]["riga"], \
+            f"T26 la riga calcolata: {per['libro']}"
+        assert per["sito"]["da_dove"] == {"id": 2, "motivo": "Sblocca #3"}, f"T26 da dove: {per['sito']['da_dove']}"
+        assert per["casa"]["da_dove"] is None, f"T26 un progetto tutto fermo ha un da dove: {per['casa']['da_dove']}"
+        solo = c.json("--progetto", "sito")["progetti"]
+        assert [p["nome"] for p in solo] == ["sito"], f"T26 --progetto non filtra i progetti: {solo}"
+        assert "uid" not in json.dumps(ps), "T26 l'uid interno esce nel blocco progetti"
+    con_casa(repo, prova)
+
+
 TESTS = {
     "T01": test_t01, "T02": test_t02, "T03": test_t03, "T04": test_t04, "T05": test_t05,
     "T06": test_t06, "T07": test_t07, "T08": test_t08, "T09": test_t09, "T10": test_t10,
     "T11": test_t11, "T12": test_t12, "T13": test_t13, "T14": test_t14, "T15": test_t15,
     "T16": test_t16, "T17": test_t17, "T18": test_t18, "T19": test_t19,
     "T21": test_t21, "T22": test_t22, "T23": test_t23, "T24": test_t24, "T25": test_t25,
+    "T26": test_t26,
 }
 
 

@@ -60,6 +60,30 @@ def prompt_per(progetto: str, todo: dict | None) -> str:
     return f"/inizio {progetto} -- #{todo['id']} {titolo}".rstrip()
 
 
+def todo_dalla_fonte(esterna: list, numero: str, titolo: str | None) -> tuple:
+    """(todo, errore) letti dalla fonte esterna con "mostra N --json". Il progetto passa poi per SLUG."""
+    if not re.fullmatch(r"\d{1,9}", str(numero)):
+        return None, f"il numero del todo deve essere un numero: {str(numero)[:20]!r}"
+    try:
+        r = subprocess.run([*esterna, "mostra", str(numero), "--json"], capture_output=True, timeout=30,
+                           env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+    except (OSError, subprocess.SubprocessError) as e:
+        return None, f"la fonte dei task di bin/fonte-task.local non risponde ({e})"
+    if r.returncode != 0:
+        prima = next((x.strip() for x in r.stderr.decode("utf-8", "replace").splitlines() if x.strip()), "")
+        return None, f"la fonte dei task non trova il todo #{numero}" + (f": {prima}" if prima else "")
+    try:
+        todo = json.loads(r.stdout.decode("utf-8"))
+    except ValueError:
+        return None, "la fonte dei task ha risposto a \"mostra --json\" in un formato che non leggo"
+    if not (isinstance(todo, dict) and isinstance(todo.get("titolo"), str) and isinstance(todo.get("progetto"), str)):
+        return None, "la fonte dei task non dice titolo e progetto del todo"
+    todo["id"] = str(numero)
+    if titolo is not None and todo["titolo"] != titolo:
+        return None, f"il todo #{numero} è cambiato: ora si chiama \"{todo['titolo']}\". Ricarica la lista."
+    return todo, None
+
+
 def cartella() -> Path:
     """La cartella dei progetti (PROJECTS_BASE): /inizio poi entra nel progetto."""
     base = contesto.base_progetti()
@@ -113,15 +137,24 @@ def main(argv: list) -> int:
 
     todo = None
     if numero is not None:
-        try:
-            todo_map, _ = ts.carica()
-            todo = ts.per_id(todo_map, numero)
-            # Dopo un merge lo stesso numero può indicare un altro todo: la sessione partirebbe sul
-            # lavoro sbagliato (#4106).
-            ts.controlla_atteso(todo, {"titolo": titolo} if titolo is not None else None)
-        except ts.ErroreTodo as e:
-            print(f"Errore: {e}", file=sys.stderr)
-            return 1
+        esterna = ts.comando_fonte()
+        if esterna:
+            # Con bin/fonte-task.local il todo sta nell'altro strumento: titolo e progetto si leggono
+            # con "mostra N --json" (docs/fonte-task.md). Il prompt lo compone sempre questo script.
+            todo, errore = todo_dalla_fonte(esterna, numero, titolo)
+            if errore:
+                print(f"Errore: {errore}", file=sys.stderr)
+                return 1
+        else:
+            try:
+                todo_map, _ = ts.carica()
+                todo = ts.per_id(todo_map, numero)
+                # Dopo un merge lo stesso numero può indicare un altro todo: la sessione partirebbe sul
+                # lavoro sbagliato (#4106).
+                ts.controlla_atteso(todo, {"titolo": titolo} if titolo is not None else None)
+            except ts.ErroreTodo as e:
+                print(f"Errore: {e}", file=sys.stderr)
+                return 1
         progetto = progetto or todo["progetto"]
     progetto = contesto.slug(progetto)
     if not SLUG.match(progetto):
