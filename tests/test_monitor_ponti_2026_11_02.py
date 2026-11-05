@@ -68,11 +68,19 @@ class Lab:
         return cod, {v["nome"]: v for v in json.loads(out)["ponti"]}, err
 
 
-def senza_gws(c):
-    """Un gws finto che non esiste: PATH punta a una cartella vuota davanti, ma gws vero può esserci."""
+def finto_gws(c, sorgente):
+    """Mette un gws finto davanti nel PATH. Su Windows shutil.which cerca solo i nomi con un'estensione
+    di PATHEXT: senza il gws.cmd accanto trova il gws.CMD vero della macchina (5/11/2026, #4790)."""
     finto = c / "path" / "gws"
-    finto.write_text("#!/bin/sh\nexit 127\n")
+    finto.write_text(sorgente, encoding="utf-8")
     finto.chmod(0o755)
+    if os.name == "nt":
+        (c / "path" / "gws.cmd").write_text(f'@"{sys.executable}" "%~dp0gws" %*\r\n', encoding="utf-8")
+
+
+def senza_gws(c):
+    """Un gws finto che esce 127: PATH punta a una cartella davanti, ma gws vero può esserci."""
+    finto_gws(c, "#!/usr/bin/env python3\nimport sys\nsys.exit(127)\n")
 
 
 def prova(lab: Lab) -> list:
@@ -88,9 +96,7 @@ def prova(lab: Lab) -> list:
         rossi.append(f"MP01 casa vuota: exit {cod}, voci {sorted(v)}, {err.strip()[:100]}")
 
     c = lab.casa("mp02")
-    g = c / "path" / "gws"
-    g.write_text(GWS_FINTO)
-    g.chmod(0o755)
+    finto_gws(c, GWS_FINTO)
     for nome in ("gws-lavoro", "gws-vecchio", "gws-lavoro 0000aaaa1111bbbb", "gws-lavoro.bak-20260915"):
         (c / "config" / nome).mkdir()
         (c / "config" / nome / "credentials.enc").write_text("x")
