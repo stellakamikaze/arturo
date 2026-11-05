@@ -26,6 +26,7 @@ from __future__ import annotations
 import json
 import os
 import plistlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -153,6 +154,9 @@ def osa(script: tuple, *argomenti: str, cosa: str, tempo: Tempo) -> str:
 def preferenze(tempo: Tempo) -> dict:
     """Le preferenze di Terminale come le vede cfprefsd adesso, non il file su disco."""
     testo = esegui(["defaults", "export", "com.apple.Terminal", "-"], "lettura delle preferenze di Terminale", tempo)
+    # Le scorciatoie di menu col percorso (NSUserKeyEquivalents, "\x1bShell\x1bNuovo pannello\x1bClaude") mettono
+    # l'ESC nell'XML, che plistlib rifiuta (5/11/2026). Qui nessuno legge quelle chiavi: il controllo diventa U+FFFD.
+    testo = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "\ufffd", testo)
     try:
         dati = plistlib.loads(testo.encode("utf-8"))
     except Exception as e:  # plistlib solleva tipi diversi a seconda del formato rotto

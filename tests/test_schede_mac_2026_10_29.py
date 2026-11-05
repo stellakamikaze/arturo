@@ -60,7 +60,11 @@ if nome == "defaults":
     prefs = dict(s["prefs"], **{"Default Window Settings": s["predefinito"], "Startup Window Settings": s["avvio"]})
     prefs["Window Settings"] = {k: {kk: (vv.encode() if kk.endswith("Color") else vv) for kk, vv in v.items()}
                                 for k, v in prefs.get("Window Settings", {}).items()}
-    sys.stdout.write(plistlib.dumps(prefs).decode())
+    xml = plistlib.dumps(prefs).decode()
+    if s.get("tasti_esc"):  # come il Terminale vero con le scorciatoie col percorso di menu: ESC crudo nell'XML
+        xml = xml.replace("<dict>", "<dict>\n\t<key>NSUserKeyEquivalents</key>\n\t<dict>\n\t\t<key>"
+                          "\x1bShell\x1bNuovo pannello\x1bClaude</key>\n\t\t<string>@t</string>\n\t</dict>", 1)
+    sys.stdout.write(xml)
     sys.exit(0)
 if nome == "open":
     file = Path(sys.argv[-1])
@@ -391,9 +395,20 @@ def test_sm12(repo: Path) -> None:
             assert r.returncode == 0, f"SM12 lo script {nome} non compila: {r.stderr.strip()[:200]}"
 
 
+def test_sm13(repo: Path) -> None:
+    def prova(m):
+        s = m.stato()
+        s["tasti_esc"] = True
+        m.scrivi_stato(s)
+        r = m.esegui("applica", "--una-volta")
+        assert r.returncode == 0 and m.segno().get("fatto") is True and "illeggibili" not in r.stdout, \
+            f"SM13 l'ESC delle scorciatoie di menu rende illeggibili le preferenze: {r.stdout[-300:]!r} {m.segno()}"
+    con(repo, "SM13", prova)
+
+
 TESTS = {"SM01": test_sm01, "SM02": test_sm02, "SM03": test_sm03, "SM04": test_sm04, "SM05": test_sm05,
          "SM06": test_sm06, "SM07": test_sm07, "SM08": test_sm08, "SM09": test_sm09,
-         "SM10": test_sm10, "SM11": test_sm11, "SM12": test_sm12}
+         "SM10": test_sm10, "SM11": test_sm11, "SM12": test_sm12, "SM13": test_sm13}
 
 
 def main() -> int:
@@ -403,7 +418,7 @@ def main() -> int:
     args = parser.parse_args()
     repo = args.repo.resolve()
     if os.name == "nt":
-        dichiara("SM01-SM12", "il profilo del Terminale c'è solo su macOS, e i finti sono script senza estensione")
+        dichiara("SM01-SM13", "il profilo del Terminale c'è solo su macOS, e i finti sono script senza estensione")
         return 0
     if args.baseline_ref:
         rossi, altro = [], []
