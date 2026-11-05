@@ -386,6 +386,11 @@ def fai_copia(a: dict) -> Path:
         copia_voce(orsa / rel, dentro / rel)
         if not uguali(orsa / rel, dentro / rel):
             raise Ferma(f"la copia di sicurezza di {rel} non torna: non tocco niente")
+    # Il codice che fa la migrazione, per tornare indietro anche quando bin/ è già fuori da ~/.claude e il
+    # rilascio di partenza non aveva ancora migra.py.
+    for parte in ("bin", "hooks"):
+        shutil.copytree(str(radice_arturo() / parte), str(cartella / "codice" / parte), symlinks=True,
+                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     registro["passi"].append("copia")
     scrivi_json(cartella / "migra.json", registro)
     return cartella
@@ -465,7 +470,9 @@ def togli_arturo(a: dict, cartella: Path) -> None:
         if not esiste(dentro / rel):
             raise Ferma(f"manca la copia di {rel}: non lo tolgo")
         togli(voce)
-    cartelle = sorted({str(Path(f).parent) for f in registro["albero"] if "/" in f}, key=lambda c: -c.count("/"))
+    # Ogni cartella sopra un file di Arturo, dalla più profonda: skills/arturo ha solo sottocartelle.
+    cartelle = sorted({str(antenato) for f in registro["albero"] for antenato in Path(f).parents if str(antenato) != "."},
+                      key=lambda c: -c.count("/"))
     for rel in cartelle:
         c = orsa / rel
         cache = c / "__pycache__"
@@ -529,7 +536,7 @@ def cmd_migra() -> int:
         indietro(cartella)
         return uscita
     print(f"MIGRATO: Arturo è un plugin, e ~/.claude tiene solo i tuoi file. Apri Claude Code come sempre.\n"
-          f"Per tornare al clone, con Claude Code chiuso: python3 {corto(cartella / 'copia' / 'bin' / 'arturo')} migra indietro")
+          f"Per tornare al clone, con Claude Code chiuso: python3 {corto(cartella / 'codice' / 'bin' / 'arturo')} migra indietro")
     return 0
 
 

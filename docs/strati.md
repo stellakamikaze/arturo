@@ -135,7 +135,8 @@ arturo migra --prova   rapporto: PRONTA o FERMA coi motivi, cosa cambia, cosa re
                        → ~/.claude/data/migra/rapporto-<data>.txt, da mandare con /segnala
 arturo migra           1 controlli del rapporto, e nessuna sessione di Claude Code aperta
                        2 copia di sicurezza: ~/.claude-arturo-clone-<data>/copia (.git, file di Arturo,
-                         settings.json, file dei plugin, ancora, file di blocco) + migra.json coi passi
+                         settings.json, file dei plugin, ancora, file di blocco) + codice (bin e hooks
+                         di chi migra, da cui si lancia indietro) + migra.json coi passi
                        3 personale.py separa --senza-commit: /inizio cambiato → personale/inizio.md
                        4 catalogo → ancora = chiave del clone → tag firmato e sha (verifica_catalogo)
                          → claude plugin install → la copia torna col MANIFEST firmato?

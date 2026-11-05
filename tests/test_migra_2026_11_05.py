@@ -15,7 +15,7 @@ MG03 la migrazione: copia di sicurezza con .git e i file di Arturo; /inizio dell
      hook di Arturo, con l'hook, il permesso e la scelta della persona, la barra dal puntatore e lo stile
      del plugin; `impostazioni stato` del plugin dice "già applicate"; i file di Arturo e .git fuori da
      ~/.claude, i file della persona al loro posto;
-MG04 `migra indietro`, lanciato dalla copia di sicurezza come dice il messaggio: ~/.claude torna identica
+MG04 `migra indietro`, lanciato dal codice nella copia di sicurezza come dice il messaggio: ~/.claude torna identica
      a prima, file per file, .git compreso, e il plugin non c'è più;
 MG05 il catalogo indica un tag non firmato: uscita 3 (possibile compromissione), il plugin non si
      installa, e ~/.claude torna identica da sola;
@@ -263,7 +263,8 @@ def prova(repo: Path, solo: str | None = None) -> list:
         personale = (b.orsa / "personale" / "inizio.md")
         controlli = {
             "uscita 0": p.returncode == 0,
-            "copia con .git e bin/arturo": (copia / "copia" / ".git").is_dir() and (copia / "copia" / "bin" / "arturo").is_file(),
+            "copia con .git e bin/arturo": (copia / "copia" / ".git").is_dir() and (copia / "copia" / "bin" / "arturo").is_file()
+            and (copia / "codice" / "bin" / "migra.py").is_file() and "codice/bin/arturo migra indietro" in p.stdout,
             "personale/inizio.md": personale.is_file() and RIGA_MIA.strip() in personale.read_text(encoding="utf-8"),
             "plugin allo sha": voce.get("gitCommitSha") == sha,
             "hook di Arturo tolti": di_arturo == [HOOK_MIO],
@@ -277,6 +278,7 @@ def prova(repo: Path, solo: str | None = None) -> list:
             "ancora": (b.orsa / "arturo" / "rilasci.allowed_signers").is_file(),
             "file di Arturo fuori": not (b.orsa / ".git").exists() and not (b.orsa / "bin").exists()
             and not (b.orsa / "commands").exists() and not (b.orsa / "hooks" / "block-dangerous.py").exists(),
+            "nessuna cartella di Arturo vuota": not (b.orsa / "skills" / "arturo").exists() and not (b.orsa / "tools").exists(),
             "file miei al posto": all((b.orsa / f).is_file() for f in ("CLAUDE.md", "data/todo/registro.jsonl",
                                                                        "skills/mia/SKILL.md", "hooks/mio-hook.sh")),
         }
@@ -289,7 +291,7 @@ def prova(repo: Path, solo: str | None = None) -> list:
             return rossi
 
         # MG04 indietro, dalla copia di sicurezza
-        p = b.arturo("migra", "indietro", codice=copia / "copia" / "bin" / "arturo")
+        p = b.arturo("migra", "indietro", codice=copia / "codice" / "bin" / "arturo")
         dopo = impronta(b.orsa)
         if p.returncode != 0 or dopo != prima or b.installato():
             rossi.append(f"MG04 indietro: rc {p.returncode}, {differenze(prima, dopo)}, plugin {bool(b.installato())}, "
@@ -339,6 +341,7 @@ VELENI = [
     ("MG02", "bin/migra.py", '    if a["sessioni"]:\n', '    if False:\n'),
     ("MG03", "bin/migra.py", '    for rel in [".git", *registro["albero"]]:\n        voce = orsa / rel\n',
      '    for rel in []:\n        voce = orsa / rel\n'),
+    ("MG03", "bin/migra.py", "for antenato in Path(f).parents if", "for antenato in [Path(f).parent] if"),
     ("MG04", "bin/migra.py", '        copia_voce(dentro / ".git", orsa / ".git")\n', '        pass\n'),
     ("MG05", "bin/migra.py", "    if rc != 0:\n        raise Ferma(f\"il catalogo non indica",
      "    if rc not in (0, 3):\n        raise Ferma(f\"il catalogo non indica"),
