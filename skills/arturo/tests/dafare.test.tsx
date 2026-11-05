@@ -341,8 +341,9 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(allaCli.length).toBeGreaterThan(1)
     for (const a of allaCli) {
       expect(a[0]).toBe('python')
-      // La radice del mod è un percorso assoluto che finisce con la sua cartella.
-      expect(a[1]!).toMatch(/^(\/|[A-Za-z]:).*skills\/arturo\/\.\.\/\.\.\/bin\/arturo$/)
+      // La radice del mod è un percorso assoluto che finisce con la sua cartella. Su Windows Claude Code
+      // la dà con la barra rovesciata (C:\...\skills\arturo), e Python accetta i separatori misti (#4790).
+      expect(a[1]!).toMatch(/^(\/|[A-Za-z]:).*skills[\\/]arturo\/\.\.\/\.\.\/bin\/arturo$/)
     }
   })
 

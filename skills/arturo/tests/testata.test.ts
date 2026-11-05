@@ -125,15 +125,18 @@ function finto(on: Registra, file: Record<string, string>, scritti: Record<strin
   // Il mod arturo ha sei parti: qui si prova solo questa (ARTURO_PARTI, hooks/parti.ts).
   on('env.get', { name: 'ARTURO_PARTI' }, () => ({ value: 'testata' }))
   mock.env(on, { HOME: '/casa' })
+  // Su Windows i percorsi arrivano con la barra rovesciata e il disco: lettura e scrittura si
+  // normalizzano allo stesso modo (5/11/2026, #4790).
+  const normale = (p: string) => p.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '')
   on('fs.read', ($, e) => {
-    const percorso = e.path.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '')
+    const percorso = normale(e.path)
     if (percorso.endsWith('/ROADMAP.md')) return { value: 'Aggiornata il 2026-11-03\n' }
     const t = file[percorso]
     if (t === undefined) throw new Error(`ENOENT ${e.path}`)
     return { value: t }
   })
   on('fs.write', ($, e) => {
-    scritti[e.path] = e.text
+    scritti[normale(e.path)] = e.text
     return { value: undefined }
   })
   on('process.run', ($, e) => ({ value: { exitCode: e.argv.includes('describe') ? 0 : 1, stdout: 'v0.2.0-8-gc247fed\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
