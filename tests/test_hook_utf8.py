@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""U01-U07: gli hook leggono in UTF-8 il JSON di Claude Code anche su Windows (16/10/2026).
+"""U01-U08: gli hook leggono e scrivono in UTF-8 anche su Windows (16/10/2026).
 
 Su Windows la pipe di un processo Python è in cp1252. Claude Code scrive il JSON in UTF-8: le
 lettere accentate arrivavano storpiate e un byte che cp1252 non conosce (0x9D, dentro «”») faceva
@@ -14,6 +14,8 @@ U05 memory-retrieve trova una nota con le parole accentate del messaggio.
 U06 il dispatcher passa alle guardie il comando intero: un rm con «”» e un invio con \"→\"
 chiedono conferma.
 U07 nessun hook si rompe all'avvio con un input minimo, e forma_comando riconosce \"git status\" come git puro.
+U08 ogni hook .sh di settings.json che lancia python3 esporta PYTHONIOENCODING=utf-8 prima del primo python3
+    (5/11/2026: la riga DERIVA di session-start arrivava a Claude in cp1252).
 
 Sulla base b0ec3ac ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -164,8 +166,29 @@ def test_u07(repo: Path) -> None:
         assert not rotti, "U07 hook che si rompono all'avvio: " + "; ".join(rotti)
 
 
+def test_u08(repo: Path) -> None:
+    # Il 5/11/2026 su Windows la riga DERIVA di session-start arrivava a Claude con "pu\xf2": deriva.py
+    # scriveva in cp1252 nella pipe dell'hook. Il rimedio sta nel .sh, così copre ogni python3 che lancia.
+    comandi = json.dumps(json.loads((repo / "settings.json").read_text(encoding="utf-8")).get("hooks", {}))
+    nomi = sorted(set(re.findall(r"hooks/([\w.-]+\.sh)", comandi)))
+    assert "session-start.sh" in nomi, f"U08 il banco non trova più gli hook .sh in settings.json: {nomi}"
+    rotti = []
+    for n in nomi:
+        f = repo / "hooks" / n
+        if not f.is_file():
+            continue
+        righe = [r.split("#", 1)[0] for r in f.read_text(encoding="utf-8").splitlines()]
+        primo = next((i for i, r in enumerate(righe) if re.search(r"\bpython3\b", r)), None)
+        if primo is None:
+            continue
+        export = next((i for i, r in enumerate(righe) if re.match(r"\s*export\s+PYTHONIOENCODING=utf-8\b", r)), None)
+        if export is None or export > primo:
+            rotti.append(f"{n}:{primo + 1}")
+    assert not rotti, f"U08 hook .sh che lanciano python3 senza PYTHONIOENCODING=utf-8 (cp1252 su Windows): {', '.join(rotti)}"
+
+
 TESTS = {"U01": test_u01, "U02": test_u02, "U03": test_u03, "U04": test_u04, "U05": test_u05, "U06": test_u06,
-         "U07": test_u07}
+         "U07": test_u07, "U08": test_u08}
 
 
 def main() -> int:

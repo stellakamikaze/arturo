@@ -4,6 +4,10 @@
 # Un solo file per la config dell'autore e per Arturo (20/10/2026): telemetria e aggiunte
 # personali tacciono dove mancano bin/telemetria.py e personale/.
 
+# Il prompt arriva in UTF-8 e Claude Code legge l'uscita in UTF-8: su Windows python3 userebbe cp1252
+# su stdin e stdout (5/11/2026, #4790; stesso rimedio di bash-dispatcher.sh).
+export PYTHONIOENCODING=utf-8
+
 # Forza locale italiano (fallback a default se non disponibile).
 if locale -a 2>/dev/null | grep -qi '^it_IT\.UTF-8$'; then
   LC_TIME=it_IT.UTF-8 date '+Ora corrente: %Y-%m-%d %H:%M %Z (%A)'

@@ -2,6 +2,10 @@
 # Hook Avvio Sessione - Caricamento Memoria
 # Carica il contesto del progetto all'avvio della sessione
 
+# Claude Code legge l'uscita dell'hook in UTF-8. Su Windows python3 scrive in cp1252 quando lo stdout è
+# una pipe: la riga DERIVA arrivava con "pu\xf2" al posto di "può" (5/11/2026, #4790).
+export PYTHONIOENCODING=utf-8
+
 PROJECT_ROOT="${PWD}"
 PROJECT_NAME="$(basename "$PROJECT_ROOT")"   # lo legge personale/session-start.sh, eseguito in fondo
 

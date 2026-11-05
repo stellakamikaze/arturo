@@ -2,6 +2,9 @@
 # Hook Fine Sessione - Promemoria
 # Mostra reminder prima della chiusura
 
+# Su Windows python3 userebbe cp1252 su stdin e stdout: ogni hook .sh che lancia Python forza UTF-8 (U08).
+export PYTHONIOENCODING=utf-8
+
 PROJECT_ROOT="${PWD}"
 PROJECT_NAME="$(basename "$PROJECT_ROOT")"
 
