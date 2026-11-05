@@ -1,0 +1,392 @@
+---
+name: inizio
+description: >-
+  Apre la sessione su un progetto: sync della config (con --tutti anche dei progetti), contesto in una
+  chiamata con arturo contesto (git, handoff recenti, todo con chi agisce, scadenze), le altre sessioni
+  sullo stesso progetto, poi la ripartenza per filone con ogni todo marcato per chi agisce. Le parole
+  dopo il nome, o dopo " -- ", sono il compito e la sessione parte subito lì; una frase senza nome di
+  progetto è tutta compito. Progetto non trovato: propone i nomi simili e non crea niente senza un sì.
+  La chiusura è /fine. Con " -- --rotazione <compito>" (lo scrive solo il mod rotazione) riparte in una
+  riga sul passo dopo.
+argument-hint: "<nome-progetto> [--tutti] [<compito>]"
+disable-model-invocation: true
+---
+
+# Inizio sessione
+
+Argomenti: **$ARGUMENTS**. Le parole dopo il nome del progetto, o dopo " -- ", sono il compito della
+sessione (vedi "Con un compito" in fondo); una frase senza nome di progetto è tutta compito. `--tutti` è un flag: aggiorna anche tutti i progetti (FASE 0) e non entra nel nome. Senza nome
+usa la cartella in cui sei. Con `--tutti` e senza nome ti fermi dopo la FASE 0.
+
+## FASE -1: Onboarding speciali
+
+Se `$ARGUMENTS` è `gws`: NON è un progetto. Leggi `${CLAUDE_PLUGIN_ROOT}/docs/onboarding/gws.md`.
+Proponi prima la strada semplice, i connettori di claude.ai (sezione 0): l'utente li
+attiva su claude.ai, riapre Claude Code e tu controlli con `/mcp` che ci siano. Passa
+alla Google Workspace CLI (installazione → progetti GCP → config dir → login → alias →
+verifica) solo se l'utente vuole più account, i comandi `gws` nel terminale, o se i
+connettori non sono disponibili per lui. Esegui i comandi verificabili, chiedi
+all'utente quelli interattivi (login browser). Alla fine esegui la checklist della
+strada scelta. Poi FERMATI: le fasi sotto non si applicano.
+
+## FASE 0: Sync Config
+
+`/inizio` non applica mai gli aggiornamenti di Arturo: li controlla e li segnala. I rilasci
+firmati si installano da soli alla chiusura della sessione, gli altri li applica `/aggiorna` dopo
+il sì dell'utente (Impegno 2 del README). Se `origin` è un repository
+suo (vedi `/setup` FASE 7), `/inizio` sincronizza quello: sono le sue macchine, non codice di
+altri.
+
+```bash
+ORIGIN_URL=$(git -C ~/.claude remote get-url origin 2>/dev/null || echo "")
+case "$ORIGIN_URL" in
+  *github.com[:/]stellakamikaze/arturo|*github.com[:/]stellakamikaze/arturo.git) ORIGIN_ARTURO=1 ;;
+  *) ORIGIN_ARTURO=0 ;;
+esac
+export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes"
+if [ "$ORIGIN_ARTURO" = 1 ] || [ -z "$ORIGIN_URL" ]; then
+  git -C ~/.claude fetch --quiet --tags origin main 2>&1 || echo "Config sync: controllo aggiornamenti non riuscito (rete?)"
+else
+  # Gli archivi della persona non fermano il pull, come in bin/aggiorna-applica.sh (segnalazione n. 14).
+  MODIFICATI=$(git -C ~/.claude status --porcelain --untracked-files=no -- . ':(exclude)data/handoffs' ':(exclude)data/todo' ':(exclude)data/memory' | cut -c4-)
+  if [ -n "$MODIFICATI" ]; then
+    echo "Config sync: non ho scaricato dal tuo repository. Questi file della config hanno modifiche non ancora salvate con un commit:"
+    printf '%s\n' "$MODIFICATI" | sed 's/^/  /'
+    echo "Config sync: non ho toccato niente. Le salva /fine, poi il prossimo /inizio scarica."
+  elif ! git -C ~/.claude fetch --quiet origin main 2>&1; then
+    echo "Config sync: non riesco a scaricare dal tuo repository (rete?). Non ho toccato niente."
+  else
+    # Il rebase gira in una copia di prova: ~/.claude cambia solo con un risultato integro.
+    APPLICA=$(mktemp)
+    cp ${CLAUDE_PLUGIN_ROOT}/bin/aggiorna-applica.sh "$APPLICA" 2>/dev/null
+    if [ ! -s "$APPLICA" ]; then
+      echo "Config sync: manca bin/aggiorna-applica.sh, non ho scaricato. Non ho toccato niente."
+    else
+      SYNC_OUTPUT=$(bash "$APPLICA" ~/.claude sync origin/main 2>&1)
+      case $? in
+        0) printf '%s\n' "$SYNC_OUTPUT" | grep -q '^APPLICATO' && echo "Config sync: scaricate le modifiche delle tue altre macchine." ;;
+        1) echo "Config sync: il sync dal tuo repository non è riuscito. La config è com'era prima."
+           printf '%s\n' "$SYNC_OUTPUT" ;;
+        *) echo "Config sync: il sync dal tuo repository non è riuscito, e NON sono riuscito a riportare la config a prima."
+           printf '%s\n' "$SYNC_OUTPUT" ;;
+      esac
+    fi
+    rm -f "$APPLICA"
+  fi
+fi
+git -C ~/.claude remote get-url upstream >/dev/null 2>&1 && git -C ~/.claude fetch --quiet --tags upstream main 2>&1
+# Conta solo l'ultimo tag firmato (bin/aggiornamenti.py firmato): i commit di main dopo il tag non si applicano mai.
+TAG=$(python3 ${CLAUDE_PLUGIN_ROOT}/bin/aggiornamenti.py firmato 2>/dev/null); FIRMA=$?
+if [ "$FIRMA" = 0 ]; then
+  BEHIND=$(git -C ~/.claude rev-list --count "HEAD..$TAG" 2>/dev/null || echo 0)
+  [ "${BEHIND:-0}" -gt 0 ] && echo "ARTURO: c'è la versione $TAG — i rilasci firmati si installano da soli alla chiusura, o subito con /aggiorna"
+elif [ "$FIRMA" = 3 ]; then
+  echo "ARTURO: possibile compromissione: non aggiornare, segnala a chi mantiene Arturo (l'ultimo rilascio non ha una firma valida)"
+elif [ "$FIRMA" = 4 ]; then
+  echo "ARTURO: questo computer non sa controllare la firma dei rilasci (servono git 2.34 e OpenSSH 8.2): Arturo non si aggiorna finché non li aggiorni. Non è un problema di sicurezza"
+fi
+python3 ${CLAUDE_PLUGIN_ROOT}/hooks/controlla-config.py --quiet || exit 1
+```
+
+Se l'ultima riga stampa `CONFIG ROTTA`, fermati: spiega all'utente il problema in parole
+semplici e proponi il comando che la riga suggerisce. Non lavorare su una config rotta: le
+guardie potrebbero essere spente.
+
+Se il sync dice `CONFLITTO`, due tue macchine hanno cambiato le stesse righe della config. La
+sua `~/.claude` è com'era: il conflitto aspetta nella copia di prova stampata. Proponigli di
+risolverlo subito come in `/aggiorna`, sezione "Risolvere un conflitto" (con un rebase). Finché
+la copia di prova aspetta, il sync non riparte, e l'avvio della sessione lo ricorda. Se il sync
+risponde che una copia di prova aspetta da prima, vale lo stesso: si conclude, oppure col suo sì si
+scarta come in `/aggiorna`.
+
+Se compare "non ho scaricato dal tuo repository", la config è com'era: diglielo in una riga e
+nomina i file. Sono modifiche sue (anche `/setup` ne scrive in `settings.json`) che `/fine`
+salverà con un commit. Il sync riparte al prossimo `/inizio`.
+
+Se compare "possibile compromissione", l'ultimo rilascio di Arturo non ha una firma valida: diglielo
+con quelle parole e non proporre `/aggiorna`, che non lo applica. Proponi `/segnala`, oppure la
+segnalazione privata di `SECURITY.md`.
+
+**Con `--tutti`** aggiorna anche ogni progetto della cartella dei progetti (`PROJECTS_BASE`):
+per ognuno mette da parte le modifiche non salvate, scarica, e le rimette al loro posto.
+
+```bash
+bash ${CLAUDE_PLUGIN_ROOT}/bin/sync-progetti.sh; echo "rc=$?"
+```
+
+Con `rc=1` almeno un progetto ha un pull fallito, uno stash in conflitto o file in conflitto:
+riporta quale e cosa dice la riga `ERRORE`, e non toccarlo. Lo sistemi con `/inizio <quel progetto>`.
+Un progetto senza remote è solo locale: non è un errore.
+
+## FASE 1: Contesto in una chiamata
+
+`$ARGUMENTS` può contenere `--tutti` e il compito della sessione, dopo il nome o dopo " -- ": lo
+script trova il progetto nelle prime parole e il nome resta pulito. Senza nome usa la cartella in cui sei.
+
+```bash
+# Tutto il contesto in un processo solo: tra due blocchi bash le variabili si perdono.
+# Gli argomenti passano su stdin, fra le due righe ARGOMENTI e mai nella riga di comando: il compito
+# può contenere virgolette, # e $(...), e la shell li taglierebbe o li eseguirebbe.
+python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo contesto --stdin <<'ARGOMENTI'; echo "rc=$?"
+$ARGUMENTS
+ARGOMENTI
+```
+
+Se c'è un compito, lo script lo stampa nella riga `compito:`. Se stampa `NOME: interpretato "X" come Y`,
+ha scelto l'unico progetto che somiglia al nome: scrivilo nella prima riga della ripartenza, così la
+persona corregge subito se intendeva un altro progetto. `FILONI NOTI` elenca i filoni di tutti gli
+handoff del progetto.
+
+Lo script legge e non scrive niente. Calcola lo slug del progetto come `/fine`
+(`basename | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g'`), così
+ritrova gli handoff e i todo della cartella. Stampa, in quest'ordine:
+- `PROGETTO` e la riga `cartella:` (il percorso, oppure `nessuna`);
+- la riga `quota:` con la finestra di 5 ore e quella della settimana, come le ha viste la barra in
+  basso; manca se la barra non ha ancora un dato valido;
+- `GIT`: branch, modifiche non salvate, CONFLITTI DI MERGE, i commit arrivati dopo l'ultimo handoff;
+  e i RAMI CON COMMIT che il branch corrente non ha, col worktree se ne hanno uno (un ramo coi
+  commit già arrivati con un cherry-pick o un rebase non compare);
+- `RIPARTENZA`: la Ripartenza e il prossimo passo degli handoff degli ultimi 14 giorni, col filone
+  quando c'è, e il percorso dell'ultimo handoff da leggere per intero;
+- i todo aperti del progetto divisi per chi agisce (TOCCA A TE, DECIDI TU POI FACCIO IO, FACCIO
+  IO, FERMO), i FACCIO IO FERMI DA PIÙ DI 3 GIORNI (nessun passo vero: una nota non conta), i todo
+  chiusi dopo l'ultimo handoff, le SCADENZE dei prossimi 7 giorni anche fuori dal progetto, il todo DA
+  DOVE PARTIRE e gli avvisi.
+
+Con `rc=0` entra nella cartella della riga `cartella:` con `cd "<cartella>"`: la sessione e
+`/fine` lavorano lì. Con `cartella: nessuna` il progetto vive solo negli handoff o nei todo:
+resta dove sei.
+
+Se dopo il `cd` Claude Code risponde "Shell cwd was reset", la cartella sta fuori dalle cartelle
+della sessione e ogni comando torna alla cartella di partenza. Di' alla persona in una riga di
+scrivere `/add-dir <cartella>`, o di riaprire Claude Code da lì. Fino ad allora ogni comando, anche
+in `/fine`, comincia con `cd "<cartella>" &&`: senza, `arturo todo --progetto .` e lo slug di
+`/fine` prendono la cartella di partenza (segnalazione n. 37, 30/10/2026).
+
+- **Pull.** Se il progetto ha un remote, aggiornalo senza riscrivere la storia:
+
+  ```bash
+  git remote 2>/dev/null | grep -q . && { GIT_TERMINAL_PROMPT=0 git pull --ff-only 2>&1 || echo "Pull non riuscito: il progetto e il remote hanno storie diverse. Non ho toccato niente."; }
+  ```
+
+  Se il pull non riesce, dillo alla persona: niente rebase in automatico. Se `GIT` mostra CONFLITTI
+  DI MERGE, risolvili PRIMA di tutto il resto. I commit arrivati vanno nel «Da allora».
+- **Rami non riportati.** Un ramo coi commit di una sessione (nome `<slug>-<aaaammgg-hhmm>`, o con
+  un worktree) è lavoro che `/fine` non ha riportato nella cartella principale: va in cima alla
+  ripartenza, col numero dei commit. Proponi di riportarlo con `git merge --ff-only <ramo>`; se non
+  basta e la cartella principale non ha modifiche, `git merge --no-edit <ramo>`, con `git merge
+  --abort` al primo conflitto. Un conflitto lo dici alla persona e non lo risolvi da solo. Gli altri
+  rami (prove, vecchie versioni) restano una riga col conteggio (segnalazione n. 20, 27/10/2026).
+- **Altre sessioni.** Lancia `ListAgents`. Un'altra sessione di Claude Code sullo stesso progetto va
+  in cima alla ripartenza, con quello che sta facendo.
+- **Terza sessione aperta.** Il limite delle 5 ore è uno solo per tutte le sessioni dell'account, anche
+  su altri computer. Dal 15/10 al 4/11 è scattato 9 volte, sempre con tre sessioni o più, e ogni volta
+  ha fermato più progetti insieme (proposta n. 54, 4/11/2026). Conta nell'elenco di `ListAgents` le
+  sessioni di qualunque progetto che stanno lavorando (busy) e quelle aperte in un terminale di questo
+  computer (interactive, idle). Le sessioni offline non contano, e nemmeno quelle remote o cloud ferme
+  (idle): non consumano. Se le sessioni contate sono 2 o più, la ripartenza apre con una riga: "Ci sono
+  già 2 sessioni aperte (<nome>, <nome>). Il limite delle 5 ore vale per tutte: con questa terza arriva
+  prima." Se la FASE 1 stampa la riga `quota:`, aggiungi la percentuale e l'orario delle 5 ore. È solo un
+  avviso: il lavoro parte lo stesso, e chiudere una sessione lo decide la persona. In rotazione l'avviso
+  non compare: la sessione era già aperta.
+- **Worktree, solo se c'è quella sessione.** Due sessioni nella stessa cartella si pestano i piedi:
+  test, build e commit vedono anche il lavoro dell'altra. Prima di qualsiasi modifica entra con
+  `EnterWorktree` (nome `<slug>-<aaaammgg-hhmm>`). Parte dall'ultimo commit locale perché
+  `settings.json` ha `worktree.baseRef: "head"`: la descrizione del tool dice `fresh`, cioè la copia
+  online, ma quello è il default senza la chiave. Appena dentro, confronta `git rev-parse HEAD` con
+  l'HEAD della cartella principale. Se sono diversi, esci con `ExitWorktree`, crea la copia con
+  `git worktree add -b <nome> .claude/worktrees/<nome> HEAD` e rientra con `EnterWorktree` e `path`
+  (segnalazione n. 45, 3/11/2026). Prima aggiungi
+  `.claude/worktrees/` e `node_modules` a `<cartella>/.git/info/exclude`, se mancano: quel file vale per
+  tutti i worktree del repository, resta sulla macchina e non tocca il `.gitignore` del progetto. La ripartenza dice
+  che la sessione lavora in una copia a parte, e `/fine` riporta il lavoro nella cartella principale.
+  Nel worktree la guardia di Claude Code rifiuta i comandi che non sa leggere: scrivi un comando per
+  chiamata, senza cicli, variabili, `$(...)`, heredoc (`python3 - <<'E'`) né `cd ... &&`. Un ciclo,
+  un heredoc o una copia di più file va in uno script nello scratchpad, lanciato con `python3 <file>`
+  o `bash <file>` (segnalazione n. 15, 26/10/2026). I file nuovi nascono nel worktree, anche quelli
+  ignorati da git, e `/fine` li riporta nella cartella principale (segnalazione n. 13, 26/10/2026).
+  Sessione unica: resta nella cartella principale.
+
+## FASE 2: Progetto non trovato
+
+Con `rc=2` lo script stampa `NON TROVATO` e i progetti con un nome simile: spesso è un refuso.
+Proponi i candidati e aspetta la scelta. Se l'uscita ha la riga `compito:`, la persona ha scritto cosa
+vuole fare senza il nome del progetto: proponi il progetto più vicino al compito, oppure di lavorare qui
+senza progetto, e col sì parti sul compito senza farglielo riscrivere. Se quel lavoro riprende nei giorni
+dopo, `/fine` lascia un handoff breve col nome del lavoro, e `/inizio <nome>` lo ritrova (#4071). Per una vista di cosa c'è da fare ovunque leggi
+`~/.claude/data/handoffs/INDEX.md` (una riga per progetto con stato e prossimo passo) e proponi
+da lì. Con `rc=3` il nome non è valido: chiedi quello giusto.
+
+Se la persona dice che è un progetto nuovo, chiedi in una frase cosa è. Non creare cartelle e non
+lanciare `git init` senza un sì. Col sì crei il progetto in `PROJECTS_BASE`, poi rilanci la FASE 1
+col nome nuovo:
+
+```bash
+BASE="${PROJECTS_BASE:-$HOME/Documents/ClaudeCode}"
+case "$BASE" in "~"*) BASE="$HOME${BASE#\~}" ;; esac   # la tilde fra virgolette non si espande (segnalazione n. 19)
+NOME="nome-del-progetto"   # minuscole e trattini, come lo slug della FASE 1
+mkdir -p "$BASE/$NOME" && cd "$BASE/$NOME" && git init -q -b main
+printf '.DS_Store\nnode_modules/\n*.log\n.env\n' > .gitignore
+```
+
+Scrivi un `CLAUDE.md` breve: cosa è il progetto in due righe, e una sezione "Materiali" con i
+percorsi dei file che stanno fuori dal repo (all'inizio può essere vuota). Poi il primo commit:
+`git add .gitignore CLAUDE.md && git commit -q -m "inizio del progetto"`. Gli handoff non entrano
+mai nel repo del progetto.
+
+## FASE 3: Carica il contesto
+
+Leggi in ordine, se esistono:
+1. il `CLAUDE.md` del progetto;
+2. l'ultimo handoff per intero: il percorso è nella riga "da leggere per intero" della FASE 1.
+   Se la FASE 1 segnala un handoff nella cartella del progetto più recente dello store (lasciato
+   da una versione vecchia di `/fine`), leggi quello.
+
+Per farti un'idea dello stack (un segnale per il tuo giudizio, non una regola):
+
+```bash
+[ -f "package.json" ] && echo "HAS_PKG=true"
+[ -f "prisma/schema.prisma" ] && echo "HAS_PRISMA=true"
+[ -d "docs" ] && echo "HAS_DOCS=true"
+ls next.config.* 2>/dev/null && echo "HAS_NEXT=true"
+```
+
+## FASE 4: Carica i Todo con Cross-Reference
+
+I todo stanno nell'archivio `~/.claude/data/todo/eventi.jsonl`, scritto da `/fine` e dalle
+richieste della persona ("ricordami di…"). È la fonte di verità: la tabella `## Task Pendenti`
+dell'handoff è solo la fotografia dell'ultima sessione. La lista del progetto l'hai già dalla
+FASE 1: questo blocco aggiunge gli avvisi di rinumerazione, i todo di "generale", il git log per
+il confronto e il pannello.
+
+```bash
+# Il progetto dei todo è quello della cartella (FASE 1 ci è entrata), calcolato dalla CLI come per
+# "ricordami di…": nessuna variabile di un blocco precedente. Gli avvisi ("Attenzione: …") restano
+# visibili: dopo il pull un todo può aver cambiato numero.
+python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo todo progetto
+python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo todo --progetto .
+# I todo di "generale": quelli presi fuori da un progetto (nella HOME, in /setup, fuori da git).
+# Se la prima riga ha stampato "generale", questa ripete la stessa lista: leggila una volta sola.
+# Niente sostituzione di comando per saltarla: in un worktree la guardia di Claude Code rifiuta il blocco.
+python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo todo --progetto generale
+git log --oneline -20 2>/dev/null
+# Il pannello /dafare c'è? I comandi di un mod non compaiono fra quelli che vedi.
+claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "arturo@skills-dir"]; print("mod caricato" if v and v[0].get("enabled") else "mod assente")' 2>/dev/null || echo "mod assente"
+```
+
+1. Per ogni todo aperto del progetto, verifica se un commit recente lo ha già completato. Se sì,
+   chiudilo con `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo todo fatto ID --titolo-atteso="titolo"` e dillo
+   alla persona nel "Da allora". I todo di "generale" non si confrontano con il git log del progetto.
+2. Un item della tabella `## Task Pendenti` senza ID e senza todo (handoff di una versione
+   precedente) diventa un todo con `arturo todo aggiungi`. Un todo già chiuso non si ricrea.
+3. Non creare task di sessione (`TaskCreate`) all'apertura: si crea solo quello che la persona
+   sceglie di riprendere.
+
+## FASE 5: La ripartenza
+
+La persona guarda la lista e sceglie da dove partire. La ripartenza è markdown semplice: niente
+blocco di codice, niente riquadri. Un buon risultato:
+
+---
+**Il libro** · branch main · ultimo handoff 14/10 alle 18:40
+
+**Da allora.** Il 14/10 il capitolo tre è stato riscritto e mancano solo le note dell'editor. Oggi
+sono arrivati 3 commit dall'altro computer, e nessun handoff li racconta. Il todo dell'indice è già
+fatto da uno di quei commit: l'ho chiuso.
+
+**Capitolo tre**
+1. Mandare la bozza all'editor · #5 · Preparo io, poi tu: invio a terzi
+2. Rileggere il capitolo con le note · #4 · Fermo: aspetta il 5
+
+**Copertina**
+3. Scegliere fra le due proposte della grafica · #7 · Decidi tu
+   Mi serve sapere quale delle due ti convince, poi preparo i file per la tipografia.
+4. Preparare i file per la tipografia · #8 · Faccio io
+
+**Fuori dai progetti**
+5. Rinnovare l'abbonamento al dominio, scade venerdì · #2 · Tocca a te: pagamento
+
+**Da dove partirei:** #5. Sblocca la rilettura, e la rilettura chiude il capitolo. Scrivimi "vai" e
+preparo la mail.
+
+Rispondi **tutto il delegabile**, il nome di un filone (**copertina**) o i numeri (**3 4**). Per
+correggere: **8 a te**, **7 scarta**.
+
+---
+
+Perché è fatta così:
+- **Prima le avvertenze.** Se la lettura della FASE 4 stampa righe «Attenzione:», riportale in cima,
+  una riga ciascuna, con parole tue: «#1 adesso è #2, dopo il merge con l'altro computer». Un'altra
+  sessione sullo stesso progetto (FASE 1) sta lì accanto.
+- **Da allora** (2-4 frasi) unisce la Ripartenza degli handoff e cosa è cambiato dopo: i commit
+  arrivati, i todo chiusi (anche quelli chiusi ora dal confronto col git log), le scadenze arrivate,
+  un handoff di un'altra macchina. Chiude con la considerazione che ne segue.
+- **I todo stanno per filone**, numerati, con l'ID. I filoni vengono dalle righe «filone» della
+  RIPARTENZA, coi nomi che la persona riconosce. Senza filoni, un gruppo solo col nome del progetto.
+  Entrano tutti i todo aperti del progetto. I todo di «generale» chiudono la lista, nel gruppo «Fuori
+  dai progetti». Le scadenze passate salgono in cima al loro filone.
+- **Ogni todo ha il verbo all'infinito** e una riga sotto solo se serve: a cosa serve, o cosa manca.
+- **La marca viene da chi agisce.** FACCIO IO dà «Faccio io». DECIDI TU, POI FACCIO IO dà «Decidi
+  tu». TOCCA A TE dà «Tocca a te: <perché>», col perché del todo quando c'è. Se Claude prepara una parte
+  prima del gesto della persona (una bozza, una pagina aperta), vale «Preparo io, poi tu: <perché>».
+  FERMO dà «Fermo: aspetta X», con X dal motivo del todo.
+- **Un Chi che sembra sbagliato si stima.** Un todo segnato «tocca a te» che Claude può fare da solo,
+  senza password, pagamenti, invii a terzi o decisioni della persona, porta la marca «Faccio io
+  (stima)». Nell'archivio cambia solo dopo il suo sì.
+- **Bozze in attesa** in cima al loro filone, con la data: oltre tre giorni proponi di riscriverle.
+- **Todo di Claude fermi.** Se la FASE 1 stampa FACCIO IO FERMI, la lista li segna con «fermo da N g».
+  Uno che chiede le mani della persona (una prova a banco, un gesto, un accesso) era assegnato male:
+  marcalo «Tocca a te (stima)» e proponi la correzione «N a te» (proposta n. 52, 4/11/2026).
+- **Da dove partirei** è uno solo, col motivo: il todo di DA DOVE PARTIRE della FASE 1, o uno migliore.
+- **Il pannello.** [solo se il controllo della FASE 4 stampa «mod caricato»] dopo la lista scrivi
+  «Per chiuderli o spostarli con un tasto: /dafare».
+- **Skill del progetto.** Se una skill serve davvero a questo progetto ora (per lo stack, l'handoff o
+  i todo), nominala in una riga. Altrimenti niente.
+- **La riga di sistema compare solo se qualcosa non va** (sync, pull, conflitti, config): sale in
+  cima se blocca il lavoro.
+- **Il messaggio chiude senza menu**, con le parole di risposta in grassetto. La persona risponde a
+  parole.
+
+## FASE 6: La risposta della persona
+
+- **Correzioni.** "8 a te" o "7 scarta" vanno subito nell'archivio, e riporti la riga di conferma:
+  `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo todo modifica ID --chi tu|decidi|io` oppure
+  `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo todo scarta ID "motivo"`, col motivo nelle sue parole. Non spostare un
+  todo da tu a io o decidi senza un suo sì.
+- **"tutto il delegabile".** Esegui in sessione, uno dopo l'altro, i todo "Faccio io" reversibili,
+  stime comprese dopo il suo sì. Chiudi ognuno solo dopo aver controllato il risultato vero (il test
+  che passa, il file che c'è, la pagina che si apre): poi `arturo todo fatto ID`. Di un "Preparo io,
+  poi tu" fai la tua parte e il todo resta aperto. Davanti a un'azione con effetti che non si annullano
+  (un invio, un pagamento, una cancellazione) ti fermi e chiedi.
+- **Un filone o dei numeri.** Parti da quei todo. Il task di sessione (`TaskCreate`) nasce solo per
+  i todo scelti: due numerazioni insieme confondono i numeri.
+- **"qualcosa non torna".** Se la persona dice che Arturo o il progetto non funzionano come si
+  aspetta, apri con Read `${CLAUDE_PLUGIN_ROOT}/skills/diagnosi/SKILL.md` e seguilo.
+
+## Con un compito
+
+Con la riga `compito:` nell'uscita la ripartenza esce breve: il titolo, "Da allora" in una o due
+frasi, una riga per filone col numero di todo e quanti sono "Faccio io". Al posto di "Da dove
+partirei" scrivi "Oggi: <compito>", con l'ID del todo che lo copre se esiste. Se la FASE 1 stampa
+FACCIO IO FERMI, aggiungi una riga: "Todo di Claude fermi da più di 3 giorni: #12 (7 g), #13 (5 g).
+Dopo il compito ne chiudo uno breve, o chiedo se toglierlo." A compito finito mantieni la promessa:
+riprendine uno, o chiedi alla persona se scartarlo o passarlo a lei. Poi carica
+`prompt-master` col tool `Skill` sul compito, mostra PROMPT e BRIEF come li prescrive la skill e parti
+senza aspettare una scelta.
+
+## Modo rotazione
+
+Il contesto stampa `rotazione: sì` quando la sessione l'ha aperta il mod `rotazione`, dopo un
+`/fine --rotazione`: la persona non ha scritto niente e il lavoro continua da solo.
+- FASE 0 e FASE 1 restano intere: sync, contesto, altre sessioni, worktree.
+- La ripartenza è una riga: "Ripreso <progetto> · <step N+1 di M, se c'è un piano> · <compito>". Niente
+  elenco dei todo e niente "Da allora", salvo un fatto che cambia il lavoro (commit di un'altra sessione,
+  conflitto, scadenza arrivata): quello va in una seconda riga. I FACCIO IO FERMI della FASE 1 stanno
+  anche loro in una riga sola, con ID e giorni: la rotazione è il caso in cui il compito nuovo li scavalca.
+  L'avviso della terza sessione aperta non compare: la rotazione non apre una sessione in più.
+- Se l'handoff ha la riga `- Piano: <percorso>`, leggi il piano e prendi lo step dopo quello fatto.
+- `prompt-master` si carica come in ogni sessione nuova, ma il brief è una riga, "Brief: <compito>": il
+  brief pieno l'ha avuto lo step prima. Poi parti subito.
+- A compito chiuso vale di nuovo `/fine --rotazione`, e il giro riparte se il passo dopo è di Claude.
+
+Esegui ora la FASE 0, poi la FASE 1 su $ARGUMENTS.

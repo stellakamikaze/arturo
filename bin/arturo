@@ -1,0 +1,566 @@
+#!/usr/bin/env python3
+"""arturo: i comandi di Arturo fuori da Claude Code.
+
+L'elenco dei comandi nasce dal dizionario COMANDI, in fondo al file: da li' vengono
+questo aiuto, lo smistamento e il messaggio per un comando sconosciuto.
+
+Solo libreria standard, Python 3.8 o successivo. I todo stanno in
+~/.claude/data/: nessun aggiornamento li tocca.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as dt
+import importlib
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+from radici import radice_orsa  # noqa: E402
+
+sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
+import todo_store as ts  # noqa: E402
+
+for flusso in (sys.stdout, sys.stderr):
+    try:
+        flusso.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
+
+VERBI = (
+    ("(niente)", "i todo aperti, divisi per chi agisce"),
+    ("oggi [--giorni N]", "per oggi, scaduti e in scadenza nei prossimi N giorni (3)"),
+    ("progetti", "quanti todo ha ogni progetto"),
+    ("progetto", "il progetto della cartella in cui sei: quello che usa aggiungi"),
+    ("mostra ID", "un todo con note e storia"),
+    ('aggiungi "titolo" [--dopo N]', "un todo nuovo; con --dopo aspetta il todo N (anche N,M)"),
+    ("modifica ID", "cambia uno o più campi"),
+    ("inizia ID", "lo segna in corso"),
+    ("fatto ID", "lo chiude"),
+    ('ferma ID "motivo"', "lo mette in FERMO"),
+    ("riprendi ID", "lo riapre (da FERMO, fatto o scartato)"),
+    ('scarta ID "motivo"', "lo chiude senza farlo"),
+    ('deciso ID "testo"', "registra la tua scelta: il todo passa a Claude"),
+    ('nota ID "testo"', "aggiunge una nota"),
+    ("dopo ID ALTRO [--togli]", "ID aspetta che ALTRO sia chiuso"),
+    ('stato ["riga"]', "a che punto è il progetto: senza riga la legge, con la riga la scrive"),
+    ("su ID / giu ID", "lo avvicina o lo allontana: più avanti, settimana, oggi"),
+    ("ripristina ID STATO [motivo]", "rimette stato e motivo di prima (annulla un passo)"),
+)
+
+AIUTO = 'Comandi dei todo (scrivi "arturo todo" davanti a ognuno):\n\n' + "\n".join(
+    f"  {sintassi:<29} {cosa}" for sintassi, cosa in VERBI) + """
+
+Campi di aggiungi e modifica:
+  --progetto NOME     di default il progetto della cartella in cui sei ("." vale lo stesso)
+  --scadenza DATA     2026-10-10, 10/10, oggi, domani, venerdì ("" la toglie)
+  --chi               tu | decidi | io   (tu: lo fai tu · decidi: decidi tu, poi fa Claude · io: lo fa Claude)
+  --perche TESTO      perché tocca a te (es. "invio a terzi", "password")
+  --priorita          alta | media | bassa
+  --quando            oggi | settimana | più avanti
+  --note TESTO        (solo aggiungi) una prima nota
+
+Uno stato di due parole va anche senza virgolette: ripristina 4 da fare, ripristina 4 in corso.
+Il motivo esatto, anche se comincia con un trattino: ripristina 4 --motivo=TESTO fermo.
+
+Letture con --json: il formato che leggono il pannello e la pagina web. --progetto . legge il
+progetto della cartella in cui sei.
+
+Chi indica un todo con un numero letto prima (un handoff, il pannello) può dire cosa si aspetta:
+--titolo-atteso=TESTO e --atteso=CAMPO=VALORE (stato, motivo, chi, quando…). Se il todo è cambiato,
+per esempio dopo un merge che lo ha rinumerato, il comando non scrive niente ed esce con 2.
+--annullo vale per modifica, su, giu, inizia, fatto, riprendi, ferma e scarta: segna il passo
+come annullo di uno precedente. Lo usano pannello e pagina web. ripristina lo mette da solo.
+"""
+
+
+def progetto_corrente() -> str:
+    """Il progetto della cartella: la cartella git in cui sei. "generale" fuori da git, nella HOME e
+    dentro ~/.claude, dove /setup e le sessioni di config non sono il lavoro di un progetto."""
+    try:
+        cima = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=5)
+        radice = cima.stdout.strip() if cima.returncode == 0 else ""
+    except (OSError, subprocess.SubprocessError):
+        radice = ""
+    nome = Path(radice).name if radice else ""
+    config = radice_orsa()
+    try:
+        dentro_config = bool(radice) and Path(radice).resolve() == config.resolve()
+    except OSError:
+        dentro_config = False
+    if not nome or Path.cwd() == Path.home() or dentro_config:
+        return "generale"
+    # Lo stesso slug di /inizio e /fine.
+    return re.sub(r"^-+|-+$", "", re.sub(r"[^a-z0-9]+", "-", nome.lower())) or "generale"
+
+
+def riga(t: dict, con_progetto: bool = True) -> list:
+    pezzi = [f"#{t['id']}", t["titolo"]]
+    dettagli = [x for x in (t["progetto"] if con_progetto else "", t["priorita"] if t["priorita"] != "media" else "",
+                            t["scadenza_testo"] or "", t["quando"] if t["quando"] == "oggi" and t["giorni"] != 0 else "")
+                if x]
+    sotto = []
+    if t["perche"]:
+        sotto.append(f"perché: {t['perche']}")
+    if t["motivo"] and t["stato"] == "fermo":
+        sotto.append(f"fermo: {t['motivo']}")
+    if t["attende"]:
+        sotto.append("aspetta " + ", ".join(f"#{n}" for n in t["attende"]))
+    if t["stato"] == "in corso":
+        sotto.append("in corso")
+    righe = [f"  {pezzi[0]:>5}  {pezzi[1]}" + (f"   · {' · '.join(dettagli)}" if dettagli else "")]
+    if sotto:
+        righe.append(f"         {' · '.join(sotto)}")
+    return righe
+
+
+def stampa_vista(v: dict) -> None:
+    vuoto = True
+    for g in v["gruppi"]:
+        if not g["todo"]:
+            continue
+        vuoto = False
+        print(g["titolo"])
+        for t in g["todo"]:
+            print("\n".join(riga(t, con_progetto=not v["progetto"])))
+        print()
+    if vuoto:
+        print("Nessun todo aperto." + ("" if v["chiusi"] else ' Aggiungine uno con: arturo todo aggiungi "cosa fare"'))
+    if v["chiusi"]:
+        print(f"Chiusi: {v['chiusi']}" + ("" if v.get("chiusi_todo") else " (li vedi con --tutti)"))
+        for t in v.get("chiusi_todo", []):
+            print(f"  {'#' + str(t['id']):>5}  {t['titolo']}   · {t['stato']}")
+
+
+def locale(istante: str) -> str:
+    """Un timestamp del registro (UTC) nell'ora di chi legge."""
+    try:
+        return dt.datetime.fromisoformat(istante).astimezone().strftime("%Y-%m-%d %H:%M")
+    except ValueError:
+        return istante[:16]
+
+
+def avvisa(avvisi: list) -> None:
+    for a in avvisi:
+        print(f"Attenzione: {ts.pulisci(a)}", file=sys.stderr)
+
+
+def campi_da(args) -> dict:
+    return {k: getattr(args, k) for k in ts.CAMPI if getattr(args, k, None) is not None}
+
+
+class ErroreUso(Exception):
+    """Un comando o un'opzione che la CLI non conosce: il messaggio è già in italiano."""
+
+
+# I messaggi di argparse sono in inglese: qui diventano italiani. L'ordine conta.
+TRADUZIONI = (
+    (r"argument cmd: invalid choice: '([^']*)'.*", r'comando sconosciuto: "\1"'),
+    (r"argument (\S+): invalid choice: '([^']*)'.*", r'valore "\2" non valido per \1'),
+    (r"unrecognized arguments: (.*)", r"opzione o argomento in più: \1"),
+    (r"the following arguments are required: (.*)", r"manca un argomento: \1"),
+    (r"argument (\S+): expected one argument", r"\1 vuole un valore"),
+    (r"argument (\S+): invalid int value: '([^']*)'", r'\1 vuole un numero, non "\2"'),
+)
+
+
+class Parser(argparse.ArgumentParser):
+    """argparse con i messaggi di errore in italiano. I sotto-comandi ereditano questa classe."""
+
+    def error(self, message):
+        for schema, testo in TRADUZIONI:
+            if re.fullmatch(schema, message, re.S):
+                raise ErroreUso(re.sub(schema, testo, message, flags=re.S))
+        raise ErroreUso(f"comando o opzione non valida ({message})")
+
+
+def parser() -> argparse.ArgumentParser:
+    p = Parser(prog="arturo todo", add_help=False)
+    sub = p.add_subparsers(dest="cmd")
+
+    def comando(nome, *alias):
+        c = sub.add_parser(nome, aliases=list(alias), add_help=False)
+        return c
+
+    for nome in ("lista", "oggi", "progetti"):
+        c = comando(nome)
+        c.add_argument("--json", action="store_true")
+        c.add_argument("--progetto")
+        c.add_argument("--tutti", action="store_true")
+        c.add_argument("--giorni", type=int, default=3)
+    c = comando("mostra")
+    c.add_argument("id")
+    c.add_argument("--json", action="store_true")
+    for nome in ("aggiungi", "modifica"):
+        c = comando(nome)
+        if nome == "aggiungi":
+            c.add_argument("titolo")
+            c.add_argument("--note")
+            c.add_argument("--dopo", default="")
+        else:
+            c.add_argument("id")
+            c.add_argument("--titolo")
+        for campo in ("progetto", "scadenza", "chi", "perche", "priorita", "quando"):
+            c.add_argument(f"--{campo}")
+        c.add_argument("--json", action="store_true")
+        if nome == "modifica":
+            c.add_argument("--annullo", action="store_true")
+    for nome in ("fatto", "riprendi", "inizia", "su", "giu"):
+        c = comando(nome)
+        c.add_argument("id")
+        c.add_argument("--annullo", action="store_true")
+    for nome in ("ferma", "scarta"):
+        c = comando(nome)
+        c.add_argument("id")
+        c.add_argument("motivo", nargs="?", default="")
+        c.add_argument("--annullo", action="store_true")
+    c = comando("ripristina")
+    c.add_argument("id")
+    c.add_argument("--motivo", default=None)
+    c.add_argument("resto", nargs="+", metavar="STATO")  # STATO [motivo]: lo divide stato_e_motivo()
+    c = comando("deciso")
+    c.add_argument("id")
+    c.add_argument("testo")
+    c = comando("nota")
+    c.add_argument("id")
+    c.add_argument("testo")
+    c = comando("dopo")
+    c.add_argument("id")
+    c.add_argument("altro")
+    c.add_argument("--togli", action="store_true")
+    c = comando("stato")
+    c.add_argument("riga", nargs="?", default=None)
+    c.add_argument("--progetto")
+    c.add_argument("--json", action="store_true")
+    for nome in ("aiuto", "help", "progetto"):
+        comando(nome)
+    for nome, c in sub.choices.items():
+        if nome in SCRIVONO:
+            c.add_argument("--titolo-atteso", default=None)
+            c.add_argument("--atteso", action="append", default=[])
+    return p
+
+
+# I verbi che scrivono su un todo indicato col numero.
+SCRIVONO = ("modifica", "fatto", "riprendi", "inizia", "su", "giu", "ferma", "scarta", "ripristina", "deciso",
+            "nota", "dopo")
+
+
+def motivo_esatto(argv: list) -> tuple:
+    """Toglie `--motivo=TESTO` da argv prima di argparse e ritorna (argv, TESTO o None).
+
+    Fino a Python 3.11 argparse toglie un "--" anche dal valore di `--motivo=--`: il pannello
+    annulla con questa forma, e il motivo deve tornare identico su ogni Python. Vale solo prima di
+    un "--" separato, perché dopo ci sono solo argomenti.
+    """
+    if not argv or argv[0] != "ripristina":
+        return argv, None
+    fine = argv.index("--") if "--" in argv else len(argv)
+    for i, x in enumerate(argv[:fine]):
+        if x.startswith("--motivo="):
+            return argv[:i] + argv[i + 1:], x[len("--motivo="):]
+    return argv, None
+
+
+def atteso_esatto(argv: list) -> tuple:
+    """Toglie `--titolo-atteso=TESTO` e `--atteso=CAMPO=VALORE` da argv prima di argparse.
+
+    Come per `--motivo=`: il valore torna identico anche se comincia con un trattino o è "--".
+    Vale solo prima di un "--" separato. Ritorna (argv, {campo: valore})."""
+    fine = argv.index("--") if "--" in argv else len(argv)
+    atteso, resto = {}, []
+    for x in argv[:fine]:
+        if x.startswith("--titolo-atteso="):
+            atteso["titolo"] = x[len("--titolo-atteso="):]
+        elif x.startswith("--atteso=") and "=" in x[len("--atteso="):]:
+            campo, valore = x[len("--atteso="):].split("=", 1)
+            atteso[campo] = valore
+        else:
+            resto.append(x)
+    return resto + argv[fine:], atteso
+
+
+def atteso_da(args, esatti: dict) -> dict:
+    """L'atteso di argparse (forma con lo spazio) più quello esatto, che vince."""
+    atteso = {}
+    if getattr(args, "titolo_atteso", None) is not None:
+        atteso["titolo"] = args.titolo_atteso
+    for voce in getattr(args, "atteso", None) or []:
+        if "=" not in voce:
+            raise ts.ErroreTodo(f'--atteso vuole CAMPO=VALORE, non "{voce}"')
+        campo, valore = voce.split("=", 1)
+        atteso[campo] = valore
+    atteso.update(esatti)
+    return atteso
+
+
+def stato_e_motivo(resto: list, motivo=None) -> tuple:
+    """`ripristina 4 da fare` senza virgolette: le prime due parole, se formano uno stato, sono lo stato.
+
+    Con `--motivo` il motivo è già deciso e tutte le parole di resto sono lo stato."""
+    if motivo is not None:
+        return " ".join(resto), motivo
+    if len(resto) >= 2:
+        try:
+            return ts.scelta(f"{resto[0]} {resto[1]}", ts.STATI, "stato"), " ".join(resto[2:])
+        except ts.ErroreTodo:
+            pass
+    return resto[0], " ".join(resto[1:])
+
+
+def todo(argv: list) -> int:
+    # Con ~/.claude/arturo/fonte-task.local i task stanno in un altro strumento: stessi argomenti, stesso codice d'uscita.
+    esterna = ts.comando_fonte()
+    if esterna:
+        try:
+            # UTF-8 anche per una fonte in Python su Windows, dove la pipe è in cp1252
+            return subprocess.run([*esterna, *argv], timeout=120,
+                                  env={**os.environ, "PYTHONIOENCODING": "utf-8"}).returncode
+        except (OSError, subprocess.SubprocessError) as e:
+            print(f"Errore: la fonte dei task di fonte-task.local non risponde ({e}).", file=sys.stderr)
+            return 3
+    if not argv or argv[0].startswith("--"):
+        argv = ["lista", *argv]
+    if argv[0] in ("-h", "--help"):
+        argv = ["aiuto"]
+    argv, motivo = motivo_esatto(argv)
+    argv, esatti = atteso_esatto(argv)
+    try:
+        args = parser().parse_args(argv)
+    except ErroreUso as errore:
+        testo = str(errore)
+        if testo.startswith("manca un argomento") and any(a.startswith("-") and not a.startswith("--") for a in argv[1:]):
+            testo += (". Se il testo comincia con un trattino, metti -- prima del testo: "
+                      'arturo todo aggiungi -- "-20% sul preventivo"')
+        print(f"Errore: {testo}\n\n{AIUTO}", file=sys.stderr)
+        return 2
+    cmd = args.cmd
+
+    if cmd in ("aiuto", "help"):
+        print(AIUTO)
+        return 0
+
+    if cmd == "progetto":
+        print(progetto_corrente())
+        return 0
+
+    if getattr(args, "progetto", None) == ".":
+        args.progetto = progetto_corrente()
+
+    todo_map, avvisi = ts.carica()
+    atteso = atteso_da(args, esatti) if cmd in SCRIVONO else {}
+    if cmd in SCRIVONO:
+        # Un numero letto prima di un merge può indicare un altro todo: chi scrive lo deve vedere.
+        avvisa(ts.rinumerati(todo_map, args.id) + ([] if cmd != "dopo" else ts.rinumerati(todo_map, args.altro)))
+
+    if cmd == "lista":
+        v = ts.vista(todo_map, avvisi, progetto=args.progetto, tutti=args.tutti)
+        if args.json:
+            print(json.dumps(v, ensure_ascii=False, indent=2))
+        else:
+            avvisa(avvisi)
+            stampa_vista(v)
+        return 0
+
+    if cmd == "oggi":
+        v = ts.vista(todo_map, avvisi, progetto=args.progetto)
+        scelti = [t for g in v["gruppi"] for t in g["todo"]
+                  if t["quando"] == "oggi" or (t["giorni"] is not None and t["giorni"] <= args.giorni)]
+        scelti.sort(key=lambda t: (t["giorni"] if t["giorni"] is not None else 10 ** 6,
+                                   ts.PRIORITA.index(t["priorita"]), t["id"]))
+        if args.json:
+            print(json.dumps({"versione": ts.VERSIONE_VISTA, "oggi": v["oggi"], "giorni": args.giorni, "todo": scelti,
+                              "avvisi": avvisi}, ensure_ascii=False, indent=2))
+            return 0
+        avvisa(avvisi)
+        if not scelti:
+            print(f"Niente per oggi e niente in scadenza nei prossimi {args.giorni} giorni.")
+        for t in scelti:
+            print("\n".join(riga(t)))
+        return 0
+
+    if cmd == "progetti":
+        conti = ts.progetti(todo_map)
+        if args.json:
+            print(json.dumps({"versione": ts.VERSIONE_VISTA, "progetti": conti, "stati": ts.stati(), "avvisi": avvisi},
+                             ensure_ascii=False, indent=2))
+            return 0
+        avvisa(avvisi)
+        if not conti:
+            print("Nessun todo.")
+        for nome in sorted(conti):
+            c = conti[nome]
+            print(f"  {nome:<24} {c['aperti']:>3} aperti   {c['scaduti']:>2} scaduti   {c['fermi']:>2} fermi   {c['chiusi']:>3} chiusi")
+        return 0
+
+    if cmd == "mostra":
+        t = ts.per_id(todo_map, args.id)
+        e = ts.esporta(t, todo_map)
+        if args.json:
+            e["storia"] = t["storia"]
+            print(json.dumps(e, ensure_ascii=False, indent=2))
+            return 0
+        avvisa(avvisi)
+        print(f"#{e['id']}  {e['titolo']}")
+        for chiave, valore in (("progetto", e["progetto"]), ("stato", e["stato"]), ("chi", e["chi"]),
+                               ("perché", e["perche"]), ("motivo", e["motivo"]), ("priorità", e["priorita"]),
+                               ("quando", e["quando"]),
+                               ("scadenza", f"{e['scadenza']} ({e['scadenza_testo']})" if e["scadenza"] else None),
+                               ("aspetta", ", ".join(f"#{n}" for n in e["attende"]) or None)):
+            if valore:
+                print(f"  {chiave:<9} {valore}")
+        if e["note"]:
+            print("  note")
+            for n in t["note"]:
+                print(f"    {locale(n['ts'])}  {n['testo']}")
+        print("  storia")
+        for s in t["storia"]:
+            dettaglio = ", ".join(f"{k}={ts.pulisci(v)}" for k, v in s["dati"].items()
+                                  if k != "annullo" and (k != "titolo" or s["tipo"] != "crea"))
+            segno = "  (annullo)" if s["dati"].get("annullo") else ""
+            print(f"    {locale(s['ts'])}  {s['tipo']}" + (f"  {dettaglio}" if dettaglio else "") + segno)
+        return 0
+
+    if cmd == "aggiungi":
+        campi = campi_da(args)
+        campi.setdefault("progetto", progetto_corrente())
+        t = ts.aggiungi(campi, dopo=[n for n in re.split(r"[,\s]+", args.dopo) if n])
+        if args.note:
+            t = ts.registra(t["id"], "nota", {"testo": args.note})
+        print(json.dumps(ts.esporta(t, ts.carica()[0]), ensure_ascii=False) if args.json
+              else f"Aggiunto #{t['id']}: {t['titolo']} ({t['progetto']})")
+        return 0
+
+    if cmd == "modifica":
+        t = ts.registra(args.id, "modifica", dict(campi_da(args), annullo=args.annullo), atteso=atteso)
+        print(json.dumps(ts.esporta(t, ts.carica()[0]), ensure_ascii=False) if args.json
+              else f"Modificato #{t['id']}: {t['titolo']}")
+        return 0
+
+    if cmd in ts.AZIONI_STATO:
+        stato, verbo = ts.AZIONI_STATO[cmd]
+        t = ts.registra(args.id, "stato", {"stato": stato, "motivo": getattr(args, "motivo", ""),
+                                           "annullo": args.annullo}, atteso=atteso)
+        print(f"{verbo} #{t['id']}: {t['titolo']}")
+        return 0
+
+    if cmd == "ripristina":
+        t = ts.ripristina(args.id, *stato_e_motivo(args.resto, args.motivo if motivo is None else motivo), atteso=atteso)
+        print(f"Ripristinato #{t['id']}: {t['stato']}" + (f" ({t['motivo']})" if t["motivo"] else ""))
+        return 0
+
+    if cmd == "deciso":
+        t = ts.deciso(args.id, args.testo, atteso=atteso)
+        print(f"Decisione registrata su #{t['id']}: " + ("resta in FERMO, quando riparte lo fa Claude"
+                                                         if t["stato"] == "fermo" else "ora lo fa Claude"))
+        return 0
+
+    if cmd == "nota":
+        t = ts.registra(args.id, "nota", {"testo": args.testo}, atteso=atteso)
+        print(f"Nota aggiunta a #{t['id']}")
+        return 0
+
+    if cmd == "dopo":
+        t = ts.registra(args.id, "dopo", {"id": args.altro, "togli": args.togli}, atteso=atteso)
+        print(f"#{t['id']} " + ("non aspetta più" if args.togli else "aspetta") + f" #{args.altro.lstrip('#')}")
+        return 0
+
+    if cmd == "stato":
+        nome = args.progetto or progetto_corrente()
+        if args.riga is None:
+            letto = ts.stati().get(nome)
+            if args.json:
+                print(json.dumps({"progetto": nome, **(letto or {"riga": None, "ts": None})}, ensure_ascii=False))
+            else:
+                print(f"{nome}: {letto['riga']} ({locale(letto['ts'])})" if letto
+                      else f"{nome}: nessuna riga di stato. Scrivila con: arturo todo stato \"a che punto è\"")
+            return 0
+        letto = ts.scrivi_stato(nome, args.riga)
+        print(json.dumps({"progetto": nome, **letto}, ensure_ascii=False) if args.json
+              else f"Stato di {nome}: {letto['riga']}")
+        return 0
+
+    if cmd in ("su", "giu"):
+        t = ts.per_id(todo_map, args.id)
+        ts.controlla_atteso(t, atteso)
+        passo = 1 if cmd == "su" else -1
+        scala = ("più avanti", "settimana", "oggi")
+        nuovo = scala[max(0, min(2, scala.index(t["quando"]) + passo))]
+        t = ts.registra(args.id, "modifica", {"quando": nuovo, "annullo": args.annullo}, atteso=atteso)
+        print(f"#{t['id']} ora è: {nuovo}")
+        return 0
+
+    print(AIUTO, file=sys.stderr)
+    return 2
+
+
+def web(argv: list) -> int:
+    """La pagina dei todo nel browser. Il modulo si carica solo qui: "arturo todo" non lo legge mai.
+
+    Il progetto di partenza viene dalla cartella in cui parte il comando, come per aggiungi.
+    """
+    import arturo_web
+    return arturo_web.main(argv, progetto=progetto_corrente())
+
+
+# Un comando = una riga: nome -> (funzione con argv, oppure nome di un modulo in bin/ con main(argv);
+# riga di aiuto). Aiuto, smistamento e messaggio per un comando sconosciuto nascono da qui.
+COMANDI = {
+    "todo": (todo, 'i tuoi todo: "arturo todo aiuto" mostra tutti i comandi'),
+    "web": (web, "la pagina dei todo nel browser, solo su questo computer"),
+    "schede": ("schede_mac", 'nel Terminale di macOS la scheda mostra solo il progetto: stato, applica, ripristina'),
+    "sessione": ("sessione", "una finestra nuova del terminale con Claude già partito su un progetto o un todo (/dafare, tasto o)"),
+    "segnala": ("segnala", "un problema, un'idea o un'integrazione per chi mantiene Arturo"),
+    "telemetria": ("telemetria", "gli eventi d'uso che Arturo manda, con un id casuale: stato, mostra, spegni, accendi, invia"),
+    "correzione": ("correzioni", "le correzioni della persona, scritte una volta e valide per tutta la sessione: aggiungi, elenco, togli"),
+    "personale": ("personale", "le tue aggiunte ai comandi e agli hook di sessione di Arturo, in file che gli aggiornamenti non toccano"),
+    "memoria": ("memoria", "la memoria facoltativa (Melchior), spenta di default: stato, accendi, spegni, cerca, controlla"),
+    "contesto": ("contesto", "il contesto di un progetto in una chiamata: git, handoff, todo, scadenze (/inizio)"),
+    "diagnosi": ("diagnosi", "percorsi spariti e file sparsi di un progetto, in sola lettura (/diagnosi)"),
+    "impostazioni": ("impostazioni", "col plugin, le voci di Arturo in settings.json (permessi, barra, stile): stato, applica"),
+    "aggiornamenti": ("aggiornamenti", "Arturo si aggiorna da solo alla chiusura, solo coi rilasci firmati: stato, controlla, applica, manuali, automatici"),
+}
+
+
+def uso() -> str:
+    larga = max(len(nome) for nome in COMANDI)
+    righe = [f"    arturo {nome:<{larga}} {aiuto}" for nome, (_, aiuto) in COMANDI.items()]
+    return "arturo: i comandi di Arturo fuori da Claude Code.\n\n" + "\n".join(righe) + (
+        "\n\nSolo libreria standard, Python 3.8 o successivo. I todo stanno in ~/.claude/data/: nessun\n"
+        "aggiornamento li tocca.")
+
+
+def sconosciuto(nome: str) -> str:
+    nomi = [f'"arturo {n}"' for n in COMANDI]
+    elenco = nomi[0] if len(nomi) == 1 else ", ".join(nomi[:-1]) + " e " + nomi[-1]
+    return f"Comando sconosciuto: {nome}. " + (f"Per ora c'è solo {elenco}." if len(nomi) == 1
+                                               else f"I comandi sono {elenco}.")
+
+
+def main(argv: list) -> int:
+    if not argv or argv[0] in ("-h", "--help", "aiuto", "help"):
+        print(uso())
+        return 0
+    voce = COMANDI.get(argv[0])
+    if voce is None:
+        print(sconosciuto(argv[0]), file=sys.stderr)
+        return 2
+    esegui = voce[0]
+    if isinstance(esegui, str):
+        esegui = importlib.import_module(esegui).main
+    try:
+        return esegui(argv[1:])
+    except ts.ErroreTodo as errore:
+        print(f"Errore: {errore}", file=sys.stderr)
+        return 2
+
+
+__doc__ = uso()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
