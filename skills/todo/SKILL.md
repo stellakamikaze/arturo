@@ -117,8 +117,10 @@ quando annullano un clic.
 ## Il pannello /dafare
 
 La persona può vedere e muovere i suoi todo anche senza di te: scrive `/dafare` e si apre un
-pannello dentro Claude Code. Sceglie una riga con il numero e preme una lettera: `f` fatto, `s`
-ferma, `r` riprendi, `c` chi lo fa, `a` avvicina, `l` allontana, `u` annulla. Il pannello scrive
+pannello dentro Claude Code. Parte da Adesso (i progetti che chiedono la persona o sono a rischio,
+poi le scadute); `v` passa alla lista dei progetti, e il numero apre un progetto. Dentro un progetto
+sceglie una riga con il numero e preme una lettera: `f` fatto, `s` ferma, `r` riprendi, `c` chi lo
+fa, `a` avvicina, `l` allontana, `u` annulla. Il pannello scrive
 con la stessa CLI che usi tu, quindi quello che vedi con `arturo todo` è sempre aggiornato.
 
 - I comandi di un mod non compaiono fra quelli che vedi: per sapere se il pannello c'è, lancia

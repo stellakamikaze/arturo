@@ -77,6 +77,9 @@ export type Vista = {
   avvisi: string[]
 }
 
+// Le tre schermate del pannello: Adesso (cosa chiede la persona), Progetti (uno per riga), un progetto aperto.
+export type Schermata = 'adesso' | 'progetti' | 'progetto'
+
 // Un passo da annullare: gli argomenti della CLI dopo "todo", calcolati prima di scrivere.
 export type Annullabile = { argv: string[]; descrizione: string; id: number }
 
@@ -139,7 +142,11 @@ declare module 'claude-code' {
       errore: string
       esito: Esito | null
       scelto: number | null
+      // Il progetto aperto nella schermata "progetto".
       filtro: string
+      schermata: Schermata
+      // La riga scelta in Adesso e in Progetti: la sua chiave (progetto-<nome>, scaduta-<id>).
+      sceltaLista: string | null
       chiusiQui: TodoVoce[]
       annullabili: Annullabile[]
       python: string[] | null

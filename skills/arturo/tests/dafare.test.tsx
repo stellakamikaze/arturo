@@ -1,5 +1,5 @@
 // I test del pannello /dafare con il kit di Claude Code (`claude plugin test`).
-// Ogni test comincia con il suo id (U20-U35): il banco tests/test_pannello.py (U03) conta i test
+// Ogni test comincia con il suo id (U20-U39): il banco tests/test_pannello.py (U03) conta i test
 // passati per id, sulle due superfici, e li confronta con la sua tabella KIT.
 //
 // Sotto il pannello c'è una CLI finta: tiene un piccolo archivio in memoria, risponde a
@@ -9,7 +9,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
 
-import type { TodoVoce, Vista } from '../types'
+import type { Progetto, TodoVoce, Vista } from '../types'
 
 type Uscita = { exitCode: number; stdout: string; stderr: string }
 type Opzioni = {
@@ -18,6 +18,8 @@ type Opzioni = {
   rompi?: (argomenti: string[]) => Uscita | null
   // Lo store del plugin fra le sessioni ($.store), già pieno all'avvio.
   store?: Record<string, unknown>
+  // Il blocco "progetti" della vista, come lo manda la CLI vera; senza, il pannello lo ricava dai gruppi.
+  progetti?: Progetto[]
 }
 
 const PANE = { title: 'Le tue cose da fare', isFocused: true, bodyColumns: 80, placement: 'inline' } as never
@@ -64,6 +66,7 @@ function motore(on: On, iniziali: TodoVoce[], opzioni: Opzioni = {}) {
 
   const vista = (): Vista => ({
     versione, oggi: '2026-10-03', progetto: null, chiusi: 0, avvisi,
+    ...(opzioni.progetti ? { progetti: opzioni.progetti } : {}),
     gruppi: GRUPPI.map(g => ({ ...g, todo: archivio.filter(t => gruppoDi(t) === g.tipo).map(t => ({ ...t, gruppo: gruppoDi(t) })) })),
   })
 
@@ -188,7 +191,7 @@ for (const surface of ['terminal', 'desktop'] as const) {
     const { r, pane } = await apri($)
     expect((r as { text: string }).text).toContain('4 cose da fare')
     // Una sola scaduta (#4): la testata usa il singolare, come la barra.
-    expect(await pane.find({ type: 'Text', text: '4 cose da fare · 1 scaduta · tutti i progetti' })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: 'a rischio · 4 cose da fare · 1 scaduta' })).toBeTruthy()
     expect(await pane.find({ type: 'Text', text: 'scadute' })).toBeFalsy()
     const titoli = (await pane.findAll({ type: 'Text', text: /^(TOCCA A TE|DECIDI TU|FACCIO IO|FERMO)/ })).map(x => x.text)
     expect(titoli).toEqual(['TOCCA A TE (1)', 'DECIDI TU, POI FACCIO IO (1)', 'FACCIO IO (1)', 'FERMO (1)'])
@@ -361,19 +364,23 @@ for (const surface of ['terminal', 'desktop'] as const) {
     expect(await pane.find({ type: 'Text', text: 'Non trovo Python' })).toBeTruthy()
   })
 
-  test(`${surface}: U29 p cambia progetto e /dafare libro apre già filtrato`, async ($, on) => {
+  test(`${surface}: U29 con pochi progetti apre la lista, p ci torna e /dafare libro apre già filtrato`, async ($, on) => {
     motore(on, [voce(1, { progetto: 'libro' }), voce(2, { progetto: 'casa' }), voce(3, { progetto: 'libro' })])
     const { pane } = await apri($)
-    expect(await pane.find({ type: 'Text', text: '3 cose da fare' })).toBeTruthy()
-    await pane.press({ key: 'progetto' })
-    expect(await pane.find({ type: 'Text', text: 'progetto libro' })).toBeTruthy()
+    // Due progetti: si parte dalla lista, senza i tasti dei verbi.
+    expect(await pane.find({ type: 'Text', text: 'I tuoi progetti' })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: '2 progetti · 3 cose da fare' })).toBeTruthy()
+    expect(await pane.find({ key: 'fatto' })).toBeFalsy()
+    expect(await pane.find({ key: 'riga-1' })).toBeFalsy()
+    await pane.press({ key: 'progetto-libro' })
+    expect(await pane.find({ type: 'Text', text: 'chiede te · 2 cose da fare' })).toBeTruthy()
     expect(await pane.find({ key: 'riga-2' })).toBeFalsy()
     expect(await pane.find({ type: 'Text', text: 'TOCCA A TE (2)' })).toBeTruthy()
-    await pane.press({ key: 'progetto' })
-    expect(await pane.find({ type: 'Text', text: 'progetto casa' })).toBeTruthy()
+    expect(await pane.find({ key: 'fatto' })).toBeTruthy()
+    await pane.press({ key: 'progetti' })
+    await pane.press({ key: 'progetto-casa' })
+    expect(await pane.find({ key: 'riga-2' })).toBeTruthy()
     expect(await pane.find({ key: 'riga-1' })).toBeFalsy()
-    await pane.press({ key: 'progetto' })
-    expect(await pane.find({ type: 'Text', text: 'tutti i progetti' })).toBeTruthy()
     await pane.unmount()
     const filtrato = await apri($, 'libro')
     expect((filtrato.r as { text: string }).text).toContain('2 cose da fare in libro')
@@ -506,5 +513,113 @@ for (const surface of ['terminal', 'desktop'] as const) {
     const { pane } = await apri($)
     await pane.press({ key: 'sessione' })
     expect(m.toast[m.toast.length - 1]).toBe("Non riesco ad aprire un terminale. Lancia questo: claude '/inizio libro'")
+  })
+
+  // Quattro progetti, col blocco "progetti" della CLI vera: libro a rischio, casa chiede te, orto
+  // fermo, sito va da solo. Il blocco ha la catena di sito (#7 poi #8) e la riga scritta o calcolata.
+  const QUATTRO = [
+    voce(1, { progetto: 'libro', titolo: 'Mandare il capitolo', giorni: -3, scadenza: '2026-09-30', scadenza_testo: 'scaduto da 3 g' }),
+    voce(2, { progetto: 'libro', titolo: 'Rileggere le bozze', chi: 'io', gruppo: 'io' }),
+    voce(3, { progetto: 'casa', titolo: 'Chiamare il notaio' }),
+    voce(4, { progetto: 'orto', titolo: 'Seminare', stato: 'fermo', gruppo: 'fermo', motivo: 'aspetto marzo' }),
+    voce(7, { progetto: 'sito', titolo: 'Scrivere la home', chi: 'io', gruppo: 'io' }),
+    voce(8, { progetto: 'sito', titolo: 'Pubblicare la home', chi: 'io', gruppo: 'io', dopo: [7], attende: [7] }),
+    voce(9, { progetto: 'sito', titolo: 'Rifare il logo', chi: 'io', gruppo: 'io' }),
+  ]
+  const progetto = (nome: string, campi: Partial<Progetto>): Progetto => ({
+    nome, parola: 'va', riga: '', calcolato: false, scritto: '2026-10-03T09:00', eta_gg: 0, vecchio: false,
+    aperti: 1, scaduti: 0, chiedono_te: 0, fermi: 0, catena: [], da_dove: null, ...campi,
+  })
+  const BLOCCO = [
+    progetto('libro', { parola: 'a rischio', riga: 'Il capitolo 3 è in ritardo', aperti: 2, scaduti: 1, chiedono_te: 1, da_dove: { id: 1, motivo: 'È scaduto' } }),
+    progetto('casa', { parola: 'chiede te', riga: '1 todo aperto, 1 chiede te.', calcolato: true, scritto: null, eta_gg: null, chiedono_te: 1, da_dove: { id: 3, motivo: 'Tocca a te' } }),
+    progetto('orto', { parola: 'fermo', riga: 'Si riparte in primavera', eta_gg: 9, vecchio: true, fermi: 1 }),
+    progetto('sito', { parola: 'va', riga: 'La home è a metà', aperti: 3, catena: [7, 8], da_dove: { id: 7, motivo: 'Sblocca #8' } }),
+  ]
+
+  test(`${surface}: U36 con tanti progetti si parte da Adesso: chi chiede te, da dove partire, le scadute`, async ($, on) => {
+    motore(on, QUATTRO, { progetti: BLOCCO })
+    const { pane } = await apri($)
+    expect(await pane.find({ type: 'Text', text: 'Adesso' })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: '4 progetti · 7 cose da fare · 1 scaduta' })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: 'CHIEDONO TE O SONO A RISCHIO (2)' })).toBeTruthy()
+    expect(await pane.find({ key: 'adesso-libro' })).toBeTruthy()
+    expect(await pane.find({ key: 'adesso-casa' })).toBeTruthy()
+    // Orto è fermo e sito va da solo: in Adesso non ci sono.
+    expect(await pane.find({ key: 'adesso-orto' })).toBeFalsy()
+    expect(await pane.find({ key: 'adesso-sito' })).toBeFalsy()
+    expect(await pane.find({ type: 'Text', text: 'parti da #1 Mandare il capitolo: È scaduto' })).toBeTruthy()
+    // La riga calcolata lo dice.
+    expect(await pane.find({ type: 'Text', text: '1 todo aperto, 1 chiede te. (calcolata dai todo)' })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: 'SCADUTE (1)' })).toBeTruthy()
+    expect(await pane.find({ key: 'scaduta-1' })).toBeTruthy()
+    // In Adesso i verbi non ci sono: si agisce dentro un progetto.
+    expect(await pane.find({ key: 'fatto' })).toBeFalsy()
+    // v passa a Progetti: tutti e quattro, con la parola e la riga vecchia dichiarata.
+    await pane.press({ key: 'vista' })
+    expect(await pane.find({ type: 'Text', text: 'I tuoi progetti' })).toBeTruthy()
+    for (const nome of ['libro', 'casa', 'orto', 'sito']) expect(await pane.find({ key: `progetto-${nome}` })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: 'fermo · 1 cosa da fare' })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: 'Si riparte in primavera (scritta 9 giorni fa)' })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: 'La home è a metà' })).toBeTruthy()
+    await pane.press({ key: 'vista' })
+    expect(await pane.find({ type: 'Text', text: 'Adesso' })).toBeTruthy()
+  })
+
+  test(`${surface}: U37 il progetto aperto: la catena numerata per prima, poi gli altri, coi tasti di oggi`, async ($, on) => {
+    const m = motore(on, QUATTRO, { progetti: BLOCCO })
+    const { pane } = await apri($)
+    await pane.press({ key: 'vista' })
+    await pane.press({ key: 'progetto-sito' })
+    expect(await pane.find({ type: 'Text', text: 'va · 3 cose da fare' })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: 'Da dove partire: #7 Scrivere la home. Sblocca #8' })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: 'LA CATENA (2)' })).toBeTruthy()
+    expect(await pane.find({ type: 'Text', text: 'FACCIO IO (1)' })).toBeTruthy()
+    // I numeri seguono la catena: 1 è #7, 2 è #8, 3 è #9 fuori dalla catena.
+    const tasti = (await pane.findAll({ type: 'Button' })).filter(x => x.key?.startsWith('riga-')).map(x => [x.key, x.props.hotkey])
+    expect(tasti).toEqual([['riga-7', '1'], ['riga-8', '2'], ['riga-9', '3']])
+    await pane.press({ key: 'riga-8' })
+    await pane.press({ key: 'fatto' })
+    expect(m.scritture().slice(-1)).toEqual([['todo', 'fatto', '8']])
+    await pane.press({ key: 'annulla' })
+    expect(m.scritture().slice(-1)).toEqual([['todo', 'ripristina', '8', '--', 'da fare']])
+    await pane.press({ key: 'progetti' })
+    expect(await pane.find({ type: 'Text', text: 'I tuoi progetti' })).toBeTruthy()
+  })
+
+  test(`${surface}: U38 una scaduta di Adesso apre il suo progetto su di lei, j/k ed e scorrono la lista`, async ($, on) => {
+    const m = motore(on, QUATTRO, { progetti: BLOCCO })
+    const { pane } = await apri($)
+    await pane.press({ key: 'scaduta-1' })
+    expect(await pane.find({ type: 'Text', text: 'a rischio · 2 cose da fare · 1 scaduta' })).toBeTruthy()
+    await pane.press({ key: 'fatto' })
+    expect(m.scritture().slice(-1)).toEqual([['todo', 'fatto', '1']])
+    await pane.press({ key: 'progetti' })
+    // In Progetti: giù due volte arriva a orto, e apre orto.
+    await pane.press({ key: 'giu' })
+    await pane.press({ key: 'giu' })
+    await pane.press({ key: 'entra' })
+    expect(await pane.find({ type: 'Text', text: 'fermo · 1 cosa da fare' })).toBeTruthy()
+    expect(await pane.find({ key: 'riga-4' })).toBeTruthy()
+  })
+
+  test(`${surface}: U39 una fonte che non manda i progetti: il pannello li ricava, e la barra dice se non risponde`, async ($, on) => {
+    let muta = false
+    motore(on, QUATTRO, { rompi: a => (muta && a[0] === '--json' ? { exitCode: 1, stdout: '', stderr: 'la fonte non risponde\n' } : null) })
+    const { pane } = await apri($)
+    // Senza blocco: libro è a rischio per la scaduta, casa chiede te, e la riga è calcolata.
+    expect(await pane.find({ key: 'adesso-libro' })).toBeTruthy()
+    expect(await pane.find({ key: 'adesso-casa' })).toBeTruthy()
+    expect(await pane.find({ key: 'adesso-orto' })).toBeFalsy()
+    expect(await pane.find({ type: 'Text', text: '2 todo aperti, 1 scaduto, 1 chiede te. (calcolata dai todo)' })).toBeTruthy()
+    muta = true
+    await $.turn.complete({ answer: 'fatto', durationMs: 10, isAborted: false, turnId: 't1', reason: 'end_turn' } as never)
+    expect(await pane.find({ type: 'Text', text: 'la fonte non risponde' })).toBeTruthy()
+    // La vista di prima resta intera.
+    expect(await pane.find({ key: 'adesso-libro' })).toBeTruthy()
+    const barra = await $.ui.mount({ plugin: 'arturo', surface, component: 'AbovePrompt', props: BAND })
+    const testo = (await barra.find({ type: 'Text', text: 'cose da fare' }))?.text ?? ''
+    expect(testo).toContain('7 cose da fare')
+    expect(testo).toContain('non riesco a rileggerle')
   })
 }
