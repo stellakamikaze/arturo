@@ -1,0 +1,20 @@
+{
+  "name": "arturo",
+  "owner": {
+    "name": "Federico Nejrotti"
+  },
+  "description": "Arturo: guardie, metodo e skill condivise sopra Claude Code. Lo strato personale è l'Orsa, in ~/.claude.",
+  "plugins": [
+    {
+      "name": "arturo",
+      "description": "Arturo: guardie, metodo e skill condivise sopra Claude Code. Lo strato personale è l'Orsa, in ~/.claude.",
+      "version": "0.2.4",
+      "source": {
+        "source": "github",
+        "repo": "stellakamikaze/arturo",
+        "ref": "plugin-v0.2.4",
+        "sha": "4659345dcc93e008cd167af7dfa19314f4bd6dcc"
+      }
+    }
+  ]
+}
