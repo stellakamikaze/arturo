@@ -22,7 +22,9 @@ MG05 il catalogo indica un tag non firmato: uscita 3 (possibile compromissione),
 MG06 il plugin si installa ma settings.json ha una voce cambiata sia dalla persona sia da Arturo: uscita 1,
      e il ritorno automatico toglie anche il plugin;
 MG07 un ~/.claude con Arturo come upstream (repository della persona) non si migra: rapporto FERMA,
-     migrazione con uscita 1, niente cambia.
+     migrazione con uscita 1, niente cambia;
+MG08 l'avviso dell'avvio: dal clone una riga che nomina `migra --prova` e `migra indietro`, una volta al giorno;
+     con Arturo come upstream la riga dice "a mano"; dal codice fuori dall'Orsa (il plugin) niente.
 
 Sulla base 53450c6 (il dev prima di F4) sono tutti rossi: arturo migra non c'è. Con --avvelena una copia
 del repository rotta in un punto alla volta deve far fallire il caso che lo sorveglia.
@@ -39,7 +41,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["MG01", "MG02", "MG03", "MG04", "MG05", "MG06", "MG07"]
+CASI = ["MG01", "MG02", "MG03", "MG04", "MG05", "MG06", "MG07", "MG08"]
 DISCRIMINANTI = list(CASI)
 CLAUDE = shutil.which("claude")
 RIGA_MIA = "Riga mia della prova: i miei progetti stanno in ~/lavoro.\n"
@@ -332,6 +334,25 @@ def prova(repo: Path, solo: str | None = None) -> list:
                 or dopo != prima7 or b.installato():
             rossi.append(f"MG07 upstream: rc {r.returncode}/{m.returncode}, {differenze(prima7, dopo)}, "
                          f"{(r.stdout + m.stderr)[-240:]!r}")
+        if fine("MG07"):
+            return rossi
+
+        # MG08 l'avviso dell'avvio
+        avviso = [sys.executable, b.orsa / "bin" / "migra.py", "avviso"]
+        con_upstream = esegui(avviso, env=b.env).stdout
+        git(b.orsa, "remote", "remove", "upstream")
+        (b.orsa / "session-env" / "migra-avviso.json").unlink()
+        primo = esegui(avviso, env=b.env).stdout
+        secondo = esegui(avviso, env=b.env).stdout
+        (b.orsa / "session-env" / "migra-avviso.json").unlink()
+        fuori = esegui([sys.executable, repo / "bin" / "migra.py", "avviso"], env=b.env).stdout
+        avvio = (repo / "hooks" / "session-start.sh").read_text(encoding="utf-8")
+        if 'python3 "$ARTURO_CODICE/bin/migra.py" avviso' not in avvio:
+            rossi.append("MG08 avviso: hooks/session-start.sh non lancia migra.py avviso")
+        if "ARTURO PLUGIN" not in primo or "migra --prova" not in primo or "migra indietro" not in primo \
+                or secondo.strip() or "a mano" not in con_upstream or fuori.strip():
+            rossi.append(f"MG08 avviso: primo {primo[:80]!r}, secondo {secondo[:60]!r}, upstream {con_upstream[-80:]!r}, "
+                         f"fuori {fuori[:60]!r}")
     return rossi
 
 
@@ -347,6 +368,8 @@ VELENI = [
      "    if rc not in (0, 3):\n        raise Ferma(f\"il catalogo non indica"),
     ("MG06", "bin/migra.py", "        indietro(cartella)\n        return uscita\n", "        return uscita\n"),
     ("MG07", "bin/migra.py", '    if "upstream" in remoti:\n', '    if False:\n'),
+    ("MG08", "bin/migra.py", '    if leggi_json(segno).get("giorno") == oggi:\n', '    if False:\n'),
+    ("MG08", "hooks/session-start.sh", 'python3 "$ARTURO_CODICE/bin/migra.py" avviso', 'true'),
 ]
 
 

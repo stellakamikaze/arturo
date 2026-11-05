@@ -18,7 +18,8 @@ modo di lavorare.
 `~/.claude` al plugin di Claude Code. Prima si lancia `arturo migra --prova`: non cambia niente e
 scrive un rapporto, con quello che succederebbe e quello che resta tuo. Le tue aggiunte ai comandi di
 Arturo passano in `~/.claude/personale/`, i tuoi hook e i tuoi permessi restano, e tutto quello che
-cambia ha prima una copia di sicurezza. `arturo migra indietro` rimette tutto com'era.
+cambia ha prima una copia di sicurezza. `arturo migra indietro` rimette tutto com'era. Finché non
+migri, Claude te lo ricorda all'inizio della sessione, una volta al giorno.
 
 **Perché**: col plugin un aggiornamento cambia solo Arturo e non tocca mai i tuoi file. Oggi invece
 Arturo e i tuoi file stanno nella stessa cartella, e una tua modifica può andare in conflitto con

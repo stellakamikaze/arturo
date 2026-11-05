@@ -9,6 +9,8 @@ strada per tornare indietro.
                           niente: scrive solo il rapporto in ~/.claude/data/migra/, da mandare con /segnala
   arturo migra            la migrazione, con Claude Code chiuso, da un Terminale
   arturo migra indietro   rimette il clone com'era, dall'ultima copia di sicurezza
+  arturo migra avviso     la riga che l'avvio del clone dà al modello, una volta al giorno, finché la
+                          persona non migra: col plugin non stampa niente
 
 La migrazione, in quest'ordine:
   1. i controlli del rapporto: con un motivo che ferma non parte niente;
@@ -588,7 +590,49 @@ def indietro(cartella: Path) -> int:
     return 0
 
 
+def avviso() -> str:
+    """La riga dell'avvio per chi ha ancora il clone: una volta al giorno, senza git (l'avvio deve essere
+    svelto). Col plugin, o con un ~/.claude che non è il clone, è vuota."""
+    orsa = radice_orsa()
+    try:
+        if radice_arturo().resolve() != orsa.resolve() or not (orsa / ".git").exists():
+            return ""
+    except OSError:
+        return ""
+    if (leggi_json(orsa / "plugins" / "installed_plugins.json").get("plugins") or {}).get(PLUGIN):
+        return ""
+    segno = orsa / "session-env" / "migra-avviso.json"
+    oggi = dt.date.today().isoformat()
+    if leggi_json(segno).get("giorno") == oggi:
+        return ""
+    try:
+        scrivi_json(segno, {"giorno": oggi})
+    except OSError:
+        pass
+    config = orsa / ".git" / "config"
+    try:
+        upstream = '[remote "upstream"]' in config.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        upstream = False
+    comando = comando_arturo()
+    testa = ("ARTURO PLUGIN: Arturo adesso si installa come plugin di Claude Code. Col plugin un aggiornamento cambia "
+             "solo Arturo e non tocca mai i file della persona; questa installazione è ancora la copia dentro "
+             "~/.claude. Dillo alla persona all'inizio, in due frasi semplici, una volta sola in questa sessione: ")
+    if upstream:
+        return testa + ("il suo ~/.claude è un repository suo con Arturo come upstream, e questa forma si porta al "
+                        "plugin a mano con chi mantiene Arturo: può scrivergli con /segnala.")
+    return testa + (f"con `{comando} migra --prova` vede cosa cambierebbe, senza che niente cambi, e può mandare il "
+                    "rapporto a chi mantiene Arturo con /segnala. La migrazione vera si lancia da un Terminale con "
+                    f"Claude Code chiuso (`{comando} migra`), fa prima una copia di sicurezza, e "
+                    "`migra indietro` rimette tutto com'era.")
+
+
 def main(argv: list) -> int:
+    if argv == ["avviso"]:
+        riga = avviso()
+        if riga:
+            print(riga)
+        return 0
     senza_fsmonitor()
     if argv in (["-h"], ["--help"], ["aiuto"], ["help"]):
         print(__doc__)
