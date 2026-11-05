@@ -89,4 +89,4 @@ Nella chiusura non entrano:
 - la ripetizione di ciò che il messaggio ha già detto.
 
 Le fonti di una ricerca stanno in una sola riga in fondo. Se il contenuto supera le 5 righe, si tiene
-la parte che serve alla decisione e si offre il resto: «dettagli su richiesta».
+la parte che serve alla decisione e si offre il resto: "dettagli su richiesta".

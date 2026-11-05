@@ -21,7 +21,18 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
   voci di `skills/`, `agents/` e `commands/` e gli hook di `settings.json` (`DERIVA_NOMI` e `DERIVA_HOOK`).
   Un altro nome si salva come `file:altro` o `hook:altro`. Della versione si salva solo il rilascio
   (`v2026-10-19.2`), senza i commit della persona; un tag della persona diventa `sconosciuta`.
-- `POST /v1/segnalazioni`: una segnalazione che la persona ha letto e approvato con `/segnala`.
+- `POST /v1/segnalazioni`: una segnalazione che la persona ha letto e approvato con `/segnala`. Dal
+  4/11/2026 (lo sportello, #3925) porta anche `origine` (`segnala`, `avvio`, `fine`) e il
+  `pacchetto` tecnico, con le sole voci `ambiente`, `banchi`, `config`, `deriva`, `errore` di 4000 caratteri al
+  massimo: una voce fuori elenco o troppo lunga resta fuori, la segnalazione passa. Risponde `201` col
+  `numero` e il `codice` della ricevuta, 32 caratteri esadecimali che il server tiene solo come SHA-256
+  (`codice_hash`). Il pacchetto si svuota dopo 90 giorni, il resto dopo 12 mesi.
+- Lo sportello della persona, col codice nell'header `x-arturo-codice` e mai nell'indirizzo:
+  `GET /v1/contributi/<n>` dà stato, risposta, versione con la correzione e quanti seguiti;
+  `POST /v1/contributi/<n>/seguito` aggiunge un testo (8000 caratteri, 10 per segnalazione; `serve-info` torna
+  `ricevuta`); `POST /v1/contributi/<n>/ritira` cancella titolo, testo, pacchetto, seguiti e id e lascia numero,
+  tipo e data. Un codice sbagliato e un numero inesistente danno lo stesso `404`, col corpo uguale (caso V36).
+  Seguito e ritiro suonano su Telegram col solo numero.
 - `POST /v1/feedback`: il modulo di feedback del sito, che la landing serve come `/api/feedback`.
   Il testo, il tipo e l'email facoltativa restano nella tabella `feedback`. Solo testo scritto: un modulo
   con il campo `voce` torna `400` con il motivo, un corpo oltre 64 KB torna `413`. Al massimo 100 al
@@ -37,7 +48,10 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
 
 E dà tre cose, a chi ha il token. La prima: `GET /v1/segnalazioni`, le ultime 50 segnalazioni senza testo, e
 `GET /v1/segnalazioni/<n>`, una segnalazione intera (27/10/2026): le legge la pagina privata di chi mantiene
-Arturo. La seconda: `GET /v1/riepilogo`, il riepilogo della settimana in JSON (senza
+Arturo. Dal 4/11/2026 l'elenco porta anche origine e stato, la segnalazione intera pacchetto, stato, risposta
+e seguiti; con lo stesso token `POST /v1/contributi/<n>` scrive `stato` (`ricevuta`, `serve-info`, `in-lavoro`,
+`chiusa`, `rifiutata`), `risposta` (4000 caratteri) e `versione_fix`, che la persona legge con `/segnala stato`.
+La tabella prende le colonne nuove con `migrazioni/2026-11-04-sportello.sql`: si applica prima del Worker. La seconda: `GET /v1/riepilogo`, il riepilogo della settimana in JSON (senza
 `dal` e `al`, la stessa dell'email del lunedì: da lunedì a domenica in ora di Roma) con la sezione "Dove migliorare Arturo" (secret `RIEPILOGO_TOKEN`, almeno 32 caratteri). Le statistiche
 delle guardie (blocchi, conferme, guardie rotte, guardie frequenti) contano solo le installazioni che
 il server ha ricevuto in almeno due giorni diversi, e ogni numero dice quante installazioni lo
@@ -178,7 +192,10 @@ verificato in Email Routing. Il Worker può scrivere solo a indirizzi verificati
    temporanea (un banco di prova) vale solo la variabile: la costante lì non conta, e senza
    variabile non parte niente.
 
-Per un aggiornamento ripeti i passi 3 e 4. Il database e i dati restano.
+Per un aggiornamento ripeti i passi 3 e 4. Il database e i dati restano. Prima del passo 4 applica le
+migrazioni nuove di `migrazioni/`, in ordine di data: il passo 2 crea solo le tabelle che mancano e non aggiunge
+colonne. Senza `migrazioni/2026-11-04-sportello.sql` il Worker dello sportello non salva più nessuna
+segnalazione: l'INSERT cerca colonne che non ci sono. Prima di un `ALTER` leggi un export della tabella.
 
 L'MCP di Cloudflare non basta per il deploy: la sua autorizzazione non scrive su D1. Usa
 `npx wrangler@4`, autenticato con `npx wrangler@4 login`.

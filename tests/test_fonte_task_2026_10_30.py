@@ -11,6 +11,8 @@ FT05 arturo contesto --stdin legge gli argomenti da stdin e stampa il compito, s
 FT06 il compito scritto dopo il nome senza " -- " non entra nel nome.
 FT07 un nome parziale con un solo candidato forte vale, con l'avviso NOME: interpretato.
 FT08 arturo contesto elenca i filoni di tutti gli handoff del progetto.
+FT09 arturo sessione --todo con la fonte esterna legge titolo e progetto con "mostra N --json", ripulisce
+     il titolo, si ferma se il titolo è cambiato e riduce un progetto fuori forma a uno slug (#3887).
 
 Sulla base ba61272 (il dev prima di L4) sono rossi tutti i casi tranne FT02, che è l'invariante.
 """
@@ -26,8 +28,8 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-CASI = ["FT01", "FT02", "FT03", "FT04", "FT05", "FT06", "FT07", "FT08"]
-DISCRIMINANTI = ["FT01", "FT03", "FT04", "FT05", "FT06", "FT07", "FT08"]
+CASI = ["FT01", "FT02", "FT03", "FT04", "FT05", "FT06", "FT07", "FT08", "FT09"]
+DISCRIMINANTI = ["FT01", "FT03", "FT04", "FT05", "FT06", "FT07", "FT08", "FT09"]
 SU = ('import json, sys\n'
       'open(sys.argv[0] + ".argomenti", "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))\n'
       'if "aggiungi" in sys.argv:\n'
@@ -36,6 +38,14 @@ SU = ('import json, sys\n'
       '                  "chiusi_todo": [{"id": 76, "titolo": "CHIUSO-DALLA-FONTE", "stato": "fatto",\n'
       '                                   "chiuso": "2026-10-30T20:00"}]}))\n')
 GIU = 'import sys\nprint("servizio giù", file=sys.stderr)\nsys.exit(3)\n'
+# Il 78 ha un progetto fuori forma: sessione.py lo riduce a uno slug, la fonte non sceglie la cartella.
+MOSTRA = ('import json, sys\n'
+          'if sys.argv[1:3] == ["mostra", "77"]:\n'
+          '    print(json.dumps({"id": 77, "titolo": \'Rivedere "la bozza" al 100%\', "progetto": "libro"}))\n'
+          'elif sys.argv[1:3] == ["mostra", "78"]:\n'
+          '    print(json.dumps({"id": 78, "titolo": "Fuori", "progetto": "../fuori; rm -rf"}))\n'
+          'else:\n'
+          '    sys.exit(2)\n')
 HANDOFF = ("# Session Handoff - 2026-10-29 10:00\n## Progetto\n- Nome: libro / Branch: main\n\n"
            "## Task Pendenti\n| # | ID | Progetto | Priorità | Task | Status | Descrizione | Chi |\n"
            "|---|---|---|---|---|---|---|---|\n"
@@ -134,6 +144,24 @@ def prova(lab: Lab) -> list:
     r = lab.arturo("contesto", "libro")
     if r.returncode != 0 or "FILONI NOTI" not in r.stdout or "copertina · 1 handoff" not in r.stdout:
         rossi.append(f"FT08 filoni noti: rc={r.returncode} {r.stdout[-300:]!r}")
+    # FT09 arturo sessione --todo con la fonte esterna: titolo e progetto da "mostra N --json"
+    lab.locale(MOSTRA)
+    r = lab.arturo("sessione", "--todo", "77", '--titolo-atteso=Rivedere "la bozza" al 100%', "--stampa")
+    try:
+        prompt = json.loads(r.stdout)["prompt"]
+    except (ValueError, KeyError, TypeError):
+        prompt = None
+    cambiato = lab.arturo("sessione", "--todo", "77", "--titolo-atteso=Un altro titolo", "--stampa")
+    fuori = lab.arturo("sessione", "--todo", "78", "--stampa")
+    try:
+        prompt_fuori = json.loads(fuori.stdout)["prompt"]
+    except (ValueError, KeyError, TypeError):
+        prompt_fuori = None
+    if r.returncode != 0 or prompt != "/inizio libro -- #77 Rivedere la bozza al 100" \
+            or cambiato.returncode == 0 or "cambiato" not in cambiato.stderr \
+            or prompt_fuori != "/inizio fuori-rm-rf -- #78 Fuori":
+        rossi.append(f"FT09 sessione dalla fonte: rc={r.returncode} prompt={prompt!r} {r.stderr.strip()[-160:]!r} "
+                     f"cambiato rc={cambiato.returncode} progetto fuori forma: {prompt_fuori!r}")
     return rossi
 
 

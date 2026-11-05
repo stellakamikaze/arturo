@@ -263,7 +263,7 @@ Una sola proposta per sessione, mai un elenco.
 - **Se Arturo o Claude Code si sono inceppati** (comando fallito, guardia su un lavoro legittimo,
   correzione della persona, cosa che Arturo non sa fare), proponi la segnalazione col fatto già scritto:
   "Ho visto che X non ha funzionato. Lo segnalo a chi mantiene Arturo? Il testo lo preparo io." Col sì
-  segui `/segnala` dal Passo 1. Se l'hai già proposta, non riproporla.
+  segui `/segnala` dal Passo 1, con `--origine fine` in `prepara`. Se l'hai già proposta, non riproporla.
 - **Altrimenti** lancia `python3 ~/.claude/bin/arturo segnala chiedi`. Con exit 0 chiedi in una riga: "In
   questi giorni Arturo ti ha fatto perdere tempo, o c'è una cosa che vorresti facesse?" e, se la persona
   racconta qualcosa, segui `/segnala`. Con exit 3 taci. Se lei non vuole più queste domande, lancia

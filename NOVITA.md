@@ -12,6 +12,25 @@ modo di lavorare.
 
 ---
 
+## 2026-11-04 — Le segnalazioni hanno una ricevuta e una risposta
+
+**Cosa cambia**: quando mandi una segnalazione con `/segnala`, oltre al numero ricevi una ricevuta: un
+codice che resta sul tuo computer. Con quello leggi la risposta di chi mantiene Arturo. Quando la
+risposta arriva, l'avvio della sessione te lo dice, e `/segnala stato` la mostra. Se ti chiedono altre
+informazioni, le aggiungi alla stessa segnalazione con `/segnala`, che le scrive con te. Puoi anche
+ritirarla: dal server spariscono titolo, testo e aggiunte.
+
+Nell'anteprima vedi due cose nuove. La prima è cosa Arturo ha tolto da solo dal testo: email, indirizzi
+web, indirizzi IP, nomi dei computer di casa o dell'ufficio e nomi di documenti. La seconda è il pacchetto
+tecnico, a caselle: versioni, esito dei controlli delle guardie e stato della config sono accesi; i file
+di Arturo che hai cambiato, il messaggio d'errore intero e il legame coi tuoi dati d'uso sono spenti.
+Accendi o spegni quello che vuoi. Il pacchetto si cancella dal server dopo 90 giorni.
+
+**Perché**: una segnalazione partiva e poi non se ne sapeva più niente, finché una correzione non usciva
+nelle novità. Chi mantiene Arturo non aveva un modo per chiedere un dettaglio mancante, e chi segnalava
+non sapeva se era stata letta. Il legame coi dati d'uso adesso parte solo se lo scegli tu: prima partiva
+sempre con la telemetria accesa.
+
 ## 2026-11-04 — Un lavoro iniziato fuori da un progetto si ritrova
 
 **Cosa cambia**: se apri Claude fuori da un progetto e cominci un lavoro che continua nei giorni dopo,

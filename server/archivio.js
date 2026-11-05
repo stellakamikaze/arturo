@@ -88,9 +88,35 @@ export function archivio(db) {
     },
     async salvaSegnalazione(s, ricevuta) {
       const r = await db.prepare(
-        "INSERT INTO segnalazioni (ricevuta, tipo, titolo, testo, versione, sistema, installazione) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id")
-        .bind(ricevuta, s.tipo, s.titolo, s.testo, s.versione, s.sistema, s.installazione).first();
+        `INSERT INTO segnalazioni (ricevuta, tipo, titolo, testo, versione, sistema, installazione, origine, pacchetto, codice_hash,
+         stato, aggiornata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ricevuta', ?) RETURNING id`)
+        .bind(ricevuta, s.tipo, s.titolo, s.testo, s.versione, s.sistema, s.installazione, s.origine || "segnala",
+          s.pacchetto || "", s.codice_hash || "", ricevuta).first();
       return r.id;
+    },
+    // Lo sportello (4/11/2026, #3925): la riga che serve a controllare il codice e a rispondere alla persona.
+    async contributo(id) {
+      return await db.prepare(
+        "SELECT id, codice_hash, stato, risposta, versione_fix, aggiornata, seguiti FROM segnalazioni WHERE id = ?")
+        .bind(id).first() || null;
+    },
+    async aggiornaContributo(id, cambi, quando) {
+      const campi = ["stato", "risposta", "versione_fix"].filter((c) => cambi[c] !== undefined);
+      await db.prepare(`UPDATE segnalazioni SET ${campi.map((c) => `${c} = ?`).join(", ")}, aggiornata = ? WHERE id = ?`)
+        .bind(...campi.map((c) => cambi[c]), quando, id).run();
+      return await this.contributo(id);
+    },
+    async seguitoContributo(id, seguiti, stato, quando) {
+      await db.prepare("UPDATE segnalazioni SET seguiti = ?, stato = ?, aggiornata = ? WHERE id = ?").bind(seguiti, stato, quando, id).run();
+    },
+    // Ritirata: resta il numero, con tipo e data, perché NOVITA e le risposte lo citano. Il resto si cancella.
+    async ritiraContributo(id, quando) {
+      await db.prepare(
+        `UPDATE segnalazioni SET titolo = '(ritirata)', testo = '', pacchetto = '', seguiti = '[]', installazione = '',
+         risposta = '', stato = 'ritirata', aggiornata = ? WHERE id = ?`).bind(quando, id).run();
+    },
+    async svuotaPacchetti(prima) {
+      await db.prepare("UPDATE segnalazioni SET pacchetto = '' WHERE pacchetto != '' AND substr(ricevuta, 1, 10) < ?").bind(prima).run();
     },
     // Vero solo la prima volta che la chiave compare nel giorno: un avviso al giorno, non uno per lotto.
     async primaVolta(giorno, chiave) {
@@ -115,13 +141,15 @@ export function archivio(db) {
     // Per la pagina privata (27/10/2026): l'elenco senza il testo, le più recenti prima, e una segnalazione intera.
     async segnalazioni(limite) {
       const r = await db.prepare(
-        "SELECT id, ricevuta, tipo, titolo, versione, sistema, installazione, email_inviata FROM segnalazioni ORDER BY id DESC LIMIT ?")
+        `SELECT id, ricevuta, tipo, titolo, versione, sistema, installazione, email_inviata, origine, stato, aggiornata
+         FROM segnalazioni ORDER BY id DESC LIMIT ?`)
         .bind(limite).all();
       return r.results || [];
     },
     async segnalazione(id) {
       return await db.prepare(
-        "SELECT id, ricevuta, tipo, titolo, testo, versione, sistema, installazione, email_inviata FROM segnalazioni WHERE id = ?")
+        `SELECT id, ricevuta, tipo, titolo, testo, versione, sistema, installazione, email_inviata, origine, pacchetto, stato,
+         risposta, versione_fix, aggiornata, seguiti FROM segnalazioni WHERE id = ?`)
         .bind(id).first() || null;
     },
     async segnaEmail(id) {

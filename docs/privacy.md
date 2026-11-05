@@ -26,7 +26,8 @@ Per questo i dati non sono anonimi, e questa pagina li tratta come dati personal
 | Dato | Cosa contiene | Da dove arriva | Quanto resta |
 |---|---|---|---|
 | Eventi d'uso | L'id casuale, il rilascio di Arturo installato (un tuo tag non esce), il sistema (Darwin, Linux, Windows), il giorno (mai l'ora) e un evento da un elenco chiuso: comandi di Arturo, guardie che bloccano o chiedono, esiti degli aggiornamenti, fase di `/setup`, file di Arturo cambiati, versione di Claude Code, skill di Arturo usate, nome dei banchi di prova delle guardie diventati rossi. Dal 3/11/2026, alla chiusura di ogni sessione, anche la sua durata e quanti messaggi hai scritto, solo in fasce larghe (meno di 5 minuti, fino a 30, fino a 2 ore, oltre; 1, da 2 a 5, da 6 a 20, oltre 20 messaggi): per contarli Arturo legge sul tuo computer la cronologia della sessione, e non ne esce niente altro | Da solo, al massimo ogni sei ore | 12 mesi |
-| Segnalazioni di `/segnala` | Tipo, titolo e testo che hai letto e approvato, versione, sistema, l'id solo con la telemetria accesa | Solo dopo il tuo sì | 12 mesi |
+| Segnalazioni di `/segnala` | Tipo, titolo e testo che hai letto e approvato, versione, sistema, da dove è partita (`/segnala`, un invito dell'avvio, `/fine`). L'id solo se accendi la casella "collega ai miei dati d'uso" (dal 4/11/2026; prima partiva con la telemetria accesa). Prima dell'anteprima Arturo toglie dal testo cartelle personali, email, indirizzi web esterni, indirizzi IP, nomi di computer della rete e nomi di documenti, e te lo dice. Dal 4/11/2026 anche lo stato e la risposta di chi mantiene Arturo, le tue aggiunte e l'hash del codice della ricevuta: il codice vero resta solo sul tuo computer, in un file che legge solo tu | Solo dopo il tuo sì | 12 mesi |
+| Pacchetto tecnico di una segnalazione (dal 4/11/2026) | Le caselle che lasci accese nell'anteprima: versioni di Arturo, Claude Code, sistema e Python, esito dei controlli delle guardie all'avvio, nomi dei guasti della config; spente di default, file e hook di Arturo cambiati e il messaggio d'errore intero. Passa dalla stessa pulizia del testo | Solo col canale `arturo` e il tuo sì | 90 giorni, poi si svuota |
 | Feedback dal sito | Tipo, testo, email solo se la scrivi tu | Dal modulo del sito | 12 mesi |
 | Commenti della roadmap (dal 3/11/2026) | L'email con cui entri, il nome che ti mostra agli altri, la voce commentata, il testo e l'ora. Gli altri invitati vedono nome e testo, mai l'email | Solo se scrivi un commento su `/sviluppo/roadmap/`, dopo l'accesso con l'invito. L'accesso passa da Cloudflare Access, che vede la tua email | Finché la pagina esiste. Un commento che togli sparisce dalla pagina ma resta nel registro del server: se vuoi cancellarlo davvero, chiedilo |
 | Contatori senza id | Numeri del giorno: download dal sito, eventi scartati, avvisi non partiti | Dal server | 12 mesi |
@@ -37,7 +38,7 @@ Di un file tuo, per esempio una skill che hai scritto tu, esce solo `file:altro`
 Di un segreto fermato in un commit esce solo la famiglia, come `segreto-cloud`, mai il servizio.
 Il server non salva il tuo indirizzo IP. Il modulo del sito accetta solo testo scritto, fino a 64 KB per messaggio.
 
-Sul tuo computer restano la coda degli eventi non ancora partiti (`~/.claude/data/telemetria/coda.jsonl`) e lo stato della telemetria (`~/.claude/session-env/telemetria.json`).
+Sul tuo computer restano la coda degli eventi non ancora partiti (`~/.claude/data/telemetria/coda.jsonl`), lo stato della telemetria (`~/.claude/session-env/telemetria.json`), i codici delle ricevute delle segnalazioni (`~/.claude/data/segnalazioni/ricevute.json`, leggibile solo da te) e l'ultima risposta letta per ognuna (`~/.claude/cache/sportello.json`).
 Li vedi con `python3 ~/.claude/bin/arturo telemetria mostra`.
 
 ## Il ritratto di /setup
@@ -56,6 +57,7 @@ Nelle fasi 2b e 2c `/setup` ti chiede due volte un sì, per conoscerti prima di 
 - **Cloudflare** ospita il server e il database (Workers e D1). È il solo posto dove stanno gli eventi e i testi.
 - **Telegram** riceve questi messaggi per chi mantiene Arturo:
   - il campanello di una segnalazione: numero, tipo, le prime 8 cifre dell'id, la versione di Arturo, il sistema e il link alla pagina privata che la mostra a chi mantiene Arturo;
+  - il campanello di un'aggiunta o di un ritiro di una segnalazione: il solo numero;
   - il campanello di un feedback dal sito: numero, tipo e origine;
   - l'avviso di un'installazione nuova e di un `/setup` finito: le prime 8 cifre dell'id, la versione di Arturo e il sistema;
   - l'avviso di un'installazione rimasta indietro: le prime 8 cifre dell'id, il rilascio installato, il giorno dell'ultima attività e il rilascio che manca;
@@ -79,6 +81,7 @@ Nessun altro riceve i dati. Non si vendono e non servono per pubblicità.
 - **Vedere cosa parte.** `python3 ~/.claude/bin/arturo telemetria mostra` stampa l'id e gli eventi in coda, così come partono.
 - **Accesso.** Scrivi a federico@stellakamikaze.org con l'id che ti mostra `mostra`: ricevi i dati legati a quell'id.
 - **Cancellazione.** Scrivi allo stesso indirizzo con l'id: chi mantiene Arturo cancella i tuoi eventi e le tue segnalazioni dal server, e a mano le copie su Telegram e Gmail (vedi "Chi li riceve").
+- **Ritiro di una segnalazione.** `python3 ~/.claude/bin/arturo segnala ritira N --conferma`, col codice della ricevuta che Arturo ha salvato sul tuo computer: dal server spariscono titolo, testo, pacchetto tecnico e aggiunte, restano numero, tipo e data. Lo stesso codice serve a leggere la risposta (`arturo segnala stato`) e ad aggiungere informazioni (`arturo segnala seguito N`).
 - **Opposizione.** `python3 ~/.claude/bin/arturo telemetria spegni` spegne la telemetria e svuota la coda. Valgono anche `ARTURO_TELEMETRIA=0` e `DO_NOT_TRACK=1`. `/segnala` continua a funzionare: ogni segnalazione parte solo col tuo sì.
 - **Reclamo.** Puoi rivolgerti al Garante per la protezione dei dati personali (garanteprivacy.it).
 

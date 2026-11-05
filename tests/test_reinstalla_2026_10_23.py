@@ -41,6 +41,8 @@ DELLA_PERSONA = {
     "data/aggiornamenti.json": "{\"modo\": \"manuali\"}\n",
     "session-env/telemetria.json": "{\"id\": \"aaaabbbb-cccc\", \"spenta\": true}\n",
     "session-env/segnala.json": "{\"pausa\": \"sempre\"}\n",
+    # Lo sportello (4/11/2026): senza le ricevute la persona non legge più le risposte né ritira.
+    "data/segnalazioni/ricevute.json": "{\"7\": \"0123456789abcdef0123456789abcdef\"}\n",
     "session-env/novita-viste": "2026-10-22\n",
     # #3842 (2/11/2026): tutti i file personali, anche quelli che la lista fissa non nomina
     "hooks/gws-account.local": "uf\n",
