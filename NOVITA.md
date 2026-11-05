@@ -12,6 +12,18 @@ modo di lavorare.
 
 ---
 
+## 2026-11-05 — Arturo può uscire dalla tua cartella
+
+**Cosa cambia**: c'è un comando nuovo, `arturo migra`, che porta Arturo dalla tua cartella
+`~/.claude` al plugin di Claude Code. Prima si lancia `arturo migra --prova`: non cambia niente e
+scrive un rapporto, con quello che succederebbe e quello che resta tuo. Le tue aggiunte ai comandi di
+Arturo passano in `~/.claude/personale/`, i tuoi hook e i tuoi permessi restano, e tutto quello che
+cambia ha prima una copia di sicurezza. `arturo migra indietro` rimette tutto com'era.
+
+**Perché**: col plugin un aggiornamento cambia solo Arturo e non tocca mai i tuoi file. Oggi invece
+Arturo e i tuoi file stanno nella stessa cartella, e una tua modifica può andare in conflitto con
+l'aggiornamento. La migrazione la facciamo insieme: se usi Arturo, ti scrive Federico.
+
 ## 2026-11-05 — Le tue preferenze hanno una cartella sola
 
 **Cosa cambia**: i file `.local`, quelli dove scrivi le tue scelte (i tuoi server in

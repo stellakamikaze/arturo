@@ -86,7 +86,7 @@ Terza prova, 5/11/2026 (Claude Code 2.1.318), sul pacchetto con il metodo: `impo
 
 Quarta prova, 5/11/2026 (Claude Code 2.1.318), col primo rilascio pubblicato (`plugin-v0.2.4`, sha 4659345) in un `CLAUDE_CONFIG_DIR` vuoto: `claude plugin marketplace add stellakamikaze/arturo#catalogo` e `claude plugin install arturo@arturo` installano lo sha del tag firmato; `aggiornamenti.py plugin --verifica` dice "GIÀ AGGIORNATO", la deriva tace e fissa l'ancora, la telemetria legge v0.2.4; una guardia cambiata nella cache esce nella riga DERIVA.
 
-Da provare: Windows (prima di migrare Balthasar); barra in basso dal puntatore su una macchina pulita.
+Da provare: Windows (prima di migrare Balthasar, e `arturo migra` su Windows); barra in basso dal puntatore su una macchina pulita.
 
 ## Il pacchetto
 
@@ -125,6 +125,34 @@ telemetria versione dal plugin.json della copia, non dai tag del git dell'Orsa
 - **Fuori dal MANIFEST** stanno solo la firma, la cartella `.in_use` che Claude Code aggiunge alla cache e i `__pycache__` che Python scrive accanto agli script.
 - **Il catalogo** sta sul ramo `catalogo` del repository: la persona lo aggiunge con `claude plugin marketplace add stellakamikaze/arturo#catalogo`, e `main` resta il clone di Gigi e Filippo fino a F4.
 - Il banco `tests/test_fiducia_2026_11_05.py` (FD01-FD09) prova tutto con la CLI vera, in un `CLAUDE_CONFIG_DIR` di prova: tag non firmato, firmato da un'altra chiave, sha dopo il tag, rilascio più vecchio, e un aggiornamento vX → vY che va a buon fine.
+
+## La migrazione dal clone (F4, 5/11/2026)
+
+Chi ha Arturo come clone in `~/.claude` passa al plugin con `arturo migra` (`bin/migra.py`). Prima si lancia la prova, che non tocca niente; poi la migrazione vera, con Claude Code chiuso, da un Terminale.
+
+```
+arturo migra --prova   rapporto: PRONTA o FERMA coi motivi, cosa cambia, cosa resta della persona
+                       → ~/.claude/data/migra/rapporto-<data>.txt, da mandare con /segnala
+arturo migra           1 controlli del rapporto, e nessuna sessione di Claude Code aperta
+                       2 copia di sicurezza: ~/.claude-arturo-clone-<data>/copia (.git, file di Arturo,
+                         settings.json, file dei plugin, ancora, file di blocco) + migra.json coi passi
+                       3 personale.py separa --senza-commit: /inizio cambiato → personale/inizio.md
+                       4 catalogo → ancora = chiave del clone → tag firmato e sha (verifica_catalogo)
+                         → claude plugin install → la copia torna col MANIFEST firmato?
+                       5 settings.json in una scrittura: via gli hook di Arturo, unione a tre vie col
+                         frammento del plugin, file di blocco
+                       6 i file di Arturo e .git escono da ~/.claude (la copia li tiene)
+                       un passo che fallisce → indietro da solo (uscita 1, o 3 per il catalogo)
+arturo migra indietro  toglie plugin e catalogo messi dalla migrazione, riporta ogni file dalla copia
+```
+
+- **La base dell'unione** è il `settings.json` di Arturo da cui il clone è partito (`git show <merge-base>:settings.json`), tradotto come il pacchetto traduce il suo (barra dal puntatore, stile `arturo:`). Una voce che la persona ha lasciato com'era prende il valore del plugin, una voce sua resta sua, una voce cambiata da tutte e due le parti ferma la migrazione e si nomina.
+- **Gli hook che escono** sono quelli che lanciano un file di Arturo dentro `~/.claude`, anche se il plugin non li porta più: dopo il passo 6 quel file non c'è. Un hook della persona resta. Una barra in basso della persona che usa un file di Arturo ferma la migrazione.
+- **Il rapporto** nomina i file di Arturo e conta quelli della persona, senza nomi e senza i valori dei settings: va a chi mantiene Arturo.
+- **Non si migra da sola** una `~/.claude` con Arturo come `upstream` (repository della persona): `.git` porta anche i suoi file, e si fa a mano.
+- **La sessione aperta** blocca la migrazione: una sessione partita col clone ha gli hook in `~/.claude/hooks`, e dopo il passo 6 ogni hook mancante bloccherebbe le sue azioni.
+- Il demone fsmonitor di git tiene aperta `.git`: la migrazione lo spegne per i suoi git, e copia e confronto saltano i socket.
+- Il banco `tests/test_migra_2026_11_05.py` (MG01-MG07) prova tutto con la CLI vera, in un `CLAUDE_CONFIG_DIR` di prova: rapporto, sessione aperta, migrazione, ritorno identico file per file, tag non firmato, conflitto nei settings dopo l'installazione, `upstream`.
 
 ## Come un testo di Arturo indica il codice
 

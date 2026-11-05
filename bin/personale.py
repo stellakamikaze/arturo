@@ -17,6 +17,8 @@ Arturo esegue in fondo.
   ripristina hooks/X      riporta una guardia (o un altro hook) com'è in Arturo, senza tenere le modifiche
   separa [--verso REF]    sposta i comandi di Arturo modificati (con --verso solo quelli che REF cambia);
                           /aggiorna lo lancia da solo nella copia di prova
+  separa --senza-commit   scrive solo i file personali: i file di Arturo e git restano come sono. Lo usa
+                          arturo migra, che poi toglie i file di Arturo da ~/.claude
   hook-precedenti [--applica]
                           gli hook, i plugin accesi e le impostazioni (model, env, apiKeyHelper) che la
                           persona aveva prima di Arturo, nell'ultima ~/.claude-backup-*: li elenca, e con
@@ -205,8 +207,8 @@ def riporta(r: Path, b: str, file: str, vecchio: bytes, attuale: bytes, messaggi
         raise
 
 
-def sposta(file: str, parla: bool = True) -> int:
-    r = radice()
+def sposta(file: str, parla: bool = True, commit: bool = True, r: Path | None = None) -> int:
+    r = r or radice()
     m = NOME.match(file) or SESSIONE.match(file)
     if not m:
         print(f"Errore: si spostano solo i comandi di Arturo (commands/<nome>.md) e hooks/session-start.sh o "
@@ -234,11 +236,13 @@ def sposta(file: str, parla: bool = True) -> int:
     testo = testo_hook(comando, *righe, gia) if e_hook else testo_personale(comando, *righe, gia)
     nome = file if e_hook else f"/{comando}"
     # Prima il file di Arturo e il commit, poi il file personale: se il commit non riesce (un hook, un
-    # errore) il file torna com'era e niente resta a meta'.
-    riporta(r, b, file, vecchio.stdout, attuale, f"personale: aggiunte a {nome} spostate in personale/{destinazione.name}")
+    # errore) il file torna com'era e niente resta a meta'. Senza commit (arturo migra) il file di
+    # Arturo resta com'è: la migrazione lo porta via con gli altri.
+    if commit:
+        riporta(r, b, file, vecchio.stdout, attuale, f"personale: aggiunte a {nome} spostate in personale/{destinazione.name}")
     destinazione.parent.mkdir(parents=True, exist_ok=True)
     destinazione.write_text(testo, encoding="utf-8")
-    if git(r, "ls-files", "--error-unmatch", "--", str(destinazione.relative_to(r))).returncode == 0:
+    if commit and git(r, "ls-files", "--error-unmatch", "--", str(destinazione.relative_to(r))).returncode == 0:
         # personale/ tracciato (remote privato, /fine fa git add -f): il file va nello stesso giro.
         git(r, "add", "-f", "--", str(destinazione.relative_to(r)), controlla=True)
         git(r, "commit", "-q", "--no-verify", "-m", f"personale: {nome}", "--", str(destinazione.relative_to(r)),
@@ -280,17 +284,17 @@ def ripristina(file: str) -> int:
     return 0
 
 
-def separa(verso: str = "") -> int:
+def separa(verso: str = "", commit: bool = True, r: Path | None = None) -> int:
     """Ogni comando di Arturo modificato va in personale/: /aggiorna lo lancia prima di applicare,
     solo se il repository della config è di Arturo o è privato (lo controlla chi lo lancia).
 
     Cosi' la persona non deve pensarci: le sue modifiche restano sue, il comando torna quello di
     Arturo e l'aggiornamento non va in conflitto. Senza comandi modificati non stampa niente.
     """
-    r = radice()
+    r = r or radice()
     b = base(r)
     for file in (modificati(r, b, verso) if b else []):
-        esito = sposta(file, parla=False)
+        esito = sposta(file, parla=False, commit=commit, r=r)
         if esito != 0:
             return esito
     return 0
@@ -466,6 +470,12 @@ def main(argv: list) -> int:
         return 0
     if argv == ["elenco"]:
         return elenco()
+    if argv == ["separa", "--senza-commit"]:
+        try:
+            return separa(commit=False)
+        except (OSError, subprocess.SubprocessError) as errore:
+            print(f"Errore: {errore}", file=sys.stderr)
+            return 2
     if argv[:1] == ["separa"] and (len(argv) == 1 or (len(argv) == 3 and argv[1] == "--verso")):
         try:
             return separa(argv[2] if len(argv) == 3 else "")

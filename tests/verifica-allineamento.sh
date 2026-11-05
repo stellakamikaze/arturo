@@ -178,6 +178,8 @@ IN_FILA=(
   test_schede_mac_2026_10_29.py
   # Strati F3 (5/11/2026, #4533): la CLI vera di Claude Code installa e aggiorna il plugin in sandbox.
   test_fiducia_2026_11_05.py
+  # Strati F4 (5/11/2026, #4534): arturo migra dal clone al plugin, con la CLI vera e il ritorno indietro.
+  test_migra_2026_11_05.py
 )
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
@@ -382,6 +384,8 @@ BASELINE=(
   # Strati F3 (5/11/2026, #4533): MANIFEST firmato, catalogo con lo sha, /aggiorna che verifica il tag.
   # 809868a, il dev prima.
   "test_fiducia_2026_11_05.py 809868a"
+  # Strati F4 (5/11/2026, #4534): arturo migra non c'è. 53450c6, il dev prima.
+  "test_migra_2026_11_05.py 53450c6"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
@@ -413,6 +417,8 @@ VELENI=(
   test_humanizer_origine.py
   # Strati F3 (5/11/2026): senza la verifica del tag Claude Code installa un tag non firmato (FD06).
   test_fiducia_2026_11_05.py
+  # Strati F4 (5/11/2026): una migrazione che non torna indietro da sola lascia il plugin installato (MG06).
+  test_migra_2026_11_05.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso
