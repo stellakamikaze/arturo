@@ -40,6 +40,9 @@ from pathlib import Path
 
 PAROLE = {9: "Nove", 10: "Dieci", 11: "Undici", 12: "Dodici"}
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from salti_windows import cartella_prova  # noqa: E402
+
 
 def read(path: Path) -> str:
     return path.read_text(encoding="utf-8") if path.is_file() else ""
@@ -118,7 +121,7 @@ def test_rl04(repo: Path) -> None:
 
 def test_rl05(repo: Path) -> None:
     bash = shutil.which("bash") or "bash"
-    with tempfile.TemporaryDirectory() as d:
+    with cartella_prova() as d:
         home = Path(d) / "home"
         shutil.copytree(repo, home / ".claude", ignore=shutil.ignore_patterns(".git", "__pycache__", "cache"))
         ambiente = Path(d) / "ambiente.sh"
@@ -158,7 +161,7 @@ def ambiente(home: Path) -> dict:
 def test_rl07(repo: Path) -> None:
     node = shutil.which("node")
     assert node, "RL07 serve node per provare statusline.js"
-    with tempfile.TemporaryDirectory() as d:
+    with cartella_prova() as d:
         home = Path(d) / "home"
         (home / ".claude" / "cache" / "scheda").mkdir(parents=True)
         (home / ".claude" / "cache" / "scheda" / "s1.json").write_text(
@@ -182,7 +185,7 @@ def test_rl07(repo: Path) -> None:
 def test_rl08(repo: Path) -> None:
     node = shutil.which("node")
     assert node, "RL08 serve node per provare statusline.js"
-    with tempfile.TemporaryDirectory() as d:
+    with cartella_prova() as d:
         home = Path(d) / "home"
         config = home / ".claude"
         (config / "cache" / "scheda").mkdir(parents=True)
@@ -215,7 +218,7 @@ def test_rl08(repo: Path) -> None:
 def test_rl09(repo: Path) -> None:
     node = shutil.which("node")
     assert node, "RL09 serve node per provare context-monitor.js"
-    with tempfile.TemporaryDirectory() as d:
+    with cartella_prova() as d:
         env = {**ambiente(Path(d) / "home"), "TMPDIR": d, "TEMP": d, "TMP": d}
         avvisi = []
         for _ in range(7):  # primo avviso, poi 5 giri di attesa, poi il secondo

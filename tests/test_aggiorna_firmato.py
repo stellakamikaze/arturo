@@ -41,10 +41,12 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 from typing import List
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from salti_windows import cartella_prova  # noqa: E402
 
 BASH = shutil.which("bash") or "bash"
 NODE = shutil.which("node") or "node"
@@ -158,7 +160,7 @@ class Lab:
 
 
 def con_lab(repo: Path, prova) -> None:
-    with tempfile.TemporaryDirectory() as d:
+    with cartella_prova() as d:
         prova(Lab(repo, Path(d)))
 
 
