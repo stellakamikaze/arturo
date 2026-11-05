@@ -1,12 +1,14 @@
 // Il Worker di Arturo: collega logica.js e archivio.js a D1 (env.DB), all'invio email (env.POSTA) e a Telegram.
 // Deploy e query utili: server/README.md.
 import { EmailMessage } from "cloudflare:email";
-import { gestisci, programmato, mime, avvisoTelegram } from "./logica.js";
+import { gestisci, programmato, mime, avvisoTelegram, intestazioneTask, leggiNomi } from "./logica.js";
 import { archivio } from "./archivio.js";
 
+// Dal 5/11/2026 l'email porta anche l'HTML e, se il Worker ha INTESTAZIONE_TASK e TASK_PROGETTO, un header per task.
 function posta(env) {
-  return async ({ oggetto, testo }) => {
-    const grezzo = mime({ da: env.MITTENTE, a: env.DESTINATARIO, oggetto, testo });
+  return async ({ oggetto, testo, html = "", task = [] }) => {
+    const intestazioni = task.map((t) => intestazioneTask(env.INTESTAZIONE_TASK, env.TASK_PROGETTO, t)).filter(Boolean);
+    const grezzo = mime({ da: env.MITTENTE, a: env.DESTINATARIO, oggetto, testo, html, intestazioni });
     await env.POSTA.send(new EmailMessage(env.MITTENTE, env.DESTINATARIO, grezzo));
   };
 }
@@ -25,9 +27,10 @@ function limite(env) {
 export default {
   async fetch(request, env) {
     return gestisci(request, { archivio: archivio(env.DB), posta: posta(env), avviso: avvisoTelegram(env), token: env.RIEPILOGO_TOKEN,
-      limite: limite(env), leggi: env.LEGGI_SEGNALAZIONI || "" });
+      limite: limite(env), leggi: env.LEGGI_SEGNALAZIONI || "", nomi: leggiNomi(env.NOMI_INSTALLAZIONI) });
   },
   async scheduled(evento, env, ctx) {
-    ctx.waitUntil(programmato({ archivio: archivio(env.DB), posta: posta(env), avviso: avvisoTelegram(env) }));
+    ctx.waitUntil(programmato({ archivio: archivio(env.DB), posta: posta(env), avviso: avvisoTelegram(env),
+      nomi: leggiNomi(env.NOMI_INSTALLAZIONI), leggi: env.LEGGI_SEGNALAZIONI || "" }));
   },
 };

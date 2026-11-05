@@ -289,6 +289,36 @@ export function archivio(db) {
         };
       });
     },
+    // Il giorno del recap del mattino (5/11/2026, #4810): chi ha usato Arturo e come, confrontato con i sette giorni
+    // prima, le conferme chieste dalle guardie, i setup, le segnalazioni per tipo e stato, il sito e chi è rimasto
+    // indietro. Federico: "deve far capire quanto e come Arturo è usato". La finestra di riepilogo() resta quella.
+    async giorno(al) {
+      const tutte = async (sql, ...v) => (await db.prepare(sql).bind(...v).all()).results;
+      const uno = async (sql, ...v) => ((await db.prepare(sql).bind(...v).first()) || { n: 0 }).n || 0;
+      const meno = (n) => new Date(Date.parse(`${al}T12:00:00Z`) - n * 86400000).toISOString().slice(0, 10);
+      const attive = (righe) => righe.filter((x) => x.giorniAttivi > 0);
+      const prima = await tutte(
+        `SELECT giorno, COUNT(DISTINCT installazione) AS installazioni, SUM(evento = 'sessione') AS sessioni FROM eventi
+         WHERE giorno > ? AND giorno <= ? GROUP BY giorno`, meno(8), meno(1));
+      const somma = (k) => prima.reduce((s, g) => s + (Number(g[k]) || 0), 0);
+      const contatore = (chiave) => uno("SELECT COALESCE(SUM(n), 0) AS n FROM contatori WHERE chiave = ? AND giorno = ?", chiave, al);
+      return {
+        uso: attive(await this.uso(meno(1), al)),
+        settimana: attive(await this.uso(meno(7), al)).map(({ installazione, giorniAttivi, sessioni }) => ({ installazione, giorniAttivi, sessioni })),
+        media: { installazioni: somma("installazioni") / 7, sessioni: somma("sessioni") / 7 },
+        chiede: await tutte(
+          `SELECT valore, SUM(evento = 'chiede') AS chiede, SUM(evento = 'confermata') AS confermata, COUNT(DISTINCT installazione) AS installazioni
+           FROM eventi WHERE evento IN ('chiede', 'confermata') AND giorno = ? GROUP BY valore ORDER BY chiede DESC LIMIT 20`, al),
+        setupIniziati: await uno("SELECT COUNT(DISTINCT installazione) AS n FROM eventi WHERE evento = 'setup' AND giorno = ?", al),
+        setupFiniti: await uno("SELECT COUNT(DISTINCT installazione) AS n FROM eventi WHERE evento = 'setup' AND valore = 'fine' AND giorno = ?", al),
+        segnalazioni: await tutte(
+          "SELECT id, tipo, stato FROM segnalazioni WHERE substr(ricevuta, 1, 10) = ? ORDER BY id", al),
+        feedback: await contatore("feedback"),
+        download: await contatore("sito:download"),
+        github: await contatore("sito:github"),
+        indietro: await this.indietro(al),
+      };
+    },
     async riepilogo(dal, al, { settimana = false } = {}) {
       const gruppo = async (evento) => (await db.prepare(
         "SELECT valore, COUNT(*) AS n FROM eventi WHERE evento = ? AND giorno > ? AND giorno <= ? GROUP BY valore ORDER BY n DESC LIMIT 20")

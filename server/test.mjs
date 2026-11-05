@@ -1005,6 +1005,96 @@ const casi = {
     assert.equal(f.stato.pacchettiPrima, "2026-07-15", "V49 il pacchetto tecnico non si svuota dopo 90 giorni");
     assert.equal(f.stato.pulito, "2025-10-13", "V49 la pulizia dei 12 mesi è cambiata");
   },
+  // Le email in HTML con il task nell'header (5/11/2026, #4810). V50: multipart/alternative con le due parti, e una riga
+  // d'intestazione con un a capo non entra.
+  async V50() {
+    const m = mime({ da: "arturo@example.org", a: "x@example.org", oggetto: "prova", testo: "testo è", html: "<p>html è</p>", adesso, id: "abc-1",
+      intestazioni: ["X-Prova-Task: eyJmcCI6MX0", "X-Rotta: a\r\nBcc: altro@example.org", "Senza-Due-Punti"] });
+    assert.match(m, /^Content-Type: multipart\/alternative; boundary="arturo-abc1"$/m, "V50 l'email con html non è multipart");
+    assert.match(m, /^X-Prova-Task: eyJmcCI6MX0$/m, "V50 l'header del task manca");
+    assert.doesNotMatch(m, /Bcc|Senza-Due-Punti/, "V50 una riga d'intestazione malformata entra");
+    const parti = m.split("--arturo-abc1").slice(1, 3).map((p) => Buffer.from(p.split("\r\n\r\n")[1].replace(/\r\n/g, ""), "base64").toString("utf8"));
+    assert.deepEqual(parti, ["testo è", "<p>html è</p>"], "V50 le due parti non tornano uguali");
+    assert.match(m.split("--arturo-abc1")[2], /Content-Type: text\/html; charset=utf-8/, "V50 la seconda parte non è HTML");
+    assert.ok(m.trimEnd().endsWith("--arturo-abc1--"), "V50 manca il confine di chiusura");
+    assert.doesNotMatch(mime({ da: "a@example.org", a: "b@example.org", oggetto: "o", testo: "t", adesso }), /multipart/, "V50 senza html diventa multipart");
+  },
+  // V51: la segnalazione porta il task "Leggere la segnalazione n. N", con link e senza titolo né testo; l'header si legge
+  // come lo legge il ponte (base64url di un JSON); senza nome dell'header o progetto non nasce.
+  async V51() {
+    const f = finti();
+    await gestisci(post("/v1/segnalazioni", { tipo: "proposta", titolo: "Titolo riservato", testo: "Testo riservato", installazione: "91288389-aaaa",
+      versione: "v0.2.3", sistema: "Darwin" }), { ...f, adesso, leggi: "https://admin.example/s", nomi: { "91288389": "Gigi" } });
+    const e = f.stato.email[0];
+    assert.equal(e.task.length, 1, "V51 la segnalazione non porta il task");
+    const riga = logica.intestazioneTask("X-Prova-Task", "arturo", e.task[0]);
+    const spec = JSON.parse(Buffer.from(riga.split(": ")[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"));
+    assert.deepEqual(spec, { fp: "auto:arturo:segnalazione:1", prio: "low", chi: "Claude", titolo: "Leggere la segnalazione n. 1 di Arturo (proposta)",
+      note: "Leggi la segnalazione e rispondi dallo sportello: [segnalazione n. 1](https://admin.example/s/1)", progetto: "arturo" }, "V51 il task della segnalazione");
+    assert.match(e.html, /Gigi \(91288389\)/, "V51 l'HTML non dice chi ha segnalato");
+    assert.match(e.html, /href="https:\/\/admin\.example\/s\/1"/, "V51 manca il bottone alla segnalazione");
+    assert.doesNotMatch(e.html + e.testo + riga, /riservato/i, "V51 l'email porta titolo o testo della segnalazione");
+    assert.equal(logica.intestazioneTask("", "arturo", e.task[0]), null, "V51 senza nome dell'header nasce lo stesso");
+    assert.equal(logica.intestazioneTask("X-Prova-Task", "", e.task[0]), null, "V51 senza progetto nasce lo stesso");
+    assert.equal(logica.intestazioneTask("X Rotto:", "arturo", e.task[0]), null, "V51 un nome d'header storto passa");
+    assert.ok(/^auto:[a-z0-9-]{1,30}:[A-Za-z0-9._:-]{1,80}$/.test(logica.task("banco:91288389:test_un nome/strano.py", "t").fp), "V51 l'impronta esce dai caratteri del ponte");
+  },
+  // V52: la config rotta in HTML, col nome e un task al mese per installazione e guasto.
+  async V52() {
+    const f = finti();
+    await gestisci(post("/v1/eventi", lotto([{ evento: "config", valore: "rotta-hook" }], { installazione: "91288389-aaaa" })),
+      { ...f, adesso, nomi: { "91288389": "Gigi" } });
+    const e = f.stato.email[0];
+    assert.match(e.html, /La config di Gigi è rotta/, "V52 l'HTML della config rotta");
+    assert.deepEqual([e.task[0].fp, e.task[0].titolo], ["auto:arturo:rotta:91288389:hook:2026-10", "Riparare la config rotta di Gigi (hook)"],
+      "V52 il task della config rotta");
+  },
+  // V53: il recap del mattino con il giorno (archivio.giorno): righe da fare con il loro task, sezioni a zero sparite e
+  // nominate nel piede, nomi al posto degli id.
+  async V53() {
+    const f = finti({ ...VUOTO, installazioni: 1, sessioni: 3, banchi: [{ valore: "test_guardie.py", installazione: "826cca31-bbbb", versione: "v0.2.3", dal: "2026-10-11" }],
+      deriva: [{ installazione: "91288389-aaaa", valori: ["hook:bash-dispatcher.sh"], conflitto: false }], config: [{ valore: "rotta-settings", n: 1 }] });
+    f.archivio.giorno = async () => ({
+      uso: [{ installazione: "91288389-aaaa", versione: "v0.2.3", sistema: "Darwin", sessioni: 3, comandi: [{ valore: "fine", n: 2 }], skill: [{ valore: "todo", n: 1 }],
+        durata: [{ valore: "5-30m", n: 3 }], turni: [] }],
+      settimana: [{ installazione: "91288389-aaaa", giorniAttivi: 5, sessioni: 9 }], media: { installazioni: 1.4, sessioni: 2 }, chiede: [],
+      setupIniziati: 0, setupFiniti: 0, segnalazioni: [], feedback: 0, download: 0, github: 0,
+      indietro: [{ installazione: "2c64c0dc-cccc", rilascio: "v0.2.1", ultima: "2026-10-12", nuovo: "v0.2.3", dal: "2026-10-05" }],
+    });
+    await giornaliero({ ...f, adesso, nomi: { "91288389": "Gigi", "826cca31": "Filippo", "2c64c0dc": "Alessio" } });
+    const e = f.stato.email[0];
+    assert.deepEqual(e.task.map((t) => t.fp), ["auto:arturo:indietro:2c64c0dc:v0.2.3", "auto:arturo:banco:826cca31:test_guardie.py",
+      e.task[2] && e.task[2].fp], "V53 i task delle righe da fare");
+    assert.match(e.task[2].fp, /^auto:arturo:deriva:91288389:[a-z0-9]+$/, "V53 il task della deriva");
+    assert.deepEqual(e.task.map((t) => t.titolo), ["Sbloccare l'aggiornamento di Alessio alla v0.2.3", "Riparare il banco test_guardie.py su Filippo",
+      "Guardare la deriva di Gigi: hook spenti"], "V53 i titoli dei task");
+    assert.match(e.html, /Ieri una installazione ha usato Arturo|Ieri 1 installazione ha usato Arturo/, "V53 il titolo del recap");
+    assert.match(e.html, /media era 1,4 installazioni e 2 sessioni/, "V53 il confronto con la settimana prima");
+    assert.match(e.html, /Niente da dire su: [^<]*guardie/, "V53 le guardie a zero non vanno nel piede");
+    assert.doesNotMatch(e.html, />Guardie</, "V53 la sezione delle guardie a zero resta");
+    assert.match(e.testo, /Da fare:\n  L'installazione di Alessio è ferma alla v0\.2\.1/, "V53 il testo non ha le righe da fare");
+    assert.match(e.testo, /Installazioni attive: 1/, "V53 il testo perde il riepilogo di sempre");
+  },
+  // V54: il riepilogo del lunedì in HTML, anche vuoto, con le installazioni rimaste indietro come task.
+  async V54() {
+    const lunedi = new Date("2026-10-26T07:30:00Z");
+    const v = finti({ ...VUOTO });
+    await settimanale({ ...v, adesso: lunedi });
+    assert.match(v.stato.email[0].html, /La settimana di Arturo: 0 installazioni attive/, "V54 il lunedì vuoto non ha l'HTML");
+    assert.deepEqual(v.stato.email[0].task, [], "V54 il lunedì vuoto porta task");
+    const g = finti({ ...VUOTO, installazioni: 2, uso: [{ installazione: "91288389-aaaa", giorniAttivi: 4, sessioni: 7, comandi: [{ valore: "fine", n: 3 }], ultima: "2026-10-25" },
+      { installazione: "11111111-zzzz", giorniAttivi: 0, sessioni: 0, comandi: [], ultima: "2026-09-01" }],
+      migliorare: { indietro: [{ installazione: "2c64c0dc-cccc", rilascio: "v0.2.1", ultima: "2026-10-24", nuovo: "v0.2.3", dal: "2026-10-05" }],
+        confermeGuardie: Array.from({ length: 12 }, (_, i) => ({ valore: `g${i}.py`, chiede: 12 - i, confermata: 1, installazioni: 1 })),
+        ritenzione: { nuove: 1, soglie: [{ giorni: 7, vive: 1, idonee: 2 }] } } });
+    await settimanale({ ...g, adesso: lunedi, nomi: { "91288389": "Gigi" } });
+    const e = g.stato.email[0];
+    assert.match(e.html, /Gigi <span[^>]*>\(91288389\)<\/span>/, "V54 la tabella di chi lo usa senza nome");
+    assert.match(e.html, /1 installazione è rimasta ferma/, "V54 le ferme non sono contate");
+    assert.match(e.html, /E altre 2\./, "V54 le guardie oltre le prime dieci non vanno in una riga");
+    assert.doesNotMatch(e.html, /g10\.py/, "V54 la tabella delle guardie supera le dieci righe");
+    assert.deepEqual(e.task.map((t) => t.fp), ["auto:arturo:indietro:2c64c0dc:v0.2.3"], "V54 il task di chi è rimasto indietro");
+  },
 };
 
 // `node test.mjs V31 V32` fa girare i soli casi nominati (serve al veleno di un caso alla volta).

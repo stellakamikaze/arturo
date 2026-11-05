@@ -12,7 +12,7 @@ workers_dev = false
 routes = [{ pattern = "DOMINIO_DEL_SERVER", custom_domain = true }]
 
 [triggers]
-crons = ["0 6 * * *"]   # ogni mattina alle 8 (ora italiana estiva): recap del giorno prima se non è vuoto; il lunedì sempre riepilogo e pulizia
+crons = ["0 6 * * *"]   # ogni mattina alle 7 ora italiana (alle 8 con l'ora legale): recap del giorno prima se non è vuoto; il lunedì sempre riepilogo e pulizia
 
 [[d1_databases]]
 binding = "DB"
@@ -41,3 +41,8 @@ DESTINATARIO = "DESTINATARIO_VERIFICATO"
 # Facoltativa: la pagina privata dove leggi una segnalazione, senza il numero in fondo. Email e Telegram
 # portano il link <LEGGI_SEGNALAZIONI>/<numero>. Senza, dicono di leggerla con GET /v1/segnalazioni/<numero>.
 # LEGGI_SEGNALAZIONI = "https://IL_TUO_SITO/admin/segnalazioni"
+# Facoltative (5/11/2026): l'header del task nelle email, per un programma che legge la casella e crea i task.
+# Con tutte e due ogni cosa da fare porta "<INTESTAZIONE_TASK>: <base64url di un JSON>". I nomi delle installazioni
+# vanno invece in un secret: npx wrangler@4 secret put NOMI_INSTALLAZIONI  ({"91288389": "Nome"}).
+# INTESTAZIONE_TASK = "X-Il-Tuo-Task"
+# TASK_PROGETTO = "arturo"

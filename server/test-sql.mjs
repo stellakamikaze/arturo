@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { archivio } from "./archivio.js";
-import { settimanale, pulizia, gestisci, testoUso } from "./logica.js";
+import { settimanale, giornaliero, pulizia, gestisci, testoUso } from "./logica.js";
 
 function d1(sql = readFileSync(new URL("./schema.sql", import.meta.url), "utf8")) {
   const db = new DatabaseSync(":memory:");
@@ -381,6 +381,39 @@ const casi = {
     assert.equal((await chiedi({})).status, 401, "QU1 la rotta risponde senza token");
     const json = await (await chiedi({ authorization: "Bearer " + token })).json();
     assert.deepEqual([json.dal, json.al, json.installazioni.length], ["2026-10-06", "2026-10-13", 2], "QU1 la rotta col token");
+  },
+  // Il giorno del recap del mattino (5/11/2026, #4810) sulle query vere: chi ha usato Arturo ieri, i giorni attivi
+  // nella settimana, la media dei sette giorni prima, conferme, setup, segnalazioni e sito. Poi l'email intera.
+  async QG1() {
+    const a = await con([
+      ["2026-10-06", "aaaaaaaa-1", "sessione"], ["2026-10-06", "bbbbbbbb-2", "sessione"],
+      ["2026-10-10", "aaaaaaaa-1", "sessione"],
+      ["2026-10-13", "aaaaaaaa-1", "sessione"], ["2026-10-13", "aaaaaaaa-1", "sessione"],
+      ["2026-10-13", "aaaaaaaa-1", "comando", "fine"], ["2026-10-13", "aaaaaaaa-1", "skill", "todo"],
+      ["2026-10-13", "aaaaaaaa-1", "durata", "5-30m"], ["2026-10-13", "aaaaaaaa-1", "chiede", "exfil-guard.py"],
+      ["2026-10-13", "aaaaaaaa-1", "confermata", "exfil-guard.py"],
+      ["2026-10-13", "cccccccc-3", "setup", "fase:0"], ["2026-10-13", "cccccccc-3", "setup", "fine"],
+      ["2026-09-01", "dddddddd-4", "sessione"],
+    ]);
+    await a.salvaSegnalazione({ tipo: "problema", titolo: "Titolo riservato", testo: "Testo riservato", versione: "v1", sistema: "Darwin",
+      installazione: "aaaaaaaa-1" }, "2026-10-13T09:00:00Z");
+    await a.incrementa(AL, "sito:download", 2);
+    const g = await a.giorno(AL);
+    assert.deepEqual(g.uso.map((x) => x.installazione).sort(), ["aaaaaaaa-1", "cccccccc-3"], "QG1 chi ha usato Arturo il giorno");
+    assert.equal(g.settimana.find((x) => x.installazione === "aaaaaaaa-1").giorniAttivi, 2, "QG1 i giorni attivi della settimana");
+    assert.deepEqual([g.media.installazioni, g.media.sessioni], [3 / 7, 3 / 7], "QG1 la media dei sette giorni prima");
+    assert.deepEqual(g.chiede, [{ valore: "exfil-guard.py", chiede: 1, confermata: 1, installazioni: 1 }], "QG1 le conferme del giorno");
+    assert.deepEqual([g.setupIniziati, g.setupFiniti, g.download, g.feedback], [1, 1, 2, 0], "QG1 setup e sito");
+    assert.deepEqual(g.segnalazioni, [{ id: 1, tipo: "problema", stato: "ricevuta" }], "QG1 le segnalazioni del giorno");
+    const email = [];
+    await giornaliero({ archivio: a, posta: async (m) => { email.push(m); }, adesso: new Date("2026-10-14T06:00:00Z"),
+      nomi: { aaaaaaaa: "Gigi" }, leggi: "https://admin.example/segnalazioni" });
+    assert.equal(email.length, 1, "QG1 il recap non parte");
+    const { testo, html } = email[0];
+    assert.match(testo, /^Arturo, il giorno 2026-10-13\n\nIeri 2 installazioni hanno usato Arturo, 2 sessioni\./, "QG1 la testa del testo: " + testo.slice(0, 200));
+    assert.match(testo, /  Gigi  2 sessioni, 2 su 7, \/fine 1 · skill todo 1/, "QG1 la riga di Gigi nel testo");
+    assert.ok(html.includes("Gigi") && html.includes("(aaaaaaaa)") && html.includes("https://admin.example/segnalazioni/1"), "QG1 nome o link nell'HTML");
+    assert.ok(!/riservato/.test(testo + html), "QG1 il recap porta il testo di una segnalazione");
   },
   // Lo sportello (4/11/2026, #3925) sulle query vere: ricevuta col codice, risposta col token, seguito, ritiro, e il
   // pacchetto tecnico svuotato dopo 90 giorni mentre il testo resta.

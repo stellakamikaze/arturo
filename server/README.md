@@ -104,8 +104,24 @@ feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le s
   no. Il limite per IP sta nei binding `LIMITE_EVENTI` (60 al minuto) e `LIMITE_MODULI` (10 al
   minuto) di `wrangler.toml`; l'IP non si salva. Il modulo e i download rifiutano un invio da un
   altro sito (`Sec-Fetch-Site: cross-site`).
-- **Ogni mattina alle 8** (06:00 UTC) arriva il recap del giorno prima, solo se quel giorno ci
-  sono stati eventi o segnalazioni. Ha anche le config rotte e la deriva cambiata.
+- **Ogni mattina alle 7 ora italiana** (06:00 UTC, alle 8 con l'ora legale) arriva il recap del giorno prima, solo se
+  quel giorno ci sono stati eventi, segnalazioni, feedback o download dal sito. Ha anche le config rotte e la deriva cambiata.
+- **Il recap dice quanto e come si usa Arturo (5/11/2026)**: quante installazioni l'hanno usato e quante sessioni,
+  confrontate con la media dei sette giorni prima; una riga per installazione con versione, sistema, sessioni, giorni
+  attivi nella settimana, comandi, skill, durata e messaggi in fasce; comandi e skill più usati, setup, guardie
+  (bloccate e conferme chieste), segnalazioni per tipo e stato, feedback e download dal sito. In testa "Da fare": chi
+  è rimasto indietro, i banchi rossi, la deriva che ostacola, le config rotte. Le righe a zero spariscono e il loro
+  nome va nel piede.
+- **Le email sono in HTML (5/11/2026)**: segnalazione, config rotta, recap e riepilogo del lunedì partono come
+  `multipart/alternative`, con il testo semplice accanto. L'impaginazione sta in `email.js`, il recap e il riepilogo in
+  `recap.js`. Facoltative, tre variabili del Worker:
+  - `NOMI_INSTALLAZIONI`, un secret JSON `{"91288389": "Nome"}` (primi 8 caratteri dell'id): le email mostrano il nome
+    accanto all'id corto. Resta fuori dal repository;
+  - `INTESTAZIONE_TASK` e `TASK_PROGETTO`: con tutte e due, ogni cosa da fare (segnalazione, config rotta, riga "Da
+    fare") porta un header `<INTESTAZIONE_TASK>: <base64url di un JSON>` con `fp`, `progetto`, `prio`, `titolo`, `note`
+    e `chi`. Un programma che legge la casella lo trasforma in un task del tuo tracker. `fp` è un'impronta stabile
+    (`auto:arturo:segnalazione:14`): la stessa email letta due volte non fa doppioni. Titolo e note li scrive il
+    server, mai col titolo o il testo di una segnalazione.
 - **I banchi delle guardie rossi (4/11/2026)** stanno nel recap del mattino e nell'email del lunedì, sotto le
   config rotte: banco, id corto, versione dell'evento più recente e primo giorno visto. Il client manda
   l'evento `banchi` solo quando l'elenco dei rossi di quel computer cambia: un banco che resta rosso non si
@@ -149,7 +165,7 @@ verificato in Email Routing. Il Worker può scrivere solo a indirizzi verificati
 3. Prepara la config fuori dal repository, così i tuoi indirizzi non finiscono in un commit:
 
    ```bash
-   mkdir -p ~/arturo-deploy && cp logica.js archivio.js worker.js schema.sql ~/arturo-deploy/
+   mkdir -p ~/arturo-deploy && cp logica.js archivio.js worker.js email.js recap.js lancillotto.js versioni.js schema.sql ~/arturo-deploy/
    sed -e 's/DOMINIO_DEL_SERVER/dati.tuodominio.org/' \
        -e 's/ID_DEL_DATABASE/<database_id>/' \
        -e 's/DESTINATARIO_VERIFICATO/tu@esempio.org/g' \

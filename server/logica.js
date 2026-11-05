@@ -25,6 +25,8 @@
 
 import { validaLottoLancillotto, avvisoInstallazioneLancillotto, testoLancillotto } from "./lancillotto.js";
 import { DATA_A_NUMERO } from "./versioni.js";
+import { pagina, sezione, scheda, codice } from "./email.js";
+import { recapGiorno, recapSettimana, righeGiorno } from "./recap.js";
 
 // Le liste chiuse dei valori (24/10/2026). Prima guardia, chiede, confermata ed errore accettavano qualunque
 // slug, e comando qualunque nome: un client modificato o un hook personale con un nome parlante
@@ -397,21 +399,62 @@ function intestazione(testo) {
   return /^[\x20-\x7e]*$/.test(testo) ? testo : `=?UTF-8?B?${btoa(String.fromCharCode(...new TextEncoder().encode(testo)))}?=`;
 }
 
-export function mime({ da, a, oggetto, testo, adesso = new Date(), id = crypto.randomUUID() }) {
+// Dal 5/11/2026 con `html` l'email è multipart/alternative: il testo semplice resta per chi non legge l'HTML.
+// `intestazioni` sono righe in più per la testa (l'header del task): una riga che porta un a capo si scarta, perché
+// aprirebbe un header o un corpo nuovo.
+export function mime({ da, a, oggetto, testo, html = "", intestazioni = [], adesso = new Date(), id = crypto.randomUUID() }) {
   const dominio = da.split("@")[1];
-  return [
+  const testa = [
     `From: Arturo <${da}>`,
     `To: ${a}`,
     `Subject: ${intestazione(oggetto.replace(/[\r\n]+/g, " "))}`,
     `Date: ${adesso.toUTCString()}`,
     `Message-ID: <${id}@${dominio}>`,
+    ...intestazioni.filter((r) => typeof r === "string" && /^[A-Za-z0-9-]{1,40}: [\x21-\x7e]{1,900}$/.test(r)),
     "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=utf-8",
-    "Content-Transfer-Encoding: base64",
-    "",
-    base64(testo),
-  ].join("\r\n");
+  ];
+  const parte = (tipo, corpo) => [`Content-Type: ${tipo}; charset=utf-8`, "Content-Transfer-Encoding: base64", "", base64(corpo)];
+  if (!html) return [...testa, ...parte("text/plain", testo)].join("\r\n");
+  const confine = `arturo-${id.replace(/[^A-Za-z0-9]/g, "")}`;
+  return [...testa, `Content-Type: multipart/alternative; boundary="${confine}"`, "",
+    `--${confine}`, ...parte("text/plain", testo), `--${confine}`, ...parte("text/html", html), `--${confine}--`, ""].join("\r\n");
 }
+
+// Il task che viaggia nell'email (5/11/2026). Chi mantiene Arturo può far leggere la casella a un programma che
+// trasforma l'header in un task del suo tracker: la segnalazione, la config rotta e le righe "da fare" del recap
+// arrivano già come cose da fare. Il valore è un JSON in base64url con fp (l'impronta stabile, che evita i doppioni),
+// progetto, prio, titolo, note e chi. Il nome dell'header e il progetto vengono dalle variabili del Worker
+// INTESTAZIONE_TASK e TASK_PROGETTO: senza, l'email parte senza header. Titolo e note li scrive il server, mai il
+// testo di chi segnala.
+export function task(id, titolo, { prio = "med", chi = "Claude", note = "" } = {}) {
+  return { fp: `auto:arturo:${String(id).replace(/[^A-Za-z0-9._:-]/g, "-").slice(0, 80)}`, prio, chi, titolo: titolo.slice(0, 80),
+    ...(note ? { note: note.slice(0, 600) } : {}) };
+}
+
+export function intestazioneTask(nome, progetto, t) {
+  if (!nome || !progetto || !/^[A-Za-z0-9-]{1,40}$/.test(nome)) return null;
+  const byte = new TextEncoder().encode(JSON.stringify({ ...t, progetto }));
+  let binario = "";
+  for (const b of byte) binario += String.fromCharCode(b);
+  return `${nome}: ${btoa(binario).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}`;
+}
+
+// I nomi delle installazioni (5/11/2026): una mappa privata { "91288389": "Gigi" } nella variabile segreta
+// NOMI_INSTALLAZIONI del Worker, mai nel repository. Senza nome resta l'id corto.
+export function leggiNomi(json) {
+  try {
+    const m = JSON.parse(json || "{}");
+    return m && typeof m === "object" && !Array.isArray(m) ? m : {};
+  } catch {
+    return {};
+  }
+}
+
+export const nomeDi = (nomi, installazione) => {
+  const c = (installazione || "").slice(0, 8);
+  const n = nomi && Object.hasOwn(nomi, c) && typeof nomi[c] === "string" ? nomi[c].slice(0, 40) : "";
+  return n || c || "senza id";
+};
 
 // Il tipo in parole, per chi legge l'avviso (27/10/2026): "proposta" da sola non diceva che è un'idea.
 const TIPO_IN_PAROLE = { problema: "un problema", proposta: "un'idea", integrazione: "un'integrazione" };
@@ -440,26 +483,64 @@ function oraRoma(iso) {
 // testo intero e l'id completo dell'installazione, e ogni copia restava nella casella di chi mantiene Arturo,
 // fuori dalla pulizia dei 12 mesi e da ogni cancellazione. Dal 27/10/2026 il campanello si legge senza comandi:
 // tipo in parole, da dove arriva, l'ora e il link alla pagina che mostra il testo.
-export function emailSegnalazione(s, numero, { leggi = "", ricevuta = "" } = {}) {
-  const link = linkSegnalazione(leggi, numero);
+// Dal 5/11/2026 anche in HTML, con il task: "Leggere la segnalazione n. N", un'idea a priorità bassa.
+export function emailSegnalazione(s, numero, { leggi = "", ricevuta = "", nomi = {} } = {}) {
+  const n = Number(numero);
+  const link = linkSegnalazione(leggi, n);
   const quando = oraRoma(ricevuta);
+  const tipo = TIPO_IN_PAROLE[s.tipo] || s.tipo;
+  const chi = s.installazione ? nomeDi(nomi, s.installazione) : "installazione senza id";
+  const html = pagina({
+    testa: `Arturo · segnalazione${quando ? ` · ${quando}` : ""}`,
+    titolo: `È arrivata la segnalazione n. ${n}: ${tipo}`,
+    blocchi: [sezione("Da dove arriva", scheda([["Tipo", tipo], ["Da", chi === (s.installazione || "").slice(0, 8) ? chi : `${chi} (${(s.installazione || "").slice(0, 8)})`],
+      ["Versione", s.versione || "non detta"], ["Sistema", s.sistema || "altro"], ["Origine", `/${s.origine || "segnala"}`],
+      ...(quando ? [["Arrivata", quando]] : [])]))],
+    azione: link ? { href: link, etichetta: "Leggi la segnalazione" } : null,
+    piede: [link ? "La pagina chiede il tuo accesso." : `Si legge con GET /v1/segnalazioni/${n} e il token del riepilogo.`,
+      "Il testo resta sul server e non passa da questa email.", "Arriva a chi mantiene Arturo, una per segnalazione."],
+  });
   return {
-    oggetto: `[Arturo] Segnalazione n. ${Number(numero)}: ${TIPO_IN_PAROLE[s.tipo] || s.tipo}`,
-    testo: `È arrivata la segnalazione n. ${Number(numero)} su Arturo.\n\n` +
-      `Tipo: ${TIPO_IN_PAROLE[s.tipo] || s.tipo}\nDa: ${provenienza(s)}\n` +
+    oggetto: `[Arturo] Segnalazione n. ${n}: ${tipo}`,
+    testo: `È arrivata la segnalazione n. ${n} su Arturo.\n\n` +
+      `Tipo: ${tipo}\nDa: ${provenienza(s)}\n` +
       (quando ? `Arrivata: ${quando}\n` : "") +
-      (link ? `\nLeggila qui, col tuo accesso:\n${link}\n` : `\nSi legge con GET /v1/segnalazioni/${Number(numero)} e il token del riepilogo.\n`) +
+      (link ? `\nLeggila qui, col tuo accesso:\n${link}\n` : `\nSi legge con GET /v1/segnalazioni/${n} e il token del riepilogo.\n`) +
       `\nIl testo resta sul server e non passa da questa email.\n`,
+    html,
+    task: [task(`segnalazione:${n}`, `Leggere la segnalazione n. ${n} di Arturo (${s.tipo})`, {
+      prio: s.tipo === "problema" ? "med" : "low",
+      note: link ? `Leggi la segnalazione e rispondi dallo sportello: [segnalazione n. ${n}](${link})` : `GET /v1/segnalazioni/${n} col token del riepilogo.`,
+    })],
   };
 }
 
-export function emailConfigRotta(installazione, valore, versione) {
+const ROTTA_IN_PAROLE = { settings: "settings.json non si legge", conflitto: "un conflitto di merge nella config",
+  rebase: "un rebase lasciato a metà", hook: "un hook di Arturo che manca" };
+
+export function emailConfigRotta(installazione, valore, versione, { nomi = {}, adesso = new Date() } = {}) {
+  const tipo = valore.replace("rotta-", "");
+  const chi = nomeDi(nomi, installazione);
+  const html = pagina({
+    testa: `Arturo · config rotta · ${oraRoma(adesso.toISOString())}`,
+    titolo: `La config di ${chi} è rotta: le guardie possono non girare`,
+    blocchi: [sezione("Cosa si sa", scheda([["Installazione", chi === corto(installazione) ? codice(chi) : `${chi} (${corto(installazione)})`],
+      ["Guasto", ROTTA_IN_PAROLE[tipo] || tipo], ["Versione", `Arturo ${versione}`]]))],
+    piede: ["Una sola email al giorno per installazione.", "Il recap di domattina la riporta fra le cose da fare."],
+  });
   return {
     oggetto: "[Arturo] Config rotta su un'installazione",
-    testo: `Un'installazione di Arturo ha la config rotta (${valore.replace("rotta-", "")}): le guardie possono non girare.\n\n` +
+    testo: `Un'installazione di Arturo ha la config rotta (${tipo}): le guardie possono non girare.\n\n` +
       `Installazione ${installazione.slice(0, 8)} · Arturo ${versione}\n`,
+    html,
+    task: [taskRotta(installazione, tipo, nomi, oggi(adesso))],
   };
 }
+
+// Una config rotta fa un task al mese per installazione e guasto: se resta rotta per giorni, non nasce un task al giorno.
+export const taskRotta = (installazione, tipo, nomi, giorno) =>
+  task(`rotta:${corto(installazione)}:${tipo}:${giorno.slice(0, 7)}`, `Riparare la config rotta di ${nomeDi(nomi, installazione)} (${tipo})`,
+    { note: `Guasto: ${ROTTA_IN_PAROLE[tipo] || tipo}. Il primo passo è chiedere a chi la usa l'output di /diagnosi.` });
 
 const corto = (id) => id.slice(0, 8);
 const giorni = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
@@ -574,7 +655,7 @@ export function testoBanchi(banchi) {
   ];
 }
 
-export function testoRiepilogo(r, titolo) {
+export function testoRiepilogo(r, titolo, testa = []) {
   const elenco = (righe, vuoto = "nessuno") => righe.length ? righe.map((x) => `  ${x.n}  ${x.valore || "(vuoto)"}`).join("\n") : `  ${vuoto}`;
   const frequenti = r.guardieFrequenti
     ? ["", `Guardie frequenti (almeno ${LIMITI.guardieFrequenti} blocchi nella settimana sulla stessa installazione):`,
@@ -583,6 +664,7 @@ export function testoRiepilogo(r, titolo) {
   return [
     titolo,
     "",
+    ...testa,
     ...testoMigliorare(r.migliorare),
     `Installazioni attive: ${r.installazioni}`,
     `Sessioni: ${r.sessioni}`,
@@ -763,7 +845,7 @@ async function spedisci(archivio, posta, messaggio, adesso) {
 // `limite(tipo, request)` è il limite per IP del Worker (binding Rate Limiting): falso quando la
 // richiesta va oltre. Senza binding, come nei test e in un fork che non lo configura, lascia passare.
 export async function gestisci(request, { archivio, posta, avviso = async () => {}, adesso = new Date(), token,
-  limite = async () => true, leggi = "" }) {
+  limite = async () => true, leggi = "", nomi = {} }) {
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/") {
     return new Response("Arturo: qui arrivano eventi d'uso, con un id casuale e senza contenuti, segnalazioni e feedback. Codice: https://github.com/stellakamikaze/arturo/tree/main/server\n",
@@ -893,7 +975,7 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     const rotta = righe.find((x) => x.evento === "config");
     if (rotta && await archivio.primaVolta(giorno, `rotta:${rotta.installazione}`)
       && await archivio.incrementa(giorno, "email-rotta") <= LIMITI.emailRottePerGiorno) {
-      await email(emailConfigRotta(rotta.installazione, rotta.valore, rotta.versione));
+      await email(emailConfigRotta(rotta.installazione, rotta.valore, rotta.versione, { nomi, adesso }));
     }
     return risposta(200, { accettati: righe.length, scartati });
   }
@@ -938,7 +1020,7 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     }
     let partita = false;
     if (await archivio.incrementa(giorno, "email-segnalazione") <= LIMITI.emailSegnalazioniPerGiorno) {
-      partita = await email(emailSegnalazione(segnalazione, numero, { leggi, ricevuta: adesso.toISOString() }));
+      partita = await email(emailSegnalazione(segnalazione, numero, { leggi, ricevuta: adesso.toISOString(), nomi }));
       if (partita) {
         try {
           await archivio.segnaEmail(numero);
@@ -1003,12 +1085,19 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
 // Il recap del giorno prima. Nei giorni senza eventi né segnalazioni non parte (14/10/2026,
 // Federico): un'email di zeri ogni mattina insegna a non leggerla. Il segno di vita del server
 // è il riepilogo del lunedì, che parte sempre: se manca quello, il Worker è fermo.
-export async function giornaliero({ archivio, posta, adesso = new Date() }) {
+export async function giornaliero({ archivio, posta, adesso = new Date(), nomi = {}, leggi = "" }) {
   const ieri = giorniFa(adesso, 1);
   const r = await archivio.riepilogo(giorniFa(adesso, 2), ieri);
+  // Dal 5/11/2026 il recap dice anche chi ha usato Arturo e come (archivio.giorno). Un archivio senza giorno() resta
+  // al riepilogo di prima.
+  const g = archivio.giorno ? await archivio.giorno(ieri) : null;
   // Anche un giorno con soli eventi scartati o canali muti merita il recap: non è un giorno di zeri (24/10/2026).
-  if (!r.installazioni && !r.segnalazioni && !r.scartati && !r.telegramKo && !r.emailKo) return;
-  await spedisci(archivio, posta, { oggetto: `[Arturo] Recap del ${ieri}`, testo: testoRiepilogo(r, `Arturo, il giorno ${ieri}`) }, adesso);
+  // Un feedback o un download dal sito, dal 5/11/2026, anche.
+  if (!r.installazioni && !r.segnalazioni && !r.scartati && !r.telegramKo && !r.emailKo
+    && !(g && (g.feedback || g.download || g.github))) return;
+  const { html, task: daFare } = recapGiorno(r, g, { giorno: ieri, nomi, leggi });
+  await spedisci(archivio, posta, { oggetto: `[Arturo] Recap del ${ieri}`,
+    testo: testoRiepilogo(r, `Arturo, il giorno ${ieri}`, righeGiorno(r, g, { nomi, giorno: ieri })), html, task: daFare }, adesso);
 }
 
 // Il giorno di calendario in Europe/Rome: il cron del Worker gira in UTC (wrangler.toml), le settimane di
@@ -1030,12 +1119,13 @@ export function settimanaPrima(adesso = new Date()) {
   return { lunedi: giornoMeno(domenica, 6), domenica };
 }
 
-export async function settimanale({ archivio, posta, adesso = new Date() }) {
+export async function settimanale({ archivio, posta, adesso = new Date(), nomi = {} }) {
   const { lunedi, domenica } = settimanaPrima(adesso);
   // archivio.riepilogo esclude il primo giorno (giorno > dal): si parte dalla domenica prima del lunedì.
   const r = await archivio.riepilogo(giornoMeno(lunedi, 1), domenica, { settimana: true });
+  const { html, task: daFare } = recapSettimana(r, { lunedi, domenica, nomi });
   await spedisci(archivio, posta, { oggetto: `[Arturo] Riepilogo della settimana ${lunedi} - ${domenica}`,
-    testo: testoRiepilogo(r, `Arturo, settimana dal ${lunedi} al ${domenica}`) }, adesso);
+    testo: testoRiepilogo(r, `Arturo, settimana dal ${lunedi} al ${domenica}`), html, task: daFare }, adesso);
 }
 
 // La pulizia del lunedì: eventi, contatori, feedback e segnalazioni più vecchi di 12 mesi. Il pacchetto tecnico
@@ -1066,13 +1156,13 @@ export async function avvisiIndietro({ archivio, avviso, adesso = new Date() }) 
 // prima un'email del recap fallita fermava gli avvisi e il riepilogo del lunedì, che è il segno di vita del Worker.
 // L'errore va nel log del Worker con il nome del passo. Finiti tutti i passi, se uno è fallito, programmato
 // rilancia un errore unico con i nomi in .falliti: così il cron risulta fallito anche negli eventi di Cloudflare.
-export async function programmato({ archivio, posta, avviso = async () => {}, adesso = new Date() }) {
+export async function programmato({ archivio, posta, avviso = async () => {}, adesso = new Date(), nomi = {}, leggi = "" }) {
   const passi = [
-    ["recap", () => giornaliero({ archivio, posta, adesso })],
+    ["recap", () => giornaliero({ archivio, posta, adesso, nomi, leggi })],
     ["indietro", () => avvisiIndietro({ archivio, avviso, adesso })],
   ];
   if (giornoDellaSettimana(giornoRoma(adesso)) === 1) {
-    passi.push(["settimana", () => settimanale({ archivio, posta, adesso })], ["pulizia", () => pulizia({ archivio, adesso })]);
+    passi.push(["settimana", () => settimanale({ archivio, posta, adesso, nomi })], ["pulizia", () => pulizia({ archivio, adesso })]);
   }
   const falliti = [];
   for (const [nome, passo] of passi) {
