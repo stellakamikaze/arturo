@@ -541,7 +541,10 @@ def test_t17(repo: Path) -> None:
                     assert cli.main(["todo", *argomenti, "--json"]) == 0, f"T17 {argomenti} non riesce"
                 fuori[argomenti[0]] = json.loads(testo.getvalue())["versione"]
             return fuori
-        with mock.patch.dict(os.environ, {"ARTURO_TODO": str(file), "ARTURO_OGGI": OGGI}):
+        # La CLI gira in questo processo, con la HOME vera: una fonte esterna della persona
+        # (~/.claude/bin/fonte-task.local) prenderebbe il posto dell'archivio di prova.
+        with mock.patch.dict(os.environ, {"ARTURO_TODO": str(file), "ARTURO_OGGI": OGGI}), \
+                mock.patch.object(cli.ts, "comando_fonte", lambda file=None: None):
             for eventi, vista in ((7, 1), (1, 5)):
                 with mock.patch.object(cli.ts, "VERSIONE_EVENTI", eventi), mock.patch.object(cli.ts, "VERSIONE_VISTA", vista):
                     lette = versioni()
