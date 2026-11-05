@@ -141,7 +141,8 @@ def comando_in_skill(sorgente: Path, dest: Path) -> None:
 
 def impacchetta(uscita: Path, versione: str) -> None:
     if uscita.exists():
-        if not (uscita / ".claude-plugin" / "plugin.json").exists() and any(uscita.iterdir()):
+        # Una worktree appena creata col ramo plugin (--orphan) ha solo il file .git: è vuota.
+        if not (uscita / ".claude-plugin" / "plugin.json").exists() and any(v.name != ".git" for v in uscita.iterdir()):
             raise SystemExit(f"{uscita} non è vuota e non è un pacchetto di Arturo: non la cancello")
         # Il pacchetto si rigenera da zero, tranne .git (il ramo plugin in una worktree).
         for voce in uscita.iterdir():

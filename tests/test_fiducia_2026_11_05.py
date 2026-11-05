@@ -6,7 +6,8 @@ Claude Code installa lo sha scritto nel catalogo anche se nessun tag firmato lo 
 danno quindi tre pezzi di Arturo, e questo banco li prova con una chiave di prova generata qui:
 
 FD01 impacchetta scrive .claude-plugin/MANIFEST con le impronte di ogni file e .gitattributes "* -text"
-     (gli a capo di Windows), e la verifica del pacchetto trova un file cambiato dopo;
+     (gli a capo di Windows), e la verifica del pacchetto trova un file cambiato dopo; una worktree appena
+     creata col ramo plugin, col solo file .git, vale come vuota e il .git resta;
 FD02 hooks/fiducia.py: un MANIFEST firmato con la chiave dei rilasci torna; cambiato, firmato da un'altra
      chiave o senza firma, no;
 FD03 la deriva su una copia del plugin: pulita tace e fissa l'ancora nell'Orsa; una guardia cambiata
@@ -114,6 +115,12 @@ def caso_fd01(repo: Path, tmp: Path) -> list:
     (uscita / "hooks" / "block-dangerous.py").write_text("# cambiata\n", encoding="utf-8") \
         if (uscita / "hooks").is_dir() else None
     dopo = esegui([sys.executable, repo / "bin" / "impacchetta.py", "--verifica", uscita])
+    vuota = tmp / "worktree-vuota"
+    vuota.mkdir()
+    (vuota / ".git").write_text("gitdir: /altrove\n", encoding="utf-8")
+    in_worktree = esegui([sys.executable, repo / "bin" / "impacchetta.py", "--uscita", vuota, "--versione", "v0.3.0"])
+    if in_worktree.returncode != 0 or not (vuota / ".git").is_file():
+        return [f"FD01 worktree appena creata: rc {in_worktree.returncode}, {(in_worktree.stdout + in_worktree.stderr)[-160:]!r}"]
     attributi = (uscita / ".gitattributes").read_text(encoding="utf-8") if (uscita / ".gitattributes").is_file() else ""
     if fatto.returncode != 0 or not voce or "hooks.json" not in manifest.read_text(encoding="utf-8") \
             or attributi.strip() != "* -text" \

@@ -84,7 +84,9 @@ Terza prova, 5/11/2026 (Claude Code 2.1.318), sul pacchetto con il metodo: `impo
 | Guardie | i banchi delle guardie lanciati sul pacchetto sono verdi; tre banchi leggono file del repository che il pacchetto non porta (`tests/`, `.gitignore`, `settings.json`) e si lanciano sul repository |
 | Login | con una `HOME` finta Claude Code non trova il login: la prova su una macchina pulita la fa una persona (#4565) |
 
-Da provare: Windows (prima di migrare Balthasar); installazione dal catalogo su GitHub (`stellakamikaze/arturo#catalogo`) col primo rilascio del plugin; barra in basso dal puntatore su una macchina pulita.
+Quarta prova, 5/11/2026 (Claude Code 2.1.318), col primo rilascio pubblicato (`plugin-v0.2.4`, sha 4659345) in un `CLAUDE_CONFIG_DIR` vuoto: `claude plugin marketplace add stellakamikaze/arturo#catalogo` e `claude plugin install arturo@arturo` installano lo sha del tag firmato; `aggiornamenti.py plugin --verifica` dice "GIÀ AGGIORNATO", la deriva tace e fissa l'ancora, la telemetria legge v0.2.4; una guardia cambiata nella cache esce nella riga DERIVA.
+
+Da provare: Windows (prima di migrare Balthasar); barra in basso dal puntatore su una macchina pulita.
 
 ## Il pacchetto
 
