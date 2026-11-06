@@ -23,7 +23,7 @@ Q10 Hallmark è un rimando all'upstream come Impeccable (30/10/2026): la nota in
     installarla e come lavora con Impeccable, /setup fase 8c la propone con la regola per CLAUDE.md
     scritta solo dopo il sì, l'audit la conosce, la skill non è copiata.
 Q11 shared/regole-interfaccia.md (6/11/2026): tre parti, chi vince, ogni regola col tipo e con una fonte
-    che ha un URL, virgolette dritte, e chi fa design ci arriva da agente, metodo, docs e /setup.
+    che ha un URL, virgolette dritte, e chi fa design ci arriva da agente, metodo e docs (/setup porta a docs/hallmark.md: è al tetto di SR08).
 
 Il banco richiede il binario `claude`. Sulla base cbd8305 ogni controllo deve fallire con un
 AssertionError che comincia con il suo codice.
@@ -299,7 +299,7 @@ def test_q11(repo: Path) -> None:
             assert sigla.split()[0] in sigle or re.fullmatch(r"\d\.\d+\.\d+", sigla), f"Q11 fonte senza URL: {sigla}"
     assert not re.search("[\u201c\u201d\u00ab\u00bb]", testo), "Q11 virgolette non dritte"
     for lettore in ("agents/ui-ux-consultant.md", "shared/metodo.md", "docs/impeccable.md", "docs/hallmark.md",
-                    "commands/setup.md", "README.md"):
+                    "README.md"):
         assert "regole-interfaccia.md" in read(repo / lettore), f"Q11 {lettore} non porta alle regole"
 
 
