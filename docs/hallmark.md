@@ -25,7 +25,8 @@ impeccable context, sempre per primo
   +-- pagina esistente, rifinitura, app, dashboard, documentazione  --> Impeccable
   +-- pagina NUOVA da convincere o da mostrare                      --> Hallmark la costruisce
         --> impeccable document scrive DESIGN.md --> le rifiniture tornano a Impeccable
-verifica finale di una pagina: impeccable audit più sloplint --render di Hallmark
+verifica finale di una pagina: impeccable audit più sloplint --render di Hallmark,
+poi la Parte A di shared/regole-interfaccia.md
 ```
 
 - `DESIGN.md` lo scrive solo `/impeccable document`. Hallmark lo legge come sistema già deciso.
@@ -39,7 +40,7 @@ verifica finale di una pagina: impeccable audit più sloplint --render di Hallma
 
 Con tutte e due installate, questa riga in fondo a `~/.claude/CLAUDE.md` fa lavorare le skill in catena:
 
-> Design delle interfacce: impeccable guida, hallmark costruisce le pagine nuove. Ogni lavoro parte da `impeccable context`; una pagina nuova da convincere o da mostrare la costruisce hallmark, poi impeccable `document` scrive DESIGN.md e guida le rifiniture; il resto è di impeccable. Verifica finale: impeccable `audit` più hallmark `sloplint --render`.
+> Design delle interfacce: impeccable guida, hallmark costruisce le pagine nuove. Ogni lavoro parte da `impeccable context`; una pagina nuova da convincere o da mostrare la costruisce hallmark, poi impeccable `document` scrive DESIGN.md e guida le rifiniture; il resto è di impeccable. Verifica finale: impeccable `audit` più hallmark `sloplint --render`, poi `~/.claude/shared/regole-interfaccia.md`.
 
 ## Come si installa
 

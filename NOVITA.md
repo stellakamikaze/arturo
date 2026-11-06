@@ -12,6 +12,25 @@ modo di lavorare.
 
 ---
 
+## 2026-11-06 — Claude controlla anche grafici e form prima di dire che un sito è fatto
+
+**Cosa cambia**: se fai siti, dashboard o form, prima di dirti che il lavoro è fatto Claude lo controlla
+anche con un elenco di 66 regole su grafici, form, controlli e accessibilità (il file è
+`shared/regole-interfaccia.md`). Quasi metà cita un post di r/ClaudeDesign su Reddit. Le altre vengono
+soprattutto da WCAG 2.2, lo standard di accessibilità del web, dal sistema di design del governo
+britannico, dai centri di ricerca Baymard e NN/g e dalle linee guida di Vercel. Ogni regola ha la sua
+fonte ed è segnata come fissa o di default: le fisse sono errori oggettivi o requisiti di accessibilità,
+le altre sono punti di partenza che Claude può rompere quando il design lo chiede, e te lo dice. Non
+serve installare niente.
+
+**Perché**: Claude disegna le interfacce con due skill facoltative, Impeccable e Hallmark. Impeccable
+non ha regole sui grafici, e Hallmark le usa solo quando costruisce una pagina, quindi su una dashboard
+non arrivavano. Mancavano, per esempio, la descrizione o la tabella che racconta il grafico a chi non
+vede, e la regola per cui, dove manca un dato, la linea si interrompe. Il file copre solo ciò che le due
+skill non dicono: se una sua regola si scontra con il brief, con il `DESIGN.md` del progetto (il file
+delle scelte di design) o con le due skill, vincono loro. Se Impeccable non ce l'hai, Claude usa anche
+altre 18 regole del file, su contrasto, bottoni, spazi e caratteri.
+
 ## 2026-11-06 — Col plugin vedi quando esce un rilascio nuovo
 
 **Cosa cambia**: se usi Arturo come plugin, al massimo una volta all'ora la barra in basso controlla il

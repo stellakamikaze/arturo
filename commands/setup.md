@@ -412,6 +412,8 @@ sito vetrina): Impeccable guida e rifinisce, Hallmark costruisce. Controlla se c
   `npx --yes skills add nutlope/hallmark -g -a claude-code --copy -y`.
 - Con tutte e due installate, proponi la riga di "La regola per il tuo CLAUDE.md" in
   `docs/hallmark.md`. Scrivila in fondo a `~/.claude/CLAUDE.md` solo dopo il sì: il file è dell'utente.
+- Spiega che Arturo aggiunge `shared/regole-interfaccia.md`: le regole che le due skill non coprono,
+  su grafici, form e controlli. Non serve installare niente.
 
 ---
 

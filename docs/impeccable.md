@@ -45,6 +45,12 @@ Le altre vie (copia manuale, sottomodulo git) sono nel README dell'upstream, sez
 - L'agente `ui-ux-consultant` di Arturo fa una revisione dell'interfaccia leggendo il codice.
   Impeccable invece guida il lavoro di design e prova la pagina vera. Puoi usarli insieme.
 
+## Le regole di Arturo
+
+`shared/regole-interfaccia.md` raccoglie le regole che Impeccable non ha: grafici, form, controlli e
+accessibilità WCAG 2.2. Non ripete le sue e non la sostituisce: se c'è un conflitto, vince Impeccable.
+Claude le controlla prima di dire "fatto". Se Impeccable manca, lo stesso file porta anche le regole di base.
+
 ## Con Hallmark
 
 Per le pagine nuove da zero c'è Hallmark, una skill di Together AI che lavora in catena con
