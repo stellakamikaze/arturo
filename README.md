@@ -348,6 +348,7 @@ docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/onboarding/     Guide di setup guidato (/inizio gws)
 docs/impeccable.md   Come installare Impeccable (design delle interfacce) dall'upstream
 docs/hallmark.md     Come installare Hallmark (pagine nuove) dall'upstream, e come lavora con Impeccable
+shared/regole-interfaccia.md Le regole di interfaccia che Impeccable e Hallmark non coprono
 docs/diagram-design.md Come installare diagram-design (diagrammi) dall'upstream
 docs/come-e-fatto.md Il disegno di Arturo: Orsa, Arturo, Claude Code e i progetti da cui dipende
 docs/privacy.md      Cosa raccoglie la telemetria, per quanto, e i tuoi diritti
