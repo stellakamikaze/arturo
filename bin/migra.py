@@ -416,9 +416,12 @@ def passo(cartella: Path, nome: str) -> None:
 
 def _claude(*argomenti, timeout: int = 300) -> subprocess.CompletedProcess:
     comando = [os.environ.get("ARTURO_CLAUDE") or "claude", "plugin", *argomenti]
+    # Anche `claude plugin` chiude con gli hook del clone: session-end.sh lancerebbe l'aggiornamento automatico
+    # staccato, proprio mentre i file di Arturo stanno uscendo da ~/.claude (6/11/2026).
+    env = {**os.environ, "ARTURO_AGGIORNAMENTI": "manuali"}
     try:
         return subprocess.run(comando, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                              timeout=timeout, stdin=subprocess.DEVNULL)
+                              timeout=timeout, stdin=subprocess.DEVNULL, env=env)
     except (OSError, subprocess.SubprocessError) as errore:
         return subprocess.CompletedProcess(comando, 1, "", str(errore))
 
