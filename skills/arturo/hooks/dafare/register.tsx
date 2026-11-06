@@ -34,6 +34,8 @@ const CANDIDATI_PYTHON: string[][] = [['python3'], ['python'], ['py', '-3']]
 
 // La palette di Arturo su fondo chiaro. Il pannello porta il suo fondo: i colori non dipendono dal
 // tema del terminale. Gli esiti sono testo o bordo, mai un fondo pieno.
+// Anche le etichette dei Button: senza un Text colorato prendono il colore del tema e, col tema scuro,
+// sono bianche sul fondo chiaro.
 const C = {
   tela: '#fefffc',
   inchiostro: '#171717',
@@ -489,8 +491,8 @@ export const register: Register = on => {
           <Box gap={1}>
             <Text bold color={C.sera}>{sua ? '›' : ' '}</Text>
             {n < 9
-              ? <Button key={voce.chiave} plain hotkey={String(n + 1)} label={voce.progetto} onPress={() => apriProgetto($, voce.progetto, voce.todo)} />
-              : <Button key={voce.chiave} plain label={voce.progetto} onPress={() => apriProgetto($, voce.progetto, voce.todo)} />}
+              ? <Button key={voce.chiave} plain hotkey={String(n + 1)} onPress={() => apriProgetto($, voce.progetto, voce.todo)}><Text color={C.inchiostro}>{voce.progetto}</Text></Button>
+              : <Button key={voce.chiave} plain onPress={() => apriProgetto($, voce.progetto, voce.todo)}><Text color={C.inchiostro}>{voce.progetto}</Text></Button>}
             <Text bold color={coloreSopra} wrap="wrap">{sopra}</Text>
           </Box>
           {sotto.filter(x => x !== '').map(riga => (
@@ -560,8 +562,8 @@ export const register: Register = on => {
             <Text bold color={C.sera}>{sua ? '›' : ' '}</Text>
             {passo ? <Text color={C.cenere}>{passo}</Text> : null}
             {r.tasto
-              ? <Button key={`riga-${r.t.id}`} plain hotkey={r.tasto} label={`#${r.t.id}`} onPress={() => update($, scelto, () => r.t.id)} />
-              : <Button key={`riga-${r.t.id}`} plain label={`#${r.t.id}`} onPress={() => update($, scelto, () => r.t.id)} />}
+              ? <Button key={`riga-${r.t.id}`} plain hotkey={r.tasto} onPress={() => update($, scelto, () => r.t.id)}><Text color={C.inchiostro}>{`#${r.t.id}`}</Text></Button>
+              : <Button key={`riga-${r.t.id}`} plain onPress={() => update($, scelto, () => r.t.id)}><Text color={C.inchiostro}>{`#${r.t.id}`}</Text></Button>}
             <Text bold={sua} color={sua ? C.sera : C.inchiostro} wrap="wrap">{r.t.titolo}</Text>
           </Box>
           {sotto.length > 0 || r.t.scadenza_testo ? (
@@ -623,18 +625,18 @@ export const register: Register = on => {
             {tutte.length > 0 ? (
               <Box gap={2} flexWrap="wrap">
                 {(Object.keys(VERBI) as Verbo[]).map(verbo => (
-                  <Button key={verbo} plain hotkey={VERBI[verbo]!.tasto} label={VERBI[verbo]!.etichetta} onPress={() => agisci($, verbo)} />
+                  <Button key={verbo} plain hotkey={VERBI[verbo]!.tasto} onPress={() => agisci($, verbo)}><Text color={C.inchiostro}>{VERBI[verbo]!.etichetta}</Text></Button>
                 ))}
-                <Button key="sessione" plain hotkey="o" label="apri sessione" onPress={() => apriSessione($)} />
+                <Button key="sessione" plain hotkey="o" onPress={() => apriSessione($)}><Text color={C.inchiostro}>apri sessione</Text></Button>
               </Box>
             ) : null}
             <Box gap={2} flexWrap="wrap">
-              <Button key="annulla" plain hotkey="u" label="annulla" onPress={() => annulla($)} />
-              <Button key="vista" plain hotkey="v" label={dove === 'adesso' ? 'progetti' : 'adesso'} onPress={() => vaiA($, dove === 'adesso' ? 'progetti' : 'adesso')} />
-              {dove !== 'progetti' ? <Button key="progetti" plain hotkey="p" label="lista dei progetti" onPress={() => vaiA($, 'progetti')} /> : null}
-              {dove !== 'progetto' && voci.length > 0 ? <Button key="entra" plain hotkey="e" label="apri il progetto" onPress={() => entra($)} /> : null}
-              {(dove === 'progetto' ? tutte.length : voci.length) > 1 ? <Button key="giu" plain hotkey="j" label="giù" onPress={() => sposta($, 1)} /> : null}
-              {(dove === 'progetto' ? tutte.length : voci.length) > 1 ? <Button key="su" plain hotkey="k" label="su" onPress={() => sposta($, -1)} /> : null}
+              <Button key="annulla" plain hotkey="u" onPress={() => annulla($)}><Text color={C.inchiostro}>annulla</Text></Button>
+              <Button key="vista" plain hotkey="v" onPress={() => vaiA($, dove === 'adesso' ? 'progetti' : 'adesso')}><Text color={C.inchiostro}>{dove === 'adesso' ? 'progetti' : 'adesso'}</Text></Button>
+              {dove !== 'progetti' ? <Button key="progetti" plain hotkey="p" onPress={() => vaiA($, 'progetti')}><Text color={C.inchiostro}>lista dei progetti</Text></Button> : null}
+              {dove !== 'progetto' && voci.length > 0 ? <Button key="entra" plain hotkey="e" onPress={() => entra($)}><Text color={C.inchiostro}>apri il progetto</Text></Button> : null}
+              {(dove === 'progetto' ? tutte.length : voci.length) > 1 ? <Button key="giu" plain hotkey="j" onPress={() => sposta($, 1)}><Text color={C.inchiostro}>giù</Text></Button> : null}
+              {(dove === 'progetto' ? tutte.length : voci.length) > 1 ? <Button key="su" plain hotkey="k" onPress={() => sposta($, -1)}><Text color={C.inchiostro}>su</Text></Button> : null}
             </Box>
           </Box>
         ) : null}
@@ -699,7 +701,7 @@ export const register: Register = on => {
       <Box gap={1} backgroundColor={C.tela} paddingX={1}>
         <Text color={C.arturo}>{STELLA}</Text>
         <Text color={C.inchiostro}>{testo}</Text>
-        {corto ? null : <Button key="apri" plain label="apri" onPress={() => apri($)} />}
+        {corto ? null : <Button key="apri" plain onPress={() => apri($)}><Text color={C.inchiostro}>apri</Text></Button>}
       </Box>
     )
   })
