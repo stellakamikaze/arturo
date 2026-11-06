@@ -180,6 +180,8 @@ IN_FILA=(
   test_fiducia_2026_11_05.py
   # Strati F4 (5/11/2026, #4534): arturo migra dal clone al plugin, con la CLI vera e il ritorno indietro.
   test_migra_2026_11_05.py
+  # Strati F5 (5/11/2026, #4535): le skill omonime della persona si dichiarano in personale/sostituzioni.txt.
+  test_sostituzioni_2026_11_05.py
 )
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
@@ -386,6 +388,8 @@ BASELINE=(
   "test_fiducia_2026_11_05.py 809868a"
   # Strati F4 (5/11/2026, #4534): arturo migra non c'è. 53450c6, il dev prima.
   "test_migra_2026_11_05.py 53450c6"
+  # Strati F5 (5/11/2026, #4535): il comando omonimi non c'è. e87ce62, il dev prima.
+  "test_sostituzioni_2026_11_05.py e87ce62"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
@@ -419,6 +423,8 @@ VELENI=(
   test_fiducia_2026_11_05.py
   # Strati F4 (5/11/2026): una migrazione che non torna indietro da sola lascia il plugin installato (MG06).
   test_migra_2026_11_05.py
+  # Strati F5 (5/11/2026): un omonimo non dichiarato che non si nomina sparisce in silenzio (SO01).
+  test_sostituzioni_2026_11_05.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

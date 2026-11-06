@@ -15,6 +15,9 @@ IP08 il marketplace elenca Arturo, e il plugin Arturo porta il modulo del suo mo
      sotto "modules" in hooks.json, mod passo 3 del 3/11/2026): nel pacchetto skills/arturo non è un plugin a sé;
 IP09 col plugin il metodo (shared/metodo.md) entra all'avvio da un hook suo, sotto i 9.000 caratteri e col
      percorso al codice già risolto; il settings.json del clone non lo registra (strati F2, 5/11/2026);
+IP11 arturo impostazioni adotta: settings della persona intatti, blocco col frammento di oggi; un
+     applica dopo porta solo il cambio nuovo di Arturo e tiene le voci della persona; un blocco con un
+     frammento diverso non si sostituisce senza --forza (strati F5, la config di Federico);
 IP10 un hook di Arturo rimasto nei settings della persona (un clone di prima) è doppio: applica si ferma con
      rc 1 e il file intatto, applica --togli-doppi lo toglie e tiene l'hook proprio della persona.
 
@@ -32,7 +35,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["IP01", "IP02", "IP03", "IP04", "IP05", "IP06", "IP07", "IP08", "IP09", "IP10"]
+CASI = ["IP01", "IP02", "IP03", "IP04", "IP05", "IP06", "IP07", "IP08", "IP09", "IP10", "IP11"]
 DISCRIMINANTI = list(CASI)
 BASH = shutil.which("bash") or "bash"
 
@@ -168,6 +171,33 @@ def prova(repo: Path) -> list[str]:
                 or restano != ["bash ~/mio-hook.sh"] or "già applicate" not in stato.stdout or stato.stderr:
             rossi.append(f"IP10 hook doppi: rc {fermo.returncode}/{tolto.returncode}, intatto {intatto}, "
                          f"restano {restano}, {(fermo.stderr + tolto.stderr + stato.stderr)[-160:]!r}")
+
+        orsa3 = tmp / "orsa3"
+        orsa3.mkdir()
+        miei = {"outputStyle": "Mio", "permissions": {"allow": ["Bash(mio-comando:*)"]}, "env": {"MIA": "1"}}
+        (orsa3 / "settings.json").write_text(json.dumps(miei, indent=4) + "\n", encoding="utf-8")
+        prima3 = (orsa3 / "settings.json").read_bytes()
+        env3 = {**env, "CLAUDE_CONFIG_DIR": str(orsa3)}
+        adotta = esegui(arturo + ["adotta"], env=env3)
+        intatti = (orsa3 / "settings.json").read_bytes() == prima3
+        blocco3 = orsa3 / "data" / "arturo-impostazioni.lock"
+        base3 = json.loads(blocco3.read_text(encoding="utf-8")).get("frammento") if blocco3.exists() else None
+        di_nuovo = esegui(arturo + ["adotta"], env=env3)
+        nuovo3 = json.loads(json.dumps(imp))
+        nuovo3.setdefault("env", {})["ARTURO_PROVA_IP11"] = "1"
+        frammento.write_text(json.dumps(nuovo3), encoding="utf-8")
+        dopo_cambio = esegui(arturo + ["applica"], env=env3)
+        unito3 = json.loads((orsa3 / "settings.json").read_text(encoding="utf-8"))
+        frammento.write_text(json.dumps(imp), encoding="utf-8")
+        # Il blocco ha ora il frammento con ARTURO_PROVA_IP11, il plugin quello di prima: adotta si ferma.
+        senza_forza = esegui(arturo + ["adotta"], env=env3)
+        if adotta.returncode != 0 or not intatti or base3 != imp or "già adottate" not in di_nuovo.stdout \
+                or dopo_cambio.returncode != 0 or unito3.get("outputStyle") != "Mio" \
+                or unito3.get("env", {}).get("ARTURO_PROVA_IP11") != "1" or unito3["env"].get("MIA") != "1" \
+                or unito3["permissions"].get("allow") != ["Bash(mio-comando:*)"] or senza_forza.returncode != 1:
+            rossi.append(f"IP11 adotta: rc {adotta.returncode}/{dopo_cambio.returncode}/{senza_forza.returncode}, "
+                         f"intatti {intatti}, base {base3 == imp}, unito {json.dumps(unito3)[:120]}, "
+                         f"{(adotta.stdout + adotta.stderr + dopo_cambio.stderr)[-160:]!r}")
     return rossi
 
 
@@ -181,6 +211,8 @@ VELENI = [
     ("IP08", "bin/impacchetta.py", '        dati_hooks["modules"] = [f"../skills/{NOME}/hooks/register.tsx"]', "        pass"),
     ("IP09", "hooks/metodo.sh", 'printf \'%s\\n\' "${testo//\\$ARTURO_CODICE/$CODICE}"', 'printf \'%s\\n\' "$testo"'),
     ("IP10", "bin/impostazioni.py", "                if any(u in registrati for u in usati):", "                if False:"),
+    ("IP11", "bin/impostazioni.py", '_scrivi(blocco_file, {"versione": versione, "frammento": frammento, "adottato": True})',
+     '_scrivi(orsa() / "settings.json", frammento)'),
 ]
 
 

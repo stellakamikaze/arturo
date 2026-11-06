@@ -24,6 +24,10 @@ Arturo esegue in fondo.
                           persona aveva prima di Arturo, nell'ultima ~/.claude-backup-*: li elenca, e con
                           --applica li aggiunge al settings.json, coi file degli hook, senza togliere
                           niente di Arturo
+  omonimi                 col plugin: le skill, i comandi e gli stili della persona che hanno lo stesso nome
+                          di uno di Arturo. Il nome nudo va alla persona, quello di Arturo diventa
+                          arturo:<nome>; ogni sostituzione voluta si scrive in personale/sostituzioni.txt,
+                          e un omonimo non dichiarato esce con 1
 
 Con un repository della persona come origin (Arturo come upstream), /aggiorna e /aggiorna personale
 lanciano separa solo se quel repository è privato: altrimenti personale/ non viaggerebbe fra le sue
@@ -322,6 +326,84 @@ def elenco() -> int:
     return 0
 
 
+# Le sostituzioni (docs/strati.md, "Estendere una skill senza copiarla"; strati F5, 5/11/2026). Col plugin una
+# skill della persona con lo stesso nome di una di Arturo prende il nome nudo, e quella di Arturo resta come
+# arturo:<nome> (prova del 2/11/2026). Voluto, è il modo di tenere la propria /inizio; non voluto, è una
+# skill nuova di Arturo che la persona non vedrà mai. Per questo ogni sostituzione si dichiara.
+SOSTITUZIONI = "personale/sostituzioni.txt"
+
+
+def _nome_stile(file: Path) -> str:
+    """Il name: del frontmatter di uno stile di output, o il nome del file."""
+    try:
+        righe = file.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return file.stem
+    if righe[:1] == ["---"]:
+        for riga in righe[1:40]:
+            if riga.strip() == "---":
+                break
+            if riga.startswith("name:"):
+                return riga[5:].strip().strip("\"'") or file.stem
+    return file.stem
+
+
+def nomi(cartella: Path, codice: Path | None = None) -> dict:
+    """nome -> percorso relativo, per skill, comandi e stili di una cartella. Con codice, un elemento che
+    punta dentro il codice di Arturo (il link di un mod, una skill collegata) non è della persona."""
+    trovati = {}
+    elementi = [(f.parent, f.parent.name, f"skills/{f.parent.name}") for f in sorted(cartella.glob("skills/*/SKILL.md"))]
+    elementi += [(f, f.stem, f"commands/{f.name}") for f in sorted(cartella.glob("commands/*.md"))]
+    elementi += [(f, _nome_stile(f), f"output-styles/{f.name}") for f in sorted(cartella.glob("output-styles/*.md"))]
+    for percorso, nome, rel in elementi:
+        if codice is not None:
+            vero = Path(os.path.realpath(percorso))
+            if vero == codice or codice in vero.parents:
+                continue
+        trovati.setdefault(nome, rel)
+    return trovati
+
+
+def dichiarate(r: Path) -> list:
+    """I nomi di personale/sostituzioni.txt, uno per riga; quello che segue # è il motivo."""
+    try:
+        testo = (r / SOSTITUZIONI).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []
+    return [riga.split("#", 1)[0].strip().lstrip("/") for riga in testo.splitlines()
+            if riga.split("#", 1)[0].strip()]
+
+
+def omonimi(r: Path | None = None, codice: Path | None = None) -> int:
+    r = r or radice()
+    codice = Path(os.path.realpath(codice or Path(__file__).resolve().parent.parent))
+    if Path(os.path.realpath(r)) == codice:
+        print("OMONIMI: Arturo è un clone in ~/.claude, le skill sono le stesse: niente da controllare.")
+        return 0
+    di_arturo = nomi(codice)
+    della_persona = nomi(r, codice)
+    comuni = sorted(set(di_arturo) & set(della_persona))
+    voluti = dichiarate(r)
+    esito = 0
+    sostituiti = [n for n in comuni if n in voluti]
+    if sostituiti:
+        print("SOSTITUITI: " + ", ".join(f"{n} (Arturo: arturo:{n})" for n in sostituiti))
+    for n in comuni:
+        if n not in voluti:
+            esito = 1
+            print(f"OMONIMO NON DICHIARATO: {n} è sia tuo ({della_persona[n]}) sia di Arturo ({di_arturo[n]}). "
+                  f"Il nome nudo va al tuo, quello di Arturo diventa arturo:{n}. Se è voluto, scrivi {n} in "
+                  f"~/.claude/{SOSTITUZIONI}; altrimenti cambia nome al tuo.")
+    for n in voluti:
+        if n not in comuni:
+            esito = 1
+            dove = "Arturo non ha più " + n if n in della_persona else "non hai più un tuo " + n
+            print(f"DICHIARATO SENZA OMONIMO: {n} sta in {SOSTITUZIONI}, ma {dove}: togli la riga.")
+    if not comuni and not voluti:
+        print("OMONIMI: nessuno, le tue skill hanno nomi diversi da quelle di Arturo.")
+    return esito
+
+
 # Un percorso dentro ~/.claude in un comando di hook: ~/.claude/x, $HOME/.claude/x, ${HOME}/.claude/x.
 DENTRO = re.compile(r"(?:~|\$HOME|\$\{HOME\})/\.claude/([A-Za-z0-9_./-]+)")
 
@@ -470,6 +552,8 @@ def main(argv: list) -> int:
         return 0
     if argv == ["elenco"]:
         return elenco()
+    if argv == ["omonimi"]:
+        return omonimi()
     if argv == ["separa", "--senza-commit"]:
         try:
             return separa(commit=False)

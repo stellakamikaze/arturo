@@ -37,7 +37,7 @@ aggiornamento: cambia solo Arturo. L'Orsa resta com'è; in un conflitto riceve
 
 Se una persona vuole cambiare una skill di Arturo, scrive `~/.claude/personale/<skill>.md`. Un hook lo aggiunge al contesto ogni volta che la skill parte, anche quando la chiama il modello. L'estensione aggiunge e precisa, ma freni e guardie di Arturo vincono sempre.
 
-Se una persona vuole sostituire una skill, scrive una skill con lo stesso nome nell'Orsa. Il nome senza prefisso va alla sua, quella di Arturo resta raggiungibile come `arturo:<nome>`. La sostituzione si dichiara in `personale/sostituzioni.txt`, e `system-audit` segnala ogni omonimo non dichiarato.
+Se una persona vuole sostituire una skill, scrive una skill con lo stesso nome nell'Orsa. Il nome senza prefisso va alla sua, quella di Arturo resta raggiungibile come `arturo:<nome>`. La sostituzione si dichiara in `personale/sostituzioni.txt`: un nome per riga (skill, comando o `name:` di uno stile), col motivo dopo `#`. `arturo personale omonimi` e `system-audit` nominano ogni omonimo non dichiarato e ogni riga che non ha più un omonimo (banco `tests/test_sostituzioni_2026_11_05.py`, SO01-SO05). Senza dichiarazione, una skill nuova di Arturo con un nome che la persona usa già non si vedrebbe mai.
 
 ## Perché un plugin
 
@@ -97,6 +97,8 @@ Da provare: Windows (prima di migrare Balthasar, e `arturo migra` su Windows); b
 - ogni `commands/<nome>.md` diventa `skills/<nome>/SKILL.md` con `name:` e `disable-model-invocation: true`.
 
 `arturo impostazioni applica` fa un'unione a tre vie: la base è il file di blocco, poi i settings della persona, poi il frammento nuovo. Arturo cambia solo le voci che la persona ha lasciato com'erano. Se una voce è cambiata da tutte e due le parti, il comando non scrive niente e la nomina.
+
+`arturo impostazioni adotta` è l'ingresso di chi ha già settings fatti a mano, come la config da cui Arturo è nato: scrive il file di blocco col frammento di oggi e non tocca `settings.json`. Le voci di oggi restano della persona, e un `applica` dopo porta solo i cambi futuri di Arturo. Un blocco già scritto da un frammento diverso non si sostituisce senza `--forza`, perché i cambi fra i due andrebbero persi (banco IP11).
 
 Un hook nei settings della persona che lancia un file di Arturo registrato anche dal plugin è **doppio**: lo lascia un clone di prima, e scatterebbe due volte. `impostazioni stato` li elenca, `applica` si ferma finché ci sono, `applica --togli-doppi` li toglie e tiene gli hook propri della persona. La copia dei settings di prima resta in `settings.json.prima-di-arturo`. `/setup` lo fa nella FASE 0, col sì della persona (banco IP10).
 

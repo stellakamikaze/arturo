@@ -371,6 +371,23 @@ if [[ -f "$stale_sh" ]]; then
   fi
 fi
 
+# Omonimi col plugin (strati F5, 5/11/2026): una skill, un comando o uno stile della persona con lo stesso
+# nome di uno di Arturo prende il nome nudo. Voluto si dichiara in personale/sostituzioni.txt; non dichiarato
+# è una skill di Arturo che la persona non vedrà. Il codice sta due cartelle sopra questo script, nel clone
+# come nel plugin. Nel clone le skill sono le stesse e il controllo tace.
+personale_py="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd)/bin/personale.py"
+if [[ -f "$personale_py" ]] && command -v python3 >/dev/null 2>&1; then
+  omonimi_out=$(ARTURO_RADICE="$CLAUDE_DIR" python3 "$personale_py" omonimi 2>&1)
+  omonimi_rc=$?
+  if [[ $omonimi_rc -eq 0 ]]; then
+    ok "omonimi: $(printf '%s\n' "$omonimi_out" | head -1)"
+  else
+    while IFS= read -r riga; do
+      case "$riga" in "OMONIMO NON DICHIARATO:"*|"DICHIARATO SENZA OMONIMO:"*) warning "$riga" ;; esac
+    done < <(printf '%s\n' "$omonimi_out")
+  fi
+fi
+
 echo "=== System Audit ==="
 printf '%s\n' "${report[@]}"
 printf 'Totali: PASS=%s WARN=%s FAIL=%s\n' "$pass" "$warn" "$fail"
