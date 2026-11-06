@@ -12,6 +12,43 @@ modo di lavorare.
 
 ---
 
+## 2026-11-06 — Col plugin vedi quando esce un rilascio nuovo
+
+**Cosa cambia**: se usi Arturo come plugin, al massimo una volta all'ora la barra in basso controlla il
+catalogo dei rilasci, senza installare niente. Se c'è una versione più nuova, la barra mostra
+`↑ Arturo <versione> · serve /aggiorna`, e la sessione dopo te lo dice anche all'avvio. L'avviso parte
+anche quando `~/.claude` non è un repository git, come succede di solito dopo `arturo migra`. Il rilascio
+lo installa `/aggiorna`, dopo averne verificato la firma.
+
+**Perché**: col clone l'aggiornamento arriva da solo alla chiusura della sessione. Col plugin invece
+l'aggiornamento parte solo quando scrivi `/aggiorna`, quindi la tua copia poteva restare indietro senza
+che tu lo sapessi.
+
+## 2026-11-06 — Tre comandi per chi passa al plugin
+
+**Cosa cambia**: dopo `arturo migra` restano tre cose da mettere in ordine, e ognuna ha ora il suo
+comando.
+
+- `arturo personale regole-doppie` elenca le regole consigliate da `/setup` che il tuo `CLAUDE.md`
+  ripete, ora che col plugin le stesse regole arrivano all'avvio. Con `--togli` le toglie e tiene la
+  copia di prima in `CLAUDE.md.prima-del-plugin`. Una regola che hai riscritto a modo tuo resta.
+- `arturo personale omonimi` elenca le tue skill, i tuoi comandi e i tuoi stili che hanno lo stesso nome
+  di uno di Arturo. Col plugin il nome da solo porta al tuo, e per quello di Arturo scrivi
+  `arturo:<nome>`. Se vuoi che il tuo prenda il posto di quello di Arturo, scrivi il nome in
+  `personale/sostituzioni.txt`. Anche `/system-audit` segnala gli omonimi che non hai scritto lì.
+- `arturo impostazioni adotta` serve a chi ha un `settings.json` fatto a mano: le voci di oggi restano
+  come le hai scritte, e da lì in poi `arturo impostazioni applica` porta solo i cambi di Arturo.
+
+**Perché**: col plugin il nome da solo porta alla tua skill, quindi una skill nuova di Arturo con un nome
+che usi già non si vedrebbe mai, e `omonimi` te la fa trovare. Con `adotta`, invece, le differenze fra il
+tuo `settings.json` e le impostazioni di Arturo smettono di contare come conflitti.
+
+**Da sapere**: se personalizzi le guardie, in `protect_claude_md.local` c'è la categoria nuova
+`dot-claude-progetto`, per la cartella `.claude` di un progetto. Il README ora dice come decide una
+guardia personale: con il codice di uscita 2 blocca il comando, con ogni altro codice diverso da 0 conta
+come rotta e chiede conferma. E il `researcher` ora riporta anche l'estratto della fonte che regge ogni
+risultato, così controlli a campione senza rifare la ricerca.
+
 ## 2026-11-05 — Arturo può uscire dalla tua cartella
 
 **Cosa cambia**: c'è un comando nuovo, `arturo migra`, che porta Arturo dalla tua cartella
