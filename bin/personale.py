@@ -28,6 +28,9 @@ Arturo esegue in fondo.
                           di uno di Arturo. Il nome nudo va alla persona, quello di Arturo diventa
                           arturo:<nome>; ogni sostituzione voluta si scrive in personale/sostituzioni.txt,
                           e un omonimo non dichiarato esce con 1
+  regole-doppie [--togli] col plugin: le regole consigliate da /setup che il CLAUDE.md della persona ripete,
+                          ora che il metodo di Arturo arriva all'avvio. Le elenca (esce 1 se ce ne sono);
+                          con --togli le toglie, con la copia di prima in CLAUDE.md.prima-del-plugin
 
 Con un repository della persona come origin (Arturo come upstream), /aggiorna e /aggiorna personale
 lanciano separa solo se quel repository è privato: altrimenti personale/ non viaggerebbe fra le sue
@@ -404,6 +407,59 @@ def omonimi(r: Path | None = None, codice: Path | None = None) -> int:
     return esito
 
 
+# Le regole consigliate da /setup (shared/setup-claude-md.md) finivano nel CLAUDE.md della persona. Col plugin
+# arrivano già col metodo all'avvio (hooks/metodo.sh): nel CLAUDE.md sono doppie (#4874, 6/11/2026). Il CLAUDE.md
+# è della persona, quindi si elencano sempre e si tolgono solo con --togli. Una regola riscritta a modo suo non ha
+# più l'inizio della consigliata, e resta.
+INIZIO_REGOLA = 45  # caratteri dell'inizio di una regola che bastano a riconoscerla in una riga
+
+
+def regole_consigliate(codice: Path) -> list:
+    """Il testo fra virgolette di ogni regola numerata di shared/setup-claude-md.md: va nel file così."""
+    try:
+        righe = (codice / "shared" / "setup-claude-md.md").read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return []
+    return [r.split('"', 1)[1][:INIZIO_REGOLA] for r in righe if re.match(r'^\d+\. "', r)]
+
+
+def righe_doppie(testo: str, regole: list) -> list:
+    """Gli indici delle righe del CLAUDE.md che ripetono una regola consigliata."""
+    piano = lambda s: re.sub(r"\s+", " ", s)
+    return [i for i, riga in enumerate(testo.splitlines()) if any(piano(r) in piano(riga) for r in regole)]
+
+
+def regole_doppie(togli: bool = False, r: Path | None = None, codice: Path | None = None) -> int:
+    r = r or radice()
+    codice = Path(os.path.realpath(codice or Path(__file__).resolve().parent.parent))
+    if Path(os.path.realpath(r)) == codice:
+        print("REGOLE: Arturo è un clone in ~/.claude, il metodo non arriva all'avvio: le regole del CLAUDE.md servono.")
+        return 0
+    file = r / "CLAUDE.md"
+    try:
+        testo = file.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        print("REGOLE: non c'è un CLAUDE.md, niente da controllare.")
+        return 0
+    doppie = righe_doppie(testo, regole_consigliate(codice))
+    if not doppie:
+        print("REGOLE: il tuo CLAUDE.md non ripete le regole che il plugin porta all'avvio.")
+        return 0
+    righe = testo.splitlines(keepends=True)
+    if not togli:
+        print(f"REGOLE DOPPIE: {len(doppie)} righe del tuo CLAUDE.md ripetono il metodo che il plugin porta all'avvio:")
+        for i in doppie:
+            print(f"  riga {i + 1}: {righe[i].strip()[:90]}")
+        print("Per toglierle (con una copia di prima): arturo personale regole-doppie --togli")
+        return 1
+    copia = r / "CLAUDE.md.prima-del-plugin"
+    if not copia.exists():
+        shutil.copy2(file, copia)
+    file.write_text("".join(x for i, x in enumerate(righe) if i not in set(doppie)), encoding="utf-8")
+    print(f"REGOLE: tolte {len(doppie)} righe dal tuo CLAUDE.md; quello di prima è in {copia.name}.")
+    return 0
+
+
 # Un percorso dentro ~/.claude in un comando di hook: ~/.claude/x, $HOME/.claude/x, ${HOME}/.claude/x.
 DENTRO = re.compile(r"(?:~|\$HOME|\$\{HOME\})/\.claude/([A-Za-z0-9_./-]+)")
 
@@ -554,6 +610,8 @@ def main(argv: list) -> int:
         return elenco()
     if argv == ["omonimi"]:
         return omonimi()
+    if argv[:1] == ["regole-doppie"] and argv[1:] in ([], ["--togli"]):
+        return regole_doppie(argv[1:] == ["--togli"])
     if argv == ["separa", "--senza-commit"]:
         try:
             return separa(commit=False)

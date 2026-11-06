@@ -182,6 +182,10 @@ IN_FILA=(
   test_migra_2026_11_05.py
   # Strati F5 (5/11/2026, #4535): le skill omonime della persona si dichiarano in personale/sostituzioni.txt.
   test_sostituzioni_2026_11_05.py
+  # #4874 (6/11/2026): col plugin le regole di /setup che il CLAUDE.md ripete si elencano e si tolgono a richiesta.
+  test_regole_doppie_2026_11_06.py
+  # #4860 (6/11/2026): col plugin avvio e barra dicono che c'è un rilascio nuovo.
+  test_avviso_plugin_2026_11_06.py
 )
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
@@ -390,6 +394,10 @@ BASELINE=(
   "test_migra_2026_11_05.py 53450c6"
   # Strati F5 (5/11/2026, #4535): il comando omonimi non c'è. e87ce62, il dev prima.
   "test_sostituzioni_2026_11_05.py e87ce62"
+  # #4874 (6/11/2026): il comando regole-doppie non c'è. 3b5e6c3, il dev prima.
+  "test_regole_doppie_2026_11_06.py 3b5e6c3"
+  # #4860 (6/11/2026): col plugin stato e controlla tacciono. 3b5e6c3, il dev prima.
+  "test_avviso_plugin_2026_11_06.py 3b5e6c3"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
@@ -425,6 +433,10 @@ VELENI=(
   test_migra_2026_11_05.py
   # Strati F5 (5/11/2026): un omonimo non dichiarato che non si nomina sparisce in silenzio (SO01).
   test_sostituzioni_2026_11_05.py
+  # #4874 (6/11/2026): un --togli che non scrive lascia le regole doppie (RD02).
+  test_regole_doppie_2026_11_06.py
+  # #4860 (6/11/2026): una barra che lancia controlla da ~/.claude/bin col plugin non controlla mai (AV04).
+  test_avviso_plugin_2026_11_06.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

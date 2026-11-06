@@ -142,10 +142,17 @@ function aggiornamentoSegmento() {
     const controllato = Number(stato.controllato || 0) * 1000;
     const tentato = gitMtime(AGG_TENTATIVO);
     // Fuori da Arturo (nessun bin/aggiornamenti.py) non lancia niente, e senza stato il segmento tace.
-    if (fs.existsSync(path.join(CLAUDE_DIR, 'bin', 'aggiornamenti.py')) && Date.now() - controllato > AGG_ORA_S * 1000 && (!tentato || Date.now() - tentato > AGG_ORA_S * 1000)) {
+    // Il codice sta accanto a questo file: ~/.claude nel clone, la cartella del plugin col plugin (#4860).
+    // Solo da un'installazione vera: un checkout di sviluppo (git, fuori da ~/.claude) non controlla niente.
+    const CODICE_AGG = path.join(__dirname, '..');
+    const AGG_SCRIPT = path.join(CODICE_AGG, 'bin', 'aggiornamenti.py');
+    let vero = '';
+    try { vero = fs.realpathSync(CODICE_AGG) === fs.realpathSync(CLAUDE_DIR) ? 'clone' : ''; } catch (e) {}
+    if (!vero && fs.existsSync(path.join(CODICE_AGG, '.claude-plugin', 'plugin.json')) && !fs.existsSync(path.join(CODICE_AGG, '.git'))) vero = 'plugin';
+    if (vero && fs.existsSync(AGG_SCRIPT) && Date.now() - controllato > AGG_ORA_S * 1000 && (!tentato || Date.now() - tentato > AGG_ORA_S * 1000)) {
       fs.mkdirSync(path.dirname(AGG_TENTATIVO), { recursive: true });
       fs.writeFileSync(AGG_TENTATIVO, '');
-      const p = child_process.spawn('python3', [path.join(CLAUDE_DIR, 'bin', 'aggiornamenti.py'), 'controlla'],
+      const p = child_process.spawn('python3', [AGG_SCRIPT, 'controlla'],
         { detached: true, windowsHide: true, stdio: 'ignore', shell: false });
       p.on('error', () => {});
       p.unref();

@@ -602,6 +602,45 @@ def verifica_catalogo(orsa: Path) -> tuple:
     return 0, tag, sha
 
 
+def versione_nuova_plugin(orsa: Path) -> str:
+    """La versione del catalogo scaricato, se è più nuova di quella installata; altrimenti "".
+    Solo un confronto di numeri: la verifica del tag firmato la fa /aggiorna (cmd_plugin)."""
+    voce = voce_catalogo(orsa)
+    nel_catalogo = str(voce.get("version") or (voce.get("source") or {}).get("ref") or "")
+    installata = str(installato(orsa).get("version") or "")
+    if numero(nel_catalogo) and numero(installata) and numero(nel_catalogo) > numero(installata):
+        return ".".join(str(x) for x in numero(nel_catalogo))
+    return ""
+
+
+def controlla_plugin(r: Path, forza: bool = False) -> int:
+    """Col plugin (#4860, 6/11/2026): al massimo una volta all'ora la barra fa scaricare il catalogo, e lo stato
+    dice se c'è un rilascio più nuovo di quello installato. Non installa niente: lo fa /aggiorna, verificato."""
+    vecchio = leggi(file_stato(r))
+    if not forza and time.time() - float(vecchio.get("controllato") or 0) < ORA:
+        return 0
+    _, radici = _moduli()
+    _claude("marketplace", "update", "arturo", timeout=120)
+    nuova = versione_nuova_plugin(radici.radice_orsa())
+    stato = {"stato": "manuale", "versione": nuova, "plugin": True} if nuova else {"stato": "aggiornato", "plugin": True}
+    try:
+        scrivi(file_stato(r), dict(stato, controllato=time.time()))
+    except OSError:
+        pass
+    return 0
+
+
+def stato_plugin(r: Path) -> int:
+    """La riga dell'avvio col plugin: solo se l'ultimo controllo ha visto un rilascio più nuovo, ancora non installato."""
+    _, radici = _moduli()
+    stato = leggi(file_stato(r))
+    if stato.get("plugin") and stato.get("stato") == "manuale" and stato.get("versione") \
+            and versione_nuova_plugin(radici.radice_orsa()) == stato["versione"]:
+        print(f"ARTURO: c'è la versione {stato['versione']} di Arturo. /aggiorna la installa dopo averne verificato la "
+              "firma, poi riapri Claude Code. Dillo alla persona in una frase.")
+    return 0
+
+
 def cmd_plugin(solo_verifica: bool = False) -> int:
     """/aggiorna col plugin. Uscite: 0 applicato o già aggiornato, 1 niente da applicare o errore, 3 possibile
     compromissione, 4 firma non verificabile su questo computer."""
@@ -702,7 +741,12 @@ def main(argv: list) -> int:
                 return 5
             return cmd_plugin(solo_verifica=len(argv) == 2)
         if modo_plugin() and argv and argv[0] in ("stato", "controlla", "applica", "firmato"):
-            # Col plugin non c'è git: niente si installa da solo, /aggiorna passa da `plugin`.
+            # Col plugin non c'è git: niente si installa da solo, /aggiorna passa da `plugin`. Stato e controlla
+            # dicono soltanto se c'è un rilascio nuovo (#4860).
+            if argv == ["stato"]:
+                return stato_plugin(r)
+            if argv in (["controlla"], ["controlla", "--subito"]):
+                return controlla_plugin(r, forza=len(argv) == 2)
             return cmd_plugin(solo_verifica=True) if argv == ["firmato"] else 0
         if argv == ["stato"]:
             return cmd_stato(r)

@@ -122,6 +122,7 @@ avvio      deriva.py: la copia in uso ha il MANIFEST firmato? quali file non tor
 telemetria versione dal plugin.json della copia, non dai tag del git dell'Orsa
 ```
 
+- **L'avviso.** Al massimo una volta all'ora la barra in basso lancia `aggiornamenti.py controlla`, dalla cartella del codice accanto a sé: col plugin scarica il catalogo e confronta la versione con quella installata, senza installare niente. Se è più nuova, la barra mostra "↑ Arturo <versione> · serve /aggiorna" e l'avvio lo dice al modello (#4860, banco `tests/test_avviso_plugin_2026_11_06.py`).
 - **L'ancora.** La chiave che verifica sta nell'Orsa, in `~/.claude/arturo/rilasci.allowed_signers`: chi cambia la copia del plugin cambierebbe anche la chiave dentro. La prima verifica riuscita la scrive; dopo cambia solo con una copia nuova verificata con la chiave di prima. Così una chiave nuova entra con un rilascio firmato dalla vecchia, come nel clone.
 - **Lo spazio dei nomi.** Il MANIFEST si firma con `ssh-keygen -Y sign -n arturo-manifest`, da stdin: con un file, una `MANIFEST.sig` già presente resta com'era e `ssh-keygen` esce con 0 lo stesso. La chiave dei rilasci vale per `git` e `arturo-manifest` (`firme/rilasci.allowed_signers`).
 - **Fuori dal MANIFEST** stanno solo la firma, la cartella `.in_use` che Claude Code aggiunge alla cache e i `__pycache__` che Python scrive accanto agli script.
@@ -155,6 +156,7 @@ arturo migra indietro  toglie plugin e catalogo messi dalla migrazione, riporta 
 - **Non si migra da sola** una `~/.claude` con Arturo come `upstream` (repository della persona): `.git` porta anche i suoi file, e si fa a mano.
 - **La sessione aperta** blocca la migrazione: una sessione partita col clone ha gli hook in `~/.claude/hooks`, e dopo il passo 6 ogni hook mancante bloccherebbe le sue azioni.
 - Il demone fsmonitor di git tiene aperta `.git`: la migrazione lo spegne per i suoi git, e copia e confronto saltano i socket.
+- **Il CLAUDE.md** resta della persona. Le regole consigliate che `/setup` ci aveva scritto col plugin arrivano anche col metodo all'avvio: il rapporto le conta, e dopo la migrazione `arturo personale regole-doppie` le elenca e con `--togli` le toglie, con la copia in `CLAUDE.md.prima-del-plugin` (#4874, banco `tests/test_regole_doppie_2026_11_06.py`). Una regola riscritta a modo suo resta.
 - Il banco `tests/test_migra_2026_11_05.py` (MG01-MG07) prova tutto con la CLI vera, in un `CLAUDE_CONFIG_DIR` di prova: rapporto, sessione aperta, migrazione, ritorno identico file per file, tag non firmato, conflitto nei settings dopo l'installazione, `upstream`.
 
 ## Come un testo di Arturo indica il codice

@@ -275,8 +275,13 @@ def analizza(orsa: Path) -> dict:
     cime = {f.split("/")[0] for f in a["albero"]} | {".git", "settings.json"}
     a["tuoi"] = sorted(v.name for v in orsa.iterdir() if v.name not in cime)
     if (orsa / "CLAUDE.md").is_file():
-        a["avvisi"].append("CLAUDE.md resta com'è. Col plugin le regole di lavoro di Arturo arrivano anche "
-                           "all'avvio: la parte che le ripete si può togliere dopo, con /setup")
+        # Le regole consigliate da /setup che il CLAUDE.md ripete (#4874): col plugin arrivano col metodo.
+        personale = _modulo("personale_migra", BIN / "personale.py")
+        try:
+            testo = (orsa / "CLAUDE.md").read_text(encoding="utf-8")
+            a["regole_doppie"] = len(personale.righe_doppie(testo, personale.regole_consigliate(radice_arturo())))
+        except (OSError, UnicodeDecodeError):
+            a["regole_doppie"] = 0
     return a
 
 
@@ -316,6 +321,9 @@ def rapporto(a: dict) -> str:
     if a["omonimi"]:
         righe += ["", "Skill tue con lo stesso nome di una di Arturo (il nome nudo resta alla tua, quella di Arturo "
                   "diventa arturo:<nome>): " + ", ".join(a["omonimi"])]
+    if a.get("regole_doppie"):
+        righe += ["", f"Il tuo CLAUDE.md ripete {a['regole_doppie']} regole del metodo, che col plugin arriva all'avvio: "
+                  f"dopo la migrazione le elenca e le toglie, con una copia, {comando_arturo()} personale regole-doppie."]
     righe += ["", f"Restano tuoi: {len(a['tuoi'])} file e cartelle di ~/.claude fuori da Arturo"
               + (", fra cui " + ", ".join(n for n in ("CLAUDE.md", "personale", "data", "projects") if n in a["tuoi"])
                  if any(n in a["tuoi"] for n in ("CLAUDE.md", "personale", "data", "projects")) else "") + "."]
@@ -539,6 +547,9 @@ def cmd_migra() -> int:
         return uscita
     print(f"MIGRATO: Arturo è un plugin, e ~/.claude tiene solo i tuoi file. Apri Claude Code come sempre.\n"
           f"Per tornare al clone, con Claude Code chiuso: python3 {corto(cartella / 'codice' / 'bin' / 'arturo')} migra indietro")
+    if a.get("regole_doppie"):
+        print(f"Il tuo CLAUDE.md ripete {a['regole_doppie']} regole che ora arrivano col plugin all'avvio. Le vedi con "
+              f"`arturo personale regole-doppie` e le togli, con una copia, aggiungendo --togli.")
     return 0
 
 
