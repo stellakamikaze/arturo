@@ -52,7 +52,7 @@ def prova_mod(repo: Path, nome: str, codice: str, con_test: bool = True) -> None
     t = subprocess.run([claude(), "plugin", "test", str(cartella)], capture_output=True, text=True,
                        encoding="utf-8", errors="replace", timeout=180)
     esito = t.stdout + t.stderr
-    assert t.returncode == 0 and re.search(r"\b0 fail\b", esito), f"{codice} plugin test di {nome}: rc={t.returncode} {esito[-300:]}"
+    assert t.returncode == 0 and re.search(r"\b0 fail\b", esito), f"{codice} plugin test di {nome}: rc={t.returncode} {[r for r in esito.splitlines() if '(fail)' in r][:5]} {esito[-300:]}"
 
 
 def test_p06(repo: Path) -> None:

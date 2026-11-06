@@ -322,8 +322,11 @@ def prova(repo: Path, solo: str | None = None) -> list:
         dopo = impronta(b.orsa)
         if p.returncode != 1 or "cleanupPeriodDays" not in p.stderr or "PLUGIN:" not in p.stdout \
                 or dopo != prima or b.installato():
+            # Il 6/11/2026 è comparso una volta lo stato degli aggiornamenti, senza ripetersi: il contenuto dice chi l'ha scritto.
+            stato_file = b.orsa / "session-env" / "aggiornamento.json"
+            scritto = stato_file.read_text(encoding="utf-8")[:200] if stato_file.exists() else ""
             rossi.append(f"MG06 conflitto: rc {p.returncode}, {differenze(prima, dopo)}, plugin {bool(b.installato())}, "
-                         f"{(p.stdout + p.stderr)[-240:]!r}")
+                         f"stato {scritto!r}, {(p.stdout + p.stderr)[-240:]!r}")
         if fine("MG06"):
             return rossi
 
