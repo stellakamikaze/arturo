@@ -229,21 +229,31 @@ if [ -n "$ATTESA" ] && [ -f "$ATTESA" ] && read -r A_COPIA _ A_MODO A_NATA _ < "
   echo "ARTURO: una copia di prova con un conflitto aspetta${A_NATA:+ dal ${A_NATA/_/ alle }} ($([ "$A_MODO" = sync ] && echo "sync fra le tue macchine" || echo "aggiornamento")): finché aspetta, sync e aggiornamenti sono fermi. /aggiorna la conclude o la scarta."
 fi
 
-if [ -f "$HOME/.claude/NOVITA.md" ]; then
-  ULTIMA_NOVITA=$(grep -m1 '^## ' "$HOME/.claude/NOVITA.md" 2>/dev/null | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
+# Col plugin NOVITA.md sta accanto al codice, non in ~/.claude.
+NOVITA_FILE="$HOME/.claude/NOVITA.md"
+[ -f "$NOVITA_FILE" ] || NOVITA_FILE="$ARTURO_CODICE/NOVITA.md"
+if [ -f "$NOVITA_FILE" ]; then
+  ULTIMA_NOVITA=$(grep -m1 '^## ' "$NOVITA_FILE" 2>/dev/null | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}')
   # Segnalibro per intestazione (novita-viste: data e titolo); un vecchio novita-vista
   # con una sola data vale come "viste fino a".
   NOVITA_VISTE="$HOME/.claude/session-env/novita-viste"
   NOVITA_VECCHIA=$(cat "$HOME/.claude/session-env/novita-vista" 2>/dev/null || echo "")
-  NON_VISTE=0
-  while IFS= read -r ENTRY; do
-    [ -z "$ENTRY" ] && continue
-    DATA=$(printf '%s' "$ENTRY" | grep -oE '^[0-9]{4}-[0-9]{2}-[0-9]{2}')
-    [ -n "$NOVITA_VECCHIA" ] && [ -n "$DATA" ] && [[ ! "$DATA" > "$NOVITA_VECCHIA" ]] && continue
-    grep -qxF "$ENTRY" "$NOVITA_VISTE" 2>/dev/null && continue
-    NON_VISTE=$((NON_VISTE + 1))
-  done < <(grep '^## ' "$HOME/.claude/NOVITA.md" 2>/dev/null | sed 's/^## //')
-  if [ "$NON_VISTE" -gt 0 ]; then
+  # Chi installa adesso parte da qui: la storia di Arturo non è una lista di cose da leggere.
+  if [ ! -e "$NOVITA_VISTE" ] && [ -z "$NOVITA_VECCHIA" ] && [ ! -f "$HOME/.claude/data/setup-fatto" ]; then
+    mkdir -p "$HOME/.claude/session-env" 2>/dev/null
+    grep '^## ' "$NOVITA_FILE" 2>/dev/null | sed 's/^## //' > "$NOVITA_VISTE" 2>/dev/null
+  fi
+  # Un passaggio solo: un processo per voce costava quasi un secondo a ogni avvio, e cresceva coi rilasci.
+  NON_VISTE=$(awk -v viste="$NOVITA_VISTE" -v vecchia="$NOVITA_VECCHIA" '
+    BEGIN { while ((getline riga < viste) > 0) vista[riga] = 1 }
+    /^## / {
+      voce = substr($0, 4); sub(/\r$/, "", voce)
+      data = (voce ~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/) ? substr(voce, 1, 10) : ""
+      if (vecchia != "" && data != "" && (data "") <= (vecchia "")) next
+      if (!(voce in vista)) n++
+    }
+    END { print n + 0 }' "$NOVITA_FILE" 2>/dev/null)
+  if [ "${NON_VISTE:-0}" -gt 0 ]; then
     echo "NOVITA': $NON_VISTE aggiornamenti dell'harness non ancora letti (ultimo: $ULTIMA_NOVITA) — digita /novita per fartelo raccontare"
   fi
 fi

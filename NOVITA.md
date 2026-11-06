@@ -14,15 +14,20 @@ modo di lavorare.
 
 ## 2026-11-06 — Col plugin vedi quando esce un rilascio nuovo
 
-**Cosa cambia**: se usi Arturo come plugin, al massimo una volta all'ora la barra in basso controlla il
-catalogo dei rilasci, senza installare niente. Se c'è una versione più nuova, la barra mostra
+**Cosa cambia**: se usi Arturo come plugin, al massimo una volta all'ora Arturo controlla il catalogo dei
+rilasci, senza installare niente. Il controllo parte all'avvio e dalla barra in basso, quindi funziona anche
+con una barra tua. Se c'è una versione più nuova, la barra di Arturo mostra
 `↑ Arturo <versione> · serve /aggiorna`, e la sessione dopo te lo dice anche all'avvio. L'avviso parte
 anche quando `~/.claude` non è un repository git, come succede di solito dopo `arturo migra`. Il rilascio
-lo installa `/aggiorna`, dopo averne verificato la firma.
+lo installa `/aggiorna`, dopo averne verificato la firma. Col plugin l'avvio conta anche le novità da
+leggere: prima non le vedeva, perché `NOVITA.md` sta accanto al codice.
 
 **Perché**: col clone l'aggiornamento arriva da solo alla chiusura della sessione. Col plugin invece
 l'aggiornamento parte solo quando scrivi `/aggiorna`, quindi la tua copia poteva restare indietro senza
 che tu lo sapessi.
+
+**Da sapere**: chi installa Arturo da zero non trova più novità vecchie da leggere. Finora il primo avvio
+segnava come da leggere tutte le voci di questo file, più di cento, e l'avviso restava per molte sessioni.
 
 ## 2026-11-06 — Tre comandi per chi passa al plugin
 
@@ -31,20 +36,23 @@ comando.
 
 - `arturo personale regole-doppie` elenca le regole consigliate da `/setup` che il tuo `CLAUDE.md`
   ripete, ora che col plugin le stesse regole arrivano all'avvio. Con `--togli` le toglie e tiene la
-  copia di prima in `CLAUDE.md.prima-del-plugin`. Una regola che hai riscritto a modo tuo resta.
+  copia di prima in `CLAUDE.md.prima-del-plugin`. Toglie solo le righe uguali alla regola: una riga che
+  le somiglia, perché l'hai riscritta a modo tuo, resta e te la mostra.
 - `arturo personale omonimi` elenca le tue skill, i tuoi comandi e i tuoi stili che hanno lo stesso nome
-  di uno di Arturo. Col plugin il nome da solo porta al tuo, e per quello di Arturo scrivi
+  di uno di Arturo. Col plugin, se scrivi solo il nome, parte il tuo. Per quello di Arturo scrivi
   `arturo:<nome>`. Se vuoi che il tuo prenda il posto di quello di Arturo, scrivi il nome in
   `personale/sostituzioni.txt`. Anche `/system-audit` segnala gli omonimi che non hai scritto lì.
 - `arturo impostazioni adotta` serve a chi ha un `settings.json` fatto a mano: le voci di oggi restano
-  come le hai scritte, e da lì in poi `arturo impostazioni applica` porta solo i cambi di Arturo.
+  come le hai scritte, e da lì in poi `arturo impostazioni applica` porta solo i cambi di Arturo. Se
+  mancano regole di blocco di Arturo il comando si ferma e le conta, perché dopo non arriverebbero più.
 
-**Perché**: col plugin il nome da solo porta alla tua skill, quindi una skill nuova di Arturo con un nome
-che usi già non si vedrebbe mai, e `omonimi` te la fa trovare. Con `adotta`, invece, le differenze fra il
+**Perché**: col plugin, se scrivi solo il nome, parte la tua skill. Una skill nuova di Arturo con un nome
+che usi già quindi non si vedrebbe mai, e `omonimi` te la fa trovare. Con `adotta` le differenze fra il
 tuo `settings.json` e le impostazioni di Arturo smettono di contare come conflitti.
 
 **Da sapere**: se personalizzi le guardie, in `protect_claude_md.local` c'è la categoria nuova
-`dot-claude-progetto`, per la cartella `.claude` di un progetto. Il README ora dice come decide una
+`dot-claude-progetto`, per la cartella `.claude` di un progetto: non vale per `~/.claude`, e la guardia ferma
+comunque una modifica che romperebbe il JSON di un settings. Il README ora dice come decide una
 guardia personale: con il codice di uscita 2 blocca il comando, con ogni altro codice diverso da 0 conta
 come rotta e chiede conferma. E il `researcher` ora riporta anche l'estratto della fonte che regge ogni
 risultato, così controlli a campione senza rifare la ricerca.

@@ -1,4 +1,5 @@
-# Igiene del repository pubblico (I03, #3505): su ogni push, su ogni branch, solo nel repository pubblico
+# Igiene del repository pubblico (I03, #3505): su ogni push, su ogni branch e su ogni pull request (quelle da
+# un fork non hanno un push qui), solo nel repository pubblico
 # di Arturo (il job ha un `if`), controlla che nei file, nei
 # percorsi e nei messaggi dei commit arrivati non ci siano i nomi della config privata dell'autore.
 # Lancia solo tests/igiene.py: niente segreti, niente rete oltre al checkout, permessi in sola lettura.
@@ -7,6 +8,7 @@ name: igiene
 on:
   push:
     branches: ["**"]
+  pull_request:
 
 permissions:
   contents: read
@@ -25,8 +27,8 @@ jobs:
           persist-credentials: false
       - name: Nomi della config privata
         env:
-          PRIMA: ${{ github.event.before }}
-          DOPO: ${{ github.sha }}
+          PRIMA: ${{ github.event.before || github.event.pull_request.base.sha }}
+          DOPO: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           # Un branch nuovo, o riscritto da un rebase, non ha un "prima": si controllano i commit che dev
           # non ha. Prima si controllava tutta la storia, e i nomi nei messaggi dei commit vecchi, già su

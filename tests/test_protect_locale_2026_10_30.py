@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""PL01-PL13: le decisioni personali di hooks/protect_claude_md.local.
+"""PL01-PL17: le decisioni personali di hooks/protect_claude_md.local.
 
 Il .local cambia la decisione di alcune categorie (CLAUDE.md, settings in radice, config, il resto di
 ~/.claude) senza toccare la guardia (30/10/2026, #4291). Non può allentare i percorsi di avvio, i file
 di sblocco, firme/, gli script dell'aggiornamento, i file hooks/*.local né la validità JSON dei settings.
 
-Invarianti (verdi anche sulla base): PL01, PL04, PL05, PL07, PL08, PL09, PL10, PL13.
-Sulla base 749e18d sono rossi i casi del meccanismo: PL02, PL03, PL06, PL11, PL12.
+Invarianti (verdi anche sulla base): PL01, PL04, PL05, PL07, PL08, PL09, PL10, PL13, PL14, PL17.
+Sulla base 749e18d sono rossi i casi del meccanismo: PL02, PL03, PL06, PL11, PL12, PL15, PL16.
 PL12-PL13 (5/11/2026, #4535): la cartella .claude di un progetto, che la config di Federico approva da sola.
+PL14-PL17 (revisione del 6/11/2026): quella riga non apre ~/.claude né la cartella di CLAUDE_CONFIG_DIR, e un
+settings di progetto che diventerebbe JSON rotto si ferma, con la riga e senza.
 PL11 è il caso allow sul CLAUDE.md: dal 3/11/2026 (#4473) PL02 coincide col default ask.
 """
 from __future__ import annotations
@@ -20,12 +22,12 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = [f"PL{n:02d}" for n in range(1, 14)]
-DISCRIMINANTI = ["PL02", "PL03", "PL06", "PL11", "PL12"]
+CASI = [f"PL{n:02d}" for n in range(1, 18)]
+DISCRIMINANTI = ["PL02", "PL03", "PL06", "PL11", "PL12", "PL15", "PL16"]
 
 
 def decidi(guardia: str, local: str | None, strumento: str, relativo: str, contenuto: str | None = None,
-           esiste: bool = True, in_progetto: bool = False) -> str:
+           esiste: bool = True, in_progetto: bool = False, config_altrove: str | None = None) -> str:
     with tempfile.TemporaryDirectory() as tmp:
         home = Path(tmp)
         hooks = home / ".claude" / "hooks"
@@ -40,6 +42,9 @@ def decidi(guardia: str, local: str | None, strumento: str, relativo: str, conte
         ti = {"file_path": str(bersaglio)}
         ti.update({"content": contenuto} if contenuto is not None else {"old_string": "riga", "new_string": "altra"})
         env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home), "ARTURO_TELEMETRIA": "0"}
+        env.pop("CLAUDE_CONFIG_DIR", None)
+        if config_altrove:
+            env["CLAUDE_CONFIG_DIR"] = str(home / config_altrove)
         p = subprocess.run([sys.executable, "-B", str(hooks / "protect_claude_md.py")],
                            input=json.dumps({"tool_name": strumento, "tool_input": ti, "session_id": "s1"}),
                            capture_output=True, text=True, encoding="utf-8", env=env, timeout=30)
@@ -67,12 +72,19 @@ def prova(guardia: str) -> list[str]:
         ("PL11", "allow claude-md-progetto\n", "Edit", "CLAUDE.md", None, True, True, "allow"),
         ("PL12", "allow dot-claude-progetto\n", "Edit", ".claude/settings.local.json", None, True, True, "allow"),
         ("PL13", "allow dot-claude\n", "Edit", ".claude/worktrees/w1/a.py", None, True, True, "silent"),
+        ("PL14", "allow dot-claude-progetto\n", "Write", "personale/session-start.sh", "x", False, False, "silent"),
+        ("PL15", "allow dot-claude-progetto\n", "Write", ".claude/settings.local.json", "{ non json", True, True, "deny"),
+        ("PL16", None, "Write", ".claude/settings.json", "{ non json", True, True, "deny"),
     ]
     for codice, local, strumento, relativo, contenuto, esiste, in_progetto, atteso in casi:
         avuto = decidi(guardia, local, strumento, relativo, contenuto, esiste, in_progetto)
         # Il CLAUDE.md esistente resta protetto: dal 3/11/2026 (#4473) chiede invece di negare.
         if avuto != atteso and not (atteso == "protetto" and avuto in ("ask", "deny")):
             rossi.append(f"{codice} {strumento} {relativo}: atteso {atteso}, avuto {avuto}")
+    avuto = decidi(guardia, "allow dot-claude-progetto\n", "Write", ".claude/data/a.md", "x", False, True,
+                   config_altrove="progetto/.claude")
+    if avuto != "silent":
+        rossi.append(f"PL17 cartella di CLAUDE_CONFIG_DIR: atteso silent, avuto {avuto}")
     return rossi
 
 

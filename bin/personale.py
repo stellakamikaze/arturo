@@ -25,7 +25,7 @@ Arturo esegue in fondo.
                           --applica li aggiunge al settings.json, coi file degli hook, senza togliere
                           niente di Arturo
   omonimi                 col plugin: le skill, i comandi e gli stili della persona che hanno lo stesso nome
-                          di uno di Arturo. Il nome nudo va alla persona, quello di Arturo diventa
+                          di uno di Arturo. Il nome da solo porta a quello della persona, quello di Arturo diventa
                           arturo:<nome>; ogni sostituzione voluta si scrive in personale/sostituzioni.txt,
                           e un omonimo non dichiarato esce con 1
   regole-doppie [--togli] col plugin: le regole consigliate da /setup che il CLAUDE.md della persona ripete,
@@ -64,7 +64,7 @@ HOOK = re.compile(r"^hooks/[A-Za-z0-9_.-]{1,60}$")
 
 
 def radice() -> Path:
-    return Path(os.environ.get("ARTURO_RADICE") or Path.home() / ".claude")
+    return Path(os.environ.get("ARTURO_RADICE") or os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
 
 
 def git(r: Path, *argomenti, controlla: bool = False) -> subprocess.CompletedProcess:
@@ -395,7 +395,7 @@ def omonimi(r: Path | None = None, codice: Path | None = None) -> int:
         if n not in voluti:
             esito = 1
             print(f"OMONIMO NON DICHIARATO: {n} è sia tuo ({della_persona[n]}) sia di Arturo ({di_arturo[n]}). "
-                  f"Il nome nudo va al tuo, quello di Arturo diventa arturo:{n}. Se è voluto, scrivi {n} in "
+                  f"Il nome da solo porta al tuo, per quello di Arturo scrivi arturo:{n}. Se è voluto, scrivi {n} in "
                   f"~/.claude/{SOSTITUZIONI}; altrimenti cambia nome al tuo.")
     for n in voluti:
         if n not in comuni:
@@ -409,24 +409,38 @@ def omonimi(r: Path | None = None, codice: Path | None = None) -> int:
 
 # Le regole consigliate da /setup (shared/setup-claude-md.md) finivano nel CLAUDE.md della persona. Col plugin
 # arrivano già col metodo all'avvio (hooks/metodo.sh): nel CLAUDE.md sono doppie (#4874, 6/11/2026). Il CLAUDE.md
-# è della persona, quindi si elencano sempre e si tolgono solo con --togli. Una regola riscritta a modo suo non ha
-# più l'inizio della consigliata, e resta.
-INIZIO_REGOLA = 45  # caratteri dell'inizio di una regola che bastano a riconoscerla in una riga
+# è della persona, quindi si elencano sempre e si tolgono solo con --togli. Si toglie solo una riga uguale per
+# intero a una regola consigliata. Una riga con lo stesso inizio può dire il contrario, o avere un seguito rientrato:
+# si elenca e resta (revisione del 6/11/2026).
+INIZIO_REGOLA = 45  # caratteri dell'inizio di una regola che bastano a dire che una riga le somiglia
+REGOLA = re.compile(r'^\d+\. "(.*?)"(?: \(|$)')
 
 
 def regole_consigliate(codice: Path) -> list:
-    """Il testo fra virgolette di ogni regola numerata di shared/setup-claude-md.md: va nel file così."""
+    """Il testo fra virgolette di ogni regola numerata di shared/setup-claude-md.md: va nel file così.
+    Una regola può avere virgolette dentro: finisce a quelle prima della parentesi o a fine riga."""
     try:
         righe = (codice / "shared" / "setup-claude-md.md").read_text(encoding="utf-8").splitlines()
     except (OSError, UnicodeDecodeError):
         return []
-    return [r.split('"', 1)[1][:INIZIO_REGOLA] for r in righe if re.match(r'^\d+\. "', r)]
+    return [m.group(1) for m in map(REGOLA.match, righe) if m]
 
 
-def righe_doppie(testo: str, regole: list) -> list:
-    """Gli indici delle righe del CLAUDE.md che ripetono una regola consigliata."""
-    piano = lambda s: re.sub(r"\s+", " ", s)
-    return [i for i, riga in enumerate(testo.splitlines()) if any(piano(r) in piano(riga) for r in regole)]
+def righe_doppie(testo: str, regole: list) -> tuple:
+    """(doppie, simili): gli indici delle righe uguali a una regola consigliata, e di quelle che solo le somigliano."""
+    piano = lambda s: re.sub(r"\s+", " ", s).strip()
+    intere = {piano(r) for r in regole}
+    inizi = [piano(r)[:INIZIO_REGOLA] for r in regole]
+    righe = testo.splitlines()
+    doppie, simili = [], []
+    for i, riga in enumerate(righe):
+        nuda = piano(re.sub(r"^\s*(?:[-*+]|\d+[.)])\s+", "", riga))
+        seguito = i + 1 < len(righe) and righe[i + 1][:1] in (" ", "\t") and righe[i + 1].strip()
+        if nuda in intere and not seguito:
+            doppie.append(i)
+        elif any(inizio in nuda for inizio in inizi):
+            simili.append(i)
+    return doppie, simili
 
 
 def regole_doppie(togli: bool = False, r: Path | None = None, codice: Path | None = None) -> int:
@@ -437,25 +451,37 @@ def regole_doppie(togli: bool = False, r: Path | None = None, codice: Path | Non
         return 0
     file = r / "CLAUDE.md"
     try:
-        testo = file.read_text(encoding="utf-8")
+        # newline="": gli a capo restano quelli del file, anche CRLF.
+        with open(file, encoding="utf-8", newline="") as f:
+            testo = f.read()
     except (OSError, UnicodeDecodeError):
         print("REGOLE: non c'è un CLAUDE.md, niente da controllare.")
         return 0
-    doppie = righe_doppie(testo, regole_consigliate(codice))
+    doppie, simili = righe_doppie(testo, regole_consigliate(codice))
+    righe = testo.splitlines(keepends=True)
+    if simili:
+        print(f"REGOLE SIMILI: {len(simili)} righe somigliano a una regola del metodo ma non sono uguali. Restano, "
+              "le guardi tu:")
+        for i in simili:
+            print(f"  riga {i + 1}: {righe[i].strip()[:90]}")
     if not doppie:
         print("REGOLE: il tuo CLAUDE.md non ripete le regole che il plugin porta all'avvio.")
         return 0
-    righe = testo.splitlines(keepends=True)
     if not togli:
         print(f"REGOLE DOPPIE: {len(doppie)} righe del tuo CLAUDE.md ripetono il metodo che il plugin porta all'avvio:")
         for i in doppie:
             print(f"  riga {i + 1}: {righe[i].strip()[:90]}")
         print("Per toglierle (con una copia di prima): arturo personale regole-doppie --togli")
         return 1
+    # Una copia per giro: la prima non si riscrive, e un giro dopo ha la sua.
     copia = r / "CLAUDE.md.prima-del-plugin"
-    if not copia.exists():
-        shutil.copy2(file, copia)
-    file.write_text("".join(x for i, x in enumerate(righe) if i not in set(doppie)), encoding="utf-8")
+    n = 2
+    while copia.exists():
+        copia = r / f"CLAUDE.md.prima-del-plugin.{n}"
+        n += 1
+    shutil.copy2(file, copia)
+    with open(file, "w", encoding="utf-8", newline="") as f:
+        f.write("".join(x for i, x in enumerate(righe) if i not in set(doppie)))
     print(f"REGOLE: tolte {len(doppie)} righe dal tuo CLAUDE.md; quello di prima è in {copia.name}.")
     return 0
 

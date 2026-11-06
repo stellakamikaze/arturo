@@ -252,7 +252,10 @@ def prova(repo: Path, solo: str | None = None) -> list:
         if fine("MG02"):
             return rossi
 
-        # MG03 migrazione
+        # MG03 migrazione. Lo stato del clone è una cache: col plugin direbbe cose false, e non torna con indietro.
+        (b.orsa / "session-env").mkdir(exist_ok=True)
+        stato_clone = b.orsa / "session-env" / "aggiornamento.json"
+        stato_clone.write_text('{"stato": "pronto", "versione": "v0.2.5"}', encoding="utf-8")
         p = b.arturo("migra")
         copia = b.copie()[-1] if b.copie() else tmp / "manca"
         voce = b.installato()
@@ -265,6 +268,7 @@ def prova(repo: Path, solo: str | None = None) -> list:
         personale = (b.orsa / "personale" / "inizio.md")
         controlli = {
             "uscita 0": p.returncode == 0,
+            "stato del clone via": not stato_clone.exists(),
             "copia con .git e bin/arturo": (copia / "copia" / ".git").is_dir() and (copia / "copia" / "bin" / "arturo").is_file()
             and (copia / "codice" / "bin" / "migra.py").is_file() and "codice/bin/arturo migra indietro" in p.stdout,
             "personale/inizio.md": personale.is_file() and RIGA_MIA.strip() in personale.read_text(encoding="utf-8"),
@@ -359,6 +363,7 @@ def prova(repo: Path, solo: str | None = None) -> list:
 # (caso, file, testo giusto, testo rotto): ogni veleno toglie la riga che il caso sorveglia.
 VELENI = [
     ("MG01", "bin/migra.py", '    a["separa"] = personale.modificati(orsa, a["base"])\n', '    a["separa"] = []\n'),
+    ("MG03", "bin/migra.py", '            (a["orsa"] / "session-env" / "aggiornamento.json").unlink()\n', '            pass\n'),
     ("MG02", "bin/migra.py", '    if a["sessioni"]:\n', '    if False:\n'),
     ("MG03", "bin/migra.py", '    for rel in [".git", *registro["albero"]]:\n        voce = orsa / rel\n',
      '    for rel in []:\n        voce = orsa / rel\n'),

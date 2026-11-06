@@ -70,7 +70,7 @@ NON_VERIFICABILE = ("questo computer non sa controllare la firma dei rilasci: se
 
 
 def radice() -> Path:
-    return Path(os.environ.get("ARTURO_RADICE") or Path.home() / ".claude")
+    return Path(os.environ.get("ARTURO_RADICE") or os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
 
 
 def git(r: Path, *argomenti, timeout: int = 30) -> subprocess.CompletedProcess:
@@ -631,10 +631,22 @@ def controlla_plugin(r: Path, forza: bool = False) -> int:
     return 0
 
 
+def segna_aggiornato(r: Path) -> None:
+    """Dopo /aggiorna la barra non deve dire ancora "serve /aggiorna" fino al controllo dopo."""
+    try:
+        scrivi(file_stato(r), {"stato": "aggiornato", "plugin": True, "controllato": time.time()})
+    except OSError:
+        pass
+
+
 def stato_plugin(r: Path) -> int:
-    """La riga dell'avvio col plugin: solo se l'ultimo controllo ha visto un rilascio più nuovo, ancora non installato."""
+    """La riga dell'avvio col plugin: solo se l'ultimo controllo ha visto un rilascio più nuovo, ancora non installato.
+
+    Il controllo lo lancia anche l'avvio, staccato: chi ha una barra sua non lancia mai quello della barra di Arturo."""
     _, radici = _moduli()
     stato = leggi(file_stato(r))
+    if time.time() - float(stato.get("controllato") or 0) >= ORA:
+        avvia_staccato(r, "controlla")
     if stato.get("plugin") and stato.get("stato") == "manuale" and stato.get("versione") \
             and versione_nuova_plugin(radici.radice_orsa()) == stato["versione"]:
         print(f"ARTURO: c'è la versione {stato['versione']} di Arturo. /aggiorna la installa dopo averne verificato la "
@@ -653,6 +665,7 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
               file=sys.stderr)
     rc, tag, sha = verifica_catalogo(orsa)
     if rc == 2:
+        segna_aggiornato(radice())
         print(f"GIÀ AGGIORNATO: {tag}")
         return 0
     if rc != 0:
@@ -679,6 +692,7 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
                        scaricata=True)
     # Una chiave nuova entra nell'ancora solo da una copia verificata con la chiave di prima.
     fiducia.fissa_ancora(copia, orsa)
+    segna_aggiornato(radice())
     print(f"APPLICATO: {tag}. Riavvia Claude Code per usarlo.")
     return 0
 

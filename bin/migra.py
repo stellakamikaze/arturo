@@ -319,11 +319,11 @@ def rapporto(a: dict) -> str:
         righe += ["", f"File di Arturo che avevi tolto ({len(a['cancellati'])}): col plugin ci sono di nuovo."]
         righe += [f"  {f}" for f in a["cancellati"][:20]]
     if a["omonimi"]:
-        righe += ["", "Skill tue con lo stesso nome di una di Arturo (il nome nudo resta alla tua, quella di Arturo "
-                  "diventa arturo:<nome>): " + ", ".join(a["omonimi"])]
+        righe += ["", "Skill tue con lo stesso nome di una di Arturo (il nome da solo porta alla tua, per quella di Arturo "
+                  "scrivi arturo:<nome>): " + ", ".join(a["omonimi"])]
     if a.get("regole_doppie"):
         righe += ["", f"Il tuo CLAUDE.md ripete {a['regole_doppie']} regole del metodo, che col plugin arriva all'avvio: "
-                  f"dopo la migrazione le elenca e le toglie, con una copia, {comando_arturo()} personale regole-doppie."]
+                  "dopo la migrazione chiedi a Claude di lanciare `arturo personale regole-doppie`, che le elenca e le toglie con una copia."]
     righe += ["", f"Restano tuoi: {len(a['tuoi'])} file e cartelle di ~/.claude fuori da Arturo"
               + (", fra cui " + ", ".join(n for n in ("CLAUDE.md", "personale", "data", "projects") if n in a["tuoi"])
                  if any(n in a["tuoi"] for n in ("CLAUDE.md", "personale", "data", "projects")) else "") + "."]
@@ -539,6 +539,11 @@ def cmd_migra() -> int:
         scrivi_settings(a, copia)
         passo(cartella, "impostazioni")
         togli_arturo(a, cartella)
+        # Lo stato dice cose del clone, come "si installa alla chiusura": col plugin sarebbero false.
+        try:
+            (a["orsa"] / "session-env" / "aggiornamento.json").unlink()
+        except OSError:
+            pass
         passo(cartella, "fuori")
     except (Ferma, OSError, subprocess.SubprocessError, ValueError, KeyError) as errore:
         uscita = errore.uscita if isinstance(errore, Ferma) else 1
@@ -548,8 +553,8 @@ def cmd_migra() -> int:
     print(f"MIGRATO: Arturo è un plugin, e ~/.claude tiene solo i tuoi file. Apri Claude Code come sempre.\n"
           f"Per tornare al clone, con Claude Code chiuso: python3 {corto(cartella / 'codice' / 'bin' / 'arturo')} migra indietro")
     if a.get("regole_doppie"):
-        print(f"Il tuo CLAUDE.md ripete {a['regole_doppie']} regole che ora arrivano col plugin all'avvio. Le vedi con "
-              f"`arturo personale regole-doppie` e le togli, con una copia, aggiungendo --togli.")
+        print(f"Il tuo CLAUDE.md ripete {a['regole_doppie']} regole che ora arrivano col plugin all'avvio. In Claude Code "
+              "chiedi di lanciare `arturo personale regole-doppie`: le elenca, e con --togli le toglie con una copia.")
     return 0
 
 

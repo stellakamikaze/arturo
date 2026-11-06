@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AV01-AV05: col plugin l'avvio e la barra dicono quando c'è un rilascio nuovo di Arturo (#4860, strati F5).
+"""AV01-AV10: col plugin l'avvio e la barra dicono quando c'è un rilascio nuovo di Arturo (#4860, strati F5).
 
 Col clone `aggiornamenti.py controlla` scarica i tag e la barra mostra "↑ Arturo vX". Col plugin non c'è git, e
 fino al 6/11/2026 stato e controlla tacevano: un rilascio nuovo si scopriva solo lanciando /aggiorna.
@@ -10,7 +10,12 @@ AV02 stato dice all'avvio la versione nuova e /aggiorna; con la versione install
 AV03 controlla non riscarica il catalogo prima di un'ora, salvo --subito;
 AV04 la barra mostra "↑ Arturo <versione> · serve /aggiorna", e con lo stato vecchio lancia controlla dal codice
      accanto a sé (la cartella del plugin), non da ~/.claude/bin che col plugin non c'è;
-AV05 session-start annuncia il rilascio nuovo anche con ~/.claude senza git, il caso di chi ha migrato (#4897).
+AV05 session-start annuncia il rilascio nuovo anche con ~/.claude senza git, il caso di chi ha migrato (#4897);
+AV06 chi installa da zero non riceve la storia di Arturo come novità da leggere: il primo avvio la segna vista;
+AV07 col plugin NOVITA.md sta accanto al codice, e l'avvio conta lo stesso le voci non viste;
+AV08 l'avvio lancia il controllo staccato: chi ha una barra sua non lancia quello della barra di Arturo;
+AV09 senza ARTURO_RADICE lo stato va in CLAUDE_CONFIG_DIR, dove lo legge la barra;
+AV10 dopo /aggiorna la barra smette di dire "serve /aggiorna" subito (revisione del 6/11/2026, AV06-AV10).
 
 Gira su una copia del repository senza git (così aggiornamenti.py si crede il plugin), con una CLI di Claude
 finta: niente rete. Sulla base 3b5e6c3 sono tutti rossi. --avvelena: ogni copia rotta fa rosso il caso suo.
@@ -27,7 +32,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ["AV01", "AV02", "AV03", "AV04", "AV05"]
+CASI = ["AV01", "AV02", "AV03", "AV04", "AV05", "AV06", "AV07", "AV08", "AV09", "AV10"]
 DISCRIMINANTI = list(CASI)
 NODE = shutil.which("node") or "node"
 
@@ -120,6 +125,53 @@ def prova(repo: Path) -> list[str]:
                        input='{"source": "startup"}', env=env)
         if "c'è la versione 0.2.6" not in avvio.stdout:
             rossi.append(f"AV05 avvio senza git: rc {avvio.returncode}, {avvio.stdout[-200:]!r}, {avvio.stderr[-160:]!r}")
+
+        # Il primo avvio qui sopra era quello di un'installazione nuova: niente segnalibro, niente setup finito.
+        viste = orsa / "session-env" / "novita-viste"
+        voci = [r[3:] for r in (copia / "NOVITA.md").read_text(encoding="utf-8").splitlines() if r.startswith("## ")]
+        if "aggiornamenti dell'harness" in avvio.stdout or not viste.exists() \
+                or viste.read_text(encoding="utf-8").splitlines() != voci:
+            rossi.append(f"AV06 primo avvio: segnalibro {viste.exists()}, {avvio.stdout[-200:]!r}")
+
+        if viste.exists():
+            viste.write_text("\n".join(voci[1:]) + "\n", encoding="utf-8")
+        avvio2 = esegui([shutil.which("bash") or "bash", str(copia / "hooks" / "session-start.sh")],
+                        input='{"source": "startup"}', env=env)
+        if "1 aggiornamenti dell'harness" not in avvio2.stdout:
+            rossi.append(f"AV07 novità col plugin: {avvio2.stdout[-200:]!r}")
+
+        stato_file.unlink(missing_ok=True)
+        esegui(agg + ["stato"], env=env)
+        partito = False
+        for _ in range(40):  # controlla parte staccato
+            if leggi().get("versione") == "0.2.6":
+                partito = True
+                break
+            time.sleep(0.25)
+        if not partito:
+            rossi.append(f"AV08 avvio senza barra: stato {leggi()}")
+
+        stato_file.unlink(missing_ok=True)
+        altra = tmp / "altra-casa"
+        altra.mkdir()
+        env9 = {k: v for k, v in env.items() if k != "ARTURO_RADICE"}
+        env9.update({"HOME": str(altra), "USERPROFILE": str(altra)})
+        esegui(agg + ["controlla", "--subito"], env=env9)
+        if leggi().get("versione") != "0.2.6" or (altra / ".claude").exists():
+            rossi.append(f"AV09 CLAUDE_CONFIG_DIR: stato {leggi()}, casa toccata {(altra / '.claude').exists()}")
+
+        sha = "a" * 40
+        (cat / ".claude-plugin" / "marketplace.json").write_text(json.dumps({"name": "arturo", "plugins": [
+            {"name": "arturo", "version": "0.2.6", "source": {"source": "github", "repo": "prova/arturo",
+                                                              "ref": "plugin-v0.2.6", "sha": sha}}]}), encoding="utf-8")
+        (orsa / "plugins" / "installed_plugins.json").write_text(json.dumps({"plugins": {"arturo@arturo": [
+            {"scope": "user", "version": "0.2.6", "installPath": str(copia), "gitCommitSha": sha}]}}), encoding="utf-8")
+        stato_file.write_text(json.dumps({"controllato": int(time.time()), "versione": "0.2.6", "stato": "manuale",
+                                          "plugin": True}), encoding="utf-8")
+        aggiorna = esegui(agg + ["plugin"], env=env)
+        barra2 = esegui([NODE, str(copia / "hooks" / "statusline.js")], input=entrata, env=env_barra).stdout
+        if "GIÀ AGGIORNATO" not in aggiorna.stdout or "serve /aggiorna" in barra2:
+            rossi.append(f"AV10 dopo /aggiorna: {aggiorna.stdout[-120:]!r}, barra {barra2[-100:]!r}")
     return rossi
 
 
@@ -135,6 +187,15 @@ VELENI = [
      "const AGG_SCRIPT = path.join(CLAUDE_DIR, 'bin', 'aggiornamenti.py');"),
     ("AV05", "hooks/session-start.sh", 'elif [ -f "$ARTURO_CODICE/bin/aggiornamenti.py" ] && [ ! -e "$ARTURO_CODICE/.git" ]; then',
      'elif false; then'),
+    ("AV06", "hooks/session-start.sh",
+     'if [ ! -e "$NOVITA_VISTE" ] && [ -z "$NOVITA_VECCHIA" ] && [ ! -f "$HOME/.claude/data/setup-fatto" ]; then',
+     'if false; then'),
+    ("AV07", "hooks/session-start.sh", '[ -f "$NOVITA_FILE" ] || NOVITA_FILE="$ARTURO_CODICE/NOVITA.md"', 'true'),
+    ("AV08", "bin/aggiornamenti.py", '        avvia_staccato(r, "controlla")\n', '        pass\n'),
+    ("AV09", "bin/aggiornamenti.py", 'os.environ.get("ARTURO_RADICE") or os.environ.get("CLAUDE_CONFIG_DIR") or',
+     'os.environ.get("ARTURO_RADICE") or'),
+    ("AV10", "bin/aggiornamenti.py", '        segna_aggiornato(radice())\n        print(f"GIÀ AGGIORNATO: {tag}")',
+     '        print(f"GIÀ AGGIORNATO: {tag}")'),
 ]
 
 

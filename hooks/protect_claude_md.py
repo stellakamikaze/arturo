@@ -87,6 +87,16 @@ def _righe_dopo(path, ti):
     return len(_testo_dopo(path, ti).splitlines())
 
 
+def _ferma_json_rotto(rp, ti):
+    """Un settings*.json che diventerebbe JSON non valido si ferma, anche con l'unlock o con allow."""
+    try:
+        json.loads(_testo_dopo(rp, ti))
+    except (ValueError, OSError) as e:
+        _emit("deny", f"{os.path.basename(rp)} non sarebbe JSON valido dopo la modifica ({e}). "
+              "Un settings rotto spegne deny e hook: correggi la modifica e riprova.")
+        sys.exit(0)
+
+
 def _testo_dopo(path, ti):
     """Il file come sarà dopo Write, Edit o MultiEdit."""
     if isinstance(ti.get('content'), str):
@@ -287,12 +297,7 @@ def main():
             # settings rotto spegne deny e hook alla ricarica successiva (dalla config dell'autore,
             # 20/10/2026).
             if re.match(r'SETTINGS.*\.JSON$', base) is not None:
-                try:
-                    json.loads(_testo_dopo(rp, ti))
-                except (ValueError, OSError) as e:
-                    _emit("deny", f"{os.path.basename(rp)} non sarebbe JSON valido dopo la modifica ({e}). "
-                          "Un settings rotto spegne deny e hook: correggi la modifica e riprova.")
-                    sys.exit(0)
+                _ferma_json_rotto(rp, ti)
             if unlocked('config-unlock'):
                 _emit("allow", "config/hook Claude Code sbloccati da conferma utente")
                 sys.exit(0)
@@ -323,7 +328,13 @@ def main():
 
         # Categoria 5: una cartella .claude dentro un progetto (settings di progetto, worktree, agenti).
         # Claude Code chiede a ogni scrittura lì; senza .local la decisione resta sua (5/11/2026, #4535).
-        if (os.sep + '.claude' + os.sep) in rp:
+        # Vale solo fuori dalla config: ~/.claude ha le sue categorie, e una riga sui progetti non deve
+        # aprire personale/session-start.sh, che parte a ogni avvio. Lo stesso per CLAUDE_CONFIG_DIR.
+        config_altrove = os.path.realpath(os.environ.get('CLAUDE_CONFIG_DIR') or claude_dir)
+        if (not under_claude and rp != config_altrove and not rp.startswith(config_altrove + os.sep)
+                and (os.sep + '.claude' + os.sep) in rp):
+            if re.match(r'SETTINGS.*\.JSON$', base) is not None:
+                _ferma_json_rotto(rp, ti)
             _emetti_locale('dot-claude-progetto', chiede=chiede)
 
         sys.exit(0)

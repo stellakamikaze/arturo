@@ -18,6 +18,9 @@ IP09 col plugin il metodo (shared/metodo.md) entra all'avvio da un hook suo, sot
 IP11 arturo impostazioni adotta: settings della persona intatti, blocco col frammento di oggi; un
      applica dopo porta solo il cambio nuovo di Arturo e tiene le voci della persona; un blocco con un
      frammento diverso non si sostituisce senza --forza (strati F5, la config di Federico);
+IP12 adotta si ferma se mancano regole di blocco di Arturo, anche senza settings.json, non scrive il blocco, e
+     solo --forza le lascia fuori, dicendolo: dopo non arriverebbero più (revisione del 6/11/2026);
+IP13 adotta si ferma su un hook doppio, anche con --forza;
 IP10 un hook di Arturo rimasto nei settings della persona (un clone di prima) è doppio: applica si ferma con
      rc 1 e il file intatto, applica --togli-doppi lo toglie e tiene l'hook proprio della persona.
 
@@ -35,7 +38,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["IP01", "IP02", "IP03", "IP04", "IP05", "IP06", "IP07", "IP08", "IP09", "IP10", "IP11"]
+CASI = ["IP01", "IP02", "IP03", "IP04", "IP05", "IP06", "IP07", "IP08", "IP09", "IP10", "IP11", "IP12", "IP13"]
 DISCRIMINANTI = list(CASI)
 BASH = shutil.which("bash") or "bash"
 
@@ -174,7 +177,9 @@ def prova(repo: Path) -> list[str]:
 
         orsa3 = tmp / "orsa3"
         orsa3.mkdir()
-        miei = {"outputStyle": "Mio", "permissions": {"allow": ["Bash(mio-comando:*)"]}, "env": {"MIA": "1"}}
+        blocchi = imp["permissions"]["deny"]
+        miei = {"outputStyle": "Mio", "permissions": {"allow": ["Bash(mio-comando:*)"], "deny": blocchi},
+                "env": {"MIA": "1"}}
         (orsa3 / "settings.json").write_text(json.dumps(miei, indent=4) + "\n", encoding="utf-8")
         prima3 = (orsa3 / "settings.json").read_bytes()
         env3 = {**env, "CLAUDE_CONFIG_DIR": str(orsa3)}
@@ -198,6 +203,31 @@ def prova(repo: Path) -> list[str]:
             rossi.append(f"IP11 adotta: rc {adotta.returncode}/{dopo_cambio.returncode}/{senza_forza.returncode}, "
                          f"intatti {intatti}, base {base3 == imp}, unito {json.dumps(unito3)[:120]}, "
                          f"{(adotta.stdout + adotta.stderr + dopo_cambio.stderr)[-160:]!r}")
+
+        orsa4 = tmp / "orsa4"
+        orsa4.mkdir()
+        env4 = {**env, "CLAUDE_CONFIG_DIR": str(orsa4)}
+        blocco4 = orsa4 / "data" / "arturo-impostazioni.lock"
+        senza_file = esegui(arturo + ["adotta"], env=env4)
+        (orsa4 / "settings.json").write_text('{"permissions": {"allow": ["Bash(ls:*)"]}}', encoding="utf-8")
+        fermo4 = esegui(arturo + ["adotta"], env=env4)
+        scritto4 = blocco4.exists()
+        forzato = esegui(arturo + ["adotta", "--forza"], env=env4)
+        if senza_file.returncode != 1 or fermo4.returncode != 1 or "regole di blocco" not in fermo4.stderr or scritto4 \
+                or forzato.returncode != 0 or not blocco4.exists() or "Restano fuori" not in forzato.stdout:
+            rossi.append(f"IP12 regole mancanti: rc {senza_file.returncode}/{fermo4.returncode}/{forzato.returncode}, "
+                         f"blocco scritto {scritto4}, {(fermo4.stderr + forzato.stdout)[-200:]!r}")
+
+        orsa5 = tmp / "orsa5"
+        orsa5.mkdir()
+        env5 = {**env, "CLAUDE_CONFIG_DIR": str(orsa5)}
+        doppio = {"permissions": {"deny": blocchi}, "hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [
+            {"type": "command", "command": "python3 ~/.claude/hooks/block-dangerous.py"}]}]}}
+        (orsa5 / "settings.json").write_text(json.dumps(doppio), encoding="utf-8")
+        fermo5 = esegui(arturo + ["adotta", "--forza"], env=env5)
+        if fermo5.returncode != 1 or "due volte" not in fermo5.stderr \
+                or (orsa5 / "data" / "arturo-impostazioni.lock").exists():
+            rossi.append(f"IP13 hook doppio: rc {fermo5.returncode}, {(fermo5.stdout + fermo5.stderr)[-200:]!r}")
     return rossi
 
 
@@ -213,6 +243,8 @@ VELENI = [
     ("IP10", "bin/impostazioni.py", "                if any(u in registrati for u in usati):", "                if False:"),
     ("IP11", "bin/impostazioni.py", '_scrivi(blocco_file, {"versione": versione, "frammento": frammento, "adottato": True})',
      '_scrivi(orsa() / "settings.json", frammento)'),
+    ("IP12", "bin/impostazioni.py", "    if mancano and not forza:\n", "    if False:\n"),
+    ("IP13", "bin/impostazioni.py", "    trovati = doppi(settings)\n", "    trovati = []\n"),
 ]
 
 

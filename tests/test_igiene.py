@@ -11,7 +11,7 @@ IG02 il controllo del repository riconosce un termine anche con un punto in mezz
      Il termine di prova è inventato: le impronte vere non si mettono alla prova senza scriverle.
 IG03 il controllo legge anche i percorsi dei file e i messaggi dei commit dell'intervallo, e il rapporto
      non ripete mai il termine.
-IG04 un workflow di GitHub Actions lancia il solo controllo di igiene su ogni push, su ogni branch, in
+IG04 un workflow di GitHub Actions lancia il solo controllo di igiene su ogni pull request, su ogni push, su ogni branch, in
      sola lettura, e solo nel repository pubblico di Arturo (19/10/2026, segnalazione n. 4).
 
 Sulla base 93f323e ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
@@ -90,7 +90,7 @@ def test_ig04(repo: Path) -> None:
     assert f.is_file(), "IG04 manca .github/workflows/igiene.yml"
     dati = yaml.safe_load(f.read_text(encoding="utf-8"))
     quando = dati.get("on", dati.get(True)) or {}
-    assert set(quando) == {"push"} and quando["push"].get("branches") == ["**"], f"IG04 non parte su ogni push di ogni branch: {quando}"
+    assert set(quando) == {"push", "pull_request"} and quando["push"].get("branches") == ["**"], f"IG04 non parte su ogni push di ogni branch e su ogni pull request: {quando}"
     assert dati.get("permissions") == {"contents": "read"}, f"IG04 permessi non in sola lettura: {dati.get('permissions')}"
     lavori = dati.get("jobs") or {}
     assert len(lavori) == 1, f"IG04 il workflow fa più di un lavoro: {list(lavori)}"
