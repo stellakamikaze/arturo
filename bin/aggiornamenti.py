@@ -28,8 +28,9 @@ non sa verificare (git prima della 2.34, OpenSSH prima della 8.2) blocca allo st
 allarme: "firma non verificabile", uscita 4 di firmato. ARTURO_AGGIORNAMENTI=manuali
 ha lo stesso effetto di "manuali". Solo libreria standard, Python 3.8 o successivo.
 
-Col plugin (strati F3, 5/11/2026) il codice sta nella cache di Claude Code e non c'è git: stato,
-controlla e applica non fanno niente, e l'aggiornamento passa da `plugin`, che /aggiorna lancia. Claude
+Col plugin (strati F3, 5/11/2026) il codice sta nella cache di Claude Code e non c'è git: stato e
+controlla dicono soltanto se c'è un rilascio nuovo, applica non fa niente, e l'aggiornamento passa da
+`plugin`, che /aggiorna lancia. Claude
 Code installa lo sha scritto nel catalogo anche se nessun tag firmato lo indica (prova del 5/11/2026):
 per questo il tag si verifica qui, prima, con la chiave dell'ancora nell'Orsa (hooks/fiducia.py).
 """

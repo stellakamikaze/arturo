@@ -129,8 +129,9 @@ function gitInfo(dir) {
 
 // --- Aggiornamento di Arturo -----------------------------------------------
 // bin/aggiornamenti.py scrive lo stato in session-env/aggiornamento.json. La barra lo legge e, al
-// massimo una volta all'ora, lancia un controllo staccato (fetch dei tag): come Claude Code, un
-// aggiornamento arrivato mentre lavori si vede qui, e si installa da solo alla chiusura.
+// massimo una volta all'ora, lancia un controllo staccato (i tag col clone, il catalogo col plugin): come
+// Claude Code, un aggiornamento arrivato mentre lavori si vede qui. Col clone si installa da solo alla
+// chiusura, col plugin lo installa /aggiorna.
 const AGG_FILE = path.join(CLAUDE_DIR, 'session-env', 'aggiornamento.json');
 const AGG_TENTATIVO = path.join(CLAUDE_DIR, 'session-env', 'aggiornamento-controllo');
 const AGG_ORA_S = 3600;
