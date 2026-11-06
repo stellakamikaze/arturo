@@ -213,6 +213,10 @@ if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
     # Senza la verifica della firma /aggiorna non applica niente (17/10/2026, #3504): main non si applica mai.
     echo "ARTURO: manca bin/aggiornamenti.py, che verifica la firma dei rilasci: finche' non torna, nessun aggiornamento si installa. Si rimette con: git -C ~/.claude restore bin/aggiornamenti.py"
   fi
+elif [ -f "$ARTURO_CODICE/bin/aggiornamenti.py" ] && [ ! -e "$ARTURO_CODICE/.git" ]; then
+  # Col plugin ~/.claude di solito non è un repository, e l'avvio deve dire lo stesso che c'è un rilascio
+  # nuovo (#4897, 6/11/2026). Senza .git accanto al codice gira solo il ramo del plugin di aggiornamenti.py.
+  python3 "$ARTURO_CODICE/bin/aggiornamenti.py" stato 2>/dev/null || true
 fi
 
 # Canale novità: se NOVITA.md ha una entry più recente dell'ultima vista, segnala.

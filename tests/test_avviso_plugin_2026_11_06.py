@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AV01-AV04: col plugin l'avvio e la barra dicono quando c'è un rilascio nuovo di Arturo (#4860, strati F5).
+"""AV01-AV05: col plugin l'avvio e la barra dicono quando c'è un rilascio nuovo di Arturo (#4860, strati F5).
 
 Col clone `aggiornamenti.py controlla` scarica i tag e la barra mostra "↑ Arturo vX". Col plugin non c'è git, e
 fino al 6/11/2026 stato e controlla tacevano: un rilascio nuovo si scopriva solo lanciando /aggiorna.
@@ -9,7 +9,8 @@ AV01 controlla, col catalogo a una versione più nuova di quella installata, scr
 AV02 stato dice all'avvio la versione nuova e /aggiorna; con la versione installata pari tace;
 AV03 controlla non riscarica il catalogo prima di un'ora, salvo --subito;
 AV04 la barra mostra "↑ Arturo <versione> · serve /aggiorna", e con lo stato vecchio lancia controlla dal codice
-     accanto a sé (la cartella del plugin), non da ~/.claude/bin che col plugin non c'è.
+     accanto a sé (la cartella del plugin), non da ~/.claude/bin che col plugin non c'è;
+AV05 session-start annuncia il rilascio nuovo anche con ~/.claude senza git, il caso di chi ha migrato (#4897).
 
 Gira su una copia del repository senza git (così aggiornamenti.py si crede il plugin), con una CLI di Claude
 finta: niente rete. Sulla base 3b5e6c3 sono tutti rossi. --avvelena: ogni copia rotta fa rosso il caso suo.
@@ -26,7 +27,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ["AV01", "AV02", "AV03", "AV04"]
+CASI = ["AV01", "AV02", "AV03", "AV04", "AV05"]
 DISCRIMINANTI = list(CASI)
 NODE = shutil.which("node") or "node"
 
@@ -110,6 +111,15 @@ def prova(repo: Path) -> list[str]:
             time.sleep(0.25)
         if "↑ Arturo 0.2.6 · serve /aggiorna" not in barra or not rilanciato:
             rossi.append(f"AV04 barra: {barra[-120:]!r}, controlla lanciato dalla barra {rilanciato}")
+
+        # L'hook vero, con ~/.claude che non è un repository: dopo arturo migra è così per chi non ha un repo suo.
+        catalogo(cat, "0.2.6")
+        stato_file.write_text(json.dumps({"controllato": int(time.time()), "versione": "0.2.6", "stato": "manuale",
+                                          "plugin": True}), encoding="utf-8")
+        avvio = esegui([shutil.which("bash") or "bash", str(copia / "hooks" / "session-start.sh")],
+                       input='{"source": "startup"}', env=env)
+        if "c'è la versione 0.2.6" not in avvio.stdout:
+            rossi.append(f"AV05 avvio senza git: rc {avvio.returncode}, {avvio.stdout[-200:]!r}, {avvio.stderr[-160:]!r}")
     return rossi
 
 
@@ -123,6 +133,8 @@ VELENI = [
      '        pass\n    _, radici = _moduli()\n    _claude("marketplace", "update", "arturo", timeout=120)'),
     ("AV04", "hooks/statusline.js", "const AGG_SCRIPT = path.join(CODICE_AGG, 'bin', 'aggiornamenti.py');",
      "const AGG_SCRIPT = path.join(CLAUDE_DIR, 'bin', 'aggiornamenti.py');"),
+    ("AV05", "hooks/session-start.sh", 'elif [ -f "$ARTURO_CODICE/bin/aggiornamenti.py" ] && [ ! -e "$ARTURO_CODICE/.git" ]; then',
+     'elif false; then'),
 ]
 
 
