@@ -120,6 +120,17 @@ def test_cc07(repo: Path) -> None:
         f"CC07 la n. 15 non risulta corretta: {righe}"
     assert any(x.startswith("n. 99") and "non è ancora uscita" in x for x in righe), f"CC07 la n. 99: {righe}"
     assert any("Rete giù" in x and "in attesa" in x for x in righe), f"CC07 quella in attesa: {righe}"
+    # Una proposta realizzata si cita "proposta n. X": segnala stato la dava per non uscita (segnalazione n. 59).
+    # Si prova sulla funzione: `segnala stato` legge il NOVITA.md del repository, non quello della casa finta.
+    spec = importlib.util.spec_from_file_location("segnala_cc07", repo / "bin" / "segnala.py")
+    assert spec and spec.loader
+    segnala = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(segnala)
+    voci = segnala.novita_per_numero(
+        "## 2026-10-29 — Idea uscita\n\n**Perché**: proposta n. 54 di una persona.\n\n"
+        "## 2026-10-27 — Avvisi giusti\n\nlo mostravano le segnalazioni n. 14, 15 e 16.\n")
+    assert voci.get(54) == ("2026-10-29", "Idea uscita"), f"CC07 la proposta n. 54 non risulta uscita: {voci}"
+    assert voci.get(15) == ("2026-10-27", "Avvisi giusti"), f"CC07 la n. 15 sulla funzione: {voci}"
 
 
 def test_cc08(repo: Path) -> None:

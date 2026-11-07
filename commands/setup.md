@@ -268,13 +268,7 @@ Fase da bozza. Prima del push chiedi l'email vera, se quella di Git è finta (FA
 
 Spiega: se userà Arturo su **più computer**, può tenerli allineati con un proprio repository privato. `/fine` committa e pusha, `/inizio` sincronizza. `CLAUDE.md`, aggiunte ai comandi (`personale/`), handoff e todo viaggiano solo se il repository risulta privato. Le skill nuove della persona, verso un repository che non risulta privato, restano sulla macchina finché lei non dice di pubblicarle. Arturo resta collegato come `upstream`: da lì `/aggiorna` scarica gli aggiornamenti dell'harness, mentre `origin` diventa il repository dell'utente.
 
-Se l'utente lo vuole e ha `gh`:
-
-```bash
-git -C ~/.claude remote rename origin upstream
-gh repo create <nome-repo> --private --source ~/.claude --remote origin --push
-git -C ~/.claude remote -v
-```
+Se l'utente lo vuole e ha `gh`, segui `~/.claude/shared/setup-repository.md`.
 
 Altrimenti spiega che, senza un remote proprio, tutto funziona lo stesso: i dati restano in locale e il push di `/fine` non avviene (te lo segnala con un messaggio, non è un errore). Se non gli serve, salta.
 

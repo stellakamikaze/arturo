@@ -108,7 +108,8 @@ def test_m03(repo: Path) -> None:
 
 
 def test_m05(repo: Path) -> None:
-    assert "remote rename origin upstream" in read(repo / "commands" / "setup.md"), "M05 /setup crea origin senza tenere Arturo come upstream"
+    assert "setup-repository.md" in read(repo / "commands" / "setup.md") and \
+        "remote rename origin upstream" in read(repo / "shared" / "setup-repository.md"), "M05 /setup crea origin senza tenere Arturo come upstream"
     assert "remote rename origin upstream" in read(repo / "README.md"), "M05 README sostituisce origin e perde gli aggiornamenti di Arturo"
     assert "upstream" in read(repo / "commands" / "novita.md"), "M05 /novita cerca aggiornamenti solo su origin"
     # Dal 16/10/2026 l'avviso di session-start lo dà bin/aggiornamenti.py, che sceglie upstream quando

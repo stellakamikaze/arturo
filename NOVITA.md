@@ -3,12 +3,33 @@
 Questo file è il canale di aggiornamento di Arturo. Ogni volta che l'harness evolve in un
 modo che vale la pena raccontare, qui compare una entry: cosa cambia, il principio dietro,
 a chi serve. La entry più recente sta in cima, con data ISO nell'intestazione. Una correzione nata
-da una segnalazione la cita con la forma "segnalazione n. X": `/segnala stato` la riconosce così.
+da una segnalazione la cita con la forma "segnalazione n. X" o "proposta n. X": `/segnala stato` la
+riconosce così.
 
 Non serve leggerlo a mano: dopo un `git pull`, all'avvio della sessione Arturo ti avvisa se
 c'è qualcosa che non hai ancora visto, e `/novita` te lo racconta in parole semplici,
 con la possibilità di fare sparring (`/sparring`) per capire se la novità serve al tuo
 modo di lavorare.
+
+---
+
+## 2026-11-07 — /novita riassume un arretrato grande, /setup controlla il permesso di GitHub prima del primo invio
+
+**Cosa cambia**: se hai più di 10 novità da leggere, `/novita` non le racconta più una per una. Ti propone
+un riassunto per temi, con in testa le correzioni delle tue segnalazioni, e approfondisci solo i temi che
+scegli. `/segnala stato` riconosce anche le novità che citano una proposta col suo numero, quindi accanto
+a una proposta realizzata non compare più "la correzione non è ancora uscita". Quando `/setup` crea il
+repository privato che tiene allineati i tuoi computer, controlla prima il permesso `workflow` di GitHub e,
+se manca, ti dà il comando per aggiungerlo: è un login nel browser, e lo fai tu.
+
+**Perché**: la segnalazione n. 59 raccontava due problemi. Con 113 novità arretrate il racconto una per una
+richiedeva ore, e le proposte n. 52, 53 e 54 risultavano ferme anche se erano già uscite. Con la
+segnalazione n. 60 è arrivato il terzo: Arturo contiene un file di automazione, quindi senza il permesso
+`workflow` GitHub rifiutava il primo invio e il repository restava vuoto.
+
+**Da sapere**: nel repository privato puoi lasciare accese le Actions, le automazioni di GitHub. Quella di
+Arturo gira solo nel repository pubblico: nel tuo viene saltata, quindi non consuma i minuti che GitHub
+conta per le automazioni.
 
 ---
 

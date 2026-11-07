@@ -579,7 +579,7 @@ def invia(opz: dict) -> int:
 
 def novita_per_numero(testo: str) -> dict:
     """{numero: (data, titolo)} della prima voce di NOVITA.md che cita "segnalazione n. X" (o "segnalazioni
-    n. 14, 15 e 16"). Le voci sono in ordine inverso: vince la più vecchia, cioè la correzione."""
+    n. 14, 15 e 16") o "proposta n. X": il numero è lo stesso (segnalazione n. 59). Le voci sono in ordine inverso: vince la più vecchia, cioè la correzione."""
     trovate, data, titolo = {}, "", ""
     for riga in testo.splitlines():
         intestazione = re.match(r"## (\d{4}-\d{2}-\d{2})\s*\S*\s*(.*)", riga)
@@ -588,7 +588,7 @@ def novita_per_numero(testo: str) -> dict:
             continue
         if not data:
             continue
-        for gruppo in re.finditer(r"segnalazion[ei]\s+n\.\s*\d+(?:(?:\s*,\s*|\s+e\s+)(?:n\.\s*)?\d+)*", riga):
+        for gruppo in re.finditer(r"(?:segnalazion[ei]|propost[ae])\s+n\.\s*\d+(?:(?:\s*,\s*|\s+e\s+)(?:n\.\s*)?\d+)*", riga):
             for numero in re.findall(r"\d+", gruppo.group(0)):
                 trovate[int(numero)] = (data, titolo)
     return trovate
