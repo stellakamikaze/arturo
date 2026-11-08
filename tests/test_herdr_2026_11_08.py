@@ -54,6 +54,7 @@ def installa(repo: Path, casa: Path, sistema: str = "mac-arm") -> subprocess.Com
     env = {
         **os.environ,
         "HOME": str(casa / "home"),
+        "USERPROFILE": str(casa / "home"),
         "HERDR_APP_HOME": str(app),
         "PROJECTS_BASE": str(casa / "progetti"),
         "ARTURO_HERDR_INSTALLER": str(finto),

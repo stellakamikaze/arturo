@@ -95,7 +95,7 @@
           "padding": 12,
           "gap": 12,
           "background": {
-            "image": "mods/arturo/img/volta.png",
+            "image": "mods/arturo/img/volta.svg",
             "fit": "cover"
           },
           "children": [
