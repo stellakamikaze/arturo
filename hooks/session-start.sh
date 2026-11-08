@@ -311,6 +311,21 @@ if [ -d "$HOME/.claude/.git" ] && [ ! -f "$HOME/.claude/data/setup-fatto" ] \
   fi
 fi
 
+# Herdr, la finestra di Arturo (8/11/2026, ramo herdr): chi ha già fatto /setup non ripassa dal passo che
+# la installa. Una volta sola, su Mac Apple e su Windows, se Herdr non c'è: il segno in data/herdr-invito.
+if [ -f "$HOME/.claude/data/setup-fatto" ] && [ ! -e "$HOME/.claude/data/herdr-invito" ] \
+   && [ -f "$ARTURO_CODICE/shared/setup-herdr.md" ] && ! command -v herdr-app >/dev/null 2>&1 \
+   && [ ! -d "$HOME/Applications/Herdr.app" ] && [ ! -d /Applications/Herdr.app ]; then
+  case "$(uname -s)" in
+    Darwin) [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ] && HERDR_SI=1 ;;
+    MINGW* | MSYS* | CYGWIN*) HERDR_SI=1 ;;
+  esac
+  if [ "${HERDR_SI:-0}" = 1 ]; then
+    mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"
+    echo "HERDR: Arturo ha una finestra sua, Herdr: i progetti a sinistra, la conversazione al centro, i todo a destra. Nella tua prima risposta proponila alla persona in una riga, una volta sola. Col sì segui $ARTURO_CODICE/shared/setup-herdr.md dal punto dell'installazione; se dice no non insistere, l'invito non torna."
+  fi
+fi
+
 # Invito a segnalare: Arturo migliora con quello che le persone gli dicono. Una riga di contesto,
 # spenta da "arturo segnala basta" (stato in session-env/segnala.json).
 if ! grep -q '"pausa": "sempre"' "$HOME/.claude/session-env/segnala.json" 2>/dev/null; then

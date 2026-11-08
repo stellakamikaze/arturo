@@ -16,8 +16,10 @@ HZ05 settings.json registra l'hook sugli otto eventi con lo stato giusto, e la t
      lo conosce.
 HZ06 /setup porta a shared/setup-herdr.md, che lancia installa-herdr.sh.
 HZ07 il mod: ogni modulo importato esiste, ogni parte nominata dal layout esiste in main.js.
+HZ08 chi ha già Arturo (setup fatto) e non ha Herdr riceve all'avvio l'invito `HERDR:` una volta sola;
+     chi non ha finito /setup non lo riceve.
 
-Con --avvelena cinque copie rotte del repository devono far rosso il caso che le sorveglia.
+Con --avvelena sei copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
 
@@ -31,7 +33,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08")
 INSTALLA = Path("shared/herdr/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -225,7 +227,36 @@ def hz07(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07}
+def hz08(repo: Path, casa: Path) -> str | None:
+    if os.name == "nt":
+        return None  # sysctl e i percorsi del Mac: il caso vale fuori da Windows
+    if sys.platform == "darwin":
+        r = subprocess.run(["sysctl", "-n", "hw.optional.arm64"], capture_output=True, text=True)
+        if r.stdout.strip() != "1":
+            return None
+    elif not sys.platform.startswith("linux"):
+        return None
+    if sys.platform.startswith("linux"):
+        return None  # su Linux l'invito non parte: niente da provare qui
+    env = {**os.environ, "HOME": str(casa), "USERPROFILE": str(casa), "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+           "ARTURO_BANCHI_AVVIO": "0", "ARTURO_AGGIORNAMENTI": "manuali"}
+    def avvio() -> str:
+        r = subprocess.run(["bash", str(repo / "hooks/session-start.sh")], env=env, capture_output=True, text=True,
+                           timeout=60, stdin=subprocess.DEVNULL)
+        return r.stdout
+    (casa / ".claude/data").mkdir(parents=True)
+    if "HERDR:" in avvio():
+        return "invito a chi non ha finito /setup"
+    (casa / ".claude/data/setup-fatto").write_text("2026-11-08\n", encoding="utf-8")
+    primo, secondo = avvio(), avvio()
+    if primo.count("HERDR:") != 1:
+        return "chi ha già Arturo non riceve l'invito a Herdr"
+    if "HERDR:" in secondo:
+        return "l'invito a Herdr torna a ogni avvio"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08}
 
 
 def prova(repo: Path) -> list[str]:
@@ -247,6 +278,7 @@ VELENI = [
     ("HZ03", "shared/herdr/installa-herdr.sh", 'Arturo funziona lo stesso nel Terminale."; exit 0 ;;', 'Arturo funziona lo stesso nel Terminale." ;;'),
     ("HZ04", "hooks/herdr-stato.sh", '[ -n "${HC_TERMINAL_ID:-}" ] || exit 0', ":"),
     ("HZ05", "settings.json", "herdr-stato.sh done", "herdr-stato.sh idle"),
+    ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 
 

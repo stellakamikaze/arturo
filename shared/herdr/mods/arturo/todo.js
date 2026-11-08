@@ -4,7 +4,7 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, spaces, shared, notify } from "herdr";
-import { todo, slug, apri, PAROLE } from "./dati.js";
+import { todo, slug, apri, PAROLE, titoloTodo } from "./dati.js";
 import { ICONA } from "./comuni.js";
 
 const ORDINE = ["tu", "decidi", "io", "fermo"];
@@ -36,7 +36,8 @@ export class Todo {
     const p = this.progetto;
     if (!p) { this.vista = null; this.errore = null; cx.notify(); return; }
     cx.spawn(async (cx) => {
-      const r = await todo(["--progetto", p, "--json"]);
+      const nome = shared("arturo.progetti")?.[p]?.nome ?? p;
+      const r = await todo(["--progetto", nome, "--json"]);
       if (p !== this.progetto) return;
       if (r.ok) { this.vista = r.json; this.errore = null; this.fatti.clear(); }
       else this.errore = r.errore;
@@ -73,7 +74,7 @@ export class Todo {
         .on_click((_e, cx) => { if (!fatto) this.fatto(item, cx); })
         .when(fatto, (el) => el.child(svg(ICONA("check")).size(13).text_color(t.background))))
       .child(v_flex().flex_1().min_w(0).gap(3)
-        .child(div().whitespace_normal().text_size(13.5).text_color(fatto ? t.dim : t.foreground).child(item.titolo))
+        .child(div().whitespace_normal().text_size(13.5).text_color(fatto ? t.dim : t.foreground).child(titoloTodo(item.titolo)))
         .when(Boolean(quando), (el) => el.child(div().text_size(12).text_color(scaduto ? t.blocked : t.muted).child(quando))))
       .when(sopra && !fatto, (el) => el.child(div().id(`l-${item.id}`).flex_none().px(9).py(4).rounded(6).cursor_pointer()
         .text_size(12).text_color(t.accent).border_1().border_color(t.border)
@@ -113,7 +114,11 @@ export class Todo {
     return v_flex().size_full().bg(t.chrome).rounded(8).border_1().border_color(t.border)
       .child(v_flex().px(16).pt(14).pb(10).gap(2)
         .child(div().font_family("Arturo Archivo").text_size(15).text_color(t.foreground).child("Da fare"))
-        .when(Boolean(this.progetto), (el) => el.child(div().truncate().text_size(12).text_color(t.muted).child(this.progetto))))
+        .when(Boolean(this.progetto), (el) => {
+          const info = shared("arturo.progetti")?.[this.progetto];
+          return el.child(div().truncate().text_size(12.5).text_color(t.foreground).child(info?.titolo ?? this.progetto))
+            .when(Boolean(info?.riga), (e) => e.child(div().pt(4).whitespace_normal().text_size(12.5).text_color(t.muted).child(info.riga)));
+        }))
       .child(v_flex().id("todo-elenco").flex_1().min_h(0).overflow_y_scrollbar().pb(12).child(corpo));
   }
 }

@@ -4,7 +4,7 @@
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { theme, props, closeOverlay } from "herdr";
-import { cartelle, apri, spazio, frase } from "./dati.js";
+import { cartelle, apri, spazio, frase, bello } from "./dati.js";
 import { ICONA, punto, colore } from "./comuni.js";
 
 const MAX = 10;
@@ -49,8 +49,8 @@ export class Apri {
         .when(i === this.at, (el) => el.bg(t.selected)).hover((st) => st.bg(t.hover))
         .on_click(() => this.vai(nome))
         .child(punto(f ? colore(t, f.colore) : s ? t.idle : t.border))
-        .child(div().flex_1().truncate().text_size(14).text_color(t.foreground).child(nome))
-        .child(div().text_size(12).text_color(f ? colore(t, f.colore) : t.muted).child(f ? f.testo : s ? "Aperto" : "Apri"));
+        .child(div().flex_1().truncate().text_size(14).text_color(t.foreground).child(bello(nome)))
+        .child(div().text_size(12).text_color(f ? colore(t, f.colore) : t.muted).child(f ? f.testo : s ? "Conversazione aperta" : ""));
     };
     return v_flex().id("apri").track_focus(this.handle).w_full().p(20).gap(12).bg(t.popover)
       .on_key_down((e, cx) => {

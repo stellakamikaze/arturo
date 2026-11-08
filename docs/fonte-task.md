@@ -83,6 +83,11 @@ aperti, dal più urgente. Se manca, il pannello lo ricava dai gruppi, con la rig
 primo passo all'ultimo; `da_dove` è il todo da cui ripartire, o `null`. Con `--progetto <slug>` il
 blocco ha solo quel progetto.
 
+Tre campi facoltativi servono alla finestra di Arturo in Herdr ([herdr.md](herdr.md)): `titolo`, il nome del
+progetto come lo leggono le persone ("Casa / Mutuo Torino"); `categoria`, la sezione in cui compare
+("Commesse", "Personale"); `slug`, il nome per `/inizio` quando `nome` è diverso. Senza `titolo` la
+finestra ricava il nome da `nome`, senza `categoria` mette tutto sotto "I tuoi progetti".
+
 ## Codici d'uscita
 
 - `0` fatto;

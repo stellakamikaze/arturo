@@ -2,8 +2,8 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, run, agents, spaces, layout } from "herdr";
-import { frase, nuova } from "./dati.js";
+import { theme, run, agents, spaces, layout, shared } from "herdr";
+import { frase, nuova, slug } from "./dati.js";
 import { ICONA, punto, pulsante, colore } from "./comuni.js";
 import { apriFinestra } from "./barra.js";
 
@@ -35,7 +35,8 @@ export class Testata {
       .child(svg(ICONA(icona)).size(14)).child(div().text_size(12.5).child(testo));
     return h_flex().size_full().bg(t.chrome).border_b(1).border_color(t.border).pl(20).pr(12).gap(16).items_center()
       .child(v_flex().min_w(0).gap(1)
-        .child(div().truncate().font_family("Arturo Archivo").text_size(16).text_color(t.foreground).child(s ? s.name : "Arturo"))
+        .child(div().truncate().font_family("Arturo Archivo").text_size(16).text_color(t.foreground)
+          .child(s ? (shared("arturo.progetti")?.[slug(s.name)]?.titolo ?? s.name) : "Arturo"))
         .when(Boolean(f), (el) => el.child(h_flex().gap(7).items_center().child(punto(colore(t, f.colore), 7)).child(div().text_size(12).text_color(colore(t, f.colore)).child(f.testo)))))
       .child(div().flex_1())
       .when(Boolean(schede), (el) => el.child(schede))
@@ -65,7 +66,7 @@ export class Stato {
 export class Benvenuto {
   render() {
     const t = theme();
-    if (spaces().length > 0) return div();
+    if (spaces().length > 0 || shared("arturo.guida.aperta")) return div();
     const passo = (n, titolo, testo) => h_flex().gap(14).items_start()
       .child(div().size(26).flex_none().rounded_full().border_1().border_color(t.border).flex().items_center().justify_center()
         .text_size(12.5).text_color(t.muted).child(String(n)))
