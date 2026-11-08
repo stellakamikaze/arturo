@@ -294,7 +294,7 @@ nella cartella che l'esito ha stampato, con i file elencati. Si risolvono lì, m
 
    ```bash
    cd ~/.claude
-   COPIA=$(cut -d' ' -f1 "$(git rev-parse --git-path arturo-aggiorna-copia)" 2>/dev/null)
+   COPIA=$(sed -E 's/ [0-9a-f]{40,64}( [a-z]+ [^ ]+)?$//' "$(git rev-parse --git-path arturo-aggiorna-copia)" 2>/dev/null)
    L=$(dirname "$COPIA")
    if [ -f "$L/attributi" ] && [ -f "$L/unisci-settings.py" ]; then
      GIT_EDITOR=true git -c "core.attributesFile=$L/attributi" \
@@ -307,7 +307,7 @@ nella cartella che l'esito ha stampato, con i file elencati. Si risolvono lì, m
 
 ```bash
 cd ~/.claude
-COPIA=$(cut -d' ' -f1 "$(git rev-parse --git-path arturo-aggiorna-copia)" 2>/dev/null)
+COPIA=$(sed -E 's/ [0-9a-f]{40,64}( [a-z]+ [^ ]+)?$//' "$(git rev-parse --git-path arturo-aggiorna-copia)" 2>/dev/null)
 APPLICA=$(mktemp)
 cp "$COPIA/bin/aggiorna-applica.sh" "$APPLICA" 2>/dev/null || cp bin/aggiorna-applica.sh "$APPLICA" 2>/dev/null
 if [ -s "$APPLICA" ]; then
@@ -406,7 +406,8 @@ precedente. I passi 1-4 qui sopra non c'entrano.
    merge del Passo 3: `~/.claude` cambia solo con un risultato integro, con `reset --keep`.
    Leggi la prima parola dell'esito:
 
-   - `TORNATO INDIETRO`: fatto, la config è integra e la riga dell'aggiornamento è tolta.
+   - `TORNATO INDIETRO`: fatto, la config è integra e la riga dell'aggiornamento è tolta. Il rilascio
+     tolto non torna da solo alla chiusura: lo rimette solo `/aggiorna`, o arriva un rilascio più nuovo.
    - `RITORNO ANNULLATO`: `~/.claude` è com'era prima. La riga dice perché: modifiche non salvate,
      una copia di prova che aspetta, o commit suoi che non si applicano sulla versione vecchia.
      Spiegaglielo in parole semplici e **non forzare**. Le sue modifiche hanno la precedenza.

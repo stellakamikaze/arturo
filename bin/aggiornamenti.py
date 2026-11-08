@@ -177,6 +177,14 @@ def calcola(r: Path) -> dict:
                     non_verificabile=not compromesso)
     if manuali(r):
         return dict(stato, stato="manuale", motivo="aggiornamenti a mano")
+    # Un rilascio tolto con /aggiorna indietro non torna da solo alla chiusura dopo (7/11/2026): lo rimette
+    # /aggiorna, o arriva un rilascio più nuovo. Il segno lo scrive bin/aggiorna-applica.sh indietro.
+    try:
+        tolto = (r / "session-env" / "aggiornamento-tolto").read_text(encoding="utf-8").strip()
+    except OSError:
+        tolto = ""
+    if tolto and tolto == commit:
+        return dict(stato, stato="manuale", motivo="l'hai tolto con /aggiorna indietro")
     # Con modifiche non salvate la procedura non parte (APPLICAZIONE NON PARTITA): lo stato lo dice prima,
     # così l'avvio e la barra non promettono un'installazione che non succede (segnalazione n. 49, #4767).
     file = modificati(r)
@@ -537,6 +545,28 @@ def voce_catalogo(orsa: Path) -> dict:
     return next((p for p in dati.get("plugins") or [] if isinstance(p, dict) and p.get("name") == "arturo"), {})
 
 
+# La voce di Arturo nel catalogo dice solo quale rilascio installare (7/11/2026). Claude Code unisce al plugin
+# anche hooks, mcpServers, commands e le altre chiavi della voce, che il catalogo non firmato potrebbe
+# aggiungere a un rilascio firmato senza cambiarne lo sha: ogni chiave fuori da queste è una manomissione.
+CHIAVI_VOCE = {"name", "description", "version", "source", "author", "homepage", "repository", "license",
+               "keywords", "category", "tags"}
+CHIAVI_SORGENTE = {"source", "repo", "url", "ref", "sha"}
+# Un indirizzo del catalogo si scarica solo con questi schemi: un testo che comincia con "-" git lo
+# leggerebbe come opzione (--upload-pack=<comando>), prima di ogni verifica della firma (7/11/2026).
+URL_AMMESSO = re.compile(r"(https://|file://)\S+")
+
+
+def voce_estranea(voce: dict) -> str:
+    """Il motivo, se la voce del catalogo porta chiavi che non servono a scegliere il rilascio; altrimenti ""."""
+    estranee = sorted(set(voce) - CHIAVI_VOCE)
+    sorgente = voce.get("source")
+    if isinstance(sorgente, dict):
+        estranee += sorted(f"source.{k}" for k in set(sorgente) - CHIAVI_SORGENTE)
+    if estranee:
+        return f"il catalogo aggiunge ad Arturo componenti non firmati ({', '.join(estranee[:4])})"
+    return ""
+
+
 def numero(testo: str) -> tuple:
     m = re.search(r"(\d{1,4})\.(\d{1,4})\.(\d{1,6})", testo or "")
     return tuple(int(x) for x in m.groups()) if m else ()
@@ -570,11 +600,14 @@ def verifica_catalogo(orsa: Path) -> tuple:
         print("NESSUN RILASCIO: il catalogo di Arturo non c'è o non elenca Arturo (claude plugin marketplace list).",
               file=sys.stderr)
         return 1, "", ""
+    estranea = voce_estranea(voce)
+    if estranea:
+        return _blocca(estranea, True), tag, sha
     if not TAG_PLUGIN.fullmatch(tag) or not re.fullmatch(r"[0-9a-f]{40}", sha):
         return _blocca("il catalogo non fissa Arturo a un tag plugin-vN.N.N e al suo sha", True), tag, sha
     if sorgente.get("source") == "github" and re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", str(sorgente.get("repo"))):
         url = f"https://github.com/{sorgente['repo']}.git"
-    elif sorgente.get("source") == "url" and isinstance(sorgente.get("url"), str):
+    elif sorgente.get("source") == "url" and URL_AMMESSO.fullmatch(str(sorgente.get("url"))):
         url = sorgente["url"]
     else:
         return _blocca("il catalogo indica una sorgente che Arturo non sa verificare", True), tag, sha
@@ -587,7 +620,7 @@ def verifica_catalogo(orsa: Path) -> tuple:
     lavoro = Path(tempfile.mkdtemp(prefix="arturo-tag."))
     try:
         git(lavoro, "init", "-q")
-        scarico = git(lavoro, "fetch", "--quiet", "--depth=1", "--no-tags", url, f"+refs/tags/{tag}:refs/tags/{tag}",
+        scarico = git(lavoro, "fetch", "--quiet", "--depth=1", "--no-tags", "--", url, f"+refs/tags/{tag}:refs/tags/{tag}",
                       timeout=120)
         if scarico.returncode != 0:
             print(f"NESSUN RILASCIO: non riesco a scaricare il tag {tag} ({(scarico.stderr or '').strip()[:160]}). "
@@ -622,8 +655,14 @@ def controlla_plugin(r: Path, forza: bool = False) -> int:
         return 0
     _, radici = _moduli()
     _claude("marketplace", "update", "arturo", timeout=120)
+    estranea = voce_estranea(voce_catalogo(radici.radice_orsa()))
     nuova = versione_nuova_plugin(radici.radice_orsa())
-    stato = {"stato": "manuale", "versione": nuova, "plugin": True} if nuova else {"stato": "aggiornato", "plugin": True}
+    if estranea:
+        stato = {"stato": "bloccato", "compromesso": True, "motivo": estranea, "versione": nuova, "plugin": True}
+    elif nuova:
+        stato = {"stato": "manuale", "versione": nuova, "plugin": True}
+    else:
+        stato = {"stato": "aggiornato", "plugin": True}
     try:
         scrivi(file_stato(r), dict(stato, controllato=time.time()))
     except OSError:
@@ -647,6 +686,10 @@ def stato_plugin(r: Path) -> int:
     stato = leggi(file_stato(r))
     if time.time() - float(stato.get("controllato") or 0) >= ORA:
         avvia_staccato(r, "controlla")
+    if stato.get("plugin") and stato.get("compromesso"):
+        print(f"ARTURO: {COMPROMISSIONE}. {stato.get('motivo', '')}. Non riaprire Claude Code prima di aver segnalato: "
+              "dillo alla persona con queste parole, e proponi /segnala o la segnalazione privata di SECURITY.md.")
+        return 0
     if stato.get("plugin") and stato.get("stato") == "manuale" and stato.get("versione") \
             and versione_nuova_plugin(radici.radice_orsa()) == stato["versione"]:
         print(f"ARTURO: c'è la versione {stato['versione']} di Arturo. /aggiorna la installa dopo averne verificato la "

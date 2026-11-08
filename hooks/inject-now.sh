@@ -92,20 +92,24 @@ fi
 # il suo flusso e non riceve il promemoria. Dal 27/10/2026 (segnalazione n. 17) la skill si
 # carica una volta per sessione: ogni Skill(prompt-master) rimetteva nel contesto il corpo
 # intero. Una correzione a lavoro iniziato è una riga, come nella skill (segnalazione n. 34, 29/10/2026).
+# L'8/11/2026 il testo è sceso da 903 a circa 470 byte: il resto sta già nel corpo della skill. Gli stop
+# sono esenti come nel corpo. La riga sulle correzioni esce solo dove c'è bin/correzioni.py: senza, il
+# comando `arturo correzione` non esiste e la riga prometteva una cosa che non succede.
 # Per spegnerlo: cancella il blocco cat qui sotto, oppure togli la skill prompt-master.
 if [ -z "$COMANDO" ]; then
 cat <<'PROMEMORIA'
-REGOLA FISSA: se questo messaggio chiede un lavoro, anche piccolo, le prime righe che scrivi
-sono PROMPT e BRIEF, con la riga "Skill:" (quale skill usi e perché, o "nessuna"), prima di
-qualunque altro lavoro. Se il corpo di prompt-master non è nel contesto (sessione nuova o dopo
-una compattazione), il primo tool è Skill(prompt-master); se c'è già, applicalo senza
-ricaricarlo: si carica una volta per sessione. Esente solo la conversazione pura: domande,
-commenti, risposte a un menu; lì consiglia una skill solo se c'entra davvero. Una correzione a
-lavoro iniziato è una riga, "Brief corretto: ...", senza prompt e brief interi.
-Il brief non è un gate: mostrato il prompt, se è giusto si procede.
+REGOLA FISSA: se questo messaggio chiede un lavoro, anche piccolo, le prime righe sono PROMPT e
+BRIEF con la riga "Skill:". Se il corpo di prompt-master non è nel contesto (sessione nuova o dopo
+una compattazione), il primo tool è Skill(prompt-master), una volta per sessione. Esenti: domande,
+commenti, risposte a un menu, stop e comandi di controllo; lì consiglia una skill solo se c'entra
+davvero. Una correzione a lavoro iniziato è una riga, "Brief corretto: ...".
+PROMEMORIA
+  if [ -f "$_A/bin/correzioni.py" ]; then
+cat <<'CORREZIONE'
 Se questo messaggio ti corregge (un errore, un modo di fare, una parola), prima di rifare scrivi la
 regola in una riga con: arturo correzione aggiungi "..." . Da lì vale per tutta la sessione.
-PROMEMORIA
+CORREZIONE
+  fi
 fi
 
 exit 0

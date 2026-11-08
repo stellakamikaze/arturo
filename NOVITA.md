@@ -13,6 +13,39 @@ modo di lavorare.
 
 ---
 
+## 2026-11-08 — Aggiornamenti più sicuri: lo spazio nel nome utente, il catalogo del plugin, il ritorno indietro
+
+**Cosa cambia**: quattro correzioni nella procedura che installa gli aggiornamenti.
+- Con uno spazio nel nome della cartella utente (per esempio "Mario Rossi" su Windows), una copia di
+  prova rimasta in attesa per un conflitto poteva far cancellare, al giro dopo, la cartella sopra la tua.
+  Ora il registro della copia si legge per intero, e si cancella solo dentro la cartella delle copie di prova.
+- Col plugin, un catalogo manomesso poteva far eseguire un comando prima del controllo della firma, o
+  aggiungere ad Arturo componenti non firmati. Ora un indirizzo strano non arriva mai a git come
+  opzione, e una voce del catalogo con chiavi in più vale "possibile compromissione".
+- `/aggiorna indietro` ora dura: il rilascio tolto non si reinstalla da solo alla chiusura dopo. Lo
+  rimette `/aggiorna`, oppure arriva un rilascio più nuovo.
+- Quando concludi un conflitto rimasto a te, le tue versioni dei file già risolti col rilascio vanno in
+  `personale/conflitti`, come negli altri aggiornamenti. Prima si perdevano in silenzio.
+
+**Perché**: sono i due problemi critici e due dei problemi alti trovati dalla revisione completa del 7/11.
+Il primo cancellava file veri: la prova l'ha riprodotto in una cartella di prova.
+
+**Da sapere**: chi è già tornato indietro con una versione di prima ha ancora il comportamento vecchio
+fino al prossimo aggiornamento.
+
+## 2026-11-08 — Il promemoria del brief pesa la metà, e gli stop non passano dal brief
+
+**Cosa cambia**: la riga che a ogni tuo messaggio ricorda a Claude prompt e brief scende da circa 900
+a circa 470 byte. Dice le stesse regole: brief su ogni lavoro, anche piccolo, skill caricata una volta
+per sessione, correzione a lavoro iniziato in una riga. Uno "stop" o un comando di controllo ora è
+esente come una domanda: si esegue subito, senza brief.
+
+**Perché**: il promemoria entra a ogni messaggio, anche a un "sì". In una sessione lunga pesava quanto
+il corpo intero della skill, e ne ripeteva pezzi. La riga sugli stop dava ragione alla skill, che già
+li esentava.
+
+**Da sapere**: la riga che chiede `arturo correzione aggiungi` esce solo dove quel comando esiste.
+
 ## 2026-11-08 — La rotazione automatica non si ferma più per un testo rimasto nella casella
 
 **Cosa cambia**: a fine compito la sessione si rinnova da sola (/clear, poi /inizio sul passo dopo). Prima,

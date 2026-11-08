@@ -69,8 +69,32 @@ togli_copia() {
   git -C "$1" merge --abort >/dev/null 2>&1
   git -C "$1" rebase --abort >/dev/null 2>&1
   git worktree remove --force "$1" >/dev/null 2>&1
-  rm -rf "$(dirname "$1")"
+  # Si cancella solo una cartella delle copie di prova, mai un percorso letto male dal registro (7/11/2026):
+  # con uno spazio nella HOME ("C:/Users/Mario Rossi") il registro letto a parole dava "C:/Users/Mario",
+  # e il rm -rf della sua cartella madre cancellava C:/Users.
+  local cartella
+  cartella=$(dirname "$1")
+  case "$cartella" in
+    */..|*/../*) ;;
+    "$CASA_COPIE"/copia.*) [ "$(basename "$1")" = copia ] && rm -rf "$cartella" ;;
+  esac
   git worktree prune >/dev/null 2>&1
+}
+
+# Il registro della copia in attesa è una riga: <copia> <commit di prima> <modo> <data>. Il percorso della
+# copia può avere spazi, quindi si legge da destra: gli altri campi non ne hanno mai (7/11/2026).
+leggi_stato() {  # imposta S_COPIA, S_PRIMA, S_MODO e S_NATA; esce 1 se il registro non c'è
+  local riga=""
+  [ -f "$STATO" ] || return 1
+  IFS= read -r riga < "$STATO" || [ -n "$riga" ] || return 1
+  riga=${riga%$'\r'}
+  S_COPIA=$riga S_PRIMA="" S_MODO="" S_NATA=""
+  if [[ $riga =~ ^(.+)\ ([0-9a-f]{40,64})\ ([a-z]+)\ ([^\ ]+)$ ]]; then
+    S_COPIA=${BASH_REMATCH[1]} S_PRIMA=${BASH_REMATCH[2]} S_MODO=${BASH_REMATCH[3]} S_NATA=${BASH_REMATCH[4]}
+  elif [[ $riga =~ ^(.+)\ ([0-9a-f]{40,64})$ ]]; then
+    S_COPIA=${BASH_REMATCH[1]} S_PRIMA=${BASH_REMATCH[2]}
+  fi
+  [ -n "$S_COPIA" ]
 }
 
 segna_esito() {  # $1 = applicato|conflitto|fallito|scartato, $2 = il modo. Un evento della telemetria di
@@ -255,6 +279,7 @@ porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando è
       mkdir -p session-env
       printf '%s %s %s\n' "$prima" "$nuovo" "$(date +%Y-%m-%d_%H-%M)" >> session-env/aggiornamenti
       printf '%s\n' "$prima" > session-env/ultimo-aggiornamento
+      rm -f session-env/aggiornamento-tolto
     fi
     segna_esito applicato "$modo"
     riporta_personale || echo "ATTENZIONE: non riesco a copiare personale/ dalla copia di prova ($COPIA): copiali a mano prima di scartarla."
@@ -280,7 +305,8 @@ porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando è
 }
 
 if [ "$MODO" = scarta ]; then
-  { [ -f "$STATO" ] && read -r COPIA _ < "$STATO"; } || { echo "NIENTE DA SCARTARE: nessuna copia di prova in attesa"; exit 0; }
+  leggi_stato || { echo "NIENTE DA SCARTARE: nessuna copia di prova in attesa"; exit 0; }
+  COPIA=$S_COPIA
   togli_copia "$COPIA"; rm -f "$STATO"
   segna_esito scartato
   echo "SCARTATA: la copia di prova $COPIA non c'è più. ~/.claude non è stata toccata."
@@ -314,6 +340,10 @@ if [ "$MODO" = indietro ]; then
   togli_copia "$COPIA"
   if [ "$(git rev-parse HEAD)" = "$ADESSO" ] && git reset -q --keep "$NUOVO" && pulita && controlla "$RADICE"; then
     sed -i.bak '$d' session-env/aggiornamenti && rm -f session-env/aggiornamenti.bak
+    # Il rilascio tolto non torna da solo alla chiusura dopo (7/11/2026): bin/aggiornamenti.py lo lascia a
+    # /aggiorna. Un rilascio più nuovo si installa come sempre.
+    TOLTO=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "$VDOPO" 2>/dev/null)
+    [ -n "$TOLTO" ] && git rev-list -n 1 "$TOLTO" > session-env/aggiornamento-tolto 2>/dev/null
     segna_esito indietro
     echo "TORNATO INDIETRO: config integra"
     exit 0
@@ -333,7 +363,8 @@ if [ "$MODO" = indietro ]; then
 fi
 
 if [ "$MODO" = concludi ]; then
-  { [ -f "$STATO" ] && read -r COPIA PRIMA DA_DOVE _ < "$STATO"; } || { echo "APPLICAZIONE NON PARTITA: nessuna copia di prova in attesa"; exit 1; }
+  leggi_stato || { echo "APPLICAZIONE NON PARTITA: nessuna copia di prova in attesa"; exit 1; }
+  COPIA=$S_COPIA PRIMA=$S_PRIMA DA_DOVE=$S_MODO
   if [ ! -d "$COPIA" ]; then
     rm -f "$STATO"
     echo "APPLICAZIONE NON PARTITA: la copia di prova non c'è più. Rilancia il Passo 3."
@@ -345,6 +376,13 @@ if [ "$MODO" = concludi ]; then
     exit 1
   fi
   pulita || { echo "APPLICAZIONE NON PARTITA: ~/.claude ha modifiche non salvate. Non ho toccato niente."; exit 1; }
+  # I file già risolti col rilascio prima del conflitto rimasto alla persona hanno la sua versione in
+  # <copia>/../conflitti: concludi la porta nell'Orsa come un'applicazione senza conflitti (7/11/2026).
+  LAVORO=$(dirname "$COPIA")
+  if [ -s "$LAVORO/conflitti/FILE.txt" ]; then
+    CONFLITTI_ORSA=$(cat "$LAVORO/conflitti/FILE.txt")
+    [ -n "$REF" ] || REF=$(git -C "$COPIA" describe --tags --abbrev=0 2>/dev/null)
+  fi
   porta_dentro "$(git -C "$COPIA" rev-parse HEAD)" "$PRIMA" "${DA_DOVE:-merge}"; esito=$?
   [ $esito = 1 ] && [ "$(git rev-parse HEAD)" != "$PRIMA" ] && exit 1  # copia cambiata: la prova resta
   togli_copia "$COPIA"; rm -f "$STATO"
@@ -371,7 +409,8 @@ fi
 # Nessun modo la sostituisce in silenzio: si conclude, o si scarta col sì della persona. Una copia
 # sparita (cancellata a mano, o nella cartella temporanea delle versioni prima del 15/10) non ha
 # niente da perdere: si toglie il registro.
-if [ -f "$STATO" ] && read -r VECCHIA _ VECCHIO_MODO NATA _ < "$STATO"; then
+if leggi_stato; then
+  VECCHIA=$S_COPIA VECCHIO_MODO=$S_MODO NATA=$S_NATA
   if [ ! -d "$VECCHIA" ]; then
     togli_copia "$VECCHIA"; rm -f "$STATO"
     echo "Una copia di prova in attesa non c'era più: tolta dal registro."
