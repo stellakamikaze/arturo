@@ -3,9 +3,9 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, layout, shared } from "herdr";
-import { frase, nuova, slug } from "./dati.js";
-import { ICONA, punto, pulsante, colore } from "./comuni.js";
-import { apriFinestra } from "./barra.js";
+import { frase, nuova, slug, SUGGERIMENTI } from "./dati.js";
+import { ICONA, punto, pulsante, colore, apriFinestra } from "./comuni.js";
+import { apriSuggerimenti, voce } from "./suggerimenti.js";
 
 function trova(nodo, id) {
   if (nodo?.id === id) return nodo;
@@ -32,7 +32,7 @@ export class Testata {
     const bottone = (id, icona, testo, azione) => h_flex().id(id).h(30).px(10).gap(7).items_center().rounded(7).cursor_pointer()
       .text_color(t.muted).hover((st) => st.bg(t.hover).text_color(t.foreground))
       .on_mouse_down("left", (_e, cx) => cx.stop_propagation()).on_click(azione)
-      .child(svg(ICONA(icona)).size(14)).child(div().text_size(12.5).child(testo));
+      .child(svg(icona.includes("/") ? icona : ICONA(icona)).size(14)).child(div().text_size(12.5).child(testo));
     return h_flex().size_full().bg(t.chrome).border_b(1).border_color(t.border).pl(20).pr(12).gap(16).items_center()
       .child(v_flex().min_w(0).gap(1)
         .child(div().truncate().font_family("Arturo Archivo").text_size(16).text_color(t.foreground)
@@ -40,6 +40,7 @@ export class Testata {
         .when(Boolean(f), (el) => el.child(h_flex().gap(7).items_center().child(punto(colore(t, f.colore), 7)).child(div().text_size(12).text_color(colore(t, f.colore)).child(f.testo)))))
       .child(div().flex_1())
       .when(Boolean(schede), (el) => el.child(schede))
+      .child(bottone("chiedi", "mods/arturo/chiedi.svg", "Cosa posso chiedere", () => apriSuggerimenti()))
       .when(Boolean(s), (el) => el.child(bottone("altra", "plus", "Altra conversazione", () => run("tab.new", { argv: ["claude"] }))))
       .child(bottone("dafare", "panel-right", pannello?.hidden ? "Mostra Da fare" : "Nascondi Da fare", () => run("layout.toggle", { id: "pannello" })));
   }
@@ -67,23 +68,22 @@ export class Benvenuto {
   render() {
     const t = theme();
     if (spaces().length > 0 || shared("arturo.guida.aperta")) return div();
-    const passo = (n, titolo, testo) => h_flex().gap(14).items_start()
-      .child(div().size(26).flex_none().rounded_full().border_1().border_color(t.border).flex().items_center().justify_center()
-        .text_size(12.5).text_color(t.muted).child(String(n)))
-      .child(v_flex().w(378).gap(3)
-        .child(div().text_size(14).font_semibold().text_color(t.foreground).child(titolo))
-        .child(div().whitespace_normal().text_size(13.5).text_color(t.muted).child(testo)));
-    return v_flex().w(480).px(28).pt(28).pb(32).gap(22)
+    const haProgetti = Object.keys(shared("arturo.progetti") ?? {}).length > 0;
+    // Chi non ha progetti parte dalla ricerca; chi li ha, da cosa fare adesso.
+    const scelti = (haProgetti ? ["guidami", "riprendi", "ricorda", "trova"] : ["trova", "riprendi", "ricorda", "guidami"])
+      .map((id) => SUGGERIMENTI.find((x) => x.id === id));
+    return v_flex().w(520).px(28).pt(28).pb(28).gap(20)
       .child(v_flex().gap(8)
         .child(div().font_family("Arturo Archivo").text_size(22).text_color(t.foreground).child("Cosa facciamo oggi?"))
-        .child(div().w(424).whitespace_normal().text_size(14).text_color(t.muted)
-          .child("Qui lavori con Claude. Non serve conoscere il terminale: scrivi come in una chat.")))
-      .child(v_flex().gap(16)
-        .child(passo(1, "A sinistra, i tuoi progetti", "Per ognuno vedi se Claude sta lavorando, se aspetta te e quante cose ci sono da fare."))
-        .child(passo(2, "Al centro, la conversazione", "Scrivi cosa ti serve e premi Invio. Claude ti chiede conferma prima di fare cose che non si annullano."))
-        .child(passo(3, "A destra, cosa c'è da fare", "I todo del progetto, divisi fra quelli che toccano a te e quelli di Claude.")))
-      .child(h_flex().gap(10).pt(4)
-        .child(pulsante("b-nuova", "square-pen", "Nuova richiesta", () => nuova(), true))
-        .child(pulsante("b-apri", "folder", "Apri un progetto", () => apriFinestra())));
+        .child(div().w(464).whitespace_normal().text_size(14).text_color(t.muted)
+          .child(haProgetti
+            ? "Scegli un progetto a sinistra, oppure parti da una di queste richieste."
+            : "Comincia facendo trovare a Claude i tuoi progetti. Oppure scrivigli cosa ti serve, come in una chat.")))
+      .child(v_flex().gap(10)
+        .child(h_flex().gap(10).child(div().w(227).child(voce(t, scelti[0], true))).child(div().w(227).child(voce(t, scelti[1], false))))
+        .child(h_flex().gap(10).child(div().w(227).child(voce(t, scelti[2], false))).child(div().w(227).child(voce(t, scelti[3], false)))))
+      .child(h_flex().gap(10).items_center()
+        .child(pulsante("b-nuova", "square-pen", "Nuova richiesta", () => nuova(), !haProgetti ? false : true))
+        .child(div().text_size(12.5).text_color(t.dim).child("Altre richieste in Cosa posso chiedere, in alto")));
   }
 }

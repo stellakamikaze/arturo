@@ -42,7 +42,7 @@ const PASSI = [
     titolo: "Da fare, accanto a Claude",
     righe: [
       "I todo del progetto, divisi fra te e Claude. Spunta quelli fatti; Lavoraci fa partire Claude da lì.",
-      "A fine giornata scrivi /fine. Questa guida resta in basso a sinistra.",
+      "Cosa posso chiedere ti suggerisce le richieste. A fine giornata scrivi /fine.",
     ],
   },
 ];

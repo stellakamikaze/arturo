@@ -3,9 +3,10 @@
 import { div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, window, shared, setShared, nextCommand, openOverlay, updates } from "herdr";
-import { todo, progetti, sezioni, frase, apri, nuova, slug } from "./dati.js";
-import { ICONA, punto, pulsante, colore } from "./comuni.js";
+import { todo, progetti, sezioni, frase, apri, nuova, slug, cartelle, SUGGERIMENTI } from "./dati.js";
+import { ICONA, punto, pulsante, colore, apriFinestra } from "./comuni.js";
 import { apriGuida } from "./guida.js";
+import { apriSuggerimenti, esegui } from "./suggerimenti.js";
 
 export class Marchio {
   render() {
@@ -37,6 +38,7 @@ export class Barra {
       for (;;) {
         const c = await nextCommand();
         if (c === "apri") apriFinestra();
+        else if (c === "chiedi") apriSuggerimenti();
         else if (/^guida\d?$/.test(c)) apriGuida(Math.max(0, Number(c.slice(5) || 1) - 1));
         else if (c === "nuova") await nuova();
         cx.notify();
@@ -49,19 +51,27 @@ export class Barra {
     this.inCorso = true;
     cx.spawn(async (cx) => {
       const r = await todo(["--json"]);
+      // Le cartelle dei progetti e le righe di stato dell'archivio di Arturo (una fonte esterna può non averle).
+      this.cartelle = await cartelle();
+      const st = await todo(["progetti", "--json"]);
+      this.stati = st.ok ? st.json?.stati ?? {} : {};
       this.inCorso = false;
       if (r.ok) {
         this.vista = r.json;
         this.errore = null;
         // Per la testata e il pannello Da fare: il nome per la fonte, il titolo e la riga di ogni progetto.
         const mappa = {};
-        for (const p of progetti(this.vista)) mappa[p.chiave] = { nome: p.nome ?? p.chiave, titolo: p.titolo, riga: p.calcolato ? "" : (p.riga ?? "") };
+        for (const p of progetti(this.vista, this.extra())) mappa[p.chiave] = { nome: p.nome ?? p.chiave, titolo: p.titolo, riga: p.calcolato ? "" : (p.riga ?? "") };
         setShared("arturo.progetti", mappa);
         setShared("arturo.letto", Date.now());
       }
       else this.errore = r.errore;
       cx.notify();
     });
+  }
+
+  extra() {
+    return { cartelle: this.cartelle ?? [], stati: this.stati ?? {} };
   }
 
   riga(t, p, attivo) {
@@ -79,27 +89,25 @@ export class Barra {
 
   render() {
     const t = theme();
-    const lista = progetti(this.vista);
+    const lista = progetti(this.vista, this.extra());
     const attivo = slug(spaces().find((s) => s.active)?.name);
     const corpo = v_flex().id("progetti-elenco").flex_1().min_h(0).overflow_y_scrollbar().pb(10);
     let contenuto;
     if (this.vista === null && !this.errore) contenuto = div().px(18).py(6).text_size(13).text_color(t.muted).child("Leggo i tuoi progetti…");
-    else if (!lista.length) contenuto = div().px(18).py(6).text_size(13).text_color(t.muted).whitespace_normal()
-      .child(this.errore ? "Non riesco a leggere i todo di Arturo. Le conversazioni funzionano lo stesso." : "Qui compariranno i tuoi progetti. Comincia con una richiesta a Claude.");
+    else if (!lista.length) contenuto = v_flex().px(14).gap(10)
+      .child(div().px(4).text_size(13).text_color(t.muted).whitespace_normal()
+        .child(this.errore ? "Non riesco a leggere i todo di Arturo. Le conversazioni funzionano lo stesso." : "Non hai ancora progetti. Claude può cercarli sul tuo computer e proporteli."))
+      .when(!this.errore, (el) => el.child(pulsante("trova", "search", "Trova i miei progetti", () => esegui(SUGGERIMENTI[0]), true)));
     else contenuto = v_flex().gap(14).children(sezioni(lista).map((sez) => v_flex().gap(1)
       .child(div().px(18).pb(4).text_size(12.5).font_semibold().text_color(t.muted).child(sez.titolo))
       .children(sez.progetti.map((p) => this.riga(t, p, p.chiave === attivo)))));
     return v_flex().size_full().bg(t.chrome)
       .child(v_flex().px(14).pt(6).pb(14).gap(8)
-        .child(pulsante("nuova", "square-pen", "Nuova richiesta", () => nuova(), true))
+        .child(pulsante("nuova", "square-pen", "Nuova richiesta", () => nuova(), lista.length > 0 || Boolean(this.errore)))
         .child(pulsante("apri", "folder", "Apri un progetto", () => apriFinestra())))
       .when(Boolean(this.errore) && lista.length > 0, (el) => el.child(div().px(18).pb(6).text_size(12).text_color(t.blocked).child("Non riesco ad aggiornare i todo: mostro gli ultimi letti.")))
       .child(corpo.child(contenuto));
   }
-}
-
-export function apriFinestra() {
-  openOverlay({ mod: "arturo", props: { parte: "apri" }, kind: "dialog", width: 560 });
 }
 
 export class Piede {
@@ -109,6 +117,7 @@ export class Piede {
       .text_color(t.muted).hover((s) => s.bg(t.hover).text_color(t.foreground)).on_click(azione)
       .child(svg(icona.includes("/") ? icona : ICONA(icona)).size(15)).child(div().flex_1().text_size(13).child(testo));
     return v_flex().size_full().bg(t.chrome).border_t(1).border_color(t.border).px(8).py(8).gap(2)
+      .child(voce("chiedi", "mods/arturo/chiedi.svg", "Cosa posso chiedere", () => apriSuggerimenti()))
       .child(voce("guida", "mods/arturo/guida.svg", "Guida", () => apriGuida()))
       .child(voce("impostazioni", "settings", "Impostazioni", () => run("app.settings"))
         .when(Boolean(updates().app.ready), (el) => el.child(punto(t.accent, 7))));

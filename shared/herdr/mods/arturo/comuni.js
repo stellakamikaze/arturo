@@ -2,7 +2,7 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { theme } from "herdr";
+import { theme, openOverlay } from "herdr";
 
 export const ICONA = (nome) => `mods/workspace-chrome/${nome}.svg`;
 
@@ -22,3 +22,8 @@ export function pulsante(id, icona, testo, azione, forte = false) {
 }
 
 export const colore = (t, nome) => t[nome] ?? nome;
+
+// La finestra "Apri un progetto".
+export function apriFinestra() {
+  openOverlay({ mod: "arturo", props: { parte: "apri" }, kind: "dialog", width: 560 });
+}

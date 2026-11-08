@@ -7,6 +7,10 @@
 - **A destra, Da fare.** I todo del progetto divisi per chi agisce: "Tocca a te", "Decidi tu, poi fa Claude", "Ci pensa Claude", "Fermi". La casella segna un todo fatto. "Lavoraci" porta Claude su quel todo.
 - **In basso,** quante sessioni lavorano e quante ti aspettano.
 
+**Per cominciare.** Al primo avvio una guida di quattro passi mostra cosa sa fare la finestra; poi resta alla voce "Guida". "Cosa posso chiedere", in basso a sinistra e in alto, raccoglie le richieste da imparare: un clic e Claude parte. Chi non ha ancora progetti vede "Trova i miei progetti": Claude cerca sul computer le cartelle di lavoro con le stesse regole di `/setup` (un sì per ogni lettura, niente file spostati) e crea un progetto per ogni lavoro che confermi ([shared/herdr/trova-progetti.md](../shared/herdr/trova-progetti.md)). Le cartelle della base dei progetti compaiono a sinistra anche senza todo.
+
+**Per chi usa già Arturo.** All'avvio di una sessione, una volta sola, Claude propone Herdr in una riga. Col sì lo installa come in `/setup`.
+
 I todo sono quelli di `arturo todo`: se li tieni in un altro strumento ([fonte dei task](fonte-task.md)), il pannello legge quello.
 
 ## Cosa installa e dove

@@ -18,8 +18,11 @@ HZ06 /setup porta a shared/setup-herdr.md, che lancia installa-herdr.sh.
 HZ07 il mod: ogni modulo importato esiste, ogni parte nominata dal layout esiste in main.js.
 HZ08 chi ha già Arturo (setup fatto) e non ha Herdr riceve all'avvio l'invito `HERDR:` una volta sola;
      chi non ha finito /setup non lo riceve.
+HZ09 i suggerimenti della finestra puntano a cose che esistono: ogni comando slash a un file di
+     commands/, "Trova i miei progetti" a trova-progetti.md, che usa la parte 2c del ritratto e i
+     sottocomandi veri di ritratto.py.
 
-Con --avvelena sei copie rotte del repository devono far rosso il caso che le sorveglia.
+Con --avvelena sette copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
 
@@ -33,7 +36,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09")
 INSTALLA = Path("shared/herdr/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -256,7 +259,33 @@ def hz08(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08}
+def hz09(repo: Path, casa: Path) -> str | None:
+    dati = (repo / "shared/herdr/mods/arturo/dati.js").read_text(encoding="utf-8")
+    blocco = re.search(r"export const SUGGERIMENTI = \[(.*?)\n\];", dati, re.S)
+    if not blocco:
+        return "SUGGERIMENTI non trovato in dati.js"
+    prompt = re.findall(r'prompt: "([^"]+)"', blocco.group(1))
+    for p in prompt:
+        if p.startswith("/"):
+            nome = p[1:].split()[0]
+            if not (repo / "commands" / f"{nome}.md").exists():
+                return f"il suggerimento {p} non ha un comando in commands/"
+        for rel in re.findall(r"~/\.claude/([\w./-]+\.md)", p):
+            if not (repo / rel).exists():
+                return f"il suggerimento rimanda a {rel}, che non c'è"
+    trova = (repo / "shared/herdr/trova-progetti.md").read_text(encoding="utf-8")
+    ritratto = (repo / "shared/setup-ritratto.md").read_text(encoding="utf-8")
+    if "2c. Le cartelle" not in trova or "## 2c. Le cartelle" not in ritratto:
+        return "trova-progetti.md non usa la parte 2c del ritratto"
+    sotto = set(re.findall(r'add_parser\("(\w+)"', (repo / "bin/ritratto.py").read_text(encoding="utf-8")))
+    if not {"cartelle", "scan"} <= sotto:
+        return f"ritratto.py non ha più cartelle e scan: {sorted(sotto)}"
+    if "arturo todo stato --progetto" not in trova:
+        return "trova-progetti.md non scrive la riga di stato dei progetti nuovi"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09}
 
 
 def prova(repo: Path) -> list[str]:
@@ -278,6 +307,7 @@ VELENI = [
     ("HZ03", "shared/herdr/installa-herdr.sh", 'Arturo funziona lo stesso nel Terminale."; exit 0 ;;', 'Arturo funziona lo stesso nel Terminale." ;;'),
     ("HZ04", "hooks/herdr-stato.sh", '[ -n "${HC_TERMINAL_ID:-}" ] || exit 0', ":"),
     ("HZ05", "settings.json", "herdr-stato.sh done", "herdr-stato.sh idle"),
+    ("HZ09", "shared/herdr/mods/arturo/dati.js", 'prompt: "/guidami"', 'prompt: "/guidamii"'),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 

@@ -9,8 +9,9 @@ import { Testata, Stato, Benvenuto } from "./testata.js";
 import { Todo } from "./todo.js";
 import { Apri } from "./apri.js";
 import { Guida } from "./guida.js";
+import { Chiedi } from "./suggerimenti.js";
 
-const PARTI = { marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida };
+const PARTI = { marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi };
 
 export default class Arturo extends View {
   init(p, cx) {

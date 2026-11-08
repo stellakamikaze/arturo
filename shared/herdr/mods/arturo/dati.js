@@ -92,7 +92,7 @@ const URGENZA = { "a rischio": 0, "chiede te": 1, "fermo": 3, "va": 2 };
 
 // Tutti i progetti: la vista di Arturo (titolo, categoria, riga), i conti per chi agisce
 // e gli spazi aperti. Ogni voce: { chiave, titolo, categoria, riga, tu, decidi, io, fermo, stato, aperto }.
-export function progetti(vista) {
+export function progetti(vista, extra = {}) {
   const per = new Map();
   const conti = new Map();
   for (const g of vista?.gruppi ?? []) for (const t of g.todo ?? []) {
@@ -104,6 +104,14 @@ export function progetti(vista) {
     const k = chiave(p);
     if (!k || per.has(k)) continue;
     per.set(k, { ...p, ...(conti.get(p.nome) ?? { tu: 0, decidi: 0, io: 0, fermo: 0 }), chiave: k, titolo: bello(p), categoria: p.categoria || "" });
+  }
+  // Le cartelle della base dei progetti senza todo: ci sono, anche se Arturo non ne sa ancora niente.
+  const conCategorie = [...per.values()].some((v) => v.categoria);
+  for (const nome of extra.cartelle ?? []) {
+    const k = slug(nome);
+    if (!k || per.has(k)) continue;
+    const st = extra.stati?.[nome] ?? extra.stati?.[k];
+    per.set(k, { chiave: k, nome, titolo: bello(nome), categoria: conCategorie ? "Altre cartelle" : "", riga: st?.riga ?? "", calcolato: !st?.riga, tu: 0, decidi: 0, io: 0, fermo: 0, cartella: true });
   }
   for (const s of spaces()) {
     if (s.machine || !s.named) continue;
@@ -129,7 +137,7 @@ export function sezioni(lista) {
   }
   const out = [];
   if (adesso.length) out.push({ titolo: "Adesso", progetti: adesso });
-  const cat = [...per.entries()].sort((a, b) => a[1].length === b[1].length ? a[0].localeCompare(b[0]) : b[1].length - a[1].length);
+  const cat = [...per.entries()].sort((a, b) => (a[0] === "Altre cartelle") - (b[0] === "Altre cartelle") || (a[1].length === b[1].length ? a[0].localeCompare(b[0]) : b[1].length - a[1].length));
   if (cat.length === 1 && !adesso.length) out.push({ titolo: "I tuoi progetti", progetti: cat[0][1] });
   else for (const [c, l] of cat) out.push({ titolo: c, progetti: l });
   return out;
@@ -156,12 +164,37 @@ export async function apri(nome, todoScelto) {
 }
 
 // Una richiesta nuova, senza progetto: Claude nella cartella dei progetti.
-export async function nuova() {
+export async function nuova(prompt) {
   const c = await config();
   const ora = new Date();
   const hh = String(ora.getHours()).padStart(2, "0");
   const mm = String(ora.getMinutes()).padStart(2, "0");
-  run("space.new", { name: `Richiesta delle ${hh}:${mm}`, folder: c.base, machine: "", tab: "Claude", argv: ["claude"] });
+  run("space.new", { name: `Richiesta delle ${hh}:${mm}`, folder: c.base, machine: "", tab: "Claude", argv: prompt ? ["claude", prompt] : ["claude"] });
+}
+
+// Le richieste da imparare: i pulsanti del benvenuto e della finestra "Cosa posso chiedere".
+// dove: "nuova" apre sempre una conversazione nuova; "qui" scrive nella conversazione aperta,
+// e senza conversazione ne apre una; "apri" apre la finestra dei progetti.
+export const SUGGERIMENTI = [
+  { id: "trova", titolo: "Trova i miei progetti", testo: "Claude cerca sul computer le cartelle di lavoro e te le propone come progetti.",
+    prompt: "Trova i miei progetti sul computer e proponimeli. Segui ~/.claude/shared/herdr/trova-progetti.md.", dove: "nuova" },
+  { id: "guidami", titolo: "Cosa faccio adesso?", testo: "Claude guarda il lavoro recente e ti propone da dove partire.", prompt: "/guidami", dove: "qui" },
+  { id: "ricorda", titolo: "Ricordami una cosa", testo: "Un todo nuovo, per te o per Claude, nel progetto giusto.",
+    prompt: "Voglio aggiungere un todo. Chiedimi cosa, per quale progetto e chi lo fa.", dove: "qui" },
+  { id: "riprendi", titolo: "Riprendi un progetto", testo: "Scegli fra le tue cartelle: Claude riparte da dove eri rimasto.", dove: "apri" },
+  { id: "fine", titolo: "Chiudi la giornata", testo: "Claude salva il punto, aggiorna i todo e ti dice cosa resta.", prompt: "/fine", dove: "qui" },
+  { id: "diagnosi", titolo: "Controlla che Arturo funzioni", testo: "Claude prova la configurazione e ti dice se c'è qualcosa da sistemare.", prompt: "/diagnosi", dove: "nuova" },
+];
+
+// Esegue un suggerimento: nella conversazione aperta se c'è e non aspetta una risposta, altrimenti in una nuova.
+export async function chiedi(sug) {
+  if (sug.dove === "nuova") return nuova(sug.prompt);
+  const s = spaces().find((x) => x.active && !x.machine);
+  const a = s ? agents().find((x) => x.space === s.id && x.tab === s.tabs.find((t) => t.active)?.id) ?? agents().find((x) => x.space === s.id) : null;
+  if (!a) return nuova(sug.prompt);
+  if (a.status === "blocked") return notify({ title: "Claude aspetta una tua risposta", body: "Rispondi nella conversazione, poi riprova.", level: "warning" });
+  const r = await hc(["send", a.address, sug.prompt]);
+  if (r.code !== 0) notify({ title: "Non sono riuscito a scrivere a Claude", body: prima(r.stderr), level: "error" });
 }
 
 // Come bin/sessione.py: niente caratteri che rompono il prompt.
