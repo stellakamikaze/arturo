@@ -71,6 +71,7 @@ REPO="$HOME/.claude"
 
 BANCHI=(
   test_ritratto_2026_11_01.py
+  test_herdr_2026_11_08.py
   test_setup_ritratto_2026_11_01.py
   test-block-dangerous-falsi-positivi.py
   test-web-egress-guard.py
@@ -437,6 +438,8 @@ VELENI=(
   test_regole_doppie_2026_11_06.py
   # #4860 (6/11/2026): una barra che lancia controlla da ~/.claude/bin col plugin non controlla mai (AV04).
   test_avviso_plugin_2026_11_06.py
+  # Herdr (8/11/2026, ramo herdr): primo avvio, tasti della persona, Intel, hook fuori da Herdr, stati sbagliati (HZ01-HZ05).
+  test_herdr_2026_11_08.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

@@ -1,0 +1,169 @@
+{
+  "id": "root",
+  "type": "row",
+  "titlebar": "none",
+  "traffic_lights": [
+    16,
+    18
+  ],
+  "theme": "arturo",
+  "font": "Atkinson Hyperlegible Mono",
+  "font_size": 14,
+  "ui_font": "Atkinson Hyperlegible Next",
+  "terminal_padding": [
+    16,
+    18
+  ],
+  "background": "canvas",
+  "preview": "layouts/arturo.svg",
+  "divider": {
+    "width": 1,
+    "color": "border"
+  },
+  "children": [
+    {
+      "id": "sidebar",
+      "type": "column",
+      "size": {
+        "px": 292
+      },
+      "min": 220,
+      "max": 420,
+      "background": "chrome",
+      "children": [
+        {
+          "id": "marchio",
+          "type": "block",
+          "size": {
+            "px": 54
+          },
+          "window_drag": true,
+          "content": {
+            "mod": "arturo",
+            "props": {
+              "parte": "marchio"
+            }
+          }
+        },
+        {
+          "id": "progetti",
+          "type": "block",
+          "content": {
+            "mod": "arturo",
+            "props": {
+              "parte": "barra"
+            }
+          }
+        },
+        {
+          "id": "piede",
+          "type": "block",
+          "size": {
+            "px": 50
+          },
+          "content": {
+            "mod": "arturo",
+            "props": {
+              "parte": "piede"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "work",
+      "type": "column",
+      "resizable": false,
+      "children": [
+        {
+          "id": "testata",
+          "type": "block",
+          "size": {
+            "px": 54
+          },
+          "window_drag": true,
+          "content": {
+            "mod": "arturo",
+            "props": {
+              "parte": "testata"
+            }
+          }
+        },
+        {
+          "id": "work-body",
+          "type": "row",
+          "padding": 12,
+          "gap": 12,
+          "background": {
+            "image": "mods/arturo/img/volta.png",
+            "fit": "cover"
+          },
+          "children": [
+            {
+              "id": "main",
+              "type": "block",
+              "content": {
+                "tab": "active",
+                "pane": {
+                  "gap": 10,
+                  "radius": 10,
+                  "background": "background",
+                  "lone": true,
+                  "border": {
+                    "width": 1,
+                    "color": "#232b35"
+                  },
+                  "focus": {
+                    "width": 1,
+                    "color": "#2f6fe0"
+                  }
+                }
+              },
+              "floating": [
+                {
+                  "id": "benvenuto",
+                  "content": {
+                    "mod": "arturo",
+                    "props": {
+                      "parte": "benvenuto"
+                    }
+                  },
+                  "edge": "top",
+                  "align": "center"
+                }
+              ]
+            },
+            {
+              "id": "pannello",
+              "type": "block",
+              "size": {
+                "px": 340
+              },
+              "min": 260,
+              "max": 560,
+              "content": {
+                "mod": "arturo",
+                "props": {
+                  "parte": "todo"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "stato",
+          "type": "block",
+          "size": {
+            "px": 30
+          },
+          "content": {
+            "mod": "arturo",
+            "props": {
+              "parte": "stato"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

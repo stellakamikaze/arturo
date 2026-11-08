@@ -438,6 +438,7 @@ mkdir -p ~/.claude/data && date +%Y-%m-%d > ~/.claude/data/setup-fatto && rm -f 
 
 ## FASE 10 — Il primo lavoro vero
 
+Prima segui `~/.claude/shared/setup-herdr.md`.
 Con il ritratto proponi tre lavori da dieci minuti sul materiale vero della persona, uno per riga,
 il primo consigliato: lo stato di un progetto trovato, letto dai suoi file, poi /inizio col sì;
 /guidami se ci sono sessioni recenti; una bozza nella sua voce di una cosa che il ritratto mostra
