@@ -13,6 +13,23 @@ modo di lavorare.
 
 ---
 
+## 2026-11-08 — La rotazione automatica non si ferma più per un testo rimasto nella casella
+
+**Cosa cambia**: a fine compito la sessione si rinnova da sola (/clear, poi /inizio sul passo dopo). Prima,
+se nella casella del messaggio c'era del testo, la rotazione si annullava subito. Ora aspetta. Se svuoti
+la casella, parte. Se il testo resta fermo per un minuto, è un avanzo: la rotazione parte e il testo torna
+nella casella della sessione nuova. Se mandi un messaggio, o continui a scrivere per dieci minuti, la
+rotazione si annulla e rispondo a te.
+
+**Perché**: il 7 e l'8/11 un "2" rimasto nella casella per ore ha annullato due rotazioni di fila. Il
+registro `~/.claude/cache/rotazione-ultimo.txt` diceva "stai scrivendo: rotazione annullata", e la
+persona doveva scrivere /clear e /inizio a mano.
+
+**Da sapere**: il testo che stai scrivendo davvero non si perde. Una bozza che cambia tiene ferma la
+rotazione, e una bozza vecchia torna nella casella dopo il rinnovo.
+
+---
+
 ## 2026-11-07 — /novita riassume un arretrato grande, /setup controlla il permesso di GitHub prima del primo invio
 
 **Cosa cambia**: se hai più di 10 novità da leggere, `/novita` non le racconta più una per una. Ti propone
