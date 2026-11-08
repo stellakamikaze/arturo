@@ -9,7 +9,7 @@
       "name": "arturo",
       "source": "./",
       "description": "Arturo: guardie, metodo e skill condivise sopra Claude Code. Lo strato personale è l'Orsa, in ~/.claude.",
-      "version": "0.2.5"
+      "version": "0.2.6"
     }
   ]
 }

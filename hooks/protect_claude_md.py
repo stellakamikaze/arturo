@@ -46,8 +46,9 @@ di avvio esegue codice a ogni commit o a ogni login, senza che nessuno lo chieda
 Il vettore shell (echo >, cp, tee...) su questi percorsi chiede conferma in
 block-dangerous.py.
 
-~/.claude/arturo/protect_claude_md.local (dal 30/10/2026; vale ancora il vecchio hooks/) cambia la decisione di cinque categorie: i due
-CLAUDE.md, i settings della radice, la config e il resto di ~/.claude (dot-claude). Persistenza,
+~/.claude/arturo/protect_claude_md.local (dal 30/10/2026; vale ancora il vecchio hooks/) cambia la decisione di sei categorie: i due
+CLAUDE.md, i settings della radice, la config, il resto di ~/.claude (dot-claude) e le cartelle .claude dei
+progetti (dot-claude-progetto). Persistenza,
 file di unlock, firme/, gli script dell'aggiornamento e i .local restano col default. Il vocabolario
 sta accanto a _locale().
 
@@ -84,6 +85,16 @@ def _budget():
 def _righe_dopo(path, ti):
     """Numero di righe del file come sarà dopo Write, Edit o MultiEdit."""
     return len(_testo_dopo(path, ti).splitlines())
+
+
+def _ferma_json_rotto(rp, ti):
+    """Un settings*.json che diventerebbe JSON non valido si ferma, anche con l'unlock o con allow."""
+    try:
+        json.loads(_testo_dopo(rp, ti))
+    except (ValueError, OSError) as e:
+        _emit("deny", f"{os.path.basename(rp)} non sarebbe JSON valido dopo la modifica ({e}). "
+              "Un settings rotto spegne deny e hook: correggi la modifica e riprova.")
+        sys.exit(0)
 
 
 def _testo_dopo(path, ti):
@@ -125,12 +136,14 @@ def _avviso_budget(rp, claude_dir, ti):
 #   settings-radice     ~/.claude/settings*.json e ~/.claude/.claude.json (la validità JSON resta)
 #   config              hooks/** e i settings*.json nelle sottocartelle di ~/.claude
 #   dot-claude          ogni altro file sotto ~/.claude
+#   dot-claude-progetto i file dentro una cartella .claude di un progetto, settings di progetto compresi
 # Restano fuori, sempre col default di Arturo: percorsi di avvio automatico, file di sblocco, firme/,
 # gli script dell'aggiornamento e i file .local (arturo/*.local e hooks/*.local), che altrimenti potrebbero
 # allentare sé stessi.
 # Un file illeggibile o una riga fuori vocabolario valgono come assenti.
 DECISIONI_LOCALI = {'allow', 'ask', 'deny'}
-CATEGORIE_LOCALI = {'claude-md-globale', 'claude-md-progetto', 'settings-radice', 'config', 'dot-claude'}
+CATEGORIE_LOCALI = {'claude-md-globale', 'claude-md-progetto', 'settings-radice', 'config', 'dot-claude',
+                    'dot-claude-progetto'}
 
 
 def _preferenza(nome):
@@ -284,12 +297,7 @@ def main():
             # settings rotto spegne deny e hook alla ricarica successiva (dalla config dell'autore,
             # 20/10/2026).
             if re.match(r'SETTINGS.*\.JSON$', base) is not None:
-                try:
-                    json.loads(_testo_dopo(rp, ti))
-                except (ValueError, OSError) as e:
-                    _emit("deny", f"{os.path.basename(rp)} non sarebbe JSON valido dopo la modifica ({e}). "
-                          "Un settings rotto spegne deny e hook: correggi la modifica e riprova.")
-                    sys.exit(0)
+                _ferma_json_rotto(rp, ti)
             if unlocked('config-unlock'):
                 _emit("allow", "config/hook Claude Code sbloccati da conferma utente")
                 sys.exit(0)
@@ -317,6 +325,17 @@ def main():
         # Categoria 4: il resto di ~/.claude decide il flusso normale dei permessi, o il .local.
         if under_claude:
             _emetti_locale('dot-claude', chiede=chiede)
+
+        # Categoria 5: una cartella .claude dentro un progetto (settings di progetto, worktree, agenti).
+        # Claude Code chiede a ogni scrittura lì; senza .local la decisione resta sua (5/11/2026, #4535).
+        # Vale solo fuori dalla config: ~/.claude ha le sue categorie, e una riga sui progetti non deve
+        # aprire personale/session-start.sh, che parte a ogni avvio. Lo stesso per CLAUDE_CONFIG_DIR.
+        config_altrove = os.path.realpath(os.environ.get('CLAUDE_CONFIG_DIR') or claude_dir)
+        if (not under_claude and rp != config_altrove and not rp.startswith(config_altrove + os.sep)
+                and (os.sep + '.claude' + os.sep) in rp):
+            if re.match(r'SETTINGS.*\.JSON$', base) is not None:
+                _ferma_json_rotto(rp, ti)
+            _emetti_locale('dot-claude-progetto', chiede=chiede)
 
         sys.exit(0)
 

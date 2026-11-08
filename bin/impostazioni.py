@@ -16,6 +16,13 @@ com'erano, e una voce cambiata da tutte e due le parti non si scrive: si segnala
                                          toglie prima dai settings della persona gli hook che il plugin
                                          porta già (un clone di prima li aveva lì): senza, scatterebbero
                                          due volte e applica si ferma
+  arturo impostazioni adotta [--forza]   scrive il file di blocco col frammento di oggi e non cambia
+                                         settings.json: chi passa al plugin con settings suoi già fatti
+                                         (la config da cui Arturo è nato) tiene le sue voci, e da lì
+                                         riceve solo i cambi futuri di Arturo. Si ferma se mancano regole
+                                         di blocco di Arturo o se un hook è doppio. --forza accetta le
+                                         regole mancanti e sostituisce un blocco scritto da un frammento
+                                         diverso; un hook doppio ferma sempre
 
 Nel clone (Arturo dentro ~/.claude) settings.json è già quello di Arturo: non c'è niente da applicare.
 """
@@ -158,14 +165,71 @@ def _dove(unisci, base, nostro, loro, via=""):
     return via
 
 
+def adotta(forza: bool = False) -> int:
+    """Il frammento di oggi diventa la base dell'unione, e settings.json resta com'è.
+
+    Perché esiste (strati F5, 5/11/2026): la config di Federico ha già le sue voci, scelte una per una.
+    Con applica la prima unione partirebbe da una base vuota, e ogni voce che il frammento ha diversa
+    dai suoi settings sarebbe un conflitto. Con adotta la base è il frammento di oggi: le voci di oggi
+    restano sue, e un applica dopo porta solo quello che Arturo cambia da qui in avanti.
+
+    Per lo stesso motivo una voce che manca conta da qui in poi come tolta dalla persona: una regola di
+    blocco assente non arriverebbe più. Allora adotta si ferma e le elenca, e solo --forza le lascia fuori
+    (revisione del 6/11/2026). Un hook doppio scatterebbe due volte: ferma sempre, come in applica."""
+    frammento_file = CODICE / "impostazioni" / "arturo.json"
+    if not frammento_file.exists():
+        print("IMPOSTAZIONI: Arturo è installato come clone in ~/.claude: settings.json è già il suo.")
+        return 0
+    try:
+        frammento = _leggi(frammento_file)
+        blocco_file = orsa() / "data" / "arturo-impostazioni.lock"
+        blocco = _leggi(blocco_file)
+        settings = _leggi(orsa() / "settings.json")
+    except (OSError, ValueError) as e:
+        print(f"IMPOSTAZIONI: non leggo il frammento, il blocco o i settings ({e}): non scrivo niente.",
+              file=sys.stderr)
+        return 1
+    if blocco.get("frammento") == frammento:
+        print("IMPOSTAZIONI: già adottate, il blocco ha il frammento di oggi.")
+        return 0
+    if "frammento" in blocco and not forza:
+        # Il blocco vecchio è la base dei cambi che Arturo non ha ancora portato: sostituirlo li perde.
+        print("IMPOSTAZIONI: il blocco ha già un frammento diverso da quello di oggi: con adotta i cambi di "
+              "Arturo fra i due non arriverebbero più. Usa `arturo impostazioni applica`, oppure "
+              "`adotta --forza` se vuoi davvero tenere i tuoi settings come sono.", file=sys.stderr)
+        return 1
+    trovati = doppi(settings)
+    if trovati:
+        print(f"IMPOSTAZIONI: {len(trovati)} hook di settings.json lanciano un file che il plugin porta già, e "
+              f"scatterebbero due volte (il primo: {trovati[0][1][:80]}). Togli quegli hook, oppure usa "
+              "`arturo impostazioni applica --togli-doppi`. Non ho scritto niente.", file=sys.stderr)
+        return 1
+    mie = (settings.get("permissions") or {}).get("deny") or []
+    mancano = [r for r in (frammento.get("permissions") or {}).get("deny") or [] if r not in mie]
+    if mancano and not forza:
+        print(f"IMPOSTAZIONI: mancano {len(mancano)} regole di blocco di Arturo (la prima: {mancano[0]}). Con adotta "
+              "non arriverebbero più. Usa `arturo impostazioni applica`, che le aggiunge, oppure `adotta --forza` "
+              "se vuoi davvero lasciarle fuori. Non ho scritto niente.", file=sys.stderr)
+        return 1
+    versione = _leggi(CODICE / ".claude-plugin" / "plugin.json").get("version", "")
+    _scrivi(blocco_file, {"versione": versione, "frammento": frammento, "adottato": True})
+    print(f"IMPOSTAZIONI: adottate ({versione or 'versione senza numero'}). settings.json non è cambiato; "
+          "da qui arrivano solo i cambi futuri di Arturo.")
+    if mancano:
+        print(f"Restano fuori {len(mancano)} regole di blocco di Arturo, per tua scelta.")
+    return 0
+
+
 def main(argv: list) -> int:
     azione = argv[0] if argv else "stato"
     if azione in ("-h", "--help", "aiuto"):
         print(__doc__)
         return 0
-    if azione not in ("stato", "applica"):
-        print(f"Comando sconosciuto: {azione}. I comandi sono \"stato\" e \"applica\".", file=sys.stderr)
+    if azione not in ("stato", "applica", "adotta"):
+        print(f"Comando sconosciuto: {azione}. I comandi sono \"stato\", \"applica\" e \"adotta\".", file=sys.stderr)
         return 2
+    if azione == "adotta":
+        return adotta("--forza" in argv)
     togli = "--togli-doppi" in argv
     try:
         attuale, unito, frammento, errore = calcola(togli)

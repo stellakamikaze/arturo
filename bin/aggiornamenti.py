@@ -28,8 +28,9 @@ non sa verificare (git prima della 2.34, OpenSSH prima della 8.2) blocca allo st
 allarme: "firma non verificabile", uscita 4 di firmato. ARTURO_AGGIORNAMENTI=manuali
 ha lo stesso effetto di "manuali". Solo libreria standard, Python 3.8 o successivo.
 
-Col plugin (strati F3, 5/11/2026) il codice sta nella cache di Claude Code e non c'è git: stato,
-controlla e applica non fanno niente, e l'aggiornamento passa da `plugin`, che /aggiorna lancia. Claude
+Col plugin (strati F3, 5/11/2026) il codice sta nella cache di Claude Code e non c'è git: stato e
+controlla dicono soltanto se c'è un rilascio nuovo, applica non fa niente, e l'aggiornamento passa da
+`plugin`, che /aggiorna lancia. Claude
 Code installa lo sha scritto nel catalogo anche se nessun tag firmato lo indica (prova del 5/11/2026):
 per questo il tag si verifica qui, prima, con la chiave dell'ancora nell'Orsa (hooks/fiducia.py).
 """
@@ -69,7 +70,7 @@ NON_VERIFICABILE = ("questo computer non sa controllare la firma dei rilasci: se
 
 
 def radice() -> Path:
-    return Path(os.environ.get("ARTURO_RADICE") or Path.home() / ".claude")
+    return Path(os.environ.get("ARTURO_RADICE") or os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
 
 
 def git(r: Path, *argomenti, timeout: int = 30) -> subprocess.CompletedProcess:
@@ -602,6 +603,57 @@ def verifica_catalogo(orsa: Path) -> tuple:
     return 0, tag, sha
 
 
+def versione_nuova_plugin(orsa: Path) -> str:
+    """La versione del catalogo scaricato, se è più nuova di quella installata; altrimenti "".
+    Solo un confronto di numeri: la verifica del tag firmato la fa /aggiorna (cmd_plugin)."""
+    voce = voce_catalogo(orsa)
+    nel_catalogo = str(voce.get("version") or (voce.get("source") or {}).get("ref") or "")
+    installata = str(installato(orsa).get("version") or "")
+    if numero(nel_catalogo) and numero(installata) and numero(nel_catalogo) > numero(installata):
+        return ".".join(str(x) for x in numero(nel_catalogo))
+    return ""
+
+
+def controlla_plugin(r: Path, forza: bool = False) -> int:
+    """Col plugin (#4860, 6/11/2026): al massimo una volta all'ora la barra fa scaricare il catalogo, e lo stato
+    dice se c'è un rilascio più nuovo di quello installato. Non installa niente: lo fa /aggiorna, verificato."""
+    vecchio = leggi(file_stato(r))
+    if not forza and time.time() - float(vecchio.get("controllato") or 0) < ORA:
+        return 0
+    _, radici = _moduli()
+    _claude("marketplace", "update", "arturo", timeout=120)
+    nuova = versione_nuova_plugin(radici.radice_orsa())
+    stato = {"stato": "manuale", "versione": nuova, "plugin": True} if nuova else {"stato": "aggiornato", "plugin": True}
+    try:
+        scrivi(file_stato(r), dict(stato, controllato=time.time()))
+    except OSError:
+        pass
+    return 0
+
+
+def segna_aggiornato(r: Path) -> None:
+    """Dopo /aggiorna la barra non deve dire ancora "serve /aggiorna" fino al controllo dopo."""
+    try:
+        scrivi(file_stato(r), {"stato": "aggiornato", "plugin": True, "controllato": time.time()})
+    except OSError:
+        pass
+
+
+def stato_plugin(r: Path) -> int:
+    """La riga dell'avvio col plugin: solo se l'ultimo controllo ha visto un rilascio più nuovo, ancora non installato.
+
+    Il controllo lo lancia anche l'avvio, staccato: chi ha una barra sua non lancia mai quello della barra di Arturo."""
+    _, radici = _moduli()
+    stato = leggi(file_stato(r))
+    if time.time() - float(stato.get("controllato") or 0) >= ORA:
+        avvia_staccato(r, "controlla")
+    if stato.get("plugin") and stato.get("stato") == "manuale" and stato.get("versione") \
+            and versione_nuova_plugin(radici.radice_orsa()) == stato["versione"]:
+        print(f"ARTURO: c'è la versione {stato['versione']} di Arturo. /aggiorna la installa dopo averne verificato la "
+              "firma, poi riapri Claude Code. Dillo alla persona in una frase.")
+    return 0
+
+
 def cmd_plugin(solo_verifica: bool = False) -> int:
     """/aggiorna col plugin. Uscite: 0 applicato o già aggiornato, 1 niente da applicare o errore, 3 possibile
     compromissione, 4 firma non verificabile su questo computer."""
@@ -613,6 +665,7 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
               file=sys.stderr)
     rc, tag, sha = verifica_catalogo(orsa)
     if rc == 2:
+        segna_aggiornato(radice())
         print(f"GIÀ AGGIORNATO: {tag}")
         return 0
     if rc != 0:
@@ -639,6 +692,7 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
                        scaricata=True)
     # Una chiave nuova entra nell'ancora solo da una copia verificata con la chiave di prima.
     fiducia.fissa_ancora(copia, orsa)
+    segna_aggiornato(radice())
     print(f"APPLICATO: {tag}. Riavvia Claude Code per usarlo.")
     return 0
 
@@ -702,7 +756,12 @@ def main(argv: list) -> int:
                 return 5
             return cmd_plugin(solo_verifica=len(argv) == 2)
         if modo_plugin() and argv and argv[0] in ("stato", "controlla", "applica", "firmato"):
-            # Col plugin non c'è git: niente si installa da solo, /aggiorna passa da `plugin`.
+            # Col plugin non c'è git: niente si installa da solo, /aggiorna passa da `plugin`. Stato e controlla
+            # dicono soltanto se c'è un rilascio nuovo (#4860).
+            if argv == ["stato"]:
+                return stato_plugin(r)
+            if argv in (["controlla"], ["controlla", "--subito"]):
+                return controlla_plugin(r, forza=len(argv) == 2)
             return cmd_plugin(solo_verifica=True) if argv == ["firmato"] else 0
         if argv == ["stato"]:
             return cmd_stato(r)

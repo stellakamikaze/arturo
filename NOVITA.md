@@ -3,7 +3,8 @@
 Questo file è il canale di aggiornamento di Arturo. Ogni volta che l'harness evolve in un
 modo che vale la pena raccontare, qui compare una entry: cosa cambia, il principio dietro,
 a chi serve. La entry più recente sta in cima, con data ISO nell'intestazione. Una correzione nata
-da una segnalazione la cita con la forma "segnalazione n. X": `/segnala stato` la riconosce così.
+da una segnalazione la cita con la forma "segnalazione n. X" o "proposta n. X": `/segnala stato` la
+riconosce così.
 
 Non serve leggerlo a mano: dopo un `git pull`, all'avvio della sessione Arturo ti avvisa se
 c'è qualcosa che non hai ancora visto, e `/novita` te lo racconta in parole semplici,
@@ -11,6 +12,88 @@ con la possibilità di fare sparring (`/sparring`) per capire se la novità serv
 modo di lavorare.
 
 ---
+
+## 2026-11-08 — La rotazione automatica non si ferma più per un testo rimasto nella casella
+
+**Cosa cambia**: a fine compito la sessione si rinnova da sola (/clear, poi /inizio sul passo dopo). Prima,
+se nella casella del messaggio c'era del testo, la rotazione si annullava subito. Ora aspetta. Se svuoti
+la casella, parte. Se il testo resta fermo per un minuto, è un avanzo: la rotazione parte e il testo torna
+nella casella della sessione nuova. Se mandi un messaggio, o continui a scrivere per dieci minuti, la
+rotazione si annulla e rispondo a te.
+
+**Perché**: il 7 e l'8/11 un "2" rimasto nella casella per ore ha annullato due rotazioni di fila. Il
+registro `~/.claude/cache/rotazione-ultimo.txt` diceva "stai scrivendo: rotazione annullata", e la
+persona doveva scrivere /clear e /inizio a mano.
+
+**Da sapere**: il testo che stai scrivendo davvero non si perde. Una bozza che cambia tiene ferma la
+rotazione, e una bozza vecchia torna nella casella dopo il rinnovo.
+
+---
+
+## 2026-11-07 — /novita riassume un arretrato grande, /setup controlla il permesso di GitHub prima del primo invio
+
+**Cosa cambia**: se hai più di 10 novità da leggere, `/novita` non le racconta più una per una. Ti propone
+un riassunto per temi, con in testa le correzioni delle tue segnalazioni, e approfondisci solo i temi che
+scegli. `/segnala stato` riconosce anche le novità che citano una proposta col suo numero, quindi accanto
+a una proposta realizzata non compare più "la correzione non è ancora uscita". Quando `/setup` crea il
+repository privato che tiene allineati i tuoi computer, controlla prima il permesso `workflow` di GitHub e,
+se manca, ti dà il comando per aggiungerlo: è un login nel browser, e lo fai tu.
+
+**Perché**: la segnalazione n. 59 raccontava due problemi. Con 113 novità arretrate il racconto una per una
+richiedeva ore, e le proposte n. 52, 53 e 54 risultavano ferme anche se erano già uscite. Con la
+segnalazione n. 60 è arrivato il terzo: Arturo contiene un file di automazione, quindi senza il permesso
+`workflow` GitHub rifiutava il primo invio e il repository restava vuoto.
+
+**Da sapere**: nel repository privato puoi lasciare accese le Actions, le automazioni di GitHub. Quella di
+Arturo gira solo nel repository pubblico: nel tuo viene saltata, quindi non consuma i minuti che GitHub
+conta per le automazioni.
+
+---
+
+## 2026-11-06 — Col plugin vedi quando esce un rilascio nuovo
+
+**Cosa cambia**: se usi Arturo come plugin, al massimo una volta all'ora Arturo controlla il catalogo dei
+rilasci, senza installare niente. Il controllo parte all'avvio e dalla barra in basso, quindi funziona anche
+con una barra tua. Se c'è una versione più nuova, la barra di Arturo mostra
+`↑ Arturo <versione> · serve /aggiorna`, e la sessione dopo te lo dice anche all'avvio. L'avviso parte
+anche quando `~/.claude` non è un repository git, come succede di solito dopo `arturo migra`. Il rilascio
+lo installa `/aggiorna`, dopo averne verificato la firma. Col plugin l'avvio conta anche le novità da
+leggere: prima non le vedeva, perché `NOVITA.md` sta accanto al codice.
+
+**Perché**: col clone l'aggiornamento arriva da solo alla chiusura della sessione. Col plugin invece
+l'aggiornamento parte solo quando scrivi `/aggiorna`, quindi la tua copia poteva restare indietro senza
+che tu lo sapessi.
+
+**Da sapere**: chi installa Arturo da zero non trova più novità vecchie da leggere. Finora il primo avvio
+segnava come da leggere tutte le voci di questo file, più di cento, e l'avviso restava per molte sessioni.
+
+## 2026-11-06 — Tre comandi per chi passa al plugin
+
+**Cosa cambia**: dopo `arturo migra` restano tre cose da mettere in ordine, e ognuna ha ora il suo
+comando.
+
+- `arturo personale regole-doppie` elenca le regole consigliate da `/setup` che il tuo `CLAUDE.md`
+  ripete, ora che col plugin le stesse regole arrivano all'avvio. Con `--togli` le toglie e tiene la
+  copia di prima in `CLAUDE.md.prima-del-plugin`. Toglie solo le righe uguali alla regola: una riga che
+  le somiglia, perché l'hai riscritta a modo tuo, resta e te la mostra.
+- `arturo personale omonimi` elenca le tue skill, i tuoi comandi e i tuoi stili che hanno lo stesso nome
+  di uno di Arturo. Col plugin, se scrivi solo il nome, parte il tuo. Per quello di Arturo scrivi
+  `arturo:<nome>`. Se vuoi che il tuo prenda il posto di quello di Arturo, scrivi il nome in
+  `personale/sostituzioni.txt`. Anche `/system-audit` segnala gli omonimi che non hai scritto lì.
+- `arturo impostazioni adotta` serve a chi ha un `settings.json` fatto a mano: le voci di oggi restano
+  come le hai scritte, e da lì in poi `arturo impostazioni applica` porta solo i cambi di Arturo. Se
+  mancano regole di blocco di Arturo il comando si ferma e le conta, perché dopo non arriverebbero più.
+
+**Perché**: col plugin, se scrivi solo il nome, parte la tua skill. Una skill nuova di Arturo con un nome
+che usi già quindi non si vedrebbe mai, e `omonimi` te la fa trovare. Con `adotta` le differenze fra il
+tuo `settings.json` e le impostazioni di Arturo smettono di contare come conflitti.
+
+**Da sapere**: se personalizzi le guardie, in `protect_claude_md.local` c'è la categoria nuova
+`dot-claude-progetto`, per la cartella `.claude` di un progetto: non vale per `~/.claude`, e la guardia ferma
+comunque una modifica che romperebbe il JSON di un settings. Il README ora dice come decide una
+guardia personale: con il codice di uscita 2 blocca il comando, con ogni altro codice diverso da 0 conta
+come rotta e chiede conferma. E il `researcher` ora riporta anche l'estratto della fonte che regge ogni
+risultato, così controlli a campione senza rifare la ricerca.
 
 ## 2026-11-05 — Arturo può uscire dalla tua cartella
 

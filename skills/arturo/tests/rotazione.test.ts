@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { argomentiInizio, decidi, MIN_INTERVALLO_MS, nomeTool, spenta } from '../hooks/rotazione/rotazione'
+import { argomentiInizio, decidi, MIN_INTERVALLO_MS, nomeTool, spenta, vediBozza } from '../hooks/rotazione/rotazione'
 
 // Il nome che il motore finto dà al tool: il mod usa quello, qualunque sia il nome del plugin.
 const TOOL = 'mcp__prova__ruota'
@@ -21,8 +21,8 @@ describe('decidi', () => {
   test('errore API: disarma', () => {
     expect(decidi({ ...base, reason: 'error' }).azione).toBe('disarma')
   })
-  test('la persona sta scrivendo: disarma', () => {
-    expect(decidi({ ...base, bozza: 'aspetta' }).azione).toBe('disarma')
+  test('testo nella casella: aspetta, non disarma', () => {
+    expect(decidi({ ...base, bozza: 'aspetta' })).toEqual({ azione: 'attendi' })
   })
   test('turno di un subagent: aspetta, non disarma', () => {
     expect(decidi({ ...base, agentId: 'a1' })).toEqual({ azione: 'niente' })
@@ -32,6 +32,25 @@ describe('decidi', () => {
   })
   test('rotazione dopo 3 minuti: clear', () => {
     expect(decidi({ ...base, ultima: base.ora - MIN_INTERVALLO_MS })).toEqual({ azione: 'clear' })
+  })
+})
+
+describe('vediBozza', () => {
+  const a = { bozza: '2', fermaDa: 0, iniziata: 0 }
+  test('bozza ferma da meno di un minuto: aspetta', () => {
+    expect(vediBozza(a, '2', 30_000).azione).toBe('aspetta')
+  })
+  test('bozza ferma da un minuto: clear e la bozza da rimettere', () => {
+    expect(vediBozza(a, '2', 60_000)).toEqual({ azione: 'clear', bozza: '2' })
+  })
+  test('casella svuotata: clear senza bozza', () => {
+    expect(vediBozza(a, '', 15_000)).toEqual({ azione: 'clear', bozza: '' })
+  })
+  test('bozza che cambia: aspetta e riparte il minuto', () => {
+    expect(vediBozza(a, '2 e', 45_000)).toEqual({ azione: 'aspetta', attesa: { bozza: '2 e', fermaDa: 45_000, iniziata: 0 } })
+  })
+  test('bozza che cambia da 10 minuti: disarma', () => {
+    expect(vediBozza(a, 'altro', 600_000).azione).toBe('disarma')
   })
 })
 
@@ -54,9 +73,10 @@ type Dati = {
   store: Record<string, unknown>
   stato: (string | undefined)[]
   toast: string[]
+  riempita?: string
 }
 
-function motore(on: On, opz: { bozza?: string; env?: Record<string, string> } = {}): Dati {
+function motore(on: On, opz: { bozza?: string | (() => string); env?: Record<string, string> } = {}): Dati {
   // Il mod arturo ha sei parti: qui si prova solo questa (ARTURO_PARTI, hooks/parti.ts).
   on('env.get', { name: 'ARTURO_PARTI' }, () => ({ value: 'rotazione' }))
   const d: Dati = { comandi: [], store: {}, stato: [], toast: [] }
@@ -65,7 +85,11 @@ function motore(on: On, opz: { bozza?: string; env?: Record<string, string> } = 
   on('tool.call', () => ({ result: 'motore' }))
   on('turn.complete', () => ({ text: '' }))
   on('session.end', (_, e) => ({ sessionId: e.sessionId }))
-  on('prompt.read', () => ({ value: { text: opz.bozza ?? '', cursor: 0 } }))
+  on('prompt.read', () => ({ value: { text: typeof opz.bozza === 'function' ? opz.bozza() : opz.bozza ?? '', cursor: 0 } }))
+  on('prompt.fill', (_, e) => {
+    d.riempita = (e as { text: string }).text
+    return { isFilled: true }
+  })
   on('env.get', (_, e) => ({ value: (opz.env ?? {})[(e as { name: string }).name] }))
   on('store.get', (_, e) => ({ value: d.store[e.key] }))
   on('store.set', (_, e) => {
@@ -145,13 +169,55 @@ test('Esc durante il turno: nessun /clear', async ($, on) => {
   expect(d.comandi).toEqual([])
 })
 
-test('testo nella casella: nessun /clear', async ($, on) => {
+test('testo nella casella: nessun /clear nei primi 20 secondi', async ($, on) => {
   const d = motore(on, { bozza: 'aspetta un attimo' })
   const clock = mock.clock(on)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   await $.tool.call({ tool: TOOL, progetto: 'arturo', compito: 'x' } as never)
   await $.turn.complete(fineTurno('answer'))
   await clock.advance(20_000)
+  expect(d.comandi).toEqual([])
+})
+
+test('VELENO 7/11: un "2" rimasto nella casella non annulla la rotazione, e torna nella casella', async ($, on) => {
+  let casella = '2'
+  const d = motore(on, { bozza: () => casella })
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: TOOL, progetto: 'arturo', compito: 'step 5' } as never)
+  await $.turn.complete(fineTurno('answer'))
+  await clock.advance(45_000)
+  expect(d.comandi).toEqual([])
+  await clock.advance(16_000)
+  expect(d.comandi).toEqual([{ command: 'clear', args: '' }])
+  casella = ''
+  await $.session.end(fine)
+  await clock.advance(2_000)
+  expect(d.comandi[1]).toEqual({ command: 'inizio', args: 'arturo -- --rotazione step 5' })
+  expect(d.riempita).toBe('2')
+})
+
+test('casella svuotata durante l\'attesa: clear al controllo dopo', async ($, on) => {
+  let casella = 'una frase'
+  const d = motore(on, { bozza: () => casella })
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: TOOL, progetto: 'arturo', compito: 'x' } as never)
+  await $.turn.complete(fineTurno('answer'))
+  casella = ''
+  await clock.advance(17_000)
+  expect(d.comandi[0]).toEqual({ command: 'clear', args: '' })
+})
+
+test('messaggio mandato durante l\'attesa: nessun /clear', async ($, on) => {
+  const d = motore(on, { bozza: 'sto scrivendo' })
+  on('prompt.submit', (_, e) => e as never)
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: TOOL, progetto: 'arturo', compito: 'x' } as never)
+  await $.turn.complete(fineTurno('answer'))
+  await $.prompt.submit({ text: 'sto scrivendo' } as never)
+  await clock.advance(120_000)
   expect(d.comandi).toEqual([])
 })
 

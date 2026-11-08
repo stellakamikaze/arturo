@@ -49,6 +49,7 @@ done
 
 - Nessuna entry vista → è la prima volta: racconta tutte le entry (o le ultime 3 se sono tante, offrendo le altre).
 - Altrimenti → racconta solo le entry `non vista`, dalla più vecchia alla più recente.
+- Più di 10 entry `non vista` → non raccontarle una per una: proponi subito un riassunto per temi, con il Passo 2b.
 - Nessuna `non vista` → dillo in una riga ("sei aggiornato, ultima novità del ...") e fermati. Con argomento `tutte`, racconta tutto lo storico a prescindere dal segnalibro.
 
 ## Passo 2 — Il racconto
@@ -68,6 +69,17 @@ Per ogni entry non vista, **una per volta**:
 7. Segna questa entry come vista (Passo 3) prima di passare alla successiva.
 
 Linguaggio semplice, zero gergo non spiegato. Se le entry nuove sono più di una, chiedi dopo ciascuna se proseguire.
+
+## Passo 2b — Un arretrato grande
+
+Con più di 10 entry `non vista`, il racconto una per volta dura ore (segnalazione n. 59: 113 voci arretrate).
+
+1. Lancia una volta `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo segnala stato`. Apri con le entry che correggono le sue segnalazioni, col numero.
+2. Raggruppa il resto in pochi temi, una o due frasi per tema, con le entry che ne fanno parte.
+3. Chiedi se vuole approfondire un tema. Il racconto del Passo 2 vale per le entry che sceglie.
+4. Quando ha letto il riassunto, segna come viste tutte le entry che copre, con il ciclo del Passo 3.
+
+Con argomento `tutte` vale la stessa regola: il racconto una per volta parte solo se la persona lo chiede.
 
 ## Passo 3 — Segna l'entry appena raccontata
 

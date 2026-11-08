@@ -24,6 +24,13 @@ Arturo esegue in fondo.
                           persona aveva prima di Arturo, nell'ultima ~/.claude-backup-*: li elenca, e con
                           --applica li aggiunge al settings.json, coi file degli hook, senza togliere
                           niente di Arturo
+  omonimi                 col plugin: le skill, i comandi e gli stili della persona che hanno lo stesso nome
+                          di uno di Arturo. Il nome da solo porta a quello della persona, quello di Arturo diventa
+                          arturo:<nome>; ogni sostituzione voluta si scrive in personale/sostituzioni.txt,
+                          e un omonimo non dichiarato esce con 1
+  regole-doppie [--togli] col plugin: le regole consigliate da /setup che il CLAUDE.md della persona ripete,
+                          ora che il metodo di Arturo arriva all'avvio. Le elenca (esce 1 se ce ne sono);
+                          con --togli le toglie, con la copia di prima in CLAUDE.md.prima-del-plugin
 
 Con un repository della persona come origin (Arturo come upstream), /aggiorna e /aggiorna personale
 lanciano separa solo se quel repository è privato: altrimenti personale/ non viaggerebbe fra le sue
@@ -57,7 +64,7 @@ HOOK = re.compile(r"^hooks/[A-Za-z0-9_.-]{1,60}$")
 
 
 def radice() -> Path:
-    return Path(os.environ.get("ARTURO_RADICE") or Path.home() / ".claude")
+    return Path(os.environ.get("ARTURO_RADICE") or os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
 
 
 def git(r: Path, *argomenti, controlla: bool = False) -> subprocess.CompletedProcess:
@@ -322,6 +329,163 @@ def elenco() -> int:
     return 0
 
 
+# Le sostituzioni (docs/strati.md, "Estendere una skill senza copiarla"; strati F5, 5/11/2026). Col plugin una
+# skill della persona con lo stesso nome di una di Arturo prende il nome nudo, e quella di Arturo resta come
+# arturo:<nome> (prova del 2/11/2026). Voluto, è il modo di tenere la propria /inizio; non voluto, è una
+# skill nuova di Arturo che la persona non vedrà mai. Per questo ogni sostituzione si dichiara.
+SOSTITUZIONI = "personale/sostituzioni.txt"
+
+
+def _nome_stile(file: Path) -> str:
+    """Il name: del frontmatter di uno stile di output, o il nome del file."""
+    try:
+        righe = file.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return file.stem
+    if righe[:1] == ["---"]:
+        for riga in righe[1:40]:
+            if riga.strip() == "---":
+                break
+            if riga.startswith("name:"):
+                return riga[5:].strip().strip("\"'") or file.stem
+    return file.stem
+
+
+def nomi(cartella: Path, codice: Path | None = None) -> dict:
+    """nome -> percorso relativo, per skill, comandi e stili di una cartella. Con codice, un elemento che
+    punta dentro il codice di Arturo (il link di un mod, una skill collegata) non è della persona."""
+    trovati = {}
+    elementi = [(f.parent, f.parent.name, f"skills/{f.parent.name}") for f in sorted(cartella.glob("skills/*/SKILL.md"))]
+    elementi += [(f, f.stem, f"commands/{f.name}") for f in sorted(cartella.glob("commands/*.md"))]
+    elementi += [(f, _nome_stile(f), f"output-styles/{f.name}") for f in sorted(cartella.glob("output-styles/*.md"))]
+    for percorso, nome, rel in elementi:
+        if codice is not None:
+            vero = Path(os.path.realpath(percorso))
+            if vero == codice or codice in vero.parents:
+                continue
+        trovati.setdefault(nome, rel)
+    return trovati
+
+
+def dichiarate(r: Path) -> list:
+    """I nomi di personale/sostituzioni.txt, uno per riga; quello che segue # è il motivo."""
+    try:
+        testo = (r / SOSTITUZIONI).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return []
+    return [riga.split("#", 1)[0].strip().lstrip("/") for riga in testo.splitlines()
+            if riga.split("#", 1)[0].strip()]
+
+
+def omonimi(r: Path | None = None, codice: Path | None = None) -> int:
+    r = r or radice()
+    codice = Path(os.path.realpath(codice or Path(__file__).resolve().parent.parent))
+    if Path(os.path.realpath(r)) == codice:
+        print("OMONIMI: Arturo è un clone in ~/.claude, le skill sono le stesse: niente da controllare.")
+        return 0
+    di_arturo = nomi(codice)
+    della_persona = nomi(r, codice)
+    comuni = sorted(set(di_arturo) & set(della_persona))
+    voluti = dichiarate(r)
+    esito = 0
+    sostituiti = [n for n in comuni if n in voluti]
+    if sostituiti:
+        print("SOSTITUITI: " + ", ".join(f"{n} (Arturo: arturo:{n})" for n in sostituiti))
+    for n in comuni:
+        if n not in voluti:
+            esito = 1
+            print(f"OMONIMO NON DICHIARATO: {n} è sia tuo ({della_persona[n]}) sia di Arturo ({di_arturo[n]}). "
+                  f"Il nome da solo porta al tuo, per quello di Arturo scrivi arturo:{n}. Se è voluto, scrivi {n} in "
+                  f"~/.claude/{SOSTITUZIONI}; altrimenti cambia nome al tuo.")
+    for n in voluti:
+        if n not in comuni:
+            esito = 1
+            dove = "Arturo non ha più " + n if n in della_persona else "non hai più un tuo " + n
+            print(f"DICHIARATO SENZA OMONIMO: {n} sta in {SOSTITUZIONI}, ma {dove}: togli la riga.")
+    if not comuni and not voluti:
+        print("OMONIMI: nessuno, le tue skill hanno nomi diversi da quelle di Arturo.")
+    return esito
+
+
+# Le regole consigliate da /setup (shared/setup-claude-md.md) finivano nel CLAUDE.md della persona. Col plugin
+# arrivano già col metodo all'avvio (hooks/metodo.sh): nel CLAUDE.md sono doppie (#4874, 6/11/2026). Il CLAUDE.md
+# è della persona, quindi si elencano sempre e si tolgono solo con --togli. Si toglie solo una riga uguale per
+# intero a una regola consigliata. Una riga con lo stesso inizio può dire il contrario, o avere un seguito rientrato:
+# si elenca e resta (revisione del 6/11/2026).
+INIZIO_REGOLA = 45  # caratteri dell'inizio di una regola che bastano a dire che una riga le somiglia
+REGOLA = re.compile(r'^\d+\. "(.*?)"(?: \(|$)')
+
+
+def regole_consigliate(codice: Path) -> list:
+    """Il testo fra virgolette di ogni regola numerata di shared/setup-claude-md.md: va nel file così.
+    Una regola può avere virgolette dentro: finisce a quelle prima della parentesi o a fine riga."""
+    try:
+        righe = (codice / "shared" / "setup-claude-md.md").read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return []
+    return [m.group(1) for m in map(REGOLA.match, righe) if m]
+
+
+def righe_doppie(testo: str, regole: list) -> tuple:
+    """(doppie, simili): gli indici delle righe uguali a una regola consigliata, e di quelle che solo le somigliano."""
+    piano = lambda s: re.sub(r"\s+", " ", s).strip()
+    intere = {piano(r) for r in regole}
+    inizi = [piano(r)[:INIZIO_REGOLA] for r in regole]
+    righe = testo.splitlines()
+    doppie, simili = [], []
+    for i, riga in enumerate(righe):
+        nuda = piano(re.sub(r"^\s*(?:[-*+]|\d+[.)])\s+", "", riga))
+        seguito = i + 1 < len(righe) and righe[i + 1][:1] in (" ", "\t") and righe[i + 1].strip()
+        if nuda in intere and not seguito:
+            doppie.append(i)
+        elif any(inizio in nuda for inizio in inizi):
+            simili.append(i)
+    return doppie, simili
+
+
+def regole_doppie(togli: bool = False, r: Path | None = None, codice: Path | None = None) -> int:
+    r = r or radice()
+    codice = Path(os.path.realpath(codice or Path(__file__).resolve().parent.parent))
+    if Path(os.path.realpath(r)) == codice:
+        print("REGOLE: Arturo è un clone in ~/.claude, il metodo non arriva all'avvio: le regole del CLAUDE.md servono.")
+        return 0
+    file = r / "CLAUDE.md"
+    try:
+        # newline="": gli a capo restano quelli del file, anche CRLF.
+        with open(file, encoding="utf-8", newline="") as f:
+            testo = f.read()
+    except (OSError, UnicodeDecodeError):
+        print("REGOLE: non c'è un CLAUDE.md, niente da controllare.")
+        return 0
+    doppie, simili = righe_doppie(testo, regole_consigliate(codice))
+    righe = testo.splitlines(keepends=True)
+    if simili:
+        print(f"REGOLE SIMILI: {len(simili)} righe somigliano a una regola del metodo ma non sono uguali. Restano, "
+              "le guardi tu:")
+        for i in simili:
+            print(f"  riga {i + 1}: {righe[i].strip()[:90]}")
+    if not doppie:
+        print("REGOLE: il tuo CLAUDE.md non ripete le regole che il plugin porta all'avvio.")
+        return 0
+    if not togli:
+        print(f"REGOLE DOPPIE: {len(doppie)} righe del tuo CLAUDE.md ripetono il metodo che il plugin porta all'avvio:")
+        for i in doppie:
+            print(f"  riga {i + 1}: {righe[i].strip()[:90]}")
+        print("Per toglierle (con una copia di prima): arturo personale regole-doppie --togli")
+        return 1
+    # Una copia per giro: la prima non si riscrive, e un giro dopo ha la sua.
+    copia = r / "CLAUDE.md.prima-del-plugin"
+    n = 2
+    while copia.exists():
+        copia = r / f"CLAUDE.md.prima-del-plugin.{n}"
+        n += 1
+    shutil.copy2(file, copia)
+    with open(file, "w", encoding="utf-8", newline="") as f:
+        f.write("".join(x for i, x in enumerate(righe) if i not in set(doppie)))
+    print(f"REGOLE: tolte {len(doppie)} righe dal tuo CLAUDE.md; quello di prima è in {copia.name}.")
+    return 0
+
+
 # Un percorso dentro ~/.claude in un comando di hook: ~/.claude/x, $HOME/.claude/x, ${HOME}/.claude/x.
 DENTRO = re.compile(r"(?:~|\$HOME|\$\{HOME\})/\.claude/([A-Za-z0-9_./-]+)")
 
@@ -470,6 +634,10 @@ def main(argv: list) -> int:
         return 0
     if argv == ["elenco"]:
         return elenco()
+    if argv == ["omonimi"]:
+        return omonimi()
+    if argv[:1] == ["regole-doppie"] and argv[1:] in ([], ["--togli"]):
+        return regole_doppie(argv[1:] == ["--togli"])
     if argv == ["separa", "--senza-commit"]:
         try:
             return separa(commit=False)

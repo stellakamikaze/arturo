@@ -40,13 +40,14 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    ogni file in più è una controprova e un veleno da far girare. Dentro c'è l'igiene (I03,
    `tests/igiene.py`): nessun nome della config privata nei file, nei percorsi e nei messaggi dei
    commit che non sono ancora su un remoto. Su GitHub lo stesso controllo gira a ogni push, su ogni
-   branch, solo nel repository pubblico di Arturo (`.github/workflows/igiene.yml`): nelle copie
+   branch e su ogni pull request, solo nel repository pubblico di Arturo (`.github/workflows/igiene.yml`): nelle copie
    private di `~/.claude` di chi usa Arturo il job non parte. I nomi stanno nel controllo solo come impronte sha256:
    uno nuovo si aggiunge con `python3 tests/igiene.py --impronta < file`, mai in chiaro.
    Su Windows alcuni controlli non si possono provare (link simbolici senza la Modalità
    sviluppatore, appunti e browser veri): escono come `SALTO <codice>` da `tests/salti_windows.py`,
    e la riga finale li conta (`salti=N`) e li elenca. Il gate esce con `0` anche con dei salti, ma un
-   controllo saltato non è provato: il gate del rilascio gira su un Mac, dove i salti sono `0`.
+   controllo saltato non è provato: il gate del rilascio gira su un Mac, dove resta solo il veleno di
+   RT23, che vale solo su Windows (`salti=1`).
    Un banco nuovo dichiara un salto solo con `dichiara()`, mai con una stampa sua.
 2. **Entry nuova in `NOVITA.md`**: in cima, con data ISO nell'intestazione, nel formato delle
    altre (Cosa cambia, Il principio dietro, Da sapere). Gli utenti imparano la novità da lì.
@@ -89,7 +90,7 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    `allowed_signers` con un rilascio firmato dalla vecchia.
 
    `--ff-only` è un freno: se `main` non può avanzare in modo lineare, il merge si ferma e
-   ti costringe a guardare perché `dev` e `main` hanno diverto. Mai forzare.
+   ti costringe a guardare perché `dev` e `main` hanno divergenze. Mai forzare.
 
    **La pagina del rilascio su GitHub** (dal 4/11/2026): dopo il push del tag, la sezione Releases del
    repository riceve il testo delle voci di `NOVITA.md` uscite con quel tag. Chi arriva su GitHub vede

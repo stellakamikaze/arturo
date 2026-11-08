@@ -1,6 +1,6 @@
 # La strada di Arturo
 
-Aggiornata il 2026-11-03
+Aggiornata il 2026-11-06
 
 Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in `NOVITA.md`. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico.
 
@@ -18,7 +18,7 @@ L'ancora non cambia mai: i commenti sul sito sono legati a lei.
 
 ### Arturo diventa un plugin, separato dalle tue modifiche {#plugin}
 
-Stato: in corso. Il pacchetto del plugin si genera dal repository. Mancano il passo in `/setup`, il metodo che arriva all'avvio e la prova su un Mac pulito.
+Stato: quasi finito. Il plugin si installa, si aggiorna solo da rilasci firmati e all'avvio porta le regole di Arturo. Manca la prova su un Mac pulito.
 
 Oggi Arturo vive nella stessa cartella delle tue modifiche, `~/.claude`. Per questo un aggiornamento può scontrarsi con un file che hai cambiato tu. Con il plugin, Arturo sta in una cartella sua e la tua parte personale resta tua: un aggiornamento cambia solo Arturo.
 
@@ -62,17 +62,9 @@ Ogni `/segnala` e ogni messaggio dal sito diventa un compito. Qui stanno quelli 
 
 ## Prossimo (versione 0.4)
 
-### Aggiornamenti firmati anche con il plugin {#firma}
-
-Stato: da fare, dopo il plugin.
-
-Oggi Arturo si aggiorna da solo, ma installa soltanto i rilasci firmati da chi lo mantiene. Con il plugin la firma deve valere allo stesso modo: il plugin punta a un rilascio firmato, l'aggiornamento controlla la firma, e il controllo della configurazione confronta i file con un elenco firmato.
-
-<!-- task: #4533 #3477 -->
-
 ### Il passaggio al plugin per chi usa già Arturo {#passaggio}
 
-Stato: da fare, dopo la firma.
+Stato: pronto. Il comando è `arturo migra`, e il passaggio parte quando chi mantiene Arturo decide di proporlo.
 
 Un comando fa il passaggio in modo guidato: prima una prova che non tocca niente e ti mostra cosa cambia, poi una copia di sicurezza, poi il passaggio. Un secondo comando riporta tutto com'era. Parte solo dopo una decisione esplicita di chi mantiene Arturo.
 
@@ -139,6 +131,8 @@ Queste voci aspettano una scelta di chi mantiene Arturo. Il lavoro collegato par
 
 ## Uscito di recente
 
+- 6 novembre 2026, versione 0.2.6: col plugin vedi quando esce un rilascio nuovo, e hai tre comandi per mettere in ordine la tua copia dopo il passaggio.
+- 5 novembre 2026, versione 0.2.5: Arturo si installa come plugin da rilasci firmati, e `arturo migra` porta al plugin chi ha già una copia.
 - 3 novembre 2026, versione 0.2.0: Arturo ha un numero di versione, la sessione si rinnova da sola a ogni passo finito, una riga di Arturo all'avvio, e in modalità auto un comando parte al primo colpo.
 - 3 novembre 2026: la telemetria dice anche come usi Arturo, non solo quanto.
 - 2 novembre 2026: `/inizio` capisce una frase, e un passo fermato diventa un comando per te.
