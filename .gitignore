@@ -145,3 +145,7 @@ node_modules
 # I file della persona accanto ad Arturo: ~/.claude/arturo/parti.json (le parti del mod spente) e la radice del
 # codice scritta dall'avvio quando Arturo è un plugin (docs/strati.md).
 /arturo/
+
+# Scritti da herdr-app check nella cartella del mod (8/11/2026)
+shared/herdr/mods/*/gpui-kit.d.ts
+shared/herdr/mods/*/jsconfig.json
