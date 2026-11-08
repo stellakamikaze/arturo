@@ -4,7 +4,7 @@
 
 - **A sinistra, i tuoi progetti.** Per ognuno una frase: "Claude ti aspetta", "Claude sta lavorando", "3 cose per te", "fermo". In cima quelli che aspettano te. Un clic apre il progetto: se la sessione è chiusa, ne parte una nuova con `/inizio <progetto>`.
 - **Al centro, la conversazione con Claude.** Scrivi come in una chat. "Altra conversazione" ne apre una seconda sullo stesso progetto.
-- **A destra, Da fare.** I todo del progetto divisi per chi agisce: "Tocca a te", "Decidi tu, poi fa Claude", "Ci pensa Claude", "Fermi". La casella segna un todo fatto. "Lavoraci" porta Claude su quel todo.
+- **A destra, Da fare.** I todo del progetto divisi per chi agisce: "Tocca a te", "Decidi tu, poi fa Claude", "Ci pensa Claude", "Fermi". La casella segna un todo fatto. "Lavoraci" porta Claude su quel todo. "Altro" cambia chi lo fa e quando, lo ferma (con cosa aspetta), aggiunge una nota o lo scarta col motivo. "Aggiungi", in alto, scrive un todo nuovo senza passare da Claude.
 - **In basso,** quante sessioni lavorano e quante ti aspettano.
 - **La settimana,** in basso a sinistra: i progetti con todo scaduti, quelli che aspettano te e quelli fermi da più di sette giorni, ognuno in una lista sola. "Fai il punto" apre Claude sul progetto con `/inizio`. La finestra si apre da sola alla prima apertura di ogni settimana, se c'è qualcosa da guardare.
 

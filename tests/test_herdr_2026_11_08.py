@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ10: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ12: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/herdr/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -28,8 +28,13 @@ HZ11 "La settimana" (settimana.js, con node): ogni progetto in una lista sola, l
      poi aspettano te, poi fermi da più di sette giorni), ognuna dal caso peggiore, col motivo che dice
      tutti i fatti; un progetto senza niente da guardare resta fuori. La settimana ISO regge il cambio
      d'anno. La finestra è una parte di main.js e il piede la apre. Senza node il caso si salta.
+HZ12 le azioni sui todo del pannello Da fare (azioni.js, con node): ogni gesto del menu e "Aggiungi"
+     girano sulla CLI vera in una casa finta e lasciano il todo come promettono (chi, quando, fermo col
+     motivo, ripreso, nota, scartato, fatto); il menu non propone il chi e il quando che il todo ha già,
+     né "Fermo" a un todo fermo; un titolo vuoto non aggiunge niente. Menu e finestra sono parti di
+     main.js. Senza node il caso si salta.
 
-Con --avvelena nove copie rotte del repository devono far rosso il caso che le sorveglia.
+Con --avvelena dieci copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
 
@@ -43,7 +48,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12")
 INSTALLA = Path("shared/herdr/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -381,7 +386,86 @@ def hz11(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11}
+PROVA_AZIONI = r"""
+import { azioni, aggiungi, fatto } from %s;
+import { readFileSync } from "fs";
+const righe = JSON.parse(readFileSync(%s, "utf-8"));
+const testo = "perché sì";
+console.log(JSON.stringify({
+  aggiungi: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => aggiungi({ titolo: `  prova   ${n} `, progetto: "prova", chi: "io", quando: "oggi" })?.argv),
+  vuoto: aggiungi({ titolo: "   ", progetto: "prova" }),
+  righe: righe.map((t) => ({ id: t.id, voci: Object.fromEntries(azioni(t).map((v) => [v.id, v.argv(testo)])), fatto: fatto(t).argv })),
+}));
+"""
+
+# Per ogni todo di prova (in ordine) il gesto da fare e cosa deve lasciare: campo, valore.
+GESTI = [("chi-tu", "chi", "tu"), ("chi-decidi", "chi", "decidi"), ("quando-settimana", "quando", "settimana"),
+         ("quando-più avanti", "quando", "più avanti"), ("ferma", "motivo", "perché sì"), ("nota", "note", ["perché sì"]),
+         ("scarta", "stato", "scartato"), ("fatto", "stato", "fatto"), ("ferma", "stato", "fermo")]
+
+
+def hz12(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/herdr/mods/arturo"
+    main = (mod / "main.js").read_text(encoding="utf-8")
+    if "azioni: Azioni" not in main or "nuovo: Nuovo" not in main:
+        return "main.js non ha le parti azioni e nuovo"
+    if "apriMenu(item)" not in (mod / "todo.js").read_text(encoding="utf-8"):
+        return "il pannello Da fare non apre il menu delle azioni"
+    node = shutil.which("node")
+    if not node:
+        return None
+    copia = casa / "azioni.mjs"
+    shutil.copyfile(mod / "azioni.js", copia)
+    env = {**os.environ, "HOME": str(casa), "USERPROFILE": str(casa), "ARTURO_TODO": str(casa / "eventi.jsonl"),
+           "ARTURO_OGGI": "2026-11-08"}
+
+    def cli(argv):
+        return subprocess.run([sys.executable, str(repo / "bin/arturo"), "todo", *argv], capture_output=True,
+                              text=True, timeout=60, env=env, cwd=casa)
+
+    def gesti(righe):
+        (casa / "righe.json").write_text(json.dumps(righe), encoding="utf-8")
+        r = subprocess.run([node, "--input-type=module", "-e", PROVA_AZIONI % (json.dumps(copia.as_uri()),
+                            json.dumps(str(casa / "righe.json")))], capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            raise RuntimeError(f"azioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}")
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    def mostra(n):
+        return json.loads(cli(["mostra", str(n), "--json"]).stdout)
+
+    g = gesti([])
+    if g["vuoto"] is not None:
+        return "un titolo vuoto aggiunge un todo"
+    for argv in g["aggiungi"]:
+        r = cli(argv)
+        if r.returncode != 0:
+            return f"Aggiungi non va sulla CLI: {argv} → {(r.stderr or r.stdout).strip()[:120]}"
+    righe = [mostra(n) for n in range(1, len(GESTI) + 1)]
+    if [(t["titolo"], t["chi"], t["quando"]) for t in righe[:1]] != [("prova 1", "io", "oggi")]:
+        return f"Aggiungi non scrive titolo, chi e quando: {righe[0]}"
+    voci = gesti(righe)["righe"]
+    if any(k in voci[0]["voci"] for k in ("chi-io", "quando-oggi", "riprendi")):
+        return f"il menu propone quello che il todo ha già: {sorted(voci[0]['voci'])}"
+    for (gesto, campo, valore), riga in zip(GESTI, voci):
+        argv = riga["fatto"] if gesto == "fatto" else riga["voci"][gesto]
+        r = cli(argv)
+        if r.returncode != 0:
+            return f"il gesto {gesto} non va sulla CLI: {argv} → {(r.stderr or r.stdout).strip()[:120]}"
+        avuto = mostra(riga["id"]).get(campo)
+        if avuto != valore:
+            return f"il gesto {gesto} lascia {campo} = {avuto!r}, atteso {valore!r}"
+    fermo = mostra(len(GESTI))
+    voci = gesti([fermo])["righe"][0]["voci"]
+    if "ferma" in voci or "riprendi" not in voci:
+        return f"a un todo fermo il menu propone {sorted(voci)}"
+    r = cli(voci["riprendi"])
+    if r.returncode != 0 or mostra(len(GESTI))["stato"] != "da fare":
+        return f"Riprendi non riapre il todo fermo: {(r.stderr or r.stdout).strip()[:120]}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12}
 
 
 def prova(repo: Path) -> list[str]:
@@ -406,6 +490,7 @@ VELENI = [
     ("HZ09", "shared/herdr/mods/arturo/dati.js", 'prompt: "/guidami"', 'prompt: "/guidamii"'),
     ("HZ10", "shared/herdr/mods/arturo/partenza.js", "catena.slice(qui + 1)", "catena.slice(qui)"),
     ("HZ11", "shared/herdr/mods/arturo/settimana.js", "else if (te) liste.te.push", "if (te) liste.te.push"),
+    ("HZ12", "shared/herdr/mods/arturo/azioni.js", "if (quando === t.quando) continue;", ""),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 

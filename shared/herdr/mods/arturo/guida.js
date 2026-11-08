@@ -41,7 +41,8 @@ const PASSI = [
     zona: "dafare",
     titolo: "Da fare, accanto a Claude",
     righe: [
-      "I todo del progetto, divisi fra te e Claude. Spunta quelli fatti; Lavoraci fa partire Claude da lì.",
+      "I todo del progetto, divisi fra te e Claude. Spunta quelli fatti; Lavoraci fa partire Claude da lì; Altro cambia chi lo fa e quando.",
+      "La settimana, in basso a sinistra, raccoglie i progetti da guardare. Si apre da sola alla prima apertura di ogni settimana.",
       "Cosa posso chiedere ti suggerisce le richieste. A fine giornata scrivi /fine.",
     ],
   },

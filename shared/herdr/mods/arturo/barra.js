@@ -34,7 +34,8 @@ export class Barra {
     cx.timer.every(30000, (cx) => this.carica(cx));
     // Quando una sessione cambia stato, i todo possono essere cambiati: si rileggono.
     cx.timer.every(3000, (cx) => {
-      const f = agents().map((a) => `${a.address}:${a.status}`).join(",");
+      // Anche un todo scritto dal pannello (shared arturo.scritto) cambia i conti della barra.
+      const f = agents().map((a) => `${a.address}:${a.status}`).join(",") + `|${shared("arturo.scritto") ?? ""}`;
       if (f !== this.firma) { this.firma = f; this.carica(cx); }
     });
     cx.spawn(async (cx) => {

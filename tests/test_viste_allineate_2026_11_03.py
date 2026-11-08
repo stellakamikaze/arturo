@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 """VA01-VA03: le tre viste dei todo sanno fare le stesse cose (3/11/2026, #3868).
 
-I todo si cambiano da tre posti: la CLI `arturo todo`, la pagina `arturo web` e il pannello /dafare.
+I todo si cambiano da quattro posti: la CLI `arturo todo`, la pagina `arturo web`, il pannello /dafare e,
+dall'8/11/2026 sul ramo herdr, il pannello Da fare di Herdr (shared/herdr/mods/arturo/azioni.js).
 Questo banco legge i verbi che scrivono in ognuno e li confronta. Un verbo manca da una vista solo se
 la tabella ECCEZIONI lo dice, col motivo: così un verbo nuovo della CLI non resta fuori dalla pagina
 o dal pannello senza che nessuno l'abbia deciso.
 
-VA01 ogni verbo che scrive della CLI c'è nella pagina e nel pannello, o ha la sua eccezione.
-VA02 la pagina e il pannello non hanno verbi che la CLI non conosce.
+VA01 ogni verbo che scrive della CLI c'è nella pagina e nei due pannelli, o ha la sua eccezione.
+VA02 la pagina e i pannelli non hanno verbi che la CLI non conosce.
 VA03 nessuna eccezione è superata: se la vista ora fa il verbo, l'eccezione va tolta.
 
-Con --avvelena tre copie rotte del repository devono far rosso il caso che le sorveglia: `dopo` tolto
-dalla pagina (VA01), un verbo inventato nel pannello (VA02), `su` aggiunto alla pagina con
+Con --avvelena quattro copie rotte del repository devono far rosso il caso che le sorveglia: `dopo` tolto
+dalla pagina (VA01), un verbo inventato nel pannello (VA02) e in quello di Herdr (VA02), `su` aggiunto alla pagina con
 l'eccezione ancora scritta (VA03). Sulla base acb4a39 la pagina non ha `dopo`: VA01 è rosso.
 """
 from __future__ import annotations
@@ -35,6 +36,12 @@ ECCEZIONI = {
     ("pannello", "scarta"): "scartare chiede un motivo: il pannello non ha campi, si chiede a Claude",
     ("pannello", "dopo"): "un legame chiede di scegliere un secondo todo: il pannello ha un tasto per riga",
     ("pannello", "inizia"): "\"in corso\" non è fra i sei tasti del pannello, che tiene i gesti più frequenti",
+    ("herdr", "su"): "il menu di Herdr sceglie \"quando\" per nome, con modifica --quando",
+    ("herdr", "giu"): "il menu di Herdr sceglie \"quando\" per nome, con modifica --quando",
+    ("herdr", "inizia"): "\"in corso\" lo scrive Lavoraci quando porta Claude sul todo (#4994)",
+    ("herdr", "deciso"): "una decisione si scrive a Claude, che la registra: il menu ha i gesti, non le scelte",
+    ("herdr", "dopo"): "un legame chiede di scegliere un secondo todo: si chiede a Claude",
+    ("herdr", "ripristina"): "serve solo all'annullo di pagina e /dafare: Herdr rimette le cose dal menu",
 }
 
 
@@ -61,20 +68,25 @@ def verbi(repo: Path) -> dict:
     # Ogni voce di VERBI lancia `arturo todo <verbo> ...` in argv e nel suo inverso: conta il primo elemento.
     pannello = set(re.findall(r"(?:argv|inverso):\s*t\s*=>\s*\[\s*'([a-z]+)'", testo))
     pannello |= set(re.findall(r"return\s*\[\s*'([a-z]+)'", testo))  # gli inversi scritti come funzione
-    return {"cli": set(cli.SCRIVONO) | {"aggiungi"}, "pagina": set(web.AZIONI), "pannello": pannello}
+    # Il pannello di Herdr: il primo elemento di ogni argv di azioni.js, anche dentro una funzione.
+    herdr = repo / "shared" / "herdr" / "mods" / "arturo" / "azioni.js"
+    testo_h = herdr.read_text(encoding="utf-8") if herdr.exists() else ""
+    vista_h = set(re.findall(r'argv:\s*(?:\(\s*\w*\s*\)\s*=>\s*)?\[\s*"([a-z]+)"', testo_h))
+    return {"cli": set(cli.SCRIVONO) | {"aggiungi"}, "pagina": set(web.AZIONI), "pannello": pannello, "herdr": vista_h}
 
 
-ARTICOLO = {"pagina": "la pagina", "pannello": "il pannello"}
+ARTICOLO = {"pagina": "la pagina", "pannello": "il pannello", "herdr": "il pannello di Herdr"}
+VISTE = tuple(ARTICOLO)
 
 
 def prova(repo: Path) -> list:
     v = verbi(repo)
     rossi = []
-    for vista in ("pagina", "pannello"):
+    for vista in VISTE:
         mancano = sorted(x for x in v["cli"] - v[vista] if (vista, x) not in ECCEZIONI)
         if mancano:
             rossi.append(f"VA01 {ARTICOLO[vista]} non fa {', '.join(mancano)}: aggiungili o scrivi l'eccezione col motivo")
-    for vista in ("pagina", "pannello"):
+    for vista in VISTE:
         estranei = sorted(v[vista] - v["cli"])
         if estranei:
             rossi.append(f"VA02 {ARTICOLO[vista]} usa verbi che la CLI non conosce: {', '.join(estranei)}")
@@ -88,6 +100,7 @@ VELENI = [
     ("VA01", "bin/arturo_web.py", '"ripristina", "dopo") + tuple', '"ripristina") + tuple'),
     ("VA02", "skills/arturo/hooks/dafare/verbi.mjs", "argv: t => ['fatto', String(t.id), titolo(t)]",
      "argv: t => ['archivia', String(t.id), titolo(t)]"),
+    ("VA02", "shared/herdr/mods/arturo/azioni.js", 'argv: () => ["riprendi"', 'argv: () => ["archivia"'),
     ("VA03", "bin/arturo_web.py", '"ripristina", "dopo") + tuple', '"ripristina", "dopo", "su") + tuple'),
 ]
 

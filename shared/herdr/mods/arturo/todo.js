@@ -1,5 +1,6 @@
 // Il pannello "Da fare": i todo del progetto aperto, divisi per chi agisce.
-// Casella: segna fatto. "Lavoraci": porta Claude su quel todo.
+// Casella: segna fatto. "Lavoraci": porta Claude su quel todo. "Altro": chi lo fa, quando, fermo,
+// nota, scarta (menu.js). "Aggiungi" in alto: un todo nuovo senza passare da Claude.
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
@@ -7,6 +8,8 @@ import { theme, spaces, shared, notify } from "herdr";
 import { todo, slug, apri, PAROLE, titoloTodo } from "./dati.js";
 import { ICONA } from "./comuni.js";
 import { partenza } from "./partenza.js";
+import { fatto } from "./azioni.js";
+import { apriMenu, apriNuovo } from "./menu.js";
 
 const ORDINE = ["tu", "decidi", "io", "fermo"];
 
@@ -21,7 +24,7 @@ export class Todo {
     this.fatti = new Set();
     cx.timer.every(1500, (cx) => {
       const p = this.attivo();
-      const letto = shared("arturo.letto");
+      const letto = `${shared("arturo.letto")}:${shared("arturo.scritto")}`;
       if (p !== this.progetto || letto !== this.letto) { this.progetto = p; this.letto = letto; this.carica(cx); }
     });
     this.progetto = this.attivo();
@@ -50,7 +53,7 @@ export class Todo {
     this.fatti.add(t.id);
     cx.notify();
     cx.spawn(async (cx) => {
-      const r = await todo(["fatto", String(t.id), `--titolo-atteso=${t.titolo}`]);
+      const r = await todo(fatto(t).argv);
       if (r.ok) notify({ title: "Fatto", body: t.titolo, level: "success", timeout: 4000 });
       else {
         this.fatti.delete(t.id);
@@ -81,7 +84,12 @@ export class Todo {
         .text_size(12).text_color(t.accent).border_1().border_color(t.border)
         .hover((s) => s.bg(t.selected))
         .on_click(() => apri(this.progetto, { id: item.id, titolo: item.titolo }))
-        .child("Lavoraci")));
+        .child("Lavoraci")))
+      .when(sopra && !fatto, (el) => el.child(div().id(`m-${item.id}`).flex_none().px(9).py(4).rounded(6).cursor_pointer()
+        .text_size(12).text_color(t.muted).border_1().border_color(t.border)
+        .hover((s) => s.bg(t.selected))
+        .on_click(() => apriMenu(item))
+        .child("Altro")));
   }
 
   gruppo(t, tipo, lista) {
@@ -136,7 +144,13 @@ export class Todo {
     }
     return v_flex().size_full().bg(t.chrome).rounded(8).border_1().border_color(t.border)
       .child(v_flex().px(16).pt(14).pb(10).gap(2)
-        .child(div().font_family("Arturo Archivo").text_size(15).text_color(t.foreground).child("Da fare"))
+        .child(h_flex().items_center()
+          .child(div().flex_1().font_family("Arturo Archivo").text_size(15).text_color(t.foreground).child("Da fare"))
+          .when(Boolean(this.progetto) && !this.errore, (el) => el.child(h_flex().id("todo-aggiungi").px(8).py(3).gap(5).items_center()
+            .rounded(6).cursor_pointer().text_size(12).text_color(t.muted).hover((s) => s.bg(t.hover).text_color(t.foreground))
+            .on_click(() => apriNuovo(shared("arturo.progetti")?.[this.progetto]?.nome ?? this.progetto, shared("arturo.progetti")?.[this.progetto]?.titolo))
+            .child(svg(ICONA("plus")).size(12))
+            .child("Aggiungi"))))
         .when(Boolean(this.progetto), (el) => {
           const info = shared("arturo.progetti")?.[this.progetto];
           return el.child(div().truncate().text_size(12.5).text_color(t.foreground).child(info?.titolo ?? this.progetto))
