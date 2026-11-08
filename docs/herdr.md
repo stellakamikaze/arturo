@@ -6,6 +6,7 @@
 - **Al centro, la conversazione con Claude.** Scrivi come in una chat. "Altra conversazione" ne apre una seconda sullo stesso progetto.
 - **A destra, Da fare.** I todo del progetto divisi per chi agisce: "Tocca a te", "Decidi tu, poi fa Claude", "Ci pensa Claude", "Fermi". La casella segna un todo fatto. "Lavoraci" porta Claude su quel todo.
 - **In basso,** quante sessioni lavorano e quante ti aspettano.
+- **La settimana,** in basso a sinistra: i progetti con todo scaduti, quelli che aspettano te e quelli fermi da più di sette giorni, ognuno in una lista sola. "Fai il punto" apre Claude sul progetto con `/inizio`. La finestra si apre da sola alla prima apertura di ogni settimana, se c'è qualcosa da guardare.
 
 **Per cominciare.** Al primo avvio una guida di quattro passi mostra cosa sa fare la finestra; poi resta alla voce "Guida". "Cosa posso chiedere", in basso a sinistra e in alto, raccoglie le richieste da imparare: un clic e Claude parte. Chi non ha ancora progetti vede "Trova i miei progetti": Claude cerca sul computer le cartelle di lavoro con le stesse regole di `/setup` (un sì per ogni lettura, niente file spostati) e crea un progetto per ogni lavoro che confermi ([shared/herdr/trova-progetti.md](../shared/herdr/trova-progetti.md)). Le cartelle della base dei progetti compaiono a sinistra anche senza todo.
 

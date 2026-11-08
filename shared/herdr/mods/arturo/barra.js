@@ -7,6 +7,8 @@ import { todo, progetti, sezioni, frase, apri, nuova, slug, cartelle, SUGGERIMEN
 import { ICONA, punto, pulsante, colore, apriFinestra } from "./comuni.js";
 import { apriGuida } from "./guida.js";
 import { apriSuggerimenti, esegui } from "./suggerimenti.js";
+import { apriRevisione } from "./revisione.js";
+import { revisione, settimanaDi } from "./settimana.js";
 
 export class Marchio {
   render() {
@@ -27,7 +29,8 @@ export class Barra {
     this.firma = "";
     this.carica(cx);
     // La guida si apre da sola la prima volta, per chi arriva da /setup e per chi usa già Arturo.
-    if (!shared("arturo.guida")) cx.timer.after(900, () => { setShared("arturo.guida", "vista"); apriGuida(); });
+    this.primoAvvio = !shared("arturo.guida");
+    if (this.primoAvvio) cx.timer.after(900, () => { setShared("arturo.guida", "vista"); apriGuida(); });
     cx.timer.every(30000, (cx) => this.carica(cx));
     // Quando una sessione cambia stato, i todo possono essere cambiati: si rileggono.
     cx.timer.every(3000, (cx) => {
@@ -39,6 +42,7 @@ export class Barra {
         const c = await nextCommand();
         if (c === "apri") apriFinestra();
         else if (c === "chiedi") apriSuggerimenti();
+        else if (c === "settimana") apriRevisione();
         else if (/^guida\d?$/.test(c)) apriGuida(Math.max(0, Number(c.slice(5) || 1) - 1));
         else if (c === "nuova") await nuova();
         cx.notify();
@@ -64,10 +68,21 @@ export class Barra {
         for (const p of progetti(this.vista, this.extra())) mappa[p.chiave] = { nome: p.nome ?? p.chiave, titolo: p.titolo, riga: p.calcolato ? "" : (p.riga ?? "") };
         setShared("arturo.progetti", mappa);
         setShared("arturo.letto", Date.now());
+        this.settimana();
       }
       else this.errore = r.errore;
       cx.notify();
     });
+  }
+
+  // La revisione della settimana si apre da sola alla prima lettura di ogni settimana, se c'è qualcosa
+  // da guardare. Al primo avvio no: c'è già la guida.
+  settimana() {
+    const ora = settimanaDi(this.vista?.oggi ?? "");
+    if (!ora || shared("arturo.settimana") === ora) return;
+    setShared("arturo.settimana", ora);
+    const l = revisione(this.vista);
+    if (!this.primoAvvio && (l.scaduti.length || l.te.length || l.fermi.length)) apriRevisione();
   }
 
   extra() {
@@ -118,6 +133,7 @@ export class Piede {
       .child(svg(icona.includes("/") ? icona : ICONA(icona)).size(15)).child(div().flex_1().text_size(13).child(testo));
     return v_flex().size_full().bg(t.chrome).border_t(1).border_color(t.border).px(8).py(8).gap(2)
       .child(voce("chiedi", "mods/arturo/chiedi.svg", "Cosa posso chiedere", () => apriSuggerimenti()))
+      .child(voce("settimana", "mods/arturo/settimana.svg", "La settimana", () => apriRevisione()))
       .child(voce("guida", "mods/arturo/guida.svg", "Guida", () => apriGuida()))
       .child(voce("impostazioni", "settings", "Impostazioni", () => run("app.settings"))
         .when(Boolean(updates().app.ready), (el) => el.child(punto(t.accent, 7))));

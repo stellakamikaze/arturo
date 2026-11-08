@@ -1,6 +1,7 @@
 // Arturo per Herdr: un mod, più parti. Il layout dice quale con props.parte:
 // marchio, barra (i progetti), piede, testata, todo (il pannello Da fare), stato, benvenuto.
-// "Apri un progetto" (apri) e la guida (guida) si aprono come dialoghi.
+// "Apri un progetto" (apri), la guida (guida), "Cosa posso chiedere" (chiedi) e "La settimana"
+// (settimana) si aprono come dialoghi.
 
 import { View } from "gpui-kit";
 import { props } from "herdr";
@@ -10,8 +11,9 @@ import { Todo } from "./todo.js";
 import { Apri } from "./apri.js";
 import { Guida } from "./guida.js";
 import { Chiedi } from "./suggerimenti.js";
+import { Settimana } from "./revisione.js";
 
-const PARTI = { marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi };
+const PARTI = { marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi, settimana: Settimana };
 
 export default class Arturo extends View {
   init(p, cx) {

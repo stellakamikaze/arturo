@@ -24,8 +24,12 @@ HZ09 i suggerimenti della finestra puntano a cose che esistono: ogni comando sla
 HZ10 "Da dove partire" in cima al pannello Da fare (partenza.js, con node): il todo di da_dove col motivo,
      poi al massimo tre passi della catena dopo di lui, senza i todo segnati fatti; niente scheda senza
      da_dove o col todo già fatto. Senza node il caso si salta.
+HZ11 "La settimana" (settimana.js, con node): ogni progetto in una lista sola, la più urgente (scaduti,
+     poi aspettano te, poi fermi da più di sette giorni), ognuna dal caso peggiore, col motivo che dice
+     tutti i fatti; un progetto senza niente da guardare resta fuori. La settimana ISO regge il cambio
+     d'anno. La finestra è una parte di main.js e il piede la apre. Senza node il caso si salta.
 
-Con --avvelena otto copie rotte del repository devono far rosso il caso che le sorveglia.
+Con --avvelena nove copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
 
@@ -39,7 +43,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11")
 INSTALLA = Path("shared/herdr/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -325,7 +329,59 @@ def hz10(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10}
+PROVA_SETTIMANA = r"""
+import { revisione, settimanaDi } from %s;
+const t = (progetto, giorni) => ({ progetto, giorni });
+const vista = {
+  gruppi: [{ tipo: "tu", todo: [t("a", -3), t("a", -20), t("b", 2), t("c", -1)] }],
+  progetti: [
+    { nome: "a", chiedono_te: 4, eta_gg: 15 },
+    { nome: "b", chiedono_te: 1, eta_gg: 2 },
+    { nome: "c", chiedono_te: 0, eta_gg: null },
+    { nome: "d", chiedono_te: 9, eta_gg: 1 },
+    { nome: "e", chiedono_te: 0, eta_gg: 8 },
+    { nome: "f", chiedono_te: 0, eta_gg: 7 },
+    { nome: "g", chiedono_te: 0, eta_gg: 30 },
+  ],
+};
+const r = revisione(vista);
+const forma = (l) => l.map((v) => [v.progetto.nome, v.motivo]);
+console.log(JSON.stringify({ scaduti: forma(r.scaduti), te: forma(r.te), fermi: forma(r.fermi),
+  settimane: ["2026-11-08", "2026-11-09", "2021-01-03", "2024-12-30", "x"].map(settimanaDi) }));
+"""
+
+
+def hz11(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/herdr/mods/arturo"
+    main = (mod / "main.js").read_text(encoding="utf-8")
+    if "settimana: Settimana" not in main or 'from "./revisione.js"' not in main:
+        return "main.js non ha la parte settimana"
+    if "apriRevisione()" not in (mod / "barra.js").read_text(encoding="utf-8"):
+        return "barra.js non apre La settimana"
+    node = shutil.which("node")
+    if not node:
+        return None
+    copia = casa / "settimana.mjs"
+    shutil.copyfile(mod / "settimana.js", copia)
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_SETTIMANA % json.dumps(copia.as_uri())],
+                       capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"settimana.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    avuto = json.loads(r.stdout.strip().splitlines()[-1])
+    atteso = {
+        "scaduti": [["a", "2 todo scaduti, il più vecchio da 20 giorni · 4 todo aspettano te · ultimo punto 15 giorni fa"],
+                    ["c", "1 todo scaduto da 1 giorno"]],
+        "te": [["d", "9 todo aspettano te"], ["b", "1 todo aspetta te"]],
+        "fermi": [["g", "Ultimo punto 30 giorni fa"], ["e", "Ultimo punto 8 giorni fa"]],
+        "settimane": ["2026-W45", "2026-W46", "2020-W53", "2025-W01", ""],
+    }
+    for k, v in atteso.items():
+        if avuto.get(k) != v:
+            return f"{k}: atteso {v}, avuto {avuto.get(k)}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11}
 
 
 def prova(repo: Path) -> list[str]:
@@ -349,6 +405,7 @@ VELENI = [
     ("HZ05", "settings.json", "herdr-stato.sh done", "herdr-stato.sh idle"),
     ("HZ09", "shared/herdr/mods/arturo/dati.js", 'prompt: "/guidami"', 'prompt: "/guidamii"'),
     ("HZ10", "shared/herdr/mods/arturo/partenza.js", "catena.slice(qui + 1)", "catena.slice(qui)"),
+    ("HZ11", "shared/herdr/mods/arturo/settimana.js", "else if (te) liste.te.push", "if (te) liste.te.push"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 
