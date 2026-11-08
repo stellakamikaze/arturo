@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""D01-D12: la deriva fra la config della persona e quella di Arturo (hooks/deriva.py).
+"""D01-D13: la deriva fra la config della persona e quella di Arturo (hooks/deriva.py).
 
 Ogni caso costruisce un Arturo finto (un repository con settings.json, un comando e due hook), lo
 clona come ~/.claude in una HOME finta e cambia la config come farebbe una persona. La telemetria
@@ -226,9 +226,32 @@ def test_d12(repo: Path) -> None:
     assert ("deriva", "file:hooks/bash-dispatcher.sh") in lab.coda(), f"D12 un contenuto cambiato non esce più: {lab.coda()}"
 
 
+def test_d13(repo: Path) -> None:
+    # Review del 7/11/2026, finding 38: la seconda macchina del README clona il repository privato della persona come
+    # ~/.claude, senza upstream. origin/main è il suo repository, e i suoi file sembravano di Arturo: il nome di un
+    # documento suo usciva nella telemetria. Il messaggio dell'avvio resta, la telemetria dice file:altro.
+    lab = Lab(repo)
+    (lab.arturo / "docs").mkdir()
+    (lab.arturo / "docs" / "preventivo-clienti-rossi.md").write_text("Preventivo\n", encoding="utf-8")
+    git(lab.arturo, "add", "-A")
+    git(lab.arturo, "commit", "-q", "-m", "mio: preventivo")
+    git(lab.claude, "pull", "-q")
+    git(lab.claude, "remote", "set-url", "origin", "https://github.com/mario/config-privata.git")
+    (lab.claude / "docs" / "preventivo-clienti-rossi.md").write_text("Preventivo cambiato\n", encoding="utf-8")
+    r = lab.deriva()
+    assert "1 file di Arturo" in r.stdout, f"D13 il messaggio dell'avvio sparisce: {r.stdout!r} {r.stderr!r}"
+    assert lab.coda() and "rossi" not in json.dumps(lab.coda()), f"D13 un file della persona esce col suo nome: {lab.coda()}"
+    assert ("deriva", "file:altro") in lab.coda(), f"D13 il file cambiato non conta come altro: {lab.coda()}"
+    # Con l'indirizzo di Arturo su GitHub il nome di un file di Arturo esce come prima.
+    git(lab.claude, "remote", "set-url", "origin", "git@github.com:stellakamikaze/arturo.git")
+    lab.deriva()
+    assert ("deriva", "file:docs/preventivo-clienti-rossi.md") in lab.coda(), \
+        f"D13 con origin su Arturo un file di Arturo non esce più col suo nome: {lab.coda()}"
+
+
 TESTS = {"D01": test_d01, "D02": test_d02, "D03": test_d03, "D04": test_d04, "D05": test_d05,
          "D06": test_d06, "D07": test_d07, "D08": test_d08, "D09": test_d09, "D10": test_d10, "D11": test_d11,
-         "D12": test_d12}
+         "D12": test_d12, "D13": test_d13}
 
 
 def main() -> int:

@@ -13,6 +13,32 @@ modo di lavorare.
 
 ---
 
+## 2026-11-08 — Telemetria: meno nomi in giro, tetti contro gli invii finti
+
+**Cosa cambia**: undici correzioni al server della telemetria e alla parte di Arturo che gli parla.
+- Su una seconda macchina, dove `~/.claude` è il clone del tuo repository privato senza `upstream`, i tuoi file
+  non sembrano più file di Arturo: nella telemetria contano come `file:altro`. Prima il nome di un tuo documento
+  modificato e non ancora mandato al tuo repository poteva uscire. Il messaggio dell'avvio sulla deriva resta.
+- Il server tiene i nomi dei file di Arturo solo per le cartelle dove crei cose tue (anche `hooks/`); delle altre
+  tiene la sola cartella.
+- Il server non conosce più i nomi delle persone: le email a chi mantiene Arturo dicono le prime 8 cifre dell'id,
+  come promette `docs/privacy.md`. La pagina della privacy ora dice anche cosa porta il recap di ogni mattina.
+- Due sessioni aperte nello stesso momento non mandano più gli stessi eventi due volte, e non perdono quelli
+  registrati durante l'invio. Una segnalazione in attesa parte una volta sola.
+- Lo sportello delle segnalazioni chiede prima le più nuove e si ferma quando il server dice "troppe richieste":
+  con più di dieci segnalazioni aperte, le risposte alle ultime arrivano.
+- La pulizia di `/segnala` toglie le cartelle personali anche nei percorsi Windows con le barre doppie e con lo
+  spazio nel nome (`C:\Users\Mario Rossi\...`).
+- Sul server: tetti contro chi manda eventi finti con id inventati, un ritiro di segnalazione ripetuto che non
+  suona più, il recap che dice quali eventi conta.
+
+**Il principio**: la telemetria promette di non dire chi sei né cosa hai sul computer. Ogni nome che esce va
+contro quella promessa, anche per sbaglio.
+
+**A chi serve**: a chi usa Arturo su più macchine, a chi segnala da Windows, a chi lo mantiene.
+
+---
+
 ## 2026-11-08 — Guardie più attente: commenti, push forzati, segreti nei commit, Windows
 
 **Cosa cambia**: undici correzioni alle guardie che controllano i comandi prima che partano.

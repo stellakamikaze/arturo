@@ -199,11 +199,21 @@ def segreti_trovati(testo: str) -> list:
 def togli_home(testo: str) -> str:
     """Ogni cartella personale diventa ~: la propria e quelle di altri che compaiono in un log."""
     casa = str(Path.home())
-    for forma in {casa, os.path.realpath(casa)}:
+    # Anche con le barre doppie del repr di un percorso Windows e con le barre dritte (review del 7/11/2026, finding 44):
+    # 'C:\\\\Users\\\\mrossi\\\\.claude' di un errore Python restava intero.
+    forme = set()
+    for f in {casa, os.path.realpath(casa)}:
+        forme |= {f, f.replace("\\", "\\\\"), f.replace("\\", "/")}
+    for forma in sorted(forme, key=len, reverse=True):
         if len(forma) > 1:
             testo = testo.replace(forma, "~")
-    testo = re.sub(r"/(?:Users|home)/[^/\s\"'`]+", "~", testo)
-    return re.sub(r"(?i)[A-Z]:\\Users\\[^\\\s\"'`]+", "~", testo)
+    # Le cartelle personali di altri: il nome arriva fino alla barra dopo, spazi compresi ("Mario Rossi"); senza una
+    # barra entro 64 caratteri si ferma allo spazio. Una o due barre, dritte o rovesciate.
+    sep = r"(?:\\\\|\\|/)"
+    for nome in (r"[^\\/\"'`\r\n<>|:*?]{1,64}?(?=[\\/])", r"[^\\/\s\"'`]+"):
+        testo = re.sub(r"(?i)\b[A-Z]:" + sep + r"Users" + sep + nome, "~", testo)
+        testo = re.sub(r"/(?:Users|home)/" + nome, "~", testo)
+    return testo
 
 
 def _ip_vero(valore: str) -> bool:

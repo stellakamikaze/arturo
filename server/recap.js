@@ -2,7 +2,7 @@
 // Federico: il recap "deve far capire quanto e come Arturo è usato". Prima era il muro di testo di testoRiepilogo, con
 // le righe a zero ("nessuna") più numerose di quelle piene. Qui una riga a zero sparisce, e il suo nome va nel piede.
 // Il testo semplice resta in logica.js (testoRiepilogo), con in testa le righe di righeGiorno.
-import { LIMITI, task, nomeDi } from "./logica.js";
+import { LIMITI, task, idCorto, derivaPubblica, derivaInBreve } from "./logica.js";
 import { testoLancillotto } from "./lancillotto.js";
 import { pagina, sezione, tabella, cifre, elenco, paragrafo, codice, crudo, esc } from "./email.js";
 
@@ -11,6 +11,9 @@ const per = (a, b) => (b ? `${Math.round((100 * a) / b)}%` : "-");
 const uno = (n, singolare, plurale) => `${n} ${n === 1 ? singolare : plurale}`;
 const media = (x) => (Math.round(x * 10) / 10).toString().replace(".", ",");
 const DIECI = 10;
+// Il recap conta gli eventi arrivati prima del cron delle 6 UTC (finding 46): il client li manda alla sessione dopo, al
+// massimo ogni 6 ore, e le sessioni della sera di solito arrivano il mattino dopo, a recap partito. Il lunedì le conta.
+const ARRIVATI = "Conta gli eventi arrivati prima delle 7 (le 8 con l'ora legale): le sessioni della sera spesso arrivano dopo, e le conta il riepilogo del lunedì.";
 
 // Il giorno "2026-11-04" come "4/11".
 const breve = (giorno) => `${Number(giorno.slice(8, 10))}/${Number(giorno.slice(5, 7))}`;
@@ -22,44 +25,54 @@ function impronta(valori) {
   return h.toString(36);
 }
 
-// Il nome con l'id accanto, come lo legge chi mantiene Arturo: "Gigi (91288389)", oppure l'id solo.
-function chi(nomi, installazione) {
-  const n = nomeDi(nomi, installazione);
-  return crudo(n === corto(installazione) ? codice(n).html : `${esc(n)} <span style="color:#59606a">(${esc(corto(installazione))})</span>`);
-}
+// L'id corto di un'installazione, come lo legge chi mantiene Arturo: i nomi non stanno nel Worker (finding 39).
+const chi = (installazione) => codice(idCorto(installazione));
 
-// Le installazioni con una deriva che ostacola: hook spenti, guardie modificate, aggiornamento in conflitto.
+// Le installazioni con una deriva che ostacola: hook spenti, guardie modificate, aggiornamento in conflitto. I valori
+// passano dagli elenchi chiusi anche qui: le righe salvate prima del 8/11/2026 avevano le radici aperte (finding 37).
 export function ostacoli(deriva) {
   const fuori = [];
   for (const d of deriva || []) {
-    const hook = d.valori.filter((v) => v.startsWith("hook:"));
-    const guardie = d.valori.filter((v) => v.startsWith("file:hooks/"));
-    const altri = d.valori.filter((v) => v.startsWith("file:") && !v.startsWith("file:hooks/"));
+    const valori = (d.valori || []).map(derivaPubblica);
+    const hook = valori.filter((v) => v.startsWith("hook:"));
+    const guardie = valori.filter((v) => v.startsWith("file:hooks/"));
+    const altri = valori.filter((v) => v.startsWith("file:") && !v.startsWith("file:hooks/"));
     const cosa = [hook.length ? "hook spenti" : "", guardie.length ? "guardie modificate" : "", d.conflitto && altri.length ? "aggiornamento in conflitto" : ""]
       .filter(Boolean);
-    if (cosa.length) fuori.push({ installazione: d.installazione, cosa: cosa.join(", "), valori: d.valori });
+    if (cosa.length) fuori.push({ installazione: d.installazione, cosa: cosa.join(", "), valori, vista: d.vista === true });
   }
   return fuori;
 }
 
 // Le righe da fare, ognuna con il suo task. Le config rotte hanno già il task dalla loro email: qui si ripetono con
 // la stessa impronta, così un recap riletto non fa doppioni.
-function daFare({ indietro = [], banchi = [], deriva = [], config = [] }, nomi, giorno) {
+function daFare({ indietro = [], banchi = [], deriva = [], config = [] }, giorno) {
   const righe = [];
   for (const x of indietro) {
-    righe.push({ testo: `L'installazione di ${nomeDi(nomi, x.installazione)} è ferma alla ${x.rilascio} dal ${breve(x.dal)}: serve un /aggiorna a mano per la ${x.nuovo}.`,
-      task: task(`indietro:${corto(x.installazione)}:${x.nuovo}`, `Sbloccare l'aggiornamento di ${nomeDi(nomi, x.installazione)} alla ${x.nuovo}`,
+    righe.push({ testo: `L'installazione di ${idCorto(x.installazione)} è ferma alla ${x.rilascio} dal ${breve(x.dal)}: serve un /aggiorna a mano per la ${x.nuovo}.`,
+      task: task(`indietro:${corto(x.installazione)}:${x.nuovo}`, `Sbloccare l'aggiornamento di ${idCorto(x.installazione)} alla ${x.nuovo}`,
         { note: `Ferma alla ${x.rilascio}, attiva il ${x.ultima}. Il primo passo è chiedere un /aggiorna a mano.` }) });
   }
   for (const x of banchi) {
-    righe.push({ testo: `Il banco ${x.valore} è rosso su ${nomeDi(nomi, x.installazione)} (${x.versione}), dal ${breve(x.dal)}.`,
-      task: task(`banco:${corto(x.installazione)}:${x.valore}`, `Riparare il banco ${x.valore} su ${nomeDi(nomi, x.installazione)}`,
+    righe.push({ testo: `Il banco ${x.valore} è rosso su ${idCorto(x.installazione)} (${x.versione}), dal ${breve(x.dal)}.`,
+      task: task(`banco:${corto(x.installazione)}:${x.valore}`, `Riparare il banco ${x.valore} su ${idCorto(x.installazione)}`,
         { note: `Rosso dal ${x.dal} sulla ${x.versione}. Il primo passo è rifarlo girare su quella versione.` }) });
   }
-  for (const x of ostacoli(deriva)) {
-    righe.push({ testo: `La config di ${nomeDi(nomi, x.installazione)} si è allontanata da Arturo: ${x.cosa}.`,
-      task: task(`deriva:${corto(x.installazione)}:${impronta(x.valori)}`, `Guardare la deriva di ${nomeDi(nomi, x.installazione)}: ${x.cosa}`,
-        { note: `Differenze: ${x.valori.map((v) => v.replace(/^(file|hook):/, "")).join(", ")}.` }) });
+  // La deriva fa un task solo per un'installazione vista in almeno due giorni, e al massimo LIMITI.taskDerivaPerEmail
+  // per email (finding 37): un POST di chiunque con un id inventato faceva un task per Claude, uno per id. La nota dice
+  // solo nomi degli elenchi chiusi, mai un percorso arrivato dal client.
+  const conTask = [];
+  const senzaTask = [];
+  for (const x of ostacoli(deriva)) (x.vista && conTask.length < LIMITI.taskDerivaPerEmail ? conTask : senzaTask).push(x);
+  for (const x of conTask) {
+    const differenze = [...new Set(x.valori.map(derivaInBreve))];
+    righe.push({ testo: `La config di ${idCorto(x.installazione)} si è allontanata da Arturo: ${x.cosa}.`,
+      task: task(`deriva:${corto(x.installazione)}:${impronta(x.valori)}`, `Guardare la deriva di ${idCorto(x.installazione)}: ${x.cosa}`,
+        { note: `Differenze: ${differenze.join(", ")}.` }) });
+  }
+  if (senzaTask.length) {
+    righe.push({ testo: `${uno(senzaTask.length, "altra installazione ha", "altre installazioni hanno")} una deriva che ostacola, senza task: ` +
+      `${senzaTask.some((x) => !x.vista) ? "viste in un giorno solo, o " : ""}oltre le prime ${LIMITI.taskDerivaPerEmail}.`, task: null });
   }
   for (const x of config) {
     righe.push({ testo: `${uno(x.n, "config rotta", "config rotte")} (${x.valore.replace("rotta-", "")}): il task è nato con la sua email.`, task: null });
@@ -102,7 +115,7 @@ function tabellaGuardie(g) {
 }
 
 const sezioneDaFare = (righe) => sezione("Da fare", elenco(righe.map((r) => r.testo)),
-  { evidenza: true, nota: "Ogni riga è già un task, tranne le config rotte, che lo hanno dalla loro email." });
+  { evidenza: true, nota: "Ogni riga è già un task, tranne le config rotte, che lo hanno dalla loro email, e la riga della deriva senza task." });
 
 function lancillotto(r) {
   const t = testoLancillotto(r);
@@ -110,16 +123,17 @@ function lancillotto(r) {
 }
 
 // Le righe di testo che il recap del mattino mette in testa, sotto il titolo.
-export function righeGiorno(r, g, { nomi = {}, giorno } = {}) {
+export function righeGiorno(r, g, { giorno } = {}) {
   if (!g) return [];
-  const fare = daFare({ indietro: g.indietro, banchi: r.banchi, deriva: r.deriva, config: r.config }, nomi, giorno);
+  const fare = daFare({ indietro: g.indietro, banchi: r.banchi, deriva: r.deriva, config: r.config }, giorno);
   const sette = new Map((g.settimana || []).map((x) => [x.installazione, x.giorniAttivi]));
   return [
     `Ieri ${uno(g.uso.length, "installazione ha", "installazioni hanno")} usato Arturo, ${uno(r.sessioni, "sessione", "sessioni")}. ` +
       `Nei 7 giorni prima la media era ${media(g.media.installazioni)} installazioni e ${media(g.media.sessioni)} sessioni al giorno.`,
+    ARRIVATI,
     "",
     "Chi l'ha usato (sessioni, giorni attivi su 7, cosa):",
-    ...(g.uso.length ? g.uso.map((x) => `  ${nomeDi(nomi, x.installazione)}  ${x.sessioni} sessioni, ${sette.get(x.installazione) || 1} su 7, ` +
+    ...(g.uso.length ? g.uso.map((x) => `  ${idCorto(x.installazione)}  ${x.sessioni} sessioni, ${sette.get(x.installazione) || 1} su 7, ` +
       `${[lista(x.comandi, "/"), (x.skill || []).length ? `skill ${lista(x.skill)}` : ""].filter(Boolean).join(" · ") || "solo sessioni"}`) : ["  nessuna"]),
     ...(fare.length ? ["", "Da fare:", ...fare.map((x) => `  ${x.testo}`)] : []),
     "",
@@ -127,10 +141,10 @@ export function righeGiorno(r, g, { nomi = {}, giorno } = {}) {
 }
 
 // Il recap del mattino. `g` è archivio.giorno(): senza (un archivio vecchio), restano i numeri di riepilogo().
-export function recapGiorno(r, g, { giorno, nomi = {}, leggi = "" } = {}) {
+export function recapGiorno(r, g, { giorno, leggi = "" } = {}) {
   const usate = g ? g.uso : [];
   const quante = g ? usate.length : r.installazioni;
-  const fare = daFare({ indietro: g ? g.indietro : [], banchi: r.banchi, deriva: r.deriva, config: r.config }, nomi, giorno);
+  const fare = daFare({ indietro: g ? g.indietro : [], banchi: r.banchi, deriva: r.deriva, config: r.config }, giorno);
   const sette = new Map(((g && g.settimana) || []).map((x) => [x.installazione, x.giorniAttivi]));
   const vuote = [];
   const se = (cond, nome, fai) => (cond ? fai() : (vuote.push(nome), ""));
@@ -156,7 +170,7 @@ export function recapGiorno(r, g, { giorno, nomi = {}, leggi = "" } = {}) {
       { valore: r.segnalazioni, etichetta: r.segnalazioni === 1 ? "segnalazione" : "segnalazioni" }])),
     fare.length ? sezioneDaFare(fare) : "",
     se(usate.length, "chi l'ha usato", () => sezione("Chi l'ha usato", tabella(["Chi", "Sessioni", "Giorni su 7", "Cosa ha usato"],
-      usate.map((x) => [crudo(`${chi(nomi, x.installazione).html}<br><span style="color:#59606a;font-size:13px">${esc(x.versione)} · ${esc(x.sistema)}</span>`),
+      usate.map((x) => [crudo(`${chi(x.installazione).html}<br><span style="color:#59606a;font-size:13px">${esc(x.versione)} · ${esc(x.sistema)}</span>`),
         x.sessioni, sette.get(x.installazione) || 1, crudo(cosaHaUsato(x))]), { numeriche: [1, 2] }))),
     se(comandi.length, "comandi e skill", () => sezione("Comandi e skill più usati", tabella(["Cosa", "Volte"],
       comandi.slice(0, DIECI).map((x) => [codice(x.valore), x.n]), { numeriche: [1] }) + fasce.map((f) => paragrafo(f, { attenuato: true })).join(""))),
@@ -171,7 +185,7 @@ export function recapGiorno(r, g, { giorno, nomi = {}, leggi = "" } = {}) {
     se(sito.length, "sito", () => sezione("Dal sito", paragrafo(`${sito.join(", ")}.`))),
     se((r.aggiorna || []).length, "aggiornamenti", () => sezione("Aggiornamenti", paragrafo((r.aggiorna || []).map((x) => `${x.valore} ${x.n}`).join(", ")))),
     se((r.banchi || []).length, "banchi rossi", () => sezione("Banchi delle guardie rossi", tabella(["Banco", "Dove", "Dal"],
-      r.banchi.map((x) => [codice(x.valore), `${nomeDi(nomi, x.installazione)} · ${x.versione}`, breve(x.dal)])))),
+      r.banchi.map((x) => [codice(x.valore), `${idCorto(x.installazione)} · ${x.versione}`, breve(x.dal)])))),
     se(versioni, "versioni", () => sezione("Versioni e sistemi", paragrafo(versioni))),
     lancillotto(r.lancillotto),
   ];
@@ -185,7 +199,7 @@ export function recapGiorno(r, g, { giorno, nomi = {}, leggi = "" } = {}) {
         : `Il giorno ${breve(giorno)}: ${uno(r.installazioni, "installazione attiva", "installazioni attive")}`,
       apertura: g ? `Nei sette giorni prima la media era ${media(g.media.installazioni)} installazioni e ${media(g.media.sessioni)} sessioni al giorno.` : "",
       blocchi,
-      piede: [vuote.length ? `Niente da dire su: ${vuote.join(", ")}.` : "", conti,
+      piede: [vuote.length ? `Niente da dire su: ${vuote.join(", ")}.` : "", conti, ARRIVATI,
         "Arriva ogni mattina alle 8, se il giorno prima è successo qualcosa."].filter(Boolean),
     }),
     task: fare.map((x) => x.task).filter(Boolean),
@@ -193,9 +207,9 @@ export function recapGiorno(r, g, { giorno, nomi = {}, leggi = "" } = {}) {
 }
 
 // Il riepilogo del lunedì, con "Dove migliorare Arturo" in tabelle.
-export function recapSettimana(r, { lunedi, domenica, nomi = {} } = {}) {
+export function recapSettimana(r, { lunedi, domenica } = {}) {
   const m = r.migliorare || {};
-  const fare = daFare({ indietro: m.indietro || [], banchi: r.banchi, deriva: r.deriva, config: r.config }, nomi, domenica);
+  const fare = daFare({ indietro: m.indietro || [], banchi: r.banchi, deriva: r.deriva, config: r.config }, domenica);
   const vuote = [];
   const se = (cond, nome, fai) => (cond ? fai() : (vuote.push(nome), ""));
   const uso = (r.uso || []).filter((x) => x.giorniAttivi > 0).sort((a, b) => b.giorniAttivi - a.giorniAttivi || b.sessioni - a.sessioni);
@@ -219,7 +233,7 @@ export function recapSettimana(r, { lunedi, domenica, nomi = {} } = {}) {
       { valore: r.sessioni, etichetta: "sessioni" }, { valore: r.segnalazioni, etichetta: "segnalazioni" }])),
     fare.length ? sezioneDaFare(fare) : "",
     se(uso.length, "chi lo usa", () => sezione("Chi lo usa", tabella(["Chi", "Giorni", "Sessioni", "Più usato"],
-      uso.map((x) => [crudo(`${chi(nomi, x.installazione).html}<br><span style="color:#59606a;font-size:13px">ultimo ${esc(breve(x.ultima))}</span>`),
+      uso.map((x) => [crudo(`${chi(x.installazione).html}<br><span style="color:#59606a;font-size:13px">ultimo ${esc(breve(x.ultima))}</span>`),
         x.giorniAttivi, x.sessioni, (x.comandi[0] && `/${x.comandi[0].valore}`) || "-"]),
       { numeriche: [1, 2] }), { nota: ferme ? `${uno(ferme, "installazione è rimasta ferma", "installazioni sono rimaste ferme")} tutta la settimana.` : "" })),
     sezione("Dove migliorare Arturo", paragrafo(setupTesto) +
@@ -241,11 +255,11 @@ export function recapSettimana(r, { lunedi, domenica, nomi = {} } = {}) {
     se((r.guardie || []).length, "guardie che hanno bloccato", () => sezione("Guardie che hanno bloccato", tabella(["Guardia", "Volte", "Dove"],
       r.guardie.slice(0, DIECI).map((x) => [codice(x.valore), x.n, x.installazioni]), { numeriche: [1, 2] }))),
     se((r.guardieFrequenti || []).length, "guardie frequenti", () => sezione("Guardie frequenti", tabella(["Guardia", "Dove", "Volte"],
-      r.guardieFrequenti.map((x) => [codice(x.valore), nomeDi(nomi, x.installazione), x.n]), { numeriche: [2] }),
+      r.guardieFrequenti.map((x) => [codice(x.valore), idCorto(x.installazione), x.n]), { numeriche: [2] }),
     { nota: `Almeno ${LIMITI.guardieFrequenti} blocchi nella settimana sulla stessa installazione.` })),
     se((r.aggiorna || []).length, "esiti di /aggiorna", () => sezione("Esiti di /aggiorna", paragrafo((r.aggiorna || []).map((x) => `${x.valore} ${x.n}`).join(", ")))),
     se((r.banchi || []).length, "banchi rossi", () => sezione("Banchi delle guardie rossi", tabella(["Banco", "Dove", "Dal"],
-      (r.banchi || []).map((x) => [codice(x.valore), `${nomeDi(nomi, x.installazione)} · ${x.versione}`, breve(x.dal)])))),
+      (r.banchi || []).map((x) => [codice(x.valore), `${idCorto(x.installazione)} · ${x.versione}`, breve(x.dal)])))),
     se(versioni, "versioni", () => sezione("Versioni e sistemi", paragrafo(versioni))),
     lancillotto(r.lancillotto),
   ];

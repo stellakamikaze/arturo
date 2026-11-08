@@ -18,8 +18,10 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
   gli eventi fuori elenco non si salvano e si contano nel contatore `scartati` del giorno, senza id.
   Il `400` resta per il lotto malformato (installazione, versione o sistema storti, JSON rotto).
   Di `deriva` si salvano solo i nomi di Arturo dove la persona crea cose sue: i file della radice, le
-  voci di `skills/`, `agents/` e `commands/` e gli hook di `settings.json` (`DERIVA_NOMI` e `DERIVA_HOOK`).
-  Un altro nome si salva come `file:altro` o `hook:altro`. Della versione si salva solo il rilascio
+  voci di `skills/`, `agents/`, `commands/` e `hooks/` e gli hook di `settings.json` (`DERIVA_NOMI` e `DERIVA_HOOK`).
+  Un altro nome si salva come `file:altro` o `hook:altro`; delle altre radici (`bin`, `docs`, `tools`...) dal
+  8/11/2026 resta solo la radice, `file:docs/altro`.
+  Un id mai visto conta fra le installazioni nuove del giorno: oltre 50 il lotto riceve `429` e riparte domani. Della versione si salva solo il rilascio
   (`v2026-10-19.2`), senza i commit della persona; un tag della persona diventa `sconosciuta`.
 - `POST /v1/segnalazioni`: una segnalazione che la persona ha letto e approvato con `/segnala`. Dal
   4/11/2026 (lo sportello, #3925) porta anche `origine` (`segnala`, `avvio`, `fine`) e il
@@ -100,12 +102,15 @@ feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le s
   riepilogo del lunedì mostrano questi due numeri e gli eventi scartati; un giorno con uno di questi
   numeri sopra zero manda il recap anche senza eventi.
 - **Tetti e limiti contro l'abuso (16/10/2026).** Gli avvisi Telegram hanno un tetto al giorno:
-  20 installazioni nuove, 20 setup finiti, 30 segnalazioni. Oltre, il dato si salva e il messaggio
+  20 installazioni nuove, 20 setup finiti, 30 segnalazioni, che comprendono seguiti e ritiri (un ritiro ripetuto
+  non suona, dal 8/11/2026). Gli eventi hanno 50 installazioni nuove al giorno, e l'email di una config rotta
+  parte prima del tetto totale degli eventi. Oltre, il dato si salva e il messaggio
   no. Il limite per IP sta nei binding `LIMITE_EVENTI` (60 al minuto) e `LIMITE_MODULI` (10 al
   minuto) di `wrangler.toml`; l'IP non si salva. Il modulo e i download rifiutano un invio da un
   altro sito (`Sec-Fetch-Site: cross-site`).
 - **Ogni mattina alle 7 ora italiana** (06:00 UTC, alle 8 con l'ora legale) arriva il recap del giorno prima, solo se
   quel giorno ci sono stati eventi, segnalazioni, feedback o download dal sito. Ha anche le config rotte e la deriva cambiata.
+  Conta gli eventi arrivati prima del cron: le sessioni della sera spesso arrivano dopo, e le conta il lunedì.
 - **Il recap dice quanto e come si usa Arturo (5/11/2026)**: quante installazioni l'hanno usato e quante sessioni,
   confrontate con la media dei sette giorni prima; una riga per installazione con versione, sistema, sessioni, giorni
   attivi nella settimana, comandi, skill, durata e messaggi in fasce; comandi e skill più usati, setup, guardie
@@ -114,14 +119,15 @@ feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le s
   nome va nel piede.
 - **Le email sono in HTML (5/11/2026)**: segnalazione, config rotta, recap e riepilogo del lunedì partono come
   `multipart/alternative`, con il testo semplice accanto. L'impaginazione sta in `email.js`, il recap e il riepilogo in
-  `recap.js`. Facoltative, tre variabili del Worker:
-  - `NOMI_INSTALLAZIONI`, un secret JSON `{"91288389": "Nome"}` (primi 8 caratteri dell'id): le email mostrano il nome
-    accanto all'id corto. Resta fuori dal repository;
+  `recap.js`. I nomi delle persone non stanno nel Worker (8/11/2026): le email dicono le prime 8 cifre
+  dell'id, e i nomi li conosce solo la pagina privata dell'admin. Facoltative, due variabili del Worker:
   - `INTESTAZIONE_TASK` e `TASK_PROGETTO`: con tutte e due, ogni cosa da fare (segnalazione, config rotta, riga "Da
     fare") porta un header `<INTESTAZIONE_TASK>: <base64url di un JSON>` con `fp`, `progetto`, `prio`, `titolo`, `note`
     e `chi`. Un programma che legge la casella lo trasforma in un task del tuo tracker. `fp` è un'impronta stabile
     (`auto:arturo:segnalazione:14`): la stessa email letta due volte non fa doppioni. Titolo e note li scrive il
-    server, mai col titolo o il testo di una segnalazione.
+    server, mai col titolo o il testo di una segnalazione. Dal 8/11/2026 la deriva fa un task solo per
+    un'installazione arrivata in almeno due giorni, al massimo dieci per email, e la nota dice solo nomi degli elenchi
+    chiusi. Il valore dell'header sta entro 900 caratteri: una nota più lunga si accorcia.
 - **I banchi delle guardie rossi (4/11/2026)** stanno nel recap del mattino e nell'email del lunedì, sotto le
   config rotte: banco, id corto, versione dell'evento più recente e primo giorno visto. Il client manda
   l'evento `banchi` solo quando l'elenco dei rossi di quel computer cambia: un banco che resta rosso non si

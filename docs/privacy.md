@@ -66,6 +66,7 @@ Nelle fasi 2b e 2c `/setup` ti chiede due volte un sì, per conoscerti prima di 
   - lo stesso campanello delle segnalazioni, con l'ora di arrivo e il link alla pagina privata;
   - l'avviso di una config rotta: le prime 8 cifre dell'id, la versione di Arturo e il tipo di guasto;
   - il recap di ogni mattina e il riepilogo del lunedì: i numeri degli eventi sommati fra le installazioni e, per installazione con le prime 8 cifre dell'id, i file e gli hook di Arturo cambiati o spenti, le guardie che bloccano spesso e le installazioni rimaste indietro;
+  - dal 5/11/2026, nel recap di ogni mattina, per installazione con le prime 8 cifre dell'id: versione di Arturo e sistema, sessioni del giorno, giorni attivi nella settimana, comandi e skill di Arturo usati, durata delle sessioni e numero dei messaggi in fasce;
   - dal 2/11/2026, nel riepilogo del lunedì, la sezione "Chi lo usa": per installazione, con le prime 8 cifre dell'id, i giorni attivi della settimana, le sessioni, il comando più usato e l'ultimo giorno visto.
 
 Chi mantiene Arturo vede gli stessi numeri per installazione anche in una sua pagina privata, protetta da accesso, dove dà un nome agli id delle persone che conosce. Quei nomi stanno solo sul suo server, non nel server della telemetria e non in questo repository.

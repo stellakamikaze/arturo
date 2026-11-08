@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""S01-S10: /segnala, il canale con cui chi usa Arturo manda problemi, idee e integrazioni.
+"""S01-S11: /segnala, il canale con cui chi usa Arturo manda problemi, idee e integrazioni.
 
 Ogni caso gira con una HOME finta e con comandi finti nel PATH (open, xdg-open, pbcopy, xclip,
 wl-copy, gh) che scrivono su file cosa hanno ricevuto. Niente parte davvero.
 Sulla base 75c8e23, prima di /segnala, ogni controllo deve fallire per conto suo.
 S10 (proposta n. 53 di Filippo, 4/11/2026): /segnala guarda le segnalazioni già partite prima
 dell'anteprima, e `arturo segnala precedenti` le elenca col loro "In breve".
+S11 (review del 7/11/2026, finding 44): la pulizia toglie le cartelle personali anche con le barre doppie e con
+gli spazi nel nome.
 """
 from __future__ import annotations
 
@@ -240,9 +242,30 @@ def test_s10(repo: Path) -> None:
         "S10 /segnala guarda le segnalazioni già partite dopo l'anteprima, non prima"
 
 
+def test_s11(repo: Path) -> None:
+    # Review del 7/11/2026, finding 44: un percorso Windows con le barre doppie (il repr di un errore Python) o con
+    # uno spazio nel nome della cartella utente lasciava il nome nel testo della segnalazione.
+    casi = {
+        "[Errno 2] No such file: 'C:\\\\Users\\\\mrossi\\\\.claude\\\\hooks'": "[Errno 2] No such file: '~\\\\.claude\\\\hooks'",
+        'File "C:\\\\Users\\\\Mario Rossi\\\\Clienti\\\\x.py"': 'File "~\\\\Clienti\\\\x.py"',
+        "C:\\Users\\Mario Rossi\\Documents\\file.txt": "~\\Documents\\file.txt",
+        "C:/Users/Ann Lee/x": "~/x",
+        "/Users/mario rossi/Documents/x": "~/Documents/x",
+        "/home/bob e poi altro": "~ e poi altro",
+    }
+    codice = ("import json, sys; sys.path.insert(0, sys.argv[1]); import segnala; "
+              "print(json.dumps([segnala.togli_home(t) for t in json.loads(sys.argv[2])]))")
+    r = subprocess.run([sys.executable, "-B", "-c", codice, str(repo / "bin"), json.dumps(list(casi))], capture_output=True,
+                       text=True, encoding="utf-8", timeout=60)
+    assert r.returncode == 0, f"S11 togli_home non si chiama: {r.stderr[-300:]!r}"
+    fuori = dict(zip(casi, json.loads(r.stdout)))
+    sbagliati = {k: v for k, v in fuori.items() if v != casi[k]}
+    assert not sbagliati, f"S11 una cartella personale resta nel testo: {sbagliati}"
+
+
 TESTS = {"S01": test_s01, "S02": test_s02, "S03": test_s03, "S04": test_s04,
          "S05": test_s05, "S06": test_s06, "S07": test_s07, "S08": test_s08, "S09": test_s09,
-         "S10": test_s10}
+         "S10": test_s10, "S11": test_s11}
 
 
 def main() -> int:
