@@ -61,7 +61,13 @@ controlla() {  # la config della cartella $1, col controllo della versione in ar
   local c="$1/hooks/controlla-config.py"
   [ -f "$c" ] || c="$RADICE/hooks/controlla-config.py"
   [ -f "$c" ] || return 0
-  python3 "$c" --quiet "$1" >/dev/null
+  # Uno script che in ~/.claude c'è ma non è tracciato non arriva nella copia di prova, e resta in ~/.claude dopo
+  # l'applicazione: per la copia vale presente (finding 17 del 7/11/2026).
+  ARTURO_RIPIEGO="$RADICE" python3 "$c" --quiet "$1" >/dev/null
+}
+
+mostra_problemi() {  # le righe di controlla per la cartella $1, rientrate
+  ARTURO_RIPIEGO="$RADICE" python3 "$RADICE/hooks/controlla-config.py" "$1" 2>/dev/null | sed 's/^/  /'
 }
 
 togli_copia() {
@@ -258,6 +264,14 @@ porta_nella_orsa() {  # dopo un'applicazione riuscita: i file della persona in ~
   mkdir -p "$dest" && cp -R "$LAVORO/conflitti/." "$dest/" && printf '%s\n' "$REF" > "$dest/VERSIONE.txt"
 }
 
+rimetti_omonimi() {  # i file della persona messi da parte per gli omonimi, se l'applicazione non è entrata
+  [ -d "${LAVORO:-}/omonimi" ] || return 0
+  (cd "$LAVORO/omonimi" && find . -type f) | while IFS= read -r f; do
+    f=${f#./}
+    [ -e "$RADICE/$f" ] || { mkdir -p "$RADICE/$(dirname "$f")" && mv "$LAVORO/omonimi/$f" "$RADICE/$f"; }
+  done
+}
+
 porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando è nata, $3 = il modo
   local nuovo=$1 prima=$2 modo=$3
   if [ "$(git rev-parse HEAD)" != "$prima" ]; then
@@ -372,7 +386,7 @@ if [ "$MODO" = concludi ]; then
   fi
   if ! controlla "$COPIA"; then
     echo "APPLICAZIONE NON PARTITA: nella copia di prova restano conflitti. ~/.claude non è stata toccata:"
-    python3 "$RADICE/hooks/controlla-config.py" "$COPIA" 2>/dev/null | sed 's/^/  /'
+    mostra_problemi "$COPIA"
     exit 1
   fi
   pulita || { echo "APPLICAZIONE NON PARTITA: ~/.claude ha modifiche non salvate. Non ho toccato niente."; exit 1; }
@@ -414,16 +428,27 @@ if leggi_stato; then
   if [ ! -d "$VECCHIA" ]; then
     togli_copia "$VECCHIA"; rm -f "$STATO"
     echo "Una copia di prova in attesa non c'era più: tolta dal registro."
+  elif [ -z "$(git -C "$VECCHIA" diff --name-only --diff-filter=U 2>/dev/null)" ] && ! (COPIA=$VECCHIA; in_corso) \
+      && [ "$(git -C "$VECCHIA" rev-parse HEAD 2>/dev/null)" != "${S_PRIMA:-}" ]; then
+    # Conflitti risolti e rebase o merge conclusi: la copia aspetta solo il sì della persona (concludi). La
+    # patch qui sotto la salvava vuota, perché la risoluzione sta nei commit, e il lavoro andava rifatto
+    # (finding 16 del 7/11/2026). Non si tocca.
+    echo "APPLICAZIONE NON PARTITA: una copia di prova risolta aspetta il tuo sì${NATA:+ dal ${NATA/_/ alle }}: $VECCHIA"
+    echo "Portala dentro con /aggiorna (\"Risolvere un conflitto\", concludi) oppure scartala. ~/.claude non è stata toccata."
+    exit 1
   elif [ "$VECCHIO_MODO" != sync ] && [ "$ORSA_VIAGGIA" = 1 ] \
       && ! da_risolvere_a_mano "$(git -C "$VECCHIA" diff --name-only --diff-filter=U 2>/dev/null)"; then
     # Una copia in attesa da un aggiornamento di Arturo fermava ogni aggiornamento dopo (3/11/2026). Il suo
     # stato, col lavoro di chi la stava risolvendo, va in una patch nell'Orsa; poi la copia si toglie e
     # l'aggiornamento riparte, con i conflitti risolti come sopra.
     SALVA="$RADICE/personale/conflitti/$(date +%Y-%m-%d_%H-%M)"
+    # Anche i commit già fatti nella copia restano, in una ref: la patch tiene solo quello non ancora salvato.
+    RIF="refs/arturo/copie-in-attesa/$(date +%Y%m%d-%H%M%S)"
+    git update-ref "$RIF" "$(git -C "$VECCHIA" rev-parse HEAD 2>/dev/null)" 2>/dev/null || RIF=""
     if mkdir -p "$SALVA" && { git -C "$VECCHIA" status --short; echo; git -C "$VECCHIA" diff HEAD; } > "$SALVA/copia-in-attesa.patch" 2>/dev/null \
-        && [ -s "$SALVA/copia-in-attesa.patch" ]; then
+        && grep -q '[^[:space:]]' "$SALVA/copia-in-attesa.patch"; then
       togli_copia "$VECCHIA"; rm -f "$STATO"
-      echo "Una copia di prova con un conflitto aspettava${NATA:+ dal ${NATA/_/ alle }}: il suo stato è in $SALVA/copia-in-attesa.patch, e l'aggiornamento riparte."
+      echo "Una copia di prova con un conflitto aspettava${NATA:+ dal ${NATA/_/ alle }}: il suo stato è in $SALVA/copia-in-attesa.patch${RIF:+, i suoi commit in $RIF}, e l'aggiornamento riparte."
     else
       echo "APPLICAZIONE NON PARTITA: una copia di prova con un conflitto aspetta, e non riesco a salvarla in personale/conflitti: $VECCHIA. ~/.claude non è stata toccata."
       exit 1
@@ -498,12 +523,38 @@ if [ $rc != 0 ] || [ -n "$CONFLITTI" ]; then
   exit 1
 fi
 if ! controlla "$COPIA"; then
-  python3 "$RADICE/hooks/controlla-config.py" "$COPIA" 2>/dev/null | sed 's/^/  /'
+  mostra_problemi "$COPIA"
   togli_copia "$COPIA"
   segna_esito fallito "$MODO"
   echo "APPLICAZIONE ANNULLATA: la versione in arrivo avrebbe lasciato la config rotta. La tua copia è com'era prima"
   exit 1
 fi
+# Un file non salvato della persona con lo stesso nome di un file nuovo del rilascio (una skill sua, skills/nuova)
+# fermava `git reset --keep` a ogni chiusura, con un motivo che non lo nominava (finding 21 del 7/11/2026). In un
+# aggiornamento di Arturo il suo file va in personale/conflitti, come un conflitto; nel sync si nomina e si ferma.
+OMONIMI=""
+while IFS= read -r f; do
+  [ -n "$f" ] && [ -e "$RADICE/$f" ] && ! git ls-files --error-unmatch -- "$f" >/dev/null 2>&1 && OMONIMI+="$f"$'\n'
+done < <(git -C "$COPIA" diff --name-only --diff-filter=A "$PRIMA" HEAD 2>/dev/null)
+OMONIMI=${OMONIMI%$'\n'}
+if [ -n "$OMONIMI" ] && [ "$ORSA_VIAGGIA" = 0 ]; then
+  togli_copia "$COPIA"
+  echo "APPLICAZIONE NON PARTITA: questi file tuoi, non salvati con un commit, hanno lo stesso nome di file nuovi in arrivo:"
+  printf '%s\n' "$OMONIMI" | sed 's/^/  /'
+  echo "Rinominali o salvali con un commit, poi rilancia. Non ho toccato niente."
+  exit 1
+fi
+if [ -n "$OMONIMI" ]; then
+  while IFS= read -r f; do
+    mkdir -p "$LAVORO/conflitti/$(dirname "$f")" "$LAVORO/omonimi/$(dirname "$f")" \
+      && cp -p "$RADICE/$f" "$LAVORO/conflitti/$f" && mv "$RADICE/$f" "$LAVORO/omonimi/$f" \
+      && printf '%s\n' "$f" >> "$LAVORO/conflitti/FILE.txt" || {
+        echo "APPLICAZIONE NON PARTITA: non riesco a mettere da parte $f, che ha lo stesso nome di un file nuovo in arrivo. ~/.claude non è stata toccata."
+        rimetti_omonimi; togli_copia "$COPIA"; exit 1; }
+  done <<< "$OMONIMI"
+  CONFLITTI_ORSA=$(cat "$LAVORO/conflitti/FILE.txt")
+fi
 porta_dentro "$(git -C "$COPIA" rev-parse HEAD)" "$PRIMA" "$MODO"; esito=$?
+[ $esito = 0 ] || rimetti_omonimi
 togli_copia "$COPIA"
 exit $esito

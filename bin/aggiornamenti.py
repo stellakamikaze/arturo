@@ -267,6 +267,10 @@ def cmd_stato(r: Path) -> int:
         if esito.get("esito") == "APPLICATO":
             righe.append(f"ARTURO: aggiornato a {esito.get('versione')} alla chiusura della sessione. /novita racconta "
                          "cosa cambia.")
+            for nome in esito.get("commentate") or []:
+                righe.append(f"ARTURO: l'aggiornamento ha cambiato {nome}, e le righe che la persona ci aveva aggiunto sono "
+                             f"ora in personale/{Path(nome).name}, commentate: non girano più. Diglielo in una frase e "
+                             "rileggile con lei: quelle che servono tornano attive togliendo il commento.")
         elif esito.get("esito") == "RINVIATO":
             rinviato = esito.get("versione", "")
         else:
@@ -498,7 +502,11 @@ def _applica(r: Path, ammesse: int = 0) -> int:
         scrivi(file_stato(r), calcola(r))
         return 0
     parola = "APPLICATO" if esito.startswith("APPLICATO") else (esito.split(":")[0] or "FALLITO")
-    _esito(r, tag, parola, esito[:240])
+    # Le righe aggiunte a un hook di sessione che separa ha spostato, commentate, in personale/: non girano più, e
+    # l'avvio lo dice una volta (finding 22 del 7/11/2026). /aggiorna le rilegge con la persona; qui nessuno le vedeva.
+    commentate = [re.sub(r"^\s*SEPARATO:\s*", "", x).split(" -> ")[0].strip() for x in righe
+                  if "SEPARATO:" in x and "righe commentate" in x]
+    _esito(r, tag, parola, esito[:240], commentate=commentate[:10])
     scrivi(file_stato(r), calcola(r))
     return 0 if parola == "APPLICATO" else 1
 
@@ -736,8 +744,30 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
     # Una chiave nuova entra nell'ancora solo da una copia verificata con la chiave di prima.
     fiducia.fissa_ancora(copia, orsa)
     segna_aggiornato(radice())
+    impostazioni = applica_impostazioni(copia)
     print(f"APPLICATO: {tag}. Riavvia Claude Code per usarlo.")
+    if impostazioni:
+        print(impostazioni)
     return 0
+
+
+def applica_impostazioni(copia: Path) -> str:
+    """Le voci di settings.json che il plugin non porta (permessi, regole di blocco, env, autoMode), dal frammento
+    della copia appena verificata: senza, un rilascio che aggiungeva una regola deny non arrivava mai (finding 18
+    del 7/11/2026). La riga da dire, vuota se è andato tutto bene."""
+    script = copia / "bin" / "impostazioni.py"
+    if not (copia / "impostazioni" / "arturo.json").is_file() or not script.is_file():
+        return ""
+    try:
+        p = subprocess.run([sys.executable, str(script), "applica"], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=60, stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError) as errore:
+        return f"IMPOSTAZIONI NON APPLICATE ({str(errore)[:120]}): le voci nuove di Arturo arrivano con /setup."
+    if p.returncode == 0:
+        return ""
+    motivo = next((x.strip() for x in (p.stderr + p.stdout).splitlines() if x.strip()), "motivo sconosciuto")
+    return (f"IMPOSTAZIONI NON APPLICATE: {motivo[:240]} Le voci nuove di Arturo in settings.json (permessi, regole di "
+            "blocco) arrivano con /setup, che chiede a te le voci in conflitto.")
 
 
 def rinvio_in_attesa(r: Path, stato: dict) -> bool:
@@ -782,8 +812,11 @@ def _segnala_ostacolo(r: Path, stato: dict, valore: str = "") -> None:
         pass
 
 
-def _esito(r: Path, tag: str, parola: str, riga: str) -> int:
-    scrivi(file_esito(r), {"quando": int(time.time()), "versione": tag, "esito": parola, "riga": riga, "mostrato": False})
+def _esito(r: Path, tag: str, parola: str, riga: str, commentate: list = None) -> int:
+    dati = {"quando": int(time.time()), "versione": tag, "esito": parola, "riga": riga, "mostrato": False}
+    if commentate:
+        dati["commentate"] = commentate
+    scrivi(file_esito(r), dati)
     return 0 if parola == "APPLICATO" else 1
 
 

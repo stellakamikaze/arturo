@@ -33,8 +33,21 @@ AA22 con uno spazio nella HOME ("Mario Rossi") una copia di prova in attesa rest
 AA23 un rilascio tolto con /aggiorna indietro non si reinstalla da solo alla chiusura dopo; uno più nuovo sì.
 AA24 "concludi" porta in personale/conflitti anche i file già risolti col rilascio prima del conflitto rimasto
      alla persona: il suo commit non sparisce in silenzio.
+I casi della review del 7/11/2026 (lotto L4):
+AA25 una copia di prova già risolta, che aspetta solo il sì, non si scarta alla chiusura dopo: resta, e "concludi"
+     la porta dentro (finding 16);
+AA26 un hook personale non tracciato, lanciato da settings.json, non ferma l'aggiornamento (finding 17);
+AA27 una skill non salvata con lo stesso nome di una nuova del rilascio va in personale/conflitti, e il rilascio
+     si installa (finding 21);
+AA28 un force push che riparte da un commit vecchio comune: il rilascio sulla storia riscritta non si installa
+     da solo, e lo stato dice "riscritta" (finding 87);
+AA29 con il lucchetto di un'altra applicazione fresco, applica esce senza toccare niente; un lucchetto di oltre
+     15 minuti si toglie e il rilascio si installa (finding 88);
+AA30 dopo un /clear la chiusura non lancia l'aggiornamento; dopo un'uscita vera sì (finding 19);
+AA31 le righe che separa sposta, commentate, da un hook di sessione: l'avvio dopo l'installazione le nomina (22).
 
-Sulla base 5d83592, prima della funzione, ogni controllo deve fallire col suo codice. AA12-AA17 sono rossi
+Sulla base 5d83592, prima della funzione, ogni controllo deve fallire col suo codice. Su a442b38 sono rossi AA25,
+AA26, AA27, AA30 e AA31; AA28 e AA29 coprono codice già giusto, e li fa diventare rossi solo il loro mutante. AA12-AA17 sono rossi
 anche sulla base 9ca11aa (dev del 3/11/2026), salvo le invarianti AA15 e AA17.
 """
 from __future__ import annotations
@@ -573,11 +586,142 @@ def test_aa24(repo: Path) -> None:
     con_lab(repo, "AA24", prova)
 
 
+def conflitto_che_aspetta(lab: Lab, codice: str) -> Path:
+    """Un conflitto su settings.json lascia la copia di prova in attesa: la sua cartella."""
+    (lab.utente / "settings.json").write_text(json.dumps({"env": {"A": "persona"}}, indent=2) + "\n", encoding="utf-8")
+    lab.git(lab.utente, "commit", "-q", "-am", "le mie impostazioni")
+    lab.rilascia("settings.json", json.dumps({"env": {"A": "2"}}, indent=2) + "\n", "v2026-02-01")
+    lab.arturo_cli("applica")
+    stato = gitdir(lab) / "arturo-aggiorna-copia"
+    assert stato.exists(), f"{codice} prova: il conflitto su settings.json non lascia una copia in attesa"
+    return Path(read(stato).split()[0])
+
+
+def test_aa25(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        copia = conflitto_che_aspetta(lab, "AA25")
+        prima = lab.head()
+        (copia / "settings.json").write_text(json.dumps({"env": {"A": "unita"}}, indent=2) + "\n", encoding="utf-8")
+        lab.git(copia, "add", "settings.json")
+        subprocess.run(["git", "-C", str(copia), "rebase", "--continue"], env=dict(lab.env, GIT_EDITOR="true"),
+                       capture_output=True, text=True, timeout=60)
+        lab.arturo_cli("applica")
+        assert copia.is_dir() and (gitdir(lab) / "arturo-aggiorna-copia").exists() and lab.head() == prima, \
+            f"AA25 la chiusura dopo scarta la copia già risolta che aspettava il sì: {lab.stato()}"
+        uscita = procedura(lab, "concludi")
+        assert "APPLICATO" in uscita and "unita" in read(lab.utente / "settings.json"), \
+            f"AA25 concludi non porta dentro la copia risolta: {uscita[-300:]!r}"
+    con_lab(repo, "AA25", prova)
+
+
+def test_aa26(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        (lab.utente / "hooks" / "mio-hook.sh").write_text("#!/bin/bash\nexit 0\n", encoding="utf-8")
+        (lab.utente / "settings.json").write_text(json.dumps({"env": {"A": "1"}, "hooks": {"Stop": [{"hooks": [
+            {"type": "command", "command": "bash ~/.claude/hooks/mio-hook.sh"}]}]}}, indent=2) + "\n", encoding="utf-8")
+        lab.git(lab.utente, "commit", "-q", "-m", "il mio hook", "settings.json")
+        commit = lab.rilascia("NOVITA.md", "# Novita\nv2\n", "v2026-02-01")
+        lab.arturo_cli("applica")
+        esito = read(lab.utente / "session-env" / "aggiornamento-esito.json") \
+            if (lab.utente / "session-env" / "aggiornamento-esito.json").exists() else ""
+        dentro = subprocess.run(["git", "-C", str(lab.utente), "merge-base", "--is-ancestor", commit, "HEAD"],
+                                env=lab.env, capture_output=True).returncode == 0
+        assert dentro and (lab.utente / "hooks" / "mio-hook.sh").exists(), \
+            f"AA26 un hook personale non tracciato ferma l'aggiornamento: {esito[-240:]!r}"
+    con_lab(repo, "AA26", prova)
+
+
+def test_aa27(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        mia = lab.utente / "skills" / "nuova" / "SKILL.md"
+        mia.parent.mkdir(parents=True)
+        mia.write_text("MIA SKILL\n", encoding="utf-8")
+        commit = lab.rilascia("skills/nuova/SKILL.md", "DI ARTURO\n", "v2026-02-01")
+        lab.arturo_cli("applica")
+        salvate = [d / "skills" / "nuova" / "SKILL.md" for d in cartelle_orsa(lab) if (d / "skills" / "nuova" / "SKILL.md").exists()]
+        assert lab.head() == commit and read(mia) == "DI ARTURO\n", \
+            f"AA27 una skill non salvata con lo stesso nome di una nuova ferma l'aggiornamento: {lab.stato()}"
+        assert salvate and read(salvate[0]) == "MIA SKILL\n", f"AA27 la skill della persona non è in personale/conflitti: {salvate}"
+    con_lab(repo, "AA27", prova)
+
+
+def test_aa28(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        primo = lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        lab.arturo_cli("applica")
+        assert lab.head() == primo, "AA28 prova: il primo rilascio non si installa"
+        radice = lab.git(lab.autore, "rev-list", "--max-parents=0", "HEAD")
+        lab.git(lab.autore, "reset", "-q", "--hard", radice)
+        lab.rilascia("hooks/altra.py", "y = 1\n", "v2026-02-02")
+        lab.arturo_cli("applica")
+        assert lab.head() == primo, "AA28 un rilascio su una storia riscritta da un antenato comune si installa da solo"
+        assert lab.stato().get("stato") == "bloccato" and "riscritta" in lab.stato().get("motivo", "") \
+            and (lab.utente / "session-env" / "aggiornamento-storia-riscritta.json").exists(), \
+            f"AA28 lo stato non dice la storia riscritta: {lab.stato()}"
+    con_lab(repo, "AA28", prova)
+
+
+def test_aa29(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        prima = lab.head()
+        blocco = lab.utente / "session-env" / "aggiornamento.lock"
+        blocco.mkdir(parents=True)
+        commit = lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        r = lab.arturo_cli("applica")
+        assert r.returncode == 0 and lab.head() == prima and blocco.is_dir(), \
+            f"AA29 con il lucchetto fresco di un'altra applicazione applica parte lo stesso: rc {r.returncode}"
+        vecchio = time.time() - 1000
+        os.utime(str(blocco), (vecchio, vecchio))
+        lab.arturo_cli("applica")
+        assert lab.head() == commit and not blocco.exists(), "AA29 un lucchetto di oltre 15 minuti ferma l'aggiornamento"
+    con_lab(repo, "AA29", prova)
+
+
+def test_aa30(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        prima = lab.head()
+        commit = lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        fine = lab.utente / "hooks" / "session-end.sh"
+
+        def chiudi(motivo: str) -> None:
+            subprocess.run([BASH, str(fine)], input=json.dumps({"session_id": "s", "reason": motivo}), env=lab.env,
+                           cwd=str(lab.home), capture_output=True, text=True, timeout=60)
+        chiudi("clear")
+        time.sleep(4)
+        assert lab.head() == prima and not (lab.utente / "session-env" / "aggiornamento.log").exists(), \
+            "AA30 un /clear lancia l'aggiornamento automatico con la sessione viva"
+        chiudi("prompt_input_exit")
+        assert aspetta_head(lab, commit), "AA30 un'uscita vera dopo il /clear non installa il rilascio"
+        limite = time.time() + 30
+        while time.time() < limite and (lab.utente / "session-env" / "aggiornamento.lock").exists():
+            time.sleep(0.5)
+    con_lab(repo, "AA30", prova)
+
+
+PROCEDURA_FINTA = """#!/bin/bash
+# La procedura di un rilascio di prova: dice quello che dice separa per un hook di sessione, poi l'esito.
+echo "  SEPARATO: hooks/session-start.sh -> personale/session-start.sh (righe commentate, da rileggere)"
+echo "APPLICATO: config integra"
+"""
+
+
+def test_aa31(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        lab.rilascia("bin/aggiorna-applica.sh", PROCEDURA_FINTA, "v2026-02-01")
+        lab.arturo_cli("applica")
+        avvio = lab.arturo_cli("stato").stdout
+        assert "hooks/session-start.sh" in avvio and "personale/session-start.sh" in avvio and "commentate" in avvio, \
+            f"AA31 l'avvio non dice delle righe spostate e commentate: {avvio!r}"
+    con_lab(repo, "AA31", prova)
+
+
 TESTS = {"AA01": test_aa01, "AA02": test_aa02, "AA03": test_aa03, "AA04": test_aa04, "AA05": test_aa05,
          "AA06": test_aa06, "AA07": test_aa07, "AA08": test_aa08, "AA09": test_aa09, "AA10": test_aa10, "AA11": test_aa11,
          "AA12": test_aa12, "AA13": test_aa13, "AA14": test_aa14, "AA15": test_aa15, "AA16": test_aa16,
          "AA17": test_aa17, "AA18": test_aa18, "AA19": test_aa19,
-         "AA20": test_aa20, "AA21": test_aa21, "AA22": test_aa22, "AA23": test_aa23, "AA24": test_aa24}
+         "AA20": test_aa20, "AA21": test_aa21, "AA22": test_aa22, "AA23": test_aa23, "AA24": test_aa24,
+         "AA25": test_aa25, "AA26": test_aa26, "AA27": test_aa27, "AA28": test_aa28, "AA29": test_aa29,
+         "AA30": test_aa30, "AA31": test_aa31}
 
 
 def main() -> int:

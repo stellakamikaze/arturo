@@ -279,10 +279,16 @@ def analizza(orsa: Path) -> dict:
         personale = _modulo("personale_migra", BIN / "personale.py")
         try:
             testo = (orsa / "CLAUDE.md").read_text(encoding="utf-8")
-            a["regole_doppie"] = len(personale.righe_doppie(testo, personale.regole_consigliate(radice_arturo())))
+            a["regole_doppie"] = regole_doppie(personale, testo)
         except (OSError, UnicodeDecodeError):
             a["regole_doppie"] = 0
     return a
+
+
+def regole_doppie(personale, testo: str) -> int:
+    """Quante righe del CLAUDE.md sono uguali a una regola consigliata. righe_doppie dà la coppia (doppie, simili):
+    contarne la lunghezza diceva sempre 2 (finding 23 della review del 7/11/2026)."""
+    return len(personale.righe_doppie(testo, personale.regole_consigliate(radice_arturo()))[0])
 
 
 def rapporto(a: dict) -> str:
@@ -385,6 +391,17 @@ def fai_copia(a: dict) -> Path:
     adesso = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     cartella = orsa.parent / f"{orsa.name}{COPIA}{adesso}"
     cartella.mkdir()
+    try:
+        return _riempi_copia(a, cartella, adesso)
+    except BaseException:
+        # Una copia a metà non deve restare (finding 84 del 7/11/2026): `indietro` la prendeva per buona e metteva
+        # un .git parziale al posto di quello vero. La cartella è nata qui sopra, quindi è solo della copia.
+        togli(cartella)
+        raise
+
+
+def _riempi_copia(a: dict, cartella: Path, adesso: str) -> Path:
+    orsa = a["orsa"]
     dentro = cartella / "copia"
     presenti = sorted(f for f in a["albero"] if esiste(orsa / f))
     personali = [f"personale/{Path(f).stem}.{'sh' if f.endswith('.sh') else 'md'}" for f in a["separa"]]
@@ -478,11 +495,14 @@ def togli_arturo(a: dict, cartella: Path) -> None:
     orsa = a["orsa"]
     registro = leggi_json(cartella / "migra.json")
     dentro = cartella / "copia"
-    for rel in [".git", *registro["albero"]]:
-        voce = orsa / rel
-        if not esiste(dentro / rel):
-            raise Ferma(f"manca la copia di {rel}: non lo tolgo")
-        togli(voce)
+    # Prima si controllano tutte le copie, poi si toglie: un controllo dentro il ciclo toglieva già .git quando
+    # mancava la copia di un file dopo (finding 86 del 7/11/2026).
+    voci = [".git", *registro["albero"]]
+    manca = next((rel for rel in voci if not esiste(dentro / rel)), None)
+    if manca:
+        raise Ferma(f"manca la copia di {manca}: non tolgo niente")
+    for rel in voci:
+        togli(orsa / rel)
     # Ogni cartella sopra un file di Arturo, dalla più profonda: skills/arturo ha solo sottocartelle.
     cartelle = sorted({str(antenato) for f in registro["albero"] for antenato in Path(f).parents if str(antenato) != "."},
                       key=lambda c: -c.count("/"))
@@ -548,10 +568,11 @@ def cmd_migra() -> int:
         except OSError:
             pass
         passo(cartella, "fuori")
+        registra_dopo(cartella, orsa)
     except (Ferma, OSError, subprocess.SubprocessError, ValueError, KeyError) as errore:
         uscita = errore.uscita if isinstance(errore, Ferma) else 1
         print(f"FERMA: {str(errore).rstrip('.')}. Torno indietro.", file=sys.stderr)
-        indietro(cartella)
+        indietro(cartella, conserva=False)
         return uscita
     print(f"MIGRATO: Arturo è un plugin, e ~/.claude tiene solo i tuoi file. Apri Claude Code come sempre.\n"
           f"Per tornare al clone, con Claude Code chiuso: python3 {corto(cartella / 'codice' / 'bin' / 'arturo')} migra indietro")
@@ -561,19 +582,64 @@ def cmd_migra() -> int:
     return 0
 
 
+def impronta(voce: Path) -> str:
+    """Il contenuto di un file, o "" se non c'è. Una cartella o un collegamento valgono per il loro nome."""
+    if os.path.islink(str(voce)):
+        return "-> " + os.readlink(str(voce))
+    if voce.is_file():
+        import hashlib  # noqa: PLC0415
+        return hashlib.sha256(voce.read_bytes()).hexdigest()
+    return "cartella" if voce.is_dir() else ""
+
+
+def registra_dopo(cartella: Path, orsa: Path) -> None:
+    """Come la migrazione ha lasciato i file toccati: `indietro` mette da parte solo quello che la persona ha
+    cambiato dopo (finding 14)."""
+    try:  # la migrazione è già riuscita: un registro che non si scrive non la deve disfare
+        registro = leggi_json(cartella / "migra.json")
+        registro["dopo"] = {rel: impronta(orsa / rel) for rel in (registro.get("toccati") or {})}
+        scrivi_json(cartella / "migra.json", registro)
+    except OSError:
+        pass
+
+
 def ultima_copia(orsa: Path):
-    copie = sorted(p for p in orsa.parent.glob(f"{orsa.name}{COPIA}*") if (p / "migra.json").is_file())
+    """L'ultima copia di sicurezza completa. Una copia senza il passo "copia" è rimasta a metà (disco pieno, un
+    errore): riportarla metteva un .git parziale al posto di quello vero (finding 84 del 7/11/2026)."""
+    copie = sorted(p for p in orsa.parent.glob(f"{orsa.name}{COPIA}*")
+                   if "copia" in (leggi_json(p / "migra.json").get("passi") or []))
     return copie[-1] if copie else None
 
 
-def indietro(cartella: Path) -> int:
+def indietro(cartella: Path, conserva: bool = True) -> int:
     """Rimette il clone com'era: toglie plugin e catalogo se li ha messi la migrazione, poi riporta dalla
-    copia ogni file dei passi. La copia resta: si può rifare."""
+    copia ogni file dei passi. La copia resta: si può rifare.
+
+    conserva: un file che la persona ha scritto o cambiato dopo la migrazione (una riga in personale/inizio.md,
+    un'impostazione, un altro plugin) va in <copia>/sostituiti-<ora>/ prima di tornare com'era (finding 14 del
+    7/11/2026): prima spariva senza copia. Il ritorno automatico di una migrazione fallita non conserva: lì i
+    file diversi li ha scritti la migrazione stessa."""
     registro = leggi_json(cartella / "migra.json")
     orsa = Path(registro.get("orsa") or radice_orsa())
     dentro = cartella / "copia"
     passi = registro.get("passi") or []
     problemi = []
+    dopo = registro.get("dopo") or {}
+    da_parte = cartella / f"sostituiti-{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    messi = []
+
+    # Prima di tutto, anche prima di togliere il plugin: plugins/installed_plugins.json conta com'era.
+    for rel in (registro.get("albero") or []) + list(registro.get("toccati") or {}):
+        voce = orsa / rel
+        if not conserva or not esiste(voce) or rel in messi:
+            continue
+        if esiste(dentro / rel) and uguali(dentro / rel, voce):
+            continue
+        if rel in dopo and dopo[rel] == impronta(voce):
+            continue
+        copia_voce(voce, da_parte / rel)
+        messi.append(rel)
+
     if "plugin" in passi:
         tolto = _claude("uninstall", PLUGIN)
         if tolto.returncode != 0:
@@ -606,6 +672,10 @@ def indietro(cartella: Path) -> int:
     if problemi:
         print("INDIETRO con avvisi: i file sono tornati com'erano, ma " + "; ".join(problemi), file=sys.stderr)
     print(f"INDIETRO: il clone è di nuovo in {corto(orsa)}, com'era prima della migrazione.")
+    if messi:
+        print(f"I file che avevi cambiato dopo la migrazione sono in {corto(da_parte)}: "
+              + ", ".join(messi[:8]) + (f" e altri {len(messi) - 8}" if len(messi) > 8 else "")
+              + ". Riporta con Claude quello che ti serve.")
     return 0
 
 
@@ -667,6 +737,11 @@ def main(argv: list) -> int:
             print(f"Nessuna copia di sicurezza della migrazione accanto a {corto(orsa)}: non c'è niente da riportare.",
                   file=sys.stderr)
             return 1
+        if "indietro" in (leggi_json(cartella / "migra.json").get("passi") or []) \
+                and "fuori" not in (leggi_json(cartella / "migra.json").get("passi") or []):
+            print(f"INDIETRO: la migrazione di {corto(cartella)} non è finita ed è già tornata indietro da sola: "
+                  "il clone è com'era. Non c'è niente da riportare.")
+            return 0
         aggiornamenti = _modulo("aggiornamenti_migra", BIN / "aggiornamenti.py")
         if aggiornamenti.processi_claude():
             print("FERMA: chiudi le sessioni di Claude Code e rilancia da un Terminale.", file=sys.stderr)

@@ -14,6 +14,12 @@ Controlla:
 
 Uscita: 0 se la config è integra, 1 se c'è un problema (una riga per problema
 su stdout). Con --quiet non stampa nulla quando è tutto a posto.
+
+ARTURO_RIPIEGO=<cartella> (lo passa bin/aggiorna-applica.sh quando controlla la copia di prova): uno script
+che manca nella radice ma c'è in quella cartella, fuori da git, conta presente. La copia di prova ha solo i
+file tracciati, e un hook personale mai salvato con un commit fermava ogni aggiornamento con "hook mancante",
+anche se in ~/.claude c'è e resta (finding 17 della review del 7/11/2026). Un file tracciato nel ripiego non
+vale: se il rilascio lo toglie, la copia ha ragione a dirlo mancante.
 """
 from __future__ import annotations
 
@@ -36,6 +42,15 @@ def git(radice, *argomenti):
 SCRIPT_IN_CONFIG = re.compile(r"(?:~|\$HOME|\$\{HOME\})/\.claude/([^\s\"';|&<>]+)")
 
 
+def solo_nel_ripiego(relativo):
+    """Vero se lo script c'è nella cartella di ARTURO_RIPIEGO e git non lo traccia lì."""
+    ripiego = os.environ.get("ARTURO_RIPIEGO", "")
+    if not ripiego or not os.path.exists(os.path.join(ripiego, relativo)):
+        return False
+    rc, _ = git(ripiego, "ls-files", "--error-unmatch", "--", relativo)
+    return rc != 0
+
+
 def script_mancanti(radice, impostazioni):
     """Gli script citati dai comandi degli hook che non esistono nella radice."""
     mancanti = []
@@ -44,7 +59,8 @@ def script_mancanti(radice, impostazioni):
             for hook in (gruppo.get("hooks") or []) if isinstance(gruppo, dict) else []:
                 comando = hook.get("command", "") if isinstance(hook, dict) else ""
                 for relativo in SCRIPT_IN_CONFIG.findall(comando):
-                    if not os.path.exists(os.path.join(radice, relativo)) and (evento, relativo) not in mancanti:
+                    if not os.path.exists(os.path.join(radice, relativo)) and (evento, relativo) not in mancanti \
+                            and not solo_nel_ripiego(relativo):
                         mancanti.append((evento, relativo))
     return mancanti
 

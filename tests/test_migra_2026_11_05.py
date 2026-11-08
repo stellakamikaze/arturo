@@ -26,7 +26,22 @@ MG07 un ~/.claude con Arturo come upstream (repository della persona) non si mig
 MG08 l'avviso dell'avvio: dal clone una riga che nomina `migra --prova` e `migra indietro`, una volta al giorno;
      con Arturo come upstream la riga dice "a mano"; dal codice fuori dall'Orsa (il plugin) niente.
 
-Sulla base 53450c6 (il dev prima di F4) sono tutti rossi: arturo migra non c'è. Con --avvelena una copia
+I casi della review del 7/11/2026 (finding 14, 23, 84, 86) chiamano le funzioni di migra.py su un clone piccolo,
+senza la CLI:
+MG09 una copia di sicurezza che si ferma a metà (disco pieno) non resta accanto all'Orsa, e una copia a metà
+     lasciata da una versione di prima non la prende `migra indietro`: .git resta quello vero (84);
+MG10 una copia che non torna uguale all'originale ferma la migrazione, senza copie rimaste (86, riga di uguali);
+MG11 se manca la copia di un file, togli_arturo non toglie niente, neanche .git (86);
+MG12 dopo l'unione dei settings restano hook che lanciano file di Arturo: ferma, settings.json non cambia (86);
+MG13 una barra in basso (statusLine) che usa un file di Arturo ferma la migrazione (86);
+MG14 un file che non si toglie a metà di togli_arturo: il ritorno automatico rimette l'Orsa identica (86);
+MG15 `migra indietro` mette in sostituiti-<ora>/ i file cambiati dopo la migrazione, e solo quelli, e lo dice (14);
+MG16 il conto delle regole consigliate ripetute dal CLAUDE.md: 0 senza regole, 1 con una (23);
+MG17 dopo `claude plugin install` uno sha diverso da quello verificato, un file diverso dal MANIFEST o una firma
+     che non torna fermano con uscita 3 (4 se la firma non si può verificare), con la CLI e la fiducia finte (85, 86).
+
+Sulla base 53450c6 (il dev prima di F4) sono tutti rossi: arturo migra non c'è. Su a442b38 (prima del lotto L4)
+sono rossi MG09, MG11, MG15 e MG16. Con --avvelena una copia
 del repository rotta in un punto alla volta deve far fallire il caso che lo sorveglia.
 """
 from __future__ import annotations
@@ -41,7 +56,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["MG01", "MG02", "MG03", "MG04", "MG05", "MG06", "MG07", "MG08"]
+CASI = ["MG01", "MG02", "MG03", "MG04", "MG05", "MG06", "MG07", "MG08",
+        "MG09", "MG10", "MG11", "MG12", "MG13", "MG14", "MG15", "MG16", "MG17"]
+UNITA = CASI[8:]
 DISCRIMINANTI = list(CASI)
 CLAUDE = shutil.which("claude")
 RIGA_MIA = "Riga mia della prova: i miei progetti stanno in ~/lavoro.\n"
@@ -212,10 +229,224 @@ class Banco:
                 or [{}])[0]
 
 
-def prova(repo: Path, solo: str | None = None) -> list:
-    if not CLAUDE:
-        return [f"{c} manca la CLI claude: questo banco prova la CLI vera" for c in CASI]
+def modulo_migra(repo: Path):
+    import importlib.util
+    # migra.py importa radici dal suo bin/: in cache resterebbe quello della copia di prima (i veleni ne usano una
+    # per caso), e radice_arturo() punterebbe a una cartella già tolta.
+    for nome in ("radici", "fiducia"):
+        sys.modules.pop(nome, None)
+    spec = importlib.util.spec_from_file_location("migra_prova", str(repo / "bin" / "migra.py"))
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+def clone_piccolo(tmp: Path) -> tuple:
+    """Un clone con due file di Arturo e settings.json, in un commit: (orsa, a) come li vuole migra.py."""
+    orsa = tmp / "casa" / ".claude"
+    (orsa / "bin").mkdir(parents=True)
+    (orsa / "hooks").mkdir()
+    (orsa / "bin" / "a.py").write_text("print('a')\n", encoding="utf-8")
+    (orsa / "hooks" / "b.sh").write_text("#!/bin/bash\nexit 0\n", encoding="utf-8")
+    (orsa / "settings.json").write_text('{"cleanupPeriodDays": 30}\n', encoding="utf-8")
+    git(orsa, "init", "-q", "-b", "main")
+    git(orsa, "add", "-A")
+    git(orsa, "commit", "-qm", "clone")
+    return orsa, {"orsa": orsa, "albero": {"bin/a.py", "hooks/b.sh"}, "separa": [], "base": "HEAD"}
+
+
+def copie_di(orsa: Path) -> list:
+    return sorted(orsa.parent.glob(".claude-arturo-clone-*"))
+
+
+def prova_unita(repo: Path, solo: str | None = None) -> list:
+    """MG09-MG16: le funzioni di migra.py su un clone piccolo, senza la CLI di Claude Code."""
+    import contextlib
+    import io
     rossi = []
+    casi = [c for c in UNITA if solo in (None, c)]
+    for caso in casi:
+        with tempfile.TemporaryDirectory(prefix="migra-unita.") as t:
+            tmp = Path(os.path.realpath(t))
+            env_prima = dict(os.environ)
+            try:
+                orsa, a = clone_piccolo(tmp)
+                os.environ.update({"CLAUDE_CONFIG_DIR": str(orsa), "ARTURO_ALTRE_SESSIONI": "0", "ARTURO_TELEMETRIA": "0"})
+                m = modulo_migra(repo)
+                prima = impronta(orsa)
+                testa = git(orsa, "rev-parse", "HEAD").stdout.strip()
+                uscita = io.StringIO()
+                errore = ""
+                if caso == "MG09":
+                    vera, conta = m.copia_voce, [0]
+
+                    def piena(sorgente, dest):
+                        conta[0] += 1
+                        if conta[0] == 2:
+                            raise OSError(28, "No space left on device")
+                        vera(sorgente, dest)
+                    m.copia_voce = piena
+                    try:
+                        m.fai_copia(a)
+                        errore = "fai_copia non si è fermata"
+                    except OSError:
+                        pass
+                    m.copia_voce = vera
+                    rimaste = copie_di(orsa)
+                    # Una copia a metà lasciata da una versione di prima: passi vuoti e un .git parziale.
+                    vecchia = orsa.parent / ".claude-arturo-clone-20261107-120000"
+                    (vecchia / "copia" / ".git").mkdir(parents=True)
+                    (vecchia / "copia" / ".git" / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+                    (vecchia / "migra.json").write_text(json.dumps({"versione": 1, "orsa": str(orsa), "passi": [],
+                                                                    "albero": sorted(a["albero"]), "toccati": {}}),
+                                                        encoding="utf-8")
+                    with contextlib.redirect_stdout(uscita), contextlib.redirect_stderr(uscita):
+                        rc = m.main(["indietro"])
+                    dopo = git(orsa, "rev-parse", "HEAD").stdout.strip()
+                    if errore or rimaste or rc != 1 or dopo != testa or "Nessuna copia" not in uscita.getvalue():
+                        rossi.append(f"MG09 copia a metà: {errore}, copie rimaste {len(rimaste)}, indietro rc {rc}, "
+                                     f"HEAD {dopo[:8]!r} invece di {testa[:8]}, {uscita.getvalue()[-160:]!r}")
+                elif caso == "MG10":
+                    m.uguali = lambda x, y: False
+                    try:
+                        m.fai_copia(a)
+                        errore = "nessuna Ferma"
+                    except m.Ferma as e:
+                        errore = "" if "non torna" in str(e) else f"Ferma diversa: {e}"
+                    except OSError as e:
+                        errore = f"OSError {e}"
+                    if errore or copie_di(orsa) or impronta(orsa) != prima:
+                        rossi.append(f"MG10 copia diversa: {errore}, copie {len(copie_di(orsa))}, "
+                                     f"{differenze(prima, impronta(orsa))}")
+                elif caso == "MG11":
+                    cartella = m.fai_copia(a)
+                    (cartella / "copia" / "hooks" / "b.sh").unlink()
+                    try:
+                        m.togli_arturo(a, cartella)
+                        errore = "nessuna Ferma"
+                    except m.Ferma as e:
+                        errore = "" if "manca la copia di hooks/b.sh" in str(e) else f"Ferma diversa: {e}"
+                    if errore or impronta(orsa) != prima:
+                        rossi.append(f"MG11 copia mancante: {errore}, {differenze(prima, impronta(orsa))}")
+                elif caso == "MG12":
+                    plugin = tmp / "plugin"
+                    (plugin / "impostazioni").mkdir(parents=True)
+                    (plugin / "impostazioni" / "arturo.json").write_text('{"cleanupPeriodDays": 90}', encoding="utf-8")
+                    for parte in ("bin", "hooks"):
+                        os.symlink(repo / parte, plugin / parte)
+                    unito = {"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "bash ~/.claude/hooks/b.sh"}]}]}}
+                    m.settings_nuovi = lambda *x: ({}, unito, [])
+                    try:
+                        m.scrivi_settings(a, plugin)
+                        errore = "nessuna Ferma"
+                    except m.Ferma as e:
+                        errore = "" if "dopo l'unione restano" in str(e) else f"Ferma diversa: {e}"
+                    if errore or impronta(orsa) != prima:
+                        rossi.append(f"MG12 hook di Arturo dopo l'unione: {errore}, {differenze(prima, impronta(orsa))}")
+                elif caso == "MG13":
+                    (orsa / "settings.json").write_text(json.dumps({"cleanupPeriodDays": 30, "statusLine": {
+                        "type": "command", "command": "bash ~/.claude/hooks/b.sh"}}), encoding="utf-8")
+                    try:
+                        m.settings_nuovi(orsa, "HEAD", a["albero"], {"cleanupPeriodDays": 30})
+                        errore = "nessuna Ferma"
+                    except m.Ferma as e:
+                        errore = "" if "barra in basso" in str(e) else f"Ferma diversa: {e}"
+                    if errore:
+                        rossi.append(f"MG13 barra con un file di Arturo: {errore}")
+                elif caso == "MG14":
+                    cartella = m.fai_copia(a)
+                    vera, conta = m.togli, [0]
+
+                    def ostinato(voce):
+                        conta[0] += 1
+                        if conta[0] == 3:  # .git e bin/a.py sono già fuori, hooks/b.sh non si toglie
+                            raise PermissionError(13, "Permission denied", str(voce))
+                        vera(voce)
+                    m.togli = ostinato
+                    try:
+                        m.togli_arturo(a, cartella)
+                        errore = "togli_arturo non si è fermato"
+                    except OSError:
+                        pass
+                    m.togli = vera
+                    with contextlib.redirect_stdout(uscita), contextlib.redirect_stderr(uscita):
+                        m.indietro(cartella, conserva=False)
+                    if errore or impronta(orsa) != prima:
+                        rossi.append(f"MG14 ritorno dopo togli_arturo a metà: {errore}, {differenze(prima, impronta(orsa))}")
+                elif caso == "MG15":
+                    a["separa"] = ["commands/inizio.md"]
+                    cartella = m.fai_copia(a)
+                    # La migrazione: settings nuovi, il blocco delle impostazioni, personale/inizio.md.
+                    (orsa / "settings.json").write_text('{"cleanupPeriodDays": 90}\n', encoding="utf-8")
+                    (orsa / "data").mkdir()
+                    (orsa / "data" / "arturo-impostazioni.lock").write_text("{}", encoding="utf-8")
+                    (orsa / "personale").mkdir()
+                    (orsa / "personale" / "inizio.md").write_text("riga spostata\n", encoding="utf-8")
+                    m.passo(cartella, "fuori")
+                    m.registra_dopo(cartella, orsa)
+                    # Due settimane dopo: la persona aggiunge una riga e cambia un'impostazione.
+                    (orsa / "personale" / "inizio.md").write_text("riga spostata\nriga mia di dopo\n", encoding="utf-8")
+                    (orsa / "settings.json").write_text('{"cleanupPeriodDays": 90, "model": "mio"}\n', encoding="utf-8")
+                    with contextlib.redirect_stdout(uscita), contextlib.redirect_stderr(uscita):
+                        m.indietro(cartella)
+                    parte = sorted(cartella.glob("sostituiti-*"))
+                    messi = sorted(p.relative_to(parte[0]).as_posix() for p in parte[0].rglob("*") if p.is_file()) if parte else []
+                    mio = (parte[0] / "personale" / "inizio.md").read_text(encoding="utf-8") if parte and \
+                        (parte[0] / "personale" / "inizio.md").is_file() else ""
+                    if messi != ["personale/inizio.md", "settings.json"] or "riga mia di dopo" not in mio \
+                            or "sostituiti-" not in uscita.getvalue() or impronta(orsa) != prima:
+                        rossi.append(f"MG15 indietro conserva: messi {messi}, {differenze(prima, impronta(orsa))}, "
+                                     f"{uscita.getvalue()[-200:]!r}")
+                elif caso == "MG16":
+                    personale = m._modulo("personale_prova", repo / "bin" / "personale.py")
+                    regola = personale.regole_consigliate(repo)[0]
+                    zero = m.regole_doppie(personale, "# Il mio CLAUDE.md\nniente regole qui\n")
+                    una = m.regole_doppie(personale, f"# Il mio CLAUDE.md\n- {regola}\n")
+                    if (zero, una) != (0, 1):
+                        rossi.append(f"MG16 regole doppie: {zero} senza regole e {una} con una, attesi 0 e 1")
+                elif caso == "MG17":
+                    import types
+                    cartella = tmp / "copia-di-prova"
+                    cartella.mkdir()
+                    (cartella / "migra.json").write_text('{"passi": ["copia"]}', encoding="utf-8")
+                    (orsa / "plugins").mkdir()
+                    (orsa / "plugins" / "known_marketplaces.json").write_text('{"arturo": {}}', encoding="utf-8")
+                    m._claude = lambda *x, **k: subprocess.CompletedProcess(x, 0, "", "")
+                    vero_modulo = m._modulo
+                    esiti = []
+                    for installato, controllo, attesa in (
+                            ("d" * 40, {"firma": "ok", "motivo": "", "cambiati": [], "mancano": []}, 3),
+                            ("a" * 40, {"firma": "ok", "motivo": "", "cambiati": ["hooks/x.py"], "mancano": []}, 3),
+                            ("a" * 40, {"firma": "non-torna", "motivo": "firma", "cambiati": [], "mancano": []}, 3),
+                            ("a" * 40, {"firma": "non-verificabile", "motivo": "ssh", "cambiati": [], "mancano": []}, 4)):
+                        finti = {
+                            "aggiornamenti_migra": types.SimpleNamespace(
+                                verifica_catalogo=lambda o: (0, "plugin-v9.9.9", "a" * 40),
+                                installato=lambda o, s=installato: {"installPath": str(tmp), "gitCommitSha": s}),
+                            "fiducia_migra": types.SimpleNamespace(fissa_ancora=lambda *x: None,
+                                                                   controlla=lambda *x, c=controllo: c)}
+                        m._modulo = lambda nome, file: finti.get(nome) or vero_modulo(nome, file)
+                        try:
+                            m.installa_plugin(orsa, cartella)
+                            esiti.append("passa")
+                        except m.Ferma as e:
+                            esiti.append(e.uscita)
+                    if esiti != [3, 3, 3, 4]:
+                        rossi.append(f"MG17 controlli dopo l'installazione: uscite {esiti}, attese [3, 3, 3, 4]")
+            except Exception as e:  # noqa: BLE001
+                rossi.append(f"{caso} eccezione: {type(e).__name__}: {str(e)[:200]}")
+            finally:
+                os.environ.clear()
+                os.environ.update(env_prima)
+    return rossi
+
+
+def prova(repo: Path, solo: str | None = None) -> list:
+    rossi = prova_unita(repo, solo)
+    if solo in UNITA:
+        return rossi
+    if not CLAUDE:
+        return rossi + [f"{c} manca la CLI claude: questo banco prova la CLI vera" for c in CASI if c not in UNITA]
     with tempfile.TemporaryDirectory(prefix="migra.") as t:
         tmp = Path(os.path.realpath(t))
         try:
@@ -223,7 +454,8 @@ def prova(repo: Path, solo: str | None = None) -> list:
             sha = b.rilascio("0.9.0")
             b.clone()
         except Exception as errore:  # noqa: BLE001
-            return [f"{c} preparazione: {type(errore).__name__}: {str(errore)[:160]}" for c in CASI]
+            return rossi + [f"{c} preparazione: {type(errore).__name__}: {str(errore)[:160]}" for c in CASI
+                            if c not in UNITA]
         prima = impronta(b.orsa)
 
         def fine(caso: str) -> bool:
@@ -291,7 +523,7 @@ def prova(repo: Path, solo: str | None = None) -> list:
         falliti = [k for k, v in controlli.items() if not v]
         if falliti:
             rossi.append(f"MG03 migrazione: {falliti}, {(p.stdout + p.stderr)[-300:]!r} {stato.stdout[-120:]!r}")
-            return rossi + [f"{c} saltato: la migrazione di MG03 non è riuscita" for c in CASI[3:]
+            return rossi + [f"{c} saltato: la migrazione di MG03 non è riuscita" for c in CASI[3:8]
                             if solo in (None, c)]
         if fine("MG03"):
             return rossi
@@ -302,7 +534,7 @@ def prova(repo: Path, solo: str | None = None) -> list:
         if p.returncode != 0 or dopo != prima or b.installato():
             rossi.append(f"MG04 indietro: rc {p.returncode}, {differenze(prima, dopo)}, plugin {bool(b.installato())}, "
                          f"{(p.stdout + p.stderr)[-200:]!r}")
-            return rossi + [f"{c} saltato: indietro di MG04 non è riuscito" for c in CASI[4:] if solo in (None, c)]
+            return rossi + [f"{c} saltato: indietro di MG04 non è riuscito" for c in CASI[4:8] if solo in (None, c)]
         if fine("MG04"):
             return rossi
 
@@ -368,16 +600,29 @@ VELENI = [
     ("MG01", "bin/migra.py", '    a["separa"] = personale.modificati(orsa, a["base"])\n', '    a["separa"] = []\n'),
     ("MG03", "bin/migra.py", '            (a["orsa"] / "session-env" / "aggiornamento.json").unlink()\n', '            pass\n'),
     ("MG02", "bin/migra.py", '    if a["sessioni"]:\n', '    if False:\n'),
-    ("MG03", "bin/migra.py", '    for rel in [".git", *registro["albero"]]:\n        voce = orsa / rel\n',
-     '    for rel in []:\n        voce = orsa / rel\n'),
+    ("MG03", "bin/migra.py", '    for rel in voci:\n        togli(orsa / rel)\n', '    for rel in []:\n        togli(orsa / rel)\n'),
     ("MG03", "bin/migra.py", "for antenato in Path(f).parents if", "for antenato in [Path(f).parent] if"),
     ("MG04", "bin/migra.py", '        copia_voce(dentro / ".git", orsa / ".git")\n', '        pass\n'),
     ("MG05", "bin/migra.py", "    if rc != 0:\n        raise Ferma(f\"il catalogo non indica",
      "    if rc not in (0, 3):\n        raise Ferma(f\"il catalogo non indica"),
-    ("MG06", "bin/migra.py", "        indietro(cartella)\n        return uscita\n", "        return uscita\n"),
+    ("MG06", "bin/migra.py", "        indietro(cartella, conserva=False)\n        return uscita\n", "        return uscita\n"),
     ("MG07", "bin/migra.py", '    if "upstream" in remoti:\n', '    if False:\n'),
     ("MG08", "bin/migra.py", '    if leggi_json(segno).get("giorno") == oggi:\n', '    if False:\n'),
     ("MG08", "hooks/session-start.sh", 'python3 "$ARTURO_CODICE/bin/migra.py" avviso', 'true'),
+    ("MG09", "bin/migra.py", "        togli(cartella)\n        raise\n", "        raise\n"),
+    ("MG09", "bin/migra.py", 'if "copia" in (leggi_json(p / "migra.json").get("passi") or [])',
+     'if (p / "migra.json").is_file()'),
+    ("MG10", "bin/migra.py", "        if not uguali(orsa / rel, dentro / rel):\n", "        if False:\n"),
+    ("MG11", "bin/migra.py", "    if manca:\n", "    if False:\n"),
+    ("MG12", "bin/migra.py", '    if impostazioni.doppi(unito) or hook_di_arturo(unito, a["albero"], orsa):\n', "    if False:\n"),
+    ("MG13", "bin/migra.py", '    if hook_di_arturo({"hooks": {"barra"', '    if False and hook_di_arturo({"hooks": {"barra"'),
+    ("MG14", "bin/migra.py", "        if not esiste(voce):\n            copia_voce(dentro / rel, voce)\n",
+     "        if False:\n            copia_voce(dentro / rel, voce)\n"),
+    ("MG15", "bin/migra.py", "        copia_voce(voce, da_parte / rel)\n", "        pass\n"),
+    ("MG17", "bin/migra.py", '    if voce.get("gitCommitSha") != sha:\n', "    if False:\n"),
+    ("MG17", "bin/migra.py", '    if controllo["firma"] != "ok" or controllo["cambiati"] or controllo["mancano"]:\n',
+     '    if controllo["firma"] != "ok":\n'),
+    ("MG16", "bin/migra.py", "personale.regole_consigliate(radice_arturo()))[0])", "personale.regole_consigliate(radice_arturo())))"),
 ]
 
 

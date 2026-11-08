@@ -13,6 +13,33 @@ modo di lavorare.
 
 ---
 
+## 2026-11-08 — Aggiornamenti e migrazione: niente più lavoro perso o blocchi senza motivo
+
+**Cosa cambia**: otto correzioni a come Arturo si aggiorna e a come passa dal clone al plugin.
+- `arturo migra indietro` non butta più quello che hai scritto dopo la migrazione: righe nuove in
+  `personale/`, un'impostazione cambiata, un altro plugin installato. Prima di rimettere il clone com'era, li
+  copia in `sostituiti-<data>/` dentro la copia di sicurezza, e te lo dice.
+- Una copia di sicurezza rimasta a metà (disco pieno) non resta più accanto a `~/.claude`, e `migra indietro`
+  non la prende per buona: prima metteva un `.git` incompleto al posto di quello vero.
+- Il rapporto di `migra --prova` non dice più "il CLAUDE.md ripete 2 regole" a chi non ne ripete nessuna.
+- Col plugin, `/aggiorna` porta anche le voci nuove di `settings.json` che il plugin non sa portare da solo:
+  permessi, regole di blocco, `env`. Una voce cambiata anche da te si decide con `/setup`.
+- Una copia di prova con un conflitto già risolto, che aspetta solo il tuo sì, non si scarta più alla chiusura
+  di una sessione: resta finché non la concludi con `/aggiorna`.
+- Un tuo hook mai salvato con un commit non blocca più ogni aggiornamento con "hook mancante". Una tua skill
+  non salvata con lo stesso nome di una nuova di Arturo non lo blocca più: va in `personale/conflitti`, come un
+  conflitto, e l'avvio te lo dice.
+- Un `/clear` non installa più un aggiornamento con la sessione ancora aperta. L'installazione aspetta la
+  chiusura vera.
+- Se un aggiornamento sposta in `personale/` le righe che avevi aggiunto a un hook di sessione, l'avvio dopo te
+  lo dice: sono commentate, e finché non le rileggi non girano.
+
+**Il principio**: un aggiornamento automatico non deve mai costarti lavoro, né fermarsi per un motivo falso.
+
+**A chi serve**: a chi ha già migrato al plugin o sta per farlo, e a chi risolve i conflitti con `/aggiorna`.
+
+---
+
 ## 2026-11-08 — Telemetria: meno nomi in giro, tetti contro gli invii finti
 
 **Cosa cambia**: undici correzioni al server della telemetria e alla parte di Arturo che gli parla.
