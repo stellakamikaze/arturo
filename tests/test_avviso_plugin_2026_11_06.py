@@ -177,7 +177,7 @@ def prova(repo: Path) -> list[str]:
 
 # (caso, file, testo giusto, testo rotto): ogni veleno toglie la riga che il caso sorveglia.
 VELENI = [
-    ("AV01", "bin/aggiornamenti.py", '"plugin": True} if nuova else', '"plugin": True} if False else'),
+    ("AV01", "bin/aggiornamenti.py", '    elif nuova:\n        stato = {"stato": "manuale"', '    elif False:\n        stato = {"stato": "manuale"'),
     ("AV02", "bin/aggiornamenti.py", '    if stato.get("plugin") and stato.get("stato") == "manuale"',
      '    if False and stato.get("plugin") and stato.get("stato") == "manuale"'),
     ("AV03", "bin/aggiornamenti.py",

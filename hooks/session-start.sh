@@ -225,7 +225,12 @@ fi
 # finché aspetta, il sync fra le macchine e gli aggiornamenti non ripartono.
 ATTESA=$(git -C "$HOME/.claude" rev-parse --git-path arturo-aggiorna-copia 2>/dev/null)
 case "$ATTESA" in /*) ;; ?*) ATTESA="$HOME/.claude/$ATTESA" ;; esac
-if [ -n "$ATTESA" ] && [ -f "$ATTESA" ] && read -r A_COPIA _ A_MODO A_NATA _ < "$ATTESA" && [ -d "$A_COPIA" ]; then
+# Il percorso della copia può avere spazi (una HOME "Mario Rossi"): il registro si legge da destra.
+A_RIGA=$([ -n "$ATTESA" ] && [ -f "$ATTESA" ] && head -1 "$ATTESA" | tr -d '\r')
+A_COPIA=$(printf '%s\n' "$A_RIGA" | sed -E 's/ [0-9a-f]{40,64}( [a-z]+ [^ ]+)?$//')
+A_MODO=$(printf '%s\n' "$A_RIGA" | awk 'NF >= 4 { print $(NF-1) }')
+A_NATA=$(printf '%s\n' "$A_RIGA" | awk 'NF >= 4 { print $NF }')
+if [ -n "$A_COPIA" ] && [ -d "$A_COPIA" ]; then
   echo "ARTURO: una copia di prova con un conflitto aspetta${A_NATA:+ dal ${A_NATA/_/ alle }} ($([ "$A_MODO" = sync ] && echo "sync fra le tue macchine" || echo "aggiornamento")): finché aspetta, sync e aggiornamenti sono fermi. /aggiorna la conclude o la scarta."
 fi
 

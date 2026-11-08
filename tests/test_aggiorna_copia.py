@@ -15,6 +15,8 @@ marcatore nei file in uso, la copia di prova aspetta, e una volta conclusa il sy
 registro di /aggiorna indietro. C05 una copia di prova in attesa dal sync non sparisce con /aggiorna:
 l'esito la nomina, la copia resta, l'avvio della sessione la ricorda, e solo "scarta" la toglie.
 C06 una copia di prova sparita (cartella temporanea svuotata) non ferma il sync per sempre.
+C10 con uno spazio nella HOME ("Mario Rossi") la copia in attesa del sync resta al giro dopo, l'avvio la
+ricorda, il blocco di "Risolvere un conflitto" la trova, e niente sopra la HOME si cancella (7/11/2026).
 C07-C09 (copia dentro .git, /aggiorna indietro) stanno in test_aggiorna_indietro.py.
 
 Il "in nessun momento" di C01 lo guarda un git finto in testa al PATH: dopo ogni comando git vero
@@ -259,8 +261,32 @@ def test_c06(repo: Path) -> None:
     per_shell(prova, repo)
 
 
+def test_c10(repo: Path) -> None:
+    assert SHELL, "bash mancante: i blocchi non si provano"
+    for shell in SHELL:
+        with tempfile.TemporaryDirectory() as tmp:
+            assert " " not in tmp, "C10 prova: la cartella temporanea ha già uno spazio"
+            altra = Path(tmp) / "scatola" / "altra-persona" / "documento.txt"
+            altra.parent.mkdir(parents=True)
+            altra.write_text("non mio\n", encoding="utf-8")
+            lab = Lab(repo, Path(tmp) / "scatola" / "Mario Rossi", shell)
+            stato = sync_in_conflitto(lab, repo, "C10")
+            copia = Path(read(stato).split(" " + lab.head())[0])
+            uscita = lab.lancia(blocco(read(repo / "commands" / "inizio.md"), "## FASE 0", "C10"))
+            assert altra.exists() and lab.utente.is_dir(), \
+                f"C10 con {shell} il sync dopo ha cancellato la cartella sopra la HOME con lo spazio"
+            assert copia.is_dir() and stato.exists(), f"C10 con {shell} il sync dopo ha tolto la copia in attesa: {uscita[-300:]!r}"
+            avvio = subprocess.run([BASH, str(repo / "hooks" / "session-start.sh")], input="{}", env=lab.env,
+                                   cwd=str(lab.base), capture_output=True, text=True, timeout=60).stdout
+            assert "copia di prova con un conflitto aspetta" in avvio, \
+                f"C10 con {shell} l'avvio non ricorda la copia in attesa con lo spazio nel percorso"
+            trova = concludi(aggiorna(repo), "C10").split("APPLICA=")[0] + 'echo "TROVATA=[$COPIA]"\n'
+            assert f"TROVATA=[{copia}]" in lab.lancia(trova), \
+                f"C10 con {shell} il blocco di \"Risolvere un conflitto\" non trova la copia con lo spazio"
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {"C01": test_c01, "C02": test_c02, "C03": test_c03, "C04": test_c04,
-                                            "C05": test_c05, "C06": test_c06}
+                                            "C05": test_c05, "C06": test_c06, "C10": test_c10}
 
 
 def main() -> int:

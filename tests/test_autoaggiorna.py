@@ -28,6 +28,11 @@ AA18 dopo un /clear, un /compact o una ripresa il rinvio non si installa: lo ins
 AA19 una procedura che non parte lascia all'avvio i file che la fermano, senza dire anche che il rilascio
      si installa da solo (segnalazione n. 49 di Gigi, #4767, 4/11/2026).
 AA20 con le modifiche salvate in un commit lo stato torna pronto e il rilascio si installa alla chiusura.
+AA22 con uno spazio nella HOME ("Mario Rossi") una copia di prova in attesa resta dov'è al giro dopo, e
+     "scarta" toglie solo lei: niente sopra la HOME si cancella (review del 7/11/2026, critico).
+AA23 un rilascio tolto con /aggiorna indietro non si reinstalla da solo alla chiusura dopo; uno più nuovo sì.
+AA24 "concludi" porta in personale/conflitti anche i file già risolti col rilascio prima del conflitto rimasto
+     alla persona: il suo commit non sparisce in silenzio.
 
 Sulla base 5d83592, prima della funzione, ogni controllo deve fallire col suo codice. AA12-AA17 sono rossi
 anche sulla base 9ca11aa (dev del 3/11/2026), salvo le invarianti AA15 e AA17.
@@ -487,11 +492,92 @@ def test_aa21(repo: Path) -> None:
     con_lab(repo, "AA21", prova)
 
 
+def procedura(lab: Lab, *argomenti: str) -> str:
+    p = subprocess.run([BASH, str(lab.utente / "bin" / "aggiorna-applica.sh"), str(lab.utente), *argomenti],
+                       env=dict(lab.env, GIT_EDITOR="true"), cwd=str(lab.utente), capture_output=True, text=True,
+                       encoding="utf-8", timeout=300)
+    return p.stdout + p.stderr
+
+
+def test_aa22(repo: Path) -> None:
+    with tempfile.TemporaryDirectory() as d:
+        assert " " not in d, "AA22 prova: la cartella temporanea ha già uno spazio"
+        scatola = Path(d) / "scatola"
+        altra = scatola / "altra-persona" / "documento.txt"
+        altra.parent.mkdir(parents=True)
+        altra.write_text("non mio\n", encoding="utf-8")
+        base = scatola / "Mario Rossi"
+        base.mkdir()
+        lab = Lab(repo, base, "AA22")
+        (lab.utente / "settings.json").write_text(json.dumps({"env": {"A": "persona"}}, indent=2) + "\n", encoding="utf-8")
+        lab.git(lab.utente, "commit", "-q", "-am", "le mie impostazioni")
+        lab.rilascia("settings.json", json.dumps({"env": {"A": "2"}}, indent=2) + "\n", "v2026-02-01")
+        lab.arturo_cli("applica")
+        stato = gitdir(lab) / "arturo-aggiorna-copia"
+        assert stato.exists(), "AA22 prova: il conflitto su settings.json non lascia una copia in attesa"
+        copia = Path(read(stato).split(" " + lab.head())[0])
+        assert copia.is_dir(), f"AA22 prova: la copia in attesa non c'è: {copia}"
+        lab.arturo_cli("applica")
+        assert altra.exists() and lab.utente.is_dir(), \
+            "AA22 il giro dopo ha cancellato la cartella sopra la HOME con lo spazio"
+        assert copia.is_dir() and stato.exists(), "AA22 il giro dopo ha tolto la copia in attesa della persona"
+        uscita = procedura(lab, "scarta")
+        assert altra.exists() and lab.utente.is_dir(), f"AA22 scarta ha cancellato fuori dalle copie di prova: {uscita[-200:]!r}"
+        assert "SCARTATA" in uscita and not copia.exists() and not stato.exists(), \
+            f"AA22 scarta non toglie la copia con lo spazio nel percorso: {uscita[-300:]!r}"
+
+
+def test_aa23(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        prima = lab.head()
+        commit = lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
+        lab.arturo_cli("applica")
+        assert lab.head() == commit, "AA23 prova: il rilascio non si installa"
+        uscita = procedura(lab, "indietro")
+        assert "TORNATO INDIETRO" in uscita and lab.head() == prima, f"AA23 prova: indietro non torna: {uscita[-300:]!r}"
+        lab.arturo_cli("applica")
+        assert not (lab.utente / "hooks" / "nuova.py").exists() and lab.stato().get("stato") == "manuale", \
+            f"AA23 il rilascio tolto con indietro si reinstalla da solo alla chiusura: {lab.stato()}"
+        avvio = lab.arturo_cli("stato").stdout
+        assert "/aggiorna indietro" in avvio and "si installa da sola" not in avvio, \
+            f"AA23 l'avvio non dice che il rilascio tolto aspetta /aggiorna: {avvio!r}"
+        nuovo = lab.rilascia("hooks/altra.py", "y = 1\n", "v2026-02-02")
+        lab.arturo_cli("applica")
+        assert lab.head() == nuovo, f"AA23 un rilascio più nuovo di quello tolto non si installa: {lab.stato()}"
+    con_lab(repo, "AA23", prova)
+
+
+def test_aa24(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        lab.rilascia("hooks/guardia.py", "regola = 1\n", "v2026-02-01")
+        lab.arturo_cli("applica")
+        (lab.utente / "hooks" / "guardia.py").write_text("regola = 'della persona'\n", encoding="utf-8")
+        lab.git(lab.utente, "commit", "-q", "-am", "la mia regola")
+        (lab.utente / "settings.json").write_text(json.dumps({"env": {"A": "persona"}}, indent=2) + "\n", encoding="utf-8")
+        lab.git(lab.utente, "commit", "-q", "-am", "le mie impostazioni")
+        lab.rilascia("hooks/guardia.py", "regola = 2\n", "")
+        lab.rilascia("settings.json", json.dumps({"env": {"A": "2"}}, indent=2) + "\n", "v2026-02-02")
+        lab.arturo_cli("applica")
+        stato = gitdir(lab) / "arturo-aggiorna-copia"
+        assert stato.exists(), f"AA24 prova: il conflitto su settings.json non aspetta: {lab.stato()}"
+        copia = Path(read(stato).split()[0])
+        (copia / "settings.json").write_text(json.dumps({"env": {"A": "unita"}}, indent=2) + "\n", encoding="utf-8")
+        lab.git(copia, "add", "settings.json")
+        subprocess.run(["git", "-C", str(copia), "rebase", "--continue"], env=dict(lab.env, GIT_EDITOR="true"),
+                       capture_output=True, text=True, timeout=60)
+        uscita = procedura(lab, "concludi")
+        assert "APPLICATO" in uscita, f"AA24 prova: concludi non applica: {uscita[-300:]!r}"
+        salvate = [d / "hooks" / "guardia.py" for d in cartelle_orsa(lab) if (d / "hooks" / "guardia.py").exists()]
+        assert salvate and read(salvate[0]) == "regola = 'della persona'\n", \
+            f"AA24 concludi perde in silenzio la versione della persona del file risolto col rilascio: {cartelle_orsa(lab)}"
+    con_lab(repo, "AA24", prova)
+
+
 TESTS = {"AA01": test_aa01, "AA02": test_aa02, "AA03": test_aa03, "AA04": test_aa04, "AA05": test_aa05,
          "AA06": test_aa06, "AA07": test_aa07, "AA08": test_aa08, "AA09": test_aa09, "AA10": test_aa10, "AA11": test_aa11,
          "AA12": test_aa12, "AA13": test_aa13, "AA14": test_aa14, "AA15": test_aa15, "AA16": test_aa16,
          "AA17": test_aa17, "AA18": test_aa18, "AA19": test_aa19,
-         "AA20": test_aa20, "AA21": test_aa21}
+         "AA20": test_aa20, "AA21": test_aa21, "AA22": test_aa22, "AA23": test_aa23, "AA24": test_aa24}
 
 
 def main() -> int:

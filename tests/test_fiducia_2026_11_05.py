@@ -22,6 +22,10 @@ FD07 il catalogo indica un tag firmato ma lo sha di un commit dopo, non taggato:
 FD08 il catalogo torna a un rilascio firmato più vecchio: uscita 3, niente cambia;
 FD09 vX → vY: un tag firmato col suo sha si applica, la copia nuova torna col suo MANIFEST firmato, la
      deriva tace, e il giro dopo dice "GIÀ AGGIORNATO".
+FD10 un indirizzo del catalogo che comincia con "-" non arriva a git come opzione (--upload-pack=<comando>):
+     niente parte, e l'uscita è 3 (review del 7/11/2026);
+FD11 una voce del catalogo con hooks, mcpServers o un'altra chiave che non sceglie il rilascio dà
+     "possibile compromissione", anche con tag e sha giusti: Claude Code la unirebbe al plugin firmato.
 
 Sulla base 809868a (il dev prima di F3) sono tutti rossi: fiducia.py, il MANIFEST e `plugin` non ci
 sono. Con --avvelena una copia del repository rotta in un punto alla volta deve far fallire il caso
@@ -38,7 +42,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["FD01", "FD02", "FD03", "FD04", "FD05", "FD06", "FD07", "FD08", "FD09"]
+CASI = ["FD01", "FD02", "FD03", "FD04", "FD05", "FD06", "FD07", "FD08", "FD09", "FD10", "FD11"]
+CLI = ["FD06", "FD07", "FD08", "FD09"]  # i casi con la CLI vera di Claude Code
 DISCRIMINANTI = list(CASI)
 CLAUDE = shutil.which("claude")
 
@@ -212,6 +217,49 @@ def caso_fd05(repo: Path, tmp: Path) -> list:
     return []
 
 
+CATALOGO_PROVA = r"""
+import json, sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+import aggiornamenti
+orsa, voce = Path(sys.argv[2]), json.loads(sys.argv[3])
+catalogo = orsa / "catalogo"
+(catalogo / ".claude-plugin").mkdir(parents=True, exist_ok=True)
+(catalogo / ".claude-plugin" / "marketplace.json").write_text(json.dumps({"name": "arturo", "plugins": [voce]}))
+(orsa / "plugins").mkdir(exist_ok=True)
+(orsa / "plugins" / "known_marketplaces.json").write_text(json.dumps({"arturo": {"installLocation": str(catalogo)}}))
+print("RC", aggiornamenti.verifica_catalogo(orsa)[0])
+"""
+
+
+def catalogo_finto(repo: Path, tmp: Path, nome: str, voce: dict):
+    orsa = tmp / nome
+    orsa.mkdir()
+    return esegui([sys.executable, "-c", CATALOGO_PROVA, repo.resolve() / "bin", orsa, json.dumps(voce)], cwd=str(tmp),
+                  env=dict(os.environ, HOME=str(orsa), CLAUDE_CONFIG_DIR=str(orsa), ARTURO_TELEMETRIA="0"))
+
+
+def caso_fd10(repo: Path, tmp: Path) -> list:
+    spia = tmp / "fd10-eseguito"
+    voce = {"name": "arturo", "version": "9.9.9",
+            "source": {"source": "url", "url": f"--upload-pack=touch {spia};:", "ref": "plugin-v9.9.9", "sha": "b" * 40}}
+    p = catalogo_finto(repo, tmp, "fd10", voce)
+    if spia.exists() or "RC 3" not in p.stdout:
+        return [f"FD10 indirizzo come opzione di git: comando eseguito {spia.exists()}, {(p.stdout + p.stderr).strip()[-160:]!r}"]
+    return []
+
+
+def caso_fd11(repo: Path, tmp: Path) -> list:
+    rossi = []
+    for chiave_in_piu in ("hooks", "mcpServers"):
+        voce = {"name": "arturo", "version": "9.9.9", chiave_in_piu: {"SessionStart": []},
+                "source": {"source": "url", "url": f"file://{tmp}/manca", "ref": "plugin-v9.9.9", "sha": "c" * 40}}
+        p = catalogo_finto(repo, tmp, f"fd11-{chiave_in_piu}", voce)
+        if "RC 3" not in p.stdout or "POSSIBILE COMPROMISSIONE" not in p.stderr or chiave_in_piu not in p.stderr:
+            rossi.append(f"FD11 voce del catalogo con {chiave_in_piu}: {(p.stdout + p.stderr).strip()[-160:]!r}")
+    return rossi
+
+
 class Rilasci:
     """Un repository di rilasci del plugin, un catalogo in una cartella e un'Orsa con la CLI vera."""
 
@@ -265,7 +313,7 @@ class Rilasci:
 
 def casi_cli(repo: Path, tmp: Path, chiavi: dict, solo: str | None) -> list:
     if not CLAUDE:
-        return [f"{c} manca la CLI claude: questo banco prova la CLI vera" for c in CASI[5:]]
+        return [f"{c} manca la CLI claude: questo banco prova la CLI vera" for c in CLI]
     r = Rilasci(repo, tmp, chiavi)
     sha1 = r.rilascio("0.3.0", "rilasci")
     r.indica("plugin-v0.3.0", sha1)
@@ -273,7 +321,7 @@ def casi_cli(repo: Path, tmp: Path, chiavi: dict, solo: str | None) -> list:
     messo = r.claude("install", "arturo@arturo")
     if r.installato().get("gitCommitSha") != sha1:
         return [f"{c} installazione di partenza: {(aggiunto.stdout + aggiunto.stderr + messo.stdout + messo.stderr)[-200:]!r}"
-                for c in CASI[5:]]
+                for c in CLI]
     rossi = []
 
     def fermo(caso: str, tag: str, sha: str, descrizione: str) -> None:
@@ -318,18 +366,19 @@ def prova(repo: Path, solo: str | None = None) -> list:
         chiavi = {n: chiave(tmp, n) for n in ("rilasci", "altra")}
         semplici = [("FD01", lambda: caso_fd01(repo, tmp)), ("FD02", lambda: caso_fd02(repo, tmp, chiavi)),
                     ("FD03", lambda: caso_fd03(repo, tmp, chiavi)), ("FD04", lambda: caso_fd04(repo, tmp, chiavi)),
-                    ("FD05", lambda: caso_fd05(repo, tmp))]
+                    ("FD05", lambda: caso_fd05(repo, tmp)), ("FD10", lambda: caso_fd10(repo, tmp)),
+                    ("FD11", lambda: caso_fd11(repo, tmp))]
         for codice, fn in semplici:
             if solo in (None, codice):
                 try:
                     rossi += fn()
                 except Exception as errore:  # noqa: BLE001 - sulla base fiducia.py non c'è
                     rossi.append(f"{codice} errore: {type(errore).__name__}: {str(errore)[:160]}")
-        if solo is None or solo in CASI[5:]:
+        if solo is None or solo in CLI:
             try:
                 rossi += casi_cli(repo, tmp, chiavi, solo)
             except Exception as errore:  # noqa: BLE001
-                rossi += [f"{c} errore: {type(errore).__name__}: {str(errore)[:160]}" for c in CASI[5:]
+                rossi += [f"{c} errore: {type(errore).__name__}: {str(errore)[:160]}" for c in CLI
                           if solo in (None, c)]
     return rossi
 
@@ -347,6 +396,8 @@ VELENI = [
     ("FD07", "bin/aggiornamenti.py", '.stdout.strip() != sha:\n', '.stdout.strip() == "":\n'),
     ("FD08", "bin/aggiornamenti.py", "    if numero(tag) < numero(", "    if False and numero(tag) < numero("),
     ("FD09", "bin/aggiornamenti.py", 'aggiorna = _claude("update", NOME_PLUGIN)', 'aggiorna = _claude("list")'),
+    ("FD10", "bin/aggiornamenti.py", 'URL_AMMESSO.fullmatch(str(sorgente.get("url")))', 'isinstance(sorgente.get("url"), str)'),
+    ("FD11", "bin/aggiornamenti.py", "    estranea = voce_estranea(voce)\n    if estranea:", "    estranea = ''\n    if estranea:"),
 ]
 
 
