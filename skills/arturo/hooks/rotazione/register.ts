@@ -8,8 +8,11 @@ import type { EngineInterface, Register } from 'claude-code'
 import {
   ATTESA_CLEAR_MS,
   ATTESA_INIZIO_MS,
+  type Attesa,
   argomentiInizio,
+  CONTROLLO_BOZZA_MS,
   decidi,
+  vediBozza,
   leggiArgomenti,
   nomeTool,
   RIPROVA_CLEAR_MS,
@@ -22,6 +25,10 @@ const CHIAVE_ULTIMA = 'ultima-rotazione'
 
 let armata: Rotazione | undefined
 let inCorso: Rotazione | undefined
+// rotazione decisa con testo nella casella: aspetta che la bozza si fermi o si svuoti
+let inAttesa: { rot: Rotazione; attesa: Attesa } | undefined
+// la bozza vecchia da rimettere nella casella dopo /inizio
+let bozzaDaRimettere = ''
 let interattiva = true
 let nomeRegistrato: string | undefined
 
@@ -82,19 +89,15 @@ export async function fineTurno($: EngineInterface, e: Evento<'turn.complete'>, 
       armata = undefined
       stato($, 'rotazione', `rotazione: ${esito.motivo}`)
       $.ui.toast(`rotazione: ${esito.motivo}`)
-    } else if (esito.azione === 'clear') {
-      inCorso = armata
+    } else if (esito.azione === 'attendi') {
+      inAttesa = { rot: armata, attesa: { bozza: box.text, fermaDa: ora, iniziata: ora } }
       armata = undefined
-      await $.store.set(CHIAVE_ULTIMA, ora)
-      $.clock.after(ATTESA_CLEAR_MS, () => lanciaClear($))
-      // Il 3/11 un /clear deciso non è partito (1 su 8): se dopo 5 s la sessione non si è chiusa,
-      // un secondo tentativo, registrato.
-      const attesa = inCorso
-      $.clock.after(ATTESA_CLEAR_MS + RIPROVA_CLEAR_MS, async () => {
-        if (inCorso !== attesa || !attesa) return
-        await registra($, 'clear: nessuna chiusura dopo 5 s, secondo tentativo')
-        await lanciaClear($)
-      })
+      stato($, 'rotazione', 'rotazione in attesa: c\'è testo nella casella')
+      $.clock.after(CONTROLLO_BOZZA_MS, () => controllaBozza($))
+    } else if (esito.azione === 'clear') {
+      const rot = armata
+      armata = undefined
+      await avviaClear($, rot, ora)
     }
   } catch (err) {
     armata = undefined
@@ -103,7 +106,59 @@ export async function fineTurno($: EngineInterface, e: Evento<'turn.complete'>, 
   return r
 }
 
+async function avviaClear($: EngineInterface, rot: Rotazione, ora: number): Promise<void> {
+  inCorso = rot
+  await $.store.set(CHIAVE_ULTIMA, ora)
+  $.clock.after(ATTESA_CLEAR_MS, () => lanciaClear($))
+  // Il 3/11 un /clear deciso non è partito (1 su 8): se dopo 5 s la sessione non si è chiusa,
+  // un secondo tentativo, registrato.
+  const attesa = inCorso
+  $.clock.after(ATTESA_CLEAR_MS + RIPROVA_CLEAR_MS, async () => {
+    if (inCorso !== attesa || !attesa) return
+    await registra($, 'clear: nessuna chiusura dopo 5 s, secondo tentativo')
+    await lanciaClear($)
+  })
+}
+
+async function controllaBozza($: EngineInterface): Promise<void> {
+  const corrente = inAttesa
+  if (!corrente) return
+  try {
+    const [box, ora] = await Promise.all([$.prompt.read(), $.clock.now()])
+    if (inAttesa !== corrente) return
+    const v = vediBozza(corrente.attesa, box.text, ora)
+    if (v.azione === 'aspetta') {
+      inAttesa = { rot: corrente.rot, attesa: v.attesa }
+      $.clock.after(CONTROLLO_BOZZA_MS, () => controllaBozza($))
+      return
+    }
+    inAttesa = undefined
+    if (v.azione === 'disarma') {
+      await registra($, `attesa bozza → disarma (${v.motivo})`)
+      stato($, 'rotazione', `rotazione: ${v.motivo}`)
+      $.ui.toast(`rotazione: ${v.motivo}`)
+      return
+    }
+    await registra($, `attesa bozza → clear, bozza ${JSON.stringify(v.bozza.slice(0, 80))} da rimettere`)
+    bozzaDaRimettere = v.bozza
+    await avviaClear($, corrente.rot, ora)
+  } catch (err) {
+    inAttesa = undefined
+    $.ui.toast(`rotazione: errore nell'attesa della bozza, nessuna rotazione (${String(err)})`)
+  }
+}
+
 export const register: Register = on => {
+
+  // Un messaggio mandato durante l'attesa vince: la persona è tornata, la rotazione si annulla.
+  on('prompt.submit', async ($, e, next) => {
+    if (inAttesa) {
+      inAttesa = undefined
+      await registra($, 'attesa bozza → disarma (messaggio mandato)')
+      stato($, 'rotazione', undefined)
+    }
+    return next(e)
+  })
 
   on('tool.call', async ($, e, next) => {
     if (await parteSpenta($, 'rotazione')) return next(e)
@@ -170,6 +225,15 @@ async function lanciaInizio($: EngineInterface, rot: Rotazione): Promise<void> {
     $.ui.toast(`Sessione rinnovata: salvato tutto, riparto da "${rot.compito}"`)
     await registra($, `inizio: lanciato ${argomentiInizio(rot)}`)
     await $.command.run({ command: 'inizio', args: argomentiInizio(rot) })
+    if (bozzaDaRimettere) {
+      const testo = bozzaDaRimettere
+      bozzaDaRimettere = ''
+      const box = await $.prompt.read()
+      if (box.text.trim() === '') {
+        const f = await $.prompt.fill({ text: testo })
+        await registra($, `bozza rimessa nella casella: ${JSON.stringify(f).slice(0, 80)}`)
+      }
+    }
   } catch (err) {
     await registra($, `inizio: rifiutato ${String(err)}`)
     $.ui.toast(`rotazione: /inizio non partito (${String(err)}). Scrivi: /inizio ${rot.progetto}`)
