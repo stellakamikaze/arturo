@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ07: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ10: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/herdr/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -21,8 +21,11 @@ HZ08 chi ha già Arturo (setup fatto) e non ha Herdr riceve all'avvio l'invito `
 HZ09 i suggerimenti della finestra puntano a cose che esistono: ogni comando slash a un file di
      commands/, "Trova i miei progetti" a trova-progetti.md, che usa la parte 2c del ritratto e i
      sottocomandi veri di ritratto.py.
+HZ10 "Da dove partire" in cima al pannello Da fare (partenza.js, con node): il todo di da_dove col motivo,
+     poi al massimo tre passi della catena dopo di lui, senza i todo segnati fatti; niente scheda senza
+     da_dove o col todo già fatto. Senza node il caso si salta.
 
-Con --avvelena sette copie rotte del repository devono far rosso il caso che le sorveglia.
+Con --avvelena otto copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
 
@@ -36,7 +39,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10")
 INSTALLA = Path("shared/herdr/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -285,7 +288,44 @@ def hz09(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09}
+PROVA_PARTENZA = r"""
+import { partenza } from %s;
+const t = (id) => ({ id, titolo: "todo " + id });
+const vista = (da, catena) => ({ gruppi: [{ tipo: "io", todo: [1, 2, 3, 4, 5, 6, 7].map(t) }],
+  progetti: [{ nome: "p", catena, da_dove: da ? { id: da, motivo: "Sblocca #3" } : null }] });
+const forma = (r) => r && { id: r.todo.id, motivo: r.motivo, poi: r.poi.map((x) => x.id) };
+console.log(JSON.stringify([
+  forma(partenza(vista(2, [1, 2, 3, 4, 5, 6]))),
+  forma(partenza(vista(2, [1, 2, 3, 4, 5, 6]), new Set([3]))),
+  forma(partenza(vista(null, [1, 2]))),
+  forma(partenza(vista(2, [2, 3]), new Set([2]))),
+  forma(partenza(vista(7, [1, 2]))),
+  forma(partenza(null)),
+]));
+"""
+
+
+def hz10(repo: Path, casa: Path) -> str | None:
+    node = shutil.which("node")
+    if not node:
+        return None
+    copia = casa / "partenza.mjs"  # .mjs: senza package.json node leggerebbe il .js come CommonJS
+    shutil.copyfile(repo / "shared/herdr/mods/arturo/partenza.js", copia)
+    modulo = copia.as_uri()
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_PARTENZA % json.dumps(modulo)],
+                       capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"partenza.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    atteso = [{"id": 2, "motivo": "Sblocca #3", "poi": [3, 4, 5]}, {"id": 2, "motivo": "Sblocca #3", "poi": [4, 5, 6]},
+              None, None, {"id": 7, "motivo": "Sblocca #3", "poi": []}, None]
+    avuto = json.loads(r.stdout.strip().splitlines()[-1])
+    for n, (a, b) in enumerate(zip(atteso, avuto), 1):
+        if a != b:
+            return f"caso {n}: atteso {a}, avuto {b}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10}
 
 
 def prova(repo: Path) -> list[str]:
@@ -308,6 +348,7 @@ VELENI = [
     ("HZ04", "hooks/herdr-stato.sh", '[ -n "${HC_TERMINAL_ID:-}" ] || exit 0', ":"),
     ("HZ05", "settings.json", "herdr-stato.sh done", "herdr-stato.sh idle"),
     ("HZ09", "shared/herdr/mods/arturo/dati.js", 'prompt: "/guidami"', 'prompt: "/guidamii"'),
+    ("HZ10", "shared/herdr/mods/arturo/partenza.js", "catena.slice(qui + 1)", "catena.slice(qui)"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 

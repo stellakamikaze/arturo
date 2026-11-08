@@ -63,7 +63,8 @@ export function titoloTodo(t) {
   let s = String(t ?? "");
   s = s.replace(/\s*\(([^()]*)\)/g, (m, dentro) => (/[\/~#]|--|https?:|\.(md|py|sh|js|json)\b/.test(dentro) || dentro.length > 48 ? "" : m));
   s = s.replace(/\s*(Piano|Vedi|Fonte|Rif\.?)\s+[~\/][^\s]*.*$/i, "");
-  s = s.replace(/\s+[~\/][\w.\/-]+/g, "");
+  // Solo i percorsi veri (~/x, /a/b): un comando come /fine o una pagina come /en/ resta, è parte della frase.
+  s = s.replace(/\s+(~\/|\/[\w.-]+\/[\w.-])[\w.\/-]*/g, "");
   s = s.replace(/\s+/g, " ").replace(/\s+([,.;:])/g, "$1").replace(/[\s,;:]+$/, "").trim();
   if (s.length > 140) s = s.slice(0, 140).replace(/\s+\S*$/, "") + "…";
   return s ? s[0].toUpperCase() + s.slice(1) : String(t ?? "");

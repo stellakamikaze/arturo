@@ -6,6 +6,7 @@ import { h_flex, v_flex } from "gpui-base";
 import { theme, spaces, shared, notify } from "herdr";
 import { todo, slug, apri, PAROLE, titoloTodo } from "./dati.js";
 import { ICONA } from "./comuni.js";
+import { partenza } from "./partenza.js";
 
 const ORDINE = ["tu", "decidi", "io", "fermo"];
 
@@ -95,12 +96,34 @@ export class Todo {
       .when(aperto, (el) => el.children(lista.map((x) => this.riga(t, x))));
   }
 
+  // In cima: il todo da cui ripartire, col motivo, Lavoraci sempre visibile e i passi che seguono.
+  partenza(t) {
+    const p = partenza(this.vista, this.fatti);
+    if (!p) return null;
+    const { todo: item, motivo, poi } = p;
+    return v_flex().id("partenza").px(12).py(12).gap(8).rounded(8).border_1().border_color(t.accent)
+      .child(div().text_size(12).font_semibold().text_color(t.accent).child("Da dove partire"))
+      .child(div().whitespace_normal().text_size(14).text_color(t.foreground).child(titoloTodo(item.titolo)))
+      .when(Boolean(motivo), (el) => el.child(div().whitespace_normal().text_size(12.5).text_color(t.muted).child(motivo)))
+      .child(h_flex().child(div().id("partenza-lavoraci").px(12).py(6).rounded(6).cursor_pointer()
+        .bg(t.accent).text_color(t.accent_foreground).text_size(13).font_semibold()
+        .hover((s) => s.opacity(0.9))
+        .on_click(() => apri(this.progetto, { id: item.id, titolo: item.titolo }))
+        .child("Lavoraci")))
+      .when(poi.length > 0, (el) => el.child(v_flex().pt(4).gap(4)
+        .child(div().text_size(12).text_color(t.muted).child("Poi"))
+        .children(poi.map((x, i) => h_flex().gap(8).items_start()
+          .child(div().flex_none().w(14).text_size(12.5).text_color(t.dim).child(String(i + 1)))
+          .child(div().flex_1().min_w(0).whitespace_normal().text_size(12.5).text_color(t.foreground).child(titoloTodo(x.titolo)))))));
+  }
+
   vuoto(t, testo) {
     return div().px(16).py(10).whitespace_normal().text_size(13).text_color(t.muted).child(testo);
   }
 
   render() {
     const t = theme();
+    const cima = this.vista && !this.errore ? this.partenza(t) : null;
     let corpo;
     if (!this.progetto) corpo = this.vuoto(t, "Apri un progetto a sinistra: qui vedi cosa c'è da fare e chi lo fa.");
     else if (this.errore) corpo = this.vuoto(t, `Non riesco a leggere i todo: ${this.errore}`);
@@ -119,6 +142,8 @@ export class Todo {
           return el.child(div().truncate().text_size(12.5).text_color(t.foreground).child(info?.titolo ?? this.progetto))
             .when(Boolean(info?.riga), (e) => e.child(div().pt(4).whitespace_normal().text_size(12.5).text_color(t.muted).child(info.riga)));
         }))
-      .child(v_flex().id("todo-elenco").flex_1().min_h(0).overflow_y_scrollbar().pb(12).child(corpo));
+      .when(Boolean(cima), (el) => el.child(div().px(12).pb(8).child(cima)))
+      // Uno scorrimento per progetto: cambiando progetto l'elenco riparte dall'alto.
+      .child(v_flex().id(`todo-elenco-${this.progetto ?? ""}`).flex_1().min_h(0).overflow_y_scrollbar().pb(12).child(corpo));
   }
 }
