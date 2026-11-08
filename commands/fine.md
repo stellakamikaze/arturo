@@ -140,6 +140,11 @@ python3 ~/.claude/bin/arturo todo aggiungi "passo che viene dopo" --dopo ID   # 
 python3 ~/.claude/bin/arturo todo stato "a che punto è il progetto, in una frase"
 ```
 
+- **Il todo della sessione** (#4994). Se la sessione è partita da "Lavoraci" in Herdr (il compito di
+  `/inizio` o il messaggio "Lavoriamo sul todo #ID"), quel todo è in corso e il pannello dice che Claude
+  ci lavora. Lavoro finito: `fatto ID --titolo-atteso="titolo"`. Lavoro non finito: `riprendi ID
+  --titolo-atteso="titolo"` più una `nota` col punto a cui è arrivato. Dopo `/fine` un todo non resta in
+  corso, salvo con `--rotazione` quando il passo dopo continua lo stesso todo.
 - Un item che può partire solo dopo un altro nasce legato con `--dopo ID`: `/inizio` e le viste lo
   saltano finché ID è aperto, e mettono avanti chi lo sblocca.
 - La riga di stato si scrive a ogni `/fine`: una frase sul punto in cui è il progetto, letta da chi non c'era

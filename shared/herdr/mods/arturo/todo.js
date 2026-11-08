@@ -1,14 +1,15 @@
 // Il pannello "Da fare": i todo del progetto aperto, divisi per chi agisce.
-// Casella: segna fatto. "Lavoraci": porta Claude su quel todo. "Altro": chi lo fa, quando, fermo,
+// Casella: segna fatto. "Lavoraci": segna il todo in corso e porta Claude su quel todo; finché è in
+// corso la riga dice cosa fa Claude, e /fine lo chiude (#4994). "Altro": chi lo fa, quando, fermo,
 // nota, scarta (menu.js). "Aggiungi" in alto: un todo nuovo senza passare da Claude.
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, spaces, shared, notify } from "herdr";
-import { todo, slug, apri, PAROLE, titoloTodo } from "./dati.js";
-import { ICONA } from "./comuni.js";
+import { theme, spaces, shared, setShared, notify } from "herdr";
+import { todo, slug, apri, spazio, PAROLE, titoloTodo } from "./dati.js";
+import { ICONA, colore } from "./comuni.js";
 import { partenza } from "./partenza.js";
-import { fatto } from "./azioni.js";
+import { fatto, inizia } from "./azioni.js";
 import { apriMenu, apriNuovo } from "./menu.js";
 
 const ORDINE = ["tu", "decidi", "io", "fermo"];
@@ -22,10 +23,14 @@ export class Todo {
     this.sopra = null;
     this.letto = null;
     this.fatti = new Set();
+    this.sessione = null;
     cx.timer.every(1500, (cx) => {
       const p = this.attivo();
       const letto = `${shared("arturo.letto")}:${shared("arturo.scritto")}`;
       if (p !== this.progetto || letto !== this.letto) { this.progetto = p; this.letto = letto; this.carica(cx); }
+      // La riga di un todo in corso segue la sessione: lavora, aspetta te, chiusa.
+      const sessione = p ? spazio(p)?.status ?? "chiusa" : null;
+      if (sessione !== this.sessione) { this.sessione = sessione; cx.notify(); }
     });
     this.progetto = this.attivo();
     this.carica(cx);
@@ -63,11 +68,47 @@ export class Todo {
     });
   }
 
+  // Lavoraci: prima il todo passa in corso, poi Claude parte su quel todo. Se il todo è cambiato nel
+  // frattempo (codice 2) Claude non parte: lavorerebbe sul todo sbagliato. Con la fonte giù parte lo
+  // stesso, e l'avviso lo dice. Un todo già in corso con la sessione aperta porta solo alla sessione.
+  lavoraci(item, cx) {
+    const progetto = this.progetto;
+    const scelto = { id: item.id, titolo: item.titolo };
+    const g = inizia(item);
+    if (!g) return apri(progetto, spazio(progetto) ? undefined : scelto);
+    cx.spawn(async (cx) => {
+      const r = await todo(g.argv);
+      setShared("arturo.scritto", Date.now());
+      if (!r.ok && r.codice === 2) {
+        notify({ title: "Claude non è partito", body: /cambiat|aspettavi/i.test(r.errore) ? "Questo todo è cambiato nel frattempo: ho riletto l'elenco, riprova." : r.errore, level: "warning" });
+        return this.carica(cx);
+      }
+      if (!r.ok) notify({ title: "Claude parte, ma il todo non risulta in corso", body: r.errore, level: "warning" });
+      await apri(progetto, scelto);
+    });
+  }
+
+  // Cosa fa Claude su un todo in corso: lo dice la sessione del progetto, se è aperta.
+  lavoro(item) {
+    if (item.stato !== "in corso") return null;
+    const s = spazio(this.progetto);
+    if (!s) return { testo: "In corso, ma la sessione è chiusa: Lavoraci la riapre", colore: "muted" };
+    if (s.status === "blocked") return { testo: "Claude ti aspetta", colore: "blocked" };
+    if (s.status === "working") return { testo: "Claude ci sta lavorando", colore: "working" };
+    return { testo: "Claude ci lavora", colore: "working" };
+  }
+
+  // Il pulsante della riga e della scheda in cima: "Vai da Claude" se ci lavora già, altrimenti "Lavoraci".
+  parola(item) {
+    return item.stato === "in corso" && spazio(this.progetto) ? "Vai da Claude" : "Lavoraci";
+  }
+
   riga(t, item) {
     const sopra = this.sopra === item.id;
     const fatto = this.fatti.has(item.id);
     const scaduto = typeof item.giorni === "number" && item.giorni < 0;
     const quando = item.scadenza_testo || "";
+    const lavoro = this.lavoro(item);
     return h_flex().id(`t-${item.id}`).px(10).py(8).gap(10).items_start().rounded(8)
       .on_hover((h, cx) => { this.sopra = h ? item.id : this.sopra === item.id ? null : this.sopra; cx.notify(); })
       .when(sopra, (el) => el.bg(t.hover))
@@ -79,12 +120,15 @@ export class Todo {
         .when(fatto, (el) => el.child(svg(ICONA("check")).size(13).text_color(t.background))))
       .child(v_flex().flex_1().min_w(0).gap(3)
         .child(div().whitespace_normal().text_size(13.5).text_color(fatto ? t.dim : t.foreground).child(titoloTodo(item.titolo)))
+        .when(Boolean(lavoro), (el) => el.child(h_flex().gap(6).items_center()
+          .child(div().size(7).flex_none().rounded_full().bg(colore(t, lavoro.colore)))
+          .child(div().text_size(12).text_color(colore(t, lavoro.colore)).child(lavoro.testo))))
         .when(Boolean(quando), (el) => el.child(div().text_size(12).text_color(scaduto ? t.blocked : t.muted).child(quando))))
       .when(sopra && !fatto, (el) => el.child(div().id(`l-${item.id}`).flex_none().px(9).py(4).rounded(6).cursor_pointer()
         .text_size(12).text_color(t.accent).border_1().border_color(t.border)
         .hover((s) => s.bg(t.selected))
-        .on_click(() => apri(this.progetto, { id: item.id, titolo: item.titolo }))
-        .child("Lavoraci")))
+        .on_click((_e, cx) => this.lavoraci(item, cx))
+        .child(this.parola(item))))
       .when(sopra && !fatto, (el) => el.child(div().id(`m-${item.id}`).flex_none().px(9).py(4).rounded(6).cursor_pointer()
         .text_size(12).text_color(t.muted).border_1().border_color(t.border)
         .hover((s) => s.bg(t.selected))
@@ -109,15 +153,17 @@ export class Todo {
     const p = partenza(this.vista, this.fatti);
     if (!p) return null;
     const { todo: item, motivo, poi } = p;
+    const lavoro = this.lavoro(item);
     return v_flex().id("partenza").px(12).py(12).gap(8).rounded(8).border_1().border_color(t.accent)
       .child(div().text_size(12).font_semibold().text_color(t.accent).child("Da dove partire"))
       .child(div().whitespace_normal().text_size(14).text_color(t.foreground).child(titoloTodo(item.titolo)))
-      .when(Boolean(motivo), (el) => el.child(div().whitespace_normal().text_size(12.5).text_color(t.muted).child(motivo)))
+      .when(Boolean(motivo) && !lavoro, (el) => el.child(div().whitespace_normal().text_size(12.5).text_color(t.muted).child(motivo)))
+      .when(Boolean(lavoro), (el) => el.child(div().whitespace_normal().text_size(12.5).text_color(colore(t, lavoro.colore)).child(lavoro.testo)))
       .child(h_flex().child(div().id("partenza-lavoraci").px(12).py(6).rounded(6).cursor_pointer()
         .bg(t.accent).text_color(t.accent_foreground).text_size(13).font_semibold()
         .hover((s) => s.opacity(0.9))
-        .on_click(() => apri(this.progetto, { id: item.id, titolo: item.titolo }))
-        .child("Lavoraci")))
+        .on_click((_e, cx) => this.lavoraci(item, cx))
+        .child(this.parola(item))))
       .when(poi.length > 0, (el) => el.child(v_flex().pt(4).gap(4)
         .child(div().text_size(12).text_color(t.muted).child("Poi"))
         .children(poi.map((x, i) => h_flex().gap(8).items_start()

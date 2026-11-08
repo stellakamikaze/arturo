@@ -38,7 +38,6 @@ ECCEZIONI = {
     ("pannello", "inizia"): "\"in corso\" non è fra i sei tasti del pannello, che tiene i gesti più frequenti",
     ("herdr", "su"): "il menu di Herdr sceglie \"quando\" per nome, con modifica --quando",
     ("herdr", "giu"): "il menu di Herdr sceglie \"quando\" per nome, con modifica --quando",
-    ("herdr", "inizia"): "\"in corso\" lo scrive Lavoraci quando porta Claude sul todo (#4994)",
     ("herdr", "deciso"): "una decisione si scrive a Claude, che la registra: il menu ha i gesti, non le scelte",
     ("herdr", "dopo"): "un legame chiede di scegliere un secondo todo: si chiede a Claude",
     ("herdr", "ripristina"): "serve solo all'annullo di pagina e /dafare: Herdr rimette le cose dal menu",

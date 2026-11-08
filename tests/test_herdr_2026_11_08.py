@@ -31,10 +31,11 @@ HZ11 "La settimana" (settimana.js, con node): ogni progetto in una lista sola, l
 HZ12 le azioni sui todo del pannello Da fare (azioni.js, con node): ogni gesto del menu e "Aggiungi"
      girano sulla CLI vera in una casa finta e lasciano il todo come promettono (chi, quando, fermo col
      motivo, ripreso, nota, scartato, fatto); il menu non propone il chi e il quando che il todo ha già,
-     né "Fermo" a un todo fermo; un titolo vuoto non aggiunge niente. Menu e finestra sono parti di
+     né "Fermo" a un todo fermo; un titolo vuoto non aggiunge niente. Lavoraci (#4994) segna il todo
+     in corso prima di aprire Claude, non riscrive un todo già in corso, e il menu lo rimette da fare. Menu e finestra sono parti di
      main.js. Senza node il caso si salta.
 
-Con --avvelena dieci copie rotte del repository devono far rosso il caso che le sorveglia.
+Con --avvelena dodici copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
 
@@ -387,14 +388,14 @@ def hz11(repo: Path, casa: Path) -> str | None:
 
 
 PROVA_AZIONI = r"""
-import { azioni, aggiungi, fatto } from %s;
+import { azioni, aggiungi, fatto, inizia } from %s;
 import { readFileSync } from "fs";
 const righe = JSON.parse(readFileSync(%s, "utf-8"));
 const testo = "perché sì";
 console.log(JSON.stringify({
-  aggiungi: [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => aggiungi({ titolo: `  prova   ${n} `, progetto: "prova", chi: "io", quando: "oggi" })?.argv),
+  aggiungi: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => aggiungi({ titolo: `  prova   ${n} `, progetto: "prova", chi: "io", quando: "oggi" })?.argv),
   vuoto: aggiungi({ titolo: "   ", progetto: "prova" }),
-  righe: righe.map((t) => ({ id: t.id, voci: Object.fromEntries(azioni(t).map((v) => [v.id, v.argv(testo)])), fatto: fatto(t).argv })),
+  righe: righe.map((t) => ({ id: t.id, voci: Object.fromEntries(azioni(t).map((v) => [v.id, v.argv(testo)])), fatto: fatto(t).argv, inizia: inizia(t)?.argv ?? null })),
 }));
 """
 
@@ -409,8 +410,14 @@ def hz12(repo: Path, casa: Path) -> str | None:
     main = (mod / "main.js").read_text(encoding="utf-8")
     if "azioni: Azioni" not in main or "nuovo: Nuovo" not in main:
         return "main.js non ha le parti azioni e nuovo"
-    if "apriMenu(item)" not in (mod / "todo.js").read_text(encoding="utf-8"):
+    pannello = (mod / "todo.js").read_text(encoding="utf-8")
+    if "apriMenu(item)" not in pannello:
         return "il pannello Da fare non apre il menu delle azioni"
+    # Lavoraci, nella riga e nella scheda in cima, segna il todo in corso prima di aprire Claude.
+    corpo = pannello.split("  lavoraci(item, cx) {", 1)[-1].split("\n  }\n", 1)[0]
+    if pannello.count("this.lavoraci(item, cx)") != 2 or "const g = inizia(item);" not in corpo \
+            or corpo.find("todo(g.argv)") > corpo.find("await apri(progetto, scelto)"):
+        return "Lavoraci non segna il todo in corso prima di aprire Claude"
     node = shutil.which("node")
     if not node:
         return None
@@ -462,6 +469,19 @@ def hz12(repo: Path, casa: Path) -> str | None:
     r = cli(voci["riprendi"])
     if r.returncode != 0 or mostra(len(GESTI))["stato"] != "da fare":
         return f"Riprendi non riapre il todo fermo: {(r.stderr or r.stdout).strip()[:120]}"
+    # Lavoraci: il todo passa in corso, non si riscrive se lo è già, e il menu lo rimette da fare.
+    n = len(GESTI) + 1
+    r = cli(gesti([mostra(n)])["righe"][0]["inizia"])
+    if r.returncode != 0 or mostra(n)["stato"] != "in corso":
+        return f"Lavoraci non segna il todo in corso: {mostra(n)['stato']} {(r.stderr or r.stdout).strip()[:120]}"
+    corso = gesti([mostra(n)])["righe"][0]
+    if corso["inizia"] is not None:
+        return "Lavoraci riscrive un todo già in corso"
+    if "riprendi" not in corso["voci"] or "ferma" not in corso["voci"]:
+        return f"a un todo in corso il menu propone {sorted(corso['voci'])}"
+    r = cli(corso["voci"]["riprendi"])
+    if r.returncode != 0 or mostra(n)["stato"] != "da fare":
+        return f"il menu non rimette da fare un todo in corso: {(r.stderr or r.stdout).strip()[:120]}"
     return None
 
 
@@ -491,6 +511,8 @@ VELENI = [
     ("HZ10", "shared/herdr/mods/arturo/partenza.js", "catena.slice(qui + 1)", "catena.slice(qui)"),
     ("HZ11", "shared/herdr/mods/arturo/settimana.js", "else if (te) liste.te.push", "if (te) liste.te.push"),
     ("HZ12", "shared/herdr/mods/arturo/azioni.js", "if (quando === t.quando) continue;", ""),
+    ("HZ12", "shared/herdr/mods/arturo/azioni.js", 'argv: ["inizia"', 'argv: ["riprendi"'),
+    ("HZ12", "shared/herdr/mods/arturo/todo.js", "const g = inizia(item);", "const g = null;"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 

@@ -11,6 +11,10 @@ const atteso = (t) => `--titolo-atteso=${t.titolo}`;
 
 export const fatto = (t) => ({ argv: ["fatto", String(t.id), atteso(t)], esito: "Fatto" });
 
+// "Lavoraci": il todo passa in corso prima che Claude parta. /fine lo chiude, o lo rimette da fare
+// se il lavoro non è finito (#4994). Un todo già in corso non si riscrive: null.
+export const inizia = (t) => (t.stato === "in corso" ? null : { argv: ["inizia", String(t.id), atteso(t)], esito: "Claude ci lavora" });
+
 // I gesti del menu di una riga, nell'ordine in cui compaiono. Ognuno:
 // { id, gruppo, etichetta, argv(testo), esito, chiede? }. Con `chiede` il menu mostra un campo
 // prima di scrivere: { domanda, obbligo } (obbligo: senza testo il gesto non parte).
@@ -26,10 +30,12 @@ export function azioni(t) {
     out.push({ id: `quando-${quando}`, gruppo: "Quando", etichetta, esito: `Spostato a: ${etichetta.toLowerCase()}`,
       argv: () => ["modifica", String(t.id), atteso(t), "--quando", quando] });
   }
-  if (t.stato === "fermo") {
-    out.push({ id: "riprendi", gruppo: "Stato", etichetta: "Riprendi", esito: "Ripreso",
+  if (t.stato === "fermo" || t.stato === "in corso") {
+    const fermo = t.stato === "fermo";
+    out.push({ id: "riprendi", gruppo: "Stato", etichetta: fermo ? "Riprendi" : "Claude non ci lavora più", esito: fermo ? "Ripreso" : "Di nuovo da fare",
       argv: () => ["riprendi", String(t.id), atteso(t)] });
-  } else {
+  }
+  if (t.stato !== "fermo") {
     out.push({ id: "ferma", gruppo: "Stato", etichetta: "Fermo: aspetta qualcosa", esito: "Fermato",
       chiede: { domanda: "Cosa aspetta? (si può lasciare vuoto)", obbligo: false },
       argv: (testo) => ["ferma", String(t.id), atteso(t), ...(testo ? ["--", testo] : [])] });
