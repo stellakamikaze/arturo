@@ -333,7 +333,7 @@ def _leggi(repo: Path, percorso: str, home: Path, temp: Path) -> str:
 
 def test_rv07(repo: Path) -> int:
     impostazioni = json.loads((repo / "settings.json").read_text(encoding="utf-8"))
-    lettura = [g for g in impostazioni["hooks"]["PreToolUse"] if g.get("matcher") == "Read"]
+    lettura = [g for g in impostazioni["hooks"]["PreToolUse"] if "Read" in g.get("matcher", "").split("|")]
     assert lettura and any("block-dangerous.py" in h.get("command", "") for h in lettura[0]["hooks"]), \
         "RV07 settings.json non manda il tool Read a block-dangerous.py"
     with tempfile.TemporaryDirectory() as d:

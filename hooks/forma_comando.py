@@ -11,9 +11,12 @@ virgolette e toglie i corpi degli heredoc quotati verso non-shell: block-dangero
 carica da qui. Questo file non carica block-dangerous.py: fino al 15/10/2026 i due file
 si caricavano a vicenda.
 
-Usato da block-dangerous.py (rm e find che cancellano), commit-secret-gate.py (le shell),
-cred-read-internal.py e protect_claude_md.py dove ci sono, e dal dispatcher: git puro,
-ramo memoria e handoff, ramo ~/.claude, script e scritture sulla config.
+Usato da block-dangerous.py (rm e find che cancellano), commit-secret-gate.py (le shell e i
+commenti), comms-prefilter.py e gh-destructive-guard.py (i segmenti e i programmi), cred-read-internal.py e
+protect_claude_md.py dove ci sono, e dal
+dispatcher: git puro, ramo memoria e handoff, ramo ~/.claude. Il modo `script-claude` (D1 e D6)
+non lo chiama il dispatcher di Arturo: lo usa la config dell'autore, e in Arturo le scritture
+sulla config le giudica block-dangerous (review del 7/11/2026, finding 11).
 Solo libreria standard.
 """
 import importlib.util
@@ -79,6 +82,51 @@ def testo_shell(command: str) -> str:
     return _MESSAGGIO.sub(_svuota, testo)
 
 
+def togli_commenti(cmd: str) -> str:
+    """Il comando senza i commenti, letti come li legge bash (review del 7/11/2026, finding 0).
+
+    Un `#` apre un commento solo all'inizio di una parola e fuori dalle virgolette: `echo a#b`,
+    `${#x}` e `https://x/p#frag` restano parole. Il commento finisce all'a capo, che resta: la
+    riga dopo è un comando. shlex.shlex aveva `#` come commentatore di serie, e il commento in coda
+    si mangiava anche l'a capo: `ls # elenco` + a capo + `rm -rf ~` diventava un ls con tre argomenti."""
+    out, i, n, q = [], 0, len(cmd), None
+    while i < n:
+        c = cmd[i]
+        if q == "'":
+            out.append(c)
+            q = None if c == "'" else q
+            i += 1
+        elif c == "\\" and i + 1 < n:
+            out.append(cmd[i:i + 2])
+            i += 2
+        elif q == '"':
+            out.append(c)
+            q = None if c == '"' else q
+            i += 1
+        elif c in "'\"":
+            q = c
+            out.append(c)
+            i += 1
+        elif c == "#" and (i == 0 or cmd[i - 1] in " \t\r\n;&|()<>"):
+            fine = cmd.find("\n", i)
+            if fine < 0:
+                break
+            i = fine
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out)
+
+
+def lexer(cmd: str):
+    """Il lexer comune delle guardie: senza commentatore, sul testo già senza commenti."""
+    lx = shlex.shlex(togli_commenti(cmd), posix=True, punctuation_chars=";&|()\n")
+    lx.commenters = ""
+    lx.whitespace = " \t\r"
+    lx.whitespace_split = True
+    return lx
+
+
 def segmenti_parole(cmd: str):
     """Segmenti come liste di parole, rispettando le virgolette.
 
@@ -86,11 +134,9 @@ def segmenti_parole(cmd: str):
     comando. Se le virgolette non tornano, ricade su uno split semplice.
     """
     try:
-        lexer = shlex.shlex(cmd, posix=True, punctuation_chars=";&|()\n")
-        lexer.whitespace = " \t\r"
-        lexer.whitespace_split = True
+        lexer_ = lexer(cmd)
         segmenti, corrente = [], []
-        for tok in lexer:
+        for tok in lexer_:
             if tok and set(tok) <= set(";&|()\n"):
                 if corrente:
                     segmenti.append(corrente)
@@ -106,7 +152,7 @@ def segmenti_parole(cmd: str):
                 return shlex.split(seg)
             except ValueError:
                 return seg.split()
-        return [parole(seg) for seg in re.split(r"[|;&\n]+", cmd)]
+        return [parole(seg) for seg in re.split(r"[|;&\n]+", togli_commenti(cmd))]
 
 
 _ASSEGNAZIONE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
@@ -114,13 +160,55 @@ _ASSEGNAZIONE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _DAVANTI = frozenset("! { } then do else elif if while until time fi done esac".split())
 # Intestazioni che non eseguono niente: `for x in a b`, `case $x in`.
 _INTESTAZIONI = frozenset("for case select".split())
-# Wrapper che eseguono il comando che segue; le loro opzioni si saltano.
-_WRAPPER = frozenset("command builtin exec nohup nice env sudo caffeinate".split())
+# Wrapper che eseguono il comando che segue; le loro opzioni si saltano. timeout ha anche la durata
+# (`timeout 30 rm`, `timeout -s KILL 5s cat .env`: review del 7/11/2026, finding 2).
+_WRAPPER = frozenset("command builtin exec nohup nice env sudo caffeinate timeout".split())
+_TIMEOUT_CON_VALORE = frozenset(("-s", "--signal", "-k", "--kill-after"))
+_DURATA = re.compile(r"^\d+(?:\.\d+)?[smhd]?$")
 SHELL = frozenset("sh bash zsh dash ksh fish".split())
+# Un gruppo di opzioni corte che contiene c: `-c`, `-lc`, `-ec`, `-xc` (finding 2).
+_GRUPPO_C = re.compile(r"^-[a-zA-Z]*c[a-zA-Z]*$")
+_SHELL_CON_VALORE = frozenset(("-o", "+o", "-O", "+O", "--rcfile", "--init-file"))
+# Le opzioni di xargs che prendono un valore staccato.
+_XARGS_CON_VALORE = frozenset(("-I", "-n", "-P", "-L", "-l", "-d", "-E", "-e", "-s", "-a", "--max-args",
+                               "--max-procs", "--max-lines", "--delimiter", "--eof", "--max-chars",
+                               "--arg-file", "--replace"))
 
 
 def _nome(parola: str) -> str:
     return os.path.basename(parola.lstrip("\\"))
+
+
+def codice_shell(args):
+    """Il testo che una shell esegue con -c, anche dentro un gruppo (`bash -lc 'x'`), o None.
+
+    Il testo è il primo argomento che non è un'opzione dopo il gruppo. Prima contava solo la parola
+    identica a `-c`, e `bash -lc 'rm -rf ~/x'` non si leggeva. Se il gruppo non c'è prima del primo
+    argomento libero (lo script), vale ancora la vecchia lettura: un `-c` ovunque, con la parola dopo."""
+    j = 0
+    while j < len(args):
+        a = args[j]
+        if a == "--" or not a.startswith(("-", "+")):
+            break
+        if _GRUPPO_C.match(a):
+            for b in args[j + 1:]:
+                if not b.startswith(("-", "+")):
+                    return b
+            return None
+        j += 2 if a in _SHELL_CON_VALORE else 1
+    if "-c" in args and args.index("-c") + 1 < len(args):
+        return args[args.index("-c") + 1]
+    return None
+
+
+def xargs_resto(args):
+    """Gli argomenti di xargs dal programma che lancia in poi."""
+    i = 0
+    while i < len(args) and args[i].startswith("-") and args[i] != "--":
+        i += 2 if args[i] in _XARGS_CON_VALORE else 1
+    if i < len(args) and args[i] == "--":
+        i += 1
+    return args[i:]
 
 
 def programmi(cmd: str, profondita: int = 0):
@@ -141,8 +229,11 @@ def comandi(cmd: str, profondita: int = 0):
                 # redirezione in testa (`<file`, `2>`, `$(<file)`): non è un programma
                 i += 1 if len(t.lstrip("0123456789<>&")) else 2
             elif _nome(t) in _WRAPPER:
+                involucro = _nome(t)
                 i += 1
                 while i < len(toks) and (toks[i].startswith("-") or toks[i].isdigit() or _ASSEGNAZIONE.match(toks[i])):
+                    i += 2 if involucro == "timeout" and toks[i] in _TIMEOUT_CON_VALORE else 1
+                if involucro == "timeout" and i < len(toks) and _DURATA.match(toks[i]):
                     i += 1
             else:
                 break
@@ -152,10 +243,18 @@ def comandi(cmd: str, profondita: int = 0):
         prog, args = _nome(toks[i]), toks[i + 1:]
         out.append((toks[i], args))
         if profondita < 3:
-            if prog in SHELL and "-c" in args and args.index("-c") + 1 < len(args):
-                out += comandi(args[args.index("-c") + 1], profondita + 1)
+            codice = codice_shell(args) if prog in SHELL else None
+            if codice is not None:
+                out += comandi(codice, profondita + 1)
             elif prog == "eval" and args:
                 out += comandi(" ".join(args), profondita + 1)
+            elif prog == "xargs":
+                # `xargs -I{} sh -c 'rm -rf {}'`: il testo della shell gira per ogni riga (finding 2).
+                resto = xargs_resto(args)
+                if resto and _nome(resto[0]) in SHELL:
+                    out += comandi(" ".join(shlex.quote(x) for x in resto), profondita + 1)
+            elif prog == "trap" and args and not args[0].startswith("-"):
+                out += comandi(args[0], profondita + 1)  # il corpo gira all'uscita o al segnale
     return out
 
 
@@ -356,7 +455,7 @@ def ammesso_ramo_claude(cmd: str) -> bool:
             return False
         if prog in SHELL:
             liberi = [a for a in args if not a.startswith("-")]
-            if "-c" in args or "-s" in args or not liberi:
+            if codice_shell(args) is not None or "-s" in args or not liberi:
                 return False
         if prog == "find" and any(a in ("-delete", "-exec", "-execdir", "-ok", "-okdir") for a in args):
             return False
@@ -372,10 +471,7 @@ def git_puro(cmd: str) -> bool:
     le legge bash: un apostrofo dentro le doppie non apre una stringa. Virgolette che non
     tornano: non è git puro."""
     try:
-        lexer = shlex.shlex(cmd, posix=True, punctuation_chars=";&|()\n")
-        lexer.whitespace = " \t\r"
-        lexer.whitespace_split = True
-        list(lexer)
+        list(lexer(cmd))
     except ValueError:
         return False
     progs = programmi(cmd)

@@ -50,6 +50,10 @@ HIGH_CONF = [
     (r"\bgh[pousr]_[A-Za-z0-9_]{36,}\b", "GitHub token"),
     (r"\bgithub_pat_[A-Za-z0-9_]{22,}\b", "GitHub PAT"),
     (r"\bsk-ant-[A-Za-z0-9-]{20,}", "Anthropic API key"),
+    # OpenAI (review del 7/11/2026, finding 7): le stesse forme di credential-leak-scanner.py. Gli altri pattern
+    # dello scanner (API Key, Generic Secret) sono generici e qui darebbero falsi positivi sul codice.
+    (r"\bsk-(?:proj|org|svcacct|admin)-[A-Za-z0-9_-]{20,}", "OpenAI API key"),
+    (r"\bsk-[A-Za-z0-9]{48,}\b", "OpenAI API key"),
     (r"\bsk_live_[A-Za-z0-9]{20,}", "Stripe live key"),
     (r"\bxox[baprs]-[A-Za-z0-9-]{10,}", "Slack token"),
     (r"\bAIza[A-Za-z0-9_-]{35}\b", "Google API key"),
@@ -72,6 +76,7 @@ FAMIGLIA = {
     "GitHub token": "segreto-token",
     "GitHub PAT": "segreto-token",
     "Anthropic API key": "segreto-token",
+    "OpenAI API key": "segreto-token",
     "Stripe live key": "segreto-token",
     "Slack token": "segreto-token",
     "Telegram bot token": "segreto-token",
@@ -100,8 +105,12 @@ try:
     _fc = importlib.util.module_from_spec(_spec_fc)
     _spec_fc.loader.exec_module(_fc)
     _SHELL = _fc.SHELL
+    _togli_commenti = _fc.togli_commenti
 except Exception:
     _SHELL = frozenset("sh bash zsh dash ksh fish".split())
+
+    def _togli_commenti(command: str) -> str:
+        return command
 _WRAPPERS = _SHELL | {"eval", "xargs", "env", "command", "exec", "nohup", "time", "sudo"}
 _UNRESOLVED = object()
 
@@ -163,7 +172,10 @@ def _expand(word: str, variables: dict):
 
 
 def _segments(command: str):
-    lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|()\n")
+    # Senza commentatore e senza commenti (review del 7/11/2026, finding 0): `git status # nota` seguito da un
+    # a capo e da `git commit` faceva del commit tre argomenti di git status, e il gate tace.
+    lexer = shlex.shlex(_togli_commenti(command), posix=True, punctuation_chars=";&|()\n")
+    lexer.commenters = ""
     lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
     segment = []
@@ -400,11 +412,92 @@ def _git(command: list, repo: str, **kw) -> subprocess.CompletedProcess:
         raise _Fallita(f"git non si avvia ({e.strerror or e})", "git --version, per vedere se git è installato") from None
 
 
-def _diff(repo: str, commit_all: bool, add_prima: bool = False) -> str:
+# Le opzioni di git commit e di git add che prendono un valore staccato (review del 7/11/2026, finding 7).
+_COMMIT_CON_VALORE = frozenset(("--message", "--file", "--reuse-message", "--reedit-message", "--author", "--date",
+                                "--template", "--fixup", "--squash", "--cleanup", "--trailer", "--pathspec-from-file"))
+_COMMIT_LETTERE_VALORE = "mFCct"
+_LIMITE_FILE = 200
+
+
+def _invocazioni_git(command: str):
+    """(sottocomando, argomenti) di ogni git del comando, dopo le opzioni globali."""
+    try:
+        segmenti = list(_segments(_senza_heredoc(command)))
+    except ValueError:
+        return []
+    out = []
+    for tokens in segmenti:
+        i = 0
+        while i < len(tokens) and (_ASSIGN.match(tokens[i]) or os.path.basename(tokens[i]) in ("env", "command")):
+            i += 1
+        if i >= len(tokens) or os.path.basename(tokens[i]) != "git":
+            continue
+        i += 1
+        while i < len(tokens) and tokens[i].startswith("-"):
+            i += 2 if tokens[i] in ("-C", "-c") else 1
+        if i < len(tokens):
+            out.append((tokens[i], tokens[i + 1:]))
+    return out
+
+
+def _percorsi_commit(args) -> list:
+    """I path che `git commit` nomina: git committa il loro contenuto di lavoro, non quello in stage."""
+    percorsi, i, dopo = [], 0, False
+    while i < len(args):
+        a = args[i]
+        if dopo or not a.startswith("-") or a == "-":
+            percorsi.append(a)
+        elif a == "--":
+            dopo = True
+        elif a.startswith("--"):
+            if "=" not in a and a in _COMMIT_CON_VALORE:
+                i += 1
+        else:
+            corpo = a[1:]
+            for k, ch in enumerate(corpo):
+                if ch in _COMMIT_LETTERE_VALORE:
+                    if k == len(corpo) - 1:
+                        i += 1  # `-m testo`, `-am testo`: il valore è la parola dopo
+                    break
+        i += 1
+    return percorsi
+
+
+def _forzati_add(args) -> list:
+    """I path di `git add -f`: git li aggiunge anche se ignorati, e ls-files --exclude-standard non li vede."""
+    if not any(a in ("-f", "--force") or (a.startswith("-") and not a.startswith("--") and "f" in a) for a in args):
+        return []
+    return [a for a in args if not a.startswith("-")]
+
+
+def _leggi_percorsi(repo: str, percorsi) -> list:
+    """Il contenuto dei file nominati, come righe aggiunte. Oltre _LIMITE_FILE file solleva _Fallita."""
+    parti, visti = [], 0
+    for p in percorsi:
+        pieno = os.path.join(repo, os.path.expanduser(p))
+        nomi = [os.path.join(r, f) for r, _, fs in os.walk(pieno) for f in fs] if os.path.isdir(pieno) else [pieno]
+        for nome in nomi:
+            visti += 1
+            if visti > _LIMITE_FILE:
+                raise _Fallita(f"git add -f nomina più di {_LIMITE_FILE} file, oltre quelli che la guardia legge",
+                               "aggiungi i file a gruppi, oppure git status per vedere cosa entra")
+            try:
+                with open(nome, encoding="utf-8", errors="ignore") as f:
+                    parti.append("\n".join("+" + riga for riga in f.read(200_000).splitlines()))
+            except OSError:
+                continue
+    return parti
+
+
+def _diff(repo: str, commit_all: bool, add_prima: bool = False, percorsi=(), forzati=()) -> str:
     """Il diff da scansionare. Se git non lo dà, solleva _Fallita con causa e rimedio."""
     commands = [["git", "-C", repo, "diff", "--cached", "--no-color", "--no-ext-diff", "--no-textconv", "--unified=0"]]
     if commit_all or add_prima:
         commands.append(["git", "-C", repo, "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--unified=0"])
+    elif percorsi:
+        # `git commit -m x a.py` committa a.py com'è nella cartella, anche se non è in stage (finding 7).
+        commands.append(["git", "-C", repo, "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--unified=0",
+                         "--", *percorsi])
     output = []
     for command in commands:
         # Un file non UTF-8 in stage (un CSV della banca in Latin-1) faceva cadere la decodifica e ogni
@@ -422,12 +515,19 @@ def _diff(repo: str, commit_all: bool, add_prima: bool = False) -> str:
                       encoding="utf-8", errors="surrogateescape")
         if result.returncode:
             raise _causa(result.stderr, repo)
-        for nome in [n for n in result.stdout.split("\0") if n][:200]:
+        nuovi = [n for n in result.stdout.split("\0") if n]
+        if len(nuovi) > _LIMITE_FILE:
+            # Prima si leggevano i primi 200 e il resto passava muto: il primo commit di un progetto li supera
+            # spesso (finding 7).
+            raise _Fallita(f"ci sono {len(nuovi)} file nuovi, oltre i {_LIMITE_FILE} che la guardia legge",
+                           "aggiungi i file a gruppi, oppure controlla con git status cosa entra nel commit")
+        for nome in nuovi:
             try:
                 with open(os.path.join(repo, nome), encoding="utf-8", errors="ignore") as f:
                     output.append("\n".join("+" + riga for riga in f.read(200_000).splitlines()))
             except OSError:
                 continue
+    output += _leggi_percorsi(repo, forzati)
     return "\n".join(part for part in output if part)
 
 
@@ -518,8 +618,11 @@ def main() -> int:
     # quindi il solo `diff --cached` mancherebbe un secret in un file già tracciato.
     commit_all = bool(re.search(r"\bcommit\b[^|;&]*\s-{1,2}(a\b|all\b|[a-zA-Z]*a[a-zA-Z]*\b)", command))
     add_prima = bool(re.search(r"\bgit\b[^;&|\n]*\sadd\b", command))
+    invocazioni = _invocazioni_git(command)
+    percorsi = next((_percorsi_commit(a) for s, a in invocazioni if s == "commit"), [])
+    forzati = [p for s, a in invocazioni if s == "add" for p in _forzati_add(a)]
     try:
-        out = _diff(repo, commit_all, add_prima)
+        out = _diff(repo, commit_all, add_prima, percorsi, forzati)
     except _Fallita as f:
         out = f
     except Exception as e:

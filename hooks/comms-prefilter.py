@@ -44,6 +44,15 @@ try:
 except Exception:
     def _togli_heredoc(cmd, via, segnaposto=None):
         return cmd
+# I segmenti li legge forma_comando.py, il tokenizer delle altre guardie (review del 7/11/2026, finding 6):
+# conosce le virgolette scappate (`it\\'s`) e spezza anche su `&`. Se manca, resta lo split di prima.
+try:
+    _spec_fc = importlib.util.spec_from_file_location(
+        "forma_comando", os.path.join(os.path.dirname(os.path.abspath(__file__)), "forma_comando.py"))
+    _fc = importlib.util.module_from_spec(_spec_fc)
+    _spec_fc.loader.exec_module(_fc)
+except Exception:
+    _fc = None
 
 
 def _first_bin(segment: str) -> str:
@@ -56,6 +65,17 @@ def _first_bin(segment: str) -> str:
         seg = seg[m.end():]
     m = re.match(r"([^\s;&|()]+)", seg)
     return m.group(1).rsplit("/", 1)[-1] if m else ""
+
+
+def _primo(parole):
+    """Il programma di un segmento di forma_comando, o None se il segmento è solo una redirezione:
+    `2>&1` si spezza in `2>`, `&` e `1`, e `&> f` in `&` e `> f`."""
+    i = 0
+    while i < len(parole) and (re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", parole[i]) or parole[i] in ("sudo", "env", "command", "nohup")):
+        i += 1
+    if i >= len(parole) or parole[i].isdigit() or re.match(r"^\d*[<>]", parole[i]):
+        return None
+    return parole[i].rsplit("/", 1)[-1]
 
 
 def reduce(cmd: str) -> str:
@@ -73,8 +93,11 @@ def reduce(cmd: str) -> str:
     if re.search(r"\$\(|`|<\(|>\(", re.sub(r"'[^']*'", "", reduced)):
         return reduced
     stripped = re.sub(r"'[^']*'|\"[^\"]*\"", "", reduced)
-    segments = [s for s in re.split(r"\|\||&&|;|\||\n", stripped) if s.strip()]
-    if segments and all(_first_bin(s) in READ_ONLY for s in segments) and not GIT_INVIA.search(stripped):
+    if _fc is not None:
+        primi = [p for p in (_primo(seg) for seg in _fc.segmenti_parole(reduced)) if p is not None]
+    else:
+        primi = [_first_bin(s) for s in re.split(r"\|\||&&|;|\||\n", stripped) if s.strip()]
+    if primi and all(p in READ_ONLY for p in primi) and not GIT_INVIA.search(stripped):
         # eccezione: `echo ... | mail` non arriva qui (mail non è read-only);
         # `git commit -m "..."` era già git-puro nel dispatcher
         return ""

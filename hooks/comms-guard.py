@@ -51,15 +51,17 @@ SEND_BINARIES = [
     # heredoc o un --json è testo (un invito di calendario ha ORGANIZER;CN=…:mailto:…). Vedi _MAILTO_APERTO.
     (r"\bsmtps?://", "smtp:// (invio diretto)"),
     (r"\bswaks\b", "swaks"),
-    (r"\bosascript\b.*\b(Mail|Messages)\b", "AppleScript Mail/Messages"),
+    # (?s): la forma naturale è un heredoc su più righe (`osascript <<'EOF'` e `tell application "Mail"` a capo,
+    # review del 7/11/2026, finding 6).
+    (r"(?s)\bosascript\b.*\b(Mail|Messages)\b", "AppleScript Mail/Messages"),
     (r"\bwhatsapp[_/-]?send\b", "helper WhatsApp"),
     (r"\btelegram[_/-]?send\b", "helper Telegram"),
     # Python SMTP: invio email diretto (bypassava i binari noti).
     (r"\bsmtplib\b", "smtplib (invio email via Python)"),
     (r"\bSMTP_SSL\b", "SMTP_SSL (Python)"),
-    (r"\bEmailMessage\b.*\bsend", "EmailMessage/send (Python)"),
+    (r"(?s)\bEmailMessage\b.*\bsend", "EmailMessage/send (Python)"),
     # http.client verso un servizio di messaggistica: un POST senza curl ne' requests.
-    (r"\bhttp\.client\b.*\b(telegram|slack|sendgrid|mailgun|discord|twilio|postmark|resend)\b",
+    (r"(?s)\bhttp\.client\b.*\b(telegram|slack|sendgrid|mailgun|discord|twilio|postmark|resend)\b",
      "http.client verso un servizio di messaggistica"),
 ]
 

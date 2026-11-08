@@ -186,6 +186,8 @@ IN_FILA=(
   test_regole_doppie_2026_11_06.py
   # #4860 (6/11/2026): col plugin avvio e barra dicono che c'è un rilascio nuovo.
   test_avviso_plugin_2026_11_06.py
+  # Review del 7/11/2026, lotto L2 (#4972): le guardie, dal dispatcher vero.
+  test_revisione_2026_11_07.py
 )
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
@@ -437,6 +439,8 @@ VELENI=(
   test_regole_doppie_2026_11_06.py
   # #4860 (6/11/2026): una barra che lancia controlla da ~/.claude/bin col plugin non controlla mai (AV04).
   test_avviso_plugin_2026_11_06.py
+  # Review del 7/11/2026, lotto L2 (#4972): con le guardie di e441828 ogni gruppo RW è rosso.
+  test_revisione_2026_11_07.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

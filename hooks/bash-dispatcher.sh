@@ -146,9 +146,12 @@ PATTERN_COMMS='(^|[[:space:];|&("'"'"'`])(sendmail|mailx|mutt|msmtp|swaks|mail)(
 # scrittura su git hook e servizi di avvio automatico,
 # lettura segreti via shell (.ssh/id_*/credentials/.pem...), docker volume rm.
 # 20/10/2026: la cartella delle credenziali anche senza la barra finale (`find ~/.claude/data/credentials | xargs cat`).
-PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|[[:space:]]*(sudo[[:space:]]+)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([[:space:]]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|(^|[^[:alnum:]_.-])(del|erase|rd|rmdir|format(\.com)?)[[:space:]]|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-(exec|execdir|ok|okdir)[[:space:]].*(rm|unlink|shred)|xargs[^|;&]*(rm|unlink|shred))|bw[[:space:]].*export|\.claude/(settings|hooks|firme|\.claude\.json|plugins(/|[[:space:]\"]|$))|CLAUDE(\.local)?\.md|firme/|rilasci\.allowed_signers|aggiornamenti\.py|aggiorna-applica\.sh|arturo/radice|\.claude/arturo(/|[[:space:]\"]|$)|\.claude/[^[:space:]]*unlock|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.claude/data/credentials(/|[[:space:]\"]|$)|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|sed[[:space:]][^|&]*[^[:alnum:]]w[[:space:]]+[^[:space:]|;&]|\.env([^[:alnum:]_]|$)|shutil\.rmtree|from[[:space:]]+shutil[[:space:]]+import[^;]*rmtree'
+PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|[[:space:]]*(sudo([[:space:]]+-[^[:space:]]+)*[[:space:]]+)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([^[:alnum:]_.-]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|(^|[^[:alnum:]_.-])(del|erase|rd|rmdir|format(\.com)?)[[:space:]]|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-(exec|execdir|ok|okdir)[[:space:]].*(rm|unlink|shred)|xargs[^|;&]*(rm|unlink|shred))|bw[[:space:]].*export|\.claude/(settings|hooks|firme|\.claude\.json|plugins(/|[[:space:]\"]|$))|CLAUDE(\.local)?\.md|firme/|rilasci\.allowed_signers|aggiornamenti\.py|aggiorna-applica\.sh|arturo/radice|\.claude/arturo(/|[[:space:]\"]|$)|\.claude/[^[:space:]]*unlock|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.claude/data/credentials(/|[[:space:]\"]|$)|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|(^|[^[:alnum:]_.-])sed[[:space:]]|\.env([^[:alnum:]_]|$)|rmtree|[Rr]emove-[Ii]tem|(^|[^[:alnum:]_.-])(powershell|pwsh)(\.exe)?[[:space:]]'
 # 17/10/2026 (#3506): i file .env (anche .env.local), shutil.rmtree. git clean ha un pattern suo,
 # PATTERN_GIT_CLEAN, che parte prima dello skip git-puro.
+# 7/11/2026 (review, finding 1 8 9): l'interprete dopo la pipe chiuso da ; ) " o && e con sudo -E; ogni
+# sed (le regole sed-w e sed-e le giudica block-dangerous); rmtree anche senza il prefisso shutil.;
+# Remove-Item e powershell o pwsh, che su Windows cancellano cartelle.
 # Commit secret gate: scansiona il diff staged prima di git commit / gh pr create.
 # Dal 15/10/2026 parte anche su un commit a capo, in una subshell o in $( ), dopo `env VAR=… `
 # o assegnazioni, e con opzioni di git prima di commit (-c k=v, -C dir, --no-pager).
@@ -177,7 +180,11 @@ PATTERN_DEV_TCP='[<>]&?[[:space:]]*/dev/(tcp|udp)/'
 # senza -f (20/10/2026, #3525).
 # git branch -D e git stash drop: dal 31/10/2026 li giudica block-dangerous (tace se il lavoro esiste
 # altrove), non più un deny. Partono prima dello skip git-puro, come git clean.
-PATTERN_GIT_PERDE='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?(branch[[:space:]]([^|;&]*[[:space:]])?(-[[:alpha:]]*D|--d|-[[:alpha:]]*d)|stash[[:space:]]+(drop|clear))'
+# Dal 7/11/2026 anche git worktree remove (finding 9): la regola git-worktree c'era, ma il dispatcher non
+# la chiamava.
+PATTERN_GIT_PERDE='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?(branch[[:space:]]([^|;&]*[[:space:]])?(-[[:alpha:]]*D|--d|-[[:alpha:]]*d)|stash[[:space:]]+(drop|clear)|worktree[[:space:]]+remove)'
+# Ogni git push (7/11/2026, finding 5): block-dangerous guarda il flag di forza in qualunque posizione.
+PATTERN_GIT_PUSH='(^|[^[:alnum:]_.-])git[[:space:]]([^|;&]*[[:space:]])?push([[:space:]]|$)'
 # Un push con la destinazione riscritta da -c, --config-env o GIT_CONFIG_* (1/11/2026): lo giudica block-dangerous.
 PATTERN_GIT_DEST='(^|[^[:alnum:]_.-])git[[:space:]][^|;&]*(-c|--config-env)[^|;&]*[[:space:]]push|GIT_CONFIG_(COUNT|KEY_[0-9]+|PARAMETERS)='
 # git commit --amend su un commit che questa sessione non ha fatto (3/11/2026, #4187): lo giudica block-dangerous.
@@ -334,6 +341,7 @@ except Exception:
 # altrimenti lascerebbe passare `git log && git clean -fdx` (17/10/2026, #3506).
 [[ "$GUARD_COMMAND" =~ $PATTERN_GIT_CLEAN ]] && run_guard block-dangerous.py
 [[ "$GUARD_COMMAND" =~ $PATTERN_GIT_PERDE ]] && run_guard block-dangerous.py
+[[ "$GUARD_COMMAND" =~ $PATTERN_GIT_PUSH ]] && run_guard block-dangerous.py
 [[ "$GUARD_COMMAND" =~ $PATTERN_GIT_DEST ]] && run_guard block-dangerous.py
 [[ "$GUARD_COMMAND" =~ $PATTERN_GIT_AMEND ]] && run_guard block-dangerous.py
 
@@ -387,7 +395,16 @@ fi
 # pre-filtro testuale non la vedeva e block-dangerous, che risolve il percorso, non partiva.
 PATTERN_CD_CLAUDE="(^|[;&|(${_NL}][[:space:]]*)(cd|pushd)[[:space:]]+[^;&|${_NL}]*\.claude([/[:space:]\"']|\$)"
 _RE_CWD_CLAUDE='"cwd"[[:space:]]*:[[:space:]]*"[^"]*[/\\]\.claude'
-if [[ "$GUARD_COMMAND" =~ $PATTERN_DANGER || "$GUARD_COMMAND" =~ $PATTERN_CD_CLAUDE || "$INPUT" =~ $_RE_CWD_CLAUDE ]]; then
+# Su macOS e Windows il disco ignora le maiuscole: `rm ~/.CLAUDE/settings.json` tocca la config, e
+# PATTERN_DANGER la cerca in minuscolo (7/11/2026, finding 11).
+_MAIUSC=0
+_PATTERN_CONFIG_MAIUSC='\.claude/(settings|hooks|firme|plugins|arturo)|library/launchagents'
+if [[ "$OSTYPE" == darwin* || "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
+    shopt -s nocasematch
+    [[ "$GUARD_COMMAND" =~ $_PATTERN_CONFIG_MAIUSC ]] && _MAIUSC=1
+    shopt -u nocasematch
+fi
+if [[ "$GUARD_COMMAND" =~ $PATTERN_DANGER || "$GUARD_COMMAND" =~ $PATTERN_CD_CLAUDE || "$INPUT" =~ $_RE_CWD_CLAUDE || $_MAIUSC -eq 1 ]]; then
     for _i in $(locali prima-danger); do run_locale "$_i"; done
     _DC=""; for _i in $(locali danger-claude); do _DC=$_i; break; done
     if [[ -n "$_DC" && ( "$COMMAND" == *".claude"* || "$INPUT" =~ $_RE_CWD_CLAUDE ) ]]; then

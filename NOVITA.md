@@ -13,6 +13,35 @@ modo di lavorare.
 
 ---
 
+## 2026-11-08 — Guardie più attente: commenti, push forzati, segreti nei commit, Windows
+
+**Cosa cambia**: undici correzioni alle guardie che controllano i comandi prima che partano.
+- Un commento in fondo a una riga (`ls # elenco`) non nasconde più il comando della riga dopo. Prima
+  un `rm -rf` scritto lì passava senza domanda.
+- `git push origin main --force` chiede conferma, come le altre forme che riscrivono o cancellano rami
+  sul remoto (`-f`, `--force-with-lease`, `--mirror`, `--delete`, `:ramo`, `+ramo`), anche col flag in fondo.
+- Il controllo dei segreti nei commit guarda anche i file nominati nel commit (`git commit -m x a.py`),
+  i file aggiunti con `git add -f`, le chiavi OpenAI, e chiede conferma oltre i 200 file nuovi invece di
+  fermarsi in silenzio ai primi 200.
+- Uno script scaricato e passato a una shell si blocca anche con `;`, `&&` o una parentesi attaccata,
+  con un `tee` in mezzo o con `sudo -E`. Il contrario: scaricare un file e poi leggerne un altro con
+  `head f | python3 script.py` non si blocca più, e cercare con grep un testo come "bw export" nemmeno.
+- `bash -lc`, `timeout 30`, `xargs sh -c` e `trap` non nascondono più un `rm -rf` o la lettura di `.env`.
+- Le chiavi e le credenziali non si leggono senza conferma con `sort`, `uniq`, `jq` o `git diff --no-index`,
+  né copiando o archiviando la cartella intera (`cp -R ~/.ssh`, `tar`, `zip`, `scp`). Anche il tool di
+  ricerca Grep dentro `~/.ssh` chiede.
+- Un invio di posta dopo un `&`, o con AppleScript su più righe, chiede conferma come gli altri.
+- Su Windows `rd /s`, `del /s` e `Remove-Item -Recurse` su una cartella chiedono come `rm -r`.
+- `git worktree remove --force` con file non salvati chiede davvero: la regola c'era, ma non partiva.
+- Cancellare o riscrivere `settings.json` con `rm`, `command cp` o `perl -pi`, e toccare la chiave che
+  verifica gli aggiornamenti, chiede conferma. Su Mac e Windows vale anche scritto con le maiuscole.
+
+**Perché**: sono gli undici problemi delle guardie trovati dalla revisione completa del 7/11. Ognuno è
+riprodotto in una cartella di prova prima della correzione, e il banco nuovo lo riprova a ogni rilascio.
+
+**Da sapere**: niente cambia nel lavoro normale. Le domande nuove arrivano solo sulle forme che prima
+passavano per sbaglio.
+
 ## 2026-11-08 — Aggiornamenti più sicuri: lo spazio nel nome utente, il catalogo del plugin, il ritorno indietro
 
 **Cosa cambia**: quattro correzioni nella procedura che installa gli aggiornamenti.
