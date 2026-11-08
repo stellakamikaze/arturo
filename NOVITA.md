@@ -13,6 +13,19 @@ modo di lavorare.
 
 ---
 
+## 2026-11-08 — Il promemoria del brief pesa la metà, e gli stop non passano dal brief
+
+**Cosa cambia**: la riga che a ogni tuo messaggio ricorda a Claude prompt e brief scende da circa 900
+a circa 470 byte. Dice le stesse regole: brief su ogni lavoro, anche piccolo, skill caricata una volta
+per sessione, correzione a lavoro iniziato in una riga. Uno "stop" o un comando di controllo ora è
+esente come una domanda: si esegue subito, senza brief.
+
+**Perché**: il promemoria entra a ogni messaggio, anche a un "sì". In una sessione lunga pesava quanto
+il corpo intero della skill, e ne ripeteva pezzi. La riga sugli stop dava ragione alla skill, che già
+li esentava.
+
+**Da sapere**: la riga che chiede `arturo correzione aggiungi` esce solo dove quel comando esiste.
+
 ## 2026-11-08 — La rotazione automatica non si ferma più per un testo rimasto nella casella
 
 **Cosa cambia**: a fine compito la sessione si rinnova da sola (/clear, poi /inizio sul passo dopo). Prima,

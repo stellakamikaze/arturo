@@ -13,7 +13,8 @@ CC10 /proponi porta una tua skill come proposta, ripulita e dopo il sì; è nei 
      del server e nella privacy.
 CC11 una correzione detta una volta vale per tutta la sessione ([0:01:09], #4099): arturo correzione la
      scrive per la sessione di CLAUDE_CODE_SESSION_ID, e torna a ogni messaggio (inject-now.sh), dopo
-     una compattazione (session-start.sh) e nei subagenti; un'altra sessione non la vede.
+     una compattazione (session-start.sh) e nei subagenti; un'altra sessione non la vede. Il promemoria
+     che chiede `arturo correzione aggiungi` esce solo dove c'è bin/correzioni.py e mai su un comando.
 CC12 prima di provarci Claude dice dove non arriva ([0:08:46]-[0:09:09], #4102): il brief di
      prompt-master ha la riga "Dove non arrivo:" con la parte che resta alla persona e quella che fa
      Claude al suo posto, vale anche quando la persona chiede solo se può aiutarla, e si omette per un
@@ -28,6 +29,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -198,6 +200,17 @@ def test_cc11(repo: Path) -> None:
     assert "arturo correzione aggiungi" in r.stdout, "CC11 il promemoria non dice come scrivere una correzione"
     r = lab.hook("inject-now.sh", json.dumps({"prompt": "/fine", "session_id": "sessione-uno"}))
     assert voce in r.stdout, "CC11 la correzione non torna quando il messaggio è un comando"
+    assert "arturo correzione aggiungi" not in r.stdout, "CC11 il promemoria delle correzioni esce su un comando"
+    # Senza bin/correzioni.py il comando `arturo correzione` non c'è: la riga che lo chiede deve tacere,
+    # mentre la REGOLA FISSA resta (config dell'autore, PM-1 della revisione skill dell'8/11/2026).
+    nuda = lab.dir / "senza-bin"
+    (nuda / "hooks").mkdir(parents=True)
+    shutil.copy2(repo / "hooks" / "inject-now.sh", nuda / "hooks" / "inject-now.sh")
+    r = subprocess.run([banco_telemetria().BASH, str(nuda / "hooks" / "inject-now.sh")],
+                       input=json.dumps({"prompt": "rifai la tabella"}), capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", env=lab.env, cwd=str(nuda), timeout=60)
+    assert r.returncode == 0 and "REGOLA FISSA" in r.stdout, f"CC11 senza bin/ manca la REGOLA FISSA: {r.stdout!r}"
+    assert "arturo correzione aggiungi" not in r.stdout, "CC11 senza bin/ il promemoria chiede un comando che non c'è"
     r = lab.hook("inject-now.sh", json.dumps({"prompt": "rifai la tabella", "session_id": "sessione-due"}))
     assert testa not in r.stdout, "CC11 un'altra sessione vede la correzione"
     r = lab.hook("inject-now.sh", json.dumps({"prompt": "x", "session_id": "../correzioni/sessione-uno"}))
