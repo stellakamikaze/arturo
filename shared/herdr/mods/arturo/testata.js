@@ -56,6 +56,7 @@ export class Stato {
       .when(n("blocked") > 0, (el) => el.child(pezzo(t.blocked, div().text_color(t.foreground).child(`${n("blocked")} ti aspett${n("blocked") > 1 ? "ano" : "a"}`))))
       .when(n("working") > 0, (el) => el.child(pezzo(t.working, `${n("working")} al lavoro`)))
       .when(n("done") > 0, (el) => el.child(pezzo(t.done, `${n("done")} hanno finito`.replace(/^1 hanno/, "1 ha"))))
+      .when(a.length > 0 && !n("blocked") && !n("working") && !n("done"), (el) => el.child(pezzo(t.idle, a.length > 1 ? `${a.length} sessioni aperte, nessuna ti aspetta` : "1 sessione aperta, non ti aspetta")))
       .child(div().flex_1())
       .child(div().text_color(t.dim).child(tasti));
   }
