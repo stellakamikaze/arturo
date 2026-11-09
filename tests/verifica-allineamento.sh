@@ -438,7 +438,7 @@ VELENI=(
   test_regole_doppie_2026_11_06.py
   # #4860 (6/11/2026): una barra che lancia controlla da ~/.claude/bin col plugin non controlla mai (AV04).
   test_avviso_plugin_2026_11_06.py
-  # Herdr (8/11/2026, ramo herdr): installazione, hook dello stato, invito, mod, Da dove partire, La settimana, azioni sui todo (HZ01-HZ12).
+  # Herdr (8/11/2026, ramo herdr): installazione, hook dello stato, invito, mod, Da dove partire, La settimana, azioni sui todo, Arturo.app, note sulla finestra e gitignore di data/ (HZ01-HZ15).
   test_herdr_2026_11_08.py
 )
 

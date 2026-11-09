@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ12: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ15: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/herdr/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -44,8 +44,11 @@ HZ14 le note sulla finestra (⌘⇧N, nota.js con node): la nota porta testo, pu
      in una casa finta; vuota non parte; senza progetto resta nella cartella; note_progetto vince sul
      progetto aperto. barra.js fa lo screenshot prima del velo, keys.json lega cmd-shift-n, main.js ha la
      parte, l'installatore tiene note_progetto in arturo.json. Senza node la parte con node si salta.
+HZ15 ogni cartella o file che la parte Herdr scrive in ~/.claude/data/ (mod, hook herdr-stato.sh, invito di
+     session-start.sh) è escluso dal .gitignore di Arturo (#5018): uno screenshot delle note fermava
+     l'aggiornamento automatico o finiva in un commit di /fine.
 
-Con --avvelena sedici copie rotte del repository devono far rosso il caso che le sorveglia.
+Con --avvelena diciotto copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
 
@@ -59,7 +62,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15")
 INSTALLA = Path("shared/herdr/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -622,7 +625,34 @@ def hz14(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14}
+def scritti_in_data(repo: Path) -> set[str]:
+    """I nomi sotto ~/.claude/data/ che la parte Herdr scrive: mod, hook di stato e invito all'avvio."""
+    fonti = [f for f in (repo / "shared/herdr").rglob("*") if f.is_file() and f.suffix in (".js", ".sh", ".py")]
+    fonti.append(repo / "hooks/herdr-stato.sh")
+    testi = [f.read_text(encoding="utf-8") for f in fonti]
+    testi += [r for r in (repo / "hooks/session-start.sh").read_text(encoding="utf-8").splitlines() if "herdr" in r]
+    return {m for testo in testi for m in re.findall(r"\.claude/data/([A-Za-z0-9_.-]+)", testo)}
+
+
+def hz15(repo: Path, casa: Path) -> str | None:
+    nomi = scritti_in_data(repo)
+    if not {"note-finestra", "herdr-invito"} <= nomi:
+        return f"il banco non trova più le scritture in data/: {sorted(nomi)}"
+    prova_git = casa / "git"
+    prova_git.mkdir()
+    shutil.copyfile(repo / ".gitignore", prova_git / ".gitignore")
+    subprocess.run(["git", "init", "-q"], cwd=prova_git, check=True)
+    fuori = []
+    for nome in sorted(nomi):
+        # Una cartella si prova con un file dentro, un file col suo nome: check-ignore risponde 0 se è escluso.
+        forme = (f"data/{nome}/x/nota.json", f"data/{nome}")
+        if not any(subprocess.run(["git", "check-ignore", "-q", "--no-index", rel], cwd=prova_git).returncode == 0
+                   for rel in forme):
+            fuori.append(f"data/{nome}")
+    return f".gitignore non esclude {', '.join(fuori)}" if fuori else None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15}
 
 
 def prova(repo: Path) -> list[str]:
@@ -654,6 +684,8 @@ VELENI = [
     ("HZ14", "shared/herdr/mods/arturo/nota.js", '"--chi", "io"', '"--chi", "tu"'),
     ("HZ13", "shared/herdr/arturo-app.sh", '-c "Set :CFBundleIdentifier $ID"', '-c "Set :CFBundleIdentifier dev.herdr.app"'),
     ("HZ13", "shared/herdr/arturo-app.sh", 'if [ -d "$arturo" ] && { [ ! -d "$herdr" ] || ! piu_nuova "$v_herdr" "$v_arturo"; }; then base=$arturo; fi', ":"),
+    ("HZ15", ".gitignore", "data/note-finestra/\n", ""),
+    ("HZ15", ".gitignore", "data/herdr-invito\n", ""),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 

@@ -146,6 +146,10 @@ node_modules
 # codice scritta dall'avvio quando Arturo è un plugin (docs/strati.md).
 /arturo/
 
+# Le note sulla finestra (⌘⇧N, screenshot compresi) e il segno dell'invito a Herdr: sono di questo
+# computer (#5018). Ogni file nuovo in data/ ha la sua riga qui, nello stesso commit (banco HZ15).
+data/note-finestra/
+data/herdr-invito
 # Scritti da herdr-app check nella cartella del mod (8/11/2026)
 shared/herdr/mods/*/gpui-kit.d.ts
 shared/herdr/mods/*/jsconfig.json
