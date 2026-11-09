@@ -69,8 +69,12 @@ CLAUDE = shutil.which("claude")
 def esegui(argv, **kw):
     kw.setdefault("capture_output", True)
     kw.setdefault("text", True)
+    kw.setdefault("encoding", "utf-8")  # su Windows il default è cp1252 e l'uscita dei comandi cade (#4987)
+    kw.setdefault("errors", "replace")
     kw.setdefault("timeout", 300)
     kw.setdefault("stdin", subprocess.DEVNULL)
+    # I figli Python scrivono in utf-8 anche su Windows, dove una pipe prende cp1252 (#4987).
+    kw["env"] = {"PYTHONIOENCODING": "utf-8", **(kw.get("env") or os.environ)}
     try:
         return subprocess.run([str(a) for a in argv], **kw)
     except (OSError, subprocess.SubprocessError) as errore:
@@ -104,6 +108,20 @@ def modulo_fiducia(repo: Path):
         sys.path.pop(0)
 
 
+def cli_finta(cartella: Path, corpo: str) -> Path:
+    """Una CLI di Claude Code finta, scritta in Python. Su Windows uno script con lo shebang non parte
+    (WinError 193): lo lancia un .cmd accanto (#4987)."""
+    if os.name == "nt":
+        (cartella / "claude-finto.py").write_text(corpo, encoding="utf-8")
+        finto = cartella / "claude-finto.cmd"
+        finto.write_bytes(f'@"{sys.executable}" "%~dp0claude-finto.py" %*\r\n'.encode("utf-8"))
+        return finto
+    finto = cartella / "claude-finto"
+    finto.write_text(f"#!{sys.executable}\n" + corpo, encoding="utf-8")
+    finto.chmod(0o755)
+    return finto
+
+
 def copia_plugin(repo: Path, dest: Path, versione: str, firmatari: Path, privata: Path | None,
                  frammento: dict | None = None) -> Path:
     """Una copia del plugin ridotta al codice che la catena usa: bin, hooks, firme, plugin.json; con `frammento`
@@ -123,6 +141,9 @@ def copia_plugin(repo: Path, dest: Path, versione: str, firmatari: Path, privata
     if frammento is not None:
         (dest / "impostazioni").mkdir()
         (dest / "impostazioni" / "arturo.json").write_text(json.dumps(frammento), encoding="utf-8")
+    # Come impacchetta.py: con core.autocrlf git riscrive gli a capo al checkout e il MANIFEST dà cambiati
+    # tutti i file di testo (#4987).
+    (dest / ".gitattributes").write_bytes(b"* -text\n")
     f = modulo_fiducia(repo)
     f.scrivi_manifest(dest)
     if privata:
@@ -305,9 +326,7 @@ def casi_finti(repo: Path, tmp: Path, chiavi: dict, solo: str | None) -> list:
     # Le chiavi della versione nuova: quella dei rilasci e una in più. Solo una copia verificata la porta nell'ancora.
     due = tmp / "due.allowed_signers"
     due.write_text(firmatari.read_text(encoding="utf-8") + firmatari_altra.read_text(encoding="utf-8"), encoding="utf-8")
-    finto = tmp / "claude-finto"
-    finto.write_text(f"#!{sys.executable}\n" + CLAUDE_FINTO, encoding="utf-8")
-    finto.chmod(0o755)
+    finto = cli_finta(tmp, CLAUDE_FINTO)
     rossi = []
     for caso, variante in (("FD12", "sha"), ("FD12", "sparita"), ("FD13", "file"), ("FD13", "firma"),
                            ("FD14", "riuscito")):
@@ -456,10 +475,8 @@ def casi_tag(repo: Path, tmp: Path, chiavi: dict, solo: str | None) -> list:
             encoding="utf-8")
         modulo_fiducia(repo).fissa_ancora(prima, orsa)
         spia = base / "update-partito"
-        finto = base / "claude-finto"
-        finto.write_text(f"#!{sys.executable}\nimport sys\nif sys.argv[1:3] == ['plugin', 'update']:\n"
-                         f"    open({str(spia)!r}, 'w').close()\n", encoding="utf-8")
-        finto.chmod(0o755)
+        finto = cli_finta(base, "import sys\nif sys.argv[1:3] == ['plugin', 'update']:\n"
+                                f"    open({str(spia)!r}, 'w').close()\n")
         p = esegui([sys.executable, prima / "bin" / "aggiornamenti.py", "plugin"], env=dict(r.env, ARTURO_CLAUDE=str(finto)))
         uscita = (p.stdout + p.stderr).strip()
         if p.returncode != 3 or "POSSIBILE COMPROMISSIONE" not in uscita or atteso not in uscita or spia.exists():
@@ -656,6 +673,9 @@ def avvelena(repo: Path) -> int:
 
 
 def main() -> int:
+    for flusso in (sys.stdout, sys.stderr):  # su Windows l'uscita è cp1252 e un rosso con un accento cade (#4987)
+        if hasattr(flusso, "reconfigure"):
+            flusso.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", default=str(Path(__file__).resolve().parents[1]))
     parser.add_argument("--baseline-ref")
