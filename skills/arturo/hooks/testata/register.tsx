@@ -4,8 +4,9 @@ import type { EngineInterface, Register } from 'claude-code'
 import { type Avanti, type Evento, parteSpenta } from '../parti'
 import { radiciArturo } from './radici'
 import {
-  COLONNE_MARCHIO, LARGHEZZA_MARCHIO, URL_INVIA, URL_ROADMAP, blocco, dataRoadmap,
+  AUTORE, COLONNE_MARCHIO, LARGHEZZA_MARCHIO, URL_AUTORE, URL_INVIA, URL_ROADMAP, blocco, dataRoadmap,
   decidiInvito, dettaglio, leggiAggiornamento, leggiDeriva, leggiTimbro, nuovoTimbro, versioneArturo,
+  versioneDaManifest,
 } from './testata'
 import type { Blocco, Invito, Testata } from '../../types'
 
@@ -23,11 +24,18 @@ async function leggi($: EngineInterface, path: string): Promise<string | null> {
 }
 
 async function versione($: EngineInterface, home: string): Promise<string | null> {
-  for (const radice of await radici($, home)) {
+  const tutte = await radici($, home)
+  for (const radice of tutte) {
     const r = await $.process
       .run(['git', '-C', radice, 'describe', '--tags', '--match', 'v*'], { timeoutMs: 5_000 })
       .catch(() => undefined)
     const v = r !== undefined && r.exitCode === 0 ? versioneArturo(r.stdout) : null
+    if (v !== null) return v
+  }
+  // Senza git (il plugin, o un clone dopo arturo migra) la versione sta nel manifest del pacchetto.
+  for (const radice of tutte) {
+    const json = await leggi($, `${radice}/.claude-plugin/plugin.json`)
+    const v = json === null ? null : versioneDaManifest(json)
     if (v !== null) return v
   }
   return null
@@ -106,7 +114,10 @@ export const register: Register = on => {
     // Come l'intestazione di Claude Code: nome in grassetto e versione, una riga di stato, poi i due link.
     const righe = (
       <Box flexDirection="column">
-        <Text><Text bold>Arturo</Text>{b.versione === null ? '' : <Text dimColor>{` ${b.versione}`}</Text>}</Text>
+        <Text>
+          <Text bold>Arturo</Text>{b.versione === null ? '' : <Text dimColor>{` ${b.versione}`}</Text>}
+          <Text dimColor>{' di '}</Text><Link href={URL_AUTORE}><Text dimColor>{AUTORE}</Text></Link>
+        </Text>
         {b.stato === null ? null : <Text dimColor>{b.stato}</Text>}
         <Text>
           <Link href={URL_ROADMAP}><Text color={BLU} bold={b.roadmapNuova}>{b.roadmap}</Text></Link>

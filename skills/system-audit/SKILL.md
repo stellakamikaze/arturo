@@ -40,6 +40,8 @@ Solo questi controlli, niente di più:
 5. **Agent** — ogni `.md` in `${CLAUDE_PLUGIN_ROOT}/agents/` ha frontmatter YAML con `name` e `description`.
 6. **Skill e mod** — ogni cartella in `~/.claude/skills/` ha `SKILL.md` con frontmatter YAML, `name` e `description`. Una cartella con `.claude-plugin/plugin.json` è un mod di Claude Code (come il pannello `/dafare`), non una skill: non ha `SKILL.md` e non va aggiunta. Per un mod l'audit controlla che `name` del manifest coincida con il nome della cartella e che esista `hooks/hooks.json`. Due cartelle non sono skill e si saltano: `skills/shared/`, coi file comuni alle skill, e `skills/synced/`, che Claude Code tiene per le skill di claude.ai.
 7. **README** — `${CLAUDE_PLUGIN_ROOT}/README.md` esiste.
+
+Col plugin il codice di Arturo sta due cartelle sopra `audit.sh`, non in `~/.claude`: l'audit legge lì agent, skill, README e guardie, e gli hook anche da `hooks/hooks.json` del plugin. `~/.claude` resta la fonte di settings, `CLAUDE.md` e skill della persona. Il mod di Arturo col plugin non ha `.claude-plugin`: vale se `hooks/hooks.json` lo elenca sotto `modules`.
 8. **Permessi** — `defaultMode` presente e nessun pattern uguale in `allow` e `deny`.
 9. **Comandi fantasma** — `CLAUDE.md`, `README.md`, `commands/`, `skills/*/SKILL.md`, `agents/` e `shared/` non citano come vivo uno slash-comando che nessuna skill, nessun comando e nessun mod registra (i comandi di Claude Code contano come vivi). Le righe di storia ("rimosso", "archiviata", "ha assorbito") non contano. Un comando di Claude Code nuovo che l'audit non conosce va aggiunto a `NATIVE` in `audit.sh`.
 10. **Peso dei corpi** — WARN se un `SKILL.md` o un comando supera 30 KB: il corpo entra intero nel contesto a ogni uso, e le parti lette solo in un caso vanno in un file a parte.
@@ -104,4 +106,4 @@ reperto, un critico di completezza. Sola lettura: il risultato sono reperti con 
 ## Quando NON usarla
 
 - Test funzionali di una feature → la skill ha solo check strutturali.
-- Validazione pre-commit di codice progetto → applica `shared/validation-gate.md`.
+- Validazione pre-commit di codice progetto → applica `${CLAUDE_PLUGIN_ROOT}/shared/validation-gate.md`.

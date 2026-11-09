@@ -2,7 +2,6 @@
 name: diagnosi
 description: Diagnosi di un progetto intero - prima Arturo, poi git, handoff e todo, i file citati che non esistono più, i materiali sparsi da mettere a posto, e il bug nel codice se c'è
 argument-hint: "[progetto] [descrizione del problema] (opzionale)"
-disable-model-invocation: true
 ---
 
 # Diagnosi
@@ -67,24 +66,27 @@ resto dell'archivio funziona. Se il comando esce con un errore, riporta l'errore
 non leggono il progetto aperto):
 
 ```bash
-claude plugin list --json | python3 -c 'import json,sys; [print(("acceso " if p.get("enabled") else "SPENTO ") + p["id"]) for p in json.load(sys.stdin) if str(p.get("id","")).endswith("@skills-dir")]'
+claude plugin list --json | python3 -c 'import json,sys; [print(("acceso " if p.get("enabled") else "SPENTO ") + p["id"]) for p in json.load(sys.stdin) if str(p.get("id","")).endswith("@skills-dir") or p.get("id") == "arturo@arturo"]'
 V=$(mktemp -d) && for m in ~/.claude/skills/*/.claude-plugin; do d=$(dirname "$m"); [ -d "$d/tests" ] || continue; (cd "$V" && claude plugin test "$d" >/dev/null 2>&1 && echo "test ok: $(basename "$d")" || echo "TEST ROSSI: $(basename "$d")"); done; rmdir "$V"
 ```
 
-Un mod `SPENTO` o con `TEST ROSSI` si dice con il nome. `redazione-segreti` spento vuol dire che
+Col plugin il mod di Arturo è `arturo@arturo` e il ciclo dei test non trova cartelle: i test del mod
+girano nel gate del rilascio. Un mod `SPENTO` o con `TEST ROSSI` si dice con il nome. `redazione-segreti` spento vuol dire che
 Claude legge in chiaro i token stampati dai comandi: è la prima cosa da riaccendere.
 
 **Il pannello `/dafare`.** Controlla che il mod sia caricato e che Claude Code sia abbastanza
 nuovo:
 
 ```bash
-claude plugin list --json | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "arturo@skills-dir"]; print("mod caricato: arturo@skills-dir" if v and v[0].get("enabled") else "mod spento: arturo@skills-dir" if v else "mod NON caricato: arturo@skills-dir manca")'
+claude plugin list --json | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") in ("arturo@skills-dir", "arturo@arturo")]; print(("mod caricato: " if any(p.get("enabled") for p in v) else "mod spento: ") + v[0]["id"] if v else "mod NON caricato: né arturo@skills-dir né arturo@arturo")'
 echo "versione di Claude Code: $(claude --version) (il pannello chiede la 2.1.287 o successiva, le guardie la 2.1.300)"
 ```
 
-Se il mod manca, guarda se esiste `${CLAUDE_PLUGIN_ROOT}/skills/arturo/.claude-plugin/plugin.json` e se il
-plugin è spento (`claude plugin enable arturo@skills-dir` lo riaccende). In un'organizzazione
-le managed settings decidono se Claude Code carica i mod da `~/.claude/skills`:
+Col plugin il mod arriva dentro il plugin Arturo, con l'id `arturo@arturo`: se è spento,
+`claude plugin enable arturo@arturo` lo riaccende, e non serve cercare altri file. Col clone, se il
+mod manca, guarda se esiste `${CLAUDE_PLUGIN_ROOT}/skills/arturo/.claude-plugin/plugin.json` e se il plugin è
+spento (`claude plugin enable arturo@skills-dir` lo riaccende). In un'organizzazione le managed
+settings decidono se Claude Code carica i mod da `~/.claude/skills`:
 
 - con un elenco chiuso di marketplace (`strictKnownMarketplaces`) i mod non si caricano, finché
   l'elenco non contiene `{"source": "skills-dir"}`;

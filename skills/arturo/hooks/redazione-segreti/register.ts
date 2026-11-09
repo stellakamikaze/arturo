@@ -60,7 +60,10 @@ export async function redigi(text: string): Promise<{ text: string; count: numbe
   for (const [re, tipo] of PATTERNS) {
     out = await replaceAsync(out, re, async m => {
       count += 1
-      return forma(tipo, m[0])
+      // Col gruppo resta il nome della chiave: la sigla prende solo il valore, che sta in fondo al match.
+      const valore = m[1]
+      if (valore === undefined) return forma(tipo, m[0])
+      return m[0].slice(0, m[0].length - valore.length) + (await forma(tipo, valore))
     })
   }
   return { text: out, count }

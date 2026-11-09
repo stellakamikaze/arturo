@@ -94,7 +94,11 @@ def leggi_argomenti(argv: list) -> tuple:
         giorni = int(m.group(1))
         testo = testo.replace(m.group(0), " ")
     parole = [p for p in testo.split() if p != "--tutti"]
-    strani = [p for p in parole if p.startswith("-")]
+    # Un'opzione sconosciuta ("-x", "--boh") sta in testa o subito dopo il nome: "libro --boh" e
+    # "libro --rotazione scrivi" (la marca va dopo " -- ") escono 3. Più avanti è una parola del compito
+    # ("libro togli il flag --force"), e un trattino da solo è punteggiatura ("libro - capitolo tre"):
+    # li separa risolvi_nome (review del 7/11/2026, finding 33).
+    strani = [p for p in parole[:2] if re.match(r"--?[^\W\d_]", p)]
     if strani:
         raise ValueError(f"opzione sconosciuta: {strani[0]}")
     return " ".join(parole), giorni

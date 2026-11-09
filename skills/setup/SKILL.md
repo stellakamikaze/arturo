@@ -141,10 +141,10 @@ done
 - **Identità di Git.** `/fine` salva il lavoro con un commit, e Git vuole un nome e un'email:
 
   ```bash
-  git -C ~/.claude config user.email >/dev/null || echo "MANCA l'identità di Git"
+  bash ${CLAUDE_PLUGIN_ROOT}/bin/identita-git.sh --controlla
   ```
 
-  Il controllo legge anche l'identità generale del computer: se c'è, non chiedi niente. Se manca, il nome entra nella bozza della FASE 5; dopo l'ok impostalo **solo per Arturo**, con un'email finta che resta sul computer: `git -C ~/.claude config user.name "<nome>"` e `git -C ~/.claude config user.email "<nome>@arturo.local"`. L'email vera serve solo con la sync (FASE 7). Non usare `--global`: Arturo lo nega.
+  Il controllo legge anche l'identità generale del computer: se c'è, non chiedi niente. Se stampa `MANCA`, il nome entra nella bozza della FASE 5; dopo l'ok impostalo **solo per Arturo**, con un'email finta che resta sul computer: `bash ${CLAUDE_PLUGIN_ROOT}/bin/identita-git.sh --imposta "<nome>"`. `/inizio` e `/fine` la copiano nei progetti. L'email vera serve solo con la sync (FASE 7). Non usare `--global`: Arturo lo nega.
 - Gli opzionali (`gh` per GitHub, `gitleaks` per l'audit segreti, `bw` per le password, `gws` per più account Google) non bloccano niente.
 
 ---
@@ -172,7 +172,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo personale hook-precedenti
 
 ## FASE 2b — Le tue conversazioni e i tuoi Progetti di claude.ai
 
-Proposta sempre, rifiutabile, mai nel modo verifica. Segui `shared/setup-ritratto.md`, parte 2b:
+Proposta sempre, rifiutabile, mai nel modo verifica. Segui `${CLAUDE_PLUGIN_ROOT}/shared/setup-ritratto.md`, parte 2b:
 prima la domanda, poi col sì `python3 ${CLAUDE_PLUGIN_ROOT}/bin/ritratto.py sessioni`, poi l'invito a incollare
 le istruzioni dei Progetti. Con un no registra la fase e passa alla 2c, con `--senza-sessioni`.
 
@@ -180,7 +180,7 @@ le istruzioni dei Progetti. Con un no registra la fase e passa alla 2c, con `--s
 
 ## FASE 2c — Le tue cartelle
 
-Proposta sempre, rifiutabile, mai nel modo verifica. Segui `shared/setup-ritratto.md`, parte 2c:
+Proposta sempre, rifiutabile, mai nel modo verifica. Segui `${CLAUDE_PLUGIN_ROOT}/shared/setup-ritratto.md`, parte 2c:
 prima `python3 ${CLAUDE_PLUGIN_ROOT}/bin/ritratto.py cartelle`, poi la domanda con i percorsi stampati, poi col
 sì `ritratto.py scan --radici '<percorso 1>' '<percorso 2>'`, ogni percorso copiato alla lettera fra
 apici singoli. Poi mostra il ritratto e fallo correggere.
@@ -224,9 +224,9 @@ resta Conciso, si cambia con /output-style." Mostra il menu solo se il ritratto 
 3. **Explanatory**: Claude spiega le scelte che fa mentre lavora.
 4. **Learning**: Claude ti lascia scrivere alcune parti per imparare.
 
-La scelta va nel campo `outputStyle` di `~/.claude/settings.json` (`Conciso`, `default`,
-`Explanatory` o `Learning`), mostrando prima la riga: vale dalla sessione dopo. Uno stile suo va in
-`${CLAUDE_PLUGIN_ROOT}/output-styles/<nome>.md`, copiato da `conciso.md`.
+La scelta va nel campo `outputStyle` di `~/.claude/settings.json` (`Conciso`, col plugin `arturo:Conciso`,
+`default`, `Explanatory` o `Learning`), mostrando prima la riga: vale dalla sessione dopo. Uno stile suo va in
+`~/.claude/output-styles/<nome>.md`, copiato da `$ARTURO_CODICE/output-styles/conciso.md`.
 
 ---
 
@@ -238,10 +238,10 @@ Il `CLAUDE.md` dice a Claude **chi sei, cosa fai e come vuoi che lavori**. È tu
 ls -la ~/.claude/CLAUDE.md 2>/dev/null && echo "ESISTE già" || echo "non esiste ancora"
 ```
 
-- **Con il ritratto**, prepara la bozza come dice `shared/setup-ritratto.md`, parte "La bozza": un solo
+- **Con il ritratto**, prepara la bozza come dice `${CLAUDE_PLUGIN_ROOT}/shared/setup-ritratto.md`, parte "La bozza": un solo
   messaggio, con lo schema e le regole consigliate di `${CLAUDE_PLUGIN_ROOT}/shared/setup-claude-md.md`. Fra le
   consigliate c'è quella dei lavori lunghi, che rimanda a `${CLAUDE_PLUGIN_ROOT}/shared/lavori-lunghi.md`.
-- **Senza ritratto**, fai la breve intervista di `shared/setup-claude-md.md`, poi la stessa bozza.
+- **Senza ritratto**, fai la breve intervista di `${CLAUDE_PLUGIN_ROOT}/shared/setup-claude-md.md`, poi la stessa bozza.
 - Se il `CLAUDE.md` esiste già, proponi solo le aggiunte, come diff.
 
 Scrivi `~/.claude/CLAUDE.md` solo dopo "ok". Poi imposta la cartella dei progetti coi passi della FASE 3
@@ -266,7 +266,7 @@ Poi le macchine dell'utente: leggi gli alias di `~/.ssh/config`, `tailscale stat
 
 ## FASE 7 — Sincronizzazione tra più macchine (opzionale)
 
-Fase da bozza. Prima del push chiedi l'email vera, se quella di Git è finta (FASE 1).
+Fase da bozza. Prima del push chiedi l'email vera, se quella di Git è finta (FASE 1), e scrivila con `identita-git.sh --imposta`.
 
 Spiega: se userà Arturo su **più computer**, può tenerli allineati con un proprio repository privato. `/fine` committa e pusha, `/inizio` sincronizza. `CLAUDE.md`, aggiunte ai comandi (`personale/`), handoff e todo viaggiano solo se il repository risulta privato. Le skill nuove della persona, verso un repository che non risulta privato, restano sulla macchina finché lei non dice di pubblicarle. Arturo resta collegato come `upstream`: da lì `/aggiorna` scarica gli aggiornamenti dell'harness, mentre `origin` diventa il repository dell'utente.
 
@@ -286,7 +286,7 @@ I todo si leggono anche fuori da Claude Code, con `python3 ${CLAUDE_PLUGIN_ROOT}
 - Se sì, mostra la riga che aggiungerai e il file in cui va (`~/.zshrc` su macOS, `~/.bashrc`
   su Linux e Git Bash), poi aggiungila dopo il suo sì. Non toccare il file senza il sì.
   ```bash
-  alias arturo='python3 "${CLAUDE_PLUGIN_ROOT}/bin/arturo"'
+  alias arturo='python3 "$(cat ~/.claude/arturo/radice 2>/dev/null || echo ~/.claude)/bin/arturo"'
   ```
   Dille che vale dalla prossima finestra del terminale, e che `arturo todo aiuto` elenca i comandi.
 - Altrimenti salta: dentro Claude Code basta dire "cosa c'è da fare?".
@@ -348,7 +348,7 @@ browser. Occupa circa 300 MB sul disco. Lo installo?"
 Controlla prima se c'è già:
 
 ```bash
-[ -x ${CLAUDE_PLUGIN_ROOT}/tools/scrapling/.venv/bin/python ] || [ -x ${CLAUDE_PLUGIN_ROOT}/tools/scrapling/.venv/Scripts/python.exe ] && echo "scrape già installato" || echo "scrape non installato"
+bash ${CLAUDE_PLUGIN_ROOT}/tools/scrapling/setup.sh --controlla
 ```
 
 - Se è già installato, dillo e vai avanti.
@@ -388,12 +388,12 @@ Controlla prima se c'è già:
   dell'installatore, che qui resterebbero senza risposta:
 
   ```bash
-  npx --yes impeccable install --providers=claude --scope=global
+  npx --yes impeccable@4.8.0 install --providers=claude --scope=global
   ```
 
   Poi spiega: "È installata. Riapri Claude Code, e in un progetto scrivi `/impeccable init`: ti fa
   qualche domanda sul progetto e la ricorda in `PRODUCT.md`." Dettagli e aggiornamento:
-  `docs/impeccable.md`.
+  `${CLAUDE_PLUGIN_ROOT}/docs/impeccable.md`.
 - Se l'utente dice no, o non fa interfacce, salta tutta la fase: si installa anche più tardi con
   lo stesso comando.
 
@@ -407,7 +407,7 @@ sito vetrina): Impeccable guida e rifinisce, Hallmark costruisce. Controlla se c
 - Solo dopo il sì installala, senza il suo hook di lint:
   `npx --yes skills add nutlope/hallmark -g -a claude-code --copy -y`.
 - Con tutte e due installate, proponi la riga di "La regola per il tuo CLAUDE.md" in
-  `docs/hallmark.md`. Scrivila in fondo a `~/.claude/CLAUDE.md` solo dopo il sì: il file è dell'utente.
+  `${CLAUDE_PLUGIN_ROOT}/docs/hallmark.md`. Scrivila in fondo a `~/.claude/CLAUDE.md` solo dopo il sì: il file è dell'utente.
 
 ---
 
@@ -445,7 +445,7 @@ il primo consigliato: lo stato di un progetto trovato, letto dai suoi file, poi 
 /guidami se ci sono sessioni recenti; una bozza nella sua voce di una cosa che il ritratto mostra
 ricorrente. Fai quello che sceglie e mostra l'esito. Senza ritratto, o se lo chiede, usa
 `${CLAUDE_PLUGIN_ROOT}/skills/sparring/SKILL.md`: le sue tre domande diventano conferme del ritratto.
-Se preferisce esplorare da solo, indicagli `docs/principi/README.md` e chiudi.
+Se preferisce esplorare da solo, indicagli `${CLAUDE_PLUGIN_ROOT}/docs/principi/README.md` e chiudi.
 
 ---
 

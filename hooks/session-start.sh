@@ -41,7 +41,7 @@ if [ "$(cd "$ARTURO_CODICE" 2>/dev/null && pwd -P)" != "$(cd "$HOME/.claude" 2>/
   mkdir -p "$HOME/.claude/arturo" 2>/dev/null \
     && { [ "$(cat "$HOME/.claude/arturo/radice" 2>/dev/null)" = "$ARTURO_CODICE" ] \
          || printf '%s' "$ARTURO_CODICE" > "$HOME/.claude/arturo/radice" 2>/dev/null; } || true
-  echo "ARTURO: il codice di Arturo sta in $ARTURO_CODICE (\$ARTURO_CODICE nel Bash). Un percorso \$ARTURO_CODICE/... in un testo di Arturo si legge da lì."
+  echo "ARTURO: il codice di Arturo sta in $ARTURO_CODICE (\$ARTURO_CODICE nel Bash). Un percorso \$ARTURO_CODICE/... o \${CLAUDE_PLUGIN_ROOT}/... in un testo di Arturo letto con Read si legge da lì."
 fi
 
 # Info directory di lavoro e macchina: con piu' computer, Claude sa su quale lavora.
@@ -287,8 +287,8 @@ if [ -f "$ARTURO_CODICE/bin/telemetria.py" ]; then
   python3 "$ARTURO_CODICE/bin/telemetria.py" avvio 2>/dev/null || true
 fi
 
-# Invito a finire /setup (23/10/2026): nella telemetria Liliana ha installato e non l'ha mai lanciato,
-# Alessio si è fermato prima della fase 9. Una volta al giorno, solo in un'installazione vera senza il
+# Invito a finire /setup (23/10/2026): nella telemetria una persona ha installato e non l'ha mai lanciato,
+# un'altra si è fermata prima della fase 9. Una volta al giorno, solo in un'installazione vera senza il
 # segno di data/setup-fatto. Il segno c'è dal 16/10: chi ha installato prima (data del clone nel reflog,
 # o reflog vuoto perché scaduto) poteva aver finito senza segno, e lì non si chiede. Gli aggiornamenti
 # non contano: arrivano anche da soli, a chi /setup non l'ha mai aperto.

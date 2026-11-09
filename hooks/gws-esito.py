@@ -6,7 +6,8 @@ modalità auto un comando cambiato dopo la revisione del classificatore viene re
 rilanciato identico (segnalazioni n. 46-48): un hook che nega e spiega non cambia niente.
 
 PreToolUse(Bash)            `gws gmail messages …` non esiste: nega e scrive la forma con `users`.
-PostToolUse(Bash)           un gws che esce 0 ma dice "invalid_grant" o "No credentials provided".
+PostToolUse(Bash)           un gws che esce 0 ma dice "invalid_grant" o "No credentials provided", in
+                            stderr o nel JSON d'errore: lo stdout coi dati letti non conta.
 PostToolUseFailure(Bash)    lo stesso guasto con un codice d'uscita diverso da 0 (il caso comune).
   Dopo il guasto: un avviso alla persona (systemMessage), una nota a Claude che dice di fermarsi e
   chiedere il login, e il controllo dei token di gws-token-health.py rifatto subito, così l'avviso
@@ -55,7 +56,17 @@ def nota(nome: str, cartella: str) -> str:
     return (f"[gws] L'account {nome} non ha credenziali valide su {macchina}. "
             "Non riprovare con un altro account e non cambiare comando. "
             f"Serve che la persona rifaccia il login: GOOGLE_WORKSPACE_CLI_CONFIG_DIR={cartella} gws auth login "
-            "(la guida è in ~/.claude/docs/onboarding/gws.md). Diglielo e fermati su gws.")
+            f"(la guida è in {guida()}). Diglielo e fermati su gws.")
+
+
+def guida() -> str:
+    """La guida al login di gws dove sta davvero: col plugin docs/ è nella cartella del codice (finding 56)."""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import radici
+        return radici._corto(radici.radice_arturo() / "docs" / "onboarding" / "gws.md")
+    except Exception:  # noqa: BLE001 - la nota resta utile anche senza il modulo
+        return "~/.claude/docs/onboarding/gws.md"
 
 
 def rifai_controllo() -> None:
@@ -76,8 +87,18 @@ def testo_esito(payload: dict) -> str:
         return str(payload.get("error") or "")
     r = payload.get("tool_response")
     if isinstance(r, dict):
-        return f"{r.get('stdout') or ''}\n{r.get('stderr') or ''}"
-    return str(r or "")
+        return f"{errore_json(str(r.get('stdout') or ''))}\n{r.get('stderr') or ''}"
+    return errore_json(str(r or ""))
+
+
+def errore_json(stdout: str) -> str:
+    """Dello stdout di un gws riuscito conta solo il JSON d'errore ({"error": …}): il resto sono i dati
+    letti, e un'email che cita invalid_grant non è un guasto (review del 7/11/2026, finding 58)."""
+    try:
+        dati = json.loads(stdout.strip() or "null")
+    except ValueError:
+        return ""
+    return json.dumps(dati.get("error"), ensure_ascii=False) if isinstance(dati, dict) and "error" in dati else ""
 
 
 def main() -> int:

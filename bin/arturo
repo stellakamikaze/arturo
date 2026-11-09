@@ -432,7 +432,8 @@ def todo(argv: list) -> int:
         if args.note:
             t = ts.registra(t["id"], "nota", {"testo": args.note})
         print(json.dumps(ts.esporta(t, ts.carica()[0]), ensure_ascii=False) if args.json
-              else f"Aggiunto #{t['id']}: {t['titolo']} ({t['progetto']})")
+              else f"Aggiunto #{t['id']}: {t['titolo']} ({t['progetto']})"
+              + (f", scadenza {t['scadenza']}" if t.get("scadenza") else ""))
         return 0
 
     if cmd == "modifica":

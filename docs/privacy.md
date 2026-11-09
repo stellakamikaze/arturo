@@ -66,13 +66,16 @@ Nelle fasi 2b e 2c `/setup` ti chiede due volte un sì, per conoscerti prima di 
   - lo stesso campanello delle segnalazioni, con l'ora di arrivo e il link alla pagina privata;
   - l'avviso di una config rotta: le prime 8 cifre dell'id, la versione di Arturo e il tipo di guasto;
   - il recap di ogni mattina e il riepilogo del lunedì: i numeri degli eventi sommati fra le installazioni e, per installazione con le prime 8 cifre dell'id, i file e gli hook di Arturo cambiati o spenti, le guardie che bloccano spesso e le installazioni rimaste indietro;
+  - dal 5/11/2026, nel recap di ogni mattina, per installazione con le prime 8 cifre dell'id: versione di Arturo e sistema, sessioni del giorno, giorni attivi nella settimana, comandi e skill di Arturo usati, durata delle sessioni e numero dei messaggi in fasce;
   - dal 2/11/2026, nel riepilogo del lunedì, la sezione "Chi lo usa": per installazione, con le prime 8 cifre dell'id, i giorni attivi della settimana, le sessioni, il comando più usato e l'ultimo giorno visto.
 
-Chi mantiene Arturo vede gli stessi numeri per installazione anche in una sua pagina privata, protetta da accesso, dove dà un nome agli id delle persone che conosce. Quei nomi stanno solo sul suo server, non nel server della telemetria e non in questo repository.
+Le email che portano una cosa da fare (una segnalazione da leggere, una config rotta, una riga "Da fare" del recap) possono portare anche un'intestazione per il programma con cui chi mantiene Arturo tiene i suoi task: ne nasce un task nel suo elenco, una copia in più fuori dal server. Il task ha un titolo e una nota scritti dal server, con il numero della segnalazione o le prime 8 cifre dell'id e i nomi degli elenchi chiusi, mai il titolo o il testo di una segnalazione.
 
-Telegram e Gmail non ricevono mai il testo di una segnalazione o di un feedback, la tua email o l'id completo.
+Chi mantiene Arturo vede gli stessi numeri per installazione anche in una sua pagina privata, protetta da accesso, dove dà un nome agli id delle persone che conosce. Dall'8/11/2026 quei nomi stanno solo sul suo server, non nel server della telemetria, e quindi non nelle email, nei messaggi e nei task, e dal 9/11/2026 non in questo repository. Fino al 9/11/2026 alcuni id veri e alcuni nomi stavano in test e commenti di questo repository: restano nella sua storia pubblicata.
+
+Telegram, Gmail e l'elenco dei task non ricevono mai il testo di una segnalazione o di un feedback, la tua email o l'id completo.
 Queste copie stanno fuori dal server: la pulizia dei 12 mesi e la cancellazione sul server non le raggiungono.
-Chi mantiene Arturo le cancella a mano nella chat e nella casella, se lo chiedi.
+Chi mantiene Arturo le cancella a mano nella chat, nella casella e nell'elenco dei task, se lo chiedi.
 I messaggi e le email partiti prima del 24/10/2026 possono contenere anche il titolo e il testo di una segnalazione, l'email e il testo di un feedback.
 Nessun altro riceve i dati. Non si vendono e non servono per pubblicità.
 
@@ -80,7 +83,7 @@ Nessun altro riceve i dati. Non si vendono e non servono per pubblicità.
 
 - **Vedere cosa parte.** `python3 $ARTURO_CODICE/bin/arturo telemetria mostra` stampa l'id e gli eventi in coda, così come partono.
 - **Accesso.** Scrivi a federico@stellakamikaze.org con l'id che ti mostra `mostra`: ricevi i dati legati a quell'id.
-- **Cancellazione.** Scrivi allo stesso indirizzo con l'id: chi mantiene Arturo cancella i tuoi eventi e le tue segnalazioni dal server, e a mano le copie su Telegram e Gmail (vedi "Chi li riceve").
+- **Cancellazione.** Scrivi allo stesso indirizzo con l'id: chi mantiene Arturo cancella i tuoi eventi e le tue segnalazioni dal server, e a mano le copie su Telegram e Gmail (vedi "Chi li riceve"). Se usi Lancillotto, aggiungi il suo id, che leggi con `lancillotto telemetria mostra`. Una segnalazione partita senza id (la casella "collega" spenta) si cancella col suo numero, oppure la ritiri tu con `arturo segnala ritira`.
 - **Ritiro di una segnalazione.** `python3 $ARTURO_CODICE/bin/arturo segnala ritira N --conferma`, col codice della ricevuta che Arturo ha salvato sul tuo computer: dal server spariscono titolo, testo, pacchetto tecnico e aggiunte, restano numero, tipo e data. Lo stesso codice serve a leggere la risposta (`arturo segnala stato`) e ad aggiungere informazioni (`arturo segnala seguito N`).
 - **Opposizione.** `python3 $ARTURO_CODICE/bin/arturo telemetria spegni` spegne la telemetria e svuota la coda. Valgono anche `ARTURO_TELEMETRIA=0` e `DO_NOT_TRACK=1`. `/segnala` continua a funzionare: ogni segnalazione parte solo col tuo sì.
 - **Reclamo.** Puoi rivolgerti al Garante per la protezione dei dati personali (garanteprivacy.it).

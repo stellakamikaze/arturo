@@ -20,7 +20,8 @@
 #   2. Esegue il veleno. Esige exit diverso da 0 E il marcatore --expect nell'output.
 #      Veleno verde o rosso senza marcatore: esce 2 (il gate non discrimina).
 #   3. Controlla dove ha scritto il veleno. In $VELENO_DIR accetta solo file veleno-*.
-#      Nella cartella corrente accetta solo file veleno-* nuovi o modificati. Altrimenti esce 3.
+#      Nella cartella corrente accetta solo file veleno-* nuovi o modificati, e nessun file sparito
+#      (cancellato o rinominato). Altrimenti esce 3.
 #   4. Esegue il gate vero. Esce 0 se è verde (e trova --pass), 1 se è rosso.
 #
 #   L'exit code di ogni comando viene scritto su file subito dopo il comando e riletto da lì.
@@ -83,6 +84,10 @@ VELENO_DIR="$WORK/veleno"
 mkdir -p "$VELENO_DIR" "$WORK/gate"
 STAMP="$WORK/stamp"
 : >"$STAMP"
+# I file della cartella prima del veleno: uno che sparisce (cancellato o rinominato) cambia l'albero su cui gira il
+# gate vero (review del 7/11/2026, finding 93).
+elenca_cwd() { find . \( -name .git -o -name node_modules \) -prune -o -type f -print 2>/dev/null | LC_ALL=C sort; }
+elenca_cwd >"$WORK/file-prima.txt"
 sleep 1  # mtime a grana di secondo: separa i file scritti prima da quelli del veleno
 
 # 2. veleno
@@ -106,6 +111,9 @@ stray_dir="$(find "$VELENO_DIR" -type f ! -name 'veleno-*' | head -5)"
 [[ -z "$stray_dir" ]] || die "il veleno ha scritto file senza prefisso veleno- in VELENO_DIR: $stray_dir"
 stray_cwd="$(find . \( -name .git -o -name node_modules \) -prune -o -type f -newer "$STAMP" ! -name 'veleno-*' -print 2>/dev/null | head -5)"
 [[ -z "$stray_cwd" ]] || die "file cambiati nella cartella corrente durante il veleno (solo veleno-* ammessi): $stray_cwd"
+elenca_cwd >"$WORK/file-dopo.txt"
+spariti="$(LC_ALL=C comm -23 "$WORK/file-prima.txt" "$WORK/file-dopo.txt" | head -5)"
+[[ -z "$spariti" ]] || die "file spariti dalla cartella corrente durante il veleno: $spariti"
 
 # 4. gate vero
 GOUT="$WORK/gate/output.txt" GRC="$WORK/gate/rc"

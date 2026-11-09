@@ -2,7 +2,6 @@
 name: segnala
 description: Manda a chi mantiene Arturo un problema, un'idea o una richiesta di integrazione - la bozza la scrive Claude, parte solo dopo il tuo sì
 argument-hint: "[cosa vuoi segnalare] | stato (opzionale)"
-disable-model-invocation: true
 ---
 
 # Segnala
@@ -136,14 +135,17 @@ python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo segnala prepara --tipo TIPO --titolo "T
   mantiene Arturo quale invito funziona.
 - Con exit 3 la bozza o il pacchetto contengono qualcosa che sembra un segreto: toglilo e rilancia.
 - Con exit 0 mostra alla persona l'anteprima per intero, così come la stampa lo script: il testo, la riga
-  "Tolto dal testo" se c'è, e il pacchetto tecnico con le sue caselle. Le caselle accese di default sono
+  "Tolto dal testo" e la riga "Da controllare" se ci sono, e il pacchetto tecnico con le sue caselle. Le caselle accese di default sono
   ambiente, banchi e config; deriva, errore (acceso se hai passato `--errore`) e "collega ai miei dati
   d'uso" sono spente. Dillo in una riga: "Con la segnalazione parte un pacchetto tecnico, qui sotto: puoi
   spegnere o accendere ogni casella."
 - Se la persona cambia le caselle, rilancia `prepara` con `--pacchetto` e le voci accese separate da
   virgole (`--pacchetto ambiente,deriva`, o `--pacchetto nessuna`). Se una cosa tolta serve a capire il
   problema (l'indirizzo di un sito pubblico, per esempio), rilancia con `--tieni` e la categoria che
-  l'anteprima nomina, solo col sì della persona.
+  l'anteprima nomina, solo col sì della persona. Con "Da controllare" guarda i nomi di documenti: se la parola
+  prima è parte del nome, toglila dalla bozza e rilancia `prepara`.
+- `invia` manda solo il file di questo `prepara`, così com'è: se il file è cambiato dopo l'anteprima risponde
+  con exit 2, e si rilancia `prepara`.
 
 Il canale è `arturo`: la segnalazione arriva direttamente a chi mantiene Arturo, senza account e
 senza altri passi. Usa un altro canale solo se la persona lo chiede o se l'ha scelto prima

@@ -43,7 +43,7 @@ restano, e che ogni sessione nuova rilegge. Due finestre aperte sullo stesso pro
 contesti separati e la stessa memoria.
 In Arturo: la barra in basso mostra quanto contesto è pieno. La memoria sono `CLAUDE.md`, gli
 handoff che scrive `/fine` e i todo (`arturo todo`), tutti in `~/.claude`. Il capitolo
-`docs/principi/04-la-memoria-e-tua.md` racconta il resto.
+`${CLAUDE_PLUGIN_ROOT}/docs/principi/04-la-memoria-e-tua.md` racconta il resto.
 
 **Git e GitHub.** Git è un programma che tiene la storia di una cartella: ogni modifica salvata
 (un commit) resta, e puoi tornare indietro. La cartella può contenere codice, testi o foto. GitHub
@@ -84,5 +84,5 @@ In Arturo: la barra in basso scrive "quota 5 ore N%, si azzera alle HH:MM · set
 **Dire sì a una conferma.** Quando Claude Code chiede "posso?", ti mostra il comando vero che sta
 per lanciare. Sì vale per quel comando, quella volta. Le guardie di Arturo chiedono poco apposta:
 se chiedono, leggi. Chiediti: se dico sì senza leggere, cosa può succedere?
-In Arturo: `docs/principi/02-i-rail-non-l-attrito.md`. Quando Claude ti aspetta, il Mac suona e la
+In Arturo: `${CLAUDE_PLUGIN_ROOT}/docs/principi/02-i-rail-non-l-attrito.md`. Quando Claude ti aspetta, il Mac suona e la
 scheda del terminale cambia colore.

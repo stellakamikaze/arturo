@@ -13,3 +13,7 @@ Prima di andare avanti applica le impostazioni che un plugin non può portare (p
   volte e, col sì, lancia `applica --togli-doppi`. Gli hook tuoi, che il plugin non porta, restano;
 - chiudi con `impostazioni stato`: deve dire "già applicate" senza hook doppi.
 Il metodo di Arturo (`$ARTURO_CODICE/shared/metodo.md`) col plugin arriva da solo all'avvio di ogni sessione.
+
+Salta anche la FASE 7: col plugin `~/.claude` non è un repository, e la sincronizzazione tra macchine di
+`/setup` vale solo col clone. Dillo in una riga se la persona usa più computer. L'identità di Git della
+FASE 1 invece vale: `identita-git.sh` non chiede un repository in `~/.claude`.

@@ -30,6 +30,7 @@ aggiornamento: cambia solo Arturo. L'Orsa resta com'è; in un conflitto riceve
 | Istruzioni | metodo e freni, iniettati all'avvio | `CLAUDE.md`, `personale/<skill>.md` |
 | Dati | cache e coda della telemetria in `${CLAUDE_PLUGIN_DATA}` | memoria, todo, handoff, impostazioni di Melchior |
 | Preferenze delle guardie | valori di base | `~/.claude/arturo/*.local` |
+| Identità di Git e venv di `scrape` | `bin/identita-git.sh`, `tools/scrapling/setup.sh` | `~/.claude/arturo/git-identita`, `~/.claude/data/scrapling/.venv` |
 
 **Regola d'oro: nessun file esiste in tutti e due gli strati.** Un file copiato in due posti diverge, e l'aggiornamento deve poi scegliere quale tenere.
 
@@ -86,7 +87,7 @@ Terza prova, 5/11/2026 (Claude Code 2.1.318), sul pacchetto con il metodo: `impo
 
 Quarta prova, 5/11/2026 (Claude Code 2.1.318), col primo rilascio pubblicato (`plugin-v0.2.4`, sha 4659345) in un `CLAUDE_CONFIG_DIR` vuoto: `claude plugin marketplace add stellakamikaze/arturo#catalogo` e `claude plugin install arturo@arturo` installano lo sha del tag firmato; `aggiornamenti.py plugin --verifica` dice "GIÀ AGGIORNATO", la deriva tace e fissa l'ancora, la telemetria legge v0.2.4; una guardia cambiata nella cache esce nella riga DERIVA.
 
-Da provare: Windows (prima di migrare Balthasar, e `arturo migra` su Windows); barra in basso dal puntatore su una macchina pulita.
+Da provare: Windows (`arturo migra` su un PC Windows); barra in basso dal puntatore su una macchina pulita.
 
 ## Il pacchetto
 
@@ -94,7 +95,8 @@ Da provare: Windows (prima di migrare Balthasar, e `arturo migra` su Windows); b
 - `.claude-plugin/plugin.json` e `marketplace.json`, con Arturo; il plugin porta anche il mod di Arturo (`skills/arturo`): il suo modulo sta sotto `modules` in `hooks/hooks.json` e il contratto dei tipi in `types` (mod passo 3, 3/11/2026);
 - `hooks/hooks.json` dagli hook di `settings.json`, con `"${CLAUDE_PLUGIN_ROOT}/..."` tra virgolette;
 - `impostazioni/arturo.json`: il resto di `settings.json`, che `arturo impostazioni applica` unisce ai settings della persona;
-- ogni `commands/<nome>.md` diventa `skills/<nome>/SKILL.md` con `name:` e `disable-model-invocation: true`.
+- ogni `commands/<nome>.md` diventa `skills/<nome>/SKILL.md` con `name:` e `disable-model-invocation: true`, tranne
+  `fine`, `segnala` e `diagnosi`: li lancia anche Claude (`/fine --rotazione` a ogni compito chiuso).
 
 `arturo impostazioni applica` fa un'unione a tre vie: la base è il file di blocco, poi i settings della persona, poi il frammento nuovo. Arturo cambia solo le voci che la persona ha lasciato com'erano. Se una voce è cambiata da tutte e due le parti, il comando non scrive niente e la nomina.
 
@@ -126,7 +128,7 @@ telemetria versione dal plugin.json della copia, non dai tag del git dell'Orsa
 - **L'ancora.** La chiave che verifica sta nell'Orsa, in `~/.claude/arturo/rilasci.allowed_signers`: chi cambia la copia del plugin cambierebbe anche la chiave dentro. La prima verifica riuscita la scrive; dopo cambia solo con una copia nuova verificata con la chiave di prima. Così una chiave nuova entra con un rilascio firmato dalla vecchia, come nel clone.
 - **Lo spazio dei nomi.** Il MANIFEST si firma con `ssh-keygen -Y sign -n arturo-manifest`, da stdin: con un file, una `MANIFEST.sig` già presente resta com'era e `ssh-keygen` esce con 0 lo stesso. La chiave dei rilasci vale per `git` e `arturo-manifest` (`firme/rilasci.allowed_signers`).
 - **Fuori dal MANIFEST** stanno solo la firma, la cartella `.in_use` che Claude Code aggiunge alla cache e i `__pycache__` che Python scrive accanto agli script.
-- **Il catalogo** sta sul ramo `catalogo` del repository: la persona lo aggiunge con `claude plugin marketplace add stellakamikaze/arturo#catalogo`, e `main` resta il clone di Gigi e Filippo fino a F4.
+- **Il catalogo** sta sul ramo `catalogo` del repository: la persona lo aggiunge con `claude plugin marketplace add stellakamikaze/arturo#catalogo`, e `main` resta il clone di chi l'ha installato così fino a F4.
 - Il banco `tests/test_fiducia_2026_11_05.py` (FD01-FD09) prova tutto con la CLI vera, in un `CLAUDE_CONFIG_DIR` di prova: tag non firmato, firmato da un'altra chiave, sha dopo il tag, rilascio più vecchio, e un aggiornamento vX → vY che va a buon fine.
 
 ## La migrazione dal clone (F4, 5/11/2026)
@@ -153,11 +155,11 @@ arturo migra indietro  toglie plugin e catalogo messi dalla migrazione, riporta 
 - **La base dell'unione** è il `settings.json` di Arturo da cui il clone è partito (`git show <merge-base>:settings.json`), tradotto come il pacchetto traduce il suo (barra dal puntatore, stile `arturo:`). Una voce che la persona ha lasciato com'era prende il valore del plugin, una voce sua resta sua, una voce cambiata da tutte e due le parti ferma la migrazione e si nomina.
 - **Gli hook che escono** sono quelli che lanciano un file di Arturo dentro `~/.claude`, anche se il plugin non li porta più: dopo il passo 6 quel file non c'è. Un hook della persona resta. Una barra in basso della persona che usa un file di Arturo ferma la migrazione.
 - **Il rapporto** nomina i file di Arturo e conta quelli della persona, senza nomi e senza i valori dei settings: va a chi mantiene Arturo.
-- **Non si migra da sola** una `~/.claude` con Arturo come `upstream` (repository della persona): `.git` porta anche i suoi file, e si fa a mano.
+- **Una `~/.claude` con Arturo come `upstream`** (il repository della persona) si migra solo con `--unica-macchina`, dal 9/11/2026 (segnalazione n. 62). `.git` e `.gitignore` restano, e i file di Arturo escono con un commit nel repository della persona, che la `/fine` dopo pubblica. `migra indietro` lo annulla con un `git revert`, senza sostituire `.git`, che nel frattempo può avere commit suoi. Con più computer il commit arriverebbe agli altri alla prima sincronizzazione e lì toglierebbe Arturo e le guardie senza avviso. Per questo senza `--unica-macchina` la migrazione si ferma, e con più computer si fa a mano.
 - **La sessione aperta** blocca la migrazione: una sessione partita col clone ha gli hook in `$ARTURO_CODICE/hooks`, e dopo il passo 6 ogni hook mancante bloccherebbe le sue azioni.
 - Il demone fsmonitor di git tiene aperta `.git`: la migrazione lo spegne per i suoi git, e copia e confronto saltano i socket.
 - **Il CLAUDE.md** resta della persona. Le regole consigliate che `/setup` ci aveva scritto col plugin arrivano anche col metodo all'avvio: il rapporto le conta, e dopo la migrazione `arturo personale regole-doppie` le elenca e con `--togli` le toglie, con la copia in `CLAUDE.md.prima-del-plugin` (#4874, banco `tests/test_regole_doppie_2026_11_06.py`). Si toglie solo una riga uguale per intero alla regola, e senza un seguito rientrato: una riga che le somiglia si elenca e resta.
-- Il banco `tests/test_migra_2026_11_05.py` (MG01-MG07) prova tutto con la CLI vera, in un `CLAUDE_CONFIG_DIR` di prova: rapporto, sessione aperta, migrazione, ritorno identico file per file, tag non firmato, conflitto nei settings dopo l'installazione, `upstream`.
+- Il banco `tests/test_migra_2026_11_05.py` (MG01-MG18) prova tutto con la CLI vera, in un `CLAUDE_CONFIG_DIR` di prova: rapporto, sessione aperta, migrazione, ritorno identico file per file, tag non firmato, conflitto nei settings dopo l'installazione, `upstream` senza e con `--unica-macchina` (MG07, MG18).
 
 ## Come un testo di Arturo indica il codice
 
@@ -170,4 +172,4 @@ Due conseguenze della prova:
 
 ## La testata: dove Arturo si presenta
 
-Il logo di Claude Code non si sostituisce: nessuna opzione dei settings lo cambia e nessun componente dei mod lo ridisegna (verificato su 2.1.317, 3/11/2026). La parte `skills/arturo/hooks/testata` del mod di Arturo piazza con `$.ui.place` il primo blocco sotto l'intestazione: versione di Arturo (`git describe` dal repository che contiene il mod, chiesto a `git rev-parse --show-toplevel` così vale anche da un link in `~/.claude/skills`, altrimenti la radice da `$.plugin.root`, `radiceCodice` di `hooks/parti.ts`), versione di Claude Code (`$.session.version()`), deriva (`cache/deriva.json`, scritto da `hooks/deriva.py`) e aggiornamento (`session-env/aggiornamento.json`). I dati stanno nell'Orsa, il codice in Arturo.
+Il logo di Claude Code non si sostituisce: nessuna opzione dei settings lo cambia e nessun componente dei mod lo ridisegna (verificato su 2.1.317, 3/11/2026). La parte `skills/arturo/hooks/testata` del mod di Arturo piazza con `$.ui.place` il primo blocco sotto l'intestazione: versione di Arturo (`git describe` dal repository che contiene il mod, chiesto a `git rev-parse --show-toplevel` così vale anche da un link in `~/.claude/skills`, altrimenti la radice da `$.plugin.root`, `radiceCodice` di `hooks/parti.ts`; senza git, col plugin, il campo `version` di `.claude-plugin/plugin.json`), versione di Claude Code (`$.session.version()`), deriva (`cache/deriva.json`, scritto da `hooks/deriva.py`) e aggiornamento (`session-env/aggiornamento.json`). I dati stanno nell'Orsa, il codice in Arturo.

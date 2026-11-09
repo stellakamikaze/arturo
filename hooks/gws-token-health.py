@@ -49,7 +49,7 @@ def _account():
     try:
         for riga in ATTESI_FILE.read_text(encoding="utf-8").splitlines():
             nome = riga.split("#", 1)[0].strip()
-            # "gws-ss|gws-sansecondo": vale la prima che esiste (nomi diversi fra le macchine).
+            # "gws-lavoro|gws-ufficio": vale la prima che esiste (nomi diversi fra le macchine).
             scelte = [n.strip() for n in nome.split("|") if re.fullmatch(r"gws(-[a-z0-9]+)?", n.strip())]
             if scelte and not any(n in trovati for n in scelte):
                 trovati[scelte[0]] = CONFIG_DIR / scelte[0]
@@ -62,7 +62,7 @@ EXPECTED_ACCOUNTS = _account()
 
 # Il check vero gira in background (--refresh), fuori dal timeout di 12 s dell'hook: su Windows
 # un solo `gws auth status` impiega 5-9 s, e con 8 s di limite ogni account risultava in timeout,
-# nascondendo il token davvero scaduto di gws-sansecondo (verifica Balthasar, 31/10/2026).
+# nascondendo il token davvero scaduto di un account (verifica su un PC Windows, 31/10/2026).
 GWS_TIMEOUT_SEC = int(os.environ.get("ARTURO_GWS_TIMEOUT_SEC") or 30)  # la variabile serve ai banchi
 
 

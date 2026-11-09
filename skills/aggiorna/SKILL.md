@@ -39,7 +39,9 @@ senza firma: la verifica la fa Arturo, prima.
 - `GIÀ AGGIORNATO`: diglielo in una frase e chiudi.
 - Una riga `plugin-v…` con `rc=0`: è la versione nuova, verificata. Chiedi il sì, poi lancia
   `python3 ${CLAUDE_PLUGIN_ROOT}/bin/aggiornamenti.py plugin`. Fa `claude plugin update` e controlla la copia
-  installata col suo MANIFEST firmato. Con `APPLICATO` chiedi di riavviare Claude Code, poi `/novita`.
+  installata col suo MANIFEST firmato, poi unisce a settings.json le voci nuove del frammento
+  (`impostazioni applica`). Con `APPLICATO` chiedi di riavviare Claude Code, poi `/novita`. Una riga
+  `IMPOSTAZIONI NON APPLICATE` sotto dice quale voce è in conflitto: proponi `/setup`, che la decide con lei.
 - `rc=3` (`POSSIBILE COMPROMISSIONE`) o `rc=4` (`FIRMA NON VERIFICABILE`): vale quello che dice il
   Passo 1 qui sotto per le stesse parole. Niente `claude plugin update` a mano, neanche col suo sì.
 

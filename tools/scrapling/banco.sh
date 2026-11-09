@@ -11,7 +11,11 @@ set -u
 QUI="$(cd "$(dirname "$0")" && pwd)"
 PY="${SCRAPE_PYTHON:-}"
 if [ -z "$PY" ]; then
-  for c in "$QUI/.venv/bin/python" "$QUI/.venv/Scripts/python.exe"; do [ -x "$c" ] && PY="$c" && break; done
+  # Il venv di setup.sh sta fra i dati della persona; quello vecchio accanto al codice vale ancora.
+  VENV="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/data/scrapling/.venv"
+  for c in "$VENV/bin/python" "$VENV/Scripts/python.exe" "$QUI/.venv/bin/python" "$QUI/.venv/Scripts/python.exe"; do
+    [ -x "$c" ] && PY="$c" && break
+  done
 fi
 [ -n "$PY" ] && "$PY" -c 'import scrapling' >/dev/null 2>&1 || { echo "Scrapling non installato: lancia prima setup.sh"; exit 3; }
 

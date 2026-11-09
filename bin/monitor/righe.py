@@ -61,7 +61,7 @@ def valida_item(r):
         return None, f"data {r['data']!r}: serve AAAA-MM-GG"
     if r.get("scadenza") is not None and not _data(r["scadenza"]):
         return None, f"scadenza {r['scadenza']!r}: serve AAAA-MM-GG, oppure null"
-    if r["urgenza"] not in URGENZE:
+    if not isinstance(r["urgenza"], str) or r["urgenza"] not in URGENZE:
         return None, f"urgenza {r['urgenza']!r}: rosso, giallo o verde"
     if not isinstance(r["riassunto"], str) or "\n" in r["riassunto"] or len(r["riassunto"]) > 300:
         return None, "riassunto: una riga sola, al massimo 300 caratteri"
@@ -76,6 +76,8 @@ def valida_item(r):
     if r.get("extra") is not None and not isinstance(r["extra"], dict):
         return None, "extra è un oggetto"
     fp = r.get("fp") or f"{r['fonte']}:{r['id_sorgente']}"
+    if not isinstance(fp, str):
+        return None, f"fingerprint {fp!r}: è una stringa"
     ok, motivo = fingerprint.valida(fp)
     if not ok:
         return None, f"fingerprint {fp!r}: {motivo}"
@@ -116,12 +118,17 @@ def valida(righe):
             scarti.append(f"riga {n}: non è un oggetto JSON")
             continue
         tipo = r.get("tipo")
-        if tipo == "item":
-            buona, motivo = valida_item(r)
-        elif tipo == "copertura":
-            buona, motivo = valida_copertura(r)
-        else:
-            buona, motivo = None, f"tipo {tipo!r}: item o copertura"
+        try:
+            if tipo == "item":
+                buona, motivo = valida_item(r)
+            elif tipo == "copertura":
+                buona, motivo = valida_copertura(r)
+            else:
+                buona, motivo = None, f"tipo {tipo!r}: item o copertura"
+        except (TypeError, AttributeError, ValueError) as e:
+            # Un campo col tipo sbagliato scarta la sua riga, non tutta la consegna (review del 7/11/2026,
+            # finding 34): le altre righe restano.
+            buona, motivo = None, f"un campo ha il tipo sbagliato ({type(e).__name__}: {e})"
         if motivo:
             scarti.append(f"riga {n}: {motivo}")
             continue
