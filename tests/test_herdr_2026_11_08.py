@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ24: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ25: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -69,6 +69,9 @@ HZ23 l'installatore prende il primo Python che risponde, non il primo che esiste
      9009 come lo stub dello Store, arturo.json usa python (#5079).
 HZ24 barra di stato e guida scrivono i tasti da tasti() di comuni.js, mai ⌘ a mano; volta.js avvisa se
      il comando do porta l'id di una sessione che non è nell'elenco (#5078).
+HZ25 nelle finestre di dialogo (Cosa posso chiedere, Apri un progetto, La settimana, menu dei todo)
+     l'azione parte prima che la finestra si chiuda: chiusa, la finestra ferma il suo codice al primo
+     await, e i pulsanti di Cosa posso chiedere non facevano niente (9/11/2026).
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -84,7 +87,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -913,7 +916,25 @@ def hz24(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24}
+def hz25(repo: Path, casa: Path) -> str | None:
+    # Una finestra di dialogo chiusa ferma il suo codice al primo await: la chiusura viene dopo l'azione.
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    prima = re.compile(r"(this\.chiudi\(\)|dopo\?\.\(\)|closeOverlay\([^)]*\));\s*(?:await\s+)?(apri|esegui|scrivi|chiedi|nuova)\(")
+    for f in sorted(mod.glob("*.js")):
+        m = prima.search(f.read_text(encoding="utf-8"))
+        if m:
+            return f"{f.name} chiude la finestra prima di {m.group(2)}(): l'azione non parte"
+    attesi = {"suggerimenti.js": "try { await esegui(sug); } finally { dopo?.(); }",
+              "apri.js": "try { await apri(nome); } finally { this.chiudi(); }",
+              "revisione.js": "try { await apri(k); } finally { this.chiudi(); }",
+              "menu.js": "scrivi(v.argv(testo), v.esito, titolo).finally(() => this.chiudi());"}
+    for nome, pezzo in attesi.items():
+        if pezzo not in (mod / nome).read_text(encoding="utf-8"):
+            return f"{nome} non aspetta l'azione prima di chiudere"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25}
 
 
 def prova(repo: Path) -> list[str]:
@@ -968,6 +989,8 @@ VELENI = [
      'if command -v "$c" >/dev/null 2>&1; then py=$c; break; fi'),
     ("HZ24", "shared/volta-celeste/mods/arturo/testata.js", "const scorciatoie = `${k.apri} apri un progetto",
      "const scorciatoie = `⌘O apri un progetto"),
+    ("HZ25", "shared/volta-celeste/mods/arturo/suggerimenti.js", ".on_click(async () => { try { await esegui(sug); } finally { dopo?.(); } })",
+     ".on_click(() => { dopo?.(); esegui(sug); })"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 

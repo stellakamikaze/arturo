@@ -48,7 +48,8 @@ export class Settimana {
         .text_size(12.5).text_color(t.accent).border_1().border_color(t.border)
         .hover((s) => s.bg(t.selected))
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-        .on_click(() => { this.chiudi(); apri(k); })
+        // prima apre, poi chiude: un overlay chiuso ferma il suo codice al primo await
+        .on_click(async () => { try { await apri(k); } finally { this.chiudi(); } })
         .child("Fai il punto"));
   }
 

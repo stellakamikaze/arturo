@@ -32,10 +32,10 @@ export class Apri {
     return presi.slice(0, MAX);
   }
 
-  vai(nome) {
+  // Prima apre, poi chiude: un overlay chiuso ferma il suo codice al primo await (9/11/2026).
+  async vai(nome) {
     if (!nome) return;
-    this.chiudi();
-    apri(nome);
+    try { await apri(nome); } finally { this.chiudi(); }
   }
 
   render() {

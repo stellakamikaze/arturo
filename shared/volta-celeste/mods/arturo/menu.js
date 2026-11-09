@@ -63,8 +63,8 @@ export class Azioni {
     this.inCorso = true;
     cx.notify();
     const titolo = this.item.titolo;
-    this.chiudi();
-    scrivi(v.argv(testo), v.esito, titolo);
+    // prima scrive, poi chiude: un overlay chiuso ferma il suo codice al primo await (9/11/2026)
+    scrivi(v.argv(testo), v.esito, titolo).finally(() => this.chiudi());
   }
 
   render() {

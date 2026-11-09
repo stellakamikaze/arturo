@@ -22,7 +22,9 @@ export function voce(t, sug, prima, dopo) {
     .border_1().border_color(prima ? t.accent : t.border).bg(prima ? t.selected : t.raised)
     .hover((s) => s.border_color(t.accent))
     .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-    .on_click(() => { dopo?.(); esegui(sug); })
+    // Prima la richiesta, poi `dopo` (chiude la finestra): un overlay chiuso ferma il suo codice, e la
+    // richiesta lanciata dopo la chiusura non partiva mai (9/11/2026).
+    .on_click(async () => { try { await esegui(sug); } finally { dopo?.(); } })
     .child(div().text_size(14).font_semibold().text_color(t.foreground).child(sug.titolo))
     .child(div().whitespace_normal().text_size(12.5).text_color(t.muted).child(sug.testo));
 }
