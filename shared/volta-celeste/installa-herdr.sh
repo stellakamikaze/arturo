@@ -64,13 +64,21 @@ rm -rf "$app_home/mods/arturo"
 mv "$app_home/mods/arturo.nuovo" "$app_home/mods/arturo"
 
 # 3. Come il mod chiama Arturo, e dove stanno i progetti.
-py=python3
-command -v python3 >/dev/null 2>&1 || py=python
+# Il primo Python che risponde davvero: su Windows python3 può essere lo stub dello Store, che
+# esiste come comando ma esce 9009 e rimanda allo Store (#5079).
+py=""
+for c in python3 python; do
+  if "$c" -c "import sys" >/dev/null 2>&1; then py=$c; break; fi
+done
+[ -n "$py" ] || { say "HERDR ERRORE: manca Python (python3 o python) per scrivere la configurazione."; exit 1; }
+# Tasti: sui Mac quelli con ⌘; altrove ⌘ sarebbe il tasto Windows, che il sistema si tiene.
+tasti=keys.json
+[ "$sistema" = mac-arm ] || tasti=keys-ctrl.json
 base=${PROJECTS_BASE:-$HOME/Documents/ClaudeCode}
 mkdir -p "$base"
 versione=$(herdr-app --version 2>/dev/null | sed -n 's/^herdr-app //p' || true)
 [ -n "$versione" ] || versione=$("$HOME/.local/bin/herdr-app" --version 2>/dev/null | sed -n 's/^herdr-app //p' || true)
-ARTURO_HERDR_VERSIONE="${ARTURO_HERDR_VERSIONE:-$versione}" ARTURO_PY="$py" ARTURO_BIN="$(percorso "$radice/bin/arturo")" ARTURO_BASE="$(percorso "$base")" \
+ARTURO_HERDR_VERSIONE="${ARTURO_HERDR_VERSIONE:-$versione}" ARTURO_TASTI="$tasti" ARTURO_PY="$py" ARTURO_BIN="$(percorso "$radice/bin/arturo")" ARTURO_BASE="$(percorso "$base")" \
 "$py" - "$qui" "$app_home" <<'PY'
 import json, os, sys
 qui, app = sys.argv[1], sys.argv[2]
@@ -96,7 +104,7 @@ scrivi("arturo.json", arturo)
 
 # Tasti: si aggiungono; un tasto che la persona usa già per altro resta suo.
 tasti = leggi("keys.json") or {}
-with open(os.path.join(qui, "keys.json"), encoding="utf-8") as f:
+with open(os.path.join(qui, os.environ["ARTURO_TASTI"]), encoding="utf-8") as f:
     nuovi = json.load(f)
 for sez, voci in nuovi.items():
     mia = tasti.setdefault(sez, {})

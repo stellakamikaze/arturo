@@ -20,7 +20,7 @@ I todo sono quelli di `arturo todo`: se li tieni in un altro strumento ([fonte d
 - Il layout di Arturo in `~/.config/herdr-app` (`layouts/arturo.json`, `themes/arturo*.json`, `mods/arturo/`) e `arturo.json`, che dice al pannello dove sono Arturo e i tuoi progetti.
 - Un hook di Claude Code, `hooks/herdr-stato.sh`: dice a Herdr se Claude lavora, aspetta te o ha finito. Fuori da Herdr non fa niente.
 - Sul Mac, `~/Applications/Arturo.app` e il LaunchAgent `~/Library/LaunchAgents/org.stellakamikaze.arturo-app.plist`, che le rimette nome e icona dopo ogni aggiornamento di Herdr ([più sotto](#il-nome-arturo-nel-dock)).
-- Le note che lasci con ⌘⇧N, in `~/.claude/data/note-finestra/`: restano su questo computer, fuori da git.
+- Le note che lasci con ⌘⇧N (Ctrl+Shift+M su Windows), in `~/.claude/data/note-finestra/`: restano su questo computer, fuori da git.
 
 Funziona sui Mac con processore Apple e su Windows. Sui Mac Intel e su Linux `/setup` salta il passo, e Arturo funziona come sempre nel terminale.
 
@@ -28,7 +28,7 @@ Funziona sui Mac con processore Apple e su Windows. Sui Mac Intel e su Linux `/s
 
 - **Aggiornamenti.** Herdr si aggiorna da solo da herdr.dev, non dai rilasci firmati di Arturo. Un aggiornamento di Herdr può cambiare il suo aspetto prima che Arturo lo segua.
 - **Telemetria.** Herdr manda di suo, una volta al giorno, dei conteggi d'uso: versione, sistema, quanti spazi e terminali, quali agenti, layout e comandi. Mai il contenuto dei terminali né i nomi dei tuoi file. Arturo la spegne all'installazione (`"telemetry": false` in `~/.config/herdr-app/settings.json`): se vuoi aiutare chi fa Herdr, la riaccendi da Impostazioni → Privacy.
-- **Tasti.** Arturo aggiunge ⌘O (apri un progetto), ⌘⇧↓ e ⌘⇧↑ (sessione dopo e prima), ⌃⌘→ e ⌃⌘← (progetto dopo e prima), ⌘⇧N (una nota a Claude su un punto della finestra). Un tasto che usavi già per altro resta tuo.
+- **Tasti.** Arturo aggiunge ⌘O (apri un progetto), ⌘⇧↓ e ⌘⇧↑ (sessione dopo e prima), ⌃⌘→ e ⌃⌘← (progetto dopo e prima), ⌘⇧N (una nota a Claude su un punto della finestra). Su Windows ⌘ sarebbe il tasto Windows, che il sistema si tiene: lì Arturo aggiunge Ctrl+Shift+A (apri un progetto) e Ctrl+Shift+M (la nota), e per sessioni e progetti valgono i tasti di Herdr, Alt+↓ e Alt+↑, Ctrl+Shift+PagGiù e PagSu. Un tasto che usavi già per altro resta tuo.
 
 ## Come si toglie
 
@@ -60,7 +60,7 @@ Lo stesso clic arriva anche da `herdr-app do arturo.volta-<id>` (id corto di ott
 
 Questo è un ramo di prova, fuori dai rilasci. Prima di un rilascio mancano:
 - il server della telemetria con `herdr-stato.sh` in `DERIVA_HOOK`, pubblicato prima del tag;
-- la prova su Windows (Git Bash come shell dei terminali di Herdr, l'hook su ConPTY);
+- su Windows, la prova dell'hook dello stato su ConPTY (layout, barra, tasti e sessioni di tutte le macchine provati su Balthasar il 9/11/2026);
 - l'avviso di Herdr quando una sessione aspetta, oggi in inglese ("Claude Code needs you").
 
 ## Il nome Arturo nel Dock

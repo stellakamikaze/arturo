@@ -2,9 +2,17 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { theme, openOverlay } from "herdr";
+import { theme, openOverlay, window } from "herdr";
 
 export const ICONA = (nome) => `mods/workspace-chrome/${nome}.svg`;
+
+// I tasti come li scrivono i testi: sui Mac quelli di keys.json, altrove quelli di keys-ctrl.json e di
+// Herdr (Alt+↓ per la sessione che aspetta), perché su Windows ⌘ sarebbe il tasto Windows.
+export function tasti() {
+  return window()?.platform === "macos"
+    ? { apri: "⌘O", prossima: "⌘⇧↓", impostazioni: "⌘,", nota: "⌘⇧N" }
+    : { apri: "Ctrl+Shift+A", prossima: "Alt+↓", impostazioni: "Ctrl+,", nota: "Ctrl+Shift+M" };
+}
 
 // Un pallino di stato disegnato, non un carattere.
 export const punto = (colore, d = 8) => div().size(d).flex_none().rounded_full().bg(colore);

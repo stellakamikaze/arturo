@@ -6,7 +6,7 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, exec, readTextFile, appHome, home, run, spaces, terminals, panes, shared, setShared, watchFolder } from "herdr";
+import { theme, exec, readTextFile, appHome, home, run, spaces, terminals, panes, shared, setShared, watchFolder, notify } from "herdr";
 import { gruppi, titolo, dettaglio, clic, agganciata, MODI } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
 import { slug, config } from "./dati.js";
@@ -110,7 +110,10 @@ export class Volta {
 
   premiId(id, cx) {
     const s = (this.dati?.sessioni ?? []).find((x) => x.id === id || String(x.sessionId).startsWith(id));
+    // Dal comando `do` può arrivare l'id di una sessione appena nata, che il giro in corso non ha
+    // ancora scritto nell'elenco: si dice, invece di non fare niente (#5078).
     if (s) this.premi(s, cx);
+    else notify({ title: `Non trovo la sessione ${id}`, body: "L'elenco si aggiorna fra pochi secondi: riprova.", level: "warning" });
   }
 
   // La scheda dell'aggancio: se c'è già la si porta davanti, altrimenti nasce nello spazio del

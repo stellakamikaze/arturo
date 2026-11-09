@@ -5,7 +5,7 @@
 import { div, image } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { theme, props, closeOverlay, openOverlay, setShared } from "herdr";
-import { punto } from "./comuni.js";
+import { punto, tasti } from "./comuni.js";
 
 // `passo` (da 0) apre la guida a quel punto: "arturo.guida3" dai tasti o da herdr-app do.
 export function apriGuida(passo = 0) {
@@ -25,7 +25,7 @@ const PASSI = [
     titolo: "Più progetti alla volta",
     righe: [
       "Apri un progetto e passa al prossimo: Claude lavora su tutti insieme.",
-      "Quando uno ha bisogno di te, senti un suono e il suo pallino diventa arancio. ⌘⇧↓ ti porta lì.",
+      () => `Quando uno ha bisogno di te, senti un suono e il suo pallino diventa arancio. ${tasti().prossima} ti porta lì.`,
     ],
     legenda: true,
   },
@@ -41,7 +41,7 @@ const PASSI = [
     zona: "dafare",
     titolo: "Da fare, accanto a Claude",
     righe: [
-      "I todo del progetto, divisi fra te e Claude. Spunta quelli fatti; Lavoraci fa partire Claude da lì e segna il todo in corso, finché /fine lo chiude; Altro cambia chi lo fa e quando. Con ⌘⇧N lasci a Claude una nota su un punto della finestra.",
+      () => `I todo del progetto, divisi fra te e Claude. Spunta quelli fatti; Lavoraci fa partire Claude da lì e segna il todo in corso, finché /fine lo chiude; Altro cambia chi lo fa e quando. Con ${tasti().nota} lasci a Claude una nota su un punto della finestra.`,
       "La settimana, in basso a sinistra, raccoglie i progetti da guardare. Si apre da sola alla prima apertura di ogni settimana.",
       "Cosa posso chiedere ti suggerisce le richieste. A fine giornata scrivi /fine.",
     ],
@@ -108,7 +108,8 @@ export class Guida {
         .child(v_flex().w(360).gap(10)
           .child(div().text_size(12.5).text_color(t.muted).child(`${this.passo + 1} di ${PASSI.length}`))
           .child(div().font_family("Arturo Archivo").text_size(21).text_color(t.foreground).child(p.titolo))
-          .children(p.righe.map((r) => div().w(360).whitespace_normal().text_size(14).text_color(t.muted).child(r)))
+          // una riga che nomina un tasto è una funzione: il tasto dipende dal sistema (tasti())
+          .children(p.righe.map((r) => div().w(360).whitespace_normal().text_size(14).text_color(t.muted).child(typeof r === "function" ? r() : r)))
           .when(Boolean(p.legenda), (el) => el.child(legenda))))
       .child(h_flex().items_center().gap(10)
         .child(h_flex().gap(6).children(PASSI.map((_, i) => div().h(6).w(i === this.passo ? 18 : 6).rounded(3)

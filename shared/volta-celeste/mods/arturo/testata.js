@@ -4,7 +4,7 @@ import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, layout, shared } from "herdr";
 import { frase, nuova, slug, SUGGERIMENTI } from "./dati.js";
-import { ICONA, punto, pulsante, colore, apriFinestra } from "./comuni.js";
+import { ICONA, punto, pulsante, colore, apriFinestra, tasti } from "./comuni.js";
 import { apriSuggerimenti, voce } from "./suggerimenti.js";
 
 function trova(nodo, id) {
@@ -52,7 +52,8 @@ export class Stato {
     const a = agents();
     const n = (st) => a.filter((x) => x.status === st).length;
     const pezzo = (c, testo) => h_flex().gap(7).items_center().child(punto(c, 7)).child(testo);
-    const tasti = "⌘O apri un progetto   ⌘⇧↓ prossima sessione   ⌘, impostazioni";
+    const k = tasti();
+    const scorciatoie = `${k.apri} apri un progetto   ${k.prossima} prossima sessione   ${k.impostazioni} impostazioni`;
     return h_flex().size_full().px(18).gap(18).items_center().bg(t.chrome).border_t(1).border_color(t.border).text_size(12).text_color(t.muted)
       .when(a.length === 0, (el) => el.child(pezzo(t.idle, "Nessuna sessione aperta")))
       .when(n("blocked") > 0, (el) => el.child(pezzo(t.blocked, div().text_color(t.foreground).child(`${n("blocked")} ti aspett${n("blocked") > 1 ? "ano" : "a"}`))))
@@ -60,7 +61,7 @@ export class Stato {
       .when(n("done") > 0, (el) => el.child(pezzo(t.done, `${n("done")} hanno finito`.replace(/^1 hanno/, "1 ha"))))
       .when(a.length > 0 && !n("blocked") && !n("working") && !n("done"), (el) => el.child(pezzo(t.idle, a.length > 1 ? `${a.length} sessioni aperte, nessuna ti aspetta` : "1 sessione aperta, non ti aspetta")))
       .child(div().flex_1())
-      .child(div().text_color(t.dim).child(tasti));
+      .child(div().text_color(t.dim).child(scorciatoie));
   }
 }
 
@@ -72,17 +73,18 @@ export class Benvenuto {
     // Chi non ha progetti parte dalla ricerca; chi li ha, da cosa fare adesso.
     const scelti = (haProgetti ? ["guidami", "riprendi", "ricorda", "trova"] : ["trova", "riprendi", "ricorda", "guidami"])
       .map((id) => SUGGERIMENTI.find((x) => x.id === id));
-    return v_flex().w(520).px(28).pt(28).pb(28).gap(20)
+    // Largo 520 quando c'è spazio; in una finestra stretta si restringe e le carte vanno a capo (#5077).
+    return v_flex().w_full().max_w(520).px(20).pt(24).pb(24).gap(20)
       .child(v_flex().gap(8)
         .child(div().font_family("Arturo Archivo").text_size(22).text_color(t.foreground).child("Cosa facciamo oggi?"))
-        .child(div().w(464).whitespace_normal().text_size(14).text_color(t.muted)
+        .child(div().w_full().whitespace_normal().text_size(14).text_color(t.muted)
           .child(haProgetti
             ? "Scegli un progetto a sinistra, oppure parti da una di queste richieste."
             : "Comincia facendo trovare a Claude i tuoi progetti. Oppure scrivigli cosa ti serve, come in una chat.")))
-      .child(v_flex().gap(10)
-        .child(h_flex().gap(10).child(div().w(227).child(voce(t, scelti[0], true))).child(div().w(227).child(voce(t, scelti[1], false))))
-        .child(h_flex().gap(10).child(div().w(227).child(voce(t, scelti[2], false))).child(div().w(227).child(voce(t, scelti[3], false)))))
-      .child(h_flex().gap(10).items_center()
+      .child(h_flex().flex_wrap().gap(10)
+        // due per riga quando entrano (almeno 200 l'una), altrimenti una sotto l'altra
+        .children(scelti.map((s, i) => div().flex_1().min_w(200).child(voce(t, s, i === 0)))))
+      .child(h_flex().flex_wrap().gap(10).items_center()
         .child(pulsante("b-nuova", "square-pen", "Nuova richiesta", () => nuova(), !haProgetti ? false : true))
         .child(div().text_size(12.5).text_color(t.dim).child("Altre richieste in Cosa posso chiedere, in alto")));
   }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ21: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ24: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -63,6 +63,12 @@ HZ20 Volta Celeste su Windows (9/11/2026): volta.js lancia teletrasporto.py col 
      (quello che installa-herdr.sh ha trovato), mai con un Python scritto a mano.
 HZ21 installa-herdr.sh su Windows scrive layout, mod e arturo.json in ~/.config/herdr-app e la shell
      di herdr-core in ~/.config/herdr-core/config.toml, dove Herdr 0.1.14 li legge; niente in %APPDATA%.
+HZ22 i tasti per sistema: su Windows keys-ctrl.json (Ctrl+Shift+A apre un progetto, Ctrl+Shift+M la nota)
+     e nessun cmd, che lì è il tasto Windows; sui Mac keys.json con cmd-o.
+HZ23 l'installatore prende il primo Python che risponde, non il primo che esiste: con un python3 che esce
+     9009 come lo stub dello Store, arturo.json usa python (#5079).
+HZ24 barra di stato e guida scrivono i tasti da tasti() di comuni.js, mai ⌘ a mano; volta.js avvisa se
+     il comando do porta l'id di una sessione che non è nell'elenco (#5078).
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -78,7 +84,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -850,7 +856,63 @@ def hz21(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21}
+def hz22(repo: Path, casa: Path) -> str | None:
+    esiti = {}
+    for sistema in ("windows", "mac-arm"):
+        sotto = casa / sistema
+        sotto.mkdir()
+        extra = {"ARTURO_HERDR_FIRMA": "presente"} if sistema == "mac-arm" else {}
+        r = installa(repo, sotto, sistema, extra)
+        if r.returncode != 0 or "HERDR OK" not in r.stdout:
+            return f"installazione {sistema} fallita rc={r.returncode}: {(r.stdout + r.stderr)[-200:]}"
+        esiti[sistema] = leggi(sotto / "app" / "keys.json").get("global", {})
+    win, mac = esiti["windows"], esiti["mac-arm"]
+    if win.get("ctrl-shift-a") != "arturo.apri" or win.get("ctrl-shift-m") != "arturo.nota":
+        return f"su Windows mancano Ctrl+Shift+A e Ctrl+Shift+M: {win}"
+    if any(k.startswith("cmd-") for k in win):
+        return f"su Windows sono finiti tasti con cmd (il tasto Windows): {sorted(k for k in win if k.startswith('cmd-'))}"
+    if mac.get("cmd-o") != "arturo.apri" or "ctrl-shift-a" in mac:
+        return f"sui Mac i tasti non sono quelli con ⌘: {mac}"
+    return None
+
+
+def hz23(repo: Path, casa: Path) -> str | None:
+    # python3 finto come lo stub di WindowsApps (esce 9009), python che porta al Python vero
+    finti = casa / "finti"
+    finti.mkdir()
+    vero = Path(sys.executable).as_posix()
+    (finti / "python3").write_text("#!/bin/sh\necho 'Python was not found' >&2\nexit 9009\n", encoding="utf-8", newline="\n")
+    (finti / "python").write_text(f'#!/bin/sh\nexec "{vero}" "$@"\n', encoding="utf-8", newline="\n")
+    for f in finti.iterdir():
+        f.chmod(0o755)
+    r = installa(repo, casa, "windows", {"PATH": str(finti) + os.pathsep + os.environ.get("PATH", "")})
+    if r.returncode != 0 or "HERDR OK" not in r.stdout:
+        return f"installazione fallita rc={r.returncode}: {(r.stdout + r.stderr)[-200:]}"
+    py = leggi(casa / "app" / "arturo.json")["arturo"][0]
+    if py != "python":
+        return f"arturo.json usa {py!r}: con python3 che non risponde serve python"
+    return None
+
+
+def hz24(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    testata = (mod / "testata.js").read_text(encoding="utf-8")
+    guida = (mod / "guida.js").read_text(encoding="utf-8")
+    volta = (mod / "volta.js").read_text(encoding="utf-8")
+    for nome, testo in (("testata.js", testata), ("guida.js", guida)):
+        codice = "\n".join(r for r in testo.splitlines() if not r.lstrip().startswith("//"))
+        if "⌘" in codice:
+            return f"{nome} scrive ⌘ a mano: i tasti vengono da tasti() di comuni.js"
+        if "tasti()" not in codice:
+            return f"{nome} non prende i tasti da tasti()"
+    if 'window()?.platform === "macos"' not in (mod / "comuni.js").read_text(encoding="utf-8"):
+        return "tasti() non sceglie per sistema"
+    if "else notify({ title: `Non trovo la sessione ${id}`" not in volta:
+        return "premiId non avvisa quando la sessione non è nell'elenco"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24}
 
 
 def prova(repo: Path) -> list[str]:
@@ -897,6 +959,11 @@ VELENI = [
     ("HZ21", "shared/volta-celeste/installa-herdr.sh", "app_home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}",
      'if [ "$sistema" = windows ]; then app_home=${HERDR_APP_HOME:-${APPDATA:-$HOME/AppData/Roaming}/herdr-app}; '
      "else app_home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}; fi"),
+    ("HZ22", "shared/volta-celeste/installa-herdr.sh", '[ "$sistema" = mac-arm ] || tasti=keys-ctrl.json', ":"),
+    ("HZ23", "shared/volta-celeste/installa-herdr.sh", 'if "$c" -c "import sys" >/dev/null 2>&1; then py=$c; break; fi',
+     'if command -v "$c" >/dev/null 2>&1; then py=$c; break; fi'),
+    ("HZ24", "shared/volta-celeste/mods/arturo/testata.js", "const scorciatoie = `${k.apri} apri un progetto",
+     "const scorciatoie = `⌘O apri un progetto"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 
