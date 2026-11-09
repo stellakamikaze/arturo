@@ -100,6 +100,89 @@ async function cli($: EngineInterface, argomenti: string[], comando = 'todo'): P
   }
 }
 
+// Una fonte esterna (docs/fonte-task.md) manda di ogni todo solo id e titolo, e può non mandare versione,
+// avvisi e titoli dei gruppi: i campi che il pannello legge prendono un valore vuoto, così il comando
+// non salta (review del 7/11/2026, finding 63). Una versione presente e diversa resta un disaccordo.
+const GRUPPI: Record<string, [string, string]> = {
+  tu: ['TOCCA A TE', 'Lo fai tu.'],
+  decidi: ['DECIDI TU, POI FACCIO IO', 'Serve una tua scelta, poi lavora Claude.'],
+  io: ['FACCIO IO', 'Lo fa Claude.'],
+  fermo: ['FERMO', 'Aspetta qualcosa o qualcuno.'],
+}
+
+function testo(x: unknown, altrimenti: string): string {
+  return typeof x === 'string' ? x : altrimenti
+}
+
+function forseTesto(x: unknown): string | null {
+  return typeof x === 'string' && x !== '' ? x : null
+}
+
+function numeri(x: unknown): number[] {
+  return Array.isArray(x) ? x.filter((n): n is number => typeof n === 'number') : []
+}
+
+function testi(x: unknown): string[] {
+  return Array.isArray(x) ? x.filter((t): t is string => typeof t === 'string') : []
+}
+
+function oggetti(x: unknown): Record<string, unknown>[] {
+  return Array.isArray(x) ? x.filter((o): o is Record<string, unknown> => !!o && typeof o === 'object') : []
+}
+
+export function normalizzaVista(dato: unknown): Vista | 'versione' | 'forma' {
+  if (!dato || typeof dato !== 'object') return 'forma'
+  const d = dato as Record<string, unknown>
+  if (d.versione !== undefined && d.versione !== VERSIONE_VISTA) return 'versione'
+  if (!Array.isArray(d.gruppi)) return 'forma'
+  const gruppi = oggetti(d.gruppi).flatMap(g => {
+    const tipo = testo(g.tipo, '')
+    if (!(tipo in GRUPPI)) return []
+    const [titoloGruppo, descrizione] = GRUPPI[tipo]
+    const todo = oggetti(g.todo).flatMap(t => {
+      if (typeof t.id !== 'number' || typeof t.titolo !== 'string') return []
+      const chi = t.chi === 'tu' || t.chi === 'decidi' || t.chi === 'io' ? t.chi : tipo === 'fermo' ? 'io' : tipo
+      const voce: TodoVoce = {
+        id: t.id,
+        titolo: t.titolo,
+        progetto: forseTesto(t.progetto) ?? 'generale',
+        scadenza: forseTesto(t.scadenza),
+        scadenza_testo: forseTesto(t.scadenza_testo),
+        giorni: typeof t.giorni === 'number' ? t.giorni : null,
+        priorita: testo(t.priorita, 'media'),
+        stato: testo(t.stato, 'da fare'),
+        quando: testo(t.quando, ''),
+        chi: chi as TodoVoce['chi'],
+        perche: forseTesto(t.perche),
+        motivo: forseTesto(t.motivo),
+        gruppo: tipo as TodoVoce['gruppo'],
+        dopo: numeri(t.dopo),
+        attende: numeri(t.attende),
+        note: testi(t.note),
+      }
+      return [voce]
+    })
+    return [{ tipo: tipo as Vista['gruppi'][number]['tipo'], titolo: testo(g.titolo, titoloGruppo),
+      descrizione: testo(g.descrizione, descrizione), todo }]
+  })
+  const progetti = Array.isArray(d.progetti)
+    ? oggetti(d.progetti).filter(p => typeof p.nome === 'string').map(p => ({
+        ...(p as unknown as Progetto),
+        catena: numeri(p.catena),
+        da_dove: p.da_dove && typeof p.da_dove === 'object' ? (p.da_dove as Progetto['da_dove']) : null,
+      }))
+    : undefined
+  return {
+    versione: VERSIONE_VISTA,
+    oggi: testo(d.oggi, ''),
+    progetto: forseTesto(d.progetto),
+    gruppi,
+    ...(progetti ? { progetti } : {}),
+    chiusi: typeof d.chiusi === 'number' ? d.chiusi : 0,
+    avvisi: testi(d.avvisi),
+  }
+}
+
 // Rilegge le cose da fare. Un guasto lascia intatta la vista di prima: mai vuota per un errore.
 async function carica($: EngineInterface): Promise<void> {
   const r = await cli($, ['--json'])
@@ -114,19 +197,15 @@ async function carica($: EngineInterface): Promise<void> {
     await update($, errore, () => 'La CLI dei todo ha risposto in un formato che il pannello non legge.')
     return
   }
-  const v = dato as Vista
-  if (!v || typeof v !== 'object') {
-    await update($, errore, () => 'La CLI dei todo ha risposto in un formato che il pannello non legge.')
-    return
-  }
+  const v = normalizzaVista(dato)
   // La versione prima della forma: una CLI nuova può cambiare la forma, e il pannello vecchio non
   // deve scrivere partendo dalla vista di prima.
-  if (v.versione !== VERSIONE_VISTA) {
+  if (v === 'versione') {
     await update($, vista, () => null)
     await update($, errore, () => 'Il pannello e la CLI non vanno d\'accordo: scrivi /aggiorna.')
     return
   }
-  if (!Array.isArray(v.gruppi)) {
+  if (v === 'forma') {
     await update($, errore, () => 'La CLI dei todo ha risposto in un formato che il pannello non legge.')
     return
   }

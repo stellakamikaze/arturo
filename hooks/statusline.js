@@ -33,6 +33,11 @@ const GIT_CACHE_DIR = path.join(CLAUDE_DIR, 'cache', 'statusline');
 const GIT_REFRESH_MIN_S = 15;        // frequenza minima dei tentativi
 const GIT_CACHE_MAX_S = 120;         // oltre: flag nascosto, cache troppo vecchia
 const GIT_SCRITTURA_MIN_S = 3;       // età minima del .tmp prima di promuoverlo
+const GIT_VIVO_MAX_S = 600;          // oltre: il pid del git precedente non si guarda più (pid riusato)
+// Su Windows detached vuol dire DETACHED_PROCESS: il processo resta senza console e ogni git figlio
+// ne apre una visibile, la finestra che lampeggia (review del 7/11/2026, finding 54). Senza detached,
+// con stdio 'ignore', windowsHide dà CREATE_NO_WINDOW e i figli ereditano la console nascosta.
+const STACCATO = process.platform !== 'win32';
 
 function gitRamo(gitDir) {
   try {
@@ -81,20 +86,38 @@ function gitRichiediRefresh(root) {
     const tmp = `${base}.tmp`;
     const ultimo = Math.max(gitMtime(base), gitMtime(tmp));
     if (ultimo && (Date.now() - ultimo) < GIT_REFRESH_MIN_S * 1000) return;
+    // Un git status appeso (disco lento, cartella sincronizzata) non si moltiplica: finché il
+    // precedente è vivo non se ne lancia un altro (finding 59).
+    const pidFile = `${base}.pid`;
+    if (gitVivo(pidFile)) return;
     fs.mkdirSync(GIT_CACHE_DIR, { recursive: true });
     const fd = fs.openSync(tmp, 'w');
     try {
       const p = child_process.spawn(
         'git',
         ['-C', root, '--no-optional-locks', 'status', '--porcelain'],
-        { detached: true, windowsHide: true, stdio: ['ignore', fd, 'ignore'], shell: false }
+        { detached: STACCATO, windowsHide: true, stdio: ['ignore', fd, 'ignore'], shell: false }
       );
       p.on('error', () => {});
+      if (p.pid) { try { fs.writeFileSync(pidFile, String(p.pid)); } catch (e) {} }
       p.unref();
     } finally {
       try { fs.closeSync(fd); } catch (e) {}
     }
   } catch (e) {}
+}
+
+function gitVivo(pidFile) {
+  try {
+    const scritto = gitMtime(pidFile);
+    if (!scritto || Date.now() - scritto > GIT_VIVO_MAX_S * 1000) return false;
+    const pid = Number(fs.readFileSync(pidFile, 'utf8').trim());
+    if (!Number.isInteger(pid) || pid <= 0) return false;
+    process.kill(pid, 0); // nessun segnale: lancia un errore se il processo non c'è più
+    return true;
+  } catch (e) {
+    return e && e.code === 'EPERM'; // vivo ma di un altro utente: pid riusato, conta come vivo fino alla scadenza
+  }
 }
 
 function gitInfo(dir) {
@@ -154,7 +177,7 @@ function aggiornamentoSegmento() {
       fs.mkdirSync(path.dirname(AGG_TENTATIVO), { recursive: true });
       fs.writeFileSync(AGG_TENTATIVO, '');
       const p = child_process.spawn('python3', [AGG_SCRIPT, 'controlla'],
-        { detached: true, windowsHide: true, stdio: 'ignore', shell: false });
+        { detached: STACCATO, windowsHide: true, stdio: 'ignore', shell: false });
       p.on('error', () => {});
       p.unref();
     }

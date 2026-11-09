@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""W01-W15: la pagina dei todo nel browser, `arturo web` (ciclo 3, 3/10/2026).
+"""W01-W17: la pagina dei todo nel browser, `arturo web` (ciclo 3, 3/10/2026).
 
 W01 parte e ascolta solo su 127.0.0.1, si ferma dopo 30 minuti, --host non esiste e le
 opzioni sbagliate rispondono in italiano. W02 la chiave: senza, niente pagina e niente API.
@@ -17,6 +17,8 @@ tiene i campi e si chiude con il suo todo (nel browser se Chrome c'è, sul sorge
 W14 pagina e CLI scrivono insieme senza id doppi. W15 aiuto, skill, README e NOVITA raccontano
 la pagina. W16 il tavolo dei progetti: da_dove nella vista e niente percorso, /api/todo
 con chiave, Host e Origin, storia con i numeri e non con gli uid.
+W17 con una fonte esterna (~/.claude/arturo/fonte-task.local) la pagina non parte: dice che legge solo
+l'archivio di Arturo e rimanda a /dafare, e non scrive niente (review del 7/11/2026, finding 62).
 
 Ogni server parte davvero (--non-aprire --porta 0) in una HOME isolata e si chiude sempre.
 Sulla base 6ef1c0c (l'ultimo commit prima del ciclo 3) ogni controllo deve fallire.
@@ -818,10 +820,33 @@ def test_w16(repo: Path) -> None:
     con_casa(repo, prova)
 
 
+def test_w17(repo: Path) -> None:
+    def prova(c: Casa) -> None:
+        fonte = c.home / ".claude" / "arturo" / "fonte-task.local"
+        fonte.parent.mkdir(parents=True)
+        fonte.write_text(f"comando = {sys.executable} -c pass\n", encoding="utf-8")
+        p = subprocess.Popen([sys.executable, str(repo / "bin" / "arturo"), "web", "--non-aprire", "--porta", "0"],
+                             cwd=str(c.home), env=ambiente(c.home), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            uscita, err = p.communicate(timeout=20)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            p.communicate()
+            raise AssertionError("W17 con la fonte esterna la pagina parte e resta in ascolto") from None
+        r = subprocess.CompletedProcess(p.args, p.returncode, uscita, err)
+        errore = r.stderr.decode("utf-8", errors="replace")
+        assert r.returncode != 0 and "fonte esterna" in errore and "/dafare" in errore, \
+            f"W17 con la fonte esterna la pagina parte o non spiega: rc={r.returncode} {errore[-200:]!r}"
+        assert b"http://127.0.0.1" not in r.stdout and not c.registro.exists(), \
+            "W17 con la fonte esterna la pagina apre il link o scrive nell'archivio di Arturo"
+
+    con_casa(repo, prova)
+
+
 TESTS = {
     "W01": test_w01, "W02": test_w02, "W03": test_w03, "W04": test_w04, "W05": test_w05,
     "W06": test_w06, "W07": test_w07, "W08": test_w08, "W09": test_w09, "W10": test_w10,
-    "W11": test_w11, "W12": test_w12, "W13": test_w13, "W14": test_w14, "W15": test_w15, "W16": test_w16,
+    "W11": test_w11, "W12": test_w12, "W13": test_w13, "W14": test_w14, "W15": test_w15, "W16": test_w16, "W17": test_w17,
 }
 
 

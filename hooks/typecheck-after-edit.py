@@ -5,8 +5,8 @@ Type-check dopo ogni Edit/Write su un file TypeScript o Vue (PostToolUse).
 "Dopo ogni modifica verifica subito" come garanzia e non come promessa: un errore
 di tipo arriva a Claude al passo in cui lo crea, non al build di fine giornata.
 Il comando non lo inventa: lo prende dal package.json del progetto (script
-`typecheck`, altrimenti il segmento tsc/vue-tsc di `build`), così il check è
-lo stesso gate del build. Senza package.json e tsconfig.json, o senza tsc
+`typecheck`, altrimenti il segmento tsc/vue-tsc di `build` con --noEmit), così il
+check è lo stesso gate del build senza scrivere file. Senza package.json e tsconfig.json, o senza tsc
 installato nel progetto, tace.
 
 Exit 0 = verde o fuori ambito (silenzioso). Exit 2 = errori di tipo, stderr al modello.
@@ -48,8 +48,18 @@ def comando_dal_progetto(progetto):
             except ValueError:
                 continue
             if argv and argv[0] in STRUMENTI:
-                return argv
+                return senza_output(argv) if nome == "build" else argv
     return None
+
+
+def senza_output(argv):
+    """Il segmento del build compila davvero: a ogni Edit scriveva .js accanto ai sorgenti, anche con
+    errori di tipo (review del 7/11/2026, finding 49). Qui serve solo il controllo: --noEmit.
+    In modalità build (-b) --noEmit non si può passare: lì l'output lo decide il tsconfig di ogni
+    riferimento, e il modello di Vite (vue-tsc -b) ha già noEmit."""
+    if "-b" in argv or "--build" in argv or "--noEmit" in argv:
+        return argv
+    return argv + ["--noEmit"]
 
 
 def in_worktree(progetto):

@@ -82,6 +82,10 @@ def test_mp02(repo: Path) -> None:
              "GOOGLE_WORKSPACE_CLI_CONFIG_DIR=/x/gws-prova gws drive files list", {}, "gws-prova", "No credentials provided"),
             ({"hook_event_name": "PostToolUse", "tool_response": {"stdout": "", "stderr": "invalid_grant: token revoked"}},
              "gws calendar events list", {"GOOGLE_WORKSPACE_CLI_CONFIG_DIR": "/y/gws-sessione"}, "gws-sessione", "invalid_grant"),
+            # Il JSON d'errore di gws su stdout, con exit 0, resta un guasto (review del 7/11/2026, finding 58).
+            ({"hook_event_name": "PostToolUse", "tool_response": {"stdout": "{\"error\":\"No credentials provided\"}",
+                                                                  "stderr": ""}},
+             "gws drive files list", {"GOOGLE_WORKSPACE_CLI_CONFIG_DIR": "/z/gws-json"}, "gws-json", "No credentials provided"),
         ]
         for base, cmd, env, nome, guasto in casi:
             refresh.unlink(missing_ok=True)
@@ -102,6 +106,11 @@ def test_mp02(repo: Path) -> None:
             {"hook_event_name": "PostToolUseFailure", "error": "Exit code 1\n403 insufficient scopes"},
             {"hook_event_name": "PostToolUseFailure", "error": "No credentials provided", "_cmd": "ls"},
             {"hook_event_name": "PostToolUse", "tool_response": {"stdout": "ok", "stderr": ""}},
+            # Un'email letta che cita le parole del guasto è un dato, non un guasto (finding 58).
+            {"hook_event_name": "PostToolUse", "tool_response": {
+                "stdout": "{\"snippet\":\"il cliente scrive: ricevo invalid_grant dal login Google\"}", "stderr": ""}},
+            {"hook_event_name": "PostToolUse", "tool_response": {
+                "stdout": "Oggetto: No credentials provided nel nostro portale", "stderr": ""}},
         ]
         for z in zitti:
             cmd = z.pop("_cmd", "gws drive files list")

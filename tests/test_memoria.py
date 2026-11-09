@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Y01-Y12: la memoria facoltativa, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
+"""Y01-Y15: la memoria facoltativa, cioè Melchior (hooks/melchior_match.py e gli hook memory-*),
 la memoria della config di chi mantiene Arturo, copiata identica (15/10/2026, Melchior dal 20/10/2026).
 
 Y01 spenta di default: memory-retrieve, memory-autoload, subagent-memory-context e melchior-postwrite
@@ -26,9 +26,16 @@ Y10 melchior-postwrite non tocca le note di projects/*/memory (né date né spos
     data/memory aggiunge le date e smista la nota nuova nella cartella del prefisso.
 Y11 nessuna nota della persona entra nel repository: data/memory/ è ignorata e non ha file tracciati.
 Y12 il parser legge `triggers: a, b` scritto come stringa, le chiavi col trattino e i blocchi > e |.
+Y13 melchior-postwrite non cancella la riga dopo un `updated:` vuoto e lascia intatti righe vuote e
+    rientro all'inizio del corpo (review del 7/11/2026, finding 50).
+Y15 memory-retrieve con un incolla da 200.000 caratteri: guarda testa e coda (al massimo 3.000
+    caratteri di parole), risponde in meno di 5 s e trova la nota della domanda in coda (finding 55).
+Y14 melchior-postwrite parla a Claude in additionalContext, con exit 0 (l'hook è asincrono): il
+    frontmatter rotto, il percorso nuovo della nota smistata, la nota omonima rimasta nella radice
+    (finding 51 e 52).
 
 Sulle basi cbd8305 e aabe7fa ogni controllo deve fallire con un AssertionError che comincia con il
-suo codice. Con --avvelena il banco prova i suoi veleni: per Y08, Y09, Y10, Y11 e Y12 una copia del
+suo codice. Con --avvelena il banco prova i suoi veleni: per Y08-Y14 una copia del
 repository con una variante rotta deve far fallire il controllo con il suo codice e il motivo atteso.
 """
 from __future__ import annotations
@@ -452,8 +459,81 @@ def test_y12(repo: Path) -> None:
         lab.chiudi()
 
 
+def test_y13(repo: Path) -> None:
+    presenti(repo, "Y13")
+    lab = Lab(repo)
+    try:
+        lab.arturo("accendi")
+        nota = lab.claude / "data" / "memory" / "feedback" / "feedback-modello.md"
+        lab.postwrite(nota, "---\nname: prova\nupdated:\ndescription: la descrizione che deve restare\n"
+                            "type: feedback\n---\n\n\n    codice indentato\n")
+        testo = nota.read_text(encoding="utf-8")
+        assert "description: la descrizione che deve restare" in testo, \
+            f"Y13 la riga dopo un updated: vuoto sparisce: {testo!r}"
+        assert "\n---\n\n\n    codice indentato\n" in testo, f"Y13 il corpo perde righe vuote o rientro: {testo!r}"
+    finally:
+        lab.chiudi()
+
+
+def _contesto(r: subprocess.CompletedProcess) -> str:
+    try:
+        return json.loads(r.stdout)["hookSpecificOutput"]["additionalContext"]
+    except (ValueError, KeyError, TypeError):
+        return ""
+
+
+def test_y14(repo: Path) -> None:
+    presenti(repo, "Y14")
+    lab = Lab(repo)
+    try:
+        lab.arturo("accendi")
+        mem = lab.claude / "data" / "memory"
+        r = lab.postwrite(mem / "feedback" / "feedback-rotta.md",
+                          "---\nname: rotta\ndescription: testo: con due punti\ntype: feedback\n---\nx\n")
+        assert r.returncode == 0 and "non è YAML valido" in _contesto(r), \
+            f"Y14 il frontmatter rotto non arriva a Claude: rc={r.returncode} {r.stdout[:160]!r}"
+        r = lab.postwrite(mem / "feedback-a.md", "---\nname: a\ndescription: prima versione\n---\nuno\n")
+        assert r.returncode == 0 and str(mem / "feedback" / "feedback-a.md") in _contesto(r), \
+            f"Y14 Claude non riceve il percorso della nota smistata: {r.stdout[:200]!r}"
+        r = lab.postwrite(mem / "feedback-a.md", "---\nname: a\ndescription: seconda versione\n---\ndue\n")
+        assert r.returncode == 0 and "Fondi" in _contesto(r), \
+            f"Y14 la nota omonima rimasta nella radice non si dice a Claude: {r.stdout[:200]!r}"
+    finally:
+        lab.chiudi()
+
+
+def test_y15(repo: Path) -> None:
+    presenti(repo, "Y15")
+    import importlib.util
+    import time
+    sys.path.insert(0, str(repo / "hooks"))
+    try:
+        spec = importlib.util.spec_from_file_location("memory_retrieve_y15", repo / "hooks" / "memory-retrieve.py")
+        mr = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mr)
+    finally:
+        sys.path.pop(0)
+        for nome in ("melchior_match", "radici"):  # un modulo rimasto in cache leggerebbe i percorsi di questa copia
+            sys.modules.pop(nome, None)
+    assert hasattr(mr, "parole_del_prompt"), "Y15 memory-retrieve prende tutte le parole del prompt, senza tetto"
+    riempitivo = " ".join(f"parola{i:06d}" for i in range(18_000))
+    parole = mr.parole_del_prompt(riempitivo + " " + DOMANDA)
+    assert len(parole) < 400 and "pytest" in parole, f"Y15 tetto assente o coda persa: {len(parole)} parole"
+    lab = Lab(repo)
+    try:
+        lab.arturo("accendi")
+        inizio = time.monotonic()
+        r = lab.richiamo(riempitivo + " " + DOMANDA, "y15")
+        durata = time.monotonic() - inizio
+        assert "feedback_pytest.md" in r.stdout and durata < 5, \
+            f"Y15 richiamo su un incolla lungo: {durata:.1f} s, uscita {r.stdout[:120]!r}"
+    finally:
+        lab.chiudi()
+
+
 TESTS = {"Y01": test_y01, "Y02": test_y02, "Y03": test_y03, "Y04": test_y04, "Y05": test_y05, "Y06": test_y06,
-         "Y07": test_y07, "Y08": test_y08, "Y09": test_y09, "Y10": test_y10, "Y11": test_y11, "Y12": test_y12}
+         "Y07": test_y07, "Y08": test_y08, "Y09": test_y09, "Y10": test_y10, "Y11": test_y11, "Y12": test_y12,
+         "Y13": test_y13, "Y14": test_y14, "Y15": test_y15}
 
 # I veleni: (codice, [(file, testo da cambiare, testo nuovo)], motivo atteso nel rosso). Ogni veleno
 # rompe una copia del repository nel punto che il controllo deve sorvegliare.
@@ -473,6 +553,10 @@ VELENI = (
     ("Y11", [(".gitignore", "data/memory/\n", "")], "data/memory/ non è in .gitignore"),
     ("Y12", [("hooks/melchior_match.py", "    return [v] if v else []\n", "    return list(v) if v else []\n")],
      "triggers scritti come stringa"),
+    ("Y13", [("hooks/melchior-postwrite.py", 'r"^updated:[ \\t]*.*$"', 'r"^(updated:\\s*).*$"')],
+     "la riga dopo un updated: vuoto sparisce"),
+    ("Y14", [("hooks/melchior-postwrite.py", '"additionalContext": "\\n".join(avvisi)', '"additionalContext": ""')],
+     "il frontmatter rotto non arriva a Claude"),
 )
 
 

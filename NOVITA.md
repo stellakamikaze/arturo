@@ -13,6 +13,34 @@ modo di lavorare.
 
 ---
 
+## 2026-11-09 — Rotazione, segreti e controlli automatici più affidabili
+
+**Cosa cambia**: venti correzioni ai controlli che girano da soli e al mod di Arturo.
+- La rotazione della sessione la decide solo la sessione principale. Un agente al lavoro non riceve più
+  l'avviso del contesto pieno e non può far ripartire la sessione a metà del lavoro.
+- Se `/clear` non chiude la sessione, la rotazione si annulla e lo dice. Un `/clear` scritto ore dopo non
+  riparte più da solo sul compito vecchio, e il secondo tentativo si ferma se stai scrivendo.
+- I segreti dentro un JSON (`"password": "…"`, `"token": "…"`), le stringhe di Redis senza utente, le chiavi
+  PGP o cifrate e le intestazioni `Authorization: Bearer` vengono redatti prima che Claude li legga. La sigla
+  lascia leggibile il nome della chiave, e lo stesso valore dà sempre la stessa sigla.
+- Il controllo dei tipi dopo una modifica non scrive più file `.js` accanto ai sorgenti.
+- Con la memoria accesa, una nota non perde più la riga dopo un `updated:` vuoto né il rientro del corpo.
+  Claude sa dove è finita una nota spostata e quando il frontmatter è rotto. Un testo incollato lungo non
+  fa più scadere il richiamo.
+- I simboli come ⌊ ★ ❯ nel codice non contano più come emoji.
+- Un'email letta con `gws` che cita "invalid_grant" non ferma più il lavoro come se mancasse il login.
+- Su Windows la barra non apre più finestre di terminale una volta all'ora. Un `git status` appeso non si
+  moltiplica.
+- Con una fonte esterna dei task, `/dafare` legge il JSON dell'esempio di `docs/fonte-task.md`, e la pagina
+  `arturo web` dice che non la legge invece di mostrare un tavolo vuoto.
+
+**Il principio**: un controllo automatico che sbaglia in silenzio è peggio di nessun controllo. Ognuno di
+questi casi ora ha una prova che cade sulla versione di prima.
+
+**A chi serve**: a tutti. Alla rotazione e alla redazione dei segreti in particolare a chi usa il mod di Arturo.
+
+---
+
 ## 2026-11-09 — Col plugin, comandi e controlli trovano Arturo dove sta davvero
 
 **Cosa cambia**: quattordici correzioni per chi usa Arturo come plugin. Col plugin il codice sta nella

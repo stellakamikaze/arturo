@@ -45,7 +45,8 @@ if hasattr(signal, "SIGALRM"):
 
 
 HIGH_CONF = [
-    (r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----", "chiave privata"),
+    # Anche le chiavi cifrate e i blocchi PGP (review del 7/11/2026, finding 67).
+    (r"-----BEGIN (?:RSA |EC |DSA |OPENSSH |ENCRYPTED |PGP )?PRIVATE KEY(?: BLOCK)?-----", "chiave privata"),
     (r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b", "AWS Access Key"),
     (r"\bgh[pousr]_[A-Za-z0-9_]{36,}\b", "GitHub token"),
     (r"\bgithub_pat_[A-Za-z0-9_]{22,}\b", "GitHub PAT"),

@@ -57,10 +57,17 @@ process.stdin.on('end', () => {
       process.exit(0);
     }
 
+    // A subagent carries the parent's session_id, so it would read the parent's metrics and get the
+    // rotation advice meant for the main loop (and run /fine --rotazione mid-task). Its tool calls
+    // carry agent_id: stay silent there, and leave the parent's debounce file untouched (review 7/11, finding 48).
+    if (data.agent_id) {
+      process.exit(0);
+    }
+
     const tmpDir = os.tmpdir();
     const metricsPath = path.join(tmpDir, `claude-ctx-${sessionId}.json`);
 
-    // If no metrics file, this is a subagent or fresh session -- exit silently
+    // If no metrics file, this is a fresh session -- exit silently
     if (!fs.existsSync(metricsPath)) {
       process.exit(0);
     }

@@ -17,11 +17,14 @@ RT07 il fine leggero parte a ogni compito chiuso, anche senza rotazione (4/11/20
      hooks/session-start.sh lega /fine --rotazione al compito chiuso e il tool ruota al passo dopo di
      Claude; commands/fine.md dice che parte sempre, che un'azione senza traccia non lo fa partire e che
      senza rotazione il fine resta fatto.
+RT08 context-monitor.js tace nei subagenti (review del 7/11/2026, finding 48): con la metrica della
+     sessione al 30% una chiamata con agent_id non riceve l'avviso di rotazione e non tocca il file del
+     debounce; la sessione principale subito dopo lo riceve.
 
 bin/contesto.py non ha un'uscita --json: la chiave "rotazione" non ha dove stare, e RT06 sorveglia la
 marca scritta nel posto sbagliato.
 
-Sulla base bf394ad (il dev prima della rotazione) sono rossi RT01, RT02, RT03, RT05 e RT07; RT04 e RT06
+Sulla base bf394ad (il dev prima della rotazione) sono rossi RT01, RT02, RT03, RT05, RT07 e RT08; RT04 e RT06
 sono invarianti. Con --avvelena una copia del repository rotta in un punto alla volta deve far fallire i casi
 che lo sorvegliano.
 """
@@ -38,10 +41,10 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
-CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06", "RT07"]
-DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05", "RT07"]
+CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06", "RT07", "RT08"]
+DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05", "RT07", "RT08"]
 PERCORSI = ["bin", "hooks/radici.py", "hooks/melchior_match.py", "hooks/controlla-config.py", ".gitignore", "hooks/session-start.sh",
-            "commands/fine.md"]
+            "commands/fine.md", "hooks/context-monitor.js"]
 SEGNO = ".ultimo-fine-completo"
 GIT_ENV = {"GIT_AUTHOR_NAME": "Prova", "GIT_AUTHOR_EMAIL": "p@example.com", "GIT_COMMITTER_NAME": "Prova",
            "GIT_COMMITTER_EMAIL": "p@example.com", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
@@ -57,6 +60,7 @@ VELENI = [
     (["RT06"], "bin/contesto.py", 'if p != "--tutti"]', 'if p not in ("--tutti", "--rotazione")]'),
     (["RT07"], "hooks/session-start.sh", "a ogni compito chiuso con una traccia",
      "a ogni passo chiuso con una traccia"),
+    (["RT08"], "hooks/context-monitor.js", "    if (data.agent_id) {", "    if (false) {"),
 ]
 
 
@@ -221,7 +225,29 @@ def rt07(lab: Lab):
         return f"mancano {mancano} · CONTEXT {riga[:160]!r}"
 
 
-PROVE = {"RT01": rt01, "RT02": rt02, "RT03": rt03, "RT04": rt04, "RT05": rt05, "RT06": rt06, "RT07": rt07}
+def rt08(lab: Lab):
+    import json as _json
+    import time as _time
+    node = shutil.which("node")
+    if node is None:
+        return "node assente: il banco prova context-monitor.js"
+    hook = lab.cl / "hooks" / "context-monitor.js"
+    temp = Path(lab.ambiente["TMPDIR"])
+    (temp / "claude-ctx-s-rt08.json").write_text(_json.dumps(
+        {"timestamp": int(_time.time()), "remaining_percentage": 30, "used_pct": 70}), encoding="utf-8")
+
+    def chiama(dati: dict) -> str:
+        return subprocess.run([node, str(hook)], input=_json.dumps(dati), capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", env=lab.ambiente, timeout=30).stdout
+
+    sub = chiama({"session_id": "s-rt08", "agent_id": "a123", "tool_name": "Bash"})
+    debounce = (temp / "claude-ctx-s-rt08-warned.json").exists()
+    madre = chiama({"session_id": "s-rt08", "tool_name": "Bash"})
+    if "CONTEXT" in sub or debounce or "CONTEXT WARNING" not in madre:
+        return f"subagente {sub[:120]!r} debounce scritto={debounce} madre {madre[:80]!r}"
+
+
+PROVE = {"RT01": rt01, "RT02": rt02, "RT03": rt03, "RT04": rt04, "RT05": rt05, "RT06": rt06, "RT07": rt07, "RT08": rt08}
 
 
 def prova(repo: Path, ref: str | None) -> list:

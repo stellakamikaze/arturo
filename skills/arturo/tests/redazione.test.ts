@@ -18,7 +18,9 @@ describe('redigi', () => {
     test(`toglie il valore e lascia la forma: ${tipo}`, async () => {
       const { text, count } = await redigi(`prima ${token} dopo`)
       expect(text.includes(token)).toBe(false)
-      expect(text).toContain(`[REDATTO:${tipo} len=${token.length} sha256=`)
+      // supabase-key redige solo il valore: il nome della chiave resta (finding 70)
+      const valore = tipo === 'supabase-key' ? token.slice(token.indexOf('=') + 1) : token
+      expect(text).toContain(`[REDATTO:${tipo} len=${valore.length} sha256=`)
       expect(text.startsWith('prima ')).toBe(true)
       expect(count).toBeGreaterThan(0)
     })
@@ -53,5 +55,80 @@ describe('redigi', () => {
     const a = (await redigi(t)).text
     const b = (await redigi(`x ${t}`)).text
     expect(b.endsWith(a)).toBe(true)
+  })
+
+  // Review del 7/11/2026, lotto L6.
+  const V = 'Ab' + 'c'.repeat(36) // 38 caratteri, finto
+
+  test('finding 60: la chiave tra virgolette del JSON non salva il valore', async () => {
+    for (const src of [`{"password":"${V}"}`, `{"token": "${V}"}`, `{"api_key": "${V}"}`, `{"apiKey":"${V}"}`,
+      `{"client_secret":"${V}"}`, `headers["token"] = "${V}"`, `{"vercel_token": "${V}"}`]) {
+      const { text, count } = await redigi(src)
+      expect(text.includes(V)).toBe(false)
+      expect(count).toBeGreaterThan(0)
+    }
+  })
+
+  test('finding 70: resta il nome della chiave, e lo stesso valore dà la stessa sigla in ogni forma', async () => {
+    const a = (await redigi(`token: ${V}`)).text
+    const b = (await redigi(`API_TOKEN=${V}`)).text
+    const c = (await redigi(`{"token": "${V}"}`)).text
+    expect(a.startsWith('token: [REDATTO:generic-secret len=38 sha256=')).toBe(true)
+    expect(b.startsWith('API_TOKEN=[REDATTO:generic-secret len=38 sha256=')).toBe(true)
+    const sigla = (t: string) => t.match(/\[REDATTO:[^\]]+\]/)?.[0]
+    expect(sigla(a)).toBe(sigla(b))
+    expect(sigla(c)).toBe(sigla(a))
+  })
+
+  test('finding 70: un percorso dopo token: non è un segreto', async () => {
+    for (const src of ['token: /opt/progetto/documenti/sorgenti/componenti/app.js',
+      'token: ./sorgenti/componenti/pagine/progetto/app.js']) {
+      const { text, count } = await redigi(src)
+      expect(text).toBe(src)
+      expect(count).toBe(0)
+    }
+  })
+
+  test('finding 66: redis senza utente, rediss, amqp, https con utente e password', async () => {
+    const pw = 'Sup3r' + 'Segreta9'
+    for (const [src, resta] of [
+      [`redis://:${pw}@cache.example:6379/0`, '@cache.example:6379/0'],
+      [`rediss://default:${pw}@cache.example:6380`, 'rediss://default:'],
+      [`amqp://u:${pw}@coda.example/vh`, 'amqp://u:'],
+      [`https://u:${pw}@git.example/r.git`, '@git.example/r.git'],
+    ] as const) {
+      const { text, count } = await redigi(src)
+      expect(text.includes(pw)).toBe(false)
+      expect(text).toContain(resta)
+      expect(count).toBe(1)
+    }
+  })
+
+  test('finding 66: una @ dentro la password non lascia fuori il resto', async () => {
+    const { text } = await redigi('mysql://root:' + 'ab' + '@123xyz@db.example/app')
+    expect(text.includes('123xyz')).toBe(false)
+    expect(text).toContain('mysql://root:[REDATTO:db-password len=9 ')
+    expect(text).toContain('@db.example/app')
+  })
+
+  test('finding 66: la stringa di connessione dentro un JSON si ferma alla virgoletta', async () => {
+    const pw = 'Sup3r' + 'Segreta9'
+    const src = `{"url":"redis://:${pw}@cache.example","mail":"a@b.example"}`
+    const { text } = await redigi(src)
+    expect(text.includes(pw)).toBe(false)
+    expect(text).toContain('@cache.example","mail":"a@b.example"}')
+  })
+
+  test('finding 67: chiave privata cifrata, chiave PGP e Authorization Bearer', async () => {
+    const corpo = 'MII' + 'Q'.repeat(40)
+    for (const tipo of ['ENCRYPTED PRIVATE KEY', 'PGP PRIVATE KEY BLOCK']) {
+      const { text } = await redigi(`prima\n-----BEGIN ${tipo}-----\n${corpo}\n-----END ${tipo}-----\ndopo`)
+      expect(text.includes(corpo)).toBe(false)
+      expect(text).toContain('[REDATTO:private-key')
+      expect(text.endsWith('\ndopo')).toBe(true)
+    }
+    const { text } = await redigi(`> Authorization: Bearer ${V}\n`)
+    expect(text.includes(V)).toBe(false)
+    expect(text).toContain('Authorization: Bearer [REDATTO:bearer-token len=38 ')
   })
 })

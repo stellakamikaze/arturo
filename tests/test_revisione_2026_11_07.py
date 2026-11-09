@@ -10,7 +10,8 @@ RW01 (0)  un commento in coda o un # dentro una parola non nascondono la riga do
 RW02 (5)  git push con --force, -f, --force-with-lease, --mirror, --delete, :ramo o +ramo, anche in
           fondo al comando o dentro bash -c, chiede; il push normale tace.
 RW03 (7)  il commit gate legge ciò che git committa: i path nominati (`git commit -m x a.py`, --only),
-          `git add -f` di un file ignorato, oltre 200 file nuovi, la chiave OpenAI.
+          `git add -f` di un file ignorato, oltre 200 file nuovi, la chiave OpenAI, il blocco PGP di una
+          chiave privata (L6, finding 67).
 RW04 (1)  curl | bash seguito da ; && ) o virgolette, con stadi in mezzo o sudo -E, si blocca.
 RW05 (2)  bash -lc, sh -ec, timeout con la durata, xargs sh -c, trap e $RM non nascondono rm,
           find -delete, git clean e la lettura di .env.
@@ -179,6 +180,9 @@ def test_rw03(repo: Path) -> int:
         totale += prova("-am resta", token_in("a.py"), "git commit -am fix", "ask")
         totale += prova("add -f di un file ignorato", token_in(".env"), "git add -f .env && git commit -m x", "ask")
         totale += prova("chiave OpenAI in stage", token_in("b.py", OPENAI, True), "git commit -m x", "ask")
+        # L6, finding 67: il blocco PGP di una chiave privata.
+        totale += prova("chiave PGP in stage", token_in("k.asc", "-----BEGIN " + "PGP PRIVATE KEY BLOCK-----", True),
+                        "git commit -m x", "ask")
         totale += prova("206 file nuovi, token nell'ultimo", lambda nr: molti(nr, True), "git add . && git commit -m tutto",
                         "ask")
         # Lavoro proprio: resta libero.

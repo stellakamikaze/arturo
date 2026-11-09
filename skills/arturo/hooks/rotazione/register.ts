@@ -17,6 +17,7 @@ import {
   nomeTool,
   RIPROVA_CLEAR_MS,
   type Rotazione,
+  SCADENZA_CLEAR_MS,
   spenta,
 } from './rotazione'
 import { type Avanti, type Evento, parteSpenta, stato } from '../parti'
@@ -61,7 +62,19 @@ export async function avvio($: EngineInterface, e: Evento<'session.start'>, next
 
 export async function fineTurno($: EngineInterface, e: Evento<'turn.complete'>, next: Avanti<'turn.complete'>) {
   if (await parteSpenta($, 'rotazione')) return next(e)
-  const r = await next(e)
+  // Una parte dopo nella catena che fallisce (per esempio $.session.usage in cache-fredda) non deve
+  // lasciare la rotazione armata per il turno dopo, magari un'ora più tardi (review 7/11, finding 69).
+  let r: Awaited<ReturnType<typeof next>>
+  try {
+    r = await next(e)
+  } catch (err) {
+    if (armata && e.agentId === undefined) {
+      armata = undefined
+      stato($, 'rotazione', undefined)
+      $.ui.toast(`rotazione: errore a fine turno, nessuna rotazione (${String(err)})`)
+    }
+    throw err
+  }
   if (!armata) return r
   try {
     const [box, ora, ultima, minS] = await Promise.all([
@@ -115,9 +128,32 @@ async function avviaClear($: EngineInterface, rot: Rotazione, ora: number): Prom
   const attesa = inCorso
   $.clock.after(ATTESA_CLEAR_MS + RIPROVA_CLEAR_MS, async () => {
     if (inCorso !== attesa || !attesa) return
+    // La persona può aver cominciato a scrivere dopo la fine del turno: il secondo /clear
+    // cancellerebbe la conversazione sotto le sue mani (finding 65).
+    const box = await $.prompt.read().catch(() => ({ text: '' }))
+    if (inCorso !== attesa) return
+    if (box.text.trim() !== '') {
+      annullaClear($, 'stai scrivendo: secondo /clear annullato, nessuna rotazione')
+      await registra($, 'clear: nessuna chiusura dopo 5 s, bozza nella casella → annullato')
+      return
+    }
     await registra($, 'clear: nessuna chiusura dopo 5 s, secondo tentativo')
     await lanciaClear($)
+    // Se anche il secondo non chiude, la rotazione si chiude qui: un /clear scritto a mano ore dopo
+    // non deve ripartire da solo sul compito vecchio (finding 64).
+    $.clock.after(SCADENZA_CLEAR_MS, async () => {
+      if (inCorso !== attesa) return
+      annullaClear($, '/clear non ha chiuso la sessione: nessuna rotazione. Scrivi /clear e /inizio a mano')
+      await registra($, 'clear: nessuna chiusura dopo il secondo tentativo → annullato')
+    })
   })
+}
+
+function annullaClear($: EngineInterface, motivo: string): void {
+  inCorso = undefined
+  bozzaDaRimettere = ''
+  stato($, 'rotazione', undefined)
+  $.ui.toast(`rotazione: ${motivo}`)
 }
 
 async function controllaBozza($: EngineInterface): Promise<void> {
@@ -163,6 +199,10 @@ export const register: Register = on => {
   on('tool.call', async ($, e, next) => {
     if (await parteSpenta($, 'rotazione')) return next(e)
     if (e.tool !== (nomeRegistrato ?? nomeTool($.plugin.name))) return next(e)
+    // Un subagente vede il tool ma non chiude la sessione: armata è del modulo, e al turno dopo della
+    // sessione principale partirebbe /clear a metà del suo lavoro (review 7/11, finding 61).
+    if (e.agentId !== undefined)
+      return { result: 'Rotazione non disponibile in un subagente: la decide la sessione principale. Riporta il risultato e chiudi.' }
     if (!interattiva) return { result: 'Rotazione non disponibile qui: sessione senza prompt (headless o SDK).' }
     const interruttore = await $.env.get('ARTURO_ROTAZIONE').catch(() => undefined)
     if (spenta(interruttore))

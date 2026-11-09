@@ -1,5 +1,5 @@
 // I test del pannello /dafare con il kit di Claude Code (`claude plugin test`).
-// Ogni test comincia con il suo id (U20-U39): il banco tests/test_pannello.py (U03) conta i test
+// Ogni test comincia con il suo id (U20-U40): il banco tests/test_pannello.py (U03) conta i test
 // passati per id, sulle due superfici, e li confronta con la sua tabella KIT.
 //
 // Sotto il pannello c'è una CLI finta: tiene un piccolo archivio in memoria, risponde a
@@ -622,5 +622,27 @@ for (const surface of ['terminal', 'desktop'] as const) {
     const testo = (await barra.find({ type: 'Text', text: 'cose da fare' }))?.text ?? ''
     expect(testo).toContain('7 cose da fare')
     expect(testo).toContain('non riesco a rileggerle')
+  })
+
+  // Review del 7/11/2026, finding 63: il JSON dell'esempio di docs/fonte-task.md, senza versione né
+  // attende, e le sue varianti, aprono il pannello invece di chiedere /aggiorna o far saltare il comando.
+  test(`${surface}: U40 il JSON di docs/fonte-task.md apre il pannello, con o senza versione e attende`, async ($, on) => {
+    const esempio = {
+      gruppi: [{ tipo: 'io', todo: [{ id: 12, titolo: 'Rileggere il capitolo', stato: 'da fare', priorita: 'alta',
+        scadenza_testo: 'entro venerdì' }] }],
+      chiusi_todo: [{ id: 11, titolo: "Scrivere l'indice", stato: 'fatto', chiuso: '2026-10-30T18:00' }],
+    }
+    let json = JSON.stringify(esempio)
+    motore(on, [], { json: () => json })
+    for (const variante of [esempio, { ...esempio, versione: 1 },
+      { ...esempio, versione: 1, avvisi: ['una riga'], progetto: null }]) {
+      json = JSON.stringify(variante)
+      const { r, pane } = await apri($)
+      const testo = (r as { text?: string }).text ?? ''
+      expect(testo).not.toContain('/aggiorna')
+      expect(testo).toContain('1 cosa da fare')
+      expect(await pane.find({ type: 'Text', text: /Rileggere il capitolo/ })).toBeTruthy()
+      await pane.unmount()
+    }
   })
 }

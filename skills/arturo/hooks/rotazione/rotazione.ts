@@ -4,6 +4,8 @@ export const MIN_INTERVALLO_MS = 3 * 60 * 1000
 export const ATTESA_CLEAR_MS = 800
 export const ATTESA_INIZIO_MS = 1500
 export const RIPROVA_CLEAR_MS = 5000
+// Dopo il secondo /clear: se la sessione non si chiude entro questo tempo, la rotazione si annulla.
+export const SCADENZA_CLEAR_MS = 10_000
 // Testo nella casella a fine turno: si aspetta invece di annullare. Il 7 e l'8/11 un "2" rimasto
 // nella casella per ore ha annullato due rotazioni ("stai scrivendo"). Una bozza ferma per un minuto
 // è vecchia: si ruota e la si rimette nella casella. Una bozza che cambia aspetta fino a 10 minuti.

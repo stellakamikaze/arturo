@@ -76,9 +76,9 @@ type Dati = {
   riempita?: string
 }
 
-function motore(on: On, opz: { bozza?: string | (() => string); env?: Record<string, string> } = {}): Dati {
+function motore(on: On, opz: { bozza?: string | (() => string); env?: Record<string, string>; parti?: string } = {}): Dati {
   // Il mod arturo ha sei parti: qui si prova solo questa (ARTURO_PARTI, hooks/parti.ts).
-  on('env.get', { name: 'ARTURO_PARTI' }, () => ({ value: 'rotazione' }))
+  on('env.get', { name: 'ARTURO_PARTI' }, () => ({ value: opz.parti ?? 'rotazione' }))
   const d: Dati = { comandi: [], store: {}, stato: [], toast: [] }
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('tool.register', (_, e) => ({ value: { tool: `mcp__prova__${e.name}` } }))
@@ -246,4 +246,72 @@ test('un /clear scritto a mano non lancia /inizio', async ($, on) => {
   await $.session.end(fine)
   await clock.advance(5_000)
   expect(d.comandi).toEqual([])
+})
+
+// Review del 7/11/2026, lotto L6.
+test('finding 61: un subagente che chiama ruota non arma, la sessione principale non fa /clear', async ($, on) => {
+  const d = motore(on)
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  const r = await $.tool.call({ tool: TOOL, progetto: 'arturo', compito: 'del subagente', agentId: 'a1' } as never)
+  expect(JSON.stringify(r)).toContain('non disponibile in un subagente')
+  await $.turn.complete({ ...(fineTurno('answer') as object), agentId: 'a1' } as never)
+  await $.turn.complete(fineTurno('answer'))
+  await clock.advance(20_000)
+  expect(d.comandi).toEqual([])
+})
+
+test('finding 64: due /clear che non chiudono, poi un /clear a mano ore dopo: nessun /inizio', async ($, on) => {
+  const d = motore(on)
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: TOOL, progetto: 'arturo', compito: 'compito vecchio' } as never)
+  await $.turn.complete(fineTurno('answer'))
+  await clock.advance(20_000)
+  expect(d.comandi).toEqual([{ command: 'clear', args: '' }, { command: 'clear', args: '' }])
+  expect(d.stato.at(-1)).toBeUndefined()
+  expect(d.toast.some(t => t.includes('non ha chiuso la sessione'))).toBe(true)
+  await clock.advance(3 * 3_600_000)
+  await $.session.end(fine)
+  await clock.advance(5_000)
+  expect(d.comandi.some(c => c.command === 'inizio')).toBe(false)
+})
+
+test('finding 65: testo nella casella dopo il primo /clear fallito: niente secondo /clear', async ($, on) => {
+  let casella = ''
+  const d = motore(on, { bozza: () => casella })
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: TOOL, progetto: 'arturo', compito: 'x' } as never)
+  await $.turn.complete(fineTurno('answer'))
+  await clock.advance(1_000)
+  expect(d.comandi).toEqual([{ command: 'clear', args: '' }])
+  casella = 'sto scrivendo una cosa lunga'
+  await clock.advance(6_000)
+  expect(d.comandi).toEqual([{ command: 'clear', args: '' }])
+  expect(d.toast.some(t => t.includes('secondo /clear annullato'))).toBe(true)
+  await $.session.end(fine)
+  await clock.advance(5_000)
+  expect(d.comandi.some(c => c.command === 'inizio')).toBe(false)
+})
+
+test('finding 69: $.session.usage che fallisce a fine turno non lascia la rotazione armata per dopo', async ($, on) => {
+  const d = motore(on, { parti: 'rotazione,cache-fredda' })
+  const clock = mock.clock(on)
+  let rotta = true
+  on('session.usage', () => {
+    if (rotta) throw new Error('usage giù')
+    return { value: { context: { tokens: 1 }, rateLimits: [] } } as never
+  })
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: TOOL, progetto: 'arturo', compito: 'x' } as never)
+  await $.turn.complete(fineTurno('answer')).catch(() => undefined)
+  await clock.advance(20_000)
+  // la rotazione decisa al turno 1 parte al turno 1, oppure si annulla: mai un /clear un'ora dopo
+  const dopoTurno1 = d.comandi.length
+  rotta = false
+  await clock.advance(3_600_000)
+  await $.turn.complete(fineTurno('answer')).catch(() => undefined)
+  await clock.advance(20_000)
+  expect(d.comandi.length).toBe(dopoTurno1)
 })

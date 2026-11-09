@@ -66,7 +66,8 @@ export async function avvio($: EngineInterface, e: Evento<'session.start'>, next
 export async function fineTurno($: EngineInterface, e: Evento<'turn.complete'>, next: Avanti<'turn.complete'>) {
   if (await parteSpenta($, 'cache-fredda')) return next(e)
   const r = await next(e)
-  if (e.agentId === undefined) await rinnovata($)
+  // Un errore di $.session.usage non deve rompere la catena di fine turno (review 7/11, finding 69).
+  if (e.agentId === undefined) await rinnovata($).catch(() => undefined)
   return r
 }
 
