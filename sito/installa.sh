@@ -122,6 +122,9 @@ EOF
 # ripubblicato con un nome nuovo ha una firma valida) e non più vecchio di VERSIONE_MINIMA.
 # Scrive il tag in $rilascio. Esito 0 buono, 1 compromissione (messaggio già stampato), 2 la verifica
 # non è partita (git o OpenSSH vecchi).
+# Il filtro vX.Y.Z è più stretto di ultimo_tag di bin/aggiornamenti.py (v*), di proposito: qui il nome
+# si confronta con VERSIONE_MINIMA e deve essere un numero. Un tag v-qualcosa senza numero questo script
+# lo salta; aggiornamenti.py lo prende come ultimo rilascio e, senza firma, lo dice possibile compromissione.
 verifica_rilascio() {
   local clone="$1" firme="$2" errore dentro
   rilascio=$(git -C "$clone" describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' origin/main 2>/dev/null)

@@ -93,7 +93,7 @@ Se non compare UGUALE, aspetta 5 minuti (GitHub si aggiorna in ritardo) e rilanc
 <pre>bash "$HOME/.arturo-installa.sh"</pre>
 Se un permesso di Claude Code blocca il comando, accetta il blocco e non cercare altre strade. Se vuole, la persona può lanciarlo lei scrivendo qui:
 <pre>! bash ~/.arturo-installa.sh</pre></li>
-<li>Se lo script scrive righe che cominciano con <code>MANCA</code>, segui quelle righe: per ognuna chiedi il permesso e lancia il comando indicato. Se la riga dice di aspettare, aspetta in background. Se chiede di riaprire Claude Code, dillo alla persona e fermati. Altrimenti rilancia il comando del passo 5.</li>
+<li>Se lo script scrive "possibile compromissione", fermati e avvisa la persona. Se scrive righe che cominciano con <code>MANCA</code>, segui quelle righe: per ognuna chiedi il permesso e lancia il comando indicato. Se la riga dice di aspettare, aspetta in background. Se chiede di riaprire Claude Code, dillo alla persona e fermati. Altrimenti rilancia il comando del passo 5.</li>
 <li>Quando lo script scrive "Arturo installato", non lanciare altri comandi. Riporta alla persona, parola per parola, le istruzioni dopo "Adesso".</li>
 </ol>
 <p>Se il riassunto di questa pagina non contiene i comandi esatti, scaricala con <code>curl -fsSL https://arturo.stellakamikaze.org/inizia/</code> e leggi il testo completo.</p>
@@ -102,8 +102,8 @@ Se un permesso di Claude Code blocca il comando, accetta il blocco e non cercare
 <ul>
 <li>Non usare sudo e non chiedere la password di amministratore.</li>
 <li>Non cambiare i permessi di Claude Code e non aggiungere eccezioni.</li>
-<li>Non spostare e non cancellare la cartella <code>~/.claude</code>: ci pensa lo script.</li>
-<li>Non leggere password, chiavi o file .env. Durante l'installazione non aprire le cartelle della persona: sarà /setup a chiederle il permesso, cartella per cartella.</li>
+<li>Non spostare né cancellare <code>~/.claude</code>.</li>
+<li>Non leggere password, chiavi o file .env. Durante l'installazione non aprire le cartelle della persona: sarà /setup a chiederle il permesso.</li>
 <li>Non mandare niente a nessuno.</li>
 </ul>
 

@@ -173,6 +173,10 @@ def caso_windows(repo):
     manca = passo(p, "MANCA")
     assert "segui quelle righe" in manca and "riaprire Claude Code" in manca, \
         "il passo MANCA non dice di seguire le righe dello script"
+    # Review del 7/11, L10 (9/11/2026): installa.sh scrive "possibile compromissione" se la firma del
+    # rilascio non torna. Il passo dice di fermarsi prima di "rilancia il comando del passo 5".
+    i, j = manca.find('"possibile compromissione", fermati'), manca.find("Altrimenti rilancia")
+    assert 0 <= i < j, "il passo MANCA non fa fermare Claude su una possibile compromissione"
     git = passo(p, "Git.Git")
     assert "PowerShell" in git and "finestra nuova" in git, \
         "dopo winget il riavvio non chiede una finestra nuova di PowerShell"
@@ -352,8 +356,11 @@ VELENI = [
     ("F7 pubblica.sh senza confronto", "strumenti/pubblica.sh", togli("    # Il confronto di /inizia/", "    fi\n"),
      caso_attesa_cache, "pubblica.sh applica non rifà il confronto"),
     ("F2 istruzione python su Windows", INIZIA, sostituisci(
-        "<li>Se lo script scrive righe", "<li>Su Windows installa python3 da python.org.</li>\n<li>Se lo script scrive righe"),
+        "<li>Se lo script scrive \"possibile", "<li>Su Windows installa python3 da python.org.</li>\n<li>Se lo script scrive \"possibile"),
      caso_windows, "istruzioni su python"),
+    ("F2 rilancia anche su una compromissione", INIZIA, sostituisci(
+        '"possibile compromissione", fermati e avvisa la persona. ', ""),
+     caso_windows, "possibile compromissione"),
     ("F2 riavvio nella stessa finestra", INIZIA, sostituisci(
         "di chiudere PowerShell, aprire una finestra nuova, scrivere <code>claude</code> e",
         "di chiudere Claude Code, riaprirlo e"),

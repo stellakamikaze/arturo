@@ -79,7 +79,7 @@ Nel Terminale (su Windows in Git Bash), una riga:
 curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash
 ```
 
-Lo stesso a mano, senza i controlli. Questo blocco mette da parte tutta la cartella con la data nel nome, scarica Arturo e riporta al loro posto i file elencati:
+Lo stesso a mano, senza i controlli. Lo script installa solo l'ultimo rilascio firmato; questo blocco scarica la punta di main senza controllare la firma. Mette da parte tutta la cartella con la data nel nome, scarica Arturo e riporta al loro posto i file elencati:
 
 ```bash
 B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M%S)"
