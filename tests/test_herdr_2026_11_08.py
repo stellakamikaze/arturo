@@ -14,7 +14,8 @@ HZ04 hook: fuori da Herdr non scrive; dentro Herdr scrive `ESC]7501;state=<s>:ap
      sul terminale di controllo.
 HZ05 settings.json registra l'hook sugli otto eventi con lo stato giusto, e la telemetria della deriva
      lo conosce.
-HZ06 /setup porta a shared/setup-herdr.md, che lancia installa-herdr.sh.
+HZ06 /setup porta a shared/setup-herdr.md, che lancia installa-herdr.sh. Sul Mac senza l'identità "Arturo firma
+     locale" l'installatore propone firma-locale.sh con la riga HERDR FIRMA, e il passo dice cosa farne (#5020).
 HZ07 il mod: ogni modulo importato esiste, ogni parte nominata dal layout esiste in main.js.
 HZ08 chi ha già Arturo (setup fatto) e non ha Herdr riceve all'avvio l'invito `HERDR:` una volta sola;
      chi non ha finito /setup non lo riceve.
@@ -48,7 +49,7 @@ HZ15 ogni cartella o file che la parte Herdr scrive in ~/.claude/data/ (mod, hoo
      session-start.sh) è escluso dal .gitignore di Arturo (#5018): uno screenshot delle note fermava
      l'aggiornamento automatico o finiva in un commit di /fine.
 
-Con --avvelena diciotto copie rotte del repository devono far rosso il caso che le sorveglia.
+Con --avvelena diciannove copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
 
@@ -77,7 +78,7 @@ ATTESI = {  # evento: (matcher o None, stato)
 }
 
 
-def installa(repo: Path, casa: Path, sistema: str = "mac-arm") -> subprocess.CompletedProcess:
+def installa(repo: Path, casa: Path, sistema: str = "mac-arm", extra: dict | None = None) -> subprocess.CompletedProcess:
     app = casa / "app"
     segno = casa / "scaricato"
     finto = casa / "installer-finto.sh"
@@ -92,6 +93,7 @@ def installa(repo: Path, casa: Path, sistema: str = "mac-arm") -> subprocess.Com
         "ARTURO_HERDR_SISTEMA": sistema,
         "ARTURO_HERDR_NON_APRIRE": "1",
         "ARTURO_HERDR_VERSIONE": "0.1.13",
+        **(extra or {}),
     }
     (casa / "home").mkdir(parents=True, exist_ok=True)
     return subprocess.run(["sh", str(repo / INSTALLA)], env=env, capture_output=True, text=True, timeout=60)
@@ -238,6 +240,22 @@ def hz06(repo: Path, casa: Path) -> str | None:
     for parola in ("HERDR OK", "HERDR NO", "HERDR ERRORE"):
         if parola not in passo or (parola != "HERDR ERRORE" and parola not in (repo / INSTALLA).read_text(encoding="utf-8")):
             return f"l'esito {parola} non torna fra passo e script"
+    # #5020: la firma locale si propone con una riga e il comando, e lo script è eseguibile come gli altri.
+    if "HERDR FIRMA" not in passo:
+        return "setup-herdr.md non dice cosa fare con la riga HERDR FIRMA"
+    if not os.access(repo / "shared/herdr/firma-locale.sh", os.X_OK):
+        return "firma-locale.sh non è eseguibile"
+    for firma, attesa in (("assente", True), ("presente", False)):
+        with tempfile.TemporaryDirectory() as d:
+            r = installa(repo, Path(d), extra={"ARTURO_HERDR_FIRMA": firma})
+        riga = next((x for x in r.stdout.splitlines() if x.startswith("HERDR FIRMA")), "")
+        if attesa and "firma-locale.sh" not in riga:
+            return "senza la firma locale l'installatore non propone firma-locale.sh"
+        if not attesa and riga:
+            return "con la firma locale già fatta l'installatore la propone lo stesso"
+    with tempfile.TemporaryDirectory() as d:
+        if "HERDR FIRMA" in installa(repo, Path(d), "windows", {"ARTURO_HERDR_FIRMA": "assente"}).stdout:
+            return "l'installatore propone la firma locale fuori dal Mac"
     return None
 
 
@@ -684,6 +702,7 @@ VELENI = [
     ("HZ14", "shared/herdr/mods/arturo/nota.js", '"--chi", "io"', '"--chi", "tu"'),
     ("HZ13", "shared/herdr/arturo-app.sh", '-c "Set :CFBundleIdentifier $ID"', '-c "Set :CFBundleIdentifier dev.herdr.app"'),
     ("HZ13", "shared/herdr/arturo-app.sh", 'if [ -d "$arturo" ] && { [ ! -d "$herdr" ] || ! piu_nuova "$v_herdr" "$v_arturo"; }; then base=$arturo; fi', ":"),
+    ("HZ06", "shared/herdr/installa-herdr.sh", '[ "$firma" = assente ]', '[ "$firma" = mai ]'),
     ("HZ15", ".gitignore", "data/note-finestra/\n", ""),
     ("HZ15", ".gitignore", "data/herdr-invito\n", ""),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),

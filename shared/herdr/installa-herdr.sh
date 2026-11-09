@@ -4,7 +4,8 @@
 # non riscarica Herdr se c'è già, non tocca i tasti né le scelte della persona.
 #
 # Variabili per i banchi: HERDR_APP_HOME (cartella di Herdr), ARTURO_HERDR_INSTALLER (installer finto),
-# ARTURO_HERDR_SISTEMA (mac-arm, mac-intel, windows, linux), ARTURO_HERDR_NON_APRIRE=1.
+# ARTURO_HERDR_SISTEMA (mac-arm, mac-intel, windows, linux), ARTURO_HERDR_NON_APRIRE=1,
+# ARTURO_HERDR_FIRMA (assente o presente: l'identità di firma locale senza chiedere al portachiavi).
 set -eu
 
 qui=$(cd "$(dirname "$0")" && pwd)
@@ -137,6 +138,16 @@ app_arturo=""
 if [ "$sistema" = mac-arm ] && [ -z "${ARTURO_HERDR_INSTALLER:-}" ] && [ -d "$HOME/Applications/Herdr.app" ]; then
   sh "$qui/arturo-app.sh" --agente || say "Arturo.app non è pronta: Herdr funziona lo stesso col suo nome."
   [ -d "$HOME/Applications/Arturo.app" ] && app_arturo="$HOME/Applications/Arturo.app"
+fi
+
+# 5b. La firma locale di Arturo.app (#5020): senza, macOS richiede i permessi a ogni aggiornamento di Herdr.
+# Lo script la propone e basta: firma-locale.sh chiede la password del Mac, quindi lo lancia la persona.
+firma=${ARTURO_HERDR_FIRMA:-}
+if [ -z "$firma" ] && [ -n "$app_arturo" ]; then
+  if security find-identity -v -p codesigning 2>/dev/null | grep -q '"Arturo firma locale"'; then firma=presente; else firma=assente; fi
+fi
+if [ "$sistema" = mac-arm ] && [ "$firma" = assente ]; then
+  say "HERDR FIRMA: perché macOS ricordi i permessi di Arturo.app dopo ogni aggiornamento, lancia nel tuo Terminale: sh \"$(percorso "$qui/firma-locale.sh")\""
 fi
 
 # 6. Controllo del mod e apertura.
