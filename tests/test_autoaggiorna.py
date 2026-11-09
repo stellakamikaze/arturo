@@ -285,12 +285,12 @@ def test_aa10(repo: Path) -> None:
         commit = lab.rilascia("hooks/nuova.py", "x = 1\n", "v2026-02-01")
         subprocess.run([BASH, str(lab.utente / "hooks" / "session-end.sh")], input="{}", env=lab.env, cwd=str(lab.home),
                        capture_output=True, text=True, timeout=60)
-        fine = time.time() + 90
-        while time.time() < fine and lab.head() != commit:
+        fine = time.monotonic() + 90
+        while time.monotonic() < fine and lab.head() != commit:
             time.sleep(1)
         assert lab.head() == commit, "AA10 la chiusura della sessione non installa il rilascio"
-        fine = time.time() + 30
-        while time.time() < fine and (lab.utente / "session-env" / "aggiornamento.lock").exists():
+        fine = time.monotonic() + 30
+        while time.monotonic() < fine and (lab.utente / "session-env" / "aggiornamento.lock").exists():
             time.sleep(0.5)
     con_lab(repo, "AA10", prova)
 
@@ -318,11 +318,11 @@ def test_aa11(repo: Path) -> None:
 
 
 def aspetta_head(lab: Lab, commit: str, secondi: int = 90) -> bool:
-    fine = time.time() + secondi
-    while time.time() < fine and lab.head() != commit:
+    fine = time.monotonic() + secondi
+    while time.monotonic() < fine and lab.head() != commit:
         time.sleep(1)
-    fine = time.time() + 30
-    while time.time() < fine and (lab.utente / "session-env" / "aggiornamento.lock").exists():
+    fine = time.monotonic() + 30
+    while time.monotonic() < fine and (lab.utente / "session-env" / "aggiornamento.lock").exists():
         time.sleep(0.5)
     return lab.head() == commit
 
@@ -692,8 +692,8 @@ def test_aa30(repo: Path) -> None:
             "AA30 un /clear lancia l'aggiornamento automatico con la sessione viva"
         chiudi("prompt_input_exit")
         assert aspetta_head(lab, commit), "AA30 un'uscita vera dopo il /clear non installa il rilascio"
-        limite = time.time() + 30
-        while time.time() < limite and (lab.utente / "session-env" / "aggiornamento.lock").exists():
+        limite = time.monotonic() + 30
+        while time.monotonic() < limite and (lab.utente / "session-env" / "aggiornamento.lock").exists():
             time.sleep(0.5)
     con_lab(repo, "AA30", prova)
 

@@ -447,8 +447,8 @@ def test_g209(repo: Path) -> None:
         # 120 s: l'attesa finisce appena la condizione vale, il tetto conta solo per un rosso. Con 40 s
         # il gate completo a load 22 andava rosso una volta su qualche giro (#4057).
         def aspetta(cond, secondi: float = 120) -> bool:
-            fine = time.time() + secondi
-            while time.time() < fine:
+            fine = time.monotonic() + secondi
+            while time.monotonic() < fine:
                 if cond():
                     return True
                 time.sleep(0.3)

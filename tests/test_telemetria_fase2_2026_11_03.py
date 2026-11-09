@@ -133,8 +133,8 @@ def test_ts04(repo: Path) -> None:
     dati = {"session_id": "s-hook", "transcript_path": str(transcript(lab)), "reason": "exit",
             "hook_event_name": "SessionEnd", "cwd": str(lab.dir)}
     r = lab.hook("session-end.sh", json.dumps(dati))
-    fine_attesa = time.time() + 20
-    while time.time() < fine_attesa and len(lab.coda()) < 5:
+    fine_attesa = time.monotonic() + 20
+    while time.monotonic() < fine_attesa and len(lab.coda()) < 5:
         time.sleep(0.2)
     assert r.returncode == 0, f"TS04 session-end.sh esce con {r.returncode}: {r.stderr}"
     assert ("turni", "2-5") in coppie(lab), f"TS04 session-end.sh non lancia la telemetria della chiusura: {coppie(lab)}"

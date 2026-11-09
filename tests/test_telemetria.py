@@ -131,9 +131,13 @@ def test_m02(repo: Path) -> None:
     assert len(lab.coda()) == 1, "M02 con un 500 la coda si perde"
     giu = Lab(repo)  # nessun server in ascolto sulla porta 9
     giu.arturo("telemetria", "registra", "sessione")
-    inizio = time.time()
+    # Il cronometro è monotono (9/11/2026, #5050): con time.time() il Mac in sonno a coperchio chiuso, a gate in
+    # corso, contava 43 minuti dentro un invio di 2 s e M02 andava rosso. Due assert: il messaggio dice quale parte.
+    inizio = time.monotonic()
     giu.arturo("telemetria", "invia")
-    assert len(giu.coda()) == 1 and time.time() - inizio < 20, "M02 con il server giù la coda si perde o invia appende"
+    secondi = time.monotonic() - inizio
+    assert len(giu.coda()) == 1, f"M02 con il server giù la coda si perde: {giu.coda()}"
+    assert secondi < 20, f"M02 con il server giù invia appende: {secondi:.1f} s"
 
 
 def test_m03(repo: Path) -> None:

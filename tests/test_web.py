@@ -101,8 +101,8 @@ class Server:
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         for flusso, righe in ((self.p.stdout, self.uscita), (self.p.stderr, self.errori)):
             threading.Thread(target=self._leggi, args=(flusso, righe), daemon=True).start()
-        limite = time.time() + 15
-        while time.time() < limite:
+        limite = time.monotonic() + 15
+        while time.monotonic() < limite:
             for riga in list(self.uscita):
                 m = re.search(r"http://127\.0\.0\.1:(\d+)/\?t=([A-Za-z0-9_-]+)", riga)
                 if m:
@@ -556,8 +556,8 @@ def test_w11(repo: Path) -> None:
 def test_w12(repo: Path) -> None:
     def prova(c: Casa) -> None:
         with Server(c, ARTURO_WEB_INATTIVO="2") as s:
-            fine = time.time() + 4
-            while time.time() < fine:
+            fine = time.monotonic() + 4
+            while time.monotonic() < fine:
                 assert s.p.poll() is None, "W12 il server si spegne mentre la pagina chiede"
                 try:
                     s.vista()

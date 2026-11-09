@@ -148,8 +148,8 @@ def test_z03(repo: Path) -> None:
         r = bgjob("start", "prova", "--", BASH, "-c", "echo ciao; exit 3")
         assert r.returncode == 0 and "marker:" in r.stdout, f"Z03 start non parte: {r.stdout}{r.stderr}"
         cartella = Path(r.stdout.split("job:", 1)[1].split("\n", 1)[0].strip())
-        fine = time.time() + 15
-        while not (cartella / "exit").exists() and time.time() < fine:
+        fine = time.monotonic() + 15
+        while not (cartella / "exit").exists() and time.monotonic() < fine:
             time.sleep(0.2)
         r = bgjob("status", "prova")
         assert r.returncode == 1 and "finito exit=3" in r.stdout, f"Z03 esito non letto dal marker: {r.returncode} {r.stdout}"
