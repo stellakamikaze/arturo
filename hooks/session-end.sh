@@ -71,8 +71,10 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   WID_FILE="$HOME/.claude/session-env/terminal-wid-$PROJECT_NAME"
   if [ -f "$WID_FILE" ]; then
     WID=$(cat "$WID_FILE")
-    osascript -e "tell application \"Terminal\" to set custom title of window id $WID to \"Terminal\"" 2>/dev/null
+    # Prima il file, poi osascript staccato: se macOS chiede il permesso di Automazione, osascript aspetta, l'hook
+    # scade a 10 secondi e il file restava, con la stessa attesa a ogni chiusura (lotto L10).
     rm -f "$WID_FILE"
+    osascript -e "tell application \"Terminal\" to set custom title of window id $WID to \"Terminal\"" >/dev/null 2>&1 &
   fi
 fi
 

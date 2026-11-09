@@ -163,12 +163,12 @@ Con Claude Code chiuso, nel Terminale (macOS e Linux) o in Git Bash (Windows). L
 curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash
 ```
 
-Lo script sta nel ramo `landing-v2` (`sito/installa.sh`). Se Arturo è già installato con git, si ferma e rimanda a `/aggiorna`. Per leggere ogni comando, o per reinstallare Arturo da capo, questo blocco mette da parte `~/.claude`, clona Arturo e riporta i file di Claude Code e i tuoi:
+Lo script sta nel ramo `landing-v2` (`sito/installa.sh`). Se Arturo è già installato, con git o come plugin, si ferma e rimanda a `/aggiorna`. Lo script installa solo l'ultimo rilascio firmato; il blocco qui sotto scarica la punta di main senza controllare la firma. Per leggere ogni comando, o per reinstallare Arturo da capo, questo blocco mette da parte `~/.claude`, clona Arturo e riporta i file di Claude Code e i tuoi:
 
 ```bash
-B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M%S)"
 [ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$B"
-git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
+if git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"; then
 # Tornano login, sessioni, cronologia e plugin di Claude Code. Da un Arturo installato prima
 # tornano i tuoi file: istruzioni, memoria, todo, handoff, scelte, file .local, skill e comandi tuoi.
 for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos \
@@ -179,6 +179,9 @@ for x in .credentials.json projects history.jsonl plugins file-history jobs daem
   [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mkdir -p "$(dirname "$HOME/.claude/$x")" && mv "$B/$x" "$HOME/.claude/$x"
 done
 [ -d "$B" ] && bash "$ARTURO_CODICE/bin/riporta-tuoi.sh" "$B"
+elif [ -d "$B" ]; then
+  rm -rf "$HOME/.claude" && mv "$B" "$HOME/.claude" && echo "Scaricamento non riuscito: ~/.claude è tornata com'era."
+fi
 ```
 
 Poi apri un terminale nuovo, scrivi `claude` e poi `/setup`. Se un'altra app aveva aggiunto i suoi hook a Claude Code (ClaudeBar, per esempio), `/setup` li ritrova nella copia messa da parte e, col tuo sì, li riporta.
@@ -345,6 +348,7 @@ docs/principi/       Il curriculum: i principi spiegati in semplice
 docs/onboarding/     Guide di setup guidato (/inizio gws)
 docs/impeccable.md   Come installare Impeccable (design delle interfacce) dall'upstream
 docs/hallmark.md     Come installare Hallmark (pagine nuove) dall'upstream, e come lavora con Impeccable
+shared/regole-interfaccia.md Le regole di interfaccia che Impeccable e Hallmark non coprono
 docs/diagram-design.md Come installare diagram-design (diagrammi) dall'upstream
 docs/come-e-fatto.md Il disegno di Arturo: Orsa, Arturo, Claude Code e i progetti da cui dipende
 docs/privacy.md      Cosa raccoglie la telemetria, per quanto, e i tuoi diritti

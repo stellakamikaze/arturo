@@ -135,6 +135,13 @@ def togli_dai_commit(r: Path, b: str, file: str) -> bool:
     return True
 
 
+def senza_cr(dati: bytes) -> bytes:
+    """Il testo con gli a capo LF. Su Windows core.autocrlf scrive i file del checkout con CRLF e il blob
+    di git resta LF: confrontati in byte, ogni riga di un comando sembra cambiata e tutto il file finiva
+    in personale/ come "aggiunte mie" (review del 7/11/2026, L10)."""
+    return dati.replace(b"\r\n", b"\n")
+
+
 def modificati(r: Path, b: str, verso: str = "") -> list:
     """I comandi di Arturo che la persona ha cambiato. Un comando cancellato è una sua scelta: resta
     fuori. Con `verso`, solo quelli che anche l'aggiornamento cambia: gli altri non vanno in conflitto
@@ -233,13 +240,13 @@ def sposta(file: str, parla: bool = True, commit: bool = True, r: Path | None = 
         return 2
     percorso = r / file
     attuale = percorso.read_bytes() if percorso.exists() else b""
-    if attuale == vecchio.stdout:  # in byte: un file salvato con CRLF non e' "uguale"
+    if senza_cr(attuale) == senza_cr(vecchio.stdout):  # solo gli a capo diversi: niente di suo da spostare
         if parla:
             print(f"{file if e_hook else '/' + comando} e' gia' com'e' in Arturo: niente da spostare.")
         return 0
     destinazione = r / "personale" / (f"{comando}.sh" if e_hook else f"{comando}.md")
     gia = destinazione.read_text(encoding="utf-8") if destinazione.exists() else ""
-    righe = (vecchio.stdout.decode("utf-8", "replace").splitlines(True), attuale.decode("utf-8", "replace").splitlines(True))
+    righe = tuple(senza_cr(x).decode("utf-8", "replace").splitlines(True) for x in (vecchio.stdout, attuale))
     testo = testo_hook(comando, *righe, gia) if e_hook else testo_personale(comando, *righe, gia)
     nome = file if e_hook else f"/{comando}"
     # Prima il file di Arturo e il commit, poi il file personale: se il commit non riesce (un hook, un
@@ -283,7 +290,7 @@ def ripristina(file: str) -> int:
         return 2
     percorso = r / file
     attuale = percorso.read_bytes() if percorso.exists() else b""
-    if attuale == vecchio.stdout:
+    if senza_cr(attuale) == senza_cr(vecchio.stdout):
         print(f"{file} e' gia' com'e' in Arturo.")
         return 0
     riporta(r, b, file, vecchio.stdout, attuale, f"guardie: {file} riportato com'e' in Arturo")

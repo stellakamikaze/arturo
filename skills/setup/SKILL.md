@@ -61,23 +61,8 @@ Se `impostazioni stato` non dice "clone", Arturo è un plugin: segui `${CLAUDE_P
 
 Se `~/.claude` NON è un repo git, Arturo non è installato: fermati. Di' alla persona di seguire
 https://arturo.stellakamikaze.org/inizia/, poi di scrivere `/exit`, `claude` e `/setup`. A mano, a
-Claude Code chiuso, in un terminale (su Windows in **Git Bash**, non in PowerShell):
-
-```bash
-B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
-[ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$B"
-git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
-# Tornano login, sessioni, cronologia e plugin di Claude Code. Da un Arturo installato prima
-# tornano i tuoi file: istruzioni, memoria, todo, handoff, scelte, file .local, skill e comandi tuoi.
-for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos \
-  CLAUDE.md settings.local.json personale hooks/hosts-interni.local hooks/bash-dispatcher.local \
-  hooks/protect_claude_md.local hooks/api-fidate.local hooks/handoff-gate.local hooks/index-contenitori.local hooks/inventario.local bin/fonte-task.local data/memory data/memoria data/todo \
-  data/segnalazioni data/setup-fatto data/aggiornamenti.json session-env/telemetria.json \
-  session-env/segnala.json session-env/novita-viste; do
-  [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mkdir -p "$(dirname "$HOME/.claude/$x")" && mv "$B/$x" "$HOME/.claude/$x"
-done
-[ -d "$B" ] && bash "${CLAUDE_PLUGIN_ROOT}/bin/riporta-tuoi.sh" "$B"
-```
+Claude Code chiuso: il blocco di https://arturo.stellakamikaze.org/installa/#a-mano-esteso (su Windows in
+**Git Bash**, non in PowerShell).
 
 Se l'harness c'è, spiega la telemetria prima di andare avanti, in due o tre frasi semplici: "Arturo manda a chi lo mantiene eventi d'uso con un numero casuale: quali comandi e skill di Arturo usi, quanto dura una sessione e quanti messaggi scrivi, solo in fasce larghe, quali guardie ti fermano o chiedono conferma e perché, quali loro banchi falliscono, a che fase del setup arrivi, e se gli aggiornamenti vanno a buon fine. Mai i tuoi testi, i tuoi file o il tuo nome: un comando o un file tuo conta solo come altro. Il numero non contiene il tuo nome, ma chi mantiene Arturo può sapere che sei tu se ti conosce: per questo non sono dati anonimi. Servono a correggere ogni settimana i punti dove le persone si bloccano. Chi tiene i dati, per quanto e come li cancelli sta in docs/privacy.md." Poi chiedi se va bene così. Se non vuole, spegnila con `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo telemetria spegni` e vai avanti senza insistere. Nello stesso modo, in una frase, l'aggiornamento: "Arturo si aggiorna da solo quando chiudi la sessione, come Claude Code, e installa solo le versioni firmate da chi lo mantiene. Se preferisci decidere tu ogni volta, lo spengo." Se vuole decidere lui: `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo aggiornamenti manuali`.
 

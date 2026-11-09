@@ -48,4 +48,6 @@ Una per fonte, l'ultima della sua consegna:
 
 `letti` conta gli elementi aperti nel contenuto, non solo negli elenchi. Con `troncato: true` serve
 il `motivo`. Una fonte senza cose da fare consegna lo stesso la copertura: "letta, niente da fare" e
-"non letta" sono due stati diversi, e senza copertura `righe.py` dice che manca.
+"non letta" sono due stati diversi, e senza copertura `righe.py` dice che manca. Una fonte che non consegna
+niente si vede solo se il giro passa le fonti scelte: `righe.py --attese email,task`. `letti` minore di
+`listati` vale solo con `troncato: true`. Lo stesso `fp` due volte nella stessa consegna è uno scarto.

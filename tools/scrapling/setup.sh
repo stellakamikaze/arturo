@@ -10,8 +10,9 @@ set -eu
 cd "$(dirname "$0")"
 VENV="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/data/scrapling/.venv"
 if [ "${1:-}" = "--controlla" ]; then
+  # Un venv senza i pacchetti (installazione interrotta) non è un'installazione (lotto L10).
   for PY in "$VENV/bin/python" "$VENV/Scripts/python.exe" .venv/bin/python .venv/Scripts/python.exe; do
-    [ -x "$PY" ] && { echo "scrape già installato"; exit 0; }
+    [ -x "$PY" ] && "$PY" -c 'import scrapling, markdownify' 2>/dev/null && { echo "scrape già installato"; exit 0; }
   done
   echo "scrape non installato"
   exit 0
@@ -21,7 +22,7 @@ fi
 PACCHETTI="scrapling[fetchers]==0.4.15 markdownify==1.2.3"
 mkdir -p "$(dirname "$VENV")"
 if command -v uv >/dev/null 2>&1; then
-  uv venv --python 3.12 "$VENV"
+  uv venv --clear --python 3.12 "$VENV"  # --clear: un venv già lì, anche a metà, non ferma il rilancio
   PY="$VENV/bin/python"; [ -x "$PY" ] || PY="$VENV/Scripts/python.exe"
   # shellcheck disable=SC2086
   uv pip install --python "$PY" $PACCHETTI

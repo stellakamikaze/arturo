@@ -95,7 +95,11 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    aggiornare, segnala a chi mantiene Arturo". `/aggiorna` applica solo l'ultimo tag firmato, con la
    procedura letta da quel tag, e mai `main` (17/10/2026, #3504). Un rilascio pubblicato senza firma
    ferma quindi tutti: si corregge con un tag nuovo, firmato. Per cambiare chiave, la nuova entra in
-   `allowed_signers` con un rilascio firmato dalla vecchia.
+   `allowed_signers` con un rilascio firmato dalla vecchia. Nello stesso giro cambia anche la riga
+   `FIRMA_RILASCI` di `sito/installa.sh` sul ramo `landing-v2`, poi `strumenti/pubblica.sh`: lo script
+   d'installazione ha la chiave scritta dentro e installa solo l'ultimo tag firmato da quella. Il banco
+   `tests/test_installa.py` (caso_chiave_come_main) diventa rosso finché le due righe non coincidono.
+   Quando un rilascio chiude un buco grave, alza anche `VERSIONE_MINIMA` nello stesso script.
 
    `--ff-only` è un freno: se `main` non può avanzare in modo lineare, il merge si ferma e
    ti costringe a guardare perché `dev` e `main` hanno divergenze. Mai forzare.

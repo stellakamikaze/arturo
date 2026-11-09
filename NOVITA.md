@@ -13,6 +13,32 @@ modo di lavorare.
 
 ---
 
+## 2026-11-09 — Guardie, /monitor e controlli: le correzioni del lotto L10
+
+**Cosa cambia**:
+- La guardia blocca di nuovo `bw export` e `mkfs` dentro `$(...)` e i backtick, anche fra virgolette doppie:
+  bash li esegue. Il lotto L2 li aveva lasciati passare.
+- Un file dentro `hooks/` di un tuo mod personale resta protetto, ma il messaggio dice che è il tuo mod e,
+  nello stesso passo, come caricarlo con `CLAUDE_CODE_PLUGIN_DIRS` (segnalazione n. 63).
+- /monitor: una riga con un carattere di separazione Unicode non si spezza più, una lettura dichiarata intera
+  con meno elementi letti si scarta, una fonte scelta che non consegna niente si vede (`righe.py --attese`), e
+  due ponti Google insieme non danno più ogni email due volte. Un `cursori.json` rotto non si riscrive.
+- Il gate dei progetti fa girare anche pytest in un progetto node con `requirements.txt`, e non dà più rosso
+  per lo script di test di `npm init`, per un TypeScript non installato o per un `--dir` relativo.
+- `arturo todo --help` dà l'aiuto, e una cartella personale che è un repository non diventa un progetto.
+- Il controllo degli aggiornamenti all'avvio non lascia più un `git fetch` appeso per sempre; alla chiusura
+  il ripristino del titolo del Terminale non aspetta più un permesso di macOS.
+- `setup.sh` di scrape si può rilanciare, e dice "già installato" solo se i pacchetti ci sono davvero.
+- Su Windows `arturo personale sposta` e `ripristina` non scambiano più gli a capo CRLF per modifiche tue:
+  in `personale/` finiscono solo le righe che hai aggiunto davvero. Il repository chiede gli a capo LF in
+  ogni copia, anche su Windows (`.gitattributes`).
+- Lo script d'installazione installa solo l'ultimo rilascio firmato, mai la punta di main senza controlli.
+  Il blocco a mano del README rimette tutto com'era se lo scaricamento non riesce, e /setup rimanda a
+  quello della guida.
+
+**Il principio**: un controllo che dice "rosso" per uno strumento che manca, o "verde" perché non ha guardato,
+fa perdere fiducia a tutti i controlli.
+
 ## 2026-11-09 — L'aggiornamento automatico non aspetta più i processi di servizio di Claude Code
 
 **Cosa cambia**:
@@ -327,6 +353,25 @@ Arturo gira solo nel repository pubblico: nel tuo viene saltata, quindi non cons
 conta per le automazioni.
 
 ---
+
+## 2026-11-06 — Claude controlla anche grafici e form prima di dire che un sito è fatto
+
+**Cosa cambia**: se fai siti, dashboard o form, prima di dirti che il lavoro è fatto Claude lo controlla
+anche con un elenco di 66 regole su grafici, form, controlli e accessibilità (il file è
+`shared/regole-interfaccia.md`). Quasi metà cita un post di r/ClaudeDesign su Reddit. Le altre vengono
+soprattutto da WCAG 2.2, lo standard di accessibilità del web, dal sistema di design del governo
+britannico, dai centri di ricerca Baymard e NN/g e dalle linee guida di Vercel. Ogni regola ha la sua
+fonte ed è segnata come fissa o di default: le fisse sono errori oggettivi o requisiti di accessibilità,
+le altre sono punti di partenza che Claude può rompere quando il design lo chiede, e te lo dice. Non
+serve installare niente.
+
+**Perché**: Claude disegna le interfacce con due skill facoltative, Impeccable e Hallmark. Impeccable
+non ha regole sui grafici, e Hallmark le usa solo quando costruisce una pagina, quindi su una dashboard
+non arrivavano. Mancavano, per esempio, la descrizione o la tabella che racconta il grafico a chi non
+vede, e la regola per cui, dove manca un dato, la linea si interrompe. Il file copre solo ciò che le due
+skill non dicono: se una sua regola si scontra con il brief, con il `DESIGN.md` del progetto (il file
+delle scelte di design) o con le due skill, vincono loro. Se Impeccable non ce l'hai, Claude usa anche
+altre 18 regole del file, su contrasto, bottoni, spazi e caratteri.
 
 ## 2026-11-06 — Col plugin vedi quando esce un rilascio nuovo
 

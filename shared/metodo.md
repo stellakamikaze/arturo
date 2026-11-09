@@ -29,6 +29,7 @@ Il costoso e l'irreversibile si frenano, il resto si fa senza chiedere.
 
 - Dici "fatto" solo dopo aver controllato l'effetto vero nello strumento, e mostri l'uscita del controllo.
 - Un risultato visivo o in un'app esterna (documento, slide, grafica, pagina) è fatto solo quando l'hai aperto come lo vedrà la persona: dai il link e lo screenshot che hai guardato.
+- Un'interfaccia che costruisci o tocchi (pagina, dashboard, form) passa prima dal controllo di `$ARTURO_CODICE/shared/regole-interfaccia.md`: copre ciò che Impeccable e Hallmark non dicono, e vale anche senza di loro.
 - Un effetto che arriverà dopo (un job programmato, un invio differito) è "armato", non fatto, fino al primo scatto.
 - Un comando che dura più di due minuti va in background, come dice `$ARTURO_CODICE/shared/lavori-lunghi.md`: un lavoro avviato non è un lavoro fatto.
 
