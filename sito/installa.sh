@@ -15,6 +15,17 @@
 # Tutto sta in main(): se lo scaricamento si interrompe a metà, non parte niente.
 # Bash 3.2 (quello di macOS) e Git Bash su Windows. Niente sudo.
 
+# La chiave che firma i rilasci: la stessa riga di firme/rilasci.allowed_signers su main (il banco la
+# confronta). Lo script installa solo il commit dell'ultimo tag firmato da questa chiave, mai la punta di
+# main. Per cambiare chiave: docs/manutenzione.md, e questa riga cambia insieme.
+FIRMA_RILASCI='rilasci@arturo namespaces="git,arturo-manifest" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP0HfWu3Wxkq0+trFJ6S7P7MZmo2OXRlVKkgTKXI74K5'
+# Il rilascio più vecchio che lo script accetta, contro un main riportato indietro a un tag firmato con
+# un buco già chiuso. Si alza quando un rilascio chiude un buco grave.
+VERSIONE_MINIMA=0.2.8
+# Gli errori di verify-tag che dicono "firma verificata e sbagliata": uguali a FIRMA_SBAGLIATA di
+# bin/aggiornamenti.py. Ogni altro errore vuol dire che la verifica non è partita.
+FIRMA_SBAGLIATA='no signature found|no principal matched|could not verify signature|bad signature|non-tag object'
+
 ARTURO_TMP=""
 ARTURO_INNESTO=0
 # La copia di sicurezza mentre si scrive: un'interruzione prima dell'innesto la toglie.
@@ -86,6 +97,68 @@ cancella_me() {
   if [ "$0" = "$f" ] || { [ -f "$f" ] && [ "$0" -ef "$f" ]; }; then
     rm -f "$f"
   fi
+}
+
+# Vero se il tag vX.Y.Z ($1) non è più vecchio di X.Y.Z ($2).
+versione_almeno() {
+  local a b c x y z
+  case "${1#v}" in
+    *[!0-9.]* | *..* | .* | *.) return 1 ;;
+  esac
+  IFS=. read -r a b c <<EOF
+${1#v}
+EOF
+  IFS=. read -r x y z <<EOF
+$2
+EOF
+  [ -n "$a" ] && [ -n "$b" ] && [ -n "$c" ] || return 1
+  [ "$a" -ne "$x" ] && { [ "$a" -gt "$x" ]; return; }
+  [ "$b" -ne "$y" ] && { [ "$b" -gt "$y" ]; return; }
+  [ "$c" -ge "$z" ]
+}
+
+# Il rilascio da installare nel clone $1: l'ultimo tag vX.Y.Z di origin/main, annotato, firmato dalla
+# chiave in $2, col suo nome scritto dentro (la firma copre quel nome, non il ref: un tag vecchio
+# ripubblicato con un nome nuovo ha una firma valida) e non più vecchio di VERSIONE_MINIMA.
+# Scrive il tag in $rilascio. Esito 0 buono, 1 compromissione (messaggio già stampato), 2 la verifica
+# non è partita (git o OpenSSH vecchi).
+verifica_rilascio() {
+  local clone="$1" firme="$2" errore dentro
+  rilascio=$(git -C "$clone" describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' origin/main 2>/dev/null)
+  if [ -z "$rilascio" ]; then
+    echo "Su GitHub non trovo nessun rilascio di Arturo con la firma: possibile compromissione. Non ho toccato niente: segnala a chi mantiene Arturo."
+    return 1
+  fi
+  # Un tag annotato col nome diverso da quello scritto dentro: describe lo dà col nome di dentro e un
+  # suffisso (v0.9.0-0-g…). Il controllo su $dentro più sotto copre lo stesso caso se describe cambia.
+  case "$rilascio" in
+    *-g[0-9a-f]*)
+      echo "Su GitHub c'è il rilascio firmato ${rilascio%%-*} ripubblicato con un altro nome: possibile compromissione. Non ho toccato niente: segnala a chi mantiene Arturo."
+      return 1
+      ;;
+  esac
+  if [ "$(git -C "$clone" cat-file -t "refs/tags/$rilascio" 2>/dev/null)" != tag ]; then
+    echo "Il rilascio $rilascio non ha la firma di Arturo (tag senza firma): possibile compromissione. Non ho toccato niente: segnala a chi mantiene Arturo."
+    return 1
+  fi
+  if ! errore=$(LC_ALL=C git -C "$clone" -c gpg.format=ssh -c gpg.ssh.allowedSignersFile="$firme" \
+    verify-tag "$rilascio" 2>&1 >/dev/null); then
+    if printf '%s\n' "$errore" | grep -Eiq "$FIRMA_SBAGLIATA"; then
+      echo "Il rilascio $rilascio non ha la firma di Arturo: possibile compromissione. Non ho toccato niente: segnala a chi mantiene Arturo."
+      return 1
+    fi
+    return 2
+  fi
+  dentro=$(git -C "$clone" cat-file tag "$rilascio" 2>/dev/null | sed -n 's/^tag //p' | head -n 1)
+  if [ "$dentro" != "$rilascio" ]; then
+    echo "Il tag $rilascio è il rilascio firmato ${dentro:-senza nome} ripubblicato con un altro nome: possibile compromissione. Non ho toccato niente: segnala a chi mantiene Arturo."
+    return 1
+  fi
+  if ! versione_almeno "$rilascio" "$VERSIONE_MINIMA"; then
+    echo "Su GitHub l'ultimo rilascio è $rilascio, più vecchio della $VERSIONE_MINIMA che questo script conosce: possibile compromissione. Non ho toccato niente: segnala a chi mantiene Arturo."
+    return 1
+  fi
+  return 0
 }
 
 python3_ok() {
@@ -342,10 +415,19 @@ main() {
     echo "$dest esiste ma non è una cartella: non lo tocco."
     return 1
   fi
+  # Dopo `arturo migra` Arturo è un plugin e ~/.claude non ha più .git: un clone sopra lo
+  # duplicherebbe. Il nome arturo@arturo lo scrive Claude Code in installed_plugins.json.
+  if grep -qs '"arturo@arturo"' "$dest/plugins/installed_plugins.json"; then
+    echo "Arturo è già installato in $dest come plugin. Per aggiornarlo scrivi /aggiorna in Claude Code."
+    cancella_me
+    return 0
+  fi
   # Una seconda volta non rifà niente: l'aggiornamento è /aggiorna. Anche come upstream: chi
-  # sincronizza Arturo fra più computer ha origin sul suo repository privato.
+  # sincronizza Arturo fra più computer ha origin sul suo repository privato. Il remoto da solo non
+  # basta (stellakamikaze/arturo-qualcosa è un altro repository): servono anche i file di Arturo.
   if [ -e "$dest/.git" ]; then
-    if git -C "$dest" remote -v 2>/dev/null | grep -q 'stellakamikaze/arturo'; then
+    if git -C "$dest" remote -v 2>/dev/null | grep -Eq 'stellakamikaze/arturo(\.git)?([[:space:]]|$)' \
+      && git -C "$dest" ls-files --error-unmatch bin/arturo settings.json >/dev/null 2>&1; then
       echo "Arturo è già installato in $dest. Per aggiornarlo scrivi /aggiorna in Claude Code."
       cancella_me
       return 0
@@ -359,20 +441,46 @@ main() {
 
   # Il clone va in una cartella temporanea nella stessa HOME: lo spostamento di .git è un rename.
   trap 'pulisci_tmp' EXIT
-  trap 'interrotto' INT TERM
+  trap 'interrotto' INT TERM HUP
   ARTURO_TMP=$(mktemp -d "$HOME/.claude-arturo-XXXXXX") || {
     ARTURO_TMP=""
     echo "Non riesco a creare una cartella temporanea in $HOME: non ho toccato niente."
     return 1
   }
   local tmp="$ARTURO_TMP"
-  if ! git clone --quiet "$repo" "$tmp/a" || ! git -C "$tmp/a" ls-files -z >"$tmp/elenco"; then
+  if ! git clone --quiet "$repo" "$tmp/a"; then
     pulisci_tmp
     echo
     echo "Lo scaricamento da GitHub non è riuscito: non ho toccato niente."
     echo "Controlla la connessione e rilancia lo script."
     return 1
   fi
+
+  # La firma, prima di ogni scrittura in ~/.claude. ARTURO_FIRMA_RILASCI serve solo al banco, con
+  # ARTURO_REPO: chi può impostare l'ambiente di questo script può già scegliere da dove scarica.
+  local rilascio="" esito_firma=0
+  printf '%s\n' "${ARTURO_FIRMA_RILASCI:-$FIRMA_RILASCI}" >"$tmp/firme"
+  verifica_rilascio "$tmp/a" "$tmp/firme" || esito_firma=$?
+  if [ "$esito_firma" = 2 ]; then
+    pulisci_tmp
+    case "$os" in
+      mac) echo "MANCA la verifica della firma dei rilasci: servono git 2.34 e OpenSSH 8.2, o più recenti. Comando: brew install git (senza brew: xcode-select --install, poi rilancia)" ;;
+      windows) echo "MANCA la verifica della firma dei rilasci: servono git 2.34 e OpenSSH 8.2, o più recenti. Comando: winget upgrade --id Git.Git -e --source winget. $riapri" ;;
+      *) echo "MANCA la verifica della firma dei rilasci: servono git 2.34 e OpenSSH 8.2, o più recenti. Comando: lo scrive la persona, con la sua password: sudo apt install git openssh-client (su Fedora: sudo dnf install git openssh-clients)" ;;
+    esac
+    echo "Non ho toccato niente."
+    return 1
+  fi
+  if [ "$esito_firma" != 0 ]; then
+    pulisci_tmp
+    return 1
+  fi
+  if ! git -C "$tmp/a" reset --quiet --hard "$rilascio^{commit}" || ! git -C "$tmp/a" ls-files -z >"$tmp/elenco"; then
+    pulisci_tmp
+    echo "Non riesco a preparare il rilascio $rilascio: non ho toccato niente. Rilancia lo script."
+    return 1
+  fi
+  echo "OK firma del rilascio $rilascio"
 
   # Backup per copia: ogni file di Arturo che esiste già in ~/.claude va nel backup, controllato.
   # Un conflitto fra file e cartella, una cartella che è un collegamento, o una copia sbagliata

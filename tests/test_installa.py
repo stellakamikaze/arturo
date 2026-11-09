@@ -110,20 +110,70 @@ def sh(*args, cwd=None):
     subprocess.run(args, cwd=cwd, check=True, capture_output=True)
 
 
+# La chiave di prova che firma i rilasci dell'origine finta: lo script la riceve con ARTURO_FIRMA_RILASCI
+# al posto di quella vera. La scrive origine().
+CHIAVE = {"privata": "", "riga": ""}
+TAG = "v1.0.0"
+
+
+def chiave_nuova(radice: Path, nome: str) -> tuple:
+    """(file privato, riga di allowed_signers) di una chiave ed25519 nuova."""
+    k = radice / nome
+    sh("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", nome, "-f", str(k))
+    pub = (radice / (nome + ".pub")).read_text(encoding="utf-8").split()
+    return str(k), f'rilasci@arturo namespaces="git,arturo-manifest" {pub[0]} {pub[1]}'
+
+
+def firma_tag(lavoro: Path, nome: str, chiave: str, ref: str = "HEAD", dentro: str = ""):
+    """Un tag annotato firmato con `chiave`. Con `dentro` il nome scritto nel tag è un altro: è il tag
+    firmato vecchio ripubblicato col nome nuovo (finding 109)."""
+    sh("git", "-c", "gpg.format=ssh", "-c", f"user.signingkey={chiave}", "-c", "user.name=t",
+       "-c", "user.email=t@t", "tag", "-s", "-m", dentro or nome, dentro or nome, ref, cwd=lavoro)
+    if dentro:
+        oggetto = subprocess.run(["git", "rev-parse", dentro], cwd=lavoro, capture_output=True, text=True,
+                                 check=True).stdout.strip()
+        sh("git", "tag", "-d", dentro, cwd=lavoro)
+        sh("git", "update-ref", f"refs/tags/{nome}", oggetto, cwd=lavoro)
+
+
+def commit(lavoro: Path, file: str, testo: bytes, messaggio: str):
+    (lavoro / file).write_bytes(testo)
+    sh("git", "add", file, cwd=lavoro)
+    sh("git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", messaggio, cwd=lavoro)
+
+
 def origine(radice: Path) -> Path:
     """Un repository con 'stellakamikaze/arturo' nel percorso, come il remoto vero: un file in cima,
-    settings.json e un file in una cartella, come Arturo."""
+    settings.json e file in cartelle, come Arturo. Il rilascio TAG è firmato con la chiave di prova, e
+    main ha un commit in più dopo il rilascio, senza firma: lo script installa il rilascio, non la punta."""
     lavoro = radice / "lavoro"
     (lavoro / "hooks").mkdir(parents=True)
+    (lavoro / "bin").mkdir()
     (lavoro / "README.md").write_bytes(b"Arturo\n")
     (lavoro / "settings.json").write_bytes(b'{"hooks": {}}\n')
     (lavoro / "hooks" / "esempio.sh").write_bytes(b"#!/bin/sh\nexit 0\n")
+    (lavoro / "bin" / "arturo").write_bytes(b"#!/usr/bin/env python3\n")
     sh("git", "init", "-q", "-b", "main", cwd=lavoro)
-    sh("git", "add", "README.md", "settings.json", "hooks/esempio.sh", cwd=lavoro)
+    sh("git", "add", "README.md", "settings.json", "hooks/esempio.sh", "bin/arturo", cwd=lavoro)
     sh("git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "x", cwd=lavoro)
+    CHIAVE["privata"], CHIAVE["riga"] = chiave_nuova(radice, "chiave-rilasci")
+    firma_tag(lavoro, TAG, CHIAVE["privata"])
+    commit(lavoro, "README.md", b"Arturo dopo il rilascio\n", "dopo il rilascio")
     nudo = radice / "stellakamikaze" / "arturo.git"
     sh("git", "clone", "-q", "--bare", str(lavoro), str(nudo))
     return nudo
+
+
+def variante(lab, prepara) -> str:
+    """Una copia dell'origine nella cartella del caso, cambiata da prepara(lavoro). Ritorna il percorso
+    da dare ad ARTURO_REPO."""
+    lavoro = lab.dir / "lavoro"
+    sh("git", "clone", "-q", lab.repo, str(lavoro))
+    sh("git", "fetch", "-q", "origin", "+refs/tags/*:refs/tags/*", cwd=lavoro)
+    prepara(lavoro)
+    nudo = lab.dir / "stellakamikaze" / "arturo.git"
+    sh("git", "clone", "-q", "--bare", str(lavoro), str(nudo))
+    return _posix(nudo)
 
 
 def foto(radice: Path) -> dict:
@@ -189,6 +239,7 @@ class Lab:
             "PATH": f"{_posix(self.bin)}:{PATH_BASE}",
             "SHELL": "/bin/zsh",
             "ARTURO_REPO": repo or _posix(self.repo),  # con le barre dritte, come lo scrive chi installa
+            "ARTURO_FIRMA_RILASCI": CHIAVE["riga"],
             "LANG": "C.UTF-8",
         }
         env.update(extra or {})
@@ -209,6 +260,8 @@ def caso_nuova(lab):
     assert (c / ".git").is_dir() and (c / "README.md").is_file(), "Arturo non è in ~/.claude"
     assert (c / ".credentials.json").is_file() and (c / "projects").is_dir(), "login o sessioni non al loro posto"
     assert (c / "mio.txt").read_text(encoding="utf-8") == "mio", "un file della persona è sparito"
+    assert (c / "README.md").read_bytes() == b"Arturo\n", "installata la punta di main, non il rilascio firmato"
+    assert f"OK firma del rilascio {TAG}" in out, f"firma non detta\n{out}"
     assert lab.backup() == [], f"backup senza file sostituiti: {lab.backup()}"
     rcfile = (lab.home / ".zshrc").read_text(encoding="utf-8")
     assert rcfile.count(".local/bin") == 1, f"PATH non aggiunto una volta:\n{rcfile}"
@@ -314,6 +367,10 @@ def caso_sincronizzata(lab):
     sh("git", "init", "-q", str(c))
     sh("git", "-C", str(c), "remote", "add", "origin", "https://github.com/qualcuno/config-privata.git")
     sh("git", "-C", str(c), "remote", "add", "upstream", "https://github.com/stellakamikaze/arturo.git")
+    (c / "bin").mkdir()
+    (c / "bin" / "arturo").write_text("x")
+    (c / "settings.json").write_text("{}")
+    sh("git", "-C", str(c), "add", "bin/arturo", "settings.json")
     (c / "mio.txt").write_text("mio")
     rc, out = lab.lancia()
     assert rc == 0 and "già installato" in out, f"rc {rc}\n{out}"
@@ -438,7 +495,7 @@ def caso_repo_estraneo(lab):
 def caso_reset_fallito(lab):
     # Il reset scrive i file e poi fallisce: tutto torna com'era, senza .git, col backup che resta.
     lab.claude_locale()
-    lab.finto("git", f'for a in "$@"; do if [ "$a" = reset ]; then "{GIT_VERO}" "$@"; exit 1; fi; done\n'
+    lab.finto("git", f'case " $* " in *" reset "*" HEAD "*) "{GIT_VERO}" "$@"; exit 1 ;; esac\n'
                      f'exec "{GIT_VERO}" "$@"')
     lab.config_vecchia()
     c = lab.home / ".claude"
@@ -456,8 +513,8 @@ def caso_reset_fallito(lab):
 def caso_interrotto(lab):
     # Ctrl-C durante il reset: la trappola rimette tutto com'era.
     lab.claude_locale()
-    lab.finto("git", f'for a in "$@"; do if [ "$a" = reset ]; then "{GIT_VERO}" "$@"; kill -INT $PPID; '
-                     f'sleep 1; exit 0; fi; done\nexec "{GIT_VERO}" "$@"')
+    lab.finto("git", f'case " $* " in *" reset "*" HEAD "*) "{GIT_VERO}" "$@"; kill -INT $PPID; '
+                     f'sleep 1; exit 0 ;; esac\nexec "{GIT_VERO}" "$@"')
     lab.config_vecchia()
     c = lab.home / ".claude"
     prima = foto(c)
@@ -661,11 +718,110 @@ def caso_si_cancella(lab):
     assert not copia.exists(), "~/.arturo-installa.sh resta dopo l'installazione"
 
 
+def _fermo(lab, repo, motivo, testo):
+    """Lo script si ferma prima di scrivere: ~/.claude com'era, nessun backup, il messaggio atteso."""
+    lab.claude_locale()
+    lab.config_vecchia()
+    c = lab.home / ".claude"
+    prima = foto(c)
+    rc, out = lab.lancia(repo=repo)
+    assert rc == 1 and testo in out, f"{motivo}: rc {rc}\n{out}"
+    assert foto(c) == prima and not (c / ".git").exists(), f"{motivo}: ~/.claude toccata {differenze(prima, foto(c))}"
+    assert lab.backup() == [], f"{motivo}: backup {lab.backup()}"
+    return out
+
+
+def caso_firma_altra_chiave(lab):
+    # Un rilascio più nuovo firmato da un'altra chiave: possibile compromissione, niente installato.
+    def prepara(w):
+        altra, _ = chiave_nuova(lab.dir, "altra")
+        commit(w, "README.md", b"codice di un altro\n", "altro")
+        firma_tag(w, "v1.0.1", altra)
+        sh("git", "push", "-q", "origin", "HEAD:main", cwd=w)
+    out = _fermo(lab, variante(lab, prepara), "installato con la firma sbagliata", "possibile compromissione")
+    assert "v1.0.1" in out, out
+
+
+def caso_tag_senza_firma(lab):
+    def prepara(w):
+        sh("git", "tag", "v1.0.1", cwd=w)
+    _fermo(lab, variante(lab, prepara), "installato un tag senza firma", "tag senza firma")
+
+
+def caso_tag_rinominato(lab):
+    # Il rilascio firmato v1.0.0 ripubblicato come v1.0.1 sulla punta: la firma è valida, il nome no.
+    def prepara(w):
+        commit(w, "README.md", b"vecchio\n", "vecchio")
+        firma_tag(w, "v1.0.1", CHIAVE["privata"], dentro="v0.9.0")
+    _fermo(lab, variante(lab, prepara), "tag rinominato accettato", "ripubblicato con un altro nome")
+
+
+def caso_rilascio_vecchio(lab):
+    # main riportato a un rilascio firmato più vecchio della versione minima dello script.
+    def prepara(w):
+        sh("git", "tag", "-d", TAG, cwd=w)
+        firma_tag(w, "v0.1.0", CHIAVE["privata"])
+    _fermo(lab, variante(lab, prepara), "rilascio vecchio accettato", "più vecchio della")
+
+
+def caso_senza_rilasci(lab):
+    def prepara(w):
+        sh("git", "tag", "-d", TAG, cwd=w)
+    _fermo(lab, variante(lab, prepara), "installato senza rilascio", "nessun rilascio")
+
+
+def caso_firma_non_verificabile(lab):
+    # git o OpenSSH troppo vecchi: la verifica non parte. È una riga MANCA col comando, non una compromissione.
+    lab.finto("ssh-keygen", 'echo "ssh-keygen: illegal option -- Y" >&2; exit 1')
+    out = _fermo(lab, None, "installato senza verifica", "MANCA la verifica della firma")
+    assert "compromissione" not in out and "Comando:" in out, out
+
+
+def caso_plugin_installato(lab):
+    # Dopo arturo migra ~/.claude non ha .git: niente clone sopra il plugin.
+    lab.claude_locale()
+    c = lab.home / ".claude"
+    (c / "plugins").mkdir(parents=True)
+    (c / "plugins" / "installed_plugins.json").write_text('{"plugins": {"arturo@arturo": []}}')
+    prima = foto(c)
+    rc, out = lab.lancia()
+    assert rc == 0 and "come plugin" in out, f"plugin non visto: rc {rc}\n{out}"
+    assert foto(c) == prima and lab.backup() == [], f"plugin non visto: toccata {differenze(prima, foto(c))}"
+
+
+def caso_remoto_senza_file(lab):
+    # Un repository col remoto di Arturo ma senza i suoi file non è un'installazione di Arturo.
+    lab.claude_locale()
+    c = lab.home / ".claude"
+    sh("git", "init", "-q", str(c))
+    sh("git", "-C", str(c), "remote", "add", "origin", "https://github.com/stellakamikaze/arturo.git")
+    rc, out = lab.lancia()
+    assert rc == 1 and "non è Arturo" in out, f"remoto scambiato per installazione: rc {rc}\n{out}"
+
+
+def caso_chiave_come_main(lab):
+    # La chiave fissata in installa.sh è una riga di firme/rilasci.allowed_signers su main: se la chiave
+    # cambia e lo script no, nessuna installazione nuova passa la verifica.
+    sorgente = lab.sorgente
+    for ref in ("origin/main", "main"):
+        r = subprocess.run(["git", "-C", str(sorgente), "show", f"{ref}:firme/rilasci.allowed_signers"],
+                           capture_output=True, text=True, encoding="utf-8")
+        if r.returncode == 0:
+            break
+    else:
+        raise AssertionError("chiave non confrontata: non trovo firme/rilasci.allowed_signers su main né su origin/main")
+    righe = [x.strip() for x in r.stdout.splitlines() if x.strip() and not x.startswith("#")]
+    m = re.search(r"^FIRMA_RILASCI='([^']*)'$", lab.script.read_text(encoding="utf-8"), re.M)
+    assert m, "chiave non confrontata: installa.sh non ha la riga FIRMA_RILASCI"
+    assert m.group(1) in righe, f"chiave diversa da main: {ref} ha {righe}"
+
 CASI = [caso_nuova, caso_config_di_prima, caso_sincronizzata, caso_senza_cartella, caso_clone_fallito, caso_python_vecchio,
         caso_senza_claude, caso_dentro_claude_code, caso_innesto_sessione_viva, caso_handle_aperto,
         caso_settings_nel_backup, caso_repo_estraneo, caso_reset_fallito, caso_interrotto, caso_conflitto_cartella,
         caso_config_dir, caso_claude_md_resta, caso_mac_git_rimando, caso_manca_formato, caso_si_cancella,
-        caso_python_windows, caso_cartella_collegata, caso_interrotto_backup, caso_mac_licenza, caso_guida_rimandi]
+        caso_python_windows, caso_cartella_collegata, caso_interrotto_backup, caso_mac_licenza, caso_guida_rimandi,
+        caso_firma_altra_chiave, caso_tag_senza_firma, caso_tag_rinominato, caso_rilascio_vecchio, caso_senza_rilasci,
+        caso_firma_non_verificabile, caso_plugin_installato, caso_remoto_senza_file, caso_chiave_come_main]
 
 # I veleni della revisione del 1/11/2026: (caso, testo dello script di oggi, testo che toglie la
 # correzione, motivo atteso, solo su Windows). Il testo da togliere deve comparire una volta sola.
@@ -681,6 +837,19 @@ VELENI = [
     (caso_mac_licenza, "if git_uscita=$(git --version 2>&1); then", "if true; then", "licenza di Xcode non vista", False),
     (caso_repo_estraneo, 'echo "Strada a mano: $esteso"', 'echo "Strada a mano: $amano"', "blocco esteso non nominato", False),
     (caso_config_dir, "non è supportato, nemmeno a mano.", "Strada a mano: $amano", "rimando sbagliato per CLAUDE_CONFIG_DIR", False),
+    # Lotto L10 della revisione del 7/11/2026: la firma dei rilasci.
+    (caso_nuova, 'reset --quiet --hard "$rilascio^{commit}"', "reset --quiet --hard HEAD",
+     "installata la punta di main", False),
+    (caso_firma_altra_chiave, 'verifica_rilascio "$tmp/a" "$tmp/firme" || esito_firma=$?',
+     'verifica_rilascio "$tmp/a" "$tmp/firme" || :', "installato con la firma sbagliata", False),
+    (caso_tag_rinominato, '    *-g[0-9a-f]*)\n', '    *-g[0-9a-f]*-mai)\n', "tag rinominato accettato", False),
+    (caso_rilascio_vecchio, 'if ! versione_almeno "$rilascio" "$VERSIONE_MINIMA"; then', "if false; then",
+     "rilascio vecchio accettato", False),
+    (caso_firma_non_verificabile, '    return 2\n  fi\n  dentro=', '    return 1\n  fi\n  dentro=',
+     "installato senza verifica", False),
+    (caso_plugin_installato, "if grep -qs '\"arturo@arturo\"'", "if false", "plugin non visto", False),
+    (caso_remoto_senza_file, "&& git -C \"$dest\" ls-files --error-unmatch bin/arturo settings.json",
+     "&& true", "remoto scambiato per installazione", False),
 ]
 
 

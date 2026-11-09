@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Banco della lista del ripristino: le quattro copie scritte a mano devono dire le stesse voci (#3844).
+"""Banco della lista del ripristino: le tre copie scritte a mano devono dire le stesse voci (#3844).
 
 La lista dice cosa torna dalla cartella messa da parte quando si installa Arturo a mano (strada
-"A mano, con Claude Code chiuso"). Due copie stanno qui sulla landing (guida e llms.txt), due sul
-ramo che ricevono gli utenti (README e /setup), lette con git dal ramo main. Una voce che manca in
+"A mano, con Claude Code chiuso"). Due copie stanno qui sulla landing (guida e llms.txt), una sul
+ramo che ricevono gli utenti (README), letta con git dal ramo main. Dal 9/11/2026 /setup non ha più
+una sua copia: rimanda al blocco della guida (review del 7/11, L10), e i suoi 64 byte di margine non
+reggevano il ripristino dopo un clone fallito. Una voce che manca in
 una copia vuol dire una persona che perde memoria, todo o scelte solo perché ha seguito la strada
 sbagliata.
 
@@ -44,7 +46,7 @@ def dal_ramo(repo: Path, rami, percorso: str):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", default=str(Path(__file__).resolve().parent.parent))
-    ap.add_argument("--ramo", action="append", help="ramo dove leggere README e /setup (default origin/main, poi main)")
+    ap.add_argument("--ramo", action="append", help="ramo dove leggere il README (default origin/main, poi main)")
     ap.add_argument("--avvelena", action="store_true", help="toglie una voce da llms.txt: deve dare rosso")
     a = ap.parse_args()
     repo = Path(a.repo)
@@ -54,7 +56,7 @@ def main():
     for percorso in ("sito/installa/index.html", "sito/llms.txt"):
         f = repo / percorso
         copie[percorso] = f.read_text(encoding="utf-8") if f.is_file() else None
-    for percorso in ("README.md", "commands/setup.md"):
+    for percorso in ("README.md",):
         testo, nome = dal_ramo(repo, rami, percorso)
         copie[nome] = testo
 

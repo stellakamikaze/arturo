@@ -82,9 +82,9 @@ curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash
 Lo stesso a mano, senza i controlli. Questo blocco mette da parte tutta la cartella con la data nel nome, scarica Arturo e riporta al loro posto i file elencati:
 
 ```bash
-B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M%S)"
 [ -d "$HOME/.claude" ] && mv "$HOME/.claude" "$B"
-git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
+if git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"; then
 # Tornano al loro posto login, sessioni, cronologia e plugin di Claude Code. Da un Arturo installato
 # prima tornano anche istruzioni, memoria, todo e scelte, compresa la telemetria spenta: sono tuoi.
 for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos \
@@ -95,6 +95,9 @@ for x in .credentials.json projects history.jsonl plugins file-history jobs daem
   session-env/segnala.json session-env/novita-viste; do
   [ -e "$B/$x" ] && [ ! -e "$HOME/.claude/$x" ] && mkdir -p "$(dirname "$HOME/.claude/$x")" && mv "$B/$x" "$HOME/.claude/$x"
 done
+elif [ -d "$B" ]; then
+  rm -rf "$HOME/.claude" && mv "$B" "$HOME/.claude" && echo "Scaricamento non riuscito: ~/.claude è tornata com'era."
+fi
 ```
 
 Poi apri un terminale nuovo, scrivi `claude` e poi `/setup`. La guida sul sito ha cinque passi, e la strada a mano con ogni comando già scritto: https://arturo.stellakamikaze.org/installa/#a-mano

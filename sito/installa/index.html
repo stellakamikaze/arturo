@@ -683,9 +683,9 @@ python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)' >/dev/
             <div class="facoltativa__dentro">
               <p>Il comando scarica <a href="https://github.com/stellakamikaze/arturo/blob/landing-v2/sito/installa.sh">questo script</a>: puoi aprirlo e leggerlo. Oppure incolla il blocco qui sotto, la strada più vecchia, senza controlli: mette da parte tutta la cartella con la data nel nome, scarica Arturo e riporta al loro posto login, sessioni, plugin e i file tuoi di un Arturo di prima. Serve anche se <code>~/.claude</code> è già un tuo repository git: il git va nella copia con la cartella. Il settings.json che avevi resta nella copia: /setup ti propone di riportare hook, plugin e preferenze.</p>
               <p data-solo="win">Su Windows lancia prima, una volta, il comando qui sopra: crea il comando <code>python3</code>, e se <code>~/.claude</code> è già un repository git si ferma da solo senza toccarlo.</p>
-              <div class="comando"><pre id="cmd-scarica-esteso">B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M)"
+              <div class="comando"><pre id="cmd-scarica-esteso">B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M%S)"
 [ -d "$HOME/.claude" ] &amp;&amp; mv "$HOME/.claude" "$B"
-git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"
+if git clone https://github.com/stellakamikaze/arturo.git "$HOME/.claude"; then
 for x in .credentials.json projects history.jsonl plugins file-history jobs daemon agent-memory todos \
   CLAUDE.md settings.local.json personale hooks/hosts-interni.local hooks/bash-dispatcher.local \
   hooks/protect_claude_md.local hooks/api-fidate.local hooks/handoff-gate.local hooks/index-contenitori.local \
@@ -693,7 +693,10 @@ for x in .credentials.json projects history.jsonl plugins file-history jobs daem
   data/segnalazioni data/setup-fatto data/aggiornamenti.json session-env/telemetria.json \
   session-env/segnala.json session-env/novita-viste; do
   [ -e "$B/$x" ] &amp;&amp; [ ! -e "$HOME/.claude/$x" ] &amp;&amp; mkdir -p "$(dirname "$HOME/.claude/$x")" &amp;&amp; mv "$B/$x" "$HOME/.claude/$x"
-done</pre><button type="button" data-copia="cmd-scarica-esteso">Copia</button></div>
+done
+elif [ -d "$B" ]; then
+  rm -rf "$HOME/.claude" &amp;&amp; mv "$B" "$HOME/.claude" &amp;&amp; echo "Scaricamento non riuscito: ~/.claude è tornata com'era."
+fi</pre><button type="button" data-copia="cmd-scarica-esteso">Copia</button></div>
             </div>
           </details>
           <div class="esito">
