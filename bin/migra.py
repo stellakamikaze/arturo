@@ -119,7 +119,8 @@ def scrivi_json(f: Path, dati: dict) -> None:
 def corto(p: Path) -> str:
     testo = str(p)
     casa = str(Path.home())
-    return "~" + testo[len(casa):] if testo == casa or testo.startswith(casa + os.sep) else testo
+    # Con le barre dritte, come radici._corto: su Windows il comando stampato si lancia così com'è da Git Bash.
+    return "~" + testo[len(casa):].replace(os.sep, "/") if testo == casa or testo.startswith(casa + os.sep) else testo
 
 
 def esiste(p: Path) -> bool:
@@ -548,7 +549,9 @@ def togli_arturo(a: dict, cartella: Path) -> None:
     for rel in voci:
         togli(orsa / rel)
     # Ogni cartella sopra un file di Arturo, dalla più profonda: skills/arturo ha solo sottocartelle.
-    cartelle = sorted({str(antenato) for f in registro["albero"] for antenato in Path(f).parents if str(antenato) != "."},
+    # as_posix: su Windows str() dà le barre rovesciate, il conto di "/" valeva zero per tutte e l'ordine era a
+    # caso. Una cartella provata prima delle sue sottocartelle restava vuota in ~/.claude (#4873).
+    cartelle = sorted({antenato.as_posix() for f in registro["albero"] for antenato in Path(f).parents if str(antenato) != "."},
                       key=lambda c: -c.count("/"))
     for rel in cartelle:
         c = orsa / rel

@@ -337,7 +337,11 @@ def prova_unita(repo: Path, solo: str | None = None) -> list:
                     (plugin / "impostazioni").mkdir(parents=True)
                     (plugin / "impostazioni" / "arturo.json").write_text('{"cleanupPeriodDays": 90}', encoding="utf-8")
                     for parte in ("bin", "hooks"):
-                        os.symlink(repo / parte, plugin / parte)
+                        try:
+                            os.symlink(repo / parte, plugin / parte)
+                        except OSError:  # Windows senza il permesso dei link (WinError 1314): una copia vale uguale
+                            shutil.copytree(repo / parte, plugin / parte,
+                                            ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
                     unito = {"hooks": {"Stop": [{"hooks": [{"type": "command", "command": "bash ~/.claude/hooks/b.sh"}]}]}}
                     m.settings_nuovi = lambda *x: ({}, unito, [])
                     try:
@@ -624,10 +628,11 @@ def prova(repo: Path, solo: str | None = None) -> list:
         avviso = [sys.executable, b.orsa / "bin" / "migra.py", "avviso"]
         con_upstream = esegui(avviso, env=b.env).stdout
         git(b.orsa, "remote", "remove", "upstream")
-        (b.orsa / "session-env" / "migra-avviso.json").unlink()
+        # missing_ok: dove il passaggio non è provato l'avviso non parte e il segno del giorno non nasce.
+        (b.orsa / "session-env" / "migra-avviso.json").unlink(missing_ok=True)
         primo = esegui(avviso, env=b.env).stdout
         secondo = esegui(avviso, env=b.env).stdout
-        (b.orsa / "session-env" / "migra-avviso.json").unlink()
+        (b.orsa / "session-env" / "migra-avviso.json").unlink(missing_ok=True)
         fuori = esegui([sys.executable, repo / "bin" / "migra.py", "avviso"], env=b.env).stdout
         (b.orsa / "session-env" / "migra-avviso.json").unlink(missing_ok=True)
         # Su un sistema dove il passaggio non è provato (Windows, finding 99) niente avviso.
@@ -654,6 +659,8 @@ VELENI = [
     ("MG02", "bin/migra.py", '    if a["sessioni"]:\n', '    if False:\n'),
     ("MG03", "bin/migra.py", '    for rel in voci:\n        togli(orsa / rel)\n', '    for rel in []:\n        togli(orsa / rel)\n'),
     ("MG03", "bin/migra.py", "for antenato in Path(f).parents if", "for antenato in [Path(f).parent] if"),
+    ("MG03", "bin/migra.py", '{antenato.as_posix() for f in registro["albero"]', '{str(antenato) for f in registro["albero"]'),
+    ("MG03", "bin/migra.py", 'testo[len(casa):].replace(os.sep, "/") if testo == casa', 'testo[len(casa):] if testo == casa'),
     ("MG04", "bin/migra.py", '        copia_voce(dentro / ".git", orsa / ".git")\n', '        pass\n'),
     ("MG05", "bin/migra.py", "    if rc != 0:\n        raise Ferma(f\"il catalogo non indica",
      "    if rc not in (0, 3):\n        raise Ferma(f\"il catalogo non indica"),
@@ -686,6 +693,14 @@ VELENI = [
 def avvelena(repo: Path) -> int:
     esiti = []
     for caso, rel, giusto, rotto in VELENI:
+        if os.name == "nt" and caso == "MG08" and "SISTEMI_PROVATI" not in giusto:
+            # Su Windows l'avviso non parte e MG08 si ferma al controllo del sistema non provato: questi due
+            # veleni rompono la parte che lì non gira.
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from salti_windows import dichiara  # noqa: PLC0415
+            dichiara(f"veleno MG08 ({rel})", "l'avviso dell'avvio su Windows è spento, il veleno non ha cosa rompere")
+            esiti.append(caso)
+            continue
         with tempfile.TemporaryDirectory() as tmp:
             copia = Path(tmp) / "repo"
             shutil.copytree(repo, copia, ignore=shutil.ignore_patterns(".git", "__pycache__", "node_modules", "tests"))
