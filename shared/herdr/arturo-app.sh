@@ -9,8 +9,8 @@
 # Herdr la aggiorna da sé come aggiorna Herdr.app: sostituisce il pacchetto intero, quindi dopo un
 # aggiornamento Arturo.app si chiama di nuovo Herdr (provato l'8/11/2026 con la 0.1.13 portata alla
 # 0.1.14 dal server vero). Il LaunchAgent guarda i due Info.plist e rilancia questo script, che parte
-# dalla copia più nuova delle due. Il prezzo: macOS lega i permessi (microfono, automazione) alla firma,
-# e una firma locale cambia a ogni aggiornamento, quindi li richiede.
+# dalla copia più nuova delle due. macOS lega i permessi (Documenti, microfono, automazione) alla firma:
+# con la firma ad hoc l'identità cambia a ogni aggiornamento e li richiede, con quella locale qui sotto no.
 #
 # La firma: con l'identità "Arturo firma locale" nel portachiavi (la crea firma-locale.sh, #5012) Arturo.app
 # tiene la stessa identità da un aggiornamento all'altro e macOS ricorda i permessi; senza, firma ad hoc.
