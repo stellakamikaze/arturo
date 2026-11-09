@@ -38,7 +38,7 @@ HZ12 le azioni sui todo del pannello Da fare (azioni.js, con node): ogni gesto d
 HZ13 Arturo.app (arturo-app.sh, solo macOS, #5002): da un Herdr.app finto nasce Arturo.app col nome, l'id e
      l'icona di Arturo e la firma locale valida; il secondo giro non la tocca; dopo un aggiornamento che le
      ridà il nome di Herdr torna Arturo alla versione nuova; un Herdr.app più nuovo la rifà; il LaunchAgent
-     guarda i due Info.plist. L'installatore la chiama solo sul Mac e solo senza installer finto. Fuori da
+     guarda i due Info.plist e lancia la copia dello script fuori da Documenti (#5087). L'installatore la chiama solo sul Mac e solo senza installer finto. Fuori da
      macOS resta solo il controllo sull'installatore.
 HZ14 le note sulla finestra (⌘⇧N, nota.js con node): la nota porta testo, punto, misura della finestra e
      progetto; diventa una cosa da fare di Claude per oggi, con punto e cartella nelle note, sulla CLI vera
@@ -563,8 +563,9 @@ def hz13(repo: Path, casa: Path) -> str | None:
                            "CFBundleShortVersionString": versione}, f)
 
     herdr, arturo, agenti = casa / "Applications/Herdr.app", casa / "Applications/Arturo.app", casa / "agenti"
+    copia = casa / "Library/Application Support/Arturo/arturo-app"
     env = {**os.environ, "ARTURO_HERDR_APP": str(herdr), "ARTURO_APP": str(arturo), "ARTURO_APP_AGENTI": str(agenti),
-           "ARTURO_APP_NO_LAUNCHCTL": "1", "ARTURO_APP_FIRMA": "adhoc"}
+           "ARTURO_APP_COPIA": str(copia), "ARTURO_APP_NO_LAUNCHCTL": "1", "ARTURO_APP_FIRMA": "adhoc"}
 
     def giro(*arg):
         return subprocess.run(["sh", str(repo / "shared/volta-celeste/arturo-app.sh"), *arg], capture_output=True,
@@ -588,7 +589,15 @@ def hz13(repo: Path, casa: Path) -> str | None:
     if (m := arturo_ok("0.1.13")):
         return m
     with open(agenti / "org.stellakamikaze.arturo-app.plist", "rb") as f:
-        guarda = plistlib.load(f).get("WatchPaths", [])
+        agente = plistlib.load(f)
+    guarda = agente.get("WatchPaths", [])
+    # launchd non legge Documenti: l'agente lancia la copia fuori dal repository, con l'icona accanto (#5087).
+    lancia = agente.get("ProgramArguments", [])
+    if lancia != ["/bin/sh", str(copia / "arturo-app.sh")]:
+        return f"il LaunchAgent non lancia la copia fuori dal repository: {lancia}"
+    if not (copia / "arturo-icona.svg").exists() \
+            or (copia / "arturo-app.sh").read_bytes() != (repo / "shared/volta-celeste/arturo-app.sh").read_bytes():
+        return "la copia per il LaunchAgent manca o non è uguale allo script del repository"
     if sorted(guarda) != sorted([str(herdr / "Contents/Info.plist"), str(arturo / "Contents/Info.plist")]):
         return f"il LaunchAgent non guarda i due Info.plist: {guarda}"
     prima = (arturo / "Contents/Info.plist").stat().st_mtime_ns
@@ -964,6 +973,7 @@ VELENI = [
     ("HZ12", "shared/volta-celeste/mods/arturo/todo.js", "const g = inizia(item);", "const g = null;"),
     ("HZ14", "shared/volta-celeste/mods/arturo/nota.js", "if (!t) return null;", ""),
     ("HZ14", "shared/volta-celeste/mods/arturo/nota.js", '"--chi", "io"', '"--chi", "tu"'),
+    ("HZ13", "shared/volta-celeste/arturo-app.sh", 'python3 - "$plist" "$copia/arturo-app.sh"', 'python3 - "$plist" "$qui/arturo-app.sh"'),
     ("HZ13", "shared/volta-celeste/arturo-app.sh", '-c "Set :CFBundleIdentifier $ID"', '-c "Set :CFBundleIdentifier dev.herdr.app"'),
     ("HZ13", "shared/volta-celeste/arturo-app.sh", 'if [ -d "$arturo" ] && { [ ! -d "$herdr" ] || ! piu_nuova "$v_herdr" "$v_arturo"; }; then base=$arturo; fi', ":"),
     ("HZ06", "shared/volta-celeste/installa-herdr.sh", '[ "$firma" = assente ]', '[ "$firma" = mai ]'),

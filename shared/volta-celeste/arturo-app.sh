@@ -16,8 +16,13 @@
 # tiene la stessa identità da un aggiornamento all'altro e macOS ricorda i permessi; senza, firma ad hoc.
 #   arturo-app.sh --firma    rifirma Arturo.app anche se è già a posto (dopo firma-locale.sh)
 #
+# Il LaunchAgent lancia una copia di questo script e dell'icona fuori da Documenti: launchd non ha il
+# permesso su Documenti, e /bin/sh sul file del repository esce "Operation not permitted" (9/11/2026, #5087).
+# Ogni --agente rinnova la copia, quindi resta allineata al repository.
+#
 # Variabili per i banchi: ARTURO_HERDR_APP (Herdr.app), ARTURO_APP (Arturo.app), ARTURO_APP_AGENTI
-# (cartella dei LaunchAgent), ARTURO_APP_NO_LAUNCHCTL=1, ARTURO_APP_FIRMA=adhoc (niente portachiavi).
+# (cartella dei LaunchAgent), ARTURO_APP_COPIA (cartella della copia per il LaunchAgent),
+# ARTURO_APP_NO_LAUNCHCTL=1, ARTURO_APP_FIRMA=adhoc (niente portachiavi).
 set -eu
 
 qui=$(cd "$(dirname "$0")" && pwd)
@@ -111,8 +116,12 @@ riallinea() {
 agente() {
   cartella=${ARTURO_APP_AGENTI:-$HOME/Library/LaunchAgents}
   plist="$cartella/$ID-app.plist"
-  mkdir -p "$cartella"
-  python3 - "$plist" "$qui/arturo-app.sh" "$herdr" "$arturo" <<'PY'
+  copia=${ARTURO_APP_COPIA:-$HOME/Library/Application Support/Arturo/arturo-app}
+  mkdir -p "$cartella" "$copia"
+  cp "$qui/arturo-app.sh" "$copia/arturo-app.sh.nuovo"
+  cp "$qui/arturo-icona.svg" "$copia/arturo-icona.svg"
+  mv "$copia/arturo-app.sh.nuovo" "$copia/arturo-app.sh"
+  python3 - "$plist" "$copia/arturo-app.sh" "$herdr" "$arturo" <<'PY'
 import plistlib, sys
 plist, script, herdr, arturo = sys.argv[1:]
 dati = {
