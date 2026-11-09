@@ -108,5 +108,12 @@ export function clic(s) {
   return { azione: "porta" };
 }
 
-// La chiave che riconosce una sessione già agganciata in una scheda: l'id corto nell'argv.
-export const agganciata = (argv, s) => Array.isArray(argv) && argv.includes("attach") && argv.includes(s.id);
+// La chiave che riconosce una sessione già agganciata in una scheda: l'id corto nell'argv, come
+// parola a sé oppure dentro un comando di shell: "sh -c 'while :; do ssh … claude attach <id>; …'"
+// delle schede aperte da altre strade, "pwsh -Command & '…claude.exe' 'attach' '<id>'" su Windows.
+// Senza, il clic apre un secondo aggancio della stessa sessione e le due schede si contendono la
+// larghezza del terminale.
+const dentro = (a, id) => typeof a === "string" &&
+  new RegExp(`\\battach['"]?\\s+['"]?${id.replace(/[^\w-]/g, "")}\\b`).test(a);
+export const agganciata = (argv, s) => Array.isArray(argv) && !!s?.id &&
+  ((argv.includes("attach") && argv.includes(s.id)) || argv.some((a) => dentro(a, s.id)));

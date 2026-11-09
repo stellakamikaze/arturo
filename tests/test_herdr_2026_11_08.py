@@ -56,7 +56,8 @@ HZ17 Volta Celeste, i gruppi (sessioni.js con node, #5068): per macchina nell'or
      errore > lavora > ferma; i nomi automatici ("claudecode-ca") lasciano il posto alla risposta.
 HZ18 Volta Celeste, il clic (sessioni.js con node): una sessione in background si aggancia con l'argv
      del file (locale o ssh), un'interattiva ferma passa da porta-volta, una al lavoro, che aspetta o di
-     una macchina giù no, col motivo; la scheda già aperta si riconosce anche dall'argv avvolto da zsh.
+     una macchina giù no, col motivo; la scheda già aperta si riconosce anche dall'argv avvolto da zsh
+     da un ciclo ssh dentro sh -c e da pwsh -Command su Windows, senza prendere un id che ne contiene un altro.
 HZ19 Volta Celeste nella barra: barra.js monta volta.js e accetta il comando volta-<id>, volta.js
      lancia teletrasporto.py volta --scrivi e porta-volta, e senza teletrasporto.py non mostra niente.
 HZ20 Volta Celeste su Windows (9/11/2026): volta.js lancia teletrasporto.py col Python di arturo.json
@@ -767,7 +768,10 @@ console.log(JSON.stringify({
     v.clic({ ...s("a3"), stato: "lavora" }).azione, v.clic({ ...s("a1"), vecchia: true }).azione, v.clic({ ...s("a1"), attach: null }).azione,
   ],
   aggancio: [v.agganciata(["/bin/zsh", "-lic", "x", "/bin/zsh", "ssh", "-t", "amaltea", ".local/bin/claude", "attach", "b1"], s("b1")),
-             v.agganciata(["claude", "attach", "zz"], s("b1")), v.agganciata(undefined, s("b1"))],
+             v.agganciata(["claude", "attach", "zz"], s("b1")), v.agganciata(undefined, s("b1")),
+             v.agganciata(["/bin/zsh", "-lic", "x", "/bin/zsh", "sh", "-c", "while :; do ssh -t amaltea .local/bin/claude attach b1; [ $? -eq 255 ] || break; done"], s("b1")),
+             v.agganciata(["sh", "-c", "ssh amaltea claude attach b10"], s("b1")), v.agganciata(["sh", "-c", "echo b1"], s("b1")),
+             v.agganciata(["pwsh.exe", "-NoExit", "-Command", "& 'C:\\\\Windows\\\\System32\\\\OpenSSH\\\\ssh.exe' '-t' 'amaltea' '.local/bin/claude' 'attach' 'b1'"], s("b1"))],
 }));
 """
 
@@ -818,7 +822,7 @@ def hz18(repo: Path, casa: Path) -> str | None:
         "clic": [{"azione": "aggancia", "argv": ["claude", "attach", "a1"]},
                  {"azione": "aggancia", "argv": ["ssh", "-t", "amaltea", ".local/bin/claude", "attach", "b1"]},
                  {"azione": "porta"}, "no", "no", "no", "no"],
-        "aggancio": [True, False, False],
+        "aggancio": [True, False, False, True, False, False, True],
     }
     for k, v in atteso.items():
         if avuto.get(k) != v:
@@ -988,6 +992,9 @@ VELENI = [
     ("HZ17", "shared/volta-celeste/mods/arturo/sessioni.js", '(a.chiave === "") - (b.chiave === "") || ', ""),
     ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", 'if (s.stato === "lavora") return { azione', "if (false) return { azione"),
     ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", "if (s.vecchia) return { azione", "if (false) return { azione"),
+    ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", "|| argv.some((a) => dentro(a, s.id)))", ")"),
+    ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", '${id.replace(/[^\\w-]/g, "")}\\\\b`', '${id.replace(/[^\\w-]/g, "")}`'),
+    ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", "\\\\battach['\"]?\\\\s+['\"]?", "\\\\battach\\\\s+"),
     ("HZ19", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c.startsWith("volta-")) this.volta.premiId(c.slice(6), cx);', ""),
     ("HZ19", "shared/volta-celeste/mods/arturo/volta.js", "if (!this.script) return null;", ""),
     ("HZ20", "shared/volta-celeste/mods/arturo/volta.js", 'exec(this.py, [this.script, "volta"', 'exec("python3", [this.script, "volta"'),
