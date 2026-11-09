@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ19: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ21: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/herdr/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -59,6 +59,10 @@ HZ18 Volta Celeste, il clic (sessioni.js con node): una sessione in background s
      una macchina giù no, col motivo; la scheda già aperta si riconosce anche dall'argv avvolto da zsh.
 HZ19 Volta Celeste nella barra: barra.js monta volta.js e accetta il comando volta-<id>, volta.js
      lancia teletrasporto.py volta --scrivi e porta-volta, e senza teletrasporto.py non mostra niente.
+HZ20 Volta Celeste su Windows (9/11/2026): volta.js lancia teletrasporto.py col Python di arturo.json
+     (quello che installa-herdr.sh ha trovato), mai con un Python scritto a mano.
+HZ21 installa-herdr.sh su Windows scrive layout, mod e arturo.json in ~/.config/herdr-app e la shell
+     di herdr-core in ~/.config/herdr-core/config.toml, dove Herdr 0.1.14 li legge; niente in %APPDATA%.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -74,7 +78,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21")
 INSTALLA = Path("shared/herdr/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -127,7 +131,8 @@ def hz01(repo: Path, casa: Path) -> str | None:
     conf = leggi(app / "arturo.json")
     if not conf["arturo"][-1].endswith("bin/arturo") or Path(conf["arturo"][-1]).resolve() != (repo / "bin/arturo").resolve():
         return f"arturo.json non punta al bin di Arturo: {conf['arturo']}"
-    if conf["base"] != str(casa / "progetti"):
+    # su Windows installa-herdr.sh scrive C:/... con le barre dritte (cygpath -m): si confrontano i percorsi
+    if Path(conf["base"]).resolve() != (casa / "progetti").resolve():
         return f"arturo.json ignora PROJECTS_BASE: {conf['base']}"
     sh = leggi(app / "shared.json")
     if sh.get("layout") != "arturo" or sh.get("frame.welcomed") != "skipped":
@@ -817,7 +822,35 @@ def hz19(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19}
+def hz20(repo: Path, casa: Path) -> str | None:
+    volta = (repo / "shared/herdr/mods/arturo/volta.js").read_text(encoding="utf-8")
+    if "this.py = (await config()).arturo[0];" not in volta:
+        return "volta.js non prende Python da arturo.json"
+    for pezzo in ('exec(this.py, [this.script, "volta"', 'exec(this.py, [this.script, "porta-volta"'):
+        if pezzo not in volta:
+            return f"volta.js senza {pezzo}"
+    if 'exec("python' in volta:
+        return "volta.js lancia ancora un Python scritto a mano"
+    return None
+
+
+def hz21(repo: Path, casa: Path) -> str | None:
+    # APPDATA finto: il veleno (la cartella di prima) non deve scrivere nella cartella vera
+    r = installa(repo, casa, "windows", {"HERDR_APP_HOME": "", "APPDATA": str(casa / "appdata")})
+    if r.returncode != 0 or "HERDR OK" not in r.stdout:
+        return f"installazione Windows fallita rc={r.returncode}: {(r.stdout + r.stderr)[-200:]}"
+    app = casa / "home" / ".config" / "herdr-app"
+    if not (app / "layouts" / "arturo.json").is_file() or not (app / "arturo.json").is_file():
+        return f"layout e arturo.json non sono in ~/.config/herdr-app, dove Herdr li legge su Windows"
+    core = casa / "home" / ".config" / "herdr-core" / "config.toml"
+    if not core.is_file() or "shell = [" not in core.read_text(encoding="utf-8"):
+        return "la shell di herdr-core non è in ~/.config/herdr-core/config.toml"
+    if (casa / "appdata").exists():
+        return "l'installatore ha scritto in %APPDATA%, che Herdr su Windows non legge"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21}
 
 
 def prova(repo: Path) -> list[str]:
@@ -860,6 +893,10 @@ VELENI = [
     ("HZ18", "shared/herdr/mods/arturo/sessioni.js", "if (s.vecchia) return { azione", "if (false) return { azione"),
     ("HZ19", "shared/herdr/mods/arturo/barra.js", 'else if (c.startsWith("volta-")) this.volta.premiId(c.slice(6), cx);', ""),
     ("HZ19", "shared/herdr/mods/arturo/volta.js", "if (!this.script) return null;", ""),
+    ("HZ20", "shared/herdr/mods/arturo/volta.js", 'exec(this.py, [this.script, "volta"', 'exec("python3", [this.script, "volta"'),
+    ("HZ21", "shared/herdr/installa-herdr.sh", "app_home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}",
+     'if [ "$sistema" = windows ]; then app_home=${HERDR_APP_HOME:-${APPDATA:-$HOME/AppData/Roaming}/herdr-app}; '
+     "else app_home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}; fi"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 

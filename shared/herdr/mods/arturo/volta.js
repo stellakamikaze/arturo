@@ -9,7 +9,7 @@ import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, appHome, home, run, spaces, terminals, panes, shared, setShared, watchFolder } from "herdr";
 import { gruppi, titolo, dettaglio, clic, agganciata, MODI } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
-import { slug } from "./dati.js";
+import { slug, config } from "./dati.js";
 
 const OGNI = 30000;
 
@@ -30,7 +30,10 @@ export class Volta {
     this.sposto = {};
     this.aperti = {};
     this.script = undefined;
+    this.py = "python3";
     cx.spawn(async (cx) => {
+      // Il Python che installa-herdr.sh ha trovato e scritto in arturo.json: su Windows può essere "python".
+      this.py = (await config()).arturo[0];
       this.script = await teletrasporto();
       if (!this.script) return cx.notify();
       await this.leggi();
@@ -57,7 +60,7 @@ export class Volta {
     this.inCorso = true;
     cx.spawn(async (cx) => {
       try {
-        const r = await exec("python3", [this.script, "volta", "--scrivi", this.file], { timeout: 60000 });
+        const r = await exec(this.py, [this.script, "volta", "--scrivi", this.file], { timeout: 60000 });
         this.errore = r.code === 0 ? null : (r.stderr || r.stdout || "").trim().split("\n").pop();
       } catch (e) {
         this.errore = String(e?.message ?? e);
@@ -91,7 +94,7 @@ export class Volta {
     cx.spawn(async (cx) => {
       let esito = null;
       try {
-        const r = await exec("python3", [this.script, "porta-volta", s.host, s.sessionId], { timeout: 60000 });
+        const r = await exec(this.py, [this.script, "porta-volta", s.host, s.sessionId], { timeout: 60000 });
         esito = JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
       } catch (e) {
         esito = { errore: `${s.macchina} non risponde.` };

@@ -30,11 +30,8 @@ esac
 # Percorsi in forma Windows quando servono (C:/Users/...), uguali altrove.
 percorso() { if command -v cygpath >/dev/null 2>&1; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
 
-if [ "$sistema" = windows ]; then
-  app_home=${HERDR_APP_HOME:-${APPDATA:-$HOME/AppData/Roaming}/herdr-app}
-else
-  app_home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}
-fi
+# Anche su Windows Herdr legge ~/.config/herdr-app, non %APPDATA% (Herdr 0.1.14, provato il 9/11/2026).
+app_home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}
 
 # 1. Herdr, dall'installer ufficiale (verifica sha256 e firma), solo se manca.
 ha_herdr() {
@@ -126,7 +123,8 @@ PY
 
 # 4. Su Windows i terminali di Herdr partono in Git Bash, come vuole Arturo.
 if [ "$sistema" = windows ]; then
-  core_conf="${APPDATA:-$HOME/AppData/Roaming}/herdr-core/config.toml"
+  # come per l'app: herdr-core legge ~/.config/herdr-core/config.toml anche su Windows (hc --help)
+  core_conf="$HOME/.config/herdr-core/config.toml"
   mkdir -p "$(dirname "$core_conf")"
   if ! grep -q '^shell' "$core_conf" 2>/dev/null; then
     printf 'shell = ["%s", "-l"]\n' "$(percorso "$(command -v bash)")" >> "$core_conf"
