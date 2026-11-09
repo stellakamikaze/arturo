@@ -12,14 +12,19 @@
 # dalla copia più nuova delle due. Il prezzo: macOS lega i permessi (microfono, automazione) alla firma,
 # e una firma locale cambia a ogni aggiornamento, quindi li richiede.
 #
+# La firma: con l'identità "Arturo firma locale" nel portachiavi (la crea firma-locale.sh, #5012) Arturo.app
+# tiene la stessa identità da un aggiornamento all'altro e macOS ricorda i permessi; senza, firma ad hoc.
+#   arturo-app.sh --firma    rifirma Arturo.app anche se è già a posto (dopo firma-locale.sh)
+#
 # Variabili per i banchi: ARTURO_HERDR_APP (Herdr.app), ARTURO_APP (Arturo.app), ARTURO_APP_AGENTI
-# (cartella dei LaunchAgent), ARTURO_APP_NO_LAUNCHCTL=1.
+# (cartella dei LaunchAgent), ARTURO_APP_NO_LAUNCHCTL=1, ARTURO_APP_FIRMA=adhoc (niente portachiavi).
 set -eu
 
 qui=$(cd "$(dirname "$0")" && pwd)
 herdr=${ARTURO_HERDR_APP:-$HOME/Applications/Herdr.app}
 arturo=${ARTURO_APP:-$HOME/Applications/Arturo.app}
 ID=org.stellakamikaze.arturo
+IDENTITA="Arturo firma locale"
 say() { printf '%s\n' "$*"; }
 
 [ "$(uname -s)" = Darwin ] || { say "ARTURO APP NO: serve solo su macOS."; exit 0; }
@@ -51,6 +56,20 @@ icona() {
   return $r
 }
 
+# L'identità con cui firmare: quella locale se è valida nel portachiavi, altrimenti ad hoc ("-").
+identita() {
+  if [ "${ARTURO_APP_FIRMA:-}" != adhoc ] && security find-identity -v -p codesigning 2>/dev/null | grep -q "\"$IDENTITA\""; then
+    printf '%s' "$IDENTITA"
+  else
+    printf '%s' -
+  fi
+}
+# 0 se Arturo.app è firmata come vuole identita(): ad hoc, o con l'identità locale.
+firmata_bene() {
+  autorita=$(codesign -dv --verbose=2 "$arturo" 2>&1 | sed -n 's/^Authority=//p' | head -1)
+  if [ "$(identita)" = - ]; then [ -z "$autorita" ]; else [ "$autorita" = "$IDENTITA" ]; fi
+}
+
 riallinea() {
   if [ ! -d "$herdr" ] && [ ! -d "$arturo" ]; then
     say "ARTURO APP NO: non trovo Herdr.app ($herdr)."
@@ -61,7 +80,7 @@ riallinea() {
   # Si parte dalla copia più nuova: Herdr.app aggiornato dall'installer, o Arturo.app aggiornata da sé.
   base=$herdr
   if [ -d "$arturo" ] && { [ ! -d "$herdr" ] || ! piu_nuova "$v_herdr" "$v_arturo"; }; then base=$arturo; fi
-  if [ "$base" = "$arturo" ] && [ "$(campo "$arturo" CFBundleIdentifier)" = "$ID" ]; then
+  if [ "$base" = "$arturo" ] && [ "$(campo "$arturo" CFBundleIdentifier)" = "$ID" ] && [ "${FIRMA:-0}" != 1 ] && firmata_bene; then
     say "ARTURO APP OK: Arturo.app $v_arturo è già a posto."
     return 0
   fi
@@ -75,7 +94,10 @@ riallinea() {
     -c "Set :CFBundleIconFile Arturo" \
     "$nuova/Contents/Info.plist"
   icona "$nuova/Contents/Resources/Arturo.icns" || say "Arturo.app resta con l'icona di Herdr: non sono riuscito a disegnare la sua."
-  codesign --force --deep --sign - "$nuova" >/dev/null 2>&1 || { rm -rf "$nuova"; say "ARTURO APP ERRORE: firma locale non riuscita."; exit 1; }
+  chi=$(identita)
+  codesign --force --deep --sign "$chi" "$nuova" >/dev/null 2>&1 \
+    || { [ "$chi" != - ] && say "Firma con \"$IDENTITA\" non riuscita: firmo ad hoc." && codesign --force --deep --sign - "$nuova" >/dev/null 2>&1; } \
+    || { rm -rf "$nuova"; say "ARTURO APP ERRORE: firma locale non riuscita."; exit 1; }
   # Lo scambio: la copia vecchia esce solo quando la nuova è pronta.
   if [ -d "$arturo" ]; then mv "$arturo" "$arturo.arturo-prima"; fi
   mv "$nuova" "$arturo"
@@ -113,6 +135,8 @@ PY
   say "ARTURO APP OK: il LaunchAgent rimette il nome dopo ogni aggiornamento ($plist)."
 }
 
+FIRMA=0
+[ "${1:-}" = --firma ] && FIRMA=1
 riallinea
 [ "${1:-}" = --agente ] && agente
 exit 0

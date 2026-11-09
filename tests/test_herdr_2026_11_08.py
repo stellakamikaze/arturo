@@ -512,7 +512,7 @@ def hz13(repo: Path, casa: Path) -> str | None:
 
     herdr, arturo, agenti = casa / "Applications/Herdr.app", casa / "Applications/Arturo.app", casa / "agenti"
     env = {**os.environ, "ARTURO_HERDR_APP": str(herdr), "ARTURO_APP": str(arturo), "ARTURO_APP_AGENTI": str(agenti),
-           "ARTURO_APP_NO_LAUNCHCTL": "1"}
+           "ARTURO_APP_NO_LAUNCHCTL": "1", "ARTURO_APP_FIRMA": "adhoc"}
 
     def giro(*arg):
         return subprocess.run(["sh", str(repo / "shared/herdr/arturo-app.sh"), *arg], capture_output=True,
