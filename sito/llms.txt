@@ -109,7 +109,7 @@ Poi apri un terminale nuovo, scrivi `claude` e poi `/setup`. La guida sul sito h
 - [La guida](https://arturo.stellakamikaze.org/installa/): l'installazione in cinque passi, per Mac e Windows, con la strada a mano
 - [Novità di Arturo](https://arturo.stellakamikaze.org/novita/): cosa cambia a ogni aggiornamento, la voce più recente in cima
 - [La strada di Arturo](https://arturo.stellakamikaze.org/roadmap/): la roadmap, su cosa si lavora adesso e dopo, con i commenti di chi lo usa
-- [La finestra di Arturo](https://arturo.stellakamikaze.org/finestra/): Arturo dentro Herdr, in prova, con i progetti, la conversazione con Claude e le cose da fare in una finestra sola
+- [Volta Celeste, la finestra di Arturo](https://arturo.stellakamikaze.org/finestra/): la finestra di Arturo nata da Herdr, in prova, con i progetti, la conversazione con Claude e le cose da fare in una finestra sola
 - [Arturo per organizzazioni](https://arturo.stellakamikaze.org/organizzazioni/): cosa vale oggi per uno studio, una redazione o un'associazione
 - [Dimmi com'è andata](https://arturo.stellakamikaze.org/feedback/): il modulo per scrivere un problema o un'idea a chi mantiene Arturo
 - [Privacy](https://arturo.stellakamikaze.org/privacy/): cosa raccolgono il sito, il modulo di feedback e la telemetria di Arturo

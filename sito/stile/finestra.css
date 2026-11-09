@@ -1,5 +1,5 @@
-/* La pagina /finestra/: Arturo dentro Herdr, a schede da sfogliare (9/11/2026, #5003).
-   Ogni scheda è una lastra con una finestra di Herdr ricostruita in HTML. Lo script sta in js/finestra.js:
+/* La pagina /finestra/: Volta Celeste, la finestra di Arturo nata da Herdr, a schede da sfogliare (9/11/2026, #5003; nome nuovo #5069).
+   Ogni scheda è una lastra con una finestra di Volta Celeste ricostruita in HTML. Lo script sta in js/finestra.js:
    senza script le schede scorrono lo stesso col dito o col trackpad, e ogni scena mostra il suo stato finito. */
 
 /* ---------- la pagina ---------- */
@@ -41,14 +41,15 @@
 .azione[disabled]{opacity:.4;cursor:default;pointer-events:none}
 @media (max-width:760px){.passi-schede{display:none}.frecce{margin-left:0;width:100%}.frecce .azione{flex:1}}
 
-/* ---------- la finestra di Herdr, ricostruita ---------- */
+/* ---------- la finestra di Volta Celeste, ricostruita ---------- */
 .hw{--hw-fondo:var(--term);--hw-lato:#0e1217;--hw-pannello:var(--term-sopra);--hw-filetto:var(--term-filetto);--hw-testo:var(--term-testo);--hw-quieto:var(--term-cenere);--hw-su:var(--term-sopra-2);
   position:relative;display:grid;grid-template-columns:minmax(0,23fr) minmax(0,44fr) minmax(0,33fr);min-height:440px;border-radius:4px;overflow:hidden;background:var(--hw-fondo);color:var(--hw-testo);box-shadow:var(--ombra-finestra);font:400 .86rem/1.45 var(--testo)}
 .hw--due{grid-template-columns:minmax(0,30fr) minmax(0,70fr)}
 .hw button{font:inherit;color:inherit}
 .hw :focus-visible{outline:2px solid var(--term-tu);outline-offset:2px}
 .hw__lato{display:flex;flex-direction:column;gap:6px;padding:14px 10px;background:var(--hw-lato);border-right:1px solid var(--hw-filetto);min-width:0}
-.hw__marchio{display:flex;align-items:center;gap:8px;padding:2px 6px 8px;font:500 .98rem/1 var(--titolo);font-stretch:108%}
+/* "Volta Celeste" sta su una riga nella colonna stretta: Archivo più stretto */
+.hw__marchio{display:flex;align-items:center;gap:8px;padding:2px 6px 8px;font:500 .98rem/1 var(--titolo);font-stretch:86%;white-space:nowrap}
 .hw__stella{width:16px;height:16px;flex:none}
 /* il colore passa per ereditarietà dentro <use>: il selettore path non ci arriva */
 .hw__stella{fill:var(--stella)}
@@ -200,7 +201,7 @@
 .dopo :focus-visible{outline-color:var(--term-tu)}
 @media (max-width:1020px){.dopo .dentro{grid-template-columns:minmax(0,1fr)}}
 
-/* le risposte dentro una finestra di Herdr, e le parti nascoste dallo script */
+/* le risposte dentro una finestra di Volta Celeste, e le parti nascoste dallo script */
 .hw[hidden]{display:none}
 .hw .risposte{padding:0 14px 12px}
 .hw .risposte button{color:var(--term-tu)}
