@@ -41,9 +41,20 @@ Funziona sui Mac con processore Apple e su Windows. Sui Mac Intel e su Linux `/s
 
 ## Un altro Mac come macchina di Herdr
 
-Herdr apre terminali anche su un altro computer, aggiunto con `hc machine add` via ssh. Su un Mac, l'`herdr-core` partito da ssh non ha il permesso di macOS per Documenti e Scrivania: un terminale che parte da lì resta vuoto, perché già `path_helper` della shell di login si ferma ad aprire la cartella (provato il 9/11/2026 sul Mac mini, #5013; da `/tmp` e dalla home passa). Per riattaccare una sessione (`claude attach`) fai partire il terminale dalla home: la sessione resta nella sua cartella. Per lavorare in Documenti da quel Mac, dai a `herdr-core` l'accesso in Impostazioni di Sistema → Privacy e sicurezza → File e cartelle, su quel Mac.
+Herdr apre terminali anche su un altro computer, aggiunto con `hc machine add` via ssh. Su un Mac, l'`herdr-core` partito da ssh non ha il permesso di macOS per Documenti e Scrivania: un terminale che parte da lì resta vuoto, perché già `path_helper` della shell di login si ferma ad aprire la cartella (provato il 9/11/2026 su un secondo Mac, #5013; da `/tmp` e dalla home passa). Per riattaccare una sessione (`claude attach`) fai partire il terminale dalla home: la sessione resta nella sua cartella. Per lavorare in Documenti da quel Mac, dai a `herdr-core` l'accesso in Impostazioni di Sistema → Privacy e sicurezza → File e cartelle, su quel Mac.
 
-Il login. Su quel Mac il gestore delle sessioni in background (`claude daemon`) e `herdr-core` partono su richiesta, dal primo programma che li cerca. Se il primo arriva da ssh, partono senza il portachiavi, e ogni sessione risponde "Not logged in", anche agganciata da qui. Il rimedio è `sh ~/.claude/shared/herdr/servizi-gui.sh`, lanciato su quel Mac dopo aver fermato i due servizi: `herdr-core` riparte dalla sessione grafica, e il gestore riparte in una finestra del Terminale, che gli passa anche l'accesso a Documenti. Dopo aver dato a `claude` l'accesso a Documenti, `servizi-gui.sh --launchd` fa partire anche il gestore da solo, senza la finestra (provato il 9/11/2026 sul Mac mini).
+Il login. Su quel Mac il gestore delle sessioni in background (`claude daemon`) e `herdr-core` partono su richiesta, dal primo programma che li cerca. Se il primo arriva da ssh, partono senza il portachiavi, e ogni sessione risponde "Not logged in", anche agganciata da qui. Il rimedio è `sh ~/.claude/shared/herdr/servizi-gui.sh`, lanciato su quel Mac dopo aver fermato i due servizi: `herdr-core` riparte dalla sessione grafica, e il gestore riparte in una finestra del Terminale, che gli passa anche l'accesso a Documenti. Dopo aver dato a `claude` l'accesso a Documenti, `servizi-gui.sh --launchd` fa partire anche il gestore da solo, senza la finestra (provato il 9/11/2026 su un secondo Mac).
+
+## Tutte le sessioni, di tutte le macchine (Volta Celeste)
+
+In cima alla barra di sinistra la sezione "Tutte le sessioni" elenca le sessioni di Claude Code aperte su ogni macchina, raggruppate per macchina o per progetto (l'interruttore sotto il titolo; la scelta resta). Compare solo se c'è `~/.claude/scripts/teletrasporto.py`, o il percorso scritto in `arturo.json` alla voce `volta`: chi usa Arturo su un solo computer non la vede. Ogni 30 secondi il mod lancia `teletrasporto.py volta --scrivi ~/.cache/volta/sessioni.json` e rilegge il file; una macchina che non risponde resta con le sue ultime sessioni note e la nota "Non risponde".
+
+In ogni gruppo stanno prima le sessioni che ti aspettano, poi quelle con un errore, poi quelle al lavoro; le ferme si aprono con "N ferme". Il clic:
+- su una sessione in background apre una scheda con `claude attach`, via `ssh -t` se è su un'altra macchina, nello spazio del suo progetto (o nello spazio "Volta" se non ne ha uno); se la scheda c'è già, la porta davanti;
+- su una sessione aperta in un Terminale e ferma lancia `teletrasporto.py porta-volta`, che scrive `/bg` nella sua casella vuota e restituisce il nuovo id, poi la aggancia;
+- su una sessione al lavoro, che aspetta una risposta nel suo Terminale o di una macchina giù, non fa niente e dice perché sotto la riga.
+
+Lo stesso clic arriva anche da `herdr-app do arturo.volta-<id>` (id corto di otto caratteri). Le parti: `sessioni.js` (gruppi, frasi e decisione del clic, senza Herdr, provato da HZ17-HZ18 con node) e `volta.js` (letture, aggancio, sezione).
 
 ## Nota del ramo di prova `herdr` (8/11/2026)
 

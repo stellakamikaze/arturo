@@ -1,0 +1,112 @@
+// Volta Celeste: le sessioni di Claude di tutte le macchine, come le legge teletrasporto.py volta.
+// Modulo puro, senza herdr: raggruppa, ordina, scrive le frasi e decide cosa fa un clic.
+// Lo prova il banco HZ17-HZ19 con node (tests/test_herdr_2026_11_08.py).
+//
+// Una riga del file (~/.cache/volta/sessioni.json, campo "sessioni"):
+// { macchina, host, questa, sessionId, id, nome, progetto, stato: aspetta|lavora|ferma|errore,
+//   tipo: background|interattiva, attach: argv | null, cartella, ultimo, risposta, vecchia? }
+
+export const MODI = { macchina: "Per macchina", progetto: "Per progetto" };
+export const SENZA = "Senza progetto";
+
+const RANGO = { aspetta: 0, errore: 1, lavora: 2, ferma: 3 };
+const rango = (s) => RANGO[s.stato] ?? 3;
+const tempo = (s) => Date.parse(s.ultimo || "") || 0;
+
+// Il nome di un progetto per le persone: "due-mondi" → "Due mondi", "uf" → "UF".
+export function nomeProgetto(p) {
+  const s = String(p ?? "").trim();
+  if (!s) return SENZA;
+  if (/[A-Z]/.test(s)) return s;
+  const t = s.split(/[-_\s]+/).filter(Boolean).map((w) => (w.length <= 2 ? w.toUpperCase() : w)).join(" ");
+  return t[0].toUpperCase() + t.slice(1);
+}
+
+// Il titolo di una sessione. I nomi automatici di Claude ("claudecode-ca": cartella più due
+// lettere) non dicono niente: al loro posto la prima riga dell'ultima risposta.
+export function titolo(s) {
+  const nome = String(s.nome ?? "").trim();
+  const automatico = !nome || nome === s.id || /^[\w.-]+-[0-9a-f]{2}$/.test(nome);
+  if (!automatico) return nome;
+  const riga = String(s.risposta ?? "").split("\n").map((r) => r.replace(/[*_`#>]/g, "").replace(/\s+/g, " ").trim()).find(Boolean);
+  if (riga) return riga.length > 70 ? riga.slice(0, 70).replace(/\s+\S*$/, "") + "…" : riga;
+  return `Sessione ${s.id}`;
+}
+
+// "da 4 min", "da 3 ore", "da 2 giorni"; vuoto senza data.
+export function daQuanto(iso, adesso = Date.now()) {
+  const t = Date.parse(iso || "");
+  if (!t) return "";
+  const min = Math.max(0, Math.round((adesso - t) / 60000));
+  if (min < 1) return "da poco";
+  if (min < 60) return `da ${min} min`;
+  const ore = Math.round(min / 60);
+  if (ore < 24) return `da ${ore} ${ore === 1 ? "ora" : "ore"}`;
+  const gg = Math.round(ore / 24);
+  return `da ${gg} ${gg === 1 ? "giorno" : "giorni"}`;
+}
+
+// La frase di stato e il colore del tema (blocked, working, done, idle, muted, dim).
+export function fraseStato(s, adesso = Date.now()) {
+  if (s.vecchia) return { testo: "Ultima lettura: la macchina non risponde", colore: "dim" };
+  if (s.stato === "aspetta") return { testo: "Ti aspetta", colore: "blocked" };
+  if (s.stato === "lavora") return { testo: "Sta lavorando", colore: "working" };
+  if (s.stato === "errore") return { testo: "Si è fermata con un errore", colore: "blocked" };
+  const q = daQuanto(s.ultimo, adesso);
+  return { testo: q ? `Ferma ${q}` : "Ferma", colore: "muted" };
+}
+
+// La seconda riga: ciò che il gruppo non dice già (il progetto per macchina, la macchina per progetto).
+export function dettaglio(s, modo, adesso = Date.now()) {
+  const dove = modo === "progetto" ? s.macchina : (s.progetto ? nomeProgetto(s.progetto) : "");
+  const f = fraseStato(s, adesso);
+  return { testo: dove ? `${dove} · ${f.testo}` : f.testo, colore: f.colore };
+}
+
+// I gruppi: [{ chiave, titolo, nota?, sessioni }]. Per macchina nell'ordine del file (questa per
+// prima), con una nota per la macchina che non risponde; per progetto prima chi ti aspetta,
+// "Senza progetto" in fondo. Dentro ogni gruppo: ti aspetta, errore, lavora, ferma; poi la più recente.
+export function gruppi(dati, modo = "macchina") {
+  const righe = [...(dati?.sessioni ?? [])].sort((a, b) => rango(a) - rango(b) || tempo(b) - tempo(a) || titolo(a).localeCompare(titolo(b)));
+  const per = new Map();
+  const metti = (chiave, tit, s) => {
+    if (!per.has(chiave)) per.set(chiave, { chiave, titolo: tit, sessioni: [] });
+    if (s) per.get(chiave).sessioni.push(s);
+  };
+  if (modo === "progetto") {
+    for (const s of righe) metti(s.progetto ? String(s.progetto) : "", nomeProgetto(s.progetto), s);
+    const out = [...per.values()];
+    const primo = (g) => Math.min(...g.sessioni.map(rango));
+    out.sort((a, b) => (a.chiave === "") - (b.chiave === "") || primo(a) - primo(b) || a.titolo.localeCompare(b.titolo));
+    const giu = (dati?.macchine ?? []).filter((m) => m.irraggiungibile).map((m) => m.macchina);
+    if (giu.length && out.length) out[out.length - 1].nota = `${giu.join(", ")} non ${giu.length > 1 ? "rispondono" : "risponde"}`;
+    return out;
+  }
+  for (const m of dati?.macchine ?? []) metti(m.host, m.macchina, null);
+  for (const s of righe) metti(s.host, s.macchina, s);
+  const out = [];
+  for (const m of dati?.macchine ?? []) {
+    const g = per.get(m.host);
+    if (m.irraggiungibile) g.nota = g.sessioni.length ? "Non risponde: mostro l'ultima lettura" : "Non risponde";
+    if (g.sessioni.length || g.nota) out.push(g);
+    per.delete(m.host);
+  }
+  return out.concat([...per.values()].filter((g) => g.sessioni.length));
+}
+
+// Cosa fa il clic: { azione: "aggancia", argv } per una sessione in background, { azione: "porta" }
+// per un'interattiva ferma (prima /bg con porta-volta), { azione: "no", motivo } altrimenti.
+export function clic(s) {
+  if (s.vecchia) return { azione: "no", motivo: `${s.macchina} non risponde: riprova quando torna.` };
+  if (s.tipo === "background") {
+    if (!Array.isArray(s.attach) || !s.attach.length) return { azione: "no", motivo: "Non so come agganciare questa sessione." };
+    return { azione: "aggancia", argv: s.attach };
+  }
+  if (s.stato === "lavora") return { azione: "no", motivo: "Sta lavorando nel suo Terminale: la sposto quando si ferma." };
+  if (s.stato === "aspetta") return { azione: "no", motivo: "Ti aspetta nel suo Terminale: rispondi lì, poi la sposto." };
+  if (s.stato === "errore") return { azione: "no", motivo: "Si è fermata con un errore: aprila dal suo Terminale." };
+  return { azione: "porta" };
+}
+
+// La chiave che riconosce una sessione già agganciata in una scheda: l'id corto nell'argv.
+export const agganciata = (argv, s) => Array.isArray(argv) && argv.includes("attach") && argv.includes(s.id);

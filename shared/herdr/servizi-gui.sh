@@ -11,7 +11,7 @@
 # dal primo programma che li cerca. Se il primo arriva da ssh (Herdr su un altro Mac, /teletrasporto,
 # `claude --bg` o `claude attach` da remoto) partono nella sessione di ssh, che non apre il portachiavi:
 # ogni sessione che ne nasce risponde "Not logged in" finché non vengono riavviati. Provato il 9/11/2026
-# sul Mac mini: gestore e herdr-core nati da ssh, Claude senza login sia in background sia da Herdr.
+# su un secondo Mac: gestore e herdr-core nati da ssh, Claude senza login sia in background sia da Herdr.
 #
 # Documenti. Nato da launchd il gestore ha il login, ma macOS non gli dà Documenti: una sessione con la
 # cartella in ~/Documents muore all'avvio ("exit 1 before init", EINTR sulla cartella). Il Terminale

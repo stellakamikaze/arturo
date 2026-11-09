@@ -10,6 +10,7 @@ import { apriSuggerimenti, esegui } from "./suggerimenti.js";
 import { apriRevisione } from "./revisione.js";
 import { revisione, settimanaDi } from "./settimana.js";
 import { cartellaNota } from "./nota.js";
+import { Volta } from "./volta.js";
 
 // ⌘⇧N: prima lo screenshot della finestra com'è, poi il velo per scegliere il punto (notaui.js).
 async function apriNota() {
@@ -37,6 +38,9 @@ export class Barra {
     this.vista = null;
     this.errore = null;
     this.firma = "";
+    // In cima alla barra: tutte le sessioni di tutte le macchine (Volta Celeste, volta.js).
+    this.volta = new Volta();
+    this.volta.init(cx);
     this.carica(cx);
     // La guida si apre da sola la prima volta, per chi arriva da /setup e per chi usa già Arturo.
     this.primoAvvio = !shared("arturo.guida");
@@ -57,6 +61,8 @@ export class Barra {
         else if (/^guida\d?$/.test(c)) apriGuida(Math.max(0, Number(c.slice(5) || 1) - 1));
         else if (c === "nuova") await nuova();
         else if (c === "nota") await apriNota();
+        // "arturo.volta-<id>": lo stesso clic di una sessione di Volta, da tastiera o da herdr-app do.
+        else if (c.startsWith("volta-")) this.volta.premiId(c.slice(6), cx);
         cx.notify();
       }
     });
@@ -114,7 +120,7 @@ export class Barra {
         .child(div().truncate().text_size(12.5).text_color(colore(t, f.colore)).child(f.testo)));
   }
 
-  render() {
+  render(cx) {
     const t = theme();
     const lista = progetti(this.vista, this.extra());
     const attivo = slug(spaces().find((s) => s.active)?.name);
@@ -133,6 +139,7 @@ export class Barra {
         .child(pulsante("nuova", "square-pen", "Nuova richiesta", () => nuova(), lista.length > 0 || Boolean(this.errore)))
         .child(pulsante("apri", "folder", "Apri un progetto", () => apriFinestra())))
       .when(Boolean(this.errore) && lista.length > 0, (el) => el.child(div().px(18).pb(6).text_size(12).text_color(t.blocked).child("Non riesco ad aggiornare i todo: mostro gli ultimi letti.")))
+      .when(Boolean(this.volta), (el) => { const v = this.volta.render(cx); return v ? el.child(v) : el; })
       .child(corpo.child(contenuto));
   }
 }

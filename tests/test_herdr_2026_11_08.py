@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ15: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ19: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/herdr/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -51,8 +51,16 @@ HZ15 ogni cartella o file che la parte Herdr scrive in ~/.claude/data/ (mod, hoo
 HZ16 servizi-gui.sh (9/11/2026): herdr-core da LaunchAgent senza KeepAlive (si passa da solo a
      launchd ed esce 0); il gestore delle sessioni non va in launchd senza --launchd (senza l'accesso
      a Documenti le sessioni morirebbero all'avvio), con --launchd sì e con KeepAlive; plist validi.
+HZ17 Volta Celeste, i gruppi (sessioni.js con node, #5068): per macchina nell'ordine del file con la nota
+     della macchina giù; per progetto con "Senza progetto" in fondo; dentro il gruppo ti aspetta >
+     errore > lavora > ferma; i nomi automatici ("claudecode-ca") lasciano il posto alla risposta.
+HZ18 Volta Celeste, il clic (sessioni.js con node): una sessione in background si aggancia con l'argv
+     del file (locale o ssh), un'interattiva ferma passa da porta-volta, una al lavoro, che aspetta o di
+     una macchina giù no, col motivo; la scheda già aperta si riconosce anche dall'argv avvolto da zsh.
+HZ19 Volta Celeste nella barra: barra.js monta volta.js e accetta il comando volta-<id>, volta.js
+     lancia teletrasporto.py volta --scrivi e porta-volta, e senza teletrasporto.py non mostra niente.
 
-Con --avvelena ventuno copie rotte del repository devono far rosso il caso che le sorveglia.
+Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
 
@@ -66,7 +74,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19")
 INSTALLA = Path("shared/herdr/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -707,7 +715,109 @@ def hz16(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16}
+PROVA_VOLTA = r"""
+import * as v from %s;
+const ADESSO = Date.parse("2026-11-09T18:00:00Z");
+const r = (o) => ({ macchina: "MacBook Air", host: "macbook", questa: true, tipo: "background", stato: "ferma", ultimo: "", risposta: "", progetto: null, attach: ["claude", "attach", o.id], ...o });
+const dati = {
+  macchine: [{ macchina: "MacBook Air", host: "macbook", questa: true }, { macchina: "Amaltea", host: "amaltea", questa: false },
+             { macchina: "Balthasar", host: "balthasar", questa: false, irraggiungibile: "timeout" }],
+  sessioni: [
+    r({ id: "a1", nome: "uno", stato: "ferma", ultimo: "2026-11-09T15:00:00Z", progetto: "arturo" }),
+    r({ id: "a2", nome: "due", stato: "lavora", progetto: "arturo" }),
+    r({ id: "a3", nome: "claudecode-ca", tipo: "interattiva", attach: null, risposta: "**Fatto:** il deck è pronto\nresto", stato: "aspetta" }),
+    r({ id: "b1", nome: "tre", host: "amaltea", macchina: "Amaltea", questa: false, stato: "errore", progetto: "due-mondi", attach: ["ssh", "-t", "amaltea", ".local/bin/claude", "attach", "b1"] }),
+    r({ id: "b2", nome: "quattro", host: "amaltea", macchina: "Amaltea", questa: false, stato: "ferma", progetto: "arturo" }),
+  ],
+};
+const forma = (gs) => gs.map((g) => [g.titolo, g.nota ?? "", g.sessioni.map((s) => s.id)]);
+const s = (id) => dati.sessioni.find((x) => x.id === id);
+console.log(JSON.stringify({
+  macchina: forma(v.gruppi(dati, "macchina")),
+  progetto: forma(v.gruppi(dati, "progetto")),
+  titoli: ["a1", "a3"].map((id) => v.titolo(s(id))),
+  quanto: [v.daQuanto("2026-11-09T17:56:00Z", ADESSO), v.daQuanto("2026-11-09T15:00:00Z", ADESSO), v.daQuanto("2026-11-07T18:00:00Z", ADESSO), v.daQuanto("", ADESSO)],
+  dettaglio: [v.dettaglio(s("a1"), "macchina", ADESSO).testo, v.dettaglio(s("b1"), "progetto", ADESSO).testo],
+  clic: [
+    v.clic(s("a1")), v.clic(s("b1")), v.clic({ ...s("a3"), stato: "ferma" }), v.clic(s("a3")).azione,
+    v.clic({ ...s("a3"), stato: "lavora" }).azione, v.clic({ ...s("a1"), vecchia: true }).azione, v.clic({ ...s("a1"), attach: null }).azione,
+  ],
+  aggancio: [v.agganciata(["/bin/zsh", "-lic", "x", "/bin/zsh", "ssh", "-t", "amaltea", ".local/bin/claude", "attach", "b1"], s("b1")),
+             v.agganciata(["claude", "attach", "zz"], s("b1")), v.agganciata(undefined, s("b1"))],
+}));
+"""
+
+
+def volta_node(repo: Path, casa: Path) -> dict | str | None:
+    node = shutil.which("node")
+    if not node:
+        return None
+    copia = casa / "sessioni.mjs"
+    shutil.copyfile(repo / "shared/herdr/mods/arturo/sessioni.js", copia)
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_VOLTA % json.dumps(copia.as_uri())],
+                       capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    return json.loads(r.stdout.strip().splitlines()[-1])
+
+
+def hz17(repo: Path, casa: Path) -> str | None:
+    avuto = volta_node(repo, casa)
+    if not isinstance(avuto, dict):
+        return avuto
+    atteso = {
+        "macchina": [["MacBook Air", "", ["a3", "a2", "a1"]], ["Amaltea", "", ["b1", "b2"]], ["Balthasar", "Non risponde", []]],
+        "progetto": [["Senza progetto", "Balthasar non risponde", ["a3"]]],
+        "titoli": ["uno", "Fatto: il deck è pronto"],
+        "quanto": ["da 4 min", "da 3 ore", "da 2 giorni", ""],
+        "dettaglio": ["Arturo · Ferma da 3 ore", "Amaltea · Si è fermata con un errore"],
+    }
+    gp = avuto.get("progetto", [])
+    if [g[0] for g in gp] != ["Due mondi", "Arturo", "Senza progetto"]:
+        return f"progetto: ordine dei gruppi {[g[0] for g in gp]}, atteso Due mondi, Arturo, Senza progetto"
+    if gp[1][2] != ["a2", "a1", "b2"]:
+        return f"progetto: dentro Arturo {gp[1][2]}, atteso lavora prima delle ferme"
+    for k, v in atteso.items():
+        a = avuto.get(k)
+        if k == "progetto":
+            a = a[-1:]
+        if a != v:
+            return f"{k}: atteso {v}, avuto {a}"
+    return None
+
+
+def hz18(repo: Path, casa: Path) -> str | None:
+    avuto = volta_node(repo, casa)
+    if not isinstance(avuto, dict):
+        return avuto
+    atteso = {
+        "clic": [{"azione": "aggancia", "argv": ["claude", "attach", "a1"]},
+                 {"azione": "aggancia", "argv": ["ssh", "-t", "amaltea", ".local/bin/claude", "attach", "b1"]},
+                 {"azione": "porta"}, "no", "no", "no", "no"],
+        "aggancio": [True, False, False],
+    }
+    for k, v in atteso.items():
+        if avuto.get(k) != v:
+            return f"{k}: atteso {v}, avuto {avuto.get(k)}"
+    return None
+
+
+def hz19(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/herdr/mods/arturo"
+    barra = (mod / "barra.js").read_text(encoding="utf-8")
+    volta = (mod / "volta.js").read_text(encoding="utf-8")
+    for pezzo, dove in (('import { Volta } from "./volta.js";', "barra.js"), ("this.volta.init(cx);", "barra.js"),
+                        ("this.volta.render(cx)", "barra.js"), ('c.startsWith("volta-")) this.volta.premiId(', "barra.js")):
+        if pezzo not in barra:
+            return f"{dove} senza {pezzo}"
+    for pezzo in ('"volta", "--scrivi"', '"porta-volta"', "if (!this.script) return null;", "if (!this.script || this.inCorso) return;",
+                  'from "./sessioni.js"', "agganciata(x.argv, s)"):
+        if pezzo not in volta:
+            return f"volta.js senza {pezzo}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19}
 
 
 def prova(repo: Path) -> list[str]:
@@ -744,6 +854,12 @@ VELENI = [
     ("HZ16", "shared/herdr/servizi-gui.sh", 'rm -f "$agenti/$PREFISSO.claude-daemon.plist"', 'plist claude-daemon true "$claude" daemon run'),
     ("HZ15", ".gitignore", "data/note-finestra/\n", ""),
     ("HZ15", ".gitignore", "data/herdr-invito\n", ""),
+    ("HZ17", "shared/herdr/mods/arturo/sessioni.js", "const RANGO = { aspetta: 0, errore: 1, lavora: 2, ferma: 3 };", "const RANGO = { aspetta: 3, errore: 1, lavora: 2, ferma: 0 };"),
+    ("HZ17", "shared/herdr/mods/arturo/sessioni.js", '(a.chiave === "") - (b.chiave === "") || ', ""),
+    ("HZ18", "shared/herdr/mods/arturo/sessioni.js", 'if (s.stato === "lavora") return { azione', "if (false) return { azione"),
+    ("HZ18", "shared/herdr/mods/arturo/sessioni.js", "if (s.vecchia) return { azione", "if (false) return { azione"),
+    ("HZ19", "shared/herdr/mods/arturo/barra.js", 'else if (c.startsWith("volta-")) this.volta.premiId(c.slice(6), cx);', ""),
+    ("HZ19", "shared/herdr/mods/arturo/volta.js", "if (!this.script) return null;", ""),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 
