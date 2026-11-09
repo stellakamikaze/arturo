@@ -12,7 +12,7 @@ G215 `git add X && git commit` nello stesso comando: il gate guarda anche quello
      Le forme del commit nel dispatcher (a capo, git -c, env, subshell, --no-pager, cartella in
      variabile) stanno in K01 di test_config_2026_10_15.py e qui non si ripetono.
 G216 un file Latin-1 in stage non fa chiedere "scansione fallita", e un segreto lì dentro si trova
-     ancora (#4047, Mac di Liliana).
+     ancora (#4047, sul Mac di una persona che usa Arturo).
 
 Sulla base 842b06f (prima del gate allineato alla config dell'autore) ogni controllo deve
 fallire con un AssertionError che comincia con il suo codice.
@@ -146,7 +146,7 @@ def test_g215(repo: Path) -> None:
 
 
 def test_g216(repo: Path) -> None:
-    """Un file non UTF-8 in stage (#4047, 29/10/2026): sul Mac di Liliana ogni commit chiedeva conferma per
+    """Un file non UTF-8 in stage (#4047, 29/10/2026): sul Mac di una persona che usa Arturo ogni commit chiedeva conferma per
     "scansione fallita", perché la decodifica del diff cadeva su un byte Latin-1."""
     with tempfile.TemporaryDirectory() as d:
         for nome, contenuto, atteso in (("latin1 pulito", b"Caff\xe8 1,50\n", "silent"),

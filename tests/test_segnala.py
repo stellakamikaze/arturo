@@ -4,10 +4,13 @@
 Ogni caso gira con una HOME finta e con comandi finti nel PATH (open, xdg-open, pbcopy, xclip,
 wl-copy, gh) che scrivono su file cosa hanno ricevuto. Niente parte davvero.
 Sulla base 75c8e23, prima di /segnala, ogni controllo deve fallire per conto suo.
-S10 (proposta n. 53 di Filippo, 4/11/2026): /segnala guarda le segnalazioni già partite prima
+S10 (proposta n. 53, 4/11/2026): /segnala guarda le segnalazioni già partite prima
 dell'anteprima, e `arturo segnala precedenti` le elenca col loro "In breve".
 S11 (review del 7/11/2026, finding 44): la pulizia toglie le cartelle personali anche con le barre doppie e con
 gli spazi nel nome.
+S12 (finding 98): invia manda solo il file di prepara, con l'impronta dell'anteprima e il testo già pulito.
+S13 (finding 28 e 103): la pulizia toglie Git Bash e WSL, indirizzi senza schema, ftp e ssh, immagini, audio e
+archivi, e i nomi di documenti con spazi; i file di Arturo e gli indirizzi pubblici restano.
 """
 from __future__ import annotations
 
@@ -104,10 +107,11 @@ def test_s02(repo: Path) -> None:
     assert r.returncode == 3, f"S02 un segreto nella bozza non ferma prepara: {r.returncode}"
     assert finto not in r.stdout + r.stderr, "S02 prepara stampa il segreto che ha trovato"
     assert not list(lab.dir.glob("*.pronta.json")), "S02 il file pronto esiste lo stesso"
-    # Il file pronto cambiato dopo prepara: invia ripete il controllo.
+    # Il file pronto cambiato dopo prepara, con l'impronta rifatta: invia ripete il controllo dei segreti.
     pronta = lab.pronta()
     dati = json.loads(read(pronta))
     dati["testo"] += f"\n{finto}"
+    dati["impronta"] = impronta(repo, dati)
     pronta.write_text(json.dumps(dati), encoding="utf-8")
     r = lab.arturo("invia", "--canale", "gh", "--file", str(pronta))
     assert r.returncode == 3 and not (lab.log / "gh").exists(), "S02 invia manda un testo con un segreto"
@@ -263,9 +267,67 @@ def test_s11(repo: Path) -> None:
     assert not sbagliati, f"S11 una cartella personale resta nel testo: {sbagliati}"
 
 
+def impronta(repo: Path, dati: dict) -> str:
+    codice = ("import json, sys; sys.path.insert(0, sys.argv[1]); import segnala; "
+              "print(segnala.impronta_pronta(json.loads(sys.argv[2])))")
+    r = subprocess.run([sys.executable, "-B", "-c", codice, str(repo / "bin"), json.dumps(dati)], capture_output=True,
+                       text=True, encoding="utf-8", timeout=60)
+    assert r.returncode == 0, f"impronta_pronta non si chiama: {r.stderr[-300:]!r}"
+    return r.stdout.strip()
+
+
+def test_s12(repo: Path) -> None:
+    # Review del 7/11/2026, finding 98: invia manda solo il file uscito da prepara, uguale all'anteprima e già pulito.
+    lab = Lab(repo)
+    sporco = "Lavoro su /Users/mario/Clienti/Rossi/offerta.pdf, scrivo a mario.rossi@cliente.it"
+    a_mano = lab.dir / "a-mano.json"
+    a_mano.write_text(json.dumps({"tipo": "problema", "titolo": "[problema] x", "testo": sporco}), encoding="utf-8")
+    r = lab.arturo("invia", "--canale", "email", "--file", str(a_mano))
+    assert r.returncode == 2 and not (lab.log / "appunti").exists(), \
+        f"S12 invia manda un file scritto a mano: {r.returncode} {r.stdout[-200:]!r}"
+    pronta = lab.pronta()
+    dati = json.loads(read(pronta))
+    dati["testo"] = sporco
+    pronta.write_text(json.dumps(dati), encoding="utf-8")
+    r = lab.arturo("invia", "--canale", "email", "--file", str(pronta))
+    assert r.returncode == 2 and not (lab.log / "appunti").exists(), "S12 invia manda un file cambiato dopo l'anteprima"
+    dati["impronta"] = impronta(repo, dati)
+    pronta.write_text(json.dumps(dati), encoding="utf-8")
+    r = lab.arturo("invia", "--canale", "email", "--file", str(pronta))
+    assert r.returncode == 2 and not (lab.log / "appunti").exists(), "S12 invia manda un testo mai pulito"
+    r = lab.arturo("invia", "--canale", "email", "--file", str(lab.pronta(testo="Vedi www.cliente.it/x")))
+    assert r.returncode == 0 and "cliente.it" not in read(lab.log / "appunti"), \
+        f"S12 un file preparato non parte, o parte sporco: {r.returncode} {r.stderr[-200:]!r}"
+
+
+def test_s13(repo: Path) -> None:
+    # Review del 7/11/2026, finding 28 e 103: Git Bash e WSL, indirizzi senza schema, ftp e ssh, più estensioni,
+    # nomi di documenti con spazi; restano i file di Arturo e gli indirizzi pubblici.
+    casi = {
+        "/c/Users/Mario Rossi/AppData/Local/x.py": "~/AppData/Local/x.py",
+        "/mnt/c/Users/Anna Bianchi/x": "~/x",
+        "vedi www.cliente.it/ticket/42 e intranet.cliente.it/x": "vedi [indirizzo web] e [indirizzo web]",
+        "server ftp://nas.cliente.it/x e ssh://git.cliente.it/r": "server [indirizzo web] e [indirizzo web]",
+        "apro Offerta_Rossi.txt e foto-mario.png e audio.m4a": "apro [documento].txt e [documento].png e [documento].m4a",
+        "allegato Contratto Rossi Bianchi 2026.pdf non si apre": "allegato [documento].pdf non si apre",
+        "README.md, commands/fine.md, ~/.claude/skills/todo/SKILL.md, bin/segnala.py":
+            "README.md, commands/fine.md, ~/.claude/skills/todo/SKILL.md, bin/segnala.py",
+        "Arturo.app/Contents e github.com/stellakamikaze/arturo/issues/3": "Arturo.app/Contents e github.com/stellakamikaze/arturo/issues/3",
+    }
+    codice = ("import json, sys; sys.path.insert(0, sys.argv[1]); import segnala; t = json.loads(sys.argv[2]); "
+              "print(json.dumps([[segnala.redigi(x)[0] for x in t], getattr(segnala, 'documenti_da_controllare', lambda x: 0)('contratto rossi.zip')]))")
+    r = subprocess.run([sys.executable, "-B", "-c", codice, str(repo / "bin"), json.dumps(list(casi))], capture_output=True,
+                       text=True, encoding="utf-8", timeout=60)
+    assert r.returncode == 0, f"S13 redigi non si chiama: {r.stderr[-300:]!r}"
+    usciti, dubbi = json.loads(r.stdout)
+    sbagliati = {k: v for k, v in zip(casi, usciti) if v != casi[k]}
+    assert not sbagliati, f"S13 la pulizia sbaglia: {sbagliati}"
+    assert dubbi == 1, f"S13 un nome di documento con una parola prima non è da controllare: {dubbi}"
+
+
 TESTS = {"S01": test_s01, "S02": test_s02, "S03": test_s03, "S04": test_s04,
          "S05": test_s05, "S06": test_s06, "S07": test_s07, "S08": test_s08, "S09": test_s09,
-         "S10": test_s10, "S11": test_s11}
+         "S10": test_s10, "S11": test_s11, "S12": test_s12, "S13": test_s13}
 
 
 def main() -> int:
@@ -277,7 +339,7 @@ def main() -> int:
     # Su Windows i finti in bash non partono: /segnala troverebbe gh.exe, clip e il browser veri.
     # Il 16/10/2026 S07 ha aperto una issue vera su stellakamikaze/arturo. Ogni controllo che
     # lancia "invia" gira solo su macOS e Linux, anche sulla base.
-    saltati = ["S02", "S03", "S05", "S06", "S07"] if os.name == "nt" else []
+    saltati = ["S02", "S03", "S05", "S06", "S07", "S12"] if os.name == "nt" else []
     scelti = {k: v for k, v in TESTS.items() if k not in saltati}
     if args.baseline_ref:
         failed = []

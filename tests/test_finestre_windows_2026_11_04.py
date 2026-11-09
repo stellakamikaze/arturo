@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """FW01-FW02: su Windows i lanci staccati non aprono finestre di terminale (4/11/2026).
 
-Su Balthasar si aprivano di continuo finestre di Windows Terminal intitolate git.exe. Causa:
+Su un PC Windows si aprivano di continuo finestre di Windows Terminal intitolate git.exe. Causa:
 aggiornamenti.py e telemetria.py si staccavano con DETACHED_PROCESS, cioè senza console, e ogni
 programma a console lanciato da lì (git, bash, gws) ne apriva una nuova e visibile. gws-esito.py e
 gws-token-health.py univano DETACHED_PROCESS e CREATE_NO_WINDOW: Windows ignora CREATE_NO_WINDOW

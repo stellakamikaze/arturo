@@ -9,7 +9,7 @@ sessione non ha registrato chiede conferma (regola git-amend).
 AM01 amend con il registro vuoto: chiede.
 AM02 commit registrato col modo `dopo`, poi amend dalla stessa sessione: tace. Da un'altra sessione: chiede.
 AM03 dopo il commit registrato, un commit fatto da un'altra sessione (git diretto, senza registro):
-     l'amend chiede. Il caso di Filippo.
+     l'amend chiede. Il caso di una segnalazione del 3/11.
 AM04 il dispatcher vero manda alla guardia `git -C repo commit --amend --no-edit` e `git commit --am -m x`.
 AM05 il modo `dopo` senza session_id, con un id non valido o fuori da un repository non scrive niente
      e non fallisce; `git commit -m x && git commit --amend --no-edit` nello stesso comando tace.

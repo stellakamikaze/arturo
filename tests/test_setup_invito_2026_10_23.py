@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """SI01-SI04: l'avvio invita a finire /setup (23/10/2026).
 
-Nella telemetria del 23/10 Liliana aveva installato Arturo senza mai lanciare /setup, e Alessio si era
-fermato prima della fase 9. L'avvio (hooks/session-start.sh) ora scrive una riga SETUP, una volta al
+Nella telemetria del 23/10 una persona aveva installato Arturo senza mai lanciare /setup, e un'altra si era
+fermata prima della fase 9. L'avvio (hooks/session-start.sh) ora scrive una riga SETUP, una volta al
 giorno, in un'installazione vera senza data/setup-fatto e nata dal 16/10, quando il segno è arrivato.
 
 SI01 un'installazione nuova riceve la riga SETUP, e nello stesso giorno una volta sola.

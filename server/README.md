@@ -92,7 +92,7 @@ feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le s
 - **Segnalazioni e feedback sono campanelli (24/10/2026).** Telegram ed email dicono solo numero, tipo
   e origine: `Arturo: feedback n. 3 · idea · sito`. Mai il titolo, il testo, l'email di chi scrive o
   l'id completo: il testo resta in D1. Dal 27/10/2026 la segnalazione si legge senza comandi:
-  `Arturo: segnalazione n. 14, un problema · installazione 826cca31 · Arturo v2026-10-21 · Darwin`,
+  `Arturo: segnalazione n. 14, un problema · installazione 5e6f7a8b · Arturo v2026-10-21 · Darwin`,
   e sotto il link `<LEGGI_SEGNALAZIONI>/14` alla pagina privata, che la legge con `GET /v1/segnalazioni/14`.
   Senza la variabile `LEGGI_SEGNALAZIONI` l'avviso dice di leggerla col token. Ogni segnalazione arriva
   anche come email, con l'oggetto `[Arturo] Segnalazione n. 14: un problema` e lo stesso link. Il tetto è
@@ -135,7 +135,7 @@ feedback e le segnalazioni più vecchi di 12 mesi si cancellano il lunedì (le s
 - **Ogni mattina, su Telegram, le installazioni rimaste indietro (23/10/2026)**: attive negli ultimi
   3 giorni e senza un rilascio uscito da almeno 3. Contano solo le installazioni viste in almeno due
   giorni, e un rilascio con la data nel futuro non conta. Un avviso per installazione ogni 7 giorni,
-  al massimo 5 al giorno. Nasce da Filippo e Alessio: un difetto dell'aggiornamento automatico gli
+  al massimo 5 al giorno. Nasce da due installazioni del 23/10: un difetto dell'aggiornamento automatico gli
   impediva di ricevere la correzione, e solo un `/aggiorna` a mano li ha sbloccati.
 - **Il lunedì** arriva sempre il riepilogo della settimana prima, da lunedì a domenica in ora di Roma
   (24/10/2026: prima perdeva il lunedì di sette giorni prima e contava il lunedì appena cominciato), anche vuoto. Si apre con "Dove migliorare
@@ -242,13 +242,15 @@ npx wrangler@4 d1 execute arturo --remote --command "SELECT testo FROM segnalazi
 ```
 
 Per cancellare i dati di un'installazione che lo chiede, serve il suo id. La persona lo legge
-con `python3 ~/.claude/bin/arturo telemetria mostra`. Il feedback del sito non ha un id: si
+con `python3 ~/.claude/bin/arturo telemetria mostra`, e quello di Lancillotto, un id diverso, con
+`lancillotto telemetria mostra`. Il feedback del sito non ha un id: si
 cancella con l'email che la persona ha lasciato nel modulo:
 
 ```bash
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM eventi WHERE installazione = '<id>'"
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM segnalazioni WHERE installazione = '<id>'"
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM contatori WHERE substr(chiave, instr(chiave, ':') + 1) = '<id>'"
+npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM eventi_lancillotto WHERE installazione = '<id di Lancillotto>'"
 npx wrangler@4 d1 execute arturo --remote --command "DELETE FROM feedback WHERE email = '<email>'"
 ```
 

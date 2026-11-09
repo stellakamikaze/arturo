@@ -31,6 +31,7 @@ Solo libreria standard, Python 3.8 o successivo.
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import importlib.util
 import json
 import os
@@ -86,11 +87,23 @@ REDAZIONE = {
 WEB_PUBBLICI = re.compile(r"^https?://(?:github\.com/stellakamikaze/arturo(?:[/?#]|$)|(?:[a-z0-9-]+\.)*stellakamikaze\.org(?:[/:?#]|$)|"
                           r"(?:docs|code|support)\.(?:claude\.com|anthropic\.com)(?:[/?#]|$)|(?:www\.)?anthropic\.com(?:[/?#]|$)|"
                           r"127\.0\.0\.1|localhost)", re.I)
-RE_WEB = re.compile(r"https?://[^\s<>\"'`)\]]+", re.I)
+# Anche ftp, ssh e le cartelle di rete, e gli indirizzi senza schema: www.… e dominio/percorso (review del 7/11/2026,
+# finding 103). Un dominio senza schema conta solo con la barra dopo, e mai coi pacchetti del Mac (Arturo.app/Contents).
+RE_WEB = re.compile(r"(?:\b(?:https?|s?ftp|ssh|smb|afp|git)://|\bwww\.|(?<![/\w.~@-])(?=(?:[a-z0-9-]+\.)+"
+                    r"(?!(?:app|framework|bundle|plugin|kext|appex|xpc|lproj|xcodeproj|git|d)/)[a-z]{2,24}/))"
+                    r"[^\s<>\"'`)\]]+", re.I)
 RE_EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
 RE_COMPUTER = re.compile(r"\b[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.(?:local|lan|internal|home\.arpa|ts\.net)\b", re.I)
 RE_IP = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
-RE_DOCUMENTI = re.compile(r"[^\s/\\\"'`<>|*?:\[\]]+\.(pdf|docx?|xlsx?|pptx?|key|pages|numbers|odt|ods|odp|rtf|eml|msg|csv)\b", re.I)
+# Il nome di un documento: anche immagini, audio, video, archivi e testi (finding 103). Le parole con la maiuscola o
+# i numeri subito prima, staccati da uno spazio, sono parte del nome ("Contratto Rossi Bianchi 2026.pdf", finding 28).
+RE_DOCUMENTI = re.compile(r"(?:\b(?-i:[A-ZÀ-Ý0-9])[^\s/\\\"'`<>|*?:\[\]]* ){0,4}[^\s/\\\"'`<>|*?:\[\]]+\."
+                          r"(pdf|docx?|xlsx?|pptx?|key|pages|numbers|odt|ods|odp|rtf|eml|msg|csv|txt|md|"
+                          r"png|jpe?g|gif|heic|webp|tiff?|psd|ai|indd|sketch|fig|epub|zip|rar|7z|"
+                          r"mp3|mp4|m4a|mov|wav|aiff?)\b", re.I)
+# Restano i file di Arturo e di Claude Code: un nome tutto maiuscolo (CLAUDE.md, SKILL.md) o dentro una sua cartella.
+RE_FILE_DI_ARTURO = re.compile(r"(?:^|(?<=[\s\"'`(])|(?<=\.claude[/\\])|(?<=arturo[/\\]))(?:commands|agents|hooks|bin|docs|shared|rules|output-styles|skills[/\\][\w-]+)"
+                               r"[/\\]$")
 
 # /segnala precedenti: quante copie e quanto del loro "In breve" legge Claude prima dell'anteprima.
 PRECEDENTI_MASSIMO = 30
@@ -210,9 +223,10 @@ def togli_home(testo: str) -> str:
     # Le cartelle personali di altri: il nome arriva fino alla barra dopo, spazi compresi ("Mario Rossi"); senza una
     # barra entro 64 caratteri si ferma allo spazio. Una o due barre, dritte o rovesciate.
     sep = r"(?:\\\\|\\|/)"
+    # Anche nelle forme di Git Bash e di WSL, /c/Users/… e /mnt/c/Users/… (finding 28): prima restava "/c~".
     for nome in (r"[^\\/\"'`\r\n<>|:*?]{1,64}?(?=[\\/])", r"[^\\/\s\"'`]+"):
         testo = re.sub(r"(?i)\b[A-Z]:" + sep + r"Users" + sep + nome, "~", testo)
-        testo = re.sub(r"/(?:Users|home)/" + nome, "~", testo)
+        testo = re.sub(r"(?i)(?:/mnt)?(?:/[a-z])?/(?:Users|home)/" + nome, "~", testo)
     return testo
 
 
@@ -236,17 +250,36 @@ def redigi(testo: str, tieni=()) -> tuple:
         def cambia(m):
             if filtro and not filtro(m.group(0)):
                 return m.group(0)
-            tolti[categoria] = tolti.get(categoria, 0) + 1
-            return forma(m) if forma else REDAZIONE[categoria][0]
+            nuovo = forma(m) if forma else REDAZIONE[categoria][0]
+            if nuovo != m.group(0):  # forma può tenere il nome: un file di Arturo
+                tolti[categoria] = tolti.get(categoria, 0) + 1
+            return nuovo
         testo = regex.sub(cambia, testo)
 
-    via("web", RE_WEB, lambda u: not WEB_PUBBLICI.match(u))
+    via("web", RE_WEB, lambda u: not WEB_PUBBLICI.match(u if "://" in u else "https://" + u))
     via("email", RE_EMAIL)
     via("computer", RE_COMPUTER)
     via("ip", RE_IP, _ip_vero)
     # Del documento resta l'estensione: un PDF che non si apre è un'informazione, il suo nome no.
-    via("documenti", RE_DOCUMENTI, forma=lambda m: f"{REDAZIONE['documenti'][0]}.{m.group(1).lower()}")
+    via("documenti", RE_DOCUMENTI, forma=lambda m: _documento(m, testo))
     return testo, tolti
+
+
+def _documento(m, testo: str) -> str:
+    nome = m.group(0)
+    if RE_FILE_DI_ARTURO.search(testo[:m.start()]) or nome.rsplit(".", 1)[0].replace("_", "").replace("-", "").isupper():
+        return nome
+    return f"{REDAZIONE['documenti'][0]}.{m.group(1).lower()}"
+
+
+def documenti_da_controllare(testo: str, tieni=()) -> int:
+    """Quanti nomi di documenti che redigi toglie hanno una parola minuscola subito prima: di un nome con spazi
+    ("contratto rossi.zip") redigi toglie solo l'ultima parte, e l'anteprima chiede di guardarli (finding 28)."""
+    if "documenti" in tieni:
+        return 0
+    testo = togli_home(testo)
+    return sum(1 for m in RE_DOCUMENTI.finditer(testo)
+               if _documento(m, testo) != m.group(0) and re.search(r"[^\W\d_] $", testo[:m.start()]))
 
 
 def descrivi_tolti(tolti: dict) -> str:
@@ -478,19 +511,38 @@ def prepara(opz: dict) -> int:
         print("Errore: la bozza è vuota", file=sys.stderr)
         return 2
     pronta = sorgente.with_name(sorgente.name + ".pronta.json")
-    ts.scrivi_json_atomico(pronta, {"tipo": tipo, "titolo": titolo, "testo": testo + FIRMA, "pacchetto": contenuto,
-                                    "collega": "collega" in voci, "origine": origine})
+    dati = {"tipo": tipo, "titolo": titolo, "testo": testo + FIRMA, "pacchetto": contenuto,
+            "collega": "collega" in voci, "origine": origine, "tieni": list(tieni)}
+    ts.scrivi_json_atomico(pronta, dict(dati, impronta=impronta_pronta(dati)))
     print(f"PRONTA: {pronta}\n")
     print(f"Titolo: {titolo}\n")
     print(testo + FIRMA)
     if tolti:
         print(f"Tolto dal testo: {descrivi_tolti(tolti)}. Se servono a capire il problema, rilancia prepara con "
               f"--tieni {','.join(tolti)}.\n")
+    dubbi = documenti_da_controllare(sorgente.read_text(encoding="utf-8"), tieni)
+    if dubbi:
+        print(f"Da controllare: {dubbi} nomi di documenti hanno una parola subito prima. Se è parte del nome "
+              "(\"contratto rossi.zip\"), è rimasta nel testo: toglila dalla bozza e rilancia prepara.\n")
     print(anteprima_pacchetto(voci, contenuto, bool(errore)) + "\n")
     print(f"Dove può andare:\n  arturo (di solito): arriva solo a chi mantiene Arturo, senza altri passi\n"
           f"  gh o web: issue pubblica su github.com/{REPO}, la vede chiunque\n"
           f"  email: testo negli appunti da mandare a {EMAIL}")
     return 0
+
+
+def impronta_pronta(dati: dict) -> str:
+    """L'impronta di quello che prepara ha pulito e mostrato (review del 7/11/2026, finding 98): invia rifiuta un file
+    scritto a mano o cambiato dopo l'anteprima. Non è una firma: dice che il file è quello dell'anteprima."""
+    campi = {k: dati.get(k) for k in ("tipo", "titolo", "testo", "pacchetto", "collega", "origine", "tieni")}
+    return hashlib.sha256(json.dumps(campi, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
+
+
+def pulita(dati: dict) -> bool:
+    """Titolo, testo e pacchetto sono già passati da redigi: ripassarli non cambia niente."""
+    tieni = tuple(x for x in (dati.get("tieni") or ()) if x in REDAZIONE)
+    parti = [dati["titolo"], dati["testo"], *(dati.get("pacchetto") or {}).values()]
+    return all(redigi(x, tieni)[0] == x for x in parti if isinstance(x, str))
 
 
 def invia(opz: dict) -> int:
@@ -506,8 +558,13 @@ def invia(opz: dict) -> int:
                      if k in {x for x, _, _ in VOCI_PACCHETTO} and isinstance(v, str)}
         collega = dati.get("collega") is True
         origine = dati.get("origine") if dati.get("origine") in ORIGINI else "segnala"
+        # Solo un file uscito da prepara, uguale a quello dell'anteprima e già pulito (finding 98).
+        preparata = dati.get("impronta") == impronta_pronta(dati) and pulita(dati)
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
-        print("Errore: il file non è una segnalazione preparata. Lancia prima prepara.", file=sys.stderr)
+        preparata = False
+    if not preparata:
+        print("Errore: il file non è la segnalazione preparata e mostrata nell'anteprima. Lancia di nuovo prepara "
+              "sulla bozza. Niente è partito.", file=sys.stderr)
         return 2
     # Il file può essere cambiato dopo prepara: il controllo si ripete qui, prima di uscire.
     trovati = segreti_trovati(titolo + "\n" + testo + "\n" + "\n".join(contenuto.values()))
@@ -541,7 +598,7 @@ def invia(opz: dict) -> int:
                 # La ricevuta (4/11/2026): col codice la persona legge la risposta. Un server di prima non lo manda.
                 if telemetria.salva_codice(numero, risposta.get("codice")):
                     ricevuta = True
-            # Il server risponde: partono anche quelle rimaste in attesa (Liliana, 27/10/2026).
+            # Il server risponde: partono anche quelle rimaste in attesa (27/10/2026).
             partite = telemetria.invia_segnalazioni_in_attesa()
             if partite:
                 esito += f", con {partite} rimast{'a' if partite == 1 else 'e'} in attesa"
@@ -552,7 +609,7 @@ def invia(opz: dict) -> int:
             attesa = telemetria.cartella_attesa()
             attesa.mkdir(parents=True, exist_ok=True)
             ts.scrivi_json_atomico(attesa / f"{adesso:%Y-%m-%d_%H%M%S}_{tipo}.attesa.json", dati_server)
-            # Il codice dice a chi mantiene Arturo dove guardare: rete o server (segnalazione di Liliana, 27/10/2026).
+            # Il codice dice a chi mantiene Arturo dove guardare: rete o server (segnalazione del 27/10/2026).
             motivo = f"risposta {status}" if status else "nessuna risposta dalla rete"
             print(f"Il server ora non risponde ({motivo}): la segnalazione è salvata e parte da sola "
                   "alla prossima sessione.")
@@ -763,7 +820,7 @@ def ritira(numero: str, opz: dict) -> int:
 
 def precedenti() -> int:
     """Le segnalazioni già partite, dalla più recente, col loro "In breve": /segnala le confronta con la bozza
-    prima dell'anteprima. Il confronto lo fa Claude sul fatto, non sulle parole (proposta n. 53 di Filippo,
+    prima dell'anteprima. Il confronto lo fa Claude sul fatto, non sulle parole (proposta n. 53,
     4/11/2026: tre problemi partiti tre volte ciascuno da sessioni diverse)."""
     copie = _copie()[-PRECEDENTI_MASSIMO:]
     if not copie:

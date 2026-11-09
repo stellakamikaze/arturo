@@ -22,14 +22,14 @@ scritta come un'azione, nel progetto giusto, con la scadenza che ha detto e con 
 le confermi il numero del todo in una riga. Non le chiedi i campi uno per uno: li ricavi dalla
 frase e dal contesto, e chiedi solo se manca qualcosa che cambia il lavoro.
 
-Esempio. La persona scrive "ricordami di mandare a Gigi la parola d'ordine entro venerdì".
+Esempio. La persona scrive "ricordami di mandare a Giulia la parola d'ordine entro venerdì".
 
 ```bash
-python3 ~/.claude/bin/arturo todo aggiungi "Mandare a Gigi la parola d'ordine" --scadenza venerdì --chi tu
+python3 ~/.claude/bin/arturo todo aggiungi "Mandare a Giulia la parola d'ordine" --scadenza venerdì --chi tu
 ```
 
 Tu rispondi: "Segnato come #7, scade venerdì." Il todo è `tu` perché l'invio lo fa la persona.
-Il perché resta vuoto: la persona non l'ha detto. Se avesse scritto "ricordami di mandare a Gigi
+Il perché resta vuoto: la persona non l'ha detto. Se avesse scritto "ricordami di mandare a Giulia
 la parola d'ordine, la mando io perché è una password", allora `--perche "è una password"`.
 
 ## I campi

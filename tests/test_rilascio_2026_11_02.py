@@ -21,6 +21,8 @@ RL08 il ramo resta quando scheda e repository sono lo stesso progetto scritto in
      ("claude-config" e ~/.claude), un nome di cartella con maiuscole e spazi, un worktree (#4262).
 RL09 l'avviso di contesto propone /fine come salvataggio a ogni giro, e /clear e /inizio una volta sola
      per sessione: chi usa Arturo spesso continua dopo /fine (#3883).
+RL10 (review del 7/11/2026, finding 106) il README conta guardie e strumenti di hooks/ come i file, e fra le skill
+     elenca solo cartelle con SKILL.md.
 
 Sulla base 60b7d8d ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -239,8 +241,34 @@ def test_rl09(repo: Path) -> None:
             f"RL09 il secondo avviso ripropone /clear e /inizio: {avvisi[1]!r}"
 
 
+# I file di hooks/ che non girano da soli: moduli e strumenti che le guardie e l'avvio usano.
+STRUMENTI = ("controlla-config.py", "deriva.py", "fiducia.py", "forma_comando.py", "heredoc.py", "melchior_match.py",
+             "radici.py")
+
+
+def test_rl10(repo: Path) -> None:
+    # Review del 7/11/2026, finding 106: il README contava 4 strumenti con 38 file in hooks/, e metteva fra le skill
+    # una voce senza cartella.
+    readme = read(repo / "README.md")
+    file = sorted(f.name for f in (repo / "hooks").iterdir() if f.is_file() and f.suffix in (".py", ".sh", ".js"))
+    guardie = len(file) - len(STRUMENTI)
+    assert set(STRUMENTI) <= set(file), f"RL10 strumenti che non stanno in hooks/: {sorted(set(STRUMENTI) - set(file))}"
+    impostazioni = read(repo / "settings.json")
+    agganciati = [s for s in STRUMENTI if f"hooks/{s}" in impostazioni]
+    assert not agganciati, f"RL10 strumenti agganciati come hook in settings.json: {agganciati}"
+    assert f"**{guardie} guardie e automazioni**" in readme and \
+        f"{guardie} guardie e automazioni, più {len(STRUMENTI)} strumenti" in readme, \
+        f"RL10 il README non conta {guardie} guardie e automazioni e {len(STRUMENTI)} strumenti in hooks/"
+    sezione = readme[readme.index("### Le skill"):readme.index("**Il mod di Arturo.**")]
+    voci = re.findall(r"^- \*\*`([\w-]+)`\*\*", sezione, re.MULTILINE)
+    cartelle = {d.name for d in (repo / "skills").iterdir() if (d / "SKILL.md").is_file()}
+    fuori = [v for v in voci if v not in cartelle]
+    assert not fuori, f"RL10 voci fra le skill senza una cartella skills/<nome>/SKILL.md: {fuori}"
+    assert f"**{len(cartelle)} skill**" in readme, f"RL10 il README non conta {len(cartelle)} skill"
+
+
 TESTS = {"RL01": test_rl01, "RL02": test_rl02, "RL03": test_rl03, "RL04": test_rl04, "RL05": test_rl05,
-         "RL06": test_rl06, "RL07": test_rl07, "RL08": test_rl08, "RL09": test_rl09}
+         "RL06": test_rl06, "RL07": test_rl07, "RL08": test_rl08, "RL09": test_rl09, "RL10": test_rl10}
 
 
 def main() -> int:

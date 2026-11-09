@@ -210,7 +210,7 @@ def test_d12(repo: Path) -> None:
     # deriva. "arturo personale ripristina" confronta il contenuto e non lo correggerebbe.
     lab = Lab(repo)
     # Il modo si inverte nell'indice con update-index --chmod: su Windows chmod non tocca git, e il file
-    # era già 100755, quindi il commit restava vuoto e il caso cadeva (31/10/2026, gate su Balthasar).
+    # era già 100755, quindi il commit restava vuoto e il caso cadeva (31/10/2026, gate su Windows).
     guardia = lab.claude / "hooks" / "bash-dispatcher.sh"
     prima = git(lab.claude, "ls-files", "-s", "hooks/bash-dispatcher.sh").split()[0]
     verso = "-x" if prima == "100755" else "+x"

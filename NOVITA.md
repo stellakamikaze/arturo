@@ -13,6 +13,36 @@ modo di lavorare.
 
 ---
 
+## 2026-11-09 — Le pulizie e le promesse sui tuoi dati dicono il vero
+
+**Cosa cambia**: dieci correzioni a quello che Arturo toglie dai testi e a quello che promette.
+- `/segnala` toglie anche gli indirizzi senza `https://` (`www.…`, `intranet.cliente.it/…`), quelli `ftp`
+  e `ssh`, i nomi di immagini, audio, video, archivi e testi, la cartella personale nella forma di Git Bash
+  e di WSL (`/c/Users/…`), e un nome di documento con le maiuscole e gli spazi ("Contratto Rossi Bianchi
+  2026.pdf"). Restano i file di Arturo, come `CLAUDE.md` o `commands/fine.md`. Se prima di un nome c'è una
+  parola minuscola che può esserne parte, l'anteprima lo dice con la riga "Da controllare".
+- `arturo segnala invia` manda solo il file di `prepara`, uguale a quello dell'anteprima: un file scritto a
+  mano o cambiato dopo non parte, e si rilancia `prepara`.
+- Il ritratto di `/setup` toglie anche `pw`, `passphrase`, la chiave del wifi, il `cvv`, il numero dopo `pin`
+  anche con una parola in mezzo ("Pin bancomat …") e l'IBAN scritto in minuscolo.
+- Su Windows l'avvio non propone più il passaggio al plugin: lì non è ancora provato.
+- Test, commenti ed esempi non hanno più nomi di persone né id veri di installazioni. Il controllo di
+  igiene del repository li cerca, e la regola vale anche per questo file.
+- Il README dice com'è davvero l'aggiornamento automatico: con un'altra sessione aperta il rilascio si
+  installa alla chiusura dopo o all'apertura, e in un conflitto vince il file del rilascio, con la tua
+  versione in `personale/conflitti/`; restano a te solo `settings.json` e i `CLAUDE.md`.
+- `docs/privacy.md` dice che le email con una cosa da fare creano un task nell'elenco di chi mantiene
+  Arturo, come cancellare gli eventi di Lancillotto e una segnalazione partita senza id.
+- Il capitolo sui rail dice che un banco delle guardie rosso non ti interrompe: lo legge `/diagnosi`.
+- Il README conta 31 guardie e automazioni e 7 strumenti in `hooks/`, e `arturo correzione` sta fra i
+  comandi della CLI, non fra le skill.
+
+**Il principio**: una promessa sui dati che il codice non mantiene è peggio di nessuna promessa, perché la
+persona decide fidandosi. Dove il codice poteva mantenerla, ora la mantiene; dove no, il testo dice il vero.
+
+**A chi serve**: a chi manda segnalazioni o fa il ritratto di `/setup` con documenti di lavoro, e a chi
+decide se tenere gli aggiornamenti automatici leggendo gli Impegni.
+
 ## 2026-11-09 — /fine, /inizio e i comandi di Arturo non sbagliano più in silenzio
 
 **Cosa cambia**: undici correzioni ai comandi di Arturo.
@@ -347,7 +377,7 @@ sempre con la telemetria accesa.
 sono dove eri arrivato, dove stanno i file e cosa resta da fare. Per riprendere scrivi
 `/inizio preventivo-cucina`. Claude ti offre anche una cartella di progetto, e la crea solo se dici sì.
 
-**Perché**: segnalazione n. 23 di Filippo. Il 15/10 aveva iniziato un lavoro fuori da un progetto, e il
+**Perché**: segnalazione n. 23. Il 15/10 aveva iniziato un lavoro fuori da un progetto, e il
 26/10 non trovava più dove fosse: la sessione non aveva lasciato né file né handoff.
 
 ## 2026-11-04 — Claude dice prima dove non arriva
@@ -359,7 +389,7 @@ arrivo" dice due cose: la parte che resta a te e cosa fa Claude al suo posto. Pe
 dei componenti, il budget, uno script che ricolora i file che salvi, il manuale che spiega ogni pista.
 La stessa risposta arriva se chiedi solo "mi puoi aiutare con questo?".
 
-**Perché**: al Computer Club Filippo ha raccontato che sul mixer, arrivato alle schede, Claude non
+**Perché**: al Computer Club una persona ha raccontato che sul mixer, arrivato alle schede, Claude non
 lo aiutava più. Un tentativo scarso costa ore a chi lo deve buttare. Saperlo prima costa una riga, e
 lascia il tempo per la parte in cui Claude serve davvero.
 
@@ -412,7 +442,7 @@ qualunque progetto, la ripartenza apre con una riga: quante sono, quali, e a che
 di 5 ore. Il lavoro parte lo stesso: chiudere una sessione lo decidi tu. Le sessioni ferme su altri
 computer o nel cloud non contano, e una sessione ripresa dalla rotazione automatica non avvisa.
 
-**Perché**: proposta n. 54 di Filippo. Il limite delle 5 ore è uno solo per tutte le sessioni
+**Perché**: proposta n. 54. Il limite delle 5 ore è uno solo per tutte le sessioni
 dell'account. Dal 15/10 al 4/11 è scattato 9 volte, sempre con tre sessioni o più, e ogni volta ha
 fermato più progetti insieme e lasciato agenti a metà. Con una sessione sola non è mai scattato.
 
@@ -426,7 +456,7 @@ data, e ti chiede se mandare la nuova come aggiunta a quella. Decidi tu: niente 
 porta solo il nuovo, per esempio un caso diverso o un messaggio esatto, e dice a quale segnalazione si
 lega.
 
-**Perché**: proposta n. 53 di Filippo. Su 21 segnalazioni partite dal 19/10 al 4/11, tre problemi sono
+**Perché**: proposta n. 53. Su 21 segnalazioni partite dal 19/10 al 4/11, tre problemi sono
 partiti tre volte ciascuno, da sessioni che non si vedevano fra loro. Il confronto lo fa Claude sul
 fatto, non sulle parole: un conteggio di parole uguali legava due casi su tre di uno stesso problema.
 
@@ -441,7 +471,7 @@ sul todo non azzera il conteggio: conta solo un passo vero (una modifica, un cam
 messo in fermo apposta, o che aspetta un altro todo, resta fuori. Se un todo fermo chiede le tue mani,
 per esempio una prova a banco, Claude lo segnala come assegnato male e ti propone di passarlo a te.
 
-**Perché**: proposta n. 52 di Filippo. Quattro decisioni passate a Claude il 28/10 erano ancora aperte il
+**Perché**: proposta n. 52. Quattro decisioni passate a Claude il 28/10 erano ancora aperte il
 4/11, dopo tre sessioni sullo stesso progetto: il compito nuovo passava sempre davanti.
 
 ---
@@ -455,7 +485,7 @@ lanciare comandi lì. Può leggere, si ferma e scrive nel report che la copia è
 fare. La sessione decide: rilanciare il lavoro in un agente nuovo con la sua copia, oppure lasciarlo
 lavorare lì.
 
-**Perché**: segnalazione n. 51 di Filippo. Claude Code toglie la copia di un agente che si ferma senza
+**Perché**: segnalazione n. 51. Claude Code toglie la copia di un agente che si ferma senza
 modifiche, e alla ripresa lo fa lavorare nella cartella della sessione, senza avviso. Due agenti su tre
 hanno fatto commit sul ramo della sessione, e il file a metà di uno è poi andato perso (segnalazione n. 55).
 
@@ -470,7 +500,7 @@ che le salva col tuo sì. La barra in basso dice "serve /aggiorna". Appena salvi
 torna a dire che si installa da sola. E quando un'installazione automatica non parte, l'avvio dice solo
 questo, con i file che l'hanno fermata, senza ripetere nella riga dopo che si installa da sola.
 
-**Perché**: segnalazione n. 49 di Gigi. L'aggiornamento automatico si fermava per una sua modifica non
+**Perché**: segnalazione n. 49. L'aggiornamento automatico si fermava per una sua modifica non
 salvata, ma l'avvio diceva insieme "si installa da sola alla chiusura" e "non è partito", e alla sessione
 dopo tornava a promettere l'installazione senza dire come sbloccarla. Ha dovuto lanciare `/aggiorna` a
 mano per scoprirlo.

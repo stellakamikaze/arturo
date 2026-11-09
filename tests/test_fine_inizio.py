@@ -590,7 +590,7 @@ def test_f15(repo: Path) -> None:
         config = lab.home / ".claude"
         shutil.copytree(str(repo), str(config), ignore=shutil.ignore_patterns(".git", "__pycache__", "worktrees"),
                         dirs_exist_ok=True)
-        # 23/10/2026, Gigi: un progetto riservato esce dal sync con una riga nel .gitignore della sua config.
+        # 23/10/2026, da una persona che usa Arturo: un progetto riservato esce dal sync con una riga nel .gitignore della sua config.
         with open(config / ".gitignore", "a", encoding="utf-8") as f:
             f.write("\n# progetto riservato\ndata/handoffs/riservato/\n")
         remoto = Path(tmp) / "config.git"

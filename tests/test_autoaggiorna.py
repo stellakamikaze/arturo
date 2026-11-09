@@ -26,7 +26,7 @@ AA17 una copia di prova in attesa dal sync fra le macchine resta com'è: niente 
 AA18 dopo un /clear, un /compact o una ripresa il rinvio non si installa: lo installa l'apertura dopo di
      Claude Code, perché il processo di prima ha i mod caricati (#4732, 4/11/2026).
 AA19 una procedura che non parte lascia all'avvio i file che la fermano, senza dire anche che il rilascio
-     si installa da solo (segnalazione n. 49 di Gigi, #4767, 4/11/2026).
+     si installa da solo (segnalazione n. 49, #4767, 4/11/2026).
 AA20 con le modifiche salvate in un commit lo stato torna pronto e il rilascio si installa alla chiusura.
 AA22 con uno spazio nella HOME ("Mario Rossi") una copia di prova in attesa resta dov'è al giro dopo, e
      "scarta" toglie solo lei: niente sopra la HOME si cancella (review del 7/11/2026, critico).

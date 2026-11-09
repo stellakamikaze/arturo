@@ -244,7 +244,7 @@ def test_q08(repo: Path) -> None:
 
 
 def test_q09(repo: Path) -> None:
-    # Segnalazione n. 17 (Gigi, 27/10/2026): ogni Skill(prompt-master) rimette il corpo intero nel contesto,
+    # Segnalazione n. 17 (27/10/2026): ogni Skill(prompt-master) rimette il corpo intero nel contesto,
     # anche se la copia di prima c'è ancora. Il brief resta su ogni richiesta, il corpo si carica una volta.
     testo = read(repo / "skills" / "prompt-master" / "SKILL.md")
     importante = testo.split("## Importante", 1)[-1].split("## MODALITÀ PROMPT ESTERNO", 1)[0]

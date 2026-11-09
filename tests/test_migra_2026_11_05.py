@@ -24,7 +24,8 @@ MG06 il plugin si installa ma settings.json ha una voce cambiata sia dalla perso
 MG07 un ~/.claude con Arturo come upstream (repository della persona) non si migra: rapporto FERMA,
      migrazione con uscita 1, niente cambia;
 MG08 l'avviso dell'avvio: dal clone una riga che nomina `migra --prova` e `migra indietro`, una volta al giorno;
-     con Arturo come upstream la riga dice "a mano"; dal codice fuori dall'Orsa (il plugin) niente.
+     con Arturo come upstream la riga dice "a mano"; dal codice fuori dall'Orsa (il plugin) niente; su un sistema
+     dove il passaggio non è provato, oggi Windows, niente (review del 7/11/2026, finding 99).
 
 I casi della review del 7/11/2026 (finding 14, 23, 84, 86) chiamano le funzioni di migra.py su un clone piccolo,
 senza la CLI:
@@ -585,6 +586,14 @@ def prova(repo: Path, solo: str | None = None) -> list:
         secondo = esegui(avviso, env=b.env).stdout
         (b.orsa / "session-env" / "migra-avviso.json").unlink()
         fuori = esegui([sys.executable, repo / "bin" / "migra.py", "avviso"], env=b.env).stdout
+        (b.orsa / "session-env" / "migra-avviso.json").unlink(missing_ok=True)
+        # Su un sistema dove il passaggio non è provato (Windows, finding 99) niente avviso.
+        non_provato = esegui([sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[1]); import migra; "
+                              "migra.SISTEMI_PROVATI = (); print(migra.avviso())", b.orsa / "bin"], env=b.env).stdout
+        if non_provato.strip():
+            rossi.append(f"MG08 avviso su un sistema non provato: {non_provato[:80]!r}")
+        if os.name == "nt":  # qui l'avviso non parte: il resto di MG08 vale solo dove il passaggio è provato
+            return rossi
         avvio = (repo / "hooks" / "session-start.sh").read_text(encoding="utf-8")
         if 'python3 "$ARTURO_CODICE/bin/migra.py" avviso' not in avvio:
             rossi.append("MG08 avviso: hooks/session-start.sh non lancia migra.py avviso")
@@ -608,6 +617,7 @@ VELENI = [
     ("MG06", "bin/migra.py", "        indietro(cartella, conserva=False)\n        return uscita\n", "        return uscita\n"),
     ("MG07", "bin/migra.py", '    if "upstream" in remoti:\n', '    if False:\n'),
     ("MG08", "bin/migra.py", '    if leggi_json(segno).get("giorno") == oggi:\n', '    if False:\n'),
+    ("MG08", "bin/migra.py", "    if os.name not in SISTEMI_PROVATI:\n        return \"\"\n", ""),
     ("MG08", "hooks/session-start.sh", 'python3 "$ARTURO_CODICE/bin/migra.py" avviso', 'true'),
     ("MG09", "bin/migra.py", "        togli(cartella)\n        raise\n", "        raise\n"),
     ("MG09", "bin/migra.py", 'if "copia" in (leggi_json(p / "migra.json").get("passi") or [])',

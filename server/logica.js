@@ -253,8 +253,8 @@ export function confronta(a, b) {
 
 const NOTI = new Set(Object.values(DATA_A_NUMERO));
 
-// Le installazioni rimaste indietro (23/10/2026). Alessio è restato quattro giorni alla v2026-10-19.2, che
-// rinviava l'aggiornamento automatico con Chrome aperto, e Filippo prima di lui alla v2026-10-15.2: un
+// Le installazioni rimaste indietro (23/10/2026). Un'installazione è restata quattro giorni alla v2026-10-19.2, che
+// rinviava l'aggiornamento automatico con Chrome aperto, e un'altra prima di lei alla v2026-10-15.2: un
 // difetto dell'aggiornamento impedisce l'aggiornamento che lo corregge, e solo un /aggiorna a mano lo sblocca.
 // `attive`: {installazione, versione, ultima} con la versione dell'ultimo evento. `versioni`: {versione, prima},
 // il primo giorno in cui il server l'ha vista, e `n`, quante installazioni l'hanno mandata. Un rilascio conta se è

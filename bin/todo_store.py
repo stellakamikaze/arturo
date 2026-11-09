@@ -720,7 +720,7 @@ def progetti(todo: dict) -> dict:
 def fermi_da(todo: dict, progetto: str, soglia: int = 3) -> list:
     """I todo di Claude senza un passo da più di `soglia` giorni: [(todo, giorni)], i più vecchi prima.
 
-    Proposta n. 52 (Filippo, 4/11/2026): un compito nuovo passa davanti, e i todo "io" restano aperti per
+    Proposta n. 52 (4/11/2026): un compito nuovo passa davanti, e i todo "io" restano aperti per
     giorni senza che una sessione li riprenda. Contano chi agisce "io", stato da fare o in corso, nessun
     movimento (crea, modifica, stato, dopo) da più di `soglia` giorni. Una nota non conta come movimento.
     Restano fuori i fermi, chi aspetta un altro todo aperto e gli esercizi del percorso.

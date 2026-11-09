@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Genera il plugin di Arturo dal repository, senza toccare il repository (strati F2, docs/strati.md).
 
-Il repository resta installabile come clone in ~/.claude (Gigi e Filippo fino a F4). Questo script
+Il repository resta installabile come clone in ~/.claude (per chi l'ha installato così, fino a F4). Questo script
 ne ricava una cartella pronta per Claude Code come plugin:
 
   .claude-plugin/plugin.json      nome, versione (dal tag), descrizione

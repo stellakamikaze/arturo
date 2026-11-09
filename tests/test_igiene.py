@@ -13,6 +13,8 @@ IG03 il controllo legge anche i percorsi dei file e i messaggi dei commit dell'i
      non ripete mai il termine.
 IG04 un workflow di GitHub Actions lancia il solo controllo di igiene su ogni pull request, su ogni push, su ogni branch, in
      sola lettura, e solo nel repository pubblico di Arturo (19/10/2026, segnalazione n. 4).
+IG05 (review del 7/11/2026) le persone e gli id veri usciti nei file stanno nel controllo di default, e i byte
+     di un file binario non contano come testo, mentre il suo percorso sì.
 
 Sulla base 93f323e ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -103,7 +105,33 @@ def test_ig04(repo: Path) -> None:
         f"IG04 azioni non fissate a un commit: {azioni}"
 
 
-TESTS = {"IG01": test_ig01, "IG02": test_ig02, "IG03": test_ig03, "IG04": test_ig04}
+# Le impronte entrate il 9/11/2026 (review del 7/11, finding 95, 96 e 105): persone, id veri, macchina e account.
+NUOVE_2026_11_09 = frozenset((
+    "d63d71f407ad92113aa5b858936038d68e0fde0a7ed8b8a03a4fea2c2eab80d5", "f51ab9d849938a4f1e88903912ccdc17090df2bd9a432adc6aab61ffaf325d82",
+    "8d0cfd6182ef851052565eb5c11e79f73c691307f7b6ddb877b4303cc726f260", "f6a761f669dfeafd8086a367b336cbee496a1b13ac5128c8cb9346ca7891ccf3",
+    "9e22710e05fe6c6dde97788b248a88855912816408ff8beb48a275be3c4a4700", "21b2b7a347077906259e043592a4b6458035575cd4b4539f00095d4d48522817",
+    "301da88d49fc5f4f6ce0dd63b7f9b840c50149a2b25b27b417638ebdecb78248", "1a9f445a124c9e63a407e54ff13bc4c2cd05068d174e34eaec7ab1a06acc71ed",
+    "57dfab13dd843f3a29a4b8021866559a7b182e0d315ddec53e89a8ec597d8115",
+))
+
+
+def test_ig05(repo: Path) -> None:
+    ig = modulo(repo / "tests" / "igiene.py", "IG05")
+    mancano = sorted(h[:12] for h in NUOVE_2026_11_09 - ig.GLOBALE)
+    assert not mancano, f"IG05 persone e id veri fuori dal controllo di default: {mancano}"
+    h = ig.impronta(PROVA)
+    with tempfile.TemporaryDirectory() as d:
+        r = Path(d)
+        (r / "testo.md").write_text(f"riga\n{PROVA}\n", encoding="utf-8")
+        (r / "font.woff2").write_bytes(b"wOF2\0\0" + PROVA.encode())
+        (r / f"{PROVA}.bin").write_bytes(b"\0")
+        problemi = ig.controlla(r, None, {h})
+    assert any(p.startswith("testo.md:2") for p in problemi), f"IG05 il testo non si controlla: {problemi}"
+    assert not any(p.startswith("font.woff2") for p in problemi), f"IG05 i byte di un binario contano come testo: {problemi}"
+    assert any(p.startswith("percorso") and ".bin" in p for p in problemi), f"IG05 il percorso di un binario non si controlla: {problemi}"
+
+
+TESTS = {"IG01": test_ig01, "IG02": test_ig02, "IG03": test_ig03, "IG04": test_ig04, "IG05": test_ig05}
 
 
 def main() -> int:

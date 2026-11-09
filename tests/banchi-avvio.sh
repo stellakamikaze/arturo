@@ -4,8 +4,9 @@
 # Il gate completo (tests/verifica-allineamento.sh) chiede Claude Code, Chrome e un Python
 # vecchio: non gira sul computer di chi usa Arturo. Questi banchi invece provano solo le
 # guardie, con python3 e bash: se una guardia si rompe su questo computer (un Python diverso,
-# un file cambiato a mano, una pipe che su Windows non e' in UTF-8), la sessione dopo lo dice
-# invece di tacere.
+# un file cambiato a mano, una pipe che su Windows non e' in UTF-8), l'esito resta scritto: lo legge
+# /diagnosi, e con la telemetria accesa arriva a chi mantiene Arturo. Alla persona l'avvio non lo dice
+# (3/11/2026).
 #
 # Lavora su una copia dei soli file tracciati di ~/.claude (modifiche comprese), in una
 # cartella temporanea: i banchi copiano il repo piu' volte, e ~/.claude puo' pesare giga.

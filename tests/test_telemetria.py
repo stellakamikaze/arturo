@@ -6,7 +6,7 @@ niente parte mai verso il server vero. Sulla base db96709, prima della telemetri
 deve fallire per conto suo.
 
 M20 una segnalazione in attesa parte alla sessione dopo, senza aspettare le 6 ore degli eventi, e una
-segnalazione che parte si porta dietro quelle in attesa (Liliana, 27/10/2026).
+segnalazione che parte si porta dietro quelle in attesa (27/10/2026).
 
 M26 e M27 (review del 7/11/2026, finding 43 e 47): un invio alla volta, senza eventi doppi né persi; lo sportello parte
 dalla segnalazione più nuova, si ferma al 429 e salta per qualche giorno quelle che il server non ha più.
@@ -485,7 +485,7 @@ def test_m19(repo: Path) -> None:
 
 
 def test_m20(repo: Path) -> None:
-    # Liliana, 27/10/2026: la proposta delle 9:18 restò in attesa tutto il giorno. Il rinvio aspettava le 6 ore
+    # 27/10/2026: la proposta delle 9:18 restò in attesa tutto il giorno. Il rinvio aspettava le 6 ore
     # dell'invio della telemetria, e la segnalazione n. 18 delle 14:52 partì da sola senza portarsi dietro l'altra.
     srv = Server()
     lab = Lab(repo, srv)

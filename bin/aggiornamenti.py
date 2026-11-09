@@ -20,7 +20,9 @@ chi mantiene Arturo, verificati con la chiave che hai già installata (firme/ril
 Non si installa niente da solo se: la firma manca o non è di Arturo; la storia pubblicata è stata
 riscritta; hai modifiche non salvate in ~/.claude; un'altra sessione di Claude Code è aperta (lo
 installa la chiusura dopo, anche con altre sessioni aperte, dal 4/11/2026, oppure l'apertura dopo di Claude
-Code se è l'unica sessione, dal 3/11/2026, mai un /clear, dal 4/11/2026); l'aggiornamento va in conflitto con le tue modifiche. In tutti questi
+Code se è l'unica sessione, dal 3/11/2026, mai un /clear, dal 4/11/2026); l'aggiornamento va in conflitto su
+settings.json o su un CLAUDE.md (negli altri file vince il rilascio, e la tua versione resta in personale/conflitti,
+dal 3/11/2026). In tutti questi
 casi l'avviso resta, col motivo, e /aggiorna fa il resto con te. Una firma che manca o non torna non
 si scavalca neanche con /aggiorna: è il segno di un repository manomesso, e l'avviso dice di non
 aggiornare e di segnalarlo a chi mantiene Arturo (17/10/2026, #3504). Una firma che questo computer
@@ -295,8 +297,8 @@ def cmd_stato(r: Path) -> int:
         righe.append(f"ARTURO: la versione {rinviato} si installa alla prossima chiusura di una sessione o alla prossima "
                      "apertura di Claude Code, non dopo un /clear: la sessione aperta tiene i suoi strumenti.")
     elif stato["stato"] == "pronto" and rinviato == stato["versione"] and processi_claude() <= 1             and avvia_staccato(r, "applica", "--avvio"):
-        # Un rilascio rinviato si installa all'avvio dopo, se questa è l'unica sessione (3/11/2026): Alessio è
-        # restato al 23/10 perché alla chiusura c'era sempre un'altra sessione aperta, e l'attesa scadeva.
+        # Un rilascio rinviato si installa all'avvio dopo, se questa è l'unica sessione (3/11/2026): un'installazione è
+        # restata indietro al 23/10 perché alla chiusura c'era sempre un'altra sessione aperta, e l'attesa scadeva.
         righe.append(f"ARTURO: installo ora la versione {rinviato}, rinviata alla chiusura scorsa perché c'era un'altra "
                      "sessione aperta. Se un hook dà errore, riapri la sessione. Dillo alla persona in una frase.")
     elif stato["stato"] == "pronto" and rinviato == stato["versione"]:
@@ -459,7 +461,7 @@ def _applica(r: Path, ammesse: int = 0) -> int:
         return 0
     limite = time.time() + float(os.environ.get("ARTURO_ATTESA_MAX", ATTESA_MAX))
     # Un rilascio già rinviato una volta non aspetta più le altre sessioni (#4074, Federico 2/11/2026): chi
-    # tiene sempre una sessione aperta restava indietro per giorni, come Alessio al 23/10. Le sessioni rimaste
+    # tiene sempre una sessione aperta restava indietro per giorni, come un'installazione al 23/10. Le sessioni rimaste
     # aperte leggono gli hook nuovi da subito, come dopo un /aggiorna; i mod cambiano alla loro riapertura.
     attende = ammesse > 0 or not rinvio_in_attesa(r, stato)
     while attende and processi_claude() > ammesse:

@@ -696,9 +696,16 @@ def indietro(cartella: Path, conserva: bool = True) -> int:
     return 0
 
 
+# I sistemi dove il passaggio al plugin è provato: solo lì l'avvio lo propone.
+SISTEMI_PROVATI = ("posix",)
+
+
 def avviso() -> str:
     """La riga dell'avvio per chi ha ancora il clone: una volta al giorno, senza git (l'avvio deve essere
-    svelto). Col plugin, o con un ~/.claude che non è il clone, è vuota."""
+    svelto). Col plugin, o con un ~/.claude che non è il clone, è vuota. Anche su Windows, finché il passaggio
+    non è provato lì (#4873, docs/strati.md; review del 7/11/2026, finding 99)."""
+    if os.name not in SISTEMI_PROVATI:
+        return ""
     orsa = radice_orsa()
     try:
         if radice_arturo().resolve() != orsa.resolve() or not (orsa / ".git").exists():

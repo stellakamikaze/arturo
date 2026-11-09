@@ -990,7 +990,7 @@ def avvio() -> int:
                   f"Si spegne con: {comando_arturo()} telemetria spegni")
             cambia_stato(lambda s: s.update(avviso=ts.oggi().isoformat(), avviso_promessa=PROMESSA))
         # Una segnalazione in attesa parte alla sessione dopo, come promette /segnala, senza aspettare le 6 ore
-        # dell'invio degli eventi (Liliana, 27/10/2026). Parte da sola: gli eventi aspettano le 6 ore promesse
+        # dell'invio degli eventi (27/10/2026). Parte da sola: gli eventi aspettano le 6 ore promesse
         # da docs/privacy.md (#4073).
         ultimo = stato.get("ultimo_tentativo")
         if not isinstance(ultimo, int) or time.time() - ultimo > OGNI:

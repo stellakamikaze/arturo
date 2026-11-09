@@ -17,6 +17,9 @@ Per chi mantiene Arturo e per chi ne fa un fork. Le regole sono poche e delibera
 - L'ancora di una voce (`{#plugin}`) non cambia mai, perché i commenti del sito sono legati a lei. Una voce chiusa passa in "Uscito di recente" e la sua ancora non si riusa.
 - Prima di aggiornare una voce, leggi i commenti delle persone su quella voce (pagina `/sviluppo/roadmap/`).
 - Il testo è per chi usa Arturo: frasi semplici, niente nomi di persone, niente cifre.
+- Niente nomi di persone né id di installazioni anche in `NOVITA.md`, nei commenti, nei test e negli esempi: una
+  segnalazione si cita col numero ("segnalazione n. 23"), un'installazione con un id finto (review del 7/11/2026,
+  finding 95 e 96). Il controllo I03 (`tests/igiene.py`) li cerca per impronta.
 
 ## Portare `dev` su `main`
 
@@ -240,6 +243,8 @@ Arturo manda una telemetria accesa di default (README, Impegni), che serve a mig
   `DELETE FROM segnalazioni WHERE installazione = '…'` e
   `DELETE FROM contatori WHERE substr(chiave, instr(chiave, ':') + 1) = '…'`. La terza toglie le
   chiavi che portano l'id (`setup-fine:`, `rotta:`, `indietro:`), che altrimenti restano fino a 12 mesi.
+  Chi usa Lancillotto ha un id suo (`lancillotto telemetria mostra`):
+  `DELETE FROM eventi_lancillotto WHERE installazione = '…'`.
   Il feedback del sito non ha un id: si cancella con l'email lasciata nel modulo,
   `DELETE FROM feedback WHERE email = '…'`. Una segnalazione senza id o un feedback senza email si
   cancella col suo numero (`WHERE id = N`), se la persona lo dice.
