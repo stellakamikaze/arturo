@@ -39,8 +39,13 @@ HZ13 Arturo.app (arturo-app.sh, solo macOS, #5002): da un Herdr.app finto nasce 
      ridà il nome di Herdr torna Arturo alla versione nuova; un Herdr.app più nuovo la rifà; il LaunchAgent
      guarda i due Info.plist. L'installatore la chiama solo sul Mac e solo senza installer finto. Fuori da
      macOS resta solo il controllo sull'installatore.
+HZ14 le note sulla finestra (⌘⇧N, nota.js con node): la nota porta testo, punto, misura della finestra e
+     progetto; diventa una cosa da fare di Claude per oggi, con punto e cartella nelle note, sulla CLI vera
+     in una casa finta; vuota non parte; senza progetto resta nella cartella; note_progetto vince sul
+     progetto aperto. barra.js fa lo screenshot prima del velo, keys.json lega cmd-shift-n, main.js ha la
+     parte, l'installatore tiene note_progetto in arturo.json. Senza node la parte con node si salta.
 
-Con --avvelena quattordici copie rotte del repository devono far rosso il caso che le sorveglia.
+Con --avvelena sedici copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
 
@@ -54,7 +59,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14")
 INSTALLA = Path("shared/herdr/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -555,7 +560,69 @@ def hz13(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13}
+PROVA_NOTA = r"""
+import { nota, cartellaNota, progettoNota } from %s;
+const base = { x: 412.6, y: 233.2, larghezza: 1440, altezza: 900, cartella: "/casa/.claude/data/note-finestra/x", schermo: "Ricette", quando: "2026-11-09T09:00:00Z" };
+console.log(JSON.stringify({
+  piena: nota({ ...base, testo: "  Il   pulsante è troppo piccolo ", progetto: "prova" }),
+  vuota: nota({ ...base, testo: "   ", progetto: "prova" }),
+  senza: nota({ ...base, testo: "ciao", progetto: null }),
+  cartella: cartellaNota("/casa", new Date(2026, 10, 9, 9, 5, 7)),
+  scelto: progettoNota("arturo", "ricette"), aperto: progettoNota(null, "ricette"),
+}));
+"""
+
+
+def hz14(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/herdr/mods/arturo"
+    if "nota: Nota" not in (mod / "main.js").read_text(encoding="utf-8"):
+        return "main.js non ha la parte nota"
+    if json.loads((repo / "shared/herdr/keys.json").read_text(encoding="utf-8")).get("global", {}).get("cmd-shift-n") != "arturo.nota":
+        return "keys.json non lega cmd-shift-n alle note"
+    barra = (mod / "barra.js").read_text(encoding="utf-8")
+    corpo = barra.split("async function apriNota() {", 1)[-1].split("\n}\n", 1)[0]
+    if 'else if (c === "nota") await apriNota();' not in barra or corpo.find(" shot ") < 0 or corpo.find(" shot ") > corpo.find("openOverlay("):
+        return "barra.js non fa lo screenshot prima di aprire il velo delle note"
+    if 'arturo = leggi("arturo.json") or {}' not in (repo / INSTALLA).read_text(encoding="utf-8"):
+        return "l'installatore riscrive arturo.json perdendo note_progetto"
+    node = shutil.which("node")
+    if not node:
+        return None
+    copia = casa / "nota.mjs"
+    shutil.copyfile(mod / "nota.js", copia)
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_NOTA % json.dumps(copia.as_uri())],
+                       capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"nota.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    if g["vuota"] is not None:
+        return "una nota vuota parte lo stesso"
+    if g["senza"]["argv"] is not None or g["senza"]["dati"]["testo"] != "ciao":
+        return "senza progetto la nota non resta solo nella cartella"
+    d = g["piena"]["dati"]
+    if (d["testo"], d["punto"], d["finestra"], d["progetto"], d["screenshot"]) != (
+            "Il pulsante è troppo piccolo", {"x": 413, "y": 233}, {"larghezza": 1440, "altezza": 900}, "prova", "finestra.png"):
+        return f"nota.json non porta testo, punto, finestra e progetto: {d}"
+    if g["cartella"] != "/casa/.claude/data/note-finestra/2026-11-09_09-05-07":
+        return f"cartella della nota sbagliata: {g['cartella']}"
+    if (g["scelto"], g["aperto"]) != ("arturo", "ricette"):
+        return "il progetto delle note non preferisce note_progetto al progetto aperto"
+    env = {**os.environ, "HOME": str(casa), "USERPROFILE": str(casa), "ARTURO_TODO": str(casa / "eventi.jsonl"),
+           "ARTURO_OGGI": "2026-11-09"}
+    r = subprocess.run([sys.executable, str(repo / "bin/arturo"), "todo", *g["piena"]["argv"]], capture_output=True,
+                       text=True, timeout=60, env=env, cwd=casa)
+    if r.returncode != 0:
+        return f"la nota non va sulla CLI: {(r.stderr or r.stdout).strip()[:160]}"
+    t = json.loads(subprocess.run([sys.executable, str(repo / "bin/arturo"), "todo", "mostra", "1", "--json"],
+                                  capture_output=True, text=True, timeout=60, env=env, cwd=casa).stdout)
+    if (t["chi"], t["quando"], t["progetto"]) != ("io", "oggi", "prova") or not t["titolo"].startswith("Nota sulla finestra: Il pulsante"):
+        return f"la nota non diventa una cosa da fare di Claude per oggi: {t['chi']} {t['quando']} {t['progetto']} {t['titolo']}"
+    if not any("note-finestra/x" in n and "413,233" in n for n in t.get("note", [])):
+        return f"la cosa da fare non porta punto e cartella nelle note: {t.get('note')}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14}
 
 
 def prova(repo: Path) -> list[str]:
@@ -583,6 +650,8 @@ VELENI = [
     ("HZ12", "shared/herdr/mods/arturo/azioni.js", "if (quando === t.quando) continue;", ""),
     ("HZ12", "shared/herdr/mods/arturo/azioni.js", 'argv: ["inizia"', 'argv: ["riprendi"'),
     ("HZ12", "shared/herdr/mods/arturo/todo.js", "const g = inizia(item);", "const g = null;"),
+    ("HZ14", "shared/herdr/mods/arturo/nota.js", "if (!t) return null;", ""),
+    ("HZ14", "shared/herdr/mods/arturo/nota.js", '"--chi", "io"', '"--chi", "tu"'),
     ("HZ13", "shared/herdr/arturo-app.sh", '-c "Set :CFBundleIdentifier $ID"', '-c "Set :CFBundleIdentifier dev.herdr.app"'),
     ("HZ13", "shared/herdr/arturo-app.sh", 'if [ -d "$arturo" ] && { [ ! -d "$herdr" ] || ! piu_nuova "$v_herdr" "$v_arturo"; }; then base=$arturo; fi', ":"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),

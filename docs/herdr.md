@@ -45,3 +45,9 @@ Questo è un ramo di prova, fuori dai rilasci. Prima di un rilascio mancano:
 ## Il nome Arturo nel Dock
 
 Sul Mac l'installazione crea `~/Applications/Arturo.app` accanto a `Herdr.app` (`shared/herdr/arturo-app.sh`): la stessa app, col nome, l'identificativo `org.stellakamikaze.arturo` e l'icona di Arturo, firmata in locale. Herdr si aggiorna da sé anche dentro Arturo.app e sostituisce il pacchetto intero, quindi dopo un aggiornamento l'app si chiamerebbe di nuovo Herdr: il LaunchAgent `org.stellakamikaze.arturo-app` guarda i due `Info.plist` e rilancia lo script, che riparte dalla copia più nuova. Con la firma ad hoc macOS lega i permessi (Documenti, microfono, automazione) a una firma che cambia a ogni aggiornamento, quindi li richiede. `shared/herdr/firma-locale.sh`, lanciato dalla persona nel suo Terminale, crea l'identità "Arturo firma locale" nel portachiavi e la segna come affidabile per la firma del codice (macOS chiede la password): da lì Arturo.app tiene la stessa identità e i permessi restano.
+
+## Le note sulla finestra (⌘⇧N)
+
+Premi ⌘⇧N, clicchi il punto di cui vuoi parlare e scrivi la nota: Claude la riceve fra le sue cose da fare di oggi, nel progetto scritto in `note_progetto` di `arturo.json` della cartella di Herdr, oppure in quello aperto. Lo screenshot si fa prima che il velo compaia. Ogni nota ha una cartella in `~/.claude/data/note-finestra/<data-ora>/` con `nota.json` e `finestra.png`, e la cosa da fare porta nelle note il punto e il percorso.
+
+**Per Claude**: in `nota.json` il punto e la finestra sono in punti dello schermo; lo screenshot è in pixel reali, e il rapporto è la larghezza del PNG divisa `finestra.larghezza`. Per guardare il punto ritaglia il PNG intorno a `punto` moltiplicato per quel rapporto (`ffmpeg -vf crop`), poi lavora e chiudi la cosa da fare.

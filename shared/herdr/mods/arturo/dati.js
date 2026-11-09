@@ -4,7 +4,7 @@
 import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify } from "herdr";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
-// { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "base": "/Users/x/Documents/ClaudeCode" }
+// { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
 export async function config() {
   let c = {};
   try {
@@ -15,6 +15,8 @@ export async function config() {
   return {
     arturo: Array.isArray(c.arturo) && c.arturo.length ? c.arturo : ["python3", `${home()}/.claude/bin/arturo`],
     base: typeof c.base === "string" && c.base ? c.base : `${home()}/Documents/ClaudeCode`,
+    // Il progetto delle note sulla finestra (⌘⇧N); senza, va al progetto aperto.
+    note_progetto: typeof c.note_progetto === "string" && c.note_progetto ? c.note_progetto : null,
   };
 }
 

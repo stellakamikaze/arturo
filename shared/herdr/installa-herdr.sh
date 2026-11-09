@@ -91,7 +91,10 @@ def leggi(nome):
     with open(p, encoding="utf-8") as f:
         return json.load(f)
 
-scrivi("arturo.json", {"arturo": [os.environ["ARTURO_PY"], os.environ["ARTURO_BIN"]], "base": os.environ["ARTURO_BASE"]})
+# arturo.json: arturo e base si riscrivono, le altre chiavi della persona (note_progetto) restano.
+arturo = leggi("arturo.json") or {}
+arturo.update({"arturo": [os.environ["ARTURO_PY"], os.environ["ARTURO_BIN"]], "base": os.environ["ARTURO_BASE"]})
+scrivi("arturo.json", arturo)
 
 # Tasti: si aggiungono; un tasto che la persona usa già per altro resta suo.
 tasti = leggi("keys.json") or {}
