@@ -129,13 +129,21 @@ if [ "$sistema" = windows ]; then
   fi
 fi
 
-# 5. Controllo del mod e apertura.
+# 5. Sul Mac, Arturo.app: Herdr col nome e l'icona di Arturo, riallineata dopo ogni aggiornamento.
+app_arturo=""
+if [ "$sistema" = mac-arm ] && [ -z "${ARTURO_HERDR_INSTALLER:-}" ] && [ -d "$HOME/Applications/Herdr.app" ]; then
+  sh "$qui/arturo-app.sh" --agente || say "Arturo.app non è pronta: Herdr funziona lo stesso col suo nome."
+  [ -d "$HOME/Applications/Arturo.app" ] && app_arturo="$HOME/Applications/Arturo.app"
+fi
+
+# 6. Controllo del mod e apertura.
 if command -v herdr-app >/dev/null 2>&1 && [ -z "${ARTURO_HERDR_INSTALLER:-}" ]; then
   herdr-app check "$app_home/mods/arturo" >/dev/null || { say "HERDR ERRORE: il mod di Arturo non si carica (herdr-app check)."; exit 1; }
 fi
 if [ "${ARTURO_HERDR_NON_APRIRE:-0}" != 1 ]; then
   if [ "$sistema" = mac-arm ]; then
-    open -a Herdr 2>/dev/null || open "$HOME/Applications/Herdr.app" 2>/dev/null || true
+    if [ -n "$app_arturo" ]; then open "$app_arturo" 2>/dev/null || true
+    else open -a Herdr 2>/dev/null || open "$HOME/Applications/Herdr.app" 2>/dev/null || true; fi
   fi
 fi
 say "HERDR OK: Herdr è pronto col layout di Arturo."

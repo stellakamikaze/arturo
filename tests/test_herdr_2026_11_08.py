@@ -32,10 +32,15 @@ HZ12 le azioni sui todo del pannello Da fare (azioni.js, con node): ogni gesto d
      girano sulla CLI vera in una casa finta e lasciano il todo come promettono (chi, quando, fermo col
      motivo, ripreso, nota, scartato, fatto); il menu non propone il chi e il quando che il todo ha già,
      né "Fermo" a un todo fermo; un titolo vuoto non aggiunge niente. Lavoraci (#4994) segna il todo
-     in corso prima di aprire Claude, non riscrive un todo già in corso, e il menu lo rimette da fare. Menu e finestra sono parti di
-     main.js. Senza node il caso si salta.
+     in corso prima di aprire Claude, non riscrive un todo già in corso, e il menu lo rimette da fare.
+     Menu e finestra sono parti di main.js. Senza node il caso si salta.
+HZ13 Arturo.app (arturo-app.sh, solo macOS, #5002): da un Herdr.app finto nasce Arturo.app col nome, l'id e
+     l'icona di Arturo e la firma locale valida; il secondo giro non la tocca; dopo un aggiornamento che le
+     ridà il nome di Herdr torna Arturo alla versione nuova; un Herdr.app più nuovo la rifà; il LaunchAgent
+     guarda i due Info.plist. L'installatore la chiama solo sul Mac e solo senza installer finto. Fuori da
+     macOS resta solo il controllo sull'installatore.
 
-Con --avvelena dodici copie rotte del repository devono far rosso il caso che le sorveglia.
+Con --avvelena quattordici copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
 
@@ -49,7 +54,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13")
 INSTALLA = Path("shared/herdr/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -485,7 +490,72 @@ def hz12(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12}
+def hz13(repo: Path, casa: Path) -> str | None:
+    installa_sh = (repo / INSTALLA).read_text(encoding="utf-8")
+    if 'sh "$qui/arturo-app.sh" --agente' not in installa_sh \
+            or '[ -z "${ARTURO_HERDR_INSTALLER:-}" ] && [ -d "$HOME/Applications/Herdr.app" ]' not in installa_sh:
+        return "l'installatore non crea Arturo.app sul Mac, o la crea anche nei banchi"
+    if sys.platform != "darwin":
+        return None
+    import plistlib
+
+    def app(dove: Path, nome: str, versione: str, ident: str) -> None:
+        (dove / "Contents/MacOS").mkdir(parents=True, exist_ok=True)
+        (dove / "Contents/Resources").mkdir(parents=True, exist_ok=True)
+        eseg = dove / "Contents/MacOS/Herdr"
+        eseg.write_text("#!/bin/sh\necho herdr\n", encoding="utf-8")
+        eseg.chmod(0o755)
+        with open(dove / "Contents/Info.plist", "wb") as f:
+            plistlib.dump({"CFBundleName": nome, "CFBundleDisplayName": nome, "CFBundleIdentifier": ident,
+                           "CFBundleExecutable": "Herdr", "CFBundleIconFile": "Herdr", "CFBundlePackageType": "APPL",
+                           "CFBundleShortVersionString": versione}, f)
+
+    herdr, arturo, agenti = casa / "Applications/Herdr.app", casa / "Applications/Arturo.app", casa / "agenti"
+    env = {**os.environ, "ARTURO_HERDR_APP": str(herdr), "ARTURO_APP": str(arturo), "ARTURO_APP_AGENTI": str(agenti),
+           "ARTURO_APP_NO_LAUNCHCTL": "1"}
+
+    def giro(*arg):
+        return subprocess.run(["sh", str(repo / "shared/herdr/arturo-app.sh"), *arg], capture_output=True,
+                              text=True, timeout=60, env=env)
+
+    def arturo_ok(versione):
+        with open(arturo / "Contents/Info.plist", "rb") as f:
+            i = plistlib.load(f)
+        avuto = (i.get("CFBundleName"), i.get("CFBundleIdentifier"), i.get("CFBundleShortVersionString"))
+        if avuto != ("Arturo", "org.stellakamikaze.arturo", versione):
+            return f"Arturo.app ha {avuto}, attesa Arturo {versione}"
+        if not (arturo / "Contents/Resources/Arturo.icns").exists():
+            return "Arturo.app senza icona"
+        v = subprocess.run(["codesign", "--verify", "--deep", "--strict", str(arturo)], capture_output=True, text=True)
+        return f"firma di Arturo.app non valida: {v.stderr.strip()[:120]}" if v.returncode else None
+
+    app(herdr, "Herdr", "0.1.13", "dev.herdr.app")
+    r = giro("--agente")
+    if r.returncode != 0:
+        return f"arturo-app.sh esce {r.returncode}: {(r.stderr or r.stdout).strip()[:160]}"
+    if (m := arturo_ok("0.1.13")):
+        return m
+    with open(agenti / "org.stellakamikaze.arturo-app.plist", "rb") as f:
+        guarda = plistlib.load(f).get("WatchPaths", [])
+    if sorted(guarda) != sorted([str(herdr / "Contents/Info.plist"), str(arturo / "Contents/Info.plist")]):
+        return f"il LaunchAgent non guarda i due Info.plist: {guarda}"
+    prima = (arturo / "Contents/Info.plist").stat().st_mtime_ns
+    if "già a posto" not in giro().stdout or (arturo / "Contents/Info.plist").stat().st_mtime_ns != prima:
+        return "il secondo giro rifà Arturo.app"
+    shutil.rmtree(arturo)
+    app(arturo, "Herdr", "0.1.14", "dev.herdr.app")  # l'aggiornamento fatto da dentro Arturo.app
+    giro()
+    if (m := arturo_ok("0.1.14")):
+        return f"dopo l'aggiornamento: {m}"
+    shutil.rmtree(herdr)
+    app(herdr, "Herdr", "0.1.15", "dev.herdr.app")  # Herdr.app aggiornato dall'installer
+    giro()
+    if (m := arturo_ok("0.1.15")):
+        return f"con Herdr.app più nuovo: {m}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13}
 
 
 def prova(repo: Path) -> list[str]:
@@ -513,6 +583,8 @@ VELENI = [
     ("HZ12", "shared/herdr/mods/arturo/azioni.js", "if (quando === t.quando) continue;", ""),
     ("HZ12", "shared/herdr/mods/arturo/azioni.js", 'argv: ["inizia"', 'argv: ["riprendi"'),
     ("HZ12", "shared/herdr/mods/arturo/todo.js", "const g = inizia(item);", "const g = null;"),
+    ("HZ13", "shared/herdr/arturo-app.sh", '-c "Set :CFBundleIdentifier $ID"', '-c "Set :CFBundleIdentifier dev.herdr.app"'),
+    ("HZ13", "shared/herdr/arturo-app.sh", 'if [ -d "$arturo" ] && { [ ! -d "$herdr" ] || ! piu_nuova "$v_herdr" "$v_arturo"; }; then base=$arturo; fi', ":"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 

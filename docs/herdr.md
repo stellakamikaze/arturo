@@ -41,3 +41,7 @@ Questo è un ramo di prova, fuori dai rilasci. Prima di un rilascio mancano:
 - un invito, una volta sola dall'avvio, per chi ha già Arturo e non ripassa da `/setup`;
 - la prova su Windows (Git Bash come shell dei terminali di Herdr, l'hook su ConPTY);
 - l'avviso di Herdr quando una sessione aspetta, oggi in inglese ("Claude Code needs you").
+
+## Il nome Arturo nel Dock
+
+Sul Mac l'installazione crea `~/Applications/Arturo.app` accanto a `Herdr.app` (`shared/herdr/arturo-app.sh`): la stessa app, col nome, l'identificativo `org.stellakamikaze.arturo` e l'icona di Arturo, firmata in locale. Herdr si aggiorna da sé anche dentro Arturo.app e sostituisce il pacchetto intero, quindi dopo un aggiornamento l'app si chiamerebbe di nuovo Herdr: il LaunchAgent `org.stellakamikaze.arturo-app` guarda i due `Info.plist` e rilancia lo script, che riparte dalla copia più nuova. Il prezzo: macOS lega i permessi (microfono, automazione) alla firma, che cambia a ogni aggiornamento, quindi li richiede.
