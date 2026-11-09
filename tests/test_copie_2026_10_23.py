@@ -3,8 +3,8 @@
 
 La revisione di fine sessione del 23/10 ha trovato due copie rimaste indietro: la cancellazione dei
 dati di un'installazione aveva tre righe in docs/manutenzione.md e una sola in server/README.md.
-La lista del ripristino ha cinque copie scritte a mano, e quelle della landing le vedeva solo il gate
-della landing.
+La lista del ripristino aveva cinque copie scritte a mano, e quelle della landing le vedeva solo il gate
+della landing. Dal 9/11/2026 sono tre: README, guida e llms.txt della landing.
 
 CP01 la cancellazione di un'installazione ha le stesse istruzioni DELETE in docs/manutenzione.md e
      in server/README.md, e tocca eventi, segnalazioni e contatori.
@@ -16,7 +16,12 @@ CP02 la lista del ripristino ha le stesse voci nel README e nella landing. Dal 9
      non ha più il ciclo del ripristino, e CP02 controlla che non sposti più tutta la cartella
      (mv "$dest"). Senza quel ramo (un clone di chi usa Arturo) la parte della landing si salta e lo
      dice. ARTURO_LANDING_DIR legge la landing da una cartella (un worktree) invece che dal ramo.
-     Con --avvelena una landing finta con il vecchio mv "$dest" deve far fallire CP02 col suo motivo.
+     Dal 9/11/2026 (review del 7/11, L10) le tre copie hanno anche lo stesso ripristino dopo un clone
+     fallito (il ramo elif che rimette la cartella messa da parte), e FIRMA_SBAGLIATA di sito/installa.sh
+     è la stessa espressione di bin/aggiornamenti.py: i due dicono "possibile compromissione" sugli
+     stessi errori di verify-tag.
+     Con --avvelena una landing finta con il vecchio mv "$dest", con un FIRMA_SBAGLIATA diverso o
+     senza il ripristino deve far fallire CP02 col suo motivo.
 CP03 nessun testo di Arturo chiama anonimi i dati d'uso (26/10/2026): l'id è casuale, ma chi mantiene
      Arturo può sapere chi c'è dietro (docs/privacy.md). Restano le frasi che lo negano ("non sono
      anonimi") e NOVITA.md, che racconta anche la storia. I file si leggono dal disco, non da git:
@@ -60,6 +65,10 @@ RAMI_LANDING = ("origin/landing-v2", "landing-v2")
 LANDING = ("sito/installa/index.html", "sito/llms.txt")
 INSTALLATORE = "sito/installa.sh"
 # Spostare tutta la config: la sorgente di mv è la cartella intera, non un file dentro.
+# Il ripristino dopo un clone fallito: il ramo elif del blocco a mano, fino al fi.
+RIPRISTINO = re.compile(r'^elif \[ -d "\$B" \]; then\n(.*?)^fi\b', re.S | re.M)
+FIRMA_PY = re.compile(r'^FIRMA_SBAGLIATA = re\.compile\(r"([^"]+)"', re.M)
+FIRMA_SH = re.compile(r"^FIRMA_SBAGLIATA='([^']+)'", re.M)
 SPOSTA_TUTTO = re.compile(r'\bmv\s+(?:-\w+\s+)*(?:"\$dest"|\$dest|"\$HOME/\.claude"|"\$\{HOME\}/\.claude"|~/\.claude)(?=\s)')
 
 
@@ -70,6 +79,12 @@ def voci(testo: str):
         if "CLAUDE.md" in parole:
             return parole
     return None
+
+
+def ripristino(testo: str):
+    """Il ramo elif del blocco a mano, con gli spazi normalizzati, o None se non c'è."""
+    m = RIPRISTINO.search(html.unescape(testo))
+    return " ".join(m.group(1).split()) if m else None
 
 
 def cancellazioni(testo: str) -> set:
@@ -106,7 +121,7 @@ def dal_ramo(repo: Path, percorso: str):
 
 
 def test_cp02(repo: Path) -> None:
-    liste = {}
+    liste, ripristini = {}, {}
     setup = (repo / "commands" / "setup.md").read_text(encoding="utf-8")
     assert "#a-mano-esteso" in setup and voci(setup) is None, \
         "CP02 commands/setup.md ha una sua copia del blocco a mano invece del rimando alla guida"
@@ -116,6 +131,7 @@ def test_cp02(repo: Path) -> None:
         v = voci(f.read_text(encoding="utf-8"))
         assert v is not None and len(v) >= MINIMO, f"CP02 {percorso}: la lista del ripristino manca o è corta ({v})"
         liste[percorso] = v
+        ripristini[percorso] = ripristino(f.read_text(encoding="utf-8"))
     saltate = 0
     for percorso in LANDING:
         testo, nome = dal_ramo(repo, percorso)
@@ -125,16 +141,27 @@ def test_cp02(repo: Path) -> None:
         v = voci(testo)
         assert v is not None and len(v) >= MINIMO, f"CP02 {nome}: la lista del ripristino manca o è corta ({v})"
         liste[nome] = v
+        ripristini[nome] = ripristino(testo)
     tutte = set().union(*map(set, liste.values()))
     for nome, v in liste.items():
         assenti = sorted(tutte - set(v))
         assert not assenti, f"CP02 {nome}: mancano {' '.join(assenti)}"
+    senza = sorted(nome for nome, r in ripristini.items() if not r or 'mv "$B" "$HOME/.claude"' not in r)
+    assert not senza, f"CP02 senza il ripristino dopo un clone fallito: {senza}"
+    diversi = sorted(nome for nome, r in ripristini.items() if r != ripristini["README.md"])
+    assert not diversi, f"CP02 il ripristino dopo un clone fallito è diverso dal README in: {diversi}"
     testo, nome = dal_ramo(repo, INSTALLATORE)
     if testo is not None:
         codice = "\n".join(r for r in testo.splitlines() if not r.lstrip().startswith("#"))
         spostato = SPOSTA_TUTTO.search(codice)
         assert not spostato, (f"CP02 {nome}: l'installatore sposta ancora tutta ~/.claude "
                               f"({spostato.group(0)!r}), invece di innestare Arturo sul posto")
+        py = FIRMA_PY.search((repo / "bin" / "aggiornamenti.py").read_text(encoding="utf-8"))
+        sh = FIRMA_SH.search(testo)
+        assert py, "CP02 bin/aggiornamenti.py senza FIRMA_SBAGLIATA = re.compile(r\"...\")"
+        assert sh and sh.group(1) == py.group(1), (
+            f"CP02 {nome}: FIRMA_SBAGLIATA {sh.group(1) if sh else 'assente'!r} diverso da bin/aggiornamenti.py "
+            f"{py.group(1)!r}")
     if saltate:
         print(f"NOTA CP02: ramo della landing assente, confrontate {len(liste)} copie su {1 + len(LANDING)}")
 
@@ -246,29 +273,50 @@ def test_cp06(repo: Path) -> None:
 TESTS = {"CP01": test_cp01, "CP02": test_cp02, "CP03": test_cp03, "CP04": test_cp04, "CP05": test_cp05,
          "CP06": test_cp06}
 
-# Il veleno di CP02: una landing finta con guida e llms.txt allineati al README, e un installa.sh
-# per caso. Atteso None = CP02 verde; una stringa = CP02 rosso con quel motivo.
+# Il veleno di CP02: una landing finta con guida e llms.txt uguali al blocco a mano del README, e un
+# installa.sh con FIRMA_SBAGLIATA di bin/aggiornamenti.py (FIRMA nel testo) più il codice del caso.
+# Ogni caso può guastare una copia della landing. Atteso None = CP02 verde; una stringa = CP02 rosso
+# con quel motivo.
+INNESTA = 'mv "$tmp/a/.git" "$dest/.git"\n'
 CASI = [
-    ("installa.sh col vecchio mv della cartella", 'dest="$HOME/.claude"\nmv "$dest" "$b" || exit 1\n',
+    ("installa.sh col vecchio mv della cartella", 'FIRMA\ndest="$HOME/.claude"\nmv "$dest" "$b" || exit 1\n', None,
      "sposta ancora tutta ~/.claude"),
-    ("installa.sh che sposta ~/.claude per nome", 'mv -f "$HOME/.claude" "$b"\n', "sposta ancora tutta ~/.claude"),
-    ("installa.sh che innesta sul posto", '# prima: mv "$dest" "$b"\nmv "$tmp/a/.git" "$dest/.git"\n', None),
+    ("installa.sh che sposta ~/.claude per nome", 'FIRMA\nmv -f "$HOME/.claude" "$b"\n', None,
+     "sposta ancora tutta ~/.claude"),
+    ("installa.sh che innesta sul posto", 'FIRMA\n# prima: mv "$dest" "$b"\n' + INNESTA, None, None),
+    ("installa.sh con un errore di firma in meno", 'FIRMA\n' + INNESTA,
+     None, "FIRMA_SBAGLIATA"),
+    ("installa.sh senza FIRMA_SBAGLIATA", INNESTA, None, "FIRMA_SBAGLIATA 'assente'"),
+    ("guida senza il ripristino dopo un clone fallito", 'FIRMA\n' + INNESTA,
+     ("sito/installa/index.html", lambda b: RIPRISTINO.sub("fi", b)), "senza il ripristino"),
+    ("llms.txt con un ripristino che non cancella il clone a metà", 'FIRMA\n' + INNESTA,
+     ("sito/llms.txt", lambda b: b.replace('rm -rf "$HOME/.claude" && ', "")), "diverso dal README in"),
 ]
+BLOCCO = re.compile(r'^B="\$HOME/\.claude-backup.*?^fi\b', re.S | re.M)
 
 
 def avvelena(repo: Path) -> int:
     import tempfile
-    ciclo = CICLO.search(html.unescape((repo / "README.md").read_text(encoding="utf-8")))
-    assert ciclo, "CP02 veleno: il README non ha il ciclo del ripristino"
+    blocco = BLOCCO.search((repo / "README.md").read_text(encoding="utf-8"))
+    assert blocco and CICLO.search(blocco.group(0)), "CP02 veleno: il README non ha il blocco a mano col ripristino"
+    firma = FIRMA_PY.search((repo / "bin" / "aggiornamenti.py").read_text(encoding="utf-8"))
+    assert firma, "CP02 veleno: bin/aggiornamenti.py senza FIRMA_SBAGLIATA"
     prima = os.environ.get("ARTURO_LANDING_DIR")
     sbagliati = []
     try:
-        for nome, installa, atteso in CASI:
+        for nome, installa, guasto, atteso in CASI:
+            espressione = firma.group(1)
+            if "in meno" in nome:
+                espressione = espressione.rsplit("|", 1)[0]
             with tempfile.TemporaryDirectory() as d:
                 for percorso in LANDING:
+                    testo = blocco.group(0)
+                    if guasto and guasto[0] == percorso:
+                        testo = guasto[1](testo)
                     (Path(d) / percorso).parent.mkdir(parents=True, exist_ok=True)
-                    (Path(d) / percorso).write_text(ciclo.group(0) + "\n", encoding="utf-8")
-                (Path(d) / INSTALLATORE).write_text("#!/bin/bash\n" + installa, encoding="utf-8")
+                    (Path(d) / percorso).write_text(testo + "\n", encoding="utf-8")
+                (Path(d) / INSTALLATORE).write_text(
+                    "#!/bin/bash\n" + installa.replace("FIRMA", f"FIRMA_SBAGLIATA='{espressione}'"), encoding="utf-8")
                 os.environ["ARTURO_LANDING_DIR"] = d
                 try:
                     test_cp02(repo)

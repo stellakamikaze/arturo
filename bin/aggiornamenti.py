@@ -134,7 +134,10 @@ def scarica(r: Path, src: str) -> None:
 def ultimo_tag(r: Path, src: str) -> str:
     """L'ultimo rilascio pubblicato: il tag più vicino a main della sorgente degli aggiornamenti.
     Un tag firmato ripubblicato sotto un altro nome esce col nome scritto dentro e un suffisso
-    (`v1-0-g…`): non è un tag, e verify-tag lo rifiuta."""
+    (`v1-0-g…`): non è un tag, e verify-tag lo rifiuta.
+    Il filtro v* è più largo di quello di sito/installa.sh (v[0-9]*.[0-9]*.[0-9]*), di proposito: un tag
+    v-qualcosa senza firma qui diventa l'ultimo rilascio e dà l'avviso di possibile compromissione.
+    installa.sh confronta il nome con VERSIONE_MINIMA e gli serve un numero: quel tag lo salta."""
     return git(r, "describe", "--tags", "--abbrev=0", "--match", "v*", f"{src}/main").stdout.strip()
 
 

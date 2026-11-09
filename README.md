@@ -163,7 +163,7 @@ Con Claude Code chiuso, nel Terminale (macOS e Linux) o in Git Bash (Windows). L
 curl -fsSL https://arturo.stellakamikaze.org/installa.sh | bash
 ```
 
-Lo script sta nel ramo `landing-v2` (`sito/installa.sh`). Se Arturo è già installato con git, si ferma e rimanda a `/aggiorna`. Lo script installa solo l'ultimo rilascio firmato; il blocco qui sotto scarica la punta di main senza controllare la firma. Per leggere ogni comando, o per reinstallare Arturo da capo, questo blocco mette da parte `~/.claude`, clona Arturo e riporta i file di Claude Code e i tuoi:
+Lo script sta nel ramo `landing-v2` (`sito/installa.sh`). Se Arturo è già installato, con git o come plugin, si ferma e rimanda a `/aggiorna`. Lo script installa solo l'ultimo rilascio firmato; il blocco qui sotto scarica la punta di main senza controllare la firma. Per leggere ogni comando, o per reinstallare Arturo da capo, questo blocco mette da parte `~/.claude`, clona Arturo e riporta i file di Claude Code e i tuoi:
 
 ```bash
 B="$HOME/.claude-backup-$(date +%Y%m%d-%H%M%S)"
