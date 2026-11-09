@@ -1,0 +1,210 @@
+/* La pagina /finestra/: Arturo dentro Herdr, a schede da sfogliare (9/11/2026, #5003).
+   Ogni scheda è una lastra con una finestra di Herdr ricostruita in HTML. Lo script sta in js/finestra.js:
+   senza script le schede scorrono lo stesso col dito o col trackpad, e ogni scena mostra il suo stato finito. */
+
+/* ---------- la pagina ---------- */
+.prova-nota{display:inline-block;margin:20px 0 0;padding:8px 12px;background:var(--bianco);box-shadow:inset 0 0 0 1px var(--inchiostro);font-size:.92rem;color:var(--inchiostro)}
+.sfoglia{padding:clamp(40px,5vw,72px) 0 clamp(56px,7vw,104px)}
+.sfoglia__testa{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:16px 32px;margin-bottom:24px}
+.sfoglia__testa h2{font-weight:300;font-size:clamp(1.9rem,1.2rem + 2.2vw,3rem);line-height:1.05;letter-spacing:-.02em;font-stretch:112%;max-width:22ch}
+.sfoglia__testa h2 span{display:block;color:var(--cenere)}
+.sfoglia__conta{font:560 .9rem/1 var(--titolo);font-stretch:75%;color:var(--cenere);white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* il binario: una scheda per larghezza, si ferma su ognuna */
+.binario{display:grid;grid-auto-flow:column;grid-auto-columns:100%;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;outline:none}
+.binario::-webkit-scrollbar{display:none}
+.binario:focus-visible{outline:2px solid var(--azione);outline-offset:3px}
+@media (prefers-reduced-motion:reduce){.binario{scroll-behavior:auto}}
+.scheda{scroll-snap-align:start;scroll-snap-stop:always;display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:var(--fra-lati);align-items:center;padding:clamp(28px,5vw,64px) clamp(18px,4vw,56px);min-width:0}
+.scheda--cielo{background:var(--cielo) url(../img/volta.svg) right top/cover no-repeat}
+.scheda--giallo{background:var(--giallo)}
+.scheda--verde{background:var(--verde)}
+.scheda--azzurro{background:var(--azzurro)}
+.scheda__testo{min-width:0;max-width:44ch}
+.scheda__quando{margin:0 0 14px;font:560 .82rem/1.3 var(--titolo);font-stretch:75%;color:var(--grafite)}
+.scheda h3{font-weight:350;font-size:clamp(1.5rem,1.2rem + .9vw,2rem);line-height:1.15;letter-spacing:-.015em;font-stretch:108%}
+.scheda__testo p{margin:16px 0 0}
+.scheda__testo p + p{margin-top:12px}
+.scheda__prova{font-size:.95rem;color:var(--inchiostro)}
+.scheda__prova strong{font-weight:600}
+@media (max-width:1020px){.scheda{grid-template-columns:minmax(0,1fr);align-items:start}.scheda__testo{max-width:60ch}}
+
+/* i comandi sotto il binario */
+.guida-schede{display:flex;flex-wrap:wrap;align-items:center;gap:12px 16px;margin-top:20px}
+.guida-schede[hidden]{display:none}
+.passi-schede{display:flex;flex-wrap:wrap;gap:0;flex:1 1 auto;border-top:1px solid var(--inchiostro)}
+.passi-schede button{min-height:44px;padding:10px 12px 8px;border:0;border-top:3px solid transparent;margin-top:-1px;background:none;color:var(--cenere);font:400 .92rem/1.2 var(--testo);cursor:pointer}
+.passi-schede button:hover{color:var(--inchiostro)}
+.passi-schede button[aria-current="true"]{border-top-color:var(--azione);color:var(--inchiostro);font-weight:600}
+.frecce{display:flex;gap:8px;margin-left:auto}
+.frecce .azione{min-width:132px}
+.azione[disabled]{opacity:.4;cursor:default;pointer-events:none}
+@media (max-width:760px){.passi-schede{display:none}.frecce{margin-left:0;width:100%}.frecce .azione{flex:1}}
+
+/* ---------- la finestra di Herdr, ricostruita ---------- */
+.hw{--hw-fondo:var(--term);--hw-lato:#0e1217;--hw-pannello:var(--term-sopra);--hw-filetto:var(--term-filetto);--hw-testo:var(--term-testo);--hw-quieto:var(--term-cenere);--hw-su:var(--term-sopra-2);
+  position:relative;display:grid;grid-template-columns:minmax(0,23fr) minmax(0,44fr) minmax(0,33fr);min-height:440px;border-radius:4px;overflow:hidden;background:var(--hw-fondo);color:var(--hw-testo);box-shadow:var(--ombra-finestra);font:400 .86rem/1.45 var(--testo)}
+.hw--due{grid-template-columns:minmax(0,30fr) minmax(0,70fr)}
+.hw button{font:inherit;color:inherit}
+.hw :focus-visible{outline:2px solid var(--term-tu);outline-offset:2px}
+.hw__lato{display:flex;flex-direction:column;gap:6px;padding:14px 10px;background:var(--hw-lato);border-right:1px solid var(--hw-filetto);min-width:0}
+.hw__marchio{display:flex;align-items:center;gap:8px;padding:2px 6px 8px;font:500 .98rem/1 var(--titolo);font-stretch:108%}
+.hw__stella{width:16px;height:16px;flex:none}
+.hw__stella path{fill:var(--stella)}
+.hw--aspetta .hw__stella{animation:hw-pulsa 1.4s ease-in-out infinite}
+@keyframes hw-pulsa{50%{transform:scale(1.35);filter:drop-shadow(0 0 6px rgba(242,162,74,.8))}}
+.hw__nuova{display:flex;align-items:center;justify-content:center;min-height:34px;padding:0 8px;background:var(--term-tu);color:var(--term);font-weight:600;font-size:.8rem}
+.hw__sezione{margin:10px 6px 2px;font-size:.72rem;color:var(--hw-quieto)}
+.hw__progetto{display:grid;gap:1px;width:100%;min-height:44px;padding:6px 8px;border:0;background:none;text-align:left;cursor:pointer}
+.hw__progetto:hover{background:var(--hw-su)}
+.hw__progetto[aria-current="true"]{background:var(--hw-su);box-shadow:inset 2px 0 0 var(--term-tu)}
+.hw__progetto b{font-weight:600;font-size:.84rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hw__progetto span{font-size:.72rem;color:var(--hw-quieto);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hw__progetto .lavora{color:var(--term-passa)}
+.hw__progetto .aspetta{color:var(--term-forse)}
+
+.hw__centro{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--hw-filetto)}
+.hw__testa{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;padding:0 14px;border-bottom:1px solid var(--hw-filetto)}
+.hw__testa b{font:500 .95rem/1.2 var(--titolo);font-stretch:108%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hw__testa span{font-size:.72rem;color:var(--hw-quieto);white-space:nowrap}
+.hw__term{flex:1;display:flex;flex-direction:column;gap:6px;padding:14px;font:400 .8rem/1.6 var(--mono);overflow:hidden}
+.hw__term p{margin:0}
+.hw__term .tu{padding:4px 8px;background:var(--term-tu-fondo);color:var(--term-tu-testo)}
+.hw__term .tu::before{content:"> ";color:var(--term-tu)}
+.hw__term .fa{color:var(--term-strumento);font-size:.74rem}
+.hw__term .fa::before{content:"";display:inline-block;width:6px;height:6px;margin-right:8px;background:var(--term-passa);vertical-align:middle}
+.hw__term .chiede{padding:8px 10px;border:1px solid var(--term-guardia);color:var(--term-guardia-testo)}
+.hw__term .chiede b{display:block;color:var(--hw-testo)}
+.hw__term .chiuso{color:var(--term-passa)}
+.hw__term .entra{animation:entra .4s cubic-bezier(.2,.8,.2,1) both}
+@keyframes entra{from{opacity:0;filter:blur(4px)}}
+.hw__piede{display:flex;align-items:center;gap:8px;min-height:30px;padding:0 14px;border-top:1px solid var(--hw-filetto);font-size:.72rem;color:var(--hw-quieto)}
+.hw__piede i{width:7px;height:7px;background:var(--hw-quieto)}
+.hw__piede.lavora i{background:var(--term-passa)}
+.hw__piede.aspetta i{background:var(--term-forse)}
+
+.hw__dafare{display:flex;flex-direction:column;min-width:0;background:var(--hw-pannello)}
+.hw__dafare .hw__testa b{font-size:.98rem}
+.hw__aggiungi{min-height:32px;padding:0 6px;border:0;background:none;color:var(--hw-quieto);font-size:.74rem;cursor:pointer}
+.hw__aggiungi:hover{color:var(--hw-testo)}
+.hw__elenco{display:flex;flex-direction:column;gap:2px;padding:8px 8px 14px;overflow:hidden}
+.hw__gruppo{margin:10px 6px 4px;font-size:.74rem;font-weight:600;color:var(--hw-testo)}
+.hw__gruppo--tu{color:var(--term-forse)}
+.hw__gruppo:first-child{margin-top:2px}
+.todo{position:relative;display:grid;grid-template-columns:20px minmax(0,1fr);gap:4px 8px;align-items:start;padding:7px 6px}
+.todo:hover,.todo:focus-within{background:var(--hw-su)}
+.todo__casella{width:18px;height:18px;margin-top:1px;padding:0;border:1px solid var(--term-bordo-su);background:none;cursor:pointer;position:relative}
+.todo__casella::after{content:"";position:absolute;inset:3px 5px 5px 5px;border:solid var(--term);border-width:0 2px 2px 0;transform:rotate(45deg);opacity:0}
+.todo--fatto .todo__casella{background:var(--term-passa);border-color:var(--term-passa)}
+.todo--fatto .todo__casella::after{opacity:1}
+.todo__titolo{font-size:.8rem;line-height:1.35;overflow-wrap:anywhere}
+.todo--fatto .todo__titolo{color:var(--hw-quieto);text-decoration:line-through}
+.todo__stato{grid-column:2;font-size:.72rem;color:var(--hw-quieto)}
+.todo__stato.lavora{color:var(--term-passa)}
+.todo__stato.aspetta{color:var(--term-forse)}
+.todo__gesti{grid-column:2;display:flex;flex-wrap:wrap;gap:6px}
+.todo__gesto{min-height:32px;padding:0 10px;border:1px solid var(--term-bordo-su);background:none;font-size:.74rem;cursor:pointer}
+.todo__gesto:hover{background:var(--term-sopra-2);border-color:var(--term-tu)}
+.todo__gesto--forte{border-color:var(--term-tu);color:var(--term-tu)}
+.menu-todo{grid-column:2;display:grid;gap:2px;padding:8px;border:1px solid var(--term-bordo-su);background:var(--term)}
+.menu-todo[hidden]{display:none}
+.menu-todo span{font-size:.7rem;color:var(--hw-quieto);margin:4px 0 2px}
+.menu-todo button{min-height:32px;padding:0 8px;border:0;background:none;text-align:left;font-size:.78rem;cursor:pointer}
+.menu-todo button:hover{background:var(--hw-su)}
+.partenza{margin:2px 0 6px;padding:10px;border:1px solid var(--term-tu)}
+.partenza small{display:block;font-size:.72rem;color:var(--term-tu);font-weight:600}
+.partenza p{margin:4px 0 8px;font-size:.82rem}
+.avviso{position:absolute;right:12px;bottom:40px;z-index:2;padding:8px 12px;background:var(--term-sopra-2);border:1px solid var(--term-bordo-su);font-size:.78rem;box-shadow:var(--ombra-appunto)}
+.avviso[hidden]{display:none}
+
+/* le scene di prima e dopo la finestra */
+.dialogo{display:flex;flex-direction:column;min-height:440px;border-radius:4px;overflow:hidden;box-shadow:var(--ombra-finestra)}
+.dialogo__barra{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:44px;padding:0 6px 0 14px}
+.dialogo__barra b{font:500 .9rem/1 var(--titolo);font-stretch:108%}
+.scegli{display:flex}
+.scegli button{min-height:36px;padding:0 12px;border:1px solid currentColor;background:none;font:560 .78rem/1 var(--titolo);font-stretch:75%;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;color:inherit}
+.scegli button + button{border-left:0}
+.scegli button[aria-pressed="true"]{background:currentColor}
+.scegli button[aria-pressed="true"] span{color:var(--bianco);mix-blend-mode:normal}
+.dialogo--chat{background:var(--bianco);color:var(--grafite)}
+.dialogo--chat .dialogo__barra{background:var(--chiara-barra);border-bottom:1px solid var(--filetto);color:var(--inchiostro)}
+.dialogo--chat .scegli button[aria-pressed="true"]{background:var(--inchiostro)}
+.dialogo--term{background:var(--term);color:var(--term-testo)}
+.dialogo--term .dialogo__barra{border-bottom:1px solid var(--term-filetto);color:var(--term-testo)}
+.dialogo--term .scegli button[aria-pressed="true"]{background:var(--term-tu)}
+.dialogo--term .scegli button[aria-pressed="true"] span{color:var(--term)}
+.dialogo__righe{flex:1;display:flex;flex-direction:column;gap:12px;padding:18px;overflow:hidden}
+.dialogo__righe p{margin:0;max-width:56ch}
+.dialogo--chat .persona{align-self:flex-end;max-width:80%;padding:8px 12px;background:var(--carta-2);border-radius:4px;color:var(--inchiostro)}
+.dialogo--term .dialogo__righe{font:400 .82rem/1.6 var(--mono)}
+.dialogo--term .persona{padding:4px 8px;background:var(--term-tu-fondo);color:var(--term-tu-testo)}
+.dialogo--term .persona::before{content:"> ";color:var(--term-tu)}
+.dialogo__righe .entra{animation:entra .4s cubic-bezier(.2,.8,.2,1) both}
+.risposte{display:flex;flex-wrap:wrap;gap:8px;padding:0 18px 18px}
+.risposte[hidden]{display:none}
+.risposte button{min-height:44px;padding:8px 14px;border:1px solid currentColor;background:none;font:400 .88rem/1.25 var(--testo);text-align:left;cursor:pointer;color:inherit}
+.dialogo--chat .risposte button{color:var(--azione)}
+.dialogo--chat .risposte button:hover{background:var(--azione-velo)}
+.dialogo--term .risposte button{color:var(--term-tu)}
+.dialogo--term .risposte button:hover{background:var(--term-sopra-2)}
+
+.cartelle{display:grid;gap:0;padding:6px 18px 18px;font:400 .82rem/1.5 var(--mono)}
+.cartella{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--term-filetto)}
+.cartella small{display:block;color:var(--term-cenere);font-size:.74rem}
+.cartella button{min-width:64px;min-height:36px;border:1px solid var(--term-bordo-su);background:none;color:var(--term-cenere);cursor:pointer;font:560 .76rem/1 var(--titolo);font-stretch:75%;letter-spacing:.04em;text-transform:uppercase}
+.cartella button[aria-pressed="true"]{background:var(--term-tu);border-color:var(--term-tu);color:var(--term)}
+.cartelle__conta{padding:12px 0 0;color:var(--term-testo)}
+
+.chiusa{display:grid;place-items:center;align-content:center;gap:14px;min-height:440px;border-radius:4px;background:var(--vuoto);color:var(--vuoto-testo);text-align:center;padding:24px;box-shadow:var(--ombra-finestra)}
+.chiusa[hidden]{display:none}
+.icona-app{position:relative;width:72px;height:72px}
+.icona-app span{position:absolute;top:-6px;right:-6px;min-width:22px;height:22px;padding:0 6px;background:var(--blocca);color:var(--bianco);font:600 .78rem/22px var(--testo)}
+.icona-app span[hidden]{display:none}
+.chiusa p{margin:0;max-width:34ch;color:var(--vuoto-cenere)}
+.chiusa .azione{background:var(--bianco);border-color:var(--bianco);color:var(--inchiostro)}
+.chiusa .azione:hover{background:var(--cielo);border-color:var(--cielo)}
+
+.liste{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--term-filetto)}
+.lista{padding:14px;background:var(--term)}
+.lista h4{margin:0 0 8px;font:600 .8rem/1.3 var(--testo);color:var(--term-testo)}
+.lista h4 span{display:block;font-weight:400;color:var(--term-cenere)}
+.lista details{border-top:1px solid var(--term-filetto)}
+.lista summary{display:flex;align-items:center;min-height:44px;cursor:pointer;font-size:.84rem;list-style:none}
+.lista summary::-webkit-details-marker{display:none}
+.lista summary::after{content:"";width:7px;height:7px;margin-left:auto;border:solid var(--term-cenere);border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}
+.lista details[open] summary::after{transform:rotate(-135deg)}
+.lista details p{margin:0 0 10px;font-size:.78rem;color:var(--term-cenere)}
+
+/* a 390 px la finestra mostra la parte che conta nella scena */
+@media (max-width:760px){
+  .hw{grid-template-columns:minmax(0,1fr);min-height:0}
+  .hw > *{border-right:0}
+  .hw:not([data-fuoco~="lato"]) .hw__lato,.hw:not([data-fuoco~="centro"]) .hw__centro,.hw:not([data-fuoco~="dafare"]) .hw__dafare{display:none}
+  .hw__lato{border-bottom:1px solid var(--hw-filetto)}
+  .hw__centro + .hw__dafare{border-top:1px solid var(--hw-filetto)}
+  .dialogo,.chiusa{min-height:0}
+  .liste{grid-template-columns:minmax(0,1fr)}
+}
+@media (prefers-reduced-motion:reduce){.hw--aspetta .hw__stella{animation:none;filter:drop-shadow(0 0 6px rgba(242,162,74,.8))}.hw__term .entra,.dialogo__righe .entra{animation:none}}
+
+/* ---------- la chiusura ---------- */
+.dopo{padding:clamp(56px,7vw,104px) 0;background:var(--vuoto);color:var(--vuoto-testo)}
+.dopo .dentro{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:var(--fra-lati);align-items:start}
+.dopo h2{color:var(--vuoto-testo);font-weight:300;font-size:clamp(1.9rem,1.2rem + 2.2vw,3rem);line-height:1.05;letter-spacing:-.02em;font-stretch:112%}
+.dopo h2 span{display:block;color:var(--vuoto-cenere)}
+.dopo p{max-width:56ch;color:var(--vuoto-cenere)}
+.dopo strong{color:var(--vuoto-testo);font-weight:600}
+.dopo .azione{margin-top:8px;background:var(--bianco);border-color:var(--bianco);color:var(--inchiostro)}
+.dopo .azione:hover{background:var(--cielo);border-color:var(--cielo)}
+.dopo :focus-visible{outline-color:var(--term-tu)}
+@media (max-width:1020px){.dopo .dentro{grid-template-columns:minmax(0,1fr)}}
+
+/* le risposte dentro una finestra di Herdr, e le parti nascoste dallo script */
+.hw[hidden]{display:none}
+.hw .risposte{padding:0 14px 12px}
+.hw .risposte button{color:var(--term-tu)}
+.hw .risposte button:hover{background:var(--term-sopra-2)}
+/* hidden vince sui display delle scene */
+.scheda [hidden]{display:none !important}
+/* su schermo stretto il testo sta sopra il reticolo: il cielo resta pieno, senza linee */
+@media (max-width:760px){.scheda--cielo{background-image:none}}
