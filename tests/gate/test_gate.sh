@@ -13,6 +13,9 @@
 #      esce INCONCLUSIVO e lo dice.
 #   8. Un progetto Python senza test (review del 7/11/2026, finding 31): pytest esce 5, il gate esce 2
 #      INCONCLUSIVO e lo dice, mai ROSSO. Rosso sulla 0b083f5.
+#   9. Lotto L10 (9/11/2026): un progetto node con requirements.txt fa girare anche pytest; lo script
+#      test di `npm init` e un tsconfig senza typescript sono SKIP; --dir relativo vale come assoluto;
+#      --dir senza valore esce 2.
 #   GATE_OVERRIDE=<path> prova un'altra versione del gate (controprova sul codice vecchio).
 #
 # Serve pytest nel PATH: senza, il veleno non gira e il banco è rosso, non verde.
@@ -172,6 +175,34 @@ if ! command -v dotnet >/dev/null 2>&1; then
     || ko "dotnet assente" "atteso rc=2 con 'non installato', avuto rc=$net_rc"
 fi
 rm -rf "$NET"
+
+# --- 9. Lotto L10 (9/11/2026): node con Python, --dir relativo, tsc e npm test assenti, uso sbagliato -----
+L10="$(mktemp -d "${TMPDIR:-/tmp}/gate-l10.XXXXXX")"
+mkdir -p "$L10/misto" "$L10/init" "$L10/ts" "$L10/rel/w"
+printf '{"scripts":{"test":"node -e 0"}}' > "$L10/misto/package.json"
+echo '# req' > "$L10/misto/requirements.txt"
+printf 'def test_rotto():\n    assert 1 == 2\n' > "$L10/misto/test_rotto.py"
+printf '{"name":"test","scripts":{"test":"echo \\"Error: no test specified\\" && exit 1"}}' > "$L10/init/package.json"
+printf '{"name":"x"}' > "$L10/ts/package.json"; echo '{}' > "$L10/ts/tsconfig.json"
+echo '# req' > "$L10/rel/w/requirements.txt"; printf 'X = 1\n' > "$L10/rel/w/a.py"
+l_misto="$( bash "$GATE" --dir "$L10/misto" 2>&1 )"; r_misto=$?
+l_init="$( bash "$GATE" --dir "$L10/init" 2>&1 )"; r_init=$?
+l_ts="$( PATH="/usr/bin:/bin" bash "$GATE" --dir "$L10/ts" 2>&1 )"; r_ts=$?
+( cd "$L10/rel" && bash "$GATE" --dir w >/dev/null 2>&1 ); r_rel=$?
+bash "$GATE" --dir >/dev/null 2>&1; r_uso=$?
+if command -v pytest >/dev/null 2>&1 && [ "$r_misto" -eq 1 ] && printf '%s' "$l_misto" | grep -q "pytest FALLITO"; then
+  ok "L10: node con requirements.txt fa girare anche pytest, e il test rotto è ROSSO"
+else ko "L10 misto" "atteso rc=1 con pytest FALLITO, avuto rc=$r_misto"; fi
+if [ "$r_init" -ne 1 ] && ! printf '%s' "$l_init" | grep -q "npm test FALLITO"; then
+  ok "L10: lo script test di npm init non è un test rosso (rc=$r_init)"
+else ko "L10 npm init" "avuto rc=$r_init"; fi
+if [ "$r_ts" -ne 1 ] && ! printf '%s' "$l_ts" | grep -q "tsc --noEmit FALLITO"; then
+  ok "L10: tsconfig senza typescript installato è SKIP, non ROSSO (rc=$r_ts)"
+else ko "L10 tsc assente" "avuto rc=$r_ts"; fi
+if [ "$r_rel" -ne 1 ] && [ "$r_uso" -eq 2 ]; then
+  ok "L10: --dir relativo non dà rosso falso, --dir senza valore è un errore d'uso (2)"
+else ko "L10 --dir" "relativo rc=$r_rel, senza valore rc=$r_uso"; fi
+rm -rf "$L10"
 
 # --- 6. selftest interno del gate stesso ------------------------------------
 if bash "$GATE" --selftest >/dev/null 2>&1; then

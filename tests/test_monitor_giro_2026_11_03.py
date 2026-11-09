@@ -17,6 +17,11 @@ MG05 skill: skills/monitor/SKILL.md ha name: monitor, chiama fonti.py e ponti.py
      e ogni file di bin/monitor che nomina esiste.
 MG06 una riga con un campo del tipo sbagliato (urgenza lista, fp numero, fonte NaN) si scarta col suo
      numero e le righe buone escono lo stesso (review del 7/11/2026, finding 34). Rosso su 0b083f5.
+MG07 (lotto L10, 9/11/2026) una riga con U+2028 nel riassunto resta una riga; una copertura con letti meno dei
+     listati e troncato false si scarta; una fonte attesa (--attese) senza copertura fa uscire 1; lo stesso fp due
+     volte, un fp con lo spazio in coda, il BOM in testa e una data "2026-W45-1" hanno la loro risposta; un
+     cursori.json rotto non si riscrive e un --alle col fuso si rifiuta; due ponti google insieme si rifiutano;
+     un ponte personale col nome di uno di serie o fuori forma è rotto e non nasconde quello di serie.
 
 Con --avvelena quattro copie rotte del repository devono far rosso il caso che le sorveglia: righe.py che
 accetta un'urgenza inventata (MG02), righe.py che legge lo standard input con la codifica di sistema
@@ -36,7 +41,7 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-CASI = ("MG01", "MG02", "MG03", "MG04", "MG05", "MG06")
+CASI = ("MG01", "MG02", "MG03", "MG04", "MG05", "MG06", "MG07")
 
 
 class Lab:
@@ -195,6 +200,64 @@ def prova(lab: Lab) -> list:
     scartate = [n for n in (2, 3, 4) if f"riga {n}:" in err]
     if cod != 1 or len(valide) != 2 or scartate != [2, 3, 4] or "Traceback" in err:
         rossi.append(f"MG06 tipo sbagliato: exit {cod}, valide {len(valide)}, scartate {scartate}, {err.strip()[-160:]}")
+
+    # MG07
+    c = lab.casa("mg07")
+    difetti = []
+    cod, out, err = lab.lancia(c, "righe.py", stdin=jsonl(item(riassunto="Marta\u2028aspetta"), copertura()))
+    if cod != 0 or len([r for r in out.splitlines() if r.strip()]) != 2:
+        difetti.append(f"U+2028: exit {cod}, {err.strip()[:80]!r}")
+    incoerente = dict(copertura(), listati=42, letti=3)
+    cod, _, err = lab.lancia(c, "righe.py", stdin=jsonl(incoerente))
+    if cod != 1 or "letti meno dei listati" not in err:
+        difetti.append(f"copertura incoerente: exit {cod}")
+    cod, _, err = lab.lancia(c, "righe.py", "--attese", "email,task", stdin=jsonl(copertura()))
+    if cod != 1 or "fonte task: manca la riga di copertura" not in err:
+        difetti.append(f"fonte attesa senza copertura: exit {cod}, {err.strip()[:80]!r}")
+    cod, out, err = lab.lancia(c, "righe.py", stdin=jsonl(item(), item(), copertura()))
+    if cod != 1 or "già consegnato" not in err:
+        difetti.append(f"fp doppio: exit {cod}")
+    cod, out, _ = lab.lancia(c, "righe.py", stdin=jsonl(item(fp="email:t "), copertura()))
+    if '"fp": "email:t"' not in out:
+        difetti.append(f"fp con lo spazio: {out[:80]!r}")
+    cod, _, err = lab.lancia(c, "righe.py", stdin="\ufeff" + jsonl(item(), copertura()))
+    if cod != 0:
+        difetti.append(f"BOM: exit {cod}, {err.strip()[:80]!r}")
+    cod, _, err = lab.lancia(c, "righe.py", stdin=jsonl(item(data="2026-W45-1"), copertura()))
+    if cod != 1 or "data" not in err:
+        difetti.append(f"data settimanale: exit {cod}")
+    file = c / "home" / "data" / "monitor" / "cursori.json"
+    file.parent.mkdir(parents=True, exist_ok=True)
+    file.write_text("not json", encoding="utf-8")
+    adesso = datetime.now().strftime("%Y-%m-%dT%H:%M")
+    av = lab.lancia(c, "cursori.py", "avanza", "--alle", adesso, "email")[0]
+    if av != 2 or file.read_text(encoding="utf-8") != "not json":
+        difetti.append(f"cursori rotto: avanza {av}, file {file.read_text(encoding='utf-8')[:30]!r}")
+    file.unlink()
+    fuso = lab.lancia(c, "cursori.py", "avanza", "--alle", adesso + "+01:00", "email")
+    if fuso[0] != 2 or "Traceback" in fuso[2]:
+        difetti.append(f"--alle col fuso: exit {fuso[0]}, {fuso[2].strip()[-80:]!r}")
+    (c / "home" / "personale" / "monitor").mkdir(parents=True)
+    (c / "home" / "personale" / "monitor" / "ponti.json").write_text(json.dumps({"ponti": [
+        {"nome": "task", "comando": ["/non/esiste"]}, {"nome": "WhatsApp_Lavoro", "comando": ["true"]}]}),
+        encoding="utf-8")
+    (c / "home" / "data" / "todo").mkdir(parents=True, exist_ok=True)
+    _, pj, _ = lab.lancia(c, "ponti.py", "--json")
+    try:
+        voci = {v["nome"]: v["stato"] for v in json.loads(pj)["ponti"]}
+    except (ValueError, KeyError, TypeError):
+        voci = {}
+    if voci.get("task") != "pronto" or voci.get("personale:WhatsApp_Lavoro") != "rotto" or voci.get("personale:task") != "rotto":
+        difetti.append(f"ponti personali: {voci}")
+    google = lab.lancia(c, "fonti.py", "scrivi", "google-connettori", "google-gws")
+    if google[0] != 2:
+        difetti.append(f"due ponti google: exit {google[0]}")
+    (c / "home" / "personale" / "monitor" / "ponti.json").write_text('{"ponti": 5}', encoding="utf-8")
+    p5 = lab.lancia(c, "ponti.py", "--json")
+    if p5[0] != 0 or "Traceback" in p5[2]:
+        difetti.append(f"ponti.json con ponti=5: exit {p5[0]}")
+    if difetti:
+        rossi.append("MG07 " + "; ".join(difetti))
     return rossi
 
 
@@ -203,7 +266,7 @@ VELENI = [
     ("MG02", "bin/monitor/righe.py",
      [('    if not isinstance(r["urgenza"], str) or r["urgenza"] not in URGENZE:', "    if False:")],
      "MG02 riga urgenza inventata"),
-    ("MG02", "bin/monitor/righe.py", [('sys.stdin.buffer.read().decode("utf-8")', "sys.stdin.read()")],
+    ("MG02", "bin/monitor/righe.py", [('sys.stdin.buffer.read().decode("utf-8-sig")', "sys.stdin.read()")],
      "MG02 consegna buona"),
     ("MG03", "bin/monitor/fingerprint.py",
      [('    if re.search(r"\\s", s):', "    if False:"),
@@ -212,6 +275,7 @@ VELENI = [
     ("MG04", "bin/monitor/cursori.py",
      [('FILE = CASA / "data" / "monitor" / "cursori.json"', 'FILE = CASA / "data" / "monitor" / "stato.json"')],
      "stato.json True"),
+    ("MG07", "bin/monitor/righe.py", [('[r.rstrip("\\r") for r in testo.split("\\n")]', "testo.splitlines()")], "U+2028"),
 ]
 
 

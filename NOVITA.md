@@ -13,6 +13,26 @@ modo di lavorare.
 
 ---
 
+## 2026-11-09 — Guardie, /monitor e controlli: le correzioni del lotto L10
+
+**Cosa cambia**:
+- La guardia blocca di nuovo `bw export` e `mkfs` dentro `$(...)` e i backtick, anche fra virgolette doppie:
+  bash li esegue. Il lotto L2 li aveva lasciati passare.
+- Un file dentro `hooks/` di un tuo mod personale resta protetto, ma il messaggio dice che è il tuo mod e,
+  nello stesso passo, come caricarlo con `CLAUDE_CODE_PLUGIN_DIRS` (segnalazione n. 63).
+- /monitor: una riga con un carattere di separazione Unicode non si spezza più, una lettura dichiarata intera
+  con meno elementi letti si scarta, una fonte scelta che non consegna niente si vede (`righe.py --attese`), e
+  due ponti Google insieme non danno più ogni email due volte. Un `cursori.json` rotto non si riscrive.
+- Il gate dei progetti fa girare anche pytest in un progetto node con `requirements.txt`, e non dà più rosso
+  per lo script di test di `npm init`, per un TypeScript non installato o per un `--dir` relativo.
+- `arturo todo --help` dà l'aiuto, e una cartella personale che è un repository non diventa un progetto.
+- Il controllo degli aggiornamenti all'avvio non lascia più un `git fetch` appeso per sempre; alla chiusura
+  il ripristino del titolo del Terminale non aspetta più un permesso di macOS.
+- `setup.sh` di scrape si può rilanciare, e dice "già installato" solo se i pacchetti ci sono davvero.
+
+**Il principio**: un controllo che dice "rosso" per uno strumento che manca, o "verde" perché non ha guardato,
+fa perdere fiducia a tutti i controlli.
+
 ## 2026-11-09 — L'aggiornamento automatico non aspetta più i processi di servizio di Claude Code
 
 **Cosa cambia**:

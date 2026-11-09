@@ -120,8 +120,9 @@ run_python() {
   # shellcheck disable=SC2086
   run_tool ${c%% *} "ruff" "$dir" $c check . ; [ $? -eq 1 ] && any_fail=1
   c="$(py_tool mypy)" || c=mypy
+  # rc 2 di mypy è un errore di configurazione (due moduli con lo stesso nome), non di tipi: vale SKIP (lotto L10).
   # shellcheck disable=SC2086
-  run_tool ${c%% *} "mypy" "$dir" $c . ;       [ $? -eq 1 ] && any_fail=1
+  RC_NESSUN_TEST=2 run_tool ${c%% *} "mypy" "$dir" $c . ;       [ $? -eq 1 ] && any_fail=1
 
   if [ "$any_fail" -eq 1 ]; then
     echo "[X] gate ROSSO (python) — almeno un validatore ha fallito"
@@ -169,14 +170,19 @@ run_node() {
   local dir="$1" mode="$2"
   local core_ran=0 any_fail=0
 
-  if [ -f "$dir/tsconfig.json" ] && have npx; then
+  # tsc solo se c'è davvero: npx --no-install senza typescript esce 1, e valeva "tsc FALLITO" (lotto L10).
+  if [ -f "$dir/tsconfig.json" ] && have npx && { [ -x "$dir/node_modules/.bin/tsc" ] || have tsc; }; then
     run_tool npx "tsc --noEmit" "$dir" npx --no-install tsc --noEmit
     case $? in 0) core_ran=1;; 1) core_ran=1; any_fail=1;; esac
   else
-    echo "[WARN] tsc: nessun tsconfig.json o npx assente — SKIP typecheck"
+    echo "[WARN] tsc: nessun tsconfig.json, npx o typescript installato — SKIP typecheck"
   fi
 
-  if have npm && grep -q '"test"' "$dir/package.json" 2>/dev/null; then
+  # Lo script test vero, non la parola "test" ovunque nel file; quello di `npm init` ("no test specified") esce 1
+  # e non è un test (lotto L10).
+  local test_script=""
+  have node && test_script="$(node -e 'try{const s=(require(process.argv[1]).scripts||{}).test;process.stdout.write(typeof s==="string"?s:"")}catch(e){}' "$dir/package.json" 2>/dev/null)"
+  if have npm && [ -n "$test_script" ] && [[ "$test_script" != *"no test specified"* ]]; then
     run_tool npm "npm test" "$dir" npm test --silent
     case $? in 0) core_ran=1;; 1) core_ran=1; any_fail=1;; esac
   else
@@ -283,8 +289,11 @@ main() {
   local dir="$PWD" mode="${MODE:-quick}" detect_only=0 semantic=0
   while [ $# -gt 0 ]; do
     case "$1" in
-      --dir) dir="$2"; shift 2;;
-      --mode) mode="$2"; shift 2;;
+      --dir|--mode)
+        # Un'opzione senza valore è un errore d'uso (2), non un gate rosso (lotto L10).
+        [ $# -ge 2 ] || { echo "[X] $1 vuole un valore" >&2; return 2; }
+        if [ "$1" = --dir ]; then dir="$2"; else mode="$2"; fi
+        shift 2;;
       --detect-only) detect_only=1; shift;;
       --semantic) semantic=1; shift;;
       --selftest) _selftest; return $?;;
@@ -293,12 +302,24 @@ main() {
     esac
   done
 
+  # Il percorso assoluto: run_tool entra nella cartella, e un --dir relativo raddoppiava i percorsi (lotto L10).
+  dir="$(cd "$dir" 2>/dev/null && pwd)" || { echo "[X] --dir: la cartella non c'è" >&2; return 2; }
   local lang; lang="$(detect_lang "$dir")"
   echo "[gate] dir: ${dir} · mode: ${mode} · linguaggio rilevato: ${lang}"
   [ "$detect_only" -eq 1 ] && { echo "$lang"; return 0; }
 
   case "$lang" in
-    node)   run_node "$dir" "$mode"; return $?;;
+    node)
+      run_node "$dir" "$mode"; local rc_node=$?
+      # Un progetto node con anche i marcatori forti di Python fa girare tutti e due: con package.json vinceva
+      # node, e i test Python rossi davano VERDE (lotto L10). Vale il peggiore: ROSSO, poi INCONCLUSIVO, poi VERDE.
+      if [ -f "$dir/pyproject.toml" ] || [ -f "$dir/requirements.txt" ] || [ -f "$dir/setup.py" ]; then
+        run_python "$dir"; local rc_py=$?
+        if [ "$rc_node" -eq "$ROSSO" ] || [ "$rc_py" -eq "$ROSSO" ]; then return "$ROSSO"; fi
+        if [ "$rc_node" -eq "$INCONCLUSIVO" ] || [ "$rc_py" -eq "$INCONCLUSIVO" ]; then return "$INCONCLUSIVO"; fi
+        return "$VERDE"
+      fi
+      return "$rc_node";;
     python) run_python "$dir"; return $?;;
     swift|dotnet) run_compilati "$dir"; return $?;;
     prosa)  run_prose "$dir" "$semantic"; return $?;;

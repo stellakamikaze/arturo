@@ -786,13 +786,30 @@ def test_t27(repo: Path) -> None:
     con_casa(repo, prova)
 
 
+def test_t28(repo: Path) -> None:
+    """Lotto L10 (9/11/2026): `arturo todo --help` dà l'aiuto; una HOME che è un repository git non diventa un
+    progetto, neanche dentro ~/.claude o in una sua cartella non git."""
+    def prova(c: Casa) -> None:
+        r = c.cli("--help", ok=False)
+        assert r.returncode == 0 and "Comandi dei todo" in r.stdout, f"T28 --help: rc={r.returncode} {r.stderr.strip()[:80]}"
+        subprocess.run(["git", "init", "-q", str(c.home)], check=True, capture_output=True)
+        note = c.home / "Documents" / "note"
+        note.mkdir(parents=True)
+        env = dict(os.environ, HOME=str(c.home), USERPROFILE=str(c.home), ARTURO_OGGI=OGGI, PYTHONIOENCODING="utf-8")
+        subprocess.run([sys.executable, str(c.repo / "bin" / "arturo"), "todo", "aggiungi", "Una cosa dalle note"],
+                       cwd=str(note), env=env, capture_output=True, timeout=60, check=True)
+        progetti = {t["progetto"] for t in c.aperti().values()}
+        assert progetti == {"generale"}, f"T28 una HOME git diventa un progetto: {progetti}"
+    con_casa(repo, prova)
+
+
 TESTS = {
     "T01": test_t01, "T02": test_t02, "T03": test_t03, "T04": test_t04, "T05": test_t05,
     "T06": test_t06, "T07": test_t07, "T08": test_t08, "T09": test_t09, "T10": test_t10,
     "T11": test_t11, "T12": test_t12, "T13": test_t13, "T14": test_t14, "T15": test_t15,
     "T16": test_t16, "T17": test_t17, "T18": test_t18, "T19": test_t19,
     "T21": test_t21, "T22": test_t22, "T23": test_t23, "T24": test_t24, "T25": test_t25,
-    "T26": test_t26, "T27": test_t27,
+    "T26": test_t26, "T27": test_t27, "T28": test_t28,
 }
 
 

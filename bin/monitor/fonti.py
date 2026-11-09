@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -45,6 +46,11 @@ def mostra():
     return 0
 
 
+def famiglia(nome):
+    """La sorgente che un ponte legge: i ponti google-* leggono tutti la stessa Gmail e lo stesso Calendar."""
+    return "google" if nome.startswith("google-") else ""
+
+
 def scrivi(scelte):
     if not scelte:
         print("ERRORE: nessun ponte scelto, niente scritto", file=sys.stderr)
@@ -62,6 +68,10 @@ def scrivi(scelte):
             errori.append(f"{nome}: la finestra è un numero di giorni da 1 a 90")
         elif any(f["nome"] == nome for f in fonti):
             errori.append(f"{nome}: scelto due volte")
+        elif any(famiglia(f["nome"]) == famiglia(nome) and famiglia(nome) for f in fonti):
+            # Due ponti della stessa famiglia leggono la stessa casella: ogni email diventerebbe due todo, con due
+            # fingerprint diversi (review del 9/11/2026, lotto L10).
+            errori.append(f"{nome}: legge le stesse cose di un ponte già scelto della famiglia {famiglia(nome)}")
         else:
             fonti.append({"nome": nome, "finestra": int(giorni) if giorni else FINESTRA})
     if errori:
@@ -70,10 +80,13 @@ def scrivi(scelte):
         print("niente scritto", file=sys.stderr)
         return 2
     FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps({"fonti": fonti, "scelte_il": datetime.now().isoformat(timespec="minutes")},
-                              ensure_ascii=False, indent=1), encoding="utf-8")
-    os.replace(tmp, FILE)
+    fd, tmp = tempfile.mkstemp(dir=str(FILE.parent), prefix=".fonti.", suffix=".tmp")
+    with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps({"fonti": fonti, "scelte_il": datetime.now().isoformat(timespec="minutes")},
+                           ensure_ascii=False, indent=1))
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, str(FILE))
     print("OK: " + ", ".join(f"{f['nome']} ({f['finestra']} giorni)" for f in fonti))
     return 0
 

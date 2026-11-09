@@ -373,7 +373,7 @@ VELENI = [
     ("IP03", "bin/impacchetta.py", """r'"${CLAUDE_PLUGIN_ROOT}/\\1"'""", """r'${CLAUDE_PLUGIN_ROOT}/\\1'"""),
     ("IP04", "bin/impacchetta.py", 'resto["outputStyle"] = f"{NOME}:{stile}"', "pass"),
     ("IP06", "bin/impostazioni.py", "        return attuale, None, frammento, f\"{_dove(", "        return attuale, frammento, frammento, None and f\"{_dove("),
-    ("IP07", "hooks/session-start.sh", '|| printf \'%s\' "$ARTURO_CODICE" > "$HOME/.claude/arturo/radice"', "|| true"),
+    ("IP07", "hooks/session-start.sh", '|| printf \'%s\' "$ARTURO_CODICE" > "$ORSA_RADICE/arturo/radice"', "|| true"),
     ("IP08", "bin/impacchetta.py", '        dati_hooks["modules"] = [f"../skills/{NOME}/hooks/register.tsx"]', "        pass"),
     ("IP09", "hooks/metodo.sh", 'printf \'%s\\n\' "${testo//\\$ARTURO_CODICE/$CODICE}"', 'printf \'%s\\n\' "$testo"'),
     ("IP10", "bin/impostazioni.py", "                if any(u in registrati for u in usati):", "                if False:"),

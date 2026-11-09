@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parents[2] / "hooks"))
@@ -35,26 +36,40 @@ MINIMO = 7
 
 
 def carica():
+    """Lo stato dei cursori; None se il file c'è ma non si legge: riscriverlo perderebbe i cursori delle altre
+    fonti, che tornerebbero a 7 giorni (review del 9/11/2026, lotto L10)."""
+    if not FILE.exists():
+        return {"cursori": {}}
     try:
         dati = json.loads(FILE.read_text(encoding="utf-8"))
-        return dati if isinstance(dati.get("cursori"), dict) else {"cursori": {}}
-    except (OSError, ValueError, AttributeError):
-        return {"cursori": {}}
+        return dati if isinstance(dati, dict) and isinstance(dati.get("cursori"), dict) else None
+    except (OSError, ValueError):
+        return None
 
 
 def salva(stato):
     FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(stato, ensure_ascii=False, indent=1), encoding="utf-8")
-    os.replace(tmp, FILE)
+    fd, tmp = tempfile.mkstemp(dir=str(FILE.parent), prefix=".cursori.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
+            f.write(json.dumps(stato, ensure_ascii=False, indent=1))
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, str(FILE))
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
 
 
 def finestra(stato, fonte, base, adesso):
     cur = stato["cursori"].get(fonte)
-    if not cur:
+    try:
+        giorno = datetime.fromisoformat(cur).date() if isinstance(cur, str) and cur else None
+    except ValueError:
+        giorno = None  # un cursore che non è una data vale come mai letto: la finestra larga, non un errore
+    if giorno is None:
         return max(base, MINIMO)
-    giorni = (adesso.date() - datetime.fromisoformat(cur).date()).days
-    return max(base, giorni + 1)
+    return max(base, (adesso.date() - giorno).days + 1)
 
 
 def main(argv):
@@ -62,6 +77,9 @@ def main(argv):
         if hasattr(flusso, "reconfigure"):
             flusso.reconfigure(encoding="utf-8", errors="replace")
     stato = carica()
+    if stato is None:
+        print(f"ERRORE: {FILE} non si legge: correggilo o spostalo, nessun cursore letto o toccato", file=sys.stderr)
+        return 2
     adesso = datetime.now()
     if argv[:1] == ["mostra"]:
         print(json.dumps(stato, ensure_ascii=False, indent=1))
@@ -81,6 +99,8 @@ def main(argv):
             return 2
         try:
             alle = datetime.fromisoformat(argv[2])
+            if alle.tzinfo is not None:
+                raise ValueError("fuso orario")  # i cursori sono ore locali senza fuso
         except ValueError:
             print("ERRORE: --alle vuole AAAA-MM-GGTHH:MM, nessun cursore toccato", file=sys.stderr)
             return 2

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""RW01-RW11: le guardie trovate aperte dalla review del 7/11/2026 (lotto L2, #4972).
+"""RW01-RW12: le guardie trovate aperte dalla review del 7/11/2026 (lotto L2, #4972).
 
 Ogni gruppo prova un finding della review (indice del JSON tra parentesi), passando dal dispatcher
 vero con le guardie del repo copiate nella HOME finta. I casi "ask" o "block" sono quelli che la
@@ -25,6 +25,8 @@ RW09 (9)  git worktree remove --force, sed col comando e, rmtree senza il prefis
           a block-dangerous dal dispatcher.
 RW10 (10) curl seguito da un'altra pipe dopo ; && o a capo, e il testo citato (mkfs, bw export,
           gh secret set, gh auth token) non si bloccano; i casi veri restano bloccati.
+RW12 (n. 63) un file in hooks/ di un mod della persona resta bloccato, col motivo che nomina il suo mod e, fuori da
+          dev-mods/, dice come caricarlo (9/11/2026).
 RW11 (11) rm, command cp e perl -pi su settings.json, e scritture o rm sull'ancora dei rilasci,
           chiedono; su macOS e Windows ~/.CLAUDE e ~/library valgono come ~/.claude e ~/Library.
 
@@ -361,6 +363,10 @@ def test_rw10(repo: Path) -> int:
             ("testo per uno script", 'python3 note.py "ricorda: gh auth token"', "silent"),
             # I casi veri restano bloccati.
             ("mkfs vero", "mkfs.ext4 /tmp/disco.img", "block"),
+            # bash esegue $(...) e i backtick anche fra virgolette doppie (banco della config, 9/11/2026).
+            ("bw export in una sostituzione", 'git commit -m "$(bw export --format json)"', "block"),
+            ("bw export fra backtick", 'echo "`bw export`"', "block"),
+            ("messaggio che cita bw export", 'git commit -m "documento che bw export va lanciato a mano"', "silent"),
             ("mkfs dentro sh -c", "sh -c 'mkfs.ext4 /tmp/disco.img'", "block"),
             ("bw export vero", "bw export --format json", "block"),
             ("bw export con la sessione", "bw --session X export", "block"),
@@ -410,9 +416,33 @@ def test_rw11(repo: Path) -> int:
         return n + verifica("RW11", col_write, scrivi)
 
 
+def test_rw12(repo: Path) -> int:
+    """Segnalazione n. 63 (9/11/2026): un file in hooks/ di un mod della persona resta bloccato, ma il motivo dice che
+    è il suo mod e, fuori da dev-mods/, come caricarlo."""
+    with tempfile.TemporaryDirectory() as d:
+        home, temp, progetto, _ = _ambiente(d, repo)
+        n = 0
+        for rel, carica in (("data/mods/peso-sessione", True), ("dev-mods/s1", False)):
+            mod = home / ".claude" / rel
+            (mod / ".claude-plugin").mkdir(parents=True)
+            (mod / ".claude-plugin" / "plugin.json").write_text('{"name": "peso"}', encoding="utf-8")
+            dati = {"tool_name": "Write", "tool_input": {"file_path": str(mod / "hooks" / "register.tsx"), "content": "x"},
+                    "cwd": str(progetto), "session_id": "s1", "hook_event_name": "PreToolUse"}
+            p = subprocess.run([sys.executable, "-B", str(repo / "hooks" / "protect_claude_md.py")], input=json.dumps(dati),
+                               text=True, encoding="utf-8", capture_output=True, timeout=30, check=False, env=_env(home, temp))
+            uscita = json.loads(p.stdout or "{}").get("hookSpecificOutput") or {}
+            motivo = uscita.get("permissionDecisionReason", "")
+            nome = Path(rel).name
+            assert uscita.get("permissionDecision") == "deny" and f"mod {nome}" in motivo \
+                and ("CLAUDE_CODE_PLUGIN_DIRS" in motivo) == carica, \
+                f"RW12 {rel}: decisione {uscita.get('permissionDecision')!r}, motivo {motivo[:160]!r}"
+            n += 1
+        return n
+
+
 TESTS = {"RW01": test_rw01, "RW02": test_rw02, "RW03": test_rw03, "RW04": test_rw04, "RW05": test_rw05,
          "RW06": test_rw06, "RW07": test_rw07, "RW08": test_rw08, "RW09": test_rw09, "RW10": test_rw10,
-         "RW11": test_rw11}
+         "RW11": test_rw11, "RW12": test_rw12}
 # I file che ogni gruppo sorveglia: il veleno li rimette com'erano sulla base.
 _GUARDIE = ["forma_comando.py", "block-dangerous.py", "bash-dispatcher.sh", "commit-secret-gate.py",
             "comms-prefilter.py", "comms-guard.py", "gh-destructive-guard.py", "protect_claude_md.py"]
@@ -426,7 +456,8 @@ VELENI = {"RW01": ["forma_comando.py", "commit-secret-gate.py", "block-dangerous
           "RW08": ["block-dangerous.py", "bash-dispatcher.sh"],
           "RW09": ["bash-dispatcher.sh"],
           "RW10": ["block-dangerous.py", "gh-destructive-guard.py"],
-          "RW11": ["block-dangerous.py", "protect_claude_md.py"]}
+          "RW11": ["block-dangerous.py", "protect_claude_md.py"],
+          "RW12": ["protect_claude_md.py"]}
 
 
 def avvelena(repo: Path, ref: str) -> int:

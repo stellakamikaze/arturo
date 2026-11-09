@@ -194,6 +194,33 @@ def _persistenza(rp):
     return False
 
 
+def _mod_di(rp, claude_dir):
+    """La cartella del mod (un .claude-plugin/plugin.json sopra il file) dentro ~/.claude, o "" se il file non è
+    di un mod. Un file nella cartella hooks/ di un mod è protetto come gli hook di Arturo (segnalazione n. 63)."""
+    cartella = os.path.dirname(rp)
+    while cartella.startswith(claude_dir + os.sep):
+        if os.path.isfile(os.path.join(cartella, '.claude-plugin', 'plugin.json')):
+            return cartella
+        cartella = os.path.dirname(cartella)
+    return ''
+
+
+def _testo_mod(rp, mod, claude_dir, safe_id):
+    """Il blocco detto per un mod della persona: perché vale anche lì, e in un passo solo cosa fare (9/11/2026,
+    segnalazione n. 63: il testo generico faceva pensare a una cosa rischiosa, e il caricamento arrivava dopo)."""
+    nome = os.path.basename(mod)
+    dove = '~/.claude/' + os.path.relpath(mod, claude_dir).replace(os.sep, '/')
+    testo = (f"È un file di un mod della persona ({nome}, {os.path.basename(rp)}): l'hook di un mod gira dentro Claude "
+             "Code e può approvare da solo qualunque comando, quindi anche un mod nuovo e legittimo vuole il suo sì. "
+             f"Per procedere: 1) dille che si tratta del suo mod {nome} e chiedi conferma. 2) dopo il sì fagli lanciare: "
+             f"! touch ~/.claude/config-unlock-{safe_id} (lo sblocco resta all'utente) 3) riprova la modifica.")
+    rel = os.path.relpath(mod, claude_dir).replace(os.sep, '/')
+    if not rel.startswith(('dev-mods/', 'skills/')):
+        testo += (f" Nello stesso messaggio dille anche come caricarlo: la cartella {dove} va aggiunta a "
+                  "CLAUDE_CODE_PLUGIN_DIRS in ~/.zshrc, con un comando ! che prepari tu: Claude non può scrivere ~/.zshrc.")
+    return testo
+
+
 def main():
     try:
         data = json.loads(sys.stdin.buffer.read().decode("utf-8"))
@@ -326,6 +353,10 @@ def main():
                 _emetti_locale('settings-radice' if in_radice and (re.match(r'SETTINGS.*\.JSON$', base)
                                                                     or base == '.CLAUDE.JSON') else 'config',
                                chiede=chiede)
+            mod = _mod_di(rp, claude_dir)
+            if mod and not intoccabile:
+                _emit("deny", _testo_mod(rp, mod, claude_dir, safe_id))
+                sys.exit(0)
             _emit("deny", (
                 f"File di config/hook di Claude Code protetto ({os.path.basename(rp)}). "
                 "Modificarlo può disattivare le guardie di sicurezza. Per procedere: "

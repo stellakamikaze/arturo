@@ -158,7 +158,13 @@ VISIBILITA=""
 if [ "$MODO" = sync ]; then
   ORSA_VIAGGIA=0
 elif [ "$MODO" = merge ]; then
-  VISIBILITA=$(gh repo view "$(git remote get-url origin 2>/dev/null)" --json visibility -q .visibility 2>/dev/null)
+  # Al massimo 20 secondi: un gh appeso teneva fermo l'aggiornamento fino al timeout di aggiornamenti.py, e poi
+  # restava orfano (lotto L10). perl c'è su macOS e in Git per Windows; senza, gh parte senza tetto.
+  if command -v perl >/dev/null 2>&1; then
+    VISIBILITA=$(perl -e 'alarm 20; exec @ARGV' gh repo view "$(git remote get-url origin 2>/dev/null)" --json visibility -q .visibility 2>/dev/null)
+  else
+    VISIBILITA=$(gh repo view "$(git remote get-url origin 2>/dev/null)" --json visibility -q .visibility 2>/dev/null)
+  fi
   [ "$VISIBILITA" = PRIVATE ] || ORSA_VIAGGIA=0
 fi
 separa_nella_copia() {

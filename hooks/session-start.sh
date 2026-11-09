@@ -37,10 +37,12 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ] && ! grep -qs 'arturo-zsh-come-bash' "$CLAUDE_E
 fi
 # Col plugin il codice sta in una cartella che cambia a ogni versione. La barra in basso la legge da
 # ~/.claude/arturo/radice, e il modello la riceve qui: Read non espande $ARTURO_CODICE (docs/strati.md).
-if [ "$(cd "$ARTURO_CODICE" 2>/dev/null && pwd -P)" != "$(cd "$HOME/.claude" 2>/dev/null && pwd -P)" ]; then
-  mkdir -p "$HOME/.claude/arturo" 2>/dev/null \
-    && { [ "$(cat "$HOME/.claude/arturo/radice" 2>/dev/null)" = "$ARTURO_CODICE" ] \
-         || printf '%s' "$ARTURO_CODICE" > "$HOME/.claude/arturo/radice" 2>/dev/null; } || true
+# Il puntatore sta dove lo leggono la barra e il lanciatore di scrape: ${CLAUDE_CONFIG_DIR:-~/.claude} (lotto L10).
+ORSA_RADICE="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+if [ "$(cd "$ARTURO_CODICE" 2>/dev/null && pwd -P)" != "$(cd "$ORSA_RADICE" 2>/dev/null && pwd -P)" ]; then
+  mkdir -p "$ORSA_RADICE/arturo" 2>/dev/null \
+    && { [ "$(cat "$ORSA_RADICE/arturo/radice" 2>/dev/null)" = "$ARTURO_CODICE" ] \
+         || printf '%s' "$ARTURO_CODICE" > "$ORSA_RADICE/arturo/radice" 2>/dev/null; } || true
   echo "ARTURO: il codice di Arturo sta in $ARTURO_CODICE (\$ARTURO_CODICE nel Bash). Un percorso \$ARTURO_CODICE/... o \${CLAUDE_PLUGIN_ROOT}/... in un testo di Arturo letto con Read si legge da lì."
 fi
 
@@ -170,13 +172,16 @@ if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
     # l'avvio della sessione.
     # BatchMode: una chiave SSH con passphrase o un host sconosciuto non chiedono niente.
     # Il marcatore di successo si scrive solo se il fetch riesce davvero.
-    ( export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes"
+    # ConnectTimeout, ServerAlive e lowSpeed: un server che accetta e non risponde non lascia un fetch appeso
+    # per sempre, uno in più ogni 6 ore (review del 9/11/2026, lotto L10).
+    ( export GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=2"
+      LENTO=(-c http.lowSpeedLimit=1000 -c http.lowSpeedTime=30)
       REMOTO=$(git -C "$HOME/.claude" remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
-      git -C "$HOME/.claude" fetch --quiet --tags "$REMOTO" main >/dev/null 2>&1 && printf '%s' "$ADESSO" > "$RIUSCITO"
+      git -C "$HOME/.claude" "${LENTO[@]}" fetch --quiet --tags "$REMOTO" main >/dev/null 2>&1 && printf '%s' "$ADESSO" > "$RIUSCITO"
       # Con upstream, origin è il repository privato di chi usa: senza questo fetch il BEHIND qui
       # sotto, che confronta con origin/main, restava fermo e il lavoro di un'altra macchina non si
       # vedeva più (30/10/2026).
-      [ "$REMOTO" = upstream ] && git -C "$HOME/.claude" fetch --quiet origin main >/dev/null 2>&1
+      [ "$REMOTO" = upstream ] && git -C "$HOME/.claude" "${LENTO[@]}" fetch --quiet origin main >/dev/null 2>&1
     ) >/dev/null 2>&1 &
   fi
   RIUSCITO_T=$(cat "$RIUSCITO" 2>/dev/null || echo 0)

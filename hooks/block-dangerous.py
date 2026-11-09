@@ -266,12 +266,15 @@ def _istruzioni(testo: str):
 
 
 def _programma_pericoloso(testo: str):
-    """mkfs e `bw export` come programmi del comando, anche dentro sh -c ed eval (finding 10)."""
-    for nome, args in _fc.programmi(testo):
-        if nome.startswith("mkfs.") or nome == "mkfs":
-            return "format filesystem"
-        if nome == "bw" and _BW_EXPORT.match(" ".join(args)):
-            return "export dell'intera vault Bitwarden in chiaro"
+    """mkfs e `bw export` come programmi del comando, anche dentro sh -c ed eval (finding 10) e dentro una
+    command-substitution, che bash esegue anche fra virgolette doppie: `git commit -m "$(bw export)"` esporta
+    davvero (banco della config, 9/11/2026: il lotto L2 l'aveva lasciato passare)."""
+    for sorgente in [testo] + _cmd_subst_bodies(testo):
+        for nome, args in _fc.programmi(sorgente):
+            if nome.startswith("mkfs.") or nome == "mkfs":
+                return "format filesystem"
+            if nome == "bw" and _BW_EXPORT.match(" ".join(args)):
+                return "export dell'intera vault Bitwarden in chiaro"
     return None
 
 
