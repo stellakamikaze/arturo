@@ -491,7 +491,7 @@ while IFS= read -r -d '' file; do
       { echo '(async () => {'; sed 's/^export const meta/const meta/' "$REPO/$file"; echo '})()'; } > "$avvolto"
       node --check "$avvolto" || { echo "FAIL: $file non è un workflow valido" >&2; exit 1; }
       ;;
-    shared/herdr/mods/*.js)
+    shared/volta-celeste/mods/*.js)
       # I mod di Herdr sono moduli ES (import da "gpui-kit" e "herdr"): node li legge come .mjs.
       cp "$REPO/$file" "$FIXTURE/herdr-mod-check.mjs"
       node --check "$FIXTURE/herdr-mod-check.mjs" || { echo "FAIL: $file non è un modulo valido" >&2; exit 1; }

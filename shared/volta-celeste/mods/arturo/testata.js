@@ -36,7 +36,7 @@ export class Testata {
     return h_flex().size_full().bg(t.chrome).border_b(1).border_color(t.border).pl(20).pr(12).gap(16).items_center()
       .child(v_flex().min_w(0).gap(1)
         .child(div().truncate().font_family("Arturo Archivo").text_size(16).text_color(t.foreground)
-          .child(s ? (shared("arturo.progetti")?.[slug(s.name)]?.titolo ?? s.name) : "Arturo"))
+          .child(s ? (shared("arturo.progetti")?.[slug(s.name)]?.titolo ?? s.name) : "Volta Celeste"))
         .when(Boolean(f), (el) => el.child(h_flex().gap(7).items_center().child(punto(colore(t, f.colore), 7)).child(div().text_size(12).text_color(colore(t, f.colore)).child(f.testo)))))
       .child(div().flex_1())
       .when(Boolean(schede), (el) => el.child(schede))

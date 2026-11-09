@@ -2,7 +2,7 @@
 """VA01-VA03: le tre viste dei todo sanno fare le stesse cose (3/11/2026, #3868).
 
 I todo si cambiano da quattro posti: la CLI `arturo todo`, la pagina `arturo web`, il pannello /dafare e,
-dall'8/11/2026 sul ramo herdr, il pannello Da fare di Herdr (shared/herdr/mods/arturo/azioni.js).
+dall'8/11/2026 sul ramo herdr, il pannello Da fare di Herdr (shared/volta-celeste/mods/arturo/azioni.js).
 Questo banco legge i verbi che scrivono in ognuno e li confronta. Un verbo manca da una vista solo se
 la tabella ECCEZIONI lo dice, col motivo: così un verbo nuovo della CLI non resta fuori dalla pagina
 o dal pannello senza che nessuno l'abbia deciso.
@@ -68,7 +68,7 @@ def verbi(repo: Path) -> dict:
     pannello = set(re.findall(r"(?:argv|inverso):\s*t\s*=>\s*\[\s*'([a-z]+)'", testo))
     pannello |= set(re.findall(r"return\s*\[\s*'([a-z]+)'", testo))  # gli inversi scritti come funzione
     # Il pannello di Herdr: il primo elemento di ogni argv di azioni.js, anche dentro una funzione.
-    herdr = repo / "shared" / "herdr" / "mods" / "arturo" / "azioni.js"
+    herdr = repo / "shared" / "volta-celeste" / "mods" / "arturo" / "azioni.js"
     testo_h = herdr.read_text(encoding="utf-8") if herdr.exists() else ""
     vista_h = set(re.findall(r'argv:\s*(?:\(\s*\w*\s*\)\s*=>\s*)?\[\s*"([a-z]+)"', testo_h))
     return {"cli": set(cli.SCRIVONO) | {"aggiungi"}, "pagina": set(web.AZIONI), "pannello": pannello, "herdr": vista_h}
@@ -99,7 +99,7 @@ VELENI = [
     ("VA01", "bin/arturo_web.py", '"ripristina", "dopo") + tuple', '"ripristina") + tuple'),
     ("VA02", "skills/arturo/hooks/dafare/verbi.mjs", "argv: t => ['fatto', String(t.id), titolo(t)]",
      "argv: t => ['archivia', String(t.id), titolo(t)]"),
-    ("VA02", "shared/herdr/mods/arturo/azioni.js", 'argv: () => ["riprendi"', 'argv: () => ["archivia"'),
+    ("VA02", "shared/volta-celeste/mods/arturo/azioni.js", 'argv: () => ["riprendi"', 'argv: () => ["archivia"'),
     ("VA03", "bin/arturo_web.py", '"ripristina", "dopo") + tuple', '"ripristina", "dopo", "su") + tuple'),
 ]
 

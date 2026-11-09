@@ -9,7 +9,7 @@
 set -eu
 
 qui=$(cd "$(dirname "$0")" && pwd)
-# La cartella di Arturo (clone in ~/.claude o plugin): shared/herdr sta due livelli sotto.
+# La cartella di Arturo (clone in ~/.claude o plugin): shared/volta-celeste sta due livelli sotto.
 radice=$(cd "$qui/../.." && pwd)
 say() { printf '%s\n' "$*"; }
 

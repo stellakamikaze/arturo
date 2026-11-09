@@ -1,6 +1,6 @@
-# Herdr, la finestra di Arturo
+# Volta Celeste, la finestra di Arturo
 
-[Herdr](https://herdr.dev) è un'app gratuita e open source (Apache 2.0) che tiene le sessioni di Claude Code in una finestra sola. Arturo la installa durante `/setup`, dopo il tuo sì, con un layout suo:
+Volta Celeste è la finestra di Arturo: tiene le sessioni di Claude Code in una finestra sola. Nasce da [Herdr](https://herdr.dev), un'app gratuita e open source (Apache 2.0), e ne resta compatibile: stessi comandi (`herdr-app`, `herdr-core`, `hc`), stessa cartella `~/.config/herdr-app`, stessi mod e layout. Oggi Arturo installa Herdr durante `/setup`, dopo il tuo sì, con un layout suo, e in questa guida "Herdr" nomina l'app installata. Il layout è questo:
 
 - **A sinistra, i tuoi progetti.** Per ognuno una frase: "Claude ti aspetta", "Claude sta lavorando", "3 cose per te", "fermo". In cima quelli che aspettano te. Un clic apre il progetto: se la sessione è chiusa, ne parte una nuova con `/inizio <progetto>`.
 - **Al centro, la conversazione con Claude.** Scrivi come in una chat. "Altra conversazione" ne apre una seconda sullo stesso progetto.
@@ -8,9 +8,9 @@
 - **In basso,** quante sessioni lavorano e quante ti aspettano.
 - **La settimana,** in basso a sinistra: i progetti con todo scaduti, quelli che aspettano te e quelli fermi da più di sette giorni, ognuno in una lista sola. "Fai il punto" apre Claude sul progetto con `/inizio`. La finestra si apre da sola alla prima apertura di ogni settimana, se c'è qualcosa da guardare.
 
-**Per cominciare.** Al primo avvio una guida di quattro passi mostra cosa sa fare la finestra; poi resta alla voce "Guida". "Cosa posso chiedere", in basso a sinistra e in alto, raccoglie le richieste da imparare: un clic e Claude parte. Chi non ha ancora progetti vede "Trova i miei progetti": Claude cerca sul computer le cartelle di lavoro con le stesse regole di `/setup` (un sì per ogni lettura, niente file spostati) e crea un progetto per ogni lavoro che confermi ([shared/herdr/trova-progetti.md](../shared/herdr/trova-progetti.md)). Le cartelle della base dei progetti compaiono a sinistra anche senza todo.
+**Per cominciare.** Al primo avvio una guida di quattro passi mostra cosa sa fare la finestra; poi resta alla voce "Guida". "Cosa posso chiedere", in basso a sinistra e in alto, raccoglie le richieste da imparare: un clic e Claude parte. Chi non ha ancora progetti vede "Trova i miei progetti": Claude cerca sul computer le cartelle di lavoro con le stesse regole di `/setup` (un sì per ogni lettura, niente file spostati) e crea un progetto per ogni lavoro che confermi ([shared/volta-celeste/trova-progetti.md](../shared/volta-celeste/trova-progetti.md)). Le cartelle della base dei progetti compaiono a sinistra anche senza todo.
 
-**Per chi usa già Arturo.** All'avvio di una sessione, una volta sola, Claude propone Herdr in una riga. Col sì lo installa come in `/setup`.
+**Per chi usa già Arturo.** All'avvio di una sessione, una volta sola, Claude propone la finestra in una riga. Col sì installa Herdr e il layout come in `/setup`.
 
 I todo sono quelli di `arturo todo`: se li tieni in un altro strumento ([fonte dei task](fonte-task.md)), il pannello legge quello.
 
@@ -37,15 +37,15 @@ Funziona sui Mac con processore Apple e su Windows. Sui Mac Intel e su Linux `/s
 - Arturo.app, sul Mac: prima ferma il LaunchAgent, altrimenti la ricrea, con `launchctl bootout gui/$(id -u)/org.stellakamikaze.arturo-app`; poi cancella `~/Library/LaunchAgents/org.stellakamikaze.arturo-app.plist` e `~/Applications/Arturo.app`.
 - La firma locale, se l'hai creata: in Accesso Portachiavi cancella la voce "Arturo firma locale" (certificato e chiave). Senza, Arturo.app torna alla firma ad hoc e macOS richiede i permessi a ogni aggiornamento di Herdr.
 - Le note sulla finestra: cancella `~/.claude/data/note-finestra/`. La riga `note_progetto` in `~/.config/herdr-app/arturo.json` dice dove vanno le note: toglierla le manda al progetto aperto.
-- Per reinstallare o aggiornare il layout: `sh ~/.claude/shared/herdr/installa-herdr.sh`.
+- Per reinstallare o aggiornare il layout: `sh ~/.claude/shared/volta-celeste/installa-herdr.sh`.
 
 ## Un altro Mac come macchina di Herdr
 
 Herdr apre terminali anche su un altro computer, aggiunto con `hc machine add` via ssh. Su un Mac, l'`herdr-core` partito da ssh non ha il permesso di macOS per Documenti e Scrivania: un terminale che parte da lì resta vuoto, perché già `path_helper` della shell di login si ferma ad aprire la cartella (provato il 9/11/2026 su un secondo Mac, #5013; da `/tmp` e dalla home passa). Per riattaccare una sessione (`claude attach`) fai partire il terminale dalla home: la sessione resta nella sua cartella. Per lavorare in Documenti da quel Mac, dai a `herdr-core` l'accesso in Impostazioni di Sistema → Privacy e sicurezza → File e cartelle, su quel Mac.
 
-Il login. Su quel Mac il gestore delle sessioni in background (`claude daemon`) e `herdr-core` partono su richiesta, dal primo programma che li cerca. Se il primo arriva da ssh, partono senza il portachiavi, e ogni sessione risponde "Not logged in", anche agganciata da qui. Il rimedio è `sh ~/.claude/shared/herdr/servizi-gui.sh`, lanciato su quel Mac dopo aver fermato i due servizi: `herdr-core` riparte dalla sessione grafica, e il gestore riparte in una finestra del Terminale, che gli passa anche l'accesso a Documenti. Dopo aver dato a `claude` l'accesso a Documenti, `servizi-gui.sh --launchd` fa partire anche il gestore da solo, senza la finestra (provato il 9/11/2026 su un secondo Mac).
+Il login. Su quel Mac il gestore delle sessioni in background (`claude daemon`) e `herdr-core` partono su richiesta, dal primo programma che li cerca. Se il primo arriva da ssh, partono senza il portachiavi, e ogni sessione risponde "Not logged in", anche agganciata da qui. Il rimedio è `sh ~/.claude/shared/volta-celeste/servizi-gui.sh`, lanciato su quel Mac dopo aver fermato i due servizi: `herdr-core` riparte dalla sessione grafica, e il gestore riparte in una finestra del Terminale, che gli passa anche l'accesso a Documenti. Dopo aver dato a `claude` l'accesso a Documenti, `servizi-gui.sh --launchd` fa partire anche il gestore da solo, senza la finestra (provato il 9/11/2026 su un secondo Mac).
 
-## Tutte le sessioni, di tutte le macchine (Volta Celeste)
+## Tutte le sessioni, di tutte le macchine
 
 In cima alla barra di sinistra la sezione "Tutte le sessioni" elenca le sessioni di Claude Code aperte su ogni macchina, raggruppate per macchina o per progetto (l'interruttore sotto il titolo; la scelta resta). Compare solo se c'è `~/.claude/scripts/teletrasporto.py`, o il percorso scritto in `arturo.json` alla voce `volta`: chi usa Arturo su un solo computer non la vede. Ogni 30 secondi il mod lancia `teletrasporto.py volta --scrivi ~/.cache/volta/sessioni.json` e rilegge il file; una macchina che non risponde resta con le sue ultime sessioni note e la nota "Non risponde".
 
@@ -65,7 +65,7 @@ Questo è un ramo di prova, fuori dai rilasci. Prima di un rilascio mancano:
 
 ## Il nome Arturo nel Dock
 
-Sul Mac l'installazione crea `~/Applications/Arturo.app` accanto a `Herdr.app` (`shared/herdr/arturo-app.sh`): la stessa app, col nome, l'identificativo `org.stellakamikaze.arturo` e l'icona di Arturo, firmata in locale. Herdr si aggiorna da sé anche dentro Arturo.app e sostituisce il pacchetto intero, quindi dopo un aggiornamento l'app si chiamerebbe di nuovo Herdr: il LaunchAgent `org.stellakamikaze.arturo-app` guarda i due `Info.plist` e rilancia lo script, che riparte dalla copia più nuova. Con la firma ad hoc macOS lega i permessi (Documenti, microfono, automazione) a una firma che cambia a ogni aggiornamento, quindi li richiede. `shared/herdr/firma-locale.sh`, che l'installazione propone con la riga `HERDR FIRMA` e che la persona lancia nel suo Terminale, crea l'identità "Arturo firma locale" nel portachiavi e la segna come affidabile per la firma del codice (macOS chiede la password): da lì Arturo.app tiene la stessa identità e i permessi restano.
+Sul Mac l'installazione crea `~/Applications/Arturo.app` accanto a `Herdr.app` (`shared/volta-celeste/arturo-app.sh`): la stessa app, col nome, l'identificativo `org.stellakamikaze.arturo` e l'icona di Arturo, firmata in locale. Herdr si aggiorna da sé anche dentro Arturo.app e sostituisce il pacchetto intero, quindi dopo un aggiornamento l'app si chiamerebbe di nuovo Herdr: il LaunchAgent `org.stellakamikaze.arturo-app` guarda i due `Info.plist` e rilancia lo script, che riparte dalla copia più nuova. Con la firma ad hoc macOS lega i permessi (Documenti, microfono, automazione) a una firma che cambia a ogni aggiornamento, quindi li richiede. `shared/volta-celeste/firma-locale.sh`, che l'installazione propone con la riga `HERDR FIRMA` e che la persona lancia nel suo Terminale, crea l'identità "Arturo firma locale" nel portachiavi e la segna come affidabile per la firma del codice (macOS chiede la password): da lì Arturo.app tiene la stessa identità e i permessi restano.
 
 ## Le note sulla finestra (⌘⇧N)
 

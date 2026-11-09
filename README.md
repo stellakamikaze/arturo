@@ -25,7 +25,7 @@ Ci sono anche una **CLI per i todo** (`arturo todo`) e per il contesto di un pro
 
 I todo si vedono anche in una pagina del browser: chiedilo a Claude, oppure scrivi `python3 ~/.claude/bin/arturo web` nel terminale. La pagina è facoltativa e locale: risponde solo sul tuo computer (127.0.0.1), non si collega a internet e si spegne da sola se per 30 minuti nessuno la tiene aperta.
 
-Sui Mac con processore Apple e su Windows, `/setup` ti propone anche **Herdr**: una finestra dove vedi i tuoi progetti, cosa aspetta te e cosa sta facendo Claude, senza usare il terminale ([docs/herdr.md](docs/herdr.md)).
+Sui Mac con processore Apple e su Windows, `/setup` ti propone anche **Herdr**: una finestra dove vedi i tuoi progetti, cosa aspetta te e cosa sta facendo Claude, senza usare il terminale ([docs/volta-celeste.md](docs/volta-celeste.md)).
 
 ---
 

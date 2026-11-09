@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """HZ01-HZ21: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
-/setup installa Herdr (herdr.dev) con `shared/herdr/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
+/setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
 in una casa finta con un installer finto, senza rete e senza Herdr vero.
 
@@ -79,7 +79,7 @@ import tempfile
 from pathlib import Path
 
 CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21")
-INSTALLA = Path("shared/herdr/installa-herdr.sh")
+INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
     "SessionStart": ("", "idle"),
@@ -251,7 +251,7 @@ def hz06(repo: Path, casa: Path) -> str | None:
     if "shared/setup-herdr.md" not in setup:
         return "/setup non porta a shared/setup-herdr.md"
     passo = (repo / "shared/setup-herdr.md").read_text(encoding="utf-8")
-    if "shared/herdr/installa-herdr.sh" not in passo:
+    if "shared/volta-celeste/installa-herdr.sh" not in passo:
         return "setup-herdr.md non lancia installa-herdr.sh"
     for parola in ("HERDR OK", "HERDR NO", "HERDR ERRORE"):
         if parola not in passo or (parola != "HERDR ERRORE" and parola not in (repo / INSTALLA).read_text(encoding="utf-8")):
@@ -259,7 +259,7 @@ def hz06(repo: Path, casa: Path) -> str | None:
     # #5020: la firma locale si propone con una riga e il comando, e lo script è eseguibile come gli altri.
     if "HERDR FIRMA" not in passo:
         return "setup-herdr.md non dice cosa fare con la riga HERDR FIRMA"
-    if not os.access(repo / "shared/herdr/firma-locale.sh", os.X_OK):
+    if not os.access(repo / "shared/volta-celeste/firma-locale.sh", os.X_OK):
         return "firma-locale.sh non è eseguibile"
     for firma, attesa in (("assente", True), ("presente", False)):
         with tempfile.TemporaryDirectory() as d:
@@ -276,14 +276,14 @@ def hz06(repo: Path, casa: Path) -> str | None:
 
 
 def hz07(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/herdr/mods/arturo"
+    mod = repo / "shared/volta-celeste/mods/arturo"
     for js in mod.glob("*.js"):
         for rel in re.findall(r'from "\./([^"]+)"', js.read_text(encoding="utf-8")):
             if not (mod / rel).exists():
                 return f"{js.name} importa {rel}, che non c'è"
     main = (mod / "main.js").read_text(encoding="utf-8")
     parti = set(re.findall(r"(\w+): \w+", re.search(r"const PARTI = \{(.*?)\};", main).group(1)))
-    layout = (repo / "shared/herdr/layouts/arturo.json").read_text(encoding="utf-8")
+    layout = (repo / "shared/volta-celeste/layouts/arturo.json").read_text(encoding="utf-8")
     usate = set(re.findall(r'"parte": "(\w+)"', layout)) | set(re.findall(r'parte: "(\w+)"', " ".join(p.read_text(encoding="utf-8") for p in mod.glob("*.js"))))
     if usate - parti:
         return f"parti senza codice: {sorted(usate - parti)}"
@@ -320,7 +320,7 @@ def hz08(repo: Path, casa: Path) -> str | None:
 
 
 def hz09(repo: Path, casa: Path) -> str | None:
-    dati = (repo / "shared/herdr/mods/arturo/dati.js").read_text(encoding="utf-8")
+    dati = (repo / "shared/volta-celeste/mods/arturo/dati.js").read_text(encoding="utf-8")
     blocco = re.search(r"export const SUGGERIMENTI = \[(.*?)\n\];", dati, re.S)
     if not blocco:
         return "SUGGERIMENTI non trovato in dati.js"
@@ -333,7 +333,7 @@ def hz09(repo: Path, casa: Path) -> str | None:
         for rel in re.findall(r"~/\.claude/([\w./-]+\.md)", p):
             if not (repo / rel).exists():
                 return f"il suggerimento rimanda a {rel}, che non c'è"
-    trova = (repo / "shared/herdr/trova-progetti.md").read_text(encoding="utf-8")
+    trova = (repo / "shared/volta-celeste/trova-progetti.md").read_text(encoding="utf-8")
     ritratto = (repo / "shared/setup-ritratto.md").read_text(encoding="utf-8")
     if "2c. Le cartelle" not in trova or "## 2c. Le cartelle" not in ritratto:
         return "trova-progetti.md non usa la parte 2c del ritratto"
@@ -367,7 +367,7 @@ def hz10(repo: Path, casa: Path) -> str | None:
     if not node:
         return None
     copia = casa / "partenza.mjs"  # .mjs: senza package.json node leggerebbe il .js come CommonJS
-    shutil.copyfile(repo / "shared/herdr/mods/arturo/partenza.js", copia)
+    shutil.copyfile(repo / "shared/volta-celeste/mods/arturo/partenza.js", copia)
     modulo = copia.as_uri()
     r = subprocess.run([node, "--input-type=module", "-e", PROVA_PARTENZA % json.dumps(modulo)],
                        capture_output=True, text=True, timeout=30)
@@ -405,7 +405,7 @@ console.log(JSON.stringify({ scaduti: forma(r.scaduti), te: forma(r.te), fermi: 
 
 
 def hz11(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/herdr/mods/arturo"
+    mod = repo / "shared/volta-celeste/mods/arturo"
     main = (mod / "main.js").read_text(encoding="utf-8")
     if "settimana: Settimana" not in main or 'from "./revisione.js"' not in main:
         return "main.js non ha la parte settimana"
@@ -453,7 +453,7 @@ GESTI = [("chi-tu", "chi", "tu"), ("chi-decidi", "chi", "decidi"), ("quando-sett
 
 
 def hz12(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/herdr/mods/arturo"
+    mod = repo / "shared/volta-celeste/mods/arturo"
     main = (mod / "main.js").read_text(encoding="utf-8")
     if "azioni: Azioni" not in main or "nuovo: Nuovo" not in main:
         return "main.js non ha le parti azioni e nuovo"
@@ -557,7 +557,7 @@ def hz13(repo: Path, casa: Path) -> str | None:
            "ARTURO_APP_NO_LAUNCHCTL": "1", "ARTURO_APP_FIRMA": "adhoc"}
 
     def giro(*arg):
-        return subprocess.run(["sh", str(repo / "shared/herdr/arturo-app.sh"), *arg], capture_output=True,
+        return subprocess.run(["sh", str(repo / "shared/volta-celeste/arturo-app.sh"), *arg], capture_output=True,
                               text=True, timeout=60, env=env)
 
     def arturo_ok(versione):
@@ -611,10 +611,10 @@ console.log(JSON.stringify({
 
 
 def hz14(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/herdr/mods/arturo"
+    mod = repo / "shared/volta-celeste/mods/arturo"
     if "nota: Nota" not in (mod / "main.js").read_text(encoding="utf-8"):
         return "main.js non ha la parte nota"
-    if json.loads((repo / "shared/herdr/keys.json").read_text(encoding="utf-8")).get("global", {}).get("cmd-shift-n") != "arturo.nota":
+    if json.loads((repo / "shared/volta-celeste/keys.json").read_text(encoding="utf-8")).get("global", {}).get("cmd-shift-n") != "arturo.nota":
         return "keys.json non lega cmd-shift-n alle note"
     barra = (mod / "barra.js").read_text(encoding="utf-8")
     corpo = barra.split("async function apriNota() {", 1)[-1].split("\n}\n", 1)[0]
@@ -661,7 +661,7 @@ def hz14(repo: Path, casa: Path) -> str | None:
 
 def scritti_in_data(repo: Path) -> set[str]:
     """I nomi sotto ~/.claude/data/ che la parte Herdr scrive: mod, hook di stato e invito all'avvio."""
-    fonti = [f for f in (repo / "shared/herdr").rglob("*") if f.is_file() and f.suffix in (".js", ".sh", ".py")]
+    fonti = [f for f in (repo / "shared/volta-celeste").rglob("*") if f.is_file() and f.suffix in (".js", ".sh", ".py")]
     fonti.append(repo / "hooks/herdr-stato.sh")
     testi = [f.read_text(encoding="utf-8") for f in fonti]
     testi += [r for r in (repo / "hooks/session-start.sh").read_text(encoding="utf-8").splitlines() if "herdr" in r]
@@ -696,7 +696,7 @@ def hz16(repo: Path, casa: Path) -> str | None:
         (bin_ / nome).chmod(0o755)
     agenti = casa / "agenti"
     env = dict(os.environ, HOME=str(casa), SERVIZI_AGENTI=str(agenti), SERVIZI_NO_LAUNCHCTL="1")
-    script = repo / "shared" / "herdr" / "servizi-gui.sh"
+    script = repo / "shared" / "volta-celeste" / "servizi-gui.sh"
 
     def leggi(nome: str) -> dict | None:
         f = agenti / f"org.stellakamikaze.arturo.{nome}.plist"
@@ -758,7 +758,7 @@ def volta_node(repo: Path, casa: Path) -> dict | str | None:
     if not node:
         return None
     copia = casa / "sessioni.mjs"
-    shutil.copyfile(repo / "shared/herdr/mods/arturo/sessioni.js", copia)
+    shutil.copyfile(repo / "shared/volta-celeste/mods/arturo/sessioni.js", copia)
     r = subprocess.run([node, "--input-type=module", "-e", PROVA_VOLTA % json.dumps(copia.as_uri())],
                        capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
@@ -808,7 +808,7 @@ def hz18(repo: Path, casa: Path) -> str | None:
 
 
 def hz19(repo: Path, casa: Path) -> str | None:
-    mod = repo / "shared/herdr/mods/arturo"
+    mod = repo / "shared/volta-celeste/mods/arturo"
     barra = (mod / "barra.js").read_text(encoding="utf-8")
     volta = (mod / "volta.js").read_text(encoding="utf-8")
     for pezzo, dove in (('import { Volta } from "./volta.js";', "barra.js"), ("this.volta.init(cx);", "barra.js"),
@@ -823,7 +823,7 @@ def hz19(repo: Path, casa: Path) -> str | None:
 
 
 def hz20(repo: Path, casa: Path) -> str | None:
-    volta = (repo / "shared/herdr/mods/arturo/volta.js").read_text(encoding="utf-8")
+    volta = (repo / "shared/volta-celeste/mods/arturo/volta.js").read_text(encoding="utf-8")
     if "this.py = (await config()).arturo[0];" not in volta:
         return "volta.js non prende Python da arturo.json"
     for pezzo in ('exec(this.py, [this.script, "volta"', 'exec(this.py, [this.script, "porta-volta"'):
@@ -867,34 +867,34 @@ def prova(repo: Path) -> list[str]:
 
 
 VELENI = [
-    ("HZ01", "shared/herdr/installa-herdr.sh", '"frame.welcomed": "skipped"', '"frame.welcomed": "finished"'),
-    ("HZ02", "shared/herdr/installa-herdr.sh", "if k in mia and mia[k] != v:", "if False:"),
-    ("HZ03", "shared/herdr/installa-herdr.sh", 'Arturo funziona lo stesso nel Terminale."; exit 0 ;;', 'Arturo funziona lo stesso nel Terminale." ;;'),
+    ("HZ01", "shared/volta-celeste/installa-herdr.sh", '"frame.welcomed": "skipped"', '"frame.welcomed": "finished"'),
+    ("HZ02", "shared/volta-celeste/installa-herdr.sh", "if k in mia and mia[k] != v:", "if False:"),
+    ("HZ03", "shared/volta-celeste/installa-herdr.sh", 'Arturo funziona lo stesso nel Terminale."; exit 0 ;;', 'Arturo funziona lo stesso nel Terminale." ;;'),
     ("HZ04", "hooks/herdr-stato.sh", '[ -n "${HC_TERMINAL_ID:-}" ] || exit 0', ":"),
     ("HZ05", "settings.json", "herdr-stato.sh done", "herdr-stato.sh idle"),
-    ("HZ09", "shared/herdr/mods/arturo/dati.js", 'prompt: "/guidami"', 'prompt: "/guidamii"'),
-    ("HZ10", "shared/herdr/mods/arturo/partenza.js", "catena.slice(qui + 1)", "catena.slice(qui)"),
-    ("HZ11", "shared/herdr/mods/arturo/settimana.js", "else if (te) liste.te.push", "if (te) liste.te.push"),
-    ("HZ12", "shared/herdr/mods/arturo/azioni.js", "if (quando === t.quando) continue;", ""),
-    ("HZ12", "shared/herdr/mods/arturo/azioni.js", 'argv: ["inizia"', 'argv: ["riprendi"'),
-    ("HZ12", "shared/herdr/mods/arturo/todo.js", "const g = inizia(item);", "const g = null;"),
-    ("HZ14", "shared/herdr/mods/arturo/nota.js", "if (!t) return null;", ""),
-    ("HZ14", "shared/herdr/mods/arturo/nota.js", '"--chi", "io"', '"--chi", "tu"'),
-    ("HZ13", "shared/herdr/arturo-app.sh", '-c "Set :CFBundleIdentifier $ID"', '-c "Set :CFBundleIdentifier dev.herdr.app"'),
-    ("HZ13", "shared/herdr/arturo-app.sh", 'if [ -d "$arturo" ] && { [ ! -d "$herdr" ] || ! piu_nuova "$v_herdr" "$v_arturo"; }; then base=$arturo; fi', ":"),
-    ("HZ06", "shared/herdr/installa-herdr.sh", '[ "$firma" = assente ]', '[ "$firma" = mai ]'),
-    ("HZ16", "shared/herdr/servizi-gui.sh", "plist herdr-core false", "plist herdr-core true"),
-    ("HZ16", "shared/herdr/servizi-gui.sh", 'rm -f "$agenti/$PREFISSO.claude-daemon.plist"', 'plist claude-daemon true "$claude" daemon run'),
+    ("HZ09", "shared/volta-celeste/mods/arturo/dati.js", 'prompt: "/guidami"', 'prompt: "/guidamii"'),
+    ("HZ10", "shared/volta-celeste/mods/arturo/partenza.js", "catena.slice(qui + 1)", "catena.slice(qui)"),
+    ("HZ11", "shared/volta-celeste/mods/arturo/settimana.js", "else if (te) liste.te.push", "if (te) liste.te.push"),
+    ("HZ12", "shared/volta-celeste/mods/arturo/azioni.js", "if (quando === t.quando) continue;", ""),
+    ("HZ12", "shared/volta-celeste/mods/arturo/azioni.js", 'argv: ["inizia"', 'argv: ["riprendi"'),
+    ("HZ12", "shared/volta-celeste/mods/arturo/todo.js", "const g = inizia(item);", "const g = null;"),
+    ("HZ14", "shared/volta-celeste/mods/arturo/nota.js", "if (!t) return null;", ""),
+    ("HZ14", "shared/volta-celeste/mods/arturo/nota.js", '"--chi", "io"', '"--chi", "tu"'),
+    ("HZ13", "shared/volta-celeste/arturo-app.sh", '-c "Set :CFBundleIdentifier $ID"', '-c "Set :CFBundleIdentifier dev.herdr.app"'),
+    ("HZ13", "shared/volta-celeste/arturo-app.sh", 'if [ -d "$arturo" ] && { [ ! -d "$herdr" ] || ! piu_nuova "$v_herdr" "$v_arturo"; }; then base=$arturo; fi', ":"),
+    ("HZ06", "shared/volta-celeste/installa-herdr.sh", '[ "$firma" = assente ]', '[ "$firma" = mai ]'),
+    ("HZ16", "shared/volta-celeste/servizi-gui.sh", "plist herdr-core false", "plist herdr-core true"),
+    ("HZ16", "shared/volta-celeste/servizi-gui.sh", 'rm -f "$agenti/$PREFISSO.claude-daemon.plist"', 'plist claude-daemon true "$claude" daemon run'),
     ("HZ15", ".gitignore", "data/note-finestra/\n", ""),
     ("HZ15", ".gitignore", "data/herdr-invito\n", ""),
-    ("HZ17", "shared/herdr/mods/arturo/sessioni.js", "const RANGO = { aspetta: 0, errore: 1, lavora: 2, ferma: 3 };", "const RANGO = { aspetta: 3, errore: 1, lavora: 2, ferma: 0 };"),
-    ("HZ17", "shared/herdr/mods/arturo/sessioni.js", '(a.chiave === "") - (b.chiave === "") || ', ""),
-    ("HZ18", "shared/herdr/mods/arturo/sessioni.js", 'if (s.stato === "lavora") return { azione', "if (false) return { azione"),
-    ("HZ18", "shared/herdr/mods/arturo/sessioni.js", "if (s.vecchia) return { azione", "if (false) return { azione"),
-    ("HZ19", "shared/herdr/mods/arturo/barra.js", 'else if (c.startsWith("volta-")) this.volta.premiId(c.slice(6), cx);', ""),
-    ("HZ19", "shared/herdr/mods/arturo/volta.js", "if (!this.script) return null;", ""),
-    ("HZ20", "shared/herdr/mods/arturo/volta.js", 'exec(this.py, [this.script, "volta"', 'exec("python3", [this.script, "volta"'),
-    ("HZ21", "shared/herdr/installa-herdr.sh", "app_home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}",
+    ("HZ17", "shared/volta-celeste/mods/arturo/sessioni.js", "const RANGO = { aspetta: 0, errore: 1, lavora: 2, ferma: 3 };", "const RANGO = { aspetta: 3, errore: 1, lavora: 2, ferma: 0 };"),
+    ("HZ17", "shared/volta-celeste/mods/arturo/sessioni.js", '(a.chiave === "") - (b.chiave === "") || ', ""),
+    ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", 'if (s.stato === "lavora") return { azione', "if (false) return { azione"),
+    ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", "if (s.vecchia) return { azione", "if (false) return { azione"),
+    ("HZ19", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c.startsWith("volta-")) this.volta.premiId(c.slice(6), cx);', ""),
+    ("HZ19", "shared/volta-celeste/mods/arturo/volta.js", "if (!this.script) return null;", ""),
+    ("HZ20", "shared/volta-celeste/mods/arturo/volta.js", 'exec(this.py, [this.script, "volta"', 'exec("python3", [this.script, "volta"'),
+    ("HZ21", "shared/volta-celeste/installa-herdr.sh", "app_home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}",
      'if [ "$sistema" = windows ]; then app_home=${HERDR_APP_HOME:-${APPDATA:-$HOME/AppData/Roaming}/herdr-app}; '
      "else app_home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}; fi"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),

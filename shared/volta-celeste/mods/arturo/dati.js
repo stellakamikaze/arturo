@@ -180,7 +180,7 @@ export async function nuova(prompt) {
 // e senza conversazione ne apre una; "apri" apre la finestra dei progetti.
 export const SUGGERIMENTI = [
   { id: "trova", titolo: "Trova i miei progetti", testo: "Claude cerca sul computer le cartelle di lavoro e te le propone come progetti.",
-    prompt: "Trova i miei progetti sul computer e proponimeli. Segui ~/.claude/shared/herdr/trova-progetti.md.", dove: "nuova" },
+    prompt: "Trova i miei progetti sul computer e proponimeli. Segui ~/.claude/shared/volta-celeste/trova-progetti.md.", dove: "nuova" },
   { id: "guidami", titolo: "Cosa faccio adesso?", testo: "Claude guarda il lavoro recente e ti propone da dove partire.", prompt: "/guidami", dove: "qui" },
   { id: "ricorda", titolo: "Ricordami una cosa", testo: "Un todo nuovo, per te o per Claude, nel progetto giusto.",
     prompt: "Voglio aggiungere un todo. Chiedimi cosa, per quale progetto e chi lo fa.", dove: "qui" },

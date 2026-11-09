@@ -24,7 +24,7 @@ command -v herdr-app >/dev/null 2>&1 || [ -d ~/Applications/Herdr.app ] && echo 
   integrità), mette il layout di Arturo e apre la finestra:
 
   ```bash
-  sh ~/.claude/shared/herdr/installa-herdr.sh
+  sh ~/.claude/shared/volta-celeste/installa-herdr.sh
   ```
 
   La riga `HERDR OK` vuol dire fatto. `HERDR NO` vuol dire che qui non si può: dillo e prosegui.
