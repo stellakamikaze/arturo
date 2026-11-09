@@ -190,7 +190,8 @@ def test_q05(repo: Path) -> None:
     inglese = repo / "skills" / "humanizer" / "references" / "originale-en.md"
     assert inglese.is_file() and f'version: "{voci["versione"]}"' in read(inglese), \
         "Q05 l'originale inglese manca o non è alla versione di ORIGINE"
-    assert f"{voci['versione']} ({voci['commit']}" in testo, \
+    # ORIGINE ha lo sha intero (finding 116); SKILL.md sta a 30 byte dal tetto e ne nomina i primi 7 caratteri.
+    assert f"{voci['versione']} ({voci['commit'][:7]}" in testo, \
         f"Q05 l'adattamento italiano non nomina versione e commit di ORIGINE ({voci['versione']}, {voci['commit']})"
     assert "personale/humanizer.md" in testo and "Tre modi di scrivere" in testo, \
         "Q05 la skill non legge la voce dall'Orsa o non dice i tre modi di scrivere"

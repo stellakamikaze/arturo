@@ -111,7 +111,8 @@ def porta(commit: str | None) -> int:
         return 0
     INGLESE.parent.mkdir(parents=True, exist_ok=True)
     INGLESE.write_text(nuovo, encoding="utf-8")
-    ORIGINE.write_text(f"repository {URL}\ncommit {commit[:7]}\nversione {versione(nuovo)}\n", encoding="utf-8")
+    # Lo sha intero: git fetch di uno sha corto non trova il commit (review del 7/11/2026, finding 116).
+    ORIGINE.write_text(f"repository {URL}\ncommit {commit}\nversione {versione(nuovo)}\n", encoding="utf-8")
     righe = list(difflib.unified_diff(vecchio.splitlines(), nuovo.splitlines(),
                                       f"originale {prima.get('versione', '?')} ({prima.get('commit', '?')})",
                                       f"originale {versione(nuovo)} ({commit[:7]})", lineterm=""))
@@ -133,7 +134,7 @@ def main(argv: list[str]) -> int:
         resto = argv[1:]
         if not resto:
             return porta(None)
-        if len(resto) == 2 and resto[0] == "--commit" and re.fullmatch(r"[0-9a-f]{7,40}", resto[1]):
+        if len(resto) == 2 and resto[0] == "--commit" and re.fullmatch(r"[0-9a-f]{40}", resto[1]):
             return porta(resto[1])
     print("uso: humanizer-origine.py controlla | porta [--commit SHA]", file=sys.stderr)
     return 2

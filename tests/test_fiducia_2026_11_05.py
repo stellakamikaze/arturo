@@ -34,6 +34,15 @@ FD13 la copia installata ha un file cambiato dopo la firma, o il MANIFEST firmat
 FD14 un aggiornamento riuscito unisce a settings.json le voci nuove del frammento (una regola deny) e tiene
      quelle della persona; l'ancora prende la chiave della copia nuova;
 FD15 un catalogo che non fissa Arturo a un tag plugin-vN.N.N: uscita 3.
+     In FD12 e FD13, con la cartella della versione di prima ancora lì, installed_plugins.json torna a quella;
+     senza, l'uscita dice "non riavviare" (finding 110).
+FD16-FD18 (review del 7/11/2026) con una CLI finta che scrive una spia se `plugin update` parte:
+FD16 il tag firmato di un rilascio vecchio ripubblicato sotto un nome nuovo: uscita 3 (finding 109);
+FD17 un tag leggero, senza firma: "possibile compromissione", non "firma non verificabile" (finding 111);
+FD18 un tag firmato su un commit col MANIFEST senza firma: uscita 3 prima di `plugin update` (finding 110).
+FD19 impacchetta --firma genera il pacchetto dal tag con git archive: un file non salvato e una modifica locale
+     restano fuori dal MANIFEST firmato; senza il tag si ferma; --verifica --firmato vuole MANIFEST.sig
+     (finding 112 e 110).
 
 Sulla base 809868a (il dev prima di F3) sono tutti rossi: fiducia.py, il MANIFEST e `plugin` non ci
 sono. Su a442b38 (prima del lotto L4) è rosso FD14. Con --avvelena una copia del repository rotta in un punto alla volta deve far fallire il caso
@@ -51,7 +60,7 @@ import tempfile
 from pathlib import Path
 
 CASI = ["FD01", "FD02", "FD03", "FD04", "FD05", "FD06", "FD07", "FD08", "FD09", "FD10", "FD11", "FD12", "FD13",
-        "FD14", "FD15"]
+        "FD14", "FD15", "FD16", "FD17", "FD18", "FD19"]
 CLI = ["FD06", "FD07", "FD08", "FD09"]  # i casi con la CLI vera di Claude Code
 DISCRIMINANTI = list(CASI)
 CLAUDE = shutil.which("claude")
@@ -300,7 +309,8 @@ def casi_finti(repo: Path, tmp: Path, chiavi: dict, solo: str | None) -> list:
     finto.write_text(f"#!{sys.executable}\n" + CLAUDE_FINTO, encoding="utf-8")
     finto.chmod(0o755)
     rossi = []
-    for caso, variante in (("FD12", "sha"), ("FD13", "file"), ("FD13", "firma"), ("FD14", "riuscito")):
+    for caso, variante in (("FD12", "sha"), ("FD12", "sparita"), ("FD13", "file"), ("FD13", "firma"),
+                           ("FD14", "riuscito")):
         if solo not in (None, caso):
             continue
         base = tmp / f"{caso}-{variante}"
@@ -320,8 +330,11 @@ def casi_finti(repo: Path, tmp: Path, chiavi: dict, solo: str | None) -> list:
         (orsa / "plugins").mkdir()
         (orsa / "plugins" / "known_marketplaces.json").write_text(json.dumps({"arturo": {"installLocation": str(r.catalogo)}}),
                                                                   encoding="utf-8")
+        # "sparita": la cartella della versione di prima non c'è più, e non si può rimettere.
+        percorso_prima = base / "sparita" if variante == "sparita" else prima
         (orsa / "plugins" / "installed_plugins.json").write_text(json.dumps({"plugins": {"arturo@arturo": [
-            {"scope": "user", "installPath": str(prima), "version": "0.3.0", "gitCommitSha": sha1}]}}), encoding="utf-8")
+            {"scope": "user", "installPath": str(percorso_prima), "version": "0.3.0", "gitCommitSha": sha1}]}}),
+            encoding="utf-8")
         (orsa / "settings.json").write_text(json.dumps({"model": "mio", "permissions": {"deny": []}}), encoding="utf-8")
         (orsa / "data").mkdir()
         (orsa / "data" / "arturo-impostazioni.lock").write_text(json.dumps({"versione": "0.3.0", "frammento": {
@@ -329,7 +342,7 @@ def casi_finti(repo: Path, tmp: Path, chiavi: dict, solo: str | None) -> list:
         modulo_fiducia(repo).fissa_ancora(prima, orsa)
         ancora = orsa / "arturo" / "rilasci.allowed_signers"
         ancora_prima = ancora.read_bytes()
-        installa = {"path": str(nuova), "version": "0.4.0", "sha": "d" * 40 if variante == "sha" else sha2}
+        installa = {"path": str(nuova), "version": "0.4.0", "sha": "d" * 40 if variante in ("sha", "sparita") else sha2}
         env = dict(r.env, ARTURO_CLAUDE=str(finto), FINTO_INSTALLA=json.dumps(installa))
         p = esegui([sys.executable, prima / "bin" / "aggiornamenti.py", "plugin"], env=env)
         uscita = (p.stdout + p.stderr).strip()
@@ -342,11 +355,17 @@ def casi_finti(repo: Path, tmp: Path, chiavi: dict, solo: str | None) -> list:
                 rossi.append(f"{caso} impostazioni dopo l'aggiornamento: rc {p.returncode}, deny {deny}, model "
                              f"{settings.get('model')!r}, ancora cambiata {cambiata}, {uscita[-200:]!r}")
             continue
-        atteso = {"sha": "non lo sha verificato", "file": "come il MANIFEST", "firma": "POSSIBILE COMPROMISSIONE"}[variante]
-        if p.returncode != 3 or atteso not in uscita or "non riavviare" not in uscita or cambiata \
+        atteso = {"sha": "non lo sha verificato", "sparita": "non lo sha verificato", "file": "come il MANIFEST",
+                  "firma": "POSSIBILE COMPROMISSIONE"}[variante]
+        # Con la cartella di prima ancora lì, la voce di installed_plugins.json torna a quella (finding 110).
+        dopo = json.loads((orsa / "plugins" / "installed_plugins.json").read_text(encoding="utf-8"))
+        dopo = dopo["plugins"]["arturo@arturo"][0].get("gitCommitSha")
+        rimessa = (dopo == sha1 and "Ho rimesso la versione di prima" in uscita) if variante != "sparita" \
+            else "non riavviare" in uscita
+        if p.returncode != 3 or atteso not in uscita or not rimessa or cambiata \
                 or DENY_NUOVA in json.dumps(settings):
-            rossi.append(f"{caso} copia installata ({variante}): rc {p.returncode}, ancora cambiata {cambiata}, "
-                         f"{uscita[-200:]!r}")
+            rossi.append(f"{caso} copia installata ({variante}): rc {p.returncode}, installata {str(dopo)[:12]}, "
+                         f"ancora cambiata {cambiata}, {uscita[-200:]!r}")
     return rossi
 
 
@@ -358,6 +377,93 @@ def caso_fd15(repo: Path, tmp: Path) -> list:
         p = catalogo_finto(repo, tmp, f"fd15-{ref}-{sha}", voce)
         if "RC 3" not in p.stdout or "non fissa Arturo" not in p.stderr:
             rossi.append(f"FD15 catalogo con ref {ref!r} e sha {sha!r}: {(p.stdout + p.stderr).strip()[-160:]!r}")
+    return rossi
+
+
+def caso_fd19(repo: Path, tmp: Path, chiavi: dict) -> list:
+    """impacchetta --firma genera il pacchetto dal tag, non dall'albero di lavoro (finding 112); senza il tag si
+    ferma; --verifica --firmato vuole la firma del MANIFEST (finding 110)."""
+    privata, firmatari = chiavi["rilasci"]
+    sorgente = tmp / "fd19-repo"
+    shutil.copytree(repo, sorgente, ignore=shutil.ignore_patterns(".git", "__pycache__", "node_modules", "tests"))
+    shutil.copy2(firmatari, sorgente / "firme" / "rilasci.allowed_signers")
+    git(sorgente, "init", "-q")
+    git(sorgente, "add", "-A")
+    git(sorgente, "commit", "-qm", "rilascio")
+    git(sorgente, "tag", "-a", "v9.0.0", "-m", "v9.0.0")
+    (sorgente / "bin" / "non-committato.py").write_text("print('mai provato dal gate')\n", encoding="utf-8")
+    guardia = sorgente / "hooks" / "fiducia.py"
+    guardia.write_text(guardia.read_text(encoding="utf-8") + "\n# modifica locale\n", encoding="utf-8")
+    generatore = [sys.executable, sorgente / "bin" / "impacchetta.py"]
+    uscita = tmp / "fd19-pacchetto"
+    fatto = esegui(generatore + ["--uscita", uscita, "--versione", "v9.0.0", "--firma", privata])
+    manifest = (uscita / ".claude-plugin" / "MANIFEST").read_text(encoding="utf-8") \
+        if (uscita / ".claude-plugin" / "MANIFEST").is_file() else ""
+    locale = "modifica locale" in ((uscita / "hooks" / "fiducia.py").read_text(encoding="utf-8")
+                                   if (uscita / "hooks" / "fiducia.py").is_file() else "")
+    senza_tag = esegui(generatore + ["--uscita", tmp / "fd19-senza-tag", "--versione", "v9.9.9", "--firma", privata])
+    non_firmato = tmp / "fd19-non-firmato"
+    esegui(generatore + ["--uscita", non_firmato, "--versione", "v9.0.0"])
+    verifica = esegui(generatore + ["--verifica", non_firmato, "--firmato"])
+    if fatto.returncode != 0 or not manifest or "non-committato" in manifest or locale \
+            or not (uscita / ".claude-plugin" / "MANIFEST.sig").is_file() or senza_tag.returncode == 0 \
+            or "non c'è" not in senza_tag.stderr or verifica.returncode != 1 or "va firmato" not in verifica.stdout:
+        return [f"FD19 pacchetto firmato dal tag: rc {fatto.returncode}/{senza_tag.returncode}/{verifica.returncode}, "
+                f"file non salvato {'non-committato' in manifest}, modifica locale {locale}, "
+                f"{(fatto.stdout + fatto.stderr + senza_tag.stderr)[-200:]!r}"]
+    return []
+
+
+def casi_tag(repo: Path, tmp: Path, chiavi: dict, solo: str | None) -> list:
+    """FD16-FD18 (review del 7/11/2026, finding 109, 111, 110): `aggiornamenti.py plugin` con la CLI finta, che
+    scrive una spia se `plugin update` parte."""
+    privata, firmatari = chiavi["rilasci"]
+    rossi = []
+    for caso in ("FD16", "FD17", "FD18"):
+        if solo not in (None, caso):
+            continue
+        base = tmp / f"tag-{caso}"
+        base.mkdir()
+        r = Rilasci(repo, base, chiavi)
+        sha1 = r.rilascio("0.3.0", "rilasci")
+        prima = copia_plugin(repo, base / "cache" / "0.3.0", "0.3.0", firmatari, privata)
+        if caso == "FD16":
+            # Il tag firmato della 0.3.0 ripubblicato sotto un nome più nuovo, con lo stesso oggetto.
+            r.rilascio("0.3.5", "rilasci")
+            oggetto = git(r.pub, "rev-parse", "refs/tags/plugin-v0.3.0").stdout.strip()
+            git(r.pub, "update-ref", "refs/tags/plugin-v9.9.9", oggetto)
+            tag, sha, atteso = "plugin-v9.9.9", sha1, "ripubblicato con un altro nome"
+        elif caso == "FD17":
+            sha = r.rilascio("0.4.0", None, tag=False)
+            git(r.pub, "tag", "plugin-v0.4.0", sha)  # tag leggero
+            tag, atteso = "plugin-v0.4.0", "tag senza firma"
+        else:
+            # Un tag firmato su un commit col MANIFEST senza firma: si ferma prima di claude plugin update.
+            copia_plugin(repo, r.pub, "0.4.0", firmatari, None)
+            git(r.pub, "add", "-A")
+            git(r.pub, "commit", "-qm", "plugin 0.4.0 senza firma del MANIFEST")
+            git(r.pub, "-c", "gpg.format=ssh", "-c", f"user.signingkey={privata}", "tag", "-s", "plugin-v0.4.0",
+                "-m", "plugin-v0.4.0")
+            sha = git(r.pub, "rev-parse", "HEAD").stdout.strip()
+            tag, atteso = "plugin-v0.4.0", "MANIFEST firmato"
+        r.indica(tag, sha)
+        orsa = r.orsa
+        (orsa / "plugins").mkdir()
+        (orsa / "plugins" / "known_marketplaces.json").write_text(json.dumps({"arturo": {"installLocation": str(r.catalogo)}}),
+                                                                  encoding="utf-8")
+        (orsa / "plugins" / "installed_plugins.json").write_text(json.dumps({"plugins": {"arturo@arturo": [
+            {"scope": "user", "installPath": str(prima), "version": "0.3.0", "gitCommitSha": "a" * 40}]}}),
+            encoding="utf-8")
+        modulo_fiducia(repo).fissa_ancora(prima, orsa)
+        spia = base / "update-partito"
+        finto = base / "claude-finto"
+        finto.write_text(f"#!{sys.executable}\nimport sys\nif sys.argv[1:3] == ['plugin', 'update']:\n"
+                         f"    open({str(spia)!r}, 'w').close()\n", encoding="utf-8")
+        finto.chmod(0o755)
+        p = esegui([sys.executable, prima / "bin" / "aggiornamenti.py", "plugin"], env=dict(r.env, ARTURO_CLAUDE=str(finto)))
+        uscita = (p.stdout + p.stderr).strip()
+        if p.returncode != 3 or "POSSIBILE COMPROMISSIONE" not in uscita or atteso not in uscita or spia.exists():
+            rossi.append(f"{caso} {tag} @ {sha[:12]}: rc {p.returncode}, update partito {spia.exists()}, {uscita[-200:]!r}")
     return rossi
 
 
@@ -468,7 +574,8 @@ def prova(repo: Path, solo: str | None = None) -> list:
         semplici = [("FD01", lambda: caso_fd01(repo, tmp)), ("FD02", lambda: caso_fd02(repo, tmp, chiavi)),
                     ("FD03", lambda: caso_fd03(repo, tmp, chiavi)), ("FD04", lambda: caso_fd04(repo, tmp, chiavi)),
                     ("FD05", lambda: caso_fd05(repo, tmp)), ("FD10", lambda: caso_fd10(repo, tmp)),
-                    ("FD11", lambda: caso_fd11(repo, tmp)), ("FD15", lambda: caso_fd15(repo, tmp))]
+                    ("FD11", lambda: caso_fd11(repo, tmp)), ("FD15", lambda: caso_fd15(repo, tmp)),
+                    ("FD19", lambda: caso_fd19(repo, tmp, chiavi))]
         for codice, fn in semplici:
             if solo in (None, codice):
                 try:
@@ -480,6 +587,12 @@ def prova(repo: Path, solo: str | None = None) -> list:
                 rossi += casi_finti(repo, tmp, chiavi, solo)
             except Exception as errore:  # noqa: BLE001
                 rossi += [f"{c} errore: {type(errore).__name__}: {str(errore)[:160]}" for c in ("FD12", "FD13", "FD14")
+                          if solo in (None, c)]
+        if solo in (None, "FD16", "FD17", "FD18"):
+            try:
+                rossi += casi_tag(repo, tmp, chiavi, solo)
+            except Exception as errore:  # noqa: BLE001
+                rossi += [f"{c} errore: {type(errore).__name__}: {str(errore)[:160]}" for c in ("FD16", "FD17", "FD18")
                           if solo in (None, c)]
         if solo is None or solo in CLI:
             try:
@@ -510,6 +623,13 @@ VELENI = [
      '    if False:\n        return _blocca(controllo["motivo"]'),
     ("FD13", "bin/aggiornamenti.py", "    if diversi:\n        return _blocca(", "    if False:\n        return _blocca("),
     ("FD14", "bin/aggiornamenti.py", "    impostazioni = applica_impostazioni(copia)\n", '    impostazioni = ""\n'),
+    ("FD12", "bin/aggiornamenti.py", "    voci[utente] = prima\n", "    pass\n"),
+    ("FD16", "bin/aggiornamenti.py", "        if not dentro or dentro.group(1) != tag:", "        if False:"),
+    ("FD17", "bin/aggiornamenti.py", '    if tipo.returncode == 0 and tipo.stdout.strip() != "tag":', "    if False:"),
+    ("FD18", "bin/aggiornamenti.py", "        controllo = fiducia.controlla(albero, orsa)\n        if controllo[\"firma\"] != \"ok\":",
+     "        controllo = fiducia.controlla(albero, orsa)\n        if False:"),
+    ("FD19", "bin/impacchetta.py", "        rc = dal_tag(argomenti)\n", "        rc = -1\n"),
+    ("FD19", "bin/impacchetta.py", "    if firmato and not (cartella / fiducia.FIRMA).is_file():", "    if False:"),
     ("FD15", "bin/aggiornamenti.py", '    if not TAG_PLUGIN.fullmatch(tag) or not re.fullmatch(r"[0-9a-f]{40}", sha):\n',
      "    if False:\n"),
 ]

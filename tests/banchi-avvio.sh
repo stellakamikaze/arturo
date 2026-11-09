@@ -44,8 +44,14 @@ export TMPDIR="$LAVORO"
 rossi=""
 n=0
 for banco in $BANCHI; do
-  [ -f "$COPIA/tests/$banco" ] || continue
   n=$((n + 1))
+  # Un banco dell'elenco che manca nella copia è rosso col suo nome: saltato, il controllo delle guardie si
+  # spegneva e l'esito restava VERDE, anche con zero banchi (review del 7/11/2026, finding 92).
+  if [ ! -f "$COPIA/tests/$banco" ]; then
+    rossi="${rossi}${banco}: manca nella copia dei file tracciati
+"
+    continue
+  fi
   python3 -B "$COPIA/tests/$banco" --repo "$COPIA" > "$LAVORO/esito.txt" 2>&1
   rc=$?
   if [ "$rc" -ne 0 ]; then
@@ -55,6 +61,8 @@ for banco in $BANCHI; do
   fi
 done
 
+[ "$n" -gt 0 ] || rossi="banchi-avvio.sh: elenco dei banchi vuoto
+"
 if [ -n "$rossi" ]; then
   # Dal 3/11/2026 la persona non lo sente: il rosso parte da solo verso chi mantiene Arturo, con la
   # telemetria (evento banchi, il nome del banco), solo quando l'elenco dei rossi cambia. La telemetria

@@ -103,6 +103,7 @@ export function dettaglio(t: Testata): string {
     if (d.file.length > 0) righe.push(`file di Arturo cambiati: ${d.file.slice(0, 8).join(', ')}${d.file.length > 8 ? '…' : ''}`)
   }
   if (d === null || !d.misurata) righe.push('deriva: non misurata (la misura l\'avvio della sessione, se la config ha un riferimento ad Arturo)')
+  righe.push(CREDITO)
   return righe.join('\n')
 }
 
@@ -180,6 +181,10 @@ export const COLONNE_MARCHIO = 60
 
 export const URL_ROADMAP = 'https://arturo.stellakamikaze.org/roadmap/'
 export const URL_INVIA = 'https://arturo.stellakamikaze.org/'
+// Il credito di Arturo, nella testata e in /versione (9/11/2026).
+export const AUTORE = 'Federico Nejrotti'
+export const URL_AUTORE = 'https://stellakamikaze.org/'
+export const CREDITO = `Arturo è un progetto di ${AUTORE} · stellakamikaze.org`
 export const INTERVALLO_INVITO_S = 14 * 24 * 60 * 60
 
 // "Aggiornata il 2026-11-03" in testa a ROADMAP.md.

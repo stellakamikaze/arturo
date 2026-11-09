@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MG01-MG07: arturo migra, dal clone in ~/.claude al plugin (strati F4, #4534, docs/strati.md).
+"""MG01-MG18: arturo migra, dal clone in ~/.claude al plugin (strati F4, #4534, docs/strati.md).
 
 Un clone di prova con le modifiche tipiche di chi usa Arturo da settimane: una riga aggiunta a /inizio,
 una guardia cambiata, un hook e un permesso suoi in settings.json, CLAUDE.md, todo e una skill sua.
@@ -21,8 +21,11 @@ MG05 il catalogo indica un tag non firmato: uscita 3 (possibile compromissione),
      installa, e ~/.claude torna identica da sola;
 MG06 il plugin si installa ma settings.json ha una voce cambiata sia dalla persona sia da Arturo: uscita 1,
      e il ritorno automatico toglie anche il plugin;
-MG07 un ~/.claude con Arturo come upstream (repository della persona) non si migra: rapporto FERMA,
-     migrazione con uscita 1, niente cambia;
+MG07 un ~/.claude con Arturo come upstream (repository della persona) senza --unica-macchina non si migra: rapporto
+     FERMA, migrazione con uscita 1, niente cambia;
+MG18 la forma upstream con --unica-macchina (segnalazione n. 62, 9/11/2026): il repository della persona ha il suo
+     origin; la prova dice PRONTA, la migrazione toglie i file di Arturo con un commit, .git e .gitignore restano,
+     il plugin c'è; `migra indietro` annulla quel commit con un revert e rimette i file com'erano;
 MG08 l'avviso dell'avvio: dal clone una riga che nomina `migra --prova` e `migra indietro`, una volta al giorno;
      con Arturo come upstream la riga dice "a mano"; dal codice fuori dall'Orsa (il plugin) niente; su un sistema
      dove il passaggio non è provato, oggi Windows, niente (review del 7/11/2026, finding 99).
@@ -58,8 +61,8 @@ import tempfile
 from pathlib import Path
 
 CASI = ["MG01", "MG02", "MG03", "MG04", "MG05", "MG06", "MG07", "MG08",
-        "MG09", "MG10", "MG11", "MG12", "MG13", "MG14", "MG15", "MG16", "MG17"]
-UNITA = CASI[8:]
+        "MG09", "MG10", "MG11", "MG12", "MG13", "MG14", "MG15", "MG16", "MG17", "MG18"]
+UNITA = CASI[8:17]
 DISCRIMINANTI = list(CASI)
 CLAUDE = shutil.which("claude")
 RIGA_MIA = "Riga mia della prova: i miei progetti stanno in ~/lavoro.\n"
@@ -524,7 +527,7 @@ def prova(repo: Path, solo: str | None = None) -> list:
         falliti = [k for k, v in controlli.items() if not v]
         if falliti:
             rossi.append(f"MG03 migrazione: {falliti}, {(p.stdout + p.stderr)[-300:]!r} {stato.stdout[-120:]!r}")
-            return rossi + [f"{c} saltato: la migrazione di MG03 non è riuscita" for c in CASI[3:8]
+            return rossi + [f"{c} saltato: la migrazione di MG03 non è riuscita" for c in CASI[3:8] + ["MG18"]
                             if solo in (None, c)]
         if fine("MG03"):
             return rossi
@@ -535,7 +538,7 @@ def prova(repo: Path, solo: str | None = None) -> list:
         if p.returncode != 0 or dopo != prima or b.installato():
             rossi.append(f"MG04 indietro: rc {p.returncode}, {differenze(prima, dopo)}, plugin {bool(b.installato())}, "
                          f"{(p.stdout + p.stderr)[-200:]!r}")
-            return rossi + [f"{c} saltato: indietro di MG04 non è riuscito" for c in CASI[4:8] if solo in (None, c)]
+            return rossi + [f"{c} saltato: indietro di MG04 non è riuscito" for c in CASI[4:8] + ["MG18"] if solo in (None, c)]
         if fine("MG04"):
             return rossi
 
@@ -575,6 +578,46 @@ def prova(repo: Path, solo: str | None = None) -> list:
             rossi.append(f"MG07 upstream: rc {r.returncode}/{m.returncode}, {differenze(prima7, dopo)}, "
                          f"{(r.stdout + m.stderr)[-240:]!r}")
         if fine("MG07"):
+            return rossi
+
+        # MG18 la forma upstream con un computer solo: il repository della persona ha il suo origin. Un rilascio
+        # nuovo senza il conflitto di MG06.
+        b.rilascio("0.9.3")
+        persona = tmp / "persona.git"
+        git(tmp, "init", "-q", "--bare", persona)
+        git(b.orsa, "remote", "set-url", "origin", str(persona))
+        git(b.orsa, "push", "-q", "origin", "HEAD:main")
+        prima18 = impronta(b.orsa)
+        indice18 = git(b.orsa, "ls-files", "-s").stdout
+        r = b.arturo("migra", "--prova", "--unica-macchina")
+        m = b.arturo("migra", "--unica-macchina")
+        tracciati = git(b.orsa, "ls-files").stdout.split()
+        sporchi = git(b.orsa, "status", "--porcelain", "--untracked-files=no").stdout.strip()
+        ultimo = git(b.orsa, "log", "-1", "--format=%s").stdout
+        controlli = {
+            "prova PRONTA": r.returncode == 0 and "ESITO: PRONTA" in r.stdout and "--unica-macchina" in r.stdout,
+            "migrato": m.returncode == 0 and "MIGRATO" in m.stdout,
+            ".git resta": (b.orsa / ".git").is_dir() and (b.orsa / ".gitignore").is_file(),
+            "file di Arturo fuori": not (b.orsa / "bin").exists() and not any(f.startswith("bin/") for f in tracciati),
+            "commit nel repository": "plugin" in ultimo and not sporchi,
+            "plugin installato": bool(b.installato()),
+            "file miei": (b.orsa / "CLAUDE.md").is_file(),
+        }
+        falliti = [k for k, v in controlli.items() if not v]
+        if falliti:
+            rossi.append(f"MG18 forma upstream: {falliti}, sporchi {sporchi[:80]!r}, {(r.stdout + m.stdout + m.stderr)[-240:]!r}")
+        else:
+            copia = b.copie()[-1]
+            i = b.arturo("migra", "indietro", codice=copia / "codice" / "bin" / "arturo")
+            dopo = {k: v for k, v in impronta(b.orsa).items() if not k.startswith(".git/")}
+            prima_senza_git = {k: v for k, v in prima18.items() if not k.startswith(".git/")}
+            ultimo = git(b.orsa, "log", "-1", "--format=%s").stdout
+            if i.returncode != 0 or dopo != prima_senza_git or git(b.orsa, "ls-files", "-s").stdout != indice18 \
+                    or not ultimo.startswith("Revert") or b.installato():
+                rossi.append(f"MG18 indietro della forma upstream: rc {i.returncode}, {differenze(prima_senza_git, dopo)}, "
+                             f"ultimo commit {ultimo.strip()[:60]!r}, plugin {bool(b.installato())}, "
+                             f"{(i.stdout + i.stderr)[-200:]!r}")
+        if fine("MG18"):
             return rossi
 
         # MG08 l'avviso dell'avvio
@@ -617,6 +660,10 @@ VELENI = [
     ("MG06", "bin/migra.py", "        indietro(cartella, conserva=False)\n        return uscita\n", "        return uscita\n"),
     ("MG07", "bin/migra.py", '    if "upstream" in remoti:\n', '    if False:\n'),
     ("MG08", "bin/migra.py", '    if leggi_json(segno).get("giorno") == oggi:\n', '    if False:\n'),
+    ("MG18", "bin/migra.py", '    voci = [f for f in registro["albero"] if f != ".gitignore"] if upstream else [".git", *registro["albero"]]\n',
+     '    voci = [".git", *registro["albero"]]\n'),
+    ("MG18", "bin/migra.py", '        problemi += ritorno_upstream(orsa, registro.get("commit") or "", list(registro.get("toccati") or {}))\n',
+     '        pass\n'),
     ("MG08", "bin/migra.py", "    if os.name not in SISTEMI_PROVATI:\n        return \"\"\n", ""),
     ("MG08", "hooks/session-start.sh", 'python3 "$ARTURO_CODICE/bin/migra.py" avviso', 'true'),
     ("MG09", "bin/migra.py", "        togli(cartella)\n        raise\n", "        raise\n"),

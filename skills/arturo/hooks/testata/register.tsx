@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import { type Avanti, type Evento, parteSpenta } from '../parti'
 import { radiciArturo } from './radici'
 import {
-  COLONNE_MARCHIO, LARGHEZZA_MARCHIO, URL_INVIA, URL_ROADMAP, blocco, dataRoadmap,
+  AUTORE, COLONNE_MARCHIO, LARGHEZZA_MARCHIO, URL_AUTORE, URL_INVIA, URL_ROADMAP, blocco, dataRoadmap,
   decidiInvito, dettaglio, leggiAggiornamento, leggiDeriva, leggiTimbro, nuovoTimbro, versioneArturo,
   versioneDaManifest,
 } from './testata'
@@ -114,7 +114,10 @@ export const register: Register = on => {
     // Come l'intestazione di Claude Code: nome in grassetto e versione, una riga di stato, poi i due link.
     const righe = (
       <Box flexDirection="column">
-        <Text><Text bold>Arturo</Text>{b.versione === null ? '' : <Text dimColor>{` ${b.versione}`}</Text>}</Text>
+        <Text>
+          <Text bold>Arturo</Text>{b.versione === null ? '' : <Text dimColor>{` ${b.versione}`}</Text>}
+          <Text dimColor>{' di '}</Text><Link href={URL_AUTORE}><Text dimColor>{AUTORE}</Text></Link>
+        </Text>
         {b.stato === null ? null : <Text dimColor>{b.stato}</Text>}
         <Text>
           <Link href={URL_ROADMAP}><Text color={BLU} bold={b.roadmapNuova}>{b.roadmap}</Text></Link>

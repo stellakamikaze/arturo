@@ -6,9 +6,9 @@ skills/humanizer/ORIGINE e references/originale-en.md.
 
 HO01 origine e ORIGINE pari: controlla tace.
 HO02 un commit nuovo sull'origine: controlla stampa la riga HUMANIZER con versione e commit nuovi.
-HO03 porta: riscrive originale-en.md e ORIGINE, e scrive la differenza da riportare in italiano.
+HO03 porta: riscrive originale-en.md e ORIGINE (con lo sha intero), e scrive la differenza da riportare in italiano.
 HO04 origine che non risponde: controlla esce 0 e non stampa la riga.
-HO05 un uso sbagliato esce 2.
+HO05 un uso sbagliato esce 2, anche --commit con uno sha corto.
 
 --avvelena fa girare una copia dello script dove controlla non confronta i commit: HO01 deve diventare
 rosso, perché la riga compare anche con origine e Arturo pari. Esce 0 se il veleno attacca.
@@ -79,7 +79,7 @@ def ho03(s: Scena, script: Path) -> None:
     origine = (skill / "ORIGINE").read_text(encoding="utf-8")
     differenza = s.arturo / "cache" / "humanizer-differenza.md"
     assert p.returncode == 0 and inglese == SKILL_V2, f"HO03 porta non riscrive l'originale inglese: {p.stderr!r}"
-    assert f"commit {nuovo[:7]}" in origine and "versione 3.2.0" in origine, f"HO03 ORIGINE non segue: {origine!r}"
+    assert f"commit {nuovo}\n" in origine and "versione 3.2.0" in origine, f"HO03 ORIGINE non segue: {origine!r}"
     assert differenza.is_file() and "+## 27. A new pattern" in differenza.read_text(encoding="utf-8"), \
         "HO03 manca la differenza da riportare in italiano"
     assert s.lancia(script, "controlla").stdout == "", "HO03 dopo porta il controllo non tace"
@@ -91,7 +91,9 @@ def ho04(s: Scena, script: Path) -> None:
 
 
 def ho05(s: Scena, script: Path) -> None:
-    for args in (("bogus",), ("porta", "--commit", "non-un-sha"), ("controlla", "altro")):
+    # Uno sha corto non si scarica: porta vuole lo sha intero (review del 7/11/2026, finding 116).
+    for args in (("bogus",), ("porta", "--commit", "non-un-sha"), ("porta", "--commit", s.commit[:7]),
+                 ("controlla", "altro")):
         assert s.lancia(script, *args).returncode == 2, f"HO05 uso sbagliato non esce 2: {args}"
 
 

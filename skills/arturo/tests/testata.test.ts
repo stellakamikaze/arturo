@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 
 import {
-  FOTOGRAMMI_STELLA, FOTOGRAMMI_TOTALI, INTERVALLO_INVITO_S, blocco, dataRoadmap, decidiInvito, dettaglio, leggiAggiornamento, leggiDeriva, leggiTimbro,
+  AUTORE, CREDITO, URL_AUTORE, FOTOGRAMMI_STELLA, FOTOGRAMMI_TOTALI, INTERVALLO_INVITO_S, blocco, dataRoadmap, decidiInvito, dettaglio, leggiAggiornamento, leggiDeriva, leggiTimbro,
   nomeVersione, nuovoTimbro, parolaDeriva, parolaInvito, parolaVersione, riga, statoChiaro, versioneArturo,
   versioneDaManifest,
 } from '../hooks/testata/testata'
@@ -197,4 +197,15 @@ test("con l'invito già visto e la stessa roadmap, il link resta senza evidenza"
   const ui = await $.ui.mount(PIAZZATA)
   expect((await ui.find({ type: 'Text', text: /^Roadmap/ }))?.text).toBe('Roadmap')
   await ui.unmount()
+})
+
+describe('credito', () => {
+  test('/versione dice di chi è Arturo, con il sito', () => {
+    expect(AUTORE.split(' ')).toHaveLength(2)
+    expect(CREDITO).toContain(AUTORE)
+    expect(CREDITO).toContain('stellakamikaze.org')
+    expect(URL_AUTORE).toBe('https://stellakamikaze.org/')
+    const t: Testata = { arturo: 'v0.2.8', claude: null, deriva: pulita, aggiornamento: null }
+    expect(dettaglio(t).split('\n').at(-1)).toBe(CREDITO)
+  })
 })

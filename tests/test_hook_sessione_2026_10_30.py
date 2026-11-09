@@ -29,7 +29,8 @@ BASH = shutil.which("bash") or "bash"
 def lancia(hook: str, testo: str, home: Path, progetto: Path, dati: dict) -> subprocess.CompletedProcess:
     script = home / ".claude" / "hooks" / hook
     script.parent.mkdir(parents=True, exist_ok=True)
-    script.write_text(testo, encoding="utf-8", newline="\n")
+    with open(str(script), "w", encoding="utf-8", newline="\n") as uscita:  # write_text(newline=) vuole Python 3.10
+        uscita.write(testo)
     env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home), "ARTURO_TELEMETRIA": "0",
            "ARTURO_AGGIORNAMENTI": "manuali", "GIT_TERMINAL_PROMPT": "0"}
     return subprocess.run([BASH, str(script)], input=json.dumps(dati), cwd=progetto, capture_output=True,

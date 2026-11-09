@@ -91,7 +91,7 @@ def test_z01(repo: Path) -> None:
     banco = esiste(repo, "tests/test_gate_run.sh", "Z01")
     with tempfile.TemporaryDirectory() as d:
         r = lancia([BASH, str(banco)], "Z01", env=dict(os.environ, GATE_RUN=str(gr), TMPDIR=d), cwd=d)
-    assert r.returncode == 0 and "totale casi: 7 · verdi: 7" in r.stdout, f"Z01 banco di gate-run rosso: {r.stdout[-600:]}"
+    assert r.returncode == 0 and "totale casi: 10 · verdi: 10" in r.stdout, f"Z01 banco di gate-run rosso: {r.stdout[-600:]}"
     gate = read(repo / "shared" / "validation-gate.md")
     assert "bin/gate-run.sh" in gate and "--poison" in gate and "--expect" in gate, \
         "Z01 shared/validation-gate.md non dice come eseguire un banco nuovo con gate-run.sh"

@@ -364,6 +364,9 @@ def test_u06(repo: Path) -> None:
             dati = json.loads(testo)
             dati.pop("author", None)
             testo = json.dumps(dati, ensure_ascii=False)
+        if p.name == "testata.ts":
+            # Il credito di Arturo (Federico, 9/11/2026): solo la costante che scrive il nome dell'autore.
+            testo = "\n".join(r for r in testo.splitlines() if not r.startswith("export const AUTORE = "))
         nome = p.relative_to(repo).as_posix()
         assert not re.search(r"/Users/|/home/|[A-Za-z]:\\\\|~/\.claude/bin|Documents/ClaudeCode", testo), \
             f"U06 percorso assoluto o della macchina dell'autore in {nome}"

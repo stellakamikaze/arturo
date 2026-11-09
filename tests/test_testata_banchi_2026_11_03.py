@@ -9,6 +9,8 @@ TB02 tests/banchi-avvio.sh con un banco rosso manda il nome del banco con la tel
      finché l'elenco dei rossi non cambia; con la telemetria spenta non manda niente.
 TB03 l'evento banchi accetta solo il nome di un banco, nel client e nel server.
 TB04 il mod skills/testata passa validate e test, e piazza il suo blocco con $.ui.place all'avvio.
+TB05 un banco dell'elenco di banchi-avvio.sh che manca nella copia è ROSSO col suo nome, mai VERDE con meno
+     banchi; ogni nome dell'elenco esiste in tests/ (review del 7/11/2026, finding 92).
 
 Ogni caso gira in una HOME finta: niente parte verso il server vero.
 Sulla base c247fed ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
@@ -135,7 +137,26 @@ def test_tb04(repo: Path) -> None:
     assert "all'avvio il blocco va sotto l'intestazione" in esito, "TB04 manca il test del blocco all'avvio"
 
 
-TESTS = {"TB01": test_tb01, "TB02": test_tb02, "TB03": test_tb03, "TB04": test_tb04}
+def test_tb05(repo: Path) -> None:
+    testo = (repo / "tests" / "banchi-avvio.sh").read_text(encoding="utf-8")
+    elenco = re.search(r'^BANCHI="([^"]+)"', testo, re.M)
+    assert elenco, "TB05 banchi-avvio.sh non ha più l'elenco BANCHI"
+    assenti = [n for n in elenco.group(1).split() if not (repo / "tests" / n).is_file()]
+    assert not assenti, f"TB05 nell'elenco di banchi-avvio.sh ci sono banchi che non esistono: {assenti}"
+    with tempfile.TemporaryDirectory() as d:
+        radice = Path(d)
+        home = radice / "home"
+        (home / ".claude").mkdir(parents=True)
+        copia = _copia_con_rosso(repo, radice)
+        (copia / "tests" / "test_heredoc.py").write_text("pass\n", encoding="utf-8")
+        (copia / "tests" / "test_hook_utf8.py").unlink()
+        p = _banchi(copia, home, DO_NOT_TRACK="1")
+        esito = (copia / "cache" / "banchi-ultimo-esito.txt").read_text(encoding="utf-8")
+        assert p.returncode == 1 and esito.startswith("ROSSO") and "test_hook_utf8.py" in esito, \
+            f"TB05 un banco mancante non è rosso col suo nome: rc {p.returncode}, {esito[:200]!r}"
+
+
+TESTS = {"TB01": test_tb01, "TB02": test_tb02, "TB03": test_tb03, "TB04": test_tb04, "TB05": test_tb05}
 
 
 def main() -> int:

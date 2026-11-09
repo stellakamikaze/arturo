@@ -12,7 +12,7 @@ un giro solo dice ogni rosso.
       data/ della macchina: il 19/10/2026 una coda di telemetria vecchia ha fatto rosso GS06.
 
   esegui_gate.py esegui --root R --fixture F [--lavori N] [--rossi] [--toccati] [--rilascio] [--py38 EXE]
-                 [--banchi ...] [--in-fila ...] [--banchi-py38 ...] [--controprove "banco ref [radice]" ...]
+                 [--elenchi] [--banchi ...] [--in-fila ...] [--banchi-py38 ...] [--controprove "banco ref [radice]" ...]
                  [--veleni ...]
       Ogni worker ha HOME, TMPDIR, cache e file dei salti suoi, sotto F/w<i>, con la sua copia del
       repository in HOME/.claude. I lavori di un worker girano in fila nella sua copia. Prima i lavori
@@ -229,6 +229,40 @@ class Fonti:
         return h.hexdigest()
 
 
+# Banchi che girano dentro un altro, col motivo (review del 7/11/2026, finding 94). Un nome che torna in elenco, o
+# un file che non c'è più, fa rosso il controllo: l'eccezione non resta scritta dopo la sua ragione.
+FUORI_ELENCO = {
+    "test_gate_run.sh": "gira dentro Z01 di test_script.py",
+    "test_pattern_segreti_allineati.py": "gira dentro G05 di test_guardie_involucri.py, anche col suo veleno",
+}
+VELENO_FUORI = {
+    "test_pattern_segreti_allineati.py": "il veleno lo lancia G05 di test_guardie_involucri.py",
+    "test_guardie_involucri.py": "nomina --avvelena solo per lanciare il veleno di test_pattern_segreti_allineati.py",
+}
+AVVELENA = re.compile(r"""["']--avvelena["']""")
+
+
+def elenchi_incompleti(root: Path, a: argparse.Namespace) -> List[str]:
+    """Le liste del gate contro i file di tests/: un banco nuovo non elencato non girava, e il gate restava verde;
+    un banco con --avvelena fuori da VELENI non riprovava mai il suo veleno (finding 94)."""
+    cartella = root / "tests"
+    su_disco = {f.name for f in cartella.iterdir() if re.fullmatch(r"test.*\.(py|sh)", f.name)}
+    elencati = set(a.banchi) | set(a.in_fila)
+    errori = [f"{n}: in tests/ ma in nessun elenco del gate (BANCHI o IN_FILA)"
+              for n in sorted(su_disco - elencati - set(FUORI_ELENCO))]
+    errori += [f"{n}: nelle liste del gate ma non in tests/" for n in sorted(elencati) if not (cartella / n).is_file()]
+    controprove = {riga.split()[0] for riga in a.controprove if riga.split()}
+    for nome, lista in (("PY38_BANCHI", set(a.banchi_py38)), ("BASELINE", controprove), ("VELENI", set(a.veleni))):
+        errori += [f"{n}: in {nome} ma non fra i banchi del gate" for n in sorted(lista - elencati)]
+    con_veleno = {n for n in su_disco if n.endswith(".py")
+                  and AVVELENA.search((cartella / n).read_text(encoding="utf-8", errors="replace"))}
+    errori += [f"{n}: ha --avvelena ma non sta in VELENI" for n in sorted(con_veleno - set(a.veleni) - set(VELENO_FUORI))]
+    for eccezioni, dentro in ((FUORI_ELENCO, elencati), (VELENO_FUORI, set(a.veleni))):
+        errori += [f"{n}: eccezione del controllo degli elenchi da togliere (il file non c'è o è già in lista)"
+                   for n in sorted(eccezioni) if n not in su_disco or n in dentro]
+    return errori
+
+
 def lavori_da(a: argparse.Namespace) -> List[Lavoro]:
     lavori = [Lavoro("banco", b) for b in a.banchi]
     if a.py38:
@@ -262,6 +296,9 @@ def esegui(a: argparse.Namespace) -> int:
         if not paralleli and not in_fila:
             print(f"PARZIALE: nessun lavoro ha una fonte fra i {len(mossi)} file cambiati, niente da fare")
             return 0
+    incompleti = elenchi_incompleti(root, a) if a.elenchi and not (a.rossi or a.toccati) else []
+    for riga in incompleti:
+        print(f"=== ROSSO elenchi del gate: {riga}")
     impronte = leggi_impronte(f_impronte)
     saltate = 0
     for x in [x for x in paralleli if x.tipo == "controprova"]:
@@ -337,7 +374,7 @@ def esegui(a: argparse.Namespace) -> int:
           f" in {time.monotonic() - inizio:.0f}s"
           + (" PARZIALE (solo i rossi del giro prima: non vale per un rilascio)" if a.rossi else "")
           + (" PARZIALE (solo i lavori dei file cambiati: non vale per un rilascio)" if a.toccati else ""))
-    return 1 if rossi else 0
+    return 1 if rossi or incompleti else 0
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -358,6 +395,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     e.add_argument("--toccati", action="store_true")
     e.add_argument("--rilascio", action="store_true")
     e.add_argument("--py38", default="")
+    e.add_argument("--elenchi", action="store_true", help="confronta le liste con i file di tests/ (il gate vero)")
     for lista in ("--banchi", "--in-fila", "--banchi-py38", "--controprove", "--veleni"):
         e.add_argument(lista, nargs="*", default=[])
     a = p.parse_args(argv)

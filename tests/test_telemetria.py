@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M01-M20, M26 e M27: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
+"""M01-M20, M26-M28: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
 
 Ogni caso gira con una HOME finta e un server HTTP finto su 127.0.0.1 (ARTURO_TELEMETRIA_URL):
 niente parte mai verso il server vero. Sulla base db96709, prima della telemetria, ogni controllo
@@ -7,6 +7,9 @@ deve fallire per conto suo.
 
 M20 una segnalazione in attesa parte alla sessione dopo, senza aspettare le 6 ore degli eventi, e una
 segnalazione che parte si porta dietro quelle in attesa (27/10/2026).
+
+M28 (review del 7/11/2026, finding 89): una segnalazione rifiutata dal server (400 o 413) diventa .rifiutata.json e
+non ferma quella dopo; un lotto di eventi rifiutato esce dalla coda.
 
 M26 e M27 (review del 7/11/2026, finding 43 e 47): un invio alla volta, senza eventi doppi né persi; lo sportello parte
 dalla segnalazione più nuova, si ferma al 429 e salta per qualche giorno quelle che il server non ha più.
@@ -34,6 +37,7 @@ class Server:
     def __init__(self):
         self.richieste = []
         self.status = 202
+        self.stati = []  # M28: le prime risposte, una per richiesta; poi vale status
         self.ritardo = 0.0  # M26: un server lento tiene aperti due invii insieme
         fuori = self
 
@@ -42,7 +46,7 @@ class Server:
                 corpo = self.rfile.read(int(self.headers.get("content-length", 0)))
                 fuori.richieste.append((self.path, json.loads(corpo)))
                 time.sleep(fuori.ritardo)
-                self.send_response(fuori.status)
+                self.send_response(fuori.stati.pop(0) if fuori.stati else fuori.status)
                 self.end_headers()
                 self.wfile.write(b"{}")
 
@@ -572,11 +576,36 @@ print(json.dumps({"primo": primo, "secondo": list(chiamate), "salvate": sorted(t
     assert set(range(53, 63)) <= set(esito["salvate"]), f"M27 le risposte delle più nuove non si salvano: {esito['salvate']}"
 
 
+def test_m28(repo: Path) -> None:
+    for rifiuto in (400, 413):
+        srv = Server()
+        srv.stati = [rifiuto]
+        lab = Lab(repo, srv)
+        attesa = lab.home / ".claude" / "data" / "segnalazioni"
+        attesa.mkdir(parents=True)
+        for n, ora in enumerate(("090000", "100000")):
+            (attesa / f"2026-11-07_{ora}_problema.attesa.json").write_text(
+                json.dumps({"tipo": "problema", "titolo": f"[problema] prova {n}", "testo": "testo"}), encoding="utf-8")
+        prova = "import sys\nsys.path.insert(0, sys.argv[1])\nimport telemetria as t\nprint(t.invia_segnalazioni_in_attesa())\n"
+        r = subprocess.run([sys.executable, "-B", "-c", prova, str(repo / "bin")], capture_output=True, text=True,
+                           encoding="utf-8", env=lab.env, timeout=60)
+        titoli = [d.get("titolo") for p, d in srv.richieste if p == "/v1/segnalazioni"]
+        rifiutate = sorted(f.name for f in attesa.glob("*.rifiutata.json"))
+        assert r.stdout.strip() == "1" and titoli == ["[problema] prova 0", "[problema] prova 1"] \
+            and rifiutate == ["2026-11-07_090000_problema.rifiutata.json"] and not list(attesa.glob("*.attesa.json")), \
+            f"M28 una segnalazione rifiutata con {rifiuto} ferma le altre: partite {r.stdout.strip()!r}, {titoli}, {rifiutate}"
+        lotto = Lab(repo, srv)
+        srv.stati = [rifiuto]
+        lotto.arturo("telemetria", "registra", "sessione")
+        lotto.arturo("telemetria", "invia")
+        assert lotto.coda() == [], f"M28 un lotto rifiutato con {rifiuto} resta in coda: {lotto.coda()}"
+
+
 TESTS = {"M01": test_m01, "M02": test_m02, "M03": test_m03, "M04": test_m04, "M05": test_m05,
          "M06": test_m06, "M07": test_m07, "M08": test_m08, "M09": test_m09, "M10": test_m10,
          "M11": test_m11, "M12": test_m12, "M13": test_m13, "M14": test_m14, "M15": test_m15,
          "M16": test_m16, "M17": test_m17, "M18": test_m18, "M19": test_m19, "M20": test_m20,
-         "M26": test_m26, "M27": test_m27}
+         "M26": test_m26, "M27": test_m27, "M28": test_m28}
 
 
 def main() -> int:

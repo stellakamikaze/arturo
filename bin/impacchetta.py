@@ -19,7 +19,11 @@ dove Claude Code lo sostituisce (skill), $ARTURO_CODICE/... altrove: l'avvio lo 
 I percorsi ai dati della persona (~/.claude/data, personale, CLAUDE.md, session-env) restano: sono l'Orsa.
 
   python3 bin/impacchetta.py --uscita DIR [--versione v0.2.0] [--firma CHIAVE]
-  python3 bin/impacchetta.py --verifica DIR     il pacchetto rispetta il contratto (rc 1 se no)
+                                                con --firma il pacchetto nasce dal tag --versione (git archive),
+                                                non dall'albero di lavoro
+  python3 bin/impacchetta.py --verifica DIR [--firmato]
+                                                il pacchetto rispetta il contratto (rc 1 se no); --firmato
+                                                vuole anche MANIFEST.sig
   python3 bin/impacchetta.py --catalogo DIR --tag plugin-v0.3.0 --sha SHA [--repo stellakamikaze/arturo]
                                                 il catalogo pubblicato (ramo catalogo): Arturo fissato allo
                                                 sha del tag firmato (strati F3)
@@ -29,9 +33,12 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import os
 import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
 from pathlib import Path
 
 RADICE = Path(__file__).resolve().parent.parent
@@ -203,7 +210,7 @@ def impacchetta(uscita: Path, versione: str) -> None:
     descrizione = "Arturo: guardie, metodo e skill condivise sopra Claude Code. Lo strato personale è l'Orsa, in ~/.claude."
     manifest = {
         "name": NOME, "version": versione.lstrip("v"), "description": descrizione,
-        "author": {"name": "Federico Nejrotti"}, "homepage": "https://github.com/stellakamikaze/arturo",
+        "author": {"name": "Federico Nejrotti", "url": "https://stellakamikaze.org"}, "homepage": "https://github.com/stellakamikaze/arturo",
         "license": "MIT",
     }
     # Il contratto dei valori in $.state del mod: senza, Claude Code rifiuta gli atom del modulo.
@@ -245,8 +252,39 @@ def catalogo(cartella: Path, tag: str, sha: str, repo: str) -> None:
     }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def verifica(cartella: Path) -> list[str]:
-    """Il contratto del pacchetto: niente codice cercato in ~/.claude, hook tutti nel plugin."""
+def dal_tag(argomenti) -> int:
+    """Un pacchetto da firmare nasce dal tag provato dal gate, non dall'albero di lavoro: un file non salvato o
+    una modifica locale entrerebbero nel MANIFEST con la firma del rilascio (review del 7/11/2026, finding 112).
+    Estrae il tag con git archive e rilancia l'impacchetta di quel tag; -1 se sta già girando lì."""
+    versione = argomenti.versione
+    if os.environ.get("ARTURO_IMPACCHETTA_DAL_TAG") == versione and not (RADICE / ".git").exists():
+        return -1
+    if not versione:
+        raise SystemExit("--firma vuole --versione: si firma solo un tag del rilascio")
+    commit = subprocess.run(["git", "-C", str(RADICE), "rev-parse", "-q", "--verify", f"refs/tags/{versione}^{{commit}}"],
+                            capture_output=True, text=True)
+    if commit.returncode != 0:
+        raise SystemExit(f"il tag {versione} non c'è in {RADICE}: si firma solo un tag del rilascio")
+    with tempfile.TemporaryDirectory(prefix="arturo-impacchetta.") as t:
+        archivio = Path(t) / "tag.tar"
+        with open(archivio, "wb") as uscita:
+            subprocess.run(["git", "-C", str(RADICE), "archive", "--format=tar", commit.stdout.strip()], stdout=uscita,
+                           check=True)
+        sorgente = Path(t) / "sorgente"
+        with tarfile.open(archivio) as tar:
+            try:
+                tar.extractall(sorgente, filter="data")
+            except TypeError:  # Python senza i filtri di tarfile (3.9.6 di macOS): l'archivio lo genera git qui
+                tar.extractall(sorgente)  # noqa: S202
+        comando = [sys.executable, str(sorgente / "bin" / "impacchetta.py"), "--uscita", str(argomenti.uscita.resolve()),
+                   "--versione", versione, "--firma", str(argomenti.firma.resolve())]
+        print(f"pacchetto dal tag {versione} ({commit.stdout.strip()[:12]}), non dall'albero di lavoro")
+        return subprocess.run(comando, env=dict(os.environ, ARTURO_IMPACCHETTA_DAL_TAG=versione)).returncode
+
+
+def verifica(cartella: Path, firmato: bool = False) -> list[str]:
+    """Il contratto del pacchetto: niente codice cercato in ~/.claude, hook tutti nel plugin. Con `firmato`
+    (un pacchetto da pubblicare) anche la firma del MANIFEST è obbligatoria (finding 110)."""
     errori = []
     voci = "|".join(re.escape(c) for c in CODICE if c not in ("docs", "tests"))
     fisso = re.compile(rf"(?:~|\$HOME|\$\{{HOME\}})/\.claude/(?!commands/\")(?:{voci})(?:/|\b)")
@@ -281,6 +319,8 @@ def verifica(cartella: Path) -> list[str]:
     else:
         for tipo, elenco in differenze.items():
             errori += [f"{fiducia.MANIFEST}: {tipo.replace('_', ' ')} {p}" for p in elenco[:10]]
+    if firmato and not (cartella / fiducia.FIRMA).is_file():
+        errori.append(f"{fiducia.FIRMA}: manca, e un pacchetto da pubblicare va firmato")
     if (cartella / fiducia.FIRMA).is_file():
         esito, motivo = fiducia.verifica_firma(cartella, cartella / fiducia.FIRMATARI)
         if esito != "ok":
@@ -299,6 +339,7 @@ def main() -> int:
     parser.add_argument("--tag")
     parser.add_argument("--sha")
     parser.add_argument("--repo", default="stellakamikaze/arturo")
+    parser.add_argument("--firmato", action="store_true", help="con --verifica: la firma del MANIFEST è obbligatoria")
     argomenti = parser.parse_args()
     if argomenti.catalogo:
         if not (argomenti.tag and argomenti.sha):
@@ -307,15 +348,19 @@ def main() -> int:
         print(f"catalogo in {argomenti.catalogo}: arturo {argomenti.tag} @ {argomenti.sha[:12]}")
         return 0
     if argomenti.verifica:
-        errori = verifica(argomenti.verifica)
+        errori = verifica(argomenti.verifica, firmato=argomenti.firmato)
         for e in errori:
             print("ERRORE", e)
         print(f"pacchetto: {len(errori)} errori")
         return 1 if errori else 0
+    if argomenti.firma:
+        rc = dal_tag(argomenti)
+        if rc >= 0:
+            return rc
     impacchetta(argomenti.uscita.resolve(), argomenti.versione or versione_da_git())
     if argomenti.firma:
         fiducia.firma(argomenti.uscita.resolve(), argomenti.firma)
-    errori = verifica(argomenti.uscita.resolve())
+    errori = verifica(argomenti.uscita.resolve(), firmato=bool(argomenti.firma))
     for e in errori[:30]:
         print("ERRORE", e)
     print(f"pacchetto in {argomenti.uscita}: {len(errori)} errori")

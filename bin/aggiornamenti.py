@@ -62,7 +62,7 @@ COMPROMISSIONE = "possibile compromissione: non aggiornare, segnala a chi mantie
 # della 2.34 che non conosce gpg.format=ssh, OpenSSH prima della 8.2 senza `ssh-keygen -Y`, un timeout)
 # vuol dire che la verifica non è partita: niente si installa lo stesso, ma non è una compromissione
 # (revisione del rilascio del 17/10/2026).
-FIRMA_SBAGLIATA = re.compile(r"no signature found|no principal matched|could not verify signature|bad signature",
+FIRMA_SBAGLIATA = re.compile(r"no signature found|no principal matched|could not verify signature|bad signature|non-tag object",
                              re.I)
 # Gli archivi della persona: una loro modifica non salvata non ferma l'aggiornamento. Copia di
 # ARCHIVI_PERSONALI di bin/aggiorna-applica.sh, allineata dal banco CP04.
@@ -149,8 +149,19 @@ def verifica_tag(r: Path, tag: str, firme: Path) -> tuple:
     """La stessa verifica di verifica_firma, con la chiave in `firme`: la usa anche il plugin."""
     if not firme.is_file():
         return f"manca {FIRME}: la firma non si può verificare", True
+    # Un tag leggero non ha firma: verify-tag lo dice con "non-tag object", che non è un errore della
+    # verifica ma un rilascio senza firma (review del 7/11/2026, finding 111).
+    tipo = git(r, "cat-file", "-t", f"refs/tags/{tag}")
+    if tipo.returncode == 0 and tipo.stdout.strip() != "tag":
+        return f"il rilascio {tag} non ha la firma di Arturo (tag senza firma)", True
     verifica = git(r, "-c", "gpg.format=ssh", "-c", f"gpg.ssh.allowedSignersFile={firme}", "verify-tag", tag)
     if verifica.returncode == 0:
+        # La firma copre il nome scritto dentro il tag, non il nome del ref: un tag firmato vecchio ripubblicato
+        # sotto un nome nuovo riporterebbe indietro il codice con una firma valida (finding 109).
+        dentro = re.search(r"^tag (\S+)$", git(r, "cat-file", "tag", tag).stdout, re.M)
+        if not dentro or dentro.group(1) != tag:
+            scritto = dentro.group(1) if dentro else "nessuno"
+            return f"il tag {tag} è il rilascio firmato {scritto} ripubblicato con un altro nome", True
         return "", False
     if FIRMA_SBAGLIATA.search(verifica.stderr or ""):
         return f"il rilascio {tag} non ha la firma di Arturo", True
@@ -225,6 +236,12 @@ def processi_claude() -> int:
         return 1  # nel dubbio una sessione è aperta: si rimanda
 
 
+# I processi di servizio di Claude Code dalla 2.1.31x: il daemon delle sessioni in background e le sessioni di
+# riserva già pronte (bg-spare, bg-pty-host). Non sono una sessione della persona: contati, l'aggiornamento si
+# rinviava a ogni chiusura e a ogni avvio, per sempre (9/11/2026: tre installazioni ferme alla v0.2.3 dal 6/11).
+SERVIZI_CLAUDE = re.compile(r"(?:^|\s)(?:daemon|bg-spare|bg-pty-host|--bg-spare|--bg-pty-host)(?=\s|$)")
+
+
 def conta_sessioni(righe: list, windows: bool) -> int:
     """Quante righe dei processi sono sessioni di Claude Code. Il ponte con Chrome
     (`claude --chrome-native-host`) non è una sessione: resta acceso finché Chrome è aperto, e contato
@@ -232,6 +249,9 @@ def conta_sessioni(righe: list, windows: bool) -> int:
     conta = 0
     for riga in righe:
         if not riga.strip() or "--chrome-native-host" in riga:
+            continue
+        argomenti = riga.split("\t", 1)[-1] if windows else riga
+        if SERVIZI_CLAUDE.search(" ".join(argomenti.split()[1:])):
             continue
         if windows:
             if "AnthropicClaude" not in riga and "WindowsApps" not in riga and \
@@ -482,7 +502,8 @@ def _applica(r: Path, ammesse: int = 0) -> int:
         testo = git(r, "show", f"{tag}:bin/aggiorna-applica.sh")
         if testo.returncode != 0 or not testo.stdout.strip():
             return _esito(r, tag, "APPLICAZIONE NON PARTITA", "il rilascio non ha la procedura di applicazione")
-        procedura.write_text(testo.stdout, encoding="utf-8", newline="\n")
+        with open(str(procedura), "w", encoding="utf-8", newline="\n") as uscita:  # write_text(newline=) vuole Python 3.10
+            uscita.write(testo.stdout)
         bash = os.environ.get("ARTURO_BASH") or shutil.which("bash") or "bash"
         modo = "merge" if src == "upstream" else "rebase"
         p = subprocess.run([bash, str(procedura), str(r), modo, tag], capture_output=True, text=True,
@@ -582,12 +603,35 @@ def numero(testo: str) -> tuple:
     return tuple(int(x) for x in m.groups()) if m else ()
 
 
-def _blocca(motivo: str, compromesso: bool, scaricata: bool = False) -> int:
+def _ripristina(orsa: Path, prima: dict) -> str:
+    """Dopo un controllo fallito su una copia già installata, rimette in installed_plugins.json la voce di prima, se
+    la sua cartella c'è ancora (review del 7/11/2026, finding 110). "rimessa" se è riuscito, "scaricata" se no."""
+    f = orsa / "plugins" / "installed_plugins.json"
+    dati = leggi(f)
+    voci = (dati.get("plugins") or {}).get(NOME_PLUGIN)
+    if not prima.get("installPath") or not Path(str(prima["installPath"])).is_dir() or not isinstance(voci, list):
+        return "scaricata"
+    utente = next((i for i, v in enumerate(voci) if isinstance(v, dict) and v.get("scope") == prima.get("scope")), None)
+    if utente is None:
+        return "scaricata"
+    voci[utente] = prima
+    try:
+        scrivi(f, dati)
+    except OSError:
+        return "scaricata"
+    return "rimessa" if installato(orsa).get("gitCommitSha") == prima.get("gitCommitSha") else "scaricata"
+
+
+def _blocca(motivo: str, compromesso: bool, scaricata: str = "") -> int:
+    if compromesso and scaricata == "rimessa":
+        print(f"POSSIBILE COMPROMISSIONE: {COMPROMISSIONE.split(': ', 1)[1]} ({motivo}). Ho rimesso la versione di "
+              "prima: si segnala con /segnala, o in privato come dice SECURITY.md.", file=sys.stderr)
+        return 3
     if compromesso and scaricata:
         # Dopo claude plugin update la copia nuova è già nella cache, e parte alla prossima apertura.
         print(f"POSSIBILE COMPROMISSIONE: {COMPROMISSIONE.split(': ', 1)[1]} ({motivo}). La copia nuova è già "
-              "scaricata: non riavviare Claude Code prima di aver segnalato con /segnala, o in privato come dice "
-              "SECURITY.md.", file=sys.stderr)
+              "scaricata e non sono riuscito a rimettere quella di prima: non riavviare Claude Code prima di aver "
+              "segnalato con /segnala, o in privato come dice SECURITY.md.", file=sys.stderr)
         return 3
     if compromesso:
         print(f"POSSIBILE COMPROMISSIONE: {COMPROMISSIONE.split(': ', 1)[1]} ({motivo}). Non applico niente: "
@@ -641,6 +685,23 @@ def verifica_catalogo(orsa: Path) -> tuple:
             return _blocca(motivo, compromesso), tag, sha
         if git(lavoro, "rev-parse", f"{tag}^{{commit}}").stdout.strip() != sha:
             return _blocca(f"lo sha del catalogo non è quello del rilascio firmato {tag}", True), tag, sha
+        # Il MANIFEST firmato si controlla qui, prima di claude plugin update: dopo, la copia nuova è già nella
+        # cache e parte alla prossima apertura (review del 7/11/2026, finding 110).
+        albero = lavoro / "albero"
+        albero.mkdir()
+        estratto = git(lavoro, "-c", "core.autocrlf=false", f"--work-tree={albero}", "checkout", "-q", "-f", sha,
+                       "--", ".", timeout=120)
+        if estratto.returncode != 0:
+            print(f"NESSUN RILASCIO: non riesco a leggere i file di {tag} ({(estratto.stderr or '').strip()[:160]}). "
+                  "Non applico niente.", file=sys.stderr)
+            return 1, tag, sha
+        controllo = fiducia.controlla(albero, orsa)
+        if controllo["firma"] != "ok":
+            return _blocca(controllo["motivo"], controllo["firma"] != "non-verificabile"), tag, sha
+        diversi = controllo["cambiati"] + controllo["mancano"]
+        if diversi:
+            return _blocca(f"il rilascio {tag} non è come il suo MANIFEST firmato ({', '.join(diversi[:3])})",
+                           True), tag, sha
     finally:
         shutil.rmtree(str(lavoro), ignore_errors=True)
     return 0, tag, sha
@@ -726,6 +787,7 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
     if solo_verifica:
         print(tag)
         return 0
+    prima = installato(orsa)
     aggiorna = _claude("update", NOME_PLUGIN)
     if aggiorna.returncode != 0:
         print(f"APPLICAZIONE NON PARTITA: claude plugin update non è riuscito "
@@ -735,14 +797,14 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
     copia = Path(str(dopo.get("installPath") or ""))
     if dopo.get("gitCommitSha") != sha:
         return _blocca(f"Claude Code ha installato {str(dopo.get('gitCommitSha'))[:12]}, non lo sha verificato "
-                       f"{sha[:12]}", True, scaricata=True)
+                       f"{sha[:12]}", True, scaricata=_ripristina(orsa, prima))
     controllo = fiducia.controlla(copia, orsa)
     if controllo["firma"] != "ok":
-        return _blocca(controllo["motivo"], controllo["firma"] != "non-verificabile", scaricata=True)
+        return _blocca(controllo["motivo"], controllo["firma"] != "non-verificabile", scaricata=_ripristina(orsa, prima))
     diversi = controllo["cambiati"] + controllo["mancano"]
     if diversi:
         return _blocca(f"la copia installata non è come il MANIFEST firmato ({', '.join(diversi[:3])})", True,
-                       scaricata=True)
+                       scaricata=_ripristina(orsa, prima))
     # Una chiave nuova entra nell'ancora solo da una copia verificata con la chiave di prima.
     fiducia.fissa_ancora(copia, orsa)
     segna_aggiornato(radice())

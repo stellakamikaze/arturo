@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LT01-LT12: lotto del 20/10/2026 sui task aperti di Arturo.
+"""LT01-LT14: lotto del 20/10/2026 sui task aperti di Arturo.
 
 LT01 l'audit vede lo script della barra anche dentro `... statusline.js; echo ...` (#3632): se
      manca, lo dice invece di saltare il controllo.
@@ -24,6 +24,8 @@ LT11 il ponte con Chrome (`claude --chrome-native-host`, installazione nativa o 
      conta come sessione aperta, una sessione vera sì (segnalazione n. 7).
 LT12 un aggiornamento rimandato per un'altra sessione aperta lascia l'esito, e l'avvio dopo dice perché
      non si è installato invece di ripetere che si installa da solo (segnalazione n. 7).
+LT14 i processi di servizio di Claude Code (daemon, bg-spare, bg-pty-host) non contano come sessioni aperte,
+     su Mac e su Windows; una sessione vera e un `claude attach` sì (9/11/2026).
 LT13 l'audit salta skills/synced, dove Claude Code tiene le skill di claude.ai, invece di dare FAIL
      perché manca un SKILL.md (26/10/2026, #3974).
 
@@ -280,6 +282,22 @@ def test_lt11(repo: Path) -> None:
             finto.wait()
 
 
+def test_lt14(repo: Path) -> None:
+    m = carica_aggiornamenti(repo)
+    assert hasattr(m, "conta_sessioni"), "LT14 il conteggio delle sessioni non si separa dalla lettura dei processi"
+    servizi = ["/Users/x/.local/bin/claude daemon run --origin transient --spawned-by {\"label\":\"claude\"}",
+               "claude bg-pty-host --bg-pty-host /tmp/cc-daemon-501/a/spare/b.pty.sock 200 50 -- "
+               "/Users/x/.local/share/claude/versions/2.1.319 --bg-spare",
+               "claude bg-spare --bg-spare /tmp/cc-daemon-501/a/spare/b.claim.sock"]
+    sessioni = ["claude /inizio arturo", "/Users/x/.local/bin/claude attach 01dc3dd9"]
+    assert m.conta_sessioni(servizi + sessioni, windows=False) == 2, \
+        f"LT14 su Mac i processi di servizio di Claude Code contano come sessioni: {m.conta_sessioni(servizi + sessioni, windows=False)}"
+    w = "C:\\Users\\x\\.local\\bin\\claude.exe"
+    w_servizi = [f"{w}\t\"{w}\" daemon run --origin transient", f"{w}\t\"{w}\" bg-spare --bg-spare \\\\.\\pipe\\cc"]
+    assert m.conta_sessioni(w_servizi + [f"{w}\tclaude"], windows=True) == 1, \
+        "LT14 su Windows i processi di servizio di Claude Code contano come sessioni"
+
+
 def test_lt12(repo: Path) -> None:
     import importlib.util
     spec = importlib.util.spec_from_file_location("autoaggiorna_lt", str(Path(__file__).parent / "test_autoaggiorna.py"))
@@ -321,7 +339,7 @@ def test_lt13(repo: Path) -> None:
 
 TESTS = {"LT01": test_lt01, "LT02": test_lt02, "LT03": test_lt03, "LT04": test_lt04, "LT05": test_lt05,
          "LT06": test_lt06, "LT07": test_lt07, "LT08": test_lt08, "LT09": test_lt09, "LT10": test_lt10,
-         "LT11": test_lt11, "LT12": test_lt12, "LT13": test_lt13}
+         "LT11": test_lt11, "LT12": test_lt12, "LT13": test_lt13, "LT14": test_lt14}
 
 
 def main() -> int:

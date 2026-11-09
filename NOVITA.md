@@ -13,6 +13,54 @@ modo di lavorare.
 
 ---
 
+## 2026-11-09 — L'aggiornamento automatico non aspetta più i processi di servizio di Claude Code
+
+**Cosa cambia**:
+- Claude Code dalla 2.1.31x tiene accesi alcuni processi di servizio: il daemon delle sessioni in background e
+  le sessioni di riserva (`bg-spare`, `bg-pty-host`). Arturo li contava come sessioni aperte, e un rilascio si
+  rinviava a ogni chiusura e a ogni avvio. Dal 6/11 alcune installazioni restavano così a una versione vecchia.
+  Ora quei processi non contano. Se la tua installazione è ferma, lancia `/aggiorna` una volta: dopo,
+  l'aggiornamento automatico torna a funzionare da solo.
+- L'aggiornamento automatico funziona anche con Python 3.8 e 3.9, come promette il README: prima, con il
+  Python di sistema di un Mac, l'applicazione si fermava con un errore.
+- La testata di Arturo e `/versione` dicono di chi è Arturo: Federico Nejrotti, con il link a
+  stellakamikaze.org. Lo dicono anche il README, la licenza e i dati del plugin.
+- Se il tuo `~/.claude` è un repository tuo con Arturo come upstream, e lo usi su un computer solo, ora puoi
+  passare al plugin: `arturo migra --prova --unica-macchina` mostra cosa cambia, `arturo migra --unica-macchina`
+  lo fa. Il tuo repository resta, e i file di Arturo escono con un commit. `arturo migra indietro` lo annulla
+  (proposta n. 62).
+
+**Il principio**: un aggiornamento che si rinvia per sempre è un aggiornamento che non c'è. Il segnale era nella
+telemetria: solo "rinviato", mai più "applicato".
+
+## 2026-11-09 — Gli aggiornamenti del plugin si fermano prima, e il gate dice il vero
+
+**Cosa cambia**: correzioni alla catena dei rilasci e ai controlli che la provano.
+- `/aggiorna` col plugin rifiuta un rilascio firmato vecchio pubblicato sotto un nome nuovo: la firma copre
+  il nome scritto dentro il tag, e i due nomi devono coincidere. Prima si poteva riportarti indietro a una
+  versione con una firma valida.
+- Un tag senza firma (un tag "leggero") dice "possibile compromissione". Prima diceva "Non è un problema di
+  sicurezza: aggiorna git e OpenSSH".
+- Il MANIFEST firmato si controlla prima di installare, sui file del rilascio scaricato. Se il controllo
+  dopo l'installazione fallisce lo stesso, Arturo rimette la versione di prima quando la sua cartella c'è
+  ancora, e lo dice.
+- `/setup` installa versioni fissate di Scrapling, markdownify e Impeccable: un rilascio nuovo di quei
+  progetti non arriva più da solo con un'installazione.
+- Per chi mantiene Arturo: il pacchetto firmato del plugin nasce dal tag del rilascio, non dall'albero di
+  lavoro, e la verifica del pacchetto da pubblicare vuole la firma. La procedura di rilascio mette firma,
+  verifica e push in un blocco solo, anche per il tag del plugin, e la prova di aggiornamento parte
+  dall'ultimo tag di `origin/main`. `humanizer-origine.py` scrive lo sha intero.
+- Il gate stampa `PASS` solo se è verde, conta i banchi di Python 3.8 (`py38=`) e, per un rilascio, si
+  ferma se Python 3.8 manca. Confronta i suoi elenchi coi file di `tests/`: un banco nuovo non elencato, o un
+  veleno mai lanciato, è rosso. I banchi delle guardie all'avvio danno rosso un banco che manca, invece di
+  saltarlo. `gate-run.sh` esce 3 se il veleno cancella un file.
+
+**Il principio**: una firma vale per quello che copre. Se il nome, i file o l'albero da cui nasce il
+pacchetto restano fuori dalla firma, la firma è vera e il rilascio no.
+
+**Da sapere**: Hallmark si installa ancora dalla testa del suo repository. Lo strumento `skills` non accetta un
+commit fissato.
+
 ## 2026-11-09 — Le pulizie e le promesse sui tuoi dati dicono il vero
 
 **Cosa cambia**: dieci correzioni a quello che Arturo toglie dai testi e a quello che promette.

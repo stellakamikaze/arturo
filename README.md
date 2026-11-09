@@ -1,6 +1,6 @@
 # Arturo
 
-**Arturo è un harness per il lavoro della conoscenza, pensato per chi usa già l'intelligenza artificiale in chat e non ha mai aperto un terminale.**
+**Arturo è un harness per il lavoro della conoscenza, pensato per chi usa già l'intelligenza artificiale in chat e non ha mai aperto un terminale.** Un progetto di [Federico Nejrotti](https://stellakamikaze.org) · [stellakamikaze.org](https://stellakamikaze.org).
 
 Un harness è l'insieme di regole e strumenti che sta intorno a un'intelligenza artificiale e le dice come lavorare: cosa può fare da sola, cosa deve chiederti, dove tiene la memoria del lavoro. L'IA che usi in chat, al lavoro nelle tue cartelle. Prima di fare danni, chiede a te.
 
@@ -608,7 +608,7 @@ La strada avanzata è la CLI `gws`: serve se vuoi più account Google (lavoro + 
 
 ## Autore e manutenzione
 
-Arturo è un progetto di **Federico Nejrotti** — autore, non programmatore: questo harness
+Arturo è un progetto di **[Federico Nejrotti](https://stellakamikaze.org)** ([stellakamikaze.org](https://stellakamikaze.org)) — autore, non programmatore: questo harness
 è anche la dimostrazione della sua stessa tesi, che il metodo conta più del codice. La
 history del repo è volutamente neutra; la firma sta qui.
 

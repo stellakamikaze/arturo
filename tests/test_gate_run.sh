@@ -8,6 +8,8 @@
 #   caso 4  veleno giusto, gate rosso              -> exit 1
 #   casi 5-7 i guasti del banco, exit 3: sorgente assente, veleno che scrive fuori da
 #            veleno-* in VELENO_DIR, veleno che scrive nella cartella corrente
+#   caso 8  veleno che cancella un file della cartella corrente -> exit 3 (review del 7/11/2026, finding 93)
+#   casi 9-10 --pass: gate verde col marcatore -> exit 0; senza il marcatore -> exit 1
 #
 # Gira in una cartella temporanea quieta: gate-run.sh guarda i file cambiati nella
 # cartella corrente durante il veleno. GATE_RUN=<path> prova un'altra versione.
@@ -31,6 +33,12 @@ caso "veleno giusto, gate rosso"      1 --poison 'echo ROTTO; exit 1' --expect '
 caso "sorgente assente"               3 --source "$DIR/non-esiste" --poison 'echo ROTTO; exit 1' --expect 'ROTTO' -- true
 caso "veleno scrive fuori da veleno-*" 3 --poison 'touch "$VELENO_DIR/altro"; echo ROTTO; exit 1' --expect 'ROTTO' -- true
 caso "veleno scrive nella cartella"    3 --poison 'touch ./x; echo ROTTO; exit 1' --expect 'ROTTO' -- true
+rm -f ./x
+echo sorgente > ./sorgente.txt
+caso "veleno cancella un file"         3 --poison 'rm -f sorgente.txt; echo ROTTO; exit 1' --expect 'ROTTO' -- true
+rm -f ./sorgente.txt
+caso "gate verde col marcatore"        0 --pass 'TUTTO-OK' --poison 'echo ROTTO; exit 1' --expect 'ROTTO' -- echo TUTTO-OK
+caso "gate verde senza marcatore"      1 --pass 'TUTTO-OK' --poison 'echo ROTTO; exit 1' --expect 'ROTTO' -- true
 cd / && rm -rf "$DIR" "$OUTD"
 echo "totale casi: $CASI · verdi: $pass · rossi: $fail"
 [ "$pass" -eq "$CASI" ]

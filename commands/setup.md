@@ -386,7 +386,7 @@ Controlla prima se c'è già:
   dell'installatore, che qui resterebbero senza risposta:
 
   ```bash
-  npx --yes impeccable install --providers=claude --scope=global
+  npx --yes impeccable@4.8.0 install --providers=claude --scope=global
   ```
 
   Poi spiega: "È installata. Riapri Claude Code, e in un progetto scrivi `/impeccable init`: ti fa

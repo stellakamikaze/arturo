@@ -72,6 +72,9 @@ def test_p06(repo: Path) -> None:
             for riga in sorted(righe):
                 if f.name == "plugin.json" and "Nejrotti" in linee[riga - 1]:
                     continue
+                # Il credito di Arturo nella testata (Federico, 9/11/2026): solo la costante che lo scrive.
+                if f.name == "testata.ts" and linee[riga - 1].startswith("export const AUTORE = "):
+                    continue
                 trovati.append(f"{f.relative_to(repo)}:{riga}")
     assert not trovati, "P06 dati personali nei mod: " + "; ".join(trovati[:5])
 

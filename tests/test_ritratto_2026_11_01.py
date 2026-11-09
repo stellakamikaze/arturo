@@ -108,7 +108,8 @@ CONTENUTI_ESCLUSI = ("MARCATORE-ENV", "MARCATORE-SSH", "MARCATORE-PASSWORD", "MA
 
 def _scrivi(p: Path, testo: str, quando: float = 0.0) -> Path:
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(testo, encoding="utf-8", newline="\n")
+    with open(str(p), "w", encoding="utf-8", newline="\n") as uscita:  # write_text(newline=) vuole Python 3.10
+        uscita.write(testo)
     if quando:
         os.utime(p, (quando, quando))
     return p

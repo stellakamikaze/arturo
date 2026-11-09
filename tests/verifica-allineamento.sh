@@ -29,6 +29,10 @@ for py in python3.8 python3.9 python3.10 python3.11 /usr/bin/python3; do
 done
 [[ -n "$PYTHON_VECCHIO" ]] || { echo "FAIL: serve un Python dalla 3.8 alla 3.11 per U04 (il motivo \"--\" sui Python vecchi)" >&2; exit 1; }
 echo "PYTHON_VECCHIO=$PYTHON_VECCHIO"
+# Il minimo dichiarato, Python 3.8 (PY38_BANCHI più sotto). Senza python3.8 nel PATH vale quello di uv
+# (uv python install 3.8): si cerca qui, prima che HOME diventi quella di prova.
+PY38=$(command -v python3.8 || true)
+[[ -n "$PY38" ]] || ! command -v uv >/dev/null 2>&1 || PY38=$(uv python find 3.8 2>/dev/null || true)
 # Il pannello /dafare si prova con Claude Code vero (validate, test, claude -p): senza, il gate fallisce.
 command -v claude >/dev/null 2>&1 || {
   echo "FAIL: claude mancante: il gate prova il pannello /dafare con claude plugin validate, claude plugin test e claude -p" >&2
@@ -193,7 +197,12 @@ IN_FILA=(
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
 PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py)
-PY38=$(command -v python3.8 || true)
+if [[ -z "$PY38" && -n "$RILASCIO" ]]; then
+  # Un rilascio prova il minimo dichiarato: senza 3.8 i suoi banchi salterebbero in silenzio (review del
+  # 7/11/2026, finding 91).
+  echo "FAIL: il gate del rilascio vuole python3.8 per i ${#PY38_BANCHI[@]} banchi del minimo dichiarato: uv python install 3.8" >&2
+  exit 1
+fi
 [[ -n "$PY38" ]] || echo "NOTA: python3.8 assente, todo e pagina provati solo con $(python3 --version 2>&1)"
 
 # Controprove: ogni riga e' "banco ref [radice]". Il banco gira sulla base `ref` estratta con
@@ -441,6 +450,8 @@ VELENI=(
   test_avviso_plugin_2026_11_06.py
   # Review del 7/11/2026, lotto L2 (#4972): con le guardie di e441828 ogni gruppo RW è rosso.
   test_revisione_2026_11_07.py
+  # Review del 7/11/2026, lotto L9: una radice in più in deriva.py fa rosso A02 (finding 94).
+  test_deriva_allineata.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso
@@ -448,7 +459,7 @@ VELENI=(
 # sceglie quanti worker; il default è metà dei core, al massimo 4.
 ESITO=0
 python3 -B "$ROOT/tests/esegui_gate.py" esegui --root "$ROOT" --fixture "$FIXTURE/lavori" $PARZIALE_MODO $RILASCIO \
-  ${ARTURO_GATE_LAVORI:+--lavori "$ARTURO_GATE_LAVORI"} --py38 "$PY38" \
+  ${ARTURO_GATE_LAVORI:+--lavori "$ARTURO_GATE_LAVORI"} --py38 "$PY38" --elenchi \
   --banchi "${BANCHI[@]}" --in-fila "${IN_FILA[@]}" --banchi-py38 "${PY38_BANCHI[@]}" \
   --controprove "${BASELINE[@]}" --veleni "${VELENI[@]}" || ESITO=$?
 if [[ -n "$PARZIALE_MODO" ]]; then
@@ -500,6 +511,16 @@ done < <(git -C "$REPO" ls-files -z -- '*.js' '*.mjs')
 
 bash "$REPO/skills/system-audit/audit.sh" --strict
 salti=$(grep -c . "$ARTURO_SALTI" || true)
-printf 'PASS: banchi=%s shell=%s js=%s salti=%s\n' "$(( ${#BANCHI[@]} + ${#IN_FILA[@]} ))" "$shells" "$js" "$salti"
+py38=0
+[[ -z "$PY38" ]] || py38=${#PY38_BANCHI[@]}
+# PASS solo col giro verde: chi legge l'ultima riga di stdout senza stderr vedeva PASS anche sui rossi
+# (review del 7/11/2026, finding 90).
+riepilogo=$(printf 'banchi=%s shell=%s js=%s salti=%s py38=%s' "$(( ${#BANCHI[@]} + ${#IN_FILA[@]} ))" "$shells" "$js" \
+  "$salti" "$py38")
 [[ "$salti" == 0 ]] || sed 's/^/  /' "$ARTURO_SALTI"
-[[ "$ESITO" == 0 ]] || { echo "FAIL: lavori rossi, elencati sopra (=== ROSSO)" >&2; exit "$ESITO"; }
+if [[ "$ESITO" != 0 ]]; then
+  echo "FAIL: lavori rossi, elencati sopra (=== ROSSO); $riepilogo"
+  echo "FAIL: lavori rossi, elencati sopra (=== ROSSO)" >&2
+  exit "$ESITO"
+fi
+echo "PASS: $riepilogo"

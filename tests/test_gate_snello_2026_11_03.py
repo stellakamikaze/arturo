@@ -11,10 +11,14 @@ GS05 una controprova verde, al giro dopo con banco, fonti e base uguali, si salt
 GS06 una controprova si rifà se cambia il banco, o un file che il banco importa (le sue fonti).
 GS07 --rilascio, e ARTURO_GATE_RILASCIO=1, rifanno tutte le controprove anche in cache.
 GS08 --toccati fa girare solo i lavori con una fonte fra i file cambiati e stampa PARZIALE.
+GS09 --elenchi (il gate vero): un test_*.py in tests/ fuori dagli elenchi, un banco con --avvelena fuori da
+     VELENI e un nome in lista senza file fanno rosso col nome; con gli elenchi completi esce 0 (review del
+     7/11/2026, finding 94).
 
 Ogni caso gira su un repository finto con banchi finti, così misura l'esecutore e non i banchi veri.
 Con --avvelena girano tre esecutori rotti. Uno ignora il codice d'uscita dei lavori: GS01 e GS04 devono
 essere rossi. Uno salta sempre le controprove: rossi GS05, GS06 e GS07. Uno non le salta mai: rosso GS05.
+Uno non confronta gli elenchi: rosso GS09.
 
 Sulla base 177852f ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -52,6 +56,7 @@ VELENI = (
     (("GS01", "GS04"), "        lavoro.rosso = p.returncode != 0\n", "        lavoro.rosso = False\n"),
     (("GS05", "GS06", "GS07"), SALTO, "        if True:\n"),
     (("GS05",), SALTO, "        if False:\n"),
+    (("GS09",), "    incompleti = elenchi_incompleti(root, a) if a.elenchi", "    incompleti = [] if a.elenchi"),
 )
 
 
@@ -204,8 +209,31 @@ def test_gs08(esecutore: Path) -> None:
             f"GS08 --toccati non tiene solo i lavori del file cambiato: {fatti} {r.stdout[-300:]!r}"
 
 
+
+
+def test_gs09(esecutore: Path) -> None:
+    with tempfile.TemporaryDirectory() as t:
+        lab = Lab(Path(t), esecutore)
+        # Le eccezioni scritte nell'esecutore valgono per file veri: qui ci sono, finti.
+        for nome in ("test_gate_run.sh", "test_pattern_segreti_allineati.py", "test_guardie_involucri.py"):
+            lab.scrivi(nome, "print('PASS')\n")
+        lab.scrivi("test_elencato.py", "print('PASS')\n")
+        lab.scrivi("test_nuovo.py", "print('PASS')\n")
+        lab.scrivi("test_veleno.py", "import sys\nprint('PASS')\nsys.exit(0 if '--avvelena' in sys.argv else 0)\n")
+        base = ["--elenchi", "--banchi", "test_elencato.py", "test_veleno.py", "test_guardie_involucri.py"]
+        rosso = lab.esegui(*base, "test_sparito.py")
+        tutto = lab.esegui(*base, "test_nuovo.py", "--veleni", "test_veleno.py")
+        attesi = ("test_nuovo.py: in tests/ ma in nessun elenco", "test_veleno.py: ha --avvelena ma non sta in VELENI",
+                  "test_sparito.py: nelle liste del gate ma non in tests/")
+        mancano = [x for x in attesi if x not in rosso.stdout]
+        assert rosso.returncode == 1 and not mancano, f"GS09 elenchi incompleti non visti: rc {rosso.returncode}, " \
+            f"mancano {mancano}, {rosso.stdout[-300:]!r}"
+        assert tutto.returncode == 0 and "elenchi del gate" not in tutto.stdout, \
+            f"GS09 elenchi completi danno rosso: rc {tutto.returncode}, {tutto.stdout[-300:]!r}"
+
+
 TESTS = {"GS01": test_gs01, "GS02": test_gs02, "GS03": test_gs03, "GS04": test_gs04, "GS05": test_gs05,
-         "GS06": test_gs06, "GS07": test_gs07, "GS08": test_gs08}
+         "GS06": test_gs06, "GS07": test_gs07, "GS08": test_gs08, "GS09": test_gs09}
 
 
 def avvelena(repo: Path) -> None:

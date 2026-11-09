@@ -16,17 +16,22 @@ if [ "${1:-}" = "--controlla" ]; then
   echo "scrape non installato"
   exit 0
 fi
+# Versioni fissate, quelle provate da banco.sh: un rilascio nuovo su PyPI non entra da solo con un'installazione
+# (review del 7/11/2026, finding 113). Si aggiornano a mano, dopo il banco.
+PACCHETTI="scrapling[fetchers]==0.4.15 markdownify==1.2.3"
 mkdir -p "$(dirname "$VENV")"
 if command -v uv >/dev/null 2>&1; then
   uv venv --python 3.12 "$VENV"
   PY="$VENV/bin/python"; [ -x "$PY" ] || PY="$VENV/Scripts/python.exe"
-  uv pip install --python "$PY" "scrapling[fetchers]" markdownify
+  # shellcheck disable=SC2086
+  uv pip install --python "$PY" $PACCHETTI
 else
   python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' || {
     echo "Serve Python 3.10 o più recente (oppure uv, che lo scarica da solo)." >&2; exit 1; }
   python3 -m venv "$VENV"
   PY="$VENV/bin/python"; [ -x "$PY" ] || PY="$VENV/Scripts/python.exe"
-  "$PY" -m pip install --quiet "scrapling[fetchers]" markdownify
+  # shellcheck disable=SC2086
+  "$PY" -m pip install --quiet $PACCHETTI
 fi
 # Niente `scrapling install`: scarica i browser del livello stealth, che scrape non usa.
 mkdir -p "$HOME/.local/bin"
