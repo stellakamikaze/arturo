@@ -290,7 +290,8 @@ def hz07(repo: Path, casa: Path) -> str | None:
     main = (mod / "main.js").read_text(encoding="utf-8")
     parti = set(re.findall(r"(\w+): \w+", re.search(r"const PARTI = \{(.*?)\};", main).group(1)))
     layout = (repo / "shared/volta-celeste/layouts/arturo.json").read_text(encoding="utf-8")
-    usate = set(re.findall(r'"parte": "(\w+)"', layout)) | set(re.findall(r'parte: "(\w+)"', " ".join(p.read_text(encoding="utf-8") for p in mod.glob("*.js"))))
+    # [^"]+ e non \w+: un nome col trattino o col punto non deve sparire dal controllo
+    usate = set(re.findall(r'"parte": "([^"]+)"', layout)) | set(re.findall(r'parte: "([^"]+)"'," ".join(p.read_text(encoding="utf-8") for p in mod.glob("*.js"))))
     if usate - parti:
         return f"parti senza codice: {sorted(usate - parti)}"
     return None
@@ -945,6 +946,9 @@ VELENI = [
     ("HZ13", "shared/volta-celeste/arturo-app.sh", '-c "Set :CFBundleIdentifier $ID"', '-c "Set :CFBundleIdentifier dev.herdr.app"'),
     ("HZ13", "shared/volta-celeste/arturo-app.sh", 'if [ -d "$arturo" ] && { [ ! -d "$herdr" ] || ! piu_nuova "$v_herdr" "$v_arturo"; }; then base=$arturo; fi', ":"),
     ("HZ06", "shared/volta-celeste/installa-herdr.sh", '[ "$firma" = assente ]', '[ "$firma" = mai ]'),
+    ("HZ07", "shared/volta-celeste/mods/arturo/main.js", 'from "./notaui.js"', 'from "./notaui-perso.js"'),
+    ("HZ07", "shared/volta-celeste/mods/arturo/main.js", ", nota: Nota };", " };"),
+    ("HZ07", "shared/volta-celeste/layouts/arturo.json", '"parte": "stato"', '"parte": "stato-perso"'),
     ("HZ16", "shared/volta-celeste/servizi-gui.sh", "plist herdr-core false", "plist herdr-core true"),
     ("HZ16", "shared/volta-celeste/servizi-gui.sh", 'rm -f "$agenti/$PREFISSO.claude-daemon.plist"', 'plist claude-daemon true "$claude" daemon run'),
     ("HZ15", ".gitignore", "data/note-finestra/\n", ""),
