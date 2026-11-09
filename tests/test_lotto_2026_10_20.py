@@ -122,7 +122,9 @@ def test_lt06(repo: Path) -> None:
     assert blocco and "projects" in blocco.group(1), \
         "LT06 l'installazione del README sposta tutta ~/.claude e non riporta login, sessioni e plugin"
     setup = (repo / "commands" / "setup.md").read_text(encoding="utf-8")
-    assert blocco.group(1) in setup, "LT06 /setup e README hanno due comandi di installazione diversi"
+    # Dal 9/11/2026 /setup non ha una copia sua del blocco: rimanda alla guida (review del 7/11, L10).
+    assert "#a-mano-esteso" in setup and "git clone https://github.com/stellakamikaze/arturo.git" not in setup, \
+        "LT06 /setup ha un suo comando di installazione invece del rimando alla guida"
     if not (repo / ".git").exists():
         return  # copia senza storia (controprova): basta la parte sul testo
     with tempfile.TemporaryDirectory() as d:

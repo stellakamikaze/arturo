@@ -29,6 +29,12 @@ modo di lavorare.
 - Il controllo degli aggiornamenti all'avvio non lascia più un `git fetch` appeso per sempre; alla chiusura
   il ripristino del titolo del Terminale non aspetta più un permesso di macOS.
 - `setup.sh` di scrape si può rilanciare, e dice "già installato" solo se i pacchetti ci sono davvero.
+- Su Windows `arturo personale sposta` e `ripristina` non scambiano più gli a capo CRLF per modifiche tue:
+  in `personale/` finiscono solo le righe che hai aggiunto davvero. Il repository chiede gli a capo LF in
+  ogni copia, anche su Windows (`.gitattributes`).
+- Lo script d'installazione installa solo l'ultimo rilascio firmato, mai la punta di main senza controlli.
+  Il blocco a mano del README rimette tutto com'era se lo scaricamento non riesce, e /setup rimanda a
+  quello della guida.
 
 **Il principio**: un controllo che dice "rosso" per uno strumento che manca, o "verde" perché non ha guardato,
 fa perdere fiducia a tutti i controlli.

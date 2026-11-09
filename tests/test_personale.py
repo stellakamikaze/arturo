@@ -24,6 +24,8 @@ tiene quelle spostate prima. P19 gli hook di un'altra app che la persona aveva p
 (nell'ultima ~/.claude-backup-*) tornano nel settings.json con i file che usano, senza doppioni (#3758).
 P20 tornano anche plugin accesi, marketplace, model, env e apiKeyHelper, senza togliere niente di
 Arturo e senza stampare i valori di env (revisione del 1/11/2026, I3): sulla base e80e43d è rosso.
+P21 un checkout con CRLF (Windows, core.autocrlf) sposta solo le righe aggiunte, e un file che cambia
+solo negli a capo è già com'è in Arturo (review del 7/11/2026, L10).
 
 Riusa il Lab di test_aggiorna_sicuro.py: un Arturo pubblicato, chi ne scrive gli aggiornamenti e
 una HOME con ~/.claude clonata. Sulla base f750408 ogni controllo deve fallire col suo codice, anche P18
@@ -542,11 +544,37 @@ def test_p20(repo: Path) -> None:
     con_lab(prova, repo)
 
 
+def test_p21(repo: Path) -> None:
+    # Windows con core.autocrlf: il checkout ha CRLF e il blob LF (review del 7/11/2026, L10). Con le sole
+    # righe nuove in CRLF lo spostamento tiene la riga aggiunta e non tutto il file; un file che cambia
+    # solo negli a capo è già com'è in Arturo, per sposta e per ripristina.
+    def prova(lab: Lab) -> None:
+        comando = lab.utente / "commands" / "inizio.md"
+        comando.write_bytes(read(comando).replace("\n", "\r\n").encode("utf-8"))
+        r = arturo(lab, "personale", "sposta", "commands/inizio.md")
+        assert r.returncode == 0, f"P21 lo spostamento non riesce: {r.stdout!r} {r.stderr!r}"
+        testo = read(lab.utente / "personale" / "inizio.md")
+        assert "Poi la tabella dei miei progetti e i dischi." in testo, f"P21 l'aggiunta non c'è: {testo!r}"
+        assert "## FASE 2" not in testo and "Mostra i todo." not in testo, \
+            f"P21 con CRLF tutto il comando finisce in personale/ come aggiunta: {testo!r}"
+        uguale = INIZIO.replace("\n", "\r\n").encode("utf-8")
+        comando.write_bytes(uguale)
+        r = arturo(lab, "personale", "sposta", "commands/inizio.md")
+        assert r.returncode == 0 and "gia' com'e'" in r.stdout and comando.read_bytes() == uguale, \
+            f"P21 un comando con soli CRLF non è già com'è in Arturo: {r.stdout!r} {r.stderr!r}"
+        guardia = lab.utente / "hooks" / "guardia.py"
+        guardia.write_bytes(guardia.read_bytes().replace(b"\n", b"\r\n"))
+        r = arturo(lab, "personale", "ripristina", "hooks/guardia.py")
+        assert r.returncode == 0 and "gia' com'e'" in r.stdout, \
+            f"P21 ripristina vede cambiata una guardia con soli CRLF: {r.stdout!r} {r.stderr!r}"
+    con_lab(prova, repo)
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {
     "P01": test_p01, "P02": test_p02, "P03": test_p03, "P04": test_p04, "P05": test_p05, "P06": test_p06,
     "P07": test_p07, "P08": test_p08, "P09": test_p09, "P10": test_p10,
     "P11": test_p11, "P12": test_p12, "P13": test_p13, "P14": test_p14, "P15": test_p15,
-    "P16": test_p16, "P17": test_p17, "P18": test_p18, "P19": test_p19, "P20": test_p20,
+    "P16": test_p16, "P17": test_p17, "P18": test_p18, "P19": test_p19, "P20": test_p20, "P21": test_p21,
 }
 
 

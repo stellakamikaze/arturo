@@ -8,7 +8,9 @@ della landing.
 
 CP01 la cancellazione di un'installazione ha le stesse istruzioni DELETE in docs/manutenzione.md e
      in server/README.md, e tocca eventi, segnalazioni e contatori.
-CP02 la lista del ripristino ha le stesse voci nel README e in commands/setup.md. Se il repository ha
+CP02 la lista del ripristino ha le stesse voci nel README e nella landing. Dal 9/11/2026 commands/setup.md
+     non ne ha una copia sua: rimanda al blocco della guida (#a-mano-esteso), perché il ripristino dopo un
+     clone fallito non stava nel suo tetto di byte (review del 7/11, L10). Se il repository ha
      il ramo della landing (origin/landing-v2 o landing-v2), anche guida e llms.txt della landing hanno
      le stesse voci. Dal 1/11/2026 sito/installa.sh innesta Arturo dentro ~/.claude senza spostarla:
      non ha più il ciclo del ripristino, e CP02 controlla che non sposti più tutta la cartella
@@ -105,7 +107,10 @@ def dal_ramo(repo: Path, percorso: str):
 
 def test_cp02(repo: Path) -> None:
     liste = {}
-    for percorso in ("README.md", "commands/setup.md"):
+    setup = (repo / "commands" / "setup.md").read_text(encoding="utf-8")
+    assert "#a-mano-esteso" in setup and voci(setup) is None, \
+        "CP02 commands/setup.md ha una sua copia del blocco a mano invece del rimando alla guida"
+    for percorso in ("README.md",):
         f = repo / percorso
         assert f.is_file(), f"CP02 manca {percorso}"
         v = voci(f.read_text(encoding="utf-8"))
@@ -131,7 +136,7 @@ def test_cp02(repo: Path) -> None:
         assert not spostato, (f"CP02 {nome}: l'installatore sposta ancora tutta ~/.claude "
                               f"({spostato.group(0)!r}), invece di innestare Arturo sul posto")
     if saltate:
-        print(f"NOTA CP02: ramo della landing assente, confrontate {len(liste)} copie su {2 + len(LANDING)}")
+        print(f"NOTA CP02: ramo della landing assente, confrontate {len(liste)} copie su {1 + len(LANDING)}")
 
 
 # Cartelle locali o generate, che git non porta: data/ e cache/ della persona, dipendenze.

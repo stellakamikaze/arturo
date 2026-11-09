@@ -1,2 +1,9 @@
+# A capo LF in ogni checkout, anche su Windows con core.autocrlf: i banchi e bin/personale.py confrontano
+# i file con i blob di git, e un CRLF li fa sembrare tutti cambiati (review del 7/11/2026, L10).
+* text=auto eol=lf
+*.woff2 binary
+# cmd.exe vuole CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
 # Il registro dei todo: ogni modifica è una riga in più, due macchine si uniscono senza conflitti.
 data/todo/*.jsonl merge=union
