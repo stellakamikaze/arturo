@@ -13,6 +13,34 @@ modo di lavorare.
 
 ---
 
+## 2026-11-09 — Col plugin, comandi e controlli trovano Arturo dove sta davvero
+
+**Cosa cambia**: quattordici correzioni per chi usa Arturo come plugin. Col plugin il codice sta nella
+cartella dei plugin di Claude Code, e `~/.claude` resta tua: diversi comandi lo cercavano ancora lì.
+- `/system-audit` non dà più cinque errori falsi su un'installazione sana, e `/setup` arriva alla fine.
+- `/fine --rotazione` torna a partire da solo a ogni compito chiuso. Lo stesso vale per `/segnala` alla fine
+  della sessione e per `/diagnosi` quando `/inizio` la chiede.
+- `/diagnosi`, `/inizio` e i todo riconoscono il mod di Arturo anche col plugin: prima lo davano per spento.
+- `/inizio` non segnala più "controllo aggiornamenti non riuscito (rete?)" a ogni avvio. `/novita` dice se c'è
+  un rilascio nuovo leggendo il catalogo firmato.
+- `/setup` trova le sue guide (ritratto, intervista, Impeccable, Hallmark), salta la sincronizzazione tra
+  macchine, che col plugin non c'è, e scrive lo stile come `arturo:Conciso`.
+- L'identità di Git che scegli in `/setup` vale anche nei tuoi progetti: prima i loro commit restavano senza
+  nome, o col nome del computer.
+- Il tuo stile personale e il programma di `scrape` restano fra i tuoi file: un aggiornamento non li cancella.
+- `/creaskill` dice occupato anche il nome di una skill di Arturo, come `fine`.
+- La barra mostra di nuovo il task in corso, e il blocco sotto l'intestazione dice la versione di Arturo.
+- La pagina dei todo, se si spegne, ti dà il comando giusto per riaprirla.
+- Lancillotto si installa anche senza `gh`: il suo repository è pubblico e basta `git`.
+- Metodo e stile Conciso dicono la stessa cosa quando un permesso ferma un passo.
+
+**Il principio**: il codice si trova dalla sua cartella, i tuoi dati stanno in `~/.claude`. Un comando non
+indovina dove sta l'altro.
+
+**A chi serve**: a chi usa Arturo come plugin, e a chi sta per passarci con `arturo migra`.
+
+---
+
 ## 2026-11-08 — Aggiornamenti e migrazione: niente più lavoro perso o blocchi senza motivo
 
 **Cosa cambia**: otto correzioni a come Arturo si aggiorna e a come passa dal clone al plugin.

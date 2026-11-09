@@ -9,6 +9,17 @@ export function versioneArturo(describe: string): string | null {
   return m[2] === undefined ? m[1]! : `${m[1]} +${m[2]}`
 }
 
+// Col plugin non c'è git: la versione è quella che bin/impacchetta.py scrive in .claude-plugin/plugin.json,
+// senza la v ("0.2.8"). Review del 7/11/2026, finding 68: senza, /versione diceva solo "Arturo".
+export function versioneDaManifest(json: string): string | null {
+  try {
+    const v = (JSON.parse(json) as { version?: unknown }).version
+    return typeof v === 'string' ? versioneArturo(`v${v.replace(/^v/, '')}`) : null
+  } catch {
+    return null
+  }
+}
+
 // Il nome che si legge: "v0.2.0" -> "0.2.0"; "v0.2.0 +8" -> "0.2.0, con 8 modifiche non ancora rilasciate".
 export function nomeVersione(v: string): string {
   const m = /^v?([^ ]+)(?: \+(\d+))?$/.exec(v)

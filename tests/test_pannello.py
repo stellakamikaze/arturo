@@ -528,7 +528,10 @@ def controllo_del_mod(testo: str, dove: str) -> None:
     `claude plugin list --json`. La riga si lancia davvero su tre liste finte."""
     righe = [r.strip() for r in testo.splitlines() if r.strip().startswith("claude plugin list --json")]
     assert len(righe) == 1, f"U11 {dove}: il controllo del pannello con claude plugin list --json: {righe}"
+    # Col plugin il mod arriva dentro Arturo, con l'id arturo@arturo (review del 7/11/2026, finding 75).
     attesi = (('[{"id": "arturo@skills-dir", "enabled": true}]', "mod caricato"),
+              ('[{"id": "arturo@arturo", "enabled": true}]', "mod caricato"),
+              ('[{"id": "arturo@arturo", "enabled": false}]', "mod assente"),
               ('[{"id": "arturo@skills-dir", "enabled": false}]', "mod assente"),
               ('[{"id": "dafare@skills-dir", "enabled": true}]', "mod assente"),
               ('[{"id": "altro@skills-dir", "enabled": true}]', "mod assente"))

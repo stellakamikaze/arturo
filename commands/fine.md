@@ -104,6 +104,8 @@ sessione riceve un esito nell'handoff (mandata, da mandare, scartata).
 ```bash
 git diff --cached | grep -qE '^\+(<<<<<<< |=======$|>>>>>>> )' && echo "MARCATORE DI CONFLITTO: fermati e risolvi prima del commit"
 git diff --cached --stat
+# Un progetto senza identità prende quella scelta da /setup: col plugin ~/.claude non è un repository.
+bash ~/.claude/bin/identita-git.sh .
 ```
 
   Controlla che l'elenco coincida con quello che volevi, poi `git commit -m "<messaggio>" -- <file-1> <file-2>`.

@@ -127,7 +127,7 @@ con la stessa CLI che usi tu, quindi quello che vedi con `arturo todo` è sempre
   una volta per sessione, prima di nominarlo, la stessa riga di `/diagnosi`:
 
   ```bash
-  claude plugin list --json | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "arturo@skills-dir"]; print("mod caricato" if v and v[0].get("enabled") else "mod assente")'
+  claude plugin list --json | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") in ("arturo@skills-dir", "arturo@arturo")]; print("mod caricato" if any(p.get("enabled") for p in v) else "mod assente")'
   ```
 
   Il pannello c'è solo se la riga stampa "mod caricato". Con Claude Code più vecchio della

@@ -57,8 +57,11 @@ def test_rl01(repo: Path) -> None:
     fase = testo[testo.index("## FASE 8d"):testo.index("## FASE 9")]
     assert "~/.claude/shared/setup-lancillotto.md" in fase, "RL01 la FASE 8d non dice dove leggere la sua procedura"
     parte = read(repo / "shared" / "setup-lancillotto.md")
-    assert "gh repo clone stellakamikaze/lancillotto" in parte and "installa.sh" in parte and "Accessibilità" in parte, \
-        "RL01 shared/setup-lancillotto.md non ha domanda, controlli e installazione"
+    assert "git clone https://github.com/stellakamikaze/lancillotto.git" in parte and "installa.sh" in parte \
+        and "Accessibilità" in parte, "RL01 shared/setup-lancillotto.md non ha domanda, controlli e installazione"
+    # Il repository è pubblico: bastano git e la rete. /setup non installa gh (review del 7/11/2026, finding 83).
+    assert "gh repo" not in parte and "gh auth" not in parte, \
+        "RL01 shared/setup-lancillotto.md chiede gh, che /setup non installa"
 
 
 def test_rl02(repo: Path) -> None:

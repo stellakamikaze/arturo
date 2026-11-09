@@ -4,7 +4,8 @@
 W01 parte e ascolta solo su 127.0.0.1, si ferma dopo 30 minuti, --host non esiste e le
 opzioni sbagliate rispondono in italiano. W02 la chiave: senza, niente pagina e niente API.
 W03 un altro sito (Host, Origin, Content-Type, OPTIONS) non passa e nessuna risposta apre
-CORS. W04 la pagina legge quello che legge la CLI. W05 un todo aggiunto dalla pagina arriva
+CORS. W04 la pagina legge quello che legge la CLI, e il comando per riaprirla col percorso vero
+della CLI, anche col plugin (review del 7/11/2026, finding 71). W05 un todo aggiunto dalla pagina arriva
 alla CLI con gli accenti veri e con i separatori Unicode. W06 la stessa sequenza dalla CLI e
 dalla pagina scrive gli stessi eventi. W07 gli errori sono del store, in italiano, e il
 terminale resta zitto. W08 un numero che indica un altro todo dà 409 e non scrive. W09
@@ -310,6 +311,11 @@ def test_w04(repo: Path) -> None:
         assert web["vista"] == cli_vista, f"W04 vista diversa dalla CLI:\n{web['vista']}\n{cli_vista}"
         assert web["progetti"] == cli_progetti, f"W04 progetti diversi: {web['progetti']} {cli_progetti}"
         assert "uid" not in corpo.decode("utf-8"), "W04 la risposta porta gli uid"
+        comando = web.get("comando", "")
+        assert comando.startswith("python3 ") and comando.endswith("/bin/arturo web"), \
+            f"W04 /api/vista non dice il comando per riaprire la pagina: {comando!r}"
+        app = (repo / "bin" / "web" / "app.js").read_text(encoding="utf-8")
+        assert "COMANDO = dati.comando" in app, "W04 la pagina non usa il comando che manda il server"
     con_casa(repo, prova)
 
 

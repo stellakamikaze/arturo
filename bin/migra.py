@@ -420,7 +420,24 @@ def _riempi_copia(a: dict, cartella: Path, adesso: str) -> Path:
                         ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     registro["passi"].append("copia")
     scrivi_json(cartella / "migra.json", registro)
+    salva_identita(orsa)
     return cartella
+
+
+def salva_identita(orsa: Path) -> None:
+    """L'identità di Git che /setup scriveva in ~/.claude/.git/config passa in ~/.claude/arturo/git-identita prima
+    che .git esca: la leggono bin/identita-git.sh, /inizio e /fine (review del 7/11/2026, finding 80)."""
+    file = orsa / "arturo" / "git-identita"
+    if file.exists():
+        return
+    valori = {k: git(orsa, "config", "--local", f"user.{k}").stdout.strip() for k in ("name", "email")}
+    if not valori["email"]:
+        return
+    file.parent.mkdir(parents=True, exist_ok=True)
+    for chiave, valore in valori.items():
+        if valore:
+            subprocess.run(["git", "config", "--file", str(file), f"user.{chiave}", valore], capture_output=True,
+                           timeout=60)
 
 
 def passo(cartella: Path, nome: str) -> None:

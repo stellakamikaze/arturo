@@ -44,9 +44,18 @@ CARTELLE = ["agents", "bin", "docs", "firme", "hooks", "output-styles", "scripts
 FILE = ["LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "ROADMAP.md", "SECURITY.md", "package.json"]
 IGNORA = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store", "node_modules")
 # Cartelle e file di ~/.claude che nel clone sono codice di Arturo e nel plugin stanno nella sua cartella.
-CODICE = ("bin", "hooks", "shared", "tools", "scripts", "docs", "firme", "agents", "output-styles",
+# output-styles resta fuori: nei testi ~/.claude/output-styles/ è la cartella degli stili della persona
+# (review del 7/11/2026, finding 78).
+CODICE = ("bin", "hooks", "shared", "tools", "scripts", "docs", "firme", "agents",
           "commands", "tests", "NOVITA.md", "README.md")
+# Un rimando a shared/ o docs/ senza ~/.claude davanti il pacchetto non lo riscrive: col plugin non si trova
+# (finding 77). Vale tra i backtick, dove un testo dà un percorso da aprire.
+RELATIVO = re.compile(r"(?<![\w/~$}.-])`(?:shared|docs)/[\w.-]")
 METODO = 'bash "${CLAUDE_PLUGIN_ROOT}/hooks/metodo.sh"'
+# I comandi che lancia anche Claude, come nel clone: /fine --rotazione a ogni compito chiuso (commands/fine.md),
+# /segnala da /fine FASE 10, /diagnosi da /inizio FASE 6. Gli altri li lancia solo la persona (review del
+# 7/11/2026, finding 74: con disable-model-invocation il giro della rotazione col plugin non partiva).
+CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi")
 TAG_PLUGIN = re.compile(r"plugin-v\d{1,4}\.\d{1,4}\.\d{1,6}")
 VARIANTI_HOME = (r"~/\.claude", r"\$HOME/\.claude", r"\$\{HOME\}/\.claude", r"\$\{ARTURO_CODICE:-\$HOME/\.claude\}")
 
@@ -69,7 +78,8 @@ def riscrivi(testo: str, radice_codice: str, skill: set[str]) -> str:
     """I percorsi al codice di Arturo puntano a `radice_codice`; quelli ai dati della persona restano."""
     for home in VARIANTI_HOME:
         voci = "|".join(re.escape(c) for c in CODICE)
-        testo = re.sub(rf"{home}/(?=(?:{voci})(?:/|\b))", radice_codice + "/", testo)
+        # commands/"$NOME" è un comando della persona (/creaskill), non uno di Arturo: resta in ~/.claude.
+        testo = re.sub(rf"{home}/(?=(?:{voci})(?:/|\b))(?!commands/\")", radice_codice + "/", testo)
         nomi = "|".join(re.escape(s) for s in sorted(skill, key=len, reverse=True))
         testo = re.sub(rf"{home}/skills/(?=(?:{nomi})(?:/|\b))", radice_codice + "/skills/", testo)
         # commands/<comando>.md del clone è skills/<comando>/SKILL.md nel plugin.
@@ -130,11 +140,12 @@ def comando_in_skill(sorgente: Path, dest: Path) -> None:
         if not re.search(r"^name:", testa, re.M):
             testa = f"name: {nome}\n" + testa
         # Un comando lo lancia la persona: nel plugin resta così, il modello non lo chiama da solo.
-        if not re.search(r"^disable-model-invocation:", testa, re.M):
+        if not re.search(r"^disable-model-invocation:", testa, re.M) and nome not in CHIAMATI_DAL_MODELLO:
             testa += "\ndisable-model-invocation: true"
         testo = f"---\n{testa.rstrip()}\n---{corpo}"
     else:
-        testo = f"---\nname: {nome}\ndisable-model-invocation: true\n---\n\n{testo}"
+        blocco = "" if nome in CHIAMATI_DAL_MODELLO else "disable-model-invocation: true\n"
+        testo = f"---\nname: {nome}\n{blocco}---\n\n{testo}"
     dest.mkdir(parents=True, exist_ok=True)
     (dest / "SKILL.md").write_text(testo, encoding="utf-8")
 
@@ -238,13 +249,15 @@ def verifica(cartella: Path) -> list[str]:
     """Il contratto del pacchetto: niente codice cercato in ~/.claude, hook tutti nel plugin."""
     errori = []
     voci = "|".join(re.escape(c) for c in CODICE if c not in ("docs", "tests"))
-    fisso = re.compile(rf"(?:~|\$HOME|\$\{{HOME\}})/\.claude/(?:{voci})(?:/|\b)")
+    fisso = re.compile(rf"(?:~|\$HOME|\$\{{HOME\}})/\.claude/(?!commands/\")(?:{voci})(?:/|\b)")
     for md in cartella.rglob("*.md"):
         if md.is_symlink() or md.relative_to(cartella).parts[0] == "docs":
             continue
         for n, riga in enumerate(md.read_text(encoding="utf-8").splitlines(), 1):
             if fisso.search(riga):
                 errori.append(f"{md.relative_to(cartella)}:{n} {riga.strip()[:100]}")
+            elif md.relative_to(cartella).parts[0] in ("skills", "shared", "agents") and RELATIVO.search(riga):
+                errori.append(f"{md.relative_to(cartella)}:{n} percorso senza ~/.claude: {riga.strip()[:90]}")
     hooks = json.loads((cartella / "hooks" / "hooks.json").read_text(encoding="utf-8"))
     for comando in re.findall(r'"command": "([^"]*)"', json.dumps(hooks)):
         if "~/.claude/" in comando or "$HOME/.claude/" in comando:

@@ -39,6 +39,13 @@ from urllib.parse import parse_qs, urlsplit
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 import todo_store as ts  # noqa: E402
 
+sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+import radici  # noqa: E402
+
+# Il comando che la pagina dà per riaprirsi, col percorso vero: col plugin ~/.claude/bin/arturo non c'è
+# (review del 7/11/2026, finding 71).
+COMANDO = radici.comando_arturo() + " web"
+
 HOST = "127.0.0.1"
 CARTELLA = Path(os.path.realpath(__file__)).parent / "web"
 MASSIMO = 16384  # byte di un corpo POST
@@ -399,7 +406,7 @@ def crea_gestore(stato: Stato):
                 self._rispondi(200, (CARTELLA / voce[0]).read_bytes(), voce[1])
             elif url.path == "/api/vista":
                 self._controlla_chiave(self.headers.get("X-Arturo-Token"))
-                self._json(200, dict(lettura(), partenza=stato.progetto))
+                self._json(200, dict(lettura(), partenza=stato.progetto, comando=COMANDO))
             elif url.path == "/api/todo":
                 self._controlla_chiave(self.headers.get("X-Arturo-Token"))
                 numero = (parse_qs(url.query).get("id") or [""])[0]

@@ -55,7 +55,17 @@ def nota(nome: str, cartella: str) -> str:
     return (f"[gws] L'account {nome} non ha credenziali valide su {macchina}. "
             "Non riprovare con un altro account e non cambiare comando. "
             f"Serve che la persona rifaccia il login: GOOGLE_WORKSPACE_CLI_CONFIG_DIR={cartella} gws auth login "
-            "(la guida è in ~/.claude/docs/onboarding/gws.md). Diglielo e fermati su gws.")
+            f"(la guida è in {guida()}). Diglielo e fermati su gws.")
+
+
+def guida() -> str:
+    """La guida al login di gws dove sta davvero: col plugin docs/ è nella cartella del codice (finding 56)."""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import radici
+        return radici._corto(radici.radice_arturo() / "docs" / "onboarding" / "gws.md")
+    except Exception:  # noqa: BLE001 - la nota resta utile anche senza il modulo
+        return "~/.claude/docs/onboarding/gws.md"
 
 
 def rifai_controllo() -> None:

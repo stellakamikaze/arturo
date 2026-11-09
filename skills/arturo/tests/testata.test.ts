@@ -3,6 +3,7 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 import {
   FOTOGRAMMI_STELLA, FOTOGRAMMI_TOTALI, INTERVALLO_INVITO_S, blocco, dataRoadmap, decidiInvito, dettaglio, leggiAggiornamento, leggiDeriva, leggiTimbro,
   nomeVersione, nuovoTimbro, parolaDeriva, parolaInvito, parolaVersione, riga, statoChiaro, versioneArturo,
+  versioneDaManifest,
 } from '../hooks/testata/testata'
 import type { Deriva, Testata } from '../types'
 
@@ -16,6 +17,9 @@ describe('versione di Arturo', () => {
     expect(versioneArturo('v2026-11-03-2-gabc1234')).toBe('v2026-11-03 +2')
     expect(versioneArturo('v2026-10-12.2')).toBe('v2026-10-12.2')
     expect(versioneArturo('fatal: No names found')).toBeNull()
+    expect(versioneDaManifest('{"name": "arturo", "version": "0.2.8"}')).toBe('v0.2.8')
+    expect(versioneDaManifest('{"version": "0.0.0-sviluppo"}')).toBeNull()
+    expect(versioneDaManifest('non json')).toBeNull()
   })
   test('il nome che si legge', () => {
     expect(nomeVersione('v0.2.0')).toBe('0.2.0')
@@ -121,7 +125,7 @@ describe("l'invito alla roadmap", () => {
 
 type Registra = Parameters<Extract<Parameters<typeof test>[1], (...a: never[]) => unknown>>[1]
 
-function finto(on: Registra, file: Record<string, string>, scritti: Record<string, string>, posti: string[]) {
+function finto(on: Registra, file: Record<string, string>, scritti: Record<string, string>, posti: string[], git = true) {
   // Il mod arturo ha sei parti: qui si prova solo questa (ARTURO_PARTI, hooks/parti.ts).
   on('env.get', { name: 'ARTURO_PARTI' }, () => ({ value: 'testata' }))
   mock.env(on, { HOME: '/casa' })
@@ -131,6 +135,10 @@ function finto(on: Registra, file: Record<string, string>, scritti: Record<strin
   on('fs.read', ($, e) => {
     const percorso = normale(e.path)
     if (percorso.endsWith('/ROADMAP.md')) return { value: 'Aggiornata il 2026-11-03\n' }
+    // Il manifest del pacchetto, nella radice del codice qualunque sia (la chiave con l'asterisco).
+    if (percorso.endsWith('/.claude-plugin/plugin.json') && file['*/.claude-plugin/plugin.json'] !== undefined) {
+      return { value: file['*/.claude-plugin/plugin.json'] }
+    }
     const t = file[percorso]
     if (t === undefined) throw new Error(`ENOENT ${e.path}`)
     return { value: t }
@@ -139,7 +147,8 @@ function finto(on: Registra, file: Record<string, string>, scritti: Record<strin
     scritti[normale(e.path)] = e.text
     return { value: undefined }
   })
-  on('process.run', ($, e) => ({ value: { exitCode: e.argv.includes('describe') ? 0 : 1, stdout: 'v0.2.0-8-gc247fed\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
+  // Senza git (il plugin) ogni comando git esce con 128, come in un pacchetto senza .git.
+  on('process.run', ($, e) => ({ value: { exitCode: !git ? 128 : e.argv.includes('describe') ? 0 : 1, stdout: git ? 'v0.2.0-8-gc247fed\n' : '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
   on('session.version', () => ({ value: { version: '2.1.317', base: '2.1.317' } }))
   on('clock.now', () => ({ value: 1_000_000_000 }))
   on('ui.place', ($, e) => {
@@ -166,6 +175,16 @@ test("all'avvio il blocco va sotto l'intestazione, con versione, deriva e invito
   expect((await ui.find({ type: 'Text', text: /file di Arturo/ }))?.text).toBe('8 modifiche non ancora rilasciate \u00b7 hai cambiato 3 file di Arturo: /versione li elenca')
   expect((await ui.find({ type: 'Text', text: /^Roadmap/ }))?.text).toBe('Roadmap aggiornata il 3/11')
   expect((await ui.find({ type: 'Text', text: /^Invia Arturo/ }))?.text).toBe('Invia Arturo a chi ne ha bisogno')
+  await ui.unmount()
+})
+
+test('col plugin, senza git, la versione viene dal manifest del pacchetto', async ($, on) => {
+  const scritti: Record<string, string> = {}
+  const posti: string[] = []
+  finto(on, { '*/.claude-plugin/plugin.json': '{"name": "arturo", "version": "0.2.8"}' }, scritti, posti, false)
+  await $.session.start({ cwd: '/progetto', surface: 'terminal', isInteractive: true })
+  const ui = await $.ui.mount(PIAZZATA)
+  expect((await ui.find({ type: 'Text', text: /^ 0\./ }))?.text).toBe(' 0.2.8')
   await ui.unmount()
 })
 

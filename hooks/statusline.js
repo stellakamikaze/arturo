@@ -316,15 +316,18 @@ process.stdin.on('end', () => {
       }
     }
 
-    // Task in corso: i task nativi stanno in tasks/session-<primi 8 caratteri>/<n>.json
-    // (misurato il 3/10/2026). Fino al 15/10/2026 il ramo leggeva todos/, che non esiste piu',
-    // e il segmento non compariva mai.
+    // Task in corso: i task nativi stanno in tasks/<id della sessione>/<n>.json. Fino a ottobre 2026
+    // stavano in tasks/session-<primi 8 caratteri>/, che resta il ripiego (review del 7/11/2026,
+    // finding 57: col nome nuovo il segmento non compariva più). Fino al 15/10/2026 il ramo leggeva
+    // todos/, che non esiste piu'.
     let task = '';
     const homeDir = os.homedir();
     // Respect CLAUDE_CONFIG_DIR for custom config directory setups
     const claudeDir = process.env.CLAUDE_CONFIG_DIR || path.join(homeDir, '.claude');
-    const tasksDir = path.join(claudeDir, 'tasks', `session-${session.slice(0, 8)}`);
-    if (session && /^[\w-]+$/.test(session) && fs.existsSync(tasksDir)) {
+    const valida = Boolean(session) && /^[\w-]+$/.test(session);
+    const tasksDir = valida ? [path.join(claudeDir, 'tasks', session), path.join(claudeDir, 'tasks', `session-${session.slice(0, 8)}`)]
+      .find(d => fs.existsSync(d)) : undefined;
+    if (tasksDir) {
       try {
         for (const f of fs.readdirSync(tasksDir).filter(f => f.endsWith('.json'))) {
           try {

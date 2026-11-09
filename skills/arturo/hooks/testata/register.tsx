@@ -6,6 +6,7 @@ import { radiciArturo } from './radici'
 import {
   COLONNE_MARCHIO, LARGHEZZA_MARCHIO, URL_INVIA, URL_ROADMAP, blocco, dataRoadmap,
   decidiInvito, dettaglio, leggiAggiornamento, leggiDeriva, leggiTimbro, nuovoTimbro, versioneArturo,
+  versioneDaManifest,
 } from './testata'
 import type { Blocco, Invito, Testata } from '../../types'
 
@@ -23,11 +24,18 @@ async function leggi($: EngineInterface, path: string): Promise<string | null> {
 }
 
 async function versione($: EngineInterface, home: string): Promise<string | null> {
-  for (const radice of await radici($, home)) {
+  const tutte = await radici($, home)
+  for (const radice of tutte) {
     const r = await $.process
       .run(['git', '-C', radice, 'describe', '--tags', '--match', 'v*'], { timeoutMs: 5_000 })
       .catch(() => undefined)
     const v = r !== undefined && r.exitCode === 0 ? versioneArturo(r.stdout) : null
+    if (v !== null) return v
+  }
+  // Senza git (il plugin, o un clone dopo arturo migra) la versione sta nel manifest del pacchetto.
+  for (const radice of tutte) {
+    const json = await leggi($, `${radice}/.claude-plugin/plugin.json`)
+    const v = json === null ? null : versioneDaManifest(json)
     if (v !== null) return v
   }
   return null

@@ -389,6 +389,15 @@ def invia_gh(titolo: str, testo: str):
     return esito.stdout.strip().splitlines()[-1] if esito.stdout.strip() else "", None
 
 
+def _versione_plugin() -> str:
+    """"v0.2.8" dal .claude-plugin/plugin.json del pacchetto, vuoto se non c'è."""
+    try:
+        numero = json.loads((radice_arturo() / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")).get("version")
+    except (OSError, ValueError, AttributeError):
+        return ""
+    return "v" + numero if isinstance(numero, str) and numero else ""
+
+
 def _esegui(comando: list) -> str:
     try:
         r = subprocess.run(comando, capture_output=True, text=True, timeout=10)
@@ -400,7 +409,9 @@ def _esegui(comando: list) -> str:
 def ambiente() -> str:
     """Versioni di Arturo e di Claude Code e sistema: le prime righe di info, senza gh né canale. La voce ambiente
     del pacchetto tecnico la usa da sola, per non lanciare gh a ogni anteprima."""
-    versione = _esegui(["git", "-C", str(radice_orsa()), "describe", "--tags", "--abbrev=0", "--match", "v*"]) or "sconosciuta"
+    # Col plugin non c'è git: la versione sta nel manifest del pacchetto (review del 7/11/2026, finding 68).
+    versione = _esegui(["git", "-C", str(radice_arturo()), "describe", "--tags", "--abbrev=0", "--match", "v*"]) \
+        or _versione_plugin() or "sconosciuta"
     claude = _esegui(["claude", "--version"]) or "sconosciuta"
     return f"Arturo: {versione}\nClaude Code: {claude}\nSistema: {platform.system()} {platform.release()}"
 

@@ -9,7 +9,8 @@ K03 settings.json: niente codice arbitrario dal browser, niente push forzato con
     invii via MCP che chiedono conferma.
 K04 la guardia web vede Claude in Chrome e gli URL annidati di browser_batch.
 K05 `wget --post-file` arriva alla guardia anti-esfiltrazione.
-K06 la statusline legge i task nativi in tasks/session-<id>/.
+K06 la statusline legge i task nativi in tasks/<id intero>/ e, come ripiego, in tasks/session-<8 caratteri>/
+    (review del 7/11/2026, finding 57).
 K07 `sed … ; for w in …` non chiede più conferma, `sed 'w file'` sì.
 K08 `rsync --delete` in dry-run o dentro un heredoc non eseguito non chiede più conferma.
 K09 il suono delle notifiche parte solo quando Claude aspetta la persona.
@@ -162,9 +163,14 @@ def test_k05(repo: Path) -> None:
 
 
 def test_k06(repo: Path) -> None:
+    for nome in ("abcd1234-0000", "session-abcd1234"):
+        k06(repo, nome)
+
+
+def k06(repo: Path, nome: str) -> None:
     with tempfile.TemporaryDirectory() as d:
         home = Path(d)
-        cartella = home / ".claude" / "tasks" / "session-abcd1234"
+        cartella = home / ".claude" / "tasks" / nome
         cartella.mkdir(parents=True)
         (cartella / "1.json").write_text(json.dumps({"status": "in_progress", "activeForm": "Rileggo il capitolo"}),
                                          encoding="utf-8")
@@ -174,7 +180,8 @@ def test_k06(repo: Path) -> None:
             env["SYSTEMROOT"] = os.environ.get("SYSTEMROOT", r"C:\Windows")  # senza, node si ferma all'avvio
         proc = subprocess.run([NODE, str(repo / "hooks" / "statusline.js")], input=json.dumps(dati), text=True,
                               encoding="utf-8", capture_output=True, env=env, timeout=30, check=False)
-        assert "Rileggo il capitolo" in proc.stdout, f"K06 la statusline non mostra il task in corso: {proc.stdout!r}"
+        assert "Rileggo il capitolo" in proc.stdout, \
+            f"K06 la statusline non mostra il task in corso da tasks/{nome}: {proc.stdout!r}"
 
 
 def test_k07(repo: Path) -> None:

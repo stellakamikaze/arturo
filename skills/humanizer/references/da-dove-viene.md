@@ -10,7 +10,7 @@ curata da WikiProject AI Cleanup.
 
 La versione inglese dell'origine sta in `originale-en.md`, accanto a questo file, e `../ORIGINE` dice a
 quale commit. Quando l'origine cambia, chi mantiene Arturo la segue con `bin/humanizer-origine.py`
-(`docs/manutenzione.md`).
+(`~/.claude/docs/manutenzione.md`).
 
 In Arturo cambiano quattro cose. Gli esempi sono italiani, e alcuni vengono dal catalogo dei tic che
 Arturo aveva in `italiano-semplificato` (scritto da zero, ispirato a raccolte pubbliche come

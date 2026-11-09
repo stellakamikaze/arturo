@@ -12,12 +12,22 @@ Sei il canale di aggiornamento di **Arturo**. Quando l'harness evolve, il repo s
 Gli aggiornamenti di Arturo arrivano da `upstream` se l'utente ha un repository suo come `origin` (vedi `/setup` FASE 7), altrimenti da `origin`.
 
 ```bash
+# Col plugin ~/.claude non è il repository di Arturo: il rilascio nuovo si legge dal catalogo firmato.
+if [ -n "${ARTURO_CODICE:-}" ] && [ "$(cd "$ARTURO_CODICE" 2>/dev/null && pwd -P)" != "$(cd ~/.claude 2>/dev/null && pwd -P)" ]; then
+  VERIFICA=$(python3 ~/.claude/bin/aggiornamenti.py plugin --verifica 2>&1); rc=$?
+  case "$rc:$VERIFICA" in
+    0:*"GIÀ AGGIORNATO"*) echo "Aggiornamenti di Arturo non ancora applicati: 0 (col plugin)" ;;
+    0:*) echo "Aggiornamenti di Arturo non ancora applicati: c'è il rilascio firmato $(printf '%s\n' "$VERIFICA" | tail -1)" ;;
+    *) printf '%s\n' "$VERIFICA" ;;
+  esac
+else
 SRC=$(git -C ~/.claude remote get-url upstream >/dev/null 2>&1 && echo upstream || echo origin)
 git -C ~/.claude fetch --quiet --tags "$SRC" main 2>/dev/null
 # Conta solo fino all'ultimo tag firmato: i commit di main dopo il tag non si applicano (#3504).
 if TAG=$(python3 ~/.claude/bin/aggiornamenti.py firmato); then
   BEHIND=$(git -C ~/.claude rev-list --count "HEAD..$TAG" 2>/dev/null || echo 0)
   echo "Aggiornamenti di Arturo da $SRC non ancora applicati: ${BEHIND:-0} (fino al rilascio firmato $TAG)"
+fi
 fi
 ```
 
@@ -61,7 +71,7 @@ Per ogni entry non vista, **una per volta**:
    prima del racconto, dentro un blocco di codice: è l'unica parte dell'entry che non racconti a parole.
    Poi una frase che dice dove si trova la persona nel disegno.
 3. **Cosa cambia**, in due frasi tue — non incollare l'entry, raccontala.
-4. **Il principio dietro** — perché questa novità esiste, cosa insegna. Se l'entry rimanda a un capitolo di `docs/principi/`, offri di leggerlo insieme.
+4. **Il principio dietro** — perché questa novità esiste, cosa insegna. Se l'entry rimanda a un capitolo di `~/.claude/docs/principi/`, offri di leggerlo insieme.
 5. **Ti riguarda se...** — aiuta l'utente a capire se la novità tocca il suo modo di usare l'harness.
 6. Proponi: "vuoi fare un po' di sparring per vedere se ti serve?" → se sì, apri con Read `~/.claude/commands/sparring.md` e seguilo con l'argomento `novità AAAA-MM-GG — Titolo`, l'intestazione di questa entry.
 7. Segna questa entry come vista (Passo 3) prima di passare alla successiva.

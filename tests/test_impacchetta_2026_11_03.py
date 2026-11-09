@@ -3,7 +3,8 @@
 
 IP01 bin/impacchetta.py genera il pacchetto e la sua verifica non trova errori;
 IP02 ogni commands/<nome>.md è skills/<nome>/SKILL.md con name: e disable-model-invocation, e nel
-     pacchetto non c'è commands/ (un comando del plugin prende il prefisso arturo:);
+     pacchetto non c'è commands/ (un comando del plugin prende il prefisso arturo:); fine, segnala e
+     diagnosi restano senza il flag, perché li lancia anche Claude (review del 7/11/2026, finding 74);
 IP03 hooks/hooks.json ha tutti gli hook di settings.json, coi file tra virgolette in ${CLAUDE_PLUGIN_ROOT};
 IP04 impostazioni/arturo.json non ha hook, lo stile è "arturo:Conciso", la barra legge il puntatore;
 IP05 i percorsi ai dati della persona restano in ~/.claude (data/handoffs in /fine), quelli al codice no;
@@ -21,6 +22,17 @@ IP11 arturo impostazioni adotta: settings della persona intatti, blocco col fram
 IP12 adotta si ferma se mancano regole di blocco di Arturo, anche senza settings.json, non scrive il blocco, e
      solo --forza le lascia fuori, dicendolo: dopo non arriverebbero più (revisione del 6/11/2026);
 IP13 adotta si ferma su un hook doppio, anche con --forza;
+IP14 col plugin e le impostazioni applicate, l'audit di /system-audit non ha FAIL: cerca il codice dalla
+     sua cartella, gli hook in hooks.json e la barra dal puntatore (review del 7/11/2026, finding 73);
+IP15 col plugin la FASE 0 di /inizio e il Passo 0 di /novita non lanciano git in ~/.claude e leggono il catalogo
+     firmato: niente "rete?" a ogni avvio (finding 76);
+IP16 la verifica del pacchetto trova un rimando a shared/ o docs/ senza ~/.claude in una skill (finding 77);
+IP17 gli stili della persona e il venv di scrape restano in ~/.claude, /setup dice arturo:Conciso, e /creaskill
+     dà occupato il nome di una skill di Arturo anche col plugin (finding 78);
+IP18 senza un repository in ~/.claude l'identità di Git di /setup vale nei progetti: identita-git.sh la scrive e
+     la copia, /inizio e /fine la usano, e col plugin /setup salta la FASE 7 (finding 79 e 80);
+IP19 metodo, Conciso e la regola 1 del CLAUDE.md dicono la stessa cosa sul passo bloccato (finding 81);
+IP20 i testi per il subagente e per il login di gws danno i percorsi veri del codice (finding 56);
 IP10 un hook di Arturo rimasto nei settings della persona (un clone di prima) è doppio: applica si ferma con
      rc 1 e il file intatto, applica --togli-doppi lo toglie e tiene l'hook proprio della persona.
 
@@ -30,6 +42,7 @@ copia del repository rotta in un punto alla volta deve far fallire il caso che l
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import os
 import shutil
@@ -38,7 +51,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["IP01", "IP02", "IP03", "IP04", "IP05", "IP06", "IP07", "IP08", "IP09", "IP10", "IP11", "IP12", "IP13"]
+CASI = ["IP01", "IP02", "IP03", "IP04", "IP05", "IP06", "IP07", "IP08", "IP09", "IP10", "IP11", "IP12", "IP13", "IP14", "IP15",
+        "IP16", "IP17", "IP18", "IP19", "IP20"]
 DISCRIMINANTI = list(CASI)
 BASH = shutil.which("bash") or "bash"
 
@@ -46,6 +60,25 @@ BASH = shutil.which("bash") or "bash"
 def esegui(argv, **kw):
     return subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
                           timeout=120, **kw)
+
+
+def blocco_bash(skill: Path, titolo: str) -> str:
+    """Il primo blocco ```bash dopo `titolo` nella skill del pacchetto."""
+    testo = skill.read_text(encoding="utf-8")
+    inizio = testo.index("```bash\n", testo.index(titolo)) + len("```bash\n")
+    return testo[inizio:testo.index("\n```", inizio)]
+
+
+def finto_claude(tmp: Path) -> Path:
+    """Una CLI di Claude Code che risponde a tutto con niente: il catalogo di Arturo non c'è."""
+    if os.name == "nt":
+        f = tmp / "claude.cmd"
+        f.write_text("@exit /b 0\r\n", encoding="utf-8")
+    else:
+        f = tmp / "claude"
+        f.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        f.chmod(0o755)
+    return f
 
 
 def comandi_hook(hooks: dict) -> list:
@@ -70,7 +103,8 @@ def prova(repo: Path) -> list[str]:
         for nome in comandi:
             skill = pacchetto / "skills" / nome / "SKILL.md"
             testa = skill.read_text(encoding="utf-8").split("\n---", 1)[0] if skill.exists() else ""
-            if f"name: {nome}" not in testa or "disable-model-invocation: true" not in testa:
+            bloccato = "disable-model-invocation: true" in testa
+            if f"name: {nome}" not in testa or bloccato == (nome in ("fine", "segnala", "diagnosi")):
                 mancanti.append(nome)
         if mancanti or (pacchetto / "commands").exists() or not comandi:
             rossi.append(f"IP02 comandi non diventati skill: {mancanti[:4]}")
@@ -135,6 +169,107 @@ def prova(repo: Path) -> list[str]:
             rossi.append(f"IP07 puntatore della barra: {letto!r}")
         elif "ARTURO: il codice di Arturo sta in" not in avvio.stdout:
             rossi.append("IP07 l'avvio non dice dove sta il codice")
+
+        esegui(arturo + ["applica"], env={**env, "CLAUDE_CONFIG_DIR": str(home / ".claude")})
+        audit = esegui([BASH, str(pacchetto / "skills" / "system-audit" / "audit.sh")], cwd=progetto,
+                       env={**os.environ, "HOME": str(home), "USERPROFILE": str(home), "ARTURO_TELEMETRIA": "0"})
+        if audit.returncode != 0 or "FAIL=0" not in audit.stdout:
+            rossi.append(f"IP14 audit col plugin: {[r for r in audit.stdout.splitlines() if r.startswith('FAIL')][:3]} "
+                         f"{audit.stdout.splitlines()[-1:]!r}")
+
+        casa_env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home), "ARTURO_TELEMETRIA": "0",
+                    "ARTURO_CODICE": visto, "ARTURO_CLAUDE": str(finto_claude(tmp)), "GIT_TERMINAL_PROMPT": "0"}
+        uscite = []
+        for nome, titolo in (("inizio", "## FASE 0: Sync Config"), ("novita", "## Passo 0")):
+            # Claude Code sostituisce ${CLAUDE_PLUGIN_ROOT} quando carica la skill: qui lo fa il banco.
+            blocco = blocco_bash(pacchetto / "skills" / nome / "SKILL.md", titolo).replace("${CLAUDE_PLUGIN_ROOT}", visto)
+            r = esegui([BASH, "-c", blocco], cwd=progetto, env=casa_env)
+            uscite.append(f"{nome}: {(r.stdout + r.stderr).strip()}")
+        if any("rete?" in u or "fatal:" in u or "NESSUN RILASCIO" not in u for u in uscite):
+            rossi.append(f"IP15 /inizio e /novita col plugin: {[u[:120] for u in uscite]}")
+
+        skill_setup = pacchetto / "skills" / "setup" / "SKILL.md"
+        originale = skill_setup.read_text(encoding="utf-8")
+        skill_setup.write_text(originale + "\nSegui `shared/setup-ritratto.md`, parte 2b.\n", encoding="utf-8")
+        trovati = [e for e in mod_impacchetta(repo).verifica(pacchetto) if "percorso senza ~/.claude" in e]
+        skill_setup.write_text(originale, encoding="utf-8")
+        if not trovati or not trovati[0].startswith("skills/setup/SKILL.md:"):
+            rossi.append(f"IP16 la verifica non trova il rimando relativo: {trovati[:2]}")
+
+        venv = home / ".claude" / "data" / "scrapling" / ".venv"
+        for py in (venv / "bin" / "python", venv / "Scripts" / "python.exe"):
+            py.parent.mkdir(parents=True, exist_ok=True)
+            py.write_text("#!/bin/sh\n", encoding="utf-8")
+            py.chmod(0o755)
+        scrape = esegui([BASH, str(pacchetto / "tools" / "scrapling" / "setup.sh"), "--controlla"], env=casa_env)
+        nome_preso = esegui([BASH, "-c", "NOME=fine\n" + blocco_bash(pacchetto / "skills" / "creaskill" / "SKILL.md",
+                                                                       "Prima controlla che sia libero").split("\n", 1)[1]],
+                            cwd=progetto, env=casa_env)
+        # Un comando della persona in ~/.claude/commands occupa il nome anche col plugin.
+        (home / ".claude" / "commands").mkdir(parents=True, exist_ok=True)
+        (home / ".claude" / "commands" / "mia-lettera.md").write_text("x\n", encoding="utf-8")
+        nome_mio = esegui([BASH, "-c", "NOME=mia-lettera\n" + blocco_bash(pacchetto / "skills" / "creaskill" / "SKILL.md",
+                                                                          "Prima controlla che sia libero").split("\n", 1)[1]],
+                          cwd=progetto, env=casa_env)
+        if "~/.claude/output-styles/<nome>.md" not in originale or "arturo:Conciso" not in originale \
+                or "già installato" not in scrape.stdout or "OCCUPATO" not in nome_preso.stdout \
+                or "OCCUPATO" not in nome_mio.stdout:
+            rossi.append(f"IP17 dati della persona col plugin: scrape {scrape.stdout.strip()!r}, "
+                         f"creaskill {nome_preso.stdout.strip()!r}/{nome_mio.stdout.strip()!r}")
+
+        vuoto = tmp / "gitconfig-vuoto"
+        vuoto.write_text("", encoding="utf-8")
+        git_env = {k: v for k, v in casa_env.items() if not k.startswith(("GIT_AUTHOR_", "GIT_COMMITTER_"))}
+        git_env.update(GIT_CONFIG_GLOBAL=str(vuoto), GIT_CONFIG_NOSYSTEM="1", EMAIL="")
+        identita = [BASH, str(pacchetto / "bin" / "identita-git.sh")]
+        manca = esegui(identita + ["--controlla"], env=git_env, cwd=tmp)
+        esegui(identita + ["--imposta", "Mario Rossi"], env=git_env, cwd=tmp)
+        repo_prog = tmp / "prog-git"
+        esegui(["git", "init", "-q", str(repo_prog)], env=git_env)
+        copiata = esegui(identita + [str(repo_prog)], env=git_env)
+        commit = esegui(["git", "-C", str(repo_prog), "-c", "user.useConfigOnly=true", "commit", "-q",
+                         "--allow-empty", "-m", "x"], env=git_env)
+        autore = esegui(["git", "-C", str(repo_prog), "log", "-1", "--format=%an <%ae>"], env=git_env).stdout.strip()
+        testi = [(pacchetto / "skills" / s / "SKILL.md").read_text(encoding="utf-8") for s in ("inizio", "fine")]
+        # arturo migra toglie .git da ~/.claude: l'identità di un /setup di prima passa nel file prima.
+        clone = tmp / "clone-orsa"
+        esegui(["git", "init", "-q", str(clone)], env=git_env)
+        esegui(["git", "-C", str(clone), "config", "user.name", "Ada"], env=git_env)
+        esegui(["git", "-C", str(clone), "config", "user.email", "ada@example.org"], env=git_env)
+        migra = carica(repo / "bin" / "migra.py")
+        migra.salva_identita(clone)
+        salvata = esegui(["git", "config", "--file", str(clone / "arturo" / "git-identita"), "user.email"],
+                         env=git_env).stdout.strip()
+        if salvata != "ada@example.org" or "    salva_identita(orsa)\n" not in (repo / "bin" / "migra.py").read_text(encoding="utf-8"):
+            rossi.append(f"IP18 arturo migra non salva l'identità di Git: {salvata!r}")
+        if "MANCA" not in manca.stdout or copiata.returncode != 0 or commit.returncode != 0 \
+                or autore != "Mario Rossi <mario-rossi@arturo.local>" \
+                or not all("bin/identita-git.sh ." in x for x in testi) \
+                or "Salta anche la FASE 7" not in (pacchetto / "shared" / "setup-plugin.md").read_text(encoding="utf-8"):
+            rossi.append(f"IP18 identità di Git: {manca.stdout.strip()!r}, rc {copiata.returncode}/{commit.returncode}, "
+                         f"autore {autore!r}, {(copiata.stdout + commit.stderr)[-120:]!r}")
+
+        eccezione = "L'eccezione è il classificatore della modalità auto"
+        regole = {f: (repo / f).read_text(encoding="utf-8") for f in
+                  ("shared/metodo.md", "shared/setup-claude-md.md", "output-styles/conciso.md")}
+        regole = {f: " ".join(x.split()) for f, x in regole.items()}
+        if any(eccezione not in testo or "cerca un'altra via" not in testo for testo in regole.values()):
+            rossi.append(f"IP19 regola del passo bloccato diversa: {[f for f, x in regole.items() if eccezione not in x]}")
+
+        for nome in ("radici", "melchior_match", "correzioni"):
+            sys.modules.pop(nome, None)  # migra.py sopra ha caricato quelli del repository
+        sys.path.insert(0, str(pacchetto / "hooks"))
+        try:
+            sotto = carica(pacchetto / "hooks" / "subagent-memory-context.py").CONTESTO
+            gws = carica(pacchetto / "hooks" / "gws-esito.py").nota("lavoro", "~/.config/gws-lavoro")
+        finally:
+            sys.path.remove(str(pacchetto / "hooks"))
+            for nome in ("radici", "melchior_match", "correzioni"):
+                sys.modules.pop(nome, None)
+        vero = os.path.realpath(pacchetto)
+        if "melchior_recall.py" in sotto or f"{vero}{os.sep}bin{os.sep}arturo memoria cerca".replace(os.sep, "/") \
+                not in sotto.replace(os.sep, "/") or "~/.claude/docs" in gws or "docs/onboarding/gws.md" not in gws.replace(os.sep, "/"):
+            rossi.append(f"IP20 percorsi dei testi degli hook: {sotto[sotto.find('cerca prima'):][:90]!r} {gws[-90:]!r}")
 
         mercato = json.loads((pacchetto / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
         nomi = {p["name"]: p["source"] for p in mercato.get("plugins", [])}
@@ -234,6 +369,7 @@ def prova(repo: Path) -> list[str]:
 # (caso, file, testo giusto, testo rotto): ogni veleno toglie la riga che il caso sorveglia.
 VELENI = [
     ("IP02", "bin/impacchetta.py", 'testa = f"name: {nome}\\n" + testa', "pass"),
+    ("IP02", "bin/impacchetta.py", 'CHIAMATI_DAL_MODELLO = ("fine", "segnala", "diagnosi")', "CHIAMATI_DAL_MODELLO = ()"),
     ("IP03", "bin/impacchetta.py", """r'"${CLAUDE_PLUGIN_ROOT}/\\1"'""", """r'${CLAUDE_PLUGIN_ROOT}/\\1'"""),
     ("IP04", "bin/impacchetta.py", 'resto["outputStyle"] = f"{NOME}:{stile}"', "pass"),
     ("IP06", "bin/impostazioni.py", "        return attuale, None, frammento, f\"{_dove(", "        return attuale, frammento, frammento, None and f\"{_dove("),
@@ -241,11 +377,34 @@ VELENI = [
     ("IP08", "bin/impacchetta.py", '        dati_hooks["modules"] = [f"../skills/{NOME}/hooks/register.tsx"]', "        pass"),
     ("IP09", "hooks/metodo.sh", 'printf \'%s\\n\' "${testo//\\$ARTURO_CODICE/$CODICE}"', 'printf \'%s\\n\' "$testo"'),
     ("IP10", "bin/impostazioni.py", "                if any(u in registrati for u in usati):", "                if False:"),
+    ("IP15", "commands/inizio.md", '!= "$(cd ~/.claude 2>/dev/null && pwd -P)" ] && PLUGIN=1', '] && PLUGIN=0'),
+    ("IP16", "bin/impacchetta.py", 'elif md.relative_to(cartella).parts[0] in ("skills", "shared", "agents") and RELATIVO.search(riga):',
+     "elif False:"),
+    ("IP17", "commands/creaskill.md", ' "${ARTURO_CODICE:-$HOME/.claude}/skills/$NOME"; do', "; do"),
+    ("IP17", "bin/impacchetta.py", '(?!commands/\\")", radice_codice', '", radice_codice'),
+    ("IP18", "bin/identita-git.sh", 'git -C "$CARTELLA" config user.name "${NOME:-$EMAIL}" && git -C "$CARTELLA" config user.email "$EMAIL" ;;',
+     "true ;;"),
+    ("IP18", "bin/migra.py", "    file.parent.mkdir(parents=True, exist_ok=True)\n    for chiave", "    return\n    for chiave"),
+    ("IP19", "shared/metodo.md", "L'eccezione è il classificatore della modalità auto, quando ferma un passo che la persona ha già approvato: lì non cercare un'altra via, prepara un solo comando da lanciare con `!`.", ""),
+    ("IP20", "hooks/subagent-memory-context.py", '"cerca prima di agire: " + radici.comando_arturo() + " memoria cerca \\"parole chiave\\" "',
+     '"cerca prima di agire: python3 ~/.claude/scripts/melchior_recall.py \\"parole chiave\\" "'),
+    ("IP14", "skills/system-audit/audit.sh", 'CODICE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd)"', 'CODICE="$CLAUDE_DIR"'),
     ("IP11", "bin/impostazioni.py", '_scrivi(blocco_file, {"versione": versione, "frammento": frammento, "adottato": True})',
      '_scrivi(orsa() / "settings.json", frammento)'),
     ("IP12", "bin/impostazioni.py", "    if mancano and not forza:\n", "    if False:\n"),
     ("IP13", "bin/impostazioni.py", "    trovati = doppi(settings)\n", "    trovati = []\n"),
 ]
+
+
+def carica(percorso: Path):
+    spec = importlib.util.spec_from_file_location(percorso.stem.replace("-", "_"), percorso)
+    modulo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(modulo)
+    return modulo
+
+
+def mod_impacchetta(repo: Path):
+    return carica(repo / "bin" / "impacchetta.py")
 
 
 def avvelena(repo: Path) -> int:

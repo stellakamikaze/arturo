@@ -29,6 +29,7 @@
   // Un todo senza chi agisce. In locale non succede: ogni todo nasce con un chi. Lo usa una
   // pagina che legge i task da un altro archivio, dove il campo può mancare.
   var DA_CLASSIFICARE = "da classificare";
+  // Il ripiego finché il server non ha risposto: dopo vale il comando che manda in /api/vista.
   var COMANDO = "python3 ~/.claude/bin/arturo web";
 
   var stato = {
@@ -162,6 +163,8 @@
   }
 
   function ricevi(dati, forza) {
+    // Il comando per riaprire la pagina lo dice il server, col percorso vero (anche col plugin).
+    if (typeof dati.comando === "string" && dati.comando) { COMANDO = dati.comando; }
     var nuova = lettura(dati);
     var testo = JSON.stringify(nuova);
     if (!forza && testo === stato.testo) { return; }
