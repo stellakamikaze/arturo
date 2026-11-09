@@ -1023,7 +1023,7 @@ def comando_scan(richieste: List[str], avvelena: bool, sessioni: bool = True) ->
         except PermissionError:
             out.scrivi(f"{nome}: permesso negato")
             continue
-        except (OSError, zipfile.BadZipFile, KeyError, RuntimeError, ValueError):
+        except Exception:  # noqa: BLE001  zlib.error, EOFError, un .docx rovinato dentro: salta il file, non lo scan
             out.scrivi(f"campione non leggibile: {nome}")
             continue
         if filtri.sospetto(grezzo):

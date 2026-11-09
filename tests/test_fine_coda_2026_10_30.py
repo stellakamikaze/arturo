@@ -12,6 +12,15 @@ FC06 marcatori di conflitto in un file in stage: exit 4, niente commit.
 FC07 ~/.claude a metà di un rebase: exit 4 prima del gate.
 FC08 push rifiutato perché un'altra macchina ha pushato: pull --rebase --autostash e secondo push riuscito.
 FC09 origin è il repository pubblico di Arturo: niente push, "solo locale".
+Review del 7/11/2026 (lotto L7), sulla base 0b083f5 rossi:
+FC10 (finding 25) verso un remote privato .env, .key, credentials.json, secrets/, __pycache__ e .venv di
+     personale/ restano fuori dal commit e la riga lo dice; il resto di personale/ entra.
+FC11 (finding 26) due macchine chiudono /fine su progetti diversi: il conflitto su INDEX.md si risolve
+     rigenerando l'indice, il push della seconda riesce e il rebase non resta a metà.
+FC12 (finding 27) la copia dell'indice per il commit della memoria ha un nome suo: se un'altra coda toglie
+     index.fine-coda, il commit della memoria non esce con l'albero vuoto. Solo fuori da Windows (git finto).
+FC13 (finding 30) una riga di soli ======= (titolo in Markdown) non ferma la coda; un conflitto vero
+     ferma e dice il nome del file.
 
 Sulla base 875109c bin/fine-coda.py non esiste: rossi tutti i casi.
 """
@@ -26,7 +35,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ["FC01", "FC02", "FC03", "FC04", "FC05", "FC06", "FC07", "FC08", "FC09"]
+CASI = ["FC01", "FC02", "FC03", "FC04", "FC05", "FC06", "FC07", "FC08", "FC09", "FC10", "FC11", "FC12", "FC13"]
 FILE = ["bin/fine-coda.py", "bin/handoff-gate.sh", "bin/handoff-retention.py", "bin/handoff_profilo.py",
         "bin/index-rigenera.py", "bin/todo_store.py", "hooks/melchior_match.py", "hooks/radici.py", "hooks/controlla-config.py",
         ".gitignore"]
@@ -245,11 +254,87 @@ def fc09(lab: Lab):
         return f"rc={r.returncode} {r.stdout.strip()[-200:]!r}"
 
 
+def fc10(lab: Lab):
+    vietati = ["personale/monitor/.env", "personale/monitor/servizio.key", "personale/credentials.json",
+               "personale/secrets/a.txt", "personale/monitor/__pycache__/wa.cpython-313.pyc",
+               "personale/.venv/lib/mod.py"]
+    for rel in vietati + ["personale/x.py"]:
+        lab.scrivi(rel, "contenuto\n")
+    r = lab.coda(lab.handoff())
+    remoto = set(lab.nel_remoto())
+    usciti = sorted(set(vietati) & remoto)
+    if r.returncode != 0 or usciti or "personale/x.py" not in remoto or "fuori dal commit" not in r.stdout \
+            or "personale/monitor/.env" not in r.stdout:
+        return f"rc={r.returncode} usciti {usciti} x.py={'personale/x.py' in remoto} {r.stdout.strip()[-240:]!r}"
+
+
+def fc11(lab: Lab):
+    r1 = lab.coda(lab.handoff())
+    b = lab.tmp / "b" / ".claude"
+    lab.git(lab.tmp, "clone", "-q", str(lab.remoto), str(b))
+    hb = b / "data" / "handoffs" / "altro" / "HANDOFF_2026-10-30_21-00.md"
+    hb.parent.mkdir(parents=True, exist_ok=True)
+    hb.write_text(VERDE.replace("libro", "altro"), encoding="utf-8")
+    # la macchina A chiude un altro /fine e pusha prima di B: i due INDEX.md cambiano nello stesso punto
+    r2 = lab.coda(lab.handoff("HANDOFF_2026-10-30_22-00.md"))
+    rb = subprocess.run([sys.executable, "-B", str(b / "bin" / "fine-coda.py"), "--handoff", str(hb), "--slug", "altro"],
+                        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300,
+                        env=dict(lab.ambiente, FINE_CODA_CLAUDE=str(b)))
+    a_meta = (b / ".git" / "rebase-merge").exists() or (b / ".git" / "rebase-apply").exists()
+    try:
+        indice = lab.git(lab.remoto, "show", "main:data/handoffs/INDEX.md")
+    except RuntimeError:
+        indice = ""
+    if r1.returncode or r2.returncode or rb.returncode != 0 or a_meta or "push riuscito" not in rb.stdout \
+            or "altro" not in indice or "libro" not in indice or "<<<<<<<" in indice:
+        return (f"A rc={r1.returncode},{r2.returncode} B rc={rb.returncode} rebase a metà={a_meta} "
+                f"indice con altro={'altro' in indice} libro={'libro' in indice} {rb.stdout.strip()[-240:]!r}")
+
+
+FINTO_GIT = """#!/bin/sh
+# Come la coda di un'altra sessione: dopo il reset sulla copia dell'indice toglie index.fine-coda.
+"{vero}" "$@"
+rc=$?
+if [ -n "$GIT_INDEX_FILE" ] && [ "$3" = "reset" ]; then
+  rm -f "$(dirname "$GIT_INDEX_FILE")/index.fine-coda"
+fi
+exit $rc
+"""
+
+
+def fc12(lab: Lab):
+    if os.name == "nt":  # subprocess su Windows cerca git.exe: il git finto in sh non si sostituisce
+        return None
+    vero = shutil.which("git", path=os.environ.get("PATH"))
+    finto = lab.tmp / "finti" / "git"
+    finto.write_text(FINTO_GIT.format(vero=vero), encoding="utf-8")
+    finto.chmod(0o755)
+    memoria(lab)
+    r = lab.coda(lab.handoff())
+    msg = lab.git(lab.cl, "log", "--format=%s", "-2").splitlines()
+    albero = lab.git(lab.cl, "ls-tree", "-r", "--name-only", "HEAD~1").split()
+    if r.returncode != 0 or msg[-1:] != ["memoria: applicata da /fine"] or "bin/fine-coda.py" not in albero \
+            or ".gitignore" not in albero:
+        return f"rc={r.returncode} commit {msg} albero della memoria {len(albero)} file {r.stdout.strip()[-200:]!r}"
+
+
+def fc13(lab: Lab):
+    lab.scrivi("docs/capitolo.md", "Capitolo uno\n=======\n\nIl testo.\n")
+    r1 = lab.coda(lab.handoff())
+    entrato = "docs/capitolo.md" in lab.nel_remoto()
+    lab.scrivi("bin/nota.txt", "<<<<<<< HEAD\na\n=======\nb\n>>>>>>> altro\n")
+    r2 = lab.coda(lab.handoff("HANDOFF_2026-10-30_21-00.md"))
+    if r1.returncode != 0 or not entrato or r2.returncode != 4 or "bin/nota.txt" not in r2.stdout:
+        return (f"titolo rc={r1.returncode} entrato={entrato} {r1.stdout.strip()[-120:]!r}; "
+                f"conflitto rc={r2.returncode} {r2.stdout.strip()[-160:]!r}")
+
+
 def prova(repo: Path, ref: str | None) -> list:
     rossi = []
     for codice, fn, k in (("FC01", fc01, {}), ("FC02", fc02, {}), ("FC03", fc03, {"visibilita": "PUBLIC"}),
                           ("FC04", fc04, {}), ("FC05", fc05, {}), ("FC06", fc06, {}), ("FC07", fc07, {}),
-                          ("FC08", fc08, {}), ("FC09", fc09, {})):
+                          ("FC08", fc08, {}), ("FC09", fc09, {}), ("FC10", fc10, {}), ("FC11", fc11, {}),
+                          ("FC12", fc12, {}), ("FC13", fc13, {})):
         esito = con_lab(repo, ref, fn, **k)
         if esito:
             rossi.append(f"{codice} {esito}")

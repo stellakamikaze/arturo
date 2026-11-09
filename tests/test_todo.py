@@ -27,6 +27,8 @@ mostra il codice di bin/ e dei mod, /diagnosi legge l'archivio. T25 da_dove sceg
 da cui ripartire con una regola fissa e il motivo in parole: persona prima, poi chi sblocca,
 scaduti, scadenza vicina. Fermi e attese restano fuori. T26 la vista porta il blocco progetti:
 parola di stato, riga scritta o calcolata, catena dei "dopo" e todo da cui partire (#3887).
+T27 una scadenza gg/mm senza anno vale la data più vicina (review del 7/11/2026, finding 32): dal 3/10
+"15/1" è il gennaio che viene, "1/10" resta due giorni fa; la conferma dice la data. Rosso su 0b083f5.
 Sulla base b8eff39 ogni controllo deve fallire.
 """
 from __future__ import annotations
@@ -773,13 +775,24 @@ def test_t26(repo: Path) -> None:
     con_casa(repo, prova)
 
 
+def test_t27(repo: Path) -> None:
+    def prova(c: Casa) -> None:
+        r = c.cli("aggiungi", "Pagare il bollo", "--progetto", "p", "--scadenza", "15/1")
+        c.cli("aggiungi", "Scaduto ieri l'altro", "--progetto", "p", "--scadenza", "1/10")
+        a = c.aperti()
+        assert a[1]["scadenza"] == "2027-01-15", f"T27 15/1 dal 3/10 finisce nel passato: {a[1]}"
+        assert a[2]["scadenza"] == "2026-10-01", f"T27 1/10 dal 3/10 non resta due giorni fa: {a[2]}"
+        assert "2027-01-15" in r.stdout, f"T27 la conferma non dice la scadenza: {r.stdout!r}"
+    con_casa(repo, prova)
+
+
 TESTS = {
     "T01": test_t01, "T02": test_t02, "T03": test_t03, "T04": test_t04, "T05": test_t05,
     "T06": test_t06, "T07": test_t07, "T08": test_t08, "T09": test_t09, "T10": test_t10,
     "T11": test_t11, "T12": test_t12, "T13": test_t13, "T14": test_t14, "T15": test_t15,
     "T16": test_t16, "T17": test_t17, "T18": test_t18, "T19": test_t19,
     "T21": test_t21, "T22": test_t22, "T23": test_t23, "T24": test_t24, "T25": test_t25,
-    "T26": test_t26,
+    "T26": test_t26, "T27": test_t27,
 }
 
 

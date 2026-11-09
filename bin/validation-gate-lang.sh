@@ -70,7 +70,8 @@ soluzione_dotnet() {
 }
 
 # --- esegue un tool e riporta rc, con skip esplicito se assente --------------
-# uso: run_tool <bin> <etichetta> <dir> <comando...>; ritorna: 0 pass, 1 fail, 3 skip
+# uso: [RC_NESSUN_TEST=<rc>] run_tool <bin> <etichetta> <dir> <comando...>; ritorna: 0 pass, 1 fail, 3 skip
+# RC_NESSUN_TEST è il codice con cui il tool dice "nessun test trovato" (pytest: 5): vale SKIP, non rosso.
 run_tool() {
   local bin="$1" label="$2" dir="$3"; shift 3
   if ! have "$bin"; then
@@ -81,8 +82,12 @@ run_tool() {
   local out rc
   out="$( cd "$dir" && "$@" 2>&1 )"; rc=$?
   printf '%s\n' "$out" | tail -20
-  if [ "$rc" -eq 0 ]; then echo "[OK] ${label} passato"; return 0
-  else echo "[X] ${label} FALLITO (rc=${rc})"; return 1; fi
+  if [ "$rc" -eq 0 ]; then echo "[OK] ${label} passato"; return 0; fi
+  if [ -n "${RC_NESSUN_TEST:-}" ] && [ "$rc" -eq "$RC_NESSUN_TEST" ]; then
+    echo "[WARN] ${label}: nessun test nel progetto (rc=${rc}) — SKIP (non conta come verde)"
+    return 3
+  fi
+  echo "[X] ${label} FALLITO (rc=${rc})"; return 1
 }
 
 # --- comando di un tool Python: l'eseguibile se parte, se no `python -m` -------
@@ -104,7 +109,8 @@ run_python() {
 
   if c="$(py_tool pytest)"; then
     # shellcheck disable=SC2086  # $c e' "pytest" o "python3 -m pytest": lo split e' voluto
-    run_tool ${c%% *} "pytest" "$dir" $c -q -p no:cacheprovider .
+    # rc 5 di pytest = nessun test raccolto: il gate esce INCONCLUSIVO, non ROSSO (review del 7/11, finding 31)
+    RC_NESSUN_TEST=5 run_tool ${c%% *} "pytest" "$dir" $c -q -p no:cacheprovider .
     case $? in 0) core_ran=1;; 1) core_ran=1; any_fail=1;; esac
   else
     echo "[WARN] pytest non installato — nessun validatore CORE per Python"

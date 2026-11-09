@@ -19,6 +19,9 @@ CC12 prima di provarci Claude dice dove non arriva ([0:08:46]-[0:09:09], #4102):
      prompt-master ha la riga "Dove non arrivo:" con la parte che resta alla persona e quella che fa
      Claude al suo posto, vale anche quando la persona chiede solo se può aiutarla, e si omette per un
      lavoro che Claude sa fare.
+CC13 arturo sessione dice "Aperta" solo se il terminale parte (review del 7/11/2026, finding 29): con
+     osascript che esce 1 (permesso negato) esce 1, dice perché e mette il comando negli appunti.
+     Su Windows il controllo è statico (i finti sono script sh). Sulla base 0b083f5 è rosso.
 
 Sulla base 5bdec48 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -250,8 +253,42 @@ def test_cc12(repo: Path) -> None:
         assert pezzo in regola, f"CC12 la regola su dove Claude non arriva non dice {pezzo!r}"
 
 
+FINTO_OSASCRIPT = "#!/bin/sh\necho 'Not authorized to send Apple events to Terminal. (-1743)' >&2\nexit {rc}\n"
+
+
+def test_cc13(repo: Path) -> None:
+    if os.name == "nt":  # i finti sono script sh e subprocess cerca un .exe: su Windows il controllo è statico
+        sorgente = read(repo / "bin" / "sessione.py") if (repo / "bin" / "sessione.py").exists() else ""
+        assert ".wait(timeout=" in sorgente and "è uscito con" in sorgente, \
+            "CC13 arturo sessione non aspetta l'esito del terminale prima di dire Aperta"
+        return
+    lab = banco_telemetria().Lab(repo)
+    finti = lab.dir / "finti-cc13"
+    finti.mkdir()
+    appunti = lab.dir / "appunti.txt"
+    for nome in ("pbcopy", "wl-copy"):
+        f = finti / nome
+        f.write_text(f"#!/bin/sh\ncat > '{appunti}'\n", encoding="utf-8")
+        f.chmod(0o755)
+    (finti / "claude").write_text("#!/bin/sh\n", encoding="utf-8")
+    (finti / "claude").chmod(0o755)
+    lab.env.update(ARTURO_SISTEMA="darwin", PATH=str(finti) + os.pathsep + "/usr/bin" + os.pathsep + "/bin")
+    for rc, atteso in ((1, 1), (0, 0)):
+        (finti / "osascript").write_text(FINTO_OSASCRIPT.format(rc=rc), encoding="utf-8")
+        (finti / "osascript").chmod(0o755)
+        r = lab.arturo("sessione", "libro")
+        if atteso:
+            assert r.returncode == 1 and "Aperta" not in r.stdout and "Not authorized" in r.stdout, \
+                f"CC13 un terminale che non parte risulta aperto: {r.returncode} {r.stdout!r} {r.stderr!r}"
+            copiato = appunti.read_text(encoding="utf-8") if appunti.exists() else ""
+            assert "claude '/inizio libro'" in copiato, f"CC13 il comando non è negli appunti: {copiato!r}"
+        else:
+            assert r.returncode == 0 and "Aperta una sessione nuova: /inizio libro" in r.stdout, \
+                f"CC13 un terminale partito non risulta aperto: {r.returncode} {r.stdout!r} {r.stderr!r}"
+
+
 TESTS = {"CC06": test_cc06, "CC07": test_cc07, "CC08": test_cc08, "CC09": test_cc09, "CC10": test_cc10,
-         "CC11": test_cc11, "CC12": test_cc12}
+         "CC11": test_cc11, "CC12": test_cc12, "CC13": test_cc13}
 
 
 def main() -> int:

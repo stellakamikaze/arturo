@@ -78,6 +78,9 @@ for f in sorted(glob.glob("test_*.py")):
                 getattr(m, k)()
             except AssertionError:
                 falliti += 1
+if not fatti:  # come il pytest vero: nessun test raccolto esce 5 (review del 7/11/2026, finding 31)
+    print("no tests ran")
+    sys.exit(5)
 print("%d passed, %d failed" % (fatti - falliti, falliti))
 sys.exit(1 if falliti else 0)
 """

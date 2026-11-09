@@ -129,7 +129,18 @@ def data(valore: str) -> str:
             anno = int(m.group(3)) if m.group(3) else base.year
             if anno < 100:
                 anno += 2000
-            return dt.date(anno, int(m.group(2)), int(m.group(1))).isoformat()
+            giorno = dt.date(anno, int(m.group(2)), int(m.group(1)))
+            # Senza anno vale la data più vicina fra quest'anno e il prossimo: il 7/11 "15/1" è il gennaio
+            # che viene, il 3/10 "1/10" è due giorni fa (review del 7/11/2026, finding 32). Chi vuole
+            # un'altra data scrive l'anno.
+            if not m.group(3) and giorno < base:
+                try:
+                    dopo = giorno.replace(year=anno + 1)
+                except ValueError:  # 29/2 in un anno che non lo ha
+                    dopo = None
+                if dopo and (dopo - base) < (base - giorno):
+                    giorno = dopo
+            return giorno.isoformat()
     except ValueError:
         pass
     raise ErroreTodo(f'data "{valore}" non valida. Scrivi 2026-10-10, 10/10, oggi, domani o un giorno (venerdì)')

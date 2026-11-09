@@ -13,6 +13,35 @@ modo di lavorare.
 
 ---
 
+## 2026-11-09 — /fine, /inizio e i comandi di Arturo non sbagliano più in silenzio
+
+**Cosa cambia**: undici correzioni ai comandi di Arturo.
+- `/fine` con un remote privato non salva più nella config i file `.env`, le chiavi, `credentials.json`,
+  la cartella `secrets/`, `.venv`, `node_modules` e `__pycache__` di `personale/`. La riga di esito dice
+  quali file ha lasciato fuori.
+- Due computer che chiudono `/fine` uno dopo l'altro non si fermano più su `INDEX.md` con un rebase a metà:
+  l'indice si ricostruisce dagli handoff e il salvataggio continua.
+- Due `/fine` nello stesso momento non possono più creare il commit della memoria vuoto.
+- Una riga di soli `=======`, come la sottolineatura di un titolo, non ferma più `/fine`. Un conflitto vero
+  lo ferma ancora, e il messaggio dice in quale file.
+- `/inizio --tutti` non annulla più un rebase o un merge già a metà in un progetto: lo lascia com'è e lo dice.
+- `/inizio libro togli il flag --force` carica il progetto col compito, invece di rispondere "nome non valido".
+- Il tasto o di `/dafare` dice "Aperta" solo se il terminale si apre davvero. Se il Mac nega il permesso,
+  dice perché e mette il comando negli appunti.
+- Una scadenza scritta senza anno vale la data più vicina: il 7 novembre "15/1" è il gennaio che viene, non
+  quello passato. La conferma dice la data.
+- Il controllo di un progetto Python senza test dice "nessun test", non più "rosso".
+- Una riga sbagliata da un ponte di `/monitor` si scarta da sola, e le altre righe arrivano.
+- Un documento Word rovinato non ferma più la lettura dei documenti di `/setup`.
+
+**Il principio**: un comando che dice "fatto" senza averlo fatto, o "errore" senza un errore, insegna a non
+leggerlo. Ognuno di questi casi ora ha una prova che cade sulla versione di prima.
+
+**A chi serve**: a tutti. Le due correzioni di `/fine` sul salvataggio servono a chi tiene la config su un
+remote privato da più computer.
+
+---
+
 ## 2026-11-09 — Rotazione, segreti e controlli automatici più affidabili
 
 **Cosa cambia**: venti correzioni ai controlli che girano da soli e al mod di Arturo.

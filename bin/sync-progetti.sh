@@ -51,6 +51,21 @@ for dir in "$ROOT"/*/; do
     continue
   fi
 
+  # Un rebase, un merge o un cherry-pick già a metà è lavoro di qualcuno (un'altra sessione, la
+  # persona): lo script non lo tocca. Prima lanciava pull, credeva il rebase suo e lo annullava,
+  # e lo stash pop rimetteva nel file i marcatori sopra la risoluzione (review del 7/11, finding 24).
+  IN_CORSO=""
+  for voce in rebase-merge rebase-apply MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD; do
+    gp=$(git -C "$dir" rev-parse --git-path "$voce" 2>/dev/null) || continue
+    case "$gp" in /*|[A-Za-z]:*) ;; *) gp="$dir/$gp" ;; esac
+    [ -e "$gp" ] && { IN_CORSO="$voce"; break; }
+  done
+  if [ -n "$IN_CORSO" ]; then
+    echo "ERRORE: $name ha un'operazione git a metà ($IN_CORSO): non lo tocco, finiscila con /inizio $name"
+    ERRORS=$((ERRORS + 1))
+    continue
+  fi
+
   if [ "$TRACKED_DIRTY" = "1" ] || [ "$STAGED_DIRTY" = "1" ]; then
     if git -C "$dir" stash push -m "auto-stash-sync-$(date +%s)" >/dev/null 2>&1; then
       STASHED=1
@@ -71,6 +86,7 @@ for dir in "$ROOT"/*/; do
       *)
         echo "ERRORE: pull $name fallito - conflitto con modifiche locali, risolvi con /inizio $name" ;;
     esac
+    # Prima del pull nessun rebase era a metà (controllo sopra): se ce n'è uno, è di questo pull.
     git -C "$dir" rebase --abort 2>/dev/null
     [ "$STASHED" = "1" ] && git -C "$dir" stash pop 2>/dev/null
     ERRORS=$((ERRORS + 1))

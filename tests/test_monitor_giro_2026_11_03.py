@@ -15,6 +15,8 @@ MG04 cursori: una fonte mai letta vale 7 giorni; dopo `avanza --alle` la finestr
      --alle nel futuro o assente non tocca niente; il file è cursori.json, non stato.json.
 MG05 skill: skills/monitor/SKILL.md ha name: monitor, chiama fonti.py e ponti.py da ${CLAUDE_SKILL_DIR},
      e ogni file di bin/monitor che nomina esiste.
+MG06 una riga con un campo del tipo sbagliato (urgenza lista, fp numero, fonte NaN) si scarta col suo
+     numero e le righe buone escono lo stesso (review del 7/11/2026, finding 34). Rosso su 0b083f5.
 
 Con --avvelena quattro copie rotte del repository devono far rosso il caso che le sorveglia: righe.py che
 accetta un'urgenza inventata (MG02), righe.py che legge lo standard input con la codifica di sistema
@@ -34,7 +36,7 @@ import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-CASI = ("MG01", "MG02", "MG03", "MG04", "MG05")
+CASI = ("MG01", "MG02", "MG03", "MG04", "MG05", "MG06")
 
 
 class Lab:
@@ -179,12 +181,27 @@ def prova(lab: Lab) -> list:
     if not (testo.startswith("---\nname: monitor\n") and '"${CLAUDE_SKILL_DIR}/../../bin/monitor/fonti.py"' in testo
             and '"${CLAUDE_SKILL_DIR}/../../bin/monitor/ponti.py"' in testo and not mancano):
         rossi.append(f"MG05 skill: presente {skill.is_file()}, citati {citati}, mancano {sorted(mancano)}")
+
+    # MG06
+    c = lab.casa("mg06")
+    consegna = jsonl(item(), item(id_sorgente="2", urgenza=["rosso"]), item(id_sorgente="3", fp=123),
+                     '{"tipo": "item", "fonte": NaN, "id_sorgente": "4", "data": "2026-11-03", '
+                     '"riassunto": "x", "urgenza": "verde"}', copertura())
+    cod, out, err = lab.lancia(c, "righe.py", stdin=consegna)
+    try:
+        valide = [json.loads(r) for r in out.splitlines() if r.strip()]
+    except ValueError:
+        valide = []
+    scartate = [n for n in (2, 3, 4) if f"riga {n}:" in err]
+    if cod != 1 or len(valide) != 2 or scartate != [2, 3, 4] or "Traceback" in err:
+        rossi.append(f"MG06 tipo sbagliato: exit {cod}, valide {len(valide)}, scartate {scartate}, {err.strip()[-160:]}")
     return rossi
 
 
 # (caso, file, [(testo giusto, testo rotto)], motivo atteso nel rosso)
 VELENI = [
-    ("MG02", "bin/monitor/righe.py", [('    if r["urgenza"] not in URGENZE:', "    if False:")],
+    ("MG02", "bin/monitor/righe.py",
+     [('    if not isinstance(r["urgenza"], str) or r["urgenza"] not in URGENZE:', "    if False:")],
      "MG02 riga urgenza inventata"),
     ("MG02", "bin/monitor/righe.py", [('sys.stdin.buffer.read().decode("utf-8")', "sys.stdin.read()")],
      "MG02 consegna buona"),

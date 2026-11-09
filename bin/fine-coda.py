@@ -23,12 +23,14 @@ Ordine dei passi:
   5. aggancio personale "dopo-index";
   6. git add per percorso: i file di Arturo, gli handoff, e solo verso un remote privato CLAUDE.md,
      data/todo, personale/ e data/memory (senza lucchetti, log di Melchior, copie .bak-* e indice
-     della memoria, che si rigenera);
-  7. controllo dei marcatori di conflitto nei file in stage;
+     della memoria, che si rigenera; senza i file sensibili di .gitignore e le cartelle rigenerabili,
+     che la riga di esito nomina);
+  7. controllo dei marcatori di conflitto nei file in stage: un file con <<<<<<< e >>>>>>>, nominato;
   8. aggancio personale "prima-commit";
   9. commit della memoria ("memoria: applicata da /fine") separato dal commit di sync;
  10. push, con un pull --rebase --autostash e un secondo tentativo se il primo è rifiutato. Niente push
-     se origin è il repository pubblico di Arturo.
+     se origin è il repository pubblico di Arturo. Un rebase fermo solo su file derivati (INDEX.md,
+     .ultimo-fine-completo) si risolve da solo: l'indice si rigenera, il segno tiene la data più recente.
 
 Aggancio personale: se esiste ~/.claude/personale/fine-coda.py, la coda lo lancia ai passi 5 e 8 con un
 JSON su stdin: {"fase", "handoff", "slug", "radice", "argomenti" (quelli dopo --), "in_stage"}. Risponde
@@ -51,6 +53,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import date
 from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
@@ -61,7 +64,11 @@ QUI = Path(__file__).resolve().parent
 PY = sys.executable
 # Su Windows "bash" senza percorso apre il bash di WSL da System32, prima del PATH: serve quello di Git.
 BASH = shutil.which("bash") or "bash"
-RE_MARKER = re.compile(r"^\+(<<<<<<< |=======$|>>>>>>> )", re.M)
+# Un conflitto è un file con <<<<<<< e >>>>>>> insieme: una riga di soli ======= è la sottolineatura di
+# un titolo in Markdown (review del 7/11/2026, finding 30).
+RE_APRE = re.compile(r"^\+<<<<<<< ", re.M)
+RE_CHIUDE = re.compile(r"^\+>>>>>>> ", re.M)
+RE_FILE_DIFF = re.compile(r"^diff --git a/.* b/(.*)$", re.M)
 RE_ARTURO = re.compile(r"github\.com[:/]stellakamikaze/arturo(\.git)?/?$")
 ARTURO = ["settings.json", ".gitattributes", ".gitignore", "bin", "commands", "agents", "hooks", "shared",
           "docs", "tools", "tests", "output-styles", "NOVITA.md", "README.md", "package.json"]
@@ -75,6 +82,15 @@ INDICE_MEMORIA = "data/memory/index.md"
 SEGNO_COMPLETO = ".ultimo-fine-completo"
 
 
+# I file sensibili di .gitignore ("MAI committare") e le cartelle che si rigenerano restano fuori anche
+# verso un remote privato: git add -f scavalcherebbe .gitignore. La coda li nomina (review del 7/11/2026,
+# finding 25).
+RE_SENSIBILE = re.compile(r"(?i)^(\.env(\..*)?|.*\.(env|key|pem|p12|pfx)|\.?credentials\.json|client_secret.*\.json"
+                          r"|id_(rsa|ed25519|ecdsa|dsa))$")
+CARTELLE_SENSIBILI = {"secrets", "credentials"}
+RIGENERABILI = {".venv", "venv", "node_modules", "__pycache__"}
+
+
 def escluso(rel):
     parti = rel.split("/")
     nome = parti[-1]
@@ -82,9 +98,20 @@ def escluso(rel):
             or any(x.startswith(".melchior-") or x == ".git" for x in parti))
 
 
-def file_privati(radice, percorsi):
+def fuori_per_regola(rel):
+    """"sensibile", "rigenerabile" o "" per un file su disco che git add -f non deve prendere."""
+    parti = rel.split("/")
+    if RE_SENSIBILE.match(parti[-1]) or any(x in CARTELLE_SENSIBILI for x in parti[:-1]):
+        return "sensibile"
+    if parti[-1].endswith(".pyc") or any(x in RIGENERABILI for x in parti[:-1]):
+        return "rigenerabile"
+    return ""
+
+
+def file_privati(radice, percorsi, saltati=None):
     """I file da aggiungere con -f: quelli su disco sotto i percorsi, più i tracciati cancellati, senza gli
-    esclusi."""
+    esclusi. I file sensibili e le cartelle rigenerabili finiscono in `saltati` (tipo -> percorsi)."""
+    saltati = {} if saltati is None else saltati
     out = []
     for p in percorsi:
         pieno = radice / p
@@ -92,20 +119,39 @@ def file_privati(radice, percorsi):
             out.append(p)
             continue
         for cartella, dirs, nomi in os.walk(pieno):
-            dirs[:] = [d for d in dirs if d != ".git"]
             base = Path(cartella).relative_to(radice).as_posix()
+            for d in [d for d in dirs if d in RIGENERABILI]:
+                saltati.setdefault("rigenerabile", []).append(f"{base}/{d}/")
+            dirs[:] = [d for d in dirs if d != ".git" and d not in RIGENERABILI]
             out += [f"{base}/{n}" for n in nomi]
+    tenuti = []
+    for x in dict.fromkeys(out):
+        perche = fuori_per_regola(x)
+        if perche:
+            saltati.setdefault(perche, []).append(x)
+        elif not escluso(x):
+            tenuti.append(x)
     tracciati = git("ls-files", "-z", "--", *percorsi)[1].split("\0")
-    out += [t for t in tracciati if t and not (radice / t).exists()]
-    return [x for x in dict.fromkeys(out) if not escluso(x)]
+    tenuti += [t for t in tracciati if t and not (radice / t).exists() and not escluso(t)]
+    return list(dict.fromkeys(tenuti))
+
+
+def riga_saltati(saltati):
+    """L'esito dei file lasciati fuori da file_privati, o "" se non ce ne sono."""
+    pezzi = []
+    for tipo, nome in (("sensibile", "sensibili"), ("rigenerabile", "rigenerabili")):
+        elenco = saltati.get(tipo) or []
+        if elenco:
+            pezzi.append(f"{nome} {', '.join(elenco[:5])}" + (f" e altri {len(elenco) - 5}" if len(elenco) > 5 else ""))
+    return ("fuori dal commit, come dice .gitignore: " + "; ".join(pezzi)) if pezzi else ""
 STOP_REBASE = ("REBASE A METÀ in ~/.claude: STOP, niente commit né push. Guarda con git -C ~/.claude status,\n"
                "poi rebase --continue (o --abort), e rilancia la coda.")
 
 
-def run(cmd, timeout=180, entrata=None, cwd=None):
+def run(cmd, timeout=180, entrata=None, cwd=None, env=None):
     try:
         p = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                           timeout=timeout, input=entrata, cwd=cwd)
+                           timeout=timeout, input=entrata, cwd=cwd, env=env)
         return p.returncode, p.stdout, p.stderr
     except subprocess.TimeoutExpired:
         return None, "", f"timeout dopo {timeout} s"
@@ -172,15 +218,52 @@ def personale(fase, base, in_stage):
     return esiti, path, blocca, rc == 3
 
 
+# I file che la coda rigenera: due macchine che chiudono /fine li cambiano nello stesso punto, e il
+# rebase si fermava lì (review del 7/11/2026, finding 26). Un conflitto solo su questi si risolve da solo.
+RE_DERIVATO = re.compile(r"^data/handoffs/(INDEX\.md|[^/]+/\.ultimo-fine-completo)$")
+
+
+def risolvi_derivati():
+    """Un rebase fermo solo su file derivati: l'indice si rigenera dagli handoff, il segno del fine completo
+    tiene la data più recente, poi il rebase continua. True se alla fine non c'è più un rebase a metà."""
+    env = dict(os.environ, GIT_EDITOR="true")
+    for _ in range(100):
+        if not rebase_a_meta():
+            return True
+        conflitti = [p for p in git("diff", "--name-only", "--diff-filter=U", "-z")[1].split("\0") if p]
+        if not conflitti or not all(RE_DERIVATO.match(p) for p in conflitti):
+            return False
+        for p in conflitti:
+            if p.endswith("/" + SEGNO_COMPLETO):
+                try:
+                    date_viste = re.findall(r"\d{4}-\d{2}-\d{2}", (CL / p).read_text(encoding="utf-8", errors="replace"))
+                    (CL / p).write_text((max(date_viste) if date_viste else date.today().isoformat()) + "\n",
+                                        encoding="utf-8")
+                except OSError:
+                    return False
+        if any(p.endswith("INDEX.md") for p in conflitti):
+            rc, _, _ = run([PY, str(QUI / "index-rigenera.py"), "--scrivi", "--radice", str(CL / "data" / "handoffs")], 60)
+            if rc != 0:
+                return False
+        if git("add", "--", *conflitti)[0] != 0:
+            return False
+        rc, _, _ = run(["git", "-C", str(CL), "rebase", "--continue"], 120, env=env)
+        if rc != 0 and not rebase_a_meta():
+            return False
+    return not rebase_a_meta()
+
+
 def push(origin_url):
     """(ok, motivo). Un push rifiutato passa da un pull --rebase --autostash e riprova una volta. Se il
-    pull lascia un rebase a metà, il secondo push non parte."""
+    pull lascia un rebase a metà che non tocca solo file derivati, il secondo push non parte."""
     rc, out, err = git("push", "-q", "origin", "HEAD:main", timeout=90)
     if rc == 0:
         return True, ""
     rc, out2, err2 = git("pull", "-q", "--rebase", "--autostash", "origin", "main", timeout=120)
     if rebase_a_meta():
-        return False, "rebase"
+        if not risolvi_derivati():
+            return False, "rebase"
+        rc = 0
     if rc != 0:
         return False, f"pull prima del secondo push fermo: {ultima(err2, out2)}"
     rc, out, err = git("push", "-q", "origin", "HEAD:main", timeout=90)
@@ -248,8 +331,8 @@ def main(argv):
     base = {"handoff": str(handoff or ""), "slug": slug, "radice": str(CL), "argomenti": suoi}
     esiti, offline = [], False
 
-    # 1. config integra
-    if rebase_a_meta():
+    # 1. config integra. Un rebase fermo sui soli file derivati, lasciato da una coda di prima, si chiude.
+    if rebase_a_meta() and not risolvi_derivati():
         print(STOP_REBASE)
         return 4
     controlla = CL / "hooks" / "controlla-config.py"
@@ -325,8 +408,9 @@ def main(argv):
             else:
                 print(f"SKILL TUE NON SALVATE: {' '.join(nuove)} - il remote della config non risulta privato "
                       f"(visibilità: {vis or 'sconosciuta'}). Restano su questa macchina.")
+    saltati = {}
     if vis == "PRIVATE":
-        ok, err = aggiungi_forzati(file_privati(CL, [p for p in PRIVATI if (CL / p).exists()]))
+        ok, err = aggiungi_forzati(file_privati(CL, [p for p in PRIVATI if (CL / p).exists()], saltati))
         if not ok:
             falliti.append(f"{', '.join(PRIVATI)}: {ultima(err)}")
         # Gli handoff senza -f: una riga della persona nel .gitignore (un progetto riservato) va rispettata.
@@ -345,8 +429,17 @@ def main(argv):
 
     # 7. marcatori di conflitto
     staged = [p for p in git("diff", "--cached", "--name-only", "--no-renames", "-z")[1].split("\0") if p]
-    if staged and RE_MARKER.search(git("diff", "--cached")[1]):
-        print("MARCATORI DI CONFLITTO: STOP. Nei file in stage ci sono righe <<<<<<< ======= >>>>>>>.")
+    con_marcatori = []
+    if staged:
+        diff = git("diff", "--cached", "--no-renames")[1]
+        inizi = list(RE_FILE_DIFF.finditer(diff))
+        for i, m in enumerate(inizi):
+            pezzo = diff[m.end():inizi[i + 1].start() if i + 1 < len(inizi) else len(diff)]
+            if RE_APRE.search(pezzo) and RE_CHIUDE.search(pezzo):
+                con_marcatori.append(m.group(1))
+    if con_marcatori:
+        print("MARCATORI DI CONFLITTO: STOP. Nei file in stage ci sono righe <<<<<<< ======= >>>>>>>: "
+              + ", ".join(con_marcatori[:10]) + (f" e altri {len(con_marcatori) - 10}" if len(con_marcatori) > 10 else ""))
         print("In un log o una lista tieni le due versioni, in una regola scegli, poi rilancia.")
         return 4
 
@@ -365,11 +458,14 @@ def main(argv):
             esiti.append(f"path dell'aggancio personale fuori dal commit: il remote non risulta privato")
         extra = []
     if extra:
-        ok, err = aggiungi_forzati(file_privati(CL, extra))
+        ok, err = aggiungi_forzati(file_privati(CL, extra, saltati))
         if not ok:
             print(f"fine-coda: git add fallito sui path dell'aggancio personale: {ultima(err)}")
             return 6
         staged = [p for p in git("diff", "--cached", "--name-only", "--no-renames", "-z")[1].split("\0") if p]
+
+    if riga_saltati(saltati):
+        esiti.append(riga_saltati(saltati))
 
     # 9. commit: la memoria a parte, così si annulla da sola
     trailer = "".join(f"\n{t}" for t in a.trailer)
@@ -386,14 +482,19 @@ def main(argv):
         stat = git("diff", "--cached", "--stat", "--", *paths)[1].rstrip()
         messaggio = msg + ("\n" + trailer if trailer else "")
         if paths is memoria and resto:
-            copia = indice.with_name("index.fine-coda")
-            shutil.copy2(str(indice), str(copia))
+            # Una copia col nome unico: con un nome fisso la coda di un'altra sessione la toglieva, e git legge
+            # un indice assente come vuoto, quindi committava un albero senza file (review del 7/11, finding 27).
+            fd, nome_copia = tempfile.mkstemp(prefix="index.fine-coda-", dir=str(indice.parent))
+            os.close(fd)
+            copia = Path(nome_copia)
             env = dict(os.environ, GIT_INDEX_FILE=str(copia))
             try:
-                subprocess.run(["git", "-C", str(CL), "reset", "-q", "--", *resto], env=env, capture_output=True)
-                p = subprocess.run(["git", "-C", str(CL), "commit", "-q", "-m", messaggio], env=env,
-                                   capture_output=True, text=True, encoding="utf-8", errors="replace")
-                rc, out, err = p.returncode, p.stdout, p.stderr
+                shutil.copy2(str(indice), str(copia))
+                rc, out, err = run(["git", "-C", str(CL), "reset", "-q", "--", *resto], 120, env=env)
+                if rc != 0 or not copia.is_file() or copia.stat().st_size == 0:
+                    rc, out, err = rc or 1, out, f"copia dell'indice non pronta: {ultima(err, out)}"
+                else:
+                    rc, out, err = run(["git", "-C", str(CL), "commit", "-q", "-m", messaggio], 120, env=env)
             finally:
                 copia.unlink(missing_ok=True)
         else:
