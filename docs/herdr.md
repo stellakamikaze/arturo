@@ -43,6 +43,8 @@ Funziona sui Mac con processore Apple e su Windows. Sui Mac Intel e su Linux `/s
 
 Herdr apre terminali anche su un altro computer, aggiunto con `hc machine add` via ssh. Su un Mac, l'`herdr-core` partito da ssh non ha il permesso di macOS per Documenti e Scrivania: un terminale che parte da lì resta vuoto, perché già `path_helper` della shell di login si ferma ad aprire la cartella (provato il 9/11/2026 sul Mac mini, #5013; da `/tmp` e dalla home passa). Per riattaccare una sessione (`claude attach`) fai partire il terminale dalla home: la sessione resta nella sua cartella. Per lavorare in Documenti da quel Mac, dai a `herdr-core` l'accesso in Impostazioni di Sistema → Privacy e sicurezza → File e cartelle, su quel Mac.
 
+Il login. Su quel Mac il gestore delle sessioni in background (`claude daemon`) e `herdr-core` partono su richiesta, dal primo programma che li cerca. Se il primo arriva da ssh, partono senza il portachiavi, e ogni sessione risponde "Not logged in", anche agganciata da qui. Il rimedio è `sh ~/.claude/shared/herdr/servizi-gui.sh`, lanciato su quel Mac dopo aver fermato i due servizi: `herdr-core` riparte dalla sessione grafica, e il gestore riparte in una finestra del Terminale, che gli passa anche l'accesso a Documenti. Dopo aver dato a `claude` l'accesso a Documenti, `servizi-gui.sh --launchd` fa partire anche il gestore da solo, senza la finestra (provato il 9/11/2026 sul Mac mini).
+
 ## Nota del ramo di prova `herdr` (8/11/2026)
 
 Questo è un ramo di prova, fuori dai rilasci. Prima di un rilascio mancano:

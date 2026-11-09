@@ -48,8 +48,11 @@ HZ14 le note sulla finestra (⌘⇧N, nota.js con node): la nota porta testo, pu
 HZ15 ogni cartella o file che la parte Herdr scrive in ~/.claude/data/ (mod, hook herdr-stato.sh, invito di
      session-start.sh) è escluso dal .gitignore di Arturo (#5018): uno screenshot delle note fermava
      l'aggiornamento automatico o finiva in un commit di /fine.
+HZ16 servizi-gui.sh (9/11/2026): herdr-core da LaunchAgent senza KeepAlive (si passa da solo a
+     launchd ed esce 0); il gestore delle sessioni non va in launchd senza --launchd (senza l'accesso
+     a Documenti le sessioni morirebbero all'avvio), con --launchd sì e con KeepAlive; plist validi.
 
-Con --avvelena diciannove copie rotte del repository devono far rosso il caso che le sorveglia.
+Con --avvelena ventuno copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
 
@@ -63,7 +66,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16")
 INSTALLA = Path("shared/herdr/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -670,7 +673,41 @@ def hz15(repo: Path, casa: Path) -> str | None:
     return f".gitignore non esclude {', '.join(fuori)}" if fuori else None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15}
+def hz16(repo: Path, casa: Path) -> str | None:
+    if sys.platform != "darwin":
+        return None
+    bin_ = casa / ".local" / "bin"
+    bin_.mkdir(parents=True)
+    for nome in ("claude", "herdr-core"):
+        (bin_ / nome).write_text("#!/bin/sh\n")
+        (bin_ / nome).chmod(0o755)
+    agenti = casa / "agenti"
+    env = dict(os.environ, HOME=str(casa), SERVIZI_AGENTI=str(agenti), SERVIZI_NO_LAUNCHCTL="1")
+    script = repo / "shared" / "herdr" / "servizi-gui.sh"
+
+    def leggi(nome: str) -> dict | None:
+        f = agenti / f"org.stellakamikaze.arturo.{nome}.plist"
+        if not f.exists():
+            return None
+        r = subprocess.run(["plutil", "-convert", "json", "-o", "-", str(f)], capture_output=True, text=True)
+        return json.loads(r.stdout) if r.returncode == 0 else {"rotto": r.stderr}
+
+    r = subprocess.run(["sh", str(script)], env=env, capture_output=True, text=True)
+    if r.returncode:
+        return f"servizi-gui.sh esce {r.returncode}: {r.stderr.strip()[-200:]}"
+    core = leggi("herdr-core")
+    if not core or core.get("KeepAlive") is not False or core.get("ProgramArguments", [])[-1:] != ["serve"]:
+        return f"herdr-core: plist mancante, rotto o con KeepAlive: {core}"
+    if leggi("claude-daemon") is not None:
+        return "senza --launchd il gestore delle sessioni non deve stare in launchd"
+    r = subprocess.run(["sh", str(script), "--launchd"], env=env, capture_output=True, text=True)
+    gestore = leggi("claude-daemon")
+    if r.returncode or not gestore or gestore.get("KeepAlive") is not True or gestore.get("ProgramArguments", [])[1:] != ["daemon", "run"]:
+        return f"--launchd: gestore mancante o sbagliato: {gestore}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16}
 
 
 def prova(repo: Path) -> list[str]:
@@ -703,6 +740,8 @@ VELENI = [
     ("HZ13", "shared/herdr/arturo-app.sh", '-c "Set :CFBundleIdentifier $ID"', '-c "Set :CFBundleIdentifier dev.herdr.app"'),
     ("HZ13", "shared/herdr/arturo-app.sh", 'if [ -d "$arturo" ] && { [ ! -d "$herdr" ] || ! piu_nuova "$v_herdr" "$v_arturo"; }; then base=$arturo; fi', ":"),
     ("HZ06", "shared/herdr/installa-herdr.sh", '[ "$firma" = assente ]', '[ "$firma" = mai ]'),
+    ("HZ16", "shared/herdr/servizi-gui.sh", "plist herdr-core false", "plist herdr-core true"),
+    ("HZ16", "shared/herdr/servizi-gui.sh", 'rm -f "$agenti/$PREFISSO.claude-daemon.plist"', 'plist claude-daemon true "$claude" daemon run'),
     ("HZ15", ".gitignore", "data/note-finestra/\n", ""),
     ("HZ15", ".gitignore", "data/herdr-invito\n", ""),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
