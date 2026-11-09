@@ -39,6 +39,10 @@ Funziona sui Mac con processore Apple e su Windows. Sui Mac Intel e su Linux `/s
 - Le note sulla finestra: cancella `~/.claude/data/note-finestra/`. La riga `note_progetto` in `~/.config/herdr-app/arturo.json` dice dove vanno le note: toglierla le manda al progetto aperto.
 - Per reinstallare o aggiornare il layout: `sh ~/.claude/shared/herdr/installa-herdr.sh`.
 
+## Un altro Mac come macchina di Herdr
+
+Herdr apre terminali anche su un altro computer, aggiunto con `hc machine add` via ssh. Su un Mac, l'`herdr-core` partito da ssh non ha il permesso di macOS per Documenti e Scrivania: un terminale che parte da lì resta vuoto, perché già `path_helper` della shell di login si ferma ad aprire la cartella (provato il 9/11/2026 sul Mac mini, #5013; da `/tmp` e dalla home passa). Per riattaccare una sessione (`claude attach`) fai partire il terminale dalla home: la sessione resta nella sua cartella. Per lavorare in Documenti da quel Mac, dai a `herdr-core` l'accesso in Impostazioni di Sistema → Privacy e sicurezza → File e cartelle, su quel Mac.
+
 ## Nota del ramo di prova `herdr` (8/11/2026)
 
 Questo è un ramo di prova, fuori dai rilasci. Prima di un rilascio mancano:
