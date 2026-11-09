@@ -50,7 +50,8 @@
 .hw__lato{display:flex;flex-direction:column;gap:6px;padding:14px 10px;background:var(--hw-lato);border-right:1px solid var(--hw-filetto);min-width:0}
 .hw__marchio{display:flex;align-items:center;gap:8px;padding:2px 6px 8px;font:500 .98rem/1 var(--titolo);font-stretch:108%}
 .hw__stella{width:16px;height:16px;flex:none}
-.hw__stella path{fill:var(--stella)}
+/* il colore passa per ereditarietà dentro <use>: il selettore path non ci arriva */
+.hw__stella{fill:var(--stella)}
 .hw--aspetta .hw__stella{animation:hw-pulsa 1.4s ease-in-out infinite}
 @keyframes hw-pulsa{50%{transform:scale(1.35);filter:drop-shadow(0 0 6px rgba(242,162,74,.8))}}
 .hw__nuova{display:flex;align-items:center;justify-content:center;min-height:34px;padding:0 8px;background:var(--term-tu);color:var(--term);font-weight:600;font-size:.8rem}
