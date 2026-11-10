@@ -13,8 +13,8 @@
 # esportata solo qui non arriva. Chi ne ha bisogno usa CLAUDE_QUI=1.
 #
 # Lo installa installa-herdr.sh in ~/.config/herdr-app/volta-claude; il blocco nel file di avvio della
-# shell (nascita.sh) chiama questo file. Per i banchi: VOLTA_CLAUDE_BIN (il claude da lanciare) e
-# VOLTA_CLAUDE_TTY=1 (fa finta che il terminale sia vero).
+# shell (nascita.sh) chiama questo file. Per i banchi: VOLTA_CLAUDE_BIN (il claude da lanciare),
+# VOLTA_CLAUDE_TTY=1 (fa finta che il terminale sia vero) e VOLTA_SONDA (la sonda del servizio).
 
 bin=${VOLTA_CLAUDE_BIN:-claude}
 
@@ -51,6 +51,18 @@ for a in "$@"; do
   esac
 done
 [ -n "$senza_id" ] && qui_interattiva "$@"
+
+# Prima il servizio di Claude fisso (#5215), con volta_sonda.py del mod come fa Volta prima di ogni
+# nascita: senza, claude --bg lo accende a tempo, e muore quando resta senza sessioni. Costa meno di
+# un secondo se il servizio c'è già. Da ssh no: lì il servizio nascerebbe senza il login di Claude
+# (portachiavi o sessione di Windows non aperti), e resterebbe acceso così. Se la sonda manca o non
+# riesce, la sessione nasce lo stesso, come prima.
+sonda=${VOLTA_SONDA:-$(dirname "$0")/mods/arturo/volta_sonda.py}
+if [ -z "${SSH_CONNECTION:-}" ] && [ -f "$sonda" ] && command -v python3 >/dev/null 2>&1; then
+  esito=$(python3 "$sonda" servizio qui 2>&1) ||
+    printf 'Volta: il servizio di Claude non si accende (%s). La sessione nasce lo stesso.\n' \
+      "$(printf '%s\n' "$esito" | tail -n 1 | cut -c 1-160)" >&2
+fi
 
 uscita=$("$bin" --bg "$@" 2>&1)
 rc=$?

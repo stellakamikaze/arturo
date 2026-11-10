@@ -11,7 +11,8 @@
 #
 # Lo installa installa-herdr.sh in ~/.config/herdr-app/volta-claude.ps1; il blocco nel profilo di PowerShell
 # (nascita.sh) chiama questo file. Il file ha il BOM: Windows PowerShell 5.1 legge senza BOM come ANSI.
-# Per i banchi: VOLTA_CLAUDE_BIN (il claude da lanciare) e VOLTA_CLAUDE_TTY=1 (fa finta che il terminale sia vero).
+# Per i banchi: VOLTA_CLAUDE_BIN (il claude da lanciare), VOLTA_CLAUDE_TTY=1 (fa finta che il terminale sia vero),
+# VOLTA_SONDA (la sonda del servizio) e VOLTA_SONDA_PY (il Python che la lancia).
 
 $ErrorActionPreference = 'Continue'
 $a = @($args)
@@ -56,6 +57,27 @@ foreach ($x in $a) {
   if ($s -ceq '-r' -or $s -ceq '--resume') { $senzaId = $true }
 }
 if ($senzaId) { Qui }
+
+# Prima il servizio di Claude fisso (#5215), con volta_sonda.py del mod come fa Volta prima di ogni nascita:
+# senza, claude --bg lo accende a tempo, e muore quando resta senza sessioni. Da ssh no: lì il servizio
+# nascerebbe fuori dalla sessione di Windows, senza il login di Claude. Il Python è quello che
+# installa-herdr.sh ha scritto in arturo.json (lo Store di Windows mette un python3 finto). Se la sonda
+# manca o non riesce, la sessione nasce lo stesso, come prima.
+$sonda = $env:VOLTA_SONDA
+if (-not $sonda) { $sonda = Join-Path $PSScriptRoot 'mods/arturo/volta_sonda.py' }
+$py = $env:VOLTA_SONDA_PY
+if (-not $py) {
+  try { $py = @((Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'arturo.json') | ConvertFrom-Json).arturo)[0] } catch { $py = $null }
+}
+if (-not $env:SSH_CONNECTION -and $py -and (Test-Path -LiteralPath $sonda)) {
+  $esito = @(& $py $sonda servizio qui 2>&1 | ForEach-Object { "$_" })
+  if ($LASTEXITCODE -ne 0) {
+    $ultima = ($esito | Select-Object -Last 1)
+    if (-not $ultima) { $ultima = "uscita $LASTEXITCODE" }
+    if ($ultima.Length -gt 160) { $ultima = $ultima.Substring(0, 160) }
+    [Console]::Error.WriteLine("Volta: il servizio di Claude non si accende ($ultima). La sessione nasce lo stesso.")
+  }
+}
 
 # 2>&1 con ForEach: Windows PowerShell 5.1 avvolge lo stderr di un programma in un errore, qui torna testo.
 $uscita = @(& $bin --bg @a 2>&1 | ForEach-Object { "$_" })

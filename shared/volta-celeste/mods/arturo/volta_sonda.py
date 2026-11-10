@@ -221,6 +221,9 @@ esci(errore="il servizio di Claude non si accende (%s)" % come)
 ATTESA_MACCHINE = 15
 ATTESA_SERVIZIO = 120
 ATTESA_NASCITA = 180
+# Un gesto su una sessione (azione). Riavvia passa prima dal servizio: dati.js (azioneSessione) aspetta
+# ATTESA_SERVIZIO più ATTESA_AZIONE più il margine, gli altri gesti ATTESA_AZIONE più il margine.
+ATTESA_AZIONE = 60
 
 LAVORA = {"busy", "working", "running", "starting"}
 ASPETTA = {"waiting", "blocked"}
@@ -633,7 +636,12 @@ VERBI = ("logs", "stop", "respawn", "rm")
 
 def azione(nome, verbo, sid):
     """Un comando di claude su una sessione di `nome` ("qui" = questa macchina): logs (l'anteprima,
-    come righe di schermo), stop, respawn, rm. Le altre macchine passano da herdr-core (hc exec --on)."""
+    come righe di schermo), stop, respawn, rm. Le altre macchine passano da herdr-core (hc exec --on).
+
+    Riavvia (respawn) fa ripartire il processo della sessione, che nasce dal servizio di Claude: prima
+    il servizio si accende dove sopravvive, come per nasci (#5215). Senza, claude respawn lo farebbe
+    nascere a tempo dentro hc exec, e la sessione riavviata morirebbe con lui. Gli altri gesti non
+    fanno nascere processi: non lo toccano."""
     if verbo not in VERBI:
         return {"errore": "azione sconosciuta: %s" % verbo}
     if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z-]{3,63}", sid or ""):  # mai un'opzione come --all
@@ -641,9 +649,13 @@ def azione(nome, verbo, sid):
     if nome in (None, "", "qui"):
         argv = [shutil.which("claude") or "claude", verbo, sid]
     else:
-        argv = hc() + ["exec", "--on", nome, "claude", verbo, sid]
+        argv = hc() + ["exec", "--on", nome, "--timeout", str(ATTESA_AZIONE - 5), "claude", verbo, sid]
+    if verbo == "respawn":
+        s = servizio(nome)
+        if s.get("errore"):
+            return {"errore": "il servizio di Claude non parte su %s: %s" % (nome or "questa macchina", s["errore"])}
     try:
-        rc, out, err = lancia(argv, timeout=60)
+        rc, out, err = lancia(argv, timeout=ATTESA_AZIONE)
     except (OSError, subprocess.SubprocessError) as e:
         return {"errore": "%s non risponde: %s" % (nome or "questa macchina", str(e)[:160])}
     if rc != 0:

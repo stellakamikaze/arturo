@@ -115,7 +115,9 @@ HZ34 la sonda di Volta per tutti (#5172, volta_sonda.py con un hc finto): le mac
 HZ35 la nascita in background (#5172 passo 2, volta-claude.sh con un claude finto): in un terminale vero
      claude e claude "<prompt>" nascono con --bg e si aprono con claude attach <id>; CLAUDE_QUI=1, i
      sottocomandi, -p, --resume senza id, i terminali di Herdr, le sessioni dentro Claude e chi non ha un
-     terminale passano a claude com'è; se --bg è rifiutato la sessione si apre qui e lo dice.
+     terminale passano a claude com'è; se --bg è rifiutato la sessione si apre qui e lo dice. Prima di
+     --bg accende il servizio di Claude con la sonda del mod, ma non da ssh; se il servizio non parte
+     lo dice e la sessione nasce lo stesso (#5215).
 HZ36 il blocco della nascita (nascita.sh e installa-herdr.sh): metti lo scrive una volta sola anche
      rilanciato, togli lascia il file com'era, stato vede la funzione claude della persona fuori dal
      blocco, e in zsh e bash il blocco definisce claude solo se la persona non ne ha già una.
@@ -150,10 +152,11 @@ HZ41 il servizio di Claude prima della nascita (#5208, volta_sonda.py servizio c
      finto): un servizio che risponde non si tocca; Windows senza attività lo accende con hc run in un
      terminale di herdr-core, e uno che dopo non risponde dà errore; nasci accende il servizio prima della
      sessione e senza servizio non fa nascere niente; su questa macchina il servizio spento nasce
-     staccato (una sessione sua) nella home.
+     staccato (una sessione sua) nella home. Riavvia passa dal servizio come nasci, Ferma no (#5215).
 HZ42 le attese della nascita (#5214): Volta (dati.js nasciSu) aspetta più della somma dei tetti di
      volta_sonda.py, con 30 s di margine; il servizio che non risponde si ferma al suo tetto, anche
-     dopo hc run.
+     dopo hc run. Riavvia aspetta servizio più azione più il margine, gli altri gesti azione più il
+     margine (#5215).
 HZ43 il servizio fisso con un nome solo (#5213): l'etichetta del LaunchAgent di servizi-gui.sh e il nome
      dell'attività di servizio-claude.ps1 sono gli stessi in installa-herdr.sh e in volta_sonda.py; ogni
      riga HERDR che l'installazione stampa ha la sua istruzione in shared/setup-herdr.md.
@@ -1742,13 +1745,27 @@ exit 0
 """
 
 
+# La sonda finta del servizio per volta-claude.sh e .ps1 (#5215): segna la chiamata nel log dei claude
+# finti, con HZ_SONDA_PREFISSO davanti, e con HZ_SONDA_ERRORE risponde come un servizio che non parte.
+SONDA_FINTA = r"""import json, os, sys
+with open(os.environ["HZ_LOG"], "a", encoding="utf-8") as fh:
+    fh.write(os.environ.get("HZ_SONDA_PREFISSO", "") + "".join("[%s]" % x for x in sys.argv[1:]) + "\n")
+if os.environ.get("HZ_SONDA_ERRORE"):
+    print(json.dumps({"errore": "il servizio di Claude non si accende (staccato)"})); sys.exit(1)
+print(json.dumps({"come": "gi\u00e0 acceso"}))
+"""
+
+
 def volta_claude(repo: Path, casa: Path, args: list[str], tty: bool = True, **extra: str) -> tuple[list[str], str]:
     finto = casa / "claude-finto"
     finto.write_text(CLAUDE_FINTO, encoding="utf-8", newline="\n")
+    sonda = casa / "sonda-finta.py"
+    sonda.write_text(SONDA_FINTA, encoding="utf-8")
     log = casa / "chiamate.log"
     log.write_text("", encoding="utf-8")
-    env = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "HC_TERMINAL_ID", "CLAUDE_QUI")}
-    env.update({"VOLTA_CLAUDE_BIN": str(finto) if os.name != "nt" else finto.as_posix(), "HZ_LOG": str(log)})
+    env = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "HC_TERMINAL_ID", "CLAUDE_QUI", "SSH_CONNECTION")}
+    env.update({"VOLTA_CLAUDE_BIN": str(finto) if os.name != "nt" else finto.as_posix(), "HZ_LOG": str(log),
+                "VOLTA_SONDA": str(sonda) if os.name != "nt" else sonda.as_posix()})
     if tty:
         env["VOLTA_CLAUDE_TTY"] = "1"
     env.update(extra)
@@ -1763,10 +1780,12 @@ def hz35(repo: Path, casa: Path) -> str | None:
     if os.name != "nt":
         (casa / "claude-finto").write_text("", encoding="utf-8")
         os.chmod(casa / "claude-finto", 0o755)
-    bg = lambda *a: ["[--bg]" + "".join(f"[{x}]" for x in a), "[attach][abcd1234]"]  # noqa: E731
+    bg = lambda *a: ["[servizio][qui]", "[--bg]" + "".join(f"[{x}]" for x in a), "[attach][abcd1234]"]  # noqa: E731
     qui = lambda *a: ["".join(f"[{x}]" for x in a)]  # noqa: E731
     casi = [
         ("claude nudo", [], {}, True, bg()),
+        ("da ssh, senza servizio", ["ciao"], {"SSH_CONNECTION": "10.0.0.2 5000 10.0.0.1 22"}, True, bg("ciao")[1:]),
+        ("sonda del servizio assente", [], {"VOLTA_SONDA": "/non/c/e.py"}, True, bg()[1:]),
         ("claude col prompt di /inizio", ["/inizio arturo -- #12 un todo"], {}, True, bg("/inizio arturo -- #12 un todo")),
         ("--resume con l'id", ["--resume", "abc-123"], {}, True, bg("--resume", "abc-123")),
         ("--model e prompt", ["--model", "haiku", "ciao"], {}, True, bg("--model", "haiku", "ciao")),
@@ -1788,8 +1807,13 @@ def hz35(repo: Path, casa: Path) -> str | None:
             return f"{nome}: chiamate {chiamate}, attese {attese}"
         if os.name == "nt" and chiamate != attese and chiamate:
             return f"{nome}: chiamate {chiamate}, attese {attese}"
+    chiamate, err = volta_claude(repo, casa, ["ciao"], True, HZ_SONDA_ERRORE="1")
+    if os.name != "nt" and chiamate != bg("ciao"):
+        return f"servizio che non parte: chiamate {chiamate}, la sessione nasce lo stesso in background"
+    if os.name != "nt" and "il servizio di Claude non si accende (" not in err:
+        return f"servizio che non parte senza dirlo: {err.strip()[-160:]}"
     chiamate, err = volta_claude(repo, casa, ["ciao"], True, HZ_RIFIUTA="1")
-    if chiamate[:1] != ["[--bg][ciao]"] or chiamate[1:] != ["[ciao]"]:
+    if chiamate[1:2] != ["[--bg][ciao]"] or chiamate[2:] != ["[ciao]"]:
         return f"--bg rifiutato: chiamate {chiamate}, attese --bg e poi la sessione qui"
     if "non parte in background (Workspace not trusted" not in err:
         return f"--bg rifiutato senza dirlo: {err.strip()[-160:]}"
@@ -1977,18 +2001,23 @@ def hz38(repo: Path, casa: Path) -> str | None:
     # volta-claude.ps1 con un claude finto
     finto = casa / "claude-finto.ps1"
     finto.write_text(CLAUDE_FINTO_PS, encoding="utf-8-sig")
+    sonda = casa / "sonda-finta.py"
+    sonda.write_text(SONDA_FINTA, encoding="utf-8")
     log = casa / "chiamate.log"
     def vps(args: list[str], **extra: str) -> tuple[list[str], str]:
         log.write_text("", encoding="utf-8")
-        e = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "HC_TERMINAL_ID", "CLAUDE_QUI")}
-        e.update({"VOLTA_CLAUDE_BIN": str(finto), "HZ_LOG": str(log), "VOLTA_CLAUDE_TTY": "1", **extra})
+        e = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "HC_TERMINAL_ID", "CLAUDE_QUI", "SSH_CONNECTION")}
+        e.update({"VOLTA_CLAUDE_BIN": str(finto), "HZ_LOG": str(log), "VOLTA_CLAUDE_TTY": "1", "VOLTA_SONDA": str(sonda),
+                  "VOLTA_SONDA_PY": sys.executable, "HZ_SONDA_PREFISSO": "C", **extra})
         r = subprocess.run([ps, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(vc / "volta-claude.ps1"), *args],
                            capture_output=True, text=True, timeout=60, env=e, encoding="utf-8", errors="replace")
         return [x[1:] for x in log.read_text(encoding="utf-8-sig").splitlines() if x.startswith("C")], r.stderr
-    bg = lambda *a: ["[--bg]" + "".join(f"[{x}]" for x in a), "[attach][abcd1234]"]  # noqa: E731
+    bg = lambda *a: ["[servizio][qui]", "[--bg]" + "".join(f"[{x}]" for x in a), "[attach][abcd1234]"]  # noqa: E731
     qui = lambda *a: ["".join(f"[{x}]" for x in a)]  # noqa: E731
     casi = [
         ("claude nudo", [], {}, bg()),
+        ("da ssh, senza servizio", ["ciao"], {"SSH_CONNECTION": "10.0.0.2 5000 10.0.0.1 22"}, bg("ciao")[1:]),
+        ("sonda del servizio assente", [], {"VOLTA_SONDA": str(casa / "non-c-e.py")}, bg()[1:]),
         ("claude col prompt", ["/inizio arturo -- #12 un todo"], {}, bg("/inizio arturo -- #12 un todo")),
         ("--resume con l'id", ["--resume", "abc-123"], {}, bg("--resume", "abc-123")),
         ("CLAUDE_QUI", [], {"CLAUDE_QUI": "1"}, qui()),
@@ -2002,8 +2031,11 @@ def hz38(repo: Path, casa: Path) -> str | None:
         chiamate, err = vps(args, **extra)
         if chiamate != attese:
             return f"volta-claude.ps1, {nome}: chiamate {chiamate}, attese {attese} ({err.strip()[-120:]})"
+    chiamate, err = vps(["ciao"], HZ_SONDA_ERRORE="1")
+    if chiamate != bg("ciao") or "il servizio di Claude non si accende (" not in err:
+        return f"volta-claude.ps1, servizio che non parte: chiamate {chiamate} ({err.strip()[-120:]})"
     chiamate, err = vps(["ciao"], HZ_RIFIUTA="1")
-    if chiamate != ["[--bg][ciao]", "[ciao]"]:
+    if chiamate != ["[servizio][qui]", "[--bg][ciao]", "[ciao]"]:
         return f"volta-claude.ps1, --bg rifiutato: chiamate {chiamate}"
     if "non parte in background (Workspace not trusted" not in err:
         return f"volta-claude.ps1, --bg rifiutato senza dire perché: {err.strip()[-160:]}"
@@ -2279,8 +2311,8 @@ def hz40(repo: Path, casa: Path) -> str | None:
     az = lambda *a, **e: subprocess.run([sys.executable, str(sonda), "azione", *a], capture_output=True, text=True, timeout=60, env={**env, **e})  # noqa: E731
     r = az("Studio", "stop", "abcd1234")
     chiamate = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines() if x.startswith("[")]
-    if chiamate != [["exec", "--on", "Studio", "claude", "stop", "abcd1234"]]:
-        return f"azione su un'altra macchina: hc riceve {chiamate}, atteso exec --on Studio claude stop abcd1234"
+    if chiamate != [["exec", "--on", "Studio", "--timeout", "55", "claude", "stop", "abcd1234"]]:
+        return f"azione su un'altra macchina: hc riceve {chiamate}, atteso exec --on Studio --timeout 55 claude stop abcd1234"
     if json.loads(r.stdout.strip().splitlines()[-1]).get("ok") is not True:
         return f"azione riuscita senza ok: {r.stdout.strip()[-120:]}"
     log.write_text("", encoding="utf-8")
@@ -2338,7 +2370,8 @@ def hz41(repo: Path, casa: Path) -> str | None:
     nata = {"id": "ffff1111", "sessionId": "ffff1111-aaaa", "claude": "C:/u/claude.exe", "cartella": "C:/u/ClaudeCode"}
     conf = {
         "macchine": [{"name": n, "target": n.lower(), "state": "connected"} for n in ("Torre", "Win", "Rotto", "Muto")],
-        "exec": {"Torre": {"python": nata}, "Win": {"python": nata}, "Rotto": {"python3": nata}, "Muto": {"python3": nata}},
+        "exec": {"Torre": {"python": nata}, "Win": {"python": nata, "claude": "respawned ffff1111"},
+                 "Rotto": {"python3": nata, "claude": "respawned ffff1111"}, "Muto": {"python3": nata}},
         "servizio": {"Win": {"serve": "hc-run"}, "Rotto": {"errore": "Claude Code non c'è su questa macchina"},
                      "Muto": {"serve": "hc-run"}},
         "dopo_run": {"Win": {"acceso": True, "come": "già acceso"}},
@@ -2385,6 +2418,20 @@ def hz41(repo: Path, casa: Path) -> str | None:
     giro = [("run" if c[:1] == ["run"] else "servizio" if c[-1] == "remoto" else "nasci") for c in ch if c[:1] == ["run"] or c[:2] == ["exec", "--on"]]
     if giro.index("run") > giro.index("nasci") or giro[-1] != "nasci":
         return f"nasci non accende il servizio prima della sessione: {giro}"
+    # Riavvia passa dal servizio come nasci (#5215); gli altri gesti no
+    rc, d, ch = lancia("azione", "Rotto", "respawn", "ffff1111")
+    if rc == 0 or "servizio di Claude non parte su Rotto" not in d.get("errore", ""):
+        return f"Riavvia su Rotto senza servizio: rc {rc}, {d}"
+    if any(c[:2] == ["exec", "--on"] and "respawn" in c for c in ch):
+        return "Riavvia lancia claude respawn anche se il servizio non parte"
+    stato.unlink(missing_ok=True)
+    rc, d, ch = lancia("azione", "Win", "respawn", "ffff1111")
+    giro = [("run" if c[:1] == ["run"] else "respawn" if "respawn" in c else "servizio") for c in ch if c[:1] == ["run"] or c[:2] == ["exec", "--on"]]
+    if rc != 0 or d.get("ok") is not True or "run" not in giro or giro.index("run") > giro.index("respawn") or giro[-1] != "respawn":
+        return f"Riavvia su Win non accende il servizio prima: rc {rc}, {d}, {giro}"
+    rc, d, ch = lancia("azione", "Rotto", "stop", "ffff1111")
+    if rc != 0 or any(c[-1] == "remoto" for c in ch):
+        return f"Ferma non deve passare dal servizio: rc {rc}, {d}, {ch}"
     # SERVIZIO vero su questa macchina, con un claude finto (script con shebang: su Windows si salta)
     if os.name == "nt":
         return None
@@ -2444,13 +2491,21 @@ def hz42(repo: Path, casa: Path) -> str | None:
     costanti = {n.targets[0].id: n.value.value for n in ast.parse(sonda.read_text(encoding="utf-8")).body
                 if isinstance(n, ast.Assign) and len(n.targets) == 1 and isinstance(n.targets[0], ast.Name)
                 and n.targets[0].id.startswith("ATTESA_") and isinstance(n.value, ast.Constant)}
-    if set(costanti) != {"ATTESA_MACCHINE", "ATTESA_SERVIZIO", "ATTESA_NASCITA"}:
+    if set(costanti) != {"ATTESA_MACCHINE", "ATTESA_SERVIZIO", "ATTESA_NASCITA", "ATTESA_AZIONE"}:
         return f"le attese della nascita in volta_sonda.py: {costanti}"
     dati = (mod / "dati.js").read_text(encoding="utf-8")
+    # i gesti (#5215): Riavvia aspetta servizio più azione più 30 s, gli altri azione più 30 s
+    gesto = dati[dati.index("async function azioneSessione("):]
+    gesto = gesto[:gesto.index("\n}\n")]
+    t = re.search(r'timeout:\s*verbo === "respawn" \? (\d+) : (\d+)', gesto)
+    if not t:
+        return "dati.js (azioneSessione) non dà a Riavvia un'attesa sua"
+    if int(t.group(1)) < (costanti["ATTESA_SERVIZIO"] + costanti["ATTESA_AZIONE"] + 30) * 1000 or int(t.group(2)) < (costanti["ATTESA_AZIONE"] + 30) * 1000:
+        return f"Volta aspetta i gesti {t.groups()} ms, ma la sonda può metterci di più"
     corpo = dati[dati.index("async function nasciSu("):]
     corpo = corpo[:corpo.index("\n}\n")]
     attese = [int(x) for x in re.findall(r"timeout:\s*(\d+)", corpo)]
-    somma = sum(costanti.values())
+    somma = costanti["ATTESA_MACCHINE"] + costanti["ATTESA_SERVIZIO"] + costanti["ATTESA_NASCITA"]
     # 30 s di margine: avvio dei Python, il secondo Python dopo uno che non parte, le pause del servizio
     if len(attese) != 1 or attese[0] < (somma + 30) * 1000:
         return f"Volta aspetta la nascita {attese} ms, ma la sonda può metterci fino a {somma} s"
@@ -2518,13 +2573,20 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ("HZ35", "shared/volta-celeste/volta-claude.sh", 'if [ -z "${SSH_CONNECTION:-}" ] && [ -f "$sonda" ]', 'if [ -f "$sonda" ]'),
+    ("HZ35", "shared/volta-celeste/volta-claude.sh", '  esito=$(python3 "$sonda" servizio qui 2>&1) ||', '  esito=$(true) ||'),
+    ("HZ35", "shared/volta-celeste/volta-claude.sh", 'servizio qui 2>&1) ||', 'servizio qui 2>&1) || exit 1 ||'),
+    ("HZ38", "shared/volta-celeste/volta-claude.ps1", "if (-not $env:SSH_CONNECTION -and $py", "if ($py"),
+    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    if verbo == "respawn":\n        s = servizio(nome)', '    if False:\n        s = servizio(nome)'),
+    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", '            return {"errore": "il servizio di Claude non parte su %s: %s" % (nome or "questa macchina", s["errore"])}\n    try:', '            pass\n    try:'),
+    ("HZ42", "shared/volta-celeste/mods/arturo/dati.js", 'verbo === "respawn" ? 210000 : 90000', 'verbo === "respawn" ? 150000 : 90000'),
     ("HZ43", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'etichetta = "org.stellakamikaze.arturo.claude-daemon"', 'etichetta = "org.stellakamikaze.arturo.claude"'),
     ("HZ43", "shared/volta-celeste/installa-herdr.sh", "schtasks /query /tn ArturoServizioClaude ", "schtasks /query /tn ArturoServizio "),
     ("HZ43", "shared/setup-herdr.md", "`HERDR SERVIZIO`", "la riga del servizio"),
     ("HZ42", "shared/volta-celeste/mods/arturo/dati.js", "{ timeout: 360000 }", "{ timeout: 200000 }"),
     ("HZ42", "shared/volta-celeste/mods/arturo/volta_sonda.py", "            t = min(90, int(entro - time.monotonic()))", "            t = 90"),
     ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", "if acceso():\n    esci(acceso=True, come=\"già acceso\")", "if False:\n    pass"),
-    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    s = servizio(nome)\n", "    s = {}\n"),
+    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", "(#5208)\n    s = servizio(nome)\n", "(#5208)\n    s = {}\n"),
     ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", '"--name", "servizio-claude", "--no-parent", "--rm",', '"--name", "servizio-claude", "--rm",'),
     ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'subprocess.Popen([cl, "daemon", "run"], cwd=casa, start_new_session=True, **nulla)\n        come = "staccato"\nelif', 'subprocess.Popen([cl, "daemon", "run"], cwd=casa, **nulla)\n        come = "staccato"\nelif'),
     ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        return {"errore": d.get("errore") or "acceso con hc run, ma non risponde ancora"}', '        return {"come": "terminale di Herdr"}'),
@@ -2641,7 +2703,7 @@ VELENI = [
     ("HZ38", "shared/volta-celeste/volta-claude.ps1", "if ($senzaId) { Qui }", "#"),
     ("HZ38", "shared/volta-celeste/volta-claude.ps1", "$_ -and $_ -notmatch '^Starting background service'", "$_"),
     ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", "\n        if rc != 0 and (non_parte(out, err) or rc == 9009):", "\n        if True:"),  # quella di nasci, non di servizio
-    ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        argv = hc() + ["exec", "--on", nome, "claude", verbo, sid]', '        argv = hc() + ["exec", nome, "claude", verbo, sid]'),
+    ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        argv = hc() + ["exec", "--on", nome, "--timeout", str(ATTESA_AZIONE - 5), "claude", verbo, sid]', '        argv = hc() + ["exec", nome, "--timeout", str(ATTESA_AZIONE - 5), "claude", verbo, sid]'),
     ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z-]{3,63}", sid or ""):', "if False:"),
     ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    if verbo not in VERBI:", "    if False:"),
     ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", '            if fin == "G":\n                c = n - 1', '            if fin == "G":\n                pass'),

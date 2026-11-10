@@ -369,10 +369,12 @@ export async function cartelle() {
 
 // Un gesto su una sessione di Volta (sessioni.js azioni): volta_sonda.py azione, qui o via herdr-core.
 // Torna { righe } per l'anteprima, { ok, testo } per gli altri, { errore } se non va.
+// Riavvia accende prima il servizio di Claude (#5215): aspetta ATTESA_SERVIZIO più ATTESA_AZIONE di
+// volta_sonda.py, più 30 s; gli altri gesti ATTESA_AZIONE più 30 s (il banco HZ42 tiene i conti).
 export async function azioneSessione(s, verbo) {
   const c = await config();
   try {
-    const r = await exec(c.arturo[0], [c.volta, "azione", s.host, verbo, s.id], { timeout: 90000 });
+    const r = await exec(c.arturo[0], [c.volta, "azione", s.host, verbo, s.id], { timeout: verbo === "respawn" ? 210000 : 90000 });
     const riga = (r.stdout || "").trim().split("\n").pop() || "{}";
     return JSON.parse(riga);
   } catch (e) {

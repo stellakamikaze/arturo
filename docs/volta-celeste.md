@@ -49,7 +49,7 @@ Il login. Su quel Mac il gestore delle sessioni in background (`claude daemon`) 
 
 ### Il servizio di Claude, fisso su ogni macchina
 
-Il gestore delle sessioni in background è il servizio di Claude. Se parte dal primo `claude --bg`, vive a tempo: muore con chi l'ha fatto nascere, e da ssh nasce senza login. Per questo Volta, prima di ogni sessione nuova su qualunque macchina, lancia lì `volta_sonda.py servizio <macchina>`. Se il servizio risponde, non lo tocca. Se manca, lo accende dove sopravvive:
+Il gestore delle sessioni in background è il servizio di Claude. Se parte dal primo `claude --bg`, vive a tempo: muore con chi l'ha fatto nascere, e da ssh nasce senza login. Per questo Volta, prima di ogni sessione nuova su qualunque macchina e prima di Riavvia, lancia lì `volta_sonda.py servizio <macchina>`. Lo lancia anche il comando `claude` del terminale con la nascita accesa, su questa macchina, prima di `claude --bg`: costa meno di un secondo se il servizio c'è già. Da ssh il comando non lo lancia, perché lì nascerebbe senza login; se il servizio non parte, lo dice e la sessione nasce lo stesso. Se il servizio risponde, non lo tocca. Se manca, lo accende dove sopravvive:
 - sul Mac con il LaunchAgent `org.stellakamikaze.arturo.claude-daemon`, se c'è; senza, staccato in una sessione sua, figlio di `herdr-core` o di Volta, che hanno il login e l'accesso a Documenti. Staccato vale fino al riavvio;
 - su Windows con l'attività `ArturoServizioClaude`, se c'è; senza, in un terminale di `herdr-core` (`hc run`), nella sessione grafica.
 
@@ -57,7 +57,7 @@ Il servizio fisso parte da solo a ogni accesso, e l'installazione lo propone con
 - su Windows `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.config\herdr-app\servizio-claude.ps1"` registra l'attività e la avvia, senza finestra (provato il 10/11/2026 sul PC Windows dello studio); con `-Togli` in fondo la toglie. `/setup` la registra col tuo sì;
 - sul Mac `servizi-gui.sh --launchd` mette anche il LaunchAgent del servizio. Prima dai a `claude` l'accesso a Documenti (Impostazioni di Sistema, Privacy e sicurezza, File e cartelle): nato da launchd senza quel permesso, il servizio ha il login ma le sessioni in `~/Documents` muoiono all'avvio. Senza `--launchd`, lo script apre il servizio in una finestra del Terminale, che gli passa il suo accesso a Documenti: la finestra va lasciata aperta. `servizi-gui.sh --rimuovi` toglie i due LaunchAgent.
 
-L'attesa. Una sessione nuova aspetta prima le macchine (15 s), poi il servizio (120 s), poi la nascita (180 s): Volta aspetta fino a 6 minuti prima di dire che la macchina non risponde. Il banco HZ41-HZ43 prova il servizio, le attese e i nomi.
+L'attesa. Una sessione nuova aspetta prima le macchine (15 s), poi il servizio (120 s), poi la nascita (180 s): Volta aspetta fino a 6 minuti prima di dire che la macchina non risponde. Riavvia aspetta il servizio (120 s) e il gesto (60 s), fino a 3 minuti e mezzo; gli altri gesti un minuto e mezzo. Il banco HZ41-HZ43 prova il servizio, le attese e i nomi; HZ35 e HZ38 il servizio prima del comando `claude`.
 
 ## Tutte le sessioni, di tutte le macchine
 
