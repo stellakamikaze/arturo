@@ -13,6 +13,17 @@ modo di lavorare.
 
 ---
 
+## 2026-11-10 — arturo web: i nomi dei progetti si leggono anche in tema scuro
+
+**Cosa cambia**: nel registro per categorie di `arturo web`, col computer in tema scuro, i nomi dei
+progetti e il filetto sotto ogni categoria restavano quasi neri sul fondo scuro. Ora sono chiari e si
+leggono come il resto della pagina. Il tema chiaro non cambia.
+
+**Il principio**: ogni colore del testo ha un valore per tutti e due i temi, e il banco della pagina misura
+il contrasto in entrambi.
+
+**Da sapere**: riguarda chi ha molti progetti divisi in categorie, cioè la vista a tabella.
+
 ## 2026-11-10 — Guardie su Windows: `.exe`, maiuscole, Python che manca
 
 **Cosa cambia**:

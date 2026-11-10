@@ -639,6 +639,28 @@ def test_w13(repo: Path) -> None:
     for nome, valore in re.findall(r"(--t-[\w-]+)\s*:\s*([\d.]+rem)", css):
         assert float(valore[:-3]) >= 0.75, f"W13 {nome} sotto 0.75rem"
 
+    # Contrasto nei due temi: i colori del testo leggono almeno 4,5:1 su tela e carta. Un token
+    # senza valore scuro (l'inchiostro fino al 10/11/2026, #4919) resta quasi nero sul fondo scuro.
+    chiaro = dict(re.findall(r"(--[\w-]+)\s*:\s*(#[0-9a-fA-F]{6})", css.split("@media (prefers-color-scheme: dark)")[0]))
+    blocco_scuro = re.search(r"@media \(prefers-color-scheme: dark\)\s*\{\s*:root\s*\{([^}]*)\}", css)
+    assert blocco_scuro, "W13 stile.css senza :root del tema scuro"
+    scuro = {**chiaro, **dict(re.findall(r"(--[\w-]+)\s*:\s*(#[0-9a-fA-F]{6})", blocco_scuro.group(1)))}
+
+    def luce(esa: str) -> float:
+        canali = [int(esa[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        lin = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in canali]
+        return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+    def contrasto(a: str, b: str) -> float:
+        la, lb = sorted((luce(a), luce(b)), reverse=True)
+        return (la + 0.05) / (lb + 0.05)
+
+    for tema, tok in (("chiaro", chiaro), ("scuro", scuro)):
+        for testo in ("--inchiostro", "--grafite", "--carbone", "--cenere", "--sera", "--passa", "--blocca"):
+            for fondo in ("--tela", "--carta"):
+                r = contrasto(tok[testo], tok[fondo])
+                assert r >= 4.5, f"W13 tema {tema}: {testo} su {fondo} a {r:.1f}:1, sotto 4,5:1"
+
     # La Regola della Stella: l'arancio solo nel marchio e nelle regole .stella / .marchio.
     stella = "#f2a24a"
     assert stella not in read(web / "app.js").lower(), "W13 app.js usa l'arancio della stella"
