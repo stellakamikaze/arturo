@@ -70,8 +70,9 @@ il contrasto in entrambi, anche sui pulsanti pieni e sulla barra in fondo.
   programma scritto col suffisso `.exe` non chiedeva nessuna conferma: né per una cancellazione ricorsiva, né
   per un `push --force`, né per la cancellazione di un repository.
 - Su Windows e sul Mac `RM`, `Git` e `GH` sono gli stessi programmi di `rm`, `git` e `gh`, perché il disco
-  ignora le maiuscole. Le guardie ora li riconoscono: prima `RM -rf` passava senza conferma. Su Linux non
-  cambia niente.
+  ignora le maiuscole. Le guardie ora li riconoscono: prima `RM -rf` passava senza conferma. Vale per ogni
+  guardia: il controllo dei segreti prima di `Git commit`, la conferma su `Git send-email`, uno script scritto
+  nel comando e lanciato con `BASH` o `bash.exe`, `FIND` che legge una chiave. Su Linux non cambia niente.
 
 **Il principio**: una guardia vale quanto la forma più semplice che la aggira.
 

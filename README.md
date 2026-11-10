@@ -359,7 +359,7 @@ NOVITA.md            Canale di aggiornamento (lo racconta /novita)
 
 ### I guardiani (`hooks/`)
 
-Instradati dal dispatcher:
+Instradati dal dispatcher. Vale per tutte le guardie della tabella: su Windows un programma scritto con `.exe` (`git.exe`) e, su Windows e macOS, un programma scritto in maiuscolo (`Git`, `GH`, `CURL`, `SED`) sono letti come il nome corto in minuscolo, perché lì il disco non distingue. Le opzioni restano esatte: `-c` e `-C` di git, `-T` e `-t` di curl sono opzioni diverse. Su Linux `RM` è un altro file e non conta come `rm`.
 
 | Guard | Cosa intercetta | Esito |
 |---|---|---|
