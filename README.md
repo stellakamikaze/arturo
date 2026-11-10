@@ -139,7 +139,7 @@ Ti serve **Claude Code**, con un piano che lo include ([guida ufficiale](https:/
 | **node** ≥ 18 | barra in basso, avviso sul contesto | senza, la barra scrive "Arturo: manca node" e l'avvio lo dice con la riga `NODE` |
 | **jq** | facoltativo | se manca, il dispatcher usa `python3` |
 
-**Sistemi.** macOS, Linux e Windows. Su Windows Arturo funziona solo dentro **Git Bash** (Git for Windows): senza, Claude Code esegue i comandi con PowerShell e le guardie di Arturo non li vedono. Il `python3` deve essere quello di python.org, non il rimando del Microsoft Store. Claude e `/setup` controllano entrambe le cose.
+**Sistemi.** macOS, Linux e Windows. Su Windows Arturo funziona solo dentro **Git Bash** (Git for Windows): senza, Claude Code esegue i comandi con PowerShell e le guardie di Arturo non li vedono. Il `python3` deve essere quello di python.org, non il rimando del Microsoft Store. Se manca un `python3` che funziona, le guardie non leggono i comandi: allora ogni comando della shell chiede conferma, e l'avvio lo dice con la riga `PYTHON:`. Claude e `/setup` controllano entrambe le cose.
 
 Facoltativi: **`gitleaks`** (audit segreti), **`bw`** (Bitwarden CLI, per le credenziali), **`gws`** (Google Workspace CLI, solo per più account Google, vedi [Collegare Gmail, Calendar e Drive](#collegare-gmail-calendar-e-drive-opzionale)).
 

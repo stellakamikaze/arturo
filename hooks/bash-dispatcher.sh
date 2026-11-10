@@ -37,6 +37,16 @@ fi
 # un LF, e solo su Windows: su Mac e Linux il comando resta intatto.
 [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && COMMAND="${COMMAND//$'\r\n'/$'\n'}"
 
+# Senza un lettore del JSON nessuna guardia vede il comando: con un python3 che non parte (su Windows il
+# rimando del Microsoft Store esce 49) e senza un jq che funziona, COMMAND restava vuoto e ogni comando
+# passava in silenzio (revisione del 10/11/2026, HK-2). Se l'input porta un "command" non vuoto e qui non
+# è arrivato niente, si chiede conferma. Senza ask_guard: la telemetria è python3, che qui non parte.
+_RE_HA_COMANDO='"command"[[:space:]]*:[[:space:]]*"[^"]'
+if [[ -z "$COMMAND" && "$INPUT" =~ $_RE_HA_COMANDO ]]; then
+    printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Le guardie non leggono il comando: manca un python3 che funziona (e jq). Conferma solo se sai cosa fa. Per sistemare: /diagnosi."}}'
+    exit 0
+fi
+
 # Riduce solo heredoc quotati che vanno a un lettore (cat, tee, grep...) e che nessuno esegue:
 # il corpo e' dato, non shell. Lo decide hooks/heredoc.py, lo stesso modulo delle guardie
 # (15/10/2026): `cat <<'EOF' | bash`, un file scritto e poi eseguito, `<<` dentro virgolette o

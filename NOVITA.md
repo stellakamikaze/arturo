@@ -13,6 +13,21 @@ modo di lavorare.
 
 ---
 
+## 2026-11-10 — Guardie: senza un Python che funziona ogni comando chiede conferma
+
+**Cosa cambia**:
+- Le guardie leggono i comandi con `python3`. Su un Windows dove `python3` è solo il rimando del Microsoft
+  Store, e `jq` manca, non leggevano niente: ogni comando passava senza conferma, anche una cancellazione
+  ricorsiva, e nessuno lo diceva. Ora in quello stato ogni comando della shell chiede conferma, e all'avvio
+  la riga `PYTHON:` dice cosa manca e come sistemare.
+- La guardia che chiede conferma prima di leggere una chiave di `~/.ssh` ora ferma la lettura anche quando
+  non parte o non risponde entro 10 secondi, come le altre guardie.
+
+**Il principio**: una guardia che non riesce a guardare chiede, non tace.
+
+**Da sapere**: se vedi la riga `PYTHON:`, installa Python da python.org e riapri Claude Code. Con Python a
+posto non cambia niente.
+
 ## 2026-11-10 — /aggiorna non butta più un conflitto risolto a mano
 
 **Cosa cambia**: dopo un conflitto risolto a mano, se un tuo file non salvato con un commit aveva lo stesso nome

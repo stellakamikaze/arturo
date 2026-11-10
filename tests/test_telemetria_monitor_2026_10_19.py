@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""TM01-TM05: Arturo non spegne più la telemetria di Claude Code (19/10/2026).
+"""TM01-TM06: Arturo non spegne più la telemetria di Claude Code (19/10/2026).
 
 Decisione di Federico del 19/10/2026: "arturo non tiene disable telemtry". DISABLE_TELEMETRY
 spegneva anche i feature flag di Claude Code (env-vars.md, "Features that need feature-flag
@@ -13,6 +13,8 @@ TM02 il dispatcher delle guardie scatta anche su Monitor (matcher) e un comando 
 TM03 le tre guardie PreToolUse hanno `onFailure: "block"`: una guardia che non parte ferma l'azione.
 TM04 CLAUDE_CODE_USE_POWERSHELL_TOOL=0: lo strumento PowerShell, che le guardie non vedono, resta spento.
 TM05 "Cosa non è neutro" dice che Claude Code manda la sua telemetria ad Anthropic e come spegnerla.
+TM06 anche la guardia su Read e Grep (le chiavi di ~/.ssh) ha `onFailure: "block"` e un timeout: se non
+     parte o non risponde, la lettura si ferma (revisione del 10/11/2026, HK-3).
 
 Sulla base 40b26c2 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -109,7 +111,16 @@ def test_tm05(repo: Path) -> None:
         'TM05 "Cosa non è neutro" non dice della telemetria di Claude Code né come spegnerla'
 
 
-TESTS = {"TM01": test_tm01, "TM02": test_tm02, "TM03": test_tm03, "TM04": test_tm04, "TM05": test_tm05}
+def test_tm06(repo: Path) -> None:
+    blocchi = [b for b in pretooluse(repo)
+               if {"Read", "Grep"} <= {x.strip() for x in b.get("matcher", "").split("|")}]
+    voci = [h for b in blocchi for h in b.get("hooks", []) if "block-dangerous.py" in h.get("command", "")]
+    assert voci and all(h.get("onFailure") == "block" and isinstance(h.get("timeout"), int)
+                        and 0 < h["timeout"] <= 30 for h in voci),         f"TM06 la guardia su Read e Grep lascia leggere se non parte (onFailure block e timeout): {voci}"
+
+
+TESTS = {"TM01": test_tm01, "TM02": test_tm02, "TM03": test_tm03, "TM04": test_tm04, "TM05": test_tm05,
+         "TM06": test_tm06}
 
 
 def main() -> int:

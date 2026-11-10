@@ -292,7 +292,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 ~/.claude/hooks/block-dangerous.py"
+            "command": "python3 ~/.claude/hooks/block-dangerous.py",
+            "timeout": 10,
+            "onFailure": "block"
           }
         ]
       },
