@@ -411,8 +411,12 @@ def righe(voci):
             sid = s.get("sessionId") or ""
             if not sid:
                 continue
-            corto = sid[:8]
             fondo = s.get("kind") == "background"
+            # claude attach, stop, logs e respawn vogliono l'id del lavoro in background, che resta
+            # quello della nascita: dopo /clear o una rotazione il sessionId cambia e il suo inizio
+            # non aggancia più ("No job matching"). Un'interattiva non ha lavoro: l'inizio del sessionId.
+            lavoro = s.get("id") if fondo else None
+            corto = lavoro if isinstance(lavoro, str) and re.fullmatch(r"[0-9A-Za-z-]{4,64}", lavoro) else sid[:8]
             out.append({
                 "macchina": v["macchina"], "host": v["host"], "questa": v["questa"],
                 "sessionId": sid, "id": corto, "nome": s.get("name") or corto,

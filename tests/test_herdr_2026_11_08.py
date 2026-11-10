@@ -180,6 +180,9 @@ HZ46 l'Anteprima di una sessione (#5240): la sonda taglia l'ultima risposta a un
 HZ47 i gesti di "Altro" si vedono anche su una sessione in fondo all'elenco (#5241): volta.js li disegna
      in pannello(), sotto l'elenco e fuori dalla parte che scorre (alta al massimo 360 px), col titolo
      della sessione e "Chiudi"; la riga non li porta più, e l'avviso di un gesto sta nel pannello.
+HZ48 una sessione in background si aggancia anche dopo /clear (11/11/2026): righe() di volta_sonda.py
+     usa l'id del lavoro di claude agents per attach e gesti, non l'inizio del sessionId, che dopo
+     /clear o una rotazione cambia ("No job matching"); un'interattiva tiene l'inizio del sessionId.
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
@@ -196,7 +199,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -2860,7 +2863,24 @@ def hz47(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47}
+def hz48(repo: Path, casa: Path) -> str | None:
+    import importlib.util
+    sp = importlib.util.spec_from_file_location("volta_sonda_hz48", repo / "shared/volta-celeste/mods/arturo/volta_sonda.py")
+    m = importlib.util.module_from_spec(sp)
+    sp.loader.exec_module(m)
+    voce = {"macchina": "amaltea", "host": "amaltea", "questa": False, "target": "amaltea", "claude": "/c", "sessioni": [
+        {"sessionId": "2f179bde-e963-47ce", "id": "0a0579ea", "kind": "background", "state": "done", "status": "idle"},
+        {"sessionId": "abcd1234-ffff", "id": "zz", "kind": "interactive", "status": "idle"}]}
+    r = {x["sessionId"]: x for x in m.righe([voce])}
+    fondo, inter = r.get("2f179bde-e963-47ce"), r.get("abcd1234-ffff")
+    if not fondo or fondo["id"] != "0a0579ea" or fondo["attach"][-2:] != ["attach", "0a0579ea"]:
+        return "volta_sonda.py: una sessione in background si aggancia con l'inizio del sessionId, non con l'id del lavoro"
+    if not inter or inter["id"] != "abcd1234" or inter["attach"] is not None:
+        return "volta_sonda.py: un'interattiva non tiene l'inizio del sessionId come id"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -3081,6 +3101,8 @@ VELENI = [
     ("HZ47", "shared/volta-celeste/mods/arturo/volta.js", "const gesti = chiusa || !corpo ? null : this.pannello(t);", "const gesti = null;"),
     ("HZ47", "shared/volta-celeste/mods/arturo/volta.js", "      .child(this.gesti(t, s, az))\n      .when(Boolean(avviso), (el)", "      .when(Boolean(avviso), (el)"),
     ("HZ47", "shared/volta-celeste/mods/arturo/volta.js", ".when(Boolean(avviso) && !aperto, (el)", ".when(Boolean(avviso), (el)"),
+    ("HZ48", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'lavoro = s.get("id") if fondo else None', "lavoro = None"),
+    ("HZ48", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'corto = lavoro if isinstance(lavoro, str)', 'corto = sid[:8] if isinstance(lavoro, str)'),
 ]
 
 
