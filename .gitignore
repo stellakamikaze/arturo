@@ -147,7 +147,8 @@ node_modules
 /arturo/
 
 # Le note sulla finestra (⌘⇧N, screenshot compresi) e il segno dell'invito a Herdr: sono di questo
-# computer (#5018). Ogni file nuovo in data/ ha la sua riga qui, nello stesso commit (banco HZ15).
+# computer (#5018). Ogni file nuovo che la finestra scrive in data/ ha la sua riga qui, nello stesso
+# commit: HZ15 del banco di Herdr prova queste due, non il resto di data/.
 data/note-finestra/
 data/herdr-invito
 # Scritti da herdr-app check nella cartella del mod (8/11/2026)

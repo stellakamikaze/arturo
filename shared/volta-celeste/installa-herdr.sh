@@ -5,7 +5,8 @@
 #
 # Variabili per i banchi: HERDR_APP_HOME (cartella di Herdr), ARTURO_HERDR_INSTALLER (installer finto),
 # ARTURO_HERDR_SISTEMA (mac-arm, mac-intel, windows, linux), ARTURO_HERDR_NON_APRIRE=1,
-# ARTURO_HERDR_FIRMA (assente o presente: l'identità di firma locale senza chiedere al portachiavi).
+# ARTURO_HERDR_FIRMA (assente o presente: l'identità di firma locale senza chiedere al portachiavi),
+# ARTURO_HERDR_VERSIONE (la versione di Herdr, senza chiederla a herdr-app --version).
 set -eu
 
 qui=$(cd "$(dirname "$0")" && pwd)

@@ -61,11 +61,12 @@ Lo stesso clic arriva anche da `herdr-app do arturo.volta-<id>` (id corto di ott
 Questo è un ramo di prova, fuori dai rilasci. Prima di un rilascio mancano:
 - il server della telemetria con `herdr-stato.sh` in `DERIVA_HOOK`, pubblicato prima del tag;
 - su Windows, la prova dell'hook dello stato su ConPTY (layout, barra, tasti e sessioni di tutte le macchine provati su Balthasar il 9/11/2026);
-- l'avviso di Herdr quando una sessione aspetta, oggi in inglese ("Claude Code needs you").
+- l'avviso di Herdr quando una sessione aspetta, oggi in inglese ("Claude Code needs you");
+- la voce in `NOVITA.md`, come per ogni altro cambio (`docs/manutenzione.md`).
 
 ## Il nome Arturo nel Dock
 
-Sul Mac l'installazione crea `~/Applications/Arturo.app` accanto a `Herdr.app` (`shared/volta-celeste/arturo-app.sh`): la stessa app, col nome, l'identificativo `org.stellakamikaze.arturo` e l'icona di Arturo, firmata in locale. Herdr si aggiorna da sé anche dentro Arturo.app e sostituisce il pacchetto intero, quindi dopo un aggiornamento l'app si chiamerebbe di nuovo Herdr: il LaunchAgent `org.stellakamikaze.arturo-app` guarda i due `Info.plist` e rilancia lo script, che riparte dalla copia più nuova. Con la firma ad hoc macOS lega i permessi (Documenti, microfono, automazione) a una firma che cambia a ogni aggiornamento, quindi li richiede. `shared/volta-celeste/firma-locale.sh`, che l'installazione propone con la riga `HERDR FIRMA` e che la persona lancia nel suo Terminale, crea l'identità "Arturo firma locale" nel portachiavi e la segna come affidabile per la firma del codice (macOS chiede la password): da lì Arturo.app tiene la stessa identità e i permessi restano.
+Sul Mac l'installazione crea `~/Applications/Arturo.app` accanto a `Herdr.app` (`shared/volta-celeste/arturo-app.sh`): la stessa app, col nome, l'identificativo `org.stellakamikaze.arturo` e l'icona di Arturo, firmata in locale. Herdr si aggiorna da sé anche dentro Arturo.app e sostituisce il pacchetto intero, quindi dopo un aggiornamento l'app si chiamerebbe di nuovo Herdr: il LaunchAgent `org.stellakamikaze.arturo-app` guarda i due `Info.plist` e rilancia lo script, che riparte dalla copia più nuova. Con la firma ad hoc macOS lega i permessi (Documenti, microfono, automazione) a una firma che cambia a ogni aggiornamento, quindi li richiede. `shared/volta-celeste/firma-locale.sh`, che l'installazione propone con la riga `HERDR FIRMA` e che la persona lancia nel suo Terminale, crea l'identità "Arturo firma locale" nel portachiavi e la segna come affidabile per la firma del codice (macOS chiede due volte la password del Mac): da lì Arturo.app tiene la stessa identità e i permessi restano.
 
 ## Le note sulla finestra (⌘⇧N)
 
