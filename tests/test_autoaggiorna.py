@@ -45,6 +45,12 @@ AA29 con il lucchetto di un'altra applicazione fresco, applica esce senza toccar
      15 minuti si toglie e il rilascio si installa (finding 88);
 AA30 dopo un /clear la chiusura non lancia l'aggiornamento; dopo un'uscita vera sì (finding 19);
 AA31 le righe che separa sposta, commentate, da un hook di sessione: l'avvio dopo l'installazione le nomina (22).
+I casi di #5099 (10/11/2026):
+AA32 "concludi" con una skill non salvata omonima di una nuova del rilascio applica, e la skill va in
+     personale/conflitti: prima il reset falliva e la copia risolta a mano si cancellava;
+AA33 se personale/conflitti non si scrive, la versione della persona di un omonimo resta nella cartella di
+     lavoro: prima si cancellava l'unica copia del file.
+Su c826a58 sono rossi AA32 e AA33.
 
 Sulla base 5d83592, prima della funzione, ogni controllo deve fallire col suo codice. Su a442b38 sono rossi AA25,
 AA26, AA27, AA30 e AA31; AA28 e AA29 coprono codice già giusto, e li fa diventare rossi solo il loro mutante. AA12-AA17 sono rossi
@@ -715,13 +721,55 @@ def test_aa31(repo: Path) -> None:
     con_lab(repo, "AA31", prova)
 
 
+def test_aa32(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        (lab.utente / "settings.json").write_text(json.dumps({"env": {"A": "persona"}}, indent=2) + "\n", encoding="utf-8")
+        lab.git(lab.utente, "commit", "-q", "-am", "le mie impostazioni")
+        mia = lab.utente / "skills" / "nuova" / "SKILL.md"
+        mia.parent.mkdir(parents=True)
+        mia.write_text("MIA SKILL\n", encoding="utf-8")
+        lab.rilascia("skills/nuova/SKILL.md", "DI ARTURO\n", "")
+        lab.rilascia("settings.json", json.dumps({"env": {"A": "2"}}, indent=2) + "\n", "v2026-02-01")
+        lab.arturo_cli("applica")
+        stato = gitdir(lab) / "arturo-aggiorna-copia"
+        assert stato.exists(), f"AA32 prova: il conflitto su settings.json non lascia una copia in attesa: {lab.stato()}"
+        copia = Path(read(stato).split()[0])
+        (copia / "settings.json").write_text(json.dumps({"env": {"A": "unita"}}, indent=2) + "\n", encoding="utf-8")
+        lab.git(copia, "add", "settings.json")
+        subprocess.run(["git", "-C", str(copia), "rebase", "--continue"], env=dict(lab.env, GIT_EDITOR="true"),
+                       capture_output=True, text=True, timeout=60)
+        uscita = procedura(lab, "concludi")
+        assert "APPLICATO" in uscita and "unita" in read(lab.utente / "settings.json") and read(mia) == "DI ARTURO\n", \
+            f"AA32 concludi con una skill omonima non applica (copia ancora lì: {copia.is_dir()}): {uscita[-300:]!r}"
+        salvate = [d / "skills" / "nuova" / "SKILL.md" for d in cartelle_orsa(lab) if (d / "skills" / "nuova" / "SKILL.md").exists()]
+        assert salvate and read(salvate[0]) == "MIA SKILL\n", f"AA32 la skill della persona non è in personale/conflitti: {salvate}"
+    con_lab(repo, "AA32", prova)
+
+
+def test_aa33(repo: Path) -> None:
+    def prova(lab: Lab) -> None:
+        (lab.utente / "personale").mkdir()
+        (lab.utente / "personale" / "conflitti").write_text("un file, non una cartella\n", encoding="utf-8")
+        mia = lab.utente / "skills" / "nuova" / "SKILL.md"
+        mia.parent.mkdir(parents=True)
+        mia.write_text("MIA SKILL\n", encoding="utf-8")
+        commit = lab.rilascia("skills/nuova/SKILL.md", "DI ARTURO\n", "v2026-02-01")
+        lab.arturo_cli("applica")
+        assert lab.head() == commit, f"AA33 prova: il rilascio con l'omonimo non si installa: {lab.stato()}"
+        rimaste = [p for p in (gitdir(lab) / "arturo-aggiorna").rglob("SKILL.md") if read(p) == "MIA SKILL\n"] \
+            if (gitdir(lab) / "arturo-aggiorna").is_dir() else []
+        assert rimaste, "AA33 con personale/conflitti che non si scrive, la skill della persona sparisce: nessuna copia rimasta"
+        assert not list((gitdir(lab) / "arturo-aggiorna").rglob(".git")), "AA33 resta la copia di prova, non solo i file"
+    con_lab(repo, "AA33", prova)
+
+
 TESTS = {"AA01": test_aa01, "AA02": test_aa02, "AA03": test_aa03, "AA04": test_aa04, "AA05": test_aa05,
          "AA06": test_aa06, "AA07": test_aa07, "AA08": test_aa08, "AA09": test_aa09, "AA10": test_aa10, "AA11": test_aa11,
          "AA12": test_aa12, "AA13": test_aa13, "AA14": test_aa14, "AA15": test_aa15, "AA16": test_aa16,
          "AA17": test_aa17, "AA18": test_aa18, "AA19": test_aa19,
          "AA20": test_aa20, "AA21": test_aa21, "AA22": test_aa22, "AA23": test_aa23, "AA24": test_aa24,
          "AA25": test_aa25, "AA26": test_aa26, "AA27": test_aa27, "AA28": test_aa28, "AA29": test_aa29,
-         "AA30": test_aa30, "AA31": test_aa31}
+         "AA30": test_aa30, "AA31": test_aa31, "AA32": test_aa32, "AA33": test_aa33}
 
 
 def main() -> int:

@@ -13,6 +13,19 @@ modo di lavorare.
 
 ---
 
+## 2026-11-10 — /aggiorna non butta più un conflitto risolto a mano
+
+**Cosa cambia**: dopo un conflitto risolto a mano, se un tuo file non salvato con un commit aveva lo stesso nome
+di un file nuovo del rilascio, il "concludi" di `/aggiorna` non applicava niente e cancellava la copia di
+prova, con la tua risoluzione dentro. Ora quel tuo file va in `personale/conflitti`, come nell'aggiornamento
+normale, e il rilascio entra. Se l'applicazione non entra per un altro motivo, la copia risolta resta e la
+riga finale la nomina. Se `personale/conflitti` non si scrive, le tue versioni restano nella cartella di
+lavoro dentro `.git`, e il messaggio dice dove: prima sparivano.
+
+**Il principio**: un passo che fallisce lascia il lavoro della persona dov'era.
+
+**Da sapere**: riguarda solo chi ha Arturo come copia (il clone), non chi lo usa come plugin.
+
 ## 2026-11-10 — Il controllo dei segreti legge anche i commit con molti file nuovi
 
 **Cosa cambia**: con più di 200 file nuovi nel progetto, ogni `git add` seguito da `git commit` chiedeva

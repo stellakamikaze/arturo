@@ -319,7 +319,8 @@ rm -f "$APPLICA"
 ```
 
 Gli esiti sono gli stessi del Passo 3. Se dice che nella copia di prova restano conflitti, torna al
-punto 1. Mai `--force`, mai `reset --hard`, mai un `checkout` che butti via il suo lavoro.
+punto 1. Se l'applicazione non entra, la copia risolta resta (la riga "La copia di prova risolta resta"
+la nomina): correggi la causa detta sopra e rilancia questo blocco, senza rifare la risoluzione. Mai `--force`, mai `reset --hard`, mai un `checkout` che butti via il suo lavoro.
 
 ## Passo 4 — Riavvio e racconto
 

@@ -78,11 +78,13 @@ togli_copia() {
   # Si cancella solo una cartella delle copie di prova, mai un percorso letto male dal registro (7/11/2026):
   # con uno spazio nella HOME ("C:/Users/Mario Rossi") il registro letto a parole dava "C:/Users/Mario",
   # e il rm -rf della sua cartella madre cancellava C:/Users.
+  # Con TIENI_LAVORO la cartella resta: tiene le sole copie dei file della persona che non sono arrivate in
+  # personale/conflitti (#5099, 10/11/2026). Si toglie solo la copia di prova.
   local cartella
   cartella=$(dirname "$1")
   case "$cartella" in
     */..|*/../*) ;;
-    "$CASA_COPIE"/copia.*) [ "$(basename "$1")" = copia ] && rm -rf "$cartella" ;;
+    "$CASA_COPIE"/copia.*) [ "$(basename "$1")" = copia ] && [ -z "${TIENI_LAVORO:-}" ] && rm -rf "$cartella" ;;
   esac
   git worktree prune >/dev/null 2>&1
 }
@@ -153,20 +155,23 @@ pulita() {  # ~/.claude senza modifiche non salvate
 # privato (/fine): se non lo è, o non si sa, non si sposta niente e resta il conflitto di sempre.
 # ORSA_VIAGGIA: 0 se personale/ non viaggia fra le macchine della persona (il sync, o un suo repository non
 # privato come origin). Allora l'Orsa non riceve niente, e un conflitto resta suo (3/11/2026).
-ORSA_VIAGGIA=1
-VISIBILITA=""
-if [ "$MODO" = sync ]; then
-  ORSA_VIAGGIA=0
-elif [ "$MODO" = merge ]; then
-  # Al massimo 20 secondi: un gh appeso teneva fermo l'aggiornamento fino al timeout di aggiornamenti.py, e poi
-  # restava orfano (lotto L10). perl c'è su macOS e in Git per Windows; senza, gh parte senza tetto.
-  if command -v perl >/dev/null 2>&1; then
-    VISIBILITA=$(perl -e 'alarm 20; exec @ARGV' gh repo view "$(git remote get-url origin 2>/dev/null)" --json visibility -q .visibility 2>/dev/null)
-  else
-    VISIBILITA=$(gh repo view "$(git remote get-url origin 2>/dev/null)" --json visibility -q .visibility 2>/dev/null)
+orsa_viaggia() {  # $1 = il modo. Imposta ORSA_VIAGGIA e VISIBILITA; concludi la chiama col modo della copia
+  ORSA_VIAGGIA=1
+  VISIBILITA=""
+  if [ "$1" = sync ]; then
+    ORSA_VIAGGIA=0
+  elif [ "$1" = merge ]; then
+    # Al massimo 20 secondi: un gh appeso teneva fermo l'aggiornamento fino al timeout di aggiornamenti.py, e poi
+    # restava orfano (lotto L10). perl c'è su macOS e in Git per Windows; senza, gh parte senza tetto.
+    if command -v perl >/dev/null 2>&1; then
+      VISIBILITA=$(perl -e 'alarm 20; exec @ARGV' gh repo view "$(git remote get-url origin 2>/dev/null)" --json visibility -q .visibility 2>/dev/null)
+    else
+      VISIBILITA=$(gh repo view "$(git remote get-url origin 2>/dev/null)" --json visibility -q .visibility 2>/dev/null)
+    fi
+    [ "$VISIBILITA" = PRIVATE ] || ORSA_VIAGGIA=0
   fi
-  [ "$VISIBILITA" = PRIVATE ] || ORSA_VIAGGIA=0
-fi
+}
+orsa_viaggia "$MODO"
 separa_nella_copia() {
   if [ "$MODO" = merge ]; then
     local vis=$VISIBILITA
@@ -270,6 +275,33 @@ porta_nella_orsa() {  # dopo un'applicazione riuscita: i file della persona in ~
   mkdir -p "$dest" && cp -R "$LAVORO/conflitti/." "$dest/" && printf '%s\n' "$REF" > "$dest/VERSIONE.txt"
 }
 
+# Un file non salvato della persona con lo stesso nome di un file nuovo del rilascio (una skill sua, skills/nuova)
+# fermava `git reset --keep` a ogni chiusura, con un motivo che non lo nominava (finding 21 del 7/11/2026). In un
+# aggiornamento di Arturo il suo file va in personale/conflitti, come un conflitto; nel sync si nomina e si ferma.
+# Vale anche per concludi (#5099, 10/11/2026): senza questo passo il reset falliva e la copia risolta a mano
+# si cancellava.
+trova_omonimi() {  # imposta OMONIMI: i file nuovi della copia ($PRIMA..HEAD) che in ~/.claude ci sono, non tracciati
+  local f
+  OMONIMI=""
+  while IFS= read -r f; do
+    [ -n "$f" ] && [ -e "$RADICE/$f" ] && ! git ls-files --error-unmatch -- "$f" >/dev/null 2>&1 && OMONIMI+="$f"$'\n'
+  done < <(git -C "$COPIA" diff --name-only --diff-filter=A "$PRIMA" HEAD 2>/dev/null)
+  OMONIMI=${OMONIMI%$'\n'}
+}
+
+metti_da_parte_omonimi() {  # $OMONIMI in $LAVORO/conflitti (copia) e $LAVORO/omonimi (l'originale). Esce 1 se non riesce
+  local f
+  [ -n "$OMONIMI" ] || return 0
+  while IFS= read -r f; do
+    mkdir -p "$LAVORO/conflitti/$(dirname "$f")" "$LAVORO/omonimi/$(dirname "$f")" \
+      && cp -p "$RADICE/$f" "$LAVORO/conflitti/$f" && mv "$RADICE/$f" "$LAVORO/omonimi/$f" \
+      && { grep -qxF -- "$f" "$LAVORO/conflitti/FILE.txt" 2>/dev/null || printf '%s\n' "$f" >> "$LAVORO/conflitti/FILE.txt"; } || {
+        echo "APPLICAZIONE NON PARTITA: non riesco a mettere da parte $f, che ha lo stesso nome di un file nuovo in arrivo. ~/.claude non è stata toccata."
+        rimetti_omonimi; return 1; }
+  done <<< "$OMONIMI"
+  CONFLITTI_ORSA=$(cat "$LAVORO/conflitti/FILE.txt")
+}
+
 rimetti_omonimi() {  # i file della persona messi da parte per gli omonimi, se l'applicazione non è entrata
   [ -d "${LAVORO:-}/omonimi" ] || return 0
   (cd "$LAVORO/omonimi" && find . -type f) | while IFS= read -r f; do
@@ -304,9 +336,15 @@ porta_dentro() {  # $1 = il commit della copia, $2 = HEAD di ~/.claude quando è
     segna_esito applicato "$modo"
     riporta_personale || echo "ATTENZIONE: non riesco a copiare personale/ dalla copia di prova ($COPIA): copiali a mano prima di scartarla."
     if [ -n "$CONFLITTI_ORSA" ]; then
-      porta_nella_orsa || echo "ATTENZIONE: non riesco a copiare le tue versioni dei file in conflitto in personale/conflitti: sono in $LAVORO/conflitti."
+      # Senza la copia nell'Orsa la cartella di lavoro resta: per un omonimo tiene l'unica copia del suo file.
+      if porta_nella_orsa; then
+        echo "Le tue versioni di questi file, andati in conflitto, sono in personale/conflitti:"
+      else
+        TIENI_LAVORO=1
+        echo "ATTENZIONE: non riesco a copiare le tue versioni dei file in conflitto in personale/conflitti."
+        echo "Restano in $LAVORO/conflitti: copiale a mano prima di cancellare quella cartella. Sono questi file:"
+      fi
       segna_conflitti "$modo" "$CONFLITTI_ORSA"
-      echo "Le tue versioni di questi file, andati in conflitto, sono in personale/conflitti:"
       printf '%s\n' "$CONFLITTI_ORSA" | sed 's/^/  /'
     fi
     echo "APPLICATO: config integra"
@@ -401,12 +439,29 @@ if [ "$MODO" = concludi ]; then
   LAVORO=$(dirname "$COPIA")
   if [ -s "$LAVORO/conflitti/FILE.txt" ]; then
     CONFLITTI_ORSA=$(cat "$LAVORO/conflitti/FILE.txt")
-    [ -n "$REF" ] || REF=$(git -C "$COPIA" describe --tags --abbrev=0 2>/dev/null)
   fi
+  trova_omonimi
+  if [ -n "$OMONIMI" ]; then
+    orsa_viaggia "${DA_DOVE:-merge}"
+    if [ "$ORSA_VIAGGIA" = 0 ]; then
+      echo "APPLICAZIONE NON PARTITA: questi file tuoi, non salvati con un commit, hanno lo stesso nome di file nuovi in arrivo:"
+      printf '%s\n' "$OMONIMI" | sed 's/^/  /'
+      echo "Rinominali o salvali con un commit, poi rilancia concludi. La copia di prova risolta resta: $COPIA"
+      exit 1
+    fi
+    metti_da_parte_omonimi || exit 1
+  fi
+  [ -z "$CONFLITTI_ORSA" ] || [ -n "$REF" ] || REF=$(git -C "$COPIA" describe --tags --abbrev=0 2>/dev/null)
   porta_dentro "$(git -C "$COPIA" rev-parse HEAD)" "$PRIMA" "${DA_DOVE:-merge}"; esito=$?
-  [ $esito = 1 ] && [ "$(git rev-parse HEAD)" != "$PRIMA" ] && exit 1  # copia cambiata: la prova resta
+  # La copia di prova si toglie solo dopo un'applicazione entrata: contiene il lavoro di chi ha risolto il
+  # conflitto, e prima un reset fallito la cancellava insieme a quel lavoro (#5099, 10/11/2026).
+  if [ $esito != 0 ]; then
+    rimetti_omonimi
+    echo "La copia di prova risolta resta: $COPIA"
+    exit $esito
+  fi
   togli_copia "$COPIA"; rm -f "$STATO"
-  exit $esito
+  exit 0
 fi
 
 case "$MODO" in merge|rebase|sync) ;; *) echo "APPLICAZIONE NON PARTITA: modo sconosciuto \"$MODO\""; exit 1 ;; esac
@@ -535,14 +590,8 @@ if ! controlla "$COPIA"; then
   echo "APPLICAZIONE ANNULLATA: la versione in arrivo avrebbe lasciato la config rotta. La tua copia è com'era prima"
   exit 1
 fi
-# Un file non salvato della persona con lo stesso nome di un file nuovo del rilascio (una skill sua, skills/nuova)
-# fermava `git reset --keep` a ogni chiusura, con un motivo che non lo nominava (finding 21 del 7/11/2026). In un
-# aggiornamento di Arturo il suo file va in personale/conflitti, come un conflitto; nel sync si nomina e si ferma.
-OMONIMI=""
-while IFS= read -r f; do
-  [ -n "$f" ] && [ -e "$RADICE/$f" ] && ! git ls-files --error-unmatch -- "$f" >/dev/null 2>&1 && OMONIMI+="$f"$'\n'
-done < <(git -C "$COPIA" diff --name-only --diff-filter=A "$PRIMA" HEAD 2>/dev/null)
-OMONIMI=${OMONIMI%$'\n'}
+# I file omonimi della persona (trova_omonimi, sopra): nel sync si nominano e ci si ferma.
+trova_omonimi
 if [ -n "$OMONIMI" ] && [ "$ORSA_VIAGGIA" = 0 ]; then
   togli_copia "$COPIA"
   echo "APPLICAZIONE NON PARTITA: questi file tuoi, non salvati con un commit, hanno lo stesso nome di file nuovi in arrivo:"
@@ -550,16 +599,7 @@ if [ -n "$OMONIMI" ] && [ "$ORSA_VIAGGIA" = 0 ]; then
   echo "Rinominali o salvali con un commit, poi rilancia. Non ho toccato niente."
   exit 1
 fi
-if [ -n "$OMONIMI" ]; then
-  while IFS= read -r f; do
-    mkdir -p "$LAVORO/conflitti/$(dirname "$f")" "$LAVORO/omonimi/$(dirname "$f")" \
-      && cp -p "$RADICE/$f" "$LAVORO/conflitti/$f" && mv "$RADICE/$f" "$LAVORO/omonimi/$f" \
-      && printf '%s\n' "$f" >> "$LAVORO/conflitti/FILE.txt" || {
-        echo "APPLICAZIONE NON PARTITA: non riesco a mettere da parte $f, che ha lo stesso nome di un file nuovo in arrivo. ~/.claude non è stata toccata."
-        rimetti_omonimi; togli_copia "$COPIA"; exit 1; }
-  done <<< "$OMONIMI"
-  CONFLITTI_ORSA=$(cat "$LAVORO/conflitti/FILE.txt")
-fi
+metti_da_parte_omonimi || { togli_copia "$COPIA"; exit 1; }
 porta_dentro "$(git -C "$COPIA" rev-parse HEAD)" "$PRIMA" "$MODO"; esito=$?
 [ $esito = 0 ] || rimetti_omonimi
 togli_copia "$COPIA"
