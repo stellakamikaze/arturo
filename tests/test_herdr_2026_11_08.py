@@ -160,6 +160,11 @@ HZ42 le attese della nascita (#5214): Volta (dati.js nasciSu) aspetta più della
 HZ43 il servizio fisso con un nome solo (#5213): l'etichetta del LaunchAgent di servizi-gui.sh e il nome
      dell'attività di servizio-claude.ps1 sono gli stessi in installa-herdr.sh e in volta_sonda.py; ogni
      riga HERDR che l'installazione stampa ha la sua istruzione in shared/setup-herdr.md.
+HZ44 le sessioni chiuse nell'elenco di Volta (#5203): la sonda chiede claude agents --all, così una
+     sessione fermata (un clic la riapre) e una in errore (Riavvia) restano a vista; delle chiuse tiene
+     le nate negli ultimi CHIUSE_GIORNI giorni; un Claude senza --all dà l'elenco di prima. I comandi
+     arturo.volta-altro-<id> e arturo.volta-gesto-<verbo>-<id> aprono "Altro" e premono un suo bottone,
+     e la barra li legge prima di arturo.volta-<id>.
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
@@ -176,7 +181,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -1042,7 +1047,7 @@ def hz24(repo: Path, casa: Path) -> str | None:
             return f"{nome} non prende i tasti da tasti()"
     if 'window()?.platform === "macos"' not in (mod / "comuni.js").read_text(encoding="utf-8"):
         return "tasti() non sceglie per sistema"
-    if "else notify({ title: `Non trovo la sessione ${id}`" not in volta:
+    if "if (!s) notify({ title: `Non trovo la sessione ${id}`" not in volta:
         return "premiId non avvisa quando la sessione non è nell'elenco"
     return None
 
@@ -2554,7 +2559,67 @@ def hz43(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43}
+# Il claude finto di HZ44: agents --json con e senza --all, come il 2.1.317 (le chiuse solo con --all).
+# HZ_SENZA_ALL fa il Claude vecchio, che non conosce --all.
+CLAUDE_FINTO_ELENCO = r"""#!/usr/bin/env python3
+import json, os, sys, time
+ora = time.time() * 1000
+giorno = 86400 * 1000
+def b(i, stato, eta):
+    return {"id": i, "sessionId": i + "-x", "kind": "background", "state": stato, "startedAt": ora - eta, "cwd": "/p"}
+viste = [{"id": "inter", "sessionId": "inter-x", "kind": "interactive", "status": "idle", "cwd": "/p"}, b("fatta", "done", 3600000)]
+chiuse = [b("fermata", "stopped", 3600000), b("rotta", "failed", giorno), b("vecchia", "stopped", 10 * giorno)]
+if sys.argv[1:2] == ["agents"]:
+    if "--all" in sys.argv:
+        if os.environ.get("HZ_SENZA_ALL"):
+            print("error: unknown option '--all'", file=sys.stderr)
+            sys.exit(1)
+        print(json.dumps(viste + chiuse))
+    else:
+        print(json.dumps(viste))
+"""
+
+
+def hz44(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    bj = (mod / "barra.js").read_text(encoding="utf-8")
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    altro, gesto, clic = bj.find('c.startsWith("volta-altro-")'), bj.find("/^volta-gesto-[a-z]+-/.test(c)"), bj.find('c.startsWith("volta-")')
+    if min(altro, gesto) < 0 or clic < 0 or max(altro, gesto) > clic:
+        return "barra.js non legge volta-altro- e volta-gesto- prima di volta-<id>"
+    if "this.volta.altroId(c.slice(12), cx)" not in bj or "this.volta.gestoId(verbo, id, cx)" not in bj:
+        return "barra.js non passa i comandi ad altroId e gestoId"
+    if "this.menu = s.sessionId;\n    this.scopri(s);\n    this.fare(s, a, cx);" not in vj or "this.menu = this.menu === s.sessionId ? null : s.sessionId;\n    this.scopri(s);" not in vj:
+        return "volta.js: gestoId non preme il bottone, o altroId non apre e chiude Altro"
+    if 'if (g && s.stato === "ferma") this.aperti[g.chiave] = true;' not in vj:
+        return "volta.js: il comando non apre il gruppo delle ferme, e la sessione resta nascosta"
+    if os.name == "nt":
+        return None  # il claude finto è uno script con shebang
+    bindir = casa / "bin"
+    bindir.mkdir()
+    cl = bindir / "claude"
+    cl.write_text(CLAUDE_FINTO_ELENCO, encoding="utf-8")
+    os.chmod(cl, 0o755)
+    hcf = casa / "hc_finto.py"
+    hcf.write_text('print(\'{"machines": []}\')\n', encoding="utf-8")
+    (casa / "conf").mkdir()
+    env = {**os.environ, "PATH": f"{bindir}{os.pathsep}{os.environ['PATH']}", "VOLTA_HC": json.dumps([sys.executable, str(hcf)]),
+           "CLAUDE_CONFIG_DIR": str(casa / "conf"), "PYTHONIOENCODING": "utf-8"}
+    env.pop("VOLTA_SONDA_LOCALE", None)
+    for extra, attesi in (({}, {"inter": "ferma", "fatta": "ferma", "fermata": "ferma", "rotta": "errore"}),
+                          ({"HZ_SENZA_ALL": "1"}, {"inter": "ferma", "fatta": "ferma"})):
+        r = subprocess.run([sys.executable, str(mod / "volta_sonda.py"), "volta"], capture_output=True, text=True, timeout=60, env={**env, **extra})
+        try:
+            righe = json.loads(r.stdout)["sessioni"]
+        except (ValueError, IndexError, KeyError):
+            return f"volta_sonda.py volta {extra}: uscita senza elenco: {(r.stdout + r.stderr).strip()[-160:]}"
+        visti = {x["sessionId"].removesuffix("-x"): x["stato"] for x in righe}
+        if visti != attesi:
+            return f"elenco {extra or 'con --all'}: {visti}, atteso {attesi}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -2740,6 +2805,12 @@ VELENI = [
     ("HZ39", "shared/volta-celeste/mods/arturo/testata.js", ".when(Boolean(nasceSu(t)), (el) => el.child(nasceSu(t)));", ";"),
     ("HZ34", "shared/volta-celeste/mods/arturo/dati.js", "`${appHome()}/mods/arturo/volta_sonda.py`", "`${home()}/.claude/scripts/teletrasporto.py`"),
     ("HZ34", "shared/volta-celeste/mods/arturo/volta.js", "esiste(c.volta)", "esiste(`${home()}/x/volta_sonda.py`)"),
+    ("HZ44", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'sessioni = agenti(["--all"])', "sessioni = agenti([])"),
+    ("HZ44", "shared/volta-celeste/mods/arturo/volta_sonda.py", '            or (s.get("startedAt") or 0) >= soglia]', "            or True]"),
+    ("HZ44", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    sessioni = agenti([]) or []", "    sessioni = []"),
+    ("HZ44", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c.startsWith("volta-altro-")) this.volta.altroId(c.slice(12), cx);', ""),
+    ("HZ44", "shared/volta-celeste/mods/arturo/volta.js", "this.menu = s.sessionId;\n    this.scopri(s);\n    this.fare(s, a, cx);", "this.menu = s.sessionId;"),
+    ("HZ44", "shared/volta-celeste/mods/arturo/volta.js", 'if (g && s.stato === "ferma") this.aperti[g.chiave] = true;', ""),
 ]
 
 

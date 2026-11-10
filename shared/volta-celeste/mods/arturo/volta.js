@@ -133,12 +133,44 @@ export class Volta {
     });
   }
 
-  premiId(id, cx) {
+  // Dal comando `do` può arrivare l'id di una sessione appena nata, che il giro in corso non ha
+  // ancora scritto nell'elenco: si dice, invece di non fare niente (#5078).
+  trovaId(id) {
     const s = (this.dati?.sessioni ?? []).find((x) => x.id === id || String(x.sessionId).startsWith(id));
-    // Dal comando `do` può arrivare l'id di una sessione appena nata, che il giro in corso non ha
-    // ancora scritto nell'elenco: si dice, invece di non fare niente (#5078).
+    if (!s) notify({ title: `Non trovo la sessione ${id}`, body: "L'elenco si aggiorna fra pochi secondi: riprova.", level: "warning" });
+    return s;
+  }
+
+  premiId(id, cx) {
+    const s = this.trovaId(id);
     if (s) this.premi(s, cx);
-    else notify({ title: `Non trovo la sessione ${id}`, body: "L'elenco si aggiorna fra pochi secondi: riprova.", level: "warning" });
+  }
+
+  // "arturo.volta-altro-<id>" e "arturo.volta-gesto-<verbo>-<id>": il clic su "Altro" e su un suo
+  // bottone, da herdr-app do. Herdr non ha clic simulati: le prove dei gesti passano da qui (#5203).
+  altroId(id, cx) {
+    const s = this.trovaId(id);
+    if (!s) return;
+    if (!azioni(s).length) return notify({ title: "Niente gesti su questa sessione", body: "Altro c'è solo sulle sessioni in background.", level: "warning" });
+    this.menu = this.menu === s.sessionId ? null : s.sessionId;
+    this.scopri(s);
+    cx.notify();
+  }
+
+  // Una sessione ferma sta dietro "N ferme": il comando che ne apre i gesti apre anche il suo gruppo.
+  scopri(s) {
+    const g = gruppi(this.dati, this.modo()).find((x) => x.sessioni.some((y) => y.sessionId === s.sessionId));
+    if (g && s.stato === "ferma") this.aperti[g.chiave] = true;
+  }
+
+  gestoId(verbo, id, cx) {
+    const s = this.trovaId(id);
+    if (!s) return;
+    const a = azioni(s).find((x) => x.verbo === verbo);
+    if (!a) return notify({ title: `${verbo}: gesto che qui non c'è`, body: `Su questa sessione: ${azioni(s).map((x) => x.verbo).join(", ") || "nessuno"}.`, level: "warning" });
+    this.menu = s.sessionId;
+    this.scopri(s);
+    this.fare(s, a, cx);
   }
 
   // Un gesto di "Altro": l'anteprima resta sotto la riga, gli altri rileggono l'elenco. Elimina chiede

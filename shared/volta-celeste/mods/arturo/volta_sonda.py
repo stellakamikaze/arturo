@@ -38,18 +38,31 @@ from concurrent.futures import ThreadPoolExecutor
 # Gira sulla macchina da leggere (anche con hc exec, passata in base64). Stampa un JSON:
 # {"claude": percorso o null, "sessioni": [...]} con progetto e ultime parole letti dai file di Claude.
 SONDA = r'''
-import glob, json, os, shutil, subprocess
+import glob, json, os, shutil, subprocess, time
 fine = ".exe" if os.name == "nt" else ""
 cl = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude" + fine)
 if not os.path.exists(cl):
     print(json.dumps({"claude": None, "sessioni": []})); raise SystemExit
 radice = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
-r = subprocess.run([cl, "agents", "--json"], capture_output=True, text=True, encoding="utf-8", errors="replace",
-                   stdin=subprocess.DEVNULL, timeout=40)
-try:
-    sessioni = json.loads(r.stdout or "[]")
-except ValueError:
-    sessioni = []
+# Senza --all claude agents nasconde le sessioni in background fermate (stopped) e quelle in errore
+# (failed): Volta non le mostrerebbe, e Riavvia non comparirebbe mai (#5203). Delle chiuse tiene quelle
+# nate negli ultimi CHIUSE_GIORNI giorni; un Claude senza --all dà l'elenco di prima.
+CHIUSE_GIORNI = 3
+CHIUSE = ("done", "stopped", "failed", "crashed")
+def agenti(extra):
+    r = subprocess.run([cl, "agents", "--json"] + extra, capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", stdin=subprocess.DEVNULL, timeout=40)
+    try:
+        v = json.loads(r.stdout or "[]") if r.returncode == 0 else None
+    except ValueError:
+        v = None
+    return v if isinstance(v, list) else None
+sessioni = agenti(["--all"])
+if sessioni is None:
+    sessioni = agenti([]) or []
+soglia = (time.time() - CHIUSE_GIORNI * 86400) * 1000
+sessioni = [s for s in sessioni if s.get("kind") != "background" or (s.get("state") or s.get("status")) not in CHIUSE
+            or (s.get("startedAt") or 0) >= soglia]
 def testo(c):
     if isinstance(c, str):
         return c
