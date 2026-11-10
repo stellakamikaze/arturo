@@ -514,7 +514,7 @@ COMANDI = {
     "web": (web, "la pagina dei todo nel browser, solo su questo computer"),
     "schede": ("schede_mac", 'nel Terminale di macOS la scheda mostra solo il progetto: stato, applica, ripristina'),
     "note": ("note_finestra", "le note lasciate sulla finestra di Volta Celeste (⌘⇧N): elenco, mostra col ritaglio, prendi, rispondi, risolvi, scarta"),
-    "sessione": ("sessione","una finestra nuova del terminale con Claude già partito su un progetto o un todo (/dafare, tasto o)"),
+    "sessione": ("sessione", "una finestra nuova del terminale con Claude già partito su un progetto o un todo (/dafare, tasto o)"),
     "segnala": ("segnala", "un problema, un'idea o un'integrazione per chi mantiene Arturo"),
     "telemetria": ("telemetria", "gli eventi d'uso che Arturo manda, con un id casuale: stato, mostra, spegni, accendi, invia"),
     "correzione": ("correzioni", "le correzioni della persona, scritte una volta e valide per tutta la sessione: aggiungi, elenco, togli"),
