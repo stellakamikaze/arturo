@@ -2,6 +2,9 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# Una sessione di Claude col plugin esporta ARTURO_CODICE in ogni comando: i banchi lo erediterebbero e
+# crederebbero di girare col plugin anche nelle installazioni a clone (10/11/2026). Chi lo vuole lo mette lui.
+unset ARTURO_CODICE CLAUDE_PLUGIN_ROOT
 # --rossi rifà solo i lavori rossi dell'ultimo giro (tests/esegui_gate.py); --toccati fa girare solo i
 # lavori con una fonte fra i file cambiati. Servono a chi corregge, e stampano PARZIALE perché un
 # rilascio vuole un giro completo verde (docs/manutenzione.md). Le controprove con banco, fonti e base
