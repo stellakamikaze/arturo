@@ -1664,9 +1664,37 @@ VELENI = [
 ]
 
 
+def non_gira_qui(caso: str) -> str | None:
+    """Il motivo per cui il caso esce verde subito su questa macchina, o None se gira (#5163).
+
+    Le condizioni sono quelle dei casi: hz04 vuole un pty, hz08 un Mac Apple Silicon, hz13 e hz16
+    un Mac. Dove il caso non gira il suo veleno non ha cosa rompere, e il giro lo dichiara saltato
+    invece di fermarsi su "NON ATTACCA". Dove il caso gira, il veleno resta obbligatorio.
+    """
+    mac = sys.platform == "darwin"
+    if caso == "HZ04" and os.name == "nt":
+        return "niente pty su Windows: il caso gira su macOS e Linux"
+    if caso == "HZ08" and not (mac and subprocess.run(["sysctl", "-n", "hw.optional.arm64"],
+                                                      capture_output=True, text=True).stdout.strip() == "1"):
+        return "l'invito a Herdr parte solo sui Mac Apple Silicon"
+    if caso in ("HZ13", "HZ16") and not mac:
+        return "Arturo.app e i servizi di launchd ci sono solo sul Mac"
+    return None
+
+
 def avvelena(repo: Path) -> int:
-    esiti = []
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from salti_windows import dichiara  # noqa: PLC0415
+    esiti, saltati = [], 0
     for caso, rel, giusto, rotto in VELENI:
+        motivo = non_gira_qui(caso)
+        if motivo:  # il testo da rompere si controlla lo stesso: un veleno vecchio cade anche qui
+            assert (repo / rel).read_text(encoding="utf-8").count(giusto) == 1, \
+                f"veleno {caso}: il testo da rompere non c'è più in {rel}"
+            dichiara(f"veleno {caso} ({rel})", f"{motivo}, il veleno non ha cosa rompere")
+            esiti.append(caso)
+            saltati += 1
+            continue
         with tempfile.TemporaryDirectory() as tmp:
             copia = Path(tmp) / "repo"
             shutil.copytree(repo, copia, ignore=shutil.ignore_patterns(".git", "__pycache__", "node_modules", "cache"))
@@ -1680,7 +1708,7 @@ def avvelena(repo: Path) -> int:
                 return 1
             print(f"VELENO {caso} ROSSO: {next(r for r in rossi if r.startswith(caso))[:120]}")
             esiti.append(caso)
-    print(f"VELENI_ROSSI={','.join(esiti)} veleni={len(VELENI)}")
+    print(f"VELENI_ROSSI={','.join(esiti)} veleni={len(VELENI)} saltati={saltati}")
     return 0 if len(esiti) == len(VELENI) else 1
 
 
