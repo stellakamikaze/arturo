@@ -19,6 +19,9 @@ modo di lavorare.
 - Su Windows `rm.exe`, `git.exe` e `gh.exe` passano dalle stesse guardie di `rm`, `git` e `gh`. Prima un
   programma scritto col suffisso `.exe` non chiedeva nessuna conferma: né per una cancellazione ricorsiva, né
   per un `push --force`, né per la cancellazione di un repository.
+- Su Windows e sul Mac `RM`, `Git` e `GH` sono gli stessi programmi di `rm`, `git` e `gh`, perché il disco
+  ignora le maiuscole. Le guardie ora li riconoscono: prima `RM -rf` passava senza conferma. Su Linux non
+  cambia niente.
 
 **Il principio**: una guardia vale quanto la forma più semplice che la aggira.
 
