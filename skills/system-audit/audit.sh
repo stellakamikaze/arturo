@@ -61,9 +61,10 @@ hook_commands=()
 if [[ -f "$SETTINGS" ]] && command -v python3 >/dev/null 2>&1; then
   # while read al posto di mapfile: bash 3.2 (il bash di sistema su macOS) non ha mapfile,
   # e senza questo l'array resta vuoto e l'audit non controlla piu' nessun hook.
-  while IFS= read -r hook_command; do
-    [[ -n "$hook_command" ]] && hook_commands+=("$hook_command")
-  done < <(python3 - "$SETTINGS" "$PLUGIN_HOOKS" <<'PY' 2>/dev/null
+  # Il blocco Python scrive su file: dentro <(...) bash 3.2, il bash di macOS, conta gli apici del heredoc
+  # e lo script non si legge più (segnalazione n. 68).
+  comandi_file=$(mktemp "${TMPDIR:-/tmp}/audit-comandi.XXXXXX")
+  python3 - "$SETTINGS" "$PLUGIN_HOOKS" > "$comandi_file" 2>/dev/null <<'PY' || true
 import json
 import sys
 with open(sys.argv[1], encoding="utf-8") as source:
@@ -83,25 +84,17 @@ status = settings.get("statusLine")
 if isinstance(status, dict) and isinstance(status.get("command"), str):
     print(status["command"])
 PY
-)
+  while IFS= read -r hook_command; do
+    [[ -n "$hook_command" ]] && hook_commands+=("$hook_command")
+  done < "$comandi_file"
+  rm -f "$comandi_file"
 fi
 
 hook_files=()
 for command in "${hook_commands[@]}"; do
-  while IFS= read -r script; do
-    [[ -z "$script" ]] && continue
-    script="${script%$'\r'}"
-    if [[ "$script" == "::parse-error::" ]]; then
-      ko "comando hook non interpretabile: $command"
-      continue
-    fi
-    hook_files+=("$script")
-    if [[ -f "$script" ]]; then
-      ok "hook diretto: $(basename "$script")"
-    else
-      ko "hook diretto mancante: $script"
-    fi
-  done < <(python3 - "$command" "$CLAUDE_DIR" "$CODICE" <<'PY'
+  # Come sopra: il heredoc fuori da <(...), perché un apostrofo nel commento rompeva bash 3.2 (n. 68).
+  script_file=$(mktemp "${TMPDIR:-/tmp}/audit-script.XXXXXX")
+  python3 - "$command" "$CLAUDE_DIR" "$CODICE" > "$script_file" <<'PY' || true
 import os
 import re
 import shlex
@@ -133,7 +126,21 @@ for token in tokens:
     token = re.sub(r"^(?:~|\$HOME|\$\{HOME\})/\.claude/", lambda _: orsa + "/", token)
     print(os.path.expanduser(token))
 PY
-)
+  while IFS= read -r script; do
+    [[ -z "$script" ]] && continue
+    script="${script%$'\r'}"
+    if [[ "$script" == "::parse-error::" ]]; then
+      ko "comando hook non interpretabile: $command"
+      continue
+    fi
+    hook_files+=("$script")
+    if [[ -f "$script" ]]; then
+      ok "hook diretto: $(basename "$script")"
+    else
+      ko "hook diretto mancante: $script"
+    fi
+  done < "$script_file"
+  rm -f "$script_file"
 done
 
 # Il dispatcher richiama guardie transitive: il settings da solo non le mostra.

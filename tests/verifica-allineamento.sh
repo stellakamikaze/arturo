@@ -180,6 +180,8 @@ BANCHI=(
   test_sportello_2026_11_04.py
   # Il contatto di chi segnala (10/11/2026): arturo contatto, prepara e invia, domanda una volta.
   test_contatto_2026_11_10.py
+  # Gli script si leggono col bash 3.2 del Mac (10/11/2026, segnalazione n. 68).
+  test_bash32_2026_11_10.py
   test_humanizer_origine.py
   # Percorsi fra virgolette e alla maniera di Windows nelle guardie (9/11/2026, #5096).
   test_guardie_virgolette_2026_11_09.py
@@ -215,7 +217,7 @@ IN_FILA=(
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_contatto_2026_11_10.py)
+PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py)
 if [[ -z "$PY38" && -n "$RILASCIO" ]]; then
   # Un rilascio prova il minimo dichiarato: senza 3.8 i suoi banchi salterebbero in silenzio (review del
   # 7/11/2026, finding 91).
@@ -419,6 +421,8 @@ BASELINE=(
   "test_sportello_2026_11_04.py fa14218"
   # Il contatto di chi segnala (10/11/2026): arturo contatto non c'è. 3954f1d, il dev prima.
   "test_contatto_2026_11_10.py 3954f1d"
+  # Il heredoc dentro <(...) di audit.sh (10/11/2026, n. 68): a7c5162, il dev prima.
+  "test_bash32_2026_11_10.py a7c5162"
   # Strati F3 (5/11/2026, #4533): MANIFEST firmato, catalogo con lo sha, /aggiorna che verifica il tag.
   # 809868a, il dev prima.
   "test_fiducia_2026_11_05.py 809868a"
@@ -485,6 +489,8 @@ VELENI=(
   test_windows_minori_2026_11_10.py
   # Il contatto (10/11/2026): senza il contatto nel corpo, nell'impronta o nell'avvio, CT03, CT05 e CT07 sono rossi.
   test_contatto_2026_11_10.py
+  # n. 68: il heredoc rimesso dentro <(...) fa rossi BS01 e, sul Mac, BS02.
+  test_bash32_2026_11_10.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

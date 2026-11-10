@@ -13,6 +13,17 @@ modo di lavorare.
 
 ---
 
+## 2026-11-10 — /diagnosi torna a controllare la config sul Mac
+
+**Cosa cambia**: sul Mac il controllo della configurazione di `/diagnosi` si fermava subito con un errore di
+sintassi, e non diceva più se guardie e hook erano collegati bene. Il bash che il Mac ha di serie, più vecchio,
+leggeva male un apostrofo in un commento dentro lo script (segnalazione n. 68). Ora lo script si legge con quel
+bash, e un banco nuovo prova ogni script di Arturo col bash del Mac.
+
+**Il principio**: uno script che deve girare dappertutto si prova col bash più vecchio che incontra.
+
+---
+
 ## 2026-11-10 — /fine non si ferma più per l'identità di Git
 
 **Cosa cambia**: se non hai scelto un nome per i commit, `/fine` prima si fermava con "MANCA l'identità di Git".
