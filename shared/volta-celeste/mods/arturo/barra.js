@@ -3,7 +3,7 @@
 import { div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, window, shared, setShared, nextCommand, updates } from "herdr";
-import { todo, progetti, sezioni, frase, apri, nuova, slug, cartelle, SUGGERIMENTI } from "./dati.js";
+import { todo, progetti, sezioni, frase, apri, nuova, slug, cartelle, statiQui, SUGGERIMENTI } from "./dati.js";
 import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco, nasceSu } from "./comuni.js";
 import { apriGuida } from "./guida.js";
 import { apriSuggerimenti, esegui } from "./suggerimenti.js";
@@ -14,7 +14,7 @@ import { Volta } from "./volta.js";
 export class Marchio {
   render() {
     const t = theme();
-    const aspetta = agents().some((a) => a.status === "blocked");
+    const aspetta = agents().some((a) => a.status === "blocked") || Object.values(statiQui()).includes("aspetta");
     const stella = image("mods/arturo/stella.svg").size(20).flex_none();
     const mac = window()?.platform === "macos" && !window()?.fullscreen;
     return h_flex().size_full().bg(t.chrome).pl(mac ? 84 : 18).pr(14).gap(10).items_center()
@@ -38,8 +38,9 @@ export class Barra {
     cx.timer.every(30000, (cx) => this.carica(cx));
     // Quando una sessione cambia stato, i todo possono essere cambiati: si rileggono.
     cx.timer.every(3000, (cx) => {
-      // Anche un todo scritto dal pannello (shared arturo.scritto) cambia i conti della barra.
-      const f = agents().map((a) => `${a.address}:${a.status}`).join(",") + `|${shared("arturo.scritto") ?? ""}`;
+      // Cambiano i conti della barra anche un todo scritto dal pannello (shared arturo.scritto) e una
+      // sessione in background di questa macchina, che Herdr non vede (statiQui).
+      const f = agents().map((a) => `${a.address}:${a.status}`).join(",") + `|${JSON.stringify(statiQui())}|${shared("arturo.scritto") ?? ""}`;
       if (f !== this.firma) { this.firma = f; this.carica(cx); }
     });
     cx.spawn(async (cx) => {

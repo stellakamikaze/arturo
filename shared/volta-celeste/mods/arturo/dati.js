@@ -149,7 +149,7 @@ export function progetti(vista, extra = {}) {
   }
   const RANGO = { blocked: 5, done: 4, working: 3, idle: 2 };
   return [...per.values()]
-    .map((v) => ({ ...v, stato: spazio(v.chiave)?.status ?? null, aperto: Boolean(spazio(v.chiave)) }))
+    .map((v) => ({ ...v, stato: statoSpazio(spazio(v.chiave)), aperto: Boolean(spazio(v.chiave)) }))
     .sort((a, b) => (RANGO[b.stato] ?? 0) - (RANGO[a.stato] ?? 0) || Number(b.aperto) - Number(a.aperto)
       || (URGENZA[a.parola] ?? 2) - (URGENZA[b.parola] ?? 2) || b.tu + b.decidi - (a.tu + a.decidi) || a.titolo.localeCompare(b.titolo));
 }
@@ -174,21 +174,50 @@ export function sezioni(lista) {
 
 // La scheda di uno spazio che aggancia una sessione con claude attach (qui o via ssh): Herdr non la vede
 // come un agente, perché nella scheda gira ssh o attach e non claude. { terminal, tab } oppure null.
+// Prima la scheda attiva: lo spazio "Volta" ne tiene più d'una, e la testata parla di quella che vedi.
 export function schedaAgganciata(s) {
   const tabs = new Set((s?.tabs ?? []).map((tb) => tb.id));
-  for (const p of panes()) {
+  const attiva = s?.tabs?.find((tb) => tb.active)?.id;
+  for (const p of [...panes()].sort((a, b) => (b.tab === attiva) - (a.tab === attiva))) {
     if (!tabs.has(p.tab)) continue;
     const t = terminals().find((x) => x.address === p.terminal);
-    if (Array.isArray(t?.argv) && t.argv.includes("attach")) return { terminal: t.address, tab: p.tab };
+    if (Array.isArray(t?.argv) && t.argv.includes("attach")) {
+      return { terminal: t.address, tab: p.tab, id: String(t.argv[t.argv.indexOf("attach") + 1] ?? "") };
+    }
   }
   return null;
+}
+
+// Gli stati di Volta (aspetta, lavora, ferma, errore) nelle parole di Herdr, per la barra e la testata.
+// Un errore non ha una parola di Herdr: resta senza stato, e Volta lo mostra nel suo elenco.
+const DA_VOLTA = { aspetta: "blocked", lavora: "working", ferma: "idle" };
+
+// Lo stato della sessione agganciata nella scheda `g` (schedaAgganciata), dall'ultima lettura di Volta
+// (shared arturo.volta.stati, { <id corto>: { stato, host } }, volta.js). null se Volta non la elenca.
+export function statoAgganciata(g) {
+  const st = g?.id ? shared("arturo.volta.stati")?.[g.id.slice(0, 8)] : null;
+  return DA_VOLTA[st?.stato] ?? null;
+}
+
+// Le sessioni di questa macchina nell'ultima lettura di Volta: { <id corto>: aspetta|lavora|ferma|errore }.
+// La barra le guarda come guarda gli agenti di Herdr, che non vedono le sessioni in background.
+export function statiQui() {
+  const out = {};
+  for (const [id, v] of Object.entries(shared("arturo.volta.stati") ?? {})) if (v?.host === "qui") out[id] = v.stato;
+  return out;
+}
+
+// Lo stato di uno spazio: quello di Herdr, oppure, per una scheda che aggancia una sessione in background
+// (dove Herdr non vede un agente), quello che legge Volta. Lo usano barra, testata e todo.
+export function statoSpazio(s) {
+  if (!s) return null;
+  return s.status ?? statoAgganciata(schedaAgganciata(s));
 }
 
 // Apre il progetto: lo spazio se c'è, altrimenti una sessione nuova che parte da /inizio, sulla macchina
 // di "Nasce su" (il clic nella barra, Lavoraci, Fai il punto e la finestra Apri: la riga sta sotto Apri
 // un progetto). `todoScelto` ({id, titolo}) porta Claude direttamente su quel todo.
 export async function apri(nome, todoScelto) {
-  const c = await config();
   nome = slug(nome);
   const s = spazio(nome);
   if (s) {
@@ -201,6 +230,7 @@ export async function apri(nome, todoScelto) {
     const g = a ? null : schedaAgganciata(s);
     if (g) {
       run("tab.select", { id: g.tab });
+      if (statoAgganciata(g) === "blocked") return notify({ title: "Claude aspetta una tua risposta", body: "Rispondi nella sessione, poi riprova.", level: "warning" });
       const r = await hc(["send", g.terminal, testo]);
       if (r.code !== 0) notify({ title: "Non sono riuscito a scrivere a Claude", body: prima(r.stderr) || "Se Claude aspetta una tua risposta, rispondi nella sessione e riprova.", level: "warning" });
       return;
@@ -212,22 +242,14 @@ export async function apri(nome, todoScelto) {
     return;
   }
   const prompt = todoScelto ? `/inizio ${nome} -- #${todoScelto.id} ${pulito(todoScelto.titolo)}` : `/inizio ${nome}`;
-  const m = dove();
-  if (m !== "qui") return nasciSu(m, prompt, nome);
-  run("space.new", { name: nome, folder: c.base, machine: "", tab: "Claude", argv: ["claude", prompt] });
+  return nasciSu(dove(), prompt, nome);
 }
 
 // Una richiesta nuova, senza progetto: Claude nella cartella dei progetti, sulla macchina scelta in
 // "Nasce su". `soloQui`: le richieste di "Cosa posso chiedere" restano su questa macchina, perché
 // parlano dei suoi progetti, dei suoi todo e della sua configurazione (chiedi()).
 export async function nuova(prompt, soloQui = false) {
-  const m = soloQui ? "qui" : dove();
-  if (m !== "qui") return nasciSu(m, prompt, null);
-  const c = await config();
-  const ora = new Date();
-  const hh = String(ora.getHours()).padStart(2, "0");
-  const mm = String(ora.getMinutes()).padStart(2, "0");
-  run("space.new", { name: `Richiesta delle ${hh}:${mm}`, folder: c.base, machine: "", tab: "Claude", argv: prompt ? ["claude", prompt] : ["claude"] });
+  return nasciSu(soloQui ? "qui" : dove(), prompt, null);
 }
 
 // Le richieste da imparare: i pulsanti del benvenuto e della finestra "Cosa posso chiedere".
@@ -251,9 +273,11 @@ export async function chiedi(sug) {
   if (sug.dove === "nuova") return nuova(prompt, true);
   const s = spaces().find((x) => x.active && !x.machine);
   const a = s ? agents().find((x) => x.space === s.id && x.tab === s.tabs.find((t) => t.active)?.id) ?? agents().find((x) => x.space === s.id) : null;
-  if (!a) return nuova(prompt, true);
-  if (a.status === "blocked") return notify({ title: "Claude aspetta una tua risposta", body: "Rispondi nella conversazione, poi riprova.", level: "warning" });
-  const r = await hc(["send", a.address, prompt]);
+  // Senza agente di Herdr: la scheda che aggancia una sessione in background, se lo spazio ne ha una.
+  const g = a || !s ? null : schedaAgganciata(s);
+  if (!a && !g) return nuova(prompt, true);
+  if ((a ? a.status : statoAgganciata(g)) === "blocked") return notify({ title: "Claude aspetta una tua risposta", body: "Rispondi nella conversazione, poi riprova.", level: "warning" });
+  const r = await hc(["send", a ? a.address : g.terminal, prompt]);
   if (r.code !== 0) notify({ title: "Non sono riuscito a scrivere a Claude", body: prima(r.stderr), level: "error" });
 }
 
@@ -295,8 +319,12 @@ export function aggancia(s, argv) {
   } else run("space.new", { name: nomeSpazio, folder: cartella, machine: "", tab: nome, argv });
 }
 
-// Una sessione nuova in background su un'altra macchina (volta_sonda.py nasci), agganciata qui in una
-// scheda: continua a girare là anche chiusa la scheda, e Volta la apre da ogni macchina.
+// Il nome di una macchina di "Nasce su" per le persone: "qui" è questa macchina.
+export const nomeMacchina = (m) => (m === "qui" ? "questa macchina" : m);
+
+// Una sessione nuova in background (volta_sonda.py nasci), su questa macchina o su un'altra, agganciata
+// qui in una scheda: continua a girare anche chiusa la scheda, e Volta la apre da ogni macchina. Anche
+// qui nasce in background (#5072): lo stato in barra lo dà Volta (statoSpazio).
 // Durante la nascita shared arturo.nascita dice dove, per la riga "Nasce su".
 async function nasciSu(macchina, prompt, progetto) {
   if (shared("arturo.nascita")) return;
@@ -310,12 +338,13 @@ async function nasciSu(macchina, prompt, progetto) {
       const r = await exec(c.arturo[0], args, { timeout: 200000 });
       esito = JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
     } catch {
-      esito = { errore: `${macchina} non risponde` };
+      esito = { errore: `${nomeMacchina(macchina)} non risponde` };
     }
     if (esito.attach?.length) {
-      const nome = progetto ?? (prompt ? pulito(prompt) : `Richiesta su ${macchina}`);
-      aggancia({ id: esito.id, sessionId: esito.sessionId, nome, progetto, questa: false }, esito.attach);
-    } else notify({ title: `La sessione non nasce su ${macchina}`, body: esito.errore ?? "Nessuna risposta.", level: "error" });
+      const nome = progetto ?? (prompt ? pulito(prompt) : `Richiesta su ${nomeMacchina(macchina)}`);
+      // La scheda parte dalla home anche qui: claude attach non ha bisogno della cartella della sessione.
+      aggancia({ id: esito.id, sessionId: esito.sessionId, nome, progetto, questa: macchina === "qui" }, esito.attach);
+    } else notify({ title: `La sessione non nasce su ${nomeMacchina(macchina)}`, body: esito.errore ?? "Nessuna risposta.", level: "error" });
   } finally {
     setShared("arturo.nascita", null);
   }

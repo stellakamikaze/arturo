@@ -6,7 +6,7 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, spaces, shared, setShared, notify } from "herdr";
-import { todo, slug, apri, spazio, PAROLE, titoloTodo } from "./dati.js";
+import { todo, slug, apri, spazio, statoSpazio, PAROLE, titoloTodo } from "./dati.js";
 import { ICONA, colore } from "./comuni.js";
 import { partenza } from "./partenza.js";
 import { fatto, inizia } from "./azioni.js";
@@ -29,7 +29,7 @@ export class Todo {
       const letto = `${shared("arturo.letto")}:${shared("arturo.scritto")}`;
       if (p !== this.progetto || letto !== this.letto) { this.progetto = p; this.letto = letto; this.carica(cx); }
       // La riga di un todo in corso segue la sessione: lavora, aspetta te, chiusa.
-      const sessione = p ? spazio(p)?.status ?? "chiusa" : null;
+      const sessione = p ? statoSpazio(spazio(p)) ?? "chiusa" : null;
       if (sessione !== this.sessione) { this.sessione = sessione; cx.notify(); }
     });
     this.progetto = this.attivo();
@@ -93,8 +93,9 @@ export class Todo {
     if (item.stato !== "in corso") return null;
     const s = spazio(this.progetto);
     if (!s) return { testo: "In corso, ma la sessione è chiusa: Lavoraci la riapre", colore: "muted" };
-    if (s.status === "blocked") return { testo: "Claude ti aspetta", colore: "blocked" };
-    if (s.status === "working") return { testo: "Claude ci sta lavorando", colore: "working" };
+    const st = statoSpazio(s);
+    if (st === "blocked") return { testo: "Claude ti aspetta", colore: "blocked" };
+    if (st === "working") return { testo: "Claude ci sta lavorando", colore: "working" };
     return { testo: "Claude ci lavora", colore: "working" };
   }
 
