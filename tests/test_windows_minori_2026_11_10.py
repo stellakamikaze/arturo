@@ -97,7 +97,7 @@ def prova(repo: Path, solo: str = "") -> list:
         (casa / ".claude").mkdir(parents=True)
         env = dict(os.environ, HOME=str(casa), USERPROFILE=str(casa), CLAUDE_CONFIG_DIR=str(casa / ".claude"),
                    ARTURO_RADICE=str(casa / ".claude"), PYTHONIOENCODING="utf-8", PYTHONDONTWRITEBYTECODE="1")
-        p = subprocess.run([sys.executable, "-c", FIGLIO, str(repo / "bin")], capture_output=True, text=True,
+        p = subprocess.run([sys.executable, "-c", FIGLIO, str(repo.resolve() / "bin")], capture_output=True, text=True,
                            encoding="utf-8", errors="replace", timeout=60, env=env, cwd=tmp)
     try:
         rossi = json.loads(p.stdout.strip().splitlines()[-1])
@@ -156,7 +156,9 @@ def main() -> int:
         return 0
     for r in rossi:
         print("ROSSO", r)
-    print(f"difetti minori su Windows: {len(CASI) - len({r.split()[0] for r in rossi})}/{len(CASI)} casi verdi")
+    codici = {r.split()[0] for r in rossi}
+    verdi = 0 if "CADUTO" in codici else len([c for c in CASI if c not in codici])
+    print(f"difetti minori su Windows: {verdi}/{len(CASI)} casi verdi")
     return 1 if rossi else 0
 
 
