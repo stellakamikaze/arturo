@@ -46,7 +46,8 @@ MG17 dopo `claude plugin install` uno sha diverso da quello verificato, un file 
 
 Sulla base 53450c6 (il dev prima di F4) sono tutti rossi: arturo migra non c'è. Su a442b38 (prima del lotto L4)
 sono rossi MG09, MG11, MG15 e MG16. Con --avvelena una copia
-del repository rotta in un punto alla volta deve far fallire il caso che lo sorveglia.
+del repository rotta in un punto alla volta deve far fallire il caso che lo sorveglia. Due veleni di MG03 rompono le
+barre di Windows e sugli altri sistemi escono come SALTO; su Windows escono come SALTO i due di MG08 sull'avviso.
 """
 from __future__ import annotations
 
@@ -690,15 +691,27 @@ VELENI = [
 ]
 
 
+# Veleni che rompono la gestione delle barre rovesciate (#4873): su macOS e Linux str() e as_posix() danno lo stesso
+# testo e os.sep è già "/", quindi il codice rotto fa la stessa cosa del giusto e il veleno non ha cosa rompere (#5092).
+SOLO_WINDOWS = {
+    '{antenato.as_posix() for f in registro["albero"]',
+    'testo[len(casa):].replace(os.sep, "/") if testo == casa',
+}
+
+
 def avvelena(repo: Path) -> int:
     esiti = []
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from salti_windows import dichiara  # noqa: PLC0415
     for caso, rel, giusto, rotto in VELENI:
         if os.name == "nt" and caso == "MG08" and "SISTEMI_PROVATI" not in giusto:
             # Su Windows l'avviso non parte e MG08 si ferma al controllo del sistema non provato: questi due
             # veleni rompono la parte che lì non gira.
-            sys.path.insert(0, str(Path(__file__).resolve().parent))
-            from salti_windows import dichiara  # noqa: PLC0415
             dichiara(f"veleno MG08 ({rel})", "l'avviso dell'avvio su Windows è spento, il veleno non ha cosa rompere")
+            esiti.append(caso)
+            continue
+        if os.name != "nt" and giusto in SOLO_WINDOWS:
+            dichiara(f"veleno {caso} ({giusto[:40]})", "le barre rovesciate ci sono solo su Windows, il veleno non ha cosa rompere")
             esiti.append(caso)
             continue
         with tempfile.TemporaryDirectory() as tmp:
