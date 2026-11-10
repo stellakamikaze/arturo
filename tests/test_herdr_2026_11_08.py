@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ42: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ46: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -172,6 +172,11 @@ HZ45 il titolo delle sessioni (hooks/titolo-sessione.py con un claude finto): la
      con ARTURO_TITOLI=0 e dentro la chiamata figlia non chiama; un claude che fallisce lascia exit 0.
      La sonda porta il campo titolo, sessioni.js lo mette davanti al nome, Volta si apre per progetto,
      e settings.json registra l'hook asincrono su UserPromptSubmit e Stop.
+HZ46 l'Anteprima di una sessione (#5240): la sonda taglia l'ultima risposta a una parola intera, col segno
+     "…", e porta l'ultima azione; il documento di Volta non la taglia una seconda volta. sessioni.js
+     (node): anteprima() dà "Ultima risposta" con le righe senza i segni del markdown e i nomi col
+     trattino basso interi, poi "Ultima azione"; null senza trascrizione. volta.js mostra quei blocchi a
+     capo dalla riga già letta, senza lanciare claude logs, che resta per chi non ha trascrizione.
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
@@ -188,7 +193,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -2765,7 +2770,73 @@ def hz45(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45}
+PROVA_ANTEPRIMA = """
+import * as m from %s;
+console.log(JSON.stringify({
+  piena: m.anteprima({ risposta: "**Fatto:** `volta_sonda.py` gira.\\n\\n## Poi\\n> il resto", azione: "Bash: Lancia il banco" }),
+  solaAzione: m.anteprima({ risposta: "", azione: "Read: " }),
+  vuota: m.anteprima({ risposta: "", azione: "" }),
+  senzaCampi: m.anteprima({}),
+}));
+"""
+
+
+def hz46(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    presa, comando = vj.find('if (a.verbo === "logs" && anteprima(s)) { this.anteprime[k] = true; return cx.notify(); }'), vj.find("await azioneSessione(s, a.verbo)")
+    if presa < 0 or comando < 0 or presa > comando:
+        return "volta.js: l'Anteprima non parte dalla riga già letta prima di lanciare claude logs"
+    for pezzo in ("vista === true ? anteprima(s)", "div().id(id).whitespace_normal()", "child(b.etichetta)"):
+        if pezzo not in vj:
+            return f"volta.js non mostra l'anteprima a capo con le etichette ({pezzo})"
+    node = shutil.which("node")
+    if node:
+        copia = casa / "sessioni.mjs"
+        shutil.copyfile(mod / "sessioni.js", copia)
+        r = subprocess.run([node, "--input-type=module", "-e", PROVA_ANTEPRIMA % json.dumps(copia.as_uri())], capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+        d = json.loads(r.stdout.strip().splitlines()[-1])
+        attesi = {"piena": [{"etichetta": "Ultima risposta", "righe": ["Fatto: volta_sonda.py gira.", "Poi", "il resto"]},
+                            {"etichetta": "Ultima azione", "righe": ["Bash: Lancia il banco"]}],
+                  "solaAzione": [{"etichetta": "Ultima azione", "righe": ["Read"]}], "vuota": None, "senzaCampi": None}
+        for k, v in attesi.items():
+            if d.get(k) != v:
+                return f"anteprima() {k}: {d.get(k)}, atteso {v}"
+    if os.name == "nt":
+        return None  # il claude finto è uno script con shebang
+    bindir = casa / "bin"
+    bindir.mkdir()
+    cl = bindir / "claude"
+    cl.write_text(CLAUDE_FINTO_ELENCO, encoding="utf-8")
+    os.chmod(cl, 0o755)
+    hcf = casa / "hc_finto.py"
+    hcf.write_text('print(\'{"machines": []}\')\n', encoding="utf-8")
+    tr = casa / "conf" / "projects" / "-p"
+    tr.mkdir(parents=True)
+    lunga = "Fatto: " + "parola " * 80  # 567 caratteri: oltre il taglio a 400
+    with (tr / "inter-x.jsonl").open("w", encoding="utf-8") as fh:
+        fh.write("{}\n")  # la sonda salta la prima riga, che può essere a metà
+        fh.write(json.dumps({"type": "assistant", "timestamp": "2026-11-10T10:00:00Z", "message": {"content": [
+            {"type": "text", "text": lunga}, {"type": "tool_use", "name": "Bash", "input": {"description": "Lancia il banco"}}]}}) + "\n")
+    env = {**os.environ, "PATH": f"{bindir}{os.pathsep}{os.environ['PATH']}", "VOLTA_HC": json.dumps([sys.executable, str(hcf)]),
+           "CLAUDE_CONFIG_DIR": str(casa / "conf"), "PYTHONIOENCODING": "utf-8"}
+    env.pop("VOLTA_SONDA_LOCALE", None)
+    r = subprocess.run([sys.executable, str(mod / "volta_sonda.py"), "volta"], capture_output=True, text=True, timeout=60, env=env)
+    try:
+        riga = next(x for x in json.loads(r.stdout)["sessioni"] if x["sessionId"] == "inter-x")
+    except (ValueError, KeyError, StopIteration):
+        return f"volta_sonda.py volta: uscita senza la sessione con la trascrizione: {(r.stdout + r.stderr).strip()[-160:]}"
+    risposta = riga.get("risposta") or ""
+    if not (380 < len(risposta) <= 401 and risposta.endswith("parola…") and risposta.startswith("Fatto: parola")):
+        return f"risposta lunga {len(risposta)} che finisce con {risposta[-12:]!r}: attesa tagliata a una parola intera entro 400, col segno …"
+    if riga.get("azione") != "Bash: Lancia il banco":
+        return f"ultima azione {riga.get('azione')!r}, attesa 'Bash: Lancia il banco'"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -2973,6 +3044,14 @@ VELENI = [
     ("HZ45", 'shared/volta-celeste/mods/arturo/sessioni.js', '  if (scritto) return scritto;\n', ''),
     ("HZ45", 'shared/volta-celeste/mods/arturo/volta.js', '=== "macchina" ? "macchina" : "progetto"', '=== "progetto" ? "progetto" : "macchina"'),
     ("HZ45", "shared/volta-celeste/mods/arturo/volta.js", "(s.titolo ? div().whitespace_normal() : div().truncate())", "div().truncate()"),
+    ("HZ46", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'tx[:400].rsplit(None, 1)[0] + "\\u2026"', 'tx[:400]'),
+    ("HZ46", "shared/volta-celeste/mods/arturo/volta_sonda.py", '"risposta": (s.get("risposta") or "")[:420],', '"risposta": (s.get("risposta") or "")[:200],'),
+    ("HZ46", "shared/volta-celeste/mods/arturo/sessioni.js", '.replace(/^\\s*(#+|>)\\s*/, "")', ''),
+    ("HZ46", "shared/volta-celeste/mods/arturo/sessioni.js", 'const senzaSegni = (r) => r.replace(/\\*\\*|`/g, "")', 'const senzaSegni = (r) => r.replace(/[*_`]/g, "")'),
+    ("HZ46", "shared/volta-celeste/mods/arturo/sessioni.js", '  return out.length ? out : null;', '  return out;'),
+    ("HZ46", "shared/volta-celeste/mods/arturo/sessioni.js", '.replace(/:$/, "")', ''),
+    ("HZ46", "shared/volta-celeste/mods/arturo/volta.js", '    if (a.verbo === "logs" && anteprima(s)) { this.anteprime[k] = true; return cx.notify(); }\n', ''),
+    ("HZ46", "shared/volta-celeste/mods/arturo/volta.js", ': div().id(id).whitespace_normal().text_size(12.5)', ': div().id(id).truncate().text_size(12.5)'),
 ]
 
 

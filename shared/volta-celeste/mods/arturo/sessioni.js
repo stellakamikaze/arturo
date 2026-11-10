@@ -4,7 +4,7 @@
 //
 // Una riga del file (~/.cache/volta/sessioni.json, campo "sessioni"):
 // { macchina, host, questa, sessionId, id, nome, progetto, titolo, stato: aspetta|lavora|ferma|errore,
-//   tipo: background|interattiva, attach: argv | null, cartella, ultimo, risposta, vecchia? }
+//   tipo: background|interattiva, attach: argv | null, cartella, ultimo, risposta, azione, vecchia? }
 
 export const MODI = { macchina: "Per macchina", progetto: "Per progetto" };
 export const SENZA = "Senza progetto";
@@ -123,7 +123,7 @@ export const agganciata = (argv, s) => Array.isArray(argv) && !!s?.id &&
   ((argv.includes("attach") && argv.includes(s.id)) || argv.some((a) => dentro(a, s.id)));
 
 // I gesti sulla riga di una sessione in background, oltre al clic che la apre (claude attach, anche se
-// lavora): l'anteprima (claude logs), ferma (stop) se è viva, riavvia (respawn) dopo un errore, elimina
+// lavora): l'anteprima (anteprima() qui sotto, o claude logs senza trascrizione), ferma (stop) se è viva, riavvia (respawn) dopo un errore, elimina
 // (rm, con conferma) se è ferma. Un'interattiva e una riga vecchia non ne hanno: si aprono e basta.
 export function azioni(s) {
   if (!s || s.vecchia || s.tipo !== "background") return [];
@@ -132,6 +132,20 @@ export function azioni(s) {
   if (s.stato === "errore") out.push({ verbo: "respawn", testo: "Riavvia" });
   if (s.stato === "ferma" || s.stato === "errore") out.push({ verbo: "rm", testo: "Elimina", conferma: "Sì, elimina" });
   return out;
+}
+
+// L'Anteprima di una sessione senza aprirla (#5240): l'ultima risposta e l'ultima azione che la sonda
+// legge dalla trascrizione (campi risposta e azione), come blocchi { etichetta, righe } da mandare a
+// capo. Del markdown toglie solo i segni (grassetto, codice, titoli, citazioni): i nomi col trattino
+// basso restano interi. null se la trascrizione manca: allora Volta mostra lo schermo di claude logs.
+const senzaSegni = (r) => r.replace(/\*\*|`/g, "").replace(/^\s*(#+|>)\s*/, "").replace(/\s+/g, " ").trim();
+export function anteprima(s) {
+  const righe = String(s?.risposta ?? "").split("\n").map(senzaSegni).filter(Boolean);
+  const azione = senzaSegni(String(s?.azione ?? "").replace(/\s+/g, " ")).replace(/:$/, "");
+  const out = [];
+  if (righe.length) out.push({ etichetta: "Ultima risposta", righe });
+  if (azione) out.push({ etichetta: "Ultima azione", righe: [azione] });
+  return out.length ? out : null;
 }
 
 const chiave = (s) => `${s.host}/${s.sessionId}`;

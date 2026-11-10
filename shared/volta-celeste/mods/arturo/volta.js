@@ -4,14 +4,14 @@
 // clic aggancia la sessione in una scheda (claude attach, via ssh se è su un'altra macchina), o la
 // sposta prima in background se è aperta in un Terminale ed è ferma.
 // Spostare in background una sessione aperta in un Terminale (porta-volta) resta a teletrasporto.py, se c'è.
-// "Altro" su una sessione in background: anteprima delle ultime righe, ferma, riavvia, elimina (#5172 passo 4).
+// "Altro" su una sessione in background: anteprima (ultima risposta e ultima azione), ferma, riavvia, elimina (#5172 passo 4).
 // Una sessione che passa a "ti aspetta", di qualunque macchina, dà un avviso; lo stato di ogni sessione
 // va in shared arturo.volta.stati per le schede che agganciano una sessione in background.
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, home, shared, setShared, watchFolder, notify } from "herdr";
-import { gruppi, titolo, dettaglio, clic, MODI, azioni, nuoveInAttesa, statiCorti } from "./sessioni.js";
+import { gruppi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
 import { config, aggancia, azioneSessione } from "./dati.js";
 
@@ -36,7 +36,7 @@ export class Volta {
     this.sposto = {};
     this.aperti = {};
     this.menu = null;      // la sessione con i gesti aperti
-    this.anteprime = {};   // sessionId -> righe di claude logs
+    this.anteprime = {};   // sessionId -> true (risposta e azione lette dalla riga) o righe di claude logs
     this.chiedo = {};      // sessionId -> verbo che aspetta la conferma
     this.faccio = {};      // sessionId -> verbo in corso
     this.script = undefined;
@@ -182,6 +182,8 @@ export class Volta {
     if (a.conferma && this.chiedo[k] !== a.verbo) { this.chiedo[k] = a.verbo; return cx.notify(); }
     delete this.chiedo[k];
     if (a.verbo === "logs" && this.anteprime[k]) { delete this.anteprime[k]; return cx.notify(); }
+    // L'anteprima viene dalla riga già letta (#5240): niente comando, e segue le letture dopo.
+    if (a.verbo === "logs" && anteprima(s)) { this.anteprime[k] = true; return cx.notify(); }
     this.faccio[k] = a.verbo;
     cx.notify();
     cx.spawn(async (cx) => {
@@ -210,11 +212,18 @@ export class Volta {
         .on_click((_e, cx) => this.fare(s, a, cx))
         .child(testo);
     };
-    const anteprima = this.anteprime[k];
+    // Risposta e azione vanno a capo; lo schermo di claude logs (senza trascrizione) resta a righe fisse.
+    const vista = this.anteprime[k];
+    const blocchi = vista === true ? anteprima(s) : vista ? [{ schermo: true, righe: vista }] : null;
+    const rigo = (b, r, id) => b.schermo
+      ? div().id(id).truncate().font_family("Atkinson Hyperlegible Mono").text_size(11.5).text_color(t.muted).child(r || " ")
+      : div().id(id).whitespace_normal().text_size(12.5).text_color(t.foreground).child(r);
     return v_flex().pl(19).pt(4).gap(6)
       .child(h_flex().gap(6).flex_wrap().children(az.map(bottone)))
-      .when(Boolean(anteprima), (el) => el.child(v_flex().p(8).rounded(6).bg(t.hover).overflow_hidden()
-        .children(anteprima.map((r, i) => div().id(`vl-${s.id}-${i}`).truncate().font_family("Atkinson Hyperlegible Mono").text_size(11.5).text_color(t.muted).child(r || " ")))));
+      .when(Boolean(blocchi), (el) => el.child(v_flex().p(8).gap(8).rounded(6).bg(t.hover).overflow_hidden()
+        .children(blocchi.map((b, i) => v_flex().gap(2)
+          .when(Boolean(b.etichetta), (e) => e.child(div().text_size(11).text_color(t.dim).child(b.etichetta)))
+          .children(b.righe.map((r, j) => rigo(b, r, `vl-${s.id}-${i}-${j}`)))))));
   }
 
   riga(t, s, modo, cx) {

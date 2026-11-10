@@ -11,7 +11,7 @@ distribuire (#5172, 10/11/2026).
       progetti di quella macchina, dopo aver acceso il servizio di Claude. Stampa {id, sessionId, attach,
       macchina, progetto, cartella} oppure {errore}: lo stesso contratto di porta-volta, così Volta la
       aggancia come le altre (#5172 passo 4).
-  python3 volta_sonda.py azione MACCHINA logs|stop|respawn|rm ID   (logs: le ultime righe dello schermo)
+  python3 volta_sonda.py azione MACCHINA logs|stop|respawn|rm ID   (logs: le ultime righe dello schermo, per chi non ha trascrizione)
   python3 volta_sonda.py servizio MACCHINA
       accende il servizio di Claude (claude daemon run) su MACCHINA se manca, dove sopravvive: il
       LaunchAgent di servizi-gui.sh o l'attività di servizio-claude.ps1 se ci sono; altrimenti staccato,
@@ -104,7 +104,9 @@ for s in sessioni:
                 if not isinstance(b, dict):
                     continue
                 if b.get("type") == "text" and b.get("text", "").strip():
-                    risposta = b["text"].strip()[:400]
+                    tx = b["text"].strip()
+                    # tagliata a una parola intera, col segno: l'Anteprima di Volta la mostra (#5240)
+                    risposta = tx if len(tx) <= 400 else tx[:400].rsplit(None, 1)[0] + "\u2026"
                 elif b.get("type") == "tool_use":
                     i = b.get("input") or {}
                     azione = b.get("name", "") + ": " + str(i.get("description") or i.get("command") or i.get("file_path") or "")[:150]
@@ -416,7 +418,7 @@ def righe(voci):
                 # un'interattiva va prima portata in background, poi si aggancia
                 "attach": argv_attach(v, corto) if fondo else None,
                 "cartella": s.get("cwd"), "ultimo": s.get("ultimo") or "",
-                "risposta": (s.get("risposta") or "")[:200], "azione": s.get("azione") or "",
+                "risposta": (s.get("risposta") or "")[:420], "azione": s.get("azione") or "",
             })
     return out
 
