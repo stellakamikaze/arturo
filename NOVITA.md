@@ -13,6 +13,15 @@ modo di lavorare.
 
 ---
 
+## 2026-11-10 — /fine non si ferma più per l'identità di Git
+
+**Cosa cambia**: se non hai scelto un nome per i commit, `/fine` prima si fermava con "MANCA l'identità di Git".
+Git però ne ricava una da solo, dal nome utente e dal nome del computer, e il commit partiva lo stesso. Ora `/fine`
+usa quell'identità automatica e te lo dice con un avviso. Per mettere un nome tuo nei commit usa `/setup`, FASE 1.
+`/fine` si ferma solo se Git non trova davvero nessuna identità (segnalazione n. 67).
+
+**Il principio**: un controllo ferma il lavoro solo quando il passo dopo fallirebbe davvero.
+
 ## 2026-11-10 — Un contatto per le tue segnalazioni
 
 **Cosa cambia**: puoi lasciare agli sviluppatori di Arturo un nome e un'email, una volta sola. Servono per

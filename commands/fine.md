@@ -108,6 +108,9 @@ git diff --cached --stat
 bash ~/.claude/bin/identita-git.sh .
 ```
 
+  Se lo script stampa `AVVISO`, il commit parte con l'identità automatica di Git: procedi e riporta la riga
+  nella chiusura, con l'invito a sceglierne una con `/setup`. Solo `MANCA` ferma il commit.
+
   Controlla che l'elenco coincida con quello che volevi, poi `git commit -m "<messaggio>" -- <file-1> <file-2>`.
 - **Sessione in un worktree** (aperto da `/inizio` perché un'altra sessione lavorava sullo stesso
   progetto): leggi `~/.claude/shared/fine-worktree.md` e seguilo prima dell'handoff. Riporta il lavoro
