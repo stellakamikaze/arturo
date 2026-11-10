@@ -381,7 +381,7 @@ VELENI = [
     ("IP09", "hooks/metodo.sh", 'printf \'%s\\n\' "${testo//\\$ARTURO_CODICE/$CODICE}"', 'printf \'%s\\n\' "$testo"'),
     ("IP10", "bin/impostazioni.py", "                if any(u in registrati for u in usati):", "                if False:"),
     ("IP15", "commands/inizio.md", '!= "$(cd ~/.claude 2>/dev/null && pwd -P)" ] && PLUGIN=1', '] && PLUGIN=0'),
-    ("IP16", "bin/impacchetta.py", 'elif md.relative_to(cartella).parts[0] in ("skills", "shared", "agents") and RELATIVO.search(riga):',
+    ("IP16", "bin/impacchetta.py", 'elif relativo.parts[0] in ("skills", "shared", "agents") and RELATIVO.search(riga):',
      "elif False:"),
     ("IP17", "commands/creaskill.md", ' "${ARTURO_CODICE:-$HOME/.claude}/skills/$NOME"; do', "; do"),
     ("IP17", "bin/impacchetta.py", '(?!commands/\\")", radice_codice', '", radice_codice'),

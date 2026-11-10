@@ -289,13 +289,16 @@ def verifica(cartella: Path, firmato: bool = False) -> list[str]:
     voci = "|".join(re.escape(c) for c in CODICE if c not in ("docs", "tests"))
     fisso = re.compile(rf"(?:~|\$HOME|\$\{{HOME\}})/\.claude/(?!commands/\")(?:{voci})(?:/|\b)")
     for md in cartella.rglob("*.md"):
-        if md.is_symlink() or md.relative_to(cartella).parts[0] == "docs":
+        relativo = md.relative_to(cartella)
+        if md.is_symlink() or relativo.parts[0] == "docs":
             continue
+        # Il nome nel messaggio ha le barre dritte anche su Windows: chi lo legge, o lo confronta, vede un solo formato.
+        nome = relativo.as_posix()
         for n, riga in enumerate(md.read_text(encoding="utf-8").splitlines(), 1):
             if fisso.search(riga):
-                errori.append(f"{md.relative_to(cartella)}:{n} {riga.strip()[:100]}")
-            elif md.relative_to(cartella).parts[0] in ("skills", "shared", "agents") and RELATIVO.search(riga):
-                errori.append(f"{md.relative_to(cartella)}:{n} percorso senza ~/.claude: {riga.strip()[:90]}")
+                errori.append(f"{nome}:{n} {riga.strip()[:100]}")
+            elif relativo.parts[0] in ("skills", "shared", "agents") and RELATIVO.search(riga):
+                errori.append(f"{nome}:{n} percorso senza ~/.claude: {riga.strip()[:90]}")
     hooks = json.loads((cartella / "hooks" / "hooks.json").read_text(encoding="utf-8"))
     for comando in re.findall(r'"command": "([^"]*)"', json.dumps(hooks)):
         if "~/.claude/" in comando or "$HOME/.claude/" in comando:
