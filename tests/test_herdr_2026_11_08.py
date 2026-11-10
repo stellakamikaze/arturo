@@ -2276,7 +2276,7 @@ def hz39(repo: Path, casa: Path) -> str | None:
         return "il benvenuto non mostra Nasce su, ma la sua Nuova richiesta la segue"
     # #5072: barra, testata e todo leggono lo stato di uno spazio da statoSpazio(), anche agganciato
     dj = (mod / "dati.js").read_text(encoding="utf-8")
-    for file, pezzo in (("dati.js", "stato: statoSpazio(spazio(v.chiave))"), ("testata.js", "const st = statoSpazio(s);"),
+    for file, pezzo in (("dati.js", "stato: statoSpazio(s)"), ("testata.js", "const st = statoSpazio(s);"),
                         ("todo.js", "statoSpazio(spazio(p))"), ("todo.js", "    const st = statoSpazio(s);"),
                         ("barra.js", '|| Object.values(statiQui()).includes("aspetta")'), ("barra.js", "`|${JSON.stringify(statiQui())}|")):
         if pezzo not in (dj if file == "dati.js" else (mod / file).read_text(encoding="utf-8")):
@@ -3031,7 +3031,7 @@ VELENI = [
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", "(b.tab === attiva) - (a.tab === attiva)", "0"),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'if (statoAgganciata(g) === "blocked") return notify', 'if (false) return notify'),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'const g = a || !s ? null : schedaAgganciata(s);', 'const g = null;'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'stato: statoSpazio(spazio(v.chiave))', 'stato: spazio(v.chiave)?.status ?? null'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'stato: statoSpazio(s)', 'stato: s?.status ?? null'),
     ("HZ39", "shared/volta-celeste/mods/arturo/testata.js", 'const st = statoSpazio(s);', 'const st = s?.status;'),
     ("HZ39", "shared/volta-celeste/mods/arturo/todo.js", 'statoSpazio(spazio(p))', 'spazio(p)?.status'),
     ("HZ39", "shared/volta-celeste/mods/arturo/todo.js", '    const st = statoSpazio(s);', '    const st = s.status;'),

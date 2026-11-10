@@ -148,8 +148,12 @@ export function progetti(vista, extra = {}) {
     if (!per.has(k)) per.set(k, { chiave: k, nome: s.name, titolo: bello(s.name), categoria: "", tu: 0, decidi: 0, io: 0, fermo: 0 });
   }
   const RANGO = { blocked: 5, done: 4, working: 3, idle: 2 };
+  // Gli spazi si leggono una volta sola: spaces() attraversa il confine con Herdr, e chiamarlo due volte
+  // per ognuna delle cento e più voci (cartelle della base comprese) sfora i 50 ms del render.
+  const locali = new Map();
+  for (const s of spaces()) if (!s.machine) { const k = slug(s.name); if (!locali.has(k)) locali.set(k, s); }
   return [...per.values()]
-    .map((v) => ({ ...v, stato: statoSpazio(spazio(v.chiave)), aperto: Boolean(spazio(v.chiave)) }))
+    .map((v) => { const s = locali.get(v.chiave); return { ...v, stato: statoSpazio(s), aperto: Boolean(s) }; })
     .sort((a, b) => (RANGO[b.stato] ?? 0) - (RANGO[a.stato] ?? 0) || Number(b.aperto) - Number(a.aperto)
       || (URGENZA[a.parola] ?? 2) - (URGENZA[b.parola] ?? 2) || b.tu + b.decidi - (a.tu + a.decidi) || a.titolo.localeCompare(b.titolo));
 }
