@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { argomentiInizio, decidi, MIN_INTERVALLO_MS, nomeTool, spenta, vediBozza } from '../hooks/rotazione/rotazione'
+import { argomentiInizio, decidi, nomeTool, spenta, vediBozza } from '../hooks/rotazione/rotazione'
 
 // Il nome che il motore finto dà al tool: il mod usa quello, qualunque sia il nome del plugin.
 const TOOL = 'mcp__prova__ruota'
@@ -27,11 +27,15 @@ describe('decidi', () => {
   test('turno di un subagent: aspetta, non disarma', () => {
     expect(decidi({ ...base, agentId: 'a1' })).toEqual({ azione: 'niente' })
   })
-  test('seconda rotazione entro 3 minuti: disarma', () => {
-    expect(decidi({ ...base, ultima: base.ora - MIN_INTERVALLO_MS + 1 }).azione).toBe('disarma')
+  test('seconda rotazione subito dopo la prima: clear, senza tempo minimo', () => {
+    expect(decidi({ ...base, ultima: base.ora - 1 })).toEqual({ azione: 'clear' })
   })
-  test('rotazione dopo 3 minuti: clear', () => {
-    expect(decidi({ ...base, ultima: base.ora - MIN_INTERVALLO_MS })).toEqual({ azione: 'clear' })
+  test('con ROTAZIONE_MIN_S, seconda rotazione entro il limite: disarma', () => {
+    const esito = decidi({ ...base, ultima: base.ora - 59_999, intervalloMs: 60_000 })
+    expect(esito).toEqual({ azione: 'disarma', motivo: 'due rotazioni in meno di 60 secondi: giro fermato' })
+  })
+  test('con ROTAZIONE_MIN_S, rotazione dopo il limite: clear', () => {
+    expect(decidi({ ...base, ultima: base.ora - 60_000, intervalloMs: 60_000 })).toEqual({ azione: 'clear' })
   })
 })
 

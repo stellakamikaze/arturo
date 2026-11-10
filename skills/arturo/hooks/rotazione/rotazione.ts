@@ -1,6 +1,8 @@
 // La logica della rotazione, pura: si prova senza motore (3/11/2026).
 
-export const MIN_INTERVALLO_MS = 3 * 60 * 1000
+// Fra due rotazioni non c'è più un tempo minimo (10/11/2026): il limite di 3 minuti fermava il giro
+// quando una rotazione decisa non partiva e si riarmava subito. Resta solo se ROTAZIONE_MIN_S lo chiede.
+export const MIN_INTERVALLO_MS = 0
 export const ATTESA_CLEAR_MS = 800
 export const ATTESA_INIZIO_MS = 1500
 export const RIPROVA_CLEAR_MS = 5000
@@ -34,14 +36,18 @@ export function decidi(p: {
   bozza: string
   ora: number
   ultima: number | undefined
-  intervalloMs?: number // ROTAZIONE_MIN_S lo abbassa solo nelle prove dal vivo
+  intervalloMs?: number // ROTAZIONE_MIN_S: tempo minimo fra due rotazioni, spento se manca
 }): Esito {
   if (!p.armata) return { azione: 'niente' }
   if (p.agentId) return { azione: 'niente' } // turno di un subagent: la rotazione aspetta il turno principale
   if (p.reason !== 'answer') return { azione: 'disarma', motivo: 'turno interrotto: rotazione annullata' }
   if (p.bozza.trim() !== '') return { azione: 'attendi' }
-  if (p.ultima !== undefined && p.ora - p.ultima < (p.intervalloMs ?? MIN_INTERVALLO_MS))
-    return { azione: 'disarma', motivo: 'due rotazioni in meno di 3 minuti: giro fermato' }
+  const intervallo = p.intervalloMs ?? MIN_INTERVALLO_MS
+  if (intervallo > 0 && p.ultima !== undefined && p.ora - p.ultima < intervallo)
+    return {
+      azione: 'disarma',
+      motivo: `due rotazioni in meno di ${Math.round(intervallo / 1000)} secondi: giro fermato`,
+    }
   return { azione: 'clear' }
 }
 
