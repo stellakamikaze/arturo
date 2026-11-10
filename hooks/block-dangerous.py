@@ -180,6 +180,11 @@ PERCORSI_PROTETTI = (
 # Come ogni regola tratta le maiuscole, uguale a prima della tabella. Nel predicato "piega" confronta con
 # _piega (macOS e Windows ignorano le maiuscole, finding 11), "nome" mette in minuscolo solo il nome del
 # file, "esatte" non piega. Nella riserva True vuol dire re.IGNORECASE. cmd e powershell piegano sempre.
+# Il flag per le regex che cercano il nome di un programma nel testo del comando: su macOS e Windows il
+# disco ignora le maiuscole, e `SED`, `FIND` e `PYTHON3` fanno partire sed, find e python3 (revisione del
+# 10/11/2026, HK-1b). Stessa regola di forma_comando.RE_NOMI, che qui non è ancora caricato.
+_RE_NOMI = re.IGNORECASE if sys.platform in ("darwin", "win32") else 0
+_SED = r"(?i:\bsed\b)" if _RE_NOMI else r"\bsed\b"
 _MAIUSCOLE = {"config": ("piega", True), "sblocco": ("nome", True), "claude-md": ("esatte", False),
               "avvio-automatico": ("piega", False)}
 # Un pezzo di nome nelle regex, al posto di *.
@@ -244,7 +249,7 @@ CONFIG_WRITE_RE = _riserva(
 # CLAUDE.md, in qualunque cartella: via Edit/Write protect_claude_md.py chiede una volta per modifica
 # (l'unlock della sessione le fa passare tutte), qui si copre il vettore shell, che altrimenti lo riscrive
 # senza prompt. Nel testo bastano redirezione e sed -i: cp, tee e gli altri binari li giudica _writes_config.
-CLAUDE_MD_WRITE_RE = _riserva("claude-md", r">>?\s*{p}|\bsed\b[^|;&]*-i[^|;&]*{p}")
+CLAUDE_MD_WRITE_RE = _riserva("claude-md", r">>?\s*{p}|" + _SED + r"[^|;&]*-i[^|;&]*{p}")
 # open() di python in scrittura su un CLAUDE.md: chiede sempre, prima di CLAUDE_MD_WRITE_RE (1/11/2026).
 # Il nome chiude le virgolette: `CLAUDE.md.bak` non è un CLAUDE.md.
 CLAUDE_MD_OPEN_RE = _riserva("claude-md", open_modi="wax+", coda_open="")
@@ -438,7 +443,7 @@ def _lettura_indiretta(cmd):
                     return True
                 if toks[0] == "while" and "read" in toks[1:3]:
                     return True
-        m = re.search(r"\bfind\b(.*?)\s-(?:exec|execdir|ok|okdir)\s+(\S+)", stmt)
+        m = re.search(r"\bfind\b(.*?)\s-(?:exec|execdir|ok|okdir)\s+(\S+)", stmt, _RE_NOMI)
         if m and segreto(m.group(1)) and _fc._nome(m.group(2)) in (_READ_BINS | _SHELLS):
             return True
     return False
@@ -526,7 +531,7 @@ BARE_TARGETS = {".", "./", "*", ".*", "*.*", "./*", ".//"}
 # Il carattere prima di `w` è "non alfanumerico" per coprire l'apice di 'w file',
 # lo spazio di `; w file` e lo slash di `s/a/b/w file`. `[^|&]*` non attraversa una
 # pipe, così `sed -n p x | grep w foo` non matcha.
-SED_WRITE_RE = re.compile(r"(^|[\s;&|])sed\s[^|&]*[^A-Za-z0-9]w\s+[^\s|;&]")
+SED_WRITE_RE = re.compile(r"(^|[\s;&|])sed\s[^|&]*[^A-Za-z0-9]w\s+[^\s|;&]", _RE_NOMI)
 _SED_SCRIPT_W = re.compile(r"(^|[^A-Za-z0-9])w\s+[^\s|;&]")
 # Il pattern e la sostituzione di s/// e y/// e gli indirizzi /re/ sono testo, non comandi (31/10/2026):
 # `sed -i 's/if (w >= 700 \&\& w <= 1000) {/if (w <= 1000) {/' probe.cjs` sembrava una scrittura per la `w`
@@ -1409,7 +1414,7 @@ def _amend_altrui(command, cwd, sessione):
 # shutil.rmtree cancella una cartella intera come `rm -r`, ma da dentro python (17/10/2026, #3506).
 _RMTREE_RE = re.compile(r"\b(?:shutil\.)?rmtree\s*\(\s*(?:(['\"])([^'\"]*)\1|([A-Za-z_]\w*)\s*\))?")
 # `py` è il lanciatore di python su Windows (20/10/2026, #3525: `py -c "...rmtree..."` passava).
-_PYTHON_RE = re.compile(r"(?:^|[\s;&|(/])(?:python3?(?:\.\d+)?|py)(?=\s|$)")
+_PYTHON_RE = re.compile(r"(?:^|[\s;&|(/])(?:python3?(?:\.\d+)?|py)(?=\s|$)", _RE_NOMI)
 _RMTREE_ALIAS_RE = re.compile(r"\brmtree\s+as\s+([A-Za-z_]\w*)")
 _TEMPORANEA = "<cartella di tempfile>"
 
@@ -1882,7 +1887,7 @@ def _rm_segments(command):
             for bersagli in _powershell_rimuove(args):
                 out.append((bersagli, cwd_decl))
             continue
-        if nome.startswith("$") and re.search(r"(?:^|[\s'\"=;&|(])(?:rm|unlink|shred)(?:[\s'\";&|)]|$)", command):
+        if nome.startswith("$") and re.search(r"(?:^|[\s'\"=;&|(])(?:rm|unlink|shred)(?:[\s'\";&|)]|$)", command, _RE_NOMI):
             out.append((None, cwd_decl))  # `RM='rm -rf'; $RM x`: il programma è una variabile (finding 2)
             continue
         if nome == "xargs" and "rm" in [forma._nome(a) for a in args]:

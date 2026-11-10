@@ -368,6 +368,9 @@ _XARGS_CON_VALORE = frozenset(("-I", "-n", "-P", "-L", "-l", "-d", "-E", "-e", "
 
 
 _DISCO_SENZA_MAIUSCOLE = sys.platform in ("darwin", "win32")
+# Il flag per le regex che cercano il nome di un programma nel testo del comando (`\bgit\b`, `\bfind\b`):
+# dove il disco ignora le maiuscole `Git` e `FIND` sono gli stessi programmi (HK-1b).
+RE_NOMI = re.IGNORECASE if _DISCO_SENZA_MAIUSCOLE else 0
 
 
 def _nome(parola: str) -> str:

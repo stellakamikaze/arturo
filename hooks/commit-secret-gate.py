@@ -107,8 +107,18 @@ try:
     _spec_fc.loader.exec_module(_fc)
     _SHELL = _fc.SHELL
     _togli_commenti = _fc.togli_commenti
+    # Il nome del programma come lo leggono le altre guardie: senza `.exe`, e in minuscolo dove il disco
+    # ignora le maiuscole. Col confronto esatto `Git commit` e `GH pr create` saltavano la scansione
+    # (revisione del 10/11/2026, HK-1b).
+    _nome = _fc._nome
+    _RE_NOMI = _fc.RE_NOMI
 except Exception:
     _SHELL = frozenset("sh bash zsh dash ksh fish".split())
+    _RE_NOMI = re.IGNORECASE if sys.platform in ("darwin", "win32") else 0
+
+    def _nome(parola: str) -> str:
+        nome = os.path.basename(parola)
+        return nome.lower() if _RE_NOMI else nome
 
     def _togli_commenti(command: str) -> str:
         return command
@@ -274,8 +284,8 @@ def _repo_for_command(command: str, cwd: str):
                     variables[name] = expanded
             continue
         tokens = tokens[index:]
-        head = os.path.basename(tokens[0])
-        if head == "ssh" and re.search(r"\bgit\b.*\bcommit\b", " ".join(tokens[1:])):
+        head = _nome(tokens[0])
+        if head == "ssh" and re.search(r"\bgit\b.*\bcommit\b", " ".join(tokens[1:]), _RE_NOMI):
             return None  # un commit su un'altra macchina: il suo diff non si legge da qui (31/10/2026)
         if head not in _NUOVA_AMMESSI:
             estranei = True
@@ -332,7 +342,7 @@ def _repo_for_command(command: str, cwd: str):
             resto = tokens[1:]
             while resto and _ASSIGN.match(resto[0]):
                 resto = resto[1:]
-            if resto and os.path.basename(resto[0]) == "git":
+            if resto and _nome(resto[0]) == "git":
                 tokens, head = resto, "git"
         if head in _WRAPPERS and "commit" in " ".join(tokens[1:]):
             return None
@@ -365,11 +375,12 @@ def _repo_for_command(command: str, cwd: str):
                 # mandare commit (clone, fetch, push, remote...) e solo con i programmi di
                 # _NUOVA_AMMESSI: `git clone … "$D"; cp <credenziali> .` passava muto col False largo.
                 if estranei or not inizializzato or re.search(
-                        r"\bgit\b[^;&|\n]*\b(clone|fetch|pull|remote|push|submodule|bundle|am|apply)\b", command):
+                        r"\bgit\b[^;&|\n]*\b(clone|fetch|pull|remote|push|submodule|bundle|am|apply)\b", command,
+                        _RE_NOMI):
                     return None
                 return (_NUOVA, tuple(sorgenti))
             return location
-    if re.search(r"\bgh\s+pr\s+create\b", command):
+    if re.search(r"\bgh(?:\.exe)?\s+pr\s+create\b", command, _RE_NOMI):
         return location
     return False
 
@@ -429,9 +440,9 @@ def _invocazioni_git(command: str):
     out = []
     for tokens in segmenti:
         i = 0
-        while i < len(tokens) and (_ASSIGN.match(tokens[i]) or os.path.basename(tokens[i]) in ("env", "command")):
+        while i < len(tokens) and (_ASSIGN.match(tokens[i]) or _nome(tokens[i]) in ("env", "command")):
             i += 1
-        if i >= len(tokens) or os.path.basename(tokens[i]) != "git":
+        if i >= len(tokens) or _nome(tokens[i]) != "git":
             continue
         i += 1
         while i < len(tokens) and tokens[i].startswith("-"):
@@ -601,7 +612,8 @@ def main() -> int:
         # `git clone … && cd y && … git commit`) è nuova: si scansiona il testo del comando, come per mktemp
         # (review delle correzioni del 1/11/2026). Il caso di F21 resta: un cd che fallisce senza crearla.
         nome = os.path.basename(os.path.normpath(repo))
-        if re.search(r"\b(?:mkdir\b|git\b[^;&|\n]*\b(?:clone|init)\b)[^;&|\n]*" + re.escape(nome), command):
+        if re.search(r"\b(?:mkdir\b|git\b[^;&|\n]*\b(?:clone|init)\b)[^;&|\n]*" + re.escape(nome), command,
+                     _RE_NOMI):
             return _scansiona_nuova(command, [])
         return _ask("repo-ignoto", "Il commit gira dopo un cd verso una cartella che non esiste: la shell resta "
                     "nella cartella di prima, e il repository non si legge. Conferma prima di proseguire.")
@@ -618,7 +630,7 @@ def main() -> int:
     # commit: al momento di questo check (PreToolUse) l'index non li contiene ancora,
     # quindi il solo `diff --cached` mancherebbe un secret in un file già tracciato.
     commit_all = bool(re.search(r"\bcommit\b[^|;&]*\s-{1,2}(a\b|all\b|[a-zA-Z]*a[a-zA-Z]*\b)", command))
-    add_prima = bool(re.search(r"\bgit\b[^;&|\n]*\sadd\b", command))
+    add_prima = bool(re.search(r"\bgit\b[^;&|\n]*\sadd\b", command, _RE_NOMI))
     invocazioni = _invocazioni_git(command)
     percorsi = next((_percorsi_commit(a) for s, a in invocazioni if s == "commit"), [])
     forzati = [p for s, a in invocazioni if s == "add" for p in _forzati_add(a)]
