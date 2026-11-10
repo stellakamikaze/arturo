@@ -34,7 +34,9 @@ Il comando aggiorna il catalogo, controlla che il rilascio indicato sia un tag f
 dei rilasci e che porti proprio lo sha del catalogo. Claude Code installerebbe quello sha anche
 senza firma: la verifica la fa Arturo, prima.
 
-- `GIÀ AGGIORNATO`: diglielo in una frase e chiudi.
+- `GIÀ AGGIORNATO`: diglielo in una frase e chiudi. Se il plugin è arrivato da un'altra strada
+  (`claude plugin update`, il pannello `/plugin`), sotto c'è `IMPOSTAZIONI APPLICATE`, da dire nella stessa
+  frase, o `IMPOSTAZIONI NON APPLICATE`: proponi `/setup`, come sotto.
 - Una riga `plugin-v…` con `rc=0`: è la versione nuova, verificata. Chiedi il sì, poi lancia
   `python3 ~/.claude/bin/aggiornamenti.py plugin`. Fa `claude plugin update` e controlla la copia
   installata col suo MANIFEST firmato, poi unisce a settings.json le voci nuove del frammento

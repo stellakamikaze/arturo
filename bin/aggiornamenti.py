@@ -34,7 +34,9 @@ Col plugin (strati F3, 5/11/2026) il codice sta nella cache di Claude Code e non
 controlla dicono soltanto se c'è un rilascio nuovo, applica non fa niente, e l'aggiornamento passa da
 `plugin`, che /aggiorna lancia. Claude
 Code installa lo sha scritto nel catalogo anche se nessun tag firmato lo indica (prova del 5/11/2026):
-per questo il tag si verifica qui, prima, con la chiave dell'ancora nell'Orsa (hooks/fiducia.py).
+per questo il tag si verifica qui, prima, con la chiave dell'ancora nell'Orsa (hooks/fiducia.py). Se il plugin
+arriva da un'altra strada (claude plugin update, il pannello /plugin), stato e il "GIÀ AGGIORNATO" di plugin
+uniscono a settings.json le impostazioni nuove, da una copia che torna col suo MANIFEST firmato (#5101).
 """
 from __future__ import annotations
 
@@ -766,6 +768,9 @@ def stato_plugin(r: Path) -> int:
         print(f"ARTURO: {COMPROMISSIONE}. {stato.get('motivo', '')}. Non riaprire Claude Code prima di aver segnalato: "
               "dillo alla persona con queste parole, e proponi /segnala o la segnalazione privata di SECURITY.md.")
         return 0
+    riga = "" if stato.get("compromesso") else impostazioni_indietro(radici.radice_arturo(), radici.radice_orsa())
+    if riga:
+        print(f"ARTURO: {riga} Dillo alla persona in una frase.")
     if stato.get("plugin") and stato.get("stato") == "manuale" and stato.get("versione") \
             and versione_nuova_plugin(radici.radice_orsa()) == stato["versione"]:
         print(f"ARTURO: c'è la versione {stato['versione']} di Arturo. /aggiorna la installa dopo averne verificato la "
@@ -786,6 +791,12 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
     if rc == 2:
         segna_aggiornato(radice())
         print(f"GIÀ AGGIORNATO: {tag}")
+        # Il plugin può essere arrivato da un'altra strada (claude plugin update, il pannello /plugin): le
+        # impostazioni restavano quelle di prima, e qui nessuno lo diceva (#5101).
+        percorso = str(installato(orsa).get("installPath") or "")
+        riga = impostazioni_indietro(Path(percorso), orsa) if percorso else ""
+        if riga:
+            print(riga)
         return 0
     if rc != 0:
         return rc
@@ -837,6 +848,30 @@ def applica_impostazioni(copia: Path) -> str:
     motivo = next((x.strip() for x in (p.stderr + p.stdout).splitlines() if x.strip()), "motivo sconosciuto")
     return (f"IMPOSTAZIONI NON APPLICATE: {motivo[:240]} Le voci nuove di Arturo in settings.json (permessi, regole di "
             "blocco) arrivano con /setup, che chiede a te le voci in conflitto.")
+
+
+def impostazioni_indietro(copia: Path, orsa: Path) -> str:
+    """Le impostazioni di una copia arrivata fuori da /aggiorna (claude plugin update, il pannello /plugin): hook e
+    skill nuovi, settings.json di prima, e una regola di blocco nuova non arrivava mai (#5101, 10/11/2026). Se il
+    frammento della copia è diverso da quello del blocco, e la copia torna col suo MANIFEST firmato, lo unisce.
+    Senza blocco tace: la prima unione la fa /setup. La riga da dire, vuota se non c'era niente da fare."""
+    frammento = leggi(copia / "impostazioni" / "arturo.json")
+    blocco = leggi(orsa / "data" / "arturo-impostazioni.lock")
+    if not frammento or not blocco or blocco.get("frammento") == frammento:
+        return ""
+    fiducia, _ = _moduli()
+    try:
+        controllo = fiducia.controlla(copia, orsa)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return ""  # all'avvio un errore qui non deve togliere le righe che seguono
+    if controllo["firma"] != "ok" or controllo["cambiati"] or controllo["mancano"]:
+        return ""  # la deriva dell'avvio dice già che la copia non torna
+    riga = applica_impostazioni(copia)
+    if riga:
+        return riga
+    versione = leggi(copia / ".claude-plugin" / "plugin.json").get("version") or "installata"
+    return (f"IMPOSTAZIONI APPLICATE: le voci nuove della versione {versione} di Arturo (permessi, regole di blocco) "
+            "sono ora in settings.json.")
 
 
 def rinvio_in_attesa(r: Path, stato: dict) -> bool:
