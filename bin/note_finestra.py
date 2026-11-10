@@ -385,7 +385,7 @@ def stampa_elenco(lista: list) -> None:
 def brief(lista: list) -> str:
     """Le note come il brief di Agentation: una sezione per nota, con cosa, dove e da dove partire."""
     aperte = [n for n in lista if n["stato"] in APERTE]
-    righe = [f"# Note sulla finestra di Volta Celeste: {len(aperte)} aperte", ""]
+    righe = [f"# Note sulla finestra di Volta Celeste: {len(aperte)} {'aperta' if len(aperte) == 1 else 'aperte'}", ""]
     if not lista:
         righe.append("Nessuna nota.")
     for n in lista:
