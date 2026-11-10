@@ -13,7 +13,7 @@ Cinque sezioni, in quest'ordine. Una sezione senza niente di vero resta fuori.
 4. **Come scrivo**: lingua, tono, lunghezza delle risposte, preferenze (niente emoji, accenti corretti).
 5. **Regole**: cose che Claude deve o non deve fare, comprese le consigliate qui sotto che la persona tiene.
 
-Con il ritratto di `shared/setup-ritratto.md` le sezioni nascono dalle sue righe. Senza ritratto
+Con il ritratto di `~/.claude/shared/setup-ritratto.md` le sezioni nascono dalle sue righe. Senza ritratto
 fai una breve intervista, poche domande semplici, sui cinque punti.
 
 ## Le regole che consigliamo di includere
@@ -25,7 +25,7 @@ come sue preferenze ("al posto della regola sul brief: ...").
 La persona decide. Nella bozza ognuna è marcata "consigliata, togli se non la vuoi". Il testo fra
 virgolette va nel file; la nota fra parentesi spiega il perché e resta fuori dal file.
 
-1. "Le azioni tecniche le esegui tu — comandi, script, riavvii, verifiche. Chiedimi solo ciò che solo una persona può fare: password che conosco solo io, codici 2FA, pagamenti, invii a terzi, decisioni. Se un permesso ti blocca, non passarmi il comando: cerca un'altra via o chiedimi di allargare il permesso" (senza questa regola l'assistente tende a chiudere ogni passo con una richiesta di azione manuale)
+1. "Le azioni tecniche le esegui tu — comandi, script, riavvii, verifiche. Chiedimi solo ciò che solo una persona può fare: password che conosco solo io, codici 2FA, pagamenti, invii a terzi, decisioni. Se un permesso ti blocca, non passarmi il comando: cerca un'altra via o chiedimi di allargare il permesso. L'eccezione è il classificatore della modalità auto, quando ferma un passo che ho già approvato: lì non cercare un'altra via, preparami un solo comando da lanciare con `!`" (senza questa regola l'assistente tende a chiudere ogni passo con una richiesta di azione manuale)
 2. "Prima di ogni richiesta di lavoro, anche breve, riscrivi la mia richiesta come la eseguirai (il prompt), poi mostra un brief di massimo 8 righe — obiettivo, output, vincoli, fatto quando, assunzioni, da chiarire — e procedi. Domande e conversazione: rispondi e basta" (lo fa la skill `prompt-master`, e l'hook `inject-now.sh` lo ricorda sui messaggi che non sono comandi)
 3. la forma delle risposte: frasi corte (22 parole per un'istruzione, 28 per una descrizione), voce attiva, niente gerundio né condizionale, una parola per concetto (il catalogo completo è nella skill `italiano-semplificato`, da usare per riscrivere un testo dato; per un testo in uscita che suona da IA c'è la skill `humanizer`)
 4. "A lavoro finito l'ultima riga è "Prossimo passo:" con una sola azione e chi la fa, oppure "Niente da fare per te"" (senza, l'utente finisce per chiedere "e adesso?")

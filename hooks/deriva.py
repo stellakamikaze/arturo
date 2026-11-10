@@ -135,6 +135,7 @@ def rileva(radice: Path) -> dict:
     if rc != 0 or not base:
         return esito
     esito["base"] = base[:12]
+    esito["ref"], esito["radice"] = ref, str(radice)
     _, albero = git(radice, "ls-tree", "-r", base)
     di_arturo = {}  # percorso -> impronta del blob in Arturo
     for riga in albero.splitlines():
@@ -180,7 +181,14 @@ def valori(esito: dict, t=None) -> list:
     if t is None or not hasattr(t, "percorso_pubblico"):  # un telemetria.py di prima del filtro
         file = [f"file:{f}" for f in esito["file"]]
     else:
-        file = [t.percorso_pubblico(f, esito.get("di_arturo") or frozenset()) for f in esito["file"]]
+        di_arturo = esito.get("di_arturo") or frozenset()
+        # Il messaggio dell'avvio confronta con origin/main anche quando origin è il repository della persona (una
+        # seconda macchina senza upstream). La telemetria no: lì ogni file è `file:altro`, e un hook che il settings.json
+        # della persona dichiara è `hook:altro` (review del 7/11, finding 38).
+        if esito.get("ref") and hasattr(t, "remoto_di_arturo") and not t.remoto_di_arturo(esito.get("radice"), esito["ref"]):
+            file = ["file:altro" for _ in esito["file"]]
+            return file + [f"hook:{h}" if h == "tutti" else "hook:altro" for h in esito["hook"]]
+        file = [t.percorso_pubblico(f, di_arturo) for f in esito["file"]]
     return file + [f"hook:{h}" for h in esito["hook"]]
 
 

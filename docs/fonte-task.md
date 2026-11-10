@@ -14,6 +14,7 @@ comando = python3 ~/.claude/personale/mia_fonte.py
 Da quel momento `arturo todo <argomenti>` lancia il tuo programma con gli stessi argomenti, senza shell,
 e restituisce la sua uscita e il suo codice. Nei percorsi usa le barre dritte (`/`), anche su Windows.
 Il file è tuo: gli aggiornamenti di Arturo non lo toccano. Per tornare all'archivio di Arturo, toglilo.
+La pagina `arturo web` legge solo l'archivio di Arturo: con una fonte esterna non parte e rimanda a `/dafare`.
 Arturo lo cerca sempre lì, nella tua cartella di casa, anche se lanci Arturo da un'altra cartella: un banco con una casa di prova non trova la tua fonte e non scrive sul tuo strumento.
 
 ## Cosa deve fare il tuo programma
@@ -66,7 +67,8 @@ Il JSON di `--json`:
 
 `tipo` vale `tu`, `decidi`, `io` o `fermo`. Di ogni todo servono `id` e `titolo`; gli altri campi
 (`stato`, `priorita`, `scadenza_testo`, `perche`, `motivo`, `attende`) sono facoltativi. `chiusi_todo`
-serve solo con `--tutti`.
+serve solo con `--tutti`. Anche `versione` e `avvisi` sono facoltativi: se mandi `versione`, vale `1`, e
+un altro numero fa dire al pannello che va aggiornato.
 
 Il pannello `/dafare` legge anche il blocco facoltativo `progetti`: un elemento per progetto con todo
 aperti, dal più urgente. Se manca, il pannello lo ricava dai gruppi, con la riga dichiarata come calcolata.

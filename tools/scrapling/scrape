@@ -3,7 +3,9 @@
 QUI="$(cd "$(dirname "$0")" && pwd -P)"
 # Se scrape è un link in ~/.local/bin, la cartella vera è quella del file puntato.
 [ -L "$0" ] && QUI="$(cd "$(dirname "$(readlink "$0")")" && pwd -P)"
-for PY in "$QUI/.venv/bin/python" "$QUI/.venv/Scripts/python.exe"; do
+# Il venv sta fra i dati della persona (setup.sh); quello vecchio accanto al codice vale ancora.
+VENV="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/data/scrapling/.venv"
+for PY in "$VENV/bin/python" "$VENV/Scripts/python.exe" "$QUI/.venv/bin/python" "$QUI/.venv/Scripts/python.exe"; do
   [ -x "$PY" ] && exec "$PY" "$QUI/scrape.py" "$@"
 done
 echo "scrape non è installato: lancia bash $QUI/setup.sh" >&2

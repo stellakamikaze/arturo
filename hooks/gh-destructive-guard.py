@@ -15,7 +15,9 @@ Fail-open su parsing.
 """
 from __future__ import annotations
 
+import importlib.util
 import json
+import os
 import re
 import sys
 import signal
@@ -42,6 +44,30 @@ ASK = [
     (r'\bgh\s+workflow\s+run\b', "avvio di un workflow CI"),
     (r'\bgh\s+run\s+rerun\b', "ri-esecuzione di un run CI"),
 ]
+
+
+def _testo_gh(cmd: str) -> str:
+    """Le sole invocazioni di gh, una per riga, lette come programmi (review del 7/11/2026, finding 10):
+    un grep o un argomento in prosa che cita un sottocomando di gh non lo lancia. Contano gh dentro
+    sh -c, eval, xargs e nelle sostituzioni $( ) e backtick, anche fra virgolette
+    (`curl -H "Authorization: $(gh auth token)"`). Senza forma_comando.py vale il testo intero."""
+    try:
+        spec = importlib.util.spec_from_file_location(
+            "forma_comando", os.path.join(os.path.dirname(os.path.abspath(__file__)), "forma_comando.py"))
+        fc = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fc)
+    except Exception:
+        return cmd
+    testi = [cmd] + re.findall(r"\$\(([^()]*)\)", cmd) + re.findall(r"`([^`]*)`", cmd)
+    righe = []
+    for testo in testi:
+        for nome, args in fc.programmi(testo):
+            if nome == "xargs":
+                resto = fc.xargs_resto(args)
+                nome, args = (fc._nome(resto[0]), resto[1:]) if resto else ("", [])
+            if nome == "gh":
+                righe.append("gh " + " ".join(args))
+    return "\n".join(righe)
 
 
 def _api_write(cmd: str) -> str | None:
@@ -76,6 +102,7 @@ def main() -> int:
     cmd = (data.get("tool_input") or {}).get("command", "")
     if not isinstance(cmd, str) or not cmd:
         return 0
+    cmd = _testo_gh(cmd)
 
     for pat, why in BLOCK:
         if re.search(pat, cmd, re.IGNORECASE):

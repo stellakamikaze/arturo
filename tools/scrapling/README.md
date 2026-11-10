@@ -15,7 +15,8 @@ Pesa circa 300 MB. La propone `/setup`, oppure:
     bash ~/.claude/tools/scrapling/banco.sh
 
 Serve Python 3.10 o più recente (oppure `uv`, che lo scarica da solo). Il venv resta in
-`tools/scrapling/.venv/` e non entra mai nel repository. Per toglierlo: cancella quella cartella.
+`~/.claude/data/scrapling/.venv/`, fra i tuoi dati: un aggiornamento non lo tocca e non entra mai nel
+repository. Un venv vecchio in `tools/scrapling/.venv/` vale ancora. Per toglierlo: cancella quella cartella.
 
 ## Quale strumento per leggere il web
 

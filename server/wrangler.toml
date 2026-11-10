@@ -42,7 +42,7 @@ DESTINATARIO = "DESTINATARIO_VERIFICATO"
 # portano il link <LEGGI_SEGNALAZIONI>/<numero>. Senza, dicono di leggerla con GET /v1/segnalazioni/<numero>.
 # LEGGI_SEGNALAZIONI = "https://IL_TUO_SITO/admin/segnalazioni"
 # Facoltative (5/11/2026): l'header del task nelle email, per un programma che legge la casella e crea i task.
-# Con tutte e due ogni cosa da fare porta "<INTESTAZIONE_TASK>: <base64url di un JSON>". I nomi delle installazioni
-# vanno invece in un secret: npx wrangler@4 secret put NOMI_INSTALLAZIONI  ({"91288389": "Nome"}).
+# Con tutte e due ogni cosa da fare porta "<INTESTAZIONE_TASK>: <base64url di un JSON>". I nomi delle persone non
+# stanno nel Worker (8/11/2026): le email dicono le prime 8 cifre dell'id.
 # INTESTAZIONE_TASK = "X-Il-Tuo-Task"
 # TASK_PROGETTO = "arturo"

@@ -53,6 +53,11 @@ F24 la terza sessione aperta (proposta n. 54, #4771): /inizio conta le sessioni 
 F25 la sessione senza progetto che continua (proposta n. 23, #4071): /fine non la chiude con l'uscita
 breve, scrive un handoff breve con lo slug del lavoro e non della cartella corrente, e crea la cartella
 solo dopo un sì. arturo contesto ritrova quello slug dal solo handoff, con cartella: nessuna.
+F26 un rebase già a metà in un progetto (review del 7/11/2026, finding 24): sync-progetti non lo annulla,
+non fa stash e lascia il file risolto a mano com'è; lo dice con ERRORE e rc 1.
+F27 un compito col trattino dopo il nome (review del 7/11/2026, finding 33): "libro - capitolo tre" e
+"libro togli il flag --force" caricano il progetto col compito; un'opzione in testa o subito dopo il nome
+("--boh libro", "libro --boh") resta sconosciuta, exit 3.
 
 Dal 3/11/2026 (#4190) /fine tiene in shared/ i blocchi di un caso solo: il modello dell'handoff
 (shared/fine-handoff.md) e il passo del worktree (shared/fine-worktree.md). F08, F13, F16 e F19 leggono
@@ -585,7 +590,7 @@ def test_f15(repo: Path) -> None:
         config = lab.home / ".claude"
         shutil.copytree(str(repo), str(config), ignore=shutil.ignore_patterns(".git", "__pycache__", "worktrees"),
                         dirs_exist_ok=True)
-        # 23/10/2026, Gigi: un progetto riservato esce dal sync con una riga nel .gitignore della sua config.
+        # 23/10/2026, da una persona che usa Arturo: un progetto riservato esce dal sync con una riga nel .gitignore della sua config.
         with open(config / ".gitignore", "a", encoding="utf-8") as f:
             f.write("\n# progetto riservato\ndata/handoffs/riservato/\n")
         remoto = Path(tmp) / "config.git"
@@ -1205,12 +1210,67 @@ def test_f25(repo: Path) -> None:
     con_lab(repo, prova)
 
 
+def test_f26(repo: Path) -> None:
+    script = serve(repo, "bin/sync-progetti.sh", "F26")
+
+    def prova(lab: Lab) -> None:
+        radice = lab.tmp / "progetti"
+        nudo, monte, locale = lab.tmp / "nudo.git", lab.tmp / "monte", radice / "libro"
+        radice.mkdir()
+        lab.git(lab.tmp, "init", "-q", "--bare", "-b", "main", str(nudo))
+        lab.git(lab.tmp, "clone", "-q", str(nudo), str(monte))
+        lab.git(monte, "checkout", "-q", "-B", "main")
+        (monte / "f.md").write_text("base\n", encoding="utf-8")
+        lab.git(monte, "add", "-A")
+        lab.git(monte, "commit", "-qm", "base")
+        lab.git(monte, "push", "-q", "origin", "main")
+        lab.git(lab.tmp, "clone", "-q", str(nudo), str(locale))
+        (monte / "f.md").write_text("remoto\n", encoding="utf-8")
+        lab.git(monte, "commit", "-qam", "remoto")
+        lab.git(monte, "push", "-q", "origin", "main")
+        (locale / "f.md").write_text("locale\n", encoding="utf-8")
+        lab.git(locale, "commit", "-qam", "l1")
+        r = lab.run(["git", "-C", str(locale), "pull", "-q", "--rebase", "origin", "main"])
+        meta = Path(lab.git(locale, "rev-parse", "--git-path", "rebase-merge").strip())
+        meta = meta if meta.is_absolute() else locale / meta
+        assert r.returncode != 0 and meta.is_dir(), f"preparazione: il rebase non si ferma in conflitto: {r.stderr}"
+        (locale / "f.md").write_text("RISOLTO A MANO\n", encoding="utf-8")
+        lab.git(locale, "add", "f.md")
+        r = lab.run([BASH, str(script), str(radice)])
+        testo = read(locale / "f.md")
+        stash = lab.git(locale, "stash", "list").strip()
+        assert meta.is_dir(), f"F26 sync-progetti annulla un rebase già a metà: {r.stdout[-300:]}"
+        assert testo == "RISOLTO A MANO\n" and not stash, f"F26 il file risolto a mano è cambiato: {testo!r} stash {stash!r}"
+        assert r.returncode == 1 and "operazione git a metà" in r.stdout, \
+            f"F26 il rebase a metà non è detto come errore: {r.returncode} {r.stdout[-300:]}"
+    con_lab(repo, prova)
+
+
+def test_f27(repo: Path) -> None:
+    serve(repo, "bin/contesto.py", "F27")
+
+    def prova(lab: Lab) -> None:
+        progetto = lab.progetti / "libro"
+        progetto.mkdir()
+        lab.git(progetto, "init", "-q")
+        for testo, compito in (("libro - capitolo tre", "capitolo tre"),
+                               ("libro togli il flag --force dallo script", "togli il flag --force dallo script")):
+            r = lab.arturo("contesto", testo, cwd=lab.home)
+            assert r.returncode == 0 and "PROGETTO libro" in r.stdout and f"compito: {compito}" in r.stdout, \
+                f"F27 un trattino nel compito ferma /inizio: {testo!r} -> {r.returncode} {r.stderr.strip()} {r.stdout[:200]}"
+        for testo in ("--boh libro", "libro --boh"):
+            r = lab.arturo("contesto", testo, cwd=lab.home)
+            assert r.returncode == 3 and "opzione sconosciuta" in r.stderr, \
+                f"F27 un'opzione sconosciuta non è exit 3: {testo!r} -> {r.returncode} {r.stderr.strip()}"
+    con_lab(repo, prova)
+
+
 TESTS = {"F01": test_f01, "F02": test_f02, "F03": test_f03, "F04": test_f04, "F05": test_f05,
          "F06": test_f06, "F07": test_f07, "F08": test_f08, "F09": test_f09, "F10": test_f10,
          "F11": test_f11, "F12": test_f12, "F13": test_f13, "F14": test_f14, "F15": test_f15,
          "F16": test_f16, "F17": test_f17, "F18": test_f18,
          "F19": test_f19, "F20": test_f20, "F21": test_f21, "F22": test_f22, "F23": test_f23,
-         "F24": test_f24, "F25": test_f25}
+         "F24": test_f24, "F25": test_f25, "F26": test_f26, "F27": test_f27}
 
 
 def main() -> int:

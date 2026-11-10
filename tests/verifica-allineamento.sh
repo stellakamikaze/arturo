@@ -29,6 +29,10 @@ for py in python3.8 python3.9 python3.10 python3.11 /usr/bin/python3; do
 done
 [[ -n "$PYTHON_VECCHIO" ]] || { echo "FAIL: serve un Python dalla 3.8 alla 3.11 per U04 (il motivo \"--\" sui Python vecchi)" >&2; exit 1; }
 echo "PYTHON_VECCHIO=$PYTHON_VECCHIO"
+# Il minimo dichiarato, Python 3.8 (PY38_BANCHI più sotto). Senza python3.8 nel PATH vale quello di uv
+# (uv python install 3.8): si cerca qui, prima che HOME diventi quella di prova.
+PY38=$(command -v python3.8 || true)
+[[ -n "$PY38" ]] || ! command -v uv >/dev/null 2>&1 || PY38=$(uv python find 3.8 2>/dev/null || true)
 # Il pannello /dafare si prova con Claude Code vero (validate, test, claude -p): senza, il gate fallisce.
 command -v claude >/dev/null 2>&1 || {
   echo "FAIL: claude mancante: il gate prova il pannello /dafare con claude plugin validate, claude plugin test e claude -p" >&2
@@ -167,6 +171,14 @@ BANCHI=(
   test_finestre_windows_2026_11_04.py
   test_sportello_2026_11_04.py
   test_humanizer_origine.py
+  # Percorsi fra virgolette e alla maniera di Windows nelle guardie (9/11/2026, #5096).
+  test_guardie_virgolette_2026_11_09.py
+  # Le forme che le guardie leggevano prima del lotto L2 del 7/11 (10/11/2026, #5097).
+  test_guardie_regressioni_l2_2026_11_10.py
+  # Un solo lettore dei comandi e un solo elenco dei percorsi protetti nelle guardie (10/11/2026, #5122).
+  test_guardie_split_unico_2026_11_10.py
+  # Difetti minori su Windows della review del 9/11: servizi di Claude, appunti, wt, codifica (10/11/2026, #5102).
+  test_windows_minori_2026_11_10.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -187,12 +199,19 @@ IN_FILA=(
   test_regole_doppie_2026_11_06.py
   # #4860 (6/11/2026): col plugin avvio e barra dicono che c'è un rilascio nuovo.
   test_avviso_plugin_2026_11_06.py
+  # Review del 7/11/2026, lotto L2 (#4972): le guardie, dal dispatcher vero.
+  test_revisione_2026_11_07.py
 )
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
 PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py)
-PY38=$(command -v python3.8 || true)
+if [[ -z "$PY38" && -n "$RILASCIO" ]]; then
+  # Un rilascio prova il minimo dichiarato: senza 3.8 i suoi banchi salterebbero in silenzio (review del
+  # 7/11/2026, finding 91).
+  echo "FAIL: il gate del rilascio vuole python3.8 per i ${#PY38_BANCHI[@]} banchi del minimo dichiarato: uv python install 3.8" >&2
+  exit 1
+fi
 [[ -n "$PY38" ]] || echo "NOTA: python3.8 assente, todo e pagina provati solo con $(python3 --version 2>&1)"
 
 # Controprove: ogni riga e' "banco ref [radice]". Il banco gira sulla base `ref` estratta con
@@ -358,11 +377,11 @@ BASELINE=(
   # Rotazione automatica della sessione (3/11/2026): fine leggero e marca di /inizio. bf394ad, il dev
   # prima della rotazione.
   "test_rotazione_2026_11_03.py bf394ad radice"
-  # Segnalazioni n. 45 e n. 46 di Filippo (3/11/2026): zsh come bash da $CLAUDE_ENV_FILE, nessun mod
+  # Segnalazioni n. 45 e n. 46 (3/11/2026): zsh come bash da $CLAUDE_ENV_FILE, nessun mod
   # che cambia il comando (riscrivi-bash uscito col passo 2 dei mod), /inizio che controlla da dove
   # parte la copia separata. 9c6a0e6, il ramo prima.
   "test_segnalazioni_2026_11_03.py 9c6a0e6"
-  # Segnalazione n. 51 di Filippo (4/11/2026, #4768): agente ripreso fuori dalla sua copia separata.
+  # Segnalazione n. 51 (4/11/2026, #4768): agente ripreso fuori dalla sua copia separata.
   # c9ee540, il dev prima.
   "test_segnalazioni_2026_11_04.py c9ee540"
   # Il gate snello (3/11/2026): tests/esegui_gate.py in parallelo, tutti i rossi in un giro, --rossi.
@@ -399,6 +418,8 @@ BASELINE=(
   "test_regole_doppie_2026_11_06.py 3b5e6c3"
   # #4860 (6/11/2026): col plugin stato e controlla tacciono. 3b5e6c3, il dev prima.
   "test_avviso_plugin_2026_11_06.py 3b5e6c3"
+  # #5102 (10/11/2026): i quattro difetti minori su Windows. 3f12336, il dev prima.
+  "test_windows_minori_2026_11_10.py 3f12336"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
@@ -438,6 +459,18 @@ VELENI=(
   test_regole_doppie_2026_11_06.py
   # #4860 (6/11/2026): una barra che lancia controlla da ~/.claude/bin col plugin non controlla mai (AV04).
   test_avviso_plugin_2026_11_06.py
+  # Review del 7/11/2026, lotto L2 (#4972): con le guardie di e441828 ogni gruppo RW è rosso.
+  test_revisione_2026_11_07.py
+  # Review del 7/11/2026, lotto L9: una radice in più in deriva.py fa rosso A02 (finding 94).
+  test_deriva_allineata.py
+  # #5096 (9/11/2026): con le guardie di ce1cafc ogni gruppo GV, salvo i falsi positivi di GV08, è rosso.
+  test_guardie_virgolette_2026_11_09.py
+  # #5097 (10/11/2026): con le guardie di 73c6bf1 ogni gruppo LR è rosso, anche i blocchi falsi di LR02.
+  test_guardie_regressioni_l2_2026_11_10.py
+  # #5122 (10/11/2026): con le guardie di a2f90a5 ogni gruppo SU è rosso, SU06 perché la tabella manca.
+  test_guardie_split_unico_2026_11_10.py
+  # #5102 (10/11/2026): ogni correzione tolta fa rosso il suo caso WM.
+  test_windows_minori_2026_11_10.py
   # Herdr (8/11/2026, ramo herdr): installazione, hook dello stato, invito, mod, Da dove partire, La settimana, azioni sui todo, Arturo.app, note sulla finestra e gitignore di data/ (HZ01-HZ15).
   test_herdr_2026_11_08.py
 )
@@ -447,7 +480,7 @@ VELENI=(
 # sceglie quanti worker; il default è metà dei core, al massimo 4.
 ESITO=0
 python3 -B "$ROOT/tests/esegui_gate.py" esegui --root "$ROOT" --fixture "$FIXTURE/lavori" $PARZIALE_MODO $RILASCIO \
-  ${ARTURO_GATE_LAVORI:+--lavori "$ARTURO_GATE_LAVORI"} --py38 "$PY38" \
+  ${ARTURO_GATE_LAVORI:+--lavori "$ARTURO_GATE_LAVORI"} --py38 "$PY38" --elenchi \
   --banchi "${BANCHI[@]}" --in-fila "${IN_FILA[@]}" --banchi-py38 "${PY38_BANCHI[@]}" \
   --controprove "${BASELINE[@]}" --veleni "${VELENI[@]}" || ESITO=$?
 if [[ -n "$PARZIALE_MODO" ]]; then
@@ -504,6 +537,16 @@ done < <(git -C "$REPO" ls-files -z -- '*.js' '*.mjs')
 
 bash "$REPO/skills/system-audit/audit.sh" --strict
 salti=$(grep -c . "$ARTURO_SALTI" || true)
-printf 'PASS: banchi=%s shell=%s js=%s salti=%s\n' "$(( ${#BANCHI[@]} + ${#IN_FILA[@]} ))" "$shells" "$js" "$salti"
+py38=0
+[[ -z "$PY38" ]] || py38=${#PY38_BANCHI[@]}
+# PASS solo col giro verde: chi legge l'ultima riga di stdout senza stderr vedeva PASS anche sui rossi
+# (review del 7/11/2026, finding 90).
+riepilogo=$(printf 'banchi=%s shell=%s js=%s salti=%s py38=%s' "$(( ${#BANCHI[@]} + ${#IN_FILA[@]} ))" "$shells" "$js" \
+  "$salti" "$py38")
 [[ "$salti" == 0 ]] || sed 's/^/  /' "$ARTURO_SALTI"
-[[ "$ESITO" == 0 ]] || { echo "FAIL: lavori rossi, elencati sopra (=== ROSSO)" >&2; exit "$ESITO"; }
+if [[ "$ESITO" != 0 ]]; then
+  echo "FAIL: lavori rossi, elencati sopra (=== ROSSO); $riepilogo"
+  echo "FAIL: lavori rossi, elencati sopra (=== ROSSO)" >&2
+  exit "$ESITO"
+fi
+echo "PASS: $riepilogo"

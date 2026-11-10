@@ -1,6 +1,6 @@
 # La strada di Arturo
 
-Aggiornata il 2026-11-06
+Aggiornata il 2026-11-10
 
 Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in `NOVITA.md`. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico.
 
@@ -22,9 +22,17 @@ Stato: quasi finito. Il plugin si installa, si aggiorna solo da rilasci firmati 
 
 Oggi Arturo vive nella stessa cartella delle tue modifiche, `~/.claude`. Per questo un aggiornamento può scontrarsi con un file che hai cambiato tu. Con il plugin, Arturo sta in una cartella sua e la tua parte personale resta tua: un aggiornamento cambia solo Arturo.
 
-Chi oggi usa Arturo non nota niente finché non arriva il passaggio guidato (voce "Il passaggio al plugin").
+Chi oggi usa Arturo su Mac trova all'avvio, una volta al giorno, la proposta di provare il passaggio guidato: la prova non cambia niente (voce "Il passaggio al plugin"). Su Windows la proposta arriva quando il passaggio è provato anche lì.
 
 <!-- task: #4531 #4532 #4566 #4567 #4568 #4565 -->
+
+### Le correzioni della revisione di novembre {#revisione-novembre}
+
+Stato: in corso. Prima le guardie su Windows: la prima correzione, sui programmi scritti con `.exe`, è fatta.
+
+Una revisione ha riletto i comandi, le skill e le guardie di Arturo. Ha trovato buchi veri, soprattutto su Windows: un programma scritto con `.exe` passava dalle guardie senza conferma, e una copia poteva smettere di aggiornarsi senza dirlo. Le correzioni escono a gruppi: prima le guardie, poi l'aggiornamento, la chiusura delle sessioni, i comandi, le segnalazioni, il peso dei testi e la forma.
+
+<!-- task: #5123 #5124 -->
 
 ### Meno conferme, le stesse guardie {#conferme}
 
@@ -64,9 +72,9 @@ Ogni `/segnala` e ogni messaggio dal sito diventa un compito. Qui stanno quelli 
 
 ### Il passaggio al plugin per chi usa già Arturo {#passaggio}
 
-Stato: pronto. Il comando è `arturo migra`, e il passaggio parte quando chi mantiene Arturo decide di proporlo.
+Stato: pronto. Il comando è `arturo migra`. Su Mac l'avvio propone la prova, e il passaggio lo lanci tu, a mano. Chi mantiene Arturo decide quando chiederlo a tutti.
 
-Un comando fa il passaggio in modo guidato: prima una prova che non tocca niente e ti mostra cosa cambia, poi una copia di sicurezza, poi il passaggio. Un secondo comando riporta tutto com'era. Parte solo dopo una decisione esplicita di chi mantiene Arturo.
+Un comando fa il passaggio in modo guidato: prima una prova che non tocca niente e ti mostra cosa cambia, poi una copia di sicurezza, poi il passaggio. Un secondo comando riporta tutto com'era. Il passaggio vero parte solo se lo lanci tu da un Terminale.
 
 <!-- task: #4534 -->
 

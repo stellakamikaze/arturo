@@ -12,6 +12,18 @@ fi
 
 CLAUDE_DIR="${HOME}/.claude"
 SETTINGS="$CLAUDE_DIR/settings.json"
+# Il codice di Arturo sta due cartelle sopra questo script: ~/.claude col clone, la cartella del plugin
+# col plugin (review del 7/11/2026, finding 73). ~/.claude resta la cartella dei settings e dei dati.
+CODICE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd)"
+[[ -n "$CODICE" ]] || CODICE="$CLAUDE_DIR"
+# Col plugin gli hook stanno in hooks/hooks.json del plugin, non nei settings della persona.
+PLUGIN_HOOKS=""
+if [[ "$(cd "$CODICE" && pwd -P)" != "$(cd "$CLAUDE_DIR" 2>/dev/null && pwd -P)" && -f "$CODICE/hooks/hooks.json" ]]; then
+  PLUGIN_HOOKS="$CODICE/hooks/hooks.json"
+fi
+# Le cartelle da guardare per agenti, skill e comandi: il codice, e ~/.claude se è un'altra cartella.
+radici=("$CODICE")
+[[ -n "$PLUGIN_HOOKS" ]] && radici+=("$CLAUDE_DIR")
 pass=0
 warn=0
 fail=0
@@ -51,17 +63,22 @@ if [[ -f "$SETTINGS" ]] && command -v python3 >/dev/null 2>&1; then
   # e senza questo l'array resta vuoto e l'audit non controlla piu' nessun hook.
   while IFS= read -r hook_command; do
     [[ -n "$hook_command" ]] && hook_commands+=("$hook_command")
-  done < <(python3 - "$SETTINGS" <<'PY' 2>/dev/null
+  done < <(python3 - "$SETTINGS" "$PLUGIN_HOOKS" <<'PY' 2>/dev/null
 import json
 import sys
 with open(sys.argv[1], encoding="utf-8") as source:
     settings = json.load(source)
-for blocks in settings.get("hooks", {}).values():
-    for block in blocks:
-        for hook in block.get("hooks", []):
-            command = hook.get("command")
-            if isinstance(command, str):
-                print(command)
+fonti = [settings]
+if sys.argv[2]:
+    with open(sys.argv[2], encoding="utf-8") as source:
+        fonti.append(json.load(source))
+for fonte in fonti:
+    for blocks in fonte.get("hooks", {}).values():
+        for block in blocks:
+            for hook in block.get("hooks", []):
+                command = hook.get("command")
+                if isinstance(command, str):
+                    print(command)
 status = settings.get("statusLine")
 if isinstance(status, dict) and isinstance(status.get("command"), str):
     print(status["command"])
@@ -78,41 +95,53 @@ for command in "${hook_commands[@]}"; do
       ko "comando hook non interpretabile: $command"
       continue
     fi
-    if [[ "$script" == *".claude/"* ]]; then
-      script="$CLAUDE_DIR/${script#*.claude/}"
-    fi
-    script="${script/#\~/$HOME}"
     hook_files+=("$script")
     if [[ -f "$script" ]]; then
       ok "hook diretto: $(basename "$script")"
     else
       ko "hook diretto mancante: $script"
     fi
-  done < <(python3 - "$command" <<'PY'
+  done < <(python3 - "$command" "$CLAUDE_DIR" "$CODICE" <<'PY'
+import os
 import re
 import shlex
 import sys
+comando, orsa, codice = sys.argv[1], sys.argv[2], sys.argv[3]
+# Col plugin il codice sta in ${CLAUDE_PLUGIN_ROOT}, e la barra lo legge dal puntatore che l'avvio
+# riscrive: si risolvono prima di leggere il comando. Un puntatore che manca resta un hook mancante.
+comando = comando.replace("${CLAUDE_PLUGIN_ROOT}", codice)
+try:
+    with open(os.path.join(orsa, "arturo", "radice"), encoding="utf-8") as src:
+        puntatore = src.read().strip()
+except OSError:
+    puntatore = os.path.join(orsa, "arturo", "radice (puntatore mancante)")
+comando = re.sub(r"""\$\(cat\s+["']?(?:~|\$HOME|\$\{HOME\})/\.claude/arturo/radice["']?\)""",
+                 lambda _: puntatore, comando)
 # shlex toglie le virgolette e tiene insieme i path con spazi. punctuation_chars stacca ; && | dal
 # path: con `... statusline.js; echo ...` (barra senza node, 19/10/2026) il token era "statusline.js;"
 # e il controllo saltava in silenzio.
 try:
-    lex = shlex.shlex(sys.argv[1], posix=True, punctuation_chars=True)
+    lex = shlex.shlex(comando, posix=True, punctuation_chars=True)
     lex.whitespace_split = True
     tokens = list(lex)
 except ValueError:
     print("::parse-error::")
     raise SystemExit(0)
-print("\n".join(token for token in tokens if re.search(r"\.(?:py|sh|js)$", token)))
+for token in tokens:
+    if not re.search(r"\.(?:py|sh|js)$", token):
+        continue
+    token = re.sub(r"^(?:~|\$HOME|\$\{HOME\})/\.claude/", lambda _: orsa + "/", token)
+    print(os.path.expanduser(token))
 PY
 )
 done
 
 # Il dispatcher richiama guardie transitive: il settings da solo non le mostra.
-dispatcher="$CLAUDE_DIR/hooks/bash-dispatcher.sh"
+dispatcher="$CODICE/hooks/bash-dispatcher.sh"
 if [[ -f "$dispatcher" ]]; then
   while IFS= read -r guard; do
     [[ -z "$guard" ]] && continue
-    if [[ -f "$CLAUDE_DIR/hooks/$guard" ]]; then
+    if [[ -f "$CODICE/hooks/$guard" ]]; then
       ok "guardia transitiva: $guard"
     else
       ko "guardia transitiva mancante: $guard"
@@ -152,7 +181,9 @@ for script in "${hook_files[@]}"; do
 done
 [[ $smoke -gt 0 ]] || ko "nessun hook safe per smoke"
 
-if [[ -d "$CLAUDE_DIR/agents" ]] && python3 - "$CLAUDE_DIR/agents" <<'PY' >/dev/null 2>&1
+agent_dirs=()
+for r in "${radici[@]}"; do [[ -d "$r/agents" ]] && agent_dirs+=("$r/agents"); done
+if [[ ${#agent_dirs[@]} -gt 0 ]] && python3 - "${agent_dirs[@]}" <<'PY' >/dev/null 2>&1
 import sys
 from pathlib import Path
 try:
@@ -172,7 +203,7 @@ except ImportError:
                 chiave, valore = chiave.strip(), valore.strip()
                 valori[chiave] = "" if valore in (">", "|", ">-", "|-") else valore.strip("\"'")
         return valori
-for path in Path(sys.argv[1]).glob("*.md"):
+for path in [p for d in sys.argv[1:] for p in Path(d).glob("*.md")]:
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---\n"):
         raise ValueError(path)
@@ -190,9 +221,11 @@ fi
 # Esito del blocco Python: 0 tutto valido, 1 una skill rotta, 3 un mod rotto, 4 tutti e due.
 # Un mod rotto ha il suo messaggio: "SKILL.md mancante" porterebbe ad aggiungere una SKILL.md al mod.
 skills_rc=1
-if [[ -d "$CLAUDE_DIR/skills" ]]; then
+skill_dirs=()
+for r in "${radici[@]}"; do [[ -d "$r/skills" ]] && skill_dirs+=("$r/skills"); done
+if [[ ${#skill_dirs[@]} -gt 0 ]]; then
   skills_rc=0
-  python3 - "$CLAUDE_DIR/skills" <<'PY' >/dev/null 2>&1 || skills_rc=$?
+  ARTURO_AUDIT_MODULI="$PLUGIN_HOOKS" python3 - "${skill_dirs[@]}" <<'PY' >/dev/null 2>&1 || skills_rc=$?
 import sys
 from pathlib import Path
 try:
@@ -213,6 +246,20 @@ except ImportError:
                 valori[chiave] = "" if valore in (">", "|", ">-", "|-") else valore.strip("\"'")
         return valori
 import json
+import os
+import re
+
+# Col plugin il mod di Arturo non ha .claude-plugin: lo porta il plugin, sotto "modules" di hooks/hooks.json.
+moduli = set()
+if os.environ.get("ARTURO_AUDIT_MODULI"):
+    try:
+        with open(os.environ["ARTURO_AUDIT_MODULI"], encoding="utf-8") as src:
+            for m in json.load(src).get("modules", []):
+                trovato = re.fullmatch(r"\.\./skills/([^/]+)/hooks/register\.tsx", m)
+                if trovato:
+                    moduli.add(trovato.group(1))
+    except (OSError, ValueError):
+        pass
 
 
 def mod_valido(directory):
@@ -237,11 +284,13 @@ def skill_valida(directory):
 
 
 skill_rotta = mod_rotto = False
-for directory in Path(sys.argv[1]).iterdir():
+for directory in [d for radice in sys.argv[1:] for d in Path(radice).iterdir()]:
     # synced/ la tiene Claude Code per le skill di claude.ai: ha le sue cartelle, non un SKILL.md
     if not directory.is_dir() or directory.name in ("shared", "synced"):
         continue
-    if (directory / ".claude-plugin" / "plugin.json").is_file():
+    if directory.name in moduli and not (directory / "SKILL.md").exists():
+        mod_rotto = mod_rotto or not (directory / "hooks" / "register.tsx").is_file()
+    elif (directory / ".claude-plugin" / "plugin.json").is_file():
         mod_rotto = mod_rotto or not mod_valido(directory)
     else:
         skill_rotta = skill_rotta or not skill_valida(directory)
@@ -256,7 +305,7 @@ case "$skills_rc" in
   *) ko "skill: SKILL.md mancante oppure frontmatter non valido" ;;
 esac
 
-[[ -f "$CLAUDE_DIR/README.md" ]] && ok "README pubblico presente" || ko "README pubblico mancante"
+[[ -f "$CODICE/README.md" ]] && ok "README pubblico presente" || ko "README pubblico mancante"
 
 if [[ -f "$SETTINGS" ]] && python3 - "$SETTINGS" <<'PY' >/dev/null 2>&1
 import json
@@ -279,20 +328,27 @@ fi
 # Le righe di storia ("rimosso", "archiviata", "ha assorbito"…) e gli indirizzi web non contano.
 # Il blocco Python scrive su file: dentro $(...) bash 3.2 conta gli apici del heredoc e si rompe.
 ghost_file=$(mktemp "${TMPDIR:-/tmp}/audit-fantasmi.XXXXXX")
-python3 - "$CLAUDE_DIR" > "$ghost_file" 2>/dev/null <<'PY'
+python3 - "$CLAUDE_DIR" "${radici[@]}" > "$ghost_file" 2>/dev/null <<'PY'
 import glob
 import os
 import re
 import sys
 
-H = sys.argv[1]
-skills = {os.path.basename(os.path.dirname(p)) for p in glob.glob(H + "/skills/*/SKILL.md")}
-cmds = {os.path.basename(p)[:-3] for p in glob.glob(H + "/commands/*.md")}
-wfs = {os.path.basename(p)[:-3] for p in glob.glob(H + "/workflows/*.js")}
+# La cartella della persona (CLAUDE.md), poi le radici: il codice e, col plugin, anche ~/.claude.
+ORSA, RADICI = sys.argv[1], sys.argv[2:]
+
+
+def trova(modello, **kw):
+    return [p for H in RADICI for p in glob.glob(H + modello, **kw)]
+
+
+skills = {os.path.basename(os.path.dirname(p)) for p in trova("/skills/*/SKILL.md")}
+cmds = {os.path.basename(p)[:-3] for p in trova("/commands/*.md")}
+wfs = {os.path.basename(p)[:-3] for p in trova("/workflows/*.js")}
 # I comandi registrati dai mod si leggono dal sorgente: un mod tolto fa tornare fantasma la sua menzione.
 modcmds = set()
 # Dal 3/11/2026 un mod ha le sue parti in hooks/<parte>/: si cerca a ogni profondità sotto hooks/.
-for f in glob.glob(H + "/skills/*/hooks/**/*.ts*", recursive=True) + glob.glob(H + "/mods/*/hooks/**/*.ts*", recursive=True):
+for f in trova("/skills/*/hooks/**/*.ts*", recursive=True) + trova("/mods/*/hooks/**/*.ts*", recursive=True):
     with open(f, encoding="utf-8", errors="ignore") as src:
         modcmds |= set(re.findall(r"command\.register\(\{\s*name:\s*'([^']+)'", src.read()))
 # Comandi di Claude Code: non stanno su disco.
@@ -314,11 +370,11 @@ STORICO = re.compile(r"rimoss|deprecat|eliminat|dismess|assorbit|archiviat|sosti
 ENDPOINT = re.compile(r"endpoint|\broute\b|\bAPI\b|\bGET\b|\bPOST\b|https?://|:\d{4}", re.I)
 # Il backtick d'apertura non segue una lettera: in "`nc`/altro" il backtick chiude, non apre.
 PAT = re.compile(r"(?<![A-Za-z0-9_])`/([a-z][a-z0-9:_-]{1,30})(?:\s[^`]*)?`")
-docs = ["CLAUDE.md", "README.md"] + sorted(
-    os.path.relpath(p, H).replace(os.sep, "/") for p in glob.glob(H + "/commands/*.md") + glob.glob(H + "/skills/*/SKILL.md")
-    + glob.glob(H + "/agents/*.md") + glob.glob(H + "/shared/*.md"))
+docs = [(ORSA, "CLAUDE.md")] + [(H, "README.md") for H in RADICI] + sorted(
+    (H, os.path.relpath(p, H).replace(os.sep, "/")) for H in RADICI for p in glob.glob(H + "/commands/*.md")
+    + glob.glob(H + "/skills/*/SKILL.md") + glob.glob(H + "/agents/*.md") + glob.glob(H + "/shared/*.md"))
 tot = 0
-for doc in docs:
+for H, doc in dict.fromkeys(docs):
     fp = os.path.join(H, doc)
     if not os.path.isfile(fp):
         continue
@@ -348,16 +404,16 @@ fi
 
 # Peso dei corpi: il corpo di una skill o di un comando entra intero nel contesto a ogni uso.
 # Sopra soglia, le parti lette solo in un caso vanno in un file a parte nella stessa skill.
-for f in "$CLAUDE_DIR"/skills/*/SKILL.md "$CLAUDE_DIR"/commands/*.md; do
+for f in "$CODICE"/skills/*/SKILL.md "$CODICE"/commands/*.md; do
   [[ -f "$f" ]] || continue
   sz=$(wc -c < "$f" | tr -d ' ')
   if [[ "$sz" -gt 30000 ]]; then
-    warning "${f#$CLAUDE_DIR/} pesa $((sz / 1024)) KB (tetto 30 KB): sposta in references/ le parti lette solo in un caso"
+    warning "${f#$CODICE/} pesa $((sz / 1024)) KB (tetto 30 KB): sposta in references/ le parti lette solo in un caso"
   fi
 done
 
 # Plugin installati ma non attivi in settings.json: solo il report, con il comando per toglierli.
-stale_sh="$CLAUDE_DIR/bin/cleanup-stale-plugins.sh"
+stale_sh="$CODICE/bin/cleanup-stale-plugins.sh"
 if [[ -f "$stale_sh" ]]; then
   stale_out=$(bash "$stale_sh" --dry-run </dev/null 2>&1)
   stale_rc=$?
@@ -365,7 +421,7 @@ if [[ -f "$stale_sh" ]]; then
   if [[ $stale_rc -ne 0 ]]; then
     warning "plugin: cleanup-stale-plugins.sh --dry-run uscito $stale_rc: $(printf '%s\n' "$stale_out" | tail -1)"
   elif [[ -n "$stale_lista" ]]; then
-    warning "plugin installati ma non attivi: $stale_lista -> bash ~/.claude/bin/cleanup-stale-plugins.sh --yes"
+    warning "plugin installati ma non attivi: $stale_lista -> bash $stale_sh --yes"
   else
     ok "plugin: tutti gli installati sono attivi"
   fi
@@ -375,7 +431,7 @@ fi
 # nome di uno di Arturo prende il nome nudo. Voluto si dichiara in personale/sostituzioni.txt; non dichiarato
 # è una skill di Arturo che la persona non vedrà. Il codice sta due cartelle sopra questo script, nel clone
 # come nel plugin. Nel clone le skill sono le stesse e il controllo tace.
-personale_py="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd)/bin/personale.py"
+personale_py="$CODICE/bin/personale.py"
 if [[ -f "$personale_py" ]] && command -v python3 >/dev/null 2>&1; then
   omonimi_out=$(ARTURO_RADICE="$CLAUDE_DIR" python3 "$personale_py" omonimi 2>&1)
   omonimi_rc=$?

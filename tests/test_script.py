@@ -78,6 +78,9 @@ for f in sorted(glob.glob("test_*.py")):
                 getattr(m, k)()
             except AssertionError:
                 falliti += 1
+if not fatti:  # come il pytest vero: nessun test raccolto esce 5 (review del 7/11/2026, finding 31)
+    print("no tests ran")
+    sys.exit(5)
 print("%d passed, %d failed" % (fatti - falliti, falliti))
 sys.exit(1 if falliti else 0)
 """
@@ -88,7 +91,7 @@ def test_z01(repo: Path) -> None:
     banco = esiste(repo, "tests/test_gate_run.sh", "Z01")
     with tempfile.TemporaryDirectory() as d:
         r = lancia([BASH, str(banco)], "Z01", env=dict(os.environ, GATE_RUN=str(gr), TMPDIR=d), cwd=d)
-    assert r.returncode == 0 and "totale casi: 7 · verdi: 7" in r.stdout, f"Z01 banco di gate-run rosso: {r.stdout[-600:]}"
+    assert r.returncode == 0 and "totale casi: 10 · verdi: 10" in r.stdout, f"Z01 banco di gate-run rosso: {r.stdout[-600:]}"
     gate = read(repo / "shared" / "validation-gate.md")
     assert "bin/gate-run.sh" in gate and "--poison" in gate and "--expect" in gate, \
         "Z01 shared/validation-gate.md non dice come eseguire un banco nuovo con gate-run.sh"
@@ -145,8 +148,8 @@ def test_z03(repo: Path) -> None:
         r = bgjob("start", "prova", "--", BASH, "-c", "echo ciao; exit 3")
         assert r.returncode == 0 and "marker:" in r.stdout, f"Z03 start non parte: {r.stdout}{r.stderr}"
         cartella = Path(r.stdout.split("job:", 1)[1].split("\n", 1)[0].strip())
-        fine = time.time() + 15
-        while not (cartella / "exit").exists() and time.time() < fine:
+        fine = time.monotonic() + 15
+        while not (cartella / "exit").exists() and time.monotonic() < fine:
             time.sleep(0.2)
         r = bgjob("status", "prova")
         assert r.returncode == 1 and "finito exit=3" in r.stdout, f"Z03 esito non letto dal marker: {r.returncode} {r.stdout}"

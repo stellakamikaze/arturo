@@ -25,7 +25,7 @@ npx impeccable install
 
 L'installatore trova `~/.claude` e ti chiede se installare nel solo progetto o per tutti i
 progetti. `/setup` te la propone nella fase 8c e la installa per tutti i progetti, senza domande:
-`npx --yes impeccable install --providers=claude --scope=global`. Poi chiudi e riapri Claude Code. Nel progetto scrivi `/impeccable init`.
+`npx --yes impeccable@4.8.0 install --providers=claude --scope=global`. Poi chiudi e riapri Claude Code. Nel progetto scrivi `/impeccable init`.
 
 Per aggiornarla:
 
@@ -44,6 +44,12 @@ Le altre vie (copia manuale, sottomodulo git) sono nel README dell'upstream, sez
   scelte di progetto stanno in `PRODUCT.md` e `DESIGN.md`, nel progetto.
 - L'agente `ui-ux-consultant` di Arturo fa una revisione dell'interfaccia leggendo il codice.
   Impeccable invece guida il lavoro di design e prova la pagina vera. Puoi usarli insieme.
+
+## Le regole di Arturo
+
+`shared/regole-interfaccia.md` raccoglie le regole che Impeccable non ha: grafici, form, controlli e
+accessibilità WCAG 2.2. Non ripete le sue e non la sostituisce: se c'è un conflitto, vince Impeccable.
+Claude le controlla prima di dire "fatto". Se Impeccable manca, lo stesso file porta anche le regole di base.
 
 ## Con Hallmark
 

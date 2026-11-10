@@ -50,7 +50,8 @@ def arma(pubblicato: Path, chiave: Path, env: Optional[Dict[str, str]] = None) -
     """L'hook che firma ogni push su main, e la firma del main già pubblicato."""
     hook = pubblicato / "hooks" / "post-receive"
     hook.parent.mkdir(parents=True, exist_ok=True)
-    hook.write_text(HOOK.replace("@CHIAVE@", str(chiave).replace("\\", "/")), encoding="utf-8", newline="\n")
+    with open(str(hook), "w", encoding="utf-8", newline="\n") as uscita:  # write_text(newline=) vuole Python 3.10
+        uscita.write(HOOK.replace("@CHIAVE@", str(chiave).replace("\\", "/")))
     hook.chmod(0o755)
     (pubblicato / "firme-prova").write_text("1\n", encoding="utf-8")
     subprocess.run(["git", "-C", str(pubblicato), "-c", "gpg.format=ssh", "-c", f"user.signingkey={chiave}",

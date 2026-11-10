@@ -30,9 +30,11 @@ copiare, un file da scaricare), non elencarli in chat: li perde mentre scorre. S
 guidata, una schermata per passo, con le istruzioni in testa a `~/.claude/shared/procedura-guidata.sh`.
 La lancia la persona in un Terminale vero, mai col prefisso `!`.
 
-Se il classificatore della modalità auto ferma un passo che la persona ha già approvato ("denied by
-the Claude Code auto mode classifier"), non cercare un'altra via: il classificatore non offre una
-conferma, quindi prepara un solo comando da lanciare con `!` e spiega in una frase cosa fa. Vale anche
+Se un permesso ti blocca, non passarle il comando da lanciare a mano: cerca un'altra via, oppure
+chiedi di allargare il permesso (`~/.claude/shared/metodo.md`, la stessa regola). L'eccezione è il classificatore
+della modalità auto, quando ferma un passo che la persona ha già approvato ("denied by the Claude Code
+auto mode classifier"): lì non cercare un'altra via. Il classificatore non offre una conferma, quindi
+prepara un solo comando da lanciare con `!` e spiega in una frase cosa fa. Vale anche
 per lo sblocco di una guardia (`! touch ~/.claude/system-unlock-...`) e per le righe che un installer
 chiede di aggiungere al profilo della shell. Dopo Homebrew su un Mac Apple Silicon la riga è
 `! echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile`. Un programma lanciato da un

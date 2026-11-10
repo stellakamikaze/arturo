@@ -45,7 +45,7 @@ OGGI = "2026-10-03"
 VERBI_ATTESI = {"fatto", "ferma", "riprendi", "chi", "avvicina", "allontana"}
 # Quanti test del kit porta ogni id, su ogni superficie. Si conta, non si confronta un insieme:
 # un test tolto da un id che ne ha due deve far fallire U03.
-KIT = {f"U{n}": 1 for n in range(20, 40)}
+KIT = {f"U{n}": 1 for n in range(20, 41)}
 KIT.update(U21=2, U27=2, U28=3, U30=2, U31=3, U34=2, U35=2)
 TEST_KIT = sum(KIT.values())
 PROXY_MORTO = "http://127.0.0.1:9"
@@ -364,6 +364,9 @@ def test_u06(repo: Path) -> None:
             dati = json.loads(testo)
             dati.pop("author", None)
             testo = json.dumps(dati, ensure_ascii=False)
+        if p.name == "testata.ts":
+            # Il credito di Arturo (Federico, 9/11/2026): solo la costante che scrive il nome dell'autore.
+            testo = "\n".join(r for r in testo.splitlines() if not r.startswith("export const AUTORE = "))
         nome = p.relative_to(repo).as_posix()
         assert not re.search(r"/Users/|/home/|[A-Za-z]:\\\\|~/\.claude/bin|Documents/ClaudeCode", testo), \
             f"U06 percorso assoluto o della macchina dell'autore in {nome}"
@@ -528,7 +531,10 @@ def controllo_del_mod(testo: str, dove: str) -> None:
     `claude plugin list --json`. La riga si lancia davvero su tre liste finte."""
     righe = [r.strip() for r in testo.splitlines() if r.strip().startswith("claude plugin list --json")]
     assert len(righe) == 1, f"U11 {dove}: il controllo del pannello con claude plugin list --json: {righe}"
+    # Col plugin il mod arriva dentro Arturo, con l'id arturo@arturo (review del 7/11/2026, finding 75).
     attesi = (('[{"id": "arturo@skills-dir", "enabled": true}]', "mod caricato"),
+              ('[{"id": "arturo@arturo", "enabled": true}]', "mod caricato"),
+              ('[{"id": "arturo@arturo", "enabled": false}]', "mod assente"),
               ('[{"id": "arturo@skills-dir", "enabled": false}]', "mod assente"),
               ('[{"id": "dafare@skills-dir", "enabled": true}]', "mod assente"),
               ('[{"id": "altro@skills-dir", "enabled": true}]', "mod assente"))

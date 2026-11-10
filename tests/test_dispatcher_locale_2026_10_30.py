@@ -43,7 +43,8 @@ def casa(repo: Path, base: Path, dispatcher: str | None, local: str | None) -> P
     shutil.copytree(repo / "hooks", home / ".claude" / "hooks", ignore=shutil.ignore_patterns("*.local", "__pycache__"))
     shutil.copytree(repo / "bin", home / ".claude" / "bin", ignore=shutil.ignore_patterns("__pycache__", "web"))
     if dispatcher is not None:
-        (home / ".claude" / "hooks" / "bash-dispatcher.sh").write_text(dispatcher, encoding="utf-8", newline="\n")
+        with open(str((home / ".claude" / "hooks" / "bash-dispatcher.sh")), "w", encoding="utf-8", newline="\n") as uscita:  # write_text(newline=) vuole Python 3.10
+            uscita.write(dispatcher)
     for nome, testo in GUARDIE.items():
         (home / ".claude" / "hooks" / nome).write_text(testo, encoding="utf-8")
     if local is not None:

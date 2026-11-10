@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Q01-Q10: mod e skill portati dalla config dell'autore il 15/10/2026.
+"""Q01-Q11: mod e skill portati dalla config dell'autore il 15/10/2026.
 
 Q01 il mod apri passa claude plugin validate e claude plugin test, e apre con il programma
 predefinito del sistema (open, start, xdg-open), mai con un browser scelto nel codice.
@@ -22,6 +22,8 @@ una compattazione, non a ogni richiesta (segnalazione n. 17, 27/10/2026).
 Q10 Hallmark è un rimando all'upstream come Impeccable (30/10/2026): la nota in docs/ dice da dove
     installarla e come lavora con Impeccable, /setup fase 8c la propone con la regola per CLAUDE.md
     scritta solo dopo il sì, l'audit la conosce, la skill non è copiata.
+Q11 shared/regole-interfaccia.md (6/11/2026): tre parti, chi vince, ogni regola col tipo e con una fonte
+    che ha un URL, virgolette dritte, e chi fa design ci arriva da agente, metodo e docs (/setup porta a docs/hallmark.md: è al tetto di SR08).
 
 Il banco richiede il binario `claude`. Sulla base cbd8305 ogni controllo deve fallire con un
 AssertionError che comincia con il suo codice.
@@ -190,7 +192,8 @@ def test_q05(repo: Path) -> None:
     inglese = repo / "skills" / "humanizer" / "references" / "originale-en.md"
     assert inglese.is_file() and f'version: "{voci["versione"]}"' in read(inglese), \
         "Q05 l'originale inglese manca o non è alla versione di ORIGINE"
-    assert f"{voci['versione']} ({voci['commit']}" in testo, \
+    # ORIGINE ha lo sha intero (finding 116); SKILL.md sta a 30 byte dal tetto e ne nomina i primi 7 caratteri.
+    assert f"{voci['versione']} ({voci['commit'][:7]}" in testo, \
         f"Q05 l'adattamento italiano non nomina versione e commit di ORIGINE ({voci['versione']}, {voci['commit']})"
     assert "personale/humanizer.md" in testo and "Tre modi di scrivere" in testo, \
         "Q05 la skill non legge la voce dall'Orsa o non dice i tre modi di scrivere"
@@ -244,7 +247,7 @@ def test_q08(repo: Path) -> None:
 
 
 def test_q09(repo: Path) -> None:
-    # Segnalazione n. 17 (Gigi, 27/10/2026): ogni Skill(prompt-master) rimette il corpo intero nel contesto,
+    # Segnalazione n. 17 (27/10/2026): ogni Skill(prompt-master) rimette il corpo intero nel contesto,
     # anche se la copia di prima c'è ancora. Il brief resta su ogni richiesta, il corpo si carica una volta.
     testo = read(repo / "skills" / "prompt-master" / "SKILL.md")
     importante = testo.split("## Importante", 1)[-1].split("## MODALITÀ PROMPT ESTERNO", 1)[0]
@@ -278,10 +281,33 @@ def test_q10(repo: Path) -> None:
     assert not (repo / "skills" / "hallmark").exists(), "Q10 la skill hallmark è copiata in Arturo"
 
 
+def test_q11(repo: Path) -> None:
+    # Federico, 6/11/2026: i processi di design di Arturo seguono regole in più, senza doppioni con le due skill.
+    nota = repo / "shared" / "regole-interfaccia.md"
+    assert nota.is_file(), "Q11 manca shared/regole-interfaccia.md"
+    testo = read(nota)
+    for parte in ("## Parte A", "## Parte B", "## Parte C", "## Lasciate fuori", "## Fonti"):
+        assert parte in testo, f"Q11 manca la sezione {parte}"
+    assert "poi Impeccable e Hallmark, poi questo file" in testo, "Q11 il file non dice chi vince"
+    voci = [r for r in testo.split("## Lasciate fuori")[0].splitlines() if r.startswith("- ")]
+    assert len(voci) >= 60, f"Q11 le regole sono {len(voci)}"
+    sigle = dict(re.findall(r"^- ([\w-]+): .*?(https://\S+)", testo.split("## Fonti")[1], re.M))
+    for voce in voci:
+        assert re.match(r"- \((fissa|default)\) ", voce), f"Q11 regola senza tipo: {voce[:60]}"
+        fonti = re.search(r"\[([^\]]+)\]$", voce)
+        assert fonti, f"Q11 regola senza fonte: {voce[:60]}"
+        for sigla in fonti.group(1).split(", "):
+            assert sigla.split()[0] in sigle or re.fullmatch(r"\d\.\d+\.\d+", sigla), f"Q11 fonte senza URL: {sigla}"
+    assert not re.search("[\u201c\u201d\u00ab\u00bb]", testo), "Q11 virgolette non dritte"
+    for lettore in ("agents/ui-ux-consultant.md", "shared/metodo.md", "docs/impeccable.md", "docs/hallmark.md",
+                    "README.md"):
+        assert "regole-interfaccia.md" in read(repo / lettore), f"Q11 {lettore} non porta alle regole"
+
+
 TESTS: Dict[str, Callable[[Path], None]] = {
     "Q01": test_q01, "Q02": test_q02, "Q03": test_q03, "Q04": test_q04,
     "Q05": test_q05, "Q06": test_q06, "Q07": test_q07, "Q08": test_q08, "Q09": test_q09,
-    "Q10": test_q10,
+    "Q10": test_q10, "Q11": test_q11,
 }
 
 

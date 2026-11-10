@@ -6,7 +6,7 @@ Le tre regex sono copie a mano, e due copie a mano divergono (pattern dei segret
 deriva.py aggiunge una radice e telemetria.py no, `registra()` ha già messo in coda `insieme:<n>` e
 manda meno righe di n: il server ricostruisce un elenco incompleto, senza errori.
 Questo banco confronta il contenuto delle copie, non solo i nomi degli eventi (M09).
-Veleno: --avvelena aggiunge una radice a deriva.py e il banco deve diventare rosso su A02.
+Veleno: --avvelena aggiunge una radice a deriva.py; esce 0 solo se A02 diventa rosso (VELENI del gate).
 """
 from __future__ import annotations
 
@@ -130,6 +130,13 @@ with tempfile.TemporaryDirectory() as tmp:
         if trovate != attesa:
             rossi.append(f"A05 {os.path.basename(cartella)}: categorie_config dà {trovate}, attese {attesa}")
 
+if "--avvelena" in sys.argv:
+    # Il veleno del gate (review del 7/11/2026, finding 94): esce 0 solo se la radice in più fa rosso A02.
+    if any(r.startswith("A02") for r in rossi):
+        print("VELENO A02 ROSSO: una radice in più in deriva.py non passa da telemetria.py e dal server")
+        sys.exit(0)
+    print(f"VELENO A02 NON ATTACCA: rossi {[r[:3] for r in rossi]}")
+    sys.exit(1)
 for r in rossi:
     print("ROSSO", r)
 print(f"deriva allineata: {len(CASI) - len({r[:3] for r in rossi})}/{len(CASI)} casi verdi")

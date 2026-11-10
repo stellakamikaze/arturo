@@ -53,6 +53,10 @@ SYSTEM_ENVELOPE = re.compile(
     r"\s*(?:Another Claude session sent a message:\s*)?"
     r"<(task-notification|agent-message|cross-session-message|teammate-message"
     r"|bash-stdout|local-command-stdout)\b")
+# Il punteggio cerca ogni parola del prompt in ogni nota: un incolla da 60.000 caratteri passava i 5 s
+# del timeout e l'hook moriva senza proporre niente (review del 7/11/2026, finding 55). Di un prompt
+# lungo contano la testa e la coda, dove stanno la richiesta e la domanda. Soglie e pesi non cambiano.
+TESTA_CODA = 1500      # caratteri tenuti in testa e in coda
 SEEN_WINDOW = 120      # dedup a finestra scorrevole ~20 prompt (R7): la soppressione
                        # permanente seppelliva note rilevanti dopo compaction
 VERIFY_AGE_DAYS = 60   # verify-on-read SOLO oltre questa età (R6): la disciplina
@@ -114,6 +118,12 @@ def log_access(paths, context):
     mm.registra_accessi(paths, context, log_path=ACCESS_LOG)
 
 
+def parole_del_prompt(prompt):
+    if len(prompt) > 2 * TESTA_CODA:
+        prompt = prompt[:TESTA_CODA] + "\n" + prompt[-TESTA_CODA:]
+    return mm.tokenize(prompt)
+
+
 def main():
     if not mm.memoria_accesa():
         return
@@ -131,7 +141,7 @@ def main():
     if SYSTEM_ENVELOPE.match(prompt):
         return
 
-    tokens = mm.tokenize(prompt)
+    tokens = parole_del_prompt(prompt)
     if len(tokens) < MIN_TOKENS:
         return
 

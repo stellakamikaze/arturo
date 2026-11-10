@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SZ01-SZ03: le segnalazioni n. 45 e n. 46 di Filippo del 3/11/2026.
+"""SZ01-SZ03: le segnalazioni n. 45 e n. 46 del 3/11/2026.
 
 SZ01 l'avvio scrive in $CLAUDE_ENV_FILE, una volta sola anche dopo due avvii, la riga che dà a zsh
      nonomatch, noequals e shwordsplit; in bash la stessa riga esce 0 e non ferma il comando dopo.

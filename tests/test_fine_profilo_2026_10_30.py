@@ -115,7 +115,7 @@ def verde(r: subprocess.CompletedProcess) -> bool:
 
 def prova(b: Banco) -> list:
     rossi = []
-    buone = ("| 1 | #4043 | libro | media | Rispondere a Gigi | pending | La bozza è nel thread | Federico: invio a terzi |\n"
+    buone = ("| 1 | #4043 | libro | media | Rispondere a Giulia | pending | La bozza è nel thread | Federico: invio a terzi |\n"
              "| 2 | OFFLINE | libro | alta | Rileggere il capitolo | pending | Servono le note | Claude |\n")
 
     # FP01

@@ -11,7 +11,7 @@ SN02 un comando che la persona lancia col prefisso `!` gira senza un terminale v
      "a terminal is required to read the password". Lo stile Conciso, sempre caricato, dice che un
      comando con sudo o con una password non passa dal `!`: prima una via senza sudo, poi il
      Terminale (segnalazione n. 16).
-SN03 il 27/10/2026 una /segnala di Liliana ha risposto "il server non risponde" e in D1 non è arrivato
+SN03 il 27/10/2026 una /segnala ha risposto "il server non risponde" e in D1 non è arrivato
      niente. Il client trattava ogni codice fuori da 2xx, 400 e 413 come "non risponde", senza dire
      quale. Ora il messaggio porta "(risposta N)", o "(nessuna risposta dalla rete)" se la rete tace.
 

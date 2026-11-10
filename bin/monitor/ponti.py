@@ -124,6 +124,9 @@ def memoria():
     return ponte("memoria", "da collegare", cosa, "arturo memoria accendi")
 
 
+NOME_PONTE = re.compile(r"^[a-z][a-z0-9-]{0,39}$")  # la stessa forma della fonte in righe.py
+
+
 def personali():
     f = CASA / "personale" / "monitor" / "ponti.json"
     if not f.is_file():
@@ -132,11 +135,19 @@ def personali():
         voci = json.loads(f.read_text(encoding="utf-8")).get("ponti") or []
     except (OSError, ValueError, AttributeError) as e:
         return [ponte("personali", "rotto", "i tuoi ponti", f"ponti.json illeggibile: {e}")]
+    if not isinstance(voci, list):
+        return [ponte("personali", "rotto", "i tuoi ponti", "ponti.json: \"ponti\" è una lista")]
     out = []
+    # I nomi dei ponti di serie: un ponte personale con lo stesso nome li nascondeva (lotto L10).
+    di_serie = {"task", "sessioni", "memoria", "personali"} | {"google-connettori", "google-gws", "google-gws-login"}
     for v in voci:
         if not isinstance(v, dict) or not v.get("nome") or not isinstance(v.get("comando"), list) or not v["comando"]:
             out.append(ponte(str(v.get("nome") if isinstance(v, dict) else "?"), "rotto", "",
                              "ogni ponte vuole nome e comando (una lista)"))
+            continue
+        if not NOME_PONTE.match(str(v["nome"])) or v["nome"] in di_serie:
+            out.append(ponte(f"personale:{v['nome']}", "rotto", v.get("descrizione", ""),
+                             "il nome va in minuscole, cifre e trattini, e non può essere quello di un ponte di serie"))
             continue
         argv = [os.path.expanduser(str(a)) for a in v["comando"]]
         trovato = shutil.which(argv[0]) or (Path(argv[0]).is_file() and argv[0])

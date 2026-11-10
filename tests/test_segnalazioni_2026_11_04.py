@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""AW01-AW05: la segnalazione n. 51 di Filippo del 4/11/2026 (hooks/agente-worktree.py).
+"""AW01-AW05: la segnalazione n. 51 del 4/11/2026 (hooks/agente-worktree.py).
 
 Un agente lanciato con `isolation: "worktree"` che si ferma senza modifiche perde la copia: Claude Code la
 toglie. Ripreso con SendMessage, riparte nella cartella della sessione madre. Provato il 4/11/2026 su

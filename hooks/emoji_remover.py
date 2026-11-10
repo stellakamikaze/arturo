@@ -35,6 +35,32 @@ EMOJI_PATTERN = re.compile(
     flags=re.UNICODE
 )
 
+# Nei tre blocchi BMP (tecnici 2300-23FF, simboli 2600-26FF, dingbat 2700-27BF) la maggior parte
+# dei caratteri è testo: ⌊ ⌈ ★ ❯ ☆ stanno in formule, valutazioni e prompt di shell (review del
+# 7/11/2026, finding 53). Lì conta come emoji solo un carattere che si disegna da emoji da solo
+# (Emoji_Presentation di Unicode) o che porta il selettore U+FE0F. I blocchi astrali restano interi.
+BLOCCHI_BMP = ((0x2300, 0x23FF), (0x2600, 0x26FF), (0x2700, 0x27BF))
+PRESENTAZIONE_EMOJI = set(
+    "\u231a\u231b\u23e9\u23ea\u23eb\u23ec\u23f0\u23f3\u2614\u2615\u267f\u2693\u26a1\u26aa\u26ab"
+    "\u26bd\u26be\u26c4\u26c5\u26ce\u26d4\u26ea\u26f2\u26f3\u26f5\u26fa\u26fd\u2705\u270a\u270b"
+    "\u2728\u274c\u274e\u2753\u2754\u2755\u2757\u2795\u2796\u2797\u27b0\u27bf"
+) | {chr(c) for c in range(0x2648, 0x2654)}  # i segni zodiacali
+
+
+def emoji_in(testo: str) -> list:
+    trovate = []
+    for m in EMOJI_PATTERN.finditer(testo):
+        for i, ch in enumerate(m.group(0)):
+            if ch in ALLOWED_SYMBOLS:
+                continue
+            if any(a <= ord(ch) <= b for a, b in BLOCCHI_BMP):
+                dopo = testo[m.start() + i + 1:m.start() + i + 2]
+                if ch not in PRESENTAZIONE_EMOJI and dopo != "\ufe0f":
+                    continue
+            trovate.append(ch)
+    return trovate
+
+
 # Simboli tecnici legittimi in doc/config (tasti macOS, check, warning testuali):
 # non sono "emoji decorative" e bloccavano edit validi (falsi positivi).
 ALLOWED_SYMBOLS = {
@@ -127,10 +153,7 @@ try:
         if is_social_content_file(fp):
             continue
 
-        emojis_found = [
-            ch for seq in EMOJI_PATTERN.findall(content)
-            for ch in seq if ch not in ALLOWED_SYMBOLS
-        ]
+        emojis_found = emoji_in(content)
         if emojis_found:
             sample = ', '.join(emojis_found[:3])
             # PostToolUse hook: feedback a Claude via stderr + exit code 2.

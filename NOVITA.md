@@ -13,6 +13,300 @@ modo di lavorare.
 
 ---
 
+## 2026-11-10 — arturo web: i nomi dei progetti si leggono anche in tema scuro
+
+**Cosa cambia**: nel registro per categorie di `arturo web`, col computer in tema scuro, i nomi dei
+progetti e il filetto sotto ogni categoria restavano quasi neri sul fondo scuro. Ora sono chiari e si
+leggono come il resto della pagina. Il tema chiaro non cambia.
+
+**Il principio**: ogni colore del testo ha un valore per tutti e due i temi, e il banco della pagina misura
+il contrasto in entrambi.
+
+**Da sapere**: riguarda chi ha molti progetti divisi in categorie, cioè la vista a tabella.
+
+## 2026-11-10 — Guardie su Windows: `.exe`, maiuscole, Python che manca
+
+**Cosa cambia**:
+- Su Windows `rm.exe`, `git.exe` e `gh.exe` passano dalle stesse guardie di `rm`, `git` e `gh`. Prima un
+  programma scritto col suffisso `.exe` non chiedeva nessuna conferma: né per una cancellazione ricorsiva, né
+  per un `push --force`, né per la cancellazione di un repository.
+
+**Il principio**: una guardia vale quanto la forma più semplice che la aggira.
+
+**Da sapere**: riguarda solo Windows. Le altre correzioni di questo gruppo arrivano nei prossimi giorni, e
+questa voce si allunga.
+
+## 2026-11-09 — Guardie, /monitor e controlli: le correzioni del lotto L10
+
+**Cosa cambia**:
+- La guardia blocca di nuovo `bw export` e `mkfs` dentro `$(...)` e i backtick, anche fra virgolette doppie:
+  bash li esegue. Il lotto L2 li aveva lasciati passare.
+- Un file dentro `hooks/` di un tuo mod personale resta protetto, ma il messaggio dice che è il tuo mod e,
+  nello stesso passo, come caricarlo con `CLAUDE_CODE_PLUGIN_DIRS` (segnalazione n. 63).
+- /monitor: una riga con un carattere di separazione Unicode non si spezza più, una lettura dichiarata intera
+  con meno elementi letti si scarta, una fonte scelta che non consegna niente si vede (`righe.py --attese`), e
+  due ponti Google insieme non danno più ogni email due volte. Un `cursori.json` rotto non si riscrive.
+- Il gate dei progetti fa girare anche pytest in un progetto node con `requirements.txt`, e non dà più rosso
+  per lo script di test di `npm init`, per un TypeScript non installato o per un `--dir` relativo.
+- `arturo todo --help` dà l'aiuto, e una cartella personale che è un repository non diventa un progetto.
+- Il controllo degli aggiornamenti all'avvio non lascia più un `git fetch` appeso per sempre; alla chiusura
+  il ripristino del titolo del Terminale non aspetta più un permesso di macOS.
+- `setup.sh` di scrape si può rilanciare, e dice "già installato" solo se i pacchetti ci sono davvero.
+- Su Windows `arturo personale sposta` e `ripristina` non scambiano più gli a capo CRLF per modifiche tue:
+  in `personale/` finiscono solo le righe che hai aggiunto davvero. Il repository chiede gli a capo LF in
+  ogni copia, anche su Windows (`.gitattributes`).
+- Lo script d'installazione installa solo l'ultimo rilascio firmato, mai la punta di main senza controlli.
+  Il blocco a mano del README rimette tutto com'era se lo scaricamento non riesce, e /setup rimanda a
+  quello della guida.
+
+**Il principio**: un controllo che dice "rosso" per uno strumento che manca, o "verde" perché non ha guardato,
+fa perdere fiducia a tutti i controlli.
+
+## 2026-11-09 — L'aggiornamento automatico non aspetta più i processi di servizio di Claude Code
+
+**Cosa cambia**:
+- Claude Code dalla 2.1.31x tiene accesi alcuni processi di servizio: il daemon delle sessioni in background e
+  le sessioni di riserva (`bg-spare`, `bg-pty-host`). Arturo li contava come sessioni aperte, e un rilascio si
+  rinviava a ogni chiusura e a ogni avvio. Dal 6/11 alcune installazioni restavano così a una versione vecchia.
+  Ora quei processi non contano. Se la tua installazione è ferma, lancia `/aggiorna` una volta: dopo,
+  l'aggiornamento automatico torna a funzionare da solo.
+- L'aggiornamento automatico funziona anche con Python 3.8 e 3.9, come promette il README: prima, con il
+  Python di sistema di un Mac, l'applicazione si fermava con un errore.
+- La testata di Arturo e `/versione` dicono di chi è Arturo: Federico Nejrotti, con il link a
+  stellakamikaze.org. Lo dicono anche il README, la licenza e i dati del plugin.
+- Se il tuo `~/.claude` è un repository tuo con Arturo come upstream, e lo usi su un computer solo, ora puoi
+  passare al plugin: `arturo migra --prova --unica-macchina` mostra cosa cambia, `arturo migra --unica-macchina`
+  lo fa. Il tuo repository resta, e i file di Arturo escono con un commit. `arturo migra indietro` lo annulla
+  (proposta n. 62).
+
+**Il principio**: un aggiornamento che si rinvia per sempre è un aggiornamento che non c'è. Il segnale era nella
+telemetria: solo "rinviato", mai più "applicato".
+
+## 2026-11-09 — Gli aggiornamenti del plugin si fermano prima, e il gate dice il vero
+
+**Cosa cambia**: correzioni alla catena dei rilasci e ai controlli che la provano.
+- `/aggiorna` col plugin rifiuta un rilascio firmato vecchio pubblicato sotto un nome nuovo: la firma copre
+  il nome scritto dentro il tag, e i due nomi devono coincidere. Prima si poteva riportarti indietro a una
+  versione con una firma valida.
+- Un tag senza firma (un tag "leggero") dice "possibile compromissione". Prima diceva "Non è un problema di
+  sicurezza: aggiorna git e OpenSSH".
+- Il MANIFEST firmato si controlla prima di installare, sui file del rilascio scaricato. Se il controllo
+  dopo l'installazione fallisce lo stesso, Arturo rimette la versione di prima quando la sua cartella c'è
+  ancora, e lo dice.
+- `/setup` installa versioni fissate di Scrapling, markdownify e Impeccable: un rilascio nuovo di quei
+  progetti non arriva più da solo con un'installazione.
+- Per chi mantiene Arturo: il pacchetto firmato del plugin nasce dal tag del rilascio, non dall'albero di
+  lavoro, e la verifica del pacchetto da pubblicare vuole la firma. La procedura di rilascio mette firma,
+  verifica e push in un blocco solo, anche per il tag del plugin, e la prova di aggiornamento parte
+  dall'ultimo tag di `origin/main`. `humanizer-origine.py` scrive lo sha intero.
+- Il gate stampa `PASS` solo se è verde, conta i banchi di Python 3.8 (`py38=`) e, per un rilascio, si
+  ferma se Python 3.8 manca. Confronta i suoi elenchi coi file di `tests/`: un banco nuovo non elencato, o un
+  veleno mai lanciato, è rosso. I banchi delle guardie all'avvio danno rosso un banco che manca, invece di
+  saltarlo. `gate-run.sh` esce 3 se il veleno cancella un file.
+
+**Il principio**: una firma vale per quello che copre. Se il nome, i file o l'albero da cui nasce il
+pacchetto restano fuori dalla firma, la firma è vera e il rilascio no.
+
+**Da sapere**: Hallmark si installa ancora dalla testa del suo repository. Lo strumento `skills` non accetta un
+commit fissato.
+
+## 2026-11-09 — Le pulizie e le promesse sui tuoi dati dicono il vero
+
+**Cosa cambia**: dieci correzioni a quello che Arturo toglie dai testi e a quello che promette.
+- `/segnala` toglie anche gli indirizzi senza `https://` (`www.…`, `intranet.cliente.it/…`), quelli `ftp`
+  e `ssh`, i nomi di immagini, audio, video, archivi e testi, la cartella personale nella forma di Git Bash
+  e di WSL (`/c/Users/…`), e un nome di documento con le maiuscole e gli spazi ("Contratto Rossi Bianchi
+  2026.pdf"). Restano i file di Arturo, come `CLAUDE.md` o `commands/fine.md`. Se prima di un nome c'è una
+  parola minuscola che può esserne parte, l'anteprima lo dice con la riga "Da controllare".
+- `arturo segnala invia` manda solo il file di `prepara`, uguale a quello dell'anteprima: un file scritto a
+  mano o cambiato dopo non parte, e si rilancia `prepara`.
+- Il ritratto di `/setup` toglie anche `pw`, `passphrase`, la chiave del wifi, il `cvv`, il numero dopo `pin`
+  anche con una parola in mezzo ("Pin bancomat …") e l'IBAN scritto in minuscolo.
+- Su Windows l'avvio non propone più il passaggio al plugin: lì non è ancora provato.
+- Test, commenti ed esempi non hanno più nomi di persone né id veri di installazioni. Il controllo di
+  igiene del repository li cerca, e la regola vale anche per questo file.
+- Il README dice com'è davvero l'aggiornamento automatico: con un'altra sessione aperta il rilascio si
+  installa alla chiusura dopo o all'apertura, e in un conflitto vince il file del rilascio, con la tua
+  versione in `personale/conflitti/`; restano a te solo `settings.json` e i `CLAUDE.md`.
+- `docs/privacy.md` dice che le email con una cosa da fare creano un task nell'elenco di chi mantiene
+  Arturo, come cancellare gli eventi di Lancillotto e una segnalazione partita senza id.
+- Il capitolo sui rail dice che un banco delle guardie rosso non ti interrompe: lo legge `/diagnosi`.
+- Il README conta 31 guardie e automazioni e 7 strumenti in `hooks/`, e `arturo correzione` sta fra i
+  comandi della CLI, non fra le skill.
+
+**Il principio**: una promessa sui dati che il codice non mantiene è peggio di nessuna promessa, perché la
+persona decide fidandosi. Dove il codice poteva mantenerla, ora la mantiene; dove no, il testo dice il vero.
+
+**A chi serve**: a chi manda segnalazioni o fa il ritratto di `/setup` con documenti di lavoro, e a chi
+decide se tenere gli aggiornamenti automatici leggendo gli Impegni.
+
+## 2026-11-09 — /fine, /inizio e i comandi di Arturo non sbagliano più in silenzio
+
+**Cosa cambia**: undici correzioni ai comandi di Arturo.
+- `/fine` con un remote privato non salva più nella config i file `.env`, le chiavi, `credentials.json`,
+  la cartella `secrets/`, `.venv`, `node_modules` e `__pycache__` di `personale/`. La riga di esito dice
+  quali file ha lasciato fuori.
+- Due computer che chiudono `/fine` uno dopo l'altro non si fermano più su `INDEX.md` con un rebase a metà:
+  l'indice si ricostruisce dagli handoff e il salvataggio continua.
+- Due `/fine` nello stesso momento non possono più creare il commit della memoria vuoto.
+- Una riga di soli `=======`, come la sottolineatura di un titolo, non ferma più `/fine`. Un conflitto vero
+  lo ferma ancora, e il messaggio dice in quale file.
+- `/inizio --tutti` non annulla più un rebase o un merge già a metà in un progetto: lo lascia com'è e lo dice.
+- `/inizio libro togli il flag --force` carica il progetto col compito, invece di rispondere "nome non valido".
+- Il tasto o di `/dafare` dice "Aperta" solo se il terminale si apre davvero. Se il Mac nega il permesso,
+  dice perché e mette il comando negli appunti.
+- Una scadenza scritta senza anno vale la data più vicina: il 7 novembre "15/1" è il gennaio che viene, non
+  quello passato. La conferma dice la data.
+- Il controllo di un progetto Python senza test dice "nessun test", non più "rosso".
+- Una riga sbagliata da un ponte di `/monitor` si scarta da sola, e le altre righe arrivano.
+- Un documento Word rovinato non ferma più la lettura dei documenti di `/setup`.
+
+**Il principio**: un comando che dice "fatto" senza averlo fatto, o "errore" senza un errore, insegna a non
+leggerlo. Ognuno di questi casi ora ha una prova che cade sulla versione di prima.
+
+**A chi serve**: a tutti. Le due correzioni di `/fine` sul salvataggio servono a chi tiene la config su un
+remote privato da più computer.
+
+---
+
+## 2026-11-09 — Rotazione, segreti e controlli automatici più affidabili
+
+**Cosa cambia**: venti correzioni ai controlli che girano da soli e al mod di Arturo.
+- La rotazione della sessione la decide solo la sessione principale. Un agente al lavoro non riceve più
+  l'avviso del contesto pieno e non può far ripartire la sessione a metà del lavoro.
+- Se `/clear` non chiude la sessione, la rotazione si annulla e lo dice. Un `/clear` scritto ore dopo non
+  riparte più da solo sul compito vecchio, e il secondo tentativo si ferma se stai scrivendo.
+- I segreti dentro un JSON (`"password": "…"`, `"token": "…"`), le stringhe di Redis senza utente, le chiavi
+  PGP o cifrate e le intestazioni `Authorization: Bearer` vengono redatti prima che Claude li legga. La sigla
+  lascia leggibile il nome della chiave, e lo stesso valore dà sempre la stessa sigla.
+- Il controllo dei tipi dopo una modifica non scrive più file `.js` accanto ai sorgenti.
+- Con la memoria accesa, una nota non perde più la riga dopo un `updated:` vuoto né il rientro del corpo.
+  Claude sa dove è finita una nota spostata e quando il frontmatter è rotto. Un testo incollato lungo non
+  fa più scadere il richiamo.
+- I simboli come ⌊ ★ ❯ nel codice non contano più come emoji.
+- Un'email letta con `gws` che cita "invalid_grant" non ferma più il lavoro come se mancasse il login.
+- Su Windows la barra non apre più finestre di terminale una volta all'ora. Un `git status` appeso non si
+  moltiplica.
+- Con una fonte esterna dei task, `/dafare` legge il JSON dell'esempio di `docs/fonte-task.md`, e la pagina
+  `arturo web` dice che non la legge invece di mostrare un tavolo vuoto.
+
+**Il principio**: un controllo automatico che sbaglia in silenzio è peggio di nessun controllo. Ognuno di
+questi casi ora ha una prova che cade sulla versione di prima.
+
+**A chi serve**: a tutti. Alla rotazione e alla redazione dei segreti in particolare a chi usa il mod di Arturo.
+
+---
+
+## 2026-11-09 — Col plugin, comandi e controlli trovano Arturo dove sta davvero
+
+**Cosa cambia**: quattordici correzioni per chi usa Arturo come plugin. Col plugin il codice sta nella
+cartella dei plugin di Claude Code, e `~/.claude` resta tua: diversi comandi lo cercavano ancora lì.
+- `/system-audit` non dà più cinque errori falsi su un'installazione sana, e `/setup` arriva alla fine.
+- `/fine --rotazione` torna a partire da solo a ogni compito chiuso. Lo stesso vale per `/segnala` alla fine
+  della sessione e per `/diagnosi` quando `/inizio` la chiede.
+- `/diagnosi`, `/inizio` e i todo riconoscono il mod di Arturo anche col plugin: prima lo davano per spento.
+- `/inizio` non segnala più "controllo aggiornamenti non riuscito (rete?)" a ogni avvio. `/novita` dice se c'è
+  un rilascio nuovo leggendo il catalogo firmato.
+- `/setup` trova le sue guide (ritratto, intervista, Impeccable, Hallmark), salta la sincronizzazione tra
+  macchine, che col plugin non c'è, e scrive lo stile come `arturo:Conciso`.
+- L'identità di Git che scegli in `/setup` vale anche nei tuoi progetti: prima i loro commit restavano senza
+  nome, o col nome del computer.
+- Il tuo stile personale e il programma di `scrape` restano fra i tuoi file: un aggiornamento non li cancella.
+- `/creaskill` dice occupato anche il nome di una skill di Arturo, come `fine`.
+- La barra mostra di nuovo il task in corso, e il blocco sotto l'intestazione dice la versione di Arturo.
+- La pagina dei todo, se si spegne, ti dà il comando giusto per riaprirla.
+- Lancillotto si installa anche senza `gh`: il suo repository è pubblico e basta `git`.
+- Metodo e stile Conciso dicono la stessa cosa quando un permesso ferma un passo.
+
+**Il principio**: il codice si trova dalla sua cartella, i tuoi dati stanno in `~/.claude`. Un comando non
+indovina dove sta l'altro.
+
+**A chi serve**: a chi usa Arturo come plugin, e a chi sta per passarci con `arturo migra`.
+
+---
+
+## 2026-11-08 — Aggiornamenti e migrazione: niente più lavoro perso o blocchi senza motivo
+
+**Cosa cambia**: otto correzioni a come Arturo si aggiorna e a come passa dal clone al plugin.
+- `arturo migra indietro` non butta più quello che hai scritto dopo la migrazione: righe nuove in
+  `personale/`, un'impostazione cambiata, un altro plugin installato. Prima di rimettere il clone com'era, li
+  copia in `sostituiti-<data>/` dentro la copia di sicurezza, e te lo dice.
+- Una copia di sicurezza rimasta a metà (disco pieno) non resta più accanto a `~/.claude`, e `migra indietro`
+  non la prende per buona: prima metteva un `.git` incompleto al posto di quello vero.
+- Il rapporto di `migra --prova` non dice più "il CLAUDE.md ripete 2 regole" a chi non ne ripete nessuna.
+- Col plugin, `/aggiorna` porta anche le voci nuove di `settings.json` che il plugin non sa portare da solo:
+  permessi, regole di blocco, `env`. Una voce cambiata anche da te si decide con `/setup`.
+- Una copia di prova con un conflitto già risolto, che aspetta solo il tuo sì, non si scarta più alla chiusura
+  di una sessione: resta finché non la concludi con `/aggiorna`.
+- Un tuo hook mai salvato con un commit non blocca più ogni aggiornamento con "hook mancante". Una tua skill
+  non salvata con lo stesso nome di una nuova di Arturo non lo blocca più: va in `personale/conflitti`, come un
+  conflitto, e l'avvio te lo dice.
+- Un `/clear` non installa più un aggiornamento con la sessione ancora aperta. L'installazione aspetta la
+  chiusura vera.
+- Se un aggiornamento sposta in `personale/` le righe che avevi aggiunto a un hook di sessione, l'avvio dopo te
+  lo dice: sono commentate, e finché non le rileggi non girano.
+
+**Il principio**: un aggiornamento automatico non deve mai costarti lavoro, né fermarsi per un motivo falso.
+
+**A chi serve**: a chi ha già migrato al plugin o sta per farlo, e a chi risolve i conflitti con `/aggiorna`.
+
+---
+
+## 2026-11-08 — Telemetria: meno nomi in giro, tetti contro gli invii finti
+
+**Cosa cambia**: undici correzioni al server della telemetria e alla parte di Arturo che gli parla.
+- Su una seconda macchina, dove `~/.claude` è il clone del tuo repository privato senza `upstream`, i tuoi file
+  non sembrano più file di Arturo: nella telemetria contano come `file:altro`. Prima il nome di un tuo documento
+  modificato e non ancora mandato al tuo repository poteva uscire. Il messaggio dell'avvio sulla deriva resta.
+- Il server tiene i nomi dei file di Arturo solo per le cartelle dove crei cose tue (anche `hooks/`); delle altre
+  tiene la sola cartella.
+- Il server non conosce più i nomi delle persone: le email a chi mantiene Arturo dicono le prime 8 cifre dell'id,
+  come promette `docs/privacy.md`. La pagina della privacy ora dice anche cosa porta il recap di ogni mattina.
+- Due sessioni aperte nello stesso momento non mandano più gli stessi eventi due volte, e non perdono quelli
+  registrati durante l'invio. Una segnalazione in attesa parte una volta sola.
+- Lo sportello delle segnalazioni chiede prima le più nuove e si ferma quando il server dice "troppe richieste":
+  con più di dieci segnalazioni aperte, le risposte alle ultime arrivano.
+- La pulizia di `/segnala` toglie le cartelle personali anche nei percorsi Windows con le barre doppie e con lo
+  spazio nel nome (`C:\Users\Mario Rossi\...`).
+- Sul server: tetti contro chi manda eventi finti con id inventati, un ritiro di segnalazione ripetuto che non
+  suona più, il recap che dice quali eventi conta.
+
+**Il principio**: la telemetria promette di non dire chi sei né cosa hai sul computer. Ogni nome che esce va
+contro quella promessa, anche per sbaglio.
+
+**A chi serve**: a chi usa Arturo su più macchine, a chi segnala da Windows, a chi lo mantiene.
+
+---
+
+## 2026-11-08 — Guardie più attente: commenti, push forzati, segreti nei commit, Windows
+
+**Cosa cambia**: undici correzioni alle guardie che controllano i comandi prima che partano.
+- Un commento in fondo a una riga (`ls # elenco`) non nasconde più il comando della riga dopo. Prima
+  un `rm -rf` scritto lì passava senza domanda.
+- `git push origin main --force` chiede conferma, come le altre forme che riscrivono o cancellano rami
+  sul remoto (`-f`, `--force-with-lease`, `--mirror`, `--delete`, `:ramo`, `+ramo`), anche col flag in fondo.
+- Il controllo dei segreti nei commit guarda anche i file nominati nel commit (`git commit -m x a.py`),
+  i file aggiunti con `git add -f`, le chiavi OpenAI, e chiede conferma oltre i 200 file nuovi invece di
+  fermarsi in silenzio ai primi 200.
+- Uno script scaricato e passato a una shell si blocca anche con `;`, `&&` o una parentesi attaccata,
+  con un `tee` in mezzo o con `sudo -E`. Il contrario: scaricare un file e poi leggerne un altro con
+  `head f | python3 script.py` non si blocca più, e cercare con grep un testo come "bw export" nemmeno.
+- `bash -lc`, `timeout 30`, `xargs sh -c` e `trap` non nascondono più un `rm -rf` o la lettura di `.env`.
+- Le chiavi e le credenziali non si leggono senza conferma con `sort`, `uniq`, `jq` o `git diff --no-index`,
+  né copiando o archiviando la cartella intera (`cp -R ~/.ssh`, `tar`, `zip`, `scp`). Anche il tool di
+  ricerca Grep dentro `~/.ssh` chiede.
+- Un invio di posta dopo un `&`, o con AppleScript su più righe, chiede conferma come gli altri.
+- Su Windows `rd /s`, `del /s` e `Remove-Item -Recurse` su una cartella chiedono come `rm -r`.
+- `git worktree remove --force` con file non salvati chiede davvero: la regola c'era, ma non partiva.
+- Cancellare o riscrivere `settings.json` con `rm`, `command cp` o `perl -pi`, e toccare la chiave che
+  verifica gli aggiornamenti, chiede conferma. Su Mac e Windows vale anche scritto con le maiuscole.
+
+**Perché**: sono gli undici problemi delle guardie trovati dalla revisione completa del 7/11. Ognuno è
+riprodotto in una cartella di prova prima della correzione, e il banco nuovo lo riprova a ogni rilascio.
+
+**Da sapere**: niente cambia nel lavoro normale. Le domande nuove arrivano solo sulle forme che prima
+passavano per sbaglio.
+
 ## 2026-11-08 — Aggiornamenti più sicuri: lo spazio nel nome utente, il catalogo del plugin, il ritorno indietro
 
 **Cosa cambia**: quattro correzioni nella procedura che installa gli aggiornamenti.
@@ -82,6 +376,25 @@ Arturo gira solo nel repository pubblico: nel tuo viene saltata, quindi non cons
 conta per le automazioni.
 
 ---
+
+## 2026-11-06 — Claude controlla anche grafici e form prima di dire che un sito è fatto
+
+**Cosa cambia**: se fai siti, dashboard o form, prima di dirti che il lavoro è fatto Claude lo controlla
+anche con un elenco di 66 regole su grafici, form, controlli e accessibilità (il file è
+`shared/regole-interfaccia.md`). Quasi metà cita un post di r/ClaudeDesign su Reddit. Le altre vengono
+soprattutto da WCAG 2.2, lo standard di accessibilità del web, dal sistema di design del governo
+britannico, dai centri di ricerca Baymard e NN/g e dalle linee guida di Vercel. Ogni regola ha la sua
+fonte ed è segnata come fissa o di default: le fisse sono errori oggettivi o requisiti di accessibilità,
+le altre sono punti di partenza che Claude può rompere quando il design lo chiede, e te lo dice. Non
+serve installare niente.
+
+**Perché**: Claude disegna le interfacce con due skill facoltative, Impeccable e Hallmark. Impeccable
+non ha regole sui grafici, e Hallmark le usa solo quando costruisce una pagina, quindi su una dashboard
+non arrivavano. Mancavano, per esempio, la descrizione o la tabella che racconta il grafico a chi non
+vede, e la regola per cui, dove manca un dato, la linea si interrompe. Il file copre solo ciò che le due
+skill non dicono: se una sua regola si scontra con il brief, con il `DESIGN.md` del progetto (il file
+delle scelte di design) o con le due skill, vincono loro. Se Impeccable non ce l'hai, Claude usa anche
+altre 18 regole del file, su contrasto, bottoni, spazi e caratteri.
 
 ## 2026-11-06 — Col plugin vedi quando esce un rilascio nuovo
 
@@ -180,7 +493,7 @@ sempre con la telemetria accesa.
 sono dove eri arrivato, dove stanno i file e cosa resta da fare. Per riprendere scrivi
 `/inizio preventivo-cucina`. Claude ti offre anche una cartella di progetto, e la crea solo se dici sì.
 
-**Perché**: segnalazione n. 23 di Filippo. Il 15/10 aveva iniziato un lavoro fuori da un progetto, e il
+**Perché**: segnalazione n. 23. Il 15/10 aveva iniziato un lavoro fuori da un progetto, e il
 26/10 non trovava più dove fosse: la sessione non aveva lasciato né file né handoff.
 
 ## 2026-11-04 — Claude dice prima dove non arriva
@@ -192,7 +505,7 @@ arrivo" dice due cose: la parte che resta a te e cosa fa Claude al suo posto. Pe
 dei componenti, il budget, uno script che ricolora i file che salvi, il manuale che spiega ogni pista.
 La stessa risposta arriva se chiedi solo "mi puoi aiutare con questo?".
 
-**Perché**: al Computer Club Filippo ha raccontato che sul mixer, arrivato alle schede, Claude non
+**Perché**: al Computer Club una persona ha raccontato che sul mixer, arrivato alle schede, Claude non
 lo aiutava più. Un tentativo scarso costa ore a chi lo deve buttare. Saperlo prima costa una riga, e
 lascia il tempo per la parte in cui Claude serve davvero.
 
@@ -245,7 +558,7 @@ qualunque progetto, la ripartenza apre con una riga: quante sono, quali, e a che
 di 5 ore. Il lavoro parte lo stesso: chiudere una sessione lo decidi tu. Le sessioni ferme su altri
 computer o nel cloud non contano, e una sessione ripresa dalla rotazione automatica non avvisa.
 
-**Perché**: proposta n. 54 di Filippo. Il limite delle 5 ore è uno solo per tutte le sessioni
+**Perché**: proposta n. 54. Il limite delle 5 ore è uno solo per tutte le sessioni
 dell'account. Dal 15/10 al 4/11 è scattato 9 volte, sempre con tre sessioni o più, e ogni volta ha
 fermato più progetti insieme e lasciato agenti a metà. Con una sessione sola non è mai scattato.
 
@@ -259,7 +572,7 @@ data, e ti chiede se mandare la nuova come aggiunta a quella. Decidi tu: niente 
 porta solo il nuovo, per esempio un caso diverso o un messaggio esatto, e dice a quale segnalazione si
 lega.
 
-**Perché**: proposta n. 53 di Filippo. Su 21 segnalazioni partite dal 19/10 al 4/11, tre problemi sono
+**Perché**: proposta n. 53. Su 21 segnalazioni partite dal 19/10 al 4/11, tre problemi sono
 partiti tre volte ciascuno, da sessioni che non si vedevano fra loro. Il confronto lo fa Claude sul
 fatto, non sulle parole: un conteggio di parole uguali legava due casi su tre di uno stesso problema.
 
@@ -274,7 +587,7 @@ sul todo non azzera il conteggio: conta solo un passo vero (una modifica, un cam
 messo in fermo apposta, o che aspetta un altro todo, resta fuori. Se un todo fermo chiede le tue mani,
 per esempio una prova a banco, Claude lo segnala come assegnato male e ti propone di passarlo a te.
 
-**Perché**: proposta n. 52 di Filippo. Quattro decisioni passate a Claude il 28/10 erano ancora aperte il
+**Perché**: proposta n. 52. Quattro decisioni passate a Claude il 28/10 erano ancora aperte il
 4/11, dopo tre sessioni sullo stesso progetto: il compito nuovo passava sempre davanti.
 
 ---
@@ -288,7 +601,7 @@ lanciare comandi lì. Può leggere, si ferma e scrive nel report che la copia è
 fare. La sessione decide: rilanciare il lavoro in un agente nuovo con la sua copia, oppure lasciarlo
 lavorare lì.
 
-**Perché**: segnalazione n. 51 di Filippo. Claude Code toglie la copia di un agente che si ferma senza
+**Perché**: segnalazione n. 51. Claude Code toglie la copia di un agente che si ferma senza
 modifiche, e alla ripresa lo fa lavorare nella cartella della sessione, senza avviso. Due agenti su tre
 hanno fatto commit sul ramo della sessione, e il file a metà di uno è poi andato perso (segnalazione n. 55).
 
@@ -303,7 +616,7 @@ che le salva col tuo sì. La barra in basso dice "serve /aggiorna". Appena salvi
 torna a dire che si installa da sola. E quando un'installazione automatica non parte, l'avvio dice solo
 questo, con i file che l'hanno fermata, senza ripetere nella riga dopo che si installa da sola.
 
-**Perché**: segnalazione n. 49 di Gigi. L'aggiornamento automatico si fermava per una sua modifica non
+**Perché**: segnalazione n. 49. L'aggiornamento automatico si fermava per una sua modifica non
 salvata, ma l'avvio diceva insieme "si installa da sola alla chiusura" e "non è partito", e alla sessione
 dopo tornava a promettere l'installazione senza dire come sbloccarla. Ha dovuto lanciare `/aggiorna` a
 mano per scoprirlo.

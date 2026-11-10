@@ -32,6 +32,8 @@ MASSIMO = 300
 
 def valida(s):
     """(True, fonte) se la stringa è un fingerprint valido, altrimenti (False, motivo)."""
+    if s is not None and not isinstance(s, str):
+        return False, f"non è una stringa: {type(s).__name__}"
     s = (s or "").strip()
     if not s:
         return False, "stringa vuota"

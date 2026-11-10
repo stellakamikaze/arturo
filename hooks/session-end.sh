@@ -8,20 +8,23 @@ export PYTHONIOENCODING=utf-8
 PROJECT_ROOT="${PWD}"
 PROJECT_NAME="$(basename "$PROJECT_ROOT")"
 
+# Il JSON dell'hook: id della sessione, transcript e motivo. Si legge prima dell'uscita qui sotto, perché
+# l'aggiornamento e la telemetria della chiusura valgono anche fuori da un progetto.
+HOOK_INPUT=""
+[ -t 0 ] || IFS= read -r -t 2 -d '' HOOK_INPUT || true
+MOTIVO=$(printf '%s' "$HOOK_INPUT" | sed -n 's/.*"reason"[[:space:]]*:[[:space:]]*"\([a-z_]*\)".*/\1/p' | head -1)
+
 # L'aggiornamento automatico (bin/aggiornamenti.py), prima dell'uscita qui sotto: ogni chiusura,
 # anche fuori da un progetto. Gira staccato dalla sessione, così la sessione dopo parte con
 # impostazioni e hook della stessa versione. Aspetta che Claude Code sia uscito davvero, e rimanda
 # se resta aperta un'altra sessione: la installa la chiusura dopo, senza più aspettare le altre (#4074).
-if [ -f "$HOME/.claude/bin/aggiornamenti.py" ] && [ "${ARTURO_AGGIORNAMENTI:-}" != "manuali" ]; then
+# Un /clear chiude la sessione ma il processo resta vivo, coi mod caricati: niente aggiornamento, né subito
+# né come rinvio. Il secondo /clear installava il rinvio sotto la sessione aperta (finding 19, 7/11/2026).
+if [ -f "$HOME/.claude/bin/aggiornamenti.py" ] && [ "${ARTURO_AGGIORNAMENTI:-}" != "manuali" ] && [ "$MOTIVO" != clear ]; then
   mkdir -p "$HOME/.claude/session-env" 2>/dev/null
   ARTURO_BASH="$BASH" nohup python3 "$HOME/.claude/bin/aggiornamenti.py" applica \
     >> "$HOME/.claude/session-env/aggiornamento.log" 2>&1 < /dev/null &
 fi
-
-# Il JSON dell'hook: id della sessione e transcript. Si legge prima dell'uscita qui sotto, perché la
-# telemetria della chiusura vale anche fuori da un progetto.
-HOOK_INPUT=""
-[ -t 0 ] || IFS= read -r -t 2 -d '' HOOK_INPUT || true
 
 # Telemetria (3/11/2026, #4540): durata e messaggi della sessione in fasce, e le skill usate. Legge il
 # transcript in background, così la chiusura non aspetta; spenta, telemetria.py non registra niente.
@@ -68,8 +71,10 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   WID_FILE="$HOME/.claude/session-env/terminal-wid-$PROJECT_NAME"
   if [ -f "$WID_FILE" ]; then
     WID=$(cat "$WID_FILE")
-    osascript -e "tell application \"Terminal\" to set custom title of window id $WID to \"Terminal\"" 2>/dev/null
+    # Prima il file, poi osascript staccato: se macOS chiede il permesso di Automazione, osascript aspetta, l'hook
+    # scade a 10 secondi e il file restava, con la stessa attesa a ogni chiusura (lotto L10).
     rm -f "$WID_FILE"
+    osascript -e "tell application \"Terminal\" to set custom title of window id $WID to \"Terminal\"" >/dev/null 2>&1 &
   fi
 fi
 

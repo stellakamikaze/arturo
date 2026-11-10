@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""M01-M20: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
+"""M01-M20, M26-M28: la telemetria di Arturo (bin/telemetria.py) e il canale diretto di /segnala.
 
 Ogni caso gira con una HOME finta e un server HTTP finto su 127.0.0.1 (ARTURO_TELEMETRIA_URL):
 niente parte mai verso il server vero. Sulla base db96709, prima della telemetria, ogni controllo
 deve fallire per conto suo.
 
 M20 una segnalazione in attesa parte alla sessione dopo, senza aspettare le 6 ore degli eventi, e una
-segnalazione che parte si porta dietro quelle in attesa (Liliana, 27/10/2026).
+segnalazione che parte si porta dietro quelle in attesa (27/10/2026).
+
+M28 (review del 7/11/2026, finding 89): una segnalazione rifiutata dal server (400 o 413) diventa .rifiutata.json e
+non ferma quella dopo; un lotto di eventi rifiutato esce dalla coda.
+
+M26 e M27 (review del 7/11/2026, finding 43 e 47): un invio alla volta, senza eventi doppi né persi; lo sportello parte
+dalla segnalazione più nuova, si ferma al 429 e salta per qualche giorno quelle che il server non ha più.
 """
 from __future__ import annotations
 
@@ -31,13 +37,16 @@ class Server:
     def __init__(self):
         self.richieste = []
         self.status = 202
+        self.stati = []  # M28: le prime risposte, una per richiesta; poi vale status
+        self.ritardo = 0.0  # M26: un server lento tiene aperti due invii insieme
         fuori = self
 
         class Gestore(http.server.BaseHTTPRequestHandler):
             def do_POST(self):  # noqa: N802
                 corpo = self.rfile.read(int(self.headers.get("content-length", 0)))
                 fuori.richieste.append((self.path, json.loads(corpo)))
-                self.send_response(fuori.status)
+                time.sleep(fuori.ritardo)
+                self.send_response(fuori.stati.pop(0) if fuori.stati else fuori.status)
                 self.end_headers()
                 self.wfile.write(b"{}")
 
@@ -122,9 +131,13 @@ def test_m02(repo: Path) -> None:
     assert len(lab.coda()) == 1, "M02 con un 500 la coda si perde"
     giu = Lab(repo)  # nessun server in ascolto sulla porta 9
     giu.arturo("telemetria", "registra", "sessione")
-    inizio = time.time()
+    # Il cronometro è monotono (9/11/2026, #5050): con time.time() il Mac in sonno a coperchio chiuso, a gate in
+    # corso, contava 43 minuti dentro un invio di 2 s e M02 andava rosso. Due assert: il messaggio dice quale parte.
+    inizio = time.monotonic()
     giu.arturo("telemetria", "invia")
-    assert len(giu.coda()) == 1 and time.time() - inizio < 20, "M02 con il server giù la coda si perde o invia appende"
+    secondi = time.monotonic() - inizio
+    assert len(giu.coda()) == 1, f"M02 con il server giù la coda si perde: {giu.coda()}"
+    assert secondi < 20, f"M02 con il server giù invia appende: {secondi:.1f} s"
 
 
 def test_m03(repo: Path) -> None:
@@ -480,7 +493,7 @@ def test_m19(repo: Path) -> None:
 
 
 def test_m20(repo: Path) -> None:
-    # Liliana, 27/10/2026: la proposta delle 9:18 restò in attesa tutto il giorno. Il rinvio aspettava le 6 ore
+    # 27/10/2026: la proposta delle 9:18 restò in attesa tutto il giorno. Il rinvio aspettava le 6 ore
     # dell'invio della telemetria, e la segnalazione n. 18 delle 14:52 partì da sola senza portarsi dietro l'altra.
     srv = Server()
     lab = Lab(repo, srv)
@@ -514,10 +527,89 @@ def test_m20(repo: Path) -> None:
         f"M20 la segnalazione in attesa resta indietro: {titoli}"
 
 
+def test_m26(repo: Path) -> None:
+    # Review del 7/11/2026, finding 43: due invii partiti insieme mandavano gli stessi eventi due volte e poi tagliavano
+    # dalla coda quelli registrati nel frattempo. Un invio alla volta: il secondo esce, e niente si perde.
+    srv = Server()
+    srv.ritardo = 1.0
+    lab = Lab(repo, srv)
+    for i in range(5):
+        lab.arturo("telemetria", "registra", "comando", ["fine", "inizio", "setup", "segnala", "aggiorna"][i])
+    comando = [sys.executable, "-B", str(repo / "bin" / "arturo"), "telemetria", "invia"]
+    invii = [subprocess.Popen(comando, env=lab.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE) for _ in range(2)]
+    time.sleep(0.5)
+    lab.arturo("telemetria", "registra", "comando", "novita")
+    for p in invii:
+        p.communicate(timeout=60)
+    mandati = [e["valore"] for p, d in srv.richieste if p == "/v1/eventi" for e in d["eventi"]]
+    assert sorted(mandati) == sorted(["fine", "inizio", "setup", "segnala", "aggiorna"]), f"M26 due invii insieme doppiano gli eventi: {mandati}"
+    assert [e["valore"] for e in lab.coda()] == ["novita"], f"M26 un evento registrato durante l'invio si perde: {lab.coda()}"
+
+
+def test_m27(repo: Path) -> None:
+    # Review del 7/11/2026, finding 47: con oltre dieci segnalazioni aperte il 429 del server non fermava il giro, che
+    # ripartiva dalle più vecchie: le più nuove non si aggiornavano mai. Un 404 restava nel giro per sempre.
+    lab = Lab(repo)
+    prova = r"""
+import json, sys
+sys.path.insert(0, sys.argv[1])
+import telemetria as t
+for n in range(50, 64):
+    t.salva_codice(n, "%032x" % n)
+chiamate = []
+def finto(numero, codice, timeout=5):
+    chiamate.append(numero)
+    if numero == 63:
+        return 404, {}
+    if len(chiamate) > 10:
+        return 429, {}
+    return 200, {"stato": "in-lavoro", "risposta": "ok", "versione_fix": "", "aggiornata": "2026-11-08T10:00:00Z"}
+t.leggi_contributo = finto
+t.controlla_risposte()
+primo = list(chiamate)
+chiamate.clear()
+t.controlla_risposte()
+print(json.dumps({"primo": primo, "secondo": list(chiamate), "salvate": sorted(t.leggi_sportello())}))
+"""
+    r = subprocess.run([sys.executable, "-B", "-c", prova, str(repo / "bin")], capture_output=True, text=True, encoding="utf-8",
+                       env=lab.env, timeout=60)
+    assert r.returncode == 0, f"M27 lo sportello non si prova: {r.stderr[-300:]!r}"
+    esito = json.loads(r.stdout)
+    assert esito["primo"] == list(range(63, 52, -1)), f"M27 il giro non parte dalla più nuova o non si ferma al 429: {esito['primo']}"
+    assert 63 not in esito["secondo"], f"M27 una segnalazione che il server non ha più resta nel giro: {esito['secondo']}"
+    assert set(range(53, 63)) <= set(esito["salvate"]), f"M27 le risposte delle più nuove non si salvano: {esito['salvate']}"
+
+
+def test_m28(repo: Path) -> None:
+    for rifiuto in (400, 413):
+        srv = Server()
+        srv.stati = [rifiuto]
+        lab = Lab(repo, srv)
+        attesa = lab.home / ".claude" / "data" / "segnalazioni"
+        attesa.mkdir(parents=True)
+        for n, ora in enumerate(("090000", "100000")):
+            (attesa / f"2026-11-07_{ora}_problema.attesa.json").write_text(
+                json.dumps({"tipo": "problema", "titolo": f"[problema] prova {n}", "testo": "testo"}), encoding="utf-8")
+        prova = "import sys\nsys.path.insert(0, sys.argv[1])\nimport telemetria as t\nprint(t.invia_segnalazioni_in_attesa())\n"
+        r = subprocess.run([sys.executable, "-B", "-c", prova, str(repo / "bin")], capture_output=True, text=True,
+                           encoding="utf-8", env=lab.env, timeout=60)
+        titoli = [d.get("titolo") for p, d in srv.richieste if p == "/v1/segnalazioni"]
+        rifiutate = sorted(f.name for f in attesa.glob("*.rifiutata.json"))
+        assert r.stdout.strip() == "1" and titoli == ["[problema] prova 0", "[problema] prova 1"] \
+            and rifiutate == ["2026-11-07_090000_problema.rifiutata.json"] and not list(attesa.glob("*.attesa.json")), \
+            f"M28 una segnalazione rifiutata con {rifiuto} ferma le altre: partite {r.stdout.strip()!r}, {titoli}, {rifiutate}"
+        lotto = Lab(repo, srv)
+        srv.stati = [rifiuto]
+        lotto.arturo("telemetria", "registra", "sessione")
+        lotto.arturo("telemetria", "invia")
+        assert lotto.coda() == [], f"M28 un lotto rifiutato con {rifiuto} resta in coda: {lotto.coda()}"
+
+
 TESTS = {"M01": test_m01, "M02": test_m02, "M03": test_m03, "M04": test_m04, "M05": test_m05,
          "M06": test_m06, "M07": test_m07, "M08": test_m08, "M09": test_m09, "M10": test_m10,
          "M11": test_m11, "M12": test_m12, "M13": test_m13, "M14": test_m14, "M15": test_m15,
-         "M16": test_m16, "M17": test_m17, "M18": test_m18, "M19": test_m19, "M20": test_m20}
+         "M16": test_m16, "M17": test_m17, "M18": test_m18, "M19": test_m19, "M20": test_m20,
+         "M26": test_m26, "M27": test_m27, "M28": test_m28}
 
 
 def main() -> int:

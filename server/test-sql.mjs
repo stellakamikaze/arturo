@@ -178,18 +178,18 @@ const casi = {
   // e solo chi il server ha visto in almeno due giorni.
   async Q13() {
     const a = await con([
-      ["2026-10-18", "gigi0000", "sessione", "", "v2026-10-19.3"], ["2026-10-19", "gigi0000", "sessione", "", "v2026-10-19.3"],
-      ["2026-10-22", "gigi0000", "sessione", "", "v2026-10-22.2"],
-      ["2026-10-19", "ales0000", "sessione", "", "v2026-10-19.2"], ["2026-10-23", "ales0000", "sessione", "", "v2026-10-19.2-1-gdf1c2d0"],
+      ["2026-10-18", "anna0000", "sessione", "", "v2026-10-19.3"], ["2026-10-19", "anna0000", "sessione", "", "v2026-10-19.3"],
+      ["2026-10-22", "anna0000", "sessione", "", "v2026-10-22.2"],
+      ["2026-10-19", "carl0000", "sessione", "", "v2026-10-19.2"], ["2026-10-23", "carl0000", "sessione", "", "v2026-10-19.2-1-gdf1c2d0"],
       ["2026-10-23", "nuov0000", "sessione", "", "v2026-10-14"],  // vista un giorno solo: non conta
       ["2026-10-10", "vecc0000", "sessione", "", "v2026-10-14"], ["2026-10-11", "vecc0000", "sessione", "", "v2026-10-14"],  // non attiva
     ]);
     const fuori = await a.indietro("2026-10-23");
     assert.deepEqual(fuori.map((x) => [x.installazione, x.rilascio, x.nuovo, x.dal, x.ultima]),
-      [["ales0000", "v0.1.16", "v0.1.17", "2026-10-18", "2026-10-23"]], "Q13 installazioni indietro");
-    assert.equal(await a.ultimoAvviso("indietro:ales0000"), null, "Q13 un avviso mai mandato ha un giorno");
-    await a.incrementa("2026-10-23", "indietro:ales0000");
-    assert.equal(await a.ultimoAvviso("indietro:ales0000"), "2026-10-23", "Q13 l'ultimo avviso non si ritrova");
+      [["carl0000", "v0.1.16", "v0.1.17", "2026-10-18", "2026-10-23"]], "Q13 installazioni indietro");
+    assert.equal(await a.ultimoAvviso("indietro:carl0000"), null, "Q13 un avviso mai mandato ha un giorno");
+    await a.incrementa("2026-10-23", "indietro:carl0000");
+    assert.equal(await a.ultimoAvviso("indietro:carl0000"), "2026-10-23", "Q13 l'ultimo avviso non si ritrova");
     assert.deepEqual((await a.miglioramento("2026-10-23")).indietro, fuori, "Q13 il riepilogo non porta chi è indietro");
   },
   // Installazione nuova: vera solo finché dall'id non è arrivato niente (l'avviso Telegram parte una volta).
@@ -407,12 +407,12 @@ const casi = {
     assert.deepEqual(g.segnalazioni, [{ id: 1, tipo: "problema", stato: "ricevuta" }], "QG1 le segnalazioni del giorno");
     const email = [];
     await giornaliero({ archivio: a, posta: async (m) => { email.push(m); }, adesso: new Date("2026-10-14T06:00:00Z"),
-      nomi: { aaaaaaaa: "Gigi" }, leggi: "https://admin.example/segnalazioni" });
+      leggi: "https://admin.example/segnalazioni" });
     assert.equal(email.length, 1, "QG1 il recap non parte");
     const { testo, html } = email[0];
     assert.match(testo, /^Arturo, il giorno 2026-10-13\n\nIeri 2 installazioni hanno usato Arturo, 2 sessioni\./, "QG1 la testa del testo: " + testo.slice(0, 200));
-    assert.match(testo, /  Gigi  2 sessioni, 2 su 7, \/fine 1 · skill todo 1/, "QG1 la riga di Gigi nel testo");
-    assert.ok(html.includes("Gigi") && html.includes("(aaaaaaaa)") && html.includes("https://admin.example/segnalazioni/1"), "QG1 nome o link nell'HTML");
+    assert.match(testo, /  aaaaaaaa  2 sessioni, 2 su 7, \/fine 1 · skill todo 1/, "QG1 la riga dell'installazione nel testo");
+    assert.ok(html.includes(">aaaaaaaa<") && html.includes("https://admin.example/segnalazioni/1"), "QG1 id o link nell'HTML");
     assert.ok(!/riservato/.test(testo + html), "QG1 il recap porta il testo di una segnalazione");
   },
   // Lo sportello (4/11/2026, #3925) sulle query vere: ricevuta col codice, risposta col token, seguito, ritiro, e il
@@ -443,6 +443,33 @@ const casi = {
     assert.equal((await persona(`/v1/contributi/${numero}/ritira`, { method: "POST" })).status, 200, "QC1 il ritiro non riesce");
     const ritirata = await a.segnalazione(numero);
     assert.deepEqual([ritirata.titolo, ritirata.testo, ritirata.stato], ["(ritirata)", "", "ritirata"], "QC1 il ritiro lascia il testo");
+  },
+  // Review del 7/11/2026, lotto L3 (#4973), finding 41 e 37: la deriva legge con tre query anche con cento id inventati,
+  // dice quali installazioni sono viste in più giorni, lascia fuori dalla settimana chi tace da oltre 30 giorni e chiude
+  // in lettura i valori salvati con le radici aperte.
+  async Q22() {
+    const base = d1();
+    let query = 0;
+    const contato = { ...base, prepare: (sql) => { query++; return base.prepare(sql); } };
+    const a = archivio(contato);
+    const scrivi = (giorno, installazione, valore, ricevuto = giorno) =>
+      a.scriviEventi([{ giorno, installazione, versione: "v1", sistema: "Darwin", evento: "deriva", valore }], `${ricevuto}T10:00:00Z`);
+    for (let i = 0; i < 100; i++) {
+      await scrivi("2026-10-12", `finta-${String(i).padStart(4, "0")}`, "insieme:1");
+      await scrivi("2026-10-12", `finta-${String(i).padStart(4, "0")}`, "file:docs/preventivo-rossi.md");
+    }
+    await scrivi("2026-10-11", "vera-0001", "insieme:1", "2026-10-11");
+    await scrivi("2026-10-12", "vera-0001", "hook:bash-dispatcher.sh", "2026-10-12");
+    await scrivi("2026-08-01", "ferma-0001", "insieme:1", "2026-08-01");
+    await scrivi("2026-08-02", "ferma-0001", "hook:bash-dispatcher.sh", "2026-08-02");
+    query = 0;
+    const d = await a.deriva("2026-10-06", AL, true);
+    assert.ok(query <= 3, `Q22 la deriva fa una query per installazione: ${query}`);
+    const vera = d.find((x) => x.installazione === "vera-0001");
+    assert.ok(vera && vera.vista === true && d.filter((x) => x.vista).length === 1, "Q22 la deriva non dice chi è visto in più giorni");
+    assert.ok(!d.some((x) => x.installazione === "ferma-0001"), "Q22 un'installazione ferma da oltre 30 giorni resta nella settimana");
+    assert.ok(!JSON.stringify(d).includes("preventivo"), "Q22 la deriva rilegge un valore con la radice aperta");
+    assert.equal(d[0].installazione, "vera-0001", "Q22 le installazioni viste non vengono prima");
   },
   // La migrazione dello sportello porta la tabella di prima alle stesse colonne, coi default, di schema.sql.
   async QM1() {

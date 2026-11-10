@@ -38,7 +38,12 @@ Proponi un nome corto, in minuscolo con i trattini, che dica il lavoro (`lettera
 
 ```bash
 NOME="nome-proposto"
-ls -d ~/.claude/skills/"$NOME" ~/.claude/commands/"$NOME".md 2>/dev/null && echo "OCCUPATO" || echo "libero"
+# Le skill e i comandi della persona, poi quelli di Arturo: col plugin stanno nella sua cartella.
+ESITO=libero
+for P in ~/.claude/skills/"$NOME" ~/.claude/commands/"$NOME".md "${ARTURO_CODICE:-$HOME/.claude}/skills/$NOME"; do
+  [ -e "$P" ] && ESITO=OCCUPATO
+done
+echo "$ESITO"
 ```
 
 Con `OCCUPATO` scegli un altro nome. Evita anche i nomi generici (`posta`, `scrivi`, `report`):

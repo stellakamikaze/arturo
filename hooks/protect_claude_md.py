@@ -181,14 +181,44 @@ def _emetti_locale(categoria, avviso="", chiede=None):
 
 
 def _persistenza(rp):
-    """True se il path installa codice che parte da solo: git hook o servizio di avvio."""
+    """True se il path installa codice che parte da solo: git hook o servizio di avvio. Su macOS e Windows
+    il confronto ignora le maiuscole, come il disco (~/library/launchagents, finding 11)."""
+    piega = (lambda s: s.casefold()) if sys.platform in ('darwin', 'win32') else (lambda s: s)
+    rp = piega(rp)
     if (os.sep + '.git' + os.sep + 'hooks' + os.sep) in rp or rp.endswith(os.sep + '.git' + os.sep + 'hooks'):
         return True
     for radice in ('~/Library/LaunchAgents', '~/.config/systemd/user', '~/.config/autostart'):
-        r = os.path.realpath(os.path.expanduser(radice))
+        r = piega(os.path.realpath(os.path.expanduser(radice)))
         if rp == r or rp.startswith(r + os.sep):
             return True
     return False
+
+
+def _mod_di(rp, claude_dir):
+    """La cartella del mod (un .claude-plugin/plugin.json sopra il file) dentro ~/.claude, o "" se il file non è
+    di un mod. Un file nella cartella hooks/ di un mod è protetto come gli hook di Arturo (segnalazione n. 63)."""
+    cartella = os.path.dirname(rp)
+    while cartella.startswith(claude_dir + os.sep):
+        if os.path.isfile(os.path.join(cartella, '.claude-plugin', 'plugin.json')):
+            return cartella
+        cartella = os.path.dirname(cartella)
+    return ''
+
+
+def _testo_mod(rp, mod, claude_dir, safe_id):
+    """Il blocco detto per un mod della persona: perché vale anche lì, e in un passo solo cosa fare (9/11/2026,
+    segnalazione n. 63: il testo generico faceva pensare a una cosa rischiosa, e il caricamento arrivava dopo)."""
+    nome = os.path.basename(mod)
+    dove = '~/.claude/' + os.path.relpath(mod, claude_dir).replace(os.sep, '/')
+    testo = (f"È un file di un mod della persona ({nome}, {os.path.basename(rp)}): l'hook di un mod gira dentro Claude "
+             "Code e può approvare da solo qualunque comando, quindi anche un mod nuovo e legittimo vuole il suo sì. "
+             f"Per procedere: 1) dille che si tratta del suo mod {nome} e chiedi conferma. 2) dopo il sì fagli lanciare: "
+             f"! touch ~/.claude/config-unlock-{safe_id} (lo sblocco resta all'utente) 3) riprova la modifica.")
+    rel = os.path.relpath(mod, claude_dir).replace(os.sep, '/')
+    if not rel.startswith(('dev-mods/', 'skills/')):
+        testo += (f" Nello stesso messaggio dille anche come caricarlo: la cartella {dove} va aggiunta a "
+                  "CLAUDE_CODE_PLUGIN_DIRS in ~/.zshrc, con un comando ! che prepari tu: Claude non può scrivere ~/.zshrc.")
+    return testo
 
 
 def main():
@@ -217,6 +247,10 @@ def main():
             except Exception:  # noqa: BLE001 - la telemetria non ferma mai una guardia
                 pass
 
+        # Su Windows Git Bash scrive il disco come `/c/Users/...`: per realpath è `C:\c\Users`, fuori da ~/.claude
+        # (review del 9/11/2026, #5096). La stessa riscrittura di _resolve in block-dangerous.py.
+        if os.name == 'nt':
+            file_path = re.sub(r'^/([a-zA-Z])(?=/|$)', lambda m: m.group(1).upper() + ':', file_path)
         rp = os.path.realpath(os.path.expanduser(file_path))
         base = os.path.basename(rp).upper()
         claude_dir = os.path.realpath(os.path.expanduser('~/.claude'))
@@ -228,6 +262,11 @@ def main():
         def unlocked(token):
             return os.path.exists(os.path.join(home_claude, f'{token}-{safe_id}'))
 
+        # Su macOS e Windows il disco ignora le maiuscole: ~/.CLAUDE/settings.json è la config. Il confronto
+        # si fa in minuscolo, e il percorso si riscrive con la radice vera (review del 7/11/2026, finding 11).
+        piega = sys.platform in ('darwin', 'win32')
+        if piega and (rp.casefold() == claude_dir.casefold() or rp.casefold().startswith(claude_dir.casefold() + os.sep)):
+            rp = claude_dir + rp[len(claude_dir):]
         under_claude = (rp == claude_dir or rp.startswith(claude_dir + os.sep))
 
         # Categoria 0: file di unlock -> sempre una decisione dell'utente
@@ -282,13 +321,19 @@ def main():
 
         # Categoria 3: config/hook di Claude Code
         relativo = os.path.relpath(rp, claude_dir).replace(os.sep, '/') if under_claude else ''
+        if piega:
+            relativo = relativo.casefold()
+        # L'ancora dei rilasci (finding 11): fiducia.py verifica ogni aggiornamento con questa chiave, e se manca
+        # vale quella della copia da verificare.
+        ancore = ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh', 'arturo/radice', 'arturo/rilasci.allowed_signers')
         is_config = under_claude and (
             re.match(r'SETTINGS.*\.JSON$', base) is not None
             or base == '.CLAUDE.JSON'
+            or ('/' + relativo).startswith('/hooks/') or relativo == 'hooks'
             or (os.sep + 'hooks' + os.sep) in rp
             or rp.endswith(os.sep + 'hooks')
             or relativo == 'firme' or relativo.startswith('firme/')
-            or relativo in ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh', 'arturo/radice')
+            or relativo in ancore
             or (relativo.startswith('arturo/') and relativo.endswith('.local'))
             or relativo.startswith(('plugins/cache/', 'plugins/marketplaces/'))
         )
@@ -305,13 +350,17 @@ def main():
             # della persona non lo apre, come firme/ (docs/strati.md, 3/11/2026).
             intoccabile = (relativo == 'firme' or relativo.startswith('firme/')
                            or relativo.startswith(('plugins/cache/', 'plugins/marketplaces/'))
-                           or relativo in ('bin/aggiornamenti.py', 'bin/aggiorna-applica.sh', 'arturo/radice')
+                           or relativo in ancore
                            or (relativo.startswith(('hooks/', 'arturo/')) and relativo.endswith('.local')))
             if not intoccabile:
                 in_radice = os.path.dirname(rp) == claude_dir
                 _emetti_locale('settings-radice' if in_radice and (re.match(r'SETTINGS.*\.JSON$', base)
                                                                     or base == '.CLAUDE.JSON') else 'config',
                                chiede=chiede)
+            mod = _mod_di(rp, claude_dir)
+            if mod and not intoccabile:
+                _emit("deny", _testo_mod(rp, mod, claude_dir, safe_id))
+                sys.exit(0)
             _emit("deny", (
                 f"File di config/hook di Claude Code protetto ({os.path.basename(rp)}). "
                 "Modificarlo può disattivare le guardie di sicurezza. Per procedere: "

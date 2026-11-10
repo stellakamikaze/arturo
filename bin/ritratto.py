@@ -102,10 +102,14 @@ CONTENUTO_PERSONALE = re.compile(
     r"numero (di|del) documento|codice fiscale|permesso di soggiorno|iban|conto corrente|estratto conto|"
     r"busta paga|cedolino|payslip|bank statement|dichiarazione dei redditi|isee)\b")
 # Una password scritta in chiaro dopo la sua parola chiave. Con le parole forti si toglie il resto della
-# riga ("la password del wifi è Pippo99"); con pass e pin, che hanno anche altri sensi, la parola dopo.
+# riga ("la password del wifi è Pippo99"); con pass e pin, che hanno anche altri sensi, la parola dopo, oppure
+# il primo numero della riga se c'è ("Pin bancomat 4821": review del 7/11/2026, finding 101, come pw, passphrase,
+# chiave del wifi e cvv).
 PAROLA_CHIAVE = re.compile(
-    r"(?i)\b(password|passwd|passw|pwd|parola d.ordine|codice (?:di )?accesso)\b(?! \[segreto tolto\])[^\n]{0,80}")
+    r"(?i)\b(password|passwd|passw|passphrase|pwd|pw|parola d.ordine|codice (?:di )?accesso|"
+    r"chiave (?:del |della )?(?:wi-?fi|rete)|cvv2?|cvc)\b(?! \[segreto tolto\])[^\n]{0,80}")
 PAROLA_DEBOLE = re.compile(r"(?i)\b(pass|pin)\b\s*(?:[:=]|è|e')?\s*(?!\[)\S+")
+PAROLA_DEBOLE_NUMERO = re.compile(r"(?i)\b(pass|pin)\b([^\n\d\[]{0,30})\d{3,}")
 
 # Attributi dei file solo online. Windows: RECALL_ON_DATA_ACCESS, RECALL_ON_OPEN, OFFLINE.
 # macOS: SF_DATALESS. Il nome di un segnaposto iCloud finisce in .icloud.
@@ -122,7 +126,7 @@ NOMI = {"Documents": ("Documents", "Documenti"), "Desktop": ("Desktop", "Scrivan
 TIPI = {"Documents": "Documenti", "Desktop": "Scrivania", "Downloads": "Download"}
 XDG = {"Documents": "DOCUMENTS", "Desktop": "DESKTOP", "Downloads": "DOWNLOAD"}
 
-IBAN = re.compile(r"\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]){11,30}\b")
+IBAN = re.compile(r"\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]){11,30}\b", re.I)  # anche in minuscolo (finding 101)
 CODICE_FISCALE = re.compile(
     r"\b[A-Z]{6}[0-9LMNPQRSTUV]{2}[ABCDEHLMPRST][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]\b", re.I)
 CARTA = re.compile(r"(?<!\d)(?:\d[ -]?){12,18}\d(?!\d)")
@@ -313,7 +317,8 @@ class Filtri:
 
     def maschera(self, testo: str) -> str:
         testo = PAROLA_CHIAVE.sub(r"\1 [segreto tolto]", testo)
-        testo = PAROLA_DEBOLE.sub(r"\1 [segreto tolto]", testo)
+        testo = "\n".join(PAROLA_DEBOLE_NUMERO.sub(r"\1\2[segreto tolto]", r) if PAROLA_DEBOLE_NUMERO.search(r)
+                          else PAROLA_DEBOLE.sub(r"\1 [segreto tolto]", r) for r in testo.split("\n"))
         testo = CHIAVE_PRIVATA.sub("[segreto tolto]", testo)
         for p in self.segreti or ():
             testo = p.sub("[segreto tolto]", testo)
@@ -1023,7 +1028,7 @@ def comando_scan(richieste: List[str], avvelena: bool, sessioni: bool = True) ->
         except PermissionError:
             out.scrivi(f"{nome}: permesso negato")
             continue
-        except (OSError, zipfile.BadZipFile, KeyError, RuntimeError, ValueError):
+        except Exception:  # noqa: BLE001  zlib.error, EOFError, un .docx rovinato dentro: salta il file, non lo scan
             out.scrivi(f"campione non leggibile: {nome}")
             continue
         if filtri.sospetto(grezzo):

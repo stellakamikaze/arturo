@@ -104,6 +104,8 @@ sessione riceve un esito nell'handoff (mandata, da mandare, scartata).
 ```bash
 git diff --cached | grep -qE '^\+(<<<<<<< |=======$|>>>>>>> )' && echo "MARCATORE DI CONFLITTO: fermati e risolvi prima del commit"
 git diff --cached --stat
+# Un progetto senza identità prende quella scelta da /setup: col plugin ~/.claude non è un repository.
+bash ~/.claude/bin/identita-git.sh .
 ```
 
   Controlla che l'elenco coincida con quello che volevi, poi `git commit -m "<messaggio>" -- <file-1> <file-2>`.
@@ -155,7 +157,7 @@ python3 ~/.claude/bin/arturo todo stato "a che punto è il progetto, in una fras
   Un todo bloccato va in FERMO con `ferma`, non con `--chi`. Mai da tu a io o decidi senza un sì.
 - Le righe "Attenzione:" vanno alla persona: un todo può aver cambiato numero dopo un merge. Per un numero
   letto da un handoff aggiungi `--titolo-atteso="titolo"`: se il titolo non coincide, la CLI non scrive.
-- Il titolo dice l'azione a una persona ("Mandare a Gigi la parola d'ordine"). Un todo chiesto nella
+- Il titolo dice l'azione a una persona ("Mandare a Giulia la parola d'ordine"). Un todo chiesto nella
   sessione ("ricordami di…") c'è già: aggiornalo. Un todo `tu` porta un perché (`--perche`) solo se la
   persona lo ha detto con parole sue ("la firma la metto io"): un perché dedotto diventa un limite finto.
 

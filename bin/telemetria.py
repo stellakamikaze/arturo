@@ -347,7 +347,40 @@ def ref_di_arturo(radice) -> str | None:
             return 1
     ha_upstream = git("config", "--get", "remote.upstream.url") == 0
     ref = "upstream/main" if ha_upstream else "origin/main"
+    if not remoto_di_arturo(radice, ref):
+        return None
     return ref if git("rev-parse", "--verify", "--quiet", ref + "^{commit}") == 0 else None
+
+
+# Il repository di Arturo su GitHub, nelle forme che git accetta (https, ssh, scp).
+URL_ARTURO = re.compile(r"(?:https://|ssh://git@|git@)github\.com[/:]stellakamikaze/arturo(?:\.git)?/?", re.I)
+
+
+def remoto_di_arturo(radice, ref: str) -> bool:
+    """Vero se il remote del ref (`origin` di origin/main) può dire cosa è Arturo: il repository di Arturo su
+    GitHub, oppure un percorso locale (un clone di prova o di sviluppo). Un altro indirizzo è il repository della
+    persona: la seconda macchina del README clona il suo repo privato come ~/.claude, senza upstream, e i suoi file
+    sembravano di Arturo (review del 7/11/2026, finding 38): docs/preventivo-clienti-rossi.md usciva col suo nome.
+    Un remote `upstream` vale sempre: è la persona a dichiararlo come Arturo, e il fork del README lo usa così."""
+    nome = (ref or "").split("/", 1)[0]
+    if not nome or nome.startswith("-"):
+        return False
+    if nome == "upstream":
+        return True
+    try:
+        r = subprocess.run(["git", "-C", str(radice), "config", "--get", f"remote.{nome}.url"], capture_output=True,
+                           text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    url = r.stdout.strip() if r.returncode == 0 else ""
+    if not url:
+        return False
+    if URL_ARTURO.fullmatch(url):
+        return True
+    if url.lower().startswith("file://") or re.match(r"^[A-Za-z]:[\\/]", url):
+        return True
+    # Un indirizzo di rete: schema://, oppure la forma scp utente@host:percorso o host:percorso.
+    return not (re.match(r"^[A-Za-z][A-Za-z0-9+.-]*://", url) or re.match(r"^(?:[^@/\\]+@)?[^/\\:]+:", url))
 
 
 def file_di_arturo(radice=None, ref=None):
@@ -584,21 +617,38 @@ def leggi_contributo(numero: int, codice: str, timeout: float = 5) -> tuple:
 def controlla_risposte() -> int:
     """Chiede al server lo stato delle segnalazioni col codice che non sono ancora chiuse, e lo salva in
     cache/sportello.json. Gira nell'invio in background: l'avvio dopo dice alla persona cosa è cambiato.
-    Torna quante ne ha lette; si ferma al primo silenzio della rete."""
-    noti, lette = leggi_sportello(), 0
-    for numero, codice in sorted(codici().items()):
-        if (noti.get(numero) or {}).get("stato") in STATI_FINALI:
+    Torna quante ne ha lette; si ferma al primo silenzio della rete.
+
+    Dal 8/11/2026 (review del 7/11, finding 47) parte dalla più nuova e si ferma al primo 429: il server ne dà dieci
+    al minuto per IP, e oltre la decima le più nuove non si aggiornavano mai. Una segnalazione che il server non ha
+    più (404) si salta per ASSENTE_GIORNI giorni."""
+    noti, lette, cambiate = leggi_sportello(), 0, False
+    oggi = ts.oggi()
+    for numero, codice in sorted(codici().items(), reverse=True):
+        nota = noti.get(numero) or {}
+        if nota.get("stato") in STATI_FINALI:
             continue
+        try:
+            if (oggi - ts.dt.date.fromisoformat(nota.get("assente", ""))).days < ASSENTE_GIORNI:
+                continue
+        except (TypeError, ValueError):
+            pass
         status, dati = leggi_contributo(numero, codice)
-        if status == 0:
+        if status in (0, 429):
             break
-        if dati:
-            dati["vista"] = (noti.get(numero) or {}).get("vista", "")
+        if status == 404:
+            noti[numero] = dict(nota, assente=oggi.isoformat())
+            cambiate = True
+        elif dati:
+            dati["vista"] = nota.get("vista", "")
             noti[numero] = dati
             lette += 1
-    if lette:
+    if lette or cambiate:
         scrivi_sportello(noti)
     return lette
+
+
+ASSENTE_GIORNI = 7
 
 
 def riga_sportello() -> str:
@@ -641,8 +691,55 @@ def _segna_numero(attesa: Path, dati: dict, numero) -> None:
         return
 
 
+# Un invio alla volta (review del 7/11/2026, finding 43): due sessioni partite insieme mandavano gli stessi eventi
+# due volte e poi tagliavano dalla coda anche quelli registrati nel frattempo, mai partiti; una segnalazione in attesa
+# arrivava doppia. Il lucchetto non aspetta: chi non lo prende esce, e quello che resta parte al giro dopo. Un lucchetto
+# più vecchio di LUCCHETTO_INVIO secondi è di un invio interrotto e si toglie.
+LUCCHETTO_INVIO = 300
+
+
+class _UnInvio:
+    def __init__(self, nome: str):
+        self.file = radice_orsa() / "session-env" / f"{nome}.lock"
+        self.preso = False
+
+    def __enter__(self) -> bool:
+        for _ in range(2):
+            try:
+                self.file.parent.mkdir(parents=True, exist_ok=True)
+                fd = os.open(str(self.file), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.write(fd, str(os.getpid()).encode("ascii"))
+                os.close(fd)
+                self.preso = True
+                return True
+            except FileExistsError:
+                try:
+                    if time.time() - self.file.stat().st_mtime > LUCCHETTO_INVIO:
+                        self.file.unlink()
+                        continue
+                except OSError:
+                    continue
+                return False
+            except OSError:  # Windows: un file che si sta cancellando risponde PermissionError
+                return False
+        return False
+
+    def __exit__(self, *_):
+        if self.preso:
+            try:
+                self.file.unlink()
+            except OSError:
+                pass
+        return False
+
+
 def invia_segnalazioni_in_attesa() -> int:
     """Le segnalazioni approvate ma non partite: sono un sì della persona, partono anche a telemetria spenta."""
+    with _UnInvio("segnalazioni-invio") as preso:
+        return _invia_segnalazioni_in_attesa() if preso else 0
+
+
+def _invia_segnalazioni_in_attesa() -> int:
     partite = 0
     for f in sorted(cartella_attesa().glob("*.attesa.json")):
         try:
@@ -653,7 +750,10 @@ def invia_segnalazioni_in_attesa() -> int:
         if 200 <= status < 300:
             _segna_numero(f, dati, risposta.get("numero"))
             salva_codice(risposta.get("numero"), risposta.get("codice"))
-            f.unlink()
+            try:
+                f.unlink()
+            except FileNotFoundError:
+                pass
             partite += 1
         elif status in (400, 413):
             f.rename(f.with_name(f.name.replace(".attesa.json", ".rifiutata.json")))
@@ -725,7 +825,12 @@ def esito(dati: dict) -> None:
 
 
 def invia(zitto: bool = False) -> tuple:
-    """Torna (eventi partiti, segnalazioni partite)."""
+    """Torna (eventi partiti, segnalazioni partite). Con un altro invio in corso esce subito con (0, 0)."""
+    with _UnInvio("telemetria-invio") as preso:
+        return _invia(zitto) if preso else (0, 0)
+
+
+def _invia(zitto: bool) -> tuple:
     cambia_stato(lambda s: s.__setitem__("ultimo_tentativo", int(time.time())))
     segnalazioni = invia_segnalazioni_in_attesa()
     controlla_risposte()
@@ -885,7 +990,7 @@ def avvio() -> int:
                   f"Si spegne con: {comando_arturo()} telemetria spegni")
             cambia_stato(lambda s: s.update(avviso=ts.oggi().isoformat(), avviso_promessa=PROMESSA))
         # Una segnalazione in attesa parte alla sessione dopo, come promette /segnala, senza aspettare le 6 ore
-        # dell'invio degli eventi (Liliana, 27/10/2026). Parte da sola: gli eventi aspettano le 6 ore promesse
+        # dell'invio degli eventi (27/10/2026). Parte da sola: gli eventi aspettano le 6 ore promesse
         # da docs/privacy.md (#4073).
         ultimo = stato.get("ultimo_tentativo")
         if not isinstance(ultimo, int) or time.time() - ultimo > OGNI:

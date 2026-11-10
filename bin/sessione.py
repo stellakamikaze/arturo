@@ -22,6 +22,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
@@ -103,7 +104,9 @@ def comando(sis: str, dove: Path, prompt: str) -> tuple:
     if sis == "windows":
         a_mano = f'cd /d "{dove}" && claude "{prompt}"'
         if shutil.which("wt"):
-            return ["wt", "-d", str(dove), "claude", prompt], a_mano
+            # Per wt il punto e virgola separa due schede anche dentro un argomento: senza \; un todo con ";"
+            # apriva una seconda scheda col resto del testo (review del 9/11/2026, #5102).
+            return ["wt", "-d", str(dove), "claude", prompt.replace(";", "\\;")], a_mano
         return ["cmd", "/c", "start", "", "/d", str(dove), "claude", prompt], a_mano
     for nome, argv in (("gnome-terminal", ["gnome-terminal", f"--working-directory={dove}", "--", "claude", prompt]),
                        ("konsole", ["konsole", "--workdir", str(dove), "-e", "claude", prompt]),
@@ -170,18 +173,38 @@ def main(argv: list) -> int:
     if not shutil.which("claude"):
         print("Non trovo il comando claude: scrivi /diagnosi in una sessione aperta.", file=sys.stderr)
         return 1
+    perche = ""
     if argv_terminale:
+        # "Aperta" solo se il terminale è partito davvero: osascript senza il permesso di comandare
+        # Terminal, o wt che fallisce, escono subito con un codice diverso da 0 (review del 7/11/2026,
+        # finding 29). osascript torna dopo "do script"; gli altri, se dopo un secondo girano ancora, sono
+        # la finestra aperta. Lo stderr va in un file e non in una pipe: un terminale che resta aperto
+        # dopo l'uscita di questo script non deve trovare la pipe chiusa.
+        attesa = 60 if sistema() == "darwin" else 1
         try:
-            subprocess.Popen(argv_terminale, cwd=str(dove), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL, start_new_session=True)
-            print(f"Aperta una sessione nuova: {prompt}")
-            return 0
-        except OSError:
-            pass
+            with tempfile.TemporaryFile() as errori:
+                p = subprocess.Popen(argv_terminale, cwd=str(dove), stdin=subprocess.DEVNULL,
+                                     stdout=subprocess.DEVNULL, stderr=errori, start_new_session=True)
+                try:
+                    rc = p.wait(timeout=attesa)
+                except subprocess.TimeoutExpired:
+                    rc = None
+                if rc == 0 or (rc is None and attesa == 1):
+                    print(f"Aperta una sessione nuova: {prompt}")
+                    return 0
+                if rc is None:
+                    p.kill()
+                    perche = f"{argv_terminale[0]} non ha risposto in {attesa} secondi"
+                else:
+                    errori.seek(0)
+                    righe = [r.strip() for r in errori.read().decode("utf-8", "replace").splitlines() if r.strip()]
+                    perche = f"{argv_terminale[0]} è uscito con {rc}" + (f": {righe[-1][:200]}" if righe else "")
+        except OSError as e:
+            perche = str(e)
     import segnala
     copiato = segnala.copia_appunti(a_mano)
-    print("Non riesco ad aprire un terminale. " + ("Il comando è negli appunti: " if copiato else "Lancia questo: ")
-          + a_mano)
+    print("Non riesco ad aprire un terminale" + (f" ({perche})" if perche else "") + ". "
+          + ("Il comando è negli appunti: " if copiato else "Lancia questo: ") + a_mano)
     return 1
 
 

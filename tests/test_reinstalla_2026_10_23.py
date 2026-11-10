@@ -29,7 +29,7 @@ BASH = shutil.which("bash") or "bash"
 
 # percorso dentro ~/.claude -> contenuto, nella ~/.claude di un Arturo già usato
 DELLA_PERSONA = {
-    "CLAUDE.md": "# Gunnar\nSono Alessio.\n",
+    "CLAUDE.md": "# Gunnar\nSono Carla.\n",
     "settings.local.json": "{\"x\": 1}\n",
     "personale/session-start.sh": "echo mio\n",
     "hooks/hosts-interni.local": "nas.casa\n",

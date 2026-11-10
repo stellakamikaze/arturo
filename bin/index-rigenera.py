@@ -359,7 +359,7 @@ def scrivi_atomico(percorso, testo):
     percorso = Path(percorso)
     fd, tmp = tempfile.mkstemp(prefix=".index-", suffix=".tmp", dir=str(percorso.parent))
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:  # LF anche su Windows (lotto L10)
             f.write(testo)
         os.replace(tmp, str(percorso))
     except BaseException:

@@ -42,6 +42,6 @@ body:
     id: versione
     attributes:
       label: Versione di Arturo
-      description: L'output di `git -C ~/.claude describe --tags --abbrev=0 --match 'v*'` (per esempio `v0.2.0`), oppure la data dell'ultima novità in `NOVITA.md`.
+      description: Scrivi /versione in Claude Code e copia la versione (per esempio `0.2.0`). Col clone va bene anche l'output di `git -C ~/.claude describe --tags --abbrev=0 --match 'v*'`.
     validations:
       required: false

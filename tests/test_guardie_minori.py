@@ -5,7 +5,8 @@ R01 exfil-guard: un invio verso un host esterno scritto senza schema non passa s
 stesso comando compare anche un host interno; `wget --post-file` conta come invio.
 R02 block-dangerous: una scrittura via shell su un CLAUDE.md chiede conferma, come via Edit/Write;
 leggerlo o copiarlo altrove no.
-R03 emoji_remover: guarda solo il testo appena scritto, non le emoji che il file aveva già.
+R03 emoji_remover: guarda solo il testo appena scritto, non le emoji che il file aveva già. I simboli di
+    testo dei blocchi BMP (⌊ ★ ❯) passano, le emoji vere di quei blocchi no (review del 7/11/2026, finding 53).
 R04 comms: il dispatcher giudica il codice eseguito (comms-prefilter.py). Un invio travestito
 (find -exec, awk system(), git send-email) chiede conferma; una lettura che nomina smtplib passa.
 
@@ -74,6 +75,12 @@ def test_r03(repo: Path) -> None:
         assert esito("MultiEdit", {"edits": [{"old_string": "y", "new_string": "z \u2705"}]}) == 2, \
             "R03 l'emoji nuova di MultiEdit passa"
         assert esito("Write", {"content": "z = 1  # ✔ ok\n"}) == 0, "R03 un simbolo tecnico ammesso viene fermato"
+        # Review del 7/11/2026, finding 53: i simboli di testo dei blocchi BMP non sono emoji.
+        for testo in ("r = '\u230ax\u230b ceil \u2308x\u2309'\n", "voto = '\u2605\u2605\u2605\u2606\u2606'\n",
+                      "PROMPT = '\u276f '\n"):
+            assert esito("Write", {"content": testo}) == 0, f"R03 un simbolo di testo viene fermato come emoji: {testo!r}"
+        for testo in ("ok = '\u2705'\n", "cuore = '\u2764\ufe0f'\n", "fulmine = '\u26a1'\n"):
+            assert esito("Write", {"content": testo}) == 2, f"R03 l'emoji di un blocco BMP passa: {testo!r}"
 
 
 def test_r04(repo: Path) -> None:

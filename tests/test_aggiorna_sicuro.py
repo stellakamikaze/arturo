@@ -50,7 +50,8 @@ GIT_ENV = {
 SHELL = [s for s in ("bash", "zsh") if shutil.which(s)]
 SECONDA = "# Novita\n\n## 2026-09-02 — Seconda\n\n## 2026-09-01 — Prima\n"
 # Le variabili che arrivano da fuori: l'ambiente della sessione e gli argomenti del comando.
-DA_FUORI = {"HOME", "ARGUMENTS", "PROJECTS_BASE", "PWD"}
+# ARTURO_CODICE lo esporta l'avvio in ogni Bash della sessione (hooks/session-start.sh, CLAUDE_ENV_FILE).
+DA_FUORI = {"HOME", "ARGUMENTS", "PROJECTS_BASE", "PWD", "ARTURO_CODICE"}
 
 FINTO_GIT = r'''#!/bin/bash
 # Il git vero, piu' un guasto a richiesta: vedi la docstring del banco.

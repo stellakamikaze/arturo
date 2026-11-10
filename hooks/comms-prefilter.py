@@ -44,6 +44,16 @@ try:
 except Exception:
     def _togli_heredoc(cmd, via, segnaposto=None):
         return cmd
+# I programmi li legge forma_comando.py, il tokenizer delle altre guardie (review del 7/11/2026, finding 6):
+# conosce le virgolette scappate (`it\\'s`), spezza anche su `&` e salta wrapper e redirezioni in testa.
+# Se manca, resta lo split di prima.
+try:
+    _spec_fc = importlib.util.spec_from_file_location(
+        "forma_comando", os.path.join(os.path.dirname(os.path.abspath(__file__)), "forma_comando.py"))
+    _fc = importlib.util.module_from_spec(_spec_fc)
+    _spec_fc.loader.exec_module(_fc)
+except Exception:
+    _fc = None
 
 
 def _first_bin(segment: str) -> str:
@@ -73,8 +83,13 @@ def reduce(cmd: str) -> str:
     if re.search(r"\$\(|`|<\(|>\(", re.sub(r"'[^']*'", "", reduced)):
         return reduced
     stripped = re.sub(r"'[^']*'|\"[^\"]*\"", "", reduced)
-    segments = [s for s in re.split(r"\|\||&&|;|\||\n", stripped) if s.strip()]
-    if segments and all(_first_bin(s) in READ_ONLY for s in segments) and not GIT_INVIA.search(stripped):
+    if _fc is not None:
+        # i programmi come li leggono le altre guardie: le redirezioni in testa (`>/tmp/l mail x`, `>&2 mail x`)
+        # e i wrapper si saltano, invece di scartare il segmento (review del 9/11/2026, #5097)
+        primi = [nome for nome, _ in _fc.programmi(reduced)]
+    else:
+        primi = [_first_bin(s) for s in re.split(r"\|\||&&|;|\||\n", stripped) if s.strip()]
+    if primi and all(p in READ_ONLY for p in primi) and not GIT_INVIA.search(stripped):
         # eccezione: `echo ... | mail` non arriva qui (mail non è read-only);
         # `git commit -m "..."` era già git-puro nel dispatcher
         return ""

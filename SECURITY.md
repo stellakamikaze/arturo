@@ -11,8 +11,11 @@ Segnala in privato se trovi:
 I rilasci di Arturo sono tag firmati con una chiave SSH ed25519, impronta
 `SHA256:IoYVqxkPVwvac2DtQb0dBx7HwUjA7077mDpLDqwKMKY`. La chiave pubblica è in
 `firme/rilasci.allowed_signers`. L'aggiornamento automatico e `/aggiorna` installano solo l'ultimo
-tag che questa chiave ha firmato, letta dalla copia già installata, e mai `main`. Se l'ultimo tag non
-ha una firma valida, Arturo dice "possibile compromissione: non aggiornare, segnala a chi mantiene
+tag che questa chiave ha firmato, letta dalla copia già installata, e mai `main`. Anche la prima
+installazione con `installa.sh` installa solo l'ultimo tag firmato: lo script ha la chiave scritta
+dentro, e la pagina `/inizia/` fa confrontare lo script del sito con quello del ramo `landing-v2` su
+GitHub. Il blocco a mano della guida invece scarica la punta di `main` senza controllare la firma.
+Se l'ultimo tag non ha una firma valida, Arturo dice "possibile compromissione: non aggiornare, segnala a chi mantiene
 Arturo": è il caso da segnalare qui.
 
 Il motivo è semplice: una segnalazione pubblica avvisa anche chi potrebbe

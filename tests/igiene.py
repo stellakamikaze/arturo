@@ -67,6 +67,17 @@ GLOBALE = frozenset((
     "ce5d15cebdd978a2f8bd164613a609fca32c6e0161a83199c2162429a09790b8",
     "d307be7d14339b3cc82cdfce1a991e744551113c287c48501569d82b7a4a64e1",
     "ec8f69a31cf186ac13ebc131ed2c602c8af6b9270235b1329d7ca47e6e98e679",
+    # Review del 7/11/2026, finding 95, 96 e 105: le persone che usano Arturo, gli id delle loro installazioni,
+    # una macchina e un account dell'autore. Prima stavano in test, commenti e NOVITA.md.
+    "d63d71f407ad92113aa5b858936038d68e0fde0a7ed8b8a03a4fea2c2eab80d5",
+    "f51ab9d849938a4f1e88903912ccdc17090df2bd9a432adc6aab61ffaf325d82",
+    "8d0cfd6182ef851052565eb5c11e79f73c691307f7b6ddb877b4303cc726f260",
+    "f6a761f669dfeafd8086a367b336cbee496a1b13ac5128c8cb9346ca7891ccf3",
+    "9e22710e05fe6c6dde97788b248a88855912816408ff8beb48a275be3c4a4700",
+    "21b2b7a347077906259e043592a4b6458035575cd4b4539f00095d4d48522817",
+    "301da88d49fc5f4f6ce0dd63b7f9b840c50149a2b25b27b417638ebdecb78248",
+    "1a9f445a124c9e63a407e54ff13bc4c2cd05068d174e34eaec7ab1a06acc71ed",
+    "57dfab13dd843f3a29a4b8021866559a7b182e0d315ddec53e89a8ec597d8115",
 ))
 # Termini che, con le due parti staccate da uno spazio, sono un comando pubblico e lecito (una CLI col
 # suo sottocomando): contano solo uniti, anche da un punto, un trattino o un carattere invisibile.
@@ -190,7 +201,12 @@ def controlla(repo: Path, intervallo: Optional[str] = None, impronte: Iterable[s
         f = repo / nome
         if not f.is_file():
             continue
-        for riga, h in trova(f.read_text(encoding="utf-8", errors="replace"), impronte):
+        dati = f.read_bytes()
+        # Un file binario (un font, un'immagine) non porta testo: con i nomi brevi del 7/11/2026 i suoi byte letti
+        # come testo davano finestre per caso. Il suo percorso si controlla lo stesso.
+        if b"\0" in dati[:8192]:
+            continue
+        for riga, h in trova(dati.decode("utf-8", errors="replace"), impronte):
             problemi.append(f"{nome}:{riga} ({h})")
     for commit, testo in (messaggi(repo, intervallo) if (repo / ".git").exists() else []):
         for riga, h in trova(testo, impronte):

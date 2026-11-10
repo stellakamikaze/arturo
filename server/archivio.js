@@ -1,6 +1,6 @@
 // L'archivio del server di Arturo: le query su D1. Separato da worker.js, che importa cloudflare:email,
 // così test-sql.mjs prova le query vere su SQLite con node, senza Cloudflare.
-import { LIMITI, ritenzione, calcolaIndietro } from "./logica.js";
+import { LIMITI, ritenzione, calcolaIndietro, derivaPubblica } from "./logica.js";
 
 // v2026-10-15: da qui /setup manda i suoi eventi alla telemetria.
 const SETUP_DAL = "2026-10-15";
@@ -156,24 +156,37 @@ export function archivio(db) {
       await db.prepare("UPDATE segnalazioni SET email_inviata = 1 WHERE id = ?").bind(id).run();
     },
     // L'elenco corrente della deriva per installazione: le righe dopo l'ultimo `insieme:<n>`.
-    // Il giorno: solo gli elenchi cambiati nella finestra. La settimana: anche quelli fermi ma non vuoti.
+    // Il giorno: solo gli elenchi cambiati nella finestra. La settimana: anche quelli fermi ma non vuoti, di
+    // un'installazione attiva negli ultimi 30 giorni.
+    // Dal 8/11/2026 (review del 7/11, finding 41) tre query in tutto, non una per installazione: 1200 id inventati
+    // portavano il cron del lunedì oltre il tetto delle query di D1, e un marcatore restava nel conto per 12 mesi.
+    // `vista` dice se l'installazione è arrivata in almeno LIMITI.giorniGuardie giorni: solo quelle fanno un task
+    // (recap.js, finding 37). Al massimo LIMITI.derivaInstallazioni, prima le viste e le più recenti.
+    // I valori passano dagli elenchi chiusi anche in lettura: le righe di prima avevano le radici aperte.
     async deriva(dal, al, settimana) {
+      const MARCATORI = `SELECT installazione, MAX(rowid) AS r FROM eventi WHERE evento = 'deriva' AND valore LIKE 'insieme:%' GROUP BY installazione`;
+      const trenta = new Date(Date.parse(`${al}T12:00:00Z`) - 30 * 86400000).toISOString().slice(0, 10);
+      const minimo = Number(LIMITI.giorniGuardie);
       const marcatori = (await db.prepare(
-        `SELECT e.installazione, e.rowid AS r, e.valore, e.giorno FROM eventi e
-         JOIN (SELECT installazione, MAX(rowid) AS r FROM eventi WHERE evento = 'deriva' AND valore LIKE 'insieme:%' GROUP BY installazione) m
-           ON e.rowid = m.r`).all()).results
-        .filter((m) => (m.giorno > dal && m.giorno <= al) || (settimana && m.valore !== "insieme:0"));
+        `SELECT e.installazione, e.rowid AS r, e.valore, e.giorno, a.ultima, a.giorni FROM eventi e
+         JOIN (${MARCATORI}) m ON e.rowid = m.r
+         JOIN (SELECT installazione, MAX(giorno) AS ultima, COUNT(DISTINCT ricevuto_giorno) AS giorni FROM eventi GROUP BY installazione) a
+           ON a.installazione = e.installazione`).all()).results
+        .filter((m) => (m.giorno > dal && m.giorno <= al) || (settimana && m.valore !== "insieme:0" && m.ultima > trenta))
+        .sort((x, y) => Number(y.giorni >= minimo) - Number(x.giorni >= minimo) || (x.giorno < y.giorno ? 1 : x.giorno > y.giorno ? -1 : 0))
+        .slice(0, Number(LIMITI.derivaInstallazioni));
       const conflitti = new Set((await db.prepare(
         "SELECT DISTINCT installazione FROM eventi WHERE evento = 'aggiorna' AND valore = 'conflitto' AND giorno > date(?, '-30 day') AND giorno <= ?")
         .bind(al, al).all()).results.map((x) => x.installazione));
-      const fuori = [];
-      for (const m of marcatori) {
-        const valori = (await db.prepare(
-          "SELECT valore FROM eventi WHERE installazione = ? AND evento = 'deriva' AND rowid > ? AND valore NOT LIKE 'insieme:%' ORDER BY rowid")
-          .bind(m.installazione, m.r).all()).results.map((x) => x.valore);
-        fuori.push({ installazione: m.installazione, valori, conflitto: conflitti.has(m.installazione) });
+      if (!marcatori.length) return [];
+      const valori = new Map(marcatori.map((m) => [m.installazione, []]));
+      for (const x of (await db.prepare(
+        `SELECT e.installazione, e.valore FROM eventi e JOIN (${MARCATORI}) m ON e.installazione = m.installazione AND e.rowid > m.r
+         WHERE e.evento = 'deriva' AND e.valore NOT LIKE 'insieme:%' ORDER BY e.rowid`).all()).results) {
+        if (valori.has(x.installazione)) valori.get(x.installazione).push(derivaPubblica(x.valore));
       }
-      return fuori;
+      return marcatori.map((m) => ({ installazione: m.installazione, valori: valori.get(m.installazione), conflitto: conflitti.has(m.installazione),
+        vista: Number(m.giorni) >= minimo }));
     },
     // Le installazioni rimaste indietro (calcolaIndietro in logica.js): la versione dell'ultimo evento di chi è
     // attivo negli ultimi giorni, e il primo giorno di ogni versione. Solo installazioni viste in più giorni.

@@ -22,7 +22,7 @@ M25 una riga in coda scritta da una versione di prima parte già filtrata: la re
     il file della persona diventa `file:altro`.
 TF04 la versione è solo un tag di rilascio di Arturo: un tag della persona ("vacanze-rossi", "v-clienti-rossi",
      "v2026-10-21-rossi") non esce mai.
-TF05 gli elenchi della deriva sul server (file della radice, skills/, agents/, commands/, hook di settings.json)
+TF05 gli elenchi della deriva sul server (file della radice, skills/, agents/, commands/, hooks/, hook di settings.json)
      coincidono col repository.
 US04 l'unione di settings.json porta i matcher nuovi (Monitor, PostToolUseFailure) a chi ha cambiato un
      hook di PostToolUse: i due gruppi "Edit|MultiEdit|Write" non fanno più conflitto.
@@ -268,7 +268,7 @@ def test_tf05(repo: Path) -> None:
     assert r.returncode == 0, f"prova di TF05: git ls-files non risponde in {repo}"
     file = [p for p in r.stdout.decode("utf-8", "replace").split("\0") if p]
     attesi = {"radice": {p for p in file if "/" not in p}}
-    for radice in ("skills", "agents", "commands"):
+    for radice in ("skills", "agents", "commands", "hooks"):
         attesi[radice] = {p.split("/")[1] for p in file if p.startswith(radice + "/")}
     for radice, elenco in attesi.items():
         m = re.search(r"\b" + radice + r": \[(.*?)\]", nomi, re.S)

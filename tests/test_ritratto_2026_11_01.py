@@ -39,6 +39,14 @@ RT22 (R9) un link o una junction verso ~/.claude non diventa una radice.
 RT23 (F3) cartelle stampa barre dritte, e il comando di setup-ritratto.md, con i percorsi fra apici,
      porta intero anche un percorso con uno spazio (sonda vera con bash).
 
+Dalla review del 7/11/2026 (lotto L7):
+RT24 (finding 35) un .docx con i dati compressi rovinati e la coda dello zip integra dà "campione non
+     leggibile" e lo scan finisce, con gli altri campioni. Rosso su 0b083f5 (zlib.error, nessuna uscita).
+
+Dalla review del 7/11/2026 (lotto L8):
+RT25 (finding 101) maschera() toglie pw, passphrase, chiave del wifi e cvv, il numero dopo pin e pass anche
+     con una parola in mezzo ("Pin bancomat 4821"), e l'IBAN in minuscolo.
+
 Con --avvelena il banco lancia ritratto.py senza esclusioni e vuole RT01 rosso col motivo ".env in uscita".
 Poi, per RT16-RT23, rompe una copia di bin/ritratto.py nel punto corretto e vuole il caso rosso col
 suo motivo (VELENI).
@@ -100,7 +108,8 @@ CONTENUTI_ESCLUSI = ("MARCATORE-ENV", "MARCATORE-SSH", "MARCATORE-PASSWORD", "MA
 
 def _scrivi(p: Path, testo: str, quando: float = 0.0) -> Path:
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(testo, encoding="utf-8", newline="\n")
+    with open(str(p), "w", encoding="utf-8", newline="\n") as uscita:  # write_text(newline=) vuole Python 3.10
+        uscita.write(testo)
     if quando:
         os.utime(p, (quando, quando))
     return p
@@ -720,11 +729,65 @@ def caso_rt23(b: Banco) -> None:
         "RT23 il percorso con lo spazio non arriva intero allo scan"
 
 
+def _docx_rotto(p: Path) -> None:
+    """Un .docx con la central directory integra e i dati deflate di word/document.xml rovinati."""
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(p, "w", compression=zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", '<?xml version="1.0"?><Types/>')
+        z.writestr("word/document.xml", "<w:document>" + "testo del documento " * 200 + "</w:document>")
+    with zipfile.ZipFile(p) as z:
+        info = z.getinfo("word/document.xml")
+    dati = bytearray(p.read_bytes())
+    inizio = info.header_offset + 30 + len(info.filename.encode()) + len(info.extra)
+    dati[inizio:inizio + 16] = b"\xff" * 16
+    p.write_bytes(bytes(dati))
+
+
+def caso_rt24(b: Banco) -> None:
+    home = b.radice / "rt24" / "home"
+    shutil.copytree(b.home / ".claude" / "bin", home / ".claude" / "bin")
+    shutil.copytree(b.home / ".claude" / "hooks", home / ".claude" / "hooks")
+    _docx_rotto(home / "Documenti" / "rotto.docx")
+    _scrivi(home / "Documenti" / "nota.md", "MARCATORE-RT24 la nota del progetto\n")
+    env = dict(b.env(), HOME=str(home), USERPROFILE=str(home), PROJECTS_BASE=str(home / "Progetti"))
+
+    def corri(*argomenti: str) -> tuple:
+        p = subprocess.run([sys.executable, "-B", str(home / ".claude" / "bin" / "ritratto.py"), *argomenti], env=env,
+                           cwd=str(b.temp), capture_output=True, timeout=120, check=False)
+        return p.returncode, p.stdout.decode("utf-8", "replace"), p.stderr.decode("utf-8", "replace")
+    rc, out, err = corri("cartelle")
+    radici = [r for r in out.splitlines() if r.strip()]
+    assert rc == 0 and radici, f"RT24 cartelle della HOME col .docx rotto: codice {rc} {err[-200:]!r}"
+    rc, out, err = corri("scan", "--radici", *radici)
+    assert rc == 0 and "Traceback" not in err, f"RT24 un .docx rovinato ferma lo scan: codice {rc} {err[-200:]!r}"
+    assert "campione non leggibile" in out and "rotto.docx" in out and "MARCATORE-RT24" in out, \
+        f"RT24 lo scan col .docx rovinato perde la riga o gli altri campioni: {out[-400:]!r}"
+
+
+RT25_CASI = (("pw: Pippo99xyz", "Pippo99xyz"), ("la chiave wifi è Gatto77", "Gatto77"),
+             ("passphrase: cavallo batteria graffetta", "cavallo"), ("it60x0542811101000000123456", "0542811101"),
+             ("Nome utente: mario  Pin bancomat 4821", "4821"), ("carta della banca cvv 123", "123"),
+             ("pin code 9876 e poi altro", "9876"))
+
+
+def caso_rt25(b: Banco) -> None:
+    bin_ = b.home / ".claude" / "bin"
+    codice = ("import json, sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); import ritratto; "
+              "f = ritratto.Filtri(Path(sys.argv[2])); print(json.dumps([f.maschera(x) for x in json.loads(sys.argv[3])]))")
+    p = subprocess.run([sys.executable, "-B", "-c", codice, str(bin_), str(b.home), json.dumps([x for x, _ in RT25_CASI])],
+                       env=b.env(), capture_output=True, timeout=60, check=False)
+    assert p.returncode == 0, f"RT25 maschera non gira: {p.stderr.decode('utf-8', 'replace')[-300:]}"
+    usciti = json.loads(p.stdout.decode("utf-8"))
+    chiari = [(x, u) for (x, valore), u in zip(RT25_CASI, usciti) if valore.lower() in u.lower()]
+    assert not chiari, f"RT25 in chiaro: {chiari}"
+    assert usciti[4].startswith("Nome utente: mario  Pin bancomat ["), f"RT25 la parola dopo pin sparisce: {usciti[4]!r}"
+
+
 CASI = [("RT01", caso_rt01), ("RT02", caso_rt02), ("RT03", caso_rt03), ("RT04", caso_rt04), ("RT05", caso_rt05),
         ("RT06", caso_rt06), ("RT07", caso_rt07), ("RT08", caso_rt08), ("RT09", caso_rt09), ("RT10", caso_rt10),
         ("RT11", caso_rt11), ("RT14", caso_rt14), ("RT15", caso_rt15), ("RT16", caso_rt16), ("RT17", caso_rt17),
         ("RT18", caso_rt18), ("RT19", caso_rt19), ("RT20", caso_rt20), ("RT21", caso_rt21), ("RT22", caso_rt22),
-        ("RT23", caso_rt23)]
+        ("RT23", caso_rt23), ("RT24", caso_rt24), ("RT25", caso_rt25)]
 if os.name == "nt":
     CASI += [("RT12", caso_rt12), ("RT13", caso_rt13)]
 
@@ -746,8 +809,10 @@ VELENI = (
     ("RT16", '    while ">>>" in testo:\n', '    if ">>>" in testo:\n', "recinti rotti", False),
     ("RT16", '        if not pronti:\n            out.scrivi(f"file: {len(r.file)}, cartelle: {len(r.cartelle)}")\n'
              '            continue\n', "", "senza scanner escono nomi", False),
-    ("RT17", '        testo = PAROLA_CHIAVE.sub(r"\\1 [segreto tolto]", testo)\n'
-             '        testo = PAROLA_DEBOLE.sub(r"\\1 [segreto tolto]", testo)\n', "", "password in chiaro", False),
+    ("RT17", '        testo = PAROLA_CHIAVE.sub(r"\\1 [segreto tolto]", testo)\n', "", "password in chiaro", False),
+    ("RT25", "|passphrase|pwd|pw|", "|pwd|", "in chiaro", False),
+    ("RT25", ', re.I)  # anche in minuscolo (finding 101)', ")", "in chiaro", False),
+    ("RT25", "if PAROLA_DEBOLE_NUMERO.search(r)", "if False", "in chiaro", False),
     ("RT17", "    if SEGRETI_PAROLA.search(spaziato):\n", "    if False:\n", "accessi.txt in uscita", False),
     ("RT18", None, PERSONALI_PRIMA, "documenti personali elencati", False),
     ("RT18", "        if CONTENUTO_PERSONALE.search(piano(grezzo)):\n", "        if False:\n",

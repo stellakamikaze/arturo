@@ -7,13 +7,14 @@ Intercetta Write/Edit/MultiEdit su ~/.claude/data/memory/*.md e:
 2b. Valida che il frontmatter sia YAML PARSABILE — un ': ' in uno scalare non
    quotato o un '#' in una flow sequence lo rendono illeggibile a ogni tool che
    usa PyYAML, senza che nulla se ne accorga (3 occorrenze fra il 18 e il 19/8).
-   Questo e' l'unico caso in cui l'hook parla: exit 2 con il motivo, cosi' chi ha
-   scritto lo corregge subito invece di lasciare una nota invisibile.
+   L'hook e' asincrono: exit 2 e stderr non arrivano a Claude. Il motivo va in
+   additionalContext (JSON su stdout), che arriva al turno dopo (review 7/11/2026).
 3. Scrive audit entry in ~/.claude/data/memory/.melchior-log.jsonl
 4. Smista nella cartella giusta una nota NUOVA scritta nella radice della memoria
    (Write, non Edit), secondo il prefisso del nome (SMISTAMENTO). L'auto-memory
    nativa di Claude Code scrive nella radice: il 19/10/2026 c'erano 22 note sciolte.
    Prefisso sconosciuto o destinazione già occupata: la nota resta dov'è e si logga.
+   Claude riceve il percorso nuovo, o l'invito a fondere le due note omonime.
 
 Agisce SOLO dentro ~/.claude/data/memory (percorso reale). Le note delle altre radici di
 melchior_match (~/.claude/projects/*/memory, le cartelle aggiunte) non si toccano mai: niente
@@ -74,7 +75,7 @@ def smista_nota_radice(path: Path, tool_name: str) -> dict | None:
         dest = MEMORY_DIR / cartella / path.name
         if dest.exists():
             return {"action": "melchior-smistamento-saltato", "file": path.name,
-                    "motivo": f"esiste già {cartella}/{path.name}"}
+                    "motivo": f"esiste già {cartella}/{path.name}", "dest": f"{cartella}/{path.name}"}
         dest.parent.mkdir(parents=True, exist_ok=True)
         path.rename(dest)
         return {"action": "melchior-smistata", "file": path.name, "dest": f"{cartella}/{path.name}"}
@@ -115,14 +116,15 @@ def is_memory_file(path_str: str) -> bool:
 
 def parse_frontmatter(text: str) -> tuple[dict | None, str, str]:
     """Ritorna (fm_dict | None, raw_fm_block, rest)."""
-    m = re.match(r"^(---\s*\n)(.*?)(\n---\s*\n?)", text, re.DOTALL)
+    # [ \t]* e non \s*: \s* passa l'a capo e mangia righe vuote e rientro del corpo (review 7/11, finding 50).
+    m = re.match(r"^(---[ \t]*\n)(.*?)(\n---[ \t]*\n?)", text, re.DOTALL)
     if not m:
         return None, "", text
     raw = m.group(2)
     rest = text[m.end():]
     fm = {}
     for line in raw.split("\n"):
-        mk = re.match(r"^([a-zA-Z_][\w-]*):\s*(.*)$", line)
+        mk = re.match(r"^([a-zA-Z_][\w-]*):[ \t]*(.*)$", line)
         if mk:
             fm[mk.group(1)] = mk.group(2).strip()
     return fm, raw, rest
@@ -138,7 +140,7 @@ def update_updated_field(text: str) -> tuple[str, bool]:
         return text, False
     if "updated" in fm:
         new_raw = re.sub(
-            r"^(updated:\s*).*$",
+            r"^updated:[ \t]*.*$",  # un "updated:" vuoto non si prende la riga dopo (finding 50)
             f"updated: {TODAY}",
             raw,
             count=1,
@@ -170,7 +172,7 @@ def frontmatter_parse_error(text: str) -> str | None:
     autoload, qualunque script con PyYAML) invece non le vede affatto. Quindi qui
     si valida davvero: PyYAML se c'e', altrimenti i due pattern noti che rompono.
     """
-    m = re.match(r"^(---\s*\n)(.*?)(\n---\s*\n?)", text, re.DOTALL)
+    m = re.match(r"^(---[ \t]*\n)(.*?)(\n---[ \t]*\n?)", text, re.DOTALL)
     if not m:
         return None  # nessun frontmatter: non e' il caso di questo check
     raw = m.group(2)
@@ -248,6 +250,9 @@ def main() -> int:
         except Exception:
             pass
 
+    # L'hook è asincrono: exit 2 e stderr non arrivano a Claude, additionalContext sì, al turno dopo
+    # (review del 7/11/2026, finding 51 e 52).
+    avvisi = []
     parse_err = frontmatter_parse_error(new_text)
     if parse_err:
         log_event({
@@ -255,16 +260,11 @@ def main() -> int:
             "actions": actions, "parse_error": parse_err,
             "action": "melchior-frontmatter-invalido",
         })
-        print(
-            f"[melchior] frontmatter NON parsabile in {path.name} — {parse_err}\n"
-            f"La nota e' scritta ma resta INVISIBILE a /system-audit memoria, all'autoload e a ogni "
-            f"tool che usa PyYAML. Quota lo scalare (o chiudi la flow sequence) e riscrivi.",
-            file=sys.stderr,
+        avvisi.append(
+            f"[melchior] il frontmatter di {path.name} non è YAML valido: {parse_err}. La nota è scritta, "
+            f"ma /system-audit memoria la segna come YAML rotto. Quota lo scalare (o chiudi la flow sequence) "
+            f"e riscrivila."
         )
-        smistata = smista_nota_radice(path, tool_name)
-        if smistata:
-            log_event({"ts": TODAY, "tool": tool_name, **smistata})
-        return 2
 
     fm, _, _ = parse_frontmatter(new_text)
     missing_core = sorted(V2_CORE - set((fm or {}).keys()))
@@ -284,8 +284,27 @@ def main() -> int:
     smistata = smista_nota_radice(path, tool_name)
     if smistata:
         log_event({"ts": TODAY, "tool": tool_name, **smistata})
+        avviso = avviso_smistamento(path, smistata)
+        if avviso:
+            avvisi.append(avviso)
 
+    if avvisi:
+        print(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse",
+                                                 "additionalContext": "\n".join(avvisi)}}, ensure_ascii=False))
     return 0
+
+
+def avviso_smistamento(path: Path, evento: dict) -> str | None:
+    """Claude tiene il percorso che ha scritto: gli si dice dove è finita la nota, o perché è rimasta."""
+    if evento.get("action") == "melchior-smistata":
+        return (f"[melchior] la nota {path.name} è stata spostata in {MEMORY_DIR / evento['dest']}: "
+                f"per correggerla usa quel percorso.")
+    motivo = str(evento.get("motivo", ""))
+    if motivo.startswith("esiste già") and evento.get("dest"):
+        return (f"[melchior] {path.name} resta nella radice della memoria perché {motivo}: ora ci sono due note "
+                f"con lo stesso nome. Fondi questa in {MEMORY_DIR / evento['dest']} "
+                f"e cancella la copia nella radice.")
+    return None
 
 
 if __name__ == "__main__":

@@ -36,6 +36,19 @@ suo (vedi `/setup` FASE 7), `/inizio` sincronizza quello: sono le sue macchine, 
 altri.
 
 ```bash
+# Col plugin il codice sta fuori da ~/.claude, che non è il repository di Arturo: niente git, l'aggiornamento
+# si controlla sul catalogo firmato (review del 7/11/2026, finding 76).
+PLUGIN=0
+[ -n "${ARTURO_CODICE:-}" ] && [ "$(cd "$ARTURO_CODICE" 2>/dev/null && pwd -P)" != "$(cd ~/.claude 2>/dev/null && pwd -P)" ] && PLUGIN=1
+if [ "$PLUGIN" = 1 ]; then
+  VERIFICA=$(python3 ~/.claude/bin/aggiornamenti.py plugin --verifica 2>&1); FIRMA=$?
+  case "$FIRMA" in
+    0) case "$VERIFICA" in *"GIÀ AGGIORNATO"*) ;; *) echo "ARTURO: c'è la versione $(printf '%s\n' "$VERIFICA" | tail -1) — i rilasci firmati si installano da soli alla chiusura, o subito con /aggiorna" ;; esac ;;
+    3) echo "ARTURO: possibile compromissione: non aggiornare, segnala a chi mantiene Arturo ($(printf '%s\n' "$VERIFICA" | tail -1))" ;;
+    4) echo "ARTURO: questo computer non sa controllare la firma dei rilasci (servono git 2.34 e OpenSSH 8.2): Arturo non si aggiorna finché non li aggiorni. Non è un problema di sicurezza" ;;
+    *) echo "Config sync: controllo aggiornamenti non riuscito: $(printf '%s\n' "$VERIFICA" | tail -1)" ;;
+  esac
+else
 ORIGIN_URL=$(git -C ~/.claude remote get-url origin 2>/dev/null || echo "")
 case "$ORIGIN_URL" in
   *github.com[:/]stellakamikaze/arturo|*github.com[:/]stellakamikaze/arturo.git) ORIGIN_ARTURO=1 ;;
@@ -82,6 +95,7 @@ elif [ "$FIRMA" = 3 ]; then
   echo "ARTURO: possibile compromissione: non aggiornare, segnala a chi mantiene Arturo (l'ultimo rilascio non ha una firma valida)"
 elif [ "$FIRMA" = 4 ]; then
   echo "ARTURO: questo computer non sa controllare la firma dei rilasci (servono git 2.34 e OpenSSH 8.2): Arturo non si aggiorna finché non li aggiorni. Non è un problema di sicurezza"
+fi
 fi
 python3 ~/.claude/hooks/controlla-config.py --quiet || exit 1
 ```
@@ -228,8 +242,8 @@ printf '.DS_Store\nnode_modules/\n*.log\n.env\n' > .gitignore
 ```
 
 Scrivi un `CLAUDE.md` breve: cosa è il progetto in due righe, e una sezione "Materiali" con i
-percorsi dei file che stanno fuori dal repo (all'inizio può essere vuota). Poi il primo commit:
-`git add .gitignore CLAUDE.md && git commit -q -m "inizio del progetto"`. Gli handoff non entrano
+percorsi dei file che stanno fuori dal repo (all'inizio può essere vuota). Poi il primo commit, con l'identità di Git scelta da `/setup`:
+`bash ~/.claude/bin/identita-git.sh . && git add .gitignore CLAUDE.md && git commit -q -m "inizio del progetto"`. Gli handoff non entrano
 mai nel repo del progetto.
 
 ## FASE 3: Carica il contesto
@@ -269,7 +283,7 @@ python3 ~/.claude/bin/arturo todo --progetto .
 python3 ~/.claude/bin/arturo todo --progetto generale
 git log --oneline -20 2>/dev/null
 # Il pannello /dafare c'è? I comandi di un mod non compaiono fra quelli che vedi.
-claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") == "arturo@skills-dir"]; print("mod caricato" if v and v[0].get("enabled") else "mod assente")' 2>/dev/null || echo "mod assente"
+claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; v=[p for p in json.load(sys.stdin) if p.get("id") in ("arturo@skills-dir", "arturo@arturo")]; print("mod caricato" if any(p.get("enabled") for p in v) else "mod assente")' 2>/dev/null || echo "mod assente"
 ```
 
 1. Per ogni todo aperto del progetto, verifica se un commit recente lo ha già completato. Se sì,

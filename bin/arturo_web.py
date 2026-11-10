@@ -39,6 +39,13 @@ from urllib.parse import parse_qs, urlsplit
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 import todo_store as ts  # noqa: E402
 
+sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
+import radici  # noqa: E402
+
+# Il comando che la pagina dà per riaprirsi, col percorso vero: col plugin ~/.claude/bin/arturo non c'è
+# (review del 7/11/2026, finding 71).
+COMANDO = radici.comando_arturo() + " web"
+
 HOST = "127.0.0.1"
 CARTELLA = Path(os.path.realpath(__file__)).parent / "web"
 MASSIMO = 16384  # byte di un corpo POST
@@ -399,7 +406,7 @@ def crea_gestore(stato: Stato):
                 self._rispondi(200, (CARTELLA / voce[0]).read_bytes(), voce[1])
             elif url.path == "/api/vista":
                 self._controlla_chiave(self.headers.get("X-Arturo-Token"))
-                self._json(200, dict(lettura(), partenza=stato.progetto))
+                self._json(200, dict(lettura(), partenza=stato.progetto, comando=COMANDO))
             elif url.path == "/api/todo":
                 self._controlla_chiave(self.headers.get("X-Arturo-Token"))
                 numero = (parse_qs(url.query).get("id") or [""])[0]
@@ -510,6 +517,13 @@ def main(argv: list, progetto: str = "generale") -> int:
         print(AIUTO)
         return 0
     args = parser().parse_args(argv)
+    # Con una fonte esterna i task stanno altrove: la pagina mostrerebbe un tavolo vuoto e scriverebbe in
+    # un archivio che Claude, /dafare e la CLI non leggono (review del 7/11/2026, finding 62).
+    if ts.comando_fonte():
+        print("arturo web: i tuoi task stanno nella fonte esterna di fonte-task.local, e questa pagina legge "
+              "solo l'archivio di Arturo. Usa /dafare oppure arturo todo, che passano dalla tua fonte.",
+              file=sys.stderr)
+        return 3
     stato = Stato(secrets.token_urlsafe(32), progetto, inattivo_da(os.environ.get("ARTURO_WEB_INATTIVO")))
     try:
         server = ThreadingHTTPServer((HOST, args.porta), crea_gestore(stato))

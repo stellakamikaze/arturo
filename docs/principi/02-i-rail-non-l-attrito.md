@@ -44,7 +44,8 @@ Quando trova uno di quei gesti, quasi sempre ti chiede conferma e ti mostra il c
 Blocca soltanto pochi casi che non hanno mai un uso buono.
 
 Le guardie si controllano anche da sole. Ogni dodici ore Arturo le prova su una serie di casi
-noti, e se una risponde male te lo dice all'avvio.
+noti. L'avvio non ti interrompe: se una risponde male, con la telemetria accesa lo sa chi mantiene
+Arturo, e in ogni caso lo legge `/diagnosi`.
 
 ## Perché chiedere invece di bloccare
 

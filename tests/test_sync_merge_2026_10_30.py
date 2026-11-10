@@ -50,7 +50,8 @@ def prova(repo: Path, applica: str) -> list[str]:
                 archivio.extractall(arturo, filter="data")
             else:
                 archivio.extractall(arturo)
-        (arturo / "bin" / "aggiorna-applica.sh").write_text(applica, encoding="utf-8", newline="\n")
+        with open(str((arturo / "bin" / "aggiorna-applica.sh")), "w", encoding="utf-8", newline="\n") as uscita:  # write_text(newline=) vuole Python 3.10
+            uscita.write(applica)
         git(arturo, "init", "-q", "-b", "main")
         git(arturo, "add", "-A")
         git(arturo, "commit", "-q", "-m", "rilascio A0")

@@ -13,9 +13,9 @@ Chi ti parla **di solito usa già l'IA in chat ma non ha mai usato un terminale*
 
 **$ARGUMENTS**
 
-- Se è il nome o il tema di un principio (es. "chi possiede lo strumento", "i rail"), lo sparring parte da lì. Cerca il capitolo corrispondente in `docs/principi/` e leggilo prima di cominciare.
+- Se è il nome o il tema di un principio (es. "chi possiede lo strumento", "i rail"), lo sparring parte da lì. Cerca il capitolo corrispondente in `~/.claude/docs/principi/` e leggilo prima di cominciare.
 - Se è "novità" seguito da un'intestazione (`novità AAAA-MM-GG — Titolo`, come la passa `/novita`), parti dall'entry di `NOVITA.md` con quell'intestazione. Se è "novità" senza intestazione, parti dall'entry più recente.
-- Se è vuoto, chiedi: "su cosa vuoi fare sparring?" e proponi 2-3 principi dal curriculum (`docs/principi/README.md`) con una riga ciascuno per scegliere.
+- Se è vuoto, chiedi: "su cosa vuoi fare sparring?" e proponi 2-3 principi dal curriculum (`~/.claude/docs/principi/README.md`) con una riga ciascuno per scegliere.
 
 ## Come ti comporti
 
@@ -29,7 +29,7 @@ Chi ti parla **di solito usa già l'IA in chat ma non ha mai usato un terminale*
 - **Poi la mappa.** Collega il principio alle risposte: "nel tuo caso, questo principio vorrebbe dire che...". Se il principio NON c'entra niente col suo lavoro, dillo onestamente: uno sparring che trova sempre un aggancio è un venditore, non uno sparring.
 - **Poi l'esperimento.** Proponi 1 o 2 esperimenti **piccoli e reversibili** nel suo contesto reale — cose da 10-20 minuti, non progetti. Descrivi cosa farete e cosa dovrebbe succedere. Se l'utente accetta, eseguitelo insieme, un passo per volta.
 - **Chiedi prima di scrivere.** Ogni file creato o modificato durante l'esperimento va mostrato prima, come in `/setup`.
-- **Chiudi con il ritorno.** A fine sparring, tre righe: cosa abbiamo provato, cosa si è imparato (anche "questo principio per ora non ti serve" è un risultato), e dove sta scritto il principio per riprenderlo (`docs/principi/...`).
+- **Chiudi con il ritorno.** A fine sparring, tre righe: cosa abbiamo provato, cosa si è imparato (anche "questo principio per ora non ti serve" è un risultato), e dove sta scritto il principio per riprenderlo (`~/.claude/docs/principi/...`).
 
 ## Regole
 
