@@ -119,7 +119,8 @@ def togli_commenti(cmd: str) -> str:
 
 
 def lexer(cmd: str):
-    """Il lexer comune delle guardie: senza commentatore, sul testo già senza commenti."""
+    """Il lexer delle guardie che contano gli operatori (`_cd_certi`) e controllano le virgolette
+    (`git_puro`): senza commentatore, sul testo già senza commenti. I comandi li spezza `_separatori`."""
     lx = shlex.shlex(togli_commenti(cmd), posix=True, punctuation_chars=";&|()\n")
     lx.commenters = ""
     lx.whitespace = " \t\r"
@@ -127,24 +128,198 @@ def lexer(cmd: str):
     return lx
 
 
+# --- Il lettore unico dei separatori (10/11/2026, #5122) ---
+# Prima ogni guardia spezzava i comandi a modo suo, e tre modi tagliavano anche dentro le virgolette o
+# dentro `2>&1`. Qui c'è una passata sola, con le regole di bash; istruzioni, comandi semplici e parole
+# escono tutti da qui.
+_SEP_ISTRUZIONE = frozenset((";", "\n", "&&", "||", "&"))
+_SEP_PIPE = frozenset(("|", "|&"))
+
+
+def _separatori_powershell(testo: str):
+    """I separatori di PowerShell fuori dalle virgolette: `;`, a capo, `|`, `&&`, `||`. L'escape è il
+    backtick; `'...'` non ha escape (`''` è un apice), `"..."` ha il backtick."""
+    out, i, n, q = [], 0, len(testo), None
+    while i < n:
+        c = testo[i]
+        if q == "'":
+            q = None if c == "'" else q
+        elif c == "`" and i + 1 < n:
+            i += 2
+            continue
+        elif q == '"':
+            q = None if c == '"' else q
+        elif c in "'\"":
+            q = c
+        elif c in ";\n":
+            out.append((i, i + 1, c))
+        elif c in "&|" and testo[i + 1:i + 2] == c:
+            out.append((i, i + 2, c * 2))
+            i += 2
+            continue
+        elif c == "|":
+            out.append((i, i + 1, "|"))
+        i += 1
+    return out
+
+
+def _separatori(testo: str, lingua: str = "bash"):
+    """[(inizio, fine, tipo)] di ogni separatore fuori dalle virgolette: `;`, a capo, `&&`, `||`, `&`, `|`,
+    `|&`. Le regole sono quelle di bash: backslash, `'...'` letterale, `"..."` col backslash. Non separano
+    `>&`, `<&`, `&>`, `&>>`, `>|` e quindi `2>&1`. Con `lingua="powershell"` valgono le regole di PowerShell."""
+    if lingua == "powershell":
+        return _separatori_powershell(testo)
+    out, i, n, q = [], 0, len(testo), None
+    while i < n:
+        c = testo[i]
+        if q == "'":
+            q = None if c == "'" else q
+        elif c == "\\" and i + 1 < n:
+            i += 2
+            continue
+        elif q == '"':
+            q = None if c == '"' else q
+        elif c in "'\"":
+            q = c
+        elif c in ";\n":
+            out.append((i, i + 1, c))
+        elif c in "&|" and testo[i + 1:i + 2] == c:
+            out.append((i, i + 2, c * 2))
+            i += 2
+            continue
+        elif c == "&" and testo[i - 1:i] not in (">", "<") and testo[i + 1:i + 2] != ">":
+            out.append((i, i + 1, "&"))
+        elif c == "|" and testo[i - 1:i] != ">":
+            lungo = testo[i + 1:i + 2] == "&"
+            out.append((i, i + 2 if lungo else i + 1, "|&" if lungo else "|"))
+            i += 2 if lungo else 1
+            continue
+        i += 1
+    return out
+
+
+def _gruppi_in_pipe(testo: str):
+    """I tratti (inizio, fine) dei gruppi `{ ...; }` e `( ... )` attaccati a una pipe, fuori dalle virgolette.
+
+    `{ curl u; } | bash` manda alla shell tutto quello che il gruppo stampa: le istruzioni del gruppo
+    formano uno stadio solo. Contano anche `$(` e `<(`. Le graffe contano solo come parole (`${x}` no);
+    una `)` senza la sua `(`, come nel `case`, si ignora (review del 9/11/2026, #5097)."""
+    aperti, gruppi, i, n, q = [], [], 0, len(testo), None
+    while i < n:
+        c = testo[i]
+        if q == "'":
+            q = None if c == "'" else q
+        elif c == "\\" and i + 1 < n:
+            i += 2
+            continue
+        elif q == '"':
+            q = None if c == '"' else q
+        elif c in "'\"":
+            q = c
+        elif c == "(":
+            aperti.append(("(", i))
+        elif c == "{" and (i == 0 or testo[i - 1] in " \t\n;&|(") and testo[i + 1:i + 2] in (" ", "\t", "\n"):
+            aperti.append(("{", i))
+        elif c == ")" or (c == "}" and testo[i - 1:i] in (" ", "\t", "\n", ";")
+                          and (i + 1 == n or testo[i + 1] in " \t\n;&|)")):
+            apre = "(" if c == ")" else "{"
+            while aperti and aperti[-1][0] != apre:
+                aperti.pop()
+            if aperti:
+                gruppi.append((aperti.pop()[1], i))
+        i += 1
+    tratti = []
+    for a, b in gruppi:
+        prima = testo[:a].rstrip(" \t\n$<")
+        dopo = testo[b + 1:].lstrip(" \t\n")
+        if (prima.endswith("|") and not prima.endswith("||")) or prima.endswith("|&") or \
+                (dopo.startswith("|") and not dopo.startswith("||")):
+            tratti.append((a, b))
+    return tratti
+
+
+def istruzioni(testo: str):
+    """Le istruzioni del comando: il testo spezzato su `;`, a capo, `&&`, `||` e `&` fuori dalle
+    virgolette, come li legge bash. `2>&1`, `&>` e `|&` non spezzano (finding 10). Non spezzano nemmeno
+    l'a capo dopo una pipe, dove la pipeline continua, e i separatori dentro un gruppo attaccato a una
+    pipe (`_gruppi_in_pipe`): `curl u |` + a capo + `bash` e `{ curl u; } | bash` sono uno stadio che
+    scarica e uno che esegue (review del 9/11/2026, #5097)."""
+    tratti = _gruppi_in_pipe(testo)
+    out, inizio, pipe_fine = [], 0, None
+    for a, b, tipo in _separatori(testo):
+        if tipo in _SEP_PIPE:
+            pipe_fine = b
+            continue
+        if tipo == "\n" and pipe_fine is not None and not testo[pipe_fine:a].strip():
+            continue  # la pipeline continua alla riga dopo
+        pipe_fine = None
+        if any(x < a < y for x, y in tratti):
+            continue
+        out.append(testo[inizio:a])
+        inizio = b
+    out.append(testo[inizio:])
+    return [s for s in out if s.strip()]
+
+
+def comandi_semplici(testo: str, posizioni: bool = False):
+    """I comandi semplici del testo: spezza su ogni separatore di `_separatori`, pipe comprese. Con
+    `posizioni` dà (inizio, fine) di ogni pezzo, per chi rimonta il testo."""
+    pezzi, inizio = [], 0
+    for a, b, _ in _separatori(testo):
+        pezzi.append((inizio, a))
+        inizio = b
+    pezzi.append((inizio, len(testo)))
+    pezzi = [(a, b) for a, b in pezzi if testo[a:b].strip()]
+    return pezzi if posizioni else [testo[a:b] for a, b in pezzi]
+
+
+def _senza_continuazioni(testo: str) -> str:
+    """Il testo senza le coppie barra rovesciata + a capo fuori dagli apici: per bash la riga continua, e
+    `ls \\` + a capo + `-la` è `ls -la`. Fra apici la coppia resta, come in bash."""
+    out, i, n, q = [], 0, len(testo), None
+    while i < n:
+        c = testo[i]
+        if q == "'":
+            q = None if c == "'" else q
+        elif c == "\\" and i + 1 < n:
+            if testo[i + 1] != "\n":
+                out.append(testo[i:i + 2])
+            i += 2
+            continue
+        elif q == '"':
+            q = None if c == '"' else q
+        elif c in "'\"":
+            q = c
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
 def segmenti_parole(cmd: str):
     """Segmenti come liste di parole, rispettando le virgolette.
 
     Un pattern di grep o uno script sed che contiene `|` o spazi non spezza il
-    comando. Se le virgolette non tornano, ricade su uno split semplice.
+    comando, e `2>&1`, `>&2`, `&>f` restano una parola. I comandi semplici li dà
+    `comandi_semplici`; dentro ognuno `(` e `)` aprono un segmento, così `$(rm x)` e
+    `(cd a; rm b)` danno il loro. Se le virgolette non tornano, ricade su uno split semplice.
     """
     try:
-        lexer_ = lexer(cmd)
-        segmenti, corrente = [], []
-        for tok in lexer_:
-            if tok and set(tok) <= set(";&|()\n"):
-                if corrente:
-                    segmenti.append(corrente)
-                corrente = []
-            else:
-                corrente.append(tok)
-        if corrente:
-            segmenti.append(corrente)
+        segmenti = []
+        for pezzo in comandi_semplici(togli_commenti(cmd)):
+            lx = shlex.shlex(_senza_continuazioni(pezzo), posix=True, punctuation_chars="()")
+            lx.commenters = ""
+            lx.whitespace = " \t\r\n"
+            lx.whitespace_split = True
+            corrente = []
+            for tok in lx:
+                if tok and set(tok) <= set("()"):
+                    if corrente:
+                        segmenti.append(corrente)
+                    corrente = []
+                else:
+                    corrente.append(tok)
+            if corrente:
+                segmenti.append(corrente)
         return segmenti
     except ValueError:
         def parole(seg):
@@ -259,20 +434,21 @@ def comandi(cmd: str, profondita: int = 0):
             t = toks[i]
             if t in _DAVANTI or _ASSEGNAZIONE.match(t):
                 i += 1
-            elif re.match(r"^\d*[<>]", t):
-                # redirezione in testa (`<file`, `2>`, `$(<file)`): non è un programma
-                i += 1 if len(t.lstrip("0123456789<>&")) else 2
-            elif t.isdigit():
-                # il lexer spezza `>&2 gh x` in `>`, `&`, `2 gh x`: la cifra è il resto della redirezione (#5097)
-                i += 1
+            elif _REDIREZIONE.match(t):
+                # redirezione in testa (`<file`, `2>`, `>&2`, `&>f`, `$(<file)`): non è un programma
+                i += redirezione(toks, i)[0]
             elif _nome(t) in _WRAPPER:
                 involucro = _nome(t)
                 corti, lunghi = _WRAPPER_CON_VALORE.get(involucro, ("", frozenset()))
                 i += 1
-                while i < len(toks) and (toks[i].startswith("-") or toks[i].isdigit() or _ASSEGNAZIONE.match(toks[i])):
+                while i < len(toks) and (toks[i].startswith("-") or _ASSEGNAZIONE.match(toks[i])
+                                         or _REDIREZIONE.match(toks[i])):
                     if toks[i] == "--":
                         i += 1
                         break
+                    if _REDIREZIONE.match(toks[i]):
+                        i += redirezione(toks, i)[0]  # `sudo 2>&1 rm`, `exec 3>&1`
+                        continue
                     passo = _salto(toks[i], corti, lunghi) if toks[i].startswith("-") else 1
                     if involucro == "env" and toks[i] in ("-S", "--split-string") and i + 1 < len(toks) \
                             and profondita < 3:
@@ -282,8 +458,7 @@ def comandi(cmd: str, profondita: int = 0):
                     i += 1
             else:
                 break
-        # `2>&1` si spezza in `2>`, `&`, `1`: un numero da solo non è un programma.
-        if i >= len(toks) or toks[i] in _INTESTAZIONI or toks[i].isdigit():
+        if i >= len(toks) or toks[i] in _INTESTAZIONI:
             continue
         prog, args = _nome(toks[i]), toks[i + 1:]
         out.append((toks[i], args))
@@ -332,8 +507,27 @@ def _ricorsivo(args) -> bool:
     return any(a == "--recursive" or (a.startswith("-") and not a.startswith("--") and "r" in a.lower()) for a in args)
 
 
-# Redirezione in scrittura: `>f`, `2>>f`, `&>f`, `>|f`. Il gruppo 2 è il bersaglio, vuoto se staccato.
-_REDIREZIONE = re.compile(r"^\d*(>>?|&>>?|>\|)(.*)$")
+# Una redirezione come parola intera, ora che `2>&1`, `>&2` e `&>f` arrivano interi (#5122): `>f`, `2>>f`,
+# `&>f`, `>|f`, `>&2`, `<f`, `<&3`, `<<EOF`, `<<<x`, `<>f`. Il gruppo 1 è l'operatore, il gruppo 2 il bersaglio,
+# vuoto se staccato.
+_REDIREZIONE = re.compile(r"^(?:\d*|&)(>\||>&|>>|>|<<<|<<-?|<>|<&|<)(.*)$", re.DOTALL)
+_DESCRITTORE = re.compile(r"^(?:\d+-?|-)$")
+
+
+def redirezione(toks, i):
+    """(parole che occupa, file scritto o None) per la redirezione in `toks[i]`, None se non lo è.
+
+    Scrivono un file `>`, `>>`, `>|`, `&>`, `&>>` e `>&` con un bersaglio che non è un descrittore
+    (`>&f` vale `&>f`). `2>&1`, `>&2`, `>&-` copiano o chiudono un descrittore e non scrivono niente;
+    le letture (`<`, `<&`, `<<`, `<<<`, `<>`) nemmeno. Un operatore staccato prende la parola dopo."""
+    m = _REDIREZIONE.match(toks[i])
+    if not m:
+        return None
+    op, bersaglio, passo = m.group(1), m.group(2), 1
+    if not bersaglio and i + 1 < len(toks):
+        bersaglio, passo = toks[i + 1], 2
+    scrive = op in (">", ">>", ">|") or (op == ">&" and not _DESCRITTORE.match(bersaglio))
+    return passo, (bersaglio if scrive and bersaglio else None)
 
 
 # --- Variabili del comando (19/10/2026) ---
@@ -426,19 +620,11 @@ def _senza_redirezioni(toks):
     """(parole senza le redirezioni, bersagli delle redirezioni in scrittura)."""
     parole, bersagli, i = [], [], 0
     while i < len(toks):
-        m = _REDIREZIONE.match(toks[i])
-        if m:
-            if m.group(2):
-                bersagli.append(m.group(2))
-                i += 1
-            elif i + 1 < len(toks):
-                bersagli.append(toks[i + 1])
-                i += 2
-            else:
-                i += 1  # `2>&1`: il lexer stacca `&`, qui resta solo `2>`
-            continue
-        if re.match(r"^\d*<", toks[i]):
-            i += 1 if len(toks[i].lstrip("0123456789<")) else 2
+        r = redirezione(toks, i)
+        if r:
+            if r[1]:
+                bersagli.append(r[1])
+            i += r[0]
             continue
         parole.append(toks[i])
         i += 1
@@ -854,12 +1040,10 @@ def scritture_config(cmd: str, cwd: str):
                 base = _espandi(args[0], base, assegnate)
                 basi.append(base)
             continue
-        for i, a in enumerate(args):
-            m = _REDIREZIONE.match(a)
-            if m:
-                bersaglio = m.group(2) or (args[i + 1] if i + 1 < len(args) else "")
-                if bersaglio and not bersaglio.startswith("&"):
-                    candidati.append((bersaglio, base))
+        for i in range(len(args)):
+            r = redirezione(args, i)
+            if r and r[1]:
+                candidati.append((r[1], base))
         liberi = [a for a in args if not a.startswith("-") and not _REDIREZIONE.match(a)]
         # Archivi, patch, stash, --output e copie verso una cartella (24/10/2026, #3575).
         indiretti, dentro = _scritture_indirette(nome, args, liberi, base, assegnate)
