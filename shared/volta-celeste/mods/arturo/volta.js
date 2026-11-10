@@ -7,10 +7,10 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, exec, readTextFile, appHome, home, run, spaces, terminals, panes, shared, setShared, watchFolder, notify } from "herdr";
-import { gruppi, titolo, dettaglio, clic, agganciata, MODI } from "./sessioni.js";
+import { theme, exec, readTextFile, appHome, home, shared, setShared, watchFolder, notify } from "herdr";
+import { gruppi, titolo, dettaglio, clic, MODI } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
-import { slug, config } from "./dati.js";
+import { config, aggancia } from "./dati.js";
 
 const OGNI = 30000;
 
@@ -60,6 +60,9 @@ export class Volta {
       const testo = await readTextFile(this.file);
       if (testo) this.dati = JSON.parse(testo);
     } catch { /* un file a metà: resta l'ultima lettura buona */ }
+    // Le macchine per la riga "Nasce su" (dati.js altreMacchine), scritte solo quando cambiano.
+    const m = (this.dati?.macchine ?? []).map((x) => ({ host: x.host, macchina: x.macchina, questa: Boolean(x.questa), giu: Boolean(x.irraggiungibile) }));
+    if (JSON.stringify(m) !== JSON.stringify(shared("arturo.volta.macchine") ?? [])) setShared("arturo.volta.macchine", m);
   }
 
   // Un giro di volta_sonda.py volta, mai due insieme: con una macchina lenta un giro dura qualche secondo.
@@ -126,27 +129,9 @@ export class Volta {
     else notify({ title: `Non trovo la sessione ${id}`, body: "L'elenco si aggiorna fra pochi secondi: riprova.", level: "warning" });
   }
 
-  // La scheda dell'aggancio: se c'è già la si porta davanti, altrimenti nasce nello spazio del
-  // progetto (lo stesso della barra) o nello spazio "Volta" per le sessioni senza progetto.
+  // La scheda dell'aggancio: aggancia() di dati.js, la stessa della nascita su un'altra macchina.
   apri(s, argv) {
-    const nome = titolo(s).slice(0, 40);
-    const gia = terminals().find((x) => agganciata(x.argv, s));
-    if (gia) {
-      const p = panes().find((x) => x.terminal === gia.address);
-      const sp = p && spaces().find((x) => x.tabs.some((tb) => tb.id === p.tab));
-      if (sp) { run("space.select", { id: sp.id }); run("tab.select", { id: p.tab }); }
-      run("pane.focus", { terminal: gia.address });
-      return;
-    }
-    const nomeSpazio = s.progetto ? slug(s.progetto) : "Volta";
-    const sp = spaces().find((x) => !x.machine && slug(x.name) === slug(nomeSpazio));
-    const cartella = s.questa && s.cartella ? s.cartella : home();
-    if (sp) {
-      const tab = sp.tabs.find((tb) => tb.name === nome);
-      run("space.select", { id: sp.id });
-      if (tab) return run("tab.select", { id: tab.id });
-      run("tab.new", { name: nome, space: sp.id, folder: cartella, argv });
-    } else run("space.new", { name: nomeSpazio, folder: cartella, machine: "", tab: nome, argv });
+    aggancia(s, argv);
   }
 
   riga(t, s, modo, cx) {

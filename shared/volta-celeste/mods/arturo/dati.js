@@ -1,7 +1,8 @@
 // I dati di Arturo per Herdr: configurazione, todo, progetti e le azioni che aprono Claude.
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
-import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify } from "herdr";
+import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
+import { titolo, agganciata } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -185,11 +186,16 @@ export async function apri(nome, todoScelto) {
     return;
   }
   const prompt = todoScelto ? `/inizio ${nome} -- #${todoScelto.id} ${pulito(todoScelto.titolo)}` : `/inizio ${nome}`;
+  const m = dove();
+  if (m !== "qui") return nasciSu(m, prompt, nome);
   run("space.new", { name: nome, folder: c.base, machine: "", tab: "Claude", argv: ["claude", prompt] });
 }
 
-// Una richiesta nuova, senza progetto: Claude nella cartella dei progetti.
-export async function nuova(prompt) {
+// Una richiesta nuova, senza progetto: Claude nella cartella dei progetti, sulla macchina scelta in
+// "Nasce su". `soloQui`: i suggerimenti che parlano di questa macchina (trova, diagnosi) restano qui.
+export async function nuova(prompt, soloQui = false) {
+  const m = soloQui ? "qui" : dove();
+  if (m !== "qui") return nasciSu(m, prompt, null);
   const c = await config();
   const ora = new Date();
   const hh = String(ora.getHours()).padStart(2, "0");
@@ -214,13 +220,77 @@ export const SUGGERIMENTI = [
 // Esegue un suggerimento: nella conversazione aperta se c'è e non aspetta una risposta, altrimenti in una nuova.
 export async function chiedi(sug) {
   const prompt = richiesta(sug.prompt, (await config()).radice);
-  if (sug.dove === "nuova") return nuova(prompt);
+  if (sug.dove === "nuova") return nuova(prompt, true);
   const s = spaces().find((x) => x.active && !x.machine);
   const a = s ? agents().find((x) => x.space === s.id && x.tab === s.tabs.find((t) => t.active)?.id) ?? agents().find((x) => x.space === s.id) : null;
-  if (!a) return nuova(prompt);
+  if (!a) return nuova(prompt, true);
   if (a.status === "blocked") return notify({ title: "Claude aspetta una tua risposta", body: "Rispondi nella conversazione, poi riprova.", level: "warning" });
   const r = await hc(["send", a.address, prompt]);
   if (r.code !== 0) notify({ title: "Non sono riuscito a scrivere a Claude", body: prima(r.stderr), level: "error" });
+}
+
+// Le altre macchine dove può nascere una sessione: quelle con Claude nell'elenco di Volta, che volta.js
+// pubblica in shared arturo.volta.macchine a ogni lettura: [{ host, macchina, giu }].
+export const altreMacchine = () => {
+  const l = shared("arturo.volta.macchine");
+  return Array.isArray(l) ? l.filter((m) => m && !m.questa && m.host) : [];
+};
+
+// Dove nasce una sessione nuova (#5172 passo 4): "qui" oppure il nome di una macchina di Herdr, scelto
+// nella riga "Nasce su" (shared arturo.dove). Una macchina che Volta non elenca più torna "qui".
+export const dove = () => {
+  const d = shared("arturo.dove");
+  return typeof d === "string" && altreMacchine().some((m) => m.host === d) ? d : "qui";
+};
+
+// La scheda che aggancia una sessione: se c'è già la si porta davanti, altrimenti nasce nello spazio del
+// progetto (lo stesso della barra) o nello spazio "Volta" per le sessioni senza progetto. La usano il
+// clic su una sessione di Volta e la nascita su un'altra macchina.
+export function aggancia(s, argv) {
+  const nome = titolo(s).slice(0, 40);
+  const gia = terminals().find((x) => agganciata(x.argv, s));
+  if (gia) {
+    const p = panes().find((x) => x.terminal === gia.address);
+    const sp = p && spaces().find((x) => x.tabs.some((tb) => tb.id === p.tab));
+    if (sp) { run("space.select", { id: sp.id }); run("tab.select", { id: p.tab }); }
+    run("pane.focus", { terminal: gia.address });
+    return;
+  }
+  const nomeSpazio = s.progetto ? slug(s.progetto) : "Volta";
+  const sp = spaces().find((x) => !x.machine && slug(x.name) === slug(nomeSpazio));
+  const cartella = s.questa && s.cartella ? s.cartella : home();
+  if (sp) {
+    const tab = sp.tabs.find((tb) => tb.name === nome);
+    run("space.select", { id: sp.id });
+    if (tab) return run("tab.select", { id: tab.id });
+    run("tab.new", { name: nome, space: sp.id, folder: cartella, argv });
+  } else run("space.new", { name: nomeSpazio, folder: cartella, machine: "", tab: nome, argv });
+}
+
+// Una sessione nuova in background su un'altra macchina (volta_sonda.py nasci), agganciata qui in una
+// scheda: continua a girare là anche chiusa la scheda, e Volta la apre da ogni macchina.
+// Durante la nascita shared arturo.nascita dice dove, per la riga "Nasce su".
+async function nasciSu(macchina, prompt, progetto) {
+  if (shared("arturo.nascita")) return;
+  setShared("arturo.nascita", macchina);
+  try {
+    const c = await config();
+    const args = [`${appHome()}/mods/arturo/volta_sonda.py`, "nasci", macchina,
+      ...(progetto ? ["--progetto", progetto] : []), ...(prompt ? ["--", prompt] : [])];
+    let esito = {};
+    try {
+      const r = await exec(c.arturo[0], args, { timeout: 200000 });
+      esito = JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
+    } catch {
+      esito = { errore: `${macchina} non risponde` };
+    }
+    if (esito.attach?.length) {
+      const nome = progetto ?? (prompt ? pulito(prompt) : `Richiesta su ${macchina}`);
+      aggancia({ id: esito.id, sessionId: esito.sessionId, nome, progetto, questa: false }, esito.attach);
+    } else notify({ title: `La sessione non nasce su ${macchina}`, body: esito.errore ?? "Nessuna risposta.", level: "error" });
+  } finally {
+    setShared("arturo.nascita", null);
+  }
 }
 
 // Come bin/sessione.py: niente caratteri che rompono il prompt.

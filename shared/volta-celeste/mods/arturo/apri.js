@@ -5,7 +5,7 @@ import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { theme, props, closeOverlay } from "herdr";
 import { cartelle, apri, spazio, frase, bello } from "./dati.js";
-import { ICONA, punto, colore } from "./comuni.js";
+import { ICONA, punto, colore, nasceSu } from "./comuni.js";
 
 const MAX = 10;
 
@@ -62,6 +62,7 @@ export class Apri {
         cx.notify();
       })
       .child(div().font_family("Arturo Archivo").text_size(18).text_color(t.foreground).child("Apri un progetto"))
+      .when(Boolean(nasceSu(t)), (el) => el.child(nasceSu(t)))
       .child(h_flex().h(40).px(12).gap(9).items_center().rounded(9).border_1().border_color(t.accent).bg(t.raised)
         .child(svg(ICONA("search")).size(15).text_color(t.muted))
         .child(Input.new(this.input).flex_1().h_full().text_size(14).text_color(t.foreground)))

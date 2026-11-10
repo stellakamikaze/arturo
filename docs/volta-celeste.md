@@ -56,7 +56,11 @@ In ogni gruppo stanno prima le sessioni che ti aspettano, poi quelle con un erro
 - su una sessione aperta in un Terminale e ferma lancia `~/.claude/scripts/teletrasporto.py porta-volta`, se c'è (senza, dice di aprirla dal suo Terminale), che scrive `/bg` nella sua casella vuota e restituisce il nuovo id, poi la aggancia;
 - su una sessione al lavoro, che aspetta una risposta nel suo Terminale o di una macchina giù, non fa niente e dice perché sotto la riga.
 
-Lo stesso clic arriva anche da `herdr-app do arturo.volta-<id>` (id corto di otto caratteri). Le parti: `sessioni.js` (gruppi, frasi e decisione del clic, senza Herdr, provato da HZ17-HZ18 con node) e `volta.js` (letture, aggancio, sezione).
+Lo stesso clic arriva anche da `herdr-app do arturo.volta-<id>` (id corto di otto caratteri). Le parti: `sessioni.js` (gruppi, frasi e decisione del clic, senza Herdr, provato da HZ17-HZ18 con node) e `volta.js` (letture, sezione); l'aggancio è `aggancia()` di `dati.js`.
+
+### Una sessione nuova su un'altra macchina
+
+Sotto "Nuova richiesta" e "Apri un progetto", e in cima alla finestra "Apri un progetto", la riga "Nasce su" sceglie dove nasce la sessione: questa macchina o una delle altre con Claude Code che Volta elenca. La scelta resta; da tastiera è `herdr-app do arturo.dove-<macchina>` (`dove-qui` per questa). Su un'altra macchina la sessione nasce in background con `volta_sonda.py nasci <macchina> [--progetto <slug>] [-- <prompt>]`: via `hc exec --on`, nella cartella dei progetti di quella macchina (`base` del suo `arturo.json`, perché `claude --bg` vuole una cartella fidata), col progetto scritto per Volta. Poi si aggancia qui in una scheda, nello spazio del progetto o in "Volta". Chiudere la scheda non la ferma, e Volta la apre da ogni macchina (provato il 10/11/2026 dal Mac mini su Balthasar). Se non nasce, un avviso dice perché: macchina spenta, Claude assente, cartella non fidata. "Trova i miei progetti" e "Controlla che Arturo funzioni" restano su questa macchina. Su questa macchina la sessione resta interattiva nel terminale di Herdr: agganciata con `claude attach` perde lo stato nella barra, finché Volta non lo legge dall'elenco delle sessioni. Provato da HZ39.
 
 ## Le sessioni del Terminale nascono in background
 

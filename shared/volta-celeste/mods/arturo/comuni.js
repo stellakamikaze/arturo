@@ -2,8 +2,9 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { theme, openOverlay, window, exec, home } from "herdr";
+import { theme, openOverlay, window, exec, home, shared, setShared } from "herdr";
 import { cartellaNota } from "./nota.js";
+import { altreMacchine, dove } from "./dati.js";
 
 export const ICONA = (nome) => `mods/workspace-chrome/${nome}.svg`;
 
@@ -31,6 +32,26 @@ export function pulsante(id, icona, testo, azione, forte = false) {
 }
 
 export const colore = (t, nome) => t[nome] ?? nome;
+
+// "Nasce su": la macchina dove nascono Nuova richiesta e Apri un progetto (#5172 passo 4), nella barra
+// e nella finestra Apri. Niente riga se Volta non conosce altre macchine con Claude. Durante una
+// nascita dice dove sta nascendo.
+export function nasceSu(t) {
+  const altre = altreMacchine();
+  if (!altre.length) return null;
+  const d = dove();
+  const nascita = shared("arturo.nascita");
+  const voce = (k, testo, giu) => div().id(`dove-${k}`).px(8).py(3).rounded(6).cursor_pointer().text_size(12.5)
+    .when(d === k, (el) => el.bg(t.selected).text_color(t.foreground))
+    .when(d !== k, (el) => el.text_color(giu ? t.dim : t.muted).hover((s) => s.bg(t.hover)))
+    .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+    .on_click(() => setShared("arturo.dove", k))
+    .child(testo);
+  return h_flex().flex_wrap().gap(2).items_center()
+    .child(div().pr(4).text_size(12).text_color(nascita ? t.working : t.dim).child(nascita ? `Nasce su ${nascita}…` : "Nasce su"))
+    .child(voce("qui", "questa macchina", false))
+    .children(altre.map((m) => voce(m.host, m.macchina, m.giu)));
+}
 
 // La finestra "Apri un progetto".
 export function apriFinestra() {

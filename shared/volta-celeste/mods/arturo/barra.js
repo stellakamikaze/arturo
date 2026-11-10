@@ -4,7 +4,7 @@ import { div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, window, shared, setShared, nextCommand, updates } from "herdr";
 import { todo, progetti, sezioni, frase, apri, nuova, slug, cartelle, SUGGERIMENTI } from "./dati.js";
-import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco } from "./comuni.js";
+import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco, nasceSu } from "./comuni.js";
 import { apriGuida } from "./guida.js";
 import { apriSuggerimenti, esegui } from "./suggerimenti.js";
 import { apriRevisione } from "./revisione.js";
@@ -50,6 +50,8 @@ export class Barra {
         else if (c === "settimana") apriRevisione();
         else if (/^guida\d?$/.test(c)) apriGuida(Math.max(0, Number(c.slice(5) || 1) - 1));
         else if (c === "nuova") await nuova();
+        // "arturo.dove-<macchina>": la scelta di "Nasce su" (dove-qui per questa macchina).
+        else if (c.startsWith("dove-")) setShared("arturo.dove", c.slice(5));
         else if (c === "nota") await apriNota();
         // "arturo.nota-<id>": il velo aperto sulla nota <id>, dall'elenco delle note.
         else if (c.startsWith("nota-")) await apriNota(c.slice(5));
@@ -130,7 +132,8 @@ export class Barra {
     return v_flex().size_full().bg(t.chrome)
       .child(v_flex().px(14).pt(6).pb(14).gap(8)
         .child(pulsante("nuova", "square-pen", "Nuova richiesta", () => nuova(), lista.length > 0 || Boolean(this.errore)))
-        .child(pulsante("apri", "folder", "Apri un progetto", () => apriFinestra())))
+        .child(pulsante("apri", "folder", "Apri un progetto", () => apriFinestra()))
+        .when(Boolean(nasceSu(t)), (el) => el.child(nasceSu(t))))
       .when(Boolean(this.errore) && lista.length > 0, (el) => el.child(div().px(18).pb(6).text_size(12).text_color(t.blocked).child("Non riesco ad aggiornare i todo: mostro gli ultimi letti.")))
       .when(Boolean(this.volta), (el) => { const v = this.volta.render(cx); return v ? el.child(v) : el; })
       .child(corpo.child(contenuto));

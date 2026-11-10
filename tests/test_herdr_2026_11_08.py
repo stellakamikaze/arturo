@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ38: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ39: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -128,6 +128,12 @@ HZ37 la nascita in PowerShell (#5172 passo 3): metti scrive il blocco nei profil
 HZ38 dove c'è PowerShell (Windows): volta-claude.ps1 fa nascere in background e aggancia, lascia qui via di fuga,
      sottocomandi e --resume senza id, ripiega se --bg è rifiutato; il blocco definisce claude solo se
      la persona non ne ha già una.
+HZ39 la nascita su un'altra macchina (#5172 passo 4, volta_sonda.py nasci con un hc finto, dati.js con
+     node): la sessione nasce con hc exec --on, col prompt e il progetto intatti, e torna l'aggancio via
+     ssh; un Python partito non si ripete (mai due sessioni), python3 assente ripiega su python; macchina
+     spenta o sconosciuta e --bg rifiutato danno un errore leggibile. In Volta Nuova richiesta e Apri un
+     progetto nascono sulla macchina di "Nasce su", una macchina che Volta non elenca torna qui, e i
+     suggerimenti che parlano di questa macchina restano qui.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -143,7 +149,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -905,9 +911,12 @@ def hz19(repo: Path, casa: Path) -> str | None:
         if pezzo not in barra:
             return f"{dove} senza {pezzo}"
     for pezzo in ('"volta", "--scrivi"', '"porta-volta"', "if (!this.script) return null;", "if (!this.script || this.inCorso) return;",
-                  'from "./sessioni.js"', "agganciata(x.argv, s)"):
+                  'from "./sessioni.js"', "aggancia(s, argv);"):
         if pezzo not in volta:
             return f"volta.js senza {pezzo}"
+    dati = (mod / "dati.js").read_text(encoding="utf-8")
+    if "agganciata(x.argv, s)" not in dati:
+        return "dati.js senza agganciata(x.argv, s): una scheda già aperta non si riconosce"
     return None
 
 
@@ -1512,13 +1521,32 @@ export const lanciati = [];
 export const appHome = () => process.env.HZ_APP;
 export const home = () => process.env.HZ_CASA;
 export const readTextFile = async (p) => { try { return readFileSync(p, "utf-8"); } catch { return null; } };
-export const exec = async () => ({ code: 1, stdout: "", stderr: "" });
+export const eseguiti = [];
+export const avvisi = [];
+const condivisi = JSON.parse(process.env.HZ_SHARED || "{}");
+export const exec = async (cmd, args) => {
+  eseguiti.push([cmd, ...args]);
+  return process.env.HZ_EXEC ? { code: 0, stdout: process.env.HZ_EXEC, stderr: "" } : { code: 1, stdout: "", stderr: "" };
+};
 export const hc = async () => ({ code: 0, stdout: "", stderr: "" });
 export const spaces = () => [];
 export const agents = () => [];
-export const notify = () => {};
+export const terminals = () => [];
+export const panes = () => [];
+export const shared = (k) => condivisi[k];
+export const setShared = (k, v) => { condivisi[k] = v; };
+export const notify = (n) => avvisi.push(n);
 export const run = (cmd, a) => lanciati.push({ cmd, ...a });
 """
+
+def mod_dati(repo: Path, mod: Path, dati: str) -> None:
+    """dati.js per node: herdr finto, sessioni.js (puro) accanto come .mjs."""
+    sessioni = (repo / "shared/volta-celeste/mods/arturo/sessioni.js").read_text(encoding="utf-8")
+    (mod / "sessioni.mjs").write_text(sessioni, encoding="utf-8")
+    dati = dati.replace('from "herdr";', 'from "./herdr.mjs";').replace('from "./sessioni.js";', 'from "./sessioni.mjs";')
+    (mod / "dati.mjs").write_text(dati, encoding="utf-8")
+    (mod / "herdr.mjs").write_text(HERDR_FINTO, encoding="utf-8")
+
 
 PROVA_TROVA = r"""
 import { config, radiceDa, chiedi, SUGGERIMENTI } from "./dati.mjs";
@@ -1543,8 +1571,7 @@ def hz33(repo: Path, casa: Path) -> str | None:
         return "dati.js non importa più da herdr: il banco non sa sostituirlo"
     mod = casa / "mod"
     mod.mkdir()
-    (mod / "dati.mjs").write_text(dati.replace('from "herdr";', 'from "./herdr.mjs";'), encoding="utf-8")
-    (mod / "herdr.mjs").write_text(HERDR_FINTO, encoding="utf-8")
+    mod_dati(repo, mod, dati)
     (mod / "prova.mjs").write_text(PROVA_TROVA, encoding="utf-8")
     app = casa / "app"
     app.mkdir()
@@ -1583,6 +1610,11 @@ HC_FINTO = r'''
 import json, os, sys
 conf = json.loads(os.environ["HZ_HC"])
 a = sys.argv[1:]
+if "--timeout" in a[:6]:
+    i = a.index("--timeout"); del a[i:i + 2]
+if os.environ.get("HZ_HC_LOG"):
+    with open(os.environ["HZ_HC_LOG"], "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(a) + "\n")
 if a[:3] == ["machine", "ls", "--json"]:
     print(json.dumps({"machines": conf["macchine"]})); sys.exit(0)
 if a[:2] == ["exec", "--on"]:
@@ -1948,7 +1980,127 @@ def hz38(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38}
+PROVA_NASCI = r"""
+import { nuova, apri, chiedi, SUGGERIMENTI } from "./dati.mjs";
+import { lanciati, eseguiti, avvisi } from "./herdr.mjs";
+const caso = process.env.HZ_CASO;
+if (caso === "nuova") await nuova("ciao Volta");
+else if (caso === "apri") await apri("progetto-x");
+else if (caso === "trova") await chiedi(SUGGERIMENTI.find((s) => s.id === "trova"));
+console.log(JSON.stringify({ lanciati, eseguiti, avvisi }));
+"""
+
+
+def hz39(repo: Path, casa: Path) -> str | None:
+    import base64
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    sonda = mod / "volta_sonda.py"
+    nata = {"id": "ffff1111", "sessionId": "ffff1111-aaaa", "claude": "C:/u/claude.exe", "cartella": "C:/u/ClaudeCode"}
+    conf = {
+        "macchine": [
+            {"name": "Torre", "target": "torre.lan", "state": "connected"},
+            {"name": "Studio", "target": "studio.lan", "state": "connected"},
+            {"name": "Rotta", "target": "rotta", "state": "connected"},
+            {"name": "Nuvola", "target": "nuvola", "state": "unreachable", "why": "spenta"},
+        ],
+        "exec": {
+            "Torre": {"python": nata},  # Windows: python3 non c'è
+            "Studio": {"python3": {"errore": "non parte in background: Workspace not trusted"}},
+            "Rotta": {"python3": "Traceback: qualcosa si è rotto"},  # partito e caduto: non si ripete
+        },
+    }
+    finto = casa / "hc_finto.py"
+    finto.write_text(HC_FINTO, encoding="utf-8")
+    log = casa / "hc.log"
+    env = {**os.environ, "HZ_HC": json.dumps(conf), "VOLTA_HC": json.dumps([sys.executable, str(finto)]), "HZ_HC_LOG": str(log)}
+
+    def nasci(*args):
+        log.write_text("", encoding="utf-8")
+        r = subprocess.run([sys.executable, str(sonda), "nasci", *args], capture_output=True, text=True, timeout=60, env=env)
+        chiamate = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines() if x.strip()]
+        try:
+            return r.returncode, json.loads(r.stdout.strip().splitlines()[-1]), chiamate
+        except (ValueError, IndexError):
+            return r.returncode, {"uscita": (r.stderr or r.stdout).strip()[-160:]}, chiamate
+
+    rc, d, ch = nasci("Torre", "--progetto", "progetto-x", "--", 'ciao "Volta"', "àccenti")
+    if rc != 0 or d.get("attach") is None:
+        return f"nasci su Torre: rc {rc}, {d}"
+    if d["attach"][1:] != ["-t", "torre.lan", "C:/u/claude.exe", "attach", "ffff1111"] or d["id"] != "ffff1111":
+        return f"nasci su Torre: aggancio {d['attach']}"
+    if (d["sessionId"], d["macchina"], d["progetto"]) != ("ffff1111-aaaa", "Torre", "progetto-x"):
+        return f"nasci su Torre: {d}"
+    exe = [c for c in ch if c[:2] == ["exec", "--on"]]
+    if [c[3] for c in exe] != ["python3", "python"] or any(c[2] != "Torre" for c in exe):
+        return f"nasci su Torre: chiamate {[c[:4] for c in exe]}, attese python3 poi python su Torre"
+    arg = json.loads(base64.b64decode(exe[-1][-1]).decode("utf-8"))
+    if arg != {"prompt": 'ciao "Volta" àccenti', "progetto": "progetto-x"}:
+        return f"prompt e progetto non arrivano intatti: {arg}"
+    rc, d, ch = nasci("Studio", "--", "ciao")
+    if rc == 0 or "Workspace not trusted" not in d.get("errore", ""):
+        return f"--bg rifiutato su Studio: rc {rc}, {d}"
+    if len([c for c in ch if c[:2] == ["exec", "--on"]]) != 1:
+        return "dopo un errore detto dalla macchina nasci riprova con un altro Python"
+    rc, d, ch = nasci("Rotta")
+    if rc == 0 or "errore" not in d:
+        return f"un Python partito e caduto non dà errore: {d}"
+    if [c[3] for c in ch if c[:2] == ["exec", "--on"]] != ["python3"]:
+        return "un Python partito e caduto si ripete con python: può far nascere due sessioni"
+    for nome, atteso in (("Nuvola", "spenta"), ("Fantasma", "non è fra le macchine")):
+        rc, d, ch = nasci(nome, "--", "x")
+        if rc == 0 or atteso not in d.get("errore", "") or any(c[:2] == ["exec", "--on"] for c in ch):
+            return f"nasci su {nome}: rc {rc}, {d}"
+
+    # Volta: Nuova richiesta, Apri un progetto e i suggerimenti, con node
+    node = shutil.which("node")
+    if not node:
+        return None
+    m = casa / "mod"
+    m.mkdir()
+    mod_dati(repo, m, (mod / "dati.js").read_text(encoding="utf-8"))
+    (m / "prova.mjs").write_text(PROVA_NASCI, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+    (app / "arturo.json").write_text(json.dumps({"arturo": ["python9", "/a/bin/arturo"], "radice": str(repo), "base": "/base"}), encoding="utf-8")
+    esito_ok = json.dumps({"id": "ffff1111", "sessionId": "ffff1111-aaaa", "attach": ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"]})
+    macchine = [{"host": "qui", "macchina": "Questa", "questa": True}, {"host": "Torre", "macchina": "Torre", "giu": False}]
+
+    def volta(caso, dove, uscita=esito_ok):
+        e = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_CASO": caso, "HZ_EXEC": uscita,
+             "HZ_SHARED": json.dumps({"arturo.volta.macchine": macchine, "arturo.dove": dove})}
+        r = subprocess.run([node, str(m / "prova.mjs")], capture_output=True, text=True, timeout=30, env=e)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[:200])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    try:
+        v = volta("nuova", "Torre")
+        if not v["eseguiti"] or v["eseguiti"][0][0] != "python9" or v["eseguiti"][0][2:] != ["nasci", "Torre", "--", "ciao Volta"]:
+            return f"Nuova richiesta su Torre non chiama volta_sonda.py nasci: {v['eseguiti']}"
+        if not v["eseguiti"][0][1].endswith("mods/arturo/volta_sonda.py"):
+            return f"Nuova richiesta lancia {v['eseguiti'][0][1]}, non volta_sonda.py del mod"
+        if len(v["lanciati"]) != 1 or v["lanciati"][0].get("argv") != ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"]:
+            return f"la sessione nata su Torre non si aggancia qui: {v['lanciati']}"
+        v = volta("apri", "Torre")
+        if not v["eseguiti"] or v["eseguiti"][0][2:] != ["nasci", "Torre", "--progetto", "progetto-x", "--", "/inizio progetto-x"]:
+            return f"Apri un progetto su Torre: {v['eseguiti']}"
+        if v["lanciati"][0].get("name") != "progetto-x":
+            return f"la sessione del progetto non nasce nello spazio del progetto: {v['lanciati']}"
+        v = volta("nuova", "Torre", json.dumps({"errore": "Torre non risponde: spenta"}))
+        if v["lanciati"] or not v["avvisi"] or "spenta" not in v["avvisi"][0].get("body", ""):
+            return f"una nascita fallita non lo dice: {v}"
+        v = volta("nuova", "Spenta")
+        if v["eseguiti"] or v["lanciati"][0].get("argv") != ["claude", "ciao Volta"]:
+            return f"con una macchina che Volta non elenca la richiesta non nasce qui: {v}"
+        v = volta("trova", "Torre")
+        if v["eseguiti"] or not v["lanciati"] or v["lanciati"][0].get("argv", [""])[0] != "claude":
+            return f"Trova i miei progetti va su un'altra macchina: {v}"
+    except RuntimeError as e:
+        return f"dati.js non gira: {e}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -2079,6 +2231,13 @@ VELENI = [
     ("HZ38", "shared/volta-celeste/volta-claude.ps1", "if ($env:CLAUDE_QUI -eq '1') { Qui }", "#"),
     ("HZ38", "shared/volta-celeste/volta-claude.ps1", "if ($senzaId) { Qui }", "#"),
     ("HZ38", "shared/volta-celeste/volta-claude.ps1", "$_ -and $_ -notmatch '^Starting background service'", "$_"),
+    ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", "if rc != 0 and (non_parte(out, err) or rc == 9009):", "if True:"),
+    ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'json.dumps({"prompt": prompt or "", "progetto": progetto})', 'json.dumps({"prompt": "", "progetto": progetto})'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'if m["stato"] not in (None, "connected"):', "if False:"),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'const m = soloQui ? "qui" : dove();', 'const m = dove();'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return typeof d === "string" && altreMacchine().some((m) => m.host === d) ? d : "qui";', 'return typeof d === "string" && d ? d : "qui";'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'if (m !== "qui") return nasciSu(m, prompt, nome);', ""),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'aggancia({ id: esito.id, sessionId: esito.sessionId, nome, progetto, questa: false }, esito.attach);', ""),
     ("HZ34", "shared/volta-celeste/mods/arturo/volta.js", "`${appHome()}/mods/arturo/volta_sonda.py`", "`${home()}/.claude/scripts/teletrasporto.py`"),
 ]
 

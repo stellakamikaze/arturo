@@ -6,6 +6,10 @@ grafica e conosce già ssh, chiavi e Windows. Niente nomi di macchine scritti qu
 distribuire (#5172, 10/11/2026).
 
   python3 volta_sonda.py volta [--scrivi FILE]   l'elenco, nel formato di ~/.cache/volta/sessioni.json
+  python3 volta_sonda.py nasci MACCHINA [--progetto SLUG] [-- PROMPT]
+      una sessione nuova in background (claude --bg) su MACCHINA ("qui" per questa), nella base dei
+      progetti di quella macchina. Stampa {id, sessionId, attach, macchina, progetto, cartella} oppure
+      {errore}: lo stesso contratto di porta-volta, così Volta la aggancia come le altre (#5172 passo 4).
 
 Una riga di "sessioni": { macchina, host, questa, sessionId, id, nome, progetto, stato, aspetta, tipo,
 attach, cartella, ultimo, risposta, azione }. `host` è il nome della macchina in Herdr ("qui" per
@@ -78,6 +82,65 @@ for s in sessioni:
     s.update(risposta=risposta, azione=azione, ultimo=ultimo)
 # solo ASCII: la console di Windows stampa in cp1252 e una freccia nel testo rompeva la riga
 print(json.dumps({"claude": cl, "sessioni": sessioni}))
+'''
+
+# Gira sulla macchina dove nasce la sessione (anche con hc exec). L'argomento è un JSON in base64
+# ({"prompt", "progetto"}): passa intero anche fra le virgolette di Windows. La cartella è la base dei
+# progetti di quella macchina (arturo.json di Volta), perché claude --bg vuole una cartella fidata.
+# Stampa {"id", "sessionId", "claude", "cartella"} oppure {"errore"}; mai una seconda sessione.
+NASCI = r'''
+import base64, json, os, re, shutil, subprocess, sys, time
+a = json.loads(base64.b64decode(sys.argv[1]).decode("utf-8"))
+def esci(**d):
+    print(json.dumps(d)); raise SystemExit
+fine = ".exe" if os.name == "nt" else ""
+cl = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude" + fine)
+if not os.path.exists(cl):
+    esci(errore="Claude Code non c'è su questa macchina")
+casa = os.path.expanduser("~")
+base = casa
+try:
+    with open(os.path.join(casa, ".config", "herdr-app", "arturo.json"), encoding="utf-8") as fh:
+        base = json.load(fh).get("base") or casa
+except (OSError, ValueError, AttributeError):
+    pass
+if not os.path.isdir(base):
+    base = casa
+argv = [cl, "--bg"] + ([a["prompt"]] if a.get("prompt") else [])
+try:
+    r = subprocess.run(argv, cwd=base, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       stdin=subprocess.DEVNULL, timeout=90)
+except subprocess.TimeoutExpired:
+    esci(errore="claude --bg non ha risposto in 90 s: claude agents dice se è nata")
+uscita = (r.stdout or "") + "\n" + (r.stderr or "")
+m = re.search(r"claude attach ([0-9A-Za-z-]+)", uscita)
+if not m:
+    righe = [x.strip() for x in uscita.splitlines() if x.strip() and not x.startswith("Starting background service")]
+    if r.returncode == 0:
+        esci(errore="è partita, ma non ho letto il suo id: claude agents la elenca")
+    esci(errore="non parte in background: " + (righe[0][:160] if righe else "rc %d" % r.returncode))
+corto = m.group(1)
+sid = corto
+try:
+    r = subprocess.run([cl, "agents", "--json"], capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", stdin=subprocess.DEVNULL, timeout=40)
+    for s in json.loads(r.stdout or "[]"):
+        if str(s.get("sessionId", "")).startswith(corto):
+            sid = s["sessionId"]
+except (OSError, ValueError, subprocess.SubprocessError):
+    pass
+if a.get("progetto") and sid != corto:
+    # il progetto per Volta (spazio giusto su ogni macchina), come l'eredità di porta-volta
+    d = os.path.join(os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(casa, ".claude"), "cache", "scheda")
+    try:
+        os.makedirs(d, exist_ok=True)
+        f = os.path.join(d, sid + ".json")
+        with open(f + ".tmp", "w", encoding="utf-8") as fh:
+            json.dump({"stato": "nuova", "progetto": a["progetto"], "fonte": "volta", "quando": time.time()}, fh)
+        os.replace(f + ".tmp", f)
+    except OSError:
+        pass
+esci(id=corto, sessionId=sid, claude=cl, cartella=base)
 '''
 
 LAVORA = {"busy", "working", "running", "starting"}
@@ -279,7 +342,66 @@ def scrivi_atomico(percorso, dati):
     os.replace(tmp, percorso)
 
 
+def nasci(nome, prompt="", progetto=None):
+    """Una sessione nuova in background su `nome` ("qui" o vuoto = questa macchina).
+
+    Su un'altra macchina prova python3, poi python; passa al secondo solo se il primo non è partito
+    (spawn_failed, o 9009 dello stub dello Store su Windows): un Python partito può aver già fatto
+    nascere la sessione, e ripetere ne farebbe due."""
+    questa = nome in (None, "", "qui")
+    arg = base64.b64encode(json.dumps({"prompt": prompt or "", "progetto": progetto}).encode()).decode()
+    if questa:
+        voce = {"questa": True, "target": None}
+        tentativi = [[sys.executable, "-c", NASCI, arg]]
+    else:
+        m = next((x for x in macchine() if x["nome"] == nome), None)
+        if m is None:
+            return {"errore": "%s non è fra le macchine di Herdr" % nome}
+        if m["stato"] not in (None, "connected"):
+            return {"errore": "%s non risponde: %s" % (nome, (m["perche"] or "Herdr non la raggiunge")[:160])}
+        voce = {"questa": False, "target": m["target"]}
+        codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(NASCI.encode()).decode()
+        tentativi = [hc() + ["exec", "--on", nome, "--timeout", "150", py, "-c", codice, arg] for py in ("python3", "python")]
+    ultimo = "nessun Python"
+    for argv in tentativi:
+        try:
+            rc, out, err = lancia(argv, timeout=180)
+        except (OSError, subprocess.SubprocessError) as e:
+            return {"errore": "%s non risponde: %s" % (nome or "questa macchina", str(e)[:160])}
+        # hc dice spawn_failed (anche lui in JSON) se il programma non c'è: prima di leggere la risposta
+        if rc != 0 and (non_parte(out, err) or rc == 9009):
+            continue
+        try:
+            d = leggi_json(out)
+        except ValueError:
+            d = {}
+        if d.get("errore"):
+            return {"errore": d["errore"]}
+        if not d.get("id") or not d.get("claude"):
+            testo = (err or out).strip()
+            ultimo = testo.splitlines()[-1][:200] if testo else "rc %d" % rc
+            break
+        voce["claude"] = d["claude"]
+        return {"id": d["id"], "sessionId": d["sessionId"], "attach": argv_attach(voce, d["id"]),
+                "macchina": "qui" if questa else nome, "progetto": progetto, "cartella": d.get("cartella")}
+    return {"errore": "non parte su %s: %s" % (nome or "questa macchina", ultimo)}
+
+
+def main_nasci(argv):
+    resto = argv[argv.index("--") + 1:] if "--" in argv else []
+    testa = argv[:argv.index("--")] if "--" in argv else argv
+    if not testa:
+        print(__doc__.strip())
+        return 2
+    progetto = testa[testa.index("--progetto") + 1] if "--progetto" in testa[:-1] else None
+    esito = nasci(testa[0], " ".join(resto), progetto)
+    print(json.dumps(esito, ensure_ascii=False))
+    return 0 if "errore" not in esito else 1
+
+
 def main(argv):
+    if argv and argv[0] == "nasci":
+        return main_nasci(argv[1:])
     if not argv or argv[0] != "volta":
         print(__doc__.strip())
         return 2
