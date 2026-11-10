@@ -395,16 +395,22 @@ fi
 # pre-filtro testuale non la vedeva e block-dangerous, che risolve il percorso, non partiva.
 PATTERN_CD_CLAUDE="(^|[;&|(${_NL}][[:space:]]*)(cd|pushd)[[:space:]]+[^;&|${_NL}]*\.claude([/[:space:]\"']|\$)"
 _RE_CWD_CLAUDE='"cwd"[[:space:]]*:[[:space:]]*"[^"]*[/\\]\.claude'
+# Su Windows i percorsi hanno anche le barre rovesciate (`"C:\Users\x\.claude\settings.json"`), e PATTERN_DANGER
+# cerca `.claude/`: il pre-filtro prova anche il comando con le barre dritte (review del 9/11/2026, #5096).
+_GUARD_DRITTO="$GUARD_COMMAND"
+if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
+    _GUARD_DRITTO="${GUARD_COMMAND//\\//}"
+fi
 # Su macOS e Windows il disco ignora le maiuscole: `rm ~/.CLAUDE/settings.json` tocca la config, e
 # PATTERN_DANGER la cerca in minuscolo (7/11/2026, finding 11).
 _MAIUSC=0
 _PATTERN_CONFIG_MAIUSC='\.claude/(settings|hooks|firme|plugins|arturo)|library/launchagents'
 if [[ "$OSTYPE" == darwin* || "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
     shopt -s nocasematch
-    [[ "$GUARD_COMMAND" =~ $_PATTERN_CONFIG_MAIUSC ]] && _MAIUSC=1
+    [[ "$_GUARD_DRITTO" =~ $_PATTERN_CONFIG_MAIUSC ]] && _MAIUSC=1
     shopt -u nocasematch
 fi
-if [[ "$GUARD_COMMAND" =~ $PATTERN_DANGER || "$GUARD_COMMAND" =~ $PATTERN_CD_CLAUDE || "$INPUT" =~ $_RE_CWD_CLAUDE || $_MAIUSC -eq 1 ]]; then
+if [[ "$GUARD_COMMAND" =~ $PATTERN_DANGER || "$_GUARD_DRITTO" =~ $PATTERN_DANGER || "$GUARD_COMMAND" =~ $PATTERN_CD_CLAUDE || "$INPUT" =~ $_RE_CWD_CLAUDE || $_MAIUSC -eq 1 ]]; then
     for _i in $(locali prima-danger); do run_locale "$_i"; done
     _DC=""; for _i in $(locali danger-claude); do _DC=$_i; break; done
     if [[ -n "$_DC" && ( "$COMMAND" == *".claude"* || "$INPUT" =~ $_RE_CWD_CLAUDE ) ]]; then

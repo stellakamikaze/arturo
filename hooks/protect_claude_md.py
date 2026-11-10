@@ -247,6 +247,10 @@ def main():
             except Exception:  # noqa: BLE001 - la telemetria non ferma mai una guardia
                 pass
 
+        # Su Windows Git Bash scrive il disco come `/c/Users/...`: per realpath è `C:\c\Users`, fuori da ~/.claude
+        # (review del 9/11/2026, #5096). La stessa riscrittura di _resolve in block-dangerous.py.
+        if os.name == 'nt':
+            file_path = re.sub(r'^/([a-zA-Z])(?=/|$)', lambda m: m.group(1).upper() + ':', file_path)
         rp = os.path.realpath(os.path.expanduser(file_path))
         base = os.path.basename(rp).upper()
         claude_dir = os.path.realpath(os.path.expanduser('~/.claude'))

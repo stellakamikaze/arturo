@@ -170,6 +170,8 @@ BANCHI=(
   test_finestre_windows_2026_11_04.py
   test_sportello_2026_11_04.py
   test_humanizer_origine.py
+  # Percorsi fra virgolette e alla maniera di Windows nelle guardie (9/11/2026, #5096).
+  test_guardie_virgolette_2026_11_09.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -452,6 +454,8 @@ VELENI=(
   test_revisione_2026_11_07.py
   # Review del 7/11/2026, lotto L9: una radice in più in deriva.py fa rosso A02 (finding 94).
   test_deriva_allineata.py
+  # #5096 (9/11/2026): con le guardie di ce1cafc ogni gruppo GV, salvo i falsi positivi di GV08, è rosso.
+  test_guardie_virgolette_2026_11_09.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

