@@ -52,6 +52,7 @@ import signal
 import shlex
 import subprocess
 import importlib.util
+import fnmatch
 
 
 def _stdin_timeout(signum, frame):
@@ -128,47 +129,127 @@ DANGEROUS = [
 # copre solo la forma letterale. `--help` non esporta niente: resta libero (12/9/2026).
 _BW_EXPORT = re.compile(r"^(?:-[-\w]+(?:\s+[^\s-]\S*)?\s+)*export(?:\s|$)(?!\s*(?:--help|-h)\b)")
 
-# --- Scrittura su config/hook di Claude Code -> ask ---
-# Path config/hook considerati sensibili (settings*.json, hooks/**, .claude.json).
-_CFG_SUFFIX_RE = re.compile(
-    r"\.claude/(?:settings[^/]*\.json|hooks/|hooks$|\.claude\.json)",
-    re.IGNORECASE,
+# --- Percorsi protetti: una tabella sola (#5122, passo 5) ---
+# Da qui escono i predicati sul percorso risolto (_under_claude_config, _is_persistenza, _is_unlock,
+# _is_claude_md), i frammenti delle regex di riserva sul testo bash e le regex del codice di cmd e
+# powershell (_WIN_PROTETTI). Un percorso nuovo si aggiunge qui, e vale in tutte e tre.
+# Ogni voce: (regola, forma, percorso, esempio, riserva). Le forme:
+#   albero-claude  la cartella sotto ~/.claude e tutto quello che contiene;
+#   file-claude    un file sotto ~/.claude;
+#   nome-radice    un nome, anche con *, direttamente in ~/.claude;
+#   nome-cartella  "cartella/nome": un nome, anche con *, in una cartella di ~/.claude;
+#   albero-home    la cartella sotto la home e tutto quello che contiene;
+#   pezzo          un pezzo di percorso in qualunque punto, e quello che sta sotto;
+#   nome-ovunque   il nome del file, in qualunque cartella.
+# `riserva` dice se la voce entra nelle regex sul testo dei comandi bash. firme, bin e arturo ne stanno
+# fuori di proposito: nel testo sembrerebbero scritture anche come sorgente di un cp (/inizio, /aggiorna).
+# Lì conta solo il percorso risolto. Il codice di cmd e powershell le legge tutte.
+PERCORSI_PROTETTI = (
+    # La config di Claude Code e le guardie stesse.
+    ("config", "nome-radice", "settings*.json", "~/.claude/settings.json", True),
+    ("config", "nome-radice", ".claude.json", "~/.claude/.claude.json", True),
+    ("config", "albero-claude", "hooks", "~/.claude/hooks/block-dangerous.py", True),
+    # Col plugin di Arturo il codice delle guardie sta nella cache e nei marketplace dei plugin
+    # (docs/strati.md, 3/11/2026).
+    ("config", "albero-claude", "plugins/cache", "~/.claude/plugins/cache/arturo/hooks/x.py", False),
+    ("config", "albero-claude", "plugins/marketplaces", "~/.claude/plugins/marketplaces/arturo/x", False),
+    # L'aggiornamento automatico: la chiave dei rilasci e i due script che la verificano e installano.
+    # Chi li cambia fa installare da solo codice non firmato (16/10/2026, #3482).
+    ("config", "albero-claude", "firme", "~/.claude/firme/rilasci.pub", False),
+    ("config", "file-claude", "bin/aggiornamenti.py", "~/.claude/bin/aggiornamenti.py", False),
+    ("config", "file-claude", "bin/aggiorna-applica.sh", "~/.claude/bin/aggiorna-applica.sh", False),
+    # Il puntatore della barra (4/11/2026, #4567): col plugin la barra esegue
+    # "$(cat ~/.claude/arturo/radice)/hooks/statusline.js". Lo scrive solo l'avvio.
+    ("config", "file-claude", "arturo/radice", "~/.claude/arturo/radice", False),
+    # L'ancora dei rilasci: fiducia.py verifica ogni aggiornamento con questa chiave.
+    ("config", "file-claude", "arturo/rilasci.allowed_signers", "~/.claude/arturo/rilasci.allowed_signers", False),
+    # Le preferenze della persona, comprese quelle delle guardie (strati F1, #4531): un .local può
+    # allentare una guardia.
+    ("config", "nome-cartella", "arturo/*.local", "~/.claude/arturo/block-dangerous.local", False),
+    # I file di unlock, direttamente in ~/.claude dove protect_claude_md.py li cerca.
+    ("sblocco", "nome-radice", "*unlock*", "~/.claude/config-unlock", True),
+    # Le istruzioni di ogni sessione futura, in qualunque cartella.
+    ("claude-md", "nome-ovunque", "CLAUDE.md", "progetto/CLAUDE.md", True),
+    ("claude-md", "nome-ovunque", "CLAUDE.local.md", "progetto/CLAUDE.local.md", True),
+    # Il codice che parte da solo a ogni commit o a ogni accesso.
+    ("avvio-automatico", "pezzo", ".git/hooks", "progetto/.git/hooks/pre-commit", True),
+    ("avvio-automatico", "albero-home", "Library/LaunchAgents", "~/Library/LaunchAgents/x.plist", True),
+    ("avvio-automatico", "albero-home", ".config/systemd/user", "~/.config/systemd/user/x.service", True),
+    ("avvio-automatico", "albero-home", ".config/autostart", "~/.config/autostart/x.desktop", True),
 )
-# Operatori di scrittura shell. Il match testuale del path assoluto è il caso base;
-# _writes_config() sotto copre anche il target RELATIVO dopo un `cd ~/.claude/...`.
-_CFG_ABS = r"[^\s;|&]*?\.claude/(?:settings[^/\s'\"]*\.json|hooks/|\.claude\.json)"
+# Come ogni regola tratta le maiuscole, uguale a prima della tabella. Nel predicato "piega" confronta con
+# _piega (macOS e Windows ignorano le maiuscole, finding 11), "nome" mette in minuscolo solo il nome del
+# file, "esatte" non piega. Nella riserva True vuol dire re.IGNORECASE. cmd e powershell piegano sempre.
+_MAIUSCOLE = {"config": ("piega", True), "sblocco": ("nome", True), "claude-md": ("esatte", False),
+              "avvio-automatico": ("piega", False)}
+# Un pezzo di nome nelle regex, al posto di *.
+_DENTRO_NOME = r"[^/\s'\";|&]*"
+
+
+def _frammento(forma, percorso, modo="bash"):
+    """La regex di una voce della tabella, per il testo bash, per il codice di cmd e powershell ("win") o
+    per il primo argomento di open() ("open").
+
+    Un albero vuole la barra dopo il nome nel testo bash (un file dentro), e in cmd e powershell anche la
+    cartella sola (Remove-Item -Recurse). Un nome vale come prefisso, col solo limite di una lettera dopo:
+    `settings.json$x` scrive settings.json se $x è vuota, e il percorso risolto non lo vede. Un nome che
+    finisce con * arriva alla fine del percorso, così una cartella con "unlock" nel nome non è un unlock.
+    In open() il nome si ferma al primo pezzo scritto: `open('~/.claude/settings' + '.json', 'w')`."""
+    pezzi = percorso.split("/")
+    if modo == "open" and forma not in ("albero-claude", "albero-home", "pezzo"):
+        parti = pezzi[-1].split("*")
+        primo = next(i for i, x in enumerate(parti) if x)
+        pezzi[-1] = "*".join(parti[:primo + 1])
+    testo = "/".join(_DENTRO_NOME.join(re.escape(x) for x in pezzo.split("*")) for pezzo in pezzi)
+    if forma in ("albero-claude", "file-claude", "nome-radice", "nome-cartella"):
+        testo = r"\.claude/" + testo
+    if forma in ("albero-claude", "albero-home", "pezzo"):
+        return testo + (r"(?![\w.-])" if modo == "win" else "/")
+    if modo == "open":
+        return testo
+    return testo + (r"(?=[\s'\";|&)]|$)" if percorso.endswith("*") else r"(?!\w)")
+
+
+def _frammenti(regola, modo="bash"):
+    """L'alternativa delle voci di una regola: tutte per cmd e powershell, le sole `riserva` per bash e open()."""
+    return "(?:" + "|".join(_frammento(f, p, modo) for r, f, p, _es, ris in PERCORSI_PROTETTI
+                            if r == regola and (modo == "win" or ris)) + ")"
+
+
+def _riserva(regola, scritture, open_modi):
+    """La regex di riserva sul testo di una regola: gli operatori di `scritture` seguiti da un percorso della
+    tabella, oppure open() di python con un modo fra `open_modi`."""
+    return re.compile(
+        r"(?:" + scritture.format(p=r"[^\s;|&]*?" + _frammenti(regola)) +
+        r"|open\(\s*['\"][^'\"]*" + _frammenti(regola, "open") + r"[^'\"]*['\"]\s*,\s*['\"][" + open_modi + "])",
+        re.IGNORECASE if _MAIUSCOLE[regola][1] else 0)
+
+
+# --- Scrittura su config/hook di Claude Code -> ask ---
+# Il match testuale del path assoluto è il caso base; _writes_config() copre anche il target
+# RELATIVO dopo un `cd ~/.claude/...`.
 # cp, mv, install, rsync e ln non stanno qui: li giudica _writes_config, che sa quale
 # argomento è la destinazione. Nel testo `cp ~/.claude/settings.json /tmp/x` sembrava una
 # scrittura, e copiare la config altrove è una lettura (9/9/2026, nella config dell'autore).
 # dd scrive solo su `of=`.
-CONFIG_WRITE_RE = re.compile(
-    r"(?:>>?\s*" + _CFG_ABS +
-    r"|\b(?:tee|truncate|touch|chmod|chown)\b[^|;&]*" + _CFG_ABS +
-    r"|\bdd\b[^|;&]*\bof=" + _CFG_ABS +
-    r"|\bsed\b[^|;&]*-i[^|;&]*" + _CFG_ABS +
-    r"|open\(\s*['\"][^'\"]*\.claude/(?:settings|hooks/|\.claude\.json)[^'\"]*['\"]\s*,\s*['\"][wa])",
-    re.IGNORECASE,
-)
+CONFIG_WRITE_RE = _riserva(
+    "config",
+    r">>?\s*{p}|\b(?:tee|truncate|touch|chmod|chown)\b[^|;&]*{p}|\bdd\b[^|;&]*\bof={p}|\bsed\b[^|;&]*-i[^|;&]*{p}",
+    "wa")
 # CLAUDE.md, in qualunque cartella: via Edit/Write protect_claude_md.py chiede una volta per modifica
 # (l'unlock della sessione le fa passare tutte), qui si copre il vettore shell (>, sed -i, cp, tee...),
 # che altrimenti lo riscrive senza prompt.
 CLAUDE_MD_WRITE_RE = re.compile(
-    r"(?:>>?\s*[^\s;|&]*?CLAUDE(?:\.local)?\.md\b"
-    r"|\bsed\b[^|;&]*-i[^|;&]*CLAUDE(?:\.local)?\.md\b)"
+    r"(?:>>?\s*[^\s;|&]*?" + _frammenti("claude-md") + r"|\bsed\b[^|;&]*-i[^|;&]*" + _frammenti("claude-md") + ")"
 )
 # open() di python in scrittura su un CLAUDE.md: chiede sempre, prima di CLAUDE_MD_WRITE_RE (1/11/2026).
-CLAUDE_MD_OPEN_RE = re.compile(r"open\(\s*['\"][^'\"]*CLAUDE(?:\.local)?\.md['\"]\s*,\s*['\"][wax+]")
+CLAUDE_MD_OPEN_RE = re.compile(r"open\(\s*['\"][^'\"]*" + _frammenti("claude-md", "open") + r"['\"]\s*,\s*['\"][wax+]")
 # Percorsi di avvio automatico (git hook, LaunchAgents, systemd utente, autostart):
 # via Edit/Write li protegge protect_claude_md.py con un unlock, qui il vettore shell.
-_PERSIST_ABS = (r"[^\s;|&]*?(?:\.git/hooks/[^\s'\";|&]+|Library/LaunchAgents/[^\s'\";|&]+"
-                r"|\.config/(?:systemd/user|autostart)/[^\s'\";|&]+)")
 # Qui solo redirezione e open(): cp, tee, sed -i e gli altri binari li giudica
 # _writes_config, che sa quale argomento è la destinazione (copiare un hook
 # altrove è una lettura).
-PERSIST_WRITE_RE = re.compile(
-    r"(?:>>?\s*" + _PERSIST_ABS +
-    r"|open\(\s*['\"][^'\"]*(?:\.git/hooks/|Library/LaunchAgents/|\.config/(?:systemd/user|autostart)/)[^'\"]*['\"]\s*,\s*['\"][wa])"
-)
+PERSIST_WRITE_RE = _riserva("avvio-automatico", r">>?\s*{p}", "wa")
 # Binari che scrivono un file passato come argomento.
 _WRITE_BINS = frozenset("tee cp mv install rsync ln dd truncate touch".split())
 
@@ -176,12 +257,7 @@ _WRITE_BINS = frozenset("tee cp mv install rsync ln dd truncate touch".split())
 # Solo la CREAZIONE del file (redirezione, touch, tee, open in scrittura) e solo direttamente
 # in ~/.claude, dove protect_claude_md.py lo cerca. Leggere una nota che ha "unlock" nel nome
 # non sblocca niente (8/9/2026, nella config dell'autore). cp, mv e ln: _writes_config(_is_unlock).
-_UNLOCK_ABS = r"[^\s;|&]*?\.claude/[^\s'\";|&/]*unlock[^\s'\";|&/]*(?=[\s'\";|&)]|$)"
-UNLOCK_RE = re.compile(
-    r"(?:>>?\s*|\b(?:touch|tee)\b[^|;&]*)" + _UNLOCK_ABS +
-    r"|open\(\s*['\"][^'\"]*\.claude/[^'\"/]*unlock[^'\"/]*['\"]\s*,\s*['\"][wax]",
-    re.IGNORECASE,
-)
+UNLOCK_RE = _riserva("sblocco", r"(?:>>?\s*|\b(?:touch|tee)\b[^|;&]*){p}", "wax")
 
 # --- Lettura di file segreti via shell -> ask (vedi _reads_secret sotto) ---
 # In ~/.ssh/ chiedono le chiavi private e i file sconosciuti. config, known_hosts,
@@ -672,40 +748,46 @@ def _is_protected_tree(p):
     return False
 
 
-def _under_claude_config(p):
-    """True se il path reale cade su ~/.claude/settings*, ~/.claude/hooks/**, plugins/cache/**,
-    plugins/marketplaces/** o .claude.json, oppure
-    sull'aggiornamento automatico: la chiave dei rilasci (firme/**) e i due script che la verificano e
-    installano. Chi li cambia fa installare da solo codice non firmato (16/10/2026, #3482). Solo qui,
-    sul percorso risolto: la regex testuale li vedrebbe anche come sorgente di un cp (/inizio, /aggiorna)."""
+def _protetto(regola, p):
+    """True se il percorso risolto `p` cade su una voce di PERCORSI_PROTETTI con questa regola."""
     if not p:
         return False
-    h = _home()
-    radice = os.path.normpath(os.path.join(h, ".claude"))
-    # Su macOS e Windows il disco ignora le maiuscole: ~/.CLAUDE/settings.json è la config (finding 11).
-    p, radice = _piega(p), _piega(radice)
-    # La cache e i marketplace dei plugin installati: col plugin di Arturo il codice delle guardie
-    # sta lì, non in ~/.claude/hooks (docs/strati.md, 3/11/2026).
-    for cartella in ("hooks", "firme", os.path.join("plugins", "cache"), os.path.join("plugins", "marketplaces")):
-        tutta = os.path.join(radice, cartella)
-        if p == tutta or p.startswith(tutta + os.sep):
-            return True
-    # Il puntatore della barra (4/11/2026, #4567): col plugin la barra in basso esegue
-    # "$(cat ~/.claude/arturo/radice)/hooks/statusline.js". Lo scrive solo l'avvio.
-    # L'ancora dei rilasci (finding 11): fiducia.py verifica ogni aggiornamento con questa chiave, e se manca
-    # vale quella della copia da verificare.
-    if p in (os.path.join(radice, "bin", "aggiornamenti.py"), os.path.join(radice, "bin", "aggiorna-applica.sh"),
-             os.path.join(radice, "arturo", "radice"), os.path.join(radice, "arturo", "rilasci.allowed_signers")):
-        return True
-    # Le preferenze della persona, comprese quelle delle guardie, in ~/.claude/arturo (strati F1, #4531):
-    # protette come lo erano in hooks/, perché un .local può allentare una guardia.
-    if os.path.dirname(p) == os.path.join(radice, "arturo") and p.endswith(".local"):
-        return True
-    base = os.path.basename(p)
-    if os.path.dirname(p) == radice:
-        if base == ".claude.json" or (base.startswith("settings") and base.endswith(".json")):
+    modo = _MAIUSCOLE[regola][0]
+    piega = _piega if modo == "piega" else (lambda x: x)
+    home = _home()
+    p = piega(p)
+    cartella, nome = os.path.dirname(p), os.path.basename(p)
+    if modo == "nome":
+        nome = nome.lower()
+    for r, forma, percorso, _es, _ris in PERCORSI_PROTETTI:
+        if r != regola:
+            continue
+        pezzi = percorso.split("/")
+        if forma == "pezzo":
+            pezzo = piega(os.sep + os.path.join(*pezzi))
+            if (pezzo + os.sep) in p or p.endswith(pezzo):
+                return True
+            continue
+        if forma == "nome-ovunque":
+            if nome == piega(percorso):
+                return True
+            continue
+        base = os.path.join(home, ".claude") if forma != "albero-home" else home
+        if forma in ("nome-radice", "nome-cartella"):
+            dove = piega(os.path.normpath(os.path.join(base, *pezzi[:-1])))
+            if cartella == dove and fnmatch.fnmatchcase(nome, piega(pezzi[-1])):
+                return True
+            continue
+        bersaglio = piega(os.path.normpath(os.path.join(base, *pezzi)))
+        if p == bersaglio or (forma != "file-claude" and p.startswith(bersaglio + os.sep)):
             return True
     return False
+
+
+def _under_claude_config(p):
+    """True se il path reale cade su una voce `config` di PERCORSI_PROTETTI: settings, hook, plugin,
+    .claude.json, l'aggiornamento automatico e le preferenze .local."""
+    return _protetto("config", p)
 
 
 def _piega(p):
@@ -728,21 +810,11 @@ def _barre(testo, sempre=False):
 
 def _is_persistenza(p):
     """True se il path reale è un git hook o un file di avvio automatico."""
-    if not p:
-        return False
-    p = _piega(p)
-    if (os.sep + ".git" + os.sep + "hooks" + os.sep) in p or p.endswith(os.sep + ".git" + os.sep + "hooks"):
-        return True
-    h = _home()
-    for radice in ("Library/LaunchAgents", ".config/systemd/user", ".config/autostart"):
-        r = _piega(os.path.normpath(os.path.join(h, radice)))
-        if p == r or p.startswith(r + os.sep):
-            return True
-    return False
+    return _protetto("avvio-automatico", p)
 
 
 def _is_claude_md(p):
-    return bool(p) and os.path.basename(p) in ("CLAUDE.md", "CLAUDE.local.md")
+    return _protetto("claude-md", p)
 
 
 def _is_claude_md_globale(p):
@@ -772,8 +844,7 @@ def _claude_md_progetto_libero():
 
 def _is_unlock(p):
     """True per un file di unlock: "unlock" nel nome, direttamente in ~/.claude."""
-    return (bool(p) and "unlock" in os.path.basename(p).lower()
-            and os.path.dirname(p) == os.path.normpath(os.path.join(_home(), ".claude")))
+    return _protetto("sblocco", p)
 
 
 _FINE_PAROLA = frozenset(" \t\r\n;&|<>()")
@@ -1710,15 +1781,9 @@ _WIN_SCRIVE = re.compile(
     r"rename-item|clear-content|sc|ac|ni|cpi|copy|cp|mi|move|mv|ri|del|erase|rm|rni|ren|rename|xcopy|robocopy|"
     r"mklink)(?=[\s(]|$)|>|\[(?:system\.)?io\.file\]::(?:write|append|copy|move|delete|create|replace)",
     re.IGNORECASE)
-_WIN_PROTETTI = (
-    ("sblocco", re.compile(r"\.claude/[^/\s'\";|&]*unlock", re.IGNORECASE)),
-    ("config", re.compile(r"\.claude/(?:settings[^/\s'\"]*\.json|hooks(?![\w.-])|firme(?![\w.-])|plugins/(?:cache|marketplaces)"
-                          r"|\.claude\.json|bin/aggiorna(?:menti\.py|-applica\.sh)|arturo/(?:radice|rilasci\.allowed_signers"
-                          r"|[^/\s'\"]*\.local))", re.IGNORECASE)),
-    ("claude-md", re.compile(r"CLAUDE(?:\.local)?\.md\b", re.IGNORECASE)),
-    ("avvio-automatico", re.compile(r"\.git/hooks(?![\w.-])|Library/LaunchAgents/|\.config/(?:systemd/user|autostart)/",
-                                    re.IGNORECASE)),
-)
+# I percorsi protetti per cmd e powershell: tutte le voci della tabella, maiuscole piegate.
+_WIN_PROTETTI = tuple((regola, re.compile(_frammenti(regola, "win"), re.IGNORECASE))
+                      for regola in ("sblocco", "config", "claude-md", "avvio-automatico"))
 
 
 def _codici_windows(testo):
