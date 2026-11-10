@@ -39,6 +39,7 @@ export class Volta {
     this.anteprime = {};   // sessionId -> true (risposta e azione lette dalla riga) o righe di claude logs
     this.chiedo = {};      // sessionId -> verbo che aspetta la conferma
     this.faccio = {};      // sessionId -> verbo in corso
+    this.sopra = null;     // la sessione sotto il puntatore: lì compare la X
     this.script = undefined;
     this.py = "python3";
     cx.spawn(async (cx) => {
@@ -252,8 +253,30 @@ export class Volta {
     const vivo = s.stato === "aspetta" || s.stato === "lavora" || s.stato === "errore";
     const az = azioni(s);
     const aperto = this.menu === s.sessionId && az.length > 0;
+    // La X chiude per sempre una sessione ferma (claude rm, lo stesso Elimina di "Altro"): compare col
+    // puntatore sopra la riga, e il primo clic chiede la conferma. Nascosta tiene il suo posto: il
+    // titolo non va a capo in modo diverso quando appare.
+    const rm = az.find((a) => a.verbo === "rm");
+    const k = s.sessionId;
+    const chiedoRm = this.chiedo[k] === "rm", facciorm = this.faccio[k] === "rm";
+    const vediX = Boolean(rm) && (this.sopra === k || chiedoRm || facciorm);
+    const x = rm ? div().id(`vx-${s.host}-${s.id}`).mt(2).px(5).py(2).rounded(6).flex_none()
+      .when(!vediX, (el) => el.invisible())
+      .when(vediX, (el) => el.cursor_pointer().hover((st) => st.bg(t.selected)).on_click((_e, cx) => this.fare(s, rm, cx)))
+      .child(facciorm ? div().text_size(12).text_color(t.dim).child("…")
+        : chiedoRm ? div().text_size(12).text_color(t.blocked).child(rm.conferma)
+        : svg(ICONA("x")).size(12).text_color(t.dim)) : null;
     // Il clic sulla riga apre la sessione; "Altro" sta a fianco, fuori dall'area che apre.
-    return v_flex().mx(8).px(10).py(7).gap(2).rounded(8).when(aperto, (el) => el.bg(t.hover))
+    return v_flex().id(`vr-${s.host}-${s.id}`).mx(8).px(10).py(7).gap(2).rounded(8).when(aperto, (el) => el.bg(t.hover))
+      .on_hover((h, cx) => {
+        if (h) this.sopra = k;
+        else if (this.sopra === k) {
+          this.sopra = null;
+          // Una conferma chiesta dalla X e lasciata lì non resta armata; quella del pannello sì.
+          if (this.chiedo[k] === "rm" && this.menu !== k) delete this.chiedo[k];
+        }
+        cx.notify();
+      })
       .child(h_flex().gap(6).items_start()
         .child(h_flex().id(`v-${s.host}-${s.id}`).flex_1().min_w(0).gap(11).items_start().cursor_pointer()
           .on_click((_e, cx) => this.premi(s, cx))
@@ -265,7 +288,8 @@ export class Volta {
         .when(az.length > 0, (el) => el.child(div().id(`va-${s.host}-${s.id}`).mt(2).px(6).py(1).rounded(6).cursor_pointer()
           .text_size(12).text_color(aperto ? t.foreground : t.dim).hover((st) => st.bg(t.selected))
           .on_click((_e, cx) => { this.menu = aperto ? null : s.sessionId; cx.notify(); })
-          .child("Altro"))))
+          .child("Altro")))
+        .when(Boolean(x), (el) => el.child(x)))
       .when(Boolean(avviso) && !aperto, (el) => el.child(div().pl(19).whitespace_normal().text_size(12.5).text_color(t.foreground).child(avviso)));
   }
 

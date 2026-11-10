@@ -183,6 +183,9 @@ HZ47 i gesti di "Altro" si vedono anche su una sessione in fondo all'elenco (#52
 HZ48 una sessione in background si aggancia anche dopo /clear (11/11/2026): righe() di volta_sonda.py
      usa l'id del lavoro di claude agents per attach e gesti, non l'inizio del sessionId, che dopo
      /clear o una rotazione cambia ("No job matching"); un'interattiva tiene l'inizio del sessionId.
+HZ49 una X in hover chiude per sempre una sessione ferma (11/11/2026): volta.js la mette nella riga solo
+     se azioni() dà rm, visibile col puntatore sopra la riga (on_hover) o mentre chiede conferma, e il
+     clic passa da fare(), che al primo clic chiede "Sì, elimina".
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
@@ -199,7 +202,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -2880,7 +2883,27 @@ def hz48(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48}
+def hz49(repo: Path, casa: Path) -> str | None:
+    vj = (repo / "shared/volta-celeste/mods/arturo/volta.js").read_text(encoding="utf-8")
+    inizio, fine = vj.find("  riga(t, s, modo, cx) {"), vj.find("  interruttore(t) {")
+    if inizio < 0 or fine < inizio:
+        return "volta.js non ha riga() prima di interruttore()"
+    corpo = vj[inizio:fine]
+    for pezzo, perche in (('const rm = az.find((a) => a.verbo === "rm");', "la X non nasce dal gesto rm di azioni()"),
+                          ("const vediX = Boolean(rm) && (this.sopra === k || chiedoRm || facciorm);", "la X non segue il puntatore"),
+                          (".when(!vediX, (el) => el.invisible())", "la X nascosta non tiene il suo posto"),
+                          (".on_click((_e, cx) => this.fare(s, rm, cx))", "il clic sulla X non passa da fare() con la conferma"),
+                          ('ICONA("x")', "manca l'icona x"),
+                          (".on_hover((h, cx) =>", "la riga non segue il puntatore"),
+                          (".when(Boolean(x), (el) => el.child(x))", "la riga non mostra la X")):
+        if pezzo not in corpo:
+            return f"volta.js: {perche} ({pezzo})"
+    if "this.sopra = null;" not in vj[:inizio]:
+        return "volta.js: init non prepara this.sopra"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -3103,6 +3126,9 @@ VELENI = [
     ("HZ47", "shared/volta-celeste/mods/arturo/volta.js", ".when(Boolean(avviso) && !aperto, (el)", ".when(Boolean(avviso), (el)"),
     ("HZ48", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'lavoro = s.get("id") if fondo else None', "lavoro = None"),
     ("HZ48", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'corto = lavoro if isinstance(lavoro, str)', 'corto = sid[:8] if isinstance(lavoro, str)'),
+    ("HZ49", "shared/volta-celeste/mods/arturo/volta.js", 'const rm = az.find((a) => a.verbo === "rm");', 'const rm = az.find((a) => a.verbo === "stop");'),
+    ("HZ49", "shared/volta-celeste/mods/arturo/volta.js", "const vediX = Boolean(rm) && (this.sopra === k || chiedoRm || facciorm);", "const vediX = Boolean(rm);"),
+    ("HZ49", "shared/volta-celeste/mods/arturo/volta.js", ".on_click((_e, cx) => this.fare(s, rm, cx))", ""),
 ]
 
 
