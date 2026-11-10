@@ -218,12 +218,31 @@ export class Volta {
     const rigo = (b, r, id) => b.schermo
       ? div().id(id).truncate().font_family("Atkinson Hyperlegible Mono").text_size(11.5).text_color(t.muted).child(r || " ")
       : div().id(id).whitespace_normal().text_size(12.5).text_color(t.foreground).child(r);
-    return v_flex().pl(19).pt(4).gap(6)
+    return v_flex().gap(6)
       .child(h_flex().gap(6).flex_wrap().children(az.map(bottone)))
       .when(Boolean(blocchi), (el) => el.child(v_flex().p(8).gap(8).rounded(6).bg(t.hover).overflow_hidden()
         .children(blocchi.map((b, i) => v_flex().gap(2)
           .when(Boolean(b.etichetta), (e) => e.child(div().text_size(11).text_color(t.dim).child(b.etichetta)))
           .children(b.righe.map((r, j) => rigo(b, r, `vl-${s.id}-${i}-${j}`)))))));
+  }
+
+  // I gesti di "Altro" stanno sotto l'elenco, fuori dalla parte che scorre (#5241): sotto una riga in
+  // fondo finivano oltre il bordo dei 360 px, e Herdr non ha uno scorrimento comandato per un elenco
+  // semplice. Qui si vedono sempre, col titolo della sessione a cui valgono.
+  pannello(t) {
+    const s = this.menu ? (this.dati?.sessioni ?? []).find((x) => x.sessionId === this.menu) : null;
+    const az = s ? azioni(s) : [];
+    if (!az.length) return null;
+    const avviso = this.avvisi[s.sessionId];
+    return v_flex().id("volta-gesti").mx(8).mt(2).px(10).py(8).gap(6).rounded(8).border_1().border_color(t.border)
+      .child(h_flex().gap(6).items_start()
+        .child(div().flex_1().min_w(0).truncate().text_size(12.5).font_semibold().text_color(t.foreground).child(titolo(s)))
+        .child(div().id("volta-gesti-chiudi").px(6).rounded(6).cursor_pointer().text_size(12).text_color(t.dim)
+          .hover((st) => st.bg(t.selected))
+          .on_click((_e, cx) => { this.menu = null; cx.notify(); })
+          .child("Chiudi")))
+      .child(this.gesti(t, s, az))
+      .when(Boolean(avviso), (el) => el.child(div().whitespace_normal().text_size(12.5).text_color(t.foreground).child(avviso)));
   }
 
   riga(t, s, modo, cx) {
@@ -247,8 +266,7 @@ export class Volta {
           .text_size(12).text_color(aperto ? t.foreground : t.dim).hover((st) => st.bg(t.selected))
           .on_click((_e, cx) => { this.menu = aperto ? null : s.sessionId; cx.notify(); })
           .child("Altro"))))
-      .when(aperto, (el) => el.child(this.gesti(t, s, az)))
-      .when(Boolean(avviso), (el) => el.child(div().pl(19).whitespace_normal().text_size(12.5).text_color(t.foreground).child(avviso)));
+      .when(Boolean(avviso) && !aperto, (el) => el.child(div().pl(19).whitespace_normal().text_size(12.5).text_color(t.foreground).child(avviso)));
   }
 
   interruttore(t) {
@@ -302,10 +320,12 @@ export class Volta {
     // Un elenco suo, alto al massimo 360 px: i progetti sotto restano a vista.
     else corpo = v_flex().id("volta-elenco").max_h(360).overflow_y_scrollbar().gap(10).children(lista.map((g) => this.gruppo(t, g, modo, cx)));
     const vecchio = this.dati && this.errore && this.dati.letto ? `Non riesco ad aggiornare: lettura delle ${String(this.dati.letto).slice(11, 16)}.` : null;
+    const gesti = chiusa || !corpo ? null : this.pannello(t);
     return v_flex().id("volta").pb(12).mb(12).gap(4).border_b(1).border_color(t.border)
       .child(testa)
       .when(!chiusa, (el) => el.child(this.interruttore(t)))
       .when(Boolean(vecchio) && !chiusa, (el) => el.child(div().px(18).text_size(12).text_color(t.blocked).child(vecchio)))
-      .when(Boolean(corpo), (el) => el.child(corpo));
+      .when(Boolean(corpo), (el) => el.child(corpo))
+      .when(Boolean(gesti), (el) => el.child(gesti));
   }
 }

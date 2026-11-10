@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ46: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ47: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -177,6 +177,9 @@ HZ46 l'Anteprima di una sessione (#5240): la sonda taglia l'ultima risposta a un
      (node): anteprima() dà "Ultima risposta" con le righe senza i segni del markdown e i nomi col
      trattino basso interi, poi "Ultima azione"; null senza trascrizione. volta.js mostra quei blocchi a
      capo dalla riga già letta, senza lanciare claude logs, che resta per chi non ha trascrizione.
+HZ47 i gesti di "Altro" si vedono anche su una sessione in fondo all'elenco (#5241): volta.js li disegna
+     in pannello(), sotto l'elenco e fuori dalla parte che scorre (alta al massimo 360 px), col titolo
+     della sessione e "Chiudi"; la riga non li porta più, e l'avviso di un gesto sta nel pannello.
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
@@ -193,7 +196,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -2836,7 +2839,28 @@ def hz46(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46}
+def hz47(repo: Path, casa: Path) -> str | None:
+    vj = (repo / "shared/volta-celeste/mods/arturo/volta.js").read_text(encoding="utf-8")
+    inizio, fine = vj.find("  pannello(t) {"), vj.find("  riga(t, s, modo, cx) {")
+    if inizio < 0 or fine < inizio:
+        return "volta.js non ha pannello() prima di riga()"
+    corpo = vj[inizio:fine]
+    if vj.count("this.gesti(t, s, az)") != 1 or "this.gesti(t, s, az)" not in corpo:
+        return "volta.js: i gesti non stanno solo nel pannello (una riga in fondo li apre sotto il bordo)"
+    for pezzo in ("x.sessionId === this.menu", "child(titolo(s))", "this.menu = null; cx.notify();", "child(avviso)"):
+        if pezzo not in corpo:
+            return f"volta.js: al pannello dei gesti manca {pezzo}"
+    elenco = vj.find('.id("volta-elenco").max_h(360).overflow_y_scrollbar()')
+    fuori = vj.find("const gesti = chiusa || !corpo ? null : this.pannello(t);")
+    dopo = vj.find(".when(Boolean(corpo), (el) => el.child(corpo))\n      .when(Boolean(gesti), (el) => el.child(gesti));")
+    if min(elenco, fuori, dopo) < 0 or not elenco < fuori < dopo:
+        return "volta.js: il pannello dei gesti non sta sotto l'elenco, fuori dalla parte che scorre"
+    if ".when(Boolean(avviso) && !aperto, (el)" not in vj[fine:]:
+        return "volta.js: con Altro aperto l'avviso del gesto esce due volte, nella riga e nel pannello"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -3052,6 +3076,11 @@ VELENI = [
     ("HZ46", "shared/volta-celeste/mods/arturo/sessioni.js", '.replace(/:$/, "")', ''),
     ("HZ46", "shared/volta-celeste/mods/arturo/volta.js", '    if (a.verbo === "logs" && anteprima(s)) { this.anteprime[k] = true; return cx.notify(); }\n', ''),
     ("HZ46", "shared/volta-celeste/mods/arturo/volta.js", ': div().id(id).whitespace_normal().text_size(12.5)', ': div().id(id).truncate().text_size(12.5)'),
+    ("HZ47", "shared/volta-celeste/mods/arturo/volta.js", "      .when(Boolean(avviso) && !aperto, (el)", "      .when(aperto, (el) => el.child(this.gesti(t, s, az)))\n      .when(Boolean(avviso) && !aperto, (el)"),
+    ("HZ47", "shared/volta-celeste/mods/arturo/volta.js", "\n      .when(Boolean(gesti), (el) => el.child(gesti));", ";"),
+    ("HZ47", "shared/volta-celeste/mods/arturo/volta.js", "const gesti = chiusa || !corpo ? null : this.pannello(t);", "const gesti = null;"),
+    ("HZ47", "shared/volta-celeste/mods/arturo/volta.js", "      .child(this.gesti(t, s, az))\n      .when(Boolean(avviso), (el)", "      .when(Boolean(avviso), (el)"),
+    ("HZ47", "shared/volta-celeste/mods/arturo/volta.js", ".when(Boolean(avviso) && !aperto, (el)", ".when(Boolean(avviso), (el)"),
 ]
 
 
