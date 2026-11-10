@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ26: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ27: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -78,6 +78,12 @@ HZ26 su cosa è una nota (#5117 passo 1, nota.js con node): regione() rifà i re
      1147) e dice la parte sotto il punto, anche con barra e pannello allargati, col pannello nascosto e col
      benvenuto; con misure vecchie o assenti dà null. main.js fa riportare la misura alle parti del layout,
      notaui.js mette la parte e il terminale in nota.json. Senza node la parte con node si salta.
+HZ27 il velo delle note (#5117 passo 2, nota.js con node): nota.json versione 2 con id, numero, tipo, stato,
+     filo e todo; una nota versione 1 si legge come aperta; i segni delle note aperte del progetto hanno
+     numeri unici e si riportano in scala sulla finestra; risposta e chiusura passano nel filo; lo script
+     LEGGI_NOTE legge la cartella col Python; la CLI vera dà l'id del todo con --json. notaui.js riscrive
+     nota.json solo se è ancora quello letto e porta Risolta e Scarta sul todo. Senza node la parte con node
+     si salta.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -93,7 +99,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -985,7 +991,7 @@ def hz26(repo: Path, casa: Path) -> str | None:
             or "return el.id(`misura-${this.nome}`).on_size_change(" not in main or "arturo.misura.${this.nome}" not in main:
         return "main.js non fa riportare la misura alle parti del layout"
     ui = (mod / "notaui.js").read_text(encoding="utf-8")
-    if "const dove = await doveNota(this.punto, this.misura);" not in ui or "quando: new Date().toISOString(), dove })" not in ui:
+    if "const dove = await doveNota(this.punto, this.misura);" not in ui or "quando: new Date().toISOString(), dove, tipo: this.tipo" not in ui:
         return "notaui.js non mette la parte e il terminale nella nota"
     node = shutil.which("node")
     if not node:
@@ -1018,7 +1024,102 @@ def hz26(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26}
+PROVA_VELO = r"""
+const n = await import(%s);
+const base = { x: 700, y: 400, larghezza: 1440, altezza: 900, progetto: "p", cartella: "/c/note-finestra/2026-11-10_07-00-00",
+  quando: "2026-11-10T06:00:00Z", testo: "Il bottone è storto" };
+const v1 = JSON.stringify({ versione: 1, quando: "2026-11-09T10:00:00Z", testo: "vecchia", punto: { x: 10, y: 20 },
+  finestra: { larghezza: 1440, altezza: 900 }, progetto: "p" });
+const letta = n.leggiNota(v1, "2026-11-09_10-00-00");
+const mk = (id, numero, stato, progetto = "p", quando = id) => ({ id, numero, stato, progetto, quando, punto: { x: 1, y: 1 }, finestra: { larghezza: 1, altezza: 1 } });
+const aperte = n.noteAperte([letta, mk("b", 1, "aperta"), mk("c", 3, "presa"), mk("d", 2, "risolta"), mk("e", 5, "aperta", "altro")], "p");
+const nuova = n.nota({ ...base, numero: 4 }).dati;
+const risposta = n.rispondi(nuova, "claude", "  fatto,  guarda ", "t1");
+console.log(JSON.stringify({
+  nuova, argv: n.nota(base).argv, tipo: [n.nota({ ...base, tipo: "domanda" }).dati.tipo, n.nota({ ...base, tipo: "boh" }).dati.tipo],
+  letta, rotta: [n.leggiNota("{", "x"), n.leggiNota("{}", "x")],
+  aperte: aperte.map((a) => [a.id, a.numero]), prossimo: [n.prossimoNumero(aperte), n.prossimoNumero([])],
+  segni: [n.segno(nuova, { larghezza: 1440, altezza: 900 }), n.segno(nuova, { larghezza: 720, altezza: 450 }),
+    n.segno({ ...nuova, punto: { x: 1439, y: 899 } }, { larghezza: 700, altezza: 400 })],
+  risposta: risposta.filo, vuota: n.rispondi(nuova, "claude", "  ", "t"), chi: n.rispondi(nuova, "altro", "x", "t"),
+  risolta: n.chiudiNota(risposta, "risolta", "sistemato", "t2", "claude"), scartata: n.chiudiNota(nuova, "scartata", "", "t3"),
+  sbagliata: n.chiudiNota(nuova, "boh", "x", "t"),
+  script: n.LEGGI_NOTE,
+}));
+"""
+
+
+def hz27(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    ui = (mod / "notaui.js").read_text(encoding="utf-8")
+    for pezzo, perche in [
+        ('exec(py, ["-c", LEGGI_NOTE, cartellaNote(home())]', "il velo non legge le note col Python di arturo.json"),
+        ("writeTextFile(file, json({ ...n.dati, todo: r.json.id }), scritto)", "la nota non salva l'id del todo"),
+        ("json(salvata), prima.testo);", "il velo riscrive nota.json senza controllare che sia ancora quello letto"),
+        ('await todo(["fatto", String(n.todo)]);', "Risolta non chiude il todo"),
+        ('await todo(["scarta", String(n.todo)', "Scarta non scarta il todo"),
+        ("el.children(this.segni(t))", "il velo non disegna i segni delle note aperte"),
+        (".child(this.pastiglie(t))", "il campo non ha le pastiglie del tipo"),
+        ("numero: prossimoNumero(aperte)", "la nota nuova non prende il numero dopo le aperte")]:
+        if pezzo not in ui:
+            return perche
+    node = shutil.which("node")
+    if not node:
+        return None
+    copia = casa / "nota.mjs"
+    shutil.copyfile(mod / "nota.js", copia)
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_VELO % json.dumps(copia.as_uri())],
+                       capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"nota.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    d = g["nuova"]
+    if (d["versione"], d["id"], d["numero"], d["tipo"], d["stato"], d["todo"], d["filo"]) != (
+            2, "2026-11-10_07-00-00", 4, "correggere", "aperta", None,
+            [{"chi": "federico", "quando": "2026-11-10T06:00:00Z", "testo": "Il bottone è storto"}]):
+        return f"nota.json versione 2 sbagliata: {d}"
+    if g["tipo"] != ["domanda", "correggere"]:
+        return f"il tipo della nota non si tiene o non ricade sul predefinito: {g['tipo']}"
+    if "--json" not in g["argv"] or g["argv"].index("--json") > g["argv"].index("--"):
+        return "il todo della nota non si chiede con --json: l'id non torna nella nota"
+    l = g["letta"]
+    if (l["versione"], l["id"], l["stato"], l["numero"], l["tipo"], l["filo"][0]["testo"], l["dove"]["blocco"]) != (
+            2, "2026-11-09_10-00-00", "aperta", None, "correggere", "vecchia", None):
+        return f"una nota versione 1 non si legge come aperta versione 2: {l}"
+    if g["rotta"] != [None, None]:
+        return "un nota.json rotto o vuoto diventa una nota"
+    if g["aperte"] != [["b", 1], ["2026-11-09_10-00-00", 2], ["c", 3]] or g["prossimo"] != [4, 1]:
+        return f"numeri dei segni sbagliati: {g['aperte']} prossimo {g['prossimo']}"
+    if g["segni"] != [{"x": 700, "y": 400}, {"x": 350, "y": 200}, {"x": 699, "y": 399}]:
+        return f"i segni non si riportano in scala sulla finestra: {g['segni']}"
+    if g["risposta"][-1] != {"chi": "claude", "quando": "t1", "testo": "fatto, guarda"} or g["vuota"] or g["chi"]:
+        return "la risposta non entra nel filo, o entra vuota o di qualcun altro"
+    ri, sc = g["risolta"], g["scartata"]
+    if (ri["stato"], ri["riassunto"], ri["motivo"], ri["chiusa_quando"], ri["filo"][-1]["testo"]) != ("risolta", "sistemato", None, "t2", "sistemato") \
+            or (sc["stato"], sc["motivo"], sc["chiusa_quando"], len(sc["filo"])) != ("scartata", None, "t3", 1) or g["sbagliata"] is not None:
+        return "risolta e scartata non chiudono la nota come devono"
+    cartella = casa / "note"
+    for nome, testo in [("a", '{"x": 1}'), ("b", None), ("c", "ciao")]:
+        (cartella / nome).mkdir(parents=True)
+        if testo:
+            (cartella / nome / "nota.json").write_text(testo, encoding="utf-8")
+    letto = [json.loads(subprocess.run([sys.executable, "-c", g["script"], str(c)], capture_output=True, text=True, timeout=30).stdout)
+             for c in (cartella, casa / "manca")]
+    if letto != [[["a", '{"x": 1}'], ["c", "ciao"]], []]:
+        return f"LEGGI_NOTE non legge la cartella delle note: {letto}"
+    env = {**os.environ, "HOME": str(casa), "USERPROFILE": str(casa), "ARTURO_TODO": str(casa / "eventi.jsonl"),
+           "ARTURO_OGGI": "2026-11-10"}
+    r = subprocess.run([sys.executable, str(repo / "bin/arturo"), "todo", *g["argv"]], capture_output=True,
+                       text=True, timeout=60, env=env, cwd=casa)
+    try:
+        if json.loads(r.stdout)["id"] != 1:
+            return f"la CLI non dà l'id del todo: {r.stdout[:120]}"
+    except (ValueError, KeyError):
+        return f"la CLI con --json non risponde in JSON: {(r.stderr or r.stdout).strip()[:160]}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27}
 
 
 def prova(repo: Path) -> list[str]:
@@ -1084,6 +1185,11 @@ VELENI = [
     ("HZ26", "shared/volta-celeste/mods/arturo/nota.js", "if (Math.abs(marchio.altezza + barra.altezza + piede.altezza - H) > 2) return null;", ""),
     ("HZ26", "shared/volta-celeste/mods/arturo/nota.js", "if (Math.abs(S + (m.divisore ?? 1) + testata.larghezza - W) > 2) return null;", ""),
     ("HZ26", "shared/volta-celeste/mods/arturo/main.js", "if (!MISURATE.has(this.nome) || !el?.on_size_change) return el;", "return el;"),
+    ("HZ27", "shared/volta-celeste/mods/arturo/nota.js", "if (Number.isInteger(n.numero)) return n;", "return n;"),
+    ("HZ27", "shared/volta-celeste/mods/arturo/nota.js", 'stato: "aperta", chiusa_quando: null', 'stato: "presa", chiusa_quando: null'),
+    ("HZ27", "shared/volta-celeste/mods/arturo/nota.js", "n.punto.x * W / f.larghezza", "n.punto.x"),
+    ("HZ27", "shared/volta-celeste/mods/arturo/nota.js", '"--note", riga, "--json", "--"', '"--note", riga, "--"'),
+    ("HZ27", "shared/volta-celeste/mods/arturo/notaui.js", "json(salvata), prima.testo);", "json(salvata), null);"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 
