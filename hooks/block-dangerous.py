@@ -68,7 +68,15 @@ _DOWNLOAD = r"(\b(?:curl|wget)\b|(?:^|[;&|(`\n])\s*(?:sudo\s+)?fetch\b)"
 # La pipe vera fra due stadi (`\|` di un pattern non lo è, `||` nemmeno), con gli stadi in mezzo
 # (`curl x | tee f | bash`) e sudo con le sue opzioni (`sudo -E bash`): review del 7/11/2026, finding 1.
 _PIPE = r"(?<!(?<!\\)\\)\|(?!\|)"
-_FINO_ALLO_STADIO = r"[^|]*(?:" + _PIPE + r"[^|]*)*?" + _PIPE + r"\s*(sudo(?:\s+-\S+)*\s+)?"
+# Gli stadi in mezzo si leggono con le virgolette intere: `curl u | grep -E 'a|php'` non ha una terza pipe, e
+# il blocco era falso. Il primo tratto resta `[^|]*`, così `echo "$(curl u)" | bash` blocca ancora. Dopo la
+# pipe valgono anche `|&`, un gruppo che si apre (`| (bash)`) e sudo o doas con le opzioni che prendono un
+# valore (`sudo -u root bash`): review del 9/11/2026, #5097. Solo gruppi non catturanti oltre a sudo: la
+# regola python conta i gruppi per il \3.
+_STADIO_VIRGOLETTE = r"(?:[^|'\"\\]|\\[\s\S]|'[^']*'|\"(?:\\[\s\S]|[^\"\\])*\")*"
+_FINO_ALLO_STADIO = (r"[^|]*(?:" + _PIPE + _STADIO_VIRGOLETTE + r")*?" + _PIPE + r"&?\s*(?:[({]\s*)?"
+                     r"((?:sudo|doas)(?:\s+(?:-[ugChDprtTU]|--(?:user|group|host|prompt|role|type|chdir|"
+                     r"other-user|close-from|command-timeout))(?:\s+|=)[^\s|;&]+|\s+-\S+)*\s+)?")
 # curl|bash e le sue varianti che eseguono uno script remoto scaricato al volo. Si giudicano su ogni
 # istruzione (_istruzioni): `curl -o d.csv url; head d.csv | python3 conta.py` scarica in un'istruzione e
 # legge un file locale nell'altra, e il blocco duro non lascia confermare (finding 10).
@@ -233,9 +241,53 @@ _SECRET_REDIR_RE = re.compile(
 )
 
 
+def _gruppi_in_pipe(testo: str):
+    """I tratti (inizio, fine) dei gruppi `{ ...; }` e `( ... )` attaccati a una pipe, fuori dalle virgolette.
+
+    `{ curl u; } | bash` manda alla shell tutto quello che il gruppo stampa: le istruzioni del gruppo
+    formano uno stadio solo. Contano anche `$(` e `<(`. Le graffe contano solo come parole (`${x}` no);
+    una `)` senza la sua `(`, come nel `case`, si ignora (review del 9/11/2026, #5097)."""
+    aperti, gruppi, i, n, q = [], [], 0, len(testo), None
+    while i < n:
+        c = testo[i]
+        if q == "'":
+            q = None if c == "'" else q
+        elif c == "\\" and i + 1 < n:
+            i += 2
+            continue
+        elif q == '"':
+            q = None if c == '"' else q
+        elif c in "'\"":
+            q = c
+        elif c == "(":
+            aperti.append(("(", i))
+        elif c == "{" and (i == 0 or testo[i - 1] in " \t\n;&|(") and testo[i + 1:i + 2] in (" ", "\t", "\n"):
+            aperti.append(("{", i))
+        elif c == ")" or (c == "}" and testo[i - 1:i] in (" ", "\t", "\n", ";")
+                          and (i + 1 == n or testo[i + 1] in " \t\n;&|)")):
+            apre = "(" if c == ")" else "{"
+            while aperti and aperti[-1][0] != apre:
+                aperti.pop()
+            if aperti:
+                gruppi.append((aperti.pop()[1], i))
+        i += 1
+    tratti = []
+    for a, b in gruppi:
+        prima = testo[:a].rstrip(" \t\n$<")
+        dopo = testo[b + 1:].lstrip(" \t\n")
+        if (prima.endswith("|") and not prima.endswith("||")) or prima.endswith("|&") or \
+                (dopo.startswith("|") and not dopo.startswith("||")):
+            tratti.append((a, b))
+    return tratti
+
+
 def _istruzioni(testo: str):
     """Le istruzioni del comando: il testo spezzato su `;`, a capo, `&&`, `||` e `&` fuori dalle
-    virgolette, come li legge bash. `2>&1`, `&>` e `|&` non spezzano (finding 10)."""
+    virgolette, come li legge bash. `2>&1`, `&>` e `|&` non spezzano (finding 10). Non spezzano nemmeno
+    l'a capo dopo una pipe, dove la pipeline continua, e i separatori dentro un gruppo attaccato a una
+    pipe (`_gruppi_in_pipe`): `curl u |` + a capo + `bash` e `{ curl u; } | bash` sono uno stadio che
+    scarica e uno che esegue (review del 9/11/2026, #5097)."""
+    tratti = _gruppi_in_pipe(testo)
     out, corrente, i, n, q = [], [], 0, len(testo), None
     while i < n:
         c = testo[i]
@@ -249,6 +301,10 @@ def _istruzioni(testo: str):
             q = None if c == '"' else q
         elif c in "'\"":
             q = c
+        elif c in ";\n&|" and any(a < i < b for a, b in tratti):
+            pass
+        elif c == "\n" and re.search(r"(?<!\|)\|&?$", "".join(corrente).rstrip(" \t\n")):
+            pass
         elif c in ";\n" or (c == "&" and testo[i + 1:i + 2] == "&") or (c == "|" and testo[i + 1:i + 2] == "|"):
             out.append("".join(corrente))
             corrente = []
@@ -1973,7 +2029,8 @@ def main() -> int:
     # 1) Blocco duro
     if not _inert_reference(command):
         try:
-            istruzioni = _istruzioni(testo)
+            # senza i commenti: `curl u | # nota` + a capo + `bash` è una pipeline sola (#5097)
+            istruzioni = _istruzioni(_fc.togli_commenti(testo))
         except Exception:
             istruzioni = [testo]
         regole = [(p, w, [testo]) for p, w in DANGEROUS] + [(p, w, istruzioni) for p, w in DANGEROUS_ISTRUZIONE]

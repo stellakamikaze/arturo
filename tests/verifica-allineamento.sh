@@ -172,6 +172,8 @@ BANCHI=(
   test_humanizer_origine.py
   # Percorsi fra virgolette e alla maniera di Windows nelle guardie (9/11/2026, #5096).
   test_guardie_virgolette_2026_11_09.py
+  # Le forme che le guardie leggevano prima del lotto L2 del 7/11 (10/11/2026, #5097).
+  test_guardie_regressioni_l2_2026_11_10.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -456,6 +458,8 @@ VELENI=(
   test_deriva_allineata.py
   # #5096 (9/11/2026): con le guardie di ce1cafc ogni gruppo GV, salvo i falsi positivi di GV08, è rosso.
   test_guardie_virgolette_2026_11_09.py
+  # #5097 (10/11/2026): con le guardie di 73c6bf1 ogni gruppo LR è rosso, anche i blocchi falsi di LR02.
+  test_guardie_regressioni_l2_2026_11_10.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

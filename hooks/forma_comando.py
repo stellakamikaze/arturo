@@ -162,8 +162,24 @@ _DAVANTI = frozenset("! { } then do else elif if while until time fi done esac".
 _INTESTAZIONI = frozenset("for case select".split())
 # Wrapper che eseguono il comando che segue; le loro opzioni si saltano. timeout ha anche la durata
 # (`timeout 30 rm`, `timeout -s KILL 5s cat .env`: review del 7/11/2026, finding 2).
-_WRAPPER = frozenset("command builtin exec nohup nice env sudo caffeinate timeout".split())
+_WRAPPER = frozenset("command builtin exec nohup nice env sudo doas caffeinate timeout".split())
 _TIMEOUT_CON_VALORE = frozenset(("-s", "--signal", "-k", "--kill-after"))
+# Le opzioni dei wrapper che prendono un valore: lettere corte e forme lunghe col valore staccato. Senza,
+# `sudo -u root rm` dava il programma `root` e `env -u X gh` dava `X` (review del 9/11/2026, #5097).
+_WRAPPER_CON_VALORE = {
+    "sudo": ("ugChDprtTU", frozenset(("--user", "--group", "--host", "--prompt", "--role", "--type", "--chdir",
+                                      "--other-user", "--close-from", "--command-timeout"))),
+    "doas": ("uC", frozenset()),
+    "env": ("uCPS", frozenset(("--unset", "--chdir", "--split-string"))),
+    "exec": ("a", frozenset()),
+    "nice": ("n", frozenset(("--adjustment",))),
+    "timeout": ("sk", _TIMEOUT_CON_VALORE),
+}
+# Programmi che lanciano il comando scritto nei loro argomenti: find con -exec e i lanciatori di pacchetti.
+# Il programma esterno resta nell'elenco, e quello dentro si aggiunge (#5097).
+_FIND_ESEGUE = frozenset(("-exec", "-execdir", "-ok", "-okdir"))
+_LANCIATORI = frozenset(("npx", "pnpx", "bunx"))
+_LANCIATORI_CON_VALORE = frozenset(("-p", "--package", "--cache", "--userconfig"))
 _DURATA = re.compile(r"^\d+(?:\.\d+)?[smhd]?$")
 SHELL = frozenset("sh bash zsh dash ksh fish".split())
 # Un gruppo di opzioni corte che contiene c: `-c`, `-lc`, `-ec`, `-xc` (finding 2).
@@ -179,23 +195,41 @@ def _nome(parola: str) -> str:
     return os.path.basename(parola.lstrip("\\"))
 
 
+def _salto(tok: str, corti: str, lunghi=frozenset()) -> int:
+    """Quante parole occupa l'opzione `tok`: 2 se prende il valore dalla parola dopo, altrimenti 1.
+
+    Un gruppo corto si legge come getopt: la prima lettera che vuole un valore prende il resto del
+    gruppo, o la parola dopo se è l'ultima (`-Eu root`, `-euo pipefail`). Le lunghe di `lunghi` col
+    valore staccato occupano due parole, con `=` una (review del 9/11/2026, #5097)."""
+    if tok.startswith("--"):
+        return 2 if tok in lunghi else 1
+    lettere = tok[1:]
+    for k, ch in enumerate(lettere):
+        if ch in corti:
+            return 2 if k == len(lettere) - 1 else 1
+    return 1
+
+
 def codice_shell(args):
     """Il testo che una shell esegue con -c, anche dentro un gruppo (`bash -lc 'x'`), o None.
 
     Il testo è il primo argomento che non è un'opzione dopo il gruppo. Prima contava solo la parola
     identica a `-c`, e `bash -lc 'rm -rf ~/x'` non si leggeva. Se il gruppo non c'è prima del primo
-    argomento libero (lo script), vale ancora la vecchia lettura: un `-c` ovunque, con la parola dopo."""
+    argomento libero (lo script), vale ancora la vecchia lettura: un `-c` ovunque, con la parola dopo.
+    `o` e `O` prendono un valore anche dentro un gruppo: `bash -euo pipefail -lc 'x'` (#5097)."""
     j = 0
     while j < len(args):
         a = args[j]
         if a == "--" or not a.startswith(("-", "+")):
             break
         if _GRUPPO_C.match(a):
-            for b in args[j + 1:]:
+            # i valori di o e O del gruppo vengono dopo, prima del testo: `-ceuo pipefail 'x'`
+            k = j + 1 + sum(ch in "oO" for ch in a[1:])
+            for b in args[k:]:
                 if not b.startswith(("-", "+")):
                     return b
             return None
-        j += 2 if a in _SHELL_CON_VALORE else 1
+        j += _salto(a, "oO", _SHELL_CON_VALORE)
     if "-c" in args and args.index("-c") + 1 < len(args):
         return args[args.index("-c") + 1]
     return None
@@ -228,11 +262,22 @@ def comandi(cmd: str, profondita: int = 0):
             elif re.match(r"^\d*[<>]", t):
                 # redirezione in testa (`<file`, `2>`, `$(<file)`): non è un programma
                 i += 1 if len(t.lstrip("0123456789<>&")) else 2
+            elif t.isdigit():
+                # il lexer spezza `>&2 gh x` in `>`, `&`, `2 gh x`: la cifra è il resto della redirezione (#5097)
+                i += 1
             elif _nome(t) in _WRAPPER:
                 involucro = _nome(t)
+                corti, lunghi = _WRAPPER_CON_VALORE.get(involucro, ("", frozenset()))
                 i += 1
                 while i < len(toks) and (toks[i].startswith("-") or toks[i].isdigit() or _ASSEGNAZIONE.match(toks[i])):
-                    i += 2 if involucro == "timeout" and toks[i] in _TIMEOUT_CON_VALORE else 1
+                    if toks[i] == "--":
+                        i += 1
+                        break
+                    passo = _salto(toks[i], corti, lunghi) if toks[i].startswith("-") else 1
+                    if involucro == "env" and toks[i] in ("-S", "--split-string") and i + 1 < len(toks) \
+                            and profondita < 3:
+                        out += comandi(toks[i + 1], profondita + 1)  # `env -S 'gh x'`: la stringa è il comando
+                    i += passo
                 if involucro == "timeout" and i < len(toks) and _DURATA.match(toks[i]):
                     i += 1
             else:
@@ -255,6 +300,31 @@ def comandi(cmd: str, profondita: int = 0):
                     out += comandi(" ".join(shlex.quote(x) for x in resto), profondita + 1)
             elif prog == "trap" and args and not args[0].startswith("-"):
                 out += comandi(args[0], profondita + 1)  # il corpo gira all'uscita o al segnale
+            elif prog == "find":
+                # `find . -exec gh repo delete {} \;`: le parole fino a `;` o `+` sono un comando (#5097)
+                for k, a in enumerate(args):
+                    if a in _FIND_ESEGUE:
+                        corpo = []
+                        for b in args[k + 1:]:
+                            if b in (";", "+"):
+                                break
+                            corpo.append(b)
+                        if corpo:
+                            out += comandi(" ".join(shlex.quote(x) for x in corpo), profondita + 1)
+            elif prog in _LANCIATORI:
+                # `npx -y gh x`: il pacchetto è il programma; `npx -c 'x'` esegue il testo come shell (#5097)
+                k = 0
+                while k < len(args) and args[k].startswith("-"):
+                    if args[k] in ("-c", "--call") and k + 1 < len(args):
+                        out += comandi(args[k + 1], profondita + 1)
+                        k = len(args)
+                        break
+                    if args[k] == "--":
+                        k += 1
+                        break
+                    k += 2 if args[k] in _LANCIATORI_CON_VALORE else 1
+                if k < len(args):
+                    out += comandi(" ".join(shlex.quote(x) for x in args[k:]), profondita + 1)
     return out
 
 
