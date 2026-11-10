@@ -23,6 +23,7 @@ import importlib.util
 import os
 import re
 import shlex
+import sys
 
 # Gli heredoc li riconosce heredoc.py, lo stesso modulo delle altre guardie (15/10/2026).
 # Se manca, nessun corpo sparisce: la guardia controlla tutto il testo.
@@ -366,11 +367,18 @@ _XARGS_CON_VALORE = frozenset(("-I", "-n", "-P", "-L", "-l", "-d", "-E", "-e", "
                                "--arg-file", "--replace"))
 
 
+_DISCO_SENZA_MAIUSCOLE = sys.platform in ("darwin", "win32")
+
+
 def _nome(parola: str) -> str:
     """Il nome del programma senza cartella. Su Windows `rm.exe` è lo stesso programma di `rm`: il
-    suffisso si toglie, o ogni confronto col nome lo manca (revisione del 10/11/2026, HK-1)."""
+    suffisso si toglie, o ogni confronto col nome lo manca (revisione del 10/11/2026, HK-1). Su Windows
+    e su macOS il disco ignora le maiuscole: `RM` e `Git` fanno partire `rm` e `git`, quindi il nome si
+    legge in minuscolo (HK-1b). Su Linux `RM` è un altro file e resta com'è."""
     nome = os.path.basename(parola.lstrip("\\"))
-    return nome[:-4] if len(nome) > 4 and nome[-4:].lower() == ".exe" else nome
+    if len(nome) > 4 and nome[-4:].lower() == ".exe":
+        nome = nome[:-4]
+    return nome.lower() if _DISCO_SENZA_MAIUSCOLE else nome
 
 
 def _salto(tok: str, corti: str, lunghi=frozenset()) -> int:

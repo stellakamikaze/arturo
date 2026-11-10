@@ -137,6 +137,15 @@ if [[ "$COMMAND" =~ $PATTERN_TIMEOUT && "${_SENZAQ:-$COMMAND}" =~ $PATTERN_TIMEO
     exit 2
 fi
 
+# Su macOS e Windows il disco ignora le maiuscole: `RM -rf`, `Git push --force` e `GH repo delete`
+# fanno partire `rm`, `git` e `gh`. Da qui in poi ogni confronto del pre-filtro le ignora (revisione del
+# 10/11/2026, HK-1b). Su Linux `RM` è un altro file e il confronto resta esatto.
+_SENZA_MAIUSCOLE=0
+if [[ "$OSTYPE" == darwin* || "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
+    _SENZA_MAIUSCOLE=1
+    shopt -s nocasematch
+fi
+
 # --- Pattern pre-filtro (in variabili: evita problemi in [[ =~ ]]) ---
 # gh ancorato a inizio comando/segmento, MA tollerando i prefissi che non cambiano
 # il comando eseguito: assegnazioni env (FOO=bar), `env`, `command`, `\gh`. Senza
@@ -367,7 +376,13 @@ except Exception:
 # contiene una sostituzione, NON e' git-puro: si prosegue coi guard.
 PATTERN_SUBST='\$\(|`|<\(|>\('
 PATTERN_GIT_UNSAFE='(^|[[:space:]])(--output|--exec-path|--config-env|-c[[:space:]])|(^|[^>])>>?[^&|;]|send-email|imap-send'
-if [[ "$COMMAND" =~ $PATTERN_GIT_TEXT && ! "$COMMAND" =~ $PATTERN_SUBST && "$COMMAND" != *"--output"* && "$COMMAND" != *"--exec-path"* && "$COMMAND" != *"--config-env"* && ! "$COMMAND" =~ $PATTERN_GIT_UNSAFE ]]; then
+# `-c` (configurazione) e `-C` (cartella) sono opzioni diverse di git: questo confronto resta esatto
+# anche dove il pre-filtro ignora le maiuscole (HK-1b).
+shopt -u nocasematch
+_GIT_UNSAFE=0
+[[ "$COMMAND" =~ $PATTERN_GIT_UNSAFE ]] && _GIT_UNSAFE=1
+[[ $_SENZA_MAIUSCOLE -eq 1 ]] && shopt -s nocasematch
+if [[ "$COMMAND" =~ $PATTERN_GIT_TEXT && ! "$COMMAND" =~ $PATTERN_SUBST && "$COMMAND" != *"--output"* && "$COMMAND" != *"--exec-path"* && "$COMMAND" != *"--config-env"* && $_GIT_UNSAFE -eq 0 ]]; then
     # Le virgolette si leggono come le legge bash (forma_comando.py, shlex): lo strip con
     # sed accoppiava un apostrofo dentro le doppie con uno piu' avanti e cancellava i
     # comandi in mezzo. Ogni programma eseguito deve essere git o cd, anche col path
@@ -380,7 +395,7 @@ if [[ "$COMMAND" =~ $PATTERN_GIT_TEXT && ! "$COMMAND" =~ $PATTERN_SUBST && "$COM
 fi
 
 # Opzioni Git che possono cambiare scritture o comportamento non sono testo inerte.
-[[ "$COMMAND" =~ $PATTERN_GIT_TEXT && "$COMMAND" =~ $PATTERN_GIT_UNSAFE ]] && run_guard block-dangerous.py
+[[ "$COMMAND" =~ $PATTERN_GIT_TEXT && $_GIT_UNSAFE -eq 1 ]] && run_guard block-dangerous.py
 
 # Comms guard: invii email/messaggi esterni (draft-first). Il match si rifa' sul CODICE eseguito:
 # comms-prefilter.py toglie gli heredoc scritti su file e tace sui comandi di sola lettura
@@ -416,9 +431,7 @@ fi
 _MAIUSC=0
 _PATTERN_CONFIG_MAIUSC='\.claude/(settings|hooks|firme|plugins|arturo)|library/launchagents'
 if [[ "$OSTYPE" == darwin* || "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
-    shopt -s nocasematch
     [[ "$_GUARD_DRITTO" =~ $_PATTERN_CONFIG_MAIUSC ]] && _MAIUSC=1
-    shopt -u nocasematch
 fi
 if [[ "$GUARD_COMMAND" =~ $PATTERN_DANGER || "$_GUARD_DRITTO" =~ $PATTERN_DANGER || "$_GUARD_DRITTO" =~ $PATTERN_CD_CLAUDE || "$INPUT" =~ $_RE_CWD_CLAUDE || $_MAIUSC -eq 1 ]]; then
     for _i in $(locali prima-danger); do run_locale "$_i"; done
