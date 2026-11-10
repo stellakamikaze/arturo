@@ -7,6 +7,7 @@ distribuire (#5172, 10/11/2026).
 
   python3 volta_sonda.py volta [--scrivi FILE]   l'elenco, nel formato di ~/.cache/volta/sessioni.json
   python3 volta_sonda.py nasci MACCHINA [--progetto SLUG] [-- PROMPT]
+  python3 volta_sonda.py azione MACCHINA logs|stop|respawn|rm ID   (logs: le ultime righe dello schermo)
       una sessione nuova in background (claude --bg) su MACCHINA ("qui" per questa), nella base dei
       progetti di quella macchina. Stampa {id, sessionId, attach, macchina, progetto, cartella} oppure
       {errore}: lo stesso contratto di porta-volta, così Volta la aggancia come le altre (#5172 passo 4).
@@ -19,6 +20,7 @@ al posto della sonda di questa macchina).
 """
 import base64
 import json
+import re
 import os
 import platform
 import shutil
@@ -389,6 +391,130 @@ def nasci(nome, prompt="", progetto=None):
     return {"errore": "non parte su %s: %s" % (nome or "questa macchina", ultimo)}
 
 
+SEQ = re.compile(r"\x1b\[([0-9;?]*)[ -/]*([@-~])|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[()][A-Za-z0-9]|\x1b[=>78DEM]")
+
+
+def schermo(testo, quante=12):
+    """Le ultime righe che un terminale mostrerebbe per l'uscita grezza di `claude logs`.
+
+    claude disegna lo schermo spostando il cursore (G, C, B, H) invece di scrivere gli spazi:
+    togliere le sequenze incollerebbe le parole. Qui si rifà il disegno su una griglia."""
+    righe = {}
+    r = c = alto = h = 0
+
+    def riga(i):
+        return righe.setdefault(i, [])
+
+    def metti(ch):
+        nonlocal c
+        x = riga(r)
+        if len(x) < c:
+            x.extend(" " * (c - len(x)))
+        if c < len(x):
+            x[c] = ch
+        else:
+            x.append(ch)
+        c += 1
+
+    def giu(n):
+        nonlocal r, alto
+        r += n
+        if h and r >= alto + h:
+            alto = r - h + 1
+
+    i = 0
+    while i < len(testo):
+        m = SEQ.match(testo, i)
+        if m:
+            i = m.end()
+            fin = m.group(2)
+            if not fin:
+                continue
+            p = [int(x) if x.isdigit() else 0 for x in m.group(1).replace("?", "").split(";")] if m.group(1) else []
+            n = (p[0] if p and p[0] else 1)
+            if fin == "G":
+                c = n - 1
+            elif fin == "C":
+                c += n
+            elif fin == "D":
+                c = max(0, c - n)
+            elif fin == "B":
+                giu(n)
+            elif fin == "A":
+                r = max(alto, r - n)
+            elif fin in "Hf":
+                riga_ = p[0] if p and p[0] else 1
+                col = p[1] if len(p) > 1 and p[1] else 1
+                h = max(h, riga_)
+                r, c = alto + riga_ - 1, col - 1
+            elif fin == "d":
+                h = max(h, n)
+                r = alto + n - 1
+            elif fin == "K":
+                x = riga(r)
+                modo = p[0] if p else 0
+                if modo == 0:
+                    del x[c:]
+                elif modo == 1:
+                    x[:c + 1] = [" "] * min(len(x), c + 1)
+                else:
+                    x.clear()
+            elif fin == "J":
+                modo = p[0] if p else 0
+                if modo in (2, 3):
+                    for k in [k for k in righe if k >= alto]:
+                        del righe[k]
+                elif modo == 0:
+                    del riga(r)[c:]
+                    for k in [k for k in righe if k > r]:
+                        del righe[k]
+            continue
+        ch = testo[i]
+        i += 1
+        if ch == "\n":
+            c = 0
+            giu(1)
+        elif ch == "\r":
+            c = 0
+        elif ch == "\b":
+            c = max(0, c - 1)
+        elif ch == "\t":
+            c = (c // 8 + 1) * 8
+        elif ch >= " ":
+            metti(ch)
+    fuori = ("Checking for updates",)
+    viste = ["".join(righe[k]).rstrip() for k in sorted(righe)]
+    viste = [v for v in viste if v.strip() and not v.strip().startswith(fuori)]
+    return viste[-quante:]
+
+
+VERBI = ("logs", "stop", "respawn", "rm")
+
+
+def azione(nome, verbo, sid):
+    """Un comando di claude su una sessione di `nome` ("qui" = questa macchina): logs (l'anteprima,
+    come righe di schermo), stop, respawn, rm. Le altre macchine passano da herdr-core (hc exec --on)."""
+    if verbo not in VERBI:
+        return {"errore": "azione sconosciuta: %s" % verbo}
+    if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z-]{3,63}", sid or ""):  # mai un'opzione come --all
+        return {"errore": "id di sessione non valido"}
+    if nome in (None, "", "qui"):
+        argv = [shutil.which("claude") or "claude", verbo, sid]
+    else:
+        argv = hc() + ["exec", "--on", nome, "claude", verbo, sid]
+    try:
+        rc, out, err = lancia(argv, timeout=60)
+    except (OSError, subprocess.SubprocessError) as e:
+        return {"errore": "%s non risponde: %s" % (nome or "questa macchina", str(e)[:160])}
+    if rc != 0:
+        testo = (err or out).strip()
+        return {"errore": testo.splitlines()[-1][:200] if testo else "rc %d" % rc}
+    if verbo == "logs":
+        return {"righe": schermo(out)}
+    testo = (out or err).strip()
+    return {"ok": True, "testo": testo.splitlines()[-1][:200] if testo else ""}
+
+
 def main_nasci(argv):
     resto = argv[argv.index("--") + 1:] if "--" in argv else []
     testa = argv[:argv.index("--")] if "--" in argv else argv
@@ -404,6 +530,13 @@ def main_nasci(argv):
 def main(argv):
     if argv and argv[0] == "nasci":
         return main_nasci(argv[1:])
+    if argv and argv[0] == "azione":
+        if len(argv) != 4:
+            print("uso: volta_sonda.py azione <macchina> <logs|stop|respawn|rm> <id>")
+            return 2
+        esito = azione(argv[1], argv[2], argv[3])
+        print(json.dumps(esito, ensure_ascii=True))
+        return 0 if "errore" not in esito else 1
     if not argv or argv[0] != "volta":
         print(__doc__.strip())
         return 2

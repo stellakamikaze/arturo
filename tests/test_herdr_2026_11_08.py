@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ39: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ40: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -137,6 +137,13 @@ HZ39 la nascita su un'altra macchina (#5172 passo 4, volta_sonda.py nasci con un
      percorso di volta_sonda.py è uno, i suggerimenti restano qui, e Lavoraci su uno spazio nato altrove
      scrive nella scheda che lo aggancia.
 
+HZ40 i gesti di Volta su una sessione (#5172 passo 4): volta_sonda.py azione lancia claude logs, stop,
+     respawn e rm qui o con hc exec --on, rifiuta un verbo o un id strani senza lanciare niente, e
+     l'anteprima rifà lo schermo di claude logs (parole spaziate dai movimenti del cursore). sessioni.js
+     (node): Anteprima su ogni sessione in background, Ferma solo se è viva, Riavvia dopo un errore,
+     Elimina con conferma solo se è ferma; avviso solo per chi passa a "ti aspetta" dopo la prima
+     lettura; stato per id corto senza le righe vecchie. volta.js usa azioni(), nuoveInAttesa() e
+     statiCorti(), e dati.js passa da volta_sonda.py azione.
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
@@ -152,7 +159,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -2157,7 +2164,93 @@ def hz39(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39}
+
+HC_FINTO_AZIONE = r"""import json, os, sys
+with open(os.environ["HZ_LOG"], "a", encoding="utf-8") as f:
+    f.write(json.dumps(sys.argv[1:]) + "\n")
+print("stopped " + sys.argv[-1])
+"""
+
+CLAUDE_FINTO_AZIONE = r"""#!/bin/sh
+printf '%s\n' "$*" >> "$HZ_LOG"
+if [ "$1" = logs ]; then printf 'Sta\033[5Glavorando\033[15Gsul\033[19Gdeck\n\033[2Cpronto\nChecking for updates\n'; exit 0; fi
+if [ "$1" = rm ] && [ -n "${HZ_RIFIUTA:-}" ]; then echo "has unpushed commits" >&2; exit 1; fi
+echo "$1 ok"
+"""
+
+PROVA_GESTI = """
+import * as m from %s;
+const bg = (stato, altro = {}) => ({ tipo: "background", stato, host: "qui", sessionId: "s-" + stato, id: stato.slice(0, 4), ...altro });
+const verbi = (s) => m.azioni(s).map((a) => a.verbo + (a.conferma ? "!" : ""));
+const prima = { sessioni: [bg("lavora"), bg("aspetta"), bg("ferma", { sessionId: "s-x" })] };
+const dopo = { sessioni: [bg("aspetta", { sessionId: "s-lavora" }), bg("aspetta"), bg("aspetta", { sessionId: "s-x", vecchia: true }), bg("aspetta", { sessionId: "s-nuova" })] };
+console.log(JSON.stringify({
+  lavora: verbi(bg("lavora")), aspetta: verbi(bg("aspetta")), ferma: verbi(bg("ferma")), errore: verbi(bg("errore")),
+  interattiva: verbi({ ...bg("ferma"), tipo: "interattiva" }), vecchia: verbi(bg("ferma", { vecchia: true })),
+  nuove: m.nuoveInAttesa(prima, dopo).map((s) => s.sessionId), primaLettura: m.nuoveInAttesa(null, dopo).length,
+  stati: m.statiCorti({ sessioni: [bg("lavora"), bg("ferma", { id: "vv", vecchia: true })] }),
+}));
+"""
+
+
+def hz40(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    sonda = mod / "volta_sonda.py"
+    log = casa / "log"
+    log.write_text("", encoding="utf-8")
+    hcf = casa / "hc_finto.py"
+    hcf.write_text(HC_FINTO_AZIONE, encoding="utf-8")
+    bindir = casa / "bin"
+    bindir.mkdir()
+    env = {**os.environ, "HZ_LOG": str(log), "VOLTA_HC": json.dumps([sys.executable, str(hcf)]), "PYTHONIOENCODING": "utf-8"}
+    if os.name != "nt":
+        cl = bindir / "claude"
+        cl.write_text(CLAUDE_FINTO_AZIONE, encoding="utf-8")
+        os.chmod(cl, 0o755)
+        env["PATH"] = f"{bindir}{os.pathsep}{env['PATH']}"
+    az = lambda *a, **e: subprocess.run([sys.executable, str(sonda), "azione", *a], capture_output=True, text=True, timeout=60, env={**env, **e})  # noqa: E731
+    r = az("Studio", "stop", "abcd1234")
+    chiamate = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines() if x.startswith("[")]
+    if chiamate != [["exec", "--on", "Studio", "claude", "stop", "abcd1234"]]:
+        return f"azione su un'altra macchina: hc riceve {chiamate}, atteso exec --on Studio claude stop abcd1234"
+    if json.loads(r.stdout.strip().splitlines()[-1]).get("ok") is not True:
+        return f"azione riuscita senza ok: {r.stdout.strip()[-120:]}"
+    log.write_text("", encoding="utf-8")
+    for strano in (["Studio", "kill", "abcd1234"], ["Studio", "stop", "abcd;rm -rf"], ["Studio", "stop", "--all"]):
+        r = az(*strano)
+        if r.returncode == 0 or "errore" not in r.stdout or log.read_text(encoding="utf-8").strip():
+            return f"azione {strano} non rifiutata, o lanciata lo stesso"
+    if os.name != "nt":
+        r = az("qui", "logs", "abcd1234")
+        righe = json.loads(r.stdout.strip().splitlines()[-1]).get("righe")
+        if righe != ["Sta lavorando sul deck", "  pronto"]:
+            return f"anteprima {righe}: attese le parole spaziate dai movimenti del cursore, senza Checking for updates"
+        r = az("qui", "rm", "abcd1234", HZ_RIFIUTA="1")
+        if r.returncode == 0 or "has unpushed commits" not in r.stdout:
+            return f"rm rifiutato da claude senza il suo motivo: {r.stdout.strip()[-120:]}"
+    node = shutil.which("node")
+    if node:
+        copia = casa / "sessioni.mjs"
+        shutil.copyfile(mod / "sessioni.js", copia)
+        r = subprocess.run([node, "--input-type=module", "-e", PROVA_GESTI % json.dumps(copia.as_uri())], capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+        d = json.loads(r.stdout.strip().splitlines()[-1])
+        attesi = {"lavora": ["logs", "stop"], "aspetta": ["logs", "stop"], "ferma": ["logs", "rm!"], "errore": ["logs", "respawn", "rm!"],
+                  "interattiva": [], "vecchia": [], "nuove": ["s-lavora", "s-nuova"], "primaLettura": 0,
+                  "stati": {"lavo": {"stato": "lavora", "host": "qui"}}}
+        for k, v in attesi.items():
+            if d.get(k) != v:
+                return f"sessioni.js {k}: {d.get(k)}, atteso {v}"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    for pezzo in ("azioni(s)", "nuoveInAttesa(prima, this.dati)", 'setShared("arturo.volta.stati"', "azioneSessione(s, a.verbo)"):
+        if pezzo not in vj:
+            return f"volta.js non usa {pezzo}"
+    if '[c.volta, "azione", s.host, verbo, s.id]' not in (mod / "dati.js").read_text(encoding="utf-8"):
+        return "dati.js non passa da volta_sonda.py azione"
+    return None
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -2289,6 +2382,15 @@ VELENI = [
     ("HZ38", "shared/volta-celeste/volta-claude.ps1", "if ($senzaId) { Qui }", "#"),
     ("HZ38", "shared/volta-celeste/volta-claude.ps1", "$_ -and $_ -notmatch '^Starting background service'", "$_"),
     ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", "if rc != 0 and (non_parte(out, err) or rc == 9009):", "if True:"),
+    ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        argv = hc() + ["exec", "--on", nome, "claude", verbo, sid]', '        argv = hc() + ["exec", nome, "claude", verbo, sid]'),
+    ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z-]{3,63}", sid or ""):', "if False:"),
+    ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    if verbo not in VERBI:", "    if False:"),
+    ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", '            if fin == "G":\n                c = n - 1', '            if fin == "G":\n                pass'),
+    ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    fuori = (\"Checking for updates\",)", "    fuori = (\"zzz\",)"),
+    ("HZ40", "shared/volta-celeste/mods/arturo/sessioni.js", 'if (s.stato === "lavora" || s.stato === "aspetta") out.push', 'if (s.stato === "lavora") out.push'),
+    ("HZ40", "shared/volta-celeste/mods/arturo/sessioni.js", "  if (!prima) return [];", "  if (!prima) prima = { sessioni: [] };"),
+    ("HZ40", "shared/volta-celeste/mods/arturo/sessioni.js", "if (s.id && !s.vecchia) out[s.id]", "if (s.id) out[s.id]"),
+    ("HZ40", "shared/volta-celeste/mods/arturo/sessioni.js", 'out.push({ verbo: "rm", testo: "Elimina", conferma: "Sì, elimina" })', 'out.push({ verbo: "rm", testo: "Elimina" })'),
     ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'json.dumps({"prompt": prompt or "", "progetto": progetto})', 'json.dumps({"prompt": "", "progetto": progetto})'),
     ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'if m["stato"] not in (None, "connected"):', "if False:"),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'const m = soloQui ? "qui" : dove();', 'const m = dove();'),

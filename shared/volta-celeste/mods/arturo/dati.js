@@ -335,3 +335,16 @@ export async function cartelle() {
     return [];
   }
 }
+
+// Un gesto su una sessione di Volta (sessioni.js azioni): volta_sonda.py azione, qui o via herdr-core.
+// Torna { righe } per l'anteprima, { ok, testo } per gli altri, { errore } se non va.
+export async function azioneSessione(s, verbo) {
+  const c = await config();
+  try {
+    const r = await exec(c.arturo[0], [c.volta, "azione", s.host, verbo, s.id], { timeout: 90000 });
+    const riga = (r.stdout || "").trim().split("\n").pop() || "{}";
+    return JSON.parse(riga);
+  } catch (e) {
+    return { errore: `${s.macchina} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
+  }
+}

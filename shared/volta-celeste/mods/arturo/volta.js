@@ -4,13 +4,16 @@
 // clic aggancia la sessione in una scheda (claude attach, via ssh se è su un'altra macchina), o la
 // sposta prima in background se è aperta in un Terminale ed è ferma.
 // Spostare in background una sessione aperta in un Terminale (porta-volta) resta a teletrasporto.py, se c'è.
+// "Altro" su una sessione in background: anteprima delle ultime righe, ferma, riavvia, elimina (#5172 passo 4).
+// Una sessione che passa a "ti aspetta", di qualunque macchina, dà un avviso; lo stato di ogni sessione
+// va in shared arturo.volta.stati per le schede che agganciano una sessione in background.
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, home, shared, setShared, watchFolder, notify } from "herdr";
-import { gruppi, titolo, dettaglio, clic, MODI } from "./sessioni.js";
+import { gruppi, titolo, dettaglio, clic, MODI, azioni, nuoveInAttesa, statiCorti } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
-import { config, aggancia } from "./dati.js";
+import { config, aggancia, azioneSessione } from "./dati.js";
 
 const OGNI = 30000;
 
@@ -32,6 +35,10 @@ export class Volta {
     this.avvisi = {};
     this.sposto = {};
     this.aperti = {};
+    this.menu = null;      // la sessione con i gesti aperti
+    this.anteprime = {};   // sessionId -> righe di claude logs
+    this.chiedo = {};      // sessionId -> verbo che aspetta la conferma
+    this.faccio = {};      // sessionId -> verbo in corso
     this.script = undefined;
     this.py = "python3";
     cx.spawn(async (cx) => {
@@ -54,10 +61,17 @@ export class Volta {
   }
 
   async leggi() {
+    const prima = this.dati;
     try {
       const testo = await readTextFile(this.file);
       if (testo) this.dati = JSON.parse(testo);
     } catch { /* un file a metà: resta l'ultima lettura buona */ }
+    if (this.dati !== prima) {
+      for (const s of nuoveInAttesa(prima, this.dati))
+        notify({ title: `${titolo(s)} ti aspetta`, body: `Su ${s.macchina}: aprila da Tutte le sessioni.`, level: "info" });
+      const st = statiCorti(this.dati);
+      if (JSON.stringify(st) !== JSON.stringify(shared("arturo.volta.stati") ?? {})) setShared("arturo.volta.stati", st);
+    }
     // Le macchine per la riga "Nasce su" (dati.js altreMacchine), scritte solo quando cambiano.
     const m = (this.dati?.macchine ?? []).map((x) => ({ host: x.host, macchina: x.macchina, questa: Boolean(x.questa), giu: Boolean(x.irraggiungibile) }));
     if (JSON.stringify(m) !== JSON.stringify(shared("arturo.volta.macchine") ?? [])) setShared("arturo.volta.macchine", m);
@@ -127,19 +141,70 @@ export class Volta {
     else notify({ title: `Non trovo la sessione ${id}`, body: "L'elenco si aggiorna fra pochi secondi: riprova.", level: "warning" });
   }
 
+  // Un gesto di "Altro": l'anteprima resta sotto la riga, gli altri rileggono l'elenco. Elimina chiede
+  // prima la conferma, con un secondo clic sullo stesso bottone.
+  fare(s, a, cx) {
+    const k = s.sessionId;
+    if (this.faccio[k]) return;
+    if (a.conferma && this.chiedo[k] !== a.verbo) { this.chiedo[k] = a.verbo; return cx.notify(); }
+    delete this.chiedo[k];
+    if (a.verbo === "logs" && this.anteprime[k]) { delete this.anteprime[k]; return cx.notify(); }
+    this.faccio[k] = a.verbo;
+    cx.notify();
+    cx.spawn(async (cx) => {
+      const r = await azioneSessione(s, a.verbo);
+      delete this.faccio[k];
+      if (r.errore) this.avvisa(s, `Non riesco: ${r.errore}`, cx);
+      else if (a.verbo === "logs") this.anteprime[k] = r.righe?.length ? r.righe : ["(niente da mostrare)"];
+      else {
+        this.avvisa(s, { stop: "Fermata: un clic la riapre.", respawn: "Riavviata.", rm: "Eliminata." }[a.verbo], cx);
+        if (a.verbo === "rm") this.menu = null;
+        this.aggiorna(cx);
+      }
+      cx.notify();
+    });
+  }
+
+  gesti(t, s, az) {
+    const k = s.sessionId;
+    const bottone = (a) => {
+      const testo = this.faccio[k] === a.verbo ? "…" : this.chiedo[k] === a.verbo ? a.conferma
+        : a.verbo === "logs" && this.anteprime[k] ? "Chiudi l'anteprima" : a.testo;
+      return div().id(`vg-${s.host}-${s.id}-${a.verbo}`).px(8).py(3).rounded(6).cursor_pointer()
+        .text_size(12).border_1().border_color(this.chiedo[k] === a.verbo ? t.blocked : t.border)
+        .text_color(this.chiedo[k] === a.verbo ? t.blocked : t.muted)
+        .hover((st) => st.bg(t.selected))
+        .on_click((_e, cx) => this.fare(s, a, cx))
+        .child(testo);
+    };
+    const anteprima = this.anteprime[k];
+    return v_flex().pl(19).pt(4).gap(6)
+      .child(h_flex().gap(6).flex_wrap().children(az.map(bottone)))
+      .when(Boolean(anteprima), (el) => el.child(v_flex().p(8).rounded(6).bg(t.hover).overflow_hidden()
+        .children(anteprima.map((r, i) => div().id(`vl-${s.id}-${i}`).truncate().font_family("Atkinson Hyperlegible Mono").text_size(11.5).text_color(t.muted).child(r || " ")))));
+  }
+
   riga(t, s, modo, cx) {
     const sposto = this.sposto[s.sessionId];
     const d = sposto ? { testo: "La sposto nella finestra…", colore: "working" } : dettaglio(s, modo);
     const avviso = this.avvisi[s.sessionId];
     const vivo = s.stato === "aspetta" || s.stato === "lavora" || s.stato === "errore";
-    return v_flex().id(`v-${s.host}-${s.id}`).mx(8).px(10).py(7).gap(2).rounded(8).cursor_pointer()
-      .hover((st) => st.bg(t.hover))
-      .on_click((_e, cx) => this.premi(s, cx))
-      .child(h_flex().gap(11).items_start()
-        .child(div().pt(6).child(vivo || sposto ? punto(colore(t, d.colore)) : div().size(8).flex_none()))
-        .child(v_flex().flex_1().min_w(0).gap(2)
-          .child(div().truncate().text_size(14).text_color(s.vecchia ? t.muted : t.foreground).child(titolo(s)))
-          .child(div().truncate().text_size(12.5).text_color(colore(t, d.colore)).child(d.testo))))
+    const az = azioni(s);
+    const aperto = this.menu === s.sessionId && az.length > 0;
+    // Il clic sulla riga apre la sessione; "Altro" sta a fianco, fuori dall'area che apre.
+    return v_flex().mx(8).px(10).py(7).gap(2).rounded(8).when(aperto, (el) => el.bg(t.hover))
+      .child(h_flex().gap(6).items_start()
+        .child(h_flex().id(`v-${s.host}-${s.id}`).flex_1().min_w(0).gap(11).items_start().cursor_pointer()
+          .on_click((_e, cx) => this.premi(s, cx))
+          .child(div().pt(6).child(vivo || sposto ? punto(colore(t, d.colore)) : div().size(8).flex_none()))
+          .child(v_flex().flex_1().min_w(0).gap(2)
+            .child(div().truncate().text_size(14).text_color(s.vecchia ? t.muted : t.foreground).child(titolo(s)))
+            .child(div().truncate().text_size(12.5).text_color(colore(t, d.colore)).child(d.testo))))
+        .when(az.length > 0, (el) => el.child(div().id(`va-${s.host}-${s.id}`).mt(2).px(6).py(1).rounded(6).cursor_pointer()
+          .text_size(12).text_color(aperto ? t.foreground : t.dim).hover((st) => st.bg(t.selected))
+          .on_click((_e, cx) => { this.menu = aperto ? null : s.sessionId; cx.notify(); })
+          .child("Altro"))))
+      .when(aperto, (el) => el.child(this.gesti(t, s, az)))
       .when(Boolean(avviso), (el) => el.child(div().pl(19).whitespace_normal().text_size(12.5).text_color(t.foreground).child(avviso)));
   }
 

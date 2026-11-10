@@ -117,3 +117,33 @@ const dentro = (a, id) => typeof a === "string" &&
   new RegExp(`\\battach['"]?\\s+['"]?${id.replace(/[^\w-]/g, "")}\\b`).test(a);
 export const agganciata = (argv, s) => Array.isArray(argv) && !!s?.id &&
   ((argv.includes("attach") && argv.includes(s.id)) || argv.some((a) => dentro(a, s.id)));
+
+// I gesti sulla riga di una sessione in background, oltre al clic che la apre (claude attach, anche se
+// lavora): l'anteprima (claude logs), ferma (stop) se è viva, riavvia (respawn) dopo un errore, elimina
+// (rm, con conferma) se è ferma. Un'interattiva e una riga vecchia non ne hanno: si aprono e basta.
+export function azioni(s) {
+  if (!s || s.vecchia || s.tipo !== "background") return [];
+  const out = [{ verbo: "logs", testo: "Anteprima" }];
+  if (s.stato === "lavora" || s.stato === "aspetta") out.push({ verbo: "stop", testo: "Ferma" });
+  if (s.stato === "errore") out.push({ verbo: "respawn", testo: "Riavvia" });
+  if (s.stato === "ferma" || s.stato === "errore") out.push({ verbo: "rm", testo: "Elimina", conferma: "Sì, elimina" });
+  return out;
+}
+
+const chiave = (s) => `${s.host}/${s.sessionId}`;
+
+// Le sessioni che da una lettura all'altra sono passate a "ti aspetta", di qualunque macchina.
+// Alla prima lettura nessuna: l'avviso è per un cambio, non per chi aspettava già all'apertura.
+export function nuoveInAttesa(prima, dopo) {
+  if (!prima) return [];
+  const era = new Map((prima.sessioni ?? []).map((s) => [chiave(s), s.stato]));
+  return (dopo?.sessioni ?? []).filter((s) => !s.vecchia && s.stato === "aspetta" && era.get(chiave(s)) !== "aspetta");
+}
+
+// Lo stato di ogni sessione per id corto, per le parti che agganciano una sessione in background in
+// una scheda: lì Herdr non ha lo stato del terminale, e lo prendono da qui (shared arturo.volta.stati).
+export function statiCorti(dati) {
+  const out = {};
+  for (const s of dati?.sessioni ?? []) if (s.id && !s.vecchia) out[s.id] = { stato: s.stato, host: s.host };
+  return out;
+}
