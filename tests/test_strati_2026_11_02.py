@@ -208,7 +208,7 @@ def prova(repo: Path, ref: str | None) -> list[str]:
         clone = radici(clone_home / ".claude", clone_home)
         atteso_clone = [reale(clone_home / ".claude"), str(clone_home / ".claude"), "python3 ~/.claude/bin/arturo"]
         con_plugin = radici(plugin, orsa_home)
-        atteso_plugin = [reale(plugin), str(orsa_home / ".claude"), f"python3 {Path(reale(plugin)) / 'bin' / 'arturo'}"]
+        atteso_plugin = [reale(plugin), str(orsa_home / ".claude"), f"python3 {(Path(reale(plugin)) / 'bin' / 'arturo').as_posix()}"]
         altra = tmp / "altra-config"
         con_config = radici(plugin, orsa_home, {"CLAUDE_CONFIG_DIR": str(altra)})
         if clone != atteso_clone:

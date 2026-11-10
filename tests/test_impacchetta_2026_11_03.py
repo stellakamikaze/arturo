@@ -266,9 +266,12 @@ def prova(repo: Path) -> list[str]:
             sys.path.remove(str(pacchetto / "hooks"))
             for nome in ("radici", "melchior_match", "correzioni"):
                 sys.modules.pop(nome, None)
-        vero = os.path.realpath(pacchetto)
-        if "melchior_recall.py" in sotto or f"{vero}{os.sep}bin{os.sep}arturo memoria cerca".replace(os.sep, "/") \
-                not in sotto.replace(os.sep, "/") or "~/.claude/docs" in gws or "docs/onboarding/gws.md" not in gws.replace(os.sep, "/"):
+        vero = os.path.realpath(pacchetto).replace(os.sep, "/")
+        # Su Windows la cartella temporanea sta sotto la home: radici._corto la scrive con ~ (#5173).
+        forme = [vero] + ["~" + vero[len(c):] for c in {str(Path.home()).replace(os.sep, "/"),
+                          os.path.realpath(Path.home()).replace(os.sep, "/")} if vero.startswith(c + "/")]
+        if "melchior_recall.py" in sotto or not any(f"{f}/bin/arturo memoria cerca" in sotto.replace(os.sep, "/") for f in forme) \
+                or "~/.claude/docs" in gws or "docs/onboarding/gws.md" not in gws.replace(os.sep, "/"):
             rossi.append(f"IP20 percorsi dei testi degli hook: {sotto[sotto.find('cerca prima'):][:90]!r} {gws[-90:]!r}")
 
         mercato = json.loads((pacchetto / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))

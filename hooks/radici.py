@@ -32,12 +32,13 @@ def radice_orsa() -> Path:
 
 
 def _corto(percorso: Path) -> str:
-    """Il percorso con ~ al posto della home, come la persona lo scriverebbe."""
+    """Il percorso con ~ al posto della home, come la persona lo scriverebbe. Sempre con le barre
+    dritte: su Windows `C:/…` va in PowerShell, in cmd e in Git Bash, `C:\\…` solo nei primi due (#5173)."""
     testo = str(percorso)
     for casa in (str(Path.home()), os.path.realpath(Path.home())):
         if testo == casa or testo.startswith(casa + os.sep):
             return "~" + testo[len(casa):].replace(os.sep, "/")
-    return testo
+    return testo.replace(os.sep, "/")
 
 
 def comando_arturo() -> str:
