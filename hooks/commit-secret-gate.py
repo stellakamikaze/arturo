@@ -21,6 +21,7 @@ import shlex
 import signal
 import subprocess
 import sys
+import time
 
 
 def _regola(nome: str) -> None:
@@ -417,11 +418,39 @@ def _git(command: list, repo: str, **kw) -> subprocess.CompletedProcess:
 _COMMIT_CON_VALORE = frozenset(("--message", "--file", "--reuse-message", "--reedit-message", "--author", "--date",
                                 "--template", "--fixup", "--squash", "--cleanup", "--trailer", "--pathspec-from-file"))
 _COMMIT_LETTERE_VALORE = "mFCct"
-_LIMITE_FILE = 200
+# Fino al 10/11/2026 la guardia leggeva al massimo 200 file nuovi: oltre, chiedeva conferma senza leggere
+# nemmeno lo stage (#5098). Ora legge tutto dentro un tetto di byte e di tempo, e oltre il tetto scansiona
+# comunque lo stage e i file già letti.
+_TETTO_BYTE = 20_000_000
+_TETTO_SECONDI = 2.0
+_PEZZO = 200_000  # di ogni file si leggono i primi 200 KB
+
+
+class _Lettura:
+    """I file nuovi letti come righe aggiunte, dentro un tetto comune di byte e di tempo."""
+
+    def __init__(self, repo: str):
+        self.repo, self.parti, self.letti, self.saltati, self.byte = repo, [], 0, 0, 0
+        self.fine = time.monotonic() + _TETTO_SECONDI
+
+    def leggi(self, nome: str) -> None:
+        if self.saltati or self.byte >= _TETTO_BYTE or time.monotonic() > self.fine:
+            self.saltati += 1
+            return
+        try:
+            with open(os.path.join(self.repo, nome), "rb") as f:
+                dati = f.read(_PEZZO)
+        except OSError:
+            return
+        self.letti += 1
+        self.byte += len(dati)
+        if b"\0" in dati[:8000]:
+            return  # un file binario: anche git diff --cached lo mostra solo come "Binary files differ"
+        self.parti.append("\n".join("+" + riga for riga in dati.decode("utf-8", "ignore").splitlines()))
 
 
 def _invocazioni_git(command: str):
-    """(sottocomando, argomenti) di ogni git del comando, dopo le opzioni globali."""
+    """(sottocomando, argomenti, con -C) di ogni git del comando, dopo le opzioni globali."""
     try:
         segmenti = list(_segments(_senza_heredoc(command)))
     except ValueError:
@@ -434,10 +463,12 @@ def _invocazioni_git(command: str):
         if i >= len(tokens) or os.path.basename(tokens[i]) != "git":
             continue
         i += 1
+        con_c = False
         while i < len(tokens) and tokens[i].startswith("-"):
+            con_c = con_c or tokens[i] == "-C"
             i += 2 if tokens[i] in ("-C", "-c") else 1
         if i < len(tokens):
-            out.append((tokens[i], tokens[i + 1:]))
+            out.append((tokens[i], tokens[i + 1:], con_c))
     return out
 
 
@@ -471,27 +502,45 @@ def _forzati_add(args) -> list:
     return [a for a in args if not a.startswith("-")]
 
 
-def _leggi_percorsi(repo: str, percorsi) -> list:
-    """Il contenuto dei file nominati, come righe aggiunte. Oltre _LIMITE_FILE file solleva _Fallita."""
-    parti, visti = [], 0
+def _pathspec_add(invocazioni, command: str):
+    """I pathspec dei `git add` del comando, letti dalla cartella del commit. None vuol dire tutti i file nuovi.
+
+    Si restringe solo quando add e commit girano di sicuro nella stessa cartella: niente cd, pushd o popd nel
+    comando, niente -C su add o commit, ogni add con i suoi path. In ogni altro caso si leggono tutti (#5098).
+    """
+    if re.search(r"\b(?:cd|pushd|popd)\b", command):
+        return None
+    specs = []
+    for sotto, args, con_c in invocazioni:
+        if con_c and sotto in ("add", "commit"):
+            return None
+        if sotto != "add":
+            continue
+        propri, dopo = [], False
+        for a in args:
+            if dopo or not a.startswith("-"):
+                propri.append(a)
+            elif a == "--":
+                dopo = True
+            elif a.startswith("--pathspec-from-file"):
+                return None
+        if not propri:
+            return None  # git add -A, git add -u: si leggono tutti
+        specs += propri
+    return specs or None
+
+
+def _leggi_percorsi(lettura: _Lettura, percorsi) -> None:
+    """Il contenuto dei file nominati da `git add -f`, cartelle comprese."""
     for p in percorsi:
-        pieno = os.path.join(repo, os.path.expanduser(p))
+        pieno = os.path.join(lettura.repo, os.path.expanduser(p))
         nomi = [os.path.join(r, f) for r, _, fs in os.walk(pieno) for f in fs] if os.path.isdir(pieno) else [pieno]
         for nome in nomi:
-            visti += 1
-            if visti > _LIMITE_FILE:
-                raise _Fallita(f"git add -f nomina più di {_LIMITE_FILE} file, oltre quelli che la guardia legge",
-                               "aggiungi i file a gruppi, oppure git status per vedere cosa entra")
-            try:
-                with open(nome, encoding="utf-8", errors="ignore") as f:
-                    parti.append("\n".join("+" + riga for riga in f.read(200_000).splitlines()))
-            except OSError:
-                continue
-    return parti
+            lettura.leggi(nome)
 
 
-def _diff(repo: str, commit_all: bool, add_prima: bool = False, percorsi=(), forzati=()) -> str:
-    """Il diff da scansionare. Se git non lo dà, solleva _Fallita con causa e rimedio."""
+def _diff(repo: str, commit_all: bool, add_prima: bool = False, percorsi=(), forzati=(), specs=None):
+    """(diff da scansionare, lettura dei file nuovi). Se git non lo dà, solleva _Fallita con causa e rimedio."""
     commands = [["git", "-C", repo, "diff", "--cached", "--no-color", "--no-ext-diff", "--no-textconv", "--unified=0"]]
     if commit_all or add_prima:
         commands.append(["git", "-C", repo, "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--unified=0"])
@@ -508,28 +557,21 @@ def _diff(repo: str, commit_all: bool, add_prima: bool = False, percorsi=(), for
         if result.returncode:
             raise _causa(result.stderr, repo)
         output.append(result.stdout)
+    lettura = _Lettura(repo)
     if add_prima:
         # 9/10/2026: `git add X && git commit` mette X in stage dopo questo controllo.
-        # Si leggono anche i file non tracciati che git add potrebbe aggiungere.
-        # surrogateescape: un nome di file non UTF-8 resta apribile con open().
-        result = _git(["git", "-C", repo, "ls-files", "--others", "--exclude-standard", "-z"], repo,
-                      encoding="utf-8", errors="surrogateescape")
+        # Si leggono anche i file non tracciati che git add potrebbe aggiungere: solo quelli dei suoi
+        # pathspec, se si possono leggere (#5098). surrogateescape: un nome non UTF-8 resta apribile.
+        result = _git(["git", "-C", repo, "ls-files", "--others", "--exclude-standard", "-z",
+                       *(["--", *specs] if specs else [])], repo, encoding="utf-8", errors="surrogateescape")
         if result.returncode:
             raise _causa(result.stderr, repo)
-        nuovi = [n for n in result.stdout.split("\0") if n]
-        if len(nuovi) > _LIMITE_FILE:
-            # Prima si leggevano i primi 200 e il resto passava muto: il primo commit di un progetto li supera
-            # spesso (finding 7).
-            raise _Fallita(f"ci sono {len(nuovi)} file nuovi, oltre i {_LIMITE_FILE} che la guardia legge",
-                           "aggiungi i file a gruppi, oppure controlla con git status cosa entra nel commit")
-        for nome in nuovi:
-            try:
-                with open(os.path.join(repo, nome), encoding="utf-8", errors="ignore") as f:
-                    output.append("\n".join("+" + riga for riga in f.read(200_000).splitlines()))
-            except OSError:
-                continue
-    output += _leggi_percorsi(repo, forzati)
-    return "\n".join(part for part in output if part)
+        for nome in result.stdout.split("\0"):
+            if nome:
+                lettura.leggi(nome)
+    _leggi_percorsi(lettura, forzati)
+    output += lettura.parti
+    return "\n".join(part for part in output if part), lettura
 
 
 def _leggi_sorgenti(percorsi) -> str | None:
@@ -620,10 +662,12 @@ def main() -> int:
     commit_all = bool(re.search(r"\bcommit\b[^|;&]*\s-{1,2}(a\b|all\b|[a-zA-Z]*a[a-zA-Z]*\b)", command))
     add_prima = bool(re.search(r"\bgit\b[^;&|\n]*\sadd\b", command))
     invocazioni = _invocazioni_git(command)
-    percorsi = next((_percorsi_commit(a) for s, a in invocazioni if s == "commit"), [])
-    forzati = [p for s, a in invocazioni if s == "add" for p in _forzati_add(a)]
+    percorsi = next((_percorsi_commit(a) for s, a, _ in invocazioni if s == "commit"), [])
+    forzati = [p for s, a, _ in invocazioni if s == "add" for p in _forzati_add(a)]
+    specs = _pathspec_add(invocazioni, command) if add_prima else None
+    lettura = None
     try:
-        out = _diff(repo, commit_all, add_prima, percorsi, forzati)
+        out, lettura = _diff(repo, commit_all, add_prima, percorsi, forzati, specs)
     except _Fallita as f:
         out = f
     except Exception as e:
@@ -637,7 +681,13 @@ def main() -> int:
         return _ask("scansione-fallita", f"La scansione dei segreti non è partita: {out.causa}. Per ripararla: "
                     f"{out.rimedio}. Se confermi, il commit parte senza controllo dei segreti.")
 
-    if not out and not add_prima:
+    parziale = ""
+    if lettura and lettura.saltati:
+        totale = lettura.letti + lettura.saltati
+        parziale = (f"La guardia ha letto {lettura.letti} file nuovi su {totale}: gli altri superano il tetto di "
+                    f"{_TETTO_BYTE // 1_000_000} MB o di {_TETTO_SECONDI:g} secondi. Lo stage è letto per intero. ")
+
+    if not out and not add_prima and not parziale:
         return 0
 
     added = "\n".join(
@@ -648,14 +698,13 @@ def main() -> int:
         # Un file scritto nello stesso comando prima di `git add` non esiste ancora quando la guardia legge il
         # repository: si scansiona anche il testo del comando, senza il messaggio di commit (1/11/2026, F22).
         added += "\n" + re.sub(r"""(?:\s-m|\s--message)(?:=|\s+)(?:"[^"]*"|'[^']*'|\S+)""", " ", command)
-    if not added.strip():
-        return 0
-
-    found = []
-    for rx, name in COMPILED:
-        if rx.search(added):
-            found.append(name)
+    found = [name for rx, name in COMPILED if added.strip() and rx.search(added)]
     if not found:
+        if parziale:
+            # La conferma resta e il nome della regola non cambia: la telemetria resta confrontabile.
+            return _ask("scansione-fallita", parziale + "Nessun segreto nei file letti. Se confermi, i file non "
+                        "letti entrano senza controllo: aggiungili a gruppi, oppure controlla con git status cosa "
+                        "entra nel commit.")
         return 0
 
     uniq = list(dict.fromkeys(found))
@@ -664,7 +713,7 @@ def main() -> int:
     return _ask(FAMIGLIA.get(uniq[0], "segreto-altro"),
                 "Possibile secret nel diff staged: " + ", ".join(uniq[:5]) + ". "
                 "Un leak pushato è irreversibile. Conferma solo dopo aver "
-                "verificato che non sia una credenziale reale.")
+                "verificato che non sia una credenziale reale. " + parziale)
 
 
 if __name__ == "__main__":

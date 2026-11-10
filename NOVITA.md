@@ -13,6 +13,18 @@ modo di lavorare.
 
 ---
 
+## 2026-11-10 — Il controllo dei segreti legge anche i commit con molti file nuovi
+
+**Cosa cambia**: con più di 200 file nuovi nel progetto, ogni `git add` seguito da `git commit` chiedeva
+conferma, e dopo il sì il commit partiva senza leggere nemmeno le modifiche già in stage. Ora la guardia
+legge tutti i file nuovi, e con `git add file.py` legge solo quelli che l'add aggiunge davvero. Chiede
+conferma solo se i file nuovi superano 20 MB o 2 secondi di lettura: il messaggio dice quanti ne ha letti,
+e le modifiche in stage le legge comunque per intero.
+
+**Il principio**: un controllo che si arrende davanti a un progetto grande vale quanto un controllo spento.
+
+**Da sapere**: i file binari si saltano, come fa già `git diff`.
+
 ## 2026-11-10 — /inizio e la rotazione: una parola corta non sceglie un progetto, una domanda non si perde
 
 **Cosa cambia**:
