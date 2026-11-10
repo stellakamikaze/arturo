@@ -40,6 +40,8 @@ uniscono a settings.json le impostazioni nuove, da una copia che torna col suo M
 """
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import os
 import re
@@ -56,6 +58,7 @@ AIUTO = __doc__.split("\n\n")[2] if __doc__ else ""
 NOME_PLUGIN = "arturo@arturo"
 TAG_PLUGIN = re.compile(r"plugin-v(\d{1,4})\.(\d{1,4})\.(\d{1,6})")
 ORA = 3600            # controlla scarica al massimo una volta all'ora
+OCCUPATO = 6          # uscita interna di cmd_applica: un'altra applicazione tiene il lucchetto
 ATTESA_MAX = 90       # secondi: quanto applica aspetta che Claude Code si chiuda davvero
 FIRME = "firme/rilasci.allowed_signers"
 # Il messaggio di una firma che manca o non torna, uguale ovunque compare (avvio, barra, /aggiorna).
@@ -454,20 +457,26 @@ def cmd_controlla(r: Path, forza: bool = False) -> int:
     return 0
 
 
-def cmd_applica(r: Path, ammesse: int = 0) -> int:
+def cmd_applica(r: Path, ammesse: int = 0, fare=None, occupato: int = 0) -> int:
+    """Un'applicazione alla volta, col lucchetto session-env/aggiornamento.lock. `fare` è la procedura (di serie
+    _applica, quella del clone); `occupato` è l'uscita se un'altra applicazione è in corso. Col plugin lo stesso
+    lucchetto vale per la chiusura e per /aggiorna: mai due `claude plugin update` insieme (10/11/2026)."""
     blocco = r / "session-env" / "aggiornamento.lock"
     try:
         blocco.parent.mkdir(parents=True, exist_ok=True)
         blocco.mkdir()
     except FileExistsError:
-        if time.time() - blocco.stat().st_mtime < 900:
-            return 0  # un'altra applicazione è in corso
-        shutil.rmtree(str(blocco), ignore_errors=True)
-        blocco.mkdir()
+        try:
+            if time.time() - blocco.stat().st_mtime < 900:
+                return occupato  # un'altra applicazione è in corso
+            shutil.rmtree(str(blocco), ignore_errors=True)
+            blocco.mkdir()
+        except OSError:
+            return 1
     except OSError:
         return 1
     try:
-        return _applica(r, ammesse)
+        return fare(r) if fare else _applica(r, ammesse)
     finally:
         shutil.rmtree(str(blocco), ignore_errors=True)
 
@@ -558,8 +567,21 @@ def modo_plugin() -> bool:
     return fiducia.plugin(radici.radice_arturo())
 
 
+def programma_claude() -> str:
+    """La CLI di Claude Code. Il processo staccato della chiusura può avere un PATH senza `claude` (app desktop,
+    shell senza ~/.local/bin): si provano i due posti dove Claude Code si installa."""
+    scelto = os.environ.get("ARTURO_CLAUDE") or shutil.which("claude")
+    if scelto:
+        return scelto
+    nome = "claude.exe" if os.name == "nt" else "claude"
+    for posto in (Path.home() / ".local" / "bin" / nome, Path.home() / ".claude" / "local" / nome):
+        if posto.is_file():
+            return str(posto)
+    return "claude"
+
+
 def _claude(*argomenti, timeout: int = 300) -> subprocess.CompletedProcess:
-    comando = [os.environ.get("ARTURO_CLAUDE") or "claude", "plugin", *argomenti]
+    comando = [programma_claude(), "plugin", *argomenti]
     try:
         return subprocess.run(comando, capture_output=True, text=True, encoding="utf-8", errors="replace",
                               timeout=timeout, stdin=subprocess.DEVNULL)
@@ -737,8 +759,12 @@ def controlla_plugin(r: Path, forza: bool = False) -> int:
     nuova = versione_nuova_plugin(radici.radice_orsa())
     if estranea:
         stato = {"stato": "bloccato", "compromesso": True, "motivo": estranea, "versione": nuova, "plugin": True}
+    elif nuova and vecchio.get("chiusura") and vecchio.get("versione") == nuova:
+        # Una firma che non torna o non si verifica, vista dalla chiusura: il controllo dell'ora dopo non la
+        # riscrive "pronto". La toglie un'installazione riuscita (segna_aggiornato).
+        stato = {k: v for k, v in vecchio.items() if k != "controllato"}
     elif nuova:
-        stato = {"stato": "manuale", "versione": nuova, "plugin": True}
+        stato = {"stato": "manuale" if manuali(r) else "pronto", "versione": nuova, "plugin": True}
     else:
         stato = {"stato": "aggiornato", "plugin": True}
     try:
@@ -764,6 +790,7 @@ def stato_plugin(r: Path) -> int:
     stato = leggi(file_stato(r))
     if time.time() - float(stato.get("controllato") or 0) >= ORA:
         avvia_staccato(r, "controlla")
+    fallito = esito_plugin(r, str(leggi(radici.radice_arturo() / ".claude-plugin" / "plugin.json").get("version") or ""))
     if stato.get("plugin") and stato.get("compromesso"):
         print(f"ARTURO: {COMPROMISSIONE}. {stato.get('motivo', '')}. Non riaprire Claude Code prima di aver segnalato: "
               "dillo alla persona con queste parole, e proponi /segnala o la segnalazione privata di SECURITY.md.")
@@ -771,11 +798,48 @@ def stato_plugin(r: Path) -> int:
     riga = "" if stato.get("compromesso") else impostazioni_indietro(radici.radice_arturo(), radici.radice_orsa())
     if riga:
         print(f"ARTURO: {riga} Dillo alla persona in una frase.")
+    nuova = versione_nuova_plugin(radici.radice_orsa()) if stato.get("plugin") and stato.get("versione") else ""
     if stato.get("plugin") and stato.get("stato") == "manuale" and stato.get("versione") \
-            and versione_nuova_plugin(radici.radice_orsa()) == stato["versione"]:
+            and nuova == stato["versione"]:
         print(f"ARTURO: c'è la versione {stato['versione']} di Arturo. /aggiorna la installa dopo averne verificato la "
               "firma, poi riapri Claude Code. Dillo alla persona in una frase.")
+    elif nuova and nuova == stato["versione"] and stato.get("non_verificabile"):
+        print(f"ARTURO: c'è la versione {nuova} di Arturo, ma {stato.get('motivo') or NON_VERIFICABILE}. Non si "
+              "installa, né da sola né con /aggiorna, finché git e OpenSSH non sono aggiornati. Dillo alla persona in "
+              "una frase: non è un problema di sicurezza.")
+    elif nuova and nuova == stato["versione"] and stato.get("stato") == "pronto" and fallito != nuova \
+            and not manuali(r):
+        print(f"ARTURO: c'è la versione {nuova} di Arturo: si installa da sola alla chiusura della sessione, dopo la "
+              "verifica della firma. Subito: /aggiorna.")
     return 0
+
+
+def esito_plugin(r: Path, in_uso: str) -> str:
+    """L'esito dell'ultima chiusura col plugin, detto una volta all'avvio dopo. `in_uso` è la versione della copia
+    che gira. Restituisce la versione di un'installazione non partita: per quella l'avvio non dice anche "si
+    installa da sola" (come nel clone, n. 49). Firma che non torna o non verificabile: parla lo stato."""
+    esito = leggi(file_esito(r))
+    if not esito or esito.get("mostrato"):
+        return ""
+    parola, versione = esito.get("esito"), str(esito.get("versione") or "")
+    fallito = ""
+    if parola == "APPLICATO" and numero(in_uso) < numero(versione):
+        # Una sessione rimasta aperta sulla copia di prima (dopo un /clear): l'esito resta da dire a quella nuova.
+        print(f"ARTURO: la versione {versione} di Arturo è installata: parte alla prossima apertura di Claude Code.")
+        return ""
+    if parola == "APPLICATO":
+        print(f"ARTURO: aggiornato a {versione} alla chiusura della sessione. /novita racconta cosa cambia.")
+        if esito.get("impostazioni"):
+            print(f"ARTURO: {esito['impostazioni']} Dillo alla persona in una frase.")
+    elif parola not in ("POSSIBILE COMPROMISSIONE", "FIRMA NON VERIFICABILE"):
+        fallito = versione
+        print(f"ARTURO: l'aggiornamento automatico a {versione} non è partito "
+              f"({esito.get('riga') or 'motivo sconosciuto'}). Ci riprova alla prossima chiusura, o subito con /aggiorna.")
+    try:
+        scrivi(file_esito(r), dict(esito, mostrato=True))
+    except OSError:
+        pass
+    return fallito
 
 
 def cmd_plugin(solo_verifica: bool = False) -> int:
@@ -829,6 +893,58 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
     if impostazioni:
         print(impostazioni)
     return 0
+
+
+ESITI_PLUGIN = re.compile(r"(APPLICATO|GIÀ AGGIORNATO|POSSIBILE COMPROMISSIONE|FIRMA NON VERIFICABILE|NESSUN RILASCIO|"
+                          r"APPLICAZIONE NON PARTITA)")
+
+
+def _applica_plugin(r: Path) -> int:
+    """La chiusura della sessione col plugin (10/11/2026): la stessa strada di /aggiorna, cmd_plugin, con le sue
+    verifiche (tag firmato, sha del catalogo, MANIFEST). Non rinvia mai: dopo `claude plugin update` Claude Code
+    tiene la copia di prima, e le sessioni rimaste aperte continuano da lì. Aspetta solo che la sessione che si
+    chiude sia uscita. L'esito lo racconta l'avvio dopo (stato_plugin)."""
+    if manuali(r):
+        return 0
+    prima = processi_claude()
+    _, radici = _moduli()
+    _claude("marketplace", "update", "arturo", timeout=120)
+    versione = versione_nuova_plugin(radici.radice_orsa())
+    if not versione:
+        return 0
+    limite = time.time() + float(os.environ.get("ARTURO_ATTESA_MAX", ATTESA_MAX))
+    while prima > 0 and processi_claude() >= prima and time.time() < limite:
+        time.sleep(2)
+    uscita = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(uscita), contextlib.redirect_stderr(uscita):
+            rc = cmd_plugin()
+    except Exception as errore:  # noqa: BLE001 - l'esito va scritto comunque
+        rc = 1
+        uscita.write(f"\nAPPLICAZIONE NON PARTITA: {str(errore)[:200]}")
+    righe = [x.strip() for x in uscita.getvalue().splitlines() if x.strip()]
+    if righe:
+        print("\n".join(righe))
+    riga = next((x for x in righe if ESITI_PLUGIN.match(x)), "")
+    if riga.startswith("GIÀ AGGIORNATO"):
+        return 0
+    if rc == 0 and riga.startswith("APPLICATO"):
+        _esito(r, versione, "APPLICATO", riga[:240],
+               impostazioni=next((x[:400] for x in righe if x.startswith("IMPOSTAZIONI NON APPLICATE")), ""))
+        return 0
+    if rc in (3, 4):
+        # Il motivo senza la cornice: l'avvio e la barra hanno già le loro parole.
+        m = re.search(r"\((.+?)\)\. " if rc == 3 else r": (.+?)\. Non applico", riga)
+        stato = {"stato": "bloccato", "versione": versione, "plugin": True, "chiusura": True,
+                 "motivo": m.group(1) if m else riga[:200], "controllato": time.time(),
+                 "compromesso" if rc == 3 else "non_verificabile": True}
+        try:
+            scrivi(file_stato(r), stato)
+        except OSError:
+            pass
+        _segnala_ostacolo(r, stato)
+    _esito(r, versione, riga.split(":")[0] if riga else "NON PARTITO", (riga or (righe[-1] if righe else ""))[:240])
+    return 1
 
 
 def applica_impostazioni(copia: Path) -> str:
@@ -910,16 +1026,21 @@ def _segnala_ostacolo(r: Path, stato: dict, valore: str = "") -> None:
         return
     try:
         scrivi(f, {versione: valore})
-        subprocess.run([sys.executable, str(r / "bin" / "telemetria.py"), "registra", "aggiorna", valore],
+        telemetria = r / "bin" / "telemetria.py"
+        if not telemetria.is_file():  # col plugin il codice non sta nell'Orsa
+            telemetria = Path(os.path.realpath(__file__)).parent / "telemetria.py"
+        subprocess.run([sys.executable, str(telemetria), "registra", "aggiorna", valore],
                        capture_output=True, timeout=15)
     except (OSError, subprocess.SubprocessError):
         pass
 
 
-def _esito(r: Path, tag: str, parola: str, riga: str, commentate: list = None) -> int:
+def _esito(r: Path, tag: str, parola: str, riga: str, commentate: list = None, impostazioni: str = "") -> int:
     dati = {"quando": int(time.time()), "versione": tag, "esito": parola, "riga": riga, "mostrato": False}
     if commentate:
         dati["commentate"] = commentate
+    if impostazioni:
+        dati["impostazioni"] = impostazioni
     scrivi(file_esito(r), dati)
     return 0 if parola == "APPLICATO" else 1
 
@@ -934,14 +1055,23 @@ def main(argv: list) -> int:
             if not modo_plugin():
                 print("COPIA IN ~/.claude: Arturo non è installato come plugin, vale la procedura con git.")
                 return 5
-            return cmd_plugin(solo_verifica=len(argv) == 2)
+            if len(argv) == 2:
+                return cmd_plugin(solo_verifica=True)
+            rc = cmd_applica(r, fare=lambda _r: cmd_plugin(), occupato=OCCUPATO)
+            if rc == OCCUPATO:
+                print("AGGIORNAMENTO IN CORSO: Arturo si sta già aggiornando, dalla chiusura di un'altra sessione. "
+                      "Riprova tra un minuto.")
+                return 1
+            return rc
         if modo_plugin() and argv and argv[0] in ("stato", "controlla", "applica", "firmato"):
-            # Col plugin non c'è git: niente si installa da solo, /aggiorna passa da `plugin`. Stato e controlla
-            # dicono soltanto se c'è un rilascio nuovo (#4860).
+            # Col plugin non c'è git: stato e controlla dicono se c'è un rilascio nuovo (#4860), e la chiusura lo
+            # installa con la strada di /aggiorna (10/11/2026). `applica --avvio` non serve: il plugin non rinvia.
             if argv == ["stato"]:
                 return stato_plugin(r)
             if argv in (["controlla"], ["controlla", "--subito"]):
                 return controlla_plugin(r, forza=len(argv) == 2)
+            if argv == ["applica"]:
+                return cmd_applica(r, fare=_applica_plugin)
             return cmd_plugin(solo_verifica=True) if argv == ["firmato"] else 0
         if argv == ["stato"]:
             return cmd_stato(r)

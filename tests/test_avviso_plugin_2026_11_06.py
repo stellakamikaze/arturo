@@ -83,15 +83,18 @@ def prova(repo: Path) -> list[str]:
         stato_file = orsa / "session-env" / "aggiornamento.json"
         leggi = lambda: json.loads(stato_file.read_text(encoding="utf-8")) if stato_file.exists() else {}
 
-        c1 = esegui(agg + ["controlla"], env=env)
+        # AV01-AV03 con gli aggiornamenti a mano: dal 10/11/2026 senza quella scelta lo stato è "pronto" e la
+        # chiusura installa (test_chiusura_plugin_2026_11_10.py). Qui si prova che "manuali" resta com'era.
+        env_m = {**env, "ARTURO_AGGIORNAMENTI": "manuali"}
+        c1 = esegui(agg + ["controlla"], env=env_m)
         s1 = leggi()
-        s2 = esegui(agg + ["stato"], env=env)
+        s2 = esegui(agg + ["stato"], env=env_m)
         catalogo(cat, "0.2.5")
-        c3 = esegui(agg + ["controlla"], env=env)
+        c3 = esegui(agg + ["controlla"], env=env_m)
         s3 = leggi()
-        c4 = esegui(agg + ["controlla", "--subito"], env=env)
+        c4 = esegui(agg + ["controlla", "--subito"], env=env_m)
         s4 = leggi()
-        s5 = esegui(agg + ["stato"], env=env)
+        s5 = esegui(agg + ["stato"], env=env_m)
         if c1.returncode != 0 or s1.get("stato") != "manuale" or s1.get("versione") != "0.2.6" \
                 or s4.get("stato") != "aggiornato":
             rossi.append(f"AV01 controlla: rc {c1.returncode}, stato {s1} poi {s4}, {c1.stderr[-160:]!r}")
