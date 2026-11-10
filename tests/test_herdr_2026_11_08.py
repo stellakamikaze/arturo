@@ -186,6 +186,8 @@ HZ48 una sessione in background si aggancia anche dopo /clear (11/11/2026): righ
 HZ49 una X in hover chiude per sempre una sessione ferma (11/11/2026): volta.js la mette nella riga solo
      se azioni() dà rm, visibile col puntatore sopra la riga (on_hover) o mentre chiede conferma, e il
      clic passa da fare(), che al primo clic chiede "Sì, elimina".
+HZ50 le note si trovano a vista (11/11/2026): il piede della barra ha la voce "Note", che apre l'elenco
+     e scrive accanto i tasti della nota nuova e dell'elenco; il layout arturo dà al piede 190 px, cinque voci.
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
@@ -202,7 +204,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -2903,7 +2905,31 @@ def hz49(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49}
+def hz50(repo: Path, casa: Path) -> str | None:
+    bj = (repo / "shared/volta-celeste/mods/arturo/barra.js").read_text(encoding="utf-8")
+    piede = bj[bj.find("export class Piede {"):]
+    if '.child(voce("note", "pin", "Note", () => apriElenco())' not in piede:
+        return "barra.js: il piede non ha la voce Note che apre l'elenco delle note"
+    if "${tasti().nota} nuova · ${tasti().elenco}" not in piede:
+        return "barra.js: la voce Note non scrive i tasti della nota nuova e dell'elenco"
+    lay = json.loads((repo / "shared/volta-celeste/layouts/arturo.json").read_text(encoding="utf-8"))
+    alti = []
+    def cerca(n):
+        if isinstance(n, dict):
+            if n.get("id") == "piede":
+                alti.append((n.get("size") or {}).get("px"))
+            for v in n.values():
+                cerca(v)
+        elif isinstance(n, list):
+            for v in n:
+                cerca(v)
+    cerca(lay)
+    if alti != [190]:
+        return f"layout arturo: il piede è alto {alti}, le cinque voci vogliono 190 px"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -3129,6 +3155,8 @@ VELENI = [
     ("HZ49", "shared/volta-celeste/mods/arturo/volta.js", 'const rm = az.find((a) => a.verbo === "rm");', 'const rm = az.find((a) => a.verbo === "stop");'),
     ("HZ49", "shared/volta-celeste/mods/arturo/volta.js", "const vediX = Boolean(rm) && (this.sopra === k || chiedoRm || facciorm);", "const vediX = Boolean(rm);"),
     ("HZ49", "shared/volta-celeste/mods/arturo/volta.js", ".on_click((_e, cx) => this.fare(s, rm, cx))", ""),
+    ("HZ50", "shared/volta-celeste/mods/arturo/barra.js", '.child(voce("note", "pin", "Note", () => apriElenco())', '.child(voce("note", "pin", "Note", () => apriGuida())'),
+    ("HZ50", "shared/volta-celeste/layouts/arturo.json", '"px": 190', '"px": 156'),
 ]
 
 

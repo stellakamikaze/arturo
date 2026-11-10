@@ -59,7 +59,7 @@
           "id": "piede",
           "type": "block",
           "size": {
-            "px": 156
+            "px": 190
           },
           "content": {
             "mod": "arturo",

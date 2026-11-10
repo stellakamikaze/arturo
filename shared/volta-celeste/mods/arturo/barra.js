@@ -4,7 +4,8 @@ import { div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, window, shared, setShared, nextCommand, updates } from "herdr";
 import { todo, progetti, sezioni, frase, apri, nuova, slug, cartelle, statiQui, SUGGERIMENTI } from "./dati.js";
-import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco, nasceSu } from "./comuni.js";
+import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco, nasceSu, tasti } from "./comuni.js";
+import { APERTE } from "./nota.js";
 import { apriGuida } from "./guida.js";
 import { apriSuggerimenti, esegui } from "./suggerimenti.js";
 import { apriRevisione } from "./revisione.js";
@@ -146,6 +147,9 @@ export class Barra {
   }
 }
 
+// Le note ancora da guardare (aperte o prese da Claude), da shared arturo.note della barra di stato.
+const aperteNote = () => (shared("arturo.note") ?? []).filter((n) => APERTE.has(n?.stato)).length;
+
 export class Piede {
   render() {
     const t = theme();
@@ -155,6 +159,11 @@ export class Piede {
     return v_flex().size_full().bg(t.chrome).border_t(1).border_color(t.border).px(8).py(8).gap(2)
       .child(voce("chiedi", "mods/arturo/chiedi.svg", "Cosa posso chiedere", () => apriSuggerimenti()))
       .child(voce("settimana", "mods/arturo/settimana.svg", "La settimana", () => apriRevisione()))
+      // Le note alla maniera di Agentation: il clic apre l'elenco, i due tasti stanno scritti accanto
+      // perché la nota nuova parte dallo scatto della finestra, non da un pulsante (#5156).
+      .child(voce("note", "pin", "Note", () => apriElenco())
+        .when(aperteNote() > 0, (el) => el.child(div().text_size(12).text_color(t.accent).child(String(aperteNote()))))
+        .child(div().text_size(11.5).text_color(t.dim).child(`${tasti().nota} nuova · ${tasti().elenco}`)))
       .child(voce("guida", "mods/arturo/guida.svg", "Guida", () => apriGuida()))
       .child(voce("impostazioni", "settings", "Impostazioni", () => run("app.settings"))
         .when(Boolean(updates().app.ready), (el) => el.child(punto(t.accent, 7))));
