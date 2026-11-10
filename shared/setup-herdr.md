@@ -46,8 +46,9 @@ command -v herdr-app >/dev/null 2>&1 || [ -d ~/Applications/Herdr.app ] && echo 
 - Le righe `HERDR NASCITA FUNZIONE`, `HERDR NASCITA POLICY` e `HERDR NASCITA UTF16` mostrale come sono:
   la funzione, la policy di PowerShell e il profilo sono della persona, e li cambia lei.
 - La riga `HERDR SERVIZIO` propone il servizio di Claude fisso: tiene vive le sessioni in background e
-  parte a ogni accesso. Senza, la finestra lo accende da sola prima di ogni sessione nuova, e vale fino
-  al riavvio del computer.
+  parte a ogni accesso. Senza, la finestra lo accende da sola prima di ogni sessione nuova e prima di
+  Riavvia, e lo accende anche il comando `claude` del terminale con la nascita in background accesa
+  (non da ssh). Acceso così vale fino al riavvio del computer.
   - Su Windows chiedi in una riga: "Vuoi che il servizio che tiene vive le sessioni in background parta
     da solo a ogni accesso? Non apre finestre." Col sì lancia tu il comando `powershell` della riga e
     riporta le righe `SERVIZIO CLAUDE`. Si toglie con lo stesso comando e `-Togli` in fondo.

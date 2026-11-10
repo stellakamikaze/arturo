@@ -57,6 +57,9 @@ done
 # un secondo se il servizio c'è già. Da ssh no: lì il servizio nascerebbe senza il login di Claude
 # (portachiavi o sessione di Windows non aperti), e resterebbe acceso così. Se la sonda manca o non
 # riesce, la sessione nasce lo stesso, come prima.
+# Il Python qui è python3 e basta (#5220): questo file gira su Mac e Linux, dove python3 è quello vero,
+# e leggere arturo.json da sh vorrebbe già un Python. Il gemello .ps1 lo prende da arturo.json perché
+# su Windows python3 può essere il segnaposto dello Store.
 sonda=${VOLTA_SONDA:-$(dirname "$0")/mods/arturo/volta_sonda.py}
 if [ -z "${SSH_CONNECTION:-}" ] && [ -f "$sonda" ] && command -v python3 >/dev/null 2>&1; then
   esito=$(python3 "$sonda" servizio qui 2>&1) ||

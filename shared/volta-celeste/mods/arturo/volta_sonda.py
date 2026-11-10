@@ -11,7 +11,10 @@ distribuire (#5172, 10/11/2026).
       progetti di quella macchina, dopo aver acceso il servizio di Claude. Stampa {id, sessionId, attach,
       macchina, progetto, cartella} oppure {errore}: lo stesso contratto di porta-volta, così Volta la
       aggancia come le altre (#5172 passo 4).
-  python3 volta_sonda.py azione MACCHINA logs|stop|respawn|rm ID   (logs: le ultime righe dello schermo, per chi non ha trascrizione)
+  python3 volta_sonda.py azione MACCHINA logs|stop|respawn|rm ID
+      un gesto su una sessione in background. logs: le ultime righe dello schermo, per chi non ha
+      trascrizione. respawn (Riavvia) accende prima il servizio di Claude su MACCHINA, come nasci: il
+      processo nuovo nasce da lì (#5215). stop, rm e logs non fanno nascere processi e non lo toccano.
   python3 volta_sonda.py servizio MACCHINA
       accende il servizio di Claude (claude daemon run) su MACCHINA se manca, dove sopravvive: il
       LaunchAgent di servizi-gui.sh o l'attività di servizio-claude.ps1 se ci sono; altrimenti staccato,

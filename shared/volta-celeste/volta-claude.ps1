@@ -61,7 +61,8 @@ if ($senzaId) { Qui }
 # Prima il servizio di Claude fisso (#5215), con volta_sonda.py del mod come fa Volta prima di ogni nascita:
 # senza, claude --bg lo accende a tempo, e muore quando resta senza sessioni. Da ssh no: lì il servizio
 # nascerebbe fuori dalla sessione di Windows, senza il login di Claude. Il Python è quello che
-# installa-herdr.sh ha scritto in arturo.json (lo Store di Windows mette un python3 finto). Se la sonda
+# installa-herdr.sh ha scritto in arturo.json (lo Store di Windows mette un python3 finto); il gemello
+# .sh usa python3 e basta, perché su Mac e Linux è quello vero (#5220). Se la sonda
 # manca o non riesce, la sessione nasce lo stesso, come prima.
 $sonda = $env:VOLTA_SONDA
 if (-not $sonda) { $sonda = Join-Path $PSScriptRoot 'mods/arturo/volta_sonda.py' }
