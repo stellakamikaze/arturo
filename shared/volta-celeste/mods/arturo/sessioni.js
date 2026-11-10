@@ -3,7 +3,7 @@
 // Lo prova il banco HZ17-HZ19 con node (tests/test_herdr_2026_11_08.py).
 //
 // Una riga del file (~/.cache/volta/sessioni.json, campo "sessioni"):
-// { macchina, host, questa, sessionId, id, nome, progetto, stato: aspetta|lavora|ferma|errore,
+// { macchina, host, questa, sessionId, id, nome, progetto, titolo, stato: aspetta|lavora|ferma|errore,
 //   tipo: background|interattiva, attach: argv | null, cartella, ultimo, risposta, vecchia? }
 
 export const MODI = { macchina: "Per macchina", progetto: "Per progetto" };
@@ -22,9 +22,13 @@ export function nomeProgetto(p) {
   return t[0].toUpperCase() + t.slice(1);
 }
 
-// Il titolo di una sessione. I nomi automatici di Claude ("claudecode-ca": cartella più due
-// lettere) non dicono niente: al loro posto la prima riga dell'ultima risposta.
+// Il titolo di una sessione. Prima quello che hooks/titolo-sessione.py scrive a fine turno (poche
+// parole in italiano sul lavoro in corso, campo "titolo"). Senza, il nome di Claude; i nomi automatici
+// ("claudecode-ca": cartella più due lettere) non dicono niente: al loro posto la prima riga
+// dell'ultima risposta.
 export function titolo(s) {
+  const scritto = String(s.titolo ?? "").replace(/\s+/g, " ").trim();
+  if (scritto) return scritto;
   const nome = String(s.nome ?? "").trim();
   const automatico = !nome || nome === s.id || /^[\w.-]+-[0-9a-f]{2}$/.test(nome);
   if (!automatico) return nome;

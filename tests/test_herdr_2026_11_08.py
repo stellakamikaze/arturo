@@ -165,6 +165,13 @@ HZ44 le sessioni chiuse nell'elenco di Volta (#5203): la sonda chiede claude age
      le nate negli ultimi CHIUSE_GIORNI giorni; un Claude senza --all dà l'elenco di prima. I comandi
      arturo.volta-altro-<id> e arturo.volta-gesto-<verbo>-<id> aprono "Altro" e premono un suo bottone,
      e la barra li legge prima di arturo.volta-<id>.
+HZ45 il titolo delle sessioni (hooks/titolo-sessione.py con un claude finto): la prima richiesta dà il
+     compito di /inizio senza chiamare il modello; a fine turno il modello è chiamato una volta, senza
+     strumenti né hook, e il titolo va in cache/titolo/<sessione>.json; un secondo fine turno entro
+     l'intervallo non chiama; una risposta di più righe o troppo lunga lascia il titolo di prima; spento
+     con ARTURO_TITOLI=0 e dentro la chiamata figlia non chiama; un claude che fallisce lascia exit 0.
+     La sonda porta il campo titolo, sessioni.js lo mette davanti al nome, Volta si apre per progetto,
+     e settings.json registra l'hook asincrono su UserPromptSubmit e Stop.
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
@@ -181,7 +188,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -2619,7 +2626,146 @@ def hz44(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44}
+# Il claude finto di HZ45: segna la chiamata (argv, la variabile della figlia, l'ingresso) e risponde
+# con HZ_RISPOSTA; con HZ_ROTTO esce 1.
+CLAUDE_FINTO_TITOLO = r"""#!/usr/bin/env python3
+import json, os, sys
+with open(os.environ["HZ_LOG"], "a", encoding="utf-8") as fh:
+    fh.write(json.dumps({"argv": sys.argv[1:], "figlia": os.environ.get("ARTURO_TITOLO_FIGLIO"), "ingresso": sys.stdin.read()}) + "\n")
+if os.environ.get("HZ_ROTTO"):
+    sys.exit(1)
+print(os.environ.get("HZ_RISPOSTA", "Prova dei gesti sulle sessioni"))
+"""
+
+PROVA_TITOLO = """
+import * as m from %s;
+const s = (altro) => ({ id: "aaaa1111", nome: "volta-crea-sessione-remota", risposta: "Fatto: i gesti funzionano.", ...altro });
+console.log(JSON.stringify({
+  scritto: m.titolo(s({ titolo: "  Prova dei gesti  sulle sessioni " })),
+  nome: m.titolo(s({ titolo: null })),
+  risposta: m.titolo(s({ titolo: "", nome: "claudecode-0b" })),
+}));
+"""
+
+
+def hz45(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    hook = repo / "hooks/titolo-sessione.py"
+    node = shutil.which("node")
+    if node:
+        copia = casa / "sessioni.mjs"
+        shutil.copyfile(mod / "sessioni.js", copia)
+        r = subprocess.run([node, "--input-type=module", "-e", PROVA_TITOLO % json.dumps(copia.as_uri())], capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+        d = json.loads(r.stdout.strip().splitlines()[-1])
+        attesi = {"scritto": "Prova dei gesti sulle sessioni", "nome": "volta-crea-sessione-remota", "risposta": "Fatto: i gesti funzionano."}
+        if d != attesi:
+            return f"titolo() di sessioni.js: {d}, atteso {attesi}"
+    if 'shared("arturo.volta.gruppi") === "macchina" ? "macchina" : "progetto"' not in (mod / "volta.js").read_text(encoding="utf-8"):
+        return "volta.js: senza una scelta l'elenco non si apre per progetto"
+    if "(s.titolo ? div().whitespace_normal() : div().truncate())" not in (mod / "volta.js").read_text(encoding="utf-8"):
+        return "volta.js: un titolo scritto non va a capo, e nella barra stretta si taglia"
+    if 'setShared("arturo.volta.gruppi", c.slice(13))' not in (mod / "barra.js").read_text(encoding="utf-8"):
+        return "barra.js: manca il comando arturo.volta-gruppi-<modo>"
+    conf = leggi(repo / "settings.json")
+    for evento in ("UserPromptSubmit", "Stop"):
+        voci = [h for e in conf["hooks"].get(evento, []) for h in e.get("hooks", []) if "titolo-sessione.py" in h.get("command", "")]
+        if len(voci) != 1 or voci[0].get("async") is not True:
+            return f"settings.json: titolo-sessione.py su {evento} deve esserci una volta, asincrono: {voci}"
+    if os.name == "nt":
+        return None  # il claude finto è uno script con shebang
+    bindir, radice, log = casa / "bin", casa / "conf", casa / "log"
+    bindir.mkdir()
+    (radice / "cache" / "scheda").mkdir(parents=True)
+    log.write_text("", encoding="utf-8")
+    cl = bindir / "claude"
+    cl.write_text(CLAUDE_FINTO_TITOLO, encoding="utf-8")
+    os.chmod(cl, 0o755)
+    (radice / "cache" / "scheda" / "sess1.json").write_text(json.dumps({"progetto": "deck"}), encoding="utf-8")
+    tr = casa / "tr.jsonl"
+
+    def turno(richiesta: str, risposta: str) -> None:
+        with tr.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"type": "user", "message": {"content": richiesta}}) + "\n")
+            fh.write(json.dumps({"type": "user", "isMeta": True, "message": {"content": "Corpo di una skill accodato da Claude Code, lungo abbastanza"}}) + "\n")
+            fh.write(json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": risposta}, {"type": "tool_use", "name": "Bash", "input": {"description": "Lancia il banco"}}]}}) + "\n")
+
+    tr.write_text(json.dumps({"type": "summary"}) + "\n", encoding="utf-8")
+    env = {**os.environ, "PATH": f"{bindir}{os.pathsep}{os.environ['PATH']}", "CLAUDE_CONFIG_DIR": str(radice), "HZ_LOG": str(log), "PYTHONIOENCODING": "utf-8"}
+    for k in ("ARTURO_TITOLI", "ARTURO_TITOLO_FIGLIO", "ARTURO_TITOLI_OGNI"):
+        env.pop(k, None)
+
+    def evento(nome: str, sessione: str = "sess1", prompt: str = "", **extra) -> int:
+        dati = {"hook_event_name": nome, "session_id": sessione, "transcript_path": str(tr), "prompt": prompt}
+        return subprocess.run([sys.executable, str(hook)], input=json.dumps(dati), capture_output=True, text=True, timeout=60, env={**env, **extra}).returncode
+
+    chiamate = lambda: [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines() if x.strip()]  # noqa: E731
+    file = radice / "cache" / "titolo" / "sess1.json"
+    evento("UserPromptSubmit", prompt="/inizio deck -- --rotazione Rifare le slide del capitolo due (#77), sul ramo deck")
+    t = leggi(file) if file.exists() else {}
+    if t.get("titolo") != "Rifare le slide del capitolo due, sul ramo deck" or t.get("fonte") != "avvio" or chiamate():
+        return f"titolo di partenza: {t}, chiamate {len(chiamate())}; atteso il compito di /inizio senza modello"
+    evento("UserPromptSubmit", prompt="un'altra richiesta lunga abbastanza")
+    if leggi(file).get("titolo") != t["titolo"]:
+        return "una seconda richiesta ha riscritto il titolo di partenza"
+    turno("Rifai le slide del capitolo due con le foto nuove", "Ho rifatto sei slide.")
+    if evento("Stop") != 0:
+        return "Stop non esce 0"
+    c = chiamate()
+    t = leggi(file)
+    if len(c) != 1 or t.get("titolo") != "Prova dei gesti sulle sessioni" or t.get("fonte") != "modello":
+        return f"fine turno: {len(c)} chiamate, file {t}; attesa una chiamata e il titolo del modello"
+    a = c[0]["argv"]
+    for pezzo in (["--model", "haiku"], ["--tools", ""], ["--no-session-persistence"], ["--strict-mcp-config"], ["--settings", '{"disableAllHooks":true}']):
+        if not any(a[i:i + len(pezzo)] == pezzo for i in range(len(a))):
+            return f"la chiamata al modello non porta {pezzo}: {a}"
+    if c[0]["figlia"] != "1":
+        return "la chiamata al modello non porta ARTURO_TITOLO_FIGLIO=1"
+    ing = c[0]["ingresso"]
+    if "Progetto: deck" not in ing or "Rifai le slide del capitolo due" not in ing or "Ho rifatto sei slide" not in ing or "Corpo di una skill" in ing:
+        return f"appunti per il modello sbagliati: {ing[:200]}"
+    turno("Adesso sistema anche le note del relatore", "Note sistemate.")
+    evento("Stop", HZ_RISPOSTA="Note del relatore")
+    if len(chiamate()) != 1 or leggi(file).get("titolo") != "Prova dei gesti sulle sessioni":
+        return "un secondo fine turno entro l'intervallo ha richiamato il modello"
+    for risposta in ("Riga uno\nRiga due", "x" * 80):
+        evento("Stop", HZ_RISPOSTA=risposta, ARTURO_TITOLI_OGNI="0")
+        if leggi(file).get("titolo") != "Prova dei gesti sulle sessioni":
+            return f"una risposta non valida ({risposta[:12]!r}) ha cambiato il titolo"
+    prima = len(chiamate())
+    evento("Stop", HZ_RISPOSTA="Note del relatore", ARTURO_TITOLI_OGNI="0")
+    if len(chiamate()) != prima + 1 or leggi(file).get("titolo") != "Note del relatore":
+        return "passato l'intervallo, con la trascrizione cresciuta, il titolo non si aggiorna"
+    evento("Stop", HZ_RISPOSTA="Altro titolo", ARTURO_TITOLI_OGNI="0")
+    if len(chiamate()) != prima + 1:
+        return "con la trascrizione ferma il modello è stato richiamato"
+    turno("Ultima cosa: esporta il PDF del capitolo", "PDF esportato.")
+    for extra in ({"ARTURO_TITOLI": "0"}, {"ARTURO_TITOLO_FIGLIO": "1"}):
+        evento("Stop", ARTURO_TITOLI_OGNI="0", **extra)
+        evento("UserPromptSubmit", sessione="sess2", prompt="una richiesta che non deve lasciare titoli", **extra)
+        if len(chiamate()) != prima + 1 or (radice / "cache" / "titolo" / "sess2.json").exists():
+            return f"con {extra} l'hook ha lavorato lo stesso"
+    if evento("Stop", ARTURO_TITOLI_OGNI="0", HZ_ROTTO="1") != 0 or leggi(file).get("titolo") != "Note del relatore":
+        return "un claude che fallisce cambia il titolo o l'uscita dell'hook"
+    # la sonda porta il titolo nell'elenco
+    cla = bindir / "claude"
+    cla.write_text(CLAUDE_FINTO_ELENCO, encoding="utf-8")
+    hcf = casa / "hc_finto.py"
+    hcf.write_text('print(\'{"machines": []}\')\n', encoding="utf-8")
+    (radice / "cache" / "titolo" / "inter-x.json").write_text(json.dumps({"titolo": "Slide del capitolo due"}), encoding="utf-8")
+    r = subprocess.run([sys.executable, str(mod / "volta_sonda.py"), "volta"], capture_output=True, text=True, timeout=60,
+                       env={**env, "VOLTA_HC": json.dumps([sys.executable, str(hcf)])})
+    try:
+        titoli = {x["sessionId"]: x.get("titolo") for x in json.loads(r.stdout)["sessioni"]}
+    except (ValueError, KeyError):
+        return f"volta_sonda.py volta: uscita senza elenco: {(r.stdout + r.stderr).strip()[-160:]}"
+    if titoli.get("inter-x") != "Slide del capitolo due" or titoli.get("fatta-x") is not None:
+        return f"la sonda non porta il titolo nell'elenco: {titoli}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -2811,6 +2957,22 @@ VELENI = [
     ("HZ44", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c.startsWith("volta-altro-")) this.volta.altroId(c.slice(12), cx);', ""),
     ("HZ44", "shared/volta-celeste/mods/arturo/volta.js", "this.menu = s.sessionId;\n    this.scopri(s);\n    this.fare(s, a, cx);", "this.menu = s.sessionId;"),
     ("HZ44", "shared/volta-celeste/mods/arturo/volta.js", 'if (g && s.stato === "ferma") this.aperti[g.chiave] = true;', ""),
+    ("HZ45", 'hooks/titolo-sessione.py', '        if salvato.get("titolo"):\n            return 0\n', ''),
+    ("HZ45", 'hooks/titolo-sessione.py', '    if salvato.get("fonte") == "modello" and adesso - float(salvato.get("quando") or 0) < ogni:\n        return 0\n', ''),
+    ("HZ45", 'hooks/titolo-sessione.py', '    if salvato.get("fonte") == "modello" and peso <= int(salvato.get("peso") or 0):\n        return 0\n', ''),
+    ("HZ45", 'hooks/titolo-sessione.py', '    if len(righe) != 1:\n        return ""\n', '    righe = righe[:1]\n'),
+    ("HZ45", 'hooks/titolo-sessione.py', '    return t if 2 <= len(t) <= LUNGO else ""', '    return t'),
+    ("HZ45", 'hooks/titolo-sessione.py', 'if os.environ.get("ARTURO_TITOLI") == "0" or os.environ.get("ARTURO_TITOLO_FIGLIO"):', 'if os.environ.get("ARTURO_TITOLO_FIGLIO"):'),
+    ("HZ45", 'hooks/titolo-sessione.py', 'if os.environ.get("ARTURO_TITOLI") == "0" or os.environ.get("ARTURO_TITOLO_FIGLIO"):', 'if os.environ.get("ARTURO_TITOLI") == "0":'),
+    ("HZ45", 'hooks/titolo-sessione.py', 'env = dict(os.environ, ARTURO_TITOLO_FIGLIO="1", ', 'env = dict(os.environ, '),
+    ("HZ45", 'hooks/titolo-sessione.py', '"--settings", \'{"disableAllHooks":true}\', ', ''),
+    ("HZ45", 'hooks/titolo-sessione.py', '    return r.stdout if r.returncode == 0 else ""', '    return r.stdout or "Titolo di ripiego"'),
+    ("HZ45", 'hooks/titolo-sessione.py', ' or d.get("isMeta"):', ':'),
+    ("HZ45", 'hooks/titolo-sessione.py', '        if " -- " in resto:\n            resto = resto.split(" -- ", 1)[1]\n', ''),
+    ("HZ45", 'shared/volta-celeste/mods/arturo/volta_sonda.py', '            s["titolo"] = t.strip()[:80]', '            pass'),
+    ("HZ45", 'shared/volta-celeste/mods/arturo/sessioni.js', '  if (scritto) return scritto;\n', ''),
+    ("HZ45", 'shared/volta-celeste/mods/arturo/volta.js', '=== "macchina" ? "macchina" : "progetto"', '=== "progetto" ? "progetto" : "macchina"'),
+    ("HZ45", "shared/volta-celeste/mods/arturo/volta.js", "(s.titolo ? div().whitespace_normal() : div().truncate())", "div().truncate()"),
 ]
 
 

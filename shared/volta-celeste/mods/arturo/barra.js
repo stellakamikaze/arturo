@@ -57,6 +57,8 @@ export class Barra {
         // "arturo.nota-<id>": il velo aperto sulla nota <id>, dall'elenco delle note.
         else if (c.startsWith("nota-")) await apriNota(c.slice(5));
         else if (c === "note") apriElenco();
+        // "arturo.volta-gruppi-<macchina|progetto>": l'interruttore dell'elenco, da herdr-app do.
+        else if (c === "volta-gruppi-macchina" || c === "volta-gruppi-progetto") setShared("arturo.volta.gruppi", c.slice(13));
         // "arturo.volta-altro-<id>" e "arturo.volta-gesto-<verbo>-<id>": "Altro" e un suo bottone.
         else if (c.startsWith("volta-altro-")) this.volta.altroId(c.slice(12), cx);
         else if (/^volta-gesto-[a-z]+-/.test(c)) { const [, verbo, id] = c.match(/^volta-gesto-([a-z]+)-(.+)$/); this.volta.gestoId(verbo, id, cx); }

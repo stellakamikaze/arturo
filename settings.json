@@ -553,6 +553,12 @@
             "command": "python3 ~/.claude/hooks/scheda-terminale.py",
             "timeout": 5,
             "async": true
+          },
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/titolo-sessione.py",
+            "timeout": 5,
+            "async": true
           }
         ]
       },
@@ -590,6 +596,12 @@
             "type": "command",
             "command": "python3 ~/.claude/hooks/scheda-terminale.py",
             "timeout": 5,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/titolo-sessione.py",
+            "timeout": 60,
             "async": true
           }
         ]

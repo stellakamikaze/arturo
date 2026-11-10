@@ -96,7 +96,8 @@ export class Volta {
   }
 
   modo() {
-    return shared("arturo.volta.gruppi") === "progetto" ? "progetto" : "macchina";
+    // Senza una scelta della persona vale "per progetto": chi apre Volta cerca il lavoro, non la macchina.
+    return shared("arturo.volta.gruppi") === "macchina" ? "macchina" : "progetto";
   }
 
   avvisa(s, testo, cx) {
@@ -230,7 +231,8 @@ export class Volta {
           .on_click((_e, cx) => this.premi(s, cx))
           .child(div().pt(6).child(vivo || sposto ? punto(colore(t, d.colore)) : div().size(8).flex_none()))
           .child(v_flex().flex_1().min_w(0).gap(2)
-            .child(div().truncate().text_size(14).text_color(s.vecchia ? t.muted : t.foreground).child(titolo(s)))
+            // Un titolo scritto (al più 60 caratteri) va a capo su due righe; gli altri si tagliano.
+            .child((s.titolo ? div().whitespace_normal() : div().truncate()).text_size(14).text_color(s.vecchia ? t.muted : t.foreground).child(titolo(s)))
             .child(div().truncate().text_size(12.5).text_color(colore(t, d.colore)).child(d.testo))))
         .when(az.length > 0, (el) => el.child(div().id(`va-${s.host}-${s.id}`).mt(2).px(6).py(1).rounded(6).cursor_pointer()
           .text_size(12).text_color(aperto ? t.foreground : t.dim).hover((st) => st.bg(t.selected))

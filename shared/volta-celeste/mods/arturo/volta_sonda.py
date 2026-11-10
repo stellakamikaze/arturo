@@ -18,7 +18,7 @@ distribuire (#5172, 10/11/2026).
       e su un Windows raggiunto con hc exec in un terminale di herdr-core (hc run). Un servizio che
       risponde non si tocca. Stampa {come} oppure {errore} (#5208).
 
-Una riga di "sessioni": { macchina, host, questa, sessionId, id, nome, progetto, stato, aspetta, tipo,
+Una riga di "sessioni": { macchina, host, questa, sessionId, id, nome, progetto, titolo, stato, aspetta, tipo,
 attach, cartella, ultimo, risposta, azione }. `host` è il nome della macchina in Herdr ("qui" per
 questa). Una macchina senza Claude Code resta fuori; una che non risponde tiene le righe dell'ultima
 lettura buona, segnate `vecchia`. Per le prove: VOLTA_HC (il comando hc), VOLTA_SONDA_LOCALE (un JSON
@@ -75,6 +75,14 @@ for s in sessioni:
             p = json.load(fh).get("progetto")
         if isinstance(p, str) and p.strip():
             s["progetto"] = p.strip()[:60]
+    except (OSError, ValueError, AttributeError):
+        pass
+    s["titolo"] = None
+    try:  # il titolo lo scrive hooks/titolo-sessione.py di Arturo a fine turno; senza resta vuoto
+        with open(os.path.join(radice, "cache", "titolo", sid + ".json"), encoding="utf-8") as fh:
+            t = json.load(fh).get("titolo")
+        if isinstance(t, str) and t.strip():
+            s["titolo"] = t.strip()[:80]
     except (OSError, ValueError, AttributeError):
         pass
     f = glob.glob(os.path.join(radice, "projects", "*", sid + ".jsonl"))
@@ -403,7 +411,7 @@ def righe(voci):
             out.append({
                 "macchina": v["macchina"], "host": v["host"], "questa": v["questa"],
                 "sessionId": sid, "id": corto, "nome": s.get("name") or corto,
-                "progetto": s.get("progetto"), "stato": stato(s), "aspetta": s.get("waitingFor"),
+                "progetto": s.get("progetto"), "titolo": s.get("titolo"), "stato": stato(s), "aspetta": s.get("waitingFor"),
                 "tipo": "background" if fondo else "interattiva",
                 # un'interattiva va prima portata in background, poi si aggancia
                 "attach": argv_attach(v, corto) if fondo else None,
