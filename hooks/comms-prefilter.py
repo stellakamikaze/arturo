@@ -31,7 +31,9 @@ import sys
 READ_ONLY = {"grep", "rg", "cat", "head", "tail", "less", "more", "wc", "ls",
              "jq", "diff", "sort", "uniq", "file", "stat", "git", "cd", "echo",
              "printf", "which", "type", "true", "cut", "tr", "column"}
-GIT_INVIA = re.compile(r"\bgit\b[^|;&]*\b(send-email|imap-send|request-pull)\b")
+# Senza distinguere le maiuscole: su macOS e Windows `Git send-email` fa partire git, e il tokenizer lo
+# legge già come `git`. Col confronto esatto il comando si riduceva a vuoto (revisione del 10/11/2026, HK-1b).
+GIT_INVIA = re.compile(r"\bgit\b[^|;&]*\b(send-email|imap-send|request-pull)\b", re.IGNORECASE)
 
 # Gli heredoc li riconosce heredoc.py, lo stesso modulo delle altre guardie (15/10/2026).
 # Se manca, nessun corpo sparisce: la guardia controlla tutto il testo.
@@ -44,8 +46,9 @@ try:
 except Exception:
     def _togli_heredoc(cmd, via, segnaposto=None):
         return cmd
-# I segmenti li legge forma_comando.py, il tokenizer delle altre guardie (review del 7/11/2026, finding 6):
-# conosce le virgolette scappate (`it\\'s`) e spezza anche su `&`. Se manca, resta lo split di prima.
+# I programmi li legge forma_comando.py, il tokenizer delle altre guardie (review del 7/11/2026, finding 6):
+# conosce le virgolette scappate (`it\\'s`), spezza anche su `&` e salta wrapper e redirezioni in testa.
+# Se manca, resta lo split di prima.
 try:
     _spec_fc = importlib.util.spec_from_file_location(
         "forma_comando", os.path.join(os.path.dirname(os.path.abspath(__file__)), "forma_comando.py"))
@@ -67,17 +70,6 @@ def _first_bin(segment: str) -> str:
     return m.group(1).rsplit("/", 1)[-1] if m else ""
 
 
-def _primo(parole):
-    """Il programma di un segmento di forma_comando, o None se il segmento è solo una redirezione:
-    `2>&1` si spezza in `2>`, `&` e `1`, e `&> f` in `&` e `> f`."""
-    i = 0
-    while i < len(parole) and (re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", parole[i]) or parole[i] in ("sudo", "env", "command", "nohup")):
-        i += 1
-    if i >= len(parole) or parole[i].isdigit() or re.match(r"^\d*[<>]", parole[i]):
-        return None
-    return parole[i].rsplit("/", 1)[-1]
-
-
 def reduce(cmd: str) -> str:
     # 1) heredoc che vanno a un lettore (cat, tee, grep...) senza che nessuno li esegua: via il
     # corpo. Pipe verso una shell, `$( )`, file scritto e poi eseguito, confini incerti: resta.
@@ -94,7 +86,9 @@ def reduce(cmd: str) -> str:
         return reduced
     stripped = re.sub(r"'[^']*'|\"[^\"]*\"", "", reduced)
     if _fc is not None:
-        primi = [p for p in (_primo(seg) for seg in _fc.segmenti_parole(reduced)) if p is not None]
+        # i programmi come li leggono le altre guardie: le redirezioni in testa (`>/tmp/l mail x`, `>&2 mail x`)
+        # e i wrapper si saltano, invece di scartare il segmento (review del 9/11/2026, #5097)
+        primi = [nome for nome, _ in _fc.programmi(reduced)]
     else:
         primi = [_first_bin(s) for s in re.split(r"\|\||&&|;|\||\n", stripped) if s.strip()]
     if primi and all(p in READ_ONLY for p in primi) and not GIT_INVIA.search(stripped):

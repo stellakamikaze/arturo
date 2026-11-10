@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { argomentiInizio, decidi, MIN_INTERVALLO_MS, nomeTool, spenta, vediBozza } from '../hooks/rotazione/rotazione'
+import { argomentiInizio, decidi, domandaAperta, nomeTool, spenta, testoDomande, vediBozza } from '../hooks/rotazione/rotazione'
 
 // Il nome che il motore finto dà al tool: il mod usa quello, qualunque sia il nome del plugin.
 const TOOL = 'mcp__prova__ruota'
@@ -27,11 +27,15 @@ describe('decidi', () => {
   test('turno di un subagent: aspetta, non disarma', () => {
     expect(decidi({ ...base, agentId: 'a1' })).toEqual({ azione: 'niente' })
   })
-  test('seconda rotazione entro 3 minuti: disarma', () => {
-    expect(decidi({ ...base, ultima: base.ora - MIN_INTERVALLO_MS + 1 }).azione).toBe('disarma')
+  test('seconda rotazione subito dopo la prima: clear, senza tempo minimo', () => {
+    expect(decidi({ ...base, ultima: base.ora - 1 })).toEqual({ azione: 'clear' })
   })
-  test('rotazione dopo 3 minuti: clear', () => {
-    expect(decidi({ ...base, ultima: base.ora - MIN_INTERVALLO_MS })).toEqual({ azione: 'clear' })
+  test('con ROTAZIONE_MIN_S, seconda rotazione entro il limite: disarma', () => {
+    const esito = decidi({ ...base, ultima: base.ora - 59_999, intervalloMs: 60_000 })
+    expect(esito).toEqual({ azione: 'disarma', motivo: 'due rotazioni in meno di 60 secondi: giro fermato' })
+  })
+  test('con ROTAZIONE_MIN_S, rotazione dopo il limite: clear', () => {
+    expect(decidi({ ...base, ultima: base.ora - 60_000, intervalloMs: 60_000 })).toEqual({ azione: 'clear' })
   })
 })
 
@@ -56,6 +60,27 @@ describe('vediBozza', () => {
 
 test('argomenti di /inizio: slug, separatore, marca, compito su una riga', () => {
   expect(argomentiInizio({ progetto: 'arturo', compito: 'scrivere\n  i test' })).toBe('arturo -- --rotazione scrivere i test')
+})
+
+describe('domanda aperta dopo ruota (segnalazione n. 65)', () => {
+  test('ultima riga con il punto di domanda: è la domanda', () => {
+    expect(domandaAperta('Fatto il passo 2.\n\nRifaccio anche la **copertina**?')).toBe('Rifaccio anche la copertina?')
+  })
+  test('testo senza domanda in fondo: nessuna', () => {
+    expect(domandaAperta('Ti ho chiesto se va bene? Sì, va bene.\nRuoto.')).toBeUndefined()
+    expect(domandaAperta('')).toBeUndefined()
+  })
+  test('AskUserQuestion vince sul testo', () => {
+    expect(domandaAperta('Ruoto.', 'Quale account uso?')).toBe('Quale account uso?')
+  })
+  test('le domande di AskUserQuestion in una riga', () => {
+    expect(testoDomande({ questions: [{ question: 'Uno?' }, { question: 'Due?' }] })).toBe('Uno? · Due?')
+    expect(testoDomande({})).toBe('')
+  })
+  test('argomenti di /inizio con la domanda: --in-attesa in fondo, su una riga', () => {
+    expect(argomentiInizio({ progetto: 'arturo', compito: 'step 3', domanda: 'Va bene\n così?' }))
+      .toBe('arturo -- --rotazione step 3 --in-attesa Va bene così?')
+  })
 })
 
 test('nome del tool dal plugin: rotazione in Arturo, una copia rinominata ha il suo', () => {
@@ -129,6 +154,45 @@ test('giro intero: ruota → fine turno → /clear → /inizio con la marca, rig
   expect(d.comandi[1]).toEqual({ command: 'inizio', args: 'arturo -- --rotazione scrivere i test' })
   expect(d.stato.at(-1)).toBeUndefined()
   expect(d.toast.some(t => t.includes('Sessione rinnovata'))).toBe(true)
+})
+
+test('domanda con AskUserQuestion dopo ruota: /inizio la porta con --in-attesa', async ($, on) => {
+  const d = motore(on)
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: TOOL, progetto: 'arturo', compito: 'step 3' } as never)
+  const r = await $.tool.call({ tool: 'AskUserQuestion', questions: [{ question: 'Pubblico su main?' }] } as never)
+  expect(JSON.stringify(r)).toContain('motore')
+  await $.turn.complete(fineTurno('answer'))
+  await clock.advance(1_000)
+  await $.session.end(fine)
+  await clock.advance(2_000)
+  expect(d.comandi[1]).toEqual({ command: 'inizio', args: 'arturo -- --rotazione step 3 --in-attesa Pubblico su main?' })
+})
+
+test('domanda nel testo finale dopo ruota: /inizio la porta con --in-attesa', async ($, on) => {
+  const d = motore(on)
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: TOOL, progetto: 'arturo', compito: 'step 3' } as never)
+  await $.turn.complete({ reason: 'answer', answer: 'Ruoto.\nRifaccio la copertina?', durationMs: 1, isAborted: false, turnId: 't1' } as never)
+  await clock.advance(1_000)
+  await $.session.end(fine)
+  await clock.advance(2_000)
+  expect(d.comandi[1]).toEqual({ command: 'inizio', args: 'arturo -- --rotazione step 3 --in-attesa Rifaccio la copertina?' })
+})
+
+test('AskUserQuestion prima di ruota non conta: la domanda ha già la risposta', async ($, on) => {
+  const d = motore(on)
+  const clock = mock.clock(on)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await $.tool.call({ tool: 'AskUserQuestion', questions: [{ question: 'Parto?' }] } as never)
+  await $.tool.call({ tool: TOOL, progetto: 'arturo', compito: 'step 3' } as never)
+  await $.turn.complete(fineTurno('answer'))
+  await clock.advance(1_000)
+  await $.session.end(fine)
+  await clock.advance(2_000)
+  expect(d.comandi[1]).toEqual({ command: 'inizio', args: 'arturo -- --rotazione step 3' })
 })
 
 test('un altro tool passa al motore', async ($, on) => {

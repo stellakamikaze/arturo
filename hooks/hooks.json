@@ -85,7 +85,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/block-dangerous.py\""
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/block-dangerous.py\"",
+            "timeout": 10,
+            "onFailure": "block"
           }
         ]
       },

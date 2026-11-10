@@ -8,9 +8,11 @@
 #
 #   identita-git.sh --controlla            stampa MANCA se né il computer né Arturo hanno un'email
 #   identita-git.sh --imposta NOME [EMAIL] la scrive; senza EMAIL una finta, NOME@arturo.local
-#   identita-git.sh CARTELLA               se git in CARTELLA non trova un'email, copia quella di Arturo
+#   identita-git.sh CARTELLA               se git in CARTELLA non trova un'email, copia quella di Arturo;
+#                                          senza neanche quella, accetta l'identità automatica di Git
+#                                          con un AVVISO
 #
-# Uscite: 0 a posto, 1 identità mancante, 2 uso sbagliato.
+# Uscite: 0 a posto (anche con AVVISO), 1 identità mancante, 2 uso sbagliato.
 set -uo pipefail
 
 ORSA="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
@@ -50,6 +52,13 @@ case "${1:-}" in
     git -C "$CARTELLA" config user.email >/dev/null 2>&1 && exit 0
     NOME="$(leggi name)"; EMAIL="$(leggi email)"
     if [ -z "$EMAIL" ]; then
+      # Git ricava da solo un'identità da utente e computer, e il commit parte: non fermare /fine per
+      # questo, ma dillo (segnalazione n. 67, 10/11/2026). Fallisce come il commit con useConfigOnly.
+      AUTO="$(git -C "$CARTELLA" var GIT_AUTHOR_IDENT 2>/dev/null | sed 's/ [0-9]* [-+][0-9]*$//')"
+      if [ -n "$AUTO" ]; then
+        echo "AVVISO: il commit usa l'identità automatica di Git, $AUTO. Per un nome tuo: /setup, FASE 1"
+        exit 0
+      fi
       echo "MANCA l'identità di Git: la sceglie /setup, FASE 1"
       exit 1
     fi

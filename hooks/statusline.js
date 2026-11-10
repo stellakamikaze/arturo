@@ -38,6 +38,44 @@ const GIT_VIVO_MAX_S = 600;          // oltre: il pid del git precedente non si 
 // ne apre una visibile, la finestra che lampeggia (review del 7/11/2026, finding 54). Senza detached,
 // con stdio 'ignore', windowsHide dà CREATE_NO_WINDOW e i figli ereditano la console nascosta.
 const STACCATO = process.platform !== 'win32';
+// Senza detached però libuv mette il figlio in un job con KILL_ON_JOB_CLOSE: muore quando la barra esce,
+// prima di finire git status o controlla (#5119, provato su Windows 11 il 10/11/2026). Su Windows il lavoro
+// lo lancia allora un Python ponte, nascosto: il nipote esce da solo dal job (libuv lo crea con
+// SILENT_BREAKAWAY_OK), senza finestra, e il ponte finisce subito. Node aspetta il ponte, non il nipote.
+const PONTE_WIN = [
+  'import subprocess, sys',
+  'uscita = open(sys.argv[1], "wb") if sys.argv[1] else subprocess.DEVNULL',
+  'p = subprocess.Popen(sys.argv[2:], stdin=subprocess.DEVNULL, stdout=uscita, stderr=subprocess.DEVNULL,',
+  '                     creationflags=0x08000000 | 0x00000200)',
+  'sys.stderr.write(str(p.pid))',
+].join('\n');
+
+// Lancia argv senza aspettarlo, con lo stdout nel file `uscita` (o da nessuna parte), e passa il pid a
+// suPid. Non solleva mai.
+function lanciaStaccato(argv, uscita, suPid) {
+  try {
+    if (STACCATO) {
+      const fd = uscita ? fs.openSync(uscita, 'w') : 'ignore';
+      try {
+        const p = child_process.spawn(argv[0], argv.slice(1),
+          { detached: STACCATO, windowsHide: true, stdio: ['ignore', fd, 'ignore'], shell: false });
+        p.on('error', () => {});
+        if (p.pid && suPid) suPid(p.pid);
+        p.unref();
+      } finally {
+        if (fd !== 'ignore') { try { fs.closeSync(fd); } catch (e) {} }
+      }
+      return;
+    }
+    if (uscita) fs.closeSync(fs.openSync(uscita, 'w'));  // la data del .tmp frena subito il giro dopo
+    const p = child_process.spawn('python3', ['-c', PONTE_WIN, uscita || '', ...argv],
+      { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'], shell: false });
+    let pid = '';
+    p.on('error', () => {});
+    p.stderr.on('data', (d) => { pid += d; });
+    p.on('close', () => { if (suPid && /^\d+$/.test(pid.trim())) suPid(Number(pid.trim())); });
+  } catch (e) {}
+}
 
 function gitRamo(gitDir) {
   try {
@@ -91,19 +129,8 @@ function gitRichiediRefresh(root) {
     const pidFile = `${base}.pid`;
     if (gitVivo(pidFile)) return;
     fs.mkdirSync(GIT_CACHE_DIR, { recursive: true });
-    const fd = fs.openSync(tmp, 'w');
-    try {
-      const p = child_process.spawn(
-        'git',
-        ['-C', root, '--no-optional-locks', 'status', '--porcelain'],
-        { detached: STACCATO, windowsHide: true, stdio: ['ignore', fd, 'ignore'], shell: false }
-      );
-      p.on('error', () => {});
-      if (p.pid) { try { fs.writeFileSync(pidFile, String(p.pid)); } catch (e) {} }
-      p.unref();
-    } finally {
-      try { fs.closeSync(fd); } catch (e) {}
-    }
+    lanciaStaccato(['git', '-C', root, '--no-optional-locks', 'status', '--porcelain'], tmp,
+      (pid) => { try { fs.writeFileSync(pidFile, String(pid)); } catch (e) {} });
   } catch (e) {}
 }
 
@@ -176,10 +203,7 @@ function aggiornamentoSegmento() {
     if (vero && fs.existsSync(AGG_SCRIPT) && Date.now() - controllato > AGG_ORA_S * 1000 && (!tentato || Date.now() - tentato > AGG_ORA_S * 1000)) {
       fs.mkdirSync(path.dirname(AGG_TENTATIVO), { recursive: true });
       fs.writeFileSync(AGG_TENTATIVO, '');
-      const p = child_process.spawn('python3', [AGG_SCRIPT, 'controlla'],
-        { detached: STACCATO, windowsHide: true, stdio: 'ignore', shell: false });
-      p.on('error', () => {});
-      p.unref();
+      lanciaStaccato(['python3', AGG_SCRIPT, 'controlla'], '', null);
     }
   } catch (e) {}
   const versione = String(stato.versione || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 30);

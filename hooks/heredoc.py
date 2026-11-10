@@ -23,6 +23,7 @@ from __future__ import annotations
 import io
 import os
 import re
+import sys
 import tokenize
 from typing import Callable, List, NamedTuple, Optional, Tuple
 
@@ -93,8 +94,24 @@ def senza_prosa(stringa: str) -> bool:
     return not _SPAZIO.search(stringa)
 
 
+# Su macOS e Windows il disco ignora le maiuscole: `BASH x.sh` fa partire bash, e `X.SH` è lo stesso file
+# di `x.sh`. Lì i nomi dei programmi si leggono in minuscolo e le regex sui nomi ignorano le maiuscole.
+# Su Windows `bash.exe` è bash: il suffisso non conta (revisione del 10/11/2026, HK-1 e HK-1b).
+_SENZA_MAIUSCOLE = sys.platform in ("darwin", "win32")
+_RE_NOMI = re.IGNORECASE if _SENZA_MAIUSCOLE else 0
+
+
+def _nome(parola: str) -> str:
+    """Il nome del programma senza cartella e senza `.exe`, in minuscolo dove il disco ignora le maiuscole.
+    Stessa regola di forma_comando._nome: questo modulo non lo importa, perché è lui a importare questo."""
+    nome = os.path.basename(parola.lstrip("\\"))
+    if len(nome) > 4 and nome[-4:].lower() == ".exe":
+        nome = nome[:-4]
+    return nome.lower() if _SENZA_MAIUSCOLE else nome
+
+
 _ESECUTORI = (r"(?:^|[\s;&|(])(?:sudo\s+)?(?:\S*/)?(?:bash|sh|zsh|dash|ksh|fish|source|\.|python3?|node|perl|ruby|php|"
-              r"exec|eval|chmod|xargs)(?=\s)")
+              r"exec|eval|chmod|xargs)(?:\.[eE][xX][eE])?(?=\s)")
 _FINE_PAROLA = set(" \t;&|<>()")
 _REDIREZIONE = re.compile(r">>?\s*([^\s;&|<>()]+)")
 
@@ -244,18 +261,18 @@ def _consumatore(testo: str) -> str:
     parole = [p for p in re.split(r"\s+", testo.strip()) if p]
     while parole and (parole[0] in _DAVANTI or re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", parole[0])):
         parole.pop(0)
-    while parole and os.path.basename(parole[0]) in _INVOLUCRI:
+    while parole and _nome(parole[0]) in _INVOLUCRI:
         parole.pop(0)
         while parole and (parole[0].startswith("-") or re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", parole[0])):
             parole.pop(0)
-    return os.path.basename(parole[0].lstrip("\\")) if parole else ""
+    return _nome(parole[0]) if parole else ""
 
 
 def _bersagli(testo: str) -> List[str]:
     """I file in cui il comando scrive: redirezioni e argomenti di tee."""
     trovati = [m.group(1) for m in _REDIREZIONE.finditer(testo)]
     parole = testo.split()
-    if parole and os.path.basename(parole[0]) == "tee":
+    if parole and _nome(parole[0]) == "tee":
         trovati += [p for p in parole[1:] if not p.startswith("-") and not p.startswith("<")]
     return [t.strip("'\"") for t in trovati if t.strip("'\"") not in ("/dev/null", "-", "")]
 
@@ -276,8 +293,8 @@ def _eseguito_dopo(prima: str, dopo: str, resto_riga: str, righe_dopo: List[str]
             parola = r"(?:\./)?" + re.escape(nome) + r"(?![\w.-])"
             # Dato a un esecutore (`bash x.sh`, `source x`, `python3 x.py`, `chmod +x x`), o lanciato
             # come comando (`./x.sh`). `git add x.sh` o `cat x.sh` non lo eseguono.
-            if re.search(_ESECUTORI + r"[^\n;&|]*?(?<![\w./-])" + parola, resto) or \
-                    re.search(r"(?:^|[;&|(]|\n)\s*" + parola, resto):
+            if re.search(_ESECUTORI + r"[^\n;&|]*?(?<![\w./-])" + parola, resto, _RE_NOMI) or \
+                    re.search(r"(?:^|[;&|(]|\n)\s*" + parola, resto, _RE_NOMI):
                 return True
     return False
 

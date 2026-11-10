@@ -970,6 +970,15 @@ def avvio() -> int:
         sportello = riga_sportello()
         if sportello:
             print(sportello)
+        # Il contatto (10/11/2026): la domanda una volta per installazione, anche a telemetria spenta, perché il
+        # contatto parte solo con le segnalazioni. Telemetria non legge il contatto: solo se la domanda ha risposta.
+        try:
+            import contatto as _contatto
+            domanda = _contatto.riga_avvio()
+            if domanda:
+                print(domanda)
+        except Exception:  # noqa: BLE001 - l'avvio non si ferma per la domanda del contatto
+            pass
         stato = leggi_stato()
         if perche_spenta(stato):
             if any(cartella_attesa().glob("*.attesa.json")):

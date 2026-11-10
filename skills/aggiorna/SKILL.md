@@ -36,7 +36,9 @@ Il comando aggiorna il catalogo, controlla che il rilascio indicato sia un tag f
 dei rilasci e che porti proprio lo sha del catalogo. Claude Code installerebbe quello sha anche
 senza firma: la verifica la fa Arturo, prima.
 
-- `GIÀ AGGIORNATO`: diglielo in una frase e chiudi.
+- `GIÀ AGGIORNATO`: diglielo in una frase e chiudi. Se il plugin è arrivato da un'altra strada
+  (`claude plugin update`, il pannello `/plugin`), sotto c'è `IMPOSTAZIONI APPLICATE`, da dire nella stessa
+  frase, o `IMPOSTAZIONI NON APPLICATE`: proponi `/setup`, come sotto.
 - Una riga `plugin-v…` con `rc=0`: è la versione nuova, verificata. Chiedi il sì, poi lancia
   `python3 ${CLAUDE_PLUGIN_ROOT}/bin/aggiornamenti.py plugin`. Fa `claude plugin update` e controlla la copia
   installata col suo MANIFEST firmato, poi unisce a settings.json le voci nuove del frammento
@@ -321,7 +323,8 @@ rm -f "$APPLICA"
 ```
 
 Gli esiti sono gli stessi del Passo 3. Se dice che nella copia di prova restano conflitti, torna al
-punto 1. Mai `--force`, mai `reset --hard`, mai un `checkout` che butti via il suo lavoro.
+punto 1. Se l'applicazione non entra, la copia risolta resta (la riga "La copia di prova risolta resta"
+la nomina): correggi la causa detta sopra e rilancia questo blocco, senza rifare la risoluzione. Mai `--force`, mai `reset --hard`, mai un `checkout` che butti via il suo lavoro.
 
 ## Passo 4 — Riavvio e racconto
 

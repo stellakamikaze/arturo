@@ -47,6 +47,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 import todo_store as ts  # noqa: E402
 import telemetria  # noqa: E402
+import contatto as contatti  # noqa: E402
 sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
 from radici import radice_arturo, radice_orsa  # noqa: E402
 
@@ -115,12 +116,13 @@ Di solito lo usa /segnala dentro Claude Code. Comandi:
 
   info                                   versione di Arturo e di Claude Code, sistema, gh collegato
   prepara --tipo T --titolo "…" --file BOZZA [--pacchetto VOCI] [--tieni CATEGORIE] [--errore FILE]
-          [--origine {"|".join(ORIGINI)}]
+          [--origine {"|".join(ORIGINI)}] [--senza-contatto]
                                          pulisce la bozza e mostra l'anteprima (T: {", ".join(TIPI)}).
                                          --pacchetto: le caselle accese, separate da virgole, o "nessuna"
                                          ({", ".join(v for v, _, _ in VOCI_PACCHETTO)}; di default
                                          {", ".join(v for v, _, a in VOCI_PACCHETTO if a)}).
                                          --tieni: cosa non togliere dal testo ({", ".join(REDAZIONE)})
+                                         --senza-contatto: questa parte senza il contatto di arturo contatto
   invia --canale C --file PRONTA         la manda (C: arturo = diretta a chi mantiene Arturo, il default;
                                          gh = issue pubblica; web = pagina della issue compilata;
                                          email = testo negli appunti per {EMAIL})
@@ -373,6 +375,14 @@ def _apri(url: str) -> bool:
         return False
 
 
+def testo_appunti(testo: str, programma: str) -> bytes:
+    """I byte da passare al programma degli appunti. clip di Windows legge lo stdin nella codepage della console,
+    e le accentate arrivavano rotte: in UTF-16 con il BOM le legge giuste (review del 9/11/2026, #5102)."""
+    if programma == "clip":
+        return "﻿".encode("utf-16-le") + testo.encode("utf-16-le")
+    return testo.encode("utf-8")
+
+
 def copia_appunti(testo: str) -> bool:
     if sys.platform == "darwin":
         comandi = [["pbcopy"]]
@@ -384,7 +394,7 @@ def copia_appunti(testo: str) -> bool:
         if not shutil.which(comando[0]):
             continue
         try:
-            if subprocess.run(comando, input=testo, text=True, timeout=10).returncode == 0:
+            if subprocess.run(comando, input=testo_appunti(testo, comando[0]), timeout=10).returncode == 0:
                 return True
         except (OSError, subprocess.SubprocessError):
             continue
@@ -513,6 +523,11 @@ def prepara(opz: dict) -> int:
     pronta = sorgente.with_name(sorgente.name + ".pronta.json")
     dati = {"tipo": tipo, "titolo": titolo, "testo": testo + FIRMA, "pacchetto": contenuto,
             "collega": "collega" in voci, "origine": origine, "tieni": list(tieni)}
+    # Il contatto (10/11/2026): nome ed email che la persona ha dato con `arturo contatto`, per essere ricontattata.
+    # Entra nell'impronta, quindi un contatto cambiato a mano dopo l'anteprima non parte.
+    contatto = None if opz.get("--senza-contatto") else contatti.contatto()
+    if contatto:
+        dati["contatto"] = contatto
     ts.scrivi_json_atomico(pronta, dict(dati, impronta=impronta_pronta(dati)))
     print(f"PRONTA: {pronta}\n")
     print(f"Titolo: {titolo}\n")
@@ -525,6 +540,11 @@ def prepara(opz: dict) -> int:
         print(f"Da controllare: {dubbi} nomi di documenti hanno una parola subito prima. Se è parte del nome "
               "(\"contratto rossi.zip\"), è rimasta nel testo: toglila dalla bozza e rilancia prepara.\n")
     print(anteprima_pacchetto(voci, contenuto, bool(errore)) + "\n")
+    if contatto:
+        print(f"Contatto per gli sviluppatori di Arturo: {contatti._descrivi(contatto)}. Parte solo col canale arturo, "
+              "per risponderti su questa segnalazione. Senza contatto: rilancia prepara con --senza-contatto.\n")
+    elif not opz.get("--senza-contatto") and not contatti.chiesto():
+        print(contatti.riga_domanda() + " Poi rilancia prepara.\n")
     print(f"Dove può andare:\n  arturo (di solito): arriva solo a chi mantiene Arturo, senza altri passi\n"
           f"  gh o web: issue pubblica su github.com/{REPO}, la vede chiunque\n"
           f"  email: testo negli appunti da mandare a {EMAIL}")
@@ -535,6 +555,9 @@ def impronta_pronta(dati: dict) -> str:
     """L'impronta di quello che prepara ha pulito e mostrato (review del 7/11/2026, finding 98): invia rifiuta un file
     scritto a mano o cambiato dopo l'anteprima. Non è una firma: dice che il file è quello dell'anteprima."""
     campi = {k: dati.get(k) for k in ("tipo", "titolo", "testo", "pacchetto", "collega", "origine", "tieni")}
+    # Il contatto entra solo se c'è (10/11/2026): un file preparato prima resta valido.
+    if "contatto" in dati:
+        campi["contatto"] = dati["contatto"]
     return hashlib.sha256(json.dumps(campi, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
@@ -557,6 +580,12 @@ def invia(opz: dict) -> int:
         contenuto = {k: v for k, v in (dati.get("pacchetto") or {}).items()
                      if k in {x for x, _, _ in VOCI_PACCHETTO} and isinstance(v, str)}
         collega = dati.get("collega") is True
+        contatto = dati.get("contatto") if isinstance(dati.get("contatto"), dict) else None
+        if contatto is not None:
+            nome, email = contatto.get("nome"), contatto.get("email")
+            if not isinstance(nome, str) or not isinstance(email, str) or contatti.errore_contatto(nome, email):
+                raise ValueError("contatto non valido")
+            contatto = {"nome": nome, "email": email}
         origine = dati.get("origine") if dati.get("origine") in ORIGINI else "segnala"
         # Solo un file uscito da prepara, uguale a quello dell'anteprima e già pulito (finding 98).
         preparata = dati.get("impronta") == impronta_pronta(dati) and pulita(dati)
@@ -587,6 +616,9 @@ def invia(opz: dict) -> int:
         # (4/11/2026: prima partiva sempre a telemetria accesa).
         if collega and not telemetria.perche_spenta():
             dati_server["installazione"] = telemetria.installazione()
+        # Il contatto parte anche a telemetria spenta: la persona l'ha dato per le segnalazioni (10/11/2026).
+        if contatto:
+            dati_server["contatto"] = contatto
         status, risposta = telemetria.posta_json("/v1/segnalazioni", dati_server, timeout=10)
         if 200 <= status < 300:
             esito = "arrivata a chi mantiene Arturo"
@@ -598,6 +630,8 @@ def invia(opz: dict) -> int:
                 # La ricevuta (4/11/2026): col codice la persona legge la risposta. Un server di prima non lo manda.
                 if telemetria.salva_codice(numero, risposta.get("codice")):
                     ricevuta = True
+            if contatto and risposta.get("contatto") == "scartato":
+                esito += " (il server non ha accettato il contatto: controllalo con arturo contatto)"
             # Il server risponde: partono anche quelle rimaste in attesa (27/10/2026).
             partite = telemetria.invia_segnalazioni_in_attesa()
             if partite:
@@ -858,7 +892,12 @@ def main(argv: list) -> int:
             print(info())
             return 0
         if comando == "prepara":
-            return prepara(_opzioni(resto, ("--tipo", "--titolo", "--file", "--pacchetto", "--tieni", "--errore", "--origine")))
+            senza = "--senza-contatto" in resto
+            opz = _opzioni([x for x in resto if x != "--senza-contatto"],
+                           ("--tipo", "--titolo", "--file", "--pacchetto", "--tieni", "--errore", "--origine"))
+            if senza:
+                opz["--senza-contatto"] = True
+            return prepara(opz)
         if comando in ("seguito", "ritira") and resto:
             conferma = "--conferma" in resto
             altri = [x for x in resto[1:] if x != "--conferma"]

@@ -1,6 +1,8 @@
 // La logica della rotazione, pura: si prova senza motore (3/11/2026).
 
-export const MIN_INTERVALLO_MS = 3 * 60 * 1000
+// Fra due rotazioni non c'è più un tempo minimo (10/11/2026): il limite di 3 minuti fermava il giro
+// quando una rotazione decisa non partiva e si riarmava subito. Resta solo se ROTAZIONE_MIN_S lo chiede.
+export const MIN_INTERVALLO_MS = 0
 export const ATTESA_CLEAR_MS = 800
 export const ATTESA_INIZIO_MS = 1500
 export const RIPROVA_CLEAR_MS = 5000
@@ -13,7 +15,28 @@ export const CONTROLLO_BOZZA_MS = 15_000
 export const BOZZA_FERMA_MS = 60_000
 export const ATTESA_BOZZA_MAX_MS = 10 * 60_000
 
-export type Rotazione = { progetto: string; compito: string }
+// `domanda`: la domanda alla persona arrivata dopo ruota nello stesso turno (segnalazione n. 65, 10/11/2026).
+export type Rotazione = { progetto: string; compito: string; domanda?: string }
+
+// Quanto della domanda viaggia nella riga di /inizio.
+export const DOMANDA_MAX = 300
+
+// La domanda aperta alla fine del turno: quella fatta con AskUserQuestion dopo ruota, se c'è, oppure l'ultima
+// riga del testo finale quando finisce con "?". Senza domanda, undefined: la rotazione riparte come sempre.
+export function domandaAperta(answer: string, chiesta?: string): string | undefined {
+  if (chiesta && chiesta.trim()) return chiesta.replace(/\s+/g, ' ').trim()
+  const righe = answer.split('\n').map(r => r.replace(/[*_`>#]/g, '').trim()).filter(Boolean)
+  const ultima = righe[righe.length - 1]
+  return ultima && /\?\s*$/.test(ultima) ? ultima : undefined
+}
+
+// Il testo delle domande di una chiamata ad AskUserQuestion.
+export function testoDomande(e: unknown): string {
+  const q = (e as { questions?: unknown }).questions
+  if (!Array.isArray(q)) return ''
+  return q.map(x => (x && typeof (x as { question?: unknown }).question === 'string' ? (x as { question: string }).question : ''))
+    .filter(Boolean).join(' · ')
+}
 
 export type Esito =
   | { azione: 'clear' }
@@ -34,14 +57,18 @@ export function decidi(p: {
   bozza: string
   ora: number
   ultima: number | undefined
-  intervalloMs?: number // ROTAZIONE_MIN_S lo abbassa solo nelle prove dal vivo
+  intervalloMs?: number // ROTAZIONE_MIN_S: tempo minimo fra due rotazioni, spento se manca
 }): Esito {
   if (!p.armata) return { azione: 'niente' }
   if (p.agentId) return { azione: 'niente' } // turno di un subagent: la rotazione aspetta il turno principale
   if (p.reason !== 'answer') return { azione: 'disarma', motivo: 'turno interrotto: rotazione annullata' }
   if (p.bozza.trim() !== '') return { azione: 'attendi' }
-  if (p.ultima !== undefined && p.ora - p.ultima < (p.intervalloMs ?? MIN_INTERVALLO_MS))
-    return { azione: 'disarma', motivo: 'due rotazioni in meno di 3 minuti: giro fermato' }
+  const intervallo = p.intervalloMs ?? MIN_INTERVALLO_MS
+  if (intervallo > 0 && p.ultima !== undefined && p.ora - p.ultima < intervallo)
+    return {
+      azione: 'disarma',
+      motivo: `due rotazioni in meno di ${Math.round(intervallo / 1000)} secondi: giro fermato`,
+    }
   return { azione: 'clear' }
 }
 
@@ -61,9 +88,11 @@ export function vediBozza(a: Attesa, testo: string, ora: number):
   return { azione: 'aspetta', attesa: a }
 }
 
+// Con una domanda aperta la riga porta --in-attesa: /inizio in rotazione si ferma lì e rifà la domanda.
 export function argomentiInizio(r: Rotazione): string {
   const compito = r.compito.replace(/\s+/g, ' ').trim()
-  return `${r.progetto.trim()} -- --rotazione ${compito}`
+  const domanda = (r.domanda ?? '').replace(/\s+/g, ' ').trim().slice(0, DOMANDA_MAX)
+  return `${r.progetto.trim()} -- --rotazione ${compito}${domanda ? ` --in-attesa ${domanda}` : ''}`
 }
 
 export function leggiArgomenti(e: unknown): Rotazione | string {

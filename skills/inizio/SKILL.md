@@ -402,5 +402,8 @@ Il contesto stampa `rotazione: sì` quando la sessione l'ha aperta il mod `rotaz
 - `prompt-master` si carica come in ogni sessione nuova, ma il brief è una riga, "Brief: <compito>": il
   brief pieno l'ha avuto lo step prima. Poi parti subito.
 - A compito chiuso vale di nuovo `/fine --rotazione`, e il giro riparte se il passo dopo è di Claude.
+- Con la riga `in attesa: <domanda>` non parti: la sessione di prima ha fatto una domanda alla persona dopo
+  la rotazione, e la risposta non è arrivata (segnalazione n. 65). La ripartenza è la riga "Ripreso…" e
+  sotto la domanda, con le parole di risposta in grassetto. Aspetti la risposta prima di ogni lavoro.
 
 Esegui ora la FASE 0, poi la FASE 1 su $ARGUMENTS.

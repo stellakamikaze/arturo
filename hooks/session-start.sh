@@ -56,6 +56,12 @@ MACCHINA=$(scutil --get ComputerName 2>/dev/null || hostname 2>/dev/null)
 command -v node >/dev/null 2>&1 \
   || echo "NODE: manca node, la barra in basso (contesto e quota) e l'avviso sul contesto sono spenti. Dillo a Claude: installa node da nodejs.org, poi riapri Claude Code."
 
+# Le guardie leggono il comando con python3. `command -v` non basta: su Windows il python3 del
+# Microsoft Store esiste ed esce 49 senza eseguire niente. Allora il dispatcher chiede conferma a ogni
+# comando, e qui si dice perché (revisione del 10/11/2026, HK-2).
+python3 -c '' >/dev/null 2>&1 \
+  || echo "PYTHON: manca un python3 che funziona: ogni comando della shell chiede conferma. Dillo a Claude: installa Python da python.org, poi riapri Claude Code."
+
 # Dopo un compact il contesto e' stato riassunto: prima di continuare, un riepilogo che
 # l'utente puo' controllare. SessionStart con source "compact" e' la via documentata;
 # lo stdout di PostCompact non entra nel contesto.

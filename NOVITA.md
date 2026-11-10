@@ -13,6 +13,137 @@ modo di lavorare.
 
 ---
 
+## 2026-11-10 — /fine non si ferma più per l'identità di Git
+
+**Cosa cambia**: se non hai scelto un nome per i commit, `/fine` prima si fermava con "MANCA l'identità di Git".
+Git però ne ricava una da solo, dal nome utente e dal nome del computer, e il commit partiva lo stesso. Ora `/fine`
+usa quell'identità automatica e te lo dice con un avviso. Per mettere un nome tuo nei commit usa `/setup`, FASE 1.
+`/fine` si ferma solo se Git non trova davvero nessuna identità (segnalazione n. 67).
+
+**Il principio**: un controllo ferma il lavoro solo quando il passo dopo fallirebbe davvero.
+
+## 2026-11-10 — Un contatto per le tue segnalazioni
+
+**Cosa cambia**: puoi lasciare agli sviluppatori di Arturo un nome e un'email, una volta sola. Servono per
+contattarti quando mandi una segnalazione: per chiederti un dettaglio o dirti che il problema è risolto. Prima
+una segnalazione arrivava senza un modo per risponderti, salvo la ricevuta da leggere con `arturo segnala stato`.
+La domanda arriva una volta, all'avvio dopo l'aggiornamento, con `/setup` o con `/segnala`: puoi dire di no.
+Il contatto parte solo con le segnalazioni del canale `arturo`, e l'anteprima lo mostra. Non parte mai con la
+telemetria né con una issue pubblica. `arturo contatto` lo mostra, `arturo contatto togli` lo cancella, e
+`--senza-contatto` lo lascia fuori da una sola segnalazione. Sul server resta 12 mesi con la segnalazione e se ne
+va subito se la ritiri. Il dettaglio sta in `docs/privacy.md`.
+
+**Il principio**: per rispondere a una persona serve sapere chi è, e deve dirlo lei.
+
+## 2026-11-10 — Plugin: le impostazioni nuove arrivano anche se aggiorni fuori da /aggiorna
+
+**Cosa cambia**: se Claude Code aggiornava il plugin di Arturo da un'altra strada (`claude plugin update`,
+il pannello `/plugin`), hook e skill erano nuovi ma `settings.json` restava quello di prima. Un permesso o
+una regola di blocco nuova non arrivava mai, e `/aggiorna` diceva "GIÀ AGGIORNATO". Ora l'avvio e
+`/aggiorna` confrontano le impostazioni della versione installata con quelle già unite e, se sono diverse,
+le uniscono. All'avvio può comparire la riga `IMPOSTAZIONI APPLICATE`, e Claude te lo dice in una frase.
+
+**Il principio**: un aggiornamento arriva intero, qualunque strada prenda.
+
+**Da sapere**: l'unione parte solo da una copia che torna con l'elenco firmato dei suoi file (il MANIFEST),
+e cambia solo le voci che hai lasciato com'erano. Se una voce l'hai cambiata anche tu, compare
+`IMPOSTAZIONI NON APPLICATE` e `/setup` ti chiede cosa tenere. Riguarda solo chi usa Arturo come plugin,
+e solo dopo la prima unione fatta da `/setup`.
+
+## 2026-11-10 — Guardie: senza un Python che funziona ogni comando chiede conferma
+
+**Cosa cambia**:
+- Le guardie leggono i comandi con `python3`. Su un Windows dove `python3` è solo il rimando del Microsoft
+  Store, e `jq` manca, non leggevano niente: ogni comando passava senza conferma, anche una cancellazione
+  ricorsiva, e nessuno lo diceva. Ora in quello stato ogni comando della shell chiede conferma, e all'avvio
+  la riga `PYTHON:` dice cosa manca e come sistemare.
+- La guardia che chiede conferma prima di leggere una chiave di `~/.ssh` ora ferma la lettura anche quando
+  non parte o non risponde entro 10 secondi, come le altre guardie.
+
+**Il principio**: una guardia che non riesce a guardare chiede, non tace.
+
+**Da sapere**: se vedi la riga `PYTHON:`, installa Python da python.org e riapri Claude Code. Con Python a
+posto non cambia niente.
+
+## 2026-11-10 — /aggiorna non butta più un conflitto risolto a mano
+
+**Cosa cambia**: dopo un conflitto risolto a mano, se un tuo file non salvato con un commit aveva lo stesso nome
+di un file nuovo del rilascio, il "concludi" di `/aggiorna` non applicava niente e cancellava la copia di
+prova, con la tua risoluzione dentro. Ora quel tuo file va in `personale/conflitti`, come nell'aggiornamento
+normale, e il rilascio entra. Se l'applicazione non entra per un altro motivo, la copia risolta resta e la
+riga finale la nomina. Se `personale/conflitti` non si scrive, le tue versioni restano nella cartella di
+lavoro dentro `.git`, e il messaggio dice dove: prima sparivano.
+
+**Il principio**: un passo che fallisce lascia il lavoro della persona dov'era.
+
+**Da sapere**: riguarda solo chi ha Arturo come copia (il clone), non chi lo usa come plugin.
+
+## 2026-11-10 — Il controllo dei segreti legge anche i commit con molti file nuovi
+
+**Cosa cambia**: con più di 200 file nuovi nel progetto, ogni `git add` seguito da `git commit` chiedeva
+conferma, e dopo il sì il commit partiva senza leggere nemmeno le modifiche già in stage. Ora la guardia
+legge tutti i file nuovi, e con `git add file.py` legge solo quelli che l'add aggiunge davvero. Chiede
+conferma solo se i file nuovi superano 20 MB o 2 secondi di lettura: il messaggio dice quanti ne ha letti,
+e le modifiche in stage le legge comunque per intero.
+
+**Il principio**: un controllo che si arrende davanti a un progetto grande vale quanto un controllo spento.
+
+**Da sapere**: i file binari si saltano, come fa già `git diff`.
+
+## 2026-11-10 — /inizio e la rotazione: una parola corta non sceglie un progetto, una domanda non si perde
+
+**Cosa cambia**:
+- `/inizio` con una frase che comincia con una parola di una o due lettere ("ti ricordi cosa abbiamo
+  deciso") non apre più il progetto che ha quelle lettere nel nome: la frase diventa il compito della
+  sessione (segnalazione n. 64). Un nome scritto intero vale anche se è corto.
+- Se Claude ti fa una domanda dopo aver deciso la rotazione, nello stesso turno, la sessione nuova non
+  riparte da sola: ti rifà la domanda e aspetta la tua risposta (segnalazione n. 65). Prima ripartiva sul
+  compito, e la domanda restava nella sessione chiusa.
+
+**Il principio**: la rotazione continua il lavoro solo quando nessuno aspetta una risposta.
+
+**Da sapere**: conta come domanda una scelta col menu, o l'ultima riga del messaggio quando finisce col
+punto di domanda.
+
+## 2026-11-10 — CLAUDE.local.md chiede conferma come CLAUDE.md
+
+**Cosa cambia**: Claude chiede la tua conferma prima di modificare un `CLAUDE.local.md`, in qualunque
+cartella, anche quando lo modifica con i suoi strumenti di scrittura. Prima la chiedeva solo se passava
+dalla shell.
+
+**Il principio**: un file di istruzioni ha la stessa protezione qualunque sia la strada per scriverlo.
+
+**Da sapere**: chi ha spento la conferma sui CLAUDE.md in `~/.claude/arturo/protect_claude_md.local`
+la trova spenta anche sui `CLAUDE.local.md`.
+
+## 2026-11-10 — arturo web: i nomi dei progetti si leggono anche in tema scuro
+
+**Cosa cambia**: nel registro per categorie di `arturo web`, col computer in tema scuro, i nomi dei
+progetti e il filetto sotto ogni categoria restavano quasi neri sul fondo scuro. Ora sono chiari e si
+leggono come il resto della pagina. Nel tema chiaro cambia solo lo zero delle colonne dei conti: era un
+grigio troppo chiaro per leggersi bene, ora ha il grigio delle note.
+
+**Il principio**: ogni colore del testo ha un valore per tutti e due i temi, e il banco della pagina misura
+il contrasto in entrambi, anche sui pulsanti pieni e sulla barra in fondo.
+
+**Da sapere**: riguarda chi ha molti progetti divisi in categorie, cioè la vista a tabella.
+
+## 2026-11-10 — Guardie su Windows: `.exe`, maiuscole, Python che manca
+
+**Cosa cambia**:
+- Su Windows `rm.exe`, `git.exe` e `gh.exe` passano dalle stesse guardie di `rm`, `git` e `gh`. Prima un
+  programma scritto col suffisso `.exe` non chiedeva nessuna conferma: né per una cancellazione ricorsiva, né
+  per un `push --force`, né per la cancellazione di un repository.
+- Su Windows e sul Mac `RM`, `Git` e `GH` sono gli stessi programmi di `rm`, `git` e `gh`, perché il disco
+  ignora le maiuscole. Le guardie ora li riconoscono: prima `RM -rf` passava senza conferma. Vale per ogni
+  guardia: il controllo dei segreti prima di `Git commit`, la conferma su `Git send-email`, uno script scritto
+  nel comando e lanciato con `BASH` o `bash.exe`, `FIND` che legge una chiave. Su Linux non cambia niente.
+
+**Il principio**: una guardia vale quanto la forma più semplice che la aggira.
+
+**Da sapere**: riguarda solo Windows. Le altre correzioni di questo gruppo arrivano nei prossimi giorni, e
+questa voce si allunga.
+
 ## 2026-11-09 — Guardie, /monitor e controlli: le correzioni del lotto L10
 
 **Cosa cambia**:

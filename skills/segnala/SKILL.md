@@ -146,6 +146,11 @@ python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo segnala prepara --tipo TIPO --titolo "T
   prima è parte del nome, toglila dalla bozza e rilancia `prepara`.
 - `invia` manda solo il file di questo `prepara`, così com'è: se il file è cambiato dopo l'anteprima risponde
   con exit 2, e si rilancia `prepara`.
+- Il contatto. Se la persona ha dato nome ed email con `arturo contatto`, l'anteprima ha la riga "Contatto per gli
+  sviluppatori di Arturo": mostrala, perché parte con la segnalazione del canale `arturo` e serve a ricontattarla.
+  Se la persona non lo vuole per questa, rilancia `prepara` con `--senza-contatto`. Se l'anteprima ha una riga
+  `CONTATTO:`, la persona non ha ancora risposto alla domanda: falla con le parole della riga, prima del "La mando?",
+  poi rilancia `prepara`. Non insistere dopo un no.
 
 Il canale è `arturo`: la segnalazione arriva direttamente a chi mantiene Arturo, senza account e
 senza altri passi. Usa un altro canale solo se la persona lo chiede o se l'ha scelto prima

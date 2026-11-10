@@ -37,6 +37,16 @@ fi
 # un LF, e solo su Windows: su Mac e Linux il comando resta intatto.
 [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && COMMAND="${COMMAND//$'\r\n'/$'\n'}"
 
+# Senza un lettore del JSON nessuna guardia vede il comando: con un python3 che non parte (su Windows il
+# rimando del Microsoft Store esce 49) e senza un jq che funziona, COMMAND restava vuoto e ogni comando
+# passava in silenzio (revisione del 10/11/2026, HK-2). Se l'input porta un "command" non vuoto e qui non
+# è arrivato niente, si chiede conferma. Senza ask_guard: la telemetria è python3, che qui non parte.
+_RE_HA_COMANDO='"command"[[:space:]]*:[[:space:]]*"[^"]'
+if [[ -z "$COMMAND" && "$INPUT" =~ $_RE_HA_COMANDO ]]; then
+    printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Le guardie non leggono il comando: manca un python3 che funziona (e jq). Conferma solo se sai cosa fa. Per sistemare: /diagnosi."}}'
+    exit 0
+fi
+
 # Riduce solo heredoc quotati che vanno a un lettore (cat, tee, grep...) e che nessuno esegue:
 # il corpo e' dato, non shell. Lo decide hooks/heredoc.py, lo stesso modulo delle guardie
 # (15/10/2026): `cat <<'EOF' | bash`, un file scritto e poi eseguito, `<<` dentro virgolette o
@@ -54,6 +64,11 @@ print(hd.togli(source, lambda h: h.quotato and h.inerte()), end="")' "$ARTURO_HO
 GUARD_COMMAND=$(reduce_inert_heredocs "$COMMAND")
 # Anche la riduzione passa da un print di python: su Windows rimetteva i CRLF (MO01, 31/10/2026).
 [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && GUARD_COMMAND="${GUARD_COMMAND//$'\r\n'/$'\n'}"
+# Su Windows `rm.exe`, `git.exe` e `gh.exe` sono gli stessi programmi di `rm`, `git` e `gh`: il suffisso
+# si toglie dalla fine di ogni parola prima di ogni confronto, o pre-filtro e guardie tacciono (revisione
+# del 10/11/2026, HK-1). Cambia solo il testo che leggono le guardie, non il comando eseguito.
+_RE_EXE='^(.*[^[:space:]/\])\.[Ee][Xx][Ee]([[:space:];&|()<>"'"'"'`].*)?$'
+while [[ "$GUARD_COMMAND" =~ $_RE_EXE ]]; do GUARD_COMMAND="${BASH_REMATCH[1]}${BASH_REMATCH[2]}"; done
 # Su Windows la shell converte gli argomenti che sembrano path prima di passarli a un programma
 # nativo: `/bin/rm -rf ~/Documents` arrivava alle guardie come `C:/Program Files/.../rm` e nessuna
 # lo riconosceva. Dove l'argomento è il testo del comando la conversione si spegne. Fuori da
@@ -132,6 +147,23 @@ if [[ "$COMMAND" =~ $PATTERN_TIMEOUT && "${_SENZAQ:-$COMMAND}" =~ $PATTERN_TIMEO
     exit 2
 fi
 
+# Su macOS e Windows il disco ignora le maiuscole: `RM -rf`, `Git push --force` e `GH repo delete`
+# fanno partire `rm`, `git` e `gh`. I pattern del pre-filtro si confrontano col comando attraverso
+# `somiglia`, che lì ignora le maiuscole (revisione del 10/11/2026, HK-1b). Su Linux `RM` è un altro file e
+# il confronto resta esatto. nocasematch si accende solo dentro `somiglia`: tutti gli altri confronti di
+# questo file (i punti del .local, il nome della regola, "tace", le opzioni di git) restano esatti.
+_SENZA_MAIUSCOLE=0
+[[ "$OSTYPE" == darwin* || "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && _SENZA_MAIUSCOLE=1
+# $1 = il testo del comando, $2 = un pattern del pre-filtro.
+somiglia() {
+    local rc
+    [[ $_SENZA_MAIUSCOLE -eq 1 ]] && shopt -s nocasematch
+    [[ "$1" =~ $2 ]]
+    rc=$?
+    shopt -u nocasematch
+    return $rc
+}
+
 # --- Pattern pre-filtro (in variabili: evita problemi in [[ =~ ]]) ---
 # gh ancorato a inizio comando/segmento, MA tollerando i prefissi che non cambiano
 # il comando eseguito: assegnazioni env (FOO=bar), `env`, `command`, `\gh`. Senza
@@ -146,7 +178,10 @@ PATTERN_COMMS='(^|[[:space:];|&("'"'"'`])(sendmail|mailx|mutt|msmtp|swaks|mail)(
 # scrittura su git hook e servizi di avvio automatico,
 # lettura segreti via shell (.ssh/id_*/credentials/.pem...), docker volume rm.
 # 20/10/2026: la cartella delle credenziali anche senza la barra finale (`find ~/.claude/data/credentials | xargs cat`).
-PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|[[:space:]]*(sudo([[:space:]]+-[^[:space:]]+)*[[:space:]]+)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([^[:alnum:]_.-]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|(^|[^[:alnum:]_.-])(del|erase|rd|rmdir|format(\.com)?)[[:space:]]|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-(exec|execdir|ok|okdir)[[:space:]].*(rm|unlink|shred)|xargs[^|;&]*(rm|unlink|shred))|bw[[:space:]].*export|\.claude/(settings|hooks|firme|\.claude\.json|plugins(/|[[:space:]\"]|$))|CLAUDE(\.local)?\.md|firme/|rilasci\.allowed_signers|aggiornamenti\.py|aggiorna-applica\.sh|arturo/radice|\.claude/arturo(/|[[:space:]\"]|$)|\.claude/[^[:space:]]*unlock|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.claude/data/credentials(/|[[:space:]\"]|$)|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|(^|[^[:alnum:]_.-])sed[[:space:]]|\.env([^[:alnum:]_]|$)|rmtree|[Rr]emove-[Ii]tem|(^|[^[:alnum:]_.-])(powershell|pwsh)(\.exe)?[[:space:]]'
+# 10/11/2026 (#5097): dopo la pipe anche `|&`, un commento, un gruppo che si apre e sudo o doas con le opzioni.
+# 10/11/2026 (#5122): nel gruppo anche altri comandi prima dell'interprete, separati da `;`, `&` o a capo
+# (`[:cntrl:]` contiene l'a capo, che fra parentesi quadre non si scrive `\n`).
+PATTERN_DANGER=':\(\)|/dev/(sd|nvme|disk|hd)|chmod[[:space:]]+-R[[:space:]]+0*777|chown[[:space:]]+-R|\|&?[[:space:]]*(#.*)?([({][[:space:]]*([^|]*[;&[:cntrl:]][[:space:]]*)?)?((sudo|doas)[[:space:]][^|;&]*)?(bash|sh|zsh|fish|python3?|perl|ruby|node|php)([^[:alnum:]_.-]|$)|<\([[:space:]]*(curl|wget|fetch)|eval[[:space:]]|mkfs\.|(^|[^[:alnum:]_.-])(del|erase|rd|rmdir|format(\.com)?)[[:space:]]|rm[[:space:]][^|;&]*(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)|find[[:space:]].*(-delete|-(exec|execdir|ok|okdir)[[:space:]].*(rm|unlink|shred)|xargs[^|;&]*(rm|unlink|shred))|bw[[:space:]].*export|\.claude/(settings|hooks|firme|\.claude\.json|plugins(/|[[:space:]\"]|$))|CLAUDE(\.local)?\.md|firme/|rilasci\.allowed_signers|aggiornamenti\.py|aggiorna-applica\.sh|arturo/radice|\.claude/arturo(/|[[:space:]\"]|$)|\.claude/[^[:space:]]*unlock|\.git/hooks|LaunchAgents|\.config/(systemd/user|autostart)|\.ssh(/|[[:space:]\"]|$)|id_(rsa|ed25519|ecdsa|dsa)|\.aws(/|[[:space:]\"]|$)|\.gnupg(/|[[:space:]\"]|$)|\.secrets(/|[[:space:]\"]|$)|\.git-credentials|\.pem|service-account|credentials\.json|client_secret|token_cache|\.pypirc|secrets\.env|\.secrets/|\.config/gh/hosts|\.npmrc|\.claude/data/credentials(/|[[:space:]\"]|$)|\.docker/config|\.kube/config|docker[[:space:]]+(volume[[:space:]]+rm|system[[:space:]]+prune)|(^|[^[:alnum:]_.-])sed[[:space:]]|\.env([^[:alnum:]_]|$)|rmtree|[Rr]emove-[Ii]tem|(^|[^[:alnum:]_.-])(powershell|pwsh)(\.exe)?[[:space:]]'
 # 17/10/2026 (#3506): i file .env (anche .env.local), shutil.rmtree. git clean ha un pattern suo,
 # PATTERN_GIT_CLEAN, che parte prima dello skip git-puro.
 # 7/11/2026 (review, finding 1 8 9): l'interprete dopo la pipe chiuso da ; ) " o && e con sudo -E; ogni
@@ -167,7 +202,10 @@ PATTERN_COMMIT="(^|[;&|(\`'\"${_NL}])[[:space:]]*((env|command|exec|nohup|time|x
 _FINE_ARG="([[:space:]]|[\"'],[[:space:]]*[\"']?)"
 # Un & seguito da un carattere che non è spazio né operatore sta dentro l'URL (`?a=1&b=2`) e non chiude
 # il comando: prima `curl "https://x/?a=1&b=2" -d @file` passava senza conferma (30/10/2026).
-PATTERN_EXFIL='(curl|wget)([^|;&]|&[^[:space:]&|;])*(-[[:alnum:]]*F'"$_FINE_ARG"'*[^[:space:]]*[@<]|--form'"$_FINE_ARG"'*[^[:space:]]*[@<]|-[[:alnum:]]*T'"$_FINE_ARG"'|--upload-file|--(post|body)-file|-[[:alnum:]]*d'"$_FINE_ARG"'*["'"'"']?@|--data[a-z-]*'"$_FINE_ARG"'*["'"'"']?@|--json'"$_FINE_ARG"'*["'"'"']?@|--url-query'"$_FINE_ARG"'*["'"'"']?@)'
+# Qui il confronto resta esatto anche su macOS e Windows, perché le opzioni contano la maiuscola (`-T` carica
+# un file, `-t` no; `-F` è un form, `-f` no): senza, quasi ogni curl faceva partire due processi in più. Solo
+# i nomi dei due programmi sono scritti in ogni maiuscola (HK-1b).
+PATTERN_EXFIL='([cC][uU][rR][lL]|[wW][gG][eE][tT])([^|;&]|&[^[:space:]&|;])*(-[[:alnum:]]*F'"$_FINE_ARG"'*[^[:space:]]*[@<]|--form'"$_FINE_ARG"'*[^[:space:]]*[@<]|-[[:alnum:]]*T'"$_FINE_ARG"'|--upload-file|--(post|body)-file|-[[:alnum:]]*d'"$_FINE_ARG"'*["'"'"']?@|--data[a-z-]*'"$_FINE_ARG"'*["'"'"']?@|--json'"$_FINE_ARG"'*["'"'"']?@|--url-query'"$_FINE_ARG"'*["'"'"']?@)'
 # Il GET non passa da exfil-guard (ramo tolto il 30/10/2026, #4325). Vanno a exfil-guard i soli canali di rete grezzi: una pipe verso
 # nc/ncat/netcat/socat, /dev/tcp e /dev/udp. Dal 28/10/2026 curl con $() e il codice node o python che
 # chiama la rete non passano più da qui: li giudica il classificatore di auto mode. Uno script che
@@ -335,15 +373,15 @@ except Exception:
 }
 
 # Commit secret gate: PRIMA dello skip git-puro (scansiona il diff, non il message).
-[[ "$COMMAND" =~ $PATTERN_COMMIT ]] && run_guard commit-secret-gate.py
+{ somiglia "$COMMAND" "$PATTERN_COMMIT" || somiglia "$GUARD_COMMAND" "$PATTERN_COMMIT"; } && run_guard commit-secret-gate.py
 
 # git clean -f cancella i file non tracciati, che git non sa ridare: PRIMA dello skip git-puro, che
 # altrimenti lascerebbe passare `git log && git clean -fdx` (17/10/2026, #3506).
-[[ "$GUARD_COMMAND" =~ $PATTERN_GIT_CLEAN ]] && run_guard block-dangerous.py
-[[ "$GUARD_COMMAND" =~ $PATTERN_GIT_PERDE ]] && run_guard block-dangerous.py
-[[ "$GUARD_COMMAND" =~ $PATTERN_GIT_PUSH ]] && run_guard block-dangerous.py
-[[ "$GUARD_COMMAND" =~ $PATTERN_GIT_DEST ]] && run_guard block-dangerous.py
-[[ "$GUARD_COMMAND" =~ $PATTERN_GIT_AMEND ]] && run_guard block-dangerous.py
+somiglia "$GUARD_COMMAND" "$PATTERN_GIT_CLEAN" && run_guard block-dangerous.py
+somiglia "$GUARD_COMMAND" "$PATTERN_GIT_PERDE" && run_guard block-dangerous.py
+somiglia "$GUARD_COMMAND" "$PATTERN_GIT_PUSH" && run_guard block-dangerous.py
+somiglia "$GUARD_COMMAND" "$PATTERN_GIT_DEST" && run_guard block-dangerous.py
+somiglia "$GUARD_COMMAND" "$PATTERN_GIT_AMEND" && run_guard block-dangerous.py
 
 # --- Skip pre-filtro su git puro (commit/log/show...): i message possono
 # contenere "rm -rf"/"smtplib" come testo, NON sono esecuzioni. Skip SOLO se
@@ -358,8 +396,21 @@ except Exception:
 # dichiarato git-puro, e ogni guard saltato mentre la sostituzione gira. Se il comando
 # contiene una sostituzione, NON e' git-puro: si prosegue coi guard.
 PATTERN_SUBST='\$\(|`|<\(|>\('
-PATTERN_GIT_UNSAFE='(^|[[:space:]])(--output|--exec-path|--config-env|-c[[:space:]])|(^|[^>])>>?[^&|;]|send-email|imap-send'
-if [[ "$COMMAND" =~ $PATTERN_GIT_TEXT && ! "$COMMAND" =~ $PATTERN_SUBST && "$COMMAND" != *"--output"* && "$COMMAND" != *"--exec-path"* && "$COMMAND" != *"--config-env"* && ! "$COMMAND" =~ $PATTERN_GIT_UNSAFE ]]; then
+# Tre confronti, ognuno con la sua regola sulle maiuscole (HK-1b):
+# - il programma e il sottocomando (PATTERN_GIT_TEXT) passano da `somiglia`: `Git log` è `git log`;
+# - le opzioni (PATTERN_GIT_OPZIONI) restano esatte: `-c` (configurazione) e `-C` (cartella) sono opzioni
+#   diverse, e git non accetta `--OUTPUT`;
+# - i sottocomandi che inviano (PATTERN_GIT_INVIA) passano da `somiglia`: sono programmi a parte nella
+#   cartella di git, e il disco li trova anche scritti `Send-Email`.
+PATTERN_GIT_OPZIONI='(^|[[:space:]])(--output|--exec-path|--config-env|-c[[:space:]])|(^|[^>])>>?[^&|;]'
+PATTERN_GIT_INVIA='send-email|imap-send'
+_GIT_TESTO=0
+somiglia "$COMMAND" "$PATTERN_GIT_TEXT" && _GIT_TESTO=1
+_GIT_UNSAFE=0
+if [[ "$COMMAND" =~ $PATTERN_GIT_OPZIONI ]] || somiglia "$COMMAND" "$PATTERN_GIT_INVIA"; then
+    _GIT_UNSAFE=1
+fi
+if [[ $_GIT_TESTO -eq 1 && ! "$COMMAND" =~ $PATTERN_SUBST && "$COMMAND" != *"--output"* && "$COMMAND" != *"--exec-path"* && "$COMMAND" != *"--config-env"* && $_GIT_UNSAFE -eq 0 ]]; then
     # Le virgolette si leggono come le legge bash (forma_comando.py, shlex): lo strip con
     # sed accoppiava un apostrofo dentro le doppie con uno piu' avanti e cancellava i
     # comandi in mezzo. Ogni programma eseguito deve essere git o cd, anche col path
@@ -372,13 +423,13 @@ if [[ "$COMMAND" =~ $PATTERN_GIT_TEXT && ! "$COMMAND" =~ $PATTERN_SUBST && "$COM
 fi
 
 # Opzioni Git che possono cambiare scritture o comportamento non sono testo inerte.
-[[ "$COMMAND" =~ $PATTERN_GIT_TEXT && "$COMMAND" =~ $PATTERN_GIT_UNSAFE ]] && run_guard block-dangerous.py
+[[ $_GIT_TESTO -eq 1 && $_GIT_UNSAFE -eq 1 ]] && run_guard block-dangerous.py
 
 # Comms guard: invii email/messaggi esterni (draft-first). Il match si rifa' sul CODICE eseguito:
 # comms-prefilter.py toglie gli heredoc scritti su file e tace sui comandi di sola lettura
 # (`grep -ril smtplib .`), che nominano un invio senza farlo. Se il pre-filtro non gira, si
 # giudica il comando intero.
-invio_in_vista() { [[ "$1" =~ $PATTERN_COMMS || ( "$1" == *"gws "* && "$1" == *"messages send"* ) ]]; }
+invio_in_vista() { somiglia "$1" "$PATTERN_COMMS" || [[ "$1" == *"gws "* && "$1" == *"messages send"* ]]; }
 if invio_in_vista "$GUARD_COMMAND"; then
     COMMS_REDUCED=$(python3 "$ARTURO_HOOKS/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND
     if invio_in_vista "$COMMS_REDUCED"; then
@@ -395,16 +446,17 @@ fi
 # pre-filtro testuale non la vedeva e block-dangerous, che risolve il percorso, non partiva.
 PATTERN_CD_CLAUDE="(^|[;&|(${_NL}][[:space:]]*)(cd|pushd)[[:space:]]+[^;&|${_NL}]*\.claude([/[:space:]\"']|\$)"
 _RE_CWD_CLAUDE='"cwd"[[:space:]]*:[[:space:]]*"[^"]*[/\\]\.claude'
-# Su macOS e Windows il disco ignora le maiuscole: `rm ~/.CLAUDE/settings.json` tocca la config, e
-# PATTERN_DANGER la cerca in minuscolo (7/11/2026, finding 11).
-_MAIUSC=0
-_PATTERN_CONFIG_MAIUSC='\.claude/(settings|hooks|firme|plugins|arturo)|library/launchagents'
-if [[ "$OSTYPE" == darwin* || "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
-    shopt -s nocasematch
-    [[ "$GUARD_COMMAND" =~ $_PATTERN_CONFIG_MAIUSC ]] && _MAIUSC=1
-    shopt -u nocasematch
+# Su Windows i percorsi hanno anche le barre rovesciate (`"C:\Users\x\.claude\settings.json"`), e PATTERN_DANGER
+# cerca `.claude/`: il pre-filtro prova anche il comando con le barre dritte (review del 9/11/2026, #5096).
+# Anche il `cd` si legge con le barre dritte: `cd "C:\...\.claude\data" && echo x > ../settings.json` ha
+# `.claude` seguito da una barra rovesciata, che PATTERN_CD_CLAUDE non conta come fine del nome (#5121).
+_GUARD_DRITTO="$GUARD_COMMAND"
+if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
+    _GUARD_DRITTO="${GUARD_COMMAND//\\//}"
 fi
-if [[ "$GUARD_COMMAND" =~ $PATTERN_DANGER || "$GUARD_COMMAND" =~ $PATTERN_CD_CLAUDE || "$INPUT" =~ $_RE_CWD_CLAUDE || $_MAIUSC -eq 1 ]]; then
+# Su macOS e Windows il disco ignora le maiuscole: `rm ~/.CLAUDE/settings.json` tocca la config (7/11/2026,
+# finding 11). Dal 10/11/2026 lo copre `somiglia`, che lì confronta PATTERN_DANGER senza le maiuscole.
+if somiglia "$GUARD_COMMAND" "$PATTERN_DANGER" || somiglia "$_GUARD_DRITTO" "$PATTERN_DANGER" || somiglia "$_GUARD_DRITTO" "$PATTERN_CD_CLAUDE" || somiglia "$INPUT" "$_RE_CWD_CLAUDE"; then
     for _i in $(locali prima-danger); do run_locale "$_i"; done
     _DC=""; for _i in $(locali danger-claude); do _DC=$_i; break; done
     if [[ -n "$_DC" && ( "$COMMAND" == *".claude"* || "$INPUT" =~ $_RE_CWD_CLAUDE ) ]]; then
@@ -429,9 +481,9 @@ fi
 # I canali di PATTERN_EGRESS_SOSPETTO (17/10/2026, #3506, ridotti il 28/10) passano da exfil-guard, sul codice eseguito come
 # per il POST. Una redirezione verso /dev/tcp si giudica sul comando intero: il pre-filtro tace su
 # `echo`, che lì scrive in rete.
-if [[ "$GUARD_COMMAND" =~ $PATTERN_EGRESS_SOSPETTO ]]; then
+if somiglia "$GUARD_COMMAND" "$PATTERN_EGRESS_SOSPETTO"; then
     [[ -z "${COMMS_REDUCED+x}" ]] && { COMMS_REDUCED=$(python3 "$ARTURO_HOOKS/comms-prefilter.py" <<< "$GUARD_INPUT" 2>/dev/null) || COMMS_REDUCED=$GUARD_COMMAND; }
-    if [[ "$COMMS_REDUCED" =~ $PATTERN_EGRESS_SOSPETTO ]]; then
+    if somiglia "$COMMS_REDUCED" "$PATTERN_EGRESS_SOSPETTO"; then
         export COMMS_REDUCED
         run_guard exfil-guard.py
     elif [[ "$GUARD_COMMAND" =~ $PATTERN_DEV_TCP ]]; then
@@ -441,10 +493,10 @@ if [[ "$GUARD_COMMAND" =~ $PATTERN_EGRESS_SOSPETTO ]]; then
 fi
 
 # Data guard: operazioni distruttive sui DATI (SQL drop, volumi, rsync --delete) -> ask.
-[[ "$GUARD_COMMAND" =~ $PATTERN_DATA ]] && run_guard data-guard.py
+somiglia "$GUARD_COMMAND" "$PATTERN_DATA" && run_guard data-guard.py
 
 # GitHub CLI: operazioni distruttive/sensibili (repo delete, secret, api mutante...).
-[[ "$COMMAND" =~ $PATTERN_GH_ANY ]] && run_guard gh-destructive-guard.py
+{ somiglia "$COMMAND" "$PATTERN_GH_ANY" || somiglia "$GUARD_COMMAND" "$PATTERN_GH_ANY"; } && run_guard gh-destructive-guard.py
 
 # Guardie personali del punto finale, sui comandi che nominano .claude.
 if [[ "$COMMAND" == *".claude"* || "$INPUT" =~ $_RE_CWD_CLAUDE ]]; then

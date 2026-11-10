@@ -87,7 +87,9 @@ Terza prova, 5/11/2026 (Claude Code 2.1.318), sul pacchetto con il metodo: `impo
 
 Quarta prova, 5/11/2026 (Claude Code 2.1.318), col primo rilascio pubblicato (`plugin-v0.2.4`, sha 4659345) in un `CLAUDE_CONFIG_DIR` vuoto: `claude plugin marketplace add stellakamikaze/arturo#catalogo` e `claude plugin install arturo@arturo` installano lo sha del tag firmato; `aggiornamenti.py plugin --verifica` dice "GIÀ AGGIORNATO", la deriva tace e fissa l'ancora, la telemetria legge v0.2.4; una guardia cambiata nella cache esce nella riga DERIVA.
 
-Da provare: Windows (`arturo migra` su un PC Windows); barra in basso dal puntatore su una macchina pulita.
+Quinta prova, 9/11/2026 (Claude Code 2.1.321, Windows 11, Python 3.11): il banco `tests/test_migra_2026_11_05.py` su un PC Windows, con la CLI vera e un `CLAUDE_CONFIG_DIR` di prova. Migrazione, ritorno e forma upstream passano, 18 casi su 18: la copia di `.git` coi file in sola lettura, gli spostamenti e `claude plugin` reggono. La prova ha trovato due difetti, corretti: le cartelle vuote di Arturo restavano in `~/.claude`, e il comando per tornare indietro usciva con le barre rovesciate. L'avviso dell'avvio su Windows resta spento (`SISTEMI_PROVATI`): il comando che propone parte da `python3`, che su un Windows senza Python vero è lo stub dello Store.
+
+Da provare: `arturo migra` su Windows da un terminale vero, su un'installazione di una persona; barra in basso dal puntatore su una macchina pulita.
 
 ## Il pacchetto
 
@@ -99,6 +101,8 @@ Da provare: Windows (`arturo migra` su un PC Windows); barra in basso dal puntat
   `fine`, `segnala` e `diagnosi`: li lancia anche Claude (`/fine --rotazione` a ogni compito chiuso).
 
 `arturo impostazioni applica` fa un'unione a tre vie: la base è il file di blocco, poi i settings della persona, poi il frammento nuovo. Arturo cambia solo le voci che la persona ha lasciato com'erano. Se una voce è cambiata da tutte e due le parti, il comando non scrive niente e la nomina.
+
+L'unione parte anche quando il plugin si aggiorna fuori da `/aggiorna` (`claude plugin update`, il pannello `/plugin`): l'avvio e il `GIÀ AGGIORNATO` di `/aggiorna` confrontano il frammento della copia con quello del file di blocco, e se sono diversi lo uniscono, solo da una copia che torna col suo MANIFEST firmato. Senza file di blocco non fanno niente: la prima unione la fa `/setup` (#5101, banco FD20).
 
 `arturo impostazioni adotta` è l'ingresso di chi ha già settings fatti a mano, come la config da cui Arturo è nato: scrive il file di blocco col frammento di oggi e non tocca `settings.json`. Le voci di oggi restano della persona, e un `applica` dopo porta solo i cambi futuri di Arturo. Un blocco già scritto da un frammento diverso non si sostituisce senza `--forza`, perché i cambi fra i due andrebbero persi (banco IP11). Una voce che manca conta da lì in poi come tolta dalla persona, quindi `adotta` si ferma se mancano regole di blocco di Arturo, e solo `--forza` le lascia fuori (banco IP12). Un hook doppio ferma sempre, anche con `--forza` (banco IP13).
 

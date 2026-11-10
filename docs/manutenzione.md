@@ -46,6 +46,10 @@ Una modifica è pronta per il rilascio quando passano tutte e quattro le cose:
    branch e su ogni pull request, solo nel repository pubblico di Arturo (`.github/workflows/igiene.yml`): nelle copie
    private di `~/.claude` di chi usa Arturo il job non parte. I nomi stanno nel controllo solo come impronte sha256:
    uno nuovo si aggiunge con `python3 tests/igiene.py --impronta < file`, mai in chiaro.
+   Lo stesso controllo gira anche prima del push, in `.githooks/pre-push`, sui commit che partono verso il
+   repository pubblico: un nome si ferma sul Mac e non diventa un'email "Run failed" da GitHub (10/11/2026).
+   L'hook si attiva una volta per clone, con `git config core.hooksPath .githooks`, e poi passa la mano a
+   `~/.claude/git/hooks/pre-push`.
    Su Windows alcuni controlli non si possono provare (link simbolici senza la Modalità
    sviluppatore, appunti e browser veri): escono come `SALTO <codice>` da `tests/salti_windows.py`,
    e la riga finale li conta (`salti=N`) e li elenca. Il gate esce con `0` anche con dei salti, ma un

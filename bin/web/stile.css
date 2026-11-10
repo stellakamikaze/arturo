@@ -1,6 +1,8 @@
 /* Arturo web: il tavolo dei progetti, mondo "la stella dei naviganti".
-   I token sono una copia di landing-v2:DESIGN.md (palette, famiglie, raggi, componenti) e di
-   landing-v2:sito/index.html. Se la landing cambia un colore, va cambiato anche qui.
+   I token vengono dalla landing del 1/10/2026 (commit 4279d45, "la stella dei naviganti"); il tema
+   scuro è solo di questa pagina. La landing-v2 ha un'altra palette (inchiostro #0b0d10) e nessun
+   tema scuro: il passaggio ai suoi colori è il task #3373. Ogni colore di testo passa da W13 di
+   tests/test_web.py, che ne misura il contrasto nei due temi.
    La Regola della Stella: l'arancio vive solo nelle regole .stella e .marchio di questo file.
    La Regola degli Esiti: scaduto, oggi e fatto sono bordo e testo, mai un fondo pieno.
    I font sono OFL (vedi font/OFL.txt) e stanno nel repository: la pagina non usa la rete. */
@@ -59,6 +61,7 @@
     --carta:#282834;
     --lino:#2c2d3a;
     --lino-forte:#343544;
+    --inchiostro:#f7f8f5;
     --grafite:#eef0ec;
     --carbone:#dcdfd9;
     --cenere:#a9ada8;
@@ -255,7 +258,7 @@ ul.dettaglio-legami{list-style:none;padding:0}
 .col-numero{width:8%;text-align:right !important;font-variant-numeric:tabular-nums;font-weight:600;color:var(--grafite)}
 .registro-tabella thead .col-numero{white-space:normal;line-height:1.25}
 .col-numero:last-child{padding-right:0 !important}
-.col-numero--zero{color:var(--nebbia);font-weight:400}
+.col-numero--zero{color:var(--cenere);font-weight:400}
 .col-numero--scaduti{color:var(--blocca)}
 tbody .col-progetto a{font-family:var(--serif);font-size:var(--t-lead);font-weight:400;line-height:1.25;color:var(--inchiostro);text-decoration:none}
 tbody .col-progetto a:hover,.col-prossimo a:hover{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px}

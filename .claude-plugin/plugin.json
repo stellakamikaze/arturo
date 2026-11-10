@@ -1,6 +1,6 @@
 {
   "name": "arturo",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "Arturo: guardie, metodo e skill condivise sopra Claude Code. Lo strato personale è l'Orsa, in ~/.claude.",
   "author": {
     "name": "Federico Nejrotti",
