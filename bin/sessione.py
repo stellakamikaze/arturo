@@ -104,7 +104,9 @@ def comando(sis: str, dove: Path, prompt: str) -> tuple:
     if sis == "windows":
         a_mano = f'cd /d "{dove}" && claude "{prompt}"'
         if shutil.which("wt"):
-            return ["wt", "-d", str(dove), "claude", prompt], a_mano
+            # Per wt il punto e virgola separa due schede anche dentro un argomento: senza \; un todo con ";"
+            # apriva una seconda scheda col resto del testo (review del 9/11/2026, #5102).
+            return ["wt", "-d", str(dove), "claude", prompt.replace(";", "\\;")], a_mano
         return ["cmd", "/c", "start", "", "/d", str(dove), "claude", prompt], a_mano
     for nome, argv in (("gnome-terminal", ["gnome-terminal", f"--working-directory={dove}", "--", "claude", prompt]),
                        ("konsole", ["konsole", "--workdir", str(dove), "-e", "claude", prompt]),

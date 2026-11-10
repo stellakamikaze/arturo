@@ -276,4 +276,10 @@ def main(argv: list) -> int:
 
 
 if __name__ == "__main__":
+    # Su Windows la pipe verso Claude Code ha la codepage della console: le accentate uscivano rotte (#5102).
+    for flusso in (sys.stdout, sys.stderr):
+        try:
+            flusso.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
     sys.exit(main(sys.argv[1:]))

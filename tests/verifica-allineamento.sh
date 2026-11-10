@@ -174,6 +174,8 @@ BANCHI=(
   test_guardie_virgolette_2026_11_09.py
   # Le forme che le guardie leggevano prima del lotto L2 del 7/11 (10/11/2026, #5097).
   test_guardie_regressioni_l2_2026_11_10.py
+  # Difetti minori su Windows della review del 9/11: servizi di Claude, appunti, wt, codifica (10/11/2026, #5102).
+  test_windows_minori_2026_11_10.py
 )
 # Sotto carico questi danno rossi che da soli passano (T22, SM04: il motivo del lucchetto, #4360) o
 # aprono il browser: girano dopo i lavori in parallelo, uno alla volta.
@@ -413,6 +415,8 @@ BASELINE=(
   "test_regole_doppie_2026_11_06.py 3b5e6c3"
   # #4860 (6/11/2026): col plugin stato e controlla tacciono. 3b5e6c3, il dev prima.
   "test_avviso_plugin_2026_11_06.py 3b5e6c3"
+  # #5102 (10/11/2026): i quattro difetti minori su Windows. 3f12336, il dev prima.
+  "test_windows_minori_2026_11_10.py 3f12336"
 )
 
 # I veleni dei banchi che li hanno: una copia del repository rotta nel punto sorvegliato deve far
@@ -460,6 +464,8 @@ VELENI=(
   test_guardie_virgolette_2026_11_09.py
   # #5097 (10/11/2026): con le guardie di 73c6bf1 ogni gruppo LR è rosso, anche i blocchi falsi di LR02.
   test_guardie_regressioni_l2_2026_11_10.py
+  # #5102 (10/11/2026): ogni correzione tolta fa rosso il suo caso WM.
+  test_windows_minori_2026_11_10.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

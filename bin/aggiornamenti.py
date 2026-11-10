@@ -242,7 +242,9 @@ def processi_claude() -> int:
 # I processi di servizio di Claude Code dalla 2.1.31x: il daemon delle sessioni in background e le sessioni di
 # riserva già pronte (bg-spare, bg-pty-host). Non sono una sessione della persona: contati, l'aggiornamento si
 # rinviava a ogni chiusura e a ogni avvio, per sempre (9/11/2026: tre installazioni ferme alla v0.2.3 dal 6/11).
-SERVIZI_CLAUDE = re.compile(r"(?:^|\s)(?:daemon|bg-spare|bg-pty-host|--bg-spare|--bg-pty-host)(?=\s|$)")
+# Il servizio si riconosce dai primi argomenti: una sessione con la parola "daemon" nel prompt non è un servizio
+# (review del 9/11/2026, #5102).
+SERVIZI_CLAUDE = re.compile(r"(?:daemon run|bg-spare --bg-spare|bg-pty-host --bg-pty-host)(?=\s|$)")
 
 
 def conta_sessioni(righe: list, windows: bool) -> int:
@@ -254,7 +256,7 @@ def conta_sessioni(righe: list, windows: bool) -> int:
         if not riga.strip() or "--chrome-native-host" in riga:
             continue
         argomenti = riga.split("\t", 1)[-1] if windows else riga
-        if SERVIZI_CLAUDE.search(" ".join(argomenti.split()[1:])):
+        if SERVIZI_CLAUDE.match(" ".join(argomenti.split()[1:])):
             continue
         if windows:
             if "AnthropicClaude" not in riga and "WindowsApps" not in riga and \

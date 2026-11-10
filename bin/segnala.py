@@ -373,6 +373,14 @@ def _apri(url: str) -> bool:
         return False
 
 
+def testo_appunti(testo: str, programma: str) -> bytes:
+    """I byte da passare al programma degli appunti. clip di Windows legge lo stdin nella codepage della console,
+    e le accentate arrivavano rotte: in UTF-16 con il BOM le legge giuste (review del 9/11/2026, #5102)."""
+    if programma == "clip":
+        return "﻿".encode("utf-16-le") + testo.encode("utf-16-le")
+    return testo.encode("utf-8")
+
+
 def copia_appunti(testo: str) -> bool:
     if sys.platform == "darwin":
         comandi = [["pbcopy"]]
@@ -384,7 +392,7 @@ def copia_appunti(testo: str) -> bool:
         if not shutil.which(comando[0]):
             continue
         try:
-            if subprocess.run(comando, input=testo, text=True, timeout=10).returncode == 0:
+            if subprocess.run(comando, input=testo_appunti(testo, comando[0]), timeout=10).returncode == 0:
                 return True
         except (OSError, subprocess.SubprocessError):
             continue
