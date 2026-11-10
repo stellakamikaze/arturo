@@ -38,14 +38,15 @@ async function doveNota(punto, misura) {
 }
 
 // Tutte le note della cartella: [{ nota, testo }] con il testo del file com'era, che serve per riscriverlo
-// solo se nessun altro (la CLI di Claude) l'ha cambiato nel frattempo.
-async function leggiTutte(py) {
+// solo se nessun altro (la CLI di Claude) l'ha cambiato nel frattempo. null se la lettura non riesce: chi
+// conta le risposte di Claude (la barra di stato) tiene allora l'ultima lettura buona.
+export async function leggiTutte(py) {
   try {
     const r = await exec(py, ["-c", LEGGI_NOTE, cartellaNote(home())], { timeout: 10000 });
-    if (r.code !== 0) return [];
+    if (r.code !== 0) return null;
     return JSON.parse(r.stdout).map(([id, testo]) => ({ nota: leggiNota(testo, id), testo })).filter((x) => x.nota);
   } catch {
-    return [];
+    return null;
   }
 }
 
@@ -73,7 +74,7 @@ export class Nota {
       const s = spaces().find((x) => x.active);
       this.progetto = progettoNota(c.note_progetto, s && !s.machine && s.named ? s.name : null);
       await this.ricarica();
-      // props.apri: il velo si apre già sulla scheda di quella nota (l'elenco delle note la userà).
+      // props.apri: il velo si apre già sulla scheda di quella nota (dall'elenco delle note, noteui.js).
       const apri = props().apri;
       if (apri) this.aperta = this.aperte.find((n) => n.id === apri) ?? null;
       cx.notify();
@@ -81,7 +82,7 @@ export class Nota {
   }
 
   async ricarica() {
-    this.tutte = await leggiTutte(this.py);
+    this.tutte = (await leggiTutte(this.py)) ?? [];
     this.aperte = noteAperte(this.tutte.map((x) => x.nota), this.progetto);
     if (this.aperta) this.aperta = this.aperte.find((n) => n.id === this.aperta.id) ?? null;
   }

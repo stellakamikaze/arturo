@@ -2,24 +2,14 @@
 
 import { div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, run, agents, spaces, window, shared, setShared, nextCommand, openOverlay, updates, exec, home } from "herdr";
+import { theme, run, agents, spaces, window, shared, setShared, nextCommand, updates } from "herdr";
 import { todo, progetti, sezioni, frase, apri, nuova, slug, cartelle, SUGGERIMENTI } from "./dati.js";
-import { ICONA, punto, pulsante, colore, apriFinestra } from "./comuni.js";
+import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco } from "./comuni.js";
 import { apriGuida } from "./guida.js";
 import { apriSuggerimenti, esegui } from "./suggerimenti.js";
 import { apriRevisione } from "./revisione.js";
 import { revisione, settimanaDi } from "./settimana.js";
-import { cartellaNota } from "./nota.js";
 import { Volta } from "./volta.js";
-
-// ⌘⇧N: prima lo screenshot della finestra com'è, poi il velo per scegliere il punto (notaui.js).
-async function apriNota() {
-  const cartella = cartellaNota(home());
-  try {
-    await exec("sh", ["-c", 'mkdir -p "$1" && h=$(command -v herdr-app || echo "$HOME/.local/bin/herdr-app") && "$h" shot "$1/finestra.png"', "sh", cartella], {});
-  } catch { /* senza screenshot la nota parte lo stesso */ }
-  openOverlay({ mod: "arturo", props: { parte: "nota", cartella }, kind: "dialog", width: 1, height: 1, frame: "none", modal: true });
-}
 
 export class Marchio {
   render() {
@@ -61,6 +51,9 @@ export class Barra {
         else if (/^guida\d?$/.test(c)) apriGuida(Math.max(0, Number(c.slice(5) || 1) - 1));
         else if (c === "nuova") await nuova();
         else if (c === "nota") await apriNota();
+        // "arturo.nota-<id>": il velo aperto sulla nota <id>, dall'elenco delle note.
+        else if (c.startsWith("nota-")) await apriNota(c.slice(5));
+        else if (c === "note") apriElenco();
         // "arturo.volta-<id>": lo stesso clic di una sessione di Volta, da tastiera o da herdr-app do.
         else if (c.startsWith("volta-")) this.volta.premiId(c.slice(6), cx);
         cx.notify();

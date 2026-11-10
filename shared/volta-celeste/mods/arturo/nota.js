@@ -194,3 +194,51 @@ export const LEGGI_NOTE = [
   "    except OSError: pass",
   "print(json.dumps(o))",
 ].join("\n");
+
+// L'elenco delle note (⌘⇧E, noteui.js). L'età di una nota: "adesso", "12 min fa", "3 ore fa", "ieri",
+// "4 giorni fa"; vuota se una delle due date non si legge.
+export function eta(quando, ora) {
+  const t = Date.parse(quando ?? ""), n = ora instanceof Date ? ora.getTime() : Date.parse(ora ?? "");
+  if (!Number.isFinite(t) || !Number.isFinite(n)) return "";
+  const min = Math.max(0, Math.floor((n - t) / 60000));
+  if (min < 1) return "adesso";
+  if (min < 60) return `${min} min fa`;
+  const ore = Math.floor(min / 60);
+  if (ore < 24) return ore === 1 ? "1 ora fa" : `${ore} ore fa`;
+  const g = Math.floor(ore / 24);
+  return g === 1 ? "ieri" : `${g} giorni fa`;
+}
+
+export const STATI = { aperta: "Aperta", presa: "Claude ci lavora", risolta: "Risolta", scartata: "Scartata" };
+const vociClaude = (n) => (n.filo ?? []).filter((v) => v.chi === "claude");
+
+// Le righe dell'elenco per un progetto: prima le aperte coi numeri dei segni, poi, con filtro "tutte", le
+// chiuse dalla più recente. Una chiusa non ha numero: il suo l'ha già ripreso una nota nuova.
+export function righeElenco(lista, progetto, filtro, ora) {
+  const qui = (lista ?? []).filter((n) => n && (n.progetto || null) === (progetto || null));
+  const recente = (n) => String(n.chiusa_quando ?? n.quando ?? n.id);
+  const chiuse = filtro === "tutte"
+    ? qui.filter((n) => !APERTE.has(n.stato)).sort((a, b) => recente(b).localeCompare(recente(a))) : [];
+  return [...noteAperte(qui, progetto), ...chiuse].map((n) => {
+    const aperta = APERTE.has(n.stato);
+    const claude = vociClaude(n);
+    return { id: n.id, numero: aperta ? n.numero : null, aperta, stato: n.stato, etichettaStato: STATI[n.stato],
+      tipo: etichettaTipo(n.tipo), testo: n.testo, risposta: claude.length ? claude[claude.length - 1].testo : null,
+      chiusura: n.riassunto ?? n.motivo ?? null, filo: n.filo ?? [],
+      eta: eta(aperta ? n.quando : (n.chiusa_quando ?? n.quando), ora) };
+  });
+}
+
+// Quante note ha un progetto: { aperte, tutte }.
+export function contaNote(lista, progetto) {
+  const qui = (lista ?? []).filter((n) => n && (n.progetto || null) === (progetto || null));
+  return { aperte: qui.filter((n) => APERTE.has(n.stato)).length, tutte: qui.length };
+}
+
+// Le risposte di Claude già viste, per nota: { id: quante }. Le note con più risposte di prima sono quelle
+// da annunciare; alla prima lettura (prima null) nessuna, se no ogni avvio annuncerebbe tutto.
+export const risposteClaude = (lista) => Object.fromEntries((lista ?? []).map((n) => [n.id, vociClaude(n).length]));
+export function risposteNuove(prima, lista) {
+  if (!prima) return [];
+  return (lista ?? []).filter((n) => vociClaude(n).length > (prima[n.id] ?? 0));
+}

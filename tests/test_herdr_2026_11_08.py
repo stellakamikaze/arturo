@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ27: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ28: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -84,6 +84,11 @@ HZ27 il velo delle note (#5117 passo 2, nota.js con node): nota.json versione 2 
      LEGGI_NOTE legge la cartella col Python; la CLI vera dà l'id del todo con --json. notaui.js riscrive
      nota.json solo se è ancora quello letto e porta Risolta e Scarta sul todo. Senza node la parte con node
      si salta.
+HZ28 l'elenco delle note (#5117 passo 3, nota.js con node): prima le aperte coi numeri dei segni, con
+     "tutte" anche le chiuse dalla più recente e senza numero; ultima risposta di Claude, età in parole,
+     conteggio per progetto; una risposta nuova di Claude si annuncia, ma non alla prima lettura. ⌘⇧E sui
+     Mac e Ctrl+Shift+E altrove aprono la parte `note`; la barra di stato guarda la cartella delle note e
+     il suo conteggio apre l'elenco; una riga aperta porta al velo con arturo.nota-<id>.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -99,7 +104,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -648,7 +653,8 @@ def hz14(repo: Path, casa: Path) -> str | None:
     if json.loads((repo / "shared/volta-celeste/keys.json").read_text(encoding="utf-8")).get("global", {}).get("cmd-shift-n") != "arturo.nota":
         return "keys.json non lega cmd-shift-n alle note"
     barra = (mod / "barra.js").read_text(encoding="utf-8")
-    corpo = barra.split("async function apriNota() {", 1)[-1].split("\n}\n", 1)[0]
+    # apriNota sta in comuni.js dal passo 3 di #5117: la usano la barra e l'elenco delle note.
+    corpo = (mod / "comuni.js").read_text(encoding="utf-8").split("export async function apriNota(apri = null) {", 1)[-1].split("\n}\n", 1)[0]
     if 'else if (c === "nota") await apriNota();' not in barra or corpo.find(" shot ") < 0 or corpo.find(" shot ") > corpo.find("openOverlay("):
         return "barra.js non fa lo screenshot prima di aprire il velo delle note"
     if 'arturo = leggi("arturo.json") or {}' not in (repo / INSTALLA).read_text(encoding="utf-8"):
@@ -1119,7 +1125,83 @@ def hz27(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27}
+
+
+PROVA_ELENCO = r"""
+const n = await import(%s);
+const f = { larghezza: 1440, altezza: 900 };
+const mk = (id, numero, stato, extra = {}) => ({ id, numero, stato, progetto: "p", quando: `2026-11-10T0${id}:00:00Z`, tipo: "domanda",
+  testo: `nota ${id}`, punto: { x: 1, y: 1 }, finestra: f, filo: [{ chi: "federico", quando: "t", testo: `nota ${id}` }], ...extra });
+const lista = [
+  mk("1", 2, "aperta"),
+  mk("2", 1, "presa", { filo: [{ chi: "federico", testo: "x" }, { chi: "claude", testo: "prima" }, { chi: "claude", testo: "ultima" }] }),
+  mk("3", 1, "risolta", { chiusa_quando: "2026-11-10T05:00:00Z", riassunto: "fatto" }),
+  mk("4", 3, "scartata", { chiusa_quando: "2026-11-10T06:00:00Z", motivo: "doppia" }),
+  { ...mk("5", 4, "aperta"), progetto: "altro" },
+];
+const ora = "2026-11-10T08:00:00Z";
+const r = (filtro) => n.righeElenco(lista, "p", filtro, ora).map((x) => [x.id, x.numero, x.etichettaStato, x.risposta, x.chiusura, x.eta, x.tipo]);
+const viste = n.risposteClaude(lista);
+const dopo = lista.map((x) => x.id === "1" ? { ...x, filo: [...x.filo, { chi: "claude", testo: "nuova" }] } : x);
+console.log(JSON.stringify({
+  aperte: r("aperte"), tutte: r("tutte"), conta: [n.contaNote(lista, "p"), n.contaNote(lista, null)],
+  eta: ["2026-11-10T07:59:30Z", "2026-11-10T07:48:00Z", "2026-11-10T07:00:00Z", "2026-11-10T03:00:00Z", "2026-11-09T07:00:00Z", "2026-11-06T07:00:00Z", "boh"].map((q) => n.eta(q, ora)),
+  nuove: n.risposteNuove(viste, dopo).map((x) => x.id), primo: n.risposteNuove(null, dopo).length,
+  nuovaNota: n.risposteNuove(viste, [...lista, mk("6", 5, "aperta", { filo: [{ chi: "claude", testo: "subito" }] })]).map((x) => x.id),
+}));
+"""
+
+
+def hz28(repo: Path, casa: Path) -> str | None:
+    vc = repo / "shared/volta-celeste"
+    mod = vc / "mods/arturo"
+    testo = {f: (mod / f).read_text(encoding="utf-8") for f in ("main.js", "barra.js", "testata.js", "noteui.js", "comuni.js")}
+    for f, pezzo, perche in [
+        ("main.js", "note: Note };", "main.js non monta la parte note"),
+        ("barra.js", 'else if (c === "note") apriElenco();', "il comando arturo.note non apre l'elenco"),
+        ("barra.js", 'else if (c.startsWith("nota-")) await apriNota(c.slice(5));', "arturo.nota-<id> non apre il velo su quella nota"),
+        ("comuni.js", 'props: { parte: "nota", cartella, apri }', "il velo non riceve la nota da aprire"),
+        ("comuni.js", 'props: { parte: "note" }', "apriElenco non apre la parte note"),
+        ("comuni.js", 'elenco: "⌘⇧E"', "tasti() non dice ⌘⇧E sui Mac"),
+        ("comuni.js", 'elenco: "Ctrl+Shift+E"', "tasti() non dice Ctrl+Shift+E fuori dal Mac"),
+        ("testata.js", "await watchFolder(cartellaNote(home()))", "la barra di stato non guarda la cartella delle note"),
+        ("testata.js", ".on_click(() => apriElenco())", "il conteggio della barra di stato non apre l'elenco"),
+        ("testata.js", "const nuove = risposteNuove(this.viste, note);", "la barra di stato non annuncia le risposte di Claude"),
+        ("noteui.js", "run(`arturo.nota-${r.id}`);\n    this.chiudi();", "l'elenco chiude prima di mandare il comando: il codice di un overlay chiuso si ferma"),
+    ]:
+        if pezzo not in testo[f]:
+            return perche
+    mac = leggi(vc / "keys.json").get("global", {})
+    win = leggi(vc / "keys-ctrl.json").get("global", {})
+    if mac.get("cmd-shift-e") != "arturo.note" or win.get("ctrl-shift-e") != "arturo.note":
+        return f"⌘⇧E o Ctrl+Shift+E non aprono l'elenco: {mac.get('cmd-shift-e')} {win.get('ctrl-shift-e')}"
+    if "cmd-shift-l" in mac:
+        return "⌘⇧L è di Herdr (layout.switch): l'installatore lo lascerebbe alla persona"
+    node = shutil.which("node")
+    if not node:
+        return None
+    copia = casa / "nota.mjs"
+    shutil.copyfile(mod / "nota.js", copia)
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_ELENCO % json.dumps(copia.as_uri())],
+                       capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"nota.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    aperte = [["2", 1, "Claude ci lavora", "ultima", None, "6 ore fa", "Domanda"], ["1", 2, "Aperta", None, None, "7 ore fa", "Domanda"]]
+    if g["aperte"] != aperte:
+        return f"righe delle aperte sbagliate: {g['aperte']}"
+    if g["tutte"] != aperte + [["4", None, "Scartata", None, "doppia", "2 ore fa", "Domanda"], ["3", None, "Risolta", None, "fatto", "3 ore fa", "Domanda"]]:
+        return f"con tutte le chiuse non seguono dalla più recente, o tengono il numero: {g['tutte'][2:]}"
+    if g["conta"] != [{"aperte": 2, "tutte": 4}, {"aperte": 0, "tutte": 0}]:
+        return f"conteggio per progetto sbagliato: {g['conta']}"
+    if g["eta"] != ["adesso", "12 min fa", "1 ora fa", "5 ore fa", "ieri", "4 giorni fa", ""]:
+        return f"età in parole sbagliata: {g['eta']}"
+    if g["nuove"] != ["1"] or g["primo"] != 0 or g["nuovaNota"] != ["6"]:
+        return f"le risposte nuove di Claude non si annunciano giuste: {g['nuove']} {g['primo']} {g['nuovaNota']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28}
 
 
 def prova(repo: Path) -> list[str]:
@@ -1154,7 +1236,7 @@ VELENI = [
     ("HZ13", "shared/volta-celeste/arturo-app.sh", 'if [ -d "$arturo" ] && { [ ! -d "$herdr" ] || ! piu_nuova "$v_herdr" "$v_arturo"; }; then base=$arturo; fi', ":"),
     ("HZ06", "shared/volta-celeste/installa-herdr.sh", '[ "$firma" = assente ]', '[ "$firma" = mai ]'),
     ("HZ07", "shared/volta-celeste/mods/arturo/main.js", 'from "./notaui.js"', 'from "./notaui-perso.js"'),
-    ("HZ07", "shared/volta-celeste/mods/arturo/main.js", ", nota: Nota };", " };"),
+    ("HZ07", "shared/volta-celeste/mods/arturo/main.js", ", nota: Nota, note: Note };", ", note: Note };"),
     ("HZ07", "shared/volta-celeste/layouts/arturo.json", '"parte": "stato"', '"parte": "stato-perso"'),
     ("HZ16", "shared/volta-celeste/servizi-gui.sh", "plist herdr-core false", "plist herdr-core true"),
     ("HZ16", "shared/volta-celeste/servizi-gui.sh", 'rm -f "$agenti/$PREFISSO.claude-daemon.plist"', 'plist claude-daemon true "$claude" daemon run'),
@@ -1190,6 +1272,12 @@ VELENI = [
     ("HZ27", "shared/volta-celeste/mods/arturo/nota.js", "n.punto.x * W / f.larghezza", "n.punto.x"),
     ("HZ27", "shared/volta-celeste/mods/arturo/nota.js", '"--note", riga, "--json", "--"', '"--note", riga, "--"'),
     ("HZ27", "shared/volta-celeste/mods/arturo/notaui.js", "json(salvata), prima.testo);", "json(salvata), null);"),
+    ("HZ28", "shared/volta-celeste/mods/arturo/nota.js", "recente(b).localeCompare(recente(a))", "recente(a).localeCompare(recente(b))"),
+    ("HZ28", "shared/volta-celeste/mods/arturo/nota.js", "numero: aperta ? n.numero : null", "numero: n.numero"),
+    ("HZ28", "shared/volta-celeste/mods/arturo/nota.js", "  if (!prima) return [];\n", ""),
+    ("HZ28", "shared/volta-celeste/keys.json", '"cmd-shift-e": "arturo.note"', '"cmd-shift-l": "arturo.note"'),
+    ("HZ28", "shared/volta-celeste/mods/arturo/testata.js", ".on_click(() => apriElenco())", ""),
+    ("HZ28", "shared/volta-celeste/mods/arturo/noteui.js", "run(`arturo.nota-${r.id}`);\n    this.chiudi();", "this.chiudi();\n    run(`arturo.nota-${r.id}`);"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 

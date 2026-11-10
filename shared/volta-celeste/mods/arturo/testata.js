@@ -1,10 +1,22 @@
-// La testata sopra la sessione, la barra di stato in basso e il benvenuto a finestra vuota.
+// La testata sopra la sessione, la barra di stato in basso e il benvenuto a finestra vuota. La barra di
+// stato tiene d'occhio anche le note sulla finestra: ne mostra il conteggio, che apre l'elenco, e avvisa
+// quando Claude risponde a una nota.
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, run, agents, spaces, layout, shared } from "herdr";
-import { frase, nuova, slug, SUGGERIMENTI } from "./dati.js";
-import { ICONA, punto, pulsante, colore, apriFinestra, tasti } from "./comuni.js";
+import { theme, run, agents, spaces, layout, shared, setShared, watchFolder, notify, home } from "herdr";
+import { frase, nuova, slug, config, SUGGERIMENTI } from "./dati.js";
+import { ICONA, punto, pulsante, colore, apriFinestra, apriElenco, tasti } from "./comuni.js";
+import { leggiTutte } from "./notaui.js";
+import { cartellaNote, progettoNota, contaNote, noteAperte, risposteClaude, risposteNuove } from "./nota.js";
+
+const ARANCIO = "#f2a24a";
+
+// Il progetto delle note adesso: quello di arturo.json, altrimenti lo spazio aperto (come il velo).
+export function progettoAdesso(scelto) {
+  const s = spaces().find((x) => x.active);
+  return progettoNota(scelto, s && !s.machine && s.named ? s.name : null);
+}
 import { apriSuggerimenti, voce } from "./suggerimenti.js";
 
 function trova(nodo, id) {
@@ -47,12 +59,67 @@ export class Testata {
 }
 
 export class Stato {
+  init(_p, cx) {
+    this.note = [];
+    this.scelto = null;
+    this.py = "python3";
+    this.viste = null;      // le risposte di Claude già viste, per nota
+    cx.spawn(async (cx) => {
+      const c = await config();
+      this.py = c.arturo[0];
+      this.scelto = c.note_progetto;
+      await this.leggi();
+      cx.notify();
+      this.guarda(cx);
+    });
+    // Senza la cartella delle note (nessuna nota ancora) il watch non parte: il timer rilegge e riprova.
+    cx.timer.every(30000, (cx) => cx.spawn(async (cx) => { await this.leggi(); cx.notify(); this.guarda(cx); }));
+  }
+
+  // Un nota.json che cambia (il velo, o Claude con arturo note) si rilegge subito.
+  guarda(cx) {
+    if (this.guardo) return;
+    this.guardo = true;
+    cx.spawn(async (cx) => {
+      try {
+        for (;;) { await watchFolder(cartellaNote(home())); await this.leggi(); cx.notify(); }
+      } catch { this.guardo = false; }
+    });
+  }
+
+  // Una lettura alla volta; un cambio arrivato durante la lettura ne chiede un'altra subito dopo.
+  async leggi() {
+    if (this.leggo) { this.ancora = true; return; }
+    this.leggo = true;
+    try {
+      do {
+        this.ancora = false;
+        const tutte = await leggiTutte(this.py);
+        if (!tutte) continue;
+        const note = tutte.map((x) => ({ ...x.nota, dove: { ...x.nota.dove, testo_terminale: null } }));
+        const nuove = risposteNuove(this.viste, note);
+        this.viste = risposteClaude(note);
+        this.note = note;
+        setShared("arturo.note", note);
+        for (const n of nuove) {
+          const numero = noteAperte(note, n.progetto).find((x) => x.id === n.id)?.numero;
+          const ultima = n.filo.filter((v) => v.chi === "claude").pop();
+          notify({ title: numero ? `Claude ha risposto alla nota ${numero}` : "Claude ha risposto a una nota",
+            body: ultima?.testo ?? n.testo, level: "info", timeout: 8000, action: { name: "arturo.note" } });
+        }
+      } while (this.ancora);
+    } finally {
+      this.leggo = false;
+    }
+  }
+
   render() {
     const t = theme();
     const a = agents();
     const n = (st) => a.filter((x) => x.status === st).length;
     const pezzo = (c, testo) => h_flex().gap(7).items_center().child(punto(c, 7)).child(testo);
     const k = tasti();
+    const quante = contaNote(this.note, progettoAdesso(this.scelto)).aperte;
     const scorciatoie = `${k.apri} apri un progetto   ${k.prossima} prossima sessione   ${k.impostazioni} impostazioni`;
     return h_flex().size_full().px(18).gap(18).items_center().bg(t.chrome).border_t(1).border_color(t.border).text_size(12).text_color(t.muted)
       .when(a.length === 0, (el) => el.child(pezzo(t.idle, "Nessuna sessione aperta")))
@@ -60,6 +127,11 @@ export class Stato {
       .when(n("working") > 0, (el) => el.child(pezzo(t.working, `${n("working")} al lavoro`)))
       .when(n("done") > 0, (el) => el.child(pezzo(t.done, `${n("done")} hanno finito`.replace(/^1 hanno/, "1 ha"))))
       .when(a.length > 0 && !n("blocked") && !n("working") && !n("done"), (el) => el.child(pezzo(t.idle, a.length > 1 ? `${a.length} sessioni aperte, nessuna ti aspetta` : "1 sessione aperta, non ti aspetta")))
+      .when(quante > 0, (el) => el.child(h_flex().id("stato-note").gap(7).items_center().cursor_pointer()
+        .text_color(t.foreground).hover((s) => s.text_color(t.accent))
+        .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+        .on_click(() => apriElenco())
+        .child(punto(ARANCIO, 7)).child(`${quante === 1 ? "1 nota" : `${quante} note`} · ${k.elenco}`)))
       .child(div().flex_1())
       .child(div().text_color(t.dim).child(scorciatoie));
   }
