@@ -2,6 +2,6 @@
   "global": {
     "ctrl-shift-a": "arturo.apri",
     "ctrl-shift-m": "arturo.nota",
-    "ctrl-shift-e": "arturo.note"
+    "ctrl-shift-i": "arturo.note"
   }
 }

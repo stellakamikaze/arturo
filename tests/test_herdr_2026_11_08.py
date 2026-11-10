@@ -65,7 +65,9 @@ HZ20 Volta Celeste su Windows (9/11/2026): volta.js lancia teletrasporto.py col 
 HZ21 installa-herdr.sh su Windows scrive layout, mod e arturo.json in ~/.config/herdr-app e la shell
      di herdr-core in ~/.config/herdr-core/config.toml, dove Herdr 0.1.14 li legge; niente in %APPDATA%.
 HZ22 i tasti per sistema: su Windows keys-ctrl.json (Ctrl+Shift+A apre un progetto, Ctrl+Shift+M la nota)
-     e nessun cmd, che lì è il tasto Windows; sui Mac keys.json con cmd-o.
+     e nessun cmd, che lì è il tasto Windows; sui Mac keys.json con cmd-o. Su Windows nessun tasto di
+     Arturo è già di Herdr: col keys.json che Herdr scrive al primo avvio, tutti i tasti di Arturo
+     entrano e nessuno resta "lasciato com'era" (Ctrl+Shift+E divideva il riquadro in basso, #5162).
 HZ23 l'installatore prende il primo Python che risponde, non il primo che esiste: con un python3 che esce
      9009 come lo stub dello Store, arturo.json usa python (#5079).
 HZ24 barra di stato e guida scrivono i tasti da tasti() di comuni.js, mai ⌘ a mano; volta.js avvisa se
@@ -86,7 +88,7 @@ HZ27 il velo delle note (#5117 passo 2, nota.js con node): nota.json versione 2 
 HZ28 l'elenco delle note (#5117 passo 3, nota.js con node): prima le aperte coi numeri dei segni, con
      "tutte" anche le chiuse dalla più recente e senza numero; ultima risposta di Claude, età in parole,
      conteggio per progetto; una risposta nuova di Claude si annuncia, ma non alla prima lettura. ⌘⇧E sui
-     Mac e Ctrl+Shift+E altrove aprono la parte `note`; la barra di stato guarda la cartella delle note e
+     Mac e Ctrl+Shift+I altrove aprono la parte `note`; la barra di stato guarda la cartella delle note e
      il suo conteggio apre l'elenco; una riga aperta porta al velo con arturo.nota-<id>.
 HZ29 il giro di Claude con `arturo note` (#5117 passo 4, CLI vera in una casa finta): elenco coi numeri dei
      segni (una nota versione 1 prende il primo libero), --md come brief, mostra col ritaglio attorno al
@@ -915,6 +917,14 @@ def hz21(repo: Path, casa: Path) -> str | None:
     return None
 
 
+HERDR_CTRL = (
+    "ctrl-shift-/", "ctrl-shift-?", "ctrl-shift-b", "ctrl-shift-c", "ctrl-shift-e", "ctrl-shift-f",
+    "ctrl-shift-k", "ctrl-shift-l", "ctrl-shift-n", "ctrl-shift-o", "ctrl-shift-p", "ctrl-shift-pagedown",
+    "ctrl-shift-pageup", "ctrl-shift-t", "ctrl-shift-tab", "ctrl-shift-v", "ctrl-shift-w", "ctrl-shift-x",
+    "ctrl-shift-z", "ctrl-,", "ctrl-?",
+)
+
+
 def hz22(repo: Path, casa: Path) -> str | None:
     esiti = {}
     for sistema in ("windows", "mac-arm"):
@@ -926,6 +936,14 @@ def hz22(repo: Path, casa: Path) -> str | None:
             return f"installazione {sistema} fallita rc={r.returncode}: {(r.stdout + r.stderr)[-200:]}"
         esiti[sistema] = leggi(sotto / "app" / "keys.json").get("global", {})
     win, mac = esiti["windows"], esiti["mac-arm"]
+    # I tasti che Herdr scrive in keys.json al primo avvio su Windows (src/keys/shipped/v0.1.12-keys.json
+    # di Volta Celeste, più ctrl-shift-c, -v e -f del terminale): Arturo non deve prenderne nessuno.
+    sopra = casa / "sopra-herdr"
+    (sopra / "app").mkdir(parents=True)
+    (sopra / "app" / "keys.json").write_text(json.dumps({"global": dict.fromkeys(HERDR_CTRL, "herdr")}), encoding="utf-8")
+    r = installa(repo, sopra, "windows")
+    if r.returncode != 0 or "lasciato com'era" in r.stdout:
+        return f"su Windows un tasto di Arturo è già di Herdr: {r.stdout.strip()[-200:]}"
     if win.get("ctrl-shift-a") != "arturo.apri" or win.get("ctrl-shift-m") != "arturo.nota":
         return f"su Windows mancano Ctrl+Shift+A e Ctrl+Shift+M: {win}"
     if any(k.startswith("cmd-") for k in win):
@@ -1178,7 +1196,7 @@ def hz28(repo: Path, casa: Path) -> str | None:
         ("comuni.js", 'props: { parte: "nota", cartella, apri }', "il velo non riceve la nota da aprire"),
         ("comuni.js", 'props: { parte: "note" }', "apriElenco non apre la parte note"),
         ("comuni.js", 'elenco: "⌘⇧E"', "tasti() non dice ⌘⇧E sui Mac"),
-        ("comuni.js", 'elenco: "Ctrl+Shift+E"', "tasti() non dice Ctrl+Shift+E fuori dal Mac"),
+        ("comuni.js", 'elenco: "Ctrl+Shift+I"', "tasti() non dice Ctrl+Shift+I fuori dal Mac"),
         ("testata.js", "await watchFolder(cartellaNote(home()))", "la barra di stato non guarda la cartella delle note"),
         ("testata.js", ".on_click(() => apriElenco())", "il conteggio della barra di stato non apre l'elenco"),
         ("testata.js", "const nuove = risposteNuove(this.viste, note);", "la barra di stato non annuncia le risposte di Claude"),
@@ -1188,8 +1206,8 @@ def hz28(repo: Path, casa: Path) -> str | None:
             return perche
     mac = leggi(vc / "keys.json").get("global", {})
     win = leggi(vc / "keys-ctrl.json").get("global", {})
-    if mac.get("cmd-shift-e") != "arturo.note" or win.get("ctrl-shift-e") != "arturo.note":
-        return f"⌘⇧E o Ctrl+Shift+E non aprono l'elenco: {mac.get('cmd-shift-e')} {win.get('ctrl-shift-e')}"
+    if mac.get("cmd-shift-e") != "arturo.note" or win.get("ctrl-shift-i") != "arturo.note":
+        return f"⌘⇧E o Ctrl+Shift+I non aprono l'elenco: {mac.get('cmd-shift-e')} {win.get('ctrl-shift-i')}"
     if "cmd-shift-l" in mac:
         return "⌘⇧L è di Herdr (layout.switch): l'installatore lo lascerebbe alla persona"
     node = shutil.which("node")
@@ -1595,6 +1613,7 @@ VELENI = [
      'if [ "$sistema" = windows ]; then app_home=${HERDR_APP_HOME:-${APPDATA:-$HOME/AppData/Roaming}/herdr-app}; '
      "else app_home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}; fi"),
     ("HZ22", "shared/volta-celeste/installa-herdr.sh", '[ "$sistema" = mac-arm ] || tasti=keys-ctrl.json', ":"),
+    ("HZ22", "shared/volta-celeste/keys-ctrl.json", '"ctrl-shift-i": "arturo.note"', '"ctrl-shift-e": "arturo.note"'),
     ("HZ23", "shared/volta-celeste/installa-herdr.sh", 'if "$c" -c "import sys" >/dev/null 2>&1; then py=$c; break; fi',
      'if command -v "$c" >/dev/null 2>&1; then py=$c; break; fi'),
     ("HZ24", "shared/volta-celeste/mods/arturo/testata.js", "const scorciatoie = `${k.apri} apri un progetto",

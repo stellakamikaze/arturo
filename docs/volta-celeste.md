@@ -28,7 +28,7 @@ Funziona sui Mac con processore Apple e su Windows. Sui Mac Intel e su Linux `/s
 
 - **Aggiornamenti.** Herdr si aggiorna da solo da herdr.dev, non dai rilasci firmati di Arturo. Un aggiornamento di Herdr può cambiare il suo aspetto prima che Arturo lo segua.
 - **Telemetria.** Herdr manda di suo, una volta al giorno, dei conteggi d'uso: versione, sistema, quanti spazi e terminali, quali agenti, layout e comandi. Mai il contenuto dei terminali né i nomi dei tuoi file. Arturo la spegne all'installazione (`"telemetry": false` in `~/.config/herdr-app/settings.json`): se vuoi aiutare chi fa Herdr, la riaccendi da Impostazioni → Privacy.
-- **Tasti.** Arturo aggiunge ⌘O (apri un progetto), ⌘⇧↓ e ⌘⇧↑ (sessione dopo e prima), ⌃⌘→ e ⌃⌘← (progetto dopo e prima), ⌘⇧N (una nota a Claude su un punto della finestra), ⌘⇧E (l'elenco delle note). Su Windows ⌘ sarebbe il tasto Windows, che il sistema si tiene: lì Arturo aggiunge Ctrl+Shift+A (apri un progetto), Ctrl+Shift+M (la nota) e Ctrl+Shift+E (l'elenco delle note), e per sessioni e progetti valgono i tasti di Herdr, Alt+↓ e Alt+↑, Ctrl+Shift+PagGiù e PagSu. Un tasto che usavi già per altro resta tuo.
+- **Tasti.** Arturo aggiunge ⌘O (apri un progetto), ⌘⇧↓ e ⌘⇧↑ (sessione dopo e prima), ⌃⌘→ e ⌃⌘← (progetto dopo e prima), ⌘⇧N (una nota a Claude su un punto della finestra), ⌘⇧E (l'elenco delle note). Su Windows ⌘ sarebbe il tasto Windows, che il sistema si tiene: lì Arturo aggiunge Ctrl+Shift+A (apri un progetto), Ctrl+Shift+M (la nota) e Ctrl+Shift+I (l'elenco delle note), e per sessioni e progetti valgono i tasti di Herdr, Alt+↓ e Alt+↑, Ctrl+Shift+PagGiù e PagSu. Un tasto che usavi già per altro resta tuo.
 
 ## Come si toglie
 
@@ -73,7 +73,7 @@ Una nota è un appunto per Claude legato a un punto della finestra: "questo bott
 
 **Lasciare una nota.** Premi ⌘⇧N (Ctrl+Shift+M su Windows): la finestra si vela. Clicca il punto di cui vuoi parlare, scegli il tipo (Correggere, Cambiare, Domanda, Va bene così) e scrivi. Invio la manda, Esc annulla. La nota prende un numero, e Claude la trova fra le sue cose da fare di oggi nel progetto aperto, oppure in quello scritto in `note_progetto` di `arturo.json` nella cartella di Herdr. Senza un progetto la nota resta salvata, ma non arriva fra le cose da fare.
 
-**Vedere le note.** Col velo aperto le note ancora da chiudere compaiono come segni numerati nel loro punto: arancioni se aspettano, grigi se Claude ci sta lavorando. Fuori dal velo i segni non si vedono, perché Herdr non ha un velo che lasci passare i clic ai terminali. La barra di stato in basso dice quante note sono aperte: il conteggio, o ⌘⇧E (Ctrl+Shift+E su Windows), apre l'elenco, con "Aperte" e "Tutte" per vedere anche le chiuse.
+**Vedere le note.** Col velo aperto le note ancora da chiudere compaiono come segni numerati nel loro punto: arancioni se aspettano, grigi se Claude ci sta lavorando. Fuori dal velo i segni non si vedono, perché Herdr non ha un velo che lasci passare i clic ai terminali. La barra di stato in basso dice quante note sono aperte: il conteggio, o ⌘⇧E (Ctrl+Shift+I su Windows), apre l'elenco, con "Aperte" e "Tutte" per vedere anche le chiuse.
 
 **Rispondere e chiudere.** Un clic su un segno, o su una riga dell'elenco, apre la nota con le risposte. Da lì scrivi a Claude (Rispondi), la dai per fatta (Risolta) o la togli col motivo (Scarta). Quando Claude risponde, la finestra lo avvisa: "Claude ha risposto alla nota N". Chiudere la nota chiude anche la cosa da fare collegata, da qualunque parte la chiudi.
 

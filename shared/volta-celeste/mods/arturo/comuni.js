@@ -12,7 +12,7 @@ export const ICONA = (nome) => `mods/workspace-chrome/${nome}.svg`;
 export function tasti() {
   return window()?.platform === "macos"
     ? { apri: "⌘O", prossima: "⌘⇧↓", impostazioni: "⌘,", nota: "⌘⇧N", elenco: "⌘⇧E" }
-    : { apri: "Ctrl+Shift+A", prossima: "Alt+↓", impostazioni: "Ctrl+,", nota: "Ctrl+Shift+M", elenco: "Ctrl+Shift+E" };
+    : { apri: "Ctrl+Shift+A", prossima: "Alt+↓", impostazioni: "Ctrl+,", nota: "Ctrl+Shift+M", elenco: "Ctrl+Shift+I" };
 }
 
 // Un pallino di stato disegnato, non un carattere.
