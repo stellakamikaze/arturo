@@ -13,6 +13,17 @@ modo di lavorare.
 
 ---
 
+## 2026-11-10 — CLAUDE.local.md chiede conferma come CLAUDE.md
+
+**Cosa cambia**: Claude chiede la tua conferma prima di modificare un `CLAUDE.local.md`, in qualunque
+cartella, anche quando lo modifica con i suoi strumenti di scrittura. Prima la chiedeva solo se passava
+dalla shell.
+
+**Il principio**: un file di istruzioni ha la stessa protezione qualunque sia la strada per scriverlo.
+
+**Da sapere**: chi ha spento la conferma sui CLAUDE.md in `~/.claude/arturo/protect_claude_md.local`
+la trova spenta anche sui `CLAUDE.local.md`.
+
 ## 2026-11-10 — arturo web: i nomi dei progetti si leggono anche in tema scuro
 
 **Cosa cambia**: nel registro per categorie di `arturo web`, col computer in tema scuro, i nomi dei

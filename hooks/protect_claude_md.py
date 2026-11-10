@@ -9,7 +9,7 @@ Tre categorie, ognuna con un unlock per-sessione distinto, più il resto di ~/.c
     ~/.config/systemd/user/** e ~/.config/autostart/** (Linux)
     -> unlock: touch ~/.claude/system-unlock-{session_id}
 
-  CLAUDE.md (qualsiasi cartella)
+  CLAUDE.md e CLAUDE.local.md (qualsiasi cartella; il .local dal 10/11/2026, #5159)
     -> chiede conferma (ask) a ogni modifica: un popup solo (3/11/2026, #4473). Prima era
        deny con istruzioni, e una modifica costava la domanda in chat più il popup dell'unlock.
        L'unlock touch ~/.claude/claude-md-unlock-{session_id} è la scorciatoia per una serie di
@@ -131,8 +131,8 @@ def _avviso_budget(rp, claude_dir, ti):
 # ~/.claude/arturo/protect_claude_md.local (30/10/2026, #4291): chi installa Arturo può cambiare la decisione di
 # alcune categorie senza toccare questo file. Righe `<decisione> <categoria>`, `#` per i commenti.
 # Decisioni: allow, ask, deny. Categorie:
-#   claude-md-globale   ~/.claude/CLAUDE.md
-#   claude-md-progetto  ogni altro CLAUDE.md già esistente (crearne uno chiede sempre)
+#   claude-md-globale   ~/.claude/CLAUDE.md e ~/.claude/CLAUDE.local.md
+#   claude-md-progetto  ogni altro CLAUDE.md o CLAUDE.local.md già esistente (crearne uno chiede sempre)
 #   settings-radice     ~/.claude/settings*.json e ~/.claude/.claude.json (la validità JSON resta)
 #   config              hooks/** e i settings*.json nelle sottocartelle di ~/.claude
 #   dot-claude          ogni altro file sotto ~/.claude
@@ -294,13 +294,14 @@ def main():
             ))
             sys.exit(0)
 
-        # Categoria 2: CLAUDE.md (ovunque)
-        if base == 'CLAUDE.MD':
+        # Categoria 2: CLAUDE.md e CLAUDE.local.md (ovunque). Il .local sono istruzioni come l'altro, e la shell
+        # le chiedeva già (block-dangerous, PERCORSI_PROTETTI): via Edit e Write passavano (#5159, 10/11/2026).
+        if base in ('CLAUDE.MD', 'CLAUDE.LOCAL.MD'):
             avviso = _avviso_budget(rp, claude_dir, ti)
             if tool == 'Write' and not os.path.exists(rp):
                 chiede()
                 _emit("ask", (
-                    f"Stai creando un CLAUDE.md nuovo in {os.path.dirname(rp)}: sono istruzioni "
+                    f"Stai creando un {os.path.basename(rp)} nuovo in {os.path.dirname(rp)}: sono istruzioni "
                     "che Claude seguira' ogni volta che lavora in questa cartella. "
                     "Conferma se l'hai chiesto tu." + avviso
                 ))
@@ -308,7 +309,7 @@ def main():
             if unlocked('claude-md-unlock'):
                 _emit("allow", "CLAUDE.md sbloccato da conferma utente." + avviso)
                 sys.exit(0)
-            _emetti_locale('claude-md-globale' if rp == os.path.join(claude_dir, 'CLAUDE.md')
+            _emetti_locale('claude-md-globale' if os.path.dirname(rp) == claude_dir
                            else 'claude-md-progetto', avviso, chiede)
             # Una conferma sola per modifica (3/11/2026, #4473): il popup è la conferma. Il deny con
             # istruzioni costava due o tre sì (domanda in chat, popup dell'unlock, a volte la shell).

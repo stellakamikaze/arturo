@@ -270,7 +270,7 @@ FUORI_DALLA_RISERVA = frozenset((
 ))
 # Le voci che protect_claude_md.py non copre ancora via Edit, col task che le chiude. Una voce esce da qui
 # quando il task è fatto.
-SENZA_EDIT = {"CLAUDE.local.md": "#5159"}
+SENZA_EDIT = {}
 
 
 TESTS = {"SU01": test_su01, "SU02": test_su02, "SU03": test_su03, "SU04": test_su04, "SU05": test_su05,
