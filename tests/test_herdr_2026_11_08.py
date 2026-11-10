@@ -2853,7 +2853,7 @@ def hz47(repo: Path, casa: Path) -> str | None:
     for pezzo in ("x.sessionId === this.menu", "child(titolo(s))", "this.menu = null; cx.notify();", "child(avviso)"):
         if pezzo not in corpo:
             return f"volta.js: al pannello dei gesti manca {pezzo}"
-    elenco = vj.find('.id("volta-elenco").max_h(360).overflow_y_scrollbar()')
+    elenco = vj.find('.id("volta-elenco").max_h(360).min_h(0).flex_shrink(1).overflow_y_scroll()')
     fuori = vj.find("const gesti = chiusa || !corpo ? null : this.pannello(t);")
     dopo = vj.find(".when(Boolean(corpo), (el) => el.child(corpo))\n      .when(Boolean(gesti), (el) => el.child(gesti));")
     if min(elenco, fuori, dopo) < 0 or not elenco < fuori < dopo:

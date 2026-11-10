@@ -317,8 +317,9 @@ export class Volta {
     if (chiusa) corpo = null;
     else if (!this.dati) corpo = div().px(18).py(4).text_size(13).text_color(t.muted).child(this.errore ? "Non riesco a leggere le sessioni delle macchine." : "Leggo le sessioni delle macchine…");
     else if (!lista.length) corpo = div().px(18).py(4).text_size(13).text_color(t.muted).child("Nessuna sessione aperta.");
-    // Un elenco suo, alto al massimo 360 px: i progetti sotto restano a vista.
-    else corpo = v_flex().id("volta-elenco").max_h(360).overflow_y_scrollbar().gap(10).children(lista.map((g) => this.gruppo(t, g, modo, cx)));
+    // Un elenco suo, alto al massimo 360 px: i progetti sotto restano a vista. overflow_y_scroll e non
+    // overflow_y_scrollbar, che avvolge l'elenco in un contenitore a cui max_h non arriva: lì non scorreva.
+    else corpo = v_flex().id("volta-elenco").max_h(360).min_h(0).flex_shrink(1).overflow_y_scroll().gap(10).children(lista.map((g) => this.gruppo(t, g, modo, cx)));
     const vecchio = this.dati && this.errore && this.dati.letto ? `Non riesco ad aggiornare: lettura delle ${String(this.dati.letto).slice(11, 16)}.` : null;
     const gesti = chiusa || !corpo ? null : this.pannello(t);
     return v_flex().id("volta").pb(12).mb(12).gap(4).border_b(1).border_color(t.border)
