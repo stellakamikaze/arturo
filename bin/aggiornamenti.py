@@ -573,10 +573,10 @@ def programma_claude() -> str:
     scelto = os.environ.get("ARTURO_CLAUDE") or shutil.which("claude")
     if scelto:
         return scelto
-    nome = "claude.exe" if os.name == "nt" else "claude"
-    for posto in (Path.home() / ".local" / "bin" / nome, Path.home() / ".claude" / "local" / nome):
-        if posto.is_file():
-            return str(posto)
+    for cartella in (Path.home() / ".local" / "bin", Path.home() / ".claude" / "local"):
+        for nome in (("claude.exe", "claude.cmd") if os.name == "nt" else ("claude",)):
+            if (cartella / nome).is_file():
+                return str(cartella / nome)
     return "claude"
 
 

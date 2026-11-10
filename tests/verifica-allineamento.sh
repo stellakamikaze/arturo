@@ -213,6 +213,8 @@ IN_FILA=(
   test_regole_doppie_2026_11_06.py
   # #4860 (6/11/2026): col plugin avvio e barra dicono che c'è un rilascio nuovo.
   test_avviso_plugin_2026_11_06.py
+  # Col plugin la chiusura installa il rilascio firmato (10/11/2026): misura un'attesa, gira in fila.
+  test_chiusura_plugin_2026_11_10.py
   # Review del 7/11/2026, lotto L2 (#4972): le guardie, dal dispatcher vero.
   test_revisione_2026_11_07.py
 )
@@ -438,6 +440,8 @@ BASELINE=(
   "test_regole_doppie_2026_11_06.py 3b5e6c3"
   # #4860 (6/11/2026): col plugin stato e controlla tacciono. 3b5e6c3, il dev prima.
   "test_avviso_plugin_2026_11_06.py 3b5e6c3"
+  # Col plugin la chiusura non lancia niente e applica non fa niente (10/11/2026). 62786fd, il dev prima.
+  "test_chiusura_plugin_2026_11_10.py 62786fd"
   # #5102 (10/11/2026): i quattro difetti minori su Windows. 3f12336, il dev prima.
   "test_windows_minori_2026_11_10.py 3f12336"
 )
@@ -479,6 +483,8 @@ VELENI=(
   test_regole_doppie_2026_11_06.py
   # #4860 (6/11/2026): una barra che lancia controlla da ~/.claude/bin col plugin non controlla mai (AV04).
   test_avviso_plugin_2026_11_06.py
+  # Chiusura col plugin (10/11/2026): senza il ramo plugin di session-end.sh la chiusura non installa niente (PC03).
+  test_chiusura_plugin_2026_11_10.py
   # Review del 7/11/2026, lotto L2 (#4972): con le guardie di e441828 ogni gruppo RW è rosso.
   test_revisione_2026_11_07.py
   # Review del 7/11/2026, lotto L9: una radice in più in deriva.py fa rosso A02 (finding 94).
