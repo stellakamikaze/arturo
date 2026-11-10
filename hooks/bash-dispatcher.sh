@@ -397,6 +397,8 @@ PATTERN_CD_CLAUDE="(^|[;&|(${_NL}][[:space:]]*)(cd|pushd)[[:space:]]+[^;&|${_NL}
 _RE_CWD_CLAUDE='"cwd"[[:space:]]*:[[:space:]]*"[^"]*[/\\]\.claude'
 # Su Windows i percorsi hanno anche le barre rovesciate (`"C:\Users\x\.claude\settings.json"`), e PATTERN_DANGER
 # cerca `.claude/`: il pre-filtro prova anche il comando con le barre dritte (review del 9/11/2026, #5096).
+# Anche il `cd` si legge con le barre dritte: `cd "C:\...\.claude\data" && echo x > ../settings.json` ha
+# `.claude` seguito da una barra rovesciata, che PATTERN_CD_CLAUDE non conta come fine del nome (#5121).
 _GUARD_DRITTO="$GUARD_COMMAND"
 if [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; then
     _GUARD_DRITTO="${GUARD_COMMAND//\\//}"
@@ -410,7 +412,7 @@ if [[ "$OSTYPE" == darwin* || "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]]; the
     [[ "$_GUARD_DRITTO" =~ $_PATTERN_CONFIG_MAIUSC ]] && _MAIUSC=1
     shopt -u nocasematch
 fi
-if [[ "$GUARD_COMMAND" =~ $PATTERN_DANGER || "$_GUARD_DRITTO" =~ $PATTERN_DANGER || "$GUARD_COMMAND" =~ $PATTERN_CD_CLAUDE || "$INPUT" =~ $_RE_CWD_CLAUDE || $_MAIUSC -eq 1 ]]; then
+if [[ "$GUARD_COMMAND" =~ $PATTERN_DANGER || "$_GUARD_DRITTO" =~ $PATTERN_DANGER || "$_GUARD_DRITTO" =~ $PATTERN_CD_CLAUDE || "$INPUT" =~ $_RE_CWD_CLAUDE || $_MAIUSC -eq 1 ]]; then
     for _i in $(locali prima-danger); do run_locale "$_i"; done
     _DC=""; for _i in $(locali danger-claude); do _DC=$_i; break; done
     if [[ -n "$_DC" && ( "$COMMAND" == *".claude"* || "$INPUT" =~ $_RE_CWD_CLAUDE ) ]]; then

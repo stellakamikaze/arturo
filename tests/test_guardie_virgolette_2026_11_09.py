@@ -12,7 +12,8 @@ GV03 `cd` fra virgolette con il bersaglio relativo; un `;` fra virgolette prima 
 GV04 una chiave in ingresso da una redirezione fra virgolette (`done < "..."`, `$(< "...")`).
 GV05 rm ricorsivo con le maiuscole diverse, su macOS e Windows (salto dichiarato su Linux).
 GV06 il codice di `cmd /c` e `powershell -Command`: legge una chiave o scrive la config.
-GV07 solo Windows: barre rovesciate e `/c/users/...` col dispatcher vero, e protect_claude_md con `/c/...`.
+GV07 solo Windows: barre rovesciate e `/c/users/...` col dispatcher vero, anche dopo un `cd` (#5121), e
+     protect_claude_md con `/c/...`.
 GV08 falsi positivi: le scritture e le letture innocue tacciono.
 
 Sulla base ce1cafc ogni gruppo fallisce con un AssertionError che comincia col suo codice, salvo GV08 (i falsi
@@ -209,6 +210,13 @@ def test_gv07(b: Banco):
         ("dispatcher: barre rovesciate verso settings", b.dispatcher(f'echo x > "{W}\\.claude\\settings.json"'), "ask"),
         ("dispatcher: cat di una chiave", b.dispatcher(f'cat "{W}\\.ssh\\id_ed25519"'), "ask"),
         ("dispatcher: cmd type di una chiave", b.dispatcher(f'cmd //c "type {W}\\.ssh\\id_ed25519"'), "ask"),
+        # #5121: il pre-filtro del cd legge anche le barre rovesciate, poi decide block-dangerous.
+        ("guardia: cd con barre rovesciate e scrittura relativa",
+         b.guardia(f'cd "{W}\\.claude\\hooks" && echo x > a.py'), "ask:config"),
+        ("dispatcher: cd con barre rovesciate e scrittura relativa",
+         b.dispatcher(f'cd "{W}\\.claude\\hooks" && echo x > a.py'), "ask"),
+        ("dispatcher: cd con barre rovesciate e ../settings.json",
+         b.dispatcher(f'cd "{W}\\.claude\\data" && echo x > ../settings.json'), "ask"),
         ("protect_claude_md: /c/... verso hooks", b.scrittura(f"{disco}/.claude/hooks/a.py") != "silent", True),
     ]
     return verifica("GV07", casi)
