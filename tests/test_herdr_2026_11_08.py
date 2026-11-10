@@ -135,7 +135,9 @@ HZ39 la nascita su un'altra macchina (#5172 passo 4, volta_sonda.py nasci con un
      dell'arturo.json di HERDR_APP_HOME. In Volta Nuova richiesta e Apri un progetto nascono sulla macchina
      di "Nasce su" (anche dal benvenuto, che la mostra), una macchina che Volta non elenca torna qui, il
      percorso di volta_sonda.py è uno, i suggerimenti restano qui, e Lavoraci su uno spazio nato altrove
-     scrive nella scheda che lo aggancia.
+     scrive nella scheda che lo aggancia. Anche qui una sessione nasce in background e si aggancia dalla
+     home (#5072); lo stato di una scheda agganciata viene dall'ultima lettura di Volta, quello di Herdr
+     vince, Lavoraci non scrive in chi aspetta, e un suggerimento scrive nella sessione agganciata aperta.
 
 HZ40 i gesti di Volta su una sessione (#5172 passo 4): volta_sonda.py azione lancia claude logs, stop,
      respawn e rm qui o con hc exec --on, rifiuta un verbo o un id strani senza lanciare niente, e
@@ -1562,11 +1564,11 @@ def mod_dati(repo: Path, mod: Path, dati: str) -> None:
 
 PROVA_TROVA = r"""
 import { config, radiceDa, chiedi, SUGGERIMENTI } from "./dati.mjs";
-import { lanciati } from "./herdr.mjs";
+import { eseguiti } from "./herdr.mjs";
 await chiedi(SUGGERIMENTI.find((s) => s.id === "trova"));
 console.log(JSON.stringify({
   radice: (await config()).radice,
-  argv: lanciati.map((l) => l.argv),
+  argv: eseguiti,
   win: radiceDa("C:\\Users\\x\\arturo\\bin\\arturo"),
   posix: radiceDa("/Users/x/.claude/bin/arturo"),
   altro: radiceDa("/usr/bin/python3"),
@@ -1602,16 +1604,17 @@ def hz33(repo: Path, casa: Path) -> str | None:
     if nuovo["radice"] != str(repo) or prima["radice"] != str(altrove):
         return f"la cartella di Arturo non viene da arturo.json o dal bin: {nuovo['radice']} {prima['radice']}"
     argv = nuovo["argv"]
-    if len(argv) != 1 or argv[0][0] != "claude":
-        return f"il pulsante non apre una conversazione nuova: {argv}"
-    prompt = argv[0][1]
+    # anche qui la conversazione nasce in background (#5072): volta_sonda.py nasci qui -- <prompt>
+    if len(argv) != 1 or argv[0][2:4] != ["nasci", "qui"] or argv[0][-2] != "--":
+        return f"il pulsante non fa nascere una conversazione nuova qui: {argv}"
+    prompt = argv[0][-1]
     if "{radice}" in prompt or "~/.claude" in prompt:
         return f"il prompt del pulsante non ha la cartella di Arturo: {prompt[:120]}"
     rimandi = [Path(x) for x in re.findall(r"(\S+/trova-progetti\.md)", prompt)]
     if not rimandi or not rimandi[0].is_file() or rimandi[0].resolve() != (repo / "shared/volta-celeste/trova-progetti.md").resolve():
         return f"il prompt non porta a un trova-progetti.md che esiste: {prompt[:160]}"
-    if str(altrove) not in prima["argv"][0][1]:
-        return f"con un arturo.json di prima il prompt non usa la cartella del bin: {prima['argv'][0][1][:120]}"
+    if str(altrove) not in prima["argv"][0][-1]:
+        return f"con un arturo.json di prima il prompt non usa la cartella del bin: {prima['argv'][0][-1][:120]}"
     casa_arturo = f"{casa / 'casa'}/.claude"
     if (nuovo["win"], nuovo["posix"], nuovo["altro"]) != ("C:\\Users\\x\\arturo", "/Users/x/.claude", casa_arturo):
         return f"radiceDa sbaglia la cartella: {nuovo['win']} {nuovo['posix']} {nuovo['altro']}"
@@ -1995,15 +1998,17 @@ def hz38(repo: Path, casa: Path) -> str | None:
 
 
 PROVA_NASCI = r"""
-import { nuova, apri, chiedi, SUGGERIMENTI } from "./dati.mjs";
-import { lanciati, eseguiti, avvisi, inviati } from "./herdr.mjs";
+import { nuova, apri, chiedi, statoSpazio, statiQui, SUGGERIMENTI } from "./dati.mjs";
+import { lanciati, eseguiti, avvisi, inviati, spaces } from "./herdr.mjs";
 const caso = process.env.HZ_CASO;
+const stati = {};
+if (caso === "stato") { stati.spazio = statoSpazio(spaces()[0]); stati.qui = statiQui(); stati.niente = statoSpazio(undefined); }
 if (caso === "nuova") await nuova("ciao Volta");
 else if (caso === "apri") await apri("progetto-x");
 else if (caso === "lavoraci") await apri("progetto-x", { id: 42, titolo: "Prova" });
 else if (caso === "trova") await chiedi(SUGGERIMENTI.find((s) => s.id === "trova"));
 else if (caso === "ricorda") await chiedi(SUGGERIMENTI.find((s) => s.id === "ricorda"));
-console.log(JSON.stringify({ lanciati, eseguiti, avvisi, inviati }));
+console.log(JSON.stringify({ lanciati, eseguiti, avvisi, inviati, stati }));
 """
 
 
@@ -2103,9 +2108,10 @@ def hz39(repo: Path, casa: Path) -> str | None:
     esito_ok = json.dumps({"id": "ffff1111", "sessionId": "ffff1111-aaaa", "attach": ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"]})
     macchine = [{"host": "qui", "macchina": "Questa", "questa": True}, {"host": "Torre", "macchina": "Torre", "giu": False}]
 
-    def volta(caso, dove, uscita=esito_ok, herdr=None, cartella=app):
+    def volta(caso, dove, uscita=esito_ok, herdr=None, cartella=app, stati=None):
         e = {**os.environ, "HZ_APP": str(cartella), "HZ_CASA": str(casa / "casa"), "HZ_CASO": caso, "HZ_EXEC": uscita,
-             "HZ_SHARED": json.dumps({"arturo.volta.macchine": macchine, "arturo.dove": dove}), "HZ_HERDR": json.dumps(herdr or {})}
+             "HZ_SHARED": json.dumps({"arturo.volta.macchine": macchine, "arturo.dove": dove, "arturo.volta.stati": stati or {}}),
+             "HZ_HERDR": json.dumps(herdr or {})}
         r = subprocess.run([node, str(m / "prova.mjs")], capture_output=True, text=True, timeout=30, env=e)
         if r.returncode != 0:
             raise RuntimeError((r.stderr or r.stdout).strip()[:200])
@@ -2127,14 +2133,20 @@ def hz39(repo: Path, casa: Path) -> str | None:
         v = volta("nuova", "Torre", json.dumps({"errore": "Torre non risponde: spenta"}))
         if v["lanciati"] or not v["avvisi"] or "spenta" not in v["avvisi"][0].get("body", ""):
             return f"una nascita fallita non lo dice: {v}"
+        # anche qui la sessione nasce in background e si aggancia (#5072)
         v = volta("nuova", "Spenta")
-        if v["eseguiti"] or v["lanciati"][0].get("argv") != ["claude", "ciao Volta"]:
-            return f"con una macchina che Volta non elenca la richiesta non nasce qui: {v}"
+        if not v["eseguiti"] or v["eseguiti"][0][2:] != ["nasci", "qui", "--", "ciao Volta"] or len(v["lanciati"]) != 1:
+            return f"con una macchina che Volta non elenca la richiesta non nasce qui in background: {v}"
+        v = volta("apri", "qui")
+        if not v["eseguiti"] or v["eseguiti"][0][2:] != ["nasci", "qui", "--progetto", "progetto-x", "--", "/inizio progetto-x"]:
+            return f"Apri un progetto qui non nasce in background: {v['eseguiti']}"
+        if v["lanciati"][0].get("name") != "progetto-x" or v["lanciati"][0].get("folder") != str(casa / "casa"):
+            return f"la sessione nata qui non si aggancia nello spazio del progetto dalla home: {v['lanciati']}"
         v = volta("trova", "Torre")
-        if v["eseguiti"] or not v["lanciati"] or v["lanciati"][0].get("argv", [""])[0] != "claude":
+        if not v["eseguiti"] or v["eseguiti"][0][2:4] != ["nasci", "qui"]:
             return f"Trova i miei progetti va su un'altra macchina: {v}"
         v = volta("ricorda", "Torre")
-        if v["eseguiti"] or not v["lanciati"] or v["lanciati"][0].get("argv", [""])[0] != "claude":
+        if not v["eseguiti"] or v["eseguiti"][0][2:4] != ["nasci", "qui"]:
             return f"Ricordami una cosa senza conversazione va su un'altra macchina: {v}"
         # "volta" in arturo.json vale anche per la nascita: un solo percorso di volta_sonda.py
         prova = casa / "app-prova"
@@ -2157,10 +2169,40 @@ def hz39(repo: Path, casa: Path) -> str | None:
         v = volta("lavoraci", "Torre", herdr=senza)
         if v["inviati"] or not v["avvisi"] or "chiusa" not in v["avvisi"][0].get("title", ""):
             return f"uno spazio senza sessione non dice che è chiusa: {v}"
+        # #5072: lo stato di una scheda agganciata viene dall'ultima lettura di Volta (arturo.volta.stati)
+        stati = {"ffff1111": {"stato": "aspetta", "host": "qui"}, "aaaa2222": {"stato": "lavora", "host": "Torre"}}
+        v = volta("stato", "qui", herdr=agganciato, stati=stati)
+        if v["stati"] != {"spazio": "blocked", "qui": {"ffff1111": "aspetta"}, "niente": None}:
+            return f"lo stato di una sessione agganciata non viene da Volta: {v['stati']}"
+        # due schede agganciate nello stesso spazio: conta quella attiva
+        due = {"spaces": [{"id": "s1", "name": "Volta", "tabs": [{"id": "tb0", "name": "Altra"}, {"id": "tb1", "name": "Questa", "active": True}]}],
+               "panes": [{"terminal": "t3", "tab": "tb0"}, {"terminal": "t7", "tab": "tb1"}],
+               "terminals": [{"address": "t3", "argv": ["ssh", "-t", "torre.lan", "claude", "attach", "aaaa2222"]},
+                             {"address": "t7", "argv": ["claude", "attach", "ffff1111"]}]}
+        if volta("stato", "qui", herdr=due, stati=stati)["stati"]["spazio"] != "blocked":
+            return "con due schede agganciate lo stato non viene da quella attiva"
+        lavora = {**agganciato, "spaces": [{**agganciato["spaces"][0], "status": "working"}]}
+        if volta("stato", "qui", herdr=lavora, stati=stati)["stati"]["spazio"] != "working":
+            return "lo stato di Herdr non vince su quello di Volta"
+        v = volta("lavoraci", "Torre", herdr=agganciato, stati=stati)
+        if v["inviati"] or not v["avvisi"] or "aspetta" not in v["avvisi"][0].get("title", ""):
+            return f"Lavoraci scrive in una sessione agganciata che aspetta una risposta: {v}"
+        attivo = {**agganciato, "spaces": [{**agganciato["spaces"][0], "active": True,
+                                            "tabs": [{"id": "tb0", "name": "Shell"}, {"id": "tb1", "name": "Progetto x", "active": True}]}]}
+        v = volta("ricorda", "Torre", herdr=attivo)
+        if v["eseguiti"] or len(v["inviati"]) != 1 or v["inviati"][0][:2] != ["send", "t7"]:
+            return f"Ricordami una cosa non scrive nella sessione agganciata aperta: {v['inviati']}, {v['eseguiti']}"
     except RuntimeError as e:
         return f"dati.js non gira: {e}"
     if "nasceSu(t)" not in (mod / "testata.js").read_text(encoding="utf-8"):
         return "il benvenuto non mostra Nasce su, ma la sua Nuova richiesta la segue"
+    # #5072: barra, testata e todo leggono lo stato di uno spazio da statoSpazio(), anche agganciato
+    dj = (mod / "dati.js").read_text(encoding="utf-8")
+    for file, pezzo in (("dati.js", "stato: statoSpazio(spazio(v.chiave))"), ("testata.js", "const st = statoSpazio(s);"),
+                        ("todo.js", "statoSpazio(spazio(p))"), ("todo.js", "    const st = statoSpazio(s);"),
+                        ("barra.js", '|| Object.values(statiQui()).includes("aspetta")'), ("barra.js", "`|${JSON.stringify(statiQui())}|")):
+        if pezzo not in (dj if file == "dati.js" else (mod / file).read_text(encoding="utf-8")):
+            return f"{file} non legge lo stato di Volta per le sessioni agganciate: manca {pezzo}"
     return None
 
 
@@ -2393,16 +2435,29 @@ VELENI = [
     ("HZ40", "shared/volta-celeste/mods/arturo/sessioni.js", 'out.push({ verbo: "rm", testo: "Elimina", conferma: "Sì, elimina" })', 'out.push({ verbo: "rm", testo: "Elimina" })'),
     ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'json.dumps({"prompt": prompt or "", "progetto": progetto})', 'json.dumps({"prompt": "", "progetto": progetto})'),
     ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'if m["stato"] not in (None, "connected"):', "if False:"),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'const m = soloQui ? "qui" : dove();', 'const m = dove();'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return nasciSu(soloQui ? "qui" : dove(), prompt, null);', 'return nasciSu(dove(), prompt, null);'),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return typeof d === "string" && altreMacchine().some((m) => m.host === d) ? d : "qui";', 'return typeof d === "string" && d ? d : "qui";'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'if (m !== "qui") return nasciSu(m, prompt, nome);', ""),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'aggancia({ id: esito.id, sessionId: esito.sessionId, nome, progetto, questa: false }, esito.attach);', ""),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return nasciSu(dove(), prompt, nome);', 'return nasciSu("qui", prompt, nome);'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'aggancia({ id: esito.id, sessionId: esito.sessionId, nome, progetto, questa: macchina === "qui" }, esito.attach);', ""),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'questa: macchina === "qui" }, esito.attach);', 'questa: macchina === "qui", cartella: "/base" }, esito.attach);'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return s.status ?? statoAgganciata(schedaAgganciata(s));', 'return s.status ?? null;'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return s.status ?? statoAgganciata(schedaAgganciata(s));', 'return statoAgganciata(schedaAgganciata(s)) ?? s.status;'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'if (v?.host === "qui") out[id] = v.stato;', 'out[id] = v.stato;'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", "(b.tab === attiva) - (a.tab === attiva)", "0"),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'if (statoAgganciata(g) === "blocked") return notify', 'if (false) return notify'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'const g = a || !s ? null : schedaAgganciata(s);', 'const g = null;'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'stato: statoSpazio(spazio(v.chiave))', 'stato: spazio(v.chiave)?.status ?? null'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/testata.js", 'const st = statoSpazio(s);', 'const st = s?.status;'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/todo.js", 'statoSpazio(spazio(p))', 'spazio(p)?.status'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/todo.js", '    const st = statoSpazio(s);', '    const st = s.status;'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/barra.js", '|| Object.values(statiQui()).includes("aspetta")', ''),
+    ("HZ39", "shared/volta-celeste/mods/arturo/barra.js", '`|${JSON.stringify(statiQui())}|', '`|'),
     ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'app = os.environ.get("HERDR_APP_HOME") or ', "app = "),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'const args = [c.volta, "nasci", macchina,', 'const args = [`${appHome()}/mods/arturo/volta_sonda.py`, "nasci", macchina,'),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", "const g = a ? null : schedaAgganciata(s);", "const g = null;"),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'if (Array.isArray(t?.argv) && t.argv.includes("attach"))', "if (false)"),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'if (sug.dove === "nuova") return nuova(prompt, true);', 'if (sug.dove === "nuova") return nuova(prompt);'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", "if (!a) return nuova(prompt, true);", "if (!a) return nuova(prompt);"),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", "if (!a && !g) return nuova(prompt, true);", "if (!a && !g) return nuova(prompt);"),
     ("HZ39", "shared/volta-celeste/mods/arturo/testata.js", ".when(Boolean(nasceSu(t)), (el) => el.child(nasceSu(t)));", ";"),
     ("HZ34", "shared/volta-celeste/mods/arturo/dati.js", "`${appHome()}/mods/arturo/volta_sonda.py`", "`${home()}/.claude/scripts/teletrasporto.py`"),
     ("HZ34", "shared/volta-celeste/mods/arturo/volta.js", "esiste(c.volta)", "esiste(`${home()}/x/volta_sonda.py`)"),

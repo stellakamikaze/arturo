@@ -5,7 +5,7 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, layout, shared, setShared, watchFolder, notify, home } from "herdr";
-import { frase, nuova, slug, config, SUGGERIMENTI } from "./dati.js";
+import { frase, nuova, slug, config, statoSpazio, SUGGERIMENTI } from "./dati.js";
 import { ICONA, punto, pulsante, colore, apriFinestra, apriElenco, tasti, nasceSu } from "./comuni.js";
 import { leggiTutte } from "./notaui.js";
 import { cartellaNote, progettoNota, contaNote, noteAperte, risposteClaude, risposteNuove } from "./nota.js";
@@ -30,7 +30,8 @@ export class Testata {
     const t = theme();
     const s = spaces().find((x) => x.active);
     const tab = s?.tabs.find((x) => x.active);
-    const f = s?.status ? frase(s.status) : null;
+    const st = statoSpazio(s);
+    const f = st ? frase(st) : null;
     const pannello = trova(layout(), "pannello");
     const schede = (s?.tabs ?? []).length > 1
       ? h_flex().gap(4).children(s.tabs.map((x, i) => h_flex().id(`scheda-${x.id}`).h(28).px(10).gap(7).items_center().rounded(7).cursor_pointer()
