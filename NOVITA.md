@@ -13,6 +13,21 @@ modo di lavorare.
 
 ---
 
+## 2026-11-10 — /inizio e la rotazione: una parola corta non sceglie un progetto, una domanda non si perde
+
+**Cosa cambia**:
+- `/inizio` con una frase che comincia con una parola di una o due lettere ("ti ricordi cosa abbiamo
+  deciso") non apre più il progetto che ha quelle lettere nel nome: la frase diventa il compito della
+  sessione (segnalazione n. 64). Un nome scritto intero vale anche se è corto.
+- Se Claude ti fa una domanda dopo aver deciso la rotazione, nello stesso turno, la sessione nuova non
+  riparte da sola: ti rifà la domanda e aspetta la tua risposta (segnalazione n. 65). Prima ripartiva sul
+  compito, e la domanda restava nella sessione chiusa.
+
+**Il principio**: la rotazione continua il lavoro solo quando nessuno aspetta una risposta.
+
+**Da sapere**: conta come domanda una scelta col menu, o l'ultima riga del messaggio quando finisce col
+punto di domanda.
+
 ## 2026-11-10 — CLAUDE.local.md chiede conferma come CLAUDE.md
 
 **Cosa cambia**: Claude chiede la tua conferma prima di modificare un `CLAUDE.local.md`, in qualunque

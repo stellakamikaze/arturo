@@ -12,6 +12,8 @@ import {
   argomentiInizio,
   CONTROLLO_BOZZA_MS,
   decidi,
+  domandaAperta,
+  testoDomande,
   vediBozza,
   leggiArgomenti,
   nomeTool,
@@ -25,6 +27,8 @@ import { type Avanti, type Evento, parteSpenta, stato } from '../parti'
 const CHIAVE_ULTIMA = 'ultima-rotazione'
 
 let armata: Rotazione | undefined
+// la domanda fatta con AskUserQuestion dopo ruota, nello stesso turno (segnalazione n. 65)
+let chiestaDopo: string | undefined
 let inCorso: Rotazione | undefined
 // rotazione decisa con testo nella casella: aspetta che la bozza si fermi o si svuoti
 let inAttesa: { rot: Rotazione; attesa: Attesa } | undefined
@@ -76,6 +80,8 @@ export async function fineTurno($: EngineInterface, e: Evento<'turn.complete'>, 
     throw err
   }
   if (!armata) return r
+  const chiesta = chiestaDopo
+  chiestaDopo = undefined
   try {
     const [box, ora, ultima, minS] = await Promise.all([
       $.prompt.read(),
@@ -108,8 +114,14 @@ export async function fineTurno($: EngineInterface, e: Evento<'turn.complete'>, 
       stato($, 'rotazione', 'rotazione in attesa: c\'è testo nella casella')
       $.clock.after(CONTROLLO_BOZZA_MS, () => controllaBozza($))
     } else if (esito.azione === 'clear') {
-      const rot = armata
+      // Una domanda alla persona dopo ruota non si perde: viaggia con /inizio, che si ferma lì.
+      const domanda = domandaAperta(e.answer ?? '', chiesta)
+      const rot = domanda ? { ...armata, domanda } : armata
       armata = undefined
+      if (domanda) {
+        await registra($, `domanda aperta dopo ruota → /inizio si ferma: ${JSON.stringify(domanda.slice(0, 80))}`)
+        stato($, 'rotazione', 'rotazione: riparto e ti rifaccio la domanda')
+      }
       await avviaClear($, rot, ora)
     }
   } catch (err) {
@@ -198,6 +210,11 @@ export const register: Register = on => {
 
   on('tool.call', async ($, e, next) => {
     if (await parteSpenta($, 'rotazione')) return next(e)
+    if (armata && e.agentId === undefined && e.tool === 'AskUserQuestion') {
+      const t = testoDomande(e)
+      if (t) chiestaDopo = t
+      return next(e)
+    }
     if (e.tool !== (nomeRegistrato ?? nomeTool($.plugin.name))) return next(e)
     // Un subagente vede il tool ma non chiude la sessione: armata è del modulo, e al turno dopo della
     // sessione principale partirebbe /clear a metà del suo lavoro (review 7/11, finding 61).

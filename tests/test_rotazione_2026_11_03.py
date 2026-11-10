@@ -20,11 +20,14 @@ RT07 il fine leggero parte a ogni compito chiuso, anche senza rotazione (4/11/20
 RT08 context-monitor.js tace nei subagenti (review del 7/11/2026, finding 48): con la metrica della
      sessione al 30% una chiamata con agent_id non riceve l'avviso di rotazione e non tocca il file del
      debounce; la sessione principale subito dopo lo riceve.
+RT09 una domanda alla persona rimasta aperta dopo ruota (segnalazione n. 65, 10/11/2026): con
+     "-- --rotazione <compito> --in-attesa <domanda>" arturo contesto stampa il compito senza la domanda e la
+     riga "in attesa: <domanda>", e il Modo rotazione di commands/inizio.md dice di non partire con quella riga.
 
 bin/contesto.py non ha un'uscita --json: la chiave "rotazione" non ha dove stare, e RT06 sorveglia la
 marca scritta nel posto sbagliato.
 
-Sulla base bf394ad (il dev prima della rotazione) sono rossi RT01, RT02, RT03, RT05, RT07 e RT08; RT04 e RT06
+Sulla base bf394ad (il dev prima della rotazione) sono rossi RT01, RT02, RT03, RT05, RT07, RT08 e RT09; RT04 e RT06
 sono invarianti. Con --avvelena una copia del repository rotta in un punto alla volta deve far fallire i casi
 che lo sorvegliano.
 """
@@ -41,10 +44,10 @@ import tempfile
 from datetime import date
 from pathlib import Path
 
-CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06", "RT07", "RT08"]
-DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05", "RT07", "RT08"]
+CASI = ["RT01", "RT02", "RT03", "RT04", "RT05", "RT06", "RT07", "RT08", "RT09"]
+DISCRIMINANTI = ["RT01", "RT02", "RT03", "RT05", "RT07", "RT08", "RT09"]
 PERCORSI = ["bin", "hooks/radici.py", "hooks/melchior_match.py", "hooks/controlla-config.py", ".gitignore", "hooks/session-start.sh",
-            "commands/fine.md", "hooks/context-monitor.js"]
+            "commands/fine.md", "commands/inizio.md", "hooks/context-monitor.js"]
 SEGNO = ".ultimo-fine-completo"
 GIT_ENV = {"GIT_AUTHOR_NAME": "Prova", "GIT_AUTHOR_EMAIL": "p@example.com", "GIT_COMMITTER_NAME": "Prova",
            "GIT_COMMITTER_EMAIL": "p@example.com", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull}
@@ -61,6 +64,8 @@ VELENI = [
     (["RT07"], "hooks/session-start.sh", "a ogni compito chiuso con una traccia",
      "a ogni passo chiuso con una traccia"),
     (["RT08"], "hooks/context-monitor.js", "    if (data.agent_id) {", "    if (false) {"),
+    (["RT09"], "bin/contesto.py", "separa_attesa(compito) if rotazione else", "separa_attesa(compito) if False else"),
+    (["RT09"], "commands/inizio.md", "Con la riga `in attesa: <domanda>` non parti", "Con la riga `in attesa: <domanda>` parti"),
 ]
 
 
@@ -247,7 +252,20 @@ def rt08(lab: Lab):
         return f"subagente {sub[:120]!r} debounce scritto={debounce} madre {madre[:80]!r}"
 
 
-PROVE = {"RT01": rt01, "RT02": rt02, "RT03": rt03, "RT04": rt04, "RT05": rt05, "RT06": rt06, "RT07": rt07, "RT08": rt08}
+def rt09(lab: Lab):
+    lab.handoff()
+    r = lab.contesto("libro", "--", "--rotazione", "scrivere", "i", "test", "--in-attesa", "Rifaccio", "la", "copertina?")
+    righe = r.stdout.splitlines()
+    if r.returncode != 0 or "compito: scrivere i test" not in righe or "in attesa: Rifaccio la copertina?" not in righe:
+        return f"rc={r.returncode} {r.stdout[:300]!r} {r.stderr[-160:]!r}"
+    inizio = lab.cl / "commands" / "inizio.md"
+    testo = inizio.read_text(encoding="utf-8") if inizio.exists() else ""
+    if "Con la riga `in attesa: <domanda>` non parti" not in " ".join(testo.split()):
+        return "commands/inizio.md non dice di fermarsi sulla riga in attesa"
+
+
+PROVE = {"RT01": rt01, "RT02": rt02, "RT03": rt03, "RT04": rt04, "RT05": rt05, "RT06": rt06, "RT07": rt07, "RT08": rt08,
+         "RT09": rt09}
 
 
 def prova(repo: Path, ref: str | None) -> list:

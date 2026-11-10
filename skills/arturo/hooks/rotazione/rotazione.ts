@@ -15,7 +15,28 @@ export const CONTROLLO_BOZZA_MS = 15_000
 export const BOZZA_FERMA_MS = 60_000
 export const ATTESA_BOZZA_MAX_MS = 10 * 60_000
 
-export type Rotazione = { progetto: string; compito: string }
+// `domanda`: la domanda alla persona arrivata dopo ruota nello stesso turno (segnalazione n. 65, 10/11/2026).
+export type Rotazione = { progetto: string; compito: string; domanda?: string }
+
+// Quanto della domanda viaggia nella riga di /inizio.
+export const DOMANDA_MAX = 300
+
+// La domanda aperta alla fine del turno: quella fatta con AskUserQuestion dopo ruota, se c'è, oppure l'ultima
+// riga del testo finale quando finisce con "?". Senza domanda, undefined: la rotazione riparte come sempre.
+export function domandaAperta(answer: string, chiesta?: string): string | undefined {
+  if (chiesta && chiesta.trim()) return chiesta.replace(/\s+/g, ' ').trim()
+  const righe = answer.split('\n').map(r => r.replace(/[*_`>#]/g, '').trim()).filter(Boolean)
+  const ultima = righe[righe.length - 1]
+  return ultima && /\?\s*$/.test(ultima) ? ultima : undefined
+}
+
+// Il testo delle domande di una chiamata ad AskUserQuestion.
+export function testoDomande(e: unknown): string {
+  const q = (e as { questions?: unknown }).questions
+  if (!Array.isArray(q)) return ''
+  return q.map(x => (x && typeof (x as { question?: unknown }).question === 'string' ? (x as { question: string }).question : ''))
+    .filter(Boolean).join(' · ')
+}
 
 export type Esito =
   | { azione: 'clear' }
@@ -67,9 +88,11 @@ export function vediBozza(a: Attesa, testo: string, ora: number):
   return { azione: 'aspetta', attesa: a }
 }
 
+// Con una domanda aperta la riga porta --in-attesa: /inizio in rotazione si ferma lì e rifà la domanda.
 export function argomentiInizio(r: Rotazione): string {
   const compito = r.compito.replace(/\s+/g, ' ').trim()
-  return `${r.progetto.trim()} -- --rotazione ${compito}`
+  const domanda = (r.domanda ?? '').replace(/\s+/g, ' ').trim().slice(0, DOMANDA_MAX)
+  return `${r.progetto.trim()} -- --rotazione ${compito}${domanda ? ` --in-attesa ${domanda}` : ''}`
 }
 
 export function leggiArgomenti(e: unknown): Rotazione | string {
