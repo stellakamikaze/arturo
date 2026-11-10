@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ36: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ38: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -119,7 +119,15 @@ HZ35 la nascita in background (#5172 passo 2, volta-claude.sh con un claude fint
 HZ36 il blocco della nascita (nascita.sh e installa-herdr.sh): metti lo scrive una volta sola anche
      rilanciato, togli lascia il file com'era, stato vede la funzione claude della persona fuori dal
      blocco, e in zsh e bash il blocco definisce claude solo se la persona non ne ha già una.
-     L'installatore lo scrive solo con ARTURO_HERDR_NASCITA=si, lo toglie con no, altrimenti lo propone.
+     L'installatore copia i file e propone soltanto; metti della copia installata accende, no spegne e
+     ricorda il no (l'installatore non ripropone), metti dopo un no lo dimentica.
+HZ37 la nascita in PowerShell (#5172 passo 3): metti scrive il blocco nei profili di PowerShell (anche in
+     una cartella che non c'è), solo ASCII, una volta sola; togli lascia il profilo com'era anche con le
+     righe di Windows; un profilo UTF-16 resta com'è; stato vede la funzione claude della persona e la
+     policy Restricted; l'installatore di Windows copia volta-claude.ps1 e dice della policy.
+HZ38 dove c'è PowerShell (Windows): volta-claude.ps1 fa nascere in background e aggancia, lascia qui via di fuga,
+     sottocomandi e --resume senza id, ripiega se --bg è rifiutato; il blocco definisce claude solo se
+     la persona non ne ha già una.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -135,7 +143,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -1652,7 +1660,7 @@ def hz34(repo: Path, casa: Path) -> str | None:
 CLAUDE_FINTO = r"""#!/bin/sh
 { for a in "$@"; do printf '[%s]' "$a"; done; echo; } >> "$HZ_LOG"
 if [ "${1:-}" = --bg ]; then
-  if [ -n "${HZ_RIFIUTA:-}" ]; then echo "Workspace not trusted. Run claude once."; exit 1; fi
+  if [ -n "${HZ_RIFIUTA:-}" ]; then printf 'Starting background service\342\200\246\n'; echo "Workspace not trusted. Run claude once."; exit 1; fi
   printf 'backgrounded \302\267 abcd1234\n  claude agents             list sessions\n  claude attach abcd1234    open in this terminal\n'
 fi
 exit 0
@@ -1717,6 +1725,8 @@ def hz35(repo: Path, casa: Path) -> str | None:
 
 
 def hz36(repo: Path, casa: Path) -> str | None:
+    if os.name == "nt":
+        return None  # su Windows la nascita va nel profilo di PowerShell (HZ37, HZ38): non_gira_qui lo dichiara
     vc = repo / "shared/volta-celeste"
     home = casa / "home"
     home.mkdir()
@@ -1760,29 +1770,185 @@ def hz36(repo: Path, casa: Path) -> str | None:
         return "togli non lascia il file della persona com'era"
     if nascita("stato").stdout.splitlines()[0] != "assente":
         return "dopo togli lo stato non dice assente"
-    # L'installatore: propone senza scelta, scrive con si, toglie con no.
+    # L'installatore: copia e propone soltanto. La scelta passa da volta-nascita.sh, una strada sola.
     sotto = casa / "inst"
     sotto.mkdir()
-    r = installa(repo, sotto, "mac-arm", {"ARTURO_HERDR_FIRMA": "presente", "SHELL": "/bin/zsh"})
+    base = {"ARTURO_HERDR_FIRMA": "presente", "SHELL": "/bin/zsh"}
+    r = installa(repo, sotto, "mac-arm", base)
     rc = sotto / "home" / ".zshrc"
     if "HERDR NASCITA:" not in r.stdout or rc.exists():
         return f"senza scelta l'installatore non propone la nascita o la accende da solo: {r.stdout[-200:]}"
-    if not os.access(sotto / "app" / "volta-claude", os.X_OK):
-        return "l'installatore non mette volta-claude eseguibile nella cartella di Herdr"
-    r = installa(repo, sotto, "mac-arm", {"ARTURO_HERDR_FIRMA": "presente", "SHELL": "/bin/zsh", "ARTURO_HERDR_NASCITA": "si"})
-    if not rc.is_file() or f'"{sotto / "app"}/volta-claude"' not in rc.read_text(encoding="utf-8") or "HERDR NASCITA:" in r.stdout:
-        return f"con ARTURO_HERDR_NASCITA=si il blocco non punta a volta-claude della cartella di Herdr: {r.stdout[-200:]}"
-    installa(repo, sotto, "mac-arm", {"ARTURO_HERDR_FIRMA": "presente", "SHELL": "/bin/zsh", "ARTURO_HERDR_NASCITA": "no"})
+    for nome in ("volta-claude", "volta-nascita.sh"):
+        if not os.access(sotto / "app" / nome, os.X_OK):
+            return f"l'installatore non mette {nome} eseguibile nella cartella di Herdr"
+    env_i = {**os.environ, "HOME": str(sotto / "home"), "SHELL": "/bin/zsh"}
+    installato = lambda *a: subprocess.run(["sh", str(sotto / "app" / "volta-nascita.sh"), *a], capture_output=True, text=True, timeout=30, env=env_i)  # noqa: E731
+    installato("metti")
+    if not rc.is_file() or f'"{sotto / "app"}/volta-claude"' not in rc.read_text(encoding="utf-8"):
+        return "metti senza cartella non punta a volta-claude della sua cartella di Herdr"
+    r = installa(repo, sotto, "mac-arm", base)
+    if "HERDR NASCITA:" in r.stdout:
+        return "con la nascita accesa l'installatore la ripropone"
+    installato("no")
     if ">>> Volta Celeste" in rc.read_text(encoding="utf-8"):
-        return "con ARTURO_HERDR_NASCITA=no il blocco resta"
+        return "dopo no il blocco resta"
+    r = installa(repo, sotto, "mac-arm", base)
+    if "HERDR NASCITA:" in r.stdout:
+        return "dopo un no l'installatore ripropone la nascita"
+    installato("metti")
+    installato("togli")
+    r = installa(repo, sotto, "mac-arm", base)
+    if "HERDR NASCITA:" not in r.stdout:
+        return "metti dopo un no non dimentica il no: la proposta non torna più"
     (sotto / "home" / ".zshenv").write_text("claude() { command claude \"$@\"; }\n", encoding="utf-8")
-    r = installa(repo, sotto, "mac-arm", {"ARTURO_HERDR_FIRMA": "presente", "SHELL": "/bin/zsh"})
+    r = installa(repo, sotto, "mac-arm", base)
     if "HERDR NASCITA FUNZIONE: in " not in r.stdout:
         return "l'installatore non dice che la funzione claude della persona vince sul blocco"
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36}
+CLAUDE_FINTO_PS = r"""Add-Content -LiteralPath $env:HZ_LOG -Value ('C' + (-join ($args | ForEach-Object { "[$_]" })))
+if ($args.Count -gt 0 -and $args[0] -eq '--bg') {
+  Write-Output ('Starting background service' + [char]0x2026)  # su stdout: l'ordine con lo stderr non è garantito
+  if ($env:HZ_RIFIUTA) { Write-Output 'Workspace not trusted. Run claude once.'; exit 1 }
+  Write-Output ('backgrounded ' + [char]0xB7 + ' abcd1234')
+  Write-Output '  claude attach abcd1234    open in this terminal'
+}
+exit 0
+"""
+
+
+def powershell() -> str | None:
+    return shutil.which("pwsh") or shutil.which("powershell")
+
+
+def hz37(repo: Path, casa: Path) -> str | None:
+    vc = repo / "shared/volta-celeste"
+    home = casa / "home"
+    home.mkdir()
+    app = casa / "app"
+    app.mkdir()
+    shutil.copy(vc / "nascita.sh", app / "volta-nascita.sh")
+    p5 = home / "Documents" / "WindowsPowerShell" / "Microsoft.PowerShell_profile.ps1"
+    p7 = home / "Documents" / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
+    p5.parent.mkdir(parents=True)
+    prima = b"Set-Alias ll Get-ChildItem\r\n$env:A = 1"  # righe di Windows, senza a capo in fondo
+    p5.write_bytes(prima)
+    env = {**os.environ, "HOME": str(home), "SHELL": "/bin/zsh", "VOLTA_PROFILI_PS": f"{p5}\n{p7}", "VOLTA_POLICY_PS": "RemoteSigned"}
+    nascita = lambda *a, **e: subprocess.run(["sh", str(app / "volta-nascita.sh"), *a], capture_output=True, text=True, timeout=60, env={**env, **e})  # noqa: E731
+    for _ in range(2):
+        r = nascita("metti")
+        if r.returncode != 0:
+            return f"metti esce {r.returncode}: {r.stderr.strip()[-160:]}"
+    for f in (p5, p7):
+        if not f.is_file():
+            return f"metti non crea il profilo {f.parent.name}"
+        b = f.read_bytes()
+        if b.count(b">>> Volta Celeste") != 1:
+            return f"in {f.parent.name} il blocco c'è {b.count(b'>>> Volta Celeste')} volte"
+        if any(c > 127 for c in b):
+            return f"il blocco in {f.parent.name} non è solo ASCII: Windows PowerShell 5.1 lo legge storto"
+        if b"function global:claude" not in b or b"volta-claude.ps1" not in b:
+            return f"il blocco in {f.parent.name} non fa passare claude da volta-claude.ps1"
+    if not p5.read_bytes().startswith(prima + b"\n# >>> Volta Celeste"):
+        return "il blocco si attacca all'ultima riga del profilo"
+    if (home / ".zshrc").exists() and "Volta" in (home / ".zshrc").read_text(encoding="utf-8") and os.name == "nt":
+        return "su Windows il blocco va anche nei file di avvio di zsh"
+    st = nascita("stato").stdout.splitlines()
+    if f"presente {p5}" not in st or f"presente {p7}" not in st:
+        return f"stato {st}: attesi i due profili"
+    if any(r.startswith("funzione ") for r in st):
+        return "stato scambia la funzione del blocco per una della persona"
+    # un editor di Windows può risalvare tutto il profilo con le righe di Windows, blocco compreso
+    p5.write_bytes(p5.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+    nascita("togli")
+    if p5.read_bytes() != prima + b"\r\n":
+        return "togli non lascia il profilo com'era, o non trova il blocco con le righe di Windows"
+    p7.write_text("function Claude { claude.exe @args }\n", encoding="utf-8")
+    st = nascita("stato", VOLTA_POLICY_PS="Restricted").stdout.splitlines()
+    if f"funzione {p7}" not in st:
+        return f"stato non vede la funzione claude della persona nel profilo: {st}"
+    if f"policy {p5} Restricted" not in st:
+        return f"stato non dice della policy Restricted: {st}"
+    sedici = "Set-Alias ll Get-ChildItem\r\n".encode("utf-16")
+    p5.write_bytes(sedici)
+    r = nascita("metti")
+    if p5.read_bytes() != sedici or f"NASCITA UTF16 {p5}" not in r.stdout:
+        return "metti tocca un profilo in UTF-16 o non lo dice"
+    # L'installatore di Windows copia volta-claude.ps1 e dice della policy.
+    sotto = casa / "inst"
+    sotto.mkdir()
+    q5 = sotto / "home" / "Documents" / "WindowsPowerShell" / "Microsoft.PowerShell_profile.ps1"
+    r = installa(repo, sotto, "windows", {"VOLTA_PROFILI_PS": str(q5), "VOLTA_POLICY_PS": "Restricted"})
+    if not (sotto / "app" / "volta-claude.ps1").is_file():
+        return "l'installatore di Windows non copia volta-claude.ps1"
+    if "HERDR NASCITA:" not in r.stdout or "HERDR NASCITA POLICY: PowerShell non legge il profilo" not in r.stdout:
+        return f"l'installatore di Windows non propone la nascita o non dice della policy: {r.stdout[-240:]}"
+    if q5.exists():
+        return "l'installatore di Windows scrive il profilo senza la scelta della persona"
+    return None
+
+
+def hz38(repo: Path, casa: Path) -> str | None:
+    ps = powershell()
+    if not ps:
+        return None  # gira dove c'è PowerShell (Windows): non_gira_qui lo dichiara
+    vc = repo / "shared/volta-celeste"
+    app = casa / "app"
+    app.mkdir()
+    shutil.copy(vc / "nascita.sh", app / "volta-nascita.sh")
+    env = {**os.environ, "HOME": str(casa), "VOLTA_POLICY_PS": "RemoteSigned"}
+    nascita = lambda *a, **e: subprocess.run(["sh", str(app / "volta-nascita.sh"), *a], capture_output=True, text=True, timeout=60, env={**env, **e})  # noqa: E731
+    # volta-claude.ps1 con un claude finto
+    finto = casa / "claude-finto.ps1"
+    finto.write_text(CLAUDE_FINTO_PS, encoding="utf-8-sig")
+    log = casa / "chiamate.log"
+    def vps(args: list[str], **extra: str) -> tuple[list[str], str]:
+        log.write_text("", encoding="utf-8")
+        e = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "HC_TERMINAL_ID", "CLAUDE_QUI")}
+        e.update({"VOLTA_CLAUDE_BIN": str(finto), "HZ_LOG": str(log), "VOLTA_CLAUDE_TTY": "1", **extra})
+        r = subprocess.run([ps, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(vc / "volta-claude.ps1"), *args],
+                           capture_output=True, text=True, timeout=60, env=e, encoding="utf-8", errors="replace")
+        return [x[1:] for x in log.read_text(encoding="utf-8-sig").splitlines() if x.startswith("C")], r.stderr
+    bg = lambda *a: ["[--bg]" + "".join(f"[{x}]" for x in a), "[attach][abcd1234]"]  # noqa: E731
+    qui = lambda *a: ["".join(f"[{x}]" for x in a)]  # noqa: E731
+    casi = [
+        ("claude nudo", [], {}, bg()),
+        ("claude col prompt", ["/inizio arturo -- #12 un todo"], {}, bg("/inizio arturo -- #12 un todo")),
+        ("--resume con l'id", ["--resume", "abc-123"], {}, bg("--resume", "abc-123")),
+        ("CLAUDE_QUI", [], {"CLAUDE_QUI": "1"}, qui()),
+        ("sottocomando agents", ["agents", "--json"], {}, qui("agents", "--json")),
+        ("-p", ["-p", "ciao"], {}, qui("-p", "ciao")),
+        ("--resume senza id", ["--resume"], {}, qui("--resume")),
+        ("--output-format=json", ["--output-format=json"], {}, qui("--output-format=json")),
+        ("terminale di Herdr", [], {"HC_TERMINAL_ID": "t3"}, qui()),
+    ]
+    for nome, args, extra, attese in casi:
+        chiamate, err = vps(args, **extra)
+        if chiamate != attese:
+            return f"volta-claude.ps1, {nome}: chiamate {chiamate}, attese {attese} ({err.strip()[-120:]})"
+    chiamate, err = vps(["ciao"], HZ_RIFIUTA="1")
+    if chiamate != ["[--bg][ciao]", "[ciao]"]:
+        return f"volta-claude.ps1, --bg rifiutato: chiamate {chiamate}"
+    if "non parte in background (Workspace not trusted" not in err:
+        return f"volta-claude.ps1, --bg rifiutato senza dire perché: {err.strip()[-160:]}"
+    _, err = vps([])
+    if "claude attach abcd1234 la riapre" not in err:
+        return "volta-claude.ps1: dopo l'aggancio non dice come riaprire la sessione"
+    # il blocco vero in PowerShell: claude passa da volta-claude.ps1, ma la funzione della persona vince
+    (app / "volta-claude.ps1").write_text("Write-Output ('VOLTA ' + ($args -join ' '))\n", encoding="utf-8-sig")
+    p6 = casa / "profilo.ps1"
+    nascita("metti", VOLTA_PROFILI_PS=str(p6))
+    corri = lambda prima: subprocess.run([ps, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", f"{prima}. '{p6}'; claude uno due"],  # noqa: E731
+                                         capture_output=True, text=True, timeout=60, encoding="utf-8", errors="replace").stdout.strip()
+    if corri("") != "VOLTA uno due":
+        return f"in PowerShell il blocco non fa passare claude da volta-claude.ps1: {corri('')[-120:]}"
+    if corri("function claude { 'MIA' }; ") != "MIA":
+        return "in PowerShell il blocco scavalca la funzione claude della persona"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -1892,14 +2058,27 @@ VELENI = [
     ("HZ34", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'sessioni += [dict(r, vecchia=True)', 'sessioni += [dict(r)'),
     ("HZ35", "shared/volta-celeste/volta-claude.sh", '[ "${CLAUDE_QUI:-0}" = 1 ] && qui_interattiva "$@"', ":"),
     ("HZ35", "shared/volta-celeste/volta-claude.sh", "  agents | attach | auth |", "  agentsX | attach | auth |"),
+    ("HZ35", "shared/volta-celeste/volta-claude.sh", "grep -v '^Starting background service' | ", ""),
     ("HZ35", "shared/volta-celeste/volta-claude.sh", '[ -n "$senza_id" ] && qui_interattiva "$@"', ":"),
     ("HZ35", "shared/volta-celeste/volta-claude.sh", '[ -n "${HC_TERMINAL_ID:-}" ] && qui_interattiva "$@"', ":"),
     ("HZ35", "shared/volta-celeste/volta-claude.sh", 'printf \'Volta: la sessione non parte in background (%s). La apro qui, come prima.\\n\' "$motivo" >&2', "exit 1"),
     ("HZ36", "shared/volta-celeste/nascita.sh", "!dentro' \"$f\" > \"$tmp\"", "1' \"$f\" > \"$tmp\""),
     ("HZ36", "shared/volta-celeste/nascita.sh", "! typeset -f claude >/dev/null 2>&1; then", "true; then"),
-    ("HZ36", "shared/volta-celeste/nascita.sh", "then printf '\\n' >> \"$f\"; fi", "then :; fi"),
-    ("HZ36", "shared/volta-celeste/installa-herdr.sh", '    no) sh "$app_home/volta-nascita.sh" togli >/dev/null ;;', "    no) ;;"),
-    ("HZ36", "shared/volta-celeste/installa-herdr.sh", 'if sh "$app_home/volta-nascita.sh" stato | grep -q \'^assente\'; then', "if false; then"),
+    ("HZ36", "shared/volta-celeste/nascita.sh", "then printf '\\n' >> \"$1\"; fi", "then :; fi"),
+    ("HZ36", "shared/volta-celeste/installa-herdr.sh", "&& ! printf '%s\\n' \"$stato_nascita\" | grep -q '^rifiutata'; then", "; then"),
+    ("HZ36", "shared/volta-celeste/installa-herdr.sh", "if printf '%s\\n' \"$stato_nascita\" | grep -q '^assente' &&", "if false &&"),
+    ("HZ36", "shared/volta-celeste/nascita.sh", 'rm -f "$NO" "$app/nascita-no"', ":"),
+    ("HZ37", "shared/volta-celeste/nascita.sh", "    for f in $(tutti_i_file); do\n      if [ -f \"$f\" ] && grep -qF \"$INIZIO\" \"$f\"; then togli_da", "    for f in $(file_shell); do\n      if [ -f \"$f\" ] && grep -qF \"$INIZIO\" \"$f\"; then togli_da"),
+    ("HZ37", "shared/volta-celeste/nascita.sh", "{ l = $0; sub(/\\r$/, \"\", l) } l == a { dentro = 1; next }", "{ l = $0 } l == a { dentro = 1; next }"),
+    ("HZ37", "shared/volta-celeste/nascita.sh", "awk -v BINMODE=3 -v a=", "awk -v a=", "windows"),  # l'awk di Git per Windows toglie i \r
+    ("HZ37", "shared/volta-celeste/nascita.sh", '      if utf16 "$f"; then say "NASCITA UTF16 $f"; continue; fi', "      :"),
+    ("HZ37", "shared/volta-celeste/nascita.sh", '      mkdir -p "$(dirname "$f")"', "      :"),
+    ("HZ37", "shared/volta-celeste/nascita.sh", 'case "$pol" in Restricted | AllSigned) say', 'case "$pol" in Nessuna) say'),
+    ("HZ38", "shared/volta-celeste/nascita.sh", "and -not (Get-Command claude -CommandType Function -ErrorAction SilentlyContinue)) {", ") {"),
+    ("HZ37", "shared/volta-celeste/installa-herdr.sh", '[ "$sistema" = windows ] && cp "$qui/volta-claude.ps1"', '[ "$sistema" = nessuno ] && cp "$qui/volta-claude.ps1"'),
+    ("HZ38", "shared/volta-celeste/volta-claude.ps1", "if ($env:CLAUDE_QUI -eq '1') { Qui }", "#"),
+    ("HZ38", "shared/volta-celeste/volta-claude.ps1", "if ($senzaId) { Qui }", "#"),
+    ("HZ38", "shared/volta-celeste/volta-claude.ps1", "$_ -and $_ -notmatch '^Starting background service'", "$_"),
     ("HZ34", "shared/volta-celeste/mods/arturo/volta.js", "`${appHome()}/mods/arturo/volta_sonda.py`", "`${home()}/.claude/scripts/teletrasporto.py`"),
 ]
 
@@ -1917,6 +2096,10 @@ def non_gira_qui(caso: str) -> str | None:
     if caso == "HZ08" and not (mac and subprocess.run(["sysctl", "-n", "hw.optional.arm64"],
                                                       capture_output=True, text=True).stdout.strip() == "1"):
         return "l'invito a Herdr parte solo sui Mac Apple Silicon"
+    if caso == "HZ36" and os.name == "nt":
+        return "su Windows la nascita va nel profilo di PowerShell, non nei file di zsh e bash"
+    if caso == "HZ38" and not (shutil.which("pwsh") or shutil.which("powershell")):
+        return "niente PowerShell qui: volta-claude.ps1 gira su Windows"
     if caso in ("HZ13", "HZ16") and not mac:
         return "Arturo.app e i servizi di launchd ci sono solo sul Mac"
     return None
@@ -1926,8 +2109,10 @@ def avvelena(repo: Path) -> int:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from salti_windows import dichiara  # noqa: PLC0415
     esiti, saltati = [], 0
-    for caso, rel, giusto, rotto in VELENI:
+    for caso, rel, giusto, rotto, *solo in VELENI:
         motivo = non_gira_qui(caso)
+        if not motivo and solo == ["windows"] and os.name != "nt":
+            motivo = "il difetto che rompe c'è solo su Windows"
         if motivo:  # il testo da rompere si controlla lo stesso: un veleno vecchio cade anche qui
             assert (repo / rel).read_text(encoding="utf-8").count(giusto) == 1, \
                 f"veleno {caso}: il testo da rompere non c'è più in {rel}"

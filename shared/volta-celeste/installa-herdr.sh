@@ -159,25 +159,28 @@ if [ "$sistema" = mac-arm ] && [ "$firma" = assente ]; then
 fi
 
 # 5c. La nascita in background (#5172): il comando claude dei terminali fa nascere la sessione in background
-# e la apre lì, così Volta la apre da ogni macchina anche mentre lavora. La persona la sceglie (/setup chiede
-# e passa ARTURO_HERDR_NASCITA=si o no); senza scelta lo script la propone soltanto. Per ora solo sul Mac:
-# su Windows il terminale di PowerShell arriva col passo 3.
-if [ "$sistema" = mac-arm ]; then
+# e la apre lì, così Volta la apre da ogni macchina anche mentre lavora. I file si copiano sempre; il blocco
+# nel file di avvio della shell lo scrive solo volta-nascita.sh, col sì della persona (/setup lancia il
+# comando della riga HERDR NASCITA, o "no" per non sentirsela riproporre). Sul Mac zsh e bash, su Windows
+# il profilo di PowerShell.
+if [ "$sistema" = mac-arm ] || [ "$sistema" = windows ]; then
   cp "$qui/volta-claude.sh" "$app_home/volta-claude"
   cp "$qui/nascita.sh" "$app_home/volta-nascita.sh"
-  chmod +x "$app_home/volta-claude"
-  case "${ARTURO_HERDR_NASCITA:-}" in
-    si) sh "$app_home/volta-nascita.sh" metti "$app_home" >/dev/null && say "Nascita in background accesa: il comando claude apre le sessioni in background." ;;
-    no) sh "$app_home/volta-nascita.sh" togli >/dev/null ;;
-    *)
-      if sh "$app_home/volta-nascita.sh" stato | grep -q '^assente'; then
-        say "HERDR NASCITA: perché Volta apra da ogni macchina le sessioni che apri nel Terminale, il comando claude può farle nascere in background. Si accende con: sh \"$(percorso "$app_home/volta-nascita.sh")\" metti \"$(percorso "$app_home")\""
-      fi ;;
-  esac
-  # Una funzione claude della persona vince sul blocco: va detto, o la nascita resta spenta senza motivo.
-  sh "$app_home/volta-nascita.sh" stato | while IFS= read -r riga; do
+  chmod +x "$app_home/volta-claude" "$app_home/volta-nascita.sh"
+  [ "$sistema" = windows ] && cp "$qui/volta-claude.ps1" "$app_home/volta-claude.ps1"
+  nascita=$(percorso "$app_home/volta-nascita.sh")
+  stato_nascita=$(sh "$app_home/volta-nascita.sh" stato)
+  if printf '%s\n' "$stato_nascita" | grep -q '^assente' && ! printf '%s\n' "$stato_nascita" | grep -q '^rifiutata'; then
+    say "HERDR NASCITA: perché Volta apra da ogni macchina le sessioni che apri nel terminale, il comando claude può farle nascere in background. Si accende con: sh \"$nascita\" metti (per non sentirtelo riproporre: sh \"$nascita\" no)"
+  fi
+  # Una funzione claude della persona vince sul blocco, e PowerShell con la policy Restricted non legge
+  # il profilo: va detto, o la nascita resta spenta senza motivo.
+  printf '%s\n' "$stato_nascita" | while IFS= read -r riga; do
     case "$riga" in
+      "funzione "*.ps1) say "HERDR NASCITA FUNZIONE: in ${riga#funzione } c'è già una funzione claude, che vince sul blocco di Volta. Perché le sessioni nascano in background, falla finire con & '$(percorso "$app_home/volta-claude.ps1")' @args al posto della chiamata a claude.exe." ;;
       "funzione "*) say "HERDR NASCITA FUNZIONE: in ${riga#funzione } c'è già una funzione claude, che vince sul blocco di Volta. Perché le sessioni nascano in background, falla finire con \"$(percorso "$app_home/volta-claude")\" \"\$@\" al posto di command claude \"\$@\"." ;;
+      "policy "*) f=${riga#policy }; say "HERDR NASCITA POLICY: PowerShell non legge il profilo ${f% *} (ExecutionPolicy ${f##* }), quindi il blocco di Volta non parte. Si sblocca, se lo scegli, con: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned" ;;
+      "utf16 "*) say "HERDR NASCITA UTF16: il profilo ${riga#utf16 } è salvato in UTF-16 e il blocco di Volta non lo tocca. Risalvalo in UTF-8 per accendere la nascita." ;;
     esac
   done
 fi

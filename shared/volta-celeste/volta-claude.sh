@@ -62,7 +62,8 @@ if [ $rc -ne 0 ] || [ -z "$id" ]; then
     printf 'Volta: la sessione è partita in background, ma non ho letto il suo id. claude agents la elenca.\n' >&2
     exit 0
   fi
-  motivo=$(printf '%s\n' "$uscita" | sed -n '1p')
+  # La prima riga che dice perché: "Starting background service" la stampa claude a ogni avvio del servizio.
+  motivo=$(printf '%s\n' "$uscita" | grep -v '^Starting background service' | sed -n '/./{p;q;}')
   printf 'Volta: la sessione non parte in background (%s). La apro qui, come prima.\n' "$motivo" >&2
   qui_interattiva "$@"
 fi

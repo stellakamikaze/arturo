@@ -21,7 +21,7 @@ I todo sono quelli di `arturo todo`: se li tieni in un altro strumento ([fonte d
 - Un hook di Claude Code, `hooks/herdr-stato.sh`: dice a Herdr se Claude lavora, aspetta te o ha finito. Fuori da Herdr non fa niente.
 - Sul Mac, `~/Applications/Arturo.app` e il LaunchAgent `~/Library/LaunchAgents/org.stellakamikaze.arturo-app.plist`, che le rimette nome e icona dopo ogni aggiornamento di Herdr ([più sotto](#il-nome-arturo-nel-dock)).
 - Le note che lasci con ⌘⇧N (Ctrl+Shift+M su Windows), in `~/.claude/data/note-finestra/`: restano su questo computer, fuori da git.
-- Sul Mac, se la scegli, la nascita in background ([più sotto](#le-sessioni-del-terminale-nascono-in-background)): `volta-claude` e `volta-nascita.sh` in `~/.config/herdr-app` e un blocco marcato in `~/.zshrc` o `~/.bashrc`.
+- La nascita in background ([più sotto](#le-sessioni-del-terminale-nascono-in-background)): `volta-claude` e `volta-nascita.sh` in `~/.config/herdr-app` (su Windows anche `volta-claude.ps1`) ci sono sempre. Il blocco marcato in `~/.zshrc` o `~/.bashrc`, o nel profilo di PowerShell su Windows, c'è solo se la scegli.
 
 Funziona sui Mac con processore Apple e su Windows. Sui Mac Intel e su Linux `/setup` salta il passo, e Arturo funziona come sempre nel terminale.
 
@@ -38,7 +38,7 @@ Funziona sui Mac con processore Apple e su Windows. Sui Mac Intel e su Linux `/s
 - Arturo.app, sul Mac: prima ferma il LaunchAgent, altrimenti la ricrea, con `launchctl bootout gui/$(id -u)/org.stellakamikaze.arturo-app`; poi cancella `~/Library/LaunchAgents/org.stellakamikaze.arturo-app.plist` e `~/Applications/Arturo.app`.
 - La firma locale, se l'hai creata: in Accesso Portachiavi cancella la voce "Arturo firma locale" (certificato e chiave). Senza, Arturo.app torna alla firma ad hoc e macOS richiede i permessi a ogni aggiornamento di Herdr.
 - Le note sulla finestra: cancella `~/.claude/data/note-finestra/`. La riga `note_progetto` in `~/.config/herdr-app/arturo.json` dice dove vanno le note: toglierla le manda al progetto aperto.
-- La nascita in background: `sh ~/.config/herdr-app/volta-nascita.sh togli` toglie il blocco da `~/.zshrc` e `~/.bashrc`, e il resto dei file resta com'era. Vale dalla prossima finestra del Terminale.
+- La nascita in background: `sh ~/.config/herdr-app/volta-nascita.sh togli` toglie il blocco da `~/.zshrc`, `~/.bashrc` e dai profili di PowerShell, e il resto dei file resta com'era. Vale dalla prossima finestra del terminale. Poi cancella `volta-claude`, `volta-claude.ps1`, `volta-nascita.sh` e `nascita-no` in `~/.config/herdr-app`.
 - Per reinstallare o aggiornare il layout: `sh ~/.claude/shared/volta-celeste/installa-herdr.sh`.
 
 ## Un altro Mac come macchina di Herdr
@@ -62,7 +62,7 @@ Lo stesso clic arriva anche da `herdr-app do arturo.volta-<id>` (id corto di ott
 
 Volta apre da un'altra macchina solo le sessioni in background: una sessione aperta col comando `claude` nel Terminale è legata a quella finestra. Con la nascita in background il comando `claude` la fa nascere in background (`claude --bg`) e la apre subito lì con `claude attach`. Nel Terminale lavori come prima, e Volta la apre da ogni macchina anche mentre lavora, senza spostarla né fermarla. Due finestre sulla stessa sessione vedono lo stesso lavoro allo stesso momento (provato il 10/11/2026). Chiudere il Terminale non ferma la sessione: `claude attach <id>` la riapre, e Volta la elenca.
 
-La propone l'installazione (`HERDR NASCITA`), e `/setup` la accende col tuo sì: `sh ~/.config/herdr-app/volta-nascita.sh metti ~/.config/herdr-app`. Il blocco che scrive in `~/.zshrc` (o `~/.bashrc`) fa passare il comando `claude` da `~/.config/herdr-app/volta-claude`. Per ora c'è solo sul Mac; su Windows arriva con PowerShell.
+La propone l'installazione (`HERDR NASCITA`), e `/setup` la accende col tuo sì: `sh ~/.config/herdr-app/volta-nascita.sh metti`. Col no, `/setup` lancia `sh ~/.config/herdr-app/volta-nascita.sh no`, che lo ricorda: l'installazione non la ripropone, e `metti` la accende quando vuoi. Sul Mac il blocco va in `~/.zshrc` (o `~/.bashrc`) e fa passare il comando `claude` da `~/.config/herdr-app/volta-claude`. Su Windows va nel profilo di PowerShell (`$PROFILE`, sia di Windows PowerShell sia di PowerShell 7) e lo fa passare da `volta-claude.ps1`; lì la via di fuga è `$env:CLAUDE_QUI = 1`, poi `claude`. `sh ~/.config/herdr-app/volta-nascita.sh stato` dice dove è acceso.
 
 Restano come prima, interattive nel terminale:
 - `CLAUDE_QUI=1 claude`, la via di fuga;
@@ -74,7 +74,8 @@ Se `claude --bg` rifiuta la cartella, la sessione si apre qui come prima e lo di
 
 Due cose da sapere:
 - una sessione in background prende l'ambiente dal servizio di Claude Code (`claude daemon`), non dalla shell che la lancia: una variabile esportata solo in quel Terminale non arriva. Per quella sessione usa `CLAUDE_QUI=1`;
-- se hai già una funzione `claude` (in `~/.zshenv`, `~/.zshrc` o `~/.bashrc`), vince la tua e l'installazione lo dice (`HERDR NASCITA FUNZIONE`). Per avere la nascita in background, falla finire con `"$HOME/.config/herdr-app/volta-claude" "$@"` al posto di `command claude "$@"`.
+- se hai già una funzione `claude` (in `~/.zshenv`, `~/.zshrc`, `~/.bashrc` o nel profilo di PowerShell), vince la tua e l'installazione lo dice (`HERDR NASCITA FUNZIONE`). Per avere la nascita in background, falla finire con `"$HOME/.config/herdr-app/volta-claude" "$@"` al posto di `command claude "$@"`, o in PowerShell con `& "$HOME\.config\herdr-app\volta-claude.ps1" @args`;
+- su Windows PowerShell legge il profilo solo se la sua ExecutionPolicy lo permette: con `Restricted`, il valore di partenza di Windows PowerShell, il blocco non parte e l'installazione lo dice (`HERDR NASCITA POLICY`). La policy è un'impostazione di sicurezza tua: se scegli di cambiarla, `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. Un profilo salvato in UTF-16 (succede con `>` in Windows PowerShell) resta com'è (`HERDR NASCITA UTF16`).
 
 ## Nota del ramo di prova `herdr` (8/11/2026)
 
