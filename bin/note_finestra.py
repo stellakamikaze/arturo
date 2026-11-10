@@ -35,6 +35,7 @@ from pathlib import Path
 sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
 from radici import radice_orsa  # noqa: E402
 
+# Il formato di nota.json vive anche in nota.js del mod (TIPI, STATI, APERTE, VUOTO): HZ32 confronta le due copie.
 TIPI = {"correggere": "Correggere", "cambiare": "Cambiare", "domanda": "Domanda", "va-bene": "Va bene così"}
 TIPO_PREDEFINITO = "correggere"
 STATI = {"aperta": "Aperta", "presa": "Claude ci lavora", "risolta": "Risolta", "scartata": "Scartata"}
@@ -48,13 +49,18 @@ AIUTO = """arturo note: le note sulla finestra di Volta Celeste (⌘⇧N), dal l
 
   arturo note elenco [--tutte] [--progetto P] [--json | --md]   le note aperte; --md come brief
   arturo note mostra ID [--json]                                 la nota intera e il ritaglio del punto
-  arturo note prendi ID                                          Claude ci lavora (il todo va in corso)
-  arturo note rispondi ID "testo"                                una risposta nel filo della nota
-  arturo note risolvi ID "riassunto"                             la chiude e chiude il todo
-  arturo note scarta ID "motivo"                                 la chiude senza farla e scarta il todo
+  arturo note prendi ID [--json]                                 Claude ci lavora (il todo va in corso)
+  arturo note rispondi ID "testo" [--chi C] [--json]             una risposta nel filo della nota
+  arturo note risolvi ID "riassunto" [--chi C] [--json]          la chiude e chiude il todo
+  arturo note scarta ID "motivo" [--chi C] [--json]              la chiude senza farla e scarta il todo
 
 ID è il nome della cartella della nota (2026-11-10_07-00-00), oppure il suo numero se fra le note
-aperte un solo segno ha quel numero. Il giro di Claude: elenco, mostra, prendi, lavoro, risolvi."""
+aperte un solo segno ha quel numero. Il giro di Claude: elenco, mostra, prendi, lavoro, risolvi.
+
+--chi dice chi scrive: claude (il predefinito) o federico, cioè la persona che ha lasciato la nota.
+I bottoni della finestra usano --chi federico, e con lui risolvi e scarta vanno anche senza testo.
+--json stampa la nota dopo il gesto, con todo_esito: cosa è successo al todo collegato.
+Un testo che comincia con due trattini va dopo --: arturo note rispondi 3 -- "--tutte non serve"."""
 
 
 class ErroreNota(ValueError):

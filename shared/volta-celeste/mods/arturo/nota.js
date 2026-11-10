@@ -95,8 +95,9 @@ export const TIPI = [
 export const TIPO_PREDEFINITO = "correggere";
 const tipoValido = (t) => (TIPI.some((x) => x.id === t) ? t : TIPO_PREDEFINITO);
 export const etichettaTipo = (t) => TIPI.find((x) => x.id === tipoValido(t)).etichetta;
-const APERTE = new Set(["aperta", "presa"]);
-const VUOTO = { blocco: null, parte: null, terminale: null, titolo: null, cwd: null, testo_terminale: null };
+// Gli stati aperti e il dove vuoto: bin/note_finestra.py ne tiene una copia, e HZ32 le confronta.
+export const APERTE = new Set(["aperta", "presa"]);
+export const VUOTO = { blocco: null, parte: null, terminale: null, titolo: null, cwd: null, testo_terminale: null };
 
 // L'ultimo pezzo di un percorso: l'id della nota è il nome della sua cartella.
 const ultimo = (c) => String(c ?? "").split(/[\\/]/).filter(Boolean).pop() ?? null;
@@ -133,7 +134,7 @@ export function leggiNota(testo, id) {
   const filo = Array.isArray(d.filo) && d.filo.length ? d.filo : [{ chi: "federico", quando: d.quando ?? null, testo: d.testo }];
   return { ...d, versione: 2, id: d.id || id, numero: Number.isInteger(d.numero) ? d.numero : null,
     tipo: tipoValido(d.tipo), dove: { ...VUOTO, ...(d.dove ?? {}) },
-    stato: ["aperta", "presa", "risolta", "scartata"].includes(d.stato) ? d.stato : "aperta",
+    stato: Object.hasOwn(STATI, d.stato) ? d.stato : "aperta",
     chiusa_quando: d.chiusa_quando ?? null, riassunto: d.riassunto ?? null, motivo: d.motivo ?? null,
     filo, todo: d.todo ?? null };
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ31: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ32: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -98,6 +98,9 @@ HZ31 Rispondi, Risolta e Scarta del velo (#5117 passo 5): notaui.js li manda ad 
      federico (gestoNota di dati.js), senza scrivere nota.json da sé; con la CLI vera in una casa finta la
      risposta di Federico arriva una volta sul todo, Risolta senza testo chiude nota e todo, Scarta col
      motivo scarta il todo, e una nota già chiusa da Claude esce 2 col motivo.
+HZ32 il formato in due copie (#5117 passo 6): TIPI, TIPO_PREDEFINITO, STATI, APERTE e VUOTO di nota.js
+     (node) e di bin/note_finestra.py dicono lo stesso; l'aiuto di arturo note e docs/volta-celeste.md
+     spiegano --chi e --json, e la guida parla a chi usa Arturo.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -113,7 +116,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -725,6 +728,12 @@ def hz15(repo: Path, casa: Path) -> str | None:
     fuori = []
     for nome in sorted(nomi):
         # Una cartella si prova con un file dentro, un file col suo nome: check-ignore risponde 0 se è escluso.
+        # Le note hanno tre file per cartella (nota.json, lo scatto, il ritaglio di arturo note mostra):
+        # nessuno dei tre entra in git.
+        if nome == "note-finestra":
+            fuori += [rel for rel in (f"data/{nome}/x/{f}" for f in ("nota.json", "finestra.png", "ritaglio.png"))
+                      if subprocess.run(["git", "check-ignore", "-q", "--no-index", rel], cwd=prova_git).returncode != 0]
+            continue
         forme = (f"data/{nome}/x/nota.json", f"data/{nome}")
         if not any(subprocess.run(["git", "check-ignore", "-q", "--no-index", rel], cwd=prova_git).returncode == 0
                    for rel in forme):
@@ -1400,7 +1409,56 @@ def hz31(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31}
+PROVA_FORMATO = r"""
+const m = await import(%s);
+console.log(JSON.stringify({ tipi: Object.fromEntries(m.TIPI.map((x) => [x.id, x.etichetta])),
+  predefinito: m.TIPO_PREDEFINITO, stati: m.STATI, aperte: [...m.APERTE], vuoto: m.VUOTO }));
+"""
+
+FORMATO_PY = r"""
+import importlib.util, json, sys
+s = importlib.util.spec_from_file_location("note_finestra", sys.argv[1])
+m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+print(json.dumps({"tipi": m.TIPI, "predefinito": m.TIPO_PREDEFINITO, "stati": m.STATI,
+                  "aperte": list(m.APERTE), "vuoto": m.VUOTO}, ensure_ascii=False))
+"""
+
+
+def hz32(repo: Path, casa: Path) -> str | None:
+    """Il formato di nota.json vive in due copie, nota.js del mod e bin/note_finestra.py: tipi, stati, stati
+    aperti e dove vuoto devono dire lo stesso. L'aiuto e la guida nominano --chi e --json dei verbi."""
+    aiuto = subprocess.run([sys.executable, str(repo / "bin/note_finestra.py"), "aiuto"],
+                           capture_output=True, text=True, timeout=30).stdout
+    guida = (repo / "docs/volta-celeste.md").read_text(encoding="utf-8")
+    for dove, testo in (("l'aiuto di arturo note", aiuto), ("docs/volta-celeste.md", guida)):
+        for pezzo in ("--chi", "--json"):
+            if pezzo not in testo:
+                return f"{dove} non spiega {pezzo}"
+    if "dice a Federico" in guida:
+        return "la guida parla a Federico invece che a chi usa Arturo"
+    py = subprocess.run([sys.executable, "-c", FORMATO_PY, str(repo / "bin/note_finestra.py")],
+                        capture_output=True, text=True, timeout=30)
+    if py.returncode != 0:
+        return f"note_finestra.py non si carica: {(py.stderr or py.stdout).strip()[-160:]}"
+    lato_py = json.loads(py.stdout)
+    node = shutil.which("node")
+    if not node:
+        return None
+    copia = casa / "nota.mjs"
+    shutil.copyfile(repo / "shared/volta-celeste/mods/arturo/nota.js", copia)
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_FORMATO % json.dumps(copia.as_uri())],
+                       capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"nota.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    lato_js = json.loads(r.stdout.strip().splitlines()[-1])
+    diversi = [k for k in lato_js if lato_js[k] != lato_py.get(k)]
+    if diversi:
+        k = diversi[0]
+        return f"nota.js e note_finestra.py non dicono lo stesso su {', '.join(diversi)}: {lato_js[k]} contro {lato_py.get(k)}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -1492,6 +1550,12 @@ VELENI = [
     ("HZ31", "shared/volta-celeste/mods/arturo/dati.js", '"--chi", "federico", "--json"', '"--json"'),
     ("HZ31", "shared/volta-celeste/mods/arturo/dati.js", '...(t ? ["--", t] : [])', '...(t ? [t] : [])'),
     ("HZ31", "bin/note_finestra.py", 'if not testo and chi == "claude":', "if not testo:"),
+    ("HZ32", "shared/volta-celeste/mods/arturo/nota.js", '{ id: "va-bene", etichetta: "Va bene così" }', '{ id: "va-bene", etichetta: "Va bene" }'),
+    ("HZ32", "bin/note_finestra.py", '"presa": "Claude ci lavora", "risolta"', '"presa": "Presa", "risolta"'),
+    ("HZ32", "bin/note_finestra.py", 'APERTE = ("aperta", "presa")', 'APERTE = ("aperta",)'),
+    ("HZ32", "shared/volta-celeste/mods/arturo/nota.js", 'export const TIPO_PREDEFINITO = "correggere";', 'export const TIPO_PREDEFINITO = "domanda";'),
+    ("HZ32", "bin/note_finestra.py", '"cwd": None, "testo_terminale": None}', '"cwd": None}'),
+    ("HZ32", "docs/volta-celeste.md", "dice a chi l'ha scritta che ci lavori", "dice a Federico che ci lavori"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 

@@ -28,7 +28,7 @@ Funziona sui Mac con processore Apple e su Windows. Sui Mac Intel e su Linux `/s
 
 - **Aggiornamenti.** Herdr si aggiorna da solo da herdr.dev, non dai rilasci firmati di Arturo. Un aggiornamento di Herdr può cambiare il suo aspetto prima che Arturo lo segua.
 - **Telemetria.** Herdr manda di suo, una volta al giorno, dei conteggi d'uso: versione, sistema, quanti spazi e terminali, quali agenti, layout e comandi. Mai il contenuto dei terminali né i nomi dei tuoi file. Arturo la spegne all'installazione (`"telemetry": false` in `~/.config/herdr-app/settings.json`): se vuoi aiutare chi fa Herdr, la riaccendi da Impostazioni → Privacy.
-- **Tasti.** Arturo aggiunge ⌘O (apri un progetto), ⌘⇧↓ e ⌘⇧↑ (sessione dopo e prima), ⌃⌘→ e ⌃⌘← (progetto dopo e prima), ⌘⇧N (una nota a Claude su un punto della finestra). Su Windows ⌘ sarebbe il tasto Windows, che il sistema si tiene: lì Arturo aggiunge Ctrl+Shift+A (apri un progetto) e Ctrl+Shift+M (la nota), e per sessioni e progetti valgono i tasti di Herdr, Alt+↓ e Alt+↑, Ctrl+Shift+PagGiù e PagSu. Un tasto che usavi già per altro resta tuo.
+- **Tasti.** Arturo aggiunge ⌘O (apri un progetto), ⌘⇧↓ e ⌘⇧↑ (sessione dopo e prima), ⌃⌘→ e ⌃⌘← (progetto dopo e prima), ⌘⇧N (una nota a Claude su un punto della finestra), ⌘⇧E (l'elenco delle note). Su Windows ⌘ sarebbe il tasto Windows, che il sistema si tiene: lì Arturo aggiunge Ctrl+Shift+A (apri un progetto), Ctrl+Shift+M (la nota) e Ctrl+Shift+E (l'elenco delle note), e per sessioni e progetti valgono i tasti di Herdr, Alt+↓ e Alt+↑, Ctrl+Shift+PagGiù e PagSu. Un tasto che usavi già per altro resta tuo.
 
 ## Come si toglie
 
@@ -69,14 +69,24 @@ Sul Mac l'installazione crea `~/Applications/Arturo.app` accanto a `Herdr.app` (
 
 ## Le note sulla finestra (⌘⇧N)
 
-Premi ⌘⇧N, clicchi il punto di cui vuoi parlare e scrivi la nota: Claude la riceve fra le sue cose da fare di oggi, nel progetto scritto in `note_progetto` di `arturo.json` della cartella di Herdr, oppure in quello aperto. Lo screenshot si fa prima che il velo compaia. Ogni nota ha una cartella in `~/.claude/data/note-finestra/<data-ora>/` con `nota.json` e `finestra.png`, e la cosa da fare porta nelle note il punto e il percorso.
+Una nota è un appunto per Claude legato a un punto della finestra: "questo bottone è storto", "qui vorrei la data". È il modo di lavorare di Agentation, rifatto per una finestra che non è una pagina web.
+
+**Lasciare una nota.** Premi ⌘⇧N (Ctrl+Shift+M su Windows): la finestra si vela. Clicca il punto di cui vuoi parlare, scegli il tipo (Correggere, Cambiare, Domanda, Va bene così) e scrivi. Invio la manda, Esc annulla. La nota prende un numero, e Claude la trova fra le sue cose da fare di oggi nel progetto aperto, oppure in quello scritto in `note_progetto` di `arturo.json` nella cartella di Herdr. Senza un progetto la nota resta salvata, ma non arriva fra le cose da fare.
+
+**Vedere le note.** Col velo aperto le note ancora da chiudere compaiono come segni numerati nel loro punto: arancioni se aspettano, grigi se Claude ci sta lavorando. Fuori dal velo i segni non si vedono, perché Herdr non ha un velo che lasci passare i clic ai terminali. La barra di stato in basso dice quante note sono aperte: il conteggio, o ⌘⇧E (Ctrl+Shift+E su Windows), apre l'elenco, con "Aperte" e "Tutte" per vedere anche le chiuse.
+
+**Rispondere e chiudere.** Un clic su un segno, o su una riga dell'elenco, apre la nota con le risposte. Da lì scrivi a Claude (Rispondi), la dai per fatta (Risolta) o la togli col motivo (Scarta). Quando Claude risponde, la finestra lo avvisa: "Claude ha risposto alla nota N". Chiudere la nota chiude anche la cosa da fare collegata, da qualunque parte la chiudi.
+
+**Dove stanno.** Ogni nota ha una cartella in `~/.claude/data/note-finestra/<data-ora>/` con `nota.json`, lo scatto della finestra fatto prima del velo (`finestra.png`) e, dopo che Claude l'ha aperta, il ritaglio attorno al punto (`ritaglio.png`). La cartella è fuori da git. Se il punto cade su un terminale, la nota tiene anche il terminale, la cartella in cui lavora e le sue ultime righe.
 
 **Per Claude**: le note si leggono e si chiudono con `arturo note`. Il giro è elenco, mostra, prendi, lavoro, risolvi:
 
-- `arturo note elenco` dà le note aperte coi numeri dei segni; `--md` le scrive come un brief, `--tutte` aggiunge le chiuse, `--progetto P` tiene un solo progetto.
+- `arturo note elenco` dà le note aperte coi numeri dei segni; `--md` le scrive come un brief, `--tutte` aggiunge le chiuse, `--progetto P` tiene un solo progetto, `--json` le dà come dati.
 - `arturo note mostra ID` dà la nota intera (tipo, parte della finestra, terminale, filo) e scrive `ritaglio.png` attorno al punto, in scala sullo scatto: con ffmpeg il punto ha un quadrato arancione, senza ritaglia sips, e senza nessuno dei due vale lo scatto intero.
-- `arturo note prendi ID` dice a Federico che ci lavori: il segno diventa grigio e la cosa da fare passa in corso.
+- `arturo note prendi ID` dice a chi l'ha scritta che ci lavori: il segno diventa grigio e la cosa da fare passa in corso.
 - `arturo note rispondi ID "testo"` scrive nel filo: la finestra avvisa "Claude ha risposto alla nota N".
 - `arturo note risolvi ID "cosa hai fatto"` e `arturo note scarta ID "perché"` chiudono la nota e la cosa da fare collegata.
 
 ID è il nome della cartella della nota, oppure il suo numero se fra le note aperte un solo segno lo porta. Se la finestra scrive sulla nota nello stesso momento, il comando rilegge e rifà la sua modifica: nessuna risposta si perde.
+
+Prendi, rispondi, risolvi e scarta hanno due opzioni. `--chi` dice chi scrive: `claude`, il predefinito, oppure `federico`, cioè la persona che ha lasciato la nota; i bottoni della finestra passano da qui con `--chi federico`, e così risolvi e scarta vanno anche senza testo. `--json` stampa la nota dopo il gesto, con `todo_esito` che dice cosa è successo alla cosa da fare collegata. Un testo che comincia con due trattini va dopo `--`.
