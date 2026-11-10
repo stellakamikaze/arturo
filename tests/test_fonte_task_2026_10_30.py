@@ -15,6 +15,8 @@ FT09 arturo sessione --todo con la fonte esterna legge titolo e progetto con "mo
      il titolo, si ferma se il titolo è cambiato e riduce un progetto fuori forma a uno slug (#3887).
 FT10 la fonte si legge da ~/.claude/bin della persona, non accanto al codice: un repo lanciato con una HOME
      di prova non usa il fonte-task.local che sta nel suo bin (5/11/2026: un banco arrivava allo strumento vero della persona).
+FT11 una frase che comincia con una parola di una o due lettere ("ti ricordi…") non sceglie il progetto che la
+     contiene nel nome: contesto esce 2 e la frase resta il compito (segnalazione n. 64, 10/11/2026).
 
 Sulla base ba61272 (il dev prima di L4) sono rossi tutti i casi tranne FT02, che è l'invariante, e FT10:
 lì la fonte non c'era. FT10 è rosso su c0236f7, che leggeva il file accanto al codice.
@@ -31,8 +33,8 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-CASI = ["FT01", "FT02", "FT03", "FT04", "FT05", "FT06", "FT07", "FT08", "FT09", "FT10"]
-DISCRIMINANTI = ["FT01", "FT03", "FT04", "FT05", "FT06", "FT07", "FT08", "FT09"]
+CASI = ["FT01", "FT02", "FT03", "FT04", "FT05", "FT06", "FT07", "FT08", "FT09", "FT10", "FT11"]
+DISCRIMINANTI = ["FT01", "FT03", "FT04", "FT05", "FT06", "FT07", "FT08", "FT09", "FT11"]
 SU = ('import json, sys\n'
       'open(sys.argv[0] + ".argomenti", "w", encoding="utf-8").write(json.dumps(sys.argv[1:]))\n'
       'if "aggiungi" in sys.argv:\n'
@@ -186,6 +188,11 @@ def prova(lab: Lab) -> list:
                        cwd=str(lab.home))
     if r.returncode != 0 or spia.exists() or "TODO-DALLA-FONTE" in r.stdout:
         rossi.append(f"FT10 fonte accanto al codice: rc={r.returncode} spia={spia.exists()} {r.stdout[:160]!r}")
+    # FT11 "ti" non somiglia a partitura: la frase è il compito (segnalazione n. 64)
+    (lab.home / "Documents" / "ClaudeCode" / "partitura").mkdir()
+    r = lab.arturo("contesto", "--stdin", entrata="ti ricordi cosa abbiamo deciso\n")
+    if r.returncode != 2 or "PROGETTO partitura" in r.stdout or "compito: ti ricordi cosa abbiamo deciso" not in r.stdout:
+        rossi.append(f"FT11 parola corta: rc={r.returncode} {r.stdout[:200]!r}")
     return rossi
 
 

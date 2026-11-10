@@ -167,7 +167,11 @@ def nomi_noti() -> set:
 
 
 def forti(pref: str, nomi) -> list:
-    """I nomi che contengono il prefisso intero, o tutte le sue parole di 3 lettere o più."""
+    """I nomi che contengono il prefisso intero, o tutte le sue parole di 3 lettere o più. Un prefisso di una
+    o due lettere non somiglia a niente: "ti ricordi…" sceglieva un progetto con "ti" nel nome (segnalazione
+    n. 64, 10/11/2026). Il nome scritto intero resta valido anche corto: lo trova trova_cartella."""
+    if len(pref.replace("-", "")) < 3:
+        return []
     parole = [p for p in pref.split("-") if len(p) >= 3]
     return sorted(n for n in nomi if pref in slug(n) or (len(parole) > 1 and all(p in slug(n) for p in parole)))
 
