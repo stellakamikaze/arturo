@@ -29,6 +29,7 @@ jobs:
         env:
           PRIMA: ${{ github.event.before || github.event.pull_request.base.sha }}
           DOPO: ${{ github.event.pull_request.head.sha || github.sha }}
+          RAMO: ${{ github.ref_name }}
         run: |
           # Un branch nuovo, o riscritto da un rebase, non ha un "prima": si controllano i commit che dev
           # non ha. Prima si controllava tutta la storia, e i nomi nei messaggi dei commit vecchi, già su
@@ -39,5 +40,10 @@ jobs:
             INTERVALLO="${BASE}..${DOPO}"
           else
             INTERVALLO="${DOPO}"
+          fi
+          # Fuori da dev i commit che dev ha già si sono controllati quando sono arrivati su dev: ricontrollarli
+          # mandava la stessa email due o tre volte, da main e da ogni ramo che unisce dev (10/11/2026).
+          if [ "$RAMO" != "dev" ] && git rev-parse -q --verify origin/dev >/dev/null; then
+            INTERVALLO="${INTERVALLO} ^origin/dev"
           fi
           python3 tests/igiene.py --repo . --intervallo "$INTERVALLO"

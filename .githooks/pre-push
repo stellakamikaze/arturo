@@ -1,0 +1,59 @@
+#!/bin/bash
+# Igiene prima del push (I03, 10/11/2026). Su GitHub igiene gira solo dopo il push, e ogni nome della config
+# privata arrivato nel repository pubblico diventava un'email "Run failed": 43 in un mese, quasi tutte da rami di
+# lavoro. Qui lo stesso controllo gira prima, sui commit che partono e sui file del commit spinto, non su quelli
+# della cartella di lavoro. Solo verso il repository pubblico di Arturo.
+# Si attiva una volta per clone: git config core.hooksPath .githooks
+# Poi passa la mano all'hook globale (~/.claude/git/hooks/pre-push: force push su main, gitleaks), che
+# core.hooksPath altrimenti spegnerebbe.
+# Bypass per emergenze: PRE_PUSH_SKIP=1 git push ...
+
+set -uo pipefail
+
+url="${2:-}"
+input=$(cat)
+globale="$HOME/.claude/git/hooks/pre-push"
+
+passa() {
+  if [ -x "$globale" ]; then
+    if [ -n "$input" ]; then printf '%s\n' "$input" | "$globale" "$@"; else "$globale" "$@" </dev/null; fi
+    exit $?
+  fi
+  exit 0
+}
+
+if [ "${PRE_PUSH_SKIP:-0}" = "1" ] || ! [[ "$url" =~ [:/]stellakamikaze/arturo(\.git)?/?$ ]]; then
+  passa "$@"
+fi
+
+top=$(git rev-parse --show-toplevel)
+igiene="$top/tests/igiene.py"
+py=$(command -v python3 || command -v python || true)
+if [ ! -f "$igiene" ] || [ -z "$py" ]; then
+  echo "[pre-push] igiene: manca tests/igiene.py o python, controllo saltato" >&2
+  passa "$@"
+fi
+
+zero='0000000000000000000000000000000000000000'
+rosso=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "${local_sha:-}" ] || [ "$local_sha" = "$zero" ] && continue
+  if [ "$remote_sha" != "$zero" ] && git cat-file -e "${remote_sha}^{commit}" 2>/dev/null; then
+    intervallo="${remote_sha}..${local_sha}"
+  else
+    intervallo="${local_sha} --not --remotes"
+  fi
+  if ! "$py" "$igiene" --repo "$top" --commit "$local_sha" --intervallo "$intervallo"; then
+    echo "[pre-push] BLOCK: igiene ha trovato nomi della config privata in ${remote_ref#refs/heads/}" >&2
+    rosso=1
+  fi
+done <<<"$input"
+
+if [ "$rosso" = 1 ]; then
+  echo "  Il rapporto sopra dice dove: un file, oppure il messaggio di un commit." >&2
+  echo "  Un file si corregge con un commit nuovo. Un messaggio si riscrive prima del push (git commit --amend," >&2
+  echo "  git rebase), finché il commit non è su GitHub." >&2
+  echo "  Bypass (sconsigliato): PRE_PUSH_SKIP=1 git push ..." >&2
+  exit 1
+fi
+passa "$@"
