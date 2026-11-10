@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ28: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ30: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -89,6 +89,12 @@ HZ28 l'elenco delle note (#5117 passo 3, nota.js con node): prima le aperte coi 
      conteggio per progetto; una risposta nuova di Claude si annuncia, ma non alla prima lettura. ⌘⇧E sui
      Mac e Ctrl+Shift+E altrove aprono la parte `note`; la barra di stato guarda la cartella delle note e
      il suo conteggio apre l'elenco; una riga aperta porta al velo con arturo.nota-<id>.
+HZ29 il giro di Claude con `arturo note` (#5117 passo 4, CLI vera in una casa finta): elenco coi numeri dei
+     segni (una nota versione 1 prende il primo libero), --md come brief, mostra col ritaglio attorno al
+     punto in scala sullo scatto al doppio, prendi, rispondi e risolvi che portano il todo in corso, nota e
+     fatto; una nota chiusa non si richiude, scarta chiude col motivo, un percorso al posto dell'id esce 2.
+HZ30 scrittura concorrente: se il velo scrive fra la lettura e la scrittura della CLI, la CLI rilegge e
+     rifà la sua modifica, e nel filo restano tutte e due le risposte.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -104,7 +110,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -1201,12 +1207,155 @@ def hz28(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28}
+def png(file: Path, larghezza: int, altezza: int) -> None:
+    """Un PNG grigio vero, con la sola libreria standard: lo scatto finto della finestra."""
+    import struct
+    import zlib
+
+    def pezzo(tipo: bytes, dati: bytes) -> bytes:
+        return struct.pack(">I", len(dati)) + tipo + dati + struct.pack(">I", zlib.crc32(tipo + dati) & 0xFFFFFFFF)
+    riga = b"\x00" + b"\x80" * (larghezza * 3)
+    file.write_bytes(b"\x89PNG\r\n\x1a\n" + pezzo(b"IHDR", struct.pack(">IIBBBBB", larghezza, altezza, 8, 2, 0, 0, 0))
+                     + pezzo(b"IDAT", zlib.compress(riga * altezza)) + pezzo(b"IEND", b""))
 
 
-def prova(repo: Path) -> list[str]:
+def casa_note(casa: Path) -> tuple:
+    """L'ambiente di una casa finta per arturo note e la cartella delle sue note: (env, cartella)."""
+    env = {**os.environ, "HOME": str(casa), "USERPROFILE": str(casa), "ARTURO_TODO": str(casa / "eventi.jsonl"),
+           "ARTURO_OGGI": "2026-11-10"}
+    env.pop("CLAUDE_CONFIG_DIR", None)
+    return env, casa / ".claude/data/note-finestra"
+
+
+def nota_v2(base: Path, ident: str, todo, **altro) -> None:
+    d = {"versione": 2, "id": ident, "numero": 1, "quando": "2026-11-10T06:00:00.000Z", "tipo": "domanda",
+         "testo": "Perché il bottone è storto?", "punto": {"x": 700, "y": 450}, "finestra": {"larghezza": 800, "altezza": 500},
+         "progetto": "p", "dove": {"blocco": "testata", "parte": "testata"}, "stato": "aperta",
+         "filo": [{"chi": "federico", "quando": "2026-11-10T06:00:00.000Z", "testo": "Perché il bottone è storto?"}],
+         "todo": todo, "screenshot": "finestra.png", **altro}
+    (base / ident).mkdir(parents=True, exist_ok=True)
+    (base / ident / "nota.json").write_text(json.dumps(d), encoding="utf-8")
+
+
+def hz29(repo: Path, casa: Path) -> str | None:
+    env, base = casa_note(casa)
+    arturo = [sys.executable, str(repo / "bin/arturo")]
+
+    def cli(*argv):
+        return subprocess.run([*arturo, *argv], capture_output=True, text=True, timeout=120, env=env, cwd=casa)
+    aiuto = cli().stdout
+    if "arturo note" not in aiuto:
+        return "l'aiuto di arturo non nomina arturo note"
+    r = cli("todo", "aggiungi", "--progetto", "p", "--chi", "io", "--json", "--", "Nota sulla finestra: il bottone")
+    try:
+        tid = json.loads(r.stdout)["id"]
+    except (ValueError, KeyError):
+        return f"il todo della nota non nasce: {(r.stderr or r.stdout)[:120]}"
+    nota_v2(base, "2026-11-10_07-00-00", tid)
+    png(base / "2026-11-10_07-00-00/finestra.png", 1600, 1000)
+    (base / "vecchia").mkdir(parents=True)
+    (base / "vecchia/nota.json").write_text(json.dumps({"testo": "v1", "punto": {"x": 5, "y": 5}, "progetto": "p",
+        "finestra": {"larghezza": 800, "altezza": 500}, "quando": "2026-11-10T05:00:00Z"}), encoding="utf-8")
+    (base / "vuota").mkdir()
+    r = cli("note", "elenco", "--json")
+    try:
+        note = json.loads(r.stdout)["note"]
+    except (ValueError, KeyError):
+        return f"elenco --json non risponde in JSON: {(r.stderr or r.stdout)[:160]}"
+    if [(n["id"], n["numero"], n["stato"]) for n in note] != [("2026-11-10_07-00-00", 1, "aperta"), ("vecchia", 2, "aperta")]:
+        return f"elenco: numeri o stati sbagliati (una v1 prende il primo libero, mai uno già preso): {[(n['id'], n['numero'], n['stato']) for n in note]}"
+    md = cli("note", "elenco", "--md").stdout
+    if "# Note sulla finestra di Volta Celeste: 2 aperte" not in md or "`arturo note mostra 2026-11-10_07-00-00`" not in md:
+        return f"elenco --md non è il brief: {md[:160]}"
+    r = cli("note", "mostra", "1", "--json")
+    try:
+        m = json.loads(r.stdout)
+    except ValueError:
+        return f"mostra --json non risponde in JSON: {(r.stderr or r.stdout)[:160]}"
+    rq = m["ritaglio"]["riquadro"]
+    if m["id"] != "2026-11-10_07-00-00" or not rq or (rq["x"], rq["y"], rq["larghezza"], rq["altezza"], rq["punto"]) != (
+            320, 200, 1280, 800, {"x": 1080, "y": 700}):
+        return f"il ritaglio non sta attorno al punto, in scala e dentro lo scatto: {m['ritaglio']}"
+    if (shutil.which("ffmpeg") or shutil.which("sips")) and m["ritaglio"]["come"] not in ("ffmpeg", "sips"):
+        return f"ritaglio.png non nasce con ffmpeg o sips: {m['ritaglio']}"
+    preso = cli("note", "prendi", "1")
+    if preso.returncode or json.loads((base / "2026-11-10_07-00-00/nota.json").read_text(encoding="utf-8"))["stato"] != "presa":
+        return f"prendi non segna la nota come presa: {preso.stderr.strip()[:80]}"
+    passi = [preso,
+             cli("note", "rispondi", "2026-11-10_07-00-00", "Ci guardo:", "è il padding"),
+             cli("note", "risolvi", "2026-11-10_07-00-00", "Padding corretto")]
+    if any(p.returncode for p in passi):
+        return f"il giro prendi, rispondi, risolvi non passa: {[(p.returncode, p.stderr.strip()[:80]) for p in passi]}"
+    d = json.loads((base / "2026-11-10_07-00-00/nota.json").read_text(encoding="utf-8"))
+    if (d["stato"], d["riassunto"], d["motivo"], d["numero"], [(v["chi"], v["testo"]) for v in d["filo"]]) != (
+            "risolta", "Padding corretto", None, 1, [("federico", "Perché il bottone è storto?"),
+                                                    ("claude", "Ci guardo: è il padding"), ("claude", "Padding corretto")]) \
+            or not str(d.get("chiusa_quando", "")).endswith("Z"):
+        return f"la nota risolta non porta stato, riassunto e filo: {d}"
+    t = json.loads(cli("todo", "mostra", str(tid), "--json").stdout)
+    tipi = [s["dati"].get("stato") for s in t["storia"] if s["tipo"] == "stato"]
+    if t["stato"] != "fatto" or tipi != ["in corso", "fatto"] or not any("Claude sulla nota 1: Ci guardo" in n for n in t["note"]):
+        return f"il todo non segue la nota (in corso, nota, fatto): {t['stato']} {tipi} {t['note']}"
+    di_nuovo = cli("note", "risolvi", "2026-11-10_07-00-00", "ancora")
+    if di_nuovo.returncode != 2 or "già risolta" not in di_nuovo.stderr:
+        return "una nota già chiusa si richiude"
+    r = cli("note", "scarta", "1", "doppia")
+    v = json.loads((base / "vecchia/nota.json").read_text(encoding="utf-8"))
+    if r.returncode or (v["stato"], v["motivo"], v["riassunto"], v["versione"]) != ("scartata", "doppia", None, 2):
+        return f"scarta non chiude col motivo la nota versione 1: {r.stderr.strip()[:80]} {v}"
+    for argv, perche in [(("note", "mostra", "../vecchia"), "un percorso"), (("note", "risolvi", "2026-11-10_07-00-00"), "un risolvi senza testo"),
+                         (("note", "boh"), "un verbo sconosciuto")]:
+        if cli(*argv).returncode != 2:
+            return f"{perche} non esce con 2"
+    if cli("note", "elenco").stdout.strip() != "Nessuna nota aperta sulla finestra.":
+        return "con tutte le note chiuse l'elenco non lo dice"
+    return None
+
+
+PROVA_CONCORRENTE = r"""
+import json, sys
+sys.path.insert(0, sys.argv[1])
+import note_finestra as nf
+file = nf.cartella() / sys.argv[2] / "nota.json"
+originale = nf._sostituisci
+chiamate = []
+def sostituisci(f, letto, nuovo):
+    chiamate.append(1)
+    if len(chiamate) == 1:  # il velo scrive proprio adesso, fra la lettura e la scrittura della CLI
+        d = json.loads(f.read_text(encoding="utf-8"))
+        d["filo"].append({"chi": "federico", "quando": "t", "testo": "dal velo"})
+        f.write_text(json.dumps(d), encoding="utf-8")
+    return originale(f, letto, nuovo)
+nf._sostituisci = sostituisci
+nf.aggiorna(sys.argv[2], lambda n: nf.rispondi(n, "dalla CLI"))
+nf._sostituisci = originale
+print(json.dumps({"chiamate": len(chiamate), "filo": [v["testo"] for v in json.loads(file.read_text(encoding="utf-8"))["filo"]]}))
+"""
+
+
+def hz30(repo: Path, casa: Path) -> str | None:
+    env, base = casa_note(casa)
+    nota_v2(base, "n1", None)
+    r = subprocess.run([sys.executable, "-c", PROVA_CONCORRENTE, str(repo / "bin"), "n1"], capture_output=True,
+                       text=True, timeout=60, env=env, cwd=casa)
+    if r.returncode != 0:
+        return f"la scrittura concorrente si rompe: {(r.stderr or r.stdout).strip()[-200:]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    if g["filo"] != ["Perché il bottone è storto?", "dal velo", "dalla CLI"] or g["chiamate"] != 2:
+        return f"con il file cambiato fra lettura e scrittura una delle due risposte si perde: {g}"
+    if any(p.name.startswith(".nota.") for p in (base / "n1").iterdir()):
+        return "la scrittura rifiutata lascia un file temporaneo nella cartella della nota"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30}
+
+
+def prova(repo: Path, solo: str | None = None) -> list[str]:
     rossi = []
     for codice, f in PROVE.items():
+        if solo and codice != solo:
+            continue
         with tempfile.TemporaryDirectory() as tmp:
             try:
                 motivo = f(repo, Path(tmp))
@@ -1278,6 +1427,14 @@ VELENI = [
     ("HZ28", "shared/volta-celeste/keys.json", '"cmd-shift-e": "arturo.note"', '"cmd-shift-l": "arturo.note"'),
     ("HZ28", "shared/volta-celeste/mods/arturo/testata.js", ".on_click(() => apriElenco())", ""),
     ("HZ28", "shared/volta-celeste/mods/arturo/noteui.js", "run(`arturo.nota-${r.id}`);\n    this.chiudi();", "this.chiudi();\n    run(`arturo.nota-${r.id}`);"),
+    ("HZ29", "bin/note_finestra.py", 'return {**n, "stato": "presa"}', "return n"),
+    ("HZ29", "bin/note_finestra.py", 'presi = {n["numero"] for n in qui if n["numero"] is not None}', "presi = set()"),
+    ("HZ29", "bin/note_finestra.py", 'sul_todo(n, ["fatto"] if stato == "risolta"', 'sul_todo(n, ["inizia"] if stato == "risolta"'),
+    ("HZ29", "bin/note_finestra.py", "x = min(max(px - w // 2, 0), W - w)", "x = max(px - w // 2, 0)"),
+    ("HZ29", "bin/note_finestra.py", "scala = W / f[\"larghezza\"] if f.get(\"larghezza\") else 1", "scala = 1"),
+    ("HZ29", "bin/note_finestra.py", 'if n["stato"] not in APERTE:\n        raise ErroreNota(f"la nota {n[\'id\']} è già {n[\'stato\']}")\n    v = ', "v = "),
+    ("HZ29", "bin/arturo", '    "note": ("note_finestra",', '    "notte": ("note_finestra",'),
+    ("HZ30", "bin/note_finestra.py", "        if ora != letto:", "        if False:"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 
@@ -1291,7 +1448,7 @@ def avvelena(repo: Path) -> int:
             testo = (copia / rel).read_text(encoding="utf-8")
             assert testo.count(giusto) == 1, f"veleno {caso}: il testo da rompere non c'è più in {rel}"
             (copia / rel).write_text(testo.replace(giusto, rotto), encoding="utf-8")
-            rossi = prova(copia)
+            rossi = prova(copia, caso)  # solo il caso sorvegliato: tutti i casi per ogni veleno superano i 30 minuti del gate
             codici = [r.split()[0] for r in rossi]
             if caso not in codici:
                 print(f"VELENO {caso} NON ATTACCA: rossi {codici}")

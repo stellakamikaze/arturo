@@ -71,4 +71,12 @@ Sul Mac l'installazione crea `~/Applications/Arturo.app` accanto a `Herdr.app` (
 
 Premi ⌘⇧N, clicchi il punto di cui vuoi parlare e scrivi la nota: Claude la riceve fra le sue cose da fare di oggi, nel progetto scritto in `note_progetto` di `arturo.json` della cartella di Herdr, oppure in quello aperto. Lo screenshot si fa prima che il velo compaia. Ogni nota ha una cartella in `~/.claude/data/note-finestra/<data-ora>/` con `nota.json` e `finestra.png`, e la cosa da fare porta nelle note il punto e il percorso.
 
-**Per Claude**: in `nota.json` il punto e la finestra sono in punti dello schermo; lo screenshot è in pixel reali, e il rapporto è la larghezza del PNG divisa `finestra.larghezza`. Per guardare il punto ritaglia il PNG intorno a `punto` moltiplicato per quel rapporto (`ffmpeg -vf crop`), poi lavora e chiudi la cosa da fare.
+**Per Claude**: le note si leggono e si chiudono con `arturo note`. Il giro è elenco, mostra, prendi, lavoro, risolvi:
+
+- `arturo note elenco` dà le note aperte coi numeri dei segni; `--md` le scrive come un brief, `--tutte` aggiunge le chiuse, `--progetto P` tiene un solo progetto.
+- `arturo note mostra ID` dà la nota intera (tipo, parte della finestra, terminale, filo) e scrive `ritaglio.png` attorno al punto, in scala sullo scatto: con ffmpeg il punto ha un quadrato arancione, senza ritaglia sips, e senza nessuno dei due vale lo scatto intero.
+- `arturo note prendi ID` dice a Federico che ci lavori: il segno diventa grigio e la cosa da fare passa in corso.
+- `arturo note rispondi ID "testo"` scrive nel filo: la finestra avvisa "Claude ha risposto alla nota N".
+- `arturo note risolvi ID "cosa hai fatto"` e `arturo note scarta ID "perché"` chiudono la nota e la cosa da fare collegata.
+
+ID è il nome della cartella della nota, oppure il suo numero se fra le note aperte un solo segno lo porta. Se la finestra scrive sulla nota nello stesso momento, il comando rilegge e rifà la sua modifica: nessuna risposta si perde.
