@@ -22,11 +22,10 @@ CHIEDE CONFERMA (permissionDecision:"ask", exit 0):
 - `rm -r`, `find -delete`, `shutil.rmtree` su una cartella che non si rigenera da
   sola e non è temporanea (~/.claude, memoria, progetti, cwd, cartelle di lavoro)
 - `git clean -f` (i file non tracciati non stanno in nessun commit)
-- scrittura shell su ~/.claude/settings*, hooks/**, firme/** o sugli script dell'aggiornamento
-  automatico (auto-modifica delle guardie, codice non firmato installato da solo),
-  incluso il caso `cd ~/.claude/hooks && > file` (target relativo dopo un cd)
-- scrittura shell su git hook (.git/hooks/**) e servizi di avvio automatico
-  (~/Library/LaunchAgents, ~/.config/systemd/user, ~/.config/autostart)
+- scrittura shell su un percorso di PERCORSI_PROTETTI, la tabella che li elenca tutti: la config
+  e le guardie (auto-modifica, codice non firmato installato da solo), i git hook e i servizi di
+  avvio automatico, i CLAUDE.md, incluso il caso `cd ~/.claude/hooks && > file` (target relativo
+  dopo un cd) e il codice passato a cmd e powershell
 - creazione di un file di unlock (*-unlock-*) che sbloccherebbe l'auto-modifica
 - lettura di file segreti via shell (cat/head/xxd/base64/perl/ruby/nc/redirezione
   `< file`... su chiavi private, ~/.ssh, ~/.aws/credentials, .gnupg, *.pem, .env...),
@@ -141,8 +140,9 @@ _BW_EXPORT = re.compile(r"^(?:-[-\w]+(?:\s+[^\s-]\S*)?\s+)*export(?:\s|$)(?!\s*(
 #   albero-home    la cartella sotto la home e tutto quello che contiene;
 #   pezzo          un pezzo di percorso in qualunque punto, e quello che sta sotto;
 #   nome-ovunque   il nome del file, in qualunque cartella.
-# `riserva` dice se la voce entra nelle regex sul testo dei comandi bash. firme, bin e arturo ne stanno
-# fuori di proposito: nel testo sembrerebbero scritture anche come sorgente di un cp (/inizio, /aggiorna).
+# `riserva` dice se la voce entra nelle regex sul testo dei comandi bash. plugins/cache, plugins/marketplaces,
+# firme, bin e arturo ne stanno fuori di proposito: nel testo sembrerebbero scritture anche come sorgente di
+# un cp (/inizio, /aggiorna).
 # Lì conta solo il percorso risolto. Il codice di cmd e powershell le legge tutte.
 PERCORSI_PROTETTI = (
     # La config di Claude Code e le guardie stesse.
@@ -216,13 +216,18 @@ def _frammenti(regola, modo="bash"):
                             if r == regola and (modo == "win" or ris)) + ")"
 
 
-def _riserva(regola, scritture, open_modi):
+def _riserva(regola, scritture="", open_modi="", coda_open=r"[^'\"]*"):
     """La regex di riserva sul testo di una regola: gli operatori di `scritture` seguiti da un percorso della
-    tabella, oppure open() di python con un modo fra `open_modi`."""
-    return re.compile(
-        r"(?:" + scritture.format(p=r"[^\s;|&]*?" + _frammenti(regola)) +
-        r"|open\(\s*['\"][^'\"]*" + _frammenti(regola, "open") + r"[^'\"]*['\"]\s*,\s*['\"][" + open_modi + "])",
-        re.IGNORECASE if _MAIUSCOLE[regola][1] else 0)
+    tabella, oppure open() di python con un modo fra `open_modi`. Senza `scritture` o senza `open_modi` quella
+    parte manca. `coda_open` è quello che può seguire il nome dentro le virgolette di open(). Le maiuscole
+    seguono _MAIUSCOLE."""
+    parti = []
+    if scritture:
+        parti.append(scritture.format(p=r"[^\s;|&]*?" + _frammenti(regola)))
+    if open_modi:
+        parti.append(r"open\(\s*['\"][^'\"]*" + _frammenti(regola, "open") + coda_open +
+                     r"['\"]\s*,\s*['\"][" + open_modi + "]")
+    return re.compile("(?:" + "|".join(parti) + ")", re.IGNORECASE if _MAIUSCOLE[regola][1] else 0)
 
 
 # --- Scrittura su config/hook di Claude Code -> ask ---
@@ -237,13 +242,12 @@ CONFIG_WRITE_RE = _riserva(
     r">>?\s*{p}|\b(?:tee|truncate|touch|chmod|chown)\b[^|;&]*{p}|\bdd\b[^|;&]*\bof={p}|\bsed\b[^|;&]*-i[^|;&]*{p}",
     "wa")
 # CLAUDE.md, in qualunque cartella: via Edit/Write protect_claude_md.py chiede una volta per modifica
-# (l'unlock della sessione le fa passare tutte), qui si copre il vettore shell (>, sed -i, cp, tee...),
-# che altrimenti lo riscrive senza prompt.
-CLAUDE_MD_WRITE_RE = re.compile(
-    r"(?:>>?\s*[^\s;|&]*?" + _frammenti("claude-md") + r"|\bsed\b[^|;&]*-i[^|;&]*" + _frammenti("claude-md") + ")"
-)
+# (l'unlock della sessione le fa passare tutte), qui si copre il vettore shell, che altrimenti lo riscrive
+# senza prompt. Nel testo bastano redirezione e sed -i: cp, tee e gli altri binari li giudica _writes_config.
+CLAUDE_MD_WRITE_RE = _riserva("claude-md", r">>?\s*{p}|\bsed\b[^|;&]*-i[^|;&]*{p}")
 # open() di python in scrittura su un CLAUDE.md: chiede sempre, prima di CLAUDE_MD_WRITE_RE (1/11/2026).
-CLAUDE_MD_OPEN_RE = re.compile(r"open\(\s*['\"][^'\"]*" + _frammenti("claude-md", "open") + r"['\"]\s*,\s*['\"][wax+]")
+# Il nome chiude le virgolette: `CLAUDE.md.bak` non è un CLAUDE.md.
+CLAUDE_MD_OPEN_RE = _riserva("claude-md", open_modi="wax+", coda_open="")
 # Percorsi di avvio automatico (git hook, LaunchAgents, systemd utente, autostart):
 # via Edit/Write li protegge protect_claude_md.py con un unlock, qui il vettore shell.
 # Qui solo redirezione e open(): cp, tee, sed -i e gli altri binari li giudica
@@ -785,8 +789,7 @@ def _protetto(regola, p):
 
 
 def _under_claude_config(p):
-    """True se il path reale cade su una voce `config` di PERCORSI_PROTETTI: settings, hook, plugin,
-    .claude.json, l'aggiornamento automatico e le preferenze .local."""
+    """True se il path reale cade su una voce `config` di PERCORSI_PROTETTI."""
     return _protetto("config", p)
 
 
@@ -923,7 +926,8 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False):
     """Copre `cd ~/.claude/hooks && > file` (target relativo dopo un cd): il match
     testuale di CONFIG_WRITE_RE vede solo i path assoluti che contengono `.claude/`.
     Qui si traccia il cd per segmento e si risolve il target reale del redirect/binario.
-    `protetto` sceglie cosa si cerca: di default config e hook, oppure _is_claude_md.
+    `protetto` sceglie cosa si cerca: di default _under_claude_config, oppure un altro predicato sul
+    percorso risolto (_is_persistenza, _is_unlock, o una lambda sui CLAUDE.md).
     Con `cancella` contano anche rm, unlink e shred: senza settings.json cadono deny e hook alla
     ricarica (finding 11). I wrapper davanti (`command cp`, `sudo tee`) si saltano, e perl -i
     scrive come sed -i."""
@@ -1783,7 +1787,7 @@ _WIN_SCRIVE = re.compile(
     re.IGNORECASE)
 # I percorsi protetti per cmd e powershell: tutte le voci della tabella, maiuscole piegate.
 _WIN_PROTETTI = tuple((regola, re.compile(_frammenti(regola, "win"), re.IGNORECASE))
-                      for regola in ("sblocco", "config", "claude-md", "avvio-automatico"))
+                      for regola in _MAIUSCOLE)
 
 
 def _codici_windows(testo):

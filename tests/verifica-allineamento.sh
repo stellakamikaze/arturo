@@ -174,6 +174,8 @@ BANCHI=(
   test_guardie_virgolette_2026_11_09.py
   # Le forme che le guardie leggevano prima del lotto L2 del 7/11 (10/11/2026, #5097).
   test_guardie_regressioni_l2_2026_11_10.py
+  # Un solo lettore dei comandi e un solo elenco dei percorsi protetti nelle guardie (10/11/2026, #5122).
+  test_guardie_split_unico_2026_11_10.py
   # Difetti minori su Windows della review del 9/11: servizi di Claude, appunti, wt, codifica (10/11/2026, #5102).
   test_windows_minori_2026_11_10.py
 )
@@ -464,6 +466,8 @@ VELENI=(
   test_guardie_virgolette_2026_11_09.py
   # #5097 (10/11/2026): con le guardie di 73c6bf1 ogni gruppo LR è rosso, anche i blocchi falsi di LR02.
   test_guardie_regressioni_l2_2026_11_10.py
+  # #5122 (10/11/2026): con le guardie di a2f90a5 ogni gruppo SU è rosso, SU06 perché la tabella manca.
+  test_guardie_split_unico_2026_11_10.py
   # #5102 (10/11/2026): ogni correzione tolta fa rosso il suo caso WM.
   test_windows_minori_2026_11_10.py
 )
