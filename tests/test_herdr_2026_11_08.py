@@ -790,7 +790,7 @@ const ADESSO = Date.parse("2026-11-09T18:00:00Z");
 const r = (o) => ({ macchina: "MacBook Air", host: "macbook", questa: true, tipo: "background", stato: "ferma", ultimo: "", risposta: "", progetto: null, attach: ["claude", "attach", o.id], ...o });
 const dati = {
   macchine: [{ macchina: "MacBook Air", host: "macbook", questa: true }, { macchina: "Amaltea", host: "amaltea", questa: false },
-             { macchina: "Balthasar", host: "balthasar", questa: false, irraggiungibile: "timeout" }],
+             { macchina: "Torre", host: "torre", questa: false, irraggiungibile: "timeout" }],
   sessioni: [
     r({ id: "a1", nome: "uno", stato: "ferma", ultimo: "2026-11-09T15:00:00Z", progetto: "arturo" }),
     r({ id: "a2", nome: "due", stato: "lavora", progetto: "arturo" }),
@@ -838,8 +838,8 @@ def hz17(repo: Path, casa: Path) -> str | None:
     if not isinstance(avuto, dict):
         return avuto
     atteso = {
-        "macchina": [["MacBook Air", "", ["a3", "a2", "a1"]], ["Amaltea", "", ["b1", "b2"]], ["Balthasar", "Non risponde", []]],
-        "progetto": [["Senza progetto", "Balthasar non risponde", ["a3"]]],
+        "macchina": [["MacBook Air", "", ["a3", "a2", "a1"]], ["Amaltea", "", ["b1", "b2"]], ["Torre", "Non risponde", []]],
+        "progetto": [["Senza progetto", "Torre non risponde", ["a3"]]],
         "titoli": ["uno", "Fatto: il deck è pronto"],
         "quanto": ["da 4 min", "da 3 ore", "da 2 giorni", ""],
         "dettaglio": ["Arturo · Ferma da 3 ore", "Amaltea · Si è fermata con un errore"],

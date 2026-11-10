@@ -60,7 +60,7 @@ Lo stesso clic arriva anche da `herdr-app do arturo.volta-<id>` (id corto di ott
 
 Questo è un ramo di prova, fuori dai rilasci. Prima di un rilascio mancano:
 - il server della telemetria con `herdr-stato.sh` in `DERIVA_HOOK`, pubblicato prima del tag;
-- su Windows, la prova dell'hook dello stato su ConPTY (layout, barra, tasti e sessioni di tutte le macchine provati su Balthasar il 9/11/2026);
+- su Windows, la prova dell'hook dello stato su ConPTY (layout, barra, tasti e sessioni di tutte le macchine provati sul PC Windows dello studio il 9/11/2026);
 - l'avviso di Herdr quando una sessione aspetta, oggi in inglese ("Claude Code needs you");
 - la voce in `NOVITA.md`, come per ogni altro cambio (`docs/manutenzione.md`).
 
