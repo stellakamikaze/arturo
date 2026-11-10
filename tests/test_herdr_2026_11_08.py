@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ32: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ33: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -101,6 +101,9 @@ HZ31 Rispondi, Risolta e Scarta del velo (#5117 passo 5): notaui.js li manda ad 
 HZ32 il formato in due copie (#5117 passo 6): TIPI, TIPO_PREDEFINITO, STATI, APERTE e VUOTO di nota.js
      (node) e di bin/note_finestra.py dicono lo stesso; l'aiuto di arturo note e docs/volta-celeste.md
      spiegano --chi e --json, e la guida parla a chi usa Arturo.
+HZ33 "Trova i miei progetti" su ogni macchina (#5111, con node): il pulsante manda Claude al file di
+     istruzioni nella cartella di Arturo, presa da arturo.json o, in un arturo.json di prima, dal bin
+     (anche con le barre di Windows), mai da ~/.claude scritto a mano. Senza node il caso si salta.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -116,7 +119,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -172,6 +175,8 @@ def hz01(repo: Path, casa: Path) -> str | None:
     # su Windows installa-herdr.sh scrive C:/... con le barre dritte (cygpath -m): si confrontano i percorsi
     if Path(conf["base"]).resolve() != (casa / "progetti").resolve():
         return f"arturo.json ignora PROJECTS_BASE: {conf['base']}"
+    if not conf.get("radice") or Path(conf["radice"]).resolve() != repo.resolve():
+        return f"arturo.json non dice la cartella di Arturo: {conf.get('radice')}"
     sh = leggi(app / "shared.json")
     if sh.get("layout") != "arturo" or sh.get("frame.welcomed") != "skipped":
         return f"il primo avvio non apre il layout Arturo: {sh}"
@@ -369,7 +374,9 @@ def hz09(repo: Path, casa: Path) -> str | None:
             nome = p[1:].split()[0]
             if not (repo / "commands" / f"{nome}.md").exists():
                 return f"il suggerimento {p} non ha un comando in commands/"
-        for rel in re.findall(r"~/\.claude/([\w./-]+\.md)", p):
+        if "~/.claude/" in p:
+            return f"il suggerimento scrive ~/.claude a mano, che non sempre è la cartella di Arturo: {p[:80]}"
+        for rel in re.findall(r"\{radice\}/([\w./-]+\.md)", p):
             if not (repo / rel).exists():
                 return f"il suggerimento rimanda a {rel}, che non c'è"
     trova = (repo / "shared/volta-celeste/trova-progetti.md").read_text(encoding="utf-8")
@@ -1458,7 +1465,80 @@ def hz32(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32}
+HERDR_FINTO = r"""
+import { readFileSync } from "node:fs";
+export const lanciati = [];
+export const appHome = () => process.env.HZ_APP;
+export const home = () => process.env.HZ_CASA;
+export const readTextFile = async (p) => { try { return readFileSync(p, "utf-8"); } catch { return null; } };
+export const exec = async () => ({ code: 1, stdout: "", stderr: "" });
+export const hc = async () => ({ code: 0, stdout: "", stderr: "" });
+export const spaces = () => [];
+export const agents = () => [];
+export const notify = () => {};
+export const run = (cmd, a) => lanciati.push({ cmd, ...a });
+"""
+
+PROVA_TROVA = r"""
+import { config, radiceDa, chiedi, SUGGERIMENTI } from "./dati.mjs";
+import { lanciati } from "./herdr.mjs";
+await chiedi(SUGGERIMENTI.find((s) => s.id === "trova"));
+console.log(JSON.stringify({
+  radice: (await config()).radice,
+  argv: lanciati.map((l) => l.argv),
+  win: radiceDa("C:\\Users\\x\\arturo\\bin\\arturo"),
+  posix: radiceDa("/Users/x/.claude/bin/arturo"),
+  altro: radiceDa("/usr/bin/python3"),
+}));
+"""
+
+
+def hz33(repo: Path, casa: Path) -> str | None:
+    node = shutil.which("node")
+    if not node:
+        return None
+    dati = (repo / "shared/volta-celeste/mods/arturo/dati.js").read_text(encoding="utf-8")
+    if 'from "herdr";' not in dati:
+        return "dati.js non importa più da herdr: il banco non sa sostituirlo"
+    mod = casa / "mod"
+    mod.mkdir()
+    (mod / "dati.mjs").write_text(dati.replace('from "herdr";', 'from "./herdr.mjs";'), encoding="utf-8")
+    (mod / "herdr.mjs").write_text(HERDR_FINTO, encoding="utf-8")
+    (mod / "prova.mjs").write_text(PROVA_TROVA, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+    altrove = casa / "copia-di-prova"  # Arturo fuori da ~/.claude, come il worktree di prova sulle macchine di Federico
+    bin_ = str(altrove / "bin" / "arturo")
+    env = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa")}
+    esiti = {}
+    for nome, conf in (("nuovo", {"arturo": ["python3", bin_], "radice": str(repo), "base": str(casa)}),
+                       ("di prima", {"arturo": ["python3", bin_], "base": str(casa)})):
+        (app / "arturo.json").write_text(json.dumps(conf), encoding="utf-8")
+        r = subprocess.run([node, str(mod / "prova.mjs")], capture_output=True, text=True, timeout=30, env=env)
+        if r.returncode != 0:
+            return f"dati.js non gira ({nome}): {(r.stderr or r.stdout).strip()[:160]}"
+        esiti[nome] = json.loads(r.stdout.strip().splitlines()[-1])
+    nuovo, prima = esiti["nuovo"], esiti["di prima"]
+    if nuovo["radice"] != str(repo) or prima["radice"] != str(altrove):
+        return f"la cartella di Arturo non viene da arturo.json o dal bin: {nuovo['radice']} {prima['radice']}"
+    argv = nuovo["argv"]
+    if len(argv) != 1 or argv[0][0] != "claude":
+        return f"il pulsante non apre una conversazione nuova: {argv}"
+    prompt = argv[0][1]
+    if "{radice}" in prompt or "~/.claude" in prompt:
+        return f"il prompt del pulsante non ha la cartella di Arturo: {prompt[:120]}"
+    rimandi = [Path(x) for x in re.findall(r"(\S+/trova-progetti\.md)", prompt)]
+    if not rimandi or not rimandi[0].is_file() or rimandi[0].resolve() != (repo / "shared/volta-celeste/trova-progetti.md").resolve():
+        return f"il prompt non porta a un trova-progetti.md che esiste: {prompt[:160]}"
+    if str(altrove) not in prima["argv"][0][1]:
+        return f"con un arturo.json di prima il prompt non usa la cartella del bin: {prima['argv'][0][1][:120]}"
+    casa_arturo = f"{casa / 'casa'}/.claude"
+    if (nuovo["win"], nuovo["posix"], nuovo["altro"]) != ("C:\\Users\\x\\arturo", "/Users/x/.claude", casa_arturo):
+        return f"radiceDa sbaglia la cartella: {nuovo['win']} {nuovo['posix']} {nuovo['altro']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -1556,6 +1636,11 @@ VELENI = [
     ("HZ32", "shared/volta-celeste/mods/arturo/nota.js", 'export const TIPO_PREDEFINITO = "correggere";', 'export const TIPO_PREDEFINITO = "domanda";'),
     ("HZ32", "bin/note_finestra.py", '"cwd": None, "testo_terminale": None}', '"cwd": None}'),
     ("HZ32", "docs/volta-celeste.md", "dice a chi l'ha scritta che ci lavori", "dice a Federico che ci lavori"),
+    ("HZ09", "shared/volta-celeste/mods/arturo/dati.js", "Segui {radice}/shared/volta-celeste/trova-progetti.md", "Segui ~/.claude/shared/volta-celeste/trova-progetti.md"),
+    ("HZ01", "shared/volta-celeste/installa-herdr.sh", '"radice": os.environ["ARTURO_RADICE"], ', ""),
+    ("HZ33", "shared/volta-celeste/mods/arturo/dati.js", "const prompt = richiesta(sug.prompt, (await config()).radice);", "const prompt = sug.prompt;"),
+    ("HZ33", "shared/volta-celeste/mods/arturo/dati.js", ": radiceDa(arturo[arturo.length - 1]),", ": `${home()}/.claude`,"),
+    ("HZ33", "shared/volta-celeste/mods/arturo/dati.js", "[\\\\/]bin[\\\\/]arturo", "[/]bin[/]arturo"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 

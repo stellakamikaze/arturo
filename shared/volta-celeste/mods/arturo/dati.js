@@ -4,7 +4,7 @@
 import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify } from "herdr";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
-// { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
+// { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
 export async function config() {
   let c = {};
   try {
@@ -12,13 +12,25 @@ export async function config() {
   } catch {
     c = {};
   }
+  const arturo = Array.isArray(c.arturo) && c.arturo.length ? c.arturo : ["python3", `${home()}/.claude/bin/arturo`];
   return {
-    arturo: Array.isArray(c.arturo) && c.arturo.length ? c.arturo : ["python3", `${home()}/.claude/bin/arturo`],
+    arturo,
+    // La cartella di Arturo, dove stanno shared/ e bin/: ~/.claude per chi usa il clone, un'altra cartella
+    // per il plugin o per una copia di prova. Un arturo.json di prima ce l'ha solo nel bin: …/bin/arturo.
+    radice: typeof c.radice === "string" && c.radice ? c.radice : radiceDa(arturo[arturo.length - 1]),
     base: typeof c.base === "string" && c.base ? c.base : `${home()}/Documents/ClaudeCode`,
     // Il progetto delle note sulla finestra (⌘⇧N); senza, va al progetto aperto.
     note_progetto: typeof c.note_progetto === "string" && c.note_progetto ? c.note_progetto : null,
   };
 }
+
+export function radiceDa(bin) {
+  const m = /^(.+)[\\/]bin[\\/]arturo$/.exec(String(bin ?? ""));
+  return m ? m[1] : `${home()}/.claude`;
+}
+
+// Il testo di un suggerimento con la cartella di Arturo al posto di {radice}.
+export const richiesta = (prompt, radice) => (prompt ?? "").split("{radice}").join(radice);
 
 // arturo <comando> <args>: { ok, json, errore }. Mai un'eccezione verso l'interfaccia.
 async function arturo(comando, args, errore) {
@@ -190,7 +202,7 @@ export async function nuova(prompt) {
 // e senza conversazione ne apre una; "apri" apre la finestra dei progetti.
 export const SUGGERIMENTI = [
   { id: "trova", titolo: "Trova i miei progetti", testo: "Claude cerca sul computer le cartelle di lavoro e te le propone come progetti.",
-    prompt: "Trova i miei progetti sul computer e proponimeli. Segui ~/.claude/shared/volta-celeste/trova-progetti.md.", dove: "nuova" },
+    prompt: "Trova i miei progetti sul computer e proponimeli. Segui {radice}/shared/volta-celeste/trova-progetti.md: la cartella di Arturo è {radice}.", dove: "nuova" },
   { id: "guidami", titolo: "Cosa faccio adesso?", testo: "Claude guarda il lavoro recente e ti propone da dove partire.", prompt: "/guidami", dove: "qui" },
   { id: "ricorda", titolo: "Ricordami una cosa", testo: "Un todo nuovo, per te o per Claude, nel progetto giusto.",
     prompt: "Voglio aggiungere un todo. Chiedimi cosa, per quale progetto e chi lo fa.", dove: "qui" },
@@ -201,12 +213,13 @@ export const SUGGERIMENTI = [
 
 // Esegue un suggerimento: nella conversazione aperta se c'è e non aspetta una risposta, altrimenti in una nuova.
 export async function chiedi(sug) {
-  if (sug.dove === "nuova") return nuova(sug.prompt);
+  const prompt = richiesta(sug.prompt, (await config()).radice);
+  if (sug.dove === "nuova") return nuova(prompt);
   const s = spaces().find((x) => x.active && !x.machine);
   const a = s ? agents().find((x) => x.space === s.id && x.tab === s.tabs.find((t) => t.active)?.id) ?? agents().find((x) => x.space === s.id) : null;
-  if (!a) return nuova(sug.prompt);
+  if (!a) return nuova(prompt);
   if (a.status === "blocked") return notify({ title: "Claude aspetta una tua risposta", body: "Rispondi nella conversazione, poi riprova.", level: "warning" });
-  const r = await hc(["send", a.address, sug.prompt]);
+  const r = await hc(["send", a.address, prompt]);
   if (r.code !== 0) notify({ title: "Non sono riuscito a scrivere a Claude", body: prima(r.stderr), level: "error" });
 }
 

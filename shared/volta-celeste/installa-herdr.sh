@@ -78,7 +78,7 @@ base=${PROJECTS_BASE:-$HOME/Documents/ClaudeCode}
 mkdir -p "$base"
 versione=$(herdr-app --version 2>/dev/null | sed -n 's/^herdr-app //p' || true)
 [ -n "$versione" ] || versione=$("$HOME/.local/bin/herdr-app" --version 2>/dev/null | sed -n 's/^herdr-app //p' || true)
-ARTURO_HERDR_VERSIONE="${ARTURO_HERDR_VERSIONE:-$versione}" ARTURO_TASTI="$tasti" ARTURO_PY="$py" ARTURO_BIN="$(percorso "$radice/bin/arturo")" ARTURO_BASE="$(percorso "$base")" \
+ARTURO_HERDR_VERSIONE="${ARTURO_HERDR_VERSIONE:-$versione}" ARTURO_TASTI="$tasti" ARTURO_PY="$py" ARTURO_BIN="$(percorso "$radice/bin/arturo")" ARTURO_RADICE="$(percorso "$radice")" ARTURO_BASE="$(percorso "$base")" \
 "$py" - "$qui" "$app_home" <<'PY'
 import json, os, sys
 qui, app = sys.argv[1], sys.argv[2]
@@ -97,9 +97,10 @@ def leggi(nome):
     with open(p, encoding="utf-8") as f:
         return json.load(f)
 
-# arturo.json: arturo e base si riscrivono, le altre chiavi della persona (note_progetto) restano.
+# arturo.json: arturo, radice e base si riscrivono, le altre chiavi della persona (note_progetto) restano.
+# radice è la cartella di Arturo: i suggerimenti la usano per i file di istruzioni, che non sempre stanno in ~/.claude.
 arturo = leggi("arturo.json") or {}
-arturo.update({"arturo": [os.environ["ARTURO_PY"], os.environ["ARTURO_BIN"]], "base": os.environ["ARTURO_BASE"]})
+arturo.update({"arturo": [os.environ["ARTURO_PY"], os.environ["ARTURO_BIN"]], "radice": os.environ["ARTURO_RADICE"], "base": os.environ["ARTURO_BASE"]})
 scrivi("arturo.json", arturo)
 
 # Tasti: si aggiungono; un tasto che la persona usa già per altro resta suo.

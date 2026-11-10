@@ -4,6 +4,12 @@ Lo legge Claude quando la persona preme "Trova i miei progetti" nella finestra d
 Serve a chi comincia: Claude cerca sul computer le cartelle di lavoro e le propone come progetti di
 Arturo. Così compaiono a sinistra nella finestra, ognuno con la sua riga di stato.
 
+## Dove stanno i file
+
+I percorsi `~/.claude/...` di queste istruzioni e di `setup-ritratto.md` indicano la cartella di
+Arturo. Se il pulsante ti ha detto un'altra cartella di Arturo, leggili lì: per esempio
+`<cartella di Arturo>/bin/ritratto.py` al posto di `~/.claude/bin/ritratto.py`.
+
 ## Regole fisse
 
 Valgono le regole del ritratto in `~/.claude/shared/setup-ritratto.md` ("Regole fisse"): ogni
