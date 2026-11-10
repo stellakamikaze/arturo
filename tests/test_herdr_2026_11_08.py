@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ40: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ41: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -144,6 +144,11 @@ HZ40 i gesti di Volta su una sessione (#5172 passo 4): volta_sonda.py azione lan
      Elimina con conferma solo se è ferma; avviso solo per chi passa a "ti aspetta" dopo la prima
      lettura; stato per id corto senza le righe vecchie. volta.js usa azioni(), nuoveInAttesa() e
      statiCorti(), e dati.js passa da volta_sonda.py azione.
+HZ41 il servizio di Claude prima della nascita (#5208, volta_sonda.py servizio con un hc finto e un claude
+     finto): un servizio che risponde non si tocca; Windows senza attività lo accende con hc run in un
+     terminale di herdr-core, e uno che dopo non risponde dà errore; nasci accende il servizio prima della
+     sessione e senza servizio non fa nascere niente; su questa macchina il servizio spento nasce
+     staccato (una sessione sua) nella home.
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
@@ -157,9 +162,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -1629,6 +1635,20 @@ if os.environ.get("HZ_HC_LOG"):
         fh.write(json.dumps(a) + "\n")
 if a[:3] == ["machine", "ls", "--json"]:
     print(json.dumps({"machines": conf["macchine"]})); sys.exit(0)
+stato = os.environ.get("HZ_HC_STATO")
+if a[:1] == ["run"]:
+    if stato:
+        with open(stato, "a", encoding="utf-8") as fh:
+            fh.write(a[a.index("--on") + 1] + "\n")
+    print(json.dumps({"id": "t9"})); sys.exit(conf.get("run_rc", 0))
+if a[:2] == ["exec", "--on"] and a[-1] == "remoto":  # SERVIZIO di volta_sonda.py
+    if a[3] not in conf["exec"].get(a[2], {}):
+        print(json.dumps({"error": {"kind": "spawn_failed", "message": "cannot start %s" % a[3]}})); sys.exit(1)
+    accesi = open(stato, encoding="utf-8").read().split() if stato and os.path.exists(stato) else []
+    s = conf.get("servizio", {}).get(a[2])
+    if a[2] in accesi:
+        s = conf.get("dopo_run", {}).get(a[2], s)
+    print(json.dumps(s if s is not None else {"acceso": True, "come": "già acceso"})); sys.exit(0)
 if a[:2] == ["exec", "--on"]:
     esito = conf["exec"].get(a[2], {}).get(a[3])
     if esito is None:
@@ -2046,7 +2066,7 @@ def hz39(repo: Path, casa: Path) -> str | None:
         return f"nasci su Torre: aggancio {d['attach']}"
     if (d["sessionId"], d["macchina"], d["progetto"]) != ("ffff1111-aaaa", "Torre", "progetto-x"):
         return f"nasci su Torre: {d}"
-    exe = [c for c in ch if c[:2] == ["exec", "--on"]]
+    exe = [c for c in ch if c[:2] == ["exec", "--on"] and c[-1] != "remoto"]
     if [c[3] for c in exe] != ["python3", "python"] or any(c[2] != "Torre" for c in exe):
         return f"nasci su Torre: chiamate {[c[:4] for c in exe]}, attese python3 poi python su Torre"
     arg = json.loads(base64.b64decode(exe[-1][-1]).decode("utf-8"))
@@ -2055,12 +2075,12 @@ def hz39(repo: Path, casa: Path) -> str | None:
     rc, d, ch = nasci("Studio", "--", "ciao")
     if rc == 0 or "Workspace not trusted" not in d.get("errore", ""):
         return f"--bg rifiutato su Studio: rc {rc}, {d}"
-    if len([c for c in ch if c[:2] == ["exec", "--on"]]) != 1:
+    if len([c for c in ch if c[:2] == ["exec", "--on"] and c[-1] != "remoto"]) != 1:
         return "dopo un errore detto dalla macchina nasci riprova con un altro Python"
     rc, d, ch = nasci("Rotta")
     if rc == 0 or "errore" not in d:
         return f"un Python partito e caduto non dà errore: {d}"
-    if [c[3] for c in ch if c[:2] == ["exec", "--on"]] != ["python3"]:
+    if [c[3] for c in ch if c[:2] == ["exec", "--on"] and c[-1] != "remoto"] != ["python3"]:
         return "un Python partito e caduto si ripete con python: può far nascere due sessioni"
     for nome, atteso in (("Nuvola", "spenta"), ("Fantasma", "non è fra le macchine")):
         rc, d, ch = nasci(nome, "--", "x")
@@ -2075,7 +2095,7 @@ def hz39(repo: Path, casa: Path) -> str | None:
         (fapp / "arturo.json").write_text(json.dumps({"base": str(fbase)}), encoding="utf-8")
         dove_log = casa / "fcwd.log"
         fc = fbin / "claude"
-        fc.write_text("#!/bin/sh\n[ \"$1\" = agents ] && { echo '[]'; exit 0; }\npwd > %s\necho 'claude attach abcd1234'\n" % shlex.quote(str(dove_log)), encoding="utf-8")
+        fc.write_text("#!/bin/sh\n[ \"$1\" = agents ] && { echo '[]'; exit 0; }\n[ \"$1\" = daemon ] && { echo 'control.sock: reachable'; exit 0; }\npwd > %s\necho 'claude attach abcd1234'\n" % shlex.quote(str(dove_log)), encoding="utf-8")
         fc.chmod(0o755)
         e = {**os.environ, "PATH": f"{fbin}{os.pathsep}{os.environ.get('PATH', '')}", "HOME": str(fcasa), "HERDR_APP_HOME": str(fapp)}
         r = subprocess.run([sys.executable, str(sonda), "nasci", "qui", "--", "ciao"], capture_output=True, text=True, timeout=60, env=e)
@@ -2250,7 +2270,113 @@ def hz40(repo: Path, casa: Path) -> str | None:
         return "dati.js non passa da volta_sonda.py azione"
     return None
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40}
+# Il claude finto di HZ41: daemon status risponde solo dopo un daemon run, che segna se è nato in una
+# sessione sua (staccato) e in quale cartella.
+CLAUDE_FINTO_SERVIZIO = r"""#!/usr/bin/env python3
+import json, os, sys
+log = os.environ["HZ_LOG"]
+acceso = os.path.join(os.path.dirname(log), "acceso")
+with open(log, "a", encoding="utf-8") as fh:
+    fh.write(json.dumps({"argv": sys.argv[1:], "staccato": os.getsid(0) == os.getpid(), "cwd": os.getcwd()}) + "\n")
+if sys.argv[1:3] == ["daemon", "status"]:
+    print("control.sock: reachable" if os.path.exists(acceso) or os.environ.get("HZ_ACCESO") else "not running\n  control.sock: unreachable")
+elif sys.argv[1:3] == ["daemon", "run"]:
+    open(acceso, "w").close()
+"""
+
+
+def hz41(repo: Path, casa: Path) -> str | None:
+    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    nata = {"id": "ffff1111", "sessionId": "ffff1111-aaaa", "claude": "C:/u/claude.exe", "cartella": "C:/u/ClaudeCode"}
+    conf = {
+        "macchine": [{"name": n, "target": n.lower(), "state": "connected"} for n in ("Torre", "Win", "Rotto", "Muto")],
+        "exec": {"Torre": {"python": nata}, "Win": {"python": nata}, "Rotto": {"python3": nata}, "Muto": {"python3": nata}},
+        "servizio": {"Win": {"serve": "hc-run"}, "Rotto": {"errore": "Claude Code non c'è su questa macchina"},
+                     "Muto": {"serve": "hc-run"}},
+        "dopo_run": {"Win": {"acceso": True, "come": "già acceso"}},
+    }
+    finto = casa / "hc_finto.py"
+    finto.write_text(HC_FINTO, encoding="utf-8")
+    log, stato = casa / "hc.log", casa / "hc.stato"
+    env = {**os.environ, "HZ_HC": json.dumps(conf), "VOLTA_HC": json.dumps([sys.executable, str(finto)]),
+           "HZ_HC_LOG": str(log), "HZ_HC_STATO": str(stato)}
+
+    def lancia(*args):
+        log.write_text("", encoding="utf-8")
+        r = subprocess.run([sys.executable, str(sonda), *args], capture_output=True, text=True, timeout=90, env=env)
+        chiamate = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines() if x.strip()]
+        try:
+            return r.returncode, json.loads(r.stdout.strip().splitlines()[-1]), chiamate
+        except (ValueError, IndexError):
+            return r.returncode, {"uscita": (r.stderr or r.stdout).strip()[-160:]}, chiamate
+
+    rc, d, ch = lancia("servizio", "Torre")
+    if rc != 0 or d.get("come") != "già acceso" or [c[3] for c in ch if c[:2] == ["exec", "--on"]] != ["python3", "python"]:
+        return f"servizio su Torre acceso: rc {rc}, {d}, {ch}"
+    if any(c[:1] == ["run"] for c in ch):
+        return "un servizio che risponde non si riaccende"
+    rc, d, ch = lancia("servizio", "Win")
+    corsa = [c for c in ch if c[:1] == ["run"]]
+    if rc != 0 or d.get("come") != "terminale di Herdr":
+        return f"Windows senza attività: il servizio non nasce con hc run: rc {rc}, {d}"
+    if corsa != [["run", "--on", "Win", "--name", "servizio-claude", "--no-parent", "--rm", "--bg", "claude", "daemon", "run"]]:
+        return f"hc run del servizio: {corsa}"
+    rc, d, ch = lancia("servizio", "Muto")
+    if rc == 0 or "non risponde ancora" not in d.get("errore", ""):
+        return f"un servizio acceso con hc run che non risponde deve dare errore: rc {rc}, {d}"
+    # nasci passa prima dal servizio, e senza servizio non fa nascere niente
+    rc, d, ch = lancia("nasci", "Rotto", "--", "ciao")
+    if rc == 0 or "servizio di Claude non parte su Rotto" not in d.get("errore", ""):
+        return f"nasci su Rotto senza servizio: rc {rc}, {d}"
+    if any(c[:2] == ["exec", "--on"] and c[-1] != "remoto" for c in ch):
+        return "nasci fa nascere la sessione anche se il servizio non parte"
+    stato.unlink(missing_ok=True)
+    rc, d, ch = lancia("nasci", "Win", "--", "ciao")
+    if rc != 0 or d.get("id") != "ffff1111":
+        return f"nasci su Win col servizio da accendere: rc {rc}, {d}"
+    giro = [("run" if c[:1] == ["run"] else "servizio" if c[-1] == "remoto" else "nasci") for c in ch if c[:1] == ["run"] or c[:2] == ["exec", "--on"]]
+    if giro.index("run") > giro.index("nasci") or giro[-1] != "nasci":
+        return f"nasci non accende il servizio prima della sessione: {giro}"
+    # SERVIZIO vero su questa macchina, con un claude finto (script con shebang: su Windows si salta)
+    if os.name == "nt":
+        return None
+    fbin, fcasa = casa / "sbin", casa / "scasa"
+    fbin.mkdir(); fcasa.mkdir()
+    fc = fbin / "claude"
+    fc.write_text(CLAUDE_FINTO_SERVIZIO.replace("/usr/bin/env python3", sys.executable), encoding="utf-8")
+    fc.chmod(0o755)
+    slog = casa / "s" / "claude.log"
+    slog.parent.mkdir()
+    e = {**os.environ, "PATH": f"{fbin}{os.pathsep}{os.environ.get('PATH', '')}", "HOME": str(fcasa), "HZ_LOG": str(slog)}
+    e.pop("VOLTA_HC", None)
+
+    def qui(**extra):
+        slog.write_text("", encoding="utf-8")
+        (slog.parent / "acceso").unlink(missing_ok=True)
+        r = subprocess.run([sys.executable, str(sonda), "servizio", "qui"], capture_output=True, text=True, timeout=60, env={**e, **extra})
+        for _ in range(20):  # il servizio staccato scrive il suo log da solo
+            righe = [json.loads(x) for x in slog.read_text(encoding="utf-8").splitlines() if x.strip()]
+            if r.returncode != 0 or any(x["argv"][:2] == ["daemon", "run"] for x in righe) or extra:
+                break
+            time.sleep(0.1)
+        try:
+            return json.loads(r.stdout.strip().splitlines()[-1]), righe
+        except (ValueError, IndexError):
+            return {"uscita": (r.stderr or r.stdout).strip()[-160:]}, righe
+
+    d, righe = qui()
+    corse = [x for x in righe if x["argv"][:2] == ["daemon", "run"]]
+    if d.get("come") != "staccato" or len(corse) != 1:
+        return f"servizio qui spento: {d}, {righe}"
+    if not corse[0]["staccato"] or os.path.realpath(corse[0]["cwd"]) != os.path.realpath(fcasa):
+        return f"il servizio non nasce staccato nella home: {corse[0]}"
+    d, righe = qui(HZ_ACCESO="1")
+    if d.get("come") != "già acceso" or any(x["argv"][:2] == ["daemon", "run"] for x in righe):
+        return f"servizio qui già acceso: {d}, {righe}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -2269,6 +2395,11 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", "if acceso():\n    esci(acceso=True, come=\"già acceso\")", "if False:\n    pass"),
+    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    s = servizio(nome)\n", "    s = {}\n"),
+    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", '"--name", "servizio-claude", "--no-parent", "--rm",', '"--name", "servizio-claude", "--rm",'),
+    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'subprocess.Popen([cl, "daemon", "run"], cwd=casa, start_new_session=True, **nulla)\n        come = "staccato"\nelif', 'subprocess.Popen([cl, "daemon", "run"], cwd=casa, **nulla)\n        come = "staccato"\nelif'),
+    ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        return {"errore": d.get("errore") or "acceso con hc run, ma non risponde ancora"}', '        return {"come": "terminale di Herdr"}'),
     ("HZ01", "shared/volta-celeste/installa-herdr.sh", '"frame.welcomed": "skipped"', '"frame.welcomed": "finished"'),
     ("HZ02", "shared/volta-celeste/installa-herdr.sh", "if k in mia and mia[k] != v:", "if False:"),
     ("HZ03", "shared/volta-celeste/installa-herdr.sh", 'Arturo funziona lo stesso nel Terminale."; exit 0 ;;', 'Arturo funziona lo stesso nel Terminale." ;;'),

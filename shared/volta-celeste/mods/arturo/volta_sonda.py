@@ -8,6 +8,7 @@ distribuire (#5172, 10/11/2026).
   python3 volta_sonda.py volta [--scrivi FILE]   l'elenco, nel formato di ~/.cache/volta/sessioni.json
   python3 volta_sonda.py nasci MACCHINA [--progetto SLUG] [-- PROMPT]
   python3 volta_sonda.py azione MACCHINA logs|stop|respawn|rm ID   (logs: le ultime righe dello schermo)
+  python3 volta_sonda.py servizio MACCHINA   accende il servizio di Claude se manca, dove sopravvive (#5208)
       una sessione nuova in background (claude --bg) su MACCHINA ("qui" per questa), nella base dei
       progetti di quella macchina. Stampa {id, sessionId, attach, macchina, progetto, cartella} oppure
       {errore}: lo stesso contratto di porta-volta, così Volta la aggancia come le altre (#5172 passo 4).
@@ -145,6 +146,66 @@ if a.get("progetto") and sid != corto:
     except OSError:
         pass
 esci(id=corto, sessionId=sid, claude=cl, cartella=base)
+'''
+
+# Gira sulla macchina dove nascerà la sessione, prima di NASCI (#5208). Il servizio di Claude che tiene
+# le sessioni in background (claude daemon) parte da solo al primo claude --bg, ma a tempo: muore con
+# chi l'ha fatto nascere (hc exec chiude tutto ciò che avvia) e, nato da ssh, non ha il login. Un
+# claude daemon run invece resta acceso anche senza sessioni, e uno a tempo già acceso gli cede il
+# posto riprendendo le sessioni vive (provato il 10/11/2026). Qui: se il servizio risponde non si tocca;
+# se manca lo si accende fuori dalla portata di hc exec. Sul Mac col LaunchAgent di servizi-gui.sh se
+# c'è, altrimenti staccato in una sessione nuova (sopravvive a hc exec). Su Windows con l'attività di
+# servizio-claude.ps1 se c'è; da hc exec un figlio non si stacca dal job, quindi senza attività risponde
+# {"serve": "hc-run"} e il terminale lo apre chi chiama. L'argomento è "remoto" o "qui".
+# Stampa {"acceso": true, "come"} oppure {"serve"} oppure {"errore"}.
+SERVIZIO = r'''
+import json, os, re, shutil, subprocess, sys, time
+def esci(**d):
+    print(json.dumps(d)); raise SystemExit
+fine = ".exe" if os.name == "nt" else ""
+cl = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude" + fine)
+if not os.path.exists(cl):
+    esci(errore="Claude Code non c'è su questa macchina")
+casa = os.path.expanduser("~")
+remoto = len(sys.argv) > 1 and sys.argv[1] == "remoto"
+nulla = dict(stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+def acceso():
+    try:
+        r = subprocess.run([cl, "daemon", "status"], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", stdin=subprocess.DEVNULL, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return re.search(r"control\.sock:\s*reachable", (r.stdout or "") + (r.stderr or "")) is not None
+if acceso():
+    esci(acceso=True, come="già acceso")
+if sys.platform == "darwin":
+    etichetta = "org.stellakamikaze.arturo.claude-daemon"
+    agente = os.path.join(casa, "Library", "LaunchAgents", etichetta + ".plist")
+    if os.path.exists(agente):
+        subprocess.run(["launchctl", "kickstart", "gui/%d/%s" % (os.getuid(), etichetta)], timeout=30, **nulla)
+        come = "launchd"
+    else:
+        subprocess.Popen([cl, "daemon", "run"], cwd=casa, start_new_session=True, **nulla)
+        come = "staccato"
+elif os.name == "nt":
+    attivita = "ArturoServizioClaude"
+    q = subprocess.run(["schtasks", "/query", "/tn", attivita], timeout=30, **nulla)
+    if q.returncode == 0:
+        subprocess.run(["schtasks", "/run", "/tn", attivita], timeout=30, **nulla)
+        come = "attività"
+    elif remoto:
+        esci(serve="hc-run")
+    else:
+        subprocess.Popen([cl, "daemon", "run"], cwd=casa, creationflags=0x00000008 | 0x00000200, **nulla)
+        come = "staccato"
+else:
+    subprocess.Popen([cl, "daemon", "run"], cwd=casa, start_new_session=True, **nulla)
+    come = "staccato"
+for _ in range(40):
+    time.sleep(0.5)
+    if acceso():
+        esci(acceso=True, come=come)
+esci(errore="il servizio di Claude non si accende (%s)" % come)
 '''
 
 LAVORA = {"busy", "working", "running", "starting"}
@@ -346,6 +407,59 @@ def scrivi_atomico(percorso, dati):
     os.replace(tmp, percorso)
 
 
+def servizio(nome):
+    """Il servizio di Claude acceso su `nome` ("qui" o vuoto = questa macchina), con SERVIZIO (#5208).
+
+    Su un'altra macchina gira con hc exec, python3 e poi python. Se la macchina risponde "hc-run"
+    (Windows senza l'attività di servizio-claude.ps1), il servizio nasce in un terminale di herdr-core
+    con hc run: vive nella sessione grafica e non muore con chi lo chiede. Mai da ssh.
+    Torna {"come"} oppure {"errore"}."""
+    codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(SERVIZIO.encode()).decode()
+    if nome in (None, "", "qui"):
+        tentativi = [[sys.executable, "-c", codice, "qui"]]
+    else:
+        tentativi = [hc() + ["exec", "--on", nome, py, "-c", codice, "remoto"] for py in ("python3", "python")]
+
+    def chiedi():
+        ultimo = "nessun Python"
+        for argv in tentativi:
+            try:
+                rc, out, err = lancia(argv, timeout=90)
+            except (OSError, subprocess.SubprocessError) as e:
+                return {"errore": str(e)[:160]}
+            if rc != 0 and (non_parte(out, err) or rc == 9009):
+                continue
+            try:
+                return leggi_json(out)
+            except ValueError:
+                testo = (err or out).strip()
+                ultimo = testo.splitlines()[-1][:200] if testo else "rc %d" % rc
+        return {"errore": ultimo}
+
+    d = chiedi()
+    if d.get("serve") == "hc-run":
+        try:
+            rc, out, err = lancia(hc() + ["run", "--on", nome, "--name", "servizio-claude", "--no-parent", "--rm",
+                                          "--bg", "claude", "daemon", "run"], timeout=60)
+        except (OSError, subprocess.SubprocessError) as e:
+            return {"errore": "hc run non risponde: %s" % str(e)[:160]}
+        if rc != 0:
+            testo = (err or out).strip()
+            return {"errore": "hc run: " + (testo.splitlines()[-1][:160] if testo else "rc %d" % rc)}
+        d = {}
+        for _ in range(6):  # il terminale parte subito, il servizio dopo qualche secondo
+            time.sleep(2)
+            d = chiedi()
+            if d.get("acceso"):
+                return {"come": "terminale di Herdr"}
+            if d.get("serve") != "hc-run":
+                break
+        return {"errore": d.get("errore") or "acceso con hc run, ma non risponde ancora"}
+    if d.get("acceso"):
+        return {"come": d.get("come")}
+    return {"errore": d.get("errore") or "nessuna risposta"}
+
+
 def nasci(nome, prompt="", progetto=None):
     """Una sessione nuova in background su `nome` ("qui" o vuoto = questa macchina).
 
@@ -366,6 +480,11 @@ def nasci(nome, prompt="", progetto=None):
         voce = {"questa": False, "target": m["target"]}
         codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(NASCI.encode()).decode()
         tentativi = [hc() + ["exec", "--on", nome, "--timeout", "150", py, "-c", codice, arg] for py in ("python3", "python")]
+    # prima il servizio, acceso dove sopravvive: un claude --bg senza servizio lo farebbe nascere a
+    # tempo dentro hc exec, e la sessione morirebbe con lui (#5208)
+    s = servizio(nome)
+    if s.get("errore"):
+        return {"errore": "il servizio di Claude non parte su %s: %s" % (nome or "questa macchina", s["errore"])}
     ultimo = "nessun Python"
     for argv in tentativi:
         try:
@@ -530,6 +649,13 @@ def main_nasci(argv):
 def main(argv):
     if argv and argv[0] == "nasci":
         return main_nasci(argv[1:])
+    if argv and argv[0] == "servizio":
+        if len(argv) != 2:
+            print("uso: volta_sonda.py servizio <macchina>")
+            return 2
+        esito = servizio(argv[1])
+        print(json.dumps(esito, ensure_ascii=False))
+        return 0 if "errore" not in esito else 1
     if argv and argv[0] == "azione":
         if len(argv) != 4:
             print("uso: volta_sonda.py azione <macchina> <logs|stop|respawn|rm> <id>")

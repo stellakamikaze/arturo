@@ -183,6 +183,17 @@ if [ "$sistema" = mac-arm ] || [ "$sistema" = windows ]; then
       "utf16 "*) say "HERDR NASCITA UTF16: il profilo ${riga#utf16 } è salvato in UTF-16 e il blocco di Volta non lo tocca. Risalvalo in UTF-8 per accendere la nascita." ;;
     esac
   done
+  # Il servizio di Claude fisso (#5208): senza, il primo claude --bg lo accende a tempo, e da ssh o da
+  # hc exec nasce nel posto sbagliato. Su Windows un'attività all'accesso, sul Mac il LaunchAgent di
+  # servizi-gui.sh, che vuole prima l'accesso di claude a Documenti: qui lo si propone soltanto.
+  if [ "$sistema" = windows ]; then
+    cp "$qui/servizio-claude.ps1" "$app_home/servizio-claude.ps1"
+    if ! MSYS_NO_PATHCONV=1 schtasks /query /tn ArturoServizioClaude >/dev/null 2>&1; then
+      say "HERDR SERVIZIO: perché le sessioni in background non muoiano con chi le fa nascere, il servizio di Claude può partire a ogni accesso. Si accende con: powershell -NoProfile -ExecutionPolicy Bypass -File \"$(percorso "$app_home/servizio-claude.ps1")\""
+    fi
+  elif [ ! -f "$HOME/Library/LaunchAgents/org.stellakamikaze.arturo.claude-daemon.plist" ]; then
+    say "HERDR SERVIZIO: perché le sessioni in background non muoiano con chi le fa nascere, il servizio di Claude può partire a ogni login. Dai a claude l'accesso a Documenti (Impostazioni di Sistema, Privacy e sicurezza, File e cartelle), poi: sh \"$qui/servizi-gui.sh\" --launchd"
+  fi
 fi
 
 # 6. Controllo del mod e apertura.
