@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ34: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ36: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -112,6 +112,14 @@ HZ34 la sonda di Volta per tutti (#5172, volta_sonda.py con un hc finto): le mac
      (o senza nessuno dei due) resta fuori; una che non risponde compare, con le righe vecchie, solo se
      Claude ci era già stato visto; aggancio locale e via ssh col percorso di claude della macchina.
      volta.js lancia volta_sonda.py del mod e lascia porta-volta a teletrasporto.py.
+HZ35 la nascita in background (#5172 passo 2, volta-claude.sh con un claude finto): in un terminale vero
+     claude e claude "<prompt>" nascono con --bg e si aprono con claude attach <id>; CLAUDE_QUI=1, i
+     sottocomandi, -p, --resume senza id, i terminali di Herdr, le sessioni dentro Claude e chi non ha un
+     terminale passano a claude com'è; se --bg è rifiutato la sessione si apre qui e lo dice.
+HZ36 il blocco della nascita (nascita.sh e installa-herdr.sh): metti lo scrive una volta sola anche
+     rilanciato, togli lascia il file com'era, stato vede la funzione claude della persona fuori dal
+     blocco, e in zsh e bash il blocco definisce claude solo se la persona non ne ha già una.
+     L'installatore lo scrive solo con ARTURO_HERDR_NASCITA=si, lo toglie con no, altrimenti lo propone.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -127,7 +135,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -1641,7 +1649,140 @@ def hz34(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34}
+CLAUDE_FINTO = r"""#!/bin/sh
+{ for a in "$@"; do printf '[%s]' "$a"; done; echo; } >> "$HZ_LOG"
+if [ "${1:-}" = --bg ]; then
+  if [ -n "${HZ_RIFIUTA:-}" ]; then echo "Workspace not trusted. Run claude once."; exit 1; fi
+  printf 'backgrounded \302\267 abcd1234\n  claude agents             list sessions\n  claude attach abcd1234    open in this terminal\n'
+fi
+exit 0
+"""
+
+
+def volta_claude(repo: Path, casa: Path, args: list[str], tty: bool = True, **extra: str) -> tuple[list[str], str]:
+    finto = casa / "claude-finto"
+    finto.write_text(CLAUDE_FINTO, encoding="utf-8", newline="\n")
+    log = casa / "chiamate.log"
+    log.write_text("", encoding="utf-8")
+    env = {k: v for k, v in os.environ.items() if k not in ("CLAUDECODE", "HC_TERMINAL_ID", "CLAUDE_QUI")}
+    env.update({"VOLTA_CLAUDE_BIN": str(finto) if os.name != "nt" else finto.as_posix(), "HZ_LOG": str(log)})
+    if tty:
+        env["VOLTA_CLAUDE_TTY"] = "1"
+    env.update(extra)
+    r = subprocess.run(["sh", str(repo / "shared/volta-celeste/volta-claude.sh"), *args],
+                       capture_output=True, text=True, timeout=30, env=env)
+    if os.name != "nt":
+        os.chmod(finto, 0o755)
+    return log.read_text(encoding="utf-8").splitlines(), r.stderr
+
+
+def hz35(repo: Path, casa: Path) -> str | None:
+    if os.name != "nt":
+        (casa / "claude-finto").write_text("", encoding="utf-8")
+        os.chmod(casa / "claude-finto", 0o755)
+    bg = lambda *a: ["[--bg]" + "".join(f"[{x}]" for x in a), "[attach][abcd1234]"]  # noqa: E731
+    qui = lambda *a: ["".join(f"[{x}]" for x in a)]  # noqa: E731
+    casi = [
+        ("claude nudo", [], {}, True, bg()),
+        ("claude col prompt di /inizio", ["/inizio arturo -- #12 un todo"], {}, True, bg("/inizio arturo -- #12 un todo")),
+        ("--resume con l'id", ["--resume", "abc-123"], {}, True, bg("--resume", "abc-123")),
+        ("--model e prompt", ["--model", "haiku", "ciao"], {}, True, bg("--model", "haiku", "ciao")),
+        ("CLAUDE_QUI=1", [], {"CLAUDE_QUI": "1"}, True, qui()),
+        ("sottocomando agents", ["agents", "--json"], {}, True, qui("agents", "--json")),
+        ("sottocomando mcp", ["mcp", "list"], {}, True, qui("mcp", "list")),
+        ("-p", ["-p", "ciao"], {}, True, qui("-p", "ciao")),
+        ("--version", ["--version"], {}, True, qui("--version")),
+        ("--resume senza id", ["--resume"], {}, True, qui("--resume")),
+        ("--resume senza id prima di un'opzione", ["--resume", "--model", "haiku"], {}, True, qui("--resume", "--model", "haiku")),
+        ("--continue", ["-c"], {}, True, qui("-c")),
+        ("terminale di Herdr", [], {"HC_TERMINAL_ID": "t3"}, True, qui()),
+        ("dentro una sessione Claude", [], {"CLAUDECODE": "1"}, True, qui()),
+        ("senza terminale", ["ciao"], {}, False, qui("ciao")),
+    ]
+    for nome, args, extra, tty, attese in casi:
+        chiamate, _ = volta_claude(repo, casa, args, tty, **extra)
+        if os.name != "nt" and chiamate != attese:
+            return f"{nome}: chiamate {chiamate}, attese {attese}"
+        if os.name == "nt" and chiamate != attese and chiamate:
+            return f"{nome}: chiamate {chiamate}, attese {attese}"
+    chiamate, err = volta_claude(repo, casa, ["ciao"], True, HZ_RIFIUTA="1")
+    if chiamate[:1] != ["[--bg][ciao]"] or chiamate[1:] != ["[ciao]"]:
+        return f"--bg rifiutato: chiamate {chiamate}, attese --bg e poi la sessione qui"
+    if "non parte in background (Workspace not trusted" not in err:
+        return f"--bg rifiutato senza dirlo: {err.strip()[-160:]}"
+    _, err = volta_claude(repo, casa, [], True)
+    if "claude attach abcd1234 la riapre" not in err:
+        return "dopo l'aggancio non dice come riaprire la sessione"
+    return None
+
+
+def hz36(repo: Path, casa: Path) -> str | None:
+    vc = repo / "shared/volta-celeste"
+    home = casa / "home"
+    home.mkdir()
+    app = casa / "app"
+    app.mkdir()
+    (app / "volta-claude").write_text("#!/bin/sh\necho VOLTA \"$@\"\n", encoding="utf-8", newline="\n")
+    os.chmod(app / "volta-claude", 0o755)
+    prima = "export A=1\nalias ll='ls -l'"  # senza a capo in fondo
+    (home / ".zshrc").write_text(prima, encoding="utf-8", newline="\n")
+    (home / ".zshenv").write_text("claude() {\n  command claude \"$@\"\n}\n", encoding="utf-8", newline="\n")
+    env = {**os.environ, "HOME": str(home), "SHELL": "/bin/zsh"}
+    nascita = lambda *a: subprocess.run(["sh", str(vc / "nascita.sh"), *a], capture_output=True, text=True, timeout=30, env=env)  # noqa: E731
+    for _ in range(2):
+        r = nascita("metti", str(app))
+        if r.returncode != 0:
+            return f"nascita.sh metti esce {r.returncode}: {r.stderr.strip()[-160:]}"
+    zshrc = (home / ".zshrc").read_text(encoding="utf-8")
+    if zshrc.count(">>> Volta Celeste") != 1:
+        return f"metti rilanciato scrive il blocco {zshrc.count('>>> Volta Celeste')} volte"
+    if not zshrc.startswith(prima + "\n# >>> Volta Celeste"):
+        return "il blocco si attacca all'ultima riga del file della persona"
+    st = nascita("stato").stdout.splitlines()
+    if f"presente {home / '.zshrc'}" not in st or f"funzione {home / '.zshenv'}" not in st:
+        return f"stato {st}: attesi il blocco in .zshrc e la funzione della persona in .zshenv"
+    if f"funzione {home / '.zshrc'}" in st:
+        return "stato scambia la funzione del blocco per una della persona"
+    for shell in ("zsh", "bash"):
+        if not shutil.which(shell):
+            continue
+        blocco = home / ".zshrc"
+        # senza i file di avvio: il .zshenv della casa finta ha la funzione claude della persona
+        nudo = [shell, "-f"] if shell == "zsh" else [shell, "--norc", "--noprofile"]
+        r = subprocess.run([*nudo, "-c", f'. "{blocco}"; claude uno due'], capture_output=True, text=True, timeout=30, env=env)
+        if r.stdout.strip() != "VOLTA uno due":
+            return f"in {shell} il blocco non fa passare claude da volta-claude: {(r.stdout + r.stderr).strip()[-120:]}"
+        r = subprocess.run([*nudo, "-c", f'claude() {{ echo MIA; }}; . "{blocco}"; claude'], capture_output=True, text=True, timeout=30, env=env)
+        if r.stdout.strip() != "MIA":
+            return f"in {shell} il blocco scavalca la funzione claude della persona: {r.stdout.strip()[-80:]}"
+    nascita("togli")
+    if (home / ".zshrc").read_text(encoding="utf-8") != prima + "\n":
+        return "togli non lascia il file della persona com'era"
+    if nascita("stato").stdout.splitlines()[0] != "assente":
+        return "dopo togli lo stato non dice assente"
+    # L'installatore: propone senza scelta, scrive con si, toglie con no.
+    sotto = casa / "inst"
+    sotto.mkdir()
+    r = installa(repo, sotto, "mac-arm", {"ARTURO_HERDR_FIRMA": "presente", "SHELL": "/bin/zsh"})
+    rc = sotto / "home" / ".zshrc"
+    if "HERDR NASCITA:" not in r.stdout or rc.exists():
+        return f"senza scelta l'installatore non propone la nascita o la accende da solo: {r.stdout[-200:]}"
+    if not os.access(sotto / "app" / "volta-claude", os.X_OK):
+        return "l'installatore non mette volta-claude eseguibile nella cartella di Herdr"
+    r = installa(repo, sotto, "mac-arm", {"ARTURO_HERDR_FIRMA": "presente", "SHELL": "/bin/zsh", "ARTURO_HERDR_NASCITA": "si"})
+    if not rc.is_file() or f'"{sotto / "app"}/volta-claude"' not in rc.read_text(encoding="utf-8") or "HERDR NASCITA:" in r.stdout:
+        return f"con ARTURO_HERDR_NASCITA=si il blocco non punta a volta-claude della cartella di Herdr: {r.stdout[-200:]}"
+    installa(repo, sotto, "mac-arm", {"ARTURO_HERDR_FIRMA": "presente", "SHELL": "/bin/zsh", "ARTURO_HERDR_NASCITA": "no"})
+    if ">>> Volta Celeste" in rc.read_text(encoding="utf-8"):
+        return "con ARTURO_HERDR_NASCITA=no il blocco resta"
+    (sotto / "home" / ".zshenv").write_text("claude() { command claude \"$@\"; }\n", encoding="utf-8")
+    r = installa(repo, sotto, "mac-arm", {"ARTURO_HERDR_FIRMA": "presente", "SHELL": "/bin/zsh"})
+    if "HERDR NASCITA FUNZIONE: in " not in r.stdout:
+        return "l'installatore non dice che la funzione claude della persona vince sul blocco"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -1749,6 +1890,16 @@ VELENI = [
     ("HZ34", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'for py in ("python3", "python"):', 'for py in ("python3",):'),
     ("HZ34", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'return [v for v in voci if v.get("claude") or ("irraggiungibile" in v and (v["questa"] or v["host"] in viste))]', 'return voci'),
     ("HZ34", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'sessioni += [dict(r, vecchia=True)', 'sessioni += [dict(r)'),
+    ("HZ35", "shared/volta-celeste/volta-claude.sh", '[ "${CLAUDE_QUI:-0}" = 1 ] && qui_interattiva "$@"', ":"),
+    ("HZ35", "shared/volta-celeste/volta-claude.sh", "  agents | attach | auth |", "  agentsX | attach | auth |"),
+    ("HZ35", "shared/volta-celeste/volta-claude.sh", '[ -n "$senza_id" ] && qui_interattiva "$@"', ":"),
+    ("HZ35", "shared/volta-celeste/volta-claude.sh", '[ -n "${HC_TERMINAL_ID:-}" ] && qui_interattiva "$@"', ":"),
+    ("HZ35", "shared/volta-celeste/volta-claude.sh", 'printf \'Volta: la sessione non parte in background (%s). La apro qui, come prima.\\n\' "$motivo" >&2', "exit 1"),
+    ("HZ36", "shared/volta-celeste/nascita.sh", "!dentro' \"$f\" > \"$tmp\"", "1' \"$f\" > \"$tmp\""),
+    ("HZ36", "shared/volta-celeste/nascita.sh", "! typeset -f claude >/dev/null 2>&1; then", "true; then"),
+    ("HZ36", "shared/volta-celeste/nascita.sh", "then printf '\\n' >> \"$f\"; fi", "then :; fi"),
+    ("HZ36", "shared/volta-celeste/installa-herdr.sh", '    no) sh "$app_home/volta-nascita.sh" togli >/dev/null ;;', "    no) ;;"),
+    ("HZ36", "shared/volta-celeste/installa-herdr.sh", 'if sh "$app_home/volta-nascita.sh" stato | grep -q \'^assente\'; then', "if false; then"),
     ("HZ34", "shared/volta-celeste/mods/arturo/volta.js", "`${appHome()}/mods/arturo/volta_sonda.py`", "`${home()}/.claude/scripts/teletrasporto.py`"),
 ]
 

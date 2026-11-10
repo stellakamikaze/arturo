@@ -158,6 +158,30 @@ if [ "$sistema" = mac-arm ] && [ "$firma" = assente ]; then
   say "HERDR FIRMA: perché macOS ricordi i permessi di Arturo.app dopo ogni aggiornamento, lancia nel tuo Terminale: sh \"$(percorso "$qui/firma-locale.sh")\""
 fi
 
+# 5c. La nascita in background (#5172): il comando claude dei terminali fa nascere la sessione in background
+# e la apre lì, così Volta la apre da ogni macchina anche mentre lavora. La persona la sceglie (/setup chiede
+# e passa ARTURO_HERDR_NASCITA=si o no); senza scelta lo script la propone soltanto. Per ora solo sul Mac:
+# su Windows il terminale di PowerShell arriva col passo 3.
+if [ "$sistema" = mac-arm ]; then
+  cp "$qui/volta-claude.sh" "$app_home/volta-claude"
+  cp "$qui/nascita.sh" "$app_home/volta-nascita.sh"
+  chmod +x "$app_home/volta-claude"
+  case "${ARTURO_HERDR_NASCITA:-}" in
+    si) sh "$app_home/volta-nascita.sh" metti "$app_home" >/dev/null && say "Nascita in background accesa: il comando claude apre le sessioni in background." ;;
+    no) sh "$app_home/volta-nascita.sh" togli >/dev/null ;;
+    *)
+      if sh "$app_home/volta-nascita.sh" stato | grep -q '^assente'; then
+        say "HERDR NASCITA: perché Volta apra da ogni macchina le sessioni che apri nel Terminale, il comando claude può farle nascere in background. Si accende con: sh \"$(percorso "$app_home/volta-nascita.sh")\" metti \"$(percorso "$app_home")\""
+      fi ;;
+  esac
+  # Una funzione claude della persona vince sul blocco: va detto, o la nascita resta spenta senza motivo.
+  sh "$app_home/volta-nascita.sh" stato | while IFS= read -r riga; do
+    case "$riga" in
+      "funzione "*) say "HERDR NASCITA FUNZIONE: in ${riga#funzione } c'è già una funzione claude, che vince sul blocco di Volta. Perché le sessioni nascano in background, falla finire con \"$(percorso "$app_home/volta-claude")\" \"\$@\" al posto di command claude \"\$@\"." ;;
+    esac
+  done
+fi
+
 # 6. Controllo del mod e apertura.
 if command -v herdr-app >/dev/null 2>&1 && [ -z "${ARTURO_HERDR_INSTALLER:-}" ]; then
   herdr-app check "$app_home/mods/arturo" >/dev/null || { say "HERDR ERRORE: il mod di Arturo non si carica (herdr-app check)."; exit 1; }

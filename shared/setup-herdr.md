@@ -34,6 +34,11 @@ command -v herdr-app >/dev/null 2>&1 || [ -d ~/Applications/Herdr.app ] && echo 
   due volte la password del Mac." Mostra il comando della riga così com'è. Non lo lanci tu: segna un
   certificato come affidabile, ed è un'impostazione di sicurezza della persona. Se dice no, la
   finestra funziona lo stesso e macOS richiede i permessi dopo un aggiornamento.
+- Se c'è la riga `HERDR NASCITA`, chiedi in una riga: "Vuoi che le sessioni che apri col comando claude
+  nel Terminale nascano in background? Lavori come prima, e la finestra le apre anche da un altro
+  computer mentre lavorano." Col sì lancia tu il comando della riga e riporta la riga `NASCITA METTI`;
+  col no salta. Se c'è la riga `HERDR NASCITA FUNZIONE`, mostrala com'è: la funzione è della persona,
+  e la cambia lei.
 - Poi spiega: "Si è aperta la finestra di Arturo. Da ora lavori da lì: premi Nuova richiesta per
   scrivere a Claude, oppure scegli un progetto a sinistra. Questa conversazione puoi chiuderla." Fai
   la FASE 10 qui solo se la persona preferisce restare nel terminale.
