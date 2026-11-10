@@ -431,7 +431,7 @@ def _lettura_indiretta(cmd):
                 continue
             for dopo in stadi[k + 1:]:
                 # `>&2 xargs cat`: la redirezione in testa non è il programma.
-                toks = [os.path.basename(t) for t in re.sub(r"\d*>&\d+|&>", " ", dopo).split()]
+                toks = [_fc._nome(t) for t in re.sub(r"\d*>&\d+|&>", " ", dopo).split()]
                 if not toks:
                     continue
                 if toks[0] in ("xargs", "parallel") and any(t in _READ_BINS or t in _SHELLS for t in toks[1:]):
@@ -439,7 +439,7 @@ def _lettura_indiretta(cmd):
                 if toks[0] == "while" and "read" in toks[1:3]:
                     return True
         m = re.search(r"\bfind\b(.*?)\s-(?:exec|execdir|ok|okdir)\s+(\S+)", stmt)
-        if m and segreto(m.group(1)) and os.path.basename(m.group(2)) in (_READ_BINS | _SHELLS):
+        if m and segreto(m.group(1)) and _fc._nome(m.group(2)) in (_READ_BINS | _SHELLS):
             return True
     return False
 
@@ -460,7 +460,7 @@ def _reads_secret_flat(cmd: str) -> bool:
         i = 0
         if not toks:
             continue
-        binario = os.path.basename(toks[i])
+        binario = _fc._nome(toks[i])
         # `git diff --no-index A B` stampa due file qualunque (finding 4).
         if binario == "git" and "--no-index" in toks and "diff" in toks:
             toks = ["diff"] + [t for t in toks[toks.index("diff") + 1:] if t != "--no-index"]
@@ -553,7 +553,7 @@ def _sed_esegue(command: str) -> bool:
         i = 0
         while i < len(toks) and (_ENV_ASSIGN_RE.match(toks[i]) or toks[i] in _SKIP_WRAPPERS):
             i += 1
-        if i < len(toks) and os.path.basename(toks[i]) == "sed":
+        if i < len(toks) and _fc._nome(toks[i]) == "sed":
             script = _senza_corpi_sed(" ".join(toks[i + 1:]))
             if _SED_CMD_E.search(script) or _SED_FLAG_E.search(script):
                 return True
@@ -573,7 +573,7 @@ def _sed_scrive(command: str) -> bool:
             i += 1
         if i >= len(toks):
             continue
-        binario = os.path.basename(toks[i])
+        binario = _fc._nome(toks[i])
         if binario == "sed":
             script = _senza_corpi_sed(" ".join(toks[i + 1:]))
             if _SED_SCRIPT_W.search(script) or _SED_FLAG_W.search(script) or _SED_ADDR_W.search(script):
@@ -962,7 +962,7 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False):
             return True
         # binario di scrittura con un target come argomento
         toks = _dopo_involucri(toks) or toks
-        cmd0 = os.path.basename(toks[0])
+        cmd0 = _fc._nome(toks[0])
         # L'rm ricorsivo ha la sua regola (rm-protetto), col messaggio giusto: qui solo i file singoli.
         if cancella and cmd0 in _CANCELLANO and not _fc._ricorsivo(toks[1:]):
             if any(protetto(_resolve(t, base_cwd)) for t in toks[1:] if not t.startswith("-")):
@@ -1047,7 +1047,7 @@ def _dopo_involucri(args):
     """Gli argomenti dal programma vero in poi, saltando wrapper, opzioni, durate e assegnazioni."""
     i = 0
     while i < len(args):
-        if os.path.basename(args[i]) in _INVOLUCRI:
+        if _fc._nome(args[i]) in _INVOLUCRI:
             i += 1
             while i < len(args) and (args[i].startswith("-") or re.fullmatch(r"\d+(?:\.\d+)?[smhd]?", args[i])
                                      or _ENV_ASSIGN_RE.match(args[i])):
@@ -1082,7 +1082,7 @@ def _cancella_dentro(args) -> bool:
     args = _dopo_involucri(args)
     if not args:
         return False
-    nome = os.path.basename(args[0])
+    nome = _fc._nome(args[0])
     if nome in _CANCELLANO:
         return True
     codice = _forma().codice_shell(args[1:]) if nome in _SHELLS else None
