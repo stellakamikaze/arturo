@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ25: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ26: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -73,6 +73,11 @@ HZ24 barra di stato e guida scrivono i tasti da tasti() di comuni.js, mai ⌘ a 
 HZ25 nelle finestre di dialogo (Cosa posso chiedere, Apri un progetto, La settimana, menu dei todo)
      l'azione parte prima che la finestra si chiuda: chiusa, la finestra ferma il suo codice al primo
      await, e i pulsanti di Cosa posso chiedere non facevano niente (9/11/2026).
+HZ26 su cosa è una nota (#5117 passo 1, nota.js con node): regione() rifà i rettangoli di
+     layouts/arturo.json con le misure prese nell'istanza di prova (finestra 1440x900, barra 292, lavoro
+     1147) e dice la parte sotto il punto, anche con barra e pannello allargati, col pannello nascosto e col
+     benvenuto; con misure vecchie o assenti dà null. main.js fa riportare la misura alle parti del layout,
+     notaui.js mette la parte e il terminale in nota.json. Senza node la parte con node si salta.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -88,7 +93,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -947,7 +952,73 @@ def hz25(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25}
+PROVA_REGIONE = r"""
+const { regione, misureDaLayout, ultimeRighe, nota } = await import(%s);
+const lay = %s;
+const mis = (l, a) => ({ larghezza: l, altezza: a });
+const parti = { marchio: mis(292, 54), barra: mis(292, 690), piede: mis(292, 156), testata: mis(1147, 54),
+  todo: mis(340, 792), stato: mis(1147, 30), benvenuto: mis(0, 0) };
+const m = misureDaLayout(lay, parti, mis(1440, 900));
+const b = (x, y, mm = m) => regione({ x, y }, mm)?.blocco ?? null;
+const largo = { ...m, marchio: mis(400, 54), barra: mis(400, 690), piede: mis(400, 156), testata: mis(1039, 54),
+  stato: mis(1039, 30), todo: mis(500, 792) };
+console.log(JSON.stringify({
+  base: [[100, 20], [100, 300], [100, 800], [292, 300], [600, 20], [600, 880], [600, 400], [1200, 400], [1080, 400], [1086, 400]].map(([x, y]) => b(x, y)),
+  main: regione({ x: 600, y: 400 }, m)?.rettangolo,
+  largo: [[350, 300], [402, 400], [1000, 400], [900, 400]].map(([x, y]) => b(x, y, largo)),
+  nascosto: b(1200, 400, misureDaLayout({ ...lay, children: JSON.parse(JSON.stringify(lay.children).replace('"id":"pannello",', '"id":"pannello","hidden":true,')) }, parti, mis(1440, 900))),
+  benvenuto: b(690, 100, { ...m, benvenuto: mis(520, 300) }),
+  vecchie: [b(600, 400, { ...m, finestra: mis(1440, 820) }), b(600, 400, { ...m, finestra: mis(1280, 900) })],
+  assenti: b(600, 400, misureDaLayout(lay, {}, mis(1440, 900))),
+  righe: ultimeRighe("a\nb\nc\n\n  \n", 2),
+  dove: nota({ testo: "x", x: 1, y: 2, larghezza: 3, altezza: 4, progetto: "p", cartella: "/c", quando: "q",
+    dove: { blocco: "main", cwd: "/w" } }),
+}));
+"""
+
+
+def hz26(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    main = (mod / "main.js").read_text(encoding="utf-8")
+    if '"marchio", "barra", "piede", "testata", "todo", "stato", "benvenuto"' not in main \
+            or "if (!MISURATE.has(this.nome) || !el?.on_size_change) return el;" not in main \
+            or "return el.id(`misura-${this.nome}`).on_size_change(" not in main or "arturo.misura.${this.nome}" not in main:
+        return "main.js non fa riportare la misura alle parti del layout"
+    ui = (mod / "notaui.js").read_text(encoding="utf-8")
+    if "const dove = await doveNota(this.punto, this.misura);" not in ui or "quando: new Date().toISOString(), dove })" not in ui:
+        return "notaui.js non mette la parte e il terminale nella nota"
+    node = shutil.which("node")
+    if not node:
+        return None
+    copia = casa / "nota.mjs"
+    shutil.copyfile(mod / "nota.js", copia)
+    lay = (repo / "shared/volta-celeste/layouts/arturo.json").read_text(encoding="utf-8")
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_REGIONE % (json.dumps(copia.as_uri()), lay)],
+                       capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"nota.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    attese = ["marchio", "progetti", "piede", "progetti", "testata", "stato", "main", "pannello", "main", "pannello"]
+    if g["base"] != attese:
+        return f"regione() sbaglia la parte sotto il punto: {g['base']}"
+    if g["main"] != {"x": 305, "y": 66, "larghezza": 771, "altezza": 792}:
+        return f"il rettangolo della sessione non è quello dello scatto: {g['main']}"
+    if g["largo"] != ["progetti", "main", "pannello", "main"]:
+        return f"con barra e pannello allargati regione() sbaglia: {g['largo']}"
+    if g["nascosto"] != "main":
+        return "col pannello nascosto il punto a destra non va alla sessione"
+    if g["benvenuto"] != "benvenuto":
+        return "il benvenuto sopra la sessione non si riconosce"
+    if g["vecchie"] != [None, None] or g["assenti"] is not None:
+        return "con misure vecchie o assenti regione() inventa una parte"
+    if g["righe"] != "b\nc":
+        return f"ultimeRighe() tiene le righe vuote in fondo: {g['righe']!r}"
+    if g["dove"]["dati"].get("dove", {}).get("blocco") != "main" or "parte main (terminale in /w)" not in g["dove"]["argv"][8]:
+        return "nota.json e il todo non portano la parte e il terminale"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26}
 
 
 def prova(repo: Path) -> list[str]:
@@ -1008,6 +1079,11 @@ VELENI = [
      "const scorciatoie = `⌘O apri un progetto"),
     ("HZ25", "shared/volta-celeste/mods/arturo/suggerimenti.js", ".on_click(async () => { try { await esegui(sug); } finally { dopo?.(); } })",
      ".on_click(() => { dopo?.(); esegui(sug); })"),
+    ("HZ26", "shared/volta-celeste/mods/arturo/nota.js", "const mainW = testata.larghezza - 2 * pad - (pannelloW ? pannelloW + gap : 0);",
+     "const mainW = testata.larghezza - 2 * pad;"),
+    ("HZ26", "shared/volta-celeste/mods/arturo/nota.js", "if (Math.abs(marchio.altezza + barra.altezza + piede.altezza - H) > 2) return null;", ""),
+    ("HZ26", "shared/volta-celeste/mods/arturo/nota.js", "if (Math.abs(S + (m.divisore ?? 1) + testata.larghezza - W) > 2) return null;", ""),
+    ("HZ26", "shared/volta-celeste/mods/arturo/main.js", "if (!MISURATE.has(this.nome) || !el?.on_size_change) return el;", "return el;"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 

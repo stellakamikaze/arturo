@@ -4,11 +4,31 @@
 
 import { div } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { theme, props, closeOverlay, notify, setShared, spaces, writeTextFile } from "herdr";
+import { theme, props, closeOverlay, notify, setShared, shared, spaces, writeTextFile, layout, focused, panes, hc } from "herdr";
 import { todo, config } from "./dati.js";
-import { nota, progettoNota } from "./nota.js";
+import { nota, progettoNota, regione, misureDaLayout, ultimeRighe } from "./nota.js";
 
 const CAMPO = 360;
+const PARTI = ["marchio", "barra", "piede", "testata", "todo", "stato", "benvenuto"];
+
+// Su cosa è la nota: la parte della finestra sotto il punto e, se è la sessione, il terminale attivo con le
+// sue ultime 40 righe. Senza regione (misure assenti o vecchie) restano terminale e cwd.
+async function doveNota(punto, misura) {
+  const parti = Object.fromEntries(PARTI.map((x) => [x, shared(`arturo.misura.${x}`) ?? null]));
+  const r = regione(punto, misureDaLayout(layout(), parti, misura));
+  const dove = { blocco: r?.blocco ?? null, parte: r?.parte ?? null, terminale: null, titolo: null, cwd: null, testo_terminale: null };
+  if (r && r.blocco !== "main") return dove;
+  const f = focused();
+  if (!f?.terminal) return dove;
+  dove.terminale = f.terminal;
+  dove.cwd = f.cwd ?? null;
+  dove.titolo = panes().find((x) => x.terminal === f.terminal)?.title ?? null;
+  try {
+    const out = await hc(["read", f.terminal]);
+    if (out?.code === 0) dove.testo_terminale = ultimeRighe(out.stdout) || null;
+  } catch { /* la nota parte senza il testo */ }
+  return dove;
+}
 
 export class Nota {
   init(_p, cx) {
@@ -30,8 +50,9 @@ export class Nota {
       const c = await config();
       const progetto = progettoNota(c.note_progetto, s && !s.machine && s.named ? s.name : null);
       const cartella = props().cartella;
+      const dove = await doveNota(this.punto, this.misura);
       const n = nota({ testo: this.input.value(), ...this.punto, ...this.misura, progetto, cartella, schermo,
-        quando: new Date().toISOString() });
+        quando: new Date().toISOString(), dove });
       if (!n) { this.invio = false; cx.notify(); return; }
       try { await writeTextFile(`${cartella}/nota.json`, JSON.stringify(n.dati, null, 2), null); } catch { /* la nota parte lo stesso */ }
       let r = { ok: true };
