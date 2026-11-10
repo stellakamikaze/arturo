@@ -1444,6 +1444,7 @@ FORMATO_PY = r"""
 import importlib.util, json, sys
 s = importlib.util.spec_from_file_location("note_finestra", sys.argv[1])
 m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+sys.stdout.reconfigure(encoding="utf-8")  # il banco legge in UTF-8 anche su Windows (#5166)
 print(json.dumps({"tipi": m.TIPI, "predefinito": m.TIPO_PREDEFINITO, "stati": m.STATI,
                   "aperte": list(m.APERTE), "vuoto": m.VUOTO}, ensure_ascii=False))
 """
@@ -1452,7 +1453,7 @@ print(json.dumps({"tipi": m.TIPI, "predefinito": m.TIPO_PREDEFINITO, "stati": m.
 def hz32(repo: Path, casa: Path) -> str | None:
     """Il formato di nota.json vive in due copie, nota.js del mod e bin/note_finestra.py: tipi, stati, stati
     aperti e dove vuoto devono dire lo stesso. L'aiuto e la guida nominano --chi e --json dei verbi."""
-    aiuto = subprocess.run([sys.executable, str(repo / "bin/note_finestra.py"), "aiuto"],
+    aiuto = subprocess.run([sys.executable, str(repo / "bin/arturo"), "note", "aiuto"],  # il percorso vero, con l'UTF-8
                            capture_output=True, text=True, timeout=30).stdout
     guida = (repo / "docs/volta-celeste.md").read_text(encoding="utf-8")
     for dove, testo in (("l'aiuto di arturo note", aiuto), ("docs/volta-celeste.md", guida)):
@@ -1732,4 +1733,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if os.name == "nt" and not sys.flags.utf8_mode:
+        # Su Windows text=True e la console sono cp1252: il banco leggerebbe storto l'UTF-8 di node e dei mod,
+        # e 8 casi uscivano rossi per le sole accentate (#5166). -X utf8 vale solo per il banco: i figli
+        # Python partono come li lancia il prodotto, senza ereditare la modalità.
+        raise SystemExit(subprocess.run([sys.executable, "-X", "utf8", *sys.argv]).returncode)
     raise SystemExit(main())
