@@ -74,7 +74,13 @@ _PIPE = r"(?<!(?<!\\)\\)\|(?!\|)"
 # valore (`sudo -u root bash`): review del 9/11/2026, #5097. Solo gruppi non catturanti oltre a sudo: la
 # regola python conta i gruppi per il \3.
 _STADIO_VIRGOLETTE = r"(?:[^|'\"\\]|\\[\s\S]|'[^']*'|\"(?:\\[\s\S]|[^\"\\])*\")*"
-_FINO_ALLO_STADIO = (r"[^|]*(?:" + _PIPE + _STADIO_VIRGOLETTE + r")*?" + _PIPE + r"&?\s*(?:[({]\s*)?"
+# Nel gruppo dopo la pipe l'interprete può venire dopo altri comandi del gruppo, separati da `;`, `&`, `&&`,
+# `||` o dall'a capo: lo stdin del gruppo arriva anche a lui. I comandi prima si leggono con le virgolette
+# intere (#5122). Ogni testo ha un modo solo di dividersi: gli spazi stanno nel comando che segue, `&&` è un
+# separatore solo e non due `&`. Con due letture possibili il ritorno all'indietro cresce esponenziale.
+_COMANDO_GRUPPO = r"(?:[^|;&\n'\"\\]|\\[\s\S]|'[^']*'|\"(?:\\[\s\S]|[^\"\\])*\")*"
+_GRUPPO_DOPO_PIPE = r"(?:[({](?:" + _COMANDO_GRUPPO + r"(?:;|&&|&(?!&)|\|\||\n))*\s*)?"
+_FINO_ALLO_STADIO = (r"[^|]*(?:" + _PIPE + _STADIO_VIRGOLETTE + r")*?" + _PIPE + r"&?\s*" + _GRUPPO_DOPO_PIPE +
                      r"((?:sudo|doas)(?:\s+(?:-[ugChDprtTU]|--(?:user|group|host|prompt|role|type|chdir|"
                      r"other-user|close-from|command-timeout))(?:\s+|=)[^\s|;&]+|\s+-\S+)*\s+)?")
 # curl|bash e le sue varianti che eseguono uno script remoto scaricato al volo. Si giudicano su ogni
