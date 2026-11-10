@@ -335,10 +335,12 @@ async function nasciSu(macchina, prompt, progetto) {
       ...(progetto ? ["--progetto", progetto] : []), ...(prompt ? ["--", prompt] : [])];
     let esito = {};
     try {
-      const r = await exec(c.arturo[0], args, { timeout: 200000 });
+      // 6 minuti: le attese di volta_sonda.py (macchine 15 s, servizio 120 s, nascita 180 s) più un margine,
+      // così Volta non dice "non risponde" mentre la sessione sta ancora nascendo (#5214)
+      const r = await exec(c.arturo[0], args, { timeout: 360000 });
       esito = JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
     } catch {
-      esito = { errore: `${nomeMacchina(macchina)} non risponde` };
+      esito = { errore: `${nomeMacchina(macchina)} non ha risposto in 6 minuti: se la sessione è nata, la trovi fra le sessioni` };
     }
     if (esito.attach?.length) {
       const nome = progetto ?? (prompt ? pulito(prompt) : `Richiesta su ${nomeMacchina(macchina)}`);

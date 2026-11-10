@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ41: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ42: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -151,6 +151,9 @@ HZ41 il servizio di Claude prima della nascita (#5208, volta_sonda.py servizio c
      terminale di herdr-core, e uno che dopo non risponde dà errore; nasci accende il servizio prima della
      sessione e senza servizio non fa nascere niente; su questa macchina il servizio spento nasce
      staccato (una sessione sua) nella home.
+HZ42 le attese della nascita (#5214): Volta (dati.js nasciSu) aspetta più della somma dei tetti di
+     volta_sonda.py, con 30 s di margine; il servizio che non risponde si ferma al suo tetto, anche
+     dopo hc run.
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
@@ -167,7 +170,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -2418,7 +2421,52 @@ def hz41(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41}
+# HZ42 carica la sonda come modulo, con un tetto del servizio corto, e chiede il servizio a Muto: hc run
+# parte, ma il servizio non risponde mai. Stampa l'esito e i secondi passati.
+SERVIZIO_CORTO = r"""
+import importlib.util, json, sys, time
+spec = importlib.util.spec_from_file_location("volta_sonda", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+m.ATTESA_SERVIZIO = 8
+t0 = time.monotonic()
+d = m.servizio("Muto")
+print(json.dumps({"esito": d, "secondi": time.monotonic() - t0}))
+"""
+
+
+def hz42(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    sonda = mod / "volta_sonda.py"
+    import ast  # noqa: PLC0415
+    costanti = {n.targets[0].id: n.value.value for n in ast.parse(sonda.read_text(encoding="utf-8")).body
+                if isinstance(n, ast.Assign) and len(n.targets) == 1 and isinstance(n.targets[0], ast.Name)
+                and n.targets[0].id.startswith("ATTESA_") and isinstance(n.value, ast.Constant)}
+    if set(costanti) != {"ATTESA_MACCHINE", "ATTESA_SERVIZIO", "ATTESA_NASCITA"}:
+        return f"le attese della nascita in volta_sonda.py: {costanti}"
+    dati = (mod / "dati.js").read_text(encoding="utf-8")
+    corpo = dati[dati.index("async function nasciSu("):]
+    corpo = corpo[:corpo.index("\n}\n")]
+    attese = [int(x) for x in re.findall(r"timeout:\s*(\d+)", corpo)]
+    somma = sum(costanti.values())
+    # 30 s di margine: avvio dei Python, il secondo Python dopo uno che non parte, le pause del servizio
+    if len(attese) != 1 or attese[0] < (somma + 30) * 1000:
+        return f"Volta aspetta la nascita {attese} ms, ma la sonda può metterci fino a {somma} s"
+    conf = {"macchine": [{"name": "Muto", "target": "muto", "state": "connected"}],
+            "exec": {"Muto": {"python3": {}}}, "servizio": {"Muto": {"serve": "hc-run"}}}
+    finto = casa / "hc_finto.py"
+    finto.write_text(HC_FINTO, encoding="utf-8")
+    env = {**os.environ, "HZ_HC": json.dumps(conf), "VOLTA_HC": json.dumps([sys.executable, str(finto)])}
+    r = subprocess.run([sys.executable, "-c", SERVIZIO_CORTO, str(sonda)], capture_output=True, text=True, timeout=60, env=env)
+    try:
+        d = json.loads(r.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return f"servizio con il tetto corto: {(r.stderr or r.stdout).strip()[-160:]}"
+    if "in 8 s" not in d["esito"].get("errore", "") or d["secondi"] > 8:
+        return f"il servizio non si ferma al suo tetto: {d}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -2437,6 +2485,8 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ("HZ42", "shared/volta-celeste/mods/arturo/dati.js", "{ timeout: 360000 }", "{ timeout: 200000 }"),
+    ("HZ42", "shared/volta-celeste/mods/arturo/volta_sonda.py", "            t = min(90, int(entro - time.monotonic()))", "            t = 90"),
     ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", "if acceso():\n    esci(acceso=True, come=\"già acceso\")", "if False:\n    pass"),
     ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    s = servizio(nome)\n", "    s = {}\n"),
     ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", '"--name", "servizio-claude", "--no-parent", "--rm",', '"--name", "servizio-claude", "--rm",'),

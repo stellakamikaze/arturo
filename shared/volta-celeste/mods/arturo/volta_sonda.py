@@ -208,6 +208,13 @@ for _ in range(40):
 esci(errore="il servizio di Claude non si accende (%s)" % come)
 '''
 
+# Le attese di una nascita (#5214): ogni fase ha il suo tetto, e dati.js (nasciSu) aspetta la somma più
+# un margine. Il servizio si ferma al suo tetto prima di far nascere la sessione, così una nascita già
+# partita non si taglia a metà: tagliata, nascerebbe lo stesso mentre Volta dice "non risponde".
+ATTESA_MACCHINE = 15
+ATTESA_SERVIZIO = 120
+ATTESA_NASCITA = 180
+
 LAVORA = {"busy", "working", "running", "starting"}
 ASPETTA = {"waiting", "blocked"}
 SSH_WIN = r"C:\Windows\System32\OpenSSH\ssh.exe"
@@ -255,7 +262,7 @@ def nome_qui():
 def macchine():
     """Le macchine di Herdr: [{nome, target, stato, perche}]. Senza hc o senza macchine: []."""
     try:
-        rc, out, _ = lancia(hc() + ["machine", "ls", "--json"], timeout=15)
+        rc, out, _ = lancia(hc() + ["machine", "ls", "--json"], timeout=ATTESA_MACCHINE)
         voci = json.loads(out).get("machines", []) if rc == 0 else []
     except (OSError, ValueError, subprocess.SubprocessError, AttributeError):
         return []
@@ -413,18 +420,23 @@ def servizio(nome):
     Su un'altra macchina gira con hc exec, python3 e poi python. Se la macchina risponde "hc-run"
     (Windows senza l'attività di servizio-claude.ps1), il servizio nasce in un terminale di herdr-core
     con hc run: vive nella sessione grafica e non muore con chi lo chiede. Mai da ssh.
-    Torna {"come"} oppure {"errore"}."""
+    Tutto entro ATTESA_SERVIZIO secondi (#5214). Torna {"come"} oppure {"errore"}."""
     codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(SERVIZIO.encode()).decode()
+    entro = time.monotonic() + ATTESA_SERVIZIO
     if nome in (None, "", "qui"):
-        tentativi = [[sys.executable, "-c", codice, "qui"]]
+        tentativi = [lambda t: [sys.executable, "-c", codice, "qui"]]
     else:
-        tentativi = [hc() + ["exec", "--on", nome, py, "-c", codice, "remoto"] for py in ("python3", "python")]
+        tentativi = [lambda t, py=py: hc() + ["exec", "--on", nome, "--timeout", str(t), py, "-c", codice, "remoto"]
+                     for py in ("python3", "python")]
 
     def chiedi():
         ultimo = "nessun Python"
         for argv in tentativi:
+            t = min(90, int(entro - time.monotonic()))
+            if t < 5:
+                return {"errore": "nessuna risposta in %d s" % ATTESA_SERVIZIO}
             try:
-                rc, out, err = lancia(argv, timeout=90)
+                rc, out, err = lancia(argv(t), timeout=t + 5)
             except (OSError, subprocess.SubprocessError) as e:
                 return {"errore": str(e)[:160]}
             if rc != 0 and (non_parte(out, err) or rc == 9009):
@@ -440,7 +452,8 @@ def servizio(nome):
     if d.get("serve") == "hc-run":
         try:
             rc, out, err = lancia(hc() + ["run", "--on", nome, "--name", "servizio-claude", "--no-parent", "--rm",
-                                          "--bg", "claude", "daemon", "run"], timeout=60)
+                                          "--bg", "claude", "daemon", "run"],
+                                  timeout=max(5, min(60, int(entro - time.monotonic()))))
         except (OSError, subprocess.SubprocessError) as e:
             return {"errore": "hc run non risponde: %s" % str(e)[:160]}
         if rc != 0:
@@ -479,7 +492,8 @@ def nasci(nome, prompt="", progetto=None):
             return {"errore": "%s non risponde: %s" % (nome, (m["perche"] or "Herdr non la raggiunge")[:160])}
         voce = {"questa": False, "target": m["target"]}
         codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(NASCI.encode()).decode()
-        tentativi = [hc() + ["exec", "--on", nome, "--timeout", "150", py, "-c", codice, arg] for py in ("python3", "python")]
+        tentativi = [hc() + ["exec", "--on", nome, "--timeout", str(ATTESA_NASCITA - 30), py, "-c", codice, arg]
+                     for py in ("python3", "python")]
     # prima il servizio, acceso dove sopravvive: un claude --bg senza servizio lo farebbe nascere a
     # tempo dentro hc exec, e la sessione morirebbe con lui (#5208)
     s = servizio(nome)
@@ -488,7 +502,7 @@ def nasci(nome, prompt="", progetto=None):
     ultimo = "nessun Python"
     for argv in tentativi:
         try:
-            rc, out, err = lancia(argv, timeout=180)
+            rc, out, err = lancia(argv, timeout=ATTESA_NASCITA)
         except (OSError, subprocess.SubprocessError) as e:
             return {"errore": "%s non risponde: %s" % (nome or "questa macchina", str(e)[:160])}
         # hc dice spawn_failed (anche lui in JSON) se il programma non c'è: prima di leggere la risposta
