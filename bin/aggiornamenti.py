@@ -31,8 +31,10 @@ allarme: "firma non verificabile", uscita 4 di firmato. ARTURO_AGGIORNAMENTI=man
 ha lo stesso effetto di "manuali". Solo libreria standard, Python 3.8 o successivo.
 
 Col plugin (strati F3, 5/11/2026) il codice sta nella cache di Claude Code e non c'è git: stato e
-controlla dicono soltanto se c'è un rilascio nuovo, applica non fa niente, e l'aggiornamento passa da
-`plugin`, che /aggiorna lancia. Claude
+controlla dicono se c'è un rilascio nuovo, e l'aggiornamento passa da `plugin`, che /aggiorna lancia.
+Dal 10/11/2026 anche `applica`, alla chiusura della sessione, passa da lì: stesse verifiche, stesso
+lucchetto, nessun rinvio (Claude Code tiene la copia di prima per le sessioni rimaste aperte), e l'avvio
+dopo ne dice l'esito. Con "manuali" resta solo l'avviso. Claude
 Code installa lo sha scritto nel catalogo anche se nessun tag firmato lo indica (prova del 5/11/2026):
 per questo il tag si verifica qui, prima, con la chiave dell'ancora nell'Orsa (hooks/fiducia.py). Se il plugin
 arriva da un'altra strada (claude plugin update, il pannello /plugin), stato e il "GIÀ AGGIORNATO" di plugin

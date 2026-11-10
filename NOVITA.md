@@ -36,6 +36,22 @@ che vedi e puoi ritirare.
 
 ---
 
+## 2026-11-10 — Col plugin Arturo torna ad aggiornarsi da solo
+
+**Cosa cambia**: da quando Arturo si installa come plugin di Claude Code, una versione nuova arrivava solo
+scrivendo `/aggiorna`. Ora si installa da sola quando chiudi la sessione, come succedeva prima del plugin. La
+barra in basso dice "si installa alla chiusura", e l'avvio dopo ti dice com'è andata. Le sessioni rimaste
+aperte continuano con la versione di prima fino alla loro riapertura. Questa versione va ancora presa con
+`/aggiorna`: è lei che porta la novità, quelle dopo arrivano da sole.
+
+**Il principio**: si installa da solo solo ciò che è verificato. La chiusura fa gli stessi controlli di
+`/aggiorna`: il rilascio deve avere la firma di chi mantiene Arturo, e i file devono tornare col loro elenco
+firmato. Se la firma non torna, niente si installa e l'avvio lo dice.
+
+**Se preferisci decidere tu**: `arturo aggiornamenti manuali` lascia solo l'avviso, e aggiorni con `/aggiorna`.
+
+---
+
 ## 2026-11-10 — /diagnosi torna a controllare la config sul Mac
 
 **Cosa cambia**: sul Mac il controllo della configurazione di `/diagnosi` si fermava subito con un errore di
