@@ -4,7 +4,13 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 # Una sessione di Claude col plugin esporta ARTURO_CODICE in ogni comando: i banchi lo erediterebbero e
 # crederebbero di girare col plugin anche nelle installazioni a clone (10/11/2026). Chi lo vuole lo mette lui.
-unset ARTURO_CODICE CLAUDE_PLUGIN_ROOT
+# Esce anche la sua cartella bin dal PATH: un banco che chiama `arturo` per nome (hooks/inject-now.sh, i
+# comandi) proverebbe il codice del plugin installato, non questo repository (#5206).
+if [[ -n "${ARTURO_CODICE:-}" ]]; then
+  PATH=$(printf '%s' "$PATH" | tr ':' '\n' | { grep -vxF -e "${ARTURO_CODICE%/}/bin" -e "${ARTURO_CODICE%/}/bin/" || true; } | paste -sd: -)
+  export PATH
+fi
+unset ARTURO_CODICE CLAUDE_PLUGIN_ROOT CLAUDE_ENV_FILE
 # --rossi rifà solo i lavori rossi dell'ultimo giro (tests/esegui_gate.py); --toccati fa girare solo i
 # lavori con una fonte fra i file cambiati. Servono a chi corregge, e stampano PARZIALE perché un
 # rilascio vuole un giro completo verde (docs/manutenzione.md). Le controprove con banco, fonti e base

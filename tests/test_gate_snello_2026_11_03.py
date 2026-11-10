@@ -14,11 +14,13 @@ GS08 --toccati fa girare solo i lavori con una fonte fra i file cambiati e stamp
 GS09 --elenchi (il gate vero): un test_*.py in tests/ fuori dagli elenchi, un banco con --avvelena fuori da
      VELENI e un nome in lista senza file fanno rosso col nome; con gli elenchi completi esce 0 (review del
      7/11/2026, finding 94).
+GS10 un banco non eredita ARTURO_CODICE né la cartella bin del codice nel PATH dalla sessione che lancia il
+     gate: con Arturo installato come plugin /inizio nella HOME finta si credeva un plugin (10/11/2026, #5206).
 
 Ogni caso gira su un repository finto con banchi finti, così misura l'esecutore e non i banchi veri.
 Con --avvelena girano tre esecutori rotti. Uno ignora il codice d'uscita dei lavori: GS01 e GS04 devono
 essere rossi. Uno salta sempre le controprove: rossi GS05, GS06 e GS07. Uno non le salta mai: rosso GS05.
-Uno non confronta gli elenchi: rosso GS09.
+Uno non confronta gli elenchi: rosso GS09. Uno passa ai banchi l'ambiente intero: rosso GS10.
 
 Sulla base 177852f ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -49,6 +51,10 @@ BANCHI = {
         "{'home': str(home), 'tmp': os.environ['TMPDIR'], 'altri': altri}))\n"),
 }
 BANCHI["casa2.py"] = BANCHI["casa.py"]
+BANCHI["ambiente.py"] = (
+    "import json, os\nfrom pathlib import Path\n"
+    "Path(os.environ['GS_OUT'], 'ambiente.json').write_text(json.dumps("
+    "{'codice': os.environ.get('ARTURO_CODICE'), 'path': os.environ.get('PATH', '')}))\n")
 BANCHI["aiuto.py"] = "VALORE = 1\n"
 BANCHI["usa_aiuto.py"] = "import aiuto\nprint('PASS', aiuto.VALORE)\n"
 SALTO = "        if not rilascio and x.impronta and impronte.get(x.id) == x.impronta:\n"
@@ -57,6 +63,7 @@ VELENI = (
     (("GS05", "GS06", "GS07"), SALTO, "        if True:\n"),
     (("GS05",), SALTO, "        if False:\n"),
     (("GS09",), "    incompleti = elenchi_incompleti(root, a) if a.elenchi", "    incompleti = [] if a.elenchi"),
+    (("GS10",), "        return dict(ambiente_pulito(), HOME=", "        return dict(os.environ, HOME="),
 )
 
 
@@ -232,8 +239,22 @@ def test_gs09(esecutore: Path) -> None:
             f"GS09 elenchi completi danno rosso: rc {tutto.returncode}, {tutto.stdout[-300:]!r}"
 
 
+def test_gs10(esecutore: Path) -> None:
+    with tempfile.TemporaryDirectory() as t:
+        lab = Lab(Path(t), esecutore)
+        uscite = Path(t) / "uscite"
+        uscite.mkdir()
+        codice = str(Path(t) / "plugin" / "arturo")
+        r = lab.esegui("--banchi", "ambiente.py", env={"GS_OUT": str(uscite), "ARTURO_CODICE": codice,
+                                                       "PATH": os.pathsep.join([codice + "/bin", os.environ["PATH"]])})
+        assert r.returncode == 0, f"GS10 l'esecutore esce {r.returncode}: {(r.stdout + r.stderr)[-400:]}"
+        visto = json.loads((uscite / "ambiente.json").read_text(encoding="utf-8"))
+        assert visto["codice"] is None and codice + "/bin" not in visto["path"].split(os.pathsep), \
+            f"GS10 il banco eredita ARTURO_CODICE o la sua cartella bin dalla sessione che lancia il gate: {visto}"
+
+
 TESTS = {"GS01": test_gs01, "GS02": test_gs02, "GS03": test_gs03, "GS04": test_gs04, "GS05": test_gs05,
-         "GS06": test_gs06, "GS07": test_gs07, "GS08": test_gs08, "GS09": test_gs09}
+         "GS06": test_gs06, "GS07": test_gs07, "GS08": test_gs08, "GS09": test_gs09, "GS10": test_gs10}
 
 
 def avvelena(repo: Path) -> None:
