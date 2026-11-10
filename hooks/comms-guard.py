@@ -13,12 +13,23 @@ Lettura JSON da stdin (Claude Code PreToolUse payload).
 - stdout JSON permissionDecision=ask = la persona conferma il comando reale
 - fail-open su qualsiasi errore di parsing
 """
+import importlib.util
 import json
 import os
 import re
 import shlex
 import sys
 import signal
+
+# I comandi semplici li legge forma_comando.py, il lettore unico delle guardie: non spezza dentro le
+# virgolette né dentro `2>&1` (#5122). Se manca, resta lo split di prima, come in comms-prefilter.
+try:
+    _spec_fc = importlib.util.spec_from_file_location(
+        "forma_comando", os.path.join(os.path.dirname(os.path.abspath(__file__)), "forma_comando.py"))
+    _fc = importlib.util.module_from_spec(_spec_fc)
+    _spec_fc.loader.exec_module(_fc)
+except Exception:
+    _fc = None
 
 
 def _stdin_timeout(signum, frame):
@@ -122,8 +133,17 @@ def _senza_help(command: str) -> str:
     """Il comando senza i segmenti `gws … --help` e `gh … --help` (31/10/2026): chiedono l'aiuto, non
     inviano. Vale solo la forma lunga, come parola a sé e non come valore di un'opzione
     (`--subject --help` manda una mail con oggetto "--help"). mail, mailx, sendmail e msmtp no."""
-    parti = re.split(r"([|;&\n]+)", command)
-    for i, seg in enumerate(parti):
+    if _fc is not None:
+        tratti = _fc.comandi_semplici(command, posizioni=True)
+    else:
+        tratti, inizio = [], 0
+        for m in re.finditer(r"[|;&\n]+", command):
+            tratti.append((inizio, m.start()))
+            inizio = m.end()
+        tratti.append((inizio, len(command)))
+    via = []
+    for a, b in tratti:
+        seg = command[a:b]
         if _SOSTITUZIONE.search(seg):
             continue
         try:
@@ -135,9 +155,11 @@ def _senza_help(command: str) -> str:
         for k, parola in enumerate(parole[1:], start=1):
             prima = parole[k - 1]
             if parola == "--help" and not (prima.startswith("-") and "=" not in prima):
-                parti[i] = " "
+                via.append((a, b))
                 break
-    return "".join(parti)
+    for a, b in reversed(via):
+        command = command[:a] + " " + command[b:]
+    return command
 
 
 _SMTP_URL = r"\bsmtps?://"
@@ -162,7 +184,8 @@ def _smtp_invia(command: str) -> bool:
     """smtp:// conta come invio solo se un segmento lo usa per spedire. Non spedisce un curl senza
     destinatario né corpo (`curl smtp://host:587 -X NOOP` prova l'accesso), né un grep che cerca
     la stringa (21/10/2026: due falsi allarmi in una mattina)."""
-    for seg in re.split(r"[|;&\n]", command.replace("\\\n", " ")):
+    testo = command.replace("\\\n", " ")
+    for seg in (_fc.comandi_semplici(testo) if _fc is not None else re.split(r"[|;&\n]", testo)):
         if not re.search(_SMTP_URL, seg, re.IGNORECASE):
             continue
         if re.search(r"\bcurl\b", seg) and not _SMTP_CURL_INVIO.search(seg) and not _opzioni_nascoste(seg):

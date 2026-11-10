@@ -337,14 +337,15 @@ def _lettura_indiretta(cmd):
     def segreto(s):
         return SECRET_PATH_RE.search(s) or _SECRET_DIR_RE.search(s)
 
-    testo = re.sub(r"\d*>&\d+|&>", " ", cmd)
-    for stmt in re.split(r"\|\||&&|[;&\n]", testo):
-        stadi = stmt.split("|")
+    # Istruzioni e stadi dal lettore unico, che non spezza dentro le virgolette né dentro `2>&1` (#5122).
+    for stmt in _fc.istruzioni(cmd):
+        stadi = _fc.comandi_semplici(stmt)
         for k, stadio in enumerate(stadi):
             if not segreto(stadio):
                 continue
             for dopo in stadi[k + 1:]:
-                toks = [os.path.basename(t) for t in dopo.split()]
+                # `>&2 xargs cat`: la redirezione in testa non è il programma.
+                toks = [os.path.basename(t) for t in re.sub(r"\d*>&\d+|&>", " ", dopo).split()]
                 if not toks:
                     continue
                 if toks[0] in ("xargs", "parallel") and any(t in _READ_BINS or t in _SHELLS for t in toks[1:]):
@@ -1665,6 +1666,21 @@ def _codice_powershell(args):
     return " ".join(a for a in args if not a.startswith("-"))
 
 
+def _istruzioni_powershell(codice):
+    """Le istruzioni del codice PowerShell, ognuna come lista dei suoi stadi in pipe. Spezza con le regole
+    di PowerShell: `;`, `|`, `&&` e `||` fra virgolette restano testo (#5122)."""
+    istruzioni, stadi, inizio = [], [], 0
+    for a, b, tipo in _fc._separatori(codice, lingua="powershell"):
+        stadi.append(codice[inizio:a])
+        if tipo != "|":
+            istruzioni.append(stadi)
+            stadi = []
+        inizio = b
+    stadi.append(codice[inizio:])
+    istruzioni.append(stadi)
+    return istruzioni
+
+
 def _powershell_rimuove(args):
     """I bersagli di ogni Remove-Item ricorsivo nel codice di `powershell -Command`: una lista per
     istruzione, None se arrivano da una pipe o non si leggono."""
@@ -1672,8 +1688,7 @@ def _powershell_rimuove(args):
     if codice is None:
         return []
     out = []
-    for istruzione in re.split(r"[;\n]", codice):
-        stadi = istruzione.split("|")
+    for stadi in _istruzioni_powershell(codice):
         for k, stadio in enumerate(stadi):
             parole = [p.strip("'\"") for p in re.findall(r"'[^']*'|\"[^\"]*\"|\S+", stadio)]
             if parole and parole[0].lower() in _PS_RIMUOVE and any(_PS_RICORSIVO.match(p) for p in parole[1:]):
