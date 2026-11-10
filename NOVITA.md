@@ -17,10 +17,11 @@ modo di lavorare.
 
 **Cosa cambia**: nel registro per categorie di `arturo web`, col computer in tema scuro, i nomi dei
 progetti e il filetto sotto ogni categoria restavano quasi neri sul fondo scuro. Ora sono chiari e si
-leggono come il resto della pagina. Il tema chiaro non cambia.
+leggono come il resto della pagina. Nel tema chiaro cambia solo lo zero delle colonne dei conti: era un
+grigio troppo chiaro per leggersi bene, ora ha il grigio delle note.
 
 **Il principio**: ogni colore del testo ha un valore per tutti e due i temi, e il banco della pagina misura
-il contrasto in entrambi.
+il contrasto in entrambi, anche sui pulsanti pieni e sulla barra in fondo.
 
 **Da sapere**: riguarda chi ha molti progetti divisi in categorie, cioè la vista a tabella.
 

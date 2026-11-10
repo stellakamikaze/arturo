@@ -12,7 +12,8 @@ terminale resta zitto. W08 un numero che indica un altro todo dà 409 e non scri
 Annulla rimette lo stato di prima, anche dopo "Ho deciso", e non cancella niente. W10 un
 titolo ostile resta testo, e la pagina non usa la rete esterna. W11 solo i file statici
 previsti. W12 si spegne da sola dopo il tempo di inattività e dal bottone, mai senza chiave.
-W13 accessibilità statica, Regola della Stella, nomi di "chi" uguali allo store, pannello che
+W13 accessibilità statica, contrasto dei colori del testo nei due temi (almeno 4,5:1 su tela e carta,
+sui pulsanti pieni e sulla barra, e --nebbia mai come testo), Regola della Stella, nomi di "chi" uguali allo store, pannello che
 tiene i campi e si chiude con il suo todo (nel browser se Chrome c'è, sul sorgente sempre).
 W14 pagina e CLI scrivono insieme senza id doppi. W15 aiuto, skill, README e NOVITA raccontano
 la pagina. W16 il tavolo dei progetti: da_dove nella vista e niente percorso, /api/todo
@@ -641,10 +642,27 @@ def test_w13(repo: Path) -> None:
 
     # Contrasto nei due temi: i colori del testo leggono almeno 4,5:1 su tela e carta. Un token
     # senza valore scuro (l'inchiostro fino al 10/11/2026, #4919) resta quasi nero sul fondo scuro.
-    chiaro = dict(re.findall(r"(--[\w-]+)\s*:\s*(#[0-9a-fA-F]{6})", css.split("@media (prefers-color-scheme: dark)")[0]))
+    # I token che rimandano a un altro (--pieno-fondo:var(--notte)) si risolvono prima della misura.
+    def token(blocco: str) -> dict[str, str]:
+        return dict(re.findall(r"(--[\w-]+)\s*:\s*(#[0-9a-fA-F]{6}|var\(--[\w-]+\))", blocco))
+
+    def risolvi(tok: dict[str, str]) -> dict[str, str]:
+        fuori = {}
+        for nome, valore in tok.items():
+            for _ in range(5):
+                rimando = re.fullmatch(r"var\((--[\w-]+)\)", valore)
+                if not rimando:
+                    break
+                valore = tok.get(rimando.group(1), "")
+            if re.fullmatch(r"#[0-9a-fA-F]{6}", valore):
+                fuori[nome] = valore
+        return fuori
+
+    radice_chiara = token(css.split("@media (prefers-color-scheme: dark)")[0])
     blocco_scuro = re.search(r"@media \(prefers-color-scheme: dark\)\s*\{\s*:root\s*\{([^}]*)\}", css)
     assert blocco_scuro, "W13 stile.css senza :root del tema scuro"
-    scuro = {**chiaro, **dict(re.findall(r"(--[\w-]+)\s*:\s*(#[0-9a-fA-F]{6})", blocco_scuro.group(1)))}
+    chiaro = risolvi(radice_chiara)
+    scuro = risolvi({**radice_chiara, **token(blocco_scuro.group(1))})
 
     def luce(esa: str) -> float:
         canali = [int(esa[i:i + 2], 16) / 255 for i in (1, 3, 5)]
@@ -660,6 +678,15 @@ def test_w13(repo: Path) -> None:
             for fondo in ("--tela", "--carta"):
                 r = contrasto(tok[testo], tok[fondo])
                 assert r >= 4.5, f"W13 tema {tema}: {testo} su {fondo} a {r:.1f}:1, sotto 4,5:1"
+        # I pulsanti pieni (anche sotto il mouse) e la barra dell'ultima azione hanno un fondo loro.
+        for testo, fondo in (("--pieno-testo", "--pieno-fondo"), ("--pieno-testo", "--pieno-sopra"),
+                             ("--barra-testo", "--barra-fondo")):
+            assert testo in tok and fondo in tok, f"W13 tema {tema}: {testo} o {fondo} senza un colore misurabile"
+            r = contrasto(tok[testo], tok[fondo])
+            assert r >= 4.5, f"W13 tema {tema}: {testo} su {fondo} a {r:.1f}:1, sotto 4,5:1"
+    # --nebbia è per filetti e bordi (circa 2:1 sul fondo chiaro): mai per un testo, nemmeno lo zero.
+    testo_nebbia = re.findall(r"[;{]\s*color\s*:\s*var\(--nebbia\)", css)
+    assert not testo_nebbia, f"W13 un testo usa --nebbia, che non arriva a 4,5:1: {testo_nebbia}"
 
     # La Regola della Stella: l'arancio solo nel marchio e nelle regole .stella / .marchio.
     stella = "#f2a24a"
