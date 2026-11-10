@@ -7,7 +7,7 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, exec, readTextFile, appHome, home, shared, setShared, watchFolder, notify } from "herdr";
+import { theme, exec, readTextFile, home, shared, setShared, watchFolder, notify } from "herdr";
 import { gruppi, titolo, dettaglio, clic, MODI } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
 import { config, aggancia } from "./dati.js";
@@ -18,13 +18,10 @@ async function esiste(p) {
   try { return (await readTextFile(p)) ? p : null; } catch { return null; }
 }
 
-// Lo script dell'elenco: "volta" in arturo.json, altrimenti volta_sonda.py del mod (per tutti).
+// Lo script dell'elenco: volta_sonda.py come lo dice config() di dati.js, se c'è.
 // Quello che sposta le sessioni del Terminale: teletrasporto.py della config, se c'è.
-async function script() {
-  let c = {};
-  try { c = JSON.parse((await readTextFile(`${appHome()}/arturo.json`)) ?? "{}"); } catch { c = {}; }
-  const elenco = typeof c.volta === "string" && c.volta ? c.volta : `${appHome()}/mods/arturo/volta_sonda.py`;
-  return { elenco: await esiste(elenco), sposta: await esiste(`${home()}/.claude/scripts/teletrasporto.py`) };
+async function script(c) {
+  return { elenco: await esiste(c.volta), sposta: await esiste(`${home()}/.claude/scripts/teletrasporto.py`) };
 }
 
 export class Volta {
@@ -39,8 +36,9 @@ export class Volta {
     this.py = "python3";
     cx.spawn(async (cx) => {
       // Il Python che installa-herdr.sh ha trovato e scritto in arturo.json: su Windows può essere "python".
-      this.py = (await config()).arturo[0];
-      const sc = await script();
+      const c = await config();
+      this.py = c.arturo[0];
+      const sc = await script(c);
       this.script = sc.elenco;
       this.sposta = sc.sposta;
       if (!this.script) return cx.notify();
@@ -99,7 +97,7 @@ export class Volta {
     if (this.sposto[s.sessionId]) return;
     const d = clic(s);
     if (d.azione === "no") return this.avvisa(s, d.motivo, cx);
-    if (d.azione === "aggancia") return this.apri(s, d.argv);
+    if (d.azione === "aggancia") return aggancia(s, d.argv);
     // senza teletrasporto.py nessuno sa scrivere /bg nel Terminale di quella sessione
     if (!this.sposta) return this.avvisa(s, "È aperta in un Terminale: aprila da lì.", cx);
     this.sposto[s.sessionId] = true;
@@ -114,7 +112,7 @@ export class Volta {
       }
       delete this.sposto[s.sessionId];
       if (esito?.attach?.length) {
-        this.apri({ ...s, id: esito.id ?? s.id }, esito.attach);
+        aggancia({ ...s, id: esito.id ?? s.id }, esito.attach);
         this.aggiorna(cx);
       } else this.avvisa(s, `Non la sposto: ${esito?.errore ?? "risposta vuota"}.`, cx);
       cx.notify();
@@ -127,11 +125,6 @@ export class Volta {
     // ancora scritto nell'elenco: si dice, invece di non fare niente (#5078).
     if (s) this.premi(s, cx);
     else notify({ title: `Non trovo la sessione ${id}`, body: "L'elenco si aggiorna fra pochi secondi: riprova.", level: "warning" });
-  }
-
-  // La scheda dell'aggancio: aggancia() di dati.js, la stessa della nascita su un'altra macchina.
-  apri(s, argv) {
-    aggancia(s, argv);
   }
 
   riga(t, s, modo, cx) {

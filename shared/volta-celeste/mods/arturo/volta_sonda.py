@@ -99,8 +99,10 @@ if not os.path.exists(cl):
     esci(errore="Claude Code non c'è su questa macchina")
 casa = os.path.expanduser("~")
 base = casa
+# la cartella di Herdr come la cerca installa-herdr.sh: HERDR_APP_HOME, altrimenti ~/.config/herdr-app
+app = os.environ.get("HERDR_APP_HOME") or os.path.join(casa, ".config", "herdr-app")
 try:
-    with open(os.path.join(casa, ".config", "herdr-app", "arturo.json"), encoding="utf-8") as fh:
+    with open(os.path.join(app, "arturo.json"), encoding="utf-8") as fh:
         base = json.load(fh).get("base") or casa
 except (OSError, ValueError, AttributeError):
     pass

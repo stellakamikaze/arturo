@@ -6,7 +6,7 @@ import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, layout, shared, setShared, watchFolder, notify, home } from "herdr";
 import { frase, nuova, slug, config, SUGGERIMENTI } from "./dati.js";
-import { ICONA, punto, pulsante, colore, apriFinestra, apriElenco, tasti } from "./comuni.js";
+import { ICONA, punto, pulsante, colore, apriFinestra, apriElenco, tasti, nasceSu } from "./comuni.js";
 import { leggiTutte } from "./notaui.js";
 import { cartellaNote, progettoNota, contaNote, noteAperte, risposteClaude, risposteNuove } from "./nota.js";
 
@@ -158,6 +158,8 @@ export class Benvenuto {
         .children(scelti.map((s, i) => div().flex_1().min_w(200).child(voce(t, s, i === 0)))))
       .child(h_flex().flex_wrap().gap(10).items_center()
         .child(pulsante("b-nuova", "square-pen", "Nuova richiesta", () => nuova(), !haProgetti ? false : true))
-        .child(div().text_size(12.5).text_color(t.dim).child("Altre richieste in Cosa posso chiedere, in alto")));
+        .child(div().text_size(12.5).text_color(t.dim).child("Altre richieste in Cosa posso chiedere, in alto")))
+      // la stessa scelta della barra: qui Nuova richiesta la segue, quindi si vede anche qui
+      .when(Boolean(nasceSu(t)), (el) => el.child(nasceSu(t)));
   }
 }

@@ -22,6 +22,9 @@ export async function config() {
     base: typeof c.base === "string" && c.base ? c.base : `${home()}/Documents/ClaudeCode`,
     // Il progetto delle note sulla finestra (⌘⇧N); senza, va al progetto aperto.
     note_progetto: typeof c.note_progetto === "string" && c.note_progetto ? c.note_progetto : null,
+    // volta_sonda.py: "volta" in arturo.json (una copia di prova), altrimenti quello del mod. L'unico
+    // punto che lo dice: lo usano l'elenco di Volta (volta.js) e la nascita su un'altra macchina.
+    volta: typeof c.volta === "string" && c.volta ? c.volta : `${appHome()}/mods/arturo/volta_sonda.py`,
   };
 }
 
@@ -169,8 +172,21 @@ export function sezioni(lista) {
   return out;
 }
 
-// Apre il progetto: lo spazio se c'è, altrimenti una sessione nuova che parte da /inizio.
-// `todoScelto` ({id, titolo}) porta Claude direttamente su quel todo.
+// La scheda di uno spazio che aggancia una sessione con claude attach (qui o via ssh): Herdr non la vede
+// come un agente, perché nella scheda gira ssh o attach e non claude. { terminal, tab } oppure null.
+export function schedaAgganciata(s) {
+  const tabs = new Set((s?.tabs ?? []).map((tb) => tb.id));
+  for (const p of panes()) {
+    if (!tabs.has(p.tab)) continue;
+    const t = terminals().find((x) => x.address === p.terminal);
+    if (Array.isArray(t?.argv) && t.argv.includes("attach")) return { terminal: t.address, tab: p.tab };
+  }
+  return null;
+}
+
+// Apre il progetto: lo spazio se c'è, altrimenti una sessione nuova che parte da /inizio, sulla macchina
+// di "Nasce su" (il clic nella barra, Lavoraci, Fai il punto e la finestra Apri: la riga sta sotto Apri
+// un progetto). `todoScelto` ({id, titolo}) porta Claude direttamente su quel todo.
 export async function apri(nome, todoScelto) {
   const c = await config();
   nome = slug(nome);
@@ -178,10 +194,20 @@ export async function apri(nome, todoScelto) {
   if (s) {
     run("space.select", { id: s.id });
     if (!todoScelto) return;
+    const testo = `Lavoriamo sul todo #${todoScelto.id}: ${todoScelto.titolo}`;
     const a = agents().find((x) => x.space === s.id);
+    // Uno spazio nato su un'altra macchina: si scrive nella scheda che la aggancia. hc send non scrive
+    // se il programma aspetta una risposta, e così non risponde al posto della persona.
+    const g = a ? null : schedaAgganciata(s);
+    if (g) {
+      run("tab.select", { id: g.tab });
+      const r = await hc(["send", g.terminal, testo]);
+      if (r.code !== 0) notify({ title: "Non sono riuscito a scrivere a Claude", body: prima(r.stderr) || "Se Claude aspetta una tua risposta, rispondi nella sessione e riprova.", level: "warning" });
+      return;
+    }
     if (!a) return notify({ title: "La sessione di questo progetto è chiusa", body: "Chiudi lo spazio e riaprilo dalla barra.", level: "warning" });
     if (a.status === "blocked") return notify({ title: "Claude aspetta una tua risposta", body: "Rispondi nella sessione, poi riprova.", level: "warning" });
-    const r = await hc(["send", a.address, `Lavoriamo sul todo #${todoScelto.id}: ${todoScelto.titolo}`]);
+    const r = await hc(["send", a.address, testo]);
     if (r.code !== 0) notify({ title: "Non sono riuscito a scrivere a Claude", body: prima(r.stderr), level: "error" });
     return;
   }
@@ -192,7 +218,8 @@ export async function apri(nome, todoScelto) {
 }
 
 // Una richiesta nuova, senza progetto: Claude nella cartella dei progetti, sulla macchina scelta in
-// "Nasce su". `soloQui`: i suggerimenti che parlano di questa macchina (trova, diagnosi) restano qui.
+// "Nasce su". `soloQui`: le richieste di "Cosa posso chiedere" restano su questa macchina, perché
+// parlano dei suoi progetti, dei suoi todo e della sua configurazione (chiedi()).
 export async function nuova(prompt, soloQui = false) {
   const m = soloQui ? "qui" : dove();
   if (m !== "qui") return nasciSu(m, prompt, null);
@@ -217,7 +244,8 @@ export const SUGGERIMENTI = [
   { id: "diagnosi", titolo: "Controlla che Arturo funzioni", testo: "Claude prova la configurazione e ti dice se c'è qualcosa da sistemare.", prompt: "/diagnosi", dove: "nuova" },
 ];
 
-// Esegue un suggerimento: nella conversazione aperta se c'è e non aspetta una risposta, altrimenti in una nuova.
+// Esegue un suggerimento: nella conversazione aperta se c'è e non aspetta una risposta, altrimenti in una
+// nuova su questa macchina, qualunque sia "Nasce su": tutti parlano di questa macchina (nuova()).
 export async function chiedi(sug) {
   const prompt = richiesta(sug.prompt, (await config()).radice);
   if (sug.dove === "nuova") return nuova(prompt, true);
@@ -275,7 +303,7 @@ async function nasciSu(macchina, prompt, progetto) {
   setShared("arturo.nascita", macchina);
   try {
     const c = await config();
-    const args = [`${appHome()}/mods/arturo/volta_sonda.py`, "nasci", macchina,
+    const args = [c.volta, "nasci", macchina,
       ...(progetto ? ["--progetto", progetto] : []), ...(prompt ? ["--", prompt] : [])];
     let esito = {};
     try {
