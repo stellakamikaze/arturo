@@ -1810,8 +1810,8 @@ def _rm_segments(command):
         if nome.startswith("$") and re.search(r"(?:^|[\s'\"=;&|(])(?:rm|unlink|shred)(?:[\s'\";&|)]|$)", command):
             out.append((None, cwd_decl))  # `RM='rm -rf'; $RM x`: il programma è una variabile (finding 2)
             continue
-        if nome == "xargs" and "rm" in [os.path.basename(a) for a in args]:
-            dopo = args[[os.path.basename(a) for a in args].index("rm") + 1:]
+        if nome == "xargs" and "rm" in [forma._nome(a) for a in args]:
+            dopo = args[[forma._nome(a) for a in args].index("rm") + 1:]
             if forma._ricorsivo(dopo):
                 out.append((None, cwd_decl))
             continue

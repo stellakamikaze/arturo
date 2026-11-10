@@ -1,6 +1,6 @@
 # La strada di Arturo
 
-Aggiornata il 2026-11-09
+Aggiornata il 2026-11-10
 
 Questa pagina dice su cosa lavora Arturo adesso, cosa viene dopo e cosa aspetta una decisione. La aggiorna chi mantiene Arturo, a ogni giro di lavoro. Le versioni uscite e le loro novità stanno in `NOVITA.md`. Ogni blocco ha il numero della versione con cui esce: oggi Arturo è alla 0.2, e la 1.0 sarà il rilascio pubblico.
 
@@ -25,6 +25,14 @@ Oggi Arturo vive nella stessa cartella delle tue modifiche, `~/.claude`. Per que
 Chi oggi usa Arturo su Mac trova all'avvio, una volta al giorno, la proposta di provare il passaggio guidato: la prova non cambia niente (voce "Il passaggio al plugin"). Su Windows la proposta arriva quando il passaggio è provato anche lì.
 
 <!-- task: #4531 #4532 #4566 #4567 #4568 #4565 -->
+
+### Le correzioni della revisione di novembre {#revisione-novembre}
+
+Stato: in corso. Prima le guardie su Windows: la prima correzione, sui programmi scritti con `.exe`, è fatta.
+
+Una revisione ha riletto i comandi, le skill e le guardie di Arturo. Ha trovato buchi veri, soprattutto su Windows: un programma scritto con `.exe` passava dalle guardie senza conferma, e una copia poteva smettere di aggiornarsi senza dirlo. Le correzioni escono a gruppi: prima le guardie, poi l'aggiornamento, la chiusura delle sessioni, i comandi, le segnalazioni, il peso dei testi e la forma.
+
+<!-- task: #5123 #5124 -->
 
 ### Meno conferme, le stesse guardie {#conferme}
 

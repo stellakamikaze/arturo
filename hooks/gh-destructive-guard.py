@@ -64,7 +64,7 @@ def _testo_gh(cmd: str) -> str:
         for nome, args in fc.programmi(testo):
             if nome == "xargs":
                 resto = fc.xargs_resto(args)
-                nome, args = (os.path.basename(resto[0]), resto[1:]) if resto else ("", [])
+                nome, args = (fc._nome(resto[0]), resto[1:]) if resto else ("", [])
             if nome == "gh":
                 righe.append("gh " + " ".join(args))
     return "\n".join(righe)

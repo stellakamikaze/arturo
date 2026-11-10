@@ -54,6 +54,11 @@ print(hd.togli(source, lambda h: h.quotato and h.inerte()), end="")' "$ARTURO_HO
 GUARD_COMMAND=$(reduce_inert_heredocs "$COMMAND")
 # Anche la riduzione passa da un print di python: su Windows rimetteva i CRLF (MO01, 31/10/2026).
 [[ "$OSTYPE" == msys* || "$OSTYPE" == cygwin* ]] && GUARD_COMMAND="${GUARD_COMMAND//$'\r\n'/$'\n'}"
+# Su Windows `rm.exe`, `git.exe` e `gh.exe` sono gli stessi programmi di `rm`, `git` e `gh`: il suffisso
+# si toglie dalla fine di ogni parola prima di ogni confronto, o pre-filtro e guardie tacciono (revisione
+# del 10/11/2026, HK-1). Cambia solo il testo che leggono le guardie, non il comando eseguito.
+_RE_EXE='^(.*[^[:space:]/\])\.[Ee][Xx][Ee]([[:space:];&|()<>"'"'"'`].*)?$'
+while [[ "$GUARD_COMMAND" =~ $_RE_EXE ]]; do GUARD_COMMAND="${BASH_REMATCH[1]}${BASH_REMATCH[2]}"; done
 # Su Windows la shell converte gli argomenti che sembrano path prima di passarli a un programma
 # nativo: `/bin/rm -rf ~/Documents` arrivava alle guardie come `C:/Program Files/.../rm` e nessuna
 # lo riconosceva. Dove l'argomento è il testo del comando la conversione si spegne. Fuori da
@@ -336,7 +341,7 @@ except Exception:
 }
 
 # Commit secret gate: PRIMA dello skip git-puro (scansiona il diff, non il message).
-[[ "$COMMAND" =~ $PATTERN_COMMIT ]] && run_guard commit-secret-gate.py
+[[ "$COMMAND" =~ $PATTERN_COMMIT || "$GUARD_COMMAND" =~ $PATTERN_COMMIT ]] && run_guard commit-secret-gate.py
 
 # git clean -f cancella i file non tracciati, che git non sa ridare: PRIMA dello skip git-puro, che
 # altrimenti lascerebbe passare `git log && git clean -fdx` (17/10/2026, #3506).
@@ -453,7 +458,7 @@ fi
 [[ "$GUARD_COMMAND" =~ $PATTERN_DATA ]] && run_guard data-guard.py
 
 # GitHub CLI: operazioni distruttive/sensibili (repo delete, secret, api mutante...).
-[[ "$COMMAND" =~ $PATTERN_GH_ANY ]] && run_guard gh-destructive-guard.py
+[[ "$COMMAND" =~ $PATTERN_GH_ANY || "$GUARD_COMMAND" =~ $PATTERN_GH_ANY ]] && run_guard gh-destructive-guard.py
 
 # Guardie personali del punto finale, sui comandi che nominano .claude.
 if [[ "$COMMAND" == *".claude"* || "$INPUT" =~ $_RE_CWD_CLAUDE ]]; then

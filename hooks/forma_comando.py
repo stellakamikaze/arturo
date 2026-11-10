@@ -367,7 +367,10 @@ _XARGS_CON_VALORE = frozenset(("-I", "-n", "-P", "-L", "-l", "-d", "-E", "-e", "
 
 
 def _nome(parola: str) -> str:
-    return os.path.basename(parola.lstrip("\\"))
+    """Il nome del programma senza cartella. Su Windows `rm.exe` è lo stesso programma di `rm`: il
+    suffisso si toglie, o ogni confronto col nome lo manca (revisione del 10/11/2026, HK-1)."""
+    nome = os.path.basename(parola.lstrip("\\"))
+    return nome[:-4] if len(nome) > 4 and nome[-4:].lower() == ".exe" else nome
 
 
 def _salto(tok: str, corti: str, lunghi=frozenset()) -> int:

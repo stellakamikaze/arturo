@@ -13,6 +13,18 @@ modo di lavorare.
 
 ---
 
+## 2026-11-10 — Guardie su Windows: `.exe`, maiuscole, Python che manca
+
+**Cosa cambia**:
+- Su Windows `rm.exe`, `git.exe` e `gh.exe` passano dalle stesse guardie di `rm`, `git` e `gh`. Prima un
+  programma scritto col suffisso `.exe` non chiedeva nessuna conferma: né per una cancellazione ricorsiva, né
+  per un `push --force`, né per la cancellazione di un repository.
+
+**Il principio**: una guardia vale quanto la forma più semplice che la aggira.
+
+**Da sapere**: riguarda solo Windows. Le altre correzioni di questo gruppo arrivano nei prossimi giorni, e
+questa voce si allunga.
+
 ## 2026-11-09 — Guardie, /monitor e controlli: le correzioni del lotto L10
 
 **Cosa cambia**:
