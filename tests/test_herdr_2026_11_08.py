@@ -154,6 +154,9 @@ HZ41 il servizio di Claude prima della nascita (#5208, volta_sonda.py servizio c
 HZ42 le attese della nascita (#5214): Volta (dati.js nasciSu) aspetta più della somma dei tetti di
      volta_sonda.py, con 30 s di margine; il servizio che non risponde si ferma al suo tetto, anche
      dopo hc run.
+HZ43 il servizio fisso con un nome solo (#5213): l'etichetta del LaunchAgent di servizi-gui.sh e il nome
+     dell'attività di servizio-claude.ps1 sono gli stessi in installa-herdr.sh e in volta_sonda.py; ogni
+     riga HERDR che l'installazione stampa ha la sua istruzione in shared/setup-herdr.md.
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
@@ -170,7 +173,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -2466,7 +2469,37 @@ def hz42(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42}
+def hz43(repo: Path, casa: Path) -> str | None:
+    vc = repo / "shared/volta-celeste"
+    gui = (vc / "servizi-gui.sh").read_text(encoding="utf-8")
+    ps1 = (vc / "servizio-claude.ps1").read_text(encoding="utf-8-sig")
+    installa = (vc / "installa-herdr.sh").read_text(encoding="utf-8")
+    sonda = (vc / "mods/arturo/volta_sonda.py").read_text(encoding="utf-8")
+    prefisso = re.search(r"^PREFISSO=(\S+)$", gui, re.M)
+    attivita = re.search(r'^\$nome = "([^"]+)"', ps1, re.M)
+    if not prefisso or "plist claude-daemon true" not in gui or not attivita:
+        return "servizi-gui.sh o servizio-claude.ps1 non dicono più il nome del servizio"
+    agente, attivita = prefisso.group(1) + ".claude-daemon", attivita.group(1)
+    attese = [
+        ("installa-herdr.sh", installa, f"Library/LaunchAgents/{agente}.plist"),
+        ("installa-herdr.sh", installa, f"schtasks /query /tn {attivita} "),
+        ("volta_sonda.py", sonda, f'etichetta = "{agente}"'),
+        ("volta_sonda.py", sonda, f'attivita = "{attivita}"'),
+    ]
+    for nome, testo, atteso in attese:
+        if atteso not in testo:
+            return f"{nome} non usa il nome del servizio fisso: manca {atteso!r}"
+    setup = (repo / "shared/setup-herdr.md").read_text(encoding="utf-8")
+    righe = set(re.findall(r'say "(HERDR [A-Z0-9]+(?: [A-Z0-9]+)*):', installa))
+    if len(righe) < 5:
+        return f"le righe HERDR dell'installazione non si leggono più: {sorted(righe)}"
+    senza = sorted(r for r in righe if f"`{r}`" not in setup)
+    if senza:
+        return f"/setup non sa cosa fare delle righe {senza} (shared/setup-herdr.md)"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -2485,6 +2518,9 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ("HZ43", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'etichetta = "org.stellakamikaze.arturo.claude-daemon"', 'etichetta = "org.stellakamikaze.arturo.claude"'),
+    ("HZ43", "shared/volta-celeste/installa-herdr.sh", "schtasks /query /tn ArturoServizioClaude ", "schtasks /query /tn ArturoServizio "),
+    ("HZ43", "shared/setup-herdr.md", "`HERDR SERVIZIO`", "la riga del servizio"),
     ("HZ42", "shared/volta-celeste/mods/arturo/dati.js", "{ timeout: 360000 }", "{ timeout: 200000 }"),
     ("HZ42", "shared/volta-celeste/mods/arturo/volta_sonda.py", "            t = min(90, int(entro - time.monotonic()))", "            t = 90"),
     ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", "if acceso():\n    esci(acceso=True, come=\"già acceso\")", "if False:\n    pass"),
@@ -2604,7 +2640,7 @@ VELENI = [
     ("HZ38", "shared/volta-celeste/volta-claude.ps1", "if ($env:CLAUDE_QUI -eq '1') { Qui }", "#"),
     ("HZ38", "shared/volta-celeste/volta-claude.ps1", "if ($senzaId) { Qui }", "#"),
     ("HZ38", "shared/volta-celeste/volta-claude.ps1", "$_ -and $_ -notmatch '^Starting background service'", "$_"),
-    ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", "if rc != 0 and (non_parte(out, err) or rc == 9009):", "if True:"),
+    ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", "\n        if rc != 0 and (non_parte(out, err) or rc == 9009):", "\n        if True:"),  # quella di nasci, non di servizio
     ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        argv = hc() + ["exec", "--on", nome, "claude", verbo, sid]', '        argv = hc() + ["exec", nome, "claude", verbo, sid]'),
     ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z-]{3,63}", sid or ""):', "if False:"),
     ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    if verbo not in VERBI:", "    if False:"),

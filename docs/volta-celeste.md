@@ -45,7 +45,19 @@ Funziona sui Mac con processore Apple e su Windows. Sui Mac Intel e su Linux `/s
 
 Herdr apre terminali anche su un altro computer, aggiunto con `hc machine add` via ssh. Su un Mac, l'`herdr-core` partito da ssh non ha il permesso di macOS per Documenti e Scrivania: un terminale che parte da lì resta vuoto, perché già `path_helper` della shell di login si ferma ad aprire la cartella (provato il 9/11/2026 su un secondo Mac, #5013; da `/tmp` e dalla home passa). Per riattaccare una sessione (`claude attach`) fai partire il terminale dalla home: la sessione resta nella sua cartella. Per lavorare in Documenti da quel Mac, dai a `herdr-core` l'accesso in Impostazioni di Sistema → Privacy e sicurezza → File e cartelle, su quel Mac.
 
-Il login. Su quel Mac il gestore delle sessioni in background (`claude daemon`) e `herdr-core` partono su richiesta, dal primo programma che li cerca. Se il primo arriva da ssh, partono senza il portachiavi, e ogni sessione risponde "Not logged in", anche agganciata da qui. Il rimedio è `sh ~/.claude/shared/volta-celeste/servizi-gui.sh`, lanciato su quel Mac dopo aver fermato i due servizi: `herdr-core` riparte dalla sessione grafica, e il gestore riparte in una finestra del Terminale, che gli passa anche l'accesso a Documenti. Dopo aver dato a `claude` l'accesso a Documenti, `servizi-gui.sh --launchd` fa partire anche il gestore da solo, senza la finestra (provato il 9/11/2026 su un secondo Mac).
+Il login. Su quel Mac il gestore delle sessioni in background (`claude daemon`) e `herdr-core` partono su richiesta, dal primo programma che li cerca. Se il primo arriva da ssh, partono senza il portachiavi, e ogni sessione risponde "Not logged in", anche agganciata da qui. Per `herdr-core` il rimedio è `sh ~/.claude/shared/volta-celeste/servizi-gui.sh`, lanciato su quel Mac dopo `hc server stop`: `herdr-core` riparte dalla sessione grafica (provato il 9/11/2026 su un secondo Mac). Il gestore non va fermato prima: lo script ne accende uno nuovo, che prende il posto di quello acceso e ne riprende le sessioni vive.
+
+### Il servizio di Claude, fisso su ogni macchina
+
+Il gestore delle sessioni in background è il servizio di Claude. Se parte dal primo `claude --bg`, vive a tempo: muore con chi l'ha fatto nascere, e da ssh nasce senza login. Per questo Volta, prima di ogni sessione nuova su qualunque macchina, lancia lì `volta_sonda.py servizio <macchina>`. Se il servizio risponde, non lo tocca. Se manca, lo accende dove sopravvive:
+- sul Mac con il LaunchAgent `org.stellakamikaze.arturo.claude-daemon`, se c'è; senza, staccato in una sessione sua, figlio di `herdr-core` o di Volta, che hanno il login e l'accesso a Documenti. Staccato vale fino al riavvio;
+- su Windows con l'attività `ArturoServizioClaude`, se c'è; senza, in un terminale di `herdr-core` (`hc run`), nella sessione grafica.
+
+Il servizio fisso parte da solo a ogni accesso, e l'installazione lo propone con la riga `HERDR SERVIZIO`:
+- su Windows `powershell -NoProfile -ExecutionPolicy Bypass -File "$HOME\.config\herdr-app\servizio-claude.ps1"` registra l'attività e la avvia, senza finestra (provato il 10/11/2026 sul PC Windows dello studio); con `-Togli` in fondo la toglie. `/setup` la registra col tuo sì;
+- sul Mac `servizi-gui.sh --launchd` mette anche il LaunchAgent del servizio. Prima dai a `claude` l'accesso a Documenti (Impostazioni di Sistema, Privacy e sicurezza, File e cartelle): nato da launchd senza quel permesso, il servizio ha il login ma le sessioni in `~/Documents` muoiono all'avvio. Senza `--launchd`, lo script apre il servizio in una finestra del Terminale, che gli passa il suo accesso a Documenti: la finestra va lasciata aperta. `servizi-gui.sh --rimuovi` toglie i due LaunchAgent.
+
+L'attesa. Una sessione nuova aspetta prima le macchine (15 s), poi il servizio (120 s), poi la nascita (180 s): Volta aspetta fino a 6 minuti prima di dire che la macchina non risponde. Il banco HZ41-HZ43 prova il servizio, le attese e i nomi.
 
 ## Tutte le sessioni, di tutte le macchine
 

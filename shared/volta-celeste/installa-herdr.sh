@@ -185,7 +185,9 @@ if [ "$sistema" = mac-arm ] || [ "$sistema" = windows ]; then
   done
   # Il servizio di Claude fisso (#5208): senza, il primo claude --bg lo accende a tempo, e da ssh o da
   # hc exec nasce nel posto sbagliato. Su Windows un'attività all'accesso, sul Mac il LaunchAgent di
-  # servizi-gui.sh, che vuole prima l'accesso di claude a Documenti: qui lo si propone soltanto.
+  # servizi-gui.sh, che vuole prima l'accesso di claude a Documenti: qui lo si propone soltanto, e /setup
+  # sa cosa farne (shared/setup-herdr.md). I due nomi sono quelli di servizio-claude.ps1 e servizi-gui.sh
+  # (banco HZ43).
   if [ "$sistema" = windows ]; then
     cp "$qui/servizio-claude.ps1" "$app_home/servizio-claude.ps1"
     if ! MSYS_NO_PATHCONV=1 schtasks /query /tn ArturoServizioClaude >/dev/null 2>&1; then

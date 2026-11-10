@@ -9,7 +9,8 @@
 # sessione 0, dove i terminali e herdr-core (sessione 1) non lo raggiungono. claude daemon run invece
 # resta acceso, e uno a tempo già acceso gli cede il posto riprendendo le sessioni vive. L'attività lo
 # avvia a ogni accesso nella sessione grafica, senza finestra (conhost --headless) e senza limite di
-# tempo. volta_sonda.py servizio la lancia con schtasks /run quando il servizio manca.
+# tempo. volta_sonda.py servizio la lancia con schtasks /run quando il servizio manca. Il nome
+# dell'attività è scritto anche in installa-herdr.sh e in volta_sonda.py: il banco HZ43 lo tiene uguale.
 param([switch]$Togli)
 $ErrorActionPreference = "Stop"
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch {}  # hc e ssh leggono UTF-8

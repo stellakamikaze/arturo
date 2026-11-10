@@ -7,11 +7,16 @@ distribuire (#5172, 10/11/2026).
 
   python3 volta_sonda.py volta [--scrivi FILE]   l'elenco, nel formato di ~/.cache/volta/sessioni.json
   python3 volta_sonda.py nasci MACCHINA [--progetto SLUG] [-- PROMPT]
-  python3 volta_sonda.py azione MACCHINA logs|stop|respawn|rm ID   (logs: le ultime righe dello schermo)
-  python3 volta_sonda.py servizio MACCHINA   accende il servizio di Claude se manca, dove sopravvive (#5208)
       una sessione nuova in background (claude --bg) su MACCHINA ("qui" per questa), nella base dei
-      progetti di quella macchina. Stampa {id, sessionId, attach, macchina, progetto, cartella} oppure
-      {errore}: lo stesso contratto di porta-volta, così Volta la aggancia come le altre (#5172 passo 4).
+      progetti di quella macchina, dopo aver acceso il servizio di Claude. Stampa {id, sessionId, attach,
+      macchina, progetto, cartella} oppure {errore}: lo stesso contratto di porta-volta, così Volta la
+      aggancia come le altre (#5172 passo 4).
+  python3 volta_sonda.py azione MACCHINA logs|stop|respawn|rm ID   (logs: le ultime righe dello schermo)
+  python3 volta_sonda.py servizio MACCHINA
+      accende il servizio di Claude (claude daemon run) su MACCHINA se manca, dove sopravvive: il
+      LaunchAgent di servizi-gui.sh o l'attività di servizio-claude.ps1 se ci sono; altrimenti staccato,
+      e su un Windows raggiunto con hc exec in un terminale di herdr-core (hc run). Un servizio che
+      risponde non si tocca. Stampa {come} oppure {errore} (#5208).
 
 Una riga di "sessioni": { macchina, host, questa, sessionId, id, nome, progetto, stato, aspetta, tipo,
 attach, cartella, ultimo, risposta, azione }. `host` è il nome della macchina in Herdr ("qui" per
@@ -157,6 +162,8 @@ esci(id=corto, sessionId=sid, claude=cl, cartella=base)
 # c'è, altrimenti staccato in una sessione nuova (sopravvive a hc exec). Su Windows con l'attività di
 # servizio-claude.ps1 se c'è; da hc exec un figlio non si stacca dal job, quindi senza attività risponde
 # {"serve": "hc-run"} e il terminale lo apre chi chiama. L'argomento è "remoto" o "qui".
+# L'etichetta del LaunchAgent e il nome dell'attività stanno anche in servizi-gui.sh, servizio-claude.ps1
+# e installa-herdr.sh: il banco HZ43 li tiene uguali.
 # Stampa {"acceso": true, "come"} oppure {"serve"} oppure {"errore"}.
 SERVIZIO = r'''
 import json, os, re, shutil, subprocess, sys, time

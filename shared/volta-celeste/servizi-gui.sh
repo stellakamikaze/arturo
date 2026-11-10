@@ -18,9 +18,14 @@
 # quell'accesso ce l'ha, e lo passa a quello che lancia: per questo il gestore va in una sua finestra
 # del Terminale, finché `claude` non ha il permesso suo. La finestra va lasciata aperta (si può ridurre).
 #
-# Prima di lanciarlo: `claude daemon stop --any --keep-workers` (le sessioni staccate restano vive) e
-# `hc server stop`. Un `claude attach` vivo da un altro Mac fa ripartire il gestore da ssh appena si
-# ferma: va messo in pausa (kill -STOP) per i pochi secondi del cambio, poi ripreso (kill -CONT).
+# Prima di lanciarlo: `hc server stop` (chiude i terminali di Herdr; le sessioni in background restano).
+# Il gestore non va fermato: un `claude daemon run` nuovo prende il posto di quello acceso e ne riprende
+# le sessioni vive (provato il 10/11/2026).
+#
+# Il servizio fisso (#5208). Volta, prima di ogni sessione nuova, lancia `volta_sonda.py servizio`: se il
+# gestore manca e il LaunchAgent claude-daemon c'è, lo riaccende con launchctl kickstart; senza, lo
+# accende staccato, e vale fino al riavvio. L'etichetta $PREFISSO.claude-daemon è scritta anche in
+# installa-herdr.sh e in volta_sonda.py: il banco HZ43 tiene i tre nomi uguali.
 #
 # Variabili per i banchi: SERVIZI_AGENTI (cartella dei LaunchAgent), SERVIZI_NO_LAUNCHCTL=1 (niente
 # launchctl e niente Terminale).

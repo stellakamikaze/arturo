@@ -45,6 +45,19 @@ command -v herdr-app >/dev/null 2>&1 || [ -d ~/Applications/Herdr.app ] && echo 
   persona: lo lancia lei nel suo terminale.
 - Le righe `HERDR NASCITA FUNZIONE`, `HERDR NASCITA POLICY` e `HERDR NASCITA UTF16` mostrale come sono:
   la funzione, la policy di PowerShell e il profilo sono della persona, e li cambia lei.
+- La riga `HERDR SERVIZIO` propone il servizio di Claude fisso: tiene vive le sessioni in background e
+  parte a ogni accesso. Senza, la finestra lo accende da sola prima di ogni sessione nuova, e vale fino
+  al riavvio del computer.
+  - Su Windows chiedi in una riga: "Vuoi che il servizio che tiene vive le sessioni in background parta
+    da solo a ogni accesso? Non apre finestre." Col sì lancia tu il comando `powershell` della riga e
+    riporta le righe `SERVIZIO CLAUDE`. Si toglie con lo stesso comando e `-Togli` in fondo.
+  - Sul Mac non lanciarlo adesso: prima macOS deve dare a `claude` l'accesso a Documenti, e lo dà la
+    persona. Dillo in una riga: "Quando vuoi che il servizio parta da solo a ogni login, dai a claude
+    l'accesso a Documenti in Impostazioni di Sistema, Privacy e sicurezza, File e cartelle, poi chiedimelo."
+    Quando lo chiede, lo script fa ripartire anche herdr-core, e i terminali di Herdr si chiudono (le
+    sessioni in background restano). Se questa conversazione gira in un terminale di Herdr, chiedi alla
+    persona di riaprirla dal Terminale. Poi lancia `hc server stop`, il comando `sh` della riga, e
+    riporta le righe `SERVIZI GUI`.
 - Poi spiega: "Si è aperta la finestra di Arturo. Da ora lavori da lì: premi Nuova richiesta per
   scrivere a Claude, oppure scegli un progetto a sinistra. Questa conversazione puoi chiuderla." Fai
   la FASE 10 qui solo se la persona preferisce restare nel terminale.
