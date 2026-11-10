@@ -11,6 +11,9 @@ R04 comms: il dispatcher giudica il codice eseguito (comms-prefilter.py). Un inv
 (find -exec, awk system(), git send-email) chiede conferma; una lettura che nomina smtplib passa.
 
 Sulla base 69d7365 ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
+
+Il banco gira con una HOME vuota sua, come nel gate (#5127, 10/11/2026): la guardia legge le preferenze
+da ~/.claude/arturo, e una home vera con `allow claude-md-progetto` faceva cadere R02 senza colpa della guardia.
 """
 from __future__ import annotations
 
@@ -29,7 +32,7 @@ BASH = shutil.which("bash") or "bash"
 
 def guardia(repo: Path, nome: str, dati: dict, cwd: str) -> subprocess.CompletedProcess:
     return subprocess.run([sys.executable, "-B", str(repo / "hooks" / nome)], input=json.dumps(dati),
-                          capture_output=True, text=True, cwd=cwd, timeout=30)
+                          capture_output=True, text=True, encoding="utf-8", errors="replace", cwd=cwd, timeout=30)
 
 
 def chiede(repo: Path, nome: str, comando: str, cwd: str) -> bool:
@@ -97,7 +100,7 @@ def test_r04(repo: Path) -> None:
         def esito(comando: str) -> str:
             dati = json.dumps({"tool_name": "Bash", "tool_input": {"command": comando}, "cwd": d, "session_id": "r04"})
             p = subprocess.run([BASH, str(repo / "hooks" / "bash-dispatcher.sh")], input=dati, capture_output=True,
-                               text=True, cwd=d, timeout=60, env=dict(os.environ, HOME=str(casa), USERPROFILE=str(casa)))
+                               text=True, encoding="utf-8", errors="replace", cwd=d, timeout=60, env=dict(os.environ, HOME=str(casa), USERPROFILE=str(casa)))
             if p.returncode == 2:
                 return "block"
             return "ask" if '"permissionDecision": "ask"' in p.stdout or '"permissionDecision":"ask"' in p.stdout else "silent"
@@ -121,7 +124,17 @@ def main() -> int:
     parser.add_argument("--baseline-ref")
     args = parser.parse_args()
     repo = args.repo.resolve()
-    if args.baseline_ref:
+    # HOME e USERPROFILE insieme: su Windows expanduser legge USERPROFILE.
+    casa = tempfile.mkdtemp(prefix="guardie-minori-home-")
+    os.environ.update(HOME=casa, USERPROFILE=casa, PYTHONIOENCODING="utf-8")
+    try:
+        return _esegui(repo, args.baseline_ref)
+    finally:
+        shutil.rmtree(casa, ignore_errors=True)
+
+
+def _esegui(repo: Path, baseline_ref: str | None) -> int:
+    if baseline_ref:
         rossi, altro = [], []
         for nome, test in TESTS.items():
             try:
