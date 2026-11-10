@@ -422,7 +422,8 @@ const casi = {
     const token = "t".repeat(40);
     const opzioni = { archivio: a, posta: async () => {}, avviso: async () => {}, token, adesso: new Date("2026-11-04T10:00:00Z") };
     const r = await gestisci(new Request("https://arturo.example/v1/segnalazioni", { method: "POST", body: JSON.stringify(
-      { tipo: "problema", titolo: "t", testo: "testo", origine: "avvio", pacchetto: { banchi: "ROSSO" } }) }), opzioni);
+      { tipo: "problema", titolo: "t", testo: "testo", origine: "avvio", pacchetto: { banchi: "ROSSO" },
+        contatto: { nome: "Persona Prova", email: "prova@example.com" } }) }), opzioni);
     const { numero, codice } = await r.json();
     const con = (percorso, init = {}) => gestisci(new Request(`https://arturo.example${percorso}`, init), opzioni);
     const persona = (percorso, init = {}) => con(percorso, { ...init, headers: { "x-arturo-codice": codice } });
@@ -437,12 +438,17 @@ const casi = {
       ["ricevuta", ["Documenti"], { banchi: "ROSSO" }, "avvio"], "QC1 seguito, pacchetto o origine non si leggono");
     assert.ok(!("codice_hash" in intera), "QC1 la segnalazione intera porta l'hash del codice");
     assert.equal((await a.segnalazioni(5))[0].stato, "ricevuta", "QC1 l'elenco non porta lo stato");
+    // Il contatto (10/11/2026): l'elenco porta il nome, la segnalazione intera nome ed email, il ritiro li cancella.
+    assert.equal((await a.segnalazioni(5))[0].contatto_nome, "Persona Prova", "QC1 l'elenco non porta il nome del contatto");
+    assert.equal("contatto_email" in (await a.segnalazioni(5))[0], false, "QC1 l'elenco porta anche l'email");
+    assert.deepEqual([intera.contatto_nome, intera.contatto_email], ["Persona Prova", "prova@example.com"], "QC1 il contatto non si legge");
     await pulizia({ archivio: a, adesso: new Date("2027-02-03T10:00:00Z") });
     const dopo = await a.segnalazione(numero);
     assert.deepEqual([dopo.pacchetto, dopo.testo], ["", "testo"], "QC1 dopo 90 giorni il pacchetto resta o il testo se ne va");
     assert.equal((await persona(`/v1/contributi/${numero}/ritira`, { method: "POST" })).status, 200, "QC1 il ritiro non riesce");
     const ritirata = await a.segnalazione(numero);
     assert.deepEqual([ritirata.titolo, ritirata.testo, ritirata.stato], ["(ritirata)", "", "ritirata"], "QC1 il ritiro lascia il testo");
+    assert.deepEqual([ritirata.contatto_nome, ritirata.contatto_email], ["", ""], "QC1 il ritiro lascia il contatto");
   },
   // Review del 7/11/2026, lotto L3 (#4973), finding 41 e 37: la deriva legge con tre query anche con cento id inventati,
   // dice quali installazioni sono viste in più giorni, lascia fuori dalla settimana chi tace da oltre 30 giorni e chiude
@@ -478,10 +484,14 @@ const casi = {
       titolo TEXT NOT NULL, testo TEXT NOT NULL, versione TEXT NOT NULL DEFAULT '', sistema TEXT NOT NULL DEFAULT '',
       installazione TEXT NOT NULL DEFAULT '', email_inviata INTEGER NOT NULL DEFAULT 0);
       INSERT INTO segnalazioni (ricevuta, tipo, titolo, testo) VALUES ('2026-10-01T10:00:00Z', 'problema', 'vecchia', 'x');`);
-    vecchia.db.exec(readFileSync(new URL("./migrazioni/2026-11-04-sportello.sql", import.meta.url), "utf8"));
+    // Le migrazioni in ordine: lo sportello (4/11/2026), poi il contatto (10/11/2026).
+    for (const m of ["2026-11-04-sportello.sql", "2026-11-10-contatto.sql"]) {
+      vecchia.db.exec(readFileSync(new URL(`./migrazioni/${m}`, import.meta.url), "utf8"));
+    }
     assert.deepEqual(colonne(vecchia), colonne(d1()), "QM1 la migrazione e schema.sql non danno le stesse colonne");
     const riga = await archivio(vecchia).segnalazione(1);
-    assert.deepEqual([riga.stato, riga.seguiti, riga.pacchetto], ["ricevuta", "[]", ""], "QM1 le righe di prima non prendono i default");
+    assert.deepEqual([riga.stato, riga.seguiti, riga.pacchetto, riga.contatto_nome, riga.contatto_email], ["ricevuta", "[]", "", "", ""],
+      "QM1 le righe di prima non prendono i default");
   },
 };
 

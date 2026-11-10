@@ -13,6 +13,19 @@ modo di lavorare.
 
 ---
 
+## 2026-11-10 — Un contatto per le tue segnalazioni
+
+**Cosa cambia**: puoi lasciare agli sviluppatori di Arturo un nome e un'email, una volta sola. Servono per
+contattarti quando mandi una segnalazione: per chiederti un dettaglio o dirti che il problema è risolto. Prima
+una segnalazione arrivava senza un modo per risponderti, salvo la ricevuta da leggere con `arturo segnala stato`.
+La domanda arriva una volta, all'avvio dopo l'aggiornamento, con `/setup` o con `/segnala`: puoi dire di no.
+Il contatto parte solo con le segnalazioni del canale `arturo`, e l'anteprima lo mostra. Non parte mai con la
+telemetria né con una issue pubblica. `arturo contatto` lo mostra, `arturo contatto togli` lo cancella, e
+`--senza-contatto` lo lascia fuori da una sola segnalazione. Sul server resta 12 mesi con la segnalazione e se ne
+va subito se la ritiri. Il dettaglio sta in `docs/privacy.md`.
+
+**Il principio**: per rispondere a una persona serve sapere chi è, e deve dirlo lei.
+
 ## 2026-11-10 — Plugin: le impostazioni nuove arrivano anche se aggiorni fuori da /aggiorna
 
 **Cosa cambia**: se Claude Code aggiornava il plugin di Arturo da un'altra strada (`claude plugin update`,

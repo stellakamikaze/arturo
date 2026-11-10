@@ -89,9 +89,9 @@ export function archivio(db) {
     async salvaSegnalazione(s, ricevuta) {
       const r = await db.prepare(
         `INSERT INTO segnalazioni (ricevuta, tipo, titolo, testo, versione, sistema, installazione, origine, pacchetto, codice_hash,
-         stato, aggiornata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ricevuta', ?) RETURNING id`)
+         contatto_nome, contatto_email, stato, aggiornata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ricevuta', ?) RETURNING id`)
         .bind(ricevuta, s.tipo, s.titolo, s.testo, s.versione, s.sistema, s.installazione, s.origine || "segnala",
-          s.pacchetto || "", s.codice_hash || "", ricevuta).first();
+          s.pacchetto || "", s.codice_hash || "", s.contatto_nome || "", s.contatto_email || "", ricevuta).first();
       return r.id;
     },
     // Lo sportello (4/11/2026, #3925): la riga che serve a controllare il codice e a rispondere alla persona.
@@ -113,7 +113,7 @@ export function archivio(db) {
     async ritiraContributo(id, quando) {
       await db.prepare(
         `UPDATE segnalazioni SET titolo = '(ritirata)', testo = '', pacchetto = '', seguiti = '[]', installazione = '',
-         risposta = '', stato = 'ritirata', aggiornata = ? WHERE id = ?`).bind(quando, id).run();
+         contatto_nome = '', contatto_email = '', risposta = '', stato = 'ritirata', aggiornata = ? WHERE id = ?`).bind(quando, id).run();
     },
     async svuotaPacchetti(prima) {
       await db.prepare("UPDATE segnalazioni SET pacchetto = '' WHERE pacchetto != '' AND substr(ricevuta, 1, 10) < ?").bind(prima).run();
@@ -141,15 +141,15 @@ export function archivio(db) {
     // Per la pagina privata (27/10/2026): l'elenco senza il testo, le più recenti prima, e una segnalazione intera.
     async segnalazioni(limite) {
       const r = await db.prepare(
-        `SELECT id, ricevuta, tipo, titolo, versione, sistema, installazione, email_inviata, origine, stato, aggiornata
-         FROM segnalazioni ORDER BY id DESC LIMIT ?`)
+        `SELECT id, ricevuta, tipo, titolo, versione, sistema, installazione, email_inviata, origine, stato, aggiornata,
+         contatto_nome FROM segnalazioni ORDER BY id DESC LIMIT ?`)
         .bind(limite).all();
       return r.results || [];
     },
     async segnalazione(id) {
       return await db.prepare(
         `SELECT id, ricevuta, tipo, titolo, testo, versione, sistema, installazione, email_inviata, origine, pacchetto, stato,
-         risposta, versione_fix, aggiornata, seguiti FROM segnalazioni WHERE id = ?`)
+         risposta, versione_fix, aggiornata, seguiti, contatto_nome, contatto_email FROM segnalazioni WHERE id = ?`)
         .bind(id).first() || null;
     },
     async segnaEmail(id) {
