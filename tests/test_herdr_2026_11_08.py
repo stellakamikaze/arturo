@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ33: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ34: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -60,7 +60,7 @@ HZ18 Volta Celeste, il clic (sessioni.js con node): una sessione in background s
      da un ciclo ssh dentro sh -c e da pwsh -Command su Windows, senza prendere un id che ne contiene un altro.
 HZ19 Volta Celeste nella barra: barra.js monta volta.js e accetta il comando volta-<id>, volta.js
      lancia teletrasporto.py volta --scrivi e porta-volta, e senza teletrasporto.py non mostra niente.
-HZ20 Volta Celeste su Windows (9/11/2026): volta.js lancia teletrasporto.py col Python di arturo.json
+HZ20 Volta Celeste su Windows (9/11/2026): volta.js lancia volta_sonda.py e teletrasporto.py col Python di arturo.json
      (quello che installa-herdr.sh ha trovato), mai con un Python scritto a mano.
 HZ21 installa-herdr.sh su Windows scrive layout, mod e arturo.json in ~/.config/herdr-app e la shell
      di herdr-core in ~/.config/herdr-core/config.toml, dove Herdr 0.1.14 li legge; niente in %APPDATA%.
@@ -106,6 +106,12 @@ HZ32 il formato in due copie (#5117 passo 6): TIPI, TIPO_PREDEFINITO, STATI, APE
 HZ33 "Trova i miei progetti" su ogni macchina (#5111, con node): il pulsante manda Claude al file di
      istruzioni nella cartella di Arturo, presa da arturo.json o, in un arturo.json di prima, dal bin
      (anche con le barre di Windows), mai da ~/.claude scritto a mano. Senza node il caso si salta.
+HZ34 la sonda di Volta per tutti (#5172, volta_sonda.py con un hc finto): le macchine vengono da
+     hc machine ls e si leggono con hc exec --on; questa macchina per prima come "qui"; Windows senza
+     python3 ripiega su python; una macchina senza Python ma con Claude dà l'elenco nudo; senza Claude
+     (o senza nessuno dei due) resta fuori; una che non risponde compare, con le righe vecchie, solo se
+     Claude ci era già stato visto; aggancio locale e via ssh col percorso di claude della macchina.
+     volta.js lancia volta_sonda.py del mod e lascia porta-volta a teletrasporto.py.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -121,7 +127,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -893,7 +899,7 @@ def hz20(repo: Path, casa: Path) -> str | None:
     volta = (repo / "shared/volta-celeste/mods/arturo/volta.js").read_text(encoding="utf-8")
     if "this.py = (await config()).arturo[0];" not in volta:
         return "volta.js non prende Python da arturo.json"
-    for pezzo in ('exec(this.py, [this.script, "volta"', 'exec(this.py, [this.script, "porta-volta"'):
+    for pezzo in ('exec(this.py, [this.script, "volta"', 'exec(this.py, [this.sposta, "porta-volta"'):
         if pezzo not in volta:
             return f"volta.js senza {pezzo}"
     if 'exec("python' in volta:
@@ -1557,7 +1563,85 @@ def hz33(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33}
+HC_FINTO = r'''
+import json, os, sys
+conf = json.loads(os.environ["HZ_HC"])
+a = sys.argv[1:]
+if a[:3] == ["machine", "ls", "--json"]:
+    print(json.dumps({"machines": conf["macchine"]})); sys.exit(0)
+if a[:2] == ["exec", "--on"]:
+    esito = conf["exec"].get(a[2], {}).get(a[3])
+    if esito is None:
+        print(json.dumps({"error": {"kind": "spawn_failed", "message": "cannot start %s" % a[3]}})); sys.exit(1)
+    print(esito if isinstance(esito, str) else json.dumps(esito)); sys.exit(0)
+sys.exit(2)
+'''
+
+
+def hz34(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    volta = (mod / "volta.js").read_text(encoding="utf-8")
+    if "${appHome()}/mods/arturo/volta_sonda.py" not in volta:
+        return "volta.js non lancia volta_sonda.py del mod"
+    if "[this.sposta, \"porta-volta\"" not in volta:
+        return "volta.js non lascia porta-volta a teletrasporto.py"
+    sessione = lambda sid, **k: dict({"sessionId": sid, "kind": "background", "state": "done"}, **k)  # noqa: E731
+    conf = {
+        "macchine": [
+            {"name": "Studio", "target": "studio.lan", "state": "connected"},
+            {"name": "Torre", "target": "torre.lan", "state": "connected"},
+            {"name": "Server", "target": "server", "state": "connected"},
+            {"name": "Pi", "target": "pi", "state": "connected"},
+            {"name": "Nuvola", "target": "nuvola", "state": "unreachable", "why": "spenta"},
+            {"name": "Lontana", "target": "lontana", "state": "unreachable", "why": "spenta"},
+            {"name": "Nuda", "target": "nuda", "state": "connected"},
+        ],
+        "exec": {
+            "Studio": {"python3": {"claude": "/u/.local/bin/claude", "sessioni": [
+                sessione("bbbb1111-s", kind="interactive", status="busy", pid=4),
+                sessione("bbbb2222-s", state="blocked", waitingFor="permesso")]}},
+            "Torre": {"python": {"claude": "C:/u/claude.exe", "sessioni": [sessione("cccc1111-t")]}},
+            "Pi": {"python3": {"claude": None, "sessioni": []}},
+            "Nuda": {"claude": json.dumps([sessione("dddd1111-n")])},
+        },
+    }
+    finto = casa / "hc_finto.py"
+    finto.write_text(HC_FINTO, encoding="utf-8")
+    uscita = casa / "sessioni.json"
+    uscita.write_text(json.dumps({"macchine": [{"host": "Nuvola"}], "sessioni": [
+        {"host": "Nuvola", "id": "eeee1111", "sessionId": "eeee1111-v"}]}), encoding="utf-8")
+    env = {**os.environ, "HZ_HC": json.dumps(conf), "VOLTA_HC": json.dumps([sys.executable, str(finto)]),
+           "VOLTA_SONDA_LOCALE": json.dumps({"claude": "/q/claude", "sessioni": [sessione("aaaa1111-q")]})}
+    r = subprocess.run([sys.executable, str(mod / "volta_sonda.py"), "volta", "--scrivi", str(uscita)],
+                       capture_output=True, text=True, timeout=60, env=env)
+    if r.returncode != 0:
+        return f"volta_sonda.py esce {r.returncode}: {(r.stderr or r.stdout).strip()[-160:]}"
+    d = json.loads(uscita.read_text(encoding="utf-8"))
+    host = [m["host"] for m in d["macchine"]]
+    if host != ["qui", "Studio", "Torre", "Nuvola", "Nuda"]:
+        return f"macchine {host}, attese qui, Studio, Torre, Nuvola, Nuda"
+    if [m for m in d["macchine"] if m["host"] == "Nuvola"][0].get("irraggiungibile") != "spenta":
+        return "la macchina che non risponde non porta il motivo di Herdr"
+    per = {x["id"]: x for x in d["sessioni"]}
+    attese = {"aaaa1111": ("qui", "ferma"), "bbbb1111": ("Studio", "lavora"), "bbbb2222": ("Studio", "aspetta"),
+              "cccc1111": ("Torre", "ferma"), "dddd1111": ("Nuda", "ferma"), "eeee1111": ("Nuvola", None)}
+    if set(per) != set(attese):
+        return f"sessioni {sorted(per)}, attese {sorted(attese)}"
+    for i, (h, st) in attese.items():
+        if per[i]["host"] != h or (st and per[i]["stato"] != st):
+            return f"{i}: host {per[i]['host']} stato {per[i].get('stato')}, atteso {h} {st}"
+    if not per["eeee1111"].get("vecchia"):
+        return "la riga della macchina che non risponde non è segnata vecchia"
+    if per["aaaa1111"]["attach"] != ["/q/claude", "attach", "aaaa1111"]:
+        return f"aggancio locale {per['aaaa1111']['attach']}"
+    if per["cccc1111"]["attach"][1:] != ["-t", "torre.lan", "C:/u/claude.exe", "attach", "cccc1111"]:
+        return f"aggancio remoto {per['cccc1111']['attach']}"
+    if per["bbbb1111"]["attach"] is not None or per["bbbb1111"]["tipo"] != "interattiva":
+        return "un'interattiva ha un aggancio: va prima portata in background"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -1662,6 +1746,10 @@ VELENI = [
     ("HZ33", "shared/volta-celeste/mods/arturo/dati.js", ": radiceDa(arturo[arturo.length - 1]),", ": `${home()}/.claude`,"),
     ("HZ33", "shared/volta-celeste/mods/arturo/dati.js", "[\\\\/]bin[\\\\/]arturo", "[/]bin[/]arturo"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
+    ("HZ34", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'for py in ("python3", "python"):', 'for py in ("python3",):'),
+    ("HZ34", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'return [v for v in voci if v.get("claude") or ("irraggiungibile" in v and (v["questa"] or v["host"] in viste))]', 'return voci'),
+    ("HZ34", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'sessioni += [dict(r, vecchia=True)', 'sessioni += [dict(r)'),
+    ("HZ34", "shared/volta-celeste/mods/arturo/volta.js", "`${appHome()}/mods/arturo/volta_sonda.py`", "`${home()}/.claude/scripts/teletrasporto.py`"),
 ]
 
 

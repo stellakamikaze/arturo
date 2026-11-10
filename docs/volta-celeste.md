@@ -47,11 +47,11 @@ Il login. Su quel Mac il gestore delle sessioni in background (`claude daemon`) 
 
 ## Tutte le sessioni, di tutte le macchine
 
-In cima alla barra di sinistra la sezione "Tutte le sessioni" elenca le sessioni di Claude Code aperte su ogni macchina, raggruppate per macchina o per progetto (l'interruttore sotto il titolo; la scelta resta). Compare solo se c'è `~/.claude/scripts/teletrasporto.py`, o il percorso scritto in `arturo.json` alla voce `volta`: chi usa Arturo su un solo computer non la vede. Ogni 30 secondi il mod lancia `teletrasporto.py volta --scrivi ~/.cache/volta/sessioni.json` e rilegge il file; una macchina che non risponde resta con le sue ultime sessioni note e la nota "Non risponde".
+In cima alla barra di sinistra la sezione "Tutte le sessioni" elenca le sessioni di Claude Code aperte su ogni macchina, raggruppate per macchina o per progetto (l'interruttore sotto il titolo; la scelta resta). Le macchine sono quelle aggiunte a Herdr (`hc machine ls`): questa per prima, poi le altre, lette con `hc exec --on <macchina>`, Windows compreso. Una macchina senza Claude Code (un server, un Raspberry) resta fuori. Ogni 30 secondi il mod lancia `volta_sonda.py volta --scrivi ~/.cache/volta/sessioni.json`, che sta nella cartella del mod, e rilegge il file. Un altro script si indica in `arturo.json` alla voce `volta`. Una macchina che non risponde, se Volta ci aveva già visto Claude, resta con le sue ultime sessioni note e la nota "Non risponde".
 
 In ogni gruppo stanno prima le sessioni che ti aspettano, poi quelle con un errore, poi quelle al lavoro; le ferme si aprono con "N ferme". Il clic:
 - su una sessione in background apre una scheda con `claude attach`, via `ssh -t` se è su un'altra macchina, nello spazio del suo progetto (o nello spazio "Volta" se non ne ha uno); se la scheda c'è già, la porta davanti;
-- su una sessione aperta in un Terminale e ferma lancia `teletrasporto.py porta-volta`, che scrive `/bg` nella sua casella vuota e restituisce il nuovo id, poi la aggancia;
+- su una sessione aperta in un Terminale e ferma lancia `~/.claude/scripts/teletrasporto.py porta-volta`, se c'è (senza, dice di aprirla dal suo Terminale), che scrive `/bg` nella sua casella vuota e restituisce il nuovo id, poi la aggancia;
 - su una sessione al lavoro, che aspetta una risposta nel suo Terminale o di una macchina giù, non fa niente e dice perché sotto la riga.
 
 Lo stesso clic arriva anche da `herdr-app do arturo.volta-<id>` (id corto di otto caratteri). Le parti: `sessioni.js` (gruppi, frasi e decisione del clic, senza Herdr, provato da HZ17-HZ18 con node) e `volta.js` (letture, aggancio, sezione).

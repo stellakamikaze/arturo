@@ -1,8 +1,9 @@
 // Volta Celeste nella barra: tutte le sessioni di Claude di tutte le macchine, per macchina o per
-// progetto. L'elenco lo scrive teletrasporto.py volta in ~/.cache/volta/sessioni.json ogni 30 s; un
+// progetto. L'elenco lo scrive volta_sonda.py (accanto a questo file) in ~/.cache/volta/sessioni.json ogni 30 s,
+// con le macchine aggiunte a Herdr (#5172); un
 // clic aggancia la sessione in una scheda (claude attach, via ssh se è su un'altra macchina), o la
 // sposta prima in background se è aperta in un Terminale ed è ferma.
-// Senza teletrasporto.py (chi usa Arturo senza le macchine di Federico) la sezione non compare.
+// Spostare in background una sessione aperta in un Terminale (porta-volta) resta a teletrasporto.py, se c'è.
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
@@ -13,12 +14,17 @@ import { slug, config } from "./dati.js";
 
 const OGNI = 30000;
 
-// Il percorso di teletrasporto.py: "volta" in arturo.json, altrimenti quello della config.
-async function teletrasporto() {
+async function esiste(p) {
+  try { return (await readTextFile(p)) ? p : null; } catch { return null; }
+}
+
+// Lo script dell'elenco: "volta" in arturo.json, altrimenti volta_sonda.py del mod (per tutti).
+// Quello che sposta le sessioni del Terminale: teletrasporto.py della config, se c'è.
+async function script() {
   let c = {};
   try { c = JSON.parse((await readTextFile(`${appHome()}/arturo.json`)) ?? "{}"); } catch { c = {}; }
-  const p = typeof c.volta === "string" && c.volta ? c.volta : `${home()}/.claude/scripts/teletrasporto.py`;
-  try { return (await readTextFile(p)) ? p : null; } catch { return null; }
+  const elenco = typeof c.volta === "string" && c.volta ? c.volta : `${appHome()}/mods/arturo/volta_sonda.py`;
+  return { elenco: await esiste(elenco), sposta: await esiste(`${home()}/.claude/scripts/teletrasporto.py`) };
 }
 
 export class Volta {
@@ -34,7 +40,9 @@ export class Volta {
     cx.spawn(async (cx) => {
       // Il Python che installa-herdr.sh ha trovato e scritto in arturo.json: su Windows può essere "python".
       this.py = (await config()).arturo[0];
-      this.script = await teletrasporto();
+      const sc = await script();
+      this.script = sc.elenco;
+      this.sposta = sc.sposta;
       if (!this.script) return cx.notify();
       await this.leggi();
       cx.notify();
@@ -54,7 +62,7 @@ export class Volta {
     } catch { /* un file a metà: resta l'ultima lettura buona */ }
   }
 
-  // Un giro di teletrasporto.py volta, mai due insieme: con una macchina lenta un giro dura 10 s.
+  // Un giro di volta_sonda.py volta, mai due insieme: con una macchina lenta un giro dura qualche secondo.
   aggiorna(cx) {
     if (!this.script || this.inCorso) return;
     this.inCorso = true;
@@ -89,12 +97,14 @@ export class Volta {
     const d = clic(s);
     if (d.azione === "no") return this.avvisa(s, d.motivo, cx);
     if (d.azione === "aggancia") return this.apri(s, d.argv);
+    // senza teletrasporto.py nessuno sa scrivere /bg nel Terminale di quella sessione
+    if (!this.sposta) return this.avvisa(s, "È aperta in un Terminale: aprila da lì.", cx);
     this.sposto[s.sessionId] = true;
     cx.notify();
     cx.spawn(async (cx) => {
       let esito = null;
       try {
-        const r = await exec(this.py, [this.script, "porta-volta", s.host, s.sessionId], { timeout: 60000 });
+        const r = await exec(this.py, [this.sposta, "porta-volta", s.host, s.sessionId], { timeout: 60000 });
         esito = JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
       } catch (e) {
         esito = { errore: `${s.macchina} non risponde.` };
@@ -185,7 +195,7 @@ export class Volta {
         .child(div().text_size(12.5).text_color(t.muted).child(this.aperti[g.chiave] ? "Nascondi le ferme" : `${ferme.length} ${ferme.length > 1 ? "ferme" : "ferma"}`))));
   }
 
-  // null quando la sezione non serve (niente teletrasporto.py su questo computer).
+  // null quando la sezione non serve (manca lo script dell'elenco).
   render(cx) {
     if (!this.script) return null;
     const t = theme();
