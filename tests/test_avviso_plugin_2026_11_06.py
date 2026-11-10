@@ -220,6 +220,9 @@ def avvelena(repo: Path) -> int:
 
 
 def main() -> int:
+    for flusso in (sys.stdout, sys.stderr):  # la barra ha "│": su Windows cp1252 non lo scrive (#5119)
+        if hasattr(flusso, "reconfigure"):
+            flusso.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", default=str(Path(__file__).resolve().parents[1]))
     parser.add_argument("--baseline-ref")
