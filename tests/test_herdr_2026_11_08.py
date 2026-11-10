@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ30: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ31: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -80,10 +80,9 @@ HZ26 su cosa è una nota (#5117 passo 1, nota.js con node): regione() rifà i re
      notaui.js mette la parte e il terminale in nota.json. Senza node la parte con node si salta.
 HZ27 il velo delle note (#5117 passo 2, nota.js con node): nota.json versione 2 con id, numero, tipo, stato,
      filo e todo; una nota versione 1 si legge come aperta; i segni delle note aperte del progetto hanno
-     numeri unici e si riportano in scala sulla finestra; risposta e chiusura passano nel filo; lo script
-     LEGGI_NOTE legge la cartella col Python; la CLI vera dà l'id del todo con --json. notaui.js riscrive
-     nota.json solo se è ancora quello letto e porta Risolta e Scarta sul todo. Senza node la parte con node
-     si salta.
+     numeri unici e si riportano in scala sulla finestra; lo script LEGGI_NOTE legge la cartella col
+     Python; la CLI vera dà l'id del todo con --json, e le note del todo portano `arturo note mostra <id>`.
+     Senza node la parte con node si salta.
 HZ28 l'elenco delle note (#5117 passo 3, nota.js con node): prima le aperte coi numeri dei segni, con
      "tutte" anche le chiuse dalla più recente e senza numero; ultima risposta di Claude, età in parole,
      conteggio per progetto; una risposta nuova di Claude si annuncia, ma non alla prima lettura. ⌘⇧E sui
@@ -95,6 +94,10 @@ HZ29 il giro di Claude con `arturo note` (#5117 passo 4, CLI vera in una casa fi
      fatto; una nota chiusa non si richiude, scarta chiude col motivo, un percorso al posto dell'id esce 2.
 HZ30 scrittura concorrente: se il velo scrive fra la lettura e la scrittura della CLI, la CLI rilegge e
      rifà la sua modifica, e nel filo restano tutte e due le risposte.
+HZ31 Rispondi, Risolta e Scarta del velo (#5117 passo 5): notaui.js li manda ad `arturo note` con --chi
+     federico (gestoNota di dati.js), senza scrivere nota.json da sé; con la CLI vera in una casa finta la
+     risposta di Federico arriva una volta sul todo, Risolta senza testo chiude nota e todo, Scarta col
+     motivo scarta il todo, e una nota già chiusa da Claude esce 2 col motivo.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -110,7 +113,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -1046,16 +1049,12 @@ const letta = n.leggiNota(v1, "2026-11-09_10-00-00");
 const mk = (id, numero, stato, progetto = "p", quando = id) => ({ id, numero, stato, progetto, quando, punto: { x: 1, y: 1 }, finestra: { larghezza: 1, altezza: 1 } });
 const aperte = n.noteAperte([letta, mk("b", 1, "aperta"), mk("c", 3, "presa"), mk("d", 2, "risolta"), mk("e", 5, "aperta", "altro")], "p");
 const nuova = n.nota({ ...base, numero: 4 }).dati;
-const risposta = n.rispondi(nuova, "claude", "  fatto,  guarda ", "t1");
 console.log(JSON.stringify({
   nuova, argv: n.nota(base).argv, tipo: [n.nota({ ...base, tipo: "domanda" }).dati.tipo, n.nota({ ...base, tipo: "boh" }).dati.tipo],
   letta, rotta: [n.leggiNota("{", "x"), n.leggiNota("{}", "x")],
   aperte: aperte.map((a) => [a.id, a.numero]), prossimo: [n.prossimoNumero(aperte), n.prossimoNumero([])],
   segni: [n.segno(nuova, { larghezza: 1440, altezza: 900 }), n.segno(nuova, { larghezza: 720, altezza: 450 }),
     n.segno({ ...nuova, punto: { x: 1439, y: 899 } }, { larghezza: 700, altezza: 400 })],
-  risposta: risposta.filo, vuota: n.rispondi(nuova, "claude", "  ", "t"), chi: n.rispondi(nuova, "altro", "x", "t"),
-  risolta: n.chiudiNota(risposta, "risolta", "sistemato", "t2", "claude"), scartata: n.chiudiNota(nuova, "scartata", "", "t3"),
-  sbagliata: n.chiudiNota(nuova, "boh", "x", "t"),
   script: n.LEGGI_NOTE,
 }));
 """
@@ -1067,9 +1066,6 @@ def hz27(repo: Path, casa: Path) -> str | None:
     for pezzo, perche in [
         ('exec(py, ["-c", LEGGI_NOTE, cartellaNote(home())]', "il velo non legge le note col Python di arturo.json"),
         ("writeTextFile(file, json({ ...n.dati, todo: r.json.id }), scritto)", "la nota non salva l'id del todo"),
-        ("json(salvata), prima.testo);", "il velo riscrive nota.json senza controllare che sia ancora quello letto"),
-        ('await todo(["fatto", String(n.todo)]);', "Risolta non chiude il todo"),
-        ('await todo(["scarta", String(n.todo)', "Scarta non scarta il todo"),
         ("el.children(this.segni(t))", "il velo non disegna i segni delle note aperte"),
         (".child(this.pastiglie(t))", "il campo non ha le pastiglie del tipo"),
         ("numero: prossimoNumero(aperte)", "la nota nuova non prende il numero dopo le aperte")]:
@@ -1094,6 +1090,9 @@ def hz27(repo: Path, casa: Path) -> str | None:
         return f"il tipo della nota non si tiene o non ricade sul predefinito: {g['tipo']}"
     if "--json" not in g["argv"] or g["argv"].index("--json") > g["argv"].index("--"):
         return "il todo della nota non si chiede con --json: l'id non torna nella nota"
+    note_todo = g["argv"][g["argv"].index("--note") + 1]
+    if not note_todo.endswith("Per partire: arturo note mostra 2026-11-10_07-00-00"):
+        return f"le note del todo non dicono a Claude da dove partire: {note_todo[-80:]}"
     l = g["letta"]
     if (l["versione"], l["id"], l["stato"], l["numero"], l["tipo"], l["filo"][0]["testo"], l["dove"]["blocco"]) != (
             2, "2026-11-09_10-00-00", "aperta", None, "correggere", "vecchia", None):
@@ -1104,12 +1103,6 @@ def hz27(repo: Path, casa: Path) -> str | None:
         return f"numeri dei segni sbagliati: {g['aperte']} prossimo {g['prossimo']}"
     if g["segni"] != [{"x": 700, "y": 400}, {"x": 350, "y": 200}, {"x": 699, "y": 399}]:
         return f"i segni non si riportano in scala sulla finestra: {g['segni']}"
-    if g["risposta"][-1] != {"chi": "claude", "quando": "t1", "testo": "fatto, guarda"} or g["vuota"] or g["chi"]:
-        return "la risposta non entra nel filo, o entra vuota o di qualcun altro"
-    ri, sc = g["risolta"], g["scartata"]
-    if (ri["stato"], ri["riassunto"], ri["motivo"], ri["chiusa_quando"], ri["filo"][-1]["testo"]) != ("risolta", "sistemato", None, "t2", "sistemato") \
-            or (sc["stato"], sc["motivo"], sc["chiusa_quando"], len(sc["filo"])) != ("scartata", None, "t3", 1) or g["sbagliata"] is not None:
-        return "risolta e scartata non chiudono la nota come devono"
     cartella = casa / "note"
     for nome, testo in [("a", '{"x": 1}'), ("b", None), ("c", "ciao")]:
         (cartella / nome).mkdir(parents=True)
@@ -1348,7 +1341,66 @@ def hz30(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30}
+def hz31(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    ui = (mod / "notaui.js").read_text(encoding="utf-8")
+    dati = (mod / "dati.js").read_text(encoding="utf-8")
+    for testo, pezzo, perche in [
+        (ui, "const r = await gestoNota(VERBI[che], n.id, testo);", "i bottoni della scheda non passano da arturo note"),
+        (ui, 'const VERBI = { rispondi: "rispondi", risolta: "risolvi", scarta: "scarta" };', "un bottone porta al verbo sbagliato"),
+        (dati, 'arturo("note", [verbo, id, "--chi", "federico", "--json", ...(t ? ["--", t] : [])]',
+         "gestoNota non chiama arturo note con --chi federico, --json e il testo dopo --")]:
+        if pezzo not in testo:
+            return perche
+    corpo = ui[ui.index("  azione(cx, che) {"):ui.index("  // Un riquadro largo w e alto h")]
+    if "writeTextFile" in corpo or "todo([" in corpo:
+        return "i bottoni della scheda scrivono ancora nota.json o il todo da sé: due copie del gesto"
+    env, base = casa_note(casa)
+    arturo = [sys.executable, str(repo / "bin/arturo")]
+
+    def cli(*argv):
+        return subprocess.run([*arturo, *argv], capture_output=True, text=True, timeout=120, env=env, cwd=casa)
+
+    def gesto(verbo, ident, testo=""):  # gli argomenti di gestoNota()
+        return cli("note", verbo, ident, "--chi", "federico", "--json", *(["--", testo] if testo else []))
+    ids = []
+    for nome in ("n1", "n2", "n3"):
+        r = cli("todo", "aggiungi", "--progetto", "p", "--chi", "io", "--json", "--", f"Nota sulla finestra: {nome}")
+        try:
+            ids.append(json.loads(r.stdout)["id"])
+        except (ValueError, KeyError):
+            return f"il todo della nota non nasce: {(r.stderr or r.stdout)[:120]}"
+        nota_v2(base, nome, ids[-1])
+    r = gesto("rispondi", "n1", "-- è il margine")
+    if r.returncode:
+        return f"Rispondi del velo non passa: {r.stderr.strip()[:120]}"
+    try:
+        esito = json.loads(r.stdout)
+    except ValueError:
+        return f"arturo note con --json non risponde in JSON: {r.stdout[:120]}"
+    filo = json.loads((base / "n1/nota.json").read_text(encoding="utf-8"))["filo"]
+    t = json.loads(cli("todo", "mostra", str(ids[0]), "--json").stdout)
+    if (filo[-1]["chi"], filo[-1]["testo"]) != ("federico", "-- è il margine") \
+            or [x for x in t["note"] if "sulla nota" in x] != ["Federico sulla nota 1: -- è il margine"] \
+            or not str(esito.get("todo_esito", "")).startswith("Todo #"):
+        return f"la risposta di Federico non arriva una volta, sua, su nota e todo: {filo[-1]} {t['note']} {esito.get('todo_esito')}"
+    r = gesto("risolvi", "n2")
+    d = json.loads((base / "n2/nota.json").read_text(encoding="utf-8"))
+    t = json.loads(cli("todo", "mostra", str(ids[1]), "--json").stdout)
+    if r.returncode or (d["stato"], d["riassunto"], len(d["filo"])) != ("risolta", None, 1) or t["stato"] != "fatto":
+        return f"Risolta senza testo non chiude nota e todo: {r.stderr.strip()[:80]} {d['stato']} {t['stato']}"
+    r = gesto("scarta", "n3", "doppia")
+    d = json.loads((base / "n3/nota.json").read_text(encoding="utf-8"))
+    t = json.loads(cli("todo", "mostra", str(ids[2]), "--json").stdout)
+    if r.returncode or (d["stato"], d["motivo"], d["filo"][-1]["chi"]) != ("scartata", "doppia", "federico") or t["stato"] != "scartato":
+        return f"Scarta non chiude la nota col motivo o non scarta il todo: {r.stderr.strip()[:80]} {d['stato']} {t['stato']}"
+    r = gesto("scarta", "n2", "tardi")
+    if r.returncode != 2 or "già risolta" not in r.stderr:
+        return f"Scarta su una nota già chiusa da Claude non lo dice: {r.returncode} {r.stderr.strip()[:80]}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -1420,7 +1472,7 @@ VELENI = [
     ("HZ27", "shared/volta-celeste/mods/arturo/nota.js", 'stato: "aperta", chiusa_quando: null', 'stato: "presa", chiusa_quando: null'),
     ("HZ27", "shared/volta-celeste/mods/arturo/nota.js", "n.punto.x * W / f.larghezza", "n.punto.x"),
     ("HZ27", "shared/volta-celeste/mods/arturo/nota.js", '"--note", riga, "--json", "--"', '"--note", riga, "--"'),
-    ("HZ27", "shared/volta-celeste/mods/arturo/notaui.js", "json(salvata), prima.testo);", "json(salvata), null);"),
+    ("HZ27", "shared/volta-celeste/mods/arturo/nota.js", "Per partire: arturo note mostra ${dati.id}", "Per partire: ${dati.id}"),
     ("HZ28", "shared/volta-celeste/mods/arturo/nota.js", "recente(b).localeCompare(recente(a))", "recente(a).localeCompare(recente(b))"),
     ("HZ28", "shared/volta-celeste/mods/arturo/nota.js", "numero: aperta ? n.numero : null", "numero: n.numero"),
     ("HZ28", "shared/volta-celeste/mods/arturo/nota.js", "  if (!prima) return [];\n", ""),
@@ -1435,6 +1487,11 @@ VELENI = [
     ("HZ29", "bin/note_finestra.py", 'if n["stato"] not in APERTE:\n        raise ErroreNota(f"la nota {n[\'id\']} è già {n[\'stato\']}")\n    v = ', "v = "),
     ("HZ29", "bin/arturo", '    "note": ("note_finestra",', '    "notte": ("note_finestra",'),
     ("HZ30", "bin/note_finestra.py", "        if ora != letto:", "        if False:"),
+    ("HZ31", "shared/volta-celeste/mods/arturo/notaui.js", "const r = await gestoNota(VERBI[che], n.id, testo);", "const r = { ok: true };"),
+    ("HZ31", "shared/volta-celeste/mods/arturo/notaui.js", 'risolta: "risolvi"', 'risolta: "scarta"'),
+    ("HZ31", "shared/volta-celeste/mods/arturo/dati.js", '"--chi", "federico", "--json"', '"--json"'),
+    ("HZ31", "shared/volta-celeste/mods/arturo/dati.js", '...(t ? ["--", t] : [])', '...(t ? [t] : [])'),
+    ("HZ31", "bin/note_finestra.py", 'if not testo and chi == "claude":', "if not testo:"),
     ("HZ08", "hooks/session-start.sh", 'mkdir -p "$HOME/.claude/data" && date +%Y-%m-%d > "$HOME/.claude/data/herdr-invito"', ":"),
 ]
 

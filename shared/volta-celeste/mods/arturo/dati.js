@@ -20,19 +20,29 @@ export async function config() {
   };
 }
 
-// arturo todo <args>: { ok, json, errore }. Mai un'eccezione verso l'interfaccia.
-export async function todo(args) {
+// arturo <comando> <args>: { ok, json, errore }. Mai un'eccezione verso l'interfaccia.
+async function arturo(comando, args, errore) {
   try {
     const c = await config();
     const [cmd, ...pre] = c.arturo;
-    const r = await exec(cmd, [...pre, "todo", ...args], { cwd: c.base });
+    const r = await exec(cmd, [...pre, comando, ...args], { cwd: c.base });
     if (r.code !== 0) return { ok: false, errore: prima(r.stderr) || prima(r.stdout) || `uscita ${r.code}`, codice: r.code };
     if (!args.includes("--json")) return { ok: true, testo: prima(r.stdout) };
     return { ok: true, json: JSON.parse(r.stdout) };
   } catch (e) {
-    return { ok: false, errore: "Non riesco a leggere i todo di Arturo." };
+    return { ok: false, errore };
   }
 }
+
+export const todo = (args) => arturo("todo", args, "Non riesco a leggere i todo di Arturo.");
+
+// Rispondi, Risolta e Scarta del velo: arturo note <verbo> <id> --chi federico. La CLI riscrive nota.json
+// rileggendolo se è cambiato, e porta il gesto sul todo: velo e Claude chiudono con lo stesso codice.
+export const gestoNota = (verbo, id, testo) => {
+  const t = String(testo ?? "").trim();
+  return arturo("note", [verbo, id, "--chi", "federico", "--json", ...(t ? ["--", t] : [])],
+    "Non riesco a scrivere la nota con arturo note.");
+};
 
 const prima = (s) => (s ?? "").split("\n").map((x) => x.trim()).find(Boolean) ?? "";
 

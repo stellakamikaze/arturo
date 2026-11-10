@@ -117,7 +117,7 @@ export function nota({ testo, x, y, larghezza, altezza, progetto, cartella, sche
   const riga = `Tipo: ${etichettaTipo(k).toLowerCase()}. Punto ${punto.x},${punto.y} su una finestra di ${finestra.larghezza}x${finestra.altezza}` +
     (schermo ? `, schermata ${schermo}` : "") +
     (dove?.blocco ? `, parte ${dove.blocco}` : "") + (dove?.cwd ? ` (terminale in ${dove.cwd})` : "") +
-    `. Nota e screenshot in ${cartella}`;
+    `. Nota e screenshot in ${cartella}. Per partire: arturo note mostra ${dati.id}`;
   const argv = progetto
     ? ["aggiungi", "--progetto", progetto, "--chi", "io", "--quando", "oggi", "--note", riga, "--json", "--", `Nota sulla finestra: ${breve}`]
     : null;
@@ -164,22 +164,6 @@ export function segno(n, finestra) {
   if (!W || !H || !f?.larghezza || !f?.altezza) return { x: n.punto.x, y: n.punto.y };
   const dentroDi = (v, max) => Math.min(Math.max(Math.round(v), 0), max - 1);
   return { x: dentroDi(n.punto.x * W / f.larghezza, W), y: dentroDi(n.punto.y * H / f.altezza, H) };
-}
-
-// Una risposta nel filo: { ...nota, filo: [..., { chi, quando, testo }] }; null se il testo è vuoto.
-export function rispondi(n, chi, testo, quando) {
-  const t = String(testo ?? "").replace(/\s+/g, " ").trim();
-  if (!t || !["federico", "claude"].includes(chi)) return null;
-  return { ...n, filo: [...(n.filo ?? []), { chi, quando, testo: t }] };
-}
-
-// Chiude la nota: "risolta" col riassunto o "scartata" col motivo, con l'ora; il testo va anche nel filo.
-export function chiudiNota(n, stato, testo, quando, chi = "federico") {
-  if (!["risolta", "scartata"].includes(stato)) return null;
-  const t = String(testo ?? "").replace(/\s+/g, " ").trim() || null;
-  const filo = t ? [...(n.filo ?? []), { chi, quando, testo: t }] : (n.filo ?? []);
-  return { ...n, stato, chiusa_quando: quando, riassunto: stato === "risolta" ? t : null,
-    motivo: stato === "scartata" ? t : null, filo };
 }
 
 // Lo script che legge in un colpo tutte le note: [[id, testo di nota.json], ...], in ordine di nome. Lo

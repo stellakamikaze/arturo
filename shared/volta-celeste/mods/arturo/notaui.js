@@ -8,9 +8,12 @@ import { div } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { theme, props, closeOverlay, notify, setShared, shared, spaces, writeTextFile, layout, focused, panes, hc,
   exec, home } from "herdr";
-import { todo, config } from "./dati.js";
+import { todo, gestoNota, config } from "./dati.js";
 import { nota, progettoNota, regione, misureDaLayout, ultimeRighe, TIPI, TIPO_PREDEFINITO, etichettaTipo,
-  leggiNota, noteAperte, prossimoNumero, segno, rispondi, chiudiNota, cartellaNote, LEGGI_NOTE } from "./nota.js";
+  leggiNota, noteAperte, prossimoNumero, segno, cartellaNote, LEGGI_NOTE } from "./nota.js";
+
+// I bottoni della scheda e i verbi di arturo note.
+const VERBI = { rispondi: "rispondi", risolta: "risolvi", scarta: "scarta" };
 
 const CAMPO = 360;
 const SCHEDA = 380;
@@ -120,43 +123,32 @@ export class Nota {
     });
   }
 
-  // Rispondi, Risolta o Scarta sulla nota aperta: riscrive nota.json solo se è ancora quello letto, poi
-  // porta il gesto sul todo collegato (una nota, fatto o scartato).
+  // Rispondi, Risolta o Scarta sulla nota aperta: tutto passa da `arturo note <verbo> --chi federico`, lo
+  // stesso codice con cui Claude chiude le note. La CLI riscrive nota.json e porta il gesto sul todo
+  // collegato (una nota, fatto o scartato); se Claude l'ha già chiusa, lo dice e il velo rilegge.
   azione(cx, che) {
     const n = this.aperta;
     if (!n || this.invio) return;
     const testo = this.risposta.value();
-    const quando = new Date().toISOString();
-    const nuova = che === "rispondi" ? rispondi(n, "federico", testo, quando)
-      : chiudiNota(n, che === "risolta" ? "risolta" : "scartata", testo, quando);
-    if (!nuova) return;
-    const prima = this.tutte.find((x) => x.nota.id === n.id);
-    if (!prima) return;
+    if (che === "rispondi" && !String(testo ?? "").trim()) return;
     this.invio = true;
+    cx.notify();
     cx.spawn(async (cx) => {
-      const { numero: _numero, ...daScrivere } = nuova;
-      const salvata = { ...daScrivere, numero: Number.isInteger(prima.nota.numero) ? prima.nota.numero : n.numero };
-      try {
-        await writeTextFile(`${cartellaNote(home())}/${n.id}/nota.json`, json(salvata), prima.testo);
-      } catch {
-        this.invio = false;
+      const r = await gestoNota(VERBI[che], n.id, testo);
+      this.invio = false;
+      if (!r.ok) {
         await this.ricarica();
-        notify({ title: "La nota è cambiata", body: "Claude l'ha appena aggiornata: rileggila e riprova.", level: "warning", timeout: 6000 });
+        notify({ title: `La nota ${n.numero} non è cambiata`, body: r.errore, level: "warning", timeout: 6000 });
         cx.notify();
         return;
       }
-      const t = String(testo ?? "").trim();
-      if (n.todo != null) {
-        if (che === "rispondi") await todo(["nota", String(n.todo), `Federico sulla nota ${n.numero}: ${t}`]);
-        else if (che === "risolta") await todo(["fatto", String(n.todo)]);
-        else await todo(["scarta", String(n.todo), t || "Nota scartata dalla finestra"]);
-        setShared("arturo.scritto", Date.now());
-      }
+      if (n.todo != null) setShared("arturo.scritto", Date.now());
       this.risposta.set_value("");
-      this.invio = false;
       if (che !== "rispondi") this.aperta = null;
       await this.ricarica();
-      if (che !== "rispondi") notify({ title: `Nota ${n.numero} ${che === "risolta" ? "risolta" : "scartata"}`, body: n.testo, level: "success", timeout: 3000 });
+      const esito = r.json?.todo_esito ?? "";
+      if (esito.startsWith("Attenzione")) notify({ title: `Nota ${n.numero}: il todo non è cambiato`, body: esito, level: "warning", timeout: 6000 });
+      else if (che !== "rispondi") notify({ title: `Nota ${n.numero} ${che === "risolta" ? "risolta" : "scartata"}`, body: n.testo, level: "success", timeout: 3000 });
       cx.notify();
     });
   }
