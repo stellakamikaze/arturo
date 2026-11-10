@@ -13,6 +13,21 @@ modo di lavorare.
 
 ---
 
+## 2026-11-10 — Plugin: le impostazioni nuove arrivano anche se aggiorni fuori da /aggiorna
+
+**Cosa cambia**: se Claude Code aggiornava il plugin di Arturo da un'altra strada (`claude plugin update`,
+il pannello `/plugin`), hook e skill erano nuovi ma `settings.json` restava quello di prima. Un permesso o
+una regola di blocco nuova non arrivava mai, e `/aggiorna` diceva "GIÀ AGGIORNATO". Ora l'avvio e
+`/aggiorna` confrontano le impostazioni della versione installata con quelle già unite e, se sono diverse,
+le uniscono. All'avvio può comparire la riga `IMPOSTAZIONI APPLICATE`, e Claude te lo dice in una frase.
+
+**Il principio**: un aggiornamento arriva intero, qualunque strada prenda.
+
+**Da sapere**: l'unione parte solo da una copia che torna con l'elenco firmato dei suoi file (il MANIFEST),
+e cambia solo le voci che hai lasciato com'erano. Se una voce l'hai cambiata anche tu, compare
+`IMPOSTAZIONI NON APPLICATE` e `/setup` ti chiede cosa tenere. Riguarda solo chi usa Arturo come plugin,
+e solo dopo la prima unione fatta da `/setup`.
+
 ## 2026-11-10 — Guardie: senza un Python che funziona ogni comando chiede conferma
 
 **Cosa cambia**:
