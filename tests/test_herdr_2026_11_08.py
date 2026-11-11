@@ -281,6 +281,9 @@ from pathlib import Path
 CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
+# Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
+# tetto alla connessione e battito, perché una connessione morta non tenga la scheda ferma.
+OPZIONI_SSH = ["-o", "ConnectTimeout=10", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3"]
 ATTESI = {  # evento: (matcher o None, stato)
     "SessionStart": ("", "idle"),
     "UserPromptSubmit": (None, "working"),
@@ -2309,7 +2312,7 @@ def hz39(repo: Path, casa: Path) -> str | None:
             return f"Nuova richiesta su Torre non chiama volta_sonda.py nasci: {v['eseguiti']}"
         if not v["eseguiti"][0][1].endswith("mods/arturo/volta_sonda.py"):
             return f"Nuova richiesta lancia {v['eseguiti'][0][1]}, non volta_sonda.py del mod"
-        if len(v["lanciati"]) != 1 or v["lanciati"][0].get("argv") != ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"]:
+        if len(v["lanciati"]) != 1 or v["lanciati"][0].get("argv") != ["ssh", "-t", *OPZIONI_SSH, "torre.lan", "claude", "attach", "ffff1111"]:
             return f"la sessione nata su Torre non si aggancia qui: {v['lanciati']}"
         v = volta("apri", "Torre")
         if not v["eseguiti"] or v["eseguiti"][0][2:] != ["nasci", "Torre", "--progetto", "progetto-x", "--", "/inizio progetto-x"]:
@@ -3125,7 +3128,7 @@ def hz52(repo: Path, casa: Path) -> str | None:
     app.mkdir()
     (app / "arturo.json").write_text(json.dumps({"arturo": ["python9", "/a/bin/arturo"], "radice": str(repo), "base": "/base"}), encoding="utf-8")
     attach = ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"]
-    riga = "ssh -t torre.lan claude attach ffff1111"
+    riga = "ssh -t %s torre.lan claude attach ffff1111" % " ".join(OPZIONI_SSH)
     nascita = ["/bin/zsh", "-lic", '"$@"; exec "$0" -li', "/bin/zsh", *attach]
     viva = {"state": "live", "pid": 10, "argv": nascita, "foreground": {"pid": 77, "argv": attach}}
     nuda = {"state": "live", "pid": 10, "argv": nascita, "foreground": {"pid": 10, "argv": ["/bin/zsh", "-li"]}}
@@ -3175,7 +3178,7 @@ def hz52(repo: Path, casa: Path) -> str | None:
         # stesso nome, altra cosa dentro: nasce una scheda nuova (prima il clic sceglieva quella per nome)
         omonima = {**herdr, "terminals": [{"address": "t3", "argv": ["zsh"]}, {"address": "t7", "argv": ["zsh"]}]}
         v = volta(herdr=omonima)
-        if len(nuove(v)) != 1 or nuove(v)[0].get("argv") != attach or sonda(v) != [["apri", "Torre", "ffff1111"]]:
+        if len(nuove(v)) != 1 or nuove(v)[0].get("argv") != attach[:2] + OPZIONI_SSH + attach[2:] or sonda(v) != [["apri", "Torre", "ffff1111"]]:
             return f"con una scheda dallo stesso nome non nasce la scheda della sessione: {v['lanciati']}"
         if any(x["cmd"] == "tab.select" for x in v["lanciati"]):
             return "il clic sceglie ancora una scheda per nome"
@@ -3221,7 +3224,7 @@ def hz52(repo: Path, casa: Path) -> str | None:
         v = volta("nuova-scheda", herdr=omonima, uscita=json.dumps({"id": "ffff1111", "sessionId": "ffff1111-aaaa", "attach": attach}))
         if not v["eseguiti"] or v["eseguiti"][0][2:] != ["nasci", "qui", "--progetto", "progetto-x"]:
             return f"la scheda nuova non fa nascere una sessione nel progetto aperto: {v['eseguiti'][:1]}"
-        if len(nuove(v)) != 1 or nuove(v)[0].get("name") != "Nuova sessione" or nuove(v)[0].get("space") != "s1" or nuove(v)[0].get("argv") != attach:
+        if len(nuove(v)) != 1 or nuove(v)[0].get("name") != "Nuova sessione" or nuove(v)[0].get("space") != "s1" or nuove(v)[0].get("argv") != attach[:2] + OPZIONI_SSH + attach[2:]:
             return f"la scheda nuova non si aggancia nello spazio aperto: {nuove(v)}"
         if sonda(v):
             return "la scheda nuova ripassa dal servizio dopo la nascita"
@@ -3232,7 +3235,7 @@ def hz52(repo: Path, casa: Path) -> str | None:
     except RuntimeError as e:
         return f"dati.js non gira: {e}"
     vj = (mod / "volta.js").read_text(encoding="utf-8")
-    for pezzo in ("this.apro[k] = true;", "if (r.errore) this.avvisa(s, r.errore, cx);", "if (v?.errore) this.avvisa(s, v.errore, cx);",
+    for pezzo in ("this.apro[k] = true;", "if (r.errore) this.nonApre(s, r.errore, cx);", "if (v?.errore) this.nonApre(s, v.errore, cx);",
                   "this.apri({ ...s, id: esito.id ?? s.id }, esito.attach, true, cx);", '{ testo: "La apro…", colore: "working" }'):
         if pezzo not in vj:
             return f"volta.js senza {pezzo}"
@@ -3411,7 +3414,7 @@ def hz54(repo: Path, casa: Path) -> str | None:
         atteso = ["fork", "Torre", "ffff1111-aaaa", "--progetto", "Progetto X", "--cartella", "/lavori/x", "--titolo", "Rifare il deck (fork)"]
         if not v["eseguiti"] or v["eseguiti"][0][2:] != atteso:
             return f"Fork non chiama la sonda sulla macchina della sessione, col sessionId e la cartella: {v['eseguiti'][:1]}"
-        if len(nuove(v)) != 1 or nuove(v)[0].get("argv") != attach or nuove(v)[0].get("name") != "Rifare il deck (fork)" or nuove(v)[0].get("space") != "s1":
+        if len(nuove(v)) != 1 or nuove(v)[0].get("argv") != attach[:2] + OPZIONI_SSH + attach[2:] or nuove(v)[0].get("name") != "Rifare il deck (fork)" or nuove(v)[0].get("space") != "s1":
             return f"la copia non si aggancia nello spazio del progetto col suo nome: {nuove(v)}"
         if v["esito"] != {"ok": True, "id": "eeee2222"} or v["avvisi"]:
             return f"Fork riuscito: esito {v['esito']}, avvisi {v['avvisi']}"
@@ -3901,7 +3904,7 @@ def hz59(repo: Path, casa: Path) -> str | None:
         nuove = [x for x in v["lanciati"] if x["cmd"] in ("tab.new", "space.new")]
         if sorted(json.dumps(x, sort_keys=True) for x in chiuse) != sorted(json.dumps(x, sort_keys=True) for x in ({"cmd": "tab.close", "id": "tb1"}, {"cmd": "terminal.kill", "terminal": "t8"})):
             return f"cambiato il progetto, gli agganci di prima non si chiudono: {chiuse}"
-        if v["esito"] != {"spostata": True} or len(nuove) != 1 or nuove[0]["cmd"] != "space.new" or nuove[0].get("name") != "due-mondi" or nuove[0].get("argv") != ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"]:
+        if v["esito"] != {"spostata": True} or len(nuove) != 1 or nuove[0]["cmd"] != "space.new" or nuove[0].get("name") != "due-mondi" or nuove[0].get("argv") != ["ssh", "-t", *OPZIONI_SSH, "torre.lan", "claude", "attach", "ffff1111"]:
             return f"la sessione non si riapre nello spazio del progetto nuovo: {v['esito']}, {nuove}"
         v = volta("sposta-interattiva")
         if v["esito"] != {"resta": True} or v["lanciati"]:
@@ -4689,15 +4692,16 @@ VELENI = [
     ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'const a = await prepara(s, s.stato === "errore");', 'const a = await prepara(s, false);'),
     ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '  if (!pronta) {', '  if (true) {'),
     ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '    if (a.errore) return { errore: `Non la apro: ${a.errore}.` };\n', ''),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '  if (riavviata) return fallita;\n', ''),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '  if (riavviata || m?.fermo) return fallita(m);\n', ''),
     ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '  if (!(await nuda(indirizzo))) return {};\n  const fallita', '  const fallita'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '    run("space.select", { id: sp.id });\n    run("tab.new", { name: nome, space: sp.id, folder: cartella, argv });', '    const tab = sp.tabs.find((tb) => tb.name === nome);\n    if (tab) return run("tab.select", { id: tab.id });\n    run("tab.new", { name: nome, space: sp.id, folder: cartella, argv });'),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '    run("space.select", { id: sp.id });\n    run("tab.new", { name: nome, space: sp.id, folder: cartella, argv: argvScheda(argv) });', '    const tab = sp.tabs.find((tb) => tb.name === nome);\n    if (tab) return run("tab.select", { id: tab.id });\n    run("tab.new", { name: nome, space: sp.id, folder: cartella, argv: argvScheda(argv) });'),
     ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '(/^[\\w@%+=:,./-]+$/.test(String(a)) ? String(a)', '(true ? String(a)'),
     ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'slug(s.name) !== "volta" ? slug(s.name) : null;', 'slug(s.name) !== "volta" ? slug(s.name) : slug(s.name);'),
     ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '    if (scheda) await etichetta(scheda, s);\n  }\n  return { come: rilancia', '  }\n  return { come: rilancia'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'const r = await hc(["send", scheda.address, comando(argv)]);', 'const r = { code: 0 };'),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'const r = await hc(["send", scheda.address, comando(argvScheda(argv))]);', 'const r = { code: 0 };'),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/sessioni.js', 'return [a[0], "-t", ...OPZIONI_SSH, ...a.slice(2)];', 'return a;'),
     ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'return nasciSu(dove(), "", progetto, "Nuova sessione");', 'return nasciSu(dove(), "", progetto);'),
-    ('HZ52', 'shared/volta-celeste/mods/arturo/volta.js', '      if (v?.errore) this.avvisa(s, v.errore, cx);\n', ''),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/volta.js', '      if (v?.errore) this.nonApre(s, v.errore, cx);\n', ''),
     ('HZ19', 'shared/volta-celeste/mods/arturo/volta.js', 'if (d.azione === "aggancia") return this.apri(s, d.argv, false, cx);', 'if (d.azione === "aggancia") return this.apri(s, d.argv, true, cx);'),
     ('HZ53', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    if riavvia:\n        r = azione(nome, "respawn", sid)', '    if False:\n        r = azione(nome, "respawn", sid)'),
     ('HZ53', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    if ID.fullmatch(sid or "") is None:', '    if False:'),

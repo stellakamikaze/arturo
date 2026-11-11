@@ -2,7 +2,7 @@
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
 import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
-import { titolo, agganciata, titoloFork, casellaVuota, daPortare } from "./sessioni.js";
+import { titolo, agganciata, titoloFork, casellaVuota, daPortare, argvScheda, motivoUscita } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -362,10 +362,14 @@ export const ETICHETTA = "arturo.sessione";
 export const comando = (argv) => (argv ?? []).map((a) => (/^[\w@%+=:,./-]+$/.test(String(a)) ? String(a) : `'${String(a).replace(/'/g, `'\\''`)}'`)).join(" ");
 
 // I terminali che agganciano la sessione e che un pannello mostra: per etichetta, poi per argv.
+// Solo quelli di questa macchina: la finestra mostra anche le schede delle altre macchine di Herdr
+// ("amaltea/t21"), ma lì l'argv dell'aggancio non vale (è scritto per partire da qui: sarebbe un ssh
+// dalla macchina verso sé stessa), e chiudere o rinominare da qui le schede di un'altra finestra non
+// è il gesto chiesto.
 export function schedeDi(s) {
   if (!s?.id) return [];
   const visti = new Set(panes().map((p) => p.terminal));
-  const l = terminals().filter((x) => visti.has(x.address));
+  const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/"));
   const etichetta = l.filter((x) => x.labels?.[ETICHETTA] === s.id);
   return etichetta.concat(l.filter((x) => !etichetta.includes(x) && agganciata(x.argv, s)));
 }
@@ -423,8 +427,8 @@ export function aggancia(s, argv) {
   const cartella = s.questa && s.cartella ? s.cartella : home();
   if (sp) {
     run("space.select", { id: sp.id });
-    run("tab.new", { name: nome, space: sp.id, folder: cartella, argv });
-  } else run("space.new", { name: nomeSpazio, folder: cartella, machine: "", tab: nome, argv });
+    run("tab.new", { name: nome, space: sp.id, folder: cartella, argv: argvScheda(argv) });
+  } else run("space.new", { name: nomeSpazio, folder: cartella, machine: "", tab: nome, argv: argvScheda(argv) });
 }
 
 // Quanto si aspetta prima di guardare se claude attach è rimasto in piedi nella scheda (veglia).
@@ -458,7 +462,7 @@ export async function apriSessione(s, argv, pronta = false) {
   }
   if (rilancia) {
     mostra(scheda.address);
-    const r = await hc(["send", scheda.address, comando(argv)]);
+    const r = await hc(["send", scheda.address, comando(argvScheda(argv))]);
     if (r.code !== 0) return { errore: "Non riesco a rilanciare Claude nella sua scheda: chiudi la scheda e riprova." };
     await etichetta(scheda, s);
   } else {
@@ -470,17 +474,30 @@ export async function apriSessione(s, argv, pronta = false) {
   return { come: rilancia ? "rilanciata" : "nuova", riavviata, veglia: scheda ? veglia(s, argv, scheda.address, riavviata) : Promise.resolve({}) };
 }
 
+// Perché Claude è uscito dalla scheda: lo dice lo schermo della scheda (motivoUscita di sessioni.js).
+async function perche(s, indirizzo) {
+  try {
+    const r = await hc(["read", indirizzo]);
+    return r.code === 0 ? motivoUscita(r.stdout, s) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Se Claude è uscito, la riga dice il motivo letto nella scheda. Una causa che sta nella macchina o
+// nella connessione (`fermo`) non si riprova: il riavvio non la toglie, e terrebbe la riga occupata.
 async function veglia(s, argv, indirizzo, riavviata) {
   await pausa(VEGLIA);
   if (!(await nuda(indirizzo))) return {};
-  const fallita = { errore: "Claude non resta aperto in questa sessione: riprova, oppure eliminala da Altro." };
-  if (riavviata) return fallita;
+  const fallita = (m) => ({ errore: m?.testo ?? "Claude non resta aperto in questa sessione: riprova, oppure eliminala da Altro." });
+  const m = await perche(s, indirizzo);
+  if (riavviata || m?.fermo) return fallita(m);
   const a = await prepara(s, true);
   if (a.errore) return { errore: `Claude non si riapre: ${a.errore}.` };
-  const r = await hc(["send", indirizzo, comando(argv)]);
-  if (r.code !== 0) return fallita;
+  const r = await hc(["send", indirizzo, comando(argvScheda(argv))]);
+  if (r.code !== 0) return fallita(m);
   await pausa(VEGLIA);
-  return (await nuda(indirizzo)) ? fallita : { riavviata: true };
+  return (await nuda(indirizzo)) ? fallita((await perche(s, indirizzo)) ?? m) : { riavviata: true };
 }
 
 // Il nome di una macchina di "Nasce su" per le persone: "qui" è questa macchina.

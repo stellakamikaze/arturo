@@ -74,6 +74,7 @@ export class Volta {
     this.avvisi = {};
     this.sposto = {};
     this.apro = {};        // sessionId -> true mentre il clic prepara la scheda (servizio, respawn)
+    this.veglio = {};      // sessionId -> true mentre si guarda se Claude resta nella scheda appena aperta
     this.aperti = {};
     this.menu = null;      // la sessione con i gesti aperti
     this.anteprime = {};   // sessionId -> true (risposta e azione lette dalla riga) o righe di claude logs
@@ -191,16 +192,25 @@ export class Volta {
     return shared("arturo.volta.gruppi") === "macchina" ? "macchina" : "progetto";
   }
 
-  avvisa(s, testo, cx) {
+  avvisa(s, testo, cx, ms = 7000) {
     const k = s.sessionId;
     this.avvisi[k] = testo;
     cx.notify();
-    cx.timer.after(7000, (cx) => { if (this.avvisi[k] === testo) { delete this.avvisi[k]; cx.notify(); } });
+    cx.timer.after(ms, (cx) => { if (this.avvisi[k] === testo) { delete this.avvisi[k]; cx.notify(); } });
+  }
+
+  // Una sessione che non si apre: il motivo resta sulla riga due minuti (o fino al clic dopo) e arriva
+  // anche come avviso, perché chi ha cliccato sta guardando la scheda e non l'elenco.
+  nonApre(s, testo, cx) {
+    this.avvisa(s, testo, cx, 120000);
+    notify({ title: `${titolo(s)} non si apre`, body: testo, level: "warning" });
   }
 
   // Il clic su una sessione: aggancia, sposta e poi aggancia, oppure dice perché no.
   premi(s, cx) {
-    if (this.sposto[s.sessionId] || this.apro[s.sessionId]) return;
+    // un secondo clic mentre il primo lavora non lancia un secondo aggancio nella stessa scheda
+    if (this.sposto[s.sessionId] || this.apro[s.sessionId] || this.veglio[s.sessionId]) return;
+    delete this.avvisi[s.sessionId];
     let d = clic(s);
     // la scheda che la ospita non è in questa finestra: vale la regola di un'interattiva in un Terminale
     if (d.azione === "mostra") { if (mostra(d.terminale)) return; d = clic({ ...s, terminale: null }); }
@@ -237,13 +247,16 @@ export class Volta {
       let r;
       try { r = await apriSessione(s, argv, pronta); } catch (e) { r = { errore: `Non la apro: ${String(e?.message ?? e).slice(0, 120)}.` }; }
       delete this.apro[k];
-      if (r.errore) this.avvisa(s, r.errore, cx);
+      if (r.errore) this.nonApre(s, r.errore, cx);
       if (r.riavviata) this.aggiorna(cx);
+      if (r.veglia) this.veglio[k] = true;
       cx.notify();
-      const v = r.veglia ? await r.veglia : null;
-      if (v?.errore) this.avvisa(s, v.errore, cx);
+      let v = null;
+      try { v = r.veglia ? await r.veglia : null; } catch { /* senza veglia la scheda resta com'è */ }
+      delete this.veglio[k];
+      if (v?.errore) this.nonApre(s, v.errore, cx);
       if (v?.riavviata) this.aggiorna(cx);
-      if (v?.errore || v?.riavviata) cx.notify();
+      cx.notify();
     });
   }
 
@@ -432,6 +445,7 @@ export class Volta {
     const lavoro = LAVORO[this.faccio[s.sessionId]];
     const d = sposto ? { testo: "La sposto nella finestra…", colore: "working" }
       : apro ? { testo: "La apro…", colore: "working" }
+      : this.veglio[s.sessionId] ? { testo: "Aperta: guardo se Claude resta nella scheda…", colore: "working" }
       : lavoro ? { testo: lavoro, colore: "working" } : dettaglio(s, modo);
     const avviso = this.avvisi[s.sessionId];
     const vivo = s.stato === "aspetta" || s.stato === "lavora" || s.stato === "errore";
@@ -467,7 +481,7 @@ export class Volta {
         .child(h_flex().id(`v-${s.host}-${s.id}`).flex_1().min_w(0).gap(11).items_start().cursor_pointer()
           // Un clic apre la sessione; il doppio clic sul titolo apre anche il dialogo del nome.
           .on_click((e, cx) => (e?.click_count >= 2 ? this.chiedi(s, "nome") : this.premi(s, cx)))
-          .child(div().pt(6).child(vivo || sposto || apro || lavoro ? punto(colore(t, d.colore)) : div().size(8).flex_none()))
+          .child(div().pt(6).child(vivo || sposto || apro || lavoro || this.veglio[s.sessionId] ? punto(colore(t, d.colore)) : div().size(8).flex_none()))
           .child(v_flex().flex_1().min_w(0).gap(2)
             // Un titolo scritto (al più 60 caratteri) va a capo su due righe; gli altri si tagliano.
             .child((s.titolo ? div().whitespace_normal() : div().truncate()).text_size(14).text_color(s.vecchia ? t.muted : t.foreground).child(titolo(s)))

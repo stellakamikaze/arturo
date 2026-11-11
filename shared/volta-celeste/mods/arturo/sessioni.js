@@ -126,6 +126,48 @@ const dentro = (a, id) => typeof a === "string" &&
 export const agganciata = (argv, s) => Array.isArray(argv) && !!s?.id &&
   ((argv.includes("attach") && argv.includes(s.id)) || argv.some((a) => dentro(a, s.id)));
 
+// L'argv con cui la scheda lancia l'aggancio. Per ssh aggiunge un tetto alla connessione e il battito:
+// senza, una macchina spenta tiene la scheda vuota per più di un minuto, e dopo il sonno del portatile
+// la scheda resta ferma su una connessione morta, che il clic riporta davanti com'è. Col battito ssh
+// esce entro 45 secondi, la scheda resta con la shell e il clic dopo rilancia l'aggancio.
+// L'argv dell'elenco (campo attach) resta quello della sonda: lo leggono microfono.js e i confronti.
+export const OPZIONI_SSH = ["-o", "ConnectTimeout=10", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3"];
+export function argvScheda(argv) {
+  const a = Array.isArray(argv) ? argv.map(String) : [];
+  if (a.length < 3 || !/(^|[\\/])ssh(\.exe)?$/.test(a[0]) || a[1] !== "-t" || a.includes("ServerAliveInterval=15")) return a;
+  return [a[0], "-t", ...OPZIONI_SSH, ...a.slice(2)];
+}
+
+// Perché Claude è uscito dalla scheda appena agganciata, dallo schermo della scheda (hc read): la
+// frase per la riga della sessione, e `fermo` quando riprovare o riavviare non cambia niente (la causa
+// sta nella macchina o nella connessione). null se lo schermo non dice niente di riconoscibile.
+// Conta solo l'ultimo tentativo: il testo dopo l'ultimo comando di aggancio scritto nella shell.
+const USCITE = [
+  [/EINTR|Interrupted system call/, (m) => `Su ${m} Claude non riesce a leggere la cartella della sessione (Interrupted system call): finché ${m} non torna a posto le sessioni ferme non ripartono.`],
+  [/Host key verification failed/, (m) => `ssh non riconosce ${m} (Host key verification failed): collegati una volta a mano da un terminale.`],
+  [/Permission denied \(/, (m) => `${m} rifiuta l'accesso via ssh (Permission denied).`],
+  [/Could not resolve hostname|No route to host|Network is unreachable|Operation timed out|Connection timed out|Connection refused|Connection closed by|Connection reset/, (m) => `${m} non si raggiunge via ssh: è spenta, dorme o è fuori rete.`],
+  [/No job matching/, (m) => `Su ${m} questa sessione non c'è più: eliminala da Altro.`],
+  [/Not logged in/, (m) => `Su ${m} Claude non è collegato all'account (Not logged in): apri Claude su ${m} e fai /login.`],
+  [/Workspace not trusted/, (m) => `Su ${m} la cartella della sessione non è fra quelle fidate di Claude (Workspace not trusted).`],
+  [/command not found|No such file or directory|is not recognized as/, (m) => `Su ${m} non trovo il programma claude dove lo cerca l'aggancio.`],
+];
+export function motivoUscita(schermo, s) {
+  const m = s?.questa ? "questa macchina" : (s?.macchina ?? s?.host ?? "quella macchina");
+  const righe = String(schermo ?? "").replace(/\u001b\[[0-9;?]*[A-Za-z]/g, "").split("\n");
+  let da = 0;
+  righe.forEach((r, i) => { if (/[%$#>]\s.*\battach\s+['"]?[\w-]{4,}/.test(r)) da = i; });
+  const coda = righe.slice(da).join("\n");
+  for (const [re, frase] of USCITE) if (re.test(coda)) return { testo: frase(m), fermo: true };
+  const u = [...coda.matchAll(/Session \S+ (?:has exited|can't start)\s*(?:\(|—|-)?\s*([^\n]*)/g)].pop();
+  const perche = (u?.[1] ?? "").replace(/^[\s(—-]+|[\s).]+$/g, "").slice(0, 90);
+  // "before init": il processo della sessione muore prima di caricare la conversazione; il resto del
+  // messaggio è un pezzo di traccia interna, che alla persona non dice niente.
+  if (/before init/.test(perche)) return { testo: `Su ${m} la sessione non riesce a partire: Claude esce prima di iniziare (${perche.match(/exit \d+ before init/)?.[0] ?? "before init"}). Prova da ${m}, o riavvia ${m}.`, fermo: false };
+  if (perche) return { testo: `Su ${m} Claude esce appena parte (${perche}).`, fermo: false };
+  return null;
+}
+
 // I gesti sulla riga di una sessione in background, oltre al clic che la apre (claude attach, anche se
 // lavora): l'anteprima (anteprima() qui sotto, o claude logs senza trascrizione), ferma (stop) se è viva, riavvia (respawn) dopo un errore, elimina
 // (rm, con conferma) se è ferma. Un'interattiva e una riga vecchia non ne hanno: si aprono e basta.

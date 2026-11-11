@@ -510,6 +510,20 @@ def sonda_remota(nome):
     return {"claude": "claude", "sessioni": json.loads(testo[testo.find("["):] or "[]")}
 
 
+def errore_hc(riga):
+    """La riga d'errore di hc per le persone: hc scrive {"error": {"message": ...}}, e quel JSON
+    finiva intero sulla riga della sessione. Resta il solo messaggio; una riga qualunque resta com'è."""
+    riga = (riga or "").strip()
+    if riga.startswith("{"):
+        try:
+            e = json.loads(riga).get("error")
+            if isinstance(e, dict) and e.get("message"):
+                return str(e["message"])[:200]
+        except (ValueError, AttributeError):
+            pass
+    return riga[:200]
+
+
 def non_parte(out, err):
     """hc exec dice spawn_failed quando il programma non c'è sulla macchina."""
     return '"spawn_failed"' in (out or "") + (err or "")
@@ -658,7 +672,7 @@ def servizio(nome):
                 return leggi_json(out)
             except ValueError:
                 testo = (err or out).strip()
-                ultimo = testo.splitlines()[-1][:200] if testo else "rc %d" % rc
+                ultimo = errore_hc(testo.splitlines()[-1]) if testo else "rc %d" % rc
         return {"errore": ultimo}
 
     d = chiedi()
