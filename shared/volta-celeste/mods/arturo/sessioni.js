@@ -99,13 +99,16 @@ export function gruppi(dati, modo = "macchina") {
 }
 
 // Cosa fa il clic: { azione: "aggancia", argv } per una sessione in background, { azione: "porta" }
-// per un'interattiva ferma (prima /bg con porta-volta), { azione: "no", motivo } altrimenti.
+// per un'interattiva ferma (prima /bg con porta-volta), { azione: "mostra", terminale } per
+// un'interattiva che gira in una scheda di Herdr, { azione: "no", motivo } altrimenti.
 export function clic(s) {
   if (s.vecchia) return { azione: "no", motivo: `${s.macchina} non risponde: riprova quando torna.` };
   if (s.tipo === "background") {
     if (!Array.isArray(s.attach) || !s.attach.length) return { azione: "no", motivo: "Non so come agganciare questa sessione." };
     return { azione: "aggancia", argv: s.attach };
   }
+  // partita nella shell di una scheda di Herdr: sta già in Volta, il clic la porta davanti
+  if (s.terminale) return { azione: "mostra", terminale: s.questa ? s.terminale : `${s.host}/${s.terminale}` };
   if (s.stato === "lavora") return { azione: "no", motivo: "Sta lavorando nel suo Terminale: la sposto quando si ferma." };
   if (s.stato === "aspetta") return { azione: "no", motivo: "Ti aspetta nel suo Terminale: rispondi lì, poi la sposto." };
   if (s.stato === "errore") return { azione: "no", motivo: "Si è fermata con un errore: aprila dal suo Terminale." };

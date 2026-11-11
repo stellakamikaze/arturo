@@ -299,19 +299,23 @@ export const dove = () => {
   return typeof d === "string" && altreMacchine().some((m) => m.host === d) ? d : "qui";
 };
 
+// Porta davanti la scheda che mostra un terminale. false se nessun pannello lo mostra: chi chiama ripiega.
+export function mostra(indirizzo) {
+  const p = panes().find((x) => x.terminal === indirizzo);
+  if (!p) return false;
+  const sp = spaces().find((x) => x.tabs.some((tb) => tb.id === p.tab));
+  if (sp) { run("space.select", { id: sp.id }); run("tab.select", { id: p.tab }); }
+  run("pane.focus", { terminal: indirizzo });
+  return true;
+}
+
 // La scheda che aggancia una sessione: se c'è già la si porta davanti, altrimenti nasce nello spazio del
 // progetto (lo stesso della barra) o nello spazio "Volta" per le sessioni senza progetto. La usano il
 // clic su una sessione di Volta e la nascita su un'altra macchina.
 export function aggancia(s, argv) {
   const nome = titolo(s).slice(0, 40);
   const gia = terminals().find((x) => agganciata(x.argv, s));
-  if (gia) {
-    const p = panes().find((x) => x.terminal === gia.address);
-    const sp = p && spaces().find((x) => x.tabs.some((tb) => tb.id === p.tab));
-    if (sp) { run("space.select", { id: sp.id }); run("tab.select", { id: p.tab }); }
-    run("pane.focus", { terminal: gia.address });
-    return;
-  }
+  if (gia && mostra(gia.address)) return;
   const nomeSpazio = s.progetto ? slug(s.progetto) : "Volta";
   const sp = spaces().find((x) => !x.machine && slug(x.name) === slug(nomeSpazio));
   const cartella = s.questa && s.cartella ? s.cartella : home();

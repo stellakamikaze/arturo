@@ -80,6 +80,16 @@ for s in sessioni:
             s["progetto"] = p.strip()[:60]
     except (OSError, ValueError, AttributeError):
         pass
+    # Un'interattiva partita nella shell di una scheda di Herdr porta nell'ambiente il nome di quel
+    # terminale: Volta la porta davanti col clic invece di rimandare a "un Terminale" (11/11/2026).
+    s["terminale"] = None
+    if os.name != "nt" and s.get("kind") != "background" and isinstance(s.get("pid"), int):
+        try:
+            amb = subprocess.run(["ps", "eww", "-o", "command=", "-p", str(s["pid"])], capture_output=True, text=True,
+                                 errors="replace", stdin=subprocess.DEVNULL, timeout=5).stdout
+            s["terminale"] = next((x[15:] for x in amb.split() if x.startswith("HC_TERMINAL_ID=")), None)
+        except (OSError, subprocess.SubprocessError):
+            pass
     s["titolo"] = None
     try:  # il titolo lo scrive hooks/titolo-sessione.py di Arturo a fine turno; senza resta vuoto
         with open(os.path.join(radice, "cache", "titolo", sid + ".json"), encoding="utf-8") as fh:
@@ -416,6 +426,7 @@ def righe(voci):
             # quello della nascita: dopo /clear o una rotazione il sessionId cambia e il suo inizio
             # non aggancia più ("No job matching"). Un'interattiva non ha lavoro: l'inizio del sessionId.
             lavoro = s.get("id") if fondo else None
+            ospite = None if fondo else s.get("terminale")
             corto = lavoro if isinstance(lavoro, str) and re.fullmatch(r"[0-9A-Za-z-]{4,64}", lavoro) else sid[:8]
             out.append({
                 "macchina": v["macchina"], "host": v["host"], "questa": v["questa"],
@@ -424,6 +435,8 @@ def righe(voci):
                 "tipo": "background" if fondo else "interattiva",
                 # un'interattiva va prima portata in background, poi si aggancia
                 "attach": argv_attach(v, corto) if fondo else None,
+                # la scheda di Herdr che la ospita, se è partita lì dentro: il clic la porta davanti
+                "terminale": ospite if isinstance(ospite, str) and re.fullmatch(r"t[0-9a-z]{1,12}", ospite) else None,
                 "cartella": s.get("cwd"), "ultimo": s.get("ultimo") or "",
                 "risposta": (s.get("risposta") or "")[:420], "azione": s.get("azione") or "",
             })

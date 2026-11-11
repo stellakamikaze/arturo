@@ -893,6 +893,8 @@ console.log(JSON.stringify({
   clic: [
     v.clic(s("a1")), v.clic(s("b1")), v.clic({ ...s("a3"), stato: "ferma" }), v.clic(s("a3")).azione,
     v.clic({ ...s("a3"), stato: "lavora" }).azione, v.clic({ ...s("a1"), vecchia: true }).azione, v.clic({ ...s("a1"), attach: null }).azione,
+    v.clic({ ...s("a3"), terminale: "t23" }), v.clic({ ...s("a3"), terminale: "t1m", questa: false, host: "amaltea" }),
+    v.clic({ ...s("a3"), terminale: "t23", vecchia: true }).azione,
   ],
   aggancio: [v.agganciata(["/bin/zsh", "-lic", "x", "/bin/zsh", "ssh", "-t", "amaltea", ".local/bin/claude", "attach", "b1"], s("b1")),
              v.agganciata(["claude", "attach", "zz"], s("b1")), v.agganciata(undefined, s("b1")),
@@ -948,7 +950,8 @@ def hz18(repo: Path, casa: Path) -> str | None:
     atteso = {
         "clic": [{"azione": "aggancia", "argv": ["claude", "attach", "a1"]},
                  {"azione": "aggancia", "argv": ["ssh", "-t", "amaltea", ".local/bin/claude", "attach", "b1"]},
-                 {"azione": "porta"}, "no", "no", "no", "no"],
+                 {"azione": "porta"}, "no", "no", "no", "no",
+                 {"azione": "mostra", "terminale": "t23"}, {"azione": "mostra", "terminale": "amaltea/t1m"}, "no"],
         "aggancio": [True, False, False, True, False, False, True],
     }
     for k, v in atteso.items():
@@ -2875,13 +2878,16 @@ def hz48(repo: Path, casa: Path) -> str | None:
     sp.loader.exec_module(m)
     voce = {"macchina": "amaltea", "host": "amaltea", "questa": False, "target": "amaltea", "claude": "/c", "sessioni": [
         {"sessionId": "2f179bde-e963-47ce", "id": "0a0579ea", "kind": "background", "state": "done", "status": "idle"},
-        {"sessionId": "abcd1234-ffff", "id": "zz", "kind": "interactive", "status": "idle"}]}
+        {"sessionId": "abcd1234-ffff", "id": "zz", "kind": "interactive", "status": "idle", "terminale": "t23"},
+        {"sessionId": "eeee5678-ffff", "kind": "interactive", "status": "idle", "terminale": "t23; rm"}]}
     r = {x["sessionId"]: x for x in m.righe([voce])}
     fondo, inter = r.get("2f179bde-e963-47ce"), r.get("abcd1234-ffff")
     if not fondo or fondo["id"] != "0a0579ea" or fondo["attach"][-2:] != ["attach", "0a0579ea"]:
         return "volta_sonda.py: una sessione in background si aggancia con l'inizio del sessionId, non con l'id del lavoro"
     if not inter or inter["id"] != "abcd1234" or inter["attach"] is not None:
         return "volta_sonda.py: un'interattiva non tiene l'inizio del sessionId come id"
+    if inter.get("terminale") != "t23" or fondo.get("terminale") is not None or r["eeee5678-ffff"].get("terminale") is not None:
+        return "volta_sonda.py: la scheda di Herdr che ospita un'interattiva non arriva pulita nella riga"
     return None
 
 

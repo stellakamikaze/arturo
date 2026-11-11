@@ -13,7 +13,7 @@ import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, home, shared, setShared, watchFolder, notify } from "herdr";
 import { gruppi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
-import { config, aggancia, azioneSessione } from "./dati.js";
+import { config, aggancia, mostra, azioneSessione } from "./dati.js";
 
 const OGNI = 30000;
 
@@ -111,7 +111,9 @@ export class Volta {
   // Il clic su una sessione: aggancia, sposta e poi aggancia, oppure dice perché no.
   premi(s, cx) {
     if (this.sposto[s.sessionId]) return;
-    const d = clic(s);
+    let d = clic(s);
+    // la scheda che la ospita non è in questa finestra: vale la regola di un'interattiva in un Terminale
+    if (d.azione === "mostra") { if (mostra(d.terminale)) return; d = clic({ ...s, terminale: null }); }
     if (d.azione === "no") return this.avvisa(s, d.motivo, cx);
     if (d.azione === "aggancia") return aggancia(s, d.argv);
     // senza teletrasporto.py nessuno sa scrivere /bg nel Terminale di quella sessione
