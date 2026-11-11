@@ -47,6 +47,9 @@ senza firma: la verifica la fa Arturo, prima.
   Diglielo in una frase e proponi di riprovare tra un minuto: non rilanciare da solo.
 - `rc=3` (`POSSIBILE COMPROMISSIONE`) o `rc=4` (`FIRMA NON VERIFICABILE`): vale quello che dice il
   Passo 1 qui sotto per le stesse parole. Niente `claude plugin update` a mano, neanche col suo sì.
+  Se la riga dice "ho disattivato Arturo", la copia nuova non ha superato il controllo e quella di prima
+  non è tornata: Arturo resta spento finché la persona non lo riattiva. Dille di segnalarlo come dice
+  `SECURITY.md`, e di lanciare `claude plugin enable arturo@arturo` solo dopo la risposta di chi mantiene Arturo.
 
 Con `COPIA IN ~/.claude` (`rc=5`) Arturo è una copia in `~/.claude`: prosegui dal Passo 1, senza
 dirlo alla persona. Con `NESSUN RILASCIO` il plugin non trova il suo catalogo: mostra la riga e

@@ -34,7 +34,9 @@ Col plugin (strati F3, 5/11/2026) il codice sta nella cache di Claude Code e non
 controlla dicono se c'è un rilascio nuovo, e l'aggiornamento passa da `plugin`, che /aggiorna lancia.
 Dal 10/11/2026 anche `applica`, alla chiusura della sessione, passa da lì: stesse verifiche, stesso
 lucchetto, nessun rinvio (Claude Code tiene la copia di prima per le sessioni rimaste aperte), e l'avvio
-dopo ne dice l'esito. Con "manuali" resta solo l'avviso. Claude
+dopo ne dice l'esito. Con "manuali" resta solo l'avviso. Se la copia installata non supera il controllo e quella
+di prima non torna, il plugin si disattiva (claude plugin disable), e l'uscita dice come riattivarlo
+(11/11/2026). Claude
 Code installa lo sha scritto nel catalogo anche se nessun tag firmato lo indica (prova del 5/11/2026):
 per questo il tag si verifica qui, prima, con la chiave dell'ancora nell'Orsa (hooks/fiducia.py). Se il plugin
 arriva da un'altra strada (claude plugin update, il pannello /plugin), stato e il "GIÀ AGGIORNATO" di plugin
@@ -65,6 +67,7 @@ ATTESA_MAX = 90       # secondi: quanto applica aspetta che Claude Code si chiud
 FIRME = "firme/rilasci.allowed_signers"
 # Il messaggio di una firma che manca o non torna, uguale ovunque compare (avvio, barra, /aggiorna).
 COMPROMISSIONE = "possibile compromissione: non aggiornare, segnala a chi mantiene Arturo"
+RIATTIVA = "claude plugin enable arturo@arturo"
 # Solo questi errori dicono che la firma c'è stata verificata e non torna. Ogni altro errore (git prima
 # della 2.34 che non conosce gpg.format=ssh, OpenSSH prima della 8.2 senza `ssh-keygen -Y`, un timeout)
 # vuol dire che la verifica non è partita: niente si installa lo stesso, ma non è una compromissione
@@ -469,7 +472,7 @@ def cmd_applica(r: Path, ammesse: int = 0, fare=None, occupato: int = 0) -> int:
         blocco.mkdir()
     except FileExistsError:
         try:
-            if time.time() - blocco.stat().st_mtime < 900:
+            if not _lucchetto_orfano(blocco) and time.time() - blocco.stat().st_mtime < 900:
                 return occupato  # un'altra applicazione è in corso
             shutil.rmtree(str(blocco), ignore_errors=True)
             blocco.mkdir()
@@ -477,10 +480,51 @@ def cmd_applica(r: Path, ammesse: int = 0, fare=None, occupato: int = 0) -> int:
             return 1
     except OSError:
         return 1
+    senza_pid = False
+    try:
+        (blocco / "pid").write_text(str(os.getpid()), encoding="utf-8")
+    except OSError:
+        senza_pid = True
+    # Due processi possono aver visto lo stesso lucchetto orfano: resta quello che rilegge il proprio pid.
+    if not senza_pid and _pid_lucchetto(blocco) != os.getpid():
+        return occupato
     try:
         return fare(r) if fare else _applica(r, ammesse)
     finally:
-        shutil.rmtree(str(blocco), ignore_errors=True)
+        # Solo il lucchetto proprio: dopo 900 secondi un altro processo può averlo preso (review del 10/11/2026).
+        if _pid_lucchetto(blocco) == os.getpid() or (senza_pid and not (blocco / "pid").exists()):
+            shutil.rmtree(str(blocco), ignore_errors=True)
+
+
+def _pid_lucchetto(blocco: Path) -> int:
+    try:
+        return int((blocco / "pid").read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return 0
+
+
+def _lucchetto_orfano(blocco: Path) -> bool:
+    """Vero se il processo che ha preso il lucchetto non c'è più (computer spento a metà installazione): senza,
+    per 15 minuti la chiusura taceva e /aggiorna diceva "si sta già aggiornando" (review del 10/11/2026).
+    Su Windows os.kill(pid, 0) chiude il processo: lì resta solo la scadenza."""
+    pid = _pid_lucchetto(blocco)
+    if not pid or os.name == "nt":
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return True
+    except (OSError, OverflowError, ValueError):  # un file pid rotto: resta la scadenza
+        return False
+    return False
+
+
+def _rinnova_lucchetto() -> None:
+    """Prima del passo lungo (claude plugin update): la scadenza del lucchetto riparte da qui."""
+    try:
+        os.utime(str(radice() / "session-env" / "aggiornamento.lock"), None)
+    except OSError:
+        pass
 
 
 def _applica(r: Path, ammesse: int = 0) -> int:
@@ -572,7 +616,10 @@ def modo_plugin() -> bool:
 def programma_claude() -> str:
     """La CLI di Claude Code. Il processo staccato della chiusura può avere un PATH senza `claude` (app desktop,
     shell senza ~/.local/bin): si provano i due posti dove Claude Code si installa."""
-    scelto = os.environ.get("ARTURO_CLAUDE") or shutil.which("claude")
+    # ARTURO_CLAUDE vale solo se indica un programma che c'è: in Git Bash `command -v claude` dà un percorso
+    # POSIX che Python su Windows non sa lanciare, e batteva il ripiego (review del 10/11/2026).
+    dato = os.environ.get("ARTURO_CLAUDE") or ""
+    scelto = (shutil.which(dato) if dato else None) or shutil.which("claude")
     if scelto:
         return scelto
     for cartella in (Path.home() / ".local" / "bin", Path.home() / ".claude" / "local"):
@@ -584,6 +631,10 @@ def programma_claude() -> str:
 
 def _claude(*argomenti, timeout: int = 300) -> subprocess.CompletedProcess:
     comando = [programma_claude(), "plugin", *argomenti]
+    # `claude plugin update` chiude con gli hook di Arturo, e session-end.sh lancia un altro `applica` staccato:
+    # lo ferma il lucchetto di cmd_applica (PC09). Niente ARTURO_AGGIORNAMENTI=manuali qui: un processo di
+    # servizio di Claude Code nato da questo comando la erediterebbe, e spegnerebbe gli aggiornamenti delle
+    # sessioni dopo senza dirlo (review dell'11/11/2026).
     try:
         return subprocess.run(comando, capture_output=True, text=True, encoding="utf-8", errors="replace",
                               timeout=timeout, stdin=subprocess.DEVNULL)
@@ -653,10 +704,60 @@ def _ripristina(orsa: Path, prima: dict) -> str:
     return "rimessa" if installato(orsa).get("gitCommitSha") == prima.get("gitCommitSha") else "scaricata"
 
 
+def _indietro(orsa: Path, prima: dict, compromesso: bool, tag: str = "", motivo: str = "") -> str:
+    """Dopo un controllo fallito su una copia già installata: rimette la voce di prima ("rimessa"). Se non torna e
+    la copia non è verificata, disattiva il plugin ("disattivata"): una copia non verificata non deve partire
+    all'apertura dopo (11/11/2026). "scaricata" se neanche questo riesce. Se la copia non verificata resta
+    installata lo stato lo dice qui, anche quando chiama /aggiorna: col plugin spento parla solo la barra."""
+    esito = _ripristina(orsa, prima)
+    if esito == "rimessa" or not compromesso:
+        return esito
+    if _claude("disable", NOME_PLUGIN, timeout=120).returncode == 0:
+        esito = "disattivata"
+    stato = {"stato": "bloccato", "plugin": True, "chiusura": True, "compromesso": True, "motivo": motivo[:200],
+             "versione": ".".join(str(x) for x in numero(tag)), "sha_prima": str(prima.get("gitCommitSha") or ""),
+             "controllato": time.time()}
+    if esito == "disattivata":
+        stato["disattivato"] = True
+    try:
+        scrivi(file_stato(radice()), stato)
+    except OSError:
+        pass
+    return esito
+
+
+def plugin_acceso(orsa: Path) -> bool:
+    """Falso solo se settings.json dice che il plugin è disattivato (`claude plugin disable`)."""
+    for nome in ("settings.json", "settings.local.json"):
+        if (leggi(orsa / nome).get("enabledPlugins") or {}).get(NOME_PLUGIN) is False:
+            return False
+    return True
+
+
+def installata_pulita(orsa: Path) -> bool:
+    """Vero se la copia installata è lo sha del catalogo e torna col suo MANIFEST firmato."""
+    fiducia, _ = _moduli()
+    voce, sorgente = installato(orsa), voce_catalogo(orsa).get("source")
+    percorso = str(voce.get("installPath") or "")
+    if not percorso or not isinstance(sorgente, dict) or voce.get("gitCommitSha") != sorgente.get("sha"):
+        return False
+    try:
+        controllo = fiducia.controlla(Path(percorso), orsa)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return False
+    return controllo["firma"] == "ok" and not controllo["cambiati"] and not controllo["mancano"]
+
+
 def _blocca(motivo: str, compromesso: bool, scaricata: str = "") -> int:
     if compromesso and scaricata == "rimessa":
         print(f"POSSIBILE COMPROMISSIONE: {COMPROMISSIONE.split(': ', 1)[1]} ({motivo}). Ho rimesso la versione di "
               "prima: si segnala con /segnala, o in privato come dice SECURITY.md.", file=sys.stderr)
+        return 3
+    if compromesso and scaricata == "disattivata":
+        print(f"POSSIBILE COMPROMISSIONE: {COMPROMISSIONE.split(': ', 1)[1]} ({motivo}). La copia nuova è già "
+              "scaricata e non sono riuscito a rimettere quella di prima: ho disattivato Arturo, così quella copia "
+              "non parte. Si segnala in privato come dice SECURITY.md. Per riattivarlo dopo la risposta di chi "
+              f"mantiene Arturo: {RIATTIVA}", file=sys.stderr)
         return 3
     if compromesso and scaricata:
         # Dopo claude plugin update la copia nuova è già nella cache, e parte alla prossima apertura.
@@ -696,6 +797,10 @@ def verifica_catalogo(orsa: Path) -> tuple:
         url = sorgente["url"]
     else:
         return _blocca("il catalogo indica una sorgente che Arturo non sa verificare", True), tag, sha
+    # Il campo version del catalogo non è firmato: se non dice la versione del tag, avvio e barra ripetono per
+    # sempre una versione che non arriva (review del 10/11/2026).
+    if voce.get("version") and numero(str(voce["version"])) != numero(tag):
+        return _blocca(f"il catalogo chiama {voce['version']} il rilascio {tag}", True), tag, sha
     prima = installato(orsa)
     if prima.get("gitCommitSha") == sha:
         return 2, tag, sha
@@ -756,15 +861,28 @@ def controlla_plugin(r: Path, forza: bool = False) -> int:
     if not forza and time.time() - float(vecchio.get("controllato") or 0) < ORA:
         return 0
     _, radici = _moduli()
+    orsa = radici.radice_orsa()
     _claude("marketplace", "update", "arturo", timeout=120)
-    estranea = voce_estranea(voce_catalogo(radici.radice_orsa()))
-    nuova = versione_nuova_plugin(radici.radice_orsa())
+    # Lo scarico può durare due minuti: lo stato si rilegge qui, o l'allarme scritto intanto dalla chiusura di
+    # un'altra sessione finiva sovrascritto (review del 10/11/2026).
+    vecchio = leggi(file_stato(r))
+    estranea = voce_estranea(voce_catalogo(orsa))
+    nuova = versione_nuova_plugin(orsa)
+    # La copia non verificata è rimasta installata (quella di prima non è tornata): il catalogo non è più nuovo
+    # dell'installato, e senza questo l'allarme spariva al controllo dell'ora dopo (review del 10/11/2026).
+    # L'allarme cade da solo quando la copia installata è lo sha del catalogo e torna col suo MANIFEST firmato:
+    # una versione buona arrivata da un'altra strada non resta "compromessa" per sempre.
+    sospetta = bool(vecchio.get("chiusura") and vecchio.get("compromesso") and vecchio.get("sha_prima")
+                    and installato(orsa).get("gitCommitSha") != vecchio["sha_prima"]
+                    and not installata_pulita(orsa))
     if estranea:
         stato = {"stato": "bloccato", "compromesso": True, "motivo": estranea, "versione": nuova, "plugin": True}
-    elif nuova and vecchio.get("chiusura") and vecchio.get("versione") == nuova:
+    elif sospetta or (nuova and vecchio.get("chiusura") and vecchio.get("versione") == nuova):
         # Una firma che non torna o non si verifica, vista dalla chiusura: il controllo dell'ora dopo non la
         # riscrive "pronto". La toglie un'installazione riuscita (segna_aggiornato).
         stato = {k: v for k, v in vecchio.items() if k != "controllato"}
+        if stato.get("disattivato") and plugin_acceso(orsa):
+            del stato["disattivato"]  # la persona l'ha riattivato: la barra non dice più "disattivato"
     elif nuova:
         stato = {"stato": "manuale" if manuali(r) else "pronto", "versione": nuova, "plugin": True}
     else:
@@ -792,7 +910,8 @@ def stato_plugin(r: Path) -> int:
     stato = leggi(file_stato(r))
     if time.time() - float(stato.get("controllato") or 0) >= ORA:
         avvia_staccato(r, "controlla")
-    fallito = esito_plugin(r, str(leggi(radici.radice_arturo() / ".claude-plugin" / "plugin.json").get("version") or ""))
+    fallito = esito_plugin(r, str(leggi(radici.radice_arturo() / ".claude-plugin" / "plugin.json").get("version") or ""),
+                           stato)
     if stato.get("plugin") and stato.get("compromesso"):
         print(f"ARTURO: {COMPROMISSIONE}. {stato.get('motivo', '')}. Non riaprire Claude Code prima di aver segnalato: "
               "dillo alla persona con queste parole, e proponi /segnala o la segnalazione privata di SECURITY.md.")
@@ -816,10 +935,11 @@ def stato_plugin(r: Path) -> int:
     return 0
 
 
-def esito_plugin(r: Path, in_uso: str) -> str:
+def esito_plugin(r: Path, in_uso: str, stato: dict = None) -> str:
     """L'esito dell'ultima chiusura col plugin, detto una volta all'avvio dopo. `in_uso` è la versione della copia
     che gira. Restituisce la versione di un'installazione non partita: per quella l'avvio non dice anche "si
-    installa da sola" (come nel clone, n. 49). Firma che non torna o non verificabile: parla lo stato."""
+    installa da sola" (come nel clone, n. 49). Firma che non torna o non verificabile: parla lo stato; se lo
+    stato non porta più la compromissione, la dice l'esito."""
     esito = leggi(file_esito(r))
     if not esito or esito.get("mostrato"):
         return ""
@@ -830,9 +950,18 @@ def esito_plugin(r: Path, in_uso: str) -> str:
         print(f"ARTURO: la versione {versione} di Arturo è installata: parte alla prossima apertura di Claude Code.")
         return ""
     if parola == "APPLICATO":
-        print(f"ARTURO: aggiornato a {versione} alla chiusura della sessione. /novita racconta cosa cambia.")
+        print(f"ARTURO: aggiornato a {versione} alla chiusura della sessione, firma verificata. /novita racconta "
+              "cosa cambia.")
         if esito.get("impostazioni"):
             print(f"ARTURO: {esito['impostazioni']} Dillo alla persona in una frase.")
+    elif parola == "POSSIBILE COMPROMISSIONE" and not (stato or {}).get("compromesso") \
+            and numero(in_uso) < numero(versione):
+        print(f"ARTURO: {COMPROMISSIONE}. L'aggiornamento automatico a {versione} si è fermato "
+              f"({esito.get('riga') or 'firma che non torna'}). Dillo alla persona con queste parole, e proponi la "
+              "segnalazione privata di SECURITY.md.")
+    elif parola not in ("POSSIBILE COMPROMISSIONE", "FIRMA NON VERIFICABILE") and numero(versione) \
+            and numero(in_uso) >= numero(versione):
+        pass  # arrivata intanto con /aggiorna: dire "non è partito" sarebbe falso (review del 10/11/2026)
     elif parola not in ("POSSIBILE COMPROMISSIONE", "FIRMA NON VERIFICABILE"):
         fallito = versione
         print(f"ARTURO: l'aggiornamento automatico a {versione} non è partito "
@@ -855,6 +984,11 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
               file=sys.stderr)
     rc, tag, sha = verifica_catalogo(orsa)
     if rc == 2:
+        vecchio = leggi(file_stato(radice()))
+        if vecchio.get("chiusura") and vecchio.get("compromesso") and not installata_pulita(orsa):
+            # Lo sha è quello del catalogo, ma la copia non ha superato il controllo dopo l'installazione: dire
+            # "già aggiornato" cancellerebbe l'allarme con la copia ancora lì (review dell'11/11/2026).
+            return _blocca(str(vecchio.get("motivo") or "la copia installata non è verificata"), True)
         segna_aggiornato(radice())
         print(f"GIÀ AGGIORNATO: {tag}")
         # Il plugin può essere arrivato da un'altra strada (claude plugin update, il pannello /plugin): le
@@ -870,6 +1004,7 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
         print(tag)
         return 0
     prima = installato(orsa)
+    _rinnova_lucchetto()
     aggiorna = _claude("update", NOME_PLUGIN)
     if aggiorna.returncode != 0:
         print(f"APPLICAZIONE NON PARTITA: claude plugin update non è riuscito "
@@ -879,14 +1014,16 @@ def cmd_plugin(solo_verifica: bool = False) -> int:
     copia = Path(str(dopo.get("installPath") or ""))
     if dopo.get("gitCommitSha") != sha:
         return _blocca(f"Claude Code ha installato {str(dopo.get('gitCommitSha'))[:12]}, non lo sha verificato "
-                       f"{sha[:12]}", True, scaricata=_ripristina(orsa, prima))
+                       f"{sha[:12]}", True, scaricata=_indietro(orsa, prima, True, tag, "sha non verificato"))
     controllo = fiducia.controlla(copia, orsa)
     if controllo["firma"] != "ok":
-        return _blocca(controllo["motivo"], controllo["firma"] != "non-verificabile", scaricata=_ripristina(orsa, prima))
+        compromesso = controllo["firma"] != "non-verificabile"
+        return _blocca(controllo["motivo"], compromesso,
+                       scaricata=_indietro(orsa, prima, compromesso, tag, controllo["motivo"]))
     diversi = controllo["cambiati"] + controllo["mancano"]
     if diversi:
-        return _blocca(f"la copia installata non è come il MANIFEST firmato ({', '.join(diversi[:3])})", True,
-                       scaricata=_ripristina(orsa, prima))
+        motivo = f"la copia installata non è come il MANIFEST firmato ({', '.join(diversi[:3])})"
+        return _blocca(motivo, True, scaricata=_indietro(orsa, prima, True, tag, motivo))
     # Una chiave nuova entra nell'ancora solo da una copia verificata con la chiave di prima.
     fiducia.fissa_ancora(copia, orsa)
     segna_aggiornato(radice())
@@ -912,6 +1049,7 @@ def _applica_plugin(r: Path) -> int:
     _, radici = _moduli()
     _claude("marketplace", "update", "arturo", timeout=120)
     versione = versione_nuova_plugin(radici.radice_orsa())
+    sha_prima = str(installato(radici.radice_orsa()).get("gitCommitSha") or "")
     if not versione:
         return 0
     limite = time.time() + float(os.environ.get("ARTURO_ATTESA_MAX", ATTESA_MAX))
@@ -938,8 +1076,12 @@ def _applica_plugin(r: Path) -> int:
         # Il motivo senza la cornice: l'avvio e la barra hanno già le loro parole.
         m = re.search(r"\((.+?)\)\. " if rc == 3 else r": (.+?)\. Non applico", riga)
         stato = {"stato": "bloccato", "versione": versione, "plugin": True, "chiusura": True,
-                 "motivo": m.group(1) if m else riga[:200], "controllato": time.time(),
+                 "motivo": m.group(1) if m else riga[:200], "controllato": time.time(), "sha_prima": sha_prima,
                  "compromesso" if rc == 3 else "non_verificabile": True}
+        if rc == 3 and "ho disattivato Arturo" in riga:
+            stato["disattivato"] = True
+        if not sha_prima or installato(radici.radice_orsa()).get("gitCommitSha") == sha_prima:
+            stato.pop("sha_prima", None)  # la copia di prima è ancora lì: vale la regola della versione
         try:
             scrivi(file_stato(r), stato)
         except OSError:
@@ -976,6 +1118,11 @@ def impostazioni_indietro(copia: Path, orsa: Path) -> str:
     frammento = leggi(copia / "impostazioni" / "arturo.json")
     blocco = leggi(orsa / "data" / "arturo-impostazioni.lock")
     if not frammento or not blocco or blocco.get("frammento") == frammento:
+        return ""
+    # Solo la copia installata scrive nell'Orsa: una sessione rimasta aperta sulla copia di prima (dopo un /clear)
+    # riportava indietro settings.json, e toglieva la regola di blocco appena arrivata (review del 10/11/2026).
+    percorso = str(installato(orsa).get("installPath") or "")
+    if not percorso or os.path.realpath(percorso) != os.path.realpath(str(copia)):
         return ""
     fiducia, _ = _moduli()
     try:

@@ -210,6 +210,8 @@ function aggiornamentoSegmento() {
   if (!versione) return '';
   if (stato.stato === 'pronto') return ` │ \x1b[36m↑ Arturo ${versione} · si installa alla chiusura\x1b[0m`;
   // Una firma che manca o non torna non si scavalca con /aggiorna (17/10/2026, #3504).
+  // La copia non verificata è rimasta installata e la chiusura ha disattivato il plugin (11/11/2026).
+  if (stato.compromesso === true && stato.disattivato === true) return ` │ \x1b[31m! Arturo disattivato: la copia ${versione} non è verificata. Segnala a chi mantiene Arturo\x1b[0m`;
   if (stato.compromesso === true) return ` │ \x1b[31m! Arturo ${versione} · possibile compromissione: non aggiornare, segnala a chi mantiene Arturo\x1b[0m`;
   if (stato.non_verificabile === true) return ` │ \x1b[33m↑ Arturo ${versione} · aggiorna git e OpenSSH per installarlo\x1b[0m`;
   if (stato.stato === 'manuale' || stato.stato === 'bloccato') return ` │ \x1b[33m↑ Arturo ${versione} · serve /aggiorna\x1b[0m`;

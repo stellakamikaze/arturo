@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PC01-PC13: col plugin un rilascio firmato si installa da solo alla chiusura della sessione (10/11/2026).
+"""PC01-PC22: col plugin un rilascio firmato si installa da solo alla chiusura della sessione (10/11/2026).
 
 Dal 6/11/2026 Arturo è un plugin di Claude Code, e da allora un rilascio nuovo arrivava solo con /aggiorna:
 hooks/session-end.sh lanciava ~/.claude/bin/aggiornamenti.py, che col plugin non c'è, e `applica` col plugin non
@@ -22,6 +22,19 @@ PC11 senza `claude` nel PATH la chiusura trova la CLI in ~/.local/bin;
 PC12 una sessione rimasta sulla copia di prima dice "parte alla prossima apertura", e l'esito resta da dire;
 PC13 un checkout di sviluppo (con .git) alla chiusura non lancia niente; la copia del plugin sì.
 
+Dall'11/11/2026, con le correzioni della review del 10/11 (#5264) e il lavoro C del piano (#5307):
+PC14 dopo "ho disattivato Arturo", /aggiorna non dice "già aggiornato" su una copia che non torna col MANIFEST, e
+     la barra smette di dire "disattivato" quando la persona riattiva il plugin;
+PC15 un ARTURO_CLAUDE che indica un programma che non c'è non batte il ripiego: la CLI si trova lo stesso;
+PC16 una sessione rimasta sulla copia di prima non riporta indietro settings.json, il blocco e l'ancora delle chiavi;
+PC17 Claude Code installa uno sha diverso e la copia di prima non torna: il plugin si disattiva, lo stato lo dice, e
+     il controllo dell'ora dopo non cancella l'allarme;
+PC18 un fallimento della chiusura, poi un /aggiorna riuscito: l'avvio non dice "non è partito";
+PC19 un catalogo che chiama 0.5.0 il tag plugin-v0.4.0 non installa niente: è una compromissione;
+PC20 settings.json come collegamento simbolico resta un collegamento, e il file vero riceve la regola nuova;
+PC21 un doppione nei permessi della persona non ferma l'unione: la regola di blocco nuova arriva;
+PC22 un lucchetto fresco lasciato da un processo che non c'è più non ferma la chiusura.
+
 Rilasci, catalogo, chiavi e CLI finta sono quelli di test_fiducia_2026_11_05.py: niente rete, niente CLI vera.
 Sulla base 62786fd sono tutti rossi. --avvelena: ogni copia rotta fa rosso il caso suo.
 """
@@ -37,7 +50,8 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ["PC01", "PC02", "PC03", "PC04", "PC05", "PC06", "PC07", "PC08", "PC09", "PC10", "PC11", "PC12", "PC13"]
+CASI = ["PC01", "PC02", "PC03", "PC04", "PC05", "PC06", "PC07", "PC08", "PC09", "PC10", "PC11", "PC12", "PC13",
+        "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20", "PC21", "PC22"]
 DISCRIMINANTI = list(CASI)
 BASH = shutil.which("bash") or "bash"
 
@@ -45,8 +59,11 @@ _spec = importlib.util.spec_from_file_location("fd", str(Path(__file__).resolve(
 fd = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(fd)
 
-# La CLI finta di FD12, con una spia: il file FINTO_SPIA nasce solo se `plugin update` parte.
-FINTO = fd.CLAUDE_FINTO + '    open(os.environ["FINTO_SPIA"], "w").close()\n'
+# La CLI finta di FD12, con una spia: il file FINTO_SPIA nasce solo se `plugin update` parte. `plugin disable`
+# lascia FINTO_SPIA.disable.
+FINTO = fd.CLAUDE_FINTO + ('    open(os.environ["FINTO_SPIA"], "w").close()\n'
+                           'if sys.argv[1:3] == ["plugin", "disable"]:\n'
+                           '    open(os.environ["FINTO_SPIA"] + ".disable", "w").close()\n')
 
 
 def leggi(f: Path) -> dict:
@@ -59,18 +76,20 @@ def leggi(f: Path) -> dict:
 class Scena:
     """Una 0.3.0 installata come plugin, un rilascio 0.4.0 nel catalogo, un'Orsa e una casa vuote."""
 
-    def __init__(self, repo: Path, base: Path, chiavi: dict, firma: str = "rilasci", pubblica: bool = True):
+    def __init__(self, repo: Path, base: Path, chiavi: dict, firma: str = "rilasci", pubblica: bool = True,
+                 frammento: dict = None, frammento_prima: dict = None):
         base.mkdir(parents=True)
         self.repo, self.base = repo, base
         privata, firmatari = chiavi["rilasci"]
         self.r = fd.Rilasci(repo, base, chiavi)
         self.r.rilascio("0.3.0", "rilasci")
-        self.prima = fd.copia_plugin(repo, base / "cache" / "0.3.0", "0.3.0", firmatari, privata)
+        self.prima = fd.copia_plugin(repo, base / "cache" / "0.3.0", "0.3.0", firmatari, privata,
+                                     frammento=frammento_prima)
         # Senza `pubblica` il catalogo indica un tag che nel repository dei rilasci non c'è: come senza rete.
         self.sha = self.r.rilascio("0.4.0", firma) if pubblica else "b" * 40
         self.r.indica("plugin-v0.4.0", self.sha)
         self.nuova = fd.copia_plugin(repo, base / "cache" / "0.4.0", "0.4.0", firmatari, privata,
-                                     frammento={"permissions": {"deny": [fd.DENY_NUOVA]}})
+                                     frammento=frammento or {"permissions": {"deny": [fd.DENY_NUOVA]}})
         self.orsa = self.r.orsa
         (self.orsa / "plugins").mkdir()
         (self.orsa / "plugins" / "known_marketplaces.json").write_text(
@@ -305,9 +324,175 @@ def caso_pc13(repo, tmp, chiavi) -> list:
     return []
 
 
+def _deny(s) -> list:
+    return (leggi(s.orsa / "settings.json").get("permissions") or {}).get("deny") or []
+
+
+def caso_pc14(repo, tmp, chiavi) -> list:
+    s = Scena(repo, tmp / "pc14", chiavi)
+    # Lo sha è quello del catalogo, ma un file della copia installata è cambiato dopo la firma; quella di prima
+    # non c'è più.
+    guardia = s.nuova / "hooks" / "block-dangerous.py"
+    guardia.write_text(guardia.read_text(encoding="utf-8") + "\n# allentata\n", encoding="utf-8")
+    (s.orsa / "plugins" / "installed_plugins.json").write_text(json.dumps({"plugins": {"arturo@arturo": [
+        {"scope": "user", "installPath": str(s.base / "sparita"), "version": "0.3.0", "gitCommitSha": "a" * 40}]}}),
+        encoding="utf-8")
+    s.agg("applica")
+    stato = leggi(s.file_stato)
+    m = s.agg("plugin")
+    dopo = leggi(s.file_stato)
+    (s.orsa / "settings.json").write_text(json.dumps({"enabledPlugins": {"arturo@arturo": False}}), encoding="utf-8")
+    s.agg("controlla", "--subito")
+    spento = leggi(s.file_stato)
+    (s.orsa / "settings.json").write_text(json.dumps({"enabledPlugins": {"arturo@arturo": True}}), encoding="utf-8")
+    s.agg("controlla", "--subito")
+    acceso = leggi(s.file_stato)
+    if not stato.get("disattivato") or m.returncode != 3 or "GIÀ AGGIORNATO" in m.stdout or not dopo.get("compromesso") \
+            or not spento.get("disattivato") or acceso.get("disattivato") or not acceso.get("compromesso"):
+        return [f"PC14 copia che non torna, poi /aggiorna: stato {stato}, plugin rc {m.returncode} "
+                f"{(m.stdout + m.stderr)[-100:]!r}, dopo {dopo}, spento {spento}, riacceso {acceso}"]
+    return []
+
+
+def caso_pc15(repo, tmp, chiavi) -> list:
+    s = Scena(repo, tmp / "pc15", chiavi)
+    posto = s.casa / ".local" / "bin"
+    posto.mkdir(parents=True)
+    if os.name == "nt":
+        shutil.copy2(s.base / "claude-finto.py", posto / "claude-finto.py")
+        shutil.copy2(s.finto, posto / "claude.cmd")
+    else:
+        shutil.copy2(s.finto, posto / "claude")
+    senza = os.pathsep.join(c for c in os.environ.get("PATH", "").split(os.pathsep)
+                            if c and not any((Path(c) / n).exists() for n in ("claude", "claude.exe", "claude.cmd")))
+    # Il percorso POSIX che `command -v claude` dà in Git Bash: Python non lo sa lanciare.
+    s.agg("applica", ARTURO_CLAUDE="/c/Users/nessuno/.local/bin/claude", PATH=senza)
+    esito = leggi(s.file_esito)
+    if esito.get("esito") != "APPLICATO" or not s.spia.exists():
+        return [f"PC15 ARTURO_CLAUDE che non c'è: esito {esito}, update partito {s.spia.exists()}"]
+    return []
+
+
+def caso_pc16(repo, tmp, chiavi) -> list:
+    # La copia di prima porta il suo frammento, quello del blocco: senza, non avrebbe niente da riportare indietro.
+    s = Scena(repo, tmp / "pc16", chiavi, frammento_prima={"permissions": {"deny": []}})
+    s.agg("applica")
+    # Il rilascio nuovo ha portato una chiave in più nell'ancora: la copia di prima ne conosce una sola.
+    ancora = s.orsa / "arturo" / "rilasci.allowed_signers"
+    due = ancora.read_bytes() + chiavi["altra"][1].read_bytes()
+    ancora.write_bytes(due)
+    vecchia = s.agg("stato")  # la sessione rimasta aperta gira ancora dalla 0.3.0
+    fd.esegui([sys.executable, s.prima / "hooks" / "deriva.py", str(s.orsa)], env=s.env)
+    blocco = leggi(s.orsa / "data" / "arturo-impostazioni.lock").get("versione")
+    if fd.DENY_NUOVA not in _deny(s) or blocco != "0.4.0" or "IMPOSTAZIONI APPLICATE" in vecchia.stdout \
+            or ancora.read_bytes() != due:
+        return [f"PC16 sessione sulla copia di prima: deny {_deny(s)}, blocco {blocco}, ancora intatta "
+                f"{ancora.read_bytes() == due}, avvio {vecchia.stdout[-160:]!r}"]
+    return []
+
+
+def caso_pc17(repo, tmp, chiavi) -> list:
+    s = Scena(repo, tmp / "pc17", chiavi)
+    # La cartella della versione di prima non c'è più, e Claude Code installa uno sha che nessuno ha verificato.
+    (s.orsa / "plugins" / "installed_plugins.json").write_text(json.dumps({"plugins": {"arturo@arturo": [
+        {"scope": "user", "installPath": str(s.base / "sparita"), "version": "0.3.0", "gitCommitSha": "a" * 40}]}}),
+        encoding="utf-8")
+    installa = json.dumps({"path": str(s.nuova), "version": "0.4.0", "sha": "d" * 40})
+    p = s.agg("applica", FINTO_INSTALLA=installa)
+    stato = leggi(s.file_stato)
+    disattivato = Path(str(s.spia) + ".disable").exists()
+    s.agg("controlla", "--subito")
+    dopo = leggi(s.file_stato)
+    avvio = s.agg("stato")
+    if not disattivato or not stato.get("compromesso") or not stato.get("disattivato") or not dopo.get("compromesso") \
+            or "possibile compromissione" not in avvio.stdout:
+        log = (p.stdout + p.stderr)[-200:]
+        return [f"PC17 copia non verificata rimasta: disable partito {disattivato}, stato {stato}, dopo il controllo "
+                f"{dopo}, avvio {avvio.stdout[-120:]!r}, uscita {log!r}"]
+    return []
+
+
+def caso_pc18(repo, tmp, chiavi) -> list:
+    s = Scena(repo, tmp / "pc18", chiavi)
+    s.file_esito.parent.mkdir(parents=True, exist_ok=True)
+    s.file_esito.write_text(json.dumps({"quando": int(time.time()), "versione": "0.4.0", "esito": "NESSUN RILASCIO",
+                                        "riga": "NESSUN RILASCIO: rete", "mostrato": False}), encoding="utf-8")
+    m = s.agg("plugin")
+    avvio = s.agg("stato", copia=s.nuova)
+    if m.returncode != 0 or "non è partito" in avvio.stdout or leggi(s.file_esito).get("mostrato") is not True:
+        return [f"PC18 fallimento poi /aggiorna: plugin rc {m.returncode}, esito {leggi(s.file_esito)}, avvio "
+                f"{avvio.stdout[-160:]!r}"]
+    return []
+
+
+def caso_pc19(repo, tmp, chiavi) -> list:
+    s = Scena(repo, tmp / "pc19", chiavi)
+    catalogo = s.r.catalogo / ".claude-plugin" / "marketplace.json"
+    dati = leggi(catalogo)
+    dati["plugins"][0]["version"] = "0.5.0"
+    catalogo.write_text(json.dumps(dati), encoding="utf-8")
+    p = s.agg("applica")
+    stato = leggi(s.file_stato)
+    if s.spia.exists() or s.installato() != "a" * 40 or not stato.get("compromesso"):
+        return [f"PC19 versione del catalogo diversa dal tag: rc {p.returncode}, update partito {s.spia.exists()}, "
+                f"stato {stato}"]
+    return []
+
+
+def caso_pc20(repo, tmp, chiavi) -> list:
+    s = Scena(repo, tmp / "pc20", chiavi)
+    vero = s.base / "dotfiles" / "settings.json"
+    vero.parent.mkdir()
+    shutil.move(str(s.orsa / "settings.json"), str(vero))
+    try:
+        os.symlink(str(vero), str(s.orsa / "settings.json"))
+    except (OSError, NotImplementedError):
+        shutil.move(str(vero), str(s.orsa / "settings.json"))  # Windows senza il permesso dei collegamenti
+        s.agg("applica")
+        return [] if fd.DENY_NUOVA in _deny(s) else [f"PC20 senza collegamenti: deny {_deny(s)}"]
+    s.agg("applica")
+    nel_vero = (leggi(vero).get("permissions") or {}).get("deny") or []
+    if not (s.orsa / "settings.json").is_symlink() or fd.DENY_NUOVA not in nel_vero:
+        return [f"PC20 settings.json collegamento: ancora collegamento {(s.orsa / 'settings.json').is_symlink()}, "
+                f"deny nel file vero {nel_vero}"]
+    return []
+
+
+def caso_pc21(repo, tmp, chiavi) -> list:
+    s = Scena(repo, tmp / "pc21", chiavi,
+              frammento={"permissions": {"allow": ["Bash(nuova:*)"], "deny": [fd.DENY_NUOVA]}})
+    (s.orsa / "settings.json").write_text(json.dumps({"model": "mio", "permissions": {
+        "allow": ["Bash(mia:*)", "Bash(mia:*)"], "deny": []}}), encoding="utf-8")
+    s.agg("applica")
+    esito = leggi(s.file_esito)
+    allow = (leggi(s.orsa / "settings.json").get("permissions") or {}).get("allow") or []
+    if esito.get("esito") != "APPLICATO" or esito.get("impostazioni") or fd.DENY_NUOVA not in _deny(s) \
+            or "Bash(mia:*)" not in allow or "Bash(nuova:*)" not in allow:
+        return [f"PC21 doppione nei permessi: esito {esito}, deny {_deny(s)}, allow {allow}"]
+    return []
+
+
+def caso_pc22(repo, tmp, chiavi) -> list:
+    if os.name == "nt":
+        return []  # su Windows il lucchetto ha solo la scadenza: os.kill(pid, 0) chiuderebbe il processo
+    s = Scena(repo, tmp / "pc22", chiavi)
+    morto = fd.esegui([sys.executable, "-c", "import os; print(os.getpid())"], env=s.env).stdout.strip()
+    blocco = s.orsa / "session-env" / "aggiornamento.lock"
+    blocco.mkdir(parents=True)
+    (blocco / "pid").write_text(morto, encoding="utf-8")
+    s.agg("applica")
+    if not s.spia.exists() or blocco.exists():
+        return [f"PC22 lucchetto di un processo che non c'è più (pid {morto}): update partito {s.spia.exists()}, "
+                f"lucchetto rimasto {blocco.exists()}"]
+    return []
+
+
 GRUPPI = [(("PC01", "PC02"), caso_pc01_pc02), (("PC03",), caso_pc03), (("PC04",), caso_pc04), (("PC05",), caso_pc05),
           (("PC06",), caso_pc06), (("PC07",), caso_pc07), (("PC08",), caso_pc08), (("PC09",), caso_pc09),
-          (("PC10",), caso_pc10), (("PC11",), caso_pc11), (("PC12",), caso_pc12), (("PC13",), caso_pc13)]
+          (("PC10",), caso_pc10), (("PC11",), caso_pc11), (("PC12",), caso_pc12), (("PC13",), caso_pc13),
+          (("PC14",), caso_pc14), (("PC15",), caso_pc15), (("PC16",), caso_pc16), (("PC17",), caso_pc17),
+          (("PC18",), caso_pc18), (("PC19",), caso_pc19), (("PC20",), caso_pc20), (("PC21",), caso_pc21),
+          (("PC22",), caso_pc22)]
 
 
 def prova(repo: Path, solo: str | None = None) -> list:
@@ -334,8 +519,8 @@ VELENI = [
     ("PC03", "hooks/session-end.sh", 'elif [ -f "$ARTURO_CODICE/.claude-plugin/plugin.json" ] && [ ! -e "$ARTURO_CODICE/.git" ]; then',
      'elif false; then'),
     ("PC03", AGG, '                return cmd_applica(r, fare=_applica_plugin)\n', '                return 0\n'),
-    ("PC04", AGG, '    elif nuova and vecchio.get("chiusura") and vecchio.get("versione") == nuova:',
-     '    elif False:'),
+    ("PC04", AGG, '    elif sospetta or (nuova and vecchio.get("chiusura") and vecchio.get("versione") == nuova):',
+     '    elif sospetta:'),
     ("PC04", AGG, '                 "compromesso" if rc == 3 else "non_verificabile": True}',
      '                 "non_verificabile": True}'),
     ("PC05", AGG, '    elif nuova and nuova == stato["versione"] and stato.get("non_verificabile"):', '    elif False:'),
@@ -349,6 +534,25 @@ VELENI = [
     ("PC12", AGG, '    if parola == "APPLICATO" and numero(in_uso) < numero(versione):', '    if False:'),
     ("PC13", "hooks/session-end.sh", '[ -f "$ARTURO_CODICE/.claude-plugin/plugin.json" ] && [ ! -e "$ARTURO_CODICE/.git" ]; then',
      '[ -f "$ARTURO_CODICE/.claude-plugin/plugin.json" ]; then'),
+    ("PC14", AGG, '        if vecchio.get("chiusura") and vecchio.get("compromesso") and not installata_pulita(orsa):',
+     '        if False:'),
+    ("PC14", AGG, '        if stato.get("disattivato") and plugin_acceso(orsa):', '        if False:'),
+    ("PC15", AGG, 'scelto = (shutil.which(dato) if dato else None) or shutil.which("claude")',
+     'scelto = dato or shutil.which("claude")'),
+    ("PC16", AGG, '    if not percorso or os.path.realpath(percorso) != os.path.realpath(str(copia)):', '    if False:'),
+    ("PC16", "hooks/deriva.py",
+     'if controllo["firma"] == "ok" and (not fiducia.ancora(orsa).is_file() or installata(codice, orsa)):',
+     'if controllo["firma"] == "ok":'),
+    ("PC17", AGG, '    elif sospetta or (nuova and vecchio.get("chiusura") and vecchio.get("versione") == nuova):',
+     '    elif nuova and vecchio.get("chiusura") and vecchio.get("versione") == nuova:'),
+    ("PC17", AGG, '    if _claude("disable", NOME_PLUGIN, timeout=120).returncode == 0:', '    if False:'),
+    ("PC18", AGG, '            and numero(in_uso) >= numero(versione):', '            and False:'),
+    ("PC19", AGG, '    if voce.get("version") and numero(str(voce["version"])) != numero(tag):', '    if False:'),
+    ("PC20", "bin/impostazioni.py", '    percorso = Path(os.path.realpath(str(percorso)))\n', ''),
+    ("PC21", "bin/impostazioni.py", 'nostro = senza_ripetuti(senza_doppi(attuale) if togli_doppi else attuale)',
+     'nostro = senza_doppi(attuale) if togli_doppi else attuale'),
+    ("PC22", AGG, 'if not _lucchetto_orfano(blocco) and time.time() - blocco.stat().st_mtime < 900:',
+     'if time.time() - blocco.stat().st_mtime < 900:'),
 ]
 
 

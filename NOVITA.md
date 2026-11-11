@@ -36,7 +36,7 @@ che vedi e puoi ritirare.
 
 ---
 
-## 2026-11-10 — Col plugin Arturo torna ad aggiornarsi da solo
+## 2026-11-11 — Col plugin Arturo torna ad aggiornarsi da solo
 
 **Cosa cambia**: da quando Arturo si installa come plugin di Claude Code, una versione nuova arrivava solo
 scrivendo `/aggiorna`. Ora si installa da sola quando chiudi la sessione, come succedeva prima del plugin. La
@@ -46,7 +46,9 @@ aperte continuano con la versione di prima fino alla loro riapertura. Questa ver
 
 **Il principio**: si installa da solo solo ciò che è verificato. La chiusura fa gli stessi controlli di
 `/aggiorna`: il rilascio deve avere la firma di chi mantiene Arturo, e i file devono tornare col loro elenco
-firmato. Se la firma non torna, niente si installa e l'avvio lo dice.
+firmato. Se la firma non torna, niente si installa e l'avvio lo dice. Se il controllo fallisce a installazione
+già fatta, Arturo rimette la versione di prima. Se non ci riesce si disattiva, e la barra in basso dice come
+riattivarlo: una copia non verificata non parte mai.
 
 **Se preferisci decidere tu**: `arturo aggiornamenti manuali` lascia solo l'avviso, e aggiorni con `/aggiorna`.
 

@@ -28,14 +28,15 @@ FD11 una voce del catalogo con hooks, mcpServers o un'altra chiave che non scegl
      "possibile compromissione", anche con tag e sha giusti: Claude Code la unirebbe al plugin firmato.
 FD12-FD15 (review del 7/11/2026, finding 85 e 18) con una CLI finta di Claude Code (ARTURO_CLAUDE), che a
      `plugin update` scrive in installed_plugins.json la copia e lo sha che il caso sceglie:
-FD12 Claude Code installa uno sha diverso da quello verificato: uscita 3, "non riavviare", ancora invariata;
+FD12 Claude Code installa uno sha diverso da quello verificato: uscita 3, la versione di prima torna o il
+     plugin si disattiva, ancora invariata;
 FD13 la copia installata ha un file cambiato dopo la firma, o il MANIFEST firmato da un'altra chiave: uscita 3,
      ancora invariata;
 FD14 un aggiornamento riuscito unisce a settings.json le voci nuove del frammento (una regola deny) e tiene
      quelle della persona; l'ancora prende la chiave della copia nuova;
 FD15 un catalogo che non fissa Arturo a un tag plugin-vN.N.N: uscita 3.
      In FD12 e FD13, con la cartella della versione di prima ancora lì, installed_plugins.json torna a quella;
-     senza, l'uscita dice "non riavviare" (finding 110).
+     senza, il plugin si disattiva e l'uscita dice come riattivarlo (finding 110; 11/11/2026).
 FD16-FD18 (review del 7/11/2026) con una CLI finta che scrive una spia se `plugin update` parte:
 FD16 il tag firmato di un rilascio vecchio ripubblicato sotto un nome nuovo: uscita 3 (finding 109);
 FD17 un tag leggero, senza firma: "possibile compromissione", non "firma non verificabile" (finding 111);
@@ -383,8 +384,9 @@ def casi_finti(repo: Path, tmp: Path, chiavi: dict, solo: str | None) -> list:
         # Con la cartella di prima ancora lì, la voce di installed_plugins.json torna a quella (finding 110).
         dopo = json.loads((orsa / "plugins" / "installed_plugins.json").read_text(encoding="utf-8"))
         dopo = dopo["plugins"]["arturo@arturo"][0].get("gitCommitSha")
+        # Se quella di prima non torna, il plugin si disattiva (11/11/2026): la CLI finta risponde 0 a `disable`.
         rimessa = (dopo == sha1 and "Ho rimesso la versione di prima" in uscita) if variante != "sparita" \
-            else "non riavviare" in uscita
+            else "ho disattivato Arturo" in uscita
         if p.returncode != 3 or atteso not in uscita or not rimessa or cambiata \
                 or DENY_NUOVA in json.dumps(settings):
             rossi.append(f"{caso} copia installata ({variante}): rc {p.returncode}, installata {str(dopo)[:12]}, "
@@ -697,9 +699,9 @@ VELENI = [
     ("FD10", "bin/aggiornamenti.py", 'URL_AMMESSO.fullmatch(str(sorgente.get("url")))', 'isinstance(sorgente.get("url"), str)'),
     ("FD11", "bin/aggiornamenti.py", "    estranea = voce_estranea(voce)\n    if estranea:", "    estranea = ''\n    if estranea:"),
     ("FD12", "bin/aggiornamenti.py", '    if dopo.get("gitCommitSha") != sha:\n', "    if False:\n"),
-    ("FD13", "bin/aggiornamenti.py", '    if controllo["firma"] != "ok":\n        return _blocca(controllo["motivo"]',
-     '    if False:\n        return _blocca(controllo["motivo"]'),
-    ("FD13", "bin/aggiornamenti.py", "    if diversi:\n        return _blocca(", "    if False:\n        return _blocca("),
+    ("FD13", "bin/aggiornamenti.py", '    if controllo["firma"] != "ok":\n        compromesso = controllo["firma"]',
+     '    if False:\n        compromesso = controllo["firma"]'),
+    ("FD13", "bin/aggiornamenti.py", "    if diversi:\n        motivo = f", "    if False:\n        motivo = f"),
     ("FD14", "bin/aggiornamenti.py", "    impostazioni = applica_impostazioni(copia)\n", '    impostazioni = ""\n'),
     ("FD12", "bin/aggiornamenti.py", "    voci[utente] = prima\n", "    pass\n"),
     ("FD16", "bin/aggiornamenti.py", "        if not dentro or dentro.group(1) != tag:", "        if False:"),
