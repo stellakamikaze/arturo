@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ59: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ60: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -238,6 +238,13 @@ HZ59 nome e progetto si cambiano dalla finestra (#5292): il menu ha Rinomina e C
      nello spazio del progetto nuovo, e lascia dov'è un'interattiva che gira in una scheda.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
+HZ60 i progetti vengono dalla memoria di Arturo (11/11/2026): barra.js chiede `arturo progetti --json`
+     (dati.js progettiMemoria) e solo se manca ricade su cartelle e `todo progetti`. dati.js con node:
+     un nome alternativo della fonte e lo slug degli handoff sono una riga sola, coi conti dei todo; un
+     progetto che vive solo negli handoff ha la sua riga; una cartella che Arturo non conosce resta fra
+     le "Altre cartelle"; l'ultimo handoff più vecchio di un mese manda il progetto nella sezione chiusa
+     in fondo; con la memoria le cartelle non si aggiungono due volte; 150 voci stanno sotto i 50 ms;
+     senza memoria l'elenco è quello di prima. Apri un progetto e Cambia progetto leggono nomiProgetti.
 """
 from __future__ import annotations
 
@@ -253,7 +260,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -3780,7 +3787,7 @@ def hz59(repo: Path, casa: Path) -> str | None:
         ("volta.js", 'if (r.ok && cosa === "progetto" && String(s.progetto ?? "") !== valore) dopo = await spostaScheda(s, valore);', "il progetto nuovo non sposta la scheda"),
         ("volta.js", "    this.portaNomi();\n", "a ogni lettura i nomi non vanno in Claude Code"),
         ("volta.js", "if (!daPortare(s) || this.porto[k]) continue;", "un nome si porta due volte insieme"),
-        ("volta.js", "cartelle().catch(() => []).then((l) => apriCambio(s, cosa, progettiNoti(this.dati, l)));", "il dialogo del progetto non riceve i progetti noti"),
+        ("volta.js", "nomiProgetti().catch(() => []).then((l) => apriCambio(s, cosa, progettiNoti(this.dati, l)));", "il dialogo del progetto non riceve i progetti noti"),
         ("barra.js", 'else if (c.startsWith("volta-cambia-")) this.volta.cambiaComando(c, cx);', "barra.js non legge il comando del cambio"),
         ("main.js", "cambio: Cambio,", "main.js non monta il dialogo del cambio"),
         ("menusessione.js", "const cambi = this.voci.filter((v) => v.verbo in CAMBIA);", "il menu non mostra Rinomina e Cambia progetto"),
@@ -3890,7 +3897,95 @@ def hz59(repo: Path, casa: Path) -> str | None:
 
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59}
+PROVA_MEMORIA = r"""
+import { progetti, sezioni, progettiMemoria, nomiProgetti, FERME } from "./dati.mjs";
+import { eseguiti } from "./herdr.mjs";
+const vista = { oggi: "2026-11-11", gruppi: [{ tipo: "tu", todo: [{ progetto: "ariaperta" }] }],
+  progetti: [{ nome: "ariaperta", slug: "ariaperta", titolo: "Tutto Vero", categoria: "Prodotti", riga: "riga dei todo", parola: "va" }] };
+const voce = (slug, piu = {}) => ({ slug, nome: slug, titolo: "", categoria: "", riga: "", data: "", cartella: false, handoff: false, alias: [], ...piu });
+const memoria = [
+  voce("tuttovero", { titolo: "Tutto Vero", categoria: "Prodotti", riga: "passo", data: "2026-11-10", cartella: true, handoff: true, alias: ["ariaperta"] }),
+  voce("solo-handoff", { riga: "PROSSIMO PASSO", data: "2026-11-09", handoff: true }),
+  voce("vecchio", { riga: "passo vecchio", data: "2026-09-01", handoff: true }),
+  voce("cartella-nuda", { nome: "Cartella Nuda", cartella: true }),
+];
+const lista = progetti(vista, { memoria, cartelle: ["non-deve-entrare"] });
+const tante = Array.from({ length: 150 }, (_, i) => voce(`p-${i}`, { riga: "x", data: "2026-11-01", handoff: true, cartella: true }));
+sezioni(progetti(vista, { memoria: tante }));
+const t0 = performance.now();
+for (let i = 0; i < 5; i++) sezioni(progetti(vista, { memoria: tante }));
+const ms = (performance.now() - t0) / 5;
+const m = await progettiMemoria();
+console.log(JSON.stringify({
+  chiavi: lista.map((p) => p.chiave),
+  tv: lista.find((p) => p.chiave === "tuttovero"),
+  sh: lista.find((p) => p.chiave === "solo-handoff"),
+  sezioni: sezioni(lista).map((s) => [s.titolo, s.progetti.map((p) => p.chiave), Boolean(s.chiusa)]),
+  ferme: FERME, ms,
+  prima: progetti(vista, { cartelle: ["solo-cartella"], stati: { "solo-cartella": { riga: "R" } } }).map((p) => [p.chiave, p.categoria, p.riga]),
+  memoria: m, nomi: await nomiProgetti(), argv: eseguiti.map((a) => a.slice(-2)),
+}));
+"""
+
+
+def hz60(repo: Path, casa: Path) -> str | None:
+    mod_dir = repo / "shared/volta-celeste/mods/arturo"
+    barra = (mod_dir / "barra.js").read_text(encoding="utf-8")
+    for pezzo in ("this.memoria = await progettiMemoria();", "if (!this.memoria) {", "memoria: this.memoria ?? null",
+                  "for (const a of p.alias ?? []) if (!(a in mappa)) mappa[a] = mappa[p.chiave];",
+                  "const piegata = sez.chiusa && !this.ferme;"):
+        if pezzo not in barra:
+            return f"barra.js non ha più: {pezzo}"
+    if "this.lista = await nomiProgetti();" not in (mod_dir / "apri.js").read_text(encoding="utf-8"):
+        return "Apri un progetto non legge nomiProgetti"
+    if "nomiProgetti().catch(() => []).then((l) => apriCambio(" not in (mod_dir / "volta.js").read_text(encoding="utf-8"):
+        return "Cambia progetto non legge nomiProgetti"
+    node = shutil.which("node")
+    if not node:
+        return None
+    mod = casa / "mod"
+    mod.mkdir()
+    mod_dati(repo, mod, (mod_dir / "dati.js").read_text(encoding="utf-8"))
+    (mod / "prova.mjs").write_text(PROVA_MEMORIA, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+    (app / "arturo.json").write_text(json.dumps({"arturo": ["python3", str(casa / "bin" / "arturo")], "radice": str(repo),
+                                                 "base": str(casa)}), encoding="utf-8")
+    risposta = json.dumps({"versione": 1, "progetti": [{"slug": "a", "nome": "A Maiuscola", "cartella": True},
+                                                       {"slug": "b", "nome": "b", "cartella": False}]})
+    esiti = {}
+    for nome, piu in (("con", {"HZ_EXEC": risposta}), ("senza", {})):
+        env = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), **piu}
+        env.pop("HZ_EXEC", None) if not piu else None
+        r = subprocess.run([node, str(mod / "prova.mjs")], capture_output=True, text=True, timeout=30, env=env)
+        if r.returncode != 0:
+            return f"dati.js non gira ({nome}): {(r.stderr or r.stdout).strip()[:200]}"
+        esiti[nome] = json.loads(r.stdout.strip().splitlines()[-1])
+    e = esiti["con"]
+    if e["chiavi"].count("tuttovero") != 1 or "ariaperta" in e["chiavi"] or "non-deve-entrare" in e["chiavi"]:
+        return f"alias o cartelle doppie: {e['chiavi']}"
+    tv, sh = e["tv"], e["sh"]
+    if tv["tu"] != 1 or tv["nome"] != "ariaperta" or tv["alias"] != ["ariaperta"] or tv["riga"] != "riga dei todo":
+        return f"la riga del progetto con alias non tiene conti, nome della fonte e alias: {tv}"
+    if not sh or sh["riga"] != "PROSSIMO PASSO" or sh["calcolato"] or sh["nome"] != "solo-handoff":
+        return f"il progetto che vive solo negli handoff non ha la sua riga: {sh}"
+    attese = [["Prodotti", ["tuttovero"], False], ["Progetti", ["solo-handoff"], False],
+              ["Altre cartelle", ["cartella-nuda"], False], [e["ferme"], ["vecchio"], True]]
+    if e["sezioni"] != attese:
+        return f"sezioni: {e['sezioni']}"
+    if e["ms"] > 50:
+        return f"150 voci: {e['ms']:.1f} ms a giro, oltre i 50 del render"
+    if ["solo-cartella", "Altre cartelle", "R"] not in e["prima"]:
+        return f"senza memoria l'elenco non è quello di prima: {e['prima']}"
+    if e["nomi"] != ["A Maiuscola", "b"] or ["progetti", "--json"] not in e["argv"]:
+        return f"nomiProgetti con la memoria: {e['nomi']} {e['argv']}"
+    s = esiti["senza"]
+    if s["memoria"] is not None or s["nomi"] != []:
+        return f"con un Arturo senza il comando: memoria={s['memoria']} nomi={s['nomi']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -3909,6 +4004,14 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ("HZ60", "shared/volta-celeste/mods/arturo/barra.js", "      if (!this.memoria) {\n", "      {\n"),
+    ("HZ60", "shared/volta-celeste/mods/arturo/dati.js", "    const k = capo.get(chiave(p)) ?? chiave(p);", "    const k = chiave(p);"),
+    ("HZ60", "shared/volta-celeste/mods/arturo/dati.js", "  for (const nome of memoria ? [] : extra.cartelle ?? []) {", "  for (const nome of extra.cartelle ?? []) {"),
+    ("HZ60", "shared/volta-celeste/mods/arturo/dati.js", 'ferma: noto && Boolean(limite) && (m.data || "") < limite });', "ferma: false });"),
+    ("HZ60", "shared/volta-celeste/mods/arturo/dati.js", '(noto || !conCategorie ? "" : "Altre cartelle")', '""'),
+    ("HZ60", "shared/volta-celeste/mods/arturo/dati.js", "  return r.ok && Array.isArray(r.json?.progetti) ? r.json.progetti : null;", "  return r.json?.progetti ?? [];"),
+    ("HZ60", "shared/volta-celeste/mods/arturo/dati.js", "  return m ? m.map((p) => (p.cartella ? p.nome : p.slug)).filter(Boolean) : cartelle();", "  return cartelle();"),
+    ("HZ60", "shared/volta-celeste/mods/arturo/apri.js", "this.lista = await nomiProgetti();", "this.lista = await cartelle();"),
     ("HZ56", "shared/volta-celeste/keys.json", '"cmd-o": "arturo.apri",', '"cmd-o":  "arturo.apri",'),
     ("HZ57", "shared/volta-celeste/mods/arturo/volta.js", "  if (controlloMod || !(await esiste(script))) return;", "  if (!(await esiste(script))) return;"),
     ("HZ57", "shared/volta-celeste/mods/arturo/volta.js", "    cx.timer.every(OGNI_MOD, () => controllaMod(this.py));", ""),

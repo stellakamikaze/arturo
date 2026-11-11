@@ -526,6 +526,7 @@ COMANDI = {
     "personale": ("personale", "le tue aggiunte ai comandi e agli hook di sessione di Arturo, in file che gli aggiornamenti non toccano; col plugin anche omonimi e regole-doppie"),
     "memoria": ("memoria", "la memoria facoltativa (Melchior), spenta di default: stato, accendi, spegni, cerca, controlla"),
     "contesto": ("contesto", "il contesto di un progetto in una chiamata: git, handoff, todo, scadenze (/inizio)"),
+    "progetti": ("progetti", "tutti i progetti che segui, letti dalla memoria che c'è già: cartelle, handoff, stato, fonte dei task (Volta Celeste)"),
     "diagnosi": ("diagnosi", "percorsi spariti e file sparsi di un progetto, in sola lettura (/diagnosi)"),
     "impostazioni": ("impostazioni", "col plugin, le voci di Arturo in settings.json (permessi, barra, stile): stato, applica, adotta"),
     "migra": ("migra", "porta Arturo dal clone in ~/.claude al plugin: --prova (il rapporto), la migrazione, indietro"),

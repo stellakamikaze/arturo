@@ -13,6 +13,20 @@ modo di lavorare.
 
 ---
 
+## 2026-11-11 — `arturo progetti`: tutti i progetti che segui, dalla memoria che hai già
+
+**Cosa cambia**: `arturo progetti` elenca i progetti leggendo quello che Arturo ha già su disco: le cartelle
+dei progetti, gli handoff con il loro INDEX, le righe di stato e le schede della memoria. Un progetto che
+vive solo negli handoff compare con data, stato e prossimo passo. Chi tiene i todo in un altro strumento
+può aggiungere il verbo facoltativo `catalogo` ([docs/fonte-task.md](docs/fonte-task.md)): due nomi dello
+stesso progetto diventano una voce sola.
+
+**Il principio**: l'elenco dei progetti non è un archivio nuovo. È una lettura della memoria che c'è, e
+non scrive niente.
+
+**Da sapere**: serve alla finestra di Arturo (Volta Celeste), che lo usa per la colonna di sinistra. Senza
+il verbo `catalogo` l'elenco resta quello su disco, con un avviso.
+
 ## 2026-11-10 — arturo web: i nomi dei progetti si leggono anche in tema scuro
 
 **Cosa cambia**: nel registro per categorie di `arturo web`, col computer in tema scuro, i nomi dei

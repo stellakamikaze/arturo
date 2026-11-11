@@ -18,7 +18,7 @@ import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, appHome, home, shared, setShared, watchFolder, notify } from "herdr";
 import { gruppi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
-import { config, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, cartelle } from "./dati.js";
+import { config, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti } from "./dati.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
 
@@ -265,7 +265,7 @@ export class Volta {
   chiedi(s, cosa) {
     if (s.vecchia) return notify({ title: "Non la posso cambiare adesso", body: `${s.macchina} non risponde.`, level: "warning" });
     if (cosa !== "progetto") return apriCambio(s, cosa, []);
-    cartelle().catch(() => []).then((l) => apriCambio(s, cosa, progettiNoti(this.dati, l)));
+    nomiProgetti().catch(() => []).then((l) => apriCambio(s, cosa, progettiNoti(this.dati, l)));
   }
 
   // "arturo.volta-cambia-<nome|progetto>-<esadecimale>-<id>": il cambio deciso nel dialogo, o da herdr-app do.

@@ -1,10 +1,10 @@
-// La finestra "Apri un progetto": le cartelle della base dei progetti, dalla più recente.
+// La finestra "Apri un progetto": i progetti della memoria di Arturo (cartelle e handoff), dal più recente.
 // Scrivi per filtrare, frecce e Invio per aprire, Esc per chiudere.
 
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { theme, props, closeOverlay } from "herdr";
-import { cartelle, apri, spazio, frase, bello } from "./dati.js";
+import { nomiProgetti, apri, spazio, frase, bello } from "./dati.js";
 import { ICONA, punto, colore, nasceSu } from "./comuni.js";
 
 const MAX = 10;
@@ -20,7 +20,7 @@ export class Apri {
     this.input.focus();
     cx.timer.after(300, () => this.input.focus());
     this.handle = cx.focus_handle();
-    cx.spawn(async (cx) => { this.lista = await cartelle(); cx.notify(); });
+    cx.spawn(async (cx) => { this.lista = await nomiProgetti(); cx.notify(); });
   }
 
   chiudi() { closeOverlay(props().overlay); }

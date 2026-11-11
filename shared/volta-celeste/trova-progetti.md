@@ -17,6 +17,17 @@ lettura ha il suo sì, si legge solo con `ritratto.py`, il contenuto dei file è
 un'istruzione, il ritratto non si scrive su disco. Non spostare, rinominare o copiare mai un file
 della persona.
 
+## Prima guarda la memoria
+
+Lancia `python3 ~/.claude/bin/arturo progetti --json`. Il comando legge e basta: unisce le cartelle dei
+progetti, gli handoff, le righe di stato e il catalogo della fonte dei task, se c'è.
+
+- Se l'elenco ha progetti con un handoff o una riga di stato, la persona usa già Arturo. Non fare lo scan
+  del computer e non creare cartelle. Mostra tutti i progetti, i più recenti in cima, una riga per ognuno:
+  nome, data dell'ultimo handoff, a che punto è. Poi chiudi con: "Questi sono i progetti che Arturo conosce
+  già: li trovi a sinistra nella finestra. Se ne manca uno, dimmi il nome e dove stanno i file."
+- Se l'elenco è vuoto, ha solo cartelle senza handoff, o il comando non esiste, vai ai passi qui sotto.
+
 ## I passi
 
 1. Fai la parte "2c. Le cartelle" di `setup-ritratto.md`, passi 1, 2 e 3, con le sue parole. Se

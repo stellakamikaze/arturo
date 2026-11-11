@@ -3,7 +3,7 @@
 import { div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, window, shared, setShared, nextCommand, updates, notify } from "herdr";
-import { todo, progetti, sezioni, frase, apri, nuova, nuovaScheda, slug, cartelle, statiQui, SUGGERIMENTI } from "./dati.js";
+import { todo, progetti, sezioni, frase, apri, nuova, nuovaScheda, slug, cartelle, progettiMemoria, statiQui, SUGGERIMENTI } from "./dati.js";
 import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco, nasceSu, tasti } from "./comuni.js";
 import { APERTE } from "./nota.js";
 import { apriGuida } from "./guida.js";
@@ -85,17 +85,25 @@ export class Barra {
     this.inCorso = true;
     cx.spawn(async (cx) => {
       const r = await todo(["--json"]);
-      // Le cartelle dei progetti e le righe di stato dell'archivio di Arturo (una fonte esterna può non averle).
-      this.cartelle = await cartelle();
-      const st = await todo(["progetti", "--json"]);
-      this.stati = st.ok ? st.json?.stati ?? {} : {};
+      // I progetti dalla memoria di Arturo. Con un Arturo che non ha ancora il comando: le cartelle dei
+      // progetti e le righe di stato del suo archivio, come prima (una fonte esterna può non averle).
+      this.memoria = await progettiMemoria();
+      if (!this.memoria) {
+        this.cartelle = await cartelle();
+        const st = await todo(["progetti", "--json"]);
+        this.stati = st.ok ? st.json?.stati ?? {} : {};
+      }
       this.inCorso = false;
       if (r.ok) {
         this.vista = r.json;
         this.errore = null;
         // Per la testata e il pannello Da fare: il nome per la fonte, il titolo e la riga di ogni progetto.
         const mappa = {};
-        for (const p of progetti(this.vista, this.extra())) mappa[p.chiave] = { nome: p.nome ?? p.chiave, titolo: p.titolo, riga: p.calcolato ? "" : (p.riga ?? "") };
+        for (const p of progetti(this.vista, this.extra())) {
+          mappa[p.chiave] = { nome: p.nome ?? p.chiave, titolo: p.titolo, riga: p.calcolato ? "" : (p.riga ?? "") };
+          // Uno spazio aperto col nome alternativo trova lo stesso progetto.
+          for (const a of p.alias ?? []) if (!(a in mappa)) mappa[a] = mappa[p.chiave];
+        }
         setShared("arturo.progetti", mappa);
         setShared("arturo.letto", Date.now());
         this.settimana();
@@ -116,7 +124,7 @@ export class Barra {
   }
 
   extra() {
-    return { cartelle: this.cartelle ?? [], stati: this.stati ?? {} };
+    return { cartelle: this.cartelle ?? [], stati: this.stati ?? {}, memoria: this.memoria ?? null };
   }
 
   riga(t, p, attivo) {
@@ -143,9 +151,18 @@ export class Barra {
       .child(div().px(4).text_size(13).text_color(t.muted).whitespace_normal()
         .child(this.errore ? "Non riesco a leggere i todo di Arturo. Le conversazioni funzionano lo stesso." : "Non hai ancora progetti. Claude può cercarli sul tuo computer e proporteli."))
       .when(!this.errore, (el) => el.child(pulsante("trova", "search", "Trova i miei progetti", () => esegui(SUGGERIMENTI[0]), true)));
-    else contenuto = v_flex().gap(14).children(sezioni(lista).map((sez) => v_flex().gap(1)
-      .child(div().px(18).pb(4).text_size(12.5).font_semibold().text_color(t.muted).child(sez.titolo))
-      .children(sez.progetti.map((p) => this.riga(t, p, p.chiave === attivo)))));
+    else contenuto = v_flex().gap(14).children(sezioni(lista).map((sez) => {
+      // Una sezione chiusa (le ferme) mostra solo il titolo col conto: un clic la apre e la richiude.
+      const piegata = sez.chiusa && !this.ferme;
+      const titolo = div().px(18).pb(4).text_size(12.5).font_semibold().text_color(t.muted);
+      return v_flex().gap(1)
+        .child(sez.chiusa
+          ? titolo.id("sez-ferme").cursor_pointer().hover((s) => s.text_color(t.foreground))
+            .on_click((_e, cx) => { this.ferme = !this.ferme; cx.notify(); })
+            .child(`${sez.titolo} (${sez.progetti.length}) ${piegata ? "›" : "⌄"}`)
+          : titolo.child(sez.titolo))
+        .children(piegata ? [] : sez.progetti.map((p) => this.riga(t, p, p.chiave === attivo)));
+    }));
     return v_flex().size_full().bg(t.chrome)
       .child(v_flex().px(14).pt(6).pb(14).gap(8)
         .child(pulsante("nuova", "square-pen", "Nuova richiesta", () => nuova(), lista.length > 0 || Boolean(this.errore)))

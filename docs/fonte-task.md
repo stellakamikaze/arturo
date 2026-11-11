@@ -29,12 +29,29 @@ Riceve gli argomenti di `arturo todo` e risponde come lui. Quelli che `/inizio`,
 | `fatto <numero>` | chiude un todo | una riga di conferma |
 | `ferma <numero> "<motivo>"`, `nota <numero> "<testo>"`, `modifica <numero> …` | cambia un todo | una riga di conferma |
 
-Due verbi sono facoltativi: se il tuo programma non li conosce, esce con 2 e Arturo prosegue senza.
+Tre verbi sono facoltativi: se il tuo programma non li conosce, esce con 2 e Arturo prosegue senza.
 
 | Argomenti | Cosa fa | Uscita |
 |---|---|---|
 | `aggiungi "<titolo>" … --dopo N[,M]` | il todo nuovo aspetta i todo N e M | `#<numero>` del todo |
 | `stato [--progetto <slug>] ["<riga>"]` | senza riga legge, con la riga scrive a che punto è il progetto | la riga |
+| `catalogo --json` | tutti i progetti che il tuo strumento conosce, anche senza todo aperti | il JSON qui sotto |
+
+`catalogo` serve a `arturo progetti`, l'elenco che la finestra di Arturo mostra a sinistra
+([volta-celeste.md](volta-celeste.md)). Arturo lo unisce ai progetti che ha già su disco: cartelle, handoff,
+righe di stato. Non scrive niente nel tuo strumento.
+
+```json
+{"progetti": [
+  {"slug": "sito", "titolo": "Sito nuovo", "categoria": "Clienti", "alias": ["sito-2026"]}
+]}
+```
+
+`slug` è il nome del progetto per `/inizio`. `titolo` e `categoria` sono facoltativi. `alias` elenca gli
+altri nomi dello stesso progetto: se il tuo strumento lo chiama `sito` e la cartella si chiama `sito-2026`,
+Arturo mostra una voce sola, col nome che ha gli handoff. Un alias che ha handoff suoi resta una voce a
+parte e dal catalogo prende la categoria: è un filone che apri da solo con `/inizio`. Il programma risponde entro
+10 secondi, altrimenti Arturo prosegue con l'elenco che ha su disco.
 
 Il pannello `/dafare` usa altri verbi. Se il tuo programma non li conosce, il tasto risponde con il suo
 errore e non cambia niente.

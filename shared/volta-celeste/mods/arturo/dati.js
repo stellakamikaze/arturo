@@ -119,8 +119,8 @@ export const chiave = (p) => slug(p.slug || p.nome);
 
 const URGENZA = { "a rischio": 0, "chiede te": 1, "fermo": 3, "va": 2 };
 
-// Tutti i progetti: la vista di Arturo (titolo, categoria, riga), i conti per chi agisce
-// e gli spazi aperti. Ogni voce: { chiave, titolo, categoria, riga, tu, decidi, io, fermo, stato, aperto }.
+// Tutti i progetti: la vista di Arturo (titolo, categoria, riga), i conti per chi agisce, la memoria
+// di Arturo (extra.memoria) e gli spazi aperti. Ogni voce: { chiave, titolo, categoria, riga, tu, decidi, io, fermo, stato, aperto }.
 export function progetti(vista, extra = {}) {
   const per = new Map();
   const conti = new Map();
@@ -129,14 +129,33 @@ export function progetti(vista, extra = {}) {
     c[g.tipo] = (c[g.tipo] ?? 0) + 1;
     conti.set(t.progetto, c);
   }
+  // La memoria di Arturo (extra.memoria, da arturo progetti): un nome alternativo porta alla voce del suo
+  // progetto, così "ariaperta" nella fonte dei task e "tuttovero" negli handoff sono una riga sola.
+  const memoria = Array.isArray(extra.memoria) ? extra.memoria : null;
+  const capo = new Map();
+  for (const m of memoria ?? []) for (const a of m.alias ?? []) capo.set(a, m.slug);
   for (const p of vista?.progetti ?? []) {
-    const k = chiave(p);
+    const k = capo.get(chiave(p)) ?? chiave(p);
     if (!k || per.has(k)) continue;
     per.set(k, { ...p, ...(conti.get(p.nome) ?? { tu: 0, decidi: 0, io: 0, fermo: 0 }), chiave: k, titolo: bello(p), categoria: p.categoria || "" });
   }
-  // Le cartelle della base dei progetti senza todo: ci sono, anche se Arturo non ne sa ancora niente.
   const conCategorie = [...per.values()].some((v) => v.categoria);
-  for (const nome of extra.cartelle ?? []) {
+  // I progetti della memoria senza todo aperti: stato e prossimo passo vengono dall'ultimo handoff. Quelli
+  // con l'ultimo handoff più vecchio di un mese vanno in fondo (ferma); una cartella che Arturo non
+  // conosce ancora (niente handoff, niente riga, niente titolo) resta fra le "Altre cartelle".
+  const limite = giorniPrima(vista?.oggi, FERMA_GG);
+  for (const m of memoria ?? []) {
+    if (!m?.slug) continue;
+    const v = per.get(m.slug);
+    if (v) { v.alias = m.alias ?? []; v.data = m.data || ""; continue; }
+    const noto = Boolean(m.handoff || m.riga || m.titolo);
+    per.set(m.slug, { chiave: m.slug, nome: m.cartella ? m.nome : m.slug, titolo: m.titolo || bello(m.nome || m.slug),
+      categoria: m.categoria || (noto || !conCategorie ? "" : "Altre cartelle"), riga: m.riga ?? "", calcolato: !m.riga,
+      tu: 0, decidi: 0, io: 0, fermo: 0, cartella: Boolean(m.cartella), alias: m.alias ?? [], data: m.data || "",
+      ferma: noto && Boolean(limite) && (m.data || "") < limite });
+  }
+  // Con un Arturo senza il comando: le cartelle della base dei progetti senza todo, come prima.
+  for (const nome of memoria ? [] : extra.cartelle ?? []) {
     const k = slug(nome);
     if (!k || per.has(k)) continue;
     const st = extra.stati?.[nome] ?? extra.stati?.[k];
@@ -155,13 +174,27 @@ export function progetti(vista, extra = {}) {
   return [...per.values()]
     .map((v) => { const s = locali.get(v.chiave); return { ...v, stato: statoSpazio(s), aperto: Boolean(s) }; })
     .sort((a, b) => (RANGO[b.stato] ?? 0) - (RANGO[a.stato] ?? 0) || Number(b.aperto) - Number(a.aperto)
-      || (URGENZA[a.parola] ?? 2) - (URGENZA[b.parola] ?? 2) || b.tu + b.decidi - (a.tu + a.decidi) || a.titolo.localeCompare(b.titolo));
+      || (URGENZA[a.parola] ?? 2) - (URGENZA[b.parola] ?? 2) || b.tu + b.decidi - (a.tu + a.decidi)
+      || (b.data ?? "").localeCompare(a.data ?? "") || a.titolo.localeCompare(b.titolo));
+}
+
+// Dopo quanti giorni dall'ultimo handoff un progetto senza todo aperti scende fra le ferme.
+const FERMA_GG = 30;
+export const FERME = "Ferme da più di un mese";
+
+// La data di N giorni prima di `oggi` (AAAA-MM-GG), o "" se oggi non si legge.
+export function giorniPrima(oggi, n) {
+  const d = new Date(`${String(oggi ?? "").slice(0, 10)}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return "";
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
 }
 
 // I progetti in sezioni: "Adesso" (conversazioni aperte), poi le categorie della fonte.
 export function sezioni(lista) {
   const adesso = lista.filter((p) => p.aperto);
-  const resto = lista.filter((p) => !p.aperto);
+  const ferme = lista.filter((p) => !p.aperto && p.ferma);
+  const resto = lista.filter((p) => !p.aperto && !p.ferma);
   const per = new Map();
   for (const p of resto) {
     const c = p.categoria || "Progetti";
@@ -173,6 +206,8 @@ export function sezioni(lista) {
   const cat = [...per.entries()].sort((a, b) => (a[0] === "Altre cartelle") - (b[0] === "Altre cartelle") || (a[1].length === b[1].length ? a[0].localeCompare(b[0]) : b[1].length - a[1].length));
   if (cat.length === 1 && !adesso.length) out.push({ titolo: "I tuoi progetti", progetti: cat[0][1] });
   else for (const [c, l] of cat) out.push({ titolo: c, progetti: l });
+  // In fondo e chiusa: la barra la apre con un clic.
+  if (ferme.length) out.push({ titolo: FERME, progetti: ferme, chiusa: true });
   return out;
 }
 
@@ -587,6 +622,21 @@ export async function spostaScheda(s, progetto) {
 
 // Come bin/sessione.py: niente caratteri che rompono il prompt.
 const pulito = (t) => (t ?? "").replace(/[`$"\\\n\r]/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+
+// I progetti dalla memoria che la persona ha già (arturo progetti --json): cartelle, handoff, righe di
+// stato e catalogo della fonte dei task, uniti da Arturo. null se l'Arturo installato non ha il comando:
+// chi chiama ricade sulle cartelle.
+export async function progettiMemoria() {
+  const r = await arturo("progetti", ["--json"], "");
+  return r.ok && Array.isArray(r.json?.progetti) ? r.json.progetti : null;
+}
+
+// I nomi fra cui scegliere in "Apri un progetto" e "Cambia progetto", dal più recente: la memoria, o le
+// cartelle con un Arturo che non ha ancora il comando.
+export async function nomiProgetti() {
+  const m = await progettiMemoria();
+  return m ? m.map((p) => (p.cartella ? p.nome : p.slug)).filter(Boolean) : cartelle();
+}
 
 // Le cartelle della base dei progetti, dalla più recente.
 export async function cartelle() {

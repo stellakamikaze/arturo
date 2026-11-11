@@ -14,6 +14,8 @@ Volta Celeste è la finestra di Arturo: tiene le sessioni di Claude Code in una 
 
 I todo sono quelli di `arturo todo`: se li tieni in un altro strumento ([fonte dei task](fonte-task.md)), il pannello legge quello.
 
+**Da dove vengono i progetti.** La finestra non tiene un elenco suo: chiede `arturo progetti --json`, che legge la memoria che hai già. Sono le cartelle dei progetti, gli handoff con il loro `INDEX.md`, le righe di stato, le schede `progetto-<nome>.md` della memoria e, se tieni i todo in un altro strumento, il suo verbo `catalogo`. Un progetto che vive solo negli handoff compare con stato e prossimo passo. Due nomi dello stesso progetto diventano una voce sola. Il comando legge e basta.
+
 ## Cosa installa e dove
 
 - Herdr, dall'installer ufficiale di herdr.dev, che ne controlla firma e integrità: l'app in `~/Applications` (Mac) o nel menu Start (Windows), e `herdr-core`, il programma che tiene vive le sessioni anche a finestra chiusa, in `~/.local/bin`.
