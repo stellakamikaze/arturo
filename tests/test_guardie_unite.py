@@ -784,7 +784,10 @@ def test_g214(repo: Path) -> None:
 
         for path in bersagli:
             assert esito(path) == "deny", f"G214 Edit sull'aggiornamento automatico senza unlock: {path.relative_to(home)}"
-        assert esito(c / "bin" / "telemetria.py") == "silent", "G214 un altro file di bin/ viene fermato"
+        # Dall'11/11/2026 (#5262, review n. 5) tutta bin è protetta: gli hook eseguono telemetria.py dentro il
+        # dispatcher. Il controllo che non si ferma troppo guarda un file fuori dalla tabella.
+        assert esito(c / "bin" / "telemetria.py") == "deny", "G214 Edit su un file di bin/ senza unlock"
+        assert esito(c / "data" / "nota.md") == "silent", "G214 un file fuori dalla tabella viene fermato"
         for comando in ("echo x >> ~/.claude/firme/rilasci.allowed_signers",
                         "cd ~/.claude && sed -i s/a/b/ bin/aggiornamenti.py",
                         "cp /tmp/finto.sh ~/.claude/bin/aggiorna-applica.sh"):

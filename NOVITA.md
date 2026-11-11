@@ -13,6 +13,37 @@ modo di lavorare.
 
 ---
 
+## 2026-11-11 — Altri cinque buchi chiusi nelle guardie
+
+**Cosa cambia**: la revisione che ha chiuso i tre buchi della voce qui sotto ne ha trovati altri cinque, casi in
+cui un comando passava senza controllo perché le guardie non lo vedevano. Adesso le guardie li vedono e chiedono
+conferma anche lì.
+
+- Un comando scritto in modo insolito passava senza controllo: `'rm' -rf` fra virgolette, un `git commit` dentro
+  un `if`, il nome del programma messo in una variabile. Le guardie sapevano già leggere questi comandi, ma il
+  filtro che decide quando chiamarle non li riconosceva, quindi restavano fuori; adesso le chiama anche per questi.
+- Un comando poteva modificare impostazioni e guardie senza conferma se ci arrivava per una via indiretta:
+  attraverso un collegamento, con un carattere jolly al posto del nome, estraendo un archivio dentro `~/.claude`,
+  con `git reset --hard` in quella cartella o spostando la cartella intera. Adesso le guardie controllano i file
+  su cui il comando scrive davvero, non solo i nomi che compaiono nel comando.
+- La cartella `~/.claude/bin` contiene programmi che Arturo esegue da solo a ogni sessione, quindi chi la modifica
+  cambia quello che Arturo fa senza che tu lo veda. Per questo adesso modificarla chiede lo stesso sblocco delle
+  guardie.
+- Un comando poteva contenere un secondo comando scritto come testo e farlo eseguire per una via indiretta, per
+  esempio salvandolo in un file, copiando il file e lanciando la copia. Le guardie controllavano il primo e non
+  leggevano il secondo; adesso leggono anche quello.
+- Un comando di oltre un milione di caratteri passava senza nessuna guardia, perché il programma che lo consegna
+  alle guardie non partiva e loro ricevevano un testo vuoto. Adesso, oltre i 100.000 caratteri, Arturo non prova a
+  leggerlo e ti chiede conferma.
+
+**Da sapere**: vedrai qualche conferma in più quando un comando scrive dentro `~/.claude` fuori dalle cartelle
+di handoff e memorie, o quando supera i 100.000 caratteri, e nessun comando viene bloccato.
+
+**Il principio**: una guardia giudica quello che il comando fa, non come è scritto, e quando non riesce a capirlo,
+come con un comando troppo lungo, lascia la decisione a te.
+
+---
+
 ## 2026-11-11 — Tre buchi chiusi nelle guardie
 
 **Cosa cambia**: una revisione delle guardie ha trovato tre casi in cui un comando passava senza chiederti

@@ -52,6 +52,7 @@ import shlex
 import subprocess
 import importlib.util
 import fnmatch
+import glob
 
 
 def _stdin_timeout(signum, frame):
@@ -158,6 +159,14 @@ PERCORSI_PROTETTI = (
     ("config", "albero-claude", "firme", "~/.claude/firme/rilasci.pub", False),
     ("config", "file-claude", "bin/aggiornamenti.py", "~/.claude/bin/aggiornamenti.py", False),
     ("config", "file-claude", "bin/aggiorna-applica.sh", "~/.claude/bin/aggiorna-applica.sh", False),
+    # Tutta la cartella bin (11/11/2026, #5262, review n. 5): gli hook eseguono telemetria.py (anche dentro il
+    # dispatcher, a ogni conferma), telemetria-esito.sh, correzioni.py, migra.py e arturo. Chi li riscrive
+    # cambia codice che gira dentro le guardie.
+    ("config", "albero-claude", "bin", "~/.claude/bin/telemetria.py", False),
+    # L'elenco dei plugin installati e dei marketplace: dice a Claude Code da quale cartella caricare il
+    # codice di un plugin, guardie di Arturo comprese.
+    ("config", "file-claude", "plugins/installed_plugins.json", "~/.claude/plugins/installed_plugins.json", False),
+    ("config", "file-claude", "plugins/known_marketplaces.json", "~/.claude/plugins/known_marketplaces.json", False),
     # Il puntatore della barra (4/11/2026, #4567): col plugin la barra esegue
     # "$(cat ~/.claude/arturo/radice)/hooks/statusline.js". Lo scrive solo l'avvio.
     ("config", "file-claude", "arturo/radice", "~/.claude/arturo/radice", False),
@@ -260,7 +269,8 @@ CLAUDE_MD_OPEN_RE = _riserva("claude-md", open_modi="wax+", coda_open="")
 # altrove è una lettura).
 PERSIST_WRITE_RE = _riserva("avvio-automatico", r">>?\s*{p}", "wa")
 # Binari che scrivono un file passato come argomento.
-_WRITE_BINS = frozenset("tee cp mv install rsync ln dd truncate touch".split())
+# sponge (moreutils) riscrive il file che riceve come argomento: `jq … f | sponge f` (#5262).
+_WRITE_BINS = frozenset("tee cp mv install rsync ln dd truncate touch sponge".split())
 
 # --- File di unlock che sbloccherebbero l'auto-modifica di config/hook -> ask ---
 # Solo la CREAZIONE del file (redirezione, touch, tee, open in scrittura) e solo direttamente
@@ -917,6 +927,89 @@ def _dentro_la_cartella(cmd0, toks, base_cwd):
     return out
 
 
+_GLOB_RE = re.compile(r"[*?\[]")
+
+
+def _risolti(target, cwd, link=None):
+    """I percorsi che una parola del comando tocca davvero: quello scritto, i file che un glob trova
+    (`~/.claud[e]/s?ttings.json`), e ognuno con i link risolti (`lnk/settings.json` con lnk che punta a
+    ~/.claude). `link` porta i link che lo stesso comando crea con `ln -s`, che sul disco non ci sono ancora.
+    Prima si giudicava solo il percorso scritto, e queste forme passavano (review del 10/11/2026, n. 4)."""
+    p = _resolve(target, cwd)
+    if not p:
+        return []
+    for nuovo, dove in (link or {}).items():
+        if p == nuovo or p.startswith(nuovo + os.sep):
+            p = dove + p[len(nuovo):]
+            break
+    candidati = [p]
+    if _GLOB_RE.search(p):
+        try:
+            candidati = glob.glob(p)[:200] or [p]
+        except Exception:
+            candidati = [p]
+    out = []
+    for c in candidati:
+        out.append(c)
+        r = _reale(c)
+        if r and r != c:
+            out.append(r)
+    return out
+
+
+def _contiene_protetti(p, sopra=True):
+    """True se la cartella `p` è ~/.claude, sta in un albero della regola config, o ha sotto di sé una voce
+    della regola config (`~/.claude/plugins` contiene plugins/cache). Con `sopra` vale anche una cartella
+    che contiene ~/.claude. Serve dove il comando tocca una cartella intera senza nominare i file: mv della
+    cartella, chmod, un archivio estratto, git che riscrive la cartella di lavoro."""
+    if not p:
+        return False
+    p = _piega(os.path.normpath(p))
+    claude = _piega(os.path.normpath(os.path.join(_home(), ".claude")))
+    if p == claude:
+        return True
+    if claude.startswith(p.rstrip(os.sep) + os.sep):
+        return sopra
+    if not p.startswith(claude + os.sep):
+        return False
+    if _protetto("config", p) or _protetto("config", os.path.join(p, "x")):
+        return True
+    for regola, forma, percorso, _es, _ris in PERCORSI_PROTETTI:
+        if regola == "config" and forma in ("albero-claude", "file-claude", "nome-cartella"):
+            bersaglio = _piega(os.path.normpath(os.path.join(_home(), ".claude", *percorso.split("/"))))
+            if bersaglio.startswith(p + os.sep):
+                return True
+    return False
+
+
+_ARCHIVI = frozenset(_fc._TAR | {"unzip", "patch", "gpatch", "git", "ditto", "rsync"})
+_GIT_RESET_RISCRIVE = frozenset(("--hard", "--merge", "--keep"))
+
+
+def _git_riscritti(args, base):
+    """(file, cartelle) che git riscrive nella cartella di lavoro senza una redirezione: i percorsi di
+    `checkout -- F` e `restore F`, e la radice del repo per un checkout senza `--` e per `reset --hard`."""
+    i = 0
+    while i < len(args) and args[i].startswith("-"):
+        if args[i] == "-C" and i + 1 < len(args):
+            base = _resolve(args[i + 1], base) or base
+        i += 2 if args[i] in _fc._GIT_CON_VALORE else 1
+    sotto, resto = (args[i], args[i + 1:]) if i < len(args) else ("", [])
+    file, cartelle = [], []
+    radice = _fc._radice_git(base) if base else None
+    if sotto in ("checkout", "restore"):
+        if "--" in resto:
+            file = [(a, base) for a in resto[resto.index("--") + 1:]]
+        elif sotto == "restore":
+            file = [(a, base) for a in resto if not a.startswith("-")]
+        elif any(not a.startswith("-") for a in resto):
+            file = [(a, base) for a in resto if not a.startswith("-")]
+            cartelle.append(radice)
+    elif sotto == "reset" and any(a in _GIT_RESET_RISCRIVE for a in resto):
+        cartelle.append(radice)
+    return file, [c for c in cartelle if c]
+
+
 def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=False):
     """Copre `cd ~/.claude/hooks && > file` (target relativo dopo un cd): il match
     testuale di CONFIG_WRITE_RE vede solo i path assoluti che contengono `.claude/`.
@@ -926,10 +1019,36 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
     Con `cancella` contano anche rm, unlink e shred: senza settings.json cadono deny e hook alla
     ricarica (finding 11). I wrapper davanti (`command cp`, `sudo tee`) si saltano, e perl -i
     scrive come sed -i. Con `crea` conta anche mkdir: serve alla regola sblocco, dove una cartella
-    col nome dello sblocco non deve nascere senza conferma (#5261)."""
+    col nome dello sblocco non deve nascere senza conferma (#5261).
+    Dall'11/11/2026 (#5262, review n. 4) ogni bersaglio passa da _risolti (glob e link), il cd si segue
+    anche come pushd, `cd --`, `cd -P`, `builtin cd`, dentro `( )` e con `env -C`, e dd conta `of=`.
+    Solo per la regola config contano anche le scritture che non nominano il file: archivi estratti,
+    patch, rsync di una cartella, git checkout, restore e reset --hard, mv di una cartella che contiene
+    la config, chmod e chown."""
+    larga = protetto is None
     protetto = protetto or _under_claude_config
     cwd_decl = None
+    link = {}
+    assegnate = None
+
+    def colpisce(parola, base):
+        return any(protetto(q) for q in _risolti(parola, base, link))
+
+    def cartella_colpita(parola, base, sopra=False):
+        return any(protetto(q) or protetto(os.path.join(q, "x")) or _contiene_protetti(q, sopra)
+                   for q in _risolti(parola, base, link))
+
+    # Un diff applicato da patch o da git apply nomina i file nelle righe `---` e `+++` (heredoc o stringa):
+    # contano come bersagli, con e senza il primo pezzo (`a/`, `b/`).
+    if larga and re.search(r"(?:^|[\s;&|(/])(?:g?patch|git)(?=\s)", command, _RE_NOMI):
+        for m in re.finditer(r"^(?:\+\+\+|---) (\S+)", command, re.M):
+            nome = m.group(1)
+            if colpisce(nome, cwd) or ("/" in nome and colpisce(nome.split("/", 1)[1], cwd)):
+                return True
+    in_arrivo = {}
     for seg in _fc.comandi_semplici(command):
+        link.update(in_arrivo)
+        in_arrivo.clear()
         seg = seg.strip()
         if not seg:
             continue
@@ -937,12 +1056,31 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
             toks = shlex.split(seg)
         except Exception:
             toks = seg.split()
+        # `(cd x; …)`, `{ cd x; …; }`, `then cd x`: la parola davanti non è il programma.
+        while toks and (toks[0] in _fc._DAVANTI or toks[0] == "("):
+            toks = toks[1:]
+        if toks and toks[0].startswith("(") and len(toks[0]) > 1:
+            toks[0] = toks[0].lstrip("(")
         if not toks:
             continue
-        if toks[0] == "cd" and len(toks) >= 2:
-            cwd_decl = _resolve(toks[1], cwd_decl or cwd)
+        nudi = toks
+        while len(nudi) > 1 and nudi[0] in ("builtin", "command"):
+            nudi = nudi[1:]
+        if nudi[0] in ("cd", "pushd") and len(nudi) >= 2:
+            dove = [a for a in nudi[1:] if a == "-" or not a.startswith(("-", "+"))]
+            if dove and dove[0] != "-":
+                cwd_decl = _resolve(dove[0], cwd_decl or cwd)
             continue
         base_cwd = cwd_decl or cwd
+        # `env -C DIR cp x settings.json`: il programma gira in DIR.
+        if _fc._nome(toks[0]) == "env":
+            for k in range(1, len(toks)):
+                if toks[k] in ("-C", "--chdir") and k + 1 < len(toks):
+                    base_cwd = _resolve(toks[k + 1], base_cwd) or base_cwd
+                elif toks[k].startswith("--chdir="):
+                    base_cwd = _resolve(toks[k].partition("=")[2], base_cwd) or base_cwd
+                elif not toks[k].startswith("-") and not _ENV_ASSIGN_RE.match(toks[k]):
+                    break
         # `git log --output=...` scrive quanto una redirezione: non può saltare
         # il controllo soltanto perché il binario si chiama git.
         for index, token in enumerate(toks):
@@ -951,22 +1089,37 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
                 output = token.partition("=")[2]
             elif token == "--output" and index + 1 < len(toks):
                 output = toks[index + 1]
-            if output and protetto(_resolve(output, base_cwd)):
+            if output and colpisce(output, base_cwd):
                 return True
         # redirezioni verso un file, anche fra virgolette
-        if any(protetto(_resolve(b, base_cwd)) for b in _bersagli_redirezione(seg)):
+        if any(colpisce(b, base_cwd) for b in _bersagli_redirezione(seg)):
             return True
         # binario di scrittura con un target come argomento. Le redirezioni escono dalle parole: in
         # `cp x ~/.claude/ 2>/dev/null` l'ultimo argomento è la cartella, non `2>/dev/null` (#5261).
         try:
-            toks = shlex.split(_fc._senza_tratti_redirezione(seg)) or toks
+            senza = shlex.split(_fc._senza_tratti_redirezione(seg))
+            while senza and (senza[0] in _fc._DAVANTI or senza[0] == "("):
+                senza = senza[1:]
+            if senza and senza[0].startswith("(") and len(senza[0]) > 1:
+                senza[0] = senza[0].lstrip("(")
+            toks = senza or toks
         except Exception:
             pass
         toks = _dopo_involucri(toks) or toks
         cmd0 = _fc._nome(toks[0])
+        # Un link creato qui (`ln -s ~/.claude /tmp/l; echo x > /tmp/l/settings.json`) vale per i comandi dopo.
+        if cmd0 == "ln" and any(a == "--symbolic" or (a.startswith("-") and not a.startswith("--") and "s" in a)
+                                for a in toks[1:]):
+            posizionali = [a for a in toks[1:] if not a.startswith("-")]
+            if len(posizionali) >= 2:
+                sorgente, nuovo = _resolve(posizionali[0], base_cwd), _resolve(posizionali[-1], base_cwd)
+                if sorgente and nuovo:
+                    # Vale dal comando dopo: qui `nuovo` è ancora la destinazione che ln scrive.
+                    in_arrivo[nuovo] = sorgente
+                    in_arrivo[os.path.join(nuovo, os.path.basename(sorgente))] = sorgente
         # L'rm ricorsivo ha la sua regola (rm-protetto), col messaggio giusto: qui solo i file singoli.
         if cancella and cmd0 in _CANCELLANO and not _fc._ricorsivo(toks[1:]):
-            if any(protetto(_resolve(t, base_cwd)) for t in toks[1:] if not t.startswith("-")):
+            if any(colpisce(t, base_cwd) for t in toks[1:] if not t.startswith("-")):
                 return True
         if cmd0 in _WRITE_BINS:
             argomenti = [t for t in toks[1:] if not t.startswith("-")]
@@ -975,21 +1128,50 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=F
             if cmd0 in ("cp", "install", "rsync", "ln") and argomenti and not any(
                     t == "-t" or t.startswith("--target-directory") for t in toks[1:]):
                 argomenti = argomenti[-1:]
+            if cmd0 == "dd":
+                # dd scrive solo `of=FILE`: prima `of=settings.json` si risolveva come un file di nome
+                # "of=settings.json", e dopo un cd in ~/.claude passava.
+                argomenti = [t[3:] for t in toks[1:] if t.startswith("of=")]
             for t in argomenti:
-                if protetto(_resolve(t, base_cwd)):
+                if colpisce(t, base_cwd):
                     return True
         if cmd0 in _COPIANO:
-            if any(protetto(_resolve(t, base_cwd)) for t in _dentro_la_cartella(cmd0, toks, base_cwd)):
+            if any(colpisce(t, base_cwd) for t in _dentro_la_cartella(cmd0, toks, base_cwd)):
                 return True
         if crea and cmd0 == "mkdir":
-            if any(protetto(_resolve(t, base_cwd)) for t in toks[1:] if not t.startswith("-")):
+            if any(colpisce(t, base_cwd) for t in toks[1:] if not t.startswith("-")):
                 return True
         # sed -i e perl -i sul file
         if sed and ((cmd0 in ("sed", "gsed") and "-i" in seg)
                     or (cmd0 == "perl" and any(re.match(r"^-[a-zA-Z]*i", t) for t in toks[1:]))):
             for t in toks[1:]:
-                if not t.startswith("-") and protetto(_resolve(t, base_cwd)):
+                if not t.startswith("-") and colpisce(t, base_cwd):
                     return True
+        if not larga:
+            continue
+        liberi = [t for t in toks[1:] if not t.startswith("-")]
+        # mv di una cartella che contiene la config (`mv ~/.claude x`, `mv ~/.claude/plugins /tmp/p`): le
+        # guardie spariscono dal posto in cui Claude Code le cerca.
+        if cmd0 == "mv" and any(_contiene_protetti(q) for t in liberi[:-1] for q in _risolti(t, base_cwd, link)):
+            return True
+        # chmod e chown su una cartella protetta o che la contiene (`chmod 000 ~/.claude/hooks`).
+        if cmd0 in ("chmod", "chown", "chgrp") and any(
+                protetto(q) or _contiene_protetti(q, False) for t in liberi for q in _risolti(t, base_cwd, link)):
+            return True
+        if cmd0 in _ARCHIVI and base_cwd:
+            if assegnate is None:
+                assegnate = _fc._assegnazioni(command)
+            try:
+                file, cartelle = _fc._scritture_indirette(cmd0, toks[1:], liberi, base_cwd, assegnate)
+            except Exception:
+                file, cartelle = [], []
+            if cmd0 == "git":
+                altri, radici = _git_riscritti(toks[1:], base_cwd)
+                file, cartelle = file + altri, cartelle + radici
+            if any(colpisce(parola, base) for parola, base in file):
+                return True
+            if any(cartella_colpita(c, base_cwd) for c in cartelle if "$" not in c and "`" not in c):
+                return True
     return False
 
 

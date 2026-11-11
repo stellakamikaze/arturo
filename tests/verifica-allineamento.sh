@@ -193,6 +193,8 @@ BANCHI=(
   test_guardie_split_unico_2026_11_10.py
   # Il ramo memoria non approva scritture fuori zona, e lo sblocco della config chiede (11/11/2026, #5261).
   test_guardie_memoria_sblocco_2026_11_11.py
+  # Le guardie vedono scritture sulla config, heredoc eseguiti e comandi fra virgolette (11/11/2026, #5262).
+  test_guardie_cieche_2026_11_11.py
   # Difetti minori su Windows della review del 9/11: servizi di Claude, appunti, wt, codifica (10/11/2026, #5102).
   test_windows_minori_2026_11_10.py
 )
@@ -499,6 +501,8 @@ VELENI=(
   test_guardie_split_unico_2026_11_10.py
   # #5261 (11/11/2026): con le guardie di 7a8bb69 ogni gruppo MS è rosso.
   test_guardie_memoria_sblocco_2026_11_11.py
+  # #5262 (11/11/2026): con le guardie di b68e732 ogni gruppo GC è rosso.
+  test_guardie_cieche_2026_11_11.py
   # #5102 (10/11/2026): ogni correzione tolta fa rosso il suo caso WM.
   test_windows_minori_2026_11_10.py
   # Il contatto (10/11/2026): senza il contatto nel corpo, nell'impronta o nell'avvio, CT03, CT05 e CT07 sono rossi.

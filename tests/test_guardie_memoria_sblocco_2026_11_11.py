@@ -234,8 +234,9 @@ def test_ms03(b: Banco):
     ]
     casi = [(n, b.dispatcher(c), "silent") for n, c in fuori]
     casi += [
-        ("mv di plugins da ~/.claude", b.dispatcher(f"mv plugins {Z}/p", b.claude), "silent"),
-        ("mv di bin e arturo da ~/.claude", b.dispatcher(f"mv bin arturo {Z}/", b.claude), "silent"),
+        # Dal #5262 questi due chiedono: mv porta via una cartella che contiene codice delle guardie (GC04).
+        ("mv di plugins da ~/.claude", b.dispatcher(f"mv plugins {Z}/p", b.claude), "ask"),
+        ("mv di bin e arturo da ~/.claude", b.dispatcher(f"mv bin arturo {Z}/", b.claude), "ask"),
         ("cp di una chiave chiede", b.dispatcher(f"cp ~/.ssh/id_ed25519 {Z}/k"), "ask"),
     ]
     dentro = [
