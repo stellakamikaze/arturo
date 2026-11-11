@@ -3,7 +3,8 @@
 //
 // Cosa riceve il server, e solo questo:
 //   POST /v1/eventi        un lotto di eventi d'uso, con un id di installazione casuale
-//   POST /v1/segnalazioni  una segnalazione che la persona ha letto e approvato con /segnala
+//   POST /v1/segnalazioni  una segnalazione di /segnala: dall'11/11/2026 Claude la scrive e la manda da solo, e dice
+//                          alla persona cosa è partito; in modo manuale parte dopo che l'ha letta e approvata
 //   POST /v1/feedback      il modulo di feedback del sito (/api/feedback): testo, tipo, email facoltativa.
 //                          Dal 24/10/2026 il vocale non si accetta più
 //   POST /v1/sito          un download dal sito (/api/sito): il comando copiato o il repository aperto

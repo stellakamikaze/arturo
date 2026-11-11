@@ -1087,7 +1087,7 @@ def main(argv: list) -> int:
             except OSError:
                 pass
         print("Telemetria spenta, coda svuotata. Per riaccenderla: arturo telemetria accendi\n"
-              "/segnala continua a funzionare: ogni segnalazione parte solo con il tuo sì.")
+              "/segnala continua a funzionare: con la telemetria spenta ogni segnalazione parte solo con il tuo sì.")
         return 0
     if comando == "accendi" and not resto:
         cambia_stato(lambda s: s.__setitem__("spenta", False))

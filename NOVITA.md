@@ -13,6 +13,29 @@ modo di lavorare.
 
 ---
 
+## 2026-11-11 — Le segnalazioni partono da sole
+
+**Cosa cambia**: quando qualcosa di Arturo o di Claude Code si inceppa, Claude scrive la segnalazione e la manda
+a chi mantiene Arturo, senza chiederti "La mando?". Subito dopo ti dice in una riga cosa è partito, il numero e
+come ritirarla. Lo stesso vale quando scrivi tu `/segnala`. Prima ogni segnalazione aspettava il tuo sì, e molti
+guasti non arrivavano mai: la domanda cadeva in mezzo al lavoro e la risposta era "dopo".
+
+Cosa parte: il fatto in poche righe, senza nomi di persone e clienti e senza contenuti del tuo lavoro, più le
+versioni di Arturo e di Claude Code, l'esito dei controlli e lo stato della config. Arturo toglie da solo
+cartelle personali, email, indirizzi e nomi di documenti. Arriva solo a chi mantiene Arturo.
+
+**Da sapere**: per tornare alla domanda scrivi `python3 ~/.claude/bin/arturo segnalazioni manuali`, e
+`arturo segnalazioni automatiche` per riaccendere. Alla prima sessione dopo l'aggiornamento Claude te lo dice, e
+niente parte da solo prima di quell'avviso. Restano sempre col tuo sì: un tema di sicurezza, una issue pubblica
+su GitHub, una skill che proponi con `/proponi`, e ogni segnalazione se hai spento la telemetria o hai detto
+`arturo segnala basta`. Un segreto non parte mai. Per ritirare una segnalazione: `arturo segnala ritira N`.
+In un giorno ne partono da sole al massimo dieci, e mai due volte la stessa.
+
+**Il principio**: una domanda che interrompe il lavoro riceve un "dopo", e il guasto resta. Meglio un invio
+che vedi e puoi ritirare.
+
+---
+
 ## 2026-11-10 — /diagnosi torna a controllare la config sul Mac
 
 **Cosa cambia**: sul Mac il controllo della configurazione di `/diagnosi` si fermava subito con un errore di

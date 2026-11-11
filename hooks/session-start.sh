@@ -322,10 +322,20 @@ if [ -d "$HOME/.claude/.git" ] && [ ! -f "$HOME/.claude/data/setup-fatto" ] \
   fi
 fi
 
-# Invito a segnalare: Arturo migliora con quello che le persone gli dicono. Una riga di contesto,
-# spenta da "arturo segnala basta" (stato in session-env/segnala.json).
-if ! grep -q '"pausa": "sempre"' "$HOME/.claude/session-env/segnala.json" 2>/dev/null; then
-  echo "SEGNALA: se in questa sessione qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, proponi una volta /segnala, con la bozza gia' scritta da te e --origine avvio in prepara. Riguarda Arturo, non i bug del progetto della persona."
+# Segnalazioni (11/11/2026): di default Claude le scrive e le manda da solo a chi mantiene Arturo, e dice cosa è
+# partito. L'avviso esce una volta sola (arturo segnala avviso, segno in session-env/segnalazioni-annuncio). Con
+# "arturo segnalazioni manuali" o ARTURO_SEGNALAZIONI=manuali torna l'invito a proporre /segnala. "arturo segnala
+# basta" spegne la riga (stato in session-env/segnala.json). Il modo che vale lo decide comunque `manda`.
+SEGNALA_STATO="$HOME/.claude/session-env/segnala.json"
+if ! grep -q '"pausa": "sempre"' "$SEGNALA_STATO" 2>/dev/null; then
+  if [ "$(printf '%s' "${ARTURO_SEGNALAZIONI:-}" | tr '[:upper:]' '[:lower:]')" = "manuali" ] \
+    || grep -q '"modo": "manuali"' "$SEGNALA_STATO" 2>/dev/null; then
+    echo "SEGNALA: se in questa sessione qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, proponi una volta /segnala, con la bozza gia' scritta da te e --origine avvio in prepara. Riguarda Arturo, non i bug del progetto della persona."
+  else
+    [ -f "$HOME/.claude/session-env/segnalazioni-annuncio" ] \
+      || python3 "$ARTURO_CODICE/bin/arturo" segnala avviso 2>/dev/null || true
+    echo "SEGNALA: se in questa sessione qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, segui /segnala senza aspettare che lo chieda: scrivi tu la bozza, mandala con manda e --origine avvio, e di' alla persona in una riga cosa e' partito, il numero e come ritirarla. Una volta per fatto. Riguarda Arturo, non i bug del progetto della persona. Un tema di sicurezza non parte mai da solo: vale SECURITY.md."
+  fi
 fi
 
 # Nel Terminale di macOS il profilo accoda al titolo della scheda processo e cartella: la prima

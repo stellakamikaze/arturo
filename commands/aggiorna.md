@@ -351,7 +351,7 @@ python3 ~/.claude/bin/arturo personale ripristina hooks/<guardia>
 
 `RIPRISTINATO` vuol dire che la guardia è tornata quella di Arturo e il prossimo `/aggiorna` la porta
 all'ultima versione. Se dice di no, rispetta la scelta: la riga tornerà a ogni avvio finché la
-guardia resta diversa, e sta a lei. Se una guardia la ferma troppo spesso, proponi `/segnala`: la
+guardia resta diversa, e sta a lei. Se una guardia la ferma troppo spesso, segnalalo con `/segnala`: la
 correzione giusta va in Arturo, per tutti.
 
 ## Le sue aggiunte, senza aggiornare

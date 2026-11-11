@@ -180,6 +180,8 @@ BANCHI=(
   test_sportello_2026_11_04.py
   # Il contatto di chi segnala (10/11/2026): arturo contatto, prepara e invia, domanda una volta.
   test_contatto_2026_11_10.py
+  # Le segnalazioni partono da sole (11/11/2026): manda, interruttore, tetto, avviso una volta.
+  test_segnala_auto_2026_11_11.py
   # Gli script si leggono col bash 3.2 del Mac (10/11/2026, segnalazione n. 68).
   test_bash32_2026_11_10.py
   test_humanizer_origine.py
@@ -421,6 +423,8 @@ BASELINE=(
   "test_sportello_2026_11_04.py fa14218"
   # Il contatto di chi segnala (10/11/2026): arturo contatto non c'è. 3954f1d, il dev prima.
   "test_contatto_2026_11_10.py 3954f1d"
+  # Le segnalazioni automatiche (11/11/2026): manda e l'interruttore non ci sono. 8709365, il dev prima.
+  "test_segnala_auto_2026_11_11.py 8709365"
   # Il heredoc dentro <(...) di audit.sh (10/11/2026, n. 68): a7c5162, il dev prima.
   "test_bash32_2026_11_10.py a7c5162"
   # Strati F3 (5/11/2026, #4533): MANIFEST firmato, catalogo con lo sha, /aggiorna che verifica il tag.
@@ -489,6 +493,8 @@ VELENI=(
   test_windows_minori_2026_11_10.py
   # Il contatto (10/11/2026): senza il contatto nel corpo, nell'impronta o nell'avvio, CT03, CT05 e CT07 sono rossi.
   test_contatto_2026_11_10.py
+  # Le segnalazioni automatiche (11/11/2026): ogni filtro tolto da manda fa rosso il suo caso SA.
+  test_segnala_auto_2026_11_11.py
   # n. 68: il heredoc rimesso dentro <(...) fa rossi BS01 e, sul Mac, BS02.
   test_bash32_2026_11_10.py
 )

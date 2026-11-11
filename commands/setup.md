@@ -446,6 +446,6 @@ Chiudi con un riepilogo in linguaggio semplice:
 - **Aggiornamenti**: Arturo si aggiorna da solo alla chiusura della sessione, solo con versioni firmate da chi lo mantiene. La barra dice quando ne esce una, **`/novita`** racconta cosa è cambiato. Per decidere tu: `python3 ~/.claude/bin/arturo aggiornamenti manuali`, poi **`/aggiorna`**.
 - **Telemetria**: accesa o spenta (`python3 ~/.claude/bin/arturo telemetria stato`); `python3 ~/.claude/bin/arturo telemetria mostra` fa vedere cosa parte.
 - **Contatto**: dato o no (`python3 ~/.claude/bin/arturo contatto`). Parte solo con le segnalazioni, e si toglie con `python3 ~/.claude/bin/arturo contatto togli`.
-- **Come far migliorare Arturo**: "Se qualcosa non funziona, o ti manca uno strumento, dimmelo o scrivi `/segnala`: preparo io il testo per chi mantiene Arturo, e parte solo con il tuo sì."
+- **Come far migliorare Arturo**: "Se qualcosa non funziona, o ti manca uno strumento, dimmelo o scrivi `/segnala`: scrivo io il testo per chi mantiene Arturo e lo mando. Lo faccio anche da solo quando vedo che qualcosa di Arturo si inceppa: mando il fatto in poche righe, senza nomi né contenuti del tuo lavoro, e ti dico subito cosa è partito e come ritirarlo. Se preferisci che te lo chieda ogni volta: `python3 ~/.claude/bin/arturo segnalazioni manuali`."
 - `/system-audit` ricontrolla l'harness in ogni momento.
 - Chiudi con "Prossimo passo:" e una sola azione, che nomina il progetto del primo lavoro (FASE 10).
