@@ -253,6 +253,36 @@ export function statoSpazio(s) {
   return s.status ?? statoAgganciata(schedaAgganciata(s));
 }
 
+// La sessione agganciata nella scheda `g` come la elenca Volta (~/.cache/volta/sessioni.json), o null.
+async function sessioneDi(g) {
+  try {
+    const d = JSON.parse((await readTextFile(`${home()}/.cache/volta/sessioni.json`)) ?? "{}");
+    return (d.sessioni ?? []).find((x) => x?.id === g.id && Array.isArray(x.attach)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Prima di scrivere a Claude in una scheda agganciata: se claude attach è uscito, nella scheda c'è la
+// shell, e il testo di un todo ci finirebbe come comando. true: la scheda ha la shell, il testo non
+// parte. La sessione si riapre nella sua scheda (apriSessione) e la persona riprova: il testo non si
+// manda dopo il rilancio, perché nessuno dice quando Claude è pronto a riceverlo.
+async function tornataShell(g) {
+  if (!(await nuda(g.terminal))) return false;
+  const s = await sessioneDi(g);
+  if (!s) {
+    notify({ title: "La sessione di questa scheda è chiusa", body: "Chiudi la scheda e riapri la sessione dall'elenco di Volta.", level: "warning" });
+    return true;
+  }
+  const r = await apriSessione(s, s.attach);
+  if (r.errore) notify({ title: "La sessione era chiusa e non si riapre", body: r.errore, level: "error" });
+  else {
+    notify({ title: "Ho riaperto la sessione", body: "Riprova fra qualche secondo.", level: "warning" });
+    r.veglia?.then((v) => { if (v?.errore) notify({ title: "La sessione non resta aperta", body: v.errore, level: "error" }); }).catch(() => {});
+  }
+  return true;
+}
+
 // Apre il progetto: lo spazio se c'è, altrimenti una sessione nuova che parte da /inizio, sulla macchina
 // di "Nasce su" (il clic nella barra, Lavoraci, Fai il punto e la finestra Apri: la riga sta sotto Apri
 // un progetto). `todoScelto` ({id, titolo}) porta Claude direttamente su quel todo.
@@ -270,6 +300,7 @@ export async function apri(nome, todoScelto) {
     if (g) {
       run("tab.select", { id: g.tab });
       if (statoAgganciata(g) === "blocked") return notify({ title: "Claude aspetta una tua risposta", body: "Rispondi nella sessione, poi riprova.", level: "warning" });
+      if (await tornataShell(g)) return;
       const r = await hc(["send", g.terminal, testo]);
       if (r.code !== 0) notify({ title: "Non sono riuscito a scrivere a Claude", body: prima(r.stderr) || "Se Claude aspetta una tua risposta, rispondi nella sessione e riprova.", level: "warning" });
       return;
@@ -325,6 +356,7 @@ export async function chiedi(sug) {
   const g = a || !s ? null : schedaAgganciata(s);
   if (!a && !g) return nuova(prompt, true);
   if ((a ? a.status : statoAgganciata(g)) === "blocked") return notify({ title: "Claude aspetta una tua risposta", body: "Rispondi nella conversazione, poi riprova.", level: "warning" });
+  if (!a && (await tornataShell(g))) return;
   const r = await hc(["send", a ? a.address : g.terminal, prompt]);
   if (r.code !== 0) notify({ title: "Non sono riuscito a scrivere a Claude", body: prima(r.stderr), level: "error" });
 }

@@ -1,5 +1,5 @@
 {
- "albero": "2c8de5e1dd45e5b54669cfd3344ea854b8e7d29e",
+ "albero": "1d8f5065e3c81fb9d213e29fa5cc08124eb156a8",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -17,7 +17,7 @@
   "mods/arturo/cambio.js": "1a0ade06eff568cad8d7d48ee3dc3361df6e7eea8a21f65d501d11bfcf14123c",
   "mods/arturo/chiedi.svg": "e00f6385950d1496b2c2e57fe3905417024b695544dbc004526249b9d9f3e15c",
   "mods/arturo/comuni.js": "e268e16c4cfa7c76b4f2a68a43b47c52298ed03d62679818847fd98d384341d9",
-  "mods/arturo/dati.js": "f7aadfc0ac60da6c7f692a7573fe11747da5b53f9765cf2b746ff92e691de7b7",
+  "mods/arturo/dati.js": "f36e32ff4c470e367e54ef8ed126a93f7844d77150473d5afe5b3337161443e1",
   "mods/arturo/fonts/Archivo-SemiBold.ttf": "9065729d94a24b234c619bb7eb3468e0d0e95465f0fc22b33769e57ddb21fdf0",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Bold.ttf": "c1fab8d34e428f6e0cf5c4005b7bb881527f583cb7f6b5e1ef6934d4029953dd",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Regular.ttf": "c32e56b953e633b93b0d1c559652595cf0036946c425fda6ce747f6755fa1512",

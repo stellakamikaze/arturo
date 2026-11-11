@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ64: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ65: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -263,6 +263,11 @@ HZ62 il velo delle note sceglie il singolo elemento (nota.js con node): nomeElem
      della parte e senza elementi resta com'era; il todo della nota nomina l'elemento.
 HZ64 notaui.js usa gli elementi solo se la finestra li dà (Volta Celeste), accende e spegne il registro,
      salva l'elemento nel dove; le parti danno un id agli elementi che non l'avevano.
+HZ65 il testo di un todo non finisce in una shell (revisione dell'11/11/2026, dati.js con node): se nella
+     scheda agganciata claude attach è uscito, Lavoraci e i suggerimenti non scrivono il testo; la
+     sessione giusta, presa da sessioni.json per id, riparte nella sua scheda e un avviso dice di
+     riprovare; se Volta non la elenca più o il servizio non parte lo dice, e non scrive niente. Con
+     Claude nella scheda, e con un agente di Herdr, il testo parte come prima.
 """
 from __future__ import annotations
 
@@ -278,7 +283,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -2350,7 +2355,8 @@ def hz39(repo: Path, casa: Path) -> str | None:
                       "panes": [{"terminal": "t3", "tab": "tb0"}, {"terminal": "t7", "tab": "tb1"}],
                       "terminals": [{"address": "t3", "argv": ["zsh"]}, {"address": "t7", "argv": ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"]}]}
         v = volta("lavoraci", "Torre", herdr=agganciato)
-        if v["avvisi"] or v["inviati"] != [["send", "t7", "Lavoriamo sul todo #42: Prova"]]:
+        invii = lambda v: [x for x in v["inviati"] if x[0] == "send"]  # noqa: E731 (prima c'è hc get, HZ65)
+        if v["avvisi"] or invii(v) != [["send", "t7", "Lavoriamo sul todo #42: Prova"]]:
             return f"Lavoraci su uno spazio agganciato non scrive nella sua scheda: {v['inviati']}, {v['avvisi']}"
         if {"cmd": "tab.select", "id": "tb1"} not in v["lanciati"] or v["eseguiti"]:
             return f"Lavoraci su uno spazio agganciato non porta alla sua scheda: {v['lanciati']}"
@@ -2379,7 +2385,7 @@ def hz39(repo: Path, casa: Path) -> str | None:
         attivo = {**agganciato, "spaces": [{**agganciato["spaces"][0], "active": True,
                                             "tabs": [{"id": "tb0", "name": "Shell"}, {"id": "tb1", "name": "Progetto x", "active": True}]}]}
         v = volta("ricorda", "Torre", herdr=attivo)
-        if v["eseguiti"] or len(v["inviati"]) != 1 or v["inviati"][0][:2] != ["send", "t7"]:
+        if v["eseguiti"] or len(invii(v)) != 1 or invii(v)[0][:2] != ["send", "t7"]:
             return f"Ricordami una cosa non scrive nella sessione agganciata aperta: {v['inviati']}, {v['eseguiti']}"
     except RuntimeError as e:
         return f"dati.js non gira: {e}"
@@ -4407,7 +4413,95 @@ def hz63(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64}
+def hz65(repo: Path, casa: Path) -> str | None:
+    node = shutil.which("node")
+    if not node:
+        return None
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    m = casa / "mod"
+    m.mkdir()
+    mod_dati(repo, m, (mod / "dati.js").read_text(encoding="utf-8"))
+    (m / "prova.mjs").write_text(PROVA_NASCI, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+    (app / "arturo.json").write_text(json.dumps({"arturo": ["python9", "/a/bin/arturo"], "radice": str(repo), "base": "/base"}), encoding="utf-8")
+    attach = ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"]
+    riga = "ssh -t %s torre.lan claude attach ffff1111" % " ".join(OPZIONI_SSH)
+    nascita = ["/bin/zsh", "-lic", '"$@"; exec "$0" -li', "/bin/zsh", *attach]
+    viva = {"state": "live", "pid": 10, "argv": nascita, "foreground": {"pid": 77, "argv": attach}}
+    nuda = {"state": "live", "pid": 10, "argv": nascita, "foreground": {"pid": 10, "argv": ["/bin/zsh", "-li"]}}
+    spazio = {"id": "s1", "name": "progetto-x", "active": True, "tabs": [{"id": "tb0", "name": "Shell"}, {"id": "tb1", "name": "Progetto x", "active": True}]}
+    herdr = {"spaces": [spazio], "panes": [{"terminal": "t3", "tab": "tb0"}, {"terminal": "t7", "tab": "tb1"}],
+             "terminals": [{"address": "t3", "argv": ["zsh"]}, {"address": "t7", "argv": nascita}]}
+    riga_s = lambda ident, host: {"id": ident, "sessionId": ident + "-aaaa", "host": host, "macchina": host, "questa": False,  # noqa: E731
+                                  "nome": "Progetto x", "progetto": "progetto-x", "stato": "ferma", "tipo": "background",
+                                  "attach": ["ssh", "-t", host.lower() + ".lan", "claude", "attach", ident]}
+    cache = casa / "casa/.cache/volta"
+    cache.mkdir(parents=True)
+    elenco = cache / "sessioni.json"
+    # la sessione della scheda non è la prima dell'elenco: si cerca per id
+    note = json.dumps({"sessioni": [riga_s("aaaa2222", "Studio"), riga_s("ffff1111", "Torre")]})
+
+    def volta(caso, letture, herdr=herdr, uscita='{"ok": true}', sessioni=note):
+        elenco.write_text(sessioni, encoding="utf-8")
+        e = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_CASO": caso, "HZ_EXEC": uscita,
+             "HZ_SHARED": json.dumps({"arturo.volta.macchine": [], "arturo.dove": "qui"}),
+             "HZ_HERDR": json.dumps(herdr), "HZ_HC_GET": json.dumps(letture)}
+        for k in ("HZ_NASCE", "HZ_STATO", "HZ_PRONTA", "HZ_HC_ROTTO", "HZ_HC_READ"):
+            e.pop(k, None)
+        r = subprocess.run([node, str(m / "prova.mjs")], capture_output=True, text=True, timeout=30, env=e)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[:200])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    invii = lambda v: [x for x in v["inviati"] if x[0] == "send"]  # noqa: E731
+    sonda = lambda v: [x[2:] for x in v["eseguiti"] if len(x) > 2 and x[2] == "apri"]  # noqa: E731
+    todo = "Lavoriamo sul todo #42: Prova"
+    try:
+        # la scheda è tornata alla shell: il testo non parte, la sessione riparte lì e l'avviso lo dice.
+        # Letture: prima di scrivere (nuda), in apriSessione (nuda), nella veglia (Claude è tornato).
+        for caso, cosa in (("lavoraci", "Lavoraci"), ("ricorda", "Ricordami una cosa")):
+            v = volta(caso, {"t7": [nuda, nuda, viva]})
+            if invii(v) != [["send", "t7", riga]]:
+                return f"{cosa} con la scheda tornata alla shell: nella shell finisce {invii(v)}, atteso solo il rilancio di claude attach"
+            if sonda(v) != [["apri", "Torre", "ffff1111"]]:
+                return f"{cosa} con la scheda tornata alla shell non riapre la sessione della scheda: {sonda(v)}"
+            if len(v["avvisi"]) != 1 or "riaperto" not in v["avvisi"][0].get("title", "") or "Riprova" not in v["avvisi"][0].get("body", ""):
+                return f"{cosa} con la scheda tornata alla shell non dice di riprovare: {v['avvisi']}"
+            if any(x["cmd"] in ("tab.new", "space.new") for x in v["lanciati"]):
+                return f"{cosa}: la sessione riparte in una scheda nuova invece che nella sua: {v['lanciati']}"
+        # Volta non elenca più la sessione: niente nella shell, e lo si dice
+        v = volta("lavoraci", {"t7": [nuda]}, sessioni=json.dumps({"sessioni": [riga_s("aaaa2222", "Studio")]}))
+        if invii(v) or sonda(v) or len(v["avvisi"]) != 1 or "chiusa" not in v["avvisi"][0].get("title", ""):
+            return f"una scheda tornata alla shell senza sessione nell'elenco: {invii(v)}, {sonda(v)}, {v['avvisi']}"
+        v = volta("lavoraci", {"t7": [nuda]}, sessioni="non è json")
+        if invii(v) or len(v["avvisi"]) != 1 or "chiusa" not in v["avvisi"][0].get("title", ""):
+            return f"con sessioni.json illeggibile il testo va nella shell, o non si dice niente: {invii(v)}, {v['avvisi']}"
+        # il servizio non parte: niente nella shell, l'avviso porta il motivo
+        v = volta("lavoraci", {"t7": [nuda]}, uscita=json.dumps({"errore": "il servizio di Claude non parte su Torre: spenta"}))
+        if invii(v) or len(v["avvisi"]) != 1 or "spenta" not in v["avvisi"][0].get("body", "") or v["avvisi"][0].get("level") != "error":
+            return f"la sessione che non si riapre: {invii(v)}, {v['avvisi']}"
+        # Claude gira nella scheda: il testo parte come prima, senza avvisi e senza servizio
+        v = volta("lavoraci", {"t7": [viva]})
+        if invii(v) != [["send", "t7", todo]] or v["avvisi"] or sonda(v):
+            return f"con Claude nella scheda il testo del todo non parte: {invii(v)}, {v['avvisi']}"
+        v = volta("ricorda", {"t7": [viva]})
+        if len(invii(v)) != 1 or invii(v)[0][:2] != ["send", "t7"] or "todo" not in invii(v)[0][2] or v["avvisi"]:
+            return f"con Claude nella scheda il suggerimento non parte: {invii(v)}, {v['avvisi']}"
+        # un agente di Herdr: lo stato lo dice Herdr, la scheda non si interroga
+        agente = {**herdr, "agents": [{"space": "s1", "tab": "tb1", "address": "t7", "status": "idle"}]}
+        v = volta("lavoraci", {"t7": [nuda]}, herdr=agente)
+        if v["inviati"] != [["send", "t7", todo]] or v["avvisi"]:
+            return f"con un agente di Herdr il testo non parte come prima: {v['inviati']}, {v['avvisi']}"
+        v = volta("ricorda", {"t7": [nuda]}, herdr=agente)
+        if len(v["inviati"]) != 1 or v["inviati"][0][:2] != ["send", "t7"] or v["avvisi"]:
+            return f"con un agente di Herdr il suggerimento non parte come prima: {v['inviati']}, {v['avvisi']}"
+    except RuntimeError as e:
+        return f"dati.js non gira: {e}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -4426,6 +4520,12 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "      if (await tornataShell(g)) return;\n", ""),
+    ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "  if (!a && (await tornataShell(g))) return;\n", ""),
+    ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "  if (!(await nuda(g.terminal))) return false;\n  const s = await sessioneDi(g);", "  if (true) return false;\n  const s = await sessioneDi(g);"),
+    ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "find((x) => x?.id === g.id && Array.isArray(x.attach))", "find((x) => Array.isArray(x.attach))"),
+    ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "  if (!a && (await tornataShell(g))) return;\n", "  if (await tornataShell(g ?? { terminal: a.address, id: \"ffff1111\" })) return;\n"),
+    ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "    notify({ title: \"Ho riaperto la sessione\", body: \"Riprova fra qualche secondo.\", level: \"warning\" });\n", ""),
     ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "            figlio.kill()\n        rimetti(a, stato)\n", "            figlio.kill()\n"),
     ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if vivo(stato.get(\"pid\")):\n        return esci(4,", "    if False:\n        return esci(4,"),
     ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if not bh:\n        return esci(3, esito=\"errore\", motivo=\"manca BlackHole\")\n", "    bh = bh or a.ingressi()[0]\n"),
