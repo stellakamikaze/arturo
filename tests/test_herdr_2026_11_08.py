@@ -4080,6 +4080,8 @@ console.log(JSON.stringify({
   parte: s(100, 600), straniero: s(710, 410), niente: s(700, 300), senza: elementoSotto({ x: 100, y: 220 }, null),
   ev: evidenza({ x: 100, y: 220 }, m, el), prima: evidenza({ x: 600, y: 400 }, m),
   misto: evidenza({ x: 600, y: 400 }, m, el)?.nome, alto: evidenza({ x: 1010, y: 20 }, m, el)?.etichetta,
+  bordo: evidenza({ x: 1420, y: 20 }, m, [e("misura-testata", 293, 0, 1147, 54, 2, 1), e("dafare", 1300, 12, 136, 30, 2, 2)])?.etichetta,
+  marchio: evidenza({ x: 100, y: 20 }, m)?.etichetta, barra: evidenza({ x: 100, y: 300 }, { ...m, marchio: mis(292, 0), barra: mis(292, 744) })?.etichetta,
   senzaMisure: evidenza({ x: 100, y: 220 }, { finestra: mis(1440, 900) }, el)?.nome,
   nulla: evidenza({ x: 100, y: 220 }, { finestra: mis(1440, 900) }),
   todo: nota({ testo: "x", x: 1, y: 2, larghezza: 3, altezza: 4, progetto: "p", cartella: "/c", quando: "q",
@@ -4133,8 +4135,12 @@ def hz62(repo: Path, casa: Path) -> str | None:
         return f"senza elementi evidenza() non resta sulla parte: {prima}"
     if g["misto"] != "Sessione":
         return f"sulla sessione, dove non ci sono elementi, evidenza() non ricade sulla parte: {g['misto']}"
-    if g["alto"] != {"x": 1000, "y": 16, "dentro": True}:
-        return f"l'etichetta di un elemento in cima non va dentro il riquadro: {g['alto']}"
+    if g["alto"] != {"x": 1000, "y": 44, "dentro": False}:
+        return f"l'etichetta di un bottone in cima alla finestra lo copre invece di stargli sotto: {g['alto']}"
+    if g["bordo"] != {"x": 1189, "y": 44, "dentro": False}:
+        return f"l'etichetta di un elemento sul bordo destro esce dalla finestra: {g['bordo']}"
+    if g["marchio"] != {"x": 0, "y": 56, "dentro": False} or g["barra"] != {"x": 0, "y": 4, "dentro": True}:
+        return f"l'etichetta di una parte in cima non sta sotto se è bassa e dentro se è alta: {g['marchio']} {g['barra']}"
     if g["senzaMisure"] != riga["nome"] or g["nulla"] is not None:
         return "senza le misure delle parti l'elemento non basta, o evidenza() inventa un riquadro"
     todo = g["todo"]
@@ -4439,6 +4445,8 @@ VELENI = [
     ("HZ61", "shared/volta-celeste/mods/arturo/dati.js", "  return r.ok && Array.isArray(r.json?.progetti) ? r.json.progetti : null;", "  return r.json?.progetti ?? [];"),
     ("HZ61", "shared/volta-celeste/mods/arturo/dati.js", "  return m ? m.map((p) => (p.cartella ? p.nome : p.slug)).filter(Boolean) : cartelle();", "  return cartelle();"),
     ("HZ61", "shared/volta-celeste/mods/arturo/apri.js", "this.lista = await nomiProgetti();", "this.lista = await cartelle();"),
+    ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", "Math.min(q.x, W - larga - 4 - (dentro ? 4 : 0))", "q.x"),
+    ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", "const sotto = !sopra && q.altezza < 60 &&", "const sotto = false &&"),
     ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", ".sort((a, b) => a.width * a.height - b.width * b.height ||", ".sort((a, b) => b.width * b.height - a.width * a.height ||"),
     ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", 'typeof e.id === "string" && !e.own && ', 'typeof e.id === "string" && '),
     ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", "  if (Object.hasOwn(NOMI_ELEMENTO, k)) return NOMI_ELEMENTO[k];\n", ""),

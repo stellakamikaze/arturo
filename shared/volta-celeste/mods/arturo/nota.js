@@ -142,8 +142,7 @@ export function elementoSotto(punto, elementi) {
 // Il riquadro da disegnare attorno a ciò che sta sotto il puntatore, alla maniera di Agentation: { blocco,
 // parte, elemento, nome, rettangolo, fasce, etichetta }. Prima l'elemento (riga, bottone, scheda), se la
 // finestra li riporta; altrimenti la parte, da regione(). Le fasce sono i quattro rettangoli del velo
-// attorno al riquadro, che resta così in piena luce; l'etichetta sta sopra il riquadro, o dentro quando
-// sopra non c'è posto. null senza elemento né regione: il velo resta intero e il clic sceglie il punto.
+// attorno al riquadro, che resta così in piena luce. null senza elemento né regione: il velo resta intero e il clic sceglie il punto.
 const ALTEZZA_ETICHETTA = 22;
 export function evidenza(punto, m, elementi = []) {
   const f = m?.finestra;
@@ -156,10 +155,17 @@ export function evidenza(punto, m, elementi = []) {
   const fasce = [rett(0, 0, W, q.y), rett(0, q.y + q.altezza, W, H - q.y - q.altezza),
     rett(0, q.y, q.x, q.altezza), rett(q.x + q.larghezza, q.y, W - q.x - q.larghezza, q.altezza)]
     .filter((x) => x.larghezza > 0 && x.altezza > 0);
+  const nome = el ? el.nome : (NOMI_BLOCCO[blocco] ?? blocco);
+  // L'etichetta sta sopra il riquadro; in cima alla finestra va sotto, se il riquadro è basso (un bottone
+  // resta leggibile), altrimenti dentro. A destra non esce dalla finestra: la larghezza è una stima dal nome.
   const sopra = q.y >= ALTEZZA_ETICHETTA + 2;
+  const sotto = !sopra && q.altezza < 60 && q.y + q.altezza + ALTEZZA_ETICHETTA + 2 <= H;
+  const larga = Math.round(String(nome).length * 6.6 + 16);
+  const dentro = !sopra && !sotto;
   return { blocco, parte: el ? el.parte : r.parte, elemento: el ? { id: el.id, nome: el.nome, rettangolo: q } : null,
-    nome: el ? el.nome : (NOMI_BLOCCO[blocco] ?? blocco), rettangolo: q, fasce,
-    etichetta: { x: q.x, y: sopra ? q.y - ALTEZZA_ETICHETTA - 2 : q.y + 4, dentro: !sopra } };
+    nome, rettangolo: q, fasce,
+    etichetta: { x: Math.max(0, Math.min(q.x, W - larga - 4 - (dentro ? 4 : 0))),
+      y: sopra ? q.y - ALTEZZA_ETICHETTA - 2 : (sotto ? q.y + q.altezza + 2 : q.y + 4), dentro } };
 }
 
 // Il terminale sotto la nota, quando il punto cade sulla sessione: le ultime `n` righe non vuote del testo.

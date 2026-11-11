@@ -1,5 +1,5 @@
 {
- "albero": "293752f08657969f2ca683861cee8d59d27fbc63",
+ "albero": "6ac572d22ecae723a07150fc7a0468d8904a0e17",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -34,7 +34,7 @@
   "mods/arturo/microfono.js": "8d36b20eab20cee46cfe3d63c08472f91029279d209f26a0297d49f45ec383e9",
   "mods/arturo/microfono.svg": "b3523209b5de1cbfa90a162dfa860b936aa824847cb73edfa53f6e3a0d8cd114",
   "mods/arturo/mod.json": "f0447d53cff99a563ab5da3e7f90c31f90c992c938e8349667ac60e7b5cd3e53",
-  "mods/arturo/nota.js": "de71af48d309d6c6f394c2a53e61a43336c22b4a3525888eed6c411aec046286",
+  "mods/arturo/nota.js": "b5360289d353653c873c06e66c56d29a59f4fe58dd601733577bb5b623b7c1a6",
   "mods/arturo/notaui.js": "c681701949012f383c321992b8b83a04493e12482a3bfdc5bbefe7dfe6cb910d",
   "mods/arturo/noteui.js": "1b703b298779e3e23c1a441d3aaaa1984c7c5881c996ad863ca2fb41ed7c0001",
   "mods/arturo/partenza.js": "180eb43fc1866656eae4d7c0c3558a3da124c548f4b01556ceb11a98f0f789b4",
