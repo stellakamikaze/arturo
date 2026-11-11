@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PC01-PC23: col plugin un rilascio firmato si installa da solo alla chiusura della sessione (10/11/2026).
+"""PC01-PC25: col plugin un rilascio firmato si installa da solo alla chiusura della sessione (10/11/2026).
 
 Dal 6/11/2026 Arturo è un plugin di Claude Code, e da allora un rilascio nuovo arrivava solo con /aggiorna:
 hooks/session-end.sh lanciava ~/.claude/bin/aggiornamenti.py, che col plugin non c'è, e `applica` col plugin non
@@ -35,7 +35,10 @@ PC20 settings.json come collegamento simbolico resta un collegamento, e il file 
 PC21 un doppione nei permessi della persona non ferma l'unione: la regola di blocco nuova arriva;
 PC22 un lucchetto fresco lasciato da un processo che non c'è più non ferma la chiusura;
 PC23 col plugin disattivato e la cartella della copia di prima sparita, la barra in basso dice "Arturo disattivato"
-     e come riattivarlo; senza quel file dice dove guardare; riattivato il plugin, il file sparisce.
+     e come riattivarlo; senza quel file dice dove guardare; riattivato il plugin, il file sparisce;
+PC24 un catalogo che non si scarica non rinnova l'ultimo controllo riuscito: dopo 7 giorni l'avvio lo dice, e
+     un controllo riuscito toglie l'avviso;
+PC25 la barra dice "riapri Claude Code" solo alla sessione rimasta sulla copia di prima.
 
 Rilasci, catalogo, chiavi e CLI finta sono quelli di test_fiducia_2026_11_05.py: niente rete, niente CLI vera.
 Sulla base 62786fd sono tutti rossi. --avvelena: ogni copia rotta fa rosso il caso suo.
@@ -53,7 +56,7 @@ import time
 from pathlib import Path
 
 CASI = ["PC01", "PC02", "PC03", "PC04", "PC05", "PC06", "PC07", "PC08", "PC09", "PC10", "PC11", "PC12", "PC13",
-        "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20", "PC21", "PC22", "PC23"]
+        "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20", "PC21", "PC22", "PC23", "PC24", "PC25"]
 DISCRIMINANTI = list(CASI)
 BASH = shutil.which("bash") or "bash"
 
@@ -65,7 +68,10 @@ _spec.loader.exec_module(fd)
 # lascia FINTO_SPIA.disable.
 FINTO = fd.CLAUDE_FINTO + ('    open(os.environ["FINTO_SPIA"], "w").close()\n'
                            'if sys.argv[1:3] == ["plugin", "disable"]:\n'
-                           '    open(os.environ["FINTO_SPIA"] + ".disable", "w").close()\n')
+                           '    open(os.environ["FINTO_SPIA"] + ".disable", "w").close()\n'
+                           'if sys.argv[1:4] == ["plugin", "marketplace", "update"] and os.environ.get("FINTO_CATALOGO_GIU"):\n'
+                           '    sys.exit("catalogo: rete assente")\n')
+NODE = shutil.which("node") or "node"
 
 
 def leggi(f: Path) -> dict:
@@ -526,7 +532,49 @@ def caso_pc23(repo, tmp, chiavi) -> list:
     return []
 
 
-GRUPPI = [(("PC23",), caso_pc23), (("PC01", "PC02"), caso_pc01_pc02), (("PC03",), caso_pc03), (("PC04",), caso_pc04), (("PC05",), caso_pc05),
+def caso_pc24(repo, tmp, chiavi) -> list:
+    s = Scena(repo, tmp / "pc24", chiavi)
+    s.agg("controlla", "--subito")
+    primo = float(leggi(s.file_stato).get("riuscito") or 0)
+    time.sleep(1.1)
+    s.agg("controlla", "--subito", FINTO_CATALOGO_GIU="1")
+    fermo = float(leggi(s.file_stato).get("riuscito") or 0)
+    presto = s.agg("stato")
+    s.file_stato.write_text(json.dumps(dict(leggi(s.file_stato), riuscito=time.time() - 8 * 86400,
+                                            controllato=time.time())), encoding="utf-8")
+    tardi = s.agg("stato")
+    s.agg("controlla", "--subito")
+    dopo = s.agg("stato")
+    frase = "da più di 7 giorni non riesco a controllare gli aggiornamenti"
+    if not primo or fermo != primo or frase in presto.stdout or frase not in tardi.stdout or frase in dopo.stdout:
+        return [f"PC24 controllo riuscito: primo {primo}, da offline {fermo}, avviso presto {frase in presto.stdout}, "
+                f"dopo 8 giorni {tardi.stdout[-160:]!r}, dopo un controllo riuscito {frase in dopo.stdout}"]
+    return []
+
+
+def caso_pc25(repo, tmp, chiavi) -> list:
+    s = Scena(repo, tmp / "pc25", chiavi)
+
+    def barra(copia: Path, sessione: str) -> str:
+        entrata = json.dumps({"model": {"display_name": "Opus"}, "workspace": {"current_dir": str(s.casa)},
+                              "session_id": sessione})
+        return fd.esegui([NODE, copia / "hooks" / "statusline.js"], input=entrata, stdin=None, env=s.env).stdout
+
+    s.agg("stato", ARTURO_SESSIONE="sessione-di-prima")
+    prima = barra(s.prima, "sessione-di-prima")
+    s.agg("applica")
+    aperta = barra(s.prima, "sessione-di-prima")
+    s.agg("stato", copia=s.nuova, ARTURO_SESSIONE="sessione-nuova")
+    nuova = barra(s.nuova, "sessione-nuova")
+    ancora_aperta = barra(s.nuova, "sessione-di-prima")  # il puntatore della barra è già passato alla copia nuova
+    frase = "Arturo 0.4.0 installata · riapri Claude Code"
+    if "riapri" in prima or frase not in aperta or "riapri" in nuova or frase not in ancora_aperta:
+        return [f"PC25 barra della sessione rimasta aperta: prima {prima[-80:]!r}, dopo {aperta[-80:]!r}, sessione "
+                f"nuova {nuova[-80:]!r}, la vecchia con la barra nuova {ancora_aperta[-80:]!r}"]
+    return []
+
+
+GRUPPI = [(("PC24",), caso_pc24), (("PC25",), caso_pc25), (("PC23",), caso_pc23), (("PC01", "PC02"), caso_pc01_pc02), (("PC03",), caso_pc03), (("PC04",), caso_pc04), (("PC05",), caso_pc05),
           (("PC06",), caso_pc06), (("PC07",), caso_pc07), (("PC08",), caso_pc08), (("PC09",), caso_pc09),
           (("PC10",), caso_pc10), (("PC11",), caso_pc11), (("PC12",), caso_pc12), (("PC13",), caso_pc13),
           (("PC14",), caso_pc14), (("PC15",), caso_pc15), (("PC16",), caso_pc16), (("PC17",), caso_pc17),
@@ -595,6 +643,11 @@ VELENI = [
     ("PC23", AGG, '        _barra_ferma(orsa, stato["versione"])\n', ''),
     ("PC23", AGG, '            _barra_ferma(orsa, togli=True)\n', ''),
     ("PC23", "bin/impacchetta.py", '        linea["command"] = SENZA_CODICE + linea["command"]\n', ''),
+    ("PC24", AGG, '    if catalogo.returncode == 0:\n        stato["riuscito"] = time.time()\n    else:',
+     '    if True:\n        stato["riuscito"] = time.time()\n    else:'),
+    ("PC24", AGG, 'and time.time() - riuscito > SENZA_CONTROLLO:', 'and False:'),
+    ("PC25", "hooks/statusline.js", "  const riapri = daRiaprire(sessione);", "  const riapri = '';"),
+    ("PC25", AGG, '        (cartella / sessione).write_text(in_uso, encoding="utf-8")', '        pass'),
 ]
 
 

@@ -227,7 +227,9 @@ if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
 elif [ -f "$ARTURO_CODICE/bin/aggiornamenti.py" ] && [ ! -e "$ARTURO_CODICE/.git" ]; then
   # Col plugin ~/.claude di solito non è un repository, e l'avvio deve dire lo stesso che c'è un rilascio
   # nuovo (#4897, 6/11/2026). Senza .git accanto al codice gira solo il ramo del plugin di aggiornamenti.py.
-  python3 "$ARTURO_CODICE/bin/aggiornamenti.py" stato 2>/dev/null || true
+  # ARTURO_SESSIONE: l'id della sessione, per il segno della versione che la barra confronta con quella installata.
+  ARTURO_SESSIONE="$(printf '%s' "$HOOK_INPUT" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9_-]*\)".*/\1/p' | head -n 1)" \
+    python3 "$ARTURO_CODICE/bin/aggiornamenti.py" stato 2>/dev/null || true
 fi
 
 # Canale novità: se NOVITA.md ha una entry più recente dell'ultima vista, segnala.

@@ -64,6 +64,7 @@ TAG_PLUGIN = re.compile(r"plugin-v(\d{1,4})\.(\d{1,4})\.(\d{1,6})")
 ORA = 3600            # controlla scarica al massimo una volta all'ora
 OCCUPATO = 6          # uscita interna di cmd_applica: un'altra applicazione tiene il lucchetto
 ATTESA_MAX = 90       # secondi: quanto applica aspetta che Claude Code si chiuda davvero
+SENZA_CONTROLLO = 7 * 86400  # col plugin: dopo 7 giorni senza un controllo riuscito l'avvio lo dice
 FIRME = "firme/rilasci.allowed_signers"
 # Il messaggio di una firma che manca o non torna, uguale ovunque compare (avvio, barra, /aggiorna).
 COMPROMISSIONE = "possibile compromissione: non aggiornare, segnala a chi mantiene Arturo"
@@ -881,7 +882,7 @@ def controlla_plugin(r: Path, forza: bool = False) -> int:
         return 0
     _, radici = _moduli()
     orsa = radici.radice_orsa()
-    _claude("marketplace", "update", "arturo", timeout=120)
+    catalogo = _claude("marketplace", "update", "arturo", timeout=120)
     # Lo scarico può durare due minuti: lo stato si rilegge qui, o l'allarme scritto intanto dalla chiusura di
     # un'altra sessione finiva sovrascritto (review del 10/11/2026).
     vecchio = leggi(file_stato(r))
@@ -907,6 +908,12 @@ def controlla_plugin(r: Path, forza: bool = False) -> int:
         stato = {"stato": "manuale" if manuali(r) else "pronto", "versione": nuova, "plugin": True}
     else:
         stato = {"stato": "aggiornato", "plugin": True}
+    # L'ultimo controllo riuscito: da offline `marketplace update` fallisce, e senza questo lo stato restava
+    # "aggiornato" per sempre. Il primo fallimento fa partire il conto dall'ultimo controllo che si conosce.
+    if catalogo.returncode == 0:
+        stato["riuscito"] = time.time()
+    else:
+        stato["riuscito"] = float(vecchio.get("riuscito") or vecchio.get("controllato") or time.time())
     try:
         scrivi(file_stato(r), dict(stato, controllato=time.time()))
     except OSError:
@@ -917,7 +924,27 @@ def controlla_plugin(r: Path, forza: bool = False) -> int:
 def segna_aggiornato(r: Path) -> None:
     """Dopo /aggiorna la barra non deve dire ancora "serve /aggiorna" fino al controllo dopo."""
     try:
-        scrivi(file_stato(r), {"stato": "aggiornato", "plugin": True, "controllato": time.time()})
+        # Chi arriva qui ha appena scaricato e verificato il tag del catalogo: il controllo è riuscito.
+        scrivi(file_stato(r), {"stato": "aggiornato", "plugin": True, "controllato": time.time(),
+                               "riuscito": time.time()})
+    except OSError:
+        pass
+
+
+def segna_sessione(r: Path, in_uso: str) -> None:
+    """Scrive con quale versione gira questa sessione (session-env/versione-sessione/<id>): la barra in basso la
+    confronta con quella installata e dice "riapri Claude Code" alla sessione rimasta aperta. L'id arriva
+    dall'avvio (ARTURO_SESSIONE). I segni più vecchi di 30 giorni si tolgono qui."""
+    sessione = os.environ.get("ARTURO_SESSIONE") or ""
+    if not in_uso or not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", sessione):
+        return
+    cartella = r / "session-env" / "versione-sessione"
+    try:
+        cartella.mkdir(parents=True, exist_ok=True)
+        (cartella / sessione).write_text(in_uso, encoding="utf-8")
+        for f in cartella.iterdir():
+            if time.time() - f.stat().st_mtime > 30 * 86400:
+                f.unlink()
     except OSError:
         pass
 
@@ -930,8 +957,13 @@ def stato_plugin(r: Path) -> int:
     stato = leggi(file_stato(r))
     if time.time() - float(stato.get("controllato") or 0) >= ORA:
         avvia_staccato(r, "controlla")
-    fallito = esito_plugin(r, str(leggi(radici.radice_arturo() / ".claude-plugin" / "plugin.json").get("version") or ""),
-                           stato)
+    in_uso = str(leggi(radici.radice_arturo() / ".claude-plugin" / "plugin.json").get("version") or "")
+    segna_sessione(r, in_uso)
+    fallito = esito_plugin(r, in_uso, stato)
+    riuscito = float(stato.get("riuscito") or 0)
+    if stato.get("plugin") and riuscito and time.time() - riuscito > SENZA_CONTROLLO:
+        print("ARTURO: da più di 7 giorni non riesco a controllare gli aggiornamenti di Arturo (rete, proxy o "
+              "credenziali). /aggiorna mostra l'errore. Dillo alla persona in una frase.")
     if stato.get("plugin") and stato.get("compromesso"):
         print(f"ARTURO: {COMPROMISSIONE}. {stato.get('motivo', '')}. Non riaprire Claude Code prima di aver segnalato: "
               "dillo alla persona con queste parole, e proponi /segnala o la segnalazione privata di SECURITY.md.")

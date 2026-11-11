@@ -40,8 +40,9 @@ che vedi e puoi ritirare.
 
 **Cosa cambia**: da quando Arturo si installa come plugin di Claude Code, una versione nuova arrivava solo
 scrivendo `/aggiorna`. Ora si installa da sola quando chiudi la sessione, come succedeva prima del plugin. La
-barra in basso dice "si installa alla chiusura", e l'avvio dopo ti dice com'è andata. Le sessioni rimaste
-aperte continuano con la versione di prima fino alla loro riapertura. Questa versione va ancora presa con
+barra in basso dice "si installa alla chiusura", e l'avvio dopo ti dice com'è andata. Una sessione rimasta
+aperta continua con la versione di prima, e la sua barra dice "riapri Claude Code". Se per 7 giorni Arturo non
+riesce a controllare gli aggiornamenti (rete, proxy), l'avvio te lo dice. Questa versione va ancora presa con
 `/aggiorna`: è lei che porta la novità, quelle dopo arrivano da sole.
 
 **Il principio**: si installa da solo solo ciò che è verificato. La chiusura fa gli stessi controlli di

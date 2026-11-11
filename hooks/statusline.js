@@ -186,7 +186,29 @@ const AGG_FILE = path.join(CLAUDE_DIR, 'session-env', 'aggiornamento.json');
 const AGG_TENTATIVO = path.join(CLAUDE_DIR, 'session-env', 'aggiornamento-controllo');
 const AGG_ORA_S = 3600;
 
-function aggiornamentoSegmento() {
+// Col plugin una sessione rimasta aperta gira ancora dalla copia di prima: hook e mod nuovi partono solo alla
+// riapertura. L'avvio scrive con quale versione gira la sessione (bin/aggiornamenti.py, segna_sessione).
+function numeroVersione(testo) {
+  const m = /(\d{1,4})\.(\d{1,4})\.(\d{1,6})/.exec(String(testo || ''));
+  return m ? m.slice(1).map(Number) : null;
+}
+
+function daRiaprire(sessione) {
+  try {
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(sessione || '')) return '';
+    const sua = numeroVersione(fs.readFileSync(path.join(CLAUDE_DIR, 'session-env', 'versione-sessione', sessione), 'utf8'));
+    const voci = (JSON.parse(fs.readFileSync(path.join(CLAUDE_DIR, 'plugins', 'installed_plugins.json'), 'utf8')).plugins || {})['arturo@arturo'] || [];
+    const voce = voci.find(v => v && v.scope === 'user') || voci[0] || {};
+    const installata = numeroVersione(voce.version);
+    if (!sua || !installata) return '';
+    for (let i = 0; i < 3; i++) {
+      if (installata[i] !== sua[i]) return installata[i] > sua[i] ? installata.join('.') : '';
+    }
+  } catch (e) {}
+  return '';
+}
+
+function aggiornamentoSegmento(sessione) {
   let stato = {};
   try { stato = JSON.parse(fs.readFileSync(AGG_FILE, 'utf8')) || {}; } catch (e) { stato = {}; }
   try {
@@ -206,6 +228,9 @@ function aggiornamentoSegmento() {
       lanciaStaccato(['python3', AGG_SCRIPT, 'controlla'], '', null);
     }
   } catch (e) {}
+  // Un allarme sulla firma viene prima: a chi ha una copia non verificata non si dice "riapri".
+  const riapri = daRiaprire(sessione);
+  if (riapri && stato.compromesso !== true) return ` │ \x1b[36m↑ Arturo ${riapri} installata · riapri Claude Code\x1b[0m`;
   const versione = String(stato.versione || '').replace(/[\x00-\x1f\x7f]/g, '').slice(0, 30);
   if (!versione) return '';
   if (stato.stato === 'pronto') return ` │ \x1b[36m↑ Arturo ${versione} · si installa alla chiusura\x1b[0m`;
@@ -405,7 +430,7 @@ process.stdin.on('end', () => {
       : progetto;
 
     // Output
-    const quota = quotaSegmento(data.rate_limits) + aggiornamentoSegmento();
+    const quota = quotaSegmento(data.rate_limits) + aggiornamentoSegmento(session);
     const sigla = abbreviaModello(model);
     if (task) {
       process.stdout.write(`\x1b[2m${sigla}\x1b[0m │ \x1b[1m${task}\x1b[0m │ \x1b[2m${luogo}\x1b[0m${ctx}${quota}`);
