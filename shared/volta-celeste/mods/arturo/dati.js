@@ -80,6 +80,10 @@ export function esito(r) {
 // Lo slug come lo fa Arturo: minuscole, lettere, numeri e trattini.
 export const slug = (s) => (s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
 
+// Uno spazio è un progetto se sta su questo computer, ha un nome scritto e non è "Volta": quello
+// raccoglie le sessioni senza progetto (aggancia), non ha todo e non va fra i progetti della barra.
+export const eProgetto = (s) => Boolean(s) && !s.machine && Boolean(s.named) && slug(s.name) !== "volta";
+
 // Lo spazio di Herdr di un progetto: quello su questo computer col nome del progetto.
 export const spazio = (nome) => spaces().find((s) => !s.machine && slug(s.name) === slug(nome));
 
@@ -177,7 +181,7 @@ export function progetti(vista, extra = {}) {
     per.set(k, { chiave: k, nome, titolo: bello(nome), categoria: conCategorie ? "Altre cartelle" : "", riga: st?.riga ?? "", calcolato: !st?.riga, tu: 0, decidi: 0, io: 0, fermo: 0, cartella: true });
   }
   for (const s of spaces()) {
-    if (s.machine || !s.named) continue;
+    if (!eProgetto(s)) continue;
     const k = slug(s.name);
     if (!per.has(k)) per.set(k, { chiave: k, nome: s.name, titolo: bello(s.name), categoria: "", tu: 0, decidi: 0, io: 0, fermo: 0 });
   }
@@ -690,9 +694,14 @@ export function rinominaSchede(s, nome) {
 // scheda in questa finestra con Claude dentro e la casella vuota: mai sopra una bozza. Poi lo segna
 // alla sonda (--portato), così non lo riscrive. Torna true se l'ha portato; altrimenti si riprova
 // alla lettura dopo.
-export async function portaNome(s) {
-  const nome = daPortare(s);
-  if (!nome) return false;
+// Lo stesso nome non si riscrive per PORTA_MS: se la sonda non riesce a segnarlo (macchina lenta, rete
+// giù) daPortare resta, e senza questa memoria /rename finiva nella conversazione a ogni lettura.
+// In quel tempo si riprova solo a segnarlo.
+export const PORTA_MS = 5 * 60 * 1000;
+const portati = new Map(); // sessionId → { nome, quando }
+
+// Scrive /rename nella prima scheda buona della sessione. Torna true se l'ha scritto.
+async function scriviNome(s, nome) {
   let scritto = false;
   // la prima scheda buona: una sessione può averne più d'una, e una può essere rimasta con la shell
   for (const a of terminaliDi(s)) {
@@ -704,6 +713,18 @@ export async function portaNome(s) {
       scritto = r.code === 0;
     } catch { /* si prova la scheda dopo */ }
     break;
+  }
+  return scritto;
+}
+
+export async function portaNome(s) {
+  const nome = daPortare(s);
+  if (!nome) return false;
+  const p = portati.get(s.sessionId);
+  let scritto = Boolean(p) && p.nome === nome && Date.now() - p.quando < PORTA_MS;
+  if (!scritto) {
+    scritto = await scriviNome(s, nome);
+    if (scritto) portati.set(s.sessionId, { nome, quando: Date.now() });
   }
   if (!scritto) return false;
   const esito = await cambiaSessione(s, "nome", nome, ["--portato"]);

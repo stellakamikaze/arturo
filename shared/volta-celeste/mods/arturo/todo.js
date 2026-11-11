@@ -6,10 +6,10 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, spaces, shared, setShared, notify } from "herdr";
-import { todo, slug, apri, spazio, statoSpazio, PAROLE, titoloTodo } from "./dati.js";
+import { todo, slug, apri, spazio, statoSpazio, eProgetto, PAROLE, titoloTodo } from "./dati.js";
 import { ICONA, colore } from "./comuni.js";
 import { partenza } from "./partenza.js";
-import { fatto, inizia } from "./azioni.js";
+import { fatto, inizia, ancoraFatti } from "./azioni.js";
 import { apriMenu, apriNuovo } from "./menu.js";
 
 const ORDINE = ["tu", "decidi", "io", "fermo"];
@@ -38,7 +38,7 @@ export class Todo {
 
   attivo() {
     const s = spaces().find((x) => x.active);
-    return s && !s.machine && s.named ? slug(s.name) : null;
+    return eProgetto(s) ? slug(s.name) : null;
   }
 
   carica(cx) {
@@ -48,7 +48,7 @@ export class Todo {
       const nome = shared("arturo.progetti")?.[p]?.nome ?? p;
       const r = await todo(["--progetto", nome, "--json"]);
       if (p !== this.progetto) return;
-      if (r.ok) { this.vista = r.json; this.errore = null; this.fatti.clear(); }
+      if (r.ok) { this.vista = r.json; this.errore = null; this.fatti = ancoraFatti(this.fatti, r.json); }
       else this.errore = r.errore;
       cx.notify();
     });
@@ -59,6 +59,8 @@ export class Todo {
     cx.notify();
     cx.spawn(async (cx) => {
       const r = await todo(fatto(t).argv);
+      // la barra rilegge i conti subito, come dopo ogni altro gesto del pannello
+      setShared("arturo.scritto", Date.now());
       if (r.ok) notify({ title: "Fatto", body: t.titolo, level: "success", timeout: 4000 });
       else {
         this.fatti.delete(t.id);

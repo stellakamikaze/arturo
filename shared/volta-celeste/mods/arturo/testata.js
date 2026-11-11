@@ -55,7 +55,7 @@ export class Testata {
       .child(div().flex_1())
       .when(Boolean(schede), (el) => el.child(schede))
       .child(bottone("chiedi", "mods/arturo/chiedi.svg", "Cosa posso chiedere", () => apriSuggerimenti()))
-      .when(Boolean(s), (el) => el.child(bottone("altra", "plus", "Altra conversazione", () => run("tab.new", { argv: ["claude"] }))))
+      .when(Boolean(s), (el) => el.child(bottone("altra", "plus", "Altra conversazione", () => run("arturo.volta-nuova"))))
       .child(bottone("dafare", "panel-right", pannello?.hidden ? "Mostra Da fare" : "Nascondi Da fare", () => run("layout.toggle", { id: "pannello" })));
   }
 }

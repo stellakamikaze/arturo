@@ -11,6 +11,15 @@ const atteso = (t) => `--titolo-atteso=${t.titolo}`;
 
 export const fatto = (t) => ({ argv: ["fatto", String(t.id), atteso(t)], esito: "Fatto" });
 
+// Le spunte messe dalla persona che restano dopo una rilettura: quelle dei todo ancora in elenco. Una
+// rilettura partita mentre "fatto" è in viaggio riporta il todo aperto, e la spunta non si toglie da
+// sola; quando il todo esce dall'elenco la sua spunta non serve più.
+export function ancoraFatti(fatti, vista) {
+  const vivi = new Set();
+  for (const g of vista?.gruppi ?? []) for (const t of g.todo ?? []) vivi.add(t.id);
+  return new Set([...(fatti ?? [])].filter((id) => vivi.has(id)));
+}
+
 // "Lavoraci": il todo passa in corso prima che Claude parta. /fine lo chiude, o lo rimette da fare
 // se il lavoro non è finito (#4994). Un todo già in corso non si riscrive: null.
 export const inizia = (t) => (t.stato === "in corso" ? null : { argv: ["inizia", String(t.id), atteso(t)], esito: "Claude ci lavora" });

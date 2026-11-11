@@ -26,25 +26,39 @@ export function tetti(altezzaBarra, altezzaCima) {
 
 const tempo = (s) => Date.parse(s.ultimo || "") || 0;
 
-// Il nome di un progetto per le persone: "due-mondi" → "Due mondi", "uf" → "UF".
+// Il nome di un progetto per le persone: "due-mondi" → "Due mondi", "uf" → "UF". Un progetto fatto di
+// soli separatori ("-") non ha parole: vale come senza progetto, invece di far cadere la barra.
 export function nomeProgetto(p) {
   const s = String(p ?? "").trim();
   if (!s) return SENZA;
   if (/[A-Z]/.test(s)) return s;
   const t = s.split(/[-_\s]+/).filter(Boolean).map((w) => (w.length <= 2 ? w.toUpperCase() : w)).join(" ");
-  return t[0].toUpperCase() + t.slice(1);
+  return t ? t[0].toUpperCase() + t.slice(1) : SENZA;
+}
+
+// Un nome di Claude è automatico se manca, se è l'id, oppure se è "<cartella>-xx": l'ultimo pezzo della
+// cartella della sessione più due cifre esadecimali ("claudecode-8e" in C:\Users\x\Documents\ClaudeCode).
+// Il confronto guarda solo lettere e numeri, in minuscolo. Un nome scritto dalla persona che finisce allo
+// stesso modo ("bando-57") non è automatico. Senza la cartella vale la sola forma del nome.
+const piatto = (x) => String(x ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+export function nomeAutomatico(s) {
+  const nome = String(s?.nome ?? "").trim();
+  if (!nome || nome === s.id) return true;
+  const m = /^([\w.-]+)-[0-9a-f]{2}$/.exec(nome);
+  if (!m) return false;
+  const ultimo = String(s.cartella ?? "").split(/[\\/]+/).filter(Boolean).pop();
+  return ultimo ? piatto(m[1]) === piatto(ultimo) : true;
 }
 
 // Il titolo di una sessione. Prima quello che hooks/titolo-sessione.py scrive a fine turno (poche
 // parole in italiano sul lavoro in corso, campo "titolo"). Senza, il nome di Claude; i nomi automatici
-// ("claudecode-ca": cartella più due lettere) non dicono niente: al loro posto la prima riga
-// dell'ultima risposta.
+// ("claudecode-ca": cartella più due lettere, nomeAutomatico) non dicono niente: al loro posto la prima
+// riga dell'ultima risposta.
 export function titolo(s) {
   const scritto = String(s.titolo ?? "").replace(/\s+/g, " ").trim();
   if (scritto) return scritto;
   const nome = String(s.nome ?? "").trim();
-  const automatico = !nome || nome === s.id || /^[\w.-]+-[0-9a-f]{2}$/.test(nome);
-  if (!automatico) return nome;
+  if (!nomeAutomatico(s)) return nome;
   const riga = String(s.risposta ?? "").split("\n").map((r) => r.replace(/[*_`#>]/g, "").replace(/\s+/g, " ").trim()).find(Boolean);
   if (riga) return riga.length > 70 ? riga.slice(0, 70).replace(/\s+\S*$/, "") + "…" : riga;
   return `Sessione ${s.id}`;
