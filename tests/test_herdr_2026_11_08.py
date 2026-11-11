@@ -331,6 +331,11 @@ HZ81 la colonna di sinistra tiene a vista progetti e piede (revisione dell'11/11
      quello che non entra e misura la sua cima; nel layout il divisore sopra il piede non si trascina
      (un trascinamento salvato in layouts/.state aveva portato il piede a 101 px) e il piede è alto 192 px:
      la misura cambiata fa cadere quel trascinamento al primo caricamento.
+HZ82 un tasto di Arturo rimasto su un mod tolto si riallinea (revisione dell'11/11/2026): sul MacBook ⌘O
+     puntava a mod.open:arturo-progetti e non apriva niente. installa-herdr.sh tratta i tre valori esatti
+     (mod.open:arturo-progetti, -chrome, -stato) come un tasto libero; tasti() di volta_mod.py fa lo stesso
+     a ogni aggiornamento del mod. Un tasto che la persona usa per altro, un valore solo simile e un tasto
+     che non è di Arturo restano; i due elenchi sono uguali.
 """
 from __future__ import annotations
 
@@ -346,7 +351,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -5892,7 +5897,67 @@ def hz81(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81}
+TOLTI = ["mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato"]
+PROVA_TASTI = """
+import json, sys
+sys.path.insert(0, sys.argv[1])
+import volta_mod
+from pathlib import Path
+print(json.dumps({"quanti": volta_mod.tasti(Path(sys.argv[1])), "elenco": list(volta_mod.TASTI_VECCHI)}))
+"""
+
+
+def hz82(repo: Path, casa: Path) -> str | None:
+    vc = repo / "shared/volta-celeste"
+    # 1. l'installazione
+    app = casa / "app"
+    app.mkdir(parents=True)
+    prima = {"cmd-o": TOLTI[0], "cmd-shift-n": TOLTI[1], "cmd-shift-e": TOLTI[2], "cmd-t": "pane.split:right",
+             "cmd-shift-down": "mod.open:arturo-stato-mio", "f5": TOLTI[0]}
+    (app / "keys.json").write_text(json.dumps({"global": prima}), encoding="utf-8")
+    r = installa(repo, casa)
+    if r.returncode != 0:
+        return f"installazione fallita: {(r.stdout + r.stderr)[-200:]}"
+    avuti = leggi(app / "keys.json")["global"]
+    attesi = {"cmd-o": "arturo.apri", "cmd-shift-n": "arturo.nota", "cmd-shift-e": "arturo.note", "cmd-t": "pane.split:right",
+              "cmd-shift-down": "mod.open:arturo-stato-mio", "f5": TOLTI[0]}
+    for k, v in attesi.items():
+        if avuti.get(k) != v:
+            return f"installa-herdr.sh: {k} era {prima[k]}, ora {avuti.get(k)}, atteso {v}"
+    if "tasto cmd-o lasciato" in r.stdout or "tasto cmd-shift-down lasciato com'era" not in r.stdout:
+        return f"installa-herdr.sh dice il falso sui tasti lasciati: {r.stdout[-300:]}"
+    testo = (vc / "installa-herdr.sh").read_text(encoding="utf-8")
+    m = re.search(r"^VECCHI = \((.*)\)$", testo, re.M)
+    if not m or sorted(json.loads("[" + m.group(1) + "]")) != sorted(TOLTI):
+        return "installa-herdr.sh: l'elenco dei mod tolti non è quello dei tre mod"
+    # 2. l'aggiornamento del mod: tasti() di volta_mod.py sulla fonte vera
+    nome = "keys.json" if sys.platform == "darwin" else "keys-ctrl.json"
+    fonte = list(leggi(vc / nome)["global"].items())
+    if len(fonte) < 4:
+        return f"{nome} ha meno di quattro tasti"
+    app2 = casa / "app2"
+    app2.mkdir()
+    miei = {fonte[i][0]: TOLTI[i] for i in range(3)}
+    miei.update({fonte[3][0]: "mod.open:arturo-stato-mio", "f5": TOLTI[0]})
+    (app2 / "keys.json").write_text(json.dumps({"global": miei, "terminal": {fonte[0][0]: TOLTI[0]}}), encoding="utf-8")
+    r = subprocess.run([sys.executable, "-c", PROVA_TASTI, str(vc)], capture_output=True, text=True, timeout=30,
+                       env={**os.environ, "HERDR_APP_HOME": str(app2)})
+    if r.returncode != 0:
+        return f"tasti() di volta_mod.py non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    if sorted(d["elenco"]) != sorted(TOLTI):
+        return f"volta_mod.py: l'elenco dei mod tolti è {d['elenco']}"
+    dopo = leggi(app2 / "keys.json")
+    attesi2 = dict(miei, **{fonte[i][0]: fonte[i][1] for i in range(3)})
+    if d["quanti"] != 3 or dopo != {"global": attesi2, "terminal": {fonte[0][0]: TOLTI[0]}}:
+        return f"tasti() di volta_mod.py: {d['quanti']} riallineati, keys.json {dopo}"
+    vm = (vc / "volta_mod.py").read_text(encoding="utf-8")
+    if vm.count("    try:\n        tasti(fonte)\n") != 1 or vm.index("    try:\n        tasti(fonte)\n") < vm.index("def contorno("):
+        return "volta_mod.py: contorno non riallinea i tasti a ogni installazione"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -5911,6 +5976,18 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ82', 'shared/volta-celeste/installa-herdr.sh', '        if mia.get(k) in VECCHI:\n            del mia[k]\n', ''),
+    ('HZ82', 'shared/volta-celeste/installa-herdr.sh', 'if mia.get(k) in VECCHI:', 'if k in mia:'),
+    ('HZ82', 'shared/volta-celeste/installa-herdr.sh', 'if mia.get(k) in VECCHI:', 'if str(mia.get(k)).startswith("mod.open:arturo-"):'),
+    ('HZ82', 'shared/volta-celeste/installa-herdr.sh', 'VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")\ntasti = leggi', 'VECCHI = ("mod.open:arturo-chrome", "mod.open:arturo-stato")\ntasti = leggi'),
+    ('HZ82', 'shared/volta-celeste/installa-herdr.sh', 'VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")\ntasti = leggi', 'VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-stato")\ntasti = leggi'),
+    ('HZ82', 'shared/volta-celeste/installa-herdr.sh', 'VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")\ntasti = leggi', 'VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome")\ntasti = leggi'),
+    ('HZ82', 'shared/volta-celeste/volta_mod.py', 'if mia.get(tasto) in TASTI_VECCHI:', 'if False:'),
+    ('HZ82', 'shared/volta-celeste/volta_mod.py', 'if mia.get(tasto) in TASTI_VECCHI:', 'if tasto in mia:'),
+    ('HZ82', 'shared/volta-celeste/volta_mod.py', 'if mia.get(tasto) in TASTI_VECCHI:', 'if str(mia.get(tasto)).startswith("mod.open:arturo-"):'),
+    ('HZ82', 'shared/volta-celeste/volta_mod.py', 'TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")', 'TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome")'),
+    ('HZ82', 'shared/volta-celeste/volta_mod.py', '    try:\n        tasti(fonte)\n', '    try:\n        pass\n'),
+    ('HZ82', 'shared/volta-celeste/volta_mod.py', '    if quanti:\n        scrivi(f, miei)', '    if quanti > 9:\n        scrivi(f, miei)'),
     ('HZ81', 'shared/volta-celeste/mods/arturo/sessioni.js', 'Math.max(ELENCO_MIN, resta)', 'resta'),
     ('HZ81', 'shared/volta-celeste/mods/arturo/sessioni.js', 'ELENCO_MAX = 360', 'ELENCO_MAX = 720'),
     ('HZ81', 'shared/volta-celeste/mods/arturo/sessioni.js', 'ELENCO_MIN = 92', 'ELENCO_MIN = 0'),

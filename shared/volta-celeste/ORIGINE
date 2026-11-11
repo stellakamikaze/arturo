@@ -1,12 +1,12 @@
 {
- "albero": "58610c3750f37981b9c3ec9f250a3580ac58a8e1",
+ "albero": "23591f0dbd4c556e680c973360300d4ba5ae151f",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
   "arturo-app.sh": "17cca461072e478997983441c47d1b791124d0a92dac49e21bc24ea0c3eb49ad",
   "arturo-icona.svg": "114a290414abfbc0357ede2264eb814afd1a9246062ce0d8ee2f0fdcc2493d2b",
   "firma-locale.sh": "16f3277e4e4b70dc477d4eb75ed7ca10f208bfeb2b93141b16d6084df17b0283",
-  "installa-herdr.sh": "2e2e9961c7441e047b308b33674dda76b67a51fe01900672cc02df72eea3c1c1",
+  "installa-herdr.sh": "b4f4cc1f12229409126ae1480d582548073f562965c26c93bbdeb81c74c3b4db",
   "keys-ctrl.json": "fadd0d1db7d7f7dcb7015ecfa42690c2a45a751c473d59430a9200136e116c65",
   "keys.json": "d2d90b77b64512c6b331552d183d99833d91f536d96c8d1f3d3c34e956c10985",
   "layouts/arturo.json": "079c4ef6c639b6c9311ced4dc6325c888ff40c50597b91a2d98dd7e1c7effb7c",
@@ -58,7 +58,7 @@
   "trova-progetti.md": "b980bb9a53f543b2a15d0a77ad70f1e0e306c74893d4a4804b95a198d8770932",
   "volta-claude.ps1": "23d8579ec192dedd166937b5bc6e2101f58917838257f079f59dd8f891d7ef3d",
   "volta-claude.sh": "f64a2ff210ed22e5215e19b390c67d5b6ce70f55b73ae0b2ff4fde249cf60e95",
-  "volta_mod.py": "ee9528708cca7b87dc71355fe9f00e8b7c466256ed6bb399d2cea0dadcbca6c0"
+  "volta_mod.py": "79914423057440b7bfc2cff5a528184d9dfd92e69da4efcaf7122f81451453a6"
  },
  "repository": "volta-celeste"
 }

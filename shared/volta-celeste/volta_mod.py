@@ -57,6 +57,8 @@ ATTIVITA = "VoltaCelesteMod"                  # attività pianificata di Windows
 # I lanciatori che l'installazione copia accanto al mod: origine nella fonte, nome di arrivo.
 LANCIATORI = (("volta-claude.sh", "volta-claude"), ("nascita.sh", "volta-nascita.sh"),
               ("volta-claude.ps1", "volta-claude.ps1"), ("servizio-claude.ps1", "servizio-claude.ps1"))
+# I mod di Arturo tolti: un tasto rimasto su uno di questi non apre più niente (installa-herdr.sh ha lo stesso elenco).
+TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")
 
 
 def app_home() -> Path:
@@ -277,8 +279,29 @@ def sostituisci(origine: Path, arrivo: Path) -> None:
             tmp.unlink(missing_ok=True)
 
 
+def tasti(fonte: Path) -> int:
+    """Riallinea i tasti di Arturo rimasti su un mod tolto: prendono il comando che la fonte dà a quel
+    tasto. Ogni altro tasto resta della persona, e senza un tasto da riallineare keys.json non si riscrive."""
+    nuovi = leggi(fonte / ("keys.json" if sys.platform == "darwin" else "keys-ctrl.json"))
+    f = app_home() / "keys.json"
+    miei = leggi(f)
+    quanti = 0
+    for sezione, voci in nuovi.items():
+        mia = miei.get(sezione)
+        if not isinstance(voci, dict) or not isinstance(mia, dict):
+            continue
+        for tasto, comando in voci.items():
+            if mia.get(tasto) in TASTI_VECCHI:
+                mia[tasto] = comando
+                quanti += 1
+    if quanti:
+        scrivi(f, miei)
+    return quanti
+
+
 def contorno(fonte: Path) -> None:
-    """Layout, temi e lanciatori accanto al mod. keys.json e arturo.json restano della persona."""
+    """Layout, temi e lanciatori accanto al mod. arturo.json resta della persona, e così keys.json,
+    salvo i tasti rimasti su un mod di Arturo tolto."""
     app = app_home()
     for nome in ("layouts", "themes"):
         for f in sorted((fonte / nome).glob("*")) if (fonte / nome).is_dir() else []:
@@ -289,6 +312,10 @@ def contorno(fonte: Path) -> None:
             continue
         if (fonte / origine).is_file():
             sostituisci(fonte / origine, app / arrivo)
+    try:
+        tasti(fonte)
+    except OSError:
+        pass  # keys.json non scrivibile: il mod è già a posto, il tasto aspetta la prossima installazione
     # Questo script si sostituisce solo con una copia che parte.
     io_nuovo = fonte / "volta_mod.py"
     if io_nuovo.is_file():

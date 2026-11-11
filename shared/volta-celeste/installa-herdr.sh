@@ -108,12 +108,17 @@ scrivi("arturo.json", arturo)
 # Uno solo si prende a Herdr: la scheda nuova (tab.new, una shell) diventa la sessione nuova di Claude,
 # e solo se quel tasto fa ancora la scheda nuova di Herdr (#5290).
 PRENDE = {"arturo.volta-nuova": "tab.new"}
+# Un tasto rimasto su un mod di Arturo tolto non apre più niente: vale come libero e si riallinea.
+# Solo questi tre valori esatti, e solo sui tasti di Arturo: ogni altro tasto resta della persona.
+VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")
 tasti = leggi("keys.json") or {}
 with open(os.path.join(qui, os.environ["ARTURO_TASTI"]), encoding="utf-8") as f:
     nuovi = json.load(f)
 for sez, voci in nuovi.items():
     mia = tasti.setdefault(sez, {})
     for k, v in voci.items():
+        if mia.get(k) in VECCHI:
+            del mia[k]
         if k in mia and mia[k] != v and mia[k] != PRENDE.get(v):
             print(f"tasto {k} lasciato com'era ({mia[k]})")
             continue
