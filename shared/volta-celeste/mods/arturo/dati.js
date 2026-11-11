@@ -2,7 +2,7 @@
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
 import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
-import { titolo, agganciata, titoloFork } from "./sessioni.js";
+import { titolo, agganciata, titoloFork, casellaVuota, daPortare } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -512,6 +512,77 @@ export function chiudiSchede(s) {
     n++;
   }
   return n;
+}
+
+// Rinomina e Cambia progetto (#5292): volta_sonda.py rinomina o progetto scrive il nome o il progetto
+// sulla macchina della sessione, con fonte "persona". Vuole il sessionId intero: i file della cache
+// portano quello. `opzioni`: ["--portato"] quando Claude Code ha già il nome. { ok } oppure { errore }.
+export async function cambiaSessione(s, cosa, valore, opzioni = []) {
+  const c = await config();
+  try {
+    const r = await exec(c.arturo[0], [c.volta, cosa === "nome" ? "rinomina" : "progetto", s.host ?? "qui", s.sessionId, ...opzioni,
+      ...(valore ? ["--", valore] : [])], { timeout: 90000 });
+    return JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
+  } catch (e) {
+    return { errore: `${s.macchina ?? nomeMacchina(s.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
+  }
+}
+
+// I terminali di questa finestra che mostrano la sessione: le schede che la agganciano e, per
+// un'interattiva partita in una scheda di Herdr su questa macchina, quella scheda.
+function terminaliDi(s) {
+  const l = schedeDi(s).map((t) => t.address);
+  if (s?.questa && s.terminale && !l.includes(s.terminale) && panes().some((p) => p.terminal === s.terminale)) l.push(s.terminale);
+  return l;
+}
+
+// Il nome nuovo sulle schede della sessione, come le chiama aggancia(). Torna quante ne ha rinominate.
+export function rinominaSchede(s, nome) {
+  let n = 0;
+  for (const a of terminaliDi(s)) {
+    const p = panes().find((x) => x.terminal === a);
+    if (!p || panes().filter((x) => x.tab === p.tab).length !== 1) continue;
+    run("tab.rename", { id: p.tab, name: String(nome).slice(0, 40) });
+    n++;
+  }
+  return n;
+}
+
+// Porta in Claude Code il nome scritto dalla persona: /rename nella scheda della sessione, così il
+// nome compare anche in claude agents e in /resume. Solo se la sessione è ferma (daPortare), ha una
+// scheda in questa finestra con Claude dentro e la casella vuota: mai sopra una bozza. Poi lo segna
+// alla sonda (--portato), così non lo riscrive. Torna true se l'ha portato; altrimenti si riprova
+// alla lettura dopo.
+export async function portaNome(s) {
+  const nome = daPortare(s);
+  if (!nome) return false;
+  let scritto = false;
+  // la prima scheda buona: una sessione può averne più d'una, e una può essere rimasta con la shell
+  for (const a of terminaliDi(s)) {
+    if (await nuda(a)) continue;
+    try {
+      const schermo = await hc(["read", a]);
+      if (schermo.code !== 0 || !casellaVuota(schermo.stdout)) continue;
+      const r = await hc(["send", a, `/rename ${nome}`]);
+      scritto = r.code === 0;
+    } catch { /* si prova la scheda dopo */ }
+    break;
+  }
+  if (!scritto) return false;
+  const esito = await cambiaSessione(s, "nome", nome, ["--portato"]);
+  return Boolean(esito.ok);
+}
+
+// La sessione nello spazio del progetto nuovo. Una scheda che la aggancia si chiude e si riapre là:
+// chiudere un aggancio non ferma la sessione. Un'interattiva che gira dentro una scheda di Herdr non si
+// sposta, perché chiudere quella scheda la fermerebbe: resta dov'è, e lo dice chi chiama.
+// Torna { spostata } | { resta } | {} (nessuna scheda aperta) | { errore }.
+export async function spostaScheda(s, progetto) {
+  if (s.tipo !== "background" || !Array.isArray(s.attach)) return s.terminale ? { resta: true } : {};
+  if (!chiudiSchede(s)) return {};
+  await pausa(600);
+  const r = await apriSessione({ ...s, progetto }, s.attach);
+  return r.errore ? { errore: r.errore } : { spostata: true };
 }
 
 // Come bin/sessione.py: niente caratteri che rompono il prompt.

@@ -2,7 +2,8 @@
 // marchio, barra (i progetti), piede, testata, todo (il pannello Da fare), stato, benvenuto.
 // "Apri un progetto" (apri), la guida (guida), "Cosa posso chiedere" (chiedi), "La settimana"
 // (settimana), "Aggiungi un todo" (nuovo), il velo delle note (nota, ⌘⇧N) e l'elenco delle note (note, ⌘⇧E) si
-// aprono come dialoghi; il menu di un todo (azioni) e quello di una sessione di Volta (sessione) come popup.
+// aprono come dialoghi, e così il nome o il progetto di una sessione di Volta (cambio); il menu di un todo
+// (azioni) e quello di una sessione di Volta (sessione) come popup.
 
 import { View } from "gpui-kit";
 import { props, shared, setShared } from "herdr";
@@ -15,6 +16,7 @@ import { Chiedi } from "./suggerimenti.js";
 import { Settimana } from "./revisione.js";
 import { Azioni, Nuovo } from "./menu.js";
 import { MenuSessione } from "./menusessione.js";
+import { Cambio } from "./cambio.js";
 import { Nota } from "./notaui.js";
 import { Note } from "./noteui.js";
 
@@ -22,7 +24,7 @@ import { Note } from "./noteui.js";
 // una nota, nota.js ne ricava su quale parte della finestra cade il punto.
 const MISURATE = new Set(["marchio", "barra", "piede", "testata", "todo", "stato", "benvenuto"]);
 
-const PARTI = { marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi, settimana: Settimana, azioni: Azioni, sessione: MenuSessione, nuovo: Nuovo, nota: Nota, note: Note };
+const PARTI = { marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi, settimana: Settimana, azioni: Azioni, sessione: MenuSessione, cambio: Cambio, nuovo: Nuovo, nota: Nota, note: Note };
 
 export default class Arturo extends View {
   init(p, cx) {

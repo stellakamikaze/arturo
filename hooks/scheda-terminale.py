@@ -22,6 +22,9 @@ config = "claude-config", non piani, memoria e cache), poi la radice git o il no
 Limite noto: dopo un permesso concesso Claude Code non manda eventi finché lo strumento non finisce, quindi
 "SBLOCCA" resta per tutta la durata del comando approvato. Stato e progetto stanno in ~/.claude/cache/scheda/<sessione>.json:
 SessionEnd toglie il suo file, SessionStart quelli fermi da una settimana (sessioni chiuse male).
+Il progetto che la persona sceglie dalla finestra di Volta (volta_sonda.py progetto, #5292) ha fonte "persona":
+nessun evento lo riscrive, nemmeno un altro /inizio, e SessionEnd lascia il file, così la sessione fermata
+tiene il suo progetto nell'elenco. Si cambia di nuovo dalla finestra; lo toglie la pulizia dopo una settimana ferma.
 La barra in basso (hooks/statusline.js) legge il progetto da questo file: il nome resta come lo ha
 trovato la scheda, e la barra lo confronta col repository passando dallo slug dai due lati (#4262).
 Su Windows un hook non vede la console della scheda: si attacca a quella del processo claude.exe.
@@ -370,8 +373,9 @@ def main() -> int:
         return 0
     # Lo slug risolto da /inizio ("inizio") non lo scavalca un file toccato; il testo scritto dopo /inizio
     # ("prompt") sì, perché può essere un nome che il risolutore non ha trovato.
-    progetto, fonte = progetto_da_prompt(str(dati.get("prompt") or "")), "prompt"
-    if not progetto and evento == "PostToolUse":
+    persona = salvato.get("fonte") == "persona" and bool(salvato.get("progetto"))
+    progetto, fonte = ("", "") if persona else (progetto_da_prompt(str(dati.get("prompt") or "")), "prompt")
+    if not progetto and evento == "PostToolUse" and not persona:
         progetto, fonte = progetto_da_strumento(dati)
         if fonte == "file" and salvato.get("fonte") == "inizio":
             progetto = ""
@@ -380,10 +384,11 @@ def main() -> int:
     if not progetto:
         progetto, fonte = progetto_da_cartella(str(dati.get("cwd") or os.getcwd())), "cartella"
     if stato == "fine":
-        try:
-            f.unlink()
-        except OSError:
-            pass
+        if not persona:
+            try:
+                f.unlink()
+            except OSError:
+                pass
     elif salvato.get("stato") == stato and salvato.get("progetto") == progetto and salvato.get("fonte") == fonte:
         return 0  # niente cambia: è il caso comune di PostToolUse
     else:

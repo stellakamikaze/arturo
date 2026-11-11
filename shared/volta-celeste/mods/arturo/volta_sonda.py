@@ -26,6 +26,15 @@ distribuire (#5172, 10/11/2026).
       prepara l'aggancio di una sessione in background: accende il servizio di Claude su MACCHINA, così
       claude attach trova chi tiene la sessione; con --riavvia fa prima claude respawn (una sessione in
       errore, o una che attach non riapre). Stampa {ok, riavviata} oppure {errore} (#5290).
+  python3 volta_sonda.py rinomina MACCHINA SESSIONID [--portato] [-- NOME]
+      il nome che la persona dà a una sessione dalla finestra (#5292): scrive cache/titolo/SESSIONID.json
+      su MACCHINA con fonte "persona", che hooks/titolo-sessione.py non riscrive. Senza NOME toglie il
+      nome scritto, e il titolo torna automatico. --portato segna che Claude Code ha già quel nome
+      (/rename scritto nella sessione da Volta). Stampa {ok, titolo} oppure {errore}.
+  python3 volta_sonda.py progetto MACCHINA SESSIONID -- SLUG
+      il progetto che la persona dà a una sessione dalla finestra (#5292): scrive cache/scheda/SESSIONID.json
+      su MACCHINA con fonte "persona", che hooks/scheda-terminale.py non riscrive e non toglie a fine
+      sessione. Stampa {ok, progetto} oppure {errore}.
   python3 volta_sonda.py servizio MACCHINA
       accende il servizio di Claude (claude daemon run) su MACCHINA se manca, dove sopravvive: il
       LaunchAgent di servizi-gui.sh o l'attività di servizio-claude.ps1 se ci sono; altrimenti staccato,
@@ -33,7 +42,7 @@ distribuire (#5172, 10/11/2026).
       risponde non si tocca. Stampa {come} oppure {errore} (#5208).
 
 Una riga di "sessioni": { macchina, host, questa, sessionId, id, nome, progetto, titolo, stato, aspetta, tipo,
-attach, cartella, ultimo, risposta, azione }. `host` è il nome della macchina in Herdr ("qui" per
+attach, cartella, ultimo, risposta, azione, daPortare }. `host` è il nome della macchina in Herdr ("qui" per
 questa). Una macchina senza Claude Code resta fuori; una che non risponde tiene le righe dell'ultima
 lettura buona, segnate `vecchia`. Per le prove: VOLTA_HC (il comando hc), VOLTA_SONDA_LOCALE (un JSON
 al posto della sonda di questa macchina).
@@ -102,11 +111,16 @@ for s in sessioni:
         except (OSError, subprocess.SubprocessError):
             pass
     s["titolo"] = None
+    s["daPortare"] = None
     try:  # il titolo lo scrive hooks/titolo-sessione.py di Arturo a fine turno; senza resta vuoto
         with open(os.path.join(radice, "cache", "titolo", sid + ".json"), encoding="utf-8") as fh:
-            t = json.load(fh).get("titolo")
+            tit = json.load(fh)
+        t = tit.get("titolo")
         if isinstance(t, str) and t.strip():
             s["titolo"] = t.strip()[:80]
+            # un nome scritto dalla persona che Claude Code non ha ancora: Volta lo porta con /rename
+            if tit.get("fonte") == "persona" and not tit.get("portato"):
+                s["daPortare"] = s["titolo"]
     except (OSError, ValueError, AttributeError):
         pass
     f = glob.glob(os.path.join(radice, "projects", "*", sid + ".jsonl"))
@@ -214,6 +228,54 @@ if a.get("progetto") and sid != corto:
     except OSError:
         pass
 esci(id=corto, sessionId=sid, claude=cl, cartella=base)
+'''
+
+# Gira sulla macchina della sessione (anche con hc exec): scrive il nome o il progetto che la persona le
+# ha dato dalla finestra (#5292). L'argomento è un JSON in base64: {"cosa": "titolo" | "scheda",
+# "sessionId", "valore", "portato"}. Il file del titolo si riscrive intero; quello della scheda tiene lo
+# stato che c'era. La fonte "persona" dice ai due hook di Arturo di non riscriverli. Idempotente.
+# Stampa {"ok": true, ...} oppure {"errore"}.
+SCRIVI = r'''
+import base64, json, os, sys, time
+a = json.loads(base64.b64decode(sys.argv[1]).decode("utf-8"))
+def esci(**d):
+    print(json.dumps(d)); raise SystemExit
+radice = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
+titolo = a["cosa"] == "titolo"
+d = os.path.join(radice, "cache", "titolo" if titolo else "scheda")
+f = os.path.join(d, a["sessionId"] + ".json")
+try:
+    with open(f, encoding="utf-8") as fh:
+        prima = json.load(fh)
+    if not isinstance(prima, dict):
+        prima = {}
+except (OSError, ValueError):
+    prima = {}
+valore = a.get("valore") or ""
+try:
+    if titolo and a.get("portato"):
+        # solo se il nome è ancora quello: la persona può averlo cambiato nel frattempo
+        if prima.get("fonte") != "persona" or (valore and prima.get("titolo") != valore):
+            esci(ok=True, titolo=prima.get("titolo") or "", portato=False)
+        nuovo = dict(prima, portato=True)
+    elif titolo and not valore:
+        if prima.get("fonte") == "persona":
+            os.remove(f)
+        esci(ok=True, titolo="")
+    elif titolo:
+        nuovo = {"titolo": valore, "fonte": "persona", "quando": time.time(), "peso": 0, "portato": False}
+    else:
+        nuovo = dict(prima or {"stato": "nuova"}, progetto=valore, fonte="persona", quando=time.time())
+    os.makedirs(d, exist_ok=True)
+    tmp = "%s.%d.tmp" % (f, os.getpid())
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(nuovo, fh)
+    os.replace(tmp, f)
+except OSError as e:
+    esci(errore="non riesco a scrivere: " + str(e)[:160])
+if titolo:
+    esci(ok=True, titolo=nuovo["titolo"], portato=bool(nuovo.get("portato")))
+esci(ok=True, progetto=valore)
 '''
 
 # Gira sulla macchina dove nascerà la sessione, prima di NASCI (#5208). Il servizio di Claude che tiene
@@ -479,6 +541,7 @@ def righe(voci):
                 "terminale": ospite if isinstance(ospite, str) and re.fullmatch(r"t[0-9a-z]{1,12}", ospite) else None,
                 "cartella": s.get("cwd"), "ultimo": s.get("ultimo") or nascita(s),
                 "risposta": (s.get("risposta") or "")[:420], "azione": s.get("azione") or "",
+                "daPortare": s.get("daPortare") if isinstance(s.get("daPortare"), str) else None,
             })
     return out
 
@@ -758,6 +821,70 @@ def azione(nome, verbo, sid):
     return {"ok": True, "testo": testo.splitlines()[-1][:200] if testo else ""}
 
 
+CAMBI = {"rinomina": "titolo", "progetto": "scheda"}
+SLUG = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
+NOME_LUNGO = 60
+
+
+def nome_pulito(testo):
+    """Il nome di una sessione come lo tiene un titolo: una riga, senza caratteri di controllo."""
+    t = "".join(" " if ord(c) < 32 or 127 <= ord(c) < 160 else c for c in str(testo or ""))
+    return re.sub(r"\s+", " ", t).strip()[:NOME_LUNGO].strip()
+
+
+def cambia(nome, verbo, sid, valore="", portato=False):
+    """Rinomina e Cambia progetto (#5292): il nome o il progetto di `sid` scritti sulla macchina `nome`
+    ("qui" = questa), con SCRIVI. `sid` è il sessionId intero: i due file della cache portano quello.
+
+    Su un'altra macchina prova python3, poi python: scrivere due volte lo stesso file non fa danni."""
+    if verbo not in CAMBI:
+        return {"errore": "cambio sconosciuto: %s" % verbo}
+    if not ID.fullmatch(sid or ""):
+        return {"errore": "id di sessione non valido"}
+    if verbo == "progetto":
+        if not SLUG.fullmatch(valore or ""):
+            return {"errore": "il progetto è uno slug: minuscole, numeri e trattini, al più 40 caratteri"}
+    else:
+        valore = nome_pulito(valore)
+    arg = base64.b64encode(json.dumps({"cosa": CAMBI[verbo], "sessionId": sid, "valore": valore,
+                                       "portato": bool(portato)}).encode()).decode()
+    if nome in (None, "", "qui"):
+        tentativi = [[sys.executable, "-c", SCRIVI, arg]]
+    else:
+        codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(SCRIVI.encode()).decode()
+        tentativi = [hc() + ["exec", "--on", nome, "--timeout", str(ATTESA_AZIONE - 5), py, "-c", codice, arg]
+                     for py in ("python3", "python")]
+    ultimo = "nessun Python"
+    for argv in tentativi:
+        try:
+            rc, out, err = lancia(argv, timeout=ATTESA_AZIONE)
+        except (OSError, subprocess.SubprocessError) as e:
+            return {"errore": "%s non risponde: %s" % (nome or "questa macchina", str(e)[:160])}
+        if rc != 0 and (rc == 9009 or non_parte(out, err)):  # il Python non è partito: si prova l'altro
+            continue
+        try:
+            return leggi_json(out)
+        except ValueError:
+            testo = (err or out).strip()
+            ultimo = testo.splitlines()[-1][:200] if testo else "rc %d" % rc
+    return {"errore": ultimo}
+
+
+def main_cambia(verbo, argv):
+    """rinomina MACCHINA SESSIONID [--portato] [-- NOME] e progetto MACCHINA SESSIONID -- SLUG."""
+    resto = argv[argv.index("--") + 1:] if "--" in argv else []
+    testa = argv[:argv.index("--")] if "--" in argv else argv
+    portato = verbo == "rinomina" and "--portato" in testa
+    testa = [a for a in testa if a != "--portato"]
+    if len(testa) != 2 or any(x.startswith("--") for x in testa) or (verbo == "progetto" and len(resto) != 1):
+        print("uso: volta_sonda.py rinomina <macchina> <sessionId> [--portato] [-- <nome>]\n"
+              "     volta_sonda.py progetto <macchina> <sessionId> -- <slug>")
+        return 2
+    esito = cambia(testa[0], verbo, testa[1], " ".join(resto), portato)
+    print(json.dumps(esito, ensure_ascii=True))
+    return 0 if "errore" not in esito else 1
+
+
 def apri(nome, sid, riavvia=False):
     """Prepara l'aggancio della sessione `sid` di `nome` ("qui" = questa macchina), prima di claude attach.
 
@@ -823,6 +950,8 @@ def main(argv):
         return main_nasci(argv[1:])
     if argv and argv[0] in COPIE:
         return main_copia(argv[0], argv[1:])
+    if argv and argv[0] in CAMBI:
+        return main_cambia(argv[0], argv[1:])
     if argv and argv[0] == "servizio":
         if len(argv) != 2:
             print("uso: volta_sonda.py servizio <macchina>")

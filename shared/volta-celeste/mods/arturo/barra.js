@@ -69,6 +69,9 @@ export class Barra {
         else if (c.startsWith("volta-menu-")) this.volta.menuId(c.slice(11));
         // "arturo.volta-altro-<id>" e "arturo.volta-gesto-<verbo>-<id>": "Altro" e un gesto, suo o del menu.
         else if (c.startsWith("volta-altro-")) this.volta.altroId(c.slice(12), cx);
+        // "arturo.volta-cambia-<nome|progetto>-<esadecimale>-<id>": il nome o il progetto nuovo di una
+        // sessione, dal dialogo di cambio.js o da herdr-app do (#5292).
+        else if (c.startsWith("volta-cambia-")) this.volta.cambiaComando(c, cx);
         else if (/^volta-gesto-[a-z]+-/.test(c)) { const [, verbo, id] = c.match(/^volta-gesto-([a-z]+)-(.+)$/); this.volta.gestoId(verbo, id, cx); }
         // "arturo.volta-<id>": lo stesso clic di una sessione di Volta, da tastiera o da herdr-app do.
         else if (c.startsWith("volta-")) this.volta.premiId(c.slice(6), cx);

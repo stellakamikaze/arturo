@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ57: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ59: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -221,6 +221,21 @@ HZ57 il mod si aggiorna da solo (11/11/2026): volta.js chiede a volta_mod.py un 
      ogni ora, mai due insieme, e pubblica la versione in shared arturo.mod; il piede la scrive accanto
      a Impostazioni con rigaMod() di sessioni.js (node): ora dell'installazione, giorno se non è oggi,
      avviso dopo un giorno senza controllo.
+HZ58 il nome e il progetto scritti dalla persona (#5292): i verbi rinomina e progetto di volta_sonda.py
+     scrivono cache/titolo e cache/scheda della sessione con fonte "persona", qui e su un'altra macchina
+     (hc finto); un progetto che non è uno slug e un id strano non partono. hooks/titolo-sessione.py non
+     riscrive un nome della persona e non lo spazza finché la sessione ha una trascrizione; senza nome
+     il file sparisce e il titolo torna al modello. hooks/scheda-terminale.py tiene il progetto della
+     persona davanti a un altro /inizio e a un file scritto altrove, e a SessionEnd lascia il file. La
+     sonda porta nell'elenco daPortare finché Claude Code non ha il nome (--portato).
+HZ59 nome e progetto si cambiano dalla finestra (#5292): il menu ha Rinomina e Cambia progetto, che
+     aprono il dialogo di cambio.js, come il doppio clic sul titolo; il dialogo manda il comando
+     arturo.volta-cambia-<cosa>-<esadecimale>-<id>, che barra.js legge prima del clic su una sessione
+     (sessioni.js con node: codifica, leggiCambio, nomeNuovo, progettoNuovo, progettiNoti, casellaVuota).
+     dati.js (herdr finto): cambiaSessione chiama la sonda sulla macchina della sessione col sessionId;
+     rinominaSchede rinomina la scheda sola; portaNome scrive /rename solo a sessione ferma, con Claude
+     nella scheda e la casella vuota, e poi segna --portato; spostaScheda chiude l'aggancio e lo riapre
+     nello spazio del progetto nuovo, e lascia dov'è un'interattiva che gira in una scheda.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -238,7 +253,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -1623,10 +1638,13 @@ export const exec = async (cmd, args) => {
 export const inviati = [];
 // HZ_HC_GET: { <terminale>: [risposta, risposta, ...] } per hc get, una per chiamata (l'ultima resta).
 const letture = JSON.parse(process.env.HZ_HC_GET || "{}");
+const schermi = JSON.parse(process.env.HZ_HC_READ || "{}");
 export const hc = async (a) => {
   inviati.push(a);
   const l = a[0] === "get" ? letture[a[1]] : null;
   if (l) return { code: 0, stdout: JSON.stringify(l.length > 1 ? l.shift() : l[0]), stderr: "" };
+  // HZ_HC_READ: { <terminale>: schermo } per hc read
+  if (a[0] === "read" && schermi[a[1]] !== undefined) return { code: 0, stdout: schermi[a[1]], stderr: "" };
   return { code: process.env.HZ_HC_ROTTO === a[0] ? 1 : 0, stdout: "", stderr: "" };
 };
 const finti = JSON.parse(process.env.HZ_HERDR || "{}");
@@ -1639,6 +1657,12 @@ export const setShared = (k, v) => { condivisi[k] = v; };
 export const notify = (n) => avvisi.push(n);
 export const run = (cmd, a) => {
   lanciati.push({ cmd, ...a });
+  // HZ_CHIUDE: una scheda o un terminale chiuso sparisce, come in Herdr dopo tab.close e terminal.kill
+  if (process.env.HZ_CHIUDE && (cmd === "tab.close" || cmd === "terminal.kill")) {
+    const via = (finti.panes ?? []).filter((p) => (cmd === "tab.close" ? p.tab === a.id : p.terminal === a.terminal)).map((p) => p.terminal);
+    finti.panes = (finti.panes ?? []).filter((p) => !via.includes(p.terminal));
+    finti.terminals = (finti.terminals ?? []).filter((t) => !via.includes(t.address));
+  }
   // HZ_NASCE: la scheda creata compare fra i terminali, come in Herdr dopo tab.new e space.new
   if (process.env.HZ_NASCE && (cmd === "tab.new" || cmd === "space.new") && a?.argv) {
     (finti.terminals ??= []).push({ address: process.env.HZ_NASCE, argv: a.argv });
@@ -3325,10 +3349,11 @@ def hz54(repo: Path, casa: Path) -> str | None:
     if r.returncode != 0:
         return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
     d = json.loads(r.stdout.strip().splitlines()[-1])
-    voci = {"lavora": ["apri", "chiudi", "duplica", "fork", "logs"], "ferma": ["apri", "chiudi", "duplica", "fork", "logs", "rm!"],
-            "errore": ["apri", "chiudi", "duplica", "fork", "logs", "respawn", "rm!"], "interattiva": ["apri", "duplica", "fork"],
-            "vecchia": [], "niente": [], "testi": ["Apri", "Chiudi", "Duplica", "Fork", "Anteprima", "Elimina"],
-            "solo": ["apri", "chiudi", "duplica", "fork"], "fork": ["Rifare il deck (fork)", 60]}
+    cambi = ["rinomina", "progetto"]  # Rinomina e Cambia progetto (#5292, caso HZ59)
+    voci = {"lavora": ["apri", "chiudi", "duplica", "fork", *cambi, "logs"], "ferma": ["apri", "chiudi", "duplica", "fork", *cambi, "logs", "rm!"],
+            "errore": ["apri", "chiudi", "duplica", "fork", *cambi, "logs", "respawn", "rm!"], "interattiva": ["apri", "duplica", "fork", *cambi],
+            "vecchia": [], "niente": [], "testi": ["Apri", "Chiudi", "Duplica", "Fork", "Rinomina", "Cambia progetto", "Anteprima", "Elimina"],
+            "solo": ["apri", "chiudi", "duplica", "fork", "progetto", "rinomina"], "fork": ["Rifare il deck (fork)", 60]}
     for k, v in voci.items():
         if d.get(k) != v:
             return f"menu di sessioni.js, {k}: {d.get(k)}, atteso {v}"
@@ -3530,7 +3555,342 @@ def hz57(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57}
+def hz58(repo: Path, casa: Path) -> str | None:
+    import base64  # noqa: PLC0415
+    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    radice, log, uscita = casa / "conf", casa / "log", casa / "scheda.out"
+    (radice / "cache").mkdir(parents=True)
+    log.write_text("", encoding="utf-8")
+    sid = "aaaa1111-2222-3333-4444-555555555555"
+    conf = {"macchine": [{"name": "Torre", "target": "torre.lan", "state": "connected"}],
+            "exec": {"Torre": {"python3": {"ok": True, "titolo": "Nome mio", "portato": False}}}}
+    finto = casa / "hc_finto.py"
+    finto.write_text(HC_FINTO, encoding="utf-8")
+    hclog = casa / "hc.log"
+    env = {**os.environ, "CLAUDE_CONFIG_DIR": str(radice), "HZ_HC": json.dumps(conf), "VOLTA_HC": json.dumps([sys.executable, str(finto)]),
+           "HZ_HC_LOG": str(hclog), "HZ_LOG": str(log), "PYTHONIOENCODING": "utf-8", "ARTURO_SCHEDA_USCITA": str(uscita)}
+    for k in ("ARTURO_TITOLI", "ARTURO_TITOLO_FIGLIO", "ARTURO_TITOLI_OGNI"):
+        env.pop(k, None)
+
+    def lancia(*args):
+        hclog.write_text("", encoding="utf-8")
+        r = subprocess.run([sys.executable, str(sonda), *args], capture_output=True, text=True, timeout=90, env=env)
+        chiamate = [json.loads(x) for x in hclog.read_text(encoding="utf-8").splitlines() if x.strip()]
+        try:
+            return r.returncode, json.loads(r.stdout.strip().splitlines()[-1]), chiamate
+        except (ValueError, IndexError):
+            return r.returncode, {"uscita": (r.stderr or r.stdout).strip()[-160:]}, chiamate
+
+    titolo, scheda = radice / "cache" / "titolo" / f"{sid}.json", radice / "cache" / "scheda" / f"{sid}.json"
+    rc, d, _ = lancia("rinomina", "qui", sid, "--", "Nome  mio\tdella sessione")
+    t = leggi(titolo) if titolo.exists() else {}
+    if rc != 0 or d != {"ok": True, "titolo": "Nome mio della sessione", "portato": False}:
+        return f"rinomina qui: rc {rc}, {d}"
+    if (t.get("titolo"), t.get("fonte"), t.get("portato")) != ("Nome mio della sessione", "persona", False):
+        return f"rinomina non scrive il titolo con fonte persona: {t}"
+    rc, d, _ = lancia("rinomina", "qui", sid, "--portato", "--", "Un altro nome")
+    if rc != 0 or leggi(titolo).get("portato") is not False:
+        return f"--portato con un nome che non è più quello segna lo stesso: {d}, {leggi(titolo)}"
+    rc, d, _ = lancia("rinomina", "qui", sid, "--portato", "--", "Nome mio della sessione")
+    t = leggi(titolo)
+    if rc != 0 or t.get("portato") is not True or t.get("titolo") != "Nome mio della sessione" or t.get("fonte") != "persona":
+        return f"--portato non segna il nome come portato: {d}, {t}"
+    rc, d, _ = lancia("progetto", "qui", sid, "--", "due-mondi")
+    p = leggi(scheda) if scheda.exists() else {}
+    if rc != 0 or d != {"ok": True, "progetto": "due-mondi"} or (p.get("progetto"), p.get("fonte")) != ("due-mondi", "persona"):
+        return f"progetto qui: rc {rc}, {d}, file {p}"
+    scheda.write_text(json.dumps({"stato": "lavoro", "progetto": "vecchio", "fonte": "inizio", "quando": 1}), encoding="utf-8")
+    lancia("progetto", "qui", sid, "--", "due-mondi")
+    p = leggi(scheda)
+    if (p.get("stato"), p.get("progetto"), p.get("fonte")) != ("lavoro", "due-mondi", "persona"):
+        return f"progetto non tiene lo stato della scheda che c'era: {p}"
+    for strano in (["progetto", "qui", sid, "--", "Due Mondi"], ["progetto", "qui", sid], ["progetto", "qui", "--all", "--", "x"],
+                   ["rinomina", "qui", "abc;rm", "--", "x"], ["rinomina", "qui"], ["progetto", "Torre", sid, "--", "../x"]):
+        rc, d, ch = lancia(*strano)
+        if rc == 0 or ch:
+            return f"{strano} non rifiutato, o lanciato lo stesso: rc {rc}, {d}"
+    rc, d, ch = lancia("rinomina", "Torre", sid, "--", "Nome mio")
+    fuori = [c for c in ch if c[:2] == ["exec", "--on"]]
+    arg = json.loads(base64.b64decode(fuori[-1][-1]).decode("utf-8")) if fuori else None
+    if rc != 0 or d.get("titolo") != "Nome mio" or not fuori or fuori[-1][2:4] != ["Torre", "python3"]:
+        return f"rinomina su Torre non passa da hc exec: rc {rc}, {d}, {[c[:4] for c in ch]}"
+    if arg != {"cosa": "titolo", "sessionId": sid, "valore": "Nome mio", "portato": False}:
+        return f"rinomina su Torre: alla macchina arriva {arg}"
+    rc, d, ch = lancia("progetto", "Torre", sid, "--", "due-mondi")
+    fuori = [c for c in ch if c[:2] == ["exec", "--on"]]
+    arg = json.loads(base64.b64decode(fuori[-1][-1]).decode("utf-8")) if fuori else None
+    if rc != 0 or arg != {"cosa": "scheda", "sessionId": sid, "valore": "due-mondi", "portato": False}:
+        return f"progetto su Torre: rc {rc}, alla macchina arriva {arg}"
+    # hooks/scheda-terminale.py: il progetto della persona resta
+    hs = repo / "hooks/scheda-terminale.py"
+    base = casa / "progetti"
+    (base / "altro").mkdir(parents=True)
+
+    def evs(nome: str, sessione: str = sid, **dati) -> int:
+        d_ = {"hook_event_name": nome, "session_id": sessione, "cwd": str(base / "altro"), **dati}
+        return subprocess.run([sys.executable, str(hs)], input=json.dumps(d_), capture_output=True, text=True, timeout=60,
+                              env={**env, "PROJECTS_BASE": str(base)}).returncode
+
+    scheda.write_text(json.dumps({"stato": "nuova", "progetto": "due-mondi", "fonte": "persona", "quando": 1}), encoding="utf-8")
+    evs("UserPromptSubmit", prompt="/inizio altro -- fare una cosa")
+    evs("PostToolUse", tool_name="Write", tool_input={"file_path": str(base / "altro" / "x.md")})
+    p = leggi(scheda)
+    if (p.get("progetto"), p.get("fonte"), p.get("stato")) != ("due-mondi", "persona", "lavoro"):
+        return f"scheda-terminale.py riscrive il progetto scelto dalla persona: {p}"
+    if "LAVORANDO · due-mondi" not in uscita.read_text(encoding="utf-8"):
+        return "la scheda del terminale non porta il progetto scelto dalla persona"
+    evs("SessionEnd")
+    if not scheda.exists() or leggi(scheda).get("progetto") != "due-mondi":
+        return "SessionEnd toglie il progetto scelto dalla persona: la sessione fermata lo perde nell'elenco"
+    altra = radice / "cache" / "scheda" / "altra.json"
+    evs("UserPromptSubmit", sessione="altra", prompt="/inizio altro -- fare una cosa")
+    if not altra.exists():
+        return "scheda-terminale.py non scrive la scheda di una sessione normale"
+    evs("SessionEnd", sessione="altra")
+    if altra.exists():
+        return "SessionEnd non toglie più la scheda di una sessione senza progetto della persona"
+    if os.name == "nt":
+        return None  # il claude finto è uno script con shebang
+    # hooks/titolo-sessione.py: il nome della persona resta
+    ht = repo / "hooks/titolo-sessione.py"
+    bindir = casa / "bin"
+    bindir.mkdir()
+    cl = bindir / "claude"
+    cl.write_text(CLAUDE_FINTO_TITOLO, encoding="utf-8")
+    os.chmod(cl, 0o755)
+    envt = {**env, "PATH": f"{bindir}{os.pathsep}{os.environ['PATH']}", "ARTURO_TITOLI_OGNI": "0"}
+    tr = casa / "tr.jsonl"
+    tr.write_text(json.dumps({"type": "summary"}) + "\n" + json.dumps({"type": "user", "message": {"content": "Rifai le slide del capitolo due"}}) + "\n"
+                  + json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": "Fatto."}]}}) + "\n", encoding="utf-8")
+
+    def evt(nome: str, sessione: str = sid, prompt: str = "") -> int:
+        d_ = {"hook_event_name": nome, "session_id": sessione, "transcript_path": str(tr), "prompt": prompt}
+        return subprocess.run([sys.executable, str(ht)], input=json.dumps(d_), capture_output=True, text=True, timeout=60, env=envt).returncode
+
+    chiamate = lambda: [x for x in log.read_text(encoding="utf-8").splitlines() if x.strip()]  # noqa: E731
+    evt("UserPromptSubmit", prompt="una richiesta lunga abbastanza per un titolo")
+    evt("Stop")
+    t = leggi(titolo)
+    if chiamate() or (t.get("titolo"), t.get("fonte"), t.get("portato")) != ("Nome mio della sessione", "persona", True):
+        return f"titolo-sessione.py riscrive il nome della persona, o chiama il modello: {t}, {len(chiamate())} chiamate"
+    # la pulizia: un nome della persona vecchio resta se la sessione ha una trascrizione, altrimenti va via
+    (radice / "projects" / "p").mkdir(parents=True)
+    (radice / "projects" / "p" / f"{sid}.jsonl").write_text("{}\n", encoding="utf-8")
+    persa = radice / "cache" / "titolo" / "persa.json"
+    persa.write_text(json.dumps({"titolo": "Nome di una sessione sparita", "fonte": "persona"}), encoding="utf-8")
+    automatico = radice / "cache" / "titolo" / "automatico.json"
+    automatico.write_text(json.dumps({"titolo": "Titolo vecchio", "fonte": "modello"}), encoding="utf-8")
+    vecchio = time.time() - 30 * 86400
+    for f in (titolo, persa, automatico):
+        os.utime(f, (vecchio, vecchio))
+    evt("Stop", sessione="spazzina")
+    if not chiamate():
+        return "il fine turno di una sessione senza nome non chiama più il modello"
+    if not (radice / "cache" / "titolo" / "spazzina.json").exists():
+        return "la pulizia dei titoli toglie anche un titolo appena scritto"
+    if not titolo.exists() or persa.exists() or automatico.exists():
+        return f"pulizia dei titoli: nome della persona {titolo.exists()}, di una sessione sparita {persa.exists()}, automatico {automatico.exists()}"
+    # senza nome il file va via e il titolo torna al modello
+    rc, d, _ = lancia("rinomina", "qui", sid)
+    if rc != 0 or titolo.exists():
+        return f"rinomina senza nome non toglie il nome scritto: rc {rc}, {d}"
+    prima = len(chiamate())
+    evt("Stop")
+    if len(chiamate()) != prima + 1 or leggi(titolo).get("fonte") != "modello":
+        return "tolto il nome della persona, il titolo non torna al modello"
+    lancia("rinomina", "qui", sid)
+    if not titolo.exists():
+        return "rinomina senza nome toglie anche un titolo automatico"
+    # la sonda porta daPortare nell'elenco finché Claude Code non ha il nome
+    cl.write_text(CLAUDE_FINTO_ELENCO, encoding="utf-8")
+    hcf = casa / "hc_vuoto.py"
+    hcf.write_text('print(\'{"machines": []}\')\n', encoding="utf-8")
+
+    def elenco() -> dict:
+        r = subprocess.run([sys.executable, str(sonda), "volta"], capture_output=True, text=True, timeout=60,
+                           env={**envt, "VOLTA_HC": json.dumps([sys.executable, str(hcf)])})
+        return {x["sessionId"]: x for x in json.loads(r.stdout)["sessioni"]}
+
+    try:
+        lancia("rinomina", "qui", "inter-x", "--", "Slide del capitolo due")
+        riga = elenco().get("inter-x", {})
+        if riga.get("titolo") != "Slide del capitolo due" or riga.get("daPortare") != "Slide del capitolo due":
+            return f"la sonda non dice che il nome va portato in Claude Code: {riga.get('titolo')}, {riga.get('daPortare')}"
+        lancia("rinomina", "qui", "inter-x", "--portato", "--", "Slide del capitolo due")
+        riga = elenco().get("inter-x", {})
+        if riga.get("titolo") != "Slide del capitolo due" or riga.get("daPortare") is not None:
+            return f"portato il nome, la sonda lo dà ancora da portare: {riga.get('daPortare')}"
+        (radice / "cache" / "titolo" / "fatta-x.json").write_text(json.dumps({"titolo": "Titolo del modello", "fonte": "modello"}), encoding="utf-8")
+        if elenco().get("fatta-x", {}).get("daPortare") is not None:
+            return "la sonda dà da portare un titolo automatico"
+    except (ValueError, KeyError) as e:
+        return f"volta_sonda.py volta: uscita senza elenco ({e})"
+    return None
+
+
+PROVA_CAMBIO_PURO = """
+import * as m from %s;
+const s = { id: "ab12-cd34", sessionId: "ab12-cd34-x" };
+const giro = (cosa, v) => m.leggiCambio(m.comandoCambio(s, cosa, v).slice(7));
+const b = "\\u2500".repeat(30);
+console.log(JSON.stringify({
+  comando: m.comandoCambio(s, "nome", "Aè"),
+  nome: giro("nome", "  Preventivo  per\\tl'estate \\u00e8 \\ud83d\\ude42  "), lungo: giro("nome", "x".repeat(90)).valore.length, vuoto: giro("nome", "   "),
+  progetto: giro("progetto", "Due Mondi"), accenti: giro("progetto", "Caffè & Tè").valore, niente: giro("progetto", " -- "),
+  storti: [m.leggiCambio("volta-cambia-altro-0041-ab12"), m.leggiCambio("volta-cambia-nome-004-ab12"), m.leggiCambio("volta-gesto-rinomina-ab12")],
+  cambia: m.CAMBIA,
+  noti: m.progettiNoti({ sessioni: [{ progetto: "zeta" }, { progetto: null }, { progetto: "Due Mondi" }] }, ["arturo", "zeta", ""]),
+  filtro: [m.filtraProgetti(["arturo", "due-mondi", "mondo"], "Mon"), m.filtraProgetti(["a", "b", "c"], "", 2)],
+  casella: [m.casellaVuota(`ciao\\n${b}\\n\\u276f \\n${b}\\n  stato`), m.casellaVuota(`${b}\\n\\u276f Try "scrivi qui"\\n${b}`), m.casellaVuota(`${b}\\n> \\n${b}`),
+            m.casellaVuota(`${b}\\n\\u276f una bozza\\n${b}`), m.casellaVuota(`${b}\\n\\u276f riga uno\\nriga due\\n${b}`), m.casellaVuota("zsh %% "), m.casellaVuota(""), m.casellaVuota(`${b}\nx\n${b}`)],
+  portare: [m.daPortare({ stato: "ferma", daPortare: " Nome " }), m.daPortare({ stato: "lavora", daPortare: "Nome" }), m.daPortare({ stato: "aspetta", daPortare: "Nome" }),
+            m.daPortare({ stato: "ferma", daPortare: "Nome", vecchia: true }), m.daPortare({ stato: "ferma", daPortare: null })],
+}));
+"""
+
+PROVA_CAMBIO = r"""
+import { cambiaSessione, rinominaSchede, portaNome, spostaScheda } from "./dati.mjs";
+import { lanciati, eseguiti, avvisi, inviati } from "./herdr.mjs";
+const caso = process.env.HZ_CASO;
+const s = { id: "ffff1111", sessionId: "ffff1111-aaaa", host: "Torre", macchina: "Torre", nome: "Progetto x", titolo: "Rifare il deck",
+            progetto: "progetto-x", cartella: "/lavori/x", stato: "ferma", tipo: "background", daPortare: "Nome mio",
+            attach: ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"] };
+let esito = null;
+if (caso === "nome") esito = await cambiaSessione(s, "nome", "Nome mio");
+else if (caso === "togli") esito = await cambiaSessione(s, "nome", "");
+else if (caso === "progetto") esito = await cambiaSessione(s, "progetto", "due-mondi");
+else if (caso === "schede") esito = rinominaSchede(s, "N".repeat(50));
+else if (caso === "porta") esito = await portaNome(s);
+else if (caso === "porta-lavora") esito = await portaNome({ ...s, stato: "lavora" });
+else if (caso === "sposta") esito = await spostaScheda(s, "due-mondi");
+else if (caso === "sposta-interattiva") esito = await spostaScheda({ ...s, tipo: "interattiva", attach: null, questa: true, terminale: "t9" }, "due-mondi");
+console.log(JSON.stringify({ lanciati, eseguiti, avvisi, inviati, esito }));
+"""
+
+
+def hz59(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    testi = {n: (mod / n).read_text(encoding="utf-8") for n in ("volta.js", "barra.js", "main.js", "menusessione.js", "cambio.js", "dati.js")}
+    attesi = (
+        ("volta.js", "if (verbo in CAMBIA) return this.chiedi(s, CAMBIA[verbo]);", "Rinomina e Cambia progetto non aprono il dialogo"),
+        ("volta.js", '.on_click((e, cx) => (e?.click_count >= 2 ? this.chiedi(s, "nome") : this.premi(s, cx)))', "il doppio clic sul titolo non apre il dialogo del nome"),
+        ("volta.js", "const d = leggiCambio(c);", "il comando del cambio non passa da leggiCambio"),
+        ("volta.js", "r = await cambiaSessione(s, cosa, valore);", "il cambio non arriva alla sonda"),
+        ("volta.js", 'if (r.ok && cosa === "nome" && valore) rinominaSchede(s, valore);', "il nome nuovo non va sulla scheda"),
+        ("volta.js", 'if (r.ok && cosa === "progetto" && String(s.progetto ?? "") !== valore) dopo = await spostaScheda(s, valore);', "il progetto nuovo non sposta la scheda"),
+        ("volta.js", "    this.portaNomi();\n", "a ogni lettura i nomi non vanno in Claude Code"),
+        ("volta.js", "if (!daPortare(s) || this.porto[k]) continue;", "un nome si porta due volte insieme"),
+        ("volta.js", "cartelle().catch(() => []).then((l) => apriCambio(s, cosa, progettiNoti(this.dati, l)));", "il dialogo del progetto non riceve i progetti noti"),
+        ("barra.js", 'else if (c.startsWith("volta-cambia-")) this.volta.cambiaComando(c, cx);', "barra.js non legge il comando del cambio"),
+        ("main.js", "cambio: Cambio,", "main.js non monta il dialogo del cambio"),
+        ("menusessione.js", "const cambi = this.voci.filter((v) => v.verbo in CAMBIA);", "il menu non mostra Rinomina e Cambia progetto"),
+        ("menusessione.js", ".when(cambi.length > 0, (el) => el.child(gruppo(cambi)))", "il menu non disegna il gruppo di Rinomina e Cambia progetto"),
+        ("cambio.js", 'openOverlay({ mod: "arturo", props: { parte: "cambio", sessione: s, cosa, noti }, kind: "dialog"', "il cambio non è un dialogo del mod"),
+        ("cambio.js", "    run(comandoCambio(this.s, this.cosa, valore));\n    this.chiudi();", "il dialogo si chiude prima di mandare il cambio"),
+        ("cambio.js", 'if (this.cosa === "progetto" && !valore) return;', "il dialogo manda un progetto vuoto"),
+        ("cambio.js", 'this.input.on("submit", () => this.conferma());', "Invio non conferma"),
+        ("cambio.js", 'const valore = this.cosa === "nome" ? titolo(this.s) : String(this.s.progetto ?? "");', "il dialogo non parte dal nome o dal progetto di adesso"),
+    )
+    for file, pezzo, motivo in attesi:
+        if pezzo not in testi[file]:
+            return f"{file}: {motivo}"
+    bj = testi["barra.js"]
+    if bj.index('c.startsWith("volta-cambia-")') > bj.index('c.startsWith("volta-")) this.volta.premiId('):
+        return "barra.js: volta-cambia-… finisce nel clic su una sessione, che viene prima"
+    node = shutil.which("node")
+    if not node:
+        return None
+    copia = casa / "sessioni.mjs"
+    shutil.copyfile(mod / "sessioni.js", copia)
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_CAMBIO_PURO % json.dumps(copia.as_uri())], capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    puri = {"comando": "arturo.volta-cambia-nome-004100e8-ab12-cd34",
+            "nome": {"cosa": "nome", "valore": "Preventivo per l'estate è 🙂", "id": "ab12-cd34"}, "lungo": 60,
+            "vuoto": {"cosa": "nome", "valore": "", "id": "ab12-cd34"},
+            "progetto": {"cosa": "progetto", "valore": "due-mondi", "id": "ab12-cd34"}, "accenti": "caffe-te", "niente": None,
+            "storti": [None, None, None], "cambia": {"rinomina": "nome", "progetto": "progetto"},
+            "noti": ["arturo", "due-mondi", "zeta"], "filtro": [["mondo", "due-mondi"], ["a", "b"]],
+            "casella": [True, True, True, False, False, False, False, False], "portare": ["Nome", None, None, None, None]}
+    for k, v in puri.items():
+        if d.get(k) != v:
+            return f"sessioni.js, {k}: {d.get(k)}, atteso {v}"
+    m = casa / "mod"
+    m.mkdir()
+    mod_dati(repo, m, testi["dati.js"])
+    (m / "prova.mjs").write_text(PROVA_CAMBIO, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+    (app / "arturo.json").write_text(json.dumps({"arturo": ["python9", "/a/bin/arturo"], "radice": str(repo), "base": "/base", "volta": "/v/volta_sonda.py"}), encoding="utf-8")
+    spazio = {"id": "s1", "name": "progetto-x", "named": True, "active": True, "tabs": [{"id": "tb1"}, {"id": "tb2"}]}
+    herdr = {"spaces": [spazio], "panes": [{"terminal": "t7", "tab": "tb1"}, {"terminal": "t8", "tab": "tb2"}, {"terminal": "t9", "tab": "tb2"}],
+             "terminals": [{"address": "t7", "argv": ["claude", "attach", "ffff1111"]}, {"address": "t9", "argv": ["zsh"]},
+                           {"address": "t8", "argv": ["zsh"], "labels": {"arturo.sessione": "ffff1111"}}]}
+    bordo = "─" * 30
+    vuota = f"ciao\n{bordo}\n❯ \n{bordo}\n  stato"
+    bozza = f"{bordo}\n❯ una bozza non inviata\n{bordo}"
+    nuda = {"state": "live", "pid": 5, "argv": ["zsh", "-c", "claude attach ffff1111"], "foreground": {"pid": 5, "argv": ["zsh"]}}
+
+    def volta(caso, schermo=vuota, **extra):
+        e = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_CASO": caso, "HZ_EXEC": json.dumps({"ok": True}),
+             "HZ_HERDR": json.dumps(extra.pop("herdr", herdr)), "HZ_HC_READ": json.dumps({"t7": schermo}), "HZ_CHIUDE": "1", **extra}
+        r = subprocess.run([node, str(m / "prova.mjs")], capture_output=True, text=True, timeout=30, env=e)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[:200])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    sonda = lambda v: [x[2:] for x in v["eseguiti"] if x[1:2] == ["/v/volta_sonda.py"]]  # noqa: E731
+    try:
+        v = volta("nome")
+        if sonda(v) != [["rinomina", "Torre", "ffff1111-aaaa", "--", "Nome mio"]] or v["esito"] != {"ok": True}:
+            return f"Rinomina non chiama la sonda sulla macchina della sessione, col sessionId: {sonda(v)}, {v['esito']}"
+        v = volta("togli")
+        if sonda(v) != [["rinomina", "Torre", "ffff1111-aaaa"]]:
+            return f"un nome vuoto non toglie il nome scritto: {sonda(v)}"
+        v = volta("progetto")
+        if sonda(v) != [["progetto", "Torre", "ffff1111-aaaa", "--", "due-mondi"]]:
+            return f"Cambia progetto non chiama la sonda: {sonda(v)}"
+        v = volta("schede")
+        if v["esito"] != 1 or v["lanciati"] != [{"cmd": "tab.rename", "id": "tb1", "name": "N" * 40}]:
+            return f"il nome nuovo non va sulla sola scheda che è tutta della sessione: {v['esito']}, {v['lanciati']}"
+        v = volta("porta")
+        if v["esito"] is not True or ["send", "t7", "/rename Nome mio"] not in v["inviati"]:
+            return f"a sessione ferma e casella vuota il nome non va in Claude Code con /rename: {v['esito']}, {v['inviati']}"
+        if sonda(v) != [["rinomina", "Torre", "ffff1111-aaaa", "--portato", "--", "Nome mio"]]:
+            return f"portato il nome, la sonda non lo segna: {sonda(v)}"
+        for motivo, extra in (("con una bozza nella casella", {"schermo": bozza}), ("mentre la sessione lavora", {"caso": "porta-lavora"}),
+                              ("in una scheda rimasta con la shell", {"HZ_HC_GET": json.dumps({"t7": [nuda]})}),
+                              ("senza una scheda in questa finestra", {"herdr": {"spaces": [spazio]}})):
+            v = volta(extra.pop("caso", "porta"), **extra)
+            if v["esito"] is not False or any(x[0] == "send" for x in v["inviati"]) or sonda(v):
+                return f"/rename scritto {motivo}: {v['esito']}, {v['inviati']}, {sonda(v)}"
+        v = volta("porta", HZ_HC_READ=json.dumps({"t7": vuota, "t8": vuota}))
+        if v["esito"] is not True or len([x for x in v["inviati"] if x[0] == "send"]) != 1:
+            return f"con due schede buone /rename va scritto una volta sola: {v['inviati']}"
+        v = volta("porta", HZ_HC_ROTTO="send")
+        if v["esito"] is not False or sonda(v):
+            return f"/rename non scritto, ma il nome risulta portato: {v['esito']}, {sonda(v)}"
+        v = volta("sposta", HZ_NASCE="t20")
+        chiuse = [x for x in v["lanciati"] if x["cmd"] in ("tab.close", "terminal.kill")]
+        nuove = [x for x in v["lanciati"] if x["cmd"] in ("tab.new", "space.new")]
+        if sorted(json.dumps(x, sort_keys=True) for x in chiuse) != sorted(json.dumps(x, sort_keys=True) for x in ({"cmd": "tab.close", "id": "tb1"}, {"cmd": "terminal.kill", "terminal": "t8"})):
+            return f"cambiato il progetto, gli agganci di prima non si chiudono: {chiuse}"
+        if v["esito"] != {"spostata": True} or len(nuove) != 1 or nuove[0]["cmd"] != "space.new" or nuove[0].get("name") != "due-mondi" or nuove[0].get("argv") != ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"]:
+            return f"la sessione non si riapre nello spazio del progetto nuovo: {v['esito']}, {nuove}"
+        v = volta("sposta-interattiva")
+        if v["esito"] != {"resta": True} or v["lanciati"]:
+            return f"un'interattiva che gira in una scheda viene chiusa o spostata: {v['esito']}, {v['lanciati']}"
+        v = volta("sposta", herdr={"spaces": [spazio]})
+        if v["esito"] != {} or v["lanciati"]:
+            return f"una sessione senza scheda aperta ne apre una al cambio di progetto: {v['esito']}, {v['lanciati']}"
+    except RuntimeError as e:
+        return f"dati.js non gira: {e}"
+    return None
+
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -3838,6 +4198,77 @@ VELENI = [
     ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    if argv and argv[0] in COPIE:\n', '    if False:\n'),
     ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    attesi = 2 if verbo == "fork" else 1\n', '    attesi = len(resto)\n'),
     ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'argv += ["-n", nome]', 'argv += [nome]'),
+    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'nuovo = {"titolo": valore, "fonte": "persona", "quando": time.time(), "peso": 0, "portato": False}', 'nuovo = {"titolo": valore, "fonte": "avvio", "quando": time.time(), "peso": 0, "portato": False}'),
+    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'nuovo = dict(prima or {"stato": "nuova"}, progetto=valore, fonte="persona", quando=time.time())', 'nuovo = dict(prima or {"stato": "nuova"}, progetto=valore, quando=time.time())'),
+    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'nuovo = dict(prima or {"stato": "nuova"}, progetto=valore, fonte="persona", quando=time.time())', 'nuovo = dict({"stato": "nuova"}, progetto=valore, fonte="persona", quando=time.time())'),
+    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        if prima.get("fonte") != "persona" or (valore and prima.get("titolo") != valore):', '        if prima.get("fonte") != "persona":'),
+    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        nuovo = dict(prima, portato=True)', '        nuovo = dict(prima)'),
+    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        if prima.get("fonte") == "persona":\n            os.remove(f)', '        if True:\n            os.remove(f)'),
+    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        if prima.get("fonte") == "persona":\n            os.remove(f)', '        if False:\n            os.remove(f)'),
+    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        if not SLUG.fullmatch(valore or ""):', '        if not valore:'),
+    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    if verbo not in CAMBI:\n        return {"errore": "cambio sconosciuto: %s" % verbo}\n    if not ID.fullmatch(sid or ""):', '    if False:'),
+    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        valore = nome_pulito(valore)\n    arg = ', '        pass\n    arg = '),
+    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    if argv and argv[0] in CAMBI:\n', '    if False:\n'),
+    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '            if tit.get("fonte") == "persona" and not tit.get("portato"):', '            if tit.get("fonte") == "persona":'),
+    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '            if tit.get("fonte") == "persona" and not tit.get("portato"):', '            if not tit.get("portato"):'),
+    ("HZ58", "shared/volta-celeste/mods/arturo/volta_sonda.py", '                "daPortare": s.get("daPortare") if isinstance(s.get("daPortare"), str) else None,\n', ''),
+    ("HZ58", "hooks/titolo-sessione.py", '    if salvato.get("fonte") == "persona" and salvato.get("titolo"):\n        return 0  # il nome l\'ha scritto la persona: il modello non lo riscrive\n', ''),
+    ("HZ58", "hooks/titolo-sessione.py", '            if leggi(f).get("fonte") == "persona" and viva(f.stem):\n                continue\n', ''),
+    ("HZ58", "hooks/titolo-sessione.py", '            if leggi(f).get("fonte") == "persona" and viva(f.stem):', '            if leggi(f).get("fonte") == "persona":'),
+    ("HZ58", "hooks/titolo-sessione.py", '            if adesso - f.stat().st_mtime <= VECCHIO:\n                continue\n', ''),
+    ("HZ58", "hooks/scheda-terminale.py", '    persona = salvato.get("fonte") == "persona" and bool(salvato.get("progetto"))', '    persona = False'),
+    ("HZ58", "hooks/scheda-terminale.py", 'progetto, fonte = ("", "") if persona else (progetto_da_prompt(', 'progetto, fonte = (progetto_da_prompt('),
+    ("HZ58", "hooks/scheda-terminale.py", '    if not progetto and evento == "PostToolUse" and not persona:', '    if evento == "PostToolUse":'),
+    ("HZ58", "hooks/scheda-terminale.py", '        if not persona:\n            try:\n                f.unlink()', '        if True:\n            try:\n                f.unlink()'),
+    ("HZ58", "hooks/scheda-terminale.py", '        if not persona:\n            try:\n                f.unlink()', '        if False:\n            try:\n                f.unlink()'),
+    ("HZ54", "shared/volta-celeste/mods/arturo/sessioni.js", '  out.push({ verbo: "rinomina", testo: "Rinomina" }, { verbo: "progetto", testo: "Cambia progetto" });\n', ''),
+    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '.replace(/\\s+/g, " ").trim().slice(0, 60).trim();', '.trim();'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")\n', '\n'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '.padStart(4, "0")).join("");', ').join("");'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '  if (m[1] === "progetto" && !valore) return null;\n', ''),
+    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", 'const valore = m[1] === "nome" ? nomeNuovo(decodifica(m[2])) : progettoNuovo(decodifica(m[2]));', 'const valore = decodifica(m[2]);'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '/^volta-cambia-(nome|progetto)-((?:[0-9a-f]{4})*)-(.+)$/', '/^volta-cambia-(\\w+)-((?:[0-9a-f]{4})*)-(.+)$/'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '`arturo.volta-cambia-${cosa}-${codifica(valore)}-${s.id}`', '`arturo.volta-cambia-${cosa}-${codifica(valore)}-${s.sessionId}`'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '    if (k) visti.add(k);', '    visti.add(k);'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '  return [...visti].sort((a, b) => a.localeCompare(b));', '  return [...visti];'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '[...l.filter((p) => p.startsWith(f)), ...l.filter((p) => !p.startsWith(f) && p.includes(f))] : l;', 'l.filter((p) => p.includes(f)) : l;'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '  if (dentro.length !== 1 || !["\\u276f", ">"].includes(dentro[0][0])) return false;', '  if (!dentro.length) return false;'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '  return t === "" || /^Try ".*"$/.test(t);', '  return true;'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '  if (bordi.length < 2) return false;', '  if (bordi.length < 2) return true;'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '(s && !s.vecchia && s.stato === "ferma" && typeof s.daPortare', '(s && !s.vecchia && typeof s.daPortare'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/sessioni.js", '(s && !s.vecchia && s.stato === "ferma" && typeof s.daPortare', '(s && s.stato === "ferma" && typeof s.daPortare'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", 'cosa === "nome" ? "rinomina" : "progetto", s.host ?? "qui", s.sessionId, ...opzioni,', 'cosa === "nome" ? "rinomina" : "progetto", s.host ?? "qui", s.id, ...opzioni,'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", 'cosa === "nome" ? "rinomina" : "progetto", s.host ?? "qui", s.sessionId, ...opzioni,', 'cosa === "nome" ? "rinomina" : "progetto", "qui", s.sessionId, ...opzioni,'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '      ...(valore ? ["--", valore] : [])], { timeout: 90000 });', '      "--", valore], { timeout: 90000 });'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '    if (!p || panes().filter((x) => x.tab === p.tab).length !== 1) continue;', '    if (!p) continue;'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", 'run("tab.rename", { id: p.tab, name: String(nome).slice(0, 40) });', 'run("tab.rename", { id: p.tab, name: String(nome) });'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '    if (await nuda(a)) continue;\n', ''),
+    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '      if (schermo.code !== 0 || !casellaVuota(schermo.stdout)) continue;', '      if (schermo.code !== 0) continue;'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '      scritto = r.code === 0;', '      scritto = true;'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '  if (!scritto) return false;\n', ''),
+    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '    } catch { /* si prova la scheda dopo */ }\n    break;\n', '    } catch { /* si prova la scheda dopo */ }\n'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", 'const esito = await cambiaSessione(s, "nome", nome, ["--portato"]);', 'const esito = { ok: true };'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", 'const r = await hc(["send", a, `/rename ${nome}`]);', 'const r = await hc(["send", a, nome]);'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '  if (s.tipo !== "background" || !Array.isArray(s.attach)) return s.terminale ? { resta: true } : {};', '  if (!Array.isArray(s.attach) && !s.terminale) return {};'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", '  if (!chiudiSchede(s)) return {};', '  chiudiSchede(s);'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/dati.js", 'const r = await apriSessione({ ...s, progetto }, s.attach);', 'const r = await apriSessione(s, s.attach);'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", '    if (verbo in CAMBIA) return this.chiedi(s, CAMBIA[verbo]);\n', ''),
+    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", '(e?.click_count >= 2 ? this.chiedi(s, "nome") : this.premi(s, cx))', '(this.premi(s, cx))'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", '    this.portaNomi();\n', ''),
+    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", '      if (!daPortare(s) || this.porto[k]) continue;', '      if (!daPortare(s)) continue;'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", '        if (r.ok && cosa === "nome" && valore) rinominaSchede(s, valore);\n', ''),
+    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", 'String(s.progetto ?? "") !== valore) dopo = await spostaScheda(s, valore);', 'String(s.progetto ?? "") !== valore) dopo = {};'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", '        r = await cambiaSessione(s, cosa, valore);', '        r = { ok: true };'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", 'then((l) => apriCambio(s, cosa, progettiNoti(this.dati, l)));', 'then((l) => apriCambio(s, cosa, []));'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/barra.js", '        else if (c.startsWith("volta-cambia-")) this.volta.cambiaComando(c, cx);\n', ''),
+    ("HZ59", "shared/volta-celeste/mods/arturo/main.js", 'sessione: MenuSessione, cambio: Cambio, nuovo: Nuovo,', 'sessione: MenuSessione, nuovo: Nuovo,'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/menusessione.js", '      .when(cambi.length > 0, (el) => el.child(gruppo(cambi)))\n', ''),
+    ("HZ59", "shared/volta-celeste/mods/arturo/menusessione.js", 'const cambi = this.voci.filter((v) => v.verbo in CAMBIA);', 'const cambi = [];'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/cambio.js", '    run(comandoCambio(this.s, this.cosa, valore));\n    this.chiudi();', '    this.chiudi();\n    run(comandoCambio(this.s, this.cosa, valore));'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/cambio.js", '    if (this.cosa === "progetto" && !valore) return;\n', ''),
+    ("HZ59", "shared/volta-celeste/mods/arturo/cambio.js", '    this.input.on("submit", () => this.conferma());\n', ''),
+    ("HZ59", "shared/volta-celeste/mods/arturo/cambio.js", 'kind: "dialog", width: 480 });', 'kind: "popup", width: 480 });'),
+    ("HZ59", "shared/volta-celeste/mods/arturo/cambio.js", 'const valore = this.cosa === "nome" ? titolo(this.s) : String(this.s.progetto ?? "");', 'const valore = "";'),
 ]
 
 

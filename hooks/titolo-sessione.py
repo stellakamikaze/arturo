@@ -9,6 +9,8 @@ Gira come hook asincrono su UserPromptSubmit e su Stop. Legge l'evento da stdin 
     legge il progetto, le ultime richieste, l'ultima risposta e l'ultima azione, e scrive il titolo.
     Fonte "modello". Al massimo una volta ogni OGNI secondi per sessione, e solo se la trascrizione è
     cresciuta. Una risposta che non è una riga da 2 a 60 caratteri si scarta: resta il titolo di prima.
+  - Fonte "persona": il nome che la persona ha scritto dalla finestra di Volta (volta_sonda.py rinomina,
+    #5292). Nessuno dei due eventi lo riscrive, e resta finché la sessione ha una trascrizione.
 Il file è a parte da quello della scheda (cache/scheda), che scheda-terminale.py riscrive per intero e
 toglie a fine sessione. Lo leggono la sonda di Volta Celeste (volta_sonda.py) e chi elenca le sessioni.
 Richiesta di Federico del 10/11/2026: aprire Volta e capire dal titolo cosa fa ogni sessione.
@@ -188,11 +190,20 @@ def chiedi(testo: str) -> str:
     return r.stdout if r.returncode == 0 else ""
 
 
+def viva(sessione: str) -> bool:
+    """True se la sessione ha ancora una trascrizione: Claude Code la elenca e la riapre."""
+    return any((cartella().parent.parent / "projects").glob(f"*/{sessione}.jsonl"))
+
+
 def spazza(adesso: float) -> None:
     try:
         for f in cartella().glob("*.json"):
-            if adesso - f.stat().st_mtime > VECCHIO:
-                f.unlink()
+            if adesso - f.stat().st_mtime <= VECCHIO:
+                continue
+            # il nome scritto dalla persona resta finché la sessione esiste
+            if leggi(f).get("fonte") == "persona" and viva(f.stem):
+                continue
+            f.unlink()
     except OSError:
         pass
 
@@ -215,6 +226,8 @@ def main() -> int:
         if len(t) >= 2:
             scrivi(f, {"titolo": t, "fonte": "avvio", "quando": adesso, "peso": 0})
         return 0
+    if salvato.get("fonte") == "persona" and salvato.get("titolo"):
+        return 0  # il nome l'ha scritto la persona: il modello non lo riscrive
     try:
         ogni = float(os.environ.get("ARTURO_TITOLI_OGNI") or OGNI)
     except ValueError:

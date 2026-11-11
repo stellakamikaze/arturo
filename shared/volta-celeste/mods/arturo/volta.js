@@ -9,14 +9,18 @@
 // va in shared arturo.volta.stati per le schede che agganciano una sessione in background.
 // Il tasto destro su una riga apre il menu della sessione (menusessione.js): Apri, Chiudi, Duplica, Fork
 // e i gesti di "Altro" (#5291). Il menu è un'altra copia del mod: manda il gesto qui come comando.
+// Rinomina e Cambia progetto, dal menu o col doppio clic sul titolo, aprono il dialogo di cambio.js
+// (#5292): il nome e il progetto nuovi vanno nei file della sessione con fonte "persona", sulla scheda
+// e, appena la sessione è ferma, in Claude Code con /rename.
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, appHome, home, shared, setShared, watchFolder, notify } from "herdr";
-import { gruppi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU } from "./sessioni.js";
+import { gruppi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
-import { config, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede } from "./dati.js";
+import { config, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, cartelle } from "./dati.js";
 import { apriMenuSessione } from "./menusessione.js";
+import { apriCambio } from "./cambio.js";
 
 const OGNI = 30000;
 // Ogni quanto il mod chiede a volta_mod.py se nel repository c'è un mod nuovo (anche all'apertura).
@@ -44,7 +48,7 @@ export async function controllaMod(py) {
 }
 
 // La frase della riga mentre un gesto del menu lavora, e quella che resta qualche secondo a gesto fatto.
-const LAVORO = { chiudi: "La chiudo…", duplica: "La duplico…", fork: "Copio la conversazione…" };
+const LAVORO = { chiudi: "La chiudo…", duplica: "La duplico…", fork: "Copio la conversazione…", nome: "Cambio il nome…", progetto: "Cambio il progetto…" };
 const FATTO = { stop: "Fermata: un clic la riapre.", respawn: "Riavviata.", rm: "Eliminata.",
   chiudi: "Chiusa: Apri la fa ripartire.", duplica: "Duplicata: la sessione nuova è nella sua scheda.",
   fork: "Copiata: la copia è nella sua scheda." };
@@ -73,6 +77,7 @@ export class Volta {
     this.chiedo = {};      // sessionId -> verbo che aspetta la conferma
     this.faccio = {};      // sessionId -> verbo in corso
     this.sopra = null;     // la sessione sotto il puntatore: lì compare la X
+    this.porto = {};       // sessionId -> true mentre il nome scritto dalla persona va in Claude Code
     this.script = undefined;
     this.py = "python3";
     cx.spawn(async (cx) => {
@@ -108,9 +113,22 @@ export class Volta {
       const st = statiCorti(this.dati);
       if (JSON.stringify(st) !== JSON.stringify(shared("arturo.volta.stati") ?? {})) setShared("arturo.volta.stati", st);
     }
+    this.portaNomi();
     // Le macchine per la riga "Nasce su" (dati.js altreMacchine), scritte solo quando cambiano.
     const m = (this.dati?.macchine ?? []).map((x) => ({ host: x.host, macchina: x.macchina, questa: Boolean(x.questa), giu: Boolean(x.irraggiungibile) }));
     if (JSON.stringify(m) !== JSON.stringify(shared("arturo.volta.macchine") ?? [])) setShared("arturo.volta.macchine", m);
+  }
+
+  // I nomi scritti dalla persona che Claude Code non ha ancora (campo daPortare): a ogni lettura si
+  // prova a portarli con /rename, una sessione alla volta. Riesce quando la sessione è ferma e ha una
+  // scheda in questa finestra; altrimenti si riprova alla lettura dopo.
+  portaNomi() {
+    for (const s of this.dati?.sessioni ?? []) {
+      const k = s.sessionId;
+      if (!daPortare(s) || this.porto[k]) continue;
+      this.porto[k] = true;
+      portaNome(s).catch(() => false).then(() => { delete this.porto[k]; });
+    }
   }
 
   // Un giro di volta_sonda.py volta, mai due insieme: con una macchina lenta un giro dura qualche secondo.
@@ -235,10 +253,57 @@ export class Volta {
     const voci = menu(s).concat(azioni(s).filter((x) => x.verbo === "stop"));
     const a = voci.find((x) => x.verbo === verbo);
     if (!a) return notify({ title: `${verbo}: gesto che qui non c'è`, body: `Su questa sessione: ${voci.map((x) => x.verbo).join(", ") || "nessuno"}.`, level: "warning" });
+    if (verbo in CAMBIA) return this.chiedi(s, CAMBIA[verbo]);
     if (SOLO_MENU.has(verbo)) return this.fare(s, a, cx);
     this.menu = s.sessionId;
     this.scopri(s);
     this.fare(s, a, cx);
+  }
+
+  // Rinomina e Cambia progetto: il dialogo di cambio.js, coi progetti fra cui scegliere (quelli
+  // dell'elenco e le cartelle della base). Il dialogo risponde col comando "arturo.volta-cambia-…".
+  chiedi(s, cosa) {
+    if (s.vecchia) return notify({ title: "Non la posso cambiare adesso", body: `${s.macchina} non risponde.`, level: "warning" });
+    if (cosa !== "progetto") return apriCambio(s, cosa, []);
+    cartelle().catch(() => []).then((l) => apriCambio(s, cosa, progettiNoti(this.dati, l)));
+  }
+
+  // "arturo.volta-cambia-<nome|progetto>-<esadecimale>-<id>": il cambio deciso nel dialogo, o da herdr-app do.
+  cambiaComando(c, cx) {
+    const d = leggiCambio(c);
+    if (!d) return notify({ title: "Cambio non valido", body: "Serve un nome, oppure un progetto con lettere, numeri e trattini.", level: "warning" });
+    const s = this.trovaId(d.id);
+    if (s) this.cambia(s, d.cosa, d.valore, cx);
+  }
+
+  // Scrive il nome o il progetto nuovo sulla macchina della sessione, poi lo porta dove si vede: il
+  // nome sulla scheda e in Claude Code (subito se è ferma, altrimenti alla prima lettura in cui lo è),
+  // il progetto spostando la scheda nel suo spazio. L'elenco si rilegge subito.
+  cambia(s, cosa, valore, cx) {
+    const k = s.sessionId;
+    if (this.faccio[k]) return;
+    if (s.vecchia) return this.avvisa(s, `${s.macchina} non risponde: riprova quando torna.`, cx);
+    this.faccio[k] = cosa;
+    cx.notify();
+    cx.spawn(async (cx) => {
+      let r, dopo = {};
+      try {
+        r = await cambiaSessione(s, cosa, valore);
+        if (r.ok && cosa === "nome" && valore) rinominaSchede(s, valore);
+        if (r.ok && cosa === "progetto" && String(s.progetto ?? "") !== valore) dopo = await spostaScheda(s, valore);
+      } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 120) }; }
+      delete this.faccio[k];
+      if (r.errore) this.avvisa(s, `Non riesco: ${r.errore}`, cx);
+      else {
+        const frase = cosa === "nome" ? (valore ? `Ora si chiama "${valore}".` : "Nome tolto: torna il titolo automatico.")
+          : dopo.errore ? `Ora è in ${nomeProgetto(valore)}, ma la scheda non si riapre: ${dopo.errore}`
+          : dopo.resta ? `Ora è in ${nomeProgetto(valore)}. La sua scheda resta dov'è: chiuderla fermerebbe la sessione.`
+          : `Ora è in ${nomeProgetto(valore)}.`;
+        this.avvisa(s, frase, cx);
+        this.aggiorna(cx);
+      }
+      cx.notify();
+    });
   }
 
   // Chiudi: via la scheda, poi claude stop. La conversazione resta, e Apri la fa ripartire.
@@ -363,7 +428,8 @@ export class Volta {
       .on_mouse_down("right", (_e, cx) => { if (apriMenuSessione(s)) cx.stop_propagation(); })
       .child(h_flex().gap(6).items_start()
         .child(h_flex().id(`v-${s.host}-${s.id}`).flex_1().min_w(0).gap(11).items_start().cursor_pointer()
-          .on_click((_e, cx) => this.premi(s, cx))
+          // Un clic apre la sessione; il doppio clic sul titolo apre anche il dialogo del nome.
+          .on_click((e, cx) => (e?.click_count >= 2 ? this.chiedi(s, "nome") : this.premi(s, cx)))
           .child(div().pt(6).child(vivo || sposto || apro || lavoro ? punto(colore(t, d.colore)) : div().size(8).flex_none()))
           .child(v_flex().flex_1().min_w(0).gap(2)
             // Un titolo scritto (al più 60 caratteri) va a capo su due righe; gli altri si tagliano.

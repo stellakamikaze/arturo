@@ -4,7 +4,8 @@
 //
 // Una riga del file (~/.cache/volta/sessioni.json, campo "sessioni"):
 // { macchina, host, questa, sessionId, id, nome, progetto, titolo, stato: aspetta|lavora|ferma|errore,
-//   tipo: background|interattiva, attach: argv | null, cartella, ultimo, risposta, azione, vecchia? }
+//   tipo: background|interattiva, attach: argv | null, cartella, ultimo, risposta, azione, vecchia?,
+//   daPortare?: il nome scritto dalla persona che Claude Code non ha ancora (rinomina, #5292) }
 
 export const MODI = { macchina: "Per macchina", progetto: "Per progetto" };
 export const SENZA = "Senza progetto";
@@ -140,18 +141,89 @@ export function azioni(s) {
 // Il menu del tasto destro su una sessione (#5291): Apri è il clic; Chiudi chiude la scheda e ferma la
 // sessione (la conversazione resta, Apri la fa ripartire); Duplica ne apre una nuova e vuota nella stessa
 // cartella, sulla stessa macchina, nello stesso progetto; Fork ne apre una con una copia della
-// conversazione. Poi i gesti di "Altro", senza Ferma: qui la ferma Chiudi. Un'interattiva non ha un
-// lavoro in background da fermare: resta senza Chiudi. Una riga vecchia non ha menu.
+// conversazione. Rinomina e Cambia progetto aprono il dialogo di cambio.js (#5292). Poi i gesti di
+// "Altro", senza Ferma: qui la ferma Chiudi. Un'interattiva non ha un lavoro in background da fermare:
+// resta senza Chiudi. Una riga vecchia non ha menu.
 export function menu(s) {
   if (!s || s.vecchia) return [];
   const out = [{ verbo: "apri", testo: "Apri" }];
   if (s.tipo === "background") out.push({ verbo: "chiudi", testo: "Chiudi" });
   out.push({ verbo: "duplica", testo: "Duplica" }, { verbo: "fork", testo: "Fork" });
+  out.push({ verbo: "rinomina", testo: "Rinomina" }, { verbo: "progetto", testo: "Cambia progetto" });
   return out.concat(azioni(s).filter((a) => a.verbo !== "stop"));
 }
 
 // I gesti che stanno solo nel menu: lavorano sulla riga, senza aprire il riquadro di "Altro".
-export const SOLO_MENU = new Set(["apri", "chiudi", "duplica", "fork"]);
+export const SOLO_MENU = new Set(["apri", "chiudi", "duplica", "fork", "rinomina", "progetto"]);
+
+// Le voci del menu che aprono il dialogo, e che cosa cambiano.
+export const CAMBIA = { rinomina: "nome", progetto: "progetto" };
+
+// Nome e progetto di una sessione si cambiano dalla finestra (#5292). Il nome scritto dalla persona:
+// una riga, senza caratteri di controllo, al più 60 caratteri come un titolo. Vuoto vuol dire "torna
+// al titolo automatico".
+export const nomeNuovo = (testo) => String(testo ?? "").replace(/[\u0000-\u001f\u007f-\u009f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60).trim();
+
+// Il progetto scritto dalla persona come slug, con la stessa regola di slug() in dati.js: "Due Mondi"
+// diventa "due-mondi". Al più 40 caratteri, come la scheda del terminale. Vuoto se non resta niente.
+export const progettoNuovo = (testo) => String(testo ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40).replace(/-+$/, "");
+
+// I progetti fra cui scegliere nel dialogo: quelli delle sessioni dell'elenco e quelli che passa chi
+// chiama (spazi aperti, cartelle della base), senza doppi, in ordine alfabetico.
+export function progettiNoti(dati, altri = []) {
+  const visti = new Set();
+  for (const p of [...(dati?.sessioni ?? []).map((s) => s.progetto), ...altri]) {
+    const k = progettoNuovo(p);
+    if (k) visti.add(k);
+  }
+  return [...visti].sort((a, b) => a.localeCompare(b));
+}
+
+// I progetti noti che corrispondono a ciò che la persona sta scrivendo: prima quelli che cominciano così.
+export function filtraProgetti(noti, testo, quanti = 8) {
+  const f = progettoNuovo(testo);
+  const l = noti ?? [];
+  const presi = f ? [...l.filter((p) => p.startsWith(f)), ...l.filter((p) => !p.startsWith(f) && p.includes(f))] : l;
+  return presi.slice(0, quanti);
+}
+
+// Il dialogo è un'altra copia del mod: manda il cambio alla barra come comando, lo stesso di herdr-app
+// do. Il testo viaggia in esadecimale (quattro cifre per carattere), perché il nome di un comando non
+// porta spazi né accenti: "arturo.volta-cambia-<nome|progetto>-<esadecimale>-<id>".
+export const codifica = (testo) => [...String(testo ?? "")].flatMap((c) => c.length === 2 ? [c.charCodeAt(0), c.charCodeAt(1)] : [c.charCodeAt(0)])
+  .map((n) => n.toString(16).padStart(4, "0")).join("");
+export const decodifica = (hex) => (String(hex ?? "").match(/[0-9a-f]{4}/g) ?? []).map((h) => String.fromCharCode(parseInt(h, 16))).join("");
+export const comandoCambio = (s, cosa, valore) => `arturo.volta-cambia-${cosa}-${codifica(valore)}-${s.id}`;
+
+// Il comando di un cambio come lo riceve la barra (senza "arturo."): { cosa, valore, id } con il valore
+// già ripulito, oppure null. Un progetto vuoto non è un cambio; un nome vuoto toglie il nome scritto.
+export function leggiCambio(c) {
+  const m = /^volta-cambia-(nome|progetto)-((?:[0-9a-f]{4})*)-(.+)$/.exec(String(c ?? ""));
+  if (!m) return null;
+  const valore = m[1] === "nome" ? nomeNuovo(decodifica(m[2])) : progettoNuovo(decodifica(m[2]));
+  if (m[1] === "progetto" && !valore) return null;
+  return { cosa: m[1], valore, id: m[3] };
+}
+
+// La casella di Claude Code è vuota, cioè si può scrivere un comando senza toccare una bozza: fra le
+// ultime due righe di bordo c'è il solo segno del prompt, o il suggerimento (Try "..."). Come
+// casella_vuota di teletrasporto.py. `schermo` è il testo di hc read.
+export function casellaVuota(schermo) {
+  const testo = String(schermo ?? "").replace(/\u001b\[[0-9;]*m/g, "").replace(/\u00a0/g, " ")
+    .replace(/(\u2500{20,})(\u276f|>|  )/g, "$1\n$2");
+  const righe = testo.split("\n").map((r) => r.trim());
+  const bordi = righe.map((r, i) => (r.startsWith("\u2500".repeat(20)) && r.endsWith("\u2500") ? i : -1)).filter((i) => i >= 0);
+  if (bordi.length < 2) return false;
+  const dentro = righe.slice(bordi[bordi.length - 2] + 1, bordi[bordi.length - 1]).filter(Boolean);
+  if (dentro.length !== 1 || !["\u276f", ">"].includes(dentro[0][0])) return false;
+  const t = dentro[0].slice(1).trim();
+  return t === "" || /^Try ".*"$/.test(t);
+}
+
+// Il nome scritto dalla persona va portato in Claude Code con /rename (campo daPortare della sonda):
+// solo quando la sessione è ferma, perché un comando scritto mentre lavora finirebbe in coda al turno.
+export const daPortare = (s) => (s && !s.vecchia && s.stato === "ferma" && typeof s.daPortare === "string" && s.daPortare.trim() ? s.daPortare.trim() : null);
 
 // Il nome della copia di una conversazione: "<titolo> (fork)", entro i 60 caratteri di un titolo.
 export const titoloFork = (s) => `${titolo(s).slice(0, 53).trim()} (fork)`;
