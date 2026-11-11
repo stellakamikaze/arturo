@@ -105,13 +105,16 @@ arturo.update({"arturo": [os.environ["ARTURO_PY"], os.environ["ARTURO_BIN"]], "r
 scrivi("arturo.json", arturo)
 
 # Tasti: si aggiungono; un tasto che la persona usa già per altro resta suo.
+# Uno solo si prende a Herdr: la scheda nuova (tab.new, una shell) diventa la sessione nuova di Claude,
+# e solo se quel tasto fa ancora la scheda nuova di Herdr (#5290).
+PRENDE = {"arturo.volta-nuova": "tab.new"}
 tasti = leggi("keys.json") or {}
 with open(os.path.join(qui, os.environ["ARTURO_TASTI"]), encoding="utf-8") as f:
     nuovi = json.load(f)
 for sez, voci in nuovi.items():
     mia = tasti.setdefault(sez, {})
     for k, v in voci.items():
-        if k in mia and mia[k] != v:
+        if k in mia and mia[k] != v and mia[k] != PRENDE.get(v):
             print(f"tasto {k} lasciato com'era ({mia[k]})")
             continue
         mia[k] = v

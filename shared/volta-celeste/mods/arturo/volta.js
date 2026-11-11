@@ -13,7 +13,7 @@ import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, home, shared, setShared, watchFolder, notify } from "herdr";
 import { gruppi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
-import { config, aggancia, mostra, azioneSessione } from "./dati.js";
+import { config, apriSessione, mostra, azioneSessione } from "./dati.js";
 
 const OGNI = 30000;
 
@@ -34,6 +34,7 @@ export class Volta {
     this.dati = null;
     this.avvisi = {};
     this.sposto = {};
+    this.apro = {};        // sessionId -> true mentre il clic prepara la scheda (servizio, respawn)
     this.aperti = {};
     this.menu = null;      // la sessione con i gesti aperti
     this.anteprime = {};   // sessionId -> true (risposta e azione lette dalla riga) o righe di claude logs
@@ -110,12 +111,12 @@ export class Volta {
 
   // Il clic su una sessione: aggancia, sposta e poi aggancia, oppure dice perché no.
   premi(s, cx) {
-    if (this.sposto[s.sessionId]) return;
+    if (this.sposto[s.sessionId] || this.apro[s.sessionId]) return;
     let d = clic(s);
     // la scheda che la ospita non è in questa finestra: vale la regola di un'interattiva in un Terminale
     if (d.azione === "mostra") { if (mostra(d.terminale)) return; d = clic({ ...s, terminale: null }); }
     if (d.azione === "no") return this.avvisa(s, d.motivo, cx);
-    if (d.azione === "aggancia") return aggancia(s, d.argv);
+    if (d.azione === "aggancia") return this.apri(s, d.argv, false, cx);
     // senza teletrasporto.py nessuno sa scrivere /bg nel Terminale di quella sessione
     if (!this.sposta) return this.avvisa(s, "È aperta in un Terminale: aprila da lì.", cx);
     this.sposto[s.sessionId] = true;
@@ -130,10 +131,30 @@ export class Volta {
       }
       delete this.sposto[s.sessionId];
       if (esito?.attach?.length) {
-        aggancia({ ...s, id: esito.id ?? s.id }, esito.attach);
+        this.apri({ ...s, id: esito.id ?? s.id }, esito.attach, true, cx);
         this.aggiorna(cx);
       } else this.avvisa(s, `Non la sposto: ${esito?.errore ?? "risposta vuota"}.`, cx);
       cx.notify();
+    });
+  }
+
+  // Apre la sessione in una scheda con Claude dentro (dati.js apriSessione): prima il servizio di Claude,
+  // il riavvio se era in errore, poi la scheda. Se Claude esce subito dalla scheda, lo dice la riga.
+  apri(s, argv, pronta, cx) {
+    const k = s.sessionId;
+    this.apro[k] = true;
+    cx.notify();
+    cx.spawn(async (cx) => {
+      let r;
+      try { r = await apriSessione(s, argv, pronta); } catch (e) { r = { errore: `Non la apro: ${String(e?.message ?? e).slice(0, 120)}.` }; }
+      delete this.apro[k];
+      if (r.errore) this.avvisa(s, r.errore, cx);
+      if (r.riavviata) this.aggiorna(cx);
+      cx.notify();
+      const v = r.veglia ? await r.veglia : null;
+      if (v?.errore) this.avvisa(s, v.errore, cx);
+      if (v?.riavviata) this.aggiorna(cx);
+      if (v?.errore || v?.riavviata) cx.notify();
     });
   }
 
@@ -250,7 +271,9 @@ export class Volta {
 
   riga(t, s, modo, cx) {
     const sposto = this.sposto[s.sessionId];
-    const d = sposto ? { testo: "La sposto nella finestra…", colore: "working" } : dettaglio(s, modo);
+    const apro = this.apro[s.sessionId];
+    const d = sposto ? { testo: "La sposto nella finestra…", colore: "working" }
+      : apro ? { testo: "La apro…", colore: "working" } : dettaglio(s, modo);
     const avviso = this.avvisi[s.sessionId];
     const vivo = s.stato === "aspetta" || s.stato === "lavora" || s.stato === "errore";
     const az = azioni(s);
@@ -282,7 +305,7 @@ export class Volta {
       .child(h_flex().gap(6).items_start()
         .child(h_flex().id(`v-${s.host}-${s.id}`).flex_1().min_w(0).gap(11).items_start().cursor_pointer()
           .on_click((_e, cx) => this.premi(s, cx))
-          .child(div().pt(6).child(vivo || sposto ? punto(colore(t, d.colore)) : div().size(8).flex_none()))
+          .child(div().pt(6).child(vivo || sposto || apro ? punto(colore(t, d.colore)) : div().size(8).flex_none()))
           .child(v_flex().flex_1().min_w(0).gap(2)
             // Un titolo scritto (al più 60 caratteri) va a capo su due righe; gli altri si tagliano.
             .child((s.titolo ? div().whitespace_normal() : div().truncate()).text_size(14).text_color(s.vecchia ? t.muted : t.foreground).child(titolo(s)))

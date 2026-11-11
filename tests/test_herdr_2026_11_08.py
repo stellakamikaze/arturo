@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ51: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ53: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -193,6 +193,19 @@ HZ51 Volta Celeste, l'ordine è l'ultima interazione (11/11/2026): dentro un gru
      ieri); viene per primo il gruppo con la più recente, per progetto e per macchina, e "Senza progetto"
      non va in fondo d'ufficio. Senza trascrizione la sonda mette in "ultimo" la nascita (startedAt), così
      una sessione appena nata sta in cima.
+HZ52 una sessione aperta mostra Claude già avviato (#5290, dati.js apriSessione con herdr finto): la scheda
+     si ritrova per etichetta (arturo.sessione) e per argv, mai per nome; se dentro gira ancora Claude va
+     davanti senza comandi; se è rimasta la shell nuda (primo piano = la shell del terminale, argv cambiato)
+     il servizio si accende e claude attach riparte lì con hc send; se manca nasce una scheda nuova, anche
+     accanto a una con lo stesso nome. Una sessione in errore passa da --riavvia. La veglia guarda dopo
+     qualche secondo: se Claude è uscito riavvia una volta e rilancia, se esce ancora lo dice. Una shell
+     che si sta ancora avviando non è nuda. Una sessione appena nata non ripassa dal servizio.
+HZ53 il verbo apri della sonda e la scheda nuova (#5290): apri accende il servizio prima e senza servizio
+     dà errore; con --riavvia lancia claude respawn dopo il servizio; un id strano non parte. ⌘T e
+     Ctrl+Shift+T sono arturo.volta-nuova: l'installazione si prende il tasto solo se faceva tab.new di
+     Herdr, e lascia quello che la persona ha legato ad altro. barra.js porta il comando a nuovaScheda(),
+     che fa nascere una sessione senza prompt nel progetto dello spazio aperto (nessuno da "Volta").
+
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
@@ -209,7 +222,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -974,7 +987,7 @@ def hz19(repo: Path, casa: Path) -> str | None:
         if pezzo not in barra:
             return f"{dove} senza {pezzo}"
     for pezzo in ('"volta", "--scrivi"', '"porta-volta"', "if (!this.script) return null;", "if (!this.script || this.inCorso) return;",
-                  'from "./sessioni.js"', "aggancia(s, d.argv);"):
+                  'from "./sessioni.js"', "this.apri(s, d.argv, false, cx);", "await apriSessione(s, argv, pronta)"):
         if pezzo not in volta:
             return f"volta.js senza {pezzo}"
     dati = (mod / "dati.js").read_text(encoding="utf-8")
@@ -1034,7 +1047,7 @@ def hz22(repo: Path, casa: Path) -> str | None:
     # di Volta Celeste, più ctrl-shift-c, -v e -f del terminale): Arturo non deve prenderne nessuno.
     sopra = casa / "sopra-herdr"
     (sopra / "app").mkdir(parents=True)
-    (sopra / "app" / "keys.json").write_text(json.dumps({"global": dict.fromkeys(HERDR_CTRL, "herdr")}), encoding="utf-8")
+    (sopra / "app" / "keys.json").write_text(json.dumps({"global": {**dict.fromkeys(HERDR_CTRL, "herdr"), "ctrl-shift-t": "tab.new"}}), encoding="utf-8")
     r = installa(repo, sopra, "windows")
     if r.returncode != 0 or "lasciato com'era" in r.stdout:
         return f"su Windows un tasto di Arturo è già di Herdr: {r.stdout.strip()[-200:]}"
@@ -1592,7 +1605,14 @@ export const exec = async (cmd, args) => {
   return process.env.HZ_EXEC ? { code: 0, stdout: process.env.HZ_EXEC, stderr: "" } : { code: 1, stdout: "", stderr: "" };
 };
 export const inviati = [];
-export const hc = async (a) => { inviati.push(a); return { code: 0, stdout: "", stderr: "" }; };
+// HZ_HC_GET: { <terminale>: [risposta, risposta, ...] } per hc get, una per chiamata (l'ultima resta).
+const letture = JSON.parse(process.env.HZ_HC_GET || "{}");
+export const hc = async (a) => {
+  inviati.push(a);
+  const l = a[0] === "get" ? letture[a[1]] : null;
+  if (l) return { code: 0, stdout: JSON.stringify(l.length > 1 ? l.shift() : l[0]), stderr: "" };
+  return { code: process.env.HZ_HC_ROTTO === a[0] ? 1 : 0, stdout: "", stderr: "" };
+};
 const finti = JSON.parse(process.env.HZ_HERDR || "{}");
 export const spaces = () => finti.spaces ?? [];
 export const agents = () => finti.agents ?? [];
@@ -1601,7 +1621,14 @@ export const panes = () => finti.panes ?? [];
 export const shared = (k) => condivisi[k];
 export const setShared = (k, v) => { condivisi[k] = v; };
 export const notify = (n) => avvisi.push(n);
-export const run = (cmd, a) => lanciati.push({ cmd, ...a });
+export const run = (cmd, a) => {
+  lanciati.push({ cmd, ...a });
+  // HZ_NASCE: la scheda creata compare fra i terminali, come in Herdr dopo tab.new e space.new
+  if (process.env.HZ_NASCE && (cmd === "tab.new" || cmd === "space.new") && a?.argv) {
+    (finti.terminals ??= []).push({ address: process.env.HZ_NASCE, argv: a.argv });
+    (finti.panes ??= []).push({ terminal: process.env.HZ_NASCE, tab: "tb-nuova" });
+  }
+};
 """
 
 def mod_dati(repo: Path, mod: Path, dati: str) -> None:
@@ -3002,7 +3029,228 @@ def hz51(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51}
+PROVA_APRI = r"""
+import { apriSessione, nuovaScheda, comando, ETICHETTA } from "./dati.mjs";
+import { lanciati, eseguiti, avvisi, inviati } from "./herdr.mjs";
+const caso = process.env.HZ_CASO;
+let esito = null, veglia = null;
+if (caso === "nuova-scheda") await nuovaScheda();
+else if (caso === "comando") esito = comando(["ssh", "-t", "h", "/a b/claude", "attach", "x'y", "a=b,c:d@e"]);
+else {
+  const s = { id: "ffff1111", sessionId: "ffff1111-aaaa", host: "Torre", macchina: "Torre", nome: "Progetto x", progetto: "progetto-x",
+              stato: process.env.HZ_STATO || "ferma", tipo: "background" };
+  const r = await apriSessione(s, ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"], process.env.HZ_PRONTA === "1");
+  veglia = r.veglia ? await r.veglia : null;
+  esito = { ...r, veglia: undefined };
+}
+console.log(JSON.stringify({ lanciati, eseguiti, avvisi, inviati, esito, veglia, etichetta: ETICHETTA }));
+"""
+
+
+def hz52(repo: Path, casa: Path) -> str | None:
+    node = shutil.which("node")
+    if not node:
+        return None
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    m = casa / "mod"
+    m.mkdir()
+    mod_dati(repo, m, (mod / "dati.js").read_text(encoding="utf-8"))
+    (m / "prova.mjs").write_text(PROVA_APRI, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+    (app / "arturo.json").write_text(json.dumps({"arturo": ["python9", "/a/bin/arturo"], "radice": str(repo), "base": "/base"}), encoding="utf-8")
+    attach = ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"]
+    riga = "ssh -t torre.lan claude attach ffff1111"
+    nascita = ["/bin/zsh", "-lic", '"$@"; exec "$0" -li', "/bin/zsh", *attach]
+    viva = {"state": "live", "pid": 10, "argv": nascita, "foreground": {"pid": 77, "argv": attach}}
+    nuda = {"state": "live", "pid": 10, "argv": nascita, "foreground": {"pid": 10, "argv": ["/bin/zsh", "-li"]}}
+    avvio = {"state": "live", "pid": 10, "argv": nascita, "foreground": {"pid": 10, "argv": nascita}}
+    spazio = {"id": "s1", "name": "progetto-x", "named": True, "active": True, "tabs": [{"id": "tb0", "name": "Shell"}, {"id": "tb1", "name": "Progetto x"}]}
+    herdr = {"spaces": [spazio], "panes": [{"terminal": "t3", "tab": "tb0"}, {"terminal": "t7", "tab": "tb1"}],
+             "terminals": [{"address": "t3", "argv": ["zsh"]}, {"address": "t7", "argv": nascita}]}
+
+    def volta(caso="apri", herdr=herdr, uscita='{"ok": true}', letture=None, **extra):
+        e = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_CASO": caso, "HZ_EXEC": uscita,
+             "HZ_SHARED": json.dumps({"arturo.volta.macchine": [], "arturo.dove": "qui"}),
+             "HZ_HERDR": json.dumps(herdr), "HZ_HC_GET": json.dumps(letture or {}), **extra}
+        for k in ("HZ_NASCE", "HZ_STATO", "HZ_PRONTA", "HZ_HC_ROTTO"):
+            if k not in extra:
+                e.pop(k, None)
+        r = subprocess.run([node, str(m / "prova.mjs")], capture_output=True, text=True, timeout=30, env=e)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[:200])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    sonda = lambda v: [x[2:] for x in v["eseguiti"] if len(x) > 2 and x[2] == "apri"]  # noqa: E731
+    nuove = lambda v: [x for x in v["lanciati"] if x["cmd"] in ("tab.new", "space.new")]  # noqa: E731
+    invii = lambda v: [x for x in v["inviati"] if x[0] == "send"]  # noqa: E731
+    try:
+        # Claude gira ancora nella scheda: davanti, senza servizio né comandi, e l'etichetta resta scritta
+        v = volta(letture={"t7": [viva]})
+        if v["esito"].get("come") != "davanti" or sonda(v) or nuove(v) or invii(v):
+            return f"una scheda con Claude dentro non va solo davanti: {v['esito']}, {sonda(v)}, {nuove(v)}, {invii(v)}"
+        if {"cmd": "pane.focus", "terminal": "t7"} not in v["lanciati"]:
+            return f"la scheda viva non viene portata davanti: {v['lanciati']}"
+        if ["label", "t7", f"{v['etichetta']}=ffff1111"] not in v["inviati"] or v["etichetta"] != "arturo.sessione":
+            return f"la scheda ritrovata per argv non riceve l'etichetta: {v['inviati']}"
+        # ritrovata per etichetta, anche se l'argv non dice niente e il nome è un altro
+        etichettata = {**herdr, "terminals": [{"address": "t3", "argv": ["zsh"]}, {"address": "t7", "argv": ["zsh"], "labels": {"arturo.sessione": "ffff1111"}}]}
+        v = volta(herdr=etichettata, letture={"t7": [viva]})
+        if v["esito"].get("come") != "davanti" or nuove(v) or any(x[0] == "label" for x in v["inviati"]):
+            return f"una scheda con l'etichetta non si ritrova, o si rietichetta: {v['esito']}, {v['inviati']}"
+        # la shell nuda: servizio, poi claude attach riparte nella stessa scheda
+        v = volta(letture={"t7": [nuda, viva]})
+        if v["esito"].get("come") != "rilanciata" or sonda(v) != [["apri", "Torre", "ffff1111"]] or nuove(v):
+            return f"una scheda con la shell nuda non rilancia Claude lì: {v['esito']}, {sonda(v)}, {nuove(v)}"
+        if invii(v) != [["send", "t7", riga]] or v["veglia"] != {}:
+            return f"il rilancio non scrive claude attach nella scheda: {invii(v)}, veglia {v['veglia']}"
+        ordine = [x[0] for x in v["inviati"] if x[0] in ("get", "send")]
+        if ordine[:2] != ["get", "send"] or not v["eseguiti"] or v["eseguiti"][0][2:3] != ["apri"]:
+            return f"il servizio non viene prima del rilancio: {ordine}, {v['eseguiti'][:1]}"
+        # stesso nome, altra cosa dentro: nasce una scheda nuova (prima il clic sceglieva quella per nome)
+        omonima = {**herdr, "terminals": [{"address": "t3", "argv": ["zsh"]}, {"address": "t7", "argv": ["zsh"]}]}
+        v = volta(herdr=omonima)
+        if len(nuove(v)) != 1 or nuove(v)[0].get("argv") != attach or sonda(v) != [["apri", "Torre", "ffff1111"]]:
+            return f"con una scheda dallo stesso nome non nasce la scheda della sessione: {v['lanciati']}"
+        if any(x["cmd"] == "tab.select" for x in v["lanciati"]):
+            return "il clic sceglie ancora una scheda per nome"
+        if v["eseguiti"][0][2:3] != ["apri"]:
+            return f"la scheda nasce prima del servizio: {v['eseguiti'][:1]}"
+        # senza servizio non nasce niente, e lo si dice
+        v = volta(herdr=omonima, uscita=json.dumps({"errore": "il servizio di Claude non parte su Torre: spenta"}))
+        if nuove(v) or invii(v) or "spenta" not in (v["esito"].get("errore") or ""):
+            return f"senza servizio la scheda nasce lo stesso, o l'errore si perde: {v['esito']}, {nuove(v)}"
+        # una sessione in errore riparte prima (respawn)
+        v = volta(herdr=omonima, HZ_STATO="errore")
+        if sonda(v) != [["apri", "Torre", "ffff1111", "--riavvia"]]:
+            return f"una sessione in errore non passa da --riavvia: {sonda(v)}"
+        # appena nata: il servizio è acceso, niente apri
+        v = volta(herdr=omonima, HZ_PRONTA="1")
+        if sonda(v) or len(nuove(v)) != 1:
+            return f"una sessione appena nata ripassa dal servizio: {sonda(v)}"
+        # la veglia: Claude esce subito dalla scheda nuova, la sessione si riavvia una volta e riparte
+        v = volta(herdr=omonima, HZ_NASCE="t9", letture={"t9": [nuda, viva]})
+        if sonda(v) != [["apri", "Torre", "ffff1111"], ["apri", "Torre", "ffff1111", "--riavvia"]] or invii(v) != [["send", "t9", riga]]:
+            return f"la veglia non riavvia e non rilancia: {sonda(v)}, {invii(v)}"
+        if v["veglia"] != {"riavviata": True} or ["label", "t9", "arturo.sessione=ffff1111"] not in v["inviati"]:
+            return f"la veglia riuscita non lo dice, o la scheda nuova resta senza etichetta: {v['veglia']}, {v['inviati']}"
+        v = volta(herdr=omonima, HZ_NASCE="t9", letture={"t9": [nuda]})
+        if "non resta aperto" not in (v["veglia"] or {}).get("errore", "") or len(invii(v)) != 1:
+            return f"una sessione che non si riapre non lo dice, o si riprova senza fine: {v['veglia']}, {invii(v)}"
+        v = volta(herdr=omonima, HZ_NASCE="t9", HZ_STATO="errore", letture={"t9": [nuda]})
+        if len(sonda(v)) != 1 or invii(v) or "errore" not in (v["veglia"] or {}):
+            return f"dopo un riavvio la veglia riavvia ancora: {sonda(v)}, {invii(v)}"
+        # Claude resta, oppure la shell si sta ancora avviando: niente riavvio
+        for nome, lettura in (("viva", viva), ("in avvio", avvio)):
+            v = volta(herdr=omonima, HZ_NASCE="t9", letture={"t9": [lettura]})
+            if len(sonda(v)) != 1 or invii(v) or v["veglia"] != {}:
+                return f"scheda {nome}: la veglia riavvia una sessione sana: {sonda(v)}, {invii(v)}, {v['veglia']}"
+        v = volta(herdr={**herdr}, letture={"t7": [avvio]})
+        if v["esito"].get("come") != "davanti":
+            return f"una shell che si sta avviando passa per nuda: {v['esito']}"
+        # il comando per la shell: fra apici ciò che non è una parola semplice
+        v = volta("comando")
+        if v["esito"] != "ssh -t h '/a b/claude' attach 'x'\\''y' a=b,c:d@e":
+            return f"comando(): {v['esito']}"
+        # la scheda nuova: una sessione senza prompt nel progetto dello spazio aperto
+        v = volta("nuova-scheda", herdr=omonima, uscita=json.dumps({"id": "ffff1111", "sessionId": "ffff1111-aaaa", "attach": attach}))
+        if not v["eseguiti"] or v["eseguiti"][0][2:] != ["nasci", "qui", "--progetto", "progetto-x"]:
+            return f"la scheda nuova non fa nascere una sessione nel progetto aperto: {v['eseguiti'][:1]}"
+        if len(nuove(v)) != 1 or nuove(v)[0].get("name") != "Nuova sessione" or nuove(v)[0].get("space") != "s1" or nuove(v)[0].get("argv") != attach:
+            return f"la scheda nuova non si aggancia nello spazio aperto: {nuove(v)}"
+        if sonda(v):
+            return "la scheda nuova ripassa dal servizio dopo la nascita"
+        volta_ = {**omonima, "spaces": [{**spazio, "name": "Volta"}]}
+        v = volta("nuova-scheda", herdr=volta_, uscita=json.dumps({"id": "ffff1111", "sessionId": "ffff1111-aaaa", "attach": attach}))
+        if not v["eseguiti"] or v["eseguiti"][0][2:] != ["nasci", "qui"]:
+            return f"dallo spazio Volta la scheda nuova prende un progetto: {v['eseguiti'][:1]}"
+    except RuntimeError as e:
+        return f"dati.js non gira: {e}"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    for pezzo in ("this.apro[k] = true;", "if (r.errore) this.avvisa(s, r.errore, cx);", "if (v?.errore) this.avvisa(s, v.errore, cx);",
+                  "this.apri({ ...s, id: esito.id ?? s.id }, esito.attach, true, cx);", '{ testo: "La apro…", colore: "working" }'):
+        if pezzo not in vj:
+            return f"volta.js senza {pezzo}"
+    return None
+
+
+def hz53(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    sonda = mod / "volta_sonda.py"
+    nata = {"id": "ffff1111", "sessionId": "ffff1111-aaaa", "claude": "C:/u/claude.exe", "cartella": "C:/u/ClaudeCode"}
+    conf = {
+        "macchine": [{"name": n, "target": n.lower(), "state": "connected"} for n in ("Torre", "Win", "Rotto")],
+        "exec": {"Torre": {"python": nata, "claude": "respawned ffff1111"}, "Win": {"python": nata, "claude": "respawned ffff1111"},
+                 "Rotto": {"python3": nata, "claude": "respawned ffff1111"}},
+        "servizio": {"Win": {"serve": "hc-run"}, "Rotto": {"errore": "Claude Code non c'è su questa macchina"}},
+        "dopo_run": {"Win": {"acceso": True, "come": "già acceso"}},
+    }
+    finto = casa / "hc_finto.py"
+    finto.write_text(HC_FINTO, encoding="utf-8")
+    log, stato = casa / "hc.log", casa / "hc.stato"
+    env = {**os.environ, "HZ_HC": json.dumps(conf), "VOLTA_HC": json.dumps([sys.executable, str(finto)]),
+           "HZ_HC_LOG": str(log), "HZ_HC_STATO": str(stato)}
+
+    def lancia(*args):
+        log.write_text("", encoding="utf-8")
+        stato.unlink(missing_ok=True)
+        r = subprocess.run([sys.executable, str(sonda), *args], capture_output=True, text=True, timeout=90, env=env)
+        chiamate = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines() if x.strip()]
+        try:
+            return r.returncode, json.loads(r.stdout.strip().splitlines()[-1]), chiamate
+        except (ValueError, IndexError):
+            return r.returncode, {"uscita": (r.stderr or r.stdout).strip()[-160:]}, chiamate
+
+    servizi = lambda ch: [c for c in ch if c[:2] == ["exec", "--on"] and c[-1] == "remoto"]  # noqa: E731
+    riavvii = lambda ch: [c for c in ch if "respawn" in c]  # noqa: E731
+    rc, d, ch = lancia("apri", "Torre", "ffff1111")
+    if rc != 0 or d.get("ok") is not True or d.get("riavviata") is not False or not servizi(ch) or riavvii(ch):
+        return f"apri su Torre: rc {rc}, {d}, servizio {len(servizi(ch))}, riavvii {len(riavvii(ch))}"
+    rc, d, ch = lancia("apri", "Win", "ffff1111")
+    if rc != 0 or not any(c[:1] == ["run"] for c in ch):
+        return f"apri su Win non accende il servizio che manca: rc {rc}, {d}"
+    rc, d, ch = lancia("apri", "Rotto", "ffff1111")
+    if rc == 0 or "servizio di Claude non parte su Rotto" not in d.get("errore", ""):
+        return f"apri su Rotto senza servizio non dà errore: rc {rc}, {d}"
+    rc, d, ch = lancia("apri", "Torre", "ffff1111", "--riavvia")
+    if rc != 0 or d != {"ok": True, "riavviata": True} or len(riavvii(ch)) != 1:
+        return f"apri --riavvia su Torre: rc {rc}, {d}, {riavvii(ch)}"
+    if riavvii(ch)[0][-3:] != ["claude", "respawn", "ffff1111"] or ch.index(riavvii(ch)[0]) < ch.index(servizi(ch)[0]):
+        return f"apri --riavvia non accende il servizio prima di claude respawn: {ch}"
+    rc, d, ch = lancia("apri", "Rotto", "ffff1111", "--riavvia")
+    if rc == 0 or "non si riavvia" not in d.get("errore", "") or riavvii(ch):
+        return f"apri --riavvia senza servizio: rc {rc}, {d}, {riavvii(ch)}"
+    for strano in (["Torre", "--all"], ["Torre", "abcd;rm -rf"], ["Torre"], ["Torre", "ffff1111", "altro"]):
+        rc, d, ch = lancia("apri", *strano)
+        if rc == 0 or ch:
+            return f"apri {strano} non rifiutato, o lanciato lo stesso: rc {rc}, {d}"
+    # i tasti: la scheda nuova è una sessione di Claude
+    vc = repo / "shared/volta-celeste"
+    if leggi(vc / "keys.json").get("global", {}).get("cmd-t") != "arturo.volta-nuova":
+        return "keys.json non lega cmd-t alla scheda nuova di Volta"
+    if leggi(vc / "keys-ctrl.json").get("global", {}).get("ctrl-shift-t") != "arturo.volta-nuova":
+        return "keys-ctrl.json non lega ctrl-shift-t alla scheda nuova di Volta"
+    for nome, prima, atteso in (("di Herdr", "tab.new", "arturo.volta-nuova"), ("della persona", "pane.split:right", "pane.split:right")):
+        sotto = casa / f"tasti-{atteso[:4]}"
+        (sotto / "app").mkdir(parents=True)
+        (sotto / "app" / "keys.json").write_text(json.dumps({"global": {"cmd-t": prima, "cmd-o": "tab.new"}}), encoding="utf-8")
+        r = installa(repo, sotto, "mac-arm", {"ARTURO_HERDR_FIRMA": "presente"})
+        if r.returncode != 0:
+            return f"installazione fallita: {(r.stdout + r.stderr)[-200:]}"
+        avuti = leggi(sotto / "app" / "keys.json")["global"]
+        if avuti.get("cmd-t") != atteso:
+            return f"cmd-t {nome} ({prima}) diventa {avuti.get('cmd-t')}, atteso {atteso}"
+        if avuti.get("cmd-o") != "tab.new":
+            return "l'installazione si prende un tasto che non è la scheda nuova"
+    barra = (mod / "barra.js").read_text(encoding="utf-8")
+    if 'else if (c === "volta-nuova") await nuovaScheda();' not in barra:
+        return "barra.js non porta arturo.volta-nuova a nuovaScheda()"
+    if barra.index('c === "volta-nuova"') > barra.index('c.startsWith("volta-")) this.volta.premiId('):
+        return "barra.js: volta-nuova finisce nel clic su una sessione, che viene prima"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -3039,7 +3287,7 @@ VELENI = [
     ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'subprocess.Popen([cl, "daemon", "run"], cwd=casa, start_new_session=True, **nulla)\n        come = "staccato"\nelif', 'subprocess.Popen([cl, "daemon", "run"], cwd=casa, **nulla)\n        come = "staccato"\nelif'),
     ("HZ41", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        return {"errore": d.get("errore") or "acceso con hc run, ma non risponde ancora"}', '        return {"come": "terminale di Herdr"}'),
     ("HZ01", "shared/volta-celeste/installa-herdr.sh", '"frame.welcomed": "skipped"', '"frame.welcomed": "finished"'),
-    ("HZ02", "shared/volta-celeste/installa-herdr.sh", "if k in mia and mia[k] != v:", "if False:"),
+    ("HZ02", "shared/volta-celeste/installa-herdr.sh", "if k in mia and mia[k] != v and mia[k] != PRENDE.get(v):", "if False:"),
     ("HZ03", "shared/volta-celeste/installa-herdr.sh", 'Arturo funziona lo stesso nel Terminale."; exit 0 ;;', 'Arturo funziona lo stesso nel Terminale." ;;'),
     ("HZ04", "hooks/herdr-stato.sh", '[ -n "${HC_TERMINAL_ID:-}" ] || exit 0', ":"),
     ("HZ05", "settings.json", "herdr-stato.sh done", "herdr-stato.sh idle"),
@@ -3152,7 +3400,7 @@ VELENI = [
     ("HZ38", "shared/volta-celeste/volta-claude.ps1", "$_ -and $_ -notmatch '^Starting background service'", "$_"),
     ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", "\n        if rc != 0 and (non_parte(out, err) or rc == 9009):", "\n        if True:"),  # quella di nasci, non di servizio
     ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        argv = hc() + ["exec", "--on", nome, "--timeout", str(ATTESA_AZIONE - 5), "claude", verbo, sid]', '        argv = hc() + ["exec", nome, "--timeout", str(ATTESA_AZIONE - 5), "claude", verbo, sid]'),
-    ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z-]{3,63}", sid or ""):', "if False:"),
+    ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    if not ID.fullmatch(sid or ""):  # mai', "    if False:  # mai"),
     ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    if verbo not in VERBI:", "    if False:"),
     ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", '            if fin == "G":\n                c = n - 1', '            if fin == "G":\n                pass'),
     ("HZ40", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    fuori = (\"Checking for updates\",)", "    fuori = (\"zzz\",)"),
@@ -3165,8 +3413,8 @@ VELENI = [
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return nasciSu(soloQui ? "qui" : dove(), prompt, null);', 'return nasciSu(dove(), prompt, null);'),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return typeof d === "string" && altreMacchine().some((m) => m.host === d) ? d : "qui";', 'return typeof d === "string" && d ? d : "qui";'),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return nasciSu(dove(), prompt, nome);', 'return nasciSu("qui", prompt, nome);'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'aggancia({ id: esito.id, sessionId: esito.sessionId, nome, progetto, questa: macchina === "qui" }, esito.attach);', ""),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'questa: macchina === "qui" }, esito.attach);', 'questa: macchina === "qui", cartella: "/base" }, esito.attach);'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'const v = await apriSessione({ id: esito.id, sessionId: esito.sessionId, nome, progetto, questa: macchina === "qui", host: macchina }, esito.attach, true);', "const v = {};"),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'questa: macchina === "qui", host: macchina }, esito.attach, true);', 'questa: macchina === "qui", cartella: "/base", host: macchina }, esito.attach, true);'),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return s.status ?? statoAgganciata(schedaAgganciata(s));', 'return s.status ?? null;'),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return s.status ?? statoAgganciata(schedaAgganciata(s));', 'return statoAgganciata(schedaAgganciata(s)) ?? s.status;'),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'if (v?.host === "qui") out[id] = v.stato;', 'out[id] = v.stato;'),
@@ -3236,6 +3484,32 @@ VELENI = [
     ("HZ51", "shared/volta-celeste/mods/arturo/sessioni.js", "const recente = (g) => Math.max(0, ...g.sessioni.map(tempo));", "const recente = (g) => Math.min(...g.sessioni.map(tempo));"),
     ("HZ51", "shared/volta-celeste/mods/arturo/volta_sonda.py", '"ultimo": s.get("ultimo") or nascita(s),', '"ultimo": s.get("ultimo") or "",'),
     ("HZ51", "shared/volta-celeste/mods/arturo/volta_sonda.py", "time.gmtime(t / 1000))", "time.gmtime(t))"),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'const etichetta = l.filter((x) => x.labels?.[ETICHETTA] === s.id);', 'const etichetta = [];'),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'for (const x of schede) if (!(await nuda(x.address))) { scheda = x; break; }', 'for (const x of schede) { scheda = x; break; }'),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'f.pid === d.pid && JSON.stringify(f.argv) !== JSON.stringify(d.argv);', 'f.pid === d.pid;'),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'const a = await prepara(s, s.stato === "errore");', 'const a = await prepara(s, false);'),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '  if (!pronta) {', '  if (true) {'),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '    if (a.errore) return { errore: `Non la apro: ${a.errore}.` };\n', ''),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '  if (riavviata) return fallita;\n', ''),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '  if (!(await nuda(indirizzo))) return {};\n  const fallita', '  const fallita'),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '    run("space.select", { id: sp.id });\n    run("tab.new", { name: nome, space: sp.id, folder: cartella, argv });', '    const tab = sp.tabs.find((tb) => tb.name === nome);\n    if (tab) return run("tab.select", { id: tab.id });\n    run("tab.new", { name: nome, space: sp.id, folder: cartella, argv });'),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '(/^[\\w@%+=:,./-]+$/.test(String(a)) ? String(a)', '(true ? String(a)'),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'slug(s.name) !== "volta" ? slug(s.name) : null;', 'slug(s.name) !== "volta" ? slug(s.name) : slug(s.name);'),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', '    if (scheda) await etichetta(scheda, s);\n  }\n  return { come: rilancia', '  }\n  return { come: rilancia'),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'const r = await hc(["send", scheda.address, comando(argv)]);', 'const r = { code: 0 };'),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/dati.js', 'return nasciSu(dove(), "", progetto, "Nuova sessione");', 'return nasciSu(dove(), "", progetto);'),
+    ('HZ52', 'shared/volta-celeste/mods/arturo/volta.js', '      if (v?.errore) this.avvisa(s, v.errore, cx);\n', ''),
+    ('HZ19', 'shared/volta-celeste/mods/arturo/volta.js', 'if (d.azione === "aggancia") return this.apri(s, d.argv, false, cx);', 'if (d.azione === "aggancia") return this.apri(s, d.argv, true, cx);'),
+    ('HZ53', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    if riavvia:\n        r = azione(nome, "respawn", sid)', '    if False:\n        r = azione(nome, "respawn", sid)'),
+    ('HZ53', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    if ID.fullmatch(sid or "") is None:', '    if False:'),
+    ('HZ53', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        return {"ok": True, "riavviata": True}\n    s = servizio(nome)', '        return {"ok": True, "riavviata": True}\n    s = {}'),
+    ('HZ53', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        if not r.get("ok"):\n            return {"errore": "non si riavvia: %s"', '        if False:\n            return {"errore": "non si riavvia: %s"'),
+    ('HZ53', 'shared/volta-celeste/keys.json', '"cmd-t": "arturo.volta-nuova"', '"cmd-y": "arturo.volta-nuova"'),
+    ('HZ53', 'shared/volta-celeste/keys-ctrl.json', '"ctrl-shift-t": "arturo.volta-nuova"', '"ctrl-shift-y": "arturo.volta-nuova"'),
+    ('HZ53', 'shared/volta-celeste/installa-herdr.sh', 'if k in mia and mia[k] != v and mia[k] != PRENDE.get(v):', 'if k in mia and mia[k] != v:'),
+    ('HZ53', 'shared/volta-celeste/installa-herdr.sh', 'mia[k] != PRENDE.get(v):', 'v not in PRENDE:'),
+    ('HZ53', 'shared/volta-celeste/mods/arturo/barra.js', '        else if (c === "volta-nuova") await nuovaScheda();\n', ''),
+    ('HZ22', 'shared/volta-celeste/installa-herdr.sh', 'PRENDE = {"arturo.volta-nuova": "tab.new"}', 'PRENDE = {}'),
 ]
 
 

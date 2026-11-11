@@ -3,7 +3,7 @@
 import { div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, window, shared, setShared, nextCommand, updates } from "herdr";
-import { todo, progetti, sezioni, frase, apri, nuova, slug, cartelle, statiQui, SUGGERIMENTI } from "./dati.js";
+import { todo, progetti, sezioni, frase, apri, nuova, nuovaScheda, slug, cartelle, statiQui, SUGGERIMENTI } from "./dati.js";
 import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco, nasceSu, tasti } from "./comuni.js";
 import { APERTE } from "./nota.js";
 import { apriGuida } from "./guida.js";
@@ -60,6 +60,8 @@ export class Barra {
         else if (c === "note") apriElenco();
         // "arturo.volta-gruppi-<macchina|progetto>": l'interruttore dell'elenco, da herdr-app do.
         else if (c === "volta-gruppi-macchina" || c === "volta-gruppi-progetto") setShared("arturo.volta.gruppi", c.slice(13));
+        // "arturo.volta-nuova": la scheda nuova (⌘T) è una sessione di Claude, non una shell (#5290).
+        else if (c === "volta-nuova") await nuovaScheda();
         // "arturo.volta-altro-<id>" e "arturo.volta-gesto-<verbo>-<id>": "Altro" e un suo bottone.
         else if (c.startsWith("volta-altro-")) this.volta.altroId(c.slice(12), cx);
         else if (/^volta-gesto-[a-z]+-/.test(c)) { const [, verbo, id] = c.match(/^volta-gesto-([a-z]+)-(.+)$/); this.volta.gestoId(verbo, id, cx); }

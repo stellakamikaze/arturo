@@ -15,6 +15,10 @@ distribuire (#5172, 10/11/2026).
       un gesto su una sessione in background. logs: le ultime righe dello schermo, per chi non ha
       trascrizione. respawn (Riavvia) accende prima il servizio di Claude su MACCHINA, come nasci: il
       processo nuovo nasce da lì (#5215). stop, rm e logs non fanno nascere processi e non lo toccano.
+  python3 volta_sonda.py apri MACCHINA ID [--riavvia]
+      prepara l'aggancio di una sessione in background: accende il servizio di Claude su MACCHINA, così
+      claude attach trova chi tiene la sessione; con --riavvia fa prima claude respawn (una sessione in
+      errore, o una che attach non riapre). Stampa {ok, riavviata} oppure {errore} (#5290).
   python3 volta_sonda.py servizio MACCHINA
       accende il servizio di Claude (claude daemon run) su MACCHINA se manca, dove sopravvive: il
       LaunchAgent di servizi-gui.sh o l'attività di servizio-claude.ps1 se ci sono; altrimenti staccato,
@@ -688,6 +692,7 @@ def schermo(testo, quante=12):
 
 
 VERBI = ("logs", "stop", "respawn", "rm")
+ID = re.compile(r"[0-9A-Za-z][0-9A-Za-z-]{3,63}")
 
 
 def azione(nome, verbo, sid):
@@ -700,7 +705,7 @@ def azione(nome, verbo, sid):
     fanno nascere processi: non lo toccano."""
     if verbo not in VERBI:
         return {"errore": "azione sconosciuta: %s" % verbo}
-    if not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z-]{3,63}", sid or ""):  # mai un'opzione come --all
+    if not ID.fullmatch(sid or ""):  # mai un'opzione come --all
         return {"errore": "id di sessione non valido"}
     if nome in (None, "", "qui"):
         argv = [shutil.which("claude") or "claude", verbo, sid]
@@ -721,6 +726,27 @@ def azione(nome, verbo, sid):
         return {"righe": schermo(out)}
     testo = (out or err).strip()
     return {"ok": True, "testo": testo.splitlines()[-1][:200] if testo else ""}
+
+
+def apri(nome, sid, riavvia=False):
+    """Prepara l'aggancio della sessione `sid` di `nome` ("qui" = questa macchina), prima di claude attach.
+
+    claude attach riapre da solo una sessione finita o fermata (done, stopped), ma gli serve il servizio
+    di Claude: senza, lo farebbe nascere a tempo, e da ssh morirebbe con la connessione lasciando nella
+    scheda una shell vuota. Quindi qui il servizio si accende dove sopravvive, come per nasci. Con
+    `riavvia` la sessione riparte prima con claude respawn (azione, che accende lei il servizio): serve
+    dopo un errore (failed, crashed) e quando attach è uscito subito."""
+    if ID.fullmatch(sid or "") is None:
+        return {"errore": "id di sessione non valido"}
+    if riavvia:
+        r = azione(nome, "respawn", sid)
+        if not r.get("ok"):
+            return {"errore": "non si riavvia: %s" % (r.get("errore") or "nessuna risposta")}
+        return {"ok": True, "riavviata": True}
+    s = servizio(nome)
+    if s.get("errore"):
+        return {"errore": "il servizio di Claude non parte su %s: %s" % (nome or "questa macchina", s["errore"])}
+    return {"ok": True, "riavviata": False, "servizio": s.get("come")}
 
 
 def main_nasci(argv):
@@ -744,6 +770,14 @@ def main(argv):
             return 2
         esito = servizio(argv[1])
         print(json.dumps(esito, ensure_ascii=False))
+        return 0 if "errore" not in esito else 1
+    if argv and argv[0] == "apri":
+        resto = [a for a in argv[1:] if a != "--riavvia"]
+        if len(resto) != 2:
+            print("uso: volta_sonda.py apri <macchina> <id> [--riavvia]")
+            return 2
+        esito = apri(resto[0], resto[1], "--riavvia" in argv[1:])
+        print(json.dumps(esito, ensure_ascii=True))
         return 0 if "errore" not in esito else 1
     if argv and argv[0] == "azione":
         if len(argv) != 4:

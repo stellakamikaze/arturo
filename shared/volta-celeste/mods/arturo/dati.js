@@ -256,6 +256,15 @@ export async function nuova(prompt, soloQui = false) {
   return nasciSu(soloQui ? "qui" : dove(), prompt, null);
 }
 
+// La scheda nuova (⌘T, comando arturo.volta-nuova): una sessione di Claude vuota, non una shell. Nasce
+// in background sulla macchina di "Nasce su" e si aggancia nello spazio che la persona sta guardando,
+// col suo progetto; dallo spazio "Volta", o senza spazio, nasce senza progetto.
+export async function nuovaScheda() {
+  const s = spaces().find((x) => x.active && !x.machine);
+  const progetto = s?.named && slug(s.name) !== "volta" ? slug(s.name) : null;
+  return nasciSu(dove(), "", progetto, "Nuova sessione");
+}
+
 // Le richieste da imparare: i pulsanti del benvenuto e della finestra "Cosa posso chiedere".
 // dove: "nuova" apre sempre una conversazione nuova; "qui" scrive nella conversazione aperta,
 // e senza conversazione ne apre una; "apri" apre la finestra dei progetti.
@@ -309,22 +318,134 @@ export function mostra(indirizzo) {
   return true;
 }
 
-// La scheda che aggancia una sessione: se c'è già la si porta davanti, altrimenti nasce nello spazio del
-// progetto (lo stesso della barra) o nello spazio "Volta" per le sessioni senza progetto. La usano il
-// clic su una sessione di Volta e la nascita su un'altra macchina.
+// L'etichetta di Herdr sul terminale che aggancia una sessione (hc label): il suo id, quello di claude
+// attach. Con l'argv dice di chi è una scheda; il nome della scheda no, perché due schede possono
+// chiamarsi uguale e una rinominata cambia nome (#5290).
+export const ETICHETTA = "arturo.sessione";
+
+// Un argv come riga di comando per la shell di una scheda: fra apici ciò che non è una parola semplice.
+export const comando = (argv) => (argv ?? []).map((a) => (/^[\w@%+=:,./-]+$/.test(String(a)) ? String(a) : `'${String(a).replace(/'/g, `'\\''`)}'`)).join(" ");
+
+// I terminali che agganciano la sessione e che un pannello mostra: per etichetta, poi per argv.
+export function schedeDi(s) {
+  if (!s?.id) return [];
+  const visti = new Set(panes().map((p) => p.terminal));
+  const l = terminals().filter((x) => visti.has(x.address));
+  const etichetta = l.filter((x) => x.labels?.[ETICHETTA] === s.id);
+  return etichetta.concat(l.filter((x) => !etichetta.includes(x) && agganciata(x.argv, s)));
+}
+
+// La scheda è rimasta con la shell nuda: claude attach è uscito (sessione fermata altrove, connessione
+// caduta, servizio spento) e Herdr ha lasciato la shell che lo aveva lanciato. Si riconosce dal programma
+// in primo piano: è la shell del terminale (stesso pid) e non ha più l'argv con cui è nata, cioè ha già
+// passato il comando. Mentre la shell si sta ancora avviando l'argv è quello di nascita: non è nuda.
+// Su Windows la shell non cambia argv: lì una scheda non risulta mai nuda, e resta com'è.
+export async function nuda(indirizzo) {
+  try {
+    const r = await hc(["get", indirizzo, "--json"]);
+    if (r.code !== 0) return false;
+    const d = JSON.parse(r.stdout);
+    const f = d.foreground;
+    return d.state === "live" && Boolean(f) && f.pid === d.pid && JSON.stringify(f.argv) !== JSON.stringify(d.argv);
+  } catch {
+    return false;
+  }
+}
+
+async function etichetta(t, s) {
+  if (!t || t.labels?.[ETICHETTA] === s.id) return;
+  try { await hc(["label", t.address, `${ETICHETTA}=${s.id}`]); } catch { /* resta l'argv */ }
+}
+
+// Un'attesa: il mod non ha un orologio fuori da cx.timer, e qui cx non c'è.
+async function pausa(ms) {
+  try {
+    const c = await config();
+    await exec(c.arturo[0], ["-c", "import sys,time;time.sleep(float(sys.argv[1]))", String(ms / 1000)], { timeout: ms + 10000 });
+  } catch { /* senza Python si va avanti senza attesa */ }
+}
+
+// volta_sonda.py apri: il servizio di Claude acceso sulla macchina della sessione, e con `riavvia` la
+// sessione fatta ripartire (claude respawn). { ok, riavviata } oppure { errore }.
+// Attese: ATTESA_SERVIZIO di volta_sonda.py più 30 s; con riavvia anche ATTESA_AZIONE (come Riavvia).
+export async function prepara(s, riavvia = false) {
+  const c = await config();
+  try {
+    const r = await exec(c.arturo[0], [c.volta, "apri", s.host ?? "qui", s.id, ...(riavvia ? ["--riavvia"] : [])], { timeout: riavvia ? 210000 : 150000 });
+    return JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
+  } catch (e) {
+    return { errore: `${s.macchina ?? nomeMacchina(s.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
+  }
+}
+
+// La scheda nuova che aggancia una sessione: nello spazio del progetto (lo stesso della barra) o nello
+// spazio "Volta" per le sessioni senza progetto. Mai una scheda ritrovata per nome: quella la cerca
+// apriSessione, per etichetta e per argv.
 export function aggancia(s, argv) {
   const nome = titolo(s).slice(0, 40);
-  const gia = terminals().find((x) => agganciata(x.argv, s));
-  if (gia && mostra(gia.address)) return;
   const nomeSpazio = s.progetto ? slug(s.progetto) : "Volta";
   const sp = spaces().find((x) => !x.machine && slug(x.name) === slug(nomeSpazio));
   const cartella = s.questa && s.cartella ? s.cartella : home();
   if (sp) {
-    const tab = sp.tabs.find((tb) => tb.name === nome);
     run("space.select", { id: sp.id });
-    if (tab) return run("tab.select", { id: tab.id });
     run("tab.new", { name: nome, space: sp.id, folder: cartella, argv });
   } else run("space.new", { name: nomeSpazio, folder: cartella, machine: "", tab: nome, argv });
+}
+
+// Quanto si aspetta prima di guardare se claude attach è rimasto in piedi nella scheda (veglia).
+const VEGLIA = 6000;
+
+// Apre una sessione in una scheda con Claude dentro (#5290). La usano il clic di Volta, la sessione
+// spostata da un Terminale e quella appena nata (`pronta`: il servizio è già acceso, niente prepara).
+// - La scheda c'è e Claude gira: la porta davanti e basta.
+// - La scheda c'è ma è rimasta la shell nuda: accende il servizio e rilancia claude attach lì dentro.
+// - La scheda non c'è: accende il servizio e la crea.
+// Una sessione in errore riparte prima con claude respawn. Torna { errore } se non si può aprire,
+// altrimenti { come: "davanti" | "rilanciata" | "nuova", veglia }: `veglia` è la promessa che guarda,
+// dopo qualche secondo, se Claude è rimasto nella scheda. Se è uscito subito riavvia la sessione, una
+// volta sola, e rilancia l'aggancio; se esce ancora torna { errore }.
+export async function apriSessione(s, argv, pronta = false) {
+  const schede = schedeDi(s);
+  let scheda = null, rilancia = false;
+  for (const x of schede) if (!(await nuda(x.address))) { scheda = x; break; }
+  if (scheda) {
+    await etichetta(scheda, s);
+    mostra(scheda.address);
+    return { come: "davanti" };
+  }
+  if (schede.length) { scheda = schede[0]; rilancia = true; }
+  let riavviata = false;
+  if (!pronta) {
+    const a = await prepara(s, s.stato === "errore");
+    if (a.errore) return { errore: `Non la apro: ${a.errore}.` };
+    // conta il riavvio chiesto, non la risposta: la veglia non deve mai riavviare due volte
+    riavviata = s.stato === "errore";
+  }
+  if (rilancia) {
+    mostra(scheda.address);
+    const r = await hc(["send", scheda.address, comando(argv)]);
+    if (r.code !== 0) return { errore: "Non riesco a rilanciare Claude nella sua scheda: chiudi la scheda e riprova." };
+    await etichetta(scheda, s);
+  } else {
+    aggancia(s, argv);
+    // run() non dice quale terminale ha creato: lo si cerca per argv appena Herdr lo elenca.
+    for (let i = 0; i < 10 && !scheda; i++) { scheda = schedeDi(s)[0] ?? null; if (!scheda) await pausa(400); }
+    if (scheda) await etichetta(scheda, s);
+  }
+  return { come: rilancia ? "rilanciata" : "nuova", riavviata, veglia: scheda ? veglia(s, argv, scheda.address, riavviata) : Promise.resolve({}) };
+}
+
+async function veglia(s, argv, indirizzo, riavviata) {
+  await pausa(VEGLIA);
+  if (!(await nuda(indirizzo))) return {};
+  const fallita = { errore: "Claude non resta aperto in questa sessione: riprova, oppure eliminala da Altro." };
+  if (riavviata) return fallita;
+  const a = await prepara(s, true);
+  if (a.errore) return { errore: `Claude non si riapre: ${a.errore}.` };
+  const r = await hc(["send", indirizzo, comando(argv)]);
+  if (r.code !== 0) return fallita;
+  await pausa(VEGLIA);
+  return (await nuda(indirizzo)) ? fallita : { riavviata: true };
 }
 
 // Il nome di una macchina di "Nasce su" per le persone: "qui" è questa macchina.
@@ -334,7 +455,7 @@ export const nomeMacchina = (m) => (m === "qui" ? "questa macchina" : m);
 // qui in una scheda: continua a girare anche chiusa la scheda, e Volta la apre da ogni macchina. Anche
 // qui nasce in background (#5072): lo stato in barra lo dà Volta (statoSpazio).
 // Durante la nascita shared arturo.nascita dice dove, per la riga "Nasce su".
-async function nasciSu(macchina, prompt, progetto) {
+async function nasciSu(macchina, prompt, progetto, nomeScheda = null) {
   if (shared("arturo.nascita")) return;
   setShared("arturo.nascita", macchina);
   try {
@@ -351,9 +472,11 @@ async function nasciSu(macchina, prompt, progetto) {
       esito = { errore: `${nomeMacchina(macchina)} non ha risposto in 6 minuti: se la sessione è nata, la trovi fra le sessioni` };
     }
     if (esito.attach?.length) {
-      const nome = progetto ?? (prompt ? pulito(prompt) : `Richiesta su ${nomeMacchina(macchina)}`);
+      const nome = nomeScheda ?? progetto ?? (prompt ? pulito(prompt) : `Richiesta su ${nomeMacchina(macchina)}`);
       // La scheda parte dalla home anche qui: claude attach non ha bisogno della cartella della sessione.
-      aggancia({ id: esito.id, sessionId: esito.sessionId, nome, progetto, questa: macchina === "qui" }, esito.attach);
+      const v = await apriSessione({ id: esito.id, sessionId: esito.sessionId, nome, progetto, questa: macchina === "qui", host: macchina }, esito.attach, true);
+      // la veglia non tiene occupata la nascita: se Claude non resta nella scheda arriva un avviso
+      v.veglia?.then((x) => { if (x?.errore) notify({ title: "La sessione nuova non resta aperta", body: x.errore, level: "warning" }); });
     } else notify({ title: `La sessione non nasce su ${nomeMacchina(macchina)}`, body: esito.errore ?? "Nessuna risposta.", level: "error" });
   } finally {
     setShared("arturo.nascita", null);
