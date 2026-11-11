@@ -265,8 +265,9 @@ _WRITE_BINS = frozenset("tee cp mv install rsync ln dd truncate touch".split())
 # --- File di unlock che sbloccherebbero l'auto-modifica di config/hook -> ask ---
 # Solo la CREAZIONE del file (redirezione, touch, tee, open in scrittura) e solo direttamente
 # in ~/.claude, dove protect_claude_md.py lo cerca. Leggere una nota che ha "unlock" nel nome
-# non sblocca niente (8/9/2026, nella config dell'autore). cp, mv e ln: _writes_config(_is_unlock).
-UNLOCK_RE = _riserva("sblocco", r"(?:>>?\s*|\b(?:touch|tee)\b[^|;&]*){p}", "wax")
+# non sblocca niente (8/9/2026, nella config dell'autore). cp, mv e ln, anche verso la cartella, e mkdir:
+# _writes_config(_is_unlock, crea=True) (#5261).
+UNLOCK_RE = _riserva("sblocco", r"(?:>>?\s*|\b(?:touch|tee|mkdir)\b[^|;&]*){p}", "wax")
 
 # --- Lettura di file segreti via shell -> ask (vedi _reads_secret sotto) ---
 # In ~/.ssh/ chiedono le chiavi private e i file sconosciuti. config, known_hosts,
@@ -855,79 +856,68 @@ def _is_unlock(p):
     return _protetto("sblocco", p)
 
 
-_FINE_PAROLA = frozenset(" \t\r\n;&|<>()")
-
-
-def _parola_shell(seg, i):
-    """(parola, indice dopo) dalla posizione i: pezzi senza virgolette, '...' letterale e "..." con le
-    regole di bash, anche concatenati (`"$HOME"/.claude/x`). Le variabili restano scritte."""
-    parti, n = [], len(seg)
-    while i < n and seg[i] not in _FINE_PAROLA:
-        c = seg[i]
-        if c == "'":
-            j = seg.find("'", i + 1)
-            j = n if j < 0 else j
-            parti.append(seg[i + 1:j])
-            i = j + 1
-        elif c == '"':
-            i += 1
-            while i < n and seg[i] != '"':
-                if seg[i] == "\\" and i + 1 < n and seg[i + 1] in '$`"\\\n':
-                    parti.append(seg[i + 1])
-                    i += 2
-                    continue
-                parti.append(seg[i])
-                i += 1
-            i += 1
-        elif c == "\\" and i + 1 < n:
-            parti.append(seg[i + 1])
-            i += 2
-        else:
-            parti.append(c)
-            i += 1
-    return "".join(parti), i
+_parola_shell = _fc.parola_shell
 
 
 def _bersagli_redirezione(seg):
-    """I file scritti dalle redirezioni del segmento: `>`, `>>`, `>|`, `N>`, `&>`, `&>>`, con il bersaglio
-    anche fra virgolette. `>&N`, `>&-` e `>(...)` non scrivono un file. Prima la regex si fermava alla
-    virgoletta, e `echo x > "$HOME/.claude/settings.json"` passava senza conferma (#5096)."""
-    out, i, n, q = [], 0, len(seg), None
-    while i < n:
-        c = seg[i]
-        if q == "'":
-            q = None if c == "'" else q
-            i += 1
-            continue
-        if c == "\\" and i + 1 < n:
+    """I file scritti dalle redirezioni del segmento: `>`, `>>`, `>|`, `N>`, `&>`, `&>>`, `<>` e `>&file`,
+    con il bersaglio anche fra virgolette o attaccato alla parola. `>&N`, `>&-` e `>(...)` non scrivono un
+    file. Lo scanner è `redirezioni` di forma_comando.py, lo stesso del ramo memoria (#5096, #5261)."""
+    return [b for tipo, b in _fc.redirezioni(seg) if tipo == "scrive" and b]
+
+
+# cp, mv, install, ln e rsync verso una cartella scrivono `cartella/nome-della-sorgente`: senza giudicare
+# quel percorso, `cp /tmp/config-unlock-x ~/.claude/` creava lo sblocco senza conferma e
+# `cp /tmp/x/settings.json ~/.claude/` riscriveva la config (review del 10/11/2026, #5261).
+_COPIANO = frozenset("cp mv install ln rsync".split())
+
+
+def _dentro_la_cartella(cmd0, toks, base_cwd):
+    """I percorsi `destinazione/nome-sorgente` che cp, mv, install, ln e rsync scrivono quando la
+    destinazione è una cartella: finisce con `/`, esiste come cartella, arriva da -t, o le sorgenti
+    sono più di una. `ln` con un solo argomento crea il link nella cartella corrente."""
+    liberi, cartella, i = [], None, 1
+    while i < len(toks):
+        t = toks[i]
+        if t in ("-t", "--target-directory") and i + 1 < len(toks):
+            cartella = toks[i + 1]
             i += 2
             continue
-        if q == '"':
-            q = None if c == '"' else q
-            i += 1
-            continue
-        if c in "'\"":
-            q = c
-            i += 1
-            continue
-        if c != ">":
-            i += 1
-            continue
+        if t.startswith("--target-directory="):
+            cartella = t.partition("=")[2]
+        elif not t.startswith("-"):
+            liberi.append(t)
         i += 1
-        if seg[i:i + 1] in (">", "|"):
-            i += 1
-        if seg[i:i + 1] == "&" or seg[i:i + 1] == "(":
-            i += 1
+    if cartella is not None:
+        sorgenti = liberi
+    elif cmd0 == "ln" and len(liberi) == 1:
+        cartella, sorgenti = ".", liberi
+    elif len(liberi) >= 2:
+        cartella, sorgenti = liberi[-1], liberi[:-1]
+        risolta = _resolve(cartella, base_cwd)
+        if not (len(sorgenti) > 1 or cartella.endswith(("/", "\\", "/.")) or cartella in (".", "..")
+                or (risolta and os.path.isdir(risolta))):
+            return []
+    else:
+        return []
+    out = []
+    for sorgente in sorgenti:
+        # `cp -R src/. dest/` e `rsync src/ dest/` copiano il contenuto: contano i nomi dentro la sorgente.
+        if sorgente in (".", "..") or sorgente.endswith(("/.", "\\.")) or (
+                cmd0 == "rsync" and sorgente.endswith(("/", "\\"))):
+            try:
+                dentro = os.listdir(_resolve(sorgente, base_cwd) or "")[:500]
+            except OSError:
+                dentro = []
+            out.extend(os.path.join(cartella, nome) for nome in dentro)
             continue
-        while i < n and seg[i] in " \t":
-            i += 1
-        parola, i = _parola_shell(seg, i)
-        if parola:
-            out.append(parola)
+        nome = os.path.basename(sorgente.rstrip("/\\"))
+        if nome and nome not in (".", ".."):
+            out.append(os.path.join(cartella, nome))
     return out
 
 
-def _writes_config(command, cwd, protetto=None, sed=True, cancella=False):
+def _writes_config(command, cwd, protetto=None, sed=True, cancella=False, crea=False):
     """Copre `cd ~/.claude/hooks && > file` (target relativo dopo un cd): il match
     testuale di CONFIG_WRITE_RE vede solo i path assoluti che contengono `.claude/`.
     Qui si traccia il cd per segmento e si risolve il target reale del redirect/binario.
@@ -935,7 +925,8 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False):
     percorso risolto (_is_persistenza, _is_unlock, o una lambda sui CLAUDE.md).
     Con `cancella` contano anche rm, unlink e shred: senza settings.json cadono deny e hook alla
     ricarica (finding 11). I wrapper davanti (`command cp`, `sudo tee`) si saltano, e perl -i
-    scrive come sed -i."""
+    scrive come sed -i. Con `crea` conta anche mkdir: serve alla regola sblocco, dove una cartella
+    col nome dello sblocco non deve nascere senza conferma (#5261)."""
     protetto = protetto or _under_claude_config
     cwd_decl = None
     for seg in _fc.comandi_semplici(command):
@@ -965,7 +956,12 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False):
         # redirezioni verso un file, anche fra virgolette
         if any(protetto(_resolve(b, base_cwd)) for b in _bersagli_redirezione(seg)):
             return True
-        # binario di scrittura con un target come argomento
+        # binario di scrittura con un target come argomento. Le redirezioni escono dalle parole: in
+        # `cp x ~/.claude/ 2>/dev/null` l'ultimo argomento è la cartella, non `2>/dev/null` (#5261).
+        try:
+            toks = shlex.split(_fc._senza_tratti_redirezione(seg)) or toks
+        except Exception:
+            pass
         toks = _dopo_involucri(toks) or toks
         cmd0 = _fc._nome(toks[0])
         # L'rm ricorsivo ha la sua regola (rm-protetto), col messaggio giusto: qui solo i file singoli.
@@ -982,6 +978,12 @@ def _writes_config(command, cwd, protetto=None, sed=True, cancella=False):
             for t in argomenti:
                 if protetto(_resolve(t, base_cwd)):
                     return True
+        if cmd0 in _COPIANO:
+            if any(protetto(_resolve(t, base_cwd)) for t in _dentro_la_cartella(cmd0, toks, base_cwd)):
+                return True
+        if crea and cmd0 == "mkdir":
+            if any(protetto(_resolve(t, base_cwd)) for t in toks[1:] if not t.startswith("-")):
+                return True
         # sed -i e perl -i sul file
         if sed and ((cmd0 in ("sed", "gsed") and "-i" in seg)
                     or (cmd0 == "perl" and any(re.match(r"^-[a-zA-Z]*i", t) for t in toks[1:]))):
@@ -2087,7 +2089,7 @@ def main() -> int:
         )
 
     # 2b) Creazione di un file di unlock -> ask (sbloccherebbe l'auto-modifica)
-    sblocco = UNLOCK_RE.search(dritto) or "sblocco" in windows or _writes_config(testo, cwd, _is_unlock)
+    sblocco = UNLOCK_RE.search(dritto) or "sblocco" in windows or _writes_config(testo, cwd, _is_unlock, crea=True)
     if sblocco and "claude-md-unlock" in testo and "config-unlock" not in testo:
         return _ask("sblocco-claude-md",
             "Sblocco della modifica di CLAUDE.md per questa sessione: Claude potrà "

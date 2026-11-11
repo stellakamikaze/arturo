@@ -544,6 +544,124 @@ def redirezione(toks, i):
     return passo, (bersaglio if scrive and bersaglio else None)
 
 
+_FINE_PAROLA = frozenset(" \t\r\n;&|<>()")
+
+
+def parola_shell(seg, i):
+    """(parola, indice dopo) dalla posizione i: pezzi senza virgolette, '...' letterale e "..." con le
+    regole di bash, anche concatenati (`"$HOME"/.claude/x`). Le variabili restano scritte."""
+    parti, n = [], len(seg)
+    while i < n and seg[i] not in _FINE_PAROLA:
+        c = seg[i]
+        if c == "'":
+            j = seg.find("'", i + 1)
+            j = n if j < 0 else j
+            parti.append(seg[i + 1:j])
+            i = j + 1
+        elif c == '"':
+            i += 1
+            while i < n and seg[i] != '"':
+                if seg[i] == "\\" and i + 1 < n and seg[i + 1] in '$`"\\\n':
+                    parti.append(seg[i + 1])
+                    i += 2
+                    continue
+                parti.append(seg[i])
+                i += 1
+            i += 1
+        elif c == "\\" and i + 1 < n:
+            parti.append(seg[i + 1])
+            i += 2
+        else:
+            parti.append(c)
+            i += 1
+    return "".join(parti), i
+
+
+def _redirezioni_tratti(seg):
+    """[(tipo, bersaglio, inizio, fine)] di ogni redirezione del testo, letta carattere per carattere fuori
+    dalle virgolette: anche attaccata alla parola (`x>>f`), dove shlex vede una parola sola (review del
+    10/11/2026, #5261). Il tipo è "scrive" (`>`, `>>`, `>|`, `&>`, `N>`, `<>`, e `>&parola` se la parola non
+    è un descrittore), "legge" (`<`) o "processo" (`>(...)`, `<(...)`, senza bersaglio). Heredoc, here-string
+    e copie di descrittori (`2>&1`, `>&-`, `<&3`) occupano il loro tratto col tipo None."""
+    out, i, n, q = [], 0, len(seg), None
+    while i < n:
+        c = seg[i]
+        if q == "'":
+            q = None if c == "'" else q
+            i += 1
+            continue
+        if c == "\\" and i + 1 < n:
+            i += 2
+            continue
+        if q == '"':
+            q = None if c == '"' else q
+            i += 1
+            continue
+        if c in "'\"":
+            q = c
+            i += 1
+            continue
+        if c not in "<>":
+            i += 1
+            continue
+        # Il descrittore davanti (`2>`, `1<>`) o la `&` di `&>` fanno parte della redirezione, se sono una
+        # parola a sé: in `x2>f` il 2 è testo.
+        inizio = i
+        while inizio > 0 and seg[inizio - 1].isdigit():
+            inizio -= 1
+        if inizio < i and inizio > 0 and seg[inizio - 1] not in " \t\r\n;&|()":
+            inizio = i
+        if inizio == i and c == ">" and seg[i - 1:i] == "&" and i >= 1:
+            inizio = i - 1
+        if seg[i + 1:i + 2] == "(":
+            out.append(("processo", "", inizio, i + 2))
+            i += 2
+            continue
+        tipo = "scrive"
+        if c == "<":
+            if seg[i:i + 3] == "<<<":
+                tipo, i = None, i + 3
+            elif seg[i:i + 2] == "<<":
+                tipo, i = None, i + (3 if seg[i + 2:i + 3] == "-" else 2)
+            elif seg[i:i + 2] == "<>":
+                i += 2
+            elif seg[i:i + 2] == "<&":
+                tipo, i = None, i + 2
+            else:
+                tipo, i = "legge", i + 1
+        else:
+            i += 1
+            if seg[i:i + 1] in (">", "|"):
+                i += 1
+            elif seg[i:i + 1] == "&":
+                i += 1
+                tipo = "copia"
+        while i < n and seg[i] in " \t":
+            i += 1
+        parola, i = parola_shell(seg, i)
+        if tipo == "copia":
+            tipo = None if _DESCRITTORE.match(parola) else "scrive"
+        out.append((tipo, parola, inizio, i))
+    return out
+
+
+def redirezioni(seg):
+    """[(tipo, bersaglio)] delle redirezioni che toccano un file o un processo: vedi `_redirezioni_tratti`.
+    Il bersaglio di uno "scrive" o di un "legge" è vuoto se dopo l'operatore non c'è una parola."""
+    return [(t, b) for t, b, _, _ in _redirezioni_tratti(seg) if t]
+
+
+def _senza_tratti_redirezione(seg):
+    """Il testo con uno spazio al posto di ogni redirezione: restano il programma e i suoi argomenti."""
+    out, da = [], 0
+    for _, _, a, b in _redirezioni_tratti(seg):
+        out.append(seg[da:a])
+        out.append(" ")
+        da = b
+    out.append(seg[da:])
+    return "".join(out)
+
+
 # --- Variabili del comando (19/10/2026) ---
 # `SP=/private/tmp/x; python3 $SP/hook.py`: la variabile assegnata nel comando stesso si
 # espande, poi quella dell'ambiente. Le stesse regole di block-dangerous.py, copiate qui
@@ -589,20 +707,43 @@ def _espandi_variabili(t: str, assegnate: dict):
 # Claude Code chiede conferma a ogni scrittura via shell sotto ~/.claude, anche per
 # salvare un handoff o una memoria. Il ramo approva da solo SOLO questi comandi:
 #   - ogni percorso ~/.claude nominato sta in data/handoffs/ o in projects/<p>/memory/;
-#   - ogni file scritto (redirezione, tee, touch, mkdir, destinazione di cp e mv) sta lì;
-#   - i programmi sono di una lista breve, senza rete, senza cancellazioni, senza shell;
+#   - ogni redirezione, in scrittura e in lettura, punta lì o a /dev/null. Le redirezioni si leggono
+#     dal testo, carattere per carattere: `x>>file` e `1<>file` scrivono come `x >> file`;
+#   - ogni file che un programma legge o scrive sta lì: anche le sorgenti di cp, mv e cat, perché
+#     `mv ~/.ssh <zona>` distrugge la sorgente e `cat ~/.netrc > <zona>` la copia;
+#   - i programmi sono di una lista breve, senza rete, senza cancellazioni, senza shell, scritti come
+#     prima parola (niente sudo, env, `!`) e con le sole opzioni di un elenco chiuso;
+#   - un `cd` vale solo se la shell lo applica di sicuro: seguito da `&&`, fuori da subshell, gruppi,
+#     pipe e background;
 #   - nel testo eseguito non compaiono settings, hooks, unlock, CLAUDE.md, credenziali,
 #     variabili (tranne HOME), sostituzioni $( ) o percorsi con `..`.
 # Settings, hook e file di unlock restano fuori per costruzione: un comando che li nomina,
 # anche spezzato dalle virgolette, non riceve mai l'allow e passa dal flusso normale.
+# Un allow salta ogni altro controllo, classificatore compreso: nel dubbio il ramo non approva, e il
+# comando torna al flusso normale dei permessi (review del 10/11/2026, #5261).
 _PROG_MEMORIA = frozenset(
     "mkdir cat printf echo tee cp mv touch ls head tail wc grep sort diff date test [ true cd stat "
     "find basename dirname".split())
-_SCRIVONO_MEMORIA = frozenset("tee touch mkdir".split())
+# Programmi che non aprono i file che nominano: stampano, calcolano o guardano solo se un file c'è.
+_SENZA_FILE_MEMORIA = frozenset("printf echo date test [ true basename dirname".split())
+# Elenco chiuso delle opzioni corte, per programma: (lettere ammesse, lettere che prendono un valore). Ogni
+# altra opzione, e ogni opzione lunga fuori da _LUNGHE_MEMORIA, toglie l'allow: `sort -o`, `cp -t`,
+# `diff --from-file=` scrivono o leggono un file che gli argomenti liberi non mostrano (#5261).
+_OPZIONI_MEMORIA = {
+    "mkdir": ("pvm", "m"), "cat": ("nbsvetA", ""), "tee": ("ai", ""), "cp": ("pfvnRra", ""),
+    "mv": ("fvn", ""), "touch": ("acm", ""), "ls": ("laAhtr1dFGSRp", ""), "head": ("ncq", "nc"),
+    "tail": ("ncq", "nc"), "wc": ("lwcm", ""), "sort": ("rnufbdkt", "kt"),
+    "grep": ("rRnlLicvHhowEFqsxeABCmf", "eABCmf"), "diff": ("uqrNwbBiU", "U"), "stat": ("fcLx", "fc"),
+}
+_LUNGHE_MEMORIA = {"grep": ("--include=", "--exclude=", "--exclude-dir=", "--color=")}
 _PAROLE_VIETATE = re.compile(
     r"settings|hooks|unlock|\.claude\.json|claude(\.local)?\.md|credential|secret|token|personale",
     re.IGNORECASE)
 _MENZIONE_MEMORIA = re.compile(r"(~|\$HOME|\$\{HOME\}|/[^\s;&|()<>]*)/\.claude(?![\w.-])(/[^\s;&|()<>]*)?")
+
+
+def _parti_zona(q: str, radice: str):
+    return os.path.relpath(q, radice).split(os.sep)
 
 
 def _zona(p: str) -> bool:
@@ -611,12 +752,22 @@ def _zona(p: str) -> bool:
     claude = os.path.normpath(os.path.join(os.path.expanduser("~"), ".claude"))
 
     def dentro(q: str, radice: str) -> bool:
-        parti = os.path.relpath(q, radice).split(os.sep)
+        parti = _parti_zona(q, radice)
         if parti[:2] == ["data", "handoffs"]:
             return True
         return len(parti) >= 3 and parti[0] == "projects" and parti[1] not in ("", ".", "..") and parti[2] == "memory"
 
     return dentro(os.path.normpath(p), claude) and dentro(os.path.realpath(p), os.path.realpath(claude))
+
+
+def _radice_zona(p: str) -> bool:
+    """True per la cartella della zona stessa (data/handoffs o projects/<p>/memory): spostarla la svuota."""
+    for q, radice in ((os.path.normpath(p), os.path.normpath(os.path.join(os.path.expanduser("~"), ".claude"))),
+                      (os.path.realpath(p), os.path.realpath(os.path.join(os.path.expanduser("~"), ".claude")))):
+        parti = _parti_zona(q, radice)
+        if parti == ["data", "handoffs"] or (len(parti) == 3 and parti[0] == "projects" and parti[2] == "memory"):
+            return True
+    return False
 
 
 def _assoluto(parola: str, cwd: str):
@@ -645,6 +796,79 @@ def _senza_redirezioni(toks):
     return parole, bersagli
 
 
+def _percorsi_memoria(prog: str, args):
+    """I file che il programma apre, letti dagli argomenti: tutti devono stare nella zona. None se il
+    comando ha un'opzione fuori dall'elenco chiuso di _OPZIONI_MEMORIA: il ramo non approva."""
+    if prog in _SENZA_FILE_MEMORIA:
+        return []
+    if prog == "find":
+        # Prima i punti di partenza, poi l'espressione: `find -H dir` e `find -L dir` restano fuori.
+        partenze = []
+        for x in args:
+            if x.startswith("-") or x in ("(", "!"):
+                break
+            partenze.append(x)
+        return partenze or None
+    ammesse, con_valore = _OPZIONI_MEMORIA.get(prog, ("", ""))
+    liberi, i, solo_file, schema = [], 0, False, prog == "grep"
+    while i < len(args):
+        x = args[i]
+        i += 1
+        if solo_file or not x.startswith("-") or x == "-":
+            liberi.append(x)
+        elif x == "--":
+            solo_file = True
+        elif x.startswith("--"):
+            if not x.startswith(_LUNGHE_MEMORIA.get(prog, ())) or not _LUNGHE_MEMORIA.get(prog):
+                return None
+        elif prog in ("head", "tail") and re.match(r"^-\d+$", x):
+            continue
+        else:
+            # Un gruppo di opzioni corte: `-rne schema`, `-nf file`, `-A3`. Dopo una lettera con valore
+            # il resto del gruppo, o la parola dopo, è il valore.
+            for j, lettera in enumerate(x[1:], 1):
+                if lettera not in ammesse:
+                    return None
+                if lettera in con_valore:
+                    valore = x[j + 1:]
+                    if not valore:
+                        if i >= len(args):
+                            return None
+                        valore = args[i]
+                        i += 1
+                    if prog == "grep" and lettera in "ef":
+                        schema = False
+                        if lettera == "f":
+                            liberi.append(valore)
+                    break
+    if schema and liberi:
+        liberi = liberi[1:]  # il primo argomento di grep è il pattern
+    return liberi
+
+
+def _tilde_strana(parola: str) -> bool:
+    """True per `~-`, `~+`, `~nome`: la shell li espande in una cartella che qui non si conosce."""
+    return parola.startswith("~") and parola != "~" and not parola.startswith("~/")
+
+
+def _cd_applicato(testo: str, pezzi, k: int) -> bool:
+    """True se il `cd` del pezzo k vale di sicuro per i comandi dopo: lo segue `&&`, non sta in una pipe,
+    e il comando non ha subshell, gruppi, `;`, `||` o `&` in mezzo, dove un cd fallito o isolato lascia la
+    shell nella cartella di prima."""
+    if "(" in testo or ")" in testo or re.search(r"(^|[\s;&|])[{}]($|[\s;&|])", testo):
+        return False
+    seps = _separatori(testo)
+    for a, b, tipo in seps:
+        if tipo not in ("&&", "|") and testo[b:].strip():
+            return False
+    inizio, fine = pezzi[k]
+    prima = [t for a, b, t in seps if b <= inizio]
+    dopo = [t for a, b, t in seps if a >= fine]
+    if prima and prima[-1] != "&&":
+        return False
+    return not dopo or dopo[0] == "&&"
+
+
 def ammesso_ramo_memoria(cmd: str, cwd: str = "") -> bool:
     testo = testo_shell(cmd)
     if any(x in testo for x in ("$(", "`", "<(", ">(", "..")):
@@ -654,6 +878,9 @@ def ammesso_ramo_memoria(cmd: str, cwd: str = "") -> bool:
         return False
     if re.search(r"\$(?!HOME\b|\{HOME\})", piatto):
         return False
+    # Le graffe si espandono dopo: `tee {a.md,/fuori}` scrive due file e qui se ne leggerebbe uno.
+    if "{" in piatto.replace("${HOME}", "") or "}" in piatto.replace("${HOME}", ""):
+        return False
     menzioni = list(_MENZIONE_MEMORIA.finditer(piatto))
     if not menzioni:
         return False
@@ -662,43 +889,53 @@ def ammesso_ramo_memoria(cmd: str, cwd: str = "") -> bool:
             return False
         if not _zona(os.path.join(os.path.expanduser("~"), ".claude") + (m.group(2) or "")):
             return False
+    testo = togli_commenti(testo)
     corrente = cwd
-    for toks in segmenti_parole(testo):
-        parole, bersagli = _senza_redirezioni(toks)
-        # Le redirezioni scrivono: ogni bersaglio sta nella zona (o è /dev/null).
-        for bersaglio in bersagli:
-            if bersaglio.startswith("&") or bersaglio == "/dev/null":
+    pezzi = comandi_semplici(testo, posizioni=True)
+    for k, (da, a) in enumerate(pezzi):
+        pezzo = testo[da:a]
+        # Ogni redirezione punta nella zona (o a /dev/null): chi scrive fuori non riceve l'allow, e
+        # nemmeno chi porta dentro la zona un file letto da fuori.
+        for tipo, bersaglio in redirezioni(pezzo):
+            if tipo == "processo":
+                return False
+            if bersaglio == "/dev/null":
                 continue
-            p = _assoluto(bersaglio, corrente)
+            p = _assoluto(bersaglio, corrente) if bersaglio and not _tilde_strana(bersaglio) else None
             if p is None or not _zona(p):
                 return False
-        trovati = programmi(" ".join(shlex.quote(t) for t in parole)) if parole else []
-        if len(trovati) > 1:
-            return False
-        for prog, args in trovati:
-            if prog not in _PROG_MEMORIA:
+        for toks in segmenti_parole(_senza_tratti_redirezione(pezzo)):
+            # La tilde vale solo in testa (`~/x`): `~-`, `~+`, `~nome` e `a:~/x` portano altrove.
+            if any(_tilde_strana(t) for t in toks):
                 return False
-            liberi = [a for a in args if not a.startswith("-")]
+            trovati = programmi(" ".join(shlex.quote(t) for t in toks)) if toks else []
+            if len(trovati) != 1:
+                return False
+            prog, args = trovati[0]
+            # Il programma è la prima parola, scritta col suo nome: niente `!`, `sudo`, `env -C`,
+            # `CDPATH=x cd`, che cambiano chi esegue, dove, o se il comando dopo parte.
+            if prog not in _PROG_MEMORIA or toks[0] != prog or list(args) != toks[1:]:
+                return False
             if prog == "cd":
-                if len(liberi) != 1:
+                if len(args) != 1 or args[0].startswith("-") or not _cd_applicato(testo, pezzi, k):
                     return False
-                corrente = _assoluto(liberi[0], corrente)
+                corrente = _assoluto(args[0], corrente)
                 if corrente is None or not _zona(corrente):
                     return False
                 continue
-            if prog == "find" and any(a.startswith(("-exec", "-ok", "-delete", "-fprint", "-fls")) for a in args):
+            if prog == "find" and any(
+                    x.startswith(("-exec", "-ok", "-delete", "-fprint", "-fls", "-files0")) for x in args):
                 return False
-            if prog == "sort" and any(a.startswith(("-o", "--output")) for a in args):
+            percorsi = _percorsi_memoria(prog, args)
+            if percorsi is None:
                 return False
-            if prog == "sed" and any(a.startswith(("-i", "--in-place")) for a in args):
-                return False
-            if prog in ("cp", "mv") and any(a == "-t" or a.startswith("--target-directory") for a in args):
-                return False
-            scritti = liberi if prog in _SCRIVONO_MEMORIA else (liberi[-1:] if prog in ("cp", "mv") else [])
-            for parola in scritti:
-                p = _assoluto(parola, corrente)
+            for parola in percorsi:
+                p = _assoluto(parola, corrente) if parola and "<" not in parola and ">" not in parola else None
                 if p is None or not _zona(p):
                     return False
+            # mv svuota la sorgente: la cartella della zona stessa non si sposta.
+            if prog == "mv" and any(_radice_zona(_assoluto(x, corrente)) for x in percorsi[:-1]):
+                return False
     return True
 
 

@@ -13,6 +13,27 @@ modo di lavorare.
 
 ---
 
+## 2026-11-11 — Tre buchi chiusi nelle guardie
+
+**Cosa cambia**: una revisione delle guardie ha trovato tre casi in cui un comando passava senza che nessuno lo
+guardasse. Ora sono chiusi.
+
+- Salvare un handoff o una memoria da terminale non chiede conferma: è una comodità di Arturo. Il via libera però
+  arrivava anche a un comando che nominava la cartella degli handoff e intanto scriveva altrove, per esempio nel
+  file delle chiavi SSH. Ora arriva solo se ogni file letto o scritto sta fra handoff e memorie.
+- Lo stesso via libera copriva lo spostamento di una cartella qualunque dentro gli handoff, anche quella delle
+  chiavi o dei Documenti. Ora no.
+- Il file che sblocca la modifica di impostazioni e guardie si poteva creare senza conferma, con una cartella o
+  con una copia. Ora quei comandi chiedono, e come sblocco vale solo un file vero.
+
+**Da sapere**: per te cambia poco. Un comando che copia negli handoff un file preso da un'altra cartella ora
+chiede conferma, come ogni altra scrittura sotto `~/.claude`. Nessun comando viene bloccato.
+
+**Il principio**: un controllo che approva da solo guarda tutto il comando, non solo la parte che conosce. Nel
+dubbio lascia la decisione a te.
+
+---
+
 ## 2026-11-11 — Le segnalazioni partono da sole
 
 **Cosa cambia**: quando qualcosa di Arturo o di Claude Code si inceppa, Claude scrive la segnalazione e la manda

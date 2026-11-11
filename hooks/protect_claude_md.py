@@ -260,7 +260,10 @@ def main():
         home_claude = os.path.expanduser('~/.claude')
 
         def unlocked(token):
-            return os.path.exists(os.path.join(home_claude, f'{token}-{safe_id}'))
+            # Solo un file vero sblocca: una cartella o un link col nome giusto si creano con comandi che
+            # le guardie della shell possono non vedere (review del 10/11/2026, #5261).
+            p = os.path.join(home_claude, f'{token}-{safe_id}')
+            return os.path.isfile(p) and not os.path.islink(p)
 
         # Su macOS e Windows il disco ignora le maiuscole: ~/.CLAUDE/settings.json è la config. Il confronto
         # si fa in minuscolo, e il percorso si riscrive con la radice vera (review del 7/11/2026, finding 11).
