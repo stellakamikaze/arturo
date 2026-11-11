@@ -298,6 +298,18 @@ HZ72 una riga della trascrizione che non è un oggetto non ferma la sonda (volta
 HZ73 l'esito di uno script si legge col codice d'uscita (dati.js con node): esito() prende l'ultima riga
      che inizia con "{"; uscita vuota, riga rotta o codice diverso da 0 senza errore sono un errore col
      motivo scritto dallo script; lo usano prepara, la nascita, Rinomina, i gesti e porta-volta.
+HZ74 il progetto resta col lavoro (revisione dell'11/11/2026, volta_sonda.py): una fonte forte scrive il
+     registro cache/volta-lavori/<lavoro>.json; dopo /clear (sessionId nuovo, scheda dalla cartella o
+     nessuna scheda) la riga tiene il progetto del registro; il testo dopo /inizio non ancora risolto
+     si vede ma non entra nel registro; una fonte forte nuova lo aggiorna; un altro lavoro non eredita.
+HZ75 la cartella base non è un progetto (volta_sonda.py): con fonte "cartella" e senza registro il nome
+     della base dei progetti di Volta (arturo.json) o della casa dà progetto vuoto, un repo vero resta;
+     un'interattiva ha il registro sul suo pid; la pulizia toglie il pid sparito e il lavoro non più
+     elencato da 14 giorni, e lascia quelli elencati, anche chiusi da più di tre giorni.
+HZ76 la nascita scrive subito il registro e il nome resta col lavoro (volta_sonda.py): nasci scrive il
+     registro anche se non legge il sessionId; il nome dato dalla persona passa al sessionId nuovo, già
+     portato, e resta alla lettura dopo; un titolo automatico non si eredita; Rinomina vuoto lo toglie
+     e non torna al /clear seguente.
 """
 from __future__ import annotations
 
@@ -313,7 +325,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -5173,8 +5185,213 @@ def hz73(repo: Path, casa: Path) -> str | None:
         return f"dati.js non gira: {e}"
     return None
 
+def lotto5(casa: Path, base: str = "ClaudeCode") -> tuple[dict, Path]:
+    """L'ambiente dei casi del registro per lavoro: quello del lotto 4, più la base dei progetti di Volta
+    (arturo.json) e una casa finta, così il nome della casa è noto."""
+    env, _log, _ = lotto4(casa, {"macchine": []})
+    (casa / "app").mkdir(exist_ok=True)
+    (casa / "app/arturo.json").write_text(json.dumps({"base": str(casa / base)}), encoding="utf-8")
+    (casa / "utente").mkdir(exist_ok=True)
+    env.update(HOME=str(casa / "utente"), USERPROFILE=str(casa / "utente"))
+    env.pop("PROJECTS_BASE", None)
+    return env, casa / "conf/cache"
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73}
+
+def leggi5(sonda: Path, env: dict, sessioni: list) -> dict:
+    """Una lettura dell'elenco con quelle sessioni di claude agents: le righe per id."""
+    r = subprocess.run([sys.executable, str(sonda), "volta"], capture_output=True, text=True, timeout=40,
+                       env={**env, "HZ_SESSIONI": json.dumps(sessioni)})
+    try:
+        d = json.loads(r.stdout)
+    except ValueError:
+        raise RuntimeError(f"volta_sonda.py volta: uscita senza elenco: {(r.stdout + r.stderr).strip()[-160:]}") from None
+    qui = next((m for m in d["macchine"] if m["host"] == "qui"), {})
+    if "irraggiungibile" in qui:
+        raise RuntimeError(f"la sonda di questa macchina cade: {qui['irraggiungibile'][-160:]}")
+    return {x["id"]: x for x in d["sessioni"]}
+
+
+def scheda5(cache: Path, sid: str, progetto: str, fonte: str) -> None:
+    (cache / "scheda").mkdir(parents=True, exist_ok=True)
+    (cache / "scheda" / f"{sid}.json").write_text(json.dumps({"stato": "lavoro", "progetto": progetto, "fonte": fonte, "quando": 1}), encoding="utf-8")
+
+
+def fondo5(lavoro: str, sid: str, **k) -> dict:
+    # startedAt di adesso: la sonda lascia fuori le sessioni chiuse nate da più di tre giorni
+    return dict({"id": lavoro, "sessionId": sid, "kind": "background", "state": "idle", "cwd": "/p", "startedAt": time.time() * 1000}, **k)
+
+
+def registro5(cache: Path, lavoro: str) -> dict:
+    f = cache / "volta-lavori" / f"{lavoro}.json"
+    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+
+
+def hz74(repo: Path, casa: Path) -> str | None:
+    if os.name == "nt":
+        return None  # il claude finto è uno script con shebang
+    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    env, cache = lotto5(casa)
+    try:
+        scheda5(cache, "aaaa1111-uno", "due-mondi", "inizio")
+        per = leggi5(sonda, env, [fondo5("aaaa1111", "aaaa1111-uno")])
+        if per["aaaa1111"]["progetto"] != "due-mondi":
+            return f"il progetto di /inizio non arriva sulla riga: {per['aaaa1111']['progetto']!r}"
+        reg = registro5(cache, "aaaa1111")
+        if reg.get("progetto") != "due-mondi" or reg.get("fonte") != "inizio" or reg.get("sessionId") != "aaaa1111-uno":
+            return f"una fonte forte non scrive il registro del lavoro: {reg}"
+        # /clear: stesso lavoro, sessionId nuovo, scheda nuova che riparte dalla cartella
+        scheda5(cache, "bbbb2222-due", "ClaudeCode", "cartella")
+        per = leggi5(sonda, env, [fondo5("aaaa1111", "bbbb2222-due")])
+        if per["aaaa1111"]["progetto"] != "due-mondi":
+            return f"dopo /clear il lavoro perde il progetto: {per['aaaa1111']['progetto']!r} (atteso due-mondi)"
+        # un altro sessionId senza nessuna scheda (la sessione fermata, la scheda tolta da SessionEnd)
+        per = leggi5(sonda, env, [fondo5("aaaa1111", "cccc3333-tre")])
+        if per["aaaa1111"]["progetto"] != "due-mondi":
+            return f"senza scheda il lavoro perde il progetto del registro: {per['aaaa1111']['progetto']!r}"
+        # il testo dopo /inizio non ancora risolto si vede, ma non entra nel registro
+        scheda5(cache, "cccc3333-tre", "testo libero", "prompt")
+        per = leggi5(sonda, env, [fondo5("aaaa1111", "cccc3333-tre")])
+        if per["aaaa1111"]["progetto"] != "testo libero" or registro5(cache, "aaaa1111").get("progetto") != "due-mondi":
+            return f"il testo dopo /inizio: riga {per['aaaa1111']['progetto']!r}, registro {registro5(cache, 'aaaa1111').get('progetto')!r} (attesi testo libero e due-mondi)"
+        # una fonte forte nuova vale e aggiorna il registro
+        scheda5(cache, "cccc3333-tre", "belleville", "inizio")
+        scheda5(cache, "dddd4444-q", "ClaudeCode", "cartella")
+        per = leggi5(sonda, env, [fondo5("aaaa1111", "cccc3333-tre"), fondo5("dddd4444", "dddd4444-q")])
+        if per["aaaa1111"]["progetto"] != "belleville" or registro5(cache, "aaaa1111").get("progetto") != "belleville":
+            return f"un /inizio nuovo non aggiorna il registro: riga {per['aaaa1111']['progetto']!r}, registro {registro5(cache, 'aaaa1111')}"
+        # un altro lavoro nella stessa cartella non eredita niente
+        if per["dddd4444"]["progetto"] is not None:
+            return f"un altro lavoro prende un progetto non suo: {per['dddd4444']['progetto']!r}"
+    except RuntimeError as e:
+        return str(e)
+    return None
+
+
+def hz75(repo: Path, casa: Path) -> str | None:
+    if os.name == "nt":
+        return None  # il claude finto è uno script con shebang
+    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    env, cache = lotto5(casa, base="Progetti")
+    lavori = cache / "volta-lavori"
+    lavori.mkdir(parents=True)
+    scheda5(cache, "aaaa1111-a", "Progetti", "cartella")       # la base dei progetti di questa macchina
+    scheda5(cache, "bbbb2222-b", "utente", "cartella")         # la casa
+    scheda5(cache, "cccc3333-c", "volta-celeste", "cartella")  # un repo vero
+    scheda5(cache, "dddd4444-d", "ClaudeCode", "cartella")     # la base di un'altra macchina: qui è una cartella come le altre
+    scheda5(cache, "eeee5555-e", "due-mondi", "inizio")
+    interattiva = {"sessionId": "eeee5555-e", "kind": "interactive", "status": "idle", "pid": os.getpid(), "cwd": "/p"}
+    vecchio = time.time() - 20 * 86400
+
+    def voce(nome, dati, eta=None):
+        f = lavori / f"{nome}.json"
+        f.write_text(json.dumps(dati), encoding="utf-8")
+        if eta:
+            os.utime(f, (eta, eta))
+        return f
+
+    sparito = voce("pid-999999", {"progetto": "x", "fonte": "inizio", "sessionId": "x"})
+    scaduto = voce("vecchio11", {"progetto": "x", "fonte": "inizio", "sessionId": "x"}, vecchio)
+    fresco = voce("fresco11", {"progetto": "x", "fonte": "volta", "sessionId": "x"})
+    elencato = voce("ffff6666", {"progetto": "belleville", "fonte": "inizio", "sessionId": "ffff6666-f"}, vecchio)
+    chiuso = voce("gggg7777", {"progetto": "x", "fonte": "inizio", "sessionId": "gggg7777-g"}, vecchio)
+    try:
+        per = leggi5(sonda, env, [fondo5("aaaa1111", "aaaa1111-a"), fondo5("bbbb2222", "bbbb2222-b"), fondo5("cccc3333", "cccc3333-c"),
+                                  fondo5("dddd4444", "dddd4444-d"), interattiva, fondo5("ffff6666", "ffff6666-f"),
+                                  fondo5("gggg7777", "gggg7777-g", state="done", startedAt=(time.time() - 10 * 86400) * 1000)])
+    except RuntimeError as e:
+        return str(e)
+    if per["aaaa1111"]["progetto"] is not None:
+        return f"la cartella base passa per un progetto: {per['aaaa1111']['progetto']!r} (la base viene da arturo.json di Volta)"
+    if per["bbbb2222"]["progetto"] is not None:
+        return f"la casa passa per un progetto: {per['bbbb2222']['progetto']!r}"
+    if per["cccc3333"]["progetto"] != "volta-celeste" or per["dddd4444"]["progetto"] != "ClaudeCode":
+        return f"una cartella che non è la base perde il suo nome: {per['cccc3333']['progetto']!r}, {per['dddd4444']['progetto']!r}"
+    if (lavori / "aaaa1111.json").exists():
+        return "un lavoro senza progetto né nome lascia una voce nel registro"
+    mio = registro5(cache, f"pid-{os.getpid()}")
+    if per["eeee5555"]["progetto"] != "due-mondi" or mio.get("progetto") != "due-mondi":
+        return f"un'interattiva non ha il registro sul suo pid: riga {per['eeee5555']['progetto']!r}, registro {mio}"
+    if per["ffff6666"]["progetto"] != "belleville":
+        return f"il registro di un lavoro elencato non vale: {per['ffff6666']['progetto']!r}"
+    if "gggg7777" in per:
+        return "la sessione chiusa da dieci giorni è in elenco: il caso non prova più la pulizia"
+    if sparito.exists():
+        return "la voce di un pid che non c'è più resta: un altro processo con quel pid la erediterebbe"
+    if scaduto.exists():
+        return "la voce di un lavoro non più elencato da 20 giorni resta"
+    if not fresco.exists():
+        return "la pulizia toglie una voce appena scritta: la nascita la scrive prima che claude agents elenchi la sessione"
+    if not elencato.exists():
+        return "la pulizia toglie la voce di un lavoro ancora elencato"
+    if not chiuso.exists():
+        return "la pulizia toglie la voce di un lavoro chiuso da più di tre giorni, che claude agents elenca ancora"
+    return None
+
+
+def hz76(repo: Path, casa: Path) -> str | None:
+    if os.name == "nt":
+        return None  # il claude finto è uno script con shebang
+    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    env, cache = lotto5(casa)
+
+    def titolo(sid, testo, fonte, **k):
+        (cache / "titolo").mkdir(parents=True, exist_ok=True)
+        (cache / "titolo" / f"{sid}.json").write_text(json.dumps(dict({"titolo": testo, "fonte": fonte, "quando": 1, "peso": 0}, **k)), encoding="utf-8")
+
+    # la nascita non legge il sessionId (claude agents non elenca ancora la sessione): il registro c'è lo stesso
+    r = subprocess.run([sys.executable, str(sonda), "nasci", "qui", "--progetto", "due-mondi", "--", "ciao"],
+                       capture_output=True, text=True, timeout=60, env={**env, "HZ_SESSIONI": "[]"})
+    try:
+        d = json.loads(r.stdout.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return f"nasci: uscita senza esito: {(r.stdout + r.stderr).strip()[-160:]}"
+    if d.get("id") != "abcd1234" or d.get("sessionId") != "abcd1234":
+        return f"nasci: il caso vuole una nascita senza sessionId letto: {d}"
+    reg = registro5(cache, "abcd1234")
+    if reg.get("progetto") != "due-mondi" or reg.get("fonte") != "volta":
+        return f"la nascita non scrive subito il registro del lavoro: {reg}"
+    try:
+        scheda5(cache, "abcd1234-intero", "ClaudeCode", "cartella")
+        titolo("abcd1234-intero", "Nome mio", "persona", portato=True)
+        titolo("eeee1111-a", "Titolo automatico", "auto")
+        per = leggi5(sonda, env, [fondo5("abcd1234", "abcd1234-intero"), fondo5("eeee1111", "eeee1111-a")])
+        if per["abcd1234"]["progetto"] != "due-mondi":
+            return f"la sessione appena nata non sta sotto il suo progetto: {per['abcd1234']['progetto']!r}"
+        if per["abcd1234"]["titolo"] != "Nome mio" or per["eeee1111"]["titolo"] != "Titolo automatico":
+            return f"i titoli non si leggono: {per['abcd1234']['titolo']!r}, {per['eeee1111']['titolo']!r}"
+        # /clear dei due lavori: il nome della persona resta, il titolo automatico no
+        dopo = [fondo5("abcd1234", "ffff2222-dopo"), fondo5("eeee1111", "eeee2222-b")]
+        for giro in ("subito dopo /clear", "alla lettura seguente"):
+            per = leggi5(sonda, env, dopo)
+            if per["abcd1234"]["titolo"] != "Nome mio":
+                return f"{giro} il lavoro perde il nome dato dalla persona: {per['abcd1234']['titolo']!r}"
+            if per["abcd1234"]["daPortare"] is not None:
+                return f"{giro} il nome ereditato chiede un altro /rename: {per['abcd1234']['daPortare']!r}"
+            if per["eeee1111"]["titolo"] is not None:
+                return f"{giro} un titolo automatico passa al sessionId nuovo: {per['eeee1111']['titolo']!r}"
+        f = cache / "titolo/ffff2222-dopo.json"
+        scritto = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+        if scritto.get("fonte") != "persona" or scritto.get("titolo") != "Nome mio" or scritto.get("portato") is not True:
+            return f"il nome non passa al file del sessionId nuovo: {scritto}"
+        # la persona toglie il nome dalla finestra: non torna, nemmeno al /clear seguente
+        r = subprocess.run([sys.executable, str(sonda), "rinomina", "qui", "ffff2222-dopo"], capture_output=True, text=True, timeout=40, env=env)
+        if r.returncode != 0:
+            return f"Rinomina vuoto esce {r.returncode}: {(r.stdout + r.stderr).strip()[-160:]}"
+        per = leggi5(sonda, env, dopo)
+        if per["abcd1234"]["titolo"] is not None or "titolo" in registro5(cache, "abcd1234"):
+            return f"un nome tolto dalla persona resta: riga {per['abcd1234']['titolo']!r}, registro {registro5(cache, 'abcd1234')}"
+        per = leggi5(sonda, env, [fondo5("abcd1234", "gggg3333-poi")])
+        if per["abcd1234"]["titolo"] is not None:
+            return f"un nome tolto dalla persona torna al /clear seguente: {per['abcd1234']['titolo']!r}"
+        if per["abcd1234"]["progetto"] != "due-mondi":
+            return f"dopo due /clear il lavoro perde il progetto: {per['abcd1234']['progetto']!r}"
+    except RuntimeError as e:
+        return str(e)
+    return None
+
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -5193,6 +5410,31 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        if nuovo.get("progetto"):\n            s["progetto"] = nuovo["progetto"].strip()[:60]', '        if False:\n            s["progetto"] = nuovo["progetto"].strip()[:60]'),
+    ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        nuovo.update(progetto=s["progetto"], fonte=fonte)', '        pass'),
+    ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'FORTI = ("persona", "inizio", "volta", "teletrasporto", "file")', 'FORTI = ("persona", "inizio", "volta", "teletrasporto", "file", "cartella")'),
+    ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'FORTI = ("persona", "inizio", "volta", "teletrasporto", "file")', 'FORTI = ("persona", "inizio", "volta", "teletrasporto", "file", "prompt")'),
+    ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    k = s.get("id") if s.get("kind") == "background" else', '    k = s.get("sessionId", "")[:8] if s.get("kind") == "background" else'),
+    ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    elif fonte in (None, "", "cartella"):', '    elif fonte == "cartella":'),
+    ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        if nuovo != {x: v for x, v in reg.items() if x != "quando"} and (len(nuovo) > 1 or reg):\n', '        if False:\n'),
+    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        elif s["progetto"] and s["progetto"].lower() in basi:', '        elif False:'),
+    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'for x in (base, casa)}', 'for x in (base,)}'),
+    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 's["progetto"].lower() in basi:', 's["progetto"] in basi:'),
+    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        base = json.load(fh).get("base")\n', '        base = None\n'),
+    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '("pid-%d" % s["pid"] if isinstance(s.get("pid"), int) else None)', 'None'),
+    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '(n.startswith("pid-") or time.time()', '(False or time.time()'),
+    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'os.path.getmtime(f) > LAVORI_GIORNI * 86400):', 'os.path.getmtime(f) > LAVORI_GIORNI * 86400000):'),
+    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'n[:-5] not in vivi and (', '('),
+    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'vivi = {lavoro_di(s) for s in tutte}', 'vivi = {lavoro_di(s) for s in sessioni}'),
+    ('HZ75', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'and (len(nuovo) > 1 or reg):', 'and True:'),
+    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    scrivi(os.path.join(cache, "volta-lavori", corto + ".json"),\n           {"progetto": a["progetto"], "fonte": "volta", "sessionId": sid, "quando": time.time()})', '    pass'),
+    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    if scritto:\n        nuovo["titolo"] = s["titolo"]', '    if False:\n        nuovo["titolo"] = s["titolo"]'),
+    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    elif nuovo.get("titolo") and reg.get("sessionId") != sid:', '    elif False:'),
+    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    elif nuovo.get("titolo") and reg.get("sessionId") != sid:', '    elif nuovo.get("titolo"):'),
+    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '"quando": time.time(), "peso": 0, "portato": True})', '"quando": time.time(), "peso": 0, "portato": False})'),
+    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        scrivi(ftit, {"titolo": s["titolo"], "fonte": "persona", "quando": time.time(), "peso": 0, "portato": True})\n', ''),
+    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '            scritto = tit.get("fonte") == "persona"', '            scritto = True'),
+    ('HZ76', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        nuovo.pop("titolo", None)', '        pass'),
     ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", "ATTESA_LETTURA = 45", "ATTESA_LETTURA = 55"),
     ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", "        return lancia(argv(t), timeout=t + margine)", "        return lancia(argv(t), timeout=90)"),
     ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    return int(entro - time.monotonic()) if entro is not None else", "    return 30 if entro is not None else"),

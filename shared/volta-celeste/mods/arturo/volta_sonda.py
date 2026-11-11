@@ -45,6 +45,10 @@ Una riga di "sessioni": { macchina, host, questa, sessionId, id, nome, progetto,
 attach, cartella, ultimo, risposta, azione, daPortare }. `host` è il nome della macchina in Herdr ("qui" per
 questa). Una macchina senza Claude Code resta fuori; una che non risponde tiene le righe dell'ultima
 lettura buona, segnate `vecchia`; così anche tutte le macchine di prima, se è Herdr a non rispondere.
+Progetto e nome restano col lavoro: la sonda tiene su ogni macchina un registro per lavoro
+(<cartella di Claude>/cache/volta-lavori/<id del lavoro>.json), perché /clear cambia il sessionId e la
+scheda nuova riparte dalla cartella. Con fonte "cartella" e senza registro la cartella base dei progetti
+non è un progetto: la riga esce con progetto vuoto ("Senza progetto").
 Una lettura dura al più ATTESA_LETTURA secondi, macchine lente comprese (VOLTA_ATTESA_LETTURA la cambia).
 Per le prove: VOLTA_HC (il comando hc), VOLTA_SONDA_LOCALE (un JSON al posto della sonda di questa macchina).
 """
@@ -144,8 +148,8 @@ exec(ELENCO)
 # oppure {"errore"} se claude agents non dà l'elenco: la macchina è irraggiungibile, non vuota.
 # Chi la lancia mette davanti T, i secondi che ha: claude agents non aspetta oltre.
 SONDA = r'''
-import glob, json, os, shutil, subprocess, time
-scade = time.time() + (T if "T" in globals() else 40)
+import glob, json, os, re, shutil, subprocess, time
+scade =time.time() + (T if "T" in globals() else 40)
 fine = ".exe" if os.name == "nt" else ""
 cl = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude" + fine)
 if not os.path.exists(cl):
@@ -181,6 +185,7 @@ if sessioni is None:
 if sessioni is None:
     # un elenco che non si legge non è un elenco vuoto: chi chiama tiene le righe dell'ultima lettura
     print(json.dumps({"errore": guasto[0] or "claude agents non risponde"})); raise SystemExit
+tutte = list(sessioni)
 soglia = (time.time() - CHIUSE_GIORNI * 86400) * 1000
 sessioni = [s for s in sessioni if s.get("kind") != "background" or (s.get("state") or s.get("status")) not in CHIUSE
             or (s.get("startedAt") or 0) >= soglia]
@@ -189,16 +194,68 @@ def testo(c):
         return c
     return " ".join(b.get("text", "") for b in c if isinstance(b, dict) and b.get("type") == "text")
 #TERMINALE#
+# Il registro per lavoro (cache/volta-lavori/<lavoro>.json): progetto e nome restano col lavoro. La scheda
+# e il titolo di Arturo portano il sessionId, che /clear e la rotazione cambiano: la scheda nuova riparte
+# dalla cartella, e tutte le sessioni finivano sotto "ClaudeCode" (revisione dell'11/11/2026). Il lavoro
+# è l'id della sessione in background, che resta quello della nascita, o il pid di un'interattiva.
+# Una fonte forte vale e aggiorna il registro; la fonte debole ("cartella", o nessuna scheda) cede al
+# registro; senza registro il nome della cartella base o della casa non è un progetto: resta vuoto.
+FORTI = ("persona", "inizio", "volta", "teletrasporto", "file")
+LAVORI_GIORNI = 14
+lavori = os.path.join(radice, "cache", "volta-lavori")
+casa = os.path.expanduser("~")
+base = None
+try:  # la base dei progetti come la legge NASCI: arturo.json di Volta
+    with open(os.path.join(os.environ.get("HERDR_APP_HOME") or os.path.join(casa, ".config", "herdr-app"), "arturo.json"), encoding="utf-8") as fh:
+        base = json.load(fh).get("base")
+except (OSError, ValueError, AttributeError):
+    pass
+if not isinstance(base, str) or not base:
+    base = os.environ.get("PROJECTS_BASE") or os.path.join(casa, "Documents", "ClaudeCode")
+basi = {os.path.basename(os.path.normpath(os.path.expanduser(x))).lower() for x in (base, casa)}
+def lavoro_di(s):
+    if not s.get("sessionId"):
+        return None
+    k = s.get("id") if s.get("kind") == "background" else ("pid-%d" % s["pid"] if isinstance(s.get("pid"), int) else None)
+    return k if isinstance(k, str) and re.fullmatch(r"[0-9A-Za-z-]{4,64}", k) else None
+def leggi(f):
+    try:
+        with open(f, encoding="utf-8") as fh:
+            d = json.load(fh)
+    except (OSError, ValueError):
+        return {}
+    return d if isinstance(d, dict) else {}
+def scrivi(f, d):
+    try:  # un registro che non si scrive non ferma l'elenco
+        os.makedirs(os.path.dirname(f), exist_ok=True)
+        tmp = "%s.%d.tmp" % (f, os.getpid())
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(d, fh)
+        os.replace(tmp, f)
+    except OSError:
+        pass
 for s in sessioni:
     sid = s.get("sessionId") or "-"
+    k = lavoro_di(s)
+    reg = leggi(os.path.join(lavori, k + ".json")) if k else {}
+    nuovo = {x: reg[x] for x in ("progetto", "fonte", "titolo") if isinstance(reg.get(x), str) and reg[x].strip()}
     s["progetto"] = None
+    fonte = None
     try:  # il progetto lo scrive hooks/scheda-terminale.py di Arturo; senza Arturo resta vuoto
         with open(os.path.join(radice, "cache", "scheda", sid + ".json"), encoding="utf-8") as fh:
-            p = json.load(fh).get("progetto")
+            scheda = json.load(fh)
+        p, fonte = scheda.get("progetto"), scheda.get("fonte")
         if isinstance(p, str) and p.strip():
             s["progetto"] = p.strip()[:60]
     except (OSError, ValueError, AttributeError):
         pass
+    if s["progetto"] and fonte in FORTI:
+        nuovo.update(progetto=s["progetto"], fonte=fonte)
+    elif fonte in (None, "", "cartella"):
+        if nuovo.get("progetto"):
+            s["progetto"] = nuovo["progetto"].strip()[:60]
+        elif s["progetto"] and s["progetto"].lower() in basi:
+            s["progetto"] = None
     # Un'interattiva partita nella shell di una scheda di Herdr porta nell'ambiente il nome di quel
     # terminale: Volta la porta davanti col clic invece di rimandare a "un Terminale" (11/11/2026).
     s["terminale"] = None
@@ -206,17 +263,33 @@ for s in sessioni:
         s["terminale"] = terminale_di(s["pid"])
     s["titolo"] = None
     s["daPortare"] = None
+    scritto = False
+    ftit = os.path.join(radice, "cache", "titolo", sid + ".json")
     try:  # il titolo lo scrive hooks/titolo-sessione.py di Arturo a fine turno; senza resta vuoto
-        with open(os.path.join(radice, "cache", "titolo", sid + ".json"), encoding="utf-8") as fh:
+        with open(ftit, encoding="utf-8") as fh:
             tit = json.load(fh)
         t = tit.get("titolo")
         if isinstance(t, str) and t.strip():
             s["titolo"] = t.strip()[:80]
+            scritto = tit.get("fonte") == "persona"
             # un nome scritto dalla persona che Claude Code non ha ancora: Volta lo porta con /rename
             if tit.get("fonte") == "persona" and not tit.get("portato"):
                 s["daPortare"] = s["titolo"]
     except (OSError, ValueError, AttributeError):
         pass
+    if scritto:
+        nuovo["titolo"] = s["titolo"]
+    elif nuovo.get("titolo") and reg.get("sessionId") != sid:
+        # il lavoro ha cambiato sessionId (/clear, rotazione): il nome dato dalla persona passa al file
+        # del sessionId nuovo, già "portato", così Volta non riscrive /rename e Rinomina lo toglie come prima
+        s["titolo"] = nuovo["titolo"].strip()[:80]
+        scrivi(ftit, {"titolo": s["titolo"], "fonte": "persona", "quando": time.time(), "peso": 0, "portato": True})
+    else:
+        nuovo.pop("titolo", None)  # stesso sessionId e nessun nome scritto: la persona l'ha tolto
+    if k:
+        nuovo["sessionId"] = sid
+        if nuovo != {x: v for x, v in reg.items() if x != "quando"} and (len(nuovo) > 1 or reg):
+            scrivi(os.path.join(lavori, k + ".json"), dict(nuovo, quando=time.time()))
     f = glob.glob(os.path.join(radice, "projects", "*", sid + ".jsonl"))
     if not f:
         continue
@@ -247,6 +320,16 @@ for s in sessioni:
                     i = b.get("input") or {}
                     azione = b.get("name", "") + ": " + str(i.get("description") or i.get("command") or i.get("file_path") or "")[:150]
     s.update(risposta=risposta, azione=azione, ultimo=ultimo)
+# La pulizia del registro: il pid di un'interattiva sparita torna libero per un altro processo, quindi la
+# sua voce va via subito; quella di un lavoro che claude agents non elenca più dopo LAVORI_GIORNI giorni.
+vivi = {lavoro_di(s) for s in tutte}
+try:
+    for n in os.listdir(lavori):
+        f = os.path.join(lavori, n)
+        if n.endswith(".json") and n[:-5] not in vivi and (n.startswith("pid-") or time.time() - os.path.getmtime(f) > LAVORI_GIORNI * 86400):
+            os.remove(f)
+except OSError:
+    pass
 # solo ASCII: la console di Windows stampa in cp1252 e una freccia nel testo rompeva la riga
 print(json.dumps({"claude": cl, "sessioni": sessioni}))
 '''
@@ -322,17 +405,23 @@ for giro in range(3):
     if sid != corto:
         break
     time.sleep(1)
-if a.get("progetto") and sid != corto:
-    # il progetto per Volta (spazio giusto su ogni macchina), come l'eredità di porta-volta
-    d = os.path.join(os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(casa, ".claude"), "cache", "scheda")
+def scrivi(f, d):
     try:
-        os.makedirs(d, exist_ok=True)
-        f = os.path.join(d, sid + ".json")
+        os.makedirs(os.path.dirname(f), exist_ok=True)
         with open(f + ".tmp", "w", encoding="utf-8") as fh:
-            json.dump({"stato": "nuova", "progetto": a["progetto"], "fonte": "volta", "quando": time.time()}, fh)
+            json.dump(d, fh)
         os.replace(f + ".tmp", f)
     except OSError:
         pass
+if a.get("progetto"):
+    cache = os.path.join(os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(casa, ".claude"), "cache")
+    # il registro del lavoro, subito: vale anche se il sessionId non si è letto, e resta dopo /clear
+    scrivi(os.path.join(cache, "volta-lavori", corto + ".json"),
+           {"progetto": a["progetto"], "fonte": "volta", "sessionId": sid, "quando": time.time()})
+    if sid != corto:
+        # il progetto per Volta (spazio giusto su ogni macchina), come l'eredità di porta-volta
+        scrivi(os.path.join(cache, "scheda", sid + ".json"),
+               {"stato": "nuova", "progetto": a["progetto"], "fonte": "volta", "quando": time.time()})
 esci(id=corto, sessionId=sid, claude=cl, cartella=base)
 '''
 NASCI = NASCI.replace("#ELENCO#", ELENCO.strip())
