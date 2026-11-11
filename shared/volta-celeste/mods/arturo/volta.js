@@ -15,16 +15,19 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, exec, readTextFile, appHome, home, shared, setShared, watchFolder, notify } from "herdr";
+import { theme, exec, readTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals } from "herdr";
 import { gruppi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
 import { config, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti } from "./dati.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
+import { bersaglio, passo, rigaMicrofono } from "./microfono.js";
 
 const OGNI = 30000;
 // Ogni quanto il mod chiede a volta_mod.py se nel repository c'è un mod nuovo (anche all'apertura).
 const OGNI_MOD = 3600000;
+// Ogni quanto si guarda se la scheda in primo piano aggancia una sessione di un'altra macchina (microfono.js).
+const OGNI_MICROFONO = 2000;
 
 // Il mod si aggiorna da solo: volta_mod.py (fuori dalla cartella del mod, così un mod rotto non lo
 // ferma) scarica, controlla con herdr-app check e scambia; Herdr ricarica il mod a file cambiati.
@@ -80,12 +83,18 @@ export class Volta {
     this.porto = {};       // sessionId -> true mentre il nome scritto dalla persona va in Claude Code
     this.script = undefined;
     this.py = "python3";
+    this.mic = null;       // il ponte del microfono acceso da questa finestra (passo di microfono.js)
+    this.micScript = null; // volta_microfono.py, se c'è
+    this.micLavora = false;
     cx.spawn(async (cx) => {
       // Il Python che installa-herdr.sh ha trovato e scritto in arturo.json: su Windows può essere "python".
       const c = await config();
       this.py = c.arturo[0];
       controllaMod(this.py);
       const sc = await script(c);
+      // Un ponte rimasto da prima (mod ricaricato, Volta riaperta) si chiude: lo riaccende il primo giro.
+      this.micScript = await esiste(`${appHome()}/mods/arturo/volta_microfono.py`);
+      if (this.micScript) { try { await exec(this.py, [this.micScript, "spegni"], { timeout: 20000 }); } catch { /* niente ponte */ } }
       this.script = sc.elenco;
       this.sposta = sc.sposta;
       if (!this.script) return cx.notify();
@@ -99,6 +108,34 @@ export class Volta {
     });
     cx.timer.every(OGNI, (cx) => this.aggiorna(cx));
     cx.timer.every(OGNI_MOD, () => controllaMod(this.py));
+    cx.timer.every(OGNI_MICROFONO, (cx) => this.microfono(cx));
+  }
+
+  // Il ponte del microfono: acceso finché la scheda in primo piano aggancia una sessione di un'altra
+  // macchina, spento un minuto dopo. Lo stato va in shared arturo.microfono, per la riga dell'elenco.
+  async microfono(cx) {
+    if (!this.micScript || this.micLavora) return;
+    const spento = shared("arturo.microfono.spento") === true;
+    const f = focused();
+    const t = f?.terminal ? terminals().find((x) => x.address === f.terminal) : null;
+    const { st, azione } = passo(this.mic, spento ? null : bersaglio(t, this.dati?.sessioni), Date.now(), spento);
+    this.mic = st;
+    if (!azione) return this.dicoMicrofono(spento, cx);
+    this.micLavora = true;
+    let esito = null;
+    try {
+      const r = await exec(this.py, [this.micScript, azione.verbo, ...(azione.target ? [azione.target] : [])], { timeout: 20000 });
+      esito = JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
+    } catch { esito = { stato: "errore", motivo: "non riesco a lanciare il ponte" }; }
+    this.micLavora = false;
+    if (this.mic && azione.verbo === "accendi") this.mic = { ...this.mic, stato: esito.stato ?? "avvio", motivo: esito.motivo ?? null };
+    this.dicoMicrofono(spento, cx);
+  }
+
+  dicoMicrofono(spento, cx) {
+    const qui = (this.dati?.macchine ?? []).find((x) => x.questa)?.macchina ?? null;
+    const m = spento ? { spento: true } : this.mic ? { stato: this.mic.stato, macchina: this.mic.macchina, motivo: this.mic.motivo ?? null, qui } : null;
+    if (JSON.stringify(m) !== JSON.stringify(shared("arturo.microfono") ?? null)) { setShared("arturo.microfono", m); cx.notify(); }
   }
 
   async leggi() {
@@ -499,6 +536,11 @@ export class Volta {
     return v_flex().id("volta").pb(12).mb(12).gap(4).border_b(1).border_color(t.border)
       .child(testa)
       .when(!chiusa, (el) => el.child(this.interruttore(t)))
+      // Il ponte del microfono (microfono.js): dove va la voce adesso. Un clic lo spegne o lo riaccende.
+      .when(Boolean(rigaMicrofono(shared("arturo.microfono"))), (el) => { const r = rigaMicrofono(shared("arturo.microfono")); return el.child(h_flex().id("volta-microfono").px(18).gap(6).items_center().cursor_pointer()
+        .on_click(() => setShared("arturo.microfono.spento", shared("arturo.microfono.spento") !== true))
+        .child(svg("mods/arturo/microfono.svg").size(12).text_color(r.avviso ? t.blocked : t.accent))
+        .child(div().text_size(12).text_color(r.avviso ? t.blocked : t.muted).child(r.testo))); })
       .when(Boolean(vecchio) && !chiusa, (el) => el.child(div().px(18).text_size(12).text_color(t.blocked).child(vecchio)))
       .when(Boolean(corpo), (el) => el.child(corpo))
       .when(Boolean(gesti), (el) => el.child(gesti));

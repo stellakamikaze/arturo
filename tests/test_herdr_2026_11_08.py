@@ -241,6 +241,13 @@ HZ60 il clic trova la scheda di Herdr anche su Windows (#5289): terminale_di() d
      Windows; un processo fuori da Herdr e uno che non esiste danno None. La SONDA porta dentro la
      funzione e la chiama solo per le interattive. La sonda verso un'altra macchina viaggia compressa:
      la riga torna identica alla SONDA e resta sotto gli 8000 caratteri di una riga di cmd.exe.
+HZ63 il microfono di questa macchina arriva alle sessioni di un'altra (11/11/2026): microfono.js (con node)
+     dà il bersaglio solo per una scheda che aggancia con ssh una sessione di un'altra macchina, accende,
+     rinnova e spegne un minuto dopo che il fuoco è passato altrove. volta_microfono.py con un audio
+     finto: ricevi mette il microfono virtuale e rimette l'ingresso di prima a fine flusso, su SIGTERM e
+     dopo il silenzio di una rete caduta; rifiuta un secondo ponte; senza BlackHole non tocca niente;
+     non rimette un ingresso scelto a mano nel frattempo; ripara agisce solo se il ponte è morto;
+     accendi e spegni tengono il ponte locale, che scade da solo senza rinnovo.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 HZ61 i progetti vengono dalla memoria di Arturo (11/11/2026): barra.js chiede `arturo progetti --json`
@@ -265,7 +272,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ63")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -4047,7 +4054,237 @@ def hz60(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61}
+PROVA_MICROFONO = """
+import { bersaglio, passo, rigaMicrofono, RINNOVO, IN_AVVIO, TENUTA } from %s;
+const ssh = (id, altro = {}) => ({ id, questa: false, macchina: "Amaltea", attach: ["ssh", "-t", "amaltea", "/c/claude", "attach", id], ...altro });
+const sessioni = [ssh("aaaa1111"), { id: "bbbb2222", questa: true, macchina: "Qui", attach: ["/c/claude", "attach", "bbbb2222"] },
+  ssh("cccc3333", { attach: ["ssh", "-t", "amaltea", "top", "-l", "1"] }), ssh("dddd4444", { attach: ["ssh", "-t", "-oProxyCommand=x", "/c/claude", "attach", "dddd4444"] }),
+  ssh("eeee5555", { attach: ["C:\\\\Windows\\\\System32\\\\OpenSSH\\\\ssh.exe", "-t", "feder@balthasar", "claude", "attach", "eeee5555"], macchina: "Balthasar" }),
+  ssh("ffff6666", { attach: ["mosh", "-t", "amaltea", "/c/claude", "attach", "ffff6666"] }), ssh("gggg7777", { questa: true })];
+const t = (argv, labels, address = "t5") => ({ address, argv, labels });
+const b = {
+  perArgv: bersaglio(t(["ssh", "-t", "amaltea", "/c/claude", "attach", "aaaa1111"]), sessioni),
+  perEtichetta: bersaglio(t(["/bin/zsh", "-li"], { "arturo.sessione": "aaaa1111" }), sessioni),
+  locale: bersaglio(t(["/c/claude", "attach", "bbbb2222"]), sessioni),
+  senzaAttach: bersaglio(t(["/bin/zsh"], { "arturo.sessione": "cccc3333" }), sessioni),
+  opzione: bersaglio(t(["/bin/zsh"], { "arturo.sessione": "dddd4444" }), sessioni),
+  windows: bersaglio(t(["x"], { "arturo.sessione": "eeee5555" }), sessioni),
+  nonSsh: bersaglio(t(["x"], { "arturo.sessione": "ffff6666" }), sessioni),
+  diQui: bersaglio(t(["x"], { "arturo.sessione": "gggg7777" }), sessioni),
+  shell: bersaglio(t(["/bin/zsh", "-li"]), sessioni),
+  remotoHerdr: bersaglio(t(["ssh", "-t", "amaltea", "/c/claude", "attach", "aaaa1111"], null, "macbook/t5"), sessioni),
+  nullo: bersaglio(null, sessioni),
+  sconosciuta: bersaglio(t(["ssh", "-t", "amaltea", "/c/claude", "attach", "zzzz"]), sessioni),
+};
+const A = { target: "amaltea", macchina: "Amaltea" }, B = { target: "feder@balthasar", macchina: "Balthasar" };
+const giro = [];
+let st = null;
+const fai = (nome, bers, adesso, spento) => { const r = passo(st, bers, adesso, spento); st = r.st; giro.push([nome, r.azione?.verbo ?? null, r.azione?.target ?? null, st?.target ?? null]); };
+fai("niente", null, 0);
+fai("fuoco", A, 1000);
+fai("subito", A, 1000 + IN_AVVIO - 1);
+fai("in avvio", A, 1000 + IN_AVVIO);
+st = { ...st, stato: "attivo" };
+fai("attivo presto", A, 4000 + RINNOVO - 2000);
+fai("attivo rinnovo", A, 3000 + RINNOVO);
+const visto = st.visto;
+fai("via da poco", null, visto + RINNOVO - 1);
+fai("via rinnovo", null, visto + RINNOVO);
+fai("via troppo", null, visto + TENUTA + 1);
+fai("spento da spento", null, visto + TENUTA + 2);
+fai("riaccendo", A, 900000);
+fai("cambio macchina", B, 900500);
+fai("interruttore", B, 901000, true);
+fai("interruttore fermo", B, 902000, true);
+const righe = [rigaMicrofono(null), rigaMicrofono({ stato: "attivo", macchina: "Amaltea", qui: "MacBook Air" }), rigaMicrofono({ stato: "avvio", macchina: "Amaltea" }),
+  rigaMicrofono({ stato: "errore", macchina: "Amaltea", motivo: "manca BlackHole" }), rigaMicrofono({ spento: true }), rigaMicrofono({ stato: "spento" })];
+console.log(JSON.stringify({ b, giro, righe }));
+"""
+
+
+def hz63(repo: Path, casa: Path) -> str | None:
+    import signal  # noqa: PLC0415
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    script = mod / "volta_microfono.py"
+    if not script.is_file() or not (mod / "microfono.js").is_file() or not (mod / "microfono.svg").is_file():
+        return "nel mod mancano microfono.js, microfono.svg o volta_microfono.py"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    for pezzo, perche in (("cx.timer.every(OGNI_MICROFONO, (cx) => this.microfono(cx));", "volta.js non guarda il fuoco per il microfono"),
+                          ("this.micScript = await esiste(`${appHome()}/mods/arturo/volta_microfono.py`);", "volta.js non cerca lo script del ponte nel mod"),
+                          ('await exec(this.py, [this.micScript, "spegni"], { timeout: 20000 });', "all'avvio volta.js non chiude un ponte rimasto"),
+                          ("passo(this.mic, spento ? null : bersaglio(t, this.dati?.sessioni), Date.now(), spento)", "volta.js non decide il ponte con passo() e bersaglio()"),
+                          ('.on_click(() => setShared("arturo.microfono.spento", shared("arturo.microfono.spento") !== true))', "il clic sulla riga non spegne e riaccende il ponte"),
+                          ('.when(Boolean(rigaMicrofono(shared("arturo.microfono"))), (el) =>', "l'elenco non mostra la riga del microfono")):
+        if pezzo not in vj:
+            return perche
+    node = shutil.which("node")
+    if node:
+        copia = casa / "microfono.mjs"
+        shutil.copyfile(mod / "microfono.js", copia)
+        r = subprocess.run([node, "--input-type=module", "-e", PROVA_MICROFONO % json.dumps(copia.as_uri())],
+                           capture_output=True, text=True, encoding="utf-8", timeout=30)
+        if r.returncode != 0:
+            return f"microfono.js non gira: {(r.stderr or r.stdout).strip()[:200]}"
+        v = json.loads(r.stdout.strip().splitlines()[-1])
+        ama, bal = {"target": "amaltea", "macchina": "Amaltea"}, {"target": "feder@balthasar", "macchina": "Balthasar"}
+        atteso = {"perArgv": ama, "perEtichetta": ama, "locale": None, "senzaAttach": None, "opzione": None, "windows": bal,
+                  "nonSsh": None, "diQui": None, "shell": None, "remotoHerdr": None, "nullo": None, "sconosciuta": None}
+        if v["b"] != atteso:
+            return f"bersaglio: atteso {atteso}, avuto {v['b']}"
+        giro = [["niente", None, None, None], ["fuoco", "accendi", "amaltea", "amaltea"], ["subito", None, None, "amaltea"],
+                ["in avvio", "accendi", "amaltea", "amaltea"], ["attivo presto", None, None, "amaltea"],
+                ["attivo rinnovo", "accendi", "amaltea", "amaltea"], ["via da poco", None, None, "amaltea"],
+                ["via rinnovo", "accendi", "amaltea", "amaltea"], ["via troppo", "spegni", None, None],
+                ["spento da spento", None, None, None], ["riaccendo", "accendi", "amaltea", "amaltea"],
+                ["cambio macchina", "accendi", "feder@balthasar", "feder@balthasar"], ["interruttore", "spegni", None, None],
+                ["interruttore fermo", None, None, None]]
+        if v["giro"] != giro:
+            diverso = next((a, b) for a, b in zip(giro, v["giro"]) if a != b)
+            return f"passo: atteso {diverso[0]}, avuto {diverso[1]}"
+        righe = [None, {"testo": "Microfono: MacBook Air → Amaltea"}, {"testo": "Microfono: collego Amaltea…"},
+                 {"testo": "Microfono: manca BlackHole (Amaltea)", "avviso": True},
+                 {"testo": "Microfono: spento, le sessioni delle altre macchine sentono il loro"}, None]
+        if v["righe"] != righe:
+            return f"rigaMicrofono: avuto {v['righe']}"
+    # volta_microfono.py con l'audio finto: un file JSON al posto di CoreAudio
+    cache, audio = casa / "mic-cache", casa / "audio.json"
+    MIC, BH, ALTRO = "mic-vero", "BlackHole2ch_UID", "cuffie"
+    ingressi = [{"uid": MIC, "nome": "Microfono"}, {"uid": BH, "nome": "BlackHole 2ch"}, {"uid": ALTRO, "nome": "Cuffie"}]
+    beve = [sys.executable, "-c", "import sys\nwhile sys.stdin.buffer.read(4096): pass"]
+    base = {k: v for k, v in os.environ.items() if not k.startswith("VOLTA_")}
+
+    def amb(**altro):
+        return {**base, "VOLTA_CACHE": str(cache), "VOLTA_MIC_AUDIO": str(audio), "VOLTA_MIC_SUONA": json.dumps(beve), **altro}
+
+    def metti(uid, lista=ingressi):
+        shutil.rmtree(cache, ignore_errors=True)
+        audio.write_text(json.dumps({"predefinito": uid, "ingressi": lista}), encoding="utf-8")
+
+    def ingresso():
+        return json.loads(audio.read_text(encoding="utf-8"))["predefinito"]
+
+    def ricevi(**altro):
+        p = subprocess.Popen([sys.executable, str(script), "ricevi"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, env=amb(**altro))
+        return p, json.loads(p.stdout.readline().decode("utf-8") or "{}")
+
+    def fine(p, attesa=10):
+        try:
+            return p.wait(timeout=attesa)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            return None
+
+    def comando(*argv, **altro):
+        r = subprocess.run([sys.executable, str(script), *argv], capture_output=True, text=True, encoding="utf-8",
+                           stdin=subprocess.DEVNULL, timeout=30, env=amb(**altro))
+        try:
+            return json.loads((r.stdout or "").strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            return {"rc": r.returncode, "uscita": (r.stdout + r.stderr)[:200]}
+
+    # a fine flusso torna l'ingresso di prima
+    metti(MIC)
+    p, riga = ricevi()
+    if riga.get("esito") != "attivo" or ingresso() != BH or not (cache / "microfono.json").is_file():
+        fine(p, 0)
+        return f"ricevi non mette il microfono virtuale: {riga}, ingresso {ingresso()}"
+    # un secondo ponte è rifiutato e non tocca il primo
+    p2, riga2 = ricevi()
+    rc2 = fine(p2)
+    if rc2 != 4 or riga2.get("motivo") != "microfono usato da un'altra macchina" or ingresso() != BH:
+        fine(p, 0)
+        return f"un secondo ponte non è rifiutato: rc {rc2}, {riga2}"
+    p.stdin.write(b"\0" * 3200)
+    p.stdin.close()
+    if fine(p) != 0 or ingresso() != MIC or (cache / "microfono.json").exists():
+        return f"a fine flusso l'ingresso non torna quello di prima: {ingresso()}"
+    # su SIGTERM
+    metti(MIC)
+    p, riga = ricevi()
+    p.send_signal(signal.SIGTERM)
+    fine(p)
+    if ingresso() != MIC or (cache / "microfono.json").exists():
+        return f"su SIGTERM l'ingresso non torna quello di prima: {ingresso()}"
+    # rete caduta: il flusso resta aperto ma non arriva più niente
+    metti(MIC)
+    p, riga = ricevi(VOLTA_MIC_SILENZIO="1")
+    if fine(p, 6) != 0 or ingresso() != MIC:
+        return "il ricevitore non chiude quando l'audio smette di arrivare"
+    # senza BlackHole non tocca niente
+    metti(MIC, [x for x in ingressi if x["uid"] != BH])
+    p, riga = ricevi()
+    if fine(p) != 3 or riga.get("motivo") != "manca BlackHole" or ingresso() != MIC or (cache / "microfono.json").exists():
+        return f"senza BlackHole ricevi non si ferma pulito: {riga}"
+    # un ingresso scelto a mano nel frattempo resta
+    metti(MIC)
+    p, riga = ricevi()
+    audio.write_text(json.dumps({"predefinito": ALTRO, "ingressi": ingressi}), encoding="utf-8")
+    p.stdin.close()
+    fine(p)
+    if ingresso() != ALTRO:
+        return f"ricevi rimette l'ingresso di prima sopra una scelta fatta a mano: {ingresso()}"
+    # ripara: solo se il ponte è morto
+    morto = subprocess.Popen([sys.executable, "-c", "pass"])
+    morto.wait()
+    metti(BH)
+    (cache).mkdir(parents=True, exist_ok=True)
+    (cache / "microfono.json").write_text(json.dumps({"pid": os.getpid(), "prima": MIC, "virtuale": BH}), encoding="utf-8")
+    if comando("ripara").get("esito") != "ponte vivo" or ingresso() != BH:
+        return "ripara tocca un ponte vivo"
+    (cache / "microfono.json").write_text(json.dumps({"pid": morto.pid, "prima": MIC, "virtuale": BH}), encoding="utf-8")
+    if comando("ripara").get("esito") != "riparato" or ingresso() != MIC or (cache / "microfono.json").exists():
+        return f"ripara non rimette l'ingresso dopo un ponte morto: {ingresso()}"
+    # un ponte morto male non blocca il prossimo: ricevi ripara e parte
+    metti(BH)
+    (cache).mkdir(parents=True, exist_ok=True)
+    (cache / "microfono.json").write_text(json.dumps({"pid": morto.pid, "prima": MIC, "virtuale": BH}), encoding="utf-8")
+    p, riga = ricevi()
+    p.stdin.close()
+    fine(p)
+    if riga.get("esito") != "attivo" or riga.get("prima") != MIC or ingresso() != MIC:
+        return f"dopo un ponte morto male ricevi non riparte dall'ingresso vero: {riga}, {ingresso()}"
+    # lato locale: accendi, rinnova, spegni, scadenza
+    zeri = [sys.executable, "-c", "import sys, time\nwhile True:\n    sys.stdout.buffer.write(bytes(3200)); sys.stdout.buffer.flush(); time.sleep(0.1)"]
+    finti = {"VOLTA_MIC_CATTURA": json.dumps(zeri), "VOLTA_MIC_SSH": json.dumps([sys.executable, str(script), "ricevi"])}
+
+    def aspetta(cosa, secondi=8):
+        fino = time.time() + secondi
+        while time.time() < fino:
+            if cosa():
+                return True
+            time.sleep(0.2)
+        return False
+    metti(MIC)
+    try:
+        primo = comando("accendi", "amaltea", **finti)
+        if primo.get("stato") != "avvio":
+            return f"accendi non parte: {primo}"
+        if not aspetta(lambda: comando("stato", **finti).get("locale", {}).get("stato") == "attivo" and ingresso() == BH):
+            return f"il ponte locale non arriva ad attivo: {comando('stato', **finti)}, ingresso {ingresso()}"
+        pid = json.loads((cache / "microfono-locale.json").read_text(encoding="utf-8"))["pid"]
+        if comando("accendi", "amaltea", **finti).get("stato") != "attivo" or json.loads((cache / "microfono-locale.json").read_text(encoding="utf-8"))["pid"] != pid:
+            return "un secondo accendi sullo stesso bersaglio apre un altro ponte invece di rinnovarlo"
+        if comando("spegni", **finti).get("stato") != "spento" or not aspetta(lambda: ingresso() == MIC):
+            return f"spegni non chiude il ponte: ingresso {ingresso()}"
+        # senza rinnovo il ponte scade da solo
+        corta = {**finti, "VOLTA_MIC_SCADENZA": "1.5"}
+        comando("accendi", "amaltea", **corta)
+        if not aspetta(lambda: ingresso() == BH):
+            return "il ponte con la scadenza corta non parte"
+        if not aspetta(lambda: ingresso() == MIC and comando("stato", **corta).get("locale", {}).get("stato") == "spento"):
+            return f"senza rinnovo il ponte non scade: {comando('stato', **corta)}, ingresso {ingresso()}"
+        # un errore dell'altra macchina arriva in chiaro
+        metti(MIC, [x for x in ingressi if x["uid"] != BH])
+        comando("accendi", "amaltea", **finti)
+        if not aspetta(lambda: comando("stato", **finti).get("locale", {}).get("motivo") == "manca BlackHole"):
+            return f"l'errore dell'altra macchina non arriva: {comando('stato', **finti)}"
+    finally:
+        comando("spegni", **finti)
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ63": hz63}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -4066,6 +4303,20 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "            figlio.kill()\n        rimetti(a, stato)\n", "            figlio.kill()\n"),
+    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if vivo(stato.get(\"pid\")):\n        return esci(4,", "    if False:\n        return esci(4,"),
+    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if not bh:\n        return esci(3, esito=\"errore\", motivo=\"manca BlackHole\")\n", "    bh = bh or a.ingressi()[0]\n"),
+    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if prima and messo and prima != messo and a.predefinito() == messo:", "    if prima and messo and prima != messo:"),
+    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "            if not pronto:\n                break\n", "            if not pronto:\n                continue\n"),
+    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "                    if time.time() - file_rinnovo().stat().st_mtime > SCADENZA:", "                    if time.time() - file_rinnovo().stat().st_mtime > SCADENZA * 1000:"),
+    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if stesso and d.get(\"stato\") in (\"avvio\", \"attivo\") and vivo(d.get(\"pid\")):\n        print(json.dumps(stato_locale(), ensure_ascii=False))\n        return 0\n", ""),
+    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "                elif d.get(\"esito\") == \"errore\":\n                    fermo[\"motivo\"] = d.get(\"motivo\") or \"errore sull'altra macchina\"\n", ""),
+    ("HZ63", "shared/volta-celeste/mods/arturo/microfono.js", " || a[4] !== \"attach\") return null;", ") return null;"),
+    ("HZ63", "shared/volta-celeste/mods/arturo/microfono.js", "x.id === id && !x.questa && Array.isArray(x.attach)", "x.id === id && Array.isArray(x.attach)"),
+    ("HZ63", "shared/volta-celeste/mods/arturo/microfono.js", "if (!target || target.startsWith(\"-\")) return null;", "if (!target) return null;"),
+    ("HZ63", "shared/volta-celeste/mods/arturo/microfono.js", "  if (adesso - st.visto > TENUTA) return { st: null, azione: { verbo: \"spegni\" } };", "  if (adesso - st.visto > TENUTA * 1000) return { st: null, azione: { verbo: \"spegni\" } };"),
+    ("HZ63", "shared/volta-celeste/mods/arturo/microfono.js", "    if (!acceso || st.target !== b.target)", "    if (!acceso)"),
+    ("HZ63", "shared/volta-celeste/mods/arturo/volta.js", "    cx.timer.every(OGNI_MICROFONO, (cx) => this.microfono(cx));\n", ""),
     ("HZ61", "shared/volta-celeste/mods/arturo/barra.js", "      if (!this.memoria) {\n", "      {\n"),
     ("HZ61", "shared/volta-celeste/mods/arturo/dati.js", "    const k = capo.get(chiave(p)) ?? chiave(p);", "    const k = chiave(p);"),
     ("HZ61", "shared/volta-celeste/mods/arturo/dati.js", "  for (const nome of memoria ? [] : extra.cartelle ?? []) {", "  for (const nome of extra.cartelle ?? []) {"),
@@ -4460,6 +4711,8 @@ def non_gira_qui(caso: str) -> str | None:
         return "su Windows la nascita va nel profilo di PowerShell, non nei file di zsh e bash"
     if caso == "HZ38" and not (shutil.which("pwsh") or shutil.which("powershell")):
         return "niente PowerShell qui: volta-claude.ps1 gira su Windows"
+    if caso == "HZ63" and os.name == "nt":
+        return "il ponte del microfono c'è solo sul Mac: su Windows mancano il microfono virtuale e i segnali"
     if caso in ("HZ13", "HZ16") and not mac:
         return "Arturo.app e i servizi di launchd ci sono solo sul Mac"
     return None
