@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ59: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ60: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -236,6 +236,11 @@ HZ59 nome e progetto si cambiano dalla finestra (#5292): il menu ha Rinomina e C
      rinominaSchede rinomina la scheda sola; portaNome scrive /rename solo a sessione ferma, con Claude
      nella scheda e la casella vuota, e poi segna --portato; spostaScheda chiude l'aggancio e lo riapre
      nello spazio del progetto nuovo, e lascia dov'è un'interattiva che gira in una scheda.
+HZ60 il clic trova la scheda di Herdr anche su Windows (#5289): terminale_di() di volta_sonda.py legge
+     HC_TERMINAL_ID dall'ambiente di un processo vero, con ps sul Mac e dalla memoria del processo su
+     Windows; un processo fuori da Herdr e uno che non esiste danno None. La SONDA porta dentro la
+     funzione e la chiama solo per le interattive. La sonda verso un'altra macchina viaggia compressa:
+     la riga torna identica alla SONDA e resta sotto gli 8000 caratteri di una riga di cmd.exe.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -253,7 +258,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -3890,7 +3895,67 @@ def hz59(repo: Path, casa: Path) -> str | None:
 
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59}
+def hz60(repo: Path, casa: Path) -> str | None:
+    import base64  # noqa: PLC0415
+    import importlib.util  # noqa: PLC0415
+    import zlib  # noqa: PLC0415
+    sp = importlib.util.spec_from_file_location("volta_sonda_hz60", repo / "shared/volta-celeste/mods/arturo/volta_sonda.py")
+    m = importlib.util.module_from_spec(sp)
+    sp.loader.exec_module(m)
+    spazio: dict = {}
+    exec(getattr(m, "TERMINALE", ""), spazio)  # noqa: S102
+    terminale_di = spazio.get("terminale_di")
+    if not callable(terminale_di):
+        return "volta_sonda.py non ha terminale_di() nel blocco TERMINALE"
+    dorme = [sys.executable, "-c", "import time; time.sleep(30)"]
+    senza = {k: v for k, v in os.environ.items() if k != "HC_TERMINAL_ID"}
+    dentro = subprocess.Popen(dorme, env={**senza, "HC_TERMINAL_ID": "t9z"})
+    fuori = subprocess.Popen(dorme, env=senza)
+    try:
+        letto = None
+        for _ in range(20):  # su Windows l'ambiente si legge appena il processo ha finito di nascere
+            letto = terminale_di(dentro.pid)
+            if letto:
+                break
+            time.sleep(0.25)
+        if letto != "t9z":
+            return f"terminale_di non legge HC_TERMINAL_ID di un processo vero: {letto!r}"
+        if terminale_di(fuori.pid) is not None:
+            return "terminale_di dà un terminale a un processo nato fuori da Herdr"
+    finally:
+        dentro.kill()
+        fuori.kill()
+    if terminale_di(4000000) is not None:
+        return "terminale_di dà un terminale a un processo che non esiste"
+    if "#TERMINALE#" in m.SONDA or "def terminale_di(pid):" not in m.SONDA:
+        return "la SONDA non porta dentro terminale_di"
+    if 'if s.get("kind") != "background" and isinstance(s.get("pid"), int):\n        s["terminale"] = terminale_di(s["pid"])' not in m.SONDA:
+        return "la SONDA non chiede il terminale delle sole interattive"
+    try:
+        compile(m.SONDA, "SONDA", "exec")
+    except SyntaxError as e:
+        return f"la SONDA non è Python valido: {e}"
+    righe: list = []
+    m.hc = lambda: ["hc"]
+    m.lancia = lambda argv, timeout=60: (righe.append(argv), (0, '{"claude": null, "sessioni": []}', ""))[1]
+    m.sonda_remota("amaltea")
+    codice = righe[0][-1] if righe else ""
+    if len(codice) >= 8000:
+        return f"la sonda verso un'altra macchina è una riga di {len(codice)} caratteri: cmd.exe ne regge 8191"
+    try:
+        dentro_riga = codice.split("'")[1]
+        if zlib.decompress(base64.b64decode(dentro_riga)).decode("utf-8") != m.SONDA:
+            return "la riga compressa non torna la SONDA"
+        spazio = {"exec": lambda testo: righe.append(testo)}
+        exec(codice, spazio)  # noqa: S102
+    except Exception as e:  # noqa: BLE001
+        return f"la riga della sonda remota non si apre: {type(e).__name__}: {e}"
+    if righe[-1] != m.SONDA.encode("utf-8"):
+        return "la riga della sonda remota non esegue la SONDA"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -3909,6 +3974,12 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ("HZ60", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'SONDA = SONDA.replace("#TERMINALE#", TERMINALE.strip())\n', ''),
+    ("HZ60", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        s["terminale"] = terminale_di(s["pid"])', '        s["terminale"] = None'),
+    ("HZ60", "shared/volta-celeste/mods/arturo/volta_sonda.py", "base64.b64encode(zlib.compress(SONDA.encode(), 9)).decode()", "base64.b64encode(SONDA.encode()).decode()"),
+    ("HZ60", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    if os.name != \"nt\":\n        try:\n            amb = subprocess.run([\"ps\"", "    if os.name == \"nt\":\n        try:\n            amb = subprocess.run([\"ps\""),
+    ("HZ60", "shared/volta-celeste/mods/arturo/volta_sonda.py", '                if riga.startswith("HC_TERMINAL_ID="):', '                if riga.startswith("HC_TERMINALE="):', "windows"),
+    ("HZ60", "shared/volta-celeste/mods/arturo/volta_sonda.py", "            blocco = numero(parametri + 0x80) if parametri else 0", "            blocco = numero(parametri + 0x70) if parametri else 0", "windows"),
     ("HZ56", "shared/volta-celeste/keys.json", '"cmd-o": "arturo.apri",', '"cmd-o":  "arturo.apri",'),
     ("HZ57", "shared/volta-celeste/mods/arturo/volta.js", "  if (controlloMod || !(await esiste(script))) return;", "  if (!(await esiste(script))) return;"),
     ("HZ57", "shared/volta-celeste/mods/arturo/volta.js", "    cx.timer.every(OGNI_MOD, () => controllaMod(this.py));", ""),

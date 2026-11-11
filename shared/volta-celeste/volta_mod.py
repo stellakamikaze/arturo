@@ -97,9 +97,21 @@ def segna(esito: str, **altro) -> dict:
     return d
 
 
+def ssh_di_git() -> str:
+    """L'ssh che la macchina ha scelto per git (core.sshCommand), altrimenti "ssh". GIT_SSH_COMMAND batte
+    core.sshCommand: su Windows un "ssh" nudo prende quello di Git for Windows, che non vede l'agente di Windows
+    dove sta la chiave, e GitHub rifiuta (Balthasar, 11/11/2026)."""
+    try:
+        r = subprocess.run(["git", "config", "--get", "core.sshCommand"], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return "ssh"
+    return (r.stdout or "").strip() or "ssh"
+
+
 def git(args: list, cwd: Path | None = None, timeout: int = ATTESA_GIT) -> tuple[int, str]:
     env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
-    env.setdefault("GIT_SSH_COMMAND", "ssh -o BatchMode=yes -o ConnectTimeout=15")
+    env.setdefault("GIT_SSH_COMMAND", ssh_di_git() + " -o BatchMode=yes -o ConnectTimeout=15")
     try:
         r = subprocess.run(["git"] + args, cwd=str(cwd) if cwd else None, capture_output=True, text=True,
                            encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, timeout=timeout, env=env)

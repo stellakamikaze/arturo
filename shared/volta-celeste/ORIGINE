@@ -1,5 +1,5 @@
 {
- "albero": "29e65788376739a1fe5866ddffa271ca43ab979b",
+ "albero": "eb9c96857ba73b1ad4b84d54ffea63fb04a8f73f",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -45,7 +45,7 @@
   "mods/arturo/testata.js": "c38123c39a5eb28e406d6d181367f7cd5e059771399d40c6bc49a6dbd353b9e7",
   "mods/arturo/todo.js": "39bfebd5c27438deb63457afd97719803282a8276bee9a9e2be08df792d7dfc5",
   "mods/arturo/volta.js": "39b12ac1a44773b1425acd497948e99cbb0fb7e6c7f928d9284781fcc40406a1",
-  "mods/arturo/volta_sonda.py": "1dc291773f40f3d8024324c2177d1d773c1713bb498a73c30c775bcdb82beb05",
+  "mods/arturo/volta_sonda.py": "68c8f0717e486847376f5217c8e7cda882c8c4d8accd3135219891e191c21ec8",
   "nascita.sh": "c143dd80bf98640b0565b3015a91d45619bd2c3a232a86c58129e517c0f5b9c1",
   "servizi-gui.sh": "a3eaeb26e61f1143781e17ff282bc2b06a4598814d48dde22842769e95e7f7c7",
   "servizio-claude.ps1": "11b379c862c59b6f97ce28964df31414a0641cbf498640aef6c0f14f07743960",
@@ -54,7 +54,7 @@
   "trova-progetti.md": "72fd68d48f6cb53ebf66c16944fb6232f42cb1ef260907a5f846d7d3518953aa",
   "volta-claude.ps1": "23d8579ec192dedd166937b5bc6e2101f58917838257f079f59dd8f891d7ef3d",
   "volta-claude.sh": "f64a2ff210ed22e5215e19b390c67d5b6ce70f55b73ae0b2ff4fde249cf60e95",
-  "volta_mod.py": "184938fbcbacd61d30a404168852166a0391f88d6ca09478dcfff09e32b86994"
+  "volta_mod.py": "d002073b00382e3f8f0a4f440c8eaff31da75a3014ef9d7892b5dbda58497338"
  },
  "repository": "volta-celeste"
 }

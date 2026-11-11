@@ -56,7 +56,66 @@ import shutil
 import subprocess
 import sys
 import time
+import zlib
 from concurrent.futures import ThreadPoolExecutor
+
+# Il terminale di Herdr che ospita un processo: Herdr mette HC_TERMINAL_ID nell'ambiente della shell di
+# ogni scheda, e claude lo eredita. Sul Mac e su Linux l'ambiente lo dà ps; su Windows si legge dalla
+# memoria del processo (PEB, ProcessParameters, Environment: scostamenti dei processi a 64 bit), perché
+# nessun comando di sistema lo mostra. None se il processo non c'è, non si legge o non sta in Herdr.
+# Sta a parte perché entra nella SONDA, che gira sulla macchina da leggere, e il banco la prova da sola.
+TERMINALE = r'''
+def terminale_di(pid):
+    import os, subprocess
+    if os.name != "nt":
+        try:
+            amb = subprocess.run(["ps", "eww", "-o", "command=", "-p", str(pid)], capture_output=True, text=True,
+                                 errors="replace", stdin=subprocess.DEVNULL, timeout=5).stdout
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return next((x[15:] for x in amb.split() if x.startswith("HC_TERMINAL_ID=")), None)
+    try:
+        import ctypes
+        from ctypes import wintypes as w
+        k, n = ctypes.WinDLL("kernel32"), ctypes.WinDLL("ntdll")
+        k.OpenProcess.restype = w.HANDLE
+        k.OpenProcess.argtypes = [w.DWORD, w.BOOL, w.DWORD]
+        k.ReadProcessMemory.restype = w.BOOL
+        k.ReadProcessMemory.argtypes = [w.HANDLE, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_size_t)]
+        k.CloseHandle.argtypes = [w.HANDLE]
+        n.NtQueryInformationProcess.restype = ctypes.c_long
+        n.NtQueryInformationProcess.argtypes = [w.HANDLE, ctypes.c_int, ctypes.c_void_p, ctypes.c_ulong, ctypes.c_void_p]
+        if ctypes.sizeof(ctypes.c_void_p) != 8:
+            return None
+        h = k.OpenProcess(0x0410, False, pid)  # PROCESS_QUERY_INFORMATION | PROCESS_VM_READ
+        if not h:
+            return None
+        try:
+            def leggi(indirizzo, quanti):
+                buf, letti = ctypes.create_string_buffer(quanti), ctypes.c_size_t(0)
+                if not indirizzo or not k.ReadProcessMemory(h, ctypes.c_void_p(indirizzo), buf, quanti, ctypes.byref(letti)):
+                    return b""
+                return buf.raw[:letti.value]
+            def numero(indirizzo):
+                b = leggi(indirizzo, 8)
+                return int.from_bytes(b, "little") if len(b) == 8 else 0
+            info = (ctypes.c_void_p * 6)()  # PROCESS_BASIC_INFORMATION: il secondo campo è l'indirizzo del PEB
+            if n.NtQueryInformationProcess(h, 0, info, ctypes.sizeof(info), None) != 0 or not info[1]:
+                return None
+            parametri = numero(info[1] + 0x20)       # PEB.ProcessParameters
+            blocco = numero(parametri + 0x80) if parametri else 0       # .Environment
+            lungo = numero(parametri + 0x3F0) if parametri else 0       # .EnvironmentSize, in byte
+            if not blocco or not 0 < lungo <= 4 * 1024 * 1024:
+                return None
+            for riga in leggi(blocco, lungo).decode("utf-16-le", "replace").split("\0"):
+                if riga.startswith("HC_TERMINAL_ID="):
+                    return riga[15:]
+            return None
+        finally:
+            k.CloseHandle(h)
+    except Exception:
+        return None
+'''
 
 # Gira sulla macchina da leggere (anche con hc exec, passata in base64). Stampa un JSON:
 # {"claude": percorso o null, "sessioni": [...]} con progetto e ultime parole letti dai file di Claude.
@@ -90,6 +149,7 @@ def testo(c):
     if isinstance(c, str):
         return c
     return " ".join(b.get("text", "") for b in c if isinstance(b, dict) and b.get("type") == "text")
+#TERMINALE#
 for s in sessioni:
     sid = s.get("sessionId") or "-"
     s["progetto"] = None
@@ -103,13 +163,8 @@ for s in sessioni:
     # Un'interattiva partita nella shell di una scheda di Herdr porta nell'ambiente il nome di quel
     # terminale: Volta la porta davanti col clic invece di rimandare a "un Terminale" (11/11/2026).
     s["terminale"] = None
-    if os.name != "nt" and s.get("kind") != "background" and isinstance(s.get("pid"), int):
-        try:
-            amb = subprocess.run(["ps", "eww", "-o", "command=", "-p", str(s["pid"])], capture_output=True, text=True,
-                                 errors="replace", stdin=subprocess.DEVNULL, timeout=5).stdout
-            s["terminale"] = next((x[15:] for x in amb.split() if x.startswith("HC_TERMINAL_ID=")), None)
-        except (OSError, subprocess.SubprocessError):
-            pass
+    if s.get("kind") != "background" and isinstance(s.get("pid"), int):
+        s["terminale"] = terminale_di(s["pid"])
     s["titolo"] = None
     s["daPortare"] = None
     try:  # il titolo lo scrive hooks/titolo-sessione.py di Arturo a fine turno; senza resta vuoto
@@ -152,6 +207,7 @@ for s in sessioni:
 # solo ASCII: la console di Windows stampa in cp1252 e una freccia nel testo rompeva la riga
 print(json.dumps({"claude": cl, "sessioni": sessioni}))
 '''
+SONDA = SONDA.replace("#TERMINALE#", TERMINALE.strip())
 
 # Gira sulla macchina dove nasce la sessione (anche con hc exec). L'argomento è un JSON in base64
 # ({"prompt", "progetto"}, e per Duplica e Fork anche "cartella", "riprendi", "nome"): passa intero anche
@@ -427,7 +483,8 @@ def sonda_locale():
 def sonda_remota(nome):
     """La sonda su un'altra macchina via herdr-core: prima python3, poi python (Windows, dove python3
     può essere lo stub dello Store, che esce 9009)."""
-    codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(SONDA.encode()).decode()
+    # compressa: con terminale_di la sonda in base64 supererebbe gli 8191 caratteri di una riga di cmd.exe
+    codice = "import base64,zlib;exec(zlib.decompress(base64.b64decode('%s')))" % base64.b64encode(zlib.compress(SONDA.encode(), 9)).decode()
     ultimo, senza = "nessun Python", 0
     for py in ("python3", "python"):
         rc, out, err = lancia(hc() + ["exec", "--on", nome, py, "-c", codice], timeout=90)
