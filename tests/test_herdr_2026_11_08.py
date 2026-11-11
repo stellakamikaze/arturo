@@ -310,6 +310,11 @@ HZ76 la nascita scrive subito il registro e il nome resta col lavoro (volta_sond
      registro anche se non legge il sessionId; il nome dato dalla persona passa al sessionId nuovo, già
      portato, e resta alla lettura dopo; un titolo automatico non si eredita; Rinomina vuoto lo toglie
      e non torna al /clear seguente.
+HZ77 una sessione già agganciata in un Terminale non si apre due volte (revisione dell'11/11/2026, dati.js
+     con node e volta.js): altrove(s) trova i terminali di questa macchina che la agganciano fuori dai
+     pannelli, per argv e per etichetta, e non quelli chiusi, di un'altra macchina o di un'altra
+     sessione; con una scheda nella finestra è vuoto; stacca(s) li chiude e la scheda nuova nasce dopo;
+     il primo clic avvisa e si ferma, il secondo stacca e apre.
 """
 from __future__ import annotations
 
@@ -325,7 +330,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -1744,6 +1749,7 @@ export const run = (cmd, a) => {
   // HZ_CHIUDE: una scheda o un terminale chiuso sparisce, come in Herdr dopo tab.close e terminal.kill
   if (process.env.HZ_CHIUDE && (cmd === "tab.close" || cmd === "terminal.kill")) {
     const via = (finti.panes ?? []).filter((p) => (cmd === "tab.close" ? p.tab === a.id : p.terminal === a.terminal)).map((p) => p.terminal);
+    if (cmd === "terminal.kill") via.push(a.terminal);
     finti.panes = (finti.panes ?? []).filter((p) => !via.includes(p.terminal));
     finti.terminals = (finti.terminals ?? []).filter((t) => !via.includes(t.address));
   }
@@ -5391,7 +5397,112 @@ def hz76(repo: Path, casa: Path) -> str | None:
 
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76}
+PROVA_ALTROVE = r"""
+import { altrove, stacca, apriSessione } from "./dati.mjs";
+import { lanciati } from "./herdr.mjs";
+const s = { id: "ffff1111", sessionId: "ffff1111-aaaa", host: "qui", macchina: "Questa", questa: true, nome: "Progetto x",
+            progetto: "progetto-x", stato: "ferma", tipo: "background" };
+const prima = altrove(s).map((x) => x.address);
+let staccati = null, dopo = null, esito = null;
+if (process.env.HZ_CASO === "stacca") {
+  staccati = stacca(s);
+  dopo = altrove(s).map((x) => x.address);
+  const r = await apriSessione(s, ["claude", "attach", "ffff1111"], true);
+  esito = { ...r, veglia: undefined };
+}
+console.log(JSON.stringify({ prima, staccati, dopo, esito, lanciati, senza: altrove(null), vuota: altrove({}) }));
+"""
+
+
+def hz77(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    volta_js = (mod / "volta.js").read_text(encoding="utf-8")
+    # il clic: la frase del primo clic si legge prima di toglierla, e l'avviso ferma il clic prima della scheda
+    ordine = ("const secondo = this.avvisi[s.sessionId] === ALTROVE;", "delete this.avvisi[s.sessionId];",
+              'if (d.azione === "aggancia" && this.fuori(s, secondo, cx)) return;',
+              'if (d.azione === "aggancia") return this.apri(s, d.argv, false, cx);')
+    posti = [volta_js.find(p) for p in ordine]
+    if -1 in posti or posti != sorted(posti):
+        return f"volta.js, premi: mancano o sono fuori ordine {[p for p, i in zip(ordine, posti) if i == -1] or ordine}"
+    for pezzo in ('const ALTROVE = "È aperta in un Terminale. Un altro clic la porta qui.";',
+                  "  fuori(s, secondo, cx) {\n    if (!altrove(s).length) return false;\n    if (secondo) { stacca(s); return false; }\n"
+                  "    this.avvisa(s, ALTROVE, cx, ALTROVE_MS);\n    return true;\n  }",
+                  "esito, altrove, stacca } from \"./dati.js\";"):
+        if pezzo not in volta_js:
+            return f"volta.js senza {pezzo[:70]}"
+    node = shutil.which("node")
+    if not node:
+        return None
+    m = casa / "mod"
+    m.mkdir()
+    mod_dati(repo, m, (mod / "dati.js").read_text(encoding="utf-8"))
+    (m / "prova.mjs").write_text(PROVA_ALTROVE, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+    (app / "arturo.json").write_text(json.dumps({"arturo": ["python9", "/a/bin/arturo"], "radice": str(repo), "base": "/base"}), encoding="utf-8")
+    spazio = {"id": "s1", "name": "progetto-x", "named": True, "active": True, "tabs": [{"id": "tb0", "name": "Shell"}, {"id": "tb1", "name": "Altro"}]}
+    shell = {"address": "t3", "argv": ["zsh"], "state": "live"}
+    # come lo lascia il lanciatore volta-claude in una finestra del Terminale: nessun pannello lo mostra
+    fuori = {"address": "t9", "argv": ["sh", "-c", "claude attach ffff1111"], "state": "live", "labels": {}}
+    scheda = {"address": "t7", "argv": ["/bin/zsh", "-lic", '"$@"; exec "$0" -li', "/bin/zsh", "claude", "attach", "ffff1111"], "state": "live"}
+
+    def volta(terminali, pannelli=("t3",), caso="guarda", **extra):
+        herdr = {"spaces": [spazio], "terminals": terminali, "panes": [{"terminal": x, "tab": "tb0" if x == "t3" else "tb1"} for x in pannelli]}
+        e = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_CASO": caso, "HZ_EXEC": '{"ok": true}',
+             "HZ_SHARED": json.dumps({"arturo.volta.macchine": [], "arturo.dove": "qui"}), "HZ_HERDR": json.dumps(herdr), **extra}
+        for k in ("HZ_NASCE", "HZ_STATO", "HZ_PRONTA", "HZ_HC_ROTTO", "HZ_HC_READ", "HZ_HC_GET", "HZ_CHIUDE", "HZ_EXEC_CODICE", "HZ_EXEC_ERR"):
+            if k not in extra:
+                e.pop(k, None)
+        r = subprocess.run([node, str(m / "prova.mjs")], capture_output=True, text=True, timeout=30, env=e)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[:200])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    try:
+        # il caso vero: la finestra del Terminale aggancia la sessione, nella finestra di Volta non c'è scheda
+        v = volta([shell, fuori])
+        if v["prima"] != ["t9"] or v["senza"] != [] or v["vuota"] != []:
+            return f"un terminale che aggancia la sessione fuori dai pannelli non si trova: {v['prima']}, senza sessione {v['senza']}, {v['vuota']}"
+        # per etichetta, quando l'argv non dice niente
+        v = volta([shell, {"address": "t9", "argv": ["zsh"], "state": "live", "labels": {"arturo.sessione": "ffff1111"}}])
+        if v["prima"] != ["t9"]:
+            return f"un terminale con l'etichetta della sessione, fuori dai pannelli, non si trova: {v['prima']}"
+        # la sessione ha una scheda nella finestra: il clic porta davanti quella, niente da staccare
+        v = volta([shell, scheda, fuori], pannelli=("t3", "t7"))
+        if v["prima"] != []:
+            return f"con una scheda della sessione nella finestra risulta ancora aperta altrove: {v['prima']}"
+        # chiuso, di un'altra macchina, di un'altra sessione, senza argv: non contano
+        for cosa, x in (("un terminale già chiuso", {**fuori, "state": "exited"}),
+                        ("un terminale di un'altra macchina", {**fuori, "address": "amaltea/t9"}),
+                        ("un terminale di un'altra sessione", {**fuori, "argv": ["sh", "-c", "claude attach aaaa2222"]}),
+                        ("un terminale con l'etichetta di un'altra sessione", {"address": "t9", "argv": ["zsh"], "state": "live", "labels": {"arturo.sessione": "aaaa2222"}}),
+                        ("un terminale senza argv", {"address": "t9", "state": "live"})):
+            v = volta([shell, x])
+            if v["prima"] != []:
+                return f"{cosa} passa per un aggancio della sessione: {v['prima']}"
+        # senza stato (un Herdr che non lo dice) vale come vivo
+        v = volta([shell, {"address": "t9", "argv": fuori["argv"]}])
+        if v["prima"] != ["t9"]:
+            return f"un terminale senza stato non si trova: {v['prima']}"
+        # il secondo clic: i terminali fuori si chiudono, poi nasce la scheda; la sessione non si ferma
+        v = volta([shell, fuori, {**fuori, "address": "t10"}], caso="stacca", HZ_CHIUDE="1", HZ_NASCE="t11", HZ_HC_GET=json.dumps({"t11": [{"state": "live", "pid": 10, "argv": ["x"], "foreground": {"pid": 77, "argv": ["claude"]}}]}))
+        if v["prima"] != ["t9", "t10"] or v["staccati"] != 2 or v["dopo"] != []:
+            return f"stacca non chiude i terminali fuori dalla finestra: prima {v['prima']}, staccati {v['staccati']}, dopo {v['dopo']}"
+        cmd = [x["cmd"] for x in v["lanciati"] if x["cmd"] in ("terminal.kill", "tab.new", "space.new", "tab.close")]
+        if cmd != ["terminal.kill", "terminal.kill", "tab.new"] or [x.get("terminal") for x in v["lanciati"] if x["cmd"] == "terminal.kill"] != ["t9", "t10"]:
+            return f"dopo lo stacco non nasce una scheda sola, o si chiude altro: {v['lanciati']}"
+        if v["esito"].get("come") != "nuova" or any(x[:1] == ["stop"] for x in v.get("eseguiti", [])):
+            return f"dopo lo stacco la sessione non si apre in una scheda nuova: {v['esito']}"
+        # con la scheda nella finestra stacca non tocca niente
+        v = volta([shell, scheda, fuori], pannelli=("t3", "t7"), caso="stacca", HZ_HC_GET=json.dumps({"t7": [{"state": "live", "pid": 10, "argv": scheda["argv"], "foreground": {"pid": 77, "argv": ["claude"]}}]}))
+        if v["staccati"] != 0 or any(x["cmd"] == "terminal.kill" for x in v["lanciati"]) or v["esito"].get("come") != "davanti":
+            return f"con la scheda nella finestra stacca chiude qualcosa: {v['staccati']}, {v['lanciati']}, {v['esito']}"
+    except (RuntimeError, ValueError, KeyError) as e:
+        return f"dati.js non gira con node: {e}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -5410,6 +5521,20 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '  if (!s?.id || schedeDi(s).length) return [];\n  return terminals().filter(', '  if (!s?.id) return [];\n  return terminals().filter('),
+    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', 'return terminals().filter((x) => !String(x.address).includes("/") && (x.state ?? "live") === "live" &&', 'return terminals().filter((x) => (x.state ?? "live") === "live" &&'),
+    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '!String(x.address).includes("/") && (x.state ?? "live") === "live" &&', '!String(x.address).includes("/") &&'),
+    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '(x.state ?? "live") === "live" &&', 'x.state === "live" &&'),
+    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '    (x.labels?.[ETICHETTA] === s.id || agganciata(x.argv, s)));\n}\n\n// Stacca', '    agganciata(x.argv, s));\n}\n\n// Stacca'),
+    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '    (x.labels?.[ETICHETTA] === s.id || agganciata(x.argv, s)));\n}\n\n// Stacca', '    (x.labels?.[ETICHETTA] === s.id));\n}\n\n// Stacca'),
+    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '  for (const t of l) run("terminal.kill", { terminal: t.address });\n  return l.length;', '  return l.length;'),
+    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '  for (const t of l) run("terminal.kill", { terminal: t.address });\n  return l.length;', '  for (const t of l.slice(0, 1)) run("terminal.kill", { terminal: t.address });\n  return l.length;'),
+    ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '  for (const t of l) run("terminal.kill", { terminal: t.address });\n  return l.length;', '  for (const t of l) run("terminal.kill", { terminal: t.address });\n  return 0;'),
+    ('HZ77', 'shared/volta-celeste/mods/arturo/volta.js', '    if (d.azione === "aggancia" && this.fuori(s, secondo, cx)) return;\n', ''),
+    ('HZ77', 'shared/volta-celeste/mods/arturo/volta.js', '    const secondo = this.avvisi[s.sessionId] === ALTROVE;\n    delete this.avvisi[s.sessionId];', '    delete this.avvisi[s.sessionId];\n    const secondo = this.avvisi[s.sessionId] === ALTROVE;'),
+    ('HZ77', 'shared/volta-celeste/mods/arturo/volta.js', '    if (secondo) { stacca(s); return false; }\n', ''),
+    ('HZ77', 'shared/volta-celeste/mods/arturo/volta.js', '    if (!altrove(s).length) return false;\n', ''),
+    ('HZ77', 'shared/volta-celeste/mods/arturo/volta.js', '    this.avvisa(s, ALTROVE, cx, ALTROVE_MS);\n    return true;', '    this.avvisa(s, ALTROVE, cx, ALTROVE_MS);\n    return false;'),
     ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        if nuovo.get("progetto"):\n            s["progetto"] = nuovo["progetto"].strip()[:60]', '        if False:\n            s["progetto"] = nuovo["progetto"].strip()[:60]'),
     ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        nuovo.update(progetto=s["progetto"], fonte=fonte)', '        pass'),
     ('HZ74', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'FORTI = ("persona", "inizio", "volta", "teletrasporto", "file")', 'FORTI = ("persona", "inizio", "volta", "teletrasporto", "file", "cartella")'),

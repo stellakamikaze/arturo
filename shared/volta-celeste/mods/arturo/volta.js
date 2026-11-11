@@ -18,7 +18,7 @@ import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals } from "herdr";
 import { gruppi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
-import { config, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti, esito } from "./dati.js";
+import { config, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti, esito, altrove, stacca } from "./dati.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
 import { bersaglio, passo, rigaMicrofono } from "./microfono.js";
@@ -28,6 +28,10 @@ const OGNI = 30000;
 const OGNI_MOD = 3600000;
 // Ogni quanto si guarda se la scheda in primo piano aggancia una sessione di un'altra macchina (microfono.js).
 const OGNI_MICROFONO = 2000;
+// La sessione è già agganciata in un Terminale fuori dalla finestra: la frase del primo clic, e per
+// quanto resta sulla riga. Finché c'è, il clic dopo stacca quel Terminale e apre la scheda qui.
+const ALTROVE = "È aperta in un Terminale. Un altro clic la porta qui.";
+const ALTROVE_MS = 20000;
 
 // Il mod si aggiorna da solo: volta_mod.py (fuori dalla cartella del mod, così un mod rotto non lo
 // ferma) scarica, controlla con herdr-app check e scambia; Herdr ricarica il mod a file cambiati.
@@ -210,11 +214,13 @@ export class Volta {
   premi(s, cx) {
     // un secondo clic mentre il primo lavora non lancia un secondo aggancio nella stessa scheda
     if (this.sposto[s.sessionId] || this.apro[s.sessionId] || this.veglio[s.sessionId]) return;
+    const secondo = this.avvisi[s.sessionId] === ALTROVE;
     delete this.avvisi[s.sessionId];
     let d = clic(s);
     // la scheda che la ospita non è in questa finestra: vale la regola di un'interattiva in un Terminale
     if (d.azione === "mostra") { if (mostra(d.terminale)) return; d = clic({ ...s, terminale: null }); }
     if (d.azione === "no") return this.avvisa(s, d.motivo, cx);
+    if (d.azione === "aggancia" && this.fuori(s, secondo, cx)) return;
     if (d.azione === "aggancia") return this.apri(s, d.argv, false, cx);
     // senza teletrasporto.py nessuno sa scrivere /bg nel Terminale di quella sessione
     if (!this.sposta) return this.avvisa(s, "È aperta in un Terminale: aprila da lì.", cx);
@@ -234,6 +240,16 @@ export class Volta {
       } else this.avvisa(s, `Non la sposto: ${String(portata?.errore ?? "risposta vuota").replace(/\.+$/, "")}.`, cx);
       cx.notify();
     });
+  }
+
+  // La sessione è già agganciata in un Terminale fuori dalla finestra (dati.js altrove): il primo clic lo
+  // dice sulla riga, il secondo (finché l'avviso è lì) stacca quel terminale e lascia aprire la scheda.
+  // La sessione continua: si chiude solo l'aggancio. Torna true se il clic si ferma all'avviso.
+  fuori(s, secondo, cx) {
+    if (!altrove(s).length) return false;
+    if (secondo) { stacca(s); return false; }
+    this.avvisa(s, ALTROVE, cx, ALTROVE_MS);
+    return true;
   }
 
   // Apre la sessione in una scheda con Claude dentro (dati.js apriSessione): prima il servizio di Claude,

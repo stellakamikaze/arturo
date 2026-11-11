@@ -1,5 +1,5 @@
 {
- "albero": "f2ce12a42af21d33e348674faeeab6f2411798d5",
+ "albero": "f4e26267efcb699b209f859c61dc2a112c32e8e9",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -18,7 +18,7 @@
   "mods/arturo/chiedi.svg": "e00f6385950d1496b2c2e57fe3905417024b695544dbc004526249b9d9f3e15c",
   "mods/arturo/comandi.js": "01235dabfec22482e536e3cbbcc9044fbdadc225bcab034eb2be66c7dccb2bd2",
   "mods/arturo/comuni.js": "8561fe6b117cf2726307a35d353389cf13a706df0c143939049167964027fade",
-  "mods/arturo/dati.js": "791bf4343e99d74da8715c26e0ba5de6cb1bf96276d25ae429d8da7c1432d708",
+  "mods/arturo/dati.js": "9c01302155ee249f88ad1283bb69c1e16beadfcb80d6b9afce44bd9c7cfd0e08",
   "mods/arturo/fonts/Archivo-SemiBold.ttf": "9065729d94a24b234c619bb7eb3468e0d0e95465f0fc22b33769e57ddb21fdf0",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Bold.ttf": "c1fab8d34e428f6e0cf5c4005b7bb881527f583cb7f6b5e1ef6934d4029953dd",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Regular.ttf": "c32e56b953e633b93b0d1c559652595cf0036946c425fda6ce747f6755fa1512",
@@ -47,7 +47,7 @@
   "mods/arturo/suggerimenti.js": "d1a5fad2495b981596691306a7e76a855b5e6ad023773574c438118da2424ff8",
   "mods/arturo/testata.js": "bd92dafdea795c6263edd16b3a318759372b052d27ee988e5cb24256f949de17",
   "mods/arturo/todo.js": "8d040112d05be5f707c2a7da105296badb2fc55130e117e608206b62c135d1dc",
-  "mods/arturo/volta.js": "0aab1a6ce6fa5a775fa38459821014fa1d89a6af5d2c90bcb6fee5723b4ac09b",
+  "mods/arturo/volta.js": "e384a6030933bf9fa9ff747becb9a4f63d57cea21bbc5680906b18f547cd9638",
   "mods/arturo/volta_microfono.py": "0bf73cc69add06e734275722a8367ea023983200b79b8cd644d58586bb59afed",
   "mods/arturo/volta_sonda.py": "e569b8383c1778c70bd2c28204fd1f78d1f63860e226b8f5d21cccc10174639c",
   "nascita.sh": "c143dd80bf98640b0565b3015a91d45619bd2c3a232a86c58129e517c0f5b9c1",

@@ -421,6 +421,24 @@ export function schedeDi(s) {
   return etichetta.concat(l.filter((x) => !etichetta.includes(x) && agganciata(x.argv, s)));
 }
 
+// I terminali di questa macchina che agganciano la sessione fuori dalla finestra: il core li tiene e
+// nessun pannello li mostra. È una finestra del Terminale aperta col lanciatore volta-claude
+// (hc run sh -c "claude attach <id>"). Vuoto se la sessione ha già una scheda qui (schedeDi): il clic
+// porta davanti quella, e ogni altro terminale che la aggancia è per forza fuori dai pannelli. Senza
+// questo controllo il clic apre un secondo aggancio, e i due si contendono la larghezza del terminale.
+export function altrove(s) {
+  if (!s?.id || schedeDi(s).length) return [];
+  return terminals().filter((x) => !String(x.address).includes("/") && (x.state ?? "live") === "live" &&
+    (x.labels?.[ETICHETTA] === s.id || agganciata(x.argv, s)));
+}
+
+// Stacca quei terminali: chiude l'aggancio, la sessione continua in background. Torna quanti erano.
+export function stacca(s) {
+  const l = altrove(s);
+  for (const t of l) run("terminal.kill", { terminal: t.address });
+  return l.length;
+}
+
 // La scheda è rimasta con la shell nuda: claude attach è uscito (sessione fermata altrove, connessione
 // caduta, servizio spento) e Herdr ha lasciato la shell che lo aveva lanciato. Si riconosce dal programma
 // in primo piano: è la shell del terminale (stesso pid) e non ha più l'argv con cui è nata, cioè ha già
