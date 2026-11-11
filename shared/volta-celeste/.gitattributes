@@ -1,0 +1,4 @@
+# A capo LF in ogni checkout, anche su Windows: gli script sh e il confronto delle impronte lo vogliono.
+* text=auto eol=lf
+*.ttf binary
+*.png binary

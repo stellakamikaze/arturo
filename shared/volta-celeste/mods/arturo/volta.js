@@ -12,13 +12,36 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, exec, readTextFile, home, shared, setShared, watchFolder, notify } from "herdr";
+import { theme, exec, readTextFile, appHome, home, shared, setShared, watchFolder, notify } from "herdr";
 import { gruppi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
 import { config, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede } from "./dati.js";
 import { apriMenuSessione } from "./menusessione.js";
 
 const OGNI = 30000;
+// Ogni quanto il mod chiede a volta_mod.py se nel repository c'è un mod nuovo (anche all'apertura).
+const OGNI_MOD = 3600000;
+
+// Il mod si aggiorna da solo: volta_mod.py (fuori dalla cartella del mod, così un mod rotto non lo
+// ferma) scarica, controlla con herdr-app check e scambia; Herdr ricarica il mod a file cambiati.
+// Poi la versione installata e l'ultimo esito vanno in shared arturo.mod, per il piede della barra:
+// { corta, installato, esito, giu_da, motivo }. Senza volta_mod.py o senza sorgente non fa niente.
+let controlloMod = false;
+export async function controllaMod(py) {
+  const script = `${appHome()}/volta_mod.py`;
+  if (controlloMod || !(await esiste(script))) return;
+  controlloMod = true;
+  try {
+    await exec(py, [script, "controlla"], { timeout: 300000 });
+  } catch { /* l'esito sta in mod-stato.json */ }
+  try {
+    const r = await exec(py, [script, "stato"], { timeout: 20000 });
+    const d = JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
+    if (d.sorgente) setShared("arturo.mod", { corta: d.installato?.corta ?? null, installato: d.installato?.installato ?? null,
+      esito: d.esito ?? null, giu_da: d.giu_da ?? null, motivo: d.motivo ?? null, modo: d.modo ?? null });
+  } catch { /* resta l'ultimo stato letto */ }
+  controlloMod = false;
+}
 
 // La frase della riga mentre un gesto del menu lavora, e quella che resta qualche secondo a gesto fatto.
 const LAVORO = { chiudi: "La chiudo…", duplica: "La duplico…", fork: "Copio la conversazione…" };
@@ -56,6 +79,7 @@ export class Volta {
       // Il Python che installa-herdr.sh ha trovato e scritto in arturo.json: su Windows può essere "python".
       const c = await config();
       this.py = c.arturo[0];
+      controllaMod(this.py);
       const sc = await script(c);
       this.script = sc.elenco;
       this.sposta = sc.sposta;
@@ -69,6 +93,7 @@ export class Volta {
       } catch { /* senza cartella resta il timer */ }
     });
     cx.timer.every(OGNI, (cx) => this.aggiorna(cx));
+    cx.timer.every(OGNI_MOD, () => controllaMod(this.py));
   }
 
   async leggi() {

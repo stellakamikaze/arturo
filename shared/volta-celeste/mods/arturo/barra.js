@@ -2,7 +2,7 @@
 
 import { div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, run, agents, spaces, window, shared, setShared, nextCommand, updates } from "herdr";
+import { theme, run, agents, spaces, window, shared, setShared, nextCommand, updates, notify } from "herdr";
 import { todo, progetti, sezioni, frase, apri, nuova, nuovaScheda, slug, cartelle, statiQui, SUGGERIMENTI } from "./dati.js";
 import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco, nasceSu, tasti } from "./comuni.js";
 import { APERTE } from "./nota.js";
@@ -11,6 +11,7 @@ import { apriSuggerimenti, esegui } from "./suggerimenti.js";
 import { apriRevisione } from "./revisione.js";
 import { revisione, settimanaDi } from "./settimana.js";
 import { Volta } from "./volta.js";
+import { rigaMod } from "./sessioni.js";
 
 export class Marchio {
   render() {
@@ -58,6 +59,8 @@ export class Barra {
         // "arturo.nota-<id>": il velo aperto sulla nota <id>, dall'elenco delle note.
         else if (c.startsWith("nota-")) await apriNota(c.slice(5));
         else if (c === "note") apriElenco();
+        // "arturo.versione": la versione del mod e l'ultimo controllo, in un avviso (prove senza clic).
+        else if (c === "versione") { const m = shared("arturo.mod"); notify({ title: rigaMod(m)?.testo ?? "Il mod non ha una versione", body: m?.motivo ?? `Ultimo controllo: ${m?.esito ?? "mai"}.`, level: "info" }); }
         // "arturo.volta-gruppi-<macchina|progetto>": l'interruttore dell'elenco, da herdr-app do.
         else if (c === "volta-gruppi-macchina" || c === "volta-gruppi-progetto") setShared("arturo.volta.gruppi", c.slice(13));
         // "arturo.volta-nuova": la scheda nuova (⌘T) è una sessione di Claude, non una shell (#5290).
@@ -170,6 +173,7 @@ export class Piede {
         .child(div().text_size(11.5).text_color(t.dim).child(`${tasti().nota} nuova · ${tasti().elenco}`)))
       .child(voce("guida", "mods/arturo/guida.svg", "Guida", () => apriGuida()))
       .child(voce("impostazioni", "settings", "Impostazioni", () => run("app.settings"))
+        .when(Boolean(rigaMod(shared("arturo.mod"))), (el) => { const r = rigaMod(shared("arturo.mod")); return el.child(div().text_size(11.5).text_color(r.avviso ? t.blocked : t.dim).child(r.testo)); })
         .when(Boolean(updates().app.ready), (el) => el.child(punto(t.accent, 7))));
   }
 }

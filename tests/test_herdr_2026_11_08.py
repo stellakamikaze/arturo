@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ55: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ57: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -214,6 +214,13 @@ HZ54 il menu del tasto destro su una sessione (#5291): menu() di sessioni.js dà
 HZ55 i verbi duplica e fork della sonda (#5291): passano da nasci, col servizio acceso prima; fork porta
      --resume <sessionId> --fork-session e parte dalla cartella della sessione, e senza cartella dà errore
      senza lanciare claude; duplica senza cartella ripiega sulla base. Un id strano non parte.
+HZ56 shared/volta-celeste/ è una copia (11/11/2026): la scrive volta/pubblica-mod.py del repository di
+     Volta Celeste, e ogni file ha l'impronta di ORIGINE. Un file toccato a mano, uno in più o uno in
+     meno fanno rosso: la fonte si cambia là.
+HZ57 il mod si aggiorna da solo (11/11/2026): volta.js chiede a volta_mod.py un controllo all'apertura e
+     ogni ora, mai due insieme, e pubblica la versione in shared arturo.mod; il piede la scrive accanto
+     a Impostazioni con rigaMod() di sessioni.js (node): ora dell'installazione, giorno se non è oggi,
+     avviso dopo un giorno senza controllo.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -231,7 +238,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -3457,7 +3464,73 @@ def hz55(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55}
+# I file che Herdr scrive da sé nella cartella di un mod aperto in un editor: fuori da git e da ORIGINE.
+GENERATI_DA_HERDR = ("gpui-kit.d.ts", "herdr.d.ts", "jsconfig.json")
+
+PROVA_RIGA_MOD = """
+import * as m from %s;
+const ora = new Date(2026, 10, 11, 12, 0, 0).getTime();
+const t = (h, mi, g = 11) => new Date(2026, 10, g, h, mi, 0).getTime() / 1000;
+console.log(JSON.stringify({
+  niente: m.rigaMod(null),
+  oggi: m.rigaMod({ corta: "abc1234", installato: t(9, 5) }, ora),
+  ieri: m.rigaMod({ corta: "abc1234", installato: t(18, 30, 10) }, ora),
+  giu: m.rigaMod({ corta: "abc1234", installato: t(9, 5), esito: "errore", giu_da: ora / 1000 - 3 * 86400 - 5, motivo: "rete" }, ora),
+  giuDaPoco: m.rigaMod({ corta: "abc1234", installato: t(9, 5), esito: "errore", giu_da: ora / 1000 - 3600 }, ora),
+}));
+"""
+
+
+def hz56(repo: Path, casa: Path) -> str | None:
+    import hashlib  # noqa: PLC0415
+    vc = repo / "shared/volta-celeste"
+    try:
+        attesi = json.loads((vc / "ORIGINE").read_text(encoding="utf-8"))["file"]
+    except (OSError, ValueError, KeyError):
+        return "shared/volta-celeste/ORIGINE manca o non si legge: la copia la scrive volta/pubblica-mod.py"
+    veri = {str(f.relative_to(vc)).replace(os.sep, "/"): hashlib.sha256(f.read_bytes()).hexdigest()
+            for f in vc.rglob("*") if f.is_file() and f.name not in ("ORIGINE",) + GENERATI_DA_HERDR and "__pycache__" not in f.parts}
+    diversi = sorted(k for k in set(attesi) | set(veri) if attesi.get(k) != veri.get(k))
+    if diversi:
+        return f"shared/volta-celeste non è la copia di ORIGINE (la fonte è il repository di Volta Celeste): {diversi[:4]}"
+    return None
+
+
+def hz57(repo: Path, casa: Path) -> str | None:
+    vc = repo / "shared/volta-celeste"
+    mod = vc / "mods/arturo"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    for pezzo in ("const script = `${appHome()}/volta_mod.py`;", "if (controlloMod || !(await esiste(script))) return;",
+                  'await exec(py, [script, "controlla"], { timeout: 300000 });', 'setShared("arturo.mod", {',
+                  "      controllaMod(this.py);\n      const sc = await script(c);",
+                  "cx.timer.every(OGNI_MOD, () => controllaMod(this.py));"):
+        if pezzo not in vj:
+            return f"volta.js non chiede il controllo del mod: manca {pezzo}"
+    bj = (mod / "barra.js").read_text(encoding="utf-8")
+    if '.when(Boolean(rigaMod(shared("arturo.mod"))), (el) =>' not in bj[bj.find("export class Piede {"):] or 'else if (c === "versione")' not in bj:
+        return "barra.js: il piede non scrive la versione del mod, o manca il comando arturo.versione"
+    if '"id": "piede", "type": "block", "size": {"px": 190}' not in json.dumps(json.loads((vc / "layouts/arturo.json").read_text(encoding="utf-8"))):
+        return "il piede non è più alto 190 px: la versione sta sulla riga di Impostazioni proprio per non aggiungerne una"
+    sonda = (vc / "volta_mod.py").read_text(encoding="utf-8")
+    for pezzo in ('if not isinstance(url, str) or not url:', 'motivo = controlla_mod(nuovo)', 'c.get("mod_modo") == "manuale"'):
+        if pezzo not in sonda:
+            return f"volta_mod.py: manca {pezzo}"
+    node = shutil.which("node")
+    if node:
+        copia = casa / "sessioni.mjs"
+        shutil.copyfile(mod / "sessioni.js", copia)
+        r = subprocess.run([node, "--input-type=module", "-e", PROVA_RIGA_MOD % json.dumps(copia.as_uri())], capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+        d = json.loads(r.stdout.strip().splitlines()[-1])
+        attesa = {"niente": None, "oggi": {"testo": "mod abc1234 · 09:05"}, "ieri": {"testo": "mod abc1234 · 10/11 18:30"},
+                  "giu": {"testo": "mod abc1234 · non controllo da 3 giorni", "avviso": "rete"}, "giuDaPoco": {"testo": "mod abc1234 · 09:05"}}
+        if d != attesa:
+            return f"rigaMod: {d}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -3476,6 +3549,12 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ("HZ56", "shared/volta-celeste/keys.json", '"cmd-o": "arturo.apri",', '"cmd-o":  "arturo.apri",'),
+    ("HZ57", "shared/volta-celeste/mods/arturo/volta.js", "  if (controlloMod || !(await esiste(script))) return;", "  if (!(await esiste(script))) return;"),
+    ("HZ57", "shared/volta-celeste/mods/arturo/volta.js", "    cx.timer.every(OGNI_MOD, () => controllaMod(this.py));", ""),
+    ("HZ57", "shared/volta-celeste/mods/arturo/sessioni.js", "adesso / 1000 - m.giu_da > 86400", "adesso / 1000 - m.giu_da > 0"),
+    ("HZ57", "shared/volta-celeste/mods/arturo/sessioni.js", "d.toDateString() === oggi.toDateString() ? \"\" :", "true ? \"\" :"),
+    ("HZ57", "shared/volta-celeste/mods/arturo/barra.js", '.when(Boolean(rigaMod(shared("arturo.mod"))), (el) =>', '.when(false, (el) =>'),
     ("HZ35", "shared/volta-celeste/volta-claude.sh", 'if [ -z "${SSH_CONNECTION:-}" ] && [ -f "$sonda" ]', 'if [ -f "$sonda" ]'),
     ("HZ35", "shared/volta-celeste/volta-claude.sh", '  esito=$(python3 "$sonda" servizio qui 2>&1) ||', '  esito=$(true) ||'),
     ("HZ35", "shared/volta-celeste/volta-claude.sh", 'servizio qui 2>&1) ||', 'servizio qui 2>&1) || exit 1 ||'),

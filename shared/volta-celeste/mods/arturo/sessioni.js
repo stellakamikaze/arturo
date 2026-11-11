@@ -187,3 +187,20 @@ export function statiCorti(dati) {
   for (const s of dati?.sessioni ?? []) if (s.id && !s.vecchia) out[s.id] = { stato: s.stato, host: s.host };
   return out;
 }
+
+// La versione del mod accanto a "Impostazioni" (shared arturo.mod, lo scrive controllaMod di volta.js; la disegna il piede di barra.js):
+// "mod abc1234 · 09:52", l'ora dell'ultima installazione (col giorno se non è oggi). Dopo un giorno
+// senza riuscire a controllare lo dice, col motivo. Il piede è alto 190 px: niente riga in più.
+export function rigaMod(m, adesso = Date.now()) {
+  if (!m?.corta) return null;
+  const due = (n) => String(n).padStart(2, "0");
+  if (m.esito === "errore" && m.giu_da && adesso / 1000 - m.giu_da > 86400) {
+    const giorni = Math.floor((adesso / 1000 - m.giu_da) / 86400);
+    return { testo: `mod ${m.corta} · non controllo da ${giorni} ${giorni === 1 ? "giorno" : "giorni"}`, avviso: m.motivo ?? "" };
+  }
+  if (!m.installato) return { testo: `mod ${m.corta}` };
+  const d = new Date(m.installato * 1000);
+  const oggi = new Date(adesso);
+  const giorno = d.toDateString() === oggi.toDateString() ? "" : `${d.getDate()}/${d.getMonth() + 1} `;
+  return { testo: `mod ${m.corta} · ${giorno}${due(d.getHours())}:${due(d.getMinutes())}` };
+}
