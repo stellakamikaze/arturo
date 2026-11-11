@@ -31,6 +31,8 @@ Regole:
   - il ricevitore chiude da solo dopo SILENZIO secondi senza audio in arrivo: la rete è caduta;
   - `ripara` copre il ricevitore ucciso senza poter ripulire (kill -9, riavvio): la lancia la sonda
     delle sessioni (volta_sonda.py) a ogni lettura, finché trova microfono.json;
+  - un ingresso Bluetooth non si cattura mai (`sorgente`): porta cassa o cuffia al profilo telefonata e
+    ovatta la musica. Se il predefinito è Bluetooth il ponte prende il microfono integrato, o uno USB;
   - `spegni` chiude tutto il gruppo del ponte, anche quando il ponte è morto e restano cattura e ssh.
 
 Sta nella cartella del mod, come volta_sonda.py: arriva su ogni macchina con l'aggiornamento del mod, e
@@ -38,7 +40,7 @@ il ponte lo trova là allo stesso posto (~/.config/herdr-app/mods/arturo).
 
 Solo macOS per ora: su Windows `accendi` e `ricevi` rispondono che manca il supporto.
 Variabili per i banchi: VOLTA_CACHE, VOLTA_MIC_AUDIO (un file JSON al posto di CoreAudio:
-{"predefinito": uid, "ingressi": [{"uid", "nome"}]}), VOLTA_MIC_CATTURA, VOLTA_MIC_SUONA e
+{"predefinito": uid, "ingressi": [{"uid", "nome", "trasporto"}]}), VOLTA_MIC_CATTURA, VOLTA_MIC_SUONA e
 VOLTA_MIC_SSH (JSON: l'argv che sostituisce ffmpeg di cattura, ffmpeg di uscita e ssh col comando),
 VOLTA_MIC_SCADENZA e VOLTA_MIC_SILENZIO (secondi).
 Solo libreria standard, Python 3.8+.
@@ -57,6 +59,7 @@ import threading
 import time
 from pathlib import Path
 
+BLUETOOTH = ("blue", "blea")    # kAudioDeviceTransportType di cuffie e casse Bluetooth
 VIRTUALE = "BlackHole"          # il microfono virtuale si riconosce dal nome
 SCADENZA = float(os.environ.get("VOLTA_MIC_SCADENZA") or 100)   # secondi senza rinnovo dopo i quali il ponte locale si chiude
 FREQUENZA = 16000               # PCM 16 bit mono in viaggio: basta alla voce, 32 kB al secondo
@@ -178,8 +181,13 @@ class Audio:
         b = self._dato(1, "dev#")  # 1 = kAudioObjectSystemObject
         return [i for i in self.s.unpack("@%dI" % (len(b) // 4), b) if self._dato(i, "stm#", "inpt")]
 
+    def _trasporto(self, oggetto: int) -> str:
+        b = self._dato(oggetto, "tran")
+        return b[::-1].decode("ascii", "replace") if len(b) == 4 and sys.byteorder == "little" else b.decode("ascii", "replace")
+
     def ingressi(self) -> list:
-        return [{"uid": self._testo(i, "uid "), "nome": self._testo(i, "lnam")} for i in self._dispositivi()]
+        return [{"uid": self._testo(i, "uid "), "nome": self._testo(i, "lnam"), "trasporto": self._trasporto(i)}
+                for i in self._dispositivi()]
 
     def predefinito(self) -> str:
         b = self._dato(1, "dIn ")
@@ -231,6 +239,26 @@ def audio():
 
 def virtuale(a) -> dict | None:
     return next((x for x in a.ingressi() if VIRTUALE.lower() in (x.get("nome") or "").lower()), None)
+
+
+def sorgente(a) -> str | None:
+    """Il nome dell'ingresso da catturare, o None per quello predefinito.
+
+    Un ingresso Bluetooth non si cattura: aprire il microfono di una cassa o di una cuffia la porta dal
+    profilo musica (A2DP) a quello telefonata (HFP, 16 kHz mono), e la musica che sta suonando là
+    diventa ovattata finché il ponte resta acceso. Se il predefinito è Bluetooth si prende il microfono
+    integrato, o in mancanza uno USB. Senza alternativa resta il predefinito."""
+    if a is None:
+        return None
+    ingressi = a.ingressi()
+    pre = a.predefinito()
+    if next((x.get("trasporto") for x in ingressi if x.get("uid") == pre), "") not in BLUETOOTH:
+        return None
+    for trasporto in ("bltn", "usb "):
+        for x in ingressi:
+            if x.get("trasporto") == trasporto and x.get("nome") and VIRTUALE.lower() not in x["nome"].lower():
+                return x["nome"]
+    return None
 
 
 # ---- lato remoto ----
@@ -409,8 +437,10 @@ def cmd_ponte(target: str) -> int:
         if not ff:
             scrivi(file_locale(), dict(stato, stato="errore", motivo="manca ffmpeg"))
             return 5
+        nome = sorgente(audio())
+        stato["ingresso"] = nome or "predefinito"
         cattura = [ff, "-loglevel", "error", "-fflags", "nobuffer", "-probesize", "32", "-analyzeduration", "0",
-                   "-f", "avfoundation", "-i", ":default", "-ac", "1", "-ar", str(FREQUENZA),
+                   "-f", "avfoundation", "-i", ":" + (nome or "default"), "-ac", "1", "-ar", str(FREQUENZA),
                    "-flush_packets", "1", "-f", "s16le", "-"]
     ssh = finto("VOLTA_MIC_SSH") or ["ssh", "-T", "-o", "BatchMode=yes", "-o", "ConnectTimeout=10",
                                      "-o", "ServerAliveInterval=5", "-o", "ServerAliveCountMax=2", target, REMOTO]
