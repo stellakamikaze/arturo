@@ -75,6 +75,93 @@ export function regione(punto, m) {
   return { blocco: "main", parte: null, rettangolo: main };
 }
 
+// I nomi delle parti come li legge la persona: l'etichetta del riquadro che segue il puntatore.
+export const NOMI_BLOCCO = { marchio: "Marchio", progetti: "Barra dei progetti", piede: "Piede della barra",
+  testata: "Testata", stato: "Barra di stato", benvenuto: "Benvenuto", main: "Sessione", pannello: "Da fare" };
+
+// I nomi degli elementi come li legge la persona. Un elemento è un pezzo di una parte con un id suo: la
+// finestra dice dove sta (window.elements() di Volta Celeste), qui prende il nome. Prima gli id fissi, poi
+// i prefissi degli id che portano una chiave (una sessione, un progetto, un todo).
+// Nessun prefisso è l'inizio di un altro: l'ordine non conta.
+export const NOMI_ELEMENTO = {
+  nuova: "Nuova richiesta", apri: "Apri un progetto", trova: "Trova i miei progetti", "progetti-elenco": "Elenco dei progetti",
+  "volta-testa": "Tutte le sessioni", "volta-macchina": "Vista per macchina", "volta-progetto": "Vista per progetto",
+  "volta-elenco": "Elenco delle sessioni", "volta-gesti": "Gesti della sessione", "volta-gesti-chiudi": "Chiudi i gesti",
+  chiedi: "Cosa posso chiedere", settimana: "La settimana", note: "Note", guida: "Guida", impostazioni: "Impostazioni",
+  "testata-titolo": "Titolo del progetto", "testata-stato": "Stato della sessione", altra: "Altra conversazione",
+  dafare: "Mostra o nascondi Da fare",
+  "stato-sessioni": "Sessioni aperte", "stato-aspettano": "Sessioni che ti aspettano", "stato-lavoro": "Sessioni al lavoro",
+  "stato-finito": "Sessioni che hanno finito", "stato-note": "Note aperte", "stato-tasti": "Tasti",
+  "todo-titolo": "Titolo di Da fare", "todo-progetto": "Progetto di Da fare", "todo-riga": "Stato del progetto",
+  "todo-aggiungi": "Aggiungi un todo", partenza: "Da dove partire", "partenza-lavoraci": "Lavoraci",
+  "benvenuto-titolo": "Titolo del benvenuto", "benvenuto-testo": "Testo del benvenuto", "b-nuova": "Nuova richiesta",
+};
+const PREFISSI = [
+  ["todo-elenco-", "Elenco delle cose da fare"], ["scheda-", "Scheda"], ["dove-", "Dove nasce la sessione"],
+  ["sez-", "Titolo di sezione"], ["poi-", "Todo che viene dopo"],
+  ["vr-", "Riga di sessione"], ["va-", "Azioni della sessione"], ["vx-", "Togli la sessione"], ["vf-", "Sessioni ferme"],
+  ["vg-", "Gesto della sessione"], ["vl-", "Anteprima della sessione"], ["v-", "Sessione"],
+  ["p-", "Progetto"], ["g-", "Gruppo di todo"], ["t-", "Cosa da fare"], ["c-", "Spunta del todo"],
+  ["l-", "Lavoraci"], ["m-", "Altro sul todo"], ["s-", "Suggerimento"],
+];
+
+// Il nome di un elemento dal suo id, o null se l'id non è fra quelli di Arturo.
+export function nomeElemento(id) {
+  const k = String(id ?? "");
+  if (Object.hasOwn(NOMI_ELEMENTO, k)) return NOMI_ELEMENTO[k];
+  return PREFISSI.find(([p]) => k.startsWith(p))?.[1] ?? null;
+}
+
+// Le parti del layout e il loro blocco: la radice di ogni parte ha l'id misura-<parte> (main.js).
+const RADICE = "misura-";
+const PARTE_BLOCCO = { marchio: "marchio", barra: "progetti", piede: "piede", testata: "testata", todo: "pannello",
+  stato: "stato", benvenuto: "benvenuto" };
+
+// L'elemento più piccolo sotto il punto, fra quelli che la finestra riporta: { id, nome, blocco, parte,
+// rettangolo } oppure null. Restano fuori gli elementi del velo stesso (own, nota-*) e quelli vuoti. A pari
+// area vince chi è disegnato dopo, cioè chi sta dentro. La parte viene dalla radice della stessa vista: due
+// parti possono usare lo stesso id (chiedi sta nel piede e nella testata), e il nome le distingue.
+export function elementoSotto(punto, elementi) {
+  if (!punto) return null;
+  const validi = (elementi ?? []).filter((e) => e && typeof e.id === "string" && !e.own && !e.id.startsWith("nota-") &&
+    e.width > 0 && e.height > 0);
+  const sotto = validi.filter((e) => punto.x >= e.x && punto.x < e.x + e.width && punto.y >= e.y && punto.y < e.y + e.height)
+    .sort((a, b) => a.width * a.height - b.width * b.height || (b.order ?? 0) - (a.order ?? 0));
+  const e = sotto[0];
+  if (!e) return null;
+  const radice = e.id.startsWith(RADICE) ? e : validi.find((x) => x.view === e.view && x.id.startsWith(RADICE));
+  const parte = radice ? radice.id.slice(RADICE.length) : null;
+  const blocco = PARTE_BLOCCO[parte] ?? null;
+  const nomeBlocco = blocco ? NOMI_BLOCCO[blocco] : null;
+  const proprio = e === radice ? null : nomeElemento(e.id);
+  const nome = proprio ? (nomeBlocco ? `${proprio} · ${nomeBlocco}` : proprio) : (nomeBlocco ?? e.id);
+  return { id: e.id, nome, blocco, parte: blocco ? parte : null,
+    rettangolo: rett(Math.round(e.x), Math.round(e.y), Math.round(e.width), Math.round(e.height)) };
+}
+
+// Il riquadro da disegnare attorno a ciò che sta sotto il puntatore, alla maniera di Agentation: { blocco,
+// parte, elemento, nome, rettangolo, fasce, etichetta }. Prima l'elemento (riga, bottone, scheda), se la
+// finestra li riporta; altrimenti la parte, da regione(). Le fasce sono i quattro rettangoli del velo
+// attorno al riquadro, che resta così in piena luce; l'etichetta sta sopra il riquadro, o dentro quando
+// sopra non c'è posto. null senza elemento né regione: il velo resta intero e il clic sceglie il punto.
+const ALTEZZA_ETICHETTA = 22;
+export function evidenza(punto, m, elementi = []) {
+  const f = m?.finestra;
+  if (!punto || !f) return null;
+  const r = regione(punto, m);
+  const el = elementoSotto(punto, elementi);
+  if (!el && !r?.rettangolo) return null;
+  const q = el ? el.rettangolo : r.rettangolo, W = f.larghezza, H = f.altezza;
+  const blocco = el?.blocco ?? r?.blocco ?? null;
+  const fasce = [rett(0, 0, W, q.y), rett(0, q.y + q.altezza, W, H - q.y - q.altezza),
+    rett(0, q.y, q.x, q.altezza), rett(q.x + q.larghezza, q.y, W - q.x - q.larghezza, q.altezza)]
+    .filter((x) => x.larghezza > 0 && x.altezza > 0);
+  const sopra = q.y >= ALTEZZA_ETICHETTA + 2;
+  return { blocco, parte: el ? el.parte : r.parte, elemento: el ? { id: el.id, nome: el.nome, rettangolo: q } : null,
+    nome: el ? el.nome : (NOMI_BLOCCO[blocco] ?? blocco), rettangolo: q, fasce,
+    etichetta: { x: q.x, y: sopra ? q.y - ALTEZZA_ETICHETTA - 2 : q.y + 4, dentro: !sopra } };
+}
+
 // Il terminale sotto la nota, quando il punto cade sulla sessione: le ultime `n` righe non vuote del testo.
 export function ultimeRighe(testo, n = 40) {
   const righe = String(testo ?? "").replace(/\r/g, "").split("\n");
@@ -97,7 +184,7 @@ const tipoValido = (t) => (TIPI.some((x) => x.id === t) ? t : TIPO_PREDEFINITO);
 export const etichettaTipo = (t) => TIPI.find((x) => x.id === tipoValido(t)).etichetta;
 // Gli stati aperti e il dove vuoto: bin/note_finestra.py ne tiene una copia, e HZ32 le confronta.
 export const APERTE = new Set(["aperta", "presa"]);
-export const VUOTO = { blocco: null, parte: null, terminale: null, titolo: null, cwd: null, testo_terminale: null };
+export const VUOTO = { blocco: null, parte: null, elemento: null, terminale: null, titolo: null, cwd: null, testo_terminale: null };
 
 // L'ultimo pezzo di un percorso: l'id della nota è il nome della sua cartella.
 const ultimo = (c) => String(c ?? "").split(/[\\/]/).filter(Boolean).pop() ?? null;
@@ -117,7 +204,8 @@ export function nota({ testo, x, y, larghezza, altezza, progetto, cartella, sche
   const breve = t.length > 110 ? t.slice(0, 110).replace(/\s+\S*$/, "") + "…" : t;
   const riga = `Tipo: ${etichettaTipo(k).toLowerCase()}. Punto ${punto.x},${punto.y} su una finestra di ${finestra.larghezza}x${finestra.altezza}` +
     (schermo ? `, schermata ${schermo}` : "") +
-    (dove?.blocco ? `, parte ${dove.blocco}` : "") + (dove?.cwd ? ` (terminale in ${dove.cwd})` : "") +
+    (dove?.blocco ? `, parte ${dove.blocco}` : "") +
+    (dove?.elemento?.id ? `, su ${dove.elemento.nome ?? dove.elemento.id} (${dove.elemento.id})` : "") + (dove?.cwd ? ` (terminale in ${dove.cwd})` : "") +
     `. Nota e screenshot in ${cartella}. Per partire: arturo note mostra ${dati.id}`;
   const argv = progetto
     ? ["aggiungi", "--progetto", progetto, "--chi", "io", "--quando", "oggi", "--note", riga, "--json", "--", `Nota sulla finestra: ${breve}`]

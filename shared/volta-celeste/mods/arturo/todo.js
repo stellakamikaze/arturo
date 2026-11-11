@@ -167,7 +167,7 @@ export class Todo {
         .child(this.parola(item))))
       .when(poi.length > 0, (el) => el.child(v_flex().pt(4).gap(4)
         .child(div().text_size(12).text_color(t.muted).child("Poi"))
-        .children(poi.map((x, i) => h_flex().gap(8).items_start()
+        .children(poi.map((x, i) => h_flex().id(`poi-${i}`).gap(8).items_start()
           .child(div().flex_none().w(14).text_size(12.5).text_color(t.dim).child(String(i + 1)))
           .child(div().flex_1().min_w(0).whitespace_normal().text_size(12.5).text_color(t.foreground).child(titoloTodo(x.titolo)))))));
   }
@@ -192,7 +192,7 @@ export class Todo {
     return v_flex().size_full().bg(t.chrome).rounded(8).border_1().border_color(t.border)
       .child(v_flex().px(16).pt(14).pb(10).gap(2)
         .child(h_flex().items_center()
-          .child(div().flex_1().font_family("Arturo Archivo").text_size(15).text_color(t.foreground).child("Da fare"))
+          .child(div().id("todo-titolo").flex_1().font_family("Arturo Archivo").text_size(15).text_color(t.foreground).child("Da fare"))
           .when(Boolean(this.progetto) && !this.errore, (el) => el.child(h_flex().id("todo-aggiungi").px(8).py(3).gap(5).items_center()
             .rounded(6).cursor_pointer().text_size(12).text_color(t.muted).hover((s) => s.bg(t.hover).text_color(t.foreground))
             .on_click(() => apriNuovo(shared("arturo.progetti")?.[this.progetto]?.nome ?? this.progetto, shared("arturo.progetti")?.[this.progetto]?.titolo))
@@ -200,8 +200,8 @@ export class Todo {
             .child("Aggiungi"))))
         .when(Boolean(this.progetto), (el) => {
           const info = shared("arturo.progetti")?.[this.progetto];
-          return el.child(div().truncate().text_size(12.5).text_color(t.foreground).child(info?.titolo ?? this.progetto))
-            .when(Boolean(info?.riga), (e) => e.child(div().pt(4).whitespace_normal().text_size(12.5).text_color(t.muted).child(info.riga)));
+          return el.child(div().id("todo-progetto").truncate().text_size(12.5).text_color(t.foreground).child(info?.titolo ?? this.progetto))
+            .when(Boolean(info?.riga), (e) => e.child(div().id("todo-riga").pt(4).whitespace_normal().text_size(12.5).text_color(t.muted).child(info.riga)));
         }))
       .when(Boolean(cima), (el) => el.child(div().px(12).pb(8).child(cima)))
       // Uno scorrimento per progetto: cambiando progetto l'elenco riparte dall'alto.

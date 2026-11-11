@@ -9,7 +9,7 @@ import { v_flex, h_flex, InputState, Input } from "gpui-base";
 import { theme, props, closeOverlay, notify, setShared, shared, spaces, writeTextFile, layout, focused, panes, hc,
   exec, home } from "herdr";
 import { todo, gestoNota, config } from "./dati.js";
-import { nota, progettoNota, regione, misureDaLayout, ultimeRighe, TIPI, TIPO_PREDEFINITO, etichettaTipo,
+import { nota, progettoNota, evidenza, misureDaLayout, ultimeRighe, TIPI, TIPO_PREDEFINITO, etichettaTipo,
   leggiNota, noteAperte, prossimoNumero, segno, cartellaNote, LEGGI_NOTE } from "./nota.js";
 
 // I bottoni della scheda e i verbi di arturo note.
@@ -19,15 +19,35 @@ const CAMPO = 360;
 const SCHEDA = 380;
 const SEGNO = 22;
 const ARANCIO = "#f2a24a";
+const VELO = "#05080c66";
 const PARTI = ["marchio", "barra", "piede", "testata", "todo", "stato", "benvenuto"];
 
-// Su cosa è la nota: la parte della finestra sotto il punto e, se è la sessione, il terminale attivo con le
-// sue ultime 40 righe. Senza regione (misure assenti o vecchie) restano terminale e cwd.
+const misure = (finestra) => misureDaLayout(layout(),
+  Object.fromEntries(PARTI.map((x) => [x, shared(`arturo.misura.${x}`) ?? null])), finestra);
+
+// Gli elementi sotto un punto, da Volta Celeste: window.elements() dice dove sta ogni elemento con un id,
+// di qualunque parte. Herdr e una Volta più vecchia non ce l'hanno: lì il velo segue le parti, come prima.
+const W = globalThis.window;
+const ELEMENTI = typeof W?.elements === "function" && typeof W?.track_elements === "function";
+function segui(acceso) {
+  if (!ELEMENTI) return;
+  try { W.track_elements(acceso); } catch { /* il velo segue le parti */ }
+}
+function elementi(punto) {
+  if (!ELEMENTI || !punto) return [];
+  try { return W.elements({ x: punto.x, y: punto.y }) ?? []; } catch { return []; }
+}
+// Ciò che sta sotto un punto: l'elemento se la finestra lo riporta, altrimenti la parte.
+const sotto = (punto, finestra) => (punto && finestra ? evidenza(punto, misure(finestra), elementi(punto)) : null);
+const chiave = (ev) => (ev ? `${ev.elemento?.id ?? ""}|${ev.blocco}|${ev.rettangolo.x},${ev.rettangolo.y},${ev.rettangolo.larghezza},${ev.rettangolo.altezza}` : "");
+
+// Su cosa è la nota: l'elemento e la parte della finestra sotto il punto e, se è la sessione, il terminale
+// attivo con le sue ultime 40 righe. Senza regione (misure assenti o vecchie) restano terminale e cwd.
 async function doveNota(punto, misura) {
-  const parti = Object.fromEntries(PARTI.map((x) => [x, shared(`arturo.misura.${x}`) ?? null]));
-  const r = regione(punto, misureDaLayout(layout(), parti, misura));
-  const dove = { blocco: r?.blocco ?? null, parte: r?.parte ?? null, terminale: null, titolo: null, cwd: null, testo_terminale: null };
-  if (r && r.blocco !== "main") return dove;
+  const ev = sotto(punto, misura);
+  const dove = { blocco: ev?.blocco ?? null, parte: ev?.parte ?? null, elemento: ev?.elemento ?? null,
+    terminale: null, titolo: null, cwd: null, testo_terminale: null };
+  if (dove.blocco && dove.blocco !== "main") return dove;
   const f = focused();
   if (!f?.terminal) return dove;
   dove.terminale = f.terminal;
@@ -58,6 +78,8 @@ const json = (d) => JSON.stringify(d, null, 2);
 export class Nota {
   init(_p, cx) {
     this.punto = null;
+    this.sopra = null;      // il punto sotto il puntatore: ciò che ha sotto prende il riquadro, come in Agentation
+    this.vista = "";        // la chiave di ciò che il riquadro mostra: il velo si ridisegna solo quando cambia
     this.misura = null;
     this.dim = null;        // la misura del velo, da on_size_change: serve ai segni prima di ogni clic
     this.invio = false;
@@ -71,6 +93,7 @@ export class Nota {
     this.input.on("submit", (_e, cx) => this.manda(cx));
     this.risposta = InputState.new({ placeholder: "Rispondi, o scrivi perché la chiudi" });
     this.risposta.on("submit", (_e, cx) => this.azione(cx, "rispondi"));
+    segui(true);
     cx.spawn(async (cx) => {
       const c = await config();
       this.py = c.arturo[0];
@@ -91,6 +114,8 @@ export class Nota {
   }
 
   chiudi() { closeOverlay(props().overlay); }
+  // Esc e ogni altra chiusura passano di qui (main.js): la finestra smette di annotare gli elementi.
+  close() { segui(false); }
 
   manda(cx) {
     if (this.invio || !this.punto) return;
@@ -163,6 +188,25 @@ export class Nota {
     return { x, y };
   }
 
+  // Cosa mettere in luce: ciò che sta sotto la nota aperta, poi sotto il punto scelto, poi sotto il
+  // puntatore. null se mancano sia gli elementi sia le misure delle parti: il velo resta intero.
+  inLuce() {
+    const f = this.misura?.larghezza ? this.misura : this.dim;
+    if (!f) return null;
+    const p = this.aperta ? segno(this.aperta, this.dim) : (this.punto ?? this.sopra);
+    return sotto(p, f);
+  }
+
+  // Il riquadro e l'etichetta di ciò che è in luce. Niente id né gestori: i clic passano al velo.
+  riquadro(t, ev) {
+    const q = ev.rettangolo, e = ev.etichetta;
+    return [
+      div().absolute().left(q.x).top(q.y).w(q.larghezza).h(q.altezza).rounded(4).border_2().border_color(ARANCIO).bg("#f2a24a14"),
+      div().absolute().left(e.x + (e.dentro ? 4 : 0)).top(e.y).px(8).py(2).rounded(4).bg(ARANCIO)
+        .text_size(11.5).font_semibold().text_color("#1a1206").child(ev.nome),
+    ];
+  }
+
   pastiglie(t) {
     return h_flex().gap(6).flex_wrap().children(TIPI.map((k) => {
       const scelto = k.id === this.tipo;
@@ -226,10 +270,17 @@ export class Nota {
     const p = this.punto;
     const campo = this.accanto(p, CAMPO, 150);
     const quante = this.aperte.length;
-    const invito = "Clicca il punto di cui vuoi parlare" +
+    const ev = this.inLuce();
+    this.vista = chiave(ev);
+    const invito = (ev ? (ELEMENTI ? "Passa su un elemento e clicca quello di cui vuoi parlare" : "Passa su una parte e clicca il punto di cui vuoi parlare") : "Clicca il punto di cui vuoi parlare") +
       (quante ? ` · ${quante === 1 ? "1 nota aperta" : `${quante} note aperte`}: clicca un numero per leggerla` : "") +
       " · Esc annulla";
-    return v_flex().id("nota-velo").size_full().relative().cursor_crosshair().bg("#05080c66")
+    return v_flex().id("nota-velo").size_full().relative().cursor_crosshair().when(!ev, (el) => el.bg(VELO))
+      .on_mouse_move((e, cx) => {
+        if (this.punto || this.aperta) return;
+        this.sopra = { x: e.position.x, y: e.position.y };
+        if (chiave(sotto(this.sopra, this.dim)) !== this.vista) cx.notify();
+      })
       .on_size_change((m, cx) => {
         const d = { larghezza: Math.round(m.width), altezza: Math.round(m.height) };
         if (d.larghezza === this.dim?.larghezza && d.altezza === this.dim?.altezza) return;
@@ -245,6 +296,9 @@ export class Nota {
         this.input.focus();
         cx.notify();
       })
+      .when(Boolean(ev), (el) => el
+        .children(ev.fasce.map((f) => div().absolute().left(f.x).top(f.y).w(f.larghezza).h(f.altezza).bg(VELO)))
+        .children(this.riquadro(t, ev)))
       .when(!p, (el) => el.children(this.segni(t)))
       .when(!p && !this.aperta, (el) => el.child(h_flex().absolute().top(18).left(0).w_full().justify_center()
         .child(div().px(16).py(8).rounded(8).bg(t.popover).border_1().border_color(t.border)
@@ -255,7 +309,7 @@ export class Nota {
         .child(v_flex().absolute().left(campo.x).top(campo.y).w(CAMPO).p(12).gap(8).rounded(10).bg(t.popover)
           .border_1().border_color(t.border).cursor_default()
           .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-          .child(div().text_size(12.5).text_color(t.muted).child(`Nota ${prossimoNumero(this.aperte)} per Claude su questo punto`))
+          .child(div().text_size(12.5).text_color(t.muted).child(`Nota ${prossimoNumero(this.aperte)} per Claude${ev ? ` su ${ev.nome}` : " su questo punto"}`))
           .child(this.pastiglie(t))
           .child(h_flex().h(38).px(10).items_center().rounded(8).border_1().border_color(t.accent).bg(t.raised)
             .child(Input.new(this.input).flex_1().h_full().text_size(13.5).text_color(t.foreground)))

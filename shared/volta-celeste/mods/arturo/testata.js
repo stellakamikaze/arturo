@@ -48,9 +48,9 @@ export class Testata {
       .child(svg(icona.includes("/") ? icona : ICONA(icona)).size(14)).child(div().text_size(12.5).child(testo));
     return h_flex().size_full().bg(t.chrome).border_b(1).border_color(t.border).pl(20).pr(12).gap(16).items_center()
       .child(v_flex().min_w(0).gap(1)
-        .child(div().truncate().font_family("Arturo Archivo").text_size(16).text_color(t.foreground)
+        .child(div().id("testata-titolo").truncate().font_family("Arturo Archivo").text_size(16).text_color(t.foreground)
           .child(s ? (shared("arturo.progetti")?.[slug(s.name)]?.titolo ?? s.name) : "Volta Celeste"))
-        .when(Boolean(f), (el) => el.child(h_flex().gap(7).items_center().child(punto(colore(t, f.colore), 7)).child(div().text_size(12).text_color(colore(t, f.colore)).child(f.testo)))))
+        .when(Boolean(f), (el) => el.child(h_flex().id("testata-stato").gap(7).items_center().child(punto(colore(t, f.colore), 7)).child(div().text_size(12).text_color(colore(t, f.colore)).child(f.testo)))))
       .child(div().flex_1())
       .when(Boolean(schede), (el) => el.child(schede))
       .child(bottone("chiedi", "mods/arturo/chiedi.svg", "Cosa posso chiedere", () => apriSuggerimenti()))
@@ -118,23 +118,23 @@ export class Stato {
     const t = theme();
     const a = agents();
     const n = (st) => a.filter((x) => x.status === st).length;
-    const pezzo = (c, testo) => h_flex().gap(7).items_center().child(punto(c, 7)).child(testo);
+    const pezzo = (id, c, testo) => h_flex().id(id).gap(7).items_center().child(punto(c, 7)).child(testo);
     const k = tasti();
     const quante = contaNote(this.note, progettoAdesso(this.scelto)).aperte;
     const scorciatoie = `${k.apri} apri un progetto   ${k.prossima} prossima sessione   ${k.impostazioni} impostazioni`;
     return h_flex().size_full().px(18).gap(18).items_center().bg(t.chrome).border_t(1).border_color(t.border).text_size(12).text_color(t.muted)
-      .when(a.length === 0, (el) => el.child(pezzo(t.idle, "Nessuna sessione aperta")))
-      .when(n("blocked") > 0, (el) => el.child(pezzo(t.blocked, div().text_color(t.foreground).child(`${n("blocked")} ti aspett${n("blocked") > 1 ? "ano" : "a"}`))))
-      .when(n("working") > 0, (el) => el.child(pezzo(t.working, `${n("working")} al lavoro`)))
-      .when(n("done") > 0, (el) => el.child(pezzo(t.done, `${n("done")} hanno finito`.replace(/^1 hanno/, "1 ha"))))
-      .when(a.length > 0 && !n("blocked") && !n("working") && !n("done"), (el) => el.child(pezzo(t.idle, a.length > 1 ? `${a.length} sessioni aperte, nessuna ti aspetta` : "1 sessione aperta, non ti aspetta")))
+      .when(a.length === 0, (el) => el.child(pezzo("stato-sessioni", t.idle, "Nessuna sessione aperta")))
+      .when(n("blocked") > 0, (el) => el.child(pezzo("stato-aspettano", t.blocked, div().text_color(t.foreground).child(`${n("blocked")} ti aspett${n("blocked") > 1 ? "ano" : "a"}`))))
+      .when(n("working") > 0, (el) => el.child(pezzo("stato-lavoro", t.working, `${n("working")} al lavoro`)))
+      .when(n("done") > 0, (el) => el.child(pezzo("stato-finito", t.done, `${n("done")} hanno finito`.replace(/^1 hanno/, "1 ha"))))
+      .when(a.length > 0 && !n("blocked") && !n("working") && !n("done"), (el) => el.child(pezzo("stato-sessioni", t.idle, a.length > 1 ? `${a.length} sessioni aperte, nessuna ti aspetta` : "1 sessione aperta, non ti aspetta")))
       .when(quante > 0, (el) => el.child(h_flex().id("stato-note").gap(7).items_center().cursor_pointer()
         .text_color(t.foreground).hover((s) => s.text_color(t.accent))
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
         .on_click(() => apriElenco())
         .child(punto(ARANCIO, 7)).child(`${quante === 1 ? "1 nota" : `${quante} note`} · ${k.elenco}`)))
       .child(div().flex_1())
-      .child(div().text_color(t.dim).child(scorciatoie));
+      .child(div().id("stato-tasti").text_color(t.dim).child(scorciatoie));
   }
 }
 
@@ -149,8 +149,8 @@ export class Benvenuto {
     // Largo 520 quando c'è spazio; in una finestra stretta si restringe e le carte vanno a capo (#5077).
     return v_flex().w_full().max_w(520).px(20).pt(24).pb(24).gap(20)
       .child(v_flex().gap(8)
-        .child(div().font_family("Arturo Archivo").text_size(22).text_color(t.foreground).child("Cosa facciamo oggi?"))
-        .child(div().w_full().whitespace_normal().text_size(14).text_color(t.muted)
+        .child(div().id("benvenuto-titolo").font_family("Arturo Archivo").text_size(22).text_color(t.foreground).child("Cosa facciamo oggi?"))
+        .child(div().id("benvenuto-testo").w_full().whitespace_normal().text_size(14).text_color(t.muted)
           .child(haProgetti
             ? "Scegli un progetto a sinistra, oppure parti da una di queste richieste."
             : "Comincia facendo trovare a Claude i tuoi progetti. Oppure scrivigli cosa ti serve, come in una chat.")))

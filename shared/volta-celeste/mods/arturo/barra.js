@@ -151,7 +151,7 @@ export class Barra {
       .child(div().px(4).text_size(13).text_color(t.muted).whitespace_normal()
         .child(this.errore ? "Non riesco a leggere i todo di Arturo. Le conversazioni funzionano lo stesso." : "Non hai ancora progetti. Claude può cercarli sul tuo computer e proporteli."))
       .when(!this.errore, (el) => el.child(pulsante("trova", "search", "Trova i miei progetti", () => esegui(SUGGERIMENTI[0]), true)));
-    else contenuto = v_flex().gap(14).children(sezioni(lista).map((sez) => {
+    else contenuto = v_flex().gap(14).children(sezioni(lista).map((sez, j) => {
       // Una sezione chiusa (le ferme) mostra solo il titolo col conto: un clic la apre e la richiude.
       const piegata = sez.chiusa && !this.ferme;
       const titolo = div().px(18).pb(4).text_size(12.5).font_semibold().text_color(t.muted);
@@ -160,7 +160,7 @@ export class Barra {
           ? titolo.id("sez-ferme").cursor_pointer().hover((s) => s.text_color(t.foreground))
             .on_click((_e, cx) => { this.ferme = !this.ferme; cx.notify(); })
             .child(`${sez.titolo} (${sez.progetti.length}) ${piegata ? "›" : "⌄"}`)
-          : titolo.child(sez.titolo))
+          : titolo.id(`sez-${j}`).child(sez.titolo))
         .children(piegata ? [] : sez.progetti.map((p) => this.riga(t, p, p.chiave === attivo)));
     }));
     return v_flex().size_full().bg(t.chrome)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ61: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ64: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -257,6 +257,12 @@ HZ61 i progetti vengono dalla memoria di Arturo (11/11/2026): barra.js chiede `a
      le "Altre cartelle"; l'ultimo handoff più vecchio di un mese manda il progetto nella sezione chiusa
      in fondo; con la memoria le cartelle non si aggiungono due volte; 150 voci stanno sotto i 50 ms;
      senza memoria l'elenco è quello di prima. Apri un progetto e Cambia progetto leggono nomiProgetti.
+HZ62 il velo delle note sceglie il singolo elemento (nota.js con node): nomeElemento() dà il nome da id
+     fissi e prefissi; elementoSotto() prende il più piccolo sotto il punto fra quelli di window.elements(),
+     lascia fuori il velo stesso e distingue due parti con lo stesso id; evidenza() mette l'elemento prima
+     della parte e senza elementi resta com'era; il todo della nota nomina l'elemento.
+HZ64 notaui.js usa gli elementi solo se la finestra li dà (Volta Celeste), accende e spegne il registro,
+     salva l'elemento nel dove; le parti danno un id agli elementi che non l'avevano.
 """
 from __future__ import annotations
 
@@ -272,7 +278,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ63")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -4054,6 +4060,114 @@ def hz60(repo: Path, casa: Path) -> str | None:
     return None
 
 
+PROVA_ELEMENTO = r"""
+const { evidenza, elementoSotto, nomeElemento, nota } = await import(%s);
+const mis = (l, a) => ({ larghezza: l, altezza: a });
+const m = { finestra: mis(1440, 900), marchio: mis(292, 54), barra: mis(292, 690), piede: mis(292, 156),
+  testata: mis(1147, 54), stato: mis(1147, 30), todo: mis(340, 792), divisore: 1, padding: 12, gap: 12 };
+const e = (id, x, y, width, height, view, order, own = false) => ({ id, x, y, width, height, view, own, order });
+const el = [e("misura-barra", 0, 54, 292, 690, 1, 1), e("volta-elenco", 0, 200, 292, 200, 1, 2),
+  e("vr-amaltea-ab12", 8, 210, 276, 44, 1, 3), e("va-amaltea-ab12", 250, 220, 24, 24, 1, 4),
+  e("misura-testata", 293, 0, 1147, 54, 2, 5), e("chiedi", 1000, 12, 160, 30, 2, 6),
+  e("misura-piede", 0, 744, 292, 156, 3, 7), e("chiedi", 8, 752, 276, 32, 3, 8),
+  e("nota-velo", 0, 0, 1440, 900, 9, 9, true), e("nota-segno-x", 100, 215, 22, 22, 9, 10),
+  e("piccolo-del-velo", 98, 218, 4, 4, 9, 11, true), e("vuoto", 100, 215, 0, 10, 1, 12),
+  e("altro-mod", 700, 400, 50, 50, 7, 13)];
+const s = (x, y) => elementoSotto({ x, y }, el);
+console.log(JSON.stringify({
+  nomi: ["vr-x", "v-x", "vg-x-stop", "t-12", "todo-aggiungi", "todo-elenco-p", "dafare", "scheda-3", "boh"].map(nomeElemento),
+  riga: s(100, 220), azioni: s(260, 230)?.id, testata: s(1010, 20)?.nome, piede: s(20, 760)?.nome,
+  parte: s(100, 600), straniero: s(710, 410), niente: s(700, 300), senza: elementoSotto({ x: 100, y: 220 }, null),
+  ev: evidenza({ x: 100, y: 220 }, m, el), prima: evidenza({ x: 600, y: 400 }, m),
+  misto: evidenza({ x: 600, y: 400 }, m, el)?.nome, alto: evidenza({ x: 1010, y: 20 }, m, el)?.etichetta,
+  senzaMisure: evidenza({ x: 100, y: 220 }, { finestra: mis(1440, 900) }, el)?.nome,
+  nulla: evidenza({ x: 100, y: 220 }, { finestra: mis(1440, 900) }),
+  todo: nota({ testo: "x", x: 1, y: 2, larghezza: 3, altezza: 4, progetto: "p", cartella: "/c", quando: "q",
+    dove: { blocco: "progetti", elemento: { id: "vr-a", nome: "Riga di sessione · Barra dei progetti" } } }),
+}));
+"""
+
+
+def hz62(repo: Path, casa: Path) -> str | None:
+    """Il velo delle note sul singolo elemento: le funzioni pure di nota.js, con elementi finti come li dà
+    window.elements() di Volta Celeste."""
+    node = shutil.which("node")
+    if not node:
+        return None
+    copia = casa / "nota.mjs"
+    shutil.copyfile(repo / "shared/volta-celeste/mods/arturo/nota.js", copia)
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_ELEMENTO % json.dumps(copia.as_uri())],
+                       capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"nota.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    nomi = ["Riga di sessione", "Sessione", "Gesto della sessione", "Cosa da fare", "Aggiungi un todo",
+            "Elenco delle cose da fare", "Mostra o nascondi Da fare", "Scheda", None]
+    if g["nomi"] != nomi:
+        return f"nomeElemento() sbaglia i nomi: {g['nomi']}"
+    riga = {"id": "vr-amaltea-ab12", "nome": "Riga di sessione · Barra dei progetti", "blocco": "progetti", "parte": "barra",
+            "rettangolo": {"x": 8, "y": 210, "larghezza": 276, "altezza": 44}}
+    if g["riga"] != riga:
+        return f"elementoSotto() non prende la riga sotto il punto (o prende un pezzo del velo): {g['riga']}"
+    if g["azioni"] != "va-amaltea-ab12":
+        return f"fra due elementi sotto il punto non vince il più piccolo: {g['azioni']}"
+    if g["testata"] != "Cosa posso chiedere · Testata" or g["piede"] != "Cosa posso chiedere · Piede della barra":
+        return f"lo stesso id in due parti non si distingue: {g['testata']} / {g['piede']}"
+    if (g["parte"] or {}).get("id") != "misura-barra" or g["parte"]["nome"] != "Barra dei progetti":
+        return f"fuori da ogni elemento non resta la parte: {g['parte']}"
+    if (g["straniero"] or {}).get("nome") != "altro-mod" or g["straniero"]["blocco"] is not None:
+        return f"un elemento di un altro mod non porta il suo id come nome: {g['straniero']}"
+    if g["niente"] is not None or g["senza"] is not None:
+        return "elementoSotto() inventa un elemento dove non ce ne sono"
+    ev = g["ev"] or {}
+    if ev.get("elemento") != {"id": riga["id"], "nome": riga["nome"], "rettangolo": riga["rettangolo"]} \
+            or ev.get("nome") != riga["nome"] or ev.get("rettangolo") != riga["rettangolo"] or ev.get("blocco") != "progetti":
+        return f"evidenza() non mette in luce l'elemento: {ev}"
+    fasce = [{"x": 0, "y": 0, "larghezza": 1440, "altezza": 210}, {"x": 0, "y": 254, "larghezza": 1440, "altezza": 646},
+             {"x": 0, "y": 210, "larghezza": 8, "altezza": 44}, {"x": 284, "y": 210, "larghezza": 1156, "altezza": 44}]
+    if ev.get("fasce") != fasce or ev.get("etichetta") != {"x": 8, "y": 186, "dentro": False}:
+        return f"fasce o etichetta del riquadro non tornano: {ev.get('fasce')} {ev.get('etichetta')}"
+    prima = g["prima"] or {}
+    if prima.get("nome") != "Sessione" or prima.get("elemento") is not None or prima.get("blocco") != "main" \
+            or prima.get("rettangolo") != {"x": 305, "y": 66, "larghezza": 771, "altezza": 792}:
+        return f"senza elementi evidenza() non resta sulla parte: {prima}"
+    if g["misto"] != "Sessione":
+        return f"sulla sessione, dove non ci sono elementi, evidenza() non ricade sulla parte: {g['misto']}"
+    if g["alto"] != {"x": 1000, "y": 16, "dentro": True}:
+        return f"l'etichetta di un elemento in cima non va dentro il riquadro: {g['alto']}"
+    if g["senzaMisure"] != riga["nome"] or g["nulla"] is not None:
+        return "senza le misure delle parti l'elemento non basta, o evidenza() inventa un riquadro"
+    todo = g["todo"]
+    if todo["dati"]["dove"].get("elemento", {}).get("id") != "vr-a" \
+            or "parte progetti, su Riga di sessione · Barra dei progetti (vr-a)" not in todo["argv"][8]:
+        return "nota.json e il todo non portano l'elemento"
+    return None
+
+
+def hz64(repo: Path, casa: Path) -> str | None:
+    """Il velo usa gli elementi solo dove la finestra li dà, e le parti hanno gli id che servono."""
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    ui = (mod / "notaui.js").read_text(encoding="utf-8")
+    for pezzo, cosa in (
+            ('const ELEMENTI = typeof W?.elements === "function" && typeof W?.track_elements === "function";',
+             "non controlla che la finestra abbia window.elements (Herdr non ce l'ha)"),
+            ("    segui(true);\n", "non accende il registro degli elementi all'apertura"),
+            ("  close() { segui(false); }", "non spegne il registro degli elementi alla chiusura"),
+            ("elemento: ev?.elemento ?? null,", "non salva l'elemento nel dove della nota"),
+            ("if (chiave(sotto(this.sopra, this.dim)) !== this.vista) cx.notify();",
+             "non si ridisegna quando cambia l'elemento sotto il puntatore")):
+        if pezzo not in ui:
+            return f"notaui.js {cosa}"
+    for file, ids in (("barra.js", ("`sez-${j}`",)),
+                      ("testata.js", ('"testata-titolo"', '"testata-stato"', '"stato-tasti"', '"stato-lavoro"', '"benvenuto-titolo"')),
+                      ("todo.js", ('"todo-titolo"', '"todo-progetto"', "`poi-${i}`"))):
+        testo = (mod / file).read_text(encoding="utf-8")
+        for i in ids:
+            if f".id({i})" not in testo and f"pezzo({i}," not in testo:
+                return f"{file} non dà l'id {i} al suo elemento: il velo non lo può mettere in luce"
+    return None
+
+
 PROVA_MICROFONO = """
 import { bersaglio, passo, rigaMicrofono, RINNOVO, IN_AVVIO, TENUTA } from %s;
 const ssh = (id, altro = {}) => ({ id, questa: false, macchina: "Amaltea", attach: ["ssh", "-t", "amaltea", "/c/claude", "attach", id], ...altro });
@@ -4284,7 +4398,7 @@ def hz63(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ63": hz63}
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -4325,6 +4439,15 @@ VELENI = [
     ("HZ61", "shared/volta-celeste/mods/arturo/dati.js", "  return r.ok && Array.isArray(r.json?.progetti) ? r.json.progetti : null;", "  return r.json?.progetti ?? [];"),
     ("HZ61", "shared/volta-celeste/mods/arturo/dati.js", "  return m ? m.map((p) => (p.cartella ? p.nome : p.slug)).filter(Boolean) : cartelle();", "  return cartelle();"),
     ("HZ61", "shared/volta-celeste/mods/arturo/apri.js", "this.lista = await nomiProgetti();", "this.lista = await cartelle();"),
+    ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", ".sort((a, b) => a.width * a.height - b.width * b.height ||", ".sort((a, b) => b.width * b.height - a.width * a.height ||"),
+    ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", 'typeof e.id === "string" && !e.own && ', 'typeof e.id === "string" && '),
+    ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", "  if (Object.hasOwn(NOMI_ELEMENTO, k)) return NOMI_ELEMENTO[k];\n", ""),
+    ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", "const radice = e.id.startsWith(RADICE) ? e : validi.find((x) => x.view === e.view && x.id.startsWith(RADICE));", "const radice = e.id.startsWith(RADICE) ? e : validi.find((x) => x.id.startsWith(RADICE));"),
+    ("HZ62", "shared/volta-celeste/mods/arturo/nota.js", "  if (!el && !r?.rettangolo) return null;\n  const q = el ? el.rettangolo : r.rettangolo,", "  if (!r?.rettangolo) return null;\n  const q = r.rettangolo,"),
+    ("HZ64", "shared/volta-celeste/mods/arturo/notaui.js", 'const ELEMENTI = typeof W?.elements === "function" && typeof W?.track_elements === "function";', "const ELEMENTI = true;"),
+    ("HZ64", "shared/volta-celeste/mods/arturo/notaui.js", "  close() { segui(false); }", "  close() {}"),
+    ("HZ64", "shared/volta-celeste/mods/arturo/testata.js", 'div().id("stato-tasti").text_color', "div().text_color"),
+    ("HZ32", "bin/note_finestra.py", '"parte": None, "elemento": None,', '"parte": None,'),
     ("HZ60", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'SONDA = SONDA.replace("#TERMINALE#", TERMINALE.strip())\n', ''),
     ("HZ60", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        s["terminale"] = terminale_di(s["pid"])', '        s["terminale"] = None'),
     ("HZ60", "shared/volta-celeste/mods/arturo/volta_sonda.py", "base64.b64encode(zlib.compress(SONDA.encode(), 9)).decode()", "base64.b64encode(SONDA.encode()).decode()"),

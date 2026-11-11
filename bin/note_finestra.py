@@ -40,7 +40,7 @@ TIPI = {"correggere": "Correggere", "cambiare": "Cambiare", "domanda": "Domanda"
 TIPO_PREDEFINITO = "correggere"
 STATI = {"aperta": "Aperta", "presa": "Claude ci lavora", "risolta": "Risolta", "scartata": "Scartata"}
 APERTE = ("aperta", "presa")
-VUOTO = {"blocco": None, "parte": None, "terminale": None, "titolo": None, "cwd": None, "testo_terminale": None}
+VUOTO = {"blocco": None, "parte": None, "elemento": None, "terminale": None, "titolo": None, "cwd": None, "testo_terminale": None}
 ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 RITAGLIO = (640, 400)   # il ritaglio attorno al punto, in punti della finestra (lo scatto può essere al doppio)
 TENTATIVI = 5           # riletture se il file cambia fra lettura e scrittura
@@ -349,7 +349,10 @@ def _ultima_di_claude(n: dict) -> str | None:
 
 def _dove(n: dict) -> str:
     d = n["dove"]
-    pezzi = [f"parte {d['blocco']}" if d.get("blocco") else "",
+    # L'elemento (riga, bottone, scheda) c'è nelle note prese con Volta Celeste, che sa dove sta ogni elemento.
+    e = d.get("elemento") if isinstance(d.get("elemento"), dict) else None
+    pezzi = [f"su {e.get('nome') or e['id']} ({e['id']})" if e and e.get("id") else "",
+             f"parte {d['blocco']}" if d.get("blocco") else "",
              f"terminale {d['titolo'] or d['terminale']}" if d.get("terminale") else "",
              f"in {d['cwd']}" if d.get("cwd") else ""]
     return ", ".join(p for p in pezzi if p) or "parte non nota"
