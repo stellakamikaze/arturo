@@ -3565,7 +3565,7 @@ def hz57(repo: Path, casa: Path) -> str | None:
     if '"id": "piede", "type": "block", "size": {"px": 190}' not in json.dumps(json.loads((vc / "layouts/arturo.json").read_text(encoding="utf-8"))):
         return "il piede non è più alto 190 px: la versione sta sulla riga di Impostazioni proprio per non aggiungerne una"
     sonda = (vc / "volta_mod.py").read_text(encoding="utf-8")
-    for pezzo in ('if not isinstance(url, str) or not url:', 'motivo = controlla_mod(nuovo)', 'c.get("mod_modo") == "manuale"'):
+    for pezzo in ('if not isinstance(url, str) or not url:', 'motivo, rosso = controlla_mod(nuovo)', 'c.get("mod_modo") == "manuale"'):
         if pezzo not in sonda:
             return f"volta_mod.py: manca {pezzo}"
     node = shutil.which("node")
