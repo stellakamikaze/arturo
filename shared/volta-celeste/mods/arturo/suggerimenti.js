@@ -3,14 +3,17 @@
 
 import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { theme, props, closeOverlay, openOverlay } from "herdr";
+import { theme, props, closeOverlay, openOverlay, run } from "herdr";
 import { SUGGERIMENTI, chiedi } from "./dati.js";
 import { apriFinestra } from "./comuni.js";
+import { comandoSuggerimento } from "./comandi.js";
 
 export function apriSuggerimenti() {
   openOverlay({ mod: "arturo", props: { parte: "chiedi" }, kind: "dialog", width: 620 });
 }
 
+// Esegue una richiesta nella parte che la chiama: lo fa solo la barra, che resta viva (voce() manda
+// il comando).
 export function esegui(sug) {
   if (sug.dove === "apri") return apriFinestra();
   return chiedi(sug);
@@ -22,9 +25,10 @@ export function voce(t, sug, prima, dopo) {
     .border_1().border_color(prima ? t.accent : t.border).bg(prima ? t.selected : t.raised)
     .hover((s) => s.border_color(t.accent))
     .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-    // Prima la richiesta, poi `dopo` (chiude la finestra): un overlay chiuso ferma il suo codice, e la
-    // richiesta lanciata dopo la chiusura non partiva mai (9/11/2026).
-    .on_click(async () => { try { await esegui(sug); } finally { dopo?.(); } })
+    // La richiesta la esegue la barra: qui parte il comando, poi `dopo` chiude la finestra. Un overlay
+    // chiuso ferma il suo codice al primo await, e il benvenuto sparisce appena nasce uno spazio: una
+    // sessione fatta nascere da qui restava a metà (11/11/2026).
+    .on_click(() => { if (sug.dove === "apri") apriFinestra(); else run(comandoSuggerimento(sug.id)); dopo?.(); })
     .child(div().text_size(14).font_semibold().text_color(t.foreground).child(sug.titolo))
     .child(div().whitespace_normal().text_size(12.5).text_color(t.muted).child(sug.testo));
 }

@@ -538,13 +538,19 @@ export const nomeMacchina = (m) => (m === "qui" ? "questa macchina" : m);
 // Una sessione nuova in background (volta_sonda.py nasci), su questa macchina o su un'altra, agganciata
 // qui in una scheda: continua a girare anche chiusa la scheda, e Volta la apre da ogni macchina. Anche
 // qui nasce in background (#5072): lo stato in barra lo dà Volta (statoSpazio).
-// Durante la nascita shared arturo.nascita dice dove, per la riga "Nasce su".
+// Durante la nascita shared arturo.nascita dice dove e da quando, per la riga "Nasce su" (inNascita).
 // `copia` ({ verbo: "duplica" | "fork", sessionId, cartella, titolo }) è il Duplica o il Fork di una
 // sessione (#5291): stessa strada e stesse attese, coi verbi duplica e fork della sonda. Torna { ok } o
-// { errore }; l'errore di una copia lo mostra la riga di Volta, quello di una nascita un avviso.
+// { errore }; l'errore di una copia lo mostra la riga di Volta, ogni errore di una nascita un avviso
+// (chi chiama non guarda l'esito: il clic nella barra, Lavoraci, i comandi).
 async function nasciSu(macchina, prompt, progetto, nomeScheda = null, copia = null) {
-  if (shared("arturo.nascita")) return { errore: "sta già nascendo un'altra sessione: riprova fra poco" };
-  setShared("arturo.nascita", macchina);
+  const dico = (titolo, errore, level = "error") => {
+    if (!copia) notify({ title: titolo, body: errore, level });
+    return { errore };
+  };
+  if (inNascita()) return dico("Sta già nascendo un'altra sessione", "sta già nascendo un'altra sessione: riprova fra poco", "warning");
+  const da = Date.now();
+  setShared("arturo.nascita", { macchina, da });
   try {
     const c = await config();
     const args = [c.volta, copia ? copia.verbo : "nasci", macchina, ...(copia?.verbo === "fork" ? [copia.sessionId] : []),
@@ -565,13 +571,28 @@ async function nasciSu(macchina, prompt, progetto, nomeScheda = null, copia = nu
       const v = await apriSessione({ id: esito.id, sessionId: esito.sessionId, nome, progetto, questa: macchina === "qui", host: macchina }, esito.attach, true);
       // la veglia non tiene occupata la nascita: se Claude non resta nella scheda arriva un avviso
       v.veglia?.then((x) => { if (x?.errore) notify({ title: "La sessione nuova non resta aperta", body: x.errore, level: "warning" }); });
-      return v.errore ? { errore: v.errore } : { ok: true, id: esito.id };
+      return v.errore ? dico("La sessione è nata, ma non si apre", v.errore) : { ok: true, id: esito.id };
     }
-    if (!copia) notify({ title: `La sessione non nasce su ${nomeMacchina(macchina)}`, body: esito.errore ?? "Nessuna risposta.", level: "error" });
-    return { errore: esito.errore ?? "nessuna risposta" };
+    return dico(`La sessione non nasce su ${nomeMacchina(macchina)}`, esito.errore ?? "nessuna risposta");
+  } catch (e) {
+    return dico(`La sessione non nasce su ${nomeMacchina(macchina)}`, String(e?.message ?? e).slice(0, 160));
   } finally {
-    setShared("arturo.nascita", null);
+    // solo la propria: se questa è scaduta e ne è partita un'altra, quella resta segnata
+    if (shared("arturo.nascita")?.da === da) setShared("arturo.nascita", null);
   }
+}
+
+// Quanto dura al massimo una nascita: i 6 minuti di attesa della sonda più l'aggancio della scheda.
+const NASCITA_MAX = 420000;
+
+// La macchina dove sta nascendo una sessione, o null. shared arturo.nascita è { macchina, da }: oltre
+// NASCITA_MAX non vale più, perché chi l'ha scritto può essere morto prima di toglierlo (una finestra
+// chiusa a metà, Volta chiusa durante la nascita) e nessuna sessione nascerebbe più. La stringa che
+// scriveva la versione di prima non ha un'ora: è scaduta.
+export function inNascita(ora = Date.now()) {
+  const n = shared("arturo.nascita");
+  if (!n || typeof n !== "object" || typeof n.macchina !== "string" || !Number.isFinite(n.da)) return null;
+  return ora - n.da < NASCITA_MAX ? n.macchina : null;
 }
 
 // Duplica e Fork del menu di una sessione (#5291), sulla macchina della sessione e non su "Nasce su":

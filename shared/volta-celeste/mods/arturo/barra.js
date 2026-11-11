@@ -12,6 +12,7 @@ import { apriRevisione } from "./revisione.js";
 import { revisione, settimanaDi } from "./settimana.js";
 import { Volta } from "./volta.js";
 import { rigaMod } from "./sessioni.js";
+import { instrada } from "./comandi.js";
 
 export class Marchio {
   render() {
@@ -45,39 +46,52 @@ export class Barra {
       const f = agents().map((a) => `${a.address}:${a.status}`).join(",") + `|${JSON.stringify(statiQui())}|${shared("arturo.scritto") ?? ""}`;
       if (f !== this.firma) { this.firma = f; this.carica(cx); }
     });
+    // I comandi "arturo.<nome>" (comandi.js dice cosa chiede ognuno). Un comando che si rompe non ferma
+    // il ciclo: senza il try la barra smetteva di rispondere ai tasti fino al riavvio.
     cx.spawn(async (cx) => {
       for (;;) {
         const c = await nextCommand();
-        if (c === "apri") apriFinestra();
-        else if (c === "chiedi") apriSuggerimenti();
-        else if (c === "settimana") apriRevisione();
-        else if (/^guida\d?$/.test(c)) apriGuida(Math.max(0, Number(c.slice(5) || 1) - 1));
-        else if (c === "nuova") await nuova();
-        // "arturo.dove-<macchina>": la scelta di "Nasce su" (dove-qui per questa macchina).
-        else if (c.startsWith("dove-")) setShared("arturo.dove", c.slice(5));
-        else if (c === "nota") await apriNota();
-        // "arturo.nota-<id>": il velo aperto sulla nota <id>, dall'elenco delle note.
-        else if (c.startsWith("nota-")) await apriNota(c.slice(5));
-        else if (c === "note") apriElenco();
-        // "arturo.versione": la versione del mod e l'ultimo controllo, in un avviso (prove senza clic).
-        else if (c === "versione") { const m = shared("arturo.mod"); notify({ title: rigaMod(m)?.testo ?? "Il mod non ha una versione", body: m?.motivo ?? `Ultimo controllo: ${m?.esito ?? "mai"}.`, level: "info" }); }
-        // "arturo.volta-gruppi-<macchina|progetto>": l'interruttore dell'elenco, da herdr-app do.
-        else if (c === "volta-gruppi-macchina" || c === "volta-gruppi-progetto") setShared("arturo.volta.gruppi", c.slice(13));
-        // "arturo.volta-nuova": la scheda nuova (⌘T) è una sessione di Claude, non una shell (#5290).
-        else if (c === "volta-nuova") await nuovaScheda();
-        // "arturo.volta-menu-<id>": il menu del tasto destro su una sessione (#5291).
-        else if (c.startsWith("volta-menu-")) this.volta.menuId(c.slice(11));
-        // "arturo.volta-altro-<id>" e "arturo.volta-gesto-<verbo>-<id>": "Altro" e un gesto, suo o del menu.
-        else if (c.startsWith("volta-altro-")) this.volta.altroId(c.slice(12), cx);
-        // "arturo.volta-cambia-<nome|progetto>-<esadecimale>-<id>": il nome o il progetto nuovo di una
-        // sessione, dal dialogo di cambio.js o da herdr-app do (#5292).
-        else if (c.startsWith("volta-cambia-")) this.volta.cambiaComando(c, cx);
-        else if (/^volta-gesto-[a-z]+-/.test(c)) { const [, verbo, id] = c.match(/^volta-gesto-([a-z]+)-(.+)$/); this.volta.gestoId(verbo, id, cx); }
-        // "arturo.volta-<id>": lo stesso clic di una sessione di Volta, da tastiera o da herdr-app do.
-        else if (c.startsWith("volta-")) this.volta.premiId(c.slice(6), cx);
+        try { this.comando(instrada(c), cx); } catch (e) { this.rotto(c, e); }
         cx.notify();
       }
     });
+  }
+
+  rotto(c, e) {
+    notify({ title: "Un comando di Volta non è riuscito", body: `arturo.${c}: ${String(e?.message ?? e).slice(0, 160)}`, level: "error" });
+  }
+
+  // Un comando lungo (una nascita, lo scatto della finestra per una nota) parte e il ciclo non lo
+  // aspetta: con l'await una sessione che nasce in sei minuti teneva in coda tutti i comandi dopo.
+  lungo(c, cx, lavoro) {
+    cx.spawn(async (cx) => {
+      try { await lavoro(); } catch (e) { this.rotto(c, e); }
+      cx.notify();
+    });
+  }
+
+  // Esegue un comando già letto da instrada(). Niente await: i lunghi passano da lungo().
+  comando({ verbo, arg }, cx) {
+    const c = verbo;
+    if (c === "ci-sei") setShared("arturo.barra.viva", Date.now());
+    else if (c === "apri") apriFinestra();
+    else if (c === "progetto") { if (arg) this.lungo(c, cx, () => apri(arg)); }
+    else if (c === "chiedi") apriSuggerimenti();
+    else if (c === "suggerimento") { const s = SUGGERIMENTI.find((x) => x.id === arg); if (s) this.lungo(c, cx, () => esegui(s)); }
+    else if (c === "settimana") apriRevisione();
+    else if (c === "guida") apriGuida(arg);
+    else if (c === "nuova") this.lungo(c, cx, () => nuova());
+    else if (c === "dove") setShared("arturo.dove", arg);
+    else if (c === "nota") this.lungo(c, cx, () => apriNota(arg));
+    else if (c === "note") apriElenco();
+    else if (c === "versione") { const m = shared("arturo.mod"); notify({ title: rigaMod(m)?.testo ?? "Il mod non ha una versione", body: m?.motivo ?? `Ultimo controllo: ${m?.esito ?? "mai"}.`, level: "info" }); }
+    else if (c === "gruppi") setShared("arturo.volta.gruppi", arg);
+    else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());
+    else if (c === "volta-menu") this.volta.menuId(arg);
+    else if (c === "volta-altro") this.volta.altroId(arg, cx);
+    else if (c === "volta-cambia") this.volta.cambiaComando(arg, cx);
+    else if (c === "volta-gesto") this.volta.gestoId(arg.verbo, arg.id, cx);
+    else if (c === "volta") this.volta.premiId(arg, cx);
   }
 
   carica(cx) {

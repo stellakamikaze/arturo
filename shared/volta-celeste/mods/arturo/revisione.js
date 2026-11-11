@@ -4,8 +4,9 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, props, closeOverlay, openOverlay } from "herdr";
-import { todo, apri, bello, chiave } from "./dati.js";
+import { theme, props, closeOverlay, openOverlay, run } from "herdr";
+import { todo, bello, chiave } from "./dati.js";
+import { comandoApri } from "./comandi.js";
 import { ICONA } from "./comuni.js";
 import { revisione, FERMO_GG } from "./settimana.js";
 
@@ -48,8 +49,8 @@ export class Settimana {
         .text_size(12.5).text_color(t.accent).border_1().border_color(t.border)
         .hover((s) => s.bg(t.selected))
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-        // prima apre, poi chiude: un overlay chiuso ferma il suo codice al primo await
-        .on_click(async () => { try { await apri(k); } finally { this.chiudi(); } })
+        // il progetto lo apre la barra: la finestra manda il comando e si chiude (apri.js)
+        .on_click(() => { run(comandoApri(k)); this.chiudi(); })
         .child("Fai il punto"));
   }
 

@@ -3,8 +3,9 @@
 
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { theme, props, closeOverlay } from "herdr";
-import { nomiProgetti, apri, spazio, frase, bello } from "./dati.js";
+import { theme, props, closeOverlay, run } from "herdr";
+import { nomiProgetti, slug, spazio, frase, bello } from "./dati.js";
+import { comandoApri } from "./comandi.js";
 import { ICONA, punto, colore, nasceSu } from "./comuni.js";
 
 const MAX = 10;
@@ -32,10 +33,13 @@ export class Apri {
     return presi.slice(0, MAX);
   }
 
-  // Prima apre, poi chiude: un overlay chiuso ferma il suo codice al primo await (9/11/2026).
-  async vai(nome) {
+  // Il progetto lo apre la barra: la finestra manda il comando e si chiude. Un overlay chiuso ferma il
+  // suo codice al primo await, e una sessione fatta nascere da qui restava a metà se la finestra si
+  // chiudeva prima della fine (11/11/2026).
+  vai(nome) {
     if (!nome) return;
-    try { await apri(nome); } finally { this.chiudi(); }
+    run(comandoApri(slug(nome)));
+    this.chiudi();
   }
 
   render() {

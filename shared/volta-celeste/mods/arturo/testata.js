@@ -4,8 +4,9 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, run, agents, spaces, layout, shared, setShared, watchFolder, notify, home } from "herdr";
-import { frase, nuova, slug, config, statoSpazio, SUGGERIMENTI } from "./dati.js";
+import { theme, run, agents, spaces, layout, shared, setShared, watchFolder, notify, home, nextCommand } from "herdr";
+import { frase, slug, config, statoSpazio, SUGGERIMENTI } from "./dati.js";
+import { PING, daRimandare } from "./comandi.js";
 import { ICONA, punto, pulsante, colore, apriFinestra, apriElenco, tasti, nasceSu } from "./comuni.js";
 import { leggiTutte } from "./notaui.js";
 import { cartellaNote, progettoNota, contaNote, noteAperte, risposteClaude, risposteNuove } from "./nota.js";
@@ -75,6 +76,29 @@ export class Stato {
     });
     // Senza la cartella delle note (nessuna nota ancora) il watch non parte: il timer rilegge e riprova.
     cx.timer.every(30000, (cx) => cx.spawn(async (cx) => { await this.leggi(); cx.notify(); this.guarda(cx); }));
+    // Con la barra nascosta (⌘B) i comandi non li legge nessuno: Herdr li consegna solo alle parti
+    // mostrate, e i tasti (⌘O, ⌘T, ⌘⇧N) non facevano niente. La barra di stato resta mostrata: legge
+    // i comandi anche lei e agisce solo a barra nascosta (daRimandare).
+    cx.spawn(async (cx) => {
+      for (;;) {
+        const c = await nextCommand();
+        try { await this.rimanda(c, cx); } catch { /* il comando dopo si legge lo stesso */ }
+      }
+    });
+  }
+
+  // Mostra la barra, aspetta che riceva i comandi e le rimanda `c`. Che li riceve lo dice lei: risponde
+  // al comando di controllo scrivendo l'ora in shared arturo.barra.viva. Al massimo 3 secondi.
+  async rimanda(c, cx) {
+    if (!daRimandare(c, Boolean(trova(layout(), "sidebar")?.hidden))) return;
+    const da = Date.now();
+    run("layout.toggle", { id: "sidebar" });
+    for (let i = 0; i < 20; i++) {
+      run(`arturo.${PING}`);
+      await cx.sleep(150);
+      if (Number(shared("arturo.barra.viva")) >= da) return run(`arturo.${c}`);
+    }
+    notify({ title: "La barra di sinistra non risponde", body: "Mostrala con il suo tasto e riprova.", level: "warning" });
   }
 
   // Un nota.json che cambia (il velo, o Claude con arturo note) si rilegge subito.
@@ -158,7 +182,8 @@ export class Benvenuto {
         // due per riga quando entrano (almeno 200 l'una), altrimenti una sotto l'altra
         .children(scelti.map((s, i) => div().flex_1().min_w(200).child(voce(t, s, i === 0)))))
       .child(h_flex().flex_wrap().gap(10).items_center()
-        .child(pulsante("b-nuova", "square-pen", "Nuova richiesta", () => nuova(), !haProgetti ? false : true))
+        // la nascita la fa la barra: il benvenuto sparisce appena nasce uno spazio (suggerimenti.js)
+        .child(pulsante("b-nuova", "square-pen", "Nuova richiesta", () => run("arturo.nuova"), !haProgetti ? false : true))
         .child(div().text_size(12.5).text_color(t.dim).child("Altre richieste in Cosa posso chiedere, in alto")))
       // la stessa scelta della barra: qui Nuova richiesta la segue, quindi si vede anche qui
       .when(Boolean(nasceSu(t)), (el) => el.child(nasceSu(t)));

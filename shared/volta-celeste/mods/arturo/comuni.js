@@ -2,9 +2,9 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { theme, openOverlay, window, exec, home, shared, setShared } from "herdr";
+import { theme, openOverlay, window, exec, home, setShared } from "herdr";
 import { cartellaNota } from "./nota.js";
-import { altreMacchine, dove, nomeMacchina } from "./dati.js";
+import { altreMacchine, dove, nomeMacchina, inNascita } from "./dati.js";
 
 export const ICONA = (nome) => `mods/workspace-chrome/${nome}.svg`;
 
@@ -40,7 +40,7 @@ export function nasceSu(t) {
   const altre = altreMacchine();
   if (!altre.length) return null;
   const d = dove();
-  const nascita = shared("arturo.nascita");
+  const nascita = inNascita();
   const voce = (k, testo, giu) => div().id(`dove-${k}`).px(8).py(3).rounded(6).cursor_pointer().text_size(12.5)
     .when(d === k, (el) => el.bg(t.selected).text_color(t.foreground))
     .when(d !== k, (el) => el.text_color(giu ? t.dim : t.muted).hover((s) => s.bg(t.hover)))

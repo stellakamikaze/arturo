@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ65: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ68: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -268,6 +268,18 @@ HZ65 il testo di un todo non finisce in una shell (revisione dell'11/11/2026, da
      sessione giusta, presa da sessioni.json per id, riparte nella sua scheda e un avviso dice di
      riprovare; se Volta non la elenca più o il servizio non parte lo dice, e non scrive niente. Con
      Claude nella scheda, e con un agente di Herdr, il testo parte come prima.
+HZ66 una nascita rimasta a metà non blocca le altre (revisione dell'11/11/2026, dati.js con node): shared
+     arturo.nascita è { macchina, da } e scade dopo 7 minuti; la stringa della versione di prima è
+     scaduta; una nascita fresca rifiuta la seconda e lo dice con un avviso; a nascita finita il segno
+     sparisce; una sessione nata che non si apre lo dice con un avviso.
+HZ67 la nascita passa dalla barra (comandi.js con node): instrada() dice verbo, argomento e se il comando
+     è lungo, e legge volta-nuova, volta-menu-, volta-altro-, volta-cambia- e volta-gesto- prima di
+     volta-<id>; le finestre Apri un progetto, La settimana e Cosa posso chiedere mandano il comando e si
+     chiudono, senza await; il benvenuto manda arturo.nuova; il ciclo di barra.js ha il try per comando
+     e non aspetta i comandi lunghi.
+HZ68 con la barra nascosta i comandi li rimanda la barra di stato (comandi.js con node, testata.js): solo
+     a barra nascosta, mai il comando di controllo né un comando sconosciuto; mostra la barra, aspetta
+     che risponda e rimanda.
 """
 from __future__ import annotations
 
@@ -283,7 +295,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -841,7 +853,7 @@ def hz14(repo: Path, casa: Path) -> str | None:
     barra = (mod / "barra.js").read_text(encoding="utf-8")
     # apriNota sta in comuni.js dal passo 3 di #5117: la usano la barra e l'elenco delle note.
     corpo = (mod / "comuni.js").read_text(encoding="utf-8").split("export async function apriNota(apri = null) {", 1)[-1].split("\n}\n", 1)[0]
-    if 'else if (c === "nota") await apriNota();' not in barra or corpo.find(" shot ") < 0 or corpo.find(" shot ") > corpo.find("openOverlay("):
+    if 'else if (c === "nota") this.lungo(c, cx, () => apriNota(arg));' not in barra or corpo.find(" shot ") < 0 or corpo.find(" shot ") > corpo.find("openOverlay("):
         return "barra.js non fa lo screenshot prima di aprire il velo delle note"
     if 'arturo = leggi("arturo.json") or {}' not in (repo / INSTALLA).read_text(encoding="utf-8"):
         return "l'installatore riscrive arturo.json perdendo note_progetto"
@@ -1047,7 +1059,7 @@ def hz19(repo: Path, casa: Path) -> str | None:
     barra = (mod / "barra.js").read_text(encoding="utf-8")
     volta = (mod / "volta.js").read_text(encoding="utf-8")
     for pezzo, dove in (('import { Volta } from "./volta.js";', "barra.js"), ("this.volta.init(cx);", "barra.js"),
-                        ("this.volta.render(cx)", "barra.js"), ('c.startsWith("volta-")) this.volta.premiId(', "barra.js")):
+                        ("this.volta.render(cx)", "barra.js"), ('else if (c === "volta") this.volta.premiId(arg, cx);', "barra.js")):
         if pezzo not in barra:
             return f"{dove} senza {pezzo}"
     for pezzo in ('"volta", "--scrivi"', '"porta-volta"', "if (!this.script) return null;", "if (!this.script || this.inCorso) return;",
@@ -1163,14 +1175,14 @@ def hz24(repo: Path, casa: Path) -> str | None:
 def hz25(repo: Path, casa: Path) -> str | None:
     # Una finestra di dialogo chiusa ferma il suo codice al primo await: la chiusura viene dopo l'azione.
     mod = repo / "shared/volta-celeste/mods/arturo"
-    prima = re.compile(r"(this\.chiudi\(\)|dopo\?\.\(\)|closeOverlay\([^)]*\));\s*(?:await\s+)?(apri|esegui|scrivi|chiedi|nuova)\(")
+    prima = re.compile(r"(this\.chiudi\(\)|dopo\?\.\(\)|closeOverlay\([^)]*\));\s*(?:await\s+)?(apri|esegui|scrivi|chiedi|nuova|run)\(")
     for f in sorted(mod.glob("*.js")):
         m = prima.search(f.read_text(encoding="utf-8"))
         if m:
             return f"{f.name} chiude la finestra prima di {m.group(2)}(): l'azione non parte"
-    attesi = {"suggerimenti.js": "try { await esegui(sug); } finally { dopo?.(); }",
-              "apri.js": "try { await apri(nome); } finally { this.chiudi(); }",
-              "revisione.js": "try { await apri(k); } finally { this.chiudi(); }",
+    attesi = {"suggerimenti.js": "else run(comandoSuggerimento(sug.id)); dopo?.(); })",
+              "apri.js": "    run(comandoApri(slug(nome)));\n    this.chiudi();",
+              "revisione.js": ".on_click(() => { run(comandoApri(k)); this.chiudi(); })",
               "menu.js": "scrivi(v.argv(testo), v.esito, titolo).finally(() => this.chiudi());"}
     for nome, pezzo in attesi.items():
         if pezzo not in (mod / nome).read_text(encoding="utf-8"):
@@ -1363,7 +1375,7 @@ def hz28(repo: Path, casa: Path) -> str | None:
     for f, pezzo, perche in [
         ("main.js", "note: Note };", "main.js non monta la parte note"),
         ("barra.js", 'else if (c === "note") apriElenco();', "il comando arturo.note non apre l'elenco"),
-        ("barra.js", 'else if (c.startsWith("nota-")) await apriNota(c.slice(5));', "arturo.nota-<id> non apre il velo su quella nota"),
+        ("barra.js", 'else if (c === "nota") this.lungo(c, cx, () => apriNota(arg));', "arturo.nota-<id> non apre il velo su quella nota"),
         ("comuni.js", 'props: { parte: "nota", cartella, apri }', "il velo non riceve la nota da aprire"),
         ("comuni.js", 'props: { parte: "note" }', "apriElenco non apre la parte note"),
         ("comuni.js", 'elenco: "⌘⇧E"', "tasti() non dice ⌘⇧E sui Mac"),
@@ -1655,6 +1667,10 @@ def hz32(repo: Path, casa: Path) -> str | None:
     return None
 
 
+# La riga di comandi.js che legge "volta-<id>": i comandi più lunghi con lo stesso inizio stanno prima.
+CLIC_VOLTA = 'if (c.startsWith("volta-")) return { verbo: "volta",'
+
+
 HERDR_FINTO = r"""
 import { readFileSync } from "node:fs";
 export const lanciati = [];
@@ -1664,8 +1680,10 @@ export const readTextFile = async (p) => { try { return readFileSync(p, "utf-8")
 export const eseguiti = [];
 export const avvisi = [];
 const condivisi = JSON.parse(process.env.HZ_SHARED || "{}");
+export const nascite = [];
 export const exec = async (cmd, args) => {
   eseguiti.push([cmd, ...args]);
+  nascite.push(condivisi["arturo.nascita"] ?? null);
   return process.env.HZ_EXEC ? { code: 0, stdout: process.env.HZ_EXEC, stderr: "" } : { code: 1, stdout: "", stderr: "" };
 };
 export const inviati = [];
@@ -2716,10 +2734,11 @@ def hz44(repo: Path, casa: Path) -> str | None:
     mod = repo / "shared/volta-celeste/mods/arturo"
     bj = (mod / "barra.js").read_text(encoding="utf-8")
     vj = (mod / "volta.js").read_text(encoding="utf-8")
-    altro, gesto, clic = bj.find('c.startsWith("volta-altro-")'), bj.find("/^volta-gesto-[a-z]+-/.test(c)"), bj.find('c.startsWith("volta-")')
+    cj = (mod / "comandi.js").read_text(encoding="utf-8")
+    altro, gesto, clic = cj.find('c.startsWith("volta-altro-")'), cj.find("/^volta-gesto-([a-z]+)-(.+)$/.exec(c)"), cj.find(CLIC_VOLTA)
     if min(altro, gesto) < 0 or clic < 0 or max(altro, gesto) > clic:
-        return "barra.js non legge volta-altro- e volta-gesto- prima di volta-<id>"
-    if "this.volta.altroId(c.slice(12), cx)" not in bj or "this.volta.gestoId(verbo, id, cx)" not in bj:
+        return "comandi.js non legge volta-altro- e volta-gesto- prima di volta-<id>"
+    if "this.volta.altroId(arg, cx)" not in bj or "this.volta.gestoId(arg.verbo, arg.id, cx)" not in bj:
         return "barra.js non passa i comandi ad altroId e gestoId"
     if "this.menu = s.sessionId;\n    this.scopri(s);\n    this.fare(s, a, cx);" not in vj or "this.menu = this.menu === s.sessionId ? null : s.sessionId;\n    this.scopri(s);" not in vj:
         return "volta.js: gestoId non preme il bottone, o altroId non apre e chiude Altro"
@@ -2791,7 +2810,7 @@ def hz45(repo: Path, casa: Path) -> str | None:
         return "volta.js: senza una scelta l'elenco non si apre per progetto"
     if "(s.titolo ? div().whitespace_normal() : div().truncate())" not in (mod / "volta.js").read_text(encoding="utf-8"):
         return "volta.js: un titolo scritto non va a capo, e nella barra stretta si taglia"
-    if 'setShared("arturo.volta.gruppi", c.slice(13))' not in (mod / "barra.js").read_text(encoding="utf-8"):
+    if 'setShared("arturo.volta.gruppi", arg)' not in (mod / "barra.js").read_text(encoding="utf-8"):
         return "barra.js: manca il comando arturo.volta-gruppi-<modo>"
     conf = leggi(repo / "settings.json")
     for evento in ("UserPromptSubmit", "Stop"):
@@ -3317,10 +3336,11 @@ def hz53(repo: Path, casa: Path) -> str | None:
         if avuti.get("cmd-o") != "tab.new":
             return "l'installazione si prende un tasto che non è la scheda nuova"
     barra = (mod / "barra.js").read_text(encoding="utf-8")
-    if 'else if (c === "volta-nuova") await nuovaScheda();' not in barra:
+    if 'else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());' not in barra:
         return "barra.js non porta arturo.volta-nuova a nuovaScheda()"
-    if barra.index('c === "volta-nuova"') > barra.index('c.startsWith("volta-")) this.volta.premiId('):
-        return "barra.js: volta-nuova finisce nel clic su una sessione, che viene prima"
+    cj = (mod / "comandi.js").read_text(encoding="utf-8")
+    if cj.index('c === "volta-nuova"') > cj.index(CLIC_VOLTA):
+        return "comandi.js: volta-nuova finisce nel clic su una sessione, che viene prima"
     return None
 
 
@@ -3361,7 +3381,7 @@ def hz54(repo: Path, casa: Path) -> str | None:
         ("volta.js", 'a.verbo === "duplica" || a.verbo === "fork" ? await copiaSessione(s, a.verbo)', "Duplica e Fork non passano da copiaSessione"),
         ("volta.js", ': lavoro ? { testo: lavoro, colore: "working" }', "la riga non dice che il gesto è in corso"),
         ("volta.js", "const voci = menu(s).concat(", "gestoId non conosce le voci del menu"),
-        ("barra.js", 'else if (c.startsWith("volta-menu-")) this.volta.menuId(c.slice(11));', "barra.js non apre il menu da comando"),
+        ("barra.js", 'else if (c === "volta-menu") this.volta.menuId(arg);', "barra.js non apre il menu da comando"),
         ("main.js", "sessione: MenuSessione,", "main.js non monta il menu di una sessione"),
         ("menusessione.js", 'openOverlay({ mod: "arturo", props: { parte: "sessione", sessione: s }, kind: "popup"', "il menu non è un popup del mod"),
         ("menusessione.js", "    run(comandoGesto(this.s, v));\n    this.chiudi();", "il menu si chiude prima di mandare il gesto"),
@@ -3371,9 +3391,9 @@ def hz54(repo: Path, casa: Path) -> str | None:
     for file, pezzo, motivo in attesi:
         if pezzo not in testi[file]:
             return f"{file}: {motivo}"
-    bj = testi["barra.js"]
-    if bj.index('c.startsWith("volta-menu-")') > bj.index('c.startsWith("volta-")) this.volta.premiId('):
-        return "barra.js: volta-menu-<id> finisce nel clic su una sessione, che viene prima"
+    cj = (mod / "comandi.js").read_text(encoding="utf-8")
+    if cj.index('c.startsWith("volta-menu-")') > cj.index(CLIC_VOLTA):
+        return "comandi.js: volta-menu-<id> finisce nel clic su una sessione, che viene prima"
     node = shutil.which("node")
     if not node:
         return None
@@ -3815,7 +3835,7 @@ def hz59(repo: Path, casa: Path) -> str | None:
         ("volta.js", "    this.portaNomi();\n", "a ogni lettura i nomi non vanno in Claude Code"),
         ("volta.js", "if (!daPortare(s) || this.porto[k]) continue;", "un nome si porta due volte insieme"),
         ("volta.js", "nomiProgetti().catch(() => []).then((l) => apriCambio(s, cosa, progettiNoti(this.dati, l)));", "il dialogo del progetto non riceve i progetti noti"),
-        ("barra.js", 'else if (c.startsWith("volta-cambia-")) this.volta.cambiaComando(c, cx);', "barra.js non legge il comando del cambio"),
+        ("barra.js", 'else if (c === "volta-cambia") this.volta.cambiaComando(arg, cx);', "barra.js non legge il comando del cambio"),
         ("main.js", "cambio: Cambio,", "main.js non monta il dialogo del cambio"),
         ("menusessione.js", "const cambi = this.voci.filter((v) => v.verbo in CAMBIA);", "il menu non mostra Rinomina e Cambia progetto"),
         ("menusessione.js", ".when(cambi.length > 0, (el) => el.child(gruppo(cambi)))", "il menu non disegna il gruppo di Rinomina e Cambia progetto"),
@@ -3828,9 +3848,9 @@ def hz59(repo: Path, casa: Path) -> str | None:
     for file, pezzo, motivo in attesi:
         if pezzo not in testi[file]:
             return f"{file}: {motivo}"
-    bj = testi["barra.js"]
-    if bj.index('c.startsWith("volta-cambia-")') > bj.index('c.startsWith("volta-")) this.volta.premiId('):
-        return "barra.js: volta-cambia-… finisce nel clic su una sessione, che viene prima"
+    cj = (mod / "comandi.js").read_text(encoding="utf-8")
+    if cj.index('c.startsWith("volta-cambia-")') > cj.index(CLIC_VOLTA):
+        return "comandi.js: volta-cambia-… finisce nel clic su una sessione, che viene prima"
     node = shutil.which("node")
     if not node:
         return None
@@ -4500,8 +4520,217 @@ def hz65(repo: Path, casa: Path) -> str | None:
         return f"dati.js non gira: {e}"
     return None
 
+PROVA_NASCITA = r"""
+import { nuova, inNascita } from "./dati.mjs";
+import { eseguiti, avvisi, nascite, lanciati, shared } from "./herdr.mjs";
+const prima = inNascita();
+const esito = await nuova("ciao Volta");
+console.log(JSON.stringify({ prima, esito: esito ?? null, eseguiti, avvisi, nascite, lanciati, dopo: shared("arturo.nascita") ?? null }));
+"""
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65}
+
+def hz66(repo: Path, casa: Path) -> str | None:
+    node = shutil.which("node")
+    if not node:
+        return None
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    m = casa / "mod"
+    m.mkdir()
+    mod_dati(repo, m, (mod / "dati.js").read_text(encoding="utf-8"))
+    (m / "prova.mjs").write_text(PROVA_NASCITA, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+    (app / "arturo.json").write_text(json.dumps({"arturo": ["python9", "/a/bin/arturo"], "radice": str(repo), "base": "/base"}), encoding="utf-8")
+    attach = ["claude", "attach", "ffff1111"]
+    nata = json.dumps({"id": "ffff1111", "sessionId": "ffff1111-aaaa", "attach": attach})
+    adesso = int(time.time() * 1000)
+    minuti = lambda n: {"macchina": "Torre", "da": adesso - int(n * 60000)}  # noqa: E731
+
+    def volta(nascita, herdr=None, **extra):
+        condivisi = {"arturo.volta.macchine": [], "arturo.dove": "qui"}
+        if nascita is not None:
+            condivisi["arturo.nascita"] = nascita
+        e = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_EXEC": nata,
+             "HZ_SHARED": json.dumps(condivisi), "HZ_HERDR": json.dumps(herdr or {}), **extra}
+        for k in ("HZ_NASCE", "HZ_STATO", "HZ_PRONTA", "HZ_HC_ROTTO", "HZ_HC_READ", "HZ_HC_GET", "HZ_CASO"):
+            if k not in extra:
+                e.pop(k, None)
+        r = subprocess.run([node, str(m / "prova.mjs")], capture_output=True, text=True, timeout=30, env=e)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[:200])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    nasce = lambda v: bool(v["eseguiti"]) and v["eseguiti"][0][2:] == ["nasci", "qui", "--", "ciao Volta"]  # noqa: E731
+    try:
+        # nessuna nascita in corso: durante la sonda il segno dice dove e da quando, poi sparisce
+        v = volta(None)
+        if v["prima"] is not None or not nasce(v) or v["esito"] != {"ok": True, "id": "ffff1111"}:
+            return f"una nascita senza altre in corso: {v['prima']}, {v['eseguiti']}, {v['esito']}"
+        segno = v["nascite"][0] if v["nascite"] else None
+        if not isinstance(segno, dict) or segno.get("macchina") != "qui" or not isinstance(segno.get("da"), (int, float)) \
+                or abs(segno["da"] - adesso) > 120000:
+            return f"durante la nascita arturo.nascita non dice macchina e ora: {segno}"
+        if v["dopo"] is not None:
+            return f"a nascita finita arturo.nascita resta: {v['dopo']}"
+        # una nascita rimasta a metà (finestra chiusa, Volta chiusa): dopo 7 minuti non vale più
+        for cosa, vecchia in (("vecchia di 8 minuti", minuti(8)), ("scritta come stringa dalla versione di prima", "Torre"),
+                              ("senza ora", {"macchina": "Torre"}), ("con un'ora che non è un numero", {"macchina": "Torre", "da": "ieri"})):
+            v = volta(vecchia)
+            if v["prima"] is not None or not nasce(v) or v["avvisi"]:
+                return f"una nascita {cosa} blocca ancora le altre: {v['prima']}, {v['eseguiti']}, {v['avvisi']}"
+            if v["dopo"] is not None:
+                return f"dopo una nascita partita sopra una {cosa} il segno resta: {v['dopo']}"
+        # una nascita fresca rifiuta la seconda, lo dice e lascia il segno dell'altra. 6 minuti e mezzo:
+        # la sonda ne aspetta 6, il segno deve durare di più
+        for n in (1, 6.5):
+            fresca = minuti(n)
+            v = volta(fresca)
+            if v["prima"] != "Torre" or v["eseguiti"] or v["lanciati"]:
+                return f"con una nascita di {n} minuti fa ne parte un'altra: {v['prima']}, {v['eseguiti']}"
+            if len(v["avvisi"]) != 1 or "già nascendo" not in v["avvisi"][0].get("title", "") or "errore" not in (v["esito"] or {}):
+                return f"la nascita rifiutata non lo dice: {v['avvisi']}, {v['esito']}"
+            if v["dopo"] != fresca:
+                return f"la nascita rifiutata toglie il segno dell'altra: {v['dopo']}"
+        # la sessione nasce ma la sua scheda non si apre: un avviso, e il segno sparisce
+        nascita = ["/bin/zsh", "-lic", '"$@"; exec "$0" -li', "/bin/zsh", *attach]
+        nuda = {"state": "live", "pid": 10, "argv": nascita, "foreground": {"pid": 10, "argv": ["/bin/zsh", "-li"]}}
+        herdr = {"spaces": [{"id": "s1", "name": "Volta", "tabs": [{"id": "tb1", "active": True}]}],
+                 "panes": [{"terminal": "t7", "tab": "tb1"}], "terminals": [{"address": "t7", "argv": nascita}]}
+        v = volta(None, herdr=herdr, HZ_HC_GET=json.dumps({"t7": [nuda]}), HZ_HC_ROTTO="send")
+        if len(v["avvisi"]) != 1 or "non si apre" not in v["avvisi"][0].get("title", "") or "errore" not in (v["esito"] or {}):
+            return f"una sessione nata che non si apre non lo dice: {v['avvisi']}, {v['esito']}"
+        if v["dopo"] is not None:
+            return f"dopo una nascita finita male il segno resta: {v['dopo']}"
+    except RuntimeError as e:
+        return f"dati.js non gira: {e}"
+    if "const nascita = inNascita();" not in (mod / "comuni.js").read_text(encoding="utf-8"):
+        return "la riga Nasce su legge arturo.nascita senza la scadenza (inNascita)"
+    return None
+
+
+PROVA_COMANDI = r"""
+const { instrada, comandoApri, comandoSuggerimento, daRimandare, PING } = await import(%s);
+const v = (c) => { const i = instrada(c); return [i.verbo, i.arg, i.lungo]; };
+const comandi = %s;
+console.log(JSON.stringify({
+  tabella: Object.fromEntries(comandi.map((c) => [c, v(c)])),
+  apri: comandoApri("due-mondi"), giroApri: v(comandoApri("due-mondi").slice(7)),
+  sug: comandoSuggerimento("trova"), giroSug: v(comandoSuggerimento("trova").slice(7)),
+  ping: PING, niente: [v(undefined), v(null)],
+  rimanda: comandi.concat([PING]).filter((c) => daRimandare(c, true)),
+  mostrata: comandi.concat([PING]).filter((c) => daRimandare(c, false)),
+}));
+"""
+
+# comando → [verbo, argomento, lungo]
+COMANDI = {
+    "apri": ["apri", None, False], "apri-due-mondi": ["progetto", "due-mondi", True], "apri-": ["progetto", "", True],
+    "chiedi": ["chiedi", None, False], "suggerimento-trova": ["suggerimento", "trova", True],
+    "settimana": ["settimana", None, False], "guida": ["guida", 0, False], "guida3": ["guida", 2, False],
+    "nuova": ["nuova", None, True], "dove-qui": ["dove", "qui", False], "dove-Torre": ["dove", "Torre", False],
+    "nota": ["nota", None, True], "nota-n12": ["nota", "n12", True], "note": ["note", None, False],
+    "versione": ["versione", None, False], "volta-gruppi-macchina": ["gruppi", "macchina", False],
+    "volta-gruppi-progetto": ["gruppi", "progetto", False], "volta-nuova": ["volta-nuova", None, True],
+    "volta-menu-ab12": ["volta-menu", "ab12", False], "volta-altro-ab12": ["volta-altro", "ab12", False],
+    "volta-cambia-nome-6162-ab12": ["volta-cambia", "volta-cambia-nome-6162-ab12", False],
+    "volta-gesto-stop-ab12": ["volta-gesto", {"verbo": "stop", "id": "ab12"}, False],
+    "volta-gesto-rm-pid-77": ["volta-gesto", {"verbo": "rm", "id": "pid-77"}, False],
+    "volta-ab12": ["volta", "ab12", False], "volta-gesto-": ["volta", "gesto-", False],
+    "boh": [None, None, False], "": [None, None, False],
+}
+
+
+def comandi_node(repo: Path, casa: Path) -> dict | str | None:
+    """comandi.js con node: la tabella di instrada() e chi si rimanda a barra nascosta."""
+    node = shutil.which("node")
+    if not node:
+        return None
+    copia = casa / "comandi.mjs"
+    shutil.copyfile(repo / "shared/volta-celeste/mods/arturo/comandi.js", copia)
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_COMANDI % (json.dumps(copia.as_uri()), json.dumps(list(COMANDI)))],
+                       capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"comandi.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    return json.loads(r.stdout.strip().splitlines()[-1])
+
+
+def hz67(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    testi = {n: (mod / n).read_text(encoding="utf-8") for n in ("apri.js", "revisione.js", "suggerimenti.js", "testata.js", "barra.js")}
+    # le finestre mandano il comando e si chiudono: un overlay chiuso ferma il suo codice al primo await
+    for nome in ("apri.js", "revisione.js", "suggerimenti.js", "testata.js"):
+        m = re.search(r"await\s+(apri|esegui|chiedi|nuova|nuovaScheda)\(", testi[nome])
+        if m:
+            return f"{nome} aspetta {m.group(1)}() dentro una parte che può chiudersi: la nascita resta a metà"
+    attesi = (
+        ("apri.js", "    run(comandoApri(slug(nome)));\n    this.chiudi();", "Apri un progetto non manda il comando alla barra"),
+        ("revisione.js", ".on_click(() => { run(comandoApri(k)); this.chiudi(); })", "Fai il punto non manda il comando alla barra"),
+        ("suggerimenti.js", '.on_click(() => { if (sug.dove === "apri") apriFinestra(); else run(comandoSuggerimento(sug.id)); dopo?.(); })',
+         "una richiesta di Cosa posso chiedere non manda il comando alla barra"),
+        ("testata.js", 'pulsante("b-nuova", "square-pen", "Nuova richiesta", () => run("arturo.nuova"),', "Nuova richiesta del benvenuto non manda il comando alla barra"),
+        ("barra.js", "        try { this.comando(instrada(c), cx); } catch (e) { this.rotto(c, e); }\n", "il ciclo dei comandi non ha il try: un comando rotto ferma la barra"),
+        ("barra.js", "      try { await lavoro(); } catch (e) { this.rotto(c, e); }\n", "un comando lungo che si rompe non lo dice"),
+        ("barra.js", 'else if (c === "progetto") { if (arg) this.lungo(c, cx, () => apri(arg)); }', "barra.js non apre il progetto di arturo.apri-<slug>"),
+        ("barra.js", 'else if (c === "suggerimento") { const s = SUGGERIMENTI.find((x) => x.id === arg); if (s) this.lungo(c, cx, () => esegui(s)); }',
+         "barra.js non esegue arturo.suggerimento-<id>"),
+        ("barra.js", 'else if (c === "nuova") this.lungo(c, cx, () => nuova());', "arturo.nuova non parte come comando lungo"),
+        ("barra.js", 'else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());', "arturo.volta-nuova non parte come comando lungo"),
+        ("barra.js", 'else if (c === "nota") this.lungo(c, cx, () => apriNota(arg));', "arturo.nota non parte come comando lungo"),
+    )
+    for file, pezzo, motivo in attesi:
+        if pezzo not in testi[file]:
+            return f"{file}: {motivo}"
+    # il ciclo non aspetta nessun comando: l'unico await è la lettura del comando dopo
+    bj = testi["barra.js"]
+    ciclo = bj.split("        const c = await nextCommand();\n", 1)[-1].split("\n    });\n", 1)[0]
+    corpo = bj.split("  comando({ verbo, arg }, cx) {\n", 1)[-1].split("\n  }\n", 1)[0]
+    if "await" in ciclo or "await" in corpo:
+        return "barra.js aspetta un comando dentro il ciclo: una nascita di sei minuti tiene in coda i comandi dopo"
+    d = comandi_node(repo, casa)
+    if d is None or isinstance(d, str):
+        return d
+    for c, atteso in COMANDI.items():
+        if d["tabella"].get(c) != atteso:
+            return f"instrada({c!r}) dà {d['tabella'].get(c)}, atteso {atteso}"
+    if d["apri"] != "arturo.apri-due-mondi" or d["giroApri"] != ["progetto", "due-mondi", True]:
+        return f"comandoApri e instrada non si parlano: {d['apri']}, {d['giroApri']}"
+    if d["sug"] != "arturo.suggerimento-trova" or d["giroSug"] != ["suggerimento", "trova", True]:
+        return f"comandoSuggerimento e instrada non si parlano: {d['sug']}, {d['giroSug']}"
+    if d["niente"] != [[None, None, False], [None, None, False]]:
+        return f"instrada senza comando: {d['niente']}"
+    return None
+
+
+def hz68(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    testi = {n: (mod / n).read_text(encoding="utf-8") for n in ("testata.js", "barra.js")}
+    attesi = (
+        ("testata.js", "        const c = await nextCommand();\n        try { await this.rimanda(c, cx); } catch {", "la barra di stato non legge i comandi"),
+        ("testata.js", '    if (!daRimandare(c, Boolean(trova(layout(), "sidebar")?.hidden))) return;\n', "la barra di stato agisce anche con la barra mostrata"),
+        ("testata.js", '    run("layout.toggle", { id: "sidebar" });\n', "la barra di stato non mostra la barra nascosta"),
+        ("testata.js", "      run(`arturo.${PING}`);\n", "la barra di stato non chiede alla barra se riceve i comandi"),
+        ("testata.js", '      if (Number(shared("arturo.barra.viva")) >= da) return run(`arturo.${c}`);\n', "la barra di stato non rimanda il comando quando la barra risponde"),
+        ("barra.js", '    if (c === "ci-sei") setShared("arturo.barra.viva", Date.now());\n', "la barra non risponde al comando di controllo"),
+    )
+    for file, pezzo, motivo in attesi:
+        if pezzo not in testi[file]:
+            return f"{file}: {motivo}"
+    tj = testi["testata.js"]
+    corpo = tj.split("  async rimanda(c, cx) {\n", 1)[-1].split("\n  }\n", 1)[0]
+    if corpo.index("daRimandare(") > corpo.index('run("layout.toggle"') or corpo.index("const da = Date.now();") > corpo.index('run("layout.toggle"'):
+        return "testata.js: la barra si mostra prima di guardare se è nascosta, o l'ora si prende dopo"
+    d = comandi_node(repo, casa)
+    if d is None or isinstance(d, str):
+        return d
+    attesi_rimanda = [c for c, v in COMANDI.items() if v[0] is not None]
+    if d["ping"] != "ci-sei" or d["rimanda"] != attesi_rimanda:
+        return f"a barra nascosta si rimandano {d['rimanda']}, attesi i comandi noti senza quello di controllo"
+    if d["mostrata"]:
+        return f"a barra mostrata la barra di stato rimanda {d['mostrata']}: il comando partirebbe due volte"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -4520,6 +4749,45 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", "  return ora - n.da < NASCITA_MAX ? n.macchina : null;", "  return n.macchina;"),
+    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", "const NASCITA_MAX = 420000;", "const NASCITA_MAX = 360000;"),
+    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", '  if (!n || typeof n !== "object" || typeof n.macchina !== "string" || !Number.isFinite(n.da)) return null;',
+     '  if (!n) return null;\n  if (typeof n === "string") return n;'),
+    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", ' || !Number.isFinite(n.da)) return null;', ') return null;\n  if (!Number.isFinite(n.da)) return n.macchina;'),
+    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", '  if (inNascita()) return dico("Sta già nascendo', '  if (false) return dico("Sta già nascendo'),
+    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", '    if (!copia) notify({ title: titolo, body: errore, level });\n', ""),
+    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", '    if (shared("arturo.nascita")?.da === da) setShared("arturo.nascita", null);\n', ""),
+    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", '  setShared("arturo.nascita", { macchina, da });', '  setShared("arturo.nascita", macchina);'),
+    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", 'return v.errore ? dico("La sessione è nata, ma non si apre", v.errore) : { ok: true, id: esito.id };',
+     'return v.errore ? { errore: v.errore } : { ok: true, id: esito.id };'),
+    ("HZ66", "shared/volta-celeste/mods/arturo/comuni.js", "const nascita = inNascita();", 'const nascita = shared("arturo.nascita");'),
+    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", '  if (c === "volta-nuova") return { verbo: "volta-nuova", arg: null, lungo: true };\n', ""),
+    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", '  if (c.startsWith("volta-menu-")) return { verbo: "volta-menu", arg: dopo("volta-menu-"), lungo: false };\n', ""),
+    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", '  if (c.startsWith("volta-cambia-")) return { verbo: "volta-cambia", arg: c, lungo: false };\n', ""),
+    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", '  if (g) return { verbo: "volta-gesto", arg: { verbo: g[1], id: g[2] }, lungo: false };\n', ""),
+    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", 'if (c === "nuova") return { verbo: "nuova", arg: null, lungo: true };', 'if (c === "nuova") return { verbo: "nuova", arg: null, lungo: false };'),
+    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", 'return { verbo: "progetto", arg: dopo("apri-"), lungo: true };', 'return { verbo: "progetto", arg: dopo("apri-"), lungo: false };'),
+    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", 'if (c === "apri") return { verbo: "apri", arg: null, lungo: false };\n', ""),
+    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", "export const comandoApri = (slug) => `arturo.apri-${slug}`;", "export const comandoApri = (slug) => `arturo.apri.${slug}`;"),
+    ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", "Math.max(0, Number(dopo(\"guida\") || 1) - 1)", "Number(dopo(\"guida\") || 1)"),
+    ("HZ67", "shared/volta-celeste/mods/arturo/apri.js", "    run(comandoApri(slug(nome)));\n    this.chiudi();", "    apri(nome).finally(() => this.chiudi());"),
+    ("HZ67", "shared/volta-celeste/mods/arturo/revisione.js", ".on_click(() => { run(comandoApri(k)); this.chiudi(); })", ".on_click(async () => { try { await apri(k); } finally { this.chiudi(); } })"),
+    ("HZ67", "shared/volta-celeste/mods/arturo/suggerimenti.js", '.on_click(() => { if (sug.dove === "apri") apriFinestra(); else run(comandoSuggerimento(sug.id)); dopo?.(); })',
+     ".on_click(async () => { try { await esegui(sug); } finally { dopo?.(); } })"),
+    ("HZ67", "shared/volta-celeste/mods/arturo/testata.js", '() => run("arturo.nuova"),', "() => nuova(),"),
+    ("HZ67", "shared/volta-celeste/mods/arturo/barra.js", "        try { this.comando(instrada(c), cx); } catch (e) { this.rotto(c, e); }\n", "        this.comando(instrada(c), cx);\n"),
+    ("HZ67", "shared/volta-celeste/mods/arturo/barra.js", "      try { await lavoro(); } catch (e) { this.rotto(c, e); }\n", "      await lavoro();\n"),
+    ("HZ67", "shared/volta-celeste/mods/arturo/barra.js", "        try { this.comando(instrada(c), cx); } catch (e) { this.rotto(c, e); }\n",
+     "        try { await this.comando(instrada(c), cx); } catch (e) { this.rotto(c, e); }\n"),
+    ("HZ67", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c === "nuova") this.lungo(c, cx, () => nuova());', 'else if (c === "nuova") return nuova();'),
+    ("HZ68", "shared/volta-celeste/mods/arturo/comandi.js", "Boolean(nascosta) && c !== PING && instrada(c).verbo !== null;", "Boolean(nascosta) && instrada(c).verbo !== null;"),
+    ("HZ68", "shared/volta-celeste/mods/arturo/comandi.js", "Boolean(nascosta) && c !== PING && instrada(c).verbo !== null;", "c !== PING && instrada(c).verbo !== null;"),
+    ("HZ68", "shared/volta-celeste/mods/arturo/comandi.js", "Boolean(nascosta) && c !== PING && instrada(c).verbo !== null;", "Boolean(nascosta) && c !== PING;"),
+    ("HZ68", "shared/volta-celeste/mods/arturo/testata.js", '    if (!daRimandare(c, Boolean(trova(layout(), "sidebar")?.hidden))) return;\n', ""),
+    ("HZ68", "shared/volta-celeste/mods/arturo/testata.js", '    run("layout.toggle", { id: "sidebar" });\n', ""),
+    ("HZ68", "shared/volta-celeste/mods/arturo/testata.js", '      if (Number(shared("arturo.barra.viva")) >= da) return run(`arturo.${c}`);\n', ""),
+    ("HZ68", "shared/volta-celeste/mods/arturo/testata.js", "        try { await this.rimanda(c, cx); } catch {", "        try { } catch {"),
+    ("HZ68", "shared/volta-celeste/mods/arturo/barra.js", '    if (c === "ci-sei") setShared("arturo.barra.viva", Date.now());\n    else if (c === "apri")', '    if (c === "apri")'),
     ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "      if (await tornataShell(g)) return;\n", ""),
     ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "  if (!a && (await tornataShell(g))) return;\n", ""),
     ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "  if (!(await nuda(g.terminal))) return false;\n  const s = await sessioneDi(g);", "  if (true) return false;\n  const s = await sessioneDi(g);"),
@@ -4619,7 +4887,7 @@ VELENI = [
     ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", "|| argv.some((a) => dentro(a, s.id)))", ")"),
     ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", '${id.replace(/[^\\w-]/g, "")}\\\\b`', '${id.replace(/[^\\w-]/g, "")}`'),
     ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", "\\\\battach['\"]?\\\\s+['\"]?", "\\\\battach\\\\s+"),
-    ("HZ19", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c.startsWith("volta-")) this.volta.premiId(c.slice(6), cx);', ""),
+    ("HZ19", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c === "volta") this.volta.premiId(arg, cx);', ""),
     ("HZ19", "shared/volta-celeste/mods/arturo/volta.js", "if (!this.script) return null;", ""),
     ("HZ20", "shared/volta-celeste/mods/arturo/volta.js", 'exec(this.py, [this.script, "volta"', 'exec("python3", [this.script, "volta"'),
     ("HZ21", "shared/volta-celeste/installa-herdr.sh", "app_home=${HERDR_APP_HOME:-$HOME/.config/herdr-app}",
@@ -4631,8 +4899,9 @@ VELENI = [
      'if command -v "$c" >/dev/null 2>&1; then py=$c; break; fi'),
     ("HZ24", "shared/volta-celeste/mods/arturo/testata.js", "const scorciatoie = `${k.apri} apri un progetto",
      "const scorciatoie = `⌘O apri un progetto"),
-    ("HZ25", "shared/volta-celeste/mods/arturo/suggerimenti.js", ".on_click(async () => { try { await esegui(sug); } finally { dopo?.(); } })",
-     ".on_click(() => { dopo?.(); esegui(sug); })"),
+    ("HZ25", "shared/volta-celeste/mods/arturo/suggerimenti.js", "else run(comandoSuggerimento(sug.id)); dopo?.(); })",
+     "else { dopo?.(); run(comandoSuggerimento(sug.id)); } })"),
+    ("HZ25", "shared/volta-celeste/mods/arturo/apri.js", "    run(comandoApri(slug(nome)));\n    this.chiudi();", "    this.chiudi();\n    run(comandoApri(slug(nome)));"),
     ("HZ26", "shared/volta-celeste/mods/arturo/nota.js", "const mainW = testata.larghezza - 2 * pad - (pannelloW ? pannelloW + gap : 0);",
      "const mainW = testata.larghezza - 2 * pad;"),
     ("HZ26", "shared/volta-celeste/mods/arturo/nota.js", "if (Math.abs(marchio.altezza + barra.altezza + piede.altezza - H) > 2) return null;", ""),
@@ -4741,7 +5010,8 @@ VELENI = [
     ("HZ44", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'sessioni = agenti(["--all"])', "sessioni = agenti([])"),
     ("HZ44", "shared/volta-celeste/mods/arturo/volta_sonda.py", '            or (s.get("startedAt") or 0) >= soglia]', "            or True]"),
     ("HZ44", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    sessioni = agenti([]) or []", "    sessioni = []"),
-    ("HZ44", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c.startsWith("volta-altro-")) this.volta.altroId(c.slice(12), cx);', ""),
+    ("HZ44", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c === "volta-altro") this.volta.altroId(arg, cx);', ""),
+    ("HZ44", "shared/volta-celeste/mods/arturo/comandi.js", '  if (c.startsWith("volta-altro-")) return { verbo: "volta-altro", arg: dopo("volta-altro-"), lungo: false };\n', ""),
     ("HZ44", "shared/volta-celeste/mods/arturo/volta.js", "this.menu = s.sessionId;\n    this.scopri(s);\n    this.fare(s, a, cx);", "this.menu = s.sessionId;"),
     ("HZ44", "shared/volta-celeste/mods/arturo/volta.js", 'if (g && s.stato === "ferma") this.aperti[g.chiave] = true;', ""),
     ("HZ45", 'hooks/titolo-sessione.py', '        if salvato.get("titolo"):\n            return 0\n', ''),
@@ -4811,7 +5081,7 @@ VELENI = [
     ('HZ53', 'shared/volta-celeste/keys-ctrl.json', '"ctrl-shift-t": "arturo.volta-nuova"', '"ctrl-shift-y": "arturo.volta-nuova"'),
     ('HZ53', 'shared/volta-celeste/installa-herdr.sh', 'if k in mia and mia[k] != v and mia[k] != PRENDE.get(v):', 'if k in mia and mia[k] != v:'),
     ('HZ53', 'shared/volta-celeste/installa-herdr.sh', 'mia[k] != PRENDE.get(v):', 'v not in PRENDE:'),
-    ('HZ53', 'shared/volta-celeste/mods/arturo/barra.js', '        else if (c === "volta-nuova") await nuovaScheda();\n', ''),
+    ('HZ53', 'shared/volta-celeste/mods/arturo/barra.js', '    else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());\n', ''),
     ('HZ22', 'shared/volta-celeste/installa-herdr.sh', 'PRENDE = {"arturo.volta-nuova": "tab.new"}', 'PRENDE = {}'),
     ('HZ54', 'shared/volta-celeste/mods/arturo/sessioni.js', 'if (s.tipo === "background") out.push({ verbo: "chiudi", testo: "Chiudi" });', 'out.push({ verbo: "chiudi", testo: "Chiudi" });'),
     ('HZ54', 'shared/volta-celeste/mods/arturo/sessioni.js', 'if (!s || s.vecchia) return [];\n  const out = [{ verbo: "apri"', 'if (!s) return [];\n  const out = [{ verbo: "apri"'),
@@ -4822,13 +5092,13 @@ VELENI = [
     ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '...(copia?.verbo === "fork" ? [copia.sessionId] : []),', ''),
     ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '...(copia?.cartella ? ["--cartella", copia.cartella] : []),', ''),
     ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '...(copia?.titolo ? ["--titolo", copia.titolo] : []),', ''),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', 'if (!copia) notify({ title: `La sessione non nasce su', 'notify({ title: `La sessione non nasce su'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', 'if (!copia) notify({ title: titolo, body: errore, level });', 'notify({ title: titolo, body: errore, level });'),
     ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', 'return nasciSu(s.host ?? "qui", "", s.progetto', 'return nasciSu(dove(), "", s.progetto'),
     ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '{ verbo: fork ? "fork" : "duplica", sessionId: s.sessionId,', '{ verbo: fork ? "fork" : "duplica", sessionId: s.id,'),
     ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', 'fork ? titoloFork(s).slice(0, 40) : "Nuova sessione",', '"Nuova sessione",'),
     ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', 'if (panes().filter((x) => x.tab === p.tab).length === 1) run("tab.close", { id: p.tab });', 'if (true) run("tab.close", { id: p.tab });'),
     ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '    else run("terminal.kill", { terminal: t.address });\n', '    else run("tab.close", { id: p.tab });\n'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '      return v.errore ? { errore: v.errore } : { ok: true, id: esito.id };\n', ''),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '      return v.errore ? dico("La sessione è nata, ma non si apre", v.errore) : { ok: true, id: esito.id };\n', ''),
     ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '      .on_mouse_down("right", (_e, cx) => { if (apriMenuSessione(s)) cx.stop_propagation(); })\n', ''),
     ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '    if (SOLO_MENU.has(verbo)) return this.fare(s, a, cx);\n', ''),
     ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '    if (a.verbo === "apri") return this.premi(s, cx);\n', ''),
@@ -4836,7 +5106,7 @@ VELENI = [
     ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', 'a.verbo === "duplica" || a.verbo === "fork" ? await copiaSessione(s, a.verbo)', 'false ? await copiaSessione(s, a.verbo)'),
     ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '      : lavoro ? { testo: lavoro, colore: "working" } : dettaglio(s, modo);', '      : dettaglio(s, modo);'),
     ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', 'const voci = menu(s).concat(azioni(s).filter((x) => x.verbo === "stop"));', 'const voci = azioni(s);'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/barra.js', '        else if (c.startsWith("volta-menu-")) this.volta.menuId(c.slice(11));\n', ''),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/barra.js', '    else if (c === "volta-menu") this.volta.menuId(arg);\n', ''),
     ('HZ54', 'shared/volta-celeste/mods/arturo/main.js', 'sessione: MenuSessione, ', ''),
     ('HZ54', 'shared/volta-celeste/mods/arturo/menusessione.js', '    run(comandoGesto(this.s, v));\n    this.chiudi();', '    this.chiudi();\n    run(comandoGesto(this.s, v));'),
     ('HZ54', 'shared/volta-celeste/mods/arturo/menusessione.js', '`arturo.volta-gesto-${v.verbo}-${s.id}`', '`arturo.volta-fai-${v.verbo}-${s.id}`'),
@@ -4917,7 +5187,7 @@ VELENI = [
     ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", 'String(s.progetto ?? "") !== valore) dopo = await spostaScheda(s, valore);', 'String(s.progetto ?? "") !== valore) dopo = {};'),
     ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", '        r = await cambiaSessione(s, cosa, valore);', '        r = { ok: true };'),
     ("HZ59", "shared/volta-celeste/mods/arturo/volta.js", 'then((l) => apriCambio(s, cosa, progettiNoti(this.dati, l)));', 'then((l) => apriCambio(s, cosa, []));'),
-    ("HZ59", "shared/volta-celeste/mods/arturo/barra.js", '        else if (c.startsWith("volta-cambia-")) this.volta.cambiaComando(c, cx);\n', ''),
+    ("HZ59", "shared/volta-celeste/mods/arturo/barra.js", '    else if (c === "volta-cambia") this.volta.cambiaComando(arg, cx);\n', ''),
     ("HZ59", "shared/volta-celeste/mods/arturo/main.js", 'sessione: MenuSessione, cambio: Cambio, nuovo: Nuovo,', 'sessione: MenuSessione, nuovo: Nuovo,'),
     ("HZ59", "shared/volta-celeste/mods/arturo/menusessione.js", '      .when(cambi.length > 0, (el) => el.child(gruppo(cambi)))\n', ''),
     ("HZ59", "shared/volta-celeste/mods/arturo/menusessione.js", 'const cambi = this.voci.filter((v) => v.verbo in CAMBIA);', 'const cambi = [];'),
