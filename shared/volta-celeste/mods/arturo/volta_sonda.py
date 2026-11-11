@@ -413,6 +413,19 @@ def gia_viste(precedente):
     return {m.get("host") for m in (precedente or {}).get("macchine", [])}
 
 
+def nascita(s):
+    """L'ora di nascita di una sessione (startedAt di claude agents, in millisecondi) come data ISO:
+    tiene il posto dell'ultima interazione quando la trascrizione manca o non si legge, così la
+    sessione appena nata sta in cima all'elenco e non in fondo. Vuoto se manca anche quella."""
+    t = s.get("startedAt")
+    if isinstance(t, bool) or not isinstance(t, (int, float)) or t <= 0:
+        return ""
+    try:
+        return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(t / 1000))
+    except (OverflowError, OSError, ValueError):
+        return ""
+
+
 def righe(voci):
     """Da raccogli() all'elenco piatto: una riga per sessione."""
     out = []
@@ -437,7 +450,7 @@ def righe(voci):
                 "attach": argv_attach(v, corto) if fondo else None,
                 # la scheda di Herdr che la ospita, se è partita lì dentro: il clic la porta davanti
                 "terminale": ospite if isinstance(ospite, str) and re.fullmatch(r"t[0-9a-z]{1,12}", ospite) else None,
-                "cartella": s.get("cwd"), "ultimo": s.get("ultimo") or "",
+                "cartella": s.get("cwd"), "ultimo": s.get("ultimo") or nascita(s),
                 "risposta": (s.get("risposta") or "")[:420], "azione": s.get("azione") or "",
             })
     return out

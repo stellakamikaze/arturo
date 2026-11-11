@@ -9,8 +9,6 @@
 export const MODI = { macchina: "Per macchina", progetto: "Per progetto" };
 export const SENZA = "Senza progetto";
 
-const RANGO = { aspetta: 0, errore: 1, lavora: 2, ferma: 3 };
-const rango = (s) => RANGO[s.stato] ?? 3;
 const tempo = (s) => Date.parse(s.ultimo || "") || 0;
 
 // Il nome di un progetto per le persone: "due-mondi" → "Due mondi", "uf" → "UF".
@@ -67,11 +65,14 @@ export function dettaglio(s, modo, adesso = Date.now()) {
   return { testo: dove ? `${dove} · ${f.testo}` : f.testo, colore: f.colore };
 }
 
-// I gruppi: [{ chiave, titolo, nota?, sessioni }]. Per macchina nell'ordine del file (questa per
-// prima), con una nota per la macchina che non risponde; per progetto prima chi ti aspetta,
-// "Senza progetto" in fondo. Dentro ogni gruppo: ti aspetta, errore, lavora, ferma; poi la più recente.
+// I gruppi: [{ chiave, titolo, nota?, sessioni }]. L'ordine è quello dell'ultima interazione (campo
+// "ultimo"): dentro ogni gruppo la sessione toccata per ultima sta in cima, e viene per primo il gruppo
+// che contiene la più recente. Lo stato non sposta le righe: lo dicono pallino e frase. A pari tempo
+// l'ordine del file per le macchine (questa per prima) e l'alfabeto per i progetti; la macchina che
+// non risponde porta una nota.
+const recente = (g) => Math.max(0, ...g.sessioni.map(tempo));
 export function gruppi(dati, modo = "macchina") {
-  const righe = [...(dati?.sessioni ?? [])].sort((a, b) => rango(a) - rango(b) || tempo(b) - tempo(a) || titolo(a).localeCompare(titolo(b)));
+  const righe = [...(dati?.sessioni ?? [])].sort((a, b) => tempo(b) - tempo(a) || titolo(a).localeCompare(titolo(b)));
   const per = new Map();
   const metti = (chiave, tit, s) => {
     if (!per.has(chiave)) per.set(chiave, { chiave, titolo: tit, sessioni: [] });
@@ -80,8 +81,7 @@ export function gruppi(dati, modo = "macchina") {
   if (modo === "progetto") {
     for (const s of righe) metti(s.progetto ? String(s.progetto) : "", nomeProgetto(s.progetto), s);
     const out = [...per.values()];
-    const primo = (g) => Math.min(...g.sessioni.map(rango));
-    out.sort((a, b) => (a.chiave === "") - (b.chiave === "") || primo(a) - primo(b) || a.titolo.localeCompare(b.titolo));
+    out.sort((a, b) => recente(b) - recente(a) || a.titolo.localeCompare(b.titolo));
     const giu = (dati?.macchine ?? []).filter((m) => m.irraggiungibile).map((m) => m.macchina);
     if (giu.length && out.length) out[out.length - 1].nota = `${giu.join(", ")} non ${giu.length > 1 ? "rispondono" : "risponde"}`;
     return out;
@@ -95,7 +95,7 @@ export function gruppi(dati, modo = "macchina") {
     if (g.sessioni.length || g.nota) out.push(g);
     per.delete(m.host);
   }
-  return out.concat([...per.values()].filter((g) => g.sessioni.length));
+  return out.concat([...per.values()].filter((g) => g.sessioni.length)).sort((a, b) => recente(b) - recente(a));
 }
 
 // Cosa fa il clic: { azione: "aggancia", argv } per una sessione in background, { azione: "porta" }

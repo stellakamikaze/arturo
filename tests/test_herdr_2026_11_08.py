@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ47: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ51: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -52,8 +52,8 @@ HZ16 servizi-gui.sh (9/11/2026): herdr-core da LaunchAgent senza KeepAlive (si p
      launchd ed esce 0); il gestore delle sessioni non va in launchd senza --launchd (senza l'accesso
      a Documenti le sessioni morirebbero all'avvio), con --launchd sì e con KeepAlive; plist validi.
 HZ17 Volta Celeste, i gruppi (sessioni.js con node, #5068): per macchina nell'ordine del file con la nota
-     della macchina giù; per progetto con "Senza progetto" in fondo; dentro il gruppo ti aspetta >
-     errore > lavora > ferma; i nomi automatici ("claudecode-ca") lasciano il posto alla risposta.
+     della macchina giù; per progetto con la nota sull'ultimo gruppo; dentro il gruppo la più recente,
+     poi l'alfabeto (HZ51); i nomi automatici ("claudecode-ca") lasciano il posto alla risposta.
 HZ18 Volta Celeste, il clic (sessioni.js con node): una sessione in background si aggancia con l'argv
      del file (locale o ssh), un'interattiva ferma passa da porta-volta, una al lavoro, che aspetta o di
      una macchina giù no, col motivo; la scheda già aperta si riconosce anche dall'argv avvolto da zsh
@@ -188,6 +188,11 @@ HZ49 una X in hover chiude per sempre una sessione ferma (11/11/2026): volta.js 
      clic passa da fare(), che al primo clic chiede "Sì, elimina".
 HZ50 le note si trovano a vista (11/11/2026): il piede della barra ha la voce "Note", che apre l'elenco
      e scrive accanto i tasti della nota nuova e dell'elenco; il layout arturo dà al piede 190 px, cinque voci.
+HZ51 Volta Celeste, l'ordine è l'ultima interazione (11/11/2026): dentro un gruppo la sessione toccata per
+     ultima sta in cima, qualunque stato abbia (una ferma di un minuto fa sta sopra una che aspetta da
+     ieri); viene per primo il gruppo con la più recente, per progetto e per macchina, e "Senza progetto"
+     non va in fondo d'ufficio. Senza trascrizione la sonda mette in "ultimo" la nascita (startedAt), così
+     una sessione appena nata sta in cima.
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
 from __future__ import annotations
@@ -204,7 +209,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -923,17 +928,17 @@ def hz17(repo: Path, casa: Path) -> str | None:
     if not isinstance(avuto, dict):
         return avuto
     atteso = {
-        "macchina": [["MacBook Air", "", ["a3", "a2", "a1"]], ["Amaltea", "", ["b1", "b2"]], ["Torre", "Non risponde", []]],
+        "macchina": [["MacBook Air", "", ["a1", "a2", "a3"]], ["Amaltea", "", ["b2", "b1"]], ["Torre", "Non risponde", []]],
         "progetto": [["Senza progetto", "Torre non risponde", ["a3"]]],
         "titoli": ["uno", "Fatto: il deck è pronto"],
         "quanto": ["da 4 min", "da 3 ore", "da 2 giorni", ""],
         "dettaglio": ["Arturo · Ferma da 3 ore", "Amaltea · Si è fermata con un errore"],
     }
     gp = avuto.get("progetto", [])
-    if [g[0] for g in gp] != ["Due mondi", "Arturo", "Senza progetto"]:
-        return f"progetto: ordine dei gruppi {[g[0] for g in gp]}, atteso Due mondi, Arturo, Senza progetto"
-    if gp[1][2] != ["a2", "a1", "b2"]:
-        return f"progetto: dentro Arturo {gp[1][2]}, atteso lavora prima delle ferme"
+    if [g[0] for g in gp] != ["Arturo", "Due mondi", "Senza progetto"]:
+        return f"progetto: ordine dei gruppi {[g[0] for g in gp]}, atteso Arturo, Due mondi, Senza progetto"
+    if gp[0][2] != ["a1", "a2", "b2"]:
+        return f"progetto: dentro Arturo {gp[0][2]}, atteso la più recente e poi l'alfabeto"
     for k, v in atteso.items():
         a = avuto.get(k)
         if k == "progetto":
@@ -2935,7 +2940,69 @@ def hz50(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50}
+PROVA_ORDINE = r"""
+import * as v from %s;
+const r = (o) => ({ macchina: "MacBook Air", host: "macbook", questa: true, tipo: "background", stato: "ferma", ultimo: "", risposta: "", progetto: null, attach: ["claude", "attach", o.id], nome: o.id, ...o });
+const amaltea = { macchina: "Amaltea", host: "amaltea", questa: false };
+const dati = {
+  macchine: [{ macchina: "MacBook Air", host: "macbook", questa: true }, amaltea],
+  sessioni: [
+    r({ id: "ieri-aspetta", stato: "aspetta", ultimo: "2026-11-10T09:00:00Z", progetto: "arturo" }),
+    r({ id: "ora-ferma", stato: "ferma", ultimo: "2026-11-11T08:59:00Z", progetto: "arturo" }),
+    r({ id: "stamattina-lavora", stato: "lavora", ultimo: "2026-11-11T07:00:00Z", progetto: "arturo" }),
+    r({ id: "senza-tempo", stato: "errore", progetto: "arturo" }),
+    r({ id: "aaa", progetto: "zucca" }),
+    r({ id: "bbb", progetto: "mela" }),
+    r({ id: "sciolta", ...amaltea, ultimo: "2026-11-11T08:30:00Z" }),
+    r({ id: "vecchia", ...amaltea, ultimo: "2026-11-01T08:00:00Z", progetto: "zeta" }),
+    r({ id: "ultima", ...amaltea, stato: "lavora", ultimo: "2026-11-11T09:10:00Z", progetto: "basement" }),
+  ],
+};
+const forma = (gs) => gs.map((g) => [g.titolo, g.sessioni.map((s) => s.id)]);
+console.log(JSON.stringify({ progetto: forma(v.gruppi(dati, "progetto")), macchina: forma(v.gruppi(dati, "macchina")) }));
+"""
+
+
+def hz51(repo: Path, casa: Path) -> str | None:
+    import importlib.util
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    node = shutil.which("node")
+    if node:
+        copia = casa / "sessioni.mjs"
+        shutil.copyfile(mod / "sessioni.js", copia)
+        r = subprocess.run([node, "--input-type=module", "-e", PROVA_ORDINE % json.dumps(copia.as_uri())],
+                           capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+        avuto = json.loads(r.stdout.strip().splitlines()[-1])
+        atteso = {
+            "progetto": [["Basement", ["ultima"]], ["Arturo", ["ora-ferma", "stamattina-lavora", "ieri-aspetta", "senza-tempo"]],
+                         ["Senza progetto", ["sciolta"]], ["Zeta", ["vecchia"]], ["Mela", ["bbb"]], ["Zucca", ["aaa"]]],
+            "macchina": [["Amaltea", ["ultima", "sciolta", "vecchia"]],
+                         ["MacBook Air", ["ora-ferma", "stamattina-lavora", "ieri-aspetta", "aaa", "bbb", "senza-tempo"]]],
+        }
+        for k, v in atteso.items():
+            if avuto.get(k) != v:
+                return f"ordine {k}: atteso {v}, avuto {avuto.get(k)}"
+    sp = importlib.util.spec_from_file_location("volta_sonda_hz51", mod / "volta_sonda.py")
+    m = importlib.util.module_from_spec(sp)
+    sp.loader.exec_module(m)
+    voce = {"macchina": "amaltea", "host": "amaltea", "questa": False, "target": "amaltea", "claude": "/c", "sessioni": [
+        {"sessionId": "aaaa1111-0000", "id": "nata", "kind": "background", "status": "idle", "startedAt": 1794387600000},
+        {"sessionId": "bbbb2222-0000", "id": "letta", "kind": "background", "status": "idle", "startedAt": 1794387600000,
+         "ultimo": "2026-11-11T08:00:00.000Z"},
+        {"sessionId": "cccc3333-0000", "id": "nuda", "kind": "background", "status": "idle"},
+        {"sessionId": "dddd4444-0000", "id": "storta", "kind": "background", "status": "idle", "startedAt": "ieri"}]}
+    r = {x["id"]: x["ultimo"] for x in m.righe([voce])}
+    atteso = {"nata": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(1794387600)), "letta": "2026-11-11T08:00:00.000Z", "nuda": "", "storta": ""}
+    if r != atteso:
+        return f"volta_sonda.py, ultimo senza trascrizione: {r}, atteso {atteso}"
+    if not atteso["nata"].startswith("20"):
+        return f"la nascita non è una data di questo secolo: {atteso['nata']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -2995,8 +3062,8 @@ VELENI = [
     ("HZ16", "shared/volta-celeste/servizi-gui.sh", 'rm -f "$agenti/$PREFISSO.claude-daemon.plist"', 'plist claude-daemon true "$claude" daemon run'),
     ("HZ15", ".gitignore", "data/note-finestra/\n", ""),
     ("HZ15", ".gitignore", "data/herdr-invito\n", ""),
-    ("HZ17", "shared/volta-celeste/mods/arturo/sessioni.js", "const RANGO = { aspetta: 0, errore: 1, lavora: 2, ferma: 3 };", "const RANGO = { aspetta: 3, errore: 1, lavora: 2, ferma: 0 };"),
-    ("HZ17", "shared/volta-celeste/mods/arturo/sessioni.js", '(a.chiave === "") - (b.chiave === "") || ', ""),
+    ("HZ17", "shared/volta-celeste/mods/arturo/sessioni.js", "|| titolo(a).localeCompare(titolo(b)));", "|| titolo(b).localeCompare(titolo(a)));"),
+    ("HZ17", "shared/volta-celeste/mods/arturo/sessioni.js", "if (giu.length && out.length) out[out.length - 1].nota", "if (giu.length && out.length) out[0].nota"),
     ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", 'if (s.stato === "lavora") return { azione', "if (false) return { azione"),
     ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", "if (s.vecchia) return { azione", "if (false) return { azione"),
     ("HZ18", "shared/volta-celeste/mods/arturo/sessioni.js", "|| argv.some((a) => dentro(a, s.id)))", ")"),
@@ -3163,6 +3230,12 @@ VELENI = [
     ("HZ49", "shared/volta-celeste/mods/arturo/volta.js", ".on_click((_e, cx) => this.fare(s, rm, cx))", ""),
     ("HZ50", "shared/volta-celeste/mods/arturo/barra.js", '.child(voce("note", "pin", "Note", () => apriElenco())', '.child(voce("note", "pin", "Note", () => apriGuida())'),
     ("HZ50", "shared/volta-celeste/layouts/arturo.json", '"px": 190', '"px": 156'),
+    ("HZ51", "shared/volta-celeste/mods/arturo/sessioni.js", "].sort((a, b) => tempo(b) - tempo(a) || titolo(a)", "].sort((a, b) => tempo(a) - tempo(b) || titolo(a)"),
+    ("HZ51", "shared/volta-celeste/mods/arturo/sessioni.js", "    out.sort((a, b) => recente(b) - recente(a) || a.titolo.localeCompare(b.titolo));\n", ""),
+    ("HZ51", "shared/volta-celeste/mods/arturo/sessioni.js", ".filter((g) => g.sessioni.length)).sort((a, b) => recente(b) - recente(a));", ".filter((g) => g.sessioni.length));"),
+    ("HZ51", "shared/volta-celeste/mods/arturo/sessioni.js", "const recente = (g) => Math.max(0, ...g.sessioni.map(tempo));", "const recente = (g) => Math.min(...g.sessioni.map(tempo));"),
+    ("HZ51", "shared/volta-celeste/mods/arturo/volta_sonda.py", '"ultimo": s.get("ultimo") or nascita(s),', '"ultimo": s.get("ultimo") or "",'),
+    ("HZ51", "shared/volta-celeste/mods/arturo/volta_sonda.py", "time.gmtime(t / 1000))", "time.gmtime(t))"),
 ]
 
 
