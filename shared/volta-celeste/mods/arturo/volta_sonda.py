@@ -11,6 +11,13 @@ distribuire (#5172, 10/11/2026).
       progetti di quella macchina, dopo aver acceso il servizio di Claude. Stampa {id, sessionId, attach,
       macchina, progetto, cartella} oppure {errore}: lo stesso contratto di porta-volta, così Volta la
       aggancia come le altre (#5172 passo 4).
+  python3 volta_sonda.py duplica MACCHINA [--progetto SLUG] [--cartella DIR]
+      una sessione nuova e vuota accanto a un'altra: come nasci, ma nella cartella di quella sessione
+      (la base dei progetti se la cartella non c'è più). Stesso contratto di nasci (#5291).
+  python3 volta_sonda.py fork MACCHINA SESSIONID [--progetto SLUG] [--cartella DIR] [--titolo NOME]
+      una copia della conversazione SESSIONID in una sessione nuova (claude --bg --resume SESSIONID
+      --fork-session), nella cartella della sessione: l'originale resta com'è. Stesso contratto di nasci;
+      se la cartella non c'è più risponde {errore}, perché claude cerca lì la conversazione (#5291).
   python3 volta_sonda.py azione MACCHINA logs|stop|respawn|rm ID
       un gesto su una sessione in background. logs: le ultime righe dello schermo, per chi non ha
       trascrizione. respawn (Riavvia) accende prima il servizio di Claude su MACCHINA, come nasci: il
@@ -133,8 +140,11 @@ print(json.dumps({"claude": cl, "sessioni": sessioni}))
 '''
 
 # Gira sulla macchina dove nasce la sessione (anche con hc exec). L'argomento è un JSON in base64
-# ({"prompt", "progetto"}): passa intero anche fra le virgolette di Windows. La cartella è la base dei
-# progetti di quella macchina (arturo.json di Volta), perché claude --bg vuole una cartella fidata.
+# ({"prompt", "progetto"}, e per Duplica e Fork anche "cartella", "riprendi", "nome"): passa intero anche
+# fra le virgolette di Windows. La cartella è la base dei progetti di quella macchina (arturo.json di
+# Volta), perché claude --bg vuole una cartella fidata; con "cartella" è quella, se c'è ancora. Con
+# "riprendi" (un sessionId) la sessione nuova è una copia di quella conversazione (--resume e
+# --fork-session): l'originale tiene il suo id e la sua trascrizione (provato l'11/11/2026).
 # Stampa {"id", "sessionId", "claude", "cartella"} oppure {"errore"}; mai una seconda sessione.
 NASCI = r'''
 import base64, json, os, re, shutil, subprocess, sys, time
@@ -156,7 +166,20 @@ except (OSError, ValueError, AttributeError):
     pass
 if not os.path.isdir(base):
     base = casa
-argv = [cl, "--bg"] + ([a["prompt"]] if a.get("prompt") else [])
+cartella = a.get("cartella")
+qui = bool(cartella) and os.path.isdir(cartella)
+if a.get("riprendi") and not qui:
+    # claude --resume cerca la conversazione fra quelle della cartella da cui parte
+    esci(errore="la cartella della sessione non c'è più: " + str(cartella or "sconosciuta")[:120])
+if qui:
+    base = cartella
+argv = [cl, "--bg"]
+if a.get("riprendi"):
+    argv += ["--resume", a["riprendi"], "--fork-session"]
+nome = str(a.get("nome") or "").lstrip("-").strip()[:60]
+if nome:
+    argv += ["-n", nome]
+argv += [a["prompt"]] if a.get("prompt") else []
 try:
     r = subprocess.run(argv, cwd=base, capture_output=True, text=True, encoding="utf-8", errors="replace",
                        stdin=subprocess.DEVNULL, timeout=90)
@@ -543,14 +566,21 @@ def servizio(nome):
     return {"errore": d.get("errore") or "nessuna risposta"}
 
 
-def nasci(nome, prompt="", progetto=None):
+def nasci(nome, prompt="", progetto=None, cartella=None, riprendi=None, titolo=None):
     """Una sessione nuova in background su `nome` ("qui" o vuoto = questa macchina).
+
+    Duplica e Fork (#5291) passano da qui: `cartella` è quella della sessione di partenza, `riprendi`
+    il sessionId di cui la nuova è una copia (fork), `titolo` il nome della copia in Claude Code.
 
     Su un'altra macchina prova python3, poi python; passa al secondo solo se il primo non è partito
     (spawn_failed, o 9009 dello stub dello Store su Windows): un Python partito può aver già fatto
     nascere la sessione, e ripetere ne farebbe due."""
     questa = nome in (None, "", "qui")
-    arg = base64.b64encode(json.dumps({"prompt": prompt or "", "progetto": progetto}).encode()).decode()
+    if riprendi is not None and not ID.fullmatch(riprendi or ""):  # mai un'opzione come --all
+        return {"errore": "id di sessione non valido"}
+    dati = {"prompt": prompt or "", "progetto": progetto}
+    dati.update({k: v for k, v in (("cartella", cartella), ("riprendi", riprendi), ("nome", titolo)) if v})
+    arg = base64.b64encode(json.dumps(dati).encode()).decode()
     if questa:
         voce = {"questa": True, "target": None}
         tentativi = [[sys.executable, "-c", NASCI, arg]]
@@ -761,9 +791,38 @@ def main_nasci(argv):
     return 0 if "errore" not in esito else 1
 
 
+COPIE = ("duplica", "fork")
+OPZIONI_COPIA = ("--progetto", "--cartella", "--titolo")
+
+
+def main_copia(verbo, argv):
+    """duplica MACCHINA e fork MACCHINA SESSIONID, con --progetto, --cartella e --titolo."""
+    opz, resto, i = {}, [], 0
+    while i < len(argv):
+        if argv[i] in OPZIONI_COPIA and i + 1 < len(argv):
+            opz[argv[i][2:]] = argv[i + 1]
+            i += 2
+        else:
+            resto.append(argv[i])
+            i += 1
+    attesi = 2 if verbo == "fork" else 1
+    if len(resto) != attesi or any(x.startswith("--") for x in resto):
+        print("uso: volta_sonda.py %s <macchina>%s [--progetto <slug>] [--cartella <dir>]%s"
+              % (verbo, " <sessionId>" if verbo == "fork" else "", " [--titolo <nome>]" if verbo == "fork" else ""))
+        return 2
+    if verbo == "fork":
+        esito = nasci(resto[0], "", opz.get("progetto"), opz.get("cartella"), resto[1], opz.get("titolo"))
+    else:
+        esito = nasci(resto[0], "", opz.get("progetto"), opz.get("cartella"))
+    print(json.dumps(esito, ensure_ascii=False))
+    return 0 if "errore" not in esito else 1
+
+
 def main(argv):
     if argv and argv[0] == "nasci":
         return main_nasci(argv[1:])
+    if argv and argv[0] in COPIE:
+        return main_copia(argv[0], argv[1:])
     if argv and argv[0] == "servizio":
         if len(argv) != 2:
             print("uso: volta_sonda.py servizio <macchina>")

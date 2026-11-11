@@ -7,15 +7,24 @@
 // "Altro" su una sessione in background: anteprima (ultima risposta e ultima azione), ferma, riavvia, elimina (#5172 passo 4).
 // Una sessione che passa a "ti aspetta", di qualunque macchina, dà un avviso; lo stato di ogni sessione
 // va in shared arturo.volta.stati per le schede che agganciano una sessione in background.
+// Il tasto destro su una riga apre il menu della sessione (menusessione.js): Apri, Chiudi, Duplica, Fork
+// e i gesti di "Altro" (#5291). Il menu è un'altra copia del mod: manda il gesto qui come comando.
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, home, shared, setShared, watchFolder, notify } from "herdr";
-import { gruppi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti } from "./sessioni.js";
+import { gruppi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
-import { config, apriSessione, mostra, azioneSessione } from "./dati.js";
+import { config, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede } from "./dati.js";
+import { apriMenuSessione } from "./menusessione.js";
 
 const OGNI = 30000;
+
+// La frase della riga mentre un gesto del menu lavora, e quella che resta qualche secondo a gesto fatto.
+const LAVORO = { chiudi: "La chiudo…", duplica: "La duplico…", fork: "Copio la conversazione…" };
+const FATTO = { stop: "Fermata: un clic la riapre.", respawn: "Riavviata.", rm: "Eliminata.",
+  chiudi: "Chiusa: Apri la fa ripartire.", duplica: "Duplicata: la sessione nuova è nella sua scheda.",
+  fork: "Copiata: la copia è nella sua scheda." };
 
 async function esiste(p) {
   try { return (await readTextFile(p)) ? p : null; } catch { return null; }
@@ -188,21 +197,37 @@ export class Volta {
     if (g && s.stato === "ferma") this.aperti[g.chiave] = true;
   }
 
+  // "arturo.volta-menu-<id>": il menu del tasto destro, da herdr-app do (si apre al puntatore).
+  menuId(id) {
+    const s = this.trovaId(id);
+    if (s && !apriMenuSessione(s)) notify({ title: "Niente menu su questa sessione", body: "La sua macchina non risponde.", level: "warning" });
+  }
+
+  // Un gesto per nome: dal menu del tasto destro (che è un'altra copia del mod) e da herdr-app do.
   gestoId(verbo, id, cx) {
     const s = this.trovaId(id);
     if (!s) return;
-    const a = azioni(s).find((x) => x.verbo === verbo);
-    if (!a) return notify({ title: `${verbo}: gesto che qui non c'è`, body: `Su questa sessione: ${azioni(s).map((x) => x.verbo).join(", ") || "nessuno"}.`, level: "warning" });
+    const voci = menu(s).concat(azioni(s).filter((x) => x.verbo === "stop"));
+    const a = voci.find((x) => x.verbo === verbo);
+    if (!a) return notify({ title: `${verbo}: gesto che qui non c'è`, body: `Su questa sessione: ${voci.map((x) => x.verbo).join(", ") || "nessuno"}.`, level: "warning" });
+    if (SOLO_MENU.has(verbo)) return this.fare(s, a, cx);
     this.menu = s.sessionId;
     this.scopri(s);
     this.fare(s, a, cx);
   }
 
-  // Un gesto di "Altro": l'anteprima resta sotto la riga, gli altri rileggono l'elenco. Elimina chiede
-  // prima la conferma, con un secondo clic sullo stesso bottone.
+  // Chiudi: via la scheda, poi claude stop. La conversazione resta, e Apri la fa ripartire.
+  async chiudi(s) {
+    chiudiSchede(s);
+    return azioneSessione(s, "stop");
+  }
+
+  // Un gesto di "Altro" o del menu: l'anteprima resta sotto la riga, gli altri rileggono l'elenco.
+  // Elimina chiede prima la conferma, con un secondo clic sullo stesso bottone.
   fare(s, a, cx) {
     const k = s.sessionId;
     if (this.faccio[k]) return;
+    if (a.verbo === "apri") return this.premi(s, cx);
     if (a.conferma && this.chiedo[k] !== a.verbo) { this.chiedo[k] = a.verbo; return cx.notify(); }
     delete this.chiedo[k];
     if (a.verbo === "logs" && this.anteprime[k]) { delete this.anteprime[k]; return cx.notify(); }
@@ -211,12 +236,17 @@ export class Volta {
     this.faccio[k] = a.verbo;
     cx.notify();
     cx.spawn(async (cx) => {
-      const r = await azioneSessione(s, a.verbo);
+      let r;
+      try {
+        r = a.verbo === "chiudi" ? await this.chiudi(s)
+          : a.verbo === "duplica" || a.verbo === "fork" ? await copiaSessione(s, a.verbo)
+          : await azioneSessione(s, a.verbo);
+      } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 120) }; }
       delete this.faccio[k];
       if (r.errore) this.avvisa(s, `Non riesco: ${r.errore}`, cx);
       else if (a.verbo === "logs") this.anteprime[k] = r.righe?.length ? r.righe : ["(niente da mostrare)"];
       else {
-        this.avvisa(s, { stop: "Fermata: un clic la riapre.", respawn: "Riavviata.", rm: "Eliminata." }[a.verbo], cx);
+        this.avvisa(s, FATTO[a.verbo], cx);
         if (a.verbo === "rm") this.menu = null;
         this.aggiorna(cx);
       }
@@ -272,8 +302,10 @@ export class Volta {
   riga(t, s, modo, cx) {
     const sposto = this.sposto[s.sessionId];
     const apro = this.apro[s.sessionId];
+    const lavoro = LAVORO[this.faccio[s.sessionId]];
     const d = sposto ? { testo: "La sposto nella finestra…", colore: "working" }
-      : apro ? { testo: "La apro…", colore: "working" } : dettaglio(s, modo);
+      : apro ? { testo: "La apro…", colore: "working" }
+      : lavoro ? { testo: lavoro, colore: "working" } : dettaglio(s, modo);
     const avviso = this.avvisi[s.sessionId];
     const vivo = s.stato === "aspetta" || s.stato === "lavora" || s.stato === "errore";
     const az = azioni(s);
@@ -302,10 +334,12 @@ export class Volta {
         }
         cx.notify();
       })
+      // Il tasto destro, ovunque sulla riga: il menu della sessione al puntatore.
+      .on_mouse_down("right", (_e, cx) => { if (apriMenuSessione(s)) cx.stop_propagation(); })
       .child(h_flex().gap(6).items_start()
         .child(h_flex().id(`v-${s.host}-${s.id}`).flex_1().min_w(0).gap(11).items_start().cursor_pointer()
           .on_click((_e, cx) => this.premi(s, cx))
-          .child(div().pt(6).child(vivo || sposto || apro ? punto(colore(t, d.colore)) : div().size(8).flex_none()))
+          .child(div().pt(6).child(vivo || sposto || apro || lavoro ? punto(colore(t, d.colore)) : div().size(8).flex_none()))
           .child(v_flex().flex_1().min_w(0).gap(2)
             // Un titolo scritto (al più 60 caratteri) va a capo su due righe; gli altri si tagliano.
             .child((s.titolo ? div().whitespace_normal() : div().truncate()).text_size(14).text_color(s.vecchia ? t.muted : t.foreground).child(titolo(s)))

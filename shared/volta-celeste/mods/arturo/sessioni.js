@@ -137,6 +137,25 @@ export function azioni(s) {
   return out;
 }
 
+// Il menu del tasto destro su una sessione (#5291): Apri è il clic; Chiudi chiude la scheda e ferma la
+// sessione (la conversazione resta, Apri la fa ripartire); Duplica ne apre una nuova e vuota nella stessa
+// cartella, sulla stessa macchina, nello stesso progetto; Fork ne apre una con una copia della
+// conversazione. Poi i gesti di "Altro", senza Ferma: qui la ferma Chiudi. Un'interattiva non ha un
+// lavoro in background da fermare: resta senza Chiudi. Una riga vecchia non ha menu.
+export function menu(s) {
+  if (!s || s.vecchia) return [];
+  const out = [{ verbo: "apri", testo: "Apri" }];
+  if (s.tipo === "background") out.push({ verbo: "chiudi", testo: "Chiudi" });
+  out.push({ verbo: "duplica", testo: "Duplica" }, { verbo: "fork", testo: "Fork" });
+  return out.concat(azioni(s).filter((a) => a.verbo !== "stop"));
+}
+
+// I gesti che stanno solo nel menu: lavorano sulla riga, senza aprire il riquadro di "Altro".
+export const SOLO_MENU = new Set(["apri", "chiudi", "duplica", "fork"]);
+
+// Il nome della copia di una conversazione: "<titolo> (fork)", entro i 60 caratteri di un titolo.
+export const titoloFork = (s) => `${titolo(s).slice(0, 53).trim()} (fork)`;
+
 // L'Anteprima di una sessione senza aprirla (#5240): l'ultima risposta e l'ultima azione che la sonda
 // legge dalla trascrizione (campi risposta e azione), come blocchi { etichetta, righe } da mandare a
 // capo. Del markdown toglie solo i segni (grassetto, codice, titoli, citazioni): i nomi col trattino

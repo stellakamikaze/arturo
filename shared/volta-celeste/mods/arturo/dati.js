@@ -2,7 +2,7 @@
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
 import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
-import { titolo, agganciata } from "./sessioni.js";
+import { titolo, agganciata, titoloFork } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -455,13 +455,17 @@ export const nomeMacchina = (m) => (m === "qui" ? "questa macchina" : m);
 // qui in una scheda: continua a girare anche chiusa la scheda, e Volta la apre da ogni macchina. Anche
 // qui nasce in background (#5072): lo stato in barra lo dà Volta (statoSpazio).
 // Durante la nascita shared arturo.nascita dice dove, per la riga "Nasce su".
-async function nasciSu(macchina, prompt, progetto, nomeScheda = null) {
-  if (shared("arturo.nascita")) return;
+// `copia` ({ verbo: "duplica" | "fork", sessionId, cartella, titolo }) è il Duplica o il Fork di una
+// sessione (#5291): stessa strada e stesse attese, coi verbi duplica e fork della sonda. Torna { ok } o
+// { errore }; l'errore di una copia lo mostra la riga di Volta, quello di una nascita un avviso.
+async function nasciSu(macchina, prompt, progetto, nomeScheda = null, copia = null) {
+  if (shared("arturo.nascita")) return { errore: "sta già nascendo un'altra sessione: riprova fra poco" };
   setShared("arturo.nascita", macchina);
   try {
     const c = await config();
-    const args = [c.volta, "nasci", macchina,
-      ...(progetto ? ["--progetto", progetto] : []), ...(prompt ? ["--", prompt] : [])];
+    const args = [c.volta, copia ? copia.verbo : "nasci", macchina, ...(copia?.verbo === "fork" ? [copia.sessionId] : []),
+      ...(progetto ? ["--progetto", progetto] : []), ...(copia?.cartella ? ["--cartella", copia.cartella] : []),
+      ...(copia?.titolo ? ["--titolo", copia.titolo] : []), ...(prompt ? ["--", prompt] : [])];
     let esito = {};
     try {
       // 6 minuti: le attese di volta_sonda.py (macchine 15 s, servizio 120 s, nascita 180 s) più un margine,
@@ -477,10 +481,37 @@ async function nasciSu(macchina, prompt, progetto, nomeScheda = null) {
       const v = await apriSessione({ id: esito.id, sessionId: esito.sessionId, nome, progetto, questa: macchina === "qui", host: macchina }, esito.attach, true);
       // la veglia non tiene occupata la nascita: se Claude non resta nella scheda arriva un avviso
       v.veglia?.then((x) => { if (x?.errore) notify({ title: "La sessione nuova non resta aperta", body: x.errore, level: "warning" }); });
-    } else notify({ title: `La sessione non nasce su ${nomeMacchina(macchina)}`, body: esito.errore ?? "Nessuna risposta.", level: "error" });
+      return v.errore ? { errore: v.errore } : { ok: true, id: esito.id };
+    }
+    if (!copia) notify({ title: `La sessione non nasce su ${nomeMacchina(macchina)}`, body: esito.errore ?? "Nessuna risposta.", level: "error" });
+    return { errore: esito.errore ?? "nessuna risposta" };
   } finally {
     setShared("arturo.nascita", null);
   }
+}
+
+// Duplica e Fork del menu di una sessione (#5291), sulla macchina della sessione e non su "Nasce su":
+// la copia sta accanto all'originale, nella sua cartella e nel suo progetto. Duplica nasce vuota; Fork
+// porta la conversazione (serve il sessionId di adesso, non l'id del lavoro) e si chiama "<titolo> (fork)".
+export function copiaSessione(s, verbo) {
+  const fork = verbo === "fork";
+  return nasciSu(s.host ?? "qui", "", s.progetto ? String(s.progetto) : null, fork ? titoloFork(s).slice(0, 40) : "Nuova sessione",
+    { verbo: fork ? "fork" : "duplica", sessionId: s.sessionId, cartella: s.cartella || null, titolo: fork ? titoloFork(s) : null });
+}
+
+// Chiude le schede che agganciano la sessione: la prima metà di "Chiudi", prima di claude stop. La
+// scheda intera se dentro c'è solo quel terminale, altrimenti il solo terminale: i pannelli accanto
+// restano. Torna quante ne ha chiuse.
+export function chiudiSchede(s) {
+  let n = 0;
+  for (const t of schedeDi(s)) {
+    const p = panes().find((x) => x.terminal === t.address);
+    if (!p) continue;
+    if (panes().filter((x) => x.tab === p.tab).length === 1) run("tab.close", { id: p.tab });
+    else run("terminal.kill", { terminal: t.address });
+    n++;
+  }
+  return n;
 }
 
 // Come bin/sessione.py: niente caratteri che rompono il prompt.

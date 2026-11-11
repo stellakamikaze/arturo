@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HZ01-HZ53: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
+"""HZ01-HZ55: Herdr, la finestra di Arturo (8/11/2026, ramo di prova `herdr`).
 
 /setup installa Herdr (herdr.dev) con `shared/volta-celeste/installa-herdr.sh`, e l'hook `hooks/herdr-stato.sh`
 dice a Herdr se Claude lavora, aspetta la persona o ha finito (OSC 7501). Il banco prova l'installazione
@@ -205,6 +205,15 @@ HZ53 il verbo apri della sonda e la scheda nuova (#5290): apri accende il serviz
      Ctrl+Shift+T sono arturo.volta-nuova: l'installazione si prende il tasto solo se faceva tab.new di
      Herdr, e lascia quello che la persona ha legato ad altro. barra.js porta il comando a nuovaScheda(),
      che fa nascere una sessione senza prompt nel progetto dello spazio aperto (nessuno da "Volta").
+HZ54 il menu del tasto destro su una sessione (#5291): menu() di sessioni.js dà Apri, Chiudi, Duplica, Fork
+     e i gesti di "Altro" senza Ferma; un'interattiva non ha Chiudi, una riga vecchia non ha menu. Duplica e
+     Fork (dati.js copiaSessione, herdr finto) nascono sulla macchina della sessione, nella sua cartella e
+     nel suo progetto, col sessionId per il fork e il nome "<titolo> (fork)"; un errore torna alla riga
+     senza avviso. Chiudi chiude la scheda intera se è sola, altrimenti il solo terminale, poi ferma.
+     volta.js apre il menu col tasto destro, il menu manda il gesto come comando prima di chiudersi.
+HZ55 i verbi duplica e fork della sonda (#5291): passano da nasci, col servizio acceso prima; fork porta
+     --resume <sessionId> --fork-session e parte dalla cartella della sessione, e senza cartella dà errore
+     senza lanciare claude; duplica senza cartella ripiega sulla base. Un id strano non parte.
 
 Con --avvelena le copie rotte del repository devono far rosso il caso che le sorveglia.
 """
@@ -222,7 +231,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 ATTESI = {  # evento: (matcher o None, stato)
@@ -3250,7 +3259,205 @@ def hz53(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53}
+PROVA_MENU = """
+import * as m from %s;
+const bg = (stato, altro = {}) => ({ tipo: "background", stato, host: "qui", sessionId: "s-" + stato, id: stato.slice(0, 4), ...altro });
+const verbi = (s) => m.menu(s).map((a) => a.verbo + (a.conferma ? "!" : ""));
+console.log(JSON.stringify({
+  lavora: verbi(bg("lavora")), ferma: verbi(bg("ferma")), errore: verbi(bg("errore")),
+  interattiva: verbi({ ...bg("ferma"), tipo: "interattiva" }), vecchia: verbi(bg("ferma", { vecchia: true })), niente: verbi(null),
+  testi: m.menu(bg("ferma")).map((a) => a.testo), solo: [...m.SOLO_MENU].sort(),
+  fork: [m.titoloFork({ titolo: "Rifare il deck" }), m.titoloFork({ titolo: "x".repeat(80) }).length],
+}));
+"""
+
+PROVA_COPIA = r"""
+import { copiaSessione, chiudiSchede } from "./dati.mjs";
+import { lanciati, eseguiti, avvisi, inviati } from "./herdr.mjs";
+const caso = process.env.HZ_CASO;
+const s = { id: "ffff1111", sessionId: "ffff1111-aaaa", host: "Torre", macchina: "Torre", nome: "Progetto x", titolo: "Rifare il deck",
+            progetto: "Progetto X", cartella: "/lavori/x", stato: "ferma", tipo: "background" };
+let esito = null;
+if (caso === "chiudi") esito = chiudiSchede(s);
+else if (caso === "nuda") esito = await copiaSessione({ id: "ffff1111", sessionId: "ffff1111-aaaa", nome: "ffff1111", questa: true }, "duplica");
+else esito = await copiaSessione(s, caso);
+console.log(JSON.stringify({ lanciati, eseguiti, avvisi, inviati, esito }));
+"""
+
+
+def hz54(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    testi = {n: (mod / n).read_text(encoding="utf-8") for n in ("volta.js", "barra.js", "main.js", "menusessione.js", "dati.js")}
+    attesi = (
+        ("volta.js", '.on_mouse_down("right", (_e, cx) => { if (apriMenuSessione(s)) cx.stop_propagation(); })', "il tasto destro non apre il menu"),
+        ("volta.js", "if (SOLO_MENU.has(verbo)) return this.fare(s, a, cx);", "un gesto del solo menu apre il riquadro di Altro"),
+        ("volta.js", 'if (a.verbo === "apri") return this.premi(s, cx);', "Apri non è il clic sulla sessione"),
+        ("volta.js", '    chiudiSchede(s);\n    return azioneSessione(s, "stop");', "Chiudi non chiude la scheda prima di fermare la sessione"),
+        ("volta.js", 'a.verbo === "duplica" || a.verbo === "fork" ? await copiaSessione(s, a.verbo)', "Duplica e Fork non passano da copiaSessione"),
+        ("volta.js", ': lavoro ? { testo: lavoro, colore: "working" }', "la riga non dice che il gesto è in corso"),
+        ("volta.js", "const voci = menu(s).concat(", "gestoId non conosce le voci del menu"),
+        ("barra.js", 'else if (c.startsWith("volta-menu-")) this.volta.menuId(c.slice(11));', "barra.js non apre il menu da comando"),
+        ("main.js", "sessione: MenuSessione,", "main.js non monta il menu di una sessione"),
+        ("menusessione.js", 'openOverlay({ mod: "arturo", props: { parte: "sessione", sessione: s }, kind: "popup"', "il menu non è un popup del mod"),
+        ("menusessione.js", "    run(comandoGesto(this.s, v));\n    this.chiudi();", "il menu si chiude prima di mandare il gesto"),
+        ("menusessione.js", "`arturo.volta-gesto-${v.verbo}-${s.id}`", "il menu non manda il comando che barra.js legge"),
+        ("menusessione.js", "this.voci = menu(this.s);", "le voci del menu non vengono da menu() di sessioni.js"),
+    )
+    for file, pezzo, motivo in attesi:
+        if pezzo not in testi[file]:
+            return f"{file}: {motivo}"
+    bj = testi["barra.js"]
+    if bj.index('c.startsWith("volta-menu-")') > bj.index('c.startsWith("volta-")) this.volta.premiId('):
+        return "barra.js: volta-menu-<id> finisce nel clic su una sessione, che viene prima"
+    node = shutil.which("node")
+    if not node:
+        return None
+    copia = casa / "sessioni.mjs"
+    shutil.copyfile(mod / "sessioni.js", copia)
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_MENU % json.dumps(copia.as_uri())], capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    voci = {"lavora": ["apri", "chiudi", "duplica", "fork", "logs"], "ferma": ["apri", "chiudi", "duplica", "fork", "logs", "rm!"],
+            "errore": ["apri", "chiudi", "duplica", "fork", "logs", "respawn", "rm!"], "interattiva": ["apri", "duplica", "fork"],
+            "vecchia": [], "niente": [], "testi": ["Apri", "Chiudi", "Duplica", "Fork", "Anteprima", "Elimina"],
+            "solo": ["apri", "chiudi", "duplica", "fork"], "fork": ["Rifare il deck (fork)", 60]}
+    for k, v in voci.items():
+        if d.get(k) != v:
+            return f"menu di sessioni.js, {k}: {d.get(k)}, atteso {v}"
+    m = casa / "mod"
+    m.mkdir()
+    mod_dati(repo, m, testi["dati.js"])
+    (m / "prova.mjs").write_text(PROVA_COPIA, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+    (app / "arturo.json").write_text(json.dumps({"arturo": ["python9", "/a/bin/arturo"], "radice": str(repo), "base": "/base"}), encoding="utf-8")
+    attach = ["ssh", "-t", "torre.lan", "claude", "attach", "eeee2222"]
+    nata = json.dumps({"id": "eeee2222", "sessionId": "eeee2222-bbbb", "attach": attach})
+    spazio = {"id": "s1", "name": "progetto-x", "named": True, "active": True, "tabs": [{"id": "tb1"}, {"id": "tb2"}]}
+    herdr = {"spaces": [spazio], "panes": [{"terminal": "t7", "tab": "tb1"}, {"terminal": "t8", "tab": "tb2"}, {"terminal": "t9", "tab": "tb2"}],
+             "terminals": [{"address": "t7", "argv": ["claude", "attach", "ffff1111"]}, {"address": "t9", "argv": ["zsh"]},
+                           {"address": "t8", "argv": ["zsh"], "labels": {"arturo.sessione": "ffff1111"}}]}
+
+    def volta(caso, uscita=nata, dove="Altra"):
+        e = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_CASO": caso, "HZ_EXEC": uscita,
+             "HZ_SHARED": json.dumps({"arturo.volta.macchine": [{"host": "Altra", "macchina": "Altra"}], "arturo.dove": dove}),
+             "HZ_HERDR": json.dumps(herdr)}
+        r = subprocess.run([node, str(m / "prova.mjs")], capture_output=True, text=True, timeout=30, env=e)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[:200])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    nuove = lambda v: [x for x in v["lanciati"] if x["cmd"] in ("tab.new", "space.new")]  # noqa: E731
+    try:
+        v = volta("fork")
+        atteso = ["fork", "Torre", "ffff1111-aaaa", "--progetto", "Progetto X", "--cartella", "/lavori/x", "--titolo", "Rifare il deck (fork)"]
+        if not v["eseguiti"] or v["eseguiti"][0][2:] != atteso:
+            return f"Fork non chiama la sonda sulla macchina della sessione, col sessionId e la cartella: {v['eseguiti'][:1]}"
+        if len(nuove(v)) != 1 or nuove(v)[0].get("argv") != attach or nuove(v)[0].get("name") != "Rifare il deck (fork)" or nuove(v)[0].get("space") != "s1":
+            return f"la copia non si aggancia nello spazio del progetto col suo nome: {nuove(v)}"
+        if v["esito"] != {"ok": True, "id": "eeee2222"} or v["avvisi"]:
+            return f"Fork riuscito: esito {v['esito']}, avvisi {v['avvisi']}"
+        v = volta("duplica")
+        if not v["eseguiti"] or v["eseguiti"][0][2:] != ["duplica", "Torre", "--progetto", "Progetto X", "--cartella", "/lavori/x"]:
+            return f"Duplica non chiama la sonda sulla macchina della sessione, nella sua cartella: {v['eseguiti'][:1]}"
+        if len(nuove(v)) != 1 or nuove(v)[0].get("name") != "Nuova sessione":
+            return f"la sessione duplicata non si aggancia: {nuove(v)}"
+        v = volta("nuda")
+        if not v["eseguiti"] or v["eseguiti"][0][2:] != ["duplica", "qui"]:
+            return f"Duplica di una sessione senza progetto né cartella: {v['eseguiti'][:1]}"
+        v = volta("fork", json.dumps({"errore": "la cartella della sessione non c'è più: /lavori/x"}))
+        if nuove(v) or v["avvisi"] or "non c'è più" not in (v["esito"] or {}).get("errore", ""):
+            return f"un fork fallito apre una scheda, avvisa due volte o perde il motivo: {v['esito']}, {v['avvisi']}, {nuove(v)}"
+        v = volta("chiudi")
+        chiuse = sorted(json.dumps(x, sort_keys=True) for x in v["lanciati"])
+        if v["esito"] != 2 or chiuse != sorted(json.dumps(x, sort_keys=True) for x in ({"cmd": "tab.close", "id": "tb1"}, {"cmd": "terminal.kill", "terminal": "t8"})):
+            return f"Chiudi non chiude la scheda sola e il solo terminale di quella divisa: {v['esito']}, {v['lanciati']}"
+    except RuntimeError as e:
+        return f"dati.js non gira: {e}"
+    return None
+
+
+def hz55(repo: Path, casa: Path) -> str | None:
+    import base64  # noqa: PLC0415
+    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    nata = {"id": "eeee2222", "sessionId": "eeee2222-bbbb", "claude": "C:/u/claude.exe", "cartella": "C:/lavori/x"}
+    conf = {"macchine": [{"name": "Torre", "target": "torre.lan", "state": "connected"}], "exec": {"Torre": {"python3": nata}}}
+    finto = casa / "hc_finto.py"
+    finto.write_text(HC_FINTO, encoding="utf-8")
+    log = casa / "hc.log"
+    env = {**os.environ, "HZ_HC": json.dumps(conf), "VOLTA_HC": json.dumps([sys.executable, str(finto)]), "HZ_HC_LOG": str(log)}
+
+    def lancia(*args, **extra):
+        log.write_text("", encoding="utf-8")
+        r = subprocess.run([sys.executable, str(sonda), *args], capture_output=True, text=True, timeout=90, env={**env, **extra})
+        chiamate = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines() if x.strip()]
+        try:
+            return r.returncode, json.loads(r.stdout.strip().splitlines()[-1]), chiamate
+        except (ValueError, IndexError):
+            return r.returncode, {"uscita": (r.stderr or r.stdout).strip()[-160:]}, chiamate
+
+    def arg(ch):
+        nascite = [c for c in ch if c[:2] == ["exec", "--on"] and c[-1] != "remoto"]
+        return json.loads(base64.b64decode(nascite[-1][-1]).decode("utf-8")) if nascite else None
+
+    rc, d, ch = lancia("fork", "Torre", "ffff1111-aaaa", "--progetto", "Progetto X", "--cartella", "C:/lavori/x", "--titolo", "Rifare il deck (fork)")
+    if rc != 0 or d.get("attach", [None])[1:] != ["-t", "torre.lan", "C:/u/claude.exe", "attach", "eeee2222"] or d.get("progetto") != "Progetto X":
+        return f"fork su Torre: rc {rc}, {d}"
+    if arg(ch) != {"prompt": "", "progetto": "Progetto X", "cartella": "C:/lavori/x", "riprendi": "ffff1111-aaaa", "nome": "Rifare il deck (fork)"}:
+        return f"fork su Torre: alla macchina arriva {arg(ch)}"
+    servizi = [i for i, c in enumerate(ch) if c[:2] == ["exec", "--on"] and c[-1] == "remoto"]
+    nascite = [i for i, c in enumerate(ch) if c[:2] == ["exec", "--on"] and c[-1] != "remoto"]
+    if not servizi or not nascite or servizi[0] > nascite[0]:
+        return "fork non accende il servizio di Claude prima di far nascere la copia"
+    rc, d, ch = lancia("duplica", "Torre", "--cartella", "C:/lavori/x")
+    if rc != 0 or arg(ch) != {"prompt": "", "progetto": None, "cartella": "C:/lavori/x"}:
+        return f"duplica su Torre: rc {rc}, {d}, alla macchina arriva {arg(ch)}"
+    for strano in (["fork", "Torre", "--all"], ["fork", "Torre", "abcd;rm -rf"], ["fork", "Torre"], ["duplica"], ["duplica", "Torre", "altro"]):
+        rc, d, ch = lancia(*strano)
+        if rc == 0 or ch:
+            return f"{strano} non rifiutato, o lanciato lo stesso: rc {rc}, {d}"
+    if os.name == "nt":
+        return None  # il claude finto è uno script con shebang
+    fbin, fapp, fbase, fcasa, lavoro = (casa / n for n in ("fbin", "fapp", "fbase", "fcasa", "lavoro x"))
+    for d_ in (fbin, fapp, fbase, fcasa, lavoro):
+        d_.mkdir()
+    (fapp / "arturo.json").write_text(json.dumps({"base": str(fbase)}), encoding="utf-8")
+    visto = casa / "claude.log"
+    fc = fbin / "claude"
+    fc.write_text("#!/bin/sh\n[ \"$1\" = agents ] && { echo '[]'; exit 0; }\n[ \"$1\" = daemon ] && { echo 'control.sock: reachable'; exit 0; }\n"
+                  "{ pwd; printf '%%s\\n' \"$@\"; } > %s\necho 'claude attach abcd1234'\n" % shlex.quote(str(visto)), encoding="utf-8")
+    fc.chmod(0o755)
+    locale = {"PATH": f"{fbin}{os.pathsep}{os.environ.get('PATH', '')}", "HOME": str(fcasa), "HERDR_APP_HOME": str(fapp)}
+
+    def qui(*args):
+        visto.unlink(missing_ok=True)
+        rc, d, _ = lancia(*args, **locale)
+        righe = visto.read_text(encoding="utf-8").splitlines() if visto.exists() else None
+        return rc, d, righe
+
+    reale = lambda x: os.path.realpath(x)  # noqa: E731
+    rc, d, righe = qui("fork", "qui", "ffff1111-aaaa", "--cartella", str(lavoro), "--titolo", "--Rifare il deck (fork)")
+    if rc != 0 or d.get("id") != "abcd1234" or not righe:
+        return f"fork qui con un claude finto: rc {rc}, {d}"
+    if reale(righe[0]) != reale(lavoro) or righe[1:] != ["--bg", "--resume", "ffff1111-aaaa", "--fork-session", "-n", "Rifare il deck (fork)"]:
+        return f"fork non parte dalla cartella della sessione con --resume e --fork-session: {righe}"
+    rc, d, righe = qui("fork", "qui", "ffff1111-aaaa", "--cartella", str(casa / "sparita"))
+    if rc == 0 or "non c'è più" not in d.get("errore", "") or righe is not None:
+        return f"fork senza la cartella della sessione: rc {rc}, {d}, claude lanciato {righe}"
+    rc, d, righe = qui("fork", "qui", "ffff1111-aaaa")
+    if rc == 0 or righe is not None:
+        return f"fork senza cartella parte lo stesso dalla base: rc {rc}, {d}"
+    rc, d, righe = qui("duplica", "qui", "--cartella", str(lavoro))
+    if rc != 0 or not righe or reale(righe[0]) != reale(lavoro) or righe[1:] != ["--bg"]:
+        return f"duplica non nasce vuota nella cartella della sessione: rc {rc}, {d}, {righe}"
+    rc, d, righe = qui("duplica", "qui", "--cartella", str(casa / "sparita"))
+    if rc != 0 or not righe or reale(righe[0]) != reale(fbase):
+        return f"duplica senza la cartella non ripiega sulla base dei progetti: rc {rc}, {d}, {righe}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -3408,7 +3615,7 @@ VELENI = [
     ("HZ40", "shared/volta-celeste/mods/arturo/sessioni.js", "  if (!prima) return [];", "  if (!prima) prima = { sessioni: [] };"),
     ("HZ40", "shared/volta-celeste/mods/arturo/sessioni.js", "if (s.id && !s.vecchia) out[s.id]", "if (s.id) out[s.id]"),
     ("HZ40", "shared/volta-celeste/mods/arturo/sessioni.js", 'out.push({ verbo: "rm", testo: "Elimina", conferma: "Sì, elimina" })', 'out.push({ verbo: "rm", testo: "Elimina" })'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'json.dumps({"prompt": prompt or "", "progetto": progetto})', 'json.dumps({"prompt": "", "progetto": progetto})'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'dati = {"prompt": prompt or "", "progetto": progetto}', 'dati = {"prompt": "", "progetto": progetto}'),
     ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'if m["stato"] not in (None, "connected"):', "if False:"),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return nasciSu(soloQui ? "qui" : dove(), prompt, null);', 'return nasciSu(dove(), prompt, null);'),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return typeof d === "string" && altreMacchine().some((m) => m.host === d) ? d : "qui";', 'return typeof d === "string" && d ? d : "qui";'),
@@ -3428,7 +3635,7 @@ VELENI = [
     ("HZ39", "shared/volta-celeste/mods/arturo/barra.js", '|| Object.values(statiQui()).includes("aspetta")', ''),
     ("HZ39", "shared/volta-celeste/mods/arturo/barra.js", '`|${JSON.stringify(statiQui())}|', '`|'),
     ("HZ39", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'app = os.environ.get("HERDR_APP_HOME") or ', "app = "),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'const args = [c.volta, "nasci", macchina,', 'const args = [`${appHome()}/mods/arturo/volta_sonda.py`, "nasci", macchina,'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'const args = [c.volta, copia ? copia.verbo : "nasci", macchina,', 'const args = [`${appHome()}/mods/arturo/volta_sonda.py`, copia ? copia.verbo : "nasci", macchina,'),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", "const g = a ? null : schedaAgganciata(s);", "const g = null;"),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'if (Array.isArray(t?.argv) && t.argv.includes("attach"))', "if (false)"),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'if (sug.dove === "nuova") return nuova(prompt, true);', 'if (sug.dove === "nuova") return nuova(prompt);'),
@@ -3510,6 +3717,48 @@ VELENI = [
     ('HZ53', 'shared/volta-celeste/installa-herdr.sh', 'mia[k] != PRENDE.get(v):', 'v not in PRENDE:'),
     ('HZ53', 'shared/volta-celeste/mods/arturo/barra.js', '        else if (c === "volta-nuova") await nuovaScheda();\n', ''),
     ('HZ22', 'shared/volta-celeste/installa-herdr.sh', 'PRENDE = {"arturo.volta-nuova": "tab.new"}', 'PRENDE = {}'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/sessioni.js', 'if (s.tipo === "background") out.push({ verbo: "chiudi", testo: "Chiudi" });', 'out.push({ verbo: "chiudi", testo: "Chiudi" });'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/sessioni.js', 'if (!s || s.vecchia) return [];\n  const out = [{ verbo: "apri"', 'if (!s) return [];\n  const out = [{ verbo: "apri"'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/sessioni.js', 'return out.concat(azioni(s).filter((a) => a.verbo !== "stop"));', 'return out.concat(azioni(s));'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/sessioni.js', '.slice(0, 53).trim()} (fork)`', '.slice(0, 53).trim()} (copia)`'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/sessioni.js', '`${titolo(s).slice(0, 53).trim()} (fork)`', '`${titolo(s)} (fork)`'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/sessioni.js', 'out.push({ verbo: "duplica", testo: "Duplica" }, { verbo: "fork", testo: "Fork" });', 'out.push({ verbo: "duplica", testo: "Duplica" });'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '...(copia?.verbo === "fork" ? [copia.sessionId] : []),', ''),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '...(copia?.cartella ? ["--cartella", copia.cartella] : []),', ''),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '...(copia?.titolo ? ["--titolo", copia.titolo] : []),', ''),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', 'if (!copia) notify({ title: `La sessione non nasce su', 'notify({ title: `La sessione non nasce su'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', 'return nasciSu(s.host ?? "qui", "", s.progetto', 'return nasciSu(dove(), "", s.progetto'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '{ verbo: fork ? "fork" : "duplica", sessionId: s.sessionId,', '{ verbo: fork ? "fork" : "duplica", sessionId: s.id,'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', 'fork ? titoloFork(s).slice(0, 40) : "Nuova sessione",', '"Nuova sessione",'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', 'if (panes().filter((x) => x.tab === p.tab).length === 1) run("tab.close", { id: p.tab });', 'if (true) run("tab.close", { id: p.tab });'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '    else run("terminal.kill", { terminal: t.address });\n', '    else run("tab.close", { id: p.tab });\n'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '      return v.errore ? { errore: v.errore } : { ok: true, id: esito.id };\n', ''),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '      .on_mouse_down("right", (_e, cx) => { if (apriMenuSessione(s)) cx.stop_propagation(); })\n', ''),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '    if (SOLO_MENU.has(verbo)) return this.fare(s, a, cx);\n', ''),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '    if (a.verbo === "apri") return this.premi(s, cx);\n', ''),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '    chiudiSchede(s);\n', ''),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', 'a.verbo === "duplica" || a.verbo === "fork" ? await copiaSessione(s, a.verbo)', 'false ? await copiaSessione(s, a.verbo)'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '      : lavoro ? { testo: lavoro, colore: "working" } : dettaglio(s, modo);', '      : dettaglio(s, modo);'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', 'const voci = menu(s).concat(azioni(s).filter((x) => x.verbo === "stop"));', 'const voci = azioni(s);'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/barra.js', '        else if (c.startsWith("volta-menu-")) this.volta.menuId(c.slice(11));\n', ''),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/main.js', 'sessione: MenuSessione, ', ''),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/menusessione.js', '    run(comandoGesto(this.s, v));\n    this.chiudi();', '    this.chiudi();\n    run(comandoGesto(this.s, v));'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/menusessione.js', '`arturo.volta-gesto-${v.verbo}-${s.id}`', '`arturo.volta-fai-${v.verbo}-${s.id}`'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/menusessione.js', 'kind: "popup", width: 230', 'kind: "dialog", width: 230'),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/menusessione.js', 'this.voci = menu(this.s);', 'this.voci = [];'),
+    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'argv += ["--resume", a["riprendi"], "--fork-session"]', 'argv += ["--resume", a["riprendi"]]'),
+    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'if a.get("riprendi") and not qui:', 'if False:'),
+    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'if qui:\n    base = cartella', 'if False:\n    base = cartella'),
+    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'qui = bool(cartella) and os.path.isdir(cartella)', 'qui = bool(cartella)'),
+    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'nome = str(a.get("nome") or "").lstrip("-").strip()[:60]', 'nome = str(a.get("nome") or "").strip()[:60]'),
+    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'if riprendi is not None and not ID.fullmatch(riprendi or ""):', 'if False:'),
+    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '(("cartella", cartella), ("riprendi", riprendi), ("nome", titolo))', '(("cartella", cartella), ("riprendi", None), ("nome", titolo))'),
+    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '(("cartella", cartella), ("riprendi", riprendi), ("nome", titolo)) if v})', '(("cartella", cartella), ("riprendi", riprendi), ("nome", None)) if v})'),
+    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        esito = nasci(resto[0], "", opz.get("progetto"), opz.get("cartella"))\n', '        esito = nasci(resto[0], "", opz.get("progetto"))\n'),
+    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        esito = nasci(resto[0], "", opz.get("progetto"), opz.get("cartella"), resto[1], opz.get("titolo"))', '        esito = nasci(resto[0], "", None, opz.get("cartella"), resto[1], opz.get("titolo"))'),
+    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    if argv and argv[0] in COPIE:\n', '    if False:\n'),
+    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '    attesi = 2 if verbo == "fork" else 1\n', '    attesi = len(resto)\n'),
+    ('HZ55', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'argv += ["-n", nome]', 'argv += [nome]'),
 ]
 
 

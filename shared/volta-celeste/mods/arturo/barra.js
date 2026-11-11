@@ -62,7 +62,9 @@ export class Barra {
         else if (c === "volta-gruppi-macchina" || c === "volta-gruppi-progetto") setShared("arturo.volta.gruppi", c.slice(13));
         // "arturo.volta-nuova": la scheda nuova (⌘T) è una sessione di Claude, non una shell (#5290).
         else if (c === "volta-nuova") await nuovaScheda();
-        // "arturo.volta-altro-<id>" e "arturo.volta-gesto-<verbo>-<id>": "Altro" e un suo bottone.
+        // "arturo.volta-menu-<id>": il menu del tasto destro su una sessione (#5291).
+        else if (c.startsWith("volta-menu-")) this.volta.menuId(c.slice(11));
+        // "arturo.volta-altro-<id>" e "arturo.volta-gesto-<verbo>-<id>": "Altro" e un gesto, suo o del menu.
         else if (c.startsWith("volta-altro-")) this.volta.altroId(c.slice(12), cx);
         else if (/^volta-gesto-[a-z]+-/.test(c)) { const [, verbo, id] = c.match(/^volta-gesto-([a-z]+)-(.+)$/); this.volta.gestoId(verbo, id, cx); }
         // "arturo.volta-<id>": lo stesso clic di una sessione di Volta, da tastiera o da herdr-app do.
