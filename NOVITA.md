@@ -15,22 +15,24 @@ modo di lavorare.
 
 ## 2026-11-11 — Tre buchi chiusi nelle guardie
 
-**Cosa cambia**: una revisione delle guardie ha trovato tre casi in cui un comando passava senza che nessuno lo
-guardasse. Ora sono chiusi.
+**Cosa cambia**: una revisione delle guardie ha trovato tre casi in cui un comando passava senza chiederti
+conferma anche quando toccava file che non doveva, e li ha chiusi.
 
 - Salvare un handoff o una memoria da terminale non chiede conferma: è una comodità di Arturo. Il via libera però
   arrivava anche a un comando che nominava la cartella degli handoff e intanto scriveva altrove, per esempio nel
-  file delle chiavi SSH. Ora arriva solo se ogni file letto o scritto sta fra handoff e memorie.
+  file delle chiavi SSH. Adesso arriva solo se ogni file che il comando legge o scrive sta nella cartella degli
+  handoff o in quella delle memorie.
 - Lo stesso via libera copriva lo spostamento di una cartella qualunque dentro gli handoff, anche quella delle
-  chiavi o dei Documenti. Ora no.
-- Il file che sblocca la modifica di impostazioni e guardie si poteva creare senza conferma, con una cartella o
-  con una copia. Ora quei comandi chiedono, e come sblocco vale solo un file vero.
+  chiavi o dei Documenti, e adesso non lo copre più.
+- Il file che sblocca la modifica di impostazioni e guardie si poteva creare senza conferma, creando una cartella
+  con lo stesso nome o copiando un file con quel nome dentro `~/.claude`. Quei comandi adesso chiedono conferma, e
+  lo sblocco vale solo se è un file vero, non una cartella né un collegamento con quel nome.
 
-**Da sapere**: per te cambia poco. Un comando che copia negli handoff un file preso da un'altra cartella ora
-chiede conferma, come ogni altra scrittura sotto `~/.claude`. Nessun comando viene bloccato.
+**Da sapere**: per te cambia poco: un comando che copia negli handoff un file preso da un'altra cartella ora
+chiede conferma, come ogni altra scrittura sotto `~/.claude`, e nessun comando viene bloccato.
 
-**Il principio**: un controllo che approva da solo guarda tutto il comando, non solo la parte che conosce. Nel
-dubbio lascia la decisione a te.
+**Il principio**: un controllo che approva da solo guarda tutto il comando, non solo la parte che conosce, e
+quando un pezzo non lo riconosce lascia la decisione a te.
 
 ---
 
