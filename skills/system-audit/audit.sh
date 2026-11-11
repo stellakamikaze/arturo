@@ -108,7 +108,7 @@ try:
         puntatore = src.read().strip()
 except OSError:
     puntatore = os.path.join(orsa, "arturo", "radice (puntatore mancante)")
-comando = re.sub(r"""\$\(cat\s+["']?(?:~|\$HOME|\$\{HOME\})/\.claude/arturo/radice["']?\)""",
+comando = re.sub(r"""\$\(cat\s+["']?(?:~|\$HOME|\$\{HOME\})/\.claude/arturo/radice["']?(?:\s+2>\s*/dev/null)?\s*\)""",
                  lambda _: puntatore, comando)
 # shlex toglie le virgolette e tiene insieme i path con spazi. punctuation_chars stacca ; && | dal
 # path: con `... statusline.js; echo ...` (barra senza node, 19/10/2026) il token era "statusline.js;"
@@ -120,8 +120,12 @@ try:
 except ValueError:
     print("::parse-error::")
     raise SystemExit(0)
-for token in tokens:
+for i, token in enumerate(tokens):
     if not re.search(r"\.(?:py|sh|js)$", token):
+        continue
+    # `test -f X || python3 Y` (ripiego del clone quando il plugin non ha il file): X è la condizione,
+    # lo script lanciato è Y. Contarlo dava un FAIL su un hook che parte (11/11/2026).
+    if tokens[max(i - 2, 0):i] in (["test", "-f"], ["[", "-f"], ["test", "-e"], ["[", "-e"]):
         continue
     token = re.sub(r"^(?:~|\$HOME|\$\{HOME\})/\.claude/", lambda _: orsa + "/", token)
     print(os.path.expanduser(token))
@@ -228,11 +232,13 @@ fi
 # Esito del blocco Python: 0 tutto valido, 1 una skill rotta, 3 un mod rotto, 4 tutti e due.
 # Un mod rotto ha il suo messaggio: "SKILL.md mancante" porterebbe ad aggiungere una SKILL.md al mod.
 skills_rc=1
+skill_rotte=""
 skill_dirs=()
 for r in "${radici[@]}"; do [[ -d "$r/skills" ]] && skill_dirs+=("$r/skills"); done
 if [[ ${#skill_dirs[@]} -gt 0 ]]; then
   skills_rc=0
-  ARTURO_AUDIT_MODULI="$PLUGIN_HOOKS" python3 - "${skill_dirs[@]}" <<'PY' >/dev/null 2>&1 || skills_rc=$?
+  skill_rotte_file=$(mktemp "${TMPDIR:-/tmp}/audit-skill.XXXXXX")
+  ARTURO_AUDIT_MODULI="$PLUGIN_HOOKS" python3 - "${skill_dirs[@]}" <<'PY' >"$skill_rotte_file" 2>/dev/null || skills_rc=$?
 import sys
 from pathlib import Path
 try:
@@ -293,23 +299,32 @@ def skill_valida(directory):
 skill_rotta = mod_rotto = False
 for directory in [d for radice in sys.argv[1:] for d in Path(radice).iterdir()]:
     # synced/ la tiene Claude Code per le skill di claude.ai: ha le sue cartelle, non un SKILL.md
-    if not directory.is_dir() or directory.name in ("shared", "synced"):
+    # Una cartella nascosta (.trash, che Claude Code lascia in skills/) non è una skill (11/11/2026).
+    if not directory.is_dir() or directory.name in ("shared", "synced") or directory.name.startswith("."):
         continue
     if directory.name in moduli and not (directory / "SKILL.md").exists():
         mod_rotto = mod_rotto or not (directory / "hooks" / "register.tsx").is_file()
     elif (directory / ".claude-plugin" / "plugin.json").is_file():
         mod_rotto = mod_rotto or not mod_valido(directory)
     else:
-        skill_rotta = skill_rotta or not skill_valida(directory)
+        try:
+            valida = skill_valida(directory)
+        except Exception:
+            valida = False
+        if not valida:
+            print(directory.name)
+        skill_rotta = skill_rotta or not valida
 sys.exit((1 if skill_rotta else 0) + (3 if mod_rotto else 0))
 PY
+  skill_rotte=$(tr '\n' ' ' < "$skill_rotte_file" | sed 's/ *$//')
+  rm -f "$skill_rotte_file"
 fi
 case "$skills_rc" in
   0) ok "skill: directory e frontmatter YAML validi" ;;
   3) ko "mod: .claude-plugin/plugin.json non valido (name diverso dalla cartella oppure hooks/hooks.json mancante)" ;;
-  4) ko "skill: SKILL.md mancante oppure frontmatter non valido"
+  4) ko "skill: SKILL.md mancante oppure frontmatter non valido${skill_rotte:+ ($skill_rotte)}"
      ko "mod: .claude-plugin/plugin.json non valido (name diverso dalla cartella oppure hooks/hooks.json mancante)" ;;
-  *) ko "skill: SKILL.md mancante oppure frontmatter non valido" ;;
+  *) ko "skill: SKILL.md mancante oppure frontmatter non valido${skill_rotte:+ ($skill_rotte)}" ;;
 esac
 
 [[ -f "$CODICE/README.md" ]] && ok "README pubblico presente" || ko "README pubblico mancante"
@@ -359,7 +374,7 @@ for f in trova("/skills/*/hooks/**/*.ts*", recursive=True) + trova("/mods/*/hook
     with open(f, encoding="utf-8", errors="ignore") as src:
         modcmds |= set(re.findall(r"command\.register\(\{\s*name:\s*'([^']+)'", src.read()))
 # Comandi di Claude Code: non stanno su disco.
-NATIVE = {"add-dir", "agents", "artifacts", "btw", "bug", "clear", "code-review", "compact", "config",
+NATIVE = {"add-dir", "agents", "artifacts", "bg", "btw", "bug", "clear", "code-review", "compact", "config",
           "context", "cost", "debug", "doctor", "effort", "exit", "export", "fast", "feedback", "goal", "help",
           "hooks", "ide", "init", "insights", "install-github-app", "login", "logout", "loop", "mcp",
           "memory", "model", "output-style", "permissions", "plan", "plugin", "plugins",

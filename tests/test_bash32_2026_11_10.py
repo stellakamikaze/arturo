@@ -31,7 +31,8 @@ def script(repo: Path) -> list:
     """Gli script .sh del repo, senza quelli scritti per zsh o per sh."""
     risultato = []
     for f in sorted(repo.rglob("*.sh")):
-        if any(p in (".git", "node_modules") for p in f.parts):
+        # worktrees: le copie di lavoro in .claude/worktrees sono altri branch, fuori da git (11/11/2026).
+        if any(p in (".git", "node_modules", "worktrees") for p in f.parts):
             continue
         prima = f.read_text(encoding="utf-8", errors="replace").split("\n", 1)[0]
         if re.search(r"\bzsh\b|/sh$", prima):
