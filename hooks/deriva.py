@@ -159,11 +159,21 @@ def rileva(radice: Path) -> dict:
     return esito
 
 
+def installata(codice: Path, orsa: Path) -> bool:
+    """Vero se `codice` è la copia che installed_plugins.json indica per Arturo."""
+    voci = (leggi_json(orsa / "plugins" / "installed_plugins.json").get("plugins") or {}).get("arturo@arturo") or []
+    percorsi = [str(v.get("installPath") or "") for v in voci if isinstance(v, dict)]
+    return any(p and os.path.realpath(p) == os.path.realpath(str(codice)) for p in percorsi)
+
+
 def rileva_plugin(codice: Path, orsa: Path) -> dict:
     """La deriva della copia del plugin: i file diversi dal MANIFEST firmato e gli hook spenti."""
     controllo = fiducia.controlla(codice, orsa)
-    if controllo["firma"] == "ok":
-        fiducia.fissa_ancora(codice, orsa)  # la prima verifica fissa la chiave; poi cambia solo con /aggiorna
+    # Solo la copia installata fissa la chiave, o la prima verifica: una sessione rimasta sulla copia di prima
+    # rimetteva le sue chiavi a ogni avvio (review del 10/11/2026). La copia installata sì: un rilascio arrivato
+    # dal pannello /plugin con una chiave nuova deve portarla nell'ancora.
+    if controllo["firma"] == "ok" and (not fiducia.ancora(orsa).is_file() or installata(codice, orsa)):
+        fiducia.fissa_ancora(codice, orsa)
     file = sorted(set(controllo["cambiati"]) | set(controllo["mancano"]) | {
         p for p in controllo["in_piu"] if p.startswith(("hooks/", "bin/", "skills/", "agents/", "shared/"))})
     impostazioni = [leggi_json(orsa / n) for n in ("settings.json", "settings.local.json")]

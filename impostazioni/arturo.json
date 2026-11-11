@@ -219,7 +219,7 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "command -v node >/dev/null 2>&1 && exec node \"$(cat ~/.claude/arturo/radice)/hooks/statusline.js\"; echo 'Arturo: manca node. Per vedere contesto e quota installalo da nodejs.org e riapri Claude Code'",
+    "command": "[ -f \"$(cat ~/.claude/arturo/radice 2>/dev/null)/hooks/statusline.js\" ] || { cat ~/.claude/arturo/barra-ferma 2>/dev/null || echo 'Arturo: non trovo il codice del plugin. Guarda lo stato con: claude plugin list'; exit 0; }; command -v node >/dev/null 2>&1 && exec node \"$(cat ~/.claude/arturo/radice)/hooks/statusline.js\"; echo 'Arturo: manca node. Per vedere contesto e quota installalo da nodejs.org e riapri Claude Code'",
     "refreshInterval": 30
   },
   "language": "italian",

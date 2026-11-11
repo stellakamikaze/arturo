@@ -512,6 +512,12 @@ def web(argv: list) -> int:
     return arturo_web.main(argv, progetto=progetto_corrente())
 
 
+def segnalazioni(argv: list) -> int:
+    """L'interruttore delle segnalazioni automatiche: lo stesso di "arturo segnala modo"."""
+    import segnala
+    return segnala.main(["modo", *argv])
+
+
 # Un comando = una riga: nome -> (funzione con argv, oppure nome di un modulo in bin/ con main(argv);
 # riga di aiuto). Aiuto, smistamento e messaggio per un comando sconosciuto nascono da qui.
 COMANDI = {
@@ -520,6 +526,7 @@ COMANDI = {
     "schede": ("schede_mac", 'nel Terminale di macOS la scheda mostra solo il progetto: stato, applica, ripristina'),
     "sessione": ("sessione", "una finestra nuova del terminale con Claude già partito su un progetto o un todo (/dafare, tasto o)"),
     "segnala": ("segnala", "un problema, un'idea o un'integrazione per chi mantiene Arturo"),
+    "segnalazioni": (segnalazioni, "le segnalazioni partono da sole o solo dopo il tuo sì: automatiche, manuali; senza parole dice il modo"),
     "contatto": ("contatto", "il nome e l'email che dai agli sviluppatori di Arturo per ricontattarti sulle segnalazioni: imposta, togli, no"),
     "telemetria": ("telemetria", "gli eventi d'uso che Arturo manda, con un id casuale: stato, mostra, spegni, accendi, invia"),
     "correzione": ("correzioni", "le correzioni della persona, scritte una volta e valide per tutta la sessione: aggiungi, elenco, togli"),

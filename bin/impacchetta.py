@@ -112,6 +112,11 @@ def hooks_json(settings: dict) -> dict:
     return {"description": "Guardie, avvio e telemetria di Arturo", "hooks": hooks}
 
 
+SENZA_CODICE = ('[ -f "$(cat ~/.claude/arturo/radice 2>/dev/null)/hooks/statusline.js" ] || '
+                "{ cat ~/.claude/arturo/barra-ferma 2>/dev/null || echo 'Arturo: non trovo il codice del plugin. "
+                "Guarda lo stato con: claude plugin list'; exit 0; }; ")
+
+
 def impostazioni(settings: dict) -> dict:
     """Le voci che un plugin non può portare: le scrive /setup nei settings della persona."""
     resto = {k: v for k, v in settings.items() if k not in ("hooks", "$schema")}
@@ -121,6 +126,10 @@ def impostazioni(settings: dict) -> dict:
         # l'avvio riscrive (~/.claude/arturo/radice).
         linea = dict(linea, command=linea["command"].replace(
             "~/.claude/hooks/statusline.js", '"$(cat ~/.claude/arturo/radice)/hooks/statusline.js"'))
+        # Col plugin spento e la cartella del puntatore sparita, node cadeva e la barra restava vuota (prova
+        # con la CLI vera dell'11/11/2026, #5319). Allora la barra mostra il file che la chiusura scrive
+        # quando disattiva Arturo (bin/aggiornamenti.py, BARRA_FERMA), oppure dice dove guardare.
+        linea["command"] = SENZA_CODICE + linea["command"]
         resto["statusLine"] = linea
     # Uno stile portato da un plugin si chiama col prefisso: "Conciso" diventa "arturo:Conciso"
     # (prova del 3/11/2026: col nome nudo Claude Code non lo applica).

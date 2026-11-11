@@ -61,7 +61,10 @@ def _leggi(percorso: Path) -> dict:
 
 
 def _scrivi(percorso: Path, dati: dict) -> None:
-    """Scrittura atomica: un settings.json a metà spegne guardie e permessi alla sessione dopo."""
+    """Scrittura atomica: un settings.json a metà spegne guardie e permessi alla sessione dopo.
+    Un collegamento simbolico (settings.json in una cartella dotfiles) resta un collegamento: si scrive il file
+    a cui punta (review del 10/11/2026)."""
+    percorso = Path(os.path.realpath(str(percorso)))
     percorso.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=percorso.parent, prefix=f".{percorso.name}.", suffix=".tmp")
     with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
@@ -133,6 +136,20 @@ def senza_doppi(settings: dict) -> dict:
     return copia
 
 
+def senza_ripetuti(settings: dict) -> dict:
+    """I settings senza le voci ripetute nei permessi: lo stesso permesso scritto due volte fermava tutta l'unione,
+    e la regola di blocco nuova non arrivava (review del 10/11/2026). Solo permissions: lì l'ordine non conta."""
+    permessi = settings.get("permissions")
+    if not isinstance(permessi, dict):
+        return settings
+    puliti = {}
+    for nome, voci in permessi.items():
+        if isinstance(voci, list) and all(isinstance(v, str) for v in voci):
+            voci = list(dict.fromkeys(voci))
+        puliti[nome] = voci
+    return dict(settings, permissions=puliti)
+
+
 def calcola(togli_doppi: bool = False):
     """(settings attuale, settings unito, frammento, errore) per la radice dell'Orsa."""
     frammento_file = CODICE / "impostazioni" / "arturo.json"
@@ -144,7 +161,7 @@ def calcola(togli_doppi: bool = False):
     attuale = _leggi(settings_file)
     unisci = _unione()
     base = blocco.get("frammento", unisci.MANCA)
-    nostro = senza_doppi(attuale) if togli_doppi else attuale
+    nostro = senza_ripetuti(senza_doppi(attuale) if togli_doppi else attuale)
     try:
         unito = unisci.unisci(base, nostro, frammento)
     except unisci.Conflitto as errore:

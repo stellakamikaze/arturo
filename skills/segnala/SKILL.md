@@ -1,6 +1,6 @@
 ---
 name: segnala
-description: Manda a chi mantiene Arturo un problema, un'idea o una richiesta di integrazione - la bozza la scrive Claude, parte solo dopo il tuo sì
+description: Manda a chi mantiene Arturo un problema, un'idea o una richiesta di integrazione - Claude la scrive, la manda e ti dice cosa è partito e come ritirarla
 argument-hint: "[cosa vuoi segnalare] | stato (opzionale)"
 ---
 
@@ -18,6 +18,22 @@ La segnalazione riguarda Arturo e Claude Code, non i bug del codice del progetto
 per quelli proponi alla persona di scrivere `/diagnosi`.
 
 **Cosa dice la persona**: $ARGUMENTS
+
+## Due modi
+
+- **Automatico**, il modo di default dall'11/11/2026. Scrivi la bozza e la mandi con `manda`, senza chiedere
+  "La mando?". Subito dopo dici alla persona, in una riga, cosa è partito, il numero e come ritirarla. Vale anche
+  quando la persona non ha scritto `/segnala`: un guasto di Arturo visto nella sessione, una sua correzione a un tuo
+  comportamento, una cosa che Arturo non sa fare. Una volta per fatto.
+- **A mano**. Mostri l'anteprima, chiedi "La mando?" e mandi solo dopo il sì. La persona lo sceglie con
+  `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo segnalazioni manuali` (o con la variabile `ARTURO_SEGNALAZIONI=manuali`), e torna
+  indietro con `arturo segnalazioni automatiche`. Vale da solo anche per chi ha detto `arturo segnala basta`, ha spento
+  la telemetria o ha scelto un canale diverso da `arturo`.
+
+Non devi capire tu quale modo vale: lancia sempre `manda` (Passo 4). Se serve il sì, lo dice lui con l'uscita 4.
+
+In nessun modo parte da sola una segnalazione che riguarda la sicurezza (Passo 1), che contiene un segreto, o che
+porta nomi di persone, clienti o contenuti di lavoro: quelli li togli tu dalla bozza (Passo 2).
 
 Se la persona scrive `stato`, o chiede che fine hanno fatto le sue segnalazioni, lancia
 `python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo segnala stato` e racconta l'elenco: in attesa, arrivate, corrette
@@ -42,8 +58,8 @@ Seguito e ritiro funzionano solo con la ricevuta: le segnalazioni partite da que
 Capisci il tipo dalle sue parole o dalla sessione: `problema`, `proposta` (idea o commento),
 `integrazione`. Chiedi solo se non è chiaro.
 
-Se riguarda la sicurezza (un segreto esposto, un modo per aggirare una guardia), fermati: non va
-in una segnalazione pubblica. Indica la procedura privata:
+Se riguarda la sicurezza (un segreto esposto, un modo per aggirare una guardia), fermati: non parte
+da sola e non va in una segnalazione pubblica. Indica alla persona la procedura privata:
 https://github.com/stellakamikaze/arturo/blob/main/SECURITY.md
 
 ## Passo 2 — La bozza
@@ -65,7 +81,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo segnala info
 
 Scrivi la bozza in un file temporaneo, in markdown. Apre con "In breve", poi le stesse intestazioni
 dei modelli di GitHub e un blocco finale "Ambiente" con l'output di `info`. Le versioni e lo stato
-della config partono anche nel pacchetto tecnico (Passo 4), ma il blocco "Ambiente" resta: è l'unico
+della config partono anche nel pacchetto tecnico, ma il blocco "Ambiente" resta: è l'unico
 che arriva con i canali `gh`, `web` ed `email`.
 
 ```markdown
@@ -91,15 +107,15 @@ Per una proposta: "Quale problema vuoi risolvere, nel tuo lavoro?" e "Come immag
 soluzione?". Per un'integrazione: "Quale strumento?", "Per fare cosa, nel tuo lavoro?", "Come
 fai oggi, senza?".
 
-**Togli tu quello che non deve uscire**: nomi di persone, clienti e organizzazioni, contenuti
+**Togli tu quello che non deve uscire**, sempre, e con più cura adesso che nessuno rilegge prima dell'invio: nomi di persone, clienti e organizzazioni, contenuti
 di documenti ed email, indirizzi interni, nomi di file che dicono troppo. Lascia il fatto:
 "un cliente" al posto del nome basta. Lo script toglie da solo cartelle personali, email, indirizzi
 web esterni, indirizzi IP, nomi di computer della rete e nomi di documenti, e ferma i segreti, ma non
 riconosce un nome o un contenuto riservato: quello è il tuo lavoro.
 
 Se il problema ha un messaggio d'errore lungo (un traceback, l'uscita di un comando), non metterlo
-intero nella bozza: salvalo in un altro file temporaneo e passalo a `prepara` con `--errore FILE`.
-Entra nel pacchetto tecnico, che la persona vede e può spegnere.
+intero nella bozza: salvalo in un altro file temporaneo e passalo a `manda` con `--errore FILE`.
+Entra nel pacchetto tecnico. Prima rileggilo tu: se porta nomi, clienti o contenuti di lavoro, taglia quelle righe.
 
 Il titolo dice il fatto in poche parole comuni: "/fine si ferma al commit", non "Bug", e non
 "commit-secret-gate.py dà scansione-fallita".
@@ -107,7 +123,7 @@ Il titolo dice il fatto in poche parole comuni: "/fine si ferma al commit", non 
 ## Passo 3 — È già partita?
 
 La stessa segnalazione può partire più volte, da sessioni diverse che non si vedono fra loro. Prima
-dell'anteprima guarda quelle già partite da questo computer:
+di mandarla guarda quelle già partite da questo computer:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo segnala precedenti
@@ -117,40 +133,68 @@ Confronta tu il fatto, non le parole. Lo stesso problema raccontato con altre pa
 Due problemi diversi nello stesso comando non lo sono.
 
 - Se nessuna racconta lo stesso fatto, vai avanti senza dirlo.
-- Se una lo racconta, dillo alla persona prima dell'anteprima, con titolo, numero e data: "Forse è
-  già partita il 3/11, è la n. 46. La mando come aggiunta a quella, o la lasciamo stare?". Decide
-  lei: niente blocchi.
-- Come aggiunta, "In breve" apre con "Si aggiunge alla n. 46 del 3/11:" e il testo tiene solo il nuovo:
-  un caso diverso, un messaggio esatto, un'altra versione. Senza numero (in attesa, o partita su un
-  altro canale) vale la data col titolo.
+- Se una lo racconta, non parte niente di nuovo. Dillo alla persona con numero e data: "È già la n. 46,
+  partita il 3/11." Poi fermati.
+- Se la sessione porta un fatto in più (un caso diverso, un messaggio esatto, un'altra versione) e la n. 46 ha la
+  ricevuta, proponi di aggiungerlo con `seguito`, che chiede il suo sì. Senza ricevuta manda una segnalazione
+  nuova: "In breve" apre con "Si aggiunge alla n. 46 del 3/11:" e il testo tiene solo il nuovo.
 
-## Passo 4 — Anteprima
+## Passo 4 — Invio
 
 ```bash
-python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo segnala prepara --tipo TIPO --titolo "TITOLO" --file BOZZA [--errore FILE]
+python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo segnala manda --tipo TIPO --titolo "TITOLO" --file BOZZA [--errore FILE]
 ```
 
-- Aggiungi `--origine` quando la segnalazione nasce altrove: `fine` dalla proposta di `/fine`, `avvio` da una
-  riga dell'avvio (SEGNALA, banchi rossi). Senza, vale `segnala`. Dice a chi
-  mantiene Arturo quale invito funziona.
-- Con exit 3 la bozza o il pacchetto contengono qualcosa che sembra un segreto: toglilo e rilancia.
-- Con exit 0 mostra alla persona l'anteprima per intero, così come la stampa lo script: il testo, la riga
-  "Tolto dal testo" e la riga "Da controllare" se ci sono, e il pacchetto tecnico con le sue caselle. Le caselle accese di default sono
-  ambiente, banchi e config; deriva, errore (acceso se hai passato `--errore`) e "collega ai miei dati
+- Aggiungi `--origine` quando la segnalazione nasce altrove: `fine` dalla FASE 10 di `/fine`, `avvio` da una
+  riga dell'avvio (SEGNALA, banchi rossi) o da un fatto che hai visto tu nella sessione. Senza, vale `segnala`.
+  Dice a chi mantiene Arturo da dove arrivano le segnalazioni.
+- `manda` pulisce la bozza come `prepara`, aggiunge il pacchetto tecnico con le caselle di default (ambiente,
+  banchi, config) e la manda sul canale `arturo`: arriva solo a chi mantiene Arturo. Non accetta `--tieni`:
+  quello che lo script toglie resta fuori da un invio senza domanda.
+- Il contatto. Se la persona ha dato nome ed email con `arturo contatto`, parte con la segnalazione. Se non ha
+  ancora risposto alla domanda sul contatto, la segnalazione parte senza: non fare la domanda adesso.
+
+**Uscita 0**: è partita. La prima riga è "Segnalato n. X: titolo. Per ritirarla: arturo segnala ritira X".
+Dillo alla persona in una riga, con le tue parole: cosa hai segnalato, il numero, e che la ritira quando vuole.
+Esempio: "Ho segnalato a chi mantiene Arturo che /fine si ferma al commit: è la n. 71. Se non la vuoi, dimmi
+ritirala." Poi torna al lavoro. Altre due righe possibili, sempre con uscita 0:
+
+- "Segnalato, in coda": il server non risponde, parte da sola alla prossima sessione. Dillo così.
+- "Già segnalata": la stessa è partita nelle ultime 24 ore. Di' il numero e non rimandarla.
+
+**Uscita 3**: la bozza o il pacchetto contengono qualcosa che sembra un segreto. Non è partita. Toglilo dalla
+bozza e rilancia `manda`.
+
+**Uscita 4**: serve il sì della persona. La riga `DOMANDA:` dice perché: modo manuale, avviso non ancora letto,
+un nome di documento da controllare, tetto di dieci in un giorno. Sopra c'è l'anteprima. Vai al Passo 5.
+
+**Uscita 1**: il server l'ha rifiutata. Riporta l'errore e proponi il canale `web` o `email` (Passo 5).
+
+## Passo 5 — A mano: anteprima, sì, invio
+
+Vale dopo un'uscita 4, o quando la persona chiede di vedere il testo prima, di cambiarlo o di usare un altro canale.
+
+- Mostra alla persona l'anteprima per intero, così come la stampa lo script: il testo, la riga "Tolto dal testo"
+  e la riga "Da controllare" se ci sono, e il pacchetto tecnico con le sue caselle. Le caselle accese di default
+  sono ambiente, banchi e config; deriva, errore (acceso se hai passato `--errore`) e "collega ai miei dati
   d'uso" sono spente. Dillo in una riga: "Con la segnalazione parte un pacchetto tecnico, qui sotto: puoi
   spegnere o accendere ogni casella."
-- Se la persona cambia le caselle, rilancia `prepara` con `--pacchetto` e le voci accese separate da
-  virgole (`--pacchetto ambiente,deriva`, o `--pacchetto nessuna`). Se una cosa tolta serve a capire il
-  problema (l'indirizzo di un sito pubblico, per esempio), rilancia con `--tieni` e la categoria che
-  l'anteprima nomina, solo col sì della persona. Con "Da controllare" guarda i nomi di documenti: se la parola
-  prima è parte del nome, toglila dalla bozza e rilancia `prepara`.
-- `invia` manda solo il file di questo `prepara`, così com'è: se il file è cambiato dopo l'anteprima risponde
-  con exit 2, e si rilancia `prepara`.
-- Il contatto. Se la persona ha dato nome ed email con `arturo contatto`, l'anteprima ha la riga "Contatto per gli
-  sviluppatori di Arturo": mostrala, perché parte con la segnalazione del canale `arturo` e serve a ricontattarla.
-  Se la persona non lo vuole per questa, rilancia `prepara` con `--senza-contatto`. Se l'anteprima ha una riga
-  `CONTATTO:`, la persona non ha ancora risposto alla domanda: falla con le parole della riga, prima del "La mando?",
-  poi rilancia `prepara`. Non insistere dopo un no.
+- Se la persona cambia il testo o le caselle, passa da `prepara`, che prende le stesse opzioni di `manda` più
+  `--tieni` e stampa la stessa anteprima:
+
+  ```bash
+  python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo segnala prepara --tipo TIPO --titolo "TITOLO" --file BOZZA [--errore FILE]
+  ```
+
+  Le caselle: `--pacchetto` e le voci accese separate da virgole (`--pacchetto ambiente,deriva`, o `--pacchetto
+  nessuna`). Se una cosa tolta serve a capire il problema (l'indirizzo di un sito pubblico, per esempio), rilancia
+  con `--tieni` e la categoria che l'anteprima nomina, solo col sì della persona. Con "Da controllare" guarda i
+  nomi di documenti: se la parola prima è parte del nome, toglila dalla bozza e rilancia `prepara`.
+- Il contatto. Se l'anteprima ha la riga "Contatto per gli sviluppatori di Arturo", mostrala: parte con la
+  segnalazione del canale `arturo` e serve a ricontattarla. Se la persona non lo vuole per questa, rilancia
+  `prepara` con `--senza-contatto`. Se l'anteprima ha una riga `CONTATTO:`, la persona non ha ancora risposto
+  alla domanda: falla con le parole della riga, prima del "La mando?", poi rilancia `prepara`. Non insistere
+  dopo un no.
 
 Il canale è `arturo`: la segnalazione arriva direttamente a chi mantiene Arturo, senza account e
 senza altri passi. Usa un altro canale solo se la persona lo chiede o se l'ha scelto prima
@@ -165,23 +209,16 @@ Di' dove va, prima del sì:
 - `gh` e `web`: "Diventa una issue pubblica su GitHub: la vede chiunque."
 - `email`: "Te la preparo negli appunti per federico@stellakamikaze.org: la mandi tu."
 
-Chiedi: "La mando?". La persona può cambiare il testo o il canale. Un cambio del testo passa di
-nuovo da `prepara`.
-
-## Passo 5 — Invio, solo dopo il sì
+Chiedi: "La mando?". Solo dopo il sì:
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo segnala invia --canale CANALE --file PRONTA
 ```
 
-`PRONTA` è il percorso stampato da `prepara` nella riga `PRONTA:`.
+`PRONTA` è il percorso della riga `PRONTA:` dell'anteprima. `invia` manda solo quel file, così com'è: se è
+cambiato dopo l'anteprima risponde con exit 2, e si rilancia `prepara`.
 
-- `arturo`: è arrivata, e l'esito dice il suo numero ("è la segnalazione n. 19"). Dillo alla
-  persona: chi mantiene Arturo la legge e può rispondere. La riga "Ricevuta" dice che il codice per
-  leggere la risposta è salvato sul suo computer: quando la risposta arriva, l'avvio di una sessione
-  lo dice (riga SPORTELLO) e `/segnala stato` la mostra. Quando esce la correzione `/novita` la
-  racconta con quel numero. Se il server non risponde, la segnalazione resta salvata e parte da sola alla
-  prossima sessione: la persona non deve fare altro.
+- `arturo`: è arrivata, e l'esito dice il suo numero ("è la segnalazione n. 19"). Dillo alla persona.
 - `gh`: la issue si apre subito. Dai il link.
 - `web`: si apre la pagina della issue già compilata. La persona controlla e preme Invia.
 - `email`: il testo è negli appunti. La persona apre il suo programma di posta, incolla e invia.
@@ -189,4 +226,10 @@ python3 ${CLAUDE_PLUGIN_ROOT}/bin/arturo segnala invia --canale CANALE --file PR
 
 Se `invia` esce con 1, riporta l'errore e proponi un altro canale.
 
-Chiudi con una riga: grazie, e dove è andata.
+## Dopo l'invio
+
+Chi mantiene Arturo legge la segnalazione e può rispondere. La riga "Ricevuta" dice che il codice per leggere la
+risposta è salvato sul computer della persona: quando la risposta arriva, l'avvio di una sessione lo dice (riga
+SPORTELLO) e `/segnala stato` la mostra. Quando esce la correzione `/novita` la racconta con quel numero.
+
+Chiudi con una riga: dove è andata, e grazie se la segnalazione l'ha chiesta la persona.

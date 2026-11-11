@@ -13,6 +13,62 @@ modo di lavorare.
 
 ---
 
+## 2026-11-11 — Le segnalazioni partono da sole
+
+**Cosa cambia**: quando qualcosa di Arturo o di Claude Code si inceppa, Claude scrive la segnalazione e la manda
+a chi mantiene Arturo, senza chiederti "La mando?". Subito dopo ti dice in una riga cosa è partito, il numero e
+come ritirarla. Lo stesso vale quando scrivi tu `/segnala`. Prima ogni segnalazione aspettava il tuo sì, e molti
+guasti non arrivavano mai: la domanda cadeva in mezzo al lavoro e la risposta era "dopo".
+
+Cosa parte: il fatto in poche righe, senza nomi di persone e clienti e senza contenuti del tuo lavoro, più le
+versioni di Arturo e di Claude Code, l'esito dei controlli e lo stato della config. Prima dell'invio Arturo
+toglie dal testo i percorsi delle tue cartelle, le email, gli indirizzi web e i nomi dei documenti. Arriva solo
+a chi mantiene Arturo.
+
+**Da sapere**: se preferisci che Claude ti chieda il permesso prima di ogni invio, scrivi
+`python3 $ARTURO_CODICE/bin/arturo segnalazioni manuali`; con `arturo segnalazioni automatiche` le segnalazioni
+tornano a partire da sole. Alla prima sessione dopo l'aggiornamento Claude te lo dice, e niente parte da solo
+prima di quell'avviso. Aspettano sempre il tuo sì: una segnalazione su un problema di sicurezza, una issue
+pubblica su GitHub, una skill che proponi con `/proponi`, e tutte le segnalazioni se hai spento la telemetria o
+hai scritto `arturo segnala basta`. Un segreto non parte mai. Per ritirare una segnalazione:
+`arturo segnala ritira N`. In un giorno ne partono da sole al massimo dieci, e mai due volte la stessa.
+
+**Il principio**: una domanda che interrompe il lavoro riceve un "dopo" e il guasto resta, quindi la
+segnalazione parte da sola, e tu la vedi e puoi ritirarla.
+
+---
+
+## 2026-11-11 — Col plugin, Arturo torna ad aggiornarsi da solo
+
+**Cosa cambia**: da quando Arturo si installa come plugin di Claude Code, una versione nuova arrivava solo
+scrivendo `/aggiorna`. Ora si installa da sola quando chiudi la sessione, come succedeva prima del plugin. La
+barra in basso dice "si installa alla chiusura", e quando riapri Claude Code un messaggio ti dice com'è andata.
+Una sessione rimasta aperta continua con la versione di prima, e la sua barra dice "riapri Claude Code". Se per
+7 giorni Arturo non riesce a controllare gli aggiornamenti, per esempio perché manca la connessione o la rete
+dell'ufficio lo blocca, all'avvio te lo dice. Questa versione va ancora presa con `/aggiorna`: è lei che porta
+la novità, quelle dopo arrivano da sole.
+
+**Il principio**: senza chiederti si installa solo ciò che è verificato. La chiusura fa gli stessi controlli di
+`/aggiorna`: il rilascio deve avere la firma di chi mantiene Arturo, e i file devono tornare col loro elenco
+firmato. Se la firma non torna, niente si installa e l'avvio lo dice. Se il controllo fallisce a installazione
+già fatta, Arturo rimette la versione di prima. Se non ci riesce si disattiva, e la barra in basso dice come
+riattivarlo: una copia non verificata non parte mai.
+
+**Se preferisci decidere tu**: `arturo aggiornamenti manuali` lascia solo l'avviso, e aggiorni con `/aggiorna`.
+
+---
+
+## 2026-11-10 — /diagnosi torna a controllare la config sul Mac
+
+**Cosa cambia**: sul Mac il controllo della configurazione di `/diagnosi` si fermava subito con un errore di
+sintassi, e non diceva più se guardie e hook erano collegati bene. Il bash che il Mac ha di serie, più vecchio,
+leggeva male un apostrofo in un commento dentro lo script (segnalazione n. 68). Ora lo script si legge con quel
+bash, e un banco nuovo prova ogni script di Arturo col bash del Mac.
+
+**Il principio**: uno script che deve girare dappertutto si prova col bash più vecchio che incontra.
+
+---
+
 ## 2026-11-10 — /fine non si ferma più per l'identità di Git
 
 **Cosa cambia**: se non hai scelto un nome per i commit, `/fine` prima si fermava con "MANCA l'identità di Git".
