@@ -18,7 +18,7 @@ import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals } from "herdr";
 import { gruppi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
-import { config, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti } from "./dati.js";
+import { config, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti, esito } from "./dati.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
 import { bersaglio, passo, rigaMicrofono } from "./microfono.js";
@@ -221,18 +221,17 @@ export class Volta {
     this.sposto[s.sessionId] = true;
     cx.notify();
     cx.spawn(async (cx) => {
-      let esito = null;
+      let portata = null;
       try {
-        const r = await exec(this.py, [this.sposta, "porta-volta", s.host, s.sessionId], { timeout: 60000 });
-        esito = JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
+        portata = esito(await exec(this.py, [this.sposta, "porta-volta", s.host, s.sessionId], { timeout: 60000 }));
       } catch (e) {
-        esito = { errore: `${s.macchina} non risponde.` };
+        portata = { errore: `${s.macchina} non risponde` };
       }
       delete this.sposto[s.sessionId];
-      if (esito?.attach?.length) {
-        this.apri({ ...s, id: esito.id ?? s.id }, esito.attach, true, cx);
+      if (portata?.attach?.length) {
+        this.apri({ ...s, id: portata.id ?? s.id }, portata.attach, true, cx);
         this.aggiorna(cx);
-      } else this.avvisa(s, `Non la sposto: ${esito?.errore ?? "risposta vuota"}.`, cx);
+      } else this.avvisa(s, `Non la sposto: ${String(portata?.errore ?? "risposta vuota").replace(/\.+$/, "")}.`, cx);
       cx.notify();
     });
   }

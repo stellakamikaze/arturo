@@ -62,6 +62,21 @@ export const gestoNota = (verbo, id, testo) => {
 
 const prima = (s) => (s ?? "").split("\n").map((x) => x.trim()).find(Boolean) ?? "";
 
+// L'esito di uno script che risponde con una riga JSON (volta_sonda.py, teletrasporto.py): l'ultima riga
+// che inizia con "{". Un'uscita vuota, una riga che non è JSON o un codice diverso da 0 senza `errore`
+// sono un errore, col motivo che lo script ha scritto: prima un `{}` passava per un sì, e un gesto
+// fallito non diceva niente (revisione dell'11/11/2026). Di un Python caduto conta l'ultima riga.
+export function esito(r) {
+  const righe = String(r?.stdout ?? "").split("\n").map((x) => x.trim()).filter((x) => x.startsWith("{"));
+  let d = null;
+  try { d = righe.length ? JSON.parse(righe[righe.length - 1]) : null; } catch { d = null; }
+  if (d && typeof d === "object" && !Array.isArray(d) && (r?.code === 0 || d.errore)) return d;
+  const caduto = String(r?.stderr ?? "").trim().split("\n").map((x) => x.trim()).filter(Boolean);
+  const detto = d ? "" : prima(r?.stdout); // un JSON letto con un'uscita storta non è il motivo
+  const motivo = /^Traceback/.test(caduto[0] ?? "") ? caduto[caduto.length - 1] : prima(r?.stderr) || detto;
+  return { errore: (motivo || (r?.code ? `uscita ${r.code}` : "nessuna risposta")).slice(0, 200) };
+}
+
 // Lo slug come lo fa Arturo: minuscole, lettere, numeri e trattini.
 export const slug = (s) => (s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
 
@@ -443,7 +458,7 @@ export async function prepara(s, riavvia = false) {
   const c = await config();
   try {
     const r = await exec(c.arturo[0], [c.volta, "apri", s.host ?? "qui", s.id, ...(riavvia ? ["--riavvia"] : [])], { timeout: riavvia ? 210000 : 150000 });
-    return JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
+    return esito(r);
   } catch (e) {
     return { errore: `${s.macchina ?? nomeMacchina(s.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
   }
@@ -556,24 +571,23 @@ async function nasciSu(macchina, prompt, progetto, nomeScheda = null, copia = nu
     const args = [c.volta, copia ? copia.verbo : "nasci", macchina, ...(copia?.verbo === "fork" ? [copia.sessionId] : []),
       ...(progetto ? ["--progetto", progetto] : []), ...(copia?.cartella ? ["--cartella", copia.cartella] : []),
       ...(copia?.titolo ? ["--titolo", copia.titolo] : []), ...(prompt ? ["--", prompt] : [])];
-    let esito = {};
+    let nata = {};
     try {
       // 6 minuti: le attese di volta_sonda.py (macchine 15 s, servizio 120 s, nascita 180 s) più un margine,
       // così Volta non dice "non risponde" mentre la sessione sta ancora nascendo (#5214)
-      const r = await exec(c.arturo[0], args, { timeout: 360000 });
-      esito = JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
+      nata = esito(await exec(c.arturo[0], args, { timeout: 360000 }));
     } catch {
-      esito = { errore: `${nomeMacchina(macchina)} non ha risposto in 6 minuti: se la sessione è nata, la trovi fra le sessioni` };
+      nata = { errore: `${nomeMacchina(macchina)} non ha risposto in 6 minuti: se la sessione è nata, la trovi fra le sessioni` };
     }
-    if (esito.attach?.length) {
+    if (nata.attach?.length) {
       const nome = nomeScheda ?? progetto ?? (prompt ? pulito(prompt) : `Richiesta su ${nomeMacchina(macchina)}`);
       // La scheda parte dalla home anche qui: claude attach non ha bisogno della cartella della sessione.
-      const v = await apriSessione({ id: esito.id, sessionId: esito.sessionId, nome, progetto, questa: macchina === "qui", host: macchina }, esito.attach, true);
+      const v = await apriSessione({ id: nata.id, sessionId: nata.sessionId, nome, progetto, questa: macchina === "qui", host: macchina }, nata.attach, true);
       // la veglia non tiene occupata la nascita: se Claude non resta nella scheda arriva un avviso
       v.veglia?.then((x) => { if (x?.errore) notify({ title: "La sessione nuova non resta aperta", body: x.errore, level: "warning" }); });
-      return v.errore ? dico("La sessione è nata, ma non si apre", v.errore) : { ok: true, id: esito.id };
+      return v.errore ? dico("La sessione è nata, ma non si apre", v.errore) : { ok: true, id: nata.id };
     }
-    return dico(`La sessione non nasce su ${nomeMacchina(macchina)}`, esito.errore ?? "nessuna risposta");
+    return dico(`La sessione non nasce su ${nomeMacchina(macchina)}`, nata.errore ?? "nessuna risposta");
   } catch (e) {
     return dico(`La sessione non nasce su ${nomeMacchina(macchina)}`, String(e?.message ?? e).slice(0, 160));
   } finally {
@@ -627,7 +641,7 @@ export async function cambiaSessione(s, cosa, valore, opzioni = []) {
   try {
     const r = await exec(c.arturo[0], [c.volta, cosa === "nome" ? "rinomina" : "progetto", s.host ?? "qui", s.sessionId, ...opzioni,
       ...(valore ? ["--", valore] : [])], { timeout: 90000 });
-    return JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
+    return esito(r);
   } catch (e) {
     return { errore: `${s.macchina ?? nomeMacchina(s.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
   }
@@ -728,8 +742,7 @@ export async function azioneSessione(s, verbo) {
   const c = await config();
   try {
     const r = await exec(c.arturo[0], [c.volta, "azione", s.host, verbo, s.id], { timeout: verbo === "respawn" ? 210000 : 90000 });
-    const riga = (r.stdout || "").trim().split("\n").pop() || "{}";
-    return JSON.parse(riga);
+    return esito(r);
   } catch (e) {
     return { errore: `${s.macchina} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
   }

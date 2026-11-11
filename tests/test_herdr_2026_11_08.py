@@ -280,6 +280,24 @@ HZ67 la nascita passa dalla barra (comandi.js con node): instrada() dice verbo, 
 HZ68 con la barra nascosta i comandi li rimanda la barra di stato (comandi.js con node, testata.js): solo
      a barra nascosta, mai il comando di controllo né un comando sconosciuto; mostra la barra, aspetta
      che risponda e rimanda.
+HZ69 una lettura dell'elenco ha un tetto solo (revisione dell'11/11/2026, volta_sonda.py): ATTESA_LETTURA
+     sta sotto l'attesa di volta.js; con una macchina che non risponde il documento esce lo stesso entro
+     il tetto, con le altre macchine lette e quella segnata irraggiungibile con le righe di prima; hc exec
+     e la sonda sulla macchina ricevono i secondi che restano; claude agents dentro la sonda non aspetta
+     oltre.
+HZ70 se Herdr non dice le macchine restano quelle di prima (volta_sonda.py): hc machine ls che esce male,
+     che risponde altro o che non fa in tempo lascia le macchine dell'ultima lettura, irraggiungibili,
+     con le loro righe; un elenco vuoto vero le toglie; nasci dice che Herdr non risponde; su Windows hc
+     si cerca con .exe.
+HZ71 un avviso prima del JSON di claude agents non svuota la macchina (volta_sonda.py): l'elenco si legge
+     dal primo "[" che apre un elenco, qui e su una macchina senza Python; se claude agents esce male o
+     non dà un elenco la macchina è irraggiungibile col motivo e tiene le righe di prima; la nascita
+     legge il sessionId intero anche con l'avviso e riprova se la sessione non è ancora in elenco.
+HZ72 una riga della trascrizione che non è un oggetto non ferma la sonda (volta_sonda.py): un numero, una
+     stringa, un elenco o un messaggio che non è un oggetto si saltano, e le ultime parole si leggono.
+HZ73 l'esito di uno script si legge col codice d'uscita (dati.js con node): esito() prende l'ultima riga
+     che inizia con "{"; uscita vuota, riga rotta o codice diverso da 0 senza errore sono un errore col
+     motivo scritto dallo script; lo usano prepara, la nascita, Rinomina, i gesti e porta-volta.
 """
 from __future__ import annotations
 
@@ -295,7 +313,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -1684,6 +1702,9 @@ export const nascite = [];
 export const exec = async (cmd, args) => {
   eseguiti.push([cmd, ...args]);
   nascite.push(condivisi["arturo.nascita"] ?? null);
+  // HZ_EXEC_CODICE e HZ_EXEC_ERR: il codice d'uscita e lo stderr, per chi legge l'esito (HZ73)
+  if (process.env.HZ_EXEC_CODICE !== undefined)
+    return { code: Number(process.env.HZ_EXEC_CODICE), stdout: process.env.HZ_EXEC ?? "", stderr: process.env.HZ_EXEC_ERR ?? "" };
   return process.env.HZ_EXEC ? { code: 0, stdout: process.env.HZ_EXEC, stderr: "" } : { code: 1, stdout: "", stderr: "" };
 };
 export const inviati = [];
@@ -2646,7 +2667,7 @@ def hz42(repo: Path, casa: Path) -> str | None:
     costanti = {n.targets[0].id: n.value.value for n in ast.parse(sonda.read_text(encoding="utf-8")).body
                 if isinstance(n, ast.Assign) and len(n.targets) == 1 and isinstance(n.targets[0], ast.Name)
                 and n.targets[0].id.startswith("ATTESA_") and isinstance(n.value, ast.Constant)}
-    if set(costanti) != {"ATTESA_MACCHINE", "ATTESA_SERVIZIO", "ATTESA_NASCITA", "ATTESA_AZIONE"}:
+    if set(costanti) != {"ATTESA_MACCHINE", "ATTESA_SERVIZIO", "ATTESA_NASCITA", "ATTESA_AZIONE", "ATTESA_LETTURA"}:
         return f"le attese della nascita in volta_sonda.py: {costanti}"
     dati = (mod / "dati.js").read_text(encoding="utf-8")
     # i gesti (#5215): Riavvia aspetta servizio più azione più 30 s, gli altri azione più 30 s
@@ -3261,7 +3282,7 @@ def hz52(repo: Path, casa: Path) -> str | None:
         return f"dati.js non gira: {e}"
     vj = (mod / "volta.js").read_text(encoding="utf-8")
     for pezzo in ("this.apro[k] = true;", "if (r.errore) this.nonApre(s, r.errore, cx);", "if (v?.errore) this.nonApre(s, v.errore, cx);",
-                  "this.apri({ ...s, id: esito.id ?? s.id }, esito.attach, true, cx);", '{ testo: "La apro…", colore: "working" }'):
+                  "this.apri({ ...s, id: portata.id ?? s.id }, portata.attach, true, cx);", '{ testo: "La apro…", colore: "working" }'):
         if pezzo not in vj:
             return f"volta.js senza {pezzo}"
     return None
@@ -4730,7 +4751,430 @@ def hz68(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68}
+# L'hc finto del lotto 4: HZ_HC è { macchine, ls: {dorme, rc, out}, exec: { <macchina>: { <programma>: {out, rc, dorme} } } }.
+# Segna ogni chiamata in HZ_HC_LOG, con --timeout e la riga di codice com'erano.
+HC_LENTO = r"""
+import json, os, sys, time
+conf = json.loads(os.environ["HZ_HC"])
+a = sys.argv[1:]
+with open(os.environ["HZ_HC_LOG"], "a", encoding="utf-8") as fh:
+    fh.write(json.dumps(a) + "\n")
+if a[:2] == ["machine", "ls"]:
+    ls = conf.get("ls", {})
+    time.sleep(ls.get("dorme", 0))
+    print(ls["out"] if "out" in ls else json.dumps({"machines": conf.get("macchine", [])}))
+    sys.exit(ls.get("rc", 0))
+if a[:2] == ["exec", "--on"]:
+    nome = a[2]
+    if "--timeout" in a[:6]:
+        i = a.index("--timeout"); del a[i:i + 2]
+    v = conf.get("exec", {}).get(nome, {}).get(a[3])
+    if v is None:
+        print(json.dumps({"error": {"kind": "spawn_failed", "message": "cannot start %s" % a[3]}})); sys.exit(1)
+    time.sleep(v.get("dorme", 0))
+    print(v.get("out", "")); sys.exit(v.get("rc", 0))
+sys.exit(2)
+"""
+
+# Il claude finto del lotto 4. HZ_AGENTI: "avviso" (una riga prima del JSON), "rotto" (esce 1), "sporco"
+# (esce 0 senza elenco), "dorme" (non risponde per 12 s), "tardi" (elenca la sessione dalla seconda chiamata,
+# contate in HZ_CONTA). HZ_SESSIONI è l'elenco in JSON.
+CLAUDE_FINTO_LOTTO4 = r"""#!/usr/bin/env python3
+import json, os, sys, time
+modo = os.environ.get("HZ_AGENTI", "")
+if sys.argv[1:2] == ["--bg"]:
+    print("backgrounded \u00b7 abcd1234\n  claude attach abcd1234    open in this terminal")
+    sys.exit(0)
+if sys.argv[1:2] == ["daemon"]:
+    print("control.sock: reachable"); sys.exit(0)
+if sys.argv[1:2] == ["agents"]:
+    if modo == "dorme":
+        time.sleep(12)
+    if modo == "rotto":
+        print("boom: il servizio non risponde", file=sys.stderr); sys.exit(1)
+    if modo == "sporco":
+        print("niente da vedere [qui]"); sys.exit(0)
+    elenco = json.loads(os.environ.get("HZ_SESSIONI", "[]"))
+    if modo == "tardi":
+        f = os.environ["HZ_CONTA"]
+        n = int(open(f).read() or 0) + 1 if os.path.exists(f) else 1
+        open(f, "w").write(str(n))
+        if n < 2:
+            elenco = []
+    if modo in ("avviso", "tardi"):
+        print("Warning: [beta] a newer version is available")
+    print(json.dumps(elenco))
+"""
+
+
+def lotto4(casa: Path, conf: dict, hc_finto: str = HC_LENTO) -> tuple[dict, Path, Path]:
+    """L'ambiente dei casi della sonda: hc finto, claude finto nel PATH, cartella di Claude vuota."""
+    finto = casa / "hc_lento.py"
+    finto.write_text(hc_finto, encoding="utf-8")
+    bindir = casa / "bin"
+    bindir.mkdir(exist_ok=True)
+    cl = bindir / "claude"
+    cl.write_text(CLAUDE_FINTO_LOTTO4, encoding="utf-8")
+    os.chmod(cl, 0o755)
+    (casa / "conf").mkdir(exist_ok=True)
+    log = casa / "hc.log"
+    env = {**os.environ, "HZ_HC": json.dumps(conf), "VOLTA_HC": json.dumps([sys.executable, str(finto)]), "HZ_HC_LOG": str(log),
+           "PATH": f"{bindir}{os.pathsep}{os.environ['PATH']}", "CLAUDE_CONFIG_DIR": str(casa / "conf"), "PYTHONIOENCODING": "utf-8",
+           "HERDR_APP_HOME": str(casa / "app")}
+    for k in ("VOLTA_SONDA_LOCALE", "VOLTA_ATTESA_LETTURA", "HZ_AGENTI", "HZ_SESSIONI", "HZ_CONTA"):
+        env.pop(k, None)
+    return env, log, casa / "sessioni.json"
+
+
+def hz69(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    sonda = mod / "volta_sonda.py"
+    import ast  # noqa: PLC0415
+    testo = sonda.read_text(encoding="utf-8")
+    costanti = {n.targets[0].id: n.value.value for n in ast.parse(testo).body
+                if isinstance(n, ast.Assign) and len(n.targets) == 1 and isinstance(n.targets[0], ast.Name)
+                and isinstance(n.value, ast.Constant)}
+    volta = (mod / "volta.js").read_text(encoding="utf-8")
+    m = re.search(r'\[this\.script, "volta", "--scrivi", this\.file\], \{ timeout: (\d+) \}', volta)
+    if not m:
+        return "volta.js (aggiorna) non lancia più la lettura con un'attesa sua"
+    tetto = costanti.get("ATTESA_LETTURA")
+    if not isinstance(tetto, int) or tetto * 1000 > int(m.group(1)) - 10000:
+        return f"la lettura ha un tetto di {tetto} s, ma volta.js la taglia a {m.group(1)} ms: servono 10 s di margine"
+    sessione = lambda sid, **k: dict({"sessionId": sid, "kind": "background", "state": "done"}, **k)  # noqa: E731
+    conf = {"macchine": [{"name": "Svelta", "target": "svelta", "state": "connected"},
+                         {"name": "Lenta", "target": "lenta", "state": "connected"}],
+            "exec": {"Svelta": {"python3": {"out": json.dumps({"claude": "/s/claude", "sessioni": [sessione("ssss1111-s")]})}},
+                     "Lenta": {"python3": {"dorme": 20, "out": json.dumps({"claude": "/l/claude", "sessioni": [sessione("llll1111-l")]})}}}}
+    env, log, uscita = lotto4(casa, conf)
+    env["VOLTA_SONDA_LOCALE"] = json.dumps({"claude": "/q/claude", "sessioni": [sessione("aaaa1111-q")]})
+    env["VOLTA_ATTESA_LETTURA"] = "7"
+    uscita.write_text(json.dumps({"letto": "prima", "macchine": [{"host": "qui", "questa": True}, {"host": "Lenta"}], "sessioni": [
+        {"host": "Lenta", "id": "llll0000", "sessionId": "llll0000-l"}]}), encoding="utf-8")
+    da = time.monotonic()
+    try:
+        r = subprocess.run([sys.executable, str(sonda), "volta", "--scrivi", str(uscita)], capture_output=True, text=True, timeout=14, env=env)
+    except subprocess.TimeoutExpired:
+        return "con una macchina che non risponde la lettura non finisce entro il tetto (7 s, attesi al più 14)"
+    durata = time.monotonic() - da
+    if r.returncode != 0:
+        return f"volta_sonda.py esce {r.returncode}: {(r.stderr or r.stdout).strip()[-160:]}"
+    if durata > 8.5:
+        return f"la lettura dura {durata:.1f} s con un tetto di 7"
+    d = json.loads(uscita.read_text(encoding="utf-8"))
+    if d.get("letto") == "prima":
+        return "il documento non è stato riscritto"
+    lenta = next((x for x in d["macchine"] if x["host"] == "Lenta"), None)
+    if not lenta or "non ha risposto in" not in str(lenta.get("irraggiungibile")):
+        return f"la macchina lenta non è segnata irraggiungibile col motivo: {lenta}"
+    if "exec" in str(lenta.get("irraggiungibile")) or len(str(lenta.get("irraggiungibile"))) > 60:
+        return f"il motivo della macchina lenta porta il comando: {lenta['irraggiungibile'][:80]}"
+    per = {x["id"]: x for x in d["sessioni"]}
+    if set(per) != {"aaaa1111", "ssss1111", "llll0000"} or not per["llll0000"].get("vecchia") or per["ssss1111"].get("vecchia"):
+        return f"sessioni {sorted(per)}: attese quella di qui, quella della macchina svelta e la vecchia della lenta"
+    # hc exec e la sonda sulla macchina ricevono i secondi che restano
+    chiamate = [json.loads(x) for x in log.read_text(encoding="utf-8").splitlines()]
+    for c in (x for x in chiamate if x[:2] == ["exec", "--on"]):
+        if "--timeout" not in c:
+            return f"hc exec verso {c[2]} parte senza --timeout: Herdr lo terrebbe aperto oltre il tetto"
+        entro = int(c[c.index("--timeout") + 1])
+        dentro = re.match(r"T=(\d+);", c[-1])
+        if not 1 <= entro <= 7 or not dentro or not 1 <= int(dentro.group(1)) <= entro:
+            return f"hc exec verso {c[2]}: --timeout {entro}, sonda {c[-1][:12]!r}: attesi i secondi che restano, al più 7"
+    if os.name == "nt":
+        return None  # il claude finto è uno script con shebang
+    # dentro la sonda claude agents non aspetta oltre i secondi ricevuti
+    sp = importlib_spec("volta_sonda_hz69", sonda)
+    da = time.monotonic()
+    try:
+        r = subprocess.run([sys.executable, "-c", "T = 3\n" + sp.SONDA], capture_output=True, text=True, timeout=20, env={**env, "HZ_AGENTI": "dorme"})
+    except subprocess.TimeoutExpired:
+        return "la sonda con 3 secondi a disposizione non torna in 20"
+    if time.monotonic() - da > 9:
+        return f"la sonda con 3 secondi a disposizione aspetta claude agents {time.monotonic() - da:.0f} s"
+    try:
+        errore = json.loads(r.stdout.strip().splitlines()[-1]).get("errore")
+    except (ValueError, IndexError):
+        errore = None
+    if not errore or "tempo" not in errore:
+        return f"claude agents fuori tempo: la sonda non lo dice ({(r.stdout + r.stderr).strip()[-120:]})"
+    return None
+
+
+def importlib_spec(nome: str, file: Path):
+    import importlib.util  # noqa: PLC0415
+    sp = importlib.util.spec_from_file_location(nome, file)
+    m = importlib.util.module_from_spec(sp)
+    sp.loader.exec_module(m)
+    return m
+
+
+def hz70(repo: Path, casa: Path) -> str | None:
+    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    if '"~/.local/bin/hc" + (".exe" if os.name == "nt" else "")' not in sonda.read_text(encoding="utf-8"):
+        return "su Windows hc() ripiega su ~/.local/bin/hc senza .exe"
+    sessione = lambda sid, **k: dict({"sessionId": sid, "kind": "background", "state": "done"}, **k)  # noqa: E731
+    prima = {"letto": "prima", "macchine": [{"macchina": "Questa", "host": "qui", "questa": True}, {"macchina": "Studio", "host": "Studio", "questa": False}],
+             "sessioni": [{"host": "Studio", "id": "bbbb1111", "sessionId": "bbbb1111-s"}, {"host": "qui", "id": "vvvv0000", "sessionId": "vvvv0000-q"}]}
+    studio = {"macchine": [{"name": "Studio", "target": "studio", "state": "connected"}],
+              "exec": {"Studio": {"python3": {"out": json.dumps({"claude": "/s/claude", "sessioni": [sessione("bbbb2222-s")]})}}}}
+
+    def leggi(ls, tetto="9", hc=None):
+        cartella = casa / f"giro{len(list(casa.glob('giro*')))}"
+        cartella.mkdir()
+        env, _log, uscita = lotto4(cartella, dict(studio, ls=ls))
+        env["VOLTA_SONDA_LOCALE"] = json.dumps({"claude": "/q/claude", "sessioni": [sessione("aaaa1111-q")]})
+        env["VOLTA_ATTESA_LETTURA"] = tetto
+        if hc:
+            env["VOLTA_HC"] = hc
+        uscita.write_text(json.dumps(prima), encoding="utf-8")
+        r = subprocess.run([sys.executable, str(sonda), "volta", "--scrivi", str(uscita)], capture_output=True, text=True, timeout=30, env=env)
+        if r.returncode != 0:
+            raise RuntimeError(f"volta_sonda.py esce {r.returncode}: {(r.stderr or r.stdout).strip()[-160:]}")
+        return json.loads(uscita.read_text(encoding="utf-8")), env
+
+    try:
+        # Herdr risponde: Studio si legge, le righe sono nuove
+        d, env = leggi({})
+        per = {x["id"]: x for x in d["sessioni"]}
+        if [m["host"] for m in d["macchine"]] != ["qui", "Studio"] or set(per) != {"aaaa1111", "bbbb2222"}:
+            return f"con Herdr che risponde: macchine {[m['host'] for m in d['macchine']]}, sessioni {sorted(per)}"
+        # Herdr non dice le macchine: restano quelle di prima, con le loro righe segnate vecchie
+        for cosa, ls in (("esce 1", {"rc": 1, "out": "core non raggiungibile"}), ("risponde altro", {"out": "non sono JSON"}),
+                         ("risponde un elenco che non è un elenco", {"out": json.dumps({"machines": "nessuna"})}),
+                         ("non fa in tempo", {"dorme": 8})):
+            d, _ = leggi(ls, "6" if "dorme" in ls else "9")
+            studio_ = next((m for m in d["macchine"] if m["host"] == "Studio"), None)
+            if not studio_ or "Herdr" not in str(studio_.get("irraggiungibile")):
+                return f"hc machine ls {cosa}: la macchina di prima sparisce o non dice perché ({d['macchine']})"
+            per = {x["id"]: x for x in d["sessioni"]}
+            if set(per) != {"aaaa1111", "bbbb1111"} or not per["bbbb1111"].get("vecchia") or per["aaaa1111"].get("vecchia"):
+                return f"hc machine ls {cosa}: sessioni {sorted(per)}, attese quella di qui e la vecchia di Studio"
+            if d.get("letto") == "prima":
+                return f"hc machine ls {cosa}: il documento non è stato riscritto"
+        # un elenco vuoto vero: la macchina è stata tolta da Herdr
+        d, _ = leggi({"out": json.dumps({"machines": []})})
+        if [m["host"] for m in d["macchine"]] != ["qui"] or [x["id"] for x in d["sessioni"]] != ["aaaa1111"]:
+            return f"una macchina tolta da Herdr resta nell'elenco: {d['macchine']}"
+        # senza hc non c'è Herdr: nessuna macchina oltre a questa, e nessun errore
+        d, _ = leggi({}, hc=str(casa / "non-esiste" / "hc"))
+        if [m["host"] for m in d["macchine"]] != ["qui"]:
+            return f"senza hc l'elenco tiene altre macchine: {d['macchine']}"
+        # la nascita su un'altra macchina dice che è Herdr a non rispondere
+        cartella = casa / "nascita"
+        cartella.mkdir()
+        env, _log, _ = lotto4(cartella, dict(studio, ls={"rc": 1, "out": "core non raggiungibile"}))
+        r = subprocess.run([sys.executable, str(sonda), "nasci", "Studio", "--", "ciao"], capture_output=True, text=True, timeout=30, env=env)
+        try:
+            errore = json.loads(r.stdout.strip().splitlines()[-1]).get("errore", "")
+        except (ValueError, IndexError):
+            errore = ""
+        if "Herdr" not in errore or "non è fra le macchine" in errore:
+            return f"nasci con Herdr che non risponde: {(r.stdout + r.stderr).strip()[-160:]}"
+    except RuntimeError as e:
+        return str(e)
+    return None
+
+
+def hz71(repo: Path, casa: Path) -> str | None:
+    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    m = importlib_spec("volta_sonda_hz71", sonda)
+    for testo, atteso in (('[{"a": 1}]', [{"a": 1}]), ('Warning: [beta] nuova versione\n[{"a": 1}]\n', [{"a": 1}]), ("[]", []),
+                          ('avviso\n[{"a": 1}]\ncoda [x]', [{"a": 1}]), ("niente [qui]", None), ("", None), ("[1, 2]\n", None)):
+        if m.elenco(testo) != atteso:
+            return f"elenco({testo!r}) dà {m.elenco(testo)!r}, atteso {atteso!r}"
+    for nome in ("SONDA", "NASCI"):
+        if "#ELENCO#" in getattr(m, nome) or "def elenco(testo):" not in getattr(m, nome):
+            return f"{nome} non porta dentro elenco()"
+        try:
+            compile(getattr(m, nome), nome, "exec")
+        except SyntaxError as e:
+            return f"{nome} non è Python valido: {e}"
+    if os.name == "nt":
+        return None  # il claude finto è uno script con shebang
+    # startedAt di adesso: la sonda lascia fuori le sessioni chiuse nate da più di tre giorni
+    sessione = lambda sid, **k: dict({"id": sid[:8], "sessionId": sid, "kind": "background", "state": "done", "cwd": "/p", "startedAt": time.time() * 1000}, **k)  # noqa: E731
+    prima = {"letto": "prima", "macchine": [{"macchina": "Questa", "host": "qui", "questa": True}],
+             "sessioni": [{"host": "qui", "id": "vvvv0000", "sessionId": "vvvv0000-q"}]}
+    sporca = "Warning: [beta] nuova versione\n" + json.dumps([sessione("dddd1111-n")])
+    conf = {"macchine": [{"name": "Nuda", "target": "nuda", "state": "connected"}, {"name": "Guasta", "target": "guasta", "state": "connected"}],
+            "exec": {"Nuda": {"claude": {"out": sporca}},
+                     "Guasta": {"python3": {"out": json.dumps({"errore": "claude agents: boom"})}}}}
+
+    def leggi(modo):
+        cartella = casa / f"giro{len(list(casa.glob('giro*')))}"
+        cartella.mkdir()
+        env, _log, uscita = lotto4(cartella, conf)
+        uscita.write_text(json.dumps(dict(prima, macchine=prima["macchine"] + [{"host": "Guasta"}],
+                                         sessioni=prima["sessioni"] + [{"host": "Guasta", "id": "gggg0000", "sessionId": "gggg0000-g"}])), encoding="utf-8")
+        env.update(HZ_AGENTI=modo, HZ_SESSIONI=json.dumps([sessione("aaaa1111-q")]))
+        r = subprocess.run([sys.executable, str(sonda), "volta", "--scrivi", str(uscita)], capture_output=True, text=True, timeout=40, env=env)
+        if r.returncode != 0:
+            raise RuntimeError(f"volta_sonda.py esce {r.returncode} ({modo}): {(r.stderr or r.stdout).strip()[-160:]}")
+        d = json.loads(uscita.read_text(encoding="utf-8"))
+        return {x["host"]: x for x in d["macchine"]}, {x["id"]: x for x in d["sessioni"]}
+
+    try:
+        # un avviso prima del JSON: le sessioni ci sono, qui e sulla macchina senza Python
+        macchine, per = leggi("avviso")
+        if "irraggiungibile" in macchine.get("qui", {}) or "aaaa1111" not in per or per["aaaa1111"].get("vecchia"):
+            return f"un avviso prima del JSON di claude agents: qui {macchine.get('qui')}, sessioni {sorted(per)}"
+        if "irraggiungibile" in macchine.get("Nuda", {"irraggiungibile": 1}) or "dddd1111" not in per:
+            return f"un avviso prima del JSON sulla macchina senza Python: {macchine.get('Nuda')}, sessioni {sorted(per)}"
+        # la sonda di un'altra macchina dice errore: irraggiungibile col motivo, e le righe di prima
+        if macchine.get("Guasta", {}).get("irraggiungibile") != "claude agents: boom" or not per.get("gggg0000", {}).get("vecchia"):
+            return f"una sonda che risponde errore: {macchine.get('Guasta')}, sessioni {sorted(per)}"
+        # claude agents esce male o non dà un elenco: la macchina è irraggiungibile, non vuota
+        for modo, parola in (("rotto", "boom"), ("sporco", "senza elenco")):
+            macchine, per = leggi(modo)
+            motivo = str(macchine.get("qui", {}).get("irraggiungibile"))
+            if parola not in motivo:
+                return f"claude agents {modo}: questa macchina non è irraggiungibile col motivo ({macchine.get('qui')})"
+            if not per.get("vvvv0000", {}).get("vecchia"):
+                return f"claude agents {modo}: le righe dell'ultima lettura spariscono ({sorted(per)})"
+        # la nascita: il sessionId intero anche con l'avviso, e anche se la sessione arriva in elenco dopo
+        for modo in ("avviso", "tardi"):
+            cartella = casa / f"nasce-{modo}"
+            cartella.mkdir()
+            env, _log, _ = lotto4(cartella, {"macchine": []})
+            env.update(HZ_AGENTI=modo, HZ_SESSIONI=json.dumps([sessione("abcd1234-intero", id="abcd1234")]), HZ_CONTA=str(cartella / "conta"))
+            r = subprocess.run([sys.executable, str(sonda), "nasci", "qui", "--progetto", "due-mondi", "--", "ciao"],
+                               capture_output=True, text=True, timeout=60, env=env)
+            try:
+                d = json.loads(r.stdout.strip().splitlines()[-1])
+            except (ValueError, IndexError):
+                return f"nasci ({modo}): uscita senza esito: {(r.stdout + r.stderr).strip()[-160:]}"
+            if d.get("sessionId") != "abcd1234-intero":
+                return f"nasci ({modo}) non legge il sessionId intero: {d}"
+            scheda = cartella / "conf/cache/scheda/abcd1234-intero.json"
+            if not scheda.exists() or json.loads(scheda.read_text(encoding="utf-8")).get("progetto") != "due-mondi":
+                return f"nasci ({modo}) non scrive il progetto della sessione nata"
+    except RuntimeError as e:
+        return str(e)
+    return None
+
+
+def hz72(repo: Path, casa: Path) -> str | None:
+    if os.name == "nt":
+        return None  # il claude finto è uno script con shebang
+    sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+    env, _log, _ = lotto4(casa, {"macchine": []})
+    sid = "aaaa1111-trascritta"
+    env.update(HZ_SESSIONI=json.dumps([{"id": "aaaa1111", "sessionId": sid, "kind": "background", "state": "idle", "cwd": "/p"}]))
+    progetto = casa / "conf/projects/-p"
+    progetto.mkdir(parents=True)
+    parla = lambda testo: json.dumps({"type": "assistant", "timestamp": "2026-11-11T10:00:00Z", "message": {"content": [{"type": "text", "text": testo}]}})  # noqa: E731
+    righe = ['{"type": "prima riga, che la sonda salta"}', parla("prima"), "5", '"una stringa"', "[1, 2]", "null",
+             json.dumps({"type": "assistant", "message": "un messaggio che non è un oggetto"}),
+             json.dumps({"type": "assistant", "message": {"content": "testo nudo"}}), parla("ultime parole")]
+    (progetto / f"{sid}.jsonl").write_text("\n".join(righe) + "\n", encoding="utf-8")
+    r = subprocess.run([sys.executable, str(sonda), "volta"], capture_output=True, text=True, timeout=40, env=env)
+    try:
+        d = json.loads(r.stdout)
+    except ValueError:
+        return f"volta_sonda.py volta: uscita senza elenco: {(r.stdout + r.stderr).strip()[-160:]}"
+    qui = next((m for m in d["macchine"] if m["host"] == "qui"), {})
+    if "irraggiungibile" in qui:
+        return f"una riga della trascrizione che non è un oggetto ferma la sonda: {qui['irraggiungibile'][-120:]}"
+    riga = next((x for x in d["sessioni"] if x["sessionId"] == sid), None)
+    if not riga or riga.get("risposta") != "ultime parole" or riga.get("ultimo") != "2026-11-11T10:00:00Z":
+        return f"le ultime parole dopo le righe storte non si leggono: {riga}"
+    return None
+
+
+PROVA_ESITO = r"""
+import { esito, prepara, cambiaSessione, azioneSessione, nuova } from "./dati.mjs";
+import { avvisi } from "./herdr.mjs";
+const s = { id: "ffff1111", sessionId: "ffff1111-aaaa", host: "qui", macchina: "Questa" };
+const caso = process.env.HZ_CASO;
+let d = null;
+if (caso === "puro") d = JSON.parse(process.env.HZ_RISPOSTE).map((r) => esito(r));
+else if (caso === "prepara") d = await prepara(s);
+else if (caso === "cambia") d = await cambiaSessione(s, "nome", "Nome mio");
+else if (caso === "azione") d = await azioneSessione(s, "stop");
+else if (caso === "nasce") d = await nuova("ciao Volta");
+console.log(JSON.stringify({ d: d ?? null, avvisi }));
+"""
+
+
+def hz73(repo: Path, casa: Path) -> str | None:
+    node = shutil.which("node")
+    if not node:
+        return None
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    dati = (mod / "dati.js").read_text(encoding="utf-8")
+    volta = (mod / "volta.js").read_text(encoding="utf-8")
+    vecchia = '.split("\\n").pop() || "{}"'
+    if vecchia in dati:
+        return "dati.js legge ancora un esito senza guardare il codice d'uscita"
+    if 'portata = esito(await exec(this.py, [this.sposta, "porta-volta", s.host, s.sessionId], { timeout: 60000 }));' not in volta:
+        return "volta.js (porta-volta) non legge l'esito con esito()"
+    m = casa / "mod"
+    m.mkdir()
+    mod_dati(repo, m, dati)
+    (m / "prova.mjs").write_text(PROVA_ESITO, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+    (app / "arturo.json").write_text(json.dumps({"arturo": ["python9", "/a/bin/arturo"], "radice": str(repo), "base": "/base"}), encoding="utf-8")
+
+    def gira(caso, **extra):
+        e = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_CASO": caso,
+             "HZ_SHARED": json.dumps({"arturo.volta.macchine": [], "arturo.dove": "qui"}), "HZ_HERDR": "{}", **extra}
+        for k in ("HZ_NASCE", "HZ_STATO", "HZ_PRONTA", "HZ_HC_ROTTO", "HZ_HC_READ", "HZ_HC_GET", "HZ_EXEC", "HZ_EXEC_CODICE", "HZ_EXEC_ERR", "HZ_RISPOSTE"):
+            if k not in extra:
+                e.pop(k, None)
+        r = subprocess.run([node, str(m / "prova.mjs")], capture_output=True, text=True, timeout=30, env=e)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[:200])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    caduto = "Traceback (most recent call last):\n  File \"x.py\", line 1\nValueError: nessun JSON nell'uscita\n"
+    tabella = [
+        ({"code": 0, "stdout": '{"ok": true}\n', "stderr": ""}, {"ok": True}),
+        ({"code": 0, "stdout": 'avviso della shell\n{"ok": true, "n": 2}\n', "stderr": ""}, {"ok": True, "n": 2}),
+        ({"code": 0, "stdout": '{"ok": true}\nuna riga dopo\n', "stderr": ""}, {"ok": True}),
+        ({"code": 1, "stdout": '{"errore": "non parte"}\n', "stderr": "rumore"}, {"errore": "non parte"}),
+        ({"code": 1, "stdout": '{"ok": true}\n', "stderr": "è caduto dopo"}, {"errore": "è caduto dopo"}),
+        ({"code": 0, "stdout": "", "stderr": ""}, {"errore": "nessuna risposta"}),
+        ({"code": 0, "stdout": "  \n", "stderr": "solo un avviso"}, {"errore": "solo un avviso"}),
+        ({"code": 3, "stdout": "", "stderr": ""}, {"errore": "uscita 3"}),
+        ({"code": 1, "stdout": "", "stderr": caduto}, {"errore": "ValueError: nessun JSON nell'uscita"}),
+        ({"code": 0, "stdout": "{rotta\n", "stderr": ""}, {"errore": "{rotta"}),
+        ({"code": 0, "stdout": "[1, 2]\n", "stderr": ""}, {"errore": "[1, 2]"}),
+        ({"code": 2, "stdout": "uso: volta_sonda.py azione\n", "stderr": ""}, {"errore": "uso: volta_sonda.py azione"}),
+        ({"code": 1, "stdout": "rumore\n", "stderr": "il motivo vero\n"}, {"errore": "il motivo vero"}),
+        ({"code": 1, "stdout": '{"ok": true}\n', "stderr": ""}, {"errore": "uscita 1"}),
+    ]
+    try:
+        avuti = gira("puro", HZ_RISPOSTE=json.dumps([r for r, _ in tabella]))["d"]
+        for (r, atteso), avuto in zip(tabella, avuti):
+            if avuto != atteso:
+                return f"esito({r}) dà {avuto}, atteso {atteso}"
+        lungo = gira("puro", HZ_RISPOSTE=json.dumps([{"code": 1, "stdout": "", "stderr": "x" * 900}]))["d"][0]
+        if len(lungo.get("errore", "")) > 200:
+            return "esito() porta sulla riga un errore di 900 caratteri"
+        # chi lo usa: uno script che esce male senza dire niente non passa per un sì
+        for caso, nome in (("prepara", "prepara"), ("cambia", "cambiaSessione"), ("azione", "azioneSessione")):
+            for extra, parola in (({"HZ_EXEC_CODICE": "1", "HZ_EXEC_ERR": "boom"}, "boom"), ({"HZ_EXEC_CODICE": "0"}, "nessuna risposta"),
+                                  ({"HZ_EXEC_CODICE": "1", "HZ_EXEC": '{"ok": true}'}, "uscita 1")):
+                d = gira(caso, **extra)["d"]
+                if not isinstance(d, dict) or parola not in str(d.get("errore")):
+                    return f"{nome} con lo script che risponde {extra}: {d}, atteso un errore con {parola!r}"
+            d = gira(caso, HZ_EXEC='{"ok": true}')["d"]
+            if d != {"ok": True}:
+                return f"{nome} con lo script che risponde ok: {d}"
+        v = gira("nasce", HZ_EXEC_CODICE="1", HZ_EXEC_ERR="boom")
+        if len(v["avvisi"]) != 1 or "boom" not in v["avvisi"][0].get("body", ""):
+            return f"una nascita che esce male senza JSON non dice il motivo: {v['avvisi']}"
+        v = gira("nasce", HZ_EXEC_CODICE="1", HZ_EXEC='{"id": "ffff1111", "sessionId": "ffff1111-aaaa", "attach": ["claude", "attach", "ffff1111"]}')
+        if v["d"] != {"errore": "uscita 1"} and "errore" not in (v["d"] or {}):
+            return f"una nascita uscita male passa per nata: {v['d']}"
+    except RuntimeError as e:
+        return f"dati.js non gira: {e}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -4749,6 +5193,49 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", "ATTESA_LETTURA = 45", "ATTESA_LETTURA = 55"),
+    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", "        return lancia(argv(t), timeout=t + margine)", "        return lancia(argv(t), timeout=90)"),
+    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    return int(entro - time.monotonic()) if entro is not None else", "    return 30 if entro is not None else"),
+    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'lambda t: hc() + ["exec", "--on", nome, "--timeout", str(t), py, "-c",', 'lambda t: hc() + ["exec", "--on", nome, py, "-c",'),
+    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", "% (max(2, t - 3), compressa)],", "% (40, compressa)],"),
+    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", "timeout=max(2, min(40, scade - time.time())))", "timeout=40)"),
+    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        raise RuntimeError("non ha risposto in %d s" % t) from None', "        raise"),
+    ("HZ69", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        guasto[0] = "claude agents non ha risposto in tempo"\n        return None', "        return []"),
+    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'voci = json.loads(out).get("machines", []) if rc == 0 else None', 'voci = json.loads(out).get("machines", []) if rc == 0 else []'),
+    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    except (ValueError, AttributeError):\n        voci = None\n    if not isinstance(voci, list):\n        return None", "    except (ValueError, AttributeError):\n        voci = []\n    if not isinstance(voci, list):\n        return None"),
+    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    if not isinstance(voci, list):\n        return None", "    if not isinstance(voci, list):\n        return []"),
+    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    except FileNotFoundError:\n        return []\n    except (OSError, subprocess.SubprocessError):\n        return None", "    except FileNotFoundError:\n        return []\n    except (OSError, subprocess.SubprocessError):\n        return []"),
+    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    except FileNotFoundError:\n        return []\n", "    except FileNotFoundError:\n        return None\n"),
+    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", "                 for m in (prima or []) if isinstance(m, dict)", "                 for m in [] if isinstance(m, dict)"),
+    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        if "irraggiungibile" in v:\n            return v\n        if not v["questa"]', '        if not v["questa"]'),
+    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        if note is None:\n            return {"errore": "Herdr non dice le macchine: riprova fra poco"}\n', "        note = note or []\n"),
+    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", '"~/.local/bin/hc" + (".exe" if os.name == "nt" else "")', '"~/.local/bin/hc"'),
+    ("HZ70", "shared/volta-celeste/mods/arturo/volta_sonda.py", '(precedente or {}).get("macchine"), entro), precedente)', "None, entro), precedente)"),
+    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    v = elenco(r.stdout)\n    if v is None:", "    try:\n        v = json.loads(r.stdout)\n    except ValueError:\n        v = None\n    if v is None:"),
+    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    print(json.dumps({"errore": guasto[0] or "claude agents non risponde"})); raise SystemExit', "    sessioni = []"),
+    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", '        guasto[0] = "claude agents: " + (righe[0][:140] if righe else "uscita %d" % r.returncode)\n        return None', "        return []"),
+    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    if v is None:\n        guasto[0] = "claude agents: risposta senza elenco"\n    return v', "    return v or []"),
+    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", "        i = testo.find(\"[\", i + 1)\n    return None\n'''", "        break\n    return None\n'''"),
+    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", "        if isinstance(v, list) and all(isinstance(x, dict) for x in v):\n            return v", "        if isinstance(v, list):\n            return v"),
+    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", "        for s in elenco(r.stdout) or []:", '        for s in json.loads(r.stdout or "[]"):'),
+    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", "for giro in range(3):", "for giro in range(1):"),
+    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    sessioni = elenco(out) if (out or "").strip() else []', '    sessioni = json.loads(out[out.find("["):])'),
+    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", '    if d.get("errore"):\n        raise RuntimeError(str(d["errore"])[:200])\n    return d', "    return d"),
+    ("HZ71", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'NASCI = NASCI.replace("#ELENCO#", ELENCO.strip())\n', ""),
+    ("HZ72", "shared/volta-celeste/mods/arturo/volta_sonda.py", "        if not isinstance(d, dict):  # una riga tagliata a metà può essere un numero o una stringa\n            continue\n", ""),
+    ("HZ72", "shared/volta-celeste/mods/arturo/volta_sonda.py", "        if not isinstance(m, dict):\n            continue\n", ""),
+    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", ' && (r?.code === 0 || d.errore)) return d;', ') return d;'),
+    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", '.filter((x) => x.startsWith("{"));\n  let d = null;', '.filter(Boolean);\n  let d = null;'),
+    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", '/^Traceback/.test(caduto[0] ?? "") ? caduto[caduto.length - 1] : prima(r?.stderr) || detto;', 'prima(r?.stderr) || detto;'),
+    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", 'prima(r?.stderr) || detto;', 'detto || prima(r?.stderr);'),
+    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", 'const detto = d ? "" : prima(r?.stdout);', 'const detto = prima(r?.stdout);'),
+    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", '(r?.code ? `uscita ${r.code}` : "nessuna risposta")).slice(0, 200) };', '(r?.code ? `uscita ${r.code}` : "nessuna risposta")) };'),
+    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", '(motivo || (r?.code ? `uscita ${r.code}` : "nessuna risposta"))', '(motivo || "nessuna risposta")'),
+    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", "{ timeout: riavvia ? 210000 : 150000 });\n    return esito(r);", '{ timeout: riavvia ? 210000 : 150000 });\n    return JSON.parse((r.stdout || "").trim() || "{}");'),
+    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", '...(valore ? ["--", valore] : [])], { timeout: 90000 });\n    return esito(r);', '...(valore ? ["--", valore] : [])], { timeout: 90000 });\n    return JSON.parse((r.stdout || "").trim() || "{}");'),
+    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", '{ timeout: verbo === "respawn" ? 210000 : 90000 });\n    return esito(r);', '{ timeout: verbo === "respawn" ? 210000 : 90000 });\n    return JSON.parse((r.stdout || "").trim() || "{}");'),
+    ("HZ73", "shared/volta-celeste/mods/arturo/dati.js", "      nata = esito(await exec(c.arturo[0], args, { timeout: 360000 }));", '      nata = JSON.parse(((await exec(c.arturo[0], args, { timeout: 360000 })).stdout || "").trim() || "{}");'),
+    ("HZ73", "shared/volta-celeste/mods/arturo/volta.js", 'portata = esito(await exec(this.py, [this.sposta, "porta-volta", s.host, s.sessionId], { timeout: 60000 }));', 'portata = JSON.parse((await exec(this.py, [this.sposta, "porta-volta", s.host, s.sessionId], { timeout: 60000 })).stdout || "{}");'),
     ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", "  return ora - n.da < NASCITA_MAX ? n.macchina : null;", "  return n.macchina;"),
     ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", "const NASCITA_MAX = 420000;", "const NASCITA_MAX = 360000;"),
     ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", '  if (!n || typeof n !== "object" || typeof n.macchina !== "string" || !Number.isFinite(n.da)) return null;',
@@ -4758,8 +5245,8 @@ VELENI = [
     ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", '    if (!copia) notify({ title: titolo, body: errore, level });\n', ""),
     ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", '    if (shared("arturo.nascita")?.da === da) setShared("arturo.nascita", null);\n', ""),
     ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", '  setShared("arturo.nascita", { macchina, da });', '  setShared("arturo.nascita", macchina);'),
-    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", 'return v.errore ? dico("La sessione è nata, ma non si apre", v.errore) : { ok: true, id: esito.id };',
-     'return v.errore ? { errore: v.errore } : { ok: true, id: esito.id };'),
+    ("HZ66", "shared/volta-celeste/mods/arturo/dati.js", 'return v.errore ? dico("La sessione è nata, ma non si apre", v.errore) : { ok: true, id: nata.id };',
+     'return v.errore ? { errore: v.errore } : { ok: true, id: nata.id };'),
     ("HZ66", "shared/volta-celeste/mods/arturo/comuni.js", "const nascita = inNascita();", 'const nascita = shared("arturo.nascita");'),
     ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", '  if (c === "volta-nuova") return { verbo: "volta-nuova", arg: null, lungo: true };\n', ""),
     ("HZ67", "shared/volta-celeste/mods/arturo/comandi.js", '  if (c.startsWith("volta-menu-")) return { verbo: "volta-menu", arg: dopo("volta-menu-"), lungo: false };\n', ""),
@@ -4984,8 +5471,8 @@ VELENI = [
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return nasciSu(soloQui ? "qui" : dove(), prompt, null);', 'return nasciSu(dove(), prompt, null);'),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return typeof d === "string" && altreMacchine().some((m) => m.host === d) ? d : "qui";', 'return typeof d === "string" && d ? d : "qui";'),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return nasciSu(dove(), prompt, nome);', 'return nasciSu("qui", prompt, nome);'),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'const v = await apriSessione({ id: esito.id, sessionId: esito.sessionId, nome, progetto, questa: macchina === "qui", host: macchina }, esito.attach, true);', "const v = {};"),
-    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'questa: macchina === "qui", host: macchina }, esito.attach, true);', 'questa: macchina === "qui", cartella: "/base", host: macchina }, esito.attach, true);'),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'const v = await apriSessione({ id: nata.id, sessionId: nata.sessionId, nome, progetto, questa: macchina === "qui", host: macchina }, nata.attach, true);', "const v = {};"),
+    ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'questa: macchina === "qui", host: macchina }, nata.attach, true);', 'questa: macchina === "qui", cartella: "/base", host: macchina }, nata.attach, true);'),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return s.status ?? statoAgganciata(schedaAgganciata(s));', 'return s.status ?? null;'),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'return s.status ?? statoAgganciata(schedaAgganciata(s));', 'return statoAgganciata(schedaAgganciata(s)) ?? s.status;'),
     ("HZ39", "shared/volta-celeste/mods/arturo/dati.js", 'if (v?.host === "qui") out[id] = v.stato;', 'out[id] = v.stato;'),
@@ -5009,7 +5496,7 @@ VELENI = [
     ("HZ34", "shared/volta-celeste/mods/arturo/volta.js", "esiste(c.volta)", "esiste(`${home()}/x/volta_sonda.py`)"),
     ("HZ44", "shared/volta-celeste/mods/arturo/volta_sonda.py", 'sessioni = agenti(["--all"])', "sessioni = agenti([])"),
     ("HZ44", "shared/volta-celeste/mods/arturo/volta_sonda.py", '            or (s.get("startedAt") or 0) >= soglia]', "            or True]"),
-    ("HZ44", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    sessioni = agenti([]) or []", "    sessioni = []"),
+    ("HZ44", "shared/volta-celeste/mods/arturo/volta_sonda.py", "    sessioni = agenti([])\n", "    sessioni = None\n"),
     ("HZ44", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c === "volta-altro") this.volta.altroId(arg, cx);', ""),
     ("HZ44", "shared/volta-celeste/mods/arturo/comandi.js", '  if (c.startsWith("volta-altro-")) return { verbo: "volta-altro", arg: dopo("volta-altro-"), lungo: false };\n', ""),
     ("HZ44", "shared/volta-celeste/mods/arturo/volta.js", "this.menu = s.sessionId;\n    this.scopri(s);\n    this.fare(s, a, cx);", "this.menu = s.sessionId;"),
@@ -5098,7 +5585,7 @@ VELENI = [
     ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', 'fork ? titoloFork(s).slice(0, 40) : "Nuova sessione",', '"Nuova sessione",'),
     ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', 'if (panes().filter((x) => x.tab === p.tab).length === 1) run("tab.close", { id: p.tab });', 'if (true) run("tab.close", { id: p.tab });'),
     ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '    else run("terminal.kill", { terminal: t.address });\n', '    else run("tab.close", { id: p.tab });\n'),
-    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '      return v.errore ? dico("La sessione è nata, ma non si apre", v.errore) : { ok: true, id: esito.id };\n', ''),
+    ('HZ54', 'shared/volta-celeste/mods/arturo/dati.js', '      return v.errore ? dico("La sessione è nata, ma non si apre", v.errore) : { ok: true, id: nata.id };\n', ''),
     ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '      .on_mouse_down("right", (_e, cx) => { if (apriMenuSessione(s)) cx.stop_propagation(); })\n', ''),
     ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '    if (SOLO_MENU.has(verbo)) return this.fare(s, a, cx);\n', ''),
     ('HZ54', 'shared/volta-celeste/mods/arturo/volta.js', '    if (a.verbo === "apri") return this.premi(s, cx);\n', ''),

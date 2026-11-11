@@ -44,8 +44,9 @@ distribuire (#5172, 10/11/2026).
 Una riga di "sessioni": { macchina, host, questa, sessionId, id, nome, progetto, titolo, stato, aspetta, tipo,
 attach, cartella, ultimo, risposta, azione, daPortare }. `host` è il nome della macchina in Herdr ("qui" per
 questa). Una macchina senza Claude Code resta fuori; una che non risponde tiene le righe dell'ultima
-lettura buona, segnate `vecchia`. Per le prove: VOLTA_HC (il comando hc), VOLTA_SONDA_LOCALE (un JSON
-al posto della sonda di questa macchina).
+lettura buona, segnate `vecchia`; così anche tutte le macchine di prima, se è Herdr a non rispondere.
+Una lettura dura al più ATTESA_LETTURA secondi, macchine lente comprese (VOLTA_ATTESA_LETTURA la cambia).
+Per le prove: VOLTA_HC (il comando hc), VOLTA_SONDA_LOCALE (un JSON al posto della sonda di questa macchina).
 """
 import base64
 import json
@@ -117,10 +118,34 @@ def terminale_di(pid):
         return None
 '''
 
+# L'elenco di `claude agents --json` dentro un'uscita: claude può scrivere un avviso prima del JSON, e
+# quella riga in più faceva sparire tutte le sessioni della macchina. Si legge dal primo "[" che apre
+# un elenco di oggetti; None se non c'è. Sta a parte perché entra nella SONDA e in NASCI, che girano
+# sulla macchina da leggere, e serve anche qui.
+ELENCO = r'''
+def elenco(testo):
+    import json
+    testo = testo or ""
+    i = testo.find("[")
+    while i >= 0:
+        try:
+            v = json.JSONDecoder().raw_decode(testo, i)[0]
+        except ValueError:
+            v = None
+        if isinstance(v, list) and all(isinstance(x, dict) for x in v):
+            return v
+        i = testo.find("[", i + 1)
+    return None
+'''
+exec(ELENCO)
+
 # Gira sulla macchina da leggere (anche con hc exec, passata in base64). Stampa un JSON:
-# {"claude": percorso o null, "sessioni": [...]} con progetto e ultime parole letti dai file di Claude.
+# {"claude": percorso o null, "sessioni": [...]} con progetto e ultime parole letti dai file di Claude,
+# oppure {"errore"} se claude agents non dà l'elenco: la macchina è irraggiungibile, non vuota.
+# Chi la lancia mette davanti T, i secondi che ha: claude agents non aspetta oltre.
 SONDA = r'''
 import glob, json, os, shutil, subprocess, time
+scade = time.time() + (T if "T" in globals() else 40)
 fine = ".exe" if os.name == "nt" else ""
 cl = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude" + fine)
 if not os.path.exists(cl):
@@ -131,17 +156,31 @@ radice = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
 # nate negli ultimi CHIUSE_GIORNI giorni; un Claude senza --all dà l'elenco di prima.
 CHIUSE_GIORNI = 3
 CHIUSE = ("done", "stopped", "failed", "crashed")
+#ELENCO#
+guasto = [""]
 def agenti(extra):
-    r = subprocess.run([cl, "agents", "--json"] + extra, capture_output=True, text=True, encoding="utf-8",
-                       errors="replace", stdin=subprocess.DEVNULL, timeout=40)
     try:
-        v = json.loads(r.stdout or "[]") if r.returncode == 0 else None
-    except ValueError:
-        v = None
-    return v if isinstance(v, list) else None
+        r = subprocess.run([cl, "agents", "--json"] + extra, capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", stdin=subprocess.DEVNULL, timeout=max(2, min(40, scade - time.time())))
+    except subprocess.TimeoutExpired:
+        guasto[0] = "claude agents non ha risposto in tempo"
+        return None
+    if r.returncode != 0:
+        righe = [x.strip() for x in ((r.stderr or "") + "\n" + (r.stdout or "")).splitlines() if x.strip()]
+        guasto[0] = "claude agents: " + (righe[0][:140] if righe else "uscita %d" % r.returncode)
+        return None
+    if not (r.stdout or "").strip():
+        return []
+    v = elenco(r.stdout)
+    if v is None:
+        guasto[0] = "claude agents: risposta senza elenco"
+    return v
 sessioni = agenti(["--all"])
 if sessioni is None:
-    sessioni = agenti([]) or []
+    sessioni = agenti([])
+if sessioni is None:
+    # un elenco che non si legge non è un elenco vuoto: chi chiama tiene le righe dell'ultima lettura
+    print(json.dumps({"errore": guasto[0] or "claude agents non risponde"})); raise SystemExit
 soglia = (time.time() - CHIUSE_GIORNI * 86400) * 1000
 sessioni = [s for s in sessioni if s.get("kind") != "background" or (s.get("state") or s.get("status")) not in CHIUSE
             or (s.get("startedAt") or 0) >= soglia]
@@ -190,8 +229,12 @@ for s in sessioni:
             d = json.loads(l)
         except ValueError:
             continue
+        if not isinstance(d, dict):  # una riga tagliata a metà può essere un numero o una stringa
+            continue
         ultimo = d.get("timestamp", ultimo)
         m = d.get("message") or {}
+        if not isinstance(m, dict):
+            continue
         if d.get("type") == "assistant":
             for b in m.get("content", []) or []:
                 if not isinstance(b, dict):
@@ -208,6 +251,7 @@ for s in sessioni:
 print(json.dumps({"claude": cl, "sessioni": sessioni}))
 '''
 SONDA = SONDA.replace("#TERMINALE#", TERMINALE.strip())
+SONDA = SONDA.replace("#ELENCO#", ELENCO.strip())
 
 # Gira sulla macchina dove nasce la sessione (anche con hc exec). L'argomento è un JSON in base64
 # ({"prompt", "progetto"}, e per Duplica e Fork anche "cartella", "riprendi", "nome"): passa intero anche
@@ -264,14 +308,20 @@ if not m:
     esci(errore="non parte in background: " + (righe[0][:160] if righe else "rc %d" % r.returncode))
 corto = m.group(1)
 sid = corto
-try:
-    r = subprocess.run([cl, "agents", "--json"], capture_output=True, text=True, encoding="utf-8",
-                       errors="replace", stdin=subprocess.DEVNULL, timeout=40)
-    for s in json.loads(r.stdout or "[]"):
-        if str(s.get("sessionId", "")).startswith(corto):
-            sid = s["sessionId"]
-except (OSError, ValueError, subprocess.SubprocessError):
-    pass
+#ELENCO#
+# il sessionId intero serve per scrivere il progetto: claude agents può non elencarla subito
+for giro in range(3):
+    try:
+        r = subprocess.run([cl, "agents", "--json"], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", stdin=subprocess.DEVNULL, timeout=15)
+        for s in elenco(r.stdout) or []:
+            if s.get("id") == corto or str(s.get("sessionId", "")).startswith(corto):
+                sid = str(s.get("sessionId") or corto)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    if sid != corto:
+        break
+    time.sleep(1)
 if a.get("progetto") and sid != corto:
     # il progetto per Volta (spazio giusto su ogni macchina), come l'eredità di porta-volta
     d = os.path.join(os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(casa, ".claude"), "cache", "scheda")
@@ -285,6 +335,7 @@ if a.get("progetto") and sid != corto:
         pass
 esci(id=corto, sessionId=sid, claude=cl, cartella=base)
 '''
+NASCI = NASCI.replace("#ELENCO#", ELENCO.strip())
 
 # Gira sulla macchina della sessione (anche con hc exec): scrive il nome o il progetto che la persona le
 # ha dato dalla finestra (#5292). L'argomento è un JSON in base64: {"cosa": "titolo" | "scheda",
@@ -405,6 +456,11 @@ ATTESA_NASCITA = 180
 # Un gesto su una sessione (azione). Riavvia passa prima dal servizio: dati.js (azioneSessione) aspetta
 # ATTESA_SERVIZIO più ATTESA_AZIONE più il margine, gli altri gesti ATTESA_AZIONE più il margine.
 ATTESA_AZIONE = 60
+# Una lettura dell'elenco (volta): un tetto solo per tutto, diviso fra Herdr e le macchine, che si leggono
+# insieme. Sta sotto i 60 s che volta.js (aggiorna) aspetta: prima ogni macchina aveva i suoi 90 s per
+# tentativo, e una sola macchina lenta lasciava l'elenco fermo all'ultima lettura (revisione dell'11/11/2026).
+ATTESA_LETTURA = 45
+MARGINE_LETTURA = 3  # per scrivere il documento dopo l'ultima macchina
 
 LAVORA = {"busy", "working", "running", "starting"}
 ASPETTA = {"waiting", "blocked"}
@@ -428,7 +484,19 @@ def hc():
     finto = os.environ.get("VOLTA_HC")
     if finto:
         return json.loads(finto) if finto.startswith("[") else [finto]
-    return [shutil.which("hc") or os.path.expanduser("~/.local/bin/hc")]
+    return [shutil.which("hc") or os.path.expanduser("~/.local/bin/hc" + (".exe" if os.name == "nt" else ""))]
+
+
+def attesa_lettura():
+    try:
+        return max(6, int(os.environ.get("VOLTA_ATTESA_LETTURA") or ATTESA_LETTURA))
+    except ValueError:
+        return ATTESA_LETTURA
+
+
+def resta(entro):
+    """I secondi interi che restano alla lettura; senza scadenza (una chiamata sola) il tetto intero."""
+    return int(entro - time.monotonic()) if entro is not None else attesa_lettura() - MARGINE_LETTURA
 
 
 def lancia(argv, timeout=60):
@@ -450,15 +518,25 @@ def nome_qui():
     return platform.node().split(".")[0] or "Questa macchina"
 
 
-def macchine():
-    """Le macchine di Herdr: [{nome, target, stato, perche}]. Senza hc o senza macchine: []."""
+def macchine(attesa=ATTESA_MACCHINE):
+    """Le macchine di Herdr: [{nome, target, stato, perche}]. Senza hc o senza macchine: [].
+    None se Herdr non risponde (hc esce male, non fa in tempo, risponde altro): non vuol dire che le
+    macchine non ci sono più, e chi chiama tiene quelle di prima."""
     try:
-        rc, out, _ = lancia(hc() + ["machine", "ls", "--json"], timeout=ATTESA_MACCHINE)
-        voci = json.loads(out).get("machines", []) if rc == 0 else []
-    except (OSError, ValueError, subprocess.SubprocessError, AttributeError):
+        rc, out, _ = lancia(hc() + ["machine", "ls", "--json"], timeout=attesa)
+    except FileNotFoundError:
         return []
+    except (OSError, subprocess.SubprocessError):
+        return None
+    try:
+        voci = json.loads(out).get("machines", []) if rc == 0 else None
+    except (ValueError, AttributeError):
+        voci = None
+    if not isinstance(voci, list):
+        return None
     return [{"nome": m.get("name") or m.get("host"), "target": m.get("target") or m.get("host"),
-             "stato": m.get("state"), "perche": m.get("why")} for m in voci if m.get("name") or m.get("host")]
+             "stato": m.get("state"), "perche": m.get("why")}
+            for m in voci if isinstance(m, dict) and (m.get("name") or m.get("host"))]
 
 
 def leggi_json(out):
@@ -470,44 +548,69 @@ def leggi_json(out):
     raise ValueError("nessun JSON nell'uscita")
 
 
-def sonda_locale():
+def entro_il_tetto(argv, entro, margine=0):
+    """lancia() con i secondi che restano alla lettura. Fuori tempo dice quanti erano, non il comando."""
+    t = resta(entro)
+    if t < 2:
+        raise RuntimeError("non ha risposto in tempo")
+    try:
+        return lancia(argv(t), timeout=t + margine)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("non ha risposto in %d s" % t) from None
+
+
+def risposta(d):
+    """La risposta della SONDA: {"errore"} vuol dire che la macchina c'è ma l'elenco non si legge."""
+    if not isinstance(d, dict):
+        raise RuntimeError("risposta che non è un elenco di sessioni")
+    if d.get("errore"):
+        raise RuntimeError(str(d["errore"])[:200])
+    return d
+
+
+def sonda_locale(entro=None):
     finto = os.environ.get("VOLTA_SONDA_LOCALE")
     if finto:
         return json.loads(finto)
-    rc, out, err = lancia([sys.executable, "-c", SONDA], timeout=90)
+    rc, out, err = entro_il_tetto(lambda t: [sys.executable, "-c", "T = %d\n" % max(2, t - 2) + SONDA], entro)
     if rc != 0:
         raise RuntimeError((err or out).strip()[-200:] or "rc %d" % rc)
-    return leggi_json(out)
+    return risposta(leggi_json(out))
 
 
-def sonda_remota(nome):
+def sonda_remota(nome, entro=None):
     """La sonda su un'altra macchina via herdr-core: prima python3, poi python (Windows, dove python3
-    può essere lo stub dello Store, che esce 9009)."""
+    può essere lo stub dello Store, che esce 9009). I due tentativi e l'elenco nudo dividono lo stesso
+    tetto (`entro`), che vale anche per hc exec e per claude agents dentro la sonda."""
     # compressa: con terminale_di la sonda in base64 supererebbe gli 8191 caratteri di una riga di cmd.exe
-    codice = "import base64,zlib;exec(zlib.decompress(base64.b64decode('%s')))" % base64.b64encode(zlib.compress(SONDA.encode(), 9)).decode()
+    compressa = base64.b64encode(zlib.compress(SONDA.encode(), 9)).decode()
     ultimo, senza = "nessun Python", 0
     for py in ("python3", "python"):
-        rc, out, err = lancia(hc() + ["exec", "--on", nome, py, "-c", codice], timeout=90)
+        rc, out, err = entro_il_tetto(lambda t: hc() + ["exec", "--on", nome, "--timeout", str(t), py, "-c",
+                                                        "T=%d;import base64,zlib;exec(zlib.decompress(base64.b64decode('%s')))" % (max(2, t - 3), compressa)],
+                                      entro, 1)
         if rc == 0:
             try:
-                return leggi_json(out)
+                return risposta(leggi_json(out))
             except ValueError:
                 ultimo = "risposta senza JSON"
                 continue
         if non_parte(out, err):
             senza += 1
             continue
-        ultimo = (err or out).strip().splitlines()[-1][:200] if (err or out).strip() else "rc %d" % rc
+        ultimo = errore_hc((err or out).strip().splitlines()[-1]) if (err or out).strip() else "rc %d" % rc
     if senza < 2:
         raise RuntimeError(ultimo)
     # senza Python: l'elenco nudo di claude agents, senza progetto né ultime parole
-    rc, out, err = lancia(hc() + ["exec", "--on", nome, "claude", "agents", "--json"], timeout=60)
+    rc, out, err = entro_il_tetto(lambda t: hc() + ["exec", "--on", nome, "--timeout", str(t), "claude", "agents", "--json"], entro, 1)
     if rc != 0 and non_parte(out, err):
         return {"claude": None, "sessioni": []}  # né Python né Claude: non è una macchina di Volta
     if rc != 0:
-        raise RuntimeError(((err or out).strip().splitlines() or ["rc %d" % rc])[-1][:200])
-    testo = (out or "").strip()
-    return {"claude": "claude", "sessioni": json.loads(testo[testo.find("["):] or "[]")}
+        raise RuntimeError(errore_hc(((err or out).strip().splitlines() or ["rc %d" % rc])[-1]))
+    sessioni = elenco(out) if (out or "").strip() else []  # noqa: F821 (elenco viene da ELENCO)
+    if sessioni is None:
+        raise RuntimeError("claude agents: risposta senza elenco")
+    return {"claude": "claude", "sessioni": sessioni}
 
 
 def errore_hc(riga):
@@ -540,20 +643,34 @@ def argv_attach(voce, corto):
     return [ssh_bin(), "-t", voce["target"], voce["claude"], "attach", corto]
 
 
-def raccogli(viste=None):
+def raccogli(viste=None, prima=None, entro=None):
     """Le voci per macchina, interrogate in parallelo: questa per prima, poi quelle di Herdr.
     `viste`: gli host in cui Volta ha già visto Claude (dal documento di prima). Una macchina che non
-    risponde e dove Claude non si è mai visto resta fuori: può essere un server senza Claude."""
+    risponde e dove Claude non si è mai visto resta fuori: può essere un server senza Claude.
+    `prima`: le macchine del documento di prima. Se Herdr non dice le macchine restano quelle,
+    irraggiungibili, con le righe dell'ultima lettura: prima sparivano tutte, sessioni comprese.
+    `entro`: la scadenza della lettura (time.monotonic), la stessa per Herdr e per ogni macchina."""
+    if entro is None:
+        entro = time.monotonic() + attesa_lettura() - MARGINE_LETTURA
     qui = {"macchina": nome_qui(), "host": "qui", "questa": True, "target": None}
-    altre = [{"macchina": m["nome"], "host": m["nome"], "questa": False, "target": m["target"],
-              "stato_hc": m["stato"], "perche": m["perche"]} for m in macchine()]
+    note = macchine(max(2, min(ATTESA_MACCHINE, resta(entro) // 3)))
+    if note is None:
+        altre = [{"macchina": m.get("macchina") or m["host"], "host": m["host"], "questa": False, "target": None,
+                  "irraggiungibile": "Herdr non dice le macchine: sono quelle dell'ultima lettura"}
+                 for m in (prima or []) if isinstance(m, dict) and isinstance(m.get("host"), str)
+                 and m["host"] != "qui" and not m.get("questa")]
+    else:
+        altre = [{"macchina": m["nome"], "host": m["nome"], "questa": False, "target": m["target"],
+                  "stato_hc": m["stato"], "perche": m["perche"]} for m in note]
 
     def una(v):
+        if "irraggiungibile" in v:
+            return v
         if not v["questa"] and v.get("stato_hc") not in (None, "connected"):
             v["irraggiungibile"] = (v.get("perche") or "Herdr non la raggiunge")[:200]
             return v
         try:
-            d = sonda_locale() if v["questa"] else sonda_remota(v["host"])
+            d = sonda_locale(entro) if v["questa"] else sonda_remota(v["host"], entro)
         except Exception as e:  # spenta, in stop, rete giù: lo si dice e si va avanti
             v["irraggiungibile"] = str(e)[:200]
             return v
@@ -719,7 +836,10 @@ def nasci(nome, prompt="", progetto=None, cartella=None, riprendi=None, titolo=N
         voce = {"questa": True, "target": None}
         tentativi = [[sys.executable, "-c", NASCI, arg]]
     else:
-        m = next((x for x in macchine() if x["nome"] == nome), None)
+        note = macchine()
+        if note is None:
+            return {"errore": "Herdr non dice le macchine: riprova fra poco"}
+        m = next((x for x in note if x["nome"] == nome), None)
         if m is None:
             return {"errore": "%s non è fra le macchine di Herdr" % nome}
         if m["stato"] not in (None, "connected"):
@@ -1056,7 +1176,10 @@ def main(argv):
                 precedente = json.load(fh)
         except (OSError, ValueError):
             pass
-    dati = documento(raccogli(gia_viste(precedente)), precedente)
+    if not isinstance(precedente, dict):
+        precedente = None
+    entro = time.monotonic() + attesa_lettura() - MARGINE_LETTURA
+    dati = documento(raccogli(gia_viste(precedente), (precedente or {}).get("macchine"), entro), precedente)
     if percorso:
         scrivi_atomico(percorso, dati)
         giu = [m["macchina"] for m in dati["macchine"] if "irraggiungibile" in m]
