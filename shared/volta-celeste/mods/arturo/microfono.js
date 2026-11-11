@@ -18,6 +18,8 @@ export const TENUTA = 60000;
 // con ssh una sessione di un'altra macchina, altrimenti null. `target` è il nome che ssh usa già per
 // l'aggancio (argv_attach di volta_sonda.py: ssh, -t, target, claude, attach, id). La sessione si
 // riconosce dall'etichetta della scheda, poi dall'argv: una scheda rilanciata ha l'argv della shell.
+// Una macchina Windows non ha il ricevitore (niente microfono virtuale, e la sua shell ssh è PowerShell):
+// si riconosce dal percorso di claude nell'argv, e il ponte non parte invece di dare un errore a ogni giro.
 export function bersaglio(terminale, sessioni) {
   if (!terminale || typeof terminale.address !== "string" || terminale.address.includes("/")) return null;
   const argv = Array.isArray(terminale.argv) ? terminale.argv : [];
@@ -28,6 +30,7 @@ export function bersaglio(terminale, sessioni) {
   if (!s) return null;
   const a = s.attach;
   if (a.length !== 6 || !/(^|[\\/])ssh(\.exe)?$/.test(String(a[0])) || a[1] !== "-t" || a[4] !== "attach") return null;
+  if (/\.exe$/i.test(String(a[3])) || /^[a-z]:[\\/]/i.test(String(a[3]))) return null;
   const target = String(a[2] ?? "");
   if (!target || target.startsWith("-")) return null;
   return { target, macchina: s.macchina ?? target };

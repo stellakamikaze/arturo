@@ -148,7 +148,7 @@ exec(ELENCO)
 # oppure {"errore"} se claude agents non dà l'elenco: la macchina è irraggiungibile, non vuota.
 # Chi la lancia mette davanti T, i secondi che ha: claude agents non aspetta oltre.
 SONDA = r'''
-import glob, json, os, re, shutil, subprocess, time
+import glob, json, os, re, shutil, subprocess, sys, time
 scade =time.time() + (T if "T" in globals() else 40)
 fine = ".exe" if os.name == "nt" else ""
 cl = shutil.which("claude") or os.path.expanduser("~/.local/bin/claude" + fine)
@@ -330,6 +330,15 @@ try:
             os.remove(f)
 except OSError:
     pass
+# Un ricevitore del microfono morto male (kill -9, riavvio) lascia microfono.json e l'ingresso sul
+# virtuale: ripara lo rimette. Gira solo se il file c'è, e un ponte vivo non lo tocca.
+vc = os.environ.get("VOLTA_CACHE") or os.path.join(casa, ".cache", "volta")
+mic = os.path.join(os.environ.get("HERDR_APP_HOME") or os.path.join(casa, ".config", "herdr-app"), "mods", "arturo", "volta_microfono.py")
+if os.path.exists(os.path.join(vc, "microfono.json")) and os.path.exists(mic):
+    try:
+        subprocess.run([sys.executable, mic, "ripara"], capture_output=True, stdin=subprocess.DEVNULL, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        pass
 # solo ASCII: la console di Windows stampa in cp1252 e una freccia nel testo rompeva la riga
 print(json.dumps({"claude": cl, "sessioni": sessioni}))
 '''

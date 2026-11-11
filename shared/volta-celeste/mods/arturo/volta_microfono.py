@@ -24,9 +24,14 @@ Regole:
   - `ricevi` non tocca niente se BlackHole manca o se un altro ponte è vivo; salva l'UID dell'ingresso
     di prima e lo rimette quando il flusso finisce, anche su SIGTERM e SIGHUP;
   - l'ingresso di prima torna solo se l'ingresso attuale è ancora BlackHole: una scelta fatta a mano
-    nel frattempo non si tocca;
+    nel frattempo non si tocca; se quello di prima è sparito (cuffie staccate) torna il primo ingresso
+    vero, e BlackHole non si salva mai come "prima";
+  - il pid salvato vale solo se la sua riga di comando è ancora questo script: un pid tornato libero e
+    preso da un altro programma non passa per un ponte vivo;
   - il ricevitore chiude da solo dopo SILENZIO secondi senza audio in arrivo: la rete è caduta;
-  - `ripara` copre il ricevitore ucciso senza poter ripulire (kill -9, riavvio).
+  - `ripara` copre il ricevitore ucciso senza poter ripulire (kill -9, riavvio): la lancia la sonda
+    delle sessioni (volta_sonda.py) a ogni lettura, finché trova microfono.json;
+  - `spegni` chiude tutto il gruppo del ponte, anche quando il ponte è morto e restano cattura e ssh.
 
 Sta nella cartella del mod, come volta_sonda.py: arriva su ogni macchina con l'aggiornamento del mod, e
 il ponte lo trova là allo stesso posto (~/.config/herdr-app/mods/arturo).
@@ -87,6 +92,25 @@ def vivo(pid) -> bool:
         return True
     except OSError:
         return False
+
+
+def nostro(pid, ruolo: str) -> bool:
+    """Il pid salvato è ancora questo script in quel ruolo (`ricevi`, `ponte`)? Un pid torna libero e lo
+    prende un altro programma: `vivo` da solo lo scambia per un ponte vivo, e l'ingresso resta quello
+    virtuale. Su Windows, o se ps non risponde, vale `vivo`."""
+    if not vivo(pid):
+        return False
+    if os.name == "nt":
+        return True
+    try:
+        r = subprocess.run(["ps", "-ww", "-o", "command=", "-p", str(pid)], capture_output=True, text=True,
+                           errors="replace", stdin=subprocess.DEVNULL, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return True
+    riga = (r.stdout or "").strip()
+    if r.returncode != 0 or not riga:
+        return False
+    return "volta_microfono" in riga and ruolo in riga.split()
 
 
 def finto(nome: str):
@@ -215,12 +239,20 @@ def file_remoto() -> Path:
     return cache() / "microfono.json"
 
 
+def vero(a, salvo=None) -> str | None:
+    """Un ingresso vero: quello salvato se c'è ancora, altrimenti il primo che non è il virtuale."""
+    veri = [x.get("uid") for x in a.ingressi() if x.get("uid") and VIRTUALE.lower() not in (x.get("nome") or "").lower()]
+    return salvo if salvo in veri else (veri[0] if veri else None)
+
+
 def rimetti(a, stato: dict) -> bool:
-    """L'ingresso di prima torna solo se l'attuale è ancora quello virtuale. True se l'ha cambiato."""
-    prima, messo = stato.get("prima"), stato.get("virtuale")
-    if prima and messo and prima != messo and a.predefinito() == messo:
-        return a.metti(prima)
-    return False
+    """L'ingresso di prima torna solo se l'attuale è ancora quello virtuale. True se l'ha cambiato.
+    Se quello di prima è sparito, o era lui stesso il virtuale, torna il primo ingresso vero."""
+    messo = stato.get("virtuale")
+    if not messo or a.predefinito() != messo:
+        return False
+    uid = vero(a, stato.get("prima"))
+    return bool(uid) and a.metti(uid)
 
 
 def cmd_ripara() -> int:
@@ -228,7 +260,7 @@ def cmd_ripara() -> int:
     if not stato:
         print(json.dumps({"esito": "niente da riparare"}))
         return 0
-    if vivo(stato.get("pid")):
+    if nostro(stato.get("pid"), "ricevi"):
         print(json.dumps({"esito": "ponte vivo"}))
         return 0
     a = audio()
@@ -253,6 +285,27 @@ def indice_uscita(ff: str, nome: str) -> int | None:
     return None
 
 
+def scrivi_entro(fd: int, dati: bytes, secondi: float) -> bool:
+    """Scrive tutto su `fd` (non bloccante) entro `secondi`, o torna False. Un ffmpeg fermo sull'uscita
+    non legge più: una scrittura senza tetto terrebbe il ricevitore appeso e l'ingresso sul virtuale."""
+    fine = time.time() + secondi
+    while dati:
+        resta = fine - time.time()
+        if resta <= 0:
+            return False
+        _, pronto, _ = select.select([], [fd], [], resta)
+        if not pronto:
+            return False
+        try:
+            scritti = os.write(fd, dati)
+        except BlockingIOError:
+            continue
+        except OSError:
+            return False
+        dati = dati[scritti:]
+    return True
+
+
 def cmd_ricevi() -> int:
     def esci(codice: int, **d) -> int:
         print(json.dumps(d, ensure_ascii=False), flush=True)
@@ -264,7 +317,7 @@ def cmd_ricevi() -> int:
     if not bh:
         return esci(3, esito="errore", motivo="manca BlackHole")
     stato = leggi(file_remoto())
-    if vivo(stato.get("pid")):
+    if nostro(stato.get("pid"), "ricevi"):
         return esci(4, esito="errore", motivo="microfono usato da un'altra macchina")
     if stato:  # un ponte morto male: prima torna il suo ingresso, poi si parte da capo
         rimetti(a, stato)
@@ -280,7 +333,9 @@ def cmd_ricevi() -> int:
         suona = [ff, "-loglevel", "error", "-fflags", "nobuffer", "-probesize", "32", "-analyzeduration", "0",
                  "-f", "s16le", "-ar", str(FREQUENZA), "-ac", "1", "-i", "-",
                  "-ac", "2", "-ar", "48000", "-f", "audiotoolbox", "-audio_device_index", str(indice), "-"]
-    prima = a.predefinito()
+    attuale = a.predefinito()
+    # il virtuale non è mai "prima": se è già l'ingresso (un ponte finito male), dopo torna un ingresso vero
+    prima = attuale if attuale != bh["uid"] else (vero(a) or "")
     stato = {"pid": os.getpid(), "prima": prima, "virtuale": bh["uid"], "da": time.time()}
     scrivi(file_remoto(), stato)
 
@@ -290,14 +345,15 @@ def cmd_ricevi() -> int:
         signal.signal(s, ferma)
     figlio = None
     try:
-        if prima != bh["uid"] and not a.metti(bh["uid"]):
+        if attuale != bh["uid"] and not a.metti(bh["uid"]):
             return esci(6, esito="errore", motivo="non riesco a cambiare l'ingresso audio")
         figlio = subprocess.Popen(suona, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         print(json.dumps({"esito": "attivo", "prima": prima}), flush=True)
         # Il flusso passa di qui e non va dritto a ffmpeg: la cattura manda audio di continuo, anche nel
         # silenzio, quindi SILENZIO secondi senza un byte vogliono dire rete caduta. sshd da solo se ne
         # accorgerebbe dopo ore, e intanto l'ingresso resterebbe quello virtuale.
-        entrata = sys.stdin.fileno()
+        entrata, uscita = sys.stdin.fileno(), figlio.stdin.fileno()
+        os.set_blocking(uscita, False)
         while figlio.poll() is None:
             pronto, _, _ = select.select([entrata], [], [], SILENZIO)
             if not pronto:
@@ -305,10 +361,7 @@ def cmd_ricevi() -> int:
             pezzo = os.read(entrata, 8192)
             if not pezzo:
                 break
-            try:
-                figlio.stdin.write(pezzo)
-                figlio.stdin.flush()
-            except (BrokenPipeError, OSError):
+            if not scrivi_entro(uscita, pezzo, SILENZIO):
                 break
         return 0
     finally:
@@ -336,9 +389,11 @@ REMOTO = ('for p in /opt/homebrew/bin/python3 /usr/local/bin/python3 /usr/bin/py
 def perche(testo: str) -> str:
     """L'errore di ffmpeg o di ssh in una frase per la barra."""
     t = testo.lower()
+    if "permission denied (publickey" in t or "host key verification failed" in t:
+        return "l'altra macchina non accetta la chiave ssh di questa"
     if "not authorized" in t or "permission" in t or "input/output error" in t or "failed to create av capture" in t:
         return "permesso microfono negato"
-    if "could not resolve" in t or "connection refused" in t or "timed out" in t or "permission denied (publickey" in t:
+    if "could not resolve" in t or "connection refused" in t or "timed out" in t:
         return "l'altra macchina non risponde"
     righe = [x.strip() for x in testo.splitlines() if x.strip()]
     return righe[-1][:160] if righe else "il ponte si è chiuso"
@@ -421,23 +476,42 @@ def stato_locale() -> dict:
     d = leggi(file_locale())
     if not d:
         return {"stato": "spento"}
-    if d.get("stato") in ("avvio", "attivo") and not vivo(d.get("pid")):
+    if d.get("stato") in ("avvio", "attivo") and not nostro(d.get("pid"), "ponte"):
         return {"stato": "errore", "target": d.get("target"), "motivo": "il ponte si è chiuso"}
     return {k: d.get(k) for k in ("stato", "target", "motivo") if d.get(k) is not None}
 
 
+def gruppo_vivo(pid: int) -> bool:
+    try:
+        os.killpg(pid, 0)
+        return True
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+
+
 def ferma_locale() -> None:
+    """Chiude il ponte e tutto il suo gruppo. Il ponte nasce capo di un gruppo suo (`accendi`,
+    start_new_session): se muore male (kill -9) cattura e ssh restano, il microfono resta aperto e
+    l'altra macchina resta sul virtuale. Il gruppo si tocca solo se il capo è ancora il ponte, o se
+    il capo non c'è più: finché il gruppo ha un processo quel numero non passa a nessun altro."""
     d = leggi(file_locale())
     pid = d.get("pid")
-    if d.get("stato") in ("avvio", "attivo") and vivo(pid):
-        try:
-            os.kill(pid, signal.SIGTERM)
-        except OSError:
-            pass
-        for _ in range(40):
-            if not vivo(pid):
-                break
-            time.sleep(0.1)
+    if d.get("stato") in ("avvio", "attivo") and isinstance(pid, int) and pid > 1 and os.name != "nt":
+        suo = nostro(pid, "ponte") or (not vivo(pid) and gruppo_vivo(pid))
+        if suo and pid != os.getpgrp():
+            for segnale, giri in ((signal.SIGTERM, 40), (signal.SIGKILL, 10)):
+                try:
+                    os.killpg(pid, segnale)
+                except OSError:
+                    break
+                for _ in range(giri):
+                    if not gruppo_vivo(pid):
+                        break
+                    time.sleep(0.1)
+                if not gruppo_vivo(pid):
+                    break
     file_locale().unlink(missing_ok=True)
 
 
@@ -453,7 +527,7 @@ def cmd_accendi(argv: list) -> int:
     file_rinnovo().write_text(str(time.time()), encoding="utf-8")
     d = leggi(file_locale())
     stesso = d.get("target") == target
-    if stesso and d.get("stato") in ("avvio", "attivo") and vivo(d.get("pid")):
+    if stesso and d.get("stato") in ("avvio", "attivo") and nostro(d.get("pid"), "ponte"):
         print(json.dumps(stato_locale(), ensure_ascii=False))
         return 0
     # dopo un errore sullo stesso target si riprova solo dopo mezzo minuto: niente raffica di ssh
@@ -480,7 +554,7 @@ def cmd_stato() -> int:
     a = audio()
     if a is not None:
         r = leggi(file_remoto())
-        d["remoto"] = {"virtuale": bool(virtuale(a)), "ingresso": a.predefinito(), "ponte": vivo(r.get("pid")),
+        d["remoto"] = {"virtuale": bool(virtuale(a)), "ingresso": a.predefinito(), "ponte": nostro(r.get("pid"), "ricevi"),
                        "prima": r.get("prima")}
     print(json.dumps(d, ensure_ascii=False))
     return 0

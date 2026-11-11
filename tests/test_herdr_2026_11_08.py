@@ -315,6 +315,16 @@ HZ77 una sessione già agganciata in un Terminale non si apre due volte (revisio
      pannelli, per argv e per etichetta, e non quelli chiusi, di un'altra macchina o di un'altra
      sessione; con una scheda nella finestra è vuoto; stacca(s) li chiude e la scheda nuova nasce dopo;
      il primo clic avvisa e si ferma, il secondo stacca e apre.
+HZ78 il microfono torna su un ingresso vero (revisione dell'11/11/2026, volta_microfono.py con l'audio
+     finto): se l'ingresso di prima è sparito torna il primo che non è il virtuale, a fine flusso e con
+     ripara; il virtuale non si salva mai come "prima"; un pid salvato che oggi è un altro programma, o
+     questo script in un altro ruolo, non passa per un ponte vivo; la sonda delle sessioni lancia ripara
+     quando trova microfono.json, e non tocca un ponte vivo.
+HZ79 il ponte non resta appeso: un'uscita audio che non legge più chiude il ricevitore entro il tetto e
+     l'ingresso torna; spegni chiude cattura e ssh anche quando il ponte è stato ucciso, e non tocca un
+     pid che oggi è di un altro programma.
+HZ80 l'errore di chiave ssh ha la sua frase, diversa dal permesso del microfono e dalla macchina che non
+     risponde; bersaglio salta una macchina Windows, riconosciuta dal percorso di claude nell'argv.
 """
 from __future__ import annotations
 
@@ -330,7 +340,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -4417,9 +4427,14 @@ def hz63(repo: Path, casa: Path) -> str | None:
     morto.wait()
     metti(BH)
     (cache).mkdir(parents=True, exist_ok=True)
-    (cache / "microfono.json").write_text(json.dumps({"pid": os.getpid(), "prima": MIC, "virtuale": BH}), encoding="utf-8")
-    if comando("ripara").get("esito") != "ponte vivo" or ingresso() != BH:
-        return "ripara tocca un ponte vivo"
+    acceso = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "volta_microfono.py", "ricevi"])
+    try:
+        (cache / "microfono.json").write_text(json.dumps({"pid": acceso.pid, "prima": MIC, "virtuale": BH}), encoding="utf-8")
+        if comando("ripara").get("esito") != "ponte vivo" or ingresso() != BH:
+            return "ripara tocca un ponte vivo"
+    finally:
+        acceso.kill()
+        acceso.wait()
     (cache / "microfono.json").write_text(json.dumps({"pid": morto.pid, "prima": MIC, "virtuale": BH}), encoding="utf-8")
     if comando("ripara").get("esito") != "riparato" or ingresso() != MIC or (cache / "microfono.json").exists():
         return f"ripara non rimette l'ingresso dopo un ponte morto: {ingresso()}"
@@ -5502,7 +5517,325 @@ def hz77(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77}
+class Mic7:
+    """L'ambiente dei casi del microfono del lotto 7: audio finto, cache, comandi di volta_microfono.py."""
+    MIC, BH, ALTRO = "mic-vero", "BlackHole2ch_UID", "cuffie"
+
+    def __init__(self, repo: Path, casa: Path):
+        self.script = repo / "shared/volta-celeste/mods/arturo/volta_microfono.py"
+        self.cache, self.audio = casa / "mic-cache", casa / "audio.json"
+        self.ingressi = [{"uid": self.MIC, "nome": "Microfono"}, {"uid": self.BH, "nome": "BlackHole 2ch"}, {"uid": self.ALTRO, "nome": "Cuffie"}]
+        self.beve = [sys.executable, "-c", "import sys\nwhile sys.stdin.buffer.read(4096): pass"]
+        self.base = {k: v for k, v in os.environ.items() if not k.startswith("VOLTA_")}
+        self.figli = []
+
+    def amb(self, **altro):
+        return {**self.base, "VOLTA_CACHE": str(self.cache), "VOLTA_MIC_AUDIO": str(self.audio), "VOLTA_MIC_SUONA": json.dumps(self.beve), **altro}
+
+    def senza(self, *uid):
+        return [x for x in self.ingressi if x["uid"] not in uid]
+
+    def suono(self, uid, lista=None):
+        self.audio.write_text(json.dumps({"predefinito": uid, "ingressi": self.ingressi if lista is None else lista}), encoding="utf-8")
+
+    def metti(self, uid, lista=None, stato=None):
+        """Audio da capo, cache vuota; con `stato` anche il microfono.json di un ponte di prima."""
+        shutil.rmtree(self.cache, ignore_errors=True)
+        self.suono(uid, lista)
+        if stato is not None:
+            self.cache.mkdir(parents=True, exist_ok=True)
+            (self.cache / "microfono.json").write_text(json.dumps(stato), encoding="utf-8")
+
+    def ingresso(self):
+        return json.loads(self.audio.read_text(encoding="utf-8"))["predefinito"]
+
+    def salvato(self):
+        f = self.cache / "microfono.json"
+        return json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+
+    def ricevi(self, entrata=subprocess.PIPE, **altro):
+        p = subprocess.Popen([sys.executable, str(self.script), "ricevi"], stdin=entrata, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, env=self.amb(**altro))
+        self.figli.append(p)
+        return p, json.loads(p.stdout.readline().decode("utf-8") or "{}")
+
+    def fine(self, p, attesa=10):
+        try:
+            return p.wait(timeout=attesa)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            return None
+
+    def comando(self, *argv, **altro):
+        r = subprocess.run([sys.executable, str(self.script), *argv], capture_output=True, text=True, encoding="utf-8",
+                           stdin=subprocess.DEVNULL, timeout=30, env=self.amb(**altro))
+        try:
+            return json.loads((r.stdout or "").strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            return {"rc": r.returncode, "uscita": (r.stdout + r.stderr)[:200]}
+
+    def processo(self, *coda):
+        """Un processo vivo che dorme: `coda` sono le parole in fondo alla sua riga di comando."""
+        p = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)", *coda])
+        self.figli.append(p)
+        return p
+
+    def aspetta(self, cosa, secondi=8):
+        fino = time.time() + secondi
+        while time.time() < fino:
+            if cosa():
+                return True
+            time.sleep(0.2)
+        return False
+
+    def chiudi(self):
+        for p in self.figli:
+            if p.poll() is None:
+                p.kill()
+            try:
+                p.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass
+
+
+def hz78(repo: Path, casa: Path) -> str | None:
+    if os.name == "nt":
+        return None  # il ponte del microfono c'è solo sul Mac
+    m = Mic7(repo, casa)
+    MIC, BH, ALTRO = m.MIC, m.BH, m.ALTRO
+    morto = subprocess.Popen([sys.executable, "-c", "pass"])
+    morto.wait()
+    try:
+        # l'ingresso di prima sparisce mentre il ponte è su (cuffie staccate): torna il primo ingresso vero
+        m.metti(ALTRO)
+        p, riga = m.ricevi()
+        if riga.get("esito") != "attivo" or m.ingresso() != BH:
+            return f"ricevi non parte: {riga}, ingresso {m.ingresso()}"
+        m.suono(BH, m.senza(ALTRO))
+        p.stdin.close()
+        if m.fine(p) != 0 or m.ingresso() != MIC:
+            return f"se l'ingresso di prima è sparito il microfono resta sul virtuale: ingresso {m.ingresso()} (atteso {MIC})"
+        # lo stesso con ripara, dopo un ponte morto male
+        m.metti(BH, m.senza(ALTRO), {"pid": morto.pid, "prima": ALTRO, "virtuale": BH})
+        r = m.comando("ripara")
+        if r.get("esito") != "riparato" or r.get("rimesso") is not True or m.ingresso() != MIC or m.salvato() is not None:
+            return f"ripara non ripiega su un ingresso vero quando quello di prima è sparito: {r}, ingresso {m.ingresso()}"
+        # l'ingresso di prima c'è ancora: torna lui, non il primo dell'elenco
+        m.metti(BH, None, {"pid": morto.pid, "prima": ALTRO, "virtuale": BH})
+        if m.comando("ripara").get("rimesso") is not True or m.ingresso() != ALTRO:
+            return f"ripara non rimette l'ingresso di prima quando c'è ancora: ingresso {m.ingresso()} (atteso {ALTRO})"
+        # il virtuale è già l'ingresso e non c'è stato: non si salva come "prima", e a fine flusso torna un ingresso vero
+        m.metti(BH)
+        p, riga = m.ricevi()
+        s = m.salvato() or {}
+        if riga.get("esito") != "attivo" or riga.get("prima") != MIC or s.get("prima") != MIC:
+            m.fine(p, 0)
+            return f"il virtuale si salva come ingresso di prima: riga {riga}, salvato {s.get('prima')!r} (atteso {MIC})"
+        p.stdin.close()
+        if m.fine(p) != 0 or m.ingresso() != MIC:
+            return f"partito dal virtuale, a fine flusso il microfono resta sul virtuale: {m.ingresso()}"
+        # lo stesso con un microfono.json rimasto che dice "prima = virtuale"
+        m.metti(BH, None, {"pid": morto.pid, "prima": BH, "virtuale": BH})
+        if m.comando("ripara").get("rimesso") is not True or m.ingresso() != MIC:
+            return f"ripara lascia il virtuale quando il file dice che era l'ingresso di prima: {m.ingresso()}"
+        # nessun ingresso vero: non cade e non tocca niente
+        m.metti(BH, m.senza(MIC, ALTRO))
+        p, riga = m.ricevi()
+        p.stdin.close()
+        if riga.get("esito") != "attivo" or m.fine(p) != 0 or m.ingresso() != BH or m.salvato() is not None:
+            return f"senza un ingresso vero ricevi non chiude pulito: {riga}, ingresso {m.ingresso()}"
+        # una scelta fatta a mano resta anche con ripara
+        m.metti(ALTRO, None, {"pid": morto.pid, "prima": MIC, "virtuale": BH})
+        if m.comando("ripara").get("rimesso") is not False or m.ingresso() != ALTRO:
+            return f"ripara cambia un ingresso scelto a mano: {m.ingresso()}"
+        # il pid salvato oggi è un altro programma: non è un ponte vivo
+        altro = m.processo()
+        m.metti(BH, None, {"pid": altro.pid, "prima": MIC, "virtuale": BH})
+        st = m.comando("stato")
+        if st.get("remoto", {}).get("ponte") is not False:
+            return f"stato dà per vivo un ponte il cui pid è di un altro programma: {st}"
+        r = m.comando("ripara")
+        if r.get("esito") != "riparato" or m.ingresso() != MIC:
+            return f"ripara scambia il pid di un altro programma per un ponte vivo: {r}, ingresso {m.ingresso()}"
+        m.metti(BH, None, {"pid": altro.pid, "prima": MIC, "virtuale": BH})
+        p, riga = m.ricevi()
+        p.stdin.close()
+        if riga.get("esito") != "attivo" or m.fine(p) != 0 or m.ingresso() != MIC:
+            return f"ricevi rifiuta il ponte per un pid che è di un altro programma: {riga}"
+        # questo script in un altro ruolo (il ponte locale) non è il ricevitore
+        ponte = m.processo("volta_microfono.py", "ponte", "amaltea")
+        m.metti(BH, None, {"pid": ponte.pid, "prima": MIC, "virtuale": BH})
+        if m.comando("ripara").get("esito") != "riparato":
+            return "ripara scambia il ponte locale per un ricevitore vivo"
+        # il ricevitore vero resta
+        vivo = m.processo("volta_microfono.py", "ricevi")
+        m.metti(BH, None, {"pid": vivo.pid, "prima": MIC, "virtuale": BH})
+        if m.comando("ripara").get("esito") != "ponte vivo" or m.ingresso() != BH or m.comando("stato").get("remoto", {}).get("ponte") is not True:
+            return "un ricevitore vivo non è più riconosciuto"
+        # la sonda delle sessioni lancia ripara quando trova microfono.json
+        sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
+        env, _cache = lotto5(casa)
+        (casa / "app/mods/arturo").mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(m.script, casa / "app/mods/arturo/volta_microfono.py")
+        env = {**env, "VOLTA_CACHE": str(m.cache), "VOLTA_MIC_AUDIO": str(m.audio)}
+        m.metti(BH, None, {"pid": morto.pid, "prima": MIC, "virtuale": BH})
+        leggi5(sonda, env, [])
+        if m.ingresso() != MIC or m.salvato() is not None:
+            return f"la sonda non ripara un ponte morto male: ingresso {m.ingresso()}, microfono.json {'resta' if m.salvato() else 'tolto'}"
+        m.metti(BH, None, {"pid": vivo.pid, "prima": MIC, "virtuale": BH})
+        leggi5(sonda, env, [])
+        if m.ingresso() != BH or m.salvato() is None:
+            return "la sonda tocca un ponte vivo"
+        # senza microfono.json la sonda non lancia niente: un ingresso sul virtuale scelto a mano resta
+        m.metti(BH)
+        leggi5(sonda, env, [])
+        if m.ingresso() != BH:
+            return "la sonda cambia l'ingresso anche senza microfono.json"
+    except RuntimeError as e:
+        return str(e)
+    finally:
+        m.chiudi()
+    return None
+
+
+def hz79(repo: Path, casa: Path) -> str | None:
+    if os.name == "nt":
+        return None  # il ponte del microfono c'è solo sul Mac
+    import signal  # noqa: PLC0415
+    m = Mic7(repo, casa)
+    MIC, BH = m.MIC, m.BH
+    zeri = [sys.executable, "-c", "import sys, time\nwhile True:\n    sys.stdout.buffer.write(bytes(3200)); sys.stdout.buffer.flush(); time.sleep(0.01)"]
+    finti = {"VOLTA_MIC_CATTURA": json.dumps(zeri), "VOLTA_MIC_SSH": json.dumps([sys.executable, str(m.script), "ricevi"])}
+
+    def vivi(pid):
+        try:
+            os.killpg(pid, 0)
+            return True
+        except OSError:
+            return False
+    try:
+        # l'uscita audio non legge più: la scrittura ha un tetto, il ricevitore chiude e l'ingresso torna
+        m.metti(MIC)
+        sorda = [sys.executable, "-c", "import time; time.sleep(120)"]
+        fonte = subprocess.Popen(zeri, stdout=subprocess.PIPE)
+        m.figli.append(fonte)
+        p, riga = m.ricevi(entrata=fonte.stdout, VOLTA_MIC_SUONA=json.dumps(sorda), VOLTA_MIC_SILENZIO="1")
+        fonte.stdout.close()
+        if riga.get("esito") != "attivo":
+            return f"ricevi non parte: {riga}"
+        if m.fine(p, 8) != 0 or m.ingresso() != MIC or m.salvato() is not None:
+            return f"con un'uscita audio che non legge il ricevitore resta appeso: ingresso {m.ingresso()}"
+        fonte.kill()
+        # il ponte ucciso (kill -9) lascia cattura e ssh: spegni chiude il gruppo e l'ingresso torna
+        m.metti(MIC)
+        m.comando("accendi", "amaltea", **finti)
+        if not m.aspetta(lambda: m.comando("stato", **finti).get("locale", {}).get("stato") == "attivo" and m.ingresso() == BH):
+            return f"il ponte locale non arriva ad attivo: {m.comando('stato', **finti)}"
+        pid = json.loads((m.cache / "microfono-locale.json").read_text(encoding="utf-8"))["pid"]
+        os.kill(pid, signal.SIGKILL)
+        if not m.aspetta(lambda: m.comando("stato", **finti).get("locale", {}).get("stato") == "errore", 5):
+            return f"un ponte ucciso non risulta chiuso: {m.comando('stato', **finti)}"
+        if not vivi(pid) or m.ingresso() != BH:
+            return "il caso non regge: ucciso il ponte, cattura e ssh dovevano restare"
+        if m.comando("spegni", **finti).get("stato") != "spento" or not m.aspetta(lambda: not vivi(pid) and m.ingresso() == MIC, 6):
+            return f"spegni lascia vivi cattura e ssh di un ponte ucciso: gruppo {'vivo' if vivi(pid) else 'chiuso'}, ingresso {m.ingresso()}"
+        # lo stesso quando chi riaccende è `accendi`: prima chiude il gruppo di prima
+        m.metti(MIC)
+        m.comando("accendi", "amaltea", **finti)
+        if not m.aspetta(lambda: m.comando("stato", **finti).get("locale", {}).get("stato") == "attivo"):
+            return "il secondo ponte non parte"
+        pid = json.loads((m.cache / "microfono-locale.json").read_text(encoding="utf-8"))["pid"]
+        os.kill(pid, signal.SIGKILL)
+        m.aspetta(lambda: m.comando("stato", **finti).get("locale", {}).get("stato") == "errore", 5)
+        m.comando("accendi", "amaltea", **finti)
+        if not m.aspetta(lambda: not vivi(pid), 6):
+            return "accendi apre un ponte nuovo senza chiudere cattura e ssh di quello ucciso"
+        if not m.aspetta(lambda: m.comando("stato", **finti).get("locale", {}).get("stato") == "attivo" and m.ingresso() == BH):
+            return f"dopo un ponte ucciso accendi non riparte: {m.comando('stato', **finti)}"
+        m.comando("spegni", **finti)
+        if not m.aspetta(lambda: m.ingresso() == MIC):
+            return "spegni non chiude il ponte ripartito"
+        # il pid salvato oggi è un altro programma, capo di un gruppo suo: spegni non lo tocca
+        altro = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(120)"], start_new_session=True)
+        m.figli.append(altro)
+        m.metti(MIC)
+        m.cache.mkdir(parents=True, exist_ok=True)
+        (m.cache / "microfono-locale.json").write_text(json.dumps({"pid": altro.pid, "target": "amaltea", "stato": "attivo"}), encoding="utf-8")
+        st = m.comando("stato", **finti).get("locale", {})
+        if st.get("stato") != "errore":
+            return f"stato dà per vivo un ponte il cui pid è di un altro programma: {st}"
+        m.comando("spegni", **finti)
+        time.sleep(0.5)
+        if altro.poll() is not None:
+            return "spegni chiude un programma che non è il ponte"
+        if (m.cache / "microfono-locale.json").exists():
+            return "spegni lascia il file di un ponte che non c'è più"
+    finally:
+        m.comando("spegni", **finti)
+        m.chiudi()
+    return None
+
+
+PROVA_BERSAGLIO = """
+import { bersaglio } from %s;
+const s = (id, attach) => ({ id, questa: false, macchina: "M", attach });
+const sessioni = [s("aaaa1111", ["ssh", "-t", "amaltea", "/Users/u/.local/bin/claude", "attach", "aaaa1111"]),
+  s("bbbb2222", ["ssh", "-t", "balthasar", "C:\\\\Users\\\\feder\\\\.local\\\\bin\\\\claude.EXE", "attach", "bbbb2222"]),
+  s("cccc3333", ["ssh", "-t", "balthasar", "claude.exe", "attach", "cccc3333"]),
+  s("dddd4444", ["ssh", "-t", "balthasar", "D:/strumenti/claude", "attach", "dddd4444"]),
+  s("eeee5555", ["C:\\\\Windows\\\\System32\\\\OpenSSH\\\\ssh.exe", "-t", "amaltea", "/Users/u/.local/bin/claude", "attach", "eeee5555"]),
+  s("ffff6666", ["ssh", "-t", "amaltea", "claude", "attach", "ffff6666"]),
+  s("gggg7777", ["ssh", "-t", "linux", "/home/c/exe/claude", "attach", "gggg7777"]),
+  s("hhhh8888", ["ssh", "-t", "balthasar", "claude.EXE", "attach", "hhhh8888"])];
+const b = (id) => bersaglio({ address: "t5", argv: ["x"], labels: { "arturo.sessione": id } }, sessioni)?.target ?? null;
+console.log(JSON.stringify({ mac: b("aaaa1111"), win: b("bbbb2222"), exe: b("cccc3333"), disco: b("dddd4444"), daWindows: b("eeee5555"), nudo: b("ffff6666"), linux: b("gggg7777"), maiuscolo: b("hhhh8888") }));
+"""
+
+PROVA_PERCHE = r"""
+import importlib.util, json, sys
+spec = importlib.util.spec_from_file_location("vm", sys.argv[1])
+vm = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(vm)
+print(json.dumps([vm.perche(x) for x in json.loads(sys.argv[2])]))
+"""
+
+
+def hz80(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    errori = ["ufficiofurore@amaltea: Permission denied (publickey,password,keyboard-interactive).",
+              "Host key verification failed.",
+              "[avfoundation @ 0x1] Failed to create AV capture input device: not authorized",
+              "ssh: connect to host amaltea port 22: Operation timed out",
+              "ssh: Could not resolve hostname amaltea: nodename nor servname provided",
+              "qualcosa\nultima riga", ""]
+    r = subprocess.run([sys.executable, "-c", PROVA_PERCHE, str(mod / "volta_microfono.py"), json.dumps(errori)],
+                       capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if r.returncode != 0:
+        return f"volta_microfono.py non si importa: {(r.stderr or r.stdout).strip()[-200:]}"
+    frasi = json.loads(r.stdout.strip().splitlines()[-1])
+    chiave = "l'altra macchina non accetta la chiave ssh di questa"
+    attese = [chiave, chiave, "permesso microfono negato", "l'altra macchina non risponde", "l'altra macchina non risponde",
+              "ultima riga", "il ponte si è chiuso"]
+    if frasi != attese:
+        diverso = next((e, a, f) for e, a, f in zip(errori, attese, frasi) if a != f)
+        return f"perche({diverso[0][:60]!r}): attesa {diverso[1]!r}, avuta {diverso[2]!r}"
+    node = shutil.which("node")
+    if not node:
+        return None
+    copia = casa / "microfono.mjs"
+    shutil.copyfile(mod / "microfono.js", copia)
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_BERSAGLIO % json.dumps(copia.as_uri())],
+                       capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if r.returncode != 0:
+        return f"microfono.js non gira: {(r.stderr or r.stdout).strip()[:200]}"
+    v = json.loads(r.stdout.strip().splitlines()[-1])
+    atteso = {"mac": "amaltea", "win": None, "exe": None, "disco": None, "daWindows": "amaltea", "nudo": "amaltea", "linux": "linux", "maiuscolo": None}
+    if v != atteso:
+        return f"bersaglio verso una macchina Windows: atteso {atteso}, avuto {v}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -5521,6 +5854,37 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    return salvo if salvo in veri else (veri[0] if veri else None)', '    return salvo'),
+    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    return salvo if salvo in veri else (veri[0] if veri else None)', '    return veri[0] if veri else None'),
+    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', 'if x.get("uid") and VIRTUALE.lower() not in (x.get("nome") or "").lower()]', 'if x.get("uid")]'),
+    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    if not messo or a.predefinito() != messo:\n        return False\n    uid = vero(', '    if not messo:\n        return False\n    uid = vero('),
+    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    prima = attuale if attuale != bh["uid"] else (vero(a) or "")', '    prima = attuale'),
+    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    return bool(uid) and a.metti(uid)', '    return bool(uid) and uid == stato.get("prima") and a.metti(uid)'),
+    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    return "volta_microfono" in riga and ruolo in riga.split()', '    return True'),
+    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    return "volta_microfono" in riga and ruolo in riga.split()', '    return "volta_microfono" in riga'),
+    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    return "volta_microfono" in riga and ruolo in riga.split()', '    return False'),
+    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    if nostro(stato.get("pid"), "ricevi"):\n        print(json.dumps({"esito": "ponte vivo"}))', '    if vivo(stato.get("pid")):\n        print(json.dumps({"esito": "ponte vivo"}))'),
+    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    if nostro(stato.get("pid"), "ricevi"):\n        return esci(4,', '    if vivo(stato.get("pid")):\n        return esci(4,'),
+    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '"ponte": nostro(r.get("pid"), "ricevi"),', '"ponte": vivo(r.get("pid")),'),
+    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        subprocess.run([sys.executable, mic, "ripara"], capture_output=True, stdin=subprocess.DEVNULL, timeout=10)', '        pass'),
+    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_sonda.py', 'if os.path.exists(os.path.join(vc, "microfono.json")) and os.path.exists(mic):', 'if os.path.exists(os.path.join(vc, "microfono-locale.json")) and os.path.exists(mic):'),
+    ('HZ78', 'shared/volta-celeste/mods/arturo/volta_sonda.py', '        subprocess.run([sys.executable, mic, "ripara"], capture_output=True, stdin=subprocess.DEVNULL, timeout=10)', '        subprocess.run([sys.executable, mic, "stato"], capture_output=True, stdin=subprocess.DEVNULL, timeout=10)'),
+    ('HZ79', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '            if not scrivi_entro(uscita, pezzo, SILENZIO):\n                break', '            os.set_blocking(uscita, True)\n            os.write(uscita, pezzo)'),
+    ('HZ79', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '        resta = fine - time.time()\n        if resta <= 0:\n            return False', '        resta = 3600'),
+    ('HZ79', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '        suo = nostro(pid, "ponte") or (not vivo(pid) and gruppo_vivo(pid))', '        suo = nostro(pid, "ponte")'),
+    ('HZ79', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '        suo = nostro(pid, "ponte") or (not vivo(pid) and gruppo_vivo(pid))', '        suo = True'),
+    ('HZ79', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '                    os.killpg(pid, segnale)', '                    os.kill(pid, segnale)'),
+    ('HZ79', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    if d.get("stato") in ("avvio", "attivo") and not nostro(d.get("pid"), "ponte"):', '    if d.get("stato") in ("avvio", "attivo") and not vivo(d.get("pid")):'),
+    ('HZ79', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '                if not gruppo_vivo(pid):\n                    break\n    file_locale().unlink(missing_ok=True)', '                if not gruppo_vivo(pid):\n                    break\n        return\n    file_locale().unlink(missing_ok=True)'),
+    ('HZ80', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    if "permission denied (publickey" in t or "host key verification failed" in t:\n        return "l\'altra macchina non accetta la chiave ssh di questa"\n', ''),
+    ('HZ80', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    if "permission denied (publickey" in t or "host key verification failed" in t:', '    if "host key verification failed" in t:'),
+    ('HZ80', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    if "permission denied (publickey" in t or "host key verification failed" in t:', '    if "permission denied (publickey" in t:'),
+    ('HZ80', 'shared/volta-celeste/mods/arturo/microfono.js', '  if (/\\.exe$/i.test(String(a[3])) || /^[a-z]:[\\\\/]/i.test(String(a[3]))) return null;\n', ''),
+    ('HZ80', 'shared/volta-celeste/mods/arturo/microfono.js', '/\\.exe$/i.test(String(a[3])) || ', ''),
+    ('HZ80', 'shared/volta-celeste/mods/arturo/microfono.js', ' || /^[a-z]:[\\\\/]/i.test(String(a[3]))', ''),
+    ('HZ80', 'shared/volta-celeste/mods/arturo/microfono.js', '/\\.exe$/i.test(String(a[3]))', '/\\.exe$/.test(String(a[3]))'),
+    ('HZ80', 'shared/volta-celeste/mods/arturo/microfono.js', '/^[a-z]:[\\\\/]/i.test(String(a[3]))', '/^[a-z]:\\\\/i.test(String(a[3]))'),
+    ('HZ80', 'shared/volta-celeste/mods/arturo/microfono.js', '/\\.exe$/i.test(String(a[3]))', '/exe/i.test(String(a[3]))'),
     ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '  if (!s?.id || schedeDi(s).length) return [];\n  return terminals().filter(', '  if (!s?.id) return [];\n  return terminals().filter('),
     ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', 'return terminals().filter((x) => !String(x.address).includes("/") && (x.state ?? "live") === "live" &&', 'return terminals().filter((x) => (x.state ?? "live") === "live" &&'),
     ('HZ77', 'shared/volta-celeste/mods/arturo/dati.js', '!String(x.address).includes("/") && (x.state ?? "live") === "live" &&', '!String(x.address).includes("/") &&'),
@@ -5649,12 +6013,12 @@ VELENI = [
     ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "  if (!a && (await tornataShell(g))) return;\n", "  if (await tornataShell(g ?? { terminal: a.address, id: \"ffff1111\" })) return;\n"),
     ("HZ65", "shared/volta-celeste/mods/arturo/dati.js", "    notify({ title: \"Ho riaperto la sessione\", body: \"Riprova fra qualche secondo.\", level: \"warning\" });\n", ""),
     ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "            figlio.kill()\n        rimetti(a, stato)\n", "            figlio.kill()\n"),
-    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if vivo(stato.get(\"pid\")):\n        return esci(4,", "    if False:\n        return esci(4,"),
+    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if nostro(stato.get(\"pid\"), \"ricevi\"):\n        return esci(4,", "    if False:\n        return esci(4,"),
     ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if not bh:\n        return esci(3, esito=\"errore\", motivo=\"manca BlackHole\")\n", "    bh = bh or a.ingressi()[0]\n"),
-    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if prima and messo and prima != messo and a.predefinito() == messo:", "    if prima and messo and prima != messo:"),
+    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if not messo or a.predefinito() != messo:\n        return False\n    uid = vero(", "    if not messo:\n        return False\n    uid = vero("),
     ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "            if not pronto:\n                break\n", "            if not pronto:\n                continue\n"),
     ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "                    if time.time() - file_rinnovo().stat().st_mtime > SCADENZA:", "                    if time.time() - file_rinnovo().stat().st_mtime > SCADENZA * 1000:"),
-    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if stesso and d.get(\"stato\") in (\"avvio\", \"attivo\") and vivo(d.get(\"pid\")):\n        print(json.dumps(stato_locale(), ensure_ascii=False))\n        return 0\n", ""),
+    ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "    if stesso and d.get(\"stato\") in (\"avvio\", \"attivo\") and nostro(d.get(\"pid\"), \"ponte\"):\n        print(json.dumps(stato_locale(), ensure_ascii=False))\n        return 0\n", ""),
     ("HZ63", "shared/volta-celeste/mods/arturo/volta_microfono.py", "                elif d.get(\"esito\") == \"errore\":\n                    fermo[\"motivo\"] = d.get(\"motivo\") or \"errore sull'altra macchina\"\n", ""),
     ("HZ63", "shared/volta-celeste/mods/arturo/microfono.js", " || a[4] !== \"attach\") return null;", ") return null;"),
     ("HZ63", "shared/volta-celeste/mods/arturo/microfono.js", "x.id === id && !x.questa && Array.isArray(x.attach)", "x.id === id && Array.isArray(x.attach)"),
@@ -6070,7 +6434,7 @@ def non_gira_qui(caso: str) -> str | None:
         return "su Windows la nascita va nel profilo di PowerShell, non nei file di zsh e bash"
     if caso == "HZ38" and not (shutil.which("pwsh") or shutil.which("powershell")):
         return "niente PowerShell qui: volta-claude.ps1 gira su Windows"
-    if caso == "HZ63" and os.name == "nt":
+    if caso in ("HZ63", "HZ78", "HZ79") and os.name == "nt":
         return "il ponte del microfono c'è solo sul Mac: su Windows mancano il microfono virtuale e i segnali"
     if caso in ("HZ13", "HZ16") and not mac:
         return "Arturo.app e i servizi di launchd ci sono solo sul Mac"
