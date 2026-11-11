@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PC01-PC22: col plugin un rilascio firmato si installa da solo alla chiusura della sessione (10/11/2026).
+"""PC01-PC23: col plugin un rilascio firmato si installa da solo alla chiusura della sessione (10/11/2026).
 
 Dal 6/11/2026 Arturo è un plugin di Claude Code, e da allora un rilascio nuovo arrivava solo con /aggiorna:
 hooks/session-end.sh lanciava ~/.claude/bin/aggiornamenti.py, che col plugin non c'è, e `applica` col plugin non
@@ -33,7 +33,9 @@ PC18 un fallimento della chiusura, poi un /aggiorna riuscito: l'avvio non dice "
 PC19 un catalogo che chiama 0.5.0 il tag plugin-v0.4.0 non installa niente: è una compromissione;
 PC20 settings.json come collegamento simbolico resta un collegamento, e il file vero riceve la regola nuova;
 PC21 un doppione nei permessi della persona non ferma l'unione: la regola di blocco nuova arriva;
-PC22 un lucchetto fresco lasciato da un processo che non c'è più non ferma la chiusura.
+PC22 un lucchetto fresco lasciato da un processo che non c'è più non ferma la chiusura;
+PC23 col plugin disattivato e la cartella della copia di prima sparita, la barra in basso dice "Arturo disattivato"
+     e come riattivarlo; senza quel file dice dove guardare; riattivato il plugin, il file sparisce.
 
 Rilasci, catalogo, chiavi e CLI finta sono quelli di test_fiducia_2026_11_05.py: niente rete, niente CLI vera.
 Sulla base 62786fd sono tutti rossi. --avvelena: ogni copia rotta fa rosso il caso suo.
@@ -51,7 +53,7 @@ import time
 from pathlib import Path
 
 CASI = ["PC01", "PC02", "PC03", "PC04", "PC05", "PC06", "PC07", "PC08", "PC09", "PC10", "PC11", "PC12", "PC13",
-        "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20", "PC21", "PC22"]
+        "PC14", "PC15", "PC16", "PC17", "PC18", "PC19", "PC20", "PC21", "PC22", "PC23"]
 DISCRIMINANTI = list(CASI)
 BASH = shutil.which("bash") or "bash"
 
@@ -487,7 +489,44 @@ def caso_pc22(repo, tmp, chiavi) -> list:
     return []
 
 
-GRUPPI = [(("PC01", "PC02"), caso_pc01_pc02), (("PC03",), caso_pc03), (("PC04",), caso_pc04), (("PC05",), caso_pc05),
+def _barra(repo: Path, s) -> str:
+    """Il comando statusLine che il pacchetto mette nei settings, lanciato come fa Claude Code. Legge ~/.claude:
+    la cartella arturo/ dell'Orsa si copia nella casa di prova (un collegamento su Windows non è garantito)."""
+    spec = importlib.util.spec_from_file_location("impacchetta_pc23", str(repo / "bin" / "impacchetta.py"))
+    imp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(imp)
+    comando = imp.impostazioni(leggi(repo / "settings.json"))["statusLine"]["command"]
+    shutil.rmtree(s.casa / ".claude", ignore_errors=True)
+    if (s.orsa / "arturo").is_dir():
+        shutil.copytree(s.orsa / "arturo", s.casa / ".claude" / "arturo")
+    p = fd.esegui([BASH, "-c", comando], input="{}", stdin=None, env=s.env)
+    return p.stdout + p.stderr
+
+
+def caso_pc23(repo, tmp, chiavi) -> list:
+    s = Scena(repo, tmp / "pc23", chiavi)
+    # Come PC17, e il puntatore della barra indica la cartella di prima, che non c'è più: col plugin spento
+    # nessun codice di Arturo può girare (prova con la CLI vera dell'11/11/2026, #5319).
+    sparita = s.base / "sparita"
+    (s.orsa / "plugins" / "installed_plugins.json").write_text(json.dumps({"plugins": {"arturo@arturo": [
+        {"scope": "user", "installPath": str(sparita), "version": "0.3.0", "gitCommitSha": "a" * 40}]}}),
+        encoding="utf-8")
+    (s.orsa / "arturo").mkdir(exist_ok=True)
+    (s.orsa / "arturo" / "radice").write_text(str(sparita), encoding="utf-8")
+    senza_file = _barra(repo, s)
+    s.agg("applica", FINTO_INSTALLA=json.dumps({"path": str(s.nuova), "version": "0.4.0", "sha": "d" * 40}))
+    spento = _barra(repo, s)
+    (s.orsa / "settings.json").write_text(json.dumps({"enabledPlugins": {"arturo@arturo": True}}), encoding="utf-8")
+    s.agg("controlla", "--subito")
+    resta = (s.orsa / "arturo" / "barra-ferma").exists()
+    if "Arturo disattivato" not in spento or "claude plugin enable arturo@arturo" not in spento or "0.4.0" not in spento \
+            or "claude plugin list" not in senza_file or resta:
+        return [f"PC23 barra col plugin spento: senza il file {senza_file[-120:]!r}, spento {spento[-200:]!r}, "
+                f"il file resta dopo la riattivazione {resta}"]
+    return []
+
+
+GRUPPI = [(("PC23",), caso_pc23), (("PC01", "PC02"), caso_pc01_pc02), (("PC03",), caso_pc03), (("PC04",), caso_pc04), (("PC05",), caso_pc05),
           (("PC06",), caso_pc06), (("PC07",), caso_pc07), (("PC08",), caso_pc08), (("PC09",), caso_pc09),
           (("PC10",), caso_pc10), (("PC11",), caso_pc11), (("PC12",), caso_pc12), (("PC13",), caso_pc13),
           (("PC14",), caso_pc14), (("PC15",), caso_pc15), (("PC16",), caso_pc16), (("PC17",), caso_pc17),
@@ -553,6 +592,9 @@ VELENI = [
      'nostro = senza_doppi(attuale) if togli_doppi else attuale'),
     ("PC22", AGG, 'if not _lucchetto_orfano(blocco) and time.time() - blocco.stat().st_mtime < 900:',
      'if time.time() - blocco.stat().st_mtime < 900:'),
+    ("PC23", AGG, '        _barra_ferma(orsa, stato["versione"])\n', ''),
+    ("PC23", AGG, '            _barra_ferma(orsa, togli=True)\n', ''),
+    ("PC23", "bin/impacchetta.py", '        linea["command"] = SENZA_CODICE + linea["command"]\n', ''),
 ]
 
 

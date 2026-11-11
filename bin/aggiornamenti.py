@@ -68,6 +68,7 @@ FIRME = "firme/rilasci.allowed_signers"
 # Il messaggio di una firma che manca o non torna, uguale ovunque compare (avvio, barra, /aggiorna).
 COMPROMISSIONE = "possibile compromissione: non aggiornare, segnala a chi mantiene Arturo"
 RIATTIVA = "claude plugin enable arturo@arturo"
+BARRA_FERMA = Path("arturo") / "barra-ferma"  # sotto la cartella della config: lo legge il comando statusLine
 # Solo questi errori dicono che la firma c'è stata verificata e non torna. Ogni altro errore (git prima
 # della 2.34 che non conosce gpg.format=ssh, OpenSSH prima della 8.2 senza `ssh-keygen -Y`, un timeout)
 # vuol dire che la verifica non è partita: niente si installa lo stesso, ma non è una compromissione
@@ -704,6 +705,23 @@ def _ripristina(orsa: Path, prima: dict) -> str:
     return "rimessa" if installato(orsa).get("gitCommitSha") == prima.get("gitCommitSha") else "scaricata"
 
 
+def _barra_ferma(orsa: Path, versione: str = "", togli: bool = False) -> None:
+    """Il testo che la barra in basso mostra quando il plugin è spento e la cartella della copia di prima non c'è
+    più: lì nessun codice di Arturo può girare, e il comando statusLine dei settings legge questo file (prova con
+    la CLI vera dell'11/11/2026, #5319). `togli` lo cancella quando la persona ha riattivato il plugin."""
+    f = orsa / BARRA_FERMA
+    try:
+        if togli:
+            if f.exists():
+                f.unlink()
+            return
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(f"\x1b[31m! Arturo disattivato: la copia {versione} non è verificata. Segnala a chi mantiene "
+                     f"Arturo. Dopo la sua risposta: {RIATTIVA}\x1b[0m\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
 def _indietro(orsa: Path, prima: dict, compromesso: bool, tag: str = "", motivo: str = "") -> str:
     """Dopo un controllo fallito su una copia già installata: rimette la voce di prima ("rimessa"). Se non torna e
     la copia non è verificata, disattiva il plugin ("disattivata"): una copia non verificata non deve partire
@@ -719,6 +737,7 @@ def _indietro(orsa: Path, prima: dict, compromesso: bool, tag: str = "", motivo:
              "controllato": time.time()}
     if esito == "disattivata":
         stato["disattivato"] = True
+        _barra_ferma(orsa, stato["versione"])
     try:
         scrivi(file_stato(radice()), stato)
     except OSError:
@@ -883,6 +902,7 @@ def controlla_plugin(r: Path, forza: bool = False) -> int:
         stato = {k: v for k, v in vecchio.items() if k != "controllato"}
         if stato.get("disattivato") and plugin_acceso(orsa):
             del stato["disattivato"]  # la persona l'ha riattivato: la barra non dice più "disattivato"
+            _barra_ferma(orsa, togli=True)
     elif nuova:
         stato = {"stato": "manuale" if manuali(r) else "pronto", "versione": nuova, "plugin": True}
     else:
