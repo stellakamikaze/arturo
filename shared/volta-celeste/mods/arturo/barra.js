@@ -11,7 +11,7 @@ import { apriSuggerimenti, esegui } from "./suggerimenti.js";
 import { apriRevisione } from "./revisione.js";
 import { revisione, settimanaDi } from "./settimana.js";
 import { Volta } from "./volta.js";
-import { rigaMod } from "./sessioni.js";
+import { rigaMod, tetti } from "./sessioni.js";
 import { instrada } from "./comandi.js";
 
 export class Marchio {
@@ -158,7 +158,9 @@ export class Barra {
     const t = theme();
     const lista = progetti(this.vista, this.extra());
     const attivo = slug(spaces().find((s) => s.active)?.name);
-    const corpo = v_flex().id("progetti-elenco").flex_1().min_h(0).overflow_y_scrollbar().pb(10);
+    // I progetti tengono almeno 200 px (tetti() di sessioni.js): l'elenco delle sessioni sopra si ferma prima.
+    const tt = tetti(shared("arturo.misura.barra")?.altezza, shared("arturo.misura.cima")?.altezza);
+    const corpo = v_flex().id("progetti-elenco").flex_1().min_h(tt.progettiMin).overflow_y_scrollbar().pb(10);
     let contenuto;
     if (this.vista === null && !this.errore) contenuto = div().px(18).py(6).text_size(13).text_color(t.muted).child("Leggo i tuoi progetti…");
     else if (!lista.length) contenuto = v_flex().px(14).gap(10)
@@ -177,8 +179,14 @@ export class Barra {
           : titolo.id(`sez-${j}`).child(sez.titolo))
         .children(piegata ? [] : sez.progetti.map((p) => this.riga(t, p, p.chiave === attivo)));
     }));
-    return v_flex().size_full().bg(t.chrome)
-      .child(v_flex().px(14).pt(6).pb(14).gap(8)
+    // overflow_hidden sulla radice: quello che non entra si taglia qui e la barra non chiede più altezza
+    // del suo posto nel layout (senza, il piede sotto perdeva 89 px dei suoi 190).
+    return v_flex().size_full().overflow_hidden().bg(t.chrome)
+      .child(v_flex().id("barra-cima").flex_none().px(14).pt(6).pb(14).gap(8)
+        .on_size_change((m) => {
+          const v = { altezza: Math.round(m.height) };
+          if (shared("arturo.misura.cima")?.altezza !== v.altezza) setShared("arturo.misura.cima", v);
+        })
         .child(pulsante("nuova", "square-pen", "Nuova richiesta", () => nuova(), lista.length > 0 || Boolean(this.errore)))
         .child(pulsante("apri", "folder", "Apri un progetto", () => apriFinestra()))
         .when(Boolean(nasceSu(t)), (el) => el.child(nasceSu(t))))

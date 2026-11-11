@@ -16,7 +16,7 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals } from "herdr";
-import { gruppi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto } from "./sessioni.js";
+import { gruppi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto, tetti, GESTI_MAX } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
 import { config, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti, esito, altrove, stacca } from "./dati.js";
 import { apriMenuSessione } from "./menusessione.js";
@@ -443,7 +443,8 @@ export class Volta {
     const az = s ? azioni(s) : [];
     if (!az.length) return null;
     const avviso = this.avvisi[s.sessionId];
-    return v_flex().id("volta-gesti").mx(8).mt(2).px(10).py(8).gap(6).rounded(8).border_1().border_color(t.border)
+    // Al più 160 px (GESTI_MAX): un'anteprima lunga scorre nel riquadro e non spinge via i progetti.
+    return v_flex().id("volta-gesti").max_h(GESTI_MAX).flex_none().overflow_y_scroll().mx(8).mt(2).px(10).py(8).gap(6).rounded(8).border_1().border_color(t.border)
       .child(h_flex().gap(6).items_start()
         .child(div().flex_1().min_w(0).truncate().text_size(12.5).font_semibold().text_color(t.foreground).child(titolo(s)))
         .child(div().id("volta-gesti-chiudi").px(6).rounded(6).cursor_pointer().text_size(12).text_color(t.dim)
@@ -553,13 +554,16 @@ export class Volta {
         .child(div().text_size(12.5).font_semibold().text_color(t.muted).child("Tutte le sessioni"))
         .when(tot > 0, (el) => el.child(div().text_size(12).text_color(t.dim).child(String(tot))))
         .child(svg(ICONA(chiusa ? "chevron-right" : "chevron-down")).size(12).text_color(t.dim)));
+    const tt = tetti(shared("arturo.misura.barra")?.altezza, (shared("arturo.misura.cima")?.altezza ?? NaN) + (this.menu ? GESTI_MAX : 0));
     let corpo;
     if (chiusa) corpo = null;
     else if (!this.dati) corpo = div().px(18).py(4).text_size(13).text_color(t.muted).child(this.errore ? "Non riesco a leggere le sessioni delle macchine." : "Leggo le sessioni delle macchine…");
     else if (!lista.length) corpo = div().px(18).py(4).text_size(13).text_color(t.muted).child("Nessuna sessione aperta.");
-    // Un elenco suo, alto al massimo 360 px: i progetti sotto restano a vista. overflow_y_scroll e non
-    // overflow_y_scrollbar, che avvolge l'elenco in un contenitore a cui max_h non arriva: lì non scorreva.
-    else corpo = v_flex().id("volta-elenco").max_h(360).min_h(0).flex_shrink(1).overflow_y_scroll().gap(10).children(lista.map((g) => this.gruppo(t, g, modo, cx)));
+    // Un elenco suo, col tetto di tetti() (sessioni.js): i progetti sotto restano a vista. Con "Altro"
+    // aperto il riquadro dei gesti sta sotto l'elenco: il suo tetto si toglie da quello dell'elenco.
+    // overflow_y_scroll e non overflow_y_scrollbar, che avvolge l'elenco in un contenitore a cui max_h
+    // non arriva: lì non scorreva.
+    else corpo = v_flex().id("volta-elenco").max_h(tt.elencoMax).min_h(0).flex_shrink(1).overflow_y_scroll().gap(10).children(lista.map((g) => this.gruppo(t, g, modo, cx)));
     const vecchio = this.dati && this.errore && this.dati.letto ? `Non riesco ad aggiornare: lettura delle ${String(this.dati.letto).slice(11, 16)}.` : null;
     const gesti = chiusa || !corpo ? null : this.pannello(t);
     return v_flex().id("volta").pb(12).mb(12).gap(4).border_b(1).border_color(t.border)

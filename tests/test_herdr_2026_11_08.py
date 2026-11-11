@@ -187,7 +187,7 @@ HZ49 una X in hover chiude per sempre una sessione ferma (11/11/2026): volta.js 
      se azioni() dà rm, visibile col puntatore sopra la riga (on_hover) o mentre chiede conferma, e il
      clic passa da fare(), che al primo clic chiede "Sì, elimina".
 HZ50 le note si trovano a vista (11/11/2026): il piede della barra ha la voce "Note", che apre l'elenco
-     e scrive accanto i tasti della nota nuova e dell'elenco; il layout arturo dà al piede 190 px, cinque voci.
+     e scrive accanto i tasti della nota nuova e dell'elenco; il layout arturo dà al piede 192 px, cinque voci.
 HZ51 Volta Celeste, l'ordine è l'ultima interazione (11/11/2026): dentro un gruppo la sessione toccata per
      ultima sta in cima, qualunque stato abbia (una ferma di un minuto fa sta sopra una che aspetta da
      ieri); viene per primo il gruppo con la più recente, per progetto e per macchina, e "Senza progetto"
@@ -325,6 +325,12 @@ HZ79 il ponte non resta appeso: un'uscita audio che non legge più chiude il ric
      pid che oggi è di un altro programma.
 HZ80 l'errore di chiave ssh ha la sua frase, diversa dal permesso del microfono e dalla macchina che non
      risponde; bersaglio salta una macchina Windows, riconosciuta dal percorso di claude nell'argv.
+HZ81 la colonna di sinistra tiene a vista progetti e piede (revisione dell'11/11/2026): tetti() di
+     sessioni.js (node) dà ai progetti almeno 200 px, all'elenco delle sessioni quello che resta fra 92 e
+     360 px, al riquadro dei gesti al più 160; barra.js e volta.js li usano, la radice della barra taglia
+     quello che non entra e misura la sua cima; nel layout il divisore sopra il piede non si trascina
+     (un trascinamento salvato in layouts/.state aveva portato il piede a 101 px) e il piede è alto 192 px:
+     la misura cambiata fa cadere quel trascinamento al primo caricamento.
 """
 from __future__ import annotations
 
@@ -340,7 +346,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -3035,7 +3041,7 @@ def hz47(repo: Path, casa: Path) -> str | None:
     for pezzo in ("x.sessionId === this.menu", "child(titolo(s))", "this.menu = null; cx.notify();", "child(avviso)"):
         if pezzo not in corpo:
             return f"volta.js: al pannello dei gesti manca {pezzo}"
-    elenco = vj.find('.id("volta-elenco").max_h(360).min_h(0).flex_shrink(1).overflow_y_scroll()')
+    elenco = vj.find('.id("volta-elenco").max_h(tt.elencoMax).min_h(0).flex_shrink(1).overflow_y_scroll()')
     fuori = vj.find("const gesti = chiusa || !corpo ? null : this.pannello(t);")
     dopo = vj.find(".when(Boolean(corpo), (el) => el.child(corpo))\n      .when(Boolean(gesti), (el) => el.child(gesti));")
     if min(elenco, fuori, dopo) < 0 or not elenco < fuori < dopo:
@@ -3104,8 +3110,8 @@ def hz50(repo: Path, casa: Path) -> str | None:
             for v in n:
                 cerca(v)
     cerca(lay)
-    if alti != [190]:
-        return f"layout arturo: il piede è alto {alti}, le cinque voci vogliono 190 px"
+    if alti != [192]:
+        return f"layout arturo: il piede è alto {alti}, le cinque voci vogliono 192 px"
     return None
 
 
@@ -3637,8 +3643,8 @@ def hz57(repo: Path, casa: Path) -> str | None:
     bj = (mod / "barra.js").read_text(encoding="utf-8")
     if '.when(Boolean(rigaMod(shared("arturo.mod"))), (el) =>' not in bj[bj.find("export class Piede {"):] or 'else if (c === "versione")' not in bj:
         return "barra.js: il piede non scrive la versione del mod, o manca il comando arturo.versione"
-    if '"id": "piede", "type": "block", "size": {"px": 190}' not in json.dumps(json.loads((vc / "layouts/arturo.json").read_text(encoding="utf-8"))):
-        return "il piede non è più alto 190 px: la versione sta sulla riga di Impostazioni proprio per non aggiungerne una"
+    if '"id": "piede", "type": "block", "size": {"px": 192}' not in json.dumps(json.loads((vc / "layouts/arturo.json").read_text(encoding="utf-8"))):
+        return "il piede non è più alto 192 px: la versione sta sulla riga di Impostazioni proprio per non aggiungerne una"
     sonda = (vc / "volta_mod.py").read_text(encoding="utf-8")
     for pezzo in ('if not isinstance(url, str) or not url:', 'motivo, rosso = controlla_mod(nuovo)', 'c.get("mod_modo") == "manuale"'):
         if pezzo not in sonda:
@@ -5835,7 +5841,58 @@ def hz80(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80}
+PROVA_TETTI = """
+import { tetti } from %s;
+const e = (b, c) => tetti(b, c).elencoMax;
+console.log(JSON.stringify({ largo: e(745, 132), stretto: e(500, 100), minimo: e(400, 100), massimo: e(2000, 100),
+  senza: e(undefined, undefined), senzaCima: e(745, NaN), gesti: e(654, 100 + 160), intero: tetti(654, 100) }));
+"""
+
+
+def hz81(repo: Path, casa: Path) -> str | None:
+    vc = repo / "shared/volta-celeste"
+    mod = vc / "mods/arturo"
+    node = shutil.which("node")
+    if node:
+        copia = casa / "sessioni81.mjs"
+        shutil.copyfile(mod / "sessioni.js", copia)
+        r = subprocess.run([node, "--input-type=module", "-e", PROVA_TETTI % json.dumps(copia.as_uri())], capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+        d = json.loads(r.stdout.strip().splitlines()[-1])
+        attesi = {"largo": 317, "stretto": 104, "minimo": 92, "massimo": 360, "senza": 360, "senzaCima": 360, "gesti": 98,
+                  "intero": {"progettiMin": 200, "elencoMax": 258, "gestiMax": 160}}
+        for k, v in attesi.items():
+            if d.get(k) != v:
+                return f"tetti() {k}: {d.get(k)}, atteso {v}"
+    bj = (mod / "barra.js").read_text(encoding="utf-8")
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    for testo, pezzo, guasto in (
+        (bj, 'return v_flex().size_full().overflow_hidden().bg(t.chrome)\n', "la radice della barra non taglia quello che non entra"),
+        (bj, 'const tt = tetti(shared("arturo.misura.barra")?.altezza, shared("arturo.misura.cima")?.altezza);', "barra.js non chiede i tetti con le due misure"),
+        (bj, '.id("progetti-elenco").flex_1().min_h(tt.progettiMin).overflow_y_scrollbar()', "i progetti non hanno un'altezza minima"),
+        (bj, '.child(v_flex().id("barra-cima").flex_none()', "la cima della barra non ha un id per misurarsi"),
+        (bj, 'if (shared("arturo.misura.cima")?.altezza !== v.altezza) setShared("arturo.misura.cima", v);', "la cima della barra non scrive la sua misura"),
+        (vj, 'const tt = tetti(shared("arturo.misura.barra")?.altezza, (shared("arturo.misura.cima")?.altezza ?? NaN) + (this.menu ? GESTI_MAX : 0));',
+         "volta.js non chiede i tetti, o non toglie il riquadro dei gesti aperto"),
+        (vj, '.id("volta-elenco").max_h(tt.elencoMax).min_h(0).flex_shrink(1).overflow_y_scroll()', "l'elenco delle sessioni non usa il tetto di tetti()"),
+        (vj, '.id("volta-gesti").max_h(GESTI_MAX).flex_none().overflow_y_scroll()', "il riquadro dei gesti non ha un tetto con lo scorrimento"),
+    ):
+        if testo.count(pezzo) != 1:
+            return guasto
+    lay = json.loads((vc / "layouts/arturo.json").read_text(encoding="utf-8"))
+    barra = next((n for n in lay.get("children", []) if n.get("id") == "sidebar"), None)
+    if not barra or barra.get("resizable") is not False:
+        return "layout arturo: il divisore sopra il piede si trascina ancora (sidebar senza resizable false)"
+    if lay.get("resizable") is False:
+        return "layout arturo: la colonna di sinistra non si allarga più (resizable false sulla radice)"
+    piede = next((n for n in barra.get("children", []) if n.get("id") == "piede"), {})
+    if (piede.get("size") or {}).get("px") != 192:
+        return f"layout arturo: il piede è alto {(piede.get('size') or {}).get('px')}, atteso 192 (una misura diversa da 190 fa cadere il trascinamento salvato)"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -5854,6 +5911,24 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ81', 'shared/volta-celeste/mods/arturo/sessioni.js', 'Math.max(ELENCO_MIN, resta)', 'resta'),
+    ('HZ81', 'shared/volta-celeste/mods/arturo/sessioni.js', 'ELENCO_MAX = 360', 'ELENCO_MAX = 720'),
+    ('HZ81', 'shared/volta-celeste/mods/arturo/sessioni.js', 'ELENCO_MIN = 92', 'ELENCO_MIN = 0'),
+    ('HZ81', 'shared/volta-celeste/mods/arturo/sessioni.js', 'PROGETTI_MIN = 200', 'PROGETTI_MIN = 0'),
+    ('HZ81', 'shared/volta-celeste/mods/arturo/sessioni.js', 'GESTI_MAX = 160', 'GESTI_MAX = 400'),
+    ('HZ81', 'shared/volta-celeste/mods/arturo/sessioni.js', 'TESTA_VOLTA = 96', 'TESTA_VOLTA = 0'),
+    ('HZ81', 'shared/volta-celeste/mods/arturo/sessioni.js', 'b - c - TESTA_VOLTA - PROGETTI_MIN', 'b - TESTA_VOLTA - PROGETTI_MIN'),
+    ('HZ81', 'shared/volta-celeste/mods/arturo/sessioni.js', 'b > 0 && c >= 0 ? ', 'true ? '),
+    ('HZ81', 'shared/volta-celeste/mods/arturo/sessioni.js', 'elencoMax: Math.round(', 'elencoMax: ELENCO_MAX || ('),
+    ('HZ81', 'shared/volta-celeste/mods/arturo/barra.js', '.size_full().overflow_hidden().bg(t.chrome)\n      .child(v_flex().id("barra-cima")', '.size_full().bg(t.chrome)\n      .child(v_flex().id("barra-cima")'),
+    ('HZ81', 'shared/volta-celeste/mods/arturo/barra.js', '.min_h(tt.progettiMin)', '.min_h(0)'),
+    ('HZ81', 'shared/volta-celeste/mods/arturo/barra.js', 'setShared("arturo.misura.cima", v);', ''),
+    ('HZ81', 'shared/volta-celeste/mods/arturo/barra.js', 'shared("arturo.misura.cima")?.altezza);', 'undefined);'),
+    ('HZ81', 'shared/volta-celeste/mods/arturo/volta.js', '.max_h(tt.elencoMax)', '.max_h(360)'),
+    ('HZ81', 'shared/volta-celeste/mods/arturo/volta.js', '.max_h(GESTI_MAX).flex_none().overflow_y_scroll()', ''),
+    ('HZ81', 'shared/volta-celeste/mods/arturo/volta.js', ' + (this.menu ? GESTI_MAX : 0)', ''),
+    ('HZ81', 'shared/volta-celeste/layouts/arturo.json', '      "resizable": false,\n      "background": "chrome",', '      "background": "chrome",'),
+    ('HZ81', 'shared/volta-celeste/layouts/arturo.json', '"px": 192', '"px": 190'),
     ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    return salvo if salvo in veri else (veri[0] if veri else None)', '    return salvo'),
     ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', '    return salvo if salvo in veri else (veri[0] if veri else None)', '    return veri[0] if veri else None'),
     ('HZ78', 'shared/volta-celeste/mods/arturo/volta_microfono.py', 'if x.get("uid") and VIRTUALE.lower() not in (x.get("nome") or "").lower()]', 'if x.get("uid")]'),
@@ -6267,7 +6342,7 @@ VELENI = [
     ("HZ49", "shared/volta-celeste/mods/arturo/volta.js", "const vediX = Boolean(rm) && (this.sopra === k || chiedoRm || facciorm);", "const vediX = Boolean(rm);"),
     ("HZ49", "shared/volta-celeste/mods/arturo/volta.js", ".on_click((_e, cx) => this.fare(s, rm, cx))", ""),
     ("HZ50", "shared/volta-celeste/mods/arturo/barra.js", '.child(voce("note", "pin", "Note", () => apriElenco())', '.child(voce("note", "pin", "Note", () => apriGuida())'),
-    ("HZ50", "shared/volta-celeste/layouts/arturo.json", '"px": 190', '"px": 156'),
+    ("HZ50", "shared/volta-celeste/layouts/arturo.json", '"px": 192', '"px": 156'),
     ("HZ51", "shared/volta-celeste/mods/arturo/sessioni.js", "].sort((a, b) => tempo(b) - tempo(a) || titolo(a)", "].sort((a, b) => tempo(a) - tempo(b) || titolo(a)"),
     ("HZ51", "shared/volta-celeste/mods/arturo/sessioni.js", "    out.sort((a, b) => recente(b) - recente(a) || a.titolo.localeCompare(b.titolo));\n", ""),
     ("HZ51", "shared/volta-celeste/mods/arturo/sessioni.js", ".filter((g) => g.sessioni.length)).sort((a, b) => recente(b) - recente(a));", ".filter((g) => g.sessioni.length));"),

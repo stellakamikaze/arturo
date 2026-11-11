@@ -10,6 +10,20 @@
 export const MODI = { macchina: "Per macchina", progetto: "Per progetto" };
 export const SENZA = "Senza progetto";
 
+// I tetti della colonna di sinistra, dalle misure in px logici della barra (shared arturo.misura.barra)
+// e della sua cima (i pulsanti sopra l'elenco, shared arturo.misura.cima). I progetti tengono almeno
+// 200 px; l'elenco delle sessioni prende quello che resta, tolti la cima e la testata di Volta (titolo e
+// interruttore, più il margine sotto l'elenco: 96 px misurati), fra 92 e 360 px, e oltre scorre; il riquadro dei gesti di "Altro" al più
+// 160 px. Senza misure (primo disegno) l'elenco tiene il tetto pieno. Prima l'elenco aveva 360 px fissi:
+// su una finestra alta 900 la barra chiedeva più del suo posto, i progetti sparivano e il piede usciva
+// dal fondo.
+export const PROGETTI_MIN = 200, ELENCO_MIN = 92, ELENCO_MAX = 360, GESTI_MAX = 160, TESTA_VOLTA = 96;
+export function tetti(altezzaBarra, altezzaCima) {
+  const b = Number(altezzaBarra), c = Number(altezzaCima);
+  const resta = b > 0 && c >= 0 ? b - c - TESTA_VOLTA - PROGETTI_MIN : ELENCO_MAX;
+  return { progettiMin: PROGETTI_MIN, elencoMax: Math.round(Math.min(ELENCO_MAX, Math.max(ELENCO_MIN, resta))), gestiMax: GESTI_MAX };
+}
+
 const tempo = (s) => Date.parse(s.ultimo || "") || 0;
 
 // Il nome di un progetto per le persone: "due-mondi" → "Due mondi", "uf" → "UF".

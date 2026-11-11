@@ -29,6 +29,7 @@
       },
       "min": 220,
       "max": 420,
+      "resizable": false,
       "background": "chrome",
       "children": [
         {
@@ -59,7 +60,7 @@
           "id": "piede",
           "type": "block",
           "size": {
-            "px": 190
+            "px": 192
           },
           "content": {
             "mod": "arturo",
