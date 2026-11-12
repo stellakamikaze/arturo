@@ -19,7 +19,7 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, writeTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals, spaces, window } from "herdr";
-import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, registroProva, daQuanto, ordineGiro, statoGiro, passoGiro, corrente, GIRO_MS, sessioneDi, sessioneDavanti, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, daIniziare, nomeProgetto, GESTI_MAX, visibili, sparite, passoCongedo, chiusa } from "./sessioni.js";
+import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, registroProva, daQuanto, ordineGiro, statoGiro, passoGiro, corrente, GIRO_MS, sessioneDi, sessioneDavanti, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, daIniziare, mosso, arrivoTrascino, nomeProgetto, GESTI_MAX, visibili, sparite, passoCongedo, chiusa } from "./sessioni.js";
 import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX, occupanti } from "./sessioni.js";
 import { ICONA, punto, colore, segno, motoDi, movimento } from "./comuni.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
@@ -113,6 +113,8 @@ export class Volta {
     this.sopra = null;     // la sessione sotto il puntatore: lì compare la X
     this.porto = {};       // sessionId -> true mentre il nome scritto dalla persona va in Claude Code
     this.inizio = {};      // sessionId -> true mentre la sessione spostata riparte da /inizio (#5465)
+    this.trascino = null;  // { s, da, mosso, sopra }: la sessione che la persona sta trascinando su un progetto
+    this.trascinata = 0;   // quando è finito l'ultimo trascinamento: il rilascio sulla riga non è un clic
     this.spostate = {};    // sessionId -> slug: spostate da questa finestra, che sola può riprenderle
     this.script = undefined;
     this.py = "python3";
@@ -796,10 +798,15 @@ export class Volta {
     // La sessione che hai davanti (corrente di sessioni.js): una barra accesa sul bordo sinistro e il fondo
     // della selezione. La barra sta sopra il padding, così il testo non si sposta.
     const acceso = this.acceso === k;
+    const trascinata = Boolean(this.trascino?.mosso) && this.trascino.s.sessionId === k;
     return v_flex().id(`vr-${s.host}-${s.id}`).relative().mx(8).px(10).py(7).gap(2).rounded(8).when(aperto, (el) => el.bg(t.hover))
       .when(acceso, (el) => el.bg(t.selected).child(div().id(`vacc-${s.host}-${s.id}`).absolute().left(2).top(7).bottom(7).w(3).rounded_full().bg(t.accent)))
       .when(Boolean(mr), (el) => el.opacity(mr.opacita))
       .when(Boolean(mr?.politica), (el) => el.transition("opacity", mr.politica))
+      .when(trascinata, (el) => el.opacity(0.5))
+      // La pressione può cominciare un trascinamento verso un altro progetto (vista per progetto): diventa
+      // tale solo dopo MOSSA_PX di movimento sull'elenco; altrimenti resta un clic.
+      .on_mouse_down("left", (e) => { if (modo === "progetto") this.trascino = { s, da: e.position, mosso: false, sopra: null }; })
       .on_hover((h, cx) => {
         if (h) this.sopra = k;
         else if (this.sopra === k) {
@@ -814,7 +821,10 @@ export class Volta {
       .child(h_flex().gap(6).items_start()
         .child(h_flex().id(`v-${s.host}-${s.id}`).flex_1().min_w(0).gap(11).items_start().cursor_pointer()
           // Un clic apre la sessione; il doppio clic sul titolo apre anche il dialogo del nome.
-          .on_click((e, cx) => (e?.click_count >= 2 ? this.chiedi(s, "nome") : this.premi(s, cx)))
+          .on_click((e, cx) => {
+            if (this.trascino?.mosso || Date.now() - this.trascinata < 500) return;  // un trascinamento non apre
+            return e?.click_count >= 2 ? this.chiedi(s, "nome") : this.premi(s, cx);
+          })
           .child(div().pt(6).child(vivo || sposto || apro || lavoro || this.veglio[s.sessionId] ? segno(colore(t, d.colore), motoDi(d.colore, !sposto && !apro && !lavoro && !this.veglio[s.sessionId] && fase(s) === "stasi")) : div().size(8).flex_none()))
           .child(v_flex().flex_1().min_w(0).gap(2)
             // Un titolo scritto (al più 60 caratteri) va a capo su due righe; gli altri si tagliano.
@@ -826,6 +836,18 @@ export class Volta {
           .child("Altro")))
         .when(Boolean(x), (el) => el.child(x)))
       .when(Boolean(avviso) && !aperto, (el) => el.child(div().id(`vw-${s.host}-${s.id}`).pl(19).whitespace_normal().text_size(12.5).text_color(t.foreground).child(avviso)));
+  }
+
+  // Fine di un trascinamento. Lasciata su un gruppo che la può ricevere (arrivoTrascino), la sessione
+  // cambia progetto come da Cambia progetto: scheda spostata, avviso e ripartenza da /inizio (#5465).
+  finisciTrascino(g, modo, cx) {
+    const tr = this.trascino;
+    this.trascino = null;
+    if (!tr) return;
+    if (tr.mosso) this.trascinata = Date.now();
+    const arrivo = g ? arrivoTrascino(tr, g, modo) : null;
+    if (arrivo) this.cambia(tr.s, "progetto", arrivo, cx);
+    cx.notify();
   }
 
   interruttore(t) {
@@ -849,13 +871,29 @@ export class Volta {
     // riga di "Adesso" che c'era sotto. Quello dello spazio aperto ha il fondo della selezione.
     const progetto = modo === "progetto" && Boolean(g.chiave);
     const attivo = progetto && aperto === slug(g.chiave);
-    return v_flex().gap(1)
+    // Il gruppo dove una sessione trascinata può finire, col puntatore sopra: bordo acceso e la frase.
+    const arrivo = this.trascino?.sopra === g.chiave ? arrivoTrascino(this.trascino, g, modo) : null;
+    return v_flex().id(`vg-${g.chiave || "senza"}`).gap(1).mx(arrivo ? 4 : 0).rounded(10)
+      .when(Boolean(arrivo), (el) => el.border_1().border_color(t.accent))
+      .on_hover((h, cx) => {
+        if (!this.trascino?.mosso) return;
+        if (h) this.trascino.sopra = g.chiave;
+        else if (this.trascino.sopra === g.chiave) this.trascino.sopra = null;
+        cx.notify();
+      })
+      .on_mouse_up("left", (_e, cx) => {
+        if (!this.trascino?.mosso) return;
+        this.finisciTrascino(g, modo, cx);
+        cx.stop_propagation();
+      })
       .child(h_flex().id(`vgh-${g.chiave || "senza"}`).mx(8).px(10).py(5).gap(6).items_center().rounded(8)
         .when(attivo, (el) => el.bg(t.selected))
         .when(progetto && !attivo, (el) => el.cursor_pointer().hover((st) => st.bg(t.hover)))
         .when(progetto, (el) => el.on_click(() => apriProgetto(g.chiave)))
         .child(div().id(`vgt-${g.chiave || "senza"}`).flex_1().truncate().font_family("Arturo Archivo").text_size(13.5).text_color(t.foreground).child(g.titolo))
         .when(g.sessioni.length > 0, (el) => el.child(div().id(`vgn-${g.chiave || "senza"}`).text_size(12).text_color(t.dim).child(String(g.sessioni.length)))))
+      .when(Boolean(arrivo), (el) => el.child(div().id(`vgl-${g.chiave || "senza"}`).px(18).pb(2).text_size(12).text_color(t.accent)
+        .child(`Lascia qui per spostarla in ${g.titolo}`)))
       .when(Boolean(g.nota), (el) => el.child(div().id(`vgo-${g.chiave || "senza"}`).px(18).pb(2).text_size(12).text_color(t.dim).child(g.nota)))
       .children(mostra.map((s) => this.riga(t, s, modo, cx)))
       .when(ferme.length > 0 && (vive.length > 0 || ferme.length > 2), (el) => el.child(h_flex().id(`vf-${g.chiave || "senza"}`).mx(8).px(10).py(5).gap(8).items_center().rounded(8).cursor_pointer()
@@ -892,7 +930,15 @@ export class Volta {
     else if (!lista.length) corpo = div().id("volta-vuoto").px(18).py(4).text_size(13).text_color(t.muted).whitespace_normal().child("Nessuna sessione aperta. Nuova richiesta ne apre una; un progetto si apre da Apri un progetto.");
     // overflow_y_scroll e non overflow_y_scrollbar, che avvolge l'elenco in un contenitore a cui l'altezza
     // non arriva: lì non scorreva.
-    else corpo = v_flex().id("volta-elenco").flex_1().min_h(0).overflow_y_scroll().pb(12).gap(12).children(lista.map((g) => this.gruppo(t, g, modo, cx, aperto)));
+    else corpo = v_flex().id("volta-elenco").flex_1().min_h(0).overflow_y_scroll().pb(12).gap(12)
+      // Il trascinamento vive sull'elenco: il movimento lo fa partire oltre MOSSA_PX; un rilascio fuori
+      // da un gruppo, o il puntatore che esce dall'elenco, lo chiude senza spostare niente.
+      .on_mouse_move((e, cx) => {
+        if (this.trascino && !this.trascino.mosso && mosso(this.trascino.da, e.position)) { this.trascino.mosso = true; cx.notify(); }
+      })
+      .on_mouse_up("left", (_e, cx) => { if (this.trascino) this.finisciTrascino(null, modo, cx); })
+      .on_hover((h, cx) => { if (!h && this.trascino) this.finisciTrascino(null, modo, cx); })
+      .children(lista.map((g) => this.gruppo(t, g, modo, cx, aperto)));
     const vecchio = this.dati && this.errore && this.dati.letto ? `Non riesco ad aggiornare: lettura delle ${String(this.dati.letto).slice(11, 16)}.` : null;
     const gesti = this.pannello(t);
     return v_flex().id("volta").flex_1().min_h(0).gap(6)
