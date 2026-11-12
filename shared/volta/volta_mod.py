@@ -10,6 +10,7 @@ il mod installato in ~/.config/herdr-app/mods/arturo (file VERSIONE).
   python3 volta_mod.py attiva URL [--ramo R]  scrive la sorgente in arturo.json e mette il controllo orario
   python3 volta_mod.py automatico | manuale   accende o spegne il controllo, la sorgente resta
   python3 volta_mod.py stato                l'ultimo esito, in JSON
+  python3 volta_mod.py immagini             copia le immagini dei progetti nella cartella dell'app
   python3 volta_mod.py --prova              esce 0: lo usa la copia vecchia prima di sostituirsi
 
 Perché sta fuori dalla cartella del mod (in ~/.config/herdr-app/volta_mod.py): lo lanciano il mod,
@@ -27,9 +28,14 @@ Regole:
     ultimi; se la copia si rompe a metà torna il mod di prima;
   - un mod installato a mano con `installa --da` resta TENUTA_LOCALE ore, poi torna quello del repo;
   - keys.json e arturo.json sono della persona: non si toccano;
-  - senza rete o senza accesso al repo l'esito va in mod-stato.json, e il mod lo dice dopo un giorno.
+  - senza rete o senza accesso al repo l'esito va in mod-stato.json, e il mod lo dice dopo un giorno;
+  - a ogni controllo e a ogni `installa --da` le immagini dei progetti (i WebP di
+    ~/.claude/data/volta-immagini) si copiano in ~/.config/herdr-app/immagini, dove il mod le apre con
+    image("immagini/<slug>.webp"). Si copiano solo le nuove e le cambiate, e si tolgono quelle sparite
+    dalla fonte; senza fonte, o con la fonte vuota, non si tocca niente. Una copia che non riesce va in
+    immagini-stato.json e non ferma l'aggiornamento del mod. `volta_mod.py immagini` la lancia da sola.
 
-Variabili per i banchi: HERDR_APP_HOME, VOLTA_CACHE, VOLTA_HERDR_APP (JSON: l'argv di herdr-app),
+Variabili per i banchi: HERDR_APP_HOME, VOLTA_CACHE, VOLTA_IMMAGINI (la cartella dei WebP), VOLTA_HERDR_APP (JSON: l'argv di herdr-app),
 VOLTA_NO_AGENTE=1 (niente LaunchAgent né schtasks), VOLTA_RINOMINA_NEGATA=1 (finge il rifiuto della
 rinomina), VOLTA_COPIA_ROTTA=<file> (la copia file per file si rompe su quel file), VOLTA_AGENTE_PROVA=<cartella>
 (scrive lì il plist, senza launchctl). Solo libreria standard, Python 3.8+.
@@ -63,6 +69,8 @@ LANCIATORI = (("volta-claude.sh", "volta-claude"), ("nascita.sh", "volta-nascita
 TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")
 # Comandi nati dopo le prime installazioni: il giro fra le sessioni (⌘↓ e ⌘↑, 12/11/2026).
 TASTI_NUOVI = ("arturo.volta-giro-avanti", "arturo.volta-giro-indietro")
+# La cartella dell'app dove arrivano le immagini dei progetti (tessere di Volta, 12/11/2026).
+IMMAGINI = "immagini"
 
 
 def app_home() -> Path:
@@ -391,6 +399,58 @@ def contorno(fonte: Path) -> None:
             sostituisci(io_nuovo, app / "volta_mod.py")
 
 
+def fonte_immagini() -> Path:
+    return Path(os.environ.get("VOLTA_IMMAGINI") or Path.home() / ".claude" / "data" / "volta-immagini")
+
+
+def immagini() -> dict:
+    """Porta i WebP dei progetti nella cartella dell'app. Un file con la stessa dimensione e la stessa data
+    di quello arrivato prima non si riscrive; uno cambiato passa da sostituisci(), così il mod che lo sta
+    leggendo tiene quello di prima, intero. Si tolgono solo i .webp spariti dalla fonte. Senza la fonte, o
+    con la fonte vuota (dati non ancora scaricati su questa macchina), non si tocca niente: le tessere non
+    devono svuotarsi per una cartella che manca."""
+    fonte = fonte_immagini()
+    arrivo = app_home() / IMMAGINI
+    nuove = {f.name: f for f in fonte.glob("*.webp") if f.is_file()} if fonte.is_dir() else {}
+    if not nuove:
+        return {"esito": "fonte vuota" if fonte.is_dir() else "nessuna fonte", "fonte": str(fonte), "copiate": 0, "tolte": 0}
+    copiate = tolte = 0
+    for nome, f in sorted(nuove.items()):
+        dove = arrivo / nome
+        s = f.stat()
+        try:
+            d = dove.stat()
+            if d.st_size == s.st_size and int(d.st_mtime) == int(s.st_mtime):
+                continue
+        except OSError:
+            pass
+        sostituisci(f, dove)
+        copiate += 1
+    for vecchia in sorted(arrivo.glob("*.webp")):
+        if vecchia.name not in nuove:
+            vecchia.unlink()
+            tolte += 1
+    return {"esito": "ok", "fonte": str(fonte), "copiate": copiate, "tolte": tolte, "totale": len(nuove)}
+
+
+def passo_immagini() -> dict:
+    """immagini() con l'esito in immagini-stato.json. Un guasto qui non ferma l'aggiornamento del mod."""
+    try:
+        d = immagini()
+    except Exception as e:  # noqa: BLE001 le immagini sono un contorno: il mod va avanti anche senza
+        d = {"esito": "errore", "motivo": "%s: %s" % (type(e).__name__, str(e)[:160])}
+    d["controllato"] = time.time()
+    try:
+        scrivi(cache() / "immagini-stato.json", d)
+    except OSError:
+        pass
+    if d["esito"] == "errore":
+        print("IMMAGINI: errore, %s" % d["motivo"])
+    elif d.get("copiate") or d.get("tolte"):
+        print("IMMAGINI: %d copiate, %d tolte, %d in tutto" % (d["copiate"], d["tolte"], d["totale"]))
+    return d
+
+
 def installa(fonte: Path, versione: dict) -> tuple[bool, str, bool]:
     """Copia, controlla e scambia. Torna (riuscito, come o motivo, rosso): `rosso` è vero solo se il
     controllo del mod è girato e l'ha bocciato."""
@@ -440,6 +500,7 @@ def cmd_controlla() -> int:
         print("OCCUPATO: un altro controllo è in corso")
         return 0
     try:
+        passo_immagini()
         installato = leggi(app_home() / "mods" / "arturo" / "VERSIONE")
         v = str(installato.get("versione") or "")
         messo = float(installato.get("installato") or 0)
@@ -502,6 +563,7 @@ def cmd_installa(argv: list) -> int:
         riuscito, come, _ = installa(Path(argv[1]).resolve(), {"versione": "locale:%d" % adesso, "corta": "locale", "commit": "", "data": ""})
         if riuscito:
             segna("locale", versione="locale", fino=adesso + TENUTA_LOCALE * 3600)
+            passo_immagini()
         print(("INSTALLATO a mano (%s): resta %d ore" % (come, TENUTA_LOCALE)) if riuscito else "NON INSTALLATO: " + come)
         return 0 if riuscito else 1
     except Exception as e:  # noqa: BLE001
@@ -624,6 +686,8 @@ def main(argv: list) -> int:
         return cmd_controlla()
     if argv[:1] == ["installa"]:
         return cmd_installa(argv[1:])
+    if argv[:1] == ["immagini"]:
+        return 1 if passo_immagini()["esito"] == "errore" else 0
     if argv[:1] == ["attiva"]:
         return cmd_attiva(argv[1:])
     if argv[:1] in (["automatico"], ["manuale"]):
@@ -633,6 +697,7 @@ def main(argv: list) -> int:
         d["installato"] = leggi(app_home() / "mods" / "arturo" / "VERSIONE")
         d["sorgente"] = config().get("mod_sorgente")
         d["modo"] = config().get("mod_modo") or "automatico"
+        d["immagini"] = leggi(cache() / "immagini-stato.json")
         print(json.dumps(d, ensure_ascii=False))
         return 0
     print(__doc__.strip())

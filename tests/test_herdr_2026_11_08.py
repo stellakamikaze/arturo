@@ -1003,7 +1003,12 @@ def scritti_in_data(repo: Path) -> set[str]:
     fonti.append(repo / "hooks/herdr-stato.sh")
     testi = [f.read_text(encoding="utf-8") for f in fonti]
     testi += [r for r in (repo / "hooks/session-start.sh").read_text(encoding="utf-8").splitlines() if "herdr" in r]
-    return {m for testo in testi for m in re.findall(r"\.claude/data/([A-Za-z0-9_.-]+)", testo)}
+    # volta-immagini la parte Herdr la legge soltanto (volta_mod.py copia i WebP nell'app, 12/11/2026): la
+    # scrive la config della persona, che la tiene in git apposta.
+    return {m for testo in testi for m in re.findall(r"\.claude/data/([A-Za-z0-9_.-]+)", testo)} - SOLO_LETTI
+
+
+SOLO_LETTI = {"volta-immagini"}
 
 
 def hz15(repo: Path, casa: Path) -> str | None:
