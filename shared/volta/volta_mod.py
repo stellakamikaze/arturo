@@ -5,7 +5,8 @@ La fonte è la cartella `arturo/` di questo repository (ramo `volta`): mods/artu
 i lanciatori. Ogni macchina ne tiene un clone leggero in ~/.cache/volta/mod-git e lo confronta con
 il mod installato in ~/.config/herdr-app/mods/arturo (file VERSIONE).
 
-  python3 volta_mod.py controlla            scarica, controlla e installa se c'è una versione nuova
+  python3 volta_mod.py controlla [--forza]  scarica, controlla e installa se c'è una versione nuova; --forza
+                                           non aspetta le ore di un mod installato a mano (volta/dirama.py)
   python3 volta_mod.py installa --da DIR    installa da una cartella `arturo/` locale (prove, /setup)
   python3 volta_mod.py attiva URL [--ramo R]  scrive la sorgente in arturo.json e mette il controllo orario
   python3 volta_mod.py automatico | manuale   accende o spegne il controllo, la sorgente resta
@@ -595,7 +596,7 @@ def lucchetto() -> Path | None:
         return None
 
 
-def cmd_controlla() -> int:
+def cmd_controlla(forza: bool = False) -> int:
     c = config()
     url = c.get("mod_sorgente")
     if not isinstance(url, str) or not url:
@@ -615,7 +616,7 @@ def cmd_controlla() -> int:
         installato = leggi(app_home() / "mods" / "arturo" / "VERSIONE")
         v = str(installato.get("versione") or "")
         messo = float(installato.get("installato") or 0)
-        if v.startswith("locale") and time.time() - messo < TENUTA_LOCALE * 3600:
+        if v.startswith("locale") and time.time() - messo < TENUTA_LOCALE * 3600 and not forza:
             segna("locale", versione="locale", fino=messo + TENUTA_LOCALE * 3600)
             print("LOCALE: il mod è stato installato a mano, lo tengo per %d ore" % TENUTA_LOCALE)
             return 0
@@ -626,6 +627,12 @@ def cmd_controlla() -> int:
             return 1
         versione = versione_di(fonte.parent)
         if versione["versione"] == v:
+            # I tasti si riallineano anche qui: alla versione nuova il controllo gira ancora con lo script
+            # di prima, e un tasto nuovo (⌘K, #5369) arrivava solo alla versione dopo (#5470).
+            try:
+                tasti(fonte)
+            except OSError:
+                pass
             segna("allineato", versione=versione["corta"])
             print("ALLINEATO %s" % versione["corta"])
             return 0
@@ -1216,7 +1223,7 @@ def main(argv: list) -> int:
     if argv[:1] == ["--prova"]:
         return 0
     if argv[:1] == ["controlla"]:
-        rc = cmd_controlla()
+        rc = cmd_controlla(forza="--forza" in argv)
         c = config()
         if dal_sistema(argv) and c.get("mod_sorgente") and c.get("mod_modo") != "manuale":
             for nome, d in programmi().items():
