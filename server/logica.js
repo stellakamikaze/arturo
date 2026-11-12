@@ -71,23 +71,23 @@ export const SKILL_USCITE = ["apri", "cache-fredda", "dafare", "gws", "redazione
 // file:docs/preventivo-clienti-rossi.md arrivava intero; un POST di chiunque metteva un testo suo nella nota di un task.
 // Il banco TF05 (tests/test_telemetria_f1_2026_10_24.py) confronta questi elenchi col repository.
 export const DERIVA_NOMI = {
-  radice: [".gitattributes", ".gitignore", "LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "ROADMAP.md", "SECURITY.md", "package.json", "settings.json"],
+  radice: [".gitattributes", ".gitignore", ".gitleaksignore", "LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "ROADMAP.md", "SECURITY.md", "package.json", "settings.json"],
   skills: ["arturo", "concetti", "humanizer", "italiano-semplificato", "monitor", "prompt-master", "system-audit", "todo"],
   agents: ["architecture-reviewer.md", "bug-finder.md", "fact-checker.md", "performance-profiler.md", "researcher.md",
     "structural-completeness-reviewer.md", "test-runner.md", "ui-ux-consultant.md"],
   commands: COMANDI.map((c) => `${c}.md`),
   hooks: ["agente-worktree.py", "bash-dispatcher.sh", "block-dangerous.py", "bozze-mcp-auto-approve.py", "commit-secret-gate.py", "comms-guard.py",
     "comms-prefilter.py", "context-monitor.js", "controlla-config.py", "credential-leak-scanner.py", "data-guard.py", "deriva.py", "emoji_remover.py",
-    "exfil-guard.py", "fiducia.py", "forma_comando.py", "gh-destructive-guard.py", "gws-esito.py", "gws-token-health.py", "heredoc.py", "inject-now.sh",
+    "exfil-guard.py", "fiducia.py", "forma_comando.py", "gh-destructive-guard.py", "gws-esito.py", "gws-token-health.py", "herdr-stato.sh", "heredoc.py", "inject-now.sh",
     "input-notifier-start.sh", "melchior-postwrite.py", "melchior_match.py", "memory-autoload.py", "memory-retrieve.py", "memory-write-scanner.py",
     "metodo.sh", "prompt-injection-scanner.py", "protect_claude_md.py", "radici.py", "scheda-terminale.py", "session-end.sh", "session-start.sh",
-    "statusline.js", "subagent-memory-context.py", "typecheck-after-edit.py", "web-egress-guard.py"],
+    "statusline.js", "subagent-memory-context.py", "titolo-sessione.py", "typecheck-after-edit.py", "web-egress-guard.py"],
 };
 // Gli hook che il settings.json di Arturo dichiara (hook_dichiarati in hooks/deriva.py), più "tutti" per disableAllHooks.
 export const DERIVA_HOOK = ["agente-worktree.py", "bash-dispatcher.sh", "block-dangerous.py", "bozze-mcp-auto-approve.py", "context-monitor.js", "credential-leak-scanner.py",
   "emoji_remover.py", "gws-esito.py", "gws-token-health.py", "herdr-stato.sh", "inject-now.sh", "input-notifier-start.sh", "melchior-postwrite.py", "memory-retrieve.py",
   "memory-write-scanner.py", "prompt-injection-scanner.py", "protect_claude_md.py", "scheda-terminale.py", "session-end.sh",
-  "session-start.sh", "subagent-memory-context.py", "typecheck-after-edit.py", "web-egress-guard.py"];
+  "session-start.sh", "subagent-memory-context.py", "titolo-sessione.py", "typecheck-after-edit.py", "web-egress-guard.py"];
 
 // Il valore della deriva che si salva: un nome fuori elenco diventa `file:altro` o `hook:altro`, come nel client. Non si
 // scarta: l'elenco corrente di un'installazione (le righe dopo `insieme:<n>`) resta intero, e il recap dice che c'era.
