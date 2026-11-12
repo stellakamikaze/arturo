@@ -7971,6 +7971,20 @@ def avvelena(repo: Path) -> int:
     return 0 if len(esiti) == len(VELENI) else 1
 
 
+def veleni_senza_testo(repo: Path) -> list:
+    """I veleni che non trovano una volta sola il loro testo da rompere, in pochi secondi e senza lanciarli.
+    Il 12/11/2026 undici veleni erano rimasti così dopo le copie del mod: il banco era verde, e solo i 15
+    minuti di --avvelena del gate li vedevano (#5468). Il banco di ogni giro, e così pubblica-mod.py, li
+    vede subito."""
+    rossi = []
+    for caso, rel, giusto, *_ in VELENI:
+        f = repo / rel
+        n = f.read_text(encoding="utf-8").count(giusto) if f.is_file() else 0
+        if n != 1:
+            rossi.append(f"{caso} veleno senza testo da rompere: {giusto[:60]!r} c'è {n} volte in {rel}")
+    return rossi
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", default=str(Path(__file__).resolve().parents[1]))
@@ -7983,7 +7997,7 @@ def main() -> int:
     if argomenti.baseline_ref:
         print("BASELINE_DISCRIMINANTE=nessuna (banco nuovo: il veleno lo prova con --avvelena)")
         return 0
-    rossi = prova(repo)
+    rossi = prova(repo) + veleni_senza_testo(repo)
     for r in rossi:
         print("ROSSO", r)
     print(f"herdr: {len(CASI) - len({r.split()[0] for r in rossi})}/{len(CASI)} casi verdi")
