@@ -1,5 +1,6 @@
 // Volta nella barra: tutte le sessioni di Claude di tutte le macchine, per macchina o per
-// progetto. L'elenco lo scrive volta_sonda.py (accanto a questo file) in ~/.cache/volta/sessioni.json ogni 30 s,
+// progetto. L'elenco lo scrive volta_sonda.py (accanto a questo file) in ~/.cache/volta/sessioni.json ogni 30 s
+// (una finestra di prova nella sua cartella di Herdr: cacheVolta() di dati.js, #5449),
 // con le macchine aggiunte a Herdr (#5172); un
 // clic aggancia la sessione in una scheda (claude attach, via ssh se è su un'altra macchina), o la
 // sposta prima in background se è aperta in un Terminale ed è ferma.
@@ -13,7 +14,7 @@
 // (#5292): il nome e il progetto nuovi vanno nei file della sessione con fonte "persona", sulla scheda
 // e, appena la sessione è ferma, in Claude Code con /rename.
 // Dopo ogni giro dell'elenco volta_note.py (accanto a questo file) porta le note della finestra (⌘⇧N)
-// fra le macchine di Herdr, con l'esito in ~/.cache/volta-note/stato.json (sincronizzaNote).
+// fra le macchine di Herdr, con l'esito in ~/.cache/volta-note/stato.json (sincronizzaNote, cacheVolta("volta-note")).
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
@@ -22,7 +23,7 @@ import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, reg
 import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX, occupanti } from "./sessioni.js";
 import { ICONA, punto, colore, segno, motoDi, movimento } from "./comuni.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
-import { schedeDi } from "./dati.js";
+import { schedeDi, cacheVolta } from "./dati.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
 import { bersaglio, passo, rigaMicrofono } from "./microfono.js";
@@ -94,7 +95,7 @@ async function script(c) {
 
 export class Volta {
   init(cx) {
-    this.cartella = `${home()}/.cache/volta`;
+    this.cartella = cacheVolta();
     this.file = `${this.cartella}/sessioni.json`;
     this.dati = null;
     this.avvisi = {};
@@ -279,7 +280,7 @@ export class Volta {
   // La chiusura automatica (#5366, nota di Federico dell'11/11): una sessione di questa macchina che
   // aspetta un comando da più di un'ora va in congedo da sola, una alla volta, al più 3 all'ora e 12 al
   // giorno (arturo.json: congedo, congedo_dopo_min, congedo_ora, congedo_giorno). In modo "prova" scrive
-  // soltanto chi chiuderebbe. Il registro sta in ~/.cache/volta/congedo-auto.json: lo scrive solo chi lo
+  // soltanto chi chiuderebbe. Il registro sta in congedo-auto.json di cacheVolta(): lo scrive solo chi lo
   // ha letto per ultimo (writeTextFile con il testo di prima), così due finestre aperte sulla stessa
   // macchina non chiudono la stessa sessione e non sforano i tetti.
   async congedaFerme(cx) {
@@ -393,7 +394,7 @@ export class Volta {
   }
 
   // Le note della finestra (⌘⇧N) dopo ogni giro dell'elenco: volta_note.py porta qui quelle delle altre
-  // macchine e di là quelle di qui (12/11/2026). Mai due giri insieme. Lo stato va fuori da ~/.cache/volta,
+  // macchine e di là quelle di qui (12/11/2026). Mai due giri insieme. Lo stato va fuori da cacheVolta(),
   // che questa finestra guarda: scriverci farebbe rileggere l'elenco a ogni giro. testata.js vede le note
   // nuove da solo, perché guarda la cartella delle note.
   sincronizzaNote(cx) {
@@ -401,7 +402,7 @@ export class Volta {
     this.noteInCorso = true;
     cx.spawn(async () => {
       try {
-        await exec(this.py, [this.noteScript, "sincronizza", "--scrivi", `${home()}/.cache/volta-note/stato.json`], { timeout: 60000 });
+        await exec(this.py, [this.noteScript, "sincronizza", "--scrivi", `${cacheVolta("volta-note")}/stato.json`], { timeout: 60000 });
       } catch { /* il giro dopo riprova; l'esito sta in stato.json */ }
       this.noteInCorso = false;
     });

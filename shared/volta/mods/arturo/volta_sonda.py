@@ -355,8 +355,12 @@ except OSError:
     pass
 # Un ricevitore del microfono morto male (kill -9, riavvio) lascia microfono.json e l'ingresso sul
 # virtuale: ripara lo rimette. Gira solo se il file c'è, e un ponte vivo non lo tocca.
-vc = os.environ.get("VOLTA_CACHE") or os.path.join(casa, ".cache", "volta")
-mic = os.path.join(os.environ.get("HERDR_APP_HOME") or os.path.join(casa, ".config", "herdr-app"), "mods", "arturo", "volta_microfono.py")
+# La cartella di Volta come cacheVolta() di dati.js: una finestra di prova (HERDR_APP_HOME fuori da
+# ~/.config/herdr-app) tiene la sua sotto la sua cartella di Herdr e non tocca il ponte della vera (#5449).
+app_vc = os.environ.get("HERDR_APP_HOME") or os.path.join(casa, ".config", "herdr-app")
+di_prova = os.path.normcase(os.path.abspath(app_vc)) != os.path.normcase(os.path.abspath(os.path.join(casa, ".config", "herdr-app")))
+vc = os.environ.get("VOLTA_CACHE") or (os.path.join(app_vc, "cache", "volta") if di_prova else os.path.join(casa, ".cache", "volta"))
+mic = os.path.join(app_vc, "mods", "arturo", "volta_microfono.py")
 if os.path.exists(os.path.join(vc, "microfono.json")) and os.path.exists(mic):
     try:
         subprocess.run([sys.executable, mic, "ripara"], capture_output=True, stdin=subprocess.DEVNULL, timeout=10)

@@ -67,7 +67,16 @@ SILENZIO = float(os.environ.get("VOLTA_MIC_SILENZIO") or 8)     # secondi senza 
 
 
 def cache() -> Path:
-    return Path(os.environ.get("VOLTA_CACHE") or Path.home() / ".cache" / "volta")
+    """La cartella di Volta, come cacheVolta() di dati.js: VOLTA_CACHE (banchi), altrimenti ~/.cache/volta
+    per la finestra vera e <HERDR_APP_HOME>/cache/volta per una finestra di prova, che così non scrive
+    i file della vera (#5449)."""
+    if os.environ.get("VOLTA_CACHE"):
+        return Path(os.environ["VOLTA_CACHE"])
+    serie = Path.home() / ".config" / "herdr-app"
+    app = Path(os.environ.get("HERDR_APP_HOME") or serie)
+    if os.path.normcase(os.path.abspath(app)) != os.path.normcase(os.path.abspath(serie)):
+        return app / "cache" / "volta"
+    return Path.home() / ".cache" / "volta"
 
 
 def leggi(f: Path) -> dict:

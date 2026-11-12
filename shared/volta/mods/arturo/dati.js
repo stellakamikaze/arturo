@@ -26,7 +26,7 @@ export async function config() {
     // punto che lo dice: lo usano l'elenco di Volta (volta.js) e la nascita su un'altra macchina.
     volta: typeof c.volta === "string" && c.volta ? c.volta : `${appHome()}/mods/arturo/volta_sonda.py`,
     // La chiusura automatica delle sessioni che aspettano un comando (#5366): "prova" (scrive solo cosa
-    // chiuderebbe, in ~/.cache/volta/congedo-auto.json), "acceso" o "spento". Senza voce vale "prova".
+    // chiuderebbe, in congedo-auto.json di cacheVolta()), "acceso" o "spento". Senza voce vale "prova".
     congedo: {
       modo: ["prova", "acceso", "spento"].includes(c.congedo) ? c.congedo : "prova",
       dopoMin: numero(c.congedo_dopo_min, 60, 5),
@@ -34,6 +34,17 @@ export async function config() {
       giorno: numero(c.congedo_giorno, 12, 0),
     },
   };
+}
+
+// La cartella dei file di Volta: elenco delle sessioni, registro dei congedi ("volta") e stato delle note
+// ("volta-note"). La finestra vera, con la cartella di Herdr di serie (~/.config/herdr-app), usa ~/.cache/<nome>.
+// Una finestra di prova (HERDR_APP_HOME altrove) usa <cartella di Herdr>/cache/<nome>: prima riscriveva
+// l'elenco della finestra vera col suo core senza macchine, e le sessioni remote sparivano (#5449).
+// La stessa regola sta in cache_volta() di volta_sonda.py, volta_microfono.py e volta_mod.py.
+export function cacheVolta(nome = "volta") {
+  const pulito = (p) => String(p).replace(/\\/g, "/").replace(/\/+$/, "").toLowerCase();
+  const vera = pulito(appHome()) === pulito(`${home()}/.config/herdr-app`);
+  return vera ? `${home()}/.cache/${nome}` : `${appHome()}/cache/${nome}`;
 }
 
 // Un numero intero di arturo.json, non sotto `minimo`; altrimenti quello di serie.
@@ -287,10 +298,10 @@ export function statoSpazio(s) {
   return s.status ?? statoAgganciata(schedaAgganciata(s));
 }
 
-// La sessione agganciata nella scheda `g` come la elenca Volta (~/.cache/volta/sessioni.json), o null.
+// La sessione agganciata nella scheda `g` come la elenca Volta (sessioni.json in cacheVolta()), o null.
 async function sessioneDi(g) {
   try {
-    const d = JSON.parse((await readTextFile(`${home()}/.cache/volta/sessioni.json`)) ?? "{}");
+    const d = JSON.parse((await readTextFile(`${cacheVolta()}/sessioni.json`)) ?? "{}");
     return (d.sessioni ?? []).find((x) => x?.id === g.id && Array.isArray(x.attach)) ?? null;
   } catch {
     return null;

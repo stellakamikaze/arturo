@@ -1,5 +1,5 @@
 {
- "albero": "a55bc8e1ee68f529ecd79c1a86c5d06bb9620f89",
+ "albero": "482f9fa755ba89cfaf00cb982c8d64cdbb3598a3",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -19,7 +19,7 @@
   "mods/arturo/chiedi.svg": "e00f6385950d1496b2c2e57fe3905417024b695544dbc004526249b9d9f3e15c",
   "mods/arturo/comandi.js": "26a40b18f4930a1d0e2fde7e1ccab56d26838fe0ed953f42fe46f830844c54b5",
   "mods/arturo/comuni.js": "4ac20e100f95ce58cea96a935eec78b7041cf492ae7f70bedc2d2eebe0141f16",
-  "mods/arturo/dati.js": "1e189378602c17bffd27337406d3d42d58b21a13901bd3d8438aec8fc38701e1",
+  "mods/arturo/dati.js": "315a9549d751fbec7fb1671918d594a7755844d6a50dd41e61cb33eddf8bbe4a",
   "mods/arturo/fonts/Archivo-SemiBold.ttf": "9065729d94a24b234c619bb7eb3468e0d0e95465f0fc22b33769e57ddb21fdf0",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Bold.ttf": "c1fab8d34e428f6e0cf5c4005b7bb881527f583cb7f6b5e1ef6934d4029953dd",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Medium.ttf": "062d1fe9b2fd79975791af4646fedcaba46ffd317f94adf68e1a9ba3fccaef5c",
@@ -51,10 +51,10 @@
   "mods/arturo/tessere.js": "6f8a5eaf1e5f6ef9d08cc045652c26feb4e1532bea99cf3f36fee1028ed4fb9d",
   "mods/arturo/testata.js": "4ca4749f19c9c5859b852116bfbc40c34272fe931e99a1329d85aa8267db985e",
   "mods/arturo/todo.js": "c1da10845be254afae62e9456e5888acfd14ceb4c5e7cc9f8d6246c75aed820b",
-  "mods/arturo/volta.js": "ec059cb31d437463951f4871f37b0fd9193d893814c4bbc49e6f7bcbfa69a663",
-  "mods/arturo/volta_microfono.py": "fb752d4f11c21fca9dd9081b0f352b2dd30fc4b1519d50b49da0dd0d3ccc16a1",
+  "mods/arturo/volta.js": "66bbc186d7da6423e6854072c51601a137a64fc574b3d60a4b66512a78b9c968",
+  "mods/arturo/volta_microfono.py": "c5f9f506837c56ae33f460a29f7ee607195703080e7a8789744f79dd615628c4",
   "mods/arturo/volta_note.py": "8f2819706f4b2cbcc315a976d2ecc46e21d383f17d6b3b3ec1f898c195f212a0",
-  "mods/arturo/volta_sonda.py": "7a2d4c6f4fcb593878d070301910dacfdc25384ad79bddcc05be7a97448ca5cf",
+  "mods/arturo/volta_sonda.py": "6e385631fb1536947ac8e6e2edca62b0e06994cf2d69c8ea354d90111e9789b4",
   "nascita.sh": "fb11b0088160ac556555f874120421e4ade9b2977c5ca9cf8fd86b137a0ed28c",
   "servizi-gui.sh": "a3eaeb26e61f1143781e17ff282bc2b06a4598814d48dde22842769e95e7f7c7",
   "servizio-claude.ps1": "11b379c862c59b6f97ce28964df31414a0641cbf498640aef6c0f14f07743960",
@@ -63,7 +63,7 @@
   "trova-progetti.md": "b980bb9a53f543b2a15d0a77ad70f1e0e306c74893d4a4804b95a198d8770932",
   "volta-claude.ps1": "6c7a617e2b2b926cad5c3b2a79bb09e379d32f85bbeed955bcd2ccaaa265ed62",
   "volta-claude.sh": "37a652b8043c4f5e8a5c53ed14d2f3c7589cb56893f08b497e2f337e4a3291e9",
-  "volta_mod.py": "600b90e8ad808d1e1c43a0eb07f30f26e58fd2f58a5896c0d41a599448f4e14d"
+  "volta_mod.py": "0d8d40fb284163bfd5b2890871c1fc291795fe4e0474cd5a89ddd7a92e90243e"
  },
  "repository": "volta"
 }
