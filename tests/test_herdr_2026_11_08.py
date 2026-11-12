@@ -410,7 +410,9 @@ HZ94 le animazioni di Volta (12/11/2026, #5410): sessioni.js e comandi.js con no
 HZ95 la scheda mostra chi ci gira (12/11/2026, volta a12c0dd): una scheda nata per agganciare una sessione
      di un'altra macchina (argv ed etichetta) che ora ospita un'interattiva di questa macchina (campo
      terminale della sonda) è dell'interattiva: sessioneDi dà l'interattiva, schedeAgganciate non la conta,
-     e con arturo.volta.dove.occupate in shared schedeDi della sessione di nascita è vuoto.
+     e con arturo.volta.dove.occupate in shared schedeDi della sessione di nascita è vuoto. La testata
+     (schedaAgganciata, statoSpazio; volta 4e4eada ed ea206f8) legge l'id anche da pwsh -Command e da
+     sh -c, e una scheda occupata è dell'interattiva che ci gira.
 HZ96 le tessere dei progetti su ⌘T (12/11/2026, #5371): nel layout lo stack "lavoro" tiene il terminale
      (main, mostrato all'avvio) e la parte casa; arturo.casa mostra le tessere col campo vuoto,
      arturo.casa-chiudi ed Esc tornano al terminale, la barra all'avvio rimette il terminale e scrive i
@@ -7111,7 +7113,42 @@ def hz95(repo: Path, casa: Path) -> str | None:
         return f"una scheda occupata da un'interattiva conta ancora come aggancio: {g['agganciate']}"
     if g["schedeDi"]:
         return f"con occupate in shared la sessione di nascita trova ancora la scheda: {g['schedeDi']}"
+    # la scheda della testata (volta 4e4eada, ea206f8): l'id dell'aggancio si legge anche da pwsh -Command
+    # "<riga>" e da sh -c "... attach id"; una scheda occupata è dell'interattiva che ci gira
+    (m / "scheda.mjs").write_text(PROVA_SCHEDA, encoding="utf-8")
+    herdr = {"spaces": [], "panes": [{"terminal": "t19", "tab": "tbW"}, {"terminal": "t5", "tab": "tbM"},
+                                     {"terminal": "t6", "tab": "tbS"}, {"terminal": "t7", "tab": "tbN"}],
+             "terminals": [
+                 {"address": "t19", "argv": ["pwsh.exe", "-NoExit", "-Command", r"& 'C:\Windows\System32\OpenSSH\ssh.exe' '-t' 'amaltea' '/Users/u/.local/bin/claude' 'attach' '21b6fac2'"]},
+                 {"address": "t5", "argv": ["/bin/zsh", "-lic", '"$@"; exec "$0" -li', "/bin/zsh", "claude", "attach", "a1b2c3d4"]},
+                 {"address": "t6", "argv": ["sh", "-c", "while :; do ssh -t torre claude attach a1b2c3d4; sleep 2; done"]},
+                 {"address": "t7", "argv": ["pwsh.exe", "-NoExit", "-Command", "$global:__hc_prompt = $function:prompt"]}]}
+    e = {**os.environ, "HZ_APP": str(casa), "HZ_CASA": str(casa), "HZ_HERDR": json.dumps(herdr), "HZ_SHARED": "{}"}
+    r = subprocess.run([node, str(m / "scheda.mjs")], capture_output=True, text=True, encoding="utf-8", env=e, timeout=60)
+    if r.returncode != 0:
+        return f"la prova della testata non gira: {(r.stderr or r.stdout).strip()[:200]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    atteso = {"windows": "21b6fac2", "windowsStato": "working", "mac": "a1b2c3d4", "shell": "a1b2c3d4", "nessuna": None, "occupata": "30ffae9e"}
+    sbagliati = {k: g.get(k) for k, v in atteso.items() if g.get(k) != v}
+    if sbagliati:
+        return f"la testata non trova la sessione della scheda aperta (attesi {atteso}): {sbagliati}"
     return None
+
+
+PROVA_SCHEDA = r"""
+import { schedaAgganciata, statoSpazio } from "./dati.mjs";
+import { setShared } from "./herdr.mjs";
+setShared("arturo.volta.stati", { "21b6fac2": { stato: "lavora", host: "amaltea" }, "a1b2c3d4": { stato: "aspetta", host: "qui" } });
+const spazio = (tab) => ({ tabs: [{ id: tab, active: true }] });
+const esito = {
+  windows: schedaAgganciata(spazio("tbW"))?.id ?? null, windowsStato: statoSpazio(spazio("tbW")),
+  mac: schedaAgganciata(spazio("tbM"))?.id ?? null, shell: schedaAgganciata(spazio("tbS"))?.id ?? null,
+  nessuna: schedaAgganciata(spazio("tbN"))?.id ?? null,
+};
+setShared("arturo.volta.dove", { occupate: { t19: "30ffae9e" } });
+esito.occupata = schedaAgganciata(spazio("tbW"))?.id ?? null;
+console.log(JSON.stringify(esito));
+"""
 
 
 PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96}

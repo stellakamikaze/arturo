@@ -2,7 +2,7 @@
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
 import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
-import { titolo, agganciata, titoloFork, casellaVuota, daPortare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti } from "./sessioni.js";
+import { titolo, agganciata, titoloFork, casellaVuota, daPortare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -245,16 +245,18 @@ export function sezioni(lista) {
 // La scheda di uno spazio che aggancia una sessione con claude attach (qui o via ssh): Herdr non la vede
 // come un agente, perché nella scheda gira ssh o attach e non claude. { terminal, tab } oppure null.
 // Prima la scheda attiva: lo spazio "Volta" ne tiene più d'una, e la testata parla di quella che vedi.
+// Una scheda dove gira un'interattiva di questa macchina (occupate) è la scheda di quella sessione, non
+// dell'aggancio con cui è nata: su Windows Herdr non la vede come agente, e senza questo la testata
+// mostrava lo stato di un'altra scheda dello spazio (12/11/2026).
 export function schedaAgganciata(s) {
   const tabs = new Set((s?.tabs ?? []).map((tb) => tb.id));
   const attiva = s?.tabs?.find((tb) => tb.active)?.id;
+  const occupate = shared("arturo.volta.dove")?.occupate ?? {};
   for (const p of [...panes()].sort((a, b) => (b.tab === attiva) - (a.tab === attiva))) {
     if (!tabs.has(p.tab)) continue;
     const t = terminals().find((x) => x.address === p.terminal);
-    if (shared("arturo.volta.dove")?.occupate?.[p.terminal]) continue;  // ci gira un'altra sessione: occupataDaAltra
-    if (Array.isArray(t?.argv) && t.argv.includes("attach")) {
-      return { terminal: t.address, tab: p.tab, id: String(t.argv[t.argv.indexOf("attach") + 1] ?? "") };
-    }
+    const id = occupate[p.terminal] ?? idAggancio(t?.argv);
+    if (id) return { terminal: p.terminal, tab: p.tab, id };
   }
   return null;
 }

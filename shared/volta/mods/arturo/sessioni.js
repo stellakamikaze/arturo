@@ -370,6 +370,21 @@ const dentro = (a, id) => typeof a === "string" &&
 export const agganciata = (argv, s) => Array.isArray(argv) && !!s?.id &&
   ((argv.includes("attach") && argv.includes(s.id)) || argv.some((a) => dentro(a, s.id)));
 
+// L'id della sessione che l'argv di una scheda aggancia, nelle stesse due forme: "attach" come parola a
+// sé (Mac, Linux) o dentro la riga di una shell, come pwsh -Command "& '…' 'attach' '<id>'" su Windows.
+// Senza la seconda forma, su Windows la testata, il pannello Da fare e Lavoraci non vedevano mai la
+// sessione agganciata (12/11/2026). "" se l'argv non aggancia niente.
+export function idAggancio(argv) {
+  if (!Array.isArray(argv)) return "";
+  const i = argv.indexOf("attach");
+  if (i >= 0) return String(argv[i + 1] ?? "");
+  for (const a of argv) {
+    const m = typeof a === "string" && a.match(/\battach['"]?\s+['"]?([\w-]{4,})/);
+    if (m) return m[1];
+  }
+  return "";
+}
+
 // L'argv con cui la scheda lancia l'aggancio. Per ssh aggiunge un tetto alla connessione e il battito:
 // senza, una macchina spenta tiene la scheda vuota per più di un minuto, e dopo il sonno del portatile
 // la scheda resta ferma su una connessione morta, che il clic riporta davanti com'è. Col battito ssh
