@@ -1,5 +1,5 @@
 {
- "albero": "5d0e3661b9241b52a0392c6b6eef8ceb51b77c4f",
+ "albero": "86da52517592fccd275191be7470b560fb358ad5",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -61,7 +61,7 @@
   "trova-progetti.md": "b980bb9a53f543b2a15d0a77ad70f1e0e306c74893d4a4804b95a198d8770932",
   "volta-claude.ps1": "6c7a617e2b2b926cad5c3b2a79bb09e379d32f85bbeed955bcd2ccaaa265ed62",
   "volta-claude.sh": "37a652b8043c4f5e8a5c53ed14d2f3c7589cb56893f08b497e2f337e4a3291e9",
-  "volta_mod.py": "67f30deb5a634940fca502b50f4a8b58cb50dfcb4cd1870332ed612d5744e1df"
+  "volta_mod.py": "43f5be12bc5d06159ed708b913d8042033736270270d4f4d59f1bf68e34a50d5"
  },
  "repository": "volta"
 }

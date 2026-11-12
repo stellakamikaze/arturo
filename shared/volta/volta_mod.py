@@ -39,8 +39,12 @@ Regole:
     aspettarlo: fa le immagini dei progetti nuovi, e la copia del giro dopo le porta nell'app. La voce sta
     su una macchina sola; l'esito del lancio va in immagini-genera.json;
   - quando lo lancia il sistema (LaunchAgent, attività `controlla --sistema`) aggiorna anche core, plugin
-    e app (programmi(), 12/11/2026): core e plugin al più ogni 6 ore, l'app di notte a computer fermo.
-    Dal mod no: un `hc update` o un riavvio dell'app fermerebbero la finestra che lo chiede.
+    e app (programmi(), 12/11/2026): core e plugin ogni ora, l'app di notte a computer fermo.
+    Dal mod no: un `hc update` o un riavvio dell'app fermerebbero la finestra che lo chiede;
+  - nello stesso giro orario la copia di Arturo che il mod legge (`radice` di arturo.json, come
+    arturo-herdr) va avanti con un fast-forward, solo se è pulita: un file tracciato modificato, un commit
+    suo, un HEAD staccato o un ramo senza remoto la lasciano com'è (esito "ferma"). ~/.claude e una
+    cartella dentro un altro repository non si toccano.
 
 Variabili per i banchi: HERDR_APP_HOME, VOLTA_CACHE, VOLTA_IMMAGINI (la cartella dei WebP), VOLTA_HERDR_APP (JSON: l'argv di herdr-app),
 VOLTA_NO_AGENTE=1 (niente LaunchAgent né schtasks), VOLTA_HC (JSON: l'argv di hc), VOLTA_PLUGINS
@@ -624,7 +628,9 @@ def cmd_installa(argv: list) -> int:
 # sistema (LaunchAgent o attività pianificata): dentro il mod un `hc update` o un riavvio dell'app
 # fermerebbero la finestra che lo sta chiedendo.
 
-OGNI_PROGRAMMI = 6 * 3600         # secondi fra due giri di core e plugin
+# Secondi fra due giri di core, plugin e copia di Arturo. Il sistema lancia ogni ora: 50 minuti tengono il
+# giro orario anche quando l'ora fra due lanci esce di qualche secondo più corta (12/11/2026, #5442).
+OGNI_PROGRAMMI = 50 * 60
 FASCIA_APP = (2, 6)               # ore locali in cui l'app può riavviarsi
 FERMO_APP = 30 * 60               # secondi senza tastiera né mouse prima di riavviare l'app
 APP_NUOVA = "Volta.app"           # il nome del pacchetto dal 12/11/2026
@@ -749,6 +755,77 @@ def plugin(prima: dict) -> dict:
     if rc != 0:
         return {"esito": "errore", "versione": versione, "motivo": ultima_riga(out)}
     return {"esito": "allineato", "versione": versione}
+
+
+def radice_arturo() -> Path | None:
+    """La copia di Arturo che il mod legge: `radice` di arturo.json, altrimenti la cartella sopra
+    `bin/arturo` della voce `arturo` (come config() di dati.js). None se arturo.json non la nomina."""
+    c = config()
+    r = c.get("radice")
+    if not (isinstance(r, str) and r):
+        voce = c.get("arturo")
+        bin_ = Path(str(voce[-1])) if isinstance(voce, list) and voce else None
+        r = str(bin_.parent.parent) if bin_ and bin_.name == "arturo" and bin_.parent.name == "bin" else ""
+    return Path(os.path.expanduser(r)) if r else None
+
+
+def copia_arturo() -> dict:
+    """Porta avanti la copia di Arturo che Volta legge (un clone o un worktree, come arturo-herdr), solo con
+    un fast-forward e solo se è pulita: un file tracciato modificato, un commit suo o un ramo senza remoto la
+    lasciano com'è, con esito "ferma". ~/.claude resta fuori: lì Arturo e la config si aggiornano da sé
+    (12/11/2026, #5442: la copia era indietro su MacBook e Mac mini, e la colonna dei progetti con lei)."""
+    radice = radice_arturo()
+    if radice is None:
+        return {"esito": "assente", "motivo": "arturo.json non nomina la copia di Arturo"}
+    if radice.resolve() == (Path.home() / ".claude").resolve():
+        return {"esito": "assente", "motivo": "~/.claude si aggiorna da sé"}
+    if not radice.is_dir():
+        return {"esito": "assente", "motivo": "%s non c'è" % radice}
+    rc, cima = git(["rev-parse", "--show-toplevel"], cwd=radice, timeout=20)
+    if rc != 0 or Path(cima).resolve() != radice.resolve():
+        # Una cartella dentro un altro repository non è una copia sua: quel repository non si tocca.
+        return {"esito": "assente", "motivo": "%s non è una copia git" % radice}
+
+    def sporca() -> str:
+        # --no-optional-locks: il controllo non prende il lucchetto dell'indice a una sessione che lavora lì.
+        rc, out = git(["--no-optional-locks", "status", "--porcelain", "--untracked-files=no"], cwd=radice, timeout=30)
+        if rc != 0:
+            return "git status: " + ultima_riga(out)
+        righe_ = [x for x in out.splitlines() if x.strip()]
+        return "%d file modificati" % len(righe_) if righe_ else ""
+
+    rc, ramo = git(["symbolic-ref", "--quiet", "--short", "HEAD"], cwd=radice, timeout=20)
+    if rc != 0 or not ramo:
+        return {"esito": "ferma", "motivo": "HEAD staccato"}
+    rc_r, remoto = git(["config", "--get", "branch.%s.remote" % ramo], cwd=radice, timeout=20)
+    rc_u, unione = git(["config", "--get", "branch.%s.merge" % ramo], cwd=radice, timeout=20)
+    if rc_r != 0 or rc_u != 0 or not remoto or not unione or remoto == ".":
+        return {"esito": "ferma", "ramo": ramo, "motivo": "il ramo %s non segue un ramo remoto" % ramo}
+    motivo = sporca()
+    if motivo:
+        return {"esito": "ferma", "ramo": ramo, "motivo": motivo}
+    rc, out = git(["fetch", "--quiet", remoto, unione], cwd=radice)
+    if rc != 0:
+        return {"esito": "errore", "ramo": ramo, "motivo": "fetch: " + ultima_riga(out)}
+    rc, conti = git(["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], cwd=radice, timeout=30)
+    try:
+        suoi, nuovi = (int(x) for x in conti.split())
+    except ValueError:
+        return {"esito": "errore", "ramo": ramo, "motivo": "rev-list: " + ultima_riga(conti)}
+    _, prima = git(["rev-parse", "--short", "HEAD"], cwd=radice, timeout=20)
+    if suoi:
+        return {"esito": "ferma", "ramo": ramo, "versione": prima, "motivo": "%d commit suoi, non sul remoto" % suoi}
+    if not nuovi:
+        return {"esito": "allineato", "ramo": ramo, "versione": prima}
+    motivo = sporca()  # di nuovo: durante il fetch una sessione può aver toccato un file
+    if motivo:
+        return {"esito": "ferma", "ramo": ramo, "versione": prima, "motivo": motivo}
+    rc, out = git(["merge", "--ff-only", "--quiet", "@{upstream}"], cwd=radice, timeout=60)
+    if rc != 0:
+        return {"esito": "errore", "ramo": ramo, "versione": prima, "motivo": "merge --ff-only: " + ultima_riga(out)}
+    _, dopo = git(["rev-parse", "--short", "HEAD"], cwd=radice, timeout=20)
+    return {"esito": "aggiornato", "ramo": ramo, "versione": dopo, "prima": prima,
+            "motivo": "%s → %s, %d commit" % (prima, dopo, nuovi)}
 
 
 def fermo_da() -> float:
@@ -922,7 +999,7 @@ def app_volta(prima: dict) -> dict:
 
 
 def programmi(forza: bool = False) -> dict:
-    """Un giro su core, plugin e app. Core e plugin al più ogni OGNI_PROGRAMMI secondi, l'app a ogni giro
+    """Un giro su core, plugin, copia di Arturo e app. I primi tre al più ogni OGNI_PROGRAMMI secondi, l'app a ogni giro
     del sistema (fa da sé i controlli di fascia e di riposo). L'esito va in programmi-stato.json."""
     l = cache() / "programmi.lucchetto"
     l.parent.mkdir(parents=True, exist_ok=True)
@@ -936,7 +1013,7 @@ def programmi(forza: bool = False) -> dict:
         stato = leggi(programmi_file())
         adesso = time.time()
         if forza or adesso - float(stato.get("giro") or 0) >= OGNI_PROGRAMMI:
-            for nome, fare in (("core", core), ("plugin", lambda: plugin(stato.get("plugin") or {}))):
+            for nome, fare in (("core", core), ("plugin", lambda: plugin(stato.get("plugin") or {})), ("copia", copia_arturo)):
                 try:
                     stato[nome] = fare()
                     stato[nome].setdefault("il", time.time())  # un plugin compromesso tiene l'ora del blocco
@@ -1082,7 +1159,7 @@ def main(argv: list) -> int:
                     print("%s: %s%s" % (nome.upper(), d.get("esito"), (" · " + str(d["motivo"])) if d.get("motivo") else ""))
         return rc
     if argv[:1] == ["programmi"]:
-        # A mano, per le prove: lo stesso giro del sistema, subito (--subito salta l'attesa di 6 ore).
+        # A mano, per le prove: lo stesso giro del sistema, subito (--subito salta l'attesa di OGNI_PROGRAMMI).
         print(json.dumps(programmi(forza="--subito" in argv), ensure_ascii=False))
         return 0
     if argv[:1] == ["installa"]:
@@ -1100,7 +1177,7 @@ def main(argv: list) -> int:
         d["modo"] = config().get("mod_modo") or "automatico"
         d["immagini"] = leggi(cache() / "immagini-stato.json")
         d["genera"] = leggi(cache() / "immagini-genera.json")
-        d["programmi"] = {k: v for k, v in leggi(programmi_file()).items() if k in ("core", "plugin", "app")}
+        d["programmi"] = {k: v for k, v in leggi(programmi_file()).items() if k in ("core", "plugin", "copia", "app")}
         print(json.dumps(d, ensure_ascii=False))
         return 0
     print(__doc__.strip())
