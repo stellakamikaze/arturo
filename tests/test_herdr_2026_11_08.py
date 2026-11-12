@@ -3982,8 +3982,9 @@ def hz58(repo: Path, casa: Path) -> str | None:
     evt("UserPromptSubmit", prompt="una richiesta lunga abbastanza per un titolo")
     evt("Stop")
     t = leggi(titolo)
-    if chiamate() or (t.get("titolo"), t.get("fonte"), t.get("portato")) != ("Nome mio della sessione", "persona", True):
-        return f"titolo-sessione.py riscrive il nome della persona, o chiama il modello: {t}, {len(chiamate())} chiamate"
+    # il modello può essere chiamato per la sintesi (cosa succede adesso, 12/11/2026), il nome resta
+    if (t.get("titolo"), t.get("fonte"), t.get("portato")) != ("Nome mio della sessione", "persona", True):
+        return f"titolo-sessione.py riscrive il nome della persona: {t}, {len(chiamate())} chiamate"
     # la pulizia: un nome della persona vecchio resta se la sessione ha una trascrizione, altrimenti va via
     (radice / "projects" / "p").mkdir(parents=True)
     (radice / "projects" / "p" / f"{sid}.jsonl").write_text("{}\n", encoding="utf-8")
@@ -8338,8 +8339,8 @@ VELENI = [
     ("HZ44", "shared/volta/mods/arturo/volta.js", "this.menu = s.sessionId;\n    this.scopri(s);\n    this.fare(s, a, cx);", "this.menu = s.sessionId;"),
     ("HZ44", "shared/volta/mods/arturo/volta.js", 'if (g && s.stato === "ferma") this.aperti[g.chiave] = true;', ""),
     ("HZ45", 'hooks/titolo-sessione.py', '        if salvato.get("titolo"):\n            return 0\n', ''),
-    ("HZ45", 'hooks/titolo-sessione.py', '    if salvato.get("fonte") == "modello" and adesso - float(salvato.get("quando") or 0) < ogni:\n        return 0\n', ''),
-    ("HZ45", 'hooks/titolo-sessione.py', '    if salvato.get("fonte") == "modello" and peso <= int(salvato.get("peso") or 0):\n        return 0\n', ''),
+    ("HZ45", 'hooks/titolo-sessione.py', 'vuole_titolo = not persona and not (modello and (adesso - float(salvato.get("quando") or 0) < ogni', 'vuole_titolo = not persona and not (modello and (False'),
+    ("HZ45", 'hooks/titolo-sessione.py', '                                                     or peso <= int(salvato.get("peso") or 0)))', '                                                     or False))'),
     ("HZ45", 'hooks/titolo-sessione.py', '    if len(righe) != 1:\n        return ""\n', '    righe = righe[:1]\n'),
     ("HZ45", 'hooks/titolo-sessione.py', '    return t if 2 <= len(t) <= LUNGO else ""', '    return t'),
     ("HZ45", 'hooks/titolo-sessione.py', 'if os.environ.get("ARTURO_TITOLI") == "0" or os.environ.get("ARTURO_TITOLO_FIGLIO"):', 'if os.environ.get("ARTURO_TITOLO_FIGLIO"):'),

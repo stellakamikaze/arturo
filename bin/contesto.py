@@ -2,6 +2,9 @@
 """arturo contesto: il contesto di un progetto per /inizio, in una chiamata e in sola lettura.
 
 Uso: arturo contesto [nome] [--giorni N]
+     arturo contesto <nome> --json    le fonti del contesto (istruzioni, indice della memoria, scheda,
+                                      quadro di /inizio, ultimo handoff, note collegate) con file, data,
+                                      peso e prime righe: la finestra "Contesto del progetto" di Volta
      arturo contesto --stdin          gli argomenti di /inizio su stdin, mai nella riga di comando: il
                                       compito può contenere virgolette, # e $(...) che la shell eseguirebbe
   Senza nome usa la cartella in cui sei. Accetta anche gli argomenti interi di /inizio:
@@ -498,9 +501,99 @@ def separa_attesa(compito: str) -> tuple:
     return parti[0].strip(), (parti[1].strip() if len(parti) > 1 else "")
 
 
+def fonte(id_: str, titolo: str, perche: str, percorso: Path | None, testo: str | None = None, voci: int | None = None) -> dict:
+    """Una fonte del contesto per `--json`: il file (o il testo già pronto), la data, il peso, le prime righe."""
+    out = {"id": id_, "titolo": titolo, "perche": perche, "percorso": str(percorso) if percorso else None, "presente": False}
+    try:
+        if testo is None and percorso is not None and percorso.is_file():
+            testo = percorso.read_text(encoding="utf-8", errors="replace")
+            out["data"] = dt.datetime.fromtimestamp(percorso.stat().st_mtime).isoformat(timespec="seconds")
+    except OSError:
+        testo = None
+    if testo is None:
+        return out
+    righe = [r.rstrip() for r in testo.splitlines()]
+    out.update({"presente": True, "caratteri": len(testo), "righe": len(righe),
+                "anteprima": [corto(r, 140) for r in righe if r.strip()][:6]})
+    if voci is not None:
+        out["voci"] = voci
+    return out
+
+
+def collegate(scheda: Path | None, radici: list) -> list:
+    """Le note che la scheda del progetto collega con [[nome]], trovate nelle radici della memoria."""
+    if not scheda or not scheda.is_file():
+        return []
+    nomi = []
+    for n in re.findall(r"\[\[([^\]|#]+)", scheda.read_text(encoding="utf-8", errors="replace")):
+        n = n.strip()
+        if n and n not in nomi:
+            nomi.append(n)
+    out = []
+    for n in nomi[:40]:
+        for r in radici:
+            try:
+                f = next((x for x in r.rglob(f"{n}.md") if not any(p[:1] in "._" for p in x.relative_to(r).parts)), None)
+            except OSError:
+                f = None
+            if f:
+                out.append(f)
+                break
+    return out
+
+
+def contesto_json(nome: str) -> dict:
+    """Come si forma il contesto di un progetto, per la finestra di Volta (Federico, 12/11/2026): le
+    fonti nell'ordine in cui una sessione aperta con /inizio le legge. Sola lettura, come il resto."""
+    prog = importlib.util.spec_from_file_location("progetti_arturo", str(QUI / "progetti.py"))
+    pm = importlib.util.module_from_spec(prog)
+    prog.loader.exec_module(pm)
+    if nome:
+        nome = risolvi_nome(nome)[0]
+    cartella, _ = trova_cartella(nome)
+    s = slug(cartella.name) if cartella else slug(nome)
+    tutte = pm.schede() if s else {}
+    # uno spazio di Volta col nome alternativo ("volta" per herdr-arturo): l'alias della scheda
+    if s and not cartella and s not in tutte and not handoff_di(s):
+        vero = next((k for k, v in tutte.items() if s in {slug(str(a)) for a in (v.get("alias") or [])}), None)
+        if vero:
+            s = vero
+            cartella = trova_cartella(vero)[0]
+    radice = radice_orsa()
+    base = base_progetti()
+    chiave_base = re.sub(r"[^A-Za-z0-9]", "-", str(base))
+    scheda = pm.scheda_di(s) if s else None
+    elenco = handoff_di(s)
+    # quello che /inizio stampa nella FASE 1: lo stesso comando, in testo
+    try:
+        r = subprocess.run([sys.executable, str(Path(__file__).resolve()), s], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=60, cwd=str(base) if base.is_dir() else None)
+        inizio = r.stdout if r.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError):
+        inizio = None
+    fonti = [
+        fonte("globale", "Istruzioni di tutte le sessioni", "Il tuo CLAUDE.md: Claude lo legge all'avvio di ogni sessione.", radice / "CLAUDE.md"),
+        fonte("indice", "Indice della memoria", "MEMORY.md: l'elenco delle note che Claude ha sempre davanti.",
+              radice / "projects" / chiave_base / "memory" / "MEMORY.md"),
+        fonte("progetto", "Istruzioni del progetto", "Il CLAUDE.md nella cartella del progetto.", (cartella / "CLAUDE.md") if cartella else None),
+        fonte("scheda", "Scheda del progetto", "La nota progetto-" + (s or "…") + ".md: cos'è, dove sta, le decisioni.", scheda),
+        fonte("inizio", "Quadro di /inizio", "Quello che stampa arturo contesto: git, ripartenza, todo per chi agisce, scadenze.", None, inizio),
+        fonte("handoff", "Ultimo handoff", "Il salvataggio dell'ultimo /fine, letto per intero da /inizio.", elenco[0][3] if elenco else None),
+    ]
+    for f in collegate(scheda, pm.radici_memoria()):
+        fonti.append(fonte("nota-" + f.stem, f.stem, "Nota collegata dalla scheda: entra se Claude la apre.", f))
+    titolo = (tutte.get(s) or {}).get("titolo") if s else None
+    return {"versione": 1, "progetto": {"slug": s, "titolo": titolo or (cartella.name if cartella else s), "cartella": str(cartella) if cartella else None},
+            "fonti": fonti, "avvisi": [] if (cartella or elenco or scheda) else [f'Nessuna cartella, scheda o handoff per "{nome}".']}
+
+
 def main(argv: list) -> int:
     if argv and argv[0] in ("-h", "--help", "aiuto", "help"):
         print(__doc__.strip())
+        return 0
+    if "--json" in argv:
+        nome = " ".join(a for a in argv if a != "--json").strip()
+        print(json.dumps(contesto_json(nome), ensure_ascii=False))
         return 0
     if argv and argv[0] == "--stdin":
         # Gli argomenti di /inizio arrivano da un heredoc: la shell non li tocca (#4291, inizio.md).
