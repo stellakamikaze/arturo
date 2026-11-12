@@ -22,7 +22,7 @@ I todo sono quelli di `arturo todo`: se li tieni in un altro strumento ([fonte d
 - Il layout di Arturo in `~/.config/herdr-app` (`layouts/arturo.json`, `themes/arturo*.json`, `mods/arturo/`) e `arturo.json`, che dice al pannello dove sono Arturo e i tuoi progetti.
 - Un hook di Claude Code, `hooks/herdr-stato.sh`: dice a Herdr se Claude lavora, aspetta te o ha finito. Fuori da Herdr non fa niente.
 - Sul Mac, `~/Applications/Arturo.app` e il LaunchAgent `~/Library/LaunchAgents/org.stellakamikaze.arturo-app.plist`, che le rimette nome e icona dopo ogni aggiornamento di Herdr ([più sotto](#il-nome-arturo-nel-dock)).
-- Le note che lasci con ⌘⇧N (Ctrl+Shift+M su Windows), in `~/.claude/data/note-finestra/`: restano su questo computer, fuori da git.
+- Le note che lasci con ⌘⇧N (Ctrl+Shift+M su Windows), in `~/.claude/data/note-finestra/`, fuori da git. Con Volta aperta passano da sole alle altre macchine collegate a Herdr ([più sotto](#le-note-sulle-altre-macchine)), e l'esito dell'ultimo giro sta in `~/.cache/volta-note/stato.json`.
 - La nascita in background ([più sotto](#le-sessioni-del-terminale-nascono-in-background)): `volta-claude` e `volta-nascita.sh` in `~/.config/herdr-app` (su Windows anche `volta-claude.ps1`) ci sono sempre. Il blocco marcato in `~/.zshrc` o `~/.bashrc`, o nel profilo di PowerShell su Windows, c'è solo se la scegli.
 
 Funziona sui Mac con processore Apple e su Windows. Sui Mac Intel e su Linux `/setup` salta il passo, e Arturo funziona come sempre nel terminale.
@@ -39,7 +39,7 @@ Funziona sui Mac con processore Apple e su Windows. Sui Mac Intel e su Linux `/s
 - Herdr: cancella l'app da `~/Applications` e `~/.local/bin/herdr-*`, `~/.local/bin/hc`.
 - Arturo.app, sul Mac: prima ferma il LaunchAgent, altrimenti la ricrea, con `launchctl bootout gui/$(id -u)/org.stellakamikaze.arturo-app`; poi cancella `~/Library/LaunchAgents/org.stellakamikaze.arturo-app.plist` e `~/Applications/Arturo.app`.
 - La firma locale, se l'hai creata: in Accesso Portachiavi cancella la voce "Arturo firma locale" (certificato e chiave). Senza, Arturo.app torna alla firma ad hoc e macOS richiede i permessi a ogni aggiornamento di Herdr.
-- Le note sulla finestra: cancella `~/.claude/data/note-finestra/`. La riga `note_progetto` in `~/.config/herdr-app/arturo.json` dice dove vanno le note: toglierla le manda al progetto aperto.
+- Le note sulla finestra: una nota che non serve più la chiudi con Risolta o Scarta. Una cartella cancellata a mano torna dall'altra macchina al giro dopo. Per togliere tutte le note, prima chiudi Volta su ogni macchina collegata, poi cancella `~/.claude/data/note-finestra/` su ognuna. La riga `note_progetto` in `~/.config/herdr-app/arturo.json` dice dove vanno le note: toglierla le manda al progetto aperto.
 - La nascita in background: `sh ~/.config/herdr-app/volta-nascita.sh togli` toglie il blocco da `~/.zshrc`, `~/.bashrc` e dai profili di PowerShell, e il resto dei file resta com'era. Vale dalla prossima finestra del terminale. Poi cancella `volta-claude`, `volta-claude.ps1`, `volta-nascita.sh` e `nascita-no` in `~/.config/herdr-app`.
 - Per reinstallare o aggiornare il layout: `sh ~/.claude/shared/volta/installa-herdr.sh`.
 - Il mod che si aggiorna da solo: `shared/volta/` è una copia. La fonte è la cartella `arturo/` del repository di Volta, e la copia la riscrive `volta/pubblica-mod.py` di quel repository, col file `ORIGINE` (banco HZ56: un file toccato a mano qui fa rosso). Chi ha accesso a quel repository accende l'aggiornamento con `python3 shared/volta/volta_mod.py attiva <url del repository>`: scrive `mod_sorgente` in `arturo.json`, copia lo script in `~/.config/herdr-app/volta_mod.py` e mette un controllo ogni ora (LaunchAgent sul Mac, attività pianificata su Windows). Da lì `volta_mod.py controlla` gira all'apertura di Volta e ogni ora: scarica la cartella, passa `herdr-app check` sulla copia nuova e la scambia col mod installato, che resta in `~/.config/herdr-app/volta-mod/prima`. Un mod col controllo rosso non entra. `keys.json` e `arturo.json` non si toccano. Accanto a "Impostazioni" il piede scrive la versione installata e l'ora ("mod abc1234 · 09:52"), e dopo un giorno senza riuscire a controllare lo dice; `herdr-app do arturo.versione` la dà in un avviso, `volta_mod.py stato` in JSON. `volta_mod.py manuale` spegne il controllo, `automatico` lo riaccende. Per provare un mod non pubblicato: `volta_mod.py installa --da <cartella>`, che resta sei ore (banco HZ57, e `volta/test-volta-mod.py` nel repository di Volta). Senza `mod_sorgente` non cambia niente: il mod si aggiorna con l'installazione, come prima.
@@ -165,6 +165,18 @@ Una nota è un appunto per Claude legato a un punto della finestra: "questo bott
 
 **Dove stanno.** Ogni nota ha una cartella in `~/.claude/data/note-finestra/<data-ora>/` con `nota.json`, lo scatto della finestra fatto prima del velo (`finestra.png`) e, dopo che Claude l'ha aperta, il ritaglio attorno al punto (`ritaglio.png`). La cartella è fuori da git. Se il punto cade su un terminale, la nota tiene anche il terminale, la cartella in cui lavora e le sue ultime righe.
 
+### Le note sulle altre macchine
+
+Una nota nasce sulla macchina dove la lasci, ma Claude la trova con `arturo note` su ogni macchina collegata a Herdr (`hc machine ls`), e la finestra di ogni macchina la mostra. Dopo ogni giro dell'elenco delle sessioni, cioè ogni 30 secondi, il mod lancia `volta_note.py sincronizza`, che sta nella cartella del mod accanto a `volta_sonda.py` e ne usa le funzioni per parlare con le altre macchine (banco HZ97). Il giro gira solo con Volta aperta: le note lasciate prima arrivano al primo giro dopo l'apertura.
+
+- Per ogni macchina collegata il giro legge le sue note, scarica qui quelle che mancano, porta di là quelle di qui, e sulle note presenti da tutte e due le parti scrive l'unione. Viaggiano `nota.json` e `finestra.png`; `ritaglio.png` lo rifà `arturo note mostra` sulla macchina che lo chiede.
+- L'unione tiene tutte le risposte del filo e lo stato più avanti: aperta, poi presa, poi chiusa. Una nota chiusa su una macchina resta chiusa anche sulle altre, e fra due chiusure diverse vale la più recente. Gli orologi delle macchine non contano.
+- Ogni scrittura parte solo se il file è ancora quello letto. Se nel frattempo Claude ha risposto o la finestra ha chiuso la nota, il giro salta quella nota e la unisce al giro dopo: nessuna risposta si perde.
+- Due note nate insieme su due macchine possono avere lo stesso numero: lo tiene la più vecchia, la più nuova prende il primo numero libero.
+- L'esito dell'ultimo giro, macchina per macchina, sta in `~/.cache/volta-note/stato.json` (`ok`, `salta` per una macchina non collegata, `errore` col motivo). Il file sta fuori da `~/.cache/volta`, perché la finestra guarda quella cartella e rileggerebbe l'elenco a ogni giro. A mano: `python3 ~/.config/herdr-app/mods/arturo/volta_note.py sincronizza`.
+- Una nota non si cancella: una cartella tolta a mano torna dall'altra macchina al giro dopo. Si chiude con Risolta o Scarta.
+- La cosa da fare collegata nasce sulla macchina della nota. Chi chiude la nota da un'altra macchina chiude la cosa da fare con la fonte dei task di quella macchina. Con una fonte condivisa fra le macchine, come NocoDB, la chiusura arriva; con la fonte locale di Arturo la cosa da fare resta aperta sulla macchina dove è nata.
+
 **Per Claude**: le note si leggono e si chiudono con `arturo note`. Il giro è elenco, mostra, prendi, lavoro, risolvi:
 
 - `arturo note elenco` dà le note aperte coi numeri dei segni; `--md` le scrive come un brief, `--tutte` aggiunge le chiuse, `--progetto P` tiene un solo progetto, `--json` le dà come dati.
@@ -173,6 +185,6 @@ Una nota è un appunto per Claude legato a un punto della finestra: "questo bott
 - `arturo note rispondi ID "testo"` scrive nel filo: la finestra avvisa "Claude ha risposto alla nota N".
 - `arturo note risolvi ID "cosa hai fatto"` e `arturo note scarta ID "perché"` chiudono la nota e la cosa da fare collegata.
 
-ID è il nome della cartella della nota, oppure il suo numero se fra le note aperte un solo segno lo porta. Se la finestra scrive sulla nota nello stesso momento, il comando rilegge e rifà la sua modifica: nessuna risposta si perde.
+ID è il nome della cartella della nota, oppure il suo numero se fra le note aperte un solo segno lo porta. Se la finestra o il giro delle note scrive sulla nota nello stesso momento, il comando rilegge e rifà la sua modifica: nessuna risposta si perde.
 
 Prendi, rispondi, risolvi e scarta hanno due opzioni. `--chi` dice chi scrive: `claude`, il predefinito, oppure `federico`, cioè la persona che ha lasciato la nota; i bottoni della finestra passano da qui con `--chi federico`, e così risolvi e scarta vanno anche senza testo. `--json` stampa la nota dopo il gesto, con `todo_esito` che dice cosa è successo alla cosa da fare collegata. Un testo che comincia con due trattini va dopo `--`.

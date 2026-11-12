@@ -14,11 +14,15 @@ porte aperte, e la finestra se ne accorge da sola perché guarda la cartella (wa
   scarta    chiude la nota col motivo e scarta il todo collegato
 
 Il formato di nota.json lo leggono anche nota.js (leggiNota, noteAperte) e il velo: numeri, stati e
-lettura di una nota versione 1 qui fanno le stesse cose. Mod e CLI scrivono lo stesso file: il mod
-scrive solo se il file è ancora quello letto (writeTextFile con l'atteso), la CLI rilegge e rifà la
-modifica se il file è cambiato fra lettura e scrittura, così nessuna delle due perde il filo dell'altra.
-Il todo si chiude con "arturo todo", che passa dalla fonte dei task della persona se c'è. Solo libreria
-standard, Python 3.8 o successivo.
+lettura di una nota versione 1 qui fanno le stesse cose. Lo stesso file lo scrivono in tre: il mod
+scrive solo se il file è ancora quello letto (writeTextFile con l'atteso); volta_note.py del mod, che
+porta le note fra le macchine di Herdr, scrive l'unione delle due copie (unisci) solo se il file è
+ancora quello letto, altrimenti salta e riprova al giro dopo; questa CLI rilegge e rifà la modifica se
+il file è cambiato fra lettura e scrittura. Così nessuno dei tre perde il filo degli altri. Per questo
+una nota non si cancella da qui: la cartella tolta tornerebbe dall'altra macchina, e chiuderla è
+risolvi o scarta. Il todo si chiude con "arturo todo", che passa dalla fonte dei task della persona se
+c'è, sulla macchina dove gira il comando: la nota può essere nata su un'altra. Solo libreria standard,
+Python 3.8 o successivo.
 """
 from __future__ import annotations
 
