@@ -13,6 +13,29 @@ modo di lavorare.
 
 ---
 
+## 2026-11-12 — Il controllo della configurazione non dà più errori falsi
+
+**Cosa cambia**: `/system-audit`, che gira anche dentro `/diagnosi`, segnava errori su configurazioni che
+funzionavano: su un Mac con tutte le guardie accese ne ha dati tre, e adesso quei casi passano.
+
+- Alcuni hook partono con un ripiego: `test -f X || python3 Y`, cioè "se X manca, lancia Y". Il controllo
+  cercava anche X, che manca apposta, e lo dava per un hook perso. Adesso controlla solo Y, lo script che parte
+  davvero.
+- Claude Code lascia in `skills/` una cartella nascosta, `.trash`, con le skill tolte. Il controllo la leggeva
+  come una skill rotta; adesso la salta, e quando una skill è rotta sul serio l'errore ne dice il nome.
+- Un indirizzo di pagina scritto fra apici, come la vista `/gare` della dashboard, il controllo lo prendeva per
+  un comando che non esiste. Adesso lo riconosce dalla parola che lo precede (vista, pagina, rotta, indirizzo),
+  e un comando vero scritto più avanti nella stessa riga resta controllato.
+- Il controllo segnava come inesistente `/bg`, che è un comando di Claude Code; adesso lo conosce.
+
+**Da sapere**: non devi fare niente. La correzione arriva con l'aggiornamento, e al prossimo `/diagnosi`
+quegli errori non compaiono più.
+
+**Il principio**: un controllo che segna errori su una configurazione sana ti abitua a non leggerlo, e il
+giorno che l'errore è vero passa inosservato.
+
+---
+
 ## 2026-11-11 — Altri cinque buchi chiusi nelle guardie
 
 **Cosa cambia**: la revisione che ha chiuso i tre buchi della voce qui sotto ne ha trovati altri cinque, casi in
