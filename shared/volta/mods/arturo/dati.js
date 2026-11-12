@@ -2,7 +2,7 @@
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
 import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
-import { titolo, agganciata, titoloFork, casellaVuota, daPortare, argvScheda, motivoUscita } from "./sessioni.js";
+import { titolo, agganciata, titoloFork, casellaVuota, daPortare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -422,7 +422,14 @@ export function mostra(indirizzo) {
 export const ETICHETTA = "arturo.sessione";
 
 // Un argv come riga di comando per la shell di una scheda: fra apici ciò che non è una parola semplice.
-export const comando = (argv) => (argv ?? []).map((a) => (/^[\w@%+=:,./-]+$/.test(String(a)) ? String(a) : `'${String(a).replace(/'/g, `'\\''`)}'`)).join(" ");
+// Su Windows la shell della scheda è PowerShell (il programma ha un percorso come C:\...): lì una riga
+// che comincia con una stringa fra apici è un'espressione, e gli argomenti dopo danno ParserError
+// ("Token imprevisto '-t'"). Serve l'operatore & e gli apici di PowerShell, dove ' si scrive ''.
+export const comando = (argv) => {
+  const a = (argv ?? []).map(String);
+  if (percorsoWindows(a[0])) return "& " + a.map((x) => `'${x.replace(/'/g, "''")}'`).join(" ");
+  return a.map((x) => (/^[\w@%+=:,./-]+$/.test(x) ? x : `'${x.replace(/'/g, `'\\''`)}'`)).join(" ");
+};
 
 // I terminali che agganciano la sessione e che un pannello mostra: per etichetta, poi per argv.
 // Solo quelli di questa macchina: la finestra mostra anche le schede delle altre macchine di Herdr
@@ -497,12 +504,20 @@ export async function congedaSessione(c) {
 // caduta, servizio spento) e Herdr ha lasciato la shell che lo aveva lanciato. Si riconosce dal programma
 // in primo piano: è la shell del terminale (stesso pid) e non ha più l'argv con cui è nata, cioè ha già
 // passato il comando. Mentre la shell si sta ancora avviando l'argv è quello di nascita: non è nuda.
-// Su Windows la shell non cambia argv: lì una scheda non risulta mai nuda, e resta com'è.
+// Su Windows (scheda con PowerShell) il primo piano resta sempre pwsh, con un percorso diverso
+// dall'argv di nascita: il confronto la darebbe nuda anche con claude attach acceso, e il rilancio
+// scriverebbe il comando dentro Claude come un messaggio. Lì decide lo schermo: è nuda solo se l'ultima
+// riga è il prompt di PowerShell (promptPowerShell di sessioni.js).
 export async function nuda(indirizzo) {
   try {
     const r = await hc(["get", indirizzo, "--json"]);
     if (r.code !== 0) return false;
     const d = JSON.parse(r.stdout);
+    if (shellPowerShell(d.argv?.[0])) {
+      if (d.state !== "live") return false;
+      const s = await hc(["read", indirizzo]);
+      return s.code === 0 && promptPowerShell(s.stdout);
+    }
     const f = d.foreground;
     return d.state === "live" && Boolean(f) && f.pid === d.pid && JSON.stringify(f.argv) !== JSON.stringify(d.argv);
   } catch {

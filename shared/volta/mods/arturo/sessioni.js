@@ -372,6 +372,17 @@ export function argvScheda(argv) {
   return [a[0], "-t", ...OPZIONI_SSH, ...a.slice(2)];
 }
 
+// Windows. Un programma con un percorso di Windows (C:\... o C:/...): la scheda che lo lancia ha PowerShell.
+export const percorsoWindows = (a) => /^[A-Za-z]:[\\/]/.test(String(a ?? ""));
+// La shell di una scheda è PowerShell (pwsh.exe, powershell.exe, anche col percorso intero).
+export const shellPowerShell = (a) => /(^|[\\/])(pwsh|powershell)(\.exe)?$/i.test(String(a ?? ""));
+// Lo schermo di una scheda PowerShell finisce col prompt ("PS C:\Users\x>"): il comando è uscito e la
+// shell aspetta. Con Claude acceso l'ultima riga è la sua barra; mentre ssh si collega è la riga lanciata.
+export function promptPowerShell(schermo) {
+  const righe = String(schermo ?? "").replace(/\u001b\[[0-9;?<>]*[A-Za-z]/g, "").split(/\r?\n/).filter((r) => r.trim());
+  return righe.length > 0 && /^PS [^>]*>\s*$/.test(righe[righe.length - 1]);
+}
+
 // Perché Claude è uscito dalla scheda appena agganciata, dallo schermo della scheda (hc read): la
 // frase per la riga della sessione, e `fermo` quando riprovare o riavviare non cambia niente (la causa
 // sta nella macchina o nella connessione). null se lo schermo non dice niente di riconoscibile.
@@ -390,7 +401,8 @@ export function motivoUscita(schermo, s) {
   const m = s?.questa ? "questa macchina" : (s?.macchina ?? s?.host ?? "quella macchina");
   const righe = String(schermo ?? "").replace(/\u001b\[[0-9;?]*[A-Za-z]/g, "").split("\n");
   let da = 0;
-  righe.forEach((r, i) => { if (/[%$#>]\s.*\battach\s+['"]?[\w-]{4,}/.test(r)) da = i; });
+  // anche la riga di PowerShell, dove ogni argomento sta fra apici: "& '…ssh.exe' … 'attach' 'a8ee6d5e'"
+  righe.forEach((r, i) => { if (/[%$#>]\s.*\battach['"]?\s+['"]?[\w-]{4,}/.test(r)) da = i; });
   const coda = righe.slice(da).join("\n");
   for (const [re, frase] of USCITE) if (re.test(coda)) return { testo: frase(m), fermo: true };
   const u = [...coda.matchAll(/Session \S+ (?:has exited|can't start)\s*(?:\(|—|-)?\s*([^\n]*)/g)].pop();

@@ -200,7 +200,8 @@ HZ52 una sessione aperta mostra Claude già avviato (#5290, dati.js apriSessione
      il servizio si accende e claude attach riparte lì con hc send; se manca nasce una scheda nuova, anche
      accanto a una con lo stesso nome. Una sessione in errore passa da --riavvia. La veglia guarda dopo
      qualche secondo: se Claude è uscito riavvia una volta e rilancia, se esce ancora lo dice. Una shell
-     che si sta ancora avviando non è nuda. Una sessione appena nata non ripassa dal servizio.
+     che si sta ancora avviando non è nuda. Una sessione appena nata non ripassa dal servizio. Su Windows
+     nuda la decide lo schermo (prompt PS), e comando() scrive per PowerShell (& e apici raddoppiati).
 HZ53 il verbo apri della sonda e la scheda nuova (#5290): apri accende il servizio prima e senza servizio
      dà errore; con --riavvia lancia claude respawn dopo il servizio; un id strano non parte. ⌘T e
      Ctrl+Shift+T sono arturo.volta-nuova: l'installazione si prende il tasto solo se faceva tab.new di
@@ -3273,10 +3274,12 @@ const caso = process.env.HZ_CASO;
 let esito = null, veglia = null;
 if (caso === "nuova-scheda") await nuovaScheda();
 else if (caso === "comando") esito = comando(["ssh", "-t", "h", "/a b/claude", "attach", "x'y", "a=b,c:d@e"]);
+else if (caso === "comando-win") esito = comando([String.raw`C:\Windows\System32\OpenSSH\ssh.exe`, "-t", "h", "/a b/claude", "attach", "x'y"]);
 else {
   const s = { id: "ffff1111", sessionId: "ffff1111-aaaa", host: "Torre", macchina: "Torre", nome: "Progetto x", progetto: "progetto-x",
               stato: process.env.HZ_STATO || "ferma", tipo: "background" };
-  const r = await apriSessione(s, ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"], process.env.HZ_PRONTA === "1");
+  const r = await apriSessione(s, process.env.HZ_ATTACH ? JSON.parse(process.env.HZ_ATTACH) : ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"],
+                               process.env.HZ_PRONTA === "1");
   veglia = r.veglia ? await r.veglia : null;
   esito = { ...r, veglia: undefined };
 }
@@ -3310,10 +3313,10 @@ def hz52(repo: Path, casa: Path) -> str | None:
         e = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_CASO": caso, "HZ_EXEC": uscita,
              "HZ_SHARED": json.dumps({"arturo.volta.macchine": [], "arturo.dove": "qui"}),
              "HZ_HERDR": json.dumps(herdr), "HZ_HC_GET": json.dumps(letture or {}), **extra}
-        for k in ("HZ_NASCE", "HZ_STATO", "HZ_PRONTA", "HZ_HC_ROTTO"):
+        for k in ("HZ_NASCE", "HZ_STATO", "HZ_PRONTA", "HZ_HC_ROTTO", "HZ_HC_READ", "HZ_ATTACH"):
             if k not in extra:
                 e.pop(k, None)
-        r = subprocess.run([node, str(m / "prova.mjs")], capture_output=True, text=True, timeout=30, env=e)
+        r = subprocess.run([node, str(m / "prova.mjs")], capture_output=True, text=True, encoding="utf-8", timeout=30, env=e)
         if r.returncode != 0:
             raise RuntimeError((r.stderr or r.stdout).strip()[:200])
         return json.loads(r.stdout.strip().splitlines()[-1])
@@ -3389,6 +3392,29 @@ def hz52(repo: Path, casa: Path) -> str | None:
         v = volta("comando")
         if v["esito"] != "ssh -t h '/a b/claude' attach 'x'\\''y' a=b,c:d@e":
             return f"comando(): {v['esito']}"
+        # Windows (12/11/2026, volta cff2611): la shell della scheda è PowerShell. comando() scrive & e gli apici
+        # di PowerShell (' raddoppiato); gli apici di sh davano ParserError "Token imprevisto '-t'".
+        ssh_win = r"C:\Windows\System32\OpenSSH\ssh.exe"
+        v = volta("comando-win")
+        if v["esito"] != "& '%s' '-t' 'h' '/a b/claude' 'attach' 'x''y'" % ssh_win:
+            return f"comando() su Windows non scrive per PowerShell: {v['esito']}"
+        # Windows: foreground.argv[0] è il percorso intero di pwsh, l'argv della scheda dice "pwsh.exe". Nuda la
+        # decide lo schermo (hc read): Claude acceso va davanti senza scrivere niente, il prompt PS rilancia.
+        attach_win = [ssh_win, "-t", "torre.lan", "claude", "attach", "ffff1111"]
+        nascita_win = ["pwsh.exe", "-NoExit", "-Command", "& " + " ".join("'%s'" % x for x in attach_win)]
+        get_win = {"state": "live", "pid": 10, "argv": nascita_win,
+                   "foreground": {"pid": 10, "argv": [r"C:\Program Files\PowerShell\7\pwsh.exe"] + nascita_win[1:]}}
+        herdr_win = {**herdr, "terminals": [{"address": "t3", "argv": ["pwsh.exe"]},
+                                            {"address": "t7", "argv": nascita_win, "labels": {"arturo.sessione": "ffff1111"}}]}
+        acceso = "Fatto.\n\u276f \n  Opus5.5 \u2502 ClaudeCode 12%\n"
+        v = volta(herdr=herdr_win, letture={"t7": [get_win]}, HZ_ATTACH=json.dumps(attach_win), HZ_HC_READ=json.dumps({"t7": acceso}))
+        if v["esito"].get("come") != "davanti" or invii(v):
+            return f"Windows: una scheda pwsh con Claude acceso riceve l'aggancio dentro Claude: {v['esito']}, {invii(v)}"
+        prompt = "Session ffff1111 has exited.\n" + r"PS C:\Users\x>" + "\n"
+        v = volta(herdr=herdr_win, letture={"t7": [get_win]}, HZ_ATTACH=json.dumps(attach_win), HZ_HC_READ=json.dumps({"t7": prompt}))
+        riga_win = "& " + " ".join("'%s'" % x for x in [ssh_win, "-t", *OPZIONI_SSH, "torre.lan", "claude", "attach", "ffff1111"])
+        if v["esito"].get("come") != "rilanciata" or not invii(v) or invii(v)[0] != ["send", "t7", riga_win]:
+            return f"Windows: il prompt PS non rilancia l'aggancio scritto per PowerShell: {v['esito']}, {invii(v)[:1]}"
         # la scheda nuova: una sessione senza prompt nel progetto dello spazio aperto
         v = volta("nuova-scheda", herdr=omonima, uscita=json.dumps({"id": "ffff1111", "sessionId": "ffff1111-aaaa", "attach": attach}))
         if not v["eseguiti"] or v["eseguiti"][0][2:] != ["nasci", "qui", "--progetto", "progetto-x"]:

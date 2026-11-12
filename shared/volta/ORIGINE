@@ -1,5 +1,5 @@
 {
- "albero": "6c1f2de27acaa8be9e9c599513056ee96bceddde",
+ "albero": "8e376ba067513f6679b4a5e37cf4eac37db39bec",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -18,7 +18,7 @@
   "mods/arturo/chiedi.svg": "e00f6385950d1496b2c2e57fe3905417024b695544dbc004526249b9d9f3e15c",
   "mods/arturo/comandi.js": "198f99f2d7b91b922dc9f0dd48586495cac176ce4128ab636f807eb5b349534b",
   "mods/arturo/comuni.js": "4ac20e100f95ce58cea96a935eec78b7041cf492ae7f70bedc2d2eebe0141f16",
-  "mods/arturo/dati.js": "77e7f5aeb541fef1091fe6558f2a98a5f0c74932a8ce2f05ede60cd2e39b150a",
+  "mods/arturo/dati.js": "948f55e54b9712d057577a24c31455dea14d480712531c115c71642d30f16073",
   "mods/arturo/fonts/Archivo-SemiBold.ttf": "9065729d94a24b234c619bb7eb3468e0d0e95465f0fc22b33769e57ddb21fdf0",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Bold.ttf": "c1fab8d34e428f6e0cf5c4005b7bb881527f583cb7f6b5e1ef6934d4029953dd",
   "mods/arturo/fonts/AtkinsonHyperlegibleMono-Medium.ttf": "062d1fe9b2fd79975791af4646fedcaba46ffd317f94adf68e1a9ba3fccaef5c",
@@ -41,7 +41,7 @@
   "mods/arturo/noteui.js": "1b703b298779e3e23c1a441d3aaaa1984c7c5881c996ad863ca2fb41ed7c0001",
   "mods/arturo/partenza.js": "180eb43fc1866656eae4d7c0c3558a3da124c548f4b01556ceb11a98f0f789b4",
   "mods/arturo/revisione.js": "7e57a9239cccc2dbc355625e0302814663d8268f888680c61dd23059d5ee7eaf",
-  "mods/arturo/sessioni.js": "9e749e0efd203eb117597bcf46098531dbbd50f77e615acaa6bb074b0f043f78",
+  "mods/arturo/sessioni.js": "35ff11c1e502021425716bf3557a017e1ad96286da76b22be069f39f4ad659eb",
   "mods/arturo/settimana.js": "0ebd611a82cd49db48284e6b3439fd34899c7a744d0668bf1a1e1a603705174a",
   "mods/arturo/settimana.svg": "b65bc34a4092e93c90133c3fd93337e831ddd7d2065995aa0e22c8669315f180",
   "mods/arturo/stella-lavora.svg": "a295e89dd2ef725ce065c58b72d37335dc0f882c2c53de6041f4ffd105290c94",
