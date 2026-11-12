@@ -398,6 +398,13 @@ HZ93 la chiusura automatica (#5366): sessioni.js con node. daCongedare() prende 
      passoCongedo() ferma senza un secondo /fine chi l'ha già fatto. volta.js: in modo "prova" scrive
      solo il registro, una chiusura alla volta, registro scritto col testo di prima; dati.js: modo di
      serie "prova"; la sonda: congeda --auto col suo testo di /fine.
+HZ94 le animazioni di Volta (12/11/2026, #5410): sessioni.js e comandi.js con node. entrate() dà solo
+     le sessioni nuove fra due letture, niente alla prima; motoRiga() parte da 0 senza transizione, poi
+     va a 1 col ritardo della scala (al più 120 ms), ed esce verso 0 più in fretta di come entra, tutto
+     entro 300 ms; i comandi arturo.movimento e arturo.impostazioni. comuni.js: senza movimento il segno
+     torna il pallino fermo, la stella gira e il pallino pulsa solo col movimento acceso, anche "Riduci
+     movimento" del Mac lo spegne. volta.js: la riga in congedo si dissolve prima del congedo, che parte
+     una volta sola; col movimento spento niente ritardo.
 """
 from __future__ import annotations
 
