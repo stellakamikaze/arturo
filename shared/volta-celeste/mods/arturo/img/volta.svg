@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Volta celeste di Arturo (dalla landing), velata al 42% per lo sfondo di Herdr. -->
-<svg xmlns="http://www.w3.org/2000/svg" class="volta" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><g opacity=".42"><style>
+<!-- Volta celeste di Arturo (dalla landing), velata al 60% per lo sfondo di Herdr. -->
+<svg xmlns="http://www.w3.org/2000/svg" class="volta" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><g opacity=".6"><style>
 .volta__griglia{fill:none;stroke:#2b8cff;stroke-width:1;opacity:.5}
 .volta__orsa,.volta__boote{fill:none;stroke:#0b5fff;stroke-width:1.6;stroke-linejoin:round}
 .volta__arco{fill:none;stroke:#0b0d10;stroke-width:1.2;stroke-dasharray:3 6}

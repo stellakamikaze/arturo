@@ -351,8 +351,8 @@ HZ85 la spunta di un todo e /rename (revisione dell'11/11/2026): ancoraFatti di 
      un'altra sessione e i 5 minuti passati lo riscrivono; un /rename non riuscito non conta come scritto.
 HZ86 ⌘↓ e ⌘↑ girano fra tutte le sessioni dell'elenco (12/11/2026): keys.json li lega ad
      arturo.volta-giro-avanti e -indietro, instrada() li legge prima di volta-<id>, la barra li porta a
-     Volta.giro(). sessioni.js con node: ordineGiro() segue le righe mostrate e lascia fuori le sessioni
-     che stanno in un Terminale; statoGiro() tiene l'ordine dentro una raffica di tasti; passoGiro() gira
+     Volta.giro(). sessioni.js con node: ordineGiro() prende le sessioni che lavorano o aspettano e le ferme
+     con una scheda aperta, anche nascoste, e lascia fuori quelle che stanno in un Terminale; statoGiro() tiene l'ordine dentro una raffica di tasti; passoGiro() gira
      in tondo; sessioneDi() riconosce la scheda in primo piano per etichetta, argv o terminale.
 HZ87 il motivo di una sessione che non si apre (11/11/2026, #5358): motivoUscita di sessioni.js (con node)
      legge dallo schermo della scheda perché Claude è uscito, guarda solo l'ultimo aggancio scritto nella
@@ -6194,6 +6194,7 @@ const g = [{ chiave: "a", sessioni: [bg("a1"), bg("a2", "ferma"), bg("a3", "ferm
   { chiave: "b", sessioni: [bg("b1", "ferma"), { sessionId: "h1", id: "h1", tipo: "interattiva", terminale: "t9", questa: true, stato: "lavora" }] }];
 const o = n.ordineGiro(g, {});
 console.log(JSON.stringify({ o, aperto: n.ordineGiro(g, { a: true }), vuoto: n.ordineGiro(null),
+  scheda: n.ordineGiro(g, {}, new Set(["a3-lungo", "b1-lungo"])),
   nuovo: n.statoGiro(null, o, 1000),
   raffica: n.statoGiro({ ids: ["x", "h1", "a1-lungo"], ultimo: "h1", quando: 1000 }, o, 1000 + n.GIRO_MS),
   scaduto: n.statoGiro({ ids: ["h1"], ultimo: "h1", quando: 1000 }, o, 1001 + n.GIRO_MS),
@@ -6221,8 +6222,9 @@ def hz86(repo: Path, casa: Path) -> str | None:
     if 'else if (c === "volta-giro") this.volta.giro(arg, cx);' not in (mod / "barra.js").read_text(encoding="utf-8"):
         return "barra.js non porta arturo.volta-giro-* a Volta.giro()"
     volta = (mod / "volta.js").read_text(encoding="utf-8")
-    for pezzo in ("const id = passoGiro(st.ids, st.ultimo ?? sessioneDi(scheda, sessioni)?.sessionId ?? null, verso);",
-                  "if (s) this.premi(s, cx);", "const mostra = mostrate(g, this.aperti[g.chiave]);"):
+    for pezzo in ('const conScheda = new Set(sessioni.filter((s) => (s.questa && s.terminale) || schedeDi(s).length).map((s) => s.sessionId));',
+                  "const id = passoGiro(st.ids, st.ultimo ?? sessioneDi(scheda, sessioni)?.sessionId ?? null, verso);",
+                  "if (s) { this.scopri(s); this.premi(s, cx); }", "const mostra = mostrate(g, this.aperti[g.chiave]);"):
         if pezzo not in volta:
             return f"volta.js non ha più: {pezzo}"
     if '"arturo.volta-giro-avanti", "arturo.volta-giro-indietro"' not in (vc / "volta_mod.py").read_text(encoding="utf-8"):
@@ -6239,16 +6241,18 @@ def hz86(repo: Path, casa: Path) -> str | None:
         return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
     g = json.loads(r.stdout.strip().splitlines()[-1])
     if g["o"] != ["a1-lungo", "h1"]:
-        return f"ordineGiro() non segue le righe mostrate, o prende una sessione che sta in un Terminale: {g['o']}"
-    if g["aperto"] != ["a1-lungo", "a2-lungo", "a3-lungo", "a4-lungo", "h1"] or g["vuoto"] != []:
-        return f"ordineGiro() col gruppo aperto non prende le ferme: {g['aperto']}"
-    if g["nuovo"] != {"ids": ["a1-lungo", "h1"], "ultimo": None, "quando": 1000}:
+        return f"ordineGiro() prende una ferma senza scheda (il tasto riaprirebbe una sessione chiusa) o una in un Terminale: {g['o']}"
+    if g["aperto"] != ["a1-lungo", "h1"] or g["vuoto"] != []:
+        return f"ordineGiro() col gruppo aperto prende le ferme senza scheda: {g['aperto']}"
+    if g["scheda"] != ["a1-lungo", "a3-lungo", "h1", "b1-lungo"]:
+        return f"ordineGiro() lascia fuori una ferma che ha una scheda aperta, anche nascosta: {g['scheda']}"
+    if g["nuovo"] != {"ids": g["o"], "ultimo": None, "quando": 1000}:
         return f"statoGiro() senza un giro prima non parte dall'elenco: {g['nuovo']}"
     if g["raffica"]["ids"] != ["h1", "a1-lungo"] or g["raffica"]["ultimo"] != "h1":
         return f"dentro una raffica di tasti l'ordine cambia, o resta una sessione sparita: {g['raffica']}"
-    if g["scaduto"]["ids"] != ["a1-lungo", "h1"] or g["scaduto"]["ultimo"] is not None:
+    if g["scaduto"]["ids"] != g["o"] or g["scaduto"]["ultimo"] is not None:
         return f"dopo la pausa il giro non riparte dall'elenco di adesso: {g['scaduto']}"
-    if g["sparite"] != ["a1-lungo", "h1"]:
+    if g["sparite"] != g["o"]:
         return f"con tutte le sessioni del giro sparite non si riparte dall'elenco: {g['sparite']}"
     if g["passi"] != ["h1", "a1-lungo", "h1", "a1-lungo", "h1", None, "a1-lungo"]:
         return f"passoGiro() non gira in tondo: {g['passi']}"
@@ -6406,7 +6410,9 @@ VELENI = [
     ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", '.filter((s) => ["aggancia", "mostra"].includes(clic(s).azione)).map((s) => s.sessionId);', '.map((s) => s.sessionId);'),
     ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", "const tiene = prima && ora - prima.quando <= GIRO_MS;", "const tiene = Boolean(prima);"),
     ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", "  return ids[(i + (verso < 0 ? -1 : 1) + ids.length) % ids.length];", "  return ids[Math.min(ids.length - 1, Math.max(0, i + (verso < 0 ? -1 : 1)))];"),
-    ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", "  return (!vive.length && ferme <= 2) || aperto ? g.sessioni : vive;", "  return g.sessioni;"),
+    ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", "    return vista.concat(g.sessioni.filter((s) => !vista.includes(s)));", "    return vista;"),
+    ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", '    .filter((s) => s.stato !== "ferma" || conScheda.has(s.sessionId))\n', ""),
+    ("HZ86", "shared/volta-celeste/mods/arturo/volta.js", "    if (s) { this.scopri(s); this.premi(s, cx); }", "    if (s) this.premi(s, cx);"),
     ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", '    ?? l.find((s) => s.questa && s.terminale && s.terminale === terminale.address) ?? null;', '    ?? null;'),
     ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', '  return t ? t[0].toUpperCase() + t.slice(1) : SENZA;', '  return t[0].toUpperCase() + t.slice(1);'),
     ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', '  return ultimo ? piatto(m[1]) === piatto(ultimo) : true;', '  return true;'),

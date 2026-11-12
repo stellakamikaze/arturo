@@ -19,6 +19,7 @@ import { theme, exec, readTextFile, appHome, home, shared, setShared, watchFolde
 import { gruppi, mostrate, ordineGiro, statoGiro, passoGiro, sessioneDi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto, tetti, GESTI_MAX } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
 import { config, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti, esito, altrove, stacca } from "./dati.js";
+import { schedeDi } from "./dati.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
 import { bersaglio, passo, rigaMicrofono } from "./microfono.js";
@@ -288,13 +289,15 @@ export class Volta {
   // tasti parte dall'ultima sessione chiesta, perché un aggancio ci mette qualche secondo ad aprirsi.
   giro(verso, cx) {
     const sessioni = this.dati?.sessioni ?? [];
-    const st = statoGiro(this.giroSt, ordineGiro(gruppi(this.dati, this.modo()), this.aperti), Date.now());
+    // Una ferma entra nel giro solo se ha una scheda qui: aggancio (schedeDi) o shell della scheda stessa.
+    const conScheda = new Set(sessioni.filter((s) => (s.questa && s.terminale) || schedeDi(s).length).map((s) => s.sessionId));
+    const st = statoGiro(this.giroSt, ordineGiro(gruppi(this.dati, this.modo()), this.aperti, conScheda), Date.now());
     const f = focused();
     const scheda = f?.terminal ? terminals().find((x) => x.address === f.terminal) : null;
     const id = passoGiro(st.ids, st.ultimo ?? sessioneDi(scheda, sessioni)?.sessionId ?? null, verso);
     this.giroSt = { ...st, ultimo: id };
     const s = id ? sessioni.find((x) => x.sessionId === id) : null;
-    if (s) this.premi(s, cx);
+    if (s) { this.scopri(s); this.premi(s, cx); }
     else notify({ title: "Nessuna sessione da aprire", body: "L'elenco non ha sessioni che un tasto può mostrare.", level: "info", timeout: 3000 });
   }
 

@@ -11,9 +11,10 @@
   "font_size": 14,
   "ui_font": "Atkinson Hyperlegible Next",
   "terminal_padding": [
-    16,
-    18
+    18,
+    16
   ],
+  "terminal_opacity": 0.93,
   "background": "canvas",
   "preview": "layouts/arturo.svg",
   "divider": {
@@ -112,12 +113,13 @@
                   "lone": true,
                   "border": {
                     "width": 1,
-                    "color": "#232b35"
+                    "color": "border"
                   },
                   "focus": {
                     "width": 1,
-                    "color": "#2f6fe0"
-                  }
+                    "color": "ring"
+                  },
+                  "shadow": "md"
                 }
               },
               "floating": [
