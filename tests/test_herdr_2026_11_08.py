@@ -120,7 +120,8 @@ HZ35 la nascita in background (#5172 passo 2, volta-claude.sh con un claude fint
      --bg accende il servizio di Claude con la sonda del mod, ma non da ssh; se il servizio non parte
      lo dice e la sessione nasce lo stesso (#5215).
 HZ36 il blocco della nascita (nascita.sh e installa-herdr.sh): metti lo scrive una volta sola anche
-     rilanciato, togli lascia il file com'era, stato vede la funzione claude della persona fuori dal
+     rilanciato, togli lascia il file com'era, un blocco senza la riga di fine resta com'è con NASCITA
+     SENZA FINE (prima togli cancellava il resto del .zshrc, #5265), stato vede la funzione claude della persona fuori dal
      blocco, e in zsh e bash il blocco definisce claude solo se la persona non ne ha già una.
      L'installatore copia i file e propone soltanto; metti della copia installata accende, no spegne e
      ricorda il no (l'installatore non ripropone), metti dopo un no lo dimentica.
@@ -2195,6 +2196,17 @@ def hz36(repo: Path, casa: Path) -> str | None:
         return "togli non lascia il file della persona com'era"
     if nascita("stato").stdout.splitlines()[0] != "assente":
         return "dopo togli lo stato non dice assente"
+    # un blocco senza la riga di fine (#5265): togli e metti non toccano il file e lo dicono; prima se ne
+    # andava tutto quello che segue la riga di inizio, cioè il resto del .zshrc della persona
+    monco = "export A=1\n# >>> Volta Celeste: le sessioni di claude nascono in background >>>\nvecchio\nalias ll='ls -l'\n"
+    for verbo in ("togli", "metti"):
+        (home / ".zshrc").write_text(monco, encoding="utf-8", newline="\n")
+        r = nascita(verbo, str(app)) if verbo == "metti" else nascita(verbo)
+        if (home / ".zshrc").read_text(encoding="utf-8") != monco:
+            return f"{verbo} con un blocco senza la riga di fine cambia il .zshrc della persona"
+        if "NASCITA SENZA FINE" not in r.stdout:
+            return f"{verbo} con un blocco senza la riga di fine non lo dice: {r.stdout.strip()[-120:]}"
+    (home / ".zshrc").write_text(prima + "\n", encoding="utf-8", newline="\n")
     # L'installatore: copia e propone soltanto. La scelta passa da volta-nascita.sh, una strada sola.
     sotto = casa / "inst"
     sotto.mkdir()
@@ -7852,13 +7864,14 @@ VELENI = [
     ("HZ35", "shared/volta/volta-claude.sh", '[ -n "$senza_id" ] && qui_interattiva "$@"', ":"),
     ("HZ35", "shared/volta/volta-claude.sh", '[ -n "${HC_TERMINAL_ID:-}" ] && qui_interattiva "$@"', ":"),
     ("HZ35", "shared/volta/volta-claude.sh", 'printf \'Volta: la sessione non parte in background (%s). La apro qui, come prima.\\n\' "$motivo" >&2', "exit 1"),
-    ("HZ36", "shared/volta/nascita.sh", "!dentro { print } END", "1 { print } END"),
+    ("HZ36", "shared/volta/nascita.sh", "next } !dentro { print } END", "next } 1 { print } END"),
+    ("HZ36", "shared/volta/nascita.sh", "END { exit dentro ? 3 : 0 }", "END { exit 0 }"),
     ("HZ36", "shared/volta/nascita.sh", "! typeset -f claude >/dev/null 2>&1; then", "true; then"),
     ("HZ36", "shared/volta/nascita.sh", "then printf '\\n' >> \"$1\"; fi", "then :; fi"),
     ("HZ36", "shared/volta/installa-herdr.sh", "&& ! printf '%s\\n' \"$stato_nascita\" | grep -q '^rifiutata'; then", "; then"),
     ("HZ36", "shared/volta/installa-herdr.sh", "if printf '%s\\n' \"$stato_nascita\" | grep -q '^assente' &&", "if false &&"),
     ("HZ36", "shared/volta/nascita.sh", 'rm -f "$NO" "$app/nascita-no"', ":"),
-    ("HZ37", "shared/volta/nascita.sh", "    for f in $(tutti_i_file); do\n      if [ -f \"$f\" ] && grep -qF \"$INIZIO\" \"$f\"; then\n", "    for f in $(file_shell); do\n      if [ -f \"$f\" ] && grep -qF \"$INIZIO\" \"$f\"; then\n"),
+    ("HZ37", "shared/volta/nascita.sh", "    for f in $(tutti_i_file); do\n      if [ -f \"$f\" ] && grep -qF \"$INIZIO\" \"$f\"; then\n        if togli_da", "    for f in $(file_shell); do\n      if [ -f \"$f\" ] && grep -qF \"$INIZIO\" \"$f\"; then\n        if togli_da"),
     ("HZ37", "shared/volta/nascita.sh", "{ l = $0; sub(/\\r$/, \"\", l) } l == a { dentro = 1; next }", "{ l = $0 } l == a { dentro = 1; next }"),
     ("HZ37", "shared/volta/nascita.sh", "awk -v BINMODE=3 -v a=", "awk -v a=", "windows"),  # l'awk di Git per Windows toglie i \r
     ("HZ37", "shared/volta/nascita.sh", '      if utf16 "$f"; then say "NASCITA UTF16 $f"; continue; fi', "      :"),
@@ -8034,7 +8047,8 @@ VELENI = [
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", 'if prima.get("fonte") != "persona" or prima.get("progetto") != valore:\n            esci(ok=True, progetto=', 'if prima.get("fonte") != "persona":\n            esci(ok=True, progetto='),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '            if fonte == "persona" and scheda.get("inizio") is False:', '            if fonte == "persona":'),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '                "daIniziare": s.get("daIniziare") if isinstance(s.get("daIniziare"), str) else None,\n', ''),
-    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '    segno = "--portato" if verbo == "rinomina" else "--iniziato"', '    segno = "--portato"'),    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        if prima.get("fonte") != "persona" or (valore and prima.get("titolo") != valore):', '        if prima.get("fonte") != "persona":'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '    segno = "--portato" if verbo == "rinomina" else "--iniziato"', '    segno = "--portato"'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        if prima.get("fonte") != "persona" or (valore and prima.get("titolo") != valore):', '        if prima.get("fonte") != "persona":'),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        nuovo = dict(prima, portato=True)', '        nuovo = dict(prima)'),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        if prima.get("fonte") == "persona":\n            os.remove(f)', '        if True:\n            os.remove(f)'),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        if prima.get("fonte") == "persona":\n            os.remove(f)', '        if False:\n            os.remove(f)'),
