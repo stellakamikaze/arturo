@@ -291,8 +291,19 @@ export function statiQui() {
   return out;
 }
 
+// Lo stato della scheda aperta di uno spazio, per la testata (12/11/2026 notte): quello di Volta se la
+// scheda aggancia una sessione (Herdr lì vede solo attach o ssh, e il suo stato resta vecchio), poi
+// quello di Herdr per la scheda, e solo per ultimo quello dello spazio, che somma tutte le schede: uno
+// spazio "ti aspetta" se una sola scheda aspetta, e la testata lo diceva sopra una sessione che lavorava.
+export function statoScheda(s, tab) {
+  if (!s) return null;
+  const g = schedaAgganciata(s);
+  const volta = g && g.tab === tab?.id ? statoAgganciata(g) : null;
+  return volta ?? tab?.status ?? s.status ?? null;
+}
+
 // Lo stato di uno spazio: quello di Herdr, oppure, per una scheda che aggancia una sessione in background
-// (dove Herdr non vede un agente), quello che legge Volta. Lo usano barra, testata e todo.
+// (dove Herdr non vede un agente), quello che legge Volta. Lo usano barra e todo.
 export function statoSpazio(s) {
   if (!s) return null;
   return s.status ?? statoAgganciata(schedaAgganciata(s));
@@ -772,7 +783,9 @@ export function chiudiSchede(s) {
     const p = panes().find((x) => x.terminal === t.address);
     if (!p) continue;
     segnaTolto(t.address);
-    if (panes().filter((x) => x.tab === p.tab).length === 1) run("tab.close", { id: p.tab });
+    // confirmed: sull'ultima scheda di uno spazio Herdr chiederebbe "Close space?", e annullare lasciava
+    // la scheda aperta col congedo già partito (12/11/2026)
+    if (panes().filter((x) => x.tab === p.tab).length === 1) run("tab.close", { id: p.tab, confirmed: true });
     else run("terminal.kill", { terminal: t.address });
     n++;
   }
@@ -948,5 +961,24 @@ export async function azioneSessione(s, verbo) {
     return esito(r);
   } catch (e) {
     return { errore: `${s.macchina} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
+  }
+}
+
+// Il contesto di un progetto per la finestra di contestoui.js: `arturo contesto <slug> --json` (le fonti
+// che /inizio legge, nell'ordine). { ok, json } oppure { ok: false, errore }; un Arturo senza il comando
+// risponde con un errore che la finestra mostra.
+export async function contestoProgetto(progetto) {
+  return arturo("contesto", [String(progetto ?? ""), "--json"], "Arturo non risponde");
+}
+
+// "Apri" di una fonte del contesto: il file nel programma di sistema (open sul Mac, start su Windows).
+export async function apriFile(percorso) {
+  if (!percorso) return;
+  const win = /^[A-Za-z]:[\\/]/.test(percorso) || percorso.includes("\\");
+  try {
+    const r = win ? await exec("cmd", ["/c", "start", "", percorso], { timeout: 10000 }) : await exec("open", [percorso], { timeout: 10000 });
+    if (r.code !== 0) notify({ title: "Non riesco ad aprire il file", body: percorso, level: "warning" });
+  } catch {
+    notify({ title: "Non riesco ad aprire il file", body: percorso, level: "warning" });
   }
 }

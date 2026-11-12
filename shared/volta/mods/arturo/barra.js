@@ -15,6 +15,7 @@ import { revisione, settimanaDi } from "./settimana.js";
 import { Volta } from "./volta.js";
 import { rigaMod, decodifica } from "./sessioni.js";
 import { instrada } from "./comandi.js";
+import { apriContesto } from "./contestoui.js";
 
 export class Marchio {
   render() {
@@ -99,6 +100,8 @@ export class Barra {
     else if (c === "casa-chiudi") terminale();
     else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());
     else if (c === "volta-giro") this.volta.giro(arg, cx);
+    else if (c === "volta-chiudi") this.volta.chiudiDavanti(cx, arg);
+    else if (c === "contesto") apriContesto(arg);
     else if (c === "volta-menu") this.volta.menuId(arg);
     else if (c === "volta-altro") this.volta.altroId(arg, cx);
     else if (c === "volta-cambia") this.volta.cambiaComando(arg, cx);

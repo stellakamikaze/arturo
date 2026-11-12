@@ -69,7 +69,7 @@ export class Impostazioni {
         .child(v_flex().flex_1().min_w(0).gap(2)
           .child(div().text_size(13).text_color(t.foreground).child("Movimento"))
           .child(div().whitespace_normal().text_size(12).text_color(t.muted)
-            .child(ridotto ? "Spento da Riduci movimento del Mac." : acceso ? "La stella gira su chi lavora, il pallino pulsa su chi ti aspetta." : "Pallini fermi, righe senza dissolvenza.")))
+            .child(ridotto ? "Spento da Riduci movimento del sistema." : acceso ? "La stella gira su chi lavora, il pallino pulsa su chi ti aspetta." : "Pallini fermi, righe senza dissolvenza.")))
         .child(leva))
       .child(div().h(1).mx(6).bg(t.border))
       .child(voce("imp-app").h(30).items_center()

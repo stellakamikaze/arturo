@@ -2595,7 +2595,7 @@ def hz39(repo: Path, casa: Path) -> str | None:
         return "il benvenuto non mostra Nasce su, ma la sua Nuova richiesta la segue"
     # #5072: barra, testata e todo leggono lo stato di uno spazio da statoSpazio(), anche agganciato
     dj = (mod / "dati.js").read_text(encoding="utf-8")
-    for file, pezzo in (("dati.js", "stato: statoSpazio(s)"), ("testata.js", "const st = statoScheda(s, tab);"),
+    for file, pezzo in (("dati.js", "stato: statoSpazio(s)"), ("testata.js", "const st = statoScheda(s, tab);"), ("dati.js", "const volta = g && g.tab === tab?.id ? statoAgganciata(g) : null;"),
                         ("todo.js", "statoSpazio(spazio(p))"), ("todo.js", "    const st = statoSpazio(s);"),
                         ("barra.js", '|| Object.values(statiQui()).includes("aspetta")'), ("barra.js", "`|${JSON.stringify(statiQui())}|")):
         if pezzo not in (dj if file == "dati.js" else (mod / file).read_text(encoding="utf-8")):
@@ -3672,7 +3672,7 @@ def hz54(repo: Path, casa: Path) -> str | None:
             return f"un fork fallito apre una scheda, avvisa due volte o perde il motivo: {v['esito']}, {v['avvisi']}, {nuove(v)}"
         v = volta("chiudi")
         chiuse = sorted(json.dumps(x, sort_keys=True) for x in v["lanciati"])
-        if v["esito"] != 2 or chiuse != sorted(json.dumps(x, sort_keys=True) for x in ({"cmd": "tab.close", "id": "tb1"}, {"cmd": "terminal.kill", "terminal": "t8"})):
+        if v["esito"] != 2 or chiuse != sorted(json.dumps(x, sort_keys=True) for x in ({"cmd": "tab.close", "id": "tb1", "confirmed": True}, {"cmd": "terminal.kill", "terminal": "t8"})):
             return f"Chiudi non chiude la scheda sola e il solo terminale di quella divisa: {v['esito']}, {v['lanciati']}"
     except RuntimeError as e:
         return f"dati.js non gira: {e}"
@@ -4200,7 +4200,7 @@ def hz59(repo: Path, casa: Path) -> str | None:
         v = volta("sposta", HZ_NASCE="t20")
         chiuse = [x for x in v["lanciati"] if x["cmd"] in ("tab.close", "terminal.kill")]
         nuove = [x for x in v["lanciati"] if x["cmd"] in ("tab.new", "space.new")]
-        if sorted(json.dumps(x, sort_keys=True) for x in chiuse) != sorted(json.dumps(x, sort_keys=True) for x in ({"cmd": "tab.close", "id": "tb1"}, {"cmd": "terminal.kill", "terminal": "t8"})):
+        if sorted(json.dumps(x, sort_keys=True) for x in chiuse) != sorted(json.dumps(x, sort_keys=True) for x in ({"cmd": "tab.close", "id": "tb1", "confirmed": True}, {"cmd": "terminal.kill", "terminal": "t8"})):
             return f"cambiato il progetto, gli agganci di prima non si chiudono: {chiuse}"
         if v["esito"] != {"spostata": True} or len(nuove) != 1 or nuove[0]["cmd"] != "space.new" or nuove[0].get("name") != "due-mondi" or nuove[0].get("argv") != ["ssh", "-t", *OPZIONI_SSH, "torre.lan", "claude", "attach", "ffff1111"]:
             return f"la sessione non si riapre nello spazio del progetto nuovo: {v['esito']}, {nuove}"
@@ -7913,7 +7913,7 @@ VELENI = [
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'const g = a || !s ? null : schedaAgganciata(s);', 'const g = null;'),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'stato: statoSpazio(s)', 'stato: s?.status ?? null'),
     ("HZ39", "shared/volta/mods/arturo/testata.js", 'const st = statoScheda(s, tab);', 'const st = s?.status;'),
-    ("HZ39", "shared/volta/mods/arturo/dati.js", '  return tab?.status ?? statoAgganciata(schedaAgganciata(s)) ?? s.status ?? null;', '  return s.status ?? null;'),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", 'const volta = g && g.tab === tab?.id ? statoAgganciata(g) : null;', 'const volta = null;'),
     ("HZ39", "shared/volta/mods/arturo/todo.js", 'statoSpazio(spazio(p))', 'spazio(p)?.status'),
     ("HZ39", "shared/volta/mods/arturo/todo.js", '    const st = statoSpazio(s);', '    const st = s.status;'),
     ("HZ39", "shared/volta/mods/arturo/barra.js", '|| Object.values(statiQui()).includes("aspetta")', ''),
@@ -8020,6 +8020,7 @@ VELENI = [
     ('HZ54', 'shared/volta/mods/arturo/dati.js', '{ verbo: fork ? "fork" : "duplica", sessionId: s.sessionId,', '{ verbo: fork ? "fork" : "duplica", sessionId: s.id,'),
     ('HZ54', 'shared/volta/mods/arturo/dati.js', 'fork ? titoloFork(s).slice(0, 40) : "Nuova sessione",', '"Nuova sessione",'),
     ('HZ54', 'shared/volta/mods/arturo/dati.js', 'if (panes().filter((x) => x.tab === p.tab).length === 1) run("tab.close", { id: p.tab, confirmed: true });', 'if (true) run("tab.close", { id: p.tab, confirmed: true });'),
+    ('HZ54', 'shared/volta/mods/arturo/dati.js', 'run("tab.close", { id: p.tab, confirmed: true });', 'run("tab.close", { id: p.tab });'),
     ('HZ54', 'shared/volta/mods/arturo/dati.js', '    else run("terminal.kill", { terminal: t.address });\n', '    else run("tab.close", { id: p.tab });\n'),
     ('HZ54', 'shared/volta/mods/arturo/dati.js', '      return v.errore ? dico("La sessione è nata, ma non si apre", v.errore) : { ok: true, id: nata.id };\n', ''),
     ('HZ54', 'shared/volta/mods/arturo/volta.js', '      .on_mouse_down("right", (_e, cx) => { if (apriMenuSessione(s)) cx.stop_propagation(); })\n', ''),

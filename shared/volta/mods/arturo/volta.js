@@ -28,6 +28,10 @@ import { nonSiSposta } from "./sposta.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
 import { bersaglio, passo, rigaMicrofono } from "./microfono.js";
+import { run, panes } from "herdr";
+import { xRiga, uscenti } from "./sessioni.js";
+import { apriContesto } from "./contestoui.js";
+import { apriMenuProgetto } from "./menusessione.js";
 
 const OGNI = 30000;
 // Ogni quanto il mod chiede a volta_mod.py se nel repository c'è un mod nuovo (anche all'apertura).
@@ -77,13 +81,19 @@ const FATTO = { stop: "Fermata: un clic la riapre.", respawn: "Riavviata.", rm: 
 // "Riduci movimento" del sistema (Mac: Accessibilità > Schermo), in shared arturo.movimento.ridotto per
 // movimento() di comuni.js. Le transizioni lo seguono già da sole; loop e rotazioni no. Si legge all'avvio:
 // chi lo cambia riapre la finestra o aspetta il mod ricaricato. Altrove resta com'è.
-async function ridotto() {
+// Su Windows è "Mostra animazioni in Windows" (Impostazioni > Accessibilità > Effetti visivi), letto con
+// SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION) dal Python di arturo.json (12/11/2026: prima su
+// Windows la stella girava e il pallino pulsava anche con le animazioni spente).
+export const RIDOTTO_WINDOWS = "import ctypes\nb = ctypes.c_int(1)\nctypes.windll.user32.SystemParametersInfoW(0x1042, 0, ctypes.byref(b), 0)\nprint(0 if b.value else 1)";
+async function ridotto(py = "python") {
   try {
-    if (window()?.platform !== "macos") return;
-    const r = await exec("defaults", ["read", "com.apple.universalaccess", "reduceMotion"], { timeout: 5000 });
+    const p = window()?.platform;
+    const r = p === "macos" ? await exec("defaults", ["read", "com.apple.universalaccess", "reduceMotion"], { timeout: 5000 })
+      : p === "windows" ? await exec(py, ["-c", RIDOTTO_WINDOWS], { timeout: 10000 }) : null;
+    if (!r) return;
     const v = r.code === 0 && r.stdout.trim() === "1";
     if (shared("arturo.movimento.ridotto") !== v) setShared("arturo.movimento.ridotto", v);
-  } catch { /* senza defaults resta acceso */ }
+  } catch { /* senza defaults o senza Python resta acceso */ }
 }
 
 async function esiste(p) {
@@ -125,11 +135,12 @@ export class Volta {
     this.escono = {};      // sessionId -> true mentre la riga di una sessione in congedo si dissolve
     this.noteScript = null; // volta_note.py, se c'è: le note della finestra uguali su tutte le macchine
     this.noteInCorso = false;
-    ridotto();
+    // "Riduci movimento" del sistema: sul Mac subito, su Windows col Python di arturo.json (sotto)
     cx.spawn(async (cx) => {
       // Il Python che installa-herdr.sh ha trovato e scritto in arturo.json: su Windows può essere "python".
       const c = await config();
       this.py = c.arturo[0];
+      ridotto(this.py);
       controllaMod(this.py);
       const sc = await script(c);
       // Un ponte rimasto da prima (mod ricaricato, Volta riaperta) si chiude: lo riaccende il primo giro.
@@ -168,6 +179,13 @@ export class Volta {
   // L'elenco come lo vede chi usa la finestra: senza chiuse e senza sessioni in congedo.
   vis() {
     return visibili(this.dati, this.congedi());
+  }
+
+  // L'elenco del giro ⌘↓/⌘↑: come vis(), e in più fuori le sessioni che stanno uscendo (la dissolvenza
+  // prima del congedo) e quelle con la scheda appena sparita (`forse` di guardaSchede), così un ⌘↓ subito
+  // dopo ⌘W non riaggancia la sessione che si sta chiudendo.
+  visGiro() {
+    return visibili(this.dati, uscenti(this.congedi(), this.escono, this.forse));
   }
 
   // Una scheda che agganciava una sessione e non c'è più, chiusa da chi usa la finestra (⌘W, la X,
@@ -538,7 +556,7 @@ export class Volta {
     const sessioni = this.dati?.sessioni ?? [];
     // Una ferma entra nel giro solo se ha una scheda qui: aggancio (schedeDi) o shell della scheda stessa.
     const conScheda = new Set(sessioni.filter((s) => (s.questa && s.terminale) || schedeDi(s).length).map((s) => s.sessionId));
-    const st = statoGiro(this.giroSt, ordineGiro(gruppi(this.vis(), this.modo()), this.aperti, conScheda), Date.now());
+    const st = statoGiro(this.giroSt, ordineGiro(gruppi(this.visGiro(), this.modo()), this.aperti, conScheda), Date.now());
     const f = focused();
     const scheda = f?.terminal ? terminals().find((x) => x.address === f.terminal) : null;
     const id = passoGiro(st.ids, st.ultimo ?? sessioneDi(scheda, sessioni)?.sessionId ?? null, verso);
@@ -557,7 +575,7 @@ export class Volta {
     const t = indirizzo ? terminals().find((x) => x.address === indirizzo) ?? { address: indirizzo } : null;
     const s = sessioneDavanti(t, this.dati?.sessioni ?? []);
     const v = s ? { id: s.id, sessionId: s.sessionId, host: s.host ?? "qui", macchina: s.macchina, tipo: s.tipo,
-      stato: s.stato, titolo: titolo(s), progetto: s.progetto ?? null,
+      stato: s.stato, titolo: titolo(s), progetto: s.progetto ?? null, sintesi: s.sintesi ?? null, fase: fase(s),
       sposto: this.faccio?.[s.sessionId] === "sposta" } : null;
     if (JSON.stringify(v) !== JSON.stringify(shared("arturo.volta.davanti") ?? null)) setShared("arturo.volta.davanti", v);
   }
@@ -679,6 +697,21 @@ export class Volta {
     });
   }
 
+  // ⌘W (Ctrl+W su Windows): il comando "arturo.volta-chiudi" (Federico, 12/11/2026: "quella sessione va
+  // in chiusura e non deve più apparirmi nelle freccette e nell'elenco"). Se la scheda davanti aggancia
+  // una sessione in background viva, è Chiudi del menu: via la scheda, congedo, fuori da elenco e giro
+  // subito. Una scheda senza sessione (una shell, un'interattiva) si chiude come il ⌘W di Herdr.
+  // `scheda`: la X di una scheda nella fila delle schede (testata.js); senza, la scheda in primo piano.
+  chiudiDavanti(cx, scheda = null) {
+    const f = focused();
+    const tab = scheda ?? f?.tab ?? null;
+    const indirizzo = scheda ? panes().find((p) => p.tab === scheda)?.terminal : f?.terminal;
+    const t = indirizzo ? terminals().find((x) => x.address === indirizzo) ?? null : null;
+    const s = t ? sessioneDi(t, this.dati?.sessioni ?? []) : null;
+    if (s && s.tipo === "background" && !s.vecchia && !chiusa(s)) return this.fare(s, { verbo: "chiudi", testo: "Chiudi" }, cx);
+    run("tab.close", tab ? { id: tab } : {});
+  }
+
   // Chiudi del menu: via la scheda, poi il congedo (/fine e claude stop), come ⌘W sulla scheda.
   async chiudi(s, cx) {
     chiudiSchede(s);
@@ -692,6 +725,7 @@ export class Volta {
     const k = s.sessionId;
     if (this.faccio[k]) return;
     if (a.verbo === "apri") return this.premi(s, cx);
+    if (a.verbo === "contesto") return apriContesto(s.progetto);
     if (a.conferma && this.chiedo[k] !== a.verbo) { this.chiedo[k] = a.verbo; return cx.notify(); }
     delete this.chiedo[k];
     if (a.verbo === "logs" && this.anteprime[k]) { delete this.anteprime[k]; return cx.notify(); }
@@ -707,10 +741,17 @@ export class Volta {
           : await azioneSessione(s, a.verbo);
       } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 120) }; }
       delete this.faccio[k];
+      // Duplica e Fork dicono sempre com'è andata anche fuori dalla riga: la copia nasce in un'altra
+      // scheda, e un errore sulla sola riga passava inosservato (12/11/2026).
+      if (a.verbo === "duplica" || a.verbo === "fork") notify(r.errore
+        ? { title: a.verbo === "fork" ? "Fork non riuscito" : "Duplica non riuscita", body: r.errore, level: "warning" }
+        : { title: FATTO[a.verbo], body: titolo(s), level: "info", timeout: 4000 });
       if (r.errore) this.avvisa(s, `Non riesco: ${r.errore}`, cx);
       else if (a.verbo === "logs") this.anteprime[k] = r.righe?.length ? r.righe : ["(niente da mostrare)"];
       else {
         this.avvisa(s, FATTO[a.verbo], cx);
+        // la riga di una sessione chiusa sparisce subito: l'esito va in un avviso
+        if (a.verbo === "chiudi") notify({ title: titolo(s), body: FATTO.chiudi, level: "info", timeout: 5000 });
         if (a.verbo === "rm") this.menu = null;
         this.aggiorna(cx);
       }
@@ -777,18 +818,19 @@ export class Volta {
     const vivo = !s.vecchia && !inAttesa(s);
     const az = azioni(s);
     const aperto = this.menu === s.sessionId && az.length > 0;
-    // La X chiude per sempre una sessione ferma (claude rm, lo stesso Elimina di "Altro"): compare col
-    // puntatore sopra la riga, e il primo clic chiede la conferma. Nascosta tiene il suo posto: il
-    // titolo non va a capo in modo diverso quando appare.
-    const rm = az.find((a) => a.verbo === "rm");
+    // La X compare col puntatore sopra la riga, e il primo clic chiede la conferma (xRiga di sessioni.js).
+    // Su una sessione viva chiude con /fine e la toglie dall'elenco, come ⌘W (Federico, 12/11/2026); su una
+    // chiusa o in errore la elimina (claude rm, lo stesso Elimina di "Altro"). Nascosta tiene il suo posto:
+    // il titolo non va a capo in modo diverso quando appare.
+    const xa = xRiga(s);
     const k = s.sessionId;
-    const chiedoRm = this.chiedo[k] === "rm", facciorm = this.faccio[k] === "rm";
-    const vediX = Boolean(rm) && (this.sopra === k || chiedoRm || facciorm);
-    const x = rm ? div().id(`vx-${s.host}-${s.id}`).mt(2).px(5).py(2).rounded(6).flex_none()
+    const chiedoX = Boolean(xa) && this.chiedo[k] === xa.verbo, faccioX = Boolean(xa) && this.faccio[k] === xa.verbo;
+    const vediX = Boolean(xa) && (this.sopra === k || chiedoX || faccioX);
+    const x = xa ? div().id(`vx-${s.host}-${s.id}`).mt(2).px(5).py(2).rounded(6).flex_none()
       .when(!vediX, (el) => el.invisible())
-      .when(vediX, (el) => el.cursor_pointer().hover((st) => st.bg(t.selected)).on_click((_e, cx) => this.fare(s, rm, cx)))
-      .child(facciorm ? div().text_size(12).text_color(t.dim).child("…")
-        : chiedoRm ? div().text_size(12).text_color(t.blocked).child(rm.conferma)
+      .when(vediX, (el) => el.cursor_pointer().hover((st) => st.bg(t.selected)).tooltip(xa.aiuto).on_click((_e, cx) => this.fare(s, xa, cx)))
+      .child(faccioX ? div().text_size(12).text_color(t.dim).child("…")
+        : chiedoX ? div().text_size(12).text_color(t.blocked).child(xa.conferma)
         : svg(ICONA("x")).size(12).text_color(t.dim)) : null;
     // Il clic sulla riga apre la sessione; "Altro" sta a fianco, fuori dall'area che apre.
     // Entrata e uscita in dissolvenza (#5410): solo opacità, l'altezza della riga non cambia.
@@ -805,7 +847,7 @@ export class Volta {
         else if (this.sopra === k) {
           this.sopra = null;
           // Una conferma chiesta dalla X e lasciata lì non resta armata; quella del pannello sì.
-          if (this.chiedo[k] === "rm" && this.menu !== k) delete this.chiedo[k];
+          if ((this.chiedo[k] === "rm" || this.chiedo[k] === "chiudi") && this.menu !== k) delete this.chiedo[k];
         }
         cx.notify();
       })
@@ -853,7 +895,9 @@ export class Volta {
       .child(h_flex().id(`vgh-${g.chiave || "senza"}`).mx(8).px(10).py(5).gap(6).items_center().rounded(8)
         .when(attivo, (el) => el.bg(t.selected))
         .when(progetto && !attivo, (el) => el.cursor_pointer().hover((st) => st.bg(t.hover)))
-        .when(progetto, (el) => el.on_click(() => apriProgetto(g.chiave)))
+        .when(progetto, (el) => el.on_click(() => apriProgetto(g.chiave))
+          // il tasto destro: Apri il progetto e Contesto del progetto (menusessione.js)
+          .on_mouse_down("right", (_e, cx) => { if (apriMenuProgetto(slug(g.chiave), g.titolo)) cx.stop_propagation(); }))
         .child(div().id(`vgt-${g.chiave || "senza"}`).flex_1().truncate().font_family("Arturo Archivo").text_size(13.5).text_color(t.foreground).child(g.titolo))
         .when(g.sessioni.length > 0, (el) => el.child(div().id(`vgn-${g.chiave || "senza"}`).text_size(12).text_color(t.dim).child(String(g.sessioni.length)))))
       .when(Boolean(g.nota), (el) => el.child(div().id(`vgo-${g.chiave || "senza"}`).px(18).pb(2).text_size(12).text_color(t.dim).child(g.nota)))

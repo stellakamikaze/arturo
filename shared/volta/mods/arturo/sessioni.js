@@ -230,6 +230,30 @@ export function visibili(dati, congedi = {}) {
   return { ...dati, sessioni: unaPerConversazione(l) };
 }
 
+// Al più `n` parole: la sintesi della testata ne vuole cinque (Federico, 12/11/2026). Oltre, "…".
+export function cinqueParole(testo, n = 5) {
+  const p = String(testo ?? "").trim().split(/\s+/).filter(Boolean);
+  return p.length > n ? `${p.slice(0, n).join(" ")}…` : p.join(" ");
+}
+
+// Cosa scrive la testata sotto il progetto: la sintesi della sessione davanti (shared arturo.volta.davanti,
+// la scrive titolo-sessione.py a ogni turno), altrimenti il suo titolo, altrimenti il nome della scheda;
+// sempre al più cinque parole. null se non c'è niente da dire.
+export function sintesiTestata(davanti, nomeScheda = null) {
+  const t = davanti?.sintesi || davanti?.titolo || nomeScheda;
+  return t ? cinqueParole(t) || null : null;
+}
+
+// Le sessioni che il giro ⌘↓/⌘↑ salta, nella forma dei congedi di visibili(): quelle in congedo, quelle
+// la cui riga si sta dissolvendo (`escono`: { sessionId: true }) e quelle con la scheda appena sparita
+// (`forse`: { sessionId: sessione }).
+export function uscenti(congedi = {}, escono = {}, forse = {}) {
+  const out = { ...(congedi ?? {}) };
+  for (const k of Object.keys(escono ?? {})) if (escono[k]) out[k] = { sessionId: k };
+  for (const [k, s] of Object.entries(forse ?? {})) out[k] = { sessionId: k, id: s?.id ?? null };
+  return out;
+}
+
 // Una conversazione spostata su un'altra macchina (Sposta su, 12/11/2026) ha lo stesso sessionId su due
 // macchine: resta quella che non è ferma, cioè la copia viva. Fra due ferme, o due vive, restano tutte e due.
 export function unaPerConversazione(l) {
@@ -485,23 +509,38 @@ export function azioni(s) {
   return out;
 }
 
-// Il menu del tasto destro su una sessione (#5291): Apri è il clic; Chiudi chiude la scheda e ferma la
-// sessione (la conversazione resta, Apri la fa ripartire); Duplica ne apre una nuova e vuota nella stessa
-// cartella, sulla stessa macchina, nello stesso progetto; Fork ne apre una con una copia della
-// conversazione. Rinomina e Cambia progetto aprono il dialogo di cambio.js (#5292). Poi i gesti di
-// "Altro", senza Ferma: qui la ferma Chiudi. Un'interattiva non ha un lavoro in background da fermare:
-// resta senza Chiudi. Una riga vecchia non ha menu.
+// Il menu del tasto destro su una sessione (#5291), in tre gruppi (menusessione.js). Primo: Apri è il
+// clic; Duplica ne apre una nuova e vuota nella stessa cartella, sulla stessa macchina, nello stesso
+// progetto; Fork ne apre una con una copia della conversazione; "Sposta in un progetto…" è il taglia e
+// incolla (Federico, 12/11/2026: "tagliare"), il dialogo di cambio.js (#5292). Secondo: Rinomina e il
+// contesto del progetto (contestoui.js), se la sessione ne ha uno. Terzo: Chiudi (/fine, poi stop, come
+// ⌘W) e i gesti di "Altro", senza Ferma: qui la ferma Chiudi. Un'interattiva non ha un lavoro in
+// background da fermare: resta senza Chiudi. Una riga vecchia non ha menu.
 export function menu(s) {
   if (!s || s.vecchia) return [];
-  const out = [{ verbo: "apri", testo: "Apri" }];
-  if (s.tipo === "background") out.push({ verbo: "chiudi", testo: "Chiudi" });
-  out.push({ verbo: "duplica", testo: "Duplica" }, { verbo: "fork", testo: "Fork" });
-  out.push({ verbo: "rinomina", testo: "Rinomina" }, { verbo: "progetto", testo: "Cambia progetto" });
+  const out = [{ verbo: "apri", testo: "Apri" }, { verbo: "duplica", testo: "Duplica" }, { verbo: "fork", testo: "Fork" },
+    { verbo: "progetto", testo: "Sposta in un progetto…" }, { verbo: "rinomina", testo: "Rinomina…" }];
+  if (s.progetto) out.push({ verbo: "contesto", testo: "Contesto del progetto" });
+  // in errore non c'è un /fine da fare: lì c'è Elimina (azioni)
+  if (s.tipo === "background" && !chiusa(s) && s.stato !== "errore") out.push({ verbo: "chiudi", testo: "Chiudi con /fine" });
   return out.concat(azioni(s).filter((a) => a.verbo !== "stop"));
 }
 
+// I primi due gruppi del menu (copiare e spostare, nome e contesto); il resto va nel terzo, chiudere.
+export const GRUPPI_MENU = [["apri", "duplica", "fork", "progetto"], ["rinomina", "contesto"]];
+
+// La X della riga (Federico, 12/11/2026: "la X per chiudere e innescare il processo di fine"): su una
+// sessione in background viva è Chiudi con /fine, con la conferma; su una chiusa o in errore è Elimina.
+// Un'interattiva e una riga vecchia non hanno X: non hanno un congedo.
+export function xRiga(s) {
+  if (!s || s.vecchia || s.tipo !== "background") return null;
+  const rm = azioni(s).find((a) => a.verbo === "rm");
+  if (rm) return { ...rm, aiuto: "Elimina la sessione" };
+  return { verbo: "chiudi", testo: "Chiudi", conferma: "Chiudi con /fine?", aiuto: "Chiudi: Claude salva con /fine, poi la sessione si ferma" };
+}
+
 // I gesti che stanno solo nel menu: lavorano sulla riga, senza aprire il riquadro di "Altro".
-export const SOLO_MENU = new Set(["apri", "chiudi", "duplica", "fork", "rinomina", "progetto"]);
+export const SOLO_MENU = new Set(["apri", "chiudi", "duplica", "fork", "rinomina", "progetto", "contesto"]);
 
 // Le voci del menu che aprono il dialogo, e che cosa cambiano.
 export const CAMBIA = { rinomina: "nome", progetto: "progetto" };

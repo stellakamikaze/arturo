@@ -283,6 +283,7 @@ for s in sessioni:
     if s.get("kind") != "background" and isinstance(s.get("pid"), int):
         s["terminale"] = terminale_di(s["pid"])
     s["titolo"] = None
+    s["sintesi"] = None
     s["daPortare"] = None
     scritto = False
     ftit = os.path.join(radice, "cache", "titolo", sid + ".json")
@@ -290,6 +291,10 @@ for s in sessioni:
         with open(ftit, encoding="utf-8") as fh:
             tit = json.load(fh)
         t = tit.get("titolo")
+        # la sintesi: cosa succede adesso, al più 5 parole (titolo-sessione.py, 12/11/2026), per la testata
+        si = tit.get("sintesi")
+        if isinstance(si, str) and si.strip():
+            s["sintesi"] = " ".join(si.split()[:5])[:60]
         if isinstance(t, str) and t.strip():
             s["titolo"] = t.strip()[:80]
             scritto = tit.get("fonte") == "persona"
@@ -909,7 +914,7 @@ def righe(voci):
             out.append({
                 "macchina": v["macchina"], "host": v["host"], "questa": v["questa"],
                 "sessionId": sid, "id": corto, "nome": s.get("name") or corto,
-                "progetto": s.get("progetto"), "titolo": s.get("titolo"), "stato": stato(s), "aspetta": s.get("waitingFor"),
+                "progetto": s.get("progetto"), "titolo": s.get("titolo"), "sintesi": s.get("sintesi"), "stato": stato(s), "aspetta": s.get("waitingFor"),
                 "tipo": "background" if fondo else "interattiva",
                 # un'interattiva va prima portata in background, poi si aggancia
                 "attach": argv_attach(v, corto) if fondo else None,

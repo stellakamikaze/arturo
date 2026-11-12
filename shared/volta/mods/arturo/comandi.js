@@ -58,6 +58,15 @@ export function instrada(c) {
   if (c === "volta-nuova") return { verbo: "volta-nuova", arg: null, lungo: true };
   // "volta-giro-avanti" e "volta-giro-indietro": ⌘↓ e ⌘↑, la sessione dopo o prima nell'elenco.
   if (c === "volta-giro-avanti" || c === "volta-giro-indietro") return { verbo: "volta-giro", arg: c.endsWith("avanti") ? 1 : -1, lungo: false };
+  // "volta-chiudi": ⌘W (Ctrl+W su Windows) sulla scheda davanti: una sessione in background va in congedo
+  // e fuori dall'elenco subito, il resto si chiude come in Herdr (12/11/2026).
+  if (c === "volta-chiudi") return { verbo: "volta-chiudi", arg: null, lungo: false };
+  // "volta-chiudi-<scheda>": la X di una scheda nella fila delle schede, lo stesso gesto su quella scheda.
+  if (c.startsWith("volta-chiudi-")) return { verbo: "volta-chiudi", arg: dopo("volta-chiudi-"), lungo: false };
+  // "contesto" e "contesto-<slug>": la finestra del contesto di un progetto (contestoui.js); senza slug
+  // quello dello spazio aperto.
+  if (c === "contesto") return { verbo: "contesto", arg: null, lungo: false };
+  if (c.startsWith("contesto-")) return { verbo: "contesto", arg: dopo("contesto-"), lungo: false };
   // "volta-menu-<id>": il menu del tasto destro su una sessione (#5291).
   if (c.startsWith("volta-menu-")) return { verbo: "volta-menu", arg: dopo("volta-menu-"), lungo: false };
   // "volta-altro-<id>": il riquadro "Altro" di una sessione.
