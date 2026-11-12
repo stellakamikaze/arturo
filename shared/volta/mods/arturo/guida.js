@@ -24,7 +24,7 @@ const PASSI = [
     zona: "progetti",
     titolo: "Più progetti alla volta",
     righe: [
-      "Apri un progetto e passa al prossimo: Claude lavora su tutti insieme.",
+      () => `Apri un progetto e passa al prossimo: Claude lavora su tutti insieme. ${tasti().apri} cerca sessioni e progetti, ${tasti().giro} passa da una sessione all'altra.`,
       () => `Quando uno ha bisogno di te, senti un suono e il suo pallino diventa arancio. ${tasti().prossima} ti porta lì.`,
     ],
     legenda: true,

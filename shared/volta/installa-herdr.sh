@@ -73,13 +73,15 @@ for c in python3 python; do
 done
 [ -n "$py" ] || { say "HERDR ERRORE: manca Python (python3 o python) per scrivere la configurazione."; exit 1; }
 # Tasti: sui Mac quelli con ⌘; altrove ⌘ sarebbe il tasto Windows, che il sistema si tiene.
+# I tasti di serie di Herdr dello stesso sistema (copie di defaults/): la base di un keys.json che non c'è.
 tasti=keys.json
-[ "$sistema" = mac-arm ] || tasti=keys-ctrl.json
+serie=keys-herdr-macos.json
+[ "$sistema" = mac-arm ] || { tasti=keys-ctrl.json; serie=keys-herdr.json; }
 base=${PROJECTS_BASE:-$HOME/Documents/ClaudeCode}
 mkdir -p "$base"
 versione=$(herdr-app --version 2>/dev/null | sed -n 's/^herdr-app //p' || true)
 [ -n "$versione" ] || versione=$("$HOME/.local/bin/herdr-app" --version 2>/dev/null | sed -n 's/^herdr-app //p' || true)
-ARTURO_HERDR_VERSIONE="${ARTURO_HERDR_VERSIONE:-$versione}" ARTURO_TASTI="$tasti" ARTURO_PY="$py" ARTURO_BIN="$(percorso "$radice/bin/arturo")" ARTURO_RADICE="$(percorso "$radice")" ARTURO_BASE="$(percorso "$base")" \
+ARTURO_HERDR_VERSIONE="${ARTURO_HERDR_VERSIONE:-$versione}" ARTURO_TASTI="$tasti" ARTURO_SERIE="$serie" ARTURO_PY="$py" ARTURO_BIN="$(percorso "$radice/bin/arturo")" ARTURO_RADICE="$(percorso "$radice")" ARTURO_BASE="$(percorso "$base")" \
 "$py" - "$qui" "$app_home" <<'PY'
 import json, os, sys
 qui, app = sys.argv[1], sys.argv[2]
@@ -111,7 +113,12 @@ PRENDE = {"arturo.volta-nuova": "tab.new"}
 # Un tasto rimasto su un mod di Arturo tolto non apre più niente: vale come libero e si riallinea.
 # Solo questi tre valori esatti, e solo sui tasti di Arturo: ogni altro tasto resta della persona.
 VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")
-tasti = leggi("keys.json") or {}
+# Senza keys.json si parte dai tasti di serie di Herdr: Herdr li scrive solo se il file manca, e un
+# file coi soli tasti di Arturo lasciava Volta senza ⌘W, ⌘C, ⌘V e gli altri (#5369, 12/11/2026).
+tasti = leggi("keys.json")
+if tasti is None:
+    with open(os.path.join(qui, os.environ["ARTURO_SERIE"]), encoding="utf-8") as f:
+        tasti = json.load(f)
 with open(os.path.join(qui, os.environ["ARTURO_TASTI"]), encoding="utf-8") as f:
     nuovi = json.load(f)
 for sez, voci in nuovi.items():

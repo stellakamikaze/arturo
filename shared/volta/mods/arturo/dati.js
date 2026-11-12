@@ -284,6 +284,18 @@ export function statoSpazio(s) {
   return s.status ?? statoAgganciata(schedaAgganciata(s));
 }
 
+// Le sessioni di tutte le macchine come le elenca Volta (~/.cache/volta/sessioni.json, scritto da
+// volta_sonda.py ogni 30 s), chiuse comprese: la ricerca di ⌘K (apri.js) le legge da qui, perché la
+// finestra è un'altra copia del mod e non vede l'elenco della barra. Senza file: [].
+export async function sessioniVolta() {
+  try {
+    const d = JSON.parse((await readTextFile(`${home()}/.cache/volta/sessioni.json`)) ?? "{}");
+    return Array.isArray(d.sessioni) ? d.sessioni : [];
+  } catch {
+    return [];
+  }
+}
+
 // La sessione agganciata nella scheda `g` come la elenca Volta (~/.cache/volta/sessioni.json), o null.
 async function sessioneDi(g) {
   try {

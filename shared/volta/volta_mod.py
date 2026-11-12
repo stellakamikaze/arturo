@@ -76,8 +76,16 @@ LANCIATORI = (("volta-claude.sh", "volta-claude"), ("nascita.sh", "volta-nascita
               ("volta-claude.ps1", "volta-claude.ps1"), ("servizio-claude.ps1", "servizio-claude.ps1"))
 # I mod di Arturo tolti: un tasto rimasto su uno di questi non apre più niente (installa-herdr.sh ha lo stesso elenco).
 TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")
-# Comandi nati dopo le prime installazioni: il giro fra le sessioni (⌘↓ e ⌘↑, 12/11/2026).
-TASTI_NUOVI = ("arturo.volta-giro-avanti", "arturo.volta-giro-indietro")
+# Comandi nati dopo le prime installazioni: il giro fra le sessioni (⌘↓ e ⌘↑, 12/11/2026) e la ricerca
+# su ⌘K, che apre la stessa finestra di ⌘O (#5369).
+TASTI_NUOVI = ("arturo.volta-giro-avanti", "arturo.volta-giro-indietro", "arturo.apri")
+# L'unico tasto che Arturo prende a Herdr (installa-herdr.sh ha lo stesso): la scheda nuova (⌘T) è una
+# sessione di Claude, se quel tasto fa ancora la scheda nuova di Herdr (#5290).
+PRENDE = {"arturo.volta-nuova": "tab.new"}
+# I tasti di serie di Herdr, copie di defaults/ (il banco VM35 le confronta). Herdr li scrive in keys.json
+# solo se il file manca: un keys.json scritto prima del primo avvio (installa-herdr.sh fino al 12/11/2026)
+# aveva i soli tasti di Arturo, e mancavano ⌘W, ⌘C, ⌘V e gli altri.
+TASTI_SERIE = "keys-herdr-macos.json" if sys.platform == "darwin" else "keys-herdr.json"
 # La cartella dell'app dove arrivano le immagini dei progetti (tessere di Volta, 12/11/2026).
 IMMAGINI = "immagini"
 
@@ -359,24 +367,53 @@ def sostituisci(origine: Path, arrivo: Path) -> None:
 def tasti(fonte: Path) -> int:
     """Riallinea i tasti di Arturo rimasti su un mod tolto: prendono il comando che la fonte dà a quel
     tasto. I comandi di TASTI_NUOVI entrano anche in un'installazione che c'è già, se il loro tasto è
-    libero. Ogni altro tasto resta della persona, e senza un tasto da cambiare keys.json non si riscrive."""
+    libero, e il tasto di PRENDE se fa ancora il comando di Herdr. Poi i tasti di serie di Herdr che
+    mancano (TASTI_SERIE). Un tasto nuovo, preso o di serie si offre una volta sola: il registro
+    volta-mod/tasti-offerti.json lo segna anche quando c'è già, così un tasto tolto dalla persona non
+    torna. Ogni altro tasto resta della persona, e senza un tasto da cambiare keys.json non si riscrive.
+    Senza keys.json non si tocca niente: al primo avvio Herdr scrive i suoi."""
     nuovi = leggi(fonte / ("keys.json" if sys.platform == "darwin" else "keys-ctrl.json"))
+    serie = leggi(fonte / TASTI_SERIE)
     f = app_home() / "keys.json"
     miei = leggi(f)
+    registro = app_home() / "volta-mod" / "tasti-offerti.json"
+    visti = set(leggi(registro).get("tasti") or [])
+    prima = set(visti)
     quanti = 0
     for sezione, voci in nuovi.items():
         mia = miei.get(sezione)
         if not isinstance(voci, dict) or not isinstance(mia, dict):
             continue
         for tasto, comando in voci.items():
+            chiave = "%s %s" % (sezione, tasto)
             if mia.get(tasto) in TASTI_VECCHI:
                 mia[tasto] = comando
                 quanti += 1
             elif tasto not in mia and comando in TASTI_NUOVI:
+                if chiave not in visti:
+                    mia[tasto] = comando
+                    quanti += 1
+            elif comando in PRENDE and mia.get(tasto, PRENDE[comando]) == PRENDE[comando] and chiave not in visti:
+                # anche col tasto che manca: quello di serie sarebbe il comando di Herdr che si prende
                 mia[tasto] = comando
+                quanti += 1
+            if comando in TASTI_NUOVI or comando in PRENDE:
+                visti.add(chiave)
+    for sezione, voci in serie.items() if miei else ():
+        if not isinstance(voci, dict) or not isinstance(miei.get(sezione, {}), dict):
+            continue
+        for tasto, comando in voci.items():
+            chiave = "%s %s" % (sezione, tasto)
+            if chiave in visti:
+                continue
+            visti.add(chiave)
+            if tasto not in miei.get(sezione, {}):
+                miei.setdefault(sezione, {})[tasto] = comando
                 quanti += 1
     if quanti:
         scrivi(f, miei)
+    if visti != prima:
+        scrivi(registro, {"tasti": sorted(visti)})
     return quanti
 
 

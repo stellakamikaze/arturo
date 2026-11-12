@@ -11,7 +11,7 @@ import { apriSuggerimenti, esegui } from "./suggerimenti.js";
 import { apriRevisione } from "./revisione.js";
 import { revisione, settimanaDi } from "./settimana.js";
 import { Volta } from "./volta.js";
-import { rigaMod } from "./sessioni.js";
+import { rigaMod, decodifica } from "./sessioni.js";
 import { instrada } from "./comandi.js";
 
 export class Marchio {
@@ -80,7 +80,7 @@ export class Barra {
     else if (c === "suggerimento") { const s = SUGGERIMENTI.find((x) => x.id === arg); if (s) this.lungo(c, cx, () => esegui(s)); }
     else if (c === "settimana") apriRevisione();
     else if (c === "guida") apriGuida(arg);
-    else if (c === "nuova") this.lungo(c, cx, () => nuova());
+    else if (c === "nuova") this.lungo(c, cx, () => (arg ? nuova(decodifica(arg)) : nuova()));
     else if (c === "dove-scelta") apriSceltaMacchina();
     else if (c === "dove") setShared("arturo.dove", arg);
     else if (c === "nota") this.lungo(c, cx, () => apriNota(arg));

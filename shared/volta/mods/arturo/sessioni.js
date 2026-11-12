@@ -27,6 +27,9 @@ export function impostaProgetti(mappa) { NOTI = mappa && typeof mappa === "objec
 const slugDi = (p) => String(p ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
 // La chiave del progetto: quella del suo gruppo anche quando la sessione porta un nome alternativo.
 export const chiaveProgetto = (p) => (p ? NOTI[slugDi(p)]?.chiave ?? String(p) : "");
+// Il titolo vero del progetto se è noto ("Volta" per herdr-arturo), altrimenti null: chi ha un suo modo
+// di scrivere il nome ricavato dallo slug (bello() di dati.js) lo usa solo quando il titolo manca.
+export const titoloNoto = (p) => (p ? NOTI[slugDi(p)]?.titolo ?? null : null);
 
 // Il nome di un progetto per le persone: il titolo noto, altrimenti "due-mondi" → "Due mondi", "uf" → "UF".
 // Un progetto fatto di soli separatori ("-") non ha parole: vale come senza progetto, invece di far
@@ -466,6 +469,51 @@ export function filtraProgetti(noti, testo, quanti = 8) {
   const presi = f ? [...l.filter((p) => nomi(p).some((x) => x.startsWith(f))), ...l.filter((p) => !nomi(p).some((x) => x.startsWith(f)) && nomi(p).some((x) => x.includes(f)))] : l;
   return presi.slice(0, quanti);
 }
+
+// La ricerca di ⌘K e ⌘O (#5369, nota di Federico dell'11/11: "accedere a chat e progetti"): un elenco
+// solo di sessioni e progetti. Il testo si confronta senza maiuscole, accenti e trattini, col titolo e il
+// nome della sessione, col suo progetto e col titolo, lo slug e i nomi alternativi (NOTI) di un progetto.
+// Prima chi comincia col testo, poi chi lo contiene; le sessioni chiuse in fondo, perché si riaprono ma
+// sono il caso raro. Senza testo: le sessioni vive più recenti (al più VIVE_SENZA_TESTO), poi i progetti
+// nell'ordine dato. Con un testo l'ultima voce è sempre "Nuova richiesta" con quel testo, anche quando
+// qualcosa corrisponde: chi scrive una frase intera vuole quasi sempre chiederla.
+// Righe: { tipo: "sessione", s } | { tipo: "progetto", nome } | { tipo: "nuova", testo }.
+export const VIVE_SENZA_TESTO = 5;
+const piano = (x) => String(x ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+const alternativi = (p) => {
+  const k = chiaveProgetto(p);
+  return k ? Object.keys(NOTI).filter((a) => NOTI[a]?.chiave === k) : [];
+};
+export function cerca(sessioni, progetti, testo, quanti = 12) {
+  const f = piano(testo);
+  const ss = [...(sessioni ?? [])].filter((s) => s && s.sessionId).sort((a, b) => tempo(b) - tempo(a));
+  const pp = [...new Set((progetti ?? []).filter(Boolean))];
+  if (!f) {
+    const vive = ss.filter((s) => !chiusa(s)).slice(0, VIVE_SENZA_TESTO).map((s) => ({ tipo: "sessione", s }));
+    return [...vive, ...pp.map((nome) => ({ tipo: "progetto", nome }))].slice(0, quanti);
+  }
+  // 0: comincia col testo, 1: lo contiene, null: niente
+  const voto = (campi) => {
+    const c = campi.map(piano).filter(Boolean);
+    return c.some((x) => x.startsWith(f)) ? 0 : c.some((x) => x.includes(f)) ? 1 : null;
+  };
+  const prese = [];
+  ss.forEach((s, i) => {
+    const v = voto([titolo(s), s.nome, s.progetto, s.progetto ? nomeProgetto(s.progetto) : "", ...alternativi(s.progetto), s.id]);
+    if (v !== null) prese.push({ riga: { tipo: "sessione", s }, chiusa: chiusa(s) ? 1 : 0, v, i });
+  });
+  pp.forEach((nome, i) => {
+    const v = voto([nome, nomeProgetto(nome), ...alternativi(nome)]);
+    if (v !== null) prese.push({ riga: { tipo: "progetto", nome }, chiusa: 0, v, i: ss.length + i });
+  });
+  prese.sort((a, b) => a.chiusa - b.chiusa || a.v - b.v || a.i - b.i);
+  return [...prese.slice(0, quanti - 1).map((x) => x.riga), { tipo: "nuova", testo: String(testo).trim() }];
+}
+
+// Il comando di "Nuova richiesta" dalla ricerca: il testo viaggia in esadecimale come in comandoCambio,
+// al più TESTO_NUOVA_MAX caratteri (il resto la persona lo scrive nella sessione).
+export const TESTO_NUOVA_MAX = 400;
+export const comandoNuova = (testo) => `arturo.nuova-${codifica(String(testo ?? "").trim().slice(0, TESTO_NUOVA_MAX))}`;
 
 // Il dialogo è un'altra copia del mod: manda il cambio alla barra come comando, lo stesso di herdr-app
 // do. Il testo viaggia in esadecimale (quattro cifre per carattere), perché il nome di un comando non

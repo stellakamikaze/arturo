@@ -31,6 +31,9 @@ export function instrada(c) {
   // "guida" e "guida<N>": la guida, alla pagina N (da 1).
   if (/^guida\d?$/.test(c)) return { verbo: "guida", arg: Math.max(0, Number(dopo("guida") || 1) - 1), lungo: false };
   if (c === "nuova") return { verbo: "nuova", arg: null, lungo: true };
+  // "nuova-<esadecimale>": Nuova richiesta col testo scritto nella ricerca (⌘K, #5369), quattro cifre
+  // per carattere (comandoNuova di sessioni.js); la barra lo decodifica.
+  if (/^nuova-(?:[0-9a-f]{4})+$/.test(c)) return { verbo: "nuova", arg: dopo("nuova-"), lungo: true };
   // "dove-scelta": apre il selettore di "Nasce su" (prove senza clic). Viene prima di "dove-<macchina>".
   if (c === "dove-scelta") return { verbo: "dove-scelta", arg: null, lungo: false };
   // "dove-<macchina>": la scelta di "Nasce su" (dove-qui per questa macchina).

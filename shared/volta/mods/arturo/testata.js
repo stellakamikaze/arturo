@@ -158,7 +158,7 @@ export class Stato {
     const pezzo = (id, c, testo) => h_flex().id(id).gap(7).items_center().child(punto(c, 7)).child(testo);
     const k = tasti();
     const quante = contaNote(this.note, progettoAdesso(this.scelto)).aperte;
-    const scorciatoie = `${k.apri} apri un progetto   ${k.prossima} prossima sessione   ${k.impostazioni} impostazioni`;
+    const scorciatoie = `${k.apri} cerca   ${k.giro} giro delle sessioni   ${k.prossima} chi ti aspetta   ${k.impostazioni} impostazioni`;
     return h_flex().size_full().px(18).gap(18).items_center().bg(t.chrome).border_t(1).border_color(t.border).text_size(12).text_color(t.muted)
       .when(a.length === 0, (el) => el.child(pezzo("stato-sessioni", t.idle, "Nessuna sessione aperta")))
       .when(n("blocked") > 0, (el) => el.child(pezzo("stato-aspettano", t.blocked, div().text_color(t.foreground).child(`${n("blocked")} ti aspett${n("blocked") > 1 ? "ano" : "a"}`))))
