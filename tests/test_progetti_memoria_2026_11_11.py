@@ -16,6 +16,11 @@ PM09 un progetto che sta solo nel catalogo della fonte compare.
 PM10 con 150 progetti il comando risponde entro 3 secondi.
 PM11 un nome alternativo con i suoi handoff resta una voce a parte, con la categoria del gruppo e fuori
      dagli alias: la persona lo apre da solo con /inizio.
+PM12 la scheda di un progetto porta titolo e nomi alternativi (12/11/2026): il campo `titolo:` vince sul
+     titolo della fonte, e `alias:` fonde nel progetto una cartella col nome vecchio, come la fonte.
+PM13 `arturo progetti titolo <slug> "<Titolo>"` scrive solo la riga `titolo:` della scheda: la prima volta
+     la aggiunge sotto `name:`, la seconda la riscrive, il resto del file resta identico; una scheda che
+     non c'è esce 2 e non crea niente.
 
 Veleno: --avvelena rompe bin/progetti.py nella copia di prova, un punto per caso, ed esce 0 solo se ogni
 rottura fa rosso il suo caso (VELENI del gate).
@@ -33,14 +38,15 @@ import time
 import os
 from pathlib import Path
 
-CASI = ["PM01", "PM02", "PM03", "PM04", "PM05", "PM06", "PM07", "PM08", "PM09", "PM10", "PM11"]
+CASI = ["PM01", "PM02", "PM03", "PM04", "PM05", "PM06", "PM07", "PM08", "PM09", "PM10", "PM11", "PM12", "PM13"]
 CATALOGO = ('import json, sys\n'
             'if sys.argv[1:] != ["catalogo", "--json"]:\n'
             '    sys.exit(2)\n'
             'print(json.dumps({"progetti": [\n'
             '    {"slug": "aria", "titolo": "Tutto Vero", "categoria": "Prodotti", "alias": ["tutto-vero"]},\n'
             '    {"slug": "madre", "titolo": "Madre", "categoria": "Dev", "alias": ["filone"]},\n'
-            '    {"slug": "solo-fonte", "titolo": "Solo Fonte", "categoria": "Clienti", "alias": []}]}))\n')
+            '    {"slug": "solo-fonte", "titolo": "Solo Fonte", "categoria": "Clienti", "alias": []},\n'
+            '    {"slug": "titolata", "titolo": "Dalla Fonte", "categoria": "Clienti", "alias": []}]}))\n')
 SENZA = 'import sys\nsys.exit(2)\n'
 # caso -> (testo di bin/progetti.py, testo rotto): ogni rottura deve far rosso il suo caso
 VELENI = {
@@ -51,10 +57,12 @@ VELENI = {
     "PM05": ('            del voci[v["slug"]]\n', "            pass\n"),
     "PM06": ('avvisi.append("la fonte dei task non ha', 'str("la fonte dei task non ha'),
     "PM07": ('if p.name[:1] in "._" or not cx.e_cartella(p):', "if not cx.e_cartella(p):"),
-    "PM08": ('if r.startswith("description:"):', "if False:"),
+    "PM08": ('if chiave == "description":', "if False:"),
     "PM09": ('            voci[c["slug"]] = capo\n', "            pass\n"),
     "PM10": ("    dati = elenco()\n", "    import time\n    time.sleep(4)\n    dati = elenco()\n"),
     "PM11": ('            if v["handoff"]:  # un filone', '            if False:  # un filone'),
+    "PM12": ('= capo["titolo"] or c["titolo"], c["categoria"]', '= c["titolo"] or capo["titolo"], c["categoria"]'),
+    "PM13": ("        righe[i] = nuova\n", "        righe[i:fine] = [nuova]\n"),
 }
 
 
@@ -146,6 +154,11 @@ def prova(lab: Lab) -> list:
     scheda.parent.mkdir(parents=True)
     scheda.write_text("---\nname: progetto-solo-handoff\ndescription: DESCRIZIONE-DALLA-SCHEDA\ntype: project\n---\ncorpo\n",
                       encoding="utf-8")
+    (lab.base / "vecchio-nome").mkdir()
+    (scheda.parent / "progetto-titolata.md").write_text("---\nname: progetto-titolata\ntitolo: \"TITOLO-SCHEDA\"\ndescription: x\n---\n",
+                                                        encoding="utf-8")
+    (scheda.parent / "progetto-con-index.md").write_text("---\nname: progetto-con-index\nalias: [vecchio-nome]\n---\n", encoding="utf-8")
+    lab.scrivi_handoff("titolata", "2026-10-02_09-00", "in progress", "PASSO-TITOLATA")
 
     prima = lab.impronta()
     p, avvisi, r = lab.progetti()
@@ -182,6 +195,20 @@ def prova(lab: Lab) -> list:
     v = p.get("solo-fonte", {})
     if v.get("titolo") != "Solo Fonte" or v.get("fonte") != ["fonte"]:
         rossi.append(f"PM09 solo nella fonte: {v}")
+    if p.get("titolata", {}).get("titolo") != "TITOLO-SCHEDA" or "vecchio-nome" in p \
+            or "vecchio-nome" not in p.get("con-index", {}).get("alias", []):
+        rossi.append(f"PM12 titolo e alias della scheda: titolata={p.get('titolata')} vecchio-nome in elenco={'vecchio-nome' in p} "
+                     f"con-index={p.get('con-index')}")
+    prima_s = scheda.read_text(encoding="utf-8")
+    r1 = lab.arturo("progetti", "titolo", "solo-handoff", "Nome Nuovo")
+    uno = scheda.read_text(encoding="utf-8")
+    r2 = lab.arturo("progetti", "titolo", "solo-handoff", "Nome Ancora")
+    due = scheda.read_text(encoding="utf-8")
+    r3 = lab.arturo("progetti", "titolo", "non-esiste", "X")
+    atteso = prima_s.replace("name: progetto-solo-handoff\n", 'name: progetto-solo-handoff\ntitolo: "Nome Nuovo"\n')
+    if r1.returncode != 0 or uno != atteso or due != atteso.replace("Nome Nuovo", "Nome Ancora") or r3.returncode != 2 \
+            or (scheda.parent / "progetto-non-esiste.md").exists():
+        rossi.append(f"PM13 verbo titolo: rc={r1.returncode},{r2.returncode},{r3.returncode} uno={uno!r} due={due!r}")
 
     lab.locale(SENZA)
     p, avvisi, r = lab.progetti()

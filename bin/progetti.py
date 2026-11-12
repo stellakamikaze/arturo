@@ -2,13 +2,16 @@
 """arturo progetti: tutti i progetti che la persona segue, letti dalla memoria che c'è già.
 
 Uso: arturo progetti [--json]
+     arturo progetti titolo <slug> "<Titolo>"
 
-Non crea e non scrive niente: unisce per slug quello che Arturo ha già su disco.
+Il primo modo non crea e non scrive niente: unisce per slug quello che Arturo ha già su disco.
   - le cartelle della base dei progetti (PROJECTS_BASE);
   - gli handoff (data/handoffs/<slug>/): data dell'ultimo, stato e prossimo passo dall'INDEX.md, oppure
     dall'ultimo handoff quando l'INDEX manca o è più vecchio di lui;
   - le righe di stato dei progetti (arturo todo stato);
-  - le schede progetto-<slug>.md della memoria, se ci sono: la loro descrizione;
+  - le schede progetto-<slug>.md della memoria, se ci sono: la descrizione, e i campi facoltativi
+    `titolo:` (il nome che la persona vede, vince sul titolo della fonte) e `alias:` (i nomi alternativi
+    del progetto, come quelli della fonte: "alias: [volta-celeste, volta]");
   - il catalogo della fonte esterna dei task (fonte-task.local, verbo facoltativo "catalogo --json"): i
     progetti che stanno nello strumento della persona, con titolo, categoria e i nomi alternativi (alias).
 
@@ -19,7 +22,9 @@ Se la fonte non conosce "catalogo" o non risponde, resta l'elenco locale con un 
 
 Uscita --json: {versione, progetti: [{slug, nome, titolo, categoria, descrizione, riga, data, stato,
 prossimo, filoni, cartella, handoff, alias, fonte}], avvisi}, dal progetto con l'handoff più recente.
-Exit: 0 · 3 uso sbagliato.
+Il secondo modo scrive il titolo di un progetto nella sua scheda (solo la riga `titolo:` del frontmatter,
+al più 60 caratteri): lo chiama /fine quando il nome del progetto cambia. Lo slug non cambia mai.
+Exit: 0 · 2 scheda che non c'è · 3 uso sbagliato.
 """
 from __future__ import annotations
 
@@ -91,14 +96,33 @@ def righe_index(ix) -> dict:
     return fuori
 
 
-def schede() -> dict:
-    """{slug: descrizione} dalle schede progetto-<slug>.md della memoria. Senza memoria: {}."""
+MAX_TITOLO = 60
+
+
+def radici_memoria() -> list:
     try:
         sys.path.append(str(QUI.parent / "hooks"))
         import melchior_match as mm
-        radici = mm.radici()
+        return list(mm.radici())
     except Exception:  # la memoria è facoltativa: una sua rottura non ferma l'elenco
-        return {}
+        return []
+
+
+def scheda_di(slug: str):
+    """Il file progetto-<slug>.md della memoria, o None."""
+    for radice in radici_memoria():
+        try:
+            for f in sorted(radice.rglob(f"progetto-{slug}.md")):
+                if not any(p[:1] in "._" for p in f.relative_to(radice).parts):
+                    return f
+        except OSError:
+            continue
+    return None
+
+
+def schede() -> dict:
+    """{slug: {descrizione, titolo, alias}} dalle schede progetto-<slug>.md della memoria. Senza memoria: {}."""
+    radici = radici_memoria()
     fuori = {}
     for radice in radici:
         try:
@@ -111,24 +135,36 @@ def schede() -> dict:
             s = cx.slug(f.stem[len("progetto-"):])
             if not s or s in fuori:
                 continue
-            fuori[s] = descrizione(f)
+            fuori[s] = testa(f)
     return fuori
 
 
-def descrizione(f: Path) -> str:
+def testa(f: Path) -> dict:
+    """Descrizione, titolo e alias dal frontmatter di una scheda; i campi che mancano restano vuoti."""
+    v = {"descrizione": "", "titolo": "", "alias": []}
     try:
         with open(f, encoding="utf-8", errors="replace") as fh:
             righe = [next(fh, "") for _ in range(RIGHE_SCHEDA)]
     except OSError:
-        return ""
+        return v
     if not righe or righe[0].strip() != "---":
-        return ""
+        return v
     for r in righe[1:]:
         if r.strip() == "---":
             break
-        if r.startswith("description:"):
-            return corta(r.split(":", 1)[1].strip().strip("\"'"))
-    return ""
+        chiave, _, valore = r.partition(":")
+        valore = valore.strip()
+        if chiave == "description":
+            v["descrizione"] = corta(valore.strip("\"'"))
+        elif chiave == "titolo":
+            v["titolo"] = corta(valore.strip("\"'"))[:MAX_TITOLO]
+        elif chiave == "alias":
+            v["alias"] = [a for a in (cx.slug(x.strip().strip("\"'")) for x in valore.strip("[]").split(",")) if a]
+    return v
+
+
+def descrizione(f: Path) -> str:
+    return testa(f)["descrizione"]
 
 
 def corta(testo: str) -> str:
@@ -179,7 +215,7 @@ def locali() -> dict:
     for s in sorted(set(dirs) | set(ultimi) | set(stati)):
         fonte = [n for n, c in (("cartella", dirs), ("handoff", ultimi), ("stato", stati), ("scheda", note)) if s in c]
         v = {"slug": s, "nome": dirs.get(s) or (ultimi[s][0] if s in ultimi else s), "titolo": "", "categoria": "",
-             "descrizione": note.get(s, ""), "riga": "", "data": "", "stato": "", "prossimo": "", "filoni": 0,
+             "descrizione": note.get(s, {}).get("descrizione", ""), "riga": "", "data": "", "stato": "", "prossimo": "", "filoni": 0,
              "cartella": s in dirs, "handoff": s in ultimi, "alias": [], "fonte": fonte}
         if s in ultimi:
             _, v["data"], percorso = ultimi[s]
@@ -194,11 +230,19 @@ def locali() -> dict:
                 v.update(stato=ix.stato_handoff(testo), prossimo=corta(ix.prossimo_handoff(testo)),
                          filoni=riga["filoni"] if riga else 1)
         v["riga"] = corta(stati[s]["riga"]) if s in stati else v["prossimo"]
+        v["titolo"] = note.get(s, {}).get("titolo", "")
         voci[s] = v
     return voci
 
 
-def fondi(voci: dict, catalogo: list) -> dict:
+def catalogo_schede() -> list:
+    """Le schede con titolo o alias, nella forma del catalogo della fonte: i loro nomi alternativi si
+    fondono come quelli della fonte, e il titolo della scheda vince (fondi lo tiene)."""
+    return [{"slug": s, "titolo": v["titolo"], "categoria": "", "alias": v["alias"]}
+            for s, v in sorted(schede().items()) if v.get("alias")]
+
+
+def fondi(voci: dict, catalogo: list, marca: bool = True) -> dict:
     """Porta il catalogo della fonte nelle voci. Il capo di un gruppo di nomi è lo slug della fonte se ha
     handoff, altrimenti il nome con l'handoff più recente. I nomi senza handoff entrano nel capo."""
     for c in catalogo:
@@ -217,7 +261,7 @@ def fondi(voci: dict, catalogo: list) -> dict:
                 continue
             if v["handoff"]:  # un filone che la persona apre da solo: resta, con la categoria del gruppo
                 v["categoria"] = v["categoria"] or c["categoria"]
-                if "fonte" not in v["fonte"]:
+                if marca and "fonte" not in v["fonte"]:
                     v["fonte"].append("fonte")
                 continue
             capo["cartella"] = capo["cartella"] or v["cartella"]
@@ -227,24 +271,60 @@ def fondi(voci: dict, catalogo: list) -> dict:
             capo["fonte"] += [f for f in v["fonte"] if f not in capo["fonte"]]
             del voci[v["slug"]]
         capo["alias"] = sorted(set(capo["alias"]) | {s for s in gruppo if s != capo["slug"] and s not in voci})
-        capo["titolo"], capo["categoria"] = c["titolo"] or capo["titolo"], c["categoria"] or capo["categoria"]
-        if "fonte" not in capo["fonte"]:
+        # il titolo scritto nella scheda (capo["titolo"], da locali) vince su quello della fonte
+        capo["titolo"], capo["categoria"] = capo["titolo"] or c["titolo"], c["categoria"] or capo["categoria"]
+        if marca and "fonte" not in capo["fonte"]:
             capo["fonte"].append("fonte")
     return voci
 
 
 def elenco() -> dict:
     avvisi = []
-    voci = fondi(locali(), catalogo_fonte(avvisi))
+    voci = fondi(fondi(locali(), catalogo_schede(), marca=False), catalogo_fonte(avvisi))
     ordinati = sorted(voci.values(), key=lambda v: v["slug"])
     ordinati.sort(key=lambda v: v["data"], reverse=True)
     return {"versione": VERSIONE, "progetti": ordinati, "avvisi": avvisi}
+
+
+def scrivi_titolo(slug: str, titolo: str) -> int:
+    """Scrive `titolo:` nel frontmatter della scheda del progetto, e solo quella riga. Atomico."""
+    titolo = " ".join(str(titolo).replace('"', "'").split())[:MAX_TITOLO].strip()
+    s = cx.slug(slug)
+    f = scheda_di(s) if s else None
+    if not f or not titolo:
+        print(f"nessuna scheda progetto-{s}.md nella memoria" if titolo else "titolo vuoto", file=sys.stderr)
+        return 2 if titolo else 3
+    righe = f.read_text(encoding="utf-8").splitlines(keepends=True)
+    if not righe or righe[0].strip() != "---":
+        print(f"{f.name} non ha il frontmatter", file=sys.stderr)
+        return 2
+    fine = next((i for i, r in enumerate(righe[1:], 1) if r.strip() == "---"), None)
+    if fine is None:
+        print(f"{f.name}: frontmatter senza chiusura", file=sys.stderr)
+        return 2
+    nuova = f'titolo: "{titolo}"\n'
+    i = next((i for i in range(1, fine) if righe[i].startswith("titolo:")), None)
+    if i is not None:
+        righe[i] = nuova
+    else:
+        dopo = next((i for i in range(1, fine) if righe[i].startswith("name:")), 0)
+        righe.insert(dopo + 1, nuova)
+    tmp = f.with_name(f".{f.name}.tmp")
+    tmp.write_text("".join(righe), encoding="utf-8")
+    os.replace(tmp, f)
+    print(f"{s}: {titolo}")
+    return 0
 
 
 def main(argv: list) -> int:
     if any(a in ("-h", "--help", "aiuto") for a in argv):
         print(__doc__.strip())
         return 0
+    if argv[:1] == ["titolo"]:
+        if len(argv) != 3:
+            print('uso: arturo progetti titolo <slug> "<Titolo>"', file=sys.stderr)
+            return 3
+        return scrivi_titolo(argv[1], argv[2])
     if [a for a in argv if a != "--json"]:
         print("uso: arturo progetti [--json]", file=sys.stderr)
         return 3
