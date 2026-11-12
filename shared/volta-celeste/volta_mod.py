@@ -40,6 +40,7 @@ import json
 import os
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import time
@@ -177,17 +178,35 @@ def ultima_riga(testo: str) -> str:
     return righe[-1][:200] if righe else ""
 
 
+def togli(cartella: Path) -> None:
+    """Cancella una cartella anche se dentro ci sono file o cartelle di sola lettura. Su Windows git scrive
+    così i suoi oggetti e shutil.rmtree li lascia lì: il clone da rifare restava a metà, git clone
+    rispondeva "already exists and is not an empty directory" e ogni giro dopo dava lo stesso errore
+    (PC Windows, 12/11/2026). Quello che non si riesce a togliere resta, senza eccezioni."""
+    def riprova(funzione, percorso, _errore):
+        try:
+            os.chmod(os.path.dirname(percorso), stat.S_IRWXU)
+            os.chmod(percorso, stat.S_IRWXU)
+            funzione(percorso)
+        except OSError:
+            pass
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(str(cartella), onexc=riprova)
+    else:
+        shutil.rmtree(str(cartella), onerror=riprova)
+
+
 def scarica(url: str, ramo: str) -> tuple[Path | None, str]:
     """Il clone leggero allineato al ramo. Torna (cartella della fonte, "") oppure (None, motivo)."""
     clone = cache() / "mod-git"
 
     def clona() -> str:
-        shutil.rmtree(clone, ignore_errors=True)
+        togli(clone)
         clone.parent.mkdir(parents=True, exist_ok=True)
         rc, out = git(["clone", "--quiet", "--filter=blob:none", "--sparse", "--depth", "1", "--branch", ramo,
                        url, str(clone)], timeout=ATTESA_GIT * 2)
         if rc != 0:
-            shutil.rmtree(clone, ignore_errors=True)
+            togli(clone)
             return ultima_riga(out) or "clone fallito"
         # --no-cone: solo la cartella della fonte, senza i file della radice del repository
         rc, out = git(["sparse-checkout", "set", "--no-cone", "/" + CARTELLA + "/"], cwd=clone)
