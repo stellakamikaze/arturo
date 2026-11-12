@@ -345,6 +345,16 @@ def test_ts12(repo: Path) -> None:
         scritto = c.evento("PostToolUse", sessione="f", tool_name="Edit",
                            tool_input={"file_path": str(progetti / "romanzo" / "cap1.md")}, tool_response={})
         assert "]0;LAVORANDO · romanzo\x07" in scritto, f"TS12 senza /inizio la cartella scritta non dà il progetto: {scritto!r}"
+        (progetti / "romanzo").mkdir(parents=True, exist_ok=True)
+        git(progetti / "romanzo", "init", "-q")
+        (progetti / "romanzo" / "a.md").write_text("x\n", encoding="utf-8")
+        git(progetti / "romanzo", "add", "a.md")
+        git(progetti / "romanzo", "commit", "-qm", "a")
+        git(progetti / "romanzo", "worktree", "add", "-q", str(progetti / "romanzo-prova-12"))
+        c.evento("UserPromptSubmit", sessione="w", prompt="sistema il capitolo")
+        ramo = c.evento("PostToolUse", sessione="w", tool_name="Edit",
+                        tool_input={"file_path": str(progetti / "romanzo-prova-12" / "cap1.md")}, tool_response={})
+        assert "]0;LAVORANDO · romanzo\x07" in ramo, f"TS12 un worktree accanto ai progetti diventa un progetto: {ramo!r}"
         c.env["PROJECTS_BASE"] = "~/Progetti"
         c.evento("UserPromptSubmit", sessione="b", prompt="sistema il capitolo")
         scelta = c.evento("PostToolUse", sessione="b", tool_name="Write",

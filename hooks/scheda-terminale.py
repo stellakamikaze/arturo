@@ -165,8 +165,16 @@ def progetto_da_strumento(dati: dict) -> tuple:
     if config is not None:
         return ("claude-config", "file") if len(config) == 1 or config[0] in CONFIG else ("", "")
     # La cartella dei progetti come la legge contesto.base_progetti() di Arturo.
-    parti = dentro(percorso, Path(os.path.expanduser(os.environ.get("PROJECTS_BASE") or "~/Documents/ClaudeCode")))
-    return (parti[0][:40], "file") if parti and len(parti) > 1 else ("", "")
+    base = Path(os.path.expanduser(os.environ.get("PROJECTS_BASE") or "~/Documents/ClaudeCode"))
+    parti = dentro(percorso, base)
+    if not parti or len(parti) < 2:
+        return "", ""
+    # Una cartella accanto ai progetti che è un worktree (.git è un file) vale il repo principale:
+    # "arturo-inizio-5465" è arturo, non un progetto nuovo (12/11/2026).
+    cartella = base / parti[0]
+    if (cartella / ".git").is_file():
+        return progetto_da_cartella(str(cartella))[:40], "file"
+    return parti[0][:40], "file"
 
 
 def istante(testo) -> float:
