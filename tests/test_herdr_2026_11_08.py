@@ -435,7 +435,7 @@ HZ100 installa-herdr.sh senza keys.json parte dai tasti di serie di Herdr (share
 HZ101 la riga accesa e il comando di Sposta su (12/11/2026, Federico): sessioni.js con node: corrente() è
      l'ultima sessione del giro dentro la raffica di ⌘↓ e ⌘↑, poi quella della scheda in primo piano;
      sessioneDavanti() riconosce chi gira nel terminale di una scheda in uno spazio di un'altra macchina
-     (balthasar/t13) prima dell'etichetta; unaPerConversazione() toglie la copia ferma di una sessione
+     (torre/t13) prima dell'etichetta; unaPerConversazione() toglie la copia ferma di una sessione
      spostata. comandi.js legge volta-sposta-<macchina>-<id>; testata e main.js hanno pulsante e popup.
 HZ102 Sposta su porta la conversazione (12/11/2026): gli script di volta_sposta.py su due macchine finte
      nella stessa casa. LEGGI rifiuta file non salvati e commit non spinti e una cartella fuori dalla base;
@@ -7399,16 +7399,16 @@ const n = await import(%s);
 const c = await import(%s);
 const l = [{ host: "qui", id: "a", sessionId: "A", stato: "ferma", tipo: "background" },
   { host: "amaltea", id: "a", sessionId: "A", stato: "aspetta", tipo: "background" },
-  { host: "balthasar", id: "b", sessionId: "B", stato: "ferma", tipo: "interattiva", terminale: "t13" },
-  { host: "balthasar", id: "d", sessionId: "D", stato: "ferma", tipo: "background" },
+  { host: "torre", id: "b", sessionId: "B", stato: "ferma", tipo: "interattiva", terminale: "t13" },
+  { host: "torre", id: "d", sessionId: "D", stato: "ferma", tipo: "background" },
   { host: "qui", id: "e", sessionId: "E", stato: "ferma" }, { host: "amaltea", id: "e", sessionId: "E", stato: "ferma" }];
 const g = { ids: ["a", "b"], ultimo: "b", quando: 1000 };
 console.log(JSON.stringify({
   corrente: [n.corrente(g, "a", 1500), n.corrente(g, "a", 1001 + n.GIRO_MS), n.corrente(null, "a", 5), n.corrente(null, null, 5)],
-  davanti: [n.sessioneDavanti({ address: "balthasar/t13", labels: { "arturo.sessione": "d" } }, l)?.id ?? null,
+  davanti: [n.sessioneDavanti({ address: "torre/t13", labels: { "arturo.sessione": "d" } }, l)?.id ?? null,
     n.sessioneDavanti({ address: "amaltea/t13" }, l), n.sessioneDavanti(null, l)],
   una: n.unaPerConversazione(l).map((s) => s.host + "/" + s.id),
-  sposta: [c.instrada("volta-sposta-amaltea-936135fc"), c.instrada("volta-sposta-mac-mini-ab12cd34").arg, c.instrada("volta-936135fc").verbo],
+  sposta: [c.instrada("volta-sposta-amaltea-936135fc"), c.instrada("volta-sposta-studio-ab12cd34").arg, c.instrada("volta-936135fc").verbo],
 }));
 """
 
@@ -7439,10 +7439,10 @@ def hz101(repo: Path, casa: Path) -> str | None:
         return f"corrente() non segue il giro dentro la raffica, o non torna alla scheda dopo: {g['corrente']}"
     if g["davanti"] != ["b", None, None]:
         return f"sessioneDavanti() non riconosce chi gira nel terminale di un'altra macchina: {g['davanti']}"
-    if g["una"] != ["amaltea/a", "balthasar/b", "balthasar/d", "qui/e", "amaltea/e"]:
+    if g["una"] != ["amaltea/a", "torre/b", "torre/d", "qui/e", "amaltea/e"]:
         return f"unaPerConversazione() non toglie la copia ferma di una sessione spostata: {g['una']}"
     if g["sposta"] != [{"verbo": "volta-sposta", "arg": {"macchina": "amaltea", "id": "936135fc"}, "lungo": False},
-                       {"macchina": "mac-mini", "id": "ab12cd34"}, "volta"]:
+                       {"macchina": "studio", "id": "ab12cd34"}, "volta"]:
         return f"instrada() non legge volta-sposta-<macchina>-<id>: {g['sposta']}"
     return None
 
