@@ -72,10 +72,18 @@ togli_da() {
   tmp="$f.volta-tmp"
   # \r tolto nel confronto: un profilo di PowerShell può avere le righe di Windows. BINMODE=3: l'awk di Git
   # per Windows altrimenti toglie i \r anche dalle righe della persona (provato il 10/11/2026); altrove non conta.
-  awk -v BINMODE=3 -v a="$INIZIO" -v b="$FINE" '{ l = $0; sub(/\r$/, "", l) } l == a { dentro = 1; next } dentro && l == b { dentro = 0; next } !dentro' "$f" > "$tmp"
+  # Senza la riga di fine il blocco non si toglie e il file resta com'è (esce 1): prima se ne andava
+  # tutto quello che segue la riga di inizio, cioè il resto del .zshrc della persona (#5265).
+  if ! awk -v BINMODE=3 -v a="$INIZIO" -v b="$FINE" '{ l = $0; sub(/\r$/, "", l) } l == a { dentro = 1; next } dentro && l == b { dentro = 0; next } !dentro { print } END { exit dentro ? 3 : 0 }' "$f" > "$tmp"; then
+    rm -f "$tmp"
+    return 1
+  fi
   cat "$tmp" > "$f"  # cat e non mv: permessi e collegamenti del file restano quelli della persona
   rm -f "$tmp"
 }
+
+# Il blocco di prima senza la riga di fine: lo si dice, e il file non si tocca.
+senza_fine() { say "NASCITA SENZA FINE $1: manca la riga \"$FINE\" dopo \"$INIZIO\". Il file resta com'è: togli a mano il blocco, poi rilancia."; }
 
 # Un file che non finisce con a capo attaccherebbe il blocco alla sua ultima riga.
 a_capo() { if [ -s "$1" ] && [ -n "$(tail -c 1 "$1" | tr -d '\r')" ]; then printf '\n' >> "$1"; fi; }
@@ -109,7 +117,7 @@ case "${1:-}" in
     IFS='
 '  # una riga per file: la casa può avere spazi nel nome (C:/Users/Mario Rossi)
     for f in $(file_shell); do
-      togli_da "$f"
+      if ! togli_da "$f"; then senza_fine "$f"; continue; fi
       a_capo "$f"
       blocco_sh >> "$f"
       say "NASCITA METTI $f"
@@ -117,7 +125,7 @@ case "${1:-}" in
     for f in $(profili_ps); do
       if utf16 "$f"; then say "NASCITA UTF16 $f"; continue; fi
       mkdir -p "$(dirname "$f")"
-      togli_da "$f"
+      if ! togli_da "$f"; then senza_fine "$f"; continue; fi
       a_capo "$f"
       blocco_ps >> "$f"
       say "NASCITA METTI $f"
@@ -127,7 +135,9 @@ case "${1:-}" in
     IFS='
 '
     for f in $(tutti_i_file); do
-      if [ -f "$f" ] && grep -qF "$INIZIO" "$f"; then togli_da "$f"; say "NASCITA TOLTA $f"; fi
+      if [ -f "$f" ] && grep -qF "$INIZIO" "$f"; then
+        if togli_da "$f"; then say "NASCITA TOLTA $f"; else senza_fine "$f"; fi
+      fi
     done
     if [ "$1" = no ]; then date '+%Y-%m-%d' > "$NO"; say "NASCITA NO: l'installazione non la ripropone. Si accende con: sh \"$app/volta-nascita.sh\" metti"; fi
     ;;

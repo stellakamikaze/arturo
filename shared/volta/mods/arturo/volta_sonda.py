@@ -552,7 +552,8 @@ esci(ok=True, progetto=valore)
 # claude daemon run invece resta acceso anche senza sessioni, e uno a tempo già acceso gli cede il
 # posto riprendendo le sessioni vive (provato il 10/11/2026). Qui: se il servizio risponde non si tocca;
 # se manca lo si accende fuori dalla portata di hc exec. Sul Mac col LaunchAgent di servizi-gui.sh se
-# c'è, altrimenti staccato in una sessione nuova (sopravvive a hc exec). Su Windows con l'attività di
+# c'è; altrimenti, chiesto da un'altra macchina, risponde {"serve": "hc-run"} come Windows (nato da ssh
+# non sente il microfono, #5427), e chiesto da qui nasce staccato in una sessione nuova. Su Windows con l'attività di
 # servizio-claude.ps1 se c'è; da hc exec un figlio non si stacca dal job, quindi senza attività risponde
 # {"serve": "hc-run"} e il terminale lo apre chi chiama. L'argomento è "remoto" o "qui".
 # L'etichetta del LaunchAgent e il nome dell'attività stanno anche in servizi-gui.sh, servizio-claude.ps1
@@ -584,6 +585,11 @@ if sys.platform == "darwin":
     if os.path.exists(agente):
         subprocess.run(["launchctl", "kickstart", "gui/%d/%s" % (os.getuid(), etichetta)], timeout=30, **nulla)
         come = "launchd"
+    elif remoto:
+        # Da hc exec il servizio sarebbe figlio di ssh: macOS gli nega il microfono in silenzio, e così a
+        # ogni sessione in background che ne nasce (12/11/2026, #5427). Lo apre chi chiama, in un
+        # terminale di Herdr Core, che vive nella sessione grafica e ha il microfono.
+        esci(serve="hc-run")
     else:
         subprocess.Popen([cl, "daemon", "run"], cwd=casa, start_new_session=True, **nulla)
         come = "staccato"
@@ -929,7 +935,7 @@ def servizio(nome):
     """Il servizio di Claude acceso su `nome` ("qui" o vuoto = questa macchina), con SERVIZIO (#5208).
 
     Su un'altra macchina gira con hc exec, python3 e poi python. Se la macchina risponde "hc-run"
-    (Windows senza l'attività di servizio-claude.ps1), il servizio nasce in un terminale di herdr-core
+    (Windows senza l'attività di servizio-claude.ps1, Mac senza il LaunchAgent), il servizio nasce in un terminale di herdr-core
     con hc run: vive nella sessione grafica e non muore con chi lo chiede. Mai da ssh.
     Tutto entro ATTESA_SERVIZIO secondi (#5214). Torna {"come"} oppure {"errore"}."""
     codice = "import base64;exec(base64.b64decode('%s'))" % base64.b64encode(SERVIZIO.encode()).decode()
