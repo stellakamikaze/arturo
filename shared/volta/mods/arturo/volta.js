@@ -12,6 +12,8 @@
 // Rinomina e Cambia progetto, dal menu o col doppio clic sul titolo, aprono il dialogo di cambio.js
 // (#5292): il nome e il progetto nuovi vanno nei file della sessione con fonte "persona", sulla scheda
 // e, appena la sessione è ferma, in Claude Code con /rename.
+// Dopo ogni giro dell'elenco volta_note.py (accanto a questo file) porta le note della finestra (⌘⇧N)
+// fra le macchine di Herdr, con l'esito in ~/.cache/volta-note/stato.json (sincronizzaNote).
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";

@@ -289,18 +289,20 @@ export function mostrate(g, aperto) {
   return (!vive.length && ferme <= 2) || aperto ? g.sessioni : vive;
 }
 
-// Il giro fra le sessioni (⌘↓ e ⌘↑): le sessioni aperte, nell'ordine dell'elenco. Aperta vuol dire che
-// lavora o ti aspetta, oppure che è ferma ma ha una scheda in questa finestra (`conScheda`, gli id). Una
-// ferma senza scheda resta fuori: è chiusa con /fine o lasciata, e il tasto la riaggancerebbe (Federico,
-// 12/11: "ha aperto piano gare bergamo che avevo chiuso"). Le ferme con scheda nascoste dietro "N ferme"
-// vengono dopo le righe a vista del loro gruppo. Restano fuori anche le sessioni che stanno in un
-// Terminale: il clic lì le sposta con /bg, e un giro di tasti non deve spostare niente.
+// Il giro fra le sessioni (⌘↓ e ⌘↑, Ctrl+↓ e Ctrl+↑ su Windows): tutte le sessioni accese, nell'ordine
+// dell'elenco, anche quelle che aspettano un comando (Federico, 12/11 sera: "voglio che cicli tra tutte
+// le sessioni che sono accese in questo momento"). Resta fuori solo una ferma che ha già fatto /fine e
+// non ha una scheda in questa finestra (`conScheda`, gli id): è chiusa, e il tasto la riaggancerebbe
+// (Federico, 12/11: "ha aperto piano gare bergamo che avevo chiuso"). Le chiuse davvero (claude stop)
+// le toglie già visibili(). Le ferme nascoste dietro "N in attesa" vengono dopo le righe a vista del
+// loro gruppo. Restano fuori anche le sessioni che stanno in un Terminale: il clic lì le sposta con
+// /bg, e un giro di tasti non deve spostare niente.
 export function ordineGiro(lista, aperti = {}, conScheda = new Set()) {
   return (lista ?? []).flatMap((g) => {
     const vista = mostrate(g, aperti[g.chiave]);
     return vista.concat(g.sessioni.filter((s) => !vista.includes(s)));
   })
-    .filter((s) => s.stato !== "ferma" || conScheda.has(s.sessionId))
+    .filter((s) => s.stato !== "ferma" || !s.fineFatta || conScheda.has(s.sessionId))
     .filter((s) => ["aggancia", "mostra"].includes(clic(s).azione)).map((s) => s.sessionId);
 }
 

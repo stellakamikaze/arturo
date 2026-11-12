@@ -1,5 +1,5 @@
 {
- "albero": "6562e202371376ffa2ec3f3614c7e65bae0e3993",
+ "albero": "a55bc8e1ee68f529ecd79c1a86c5d06bb9620f89",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -7,7 +7,7 @@
   "arturo-icona.svg": "114a290414abfbc0357ede2264eb814afd1a9246062ce0d8ee2f0fdcc2493d2b",
   "firma-locale.sh": "0d759146fc58735a2865a2629dd8de9ef2f0a9109abf1ad61caddd7c8975342c",
   "installa-herdr.sh": "55abfa152fd43f582f534740a4ae68bc9575fa89340f2cefd441c8e4601abe5c",
-  "keys-ctrl.json": "503c90dc4108a2388ccdb1db6b6efca60fa28eaa1d59df3ea0194ad3e84f457d",
+  "keys-ctrl.json": "15d9cd18c0a6734d8611d61828a8f38f5c5b5f239b6e9418789a3679a27c7abc",
   "keys.json": "69ef439e6246a0e0008067111097d71f9e9b7bf51a507d614a2654b6c738b6b5",
   "layouts/arturo.json": "8568a874419bd5e16f57fe5b9a15156215d0fe3d20a87738d2bf1c5a8c6ac267",
   "layouts/arturo.svg": "b10479ac0b9d82d6026b88ffbd5c13c25cf621393ce0a084149b1ae43926f566",
@@ -28,7 +28,7 @@
   "mods/arturo/fonts/AtkinsonHyperlegibleNext-SemiBold.ttf": "67c0d5f0d003da32df3b69624107674304d21d1ae68d7e8715e4dcb481a0de98",
   "mods/arturo/fonts/OFL-Archivo.txt": "108b4e57c9c796d3d38d0428ca7ee39de47ad93187302718d9b2d8864b9b716b",
   "mods/arturo/fonts/OFL-Atkinson.txt": "1ebb31cf7393164f20d10c1d48406cddb5314feff8465531cf1e4ba37e9dd740",
-  "mods/arturo/guida.js": "f7c5d2a1ac91323b689d05f8f7e778b8f2996536db5c6ac488662e0acf690b07",
+  "mods/arturo/guida.js": "e1dd5c5c26fba595a7b5dbb3d646d62740b0145d9d31765dc8ae0cbcbe63484f",
   "mods/arturo/guida.svg": "b23dfe1aa93306566e1bb6d1beb95e5391feefe9ec838fc9d7e06880fe9f0c5d",
   "mods/arturo/img/volta.svg": "5fc8af38e010561a63062f8e9d6fdc65499565d4ec2d09a9d8e6d521da7e4ccb",
   "mods/arturo/main.js": "4caea75a85d4173c9dfd217611b94c41358cb541787f31cdcb1625dcd82c7d93",
@@ -42,7 +42,7 @@
   "mods/arturo/noteui.js": "1b703b298779e3e23c1a441d3aaaa1984c7c5881c996ad863ca2fb41ed7c0001",
   "mods/arturo/partenza.js": "180eb43fc1866656eae4d7c0c3558a3da124c548f4b01556ceb11a98f0f789b4",
   "mods/arturo/revisione.js": "7e57a9239cccc2dbc355625e0302814663d8268f888680c61dd23059d5ee7eaf",
-  "mods/arturo/sessioni.js": "f5987a2bd30b6c947842b46a7675c45a88af3eeb1c2ad4a2ebeaf9ebf3d237ea",
+  "mods/arturo/sessioni.js": "2805baddc5d0b411e70333cfd0b8a2d105d7efcc10e9c02e6025a6a74ff63f7a",
   "mods/arturo/settimana.js": "0ebd611a82cd49db48284e6b3439fd34899c7a744d0668bf1a1e1a603705174a",
   "mods/arturo/settimana.svg": "b65bc34a4092e93c90133c3fd93337e831ddd7d2065995aa0e22c8669315f180",
   "mods/arturo/stella-lavora.svg": "a295e89dd2ef725ce065c58b72d37335dc0f882c2c53de6041f4ffd105290c94",
@@ -51,7 +51,7 @@
   "mods/arturo/tessere.js": "6f8a5eaf1e5f6ef9d08cc045652c26feb4e1532bea99cf3f36fee1028ed4fb9d",
   "mods/arturo/testata.js": "4ca4749f19c9c5859b852116bfbc40c34272fe931e99a1329d85aa8267db985e",
   "mods/arturo/todo.js": "c1da10845be254afae62e9456e5888acfd14ceb4c5e7cc9f8d6246c75aed820b",
-  "mods/arturo/volta.js": "efd0763aec23f21067563c1e0bd71e560a5e49337c5bf551c4580c3b33a65eb3",
+  "mods/arturo/volta.js": "ec059cb31d437463951f4871f37b0fd9193d893814c4bbc49e6f7bcbfa69a663",
   "mods/arturo/volta_microfono.py": "fb752d4f11c21fca9dd9081b0f352b2dd30fc4b1519d50b49da0dd0d3ccc16a1",
   "mods/arturo/volta_note.py": "8f2819706f4b2cbcc315a976d2ecc46e21d383f17d6b3b3ec1f898c195f212a0",
   "mods/arturo/volta_sonda.py": "7a2d4c6f4fcb593878d070301910dacfdc25384ad79bddcc05be7a97448ca5cf",
@@ -63,7 +63,7 @@
   "trova-progetti.md": "b980bb9a53f543b2a15d0a77ad70f1e0e306c74893d4a4804b95a198d8770932",
   "volta-claude.ps1": "6c7a617e2b2b926cad5c3b2a79bb09e379d32f85bbeed955bcd2ccaaa265ed62",
   "volta-claude.sh": "37a652b8043c4f5e8a5c53ed14d2f3c7589cb56893f08b497e2f337e4a3291e9",
-  "volta_mod.py": "99a2ce61870a776df88a2792a0d13440f9a33f67cf0c8fb238af588547aaacf8"
+  "volta_mod.py": "600b90e8ad808d1e1c43a0eb07f30f26e58fd2f58a5896c0d41a599448f4e14d"
  },
  "repository": "volta"
 }

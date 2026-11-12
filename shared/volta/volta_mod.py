@@ -80,8 +80,10 @@ LANCIATORI = (("volta-claude.sh", "volta-claude"), ("nascita.sh", "volta-nascita
               ("volta-claude.ps1", "volta-claude.ps1"), ("servizio-claude.ps1", "servizio-claude.ps1"))
 # I mod di Arturo tolti: un tasto rimasto su uno di questi non apre più niente (installa-herdr.sh ha lo stesso elenco).
 TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")
-# Comandi nati dopo le prime installazioni: il giro fra le sessioni (⌘↓ e ⌘↑, 12/11/2026).
-TASTI_NUOVI = ("arturo.volta-giro-avanti", "arturo.volta-giro-indietro")
+# Comandi nati dopo le prime installazioni: il giro fra le sessioni (⌘↓ e ⌘↑, 12/11/2026) e, su Windows,
+# Ctrl+W che chiude la scheda come ⌘W sul Mac, cioè col congedo (Federico, 12/11 sera). Ctrl+Maiusc+W di
+# Herdr resta.
+TASTI_NUOVI = ("arturo.volta-giro-avanti", "arturo.volta-giro-indietro", "tab.close")
 # Comandi che la fonte ha spostato: il tasto che li porta ancora prende il comando nuovo della fonte. ⌘T
 # (ctrl-shift-t) apre le tessere dei progetti, e "Nuova richiesta" è la prima tessera (12/11/2026, #5371).
 TASTI_SPOSTATI = ("arturo.volta-nuova",)

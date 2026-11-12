@@ -3,6 +3,9 @@
     "ctrl-shift-a": "arturo.apri",
     "ctrl-shift-t": "arturo.casa",
     "ctrl-shift-m": "arturo.nota",
-    "ctrl-shift-i": "arturo.note"
+    "ctrl-shift-i": "arturo.note",
+    "ctrl-down": "arturo.volta-giro-avanti",
+    "ctrl-up": "arturo.volta-giro-indietro",
+    "ctrl-w": "tab.close"
   }
 }

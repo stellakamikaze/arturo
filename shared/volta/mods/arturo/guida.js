@@ -41,7 +41,7 @@ const PASSI = [
     zona: "dafare",
     titolo: "Da fare, accanto a Claude",
     righe: [
-      () => `I todo del progetto, divisi fra te e Claude. Spunta quelli fatti; Lavoraci fa partire Claude da lì e segna il todo in corso, finché /fine lo chiude; Altro cambia chi lo fa e quando. Con ${tasti().nota} lasci a Claude una nota su un punto della finestra.`,
+      () => `I todo del progetto, divisi fra te e Claude. Spunta quelli fatti; Lavoraci fa partire Claude da lì e segna il todo in corso, finché /fine lo chiude; Altro cambia chi lo fa e quando. Con ${tasti().nota} lasci a Claude una nota su un punto della finestra: la ritrovi su ogni macchina collegata.`,
       "La settimana, in basso a sinistra, raccoglie i progetti da guardare. Si apre da sola alla prima apertura di ogni settimana.",
       "Cosa posso chiedere ti suggerisce le richieste. A fine giornata scrivi /fine.",
     ],

@@ -1277,6 +1277,9 @@ def hz22(repo: Path, casa: Path) -> str | None:
         return f"su Windows un tasto di Arturo è già di Herdr: {r.stdout.strip()[-200:]}"
     if win.get("ctrl-shift-a") != "arturo.apri" or win.get("ctrl-shift-m") != "arturo.nota":
         return f"su Windows mancano Ctrl+Shift+A e Ctrl+Shift+M: {win}"
+    voluti = {"ctrl-down": "arturo.volta-giro-avanti", "ctrl-up": "arturo.volta-giro-indietro", "ctrl-w": "tab.close"}
+    if {k: win.get(k) for k in voluti} != voluti:
+        return f"su Windows Ctrl+↓, Ctrl+↑ e Ctrl+W non fanno quello che fanno ⌘↓, ⌘↑ e ⌘W sul Mac: {win}"
     if any(k.startswith("cmd-") for k in win):
         return f"su Windows sono finiti tasti con cmd (il tasto Windows): {sorted(k for k in win if k.startswith('cmd-'))}"
     if mac.get("cmd-o") != "arturo.apri" or "ctrl-shift-a" in mac:
@@ -6268,8 +6271,8 @@ def hz85(repo: Path, casa: Path) -> str | None:
 PROVA_GIRO = r"""
 const n = await import(%s);
 const c = await import(%s);
-const bg = (id, stato = "lavora") => ({ sessionId: id + "-lungo", id, tipo: "background", attach: ["claude", "attach", id], stato, ...(stato === "ferma" ? { chi: "claude" } : {}) });
-const g = [{ chiave: "a", sessioni: [bg("a1"), bg("a2", "ferma"), bg("a3", "ferma"), bg("a4", "ferma"),
+const bg = (id, stato = "lavora", fine = true) => ({ sessionId: id + "-lungo", id, tipo: "background", attach: ["claude", "attach", id], stato, ...(stato === "ferma" ? { chi: "claude", fineFatta: fine } : {}) });
+const g = [{ chiave: "a", sessioni: [bg("a1"), bg("a2", "ferma", false), bg("a3", "ferma"), bg("a4", "ferma"),
     { sessionId: "t1", id: "t1", tipo: "interattiva", stato: "aspetta" }, { sessionId: "f1", id: "f1", tipo: "interattiva", stato: "lavora", vecchia: true }] },
   { chiave: "b", sessioni: [bg("b1", "ferma"), { sessionId: "h1", id: "h1", tipo: "interattiva", terminale: "t9", questa: true, stato: "lavora" }] }];
 const o = n.ordineGiro(g, {});
@@ -6320,11 +6323,13 @@ def hz86(repo: Path, casa: Path) -> str | None:
     if r.returncode != 0:
         return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
     g = json.loads(r.stdout.strip().splitlines()[-1])
-    if g["o"] != ["a1-lungo", "h1"]:
-        return f"ordineGiro() prende una ferma senza scheda (il tasto riaprirebbe una sessione chiusa) o una in un Terminale: {g['o']}"
-    if g["aperto"] != ["a1-lungo", "h1"] or g["vuoto"] != []:
-        return f"ordineGiro() col gruppo aperto prende le ferme senza scheda: {g['aperto']}"
-    if g["scheda"] != ["a1-lungo", "a3-lungo", "h1", "b1-lungo"]:
+    # a2 aspetta un comando ed è accesa: entra (Federico, 12/11 sera). a3, a4 e b1 hanno fatto /fine:
+    # senza una scheda restano fuori, il tasto riaprirebbe una sessione chiusa.
+    if g["o"] != ["a1-lungo", "a2-lungo", "h1"]:
+        return f"ordineGiro() lascia fuori una sessione accesa che aspetta un comando, o prende una chiusa con /fine o una in un Terminale: {g['o']}"
+    if g["aperto"] != ["a1-lungo", "a2-lungo", "h1"] or g["vuoto"] != []:
+        return f"ordineGiro() col gruppo aperto prende le ferme chiuse con /fine senza scheda: {g['aperto']}"
+    if g["scheda"] != ["a1-lungo", "a2-lungo", "a3-lungo", "h1", "b1-lungo"]:
         return f"ordineGiro() lascia fuori una ferma che ha una scheda aperta, anche nascosta: {g['scheda']}"
     if g["nuovo"] != {"ids": g["o"], "ultimo": None, "quando": 1000}:
         return f"statoGiro() senza un giro prima non parte dall'elenco: {g['nuovo']}"
@@ -6334,7 +6339,7 @@ def hz86(repo: Path, casa: Path) -> str | None:
         return f"dopo la pausa il giro non riparte dall'elenco di adesso: {g['scaduto']}"
     if g["sparite"] != g["o"]:
         return f"con tutte le sessioni del giro sparite non si riparte dall'elenco: {g['sparite']}"
-    if g["passi"] != ["h1", "a1-lungo", "h1", "a1-lungo", "h1", None, "a1-lungo"]:
+    if g["passi"] != ["a2-lungo", "a1-lungo", "h1", "a1-lungo", "h1", None, "a1-lungo"]:
         return f"passoGiro() non gira in tondo: {g['passi']}"
     if g["di"] != ["a2", "a3", "h1", None, None]:
         return f"sessioneDi() non riconosce la scheda in primo piano: {g['di']}"
@@ -7265,7 +7270,7 @@ VELENI = [
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '"chiusa": fondo and not s.get("pid") and not s.get("status") and stato(s) != "errore",', '"chiusa": False,'),
     ('HZ89', 'shared/volta/mods/arturo/volta.js', '    chiudiSchede(s);\n    this.congeda(s, cx);', '    chiudiSchede(s);\n    azioneSessione(s, "stop");'),
     ('HZ89', 'shared/volta/mods/arturo/dati.js', '    segnaTolto(t.address);\n    if (panes()', '    if (panes()'),
-    ('HZ87', 'shared/volta/mods/arturo/dati.js', 'const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/"));', 'const l = terminals().filter((x) => visti.has(x.address));'),
+    ('HZ87', 'shared/volta/mods/arturo/dati.js', 'const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/") && !occupataDaAltra(x, s));', 'const l = terminals().filter((x) => visti.has(x.address) && !occupataDaAltra(x, s));'),
     ('HZ87', 'shared/volta/mods/arturo/dati.js', '  if (riavviata || m?.fermo) return fallita(m);', '  if (riavviata) return fallita(m);'),
     ('HZ87', 'shared/volta/mods/arturo/dati.js', '  if (riavviata || m?.fermo) return fallita(m);', '  if (riavviata || m) return fallita(m);'),
     ('HZ87', 'shared/volta/mods/arturo/dati.js', '({ errore: m?.testo ?? "Claude non resta aperto', '({ errore: "Claude non resta aperto'),
@@ -7286,7 +7291,9 @@ VELENI = [
     ("HZ86", "shared/volta/mods/arturo/sessioni.js", "const tiene = prima && ora - prima.quando <= GIRO_MS;", "const tiene = Boolean(prima);"),
     ("HZ86", "shared/volta/mods/arturo/sessioni.js", "  return ids[(i + (verso < 0 ? -1 : 1) + ids.length) % ids.length];", "  return ids[Math.min(ids.length - 1, Math.max(0, i + (verso < 0 ? -1 : 1)))];"),
     ("HZ86", "shared/volta/mods/arturo/sessioni.js", "    return vista.concat(g.sessioni.filter((s) => !vista.includes(s)));", "    return vista;"),
-    ("HZ86", "shared/volta/mods/arturo/sessioni.js", '    .filter((s) => s.stato !== "ferma" || conScheda.has(s.sessionId))\n', ""),
+    ("HZ86", "shared/volta/mods/arturo/sessioni.js", '    .filter((s) => s.stato !== "ferma" || !s.fineFatta || conScheda.has(s.sessionId))\n', ""),
+    ("HZ86", "shared/volta/mods/arturo/sessioni.js", '.filter((s) => s.stato !== "ferma" || !s.fineFatta || conScheda.has(s.sessionId))', '.filter((s) => s.stato !== "ferma" || conScheda.has(s.sessionId))'),
+    ("HZ22", "shared/volta/keys-ctrl.json", '"ctrl-w": "tab.close"', '"ctrl-shift-x": "tab.close"'),
     ("HZ86", "shared/volta/mods/arturo/volta.js", "    if (s) { this.scopri(s); this.premi(s, cx); }", "    if (s) this.premi(s, cx);"),
     ("HZ86", "shared/volta/mods/arturo/sessioni.js", '    ?? l.find((s) => s.questa && s.terminale && s.terminale === terminale.address) ?? null;', '    ?? null;'),
     ('HZ83', 'shared/volta/mods/arturo/sessioni.js', '  return t ? t[0].toUpperCase() + t.slice(1) : SENZA;', '  return t[0].toUpperCase() + t.slice(1);'),
