@@ -31,6 +31,10 @@ export const chiaveProgetto = (p) => (p ? NOTI[slugDi(p)]?.chiave ?? String(p) :
 // Il titolo vero del progetto se è noto ("Volta" per herdr-arturo), altrimenti null: chi ha un suo modo
 // di scrivere il nome ricavato dallo slug (bello() di dati.js) lo usa solo quando il titolo manca.
 export const titoloNoto = (p) => (p ? NOTI[slugDi(p)]?.titolo ?? null : null);
+// Il nome di un gruppo "Per progetto" apre il progetto (/inizio) solo se il progetto è noto: un nome
+// nato da una cartella che non è un progetto ("arturo-inizio-5465", un worktree) aprirebbe una sessione
+// su un progetto che non esiste (12/11/2026). Senza elenco dei progetti non si sa: resta apribile.
+export const progettoApribile = (p) => Boolean(p) && (Object.keys(NOTI).length === 0 || Boolean(NOTI[slugDi(p)]));
 
 // Il nome di un progetto per le persone: il titolo noto, altrimenti "due-mondi" → "Due mondi", "uf" → "UF".
 // Un progetto fatto di soli separatori ("-") non ha parole: vale come senza progetto, invece di far
@@ -497,11 +501,14 @@ export function menu(s) {
   if (s.tipo === "background") out.push({ verbo: "chiudi", testo: "Chiudi" });
   out.push({ verbo: "duplica", testo: "Duplica" }, { verbo: "fork", testo: "Fork" });
   out.push({ verbo: "rinomina", testo: "Rinomina" }, { verbo: "progetto", testo: "Cambia progetto" });
+  // Sposta su… (12/11/2026): la stessa conversazione su un'altra macchina, col popup di sposta.js. Solo in
+  // background; il menu la toglie se Volta non conosce altre macchine (menusessione.js).
+  if (s.tipo === "background") out.push({ verbo: "sposta", testo: "Sposta su…" });
   return out.concat(azioni(s).filter((a) => a.verbo !== "stop"));
 }
 
 // I gesti che stanno solo nel menu: lavorano sulla riga, senza aprire il riquadro di "Altro".
-export const SOLO_MENU = new Set(["apri", "chiudi", "duplica", "fork", "rinomina", "progetto"]);
+export const SOLO_MENU = new Set(["apri", "chiudi", "duplica", "fork", "rinomina", "progetto", "sposta"]);
 
 // Le voci del menu che aprono il dialogo, e che cosa cambiano.
 export const CAMBIA = { rinomina: "nome", progetto: "progetto" };
@@ -719,3 +726,33 @@ export function motoRiga(entra, esce) {
   return { opacita: 1, politica: ENTRA };
 }
 export const ritardo = (i) => Math.min(i * SCALA_MS, SCALA_MAX);
+
+// Sposta su e Sposta tutto su (sposta.js, 12/11/2026): chi si sposta e come si conta.
+// Perché la sessione non si può spostare, o null. Solo quelle in background: un'interattiva sta in un
+// Terminale, e il suo processo non si ferma da qui. Una che lavora si sposta lo stesso, a turno finito
+// (aFineTurno): la coda di volta.js aspetta che il turno finisca.
+export function nonSiSposta(s) {
+  if (!s) return "Nessuna sessione in questa scheda.";
+  if (s.tipo !== "background") return "Si spostano solo le sessioni in background, non quelle aperte in un Terminale.";
+  return null;
+}
+
+// Una sessione che sta facendo un turno parte dopo, quando il turno finisce.
+export const aFineTurno = (s) => s?.stato === "lavora";
+
+// Le sessioni di "Sposta tutto su <dest>": in background, vive (né chiuse, né in errore, né di una
+// macchina che non risponde), non già su `dest`. `sessioni` è l'elenco visibile di Volta (visibili()).
+export const spostabili = (sessioni, dest) => (sessioni ?? []).filter((s) => !s.vecchia && !chiusa(s)
+  && s.stato !== "errore" && !nonSiSposta(s) && (s.host ?? "qui") !== dest);
+
+// Quello che passa al popup, che è un'altra copia del mod: i soli campi che servono, non la riga intera.
+export const perSposta = (s) => (s ? { id: s.id, sessionId: s.sessionId, host: s.host ?? "qui", macchina: s.macchina,
+  tipo: s.tipo, stato: s.stato, titolo: titolo(s), progetto: s.progetto ?? null } : null);
+
+// Il conto di "Sposta tutto" su `dest`, per il popup: "3 sessioni", "3 sessioni, 1 a turno finito".
+export function contoTutto(sessioni, dest) {
+  const l = spostabili(sessioni, dest);
+  if (!l.length) return { n: 0, testo: "niente da spostare" };
+  const dopo = l.filter(aFineTurno).length;
+  return { n: l.length, testo: `${l.length === 1 ? "1 sessione" : `${l.length} sessioni`}${dopo ? `, ${dopo} a turno finito` : ""}` };
+}

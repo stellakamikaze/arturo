@@ -448,6 +448,13 @@ HZ103 trascinare una sessione su un altro progetto (12/11/2026, Federico: "vogli
      senza movimento e con la macchina giù. volta.js: la pressione sulla riga solo per progetto, il
      movimento sull'elenco, il rilascio sul gruppo che chiama cambia() come Cambia progetto, il clic
      che non apre dopo un trascinamento.
+HZ104 Sposta su dal menu e Sposta tutto su (12/11/2026, Federico: "senza interromperlo"): sessioni.js con
+     node: spostabili() prende le sessioni in background vive delle altre macchine, anche chi lavora, e
+     lascia fuori interattive, chiuse, in errore e di macchine giù; contoTutto() dice quante e quante a
+     turno finito; menu() ha Sposta su… solo in background; comandi.js legge volta-spostatutto-<macchina>.
+     volta_sposta.py rifiuta con lavora: true se la sessione fa un turno, prima di leggere e prima di
+     fermarla; volta.js fa girare la coda a ogni giro e non parte su chi lavora; barra, menu e main.js
+     hanno la pastiglia, la voce e il popup.
 """
 from __future__ import annotations
 
@@ -463,7 +470,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103", "HZ104")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -3630,10 +3637,11 @@ def hz54(repo: Path, casa: Path) -> str | None:
         return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
     d = json.loads(r.stdout.strip().splitlines()[-1])
     cambi = ["rinomina", "progetto"]  # Rinomina e Cambia progetto (#5292, caso HZ59)
-    voci = {"lavora": ["apri", "chiudi", "duplica", "fork", *cambi, "logs"], "ferma": ["apri", "chiudi", "duplica", "fork", *cambi, "logs"],
-            "errore": ["apri", "chiudi", "duplica", "fork", *cambi, "logs", "respawn", "rm!"], "interattiva": ["apri", "duplica", "fork", *cambi],
-            "vecchia": [], "niente": [], "testi": ["Apri", "Chiudi", "Duplica", "Fork", "Rinomina", "Cambia progetto", "Anteprima", "Elimina"],
-            "solo": ["apri", "chiudi", "duplica", "fork", "progetto", "rinomina"], "fork": ["Rifare il deck (fork)", 60]}
+    sposta = ["sposta"]  # Sposta su… solo in background (12/11/2026, caso HZ104)
+    voci = {"lavora": ["apri", "chiudi", "duplica", "fork", *cambi, *sposta, "logs"], "ferma": ["apri", "chiudi", "duplica", "fork", *cambi, *sposta, "logs"],
+            "errore": ["apri", "chiudi", "duplica", "fork", *cambi, *sposta, "logs", "respawn", "rm!"], "interattiva": ["apri", "duplica", "fork", *cambi],
+            "vecchia": [], "niente": [], "testi": ["Apri", "Chiudi", "Duplica", "Fork", "Rinomina", "Cambia progetto", "Sposta su…", "Anteprima", "Elimina"],
+            "solo": ["apri", "chiudi", "duplica", "fork", "progetto", "rinomina", "sposta"], "fork": ["Rifare il deck (fork)", 60]}
     for k, v in voci.items():
         if d.get(k) != v:
             return f"menu di sessioni.js, {k}: {d.get(k)}, atteso {v}"
@@ -7606,7 +7614,107 @@ def hz103(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103}
+PROVA_SPOSTA_TUTTO = r"""
+const n = await import(%s);
+const c = await import(%s);
+const r = (o) => ({ tipo: "background", stato: "ferma", host: "qui", macchina: "Torre", ...o });
+const l = [r({ id: "a1", sessionId: "s1" }), r({ id: "a2", sessionId: "s2", stato: "lavora" }),
+  r({ id: "a3", sessionId: "s3", host: "studio", macchina: "Studio" }), r({ id: "a4", sessionId: "s4", tipo: "interattiva" }),
+  r({ id: "a5", sessionId: "s5", chiusa: true }), r({ id: "a6", sessionId: "s6", stato: "errore" }),
+  r({ id: "a7", sessionId: "s7", vecchia: true })];
+console.log(JSON.stringify({
+  suStudio: n.spostabili(l, "studio").map((s) => s.id), suQui: n.spostabili(l, "qui").map((s) => s.id),
+  conto: [n.contoTutto(l, "studio"), n.contoTutto(l, "qui"), n.contoTutto([], "qui")],
+  lavora: n.nonSiSposta(l[1]), interattiva: Boolean(n.nonSiSposta(l[3])),
+  menu: [n.menu(l[0]).some((v) => v.verbo === "sposta"), n.menu(l[3]).some((v) => v.verbo === "sposta")],
+  per: n.perSposta(r({ id: "a1", sessionId: "s1", nome: "Prova", risposta: "lunga" })),
+  tutto: [c.instrada("volta-spostatutto-torre-due"), c.instrada("volta-sposta-torre-due-a1b2").arg],
+}));
+"""
+
+# volta_sposta.py con gli script finti: lo stato del turno a ogni lettura di TROVA, e cosa ha chiamato.
+PROVA_TURNO = r'''
+import json, sys
+sys.path.insert(0, sys.argv[1])
+import volta_sposta as v
+esiti = {}
+for nome, stati in (("subito", ["busy"]), ("dopo", ["idle", "busy"]), ("libera", ["idle", "idle", "idle"])):
+    giro, chiamate = iter(stati), []
+    def finto(macchina, codice, dati, entrata=None, timeout=0):
+        if codice is v.TROVA:
+            chiamate.append("trova")
+            return {"ok": True, "id": "abcd1234", "claude": "claude", "stato": next(giro, "idle")}
+        if codice is v.LEGGI:
+            chiamate.append("leggi")
+            return {"rel": "p", "trascrizione": "t", "git": None}
+        if codice is v.PREPARA:
+            chiamate.append("prepara")
+            return {"cartella": "/x", "progetti": "/y"}
+        chiamate.append("altro")
+        return {"errore": "fine della prova"}
+    v.esegui = finto
+    v.vs.azione = lambda m, verbo, i: chiamate.append(verbo) or {}
+    v.vs.nasci = lambda *a, **k: {"errore": "fine della prova"}
+    r = v.sposta("qui", "studio", "abcd1234", "abcd1234-0000", "/x")
+    esiti[nome] = {"lavora": r.get("lavora") is True, "chiamate": chiamate}
+print(json.dumps(esiti))
+'''
+
+
+def hz104(repo: Path, casa: Path) -> str | None:
+    """Sposta su dal menu e Sposta tutto su, a turno finito."""
+    mod = repo / "shared/volta/mods/arturo"
+    volta = (mod / "volta.js").read_text(encoding="utf-8")
+    for pezzo, perche in (("      this.passiCongedo(cx);\n      this.giraCoda(cx);", "il giro dell'elenco non fa partire la coda di Sposta"),
+                          ("if (aFineTurno(s) || v.dopo > ora) continue;", "la coda sposta una sessione a metà turno"),
+                          ("if (r.lavora) this.codaSposta[k] = { ...v, dopo: Date.now() + OGNI };", "un turno appena partito toglie la sessione dalla coda"),
+                          ('if (verbo === "sposta") return apriSposta(perSposta(this.vistaId(id) ?? s));', "Sposta su… del menu non apre il popup delle macchine")):
+        if pezzo not in volta:
+            return f"volta.js: {perche}"
+    barra = (mod / "barra.js").read_text(encoding="utf-8")
+    if 'else if (c === "volta-spostatutto") this.volta.spostaTutto(arg, cx);' not in barra or ".when(Boolean(tutto), (el) => el.child(tutto)))" not in barra:
+        return "la barra non ha Sposta tutto su… sotto Nasce su, o non esegue il suo comando"
+    if 'spostatutto: SceltaSpostaTutto' not in (mod / "main.js").read_text(encoding="utf-8"):
+        return "main.js non ha il popup di Sposta tutto su"
+    if 'v.verbo !== "sposta" || destinazioni(s, vociMacchina()).length > 0' not in (mod / "menusessione.js").read_text(encoding="utf-8"):
+        return "il menu mostra Sposta su… anche senza un'altra macchina"
+    r = subprocess.run([sys.executable, "-I", "-c", PROVA_TURNO, str(mod)], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    if r.returncode != 0:
+        return f"volta_sposta.py non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    t = json.loads(r.stdout.strip().splitlines()[-1])
+    if t["subito"] != {"lavora": True, "chiamate": ["trova"]}:
+        return f"una sessione che lavora non si ferma prima di leggere: {t['subito']}"
+    if not t["dopo"]["lavora"] or "stop" in t["dopo"]["chiamate"]:
+        return f"un turno partito mentre la cartella si prepara viene interrotto: {t['dopo']}"
+    if t["libera"]["lavora"] or "stop" not in t["libera"]["chiamate"]:
+        return f"una sessione ferma non si sposta: {t['libera']}"
+    node = shutil.which("node")
+    if not node:
+        return None
+    for nome in ("sessioni", "comandi"):
+        shutil.copyfile(mod / f"{nome}.js", casa / f"{nome}.mjs")
+    r = subprocess.run([node, "--input-type=module", "-e",
+                        PROVA_SPOSTA_TUTTO % (json.dumps((casa / "sessioni.mjs").as_uri()), json.dumps((casa / "comandi.mjs").as_uri()))],
+                       capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    if g["suStudio"] != ["a1", "a2"] or g["suQui"] != ["a3"]:
+        return f"spostabili() sbaglia chi va: {g['suStudio']} {g['suQui']}"
+    if [x["testo"] for x in g["conto"]] != ["2 sessioni, 1 a turno finito", "1 sessione", "niente da spostare"]:
+        return f"contoTutto() sbaglia il conto: {g['conto']}"
+    if g["lavora"] is not None or not g["interattiva"]:
+        return f"nonSiSposta() rifiuta chi lavora o accetta un'interattiva: {g['lavora']} {g['interattiva']}"
+    if g["menu"] != [True, False]:
+        return f"menu() non ha Sposta su… in background, o ce l'ha su un'interattiva: {g['menu']}"
+    if g["per"] != {"id": "a1", "sessionId": "s1", "host": "qui", "macchina": "Torre", "tipo": "background", "stato": "ferma", "titolo": "Prova", "progetto": None}:
+        return f"perSposta() passa al popup altro: {g['per']}"
+    if g["tutto"] != [{"verbo": "volta-spostatutto", "arg": "torre-due", "lungo": False}, {"macchina": "torre-due", "id": "a1b2"}]:
+        return f"instrada() non legge volta-spostatutto-<macchina>: {g['tutto']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103, "HZ104": hz104}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -7625,6 +7733,13 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ104', 'shared/volta/mods/arturo/sessioni.js', '  && s.stato !== "errore" && !nonSiSposta(s) &&', '  && !nonSiSposta(s) &&'),
+    ('HZ104', 'shared/volta/mods/arturo/sessioni.js', '  if (s.tipo === "background") out.push({ verbo: "sposta", testo: "Sposta su…" });\n', ''),
+    ('HZ104', 'shared/volta/mods/arturo/sessioni.js', '  return null;\n}\n\n// Una sessione che sta facendo un turno', '  if (s.stato === "lavora") return "Sta lavorando.";\n  return null;\n}\n\n// Una sessione che sta facendo un turno'),
+    ('HZ104', 'shared/volta/mods/arturo/comandi.js', '  if (c.startsWith("volta-spostatutto-")) return { verbo: "volta-spostatutto", arg: dopo("volta-spostatutto-"), lungo: false };\n', ''),
+    ('HZ104', 'shared/volta/mods/arturo/volta_sposta.py', '    occupata = lavora(da, sid)\n    if occupata:\n        return occupata\n    # Da qui', '    # Da qui'),
+    ('HZ104', 'shared/volta/mods/arturo/volta_sposta.py', '    occupata = lavora(da, sid)\n    if occupata:\n        return occupata\n    letto', '    letto'),
+    ('HZ104', 'shared/volta/mods/arturo/volta.js', '      this.passiCongedo(cx);\n      this.giraCoda(cx);', '      this.passiCongedo(cx);'),
     ("HZ103", "shared/volta/mods/arturo/sessioni.js", "export const MOSSA_PX = 6;", "export const MOSSA_PX = 0;"),
     ("HZ103", "shared/volta/mods/arturo/sessioni.js", "Math.hypot(a.x - da.x, a.y - da.y) >= MOSSA_PX", "Math.hypot(a.x - da.x, a.y - da.y) > 99"),
     ("HZ103", "shared/volta/mods/arturo/sessioni.js", "  if (chiaveProgetto(t.s.progetto) === g.chiave) return null;\n", ""),

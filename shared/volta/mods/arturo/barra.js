@@ -15,6 +15,7 @@ import { revisione, settimanaDi } from "./settimana.js";
 import { Volta } from "./volta.js";
 import { rigaMod, decodifica } from "./sessioni.js";
 import { instrada } from "./comandi.js";
+import { pastigliaTutto } from "./sposta.js";
 
 export class Marchio {
   render() {
@@ -104,6 +105,7 @@ export class Barra {
     else if (c === "volta-cambia") this.volta.cambiaComando(arg, cx);
     else if (c === "volta-gesto") this.volta.gestoId(arg.verbo, arg.id, cx);
     else if (c === "volta-sposta") this.volta.spostaId(arg.macchina, arg.id, cx);
+    else if (c === "volta-spostatutto") this.volta.spostaTutto(arg, cx);
     else if (c === "volta") this.volta.premiId(arg, cx);
   }
 
@@ -168,6 +170,8 @@ export class Barra {
     const quanti = this.quanti ?? 0;
     const v = this.volta ? this.volta.render(cx) : null;
     const dove = nasceSu(t);
+    // "Sposta tutto su…" sotto "Nasce su" (Federico, 12/11/2026): le sessioni delle altre macchine su una sola.
+    const tutto = dove && this.volta ? pastigliaTutto(t, this.volta.vis()?.sessioni ?? [], this.volta.inCoda()) : null;
     let vuoto = null;
     if (this.vista === null && !this.errore && !v) vuoto = div().id("progetti-vuoto").px(18).py(6).text_size(13).text_color(t.muted).child("Leggo i tuoi progetti…");
     else if (!quanti && this.vista !== null) vuoto = v_flex().px(14).gap(10)
@@ -184,7 +188,8 @@ export class Barra {
         })
         .child(pulsante("nuova", "square-pen", "Nuova richiesta", () => nuova(), quanti > 0 || Boolean(this.errore)))
         .child(pulsante("apri", "folder", "Apri un progetto", () => apriFinestra()))
-        .when(Boolean(dove), (el) => el.child(dove)))
+        .when(Boolean(dove), (el) => el.child(dove))
+        .when(Boolean(tutto), (el) => el.child(tutto)))
       .when(Boolean(vuoto), (el) => el.child(vuoto))
       .when(Boolean(v), (el) => el.child(v));
   }

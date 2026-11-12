@@ -18,6 +18,8 @@ I passi, in quest'ordine:
   4. riprende la stessa conversazione su A (claude --bg --resume, senza fork). Se non riparte, la
      riprende su DA: la sessione non resta mai senza macchina.
 Su DA la trascrizione resta com'è. Mai claude rm.
+Prima del passo 1 e prima del 3 guarda se la sessione sta facendo un turno: se sì rifiuta con
+{errore, lavora: true}, e Volta riprova a turno finito. Lo spostamento non interrompe mai un turno.
 """
 from __future__ import annotations
 
@@ -214,7 +216,7 @@ for giro in range(15 if a.get("vivo") else 1):
             if s.get("sessionId") == a["sid"] and s.get("id"):
                 visto = s
                 if s.get("pid") or not a.get("vivo"):
-                    esci(ok=True, id=s["id"], pid=s.get("pid"), claude=cl)
+                    esci(ok=True, id=s["id"], pid=s.get("pid"), claude=cl, stato=s.get("status") or s.get("state") or "")
     except (OSError, subprocess.SubprocessError):
         pass
     if a.get("vivo"):
@@ -305,6 +307,15 @@ def riprendi_su(nome, sid, cartella, titolo):
     return {"id": viva["id"], "attach": vs.argv_attach(voce, viva["id"])}
 
 
+def lavora(da, sid):
+    """Il rifiuto se la sessione `sid` su `da` sta facendo un turno, o None. Volta la sposta a turno finito
+    (coda di volta.js): fermarla adesso interromperebbe il lavoro a metà. `lavora` dice a Volta di riprovare."""
+    ora = esegui(da, TROVA, {"sid": sid})
+    if not ora.get("errore") and vs.stato({"status": ora.get("stato")}) == "lavora":
+        return {"errore": "sta lavorando: la sposto a turno finito", "lavora": True}
+    return None
+
+
 def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
     for x in (id_lavoro, sid):
         if not vs.ID.fullmatch(x or ""):
@@ -313,6 +324,9 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
         return {"errore": "la sessione è già su %s" % chi(a)}
     if not cartella:
         return {"errore": "non so in che cartella gira la sessione"}
+    occupata = lavora(da, sid)
+    if occupata:
+        return occupata
     letto = esegui(da, LEGGI, {"cartella": cartella, "sid": sid})
     if letto.get("errore"):
         return {"errore": letto["errore"]}
@@ -322,6 +336,11 @@ def sposta(da, a, id_lavoro, sid, cartella, progetto=None, titolo=None):
     pronto = esegui(a, PREPARA, {"rel": letto["rel"], "git": letto.get("git"), "nome": chi(a)}, timeout=360)
     if pronto.get("errore"):
         return {"errore": pronto["errore"]}
+    # Preparare la cartella dura anche minuti: nel frattempo la persona può averle scritto. Un turno
+    # partito adesso non si interrompe (la cartella pronta su A resta per il prossimo tentativo).
+    occupata = lavora(da, sid)
+    if occupata:
+        return occupata
     # Da qui la sessione si ferma: ogni errore la riprende su DA.
     vs.azione(da, "stop", id_lavoro)  # una sessione già ferma risponde con un errore: si va avanti
     def torna(perche):
