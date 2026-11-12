@@ -115,7 +115,9 @@ export class Barra {
         this.errore = null;
         // Per la testata e il pannello Da fare: il nome per la fonte, il titolo e la riga di ogni progetto.
         const mappa = {};
-        for (const p of progetti(this.vista, this.extra())) {
+        const tutti = progetti(this.vista, this.extra());
+        this.quanti = tutti.length;
+        for (const p of tutti) {
           mappa[p.chiave] = { chiave: p.chiave, nome: p.nome ?? p.chiave, titolo: p.titolo, riga: p.calcolato ? "" : (p.riga ?? "") };
           // Uno spazio aperto col nome alternativo trova lo stesso progetto.
           for (const a of p.alias ?? []) if (!(a in mappa)) mappa[a] = mappa[p.chiave];
@@ -149,11 +151,13 @@ export class Barra {
   // qui (carica), per i titoli in shared arturo.progetti e per lo stato vuoto.
   render(cx) {
     const t = theme();
-    const lista = progetti(this.vista, this.extra());
+    // progetti() costa (cento e più voci, spazi di Herdr): il conto lo scrive carica()
+    const quanti = this.quanti ?? 0;
     const v = this.volta ? this.volta.render(cx) : null;
+    const dove = nasceSu(t);
     let vuoto = null;
     if (this.vista === null && !this.errore && !v) vuoto = div().id("progetti-vuoto").px(18).py(6).text_size(13).text_color(t.muted).child("Leggo i tuoi progetti…");
-    else if (!lista.length && this.vista !== null) vuoto = v_flex().px(14).gap(10)
+    else if (!quanti && this.vista !== null) vuoto = v_flex().px(14).gap(10)
       .child(div().px(4).text_size(13).text_color(t.muted).whitespace_normal()
         .child(this.errore ? "Non riesco a leggere i todo di Arturo. Le conversazioni funzionano lo stesso." : "Non hai ancora progetti. Claude può cercarli sul tuo computer e proporteli."))
       .when(!this.errore, (el) => el.child(pulsante("trova", "search", "Trova i miei progetti", () => esegui(SUGGERIMENTI[0]), true)));
@@ -165,9 +169,9 @@ export class Barra {
           const v = { altezza: Math.round(m.height) };
           if (shared("arturo.misura.cima")?.altezza !== v.altezza) setShared("arturo.misura.cima", v);
         })
-        .child(pulsante("nuova", "square-pen", "Nuova richiesta", () => nuova(), lista.length > 0 || Boolean(this.errore)))
+        .child(pulsante("nuova", "square-pen", "Nuova richiesta", () => nuova(), quanti > 0 || Boolean(this.errore)))
         .child(pulsante("apri", "folder", "Apri un progetto", () => apriFinestra()))
-        .when(Boolean(nasceSu(t)), (el) => el.child(nasceSu(t))))
+        .when(Boolean(dove), (el) => el.child(dove)))
       .when(Boolean(vuoto), (el) => el.child(vuoto))
       .when(Boolean(v), (el) => el.child(v));
   }

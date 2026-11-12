@@ -1,5 +1,5 @@
 {
- "albero": "0bf21a7e94f0fcb11dfb203565da8db6d6bd4913",
+ "albero": "1095c5dc160c239714782633067ad4cc76b076a7",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -13,7 +13,7 @@
   "layouts/arturo.svg": "b10479ac0b9d82d6026b88ffbd5c13c25cf621393ce0a084149b1ae43926f566",
   "mods/arturo/apri.js": "b5b1e31b8c27d339ddd0279a7224d7a307a7731a4005d610a4be827aad5902f6",
   "mods/arturo/azioni.js": "5ac5026b8b0f6ee794e576b59c6183012a14f76504c74aaafdfde817c0c1c166",
-  "mods/arturo/barra.js": "6f8381ac7e8a6a70a3d94f0038a3c679668942fbc30d171f937e9bd42983818f",
+  "mods/arturo/barra.js": "76de234f63f3a803edf808f64a58b541d82f2a5a7f21aa871234c0d4ee354e6c",
   "mods/arturo/cambio.js": "b4a35bdcd53d2ad2549937921dcddba08672c613205d2ac9128d97d88342fc6b",
   "mods/arturo/chiedi.svg": "e00f6385950d1496b2c2e57fe3905417024b695544dbc004526249b9d9f3e15c",
   "mods/arturo/comandi.js": "36203ee185471ec6e4becb0ee7baa9f8606e0528906bdb28feddabca76ea635b",
@@ -48,7 +48,7 @@
   "mods/arturo/suggerimenti.js": "925dd479a8e67c577c2d2205b42e10ddaa722e59343dd5d98f0cb968b2fcac33",
   "mods/arturo/testata.js": "b310110314fb8bdeecf92239f5760ea11a4fa3d3174647a72579f8e0fffd5577",
   "mods/arturo/todo.js": "c1da10845be254afae62e9456e5888acfd14ceb4c5e7cc9f8d6246c75aed820b",
-  "mods/arturo/volta.js": "8483e061dae82dcf353fb17686fe22af6963ba1c8c9c01612fe9682710bebb25",
+  "mods/arturo/volta.js": "ddabea4f6e51bf33837cf801bd1801ad4a1e1ed087748060dc2e4b525c77bdbb",
   "mods/arturo/volta_microfono.py": "fb752d4f11c21fca9dd9081b0f352b2dd30fc4b1519d50b49da0dd0d3ccc16a1",
   "mods/arturo/volta_sonda.py": "c2529ef7451fcf2f0f955734df6e09eb776ebc989826c6cc9cb0fd4c35a5d2bd",
   "nascita.sh": "c143dd80bf98640b0565b3015a91d45619bd2c3a232a86c58129e517c0f5b9c1",

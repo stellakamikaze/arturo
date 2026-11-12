@@ -641,14 +641,14 @@ export class Volta {
   }
 
   // Un gruppo: le sessioni vive sempre; le ferme dietro "Altre N ferme", salvo un gruppo di due o meno.
-  gruppo(t, g, modo, cx) {
+  gruppo(t, g, modo, cx, aperto = null) {
     const vive = g.sessioni.filter((s) => s.stato !== "ferma");
     const ferme = g.sessioni.filter((s) => s.stato === "ferma");
     const mostra = mostrate(g, this.aperti[g.chiave]);
     // Per progetto l'intestazione è il progetto: un clic lo apre (il suo spazio, con /inizio), come la
     // riga di "Adesso" che c'era sotto. Quello dello spazio aperto ha il fondo della selezione.
     const progetto = modo === "progetto" && Boolean(g.chiave);
-    const attivo = progetto && slug(spaces().find((x) => x.active)?.name) === slug(g.chiave);
+    const attivo = progetto && aperto === slug(g.chiave);
     return v_flex().gap(1)
       .child(h_flex().id(`vgh-${g.chiave || "senza"}`).mx(8).px(10).py(5).gap(6).items_center().rounded(8)
         .when(attivo, (el) => el.bg(t.selected))
@@ -674,12 +674,15 @@ export class Volta {
     impostaProgetti(shared("arturo.progetti"));
     const modo = this.modo();
     const lista = gruppi(this.vis(), modo);
+    // lo spazio aperto, letto una volta sola: spaces() passa il confine con Herdr, e una chiamata per
+    // gruppo faceva sforare il tempo del disegno ("This view could not be re-rendered", 12/11/2026)
+    const aperto = slug(spaces().find((x) => x.active)?.name);
     let corpo;
     if (!this.dati) corpo = div().id("volta-vuoto").px(18).py(4).text_size(13).text_color(t.muted).child(this.errore ? "Non riesco a leggere le sessioni delle macchine." : "Leggo le sessioni delle macchine…");
     else if (!lista.length) corpo = div().id("volta-vuoto").px(18).py(4).text_size(13).text_color(t.muted).whitespace_normal().child("Nessuna sessione aperta. Nuova richiesta ne apre una; un progetto si apre da Apri un progetto.");
     // overflow_y_scroll e non overflow_y_scrollbar, che avvolge l'elenco in un contenitore a cui l'altezza
     // non arriva: lì non scorreva.
-    else corpo = v_flex().id("volta-elenco").flex_1().min_h(0).overflow_y_scroll().pb(12).gap(12).children(lista.map((g) => this.gruppo(t, g, modo, cx)));
+    else corpo = v_flex().id("volta-elenco").flex_1().min_h(0).overflow_y_scroll().pb(12).gap(12).children(lista.map((g) => this.gruppo(t, g, modo, cx, aperto)));
     const vecchio = this.dati && this.errore && this.dati.letto ? `Non riesco ad aggiornare: lettura delle ${String(this.dati.letto).slice(11, 16)}.` : null;
     const gesti = this.pannello(t);
     return v_flex().id("volta").flex_1().min_h(0).gap(6)
