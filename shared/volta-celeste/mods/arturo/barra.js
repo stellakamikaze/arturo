@@ -87,6 +87,7 @@ export class Barra {
     else if (c === "versione") { const m = shared("arturo.mod"); notify({ title: rigaMod(m)?.testo ?? "Il mod non ha una versione", body: m?.motivo ?? `Ultimo controllo: ${m?.esito ?? "mai"}.`, level: "info" }); }
     else if (c === "gruppi") setShared("arturo.volta.gruppi", arg);
     else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());
+    else if (c === "volta-giro") this.volta.giro(arg, cx);
     else if (c === "volta-menu") this.volta.menuId(arg);
     else if (c === "volta-altro") this.volta.altroId(arg, cx);
     else if (c === "volta-cambia") this.volta.cambiaComando(arg, cx);

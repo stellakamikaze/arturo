@@ -127,6 +127,51 @@ export function gruppi(dati, modo = "macchina") {
   return out.concat([...per.values()].filter((g) => g.sessioni.length)).sort((a, b) => recente(b) - recente(a));
 }
 
+// Le sessioni di un gruppo che l'elenco mostra: le vive sempre; le ferme solo se il gruppo è aperto, o se
+// non ha vive e le ferme sono due o meno.
+export function mostrate(g, aperto) {
+  const vive = g.sessioni.filter((s) => s.stato !== "ferma");
+  const ferme = g.sessioni.length - vive.length;
+  return (!vive.length && ferme <= 2) || aperto ? g.sessioni : vive;
+}
+
+// Il giro fra le sessioni (⌘↓ e ⌘↑): le righe dell'elenco dall'alto in basso, senza quelle che un tasto
+// non può mostrare subito. Restano fuori le sessioni che stanno in un Terminale: il clic lì dice dove
+// stanno, oppure le sposta con /bg, e un giro di tasti non deve spostare niente.
+export function ordineGiro(lista, aperti = {}) {
+  return (lista ?? []).flatMap((g) => mostrate(g, aperti[g.chiave]))
+    .filter((s) => ["aggancia", "mostra"].includes(clic(s).azione)).map((s) => s.sessionId);
+}
+
+// L'ordine vale per tutta una raffica di tasti: l'elenco è per attività, e una sessione che lavora
+// cambia posto mentre giri. Dopo GIRO_MS senza tasti il giro riparte dall'elenco di adesso. `adesso` sono
+// gli id del giro di adesso: una sessione sparita esce, una nuova entra al prossimo giro.
+export const GIRO_MS = 8000;
+export function statoGiro(prima, adesso, ora) {
+  const tiene = prima && ora - prima.quando <= GIRO_MS;
+  const ids = tiene ? prima.ids.filter((id) => adesso.includes(id)) : adesso;
+  return { ids: ids.length ? ids : adesso, ultimo: tiene ? prima.ultimo ?? null : null, quando: ora };
+}
+
+// La sessione dopo (verso 1) o prima (verso -1) di `corrente`, in tondo. Senza corrente, o con una
+// corrente fuori dal giro: la prima andando avanti, l'ultima andando indietro. null a giro vuoto.
+export function passoGiro(ids, corrente, verso) {
+  if (!ids?.length) return null;
+  const i = ids.indexOf(corrente);
+  if (i < 0) return verso < 0 ? ids[ids.length - 1] : ids[0];
+  return ids[(i + (verso < 0 ? -1 : 1) + ids.length) % ids.length];
+}
+
+// La sessione che una scheda mostra: per l'etichetta di Herdr (hc label arturo.sessione), per l'argv
+// dell'aggancio, o perché è nata nella shell di quella scheda. null se la scheda non è di una sessione.
+export function sessioneDi(terminale, sessioni) {
+  if (!terminale) return null;
+  const l = sessioni ?? [];
+  return l.find((s) => s.id && terminale.labels?.["arturo.sessione"] === s.id)
+    ?? l.find((s) => agganciata(terminale.argv, s))
+    ?? l.find((s) => s.questa && s.terminale && s.terminale === terminale.address) ?? null;
+}
+
 // Cosa fa il clic: { azione: "aggancia", argv } per una sessione in background, { azione: "porta" }
 // per un'interattiva ferma (prima /bg con porta-volta), { azione: "mostra", terminale } per
 // un'interattiva che gira in una scheda di Herdr, { azione: "no", motivo } altrimenti.

@@ -43,6 +43,8 @@ export function instrada(c) {
   if (c === "volta-gruppi-macchina" || c === "volta-gruppi-progetto") return { verbo: "gruppi", arg: dopo("volta-gruppi-"), lungo: false };
   // "volta-nuova": la scheda nuova (⌘T) è una sessione di Claude, non una shell (#5290).
   if (c === "volta-nuova") return { verbo: "volta-nuova", arg: null, lungo: true };
+  // "volta-giro-avanti" e "volta-giro-indietro": ⌘↓ e ⌘↑, la sessione dopo o prima nell'elenco.
+  if (c === "volta-giro-avanti" || c === "volta-giro-indietro") return { verbo: "volta-giro", arg: c.endsWith("avanti") ? 1 : -1, lungo: false };
   // "volta-menu-<id>": il menu del tasto destro su una sessione (#5291).
   if (c.startsWith("volta-menu-")) return { verbo: "volta-menu", arg: dopo("volta-menu-"), lungo: false };
   // "volta-altro-<id>": il riquadro "Altro" di una sessione.

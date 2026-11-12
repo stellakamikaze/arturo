@@ -59,6 +59,8 @@ LANCIATORI = (("volta-claude.sh", "volta-claude"), ("nascita.sh", "volta-nascita
               ("volta-claude.ps1", "volta-claude.ps1"), ("servizio-claude.ps1", "servizio-claude.ps1"))
 # I mod di Arturo tolti: un tasto rimasto su uno di questi non apre più niente (installa-herdr.sh ha lo stesso elenco).
 TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")
+# Comandi nati dopo le prime installazioni: il giro fra le sessioni (⌘↓ e ⌘↑, 12/11/2026).
+TASTI_NUOVI = ("arturo.volta-giro-avanti", "arturo.volta-giro-indietro")
 
 
 def app_home() -> Path:
@@ -281,7 +283,8 @@ def sostituisci(origine: Path, arrivo: Path) -> None:
 
 def tasti(fonte: Path) -> int:
     """Riallinea i tasti di Arturo rimasti su un mod tolto: prendono il comando che la fonte dà a quel
-    tasto. Ogni altro tasto resta della persona, e senza un tasto da riallineare keys.json non si riscrive."""
+    tasto. I comandi di TASTI_NUOVI entrano anche in un'installazione che c'è già, se il loro tasto è
+    libero. Ogni altro tasto resta della persona, e senza un tasto da cambiare keys.json non si riscrive."""
     nuovi = leggi(fonte / ("keys.json" if sys.platform == "darwin" else "keys-ctrl.json"))
     f = app_home() / "keys.json"
     miei = leggi(f)
@@ -292,6 +295,9 @@ def tasti(fonte: Path) -> int:
             continue
         for tasto, comando in voci.items():
             if mia.get(tasto) in TASTI_VECCHI:
+                mia[tasto] = comando
+                quanti += 1
+            elif tasto not in mia and comando in TASTI_NUOVI:
                 mia[tasto] = comando
                 quanti += 1
     if quanti:

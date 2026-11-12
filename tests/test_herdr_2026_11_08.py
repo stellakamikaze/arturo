@@ -349,6 +349,11 @@ HZ85 la spunta di un todo e /rename (revisione dell'11/11/2026): ancoraFatti di 
      scrive arturo.scritto, così la barra rilegge i conti. portaNome di dati.js (con node, orologio finto)
      non riscrive lo stesso nome per 5 minuti e intanto riprova solo a segnarlo alla sonda; un nome nuovo,
      un'altra sessione e i 5 minuti passati lo riscrivono; un /rename non riuscito non conta come scritto.
+HZ86 ⌘↓ e ⌘↑ girano fra tutte le sessioni dell'elenco (12/11/2026): keys.json li lega ad
+     arturo.volta-giro-avanti e -indietro, instrada() li legge prima di volta-<id>, la barra li porta a
+     Volta.giro(). sessioni.js con node: ordineGiro() segue le righe mostrate e lascia fuori le sessioni
+     che stanno in un Terminale; statoGiro() tiene l'ordine dentro una raffica di tasti; passoGiro() gira
+     in tondo; sessioneDi() riconosce la scheda in primo piano per etichetta, argv o terminale.
 """
 from __future__ import annotations
 
@@ -364,7 +369,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -5962,7 +5967,11 @@ def hz82(repo: Path, casa: Path) -> str | None:
         return f"volta_mod.py: l'elenco dei mod tolti è {d['elenco']}"
     dopo = leggi(app2 / "keys.json")
     attesi2 = dict(miei, **{fonte[i][0]: fonte[i][1] for i in range(3)})
-    if d["quanti"] != 3 or dopo != {"global": attesi2, "terminal": {fonte[0][0]: TOLTI[0]}}:
+    # i due tasti del giro fra le sessioni (HZ86) entrano perché in questo keys.json sono liberi
+    giro = {k: v for k, v in leggi(vc / ("keys.json" if sys.platform == "darwin" else "keys-ctrl.json")).get("global", {}).items()
+            if v.startswith("arturo.volta-giro-")}
+    attesi2.update(giro)
+    if d["quanti"] != 3 + len(giro) or dopo != {"global": attesi2, "terminal": {fonte[0][0]: TOLTI[0]}}:
         return f"tasti() di volta_mod.py: {d['quanti']} riallineati, keys.json {dopo}"
     vm = (vc / "volta_mod.py").read_text(encoding="utf-8")
     if vm.count("    try:\n        tasti(fonte)\n") != 1 or vm.index("    try:\n        tasti(fonte)\n") < vm.index("def contorno("):
@@ -6170,7 +6179,81 @@ def hz85(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85}
+PROVA_GIRO = r"""
+const n = await import(%s);
+const c = await import(%s);
+const bg = (id, stato = "lavora") => ({ sessionId: id + "-lungo", id, tipo: "background", attach: ["claude", "attach", id], stato });
+const g = [{ chiave: "a", sessioni: [bg("a1"), bg("a2", "ferma"), bg("a3", "ferma"), bg("a4", "ferma"),
+    { sessionId: "t1", id: "t1", tipo: "interattiva", stato: "aspetta" }, { sessionId: "f1", id: "f1", tipo: "interattiva", stato: "lavora", vecchia: true }] },
+  { chiave: "b", sessioni: [bg("b1", "ferma"), { sessionId: "h1", id: "h1", tipo: "interattiva", terminale: "t9", questa: true, stato: "lavora" }] }];
+const o = n.ordineGiro(g, {});
+console.log(JSON.stringify({ o, aperto: n.ordineGiro(g, { a: true }), vuoto: n.ordineGiro(null),
+  nuovo: n.statoGiro(null, o, 1000),
+  raffica: n.statoGiro({ ids: ["x", "h1", "a1-lungo"], ultimo: "h1", quando: 1000 }, o, 1000 + n.GIRO_MS),
+  scaduto: n.statoGiro({ ids: ["h1"], ultimo: "h1", quando: 1000 }, o, 1001 + n.GIRO_MS),
+  sparite: n.statoGiro({ ids: ["x"], ultimo: "x", quando: 1000 }, o, 2000).ids,
+  passi: [n.passoGiro(o, "a1-lungo", 1), n.passoGiro(o, "h1", 1), n.passoGiro(o, "a1-lungo", -1), n.passoGiro(o, null, 1),
+    n.passoGiro(o, null, -1), n.passoGiro([], "a", 1), n.passoGiro(o, "boh", 1)],
+  di: [n.sessioneDi({ address: "t5", argv: ["sh", "-c", "claude attach a2"], labels: {} }, g[0].sessioni)?.id ?? null,
+    n.sessioneDi({ address: "t5", argv: ["zsh"], labels: { "arturo.sessione": "a3" } }, g[0].sessioni)?.id ?? null,
+    n.sessioneDi({ address: "t9", argv: ["zsh"] }, g[1].sessioni)?.id ?? null,
+    n.sessioneDi({ address: "t7", argv: ["zsh"] }, g[1].sessioni), n.sessioneDi(null, g[1].sessioni)],
+  cmd: [c.instrada("volta-giro-avanti"), c.instrada("volta-giro-indietro"), c.instrada("volta-giro").verbo],
+}));
+"""
+
+
+def hz86(repo: Path, casa: Path) -> str | None:
+    """⌘↓ e ⌘↑ girano fra le sessioni dell'elenco, di ogni macchina, col gesto del clic."""
+    vc = repo / "shared/volta-celeste"
+    mod = vc / "mods/arturo"
+    tasti = leggi(vc / "keys.json").get("global", {})
+    if tasti.get("cmd-down") != "arturo.volta-giro-avanti" or tasti.get("cmd-up") != "arturo.volta-giro-indietro":
+        return "keys.json non lega ⌘↓ e ⌘↑ al giro fra le sessioni"
+    if tasti.get("cmd-shift-down") != "agent.next":
+        return "keys.json ha perso ⌘⇧↓ (la prossima sessione che ti aspetta)"
+    if 'else if (c === "volta-giro") this.volta.giro(arg, cx);' not in (mod / "barra.js").read_text(encoding="utf-8"):
+        return "barra.js non porta arturo.volta-giro-* a Volta.giro()"
+    volta = (mod / "volta.js").read_text(encoding="utf-8")
+    for pezzo in ("const id = passoGiro(st.ids, st.ultimo ?? sessioneDi(scheda, sessioni)?.sessionId ?? null, verso);",
+                  "if (s) this.premi(s, cx);", "const mostra = mostrate(g, this.aperti[g.chiave]);"):
+        if pezzo not in volta:
+            return f"volta.js non ha più: {pezzo}"
+    if '"arturo.volta-giro-avanti", "arturo.volta-giro-indietro"' not in (vc / "volta_mod.py").read_text(encoding="utf-8"):
+        return "volta_mod.py non porta i tasti del giro alle installazioni che ci sono già"
+    node = shutil.which("node")
+    if not node:
+        return None
+    for nome in ("sessioni", "comandi"):
+        shutil.copyfile(mod / f"{nome}.js", casa / f"{nome}.mjs")
+    r = subprocess.run([node, "--input-type=module", "-e",
+                        PROVA_GIRO % (json.dumps((casa / "sessioni.mjs").as_uri()), json.dumps((casa / "comandi.mjs").as_uri()))],
+                       capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    if g["o"] != ["a1-lungo", "h1"]:
+        return f"ordineGiro() non segue le righe mostrate, o prende una sessione che sta in un Terminale: {g['o']}"
+    if g["aperto"] != ["a1-lungo", "a2-lungo", "a3-lungo", "a4-lungo", "h1"] or g["vuoto"] != []:
+        return f"ordineGiro() col gruppo aperto non prende le ferme: {g['aperto']}"
+    if g["nuovo"] != {"ids": ["a1-lungo", "h1"], "ultimo": None, "quando": 1000}:
+        return f"statoGiro() senza un giro prima non parte dall'elenco: {g['nuovo']}"
+    if g["raffica"]["ids"] != ["h1", "a1-lungo"] or g["raffica"]["ultimo"] != "h1":
+        return f"dentro una raffica di tasti l'ordine cambia, o resta una sessione sparita: {g['raffica']}"
+    if g["scaduto"]["ids"] != ["a1-lungo", "h1"] or g["scaduto"]["ultimo"] is not None:
+        return f"dopo la pausa il giro non riparte dall'elenco di adesso: {g['scaduto']}"
+    if g["sparite"] != ["a1-lungo", "h1"]:
+        return f"con tutte le sessioni del giro sparite non si riparte dall'elenco: {g['sparite']}"
+    if g["passi"] != ["h1", "a1-lungo", "h1", "a1-lungo", "h1", None, "a1-lungo"]:
+        return f"passoGiro() non gira in tondo: {g['passi']}"
+    if g["di"] != ["a2", "a3", "h1", None, None]:
+        return f"sessioneDi() non riconosce la scheda in primo piano: {g['di']}"
+    if g["cmd"] != [{"verbo": "volta-giro", "arg": 1, "lungo": False}, {"verbo": "volta-giro", "arg": -1, "lungo": False}, "volta"]:
+        return f"instrada() non legge i comandi del giro prima di volta-<id>: {g['cmd']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -6189,6 +6272,14 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ("HZ86", "shared/volta-celeste/keys.json", '"cmd-down": "arturo.volta-giro-avanti"', '"cmd-down": "agent.next"'),
+    ("HZ86", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c === "volta-giro") this.volta.giro(arg, cx);', ""),
+    ("HZ86", "shared/volta-celeste/mods/arturo/comandi.js", 'return { verbo: "volta-giro", arg: c.endsWith("avanti") ? 1 : -1, lungo: false };', 'return { verbo: "volta-giro", arg: 1, lungo: false };'),
+    ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", '.filter((s) => ["aggancia", "mostra"].includes(clic(s).azione)).map((s) => s.sessionId);', '.map((s) => s.sessionId);'),
+    ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", "const tiene = prima && ora - prima.quando <= GIRO_MS;", "const tiene = Boolean(prima);"),
+    ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", "  return ids[(i + (verso < 0 ? -1 : 1) + ids.length) % ids.length];", "  return ids[Math.min(ids.length - 1, Math.max(0, i + (verso < 0 ? -1 : 1)))];"),
+    ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", "  return (!vive.length && ferme <= 2) || aperto ? g.sessioni : vive;", "  return g.sessioni;"),
+    ("HZ86", "shared/volta-celeste/mods/arturo/sessioni.js", '    ?? l.find((s) => s.questa && s.terminale && s.terminale === terminale.address) ?? null;', '    ?? null;'),
     ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', '  return t ? t[0].toUpperCase() + t.slice(1) : SENZA;', '  return t[0].toUpperCase() + t.slice(1);'),
     ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', '  return ultimo ? piatto(m[1]) === piatto(ultimo) : true;', '  return true;'),
     ('HZ83', 'shared/volta-celeste/mods/arturo/sessioni.js', '  return ultimo ? piatto(m[1]) === piatto(ultimo) : true;', '  return ultimo ? m[1] === ultimo : true;'),

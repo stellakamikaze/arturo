@@ -4,6 +4,8 @@
     "cmd-t": "arturo.volta-nuova",
     "cmd-shift-n": "arturo.nota",
     "cmd-shift-e": "arturo.note",
+    "cmd-down": "arturo.volta-giro-avanti",
+    "cmd-up": "arturo.volta-giro-indietro",
     "cmd-shift-down": "agent.next",
     "cmd-shift-up": "agent.prev",
     "ctrl-cmd-right": "space.next",

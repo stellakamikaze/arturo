@@ -16,7 +16,7 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals } from "herdr";
-import { gruppi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto, tetti, GESTI_MAX } from "./sessioni.js";
+import { gruppi, mostrate, ordineGiro, statoGiro, passoGiro, sessioneDi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto, tetti, GESTI_MAX } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
 import { config, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti, esito, altrove, stacca } from "./dati.js";
 import { apriMenuSessione } from "./menusessione.js";
@@ -283,6 +283,21 @@ export class Volta {
     return s;
   }
 
+  // ⌘↓ e ⌘↑ ("arturo.volta-giro-avanti" e "-indietro"): la sessione dopo o prima nell'elenco, di ogni
+  // macchina, con lo stesso gesto del clic. Parte dalla scheda in primo piano; dentro una raffica di
+  // tasti parte dall'ultima sessione chiesta, perché un aggancio ci mette qualche secondo ad aprirsi.
+  giro(verso, cx) {
+    const sessioni = this.dati?.sessioni ?? [];
+    const st = statoGiro(this.giroSt, ordineGiro(gruppi(this.dati, this.modo()), this.aperti), Date.now());
+    const f = focused();
+    const scheda = f?.terminal ? terminals().find((x) => x.address === f.terminal) : null;
+    const id = passoGiro(st.ids, st.ultimo ?? sessioneDi(scheda, sessioni)?.sessionId ?? null, verso);
+    this.giroSt = { ...st, ultimo: id };
+    const s = id ? sessioni.find((x) => x.sessionId === id) : null;
+    if (s) this.premi(s, cx);
+    else notify({ title: "Nessuna sessione da aprire", body: "L'elenco non ha sessioni che un tasto può mostrare.", level: "info", timeout: 3000 });
+  }
+
   premiId(id, cx) {
     const s = this.trovaId(id);
     if (s) this.premi(s, cx);
@@ -525,8 +540,7 @@ export class Volta {
   gruppo(t, g, modo, cx) {
     const vive = g.sessioni.filter((s) => s.stato !== "ferma");
     const ferme = g.sessioni.filter((s) => s.stato === "ferma");
-    const tutte = (!vive.length && ferme.length <= 2) || this.aperti[g.chiave];
-    const mostra = tutte ? g.sessioni : vive;
+    const mostra = mostrate(g, this.aperti[g.chiave]);
     return v_flex().gap(1)
       .child(h_flex().px(18).pb(2).gap(6).items_center()
         .child(div().id(`vgt-${g.chiave || "senza"}`).flex_1().truncate().text_size(12).text_color(t.foreground).child(g.titolo))
