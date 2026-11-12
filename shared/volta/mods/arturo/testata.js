@@ -7,7 +7,8 @@ import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, panes, focused, layout, shared, setShared, watchFolder, notify, home, nextCommand } from "herdr";
 import { frase, slug, config, statoSpazio, SUGGERIMENTI } from "./dati.js";
 import { PING, daRimandare } from "./comandi.js";
-import { ICONA, punto, pulsante, colore, apriFinestra, apriElenco, tasti, nasceSu, segno, motoDi } from "./comuni.js";
+import { ICONA, punto, pulsante, colore, apriFinestra, apriElenco, tasti, nasceSu, segno, motoDi, vociMacchina } from "./comuni.js";
+import { apriSposta, ICONA_SPOSTA } from "./sposta.js";
 import { leggiTutte } from "./notaui.js";
 import { macchinaBreve } from "./sessioni.js";
 import { cartellaNote, progettoNota, contaNote, noteAperte, risposteClaude, risposteNuove } from "./nota.js";
@@ -51,6 +52,7 @@ export class Testata {
       : panes().find((p) => p.tab === tab?.id)?.terminal;
     const dv = shared("arturo.volta.dove");
     const macchina = tab ? (dv?.schede?.[term] ?? dv?.qui ?? null) : null;
+    const davanti = shared("arturo.volta.davanti");
     // "Cosa posso chiedere" sta nel piede e "Altra conversazione" è Nuova richiesta (⌘T): qui resta solo il
     // pannello Da fare, come icona (12/11/2026, la testata era affollata).
     const bottone = (id, icona, testo, azione) => h_flex().id(id).h(30).w(30).justify_center().items_center().rounded(7).cursor_pointer()
@@ -69,6 +71,12 @@ export class Testata {
           .when(Boolean(f), (e) => e.child(div().text_size(12).text_color(colore(t, f.colore)).child(f.testo))))))
       .child(div().flex_1())
       .when(Boolean(schede), (el) => el.child(schede))
+      // "Sposta su un'altra macchina" (sposta.js): per la sessione in background della scheda in primo
+      // piano, quando Volta conosce un'altra macchina. Durante lo spostamento resta acceso e non riapre.
+      .when(Boolean(davanti) && davanti.tipo === "background" && vociMacchina().length > 1, (el) => el.child(davanti.sposto
+        ? h_flex().id("sposta-in-corso").h(30).px(8).gap(6).items_center().text_size(12).text_color(t.working)
+          .child(svg(ICONA_SPOSTA).size(15)).child(div().child("La sposto…"))
+        : bottone("sposta", ICONA_SPOSTA, "Sposta la sessione su un'altra macchina", () => apriSposta(davanti))))
       .child(bottone("dafare", "panel-right", pannello?.hidden ? "Mostra Da fare" : "Nascondi Da fare", () => run("layout.toggle", { id: "pannello" })));
   }
 }
@@ -158,7 +166,7 @@ export class Stato {
     const pezzo = (id, c, testo) => h_flex().id(id).gap(7).items_center().child(punto(c, 7)).child(testo);
     const k = tasti();
     const quante = contaNote(this.note, progettoAdesso(this.scelto)).aperte;
-    const scorciatoie = `${k.apri} apri un progetto   ${k.prossima} prossima sessione   ${k.impostazioni} impostazioni`;
+    const scorciatoie = `${k.apri} cerca   ${k.giro} giro delle sessioni   ${k.prossima} chi ti aspetta   ${k.impostazioni} impostazioni`;
     return h_flex().size_full().px(18).gap(18).items_center().bg(t.chrome).border_t(1).border_color(t.border).text_size(12).text_color(t.muted)
       .when(a.length === 0, (el) => el.child(pezzo("stato-sessioni", t.idle, "Nessuna sessione aperta")))
       .when(n("blocked") > 0, (el) => el.child(pezzo("stato-aspettano", t.blocked, div().text_color(t.foreground).child(`${n("blocked")} ti aspett${n("blocked") > 1 ? "ano" : "a"}`))))

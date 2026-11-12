@@ -12,8 +12,8 @@ export const ICONA = (nome) => `mods/workspace-chrome/${nome}.svg`;
 // Herdr (Alt+↓ per la sessione che aspetta), perché su Windows ⌘ sarebbe il tasto Windows.
 export function tasti() {
   return window()?.platform === "macos"
-    ? { apri: "⌘O", prossima: "⌘⇧↓", impostazioni: "⌘,", nota: "⌘⇧N", elenco: "⌘⇧E" }
-    : { apri: "Ctrl+Shift+A", prossima: "Alt+↓", impostazioni: "Ctrl+,", nota: "Ctrl+Shift+M", elenco: "Ctrl+Shift+I" };
+    ? { apri: "⌘K", giro: "⌘↓ ⌘↑", prossima: "⌘⇧↓", impostazioni: "⌘,", nota: "⌘⇧N", elenco: "⌘⇧E" }
+    : { apri: "Ctrl+Shift+A", giro: "Ctrl+↓ Ctrl+↑", prossima: "Alt+↓", impostazioni: "Ctrl+,", nota: "Ctrl+Shift+M", elenco: "Ctrl+Shift+I" };
 }
 
 // Un pallino di stato disegnato, non un carattere.
@@ -159,9 +159,13 @@ export class SceltaMacchina {
   }
 }
 
-// La finestra "Apri un progetto".
+// La finestra "Cerca" (⌘K e ⌘O). Herdr non sostituisce un dialogo già aperto: ⌘K premuto due volte ne
+// apriva due, uno sopra l'altro. Chi la apre chiude prima quella che ha aperto lui (chiudere un id già
+// chiuso con Esc non fa niente). Ogni copia del mod tiene la sua: i tasti passano tutti dalla barra.
+let cercaAperta = null;
 export function apriFinestra() {
-  openOverlay({ mod: "arturo", props: { parte: "apri" }, kind: "dialog", width: 560 });
+  if (cercaAperta) closeOverlay(cercaAperta);
+  cercaAperta = openOverlay({ mod: "arturo", props: { parte: "apri" }, kind: "dialog", width: 560 });
 }
 
 // ⌘⇧N: prima lo screenshot della finestra com'è, poi il velo per scegliere il punto (notaui.js). Con `apri`

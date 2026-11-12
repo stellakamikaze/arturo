@@ -1,6 +1,7 @@
 {
   "global": {
     "cmd-o": "arturo.apri",
+    "cmd-k": "arturo.apri",
     "cmd-t": "arturo.casa",
     "cmd-shift-n": "arturo.nota",
     "cmd-shift-e": "arturo.note",

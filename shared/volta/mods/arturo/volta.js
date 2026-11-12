@@ -19,11 +19,12 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, writeTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals, spaces, window } from "herdr";
-import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, registroProva, daQuanto, ordineGiro, statoGiro, passoGiro, sessioneDi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto, GESTI_MAX, visibili, sparite, passoCongedo, chiusa } from "./sessioni.js";
+import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, registroProva, daQuanto, ordineGiro, statoGiro, passoGiro, corrente, GIRO_MS, sessioneDi, sessioneDavanti, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto, GESTI_MAX, visibili, sparite, passoCongedo, chiusa } from "./sessioni.js";
 import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX, occupanti } from "./sessioni.js";
 import { ICONA, punto, colore, segno, motoDi, movimento } from "./comuni.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
-import { schedeDi, cacheVolta } from "./dati.js";
+import { schedeDi, cacheVolta, spostaSessione, nomeMacchina } from "./dati.js";
+import { nonSiSposta } from "./sposta.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
 import { bersaglio, passo, rigaMicrofono } from "./microfono.js";
@@ -36,6 +37,8 @@ const OGNI_MICROFONO = 2000;
 // Ogni quanto si guarda se una scheda che agganciava una sessione è stata chiusa (⌘W, la X): il congedo.
 const OGNI_SCHEDE = 3000;
 const SPARITE_MAX = 3;
+// Ogni quanto si guarda se la scheda in primo piano è cambiata, per la riga accesa dell'elenco.
+const OGNI_FUOCO = 1000;
 // Ogni quanto si guarda se c'è una sessione da chiudere da sola (#5366): una ferma da un'ora non ha fretta.
 const OGNI_AUTO = 60000;
 // La sessione è già agganciata in un Terminale fuori dalla finestra: la frase del primo clic, e per
@@ -146,6 +149,12 @@ export class Volta {
     cx.timer.every(OGNI_MOD, () => controllaMod(this.py));
     cx.timer.every(OGNI_MICROFONO, (cx) => this.microfono(cx));
     cx.timer.every(OGNI_SCHEDE, (cx) => this.guardaSchede(cx));
+    // la scheda in primo piano cambiata (un clic in testata, ⌘⇧↓): la riga accesa la segue
+    cx.timer.every(OGNI_FUOCO, (cx) => {
+      const k = focused()?.terminal ?? null;
+      if (k !== this.fuoco) { this.fuoco = k; cx.notify(); }
+      this.davanti(k);
+    });
     cx.timer.every(OGNI_AUTO, (cx) => this.congedaFerme(cx));
   }
 
@@ -514,8 +523,48 @@ export class Volta {
     const id = passoGiro(st.ids, st.ultimo ?? sessioneDi(scheda, sessioni)?.sessionId ?? null, verso);
     this.giroSt = { ...st, ultimo: id };
     const s = id ? sessioni.find((x) => x.sessionId === id) : null;
+    // la riga accesa (corrente) segue il tasto subito, e a raffica finita torna alla scheda in primo piano
+    cx.notify();
+    cx.timer.after(GIRO_MS + 50, (cx) => cx.notify());
     if (s) { this.scopri(s); this.premi(s, cx); }
     else notify({ title: "Nessuna sessione da aprire", body: "L'elenco non ha sessioni che un tasto può mostrare.", level: "info", timeout: 3000 });
+  }
+
+  // La sessione della scheda in primo piano, per "Sposta su" della testata (testata.js e sposta.js, che
+  // sono altre copie del mod): shared arturo.volta.davanti, null se la scheda non mostra una sessione.
+  davanti(indirizzo) {
+    const t = indirizzo ? terminals().find((x) => x.address === indirizzo) ?? { address: indirizzo } : null;
+    const s = sessioneDavanti(t, this.dati?.sessioni ?? []);
+    const v = s ? { id: s.id, sessionId: s.sessionId, host: s.host ?? "qui", macchina: s.macchina, tipo: s.tipo,
+      stato: s.stato, titolo: titolo(s), progetto: s.progetto ?? null,
+      sposto: this.faccio?.[s.sessionId] === "sposta" } : null;
+    if (JSON.stringify(v) !== JSON.stringify(shared("arturo.volta.davanti") ?? null)) setShared("arturo.volta.davanti", v);
+  }
+
+  // "arturo.volta-sposta-<macchina>-<id>": "Sposta su" della testata (sposta.js) o herdr-app do. La
+  // sessione riparte sull'altra macchina con la stessa conversazione (volta_sposta.py); intanto la riga
+  // dice dove va, e a fine lavoro un avviso dice com'è andata.
+  spostaId(macchina, id, cx) {
+    // Dopo uno spostamento lo stesso id c'è su due macchine: vale la copia che l'elenco mostra.
+    const s = (this.vis()?.sessioni ?? []).find((x) => x.id === id) ?? this.trovaId(id);
+    if (!s) return;
+    const no = nonSiSposta(s) ?? ((s.host ?? "qui") === macchina ? `È già su ${nomeMacchina(macchina)}.` : null);
+    if (no) return notify({ title: "Non la sposto", body: no, level: "warning" });
+    const k = s.sessionId;
+    if (this.faccio[k]) return;
+    this.faccio[k] = "sposta";
+    this.spostoSu = { ...(this.spostoSu ?? {}), [k]: macchina };
+    cx.notify();
+    cx.spawn(async (cx) => {
+      let r;
+      try { r = await spostaSessione(s, macchina); } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 160) }; }      delete this.faccio[k];
+      if (r.errore) {
+        notify({ title: `Non la sposto su ${nomeMacchina(macchina)}`, body: r.errore, level: "error" });
+        this.avvisa(s, `Non la sposto: ${r.errore}`, cx);
+      } else notify({ title: `Spostata su ${nomeMacchina(macchina)}`, body: titolo(s), level: "info", timeout: 5000 });
+      this.aggiorna(cx);
+      cx.notify();
+    });
   }
 
   premiId(id, cx) {
@@ -694,7 +743,7 @@ export class Volta {
   riga(t, s, modo, cx) {
     const sposto = this.sposto[s.sessionId];
     const apro = this.apro[s.sessionId];
-    const lavoro = LAVORO[this.faccio[s.sessionId]];
+    const lavoro = this.faccio[s.sessionId] === "sposta" ? `La sposto su ${nomeMacchina(this.spostoSu?.[s.sessionId] ?? "qui")}…` : LAVORO[this.faccio[s.sessionId]];
     const d = sposto ? { testo: "La sposto nella finestra…", colore: "working" }
       : apro ? { testo: "La apro…", colore: "working" }
       : this.veglio[s.sessionId] ? { testo: "Aperta: guardo se Claude resta nella scheda…", colore: "working" }
@@ -720,7 +769,11 @@ export class Volta {
     // Il clic sulla riga apre la sessione; "Altro" sta a fianco, fuori dall'area che apre.
     // Entrata e uscita in dissolvenza (#5410): solo opacità, l'altezza della riga non cambia.
     const mr = movimento() ? motoRiga(this.entrano.get(k), this.escono[k]) : null;
-    return v_flex().id(`vr-${s.host}-${s.id}`).mx(8).px(10).py(7).gap(2).rounded(8).when(aperto, (el) => el.bg(t.hover))
+    // La sessione che hai davanti (corrente di sessioni.js): una barra accesa sul bordo sinistro e il fondo
+    // della selezione. La barra sta sopra il padding, così il testo non si sposta.
+    const acceso = this.acceso === k;
+    return v_flex().id(`vr-${s.host}-${s.id}`).relative().mx(8).px(10).py(7).gap(2).rounded(8).when(aperto, (el) => el.bg(t.hover))
+      .when(acceso, (el) => el.bg(t.selected).child(div().id(`vacc-${s.host}-${s.id}`).absolute().left(2).top(7).bottom(7).w(3).rounded_full().bg(t.accent)))
       .when(Boolean(mr), (el) => el.opacity(mr.opacita))
       .when(Boolean(mr?.politica), (el) => el.transition("opacity", mr.politica))
       .on_hover((h, cx) => {
@@ -806,6 +859,10 @@ export class Volta {
     // lo spazio aperto, letto una volta sola: spaces() passa il confine con Herdr, e una chiamata per
     // gruppo faceva sforare il tempo del disegno ("This view could not be re-rendered", 12/11/2026)
     const aperto = slug(spaces().find((x) => x.active)?.name);
+    // la riga accesa a sinistra: l'ultima del giro, altrimenti quella della scheda in primo piano
+    const f = focused();
+    const scheda = f?.terminal ? terminals().find((x) => x.address === f.terminal) ?? { address: f.terminal } : null;
+    this.acceso = corrente(this.giroSt, sessioneDavanti(scheda, this.dati?.sessioni ?? [])?.sessionId ?? null, Date.now());
     let corpo;
     if (!this.dati) corpo = div().id("volta-vuoto").px(18).py(4).text_size(13).text_color(t.muted).child(this.errore ? "Non riesco a leggere le sessioni delle macchine." : "Leggo le sessioni delle macchine…");
     else if (!lista.length) corpo = div().id("volta-vuoto").px(18).py(4).text_size(13).text_color(t.muted).whitespace_normal().child("Nessuna sessione aperta. Nuova richiesta ne apre una; un progetto si apre da Apri un progetto.");

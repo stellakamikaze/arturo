@@ -27,6 +27,9 @@ export function impostaProgetti(mappa) { NOTI = mappa && typeof mappa === "objec
 const slugDi = (p) => String(p ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
 // La chiave del progetto: quella del suo gruppo anche quando la sessione porta un nome alternativo.
 export const chiaveProgetto = (p) => (p ? NOTI[slugDi(p)]?.chiave ?? String(p) : "");
+// Il titolo vero del progetto se è noto ("Volta" per herdr-arturo), altrimenti null: chi ha un suo modo
+// di scrivere il nome ricavato dallo slug (bello() di dati.js) lo usa solo quando il titolo manca.
+export const titoloNoto = (p) => (p ? NOTI[slugDi(p)]?.titolo ?? null : null);
 
 // Il nome di un progetto per le persone: il titolo noto, altrimenti "due-mondi" → "Due mondi", "uf" → "UF".
 // Un progetto fatto di soli separatori ("-") non ha parole: vale come senza progetto, invece di far
@@ -222,7 +225,15 @@ export const chiusa = (s) => Boolean(s) && s.tipo === "background" && s.chiusa =
 export function visibili(dati, congedi = {}) {
   if (!dati) return dati;
   const via = new Set(Object.values(congedi ?? {}).flatMap((c) => [c.sessionId, c.id].filter(Boolean)));
-  return { ...dati, sessioni: (dati.sessioni ?? []).filter((s) => !chiusa(s) && !via.has(s.sessionId) && !via.has(s.id)) };
+  const l = (dati.sessioni ?? []).filter((s) => !chiusa(s) && !via.has(s.sessionId) && !via.has(s.id));
+  return { ...dati, sessioni: unaPerConversazione(l) };
+}
+
+// Una conversazione spostata su un'altra macchina (Sposta su, 12/11/2026) ha lo stesso sessionId su due
+// macchine: resta quella che non è ferma, cioè la copia viva. Fra due ferme, o due vive, restano tutte e due.
+export function unaPerConversazione(l) {
+  const vive = new Set(l.filter((s) => s.sessionId && s.stato !== "ferma").map((s) => s.sessionId));
+  return l.filter((s) => s.stato !== "ferma" || !vive.has(s.sessionId));
 }
 
 // Le schede chiuse da chi usa la finestra: i terminali che agganciavano una sessione al giro di prima e
@@ -314,6 +325,25 @@ export function statoGiro(prima, adesso, ora) {
   const tiene = prima && ora - prima.quando <= GIRO_MS;
   const ids = tiene ? prima.ids.filter((id) => adesso.includes(id)) : adesso;
   return { ids: ids.length ? ids : adesso, ultimo: tiene ? prima.ultimo ?? null : null, quando: ora };
+}
+
+// La sessione che l'elenco accende a sinistra (Federico, 12/11/2026: "evidenziarmi su quale sto
+// lavorando"). Dentro una raffica di ⌘↓ e ⌘↑ è l'ultima chiesta col giro, perché la scheda ci mette
+// qualche secondo ad aprirsi; fuori dalla raffica è quella della scheda in primo piano. null se nessuna.
+export function corrente(giroSt, idScheda, ora) {
+  if (giroSt?.ultimo && ora - giroSt.quando <= GIRO_MS) return giroSt.ultimo;
+  return idScheda ?? null;
+}
+
+// La sessione che una scheda mostra, anche quando la scheda sta in uno spazio di un'altra macchina
+// (indirizzo "balthasar/t13"): là Claude gira nel terminale t13 di balthasar, che la sonda di quella
+// macchina scrive nel campo terminale. Chi gira nel terminale vince sull'etichetta, come in occupanti:
+// una scheda nata per una sessione può ospitarne dopo un'altra. Poi vale sessioneDi.
+export function sessioneDavanti(terminale, sessioni) {
+  if (!terminale) return null;
+  const [m, t] = String(terminale.address ?? "").split("/");
+  const li = t ? (sessioni ?? []).find((s) => s.host === m && s.terminale === t && s.tipo !== "background") : null;
+  return li ?? sessioneDi(terminale, sessioni);
 }
 
 // La sessione dopo (verso 1) o prima (verso -1) di `corrente`, in tondo. Senza corrente, o con una
@@ -505,6 +535,51 @@ export function filtraProgetti(noti, testo, quanti = 8) {
   const presi = f ? [...l.filter((p) => nomi(p).some((x) => x.startsWith(f))), ...l.filter((p) => !nomi(p).some((x) => x.startsWith(f)) && nomi(p).some((x) => x.includes(f)))] : l;
   return presi.slice(0, quanti);
 }
+
+// La ricerca di ⌘K e ⌘O (#5369, nota di Federico dell'11/11: "accedere a chat e progetti"): un elenco
+// solo di sessioni e progetti. Il testo si confronta senza maiuscole, accenti e trattini, col titolo e il
+// nome della sessione, col suo progetto e col titolo, lo slug e i nomi alternativi (NOTI) di un progetto.
+// Prima chi comincia col testo, poi chi lo contiene; le sessioni chiuse in fondo, perché si riaprono ma
+// sono il caso raro. Senza testo: le sessioni vive più recenti (al più VIVE_SENZA_TESTO), poi i progetti
+// nell'ordine dato. Con un testo l'ultima voce è sempre "Nuova richiesta" con quel testo, anche quando
+// qualcosa corrisponde: chi scrive una frase intera vuole quasi sempre chiederla.
+// Righe: { tipo: "sessione", s } | { tipo: "progetto", nome } | { tipo: "nuova", testo }.
+export const VIVE_SENZA_TESTO = 5;
+const piano = (x) => String(x ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+const alternativi = (p) => {
+  const k = chiaveProgetto(p);
+  return k ? Object.keys(NOTI).filter((a) => NOTI[a]?.chiave === k) : [];
+};
+export function cerca(sessioni, progetti, testo, quanti = 12) {
+  const f = piano(testo);
+  const ss = [...(sessioni ?? [])].filter((s) => s && s.sessionId).sort((a, b) => tempo(b) - tempo(a));
+  const pp = [...new Set((progetti ?? []).filter(Boolean))];
+  if (!f) {
+    const vive = ss.filter((s) => !chiusa(s)).slice(0, VIVE_SENZA_TESTO).map((s) => ({ tipo: "sessione", s }));
+    return [...vive, ...pp.map((nome) => ({ tipo: "progetto", nome }))].slice(0, quanti);
+  }
+  // 0: comincia col testo, 1: lo contiene, null: niente
+  const voto = (campi) => {
+    const c = campi.map(piano).filter(Boolean);
+    return c.some((x) => x.startsWith(f)) ? 0 : c.some((x) => x.includes(f)) ? 1 : null;
+  };
+  const prese = [];
+  ss.forEach((s, i) => {
+    const v = voto([titolo(s), s.nome, s.progetto, s.progetto ? nomeProgetto(s.progetto) : "", ...alternativi(s.progetto), s.id]);
+    if (v !== null) prese.push({ riga: { tipo: "sessione", s }, chiusa: chiusa(s) ? 1 : 0, v, i });
+  });
+  pp.forEach((nome, i) => {
+    const v = voto([nome, nomeProgetto(nome), ...alternativi(nome)]);
+    if (v !== null) prese.push({ riga: { tipo: "progetto", nome }, chiusa: 0, v, i: ss.length + i });
+  });
+  prese.sort((a, b) => a.chiusa - b.chiusa || a.v - b.v || a.i - b.i);
+  return [...prese.slice(0, quanti - 1).map((x) => x.riga), { tipo: "nuova", testo: String(testo).trim() }];
+}
+
+// Il comando di "Nuova richiesta" dalla ricerca: il testo viaggia in esadecimale come in comandoCambio,
+// al più TESTO_NUOVA_MAX caratteri (il resto la persona lo scrive nella sessione).
+export const TESTO_NUOVA_MAX = 400;
+export const comandoNuova = (testo) => `arturo.nuova-${codifica(String(testo ?? "").trim().slice(0, TESTO_NUOVA_MAX))}`;
 
 // Il dialogo è un'altra copia del mod: manda il cambio alla barra come comando, lo stesso di herdr-app
 // do. Il testo viaggia in esadecimale (quattro cifre per carattere), perché il nome di un comando non

@@ -298,6 +298,18 @@ export function statoSpazio(s) {
   return s.status ?? statoAgganciata(schedaAgganciata(s));
 }
 
+// Le sessioni di tutte le macchine come le elenca Volta (sessioni.json in cacheVolta(), scritto da
+// volta_sonda.py ogni 30 s), chiuse comprese: la ricerca di ⌘K (apri.js) le legge da qui, perché la
+// finestra è un'altra copia del mod e non vede l'elenco della barra. Senza file: [].
+export async function sessioniVolta() {
+  try {
+    const d = JSON.parse((await readTextFile(`${cacheVolta()}/sessioni.json`)) ?? "{}");
+    return Array.isArray(d.sessioni) ? d.sessioni : [];
+  } catch {
+    return [];
+  }
+}
+
 // La sessione agganciata nella scheda `g` come la elenca Volta (sessioni.json in cacheVolta()), o null.
 async function sessioneDi(g) {
   try {
@@ -726,6 +738,26 @@ export function copiaSessione(s, verbo) {
   const fork = verbo === "fork";
   return nasciSu(s.host ?? "qui", "", s.progetto ? String(s.progetto) : null, fork ? titoloFork(s).slice(0, 40) : "Nuova sessione",
     { verbo: fork ? "fork" : "duplica", sessionId: s.sessionId, cartella: s.cartella || null, titolo: fork ? titoloFork(s) : null });
+}
+
+// Sposta una sessione in background su un'altra macchina (volta_sonda.py sposta, 12/11/2026): la stessa
+// conversazione riparte là, la scheda che la agganciava qui si chiude e una scheda nuova aggancia quella
+// di là. 20 minuti: una trascrizione grande e un git clone ci mettono. { ok } oppure { errore }.
+export async function spostaSessione(s, macchina) {
+  const c = await config();
+  let r;
+  try {
+    r = esito(await exec(c.arturo[0], [c.volta, "sposta", s.host ?? "qui", macchina, s.id, s.sessionId,
+      "--cartella", s.cartella || "", ...(s.progetto ? ["--progetto", String(s.progetto)] : []),
+      "--titolo", titolo(s).slice(0, 60)], { timeout: 1200000 }));
+  } catch (e) {
+    return { errore: `${nomeMacchina(macchina)} non ha risposto in 20 minuti (${String(e?.message ?? e).slice(0, 80)}): guarda fra le sessioni dove è rimasta` };
+  }
+  if (!r.attach?.length) return { errore: r.errore ?? "nessuna risposta" };
+  chiudiSchede(s);
+  const v = await apriSessione({ id: r.id, sessionId: r.sessionId, nome: titolo(s), progetto: s.progetto ?? null,
+    questa: macchina === "qui", host: macchina }, r.attach, true);
+  return v.errore ? { errore: `è su ${nomeMacchina(macchina)}, ma non si apre: ${v.errore}` } : { ok: true };
 }
 
 // Chiude le schede che agganciano la sessione: la prima metà di "Chiudi", prima di claude stop. La

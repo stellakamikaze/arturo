@@ -37,6 +37,9 @@ distribuire (#5172, 10/11/2026).
       su MACCHINA con fonte "persona", che hooks/titolo-sessione.py non riscrive. Senza NOME toglie il
       nome scritto, e il titolo torna automatico. --portato segna che Claude Code ha già quel nome
       (/rename scritto nella sessione da Volta). Stampa {ok, titolo} oppure {errore}.
+  python3 volta_sonda.py sposta DA A ID SESSIONID --cartella DIR [--progetto SLUG] [--titolo NOME]
+      sposta una sessione in background sull'altra macchina A, con la stessa conversazione e lo stesso
+      sessionId (12/11/2026): i passi stanno in volta_sposta.py. Stessa risposta di nasci, o {errore}.
   python3 volta_sonda.py progetto MACCHINA SESSIONID -- SLUG
       il progetto che la persona dà a una sessione dalla finestra (#5292): scrive cache/scheda/SESSIONID.json
       su MACCHINA con fonte "persona", che hooks/scheda-terminale.py non riscrive e non toglie a fine
@@ -1326,6 +1329,11 @@ def main_copia(verbo, argv):
 
 
 def main(argv):
+    if argv and argv[0] == "sposta":
+        # lo spostamento fra macchine sta in volta_sposta.py, accanto a questo file
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import volta_sposta
+        return volta_sposta.main(argv[1:])
     if argv and argv[0] == "nasci":
         return main_nasci(argv[1:])
     if argv and argv[0] in COPIE:

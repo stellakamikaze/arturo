@@ -31,6 +31,9 @@ export function instrada(c) {
   // "guida" e "guida<N>": la guida, alla pagina N (da 1).
   if (/^guida\d?$/.test(c)) return { verbo: "guida", arg: Math.max(0, Number(dopo("guida") || 1) - 1), lungo: false };
   if (c === "nuova") return { verbo: "nuova", arg: null, lungo: true };
+  // "nuova-<esadecimale>": Nuova richiesta col testo scritto nella ricerca (⌘K, #5369), quattro cifre
+  // per carattere (comandoNuova di sessioni.js); la barra lo decodifica.
+  if (/^nuova-(?:[0-9a-f]{4})+$/.test(c)) return { verbo: "nuova", arg: dopo("nuova-"), lungo: true };
   // "dove-scelta": apre il selettore di "Nasce su" (prove senza clic). Viene prima di "dove-<macchina>".
   if (c === "dove-scelta") return { verbo: "dove-scelta", arg: null, lungo: false };
   // "dove-<macchina>": la scelta di "Nasce su" (dove-qui per questa macchina).
@@ -62,6 +65,10 @@ export function instrada(c) {
   // "volta-cambia-<nome|progetto>-<esadecimale>-<id>": il nome o il progetto nuovo di una sessione, dal
   // dialogo di cambio.js (#5292). L'argomento è il comando intero: lo legge cambiaComando di volta.js.
   if (c.startsWith("volta-cambia-")) return { verbo: "volta-cambia", arg: c, lungo: false };
+  // "volta-sposta-<macchina>-<id>": la sessione <id> su un'altra macchina (sposta.js). L'id non ha
+  // trattini, il nome di una macchina sì: l'id è l'ultimo pezzo.
+  const sp = /^volta-sposta-(.+)-([0-9A-Za-z]+)$/.exec(c);
+  if (sp) return { verbo: "volta-sposta", arg: { macchina: sp[1], id: sp[2] }, lungo: false };
   // "volta-gesto-<verbo>-<id>": un gesto di "Altro" o del menu.
   const g = /^volta-gesto-([a-z]+)-(.+)$/.exec(c);
   if (g) return { verbo: "volta-gesto", arg: { verbo: g[1], id: g[2] }, lungo: false };
