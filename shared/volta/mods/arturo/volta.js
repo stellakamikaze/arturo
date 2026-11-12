@@ -17,7 +17,7 @@ import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, writeTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals, spaces, window } from "herdr";
 import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, registroProva, daQuanto, ordineGiro, statoGiro, passoGiro, sessioneDi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto, GESTI_MAX, visibili, sparite, passoCongedo, chiusa } from "./sessioni.js";
-import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX } from "./sessioni.js";
+import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX, occupanti } from "./sessioni.js";
 import { ICONA, punto, colore, segno, motoDi, movimento } from "./comuni.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
 import { schedeDi } from "./dati.js";
@@ -183,8 +183,11 @@ export class Volta {
     // un'interattiva partita nella shell di una scheda; le altre schede sono di questa macchina.
     const qui = (this.dati.macchine ?? []).find((x) => x.questa)?.macchina ?? null;
     const dove = Object.fromEntries(Object.entries(adesso).map(([a, s]) => [a, s.questa ? qui : s.macchina]));
-    for (const s of this.dati.sessioni ?? []) if (s.questa && s.terminale && !(s.terminale in dove)) dove[s.terminale] = qui;
-    const m = { qui, schede: dove };
+    // chi gira davvero nel terminale vince sull'aggancio con cui la scheda è nata (occupanti)
+    const dentro = occupanti(this.dati.sessioni);
+    for (const a of Object.keys(dentro)) dove[a] = qui;
+    const occupate = Object.fromEntries(Object.entries(dentro).map(([a, s]) => [a, s.id]));
+    const m = { qui, schede: dove, occupate };
     if (JSON.stringify(m) !== JSON.stringify(shared("arturo.volta.dove") ?? null)) setShared("arturo.volta.dove", m);
     for (const c of via) this.congeda(c, cx);
     if (Object.keys(this.congedi()).length) this.passiCongedo(cx);

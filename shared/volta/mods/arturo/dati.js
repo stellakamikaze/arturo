@@ -2,7 +2,7 @@
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
 import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
-import { titolo, agganciata, titoloFork, casellaVuota, daPortare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell } from "./sessioni.js";
+import { titolo, agganciata, titoloFork, casellaVuota, daPortare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -251,6 +251,7 @@ export function schedaAgganciata(s) {
   for (const p of [...panes()].sort((a, b) => (b.tab === attiva) - (a.tab === attiva))) {
     if (!tabs.has(p.tab)) continue;
     const t = terminals().find((x) => x.address === p.terminal);
+    if (shared("arturo.volta.dove")?.occupate?.[p.terminal]) continue;  // ci gira un'altra sessione: occupataDaAltra
     if (Array.isArray(t?.argv) && t.argv.includes("attach")) {
       return { terminal: t.address, tab: p.tab, id: String(t.argv[t.argv.indexOf("attach") + 1] ?? "") };
     }
@@ -439,7 +440,7 @@ export const comando = (argv) => {
 export function schedeDi(s) {
   if (!s?.id) return [];
   const visti = new Set(panes().map((p) => p.terminal));
-  const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/"));
+  const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/") && !occupataDaAltra(x, s));
   const etichetta = l.filter((x) => x.labels?.[ETICHETTA] === s.id);
   return etichetta.concat(l.filter((x) => !etichetta.includes(x) && agganciata(x.argv, s)));
 }
@@ -452,7 +453,15 @@ export function schedeDi(s) {
 export function altrove(s) {
   if (!s?.id || schedeDi(s).length) return [];
   return terminals().filter((x) => !String(x.address).includes("/") && (x.state ?? "live") === "live" &&
-    (x.labels?.[ETICHETTA] === s.id || agganciata(x.argv, s)));
+    !occupataDaAltra(x, s) && (x.labels?.[ETICHETTA] === s.id || agganciata(x.argv, s)));
+}
+
+// Nel terminale gira adesso un'altra sessione interattiva (occupanti di sessioni.js, che volta.js mette
+// in shared arturo.volta.dove.occupate): etichetta e argv di nascita non valgono più. Il clic non la
+// porta davanti, non ci scrive l'aggancio e non la chiude come se fosse sua.
+function occupataDaAltra(x, s) {
+  const id = shared("arturo.volta.dove")?.occupate?.[x.address];
+  return Boolean(id) && id !== s.id;
 }
 
 // Stacca quei terminali: chiude l'aggancio, la sessione continua in background. Torna quanti erano.
@@ -480,8 +489,9 @@ export function schedeAgganciate(sessioni) {
   // anche le righe vecchie (macchina che non risponde): la scheda resta aperta, e senza la sua riga
   // la guardia del congedo la prenderebbe per chiusa
   const fondo = (sessioni ?? []).filter((s) => s.tipo === "background" && s.id);
+  const dentro = occupanti(sessioni);
   for (const x of terminals()) {
-    if (String(x.address).includes("/") || (x.state ?? "live") !== "live") continue;
+    if (String(x.address).includes("/") || (x.state ?? "live") !== "live" || dentro[x.address]) continue;
     const s = fondo.find((y) => x.labels?.[ETICHETTA] === y.id) ?? fondo.find((y) => agganciata(x.argv, y));
     if (s) out[x.address] = { sessionId: s.sessionId, id: s.id, host: s.host, macchina: s.macchina, questa: Boolean(s.questa), cartella: s.cartella ?? null, titolo: titolo(s) };
   }

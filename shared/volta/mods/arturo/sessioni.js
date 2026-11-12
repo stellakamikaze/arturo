@@ -323,14 +323,24 @@ export function passoGiro(ids, corrente, verso) {
   return ids[(i + (verso < 0 ? -1 : 1) + ids.length) % ids.length];
 }
 
-// La sessione che una scheda mostra: per l'etichetta di Herdr (hc label arturo.sessione), per l'argv
-// dell'aggancio, o perché è nata nella shell di quella scheda. null se la scheda non è di una sessione.
+// I terminali di questa macchina dove gira adesso una sessione interattiva (la sonda lo legge dal
+// processo, campo terminale): { indirizzo: sessione }. Vincono su etichetta e argv. Una scheda nata per
+// agganciare una sessione può ospitare dopo un'altra sessione, avviata a mano nella sua shell: allora
+// mostra quella, col suo progetto e la sua macchina (12/11/2026, Post Office al posto di Volta).
+export function occupanti(sessioni) {
+  const out = {};
+  for (const s of sessioni ?? []) if (s?.questa && s.tipo !== "background" && s.terminale) out[s.terminale] = s;
+  return out;
+}
+
+// La sessione che una scheda mostra: quella che ci gira (occupanti), poi l'etichetta di Herdr (hc label
+// arturo.sessione), poi l'argv dell'aggancio. null se la scheda non è di una sessione.
 export function sessioneDi(terminale, sessioni) {
   if (!terminale) return null;
   const l = sessioni ?? [];
-  return l.find((s) => s.id && terminale.labels?.["arturo.sessione"] === s.id)
-    ?? l.find((s) => agganciata(terminale.argv, s))
-    ?? l.find((s) => s.questa && s.terminale && s.terminale === terminale.address) ?? null;
+  return occupanti(l)[terminale.address]
+    ?? l.find((s) => s.id && terminale.labels?.["arturo.sessione"] === s.id)
+    ?? l.find((s) => agganciata(terminale.argv, s)) ?? null;
 }
 
 // Cosa fa il clic: { azione: "aggancia", argv } per una sessione in background, { azione: "porta" }
