@@ -115,6 +115,8 @@ export class Volta {
     this.congedo = {};     // sessionId -> true mentre un passo del congedo lavora
     this.entrano = new Map(); // sessionId -> { fase, ritardo } delle righe che entrano in dissolvenza (#5410)
     this.escono = {};      // sessionId -> true mentre la riga di una sessione in congedo si dissolve
+    this.noteScript = null; // volta_note.py, se c'è: le note della finestra uguali su tutte le macchine
+    this.noteInCorso = false;
     ridotto();
     cx.spawn(async (cx) => {
       // Il Python che installa-herdr.sh ha trovato e scritto in arturo.json: su Windows può essere "python".
@@ -125,6 +127,7 @@ export class Volta {
       // Un ponte rimasto da prima (mod ricaricato, Volta riaperta) si chiude: lo riaccende il primo giro.
       this.micScript = await esiste(`${appHome()}/mods/arturo/volta_microfono.py`);
       if (this.micScript) { try { await exec(this.py, [this.micScript, "spegni"], { timeout: 20000 }); } catch { /* niente ponte */ } }
+      this.noteScript = await esiste(`${appHome()}/mods/arturo/volta_note.py`);
       this.script = sc.elenco;
       this.sposta = sc.sposta;
       if (!this.script) return cx.notify();
@@ -380,6 +383,22 @@ export class Volta {
       this.inCorso = false;
       this.passiCongedo(cx);
       cx.notify();
+      this.sincronizzaNote(cx);
+    });
+  }
+
+  // Le note della finestra (⌘⇧N) dopo ogni giro dell'elenco: volta_note.py porta qui quelle delle altre
+  // macchine e di là quelle di qui (12/11/2026). Mai due giri insieme. Lo stato va fuori da ~/.cache/volta,
+  // che questa finestra guarda: scriverci farebbe rileggere l'elenco a ogni giro. testata.js vede le note
+  // nuove da solo, perché guarda la cartella delle note.
+  sincronizzaNote(cx) {
+    if (!this.noteScript || this.noteInCorso) return;
+    this.noteInCorso = true;
+    cx.spawn(async () => {
+      try {
+        await exec(this.py, [this.noteScript, "sincronizza", "--scrivi", `${home()}/.cache/volta-note/stato.json`], { timeout: 60000 });
+      } catch { /* il giro dopo riprova; l'esito sta in stato.json */ }
+      this.noteInCorso = false;
     });
   }
 

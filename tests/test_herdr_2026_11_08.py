@@ -102,7 +102,8 @@ HZ31 Rispondi, Risolta e Scarta del velo (#5117 passo 5): notaui.js li manda ad 
      motivo scarta il todo, e una nota già chiusa da Claude esce 2 col motivo.
 HZ32 il formato in due copie (#5117 passo 6): TIPI, TIPO_PREDEFINITO, STATI, APERTE e VUOTO di nota.js
      (node) e di bin/note_finestra.py dicono lo stesso; l'aiuto di arturo note e docs/volta.md
-     spiegano --chi e --json, e la guida parla a chi usa Arturo.
+     spiegano --chi e --json, e la guida parla a chi usa Arturo. Fra due note aperte con lo stesso numero
+     (nate su due macchine) lo tiene la più vecchia, uguale in noteAperte e in numerate.
 HZ33 "Trova i miei progetti" su ogni macchina (#5111, con node): il pulsante manda Claude al file di
      istruzioni nella cartella di Arturo, presa da arturo.json o, in un arturo.json di prima, dal bin
      (anche con le barre di Windows), mai da ~/.claude scritto a mano. Senza node il caso si salta.
@@ -1748,10 +1749,15 @@ def hz31(repo: Path, casa: Path) -> str | None:
     return None
 
 
+# Due note aperte con lo stesso numero, nate su due macchine (volta_note.py, 12/11/2026): lo tiene la più vecchia.
+DOPPIE = '[{"id": "x1", "numero": 1, "stato": "aperta", "progetto": "q", "quando": "2026-11-12T01:00:00Z"}, {"id": "x2", "numero": 1, "stato": "aperta", "progetto": "q", "quando": "2026-11-12T02:00:00Z"}, {"id": "x3", "numero": 2, "stato": "presa", "progetto": "q", "quando": "2026-11-12T03:00:00Z"}]'
+NUMERI_DOPPIE = [["x1", 1], ["x2", 3], ["x3", 2]]
+
 PROVA_FORMATO = r"""
 const m = await import(%s);
+const numeri = m.noteAperte(%s, "q").map((n) => [n.id, n.numero]).sort((a, b) => a[0].localeCompare(b[0]));
 console.log(JSON.stringify({ tipi: Object.fromEntries(m.TIPI.map((x) => [x.id, x.etichetta])),
-  predefinito: m.TIPO_PREDEFINITO, stati: m.STATI, aperte: [...m.APERTE], vuoto: m.VUOTO }));
+  predefinito: m.TIPO_PREDEFINITO, stati: m.STATI, aperte: [...m.APERTE], vuoto: m.VUOTO, numeri }));
 """
 
 FORMATO_PY = r"""
@@ -1759,8 +1765,9 @@ import importlib.util, json, sys
 s = importlib.util.spec_from_file_location("note_finestra", sys.argv[1])
 m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
 sys.stdout.reconfigure(encoding="utf-8")  # il banco legge in UTF-8 anche su Windows (#5166)
+numeri = sorted([n["id"], n["numero"]] for n in m.numerate(json.loads(sys.argv[2])) if n["stato"] in m.APERTE)
 print(json.dumps({"tipi": m.TIPI, "predefinito": m.TIPO_PREDEFINITO, "stati": m.STATI,
-                  "aperte": list(m.APERTE), "vuoto": m.VUOTO}, ensure_ascii=False))
+                  "aperte": list(m.APERTE), "vuoto": m.VUOTO, "numeri": numeri}, ensure_ascii=False))
 """
 
 
@@ -1776,17 +1783,19 @@ def hz32(repo: Path, casa: Path) -> str | None:
                 return f"{dove} non spiega {pezzo}"
     if "dice a Federico" in guida:
         return "la guida parla a Federico invece che a chi usa Arturo"
-    py = subprocess.run([sys.executable, "-c", FORMATO_PY, str(repo / "bin/note_finestra.py")],
+    py = subprocess.run([sys.executable, "-c", FORMATO_PY, str(repo / "bin/note_finestra.py"), DOPPIE],
                         capture_output=True, text=True, timeout=30)
     if py.returncode != 0:
         return f"note_finestra.py non si carica: {(py.stderr or py.stdout).strip()[-160:]}"
     lato_py = json.loads(py.stdout)
+    if lato_py["numeri"] != NUMERI_DOPPIE:
+        return f"due note aperte con lo stesso numero: note_finestra.py dà {lato_py['numeri']}, la più nuova prende il primo libero"
     node = shutil.which("node")
     if not node:
         return None
     copia = casa / "nota.mjs"
     shutil.copyfile(repo / "shared/volta/mods/arturo/nota.js", copia)
-    r = subprocess.run([node, "--input-type=module", "-e", PROVA_FORMATO % json.dumps(copia.as_uri())],
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_FORMATO % (json.dumps(copia.as_uri()), DOPPIE)],
                        capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
         return f"nota.js non gira: {(r.stderr or r.stdout).strip()[:160]}"

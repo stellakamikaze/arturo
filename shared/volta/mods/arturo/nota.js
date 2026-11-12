@@ -246,13 +246,16 @@ export function leggiNota(testo, id) {
 
 // Le note aperte o prese di un progetto, nell'ordine dei numeri. Una nota senza numero (versione 1) prende
 // il primo libero, nell'ordine in cui è nata, così ogni segno ha un numero e due segni non lo dividono.
+// Due note nate su due macchine possono avere lo stesso numero (volta_note.py le porta l'una dall'altra):
+// lo tiene la più vecchia, la più nuova prende il primo libero.
 export function noteAperte(lista, progetto) {
   const qui = (lista ?? []).filter((n) => n && APERTE.has(n.stato) && (n.progetto || null) === (progetto || null))
     .sort((a, b) => String(a.quando ?? a.id).localeCompare(String(b.quando ?? b.id)));
   const presi = new Set(qui.map((n) => n.numero).filter(Number.isInteger));
+  const tenuti = new Set();
   let libero = 1;
   const out = qui.map((n) => {
-    if (Number.isInteger(n.numero)) return n;
+    if (Number.isInteger(n.numero) && !tenuti.has(n.numero)) { tenuti.add(n.numero); return n; }
     while (presi.has(libero)) libero++;
     presi.add(libero);
     return { ...n, numero: libero };

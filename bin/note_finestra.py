@@ -139,7 +139,8 @@ def tutte() -> list:
 
 def numerate(lista: list) -> list:
     """Come noteAperte() di nota.js, per ogni progetto: una nota aperta senza numero prende il primo libero,
-    nell'ordine in cui è nata. Ritorna la lista con i numeri messi; le chiuse restano senza numero."""
+    nell'ordine in cui è nata; fra due aperte con lo stesso numero (nate su due macchine) lo tiene la più
+    vecchia e l'altra prende il primo libero. Ritorna la lista con i numeri messi; le chiuse restano senza numero."""
     per_progetto = {}
     for n in lista:
         if n["stato"] in APERTE:
@@ -148,9 +149,11 @@ def numerate(lista: list) -> list:
     for qui in per_progetto.values():
         qui.sort(key=lambda n: str(n.get("quando") or n["id"]))
         presi = {n["numero"] for n in qui if n["numero"] is not None}
+        tenuti = set()
         libero = 1
         for n in qui:
-            if n["numero"] is not None:
+            if n["numero"] is not None and n["numero"] not in tenuti:
+                tenuti.add(n["numero"])
                 numeri[n["id"]] = n["numero"]
                 continue
             while libero in presi:
