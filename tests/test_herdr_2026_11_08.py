@@ -1287,7 +1287,7 @@ def hz22(repo: Path, casa: Path) -> str | None:
         return f"su Windows un tasto di Arturo è già di Herdr: {r.stdout.strip()[-200:]}"
     if win.get("ctrl-shift-a") != "arturo.apri" or win.get("ctrl-shift-m") != "arturo.nota":
         return f"su Windows mancano Ctrl+Shift+A e Ctrl+Shift+M: {win}"
-    voluti = {"ctrl-down": "arturo.volta-giro-avanti", "ctrl-up": "arturo.volta-giro-indietro", "ctrl-w": "tab.close"}
+    voluti = {"ctrl-down": "arturo.volta-giro-avanti", "ctrl-up": "arturo.volta-giro-indietro", "ctrl-w": "arturo.volta-chiudi"}
     if {k: win.get(k) for k in voluti} != voluti:
         return f"su Windows Ctrl+↓, Ctrl+↑ e Ctrl+W non fanno quello che fanno ⌘↓, ⌘↑ e ⌘W sul Mac: {win}"
     if any(k.startswith("cmd-") for k in win):
@@ -1379,7 +1379,7 @@ console.log(JSON.stringify({
 def hz26(repo: Path, casa: Path) -> str | None:
     mod = repo / "shared/volta/mods/arturo"
     main = (mod / "main.js").read_text(encoding="utf-8")
-    if '"marchio", "barra", "piede", "testata", "todo", "stato", "benvenuto"' not in main \
+    if '"marchio", "barra", "piede", "testata", "schede", "todo", "stato", "benvenuto"' not in main \
             or "if (!MISURATE.has(this.nome) || !el?.on_size_change) return el;" not in main \
             or "return el.id(`misura-${this.nome}`).on_size_change(" not in main or "arturo.misura.${this.nome}" not in main:
         return "main.js non fa riportare la misura alle parti del layout"
@@ -2595,7 +2595,7 @@ def hz39(repo: Path, casa: Path) -> str | None:
         return "il benvenuto non mostra Nasce su, ma la sua Nuova richiesta la segue"
     # #5072: barra, testata e todo leggono lo stato di uno spazio da statoSpazio(), anche agganciato
     dj = (mod / "dati.js").read_text(encoding="utf-8")
-    for file, pezzo in (("dati.js", "stato: statoSpazio(s)"), ("testata.js", "const st = statoSpazio(s);"),
+    for file, pezzo in (("dati.js", "stato: statoSpazio(s)"), ("testata.js", "const st = statoScheda(s, tab);"),
                         ("todo.js", "statoSpazio(spazio(p))"), ("todo.js", "    const st = statoSpazio(s);"),
                         ("barra.js", '|| Object.values(statiQui()).includes("aspetta")'), ("barra.js", "`|${JSON.stringify(statiQui())}|")):
         if pezzo not in (dj if file == "dati.js" else (mod / file).read_text(encoding="utf-8")):
@@ -3206,10 +3206,10 @@ def hz49(repo: Path, casa: Path) -> str | None:
     if inizio < 0 or fine < inizio:
         return "volta.js non ha riga() prima di interruttore()"
     corpo = vj[inizio:fine]
-    for pezzo, perche in (('const rm = az.find((a) => a.verbo === "rm");', "la X non nasce dal gesto rm di azioni()"),
-                          ("const vediX = Boolean(rm) && (this.sopra === k || chiedoRm || facciorm);", "la X non segue il puntatore"),
+    for pezzo, perche in (("const xa = xRiga(s);", "la X non nasce da xRiga() di sessioni.js"),
+                          ("const vediX = Boolean(xa) && (this.sopra === k || chiedoX || faccioX);", "la X non segue il puntatore"),
                           (".when(!vediX, (el) => el.invisible())", "la X nascosta non tiene il suo posto"),
-                          (".on_click((_e, cx) => this.fare(s, rm, cx))", "il clic sulla X non passa da fare() con la conferma"),
+                          (".on_click((_e, cx) => this.fare(s, xa, cx))", "il clic sulla X non passa da fare() con la conferma"),
                           ('ICONA("x")', "manca l'icona x"),
                           (".on_hover((h, cx) =>", "la riga non segue il puntatore"),
                           (".when(Boolean(x), (el) => el.child(x))", "la riga non mostra la X")):
@@ -3561,6 +3561,8 @@ const verbi = (s) => m.menu(s).map((a) => a.verbo + (a.conferma ? "!" : ""));
 console.log(JSON.stringify({
   lavora: verbi(bg("lavora")), ferma: verbi(bg("ferma")), errore: verbi(bg("errore")),
   interattiva: verbi({ ...bg("ferma"), tipo: "interattiva" }), vecchia: verbi(bg("ferma", { vecchia: true })), niente: verbi(null),
+  conProgetto: verbi(bg("lavora", { progetto: "deck" })),
+  x: [m.xRiga(bg("lavora")), m.xRiga(bg("errore")), m.xRiga({ ...bg("ferma"), tipo: "interattiva" }), m.xRiga(bg("ferma", { vecchia: true }))].map((a) => a ? a.verbo + (a.conferma ? "!" : "") : null),
   testi: m.menu(bg("errore")).filter((a) => a.verbo !== "respawn").map((a) => a.testo), solo: [...m.SOLO_MENU].sort(),
   fork: [m.titoloFork({ titolo: "Rifare il deck" }), m.titoloFork({ titolo: "x".repeat(80) }).length],
 }));
@@ -3613,11 +3615,14 @@ def hz54(repo: Path, casa: Path) -> str | None:
     if r.returncode != 0:
         return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
     d = json.loads(r.stdout.strip().splitlines()[-1])
-    cambi = ["rinomina", "progetto"]  # Rinomina e Cambia progetto (#5292, caso HZ59)
-    voci = {"lavora": ["apri", "chiudi", "duplica", "fork", *cambi, "logs"], "ferma": ["apri", "chiudi", "duplica", "fork", *cambi, "logs"],
-            "errore": ["apri", "chiudi", "duplica", "fork", *cambi, "logs", "respawn", "rm!"], "interattiva": ["apri", "duplica", "fork", *cambi],
-            "vecchia": [], "niente": [], "testi": ["Apri", "Chiudi", "Duplica", "Fork", "Rinomina", "Cambia progetto", "Anteprima", "Elimina"],
-            "solo": ["apri", "chiudi", "duplica", "fork", "progetto", "rinomina"], "fork": ["Rifare il deck (fork)", 60]}
+    # 12/11/2026 notte: copiare e spostare (Sposta in un progetto è il "taglia"), poi nome e contesto,
+    # poi Chiudi con /fine (non su una in errore: lì c'è Elimina); la X della riga viene da xRiga()
+    primi = ["apri", "duplica", "fork", "progetto", "rinomina"]
+    voci = {"lavora": [*primi, "chiudi", "logs"], "ferma": [*primi, "chiudi", "logs"],
+            "errore": [*primi, "logs", "respawn", "rm!"], "interattiva": primi, "conProgetto": [*primi, "contesto", "chiudi", "logs"],
+            "vecchia": [], "niente": [], "testi": ["Apri", "Duplica", "Fork", "Sposta in un progetto…", "Rinomina…", "Anteprima", "Elimina"],
+            "solo": ["apri", "chiudi", "contesto", "duplica", "fork", "progetto", "rinomina"], "fork": ["Rifare il deck (fork)", 60],
+            "x": ["chiudi!", "rm!", None, None]}
     for k, v in voci.items():
         if d.get(k) != v:
             return f"menu di sessioni.js, {k}: {d.get(k)}, atteso {v}"
@@ -4087,7 +4092,7 @@ def hz59(repo: Path, casa: Path) -> str | None:
         ("volta.js", "nomiProgetti().catch(() => []).then((l) => apriCambio(s, cosa, progettiNoti(this.dati, l)));", "il dialogo del progetto non riceve i progetti noti"),
         ("barra.js", 'else if (c === "volta-cambia") this.volta.cambiaComando(arg, cx);', "barra.js non legge il comando del cambio"),
         ("main.js", "cambio: Cambio,", "main.js non monta il dialogo del cambio"),
-        ("menusessione.js", "const cambi = this.voci.filter((v) => v.verbo in CAMBIA);", "il menu non mostra Rinomina e Cambia progetto"),
+        ("menusessione.js", "const cambi = this.voci.filter((v) => GRUPPI_MENU[1].includes(v.verbo));", "il menu non mostra Rinomina e Contesto nel secondo gruppo"),
         ("menusessione.js", ".when(cambi.length > 0, (el) => el.child(gruppo(cambi)))", "il menu non disegna il gruppo di Rinomina e Cambia progetto"),
         ("cambio.js", 'openOverlay({ mod: "arturo", props: { parte: "cambio", sessione: s, cosa, noti }, kind: "dialog"', "il cambio non è un dialogo del mod"),
         ("cambio.js", "    run(comandoCambio(this.s, this.cosa, valore));\n    this.chiudi();", "il dialogo si chiude prima di mandare il cambio"),
@@ -6135,7 +6140,7 @@ def hz82(repo: Path, casa: Path) -> str | None:
     attesi2 = dict(miei, **{fonte[i][0]: fonte[i][1] for i in range(3)})
     # i due tasti del giro fra le sessioni (HZ86) entrano perché in questo keys.json sono liberi
     giro = {k: v for k, v in leggi(vc / ("keys.json" if sys.platform == "darwin" else "keys-ctrl.json")).get("global", {}).items()
-            if v.startswith("arturo.volta-giro-")}
+            if v.startswith("arturo.volta-giro-") or v == "arturo.volta-chiudi"}
     attesi2.update(giro)
     # i tasti di serie di Herdr che questo keys.json non ha entrano, sotto quelli già presenti (#5369)
     serie = leggi(vc / ("keys-herdr-macos.json" if sys.platform == "darwin" else "keys-herdr.json"))
@@ -6752,11 +6757,11 @@ def hz90(repo: Path, casa: Path) -> str | None:
         return "la barra ha ancora la sezione dei progetti aperti"
     if 'v_flex().id("volta").flex_1().min_h(0)' not in volta or "tetti(" in volta or 'child("Tutte le sessioni")' in volta:
         return "l'elenco di Volta non prende tutta l'altezza della colonna"
-    if ".when(progetto, (el) => el.on_click(() => apriProgetto(g.chiave)))" not in volta:
+    if ".when(progetto, (el) => el.on_click(() => apriProgetto(g.chiave))\n" not in volta:
         return "l'intestazione di un gruppo per progetto non apre il progetto"
     if 'bottone("chiedi"' in testata or 'bottone("altra"' in testata:
         return "la testata ha ancora Cosa posso chiedere o Altra conversazione"
-    if 'shared("arturo.volta.dove")' not in testata or "testata-macchina" not in testata or "const macchina = tab ? (dv?.schede?.[term] ?? dv?.qui ?? null) : null;" not in testata:
+    if 'shared("arturo.volta.dove")' not in testata or "testata-dove" not in testata or "const macchina = tab ? (dv?.schede?.[term] ?? dv?.qui ?? null) : null;" not in testata:
         return "la testata non dice la macchina della sessione"
     if 'setShared("arturo.volta.dove", m)' not in volta:
         return "volta.js non pubblica la macchina delle schede"
@@ -7453,7 +7458,7 @@ VELENI = [
     ('HZ90', 'shared/volta/mods/arturo/sessioni.js', '  const dove = modo === "progetto" ? macchinaBreve(s.macchina) :', '  const dove = modo === "progetto" ? s.macchina :'),
     ('HZ90', 'shared/volta/mods/arturo/testata.js', '      .child(bottone("dafare"', '      .child(bottone("altra", "plus", "Altra conversazione", () => run("arturo.volta-nuova")))\n      .child(bottone("dafare"'),
     ('HZ90', 'shared/volta/mods/arturo/testata.js', '    const macchina = tab ? (dv?.schede?.[term] ?? dv?.qui ?? null) : null;', '    const macchina = null;'),
-    ('HZ90', 'shared/volta/mods/arturo/volta.js', '        .when(progetto, (el) => el.on_click(() => apriProgetto(g.chiave)))', ''),
+    ('HZ90', 'shared/volta/mods/arturo/volta.js', '(el) => el.on_click(() => apriProgetto(g.chiave))\n', '(el) => el\n'),
     ('HZ91', 'shared/volta/mods/arturo/sessioni.js', '  if (noto) return noto;', ''),
     ('HZ91', 'shared/volta/mods/arturo/sessioni.js', '    for (const s of righe) metti(chiaveProgetto(s.progetto), nomeProgetto(s.progetto), s);', '    for (const s of righe) metti(s.progetto ? String(s.progetto) : "", nomeProgetto(s.progetto), s);'),
     ('HZ91', 'shared/volta/mods/arturo/sessioni.js', '  const nomi = (p) => [p, slugDi(nomeProgetto(p))];', '  const nomi = (p) => [p];'),
@@ -7469,7 +7474,7 @@ VELENI = [
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    if argv and argv[0] == "inizia":\n', '    if False:\n'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '"chiusa": fondo and not s.get("pid") and not s.get("status") and stato(s) != "errore",', '"chiusa": False,'),
     ('HZ89', 'shared/volta/mods/arturo/volta.js', '    chiudiSchede(s);\n    this.congeda(s, cx);', '    chiudiSchede(s);\n    azioneSessione(s, "stop");'),
-    ('HZ89', 'shared/volta/mods/arturo/dati.js', '    segnaTolto(t.address);\n    if (panes()', '    if (panes()'),
+    ('HZ89', 'shared/volta/mods/arturo/dati.js', '    segnaTolto(t.address);\n    // confirmed:', '    // confirmed:'),
     ('HZ87', 'shared/volta/mods/arturo/dati.js', 'const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/") && !occupataDaAltra(x, s));', 'const l = terminals().filter((x) => visti.has(x.address) && !occupataDaAltra(x, s));'),
     ('HZ87', 'shared/volta/mods/arturo/dati.js', '  if (riavviata || m?.fermo) return fallita(m);', '  if (riavviata) return fallita(m);'),
     ('HZ87', 'shared/volta/mods/arturo/dati.js', '  if (riavviata || m?.fermo) return fallita(m);', '  if (riavviata || m) return fallita(m);'),
@@ -7493,7 +7498,7 @@ VELENI = [
     ("HZ86", "shared/volta/mods/arturo/sessioni.js", "    return vista.concat(g.sessioni.filter((s) => !vista.includes(s)));", "    return vista;"),
     ("HZ86", "shared/volta/mods/arturo/sessioni.js", '    .filter((s) => s.stato !== "ferma" || !s.fineFatta || conScheda.has(s.sessionId))\n', ""),
     ("HZ86", "shared/volta/mods/arturo/sessioni.js", '.filter((s) => s.stato !== "ferma" || !s.fineFatta || conScheda.has(s.sessionId))', '.filter((s) => s.stato !== "ferma" || conScheda.has(s.sessionId))'),
-    ("HZ22", "shared/volta/keys-ctrl.json", '"ctrl-w": "tab.close"', '"ctrl-shift-x": "tab.close"'),
+    ("HZ22", "shared/volta/keys-ctrl.json", '"ctrl-w": "arturo.volta-chiudi"', '"ctrl-w": "tab.close"'),
     ("HZ86", "shared/volta/mods/arturo/volta.js", "    if (s) { this.scopri(s); this.premi(s, cx); }", "    if (s) this.premi(s, cx);"),
     ("HZ86", "shared/volta/mods/arturo/sessioni.js", '  return occupanti(l)[terminale.address]\n    ?? l.find(', '  return l.find('),
     ('HZ83', 'shared/volta/mods/arturo/sessioni.js', '  return t ? t[0].toUpperCase() + t.slice(1) : SENZA;', '  return t[0].toUpperCase() + t.slice(1);'),
@@ -7907,7 +7912,8 @@ VELENI = [
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'if (statoAgganciata(g) === "blocked") return notify', 'if (false) return notify'),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'const g = a || !s ? null : schedaAgganciata(s);', 'const g = null;'),
     ("HZ39", "shared/volta/mods/arturo/dati.js", 'stato: statoSpazio(s)', 'stato: s?.status ?? null'),
-    ("HZ39", "shared/volta/mods/arturo/testata.js", 'const st = statoSpazio(s);', 'const st = s?.status;'),
+    ("HZ39", "shared/volta/mods/arturo/testata.js", 'const st = statoScheda(s, tab);', 'const st = s?.status;'),
+    ("HZ39", "shared/volta/mods/arturo/dati.js", '  return tab?.status ?? statoAgganciata(schedaAgganciata(s)) ?? s.status ?? null;', '  return s.status ?? null;'),
     ("HZ39", "shared/volta/mods/arturo/todo.js", 'statoSpazio(spazio(p))', 'spazio(p)?.status'),
     ("HZ39", "shared/volta/mods/arturo/todo.js", '    const st = statoSpazio(s);', '    const st = s.status;'),
     ("HZ39", "shared/volta/mods/arturo/barra.js", '|| Object.values(statiQui()).includes("aspetta")', ''),
@@ -7959,9 +7965,9 @@ VELENI = [
     ("HZ47", "shared/volta/mods/arturo/volta.js", ".when(Boolean(avviso) && !aperto, (el)", ".when(Boolean(avviso), (el)"),
     ("HZ48", "shared/volta/mods/arturo/volta_sonda.py", 'lavoro = s.get("id") if fondo else None', "lavoro = None"),
     ("HZ48", "shared/volta/mods/arturo/volta_sonda.py", 'corto = lavoro if isinstance(lavoro, str)', 'corto = sid[:8] if isinstance(lavoro, str)'),
-    ("HZ49", "shared/volta/mods/arturo/volta.js", 'const rm = az.find((a) => a.verbo === "rm");', 'const rm = az.find((a) => a.verbo === "stop");'),
-    ("HZ49", "shared/volta/mods/arturo/volta.js", "const vediX = Boolean(rm) && (this.sopra === k || chiedoRm || facciorm);", "const vediX = Boolean(rm);"),
-    ("HZ49", "shared/volta/mods/arturo/volta.js", ".on_click((_e, cx) => this.fare(s, rm, cx))", ""),
+    ("HZ49", "shared/volta/mods/arturo/volta.js", 'const xa = xRiga(s);', 'const xa = null;'),
+    ("HZ49", "shared/volta/mods/arturo/volta.js", "const vediX = Boolean(xa) && (this.sopra === k || chiedoX || faccioX);", "const vediX = Boolean(xa);"),
+    ("HZ49", "shared/volta/mods/arturo/volta.js", ".on_click((_e, cx) => this.fare(s, xa, cx))", ""),
     ("HZ50", "shared/volta/mods/arturo/barra.js", '.child(voce("note", "pin", "Note", () => apriElenco())', '.child(voce("note", "pin", "Note", () => apriGuida())'),
     ("HZ50", "shared/volta/layouts/arturo.json", '"px": 192', '"px": 156'),
     ("HZ51", "shared/volta/mods/arturo/sessioni.js", "].sort((a, b) => tempo(b) - tempo(a) || titolo(a)", "].sort((a, b) => tempo(a) - tempo(b) || titolo(a)"),
@@ -7994,16 +8000,18 @@ VELENI = [
     ('HZ53', 'shared/volta/keys.json', '"cmd-t": "arturo.casa"', '"cmd-t": "arturo.volta-nuova"'),
     ('HZ53', 'shared/volta/keys-ctrl.json', '"ctrl-shift-t": "arturo.casa"', '"ctrl-shift-y": "arturo.casa"'),
     ('HZ53', 'shared/volta/installa-herdr.sh', 'if k in mia and mia[k] != v and mia[k] not in PRENDE.get(v, ()):', 'if k in mia and mia[k] != v:'),
-    ('HZ53', 'shared/volta/installa-herdr.sh', '"arturo.casa": ("tab.new", "arturo.volta-nuova")}', '"arturo.casa": ("tab.new",)}'),
+    ('HZ53', 'shared/volta/installa-herdr.sh', '"arturo.casa": ("tab.new", "arturo.volta-nuova"),', '"arturo.casa": ("tab.new",),'),
     ('HZ53', 'shared/volta/installa-herdr.sh', 'mia[k] not in PRENDE.get(v, ()):', 'v not in PRENDE:'),
     ('HZ53', 'shared/volta/mods/arturo/barra.js', '    else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());\n', ''),
-    ('HZ22', 'shared/volta/installa-herdr.sh', 'PRENDE = {"arturo.volta-nuova": ("tab.new",), "arturo.casa": ("tab.new", "arturo.volta-nuova")}', 'PRENDE = {}'),
-    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', 'if (s.tipo === "background") out.push({ verbo: "chiudi", testo: "Chiudi" });', 'out.push({ verbo: "chiudi", testo: "Chiudi" });'),
+    ('HZ22', 'shared/volta/installa-herdr.sh', 'PRENDE = {"arturo.volta-nuova": ("tab.new",), "arturo.casa": ("tab.new", "arturo.volta-nuova"),', 'PRENDE = {'),
+    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', 'if (s.tipo === "background" && !chiusa(s) && s.stato !== "errore") out.push({ verbo: "chiudi", testo: "Chiudi con /fine" });', 'out.push({ verbo: "chiudi", testo: "Chiudi con /fine" });'),
+    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', '  if (rm) return { ...rm, aiuto: "Elimina la sessione" };\n', ''),
+    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', '  if (s.progetto) out.push({ verbo: "contesto", testo: "Contesto del progetto" });\n', ''),
     ('HZ54', 'shared/volta/mods/arturo/sessioni.js', 'if (!s || s.vecchia) return [];\n  const out = [{ verbo: "apri"', 'if (!s) return [];\n  const out = [{ verbo: "apri"'),
     ('HZ54', 'shared/volta/mods/arturo/sessioni.js', 'return out.concat(azioni(s).filter((a) => a.verbo !== "stop"));', 'return out.concat(azioni(s));'),
     ('HZ54', 'shared/volta/mods/arturo/sessioni.js', '.slice(0, 53).trim()} (fork)`', '.slice(0, 53).trim()} (copia)`'),
     ('HZ54', 'shared/volta/mods/arturo/sessioni.js', '`${titolo(s).slice(0, 53).trim()} (fork)`', '`${titolo(s)} (fork)`'),
-    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', 'out.push({ verbo: "duplica", testo: "Duplica" }, { verbo: "fork", testo: "Fork" });', 'out.push({ verbo: "duplica", testo: "Duplica" });'),
+    ('HZ54', 'shared/volta/mods/arturo/sessioni.js', '{ verbo: "duplica", testo: "Duplica" }, { verbo: "fork", testo: "Fork" },', '{ verbo: "duplica", testo: "Duplica" },'),
     ('HZ54', 'shared/volta/mods/arturo/dati.js', '...(copia?.verbo === "fork" ? [copia.sessionId] : []),', ''),
     ('HZ54', 'shared/volta/mods/arturo/dati.js', '...(copia?.cartella ? ["--cartella", copia.cartella] : []),', ''),
     ('HZ54', 'shared/volta/mods/arturo/dati.js', '...(copia?.titolo ? ["--titolo", copia.titolo] : []),', ''),
@@ -8011,7 +8019,7 @@ VELENI = [
     ('HZ54', 'shared/volta/mods/arturo/dati.js', 'return nasciSu(s.host ?? "qui", "", s.progetto', 'return nasciSu(dove(), "", s.progetto'),
     ('HZ54', 'shared/volta/mods/arturo/dati.js', '{ verbo: fork ? "fork" : "duplica", sessionId: s.sessionId,', '{ verbo: fork ? "fork" : "duplica", sessionId: s.id,'),
     ('HZ54', 'shared/volta/mods/arturo/dati.js', 'fork ? titoloFork(s).slice(0, 40) : "Nuova sessione",', '"Nuova sessione",'),
-    ('HZ54', 'shared/volta/mods/arturo/dati.js', 'if (panes().filter((x) => x.tab === p.tab).length === 1) run("tab.close", { id: p.tab });', 'if (true) run("tab.close", { id: p.tab });'),
+    ('HZ54', 'shared/volta/mods/arturo/dati.js', 'if (panes().filter((x) => x.tab === p.tab).length === 1) run("tab.close", { id: p.tab, confirmed: true });', 'if (true) run("tab.close", { id: p.tab, confirmed: true });'),
     ('HZ54', 'shared/volta/mods/arturo/dati.js', '    else run("terminal.kill", { terminal: t.address });\n', '    else run("tab.close", { id: p.tab });\n'),
     ('HZ54', 'shared/volta/mods/arturo/dati.js', '      return v.errore ? dico("La sessione è nata, ma non si apre", v.errore) : { ok: true, id: nata.id };\n', ''),
     ('HZ54', 'shared/volta/mods/arturo/volta.js', '      .on_mouse_down("right", (_e, cx) => { if (apriMenuSessione(s)) cx.stop_propagation(); })\n', ''),
@@ -8025,7 +8033,7 @@ VELENI = [
     ('HZ54', 'shared/volta/mods/arturo/main.js', 'sessione: MenuSessione, ', ''),
     ('HZ54', 'shared/volta/mods/arturo/menusessione.js', '    run(comandoGesto(this.s, v));\n    this.chiudi();', '    this.chiudi();\n    run(comandoGesto(this.s, v));'),
     ('HZ54', 'shared/volta/mods/arturo/menusessione.js', '`arturo.volta-gesto-${v.verbo}-${s.id}`', '`arturo.volta-fai-${v.verbo}-${s.id}`'),
-    ('HZ54', 'shared/volta/mods/arturo/menusessione.js', 'kind: "popup", width: 230', 'kind: "dialog", width: 230'),
+    ('HZ54', 'shared/volta/mods/arturo/menusessione.js', 'props: { parte: "sessione", sessione: s }, kind: "popup", width: 230', 'props: { parte: "sessione", sessione: s }, kind: "dialog", width: 230'),
     ('HZ54', 'shared/volta/mods/arturo/menusessione.js', 'this.voci = menu(this.s);', 'this.voci = [];'),
     ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', 'argv += ["--resume", a["riprendi"]] + ([] if a.get("stessa") else ["--fork-session"])', 'argv += ["--resume", a["riprendi"]]'),
     ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', 'if a.get("riprendi") and not qui:', 'if False:'),
@@ -8060,7 +8068,7 @@ VELENI = [
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '            if tit.get("fonte") == "persona" and not tit.get("portato"):', '            if tit.get("fonte") == "persona":'),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '            if tit.get("fonte") == "persona" and not tit.get("portato"):', '            if not tit.get("portato"):'),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '                "daPortare": s.get("daPortare") if isinstance(s.get("daPortare"), str) else None,\n', ''),
-    ("HZ58", "hooks/titolo-sessione.py", '    if salvato.get("fonte") == "persona" and salvato.get("titolo"):\n        return 0  # il nome l\'ha scritto la persona: il modello non lo riscrive\n', ''),
+    ("HZ58", "hooks/titolo-sessione.py", '    vuole_titolo = not persona and not (', '    vuole_titolo = not ('),
     ("HZ58", "hooks/titolo-sessione.py", '            if leggi(f).get("fonte") == "persona" and viva(f.stem):\n                continue\n', ''),
     ("HZ58", "hooks/titolo-sessione.py", '            if leggi(f).get("fonte") == "persona" and viva(f.stem):', '            if leggi(f).get("fonte") == "persona":'),
     ("HZ58", "hooks/titolo-sessione.py", '            if adesso - f.stat().st_mtime <= VECCHIO:\n                continue\n', ''),
@@ -8069,7 +8077,7 @@ VELENI = [
     ("HZ58", "hooks/scheda-terminale.py", '    if not progetto and evento == "PostToolUse" and not persona:', '    if evento == "PostToolUse":'),
     ("HZ58", "hooks/scheda-terminale.py", '        if not persona:\n            try:\n                f.unlink()', '        if True:\n            try:\n                f.unlink()'),
     ("HZ58", "hooks/scheda-terminale.py", '        if not persona:\n            try:\n                f.unlink()', '        if False:\n            try:\n                f.unlink()'),
-    ("HZ54", "shared/volta/mods/arturo/sessioni.js", '  out.push({ verbo: "rinomina", testo: "Rinomina" }, { verbo: "progetto", testo: "Cambia progetto" });\n', ''),
+    ("HZ54", "shared/volta/mods/arturo/sessioni.js", '{ verbo: "progetto", testo: "Sposta in un progetto…" }, { verbo: "rinomina", testo: "Rinomina…" }];', '];'),
     ("HZ59", "shared/volta/mods/arturo/sessioni.js", '.replace(/\\s+/g, " ").trim().slice(0, 60).trim();', '.trim();'),
     ("HZ59", "shared/volta/mods/arturo/sessioni.js", '.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")\n', '\n'),
     ("HZ59", "shared/volta/mods/arturo/sessioni.js", '.padStart(4, "0")).join("");', ').join("");'),
@@ -8120,7 +8128,7 @@ VELENI = [
     ("HZ59", "shared/volta/mods/arturo/barra.js", '    else if (c === "volta-cambia") this.volta.cambiaComando(arg, cx);\n', ''),
     ("HZ59", "shared/volta/mods/arturo/main.js", 'macchina: SceltaMacchina, cambio: Cambio, nuovo: Nuovo,', 'macchina: SceltaMacchina, nuovo: Nuovo,'),
     ("HZ59", "shared/volta/mods/arturo/menusessione.js", '      .when(cambi.length > 0, (el) => el.child(gruppo(cambi)))\n', ''),
-    ("HZ59", "shared/volta/mods/arturo/menusessione.js", 'const cambi = this.voci.filter((v) => v.verbo in CAMBIA);', 'const cambi = [];'),
+    ("HZ59", "shared/volta/mods/arturo/menusessione.js", 'const cambi = this.voci.filter((v) => GRUPPI_MENU[1].includes(v.verbo));', 'const cambi = [];'),
     ("HZ59", "shared/volta/mods/arturo/cambio.js", '    run(comandoCambio(this.s, this.cosa, valore));\n    this.chiudi();', '    this.chiudi();\n    run(comandoCambio(this.s, this.cosa, valore));'),
     ("HZ59", "shared/volta/mods/arturo/cambio.js", '    if (this.cosa === "progetto" && !valore) return;\n', ''),
     ("HZ59", "shared/volta/mods/arturo/cambio.js", '    this.input.on("submit", () => this.conferma());\n', ''),
