@@ -1,8 +1,8 @@
 // Pezzi d'interfaccia comuni alle parti.
 
 import { div, svg } from "gpui-kit";
-import { h_flex } from "gpui-base";
-import { theme, openOverlay, window, exec, home, setShared } from "herdr";
+import { h_flex, v_flex } from "gpui-base";
+import { theme, props, openOverlay, closeOverlay, window, exec, home, setShared } from "herdr";
 import { cartellaNota } from "./nota.js";
 import { altreMacchine, dove, nomeMacchina, inNascita } from "./dati.js";
 
@@ -33,24 +33,63 @@ export function pulsante(id, icona, testo, azione, forte = false) {
 
 export const colore = (t, nome) => t[nome] ?? nome;
 
-// "Nasce su": la macchina dove nascono Nuova richiesta e Apri un progetto (#5172 passo 4), nella barra
-// e nella finestra Apri. Niente riga se Volta non conosce altre macchine con Claude. Durante una
-// nascita dice dove sta nascendo.
+// "Nasce su": la macchina dove nascono Nuova richiesta e Apri un progetto (#5172 passo 4), nella barra,
+// nella testata e nella finestra Apri. Una pastiglia sola, che dice la macchina scelta e apre il
+// selettore (SceltaMacchina): la fila con una voce per macchina occupava due righe (#5368). Niente
+// pastiglia se Volta non conosce altre macchine con Claude. Durante una nascita dice dove sta nascendo.
+export const vociMacchina = () => [{ host: "qui", macchina: "questa macchina", giu: false }, ...altreMacchine()];
+
 export function nasceSu(t) {
-  const altre = altreMacchine();
-  if (!altre.length) return null;
+  const voci = vociMacchina();
+  if (voci.length < 2) return null;
   const d = dove();
   const nascita = inNascita();
-  const voce = (k, testo, giu) => div().id(`dove-${k}`).px(8).py(3).rounded(6).cursor_pointer().text_size(12.5)
-    .when(d === k, (el) => el.bg(t.selected).text_color(t.foreground))
-    .when(d !== k, (el) => el.text_color(giu ? t.dim : t.muted).hover((s) => s.bg(t.hover)))
+  const scelta = voci.find((m) => m.host === d) ?? voci[0];
+  return h_flex().child(h_flex().id("dove-scelta").h(26).px(8).gap(6).items_center().rounded(6).cursor_pointer().text_size(12.5)
+    .border_1().border_color(t.border).hover((s) => s.bg(t.hover))
     .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-    .on_click(() => setShared("arturo.dove", k))
-    .child(testo);
-  return h_flex().flex_wrap().gap(2).items_center()
-    .child(div().id("dove-etichetta").pr(4).text_size(12).text_color(nascita ? t.working : t.dim).child(nascita ? `Nasce su ${nomeMacchina(nascita)}…` : "Nasce su"))
-    .child(voce("qui", "questa macchina", false))
-    .children(altre.map((m) => voce(m.host, m.macchina, m.giu)));
+    .on_click(() => apriSceltaMacchina())
+    .child(div().id("dove-etichetta").text_color(nascita ? t.working : t.dim).child(nascita ? `Nasce su ${nomeMacchina(nascita)}…` : "Nasce su"))
+    .when(!nascita, (el) => el.child(div().truncate().text_color(scelta.giu ? t.dim : t.foreground).child(scelta.macchina)))
+    .child(svg(ICONA("chevron-down")).size(12).text_color(t.muted)));
+}
+
+// Il selettore di "Nasce su": un popup al puntatore, come il menu di una sessione (menusessione.js).
+export function apriSceltaMacchina() {
+  openOverlay({ mod: "arturo", props: { parte: "macchina" }, kind: "popup", width: 230 });
+}
+
+// Il popup è un'altra copia del mod: legge le macchine e la scelta dagli stessi shared della barra, scrive
+// arturo.dove e si chiude. Una macchina giù resta in elenco, in grigio: la nascita dirà perché non parte.
+export class SceltaMacchina {
+  init(_p, cx) {
+    this.handle = cx.focus_handle();
+    cx.timer.after(120, () => this.handle.focus());
+  }
+
+  chiudi() { closeOverlay(props().overlay); }
+
+  // Prima la scrittura, poi la chiusura: un overlay chiuso ferma il suo codice.
+  scegli(host) {
+    setShared("arturo.dove", host);
+    this.chiudi();
+  }
+
+  render() {
+    const t = theme();
+    const d = dove();
+    const voce = (m) => h_flex().id(`macchina-${m.host}`).h(30).px(10).gap(8).items_center().rounded(6).cursor_pointer()
+      .hover((st) => st.bg(t.hover))
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .on_click(() => this.scegli(m.host))
+      .child(div().w(14).flex_none().when(d === m.host, (el) => el.child(svg(ICONA("check")).size(13).text_color(t.accent))))
+      .child(div().flex_1().truncate().text_size(13).text_color(m.giu ? t.dim : t.foreground).child(m.macchina))
+      .when(Boolean(m.giu), (el) => el.child(div().flex_none().text_size(11.5).text_color(t.dim).child("non risponde")));
+    return v_flex().id("scelta-macchina").track_focus(this.handle).w_full().p(8).gap(4).bg(t.popover)
+      .on_key_down((e, cx) => { if (e.key === "escape") { this.chiudi(); cx.stop_propagation(); } })
+      .child(div().px(10).pt(4).pb(2).text_size(12.5).text_color(t.muted).child("Nasce su"))
+      .child(v_flex().gap(1).children(vociMacchina().map(voce)));
+  }
 }
 
 // La finestra "Apri un progetto".

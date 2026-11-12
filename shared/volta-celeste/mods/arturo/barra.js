@@ -3,15 +3,15 @@
 import { div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, window, shared, setShared, nextCommand, updates, notify } from "herdr";
-import { todo, progetti, sezioni, frase, apri, nuova, nuovaScheda, slug, cartelle, progettiMemoria, statiQui, SUGGERIMENTI } from "./dati.js";
-import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco, nasceSu, tasti } from "./comuni.js";
+import { todo, progetti, apri, nuova, nuovaScheda, slug, cartelle, progettiMemoria, statiQui, SUGGERIMENTI } from "./dati.js";
+import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco, nasceSu, apriSceltaMacchina, tasti } from "./comuni.js";
 import { APERTE } from "./nota.js";
 import { apriGuida } from "./guida.js";
 import { apriSuggerimenti, esegui } from "./suggerimenti.js";
 import { apriRevisione } from "./revisione.js";
 import { revisione, settimanaDi } from "./settimana.js";
 import { Volta } from "./volta.js";
-import { rigaMod, tetti } from "./sessioni.js";
+import { rigaMod } from "./sessioni.js";
 import { instrada } from "./comandi.js";
 
 export class Marchio {
@@ -81,6 +81,7 @@ export class Barra {
     else if (c === "settimana") apriRevisione();
     else if (c === "guida") apriGuida(arg);
     else if (c === "nuova") this.lungo(c, cx, () => nuova());
+    else if (c === "dove-scelta") apriSceltaMacchina();
     else if (c === "dove") setShared("arturo.dove", arg);
     else if (c === "nota") this.lungo(c, cx, () => apriNota(arg));
     else if (c === "note") apriElenco();
@@ -115,7 +116,7 @@ export class Barra {
         // Per la testata e il pannello Da fare: il nome per la fonte, il titolo e la riga di ogni progetto.
         const mappa = {};
         for (const p of progetti(this.vista, this.extra())) {
-          mappa[p.chiave] = { nome: p.nome ?? p.chiave, titolo: p.titolo, riga: p.calcolato ? "" : (p.riga ?? "") };
+          mappa[p.chiave] = { chiave: p.chiave, nome: p.nome ?? p.chiave, titolo: p.titolo, riga: p.calcolato ? "" : (p.riga ?? "") };
           // Uno spazio aperto col nome alternativo trova lo stesso progetto.
           for (const a of p.alias ?? []) if (!(a in mappa)) mappa[a] = mappa[p.chiave];
         }
@@ -142,44 +143,20 @@ export class Barra {
     return { cartelle: this.cartelle ?? [], stati: this.stati ?? {}, memoria: this.memoria ?? null };
   }
 
-  riga(t, p, attivo) {
-    const f = frase(p.stato, p);
-    const vivo = p.stato && p.stato !== "idle";
-    return h_flex().id(`p-${p.chiave}`).mx(8).px(10).py(7).gap(11).items_start().rounded(8).cursor_pointer()
-      .when(attivo, (el) => el.bg(t.selected))
-      .when(!attivo, (el) => el.hover((s) => s.bg(t.hover)))
-      .on_click(() => apri(p.chiave))
-      .child(div().pt(6).child(vivo ? punto(colore(t, f.colore)) : p.aperto ? punto(t.idle) : div().size(8).flex_none()))
-      .child(v_flex().flex_1().min_w(0).gap(2)
-        .child(div().id(`pt-${p.chiave}`).truncate().text_size(14).text_color(t.foreground).when(attivo, (d) => d.font_semibold()).child(p.titolo))
-        .child(div().id(`ps-${p.chiave}`).truncate().text_size(12.5).text_color(colore(t, f.colore)).child(f.testo)));
-  }
-
+  // Una colonna sola (12/11/2026, scelta di Federico): sotto i pulsanti, l'elenco di Volta per progetto a
+  // tutta altezza. La sezione dei progetti aperti ("Adesso") doppiava i gruppi e lasciava all'elenco
+  // metà colonna: un progetto senza sessioni si apre da Apri un progetto. I progetti si leggono ancora
+  // qui (carica), per i titoli in shared arturo.progetti e per lo stato vuoto.
   render(cx) {
     const t = theme();
     const lista = progetti(this.vista, this.extra());
-    const attivo = slug(spaces().find((s) => s.active)?.name);
-    // I progetti tengono almeno 200 px (tetti() di sessioni.js): l'elenco delle sessioni sopra si ferma prima.
-    const tt = tetti(shared("arturo.misura.barra")?.altezza, shared("arturo.misura.cima")?.altezza);
-    const corpo = v_flex().id("progetti-elenco").flex_1().min_h(tt.progettiMin).overflow_y_scrollbar().pb(10);
-    let contenuto;
-    if (this.vista === null && !this.errore) contenuto = div().id("progetti-vuoto").px(18).py(6).text_size(13).text_color(t.muted).child("Leggo i tuoi progetti…");
-    else if (!lista.length) contenuto = v_flex().px(14).gap(10)
+    const v = this.volta ? this.volta.render(cx) : null;
+    let vuoto = null;
+    if (this.vista === null && !this.errore && !v) vuoto = div().id("progetti-vuoto").px(18).py(6).text_size(13).text_color(t.muted).child("Leggo i tuoi progetti…");
+    else if (!lista.length && this.vista !== null) vuoto = v_flex().px(14).gap(10)
       .child(div().px(4).text_size(13).text_color(t.muted).whitespace_normal()
         .child(this.errore ? "Non riesco a leggere i todo di Arturo. Le conversazioni funzionano lo stesso." : "Non hai ancora progetti. Claude può cercarli sul tuo computer e proporteli."))
       .when(!this.errore, (el) => el.child(pulsante("trova", "search", "Trova i miei progetti", () => esegui(SUGGERIMENTI[0]), true)));
-    else contenuto = v_flex().gap(14).children(sezioni(lista).map((sez, j) => {
-      // Una sezione chiusa (le ferme) mostra solo il titolo col conto: un clic la apre e la richiude.
-      const piegata = sez.chiusa && !this.ferme;
-      const titolo = div().px(18).pb(4).text_size(12.5).font_semibold().text_color(t.muted);
-      return v_flex().gap(1)
-        .child(sez.chiusa
-          ? titolo.id("sez-ferme").cursor_pointer().hover((s) => s.text_color(t.foreground))
-            .on_click((_e, cx) => { this.ferme = !this.ferme; cx.notify(); })
-            .child(`${sez.titolo} (${sez.progetti.length}) ${piegata ? "›" : "⌄"}`)
-          : titolo.id(`sez-${j}`).child(sez.titolo))
-        .children(piegata ? [] : sez.progetti.map((p) => this.riga(t, p, p.chiave === attivo)));
-    }));
     // overflow_hidden sulla radice: quello che non entra si taglia qui e la barra non chiede più altezza
     // del suo posto nel layout (senza, il piede sotto perdeva 89 px dei suoi 190).
     return v_flex().size_full().overflow_hidden().bg(t.chrome)
@@ -191,9 +168,8 @@ export class Barra {
         .child(pulsante("nuova", "square-pen", "Nuova richiesta", () => nuova(), lista.length > 0 || Boolean(this.errore)))
         .child(pulsante("apri", "folder", "Apri un progetto", () => apriFinestra()))
         .when(Boolean(nasceSu(t)), (el) => el.child(nasceSu(t))))
-      .when(Boolean(this.errore) && lista.length > 0, (el) => el.child(div().px(18).pb(6).text_size(12).text_color(t.blocked).child("Non riesco ad aggiornare i todo: mostro gli ultimi letti.")))
-      .when(Boolean(this.volta), (el) => { const v = this.volta.render(cx); return v ? el.child(v) : el; })
-      .child(corpo.child(contenuto));
+      .when(Boolean(vuoto), (el) => el.child(vuoto))
+      .when(Boolean(v), (el) => el.child(v));
   }
 }
 

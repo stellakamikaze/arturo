@@ -10,27 +10,32 @@
 export const MODI = { macchina: "Per macchina", progetto: "Per progetto" };
 export const SENZA = "Senza progetto";
 
-// I tetti della colonna di sinistra, dalle misure in px logici della barra (shared arturo.misura.barra)
-// e della sua cima (i pulsanti sopra l'elenco, shared arturo.misura.cima). I progetti tengono almeno
-// 200 px; l'elenco delle sessioni prende quello che resta, tolti la cima e la testata di Volta (titolo e
-// interruttore, più il margine sotto l'elenco: 96 px misurati), fra 92 e 360 px, e oltre scorre; il riquadro dei gesti di "Altro" al più
-// 160 px. Senza misure (primo disegno) l'elenco tiene il tetto pieno. Prima l'elenco aveva 360 px fissi:
-// su una finestra alta 900 la barra chiedeva più del suo posto, i progetti sparivano e il piede usciva
-// dal fondo.
-export const PROGETTI_MIN = 200, ELENCO_MIN = 92, ELENCO_MAX = 360, GESTI_MAX = 160, TESTA_VOLTA = 96;
-export function tetti(altezzaBarra, altezzaCima) {
-  const b = Number(altezzaBarra), c = Number(altezzaCima);
-  const resta = b > 0 && c >= 0 ? b - c - TESTA_VOLTA - PROGETTI_MIN : ELENCO_MAX;
-  return { progettiMin: PROGETTI_MIN, elencoMax: Math.round(Math.min(ELENCO_MAX, Math.max(ELENCO_MIN, resta))), gestiMax: GESTI_MAX };
-}
+// Il riquadro dei gesti di "Altro" sta sotto l'elenco con al più 160 px: un'anteprima lunga scorre lì
+// dentro. L'elenco prende il resto della colonna (12/11/2026: niente più tetto, la sezione dei progetti
+// aperti non c'è più).
+export const GESTI_MAX = 160;
 
 const tempo = (s) => Date.parse(s.ultimo || "") || 0;
 
-// Il nome di un progetto per le persone: "due-mondi" → "Due mondi", "uf" → "UF". Un progetto fatto di
-// soli separatori ("-") non ha parole: vale come senza progetto, invece di far cadere la barra.
+// I progetti noti, da shared arturo.progetti della barra: { slug o nome alternativo: { chiave, titolo } }.
+// Il titolo vero ("Volta", "Post Office") sta nella scheda del progetto (arturo progetti, campo titolo:) o
+// nella fonte dei task; un nome alternativo porta alla chiave del suo progetto. Ogni parte del mod gira
+// in una sua copia: chi mostra nomi di progetto li imposta prima del disegno (progettiNoti di volta.js e
+// cambio.js). Senza, vale il nome ricavato dallo slug.
+let NOTI = {};
+export function impostaProgetti(mappa) { NOTI = mappa && typeof mappa === "object" ? mappa : {}; }
+const slugDi = (p) => String(p ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+// La chiave del progetto: quella del suo gruppo anche quando la sessione porta un nome alternativo.
+export const chiaveProgetto = (p) => (p ? NOTI[slugDi(p)]?.chiave ?? String(p) : "");
+
+// Il nome di un progetto per le persone: il titolo noto, altrimenti "due-mondi" → "Due mondi", "uf" → "UF".
+// Un progetto fatto di soli separatori ("-") non ha parole: vale come senza progetto, invece di far
+// cadere la barra.
 export function nomeProgetto(p) {
   const s = String(p ?? "").trim();
   if (!s) return SENZA;
+  const noto = NOTI[slugDi(s)]?.titolo;
+  if (noto) return noto;
   if (/[A-Z]/.test(s)) return s;
   const t = s.split(/[-_\s]+/).filter(Boolean).map((w) => (w.length <= 2 ? w.toUpperCase() : w)).join(" ");
   return t ? t[0].toUpperCase() + t.slice(1) : SENZA;
@@ -87,9 +92,17 @@ export function fraseStato(s, adesso = Date.now()) {
   return { testo: q ? `Ferma ${q}` : "Ferma", colore: "muted" };
 }
 
+// Il nome di una macchina in una riga stretta: senza il proprietario e senza la coda fra parentesi che
+// macOS aggiunge ("MacBook Air di Federico (156)" → "MacBook Air"). Il nome intero resta nei gruppi.
+export function macchinaBreve(nome) {
+  const s = String(nome ?? "").trim();
+  const b = s.replace(/\s*\([^)]*\)\s*$/, "").replace(/\s+(di|de|of)\s+\S+$/i, "").replace(/^\S+['’]s\s+/, "").trim();
+  return b || s;
+}
+
 // La seconda riga: ciò che il gruppo non dice già (il progetto per macchina, la macchina per progetto).
 export function dettaglio(s, modo, adesso = Date.now()) {
-  const dove = modo === "progetto" ? s.macchina : (s.progetto ? nomeProgetto(s.progetto) : "");
+  const dove = modo === "progetto" ? macchinaBreve(s.macchina) : (s.progetto ? nomeProgetto(s.progetto) : "");
   const f = fraseStato(s, adesso);
   return { testo: dove ? `${dove} · ${f.testo}` : f.testo, colore: f.colore };
 }
@@ -108,7 +121,7 @@ export function gruppi(dati, modo = "macchina") {
     if (s) per.get(chiave).sessioni.push(s);
   };
   if (modo === "progetto") {
-    for (const s of righe) metti(s.progetto ? String(s.progetto) : "", nomeProgetto(s.progetto), s);
+    for (const s of righe) metti(chiaveProgetto(s.progetto), nomeProgetto(s.progetto), s);
     const out = [...per.values()];
     out.sort((a, b) => recente(b) - recente(a) || a.titolo.localeCompare(b.titolo));
     const giu = (dati?.macchine ?? []).filter((m) => m.irraggiungibile).map((m) => m.macchina);
@@ -125,6 +138,66 @@ export function gruppi(dati, modo = "macchina") {
     per.delete(m.host);
   }
   return out.concat([...per.values()].filter((g) => g.sessioni.length)).sort((a, b) => recente(b) - recente(a));
+}
+
+// Chiudere una sessione (12/11/2026, decisione di Federico): ⌘W, la X della scheda o Chiudi del menu
+// fanno il congedo, cioè /fine e poi claude stop. Una sessione chiusa o in congedo non compare più
+// nell'elenco: si ritrova con Apri un progetto. Chiusa = in background, senza processo e senza status
+// (claude agents dopo claude stop: sonda S1 dell'11/11); una in errore resta, perché Riavvia serve.
+export const chiusa = (s) => Boolean(s) && s.tipo === "background" && s.chiusa === true;
+export function visibili(dati, congedi = {}) {
+  if (!dati) return dati;
+  const via = new Set(Object.values(congedi ?? {}).flatMap((c) => [c.sessionId, c.id].filter(Boolean)));
+  return { ...dati, sessioni: (dati.sessioni ?? []).filter((s) => !chiusa(s) && !via.has(s.sessionId) && !via.has(s.id)) };
+}
+
+// Le schede chiuse da chi usa la finestra: i terminali che agganciavano una sessione al giro di prima e
+// ora non ci sono più, tolti quelli che ha chiuso Volta stessa (`tolti`: indirizzo → ms, per Sposta,
+// Cambia progetto, Stacca) negli ultimi TOLTI_MS. `prima` e `adesso`: { indirizzo: sessione }.
+export const TOLTI_MS = 60000;
+export function sparite(prima, adesso, tolti = {}, ora = Date.now()) {
+  if (prima == null) return [];  // il primo giro dopo l'apertura solo guarda
+  const viste = new Set();
+  const out = [];
+  for (const [ind, s] of Object.entries(prima)) {
+    if (ind in (adesso ?? {}) || (tolti?.[ind] && ora - tolti[ind] < TOLTI_MS) || !s?.sessionId || viste.has(s.sessionId)) continue;
+    // un'altra scheda aggancia ancora la stessa sessione: chiusa una copia, la sessione resta aperta
+    if (Object.values(adesso ?? {}).some((x) => x?.sessionId === s.sessionId)) continue;
+    viste.add(s.sessionId);
+    out.push(s);
+  }
+  return out;
+}
+
+// Un passo del congedo, deciso dallo stato di adesso. `c`: { sessionId, id, host, fase, da, dal } con fase
+// "attende" (lavorava quando l'hai chiusa: finisce il turno), "fine" (ripresa con /fine), "ferma" (claude
+// stop chiesto). `s`: la sua riga dell'elenco, o undefined. Torna { fai, fase?, avviso? } con fai:
+// "attendi" | "fine" (stop e ripresa con /fine) | "stop" | "togli" (via dal registro).
+// Tetti: CONGEDO_MAX_MS per il turno in corso e per /fine; dopo, la sessione si ferma lo stesso e Volta lo
+// dice. Una macchina che non risponde tiene il congedo fino a CONGEDO_VECCHIO_MS.
+export const CONGEDO_MAX_MS = 20 * 60000, CONGEDO_AVVIO_MS = 20000, CONGEDO_SENZA_FINE_MS = 3 * 60000, CONGEDO_VECCHIO_MS = 6 * 3600000;
+export function passoCongedo(c, s, ora = Date.now()) {
+  const da = Number(c?.da) || ora, dal = Number(c?.dal) || da;
+  const nome = s ? titolo(s) : "La sessione";
+  if (!s || s.vecchia) return ora - da > (s ? CONGEDO_VECCHIO_MS : 3600000) ? { fai: "togli" } : { fai: "attendi" };
+  if (c.fase === "attende") {
+    if (chiusa(s)) return { fai: "togli" };
+    if (s.stato === "lavora" && ora - da < CONGEDO_MAX_MS) return { fai: "attendi" };
+    return { fai: "fine", fase: "fine" };
+  }
+  if (c.fase === "fine") {
+    if (ora - dal < CONGEDO_AVVIO_MS) return { fai: "attendi" };
+    if (s.stato === "errore") return { fai: "togli", avviso: `${nome}: /fine si è fermato con un errore. La sessione resta ferma.` };
+    if (chiusa(s)) return ora - dal > CONGEDO_SENZA_FINE_MS ? { fai: "togli", avviso: `${nome} non è ripartita per /fine: l'ho lasciata chiusa senza salvataggio.` } : { fai: "attendi" };
+    if (s.stato === "aspetta") return { fai: "stop", fase: "ferma", avviso: `${nome} ha chiesto qualcosa durante /fine: l'ho fermata lo stesso.` };
+    if (s.stato === "lavora") return ora - dal > CONGEDO_MAX_MS ? { fai: "stop", fase: "ferma", avviso: `${nome}: /fine non ha finito in 20 minuti, l'ho fermata.` } : { fai: "attendi" };
+    // ferma e viva: /fine ha finito il turno se la trascrizione è andata avanti dopo la ripresa
+    if (tempo(s) > dal - 5000) return { fai: "stop", fase: "ferma" };
+    return ora - dal > CONGEDO_SENZA_FINE_MS ? { fai: "stop", fase: "ferma", avviso: `${nome} non ha fatto /fine: l'ho fermata senza salvataggio.` } : { fai: "attendi" };
+  }
+  // fase "ferma": aspetta che claude agents la dica chiusa, e riprova lo stop dopo due minuti
+  if (chiusa(s)) return { fai: "togli" };
+  return ora - dal > 120000 ? { fai: "stop", fase: "ferma" } : { fai: "attendi" };
 }
 
 // Le sessioni di un gruppo che l'elenco mostra: le vive sempre; le ferme solo se il gruppo è aperto, o se
@@ -306,7 +379,9 @@ export function progettiNoti(dati, altri = []) {
 export function filtraProgetti(noti, testo, quanti = 8) {
   const f = progettoNuovo(testo);
   const l = noti ?? [];
-  const presi = f ? [...l.filter((p) => p.startsWith(f)), ...l.filter((p) => !p.startsWith(f) && p.includes(f))] : l;
+  // cerca nello slug e nel titolo ("volta" trova herdr-arturo, che si chiama Volta)
+  const nomi = (p) => [p, slugDi(nomeProgetto(p))];
+  const presi = f ? [...l.filter((p) => nomi(p).some((x) => x.startsWith(f))), ...l.filter((p) => !nomi(p).some((x) => x.startsWith(f)) && nomi(p).some((x) => x.includes(f)))] : l;
   return presi.slice(0, quanti);
 }
 

@@ -102,7 +102,7 @@ export const NOMI_ELEMENTO = {
   "benvenuto-titolo": "Titolo del benvenuto", "benvenuto-testo": "Testo del benvenuto", "b-nuova": "Nuova richiesta",
 };
 const PREFISSI = [
-  ["todo-elenco-", "Elenco delle cose da fare"], ["scheda-", "Scheda"], ["dove-", "Macchina dove nasce la sessione"],
+  ["todo-elenco-", "Elenco delle cose da fare"], ["scheda-", "Scheda"], ["dove-", "Dove nasce la sessione"], ["macchina-", "Macchina dove nasce la sessione"],
   ["sez-", "Titolo di sezione"], ["poi-", "Todo che viene dopo"],
   ["vgt-", "Nome del gruppo (macchina o progetto)"], ["vgn-", "Conto del gruppo"], ["vgo-", "Nota del gruppo"],
   ["vt-", "Titolo della sessione"], ["vd-", "Macchina e stato della sessione"], ["vw-", "Avviso della sessione"],

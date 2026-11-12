@@ -129,7 +129,7 @@ export function frase(stato, p) {
     if (p.io) return { testo: "Va avanti con Claude", colore: "muted" };
     if (p.fermo) return { testo: "Fermo", colore: "muted" };
   }
-  if (stato === "idle") return { testo: "Conversazione aperta", colore: "muted" };
+  if (stato === "idle") return { testo: "Aspetta un tuo comando", colore: "muted" };
   return { testo: "Niente da fare", colore: "dim" };
 }
 
@@ -166,7 +166,8 @@ export function progetti(vista, extra = {}) {
   for (const m of memoria ?? []) {
     if (!m?.slug) continue;
     const v = per.get(m.slug);
-    if (v) { v.alias = m.alias ?? []; v.data = m.data || ""; continue; }
+    // il titolo della memoria (scheda del progetto, poi fonte) vince sul nome ricavato dallo slug
+    if (v) { v.alias = m.alias ?? []; v.data = m.data || ""; if (m.titolo) v.titolo = m.titolo; continue; }
     const noto = Boolean(m.handoff || m.riga || m.titolo);
     per.set(m.slug, { chiave: m.slug, nome: m.cartella ? m.nome : m.slug, titolo: m.titolo || bello(m.nome || m.slug),
       categoria: m.categoria || (noto || !conCategorie ? "" : "Altre cartelle"), riga: m.riga ?? "", calcolato: !m.riga,
@@ -439,8 +440,46 @@ export function altrove(s) {
 // Stacca quei terminali: chiude l'aggancio, la sessione continua in background. Torna quanti erano.
 export function stacca(s) {
   const l = altrove(s);
-  for (const t of l) run("terminal.kill", { terminal: t.address });
+  for (const t of l) { segnaTolto(t.address); run("terminal.kill", { terminal: t.address }); }
   return l.length;
+}
+
+// I terminali che chiude Volta stessa (Stacca, Sposta, Cambia progetto, Chiudi del menu): la guardia del
+// congedo (volta.js, sparite() di sessioni.js) non li prende per una scheda chiusa da chi usa la finestra.
+// In shared: le schede le chiude la barra, ma un comando può arrivare da un'altra copia del mod.
+export function segnaTolto(indirizzo) {
+  const ora = Date.now();
+  const prima = shared("arturo.volta.tolti") ?? {};
+  const tieni = Object.fromEntries(Object.entries(prima).filter(([, t]) => ora - t < 120000));
+  setShared("arturo.volta.tolti", { ...tieni, [indirizzo]: ora });
+}
+
+// Le schede di questa macchina che agganciano una sessione in background dell'elenco, con la sessione:
+// { indirizzo: { sessionId, id, host, macchina, cartella, titolo } }. Conta il terminale vivo nel core,
+// non il pannello: cambiare spazio non chiude niente. Per etichetta, poi per argv (come schedeDi).
+export function schedeAgganciate(sessioni) {
+  const out = {};
+  // anche le righe vecchie (macchina che non risponde): la scheda resta aperta, e senza la sua riga
+  // la guardia del congedo la prenderebbe per chiusa
+  const fondo = (sessioni ?? []).filter((s) => s.tipo === "background" && s.id);
+  for (const x of terminals()) {
+    if (String(x.address).includes("/") || (x.state ?? "live") !== "live") continue;
+    const s = fondo.find((y) => x.labels?.[ETICHETTA] === y.id) ?? fondo.find((y) => agganciata(x.argv, y));
+    if (s) out[x.address] = { sessionId: s.sessionId, id: s.id, host: s.host, macchina: s.macchina, questa: Boolean(s.questa), cartella: s.cartella ?? null, titolo: titolo(s) };
+  }
+  return out;
+}
+
+// Il primo tempo del congedo: volta_sonda.py congeda (stop, poi la ripresa con /fine) sulla macchina della
+// sessione. { ok } oppure { errore }. Attese: ATTESA_AZIONE più ATTESA_SERVIZIO più ATTESA_NASCITA.
+export async function congedaSessione(c) {
+  const cfg = await config();
+  try {
+    const r = await exec(cfg.arturo[0], [cfg.volta, "congeda", c.host ?? "qui", c.id, c.sessionId, ...(c.cartella ? ["--cartella", c.cartella] : [])], { timeout: 400000 });
+    return esito(r);
+  } catch (e) {
+    return { errore: `${c.macchina ?? nomeMacchina(c.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
+  }
 }
 
 // La scheda è rimasta con la shell nuda: claude attach è uscito (sessione fermata altrove, connessione
@@ -648,6 +687,7 @@ export function chiudiSchede(s) {
   for (const t of schedeDi(s)) {
     const p = panes().find((x) => x.terminal === t.address);
     if (!p) continue;
+    segnaTolto(t.address);
     if (panes().filter((x) => x.tab === p.tab).length === 1) run("tab.close", { id: p.tab });
     else run("terminal.kill", { terminal: t.address });
     n++;

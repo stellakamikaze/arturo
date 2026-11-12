@@ -15,10 +15,10 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, exec, readTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals } from "herdr";
-import { gruppi, mostrate, ordineGiro, statoGiro, passoGiro, sessioneDi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto, tetti, GESTI_MAX } from "./sessioni.js";
+import { theme, exec, readTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals, spaces } from "herdr";
+import { impostaProgetti, gruppi, mostrate, ordineGiro, statoGiro, passoGiro, sessioneDi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto, GESTI_MAX, visibili, sparite, passoCongedo, chiusa } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
-import { config, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti, esito, altrove, stacca } from "./dati.js";
+import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
 import { schedeDi } from "./dati.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
@@ -29,6 +29,9 @@ const OGNI = 30000;
 const OGNI_MOD = 3600000;
 // Ogni quanto si guarda se la scheda in primo piano aggancia una sessione di un'altra macchina (microfono.js).
 const OGNI_MICROFONO = 2000;
+// Ogni quanto si guarda se una scheda che agganciava una sessione è stata chiusa (⌘W, la X): il congedo.
+const OGNI_SCHEDE = 3000;
+const SPARITE_MAX = 3;
 // La sessione è già agganciata in un Terminale fuori dalla finestra: la frase del primo clic, e per
 // quanto resta sulla riga. Finché c'è, il clic dopo stacca quel Terminale e apre la scheda qui.
 const ALTROVE = "È aperta in un Terminale. Un altro clic la porta qui.";
@@ -58,7 +61,7 @@ export async function controllaMod(py) {
 // La frase della riga mentre un gesto del menu lavora, e quella che resta qualche secondo a gesto fatto.
 const LAVORO = { chiudi: "La chiudo…", duplica: "La duplico…", fork: "Copio la conversazione…", nome: "Cambio il nome…", progetto: "Cambio il progetto…" };
 const FATTO = { stop: "Fermata: un clic la riapre.", respawn: "Riavviata.", rm: "Eliminata.",
-  chiudi: "Chiusa: Apri la fa ripartire.", duplica: "Duplicata: la sessione nuova è nella sua scheda.",
+  chiudi: "Chiusa: Claude salva con /fine, poi si ferma.", duplica: "Duplicata: la sessione nuova è nella sua scheda.",
   fork: "Copiata: la copia è nella sua scheda." };
 
 async function esiste(p) {
@@ -92,6 +95,8 @@ export class Volta {
     this.mic = null;       // il ponte del microfono acceso da questa finestra (passo di microfono.js)
     this.micScript = null; // volta_microfono.py, se c'è
     this.micLavora = false;
+    this.schede = null;    // { indirizzo: sessione } al giro di prima: una che sparisce è una scheda chiusa
+    this.congedo = {};     // sessionId -> true mentre un passo del congedo lavora
     cx.spawn(async (cx) => {
       // Il Python che installa-herdr.sh ha trovato e scritto in arturo.json: su Windows può essere "python".
       const c = await config();
@@ -115,6 +120,99 @@ export class Volta {
     cx.timer.every(OGNI, (cx) => this.aggiorna(cx));
     cx.timer.every(OGNI_MOD, () => controllaMod(this.py));
     cx.timer.every(OGNI_MICROFONO, (cx) => this.microfono(cx));
+    cx.timer.every(OGNI_SCHEDE, (cx) => this.guardaSchede(cx));
+  }
+
+  // Le sessioni in congedo (shared, così restano anche se il mod si ricarica): { sessionId: c }.
+  congedi() {
+    return shared("arturo.volta.congedi") ?? {};
+  }
+
+  // L'elenco come lo vede chi usa la finestra: senza chiuse e senza sessioni in congedo.
+  vis() {
+    return visibili(this.dati, this.congedi());
+  }
+
+  // Una scheda che agganciava una sessione e non c'è più, chiusa da chi usa la finestra (⌘W, la X,
+  // un'uscita della shell): la sessione va in congedo. Il primo giro dopo l'apertura solo guarda.
+  // Sicure contro un congedo per sbaglio: un core che non risponde (nessun terminale, anche per un
+  // attimo durante un aggiornamento) non chiude niente; una scheda conta come chiusa solo se manca per
+  // due giri di fila; più di SPARITE_MAX schede sparite insieme non sono il gesto di chiudere una
+  // sessione: dopo tre giri le si lascia andare senza congedo, e lo si dice.
+  guardaSchede(cx) {
+    if (!this.dati || !terminals().length) return;
+    const adesso = schedeAgganciate(this.dati.sessioni);
+    const ora = sparite(this.schede, adesso, shared("arturo.volta.tolti") ?? {});
+    if (ora.length > SPARITE_MAX) {
+      this.troppe = (this.troppe ?? 0) + 1;
+      if (this.troppe < 3) return;
+      notify({ title: `${ora.length} schede chiuse insieme`, body: "Le sessioni restano aperte in background: per chiuderle usa Chiudi dal menu di ognuna.", level: "info" });
+      ora.length = 0;
+    }
+    this.troppe = 0;
+    const forse = this.forse ?? {};
+    const via = ora.filter((c) => forse[c.sessionId]);
+    this.forse = Object.fromEntries(ora.filter((c) => !forse[c.sessionId]).map((c) => [c.sessionId, c]));
+    // una scheda vista sparire una volta sola resta nel giro di prima: al prossimo, se manca ancora, chiude
+    for (const [ind, s] of Object.entries(this.schede ?? {})) if (this.forse[s.sessionId] && !(ind in adesso)) adesso[ind] = s;
+    this.schede = adesso;
+    // Per la testata: la macchina di ogni scheda di questa finestra che mostra una sessione, anche
+    // un'interattiva partita nella shell di una scheda; le altre schede sono di questa macchina.
+    const qui = (this.dati.macchine ?? []).find((x) => x.questa)?.macchina ?? null;
+    const dove = Object.fromEntries(Object.entries(adesso).map(([a, s]) => [a, s.questa ? qui : s.macchina]));
+    for (const s of this.dati.sessioni ?? []) if (s.questa && s.terminale && !(s.terminale in dove)) dove[s.terminale] = qui;
+    const m = { qui, schede: dove };
+    if (JSON.stringify(m) !== JSON.stringify(shared("arturo.volta.dove") ?? null)) setShared("arturo.volta.dove", m);
+    for (const c of via) this.congeda(c, cx);
+    if (Object.keys(this.congedi()).length) this.passiCongedo(cx);
+  }
+
+  // Mette una sessione in congedo: /fine, poi claude stop (decisione di Federico, 12/11/2026). Se lavora
+  // aspetta che finisca il turno. Una sessione già chiusa non ha niente da salvare.
+  congeda(c, cx) {
+    const s = (this.dati?.sessioni ?? []).find((x) => x.sessionId === c.sessionId);
+    if (!s || s.tipo !== "background" || chiusa(s) || this.congedi()[c.sessionId]) return;
+    const ora = Date.now();
+    setShared("arturo.volta.congedi", { ...this.congedi(), [c.sessionId]: { sessionId: s.sessionId, id: s.id, host: s.host, macchina: s.macchina,
+      cartella: s.cartella ?? null, titolo: titolo(s), fase: "attende", da: ora, dal: ora } });
+    if (this.menu === s.sessionId) this.menu = null;
+    cx.notify();
+    this.passiCongedo(cx);
+  }
+
+  // Un passo per ogni sessione in congedo, dallo stato dell'ultima lettura (passoCongedo di sessioni.js).
+  passiCongedo(cx) {
+    const tutti = this.congedi();
+    for (const c of Object.values(tutti)) {
+      if (this.congedo[c.sessionId]) continue;
+      const s = (this.dati?.sessioni ?? []).find((x) => x.sessionId === c.sessionId || (c.id && x.id === c.id));
+      const p = passoCongedo(c, s, Date.now());
+      if (p.avviso) notify({ title: `${c.titolo ?? "Sessione"}: chiusa`, body: p.avviso, level: "warning" });
+      if (p.fai === "attendi") continue;
+      const scrivi = (cambio) => {
+        const ora = this.congedi();
+        if (!ora[c.sessionId]) return;
+        if (cambio === null) { const { [c.sessionId]: _, ...resto } = ora; setShared("arturo.volta.congedi", resto); }
+        else setShared("arturo.volta.congedi", { ...ora, [c.sessionId]: { ...ora[c.sessionId], ...cambio } });
+      };
+      if (p.fai === "togli") { scrivi(null); continue; }
+      this.congedo[c.sessionId] = true;
+      cx.spawn(async (cx) => {
+        let r;
+        try {
+          r = p.fai === "fine" ? await congedaSessione({ ...c, id: s?.id ?? c.id }) : await azioneSessione({ ...s, ...c, id: s?.id ?? c.id }, "stop");
+        } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 120) }; }
+        delete this.congedo[c.sessionId];
+        if (r?.errore && p.fai === "fine") {
+          // la ripresa con /fine non parte: la sessione si ferma comunque, e lo si dice
+          notify({ title: `${c.titolo ?? "Sessione"}: chiusa senza /fine`, body: r.errore, level: "warning" });
+          await azioneSessione({ ...s, ...c, id: s?.id ?? c.id }, "stop").catch(() => null);
+          scrivi({ fase: "ferma", dal: Date.now() });
+        } else scrivi({ fase: p.fase ?? c.fase, dal: Date.now() });
+        this.aggiorna(cx);
+        cx.notify();
+      });
+    }
   }
 
   // Il ponte del microfono: acceso finché la scheda in primo piano aggancia una sessione di un'altra
@@ -188,6 +286,7 @@ export class Volta {
       setShared("arturo.volta.errore", this.errore ?? null);
       await this.leggi();
       this.inCorso = false;
+      this.passiCongedo(cx);
       cx.notify();
     });
   }
@@ -288,10 +387,11 @@ export class Volta {
   // macchina, con lo stesso gesto del clic. Parte dalla scheda in primo piano; dentro una raffica di
   // tasti parte dall'ultima sessione chiesta, perché un aggancio ci mette qualche secondo ad aprirsi.
   giro(verso, cx) {
+    impostaProgetti(shared("arturo.progetti"));
     const sessioni = this.dati?.sessioni ?? [];
     // Una ferma entra nel giro solo se ha una scheda qui: aggancio (schedeDi) o shell della scheda stessa.
     const conScheda = new Set(sessioni.filter((s) => (s.questa && s.terminale) || schedeDi(s).length).map((s) => s.sessionId));
-    const st = statoGiro(this.giroSt, ordineGiro(gruppi(this.dati, this.modo()), this.aperti, conScheda), Date.now());
+    const st = statoGiro(this.giroSt, ordineGiro(gruppi(this.vis(), this.modo()), this.aperti, conScheda), Date.now());
     const f = focused();
     const scheda = f?.terminal ? terminals().find((x) => x.address === f.terminal) : null;
     const id = passoGiro(st.ids, st.ultimo ?? sessioneDi(scheda, sessioni)?.sessionId ?? null, verso);
@@ -319,7 +419,7 @@ export class Volta {
 
   // Una sessione ferma sta dietro "N ferme": il comando che ne apre i gesti apre anche il suo gruppo.
   scopri(s) {
-    const g = gruppi(this.dati, this.modo()).find((x) => x.sessioni.some((y) => y.sessionId === s.sessionId));
+    const g = gruppi(this.vis(), this.modo()).find((x) => x.sessioni.some((y) => y.sessionId === s.sessionId));
     if (g && s.stato === "ferma") this.aperti[g.chiave] = true;
   }
 
@@ -389,10 +489,11 @@ export class Volta {
     });
   }
 
-  // Chiudi: via la scheda, poi claude stop. La conversazione resta, e Apri la fa ripartire.
-  async chiudi(s) {
+  // Chiudi del menu: via la scheda, poi il congedo (/fine e claude stop), come ⌘W sulla scheda.
+  async chiudi(s, cx) {
     chiudiSchede(s);
-    return azioneSessione(s, "stop");
+    this.congeda(s, cx);
+    return { ok: true };
   }
 
   // Un gesto di "Altro" o del menu: l'anteprima resta sotto la riga, gli altri rileggono l'elenco.
@@ -411,7 +512,7 @@ export class Volta {
     cx.spawn(async (cx) => {
       let r;
       try {
-        r = a.verbo === "chiudi" ? await this.chiudi(s)
+        r = a.verbo === "chiudi" ? await this.chiudi(s, cx)
           : a.verbo === "duplica" || a.verbo === "fork" ? await copiaSessione(s, a.verbo)
           : await azioneSessione(s, a.verbo);
       } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 120) }; }
@@ -544,9 +645,16 @@ export class Volta {
     const vive = g.sessioni.filter((s) => s.stato !== "ferma");
     const ferme = g.sessioni.filter((s) => s.stato === "ferma");
     const mostra = mostrate(g, this.aperti[g.chiave]);
+    // Per progetto l'intestazione è il progetto: un clic lo apre (il suo spazio, con /inizio), come la
+    // riga di "Adesso" che c'era sotto. Quello dello spazio aperto ha il fondo della selezione.
+    const progetto = modo === "progetto" && Boolean(g.chiave);
+    const attivo = progetto && slug(spaces().find((x) => x.active)?.name) === slug(g.chiave);
     return v_flex().gap(1)
-      .child(h_flex().px(18).pb(2).gap(6).items_center()
-        .child(div().id(`vgt-${g.chiave || "senza"}`).flex_1().truncate().text_size(12).text_color(t.foreground).child(g.titolo))
+      .child(h_flex().id(`vgh-${g.chiave || "senza"}`).mx(8).px(10).py(5).gap(6).items_center().rounded(8)
+        .when(attivo, (el) => el.bg(t.selected))
+        .when(progetto && !attivo, (el) => el.cursor_pointer().hover((st) => st.bg(t.hover)))
+        .when(progetto, (el) => el.on_click(() => apriProgetto(g.chiave)))
+        .child(div().id(`vgt-${g.chiave || "senza"}`).flex_1().truncate().font_family("Arturo Archivo").text_size(13.5).text_color(t.foreground).child(g.titolo))
         .when(g.sessioni.length > 0, (el) => el.child(div().id(`vgn-${g.chiave || "senza"}`).text_size(12).text_color(t.dim).child(String(g.sessioni.length)))))
       .when(Boolean(g.nota), (el) => el.child(div().id(`vgo-${g.chiave || "senza"}`).px(18).pb(2).text_size(12).text_color(t.dim).child(g.nota)))
       .children(mostra.map((s) => this.riga(t, s, modo, cx)))
@@ -557,42 +665,32 @@ export class Volta {
         .child(div().text_size(12.5).text_color(t.muted).child(this.aperti[g.chiave] ? "Nascondi le ferme" : `${ferme.length} ${ferme.length > 1 ? "ferme" : "ferma"}`))));
   }
 
-  // null quando la sezione non serve (manca lo script dell'elenco).
+  // null quando la sezione non serve (manca lo script dell'elenco). La sezione prende tutta l'altezza
+  // della colonna sotto i pulsanti (12/11/2026): l'interruttore in cima, poi i gruppi che scorrono, poi
+  // il riquadro dei gesti di "Altro" quando è aperto.
   render(cx) {
     if (!this.script) return null;
     const t = theme();
-    const chiusa = shared("arturo.volta.chiusa") === true;
+    impostaProgetti(shared("arturo.progetti"));
     const modo = this.modo();
-    const lista = gruppi(this.dati, modo);
-    const tot = (this.dati?.sessioni ?? []).length;
-    const testa = h_flex().px(18).pb(4).gap(8).items_center()
-      .child(h_flex().id("volta-testa").flex_1().gap(6).items_center().cursor_pointer()
-        .on_click(() => setShared("arturo.volta.chiusa", !chiusa))
-        .child(div().id("volta-titolo").text_size(12.5).font_semibold().text_color(t.muted).child("Tutte le sessioni"))
-        .when(tot > 0, (el) => el.child(div().id("volta-conto").text_size(12).text_color(t.dim).child(String(tot))))
-        .child(svg(ICONA(chiusa ? "chevron-right" : "chevron-down")).size(12).text_color(t.dim)));
-    const tt = tetti(shared("arturo.misura.barra")?.altezza, (shared("arturo.misura.cima")?.altezza ?? NaN) + (this.menu ? GESTI_MAX : 0));
+    const lista = gruppi(this.vis(), modo);
     let corpo;
-    if (chiusa) corpo = null;
-    else if (!this.dati) corpo = div().id("volta-vuoto").px(18).py(4).text_size(13).text_color(t.muted).child(this.errore ? "Non riesco a leggere le sessioni delle macchine." : "Leggo le sessioni delle macchine…");
-    else if (!lista.length) corpo = div().id("volta-vuoto").px(18).py(4).text_size(13).text_color(t.muted).child("Nessuna sessione aperta.");
-    // Un elenco suo, col tetto di tetti() (sessioni.js): i progetti sotto restano a vista. Con "Altro"
-    // aperto il riquadro dei gesti sta sotto l'elenco: il suo tetto si toglie da quello dell'elenco.
-    // overflow_y_scroll e non overflow_y_scrollbar, che avvolge l'elenco in un contenitore a cui max_h
+    if (!this.dati) corpo = div().id("volta-vuoto").px(18).py(4).text_size(13).text_color(t.muted).child(this.errore ? "Non riesco a leggere le sessioni delle macchine." : "Leggo le sessioni delle macchine…");
+    else if (!lista.length) corpo = div().id("volta-vuoto").px(18).py(4).text_size(13).text_color(t.muted).whitespace_normal().child("Nessuna sessione aperta. Nuova richiesta ne apre una; un progetto si apre da Apri un progetto.");
+    // overflow_y_scroll e non overflow_y_scrollbar, che avvolge l'elenco in un contenitore a cui l'altezza
     // non arriva: lì non scorreva.
-    else corpo = v_flex().id("volta-elenco").max_h(tt.elencoMax).min_h(0).flex_shrink(1).overflow_y_scroll().gap(10).children(lista.map((g) => this.gruppo(t, g, modo, cx)));
+    else corpo = v_flex().id("volta-elenco").flex_1().min_h(0).overflow_y_scroll().pb(12).gap(12).children(lista.map((g) => this.gruppo(t, g, modo, cx)));
     const vecchio = this.dati && this.errore && this.dati.letto ? `Non riesco ad aggiornare: lettura delle ${String(this.dati.letto).slice(11, 16)}.` : null;
-    const gesti = chiusa || !corpo ? null : this.pannello(t);
-    return v_flex().id("volta").pb(12).mb(12).gap(4).border_b(1).border_color(t.border)
-      .child(testa)
-      .when(!chiusa, (el) => el.child(this.interruttore(t)))
+    const gesti = this.pannello(t);
+    return v_flex().id("volta").flex_1().min_h(0).gap(6)
+      .child(this.interruttore(t))
       // Il ponte del microfono (microfono.js): dove va la voce adesso. Un clic lo spegne o lo riaccende.
       .when(Boolean(rigaMicrofono(shared("arturo.microfono"))), (el) => { const r = rigaMicrofono(shared("arturo.microfono")); return el.child(h_flex().id("volta-microfono").px(18).gap(6).items_center().cursor_pointer()
         .on_click(() => setShared("arturo.microfono.spento", shared("arturo.microfono.spento") !== true))
         .child(svg("mods/arturo/microfono.svg").size(12).text_color(r.avviso ? t.blocked : t.accent))
         .child(div().text_size(12).text_color(r.avviso ? t.blocked : t.muted).child(r.testo))); })
-      .when(Boolean(vecchio) && !chiusa, (el) => el.child(div().id("volta-vecchio").px(18).text_size(12).text_color(t.blocked).child(vecchio)))
-      .when(Boolean(corpo), (el) => el.child(corpo))
-      .when(Boolean(gesti), (el) => el.child(gesti));
+      .when(Boolean(vecchio), (el) => el.child(div().id("volta-vecchio").px(18).text_size(12).text_color(t.blocked).child(vecchio)))
+      .child(corpo)
+      .when(Boolean(gesti), (el) => el.child(gesti.mb(10)));
   }
 }

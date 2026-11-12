@@ -4,11 +4,12 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, run, agents, spaces, layout, shared, setShared, watchFolder, notify, home, nextCommand } from "herdr";
+import { theme, run, agents, spaces, panes, focused, layout, shared, setShared, watchFolder, notify, home, nextCommand } from "herdr";
 import { frase, slug, config, statoSpazio, SUGGERIMENTI } from "./dati.js";
 import { PING, daRimandare } from "./comandi.js";
 import { ICONA, punto, pulsante, colore, apriFinestra, apriElenco, tasti, nasceSu } from "./comuni.js";
 import { leggiTutte } from "./notaui.js";
+import { macchinaBreve } from "./sessioni.js";
 import { cartellaNote, progettoNota, contaNote, noteAperte, risposteClaude, risposteNuove } from "./nota.js";
 
 const ARANCIO = "#f2a24a";
@@ -43,19 +44,31 @@ export class Testata {
           .when(Boolean(x.status), (el) => el.child(punto(colore(t, frase(x.status).colore), 7)))
           .child(div().text_size(12.5).child(x.named ? x.name : `Conversazione ${i + 1}`))))
       : null;
-    const bottone = (id, icona, testo, azione) => h_flex().id(id).h(30).px(10).gap(7).items_center().rounded(7).cursor_pointer()
+    // La macchina dove gira la sessione della scheda aperta (shared arturo.volta.dove di volta.js): una
+    // scheda che aggancia una sessione di un'altra macchina dice quella; le altre sono di questa macchina.
+    const f2 = focused();
+    const term = (f2?.terminal && panes().some((p) => p.terminal === f2.terminal && p.tab === tab?.id)) ? f2.terminal
+      : panes().find((p) => p.tab === tab?.id)?.terminal;
+    const dv = shared("arturo.volta.dove");
+    const macchina = tab ? (dv?.schede?.[term] ?? dv?.qui ?? null) : null;
+    // "Cosa posso chiedere" sta nel piede e "Altra conversazione" è Nuova richiesta (⌘T): qui resta solo il
+    // pannello Da fare, come icona (12/11/2026, la testata era affollata).
+    const bottone = (id, icona, testo, azione) => h_flex().id(id).h(30).w(30).justify_center().items_center().rounded(7).cursor_pointer()
       .text_color(t.muted).hover((st) => st.bg(t.hover).text_color(t.foreground))
       .on_mouse_down("left", (_e, cx) => cx.stop_propagation()).on_click(azione)
-      .child(svg(icona.includes("/") ? icona : ICONA(icona)).size(14)).child(div().text_size(12.5).child(testo));
+      .tooltip(testo)
+      .child(svg(icona.includes("/") ? icona : ICONA(icona)).size(15));
     return h_flex().size_full().bg(t.chrome).border_b(1).border_color(t.border).pl(20).pr(12).gap(16).items_center()
       .child(v_flex().min_w(0).gap(1)
         .child(div().id("testata-titolo").truncate().font_family("Arturo Archivo").text_size(16).text_color(t.foreground)
-          .child(s ? (shared("arturo.progetti")?.[slug(s.name)]?.titolo ?? s.name) : "Volta Celeste"))
-        .when(Boolean(f), (el) => el.child(h_flex().id("testata-stato").gap(7).items_center().child(punto(colore(t, f.colore), 7)).child(div().text_size(12).text_color(colore(t, f.colore)).child(f.testo)))))
+          .child(s ? (shared("arturo.progetti")?.[slug(s.name)]?.titolo ?? s.name) : "Volta"))
+        .when(Boolean(f) || Boolean(macchina), (el) => el.child(h_flex().id("testata-stato").gap(7).items_center()
+          .when(Boolean(f), (e) => e.child(punto(colore(t, f.colore), 7)))
+          .when(Boolean(macchina), (e) => e.child(div().id("testata-macchina").text_size(12).text_color(t.foreground).child(macchinaBreve(macchina))))
+          .when(Boolean(macchina) && Boolean(f), (e) => e.child(div().text_size(12).text_color(t.dim).child("·")))
+          .when(Boolean(f), (e) => e.child(div().text_size(12).text_color(colore(t, f.colore)).child(f.testo))))))
       .child(div().flex_1())
       .when(Boolean(schede), (el) => el.child(schede))
-      .child(bottone("chiedi", "mods/arturo/chiedi.svg", "Cosa posso chiedere", () => apriSuggerimenti()))
-      .when(Boolean(s), (el) => el.child(bottone("altra", "plus", "Altra conversazione", () => run("arturo.volta-nuova"))))
       .child(bottone("dafare", "panel-right", pannello?.hidden ? "Mostra Da fare" : "Nascondi Da fare", () => run("layout.toggle", { id: "pannello" })));
   }
 }

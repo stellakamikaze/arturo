@@ -5,8 +5,8 @@
 
 import { div } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { theme, props, closeOverlay, openOverlay, run } from "herdr";
-import { titolo, nomeNuovo, progettoNuovo, nomeProgetto, filtraProgetti, comandoCambio } from "./sessioni.js";
+import { theme, props, closeOverlay, openOverlay, run, shared } from "herdr";
+import { titolo, nomeNuovo, progettoNuovo, nomeProgetto, filtraProgetti, comandoCambio, impostaProgetti } from "./sessioni.js";
 
 // `noti`: i progetti fra cui scegliere (progettiNoti di sessioni.js), solo per cosa = "progetto".
 export function apriCambio(s, cosa, noti = []) {
@@ -60,6 +60,7 @@ export class Cambio {
 
   render() {
     const t = theme();
+    impostaProgetti(shared("arturo.progetti"));
     const x = TESTI[this.cosa];
     const scelte = this.scelte();
     const pronto = this.pronto();

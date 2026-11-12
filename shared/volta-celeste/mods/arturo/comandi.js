@@ -31,6 +31,8 @@ export function instrada(c) {
   // "guida" e "guida<N>": la guida, alla pagina N (da 1).
   if (/^guida\d?$/.test(c)) return { verbo: "guida", arg: Math.max(0, Number(dopo("guida") || 1) - 1), lungo: false };
   if (c === "nuova") return { verbo: "nuova", arg: null, lungo: true };
+  // "dove-scelta": apre il selettore di "Nasce su" (prove senza clic). Viene prima di "dove-<macchina>".
+  if (c === "dove-scelta") return { verbo: "dove-scelta", arg: null, lungo: false };
   // "dove-<macchina>": la scelta di "Nasce su" (dove-qui per questa macchina).
   if (c.startsWith("dove-")) return { verbo: "dove", arg: dopo("dove-"), lungo: false };
   if (c === "nota") return { verbo: "nota", arg: null, lungo: true };

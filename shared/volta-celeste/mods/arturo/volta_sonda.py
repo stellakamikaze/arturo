@@ -22,6 +22,11 @@ distribuire (#5172, 10/11/2026).
       un gesto su una sessione in background. logs: le ultime righe dello schermo, per chi non ha
       trascrizione. respawn (Riavvia) accende prima il servizio di Claude su MACCHINA, come nasci: il
       processo nuovo nasce da lì (#5215). stop, rm e logs non fanno nascere processi e non lo toccano.
+  python3 volta_sonda.py congeda MACCHINA ID SESSIONID [--cartella DIR]
+      il primo tempo della chiusura di una sessione (12/11/2026): claude stop ID, poi la stessa
+      conversazione ripresa in background col solo /fine (claude --bg --resume SESSIONID, senza
+      --fork-session), nella sua cartella. Lo stop finale lo chiede Volta a /fine finito. Mai rm.
+      Stampa {ok, fermata} oppure {errore}.
   python3 volta_sonda.py apri MACCHINA ID [--riavvia]
       prepara l'aggancio di una sessione in background: accende il servizio di Claude su MACCHINA, così
       claude attach trova chi tiene la sessione; con --riavvia fa prima claude respawn (una sessione in
@@ -381,16 +386,50 @@ if qui:
     base = cartella
 argv = [cl, "--bg"]
 if a.get("riprendi"):
-    argv += ["--resume", a["riprendi"], "--fork-session"]
+    # "stessa": la ripresa della stessa conversazione (il congedo, /fine), senza copia
+    argv += ["--resume", a["riprendi"]] + ([] if a.get("stessa") else ["--fork-session"])
 nome = str(a.get("nome") or "").lstrip("-").strip()[:60]
 if nome:
     argv += ["-n", nome]
 argv += [a["prompt"]] if a.get("prompt") else []
-try:
-    r = subprocess.run(argv, cwd=base, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                       stdin=subprocess.DEVNULL, timeout=90)
-except subprocess.TimeoutExpired:
-    esci(errore="claude --bg non ha risposto in 90 s: claude agents dice se è nata")
+#ELENCO#
+def processo(sid):
+    """Il pid della sessione `sid` secondo claude agents, None se non gira, False se non si legge."""
+    try:
+        r = subprocess.run([cl, "agents", "--json", "--all"], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", stdin=subprocess.DEVNULL, timeout=15)
+        for s in elenco(r.stdout) or []:
+            if s.get("sessionId") == sid or s.get("id") == sid:
+                return s.get("pid")
+        return None
+    except (OSError, subprocess.SubprocessError):
+        return False
+def lancia():
+    try:
+        return subprocess.run(argv, cwd=base, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                              stdin=subprocess.DEVNULL, timeout=90)
+    except subprocess.TimeoutExpired:
+        esci(errore="claude --bg non ha risposto in 90 s: claude agents dice se è nata")
+if a.get("stessa"):
+    # la ripresa subito dopo claude stop non sveglia niente (12/11/2026): prima la sessione deve essere
+    # ferma davvero, e dopo il lancio deve avere un processo; se no, un secondo tentativo
+    for _ in range(15):
+        if not processo(a["riprendi"]):
+            break
+        time.sleep(1)
+    for tentativo in range(2):
+        r = lancia()
+        for _ in range(15):
+            time.sleep(1)
+            if processo(a["riprendi"]):
+                break
+        else:
+            continue
+        break
+    else:
+        esci(errore="ripresa lanciata, ma la sessione non riparte")
+else:
+    r = lancia()
 uscita = (r.stdout or "") + "\n" + (r.stderr or "")
 m = re.search(r"claude attach ([0-9A-Za-z-]+)", uscita)
 if not m:
@@ -400,7 +439,6 @@ if not m:
     esci(errore="non parte in background: " + (righe[0][:160] if righe else "rc %d" % r.returncode))
 corto = m.group(1)
 sid = corto
-#ELENCO#
 # il sessionId intero serve per scrivere il progetto: claude agents può non elencarla subito
 for giro in range(3):
     try:
@@ -828,6 +866,9 @@ def righe(voci):
                 "cartella": s.get("cwd"), "ultimo": s.get("ultimo") or nascita(s),
                 "risposta": (s.get("risposta") or "")[:420], "azione": s.get("azione") or "",
                 "daPortare": s.get("daPortare") if isinstance(s.get("daPortare"), str) else None,
+                # chiusa: in background, senza processo e senza status (dopo claude stop, sonda S1
+                # dell'11/11/2026). Volta non la mostra più; una in errore resta, per Riavvia.
+                "chiusa": fondo and not s.get("pid") and not s.get("status") and stato(s) != "errore",
             })
     return out
 
@@ -915,7 +956,7 @@ def servizio(nome):
     return {"errore": d.get("errore") or "nessuna risposta"}
 
 
-def nasci(nome, prompt="", progetto=None, cartella=None, riprendi=None, titolo=None):
+def nasci(nome, prompt="", progetto=None, cartella=None, riprendi=None, titolo=None, stessa=False):
     """Una sessione nuova in background su `nome` ("qui" o vuoto = questa macchina).
 
     Duplica e Fork (#5291) passano da qui: `cartella` è quella della sessione di partenza, `riprendi`
@@ -928,7 +969,7 @@ def nasci(nome, prompt="", progetto=None, cartella=None, riprendi=None, titolo=N
     if riprendi is not None and not ID.fullmatch(riprendi or ""):  # mai un'opzione come --all
         return {"errore": "id di sessione non valido"}
     dati = {"prompt": prompt or "", "progetto": progetto}
-    dati.update({k: v for k, v in (("cartella", cartella), ("riprendi", riprendi), ("nome", titolo)) if v})
+    dati.update({k: v for k, v in (("cartella", cartella), ("riprendi", riprendi), ("nome", titolo), ("stessa", stessa)) if v})
     arg = base64.b64encode(json.dumps(dati).encode()).decode()
     if questa:
         voce = {"questa": True, "target": None}
@@ -1110,6 +1151,26 @@ def azione(nome, verbo, sid):
     return {"ok": True, "testo": testo.splitlines()[-1][:200] if testo else ""}
 
 
+# Il congedo (12/11/2026): chiudere una sessione da Volta vuol dire /fine e poi claude stop. Qui il primo
+# tempo: claude stop (se gira ancora), poi la stessa conversazione ripresa in background col solo /fine.
+# Il secondo stop lo chiede volta.js quando /fine ha finito il turno (passoCongedo di sessioni.js).
+# Mai claude rm. "è partita, ma non ho letto il suo id" vale come ripresa: --resume non stampa l'aggancio.
+# VOLTA_PROMPT_CONGEDO sostituisce il testo solo per le prove dal vivo, su una sessione usa e getta.
+PROMPT_CONGEDO = os.environ.get("VOLTA_PROMPT_CONGEDO") or (
+    "/fine congedo da Volta: la persona ha chiuso questa sessione. Niente rotazione, "
+    "nessuna domanda e nessun menu: salva e chiudi.")
+
+
+def congeda(nome, sid_lavoro, session_id, cartella=None):
+    if not ID.fullmatch(sid_lavoro or "") or not ID.fullmatch(session_id or ""):
+        return {"errore": "id di sessione non valido"}
+    fermata = azione(nome, "stop", sid_lavoro)  # una sessione già ferma risponde con un errore: si va avanti
+    r = nasci(nome, PROMPT_CONGEDO, None, cartella, riprendi=session_id, stessa=True)
+    if r.get("errore") and not str(r["errore"]).startswith("è partita"):
+        return {"errore": r["errore"], "fermata": bool(fermata.get("ok"))}
+    return {"ok": True, "fermata": bool(fermata.get("ok"))}
+
+
 CAMBI = {"rinomina": "titolo", "progetto": "scheda"}
 SLUG = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
 NOME_LUNGO = 60
@@ -1254,6 +1315,16 @@ def main(argv):
             print("uso: volta_sonda.py apri <macchina> <id> [--riavvia]")
             return 2
         esito = apri(resto[0], resto[1], "--riavvia" in argv[1:])
+        print(json.dumps(esito, ensure_ascii=True))
+        return 0 if "errore" not in esito else 1
+    if argv and argv[0] == "congeda":
+        resto = argv[1:]
+        cartella = resto[resto.index("--cartella") + 1] if "--cartella" in resto[:-1] else None
+        resto = [a for i, a in enumerate(resto) if a != "--cartella" and (i == 0 or resto[i - 1] != "--cartella")]
+        if len(resto) != 3:
+            print("uso: volta_sonda.py congeda <macchina> <id> <sessionId> [--cartella <dir>]")
+            return 2
+        esito = congeda(resto[0], resto[1], resto[2], cartella)
         print(json.dumps(esito, ensure_ascii=True))
         return 0 if "errore" not in esito else 1
     if argv and argv[0] == "azione":
