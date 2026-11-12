@@ -624,6 +624,21 @@ export const daPortare = (s) => (s && !s.vecchia && s.stato === "ferma" && typeo
 export const daIniziare = (s) => (s && !s.vecchia && s.stato === "ferma" && typeof s.daIniziare === "string"
   && /^[a-z0-9][a-z0-9-]{0,39}$/.test(s.daIniziare) ? s.daIniziare : null);
 
+// Trascinare una sessione su un altro progetto, nella vista per progetto (Federico, 12/11/2026: "voglio
+// poter fare drag & drop"). Herdr non ha un trascinamento per i mod: volta.js lo costruisce con
+// pressione, movimento e rilascio del mouse. Sotto MOSSA_PX di movimento è un clic, che apre la sessione.
+export const MOSSA_PX = 6;
+export const mosso = (da, a) => Boolean(da && a) && Math.hypot(a.x - da.x, a.y - da.y) >= MOSSA_PX;
+
+// Lo slug del progetto dove finisce la sessione trascinata `t` ({ s, mosso }) lasciata sul gruppo `g`, o
+// null: nella vista per macchina, su "Senza progetto", sul progetto dove sta già, senza movimento, con la
+// macchina della sessione che non risponde.
+export function arrivoTrascino(t, g, modo) {
+  if (!t?.s || !t.mosso || t.s.vecchia || modo !== "progetto" || !g?.chiave) return null;
+  if (chiaveProgetto(t.s.progetto) === g.chiave) return null;
+  return progettoNuovo(g.chiave) || null;
+}
+
 // Il nome della copia di una conversazione: "<titolo> (fork)", entro i 60 caratteri di un titolo.
 export const titoloFork = (s) => `${titolo(s).slice(0, 53).trim()} (fork)`;
 

@@ -1,5 +1,5 @@
 {
- "albero": "c0192c1c03d69fb9a9cb6d56137b10b0845de0f0",
+ "albero": "cc6666f1fe2bdacd624b4a32179b093753d62ac5",
  "cartella": "arturo",
  "file": {
   ".gitattributes": "41200e026b17d03b02fe43b3dd97497972ff85b262ab9eebd2d29f428d2d7025",
@@ -44,7 +44,7 @@
   "mods/arturo/noteui.js": "1b703b298779e3e23c1a441d3aaaa1984c7c5881c996ad863ca2fb41ed7c0001",
   "mods/arturo/partenza.js": "180eb43fc1866656eae4d7c0c3558a3da124c548f4b01556ceb11a98f0f789b4",
   "mods/arturo/revisione.js": "7e57a9239cccc2dbc355625e0302814663d8268f888680c61dd23059d5ee7eaf",
-  "mods/arturo/sessioni.js": "e2cc19160a3e68e70457b1ea867491956d551a06ab33eba91afd2917bc4416f0",
+  "mods/arturo/sessioni.js": "94b81d72c82db5c68ee967830bdec3479e7410d406954a7df7e6278df5cdda2f",
   "mods/arturo/settimana.js": "0ebd611a82cd49db48284e6b3439fd34899c7a744d0668bf1a1e1a603705174a",
   "mods/arturo/settimana.svg": "b65bc34a4092e93c90133c3fd93337e831ddd7d2065995aa0e22c8669315f180",
   "mods/arturo/sposta.js": "e0b68a585c5fd462448dcb7620d7e8a4c2ae67743a481a84e56031cc102c214b",
@@ -55,7 +55,7 @@
   "mods/arturo/tessere.js": "6f8a5eaf1e5f6ef9d08cc045652c26feb4e1532bea99cf3f36fee1028ed4fb9d",
   "mods/arturo/testata.js": "56cb825908c4c6b3e531913d09cd738f954230324d7b6b8729515e626b405ca8",
   "mods/arturo/todo.js": "c1da10845be254afae62e9456e5888acfd14ceb4c5e7cc9f8d6246c75aed820b",
-  "mods/arturo/volta.js": "d0b9e4c3dfcc874c6e5601a911a3b7d7f1024bf4b9662f4d23d98ed0055f14a5",
+  "mods/arturo/volta.js": "3729a0b05ab199cb8adf2b549be2e8b4163477e7b21b9cc3b993657ad59b26c9",
   "mods/arturo/volta_microfono.py": "c5f9f506837c56ae33f460a29f7ee607195703080e7a8789744f79dd615628c4",
   "mods/arturo/volta_note.py": "8f2819706f4b2cbcc315a976d2ecc46e21d383f17d6b3b3ec1f898c195f212a0",
   "mods/arturo/volta_sonda.py": "9a562bad92b97b3dc2cae33f5ecae1ca4af17a89ce750ca97b80009edd36331f",
@@ -68,7 +68,7 @@
   "trova-progetti.md": "b980bb9a53f543b2a15d0a77ad70f1e0e306c74893d4a4804b95a198d8770932",
   "volta-claude.ps1": "6c7a617e2b2b926cad5c3b2a79bb09e379d32f85bbeed955bcd2ccaaa265ed62",
   "volta-claude.sh": "37a652b8043c4f5e8a5c53ed14d2f3c7589cb56893f08b497e2f337e4a3291e9",
-  "volta_mod.py": "5ffa89ea73c2b58d998485bcbfc847f4d4f230f544f29d70d581171527158296"
+  "volta_mod.py": "252d3b1ca85bf54b78c05fc51602fb69722caab886ab604ccb1b6da8f8d699f4"
  },
  "repository": "volta"
 }

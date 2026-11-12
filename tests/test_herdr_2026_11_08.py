@@ -432,6 +432,22 @@ HZ99 i tasti della ricerca (#5369): ⌘K e ⌘O aprono Cerca, su Windows Ctrl+Sh
      testo di arturo.nuova-<esadecimale>; tasti() dice ⌘K e il giro.
 HZ100 installa-herdr.sh senza keys.json parte dai tasti di serie di Herdr (shared/volta/keys-herdr*.json):
      Volta ha ⌘W, ⌘C e gli altri, la sezione terminal, e i tasti di Arturo sopra, ⌘T sulle tessere (#5369).
+HZ101 la riga accesa e il comando di Sposta su (12/11/2026, Federico): sessioni.js con node: corrente() è
+     l'ultima sessione del giro dentro la raffica di ⌘↓ e ⌘↑, poi quella della scheda in primo piano;
+     sessioneDavanti() riconosce chi gira nel terminale di una scheda in uno spazio di un'altra macchina
+     (torre/t13) prima dell'etichetta; unaPerConversazione() toglie la copia ferma di una sessione
+     spostata. comandi.js legge volta-sposta-<macchina>-<id>; testata e main.js hanno pulsante e popup.
+HZ102 Sposta su porta la conversazione (12/11/2026): gli script di volta_sposta.py su due macchine finte
+     nella stessa casa. LEGGI rifiuta file non salvati e commit non spinti e una cartella fuori dalla base;
+     PREPARA clona il repository allo stesso commit sull'altra base e trova la cartella di Claude codificata;
+     PACCO e SCARICA portano trascrizione e cartella, tengono da parte la copia di prima e rifiutano un
+     pacco con un nome fuori dalla cartella.
+HZ103 trascinare una sessione su un altro progetto (12/11/2026, Federico: "voglio poter fare drag & drop"):
+     sessioni.js con node: mosso() passa da clic a trascinamento a MOSSA_PX; arrivoTrascino() dà lo slug
+     del progetto d'arrivo e null sullo stesso progetto, nella vista per macchina, su "Senza progetto",
+     senza movimento e con la macchina giù. volta.js: la pressione sulla riga solo per progetto, il
+     movimento sull'elenco, il rilascio sul gruppo che chiama cambia() come Cambia progetto, il clic
+     che non apre dopo un trascinamento.
 """
 from __future__ import annotations
 
@@ -447,7 +463,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96", "HZ97", "HZ98", "HZ99", "HZ100", "HZ101", "HZ102", "HZ103")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -4072,7 +4088,7 @@ def hz59(repo: Path, casa: Path) -> str | None:
     testi = {n: (mod / n).read_text(encoding="utf-8") for n in ("volta.js", "barra.js", "main.js", "menusessione.js", "cambio.js", "dati.js")}
     attesi = (
         ("volta.js", "if (verbo in CAMBIA) return this.chiedi(s, CAMBIA[verbo]);", "Rinomina e Cambia progetto non aprono il dialogo"),
-        ("volta.js", '.on_click((e, cx) => (e?.click_count >= 2 ? this.chiedi(s, "nome") : this.premi(s, cx)))', "il doppio clic sul titolo non apre il dialogo del nome"),
+        ("volta.js", 'return e?.click_count >= 2 ? this.chiedi(s, "nome") : this.premi(s, cx);', "il doppio clic sul titolo non apre il dialogo del nome"),
         ("volta.js", "const d = leggiCambio(c);", "il comando del cambio non passa da leggiCambio"),
         ("volta.js", "r = await cambiaSessione(s, cosa, valore);", "il cambio non arriva alla sonda"),
         ("volta.js", 'if (r.ok && cosa === "nome" && valore) rinominaSchede(s, valore);', "il nome nuovo non va sulla scheda"),
@@ -7383,7 +7399,214 @@ def hz97(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100}
+
+PROVA_ACCESA = r"""
+const n = await import(%s);
+const c = await import(%s);
+const l = [{ host: "qui", id: "a", sessionId: "A", stato: "ferma", tipo: "background" },
+  { host: "amaltea", id: "a", sessionId: "A", stato: "aspetta", tipo: "background" },
+  { host: "torre", id: "b", sessionId: "B", stato: "ferma", tipo: "interattiva", terminale: "t13" },
+  { host: "torre", id: "d", sessionId: "D", stato: "ferma", tipo: "background" },
+  { host: "qui", id: "e", sessionId: "E", stato: "ferma" }, { host: "amaltea", id: "e", sessionId: "E", stato: "ferma" }];
+const g = { ids: ["a", "b"], ultimo: "b", quando: 1000 };
+console.log(JSON.stringify({
+  corrente: [n.corrente(g, "a", 1500), n.corrente(g, "a", 1001 + n.GIRO_MS), n.corrente(null, "a", 5), n.corrente(null, null, 5)],
+  davanti: [n.sessioneDavanti({ address: "torre/t13", labels: { "arturo.sessione": "d" } }, l)?.id ?? null,
+    n.sessioneDavanti({ address: "amaltea/t13" }, l), n.sessioneDavanti(null, l)],
+  una: n.unaPerConversazione(l).map((s) => s.host + "/" + s.id),
+  sposta: [c.instrada("volta-sposta-amaltea-936135fc"), c.instrada("volta-sposta-studio-ab12cd34").arg, c.instrada("volta-936135fc").verbo],
+}));
+"""
+
+
+def hz101(repo: Path, casa: Path) -> str | None:
+    """La riga accesa dell'elenco e il comando di Sposta su."""
+    mod = repo / "shared/volta/mods/arturo"
+    volta = (mod / "volta.js").read_text(encoding="utf-8")
+    for pezzo in ("this.acceso = corrente(this.giroSt, sessioneDavanti(scheda, this.dati?.sessioni ?? [])?.sessionId ?? null, Date.now());",
+                  "const acceso = this.acceso === k;", 'else if (c === "volta-sposta") this.volta.spostaId(arg.macchina, arg.id, cx);'):
+        if pezzo not in volta + (mod / "barra.js").read_text(encoding="utf-8"):
+            return f"volta.js o barra.js non hanno più: {pezzo[:70]}"
+    testata = (mod / "testata.js").read_text(encoding="utf-8")
+    if 'bottone("sposta", ICONA_SPOSTA' not in testata or "sposta: SceltaSposta" not in (mod / "main.js").read_text(encoding="utf-8"):
+        return "la testata ha perso il pulsante Sposta su, o main.js il suo popup"
+    node = shutil.which("node")
+    if not node:
+        return None
+    for nome in ("sessioni", "comandi"):
+        shutil.copyfile(mod / f"{nome}.js", casa / f"{nome}.mjs")
+    r = subprocess.run([node, "--input-type=module", "-e",
+                        PROVA_ACCESA % (json.dumps((casa / "sessioni.mjs").as_uri()), json.dumps((casa / "comandi.mjs").as_uri()))],
+                       capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    if g["corrente"] != ["b", "a", "a", None]:
+        return f"corrente() non segue il giro dentro la raffica, o non torna alla scheda dopo: {g['corrente']}"
+    if g["davanti"] != ["b", None, None]:
+        return f"sessioneDavanti() non riconosce chi gira nel terminale di un'altra macchina: {g['davanti']}"
+    if g["una"] != ["amaltea/a", "torre/b", "torre/d", "qui/e", "amaltea/e"]:
+        return f"unaPerConversazione() non toglie la copia ferma di una sessione spostata: {g['una']}"
+    if g["sposta"] != [{"verbo": "volta-sposta", "arg": {"macchina": "amaltea", "id": "936135fc"}, "lungo": False},
+                       {"macchina": "studio", "id": "ab12cd34"}, "volta"]:
+        return f"instrada() non legge volta-sposta-<macchina>-<id>: {g['sposta']}"
+    return None
+
+
+# Due macchine finte nella stessa casa: ognuna con la sua cartella di Herdr (base dei progetti) e la sua
+# cartella di Claude. Gli script di volta_sposta.py girano come girano con hc exec: python -c CODICE ARG.
+PROVA_SPOSTA = r'''
+import base64, io, json, os, re, subprocess, sys, tarfile
+mod, casa = sys.argv[1], sys.argv[2]
+sys.path.insert(0, mod)
+import volta_sposta as vs
+def g(cwd, *a):
+    subprocess.run(["git", *a], cwd=cwd, check=True, capture_output=True)
+remoto = os.path.join(casa, "remoto.git")
+g(casa, "init", "-q", "--bare", remoto)
+basi = {"da": os.path.join(casa, "da", "progetti"), "a": os.path.join(casa, "a", "progetti")}
+for lato, base in basi.items():
+    os.makedirs(base)
+    os.makedirs(os.path.join(casa, lato, "herdr"))
+    with open(os.path.join(casa, lato, "herdr", "arturo.json"), "w") as fh:
+        json.dump({"base": base}, fh)
+progetto = os.path.join(basi["da"], "prova")
+os.makedirs(progetto)
+g(progetto, "init", "-q", "-b", "main")
+g(progetto, "config", "user.email", "banco@prova")
+g(progetto, "config", "user.name", "banco")
+open(os.path.join(progetto, "x.txt"), "w").write("uno")
+g(progetto, "add", "x.txt")
+g(progetto, "commit", "-qm", "uno")
+g(progetto, "remote", "add", "origin", remoto)
+g(progetto, "push", "-q", "-u", "origin", "main")
+sid = "1234abcd-0000-4000-8000-000000000000"
+cartella_claude = os.path.join(casa, "da", "claude", "projects", re.sub(r"[^A-Za-z0-9]", "-", progetto))
+os.makedirs(os.path.join(cartella_claude, sid))
+open(os.path.join(cartella_claude, sid + ".jsonl"), "w").write(json.dumps({"cwd": progetto}) + "\n")
+open(os.path.join(cartella_claude, sid, "nota.txt"), "w").write("dentro")
+def lancia(lato, codice, dati, entrata=None):
+    env = {**os.environ, "HERDR_APP_HOME": os.path.join(casa, lato, "herdr"), "CLAUDE_CONFIG_DIR": os.path.join(casa, lato, "claude")}
+    arg = base64.b64encode(json.dumps(dati).encode()).decode()
+    r = subprocess.run([sys.executable, "-c", codice, arg], capture_output=True, text=True, input=entrata or "", env=env, timeout=120)
+    return vs.vs.leggi_json(r.stdout) if r.stdout.strip() else {"errore": r.stderr.strip()[-200:]}
+out = {}
+letto = lancia("da", vs.LEGGI, {"cartella": progetto, "sid": sid})
+out["letto"] = {k: letto.get(k) for k in ("rel", "byte", "errore")}
+out["pulito"] = vs.controlla_git(letto.get("git"))
+open(os.path.join(progetto, "y.txt"), "w").write("due")
+out["sporco"] = vs.controlla_git(lancia("da", vs.LEGGI, {"cartella": progetto, "sid": sid}).get("git"))
+g(progetto, "add", "y.txt")
+g(progetto, "commit", "-qm", "due")
+out["non_spinto"] = vs.controlla_git(lancia("da", vs.LEGGI, {"cartella": progetto, "sid": sid}).get("git"))
+g(progetto, "push", "-q")
+letto = lancia("da", vs.LEGGI, {"cartella": progetto, "sid": sid})
+if letto.get("errore"):
+    print(json.dumps({"errore_letto": letto["errore"]}))
+    raise SystemExit
+pronto = lancia("a", vs.PREPARA, {"rel": letto["rel"], "git": letto["git"], "nome": "a"})
+out["pronto"] = {"cartella": pronto.get("cartella"), "progetti": pronto.get("progetti"), "errore": pronto.get("errore"),
+                 "y": os.path.exists(os.path.join(basi["a"], "prova", "y.txt"))}
+pacco = lancia("da", vs.PACCO, {"trascrizione": letto["trascrizione"], "sid": sid})
+s1 = lancia("a", vs.SCARICA, {"sid": sid, "progetti": pronto["progetti"]}, pacco["pacco"])
+s2 = lancia("a", vs.SCARICA, {"sid": sid, "progetti": pronto["progetti"]}, pacco["pacco"])
+out["scarica"] = [s1.get("byte") == pacco["byte"], s2.get("byte") == pacco["byte"],
+                  os.path.exists(os.path.join(pronto["progetti"], sid, "nota.txt")),
+                  len([f for f in os.listdir(pronto["progetti"]) if ".prima-" in f])]
+buf = io.BytesIO()
+with tarfile.open(fileobj=buf, mode="w:gz") as t:
+    info = tarfile.TarInfo("../fuori.txt"); info.size = 2; t.addfile(info, io.BytesIO(b"no"))
+cattivo = lancia("a", vs.SCARICA, {"sid": sid, "progetti": pronto["progetti"]}, base64.b64encode(buf.getvalue()).decode())
+out["cattivo"] = [bool(cattivo.get("errore")), os.path.exists(os.path.join(os.path.dirname(pronto["progetti"]), "fuori.txt"))]
+sid2 = "5678abcd-0000-4000-8000-000000000000"
+fuori_claude = os.path.join(casa, "da", "claude", "projects", re.sub(r"[^A-Za-z0-9]", "-", casa))
+os.makedirs(fuori_claude)
+open(os.path.join(fuori_claude, sid2 + ".jsonl"), "w").write(json.dumps({"cwd": casa}) + "\n")
+fuori = lancia("da", vs.LEGGI, {"cartella": casa, "sid": sid2})
+out["fuori"] = bool(fuori.get("errore"))
+print(json.dumps(out))
+'''
+
+
+def hz102(repo: Path, casa: Path) -> str | None:
+    """Sposta su: volta_sposta.py legge git, prepara l'altra macchina e porta la trascrizione."""
+    mod = repo / "shared/volta/mods/arturo"
+    if 'if argv and argv[0] == "sposta":' not in (mod / "volta_sonda.py").read_text(encoding="utf-8"):
+        return "volta_sonda.py non passa più il verbo sposta a volta_sposta.py"
+    if not shutil.which("git"):
+        return None
+    r = subprocess.run([sys.executable, "-I", "-c", PROVA_SPOSTA, str(mod), str(casa)], capture_output=True, text=True,
+                       encoding="utf-8", cwd=str(casa), timeout=240)
+    if r.returncode != 0:
+        return f"volta_sposta.py non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    g = json.loads(r.stdout.strip().splitlines()[-1])
+    if g.get("errore_letto"):
+        return f"LEGGI non trova la cartella della trascrizione: {g['errore_letto'][:120]}"
+    if g["letto"]["errore"] or g["letto"]["rel"] != "prova" or g["pulito"] is not None:
+        return f"LEGGI non legge una cartella pulita e spinta: {g['letto']}, {g['pulito']}"
+    if "non salvati" not in str(g["sporco"]) or "non spinti" not in str(g["non_spinto"]):
+        return f"lo spostamento non si ferma davanti a file non salvati o commit non spinti: {g['sporco']} / {g['non_spinto']}"
+    p = g["pronto"]
+    if p["errore"] or not p["y"] or not str(p["progetti"]).endswith(re.sub(r"[^A-Za-z0-9]", "-", str(p["cartella"]))):
+        return f"PREPARA non porta il repository allo stesso commit, o sbaglia la cartella di Claude: {p}"
+    if g["scarica"] != [True, True, True, 2]:
+        return f"la trascrizione non arriva intera, o una copia di prima non resta da parte: {g['scarica']}"
+    if g["cattivo"] != [True, False]:
+        return f"SCARICA apre un pacco con un nome fuori dalla cartella: {g['cattivo']}"
+    if not g["fuori"]:
+        return "LEGGI accetta una cartella fuori dalla base dei progetti"
+    return None
+
+
+PROVA_TRASCINO = r"""
+const m = await import(%s);
+m.impostaProgetti({ "due-mondi": { chiave: "due-mondi", nome: "Due Mondi" } });
+const s = { sessionId: "a-lungo", progetto: "due-mondi" };
+const t = { s, mosso: true };
+console.log(JSON.stringify({
+  soglia: m.MOSSA_PX,
+  mosso: [m.mosso({ x: 0, y: 0 }, { x: 3, y: 4 }), m.mosso({ x: 10, y: 10 }, { x: 10, y: 16 }), m.mosso(null, { x: 9, y: 9 })],
+  arrivo: [m.arrivoTrascino(t, { chiave: "sito-uf" }, "progetto"), m.arrivoTrascino(t, { chiave: "Post Office" }, "progetto"),
+           m.arrivoTrascino(t, { chiave: "due-mondi" }, "progetto"), m.arrivoTrascino(t, { chiave: "sito-uf" }, "macchina"),
+           m.arrivoTrascino(t, { chiave: "" }, "progetto"), m.arrivoTrascino({ s, mosso: false }, { chiave: "sito-uf" }, "progetto"),
+           m.arrivoTrascino({ s: { ...s, vecchia: true }, mosso: true }, { chiave: "sito-uf" }, "progetto"), m.arrivoTrascino(null, { chiave: "x" }, "progetto")],
+}));
+"""
+
+
+def hz103(repo: Path, casa: Path) -> str | None:
+    """Una sessione si trascina su un altro progetto, nella vista per progetto."""
+    mod = repo / "shared/volta/mods/arturo"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    for pezzo, motivo in (
+            ('.on_mouse_down("left", (e) => { if (modo === "progetto") this.trascino = { s, da: e.position, mosso: false, sopra: null }; })',
+             "la pressione sulla riga non comincia il trascinamento, o lo comincia anche nella vista per macchina"),
+            ("if (this.trascino && !this.trascino.mosso && mosso(this.trascino.da, e.position)) { this.trascino.mosso = true; cx.notify(); }",
+             "il movimento sull'elenco non fa partire il trascinamento"),
+            ('.on_mouse_up("left", (_e, cx) => { if (this.trascino) this.finisciTrascino(null, modo, cx); })', "un rilascio fuori da un gruppo non chiude il trascinamento"),
+            ("this.finisciTrascino(g, modo, cx);\n        cx.stop_propagation();", "il rilascio su un gruppo non sposta la sessione"),
+            ('if (arrivo) this.cambia(tr.s, "progetto", arrivo, cx);', "il trascinamento non passa da cambia(), come Cambia progetto"),
+            ("if (this.trascino?.mosso || Date.now() - this.trascinata < 500) return;", "il rilascio dopo un trascinamento apre la sessione"),
+            ("Lascia qui per spostarla in ${g.titolo}", "il gruppo d'arrivo non dice cosa succede se lasci la sessione")):
+        if pezzo not in vj:
+            return f"volta.js: {motivo}"
+    node = shutil.which("node")
+    if not node:
+        return None
+    copia = casa / "sessioni.mjs"
+    shutil.copyfile(mod / "sessioni.js", copia)
+    r = subprocess.run([node, "--input-type=module", "-e", PROVA_TRASCINO % json.dumps(copia.as_uri())], capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    if d["soglia"] != 6 or d["mosso"] != [False, True, False]:
+        return f"mosso() sbaglia la soglia fra clic e trascinamento: {d['soglia']}, {d['mosso']}"
+    if d["arrivo"] != ["sito-uf", "post-office", None, None, None, None, None, None]:
+        return f"arrivoTrascino() sbaglia il progetto d'arrivo: {d['arrivo']}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96, "HZ97": hz97, "HZ98": hz98, "HZ99": hz99, "HZ100": hz100, "HZ101": hz101, "HZ102": hz102, "HZ103": hz103}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -7402,6 +7625,14 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ("HZ103", "shared/volta/mods/arturo/sessioni.js", "export const MOSSA_PX = 6;", "export const MOSSA_PX = 0;"),
+    ("HZ103", "shared/volta/mods/arturo/sessioni.js", "Math.hypot(a.x - da.x, a.y - da.y) >= MOSSA_PX", "Math.hypot(a.x - da.x, a.y - da.y) > 99"),
+    ("HZ103", "shared/volta/mods/arturo/sessioni.js", "  if (chiaveProgetto(t.s.progetto) === g.chiave) return null;\n", ""),
+    ("HZ103", "shared/volta/mods/arturo/sessioni.js", "if (!t?.s || !t.mosso || t.s.vecchia || modo !== \"progetto\" || !g?.chiave) return null;", "if (!t?.s || !g?.chiave) return null;"),
+    ("HZ103", "shared/volta/mods/arturo/sessioni.js", "  return progettoNuovo(g.chiave) || null;", "  return g.chiave || null;"),
+    ("HZ103", "shared/volta/mods/arturo/volta.js", 'if (arrivo) this.cambia(tr.s, "progetto", arrivo, cx);', ""),
+    ("HZ103", "shared/volta/mods/arturo/volta.js", "if (this.trascino?.mosso || Date.now() - this.trascinata < 500) return;", ""),
+    ("HZ103", "shared/volta/mods/arturo/volta.js", '.on_mouse_down("left", (e) => { if (modo === "progetto") this.trascino', '.on_mouse_down("left", (e) => { if (true) this.trascino'),
     ('HZ96', 'shared/volta/layouts/arturo.json', '"active": "main"', '"active": "casa"'),
     ('HZ96', 'shared/volta/mods/arturo/barra.js', '    terminale();\n    this.carica(cx);', '    this.carica(cx);'),
     ('HZ96', 'shared/volta/mods/arturo/barra.js', ' setShared("arturo.casa.apri", Date.now()); }', ' }'),
@@ -8106,7 +8337,7 @@ VELENI = [
     ("HZ59", "shared/volta/mods/arturo/dati.js", '  if (!chiudiSchede(s)) return {};', '  chiudiSchede(s);'),
     ("HZ59", "shared/volta/mods/arturo/dati.js", 'const r = await apriSessione({ ...s, progetto }, s.attach);', 'const r = await apriSessione(s, s.attach);'),
     ("HZ59", "shared/volta/mods/arturo/volta.js", '    if (verbo in CAMBIA) return this.chiedi(s, CAMBIA[verbo]);\n', ''),
-    ("HZ59", "shared/volta/mods/arturo/volta.js", '(e?.click_count >= 2 ? this.chiedi(s, "nome") : this.premi(s, cx))', '(this.premi(s, cx))'),
+    ("HZ59", "shared/volta/mods/arturo/volta.js", 'return e?.click_count >= 2 ? this.chiedi(s, "nome") : this.premi(s, cx);', 'return this.premi(s, cx);'),
     ("HZ59", "shared/volta/mods/arturo/volta.js", '    this.portaNomi();\n', ''),
     ("HZ59", "shared/volta/mods/arturo/volta.js", '    this.portaInizi();\n', ''),
     ("HZ59", "shared/volta/mods/arturo/volta.js", 'portaInizio(s, this.spostate[k] === s.daIniziare)', 'portaInizio(s, true)'),
@@ -8137,6 +8368,10 @@ VELENI = [
     ("HZ67", "shared/volta/mods/arturo/comandi.js", '  if (/^nuova-(?:[0-9a-f]{4})+$/.test(c)) return { verbo: "nuova", arg: dopo("nuova-"), lungo: true };', '  if (c.startsWith("nuova-")) return { verbo: "nuova", arg: dopo("nuova-"), lungo: true };'),
     ("HZ100", "shared/volta/installa-herdr.sh", "if tasti is None:\n", "if False:\n"),
     ("HZ100", "shared/volta/installa-herdr.sh", 'serie=keys-herdr-macos.json\n', 'serie=keys-herdr.json\n'),
+    ('HZ101', 'shared/volta/mods/arturo/sessioni.js', '  if (giroSt?.ultimo && ora - giroSt.quando <= GIRO_MS) return giroSt.ultimo;\n', ''),
+    ('HZ101', 'shared/volta/mods/arturo/sessioni.js', '  return li ?? sessioneDi(terminale, sessioni);', '  return sessioneDi(terminale, sessioni) ?? li;'),
+    ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', '    if gi["sporchi"]:\n', '    if False:\n'),
+    ('HZ102', 'shared/volta/mods/arturo/volta_sposta.py', '    return re.sub(r"[^A-Za-z0-9]", "-", p)', '    return re.sub(r"[^A-Za-z0-9/]", "-", p)'),
 ]
 
 
@@ -8202,7 +8437,7 @@ def avvelena(repo: Path) -> int:
 def ferma_nati_in(cartella: Path) -> int:
     """Ferma i processi lanciati da un file dentro `cartella` (la copia di un veleno), e dice quanti.
     Un veleno che rompe lo spegnimento del ponte (HZ78, HZ79) lascia volta_microfono.py ricevi acceso
-    dopo che la copia è sparita: il 12/11/2026 su due Mac erano 8 e più di 20 (#5423).
+    dopo che la copia è sparita: il 12/11/2026 su un Mac erano 8, sull'altro più di 20 (#5423).
     Solo dove c'è ps: su Windows i casi del ponte non lanciano ricevitori veri."""
     if os.name == "nt":
         return 0
