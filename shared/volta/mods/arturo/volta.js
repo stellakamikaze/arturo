@@ -15,8 +15,8 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, exec, readTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals, spaces } from "herdr";
-import { impostaProgetti, gruppi, mostrate, ordineGiro, statoGiro, passoGiro, sessioneDi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto, GESTI_MAX, visibili, sparite, passoCongedo, chiusa } from "./sessioni.js";
+import { theme, exec, readTextFile, writeTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals, spaces } from "herdr";
+import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, registroProva, daQuanto, ordineGiro, statoGiro, passoGiro, sessioneDi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto, GESTI_MAX, visibili, sparite, passoCongedo, chiusa } from "./sessioni.js";
 import { ICONA, punto, colore } from "./comuni.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
 import { schedeDi } from "./dati.js";
@@ -32,6 +32,8 @@ const OGNI_MICROFONO = 2000;
 // Ogni quanto si guarda se una scheda che agganciava una sessione è stata chiusa (⌘W, la X): il congedo.
 const OGNI_SCHEDE = 3000;
 const SPARITE_MAX = 3;
+// Ogni quanto si guarda se c'è una sessione da chiudere da sola (#5366): una ferma da un'ora non ha fretta.
+const OGNI_AUTO = 60000;
 // La sessione è già agganciata in un Terminale fuori dalla finestra: la frase del primo clic, e per
 // quanto resta sulla riga. Finché c'è, il clic dopo stacca quel Terminale e apre la scheda qui.
 const ALTROVE = "È aperta in un Terminale. Un altro clic la porta qui.";
@@ -53,7 +55,8 @@ export async function controllaMod(py) {
     const r = await exec(py, [script, "stato"], { timeout: 20000 });
     const d = JSON.parse((r.stdout || "").trim().split("\n").pop() || "{}");
     if (d.sorgente) setShared("arturo.mod", { corta: d.installato?.corta ?? null, installato: d.installato?.installato ?? null,
-      esito: d.esito ?? null, giu_da: d.giu_da ?? null, motivo: d.motivo ?? null, modo: d.modo ?? null });
+      esito: d.esito ?? null, giu_da: d.giu_da ?? null, motivo: d.motivo ?? null, modo: d.modo ?? null,
+      programmi: d.programmi ?? null });
   } catch { /* resta l'ultimo stato letto */ }
   controlloMod = false;
 }
@@ -121,6 +124,7 @@ export class Volta {
     cx.timer.every(OGNI_MOD, () => controllaMod(this.py));
     cx.timer.every(OGNI_MICROFONO, (cx) => this.microfono(cx));
     cx.timer.every(OGNI_SCHEDE, (cx) => this.guardaSchede(cx));
+    cx.timer.every(OGNI_AUTO, (cx) => this.congedaFerme(cx));
   }
 
   // Le sessioni in congedo (shared, così restano anche se il mod si ricarica): { sessionId: c }.
@@ -168,13 +172,15 @@ export class Volta {
   }
 
   // Mette una sessione in congedo: /fine, poi claude stop (decisione di Federico, 12/11/2026). Se lavora
-  // aspetta che finisca il turno. Una sessione già chiusa non ha niente da salvare.
+  // aspetta che finisca il turno. Una sessione già chiusa non ha niente da salvare. `c.auto`: la chiusura
+  // automatica (#5366); con `c.fineFatta` la sessione ha già fatto /fine e si ferma soltanto.
   congeda(c, cx) {
     const s = (this.dati?.sessioni ?? []).find((x) => x.sessionId === c.sessionId);
     if (!s || s.tipo !== "background" || chiusa(s) || this.congedi()[c.sessionId]) return;
     const ora = Date.now();
     setShared("arturo.volta.congedi", { ...this.congedi(), [c.sessionId]: { sessionId: s.sessionId, id: s.id, host: s.host, macchina: s.macchina,
-      cartella: s.cartella ?? null, titolo: titolo(s), fase: "attende", da: ora, dal: ora } });
+      cartella: s.cartella ?? null, titolo: titolo(s), fase: "attende", da: ora, dal: ora,
+      ...(c.auto ? { auto: true } : {}), ...(c.auto && s.fineFatta ? { fineFatta: true } : {}) } });
     if (this.menu === s.sessionId) this.menu = null;
     cx.notify();
     this.passiCongedo(cx);
@@ -218,6 +224,44 @@ export class Volta {
         cx.notify();
       });
     }
+  }
+
+  // La chiusura automatica (#5366, nota di Federico dell'11/11): una sessione di questa macchina che
+  // aspetta un comando da più di un'ora va in congedo da sola, una alla volta, al più 3 all'ora e 12 al
+  // giorno (arturo.json: congedo, congedo_dopo_min, congedo_ora, congedo_giorno). In modo "prova" scrive
+  // soltanto chi chiuderebbe. Il registro sta in ~/.cache/volta/congedo-auto.json: lo scrive solo chi lo
+  // ha letto per ultimo (writeTextFile con il testo di prima), così due finestre aperte sulla stessa
+  // macchina non chiudono la stessa sessione e non sforano i tetti.
+  async congedaFerme(cx) {
+    if (this.autoLavora || !this.dati) return;
+    this.autoLavora = true;
+    try {
+      const cfg = (await config()).congedo;
+      if (cfg.modo === "spento") return;
+      const file = `${this.cartella}/congedo-auto.json`;
+      const testo = await readTextFile(file).catch(() => null);
+      let reg = {};
+      try { reg = JSON.parse(testo ?? "{}") ?? {}; } catch { reg = {}; }
+      const adesso = Date.now();
+      const conScheda = new Set(Object.values(this.schede ?? {}).map((x) => x?.sessionId).filter(Boolean));
+      const scelte = daCongedare(this.dati, adesso, { dopoMin: cfg.dopoMin, congedi: this.congedi(), conScheda });
+      const fatti = (reg.fatti ?? []).filter((x) => adesso - Number(x) < 86400000);
+      if (cfg.modo === "prova") {
+        // si scrive solo quando entra una sessione nuova: ogni scrittura fa rileggere la cartella
+        const viste = new Set((reg.prova ?? []).map((v) => v.sessionId));
+        if (!scelte.some((s) => !viste.has(s.sessionId))) return;
+        const prova = registroProva(reg.prova, scelte, adesso);
+        await writeTextFile(file, JSON.stringify({ ...reg, modo: "prova", prova }, null, 1), testo);
+        return;
+      }
+      if (!scelte.length || restanti(fatti, adesso, cfg) < 1) return;
+      const s = scelte[0];
+      await writeTextFile(file, JSON.stringify({ ...reg, modo: "acceso", fatti: [...fatti, adesso],
+        chiuse: [...(reg.chiuse ?? []).slice(-39), { sessionId: s.sessionId, titolo: titolo(s), quando: adesso, interazione: s.interazione || s.ultimo || "" }] }, null, 1), testo);
+      notify({ title: `${titolo(s)}: la chiudo`, body: `Aspettava un comando ${daQuanto(s.interazione || s.ultimo, adesso)}: faccio /fine e la fermo.`, level: "info" });
+      this.congeda({ sessionId: s.sessionId, auto: true }, cx);
+    } catch { /* un registro scritto da un'altra finestra nel frattempo: si riprova al giro dopo */ }
+    finally { this.autoLavora = false; }
   }
 
   // Il ponte del microfono: acceso finché la scheda in primo piano aggancia una sessione di un'altra
@@ -588,7 +632,8 @@ export class Volta {
       : this.veglio[s.sessionId] ? { testo: "Aperta: guardo se Claude resta nella scheda…", colore: "working" }
       : lavoro ? { testo: lavoro, colore: "working" } : dettaglio(s, modo);
     const avviso = this.avvisi[s.sessionId];
-    const vivo = s.stato === "aspetta" || s.stato === "lavora" || s.stato === "errore";
+    // il pallino per chi lavora, ti aspetta o è in errore; niente per chi aspetta solo un comando (#5366)
+    const vivo = !s.vecchia && !inAttesa(s);
     const az = azioni(s);
     const aperto = this.menu === s.sessionId && az.length > 0;
     // La X chiude per sempre una sessione ferma (claude rm, lo stesso Elimina di "Altro"): compare col
@@ -645,10 +690,11 @@ export class Volta {
     return h_flex().mx(14).mb(4).p(2).gap(2).rounded(8).border_1().border_color(t.border).child(voce("macchina")).child(voce("progetto"));
   }
 
-  // Un gruppo: le sessioni vive sempre; le ferme dietro "Altre N ferme", salvo un gruppo di due o meno.
+  // Un gruppo: le sessioni che lavorano o ti aspettano sempre; quelle che aspettano un comando dietro
+  // "N in attesa di comando" (#5366), salvo un gruppo di due o meno.
   gruppo(t, g, modo, cx, aperto = null) {
-    const vive = g.sessioni.filter((s) => s.stato !== "ferma");
-    const ferme = g.sessioni.filter((s) => s.stato === "ferma");
+    const vive = g.sessioni.filter((s) => !inAttesa(s));
+    const ferme = g.sessioni.filter(inAttesa);
     const mostra = mostrate(g, this.aperti[g.chiave]);
     // Per progetto l'intestazione è il progetto: un clic lo apre (il suo spazio, con /inizio), come la
     // riga di "Adesso" che c'era sotto. Quello dello spazio aperto ha il fondo della selezione.
@@ -667,7 +713,7 @@ export class Volta {
         .hover((st) => st.bg(t.hover))
         .on_click((_e, cx) => { this.aperti[g.chiave] = !this.aperti[g.chiave]; cx.notify(); })
         .child(svg(ICONA(this.aperti[g.chiave] ? "chevron-down" : "chevron-right")).size(12).text_color(t.dim))
-        .child(div().text_size(12.5).text_color(t.muted).child(this.aperti[g.chiave] ? "Nascondi le ferme" : `${ferme.length} ${ferme.length > 1 ? "ferme" : "ferma"}`))));
+        .child(div().text_size(12.5).text_color(t.muted).child(this.aperti[g.chiave] ? "Nascondi quelle in attesa" : `${ferme.length} in attesa di comando`))));
   }
 
   // null quando la sezione non serve (manca lo script dell'elenco). La sezione prende tutta l'altezza

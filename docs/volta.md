@@ -107,7 +107,7 @@ Duplica e Fork nascono sulla macchina della sessione, non su quella di "Nasce su
 La dettatura è quella di Claude Code: tieni premuta la barra spaziatrice e parli. Claude Code però
 ascolta il microfono della macchina dove gira la sessione. Quando la scheda in primo piano mostra una
 sessione di un'altra macchina, Volta porta là il microfono del computer che hai davanti. Sotto "Tutte
-le sessioni" compare la riga "Microfono: MacBook Air → Mac mini". Un clic sulla riga lo spegne, un
+le sessioni" compare la riga "Microfono: MacBook Air → iMac". Un clic sulla riga lo spegne, un
 altro lo riaccende.
 
 - Funziona fra Mac. Sulla macchina dove gira la sessione servono `ffmpeg` e BlackHole 2ch, un

@@ -82,14 +82,88 @@ export function daQuanto(iso, adesso = Date.now()) {
   return `da ${gg} ${gg === 1 ? "giorno" : "giorni"}`;
 }
 
+// Le fasi di una sessione (#5366, nota di Federico dell'11/11: "le ferme devono essere diverse").
+// "ferma" della sonda tiene insieme due casi: Claude ha chiuso il turno chiedendo qualcosa alla persona
+// (stasi: ti aspetta) oppure ha finito e aspetta un comando nuovo (attesa). Lo dice la fine dell'ultimo
+// testo di Claude (campo coda). Nel dubbio vale stasi: una sessione in stasi non si chiude da sola.
+// "Prossimo passo:" conta solo se la mossa è della persona ("tu", "Federico"); "Niente da fare per te" no.
+const CHIEDE = [
+  /\?[\s*_`)]*$/,
+  /\?\s*\n/,
+  /^\s*!\s*\S/m,
+  /\b(scrivimi|scrivi|dimmi|dimmelo|rispondi|rispondimi|fammi sapere|conferma|confermi|scegli|decidi|lancia|tocca a te|serve il tuo|il tuo s[iì]|aspetto la tua|attendo la tua)\b/i,
+  /prossimo passo:[^\n]*(\btu\b|\btuo\b|\btua\b|\bfederico\b|\(tu\))/i,
+];
+export function chiede(coda) {
+  const c = String(coda ?? "").slice(-220);
+  return CHIEDE.some((re) => re.test(c));
+}
+
+// Un lavoro lasciato in corso: Claude aspetta l'esito di qualcosa che gira da solo (un comando in
+// background, un altro agente) e riprenderà da sé. Una sessione così non va chiusa, anche se tace.
+const IN_CORSO = /\b(in background|appena finisce|quando finisce|appena arriva|ti aggiorno|ti avviso|riprendo da solo|aspetto (l'esito|il risultato|che finisca))\b/i;
+export const lavoroInCorso = (coda) => IN_CORSO.test(String(coda ?? "").slice(-220));
+
+// "attiva" (lavora), "stasi" (ti aspetta), "attesa" (aspetta un comando), "errore", "chiusa".
+export function fase(s) {
+  if (!s || chiusa(s)) return "chiusa";
+  if (s.stato === "errore") return "errore";
+  if (s.stato === "lavora") return "attiva";
+  if (s.stato === "aspetta" || s.aspetta) return "stasi";
+  // l'ultima parola non è un testo di Claude (un messaggio senza risposta, un comando interrotto,
+  // nessuna trascrizione): nel dubbio, ti aspetta
+  if (s.chi !== "claude" || chiede(s.coda)) return "stasi";
+  return "attesa";
+}
+
+// L'ora dell'ultimo messaggio vero; una riga di una sonda di prima ha solo "ultimo".
+const interazione = (s) => Date.parse(s?.interazione || s?.ultimo || "") || 0;
+
 // La frase di stato e il colore del tema (blocked, working, done, idle, muted, dim).
 export function fraseStato(s, adesso = Date.now()) {
   if (s.vecchia) return { testo: "Ultima lettura: la macchina non risponde", colore: "dim" };
-  if (s.stato === "aspetta") return { testo: "Ti aspetta", colore: "blocked" };
-  if (s.stato === "lavora") return { testo: "Sta lavorando", colore: "working" };
-  if (s.stato === "errore") return { testo: "Si è fermata con un errore", colore: "blocked" };
-  const q = daQuanto(s.ultimo, adesso);
-  return { testo: q ? `Ferma ${q}` : "Ferma", colore: "muted" };
+  const f = fase(s);
+  if (f === "attiva") return { testo: "Sta lavorando", colore: "working" };
+  if (f === "errore") return { testo: "Si è fermata con un errore", colore: "blocked" };
+  const q = daQuanto(s.interazione || s.ultimo, adesso);
+  if (f === "stasi") return { testo: q ? `Ti aspetta ${q}` : "Ti aspetta", colore: "blocked" };
+  return { testo: q ? `Aspetta un comando ${q}` : "Aspetta un comando", colore: "muted" };
+}
+
+// La chiusura automatica (#5366): le sessioni di questa macchina in background che aspettano un comando
+// da più di `dopoMin` minuti, senza un lavoro lasciato in corso, senza una scheda aperta in questa
+// finestra (chi la guarda la sta usando) e non già in congedo. Prima la più vecchia.
+// `opz`: { dopoMin, congedi: { sessionId: c }, conScheda: Set di sessionId }.
+export function daCongedare(dati, adesso, opz = {}) {
+  const soglia = adesso - (Number(opz.dopoMin) || 60) * 60000;
+  const via = new Set(Object.values(opz.congedi ?? {}).flatMap((c) => [c.sessionId, c.id].filter(Boolean)));
+  const scheda = opz.conScheda ?? new Set();
+  return (dati?.sessioni ?? [])
+    .filter((s) => s.questa && s.tipo === "background" && !s.vecchia && fase(s) === "attesa" && !lavoroInCorso(s.coda))
+    .filter((s) => interazione(s) > 0 && interazione(s) < soglia && !via.has(s.sessionId) && !via.has(s.id) && !scheda.has(s.sessionId))
+    .sort((a, b) => interazione(a) - interazione(b));
+}
+
+// Quante chiusure automatiche restano: al più `ora` nell'ultima ora e `giorno` nelle ultime 24 ore.
+// `fatti`: le ore (ms) delle chiusure già fatte.
+export function restanti(fatti, adesso, opz = {}) {
+  const l = (fatti ?? []).map(Number).filter((x) => x > 0 && x <= adesso);
+  const ora = l.filter((x) => adesso - x < 3600000).length, giorno = l.filter((x) => adesso - x < 86400000).length;
+  return Math.max(0, Math.min((opz.ora ?? 3) - ora, (opz.giorno ?? 12) - giorno));
+}
+
+// Il registro del modo "prova": cosa la chiusura automatica avrebbe chiuso, una voce per sessione, con
+// la prima e l'ultima volta che l'ha vista. Al più 40 voci, le più recenti. Lo legge Federico prima di
+// accendere la chiusura vera (arturo.json, "congedo": "acceso").
+export function registroProva(prima, scelte, adesso) {
+  const per = new Map((prima ?? []).map((v) => [v.sessionId, v]));
+  for (const s of scelte ?? []) {
+    const v = per.get(s.sessionId);
+    per.set(s.sessionId, { sessionId: s.sessionId, id: s.id, titolo: titolo(s), progetto: s.progetto ?? null,
+      interazione: s.interazione || s.ultimo || "", coda: String(s.coda ?? "").slice(-160), fineFatta: Boolean(s.fineFatta),
+      vista: v?.vista ?? adesso, ultima: adesso });
+  }
+  return [...per.values()].sort((a, b) => b.ultima - a.ultima).slice(0, 40);
 }
 
 // Il nome di una macchina in una riga stretta: senza il proprietario e senza la coda fra parentesi che
@@ -185,6 +259,8 @@ export function passoCongedo(c, s, ora = Date.now()) {
   if (!s || s.vecchia) return ora - da > (s ? CONGEDO_VECCHIO_MS : 3600000) ? { fai: "togli" } : { fai: "attendi" };
   if (c.fase === "attende") {
     if (chiusa(s)) return { fai: "togli" };
+    // la chiusura automatica di una sessione che ha già fatto /fine (#5366): niente secondo /fine
+    if (c.fineFatta && s.stato !== "lavora") return { fai: "stop", fase: "ferma", salvata: true };
     if (s.stato === "lavora" && ora - da < CONGEDO_MAX_MS) return { fai: "attendi" };
     return { fai: "fine", fase: "fine" };
   }
@@ -203,10 +279,12 @@ export function passoCongedo(c, s, ora = Date.now()) {
   return ora - dal > 120000 ? { fai: "stop", fase: "ferma" } : { fai: "attendi" };
 }
 
-// Le sessioni di un gruppo che l'elenco mostra: le vive sempre; le ferme solo se il gruppo è aperto, o se
-// non ha vive e le ferme sono due o meno.
+// Le sessioni di un gruppo che l'elenco mostra: quelle che lavorano, ti aspettano o sono in errore
+// sempre; quelle che aspettano un comando (fase "attesa", #5366) solo se il gruppo è aperto, o se non ce
+// ne sono altre e sono due o meno.
+export const inAttesa = (s) => fase(s) === "attesa";
 export function mostrate(g, aperto) {
-  const vive = g.sessioni.filter((s) => s.stato !== "ferma");
+  const vive = g.sessioni.filter((s) => !inAttesa(s));
   const ferme = g.sessioni.length - vive.length;
   return (!vive.length && ferme <= 2) || aperto ? g.sessioni : vive;
 }
@@ -326,13 +404,14 @@ export function motivoUscita(schermo, s) {
 
 // I gesti sulla riga di una sessione in background, oltre al clic che la apre (claude attach, anche se
 // lavora): l'anteprima (anteprima() qui sotto, o claude logs senza trascrizione), ferma (stop) se è viva, riavvia (respawn) dopo un errore, elimina
-// (rm, con conferma) se è ferma. Un'interattiva e una riga vecchia non ne hanno: si aprono e basta.
+// (rm, con conferma) se è chiusa o in errore. Un'interattiva e una riga vecchia non ne hanno: si aprono e basta.
 export function azioni(s) {
   if (!s || s.vecchia || s.tipo !== "background") return [];
   const out = [{ verbo: "logs", testo: "Anteprima" }];
   if (s.stato === "lavora" || s.stato === "aspetta") out.push({ verbo: "stop", testo: "Ferma" });
   if (s.stato === "errore") out.push({ verbo: "respawn", testo: "Riavvia" });
-  if (s.stato === "ferma" || s.stato === "errore") out.push({ verbo: "rm", testo: "Elimina", conferma: "Sì, elimina" });
+  // Elimina solo su una sessione chiusa o in errore: una ferma ma viva si chiude con Chiudi (/fine e stop)
+  if (s.stato === "errore" || chiusa(s)) out.push({ verbo: "rm", testo: "Elimina", conferma: "Sì, elimina" });
   return out;
 }
 
@@ -462,10 +541,13 @@ export function statiCorti(dati) {
 
 // La versione del mod accanto a "Impostazioni" (shared arturo.mod, lo scrive controllaMod di volta.js; la disegna il piede di barra.js):
 // "mod abc1234 · 09:52", l'ora dell'ultima installazione (col giorno se non è oggi). Dopo un giorno
-// senza riuscire a controllare lo dice, col motivo. Il piede è alto 190 px: niente riga in più.
+// senza riuscire a controllare lo dice, col motivo; così un plugin di Arturo bloccato perché forse manomesso. Il piede è alto 190 px: niente riga in più.
 export function rigaMod(m, adesso = Date.now()) {
   if (!m?.corta) return null;
   const due = (n) => String(n).padStart(2, "0");
+  // Un aggiornamento di Arturo fermato per una possibile compromissione (volta_mod.py programmi): non si riprova da solo.
+  const plugin = m.programmi?.plugin;
+  if (plugin?.esito === "compromesso") return { testo: `mod ${m.corta} · Arturo non si aggiorna`, avviso: plugin.motivo || "possibile compromissione: non aggiornare e segnalalo" };
   if (m.esito === "errore" && m.giu_da && adesso / 1000 - m.giu_da > 86400) {
     const giorni = Math.floor((adesso / 1000 - m.giu_da) / 86400);
     return { testo: `mod ${m.corta} · non controllo da ${giorni} ${giorni === 1 ? "giorno" : "giorni"}`, avviso: m.motivo ?? "" };

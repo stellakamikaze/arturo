@@ -22,10 +22,11 @@ distribuire (#5172, 10/11/2026).
       un gesto su una sessione in background. logs: le ultime righe dello schermo, per chi non ha
       trascrizione. respawn (Riavvia) accende prima il servizio di Claude su MACCHINA, come nasci: il
       processo nuovo nasce da lì (#5215). stop, rm e logs non fanno nascere processi e non lo toccano.
-  python3 volta_sonda.py congeda MACCHINA ID SESSIONID [--cartella DIR]
+  python3 volta_sonda.py congeda MACCHINA ID SESSIONID [--cartella DIR] [--auto]
       il primo tempo della chiusura di una sessione (12/11/2026): claude stop ID, poi la stessa
       conversazione ripresa in background col solo /fine (claude --bg --resume SESSIONID, senza
       --fork-session), nella sua cartella. Lo stop finale lo chiede Volta a /fine finito. Mai rm.
+      --auto: la chiusura automatica di una sessione ferma (#5366), col suo motivo nel testo di /fine.
       Stampa {ok, fermata} oppure {errore}.
   python3 volta_sonda.py apri MACCHINA ID [--riavvia]
       prepara l'aggancio di una sessione in background: accende il servizio di Claude su MACCHINA, così
@@ -301,7 +302,11 @@ for s in sessioni:
     with open(f[0], "rb") as fh:
         fh.seek(0, 2); fh.seek(max(0, fh.tell() - 3000000))
         righe = fh.read().decode("utf-8", "replace").splitlines()[1:]
-    risposta, azione, ultimo = "", "", ""
+    # Per le fasi di Volta (#5366): `interazione` è l'ora dell'ultimo messaggio vero (della persona o di
+    # Claude, non le righe di sistema), `coda` la fine dell'ultimo testo di Claude, `chi` chi ha parlato
+    # per ultimo ("claude" a turno chiuso con un testo, "azione" se l'ultima cosa è un comando, "persona"
+    # per un messaggio senza risposta), `fineFatta` se l'ultimo messaggio della persona è /fine.
+    risposta, azione, ultimo, interazione, coda, chi, fine_fatta = "", "", "", "", "", "", False
     for l in righe:
         try:
             d = json.loads(l)
@@ -321,10 +326,23 @@ for s in sessioni:
                     tx = b["text"].strip()
                     # tagliata a una parola intera, col segno: l'Anteprima di Volta la mostra (#5240)
                     risposta = tx if len(tx) <= 400 else tx[:400].rsplit(None, 1)[0] + "\u2026"
+                    coda = tx[-300:]
+                    chi, interazione = "claude", d.get("timestamp", interazione)
                 elif b.get("type") == "tool_use":
                     i = b.get("input") or {}
                     azione = b.get("name", "") + ": " + str(i.get("description") or i.get("command") or i.get("file_path") or "")[:150]
-    s.update(risposta=risposta, azione=azione, ultimo=ultimo)
+                    chi, interazione = "azione", d.get("timestamp", interazione)
+        elif d.get("type") == "user" and not d.get("isMeta"):
+            c = m.get("content")
+            if isinstance(c, list) and any(isinstance(b, dict) and b.get("type") == "tool_result" for b in c):
+                interazione = d.get("timestamp", interazione)  # l'esito di un comando: Claude lavora ancora
+                continue
+            tx = testo(c).strip()
+            if not tx or tx.startswith(("<local-command", "<system-reminder>", "Caveat:", "<task-notification>")):
+                continue
+            chi, interazione, coda = "persona", d.get("timestamp", interazione), ""
+            fine_fatta = bool(re.match(r"\s*(<command-message>[^<]*</command-message>\s*)?(<command-name>)?/fine\b", tx))
+    s.update(risposta=risposta, azione=azione, ultimo=ultimo, interazione=interazione, coda=coda, chi=chi, fineFatta=fine_fatta)
 # La pulizia del registro: il pid di un'interattiva sparita torna libero per un altro processo, quindi la
 # sua voce va via subito; quella di un lavoro che claude agents non elenca più dopo LAVORI_GIORNI giorni.
 vivi = {lavoro_di(s) for s in tutte}
@@ -865,6 +883,9 @@ def righe(voci):
                 "terminale": ospite if isinstance(ospite, str) and re.fullmatch(r"t[0-9a-z]{1,12}", ospite) else None,
                 "cartella": s.get("cwd"), "ultimo": s.get("ultimo") or nascita(s),
                 "risposta": (s.get("risposta") or "")[:420], "azione": s.get("azione") or "",
+                # le fasi di Volta (#5366): ultimo messaggio vero, fine dell'ultimo testo, chi ha parlato
+                "interazione": s.get("interazione") or "", "coda": (s.get("coda") or "")[-300:],
+                "chi": s.get("chi") or "", "fineFatta": s.get("fineFatta") is True,
                 "daPortare": s.get("daPortare") if isinstance(s.get("daPortare"), str) else None,
                 # chiusa: in background, senza processo e senza status (dopo claude stop, sonda S1
                 # dell'11/11/2026). Volta non la mostra più; una in errore resta, per Riavvia.
@@ -1159,13 +1180,18 @@ def azione(nome, verbo, sid):
 PROMPT_CONGEDO = os.environ.get("VOLTA_PROMPT_CONGEDO") or (
     "/fine congedo da Volta: la persona ha chiuso questa sessione. Niente rotazione, "
     "nessuna domanda e nessun menu: salva e chiudi.")
+# La chiusura automatica (#5366): Volta chiude da sola una sessione ferma da più di un'ora, a turno
+# finito e senza domande aperte. Lo stesso congedo, con il motivo vero nel testo di /fine.
+PROMPT_CONGEDO_AUTO = os.environ.get("VOLTA_PROMPT_CONGEDO") or (
+    "/fine congedo da Volta: la sessione era ferma da più di un'ora, a turno finito e senza domande. "
+    "Niente rotazione, nessuna domanda e nessun menu: salva e chiudi.")
 
 
-def congeda(nome, sid_lavoro, session_id, cartella=None):
+def congeda(nome, sid_lavoro, session_id, cartella=None, auto=False):
     if not ID.fullmatch(sid_lavoro or "") or not ID.fullmatch(session_id or ""):
         return {"errore": "id di sessione non valido"}
     fermata = azione(nome, "stop", sid_lavoro)  # una sessione già ferma risponde con un errore: si va avanti
-    r = nasci(nome, PROMPT_CONGEDO, None, cartella, riprendi=session_id, stessa=True)
+    r = nasci(nome, PROMPT_CONGEDO_AUTO if auto else PROMPT_CONGEDO, None, cartella, riprendi=session_id, stessa=True)
     if r.get("errore") and not str(r["errore"]).startswith("è partita"):
         return {"errore": r["errore"], "fermata": bool(fermata.get("ok"))}
     return {"ok": True, "fermata": bool(fermata.get("ok"))}
@@ -1321,10 +1347,12 @@ def main(argv):
         resto = argv[1:]
         cartella = resto[resto.index("--cartella") + 1] if "--cartella" in resto[:-1] else None
         resto = [a for i, a in enumerate(resto) if a != "--cartella" and (i == 0 or resto[i - 1] != "--cartella")]
+        auto = "--auto" in resto
+        resto = [a for a in resto if a != "--auto"]
         if len(resto) != 3:
-            print("uso: volta_sonda.py congeda <macchina> <id> <sessionId> [--cartella <dir>]")
+            print("uso: volta_sonda.py congeda <macchina> <id> <sessionId> [--cartella <dir>] [--auto]")
             return 2
-        esito = congeda(resto[0], resto[1], resto[2], cartella)
+        esito = congeda(resto[0], resto[1], resto[2], cartella, auto)
         print(json.dumps(esito, ensure_ascii=True))
         return 0 if "errore" not in esito else 1
     if argv and argv[0] == "azione":

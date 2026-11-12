@@ -25,8 +25,19 @@ export async function config() {
     // volta_sonda.py: "volta" in arturo.json (una copia di prova), altrimenti quello del mod. L'unico
     // punto che lo dice: lo usano l'elenco di Volta (volta.js) e la nascita su un'altra macchina.
     volta: typeof c.volta === "string" && c.volta ? c.volta : `${appHome()}/mods/arturo/volta_sonda.py`,
+    // La chiusura automatica delle sessioni che aspettano un comando (#5366): "prova" (scrive solo cosa
+    // chiuderebbe, in ~/.cache/volta/congedo-auto.json), "acceso" o "spento". Senza voce vale "prova".
+    congedo: {
+      modo: ["prova", "acceso", "spento"].includes(c.congedo) ? c.congedo : "prova",
+      dopoMin: numero(c.congedo_dopo_min, 60, 5),
+      ora: numero(c.congedo_ora, 3, 0),
+      giorno: numero(c.congedo_giorno, 12, 0),
+    },
   };
 }
+
+// Un numero intero di arturo.json, non sotto `minimo`; altrimenti quello di serie.
+const numero = (v, serie, minimo) => (Number.isInteger(v) && v >= minimo ? v : serie);
 
 export function radiceDa(bin) {
   const m = /^(.+)[\\/]bin[\\/]arturo$/.exec(String(bin ?? ""));
@@ -475,7 +486,7 @@ export function schedeAgganciate(sessioni) {
 export async function congedaSessione(c) {
   const cfg = await config();
   try {
-    const r = await exec(cfg.arturo[0], [cfg.volta, "congeda", c.host ?? "qui", c.id, c.sessionId, ...(c.cartella ? ["--cartella", c.cartella] : [])], { timeout: 400000 });
+    const r = await exec(cfg.arturo[0], [cfg.volta, "congeda", c.host ?? "qui", c.id, c.sessionId, ...(c.cartella ? ["--cartella", c.cartella] : []), ...(c.auto ? ["--auto"] : [])], { timeout: 400000 });
     return esito(r);
   } catch (e) {
     return { errore: `${c.macchina ?? nomeMacchina(c.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };

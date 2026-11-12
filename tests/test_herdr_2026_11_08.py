@@ -220,7 +220,8 @@ HZ56 shared/volta/ è una copia (11/11/2026): la scrive volta/pubblica-mod.py de
 HZ57 il mod si aggiorna da solo (11/11/2026): volta.js chiede a volta_mod.py un controllo all'apertura e
      ogni ora, mai due insieme, e pubblica la versione in shared arturo.mod; il piede la scrive accanto
      a Impostazioni con rigaMod() di sessioni.js (node): ora dell'installazione, giorno se non è oggi,
-     avviso dopo un giorno senza controllo.
+     avviso dopo un giorno senza controllo, avviso quando il plugin di Arturo è fermo per una possibile
+     compromissione (volta_mod.py programmi, 12/11/2026).
 HZ58 il nome e il progetto scritti dalla persona (#5292): i verbi rinomina e progetto di volta_sonda.py
      scrivono cache/titolo e cache/scheda della sessione con fonte "persona", qui e su un'altra macchina
      (hc finto); un progetto che non è uno slug e un id strano non partono. hooks/titolo-sessione.py non
@@ -383,6 +384,20 @@ HZ91 i titoli veri dei progetti (12/11/2026, #5367): sessioni.js con node, dopo 
      filtraProgetti() trova un progetto anche dal titolo; volta.js e cambio.js impostano la mappa prima
      del disegno, la barra porta la chiave nella mappa, e progetti() di dati.js tiene il titolo della
      memoria anche per un progetto coi todo.
+HZ92 le fasi delle sessioni (#5366, nota di Federico dell'11/11: "le ferme devono essere diverse"):
+     sessioni.js con node. fase() divide la "ferma" della sonda in stasi (Claude ha chiuso il turno
+     chiedendo qualcosa: "Scrivimi **1**", una domanda, "Prossimo passo" della persona, nessun testo di
+     Claude) e attesa (ha finito: "Niente da fare per te", un passo di altri); fraseStato() dice "Ti
+     aspetta da" e "Aspetta un comando da"; mostrate() tiene a vista chi ti aspetta e nasconde dietro "N
+     in attesa di comando" solo chi aspetta un comando. La sonda passa interazione, coda, chi e
+     fineFatta dalla trascrizione (provata su una trascrizione finta).
+HZ93 la chiusura automatica (#5366): sessioni.js con node. daCongedare() prende solo le sessioni di
+     questa macchina, in background, in attesa di comando da più dell'ora, senza scheda aperta, senza
+     lavoro lasciato in corso e non già in congedo, la più vecchia per prima; restanti() tiene i tetti
+     di 3 all'ora e 12 al giorno; registroProva() tiene la prima volta che ha visto una sessione;
+     passoCongedo() ferma senza un secondo /fine chi l'ha già fatto. volta.js: in modo "prova" scrive
+     solo il registro, una chiusura alla volta, registro scritto col testo di prima; dati.js: modo di
+     serie "prova"; la sonda: congeda --auto col suo testo di /fine.
 """
 from __future__ import annotations
 
@@ -398,7 +413,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -1129,7 +1144,8 @@ def hz17(repo: Path, casa: Path) -> str | None:
         "progetto": [["Senza progetto", "Torre non risponde", ["a3"]]],
         "titoli": ["uno", "Fatto: il deck è pronto"],
         "quanto": ["da 4 min", "da 3 ore", "da 2 giorni", ""],
-        "dettaglio": ["Arturo · Ferma da 3 ore", "Amaltea · Si è fermata con un errore"],
+        # una ferma senza trascrizione (nessun "chi") non si sa se chiede qualcosa: ti aspetta (#5366, HZ92)
+        "dettaglio": ["Arturo · Ti aspetta da 3 ore", "Amaltea · Si è fermata con un errore"],
     }
     gp = avuto.get("progetto", [])
     if [g[0] for g in gp] != ["Arturo", "Due mondi", "Senza progetto"]:
@@ -2603,7 +2619,7 @@ def hz40(repo: Path, casa: Path) -> str | None:
         if r.returncode != 0:
             return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
         d = json.loads(r.stdout.strip().splitlines()[-1])
-        attesi = {"lavora": ["logs", "stop"], "aspetta": ["logs", "stop"], "ferma": ["logs", "rm!"], "errore": ["logs", "respawn", "rm!"],
+        attesi = {"lavora": ["logs", "stop"], "aspetta": ["logs", "stop"], "ferma": ["logs"], "errore": ["logs", "respawn", "rm!"],
                   "interattiva": [], "vecchia": [], "nuove": ["s-lavora", "s-nuova"], "primaLettura": 0,
                   "stati": {"lavo": {"stato": "lavora", "host": "qui"}}}
         for k, v in attesi.items():
@@ -3463,7 +3479,7 @@ const verbi = (s) => m.menu(s).map((a) => a.verbo + (a.conferma ? "!" : ""));
 console.log(JSON.stringify({
   lavora: verbi(bg("lavora")), ferma: verbi(bg("ferma")), errore: verbi(bg("errore")),
   interattiva: verbi({ ...bg("ferma"), tipo: "interattiva" }), vecchia: verbi(bg("ferma", { vecchia: true })), niente: verbi(null),
-  testi: m.menu(bg("ferma")).map((a) => a.testo), solo: [...m.SOLO_MENU].sort(),
+  testi: m.menu(bg("errore")).filter((a) => a.verbo !== "respawn").map((a) => a.testo), solo: [...m.SOLO_MENU].sort(),
   fork: [m.titoloFork({ titolo: "Rifare il deck" }), m.titoloFork({ titolo: "x".repeat(80) }).length],
 }));
 """
@@ -3516,7 +3532,7 @@ def hz54(repo: Path, casa: Path) -> str | None:
         return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
     d = json.loads(r.stdout.strip().splitlines()[-1])
     cambi = ["rinomina", "progetto"]  # Rinomina e Cambia progetto (#5292, caso HZ59)
-    voci = {"lavora": ["apri", "chiudi", "duplica", "fork", *cambi, "logs"], "ferma": ["apri", "chiudi", "duplica", "fork", *cambi, "logs", "rm!"],
+    voci = {"lavora": ["apri", "chiudi", "duplica", "fork", *cambi, "logs"], "ferma": ["apri", "chiudi", "duplica", "fork", *cambi, "logs"],
             "errore": ["apri", "chiudi", "duplica", "fork", *cambi, "logs", "respawn", "rm!"], "interattiva": ["apri", "duplica", "fork", *cambi],
             "vecchia": [], "niente": [], "testi": ["Apri", "Chiudi", "Duplica", "Fork", "Rinomina", "Cambia progetto", "Anteprima", "Elimina"],
             "solo": ["apri", "chiudi", "duplica", "fork", "progetto", "rinomina"], "fork": ["Rifare il deck (fork)", 60]}
@@ -3668,6 +3684,8 @@ console.log(JSON.stringify({
   ieri: m.rigaMod({ corta: "abc1234", installato: t(18, 30, 10) }, ora),
   giu: m.rigaMod({ corta: "abc1234", installato: t(9, 5), esito: "errore", giu_da: ora / 1000 - 3 * 86400 - 5, motivo: "rete" }, ora),
   giuDaPoco: m.rigaMod({ corta: "abc1234", installato: t(9, 5), esito: "errore", giu_da: ora / 1000 - 3600 }, ora),
+  bloccato: m.rigaMod({ corta: "abc1234", installato: t(9, 5), programmi: { plugin: { esito: "compromesso", motivo: "tag senza firma" } } }, ora),
+  pluginOk: m.rigaMod({ corta: "abc1234", installato: t(9, 5), programmi: { plugin: { esito: "aggiornato" } } }, ora),
 }));
 """
 
@@ -3715,7 +3733,9 @@ def hz57(repo: Path, casa: Path) -> str | None:
             return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[:160]}"
         d = json.loads(r.stdout.strip().splitlines()[-1])
         attesa = {"niente": None, "oggi": {"testo": "mod abc1234 · 09:05"}, "ieri": {"testo": "mod abc1234 · 10/11 18:30"},
-                  "giu": {"testo": "mod abc1234 · non controllo da 3 giorni", "avviso": "rete"}, "giuDaPoco": {"testo": "mod abc1234 · 09:05"}}
+                  "giu": {"testo": "mod abc1234 · non controllo da 3 giorni", "avviso": "rete"}, "giuDaPoco": {"testo": "mod abc1234 · 09:05"},
+                  "bloccato": {"testo": "mod abc1234 · Arturo non si aggiorna", "avviso": "tag senza firma"},
+                  "pluginOk": {"testo": "mod abc1234 · 09:05"}}
         if d != attesa:
             return f"rigaMod: {d}"
     return None
@@ -4319,7 +4339,7 @@ import { bersaglio, passo, rigaMicrofono, RINNOVO, IN_AVVIO, TENUTA } from %s;
 const ssh = (id, altro = {}) => ({ id, questa: false, macchina: "Amaltea", attach: ["ssh", "-t", "amaltea", "/c/claude", "attach", id], ...altro });
 const sessioni = [ssh("aaaa1111"), { id: "bbbb2222", questa: true, macchina: "Qui", attach: ["/c/claude", "attach", "bbbb2222"] },
   ssh("cccc3333", { attach: ["ssh", "-t", "amaltea", "top", "-l", "1"] }), ssh("dddd4444", { attach: ["ssh", "-t", "-oProxyCommand=x", "/c/claude", "attach", "dddd4444"] }),
-  ssh("eeee5555", { attach: ["C:\\\\Windows\\\\System32\\\\OpenSSH\\\\ssh.exe", "-t", "feder@balthasar", "claude", "attach", "eeee5555"], macchina: "Balthasar" }),
+  ssh("eeee5555", { attach: ["C:\\\\Windows\\\\System32\\\\OpenSSH\\\\ssh.exe", "-t", "feder@torre", "claude", "attach", "eeee5555"], macchina: "Torre" }),
   ssh("ffff6666", { attach: ["mosh", "-t", "amaltea", "/c/claude", "attach", "ffff6666"] }), ssh("gggg7777", { questa: true })];
 const t = (argv, labels, address = "t5") => ({ address, argv, labels });
 const b = {
@@ -4336,7 +4356,7 @@ const b = {
   nullo: bersaglio(null, sessioni),
   sconosciuta: bersaglio(t(["ssh", "-t", "amaltea", "/c/claude", "attach", "zzzz"]), sessioni),
 };
-const A = { target: "amaltea", macchina: "Amaltea" }, B = { target: "feder@balthasar", macchina: "Balthasar" };
+const A = { target: "amaltea", macchina: "Amaltea" }, B = { target: "feder@torre", macchina: "Torre" };
 const giro = [];
 let st = null;
 const fai = (nome, bers, adesso, spento) => { const r = passo(st, bers, adesso, spento); st = r.st; giro.push([nome, r.azione?.verbo ?? null, r.azione?.target ?? null, st?.target ?? null]); };
@@ -4386,7 +4406,7 @@ def hz63(repo: Path, casa: Path) -> str | None:
         if r.returncode != 0:
             return f"microfono.js non gira: {(r.stderr or r.stdout).strip()[:200]}"
         v = json.loads(r.stdout.strip().splitlines()[-1])
-        ama, bal = {"target": "amaltea", "macchina": "Amaltea"}, {"target": "feder@balthasar", "macchina": "Balthasar"}
+        ama, bal = {"target": "amaltea", "macchina": "Amaltea"}, {"target": "feder@torre", "macchina": "Torre"}
         atteso = {"perArgv": ama, "perEtichetta": ama, "locale": None, "senzaAttach": None, "opzione": None, "windows": bal,
                   "nonSsh": None, "diQui": None, "shell": None, "remotoHerdr": None, "nullo": None, "sconosciuta": None}
         if v["b"] != atteso:
@@ -4396,7 +4416,7 @@ def hz63(repo: Path, casa: Path) -> str | None:
                 ["attivo rinnovo", "accendi", "amaltea", "amaltea"], ["via da poco", None, None, "amaltea"],
                 ["via rinnovo", "accendi", "amaltea", "amaltea"], ["via troppo", "spegni", None, None],
                 ["spento da spento", None, None, None], ["riaccendo", "accendi", "amaltea", "amaltea"],
-                ["cambio macchina", "accendi", "feder@balthasar", "feder@balthasar"], ["interruttore", "spegni", None, None],
+                ["cambio macchina", "accendi", "feder@torre", "feder@torre"], ["interruttore", "spegni", None, None],
                 ["interruttore fermo", None, None, None]]
         if v["giro"] != giro:
             diverso = next((a, b) for a, b in zip(giro, v["giro"]) if a != b)
@@ -5842,13 +5862,13 @@ PROVA_BERSAGLIO = """
 import { bersaglio } from %s;
 const s = (id, attach) => ({ id, questa: false, macchina: "M", attach });
 const sessioni = [s("aaaa1111", ["ssh", "-t", "amaltea", "/Users/u/.local/bin/claude", "attach", "aaaa1111"]),
-  s("bbbb2222", ["ssh", "-t", "balthasar", "C:\\\\Users\\\\feder\\\\.local\\\\bin\\\\claude.EXE", "attach", "bbbb2222"]),
-  s("cccc3333", ["ssh", "-t", "balthasar", "claude.exe", "attach", "cccc3333"]),
-  s("dddd4444", ["ssh", "-t", "balthasar", "D:/strumenti/claude", "attach", "dddd4444"]),
+  s("bbbb2222", ["ssh", "-t", "torre", "C:\\\\Users\\\\feder\\\\.local\\\\bin\\\\claude.EXE", "attach", "bbbb2222"]),
+  s("cccc3333", ["ssh", "-t", "torre", "claude.exe", "attach", "cccc3333"]),
+  s("dddd4444", ["ssh", "-t", "torre", "D:/strumenti/claude", "attach", "dddd4444"]),
   s("eeee5555", ["C:\\\\Windows\\\\System32\\\\OpenSSH\\\\ssh.exe", "-t", "amaltea", "/Users/u/.local/bin/claude", "attach", "eeee5555"]),
   s("ffff6666", ["ssh", "-t", "amaltea", "claude", "attach", "ffff6666"]),
   s("gggg7777", ["ssh", "-t", "linux", "/home/c/exe/claude", "attach", "gggg7777"]),
-  s("hhhh8888", ["ssh", "-t", "balthasar", "claude.EXE", "attach", "hhhh8888"])];
+  s("hhhh8888", ["ssh", "-t", "torre", "claude.EXE", "attach", "hhhh8888"])];
 const b = (id) => bersaglio({ address: "t5", argv: ["x"], labels: { "arturo.sessione": id } }, sessioni)?.target ?? null;
 console.log(JSON.stringify({ mac: b("aaaa1111"), win: b("bbbb2222"), exe: b("cccc3333"), disco: b("dddd4444"), daWindows: b("eeee5555"), nudo: b("ffff6666"), linux: b("gggg7777"), maiuscolo: b("hhhh8888") }));
 """
@@ -5864,7 +5884,7 @@ print(json.dumps([vm.perche(x) for x in json.loads(sys.argv[2])]))
 
 def hz80(repo: Path, casa: Path) -> str | None:
     mod = repo / "shared/volta/mods/arturo"
-    errori = ["ufficiofurore@amaltea: Permission denied (publickey,password,keyboard-interactive).",
+    errori = ["persona@amaltea: Permission denied (publickey,password,keyboard-interactive).",
               "Host key verification failed.",
               "[avfoundation @ 0x1] Failed to create AV capture input device: not authorized",
               "ssh: connect to host amaltea port 22: Operation timed out",
@@ -6189,7 +6209,7 @@ def hz85(repo: Path, casa: Path) -> str | None:
 PROVA_GIRO = r"""
 const n = await import(%s);
 const c = await import(%s);
-const bg = (id, stato = "lavora") => ({ sessionId: id + "-lungo", id, tipo: "background", attach: ["claude", "attach", id], stato });
+const bg = (id, stato = "lavora") => ({ sessionId: id + "-lungo", id, tipo: "background", attach: ["claude", "attach", id], stato, ...(stato === "ferma" ? { chi: "claude" } : {}) });
 const g = [{ chiave: "a", sessioni: [bg("a1"), bg("a2", "ferma"), bg("a3", "ferma"), bg("a4", "ferma"),
     { sessionId: "t1", id: "t1", tipo: "interattiva", stato: "aspetta" }, { sessionId: "f1", id: "f1", tipo: "interattiva", stato: "lavora", vecchia: true }] },
   { chiave: "b", sessioni: [bg("b1", "ferma"), { sessionId: "h1", id: "h1", tipo: "interattiva", terminale: "t9", questa: true, stato: "lavora" }] }];
@@ -6544,7 +6564,7 @@ def hz89(repo: Path, casa: Path) -> str | None:
 PROVA_COLONNA = r'''
 import { macchinaBreve, dettaglio, impostaProgetti, nomeProgetto, gruppi, filtraProgetti } from "./sessioni.mjs";
 const out = {};
-out.brevi = ["MacBook Air di Federico (156)", "Mac mini di Ufficio", "amaltea", "Federico's MacBook Pro"].map(macchinaBreve);
+out.brevi = ["MacBook Air di Federico (156)", "Mac Studio di Ufficio", "amaltea", "Federico's MacBook Pro"].map(macchinaBreve);
 out.dettaglio = dettaglio({ macchina: "MacBook Air di Federico (156)", stato: "lavora" }, "progetto").testo;
 out.prima = nomeProgetto("herdr-arturo");
 const v = { chiave: "herdr-arturo", titolo: "Volta" };
@@ -6594,7 +6614,7 @@ def hz_colonna_node(repo: Path, casa: Path, caso: str) -> str | None:
         return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
     d = json.loads(r.stdout.strip().splitlines()[-1])
     if caso == "HZ90":
-        if d["brevi"] != ["MacBook Air", "Mac mini", "amaltea", "MacBook Pro"] or d["dettaglio"] != "MacBook Air · Sta lavorando":
+        if d["brevi"] != ["MacBook Air", "Mac Studio", "amaltea", "MacBook Pro"] or d["dettaglio"] != "MacBook Air · Sta lavorando":
             return f"macchinaBreve o dettaglio: {d['brevi']}, {d['dettaglio']}"
         return None
     if d["prima"] != "Herdr arturo" or d["dopo"] != ["Volta", "Volta", "Post Office", "Due mondi"]:
@@ -6620,7 +6640,203 @@ def hz91(repo: Path, casa: Path) -> str | None:
     return hz_colonna_node(repo, casa, "HZ91")
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91}
+
+PROVA_FASI = r"""
+import * as n from "./sessioni.mjs";
+const T = Date.parse("2026-11-12T12:00:00Z");
+const s = (x) => ({ tipo: "background", id: "aaaa1111", sessionId: "S1", host: "qui", macchina: "M", questa: true, stato: "ferma",
+  chi: "claude", interazione: "2026-11-12T10:00:00Z", ultimo: "2026-11-12T10:00:00Z", coda: "Fatto.", ...x });
+const code = {
+  scrivimi: "Prova ⌘W su una scheda di sessione e scrivimi **chiude** oppure **niente**.",
+  numeri: "I caroselli restano a una pagina.\n\nScrivimi **1**, **2** con il link della cartella, oppure **3**.",
+  domanda: "Ho due strade per il deck. Preferisci la prima?",
+  domandaPrima: "Va bene così?\n\nDettagli su richiesta.",
+  tuo: "Prossimo passo: rileggi e invia le tre bozze (tu), poi confronto.",
+  bang: "Lancia questo:\n\n! gh auth login\n",
+  niente: "Fatto: il terminale è a posto.\n\nNiente da fare per te.",
+  altri: "Prossimo passo: domani mattina Tommaso fa le due registrazioni; appena arrivano i documenti li leggo io.",
+  claude: "Prossimo passo: Claude fa il passo 5 del piano.",
+};
+const out = { fasi: {} };
+for (const [k, coda] of Object.entries(code)) out.fasi[k] = n.fase(s({ coda }));
+out.persona = n.fase(s({ chi: "persona", coda: "" }));
+out.azione = n.fase(s({ chi: "azione" }));
+out.senza = n.fase(s({ chi: undefined }));
+out.aspetta = n.fase(s({ stato: "aspetta", coda: code.niente }));
+out.permesso = n.fase(s({ aspetta: "permission prompt", coda: code.niente }));
+out.lavora = n.fase(s({ stato: "lavora" }));
+out.errore = n.fase(s({ stato: "errore" }));
+out.chiusa = n.fase(s({ chiusa: true }));
+out.frasi = [n.fraseStato(s({ coda: code.niente }), T), n.fraseStato(s({ coda: code.scrivimi }), T), n.fraseStato(s({ coda: code.niente, interazione: "" }), T)];
+const g = { chiave: "p", sessioni: [s({ sessionId: "A", coda: code.niente }), s({ sessionId: "B", coda: code.scrivimi }), s({ sessionId: "C", coda: code.niente }), s({ sessionId: "D", coda: code.niente })] };
+out.chiuso = n.mostrate(g, false).map((x) => x.sessionId);
+out.aperto = n.mostrate(g, true).map((x) => x.sessionId);
+out.poche = n.mostrate({ chiave: "q", sessioni: [s({ sessionId: "E", coda: code.niente })] }, false).map((x) => x.sessionId);
+console.log(JSON.stringify(out));
+"""
+
+
+def hz92(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta/mods/arturo"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    for pezzo in ("const vive = g.sessioni.filter((s) => !inAttesa(s));", "`${ferme.length} in attesa di comando`",
+                  "const vivo = !s.vecchia && !inAttesa(s);"):
+        if pezzo not in vj:
+            return f"volta.js non ha più: {pezzo}"
+    sonda = mod / "volta_sonda.py"
+    # La sonda sulla trascrizione: una sessione che ha chiuso il turno con un testo, dopo un /fine.
+    radice = casa / ".claude"
+    (radice / "projects" / "p").mkdir(parents=True)
+    righe = [
+        {"type": "summary"},
+        {"type": "user", "timestamp": "2026-11-12T09:00:00Z", "message": {"role": "user", "content": "<command-message>fine</command-message>\n<command-name>/fine</command-name>"}},
+        {"type": "assistant", "timestamp": "2026-11-12T09:01:00Z", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": "ls"}}]}},
+        {"type": "user", "timestamp": "2026-11-12T09:02:00Z", "message": {"content": [{"type": "tool_result", "content": "ok"}]}},
+        {"type": "assistant", "timestamp": "2026-11-12T09:03:00Z", "message": {"content": [{"type": "text", "text": "Fatto: handoff scritto.\n\nNiente da fare per te."}]}},
+        {"type": "user", "isMeta": True, "timestamp": "2026-11-12T09:30:00Z", "message": {"content": "<system-reminder>x</system-reminder>"}},
+        {"type": "system", "timestamp": "2026-11-12T09:40:00Z"},
+    ]
+    (radice / "projects" / "p" / "sid-uno.jsonl").write_text("\n".join(json.dumps(r) for r in righe) + "\n", encoding="utf-8")
+    finto = casa / "claude"
+    finto.write_text("#!/bin/sh\necho '[{\"id\":\"lav1\",\"sessionId\":\"sid-uno\",\"kind\":\"background\",\"state\":\"done\",\"status\":\"idle\",\"pid\":5,\"startedAt\":9999999999999,\"cwd\":\"/tmp\"}]'\n", encoding="utf-8")
+    finto.chmod(0o755)
+    if os.name == "nt":
+        return None
+    codice = ("import importlib.util, json, sys\n"
+              "spec = importlib.util.spec_from_file_location('vs', sys.argv[1]); vs = importlib.util.module_from_spec(spec); spec.loader.exec_module(vs)\n"
+              "g = {'T': 20, '__name__': 'sonda'}\n"
+              "src = vs.SONDA.replace('cl = shutil.which(\"claude\") or', 'cl = sys.argv[1] or')\n"
+              "sys.argv = [sys.argv[0], sys.argv[2]]\n"
+              "exec(compile(src, 'sonda', 'exec'), g)\n")
+    r = subprocess.run([sys.executable, "-c", codice, str(sonda), str(finto)], capture_output=True, text=True, timeout=60,
+                       env={**os.environ, "HOME": str(casa), "CLAUDE_CONFIG_DIR": str(radice), "HERDR_APP_HOME": str(casa / "app")})
+    try:
+        voce = json.loads(r.stdout.strip().splitlines()[-1])["sessioni"][0]
+    except (ValueError, IndexError, KeyError):
+        return f"la sonda non dà la sessione: {(r.stderr or r.stdout).strip()[-200:]}"
+    attesi = {"interazione": "2026-11-12T09:03:00Z", "chi": "claude", "fineFatta": True, "ultimo": "2026-11-12T09:40:00Z"}
+    for k, v in attesi.items():
+        if voce.get(k) != v:
+            return f"la sonda, campo {k}: {voce.get(k)!r}, atteso {v!r}"
+    if not str(voce.get("coda", "")).endswith("Niente da fare per te."):
+        return f"la sonda non passa la fine dell'ultimo testo di Claude: {voce.get('coda')!r}"
+    vs = sonda.read_text(encoding="utf-8")
+    if '"interazione": s.get("interazione") or "", "coda": (s.get("coda") or "")[-300:],' not in vs or '"chi": s.get("chi") or "", "fineFatta": s.get("fineFatta") is True,' not in vs:
+        return "righe() non porta nell'elenco interazione, coda, chi e fineFatta"
+    node = shutil.which("node")
+    if not node:
+        return None
+    puro = casa / "puro"
+    puro.mkdir()
+    shutil.copyfile(mod / "sessioni.js", puro / "sessioni.mjs")
+    (puro / "prova.mjs").write_text(PROVA_FASI, encoding="utf-8")
+    r = subprocess.run([node, str(puro / "prova.mjs")], capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    fasi = {"scrivimi": "stasi", "numeri": "stasi", "domanda": "stasi", "domandaPrima": "stasi", "tuo": "stasi", "bang": "stasi",
+            "niente": "attesa", "altri": "attesa", "claude": "attesa"}
+    for k, v in fasi.items():
+        if d["fasi"][k] != v:
+            return f"fase(), coda {k}: {d['fasi'][k]}, attesa {v}"
+    altri = {"persona": "stasi", "azione": "stasi", "senza": "stasi", "aspetta": "stasi", "permesso": "stasi", "lavora": "attiva",
+             "errore": "errore", "chiusa": "chiusa"}
+    for k, v in altri.items():
+        if d[k] != v:
+            return f"fase(), caso {k}: {d[k]}, atteso {v}"
+    frasi = [{"testo": "Aspetta un comando da 2 ore", "colore": "muted"}, {"testo": "Ti aspetta da 2 ore", "colore": "blocked"},
+             {"testo": "Aspetta un comando da 2 ore", "colore": "muted"}]
+    if d["frasi"] != frasi:
+        return f"fraseStato() non distingue chi ti aspetta da chi aspetta un comando: {d['frasi']}"
+    if d["chiuso"] != ["B"] or d["aperto"] != ["A", "B", "C", "D"] or d["poche"] != ["E"]:
+        return f"mostrate() non tiene a vista chi ti aspetta o non nasconde chi aspetta un comando: {d['chiuso']}, {d['aperto']}, {d['poche']}"
+    return None
+
+
+PROVA_AUTO = r"""
+import * as n from "./sessioni.mjs";
+const T = Date.parse("2026-11-12T12:00:00Z");
+const ore = (h) => new Date(T - h * 3600000).toISOString();
+const s = (id, x = {}) => ({ tipo: "background", id, sessionId: "S" + id, host: "qui", macchina: "M", questa: true, stato: "ferma",
+  chi: "claude", interazione: ore(2), coda: "Niente da fare per te.", ...x });
+const dati = { sessioni: [
+  s("a"), s("vecchia3", { interazione: ore(3) }), s("fresca", { interazione: ore(0.5) }), s("altrove", { questa: false }),
+  s("inter", { tipo: "interattiva" }), s("chiede", { coda: "Scrivimi **sì**." }), s("congedo"), s("scheda"),
+  s("incorso", { coda: "Lo lascio in background e ti aggiorno appena finisce." }), s("letta", { vecchia: true }),
+  s("lavora", { stato: "lavora" }), s("senzaora", { interazione: "", ultimo: "" }),
+] };
+const opz = { dopoMin: 60, congedi: { Scongedo: { sessionId: "Scongedo" } }, conScheda: new Set(["Sscheda"]) };
+const out = {};
+out.scelte = n.daCongedare(dati, T, opz).map((x) => x.id);
+out.soglia = n.daCongedare(dati, T, { ...opz, dopoMin: 20 }).map((x) => x.id);
+out.restanti = [n.restanti([], T), n.restanti([T - 600000, T - 1200000], T), n.restanti([T - 600000, T - 1200000, T - 1800000], T),
+  n.restanti(Array.from({ length: 12 }, (_, i) => T - (2 + i) * 3600000), T), n.restanti([T - 600000], T, { ora: 1, giorno: 12 }),
+  n.restanti([T + 600000], T)];
+const p1 = n.registroProva([], [s("a")], T - 60000);
+const p2 = n.registroProva(p1, [s("a"), s("b")], T);
+out.prova = p2.map((v) => [v.id, v.vista, v.ultima]);
+out.dopoFine = n.passoCongedo({ sessionId: "Sa", fase: "attende", da: T, dal: T, fineFatta: true, auto: true }, s("a"), T + 1000);
+out.senzaFine = n.passoCongedo({ sessionId: "Sa", fase: "attende", da: T, dal: T, auto: true }, s("a"), T + 1000);
+console.log(JSON.stringify(out));
+"""
+
+
+def hz93(repo: Path, casa: Path) -> str | None:
+    mod = repo / "shared/volta/mods/arturo"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    inizio = vj.find("  async congedaFerme(cx) {")
+    if inizio < 0:
+        return "volta.js non ha la chiusura automatica (congedaFerme)"
+    corpo = vj[inizio:vj.find("\n  }\n", inizio)]
+    for pezzo in ('if (cfg.modo === "spento") return;', "const s = scelte[0];", "if (!scelte.length || restanti(fatti, adesso, cfg) < 1) return;",
+                  "this.congeda({ sessionId: s.sessionId, auto: true }, cx);", "const conScheda = new Set(Object.values(this.schede ?? {})"):
+        if pezzo not in corpo:
+            return f"congedaFerme non ha più: {pezzo}"
+    a = corpo.find('if (cfg.modo === "prova")')
+    prova = corpo[a:corpo.find("const s = scelte[0];")] if a >= 0 else ""
+    if not prova or "this.congeda(" in prova or "writeTextFile(file," not in prova or "return;" not in prova:
+        return "in modo prova congedaFerme non si limita a scrivere il registro"
+    if corpo.count(", testo);") < 2:
+        return "congedaFerme non scrive il registro col testo letto prima: due finestre chiuderebbero la stessa sessione"
+    if "cx.timer.every(OGNI_AUTO, (cx) => this.congedaFerme(cx));" not in vj:
+        return "volta.js non guarda le sessioni da chiudere a intervalli"
+    dj = (mod / "dati.js").read_text(encoding="utf-8")
+    if 'modo: ["prova", "acceso", "spento"].includes(c.congedo) ? c.congedo : "prova",' not in dj:
+        return "dati.js: la chiusura automatica non parte in modo prova"
+    if '...(c.auto ? ["--auto"] : [])' not in dj:
+        return "dati.js non dice alla sonda che il congedo è automatico"
+    vs = (mod / "volta_sonda.py").read_text(encoding="utf-8")
+    if "PROMPT_CONGEDO_AUTO if auto else PROMPT_CONGEDO" not in vs or '"rm"' in vs[vs.find("def congeda("):vs.find("CAMBI = ")]:
+        return "volta_sonda.py: congeda --auto non usa il suo testo di /fine, o chiama rm"
+    node = shutil.which("node")
+    if not node:
+        return None
+    puro = casa / "puro"
+    puro.mkdir()
+    shutil.copyfile(mod / "sessioni.js", puro / "sessioni.mjs")
+    (puro / "prova.mjs").write_text(PROVA_AUTO, encoding="utf-8")
+    r = subprocess.run([node, str(puro / "prova.mjs")], capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    if d["scelte"] != ["vecchia3", "a"]:
+        return f"daCongedare() sbaglia chi chiudere o l'ordine: {d['scelte']}"
+    if d["soglia"] != ["vecchia3", "a", "fresca"]:
+        return f"daCongedare() non usa la soglia di arturo.json: {d['soglia']}"
+    if d["restanti"] != [3, 1, 0, 0, 0, 3]:
+        return f"restanti() non tiene i tetti di 3 all'ora e 12 al giorno: {d['restanti']}"
+    if sorted(map(tuple, d["prova"])) != [("a", Date_T - 60000, Date_T), ("b", Date_T, Date_T)]:
+        return f"registroProva() non tiene la prima volta che ha visto una sessione: {d['prova']}"
+    if d["dopoFine"] != {"fai": "stop", "fase": "ferma", "salvata": True}:
+        return f"passoCongedo() rifà /fine su una sessione che l'ha già fatto: {d['dopoFine']}"
+    if d["senzaFine"] != {"fai": "fine", "fase": "fine"}:
+        return f"passoCongedo() non fa /fine nella chiusura automatica: {d['senzaFine']}"
+    return None
+
+
+Date_T = 1794484800000  # 2026-11-12T12:00:00Z, lo stesso T di PROVA_AUTO
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -6639,6 +6855,29 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  if (s.chi !== "claude" || chiede(s.coda)) return "stasi";', '  if (chiede(s.coda)) return "stasi";'),
+    ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  /\\b(scrivimi|scrivi|dimmi|', '  /\\b(xscrivimi|xscrivi|dimmi|'),
+    ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  /prossimo passo:[^\\n]*(\\btu\\b|\\btuo\\b|\\btua\\b|\\bfederico\\b|\\(tu\\))/i,\n', ''),
+    ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  /\\?[\\s*_`)]*$/,\n  /\\?\\s*\\n/,\n', ''),
+    ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  if (s.stato === "aspetta" || s.aspetta) return "stasi";', '  if (s.stato === "aspetta") return "stasi";'),
+    ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  const vive = g.sessioni.filter((s) => !inAttesa(s));', '  const vive = g.sessioni.filter((s) => s.stato !== "ferma");'),
+    ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  if (f === "stasi") return { testo: q ? `Ti aspetta ${q}` : "Ti aspetta", colore: "blocked" };\n', ''),
+    ('HZ92', 'shared/volta/mods/arturo/volta_sonda.py', '                    chi, interazione = "claude", d.get("timestamp", interazione)', '                    chi = "claude"'),
+    ('HZ92', 'shared/volta/mods/arturo/volta_sonda.py', '            fine_fatta = bool(re.match(', '            fine_fatta = False and bool(re.match('),
+    ('HZ92', 'shared/volta/mods/arturo/volta_sonda.py', '"chi": s.get("chi") or "", "fineFatta": s.get("fineFatta") is True,', '"chi": s.get("chi") or "",'),
+    ('HZ93', 'shared/volta/mods/arturo/sessioni.js', ' && fase(s) === "attesa" && !lavoroInCorso(s.coda))', ' && fase(s) === "attesa")'),
+    ('HZ93', 'shared/volta/mods/arturo/sessioni.js', ' && !scheda.has(s.sessionId))', ')'),
+    ('HZ93', 'shared/volta/mods/arturo/sessioni.js', '.filter((s) => s.questa && s.tipo === "background" && !s.vecchia', '.filter((s) => s.tipo === "background" && !s.vecchia'),
+    ('HZ93', 'shared/volta/mods/arturo/sessioni.js', '    .sort((a, b) => interazione(a) - interazione(b));', '    .sort((a, b) => interazione(b) - interazione(a));'),
+    ('HZ93', 'shared/volta/mods/arturo/sessioni.js', '  return Math.max(0, Math.min((opz.ora ?? 3) - ora,', '  return Math.max(0, Math.min((opz.ora ?? 4) - ora,'),
+    ('HZ93', 'shared/volta/mods/arturo/sessioni.js', '      vista: v?.vista ?? adesso, ultima: adesso });', '      vista: adesso, ultima: adesso });'),
+    ('HZ93', 'shared/volta/mods/arturo/sessioni.js', '    if (c.fineFatta && s.stato !== "lavora") return { fai: "stop", fase: "ferma", salvata: true };\n', ''),
+    ('HZ93', 'shared/volta/mods/arturo/volta.js', '      if (cfg.modo === "prova") {', '      if (cfg.modo === "provaX") {'),
+    ('HZ93', 'shared/volta/mods/arturo/volta.js', '        await writeTextFile(file, JSON.stringify({ ...reg, modo: "prova", prova }, null, 1), testo);\n        return;', '        await writeTextFile(file, JSON.stringify({ ...reg, modo: "prova", prova }, null, 1), testo);\n        this.congeda({ sessionId: scelte[0].sessionId, auto: true }, cx);\n        return;'),
+    ('HZ93', 'shared/volta/mods/arturo/volta.js', '      if (!scelte.length || restanti(fatti, adesso, cfg) < 1) return;', '      if (!scelte.length) return;'),
+    ('HZ93', 'shared/volta/mods/arturo/volta.js', 'chiuse: [...(reg.chiuse ?? []).slice(-39), { sessionId: s.sessionId, titolo: titolo(s), quando: adesso, interazione: s.interazione || s.ultimo || "" }] }, null, 1), testo);', 'chiuse: [...(reg.chiuse ?? []).slice(-39), { sessionId: s.sessionId, titolo: titolo(s), quando: adesso, interazione: s.interazione || s.ultimo || "" }] }, null, 1), null);'),
+    ('HZ93', 'shared/volta/mods/arturo/dati.js', 'modo: ["prova", "acceso", "spento"].includes(c.congedo) ? c.congedo : "prova",', 'modo: ["prova", "acceso", "spento"].includes(c.congedo) ? c.congedo : "acceso",'),
+    ('HZ93', 'shared/volta/mods/arturo/volta_sonda.py', 'PROMPT_CONGEDO_AUTO if auto else PROMPT_CONGEDO', 'PROMPT_CONGEDO'),
     ("HZ88", "shared/volta/themes/arturo.json", '"#7f90a8"', '"#4a5568"'),
     ("HZ88", "shared/volta/themes/arturo.json", '"selection": "#1f4478"', '"selection": "#9fb4d0"'),
     ("HZ88", "shared/volta/themes/arturo-carta.json", '"#6b717a"', '"#8a9099"'),
@@ -6941,6 +7180,7 @@ VELENI = [
     ("HZ57", "shared/volta/mods/arturo/sessioni.js", "adesso / 1000 - m.giu_da > 86400", "adesso / 1000 - m.giu_da > 0"),
     ("HZ57", "shared/volta/mods/arturo/sessioni.js", "d.toDateString() === oggi.toDateString() ? \"\" :", "true ? \"\" :"),
     ("HZ57", "shared/volta/mods/arturo/barra.js", '.when(Boolean(rigaMod(shared("arturo.mod"))), (el) =>', '.when(false, (el) =>'),
+    ("HZ57", "shared/volta/mods/arturo/sessioni.js", 'if (plugin?.esito === "compromesso")', 'if (false)'),
     ("HZ35", "shared/volta/volta-claude.sh", 'if [ -z "${SSH_CONNECTION:-}" ] && [ -f "$sonda" ]', 'if [ -f "$sonda" ]'),
     ("HZ35", "shared/volta/volta-claude.sh", '  esito=$(python3 "$sonda" servizio qui 2>&1) ||', '  esito=$(true) ||'),
     ("HZ35", "shared/volta/volta-claude.sh", 'servizio qui 2>&1) ||', 'servizio qui 2>&1) || exit 1 ||'),

@@ -9,8 +9,9 @@ il mod installato in ~/.config/herdr-app/mods/arturo (file VERSIONE).
   python3 volta_mod.py installa --da DIR    installa da una cartella `arturo/` locale (prove, /setup)
   python3 volta_mod.py attiva URL [--ramo R]  scrive la sorgente in arturo.json e mette il controllo orario
   python3 volta_mod.py automatico | manuale   accende o spegne il controllo, la sorgente resta
-  python3 volta_mod.py stato                l'ultimo esito, in JSON
+  python3 volta_mod.py stato                l'ultimo esito, in JSON (anche immagini, core, plugin e app)
   python3 volta_mod.py immagini             copia le immagini dei progetti nella cartella dell'app
+  python3 volta_mod.py programmi [--subito] il giro di core, plugin e app, come lo fa il sistema
   python3 volta_mod.py --prova              esce 0: lo usa la copia vecchia prima di sostituirsi
 
 Perché sta fuori dalla cartella del mod (in ~/.config/herdr-app/volta_mod.py): lo lanciano il mod,
@@ -33,10 +34,18 @@ Regole:
     ~/.claude/data/volta-immagini) si copiano in ~/.config/herdr-app/immagini, dove il mod le apre con
     image("immagini/<slug>.webp"). Si copiano solo le nuove e le cambiate, e si tolgono quelle sparite
     dalla fonte; senza fonte, o con la fonte vuota, non si tocca niente. Una copia che non riesce va in
-    immagini-stato.json e non ferma l'aggiornamento del mod. `volta_mod.py immagini` la lancia da sola.
+    immagini-stato.json e non ferma l'aggiornamento del mod. `volta_mod.py immagini` la lancia da sola;
+  - se arturo.json ha `immagini_genera` (un argv), ogni controllo lancia quel generatore staccato, senza
+    aspettarlo: fa le immagini dei progetti nuovi, e la copia del giro dopo le porta nell'app. La voce sta
+    su una macchina sola; l'esito del lancio va in immagini-genera.json;
+  - quando lo lancia il sistema (LaunchAgent, attività `controlla --sistema`) aggiorna anche core, plugin
+    e app (programmi(), 12/11/2026): core e plugin al più ogni 6 ore, l'app di notte a computer fermo.
+    Dal mod no: un `hc update` o un riavvio dell'app fermerebbero la finestra che lo chiede.
 
 Variabili per i banchi: HERDR_APP_HOME, VOLTA_CACHE, VOLTA_IMMAGINI (la cartella dei WebP), VOLTA_HERDR_APP (JSON: l'argv di herdr-app),
-VOLTA_NO_AGENTE=1 (niente LaunchAgent né schtasks), VOLTA_RINOMINA_NEGATA=1 (finge il rifiuto della
+VOLTA_NO_AGENTE=1 (niente LaunchAgent né schtasks), VOLTA_HC (JSON: l'argv di hc), VOLTA_PLUGINS
+(installed_plugins.json), VOLTA_APP_PACCHETTO, VOLTA_ORA, VOLTA_FERMO, VOLTA_FIRMA_FINTA, VOLTA_NO_APRI,
+VOLTA_RELEASES_URL e HERDR_RELEASES_URL (i canali; quello dell'app di solito da arturo.json, app_canale), VOLTA_RINOMINA_NEGATA=1 (finge il rifiuto della
 rinomina), VOLTA_COPIA_ROTTA=<file> (la copia file per file si rompe su quel file), VOLTA_AGENTE_PROVA=<cartella>
 (scrive lì il plist, senza launchctl). Solo libreria standard, Python 3.8+.
 """
@@ -128,7 +137,7 @@ except (ValueError, TypeError):
 def ssh_di_git() -> str:
     """L'ssh che la macchina ha scelto per git (core.sshCommand), altrimenti "ssh". GIT_SSH_COMMAND batte
     core.sshCommand: su Windows un "ssh" nudo prende quello di Git for Windows, che non vede l'agente di Windows
-    dove sta la chiave, e GitHub rifiuta (Balthasar, 11/11/2026)."""
+    dove sta la chiave, e GitHub rifiuta (il PC Windows dello studio, 11/11/2026)."""
     try:
         r = subprocess.run(GIT + ["config", "--get", "core.sshCommand"], capture_output=True, text=True,
                            encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, timeout=10)
@@ -451,6 +460,38 @@ def passo_immagini() -> dict:
     return d
 
 
+def passo_genera() -> dict:
+    """Lancia staccato il generatore delle immagini dei progetti nuovi, se arturo.json lo indica con
+    `immagini_genera` (l'argv, con ~ per la casa: per esempio volta-immagini.py nuovi --max 3). Non lo
+    aspetta: le immagini nuove arrivano nell'app al giro dopo. Il generatore tiene il suo lucchetto, così
+    due giri vicini (mod e sistema) non lo fanno girare due volte. Senza la voce non parte niente: la voce
+    va solo sulla macchina che genera, perché due macchine farebbero due immagini dello stesso progetto."""
+    argv = config().get("immagini_genera")
+    if not argv:
+        return {"esito": "spento"}
+    if not isinstance(argv, list) or not all(isinstance(x, str) and x for x in argv):
+        d = {"esito": "errore", "motivo": "immagini_genera non è un elenco di parole: %s" % str(argv)[:80]}
+    else:
+        argv = [os.path.expanduser(x) for x in argv]
+        staccato = ({"creationflags": getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)}
+                    if os.name == "nt" else {"start_new_session": True})
+        try:
+            cache().mkdir(parents=True, exist_ok=True)
+            with open(cache() / "immagini-genera.log", "ab") as log:
+                p = subprocess.Popen(argv, stdout=log, stderr=log, stdin=subprocess.DEVNULL, close_fds=True, **staccato)
+            d = {"esito": "lanciato", "pid": p.pid, "argv": argv}
+        except OSError as e:
+            d = {"esito": "errore", "motivo": "%s: %s" % (type(e).__name__, str(e)[:160])}
+    d["controllato"] = time.time()
+    try:
+        scrivi(cache() / "immagini-genera.json", d)
+    except OSError:
+        pass
+    if d["esito"] == "errore":
+        print("GENERA: errore, %s" % d["motivo"])
+    return d
+
+
 def installa(fonte: Path, versione: dict) -> tuple[bool, str, bool]:
     """Copia, controlla e scambia. Torna (riuscito, come o motivo, rosso): `rosso` è vero solo se il
     controllo del mod è girato e l'ha bocciato."""
@@ -501,6 +542,7 @@ def cmd_controlla() -> int:
         return 0
     try:
         passo_immagini()
+        passo_genera()
         installato = leggi(app_home() / "mods" / "arturo" / "VERSIONE")
         v = str(installato.get("versione") or "")
         messo = float(installato.get("installato") or 0)
@@ -577,6 +619,343 @@ def cmd_installa(argv: list) -> int:
             pass
 
 
+# --- Core, plugin e app (passo 5 del piano del 12/11/2026, #5370) ---------------------------------------
+# Il mod si aggiorna dal suo repository; qui si aggiornano gli altri tre pezzi. Solo quando lancia il
+# sistema (LaunchAgent o attività pianificata): dentro il mod un `hc update` o un riavvio dell'app
+# fermerebbero la finestra che lo sta chiedendo.
+
+OGNI_PROGRAMMI = 6 * 3600         # secondi fra due giri di core e plugin
+FASCIA_APP = (2, 6)               # ore locali in cui l'app può riavviarsi
+FERMO_APP = 30 * 60               # secondi senza tastiera né mouse prima di riavviare l'app
+APP_NUOVA = "Volta.app"           # il nome del pacchetto dal 12/11/2026
+APP_VECCHIA = "Volta Celeste.app"
+# Il canale dell'app sta in arturo.json (`app_canale`), come VOLTA_RELEASES in src/update.rs: è un indirizzo
+# della rete privata e non va scritto in un repository pubblico.
+
+
+def programmi_file() -> Path:
+    return cache() / "programmi-stato.json"
+
+
+def dal_sistema(argv: list) -> bool:
+    """Vero se il controllo lo lancia il sistema: il LaunchAgent (XPC_SERVICE_NAME è la sua etichetta) o
+    l'attività di Windows (`controlla --sistema`)."""
+    return os.environ.get("XPC_SERVICE_NAME") == ETICHETTA or "--sistema" in argv
+
+
+def argv_di(variabile: str, nome: str) -> list | None:
+    """Un programma come elenco di argomenti: la variabile del banco (JSON), oppure il nome nel PATH o in
+    ~/.local/bin. None se non c'è."""
+    finto = os.environ.get(variabile)
+    if finto:
+        return json.loads(finto)
+    fine = ".exe" if os.name == "nt" else ""
+    trovato = shutil.which(nome) or str(Path.home() / ".local" / "bin" / (nome + fine))
+    return [trovato] if os.path.exists(trovato) else None
+
+
+def corri(argv: list, timeout: int, env: dict | None = None) -> tuple[int, str]:
+    try:
+        r = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                           stdin=subprocess.DEVNULL, timeout=timeout, env=env)
+    except subprocess.TimeoutExpired:
+        return 124, "%s non ha risposto in %d s" % (Path(str(argv[0])).name, timeout)
+    except OSError as e:
+        return 127, "%s non parte: %s" % (Path(str(argv[0])).name, e)
+    return r.returncode, ((r.stdout or "") + "\n" + (r.stderr or "")).strip()
+
+
+def apri_url(url: str, timeout: int):
+    """Un indirizzo col nome di questo script: il canale di Herdr rifiuta con 403 il client di Python
+    senza nome (Python-urllib), e il core non si aggiornava mai (12/11/2026)."""
+    import urllib.request
+    return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "volta-mod"}), timeout=timeout)  # noqa: S310
+
+
+def scarica_testo(url: str, timeout: int = 30) -> str:
+    with apri_url(url, timeout) as r:
+        return r.read().decode("utf-8")
+
+
+def piu_nuova(a: str, b: str) -> bool:
+    """`a` viene dopo `b` (0.1.20 dopo 0.1.9; 0.2.0-rc.1 prima di 0.2.0). Come `newer` di src/update.rs."""
+    def parti(v: str):
+        v = v.strip().lstrip("v")
+        base, _, pre = v.partition("-")
+        numeri = []
+        for x in base.split("."):
+            try:
+                numeri.append(int(x))
+            except ValueError:
+                numeri.append(0)
+        return numeri, pre
+    (na, pa), (nb, pb) = parti(a), parti(b)
+    if na != nb:
+        return na > nb
+    return (not pa and bool(pb)) or (bool(pa) and bool(pb) and pa > pb)
+
+
+def core() -> dict:
+    """Il core che gira (`hc server status`, non `hc --version`: il binario può essere già nuovo e la
+    memoria no) contro core/latest.json di Herdr. Solo verso una versione più nuova; mai --force, mai
+    `hc server stop`. Un core di un gestore di pacchetti (Homebrew) resta a lui."""
+    hc = argv_di("VOLTA_HC", "hc")
+    if not hc:
+        return {"esito": "assente"}
+    rc, out = corri(hc + ["server", "status"], 30)
+    try:
+        s = json.loads(out.strip().splitlines()[-1]) if rc == 0 and out.strip() else {}
+    except ValueError:
+        s = {}
+    gira = str(s.get("version") or "")
+    if not gira:
+        return {"esito": "spento", "motivo": ultima_riga(out)}
+    if s.get("installed_by"):
+        return {"esito": "gestito", "versione": gira, "da": s["installed_by"]}
+    base = os.environ.get("HERDR_RELEASES_URL") or "https://releases.herdr.dev"
+    try:
+        ultima = str(json.loads(scarica_testo(base.rstrip("/") + "/core/latest.json")).get("version") or "")
+    except Exception as e:  # noqa: BLE001 senza rete il giro dopo riprova
+        return {"esito": "errore", "versione": gira, "motivo": "core/latest.json: %s" % str(e)[:160]}
+    if not ultima or not piu_nuova(ultima, gira):
+        return {"esito": "allineato", "versione": gira}
+    rc, out = corri(hc + ["update", "--version", ultima, "--json"], 300)
+    if rc != 0:
+        return {"esito": "errore", "versione": gira, "verso": ultima, "motivo": ultima_riga(out)}
+    return {"esito": "aggiornato", "versione": ultima, "prima": gira}
+
+
+def plugin(prima: dict) -> dict:
+    """Il plugin di Arturo con la sua procedura (`aggiornamenti.py applica`): tag firmato, sha del catalogo,
+    MANIFEST, la scelta "manuali" della persona. Una possibile compromissione non si riprova per
+    RIPROVA_RIFIUTATA ore: l'avviso resta nel piede e nella barra di Claude Code."""
+    if prima.get("esito") == "compromesso" and time.time() - float(prima.get("il") or 0) < RIPROVA_RIFIUTATA * 3600:
+        return prima
+    elenco = leggi(Path(os.environ.get("VOLTA_PLUGINS") or Path.home() / ".claude" / "plugins" / "installed_plugins.json"))
+    voci = (elenco.get("plugins") or {}).get("arturo@arturo") or []
+    percorso = str(voci[0].get("installPath") or "") if voci and isinstance(voci[0], dict) else ""
+    script = Path(percorso) / "bin" / "aggiornamenti.py"
+    if not percorso or not script.is_file():
+        return {"esito": "assente"}
+    versione = str(voci[0].get("version") or "")
+    # ARTURO_ATTESA_MAX=0: dalla chiusura di una sessione applica aspetta che Claude Code esca; qui non
+    # si chiude niente, e le sessioni aperte tengono la loro copia del plugin.
+    rc, out = corri([sys.executable, str(script), "applica"], 900, env=dict(os.environ, ARTURO_ATTESA_MAX="0"))
+    if "POSSIBILE COMPROMISSIONE" in out or rc == 3:
+        return {"esito": "compromesso", "versione": versione, "il": time.time(), "motivo": ultima_riga(out)}
+    riga = next((x.strip() for x in out.splitlines() if x.strip().startswith(("APPLICATO", "GIÀ AGGIORNATO"))), "")
+    if riga.startswith("APPLICATO"):
+        return {"esito": "aggiornato", "prima": versione, "motivo": riga[:200]}
+    if rc != 0:
+        return {"esito": "errore", "versione": versione, "motivo": ultima_riga(out)}
+    return {"esito": "allineato", "versione": versione}
+
+
+def fermo_da() -> float:
+    """Secondi senza tastiera né mouse (HIDIdleTime). VOLTA_FERMO lo finge per il banco."""
+    if os.environ.get("VOLTA_FERMO"):
+        return float(os.environ["VOLTA_FERMO"])
+    rc, out = corri(["/usr/sbin/ioreg", "-c", "IOHIDSystem"], 20)
+    for riga in out.splitlines():
+        if "HIDIdleTime" in riga:
+            try:
+                return int(riga.rsplit("=", 1)[1].strip()) / 1e9
+            except (ValueError, IndexError):
+                break
+    return 0.0
+
+
+def ora_locale() -> int:
+    return int(os.environ["VOLTA_ORA"]) if os.environ.get("VOLTA_ORA") else time.localtime().tm_hour
+
+
+def pacchetto_app() -> Path | None:
+    """Il pacchetto installato: dove porta il collegamento ~/.local/bin/herdr-app (…/X.app/Contents/MacOS/X)."""
+    if os.environ.get("VOLTA_APP_PACCHETTO"):
+        return Path(os.environ["VOLTA_APP_PACCHETTO"])
+    eseguibile = Path(os.path.realpath(str(Path.home() / ".local" / "bin" / "herdr-app")))
+    pacchetto = eseguibile.parent.parent.parent
+    return pacchetto if pacchetto.suffix == ".app" and eseguibile.is_file() else None
+
+
+def versione_app(eseguibile: Path) -> str:
+    rc, out = corri([str(eseguibile), "--version"], 30)
+    return out.strip().splitlines()[-1].replace("herdr-app ", "").strip() if rc == 0 and out.strip() else ""
+
+
+def app_aperta(app: list, pacchetto: Path | None = None) -> bool:
+    """La finestra risponde a `herdr-app status`, oppure un processo gira dal pacchetto."""
+    rc, _ = corri(app + ["status"], 20)
+    if rc == 0:
+        return True
+    if pacchetto is None or os.environ.get("VOLTA_HERDR_APP"):
+        return False
+    rc, _ = corri(["/usr/bin/pgrep", "-f", str(pacchetto) + "/Contents/MacOS/"], 10)
+    return rc == 0
+
+
+def firma_buona(pacchetto: Path) -> str:
+    """"" se il pacchetto è firmato con l'identità locale (o Developer ID) e la firma regge, altrimenti il
+    motivo. VOLTA_FIRMA_FINTA=ok|no la finge per il banco."""
+    finta = os.environ.get("VOLTA_FIRMA_FINTA")
+    if finta:
+        return "" if finta == "ok" else "firma finta rifiutata"
+    rc, out = corri(["/usr/bin/codesign", "-dvv", str(pacchetto)], 30)
+    if rc != 0 or not any(r == "Authority=Arturo firma locale" or r.startswith("Authority=Developer ID Application:")
+                          for r in out.splitlines()):
+        return "il pacchetto non è firmato con Arturo firma locale"
+    rc, out = corri(["/usr/bin/codesign", "--verify", "--deep", "--strict", str(pacchetto)], 60)
+    return "" if rc == 0 else "firma non valida: " + ultima_riga(out)
+
+
+def sposta_app(vecchio: Path, app: list) -> dict:
+    """La prima volta: `Volta Celeste.app` diventa `Volta.app`. Un'app 0.1.15 non sa leggere un pacchetto
+    `Volta.app` (src/update.rs prima del 12/11/2026), quindi la prima reinstallazione la fa questo script:
+    scarica dal canale, controlla sha256, firma e versione, chiude l'app, mette il pacchetto nuovo accanto,
+    sposta il collegamento ~/.local/bin/herdr-app e riapre. Il pacchetto vecchio resta in volta-prima-<v>.
+    Dopo, gli aggiornamenti li scarica l'app da sola."""
+    import hashlib
+    import tarfile
+    canale = str(os.environ.get("VOLTA_RELEASES_URL") or config().get("app_canale") or "").rstrip("/")
+    if not canale:
+        return {"esito": "attesa", "motivo": "arturo.json non ha app_canale: lo spostamento in Volta.app aspetta"}
+    try:
+        m = json.loads(scarica_testo(canale + "/app/latest.json"))
+        voce = (m.get("targets") or {}).get("macos-aarch64") or {}
+        versione, url, sha = str(m.get("version") or ""), str(voce.get("url") or ""), str(voce.get("sha256") or "")
+    except Exception as e:  # noqa: BLE001
+        return {"esito": "errore", "motivo": "app/latest.json: %s" % str(e)[:160]}
+    adesso = versione_app(vecchio / "Contents" / "MacOS" / "Volta Celeste")
+    if not (versione and url and sha):
+        return {"esito": "errore", "motivo": "app/latest.json senza versione, indirizzo o sha256"}
+    if adesso and piu_nuova(adesso, versione):
+        return {"esito": "allineato", "versione": adesso, "motivo": "il canale ha %s, più vecchia" % versione}
+    lavoro = vecchio.parent / (APP_NUOVA + ".scarico.noindex")
+    nuovo = vecchio.parent / APP_NUOVA
+    if nuovo.exists():
+        return {"esito": "errore", "motivo": "%s c'è già accanto a %s: non lo sovrascrivo" % (APP_NUOVA, APP_VECCHIA)}
+    if lavoro.exists():
+        togli(lavoro)
+    lavoro.mkdir(parents=True)
+    try:
+        pacco = lavoro / "app.tar.gz"
+        with apri_url(url, 600) as r, open(pacco, "wb") as f:
+            shutil.copyfileobj(r, f)
+        if hashlib.sha256(pacco.read_bytes()).hexdigest() != sha.lower():
+            return {"esito": "errore", "motivo": "il pacchetto scaricato è rovinato (sha256 diverso)"}
+        with tarfile.open(pacco) as t:
+            for membro in t.getmembers():
+                if membro.name.startswith(("/", "..")) or "/../" in membro.name:
+                    return {"esito": "errore", "motivo": "il pacchetto ha un percorso fuori posto: %s" % membro.name}
+            if hasattr(tarfile, "data_filter"):
+                t.extractall(str(lavoro), filter="data")  # niente link né permessi fuori posto
+            else:
+                t.extractall(str(lavoro))  # noqa: S202 percorsi controllati sopra
+        estratto = lavoro / APP_NUOVA
+        eseguibile = estratto / "Contents" / "MacOS" / "Volta"
+        if not eseguibile.is_file():
+            return {"esito": "errore", "motivo": "nel pacchetto non c'è %s/Contents/MacOS/Volta" % APP_NUOVA}
+        motivo = firma_buona(estratto)
+        if motivo:
+            return {"esito": "errore", "motivo": motivo}
+        if versione_app(eseguibile) != versione:
+            return {"esito": "errore", "motivo": "il pacchetto scaricato non risponde come %s" % versione}
+        aperta = app_aperta(app, vecchio)
+        if aperta:
+            corri(app + ["do", "app.quit"], 30)
+            for _ in range(60):
+                if not app_aperta(app, vecchio):
+                    break
+                time.sleep(1)
+            else:
+                return {"esito": "errore", "motivo": "l'app non si è chiusa in 60 secondi: riprovo la notte dopo"}
+        os.replace(str(estratto), str(nuovo))
+        collegamento = Path.home() / ".local" / "bin" / "herdr-app"
+        if collegamento.is_symlink() or not collegamento.exists():
+            tmp = collegamento.with_name("herdr-app.%d.nuovo" % os.getpid())
+            tmp.unlink(missing_ok=True)
+            os.symlink(str(nuovo / "Contents" / "MacOS" / "Volta"), str(tmp))
+            os.replace(str(tmp), str(collegamento))
+        prima = vecchio.parent / ("volta-prima-%s" % (adesso or "vecchia"))
+        n = 2
+        while prima.exists():
+            prima = vecchio.parent / ("volta-prima-%s-%d" % (adesso or "vecchia", n))
+            n += 1
+        prima.mkdir()
+        os.replace(str(vecchio), str(prima / APP_VECCHIA))
+        if aperta and not os.environ.get("VOLTA_NO_APRI"):
+            corri(["/usr/bin/open", str(nuovo)], 30)
+        return {"esito": "spostato", "versione": versione, "prima": adesso, "riaperta": aperta}
+    finally:
+        if lavoro.exists():
+            togli(lavoro)
+
+
+def app_volta(prima: dict) -> dict:
+    """L'app, solo sul Mac, solo fra le 2 e le 6 e a computer fermo da 30 minuti: si riavvia nella versione
+    che ha già scaricato (`herdr-app do app.update`, i terminali restano vivi nel core). La prima volta
+    sposta `Volta Celeste.app` in `Volta.app` (sposta_app)."""
+    if sys.platform != "darwin" and not os.environ.get("VOLTA_APP_PACCHETTO"):
+        return {"esito": "assente", "motivo": "solo sul Mac"}
+    pacchetto = pacchetto_app()
+    app = argv_di("VOLTA_HERDR_APP", "herdr-app")
+    if pacchetto is None or not app:
+        return {"esito": "assente"}
+    ora = ora_locale()
+    # Fuori fascia o col computer in uso resta l'esito di prima, con il motivo dell'attesa.
+    if not FASCIA_APP[0] <= ora < FASCIA_APP[1]:
+        return dict(prima, attesa="fuori fascia") if prima else {"esito": "attesa", "attesa": "fuori fascia"}
+    if fermo_da() < FERMO_APP:
+        return dict(prima, attesa="computer in uso") if prima else {"esito": "attesa", "attesa": "computer in uso"}
+    if pacchetto.name == APP_VECCHIA:
+        return sposta_app(pacchetto, app)
+    ricevuta = pacchetto.with_name(pacchetto.name + ".new.json.noindex")
+    pronta = str(leggi(ricevuta).get("version") or "")
+    if not pronta:
+        return {"esito": "allineato", "versione": versione_app(pacchetto / "Contents" / "MacOS" / "Volta")}
+    if not app_aperta(app, pacchetto):
+        return {"esito": "attesa", "versione": pronta, "motivo": "l'app è chiusa: la versione nuova entra alla prossima apertura"}
+    rc, out = corri(app + ["do", "app.update"], 60)
+    if rc != 0 or "no update is ready" in out:
+        return {"esito": "errore", "versione": pronta, "motivo": ultima_riga(out) or "app.update rc %d" % rc}
+    return {"esito": "riavviata", "versione": pronta}
+
+
+def programmi(forza: bool = False) -> dict:
+    """Un giro su core, plugin e app. Core e plugin al più ogni OGNI_PROGRAMMI secondi, l'app a ogni giro
+    del sistema (fa da sé i controlli di fascia e di riposo). L'esito va in programmi-stato.json."""
+    l = cache() / "programmi.lucchetto"
+    l.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        if l.exists() and time.time() - l.stat().st_mtime > 3600:
+            l.rmdir()
+        l.mkdir()
+    except OSError:
+        return {"occupato": True}
+    try:
+        stato = leggi(programmi_file())
+        adesso = time.time()
+        if forza or adesso - float(stato.get("giro") or 0) >= OGNI_PROGRAMMI:
+            for nome, fare in (("core", core), ("plugin", lambda: plugin(stato.get("plugin") or {}))):
+                try:
+                    stato[nome] = fare()
+                    stato[nome].setdefault("il", time.time())  # un plugin compromesso tiene l'ora del blocco
+                except Exception as e:  # noqa: BLE001 un pezzo rotto non ferma gli altri
+                    stato[nome] = {"esito": "errore", "motivo": "%s: %s" % (type(e).__name__, str(e)[:160])}
+            stato["giro"] = adesso
+        try:
+            stato["app"] = dict(app_volta(stato.get("app") or {}), il=time.time())
+        except Exception as e:  # noqa: BLE001
+            stato["app"] = {"esito": "errore", "motivo": "%s: %s" % (type(e).__name__, str(e)[:160]), "il": time.time()}
+        scrivi(programmi_file(), stato)
+        return stato
+    finally:
+        try:
+            l.rmdir()
+        except OSError:
+            pass
+
+
 def plist_agente(script: str) -> str:
     """Il LaunchAgent. Parte con `/usr/bin/env python3` e non col Python di chi l'ha acceso: un percorso
     con la versione dentro (python@3.14) sparisce al primo aggiornamento di Homebrew, e il controllo
@@ -600,7 +979,19 @@ def plist_agente(script: str) -> str:
 def agente_aggiorna() -> None:
     """Un LaunchAgent scritto da uno script di prima, col Python di allora nel percorso, si riscrive.
     Dentro l'agente stesso si cambia solo il file (vale dal prossimo accesso): un bootout lo ucciderebbe."""
-    if sys.platform != "darwin" or os.environ.get("VOLTA_NO_AGENTE") or os.environ.get("VOLTA_AGENTE_PROVA"):
+    if os.environ.get("VOLTA_NO_AGENTE") or os.environ.get("VOLTA_AGENTE_PROVA"):
+        return
+    if os.name == "nt":
+        # Un'attività di prima non passa --sistema: il giro di core e plugin non partirebbe mai (12/11/2026).
+        try:
+            r = subprocess.run(["schtasks", "/Query", "/TN", ATTIVITA, "/XML"], capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, timeout=30)
+            if r.returncode == 0 and "--sistema" not in (r.stdout or ""):
+                agente(True)
+        except (OSError, subprocess.SubprocessError):
+            pass
+        return
+    if sys.platform != "darwin":
         return
     plist = Path.home() / "Library" / "LaunchAgents" / (ETICHETTA + ".plist")
     try:
@@ -643,7 +1034,7 @@ def agente(accendi: bool) -> str:
             return "tolta"
         py = Path(sys.executable)
         senza_finestra = py.with_name("pythonw.exe")
-        comando = '"%s" "%s" controlla' % (senza_finestra if senza_finestra.exists() else py, script)
+        comando = '"%s" "%s" controlla --sistema' % (senza_finestra if senza_finestra.exists() else py, script)
         r = subprocess.run(["schtasks", "/Create", "/TN", ATTIVITA, "/SC", "HOURLY", "/TR", comando, "/F"], capture_output=True, text=True)
         return "attività pianificata" if r.returncode == 0 else "attività non creata: " + ultima_riga(r.stderr or r.stdout)
     return "nessun controllo orario su questo sistema: resta quello del mod"
@@ -683,7 +1074,17 @@ def main(argv: list) -> int:
     if argv[:1] == ["--prova"]:
         return 0
     if argv[:1] == ["controlla"]:
-        return cmd_controlla()
+        rc = cmd_controlla()
+        c = config()
+        if dal_sistema(argv) and c.get("mod_sorgente") and c.get("mod_modo") != "manuale":
+            for nome, d in programmi().items():
+                if isinstance(d, dict):
+                    print("%s: %s%s" % (nome.upper(), d.get("esito"), (" · " + str(d["motivo"])) if d.get("motivo") else ""))
+        return rc
+    if argv[:1] == ["programmi"]:
+        # A mano, per le prove: lo stesso giro del sistema, subito (--subito salta l'attesa di 6 ore).
+        print(json.dumps(programmi(forza="--subito" in argv), ensure_ascii=False))
+        return 0
     if argv[:1] == ["installa"]:
         return cmd_installa(argv[1:])
     if argv[:1] == ["immagini"]:
@@ -698,6 +1099,8 @@ def main(argv: list) -> int:
         d["sorgente"] = config().get("mod_sorgente")
         d["modo"] = config().get("mod_modo") or "automatico"
         d["immagini"] = leggi(cache() / "immagini-stato.json")
+        d["genera"] = leggi(cache() / "immagini-genera.json")
+        d["programmi"] = {k: v for k, v in leggi(programmi_file()).items() if k in ("core", "plugin", "app")}
         print(json.dumps(d, ensure_ascii=False))
         return 0
     print(__doc__.strip())
