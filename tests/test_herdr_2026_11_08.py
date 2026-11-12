@@ -1093,7 +1093,7 @@ def hz16(repo: Path, casa: Path) -> str | None:
         (bin_ / nome).write_text("#!/bin/sh\n")
         (bin_ / nome).chmod(0o755)
     agenti = casa / "agenti"
-    env = dict(os.environ, HOME=str(casa), SERVIZI_AGENTI=str(agenti), SERVIZI_NO_LAUNCHCTL="1")
+    env = dict(os.environ, HOME=str(casa), USERPROFILE=str(casa), SERVIZI_AGENTI=str(agenti), SERVIZI_NO_LAUNCHCTL="1")
     script = repo / "shared" / "volta" / "servizi-gui.sh"
 
     def leggi(nome: str) -> dict | None:
@@ -2163,7 +2163,7 @@ def hz36(repo: Path, casa: Path) -> str | None:
     prima = "export A=1\nalias ll='ls -l'"  # senza a capo in fondo
     (home / ".zshrc").write_text(prima, encoding="utf-8", newline="\n")
     (home / ".zshenv").write_text("claude() {\n  command claude \"$@\"\n}\n", encoding="utf-8", newline="\n")
-    env = {**os.environ, "HOME": str(home), "SHELL": "/bin/zsh"}
+    env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home), "SHELL": "/bin/zsh"}
     nascita = lambda *a: subprocess.run(["sh", str(vc / "nascita.sh"), *a], capture_output=True, text=True, timeout=30, env=env)  # noqa: E731
     for _ in range(2):
         r = nascita("metti", str(app))
@@ -2218,7 +2218,7 @@ def hz36(repo: Path, casa: Path) -> str | None:
     for nome in ("volta-claude", "volta-nascita.sh"):
         if not os.access(sotto / "app" / nome, os.X_OK):
             return f"l'installatore non mette {nome} eseguibile nella cartella di Herdr"
-    env_i = {**os.environ, "HOME": str(sotto / "home"), "SHELL": "/bin/zsh"}
+    env_i = {**os.environ, "HOME": str(sotto / "home"), "USERPROFILE": str(sotto / "home"), "SHELL": "/bin/zsh"}
     installato = lambda *a: subprocess.run(["sh", str(sotto / "app" / "volta-nascita.sh"), *a], capture_output=True, text=True, timeout=30, env=env_i)  # noqa: E731
     installato("metti")
     if not rc.is_file() or f'"{sotto / "app"}/volta-claude"' not in rc.read_text(encoding="utf-8"):
@@ -2271,7 +2271,7 @@ def hz37(repo: Path, casa: Path) -> str | None:
     p5.parent.mkdir(parents=True)
     prima = b"Set-Alias ll Get-ChildItem\r\n$env:A = 1"  # righe di Windows, senza a capo in fondo
     p5.write_bytes(prima)
-    env = {**os.environ, "HOME": str(home), "SHELL": "/bin/zsh", "VOLTA_PROFILI_PS": f"{p5}\n{p7}", "VOLTA_POLICY_PS": "RemoteSigned"}
+    env = {**os.environ, "HOME": str(home), "USERPROFILE": str(home), "SHELL": "/bin/zsh", "VOLTA_PROFILI_PS": f"{p5}\n{p7}", "VOLTA_POLICY_PS": "RemoteSigned"}
     nascita = lambda *a, **e: subprocess.run(["sh", str(app / "volta-nascita.sh"), *a], capture_output=True, text=True, timeout=60, env={**env, **e})  # noqa: E731
     for _ in range(2):
         r = nascita("metti")
@@ -2334,7 +2334,7 @@ def hz38(repo: Path, casa: Path) -> str | None:
     app = casa / "app"
     app.mkdir()
     shutil.copy(vc / "nascita.sh", app / "volta-nascita.sh")
-    env = {**os.environ, "HOME": str(casa), "VOLTA_POLICY_PS": "RemoteSigned"}
+    env = {**os.environ, "HOME": str(casa), "USERPROFILE": str(casa), "VOLTA_POLICY_PS": "RemoteSigned"}
     nascita = lambda *a, **e: subprocess.run(["sh", str(app / "volta-nascita.sh"), *a], capture_output=True, text=True, timeout=60, env={**env, **e})  # noqa: E731
     # volta-claude.ps1 con un claude finto
     finto = casa / "claude-finto.ps1"
@@ -2478,7 +2478,7 @@ def hz39(repo: Path, casa: Path) -> str | None:
         fc = fbin / "claude"
         fc.write_text("#!/bin/sh\n[ \"$1\" = agents ] && { echo '[]'; exit 0; }\n[ \"$1\" = daemon ] && { echo 'control.sock: reachable'; exit 0; }\npwd > %s\necho 'claude attach abcd1234'\n" % shlex.quote(str(dove_log)), encoding="utf-8")
         fc.chmod(0o755)
-        e = {**os.environ, "PATH": f"{fbin}{os.pathsep}{os.environ.get('PATH', '')}", "HOME": str(fcasa), "HERDR_APP_HOME": str(fapp)}
+        e = {**os.environ, "PATH": f"{fbin}{os.pathsep}{os.environ.get('PATH', '')}", "HOME": str(fcasa), "USERPROFILE": str(fcasa), "HERDR_APP_HOME": str(fapp)}
         r = subprocess.run([sys.executable, str(sonda), "nasci", "qui", "--", "ciao"], capture_output=True, text=True, timeout=60, env=e)
         try:
             d = json.loads(r.stdout.strip().splitlines()[-1])
@@ -2781,7 +2781,7 @@ def hz41(repo: Path, casa: Path) -> str | None:
     fc.chmod(0o755)
     slog = casa / "s" / "claude.log"
     slog.parent.mkdir()
-    e = {**os.environ, "PATH": f"{fbin}{os.pathsep}{os.environ.get('PATH', '')}", "HOME": str(fcasa), "HZ_LOG": str(slog)}
+    e = {**os.environ, "PATH": f"{fbin}{os.pathsep}{os.environ.get('PATH', '')}", "HOME": str(fcasa), "USERPROFILE": str(fcasa), "HZ_LOG": str(slog)}
     e.pop("VOLTA_HC", None)
 
     def qui(**extra):
@@ -3724,7 +3724,7 @@ def hz55(repo: Path, casa: Path) -> str | None:
     fc.write_text("#!/bin/sh\n[ \"$1\" = agents ] && { echo '[]'; exit 0; }\n[ \"$1\" = daemon ] && { echo 'control.sock: reachable'; exit 0; }\n"
                   "{ pwd; printf '%%s\\n' \"$@\"; } > %s\necho 'claude attach abcd1234'\n" % shlex.quote(str(visto)), encoding="utf-8")
     fc.chmod(0o755)
-    locale = {"PATH": f"{fbin}{os.pathsep}{os.environ.get('PATH', '')}", "HOME": str(fcasa), "HERDR_APP_HOME": str(fapp)}
+    locale = {"PATH": f"{fbin}{os.pathsep}{os.environ.get('PATH', '')}", "HOME": str(fcasa), "USERPROFILE": str(fcasa), "HERDR_APP_HOME": str(fapp)}
 
     def qui(*args):
         visto.unlink(missing_ok=True)
@@ -6656,7 +6656,7 @@ def hz89(repo: Path, casa: Path) -> str | None:
                       "[ \"$1\" = --bg ] && touch %s\n"
                       "{ echo \"== $(pwd)\"; printf '%%s\\n' \"$@\"; } >> %s\necho 'Woke session'\n" % (shlex.quote(str(viva)), shlex.quote(str(viva)), shlex.quote(str(visto))), encoding="utf-8")
         fc.chmod(0o755)
-        env = {**os.environ, "PATH": f"{fbin}{os.pathsep}{os.environ.get('PATH', '')}", "HOME": str(fcasa), "HERDR_APP_HOME": str(fapp)}
+        env = {**os.environ, "PATH": f"{fbin}{os.pathsep}{os.environ.get('PATH', '')}", "HOME": str(fcasa), "USERPROFILE": str(fcasa), "HERDR_APP_HOME": str(fapp)}
         r = subprocess.run([sys.executable, str(sonda), "congeda", "qui", "aaaa1111", "aaaa1111-bbbb-cccc", "--cartella", str(lavoro)],
                            capture_output=True, text=True, timeout=90, env=env)
         try:
@@ -6872,7 +6872,7 @@ def hz92(repo: Path, casa: Path) -> str | None:
               "sys.argv = [sys.argv[0], sys.argv[2]]\n"
               "exec(compile(src, 'sonda', 'exec'), g)\n")
     r = subprocess.run([sys.executable, "-c", codice, str(sonda), str(finto)], capture_output=True, text=True, timeout=60,
-                       env={**os.environ, "HOME": str(casa), "CLAUDE_CONFIG_DIR": str(radice), "HERDR_APP_HOME": str(casa / "app")})
+                       env={**os.environ, "HOME": str(casa), "USERPROFILE": str(casa), "CLAUDE_CONFIG_DIR": str(radice), "HERDR_APP_HOME": str(casa / "app")})
     try:
         voce = json.loads(r.stdout.strip().splitlines()[-1])["sessioni"][0]
     except (ValueError, IndexError, KeyError):
@@ -8202,7 +8202,7 @@ def avvelena(repo: Path) -> int:
 def ferma_nati_in(cartella: Path) -> int:
     """Ferma i processi lanciati da un file dentro `cartella` (la copia di un veleno), e dice quanti.
     Un veleno che rompe lo spegnimento del ponte (HZ78, HZ79) lascia volta_microfono.py ricevi acceso
-    dopo che la copia è sparita: il 12/11/2026 sul Mac mini erano 8, sul MacBook più di 20 (#5423).
+    dopo che la copia è sparita: il 12/11/2026 su due Mac erano 8 e più di 20 (#5423).
     Solo dove c'è ps: su Windows i casi del ponte non lanciano ricevitori veri."""
     if os.name == "nt":
         return 0
