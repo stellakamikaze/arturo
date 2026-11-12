@@ -1,0 +1,7 @@
+# Regole di gitleaks per questo repository: quelle di serie, più un'esclusione.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "ORIGINE della copia di Volta (shared/volta-celeste/ fino al 12/11/2026): solo impronte sha256 scritte da volta/pubblica-mod.py (#5384)"
+paths = ['''(^|/)shared/volta(-celeste)?/ORIGINE$''']

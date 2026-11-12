@@ -19,12 +19,12 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, writeTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals, spaces, window } from "herdr";
-import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, registroProva, daQuanto, ordineGiro, statoGiro, passoGiro, corrente, GIRO_MS, sessioneDi, sessioneDavanti, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, daIniziare, mosso, arrivoTrascino, nomeProgetto, GESTI_MAX, visibili, sparite, passoCongedo, chiusa } from "./sessioni.js";
+import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, registroProva, daQuanto, ordineGiro, statoGiro, passoGiro, corrente, GIRO_MS, sessioneDi, sessioneDavanti, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, daIniziare, mosso, arrivoTrascino, nomeProgetto, progettoApribile, GESTI_MAX, visibili, sparite, passoCongedo, chiusa } from "./sessioni.js";
 import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX, occupanti } from "./sessioni.js";
 import { ICONA, punto, colore, segno, motoDi, movimento } from "./comuni.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
 import { schedeDi, cacheVolta, spostaSessione, nomeMacchina } from "./dati.js";
-import { nonSiSposta } from "./sposta.js";
+import { nonSiSposta, aFineTurno, spostabili, apriSposta, perSposta } from "./sposta.js";
 import { apriMenuSessione } from "./menusessione.js";
 import { apriCambio } from "./cambio.js";
 import { bersaglio, passo, rigaMicrofono } from "./microfono.js";
@@ -110,6 +110,7 @@ export class Volta {
     this.anteprime = {};   // sessionId -> true (risposta e azione lette dalla riga) o righe di claude logs
     this.chiedo = {};      // sessionId -> verbo che aspetta la conferma
     this.faccio = {};      // sessionId -> verbo in corso
+    this.codaSposta = {};  // sessionId -> { macchina, id, da, dopo }: Sposta su e Sposta tutto, una alla volta
     this.sopra = null;     // la sessione sotto il puntatore: lì compare la X
     this.porto = {};       // sessionId -> true mentre il nome scritto dalla persona va in Claude Code
     this.inizio = {};      // sessionId -> true mentre la sessione spostata riparte da /inizio (#5465)
@@ -420,6 +421,7 @@ export class Volta {
       await this.leggi(cx);
       this.inCorso = false;
       this.passiCongedo(cx);
+      this.giraCoda(cx);
       cx.notify();
       this.sincronizzaNote(cx);
     });
@@ -560,34 +562,91 @@ export class Volta {
     const s = sessioneDavanti(t, this.dati?.sessioni ?? []);
     const v = s ? { id: s.id, sessionId: s.sessionId, host: s.host ?? "qui", macchina: s.macchina, tipo: s.tipo,
       stato: s.stato, titolo: titolo(s), progetto: s.progetto ?? null,
-      sposto: this.faccio?.[s.sessionId] === "sposta" } : null;
+      sposto: this.faccio?.[s.sessionId] === "sposta" || Boolean(this.codaSposta?.[s.sessionId]) } : null;
     if (JSON.stringify(v) !== JSON.stringify(shared("arturo.volta.davanti") ?? null)) setShared("arturo.volta.davanti", v);
   }
 
-  // "arturo.volta-sposta-<macchina>-<id>": "Sposta su" della testata (sposta.js) o herdr-app do. La
-  // sessione riparte sull'altra macchina con la stessa conversazione (volta_sposta.py); intanto la riga
-  // dice dove va, e a fine lavoro un avviso dice com'è andata.
-  spostaId(macchina, id, cx) {
-    // Dopo uno spostamento lo stesso id c'è su due macchine: vale la copia che l'elenco mostra.
-    const s = (this.vis()?.sessioni ?? []).find((x) => x.id === id) ?? this.trovaId(id);
-    if (!s) return;
+  // La sessione `id` come la vede l'elenco: dopo uno spostamento lo stesso id c'è su due macchine, e vale
+  // la copia che l'elenco mostra.
+  vistaId(id) {
+    return (this.vis()?.sessioni ?? []).find((x) => x.id === id) ?? this.trovaId(id);
+  }
+
+  // Quante sessioni aspettano di spostarsi o si stanno spostando (la pastiglia "Sposta tutto su…").
+  inCoda() {
+    return Object.keys(this.codaSposta ?? {}).length;
+  }
+
+  // "arturo.volta-sposta-<macchina>-<id>": "Sposta su" della testata o del menu (sposta.js) o herdr-app
+  // do. La sessione entra nella coda: riparte sull'altra macchina con la stessa conversazione
+  // (volta_sposta.py), a turno finito se sta lavorando. Intanto la riga dice dove va, e a fine lavoro un
+  // avviso dice com'è andata. `zitto`: niente avvisi per la singola sessione (Sposta tutto ne dà uno).
+  // true se la sessione è entrata in coda.
+  spostaId(macchina, id, cx, zitto = false) {
+    const s = this.vistaId(id);
+    if (!s) return false;
     const no = nonSiSposta(s) ?? ((s.host ?? "qui") === macchina ? `È già su ${nomeMacchina(macchina)}.` : null);
-    if (no) return notify({ title: "Non la sposto", body: no, level: "warning" });
+    if (no) {
+      if (!zitto) notify({ title: "Non la sposto", body: no, level: "warning" });
+      return false;
+    }
     const k = s.sessionId;
-    if (this.faccio[k]) return;
-    this.faccio[k] = "sposta";
+    if (this.faccio[k] || this.codaSposta[k]) return false;
+    this.codaSposta[k] = { macchina, id: s.id, da: s.host ?? "qui", dopo: 0 };
     this.spostoSu = { ...(this.spostoSu ?? {}), [k]: macchina };
+    if (!zitto && aFineTurno(s)) notify({ title: `La sposto su ${nomeMacchina(macchina)} a turno finito`, body: titolo(s), level: "info", timeout: 5000 });
     cx.notify();
-    cx.spawn(async (cx) => {
-      let r;
-      try { r = await spostaSessione(s, macchina); } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 160) }; }      delete this.faccio[k];
-      if (r.errore) {
-        notify({ title: `Non la sposto su ${nomeMacchina(macchina)}`, body: r.errore, level: "error" });
-        this.avvisa(s, `Non la sposto: ${r.errore}`, cx);
-      } else notify({ title: `Spostata su ${nomeMacchina(macchina)}`, body: titolo(s), level: "info", timeout: 5000 });
-      this.aggiorna(cx);
+    this.giraCoda(cx);
+    return true;
+  }
+
+  // "arturo.volta-spostatutto-<macchina>": "Sposta tutto su…" della barra. Ogni sessione spostabile
+  // delle altre macchine entra nella coda (spostabili di sposta.js); un avviso solo dice quante.
+  spostaTutto(macchina, cx) {
+    const l = spostabili(this.vis()?.sessioni ?? [], macchina);
+    const prese = l.filter((s) => this.spostaId(macchina, s.id, cx, true));
+    if (!prese.length) return notify({ title: "Niente da spostare", body: `Nessuna sessione in background da portare su ${nomeMacchina(macchina)}.`, level: "info", timeout: 4000 });
+    const dopo = prese.filter(aFineTurno).length;
+    notify({ title: `Sposto ${prese.length === 1 ? "1 sessione" : `${prese.length} sessioni`} su ${nomeMacchina(macchina)}`,
+      body: `Una alla volta${dopo ? `; ${dopo} a turno finito` : ""}.`, level: "info", timeout: 6000 });
+  }
+
+  // La coda di Sposta: una sessione alla volta, perché due spostamenti nello stesso repository farebbero
+  // git pull e worktree add insieme. Una che lavora aspetta il giro dell'elenco in cui il turno è finito:
+  // lo spostamento ferma la sessione, e a metà turno il lavoro si interromperebbe. Se volta_sposta.py
+  // trova che un turno è appena partito (`lavora`), la sessione resta in coda e si riprova dopo un giro.
+  // Una sessione sparita dall'elenco, chiusa o già altrove esce dalla coda. La coda vive in questa
+  // finestra: chiudere Volta la svuota, e le sessioni restano dove sono.
+  giraCoda(cx) {
+    if (this.spostando) return;
+    const vive = this.vis()?.sessioni ?? [];
+    const ora = Date.now();
+    for (const [k, v] of Object.entries(this.codaSposta)) {
+      const s = vive.find((x) => x.sessionId === k && (x.host ?? "qui") === v.da);
+      if (!s || nonSiSposta(s)) { delete this.codaSposta[k]; continue; }
+      if (aFineTurno(s) || v.dopo > ora) continue;
+      this.spostando = true;
+      this.faccio[k] = "sposta";
       cx.notify();
-    });
+      cx.spawn(async (cx) => {
+        let r;
+        try { r = await spostaSessione(s, v.macchina); } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 160) }; }
+        delete this.faccio[k];
+        this.spostando = false;
+        if (r.lavora) this.codaSposta[k] = { ...v, dopo: Date.now() + OGNI };
+        else {
+          delete this.codaSposta[k];
+          if (r.errore) {
+            notify({ title: `Non la sposto su ${nomeMacchina(v.macchina)}`, body: r.errore, level: "error" });
+            this.avvisa(s, `Non la sposto: ${r.errore}`, cx);
+          } else notify({ title: `Spostata su ${nomeMacchina(v.macchina)}`, body: titolo(s), level: "info", timeout: 5000 });
+        }
+        this.aggiorna(cx);
+        cx.notify();
+        this.giraCoda(cx);
+      });
+      return;
+    }
   }
 
   premiId(id, cx) {
@@ -626,6 +685,8 @@ export class Volta {
     const a = voci.find((x) => x.verbo === verbo);
     if (!a) return notify({ title: `${verbo}: gesto che qui non c'è`, body: `Su questa sessione: ${voci.map((x) => x.verbo).join(", ") || "nessuno"}.`, level: "warning" });
     if (verbo in CAMBIA) return this.chiedi(s, CAMBIA[verbo]);
+    // Sposta su… del menu: il popup delle macchine (sposta.js), per la copia che l'elenco mostra.
+    if (verbo === "sposta") return apriSposta(perSposta(this.vistaId(id) ?? s));
     if (SOLO_MENU.has(verbo)) return this.fare(s, a, cx);
     this.menu = s.sessionId;
     this.scopri(s);
@@ -769,7 +830,10 @@ export class Volta {
   riga(t, s, modo, cx) {
     const sposto = this.sposto[s.sessionId];
     const apro = this.apro[s.sessionId];
-    const lavoro = this.faccio[s.sessionId] === "sposta" ? `La sposto su ${nomeMacchina(this.spostoSu?.[s.sessionId] ?? "qui")}…` : LAVORO[this.faccio[s.sessionId]];
+    const su = nomeMacchina(this.spostoSu?.[s.sessionId] ?? "qui");
+    const lavoro = this.faccio[s.sessionId] === "sposta" ? `La sposto su ${su}…`
+      : this.codaSposta[s.sessionId] ? (aFineTurno(s) ? `La sposto su ${su} a turno finito` : `In coda per ${su}…`)
+      : LAVORO[this.faccio[s.sessionId]];
     const d = sposto ? { testo: "La sposto nella finestra…", colore: "working" }
       : apro ? { testo: "La apro…", colore: "working" }
       : this.veglio[s.sessionId] ? { testo: "Aperta: guardo se Claude resta nella scheda…", colore: "working" }
@@ -869,7 +933,7 @@ export class Volta {
     const mostra = mostrate(g, this.aperti[g.chiave]);
     // Per progetto l'intestazione è il progetto: un clic lo apre (il suo spazio, con /inizio), come la
     // riga di "Adesso" che c'era sotto. Quello dello spazio aperto ha il fondo della selezione.
-    const progetto = modo === "progetto" && Boolean(g.chiave);
+    const progetto = modo === "progetto" && progettoApribile(g.chiave);
     const attivo = progetto && aperto === slug(g.chiave);
     // Il gruppo dove una sessione trascinata può finire, col puntatore sopra: bordo acceso e la frase.
     const arrivo = this.trascino?.sopra === g.chiave ? arrivoTrascino(this.trascino, g, modo) : null;

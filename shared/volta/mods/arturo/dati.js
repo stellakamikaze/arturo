@@ -756,7 +756,8 @@ export async function spostaSessione(s, macchina) {
   } catch (e) {
     return { errore: `${nomeMacchina(macchina)} non ha risposto in 20 minuti (${String(e?.message ?? e).slice(0, 80)}): guarda fra le sessioni dove è rimasta` };
   }
-  if (!r.attach?.length) return { errore: r.errore ?? "nessuna risposta" };
+  // `lavora`: la sessione ha cominciato un turno, e volta_sposta.py non l'ha toccata (si riprova dopo).
+  if (!r.attach?.length) return { errore: r.errore ?? "nessuna risposta", lavora: r.lavora === true };
   chiudiSchede(s);
   const v = await apriSessione({ id: r.id, sessionId: r.sessionId, nome: titolo(s), progetto: s.progetto ?? null,
     questa: macchina === "qui", host: macchina }, r.attach, true);

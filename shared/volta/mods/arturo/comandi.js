@@ -65,6 +65,8 @@ export function instrada(c) {
   // "volta-cambia-<nome|progetto>-<esadecimale>-<id>": il nome o il progetto nuovo di una sessione, dal
   // dialogo di cambio.js (#5292). L'argomento è il comando intero: lo legge cambiaComando di volta.js.
   if (c.startsWith("volta-cambia-")) return { verbo: "volta-cambia", arg: c, lungo: false };
+  // "volta-spostatutto-<macchina>": tutte le sessioni spostabili su <macchina> (Sposta tutto su…, sposta.js).
+  if (c.startsWith("volta-spostatutto-")) return { verbo: "volta-spostatutto", arg: dopo("volta-spostatutto-"), lungo: false };
   // "volta-sposta-<macchina>-<id>": la sessione <id> su un'altra macchina (sposta.js). L'id non ha
   // trattini, il nome di una macchina sì: l'id è l'ultimo pezzo.
   const sp = /^volta-sposta-(.+)-([0-9A-Za-z]+)$/.exec(c);

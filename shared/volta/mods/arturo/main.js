@@ -5,7 +5,7 @@
 // (settimana), "Aggiungi un todo" (nuovo), il velo delle note (nota, ⌘⇧N) e l'elenco delle note (note, ⌘⇧E) si
 // aprono come dialoghi, e così il nome o il progetto di una sessione di Volta (cambio); il menu di un todo
 // (azioni), quello di una sessione di Volta (sessione), il selettore di "Nasce su" (macchina) e il menu di
-// "Impostazioni" col movimento (impostazioni) come popup, e così "Sposta su" della testata (sposta).
+// "Impostazioni" col movimento (impostazioni) come popup, e così "Sposta su" (sposta) e "Sposta tutto su" (spostatutto).
 
 import { View } from "gpui-kit";
 import { props, shared, setShared } from "herdr";
@@ -23,13 +23,13 @@ import { Cambio } from "./cambio.js";
 import { Nota } from "./notaui.js";
 import { Note } from "./noteui.js";
 import { Casa } from "./casa.js";
-import { SceltaSposta } from "./sposta.js";
+import { SceltaSposta, SceltaSpostaTutto } from "./sposta.js";
 
 // Le parti del layout riportano la propria misura in px logici (shared arturo.misura.<parte>): al clic di
 // una nota, nota.js ne ricava su quale parte della finestra cade il punto.
 const MISURATE = new Set(["marchio", "barra", "piede", "testata", "todo", "stato", "benvenuto"]);
 
-const PARTI = { impostazioni: Impostazioni, marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi, settimana: Settimana, azioni: Azioni, sessione: MenuSessione, macchina: SceltaMacchina, cambio: Cambio, nuovo: Nuovo, nota: Nota, note: Note, casa: Casa, sposta: SceltaSposta };
+const PARTI = { impostazioni: Impostazioni, marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi, settimana: Settimana, azioni: Azioni, sessione: MenuSessione, macchina: SceltaMacchina, cambio: Cambio, nuovo: Nuovo, nota: Nota, note: Note, casa: Casa, sposta: SceltaSposta, spostatutto: SceltaSpostaTutto };
 
 export default class Arturo extends View {
   init(p, cx) {

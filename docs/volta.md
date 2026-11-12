@@ -90,6 +90,7 @@ L'elenco segue l'ultima interazione: dentro ogni gruppo la sessione toccata per 
 - **Chiudi** chiude la scheda della sessione e la ferma (`claude stop`). La conversazione resta: Apri la fa ripartire. Non chiede conferma, perché si torna indietro. Una sessione aperta in un Terminale non ha Chiudi.
 - **Duplica** apre una sessione nuova e vuota sulla stessa macchina, nella stessa cartella e nello stesso progetto.
 - **Fork** apre una sessione nuova con una copia della conversazione (`claude --bg --resume <sessione> --fork-session`). L'originale tiene il suo id e la sua trascrizione. La copia si chiama "<titolo> (fork)", finché il titolo automatico non la rinomina al primo turno. Parte dalla cartella della sessione: se la cartella non c'è più, la riga dice perché. Una sessione appena nata, senza ancora una richiesta, non ha una conversazione da copiare.
+- **Sposta su…** porta la sessione su un'altra macchina, con la stessa conversazione. La spiega "Spostare una sessione su un'altra macchina", qui sotto. C'è solo in background, e solo se Volta conosce un'altra macchina.
 - **Anteprima**, **Riavvia** ed **Elimina** sono gli stessi gesti di "Altro" e si vedono nel suo riquadro: Elimina chiede lì la conferma con "Sì, elimina".
 
 Duplica e Fork nascono sulla macchina della sessione, non su quella di "Nasce su". Passano da `volta_sonda.py duplica <macchina>` e `volta_sonda.py fork <macchina> <sessionId>`, con `--progetto`, `--cartella` e `--titolo`: la stessa strada e le stesse attese di `nasci`, col servizio di Claude acceso prima (banco HZ55). Il menu è un'altra copia del mod: manda il gesto alla barra come comando e si chiude. Per le prove, senza clic: `herdr-app do arturo.volta-menu-<id>` apre il menu, `herdr-app do arturo.volta-gesto-<apri|chiudi|duplica|fork>-<id>` esegue una voce.
@@ -121,6 +122,18 @@ altro lo riaccende.
 ### Una sessione nuova su un'altra macchina
 
 Sotto "Nuova richiesta" e "Apri un progetto" della barra, sotto "Nuova richiesta" del benvenuto e in cima alla finestra "Apri un progetto", la riga "Nasce su" sceglie dove nasce la sessione: questa macchina o una delle altre con Claude Code che Volta elenca. La scelta resta; da tastiera è `herdr-app do arturo.dove-<macchina>` (`dove-qui` per questa). Su un'altra macchina la sessione nasce in background con `volta_sonda.py nasci <macchina> [--progetto <slug>] [-- <prompt>]`: via `hc exec --on`, nella cartella dei progetti di quella macchina (`base` del suo `arturo.json`, perché `claude --bg` vuole una cartella fidata), col progetto scritto per Volta. Poi si aggancia qui in una scheda, nello spazio del progetto o in "Volta". Chiudere la scheda non la ferma, e Volta la apre da ogni macchina (provato il 10/11/2026 da un Mac su un PC Windows). Se non nasce, un avviso dice perché: macchina spenta, Claude assente, cartella non fidata. Seguono "Nasce su" anche il clic su un progetto, "Lavoraci" e "Fai il punto", quando il progetto non ha ancora uno spazio; con lo spazio di una sessione nata altrove, "Lavoraci" scrive nella sua scheda. Le richieste di "Cosa posso chiedere" restano su questa macchina, perché parlano dei suoi progetti, dei suoi todo e della sua configurazione. Su questa macchina la sessione resta interattiva nel terminale di Herdr: agganciata con `claude attach` perde lo stato nella barra, finché Volta non lo legge dall'elenco delle sessioni. Provato da HZ39.
+
+### Spostare una sessione su un'altra macchina
+
+Quando una macchina ha poca memoria, la sessione continua su un'altra con la stessa conversazione e lo stesso id. Tre ingressi, che fanno lo stesso spostamento (`volta_sonda.py sposta`, i passi in `volta_sposta.py`):
+
+- il pulsante della testata, per la sessione della scheda in primo piano;
+- **Sposta su…** nel menu del tasto destro di una sessione;
+- **Sposta tutto su…**, la pastiglia sotto "Nasce su" nella barra. Per ogni macchina dice quante sessioni ci andrebbero: quelle in background, vive, delle altre macchine. Restano fuori le interattive, le chiuse, quelle in errore e quelle di una macchina che non risponde.
+
+Il popup chiede il secondo clic sulla macchina. Lo spostamento non interrompe un turno. Una sessione che lavora entra in coda e parte quando il turno è finito; la riga dice "La sposto su <macchina> a turno finito". Le sessioni partono una alla volta, perché due spostamenti nello stesso repository farebbero `git pull` insieme. Prima di leggere e prima di fermare la sessione, `volta_sposta.py` guarda lo stato: se un turno è appena partito, risponde `lavora: true` e la sessione resta in coda per il giro dopo. La coda vive nella finestra: chiudere Volta la svuota, e le sessioni restano dove sono.
+
+Lo spostamento rifiuta una cartella con file non salvati in git o commit non spinti: sull'altra macchina il lavoro non ci sarebbe. Se la sessione non riparte di là, torna sulla sua macchina. Per le prove, senza clic: `herdr-app do arturo.volta-sposta-<macchina>-<id>` e `herdr-app do arturo.volta-spostatutto-<macchina>`. Banco HZ101, HZ102 e HZ104.
 
 ## Le sessioni del Terminale nascono in background
 
