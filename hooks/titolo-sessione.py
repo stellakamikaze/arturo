@@ -11,6 +11,12 @@ Gira come hook asincrono su UserPromptSubmit e su Stop. Legge l'evento da stdin 
     cresciuta. Una risposta che non è una riga da 2 a 60 caratteri si scarta: resta il titolo di prima.
   - Fonte "persona": il nome che la persona ha scritto dalla finestra di Volta (volta_sonda.py rinomina,
     #5292). Nessuno dei due eventi lo riscrive, e resta finché la sessione ha una trascrizione.
+  - La sintesi (12/11/2026, Federico: "5 parole massimo per descrivere che cosa sta succedendo nella
+    sessione, aggiornati costantemente"): la stessa chiamata dà anche la riga ADESSO, da 2 a 5 parole,
+    nel campo "sintesi" con "quando_sintesi" e "peso_sintesi". Si rifà ogni OGNI_SINTESI secondi se la
+    trascrizione è cresciuta, anche su PostToolUse, così cambia durante un turno lungo; il titolo resta
+    ogni OGNI secondi. Vale anche sotto un nome scritto dalla persona: lì cambia solo la sintesi. Due
+    hook partiti insieme non chiamano il modello due volte: il primo segna "chiede" nel file.
 Il file è a parte da quello della scheda (cache/scheda), che scheda-terminale.py riscrive per intero e
 toglie a fine sessione. Lo leggono la sonda di Volta (volta_sonda.py) e chi elenca le sessioni.
 Richiesta di Federico del 10/11/2026: aprire Volta e capire dal titolo cosa fa ogni sessione.
@@ -34,6 +40,8 @@ sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 from radici import radice_orsa  # noqa: E402
 
 OGNI = 600           # secondi fra due titoli del modello per la stessa sessione
+OGNI_SINTESI = 90    # secondi fra due sintesi (cosa succede adesso) per la stessa sessione
+PAROLE = 5           # parole al più nella sintesi
 TETTO = 45           # secondi: oltre, la chiamata al modello si lascia perdere
 VECCHIO = 7 * 24 * 3600
 LUNGO = 60           # caratteri: il titolo sta in una riga della barra di Volta
@@ -48,8 +56,12 @@ ISTRUZIONE = (
     "Da 3 a 7 parole in italiano, una frase naturale con articoli e preposizioni, che comincia col nome "
     "dell'azione o della cosa. Esempi: Prova dei gesti sulle sessioni. Preventivo per il libro dei "
     "vent'anni. Correzione del banco dei test. Titoli chiari per le sessioni. "
-    "Rispondi con il solo titolo su una riga: niente punto finale, niente virgolette, niente due punti, "
-    "niente numeri di task, niente premesse."
+    "Poi una seconda cosa: cosa sta succedendo adesso nella sessione, da 2 a 5 parole in italiano, al "
+    "presente, dal punto di vista dell'assistente. Esempi: Scrive la testata nuova. Lancia il banco dei test. "
+    "Aspetta la tua risposta. Legge la posta di oggi. "
+    "Rispondi con due righe e basta: la prima comincia con TITOLO: e porta il titolo, la seconda comincia "
+    "con ADESSO: e porta cosa succede adesso. Niente punto finale, niente virgolette, niente numeri di task, "
+    "niente premesse."
 )
 INIZIO = re.compile(r"^\s*/inizio\b(.*)$", re.S)
 ARGOMENTI = re.compile(r"<command-args>(.*?)</command-args>", re.S)
@@ -107,6 +119,33 @@ def pulito(risposta: str) -> str:
     t = re.sub(r"^(?:titolo\s*:\s*)", "", righe[0], flags=re.I).strip().strip("\"'`*\u00ab\u00bb\u201c\u201d").strip()
     t = t.rstrip(".").strip()
     return t if 2 <= len(t) <= LUNGO else ""
+
+
+def sintesi_pulita(testo: str) -> str:
+    """La sintesi: da 2 a PAROLE parole su una riga, senza virgolette né punto finale; "" altrimenti."""
+    t = (testo or "").strip().strip("\"'`*«»“”").strip().rstrip(".").strip()
+    parole = t.split()
+    return " ".join(parole) if 2 <= len(parole) <= PAROLE and len(t) <= LUNGO else ""
+
+
+def due_righe(risposta: str) -> tuple:
+    """(titolo, sintesi) dalla risposta del modello: le righe TITOLO: e ADESSO:. Una risposta di una
+    riga sola senza etichette vale come titolo (il modello di prima). Ciò che non torna resta ""."""
+    righe = [r.strip() for r in (risposta or "").strip().splitlines() if r.strip()]
+    titolo = sintesi = ""
+    etichette = 0
+    for r in righe:
+        m = re.match(r"^(titolo|adesso)\s*:\s*(.*)$", r, flags=re.I)
+        if not m:
+            continue
+        etichette += 1
+        if m.group(1).lower() == "titolo":
+            titolo = pulito(m.group(2))
+        else:
+            sintesi = sintesi_pulita(m.group(2))
+    if not etichette and len(righe) == 1:
+        titolo = pulito(righe[0])
+    return titolo, sintesi
 
 
 def testo_di(contenuto) -> str:
@@ -185,7 +224,7 @@ def chiedi(testo: str) -> str:
     env.pop("CLAUDECODE", None)
     r = subprocess.run([cl, "-p", "--model", "haiku", "--tools", "", "--strict-mcp-config", "--no-session-persistence",
                         "--settings", '{"disableAllHooks":true}', "--system-prompt", ISTRUZIONE],
-                       input="Appunti:\n" + testo + "\n\nIl titolo:", capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       input="Appunti:\n" + testo + "\n\nLe due righe:", capture_output=True, text=True, encoding="utf-8", errors="replace",
                        timeout=TETTO, env=env, cwd=os.path.expanduser("~"))
     return r.stdout if r.returncode == 0 else ""
 
@@ -215,7 +254,7 @@ def main() -> int:
     dati = json.loads(sys.stdin.buffer.read().decode("utf-8") or "{}")
     evento = str(dati.get("hook_event_name") or "")
     sessione = re.sub(r"[^\w-]", "", str(dati.get("session_id") or ""))[:64]
-    if not sessione or evento not in ("UserPromptSubmit", "Stop"):
+    if not sessione or evento not in ("UserPromptSubmit", "Stop", "PostToolUse"):
         return 0
     f = cartella() / f"{sessione}.json"
     salvato = leggi(f)
@@ -226,28 +265,43 @@ def main() -> int:
         if len(t) >= 2:
             scrivi(f, {"titolo": t, "fonte": "avvio", "quando": adesso, "peso": 0})
         return 0
-    if salvato.get("fonte") == "persona" and salvato.get("titolo"):
-        return 0  # il nome l'ha scritto la persona: il modello non lo riscrive
     try:
         ogni = float(os.environ.get("ARTURO_TITOLI_OGNI") or OGNI)
+        ogni_sintesi = float(os.environ.get("ARTURO_SINTESI_OGNI") or OGNI_SINTESI)
     except ValueError:
-        ogni = OGNI
-    if salvato.get("fonte") == "modello" and adesso - float(salvato.get("quando") or 0) < ogni:
-        return 0
+        ogni, ogni_sintesi = OGNI, OGNI_SINTESI
     trascrizione = str(dati.get("transcript_path") or "")
     try:
         peso = os.path.getsize(trascrizione)
     except OSError:
         return 0
-    if salvato.get("fonte") == "modello" and peso <= int(salvato.get("peso") or 0):
+    # il nome l'ha scritto la persona: il modello non lo riscrive, ma la sintesi sì
+    persona = salvato.get("fonte") == "persona" and bool(salvato.get("titolo"))
+    modello = salvato.get("fonte") == "modello"
+    vuole_titolo = not persona and not (modello and (adesso - float(salvato.get("quando") or 0) < ogni
+                                                     or peso <= int(salvato.get("peso") or 0)))
+    vuole_sintesi = (adesso - float(salvato.get("quando_sintesi") or 0) >= ogni_sintesi
+                     and peso > int(salvato.get("peso_sintesi") or 0))
+    # un altro hook della stessa sessione sta già chiedendo al modello (PostToolUse arriva a raffica)
+    if adesso - float(salvato.get("chiede") or 0) < TETTO:
+        return 0
+    if not vuole_titolo and not vuole_sintesi:
         return 0
     scheda = leggi(cartella().parent / "scheda" / f"{sessione}.json")
     testo = appunti(trascrizione, str(scheda.get("progetto") or ""), str(salvato.get("titolo") or ""))
     if not testo:
         return 0
-    t = pulito(chiedi(testo))
-    if t:
-        scrivi(f, {"titolo": t, "fonte": "modello", "quando": adesso, "peso": peso})
+    scrivi(f, {**salvato, "chiede": adesso})
+    t, s = due_righe(chiedi(testo))
+    nuovo = {k: v for k, v in leggi(f).items() if k != "chiede"}
+    if t and vuole_titolo:
+        nuovo.update({"titolo": t, "fonte": "modello", "quando": adesso, "peso": peso})
+    if vuole_sintesi:
+        # anche senza una sintesi buona: il prossimo tentativo aspetta il suo turno, non il PostToolUse dopo
+        nuovo.update({"quando_sintesi": adesso, "peso_sintesi": peso})
+    if s:
+        nuovo["sintesi"] = s
+    scrivi(f, nuovo)
     spazza(adesso)
     return 0
 
