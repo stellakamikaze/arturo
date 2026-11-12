@@ -2,3 +2,7 @@
 # ORIGINE elenca l'impronta sha256 di ogni file della copia di Volta: quella di keys.json passa per una
 # chiave perché il nome contiene "keys". Verificato il 12/11/2026: il valore è lo sha256 del file.
 d122883197197489413e3cc776d5c7c8b724f425:shared/volta/ORIGINE:generic-api-key:11
+20dad0f161bbdbb9d16bef78771b775dfab0a0bc:shared/volta/ORIGINE:generic-api-key:10
+20dad0f161bbdbb9d16bef78771b775dfab0a0bc:shared/volta/ORIGINE:generic-api-key:11
+20dad0f161bbdbb9d16bef78771b775dfab0a0bc:shared/volta/ORIGINE:generic-api-key:12
+20dad0f161bbdbb9d16bef78771b775dfab0a0bc:shared/volta/ORIGINE:generic-api-key:13
