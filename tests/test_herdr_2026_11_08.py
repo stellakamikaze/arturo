@@ -367,7 +367,8 @@ HZ89 chiudere una sessione la chiude davvero (12/11/2026, decisione di Federico)
      menu fanno il congedo, /fine e poi claude stop. sessioni.js con node: visibili() toglie dall'elenco
      le chiuse e quelle in congedo, sparite() trova le schede chiuse da chi usa la finestra (non quelle
      tolte da Volta, non una sessione che ha ancora un'altra scheda), passoCongedo() aspetta il turno,
-     riprende con /fine, ferma a /fine finito e ferma lo stesso dopo una domanda o un tetto. La sonda:
+     riprende con /fine, ferma a /fine finito e ferma lo stesso dopo una domanda o un tetto; segna
+     salvata solo a /fine finito, e solo una salvata e chiusa va eliminata con claude rm (#5401). La sonda:
      congeda fa claude stop e poi --resume della stessa conversazione col solo /fine, senza
      --fork-session e mai rm; righe() segna chiusa una sessione in background senza processo né status.
      volta.js guarda le schede, Chiudi passa dal congedo e l'elenco usa vis(); dati.js segna le schede
@@ -6426,6 +6427,8 @@ out.nonFatta = passoCongedo(c({ fase: "fine" }), s({}), T + 4 * 60000);
 out.domanda = passoCongedo(c({ fase: "fine" }), s({ stato: "aspetta" }), T + 60000);
 out.lunga = passoCongedo(c({ fase: "fine" }), s({ stato: "lavora" }), T + 21 * 60000);
 out.chiusaOk = passoCongedo(c({ fase: "ferma" }), s({ chiusa: true }), T + 5000).fai;
+out.chiusaSalvata = passoCongedo(c({ fase: "ferma", salvata: true }), s({ chiusa: true }), T + 5000).fai;
+out.salvataViva = passoCongedo(c({ fase: "ferma", salvata: true }), s({}), T + 5000).fai;
 out.riprova = passoCongedo(c({ fase: "ferma" }), s({}), T + 130000).fai;
 out.giaChiusa = passoCongedo(c({}), s({ chiusa: true }), T + 1000).fai;
 out.giu = passoCongedo(c({ fase: "fine" }), s({ vecchia: true }), T + 3600000).fai;
@@ -6449,15 +6452,18 @@ def hz89(repo: Path, casa: Path) -> str | None:
             return f"visibili() non toglie le chiuse e quelle in congedo, o toglie quella in errore: {d['vis']}"
         if d["sparite"] != ["S1"] or d["vecchioTolto"] != ["S2"] or d["primo"] != 0:
             return f"sparite() sbaglia le schede chiuse dalla persona: {d['sparite']}, {d['vecchioTolto']}, {d['primo']}"
-        attesi = {"lavora": "attendi", "lavoraTroppo": "fine", "avvio": "attendi", "chiusaOk": "togli", "riprova": "stop", "giaChiusa": "togli", "giu": "attendi"}
+        attesi = {"lavora": "attendi", "lavoraTroppo": "fine", "avvio": "attendi", "chiusaOk": "togli", "chiusaSalvata": "rm",
+                  "salvataViva": "attendi", "riprova": "stop", "giaChiusa": "togli", "giu": "attendi"}
         for k, v in attesi.items():
             if d[k] != v:
                 return f"passoCongedo, caso {k}: {d[k]}, atteso {v}"
-        if d["ferma"] != {"fai": "fine", "fase": "fine"} or d["finita"] != {"fai": "stop", "fase": "ferma"}:
+        if d["ferma"] != {"fai": "fine", "fase": "fine"} or d["finita"] != {"fai": "stop", "fase": "ferma", "salvata": True}:
             return f"passoCongedo non riprende con /fine o non ferma a /fine finito: {d['ferma']}, {d['finita']}"
         for k in ("nonFatta", "domanda", "lunga"):
             if d[k].get("fai") != "stop" or not d[k].get("avviso"):
                 return f"passoCongedo, caso {k}: non ferma o non lo dice: {d[k]}"
+            if d[k].get("salvata"):
+                return f"passoCongedo, caso {k}: segna salvata una sessione senza /fine, e claude rm la perderebbe: {d[k]}"
     # la sonda: congeda con un claude finto, e il campo chiusa
     if os.name != "nt":
         sonda = repo / "shared/volta-celeste/mods/arturo/volta_sonda.py"
@@ -6521,6 +6527,8 @@ def hz89(repo: Path, casa: Path) -> str | None:
         return "volta.js non guarda le schede chiuse"
     if "    chiudiSchede(s);\n    this.congeda(s, cx);" not in volta:
         return "Chiudi del menu non passa dal congedo"
+    if 'p.fai === "rm" ? "rm" : "stop"' not in volta or "...(p.salvata ? { salvata: true } : {})" not in volta:
+        return "volta.js non elimina con claude rm la sessione salvata, o non tiene salvata nel registro dei congedi"
     if "gruppi(this.vis(), modo)" not in volta or "gruppi(this.dati," in volta:
         return "l'elenco mostra ancora le sessioni chiuse e quelle in congedo"
     if dati.count("segnaTolto(t.address)") != 2:

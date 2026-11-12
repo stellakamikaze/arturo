@@ -171,8 +171,11 @@ export function sparite(prima, adesso, tolti = {}, ora = Date.now()) {
 
 // Un passo del congedo, deciso dallo stato di adesso. `c`: { sessionId, id, host, fase, da, dal } con fase
 // "attende" (lavorava quando l'hai chiusa: finisce il turno), "fine" (ripresa con /fine), "ferma" (claude
-// stop chiesto). `s`: la sua riga dell'elenco, o undefined. Torna { fai, fase?, avviso? } con fai:
-// "attendi" | "fine" (stop e ripresa con /fine) | "stop" | "togli" (via dal registro).
+// stop chiesto). `s`: la sua riga dell'elenco, o undefined. Torna { fai, fase?, salvata?, avviso? } con fai:
+// "attendi" | "fine" (stop e ripresa con /fine) | "stop" | "togli" (via dal registro) | "rm" (claude rm,
+// poi via dal registro). `salvata` va nel registro quando /fine ha finito il turno: solo allora la sessione
+// chiusa si elimina anche da claude agents (#5401, Federico, 12/11: "aggiungi rm"). Dopo una domanda, un
+// tetto o un /fine mai partito la sessione resta in claude agents, da riaprire o eliminare a mano.
 // Tetti: CONGEDO_MAX_MS per il turno in corso e per /fine; dopo, la sessione si ferma lo stesso e Volta lo
 // dice. Una macchina che non risponde tiene il congedo fino a CONGEDO_VECCHIO_MS.
 export const CONGEDO_MAX_MS = 20 * 60000, CONGEDO_AVVIO_MS = 20000, CONGEDO_SENZA_FINE_MS = 3 * 60000, CONGEDO_VECCHIO_MS = 6 * 3600000;
@@ -192,11 +195,11 @@ export function passoCongedo(c, s, ora = Date.now()) {
     if (s.stato === "aspetta") return { fai: "stop", fase: "ferma", avviso: `${nome} ha chiesto qualcosa durante /fine: l'ho fermata lo stesso.` };
     if (s.stato === "lavora") return ora - dal > CONGEDO_MAX_MS ? { fai: "stop", fase: "ferma", avviso: `${nome}: /fine non ha finito in 20 minuti, l'ho fermata.` } : { fai: "attendi" };
     // ferma e viva: /fine ha finito il turno se la trascrizione è andata avanti dopo la ripresa
-    if (tempo(s) > dal - 5000) return { fai: "stop", fase: "ferma" };
+    if (tempo(s) > dal - 5000) return { fai: "stop", fase: "ferma", salvata: true };
     return ora - dal > CONGEDO_SENZA_FINE_MS ? { fai: "stop", fase: "ferma", avviso: `${nome} non ha fatto /fine: l'ho fermata senza salvataggio.` } : { fai: "attendi" };
   }
   // fase "ferma": aspetta che claude agents la dica chiusa, e riprova lo stop dopo due minuti
-  if (chiusa(s)) return { fai: "togli" };
+  if (chiusa(s)) return c.salvata ? { fai: "rm" } : { fai: "togli" };
   return ora - dal > 120000 ? { fai: "stop", fase: "ferma" } : { fai: "attendi" };
 }
 

@@ -200,15 +200,20 @@ export class Volta {
       cx.spawn(async (cx) => {
         let r;
         try {
-          r = p.fai === "fine" ? await congedaSessione({ ...c, id: s?.id ?? c.id }) : await azioneSessione({ ...s, ...c, id: s?.id ?? c.id }, "stop");
+          r = p.fai === "fine" ? await congedaSessione({ ...c, id: s?.id ?? c.id }) : await azioneSessione({ ...s, ...c, id: s?.id ?? c.id }, p.fai === "rm" ? "rm" : "stop");
         } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 120) }; }
         delete this.congedo[c.sessionId];
-        if (r?.errore && p.fai === "fine") {
+        if (p.fai === "rm") {
+          // /fine ha salvato e la sessione è ferma: claude rm la toglie anche da claude agents (#5401).
+          // Se rm non va, la sessione resta lì, già fuori dall'elenco di Volta, e lo si dice.
+          if (r?.errore) notify({ title: `${c.titolo ?? "Sessione"}: chiusa`, body: `Salvata con /fine, ma non riesco a eliminarla: ${r.errore}`, level: "warning" });
+          scrivi(null);
+        } else if (r?.errore && p.fai === "fine") {
           // la ripresa con /fine non parte: la sessione si ferma comunque, e lo si dice
           notify({ title: `${c.titolo ?? "Sessione"}: chiusa senza /fine`, body: r.errore, level: "warning" });
           await azioneSessione({ ...s, ...c, id: s?.id ?? c.id }, "stop").catch(() => null);
           scrivi({ fase: "ferma", dal: Date.now() });
-        } else scrivi({ fase: p.fase ?? c.fase, dal: Date.now() });
+        } else scrivi({ fase: p.fase ?? c.fase, dal: Date.now(), ...(p.salvata ? { salvata: true } : {}) });
         this.aggiorna(cx);
         cx.notify();
       });
