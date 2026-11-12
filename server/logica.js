@@ -71,7 +71,7 @@ export const SKILL_USCITE = ["apri", "cache-fredda", "dafare", "gws", "redazione
 // file:docs/preventivo-clienti-rossi.md arrivava intero; un POST di chiunque metteva un testo suo nella nota di un task.
 // Il banco TF05 (tests/test_telemetria_f1_2026_10_24.py) confronta questi elenchi col repository.
 export const DERIVA_NOMI = {
-  radice: [".gitattributes", ".gitignore", ".gitleaksignore", "LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "ROADMAP.md", "SECURITY.md", "package.json", "settings.json"],
+  radice: [".gitattributes", ".gitignore", ".gitleaks.toml", ".gitleaksignore", "LICENSE", "NOVITA.md", "PRODUCT.md", "README.md", "ROADMAP.md", "SECURITY.md", "package.json", "settings.json"],
   skills: ["arturo", "concetti", "humanizer", "italiano-semplificato", "monitor", "prompt-master", "system-audit", "todo"],
   agents: ["architecture-reviewer.md", "bug-finder.md", "fact-checker.md", "performance-profiler.md", "researcher.md",
     "structural-completeness-reviewer.md", "test-runner.md", "ui-ux-consultant.md"],
