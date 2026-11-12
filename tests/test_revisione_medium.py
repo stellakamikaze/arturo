@@ -166,6 +166,20 @@ def test_m11(repo: Path) -> None:
         rc, out = run_audit(home)
         assert "PASS  hook diretto: sonda con spazio.py" in out, f"M11 path fra virgolette con spazio non riconosciuto dall'audit (rc={rc})"
         assert rc == 0, f"M11 audit rosso su una config valida: {out[-400:]}"
+        # 11/11/2026: `test -f X || python3 Y` lancia Y, X è solo la condizione; e una cartella nascosta
+        # in skills/ (.trash di Claude Code) non è una skill. Tutti e due davano FAIL su una config sana.
+        edit_settings(home, lambda d: d["hooks"].setdefault("Stop", []).append(
+            {"hooks": [{"type": "command", "command":
+                        'test -f "$(cat ~/.claude/arturo/radice 2>/dev/null)/hooks/assente.py" || '
+                        'python3 "~/.claude/hooks/sonda con spazio.py"'}]}))
+        (home / ".claude" / "skills" / ".trash" / "resto").mkdir(parents=True)
+        rc, out = run_audit(home)
+        assert "assente.py" not in out, f"M11 la condizione di test -f conta come hook: {out[-400:]}"
+        assert "SKILL.md mancante" not in out, f"M11 una cartella nascosta in skills/ conta come skill: {out[-400:]}"
+        assert rc == 0, f"M11 audit rosso su test -f e cartella nascosta: {out[-400:]}"
+        (home / ".claude" / "skills" / "vuota").mkdir()
+        rc, out = run_audit(home)
+        assert rc != 0 and "frontmatter non valido (vuota)" in out, f"M11 il FAIL non nomina la skill rotta: {out[-400:]}"
 
 
 def test_m12(repo: Path) -> None:

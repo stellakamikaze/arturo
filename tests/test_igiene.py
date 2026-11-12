@@ -15,6 +15,10 @@ IG04 un workflow di GitHub Actions lancia il solo controllo di igiene su ogni pu
      sola lettura, e solo nel repository pubblico di Arturo (19/10/2026, segnalazione n. 4).
 IG05 (review del 7/11/2026) le persone e gli id veri usciti nei file stanno nel controllo di default, e i byte
      di un file binario non contano come testo, mentre il suo percorso sì.
+IG06 (10/11/2026) l'hook .githooks/pre-push blocca un nome nel messaggio o in un file del commit spinto verso
+     il repository pubblico, lascia passare un push pulito, un file non salvato e un altro repository.
+IG07 (10/11/2026) fuori da dev il workflow toglie dall'intervallo i commit che dev ha già: un nome già
+     segnalato su dev non manda di nuovo l'email da main o da un ramo che unisce dev.
 
 Sulla base 93f323e ogni controllo deve fallire con un AssertionError che comincia con il suo codice.
 """
@@ -131,7 +135,91 @@ def test_ig05(repo: Path) -> None:
     assert any(p.startswith("percorso") and ".bin" in p for p in problemi), f"IG05 il percorso di un binario non si controlla: {problemi}"
 
 
-TESTS = {"IG01": test_ig01, "IG02": test_ig02, "IG03": test_ig03, "IG04": test_ig04, "IG05": test_ig05}
+def test_ig06(repo: Path) -> None:
+    gancio = repo / ".githooks" / "pre-push"
+    assert gancio.is_file(), "IG06 manca .githooks/pre-push: igiene gira solo su GitHub, dopo il push"
+    with tempfile.TemporaryDirectory() as d:
+        base = Path(d)
+        pubblico = base / "stellakamikaze" / "arturo.git"
+        altro = base / "altro" / "progetto.git"
+        r = base / "lavoro"
+        env = dict(os.environ, **GIT_ENV, HOME=str(base), ARTURO_IGIENE_IMPRONTE_EXTRA=impronta_prova(repo))
+        env.pop("PRE_PUSH_SKIP", None)
+
+        def git(*a: str, cartella: Path = r, ok: bool = True) -> subprocess.CompletedProcess:
+            p = subprocess.run(["git", "-C", str(cartella), *a], env=env, capture_output=True, text=True, timeout=120)
+            assert not ok or p.returncode == 0, f"IG06 git {' '.join(a)}: {p.stderr}"
+            return p
+        for nudo in (pubblico, altro):
+            nudo.mkdir(parents=True)
+            git("init", "-q", "--bare", cartella=nudo)
+        r.mkdir()
+        git("init", "-q", "-b", "dev")
+        (r / "tests").mkdir()
+        (r / "tests" / "igiene.py").write_bytes((repo / "tests" / "igiene.py").read_bytes())
+        (r / ".githooks").mkdir()
+        (r / ".githooks" / "pre-push").write_bytes(gancio.read_bytes())
+        (r / ".githooks" / "pre-push").chmod(0o755)
+        git("config", "core.hooksPath", ".githooks")
+        git("remote", "add", "origin", str(pubblico))
+        git("remote", "add", "altro", str(altro))
+        git("add", "-A")
+        git("commit", "-q", "-m", "base pulita")
+        assert git("push", "-q", "origin", "dev", ok=False).returncode == 0, "IG06 l'hook blocca un push pulito"
+
+        def spinge(remoto: str = "origin") -> subprocess.CompletedProcess:
+            return git("push", "-q", remoto, "HEAD:refs/heads/lavoro", ok=False)
+        # Un nome nel messaggio di un commit.
+        git("commit", "-q", "--allow-empty", "-m", f"aggiunge le note\n\nscritte da {PROVA}")
+        p = spinge()
+        assert p.returncode != 0 and "BLOCK" in p.stderr, f"IG06 l'hook non blocca un nome nel messaggio: {p.stderr}"
+        assert "zorba" not in p.stderr.lower(), f"IG06 il rapporto ripete il termine: {p.stderr}"
+        assert spinge("altro").returncode == 0, "IG06 l'hook blocca un push verso un repository che non è Arturo"
+        git("reset", "-q", "--hard", "HEAD~1")
+        # Un nome in un file del commit spinto.
+        (r / "nota.md").write_text(f"riga\n{PROVA}\n", encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-q", "-m", "nota")
+        p = spinge()
+        assert p.returncode != 0 and "nota.md:2" in p.stderr, f"IG06 l'hook non blocca un nome in un file: {p.stderr}"
+        git("reset", "-q", "--hard", "HEAD~1")
+        # Un nome in un file non salvato non parte col push e non conta.
+        (r / "bozza.md").write_text(f"{PROVA}\n", encoding="utf-8")
+        git("commit", "-q", "--allow-empty", "-m", "pulito")
+        p = spinge()
+        assert p.returncode == 0, f"IG06 un file non salvato blocca il push: {p.stderr}"
+
+
+def impronta_prova(repo: Path) -> str:
+    return modulo(repo / "tests" / "igiene.py", "IG06").impronta(PROVA)
+
+
+def test_ig07(repo: Path) -> None:
+    f = repo / ".github" / "workflows" / "igiene.yml"
+    testo = f.read_text(encoding="utf-8") if f.is_file() else ""
+    assert "^origin/dev" in testo and '"$RAMO" != "dev"' in testo, \
+        "IG07 fuori da dev il workflow ricontrolla i commit già su dev: la stessa email da main e da ogni ramo"
+    ig = modulo(repo / "tests" / "igiene.py", "IG07")
+    h = ig.impronta(PROVA)
+    with tempfile.TemporaryDirectory() as d:
+        r = Path(d)
+
+        def git(*a: str) -> str:
+            return subprocess.run(["git", "-C", str(r), *a], env=dict(os.environ, **GIT_ENV), capture_output=True,
+                                  text=True, check=True, timeout=30).stdout.strip()
+        git("init", "-q", "-b", "dev")
+        git("commit", "-q", "--allow-empty", "-m", "radice")
+        radice = git("rev-parse", "HEAD")
+        git("commit", "-q", "--allow-empty", "-m", f"su dev, con {PROVA}")
+        git("checkout", "-q", "-b", "lavoro")
+        git("commit", "-q", "--allow-empty", "-m", "sul ramo, pulito")
+        assert ig.controlla(r, f"{radice}..HEAD", {h}), "IG07 la prova non ha il nome su dev"
+        problemi = ig.controlla(r, f"{radice}..HEAD ^dev", {h})
+        assert not problemi, f"IG07 l'intervallo non toglie i commit di dev: {problemi}"
+
+
+TESTS = {"IG01": test_ig01, "IG02": test_ig02, "IG03": test_ig03, "IG04": test_ig04, "IG05": test_ig05,
+         "IG06": test_ig06, "IG07": test_ig07}
 
 
 def main() -> int:

@@ -31,7 +31,9 @@ import sys
 READ_ONLY = {"grep", "rg", "cat", "head", "tail", "less", "more", "wc", "ls",
              "jq", "diff", "sort", "uniq", "file", "stat", "git", "cd", "echo",
              "printf", "which", "type", "true", "cut", "tr", "column"}
-GIT_INVIA = re.compile(r"\bgit\b[^|;&]*\b(send-email|imap-send|request-pull)\b")
+# Senza distinguere le maiuscole: su macOS e Windows `Git send-email` fa partire git, e il tokenizer lo
+# legge già come `git`. Col confronto esatto il comando si riduceva a vuoto (revisione del 10/11/2026, HK-1b).
+GIT_INVIA = re.compile(r"\bgit\b[^|;&]*\b(send-email|imap-send|request-pull)\b", re.IGNORECASE)
 
 # Gli heredoc li riconosce heredoc.py, lo stesso modulo delle altre guardie (15/10/2026).
 # Se manca, nessun corpo sparisce: la guardia controlla tutto il testo.

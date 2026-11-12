@@ -8,11 +8,15 @@ G214 commit-secret-gate.py da solo: trova il repository del commit anche dopo un
      --git-dir, virgolette aperte). Tace su un commit scritto in un heredoc verso cat, citato in
      un echo, o fuori da un repository.
 G215 `git add X && git commit` nello stesso comando: il gate guarda anche quello che l'add mette
-     in stage, sia da solo sia passando dal dispatcher. In un repository pulito tace.
+     in stage, sia da solo sia passando dal dispatcher. In un repository pulito tace, e anche quando
+     il file col segreto resta fuori dal pathspec dell'add (#5098).
      Le forme del commit nel dispatcher (a capo, git -c, env, subshell, --no-pager, cartella in
      variabile) stanno in K01 di test_config_2026_10_15.py e qui non si ripetono.
 G216 un file Latin-1 in stage non fa chiedere "scansione fallita", e un segreto lì dentro si trova
      ancora (#4047, sul Mac di una persona che usa Arturo).
+G217 oltre 200 file nuovi la guardia legge ancora (#5098): 250 file innocui tacciono, un segreto
+     nell'ultimo o nello stage si trova, `git add X` legge solo X se add e commit girano nella stessa
+     cartella, e oltre il tetto di byte chiede dicendo quanti file ha letto, con lo stage letto.
 
 Sulla base 842b06f (prima del gate allineato alla config dell'autore) ogni controllo deve
 fallire con un AssertionError che comincia con il suo codice.
@@ -113,8 +117,9 @@ def test_g215(repo: Path) -> None:
     with tempfile.TemporaryDirectory() as d:
         radice = Path(d)
         for i, comando in enumerate(("git add conf.py && git commit -m prova", "git add -A; git commit -m prova",
-                                     # limite noto: si chiede anche se il file col segreto non viene aggiunto
-                                     "git add pulito.txt && git commit -m prova")):
+                                     # con un cd o un -C la guardia non sa dove gira l'add: legge tutti i file nuovi
+                                     "git add pulito.txt && cd . && git commit -m prova",
+                                     "git -C . add pulito.txt && git commit -m prova")):
             r = radice / f"r{i}"
             prepara(r, True)
             decisione, _ = _esito(_gate(repo, comando, r))
@@ -123,6 +128,10 @@ def test_g215(repo: Path) -> None:
         prepara(pulito, False)
         decisione, motivo = _esito(_gate(repo, "git add pulito.txt && git commit -m prova", pulito))
         assert decisione == "silent", f"G215 add e commit in un repository pulito chiedono: {motivo[:80]}"
+        fuori = radice / "fuori-pathspec"
+        prepara(fuori, True)
+        decisione, motivo = _esito(_gate(repo, "git add pulito.txt && git commit -m prova", fuori))
+        assert decisione == "silent", f"G215 un segreto fuori dal pathspec dell'add fa chiedere: {motivo[:80]}"
 
         home = radice / "home"
         shutil.copytree(repo, home / ".claude", ignore=shutil.ignore_patterns(".git", "__pycache__"))
@@ -161,7 +170,57 @@ def test_g216(repo: Path) -> None:
             assert ottenuto == atteso, f"G216 {nome}: atteso {atteso}, ottenuto {ottenuto}"
 
 
-TESTS = {"G214": test_g214, "G215": test_g215, "G216": test_g216}
+def test_g217(repo: Path) -> None:
+    """Oltre 200 file nuovi (#5098, review del 9/11/2026): la guardia chiedeva sempre, senza leggere lo stage."""
+    def molti(cartella: Path, quanti: int, peso: int = 0) -> None:
+        cartella.mkdir()
+        _git(cartella, "init", "-q")
+        for i in range(quanti):
+            (cartella / f"n{i:03}.txt").write_text(f"riga {i}\n" + "x" * peso, encoding="utf-8")
+
+    def classe(motivo: str) -> str:
+        if "Possibile secret" in motivo:
+            return "segreto"
+        return "parziale" if "ha letto" in motivo else (motivo[:60] or "silent")
+
+    with tempfile.TemporaryDirectory() as d:
+        radice = Path(d)
+        casi = []
+        r = radice / "innocui"
+        molti(r, 250)
+        casi.append(("250 file nuovi innocui", r, "git add . && git commit -m tutto", "silent"))
+        r = radice / "ultimo"
+        molti(r, 250)
+        (r / "n249.txt").write_text(f"k={GH_FINTO}\n", encoding="utf-8")
+        casi.append(("250 file nuovi, segreto nell'ultimo", r, "git add . && git commit -m tutto", "segreto"))
+        r = radice / "stage"
+        molti(r, 250)
+        (r / "conf.py").write_text(f'TOKEN = "{GH_FINTO}"\n', encoding="utf-8")
+        _git(r, "add", "conf.py")
+        casi.append(("250 file nuovi, segreto in stage", r, "git add n000.txt && git commit -m uno", "segreto"))
+        r = radice / "pathspec"
+        molti(r, 250)
+        (r / "n249.txt").write_text(f"k={GH_FINTO}\n", encoding="utf-8")
+        casi.append(("add di un file solo, segreto in un altro", r, "git add n000.txt && git commit -m uno", "silent"))
+        # 120 file da 200 KB superano il tetto di 20 MB: chiede, e lo stage col segreto si legge lo stesso.
+        r = radice / "tetto"
+        molti(r, 120, 199_000)
+        casi.append(("oltre il tetto di byte", r, "git add . && git commit -m tutto", "parziale"))
+        r = radice / "tetto-stage"
+        molti(r, 120, 199_000)
+        (r / "conf.py").write_text(f'TOKEN = "{GH_FINTO}"\n', encoding="utf-8")
+        _git(r, "add", "conf.py")
+        casi.append(("oltre il tetto, segreto in stage", r, "git add . && git commit -m tutto", "segreto"))
+        errori = []
+        for nome, cartella, comando, atteso in casi:
+            _, motivo = _esito(_gate(repo, comando, cartella))
+            ottenuto = classe(motivo)
+            if ottenuto != atteso:
+                errori.append(f"{nome}: atteso {atteso}, ottenuto {ottenuto}")
+        assert not errori, "G217 " + "; ".join(errori)
+
+
+TESTS = {"G214": test_g214, "G215": test_g215, "G216": test_g216, "G217": test_g217}
 
 
 def main() -> int:

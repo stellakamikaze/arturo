@@ -68,7 +68,8 @@ AMMESSI_ST08 = {
     "hooks/radici.py": None,  # è la fonte
     # Le guardie della persona e il suo file .local stanno nell'Orsa per definizione.
     "hooks/bash-dispatcher.sh": r"ORSA_HOOKS=|bash-dispatcher\.local",
-    # L'aggiornamento del clone gira solo se il clone sta in ~/.claude: col plugin aggiorna Claude Code (F3).
+    # L'aggiornamento del clone gira da ~/.claude. Col plugin la chiusura lancia la copia accanto all'hook
+    # ($ARTURO_CODICE), senza radici scritte a mano (test_chiusura_plugin_2026_11_10.py).
     "hooks/session-end.sh": r"bin/aggiornamenti\.py",
     # L'aggiornamento del clone è autonomo: deve girare anche con il resto dell'albero a metà o
     # modificato, quindi non importa radici.py. Vale solo col clone in ~/.claude (col plugin, F3).
@@ -208,7 +209,7 @@ def prova(repo: Path, ref: str | None) -> list[str]:
         clone = radici(clone_home / ".claude", clone_home)
         atteso_clone = [reale(clone_home / ".claude"), str(clone_home / ".claude"), "python3 ~/.claude/bin/arturo"]
         con_plugin = radici(plugin, orsa_home)
-        atteso_plugin = [reale(plugin), str(orsa_home / ".claude"), f"python3 {Path(reale(plugin)) / 'bin' / 'arturo'}"]
+        atteso_plugin = [reale(plugin), str(orsa_home / ".claude"), f"python3 {(Path(reale(plugin)) / 'bin' / 'arturo').as_posix()}"]
         altra = tmp / "altra-config"
         con_config = radici(plugin, orsa_home, {"CLAUDE_CONFIG_DIR": str(altra)})
         if clone != atteso_clone:

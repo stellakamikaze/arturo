@@ -32,7 +32,11 @@ CREATE TABLE IF NOT EXISTS segnalazioni (
   risposta TEXT NOT NULL DEFAULT '',
   versione_fix TEXT NOT NULL DEFAULT '',
   aggiornata TEXT NOT NULL DEFAULT '',
-  seguiti TEXT NOT NULL DEFAULT '[]'
+  seguiti TEXT NOT NULL DEFAULT '[]',
+  -- Il contatto di chi segnala (10/11/2026, server/migrazioni/2026-11-10-contatto.sql): nome ed email dati con
+  -- `arturo contatto`, facoltativi. Si cancellano col ritiro e con la riga, dopo 12 mesi.
+  contatto_nome TEXT NOT NULL DEFAULT '',
+  contatto_email TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS contatori (

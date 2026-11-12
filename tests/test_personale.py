@@ -563,7 +563,9 @@ def test_p21(repo: Path) -> None:
         assert r.returncode == 0 and "gia' com'e'" in r.stdout and comando.read_bytes() == uguale, \
             f"P21 un comando con soli CRLF non è già com'è in Arturo: {r.stdout!r} {r.stderr!r}"
         guardia = lab.utente / "hooks" / "guardia.py"
-        guardia.write_bytes(guardia.read_bytes().replace(b"\n", b"\r\n"))
+        # Prima a LF: con core.autocrlf=true di sistema (Git per Windows) il checkout ha già CRLF, e
+        # un secondo \r farebbe \r\r\n, che nessun checkout scrive (#5125).
+        guardia.write_bytes(guardia.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
         r = arturo(lab, "personale", "ripristina", "hooks/guardia.py")
         assert r.returncode == 0 and "gia' com'e'" in r.stdout, \
             f"P21 ripristina vede cambiata una guardia con soli CRLF: {r.stdout!r} {r.stderr!r}"

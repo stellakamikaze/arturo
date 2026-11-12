@@ -23,11 +23,14 @@ from __future__ import annotations
 import io
 import os
 import re
+import sys
 import tokenize
 from typing import Callable, List, NamedTuple, Optional, Tuple
 
 # Programmi che leggono il corpo come dati e non eseguono niente.
-LETTORI = frozenset("cat tee grep rg jq sort head tail wc patch diff git cut tr uniq less more column".split())
+# patch non è un lettore: applica il corpo ai file che il diff nomina (review del 10/11/2026, n. 6). git resta
+# per `git commit -F -`, ma `git apply` e `git am` sono incerti (vedi togli).
+LETTORI = frozenset("cat tee grep rg jq sort head tail wc diff git cut tr uniq less more column".split())
 # Interpreti che eseguono il corpo come codice loro, non come shell.
 INTERPRETI = frozenset("python python3 node ruby perl php".split())
 # Parole che stanno davanti al programma senza esserlo, e involucri che eseguono il comando dopo.
@@ -93,8 +96,24 @@ def senza_prosa(stringa: str) -> bool:
     return not _SPAZIO.search(stringa)
 
 
+# Su macOS e Windows il disco ignora le maiuscole: `BASH x.sh` fa partire bash, e `X.SH` è lo stesso file
+# di `x.sh`. Lì i nomi dei programmi si leggono in minuscolo e le regex sui nomi ignorano le maiuscole.
+# Su Windows `bash.exe` è bash: il suffisso non conta (revisione del 10/11/2026, HK-1 e HK-1b).
+_SENZA_MAIUSCOLE = sys.platform in ("darwin", "win32")
+_RE_NOMI = re.IGNORECASE if _SENZA_MAIUSCOLE else 0
+
+
+def _nome(parola: str) -> str:
+    """Il nome del programma senza cartella e senza `.exe`, in minuscolo dove il disco ignora le maiuscole.
+    Stessa regola di forma_comando._nome: questo modulo non lo importa, perché è lui a importare questo."""
+    nome = os.path.basename(parola.lstrip("\\"))
+    if len(nome) > 4 and nome[-4:].lower() == ".exe":
+        nome = nome[:-4]
+    return nome.lower() if _SENZA_MAIUSCOLE else nome
+
+
 _ESECUTORI = (r"(?:^|[\s;&|(])(?:sudo\s+)?(?:\S*/)?(?:bash|sh|zsh|dash|ksh|fish|source|\.|python3?|node|perl|ruby|php|"
-              r"exec|eval|chmod|xargs)(?=\s)")
+              r"exec|eval|chmod|xargs)(?:\.[eE][xX][eE])?(?=\s)")
 _FINE_PAROLA = set(" \t;&|<>()")
 _REDIREZIONE = re.compile(r">>?\s*([^\s;&|<>()]+)")
 
@@ -244,18 +263,18 @@ def _consumatore(testo: str) -> str:
     parole = [p for p in re.split(r"\s+", testo.strip()) if p]
     while parole and (parole[0] in _DAVANTI or re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", parole[0])):
         parole.pop(0)
-    while parole and os.path.basename(parole[0]) in _INVOLUCRI:
+    while parole and _nome(parole[0]) in _INVOLUCRI:
         parole.pop(0)
         while parole and (parole[0].startswith("-") or re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", parole[0])):
             parole.pop(0)
-    return os.path.basename(parole[0].lstrip("\\")) if parole else ""
+    return _nome(parole[0]) if parole else ""
 
 
 def _bersagli(testo: str) -> List[str]:
     """I file in cui il comando scrive: redirezioni e argomenti di tee."""
     trovati = [m.group(1) for m in _REDIREZIONE.finditer(testo)]
     parole = testo.split()
-    if parole and os.path.basename(parole[0]) == "tee":
+    if parole and _nome(parole[0]) == "tee":
         trovati += [p for p in parole[1:] if not p.startswith("-") and not p.startswith("<")]
     return [t.strip("'\"") for t in trovati if t.strip("'\"") not in ("/dev/null", "-", "")]
 
@@ -276,9 +295,42 @@ def _eseguito_dopo(prima: str, dopo: str, resto_riga: str, righe_dopo: List[str]
             parola = r"(?:\./)?" + re.escape(nome) + r"(?![\w.-])"
             # Dato a un esecutore (`bash x.sh`, `source x`, `python3 x.py`, `chmod +x x`), o lanciato
             # come comando (`./x.sh`). `git add x.sh` o `cat x.sh` non lo eseguono.
-            if re.search(_ESECUTORI + r"[^\n;&|]*?(?<![\w./-])" + parola, resto) or \
-                    re.search(r"(?:^|[;&|(]|\n)\s*" + parola, resto):
+            if re.search(_ESECUTORI + r"[^\n;&|]*?(?<![\w./-])" + parola, resto, _RE_NOMI) or \
+                    re.search(r"(?:^|[;&|(]|\n)\s*" + parola, resto, _RE_NOMI):
                 return True
+    return False
+
+
+# Una riga che chiude un gruppo o un blocco e ne manda l'uscita a un altro programma: `} | bash`, `) | sh`,
+# `fi | bash`, `done > >(sh)`. Il corpo di un heredoc scritto dentro il blocco arriva a quel programma.
+_BLOCCO_IN_PIPE = re.compile(r"^\s*(?:\}|\)|fi\b|done\b|esac\b)[^\n#]*?(?:\|(?!\|)|>\()", re.M)
+_ARGOMENTO_MOBILE = re.compile(_ESECUTORI + r"[^\n;&|]*[*?\[$]", _RE_NOMI)
+_COSTRUTTORI = re.compile(r"(?:^|[\s;&|(])(?:\S*/)?(?:g?make|ninja|just|npm|pnpm|yarn|bun)(?=\s|$)", _RE_NOMI)
+_FILE_DI_COSTRUZIONE = re.compile(r"(?i)^(?:gnu)?makefile$|\.mk$|^justfile$|^package\.json$|^build\.ninja$")
+_MODULO_PYTHON = re.compile(r"(?:^|[\s;&|(])(?:\S*/)?python3?(?:\.\d+)?\s[^\n;&|]*-m\s", _RE_NOMI)
+
+
+def _eseguito_per_altra_via(prima: str, dopo: str, resto_riga: str, righe_dopo: List[str]) -> bool:
+    """Il file scritto dall'heredoc può girare senza che il suo nome segua un esecutore (review del 10/11/2026,
+    n. 6): un esecutore con un glob o una variabile (`bash /tmp/x.s?`), il nome che ricompare accanto a un
+    esecutore qualunque (`cp x.sh y; bash y`), un Makefile seguito da make, un .py seguito da `python -m`."""
+    bersagli = _bersagli(prima + " " + dopo)
+    if not bersagli:
+        return False
+    resto = _REDIREZIONE.sub(" ", dopo, count=1) + "\n" + resto_riga + "\n" + "\n".join(righe_dopo)
+    esecutore = re.search(_ESECUTORI, resto, _RE_NOMI) is not None
+    if esecutore and _ARGOMENTO_MOBILE.search(resto):
+        return True
+    for b in bersagli:
+        nome = os.path.basename(b)
+        if not nome:
+            continue
+        if esecutore and re.search(r"(?<![\w.-])" + re.escape(nome) + r"(?![\w.-])", resto):
+            return True
+        if _FILE_DI_COSTRUZIONE.search(nome) and _COSTRUTTORI.search(resto):
+            return True
+        if nome.endswith(".py") and _MODULO_PYTHON.search(resto):
+            return True
     return False
 
 
@@ -315,7 +367,15 @@ def togli(cmd: str, via: Callable[[Heredoc], bool], segnaposto: Optional[str] = 
             prossima = aperture[n + 1].inizio if n + 1 < len(aperture) else len(riga)
             dopo = riga[ap.fine:prossima]
             seguito = righe[i].lstrip() if i < len(righe) else ""
+            prima = riga[ap.segmento:ap.inizio]
             certo = not (ap.annidato
+                         # una sostituzione di processo sulla riga: `cat <<'F' > >(bash)`, `tee >(sh) <<'F'`
+                         or ">(" in riga
+                         # il blocco che contiene l'heredoc finisce in una pipe, anche dopo righe vuote
+                         or _BLOCCO_IN_PIPE.search("\n".join(righe[i:]))
+                         # git apply e git am applicano il corpo ai file
+                         or (_consumatore(prima) == "git" and re.search(r"\s(?:apply|am)(?:\s|$)", prima))
+                         or _eseguito_per_altra_via(prima, dopo, riga[prossima:], righe[i:])
                          or re.search(r"(^|[^|])\|(?!\|)", dopo)
                          or riga.rstrip().endswith(("|", "&&", "||"))
                          or seguito.startswith(("|", ")", "&&", "||"))

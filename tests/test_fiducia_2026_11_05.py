@@ -28,14 +28,15 @@ FD11 una voce del catalogo con hooks, mcpServers o un'altra chiave che non scegl
      "possibile compromissione", anche con tag e sha giusti: Claude Code la unirebbe al plugin firmato.
 FD12-FD15 (review del 7/11/2026, finding 85 e 18) con una CLI finta di Claude Code (ARTURO_CLAUDE), che a
      `plugin update` scrive in installed_plugins.json la copia e lo sha che il caso sceglie:
-FD12 Claude Code installa uno sha diverso da quello verificato: uscita 3, "non riavviare", ancora invariata;
+FD12 Claude Code installa uno sha diverso da quello verificato: uscita 3, la versione di prima torna o il
+     plugin si disattiva, ancora invariata;
 FD13 la copia installata ha un file cambiato dopo la firma, o il MANIFEST firmato da un'altra chiave: uscita 3,
      ancora invariata;
 FD14 un aggiornamento riuscito unisce a settings.json le voci nuove del frammento (una regola deny) e tiene
      quelle della persona; l'ancora prende la chiave della copia nuova;
 FD15 un catalogo che non fissa Arturo a un tag plugin-vN.N.N: uscita 3.
      In FD12 e FD13, con la cartella della versione di prima ancora lì, installed_plugins.json torna a quella;
-     senza, l'uscita dice "non riavviare" (finding 110).
+     senza, il plugin si disattiva e l'uscita dice come riattivarlo (finding 110; 11/11/2026).
 FD16-FD18 (review del 7/11/2026) con una CLI finta che scrive una spia se `plugin update` parte:
 FD16 il tag firmato di un rilascio vecchio ripubblicato sotto un nome nuovo: uscita 3 (finding 109);
 FD17 un tag leggero, senza firma: "possibile compromissione", non "firma non verificabile" (finding 111);
@@ -43,9 +44,12 @@ FD18 un tag firmato su un commit col MANIFEST senza firma: uscita 3 prima di `pl
 FD19 impacchetta --firma genera il pacchetto dal tag con git archive: un file non salvato e una modifica locale
      restano fuori dal MANIFEST firmato; senza il tag si ferma; --verifica --firmato vuole MANIFEST.sig
      (finding 112 e 110).
+FD20 (#5101) il plugin aggiornato fuori da /aggiorna, con un frammento che il blocco non ha: /aggiorna dice
+     "GIÀ AGGIORNATO" e unisce lo stesso le voci nuove a settings.json, l'avvio fa lo stesso e al giro dopo tace;
+     da una copia con una guardia cambiata dopo la firma non si unisce niente.
 
 Sulla base 809868a (il dev prima di F3) sono tutti rossi: fiducia.py, il MANIFEST e `plugin` non ci
-sono. Su a442b38 (prima del lotto L4) è rosso FD14. Con --avvelena una copia del repository rotta in un punto alla volta deve far fallire il caso
+sono. Su a442b38 (prima del lotto L4) è rosso FD14. Su 78dc1a2 è rosso FD20. Con --avvelena una copia del repository rotta in un punto alla volta deve far fallire il caso
 che lo sorveglia.
 """
 from __future__ import annotations
@@ -57,10 +61,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 CASI = ["FD01", "FD02", "FD03", "FD04", "FD05", "FD06", "FD07", "FD08", "FD09", "FD10", "FD11", "FD12", "FD13",
-        "FD14", "FD15", "FD16", "FD17", "FD18", "FD19"]
+        "FD14", "FD15", "FD16", "FD17", "FD18", "FD19", "FD20"]
 CLI = ["FD06", "FD07", "FD08", "FD09"]  # i casi con la CLI vera di Claude Code
 DISCRIMINANTI = list(CASI)
 CLAUDE = shutil.which("claude")
@@ -379,12 +384,65 @@ def casi_finti(repo: Path, tmp: Path, chiavi: dict, solo: str | None) -> list:
         # Con la cartella di prima ancora lì, la voce di installed_plugins.json torna a quella (finding 110).
         dopo = json.loads((orsa / "plugins" / "installed_plugins.json").read_text(encoding="utf-8"))
         dopo = dopo["plugins"]["arturo@arturo"][0].get("gitCommitSha")
+        # Se quella di prima non torna, il plugin si disattiva (11/11/2026): la CLI finta risponde 0 a `disable`.
         rimessa = (dopo == sha1 and "Ho rimesso la versione di prima" in uscita) if variante != "sparita" \
-            else "non riavviare" in uscita
+            else "ho disattivato Arturo" in uscita
         if p.returncode != 3 or atteso not in uscita or not rimessa or cambiata \
                 or DENY_NUOVA in json.dumps(settings):
             rossi.append(f"{caso} copia installata ({variante}): rc {p.returncode}, installata {str(dopo)[:12]}, "
                          f"ancora cambiata {cambiata}, {uscita[-200:]!r}")
+    return rossi
+
+
+def casi_fuori(repo: Path, tmp: Path, chiavi: dict) -> list:
+    """FD20: il plugin aggiornato fuori da /aggiorna (claude plugin update, il pannello /plugin) porta un frammento
+    nuovo che il blocco non ha ancora. /aggiorna con "GIÀ AGGIORNATO" e l'avvio lo uniscono a settings.json, solo
+    da una copia che torna col suo MANIFEST firmato (#5101)."""
+    privata, firmatari = chiavi["rilasci"]
+    finto = cli_finta(tmp, CLAUDE_FINTO)
+    rossi = []
+    for variante in ("gia", "avvio", "cambiata"):
+        base = tmp / f"FD20-{variante}"
+        base.mkdir()
+        r = Rilasci(repo, base, chiavi)
+        sha = r.rilascio("0.4.0", "rilasci")
+        r.indica("plugin-v0.4.0", sha)
+        copia = copia_plugin(repo, base / "cache" / "0.4.0", "0.4.0", firmatari, privata,
+                             frammento={"permissions": {"deny": [DENY_NUOVA]}})
+        if variante == "cambiata":
+            guardia = copia / "hooks" / "block-dangerous.py"
+            guardia.write_text(guardia.read_text(encoding="utf-8") + "\n# allentata\n", encoding="utf-8")
+        orsa = r.orsa
+        (orsa / "plugins").mkdir()
+        (orsa / "plugins" / "known_marketplaces.json").write_text(json.dumps({"arturo": {"installLocation": str(r.catalogo)}}),
+                                                                  encoding="utf-8")
+        (orsa / "plugins" / "installed_plugins.json").write_text(json.dumps({"plugins": {"arturo@arturo": [
+            {"scope": "user", "installPath": str(copia), "version": "0.4.0", "gitCommitSha": sha}]}}), encoding="utf-8")
+        (orsa / "settings.json").write_text(json.dumps({"model": "mio", "permissions": {"deny": []}}), encoding="utf-8")
+        (orsa / "data").mkdir()
+        (orsa / "data" / "arturo-impostazioni.lock").write_text(json.dumps({"versione": "0.3.0", "frammento": {
+            "permissions": {"deny": []}}}), encoding="utf-8")
+        (orsa / "session-env").mkdir()
+        # Un controllo appena fatto: l'avvio non lancia quello staccato, che andrebbe in rete.
+        (orsa / "session-env" / "aggiornamento.json").write_text(json.dumps({
+            "stato": "aggiornato", "plugin": True, "controllato": time.time()}), encoding="utf-8")
+        modulo_fiducia(repo).fissa_ancora(copia, orsa)
+        env = dict(r.env, ARTURO_CLAUDE=str(finto))
+        comando = "plugin" if variante == "gia" else "stato"
+        p = esegui([sys.executable, copia / "bin" / "aggiornamenti.py", comando], env=env)
+        uscita = (p.stdout + p.stderr).strip()
+        settings = json.loads((orsa / "settings.json").read_text(encoding="utf-8"))
+        deny = (settings.get("permissions") or {}).get("deny") or []
+        if variante == "cambiata":
+            if DENY_NUOVA in deny:
+                rossi.append(f"FD20 copia cambiata dopo la firma: le impostazioni si sono unite lo stesso, {uscita[-160:]!r}")
+            continue
+        dopo = esegui([sys.executable, copia / "bin" / "aggiornamenti.py", "stato"], env=env)
+        atteso = "GIÀ AGGIORNATO" if variante == "gia" else "ARTURO:"
+        if p.returncode != 0 or atteso not in p.stdout or "IMPOSTAZIONI APPLICATE" not in p.stdout or DENY_NUOVA not in deny \
+                or settings.get("model") != "mio" or dopo.stdout.strip():
+            rossi.append(f"FD20 aggiornato fuori da /aggiorna ({variante}): rc {p.returncode}, deny {deny}, model "
+                         f"{settings.get('model')!r}, avvio dopo {dopo.stdout.strip()[:80]!r}, {uscita[-200:]!r}")
     return rossi
 
 
@@ -605,6 +663,11 @@ def prova(repo: Path, solo: str | None = None) -> list:
             except Exception as errore:  # noqa: BLE001
                 rossi += [f"{c} errore: {type(errore).__name__}: {str(errore)[:160]}" for c in ("FD12", "FD13", "FD14")
                           if solo in (None, c)]
+        if solo in (None, "FD20"):
+            try:
+                rossi += casi_fuori(repo, tmp, chiavi)
+            except Exception as errore:  # noqa: BLE001
+                rossi.append(f"FD20 errore: {type(errore).__name__}: {str(errore)[:160]}")
         if solo in (None, "FD16", "FD17", "FD18"):
             try:
                 rossi += casi_tag(repo, tmp, chiavi, solo)
@@ -636,9 +699,9 @@ VELENI = [
     ("FD10", "bin/aggiornamenti.py", 'URL_AMMESSO.fullmatch(str(sorgente.get("url")))', 'isinstance(sorgente.get("url"), str)'),
     ("FD11", "bin/aggiornamenti.py", "    estranea = voce_estranea(voce)\n    if estranea:", "    estranea = ''\n    if estranea:"),
     ("FD12", "bin/aggiornamenti.py", '    if dopo.get("gitCommitSha") != sha:\n', "    if False:\n"),
-    ("FD13", "bin/aggiornamenti.py", '    if controllo["firma"] != "ok":\n        return _blocca(controllo["motivo"]',
-     '    if False:\n        return _blocca(controllo["motivo"]'),
-    ("FD13", "bin/aggiornamenti.py", "    if diversi:\n        return _blocca(", "    if False:\n        return _blocca("),
+    ("FD13", "bin/aggiornamenti.py", '    if controllo["firma"] != "ok":\n        compromesso = controllo["firma"]',
+     '    if False:\n        compromesso = controllo["firma"]'),
+    ("FD13", "bin/aggiornamenti.py", "    if diversi:\n        motivo = f", "    if False:\n        motivo = f"),
     ("FD14", "bin/aggiornamenti.py", "    impostazioni = applica_impostazioni(copia)\n", '    impostazioni = ""\n'),
     ("FD12", "bin/aggiornamenti.py", "    voci[utente] = prima\n", "    pass\n"),
     ("FD16", "bin/aggiornamenti.py", "        if not dentro or dentro.group(1) != tag:", "        if False:"),
@@ -647,6 +710,10 @@ VELENI = [
      "        controllo = fiducia.controlla(albero, orsa)\n        if False:"),
     ("FD19", "bin/impacchetta.py", "        rc = dal_tag(argomenti)\n", "        rc = -1\n"),
     ("FD19", "bin/impacchetta.py", "    if firmato and not (cartella / fiducia.FIRMA).is_file():", "    if False:"),
+    ("FD20", "bin/aggiornamenti.py", '        riga = impostazioni_indietro(Path(percorso), orsa) if percorso', '        riga = "" if percorso'),
+    ("FD20", "bin/aggiornamenti.py", '    riga = "" if stato.get("compromesso") else impostazioni_indietro(', '    riga = "" if True else impostazioni_indietro('),
+    ("FD20", "bin/aggiornamenti.py", '    if controllo["firma"] != "ok" or controllo["cambiati"] or controllo["mancano"]:\n        return ""',
+     '    if controllo["firma"] != "ok":\n        return ""'),
     ("FD15", "bin/aggiornamenti.py", '    if not TAG_PLUGIN.fullmatch(tag) or not re.fullmatch(r"[0-9a-f]{40}", sha):\n',
      "    if False:\n"),
 ]

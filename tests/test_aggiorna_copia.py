@@ -271,7 +271,10 @@ def test_c10(repo: Path) -> None:
             altra.write_text("non mio\n", encoding="utf-8")
             lab = Lab(repo, Path(tmp) / "scatola" / "Mario Rossi", shell)
             stato = sync_in_conflitto(lab, repo, "C10")
-            copia = Path(read(stato).split(" " + lab.head())[0])
+            # Il testo del file di stato, non Path: su Windows Path scrive le barre rovesce, mentre bash
+            # stampa il percorso come lo scrive git, con le barre dritte (#5125).
+            scritta = read(stato).split(" " + lab.head())[0]
+            copia = Path(scritta)
             uscita = lab.lancia(blocco(read(repo / "commands" / "inizio.md"), "## FASE 0", "C10"))
             assert altra.exists() and lab.utente.is_dir(), \
                 f"C10 con {shell} il sync dopo ha cancellato la cartella sopra la HOME con lo spazio"
@@ -281,7 +284,7 @@ def test_c10(repo: Path) -> None:
             assert "copia di prova con un conflitto aspetta" in avvio, \
                 f"C10 con {shell} l'avvio non ricorda la copia in attesa con lo spazio nel percorso"
             trova = concludi(aggiorna(repo), "C10").split("APPLICA=")[0] + 'echo "TROVATA=[$COPIA]"\n'
-            assert f"TROVATA=[{copia}]" in lab.lancia(trova), \
+            assert f"TROVATA=[{scritta}]" in lab.lancia(trova), \
                 f"C10 con {shell} il blocco di \"Risolvere un conflitto\" non trova la copia con lo spazio"
 
 

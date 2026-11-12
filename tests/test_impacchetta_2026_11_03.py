@@ -33,6 +33,9 @@ IP18 senza un repository in ~/.claude l'identità di Git di /setup vale nei prog
      la copia, /inizio e /fine la usano, e col plugin /setup salta la FASE 7 (finding 79 e 80);
 IP19 metodo, Conciso e la regola 1 del CLAUDE.md dicono la stessa cosa sul passo bloccato (finding 81);
 IP20 i testi per il subagente e per il login di gws danno i percorsi veri del codice (finding 56);
+IP21 senza identità di Arturo né email nella config, identita-git.sh CARTELLA accetta l'identità automatica di
+     Git con un AVVISO e rc 0, e /fine lo dice; con useConfigOnly, che fa fallire anche il commit, resta MANCA
+     (segnalazione n. 67, 10/11/2026);
 IP10 un hook di Arturo rimasto nei settings della persona (un clone di prima) è doppio: applica si ferma con
      rc 1 e il file intatto, applica --togli-doppi lo toglie e tiene l'hook proprio della persona.
 
@@ -52,7 +55,7 @@ import tempfile
 from pathlib import Path
 
 CASI = ["IP01", "IP02", "IP03", "IP04", "IP05", "IP06", "IP07", "IP08", "IP09", "IP10", "IP11", "IP12", "IP13", "IP14", "IP15",
-        "IP16", "IP17", "IP18", "IP19", "IP20"]
+        "IP16", "IP17", "IP18", "IP19", "IP20", "IP21"]
 DISCRIMINANTI = list(CASI)
 BASH = shutil.which("bash") or "bash"
 
@@ -249,6 +252,20 @@ def prova(repo: Path) -> list[str]:
             rossi.append(f"IP18 identità di Git: {manca.stdout.strip()!r}, rc {copiata.returncode}/{commit.returncode}, "
                          f"autore {autore!r}, {(copiata.stdout + commit.stderr)[-120:]!r}")
 
+        senza_arturo = tmp / "orsa-senza-identita"
+        senza_arturo.mkdir()
+        env_auto = {**git_env, "CLAUDE_CONFIG_DIR": str(senza_arturo)}
+        repo_auto = tmp / "prog-auto"
+        esegui(["git", "init", "-q", str(repo_auto)], env=env_auto)
+        automatica = esegui(identita + [str(repo_auto)], env=env_auto)
+        esegui(["git", "-C", str(repo_auto), "config", "user.useConfigOnly", "true"], env=env_auto)
+        rifiutata = esegui(identita + [str(repo_auto)], env=env_auto)
+        avviso_fine = "Se lo script stampa `AVVISO`" in (repo / "commands" / "fine.md").read_text(encoding="utf-8")
+        if automatica.returncode != 0 or "AVVISO" not in automatica.stdout \
+                or rifiutata.returncode != 1 or "MANCA" not in rifiutata.stdout or not avviso_fine:
+            rossi.append(f"IP21 identità automatica di Git: rc {automatica.returncode} {automatica.stdout.strip()[:80]!r}, "
+                         f"useConfigOnly rc {rifiutata.returncode}, /fine {avviso_fine}")
+
         eccezione = "L'eccezione è il classificatore della modalità auto"
         regole = {f: (repo / f).read_text(encoding="utf-8") for f in
                   ("shared/metodo.md", "shared/setup-claude-md.md", "output-styles/conciso.md")}
@@ -266,9 +283,12 @@ def prova(repo: Path) -> list[str]:
             sys.path.remove(str(pacchetto / "hooks"))
             for nome in ("radici", "melchior_match", "correzioni"):
                 sys.modules.pop(nome, None)
-        vero = os.path.realpath(pacchetto)
-        if "melchior_recall.py" in sotto or f"{vero}{os.sep}bin{os.sep}arturo memoria cerca".replace(os.sep, "/") \
-                not in sotto.replace(os.sep, "/") or "~/.claude/docs" in gws or "docs/onboarding/gws.md" not in gws.replace(os.sep, "/"):
+        vero = os.path.realpath(pacchetto).replace(os.sep, "/")
+        # Su Windows la cartella temporanea sta sotto la home: radici._corto la scrive con ~ (#5173).
+        forme = [vero] + ["~" + vero[len(c):] for c in {str(Path.home()).replace(os.sep, "/"),
+                          os.path.realpath(Path.home()).replace(os.sep, "/")} if vero.startswith(c + "/")]
+        if "melchior_recall.py" in sotto or not any(f"{f}/bin/arturo memoria cerca" in sotto.replace(os.sep, "/") for f in forme) \
+                or "~/.claude/docs" in gws or "docs/onboarding/gws.md" not in gws.replace(os.sep, "/"):
             rossi.append(f"IP20 percorsi dei testi degli hook: {sotto[sotto.find('cerca prima'):][:90]!r} {gws[-90:]!r}")
 
         mercato = json.loads((pacchetto / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8"))
@@ -378,13 +398,15 @@ VELENI = [
     ("IP09", "hooks/metodo.sh", 'printf \'%s\\n\' "${testo//\\$ARTURO_CODICE/$CODICE}"', 'printf \'%s\\n\' "$testo"'),
     ("IP10", "bin/impostazioni.py", "                if any(u in registrati for u in usati):", "                if False:"),
     ("IP15", "commands/inizio.md", '!= "$(cd ~/.claude 2>/dev/null && pwd -P)" ] && PLUGIN=1', '] && PLUGIN=0'),
-    ("IP16", "bin/impacchetta.py", 'elif md.relative_to(cartella).parts[0] in ("skills", "shared", "agents") and RELATIVO.search(riga):',
+    ("IP16", "bin/impacchetta.py", 'elif relativo.parts[0] in ("skills", "shared", "agents") and RELATIVO.search(riga):',
      "elif False:"),
     ("IP17", "commands/creaskill.md", ' "${ARTURO_CODICE:-$HOME/.claude}/skills/$NOME"; do', "; do"),
     ("IP17", "bin/impacchetta.py", '(?!commands/\\")", radice_codice', '", radice_codice'),
     ("IP18", "bin/identita-git.sh", 'git -C "$CARTELLA" config user.name "${NOME:-$EMAIL}" && git -C "$CARTELLA" config user.email "$EMAIL" ;;',
      "true ;;"),
     ("IP18", "bin/migra.py", "    file.parent.mkdir(parents=True, exist_ok=True)\n    for chiave", "    return\n    for chiave"),
+    ("IP21", "bin/identita-git.sh", '      if [ -n "$AUTO" ]; then', '      if false; then'),
+    ("IP21", "commands/fine.md", "Se lo script stampa `AVVISO`", "Se lo script stampa qualcosa"),
     ("IP19", "shared/metodo.md", "L'eccezione è il classificatore della modalità auto, quando ferma un passo che la persona ha già approvato: lì non cercare un'altra via, prepara un solo comando da lanciare con `!`.", ""),
     ("IP20", "hooks/subagent-memory-context.py", '"cerca prima di agire: " + radici.comando_arturo() + " memoria cerca \\"parole chiave\\" "',
      '"cerca prima di agire: python3 ~/.claude/scripts/melchior_recall.py \\"parole chiave\\" "'),

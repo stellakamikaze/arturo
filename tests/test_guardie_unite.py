@@ -37,7 +37,40 @@ from pathlib import Path
 
 from salti_windows import SaltoWindows, dichiara, link
 
-BASH = shutil.which("bash") or "bash"
+def _radice_git_windows() -> Path | None:
+    """La cartella d'installazione di Git per Windows, quella che contiene usr\\bin\\bash.exe."""
+    for nome in ("git", "bash"):
+        trovato = shutil.which(nome)
+        for cartella in Path(trovato).parents if trovato else ():
+            if (cartella / "usr" / "bin" / "bash.exe").is_file():
+                return cartella
+    return None
+
+
+def _bash_del_banco() -> tuple[str, str]:
+    """Il bash del banco e quello per i casi con un PATH ridotto (10/11/2026, #5167).
+
+    Su Windows `bash` per nome dipende dal PATH di chi lancia il banco. Da Git Bash è
+    Git\\usr\\bin\\bash.exe, il bash vero. Da PowerShell, col PATH del registro, è il bash di WSL
+    (System32), che non esegue niente qui, oppure il lanciatore Git\\bin\\bash.exe. Il lanciatore
+    mette /mingw64/bin e /usr/bin in testa al PATH: un caso che toglie un programma dal PATH,
+    come `timeout`, lì non si costruisce. Per quei casi serve il bash vero.
+    """
+    trovato = shutil.which("bash") or "bash"
+    if os.name != "nt":
+        return trovato, trovato
+    radice_git = _radice_git_windows()
+    if radice_git is None:
+        return trovato, trovato
+    vero = str(radice_git / "usr" / "bin" / "bash.exe")
+    minuscolo = trovato.lower()
+    if "\\system32\\" in minuscolo or "\\windowsapps\\" in minuscolo:
+        lanciatore = radice_git / "bin" / "bash.exe"
+        trovato = str(lanciatore) if lanciatore.is_file() else vero
+    return trovato, vero
+
+
+BASH, BASH_PATH_RIDOTTO = _bash_del_banco()
 NODE = shutil.which("node") or "node"
 
 
@@ -82,8 +115,8 @@ def hook(home: Path, nome: str, dati: dict, cwd: Path, **extra: str) -> subproce
                           capture_output=True, cwd=str(cwd), timeout=30, check=False, env=env_di(home, **extra))
 
 
-def dispatcher(home: Path, comando: str, cwd: Path, **extra: str) -> str:
-    proc = subprocess.run([BASH, str(home / ".claude" / "hooks" / "bash-dispatcher.sh")],
+def dispatcher(home: Path, comando: str, cwd: Path, bash: str = "", **extra: str) -> str:
+    proc = subprocess.run([bash or BASH, str(home / ".claude" / "hooks" / "bash-dispatcher.sh")],
                           input=json.dumps({"tool_name": "Bash", "tool_input": {"command": comando},
                                             "cwd": str(cwd), "session_id": "g2"}),
                           text=True, capture_output=True, cwd=str(cwd), env=env_di(home, **extra), timeout=60,
@@ -571,9 +604,14 @@ def test_g211(repo: Path) -> None:
         home = casa(repo, radice)
         senza_timeout = radice / "bin"
         senza_timeout.mkdir()
+        # Su Windows i programmi di base stanno in Git\usr\bin, che il PATH di PowerShell non ha: senza,
+        # il dispatcher cade su `dirname` e il caso esce "silent" senza aver deciso niente (#5167).
+        ricerca = None
+        if os.name == "nt" and _radice_git_windows() is not None:
+            ricerca = str(_radice_git_windows() / "usr" / "bin") + os.pathsep + os.environ.get("PATH", "")
         for programma in ("bash", "python3", "git", "jq", "sh", "cat", "printf", "date", "mkdir", "basename", "sed",
                           "grep", "tr", "wc", "dirname", "env"):
-            percorso = shutil.which(programma)
+            percorso = shutil.which(programma, path=ricerca)
             if percorso:
                 try:
                     (senza_timeout / programma).symlink_to(percorso)
@@ -585,11 +623,17 @@ def test_g211(repo: Path) -> None:
         nudo = {"PATH": str(senza_timeout)}
         if os.name == "nt":
             # Python non lancia gli script senza estensione: per i suoi "git" serve git.exe, che sta
-            # da solo in Git\cmd, senza timeout.
-            nudo["PATH"] += os.pathsep + os.path.dirname(shutil.which("git") or "")
-        assert dispatcher(home, 'git commit -m "fix; timeout 30 secondi"', radice, **nudo) == "silent", \
-            "G211 timeout citato in un messaggio fra virgolette blocca il comando"
-        assert dispatcher(home, "timeout 5 ls", radice, **nudo) == "block", "G211 timeout vero senza coreutils passa"
+            # da solo in Git\cmd, senza timeout. Mai Git\bin: Git Bash lo legge come /bin, cioè
+            # /usr/bin, dove timeout c'è (#5167).
+            cmd_git = _radice_git_windows() / "cmd" if _radice_git_windows() is not None else None
+            git_exe = cmd_git if cmd_git is not None and (cmd_git / "git.exe").is_file() else \
+                Path(shutil.which("git") or "").parent
+            nudo["PATH"] += os.pathsep + str(git_exe)
+        # Il lanciatore Git\bin\bash.exe rimetterebbe /usr/bin, e timeout, nel PATH (#5167).
+        assert dispatcher(home, 'git commit -m "fix; timeout 30 secondi"', radice, bash=BASH_PATH_RIDOTTO,
+                          **nudo) == "silent", "G211 timeout citato in un messaggio fra virgolette blocca il comando"
+        assert dispatcher(home, "timeout 5 ls", radice, bash=BASH_PATH_RIDOTTO, **nudo) == "block", \
+            "G211 timeout vero senza coreutils passa"
         assert dispatcher(home, "grep -rn --include=*.md x .", radice, SHELL="/bin/zsh") == "block", \
             "G211 il glob in un'opzione sotto zsh passa"
         for comando in ("echo ciao | mail -c copia@esempio.org dest", "mail $DEST < lettera.txt"):
@@ -740,7 +784,10 @@ def test_g214(repo: Path) -> None:
 
         for path in bersagli:
             assert esito(path) == "deny", f"G214 Edit sull'aggiornamento automatico senza unlock: {path.relative_to(home)}"
-        assert esito(c / "bin" / "telemetria.py") == "silent", "G214 un altro file di bin/ viene fermato"
+        # Dall'11/11/2026 (#5262, review n. 5) tutta bin è protetta: gli hook eseguono telemetria.py dentro il
+        # dispatcher. Il controllo che non si ferma troppo guarda un file fuori dalla tabella.
+        assert esito(c / "bin" / "telemetria.py") == "deny", "G214 Edit su un file di bin/ senza unlock"
+        assert esito(c / "data" / "nota.md") == "silent", "G214 un file fuori dalla tabella viene fermato"
         for comando in ("echo x >> ~/.claude/firme/rilasci.allowed_signers",
                         "cd ~/.claude && sed -i s/a/b/ bin/aggiornamenti.py",
                         "cp /tmp/finto.sh ~/.claude/bin/aggiorna-applica.sh"):

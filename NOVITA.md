@@ -27,14 +27,230 @@ non scrive niente.
 **Da sapere**: serve alla finestra di Arturo (Volta), che lo usa per la colonna di sinistra. Senza
 il verbo `catalogo` l'elenco resta quello su disco, con un avviso.
 
+---
+
+## 2026-11-11 — Altri cinque buchi chiusi nelle guardie
+
+**Cosa cambia**: la revisione che ha chiuso i tre buchi della voce qui sotto ne ha trovati altri cinque, casi in
+cui un comando passava senza controllo perché le guardie non lo vedevano. Adesso le guardie li vedono e chiedono
+conferma anche lì.
+
+- Un comando scritto in modo insolito passava senza controllo: `'rm' -rf` fra virgolette, un `git commit` dentro
+  un `if`, il nome del programma messo in una variabile. Le guardie sapevano già leggere questi comandi, ma il
+  filtro che decide quando chiamarle non li riconosceva, quindi restavano fuori; adesso le chiama anche per questi.
+- Un comando poteva modificare impostazioni e guardie senza conferma se ci arrivava per una via indiretta:
+  attraverso un collegamento, con un carattere jolly al posto del nome, estraendo un archivio dentro `~/.claude`,
+  con `git reset --hard` in quella cartella o spostando la cartella intera. Adesso le guardie controllano i file
+  su cui il comando scrive davvero, non solo i nomi che compaiono nel comando.
+- La cartella `~/.claude/bin` contiene programmi che Arturo esegue da solo a ogni sessione, quindi chi la modifica
+  cambia quello che Arturo fa senza che tu lo veda. Per questo adesso modificarla chiede lo stesso sblocco delle
+  guardie.
+- Un comando poteva contenere un secondo comando scritto come testo e farlo eseguire per una via indiretta, per
+  esempio salvandolo in un file, copiando il file e lanciando la copia. Le guardie controllavano il primo e non
+  leggevano il secondo; adesso leggono anche quello.
+- Un comando di oltre un milione di caratteri passava senza nessuna guardia, perché il programma che lo consegna
+  alle guardie non partiva e loro ricevevano un testo vuoto. Adesso, oltre i 100.000 caratteri, Arturo non prova a
+  leggerlo e ti chiede conferma.
+
+**Da sapere**: vedrai qualche conferma in più quando un comando scrive dentro `~/.claude` fuori dalle cartelle
+di handoff e memorie, o quando supera i 100.000 caratteri, e nessun comando viene bloccato.
+
+**Il principio**: una guardia giudica quello che il comando fa, non come è scritto, e quando non riesce a capirlo,
+come con un comando troppo lungo, lascia la decisione a te.
+
+---
+
+## 2026-11-11 — Tre buchi chiusi nelle guardie
+
+**Cosa cambia**: una revisione delle guardie ha trovato tre casi in cui un comando passava senza chiederti
+conferma anche quando toccava file che non doveva, e li ha chiusi.
+
+- Salvare un handoff o una memoria da terminale non chiede conferma: è una comodità di Arturo. Il via libera però
+  arrivava anche a un comando che nominava la cartella degli handoff e intanto scriveva altrove, per esempio nel
+  file delle chiavi SSH. Adesso arriva solo se ogni file che il comando legge o scrive sta nella cartella degli
+  handoff o in quella delle memorie.
+- Lo stesso via libera copriva lo spostamento di una cartella qualunque dentro gli handoff, anche quella delle
+  chiavi o dei Documenti, e adesso non lo copre più.
+- Il file che sblocca la modifica di impostazioni e guardie si poteva creare senza conferma, creando una cartella
+  con lo stesso nome o copiando un file con quel nome dentro `~/.claude`. Quei comandi adesso chiedono conferma, e
+  lo sblocco vale solo se è un file vero, non una cartella né un collegamento con quel nome.
+
+**Da sapere**: per te cambia poco: un comando che copia negli handoff un file preso da un'altra cartella ora
+chiede conferma, come ogni altra scrittura sotto `~/.claude`, e nessun comando viene bloccato.
+
+**Il principio**: un controllo che approva da solo guarda tutto il comando, non solo la parte che conosce, e
+quando un pezzo non lo riconosce lascia la decisione a te.
+
+---
+
+## 2026-11-11 — Le segnalazioni partono da sole
+
+**Cosa cambia**: quando qualcosa di Arturo o di Claude Code si inceppa, Claude scrive la segnalazione e la manda
+a chi mantiene Arturo, senza chiederti "La mando?". Subito dopo ti dice in una riga cosa è partito, il numero e
+come ritirarla. Lo stesso vale quando scrivi tu `/segnala`. Prima ogni segnalazione aspettava il tuo sì, e molti
+guasti non arrivavano mai: la domanda cadeva in mezzo al lavoro e la risposta era "dopo".
+
+Cosa parte: il fatto in poche righe, senza nomi di persone e clienti e senza contenuti del tuo lavoro, più le
+versioni di Arturo e di Claude Code, l'esito dei controlli e lo stato della config. Prima dell'invio Arturo
+toglie dal testo i percorsi delle tue cartelle, le email, gli indirizzi web e i nomi dei documenti. Arriva solo
+a chi mantiene Arturo.
+
+**Da sapere**: se preferisci che Claude ti chieda il permesso prima di ogni invio, scrivi
+`python3 ~/.claude/bin/arturo segnalazioni manuali`; con `arturo segnalazioni automatiche` le segnalazioni
+tornano a partire da sole. Alla prima sessione dopo l'aggiornamento Claude te lo dice, e niente parte da solo
+prima di quell'avviso. Aspettano sempre il tuo sì: una segnalazione su un problema di sicurezza, una issue
+pubblica su GitHub, una skill che proponi con `/proponi`, e tutte le segnalazioni se hai spento la telemetria o
+hai scritto `arturo segnala basta`. Un segreto non parte mai. Per ritirare una segnalazione:
+`arturo segnala ritira N`. In un giorno ne partono da sole al massimo dieci, e mai due volte la stessa.
+
+**Il principio**: una domanda che interrompe il lavoro riceve un "dopo" e il guasto resta, quindi la
+segnalazione parte da sola, e tu la vedi e puoi ritirarla.
+
+---
+
+## 2026-11-11 — Col plugin, Arturo torna ad aggiornarsi da solo
+
+**Cosa cambia**: da quando Arturo si installa come plugin di Claude Code, una versione nuova arrivava solo
+scrivendo `/aggiorna`. Ora si installa da sola quando chiudi la sessione, come succedeva prima del plugin. La
+barra in basso dice "si installa alla chiusura", e quando riapri Claude Code un messaggio ti dice com'è andata.
+Una sessione rimasta aperta continua con la versione di prima, e la sua barra dice "riapri Claude Code". Se per
+7 giorni Arturo non riesce a controllare gli aggiornamenti, per esempio perché manca la connessione o la rete
+dell'ufficio lo blocca, all'avvio te lo dice. Questa versione va ancora presa con `/aggiorna`: è lei che porta
+la novità, quelle dopo arrivano da sole.
+
+**Il principio**: senza chiederti si installa solo ciò che è verificato. La chiusura fa gli stessi controlli di
+`/aggiorna`: il rilascio deve avere la firma di chi mantiene Arturo, e i file devono tornare col loro elenco
+firmato. Se la firma non torna, niente si installa e l'avvio lo dice. Se il controllo fallisce a installazione
+già fatta, Arturo rimette la versione di prima. Se non ci riesce si disattiva, e la barra in basso dice come
+riattivarlo: una copia non verificata non parte mai.
+
+**Se preferisci decidere tu**: `arturo aggiornamenti manuali` lascia solo l'avviso, e aggiorni con `/aggiorna`.
+
+---
+
+## 2026-11-10 — /diagnosi torna a controllare la config sul Mac
+
+**Cosa cambia**: sul Mac il controllo della configurazione di `/diagnosi` si fermava subito con un errore di
+sintassi, e non diceva più se guardie e hook erano collegati bene. Il bash che il Mac ha di serie, più vecchio,
+leggeva male un apostrofo in un commento dentro lo script (segnalazione n. 68). Ora lo script si legge con quel
+bash, e un banco nuovo prova ogni script di Arturo col bash del Mac.
+
+**Il principio**: uno script che deve girare dappertutto si prova col bash più vecchio che incontra.
+
+---
+
+## 2026-11-10 — /fine non si ferma più per l'identità di Git
+
+**Cosa cambia**: se non hai scelto un nome per i commit, `/fine` prima si fermava con "MANCA l'identità di Git".
+Git però ne ricava una da solo, dal nome utente e dal nome del computer, e il commit partiva lo stesso. Ora `/fine`
+usa quell'identità automatica e te lo dice con un avviso. Per mettere un nome tuo nei commit usa `/setup`, FASE 1.
+`/fine` si ferma solo se Git non trova davvero nessuna identità (segnalazione n. 67).
+
+**Il principio**: un controllo ferma il lavoro solo quando il passo dopo fallirebbe davvero.
+
+## 2026-11-10 — Un contatto per le tue segnalazioni
+
+**Cosa cambia**: puoi lasciare agli sviluppatori di Arturo un nome e un'email, una volta sola. Servono per
+contattarti quando mandi una segnalazione: per chiederti un dettaglio o dirti che il problema è risolto. Prima
+una segnalazione arrivava senza un modo per risponderti, salvo la ricevuta da leggere con `arturo segnala stato`.
+La domanda arriva una volta, all'avvio dopo l'aggiornamento, con `/setup` o con `/segnala`: puoi dire di no.
+Il contatto parte solo con le segnalazioni del canale `arturo`, e l'anteprima lo mostra. Non parte mai con la
+telemetria né con una issue pubblica. `arturo contatto` lo mostra, `arturo contatto togli` lo cancella, e
+`--senza-contatto` lo lascia fuori da una sola segnalazione. Sul server resta 12 mesi con la segnalazione e se ne
+va subito se la ritiri. Il dettaglio sta in `docs/privacy.md`.
+
+**Il principio**: per rispondere a una persona serve sapere chi è, e deve dirlo lei.
+
+## 2026-11-10 — Plugin: le impostazioni nuove arrivano anche se aggiorni fuori da /aggiorna
+
+**Cosa cambia**: se Claude Code aggiornava il plugin di Arturo da un'altra strada (`claude plugin update`,
+il pannello `/plugin`), hook e skill erano nuovi ma `settings.json` restava quello di prima. Un permesso o
+una regola di blocco nuova non arrivava mai, e `/aggiorna` diceva "GIÀ AGGIORNATO". Ora l'avvio e
+`/aggiorna` confrontano le impostazioni della versione installata con quelle già unite e, se sono diverse,
+le uniscono. All'avvio può comparire la riga `IMPOSTAZIONI APPLICATE`, e Claude te lo dice in una frase.
+
+**Il principio**: un aggiornamento arriva intero, qualunque strada prenda.
+
+**Da sapere**: l'unione parte solo da una copia che torna con l'elenco firmato dei suoi file (il MANIFEST),
+e cambia solo le voci che hai lasciato com'erano. Se una voce l'hai cambiata anche tu, compare
+`IMPOSTAZIONI NON APPLICATE` e `/setup` ti chiede cosa tenere. Riguarda solo chi usa Arturo come plugin,
+e solo dopo la prima unione fatta da `/setup`.
+
+## 2026-11-10 — Guardie: senza un Python che funziona ogni comando chiede conferma
+
+**Cosa cambia**:
+- Le guardie leggono i comandi con `python3`. Su un Windows dove `python3` è solo il rimando del Microsoft
+  Store, e `jq` manca, non leggevano niente: ogni comando passava senza conferma, anche una cancellazione
+  ricorsiva, e nessuno lo diceva. Ora in quello stato ogni comando della shell chiede conferma, e all'avvio
+  la riga `PYTHON:` dice cosa manca e come sistemare.
+- La guardia che chiede conferma prima di leggere una chiave di `~/.ssh` ora ferma la lettura anche quando
+  non parte o non risponde entro 10 secondi, come le altre guardie.
+
+**Il principio**: una guardia che non riesce a guardare chiede, non tace.
+
+**Da sapere**: se vedi la riga `PYTHON:`, installa Python da python.org e riapri Claude Code. Con Python a
+posto non cambia niente.
+
+## 2026-11-10 — /aggiorna non butta più un conflitto risolto a mano
+
+**Cosa cambia**: dopo un conflitto risolto a mano, se un tuo file non salvato con un commit aveva lo stesso nome
+di un file nuovo del rilascio, il "concludi" di `/aggiorna` non applicava niente e cancellava la copia di
+prova, con la tua risoluzione dentro. Ora quel tuo file va in `personale/conflitti`, come nell'aggiornamento
+normale, e il rilascio entra. Se l'applicazione non entra per un altro motivo, la copia risolta resta e la
+riga finale la nomina. Se `personale/conflitti` non si scrive, le tue versioni restano nella cartella di
+lavoro dentro `.git`, e il messaggio dice dove: prima sparivano.
+
+**Il principio**: un passo che fallisce lascia il lavoro della persona dov'era.
+
+**Da sapere**: riguarda solo chi ha Arturo come copia (il clone), non chi lo usa come plugin.
+
+## 2026-11-10 — Il controllo dei segreti legge anche i commit con molti file nuovi
+
+**Cosa cambia**: con più di 200 file nuovi nel progetto, ogni `git add` seguito da `git commit` chiedeva
+conferma, e dopo il sì il commit partiva senza leggere nemmeno le modifiche già in stage. Ora la guardia
+legge tutti i file nuovi, e con `git add file.py` legge solo quelli che l'add aggiunge davvero. Chiede
+conferma solo se i file nuovi superano 20 MB o 2 secondi di lettura: il messaggio dice quanti ne ha letti,
+e le modifiche in stage le legge comunque per intero.
+
+**Il principio**: un controllo che si arrende davanti a un progetto grande vale quanto un controllo spento.
+
+**Da sapere**: i file binari si saltano, come fa già `git diff`.
+
+## 2026-11-10 — /inizio e la rotazione: una parola corta non sceglie un progetto, una domanda non si perde
+
+**Cosa cambia**:
+- `/inizio` con una frase che comincia con una parola di una o due lettere ("ti ricordi cosa abbiamo
+  deciso") non apre più il progetto che ha quelle lettere nel nome: la frase diventa il compito della
+  sessione (segnalazione n. 64). Un nome scritto intero vale anche se è corto.
+- Se Claude ti fa una domanda dopo aver deciso la rotazione, nello stesso turno, la sessione nuova non
+  riparte da sola: ti rifà la domanda e aspetta la tua risposta (segnalazione n. 65). Prima ripartiva sul
+  compito, e la domanda restava nella sessione chiusa.
+
+**Il principio**: la rotazione continua il lavoro solo quando nessuno aspetta una risposta.
+
+**Da sapere**: conta come domanda una scelta col menu, o l'ultima riga del messaggio quando finisce col
+punto di domanda.
+
+## 2026-11-10 — CLAUDE.local.md chiede conferma come CLAUDE.md
+
+**Cosa cambia**: Claude chiede la tua conferma prima di modificare un `CLAUDE.local.md`, in qualunque
+cartella, anche quando lo modifica con i suoi strumenti di scrittura. Prima la chiedeva solo se passava
+dalla shell.
+
+**Il principio**: un file di istruzioni ha la stessa protezione qualunque sia la strada per scriverlo.
+
+**Da sapere**: chi ha spento la conferma sui CLAUDE.md in `~/.claude/arturo/protect_claude_md.local`
+la trova spenta anche sui `CLAUDE.local.md`.
+
 ## 2026-11-10 — arturo web: i nomi dei progetti si leggono anche in tema scuro
 
 **Cosa cambia**: nel registro per categorie di `arturo web`, col computer in tema scuro, i nomi dei
 progetti e il filetto sotto ogni categoria restavano quasi neri sul fondo scuro. Ora sono chiari e si
-leggono come il resto della pagina. Il tema chiaro non cambia.
+leggono come il resto della pagina. Nel tema chiaro cambia solo lo zero delle colonne dei conti: era un
+grigio troppo chiaro per leggersi bene, ora ha il grigio delle note.
 
 **Il principio**: ogni colore del testo ha un valore per tutti e due i temi, e il banco della pagina misura
-il contrasto in entrambi.
+il contrasto in entrambi, anche sui pulsanti pieni e sulla barra in fondo.
 
 **Da sapere**: riguarda chi ha molti progetti divisi in categorie, cioè la vista a tabella.
 
@@ -44,6 +260,10 @@ il contrasto in entrambi.
 - Su Windows `rm.exe`, `git.exe` e `gh.exe` passano dalle stesse guardie di `rm`, `git` e `gh`. Prima un
   programma scritto col suffisso `.exe` non chiedeva nessuna conferma: né per una cancellazione ricorsiva, né
   per un `push --force`, né per la cancellazione di un repository.
+- Su Windows e sul Mac `RM`, `Git` e `GH` sono gli stessi programmi di `rm`, `git` e `gh`, perché il disco
+  ignora le maiuscole. Le guardie ora li riconoscono: prima `RM -rf` passava senza conferma. Vale per ogni
+  guardia: il controllo dei segreti prima di `Git commit`, la conferma su `Git send-email`, uno script scritto
+  nel comando e lanciato con `BASH` o `bash.exe`, `FIND` che legge una chiave. Su Linux non cambia niente.
 
 **Il principio**: una guardia vale quanto la forma più semplice che la aggira.
 

@@ -131,8 +131,25 @@ class Worker:
         return self.basi[ref]
 
     def env(self) -> Dict[str, str]:
-        return dict(os.environ, HOME=str(self.home), USERPROFILE=str(self.home), TMPDIR=str(self.tmp),
+        return dict(ambiente_pulito(), HOME=str(self.home), USERPROFILE=str(self.home), TMPDIR=str(self.tmp),
                     XDG_CACHE_HOME=str(self.dir / "cache"), ARTURO_SALTI=str(self.salti))
+
+
+# Le variabili che l'avvio di Arturo mette nella sessione di Claude. Un gate lanciato da una sessione con
+# Arturo installato come plugin le passava ai banchi: /inizio nella HOME finta vedeva ARTURO_CODICE diverso
+# da ~/.claude, si credeva un plugin e dava "COPIA IN ~/.claude" (C04, A05, AF04 rossi, 10/11/2026, #5206).
+VARIABILI_DELLA_SESSIONE = ("ARTURO_CODICE", "CLAUDE_PLUGIN_ROOT", "CLAUDE_ENV_FILE")
+
+
+def ambiente_pulito() -> Dict[str, str]:
+    """L'ambiente di chi lancia il gate, senza le variabili della sessione e senza la cartella bin del codice
+    di Arturo nel PATH: ogni banco vede solo la sua copia."""
+    codice = os.environ.get("ARTURO_CODICE", "").rstrip("/\\")
+    fuori = {k: v for k, v in os.environ.items() if k not in VARIABILI_DELLA_SESSIONE}
+    if codice and "PATH" in fuori:
+        bins = {os.path.join(codice, "bin"), codice + "/bin"}
+        fuori["PATH"] = os.pathsep.join(p for p in fuori["PATH"].split(os.pathsep) if p.rstrip("/\\") not in bins)
+    return fuori
 
 
 def esegui_uno(lavoro: Lavoro, w: Worker, root: Path, py38: str) -> None:

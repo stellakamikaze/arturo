@@ -112,6 +112,11 @@ def hooks_json(settings: dict) -> dict:
     return {"description": "Guardie, avvio e telemetria di Arturo", "hooks": hooks}
 
 
+SENZA_CODICE = ('[ -f "$(cat ~/.claude/arturo/radice 2>/dev/null)/hooks/statusline.js" ] || '
+                "{ cat ~/.claude/arturo/barra-ferma 2>/dev/null || echo 'Arturo: non trovo il codice del plugin. "
+                "Guarda lo stato con: claude plugin list'; exit 0; }; ")
+
+
 def impostazioni(settings: dict) -> dict:
     """Le voci che un plugin non può portare: le scrive /setup nei settings della persona."""
     resto = {k: v for k, v in settings.items() if k not in ("hooks", "$schema")}
@@ -121,6 +126,10 @@ def impostazioni(settings: dict) -> dict:
         # l'avvio riscrive (~/.claude/arturo/radice).
         linea = dict(linea, command=linea["command"].replace(
             "~/.claude/hooks/statusline.js", '"$(cat ~/.claude/arturo/radice)/hooks/statusline.js"'))
+        # Col plugin spento e la cartella del puntatore sparita, node cadeva e la barra restava vuota (prova
+        # con la CLI vera dell'11/11/2026, #5319). Allora la barra mostra il file che la chiusura scrive
+        # quando disattiva Arturo (bin/aggiornamenti.py, BARRA_FERMA), oppure dice dove guardare.
+        linea["command"] = SENZA_CODICE + linea["command"]
         resto["statusLine"] = linea
     # Uno stile portato da un plugin si chiama col prefisso: "Conciso" diventa "arturo:Conciso"
     # (prova del 3/11/2026: col nome nudo Claude Code non lo applica).
@@ -289,13 +298,16 @@ def verifica(cartella: Path, firmato: bool = False) -> list[str]:
     voci = "|".join(re.escape(c) for c in CODICE if c not in ("docs", "tests"))
     fisso = re.compile(rf"(?:~|\$HOME|\$\{{HOME\}})/\.claude/(?!commands/\")(?:{voci})(?:/|\b)")
     for md in cartella.rglob("*.md"):
-        if md.is_symlink() or md.relative_to(cartella).parts[0] == "docs":
+        relativo = md.relative_to(cartella)
+        if md.is_symlink() or relativo.parts[0] == "docs":
             continue
+        # Il nome nel messaggio ha le barre dritte anche su Windows: chi lo legge, o lo confronta, vede un solo formato.
+        nome = relativo.as_posix()
         for n, riga in enumerate(md.read_text(encoding="utf-8").splitlines(), 1):
             if fisso.search(riga):
-                errori.append(f"{md.relative_to(cartella)}:{n} {riga.strip()[:100]}")
-            elif md.relative_to(cartella).parts[0] in ("skills", "shared", "agents") and RELATIVO.search(riga):
-                errori.append(f"{md.relative_to(cartella)}:{n} percorso senza ~/.claude: {riga.strip()[:90]}")
+                errori.append(f"{nome}:{n} {riga.strip()[:100]}")
+            elif relativo.parts[0] in ("skills", "shared", "agents") and RELATIVO.search(riga):
+                errori.append(f"{nome}:{n} percorso senza ~/.claude: {riga.strip()[:90]}")
     hooks = json.loads((cartella / "hooks" / "hooks.json").read_text(encoding="utf-8"))
     for comando in re.findall(r'"command": "([^"]*)"', json.dumps(hooks)):
         if "~/.claude/" in comando or "$HOME/.claude/" in comando:

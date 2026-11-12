@@ -56,6 +56,12 @@ MACCHINA=$(scutil --get ComputerName 2>/dev/null || hostname 2>/dev/null)
 command -v node >/dev/null 2>&1 \
   || echo "NODE: manca node, la barra in basso (contesto e quota) e l'avviso sul contesto sono spenti. Dillo a Claude: installa node da nodejs.org, poi riapri Claude Code."
 
+# Le guardie leggono il comando con python3. `command -v` non basta: su Windows il python3 del
+# Microsoft Store esiste ed esce 49 senza eseguire niente. Allora il dispatcher chiede conferma a ogni
+# comando, e qui si dice perché (revisione del 10/11/2026, HK-2).
+python3 -c '' >/dev/null 2>&1 \
+  || echo "PYTHON: manca un python3 che funziona: ogni comando della shell chiede conferma. Dillo a Claude: installa Python da python.org, poi riapri Claude Code."
+
 # Dopo un compact il contesto e' stato riassunto: prima di continuare, un riepilogo che
 # l'utente puo' controllare. SessionStart con source "compact" e' la via documentata;
 # lo stdout di PostCompact non entra nel contesto.
@@ -221,7 +227,9 @@ if git -C "$HOME/.claude" rev-parse --git-dir >/dev/null 2>&1; then
 elif [ -f "$ARTURO_CODICE/bin/aggiornamenti.py" ] && [ ! -e "$ARTURO_CODICE/.git" ]; then
   # Col plugin ~/.claude di solito non è un repository, e l'avvio deve dire lo stesso che c'è un rilascio
   # nuovo (#4897, 6/11/2026). Senza .git accanto al codice gira solo il ramo del plugin di aggiornamenti.py.
-  python3 "$ARTURO_CODICE/bin/aggiornamenti.py" stato 2>/dev/null || true
+  # ARTURO_SESSIONE: l'id della sessione, per il segno della versione che la barra confronta con quella installata.
+  ARTURO_SESSIONE="$(printf '%s' "$HOOK_INPUT" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([A-Za-z0-9_-]*\)".*/\1/p' | head -n 1)" \
+    python3 "$ARTURO_CODICE/bin/aggiornamenti.py" stato 2>/dev/null || true
 fi
 
 # Canale novità: se NOVITA.md ha una entry più recente dell'ultima vista, segnala.
@@ -331,10 +339,20 @@ if [ -f "$HOME/.claude/data/setup-fatto" ] && [ ! -e "$HOME/.claude/data/herdr-i
   fi
 fi
 
-# Invito a segnalare: Arturo migliora con quello che le persone gli dicono. Una riga di contesto,
-# spenta da "arturo segnala basta" (stato in session-env/segnala.json).
-if ! grep -q '"pausa": "sempre"' "$HOME/.claude/session-env/segnala.json" 2>/dev/null; then
-  echo "SEGNALA: se in questa sessione qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, proponi una volta /segnala, con la bozza gia' scritta da te e --origine avvio in prepara. Riguarda Arturo, non i bug del progetto della persona."
+# Segnalazioni (11/11/2026): di default Claude le scrive e le manda da solo a chi mantiene Arturo, e dice cosa è
+# partito. L'avviso esce una volta sola (arturo segnala avviso, segno in session-env/segnalazioni-annuncio). Con
+# "arturo segnalazioni manuali" o ARTURO_SEGNALAZIONI=manuali torna l'invito a proporre /segnala. "arturo segnala
+# basta" spegne la riga (stato in session-env/segnala.json). Il modo che vale lo decide comunque `manda`.
+SEGNALA_STATO="$HOME/.claude/session-env/segnala.json"
+if ! grep -q '"pausa": "sempre"' "$SEGNALA_STATO" 2>/dev/null; then
+  if [ "$(printf '%s' "${ARTURO_SEGNALAZIONI:-}" | tr '[:upper:]' '[:lower:]')" = "manuali" ] \
+    || grep -q '"modo": "manuali"' "$SEGNALA_STATO" 2>/dev/null; then
+    echo "SEGNALA: se in questa sessione qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, proponi una volta /segnala, con la bozza gia' scritta da te e --origine avvio in prepara. Riguarda Arturo, non i bug del progetto della persona."
+  else
+    [ -f "$HOME/.claude/session-env/segnalazioni-annuncio" ] \
+      || python3 "$ARTURO_CODICE/bin/arturo" segnala avviso 2>/dev/null || true
+    echo "SEGNALA: se in questa sessione qualcosa di Arturo o di Claude Code si inceppa, la persona corregge un tuo comportamento o chiede una cosa che Arturo non sa fare, segui /segnala senza aspettare che lo chieda: scrivi tu la bozza, mandala con manda e --origine avvio, e di' alla persona in una riga cosa e' partito, il numero e come ritirarla. Una volta per fatto. Riguarda Arturo, non i bug del progetto della persona. Un tema di sicurezza non parte mai da solo: vale SECURITY.md."
+  fi
 fi
 
 # Nel Terminale di macOS il profilo accoda al titolo della scheda processo e cartella: la prima

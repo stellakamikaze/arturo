@@ -66,6 +66,12 @@ caso "gate-fantasma passa un comando di Arturo e uno di Claude Code" manca '_ban
 printf -- '---\ndescription: banco\n---\nLegge i comandi `perl`/`nc`/redirezioni e `/dafare`.\n' > "$K"
 caso "gate-fantasma: un backtick che chiude non apre un comando" manca '_banco.md.*cita'
 
+printf -- '---\ndescription: banco\n---\nLa dashboard è la superficie di revisione (vista `/pagina-che-non-esiste-mai` su uf-dashboard).\n' > "$K"
+caso "gate-fantasma: il percorso di una pagina web non è un comando" manca 'pagina-che-non-esiste-mai'
+
+printf -- '---\ndescription: banco\n---\nApri la pagina `/roadmap/`, poi lancia `/comando-che-non-esiste-mai`.\n' > "$K"
+caso "gate-fantasma: dopo una pagina web il comando vero resta controllato" trova '^WARN  commands/_banco.md:4 cita /comando-che-non-esiste-mai'
+
 { printf -- '---\ndescription: banco\n---\n'; i=0; while [ $i -lt 700 ]; do printf 'riga di riempimento per superare il tetto di peso del corpo.\n'; i=$((i+1)); done; } > "$K"
 caso "peso dei corpi: un comando oltre 30 KB" trova '^WARN  commands/_banco.md pesa [0-9]+ KB'
 rm -f "$K"

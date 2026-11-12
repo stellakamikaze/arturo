@@ -698,7 +698,8 @@ const casi = {
     const titolo = "Fattura sparita a Vigevano";
     const testo = "Il cliente Rossi ha perso la fattura numero 4471 dentro Dropbox";
     const installazione = "1b2c3d4e-aaaa-bbbb-cccc-ddddeeeeffff";
-    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo, testo, versione: "v0.1.2", sistema: "Darwin", installazione }),
+    const contatto = { nome: "Ottavia Quaranta", email: "ottavia.quaranta@esempio.org" };
+    await gestisci(post("/v1/segnalazioni", { tipo: "problema", titolo, testo, versione: "v0.1.2", sistema: "Darwin", installazione, contatto }),
       { ...f, adesso });
     const m = new FormData();
     for (const [k, v] of Object.entries({ tipo: "idea", testo: "Vorrei salvare le bozze di Zanzibar", email: "maria.bianchi@esempio.it" })) m.append(k, v);
@@ -711,6 +712,9 @@ const casi = {
     }
     assert.ok(!uscito.includes("maria.bianchi") && !uscito.includes("esempio.it"), "R18 l'email del feedback esce verso Telegram");
     assert.ok(!uscito.includes(installazione.slice(0, 9)), "R18 l'id completo dell'installazione esce");
+    // Il contatto di chi segnala (10/11/2026) resta sul server: né il nome né l'email vanno nei campanelli.
+    assert.ok(!uscito.includes("ottavia") && !uscito.includes("quaranta") && !uscito.includes("esempio.org"),
+      "R18 il contatto di chi segnala esce verso Telegram o email");
     assert.match(f.stato.avvisi[0], /segnalazione n\. 1, un problema · installazione 1b2c3d4e · /, "R18 il campanello non dice numero, tipo e origine");
     assert.equal(f.stato.segnalazioni[0].testo, testo, "R18 il testo non resta sul server");
   },
@@ -1174,6 +1178,36 @@ const casi = {
     const f = finti({ ...VUOTO, installazioni: 1, sessioni: 1 });
     await giornaliero({ ...f, adesso });
     assert.match(f.stato.email[0].html, /Conta gli eventi arrivati prima delle 7/, "V61 il recap non dice quali eventi conta");
+  },
+  // Il contatto di chi segnala (10/11/2026): nome ed email si salvano, la risposta dice "salvato", il campanello dice
+  // solo "con contatto". Un contatto rotto non ferma la segnalazione: si scarta, e la risposta lo dice.
+  async V62() {
+    const f = finti();
+    const s = { tipo: "problema", titolo: "t", testo: "x", versione: "v0.2.9", sistema: "Darwin" };
+    const r = await gestisci(post("/v1/segnalazioni", { ...s, contatto: { nome: " Persona Prova ", email: "prova@example.com" } }), { ...f, adesso });
+    assert.equal(r.status, 201, "V62 segnalazione col contatto rifiutata");
+    assert.equal((await r.json()).contatto, "salvato", "V62 la risposta non dice che il contatto è salvato");
+    assert.deepEqual([f.stato.segnalazioni[0].contatto_nome, f.stato.segnalazioni[0].contatto_email], ["Persona Prova", "prova@example.com"],
+      "V62 il contatto non resta sul server");
+    assert.match(f.stato.avvisi[0], / · con contatto/, "V62 il campanello non dice che c'è un contatto");
+    const senza = await gestisci(post("/v1/segnalazioni", s), { ...f, adesso });
+    assert.ok(!("contatto" in await senza.json()), "V62 senza contatto la risposta ne parla");
+    assert.deepEqual([f.stato.segnalazioni[1].contatto_nome, f.stato.segnalazioni[1].contatto_email], ["", ""], "V62 un contatto inventato");
+    assert.doesNotMatch(f.stato.avvisi[1], /con contatto/, "V62 il campanello dice con contatto anche senza");
+  },
+  async V63() {
+    const f = finti();
+    const s = { tipo: "problema", titolo: "t", testo: "x" };
+    const rotti = [{ nome: "P", email: "non-una-email" }, { nome: "P", email: "" }, { nome: "x".repeat(81), email: "a@b.it" },
+      { nome: "riga\nnuova", email: "a@b.it" }, { nome: "P", email: `${"a".repeat(200)}@b.it` }, "prova@example.com", ["a@b.it"]];
+    for (const contatto of rotti) {
+      const r = await gestisci(post("/v1/segnalazioni", { ...s, contatto }), { ...f, adesso });
+      assert.equal(r.status, 201, `V63 un contatto rotto ferma la segnalazione: ${JSON.stringify(contatto).slice(0, 40)}`);
+      assert.equal((await r.json()).contatto, "scartato", `V63 un contatto rotto non è detto scartato: ${JSON.stringify(contatto).slice(0, 40)}`);
+    }
+    assert.ok(f.stato.segnalazioni.every((x) => x.contatto_nome === "" && x.contatto_email === ""), "V63 un contatto rotto resta sul server");
+    const solaEmail = await gestisci(post("/v1/segnalazioni", { ...s, contatto: { email: "a@b.it" } }), { ...f, adesso });
+    assert.equal((await solaEmail.json()).contatto, "salvato", "V63 l'email senza nome non si salva");
   },
 };
 

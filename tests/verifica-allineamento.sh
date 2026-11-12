@@ -2,6 +2,15 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# Una sessione di Claude col plugin esporta ARTURO_CODICE in ogni comando: i banchi lo erediterebbero e
+# crederebbero di girare col plugin anche nelle installazioni a clone (10/11/2026). Chi lo vuole lo mette lui.
+# Esce anche la sua cartella bin dal PATH: un banco che chiama `arturo` per nome (hooks/inject-now.sh, i
+# comandi) proverebbe il codice del plugin installato, non questo repository (#5206).
+if [[ -n "${ARTURO_CODICE:-}" ]]; then
+  PATH=$(printf '%s' "$PATH" | tr ':' '\n' | { grep -vxF -e "${ARTURO_CODICE%/}/bin" -e "${ARTURO_CODICE%/}/bin/" || true; } | paste -sd: -)
+  export PATH
+fi
+unset ARTURO_CODICE CLAUDE_PLUGIN_ROOT CLAUDE_ENV_FILE
 # --rossi rifà solo i lavori rossi dell'ultimo giro (tests/esegui_gate.py); --toccati fa girare solo i
 # lavori con una fonte fra i file cambiati. Servono a chi corregge, e stampano PARZIALE perché un
 # rilascio vuole un giro completo verde (docs/manutenzione.md). Le controprove con banco, fonti e base
@@ -171,6 +180,12 @@ BANCHI=(
   test_scansione_fallita_2026_11_03.py
   test_finestre_windows_2026_11_04.py
   test_sportello_2026_11_04.py
+  # Il contatto di chi segnala (10/11/2026): arturo contatto, prepara e invia, domanda una volta.
+  test_contatto_2026_11_10.py
+  # Le segnalazioni partono da sole (11/11/2026): manda, interruttore, tetto, avviso una volta.
+  test_segnala_auto_2026_11_11.py
+  # Gli script si leggono col bash 3.2 del Mac (10/11/2026, segnalazione n. 68).
+  test_bash32_2026_11_10.py
   test_humanizer_origine.py
   # Percorsi fra virgolette e alla maniera di Windows nelle guardie (9/11/2026, #5096).
   test_guardie_virgolette_2026_11_09.py
@@ -178,6 +193,10 @@ BANCHI=(
   test_guardie_regressioni_l2_2026_11_10.py
   # Un solo lettore dei comandi e un solo elenco dei percorsi protetti nelle guardie (10/11/2026, #5122).
   test_guardie_split_unico_2026_11_10.py
+  # Il ramo memoria non approva scritture fuori zona, e lo sblocco della config chiede (11/11/2026, #5261).
+  test_guardie_memoria_sblocco_2026_11_11.py
+  # Le guardie vedono scritture sulla config, heredoc eseguiti e comandi fra virgolette (11/11/2026, #5262).
+  test_guardie_cieche_2026_11_11.py
   # Difetti minori su Windows della review del 9/11: servizi di Claude, appunti, wt, codifica (10/11/2026, #5102).
   test_windows_minori_2026_11_10.py
 )
@@ -200,13 +219,15 @@ IN_FILA=(
   test_regole_doppie_2026_11_06.py
   # #4860 (6/11/2026): col plugin avvio e barra dicono che c'è un rilascio nuovo.
   test_avviso_plugin_2026_11_06.py
+  # Col plugin la chiusura installa il rilascio firmato (10/11/2026): misura un'attesa, gira in fila.
+  test_chiusura_plugin_2026_11_10.py
   # Review del 7/11/2026, lotto L2 (#4972): le guardie, dal dispatcher vero.
   test_revisione_2026_11_07.py
 )
 
 # Il minimo dichiarato è Python 3.8: la CLI e la pagina girano anche con quello. I banchi
 # lanciano la CLI con l'interprete che li esegue (sys.executable).
-PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_progetti_memoria_2026_11_11.py)
+PY38_BANCHI=(test_autoaggiorna.py test_aggiorna_firmato.py test_review_struttura.py test_todo.py test_web.py test_segnala.py test_telemetria.py test_deriva.py test_deriva_allineata.py test_personale.py test_memoria.py test_fine_inizio.py test_script.py test_guardie_unite.py test_heredoc.py test_heredoc_confini.py test_diagnosi.py test_hook_utf8.py test_scheda.py test_schede_mac_2026_10_29.py test_ritratto_2026_11_01.py test_setup_ritratto_2026_11_01.py test_telemetria_fase2_2026_11_03.py test_amend_2026_11_03.py test_sportello_2026_11_04.py test_progetti_memoria_2026_11_11.py test_contatto_2026_11_10.py test_bash32_2026_11_10.py)
 if [[ -z "$PY38" && -n "$RILASCIO" ]]; then
   # Un rilascio prova il minimo dichiarato: senza 3.8 i suoi banchi salterebbero in silenzio (review del
   # 7/11/2026, finding 91).
@@ -408,6 +429,12 @@ BASELINE=(
   "test_finestre_windows_2026_11_04.py efaa296"
   # Lo sportello delle segnalazioni (4/11/2026, #3925): ricevuta, pacchetto, redazione, risposta. fa14218, il dev prima.
   "test_sportello_2026_11_04.py fa14218"
+  # Il contatto di chi segnala (10/11/2026): arturo contatto non c'è. 3954f1d, il dev prima.
+  "test_contatto_2026_11_10.py 3954f1d"
+  # Le segnalazioni automatiche (11/11/2026): manda e l'interruttore non ci sono. 8709365, il dev prima.
+  "test_segnala_auto_2026_11_11.py 8709365"
+  # Il heredoc dentro <(...) di audit.sh (10/11/2026, n. 68): a7c5162, il dev prima.
+  "test_bash32_2026_11_10.py a7c5162"
   # Strati F3 (5/11/2026, #4533): MANIFEST firmato, catalogo con lo sha, /aggiorna che verifica il tag.
   # 809868a, il dev prima.
   "test_fiducia_2026_11_05.py 809868a"
@@ -419,6 +446,8 @@ BASELINE=(
   "test_regole_doppie_2026_11_06.py 3b5e6c3"
   # #4860 (6/11/2026): col plugin stato e controlla tacciono. 3b5e6c3, il dev prima.
   "test_avviso_plugin_2026_11_06.py 3b5e6c3"
+  # Col plugin la chiusura non lancia niente e applica non fa niente (10/11/2026). 62786fd, il dev prima.
+  "test_chiusura_plugin_2026_11_10.py 62786fd"
   # #5102 (10/11/2026): i quattro difetti minori su Windows. 3f12336, il dev prima.
   "test_windows_minori_2026_11_10.py 3f12336"
 )
@@ -460,6 +489,8 @@ VELENI=(
   test_regole_doppie_2026_11_06.py
   # #4860 (6/11/2026): una barra che lancia controlla da ~/.claude/bin col plugin non controlla mai (AV04).
   test_avviso_plugin_2026_11_06.py
+  # Chiusura col plugin (10/11/2026): senza il ramo plugin di session-end.sh la chiusura non installa niente (PC03).
+  test_chiusura_plugin_2026_11_10.py
   # Review del 7/11/2026, lotto L2 (#4972): con le guardie di e441828 ogni gruppo RW è rosso.
   test_revisione_2026_11_07.py
   # Review del 7/11/2026, lotto L9: una radice in più in deriva.py fa rosso A02 (finding 94).
@@ -470,12 +501,22 @@ VELENI=(
   test_guardie_regressioni_l2_2026_11_10.py
   # #5122 (10/11/2026): con le guardie di a2f90a5 ogni gruppo SU è rosso, SU06 perché la tabella manca.
   test_guardie_split_unico_2026_11_10.py
+  # #5261 (11/11/2026): con le guardie di 7a8bb69 ogni gruppo MS è rosso.
+  test_guardie_memoria_sblocco_2026_11_11.py
+  # #5262 (11/11/2026): con le guardie di b68e732 ogni gruppo GC è rosso.
+  test_guardie_cieche_2026_11_11.py
   # #5102 (10/11/2026): ogni correzione tolta fa rosso il suo caso WM.
   test_windows_minori_2026_11_10.py
   # Herdr (8/11/2026, ramo herdr): installazione, hook dello stato, invito, mod, Da dove partire, La settimana, azioni sui todo, Arturo.app, note sulla finestra e gitignore di data/ (HZ01-HZ15).
   test_herdr_2026_11_08.py
   # arturo progetti (11/11/2026): ogni rottura di bin/progetti.py fa rosso il suo caso PM.
   test_progetti_memoria_2026_11_11.py
+  # Il contatto (10/11/2026): senza il contatto nel corpo, nell'impronta o nell'avvio, CT03, CT05 e CT07 sono rossi.
+  test_contatto_2026_11_10.py
+  # Le segnalazioni automatiche (11/11/2026): ogni filtro tolto da manda fa rosso il suo caso SA.
+  test_segnala_auto_2026_11_11.py
+  # n. 68: il heredoc rimesso dentro <(...) fa rossi BS01 e, sul Mac, BS02.
+  test_bash32_2026_11_10.py
 )
 
 # Banchi, controprove e veleni girano in parallelo e tutti, anche dopo un rosso: un giro dice ogni rosso

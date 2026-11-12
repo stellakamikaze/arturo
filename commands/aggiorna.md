@@ -7,9 +7,10 @@ argument-hint: "(nessuno) | indietro | personale"
 
 Porti la copia di Arturo di chi ti parla all'ultima versione. Di solito non serve: dal 16/10/2026
 Arturo si aggiorna da solo alla chiusura della sessione, con i soli rilasci firmati
-(`bin/aggiornamenti.py`). `/aggiorna` serve quando l'avvio o la barra in basso dicono "serve
-/aggiorna" (modifiche non salvate, conflitto, aggiornamenti a mano), per tornare indietro, per le
-aggiunte personali, o quando la persona vuole guardare prima.
+(`bin/aggiornamenti.py`), anche quando è installato come plugin (dal 10/11/2026). `/aggiorna` serve
+quando l'avvio o la barra in basso dicono "serve /aggiorna" (modifiche non salvate, conflitto,
+aggiornamenti a mano), per tornare indietro, per le aggiunte personali, o quando la persona vuole la
+versione nuova subito o vuole guardare prima.
 
 `/aggiorna` applica **solo l'ultimo rilascio con un tag firmato**, con la stessa verifica
 dell'aggiornamento automatico (`bin/aggiornamenti.py firmato`), e legge la procedura da quel tag.
@@ -34,14 +35,21 @@ Il comando aggiorna il catalogo, controlla che il rilascio indicato sia un tag f
 dei rilasci e che porti proprio lo sha del catalogo. Claude Code installerebbe quello sha anche
 senza firma: la verifica la fa Arturo, prima.
 
-- `GIÀ AGGIORNATO`: diglielo in una frase e chiudi.
+- `GIÀ AGGIORNATO`: diglielo in una frase e chiudi. Se il plugin è arrivato da un'altra strada
+  (`claude plugin update`, il pannello `/plugin`), sotto c'è `IMPOSTAZIONI APPLICATE`, da dire nella stessa
+  frase, o `IMPOSTAZIONI NON APPLICATE`: proponi `/setup`, come sotto.
 - Una riga `plugin-v…` con `rc=0`: è la versione nuova, verificata. Chiedi il sì, poi lancia
   `python3 ~/.claude/bin/aggiornamenti.py plugin`. Fa `claude plugin update` e controlla la copia
   installata col suo MANIFEST firmato, poi unisce a settings.json le voci nuove del frammento
   (`impostazioni applica`). Con `APPLICATO` chiedi di riavviare Claude Code, poi `/novita`. Una riga
   `IMPOSTAZIONI NON APPLICATE` sotto dice quale voce è in conflitto: proponi `/setup`, che la decide con lei.
+- `AGGIORNAMENTO IN CORSO`: la chiusura di un'altra sessione sta già installando la versione nuova.
+  Diglielo in una frase e proponi di riprovare tra un minuto: non rilanciare da solo.
 - `rc=3` (`POSSIBILE COMPROMISSIONE`) o `rc=4` (`FIRMA NON VERIFICABILE`): vale quello che dice il
   Passo 1 qui sotto per le stesse parole. Niente `claude plugin update` a mano, neanche col suo sì.
+  Se la riga dice "ho disattivato Arturo", la copia nuova non ha superato il controllo e quella di prima
+  non è tornata: Arturo resta spento finché la persona non lo riattiva. Dille di segnalarlo come dice
+  `SECURITY.md`, e di lanciare `claude plugin enable arturo@arturo` solo dopo la risposta di chi mantiene Arturo.
 
 Con `COPIA IN ~/.claude` (`rc=5`) Arturo è una copia in `~/.claude`: prosegui dal Passo 1, senza
 dirlo alla persona. Con `NESSUN RILASCIO` il plugin non trova il suo catalogo: mostra la riga e
@@ -319,7 +327,8 @@ rm -f "$APPLICA"
 ```
 
 Gli esiti sono gli stessi del Passo 3. Se dice che nella copia di prova restano conflitti, torna al
-punto 1. Mai `--force`, mai `reset --hard`, mai un `checkout` che butti via il suo lavoro.
+punto 1. Se l'applicazione non entra, la copia risolta resta (la riga "La copia di prova risolta resta"
+la nomina): correggi la causa detta sopra e rilancia questo blocco, senza rifare la risoluzione. Mai `--force`, mai `reset --hard`, mai un `checkout` che butti via il suo lavoro.
 
 ## Passo 4 — Riavvio e racconto
 
@@ -348,7 +357,7 @@ python3 ~/.claude/bin/arturo personale ripristina hooks/<guardia>
 
 `RIPRISTINATO` vuol dire che la guardia è tornata quella di Arturo e il prossimo `/aggiorna` la porta
 all'ultima versione. Se dice di no, rispetta la scelta: la riga tornerà a ogni avvio finché la
-guardia resta diversa, e sta a lei. Se una guardia la ferma troppo spesso, proponi `/segnala`: la
+guardia resta diversa, e sta a lei. Se una guardia la ferma troppo spesso, segnalalo con `/segnala`: la
 correzione giusta va in Arturo, per tutti.
 
 ## Le sue aggiunte, senza aggiornare

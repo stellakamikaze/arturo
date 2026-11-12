@@ -7,7 +7,8 @@ Uso: arturo contesto [nome] [--giorni N]
   Senza nome usa la cartella in cui sei. Accetta anche gli argomenti interi di /inizio:
   "--tutti" si ignora, e il compito (le parole dopo il nome, o dopo " -- ") non fa parte del nome.
   "<nome> -- --rotazione <compito>" è la marca della rotazione automatica: --rotazione esce dal compito
-  e il contesto stampa la riga "rotazione: sì".
+  e il contesto stampa la riga "rotazione: sì". Con " --in-attesa <domanda>" in fondo, la domanda alla persona
+  rimasta aperta dopo la rotazione esce dal compito e il contesto stampa "in attesa: <domanda>".
 
 Stampa, in quest'ordine: progetto e cartella, la quota di 5 ore e settimana vista dalla barra, git (branch, modifiche, conflitti, commit dopo
 l'ultimo handoff, rami locali non riportati), la ripartenza degli handoff degli ultimi N giorni (14), i todo aperti del
@@ -167,7 +168,11 @@ def nomi_noti() -> set:
 
 
 def forti(pref: str, nomi) -> list:
-    """I nomi che contengono il prefisso intero, o tutte le sue parole di 3 lettere o più."""
+    """I nomi che contengono il prefisso intero, o tutte le sue parole di 3 lettere o più. Un prefisso di una
+    o due lettere non somiglia a niente: "ti ricordi…" sceglieva un progetto con "ti" nel nome (segnalazione
+    n. 64, 10/11/2026). Il nome scritto intero resta valido anche corto: lo trova trova_cartella."""
+    if len(pref.replace("-", "")) < 3:
+        return []
     parole = [p for p in pref.split("-") if len(p) >= 3]
     return sorted(n for n in nomi if pref in slug(n) or (len(parole) > 1 and all(p in slug(n) for p in parole)))
 
@@ -486,6 +491,13 @@ def compito_da(argv: list) -> tuple:
     return " ".join(parole), rotazione
 
 
+def separa_attesa(compito: str) -> tuple:
+    """(compito, domanda). Il mod della rotazione mette " --in-attesa <domanda>" in fondo quando la sessione
+    vecchia ha fatto una domanda alla persona dopo ruota (segnalazione n. 65, 10/11/2026)."""
+    parti = re.split(r"(?:^|\s)--in-attesa(?:\s|$)", compito, maxsplit=1)
+    return parti[0].strip(), (parti[1].strip() if len(parti) > 1 else "")
+
+
 def main(argv: list) -> int:
     if argv and argv[0] in ("-h", "--help", "aiuto", "help"):
         print(__doc__.strip())
@@ -494,6 +506,7 @@ def main(argv: list) -> int:
         # Gli argomenti di /inizio arrivano da un heredoc: la shell non li tocca (#4291, inizio.md).
         argv = [sys.stdin.read(), *argv[1:]]
     compito, rotazione = compito_da(argv)
+    compito, attesa = separa_attesa(compito) if rotazione else (compito, "")
     try:
         nome, giorni = leggi_argomenti(argv)
     except ValueError as e:
@@ -544,6 +557,8 @@ def main(argv: list) -> int:
         righe.append(f"compito: {compito}")
     if rotazione:
         righe.append("rotazione: sì (sessione aperta dalla rotazione automatica)")
+    if attesa:
+        righe.append(f"in attesa: {attesa}")
     quota = riga_quota()
     if quota:
         righe.append(quota)

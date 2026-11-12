@@ -23,7 +23,9 @@ Un Worker Cloudflare con un database D1. Riceve quattro cose e solo quelle:
   8/11/2026 resta solo la radice, `file:docs/altro`.
   Un id mai visto conta fra le installazioni nuove del giorno: oltre 50 il lotto riceve `429` e riparte domani. Della versione si salva solo il rilascio
   (`v2026-10-19.2`), senza i commit della persona; un tag della persona diventa `sconosciuta`.
-- `POST /v1/segnalazioni`: una segnalazione che la persona ha letto e approvato con `/segnala`. Dal
+- `POST /v1/segnalazioni`: una segnalazione di `/segnala`. Dall'11/11/2026 Claude la scrive e la manda da solo, poi
+  dice alla persona cosa è partito e come ritirarla; con `arturo segnalazioni manuali` parte solo dopo che la
+  persona l'ha letta e approvata. Dal
   4/11/2026 (lo sportello, #3925) porta anche `origine` (`segnala`, `avvio`, `fine`) e il
   `pacchetto` tecnico, con le sole voci `ambiente`, `banchi`, `config`, `deriva`, `errore` di 4000 caratteri al
   massimo: una voce fuori elenco o troppo lunga resta fuori, la segnalazione passa. Risponde `201` col

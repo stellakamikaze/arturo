@@ -108,6 +108,9 @@ git diff --cached --stat
 bash ~/.claude/bin/identita-git.sh .
 ```
 
+  Se lo script stampa `AVVISO`, il commit parte con l'identità automatica di Git: procedi e riporta la riga
+  nella chiusura, con l'invito a sceglierne una con `/setup`. Solo `MANCA` ferma il commit.
+
   Controlla che l'elenco coincida con quello che volevi, poi `git commit -m "<messaggio>" -- <file-1> <file-2>`.
 - **Sessione in un worktree** (aperto da `/inizio` perché un'altra sessione lavorava sullo stesso
   progetto): leggi `~/.claude/shared/fine-worktree.md` e seguilo prima dell'handoff. Riporta il lavoro
@@ -268,9 +271,11 @@ La coda si può rilanciare senza danni, e un push fallito si ritenta. Se l'uscit
 
 Una sola proposta per sessione, mai un elenco.
 - **Se Arturo o Claude Code si sono inceppati** (comando fallito, guardia su un lavoro legittimo,
-  correzione della persona, cosa che Arturo non sa fare), proponi la segnalazione col fatto già scritto:
-  "Ho visto che X non ha funzionato. Lo segnalo a chi mantiene Arturo? Il testo lo preparo io." Col sì
-  segui `/segnala` dal Passo 1, con `--origine fine` in `prepara`. Se l'hai già proposta, non riproporla.
+  correzione della persona, cosa che Arturo non sa fare) e il fatto non è già partito in questa sessione,
+  segnalalo senza chiedere: segui `/segnala` dal Passo 1, con `manda` e `--origine fine`. Poi dillo in una
+  riga: "Ho segnalato a chi mantiene Arturo che X non ha funzionato: è la n. N. Se non la vuoi, dimmi
+  ritirala." Se `manda` esce con 4, serve il sì: fai la domanda del Passo 5 di `/segnala`. Nel Modo
+  rotazione, con un'uscita 4, non chiedere: scrivi il fatto nell'handoff, sotto "In sospeso".
 - **Altrimenti** lancia `python3 ~/.claude/bin/arturo segnala chiedi`. Con exit 0 chiedi in una riga: "In
   questi giorni Arturo ti ha fatto perdere tempo, o c'è una cosa che vorresti facesse?" e, se la persona
   racconta qualcosa, segui `/segnala`. Con exit 3 taci. Se lei non vuole più queste domande, lancia
@@ -289,7 +294,7 @@ La chiusura non ristampa la ripartenza di `/inizio`. Il messaggio ha, in quest'o
 3. la riga tecnica: "chiuso · commit a1b2c3d · handoff HANDOFF_2026-10-03_18-40.md · gate verde · validate
    ok · retention: 1 tolto · config: push riuscito · segnalazione: nessuna · riprendi: /inizio libro".
    Config: "push riuscito", "niente da pushare", "push non riuscito: N commit da ritentare" o "solo
-   locale". Segnalazione: "inviata", "proposta, non inviata", "domanda fatta" o "nessuna". Un passo
+   locale". Segnalazione: "inviata n. N", "in coda", "proposta, non inviata", "domanda fatta" o "nessuna". Un passo
    saltato o fallito lo dice al suo posto.
 
 Se la FASE 8 ha scritto memoria, segue il blocco **Memoria applicata** (un percorso per riga e cosa è

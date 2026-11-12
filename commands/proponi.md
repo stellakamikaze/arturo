@@ -83,6 +83,6 @@ alla prossima sessione.
 
 ## Regole
 
-- Mai inviare senza il sì sulla bozza mostrata. Una modifica al testo passa di nuovo da `prepara`.
+- Mai inviare senza il sì sulla bozza mostrata, anche quando le segnalazioni partono da sole: qui esce un testo scritto dalla persona. Per questo si usa `prepara` e `invia`, mai `manda`. Una modifica al testo passa di nuovo da `prepara`.
 - Mai mandare la skill originale: solo la copia ripulita.
 - Un segreto trovato da `prepara` ferma tutto: toglilo dalla copia e rilancia `prepara`.

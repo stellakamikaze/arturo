@@ -28,7 +28,7 @@ Chi oggi usa Arturo su Mac trova all'avvio, una volta al giorno, la proposta di 
 
 ### Le correzioni della revisione di novembre {#revisione-novembre}
 
-Stato: in corso. Prima le guardie su Windows: la prima correzione, sui programmi scritti con `.exe`, è fatta.
+Stato: in corso. Prima le guardie su Windows: fatte le correzioni sui programmi scritti con `.exe` e in maiuscolo, e sul Python che manca.
 
 Una revisione ha riletto i comandi, le skill e le guardie di Arturo. Ha trovato buchi veri, soprattutto su Windows: un programma scritto con `.exe` passava dalle guardie senza conferma, e una copia poteva smettere di aggiornarsi senza dirlo. Le correzioni escono a gruppi: prima le guardie, poi l'aggiornamento, la chiusura delle sessioni, i comandi, le segnalazioni, il peso dei testi e la forma.
 

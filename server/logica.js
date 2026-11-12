@@ -3,7 +3,8 @@
 //
 // Cosa riceve il server, e solo questo:
 //   POST /v1/eventi        un lotto di eventi d'uso, con un id di installazione casuale
-//   POST /v1/segnalazioni  una segnalazione che la persona ha letto e approvato con /segnala
+//   POST /v1/segnalazioni  una segnalazione di /segnala: dall'11/11/2026 Claude la scrive e la manda da solo, e dice
+//                          alla persona cosa è partito; in modo manuale parte dopo che l'ha letta e approvata
 //   POST /v1/feedback      il modulo di feedback del sito (/api/feedback): testo, tipo, email facoltativa.
 //                          Dal 24/10/2026 il vocale non si accetta più
 //   POST /v1/sito          un download dal sito (/api/sito): il comando copiato o il repository aperto
@@ -187,6 +188,9 @@ export const LIMITI = {
   derivaInstallazioni: 100,
   segnalazioniPerGiorno: 200,
   segnalazioniInElenco: 50,
+  // Il contatto di chi segnala (10/11/2026): il nome come lo scrive la persona, l'email col tetto del feedback.
+  contattoNome: 80,
+  contattoEmail: 200,
   // Due tetti separati (16/10/2026): le segnalazioni, che chiunque può mandare, non consumano le
   // email delle config rotte.
   emailRottePerGiorno: 20,
@@ -337,6 +341,21 @@ export function validaLotto(dati, giornoServer) {
   return { righe, scartati, installazione };
 }
 
+// Il contatto di chi segnala (10/11/2026): nome ed email che la persona ha dato una volta con `arturo contatto`,
+// per essere ricontattata sulle sue segnalazioni. Facoltativo. Un contatto malformato non ferma la segnalazione:
+// si scarta, e la risposta lo dice. Non va mai nei campanelli, nel recap o nella telemetria (R18, V60).
+export const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export function validaContatto(c) {
+  if (c === undefined || c === null) return { contatto: null };
+  if (typeof c !== "object" || Array.isArray(c)) return { contatto: null, scartato: true };
+  const nome = typeof c.nome === "string" ? c.nome.trim() : "";
+  const email = typeof c.email === "string" ? c.email.trim() : "";
+  if (!nome && !email) return { contatto: null };
+  if (nome.length > LIMITI.contattoNome || /[\u0000-\u001f\u007f]/.test(nome)) return { contatto: null, scartato: true };
+  if (!email || email.length > LIMITI.contattoEmail || !RE_EMAIL.test(email)) return { contatto: null, scartato: true };
+  return { contatto: { nome, email } };
+}
+
 export function validaSegnalazione(dati) {
   if (!dati || typeof dati !== "object") return { motivo: "corpo mancante" };
   const tipo = TIPI.includes(dati.tipo) ? dati.tipo : null;
@@ -353,7 +372,9 @@ export function validaSegnalazione(dati) {
       if (valore && valore.trim()) pacchetto[voce] = valore;
     }
   }
+  const { contatto, scartato } = validaContatto(dati.contatto);
   return {
+    contatto: contatto ? "salvato" : scartato ? "scartato" : "",
     segnalazione: {
       tipo,
       titolo: titolo.trim(),
@@ -363,6 +384,8 @@ export function validaSegnalazione(dati) {
       installazione,
       origine: ORIGINI.includes(dati.origine) ? dati.origine : "segnala",
       pacchetto: Object.keys(pacchetto).length ? JSON.stringify(pacchetto) : "",
+      contatto_nome: contatto ? contatto.nome : "",
+      contatto_email: contatto ? contatto.email : "",
     },
   };
 }
@@ -489,7 +512,7 @@ const TIPO_IN_PAROLE = { problema: "un problema", proposta: "un'idea", integrazi
 // Chi ha segnalato, nella forma che esce dal server: 8 caratteri dell'installazione, la versione, il sistema.
 function provenienza(s) {
   const parti = [s.installazione ? `installazione ${s.installazione.slice(0, 8)}` : "installazione senza id",
-    s.versione ? `Arturo ${s.versione}` : "", s.sistema || ""];
+    s.versione ? `Arturo ${s.versione}` : "", s.sistema || "", s.contatto_email ? "con contatto" : ""];
   return parti.filter(Boolean).join(" · ");
 }
 
@@ -1046,7 +1069,7 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
     if (!await limite("moduli", request)) return risposta(429, { errore: "troppe richieste" });
     const { dati, errore } = await leggiJson(request, LIMITI.corpoSegnalazione);
     if (errore) return errore;
-    const { segnalazione, motivo } = validaSegnalazione(dati);
+    const { segnalazione, motivo, contatto } = validaSegnalazione(dati);
     if (motivo) return risposta(400, { errore: motivo });
     if (await archivio.contaSegnalazioni(giorno) >= LIMITI.segnalazioniPerGiorno) {
       return risposta(429, { errore: "troppe segnalazioni oggi" });
@@ -1068,7 +1091,7 @@ export async function gestisci(request, { archivio, posta, avviso = async () => 
         }
       }
     }
-    return risposta(201, { numero, email: partita, codice });
+    return risposta(201, { numero, email: partita, codice, ...(contatto ? { contatto } : {}) });
   }
 
   // Il modulo di feedback del sito, servito dalla landing come /api/feedback. Il testo resta qui, su Telegram

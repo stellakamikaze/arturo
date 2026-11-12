@@ -7,7 +7,13 @@ deve essere sempre uguale:
 - prepara: toglie cartelle personali, email, indirizzi web esterni, indirizzi IP, nomi di computer della rete e
   nomi di documenti (redigi, e l'anteprima dice cosa ha tolto), ferma la bozza se contiene un segreto, mostra
   l'anteprima col pacchetto tecnico a caselle;
-- invia: l'unico passo verso fuori, lanciato solo dopo il sì della persona. Quattro canali:
+- manda (11/11/2026): prepara e invia in un passo, senza la domanda "La mando?", solo sul canale arturo. È il
+  modo di default. Torna alla domanda (uscita 4) se la persona ha scelto le segnalazioni a mano, se ha detto basta,
+  se ha spento la telemetria, se ha scelto un altro canale, se non ha ancora letto l'avviso, se l'anteprima ha un
+  nome di documento da controllare o oltre il tetto di un giorno. La stessa segnalazione non parte due volte in 24 ore;
+- modo: `arturo segnalazioni automatiche|manuali`, l'interruttore. Vale anche ARTURO_SEGNALAZIONI=manuali;
+- avviso: la riga che l'avvio della sessione dice una volta sola, quando le segnalazioni diventano automatiche;
+- invia: il passo verso fuori di una segnalazione preparata. A mano parte solo dopo il sì della persona. Quattro canali:
   arturo (il default: la segnalazione va al server di Arturo, che la manda per email a chi lo
   mantiene; se la rete non risponde resta in attesa e parte con il prossimo invio della telemetria),
   gh (issue pubblica con la CLI di GitHub), web (la pagina della issue già compilata, la persona
@@ -23,8 +29,9 @@ deve essere sempre uguale:
 Lo stato (ultima domanda, ultima segnalazione, canale scelto, pausa) sta in
 ~/.claude/session-env/segnala.json. I codici delle ricevute in ~/.claude/data/segnalazioni/ricevute.json,
 leggibile solo dalla persona (lo sportello, 4/11/2026, #3925). Una copia di ogni segnalazione resta in
-~/.claude/data/segnalazioni/. Il modulo non raccoglie niente da solo: ogni segnalazione parte
-da una persona che ha visto il testo e ha detto sì.
+~/.claude/data/segnalazioni/. Il modulo non raccoglie niente da solo: ogni segnalazione nasce da un fatto
+della sessione, la scrive Claude, e la persona legge subito cosa è partito e come ritirarla. In modo manuale
+parte solo dopo il suo sì.
 
 Solo libreria standard, Python 3.8 o successivo.
 """
@@ -32,7 +39,9 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import platform
@@ -47,8 +56,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(os.path.realpath(__file__)).parent))
 import todo_store as ts  # noqa: E402
 import telemetria  # noqa: E402
+import contatto as contatti  # noqa: E402
 sys.path.append(str(Path(os.path.realpath(__file__)).parent.parent / "hooks"))
-from radici import radice_arturo, radice_orsa  # noqa: E402
+from radici import comando_arturo, radice_arturo, radice_orsa  # noqa: E402
 
 REPO = "stellakamikaze/arturo"
 EMAIL = "federico@stellakamikaze.org"
@@ -56,6 +66,17 @@ TIPI = ("problema", "proposta", "integrazione")
 CANALI = ("arturo", "gh", "web", "email")
 VERSIONE_STATO = 2
 GIORNI_TRA_DOMANDE = 7
+# Le segnalazioni automatiche (11/11/2026). Il tetto è una guardia contro i cicli, non un limite d'uso: oltre,
+# torna la domanda. La stessa segnalazione (tipo, titolo e testo uguali) non parte due volte nella finestra.
+AUTO_AL_GIORNO = 10
+AUTO_ORE = 24
+VARIABILE_MODO = "ARTURO_SEGNALAZIONI"
+SPEGNI = comando_arturo() + " segnalazioni manuali"
+AVVISO = ("SEGNALAZIONI: da questa versione, quando qualcosa di Arturo o di Claude Code si inceppa, Claude scrive la "
+          "segnalazione e la manda da solo a chi mantiene Arturo, senza chiedere \"La mando?\". Parte il fatto in poche "
+          "righe, senza nomi, clienti né contenuti di lavoro, col pacchetto tecnico (versioni, esito dei controlli, "
+          "stato della config). Ogni volta Claude dice cosa è partito, col numero e il comando per ritirarla. Per "
+          f"tornare alla domanda: {SPEGNI}. Dillo alla persona adesso, in due frasi, prima di ogni altra cosa.")
 # GitHub rifiuta URL troppo lunghi: oltre questa soglia la pagina si apre col solo titolo.
 URL_MASSIMO = 6000
 # Non è un segreto: lo scanner la segnala, la segnalazione può contenerla.
@@ -115,12 +136,18 @@ Di solito lo usa /segnala dentro Claude Code. Comandi:
 
   info                                   versione di Arturo e di Claude Code, sistema, gh collegato
   prepara --tipo T --titolo "…" --file BOZZA [--pacchetto VOCI] [--tieni CATEGORIE] [--errore FILE]
-          [--origine {"|".join(ORIGINI)}]
+          [--origine {"|".join(ORIGINI)}] [--senza-contatto]
                                          pulisce la bozza e mostra l'anteprima (T: {", ".join(TIPI)}).
                                          --pacchetto: le caselle accese, separate da virgole, o "nessuna"
                                          ({", ".join(v for v, _, _ in VOCI_PACCHETTO)}; di default
                                          {", ".join(v for v, _, a in VOCI_PACCHETTO if a)}).
                                          --tieni: cosa non togliere dal testo ({", ".join(REDAZIONE)})
+                                         --senza-contatto: questa parte senza il contatto di arturo contatto
+  manda --tipo T --titolo "…" --file BOZZA [--pacchetto VOCI] [--errore FILE] [--origine …] [--senza-contatto]
+                                         prepara e invia in un passo sul canale arturo, senza domanda. Esce 4,
+                                         con l'anteprima, quando serve il sì della persona: allora si usa invia
+  modo [automatiche|manuali]             le segnalazioni partono da sole (il default) o solo dopo il sì.
+                                         Lo stesso di: arturo segnalazioni automatiche|manuali
   invia --canale C --file PRONTA         la manda (C: arturo = diretta a chi mantiene Arturo, il default;
                                          gh = issue pubblica; web = pagina della issue compilata;
                                          email = testo negli appunti per {EMAIL})
@@ -158,6 +185,13 @@ def _data(valore):
         return None
 
 
+def _quando(valore):
+    try:
+        return dt.datetime.fromisoformat(valore) if isinstance(valore, str) else None
+    except ValueError:
+        return None
+
+
 def leggi_stato() -> dict:
     """Un file assente o rotto vale {}: la cadenza riparte, non si ferma niente."""
     try:
@@ -176,6 +210,13 @@ def leggi_stato() -> dict:
         stato["canale"] = grezzo["canale"]
     if grezzo.get("pausa") == "sempre":
         stato["pausa"] = "sempre"
+    if grezzo.get("modo") == "manuali":
+        stato["modo"] = "manuali"
+    # Le automatiche partite nella finestra: quando, impronta del testo, numero. Una voce rotta si scarta.
+    auto = [v for v in (grezzo.get("auto") or []) if isinstance(v, dict) and _quando(v.get("quando"))
+            and isinstance(v.get("impronta"), str)] if isinstance(grezzo.get("auto"), list) else []
+    if auto:
+        stato["auto"] = auto[-AUTO_AL_GIORNO * 3:]
     return stato
 
 
@@ -185,7 +226,9 @@ def cambia_stato(cambia) -> dict:
         cambia(stato)
         # La chiave "pausa" resta scritta anche quando è spenta: session-start la cerca col grep.
         pulito = {"versione": VERSIONE_STATO, "domanda": stato.get("domanda"), "inviata": stato.get("inviata"),
-                  "canale": stato.get("canale"), "pausa": stato.get("pausa")}
+                  "canale": stato.get("canale"), "pausa": stato.get("pausa"),
+                  # Anche "modo" resta scritto: session-start cerca "modo": "manuali" col grep.
+                  "modo": stato.get("modo"), "auto": stato.get("auto") or []}
         ts.scrivi_json_atomico(file_stato(), pulito)
     return pulito
 
@@ -521,6 +564,11 @@ def prepara(opz: dict) -> int:
     pronta = sorgente.with_name(sorgente.name + ".pronta.json")
     dati = {"tipo": tipo, "titolo": titolo, "testo": testo + FIRMA, "pacchetto": contenuto,
             "collega": "collega" in voci, "origine": origine, "tieni": list(tieni)}
+    # Il contatto (10/11/2026): nome ed email che la persona ha dato con `arturo contatto`, per essere ricontattata.
+    # Entra nell'impronta, quindi un contatto cambiato a mano dopo l'anteprima non parte.
+    contatto = None if opz.get("--senza-contatto") else contatti.contatto()
+    if contatto:
+        dati["contatto"] = contatto
     ts.scrivi_json_atomico(pronta, dict(dati, impronta=impronta_pronta(dati)))
     print(f"PRONTA: {pronta}\n")
     print(f"Titolo: {titolo}\n")
@@ -533,6 +581,11 @@ def prepara(opz: dict) -> int:
         print(f"Da controllare: {dubbi} nomi di documenti hanno una parola subito prima. Se è parte del nome "
               "(\"contratto rossi.zip\"), è rimasta nel testo: toglila dalla bozza e rilancia prepara.\n")
     print(anteprima_pacchetto(voci, contenuto, bool(errore)) + "\n")
+    if contatto:
+        print(f"Contatto per gli sviluppatori di Arturo: {contatti._descrivi(contatto)}. Parte solo col canale arturo, "
+              "per risponderti su questa segnalazione. Senza contatto: rilancia prepara con --senza-contatto.\n")
+    elif not opz.get("--senza-contatto") and not contatti.chiesto():
+        print(contatti.riga_domanda() + " Poi rilancia prepara.\n")
     print(f"Dove può andare:\n  arturo (di solito): arriva solo a chi mantiene Arturo, senza altri passi\n"
           f"  gh o web: issue pubblica su github.com/{REPO}, la vede chiunque\n"
           f"  email: testo negli appunti da mandare a {EMAIL}")
@@ -543,6 +596,9 @@ def impronta_pronta(dati: dict) -> str:
     """L'impronta di quello che prepara ha pulito e mostrato (review del 7/11/2026, finding 98): invia rifiuta un file
     scritto a mano o cambiato dopo l'anteprima. Non è una firma: dice che il file è quello dell'anteprima."""
     campi = {k: dati.get(k) for k in ("tipo", "titolo", "testo", "pacchetto", "collega", "origine", "tieni")}
+    # Il contatto entra solo se c'è (10/11/2026): un file preparato prima resta valido.
+    if "contatto" in dati:
+        campi["contatto"] = dati["contatto"]
     return hashlib.sha256(json.dumps(campi, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
@@ -553,7 +609,8 @@ def pulita(dati: dict) -> bool:
     return all(redigi(x, tieni)[0] == x for x in parti if isinstance(x, str))
 
 
-def invia(opz: dict) -> int:
+def invia(opz: dict, riporta: dict | None = None) -> int:
+    """`riporta`, se c'è, riceve numero, esito e copia: li legge manda per la sua riga finale."""
     canale, file = opz.get("--canale"), opz.get("--file")
     if canale not in CANALI or not file:
         print(f"Errore: servono --canale ({', '.join(CANALI)}) e --file", file=sys.stderr)
@@ -565,6 +622,12 @@ def invia(opz: dict) -> int:
         contenuto = {k: v for k, v in (dati.get("pacchetto") or {}).items()
                      if k in {x for x, _, _ in VOCI_PACCHETTO} and isinstance(v, str)}
         collega = dati.get("collega") is True
+        contatto = dati.get("contatto") if isinstance(dati.get("contatto"), dict) else None
+        if contatto is not None:
+            nome, email = contatto.get("nome"), contatto.get("email")
+            if not isinstance(nome, str) or not isinstance(email, str) or contatti.errore_contatto(nome, email):
+                raise ValueError("contatto non valido")
+            contatto = {"nome": nome, "email": email}
         origine = dati.get("origine") if dati.get("origine") in ORIGINI else "segnala"
         # Solo un file uscito da prepara, uguale a quello dell'anteprima e già pulito (finding 98).
         preparata = dati.get("impronta") == impronta_pronta(dati) and pulita(dati)
@@ -583,7 +646,7 @@ def invia(opz: dict) -> int:
 
     # Un solo orario per il file in attesa e la copia: lo stesso nome li lega quando parte (28/10/2026).
     adesso = dt.datetime.now()
-    esito, ricevuta = "", False
+    esito, ricevuta, arrivata = "", False, None
     if canale != "arturo" and contenuto:
         print("Il pacchetto tecnico resta su questo computer: parte solo col canale arturo.")
     if canale == "arturo":
@@ -595,6 +658,9 @@ def invia(opz: dict) -> int:
         # (4/11/2026: prima partiva sempre a telemetria accesa).
         if collega and not telemetria.perche_spenta():
             dati_server["installazione"] = telemetria.installazione()
+        # Il contatto parte anche a telemetria spenta: la persona l'ha dato per le segnalazioni (10/11/2026).
+        if contatto:
+            dati_server["contatto"] = contatto
         status, risposta = telemetria.posta_json("/v1/segnalazioni", dati_server, timeout=10)
         if 200 <= status < 300:
             esito = "arrivata a chi mantiene Arturo"
@@ -603,9 +669,12 @@ def invia(opz: dict) -> int:
             numero = risposta.get("numero")
             if isinstance(numero, int) and not isinstance(numero, bool) and numero > 0:
                 esito += f": è la segnalazione n. {numero}"
+                arrivata = numero
                 # La ricevuta (4/11/2026): col codice la persona legge la risposta. Un server di prima non lo manda.
                 if telemetria.salva_codice(numero, risposta.get("codice")):
                     ricevuta = True
+            if contatto and risposta.get("contatto") == "scartato":
+                esito += " (il server non ha accettato il contatto: controllalo con arturo contatto)"
             # Il server risponde: partono anche quelle rimaste in attesa (27/10/2026).
             partite = telemetria.invia_segnalazioni_in_attesa()
             if partite:
@@ -656,10 +725,124 @@ def invia(opz: dict) -> int:
     oggi = ts.oggi().isoformat()
     cambia_stato(lambda s: s.update({"inviata": oggi, "canale": canale}))
     telemetria.registra("segnalazione", tipo)
+    if riporta is not None:
+        riporta.update(esito=esito, copia=str(copia), titolo=titolo, numero=arrivata, ricevuta=ricevuta)
     print(f"\nFatto: {esito}.\nCopia: {copia}")
     if ricevuta:
         print("Ricevuta: il codice per leggere la risposta è salvato su questo computer. "
               "La risposta di chi mantiene Arturo si legge con: arturo segnala stato")
+    return 0
+
+
+def file_annuncio() -> Path:
+    return radice_orsa() / "session-env" / "segnalazioni-annuncio"
+
+
+def modo_segnalazioni() -> tuple:
+    """("automatiche" | "manuali", perché). A mano per scelta della persona: l'interruttore, la variabile, il "basta"
+    agli inviti, la telemetria spenta. Chi ha detto di non mandare niente da solo non riceve un invio da solo."""
+    if os.environ.get(VARIABILE_MODO, "").strip().lower() == "manuali":
+        return "manuali", f"la variabile {VARIABILE_MODO} dice manuali"
+    stato = leggi_stato()
+    if stato.get("modo") == "manuali":
+        return "manuali", "hai scelto le segnalazioni a mano (arturo segnalazioni automatiche le riaccende)"
+    if stato.get("pausa") == "sempre":
+        return "manuali", "hai detto basta agli inviti a segnalare (arturo segnala riprendi li riaccende)"
+    spenta = telemetria.perche_spenta()
+    if spenta:
+        return "manuali", f"la telemetria è spenta ({spenta}): da qui niente parte da solo"
+    return "automatiche", ""
+
+
+def impronta_testo(dati: dict) -> str:
+    """La stessa segnalazione, per il controllo delle 24 ore: tipo, titolo e testo, senza il pacchetto che cambia."""
+    return hashlib.sha256("\n".join((dati["tipo"], dati["titolo"], dati["testo"])).encode("utf-8")).hexdigest()[:24]
+
+
+def _auto_recenti(stato: dict, adesso: dt.datetime) -> list:
+    return [v for v in stato.get("auto") or [] if (adesso - _quando(v["quando"])) < dt.timedelta(hours=AUTO_ORE)]
+
+
+def avviso() -> int:
+    """Per l'avvio della sessione, una volta sola: la riga che dice che le segnalazioni ora partono da sole. In modo
+    manuale tace e non consuma l'avviso: lo dirà quando la persona riaccende le automatiche."""
+    if file_annuncio().exists() or modo_segnalazioni()[0] == "manuali":
+        return 0
+    print(AVVISO)
+    _segna_annuncio()
+    return 0
+
+
+def _segna_annuncio() -> None:
+    try:
+        file_annuncio().parent.mkdir(parents=True, exist_ok=True)
+        file_annuncio().write_text(ts.oggi().isoformat(), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def manda(opz: dict) -> int:
+    """Prepara e invia in un passo, sul canale arturo, senza la domanda (11/11/2026). Uscite: 0 partita, in coda o
+    già partita nelle ultime 24 ore; 3 un segreto, niente parte; 4 serve il sì della persona, e l'anteprima è
+    stampata come la stampa prepara: dopo il sì si lancia invia sul file PRONTA."""
+    anteprima = io.StringIO()
+    with contextlib.redirect_stdout(anteprima):
+        esito = prepara(opz)
+    if esito != 0:
+        if esito == 3:
+            print("Non è partita: un segreto non esce mai, nemmeno da solo.", file=sys.stderr)
+        return esito
+    pronta = Path(opz["--file"]).with_name(Path(opz["--file"]).name + ".pronta.json")
+    dati = json.loads(pronta.read_text(encoding="utf-8"))
+    adesso, stato = dt.datetime.now(), leggi_stato()
+    recenti, impronta = _auto_recenti(stato, adesso), impronta_testo(dati)
+
+    modo, perche = modo_segnalazioni()
+    if modo == "automatiche":
+        if stato.get("canale") not in (None, "arturo"):
+            perche = f"hai scelto il canale {stato['canale']}: da solo parte solo il canale arturo"
+        elif not file_annuncio().exists():
+            # Niente parte da solo prima che la persona sappia che può succedere.
+            perche = "la persona non ha ancora letto l'avviso delle segnalazioni automatiche. Diglielo ora: " + AVVISO
+            _segna_annuncio()
+        elif "\nDa controllare: " in "\n" + anteprima.getvalue():
+            perche = "un nome di documento è da controllare a occhio"
+        elif len(recenti) >= AUTO_AL_GIORNO:
+            perche = (f"oggi sono già partite da sole {len(recenti)} segnalazioni, il tetto di {AUTO_ORE} ore: "
+                      "troppe insieme fanno pensare a un ciclo")
+    if perche:
+        print(anteprima.getvalue().rstrip() + "\n")
+        print(f"DOMANDA: questa non parte da sola, perché {perche}. Mostra l'anteprima alla persona e chiedi "
+              f"\"La mando?\". Dopo il sì: arturo segnala invia --canale arturo --file {pronta}")
+        return 4
+    gia = next((v for v in recenti if v["impronta"] == impronta), None)
+    if gia:
+        quale = f"è la n. {gia['numero']}" if gia.get("numero") else "è in coda"
+        print(f"Già segnalata: la stessa segnalazione è partita il {gia['quando'][:16].replace('T', ' alle ')}, {quale}. "
+              "Non parte niente di nuovo.")
+        return 0
+
+    riporta, muto = {}, io.StringIO()
+    with contextlib.redirect_stdout(muto):
+        esito = invia({"--canale": "arturo", "--file": str(pronta)}, riporta)
+    if esito != 0:
+        return esito
+    numero = riporta.get("numero")
+    cambia_stato(lambda s: s.__setitem__("auto", _auto_recenti(s, adesso)
+                                         + [{"quando": adesso.isoformat(timespec="seconds"), "impronta": impronta,
+                                             "numero": numero}]))
+    if numero and riporta.get("ricevuta"):
+        print(f"Segnalato n. {numero}: {riporta['titolo']}. Per ritirarla: arturo segnala ritira {numero}")
+    elif numero:
+        print(f"Segnalato n. {numero}: {riporta['titolo']}.")
+    else:
+        print(f"Segnalato, in coda: {riporta['titolo']}. Il server ora non risponde, parte da sola alla prossima sessione.")
+    for riga in anteprima.getvalue().splitlines():
+        if riga.startswith("Tolto dal testo: "):
+            print(riga.split(". Se servono", 1)[0] + ".")
+    print(f"Copia: {riporta['copia']}")
+    print("Dillo alla persona in una riga: cosa è partito, il numero e come ritirarla. "
+          f"Per tornare alla domanda \"La mando?\": {SPEGNI}")
     return 0
 
 
@@ -866,7 +1049,12 @@ def main(argv: list) -> int:
             print(info())
             return 0
         if comando == "prepara":
-            return prepara(_opzioni(resto, ("--tipo", "--titolo", "--file", "--pacchetto", "--tieni", "--errore", "--origine")))
+            senza = "--senza-contatto" in resto
+            opz = _opzioni([x for x in resto if x != "--senza-contatto"],
+                           ("--tipo", "--titolo", "--file", "--pacchetto", "--tieni", "--errore", "--origine"))
+            if senza:
+                opz["--senza-contatto"] = True
+            return prepara(opz)
         if comando in ("seguito", "ritira") and resto:
             conferma = "--conferma" in resto
             altri = [x for x in resto[1:] if x != "--conferma"]
@@ -874,6 +1062,33 @@ def main(argv: list) -> int:
             if conferma:
                 opz["--conferma"] = True
             return seguito(resto[0], opz) if comando == "seguito" else ritira(resto[0], opz)
+        if comando == "manda":
+            if any(x == "--tieni" or x.startswith("--tieni=") for x in resto):
+                raise ValueError("manda non accetta --tieni: quello che lo script toglie resta fuori da un invio "
+                                 "senza domanda. Se serve, usa prepara con --tieni e chiedi il sì")
+            senza = "--senza-contatto" in resto
+            opz = _opzioni([x for x in resto if x != "--senza-contatto"],
+                           ("--tipo", "--titolo", "--file", "--pacchetto", "--errore", "--origine"))
+            if senza:
+                opz["--senza-contatto"] = True
+            return manda(opz)
+        if comando == "avviso" and not resto:
+            return avviso()
+        if comando == "modo" and len(resto) <= 1:
+            if resto and resto[0] not in ("automatiche", "manuali"):
+                raise ValueError(f'modo sconosciuto: "{resto[0]}" (automatiche, manuali)')
+            if resto:
+                cambia_stato(lambda s: s.__setitem__("modo", "manuali" if resto[0] == "manuali" else None))
+            modo, perche = modo_segnalazioni()
+            if modo == "manuali":
+                print("Segnalazioni a mano: Claude prepara il testo, te lo mostra e chiede \"La mando?\". "
+                      + ("" if leggi_stato().get("modo") == "manuali" else f"Vale perché {perche}. ")
+                      + "Per farle partire da sole: arturo segnalazioni automatiche")
+            else:
+                print("Segnalazioni automatiche: quando qualcosa di Arturo si inceppa, Claude scrive la segnalazione e "
+                      "la manda a chi mantiene Arturo, poi ti dice cosa è partito e come ritirarla. "
+                      "Per tornare alla domanda: arturo segnalazioni manuali")
+            return 0
         if comando == "invia":
             return invia(_opzioni(resto, ("--canale", "--file")))
         if comando == "stato" and not resto:

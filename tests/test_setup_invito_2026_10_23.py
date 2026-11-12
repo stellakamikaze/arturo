@@ -64,7 +64,8 @@ def test_si02(repo: Path) -> None:
         radice = Path(t)
         home = installazione(repo, radice)
         assert avvio(home, radice), "SI02 un'installazione nuova non riceve l'invito"
-        (home / ".claude" / "data").mkdir()
+        # Dal 10/11/2026 l'avvio scrive già data/contatto.json (la domanda del contatto, una volta).
+        (home / ".claude" / "data").mkdir(exist_ok=True)
         (home / ".claude" / "data" / "setup-fatto").write_text("2026-10-23\n", encoding="utf-8")
         (home / ".claude" / "session-env" / "setup-invito").write_text("2026-01-01\n", encoding="utf-8")
         dopo = avvio(home, radice)

@@ -20,17 +20,29 @@ MOTIVO=$(printf '%s' "$HOOK_INPUT" | sed -n 's/.*"reason"[[:space:]]*:[[:space:]
 # se resta aperta un'altra sessione: la installa la chiusura dopo, senza più aspettare le altre (#4074).
 # Un /clear chiude la sessione ma il processo resta vivo, coi mod caricati: niente aggiornamento, né subito
 # né come rinvio. Il secondo /clear installava il rinvio sotto la sessione aperta (finding 19, 7/11/2026).
-if [ -f "$HOME/.claude/bin/aggiornamenti.py" ] && [ "${ARTURO_AGGIORNAMENTI:-}" != "manuali" ] && [ "$MOTIVO" != clear ]; then
-  mkdir -p "$HOME/.claude/session-env" 2>/dev/null
-  ARTURO_BASH="$BASH" nohup python3 "$HOME/.claude/bin/aggiornamenti.py" applica \
-    >> "$HOME/.claude/session-env/aggiornamento.log" 2>&1 < /dev/null &
+# Il codice si trova dalla cartella di questo hook, come in session-start.sh (strati F1, docs/strati.md).
+ARTURO_CODICE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
+[ -n "$ARTURO_CODICE" ] || ARTURO_CODICE="$HOME/.claude"
+# Col clone lo script sta in ~/.claude. Col plugin sta accanto a questo hook (10/11/2026): la chiusura installa
+# il rilascio firmato con la strada di /aggiorna, e non rinvia. Fino alla 0.2.10 col plugin qui non partiva
+# niente. Un checkout di sviluppo (con .git, fuori da ~/.claude) non installa niente.
+AGGIORNA=""
+ORSA_AGG="$HOME/.claude"
+if [ -f "$HOME/.claude/bin/aggiornamenti.py" ]; then
+  AGGIORNA="$HOME/.claude/bin/aggiornamenti.py"
+elif [ -f "$ARTURO_CODICE/.claude-plugin/plugin.json" ] && [ ! -e "$ARTURO_CODICE/.git" ]; then
+  AGGIORNA="$ARTURO_CODICE/bin/aggiornamenti.py"
+  ORSA_AGG="${ARTURO_RADICE:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}}"
+fi
+if [ -n "$AGGIORNA" ] && [ -f "$AGGIORNA" ] && [ "${ARTURO_AGGIORNAMENTI:-}" != "manuali" ] && [ "$MOTIVO" != clear ]; then
+  mkdir -p "$ORSA_AGG/session-env" 2>/dev/null
+  # Il processo staccato può restare senza `claude` nel PATH: glielo passa la sessione che si chiude.
+  ARTURO_BASH="$BASH" ARTURO_CLAUDE="${ARTURO_CLAUDE:-$(command -v claude 2>/dev/null)}" \
+    nohup python3 "$AGGIORNA" applica >> "$ORSA_AGG/session-env/aggiornamento.log" 2>&1 < /dev/null &
 fi
 
 # Telemetria (3/11/2026, #4540): durata e messaggi della sessione in fasce, e le skill usate. Legge il
 # transcript in background, così la chiusura non aspetta; spenta, telemetria.py non registra niente.
-# Il codice si trova dalla cartella di questo hook, come in session-start.sh (strati F1, docs/strati.md).
-ARTURO_CODICE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
-[ -n "$ARTURO_CODICE" ] || ARTURO_CODICE="$HOME/.claude"
 if [ -n "$HOOK_INPUT" ] && [ -f "$ARTURO_CODICE/bin/telemetria.py" ]; then
   printf '%s' "$HOOK_INPUT" | nohup python3 "$ARTURO_CODICE/bin/telemetria.py" fine >/dev/null 2>&1 &
 fi
