@@ -354,6 +354,12 @@ HZ86 ⌘↓ e ⌘↑ girano fra tutte le sessioni dell'elenco (12/11/2026): keys
      Volta.giro(). sessioni.js con node: ordineGiro() segue le righe mostrate e lascia fuori le sessioni
      che stanno in un Terminale; statoGiro() tiene l'ordine dentro una raffica di tasti; passoGiro() gira
      in tondo; sessioneDi() riconosce la scheda in primo piano per etichetta, argv o terminale.
+HZ87 il motivo di una sessione che non si apre (11/11/2026, #5358): motivoUscita di sessioni.js (con node)
+     legge dallo schermo della scheda perché Claude è uscito, guarda solo l'ultimo aggancio scritto nella
+     shell, e dice `fermo` quando riprovare non serve (macchina che non si raggiunge, cartella illeggibile,
+     sessione che non c'è più). La veglia di dati.js (con node) mette quella frase sulla riga, non riavvia
+     per una causa ferma e riavvia una volta sola per le altre. Una scheda che vive su un'altra macchina
+     (indirizzo "macchina/t7") non conta come scheda di questa finestra: il clic ne apre una qui.
 """
 from __future__ import annotations
 
@@ -369,7 +375,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87")
 INSTALLA = Path("shared/volta-celeste/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -6253,7 +6259,115 @@ def hz86(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86}
+PROVA_MOTIVO = r"""
+import * as m from "./sessioni.mjs";
+const torre = { macchina: "Torre", host: "torre.lan" }, qui = { questa: true, macchina: "MacBook" };
+const aggancio = "federico@mac ~ % ssh -t torre.lan claude attach ffff1111\n";
+const vedi = (schermo, s = torre) => m.motivoUscita(schermo, s);
+console.log(JSON.stringify({
+  rete: vedi(aggancio + "ssh: connect to host torre.lan port 22: Operation timed out\nfederico@mac ~ % "),
+  cartella: vedi(aggancio + "Error: EINTR: interrupted system call, uv_cwd\n"),
+  sparita: vedi(aggancio + "No job matching ffff1111\n"),
+  colori: vedi(aggancio + "\u001b[31mNot\u001b[1m logged\u001b[0m in · Please run /login\n"),
+  init: vedi(aggancio + "Session ffff1111 has exited (exit 1 before init: at Object.<anonymous> (/x/cli.js:12))\n"),
+  altro: vedi(aggancio + "Session ffff1111 can't start — out of memory.\n"),
+  ultimo: vedi("federico@mac ~ % ssh -t torre.lan claude attach ffff1111\nfederico@torre.lan: Permission denied (publickey).\n" +
+               "federico@mac ~ % claude attach ffff1111\nSession ffff1111 has exited (boom)\n"),
+  qui: vedi("federico@mac ~ % claude attach ffff1111\nzsh: command not found: claude\n", qui),
+  niente: vedi("federico@mac ~ % ls\nDocumenti\n"),
+  vuoto: [m.motivoUscita("", torre), m.motivoUscita(null, null)],
+}));
+"""
+
+
+def hz87(repo: Path, casa: Path) -> str | None:
+    node = shutil.which("node")
+    if not node:
+        return None
+    mod = repo / "shared/volta-celeste/mods/arturo"
+    puro = casa / "puro"
+    puro.mkdir()
+    shutil.copyfile(mod / "sessioni.js", puro / "sessioni.mjs")
+    (puro / "prova.mjs").write_text(PROVA_MOTIVO, encoding="utf-8")
+    r = subprocess.run([node, str(puro / "prova.mjs")], capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    d = json.loads(r.stdout.strip().splitlines()[-1])
+    attesi = (("rete", True, "Torre non si raggiunge via ssh"), ("cartella", True, "Su Torre Claude non riesce a leggere la cartella"),
+              ("sparita", True, "Su Torre questa sessione non c'è più"), ("colori", True, "Su Torre Claude non è collegato all'account"),
+              ("init", False, "Claude esce prima di iniziare (exit 1 before init)"), ("altro", False, "Su Torre Claude esce appena parte (out of memory)."),
+              ("ultimo", False, "Su Torre Claude esce appena parte (boom)."), ("qui", True, "Su questa macchina non trovo il programma claude"))
+    for k, fermo, pezzo in attesi:
+        v = d.get(k)
+        if not v or v.get("fermo") is not fermo or pezzo not in v.get("testo", ""):
+            return f"motivoUscita, caso {k}: {v}, atteso fermo {fermo} e la frase {pezzo!r}"
+    if "cli.js" in d["init"]["testo"] or "Permission denied" in d["ultimo"]["testo"]:
+        return f"motivoUscita porta sulla riga la traccia interna o un tentativo vecchio: {d['init']}, {d['ultimo']}"
+    if d["niente"] is not None or d["vuoto"] != [None, None]:
+        return f"motivoUscita inventa un motivo: {d['niente']}, {d['vuoto']}"
+    # la veglia e le schede remote, su dati.js
+    m = casa / "mod"
+    m.mkdir()
+    mod_dati(repo, m, (mod / "dati.js").read_text(encoding="utf-8"))
+    (m / "prova.mjs").write_text(PROVA_APRI, encoding="utf-8")
+    app = casa / "app"
+    app.mkdir()
+    (app / "arturo.json").write_text(json.dumps({"arturo": ["python9", "/a/bin/arturo"], "radice": str(repo), "base": "/base"}), encoding="utf-8")
+    attach = ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"]
+    nascita = ["/bin/zsh", "-lic", '"$@"; exec "$0" -li', "/bin/zsh", *attach]
+    viva = {"state": "live", "pid": 10, "argv": nascita, "foreground": {"pid": 77, "argv": attach}}
+    nuda = {"state": "live", "pid": 10, "argv": nascita, "foreground": {"pid": 10, "argv": ["/bin/zsh", "-li"]}}
+    spazio = {"id": "s1", "name": "progetto-x", "named": True, "active": True, "tabs": [{"id": "tb0", "name": "Shell"}]}
+    herdr = {"spaces": [spazio], "panes": [{"terminal": "t3", "tab": "tb0"}], "terminals": [{"address": "t3", "argv": ["zsh"]}]}
+    remota = {"spaces": [spazio], "panes": [{"terminal": "t3", "tab": "tb0"}, {"terminal": "torre/t7", "tab": "tbR"}],
+              "terminals": [{"address": "t3", "argv": ["zsh"]},
+                            {"address": "torre/t7", "argv": ["claude", "attach", "ffff1111"], "labels": {"arturo.sessione": "ffff1111"}}]}
+    aggancio = "federico@mac ~ % ssh -t torre.lan claude attach ffff1111\n"
+
+    def volta(herdr=herdr, letture=None, schermo=None, **extra):
+        e = {**os.environ, "HZ_APP": str(app), "HZ_CASA": str(casa / "casa"), "HZ_CASO": "apri", "HZ_EXEC": '{"ok": true}',
+             "HZ_SHARED": json.dumps({"arturo.volta.macchine": [], "arturo.dove": "qui"}), "HZ_NASCE": "t9",
+             "HZ_HERDR": json.dumps(herdr), "HZ_HC_GET": json.dumps(letture or {}),
+             "HZ_HC_READ": json.dumps({} if schermo is None else {"t9": schermo}), **extra}
+        for k in ("HZ_STATO", "HZ_PRONTA", "HZ_HC_ROTTO"):
+            e.pop(k, None)
+        r = subprocess.run([node, str(m / "prova.mjs")], capture_output=True, text=True, timeout=30, env=e)
+        if r.returncode != 0:
+            raise RuntimeError((r.stderr or r.stdout).strip()[:200])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    sonda = lambda v: [x[3:] for x in v["eseguiti"] if len(x) > 2 and x[2] == "apri"]  # noqa: E731
+    nuove = lambda v: [x for x in v["lanciati"] if x["cmd"] in ("tab.new", "space.new")]  # noqa: E731
+    invii = lambda v: [x for x in v["inviati"] if x[0] == "send"]  # noqa: E731
+    try:
+        # una causa ferma: la riga dice il motivo, niente riavvio e niente rilancio
+        v = volta(letture={"t9": [nuda]}, schermo=aggancio + "ssh: connect to host torre.lan port 22: Operation timed out\n")
+        errore = (v["veglia"] or {}).get("errore", "")
+        if "Torre non si raggiunge via ssh" not in errore:
+            return f"la riga non dice perché la sessione non si apre: {v['veglia']}"
+        if any("--riavvia" in x for x in sonda(v)) or invii(v):
+            return f"una macchina che non si raggiunge viene riavviata e riprovata: {sonda(v)}, {invii(v)}"
+        # una causa che può passare: un riavvio solo, e se non basta la riga dice il motivo letto
+        v = volta(letture={"t9": [nuda]}, schermo=aggancio + "Session ffff1111 has exited (boom)\n")
+        errore = (v["veglia"] or {}).get("errore", "")
+        if [x for x in sonda(v) if "--riavvia" in x] != [["Torre", "ffff1111", "--riavvia"]] or len(invii(v)) != 1:
+            return f"una sessione uscita per un motivo che può passare non si riavvia una volta sola: {sonda(v)}, {invii(v)}"
+        if "Su Torre Claude esce appena parte (boom)." not in errore:
+            return f"dopo il riavvio fallito la riga non dice il motivo: {v['veglia']}"
+        # uno schermo che non dice niente: la frase generica di prima
+        v = volta(letture={"t9": [nuda]}, schermo="federico@mac ~ % ")
+        if "non resta aperto" not in (v["veglia"] or {}).get("errore", ""):
+            return f"senza un motivo riconoscibile manca la frase generica: {v['veglia']}"
+        # la scheda della stessa sessione su un'altra macchina non è una scheda di questa finestra
+        v = volta(herdr=remota, letture={"t9": [viva]})
+        if v["esito"].get("come") != "nuova" or len(nuove(v)) != 1 or any(x.get("cmd") == "tab.select" and x.get("id") == "tbR" for x in v["lanciati"]):
+            return f"una scheda di un'altra macchina passa per scheda di questa finestra: {v['esito']}, {v['lanciati']}"
+    except RuntimeError as e:
+        return f"dati.js non gira: {e}"
+    return None
+
+
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -6272,6 +6386,20 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ87', 'shared/volta-celeste/mods/arturo/dati.js', 'const l = terminals().filter((x) => visti.has(x.address) && !String(x.address).includes("/"));', 'const l = terminals().filter((x) => visti.has(x.address));'),
+    ('HZ87', 'shared/volta-celeste/mods/arturo/dati.js', '  if (riavviata || m?.fermo) return fallita(m);', '  if (riavviata) return fallita(m);'),
+    ('HZ87', 'shared/volta-celeste/mods/arturo/dati.js', '  if (riavviata || m?.fermo) return fallita(m);', '  if (riavviata || m) return fallita(m);'),
+    ('HZ87', 'shared/volta-celeste/mods/arturo/dati.js', '({ errore: m?.testo ?? "Claude non resta aperto', '({ errore: "Claude non resta aperto'),
+    ('HZ87', 'shared/volta-celeste/mods/arturo/dati.js', '    return r.code === 0 ? motivoUscita(r.stdout, s) : null;', '    return null;'),
+    ('HZ87', 'shared/volta-celeste/mods/arturo/dati.js', 'fallita((await perche(s, indirizzo)) ?? m)', 'fallita(null)'),
+    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', '  righe.forEach((r, i) => { if (/[%$#>]\\s.*\\battach\\s+[\'"]?[\\w-]{4,}/.test(r)) da = i; });\n', ''),
+    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', 'return { testo: frase(m), fermo: true };', 'return { testo: frase(m), fermo: false };'),
+    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', '  const m = s?.questa ? "questa macchina" : (s?.macchina', '  const m = !s?.questa ? "questa macchina" : (s?.macchina'),
+    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', '  if (/before init/.test(perche)) return', '  if (false) return'),
+    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', 'Claude esce appena parte (${perche}).`, fermo: false };', 'Claude esce appena parte (${perche}).`, fermo: true };'),
+    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', '  [/No job matching/, (m)', '  [/No job matchingX/, (m)'),
+    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', '.replace(/\\u001b\\[[0-9;?]*[A-Za-z]/g, "").split("\\n");', '.split("\\n");'),
+    ('HZ87', 'shared/volta-celeste/mods/arturo/sessioni.js', '  if (perche) return { testo:', '  if (false) return { testo:'),
     ("HZ86", "shared/volta-celeste/keys.json", '"cmd-down": "arturo.volta-giro-avanti"', '"cmd-down": "agent.next"'),
     ("HZ86", "shared/volta-celeste/mods/arturo/barra.js", 'else if (c === "volta-giro") this.volta.giro(arg, cx);', ""),
     ("HZ86", "shared/volta-celeste/mods/arturo/comandi.js", 'return { verbo: "volta-giro", arg: c.endsWith("avanti") ? 1 : -1, lungo: false };', 'return { verbo: "volta-giro", arg: 1, lungo: false };'),

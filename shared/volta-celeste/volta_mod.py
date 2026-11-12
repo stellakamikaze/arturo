@@ -39,6 +39,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -108,12 +109,19 @@ def segna(esito: str, **altro) -> dict:
     return d
 
 
+# Il programma git, come elenco di argomenti. VOLTA_GIT (JSON) lo cambia: serve al banco.
+try:
+    GIT = [str(x) for x in json.loads(os.environ.get("VOLTA_GIT") or '["git"]')] or ["git"]
+except (ValueError, TypeError):
+    GIT = ["git"]
+
+
 def ssh_di_git() -> str:
     """L'ssh che la macchina ha scelto per git (core.sshCommand), altrimenti "ssh". GIT_SSH_COMMAND batte
     core.sshCommand: su Windows un "ssh" nudo prende quello di Git for Windows, che non vede l'agente di Windows
     dove sta la chiave, e GitHub rifiuta (Balthasar, 11/11/2026)."""
     try:
-        r = subprocess.run(["git", "config", "--get", "core.sshCommand"], capture_output=True, text=True,
+        r = subprocess.run(GIT + ["config", "--get", "core.sshCommand"], capture_output=True, text=True,
                            encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, timeout=10)
     except (OSError, subprocess.SubprocessError):
         return "ssh"
@@ -123,14 +131,45 @@ def ssh_di_git() -> str:
 def git(args: list, cwd: Path | None = None, timeout: int = ATTESA_GIT) -> tuple[int, str]:
     env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
     env.setdefault("GIT_SSH_COMMAND", ssh_di_git() + " -o BatchMode=yes -o ConnectTimeout=15")
+    # git parte in un gruppo suo: allo scadere del tempo si chiude tutto il gruppo, figli compresi.
+    suo = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
     try:
-        r = subprocess.run(["git"] + args, cwd=str(cwd) if cwd else None, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, timeout=timeout, env=env)
-    except subprocess.TimeoutExpired:
-        return 124, "git %s non ha risposto in %d s" % (args[0], timeout)
+        p = subprocess.Popen(GIT + args, cwd=str(cwd) if cwd else None, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             text=True, encoding="utf-8", errors="replace", stdin=subprocess.DEVNULL, env=env, **suo)
     except OSError as e:
         return 127, "git non parte: %s" % e
-    return r.returncode, (r.stdout or "").strip() if r.returncode == 0 else ((r.stderr or r.stdout or "").strip() or "rc %d" % r.returncode)
+    try:
+        out, err = p.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        ferma(p)
+        return 124, "git %s non ha risposto in %d s" % (args[0], timeout)
+    return p.returncode, (out or "").strip() if p.returncode == 0 else ((err or out or "").strip() or "rc %d" % p.returncode)
+
+
+def ferma(p) -> None:
+    """Chiude un git scaduto insieme ai suoi figli. Chiudere il solo git non basta: l'ssh che ha lanciato
+    resta vivo e tiene aperta l'uscita, e su Windows chi la legge resta ad aspettare senza fine (sul PC
+    Windows un controllo è rimasto appeso nove minuti, 11/11/2026). Poi non aspetta oltre 5 secondi."""
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(p.pid)], capture_output=True,
+                           stdin=subprocess.DEVNULL, timeout=15)
+        else:
+            os.killpg(p.pid, signal.SIGKILL)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    try:
+        p.kill()
+    except OSError:
+        pass
+    try:
+        p.communicate(timeout=5)
+    except (subprocess.TimeoutExpired, OSError, ValueError):
+        for f in (p.stdout, p.stderr):
+            try:
+                f.close()
+            except (OSError, AttributeError):
+                pass
 
 
 def ultima_riga(testo: str) -> str:
