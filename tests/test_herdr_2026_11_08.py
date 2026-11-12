@@ -8375,7 +8375,7 @@ def avvelena(repo: Path) -> int:
 def ferma_nati_in(cartella: Path) -> int:
     """Ferma i processi lanciati da un file dentro `cartella` (la copia di un veleno), e dice quanti.
     Un veleno che rompe lo spegnimento del ponte (HZ78, HZ79) lascia volta_microfono.py ricevi acceso
-    dopo che la copia è sparita: il 12/11/2026 sul Mac mini erano 8, sul MacBook più di 20 (#5423).
+    dopo che la copia è sparita: il 12/11/2026 su un Mac erano 8, sull'altro più di 20 (#5423).
     Solo dove c'è ps: su Windows i casi del ponte non lanciano ricevitori veri."""
     if os.name == "nt":
         return 0
