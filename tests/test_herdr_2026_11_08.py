@@ -411,6 +411,12 @@ HZ95 la scheda mostra chi ci gira (12/11/2026, volta a12c0dd): una scheda nata p
      di un'altra macchina (argv ed etichetta) che ora ospita un'interattiva di questa macchina (campo
      terminale della sonda) è dell'interattiva: sessioneDi dà l'interattiva, schedeAgganciate non la conta,
      e con arturo.volta.dove.occupate in shared schedeDi della sessione di nascita è vuoto.
+HZ96 le tessere dei progetti su ⌘T (12/11/2026, #5371): nel layout lo stack "lavoro" tiene il terminale
+     (main, mostrato all'avvio) e la parte casa; arturo.casa mostra le tessere col campo vuoto,
+     arturo.casa-chiudi ed Esc tornano al terminale, la barra all'avvio rimette il terminale e scrive i
+     progetti delle tessere; casa.js non torna al terminale quando nasce. tessere.js con node: prima
+     "Nuova richiesta", poi i progetti in ordine; il filtro mette prima chi comincia così; colonne, frecce
+     che si fermano ai bordi, iniziali, tinta stabile, immagine solo se è nell'elenco arrivato.
 """
 from __future__ import annotations
 
@@ -426,7 +432,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94", "HZ95", "HZ96")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -1510,7 +1516,7 @@ def hz28(repo: Path, casa: Path) -> str | None:
     mod = vc / "mods/arturo"
     testo = {f: (mod / f).read_text(encoding="utf-8") for f in ("main.js", "barra.js", "testata.js", "noteui.js", "comuni.js")}
     for f, pezzo, perche in [
-        ("main.js", "note: Note };", "main.js non monta la parte note"),
+        ("main.js", "note: Note, casa: Casa };", "main.js non monta la parte note"),
         ("barra.js", 'else if (c === "note") apriElenco();', "il comando arturo.note non apre l'elenco"),
         ("barra.js", 'else if (c === "nota") this.lungo(c, cx, () => apriNota(arg));', "arturo.nota-<id> non apre il velo su quella nota"),
         ("comuni.js", 'props: { parte: "nota", cartella, apri }', "il velo non riceve la nota da aprire"),
@@ -3491,14 +3497,15 @@ def hz53(repo: Path, casa: Path) -> str | None:
         rc, d, ch = lancia("apri", *strano)
         if rc == 0 or ch:
             return f"apri {strano} non rifiutato, o lanciato lo stesso: rc {rc}, {d}"
-    # i tasti: la scheda nuova è una sessione di Claude
+    # i tasti: ⌘T apre le tessere dei progetti (HZ96), la cui prima tessera è la sessione nuova di Claude
     vc = repo / "shared/volta"
-    if leggi(vc / "keys.json").get("global", {}).get("cmd-t") != "arturo.volta-nuova":
-        return "keys.json non lega cmd-t alla scheda nuova di Volta"
-    if leggi(vc / "keys-ctrl.json").get("global", {}).get("ctrl-shift-t") != "arturo.volta-nuova":
-        return "keys-ctrl.json non lega ctrl-shift-t alla scheda nuova di Volta"
-    for nome, prima, atteso in (("di Herdr", "tab.new", "arturo.volta-nuova"), ("della persona", "pane.split:right", "pane.split:right")):
-        sotto = casa / f"tasti-{atteso[:4]}"
+    if leggi(vc / "keys.json").get("global", {}).get("cmd-t") != "arturo.casa":
+        return "keys.json non lega cmd-t alle tessere di Volta"
+    if leggi(vc / "keys-ctrl.json").get("global", {}).get("ctrl-shift-t") != "arturo.casa":
+        return "keys-ctrl.json non lega ctrl-shift-t alle tessere di Volta"
+    for nome, prima, atteso in (("di Herdr", "tab.new", "arturo.casa"), ("della Volta di prima", "arturo.volta-nuova", "arturo.casa"),
+                                ("della persona", "pane.split:right", "pane.split:right")):
+        sotto = casa / f"tasti-{prima[:9].replace(':', '-')}"
         (sotto / "app").mkdir(parents=True)
         (sotto / "app" / "keys.json").write_text(json.dumps({"global": {"cmd-t": prima, "cmd-o": "tab.new"}}), encoding="utf-8")
         r = installa(repo, sotto, "mac-arm", {"ARTURO_HERDR_FIRMA": "presente"})
@@ -4813,6 +4820,7 @@ COMANDI = {
     "nota": ["nota", None, True], "nota-n12": ["nota", "n12", True], "note": ["note", None, False],
     "versione": ["versione", None, False], "volta-gruppi-macchina": ["gruppi", "macchina", False],
     "volta-gruppi-progetto": ["gruppi", "progetto", False], "volta-nuova": ["volta-nuova", None, True],
+    "casa": ["casa", None, False], "casa-chiudi": ["casa-chiudi", None, False],
     "volta-menu-ab12": ["volta-menu", "ab12", False], "volta-altro-ab12": ["volta-altro", "ab12", False],
     "volta-cambia-nome-6162-ab12": ["volta-cambia", "volta-cambia-nome-6162-ab12", False],
     "volta-gesto-stop-ab12": ["volta-gesto", {"verbo": "stop", "id": "ab12"}, False],
@@ -6963,6 +6971,105 @@ def hz94(repo: Path, casa: Path) -> str | None:
     return None
 
 
+PROVA_TESSERE = r"""
+const m = await import("./tessere.mjs");
+const { instrada } = await import("./comandi.mjs");
+const l = [{ chiave: "sei-ore", titolo: "Sei ore" }, { chiave: "celestiale", titolo: "Celestiale" },
+  { chiave: "arturo", titolo: "Arturo" }, { chiave: "radio-ganimede", titolo: "Radio Ganimede" }, null, { titolo: "senza chiave" },
+  { chiave: "solaris", titolo: "Solaris" }];
+console.log(JSON.stringify({
+  vuoto: m.tessere(l, "").map((t) => t.chiave || t.tipo), nessuno: m.tessere(null, "").map((t) => t.tipo),
+  ra: m.tessere(l, "ra").map((t) => t.chiave), dentro: m.tessere(l, " IALE ").map((t) => t.chiave),
+  s: m.tessere(l, "s").map((t) => t.chiave),
+  col: [0, m.MIN_W - 1, m.MIN_W, 2 * m.MIN_W + m.GAP - 1, 2 * m.MIN_W + m.GAP].map(m.colonne),
+  passi: [m.passo(0, "right", 10, 4), m.passo(9, "right", 10, 4), m.passo(0, "left", 10, 4), m.passo(1, "down", 10, 4),
+    m.passo(8, "down", 10, 4), m.passo(5, "down", 10, 4), m.passo(2, "up", 10, 4), m.passo(6, "up", 10, 4),
+    m.passo(3, "x", 10, 4), m.passo(0, "down", 0, 4)],
+  iniziali: ["Sei ore", "celestiale", "Due-Mondi", "", "è bello"].map(m.iniziali),
+  tinta: [m.tinta("arturo"), m.tinta("arturo"), m.tinta("sei-ore")],
+  img: [m.immagine("arturo", new Set(["arturo"])), m.immagine("x", new Set(["arturo"])), m.immagine("arturo", null)],
+  nuova: m.NUOVA, stack: [m.STACK, m.TERMINALE, m.CASA],
+  comandi: ["casa", "casa-chiudi"].map((c) => instrada(c)),
+}));
+"""
+
+
+def hz96(repo: Path, casa: Path) -> str | None:
+    """Le tessere dei progetti su ⌘T (#5371): layout a stack, comandi, barra e tessere.js con node."""
+    vc = repo / "shared/volta"
+    mod = vc / "mods/arturo"
+    lay = leggi(vc / "layouts/arturo.json")
+    stack = []
+    def cerca(n):
+        if isinstance(n, dict):
+            if n.get("id") == "lavoro":
+                stack.append(n)
+            for c in n.get("children", []):
+                cerca(c)
+    cerca(lay)
+    if len(stack) != 1 or stack[0].get("type") != "stack" or stack[0].get("active") != "main":
+        return "il layout non ha lo stack lavoro che mostra main all'avvio"
+    figli = {c.get("id"): c for c in stack[0].get("children", [])}
+    if list(figli) != ["main", "casa"] or figli["main"].get("content", {}).get("tab") != "active" \
+            or figli["casa"].get("content") != {"mod": "arturo", "props": {"parte": "casa"}}:
+        return f"lo stack lavoro non tiene il terminale e poi le tessere: {list(figli)}"
+    bj = (mod / "barra.js").read_text(encoding="utf-8")
+    for pezzo, perche in [
+        ('else if (c === "casa") { run("layout.select", { stack: STACK, child: CASA }); setShared("arturo.casa.apri", Date.now()); }', "arturo.casa non mostra le tessere col campo vuoto"),
+        ('else if (c === "casa-chiudi") terminale();', "arturo.casa-chiudi non torna al terminale"),
+        ("    this.volta.init(cx);\n", "manca la barra"),
+        ("    terminale();\n    this.carica(cx);", "all'avvio lo stack non torna al terminale"),
+        ('setShared("arturo.casa.progetti", tutti.map((p) => ({ chiave: p.chiave, titolo: p.titolo, frase: frase(p.stato, p) })));', "la barra non scrive i progetti delle tessere"),
+    ]:
+        if pezzo not in bj:
+            return f"barra.js: {perche}"
+    cs = (mod / "casa.js").read_text(encoding="utf-8")
+    for pezzo, perche in [
+        ('run(t.tipo === "nuova" ? "arturo.volta-nuova" : comandoApri(t.chiave));', "Invio non apre la tessera come la barra"),
+        ('if (e.key === "escape") { terminale();', "Esc non torna al terminale"),
+        ("readTextFile(`${appHome()}/immagini/elenco.json`)", "le tessere non leggono l'elenco delle immagini"),
+        ("this.input.set_value(\"\");\n      this.input.focus();", "⌘T non riparte dal campo vuoto"),
+    ]:
+        if pezzo not in cs:
+            return f"casa.js: {perche}"
+    init = cs[cs.find("  init(_p, cx) {"):cs.find("  leggiImmagini(cx) {")]
+    if "terminale();" in init.replace("// Niente terminale() qui", ""):
+        return "casa.js torna al terminale quando nasce, cioè subito dopo ⌘T"
+    if "casa: Casa" not in (mod / "main.js").read_text(encoding="utf-8"):
+        return "main.js non monta la parte casa"
+    node = shutil.which("node")
+    if not node:
+        return None
+    puro = casa / "puro"
+    puro.mkdir()
+    shutil.copyfile(mod / "tessere.js", puro / "tessere.mjs")
+    shutil.copyfile(mod / "comandi.js", puro / "comandi.mjs")
+    (puro / "prova.mjs").write_text(PROVA_TESSERE, encoding="utf-8")
+    r = subprocess.run([node, str(puro / "prova.mjs")], capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"tessere.js non gira: {(r.stderr or r.stdout).strip()[-200:]}"
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    if o["vuoto"] != ["nuova", "sei-ore", "celestiale", "arturo", "radio-ganimede", "solaris"] or o["nessuno"] != ["nuova"]:
+        return f"le tessere senza filtro non sono Nuova richiesta e poi i progetti in ordine: {o['vuoto']} {o['nessuno']}"
+    if o["ra"] != ["radio-ganimede"] or o["dentro"] != ["celestiale"] or o["s"] != ["sei-ore", "solaris", "celestiale"]:
+        return f"il filtro sbaglia (prima chi comincia così, poi chi lo contiene, senza Nuova richiesta): {o['ra']} {o['dentro']} {o['s']}"
+    if o["col"] != [1, 1, 1, 1, 2]:
+        return f"colonne() sbaglia quante tessere stanno in una riga: {o['col']}"
+    if o["passi"] != [1, 9, 0, 5, 8, 9, 2, 2, 3, 0]:
+        return f"le frecce sbagliano tessera (o girano oltre il bordo): {o['passi']}"
+    if o["iniziali"] != ["SO", "CE", "DM", "?", "ÈB"]:
+        return f"iniziali() sbaglia: {o['iniziali']}"
+    if o["tinta"][0] != o["tinta"][1] or o["tinta"][0] == o["tinta"][2] or not re.fullmatch(r"#[0-9a-f]{6}", o["tinta"][0]):
+        return f"tinta() non è stabile per slug o non è un colore del tema: {o['tinta']}"
+    if o["img"] != ["immagini/arturo.webp", None, None]:
+        return f"immagine() mostra un'immagine che non c'è: {o['img']}"
+    if o["nuova"]["tipo"] != "nuova" or o["stack"] != ["lavoro", "main", "casa"]:
+        return f"tessere.js: prima tessera o nomi dello stack: {o['nuova']} {o['stack']}"
+    if o["comandi"] != [{"verbo": "casa", "arg": None, "lungo": False}, {"verbo": "casa-chiudi", "arg": None, "lungo": False}]:
+        return f"instrada() non conosce arturo.casa e arturo.casa-chiudi: {o['comandi']}"
+    return None
+
+
 Date_T = 1794484800000  # 2026-11-12T12:00:00Z, lo stesso T di PROVA_AUTO
 
 PROVA_OCCUPATE = r"""
@@ -7007,7 +7114,7 @@ def hz95(repo: Path, casa: Path) -> str | None:
     return None
 
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95}
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94, "HZ95": hz95, "HZ96": hz96}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -7026,6 +7133,16 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ96', 'shared/volta/layouts/arturo.json', '"active": "main"', '"active": "casa"'),
+    ('HZ96', 'shared/volta/mods/arturo/barra.js', '    terminale();\n    this.carica(cx);', '    this.carica(cx);'),
+    ('HZ96', 'shared/volta/mods/arturo/barra.js', ' setShared("arturo.casa.apri", Date.now()); }', ' }'),
+    ('HZ96', 'shared/volta/mods/arturo/casa.js', '    this.leggiImmagini(cx);\n    cx.timer.every(60000', '    terminale();\n    this.leggiImmagini(cx);\n    cx.timer.every(60000'),
+    ('HZ96', 'shared/volta/mods/arturo/tessere.js', '  if (!q) return [NUOVA, ...l];', '  if (!q) return l;'),
+    ('HZ96', 'shared/volta/mods/arturo/tessere.js', '  return [...l.filter(inizia), ...l.filter((p) => !inizia(p) && testo(p).includes(q))];', '  return l.filter((p) => testo(p).includes(q));'),
+    ('HZ96', 'shared/volta/mods/arturo/tessere.js', '  if (dopo >= n) return tasto === "down" ? at : n - 1;', '  if (dopo >= n) return dopo % n;'),
+    ('HZ96', 'shared/volta/mods/arturo/tessere.js', 'Math.floor(((Number(w) || 0) + GAP) / (MIN_W + GAP))', 'Math.ceil(((Number(w) || 0) + GAP) / (MIN_W + GAP))'),
+    ('HZ96', 'shared/volta/mods/arturo/tessere.js', 'arrivate instanceof Set && arrivate.has(chiave)', 'arrivate instanceof Set'),
+    ('HZ96', 'shared/volta/mods/arturo/comandi.js', '  if (c === "casa" || c === "casa-chiudi") return { verbo: c, arg: null, lungo: false };\n', ''),
     ('HZ94', 'shared/volta/mods/arturo/sessioni.js', '.filter((k) => k && !viste.has(k));', '.filter((k) => k);'),
     ('HZ94', 'shared/volta/mods/arturo/sessioni.js', 'export const ESCE = { duration: 140, easing: "ease-in" };', 'export const ESCE = { duration: 400, easing: "ease-in" };'),
     ('HZ94', 'shared/volta/mods/arturo/comuni.js', 'if (!moto || !movimento()) return punto(colore, d);', 'if (!moto) return punto(colore, d);'),
@@ -7392,7 +7509,7 @@ VELENI = [
     ("HZ13", "shared/volta/arturo-app.sh", 'if [ -d "$arturo" ] && { [ ! -d "$herdr" ] || ! piu_nuova "$v_herdr" "$v_arturo"; }; then base=$arturo; fi', ":"),
     ("HZ06", "shared/volta/installa-herdr.sh", '[ "$firma" = assente ]', '[ "$firma" = mai ]'),
     ("HZ07", "shared/volta/mods/arturo/main.js", 'from "./notaui.js"', 'from "./notaui-perso.js"'),
-    ("HZ07", "shared/volta/mods/arturo/main.js", ", nota: Nota, note: Note };", ", note: Note };"),
+    ("HZ07", "shared/volta/mods/arturo/main.js", ", nota: Nota, note: Note, casa: Casa };", ", note: Note, casa: Casa };"),
     ("HZ07", "shared/volta/layouts/arturo.json", '"parte": "stato"', '"parte": "stato-perso"'),
     ("HZ16", "shared/volta/servizi-gui.sh", "plist herdr-core false", "plist herdr-core true"),
     ("HZ16", "shared/volta/servizi-gui.sh", 'rm -f "$agenti/$PREFISSO.claude-daemon.plist"', 'plist claude-daemon true "$claude" daemon run'),
@@ -7595,10 +7712,11 @@ VELENI = [
     ('HZ53', 'shared/volta/mods/arturo/volta_sonda.py', '    if ID.fullmatch(sid or "") is None:', '    if False:'),
     ('HZ53', 'shared/volta/mods/arturo/volta_sonda.py', '        return {"ok": True, "riavviata": True}\n    s = servizio(nome)', '        return {"ok": True, "riavviata": True}\n    s = {}'),
     ('HZ53', 'shared/volta/mods/arturo/volta_sonda.py', '        if not r.get("ok"):\n            return {"errore": "non si riavvia: %s"', '        if False:\n            return {"errore": "non si riavvia: %s"'),
-    ('HZ53', 'shared/volta/keys.json', '"cmd-t": "arturo.volta-nuova"', '"cmd-y": "arturo.volta-nuova"'),
-    ('HZ53', 'shared/volta/keys-ctrl.json', '"ctrl-shift-t": "arturo.volta-nuova"', '"ctrl-shift-y": "arturo.volta-nuova"'),
-    ('HZ53', 'shared/volta/installa-herdr.sh', 'if k in mia and mia[k] != v and mia[k] != PRENDE.get(v):', 'if k in mia and mia[k] != v:'),
-    ('HZ53', 'shared/volta/installa-herdr.sh', 'mia[k] != PRENDE.get(v):', 'v not in PRENDE:'),
+    ('HZ53', 'shared/volta/keys.json', '"cmd-t": "arturo.casa"', '"cmd-t": "arturo.volta-nuova"'),
+    ('HZ53', 'shared/volta/keys-ctrl.json', '"ctrl-shift-t": "arturo.casa"', '"ctrl-shift-y": "arturo.casa"'),
+    ('HZ53', 'shared/volta/installa-herdr.sh', 'if k in mia and mia[k] != v and mia[k] not in PRENDE.get(v, ()):', 'if k in mia and mia[k] != v:'),
+    ('HZ53', 'shared/volta/installa-herdr.sh', '"arturo.casa": ("tab.new", "arturo.volta-nuova")}', '"arturo.casa": ("tab.new",)}'),
+    ('HZ53', 'shared/volta/installa-herdr.sh', 'mia[k] not in PRENDE.get(v, ()):', 'v not in PRENDE:'),
     ('HZ53', 'shared/volta/mods/arturo/barra.js', '    else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());\n', ''),
     ('HZ22', 'shared/volta/installa-herdr.sh', 'PRENDE = {"arturo.volta-nuova": "tab.new"}', 'PRENDE = {}'),
     ('HZ54', 'shared/volta/mods/arturo/sessioni.js', 'if (s.tipo === "background") out.push({ verbo: "chiudi", testo: "Chiudi" });', 'out.push({ verbo: "chiudi", testo: "Chiudi" });'),

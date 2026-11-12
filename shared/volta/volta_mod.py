@@ -82,6 +82,9 @@ LANCIATORI = (("volta-claude.sh", "volta-claude"), ("nascita.sh", "volta-nascita
 TASTI_VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")
 # Comandi nati dopo le prime installazioni: il giro fra le sessioni (⌘↓ e ⌘↑, 12/11/2026).
 TASTI_NUOVI = ("arturo.volta-giro-avanti", "arturo.volta-giro-indietro")
+# Comandi che la fonte ha spostato: il tasto che li porta ancora prende il comando nuovo della fonte. ⌘T
+# (ctrl-shift-t) apre le tessere dei progetti, e "Nuova richiesta" è la prima tessera (12/11/2026, #5371).
+TASTI_SPOSTATI = ("arturo.volta-nuova",)
 # La cartella dell'app dove arrivano le immagini dei progetti (tessere di Volta, 12/11/2026).
 IMMAGINI = "immagini"
 
@@ -373,7 +376,7 @@ def tasti(fonte: Path) -> int:
         if not isinstance(voci, dict) or not isinstance(mia, dict):
             continue
         for tasto, comando in voci.items():
-            if mia.get(tasto) in TASTI_VECCHI:
+            if mia.get(tasto) in TASTI_VECCHI or (mia.get(tasto) in TASTI_SPOSTATI and comando != mia.get(tasto)):
                 mia[tasto] = comando
                 quanti += 1
             elif tasto not in mia and comando in TASTI_NUOVI:
@@ -443,6 +446,18 @@ def immagini() -> dict:
         if vecchia.name not in nuove:
             vecchia.unlink()
             tolte += 1
+    # L'elenco degli slug arrivati: le tessere (casa.js) mostrano l'immagine solo di chi c'è, e le iniziali
+    # per gli altri. Si riscrive solo se cambia.
+    elenco = arrivo / "elenco.json"
+    testo = json.dumps(sorted(Path(n).stem for n in nuove), ensure_ascii=False) + "\n"
+    try:
+        prima = elenco.read_text(encoding="utf-8")
+    except OSError:
+        prima = None
+    if prima != testo:
+        tmp = elenco.with_name("elenco.json.%d.nuovo" % os.getpid())
+        tmp.write_text(testo, encoding="utf-8")
+        os.replace(str(tmp), str(elenco))
     return {"esito": "ok", "fonte": str(fonte), "copiate": copiate, "tolte": tolte, "totale": len(nuove)}
 
 

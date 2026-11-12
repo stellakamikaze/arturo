@@ -1,7 +1,7 @@
 {
   "global": {
     "ctrl-shift-a": "arturo.apri",
-    "ctrl-shift-t": "arturo.volta-nuova",
+    "ctrl-shift-t": "arturo.casa",
     "ctrl-shift-m": "arturo.nota",
     "ctrl-shift-i": "arturo.note"
   }

@@ -3,7 +3,9 @@
 import { div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, window, shared, setShared, nextCommand, updates, notify } from "herdr";
-import { todo, progetti, apri, nuova, nuovaScheda, slug, cartelle, progettiMemoria, statiQui, SUGGERIMENTI } from "./dati.js";
+import { todo, progetti, apri, nuova, nuovaScheda, slug, cartelle, progettiMemoria, statiQui, frase, SUGGERIMENTI } from "./dati.js";
+import { STACK, CASA } from "./tessere.js";
+import { terminale } from "./casa.js";
 import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco, nasceSu, apriSceltaMacchina, tasti, movimento, giraMovimento, apriImpostazioni } from "./comuni.js";
 import { APERTE } from "./nota.js";
 import { apriGuida } from "./guida.js";
@@ -34,6 +36,9 @@ export class Barra {
     // In cima alla barra: tutte le sessioni di tutte le macchine (Volta, volta.js).
     this.volta = new Volta();
     this.volta.init(cx);
+    // All'avvio lo stack "lavoro" mostra il terminale anche se .state/ ha salvato le tessere (sonda D2 del
+    // 12/11): la barra c'è sempre, la parte Casa nasce solo a ⌘T.
+    terminale();
     this.carica(cx);
     // La guida si apre da sola la prima volta, per chi arriva da /setup e per chi usa già Arturo.
     this.primoAvvio = !shared("arturo.guida");
@@ -89,6 +94,9 @@ export class Barra {
     else if (c === "gruppi") setShared("arturo.volta.gruppi", arg);
     else if (c === "movimento") giraMovimento(arg);
     else if (c === "impostazioni") apriImpostazioni();
+    // ⌘T: le tessere al posto del terminale; il segno dice alla parte Casa di ripartire dal campo vuoto.
+    else if (c === "casa") { run("layout.select", { stack: STACK, child: CASA }); setShared("arturo.casa.apri", Date.now()); }
+    else if (c === "casa-chiudi") terminale();
     else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());
     else if (c === "volta-giro") this.volta.giro(arg, cx);
     else if (c === "volta-menu") this.volta.menuId(arg);
@@ -125,6 +133,8 @@ export class Barra {
           for (const a of p.alias ?? []) if (!(a in mappa)) mappa[a] = mappa[p.chiave];
         }
         setShared("arturo.progetti", mappa);
+        // Per le tessere di ⌘T (casa.js): i progetti nell'ordine della barra, con la frase dello stato.
+        setShared("arturo.casa.progetti", tutti.map((p) => ({ chiave: p.chiave, titolo: p.titolo, frase: frase(p.stato, p) })));
         setShared("arturo.letto", Date.now());
         this.settimana();
       }

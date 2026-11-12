@@ -1,7 +1,7 @@
 {
   "global": {
     "cmd-o": "arturo.apri",
-    "cmd-t": "arturo.volta-nuova",
+    "cmd-t": "arturo.casa",
     "cmd-shift-n": "arturo.nota",
     "cmd-shift-e": "arturo.note",
     "cmd-down": "arturo.volta-giro-avanti",

@@ -48,7 +48,10 @@ export function instrada(c) {
   if (c === "movimento" || c === "movimento-acceso" || c === "movimento-spento") return { verbo: "movimento", arg: c === "movimento" ? null : c.endsWith("acceso"), lungo: false };
   // "volta-gruppi-<macchina|progetto>": l'interruttore dell'elenco.
   if (c === "volta-gruppi-macchina" || c === "volta-gruppi-progetto") return { verbo: "gruppi", arg: dopo("volta-gruppi-"), lungo: false };
-  // "volta-nuova": la scheda nuova (⌘T) è una sessione di Claude, non una shell (#5290).
+  // "casa": le tessere dei progetti al posto del terminale (⌘T dal 12/11/2026, #5371); "casa-chiudi" torna
+  // al terminale (prove senza clic, herdr-app do).
+  if (c === "casa" || c === "casa-chiudi") return { verbo: c, arg: null, lungo: false };
+  // "volta-nuova": la scheda nuova (la prima tessera di ⌘T) è una sessione di Claude, non una shell (#5290).
   if (c === "volta-nuova") return { verbo: "volta-nuova", arg: null, lungo: true };
   // "volta-giro-avanti" e "volta-giro-indietro": ⌘↓ e ⌘↑, la sessione dopo o prima nell'elenco.
   if (c === "volta-giro-avanti" || c === "volta-giro-indietro") return { verbo: "volta-giro", arg: c.endsWith("avanti") ? 1 : -1, lungo: false };

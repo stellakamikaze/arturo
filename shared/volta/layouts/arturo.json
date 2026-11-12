@@ -102,37 +102,56 @@
           },
           "children": [
             {
-              "id": "main",
-              "type": "block",
-              "content": {
-                "tab": "active",
-                "pane": {
-                  "gap": 10,
-                  "radius": 10,
-                  "background": "background",
-                  "lone": true,
-                  "border": {
-                    "width": 1,
-                    "color": "border"
-                  },
-                  "focus": {
-                    "width": 1,
-                    "color": "ring"
-                  },
-                  "shadow": "md"
-                }
-              },
-              "floating": [
+              "id": "lavoro",
+              "type": "stack",
+              "active": "main",
+              "children": [
                 {
-                  "id": "benvenuto",
+                  "id": "main",
+                  "type": "block",
+                  "content": {
+                    "tab": "active",
+                    "pane": {
+                      "gap": 10,
+                      "radius": 10,
+                      "background": "background",
+                      "lone": true,
+                      "border": {
+                        "width": 1,
+                        "color": "border"
+                      },
+                      "focus": {
+                        "width": 1,
+                        "color": "ring"
+                      },
+                      "shadow": "md"
+                    }
+                  },
+                  "floating": [
+                    {
+                      "id": "benvenuto",
+                      "content": {
+                        "mod": "arturo",
+                        "props": {
+                          "parte": "benvenuto"
+                        }
+                      },
+                      "edge": "top",
+                      "align": "center"
+                    }
+                  ]
+                },
+                {
+                  "id": "casa",
+                  "type": "block",
+                  "shadow": "md",
+                  "radius": 10,
                   "content": {
                     "mod": "arturo",
                     "props": {
-                      "parte": "benvenuto"
+                      "parte": "casa"
                     }
-                  },
-                  "edge": "top",
-                  "align": "center"
+                  }
                 }
               ]
             },

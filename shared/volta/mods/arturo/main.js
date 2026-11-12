@@ -1,5 +1,6 @@
 // Arturo per Herdr: un mod, più parti. Il layout dice quale con props.parte:
-// marchio, barra (i progetti), piede, testata, todo (il pannello Da fare), stato, benvenuto.
+// marchio, barra (i progetti), piede, testata, todo (il pannello Da fare), stato, benvenuto, casa (le
+// tessere di ⌘T, nello stack "lavoro" accanto al terminale).
 // "Apri un progetto" (apri), la guida (guida), "Cosa posso chiedere" (chiedi), "La settimana"
 // (settimana), "Aggiungi un todo" (nuovo), il velo delle note (nota, ⌘⇧N) e l'elenco delle note (note, ⌘⇧E) si
 // aprono come dialoghi, e così il nome o il progetto di una sessione di Volta (cambio); il menu di un todo
@@ -21,12 +22,13 @@ import { SceltaMacchina, Impostazioni } from "./comuni.js";
 import { Cambio } from "./cambio.js";
 import { Nota } from "./notaui.js";
 import { Note } from "./noteui.js";
+import { Casa } from "./casa.js";
 
 // Le parti del layout riportano la propria misura in px logici (shared arturo.misura.<parte>): al clic di
 // una nota, nota.js ne ricava su quale parte della finestra cade il punto.
 const MISURATE = new Set(["marchio", "barra", "piede", "testata", "todo", "stato", "benvenuto"]);
 
-const PARTI = { impostazioni: Impostazioni, marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi, settimana: Settimana, azioni: Azioni, sessione: MenuSessione, macchina: SceltaMacchina, cambio: Cambio, nuovo: Nuovo, nota: Nota, note: Note };
+const PARTI = { impostazioni: Impostazioni, marchio: Marchio, barra: Barra, piede: Piede, testata: Testata, stato: Stato, benvenuto: Benvenuto, todo: Todo, apri: Apri, guida: Guida, chiedi: Chiedi, settimana: Settimana, azioni: Azioni, sessione: MenuSessione, macchina: SceltaMacchina, cambio: Cambio, nuovo: Nuovo, nota: Nota, note: Note, casa: Casa };
 
 export default class Arturo extends View {
   init(p, cx) {

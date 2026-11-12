@@ -106,8 +106,9 @@ scrivi("arturo.json", arturo)
 
 # Tasti: si aggiungono; un tasto che la persona usa già per altro resta suo.
 # Uno solo si prende a Herdr: la scheda nuova (tab.new, una shell) diventa la sessione nuova di Claude,
-# e solo se quel tasto fa ancora la scheda nuova di Herdr (#5290).
-PRENDE = {"arturo.volta-nuova": "tab.new"}
+# e solo se quel tasto fa ancora la scheda nuova di Herdr (#5290). Dal 12/11/2026 ⌘T apre le tessere dei
+# progetti (arturo.casa, #5371): prende anche il tasto che faceva la sessione nuova della Volta di prima.
+PRENDE = {"arturo.volta-nuova": ("tab.new",), "arturo.casa": ("tab.new", "arturo.volta-nuova")}
 # Un tasto rimasto su un mod di Arturo tolto non apre più niente: vale come libero e si riallinea.
 # Solo questi tre valori esatti, e solo sui tasti di Arturo: ogni altro tasto resta della persona.
 VECCHI = ("mod.open:arturo-progetti", "mod.open:arturo-chrome", "mod.open:arturo-stato")
@@ -119,7 +120,7 @@ for sez, voci in nuovi.items():
     for k, v in voci.items():
         if mia.get(k) in VECCHI:
             del mia[k]
-        if k in mia and mia[k] != v and mia[k] != PRENDE.get(v):
+        if k in mia and mia[k] != v and mia[k] not in PRENDE.get(v, ()):
             print(f"tasto {k} lasciato com'era ({mia[k]})")
             continue
         mia[k] = v
