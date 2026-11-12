@@ -19,10 +19,10 @@
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, exec, readTextFile, writeTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals, spaces, window } from "herdr";
-import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, registroProva, daQuanto, ordineGiro, statoGiro, passoGiro, corrente, GIRO_MS, sessioneDi, sessioneDavanti, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto, GESTI_MAX, visibili, sparite, passoCongedo, chiusa } from "./sessioni.js";
+import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, registroProva, daQuanto, ordineGiro, statoGiro, passoGiro, corrente, GIRO_MS, sessioneDi, sessioneDavanti, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, daIniziare, nomeProgetto, GESTI_MAX, visibili, sparite, passoCongedo, chiusa } from "./sessioni.js";
 import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX, occupanti } from "./sessioni.js";
 import { ICONA, punto, colore, segno, motoDi, movimento } from "./comuni.js";
-import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
+import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
 import { schedeDi, cacheVolta, spostaSessione, nomeMacchina } from "./dati.js";
 import { nonSiSposta } from "./sposta.js";
 import { apriMenuSessione } from "./menusessione.js";
@@ -112,6 +112,8 @@ export class Volta {
     this.faccio = {};      // sessionId -> verbo in corso
     this.sopra = null;     // la sessione sotto il puntatore: lì compare la X
     this.porto = {};       // sessionId -> true mentre il nome scritto dalla persona va in Claude Code
+    this.inizio = {};      // sessionId -> true mentre la sessione spostata riparte da /inizio (#5465)
+    this.spostate = {};    // sessionId -> slug: spostate da questa finestra, che sola può riprenderle
     this.script = undefined;
     this.py = "python3";
     this.mic = null;       // il ponte del microfono acceso da questa finestra (passo di microfono.js)
@@ -365,6 +367,7 @@ export class Volta {
       if (JSON.stringify(st) !== JSON.stringify(shared("arturo.volta.stati") ?? {})) setShared("arturo.volta.stati", st);
     }
     this.portaNomi();
+    this.portaInizi();
     // Le macchine per la riga "Nasce su" (dati.js altreMacchine), scritte solo quando cambiano.
     const m = (this.dati?.macchine ?? []).map((x) => ({ host: x.host, macchina: x.macchina, questa: Boolean(x.questa), giu: Boolean(x.irraggiungibile) }));
     if (JSON.stringify(m) !== JSON.stringify(shared("arturo.volta.macchine") ?? [])) setShared("arturo.volta.macchine", m);
@@ -379,6 +382,24 @@ export class Volta {
       if (!daPortare(s) || this.porto[k]) continue;
       this.porto[k] = true;
       portaNome(s).catch(() => false).then(() => { delete this.porto[k]; });
+    }
+  }
+
+  // Le sessioni spostate in un altro progetto (campo daIniziare) ripartono da /inizio appena sono
+  // ferme (#5465). Ogni finestra lo scrive in una sua scheda; la ripresa senza scheda la fa solo la
+  // finestra che ha fatto lo spostamento (spostate). Una alla volta per sessione; chiuse e in congedo no.
+  portaInizi() {
+    for (const s of this.vis()?.sessioni ?? []) {
+      const k = s.sessionId;
+      if (!daIniziare(s) || this.inizio[k]) continue;
+      this.inizio[k] = true;
+      portaInizio(s, this.spostate[k] === s.daIniziare).catch(() => ({ fatto: false })).then((r) => {
+        delete this.inizio[k];
+        if (!r.fatto) return;
+        delete this.spostate[k];
+        if (r.come === "terminale")
+          notify({ title: `${titolo(s)} è in ${nomeProgetto(s.daIniziare)}`, body: `Gira in un Terminale: scrivi lì /inizio ${s.daIniziare}.`, level: "info" });
+      });
     }
   }
 
@@ -640,14 +661,17 @@ export class Volta {
         r = await cambiaSessione(s, cosa, valore);
         if (r.ok && cosa === "nome" && valore) rinominaSchede(s, valore);
         if (r.ok && cosa === "progetto" && String(s.progetto ?? "") !== valore) dopo = await spostaScheda(s, valore);
+        // la ripresa da /inizio la fa questa finestra, alla prima lettura in cui la sessione è ferma (#5465)
+        if (r.ok && cosa === "progetto" && r.iniziato === false) this.spostate[k] = valore;
       } catch (e) { r = { errore: String(e?.message ?? e).slice(0, 120) }; }
       delete this.faccio[k];
       if (r.errore) this.avvisa(s, `Non riesco: ${r.errore}`, cx);
       else {
+        const inizio = cosa === "progetto" && r.iniziato === false ? ` Riparte da /inizio ${valore} appena è ferma.` : "";
         const frase = cosa === "nome" ? (valore ? `Ora si chiama "${valore}".` : "Nome tolto: torna il titolo automatico.")
-          : dopo.errore ? `Ora è in ${nomeProgetto(valore)}, ma la scheda non si riapre: ${dopo.errore}`
+          : (dopo.errore ? `Ora è in ${nomeProgetto(valore)}, ma la scheda non si riapre: ${dopo.errore}`
           : dopo.resta ? `Ora è in ${nomeProgetto(valore)}. La sua scheda resta dov'è: chiuderla fermerebbe la sessione.`
-          : `Ora è in ${nomeProgetto(valore)}.`;
+          : `Ora è in ${nomeProgetto(valore)}.`) + inizio;
         this.avvisa(s, frase, cx);
         this.aggiorna(cx);
       }

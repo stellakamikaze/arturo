@@ -5,7 +5,8 @@
 // Una riga del file (~/.cache/volta/sessioni.json, campo "sessioni"):
 // { macchina, host, questa, sessionId, id, nome, progetto, titolo, stato: aspetta|lavora|ferma|errore,
 //   tipo: background|interattiva, attach: argv | null, cartella, ultimo, risposta, azione, vecchia?,
-//   daPortare?: il nome scritto dalla persona che Claude Code non ha ancora (rinomina, #5292) }
+//   daPortare?: il nome scritto dalla persona che Claude Code non ha ancora (rinomina, #5292),
+//   daIniziare?: il progetto dato dalla persona da cui la sessione non è ancora ripartita (/inizio, #5465) }
 
 export const MODI = { macchina: "Per macchina", progetto: "Per progetto" };
 export const SENZA = "Senza progetto";
@@ -617,6 +618,11 @@ export function casellaVuota(schermo) {
 // Il nome scritto dalla persona va portato in Claude Code con /rename (campo daPortare della sonda):
 // solo quando la sessione è ferma, perché un comando scritto mentre lavora finirebbe in coda al turno.
 export const daPortare = (s) => (s && !s.vecchia && s.stato === "ferma" && typeof s.daPortare === "string" && s.daPortare.trim() ? s.daPortare.trim() : null);
+
+// Il progetto da cui una sessione spostata deve ripartire con /inizio (#5465): solo a sessione ferma,
+// mai mentre lavora o aspetta un permesso, e solo uno slug valido (va dentro un comando).
+export const daIniziare = (s) => (s && !s.vecchia && s.stato === "ferma" && typeof s.daIniziare === "string"
+  && /^[a-z0-9][a-z0-9-]{0,39}$/.test(s.daIniziare) ? s.daIniziare : null);
 
 // Il nome della copia di una conversazione: "<titolo> (fork)", entro i 60 caratteri di un titolo.
 export const titoloFork = (s) => `${titolo(s).slice(0, 53).trim()} (fork)`;

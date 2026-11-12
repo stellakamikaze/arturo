@@ -120,8 +120,7 @@ HZ35 la nascita in background (#5172 passo 2, volta-claude.sh con un claude fint
      --bg accende il servizio di Claude con la sonda del mod, ma non da ssh; se il servizio non parte
      lo dice e la sessione nasce lo stesso (#5215).
 HZ36 il blocco della nascita (nascita.sh e installa-herdr.sh): metti lo scrive una volta sola anche
-     rilanciato, togli lascia il file com'era, un blocco senza la riga di fine resta com'è con NASCITA
-     SENZA FINE (prima togli cancellava il resto del .zshrc, #5265), stato vede la funzione claude della persona fuori dal
+     rilanciato, togli lascia il file com'era, stato vede la funzione claude della persona fuori dal
      blocco, e in zsh e bash il blocco definisce claude solo se la persona non ne ha già una.
      L'installatore copia i file e propone soltanto; metti della copia installata accende, no spegne e
      ricorda il no (l'installatore non ripropone), metti dopo un no lo dimentica.
@@ -2196,17 +2195,6 @@ def hz36(repo: Path, casa: Path) -> str | None:
         return "togli non lascia il file della persona com'era"
     if nascita("stato").stdout.splitlines()[0] != "assente":
         return "dopo togli lo stato non dice assente"
-    # un blocco senza la riga di fine (#5265): togli e metti non toccano il file e lo dicono; prima se ne
-    # andava tutto quello che segue la riga di inizio, cioè il resto del .zshrc della persona
-    monco = "export A=1\n# >>> Volta Celeste: le sessioni di claude nascono in background >>>\nvecchio\nalias ll='ls -l'\n"
-    for verbo in ("togli", "metti"):
-        (home / ".zshrc").write_text(monco, encoding="utf-8", newline="\n")
-        r = nascita(verbo, str(app)) if verbo == "metti" else nascita(verbo)
-        if (home / ".zshrc").read_text(encoding="utf-8") != monco:
-            return f"{verbo} con un blocco senza la riga di fine cambia il .zshrc della persona"
-        if "NASCITA SENZA FINE" not in r.stdout:
-            return f"{verbo} con un blocco senza la riga di fine non lo dice: {r.stdout.strip()[-120:]}"
-    (home / ".zshrc").write_text(prima + "\n", encoding="utf-8", newline="\n")
     # L'installatore: copia e propone soltanto. La scelta passa da volta-nascita.sh, una strada sola.
     sotto = casa / "inst"
     sotto.mkdir()
@@ -3456,8 +3444,8 @@ def hz52(repo: Path, casa: Path) -> str | None:
             return f"Windows: il prompt PS non rilancia l'aggancio scritto per PowerShell: {v['esito']}, {invii(v)[:1]}"
         # la scheda nuova: una sessione senza prompt nel progetto dello spazio aperto
         v = volta("nuova-scheda", herdr=omonima, uscita=json.dumps({"id": "ffff1111", "sessionId": "ffff1111-aaaa", "attach": attach}))
-        if not v["eseguiti"] or v["eseguiti"][0][2:] != ["nasci", "qui", "--progetto", "progetto-x"]:
-            return f"la scheda nuova non fa nascere una sessione nel progetto aperto: {v['eseguiti'][:1]}"
+        if not v["eseguiti"] or v["eseguiti"][0][2:] != ["nasci", "qui", "--progetto", "progetto-x", "--", "/inizio progetto-x"]:
+            return f"la scheda nuova non fa nascere una sessione nel progetto aperto, partita da /inizio (#5465): {v['eseguiti'][:1]}"
         if len(nuove(v)) != 1 or nuove(v)[0].get("name") != "Nuova sessione" or nuove(v)[0].get("space") != "s1" or nuove(v)[0].get("argv") != attach[:2] + OPZIONI_SSH + attach[2:]:
             return f"la scheda nuova non si aggancia nello spazio aperto: {nuove(v)}"
         if sonda(v):
@@ -3655,8 +3643,8 @@ def hz54(repo: Path, casa: Path) -> str | None:
         if v["esito"] != {"ok": True, "id": "eeee2222"} or v["avvisi"]:
             return f"Fork riuscito: esito {v['esito']}, avvisi {v['avvisi']}"
         v = volta("duplica")
-        if not v["eseguiti"] or v["eseguiti"][0][2:] != ["duplica", "Torre", "--progetto", "Progetto X", "--cartella", "/lavori/x"]:
-            return f"Duplica non chiama la sonda sulla macchina della sessione, nella sua cartella: {v['eseguiti'][:1]}"
+        if not v["eseguiti"] or v["eseguiti"][0][2:] != ["duplica", "Torre", "--progetto", "Progetto X", "--cartella", "/lavori/x", "--", "/inizio Progetto X"]:
+            return f"Duplica non chiama la sonda sulla macchina della sessione, nella sua cartella, partita da /inizio (#5465): {v['eseguiti'][:1]}"
         if len(nuove(v)) != 1 or nuove(v)[0].get("name") != "Nuova sessione":
             return f"la sessione duplicata non si aggancia: {nuove(v)}"
         v = volta("nuda")
@@ -3865,13 +3853,27 @@ def hz58(repo: Path, casa: Path) -> str | None:
         return f"--portato non segna il nome come portato: {d}, {t}"
     rc, d, _ = lancia("progetto", "qui", sid, "--", "due-mondi")
     p = leggi(scheda) if scheda.exists() else {}
-    if rc != 0 or d != {"ok": True, "progetto": "due-mondi"} or (p.get("progetto"), p.get("fonte")) != ("due-mondi", "persona"):
+    if rc != 0 or d != {"ok": True, "progetto": "due-mondi", "iniziato": False} or (p.get("progetto"), p.get("fonte"), p.get("inizio")) != ("due-mondi", "persona", False):
         return f"progetto qui: rc {rc}, {d}, file {p}"
+    # /inizio del progetto nuovo (#5465): --iniziato chiude il segno solo sul progetto di adesso
+    rc, d, _ = lancia("progetto", "qui", sid, "--iniziato", "--", "altro")
+    if rc != 0 or d.get("iniziato") is not False or leggi(scheda).get("inizio") is not False or leggi(scheda).get("progetto") != "due-mondi":
+        return f"--iniziato su un progetto che non è più quello lo segna lo stesso, o cambia il progetto: {d}, {leggi(scheda)}"
+    rc, d, _ = lancia("progetto", "qui", sid, "--iniziato", "--", "due-mondi")
+    if rc != 0 or d.get("iniziato") is not True or leggi(scheda).get("inizio") is not True:
+        return f"--iniziato non segna la sessione ripartita da /inizio: {d}, {leggi(scheda)}"
+    rc, d, _ = lancia("progetto", "qui", sid, "--", "due-mondi")
+    if d.get("iniziato") is not True or leggi(scheda).get("inizio") is not True:
+        return f"lo stesso progetto di nuovo chiede un altro /inizio: {d}, {leggi(scheda)}"
     scheda.write_text(json.dumps({"stato": "lavoro", "progetto": "vecchio", "fonte": "inizio", "quando": 1}), encoding="utf-8")
     lancia("progetto", "qui", sid, "--", "due-mondi")
     p = leggi(scheda)
-    if (p.get("stato"), p.get("progetto"), p.get("fonte")) != ("lavoro", "due-mondi", "persona"):
-        return f"progetto non tiene lo stato della scheda che c'era: {p}"
+    if (p.get("stato"), p.get("progetto"), p.get("fonte"), p.get("inizio")) != ("lavoro", "due-mondi", "persona", False):
+        return f"progetto non tiene lo stato della scheda che c'era, o non chiede /inizio del progetto nuovo: {p}"
+    for strano in (["inizia", "qui", "--all", sid, "x"], ["inizia", "qui", "aaaa1111", sid, "Due Mondi"], ["inizia", "qui", "aaaa1111", sid]):
+        rc, d, ch = lancia(*strano)
+        if rc == 0 or ch:
+            return f"{strano} non rifiutato, o lanciato lo stesso: rc {rc}, {d}"
     for strano in (["progetto", "qui", sid, "--", "Due Mondi"], ["progetto", "qui", sid], ["progetto", "qui", "--all", "--", "x"],
                    ["rinomina", "qui", "abc;rm", "--", "x"], ["rinomina", "qui"], ["progetto", "Torre", sid, "--", "../x"]):
         rc, d, ch = lancia(*strano)
@@ -3887,7 +3889,7 @@ def hz58(repo: Path, casa: Path) -> str | None:
     rc, d, ch = lancia("progetto", "Torre", sid, "--", "due-mondi")
     fuori = [c for c in ch if c[:2] == ["exec", "--on"]]
     arg = json.loads(base64.b64decode(fuori[-1][-1]).decode("utf-8")) if fuori else None
-    if rc != 0 or arg != {"cosa": "scheda", "sessionId": sid, "valore": "due-mondi", "portato": False}:
+    if rc != 0 or arg != {"cosa": "scheda", "sessionId": sid, "valore": "due-mondi", "iniziato": False}:
         return f"progetto su Torre: rc {rc}, alla macchina arriva {arg}"
     # hooks/scheda-terminale.py: il progetto della persona resta
     hs = repo / "hooks/scheda-terminale.py"
@@ -3991,6 +3993,16 @@ def hz58(repo: Path, casa: Path) -> str | None:
         (radice / "cache" / "titolo" / "fatta-x.json").write_text(json.dumps({"titolo": "Titolo del modello", "fonte": "modello"}), encoding="utf-8")
         if elenco().get("fatta-x", {}).get("daPortare") is not None:
             return "la sonda dà da portare un titolo automatico"
+        # la sessione spostata dalla persona riparte da /inizio (#5465): daIniziare finché --iniziato
+        lancia("progetto", "qui", "inter-x", "--", "due-mondi")
+        if elenco().get("inter-x", {}).get("daIniziare") != "due-mondi":
+            return f"la sonda non dice che la sessione spostata deve ripartire da /inizio: {elenco().get('inter-x', {}).get('daIniziare')}"
+        lancia("progetto", "qui", "inter-x", "--iniziato", "--", "due-mondi")
+        if elenco().get("inter-x", {}).get("daIniziare") is not None:
+            return "ripartita da /inizio, la sonda la dà ancora da iniziare"
+        (radice / "cache" / "scheda" / "fatta-x.json").write_text(json.dumps({"progetto": "vecchio", "fonte": "persona"}), encoding="utf-8")
+        if elenco().get("fatta-x", {}).get("daIniziare") is not None:
+            return "una sessione spostata prima del segno inizio chiede /inizio a sorpresa"
     except (ValueError, KeyError) as e:
         return f"volta_sonda.py volta: uscita senza elenco ({e})"
     return None
@@ -4013,15 +4025,18 @@ console.log(JSON.stringify({
             m.casellaVuota(`${b}\\n\\u276f una bozza\\n${b}`), m.casellaVuota(`${b}\\n\\u276f riga uno\\nriga due\\n${b}`), m.casellaVuota("zsh %% "), m.casellaVuota(""), m.casellaVuota(`${b}\nx\n${b}`)],
   portare: [m.daPortare({ stato: "ferma", daPortare: " Nome " }), m.daPortare({ stato: "lavora", daPortare: "Nome" }), m.daPortare({ stato: "aspetta", daPortare: "Nome" }),
             m.daPortare({ stato: "ferma", daPortare: "Nome", vecchia: true }), m.daPortare({ stato: "ferma", daPortare: null })],
+  iniziare: [m.daIniziare({ stato: "ferma", daIniziare: "due-mondi" }), m.daIniziare({ stato: "lavora", daIniziare: "due-mondi" }),
+             m.daIniziare({ stato: "aspetta", daIniziare: "due-mondi" }), m.daIniziare({ stato: "ferma", daIniziare: "Due Mondi; rm" }),
+             m.daIniziare({ stato: "ferma", daIniziare: "due-mondi", vecchia: true }), m.daIniziare({ stato: "ferma" })],
 }));
 """
 
 PROVA_CAMBIO = r"""
-import { cambiaSessione, rinominaSchede, portaNome, spostaScheda } from "./dati.mjs";
+import { cambiaSessione, rinominaSchede, portaNome, portaInizio, spostaScheda } from "./dati.mjs";
 import { lanciati, eseguiti, avvisi, inviati } from "./herdr.mjs";
 const caso = process.env.HZ_CASO;
 const s = { id: "ffff1111", sessionId: "ffff1111-aaaa", host: "Torre", macchina: "Torre", nome: "Progetto x", titolo: "Rifare il deck",
-            progetto: "progetto-x", cartella: "/lavori/x", stato: "ferma", tipo: "background", daPortare: "Nome mio",
+            progetto: "progetto-x", cartella: "/lavori/x", stato: "ferma", tipo: "background", daPortare: "Nome mio", daIniziare: "due-mondi",
             attach: ["ssh", "-t", "torre.lan", "claude", "attach", "ffff1111"] };
 let esito = null;
 if (caso === "nome") esito = await cambiaSessione(s, "nome", "Nome mio");
@@ -4030,6 +4045,10 @@ else if (caso === "progetto") esito = await cambiaSessione(s, "progetto", "due-m
 else if (caso === "schede") esito = rinominaSchede(s, "N".repeat(50));
 else if (caso === "porta") esito = await portaNome(s);
 else if (caso === "porta-lavora") esito = await portaNome({ ...s, stato: "lavora" });
+else if (caso === "inizia") esito = await portaInizio(s);
+else if (caso === "inizia-lavora") esito = await portaInizio({ ...s, stato: "lavora" });
+else if (caso === "inizia-altrove") esito = await portaInizio(s, false);
+else if (caso === "inizia-terminale") esito = await portaInizio({ ...s, tipo: "interattiva", attach: null });
 else if (caso === "sposta") esito = await spostaScheda(s, "due-mondi");
 else if (caso === "sposta-interattiva") esito = await spostaScheda({ ...s, tipo: "interattiva", attach: null, questa: true, terminale: "t9" }, "due-mondi");
 console.log(JSON.stringify({ lanciati, eseguiti, avvisi, inviati, esito }));
@@ -4048,6 +4067,10 @@ def hz59(repo: Path, casa: Path) -> str | None:
         ("volta.js", 'if (r.ok && cosa === "progetto" && String(s.progetto ?? "") !== valore) dopo = await spostaScheda(s, valore);', "il progetto nuovo non sposta la scheda"),
         ("volta.js", "    this.portaNomi();\n", "a ogni lettura i nomi non vanno in Claude Code"),
         ("volta.js", "if (!daPortare(s) || this.porto[k]) continue;", "un nome si porta due volte insieme"),
+        ("volta.js", "    this.portaInizi();\n", "a ogni lettura le sessioni spostate non ripartono da /inizio (#5465)"),
+        ("volta.js", "if (!daIniziare(s) || this.inizio[k]) continue;", "una sessione spostata riparte due volte insieme"),
+        ("volta.js", "portaInizio(s, this.spostate[k] === s.daIniziare)", "la ripresa da /inizio parte da ogni finestra, non solo da quella che ha spostato"),
+        ("volta.js", 'if (r.ok && cosa === "progetto" && r.iniziato === false) this.spostate[k] = valore;', "Cambia progetto non segna la sessione da riprendere"),
         ("volta.js", "nomiProgetti().catch(() => []).then((l) => apriCambio(s, cosa, progettiNoti(this.dati, l)));", "il dialogo del progetto non riceve i progetti noti"),
         ("barra.js", 'else if (c === "volta-cambia") this.volta.cambiaComando(arg, cx);', "barra.js non legge il comando del cambio"),
         ("main.js", "cambio: Cambio,", "main.js non monta il dialogo del cambio"),
@@ -4080,7 +4103,8 @@ def hz59(repo: Path, casa: Path) -> str | None:
             "progetto": {"cosa": "progetto", "valore": "due-mondi", "id": "ab12-cd34"}, "accenti": "caffe-te", "niente": None,
             "storti": [None, None, None], "cambia": {"rinomina": "nome", "progetto": "progetto"},
             "noti": ["arturo", "due-mondi", "zeta"], "filtro": [["mondo", "due-mondi"], ["a", "b"]],
-            "casella": [True, True, True, False, False, False, False, False], "portare": ["Nome", None, None, None, None]}
+            "casella": [True, True, True, False, False, False, False, False], "portare": ["Nome", None, None, None, None],
+            "iniziare": ["due-mondi", None, None, None, None, None]}
     for k, v in puri.items():
         if d.get(k) != v:
             return f"sessioni.js, {k}: {d.get(k)}, atteso {v}"
@@ -4139,6 +4163,22 @@ def hz59(repo: Path, casa: Path) -> str | None:
         v = volta("porta", HZ_HC_ROTTO="send")
         if v["esito"] is not False or sonda(v):
             return f"/rename non scritto, ma il nome risulta portato: {v['esito']}, {sonda(v)}"
+        # la sessione spostata riparte da /inizio del progetto nuovo (#5465)
+        segnata = ["progetto", "Torre", "ffff1111-aaaa", "--iniziato", "--", "due-mondi"]
+        v = volta("inizia")
+        if v["esito"] != {"fatto": True, "come": "scheda"} or ["send", "t7", "/inizio due-mondi"] not in v["inviati"] or sonda(v) != [segnata]:
+            return f"a sessione ferma con la scheda aperta /inizio non va nella scheda, o non si segna: {v['esito']}, {v['inviati']}, {sonda(v)}"
+        for motivo, extra in (("mentre la sessione lavora", {"caso": "inizia-lavora"}), ("con una bozza nella casella", {"schermo": bozza}),
+                              ("senza scheda, da una finestra che non l'ha spostata", {"caso": "inizia-altrove", "herdr": {"spaces": [spazio]}})):
+            v = volta(extra.pop("caso", "inizia"), **extra)
+            if v["esito"] != {"fatto": False} or any(x[0] == "send" for x in v["inviati"]) or sonda(v):
+                return f"/inizio scritto o ripresa partita {motivo}: {v['esito']}, {v['inviati']}, {sonda(v)}"
+        v = volta("inizia", herdr={"spaces": [spazio]})
+        if v["esito"] != {"fatto": True, "come": "ripresa"} or sonda(v) != [["inizia", "Torre", "ffff1111", "ffff1111-aaaa", "due-mondi", "--cartella", "/lavori/x"], segnata]:
+            return f"senza scheda la sessione in background non riparte da /inizio con la sonda: {v['esito']}, {sonda(v)}"
+        v = volta("inizia-terminale", herdr={"spaces": [spazio]})
+        if v["esito"] != {"fatto": True, "come": "terminale"} or sonda(v) != [segnata]:
+            return f"un'interattiva in un Terminale: {v['esito']}, {sonda(v)}"
         v = volta("sposta", HZ_NASCE="t20")
         chiuse = [x for x in v["lanciati"] if x["cmd"] in ("tab.close", "terminal.kill")]
         nuove = [x for x in v["lanciati"] if x["cmd"] in ("tab.new", "space.new")]
@@ -6636,6 +6676,18 @@ def hz89(repo: Path, casa: Path) -> str | None:
         r = subprocess.run([sys.executable, str(sonda), "congeda", "qui", "--all", "x"], capture_output=True, text=True, timeout=30, env=env)
         if r.returncode == 0:
             return "congeda accetta argomenti sbagliati"
+        # inizia (#5465): la sessione spostata riparte col solo /inizio del progetto, come il congedo
+        fc.write_text(fc.read_text(encoding="utf-8").replace("[ \"$1\" = --nessuno ] && touch", "[ \"$1\" = --bg ] && touch"), encoding="utf-8")
+        visto.unlink(missing_ok=True)
+        viva.unlink(missing_ok=True)
+        r = subprocess.run([sys.executable, str(sonda), "inizia", "qui", "aaaa1111", "aaaa1111-bbbb-cccc", "due-mondi", "--cartella", str(lavoro)],
+                           capture_output=True, text=True, timeout=90, env=env)
+        chiamate = [x.strip().splitlines() for x in (visto.read_text(encoding="utf-8").split("== ") if visto.exists() else []) if x.strip()]
+        ripresa = [c for c in chiamate if c[1:2] == ["--bg"]]
+        if r.returncode != 0 or not chiamate or chiamate[0][1:] != ["stop", "aaaa1111"]:
+            return f"inizia non ferma prima la sessione: rc {r.returncode}, {r.stdout.strip()[-160:]}, {[c[1:] for c in chiamate]}"
+        if len(ripresa) != 1 or ripresa[0][2:4] != ["--resume", "aaaa1111-bbbb-cccc"] or "--fork-session" in ripresa[0] or ripresa[0][-1] != "/inizio due-mondi":
+            return f"inizia non riprende la stessa conversazione col solo /inizio del progetto: {ripresa}"
         prova = ("import importlib.util,json,sys\nsp=importlib.util.spec_from_file_location('s',sys.argv[1]);m=importlib.util.module_from_spec(sp);sp.loader.exec_module(m)\n"
                  "v={'macchina':'M','host':'qui','questa':True,'target':None,'claude':'claude','sessioni':["
                  "{'sessionId':'a1','id':'a1aa','kind':'background','state':'done'},"
@@ -7399,6 +7451,9 @@ VELENI = [
     ('HZ89', 'shared/volta/mods/arturo/sessioni.js', '    if (s.stato === "aspetta") return { fai: "stop", fase: "ferma", avviso:', '    if (s.stato === "aspetta") return { fai: "attendi", fase: "ferma", avviso:'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    argv += ["--resume", a["riprendi"]] + ([] if a.get("stessa") else ["--fork-session"])', '    argv += ["--resume", a["riprendi"], "--fork-session"]'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    fermata = azione(nome, "stop", sid_lavoro)', '    fermata = {}'),
+    ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    ferma = azione(nome, "stop", sid_lavoro)  # già ferma', '    ferma = {}  # già ferma'),
+    ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', 'r = nasci(nome, "/inizio %s" % slug, None, cartella, riprendi=session_id, stessa=True)', 'r = nasci(nome, "/inizio %s" % slug, None, cartella, riprendi=session_id)'),
+    ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '    if argv and argv[0] == "inizia":\n', '    if False:\n'),
     ('HZ89', 'shared/volta/mods/arturo/volta_sonda.py', '"chiusa": fondo and not s.get("pid") and not s.get("status") and stato(s) != "errore",', '"chiusa": False,'),
     ('HZ89', 'shared/volta/mods/arturo/volta.js', '    chiudiSchede(s);\n    this.congeda(s, cx);', '    chiudiSchede(s);\n    azioneSessione(s, "stop");'),
     ('HZ89', 'shared/volta/mods/arturo/dati.js', '    segnaTolto(t.address);\n    if (panes()', '    if (panes()'),
@@ -7797,14 +7852,13 @@ VELENI = [
     ("HZ35", "shared/volta/volta-claude.sh", '[ -n "$senza_id" ] && qui_interattiva "$@"', ":"),
     ("HZ35", "shared/volta/volta-claude.sh", '[ -n "${HC_TERMINAL_ID:-}" ] && qui_interattiva "$@"', ":"),
     ("HZ35", "shared/volta/volta-claude.sh", 'printf \'Volta: la sessione non parte in background (%s). La apro qui, come prima.\\n\' "$motivo" >&2', "exit 1"),
-    ("HZ36", "shared/volta/nascita.sh", "next } !dentro { print } END", "next } 1 { print } END"),
-    ("HZ36", "shared/volta/nascita.sh", "END { exit dentro ? 3 : 0 }", "END { exit 0 }"),
+    ("HZ36", "shared/volta/nascita.sh", "!dentro { print } END", "1 { print } END"),
     ("HZ36", "shared/volta/nascita.sh", "! typeset -f claude >/dev/null 2>&1; then", "true; then"),
     ("HZ36", "shared/volta/nascita.sh", "then printf '\\n' >> \"$1\"; fi", "then :; fi"),
     ("HZ36", "shared/volta/installa-herdr.sh", "&& ! printf '%s\\n' \"$stato_nascita\" | grep -q '^rifiutata'; then", "; then"),
     ("HZ36", "shared/volta/installa-herdr.sh", "if printf '%s\\n' \"$stato_nascita\" | grep -q '^assente' &&", "if false &&"),
     ("HZ36", "shared/volta/nascita.sh", 'rm -f "$NO" "$app/nascita-no"', ":"),
-    ("HZ37", "shared/volta/nascita.sh", "    for f in $(tutti_i_file); do\n      if [ -f \"$f\" ] && grep -qF \"$INIZIO\" \"$f\"; then\n        if togli_da", "    for f in $(file_shell); do\n      if [ -f \"$f\" ] && grep -qF \"$INIZIO\" \"$f\"; then\n        if togli_da"),
+    ("HZ37", "shared/volta/nascita.sh", "    for f in $(tutti_i_file); do\n      if [ -f \"$f\" ] && grep -qF \"$INIZIO\" \"$f\"; then\n", "    for f in $(file_shell); do\n      if [ -f \"$f\" ] && grep -qF \"$INIZIO\" \"$f\"; then\n"),
     ("HZ37", "shared/volta/nascita.sh", "{ l = $0; sub(/\\r$/, \"\", l) } l == a { dentro = 1; next }", "{ l = $0 } l == a { dentro = 1; next }"),
     ("HZ37", "shared/volta/nascita.sh", "awk -v BINMODE=3 -v a=", "awk -v a=", "windows"),  # l'awk di Git per Windows toglie i \r
     ("HZ37", "shared/volta/nascita.sh", '      if utf16 "$f"; then say "NASCITA UTF16 $f"; continue; fi', "      :"),
@@ -7967,21 +8021,26 @@ VELENI = [
     ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', 'if riprendi is not None and not ID.fullmatch(riprendi or ""):', 'if False:'),
     ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', '(("cartella", cartella), ("riprendi", riprendi), ("nome", titolo), ("stessa", stessa))', '(("cartella", cartella), ("riprendi", None), ("nome", titolo), ("stessa", stessa))'),
     ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', '("riprendi", riprendi), ("nome", titolo), ("stessa", stessa)) if v})', '("riprendi", riprendi), ("nome", None), ("stessa", stessa)) if v})'),
-    ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', '        esito = nasci(resto[0], "", opz.get("progetto"), opz.get("cartella"))\n', '        esito = nasci(resto[0], "", opz.get("progetto"))\n'),
+    ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', '        esito = nasci(resto[0], prompt, opz.get("progetto"), opz.get("cartella"))\n', '        esito = nasci(resto[0], prompt, opz.get("progetto"))\n'),
     ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', '        esito = nasci(resto[0], "", opz.get("progetto"), opz.get("cartella"), resto[1], opz.get("titolo"))', '        esito = nasci(resto[0], "", None, opz.get("cartella"), resto[1], opz.get("titolo"))'),
     ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', '    if argv and argv[0] in COPIE:\n', '    if False:\n'),
     ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', '    attesi = 2 if verbo == "fork" else 1\n', '    attesi = len(resto)\n'),
     ('HZ55', 'shared/volta/mods/arturo/volta_sonda.py', 'argv += ["-n", nome]', 'argv += [nome]'),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", 'nuovo = {"titolo": valore, "fonte": "persona", "quando": time.time(), "peso": 0, "portato": False}', 'nuovo = {"titolo": valore, "fonte": "avvio", "quando": time.time(), "peso": 0, "portato": False}'),
-    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", 'nuovo = dict(prima or {"stato": "nuova"}, progetto=valore, fonte="persona", quando=time.time())', 'nuovo = dict(prima or {"stato": "nuova"}, progetto=valore, quando=time.time())'),
-    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", 'nuovo = dict(prima or {"stato": "nuova"}, progetto=valore, fonte="persona", quando=time.time())', 'nuovo = dict({"stato": "nuova"}, progetto=valore, fonte="persona", quando=time.time())'),
-    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        if prima.get("fonte") != "persona" or (valore and prima.get("titolo") != valore):', '        if prima.get("fonte") != "persona":'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", 'progetto=valore, fonte="persona", quando=time.time(),\n', 'progetto=valore, quando=time.time(),\n'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", 'nuovo = dict(prima or {"stato": "nuova"}, progetto=valore,', 'nuovo = dict({"stato": "nuova"}, progetto=valore,'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", 'inizio=prima.get("inizio", True) if stesso else False)', 'inizio=True)'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", 'inizio=prima.get("inizio", True) if stesso else False)', 'inizio=False)'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", 'if prima.get("fonte") != "persona" or prima.get("progetto") != valore:\n            esci(ok=True, progetto=', 'if prima.get("fonte") != "persona":\n            esci(ok=True, progetto='),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '            if fonte == "persona" and scheda.get("inizio") is False:', '            if fonte == "persona":'),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '                "daIniziare": s.get("daIniziare") if isinstance(s.get("daIniziare"), str) else None,\n', ''),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '    segno = "--portato" if verbo == "rinomina" else "--iniziato"', '    segno = "--portato"'),    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        if prima.get("fonte") != "persona" or (valore and prima.get("titolo") != valore):', '        if prima.get("fonte") != "persona":'),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        nuovo = dict(prima, portato=True)', '        nuovo = dict(prima)'),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        if prima.get("fonte") == "persona":\n            os.remove(f)', '        if True:\n            os.remove(f)'),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        if prima.get("fonte") == "persona":\n            os.remove(f)', '        if False:\n            os.remove(f)'),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        if not SLUG.fullmatch(valore or ""):', '        if not valore:'),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '    if verbo not in CAMBI:\n        return {"errore": "cambio sconosciuto: %s" % verbo}\n    if not ID.fullmatch(sid or ""):', '    if False:'),
-    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        valore = nome_pulito(valore)\n    arg = ', '        pass\n    arg = '),
+    ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '        valore = nome_pulito(valore)\n    # `portato`', '        pass\n    # `portato`'),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '    if argv and argv[0] in CAMBI:\n', '    if False:\n'),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '            if tit.get("fonte") == "persona" and not tit.get("portato"):', '            if tit.get("fonte") == "persona":'),
     ("HZ58", "shared/volta/mods/arturo/volta_sonda.py", '            if tit.get("fonte") == "persona" and not tit.get("portato"):', '            if not tit.get("portato"):'),
@@ -8022,13 +8081,22 @@ VELENI = [
     ("HZ59", "shared/volta/mods/arturo/dati.js", '  if (!scritto) return false;\n', ''),
     ("HZ59", "shared/volta/mods/arturo/dati.js", '    } catch { /* si prova la scheda dopo */ }\n    break;\n', '    } catch { /* si prova la scheda dopo */ }\n'),
     ("HZ59", "shared/volta/mods/arturo/dati.js", 'const esito = await cambiaSessione(s, "nome", nome, ["--portato"]);', 'const esito = { ok: true };'),
-    ("HZ59", "shared/volta/mods/arturo/dati.js", 'const r = await hc(["send", a, `/rename ${nome}`]);', 'const r = await hc(["send", a, nome]);'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", 'const scriviNome = (s, nome) => scriviComando(s, `/rename ${nome}`);', 'const scriviNome = (s, nome) => scriviComando(s, nome);'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", 'if (terminaliDi(s).length) come = (await scriviComando(s, `/inizio ${slug}`)) ? "scheda" : null;', 'if (terminaliDi(s).length) come = (await scriviComando(s, slug)) ? "scheda" : null;'),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", '    else if (!ripresa) return { fatto: false };\n', ''),
+    ("HZ59", "shared/volta/mods/arturo/dati.js", '  const esito = await cambiaSessione(s, "progetto", slug, ["--iniziato"]);', '  const esito = await cambiaSessione(s, "progetto", slug, []);'),
+    ("HZ59", "shared/volta/mods/arturo/sessioni.js", 'export const daIniziare = (s) => (s && !s.vecchia && s.stato === "ferma" && typeof s.daIniziare === "string"', 'export const daIniziare = (s) => (s && !s.vecchia && typeof s.daIniziare === "string"'),
+    ("HZ54", "shared/volta/mods/arturo/dati.js", '  if (progetto && !prompt && copia?.verbo !== "fork") prompt = `/inizio ${progetto}`;', '  if (progetto && !prompt) prompt = `/inizio ${progetto}`;'),
+    ("HZ54", "shared/volta/mods/arturo/dati.js", '  if (progetto && !prompt && copia?.verbo !== "fork") prompt = `/inizio ${progetto}`;', ''),
     ("HZ59", "shared/volta/mods/arturo/dati.js", '  if (s.tipo !== "background" || !Array.isArray(s.attach)) return s.terminale ? { resta: true } : {};', '  if (!Array.isArray(s.attach) && !s.terminale) return {};'),
     ("HZ59", "shared/volta/mods/arturo/dati.js", '  if (!chiudiSchede(s)) return {};', '  chiudiSchede(s);'),
     ("HZ59", "shared/volta/mods/arturo/dati.js", 'const r = await apriSessione({ ...s, progetto }, s.attach);', 'const r = await apriSessione(s, s.attach);'),
     ("HZ59", "shared/volta/mods/arturo/volta.js", '    if (verbo in CAMBIA) return this.chiedi(s, CAMBIA[verbo]);\n', ''),
     ("HZ59", "shared/volta/mods/arturo/volta.js", '(e?.click_count >= 2 ? this.chiedi(s, "nome") : this.premi(s, cx))', '(this.premi(s, cx))'),
     ("HZ59", "shared/volta/mods/arturo/volta.js", '    this.portaNomi();\n', ''),
+    ("HZ59", "shared/volta/mods/arturo/volta.js", '    this.portaInizi();\n', ''),
+    ("HZ59", "shared/volta/mods/arturo/volta.js", 'portaInizio(s, this.spostate[k] === s.daIniziare)', 'portaInizio(s, true)'),
+    ("HZ59", "shared/volta/mods/arturo/volta.js", 'if (r.ok && cosa === "progetto" && r.iniziato === false) this.spostate[k] = valore;', ''),
     ("HZ59", "shared/volta/mods/arturo/volta.js", '      if (!daPortare(s) || this.porto[k]) continue;', '      if (!daPortare(s)) continue;'),
     ("HZ59", "shared/volta/mods/arturo/volta.js", '        if (r.ok && cosa === "nome" && valore) rinominaSchede(s, valore);\n', ''),
     ("HZ59", "shared/volta/mods/arturo/volta.js", 'String(s.progetto ?? "") !== valore) dopo = await spostaScheda(s, valore);', 'String(s.progetto ?? "") !== valore) dopo = {};'),

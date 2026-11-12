@@ -2,7 +2,7 @@
 // Tutte le parti del mod leggono da qui, così dicono le stesse cose con le stesse parole.
 
 import { exec, readTextFile, appHome, home, hc, spaces, agents, run, notify, shared, setShared, terminals, panes } from "herdr";
-import { titolo, agganciata, titoloFork, casellaVuota, daPortare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio } from "./sessioni.js";
+import { titolo, agganciata, titoloFork, casellaVuota, daPortare, daIniziare, argvScheda, motivoUscita, percorsoWindows, shellPowerShell, promptPowerShell, occupanti, idAggancio } from "./sessioni.js";
 
 // arturo.json nella cartella di Herdr: lo scrive installa-herdr.sh.
 // { "arturo": ["python3", "/Users/x/.claude/bin/arturo"], "radice": "/Users/x/.claude", "base": "/Users/x/Documents/ClaudeCode", "note_progetto": "arturo" }
@@ -686,6 +686,9 @@ async function nasciSu(macchina, prompt, progetto, nomeScheda = null, copia = nu
     return { errore };
   };
   if (inNascita()) return dico("Sta già nascendo un'altra sessione", "sta già nascendo un'altra sessione: riprova fra poco", "warning");
+  // Una sessione che nasce vuota in un progetto (la scheda nuova, Duplica) parte da /inizio di quel
+  // progetto, come Apri un progetto (#5465). La Fork no: porta già la sua conversazione.
+  if (progetto && !prompt && copia?.verbo !== "fork") prompt = `/inizio ${progetto}`;
   const da = Date.now();
   setShared("arturo.nascita", { macchina, da });
   try {
@@ -821,8 +824,9 @@ export function rinominaSchede(s, nome) {
 export const PORTA_MS = 5 * 60 * 1000;
 const portati = new Map(); // sessionId → { nome, quando }
 
-// Scrive /rename nella prima scheda buona della sessione. Torna true se l'ha scritto.
-async function scriviNome(s, nome) {
+// Scrive un comando di Claude Code (/rename, /inizio) nella prima scheda buona della sessione, solo
+// a casella vuota. Torna true se l'ha scritto.
+async function scriviComando(s, testo) {
   let scritto = false;
   // la prima scheda buona: una sessione può averne più d'una, e una può essere rimasta con la shell
   for (const a of terminaliDi(s)) {
@@ -830,13 +834,14 @@ async function scriviNome(s, nome) {
     try {
       const schermo = await hc(["read", a]);
       if (schermo.code !== 0 || !casellaVuota(schermo.stdout)) continue;
-      const r = await hc(["send", a, `/rename ${nome}`]);
+      const r = await hc(["send", a, testo]);
       scritto = r.code === 0;
     } catch { /* si prova la scheda dopo */ }
     break;
   }
   return scritto;
 }
+const scriviNome = (s, nome) => scriviComando(s, `/rename ${nome}`);
 
 export async function portaNome(s) {
   const nome = daPortare(s);
@@ -850,6 +855,44 @@ export async function portaNome(s) {
   if (!scritto) return false;
   const esito = await cambiaSessione(s, "nome", nome, ["--portato"]);
   return Boolean(esito.ok);
+}
+
+// Una sessione spostata dalla persona in un altro progetto riparte da /inizio di quel progetto, così
+// carica handoff, task e scheda (#5465, Federico 12/11/2026: "Volta lancia /inizio a ogni spostamento").
+// Solo a sessione ferma (daIniziare). Con una scheda in questa finestra /inizio si scrive lì, a casella
+// vuota; in background senza scheda la sonda la ferma e la riprende col solo /inizio (inizia, come il
+// congedo); un'interattiva in un Terminale non si raggiunge, e lo dice chi chiama (come "terminale").
+// Poi il segno alla sonda (--iniziato). Lo stesso progetto non si riscrive per PORTA_MS, come il nome.
+// `ripresa`: false nelle finestre che non hanno fatto lo spostamento. Lì vale solo la scheda: ogni
+// finestra di Volta vede la stessa sessione, e la ripresa partirebbe una volta per finestra.
+// Torna { fatto, come } con come = scheda | ripresa | terminale.
+const iniziati = new Map(); // sessionId → { slug, quando, come }
+
+export async function iniziaSessione(s, slug) {
+  const cfg = await config();
+  try {
+    const r = await exec(cfg.arturo[0], [cfg.volta, "inizia", s.host ?? "qui", s.id, s.sessionId, slug, ...(s.cartella ? ["--cartella", s.cartella] : [])], { timeout: 400000 });
+    return esito(r);
+  } catch (e) {
+    return { errore: `${s.macchina ?? nomeMacchina(s.host ?? "qui")} non risponde (${String(e?.message ?? e).slice(0, 120)})` };
+  }
+}
+
+export async function portaInizio(s, ripresa = true) {
+  const slug = daIniziare(s);
+  if (!slug) return { fatto: false };
+  const p = iniziati.get(s.sessionId);
+  let come = p && p.slug === slug && Date.now() - p.quando < PORTA_MS ? p.come : null;
+  if (!come) {
+    if (terminaliDi(s).length) come = (await scriviComando(s, `/inizio ${slug}`)) ? "scheda" : null;
+    else if (!ripresa) return { fatto: false };
+    else if (s.tipo === "background") come = (await iniziaSessione(s, slug)).ok ? "ripresa" : null;
+    else come = "terminale";
+    if (come) iniziati.set(s.sessionId, { slug, quando: Date.now(), come });
+  }
+  if (!come) return { fatto: false };
+  const esito = await cambiaSessione(s, "progetto", slug, ["--iniziato"]);
+  return { fatto: Boolean(esito.ok), come };
 }
 
 // La sessione nello spazio del progetto nuovo. Una scheda che la aggancia si chiude e si riapre là:

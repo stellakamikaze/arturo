@@ -11,9 +11,10 @@ distribuire (#5172, 10/11/2026).
       progetti di quella macchina, dopo aver acceso il servizio di Claude. Stampa {id, sessionId, attach,
       macchina, progetto, cartella} oppure {errore}: lo stesso contratto di porta-volta, così Volta la
       aggancia come le altre (#5172 passo 4).
-  python3 volta_sonda.py duplica MACCHINA [--progetto SLUG] [--cartella DIR]
-      una sessione nuova e vuota accanto a un'altra: come nasci, ma nella cartella di quella sessione
-      (la base dei progetti se la cartella non c'è più). Stesso contratto di nasci (#5291).
+  python3 volta_sonda.py duplica MACCHINA [--progetto SLUG] [--cartella DIR] [-- PROMPT]
+      una sessione nuova accanto a un'altra: come nasci, ma nella cartella di quella sessione (la base
+      dei progetti se la cartella non c'è più). Stesso contratto di nasci (#5291). In un progetto Volta
+      passa PROMPT = /inizio SLUG (#5465).
   python3 volta_sonda.py fork MACCHINA SESSIONID [--progetto SLUG] [--cartella DIR] [--titolo NOME]
       una copia della conversazione SESSIONID in una sessione nuova (claude --bg --resume SESSIONID
       --fork-session), nella cartella della sessione: l'originale resta com'è. Stesso contratto di nasci;
@@ -40,10 +41,16 @@ distribuire (#5172, 10/11/2026).
   python3 volta_sonda.py sposta DA A ID SESSIONID --cartella DIR [--progetto SLUG] [--titolo NOME]
       sposta una sessione in background sull'altra macchina A, con la stessa conversazione e lo stesso
       sessionId (12/11/2026): i passi stanno in volta_sposta.py. Stessa risposta di nasci, o {errore}.
-  python3 volta_sonda.py progetto MACCHINA SESSIONID -- SLUG
+  python3 volta_sonda.py progetto MACCHINA SESSIONID [--iniziato] -- SLUG
       il progetto che la persona dà a una sessione dalla finestra (#5292): scrive cache/scheda/SESSIONID.json
       su MACCHINA con fonte "persona", che hooks/scheda-terminale.py non riscrive e non toglie a fine
-      sessione. Stampa {ok, progetto} oppure {errore}.
+      sessione. Un progetto nuovo porta inizio: false, e la lettura dà daIniziare finché Volta non ha
+      scritto /inizio nella sessione; --iniziato lo chiude (#5465). Stampa {ok, progetto, iniziato}
+      oppure {errore}.
+  python3 volta_sonda.py inizia MACCHINA ID SESSIONID SLUG [--cartella DIR]
+      una sessione in background spostata in un progetto riparte da /inizio SLUG (#5465): claude stop ID,
+      poi la stessa conversazione ripresa col solo /inizio, come congeda. Stampa {ok, fermata} oppure
+      {errore}.
   python3 volta_sonda.py servizio MACCHINA
       accende il servizio di Claude (claude daemon run) su MACCHINA se manca, dove sopravvive: il
       LaunchAgent di servizi-gui.sh o l'attività di servizio-claude.ps1 se ci sono; altrimenti staccato,
@@ -249,6 +256,7 @@ for s in sessioni:
     reg = leggi(os.path.join(lavori, k + ".json")) if k else {}
     nuovo = {x: reg[x] for x in ("progetto", "fonte", "titolo") if isinstance(reg.get(x), str) and reg[x].strip()}
     s["progetto"] = None
+    s["daIniziare"] = None
     fonte = None
     try:  # il progetto lo scrive hooks/scheda-terminale.py di Arturo; senza Arturo resta vuoto
         with open(os.path.join(radice, "cache", "scheda", sid + ".json"), encoding="utf-8") as fh:
@@ -256,6 +264,10 @@ for s in sessioni:
         p, fonte = scheda.get("progetto"), scheda.get("fonte")
         if isinstance(p, str) and p.strip():
             s["progetto"] = p.strip()[:60]
+            # spostata dalla persona in un progetto e non ancora ripartita da /inizio (#5465): Volta lo
+            # scrive appena è ferma. Una scheda senza il campo (spostata prima) non dà niente.
+            if fonte == "persona" and scheda.get("inizio") is False:
+                s["daIniziare"] = s["progetto"]
     except (OSError, ValueError, AttributeError):
         pass
     if s["progetto"] and fonte in FORTI:
@@ -532,8 +544,17 @@ try:
         esci(ok=True, titolo="")
     elif titolo:
         nuovo = {"titolo": valore, "fonte": "persona", "quando": time.time(), "peso": 0, "portato": False}
+    elif a.get("iniziato"):
+        # /inizio scritto nella sessione (#5465): il segno si chiude solo se il progetto è ancora quello
+        if prima.get("fonte") != "persona" or prima.get("progetto") != valore:
+            esci(ok=True, progetto=prima.get("progetto") or "", iniziato=False)
+        nuovo = dict(prima, inizio=True)
     else:
-        nuovo = dict(prima or {"stato": "nuova"}, progetto=valore, fonte="persona", quando=time.time())
+        # inizio False: la sessione deve ancora ripartire da /inizio del progetto nuovo (#5465). Lo
+        # stesso progetto di prima tiene il segno che aveva: la conversazione ha già quel contesto.
+        stesso = prima.get("progetto") == valore
+        nuovo = dict(prima or {"stato": "nuova"}, progetto=valore, fonte="persona", quando=time.time(),
+                     inizio=prima.get("inizio", True) if stesso else False)
     os.makedirs(d, exist_ok=True)
     tmp = "%s.%d.tmp" % (f, os.getpid())
     with open(tmp, "w", encoding="utf-8") as fh:
@@ -543,7 +564,7 @@ except OSError as e:
     esci(errore="non riesco a scrivere: " + str(e)[:160])
 if titolo:
     esci(ok=True, titolo=nuovo["titolo"], portato=bool(nuovo.get("portato")))
-esci(ok=True, progetto=valore)
+esci(ok=True, progetto=valore, iniziato=nuovo.get("inizio") is not False)
 '''
 
 # Gira sulla macchina dove nascerà la sessione, prima di NASCI (#5208). Il servizio di Claude che tiene
@@ -900,6 +921,7 @@ def righe(voci):
                 "interazione": s.get("interazione") or "", "coda": (s.get("coda") or "")[-300:],
                 "chi": s.get("chi") or "", "fineFatta": s.get("fineFatta") is True,
                 "daPortare": s.get("daPortare") if isinstance(s.get("daPortare"), str) else None,
+                "daIniziare": s.get("daIniziare") if isinstance(s.get("daIniziare"), str) else None,
                 # chiusa: in background, senza processo e senza status (dopo claude stop, sonda S1
                 # dell'11/11/2026). Volta non la mostra più; una in errore resta, per Riavvia.
                 "chiusa": fondo and not s.get("pid") and not s.get("status") and stato(s) != "errore",
@@ -1210,6 +1232,22 @@ def congeda(nome, sid_lavoro, session_id, cartella=None, auto=False):
     return {"ok": True, "fermata": bool(fermata.get("ok"))}
 
 
+def inizia(nome, sid_lavoro, session_id, slug, cartella=None):
+    """Una sessione in background spostata in un altro progetto riparte da /inizio di quel progetto
+    (#5465, Federico 12/11/2026). Come il congedo: claude stop, poi la stessa conversazione ripresa
+    col solo /inizio. Volta lo chiede solo a sessione ferma e senza una scheda che la mostri: con la
+    scheda aperta scrive /inizio lì dentro. Il progetto non passa a nasci, che riscriverebbe la scheda."""
+    if not ID.fullmatch(sid_lavoro or "") or not ID.fullmatch(session_id or ""):
+        return {"errore": "id di sessione non valido"}
+    if not SLUG.fullmatch(slug or ""):
+        return {"errore": "il progetto è uno slug: minuscole, numeri e trattini, al più 40 caratteri"}
+    ferma = azione(nome, "stop", sid_lavoro)  # già ferma risponde con un errore: si va avanti
+    r = nasci(nome, "/inizio %s" % slug, None, cartella, riprendi=session_id, stessa=True)
+    if r.get("errore") and not str(r["errore"]).startswith("è partita"):
+        return {"errore": r["errore"], "fermata": bool(ferma.get("ok"))}
+    return {"ok": True, "fermata": bool(ferma.get("ok"))}
+
+
 CAMBI = {"rinomina": "titolo", "progetto": "scheda"}
 SLUG = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
 NOME_LUNGO = 60
@@ -1235,8 +1273,10 @@ def cambia(nome, verbo, sid, valore="", portato=False):
             return {"errore": "il progetto è uno slug: minuscole, numeri e trattini, al più 40 caratteri"}
     else:
         valore = nome_pulito(valore)
-    arg = base64.b64encode(json.dumps({"cosa": CAMBI[verbo], "sessionId": sid, "valore": valore,
-                                       "portato": bool(portato)}).encode()).decode()
+    # `portato` vale per tutti e due: il nome che Claude Code ha già (/rename), il progetto da cui la
+    # sessione è già ripartita (/inizio, #5465)
+    segno = {"portato": bool(portato)} if verbo == "rinomina" else {"iniziato": bool(portato)}
+    arg = base64.b64encode(json.dumps(dict({"cosa": CAMBI[verbo], "sessionId": sid, "valore": valore}, **segno)).encode()).decode()
     if nome in (None, "", "qui"):
         tentativi = [[sys.executable, "-c", SCRIVI, arg]]
     else:
@@ -1260,14 +1300,15 @@ def cambia(nome, verbo, sid, valore="", portato=False):
 
 
 def main_cambia(verbo, argv):
-    """rinomina MACCHINA SESSIONID [--portato] [-- NOME] e progetto MACCHINA SESSIONID -- SLUG."""
+    """rinomina MACCHINA SESSIONID [--portato] [-- NOME] e progetto MACCHINA SESSIONID [--iniziato] -- SLUG."""
     resto = argv[argv.index("--") + 1:] if "--" in argv else []
     testa = argv[:argv.index("--")] if "--" in argv else argv
-    portato = verbo == "rinomina" and "--portato" in testa
-    testa = [a for a in testa if a != "--portato"]
+    segno = "--portato" if verbo == "rinomina" else "--iniziato"
+    portato = segno in testa
+    testa = [a for a in testa if a != segno]
     if len(testa) != 2 or any(x.startswith("--") for x in testa) or (verbo == "progetto" and len(resto) != 1):
         print("uso: volta_sonda.py rinomina <macchina> <sessionId> [--portato] [-- <nome>]\n"
-              "     volta_sonda.py progetto <macchina> <sessionId> -- <slug>")
+              "     volta_sonda.py progetto <macchina> <sessionId> [--iniziato] -- <slug>")
         return 2
     esito = cambia(testa[0], verbo, testa[1], " ".join(resto), portato)
     print(json.dumps(esito, ensure_ascii=True))
@@ -1312,7 +1353,10 @@ OPZIONI_COPIA = ("--progetto", "--cartella", "--titolo")
 
 
 def main_copia(verbo, argv):
-    """duplica MACCHINA e fork MACCHINA SESSIONID, con --progetto, --cartella e --titolo."""
+    """duplica MACCHINA e fork MACCHINA SESSIONID, con --progetto, --cartella e --titolo. Duplica
+    prende anche `-- PROMPT`: in un progetto Volta le passa /inizio (#5465)."""
+    prompt = " ".join(argv[argv.index("--") + 1:]) if "--" in argv and verbo == "duplica" else ""
+    argv = argv[:argv.index("--")] if "--" in argv else argv
     opz, resto, i = {}, [], 0
     while i < len(argv):
         if argv[i] in OPZIONI_COPIA and i + 1 < len(argv):
@@ -1324,12 +1368,12 @@ def main_copia(verbo, argv):
     attesi = 2 if verbo == "fork" else 1
     if len(resto) != attesi or any(x.startswith("--") for x in resto):
         print("uso: volta_sonda.py %s <macchina>%s [--progetto <slug>] [--cartella <dir>]%s"
-              % (verbo, " <sessionId>" if verbo == "fork" else "", " [--titolo <nome>]" if verbo == "fork" else ""))
+              % (verbo, " <sessionId>" if verbo == "fork" else "", " [--titolo <nome>]" if verbo == "fork" else " [-- <prompt>]"))
         return 2
     if verbo == "fork":
         esito = nasci(resto[0], "", opz.get("progetto"), opz.get("cartella"), resto[1], opz.get("titolo"))
     else:
-        esito = nasci(resto[0], "", opz.get("progetto"), opz.get("cartella"))
+        esito = nasci(resto[0], prompt, opz.get("progetto"), opz.get("cartella"))
     print(json.dumps(esito, ensure_ascii=False))
     return 0 if "errore" not in esito else 1
 
@@ -1371,6 +1415,16 @@ def main(argv):
             print("uso: volta_sonda.py congeda <macchina> <id> <sessionId> [--cartella <dir>] [--auto]")
             return 2
         esito = congeda(resto[0], resto[1], resto[2], cartella, auto)
+        print(json.dumps(esito, ensure_ascii=True))
+        return 0 if "errore" not in esito else 1
+    if argv and argv[0] == "inizia":
+        resto = argv[1:]
+        cartella = resto[resto.index("--cartella") + 1] if "--cartella" in resto[:-1] else None
+        resto = [a for i, a in enumerate(resto) if a != "--cartella" and (i == 0 or resto[i - 1] != "--cartella")]
+        if len(resto) != 4:
+            print("uso: volta_sonda.py inizia <macchina> <id> <sessionId> <progetto> [--cartella <dir>]")
+            return 2
+        esito = inizia(resto[0], resto[1], resto[2], resto[3], cartella)
         print(json.dumps(esito, ensure_ascii=True))
         return 0 if "errore" not in esito else 1
     if argv and argv[0] == "azione":
