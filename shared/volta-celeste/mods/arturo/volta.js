@@ -446,13 +446,13 @@ export class Volta {
     // Al più 160 px (GESTI_MAX): un'anteprima lunga scorre nel riquadro e non spinge via i progetti.
     return v_flex().id("volta-gesti").max_h(GESTI_MAX).flex_none().overflow_y_scroll().mx(8).mt(2).px(10).py(8).gap(6).rounded(8).border_1().border_color(t.border)
       .child(h_flex().gap(6).items_start()
-        .child(div().flex_1().min_w(0).truncate().text_size(12.5).font_semibold().text_color(t.foreground).child(titolo(s)))
+        .child(div().id("volta-gesti-titolo").flex_1().min_w(0).truncate().text_size(12.5).font_semibold().text_color(t.foreground).child(titolo(s)))
         .child(div().id("volta-gesti-chiudi").px(6).rounded(6).cursor_pointer().text_size(12).text_color(t.dim)
           .hover((st) => st.bg(t.selected))
           .on_click((_e, cx) => { this.menu = null; cx.notify(); })
           .child("Chiudi")))
       .child(this.gesti(t, s, az))
-      .when(Boolean(avviso), (el) => el.child(div().whitespace_normal().text_size(12.5).text_color(t.foreground).child(avviso)));
+      .when(Boolean(avviso), (el) => el.child(div().id("volta-gesti-avviso").whitespace_normal().text_size(12.5).text_color(t.foreground).child(avviso)));
   }
 
   riga(t, s, modo, cx) {
@@ -500,14 +500,14 @@ export class Volta {
           .child(div().pt(6).child(vivo || sposto || apro || lavoro || this.veglio[s.sessionId] ? punto(colore(t, d.colore)) : div().size(8).flex_none()))
           .child(v_flex().flex_1().min_w(0).gap(2)
             // Un titolo scritto (al più 60 caratteri) va a capo su due righe; gli altri si tagliano.
-            .child((s.titolo ? div().whitespace_normal() : div().truncate()).text_size(14).text_color(s.vecchia ? t.muted : t.foreground).child(titolo(s)))
-            .child(div().truncate().text_size(12.5).text_color(colore(t, d.colore)).child(d.testo))))
+            .child((s.titolo ? div().whitespace_normal() : div().truncate()).id(`vt-${s.host}-${s.id}`).text_size(14).text_color(s.vecchia ? t.muted : t.foreground).child(titolo(s)))
+            .child(div().id(`vd-${s.host}-${s.id}`).truncate().text_size(12.5).text_color(colore(t, d.colore)).child(d.testo))))
         .when(az.length > 0, (el) => el.child(div().id(`va-${s.host}-${s.id}`).mt(2).px(6).py(1).rounded(6).cursor_pointer()
           .text_size(12).text_color(aperto ? t.foreground : t.dim).hover((st) => st.bg(t.selected))
           .on_click((_e, cx) => { this.menu = aperto ? null : s.sessionId; cx.notify(); })
           .child("Altro")))
         .when(Boolean(x), (el) => el.child(x)))
-      .when(Boolean(avviso) && !aperto, (el) => el.child(div().pl(19).whitespace_normal().text_size(12.5).text_color(t.foreground).child(avviso)));
+      .when(Boolean(avviso) && !aperto, (el) => el.child(div().id(`vw-${s.host}-${s.id}`).pl(19).whitespace_normal().text_size(12.5).text_color(t.foreground).child(avviso)));
   }
 
   interruttore(t) {
@@ -529,9 +529,9 @@ export class Volta {
     const mostra = tutte ? g.sessioni : vive;
     return v_flex().gap(1)
       .child(h_flex().px(18).pb(2).gap(6).items_center()
-        .child(div().flex_1().truncate().text_size(12).text_color(t.foreground).child(g.titolo))
-        .when(g.sessioni.length > 0, (el) => el.child(div().text_size(12).text_color(t.dim).child(String(g.sessioni.length)))))
-      .when(Boolean(g.nota), (el) => el.child(div().px(18).pb(2).text_size(12).text_color(t.dim).child(g.nota)))
+        .child(div().id(`vgt-${g.chiave || "senza"}`).flex_1().truncate().text_size(12).text_color(t.foreground).child(g.titolo))
+        .when(g.sessioni.length > 0, (el) => el.child(div().id(`vgn-${g.chiave || "senza"}`).text_size(12).text_color(t.dim).child(String(g.sessioni.length)))))
+      .when(Boolean(g.nota), (el) => el.child(div().id(`vgo-${g.chiave || "senza"}`).px(18).pb(2).text_size(12).text_color(t.dim).child(g.nota)))
       .children(mostra.map((s) => this.riga(t, s, modo, cx)))
       .when(ferme.length > 0 && (vive.length > 0 || ferme.length > 2), (el) => el.child(h_flex().id(`vf-${g.chiave || "senza"}`).mx(8).px(10).py(5).gap(8).items_center().rounded(8).cursor_pointer()
         .hover((st) => st.bg(t.hover))
@@ -551,14 +551,14 @@ export class Volta {
     const testa = h_flex().px(18).pb(4).gap(8).items_center()
       .child(h_flex().id("volta-testa").flex_1().gap(6).items_center().cursor_pointer()
         .on_click(() => setShared("arturo.volta.chiusa", !chiusa))
-        .child(div().text_size(12.5).font_semibold().text_color(t.muted).child("Tutte le sessioni"))
-        .when(tot > 0, (el) => el.child(div().text_size(12).text_color(t.dim).child(String(tot))))
+        .child(div().id("volta-titolo").text_size(12.5).font_semibold().text_color(t.muted).child("Tutte le sessioni"))
+        .when(tot > 0, (el) => el.child(div().id("volta-conto").text_size(12).text_color(t.dim).child(String(tot))))
         .child(svg(ICONA(chiusa ? "chevron-right" : "chevron-down")).size(12).text_color(t.dim)));
     const tt = tetti(shared("arturo.misura.barra")?.altezza, (shared("arturo.misura.cima")?.altezza ?? NaN) + (this.menu ? GESTI_MAX : 0));
     let corpo;
     if (chiusa) corpo = null;
-    else if (!this.dati) corpo = div().px(18).py(4).text_size(13).text_color(t.muted).child(this.errore ? "Non riesco a leggere le sessioni delle macchine." : "Leggo le sessioni delle macchine…");
-    else if (!lista.length) corpo = div().px(18).py(4).text_size(13).text_color(t.muted).child("Nessuna sessione aperta.");
+    else if (!this.dati) corpo = div().id("volta-vuoto").px(18).py(4).text_size(13).text_color(t.muted).child(this.errore ? "Non riesco a leggere le sessioni delle macchine." : "Leggo le sessioni delle macchine…");
+    else if (!lista.length) corpo = div().id("volta-vuoto").px(18).py(4).text_size(13).text_color(t.muted).child("Nessuna sessione aperta.");
     // Un elenco suo, col tetto di tetti() (sessioni.js): i progetti sotto restano a vista. Con "Altro"
     // aperto il riquadro dei gesti sta sotto l'elenco: il suo tetto si toglie da quello dell'elenco.
     // overflow_y_scroll e non overflow_y_scrollbar, che avvolge l'elenco in un contenitore a cui max_h
@@ -574,7 +574,7 @@ export class Volta {
         .on_click(() => setShared("arturo.microfono.spento", shared("arturo.microfono.spento") !== true))
         .child(svg("mods/arturo/microfono.svg").size(12).text_color(r.avviso ? t.blocked : t.accent))
         .child(div().text_size(12).text_color(r.avviso ? t.blocked : t.muted).child(r.testo))); })
-      .when(Boolean(vecchio) && !chiusa, (el) => el.child(div().px(18).text_size(12).text_color(t.blocked).child(vecchio)))
+      .when(Boolean(vecchio) && !chiusa, (el) => el.child(div().id("volta-vecchio").px(18).text_size(12).text_color(t.blocked).child(vecchio)))
       .when(Boolean(corpo), (el) => el.child(corpo))
       .when(Boolean(gesti), (el) => el.child(gesti));
   }

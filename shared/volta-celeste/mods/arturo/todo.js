@@ -122,11 +122,11 @@ export class Todo {
         .on_click((_e, cx) => { if (!fatto) this.fatto(item, cx); })
         .when(fatto, (el) => el.child(svg(ICONA("check")).size(13).text_color(t.background))))
       .child(v_flex().flex_1().min_w(0).gap(3)
-        .child(div().whitespace_normal().text_size(13.5).text_color(fatto ? t.dim : t.foreground).child(titoloTodo(item.titolo)))
-        .when(Boolean(lavoro), (el) => el.child(h_flex().gap(6).items_center()
+        .child(div().id(`tt-${item.id}`).whitespace_normal().text_size(13.5).text_color(fatto ? t.dim : t.foreground).child(titoloTodo(item.titolo)))
+        .when(Boolean(lavoro), (el) => el.child(h_flex().id(`tl-${item.id}`).gap(6).items_center()
           .child(div().size(7).flex_none().rounded_full().bg(colore(t, lavoro.colore)))
           .child(div().text_size(12).text_color(colore(t, lavoro.colore)).child(lavoro.testo))))
-        .when(Boolean(quando), (el) => el.child(div().text_size(12).text_color(scaduto ? t.blocked : t.muted).child(quando))))
+        .when(Boolean(quando), (el) => el.child(div().id(`tq-${item.id}`).text_size(12).text_color(scaduto ? t.blocked : t.muted).child(quando))))
       .when(sopra && !fatto, (el) => el.child(div().id(`l-${item.id}`).flex_none().px(9).py(4).rounded(6).cursor_pointer()
         .text_size(12).text_color(t.accent).border_1().border_color(t.border)
         .hover((s) => s.bg(t.selected))
@@ -145,8 +145,8 @@ export class Todo {
       .child(h_flex().id(`g-${tipo}`).px(10).py(6).gap(8).items_center().rounded(6).cursor_pointer()
         .hover((s) => s.bg(t.hover))
         .on_click((_e, cx) => { this.aperti[tipo] = !aperto; cx.notify(); })
-        .child(div().flex_1().text_size(13).font_semibold().text_color(tipo === "tu" ? t.blocked : t.foreground).child(PAROLE[tipo]))
-        .child(div().text_size(12).text_color(t.muted).child(String(lista.length)))
+        .child(div().id(`gt-${tipo}`).flex_1().text_size(13).font_semibold().text_color(tipo === "tu" ? t.blocked : t.foreground).child(PAROLE[tipo]))
+        .child(div().id(`gn-${tipo}`).text_size(12).text_color(t.muted).child(String(lista.length)))
         .child(svg(ICONA(aperto ? "chevron-down" : "chevron-right")).size(13).text_color(t.dim)))
       .when(aperto, (el) => el.children(lista.map((x) => this.riga(t, x))));
   }
@@ -158,9 +158,9 @@ export class Todo {
     const { todo: item, motivo, poi } = p;
     const lavoro = this.lavoro(item);
     return v_flex().id("partenza").px(12).py(12).gap(8).rounded(8).border_1().border_color(t.accent)
-      .child(div().text_size(12).font_semibold().text_color(t.accent).child("Da dove partire"))
-      .child(div().whitespace_normal().text_size(14).text_color(t.foreground).child(titoloTodo(item.titolo)))
-      .when(Boolean(motivo) && !lavoro, (el) => el.child(div().whitespace_normal().text_size(12.5).text_color(t.muted).child(motivo)))
+      .child(div().id("partenza-titolo").text_size(12).font_semibold().text_color(t.accent).child("Da dove partire"))
+      .child(div().id("partenza-todo").whitespace_normal().text_size(14).text_color(t.foreground).child(titoloTodo(item.titolo)))
+      .when(Boolean(motivo) && !lavoro, (el) => el.child(div().id("partenza-motivo").whitespace_normal().text_size(12.5).text_color(t.muted).child(motivo)))
       .when(Boolean(lavoro), (el) => el.child(div().whitespace_normal().text_size(12.5).text_color(colore(t, lavoro.colore)).child(lavoro.testo)))
       .child(h_flex().child(div().id("partenza-lavoraci").px(12).py(6).rounded(6).cursor_pointer()
         .bg(t.accent).text_color(t.accent_foreground).text_size(13).font_semibold()
@@ -175,7 +175,7 @@ export class Todo {
   }
 
   vuoto(t, testo) {
-    return div().px(16).py(10).whitespace_normal().text_size(13).text_color(t.muted).child(testo);
+    return div().id("todo-vuoto").px(16).py(10).whitespace_normal().text_size(13).text_color(t.muted).child(testo);
   }
 
   render() {

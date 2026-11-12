@@ -22,7 +22,7 @@ export class Marchio {
     const mac = window()?.platform === "macos" && !window()?.fullscreen;
     return h_flex().size_full().bg(t.chrome).pl(mac ? 84 : 18).pr(14).gap(10).items_center()
       .child(aspetta ? stella.loop("opacity", { from: 0.3, to: 1, period: 1100 }) : stella)
-      .child(div().font_family("Arturo Archivo").text_size(17).text_color(t.foreground).child("Volta Celeste"));
+      .child(div().id("marchio-nome").font_family("Arturo Archivo").text_size(17).text_color(t.foreground).child("Volta Celeste"));
   }
 }
 
@@ -150,8 +150,8 @@ export class Barra {
       .on_click(() => apri(p.chiave))
       .child(div().pt(6).child(vivo ? punto(colore(t, f.colore)) : p.aperto ? punto(t.idle) : div().size(8).flex_none()))
       .child(v_flex().flex_1().min_w(0).gap(2)
-        .child(div().truncate().text_size(14).text_color(t.foreground).when(attivo, (d) => d.font_semibold()).child(p.titolo))
-        .child(div().truncate().text_size(12.5).text_color(colore(t, f.colore)).child(f.testo)));
+        .child(div().id(`pt-${p.chiave}`).truncate().text_size(14).text_color(t.foreground).when(attivo, (d) => d.font_semibold()).child(p.titolo))
+        .child(div().id(`ps-${p.chiave}`).truncate().text_size(12.5).text_color(colore(t, f.colore)).child(f.testo)));
   }
 
   render(cx) {
@@ -162,7 +162,7 @@ export class Barra {
     const tt = tetti(shared("arturo.misura.barra")?.altezza, shared("arturo.misura.cima")?.altezza);
     const corpo = v_flex().id("progetti-elenco").flex_1().min_h(tt.progettiMin).overflow_y_scrollbar().pb(10);
     let contenuto;
-    if (this.vista === null && !this.errore) contenuto = div().px(18).py(6).text_size(13).text_color(t.muted).child("Leggo i tuoi progetti…");
+    if (this.vista === null && !this.errore) contenuto = div().id("progetti-vuoto").px(18).py(6).text_size(13).text_color(t.muted).child("Leggo i tuoi progetti…");
     else if (!lista.length) contenuto = v_flex().px(14).gap(10)
       .child(div().px(4).text_size(13).text_color(t.muted).whitespace_normal()
         .child(this.errore ? "Non riesco a leggere i todo di Arturo. Le conversazioni funzionano lo stesso." : "Non hai ancora progetti. Claude può cercarli sul tuo computer e proporteli."))

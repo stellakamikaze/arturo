@@ -48,7 +48,7 @@ export function nasceSu(t) {
     .on_click(() => setShared("arturo.dove", k))
     .child(testo);
   return h_flex().flex_wrap().gap(2).items_center()
-    .child(div().pr(4).text_size(12).text_color(nascita ? t.working : t.dim).child(nascita ? `Nasce su ${nomeMacchina(nascita)}…` : "Nasce su"))
+    .child(div().id("dove-etichetta").pr(4).text_size(12).text_color(nascita ? t.working : t.dim).child(nascita ? `Nasce su ${nomeMacchina(nascita)}…` : "Nasce su"))
     .child(voce("qui", "questa macchina", false))
     .children(altre.map((m) => voce(m.host, m.macchina, m.giu)));
 }

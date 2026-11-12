@@ -29,8 +29,8 @@ export function voce(t, sug, prima, dopo) {
     // chiuso ferma il suo codice al primo await, e il benvenuto sparisce appena nasce uno spazio: una
     // sessione fatta nascere da qui restava a metà (11/11/2026).
     .on_click(() => { if (sug.dove === "apri") apriFinestra(); else run(comandoSuggerimento(sug.id)); dopo?.(); })
-    .child(div().text_size(14).font_semibold().text_color(t.foreground).child(sug.titolo))
-    .child(div().whitespace_normal().text_size(12.5).text_color(t.muted).child(sug.testo));
+    .child(div().id(`st-${sug.id}`).text_size(14).font_semibold().text_color(t.foreground).child(sug.titolo))
+    .child(div().id(`sx-${sug.id}`).whitespace_normal().text_size(12.5).text_color(t.muted).child(sug.testo));
 }
 
 export class Chiedi {
