@@ -558,3 +558,29 @@ export function rigaMod(m, adesso = Date.now()) {
   const giorno = d.toDateString() === oggi.toDateString() ? "" : `${d.getDate()}/${d.getMonth() + 1} `;
   return { testo: `mod ${m.corta} · ${giorno}${due(d.getHours())}:${due(d.getMinutes())}` };
 }
+
+// Le animazioni delle righe (#5410). Le sessioni nuove fra due letture: entrano in dissolvenza. Alla prima
+// lettura niente, altrimenti tutto l'elenco entrerebbe insieme all'apertura della finestra.
+export function entrate(prima, dopo) {
+  if (!prima?.sessioni) return [];
+  const viste = new Set(prima.sessioni.map((s) => s.sessionId));
+  return (dopo?.sessioni ?? []).map((s) => s.sessionId).filter((k) => k && !viste.has(k));
+}
+
+// I tempi: una riga entra in 180 ms e se ne va in 140 (uscire costa meno che entrare). Le righe di un
+// gruppo che si apre entrano una dopo l'altra, 30 ms fra l'una e l'altra, al più 120 ms in tutto.
+export const ENTRA = { duration: 180, easing: "ease-out" };
+export const ESCE = { duration: 140, easing: "ease-in" };
+export const SCALA_MS = 30;
+export const SCALA_MAX = 120;
+
+// Opacità e transizione di una riga. `entra`: { fase, ritardo } di una riga che entra, o undefined. In fase
+// "prima" la riga disegna 0 senza transizione, così il motore parte da lì; in fase "via" chiede 1 con ENTRA
+// e il ritardo della scala. `esce`: la riga se ne va, verso 0 con ESCE.
+export function motoRiga(entra, esce) {
+  if (esce) return { opacita: 0, politica: ESCE };
+  if (entra?.fase === "prima") return { opacita: 0, politica: null };
+  if (entra?.fase === "via") return { opacita: 1, politica: { ...ENTRA, delay: entra.ritardo ?? 0 } };
+  return { opacita: 1, politica: ENTRA };
+}
+export const ritardo = (i) => Math.min(i * SCALA_MS, SCALA_MAX);

@@ -5,7 +5,7 @@
 import { div, image } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import { theme, props, closeOverlay, openOverlay, setShared } from "herdr";
-import { punto, tasti } from "./comuni.js";
+import { punto, tasti, segno } from "./comuni.js";
 
 // `passo` (da 0) apre la guida a quel punto: "arturo.guida3" dai tasti o da herdr-app do.
 export function apriGuida(passo = 0) {
@@ -92,8 +92,8 @@ export class Guida {
       .when(!forte, (el) => el.border_1().border_color(t.border).text_color(t.foreground).hover((s) => s.bg(t.hover)))
       .on_click((_e, cx) => azione(cx)).child(testo);
     const legenda = h_flex().gap(16).pt(2)
-      .child(h_flex().gap(7).items_center().child(punto(t.blocked)).child(div().text_size(12.5).text_color(t.foreground).child("ti aspetta")))
-      .child(h_flex().gap(7).items_center().child(punto(t.working)).child(div().text_size(12.5).text_color(t.foreground).child("sta lavorando")))
+      .child(h_flex().gap(7).items_center().child(segno(t.blocked, "pulsa")).child(div().text_size(12.5).text_color(t.foreground).child("ti aspetta")))
+      .child(h_flex().gap(7).items_center().child(segno(t.working, "gira")).child(div().text_size(12.5).text_color(t.foreground).child("sta lavorando")))
       .child(h_flex().gap(7).items_center().child(punto(t.done)).child(div().text_size(12.5).text_color(t.foreground).child("ha finito")));
     return v_flex().id("guida").track_focus(this.handle).w_full().p(28).gap(22).bg(t.popover)
       .on_key_down((e, cx) => {

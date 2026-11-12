@@ -7,7 +7,7 @@ import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, panes, focused, layout, shared, setShared, watchFolder, notify, home, nextCommand } from "herdr";
 import { frase, slug, config, statoSpazio, SUGGERIMENTI } from "./dati.js";
 import { PING, daRimandare } from "./comandi.js";
-import { ICONA, punto, pulsante, colore, apriFinestra, apriElenco, tasti, nasceSu } from "./comuni.js";
+import { ICONA, punto, pulsante, colore, apriFinestra, apriElenco, tasti, nasceSu, segno, motoDi } from "./comuni.js";
 import { leggiTutte } from "./notaui.js";
 import { macchinaBreve } from "./sessioni.js";
 import { cartellaNote, progettoNota, contaNote, noteAperte, risposteClaude, risposteNuove } from "./nota.js";
@@ -41,7 +41,7 @@ export class Testata {
           .when(x.active, (el) => el.bg(t.selected).text_color(t.foreground))
           .when(!x.active, (el) => el.text_color(t.muted).hover((st) => st.bg(t.hover)))
           .on_click(() => run("tab.select", { id: x.id }))
-          .when(Boolean(x.status), (el) => el.child(punto(colore(t, frase(x.status).colore), 7)))
+          .when(Boolean(x.status), (el) => el.child(segno(colore(t, frase(x.status).colore), motoDi(frase(x.status).colore, x.status === "blocked"), 7)))
           .child(div().text_size(12.5).child(x.named ? x.name : `Conversazione ${i + 1}`))))
       : null;
     // La macchina dove gira la sessione della scheda aperta (shared arturo.volta.dove di volta.js): una
@@ -63,7 +63,7 @@ export class Testata {
         .child(div().id("testata-titolo").truncate().font_family("Arturo Archivo").text_size(16).text_color(t.foreground)
           .child(s ? (shared("arturo.progetti")?.[slug(s.name)]?.titolo ?? s.name) : "Volta"))
         .when(Boolean(f) || Boolean(macchina), (el) => el.child(h_flex().id("testata-stato").gap(7).items_center()
-          .when(Boolean(f), (e) => e.child(punto(colore(t, f.colore), 7)))
+          .when(Boolean(f), (e) => e.child(segno(colore(t, f.colore), motoDi(f.colore, st === "blocked"), 7)))
           .when(Boolean(macchina), (e) => e.child(div().id("testata-macchina").text_size(12).text_color(t.foreground).child(macchinaBreve(macchina))))
           .when(Boolean(macchina) && Boolean(f), (e) => e.child(div().text_size(12).text_color(t.dim).child("·")))
           .when(Boolean(f), (e) => e.child(div().text_size(12).text_color(colore(t, f.colore)).child(f.testo))))))

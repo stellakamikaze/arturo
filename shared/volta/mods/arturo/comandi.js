@@ -41,6 +41,11 @@ export function instrada(c) {
   if (c === "note") return { verbo: "note", arg: null, lungo: false };
   // "versione": la versione del mod e l'ultimo controllo, in un avviso (prove senza clic).
   if (c === "versione") return { verbo: "versione", arg: null, lungo: false };
+  // "movimento", "movimento-acceso", "movimento-spento": l'interruttore delle animazioni (#5410); il primo
+  // lo gira, gli altri due lo mettono (prove senza clic, herdr-app do).
+  // "impostazioni": il menu di Impostazioni del piede (prove senza clic).
+  if (c === "impostazioni") return { verbo: "impostazioni", arg: null, lungo: false };
+  if (c === "movimento" || c === "movimento-acceso" || c === "movimento-spento") return { verbo: "movimento", arg: c === "movimento" ? null : c.endsWith("acceso"), lungo: false };
   // "volta-gruppi-<macchina|progetto>": l'interruttore dell'elenco.
   if (c === "volta-gruppi-macchina" || c === "volta-gruppi-progetto") return { verbo: "gruppi", arg: dopo("volta-gruppi-"), lungo: false };
   // "volta-nuova": la scheda nuova (⌘T) è una sessione di Claude, non una shell (#5290).

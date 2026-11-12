@@ -2,7 +2,7 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, props, openOverlay, closeOverlay, window, exec, home, setShared } from "herdr";
+import { theme, props, openOverlay, closeOverlay, window, exec, home, shared, setShared, notify, run } from "herdr";
 import { cartellaNota } from "./nota.js";
 import { altreMacchine, dove, nomeMacchina, inNascita } from "./dati.js";
 
@@ -18,6 +18,73 @@ export function tasti() {
 
 // Un pallino di stato disegnato, non un carattere.
 export const punto = (colore, d = 8) => div().size(d).flex_none().rounded_full().bg(colore);
+
+// Il movimento della finestra (#5410): acceso salvo l'interruttore di Impostazioni (shared arturo.movimento,
+// false = spento) o "Riduci movimento" del sistema (shared arturo.movimento.ridotto, lo legge volta.js).
+// Transizioni e molle seguono già da sole "Riduci movimento"; loop e rotazioni no, per questo serve qui.
+export const movimento = () => shared("arturo.movimento") !== false && shared("arturo.movimento.ridotto") !== true;
+
+// Quale movimento ha il segno di uno stato: chi lavora gira, chi ti aspetta pulsa, gli altri stanno fermi.
+// `chiave` è il colore del tema della frase di stato (working, blocked, …), come lo dà dettaglio().
+export const motoDi = (chiave, aspetta = chiave === "blocked") => (chiave === "working" ? "gira" : aspetta ? "pulsa" : null);
+
+// Il segno dello stato al posto del pallino fermo. "gira": una stella a quattro punte che fa un giro ogni
+// 2,4 s, nello stesso posto del pallino (non sposta il testo). "pulsa": il pallino va e viene ogni 2 s,
+// più lento della stella del marchio, che chiama. Senza movimento torna il pallino fermo.
+export const GIRO_MS = 2400;
+
+// L'interruttore: `acceso` true o false lo mette, null lo gira. Lo dice con un avviso breve.
+export function giraMovimento(acceso = null) {
+  const v = acceso === null ? shared("arturo.movimento") === false : Boolean(acceso);
+  setShared("arturo.movimento", v);
+  notify({ title: v ? "Movimento acceso" : "Movimento spento", body: v ? undefined : "Le sessioni tengono il pallino fermo.", level: "info", timeout: 3000 });
+}
+
+// Il menu di "Impostazioni" nel piede: è un popup, cioè un'altra copia del mod (parte "impostazioni").
+export function apriImpostazioni() {
+  openOverlay({ mod: "arturo", props: { parte: "impostazioni" }, kind: "popup", width: 270 });
+}
+
+// Il menu: l'interruttore del movimento, disegnato (la levetta scorre in 140 ms), poi le impostazioni
+// dell'app. Il popup scrive lo shared e si chiude solo per le impostazioni dell'app.
+export class Impostazioni {
+  init(_p, cx) {
+    this.handle = cx.focus_handle();
+    cx.timer.after(120, () => this.handle.focus());
+  }
+  chiudi() { closeOverlay(props().overlay); }
+  render() {
+    const t = theme();
+    const acceso = shared("arturo.movimento") !== false;
+    const ridotto = shared("arturo.movimento.ridotto") === true;
+    const leva = div().relative().w(30).h(18).flex_none().rounded_full().bg(acceso ? t.accent : t.border)
+      .child(div().absolute().top(2).left(acceso ? 14 : 2).size(14).rounded_full().bg(acceso ? t.accent_foreground : t.muted)
+        .transition("left", { duration: 140, easing: "ease-out" }));
+    const voce = (id) => h_flex().id(id).px(10).gap(10).rounded(6).cursor_pointer().hover((st) => st.bg(t.hover))
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation());
+    return v_flex().id("impostazioni-menu").track_focus(this.handle).w_full().p(8).gap(4).bg(t.popover)
+      .on_key_down((e, cx) => { if (e.key === "escape") { this.chiudi(); cx.stop_propagation(); } })
+      .child(voce("imp-movimento").py(8).items_center()
+        .on_click(() => giraMovimento())
+        .child(v_flex().flex_1().min_w(0).gap(2)
+          .child(div().text_size(13).text_color(t.foreground).child("Movimento"))
+          .child(div().whitespace_normal().text_size(12).text_color(t.muted)
+            .child(ridotto ? "Spento da Riduci movimento del Mac." : acceso ? "La stella gira su chi lavora, il pallino pulsa su chi ti aspetta." : "Pallini fermi, righe senza dissolvenza.")))
+        .child(leva))
+      .child(div().h(1).mx(6).bg(t.border))
+      .child(voce("imp-app").h(30).items_center()
+        .on_click(() => { run("app.settings"); this.chiudi(); })
+        .child(div().flex_1().text_size(13).text_color(t.foreground).child("Impostazioni dell'app"))
+        .child(div().text_size(12).text_color(t.dim).child(tasti().impostazioni)));
+  }
+}
+export const PULSA = { from: 0.45, to: 1, period: 2000 };
+export function segno(colore, moto = null, d = 8) {
+  if (!moto || !movimento()) return punto(colore, d);
+  if (moto === "pulsa") return punto(colore, d).loop("opacity", PULSA);
+  return div().size(d).flex_none().flex().items_center().justify_center()
+    .child(svg("mods/arturo/stella-lavora.svg").size(d + 4).flex_none().text_color(colore).spin(GIRO_MS));
+}
 
 // Un pulsante con icona e testo. `forte`: il pulsante principale della barra.
 export function pulsante(id, icona, testo, azione, forte = false) {

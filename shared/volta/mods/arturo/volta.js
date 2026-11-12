@@ -15,9 +15,10 @@
 
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { theme, exec, readTextFile, writeTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals, spaces } from "herdr";
+import { theme, exec, readTextFile, writeTextFile, appHome, home, shared, setShared, watchFolder, notify, focused, terminals, spaces, window } from "herdr";
 import { impostaProgetti, gruppi, mostrate, inAttesa, daCongedare, restanti, registroProva, daQuanto, ordineGiro, statoGiro, passoGiro, sessioneDi, titolo, dettaglio, clic, MODI, azioni, anteprima, nuoveInAttesa, statiCorti, menu, SOLO_MENU, CAMBIA, leggiCambio, progettiNoti, daPortare, nomeProgetto, GESTI_MAX, visibili, sparite, passoCongedo, chiusa } from "./sessioni.js";
-import { ICONA, punto, colore } from "./comuni.js";
+import { entrate, motoRiga, ritardo, fase, ENTRA, ESCE, SCALA_MAX } from "./sessioni.js";
+import { ICONA, punto, colore, segno, motoDi, movimento } from "./comuni.js";
 import { config, apri as apriProgetto, slug, apriSessione, mostra, azioneSessione, copiaSessione, chiudiSchede, cambiaSessione, rinominaSchede, portaNome, spostaScheda, nomiProgetti, esito, altrove, stacca, schedeAgganciate, congedaSessione } from "./dati.js";
 import { schedeDi } from "./dati.js";
 import { apriMenuSessione } from "./menusessione.js";
@@ -67,6 +68,18 @@ const FATTO = { stop: "Fermata: un clic la riapre.", respawn: "Riavviata.", rm: 
   chiudi: "Chiusa: Claude salva con /fine, poi si ferma.", duplica: "Duplicata: la sessione nuova è nella sua scheda.",
   fork: "Copiata: la copia è nella sua scheda." };
 
+// "Riduci movimento" del sistema (Mac: Accessibilità > Schermo), in shared arturo.movimento.ridotto per
+// movimento() di comuni.js. Le transizioni lo seguono già da sole; loop e rotazioni no. Si legge all'avvio:
+// chi lo cambia riapre la finestra o aspetta il mod ricaricato. Altrove resta com'è.
+async function ridotto() {
+  try {
+    if (window()?.platform !== "macos") return;
+    const r = await exec("defaults", ["read", "com.apple.universalaccess", "reduceMotion"], { timeout: 5000 });
+    const v = r.code === 0 && r.stdout.trim() === "1";
+    if (shared("arturo.movimento.ridotto") !== v) setShared("arturo.movimento.ridotto", v);
+  } catch { /* senza defaults resta acceso */ }
+}
+
 async function esiste(p) {
   try { return (await readTextFile(p)) ? p : null; } catch { return null; }
 }
@@ -100,6 +113,9 @@ export class Volta {
     this.micLavora = false;
     this.schede = null;    // { indirizzo: sessione } al giro di prima: una che sparisce è una scheda chiusa
     this.congedo = {};     // sessionId -> true mentre un passo del congedo lavora
+    this.entrano = new Map(); // sessionId -> { fase, ritardo } delle righe che entrano in dissolvenza (#5410)
+    this.escono = {};      // sessionId -> true mentre la riga di una sessione in congedo si dissolve
+    ridotto();
     cx.spawn(async (cx) => {
       // Il Python che installa-herdr.sh ha trovato e scritto in arturo.json: su Windows può essere "python".
       const c = await config();
@@ -112,12 +128,12 @@ export class Volta {
       this.script = sc.elenco;
       this.sposta = sc.sposta;
       if (!this.script) return cx.notify();
-      await this.leggi();
+      await this.leggi(cx);
       cx.notify();
       this.aggiorna(cx);
       // Un'altra Volta (o /teletrasporto) che riscrive il file: lo si rilegge subito.
       try {
-        for (;;) { await watchFolder(this.cartella); await this.leggi(); cx.notify(); }
+        for (;;) { await watchFolder(this.cartella); await this.leggi(cx); cx.notify(); }
       } catch { /* senza cartella resta il timer */ }
     });
     cx.timer.every(OGNI, (cx) => this.aggiorna(cx));
@@ -177,6 +193,7 @@ export class Volta {
   congeda(c, cx) {
     const s = (this.dati?.sessioni ?? []).find((x) => x.sessionId === c.sessionId);
     if (!s || s.tipo !== "background" || chiusa(s) || this.congedi()[c.sessionId]) return;
+    if (!c.uscita && this.esce(s, c, cx)) return;
     const ora = Date.now();
     setShared("arturo.volta.congedi", { ...this.congedi(), [c.sessionId]: { sessionId: s.sessionId, id: s.id, host: s.host, macchina: s.macchina,
       cartella: s.cartella ?? null, titolo: titolo(s), fase: "attende", da: ora, dal: ora,
@@ -184,6 +201,31 @@ export class Volta {
     if (this.menu === s.sessionId) this.menu = null;
     cx.notify();
     this.passiCongedo(cx);
+  }
+
+  // Le righe che entrano (#5410): un disegno a opacità 0, poi 1 con la transizione. `ids` in ordine: la
+  // scala dei ritardi segue l'elenco. Le voci si tolgono a transizione finita, mai a metà (il ritardo fa
+  // parte della transizione: toglierlo prima la farebbe saltare).
+  entra(ids, cx) {
+    if (!ids?.length || !cx || !movimento()) return;
+    ids.forEach((k, i) => this.entrano.set(k, { fase: "prima", ritardo: ritardo(i) }));
+    cx.timer.after(50, (cx) => {
+      for (const k of ids) { const e = this.entrano.get(k); if (e) this.entrano.set(k, { ...e, fase: "via" }); }
+      cx.notify();
+    });
+    cx.timer.after(50 + SCALA_MAX + ENTRA.duration + 60, (cx) => { for (const k of ids) this.entrano.delete(k); cx.notify(); });
+  }
+
+  // La riga di una sessione che va in congedo si dissolve prima di sparire: il congedo vero parte dopo
+  // ESCE. true se la dissolvenza è partita (o è già in corso), e allora il congedo lo rilancia il timer.
+  esce(s, c, cx) {
+    if (!movimento()) return false;
+    const k = s.sessionId;
+    if (this.escono[k]) return true;
+    this.escono[k] = true;
+    cx.notify();
+    cx.timer.after(ESCE.duration + 20, (cx) => { delete this.escono[k]; this.congeda({ ...c, uscita: true }, cx); });
+    return true;
   }
 
   // Un passo per ogni sessione in congedo, dallo stato dell'ultima lettura (passoCongedo di sessioni.js).
@@ -291,13 +333,14 @@ export class Volta {
     if (JSON.stringify(m) !== JSON.stringify(shared("arturo.microfono") ?? null)) { setShared("arturo.microfono", m); cx.notify(); }
   }
 
-  async leggi() {
+  async leggi(cx) {
     const prima = this.dati;
     try {
       const testo = await readTextFile(this.file);
       if (testo) this.dati = JSON.parse(testo);
     } catch { /* un file a metà: resta l'ultima lettura buona */ }
     if (this.dati !== prima) {
+      this.entra(entrate(prima, this.dati), cx);
       for (const s of nuoveInAttesa(prima, this.dati))
         notify({ title: `${titolo(s)} ti aspetta`, body: `Su ${s.macchina}: aprila da Tutte le sessioni.`, level: "info" });
       const st = statiCorti(this.dati);
@@ -333,7 +376,7 @@ export class Volta {
         this.errore = String(e?.message ?? e);
       }
       setShared("arturo.volta.errore", this.errore ?? null);
-      await this.leggi();
+      await this.leggi(cx);
       this.inCorso = false;
       this.passiCongedo(cx);
       cx.notify();
@@ -650,7 +693,11 @@ export class Volta {
         : chiedoRm ? div().text_size(12).text_color(t.blocked).child(rm.conferma)
         : svg(ICONA("x")).size(12).text_color(t.dim)) : null;
     // Il clic sulla riga apre la sessione; "Altro" sta a fianco, fuori dall'area che apre.
+    // Entrata e uscita in dissolvenza (#5410): solo opacità, l'altezza della riga non cambia.
+    const mr = movimento() ? motoRiga(this.entrano.get(k), this.escono[k]) : null;
     return v_flex().id(`vr-${s.host}-${s.id}`).mx(8).px(10).py(7).gap(2).rounded(8).when(aperto, (el) => el.bg(t.hover))
+      .when(Boolean(mr), (el) => el.opacity(mr.opacita))
+      .when(Boolean(mr?.politica), (el) => el.transition("opacity", mr.politica))
       .on_hover((h, cx) => {
         if (h) this.sopra = k;
         else if (this.sopra === k) {
@@ -666,7 +713,7 @@ export class Volta {
         .child(h_flex().id(`v-${s.host}-${s.id}`).flex_1().min_w(0).gap(11).items_start().cursor_pointer()
           // Un clic apre la sessione; il doppio clic sul titolo apre anche il dialogo del nome.
           .on_click((e, cx) => (e?.click_count >= 2 ? this.chiedi(s, "nome") : this.premi(s, cx)))
-          .child(div().pt(6).child(vivo || sposto || apro || lavoro || this.veglio[s.sessionId] ? punto(colore(t, d.colore)) : div().size(8).flex_none()))
+          .child(div().pt(6).child(vivo || sposto || apro || lavoro || this.veglio[s.sessionId] ? segno(colore(t, d.colore), motoDi(d.colore, !sposto && !apro && !lavoro && !this.veglio[s.sessionId] && fase(s) === "stasi")) : div().size(8).flex_none()))
           .child(v_flex().flex_1().min_w(0).gap(2)
             // Un titolo scritto (al più 60 caratteri) va a capo su due righe; gli altri si tagliano.
             .child((s.titolo ? div().whitespace_normal() : div().truncate()).id(`vt-${s.host}-${s.id}`).text_size(14).text_color(s.vecchia ? t.muted : t.foreground).child(titolo(s)))
@@ -711,7 +758,13 @@ export class Volta {
       .children(mostra.map((s) => this.riga(t, s, modo, cx)))
       .when(ferme.length > 0 && (vive.length > 0 || ferme.length > 2), (el) => el.child(h_flex().id(`vf-${g.chiave || "senza"}`).mx(8).px(10).py(5).gap(8).items_center().rounded(8).cursor_pointer()
         .hover((st) => st.bg(t.hover))
-        .on_click((_e, cx) => { this.aperti[g.chiave] = !this.aperti[g.chiave]; cx.notify(); })
+        .on_click((_e, cx) => {
+          const prima = new Set(mostrate(g, this.aperti[g.chiave]).map((s) => s.sessionId));
+          this.aperti[g.chiave] = !this.aperti[g.chiave];
+          // le righe che il gruppo aperto mostra in più entrano una dopo l'altra (#5410)
+          if (this.aperti[g.chiave]) this.entra(mostrate(g, true).map((s) => s.sessionId).filter((k) => !prima.has(k)), cx);
+          cx.notify();
+        })
         .child(svg(ICONA(this.aperti[g.chiave] ? "chevron-down" : "chevron-right")).size(12).text_color(t.dim))
         .child(div().text_size(12.5).text_color(t.muted).child(this.aperti[g.chiave] ? "Nascondi quelle in attesa" : `${ferme.length} in attesa di comando`))));
   }

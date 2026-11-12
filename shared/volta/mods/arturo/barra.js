@@ -4,7 +4,7 @@ import { div, image, svg } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
 import { theme, run, agents, spaces, window, shared, setShared, nextCommand, updates, notify } from "herdr";
 import { todo, progetti, apri, nuova, nuovaScheda, slug, cartelle, progettiMemoria, statiQui, SUGGERIMENTI } from "./dati.js";
-import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco, nasceSu, apriSceltaMacchina, tasti } from "./comuni.js";
+import { ICONA, punto, pulsante, colore, apriFinestra, apriNota, apriElenco, nasceSu, apriSceltaMacchina, tasti, movimento, giraMovimento, apriImpostazioni } from "./comuni.js";
 import { APERTE } from "./nota.js";
 import { apriGuida } from "./guida.js";
 import { apriSuggerimenti, esegui } from "./suggerimenti.js";
@@ -21,7 +21,7 @@ export class Marchio {
     const stella = image("mods/arturo/stella.svg").size(20).flex_none();
     const mac = window()?.platform === "macos" && !window()?.fullscreen;
     return h_flex().size_full().bg(t.chrome).pl(mac ? 84 : 18).pr(14).gap(10).items_center()
-      .child(aspetta ? stella.loop("opacity", { from: 0.3, to: 1, period: 1100 }) : stella)
+      .child(aspetta && movimento() ? stella.loop("opacity", { from: 0.3, to: 1, period: 1100 }) : stella)
       .child(div().id("marchio-nome").font_family("Arturo Archivo").text_size(17).text_color(t.foreground).child("Volta"));
   }
 }
@@ -87,6 +87,8 @@ export class Barra {
     else if (c === "note") apriElenco();
     else if (c === "versione") { const m = shared("arturo.mod"); notify({ title: rigaMod(m)?.testo ?? "Il mod non ha una versione", body: m?.motivo ?? `Ultimo controllo: ${m?.esito ?? "mai"}.`, level: "info" }); }
     else if (c === "gruppi") setShared("arturo.volta.gruppi", arg);
+    else if (c === "movimento") giraMovimento(arg);
+    else if (c === "impostazioni") apriImpostazioni();
     else if (c === "volta-nuova") this.lungo(c, cx, () => nuovaScheda());
     else if (c === "volta-giro") this.volta.giro(arg, cx);
     else if (c === "volta-menu") this.volta.menuId(arg);
@@ -195,7 +197,8 @@ export class Piede {
         .when(aperteNote() > 0, (el) => el.child(div().text_size(12).text_color(t.accent).child(String(aperteNote()))))
         .child(div().text_size(11.5).text_color(t.dim).child(`${tasti().nota} nuova · ${tasti().elenco}`)))
       .child(voce("guida", "mods/arturo/guida.svg", "Guida", () => apriGuida()))
-      .child(voce("impostazioni", "settings", "Impostazioni", () => run("app.settings"))
+      // Un clic apre il menu con l'interruttore del movimento e le impostazioni dell'app (⌘, le apre dirette).
+      .child(voce("impostazioni", "settings", "Impostazioni", () => apriImpostazioni())
         .when(Boolean(rigaMod(shared("arturo.mod"))), (el) => { const r = rigaMod(shared("arturo.mod")); return el.child(div().text_size(11.5).text_color(r.avviso ? t.blocked : t.dim).child(r.testo)); })
         .when(Boolean(updates().app.ready), (el) => el.child(punto(t.accent, 7))));
   }

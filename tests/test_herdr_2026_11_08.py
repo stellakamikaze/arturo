@@ -413,7 +413,7 @@ import tempfile
 import time
 from pathlib import Path
 
-CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93")
+CASI = ("HZ01", "HZ02", "HZ03", "HZ04", "HZ05", "HZ06", "HZ07", "HZ08", "HZ09", "HZ10", "HZ11", "HZ12", "HZ13", "HZ14", "HZ15", "HZ16", "HZ17", "HZ18", "HZ19", "HZ20", "HZ21", "HZ22", "HZ23", "HZ24", "HZ25", "HZ26", "HZ27", "HZ28", "HZ29", "HZ30", "HZ31", "HZ32", "HZ33", "HZ34", "HZ35", "HZ36", "HZ37", "HZ38", "HZ39", "HZ40", "HZ41", "HZ42", "HZ43", "HZ44", "HZ45", "HZ46", "HZ47", "HZ48", "HZ49", "HZ50", "HZ51", "HZ52", "HZ53", "HZ54", "HZ55", "HZ56", "HZ57", "HZ58", "HZ59", "HZ60", "HZ61", "HZ62", "HZ63", "HZ64", "HZ65", "HZ66", "HZ67", "HZ68", "HZ69", "HZ70", "HZ71", "HZ72", "HZ73", "HZ74", "HZ75", "HZ76", "HZ77", "HZ78", "HZ79", "HZ80", "HZ81", "HZ82", "HZ83", "HZ84", "HZ85", "HZ86", "HZ87", "HZ88", "HZ89", "HZ90", "HZ91", "HZ92", "HZ93", "HZ94")
 INSTALLA = Path("shared/volta/installa-herdr.sh")
 HOOK = Path("hooks/herdr-stato.sh")
 # Le opzioni che la scheda aggiunge al comando ssh dell'aggancio (argvScheda di sessioni.js, 11/11/2026):
@@ -6834,9 +6834,92 @@ def hz93(repo: Path, casa: Path) -> str | None:
     return None
 
 
+PROVA_MOTO = r"""
+import * as m from "./sessioni.mjs";
+import { instrada } from "./comandi.mjs";
+const d = (...ids) => ({ sessioni: ids.map((sessionId) => ({ sessionId })) });
+const out = {
+  primaLettura: m.entrate(null, d("a", "b")),
+  nuove: m.entrate(d("a", "b"), d("b", "c", "a", "d")),
+  senzaId: m.entrate(d("a"), { sessioni: [{ sessionId: "" }, { sessionId: "e" }] }),
+  prima: m.motoRiga({ fase: "prima", ritardo: 60 }, false),
+  via: m.motoRiga({ fase: "via", ritardo: 60 }, false),
+  ferma: m.motoRiga(undefined, false),
+  esce: m.motoRiga({ fase: "via", ritardo: 0 }, true),
+  scala: [0, 1, 2, 3, 4, 9].map(m.ritardo),
+  tempi: [m.ENTRA.duration, m.ESCE.duration, m.SCALA_MAX],
+  comandi: ["movimento", "movimento-acceso", "movimento-spento", "impostazioni"].map((c) => instrada(c)),
+};
+console.log(JSON.stringify(out));
+"""
+
+
+def hz94(repo: Path, casa: Path) -> str | None:
+    """Le animazioni di Volta (#5410): la stella che gira, il pallino che pulsa, le righe in dissolvenza e
+    l'interruttore del movimento, che spegne tutto e segue "Riduci movimento" del Mac."""
+    mod = repo / "shared/volta/mods/arturo"
+    if not (mod / "stella-lavora.svg").is_file():
+        return "manca stella-lavora.svg, il segno di chi lavora"
+    cj = (mod / "comuni.js").read_text(encoding="utf-8")
+    for pezzo in ('export const movimento = () => shared("arturo.movimento") !== false && shared("arturo.movimento.ridotto") !== true;',
+                  "if (!moto || !movimento()) return punto(colore, d);", '.spin(GIRO_MS)', 'punto(colore, d).loop("opacity", PULSA)',
+                  'run("app.settings")', 'setShared("arturo.movimento", v);'):
+        if pezzo not in cj:
+            return f"comuni.js non ha più: {pezzo}"
+    vj = (mod / "volta.js").read_text(encoding="utf-8")
+    for pezzo in ("const mr = movimento() ? motoRiga(this.entrano.get(k), this.escono[k]) : null;",
+                  "if (!c.uscita && this.esce(s, c, cx)) return;", "this.congeda({ ...c, uscita: true }, cx);",
+                  "if (!ids?.length || !cx || !movimento()) return;", "this.entra(entrate(prima, this.dati), cx);",
+                  '"com.apple.universalaccess", "reduceMotion"', 'segno(colore(t, d.colore), motoDi(d.colore,', 'fase(s) === "stasi")'):
+        if pezzo not in vj:
+            return f"volta.js non ha più: {pezzo}"
+    esce = vj[vj.find("  esce(s, c, cx) {"):]
+    esce = esce[:esce.find("\n  }\n")]
+    if "if (!movimento()) return false;" not in esce:
+        return "esce() ritarda il congedo anche col movimento spento"
+    bj = (mod / "barra.js").read_text(encoding="utf-8")
+    if 'else if (c === "impostazioni") apriImpostazioni();' not in bj:
+        return "barra.js non apre il menu di Impostazioni col comando arturo.impostazioni"
+    if 'aspetta && movimento() ? stella.loop(' not in bj or "apriImpostazioni()" not in bj or 'c === "movimento") giraMovimento(arg)' not in bj:
+        return "barra.js: la stella del marchio pulsa anche col movimento spento, o Impostazioni non apre l'interruttore"
+    mj = (mod / "main.js").read_text(encoding="utf-8")
+    if "impostazioni: Impostazioni" not in mj:
+        return "main.js non conosce la parte impostazioni"
+    node = shutil.which("node")
+    if not node:
+        return None
+    puro = casa / "puro"
+    puro.mkdir()
+    shutil.copyfile(mod / "sessioni.js", puro / "sessioni.mjs")
+    shutil.copyfile(mod / "comandi.js", puro / "comandi.mjs")
+    (puro / "prova.mjs").write_text(PROVA_MOTO, encoding="utf-8")
+    r = subprocess.run([node, str(puro / "prova.mjs")], capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        return f"sessioni.js o comandi.js non girano: {(r.stderr or r.stdout).strip()[-200:]}"
+    o = json.loads(r.stdout.strip().splitlines()[-1])
+    if o["primaLettura"] != [] or o["nuove"] != ["c", "d"] or o["senzaId"] != ["e"]:
+        return f"entrate() sbaglia le righe nuove: {o['primaLettura']} {o['nuove']} {o['senzaId']}"
+    if o["prima"] != {"opacita": 0, "politica": None}:
+        return f"una riga che entra non parte da 0 senza transizione: {o['prima']}"
+    if o["via"] != {"opacita": 1, "politica": {"duration": 180, "easing": "ease-out", "delay": 60}}:
+        return f"una riga che entra non va a 1 col suo ritardo: {o['via']}"
+    if o["ferma"]["opacita"] != 1 or o["esce"]["opacita"] != 0 or o["esce"]["politica"]["easing"] != "ease-in":
+        return f"motoRiga() sbaglia riga ferma o riga che esce: {o['ferma']} {o['esce']}"
+    if o["scala"] != [0, 30, 60, 90, 120, 120]:
+        return f"la scala dei ritardi non si ferma a 120 ms: {o['scala']}"
+    entra, esce_ms, scala = o["tempi"]
+    if not (esce_ms < entra <= 300 and entra + scala <= 300):
+        return f"tempi fuori dal tetto (uscita più corta dell'entrata, tutto entro 300 ms): {o['tempi']}"
+    attesi = [{"verbo": "movimento", "arg": None, "lungo": False}, {"verbo": "movimento", "arg": True, "lungo": False},
+              {"verbo": "movimento", "arg": False, "lungo": False}, {"verbo": "impostazioni", "arg": None, "lungo": False}]
+    if o["comandi"] != attesi:
+        return f"instrada() non conosce i comandi del movimento: {o['comandi']}"
+    return None
+
+
 Date_T = 1794484800000  # 2026-11-12T12:00:00Z, lo stesso T di PROVA_AUTO
 
-PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93}
+PROVE = {"HZ01": hz01, "HZ02": hz02, "HZ03": hz03, "HZ04": hz04, "HZ05": hz05, "HZ06": hz06, "HZ07": hz07, "HZ08": hz08, "HZ09": hz09, "HZ10": hz10, "HZ11": hz11, "HZ12": hz12, "HZ13": hz13, "HZ14": hz14, "HZ15": hz15, "HZ16": hz16, "HZ17": hz17, "HZ18": hz18, "HZ19": hz19, "HZ20": hz20, "HZ21": hz21, "HZ22": hz22, "HZ23": hz23, "HZ24": hz24, "HZ25": hz25, "HZ26": hz26, "HZ27": hz27, "HZ28": hz28, "HZ29": hz29, "HZ30": hz30, "HZ31": hz31, "HZ32": hz32, "HZ33": hz33, "HZ34": hz34, "HZ35": hz35, "HZ36": hz36, "HZ37": hz37, "HZ38": hz38, "HZ39": hz39, "HZ40": hz40, "HZ41": hz41, "HZ42": hz42, "HZ43": hz43, "HZ44": hz44, "HZ45": hz45, "HZ46": hz46, "HZ47": hz47, "HZ48": hz48, "HZ49": hz49, "HZ50": hz50, "HZ51": hz51, "HZ52": hz52, "HZ53": hz53, "HZ54": hz54, "HZ55": hz55, "HZ56": hz56, "HZ57": hz57, "HZ58": hz58, "HZ59": hz59, "HZ60": hz60, "HZ61": hz61, "HZ62": hz62, "HZ63": hz63, "HZ64": hz64, "HZ65": hz65, "HZ66": hz66, "HZ67": hz67, "HZ68": hz68, "HZ69": hz69, "HZ70": hz70, "HZ71": hz71, "HZ72": hz72, "HZ73": hz73, "HZ74": hz74, "HZ75": hz75, "HZ76": hz76, "HZ77": hz77, "HZ78": hz78, "HZ79": hz79, "HZ80": hz80, "HZ81": hz81, "HZ82": hz82, "HZ83": hz83, "HZ84": hz84, "HZ85": hz85, "HZ86": hz86, "HZ87": hz87, "HZ88": hz88, "HZ89": hz89, "HZ90": hz90, "HZ91": hz91, "HZ92": hz92, "HZ93": hz93, "HZ94": hz94}
 
 
 def prova(repo: Path, solo: str | None = None) -> list[str]:
@@ -6855,6 +6938,11 @@ def prova(repo: Path, solo: str | None = None) -> list[str]:
 
 
 VELENI = [
+    ('HZ94', 'shared/volta/mods/arturo/sessioni.js', '.filter((k) => k && !viste.has(k));', '.filter((k) => k);'),
+    ('HZ94', 'shared/volta/mods/arturo/sessioni.js', 'export const ESCE = { duration: 140, easing: "ease-in" };', 'export const ESCE = { duration: 400, easing: "ease-in" };'),
+    ('HZ94', 'shared/volta/mods/arturo/comuni.js', 'if (!moto || !movimento()) return punto(colore, d);', 'if (!moto) return punto(colore, d);'),
+    ('HZ94', 'shared/volta/mods/arturo/volta.js', 'if (!c.uscita && this.esce(s, c, cx)) return;', 'if (this.esce(s, c, cx)) return;'),
+    ('HZ94', 'shared/volta/mods/arturo/volta.js', '    if (!movimento()) return false;\n    const k = s.sessionId;', '    const k = s.sessionId;'),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  if (s.chi !== "claude" || chiede(s.coda)) return "stasi";', '  if (chiede(s.coda)) return "stasi";'),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  /\\b(scrivimi|scrivi|dimmi|', '  /\\b(xscrivimi|xscrivi|dimmi|'),
     ('HZ92', 'shared/volta/mods/arturo/sessioni.js', '  /prossimo passo:[^\\n]*(\\btu\\b|\\btuo\\b|\\btua\\b|\\bfederico\\b|\\(tu\\))/i,\n', ''),
